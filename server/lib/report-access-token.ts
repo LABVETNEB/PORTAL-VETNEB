@@ -2,9 +2,21 @@ import { z } from "zod";
 import type {
   Report,
   ReportAccessToken,
-  ReportStatus,
 } from "../../drizzle/schema.ts";
 import { serializeSafeReport } from "./reports.ts";
+import {
+  canAccessReportPublicly,
+  getReportAccessTokenState,
+  isReportAccessTokenExpired,
+  isReportAccessTokenRevoked,
+} from "../features/report-access/domain/index.ts";
+
+export {
+  canAccessReportPublicly,
+  getReportAccessTokenState,
+  isReportAccessTokenExpired,
+  isReportAccessTokenRevoked,
+};
 
 const rawTokenPattern = /^[a-f0-9]{64}$/i;
 
@@ -88,38 +100,6 @@ export function parseEntityId(value: unknown): number | undefined {
 
 export function buildValidationError(error: z.ZodError): string {
   return error.issues[0]?.message ?? "Datos inválidos";
-}
-
-export function isReportAccessTokenExpired(
-  expiresAt: Date | null | undefined,
-  now = new Date(),
-): boolean {
-  return expiresAt instanceof Date && expiresAt.getTime() <= now.getTime();
-}
-
-export function isReportAccessTokenRevoked(
-  revokedAt: Date | null | undefined,
-): boolean {
-  return revokedAt instanceof Date;
-}
-
-export function getReportAccessTokenState(
-  token: Pick<ReportAccessToken, "expiresAt" | "revokedAt">,
-  now = new Date(),
-): "active" | "revoked" | "expired" {
-  if (isReportAccessTokenRevoked(token.revokedAt)) {
-    return "revoked";
-  }
-
-  if (isReportAccessTokenExpired(token.expiresAt, now)) {
-    return "expired";
-  }
-
-  return "active";
-}
-
-export function canAccessReportPublicly(currentStatus: ReportStatus): boolean {
-  return currentStatus === "ready" || currentStatus === "delivered";
 }
 
 export function buildPublicReportAccessPath(rawToken: string): string {

@@ -66,6 +66,9 @@ test("admin routes keep explicit clinic relationships before linking reports tok
     "server/features/particular-access/application/admin-particular-access-operations.ts",
   );
   const adminReportAccessTokens = readSource("server/routes/admin-report-access-tokens.fastify.ts");
+  const adminReportAccessApplication = readSource(
+    "server/features/report-access/application/admin-report-access-operations.ts",
+  );
   const adminStudyTracking = readSource("server/routes/admin-study-tracking.fastify.ts");
   const adminStudyTrackingApplication = readSource(
     "server/features/study-tracking/application/admin-study-tracking-operations.ts",
@@ -80,9 +83,9 @@ test("admin routes keep explicit clinic relationships before linking reports tok
   assertContains(adminParticularTokensApplication, "createdByClinicUserId: null", "admin particular tokens");
 
   assertContains(adminReportAccessTokens, "clinicId?: unknown", "admin report access tokens");
-  assertContains(adminReportAccessTokens, "getClinicById(parsed.data.clinicId)", "admin report access tokens");
-  assertContains(adminReportAccessTokens, "getReportById(parsed.data.reportId)", "admin report access tokens");
-  assertContains(adminReportAccessTokens, "report.clinicId !== parsed.data.clinicId", "admin report access tokens");
+  assertContains(adminReportAccessApplication, "getClinicById(data.clinicId)", "admin report access tokens");
+  assertContains(adminReportAccessApplication, "getReportById(data.reportId)", "admin report access tokens");
+  assertContains(adminReportAccessApplication, "belongsToClinic(report.clinicId, data.clinicId)", "admin report access tokens");
 
   assertContains(adminStudyTracking, "clinicId?: unknown", "admin study tracking");
   assertContains(adminStudyTrackingApplication, "getClinicById(", "admin study tracking");
@@ -107,6 +110,9 @@ test("clinic routes force authenticated clinic relationships and reject cross cl
     "server/features/particular-access/application/clinic-particular-access-operations.ts",
   );
   const reportAccessTokens = readSource("server/routes/report-access-tokens.fastify.ts");
+  const reportAccessApplication = readSource(
+    "server/features/report-access/application/clinic-report-access-operations.ts",
+  );
   const clinicAudit = readSource("server/routes/clinic-audit.fastify.ts");
 
   assertContains(studyTracking, "clinicId: auth.clinicId", "clinic study tracking");
@@ -131,10 +137,10 @@ test("clinic routes force authenticated clinic relationships and reject cross cl
   );
 
   assertContains(reportAccessTokens, "clinicId: auth.clinicId", "clinic report access tokens");
-  assertContains(reportAccessTokens, "getClinicScopedReportById", "clinic report access tokens");
+  assertContains(reportAccessApplication, "getClinicScopedReportById", "clinic report access tokens");
   assertMatches(
-    reportAccessTokens,
-    /getClinicScopedReportAccessToken\(\s*tokenId,\s*auth\.clinicId/s,
+    reportAccessApplication,
+    /getClinicScopedReportAccessToken\(tokenId, clinicId\)/s,
     "clinic report access token detail",
   );
 

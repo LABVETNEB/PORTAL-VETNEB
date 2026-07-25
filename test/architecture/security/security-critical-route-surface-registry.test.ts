@@ -359,7 +359,7 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
         path: "server/routes/report-access-tokens.fastify.ts",
         markers: [
           "requireReportAccessTokenManagementPermission",
-          "deps.createReportAccessToken",
+          "reportAccess.createToken",
         ],
       },
       {

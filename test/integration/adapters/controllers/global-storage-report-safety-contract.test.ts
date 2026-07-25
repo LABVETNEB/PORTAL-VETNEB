@@ -238,7 +238,9 @@ test("public report access signs lazily and never returns raw storage path or to
 
 test("storage report safety remains anchored in private bucket and TTL helpers", () => {
   const supabaseSource = read("server/lib/supabase.ts");
-  const publicAccessSource = read("server/routes/public-report-access.fastify.ts");
+  const publicAccessSource = read(
+    "server/features/report-access/application/public-report-access-operations.ts",
+  );
 
   for (const marker of [
     "public: false",

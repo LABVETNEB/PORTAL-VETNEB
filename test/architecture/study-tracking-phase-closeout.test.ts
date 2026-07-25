@@ -149,10 +149,10 @@ function digest(relativePath: string): string {
     .digest("hex");
 }
 
-test("M33 extiende el inventario canonico de Study Tracking sin iniciar M34", () => {
+test("M33 extiende el inventario canonico de Study Tracking y permanece estable con M34 iniciado", () => {
   assert.deepEqual(walkFiles(featureDir).sort(), expectedFeatureFiles);
   assert.equal(existsSync(resolve(repoRoot, "server/features/particular-access")), true);
-  assert.equal(existsSync(resolve(repoRoot, "server/features/report-access")), false);
+  assert.equal(existsSync(resolve(repoRoot, "server/features/report-access")), true);
 });
 
 test("M35 retira ambos shims domain y prohíbe imports globales a sus paths", () => {

@@ -115,6 +115,9 @@ test("write attribution matrix documents admin clinic particular and public toke
 
 test("admin writes persist admin attribution and audit through admin context", () => {
   const adminReportAccessTokens = readSource("server/routes/admin-report-access-tokens.fastify.ts");
+  const adminReportAccessApplication = readSource(
+    "server/features/report-access/application/admin-report-access-operations.ts",
+  );
   const adminParticularTokens = readSource("server/routes/admin-particular-tokens.fastify.ts");
   const adminParticularTokensApplication = readSource(
     "server/features/particular-access/application/admin-particular-access-operations.ts",
@@ -124,13 +127,13 @@ test("admin writes persist admin attribution and audit through admin context", (
     "server/features/study-tracking/application/admin-study-tracking-operations.ts",
   );
 
-  assertContains(adminReportAccessTokens, "createdByClinicUserId: null", "admin report access token create attribution");
-  assertContains(adminReportAccessTokens, "createdByAdminUserId: admin.id", "admin report access token create attribution");
-  assertContains(adminReportAccessTokens, "revokedByClinicUserId: null", "admin report access token revoke attribution");
-  assertContains(adminReportAccessTokens, "revokedByAdminUserId: admin.id", "admin report access token revoke attribution");
+  assertContains(adminReportAccessApplication, "createdByClinicUserId: null", "admin report access token create attribution");
+  assertContains(adminReportAccessApplication, "createdByAdminUserId: actor.id", "admin report access token create attribution");
+  assertContains(adminReportAccessApplication, "revokedByClinicUserId: null", "admin report access token revoke attribution");
+  assertContains(adminReportAccessApplication, "revokedByAdminUserId: actor.id", "admin report access token revoke attribution");
   assertContains(adminReportAccessTokens, "createAuditRequestLike(request, admin)", "admin report access token audit actor");
-  assertContains(adminReportAccessTokens, 'createdVia: "admin"', "admin report access token audit metadata");
-  assertContains(adminReportAccessTokens, 'revokedVia: "admin"', "admin report access token audit metadata");
+  assertContains(adminReportAccessApplication, 'createdVia: "admin"', "admin report access token audit metadata");
+  assertContains(adminReportAccessApplication, 'revokedVia: "admin"', "admin report access token audit metadata");
 
   assertContains(adminParticularTokensApplication, "createdByAdminId: adminId", "admin particular token create attribution");
   assertContains(adminParticularTokensApplication, "createdByClinicUserId: null", "admin particular token create attribution");
@@ -143,6 +146,9 @@ test("admin writes persist admin attribution and audit through admin context", (
 
 test("clinic writes persist clinic attribution and audit through clinic context", () => {
   const reportAccessTokens = readSource("server/routes/report-access-tokens.fastify.ts");
+  const reportAccessApplication = readSource(
+    "server/features/report-access/application/clinic-report-access-operations.ts",
+  );
   const particularTokens = readSource("server/routes/particular-tokens.fastify.ts");
   const particularTokensApplication = readSource(
     "server/features/particular-access/application/clinic-particular-access-operations.ts",
@@ -153,13 +159,13 @@ test("clinic writes persist clinic attribution and audit through clinic context"
   );
   const reportsStatus = readSource("server/routes/reports-status.fastify.ts");
 
-  assertContains(reportAccessTokens, "createdByClinicUserId: auth.id", "clinic report access token create attribution");
-  assertContains(reportAccessTokens, "createdByAdminUserId: null", "clinic report access token create attribution");
-  assertContains(reportAccessTokens, "revokedByClinicUserId: auth.id", "clinic report access token revoke attribution");
-  assertContains(reportAccessTokens, "revokedByAdminUserId: null", "clinic report access token revoke attribution");
+  assertContains(reportAccessApplication, "createdByClinicUserId: actor.clinicUserId", "clinic report access token create attribution");
+  assertContains(reportAccessApplication, "createdByAdminUserId: null", "clinic report access token create attribution");
+  assertContains(reportAccessApplication, "revokedByClinicUserId: actor.clinicUserId", "clinic report access token revoke attribution");
+  assertContains(reportAccessApplication, "revokedByAdminUserId: null", "clinic report access token revoke attribution");
   assertContains(reportAccessTokens, "createAuditRequestLike(request, auth)", "clinic report access token audit actor");
-  assertContains(reportAccessTokens, 'createdVia: "clinic"', "clinic report access token audit metadata");
-  assertContains(reportAccessTokens, 'revokedVia: "clinic"', "clinic report access token audit metadata");
+  assertContains(reportAccessApplication, 'createdVia: "clinic"', "clinic report access token audit metadata");
+  assertContains(reportAccessApplication, 'revokedVia: "clinic"', "clinic report access token audit metadata");
 
   assertContains(particularTokensApplication, "createdByAdminId: null", "clinic particular token create attribution");
   assertContains(particularTokensApplication, "createdByClinicUserId: actor.clinicUserId", "clinic particular token create attribution");
@@ -178,6 +184,9 @@ test("particular and public access attribution derive from authenticated or raw 
   const particularAudit = readSource("server/routes/particular-audit.fastify.ts");
   const particularStudyTracking = readSource("server/routes/particular-study-tracking.fastify.ts");
   const publicReportAccess = readSource("server/routes/public-report-access.fastify.ts");
+  const publicReportAccessApplication = readSource(
+    "server/features/report-access/application/public-report-access-operations.ts",
+  );
 
   assertMatches(
     particularAudit,
@@ -197,10 +206,11 @@ test("particular and public access attribution derive from authenticated or raw 
     "particular study tracking notification attribution",
   );
 
-  assertContains(publicReportAccess, "buildPublicReportAccessTokenActor(record.token.id)", "public report access actor attribution");
-  assertContains(publicReportAccess, "targetReportAccessTokenId: record.token.id", "public report access target attribution");
-  assertContains(publicReportAccess, "clinicId: record.token.clinicId", "public report access clinic attribution");
-  assertContains(publicReportAccess, "reportId: record.token.reportId", "public report access report attribution");
+  assertContains(publicReportAccess, "buildPublicActor: buildPublicReportAccessTokenActor", "public report access actor composition");
+  assertContains(publicReportAccessApplication, "deps.buildPublicActor(record.token.id)", "public report access actor attribution");
+  assertContains(publicReportAccessApplication, "targetReportAccessTokenId: record.token.id", "public report access target attribution");
+  assertContains(publicReportAccessApplication, "clinicId: record.token.clinicId", "public report access clinic attribution");
+  assertContains(publicReportAccessApplication, "reportId: record.token.reportId", "public report access report attribution");
 });
 
 test("audit helpers preserve actor and target attribution fields", () => {

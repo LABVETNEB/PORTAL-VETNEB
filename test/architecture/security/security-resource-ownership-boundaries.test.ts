@@ -136,7 +136,9 @@ test("resource ownership matrix documents protected owner keys", () => {
 test("clinic-owned resources reject cross-clinic reports tokens and tracking cases", () => {
   const reports = readSource("server/routes/reports.fastify.ts");
   const reportsStatus = readSource("server/routes/reports-status.fastify.ts");
-  const reportAccessTokens = readSource("server/routes/report-access-tokens.fastify.ts");
+  const reportAccessApplication = readSource(
+    "server/features/report-access/application/clinic-report-access-operations.ts",
+  );
   const particularTokens = readSource("server/routes/particular-tokens.fastify.ts");
   const particularTokensApplication = readSource(
     "server/features/particular-access/application/clinic-particular-access-operations.ts",
@@ -155,10 +157,10 @@ test("clinic-owned resources reject cross-clinic reports tokens and tracking cas
   assertContains(reportsStatus, "getClinicScopedReportById", "clinic report status ownership");
   assertContains(reportsStatus, "auth.clinicId", "clinic report status ownership");
 
-  assertContains(reportAccessTokens, "getClinicScopedReportById", "clinic report access token report ownership");
+  assertContains(reportAccessApplication, "getClinicScopedReportById", "clinic report access token report ownership");
   assertMatches(
-    reportAccessTokens,
-    /getClinicScopedReportAccessToken\(\s*tokenId,\s*auth\.clinicId/s,
+    reportAccessApplication,
+    /getClinicScopedReportAccessToken\(tokenId, clinicId\)/s,
     "clinic report access token detail ownership",
   );
 
@@ -185,7 +187,9 @@ test("clinic-owned resources reject cross-clinic reports tokens and tracking cas
 });
 
 test("admin-owned linking validates target clinic before binding resources", () => {
-  const adminReportAccessTokens = readSource("server/routes/admin-report-access-tokens.fastify.ts");
+  const adminReportAccessApplication = readSource(
+    "server/features/report-access/application/admin-report-access-operations.ts",
+  );
   const adminParticularTokens = readSource("server/routes/admin-particular-tokens.fastify.ts");
   const adminParticularTokensApplication = readSource(
     "server/features/particular-access/application/admin-particular-access-operations.ts",
@@ -196,8 +200,8 @@ test("admin-owned linking validates target clinic before binding resources", () 
   );
 
   assertContains(
-    adminReportAccessTokens,
-    "report.clinicId !== parsed.data.clinicId",
+    adminReportAccessApplication,
+    "belongsToClinic(report.clinicId, data.clinicId)",
     "admin report access token report ownership",
   );
 
@@ -245,7 +249,9 @@ test("particular and public surfaces derive ownership from authenticated or raw 
   const particularStudyTrackingApplication = readSource(
     "server/features/study-tracking/application/particular-study-tracking-operations.ts",
   );
-  const publicReportAccess = readSource("server/routes/public-report-access.fastify.ts");
+  const publicReportAccessApplication = readSource(
+    "server/features/report-access/application/public-report-access-operations.ts",
+  );
 
   assertContains(
     particularAudit,
@@ -280,17 +286,17 @@ test("particular and public surfaces derive ownership from authenticated or raw 
   );
 
   assertContains(
-    publicReportAccess,
+    publicReportAccessApplication,
     "clinicId: record.token.clinicId",
     "public report access audit clinic ownership",
   );
   assertContains(
-    publicReportAccess,
+    publicReportAccessApplication,
     "reportId: record.token.reportId",
     "public report access audit report ownership",
   );
   assertContains(
-    publicReportAccess,
+    publicReportAccessApplication,
     "targetReportAccessTokenId: record.token.id",
     "public report access audit token ownership",
   );

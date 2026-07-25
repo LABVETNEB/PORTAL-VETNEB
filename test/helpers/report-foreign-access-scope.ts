@@ -1,7 +1,7 @@
 const SHARED_BACKEND_SCOPE_EXCEPTIONS = new Set([
   "server/db-admin-users-roles.ts",
   "server/routes/admin-users-roles.fastify.ts",
-  "server/db-report-access.ts",
+  "server/features/report-access/infrastructure/report-access-repository.ts",
   "server/db.ts",
   "server/lib/http-runtime.ts",
   "server/routes/particular-auth.fastify.ts",

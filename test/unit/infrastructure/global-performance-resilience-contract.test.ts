@@ -40,7 +40,7 @@ const HEAVY_SURFACES: readonly HeavySurface[] = [
     markers: ["normalizeListPagination", ".limit(limit)", ".offset(offset)"],
   },
   {
-    file: "server/db-report-access.ts",
+    file: "server/features/report-access/infrastructure/report-access-repository.ts",
     markers: ["normalizeListPagination", ".limit(limit)", ".offset(offset)"],
   },
   {

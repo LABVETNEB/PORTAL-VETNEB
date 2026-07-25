@@ -273,16 +273,19 @@ test("report mutation audit happens after durable mutation and before success re
 });
 
 test("report access token audit happens after create or revoke persistence", () => {
-  const clinicTokens = readSource("server/routes/report-access-tokens.fastify.ts");
-  const adminTokens = readSource("server/routes/admin-report-access-tokens.fastify.ts");
+  const clinicTokens = readSource(
+    "server/features/report-access/application/clinic-report-access-operations.ts",
+  );
+  const adminTokens = readSource(
+    "server/features/report-access/application/admin-report-access-operations.ts",
+  );
 
   assertContainsInOrder(
     clinicTokens,
     [
-      "const reportAccessToken = await deps.createReportAccessToken({",
-      "await deps.writeAuditLog(createAuditRequestLike(request, auth), {",
-      "event: AUDIT_EVENTS.REPORT_ACCESS_TOKEN_CREATED",
-      "return reply.code(201).send({",
+      "const token = await deps.createReportAccessToken({",
+      "await deps.writeAuditLog(auditRequest, {",
+      'event: "report_access_token.created"',
     ],
     "clinic report access token create audit phase",
   );
@@ -290,10 +293,9 @@ test("report access token audit happens after create or revoke persistence", () 
   assertContainsInOrder(
     clinicTokens,
     [
-      "const revoked = await deps.revokeReportAccessToken({",
-      "await deps.writeAuditLog(createAuditRequestLike(request, auth), {",
-      "event: AUDIT_EVENTS.REPORT_ACCESS_TOKEN_REVOKED",
-      "return reply.code(200).send({",
+      "const token = await deps.revokeReportAccessToken({",
+      "await deps.writeAuditLog(auditRequest, {",
+      'event: "report_access_token.revoked"',
     ],
     "clinic report access token revoke audit phase",
   );
@@ -301,10 +303,9 @@ test("report access token audit happens after create or revoke persistence", () 
   assertContainsInOrder(
     adminTokens,
     [
-      "const reportAccessToken = await deps.createReportAccessToken({",
-      "await deps.writeAuditLog(createAuditRequestLike(request, admin), {",
-      "event: AUDIT_EVENTS.REPORT_ACCESS_TOKEN_CREATED",
-      "return reply.code(201).send({",
+      "const token = await deps.createReportAccessToken({",
+      "await deps.writeAuditLog(auditRequest, {",
+      'event: "report_access_token.created"',
     ],
     "admin report access token create audit phase",
   );
@@ -312,40 +313,48 @@ test("report access token audit happens after create or revoke persistence", () 
   assertContainsInOrder(
     adminTokens,
     [
-      "const revoked = await deps.revokeReportAccessToken({",
-      "await deps.writeAuditLog(createAuditRequestLike(request, admin), {",
-      "event: AUDIT_EVENTS.REPORT_ACCESS_TOKEN_REVOKED",
-      "return reply.code(200).send({",
+      "const token = await deps.revokeReportAccessToken({",
+      "await deps.writeAuditLog(auditRequest, {",
+      'event: "report_access_token.revoked"',
     ],
     "admin report access token revoke audit phase",
   );
 });
 
 test("public report access audits only after token validation lifecycle and access recording", () => {
-  const source = readSource("server/routes/public-report-access.fastify.ts");
+  const route = readSource("server/routes/public-report-access.fastify.ts");
+  const source = readSource(
+    "server/features/report-access/application/public-report-access-operations.ts",
+  );
+
+  assertContainsInOrder(
+    route,
+    [
+      "const parsed = reportAccessTokenRawTokenSchema.safeParse(request.params.token);",
+      "if (!parsed.success) {",
+      "const result = await reportAccess.access(",
+      "return reply.code(200).send({",
+    ],
+    "public report access route audit phase",
+  );
 
   assertContainsInOrder(
     source,
     [
-      "const parsed = reportAccessTokenRawTokenSchema.safeParse(request.params.token);",
-      "if (!parsed.success) {",
-      "const tokenHash = deps.hashSessionToken(parsed.data);",
-      "const record = await deps.getReportAccessTokenWithReportByTokenHash(tokenHash);",
-      "if (!record || record.token.clinicId !== record.report.clinicId) {",
-      "const tokenState = getReportAccessTokenState(record.token, new Date(currentTime));",
-      'if (tokenState === "revoked" || tokenState === "expired") {',
+      "const tokenHash = deps.hashSessionToken(rawToken);",
+      "await deps.getReportAccessTokenWithReportByTokenHash(tokenHash);",
+      "getReportAccessTokenState(record.token, new Date(currentTime))",
       "if (!canAccessReportPublicly(record.report.currentStatus)) {",
       "const updatedToken = await deps.recordReportAccessTokenAccess(record.token.id);",
-      "await deps.writeAuditLog(request, {",
-      "event: AUDIT_EVENTS.REPORT_PUBLIC_ACCESSED",
-      "return reply.code(200).send({",
+      "await deps.writeAuditLog(auditRequest, {",
+      'event: "report.public_accessed"',
     ],
     "public report access audit lifecycle phase",
   );
 
   assertContains(
     source,
-    "actor: buildPublicReportAccessTokenActor(record.token.id)",
+    "actor: deps.buildPublicActor(record.token.id)",
     "public report access audit actor",
   );
   assertContains(

@@ -383,13 +383,13 @@ test("M32b deja rutas clínica y particular byte-identical", () => {
   );
 });
 
-test("M33 existe sin iniciar M34 ni modificar los contextos de acceso M32b", () => {
+test("M33 permanece estable después del inicio de M34", () => {
   assert.equal(
     existsSync(resolve(repoRoot, "server/features/particular-access")),
     true,
   );
   assert.equal(
     existsSync(resolve(repoRoot, "server/features/report-access")),
-    false,
+    true,
   );
 });
