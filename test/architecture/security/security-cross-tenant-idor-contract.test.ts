@@ -408,6 +408,28 @@ const CROSS_TENANT_IDOR_CONTRACTS: readonly CrossTenantIdorContract[] = [
     ],
     productionReadinessStatus: "pending_runtime_staging_evidence",
   },
+  {
+    id: "CTIDOR-018",
+    actor: "clinic_session_and_public_report_token",
+    resource: "particular_and_public_report_token_access",
+    operation:
+      "Particular and Report Access must hide missing foreign and cross-realm resources while ignoring hostile tenant selectors",
+    requiredOwnerKey: "auth.clinicId_and_token_hash",
+    expectedFailure: {
+      status: 404,
+      noDisclosure: true,
+      reason: "hidden_missing_foreign_or_cross_realm_token_resource",
+    },
+    protectedSurface: "server/routes/public-report-access.fastify.ts",
+    runtimeEvidence: [
+      "staging probes across clinic and public access domains remain pending",
+      "verify hostile selectors cannot replace authenticated clinic ownership",
+    ],
+    requiredTestEvidence: [
+      "test/security/token-access-enumeration-disclosure-regression.test.ts",
+    ],
+    productionReadinessStatus: "pending_runtime_staging_evidence",
+  },
 ] as const;
 
 function readSource(relativePath: string): string {
@@ -428,7 +450,7 @@ test("cross-tenant IDOR contract matrix has unique IDs", () => {
   const ids = CROSS_TENANT_IDOR_CONTRACTS.map((contract) => contract.id);
 
   assert.deepEqual(ids, uniqueValues(ids));
-  assert.equal(ids.length >= 17, true);
+  assert.equal(ids.length >= 18, true);
 
   for (const id of ids) {
     assert.match(id, /^CTIDOR-\d{3}$/);
@@ -652,6 +674,30 @@ test("Study Tracking contract links executable tenant and cross-realm evidence",
     ),
     true,
   );
+});
+
+test("Token Access contract links joint non-enumeration and hostile-selector evidence", () => {
+  const contract = CROSS_TENANT_IDOR_CONTRACTS.find(
+    (candidate) => candidate.id === "CTIDOR-018",
+  );
+
+  assert.ok(contract);
+  assert.deepEqual(contract.requiredTestEvidence, [
+    "test/security/token-access-enumeration-disclosure-regression.test.ts",
+  ]);
+  assert.equal(
+    contract.productionReadinessStatus,
+    "pending_runtime_staging_evidence",
+  );
+
+  const jointEvidence = readSource(contract.requiredTestEvidence[0]);
+  for (const marker of [
+    "Particular Access unifica missing y foreign, ignora selectores hostiles y redacta secretos",
+    "Particular Access unifica report foreign y missing y redacta fallos repository",
+    "Report Access publico ejecuta la matriz M35b sin enumeracion ni disclosure",
+  ]) {
+    assert.equal(jointEvidence.includes(marker), true, marker);
+  }
 });
 
 test("cross-tenant IDOR contract file does not contain dangerous inline secrets or real credentials", () => {
