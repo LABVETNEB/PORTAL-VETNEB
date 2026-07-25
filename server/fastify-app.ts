@@ -4,6 +4,7 @@ import Fastify, {
   type FastifyRequest,
 } from "fastify";
 import { ENV } from "./lib/env.ts";
+import { sanitizeUrlForLogs } from "./middlewares/request-logger.ts";
 import {
   adminAuditNativeRoutes,
   type AdminAuditNativeRoutesOptions,
@@ -256,7 +257,7 @@ function getPayloadText(payload: unknown): string | null {
 }
 
 function getFastifyErrorResponsePath(request: FastifyRequest) {
-  const url = request.url ?? "";
+  const url = sanitizeUrlForLogs(request.url ?? "");
 
   try {
     return new URL(url, "http://portal-vetneb.local").pathname;
