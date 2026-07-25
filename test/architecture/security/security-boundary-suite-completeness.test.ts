@@ -666,6 +666,14 @@ test("security boundary suite keeps required downstream runtime tests explicit",
       marker: "audit exports rechazan cookies de dominios cruzados antes de listar",
     },
     {
+      path: "test/security/token-access-enumeration-disclosure-regression.test.ts",
+      marker: "Report Access publico ejecuta la matriz M35b sin enumeracion ni disclosure",
+    },
+    {
+      path: "test/architecture/token-access-m35b-closeout.test.ts",
+      marker: "M35b ancla la matriz ejecutable conjunta por tests y escenarios concretos",
+    },
+    {
       path: "test/architecture/security/security-production-invariants.test.ts",
       marker: "errores internos se loguean, pero la respuesta 500 no expone detalles",
     },
