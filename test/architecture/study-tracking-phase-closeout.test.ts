@@ -22,9 +22,9 @@ const routes = {
 } as const;
 
 const routeHashes = new Map<string, string>([
-  [routes.clinic, "2ce07bd8abb818b39bc2369095f71e19b5b1bd2a1dcba38f7848acaf349507b1"],
+  [routes.clinic, "f2b8e5afbe0ded7fcb75ece389cfd476d8667c49f792a104f9ee3bb7379f7319"],
   [routes.particular, "ed7d3f4a949af488a9dab5a9a89ccc9e89d19399ddde7230a25a3189a32591fb"],
-  [routes.admin, "c93824a2a7f2866c658e00304964927cbfc981b5b9c2046860657a6feb89c589"],
+  [routes.admin, "15aab9bd2b23caf27644185b5421cabe206644ed5b837c54e3dac66fa109c892"],
 ]);
 
 const expectedFeatureFiles = [

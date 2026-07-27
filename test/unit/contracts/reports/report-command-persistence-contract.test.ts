@@ -18,46 +18,18 @@ function walk(directory: string): string[] {
   );
 }
 
-test("server/db.ts conserva exports compatibles sin duplicar persistencia M38", () => {
+test("server/db.ts retira exports Reports sin duplicar persistencia M38", () => {
   const source = read("server/db.ts");
-  const reportsSection = source.slice(
-    source.indexOf("/* ========================= REPORTS"),
-  );
 
-  assert.ok(
-    source.includes(
-      'from "./features/reports/infrastructure/index.ts";',
-    ),
-  );
-  assert.ok(
-    source.includes(
-      'from "./features/reports/composition/index.ts";',
-    ),
-  );
-  for (const name of ["getReportById", "upsertReport"]) {
-    assert.match(
-      source,
-      new RegExp(`export \\{[\\s\\S]*?\\b${name}\\b[\\s\\S]*?\\} from`),
-    );
-    assert.equal(
-      reportsSection.includes(`export async function ${name}`),
-      false,
-      name,
-    );
+  assert.equal(source.includes("features/reports"), false);
+  assert.equal(source.includes("/* ========================= REPORTS"), false);
+  for (const name of [
+    "getReportById",
+    "upsertReport",
+    "updateReportStatus",
+  ]) {
+    assert.doesNotMatch(source, new RegExp(`\\b${name}\\b`), name);
   }
-  assert.match(
-    source,
-    /export \{\s*updateReportStatus,\s*\} from "\.\/features\/reports\/composition\/index\.ts";/,
-  );
-  assert.equal(
-    reportsSection.includes("export async function updateReportStatus"),
-    false,
-  );
-  assert.equal(reportsSection.includes(".transaction("), false);
-  assert.equal(
-    reportsSection.includes('INSERT INTO "report_status_history"'),
-    false,
-  );
 });
 
 test("infrastructure es owner único de transacciones y SQL M38", () => {
@@ -71,8 +43,8 @@ test("infrastructure es owner único de transacciones y SQL M38", () => {
     1,
   );
   assert.ok(source.includes("export function createReportCommandRepository"));
-  assert.ok(source.includes("export function getReportById"));
-  assert.ok(source.includes("export function upsertReport"));
+  assert.equal(source.includes("export function getReportById"), false);
+  assert.equal(source.includes("export function upsertReport"), false);
   assert.equal(source.includes("export function updateReportStatus"), false);
   assert.equal(source.includes("../application/"), false);
   assert.equal(source.includes("../composition/"), false);
@@ -100,7 +72,7 @@ test("transition persistence usa expectedFromStatus y CAS antes del historial", 
   );
 });
 
-test("rutas conservan Options y exports compatibility previos", () => {
+test("rutas conservan Options y consumen composition canónica", () => {
   const admin = read("server/routes/admin-reports.fastify.ts");
   const status = read("server/routes/reports-status.fastify.ts");
   const reads = read("server/routes/reports.fastify.ts");
@@ -124,19 +96,22 @@ test("rutas conservan Options y exports compatibility previos", () => {
   assert.equal(status.includes("../db.ts"), false);
 });
 
-test("compatibility update atraviesa composition y application sin queries", () => {
+test("composition canónica atraviesa application sin queries", () => {
   const composition = read(
     "server/features/reports/composition/report-command-composition.ts",
   );
 
   for (const marker of [
+    "export async function getReportById",
+    ".findReportById(reportId)",
     "export function transitionReportStatus",
-    "export async function updateReportStatus",
-    "const result = await transitionReportStatus(input)",
-    'result.type === "persisted" ? result.report : undefined',
   ]) {
     assert.ok(composition.includes(marker), marker);
   }
+  assert.equal(
+    composition.includes("export async function updateReportStatus"),
+    false,
+  );
 
   const files = [
     ...walk("server/features/reports/application"),

@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   createReportCommandUseCases,
+  findClinicScopedReportById,
   type CreateOrEditReportInput,
   type PersistReportStatusTransitionInput,
   type ReportCommandRecord,
@@ -32,6 +33,38 @@ function repository(
     ...overrides,
   };
 }
+
+test("findReportById delega una vez y preserva el resultado", async () => {
+  const calls: number[] = [];
+  const expected = report("processing");
+  const useCases = createReportCommandUseCases(
+    repository({
+      findReportById: async (reportId) => {
+        calls.push(reportId);
+        return expected;
+      },
+    }),
+  );
+
+  assert.equal(await useCases.findReportById(41), expected);
+  assert.deepEqual(calls, [41]);
+});
+
+test("findClinicScopedReportById preserva ownership y oculta otra clínica", async () => {
+  const expected = report("processing");
+  const fixtureRepository = repository({
+    findReportById: async () => expected,
+  });
+
+  assert.equal(
+    await findClinicScopedReportById(fixtureRepository, 41, 7),
+    expected,
+  );
+  assert.equal(
+    await findClinicScopedReportById(fixtureRepository, 41, 8),
+    null,
+  );
+});
 
 test("createOrEditReport delega una vez, preserva input y devuelve el resultado", async () => {
   const calls: CreateOrEditReportInput[] = [];

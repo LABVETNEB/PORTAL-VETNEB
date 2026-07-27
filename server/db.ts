@@ -15,21 +15,6 @@ import {
 } from "../drizzle/schema.ts";
 import { ENV } from "./lib/env.ts";
 import { normalizeClinicUserRole } from "./lib/permissions.ts";
-export {
-  countReportsByClinicId,
-  countSearchReports,
-  getClinicScopedReportById,
-  getReportsByClinicId,
-  getReportStatusHistory,
-  getReportById,
-  getReportStudyTypes,
-  getStudyTypes,
-  searchReports,
-  upsertReport,
-} from "./features/reports/infrastructure/index.ts";
-export {
-  updateReportStatus,
-} from "./features/reports/composition/index.ts";
 
 const client = postgres(ENV.databaseUrl, {
   prepare: false,

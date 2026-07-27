@@ -207,7 +207,6 @@ async function loadDefaultAdminReportsDependencies() {
         particular,
         studyTracking,
         reportCommands,
-        reportCommandRepository,
       ] = await Promise.all([
         import("../../../db.ts"),
         import("../../../lib/auth-security.ts"),
@@ -216,7 +215,6 @@ async function loadDefaultAdminReportsDependencies() {
         import("../../particular-access/infrastructure/index.ts"),
         import("../../study-tracking/infrastructure/index.ts"),
         import("./report-command-composition.ts"),
-        import("../infrastructure/report-command-repository.ts"),
       ]);
 
       return {
@@ -226,7 +224,7 @@ async function loadDefaultAdminReportsDependencies() {
         updateAdminSessionLastAccess: db.updateAdminSessionLastAccess,
         hashSessionToken: authSecurity.hashSessionToken,
         getClinicById: db.getClinicById,
-        getReportById: reportCommandRepository.getReportById,
+        getReportById: reportCommands.getReportById,
         uploadReport: storage.uploadReport,
         upsertReport: reportCommands.createOrEditReport,
         getParticularTokenById: particular.getParticularTokenById,
@@ -497,38 +495,4 @@ export async function createAdminReportWorkflowRouteComposition(
     },
     service,
   };
-}
-
-export async function listAdminReportWorkflowItems(input: {
-  limit?: number;
-  offset?: number;
-} = {}) {
-  const dependencies = await loadDefaultWorkflowDependencies();
-  return dependencies.listAdminReportWorkflowItems({
-    limit: input.limit ?? 20,
-    offset: input.offset ?? 0,
-  });
-}
-
-export async function getAdminReportWorkflowItem(id: number) {
-  const dependencies = await loadDefaultWorkflowDependencies();
-  return dependencies.getAdminReportWorkflowItem(id);
-}
-
-export async function updateAdminReportWorkflowStage(
-  id: number,
-  stage: ReportWorkflowStage,
-  now: Date,
-) {
-  const dependencies = await loadDefaultWorkflowDependencies();
-  return dependencies.updateAdminReportWorkflowStage(id, stage, now);
-}
-
-export async function updateAdminReportSpecialStain(
-  id: number,
-  requested: boolean,
-  now: Date,
-) {
-  const dependencies = await loadDefaultWorkflowDependencies();
-  return dependencies.updateAdminReportSpecialStain(id, requested, now);
 }

@@ -157,7 +157,7 @@ const REPORTS_SUITE: readonly ReportsSuiteEntry[] = [
           "report study types have canonical internal catalog",
           "report study types block free-text",
           "report routes use canonical parser",
-          "M40 infrastructure exposes study types from catalog",
+          "M40 infrastructure exposes study types and M41 removes DB reexports",
         ],
       },
     ],
@@ -377,7 +377,7 @@ const REPORTS_SUITE: readonly ReportsSuiteEntry[] = [
           "Reports conserva domain M36 y admite inventario M37 autorizado",
           "consumidores externos usan exclusivamente el barrel canonico",
           "domain aplica default-deny",
-          "M40 est\u00e1 materializado",
+          "M41 retira sus shims",
         ],
       },
       {
@@ -425,7 +425,7 @@ const REPORTS_SUITE: readonly ReportsSuiteEntry[] = [
       {
         path: "test/unit/contracts/reports/report-command-persistence-contract.test.ts",
         markers: [
-          "server/db.ts conserva exports compatibles",
+          "server/db.ts retira exports Reports",
           "infrastructure es owner \u00fanico",
           "rutas conservan Options",
         ],
@@ -460,6 +460,15 @@ const REPORTS_SUITE: readonly ReportsSuiteEntry[] = [
           "M40 materializa inventario productivo exacto",
           "M40 composition es bridge lazy unico",
           "M40 conserva doble registro /api/reports",
+        ],
+      },
+      {
+        path: "test/architecture/reports-compatibility-shim-retirement.test.ts",
+        markers: [
+          "M41 retira f\u00edsicamente los cinco shims",
+          "M41 elimina todos los exports",
+          "consumidores runtime migrados resuelven Reports por composition",
+          "M36 a M40 permanecen materializados",
         ],
       },
       {
@@ -625,6 +634,7 @@ test("reports suite registers canonical reports guardrail files", () => {
     "report-query-use-cases.test.ts",
     "report-query-repository-contract.test.ts",
     "reports-query-use-cases-boundary-guard.test.ts",
+    "reports-compatibility-shim-retirement.test.ts",
   ]) {
     assert.equal(
       registeredFiles.includes(requiredFile),

@@ -3,7 +3,8 @@
 M36 estableció la frontera de dominio, M37 desacopló la comunicación interna
 del workflow, M38 agregó los comandos de creación/edición y transición de
 estado, M39 adelgazó las rutas administrativas y M40 materializa queries y
-adelgaza las rutas clínicas.
+adelgazó las rutas clínicas. M41 retiró la compatibilidad temporal: los cinco
+shims legacy ya no existen y `server/db.ts` dejó de exportar Reports.
 
 ## Superficie disponible
 
@@ -28,13 +29,10 @@ los puertos y concentra DB, Drizzle, tablas Reports, transacciones, SQL de
 historial y persistencia del workflow. Composition es el único bridge
 application → infrastructure y carga defaults concretos de forma lazy.
 
-`server/lib/report-workflow-communication.ts` y
-`server/db-report-workflow.ts` permanecen como shims temporales hasta M41.
-`server/db.ts` reexporta temporalmente commands y las ocho queries M40 desde
-infrastructure. `updateReportStatus` atraviesa composition y application, que
-agrega `expectedFromStatus`, antes del UPDATE compare-and-set. Las rutas
-administrativas y clínicas conservan Options y contratos HTTP; las clínicas
-delegan listado, búsqueda, catálogo, ownership, historial, signed URLs y
-transición a `report-query-use-cases.ts`.
+Los consumidores runtime resuelven Reports mediante `composition/index.ts`.
+`server/db.ts` conserva únicamente infraestructura compartida ajena a Reports.
+Las rutas administrativas y clínicas mantienen Options y contratos HTTP; las
+clínicas delegan listado, búsqueda, catálogo, ownership, historial, signed URLs
+y transición a `report-query-use-cases.ts`.
 
-M41 realizará el closeout y retiro final de compatibilidad.
+La compatibilidad temporal de M36–M40 quedó cerrada en M41.

@@ -216,6 +216,9 @@ type NativeStudyTrackingDeps = Required<
 async function loadDefaultDeps(): Promise<NativeStudyTrackingDeps> {
   const db = await import("../db.ts");
   const authSecurity = await import("../lib/auth-security.ts");
+  const reportCommands = await import(
+    "../features/reports/composition/index.ts"
+  );
   const dbParticular = await import("../db-particular.ts");
   const email = await import("../lib/email.ts");
   const audit = await import("../lib/audit.ts");
@@ -231,7 +234,7 @@ async function loadDefaultDeps(): Promise<NativeStudyTrackingDeps> {
     updateSessionLastAccess: db.updateSessionLastAccess,
     hashSessionToken: authSecurity.hashSessionToken,
     getClinicById: db.getClinicById,
-    getClinicScopedReportById: db.getClinicScopedReportById,
+    getClinicScopedReportById: reportCommands.getClinicScopedReportById,
     getParticularTokenById: dbParticular.getParticularTokenById,
     updateParticularTokenReport: dbParticular.updateParticularTokenReport,
     ...persistence,

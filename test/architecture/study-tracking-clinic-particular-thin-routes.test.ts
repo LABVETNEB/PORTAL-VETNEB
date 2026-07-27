@@ -252,12 +252,12 @@ test("M32 routes no importan shim ni infrastructure y particular resuelve lazy p
   );
 });
 
-test("M32 clinic y particular permanecen byte-identical durante M32b", () => {
+test("M32 preserva rutas y M41 migra sólo el owner Reports clínico", () => {
   assert.equal(
     createHash("sha256")
       .update(readFileSync(resolve(repoRoot, clinicRoute)))
       .digest("hex"),
-    "2ce07bd8abb818b39bc2369095f71e19b5b1bd2a1dcba38f7848acaf349507b1",
+    "f2b8e5afbe0ded7fcb75ece389cfd476d8667c49f792a104f9ee3bb7379f7319",
   );
   assert.equal(
     createHash("sha256")

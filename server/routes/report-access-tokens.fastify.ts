@@ -184,6 +184,9 @@ async function loadDefaultDeps(): Promise<NativeReportAccessTokensDeps> {
     defaultDepsPromise = (async () => {
       const db = await import("../db.ts");
       const authSecurity = await import("../lib/auth-security.ts");
+      const reportCommands = await import(
+        "../features/reports/composition/index.ts"
+      );
       const reportAccessRepository = await loadReportAccessRepository();
       const audit = await import("../lib/audit.ts");
 
@@ -197,7 +200,8 @@ async function loadDefaultDeps(): Promise<NativeReportAccessTokensDeps> {
         hashPassword: authSecurity.hashPassword,
         hashSessionToken: authSecurity.hashSessionToken,
         verifyPassword: authSecurity.verifyPassword,
-        getClinicScopedReportById: db.getClinicScopedReportById,
+        getClinicScopedReportById:
+          reportCommands.getClinicScopedReportById,
         createReportAccessToken:
           reportAccessRepository.createReportAccessToken,
         getClinicScopedReportAccessToken:

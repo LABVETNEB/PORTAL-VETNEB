@@ -153,6 +153,9 @@ async function loadDefaultDeps(): Promise<NativeParticularAuthDefaultDeps> {
       const dbParticular = await import("../db-particular.ts");
       const authSecurity = await import("../lib/auth-security.ts");
       const supabase = await import("../lib/supabase.ts");
+      const reportCommands = await import(
+        "../features/reports/composition/index.ts"
+      );
 
       return {
         createParticularSession: dbParticular.createParticularSession,
@@ -165,7 +168,8 @@ async function loadDefaultDeps(): Promise<NativeParticularAuthDefaultDeps> {
           dbParticular.updateParticularSessionLastAccess,
         updateParticularTokenLastLogin:
           dbParticular.updateParticularTokenLastLogin,
-        getClinicScopedReportById: db.getClinicScopedReportById,
+        getClinicScopedReportById:
+          reportCommands.getClinicScopedReportById,
         createSignedReportUrl: supabase.createSignedReportUrl,
         createSignedReportDownloadUrl:
           supabase.createSignedReportDownloadUrl,

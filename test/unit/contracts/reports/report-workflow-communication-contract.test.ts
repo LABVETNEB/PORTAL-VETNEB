@@ -58,7 +58,7 @@ function resolveImport(path: string, specifier: string): string {
   return relative(root, resolve(root, dirname(path), specifier)).replaceAll("\\", "/");
 }
 
-test("M37 expone application puertos adapters composition y shim canonicos", () => {
+test("M37 expone application puertos adapters y composition canónicos", () => {
   for (const path of [
     application,
     dataPort,
@@ -67,17 +67,12 @@ test("M37 expone application puertos adapters composition y shim canonicos", () 
     notificationAdapter,
     composition,
     compositionIndex,
-    shim,
     workflow,
   ]) {
     assert.equal(existsSync(resolve(root, path)), true, path);
   }
 
-  assert.equal(
-    read(shim).trim(),
-    'export * from "../features/reports/composition/index.ts";',
-  );
-  assert.equal(read(shim).trim().split("\n").length, 1);
+  assert.equal(existsSync(resolve(root, shim)), false);
 });
 
 test("application conserva resultado missing tracking mapping y propagacion", () => {
@@ -176,7 +171,7 @@ test("ningun consumidor runtime o test de comportamiento importa el shim", () =>
           pending.push(absolute);
         } else if (entry.isFile() && entry.name.endsWith(".ts")) {
           const path = relative(root, absolute).replaceAll("\\", "/");
-          if (path === shim || path === "test/architecture/reports-workflow-ports-boundary-guard.test.ts") {
+          if (path === "test/architecture/reports-workflow-ports-boundary-guard.test.ts") {
             continue;
           }
           for (const specifier of imports(path)) {

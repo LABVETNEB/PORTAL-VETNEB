@@ -349,10 +349,10 @@ test("shims conservan una línea y allowlists residuales exactas", () => {
   );
 });
 
-test("Auth permanece byte-identical y Reports usa composition M39", () => {
+test("Auth preserva contrato y Reports usa composition M41", () => {
   assert.equal(
     digest("server/routes/particular-auth.fastify.ts"),
-    "ae2847fd9c6dd68a13f88ad1d9672d0863741c2839c0343696dd67133e21078a",
+    "5ed5bf6f6ec6edb72983cdcfca84b283b89a3db4ff3b408349b557aa9a0d1561",
   );
   assert.equal(
     digest("server/middlewares/particular-auth.ts"),

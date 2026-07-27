@@ -18,7 +18,7 @@ const domainFiles = [
   reportsFile,
 ] as const;
 
-const legacyShimFiles = [
+const retiredShimFiles = [
   "server/lib/report-status.ts",
   "server/lib/report-study-types.ts",
   "server/lib/reports.ts",
@@ -212,31 +212,21 @@ test("los tres módulos canónicos contienen implementación real y exports pres
   assert.equal(readText(reportsFile).includes("storagePath:"), false);
 });
 
-test("los tres shims legacy existen y son reexports exactos de una línea", () => {
-  for (const file of legacyShimFiles) {
-    assert.equal(existsSync(join(repoRoot, file)), true, `${file} must exist in M36`);
-    assert.equal(
-      readText(file).trim(),
-      'export * from "../features/reports/domain/index.ts";',
-      file,
-    );
-    assert.equal(readText(file).trim().split("\n").length, 1, file);
+test("los tres shims legacy de dominio permanecen retirados por M41", () => {
+  for (const file of retiredShimFiles) {
+    assert.equal(existsSync(join(repoRoot, file)), false, file);
   }
 });
 
-test("ningún consumidor runtime ni test de comportamiento importa los shims", () => {
+test("ningún consumidor runtime ni test de comportamiento importa paths retirados", () => {
   const violations: string[] = [];
 
   for (const root of ["server", "test"] as const) {
     for (const file of walkTsFiles(root)) {
-      if (legacyShimFiles.includes(file as (typeof legacyShimFiles)[number])) {
-        continue;
-      }
-
       for (const { specifier } of listImportReferences(readText(file))) {
         const target = resolveSpecifier(file, specifier);
 
-        if (legacyShimFiles.includes(target as (typeof legacyShimFiles)[number])) {
+        if (retiredShimFiles.includes(target as (typeof retiredShimFiles)[number])) {
           violations.push(`${file}: import legacy "${specifier}" -> ${target}`);
         }
       }
@@ -343,7 +333,7 @@ test("domain no contiene transporte infraestructura I/O ni side effects", () => 
   assert.deepEqual(violations, []);
 });
 
-test("M37 a M40 quedan fuera del dominio y M40 está materializado", () => {
+test("M37 a M40 quedan fuera del dominio y M41 retira sus shims", () => {
   for (const path of [
     `${featureDir}/application`,
     `${featureDir}/infrastructure`,
@@ -356,7 +346,7 @@ test("M37 a M40 quedan fuera del dominio y M40 está materializado", () => {
     "server/lib/report-workflow-communication.ts",
     "server/db-report-workflow.ts",
   ]) {
-    assert.equal(existsSync(join(repoRoot, path)), true, `${path} must remain outside domain`);
+    assert.equal(existsSync(join(repoRoot, path)), false, path);
   }
 
   for (const file of walkTsFiles(domainDir)) {
@@ -513,7 +503,7 @@ test("fastify app conserva el registro Reports M36 sin consumir capas M37", () =
   assert.deepEqual(forbiddenImports, []);
 });
 
-test("censo path-aware apunta al catálogo canónico y conserva los shims M36", () => {
+test("censo path-aware apunta al catálogo canónico y fija ausencia M41", () => {
   const source = readText(
     "test/unit/contracts/reports/report-study-types-catalog.test.ts",
   );
@@ -526,7 +516,7 @@ test("censo path-aware apunta al catálogo canónico y conserva los shims M36", 
   assert.ok(source.includes('"server/features/reports/domain/index.ts"'));
   assert.ok(source.includes('"server/lib/report-study-types.ts"'));
 
-  for (const shim of legacyShimFiles) {
-    assert.equal(existsSync(join(repoRoot, shim)), true, shim);
+  for (const shim of retiredShimFiles) {
+    assert.equal(existsSync(join(repoRoot, shim)), false, shim);
   }
 });

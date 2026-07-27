@@ -146,7 +146,7 @@ const STUDY_TRACKING_SUITE: readonly StudyTrackingSuiteEntry[] = [
         markers: [
           "M32 conserva exactamente Options y endpoints",
           "M32 routes delegan",
-          "M32 clinic y particular permanecen byte-identical durante M32b",
+          "M32 preserva rutas y M41 migra s\u00f3lo el owner Reports cl\u00ednico",
         ],
       },
       {

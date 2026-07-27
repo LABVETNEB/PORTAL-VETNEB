@@ -107,11 +107,9 @@ test("M40 composition es bridge lazy unico y rutas quedan thin", () => {
   }
 });
 
-test("M40 db.ts conserva solo reexports compatibility de queries", () => {
+test("M40 conserva queries canónicas y M41 retira sus reexports de db.ts", () => {
   const db = read("server/db.ts");
-  const reportsSection = db.slice(
-    db.indexOf("/* ========================= REPORTS"),
-  );
+  const repositorySource = read(repository);
 
   for (const name of [
     "getClinicScopedReportById",
@@ -123,16 +121,12 @@ test("M40 db.ts conserva solo reexports compatibility de queries", () => {
     "getReportStudyTypes",
     "getStudyTypes",
   ]) {
-    assert.match(db, new RegExp(`\\b${name}\\b`), name);
-    assert.equal(
-      reportsSection.includes(`function ${name}`),
-      false,
-      name,
-    );
+    assert.match(repositorySource, new RegExp(`\\b${name}\\b`), name);
+    assert.doesNotMatch(db, new RegExp(`\\b${name}\\b`), name);
   }
 
-  assert.equal(reportsSection.includes(".select("), false);
-  assert.equal(reportsSection.includes("count(*)"), false);
+  assert.equal(db.includes("features/reports"), false);
+  assert.equal(db.includes("/* ========================= REPORTS"), false);
 });
 
 test("M40 conserva doble registro /api/reports en orden reads status", () => {
@@ -150,7 +144,7 @@ test("M40 conserva doble registro /api/reports en orden reads status", () => {
   ]);
 });
 
-test("M40 preserva Options endpoints shims y mantiene M41 ausente", () => {
+test("M40 preserva Options endpoints y M41 retira los shims", () => {
   const reads = read(readsRoute);
   const status = read(statusRoute);
 
@@ -185,7 +179,15 @@ test("M40 preserva Options endpoints shims y mantiene M41 ausente", () => {
     "server/lib/report-study-types.ts",
     "server/lib/reports.ts",
   ]) {
-    assert.equal(existsSync(resolve(root, shim)), true, shim);
+    assert.equal(existsSync(resolve(root, shim)), false, shim);
   }
-  assert.equal(existsSync(resolve(root, "docs/implementation/m41-reports-closeout.md")), false);
+  assert.equal(
+    existsSync(
+      resolve(
+        root,
+        "docs/implementation/m41-reports-compatibility-shim-retirement.md",
+      ),
+    ),
+    true,
+  );
 });

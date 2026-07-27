@@ -14,7 +14,7 @@ const infrastructure =
   "server/features/reports/infrastructure/db-report-workflow.ts";
 const reportsRoute = "server/routes/admin-reports.fastify.ts";
 const workflowRoute = "server/routes/admin-report-workflow.fastify.ts";
-const shim = "server/db-report-workflow.ts";
+const retiredShim = "server/db-report-workflow.ts";
 
 const m39ProductionInventory = [
   reportsRoute,
@@ -29,7 +29,6 @@ const m39ProductionInventory = [
   "server/features/reports/composition/index.ts",
   "server/features/reports/composition/README.md",
   "server/features/reports/README.md",
-  shim,
 ] as const;
 
 test("M39 materializa exactamente el inventario productivo contratado", () => {
@@ -46,7 +45,6 @@ test("M39 materializa exactamente el inventario productivo contratado", () => {
     "server/features/reports/composition/index.ts",
     "server/features/reports/composition/README.md",
     "server/features/reports/README.md",
-    shim,
   ]);
   for (const path of m39ProductionInventory) {
     assert.equal(existsSync(resolve(root, path)), true, path);
@@ -193,7 +191,7 @@ test("composition es el único bridge lazy y la inyección completa evita defaul
     "await loadDefaultAdminReportsDependencies()",
     "await loadDefaultWorkflowDependencies()",
     "reportCommands.createOrEditReport",
-    "reportCommandRepository.getReportById",
+    "reportCommands.getReportById",
     "createDbReportWorkflowRepository",
     "createReportWorkflowNotification",
   ]) {
@@ -202,28 +200,16 @@ test("composition es el único bridge lazy y la inyección completa evita defaul
   assert.equal(source.includes(" from \"../../../db.ts\""), false);
 });
 
-test("shim M41 no contiene implementación ni tiene consumidores runtime M39", () => {
-  const source = read(shim);
+test("M39 permanece canónico después del retiro del shim M41", () => {
   const reports = read(reportsRoute);
   const workflow = read(workflowRoute);
 
-  assert.ok(source.includes("Shim temporal de compatibilidad"));
-  assert.ok(source.includes("Retiro previsto para M41"));
-  for (const forbidden of [
-    "drizzle-orm",
-    "./db.ts",
-    ".select(",
-    ".update(",
-    "normalizeListPagination",
-    "console.",
-  ]) {
-    assert.equal(source.includes(forbidden), false, forbidden);
-  }
+  assert.equal(existsSync(resolve(root, retiredShim)), false);
   assert.equal(reports.includes("db-report-workflow"), false);
   assert.equal(workflow.includes("db-report-workflow"), false);
 });
 
-test("M40 queda materializado y los shims M41 siguen presentes", () => {
+test("M40 queda materializado y los cinco shims M41 siguen retirados", () => {
   assert.equal(
     existsSync(
       resolve(
@@ -240,6 +226,6 @@ test("M40 queda materializado y los shims M41 siguen presentes", () => {
     "server/lib/report-study-types.ts",
     "server/lib/reports.ts",
   ]) {
-    assert.equal(existsSync(resolve(root, path)), true, path);
+    assert.equal(existsSync(resolve(root, path)), false, path);
   }
 });

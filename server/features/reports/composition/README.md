@@ -6,9 +6,8 @@ reloj runtime. `index.ts` exporta la operación pública
 
 M38 agrega `report-command-composition.ts`: instancia el repository de comandos
 con `() => new Date()`, construye los casos de uso y exporta
-`createOrEditReport` y `transitionReportStatus` para M39/M40. También expone el
-adapter compatible `updateReportStatus`, que traduce `persisted` a la fila y
-los resultados rechazados o concurrentes a `undefined`.
+`getReportById`, `getClinicScopedReportById`, `createOrEditReport` y
+`transitionReportStatus` para los consumidores runtime.
 
 M39 agrega `report-route-composition.ts`, único bridge entre las rutas
 administrativas y los defaults concretos. Resuelve auth, audit, storage,
@@ -22,4 +21,7 @@ clínicas. Adapta sus Options históricas a los puertos M40, conserva el fallbac
 inyección completa no carga DB, storage, audit ni auth concretos.
 
 La composición construye sus dependencias de forma lazy, no consulta DB durante
-el import, no mantiene estado mutable y no importa Fastify ni rutas.
+el import, no mantiene estado mutable y no importa Fastify ni rutas. Desde M41
+command composition también publica el lookup clinic-scoped canónico para
+consumidores de otros contextos; ningún runtime depende de `server/db.ts` para
+Reports.

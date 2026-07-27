@@ -19,6 +19,8 @@ const reportsM39Closeout =
   "docs/implementation/m39-reports-admin-thin-routes-workflow.md";
 const reportsM40Closeout =
   "docs/implementation/m40-reports-query-use-cases-thin-routes.md";
+const reportsM41Closeout =
+  "docs/implementation/m41-reports-compatibility-shim-retirement.md";
 
 const featureLayers = [
   {
@@ -386,6 +388,7 @@ test("M35b documenta cierre de Fase H y preserva fases siguientes", () => {
   assert.equal(existsSync(resolve(root, reportsM38Closeout)), true);
   assert.equal(existsSync(resolve(root, reportsM39Closeout)), true);
   assert.equal(existsSync(resolve(root, reportsM40Closeout)), true);
+  assert.equal(existsSync(resolve(root, reportsM41Closeout)), true);
 
   for (const path of [
     "server/features/reports/application",
@@ -396,7 +399,7 @@ test("M35b documenta cierre de Fase H y preserva fases siguientes", () => {
   }
 
   const futureCloseouts = walk("docs/implementation").filter((path) =>
-    /\/(?:m41-|reports-phase-i)/i.test(path),
+    /\/(?:m42-|reports-phase-i)/i.test(path),
   );
   assert.deepEqual(futureCloseouts, []);
 });

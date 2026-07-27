@@ -154,6 +154,9 @@ async function loadDefaultDeps(): Promise<NativeAdminReportAccessTokensDeps> {
     defaultDepsPromise = (async () => {
       const db = await import("../db.ts");
       const authSecurity = await import("../lib/auth-security.ts");
+      const reportCommands = await import(
+        "../features/reports/composition/index.ts"
+      );
       const reportAccessRepository = await loadReportAccessRepository();
       const audit = await import("../lib/audit.ts");
 
@@ -165,7 +168,7 @@ async function loadDefaultDeps(): Promise<NativeAdminReportAccessTokensDeps> {
         generateSessionToken: authSecurity.generateSessionToken,
         hashSessionToken: authSecurity.hashSessionToken,
         getClinicById: db.getClinicById,
-        getReportById: db.getReportById,
+        getReportById: reportCommands.getReportById,
         createReportAccessToken:
           reportAccessRepository.createReportAccessToken,
         getReportAccessTokenById:

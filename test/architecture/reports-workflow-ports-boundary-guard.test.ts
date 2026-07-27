@@ -316,28 +316,18 @@ test("composition es el unico bridge M37 entre application e infrastructure", ()
   ]);
 });
 
-test("legacy workflow consume composition y ningún runtime M39 consume el shim", () => {
-  assert.ok(
-    imports(workflowShim)
-      .map((reference) => target(workflowShim, reference.specifier))
-      .includes(`${composition}/index.ts`),
-  );
+test("workflow canónico permanece y M41 retira ambos shims", () => {
+  assert.equal(existsSync(resolve(root, workflowShim)), false);
+  assert.equal(existsSync(resolve(root, shim)), false);
 
   const violations = walk("server")
-    .filter((path) => path.endsWith(".ts") && path !== workflowShim)
+    .filter((path) => path.endsWith(".ts"))
     .filter((path) =>
       imports(path)
         .map((reference) => target(path, reference.specifier))
         .includes(workflowShim)
     );
   assert.deepEqual(violations, []);
-
-  assert.equal(read(workflowShim).includes("drizzle-orm"), false);
-  assert.ok(read(workflowShim).includes("Retiro previsto para M41"));
-  assert.equal(
-    read(shim).trim(),
-    'export * from "../features/reports/composition/index.ts";',
-  );
 });
 
 test("ruta admin consume composition M39 y conserva transporte", () => {
@@ -389,7 +379,7 @@ test("fastify app conserva el registro actual sin imports M37", () => {
   );
 });
 
-test("M39 conserva route service y M40 agrega queries sin ejecutar M41", () => {
+test("M39 conserva route service y M40 agrega queries después de M41", () => {
   assert.equal(existsSync(resolve(root, workflow)), true);
   assert.equal(
     existsSync(resolve(root, `${infrastructure}/db-report-workflow.ts`)),

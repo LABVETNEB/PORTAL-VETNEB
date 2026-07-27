@@ -19,7 +19,7 @@ type AdminReportWorkflowNativeRoutesOptions = import(
   "../../../../server/routes/admin-report-workflow.fastify.ts"
 ).AdminReportWorkflowNativeRoutesOptions;
 type AdminReportWorkflowItem = import(
-  "../../../../server/db-report-workflow.ts"
+  "../../../../server/features/reports/infrastructure/index.ts"
 ).AdminReportWorkflowItem;
 
 function createWorkflowItem(
