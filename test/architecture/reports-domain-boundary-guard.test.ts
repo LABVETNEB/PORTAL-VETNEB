@@ -117,13 +117,13 @@ function resolveSpecifier(file: string, specifier: string): string {
   return existsSync(join(repoRoot, indexFile)) ? indexFile : resolved;
 }
 
-test("Reports abre Fase I con inventario M36 exacto", () => {
+test("Reports conserva domain M36 y admite inventario M37 autorizado", () => {
   assert.equal(existsSync(join(repoRoot, featureDir)), true);
   assert.equal(existsSync(join(repoRoot, domainDir)), true);
 
   assert.deepEqual(
     readdirSync(join(repoRoot, featureDir)).sort(),
-    ["README.md", "domain"],
+    ["README.md", "application", "composition", "domain", "infrastructure"],
   );
   assert.deepEqual(
     readdirSync(join(repoRoot, domainDir)).sort(),
@@ -342,13 +342,13 @@ test("domain no contiene transporte infraestructura I/O ni side effects", () => 
   assert.deepEqual(violations, []);
 });
 
-test("M37 permanece ausente y workflow communication sigue fuera del dominio", () => {
+test("M37 queda fuera del dominio y M38 permanece ausente", () => {
   for (const path of [
     `${featureDir}/application`,
     `${featureDir}/infrastructure`,
     `${featureDir}/composition`,
   ]) {
-    assert.equal(existsSync(join(repoRoot, path)), false, `${path} must not exist in M36`);
+    assert.equal(existsSync(join(repoRoot, path)), true, `${path} must exist in M37`);
   }
 
   for (const path of [
@@ -358,11 +358,22 @@ test("M37 permanece ausente y workflow communication sigue fuera del dominio", (
     assert.equal(existsSync(join(repoRoot, path)), true, `${path} must remain outside domain`);
   }
 
-  for (const file of walkTsFiles(featureDir)) {
+  for (const file of walkTsFiles(domainDir)) {
     const source = readText(file);
     assert.equal(source.includes("report-workflow-communication"), false, file);
     assert.equal(source.includes("db-report-workflow"), false, file);
   }
+
+  assert.equal(
+    existsSync(join(repoRoot, `${featureDir}/infrastructure/db-report-workflow.ts`)),
+    false,
+  );
+  assert.equal(
+    walkTsFiles(`${featureDir}/application`).some((file) =>
+      /(?:create|update|transition)-report/i.test(file)
+    ),
+    false,
+  );
 });
 
 test("rutas Reports conservan sus paths M36", () => {
@@ -408,7 +419,7 @@ test("rutas Reports conservan sus paths M36", () => {
   }
 });
 
-test("fastify app conserva el registro Reports M36 sin anticipar M37", () => {
+test("fastify app conserva el registro Reports M36 sin consumir capas M37", () => {
   const source = readText("server/fastify-app.ts");
   const imports = listImportReferences(source).map(({ specifier }) => specifier);
 

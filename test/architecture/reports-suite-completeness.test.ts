@@ -368,10 +368,36 @@ const REPORTS_SUITE: readonly ReportsSuiteEntry[] = [
       {
         path: "test/architecture/reports-domain-boundary-guard.test.ts",
         markers: [
-          "Reports abre Fase I con inventario M36 exacto",
+          "Reports conserva domain M36 y admite inventario M37 autorizado",
           "consumidores externos usan exclusivamente el barrel canonico",
           "domain aplica default-deny",
-          "M37 permanece ausente",
+          "M38 permanece ausente",
+        ],
+      },
+      {
+        path: "test/architecture/reports-workflow-ports-boundary-guard.test.ts",
+        markers: [
+          "M37 crea inventario exacto de application ports infrastructure y composition",
+          "application y ports aplican default deny",
+          "composition es el unico bridge M37",
+          "best effort catch y logging seguro",
+        ],
+      },
+      {
+        path: "test/unit/application/reports/report-workflow-communication.test.ts",
+        markers: [
+          "sin tracking context omite notification",
+          "mapea el tracking context completo",
+          "prefiere el reportId propio",
+          "propaga el error del data port",
+          "propaga el error del notification port",
+        ],
+      },
+      {
+        path: "test/unit/infrastructure/reports/report-workflow-adapters-contract.test.ts",
+        markers: [
+          "data adapter preserva consulta y mapping minimo",
+          "notification adapter preserva tabla values y returning exactos",
         ],
       },
       {
@@ -501,6 +527,9 @@ test("reports suite registers canonical reports guardrail files", () => {
     "particular-tokens.fastify.test.ts",
     "admin-particular-tokens.fastify.test.ts",
     "reports-domain-boundary-guard.test.ts",
+    "reports-workflow-ports-boundary-guard.test.ts",
+    "report-workflow-communication.test.ts",
+    "report-workflow-adapters-contract.test.ts",
   ]) {
     assert.equal(
       registeredFiles.includes(requiredFile),
