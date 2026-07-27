@@ -23,6 +23,8 @@ const reportsM41Closeout =
   "docs/implementation/m41-reports-compatibility-shim-retirement.md";
 const usersRolesM42Closeout =
   "docs/implementation/m42-users-roles-domain-use-cases.md";
+const usersRolesM43Closeout =
+  "docs/implementation/m43-users-roles-repository-thin-route-closeout.md";
 
 const featureLayers = [
   {
@@ -365,7 +367,7 @@ test("M35b mantiene conectados los guards globales de token access", () => {
   }
 });
 
-test("M35b preserva la secuencia materializada hasta M42 y mantiene M43 no iniciado", () => {
+test("M35b preserva la secuencia materializada hasta el cierre M43", () => {
   for (const path of [
     "docs/implementation/public-report-access-error-path-redaction-hotfix.md",
     closeout,
@@ -392,15 +394,24 @@ test("M35b preserva la secuencia materializada hasta M42 y mantiene M43 no inici
   assert.equal(existsSync(resolve(root, reportsM40Closeout)), true);
   assert.equal(existsSync(resolve(root, reportsM41Closeout)), true);
   assert.equal(existsSync(resolve(root, usersRolesM42Closeout)), true);
+  assert.equal(existsSync(resolve(root, usersRolesM43Closeout)), true);
 
   const usersRolesM42Source = read(usersRolesM42Closeout);
   for (const marker of [
     "M42 — Users/Roles domain + application use cases",
     "M43 queda responsable",
-    "M43: `NOT_RUN`",
   ]) {
     assert.equal(usersRolesM42Source.includes(marker), true, marker);
   }
+  const usersRolesM43Source = read(usersRolesM43Closeout);
+  for (const marker of [
+    "M43 — Users/Roles repository + thin-route closeout",
+    "Fase J",
+    "M43: cerrado",
+  ]) {
+    assert.equal(usersRolesM43Source.includes(marker), true, marker);
+  }
+  assert.doesNotMatch(usersRolesM43Source, /M43:\s*`?NOT_RUN`?/);
 
   for (const path of [
     "server/features/reports/application",
@@ -413,5 +424,5 @@ test("M35b preserva la secuencia materializada hasta M42 y mantiene M43 no inici
   const m43Closeouts = walk("docs/implementation").filter((path) =>
     /\/m43-/i.test(path),
   );
-  assert.deepEqual(m43Closeouts, []);
+  assert.deepEqual(m43Closeouts, [usersRolesM43Closeout]);
 });

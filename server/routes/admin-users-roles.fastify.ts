@@ -11,46 +11,22 @@ import {
   getRequestOrigin,
   enforceTrustedOrigin,
 } from "../lib/cors-headers.ts";
-import { AUDIT_EVENTS, type AuditWriteInput } from "../lib/audit.ts";
+import { AUDIT_EVENTS } from "../lib/audit.ts";
 import { authenticateFastifyAdmin } from "../lib/fastify-admin-auth.ts";
 import type {
-  AdminClinicUserRoleChangeInput,
-  AdminClinicUserRoleChangeResult,
   AdminUsersRolesQuery,
-  AdminUsersRolesSnapshot,
 } from "../features/users-roles/application/index.ts";
-import { createAdminUsersRolesUseCases } from "../features/users-roles/application/index.ts";
+import {
+  createAdminUsersRolesRouteComposition,
+  type AdminUsersRolesResolvedRouteDeps,
+  type AdminUsersRolesRouteCompositionOptions,
+} from "../features/users-roles/admin-users-roles-route-composition.ts";
 import {
   parseAdminClinicUserRole,
   parseAdminRoleUserRole,
   parseAdminRoleUserType,
   type AdminClinicUserRole,
 } from "../features/users-roles/domain/index.ts";
-import type {
-  AdminClinicUserCredentialsUpdateInput,
-  AdminClinicUserCredentialsUpdateResult,
-} from "../features/clinics/admin-clinics-command-service.ts";
-import {
-  updateAdminClinicUserCredentialsCommand,
-} from "../features/clinics/admin-clinics-command-service.ts";
-
-type AdminSessionRecord = {
-  id: number;
-  adminUserId: number;
-  expiresAt: Date | null;
-  lastAccess?: Date | null;
-};
-
-type SessionAdminUserRecord = {
-  id: number;
-  username: string;
-};
-
-type AdminSessionWithUserRecord = {
-  session: AdminSessionRecord;
-  adminUser: SessionAdminUserRecord | null;
-};
-
 type AuthenticatedAdminUser = {
   id: number;
   username: string;
@@ -81,83 +57,13 @@ type AdminUsersRolesCredentialsChangeBody = {
   password?: unknown;
 };
 
-export type AdminUsersRolesNativeRoutesOptions = {
-  deleteAdminSession?: (tokenHash: string) => Promise<void>;
-  getAdminSessionWithUser?: (
-    tokenHash: string,
-  ) => Promise<AdminSessionWithUserRecord | null>;
-  updateAdminSessionLastAccess?: (tokenHash: string) => Promise<void>;
-  hashSessionToken?: (token: string) => string;
-  getAdminUsersRolesSnapshot?: (
-    params: AdminUsersRolesQuery,
-  ) => Promise<AdminUsersRolesSnapshot>;
-  changeClinicUserRole?: (
-    input: AdminClinicUserRoleChangeInput,
-  ) => Promise<AdminClinicUserRoleChangeResult>;
-  updateAdminClinicUserCredentials?: (
-    input: AdminClinicUserCredentialsUpdateInput,
-  ) => Promise<AdminClinicUserCredentialsUpdateResult>;
-  hashPassword?: (password: string) => Promise<string>;
-  writeAuditLog?: (req: unknown, input: AuditWriteInput) => Promise<void>;
-  now?: () => number;
-};
-
-type NativeAdminUsersRolesCoreDeps = Required<
-  Pick<
-    AdminUsersRolesNativeRoutesOptions,
-    | "deleteAdminSession"
-    | "getAdminSessionWithUser"
-    | "updateAdminSessionLastAccess"
-    | "hashSessionToken"
-    | "getAdminUsersRolesSnapshot"
-    | "changeClinicUserRole"
-    | "hashPassword"
-    | "writeAuditLog"
-  >
->;
-
-type NativeAdminUsersRolesDeps =
-  NativeAdminUsersRolesCoreDeps &
-    Pick<
-      AdminUsersRolesNativeRoutesOptions,
-      "updateAdminClinicUserCredentials"
-    >;
-
-let defaultDepsPromise:
-  | Promise<NativeAdminUsersRolesCoreDeps>
-  | undefined;
-
-async function loadDefaultDeps(): Promise<NativeAdminUsersRolesCoreDeps> {
-  if (!defaultDepsPromise) {
-    defaultDepsPromise = (async () => {
-      const db = await import("../db.ts");
-      const authSecurity = await import("../lib/auth-security.ts");
-      const audit = await import("../lib/audit.ts");
-      const usersRoles = await import("../db-admin-users-roles.ts");
-
-      return {
-        deleteAdminSession: db.deleteAdminSession,
-        getAdminSessionWithUser: db.getAdminSessionWithUser,
-        updateAdminSessionLastAccess: db.updateAdminSessionLastAccess,
-        hashSessionToken: authSecurity.hashSessionToken,
-        getAdminUsersRolesSnapshot: usersRoles.getAdminUsersRolesSnapshot,
-        changeClinicUserRole: usersRoles.changeClinicUserRole,
-        hashPassword: authSecurity.hashPassword,
-        writeAuditLog: audit.writeAuditLog as (
-          req: unknown,
-          input: AuditWriteInput,
-        ) => Promise<void>,
-      };
-    })();
-  }
-
-  return defaultDepsPromise!;
-}
+export type AdminUsersRolesNativeRoutesOptions =
+  AdminUsersRolesRouteCompositionOptions;
 
 async function authenticateAdminUser(
   request: FastifyRequest,
   reply: FastifyReply,
-  deps: NativeAdminUsersRolesDeps,
+  deps: AdminUsersRolesResolvedRouteDeps,
   now: () => number,
 ): Promise<AuthenticatedAdminUser | null> {
   return authenticateFastifyAdmin(request, reply, {
@@ -354,51 +260,13 @@ function createAuditRequestLike(
 export const adminUsersRolesNativeRoutes: FastifyPluginAsync<
   AdminUsersRolesNativeRoutesOptions
 > = async (app, options) => {
-  const now = options.now ?? (() => Date.now());
+  const {
+    now,
+    resolveDeps,
+    usersRolesUseCases,
+    updateAdminClinicUserCredentials,
+  } = createAdminUsersRolesRouteComposition(options);
   const allowedOrigins = new Set(getAllowedOrigins());
-
-  async function resolveDeps(): Promise<NativeAdminUsersRolesDeps> {
-    const hasAllInjectedDeps =
-      !!options.deleteAdminSession &&
-      !!options.getAdminSessionWithUser &&
-      !!options.updateAdminSessionLastAccess &&
-      !!options.hashSessionToken &&
-      !!options.getAdminUsersRolesSnapshot &&
-      !!options.changeClinicUserRole &&
-      !!options.hashPassword &&
-      !!options.writeAuditLog;
-
-    const defaultDeps = hasAllInjectedDeps ? undefined : await loadDefaultDeps();
-
-    return {
-      deleteAdminSession:
-        options.deleteAdminSession ?? defaultDeps!.deleteAdminSession,
-      getAdminSessionWithUser:
-        options.getAdminSessionWithUser ??
-        defaultDeps!.getAdminSessionWithUser,
-      updateAdminSessionLastAccess:
-        options.updateAdminSessionLastAccess ??
-        defaultDeps!.updateAdminSessionLastAccess,
-      hashSessionToken:
-        options.hashSessionToken ?? defaultDeps!.hashSessionToken,
-      getAdminUsersRolesSnapshot:
-        options.getAdminUsersRolesSnapshot ??
-        defaultDeps!.getAdminUsersRolesSnapshot,
-      changeClinicUserRole:
-        options.changeClinicUserRole ?? defaultDeps!.changeClinicUserRole,
-      updateAdminClinicUserCredentials:
-        options.updateAdminClinicUserCredentials,
-      hashPassword: options.hashPassword ?? defaultDeps!.hashPassword,
-      writeAuditLog: options.writeAuditLog ?? defaultDeps!.writeAuditLog,
-    };
-  }
-
-  const usersRolesUseCases = createAdminUsersRolesUseCases({
-    getAdminUsersRolesSnapshot: async (query) =>
-      (await resolveDeps()).getAdminUsersRolesSnapshot(query),
-    changeClinicUserRole: async (input) =>
-      (await resolveDeps()).changeClinicUserRole(input),
-  });
 
   app.addHook("onRequest", async (request, reply) => {
     applyCorsHeaders(request, reply, allowedOrigins);
@@ -585,18 +453,14 @@ export const adminUsersRolesNativeRoutes: FastifyPluginAsync<
     }
 
     const result =
-      await updateAdminClinicUserCredentialsCommand(
+      await updateAdminClinicUserCredentials(
         {
           clinicUserId,
           username: parsed.data.username,
           password: parsed.data.password,
           now: new Date(now()),
         },
-        {
-          hashPassword: deps.hashPassword,
-          updateAdminClinicUserCredentials:
-            deps.updateAdminClinicUserCredentials,
-        },
+        deps,
       );
 
     if (!result.ok && result.reason === "not_found") {
