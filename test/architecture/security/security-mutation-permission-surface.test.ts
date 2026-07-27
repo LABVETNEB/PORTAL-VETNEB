@@ -19,7 +19,10 @@ const SENSITIVE_MUTATION_ROUTES: readonly SensitiveMutationRoute[] = [
     path: "/:reportId/status",
     authGuard: "authenticateClinicUser",
     permissionGuard: "requireReportStatusWritePermission",
-    protectedCalls: ["deps.updateReportStatus", "deps.writeAuditLog"],
+    protectedCalls: [
+      "composition.queries.transitionClinicReportStatus",
+      "composition.writeAuditLog",
+    ],
   },
   {
     file: "server/routes/report-access-tokens.fastify.ts",

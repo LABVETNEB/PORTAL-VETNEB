@@ -131,8 +131,8 @@ const REPORTS_SUITE: readonly ReportsSuiteEntry[] = [
           "\"/:reportId/status\"",
           "requireReportStatusWritePermission(auth, reply)",
           "parseReportStatus(request.body?.status)",
-          "canTransitionReportStatus",
-          "await deps.updateReportStatus({",
+          "transitionClinicReportStatus",
+          "createClinicReportStatusRouteComposition",
           "AUDIT_EVENTS.REPORT_STATUS_CHANGED",
         ],
       },
@@ -157,7 +157,7 @@ const REPORTS_SUITE: readonly ReportsSuiteEntry[] = [
           "report study types have canonical internal catalog",
           "report study types block free-text",
           "report routes use canonical parser",
-          "DB exposes study types from catalog",
+          "M40 infrastructure exposes study types from catalog",
         ],
       },
     ],
@@ -377,13 +377,13 @@ const REPORTS_SUITE: readonly ReportsSuiteEntry[] = [
           "Reports conserva domain M36 y admite inventario M37 autorizado",
           "consumidores externos usan exclusivamente el barrel canonico",
           "domain aplica default-deny",
-          "M39 est\u00e1 materializado",
+          "M40 est\u00e1 materializado",
         ],
       },
       {
         path: "test/architecture/reports-workflow-ports-boundary-guard.test.ts",
         markers: [
-          "M39 conserva inventario exacto de application ports infrastructure y composition",
+          "M40 conserva inventario exacto de application ports infrastructure y composition",
           "application y ports aplican default deny",
           "composition es el unico bridge M37",
           "best effort catch y logging seguro",
@@ -433,9 +433,33 @@ const REPORTS_SUITE: readonly ReportsSuiteEntry[] = [
       {
         path: "test/architecture/reports-command-use-cases-boundary-guard.test.ts",
         markers: [
-          "M39 fija inventario productivo exacto",
+          "M40 fija inventario productivo exacto",
           "application y ports aplican default deny",
-          "M40 ausente",
+          "M36 a M40 permanecen materializados",
+        ],
+      },
+      {
+        path: "test/unit/application/reports/report-query-use-cases.test.ts",
+        markers: [
+          "M40 list coordina query y count",
+          "M40 history ocurre solo despues de ownership",
+          "M40 propaga errores de infraestructura",
+        ],
+      },
+      {
+        path: "test/unit/infrastructure/reports/report-query-repository-contract.test.ts",
+        markers: [
+          "M40 repository es owner unico",
+          "M40 search y count comparten filtros exactos",
+          "M40 counts y catalogo conservan semantica legacy",
+        ],
+      },
+      {
+        path: "test/architecture/reports-query-use-cases-boundary-guard.test.ts",
+        markers: [
+          "M40 materializa inventario productivo exacto",
+          "M40 composition es bridge lazy unico",
+          "M40 conserva doble registro /api/reports",
         ],
       },
       {
@@ -497,7 +521,20 @@ const REPORTS_SUITE: readonly ReportsSuiteEntry[] = [
       },
       {
         path: "server/routes/reports.fastify.ts",
-        markers: ["getAuthorizedReport", "serializeReport"],
+        markers: [
+          "createClinicReportsRouteComposition",
+          "getClinicReportHistory",
+          "getClinicReportPreview",
+          "getClinicReportDownload",
+        ],
+      },
+      {
+        path: "server/features/reports/application/report-query-use-cases.ts",
+        markers: [
+          "listClinicReports",
+          "searchClinicReports",
+          "transitionClinicReportStatus",
+        ],
       },
       {
         path: "server/routes/public-report-access.fastify.ts",
@@ -585,6 +622,9 @@ test("reports suite registers canonical reports guardrail files", () => {
     "report-command-repository-contract.test.ts",
     "report-command-persistence-contract.test.ts",
     "reports-command-use-cases-boundary-guard.test.ts",
+    "report-query-use-cases.test.ts",
+    "report-query-repository-contract.test.ts",
+    "reports-query-use-cases-boundary-guard.test.ts",
   ]) {
     assert.equal(
       registeredFiles.includes(requiredFile),

@@ -223,7 +223,7 @@ test("shim M41 no contiene implementación ni tiene consumidores runtime M39", (
   assert.equal(workflow.includes("db-report-workflow"), false);
 });
 
-test("M40 sigue ausente y los shims M41 siguen presentes", () => {
+test("M40 queda materializado y los shims M41 siguen presentes", () => {
   assert.equal(
     existsSync(
       resolve(
@@ -231,7 +231,7 @@ test("M40 sigue ausente y los shims M41 siguen presentes", () => {
         "server/features/reports/application/report-query-use-cases.ts",
       ),
     ),
-    false,
+    true,
   );
   for (const path of [
     "server/db-report-workflow.ts",

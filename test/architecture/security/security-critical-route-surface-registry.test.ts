@@ -353,7 +353,11 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
     runtimeFiles: [
       {
         path: "server/routes/reports-status.fastify.ts",
-        markers: ["requireReportStatusWritePermission", "deps.updateReportStatus"],
+        markers: [
+          "requireReportStatusWritePermission",
+          "transitionClinicReportStatus",
+          "composition.writeAuditLog",
+        ],
       },
       {
         path: "server/routes/report-access-tokens.fastify.ts",

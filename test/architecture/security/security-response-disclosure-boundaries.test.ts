@@ -133,13 +133,16 @@ test("public report access unifies unusable tokens as 404 and preserves 409 and 
 test("clinic report and token surfaces do not disclose cross-scope resources as readable data", () => {
   const reports = readSource("server/routes/reports.fastify.ts");
   const reportsStatus = readSource("server/routes/reports-status.fastify.ts");
+  const reportQueries = readSource(
+    "server/features/reports/application/report-query-use-cases.ts",
+  );
   const reportAccessTokens = readSource("server/routes/report-access-tokens.fastify.ts");
 
-  assertContains(reports, "getClinicScopedReportById", "clinic report ownership check");
-  assertContains(reports, "status: 404", "clinic foreign report response");
+  assertContains(reportQueries, "findClinicScopedReportById", "clinic report ownership check");
+  assertContains(reports, "reply.code(404).send", "clinic foreign report response");
   assertContains(reports, "Informe no encontrado", "clinic report not found body");
 
-  assertContains(reportsStatus, "getClinicScopedReportById", "clinic report status ownership check");
+  assertContains(reportQueries, "findClinicScopedReportById", "clinic report status ownership check");
   assertContains(reportsStatus, "reply.code(404).send", "clinic missing report status response");
   assertContains(reportsStatus, "Informe no encontrado", "clinic report status not found body");
 

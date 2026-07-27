@@ -136,6 +136,9 @@ test("resource ownership matrix documents protected owner keys", () => {
 test("clinic-owned resources reject cross-clinic reports tokens and tracking cases", () => {
   const reports = readSource("server/routes/reports.fastify.ts");
   const reportsStatus = readSource("server/routes/reports-status.fastify.ts");
+  const reportQueries = readSource(
+    "server/features/reports/application/report-query-use-cases.ts",
+  );
   const reportAccessApplication = readSource(
     "server/features/report-access/application/clinic-report-access-operations.ts",
   );
@@ -150,11 +153,12 @@ test("clinic-owned resources reject cross-clinic reports tokens and tracking cas
 
   assertContains(reports, "getReadClinicScope", "clinic reports query scope");
   assertContains(reports, "scope.clinicId", "clinic reports query scope");
-  assertContains(reports, "getAuthorizedReport", "clinic reports parameterized scope");
-  assertContains(reports, "getClinicScopedReportById", "clinic reports parameterized scope");
+  assertContains(reports, "getClinicReportHistory", "clinic reports parameterized scope");
+  assertContains(reportQueries, "findClinicScopedReport", "clinic reports parameterized scope");
+  assertContains(reportQueries, "findClinicScopedReportById", "clinic reports parameterized scope");
 
-  assertContains(reportsStatus, "getAuthorizedReport", "clinic report status ownership");
-  assertContains(reportsStatus, "getClinicScopedReportById", "clinic report status ownership");
+  assertContains(reportsStatus, "transitionClinicReportStatus", "clinic report status ownership");
+  assertContains(reportQueries, "findClinicScopedReportById", "clinic report status ownership");
   assertContains(reportsStatus, "auth.clinicId", "clinic report status ownership");
 
   assertContains(reportAccessApplication, "getClinicScopedReportById", "clinic report access token report ownership");

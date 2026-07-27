@@ -47,11 +47,11 @@ const CATALOG_CONSUMERS = [
     markers: ["parseReportStudyType(request.query.studyType)"],
   },
   {
-    path: "server/db.ts",
-    specifier: "./features/reports/domain/index.ts",
+    path: "server/features/reports/infrastructure/report-query-repository.ts",
+    specifier: "../domain/index.ts",
     markers: [
-      "REPORT_STUDY_TYPE_LABELS",
       "getReportStudyTypes as getCanonicalReportStudyTypes",
+      "getCanonicalReportStudyTypes()",
     ],
   },
 ] as const;
@@ -234,12 +234,28 @@ test("report routes use canonical parser for upload and filters", () => {
   assertNotContains(dbSource, "selectDistinct({ studyType: reports.studyType })", CATALOG_CONSUMERS[2].path);
 });
 
-test("DB exposes study types from catalog and not persisted free-text values", () => {
+test("M40 infrastructure exposes study types from catalog and DB only reexports", () => {
   const dbSource = readSource("server/db.ts");
+  const repositorySource = readSource(
+    "server/features/reports/infrastructure/report-query-repository.ts",
+  );
 
-  assertContains(dbSource, "./features/reports/domain/index.ts", "server/db.ts");
-  assertContains(dbSource, "REPORT_STUDY_TYPE_LABELS", "server/db.ts");
   assertContains(dbSource, "getReportStudyTypes", "server/db.ts");
+  assertContains(
+    dbSource,
+    "./features/reports/infrastructure/index.ts",
+    "server/db.ts",
+  );
+  assertContains(
+    repositorySource,
+    "../domain/index.ts",
+    "report-query-repository.ts",
+  );
+  assertContains(
+    repositorySource,
+    "getCanonicalReportStudyTypes()",
+    "report-query-repository.ts",
+  );
   assertNotContains(dbSource, "./lib/report-study-types.ts", "server/db.ts");
   assertNotContains(dbSource, "selectDistinct({ studyType: reports.studyType })", "server/db.ts");
 });

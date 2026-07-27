@@ -72,7 +72,17 @@ const SECURITY_BOUNDARY_SUITE: readonly SecurityBoundaryGuardrail[] = [
     runtimeAnchors: [
       {
         path: "server/routes/reports-status.fastify.ts",
-        markers: ["getAuthorizedReport", "updateReportStatus"],
+        markers: [
+          "transitionClinicReportStatus",
+          "createClinicReportStatusRouteComposition",
+        ],
+      },
+      {
+        path: "server/features/reports/application/report-query-use-cases.ts",
+        markers: [
+          "findClinicScopedReportById",
+          "transitionClinicReportStatus",
+        ],
       },
       {
         path: "server/features/report-access/application/clinic-report-access-operations.ts",

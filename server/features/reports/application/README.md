@@ -11,6 +11,12 @@ los writes. Recibe el contexto de auditoría como valor opaco, modela errores
 esperables con resultados discriminados y sólo captura la notificación
 `report_delivered` best-effort.
 
+M40 agrega `createReportQueryUseCases`: coordina list+count y search+count,
+serializa mediante domain, modela ownership clinic-scoped con `not_found` y
+garantiza que history, preview, download y transición sólo ocurran después del
+lookup tenant-scoped. La transición reutiliza el resultado M38 y no captura
+errores de infraestructura.
+
 El puerto `report-command-repository.ts` contiene sólo `findReportById`,
 `createOrEditReport` y `persistReportStatusTransition`. La transición consume
 `canTransitionReportStatus` desde domain y construye `expectedFromStatus` desde
@@ -18,7 +24,9 @@ el informe leído; ese valor no forma parte del input público. No conoce
 Drizzle, schema, DB, Fastify, rutas ni adapters concretos y no captura errores
 de persistencia.
 
+El puerto `report-query-repository.ts` modela las queries reales con records
+estructurales propios de application; no importa schema, Drizzle ni adapters.
+
 `index.ts` es el entrypoint de la capa. La capa no importa Fastify, DB,
 Drizzle, schema runtime, storage o audit concretos, auth ni adapters. Parsing
-HTTP, serialización final, CORS, sesión y mapping de status codes permanecen en
-las rutas. Reads generales permanecen fuera de M39.
+HTTP, parsing, CORS, sesión y mapping de status codes permanecen en las rutas.
