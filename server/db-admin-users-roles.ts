@@ -6,78 +6,24 @@ import {
   clinicPublicProfiles,
   clinicUsers,
   clinics,
-  type ClinicUserRole,
 } from "../drizzle/schema.ts";
+import type {
+  AdminClinicUserRole,
+  AdminRoleUserRole,
+} from "./features/users-roles/domain/index.ts";
+import type {
+  AdminClinicUserRoleChangeInput,
+  AdminClinicUserRoleChangeResult,
+  AdminRoleUserSummary,
+  AdminUsersRolesQuery,
+  AdminUsersRolesSnapshot,
+} from "./features/users-roles/application/index.ts";
 import { normalizeListPagination } from "./lib/list-pagination.ts";
-
-export type AdminRoleUserType = "admin" | "clinic";
-export type AdminRoleUserRole = "admin" | ClinicUserRole;
-
-export type AdminRoleUserSummary =
-  | {
-      userType: "admin";
-      userId: number;
-      username: string;
-      role: "admin";
-      clinicId: null;
-      clinicName: null;
-      createdAt: string;
-      updatedAt: string;
-    }
-  | {
-      userType: "clinic";
-      userId: number;
-      username: string;
-      role: ClinicUserRole;
-      clinicId: number;
-      clinicName: string | null;
-      clinicLocality?: string | null;
-      createdAt: string;
-      updatedAt: string;
-    };
-
-export type AdminUsersRolesQuery = {
-  userType?: AdminRoleUserType;
-  role?: AdminRoleUserRole;
-  limit?: number;
-  offset?: number;
-  search?: string;
-};
-
-export type AdminUsersRolesSnapshot = {
-  success: true;
-  users: AdminRoleUserSummary[];
-  total: number;
-  limit: number;
-  offset: number;
-  totals: {
-    adminUsers: number;
-    clinicUsers: number;
-  };
-};
-
-export type AdminClinicUserRoleChangeInput = {
-  clinicUserId: number;
-  role: ClinicUserRole;
-  now?: Date;
-};
-
-export type AdminClinicUserRoleChangeResult =
-  | {
-      ok: true;
-      user: Extract<AdminRoleUserSummary, { userType: "clinic" }>;
-      previousRole: ClinicUserRole;
-      roleChanged: boolean;
-    }
-  | {
-      ok: false;
-      reason: "not_found" | "last_clinic_owner";
-    };
 
 type ClinicUserRoleRow = {
   userId: number;
   username: string;
-  role: ClinicUserRole;
+  role: AdminClinicUserRole;
   clinicId: number;
   clinicName: string | null;
   clinicLocality: string | null;

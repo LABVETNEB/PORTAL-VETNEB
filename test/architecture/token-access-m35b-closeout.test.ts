@@ -21,6 +21,8 @@ const reportsM40Closeout =
   "docs/implementation/m40-reports-query-use-cases-thin-routes.md";
 const reportsM41Closeout =
   "docs/implementation/m41-reports-compatibility-shim-retirement.md";
+const usersRolesM42Closeout =
+  "docs/implementation/m42-users-roles-domain-use-cases.md";
 
 const featureLayers = [
   {
@@ -363,7 +365,7 @@ test("M35b mantiene conectados los guards globales de token access", () => {
   }
 });
 
-test("M35b documenta cierre de Fase H y preserva fases siguientes", () => {
+test("M35b preserva la secuencia materializada hasta M42 y mantiene M43 no iniciado", () => {
   for (const path of [
     "docs/implementation/public-report-access-error-path-redaction-hotfix.md",
     closeout,
@@ -389,6 +391,16 @@ test("M35b documenta cierre de Fase H y preserva fases siguientes", () => {
   assert.equal(existsSync(resolve(root, reportsM39Closeout)), true);
   assert.equal(existsSync(resolve(root, reportsM40Closeout)), true);
   assert.equal(existsSync(resolve(root, reportsM41Closeout)), true);
+  assert.equal(existsSync(resolve(root, usersRolesM42Closeout)), true);
+
+  const usersRolesM42Source = read(usersRolesM42Closeout);
+  for (const marker of [
+    "M42 — Users/Roles domain + application use cases",
+    "M43 queda responsable",
+    "M43: `NOT_RUN`",
+  ]) {
+    assert.equal(usersRolesM42Source.includes(marker), true, marker);
+  }
 
   for (const path of [
     "server/features/reports/application",
@@ -398,8 +410,8 @@ test("M35b documenta cierre de Fase H y preserva fases siguientes", () => {
     assert.equal(existsSync(resolve(root, path)), true, path);
   }
 
-  const futureCloseouts = walk("docs/implementation").filter((path) =>
-    /\/(?:m42-|reports-phase-i)/i.test(path),
+  const m43Closeouts = walk("docs/implementation").filter((path) =>
+    /\/m43-/i.test(path),
   );
-  assert.deepEqual(futureCloseouts, []);
+  assert.deepEqual(m43Closeouts, []);
 });
