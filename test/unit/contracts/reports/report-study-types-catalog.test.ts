@@ -234,18 +234,14 @@ test("report routes use canonical parser for upload and filters", () => {
   assertNotContains(dbSource, "selectDistinct({ studyType: reports.studyType })", CATALOG_CONSUMERS[2].path);
 });
 
-test("M40 infrastructure exposes study types from catalog and DB only reexports", () => {
+test("M40 infrastructure exposes study types and M41 removes DB reexports", () => {
   const dbSource = readSource("server/db.ts");
   const repositorySource = readSource(
     "server/features/reports/infrastructure/report-query-repository.ts",
   );
 
-  assertContains(dbSource, "getReportStudyTypes", "server/db.ts");
-  assertContains(
-    dbSource,
-    "./features/reports/infrastructure/index.ts",
-    "server/db.ts",
-  );
+  assertNotContains(dbSource, "getReportStudyTypes", "server/db.ts");
+  assertNotContains(dbSource, "features/reports", "server/db.ts");
   assertContains(
     repositorySource,
     "../domain/index.ts",
@@ -260,12 +256,8 @@ test("M40 infrastructure exposes study types from catalog and DB only reexports"
   assertNotContains(dbSource, "selectDistinct({ studyType: reports.studyType })", "server/db.ts");
 });
 
-test("legacy catalog path remains an exact one-line shim", () => {
-  assert.equal(existsSync(resolve(REPO_ROOT, LEGACY_CATALOG_SHIM_PATH)), true);
-  assert.equal(
-    readSource(LEGACY_CATALOG_SHIM_PATH).trim(),
-    'export * from "../features/reports/domain/index.ts";',
-  );
+test("legacy catalog path remains retired after M41", () => {
+  assert.equal(existsSync(resolve(REPO_ROOT, LEGACY_CATALOG_SHIM_PATH)), false);
 });
 
 test("catalog contract is path-aware and anchored to the canonical module", () => {

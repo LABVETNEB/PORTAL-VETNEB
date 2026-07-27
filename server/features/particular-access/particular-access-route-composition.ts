@@ -7,12 +7,14 @@ export async function loadAdminParticularAccessRouteDeps() {
     repository,
     email,
     studyTracking,
+    reportCommands,
   ] = await Promise.all([
     import("../../db.ts"),
     import("../../lib/auth-security.ts"),
     import("./infrastructure/index.ts"),
     import("../../lib/email.ts"),
     loadParticularAccessStudyTrackingPersistence(),
+    import("../reports/composition/index.ts"),
   ]);
 
   return {
@@ -23,7 +25,7 @@ export async function loadAdminParticularAccessRouteDeps() {
     generateSessionToken: authSecurity.generateSessionToken,
     hashSessionToken: authSecurity.hashSessionToken,
     getClinicById: db.getClinicById,
-    getReportById: db.getReportById,
+    getReportById: reportCommands.getReportById,
     createParticularToken: repository.createParticularToken,
     getParticularTokenById: repository.getParticularTokenById,
     listParticularTokens: repository.listParticularTokens,
@@ -42,12 +44,14 @@ export async function loadClinicParticularAccessRouteDeps() {
     repository,
     email,
     studyTracking,
+    reportCommands,
   ] = await Promise.all([
     import("../../db.ts"),
     import("../../lib/auth-security.ts"),
     import("./infrastructure/index.ts"),
     import("../../lib/email.ts"),
     loadParticularAccessStudyTrackingPersistence(),
+    import("../reports/composition/index.ts"),
   ]);
 
   return {
@@ -57,7 +61,7 @@ export async function loadClinicParticularAccessRouteDeps() {
     updateSessionLastAccess: db.updateSessionLastAccess,
     generateSessionToken: authSecurity.generateSessionToken,
     hashSessionToken: authSecurity.hashSessionToken,
-    getClinicScopedReportById: db.getClinicScopedReportById,
+    getClinicScopedReportById: reportCommands.getClinicScopedReportById,
     createParticularToken: repository.createParticularToken,
     getClinicScopedParticularToken:
       repository.getClinicScopedParticularToken,

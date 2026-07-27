@@ -25,5 +25,6 @@ catálogo delega al domain canónico y no consulta DB.
 
 Esta capa es la única superficie de Reports que importa DB, Drizzle, schema y
 tablas para comandos, queries y workflow. No importa composition ni contiene
-auditoría, auth, storage o transporte HTTP. `server/db.ts` y
-`server/db-report-workflow.ts` sólo preservan compatibilidad temporal.
+auditoría, auth, storage o transporte HTTP. M41 retiró los reexports Reports de
+`server/db.ts` y eliminó `server/db-report-workflow.ts`; no queda un owner
+alternativo de persistencia.

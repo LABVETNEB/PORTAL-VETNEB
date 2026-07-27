@@ -17,6 +17,11 @@ garantiza que history, preview, download y transición sólo ocurran después de
 lookup tenant-scoped. La transición reutiliza el resultado M38 y no captura
 errores de infraestructura.
 
+M41 expone los lookups cross-context canónicos a través de command composition:
+`getReportById` delega al caso de uso y `getClinicScopedReportById` aplica
+ownership en application antes de devolver el agregado completo. Ningún
+consumidor obtiene estas operaciones desde `server/db.ts`.
+
 El puerto `report-command-repository.ts` contiene sólo `findReportById`,
 `createOrEditReport` y `persistReportStatusTransition`. La transición consume
 `canTransitionReportStatus` desde domain y construye `expectedFromStatus` desde

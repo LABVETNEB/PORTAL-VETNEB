@@ -372,10 +372,10 @@ test("M32b composición admin selecciona sólo el barrel de infrastructure", () 
   assert.equal(source.includes("drizzle-orm"), false);
 });
 
-test("M32b deja rutas clínica y particular byte-identical", () => {
+test("M32b conserva rutas y M41 migra sólo el owner Reports clínico", () => {
   assert.equal(
     digest(clinicRouteFile),
-    "2ce07bd8abb818b39bc2369095f71e19b5b1bd2a1dcba38f7848acaf349507b1",
+    "f2b8e5afbe0ded7fcb75ece389cfd476d8667c49f792a104f9ee3bb7379f7319",
   );
   assert.equal(
     digest(particularRouteFile),

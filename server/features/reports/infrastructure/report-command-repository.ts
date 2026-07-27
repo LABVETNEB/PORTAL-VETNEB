@@ -4,7 +4,6 @@ import { db } from "../../../db.ts";
 import {
   reports,
   reportStatusHistory,
-  type Report,
   type ReportStatus,
 } from "../../../../drizzle/schema.ts";
 type ReportCommandDatabase = typeof db;
@@ -246,14 +245,4 @@ export function createReportCommandRepository(dependencies?: {
       });
     },
   };
-}
-
-export function getReportById(id: number): Promise<Report> {
-  return createReportCommandRepository().findReportById(
-    id,
-  ) as Promise<Report>;
-}
-
-export function upsertReport(input: CreateOrEditReportPersistenceInput) {
-  return createReportCommandRepository().createOrEditReport(input);
 }

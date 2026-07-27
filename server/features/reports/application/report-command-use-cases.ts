@@ -29,10 +29,25 @@ export type TransitionReportStatusResult<
   | { type: "concurrent_not_found"; reportId: number }
   | { type: "persisted"; report: TReport };
 
+export async function findClinicScopedReportById<
+  TReport extends ReportCommandRecord & { clinicId: number },
+>(
+  repository: Pick<ReportCommandRepository<TReport>, "findReportById">,
+  reportId: number,
+  clinicId: number,
+): Promise<TReport | null> {
+  const report = await repository.findReportById(reportId);
+  return report?.clinicId === clinicId ? report : null;
+}
+
 export function createReportCommandUseCases<
   TReport extends ReportCommandRecord,
 >(repository: ReportCommandRepository<TReport>) {
   return {
+    findReportById(reportId: number): Promise<TReport | null | undefined> {
+      return repository.findReportById(reportId);
+    },
+
     createOrEditReport(input: CreateOrEditReportInput): Promise<TReport> {
       return repository.createOrEditReport(input);
     },

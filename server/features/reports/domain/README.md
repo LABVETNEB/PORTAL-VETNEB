@@ -14,5 +14,5 @@ Inventario canónico:
 - `reports.ts`
 - `index.ts`
 
-Los paths legacy bajo `server/lib` son shims temporales de compatibilidad. Su
-retiro pertenece al censo final de Fase I, no a M36.
+M41 retiró los tres paths legacy bajo `server/lib`. El barrel canónico de esta
+capa es la única superficie de dominio Reports para consumidores externos.

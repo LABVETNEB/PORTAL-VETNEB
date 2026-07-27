@@ -260,7 +260,7 @@ test("infrastructure es owner único de DB transacciones tablas y SQL M38", () =
   assert.equal(repository.includes("../composition/"), false);
 });
 
-test("compatibilidad db y rutas M40 quedan conectadas por composition", () => {
+test("M38 queda canónico, db.ts se desacopla y rutas usan composition", () => {
   const database = read("server/db.ts");
   const admin = read("server/routes/admin-reports.fastify.ts");
   const status = read("server/routes/reports-status.fastify.ts");
@@ -268,35 +268,23 @@ test("compatibilidad db y rutas M40 quedan conectadas por composition", () => {
   const workflow = read("server/routes/admin-report-workflow.fastify.ts");
   const app = read("server/fastify-app.ts");
 
-  assert.ok(
-    database.includes(
-      'from "./features/reports/infrastructure/index.ts";',
-    ),
-  );
-  assert.ok(
-    database.includes(
-      'from "./features/reports/composition/index.ts";',
-    ),
-  );
-  for (const name of ["getReportById", "upsertReport"]) {
-    assert.match(
-      database,
-      new RegExp(`export \\{[\\s\\S]*?\\b${name}\\b[\\s\\S]*?\\} from`),
-    );
+  assert.equal(database.includes("features/reports"), false);
+  for (const name of [
+    "getReportById",
+    "upsertReport",
+    "updateReportStatus",
+  ]) {
+    assert.doesNotMatch(database, new RegExp(`\\b${name}\\b`), name);
   }
-  assert.match(
-    database,
-    /export \{\s*updateReportStatus,\s*\} from "\.\/features\/reports\/composition\/index\.ts";/,
-  );
   const bridge = read(`${composition}/report-command-composition.ts`);
   for (const marker of [
+    "export async function getReportById",
+    ".findReportById(reportId)",
     "export function transitionReportStatus",
-    "export async function updateReportStatus",
-    "const result = await transitionReportStatus(input)",
-    'result.type === "persisted" ? result.report : undefined',
   ]) {
     assert.ok(bridge.includes(marker), marker);
   }
+  assert.equal(bridge.includes("export async function updateReportStatus"), false);
   for (const [source, markers] of [
     [admin, ["export type AdminReportsNativeRoutesOptions", "createAdminReportsRouteComposition"]],
     [status, ["export type ReportsStatusNativeRoutesOptions", "createClinicReportStatusRouteComposition"]],
