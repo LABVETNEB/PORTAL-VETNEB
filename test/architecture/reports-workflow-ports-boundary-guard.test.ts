@@ -11,7 +11,8 @@ const application = `${feature}/application`;
 const ports = `${application}/ports`;
 const infrastructure = `${feature}/infrastructure`;
 const composition = `${feature}/composition`;
-const workflow = "server/db-report-workflow.ts";
+const workflow = `${infrastructure}/db-report-workflow.ts`;
+const workflowShim = "server/db-report-workflow.ts";
 const shim = "server/lib/report-workflow-communication.ts";
 const route = "server/routes/admin-report-workflow.fastify.ts";
 
@@ -19,6 +20,7 @@ const expectedApplication = [
   `${application}/README.md`,
   `${application}/index.ts`,
   `${application}/report-command-use-cases.ts`,
+  `${application}/report-route-service.ts`,
   `${application}/report-workflow-communication.ts`,
   `${ports}/index.ts`,
   `${ports}/report-command-repository.ts`,
@@ -28,6 +30,7 @@ const expectedApplication = [
 const expectedInfrastructure = [
   `${infrastructure}/README.md`,
   `${infrastructure}/index.ts`,
+  `${infrastructure}/db-report-workflow.ts`,
   `${infrastructure}/report-command-repository.ts`,
   `${infrastructure}/report-workflow-data-adapter.ts`,
   `${infrastructure}/report-workflow-notification-adapter.ts`,
@@ -36,6 +39,7 @@ const expectedComposition = [
   `${composition}/README.md`,
   `${composition}/index.ts`,
   `${composition}/report-command-composition.ts`,
+  `${composition}/report-route-composition.ts`,
   `${composition}/report-workflow-communication-composition.ts`,
 ] as const;
 
@@ -142,7 +146,7 @@ function target(path: string, specifier: string): string {
     : resolved;
 }
 
-test("M37 crea inventario exacto de application ports infrastructure y composition", () => {
+test("M39 conserva inventario exacto de application ports infrastructure y composition", () => {
   for (const directory of [application, ports, infrastructure, composition]) {
     assert.equal(existsSync(resolve(root, directory)), true, directory);
   }
@@ -215,7 +219,6 @@ test("application y ports aplican default deny sin DB Drizzle schema ni capas su
       "infrastructure",
       "composition",
       "auth",
-      "audit",
       "email",
       "cors",
       "rate-limit",
@@ -228,6 +231,12 @@ test("application y ports aplican default deny sin DB Drizzle schema ni capas su
       if (source.includes(marker)) {
         violations.push(`${path}: forbidden marker ${marker}`);
       }
+    }
+    if (
+      path !== `${application}/report-route-service.ts` &&
+      source.includes("audit")
+    ) {
+      violations.push(`${path}: forbidden marker audit`);
     }
   }
 
@@ -268,6 +277,12 @@ test("infrastructure implementa ambos puertos y concentra DB schema y tablas", (
       "studyTrackingCases",
       "studyTrackingNotifications",
     ]) {
+      if (
+        path === `${composition}/report-route-composition.ts` &&
+        marker === "drizzle/schema.ts"
+      ) {
+        continue;
+      }
       assert.equal(source.includes(marker), false, `${path}: ${marker}`);
     }
   }
@@ -288,48 +303,43 @@ test("composition es el unico bridge M37 entre application e infrastructure", ()
 
   assert.deepEqual(bridgeFiles, [
     `${composition}/report-command-composition.ts`,
+    `${composition}/report-route-composition.ts`,
     `${composition}/report-workflow-communication-composition.ts`,
   ]);
 });
 
-test("db workflow consume composition y ningun runtime consume el shim", () => {
+test("legacy workflow consume composition y ningún runtime M39 consume el shim", () => {
   assert.ok(
-    imports(workflow)
-      .map((reference) => target(workflow, reference.specifier))
+    imports(workflowShim)
+      .map((reference) => target(workflowShim, reference.specifier))
       .includes(`${composition}/index.ts`),
   );
 
   const violations = walk("server")
-    .filter((path) => path.endsWith(".ts") && path !== shim)
+    .filter((path) => path.endsWith(".ts") && path !== workflowShim)
     .filter((path) =>
       imports(path)
         .map((reference) => target(path, reference.specifier))
-        .includes(shim)
+        .includes(workflowShim)
     );
   assert.deepEqual(violations, []);
 
+  assert.equal(read(workflowShim).includes("drizzle-orm"), false);
+  assert.ok(read(workflowShim).includes("Retiro previsto para M41"));
   assert.equal(
     read(shim).trim(),
     'export * from "../features/reports/composition/index.ts";',
   );
-  assert.equal(read(shim).trim().split("\n").length, 1);
 });
 
-test("ruta admin conserva db-report-workflow y no invade capas M37", () => {
+test("ruta admin consume composition M39 y conserva transporte", () => {
   const targets = imports(route).map((reference) =>
     target(route, reference.specifier)
   );
 
-  assert.ok(targets.includes(workflow));
-  assert.deepEqual(
-    targets.filter(
-      (resolved) =>
-        resolved.startsWith(`${application}/`) ||
-        resolved.startsWith(`${infrastructure}/`) ||
-        resolved.startsWith(`${composition}/`),
-    ),
-    [],
-  );
+  assert.ok(targets.includes(`${composition}/index.ts`));
+  assert.ok(targets.includes(`${infrastructure}/index.ts`));
+  assert.equal(targets.includes(workflowShim), false);
 
   const source = read(route);
   for (const marker of [
@@ -341,8 +351,7 @@ test("ruta admin conserva db-report-workflow y no invade capas M37", () => {
     '"/:id/special-stain"',
     "enforceTrustedOrigin(request, reply, allowedOrigins)",
     "authenticateFastifyAdmin",
-    "AUDIT_EVENTS.REPORT_WORKFLOW_STAGE_CHANGED",
-    "AUDIT_EVENTS.REPORT_SPECIAL_STAIN_CHANGED",
+    "createAdminReportWorkflowRouteComposition",
   ]) {
     assert.ok(source.includes(marker), marker);
   }
@@ -372,23 +381,25 @@ test("fastify app conserva el registro actual sin imports M37", () => {
   );
 });
 
-test("M38 agrega comandos separados y db-report-workflow no se mueve prematuramente", () => {
+test("M39 agrega route service y mueve db-report-workflow sin ejecutar M40", () => {
   assert.equal(existsSync(resolve(root, workflow)), true);
   assert.equal(
     existsSync(resolve(root, `${infrastructure}/db-report-workflow.ts`)),
-    false,
+    true,
   );
 
   for (const path of [
     `${application}/report-command-use-cases.ts`,
+    `${application}/report-route-service.ts`,
     `${ports}/report-command-repository.ts`,
     `${infrastructure}/report-command-repository.ts`,
     `${composition}/report-command-composition.ts`,
+    `${composition}/report-route-composition.ts`,
   ]) {
     assert.equal(existsSync(resolve(root, path)), true, path);
   }
   const forbiddenFiles = walk(feature).filter((path) =>
-    /handlers?|controllers?|route-services?|report-query/i.test(
+    /handlers?|controllers?|report-query/i.test(
       path.slice(feature.length + 1),
     ),
   );
@@ -428,12 +439,18 @@ test("adapters excluyen console audit email auth CORS y rate limit", () => {
       "rate-limit",
       "fastify",
     ]) {
+      if (
+        path === `${infrastructure}/db-report-workflow.ts` &&
+        marker === "console."
+      ) {
+        continue;
+      }
       assert.equal(source.includes(marker), false, `${path}: ${marker}`);
     }
   }
 });
 
-test("best effort catch y logging seguro permanecen solo en db workflow", () => {
+test("best effort catch y logging seguro permanecen en los owners autorizados", () => {
   const workflowSource = read(workflow);
   assert.ok(workflowSource.includes("} catch (error) {"));
   assert.ok(
@@ -448,8 +465,20 @@ test("best effort catch y logging seguro permanecen solo en db workflow", () => 
     .filter((path) => path.endsWith(".ts"))
     .filter((path) => /\bcatch\b/.test(read(path)));
   assert.deepEqual(catches, [
+    `${application}/report-route-service.ts`,
+    `${infrastructure}/db-report-workflow.ts`,
     `${infrastructure}/report-command-repository.ts`,
   ]);
+  assert.equal(
+    read(`${application}/report-route-service.ts`).match(/\bcatch\s*\(/g)
+      ?.length,
+    1,
+  );
+  assert.equal(
+    read(`${infrastructure}/db-report-workflow.ts`).match(/\bcatch\s*\(/g)
+      ?.length,
+    1,
+  );
   const commandRepository = read(
     `${infrastructure}/report-command-repository.ts`,
   );

@@ -274,20 +274,26 @@ test("rutas críticas auditadas mantienen writeAuditLog inyectable y default rea
 });
 
 test("admin report upload audita creación exitosa de informe por admin", () => {
-  const source = readSource("server/routes/admin-reports.fastify.ts");
+  const route = readSource("server/routes/admin-reports.fastify.ts");
+  const source = readSource(
+    "server/features/reports/application/report-route-service.ts",
+  );
+  const composition = readSource(
+    "server/features/reports/composition/report-route-composition.ts",
+  );
 
   assertContainsAll(
-    source,
+    `${route}\n${composition}\n${source}`,
     [
       "writeAuditLog?:",
       "writeAuditLog: audit.writeAuditLog",
-      "createdByAdminUserId: admin.id",
-      "await deps.writeAuditLog(createAuditRequestLike(request, admin), {",
-      "event: AUDIT_EVENTS.REPORT_UPLOADED",
+      "createdByAdminUserId: input.adminUserId",
+      "await dependencies.writeAuditLog(input.auditContext, {",
+      "event: dependencies.auditEvents.reportUploaded",
       "clinicId: report.clinicId",
       "reportId: report.id",
-      "fileName: file.originalname",
-      "mimeType: file.mimetype",
+      "fileName: input.file.fileName",
+      "mimeType: input.file.mimeType",
       "uploadedVia: \"admin\"",
     ],
     "admin report upload audit payload",
@@ -301,12 +307,20 @@ test("admin report upload audita creación exitosa de informe por admin", () => 
   assertContainsInOrder(
     source,
     [
-      "const storagePath = await deps.uploadReport({",
-      "const report = await deps.upsertReport({",
-      "await deps.writeAuditLog(createAuditRequestLike(request, admin), {",
-      "return reply.code(201).send({",
+      "const storagePath = await dependencies.uploadReport({",
+      "const report = await dependencies.createOrEditReport({",
+      "await dependencies.writeAuditLog(input.auditContext, {",
+      'return { type: "uploaded", report };',
     ],
     "admin report upload audit order",
+  );
+  assertContainsInOrder(
+    route,
+    [
+      "await composition.service.uploadAdminReport({",
+      "return reply.code(201).send({",
+    ],
+    "admin report HTTP response follows service audit",
   );
 });
 

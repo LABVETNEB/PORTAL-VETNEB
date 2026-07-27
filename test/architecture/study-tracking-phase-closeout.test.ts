@@ -54,12 +54,10 @@ const expectedFeatureFiles = [
   compositionFile,
 ].sort();
 
-const residualDbConsumers = new Map<string, { owner: string; milestone: string }>([
-  [
-    "server/routes/admin-reports.fastify.ts",
-    { owner: "Reports", milestone: "M36" },
-  ],
-]);
+const residualDbConsumers = new Map<
+  string,
+  { owner: string; milestone: string }
+>();
 
 function readSource(relativePath: string): string {
   return readFileSync(resolve(repoRoot, relativePath), "utf8").replace(/\r\n/g, "\n");

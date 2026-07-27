@@ -8,8 +8,9 @@ import {
   REPORT_WORKFLOW_STAGES,
   type ReportWorkflowStage,
 } from "../../drizzle/schema.ts";
-import type { AdminReportWorkflowItem } from "../db-report-workflow.ts";
-import { AUDIT_EVENTS, type AuditWriteInput } from "../lib/audit.ts";
+import type { AdminReportWorkflowItem } from "../features/reports/infrastructure/index.ts";
+import { createAdminReportWorkflowRouteComposition } from "../features/reports/composition/index.ts";
+import type { AuditWriteInput } from "../lib/audit.ts";
 import { ENV } from "../lib/env.ts";
 import {
   getAllowedOrigins,
@@ -82,43 +83,8 @@ type NativeAdminReportWorkflowDeps = Required<
     | "getAdminSessionWithUser"
     | "updateAdminSessionLastAccess"
     | "hashSessionToken"
-    | "listAdminReportWorkflowItems"
-    | "getAdminReportWorkflowItem"
-    | "updateAdminReportWorkflowStage"
-    | "updateAdminReportSpecialStain"
-    | "writeAuditLog"
   >
 >;
-
-let defaultDepsPromise: Promise<NativeAdminReportWorkflowDeps> | undefined;
-
-async function loadDefaultDeps(): Promise<NativeAdminReportWorkflowDeps> {
-  if (!defaultDepsPromise) {
-    defaultDepsPromise = (async () => {
-      const db = await import("../db.ts");
-      const authSecurity = await import("../lib/auth-security.ts");
-      const workflow = await import("../db-report-workflow.ts");
-      const audit = await import("../lib/audit.ts");
-
-      return {
-        deleteAdminSession: db.deleteAdminSession,
-        getAdminSessionWithUser: db.getAdminSessionWithUser,
-        updateAdminSessionLastAccess: db.updateAdminSessionLastAccess,
-        hashSessionToken: authSecurity.hashSessionToken,
-        listAdminReportWorkflowItems: workflow.listAdminReportWorkflowItems,
-        getAdminReportWorkflowItem: workflow.getAdminReportWorkflowItem,
-        updateAdminReportWorkflowStage: workflow.updateAdminReportWorkflowStage,
-        updateAdminReportSpecialStain: workflow.updateAdminReportSpecialStain,
-        writeAuditLog: audit.writeAuditLog as (
-          req: unknown,
-          input: AuditWriteInput,
-        ) => Promise<void>,
-      };
-    })();
-  }
-
-  return defaultDepsPromise;
-}
 
 function applyCorsHeaders(
   request: FastifyRequest,
@@ -209,46 +175,6 @@ export const adminReportWorkflowNativeRoutes: FastifyPluginAsync<
   const allowedOrigins = new Set(getAllowedOrigins());
   const now = options.now ?? (() => Date.now());
 
-  async function resolveDeps(): Promise<NativeAdminReportWorkflowDeps> {
-    const hasAllInjectedDeps =
-      !!options.deleteAdminSession &&
-      !!options.getAdminSessionWithUser &&
-      !!options.updateAdminSessionLastAccess &&
-      !!options.hashSessionToken &&
-      !!options.listAdminReportWorkflowItems &&
-      !!options.getAdminReportWorkflowItem &&
-      !!options.updateAdminReportWorkflowStage &&
-      !!options.updateAdminReportSpecialStain &&
-      !!options.writeAuditLog;
-    const defaultDeps = hasAllInjectedDeps ? undefined : await loadDefaultDeps();
-
-    return {
-      deleteAdminSession:
-        options.deleteAdminSession ?? defaultDeps!.deleteAdminSession,
-      getAdminSessionWithUser:
-        options.getAdminSessionWithUser ??
-        defaultDeps!.getAdminSessionWithUser,
-      updateAdminSessionLastAccess:
-        options.updateAdminSessionLastAccess ??
-        defaultDeps!.updateAdminSessionLastAccess,
-      hashSessionToken:
-        options.hashSessionToken ?? defaultDeps!.hashSessionToken,
-      listAdminReportWorkflowItems:
-        options.listAdminReportWorkflowItems ??
-        defaultDeps!.listAdminReportWorkflowItems,
-      getAdminReportWorkflowItem:
-        options.getAdminReportWorkflowItem ??
-        defaultDeps!.getAdminReportWorkflowItem,
-      updateAdminReportWorkflowStage:
-        options.updateAdminReportWorkflowStage ??
-        defaultDeps!.updateAdminReportWorkflowStage,
-      updateAdminReportSpecialStain:
-        options.updateAdminReportSpecialStain ??
-        defaultDeps!.updateAdminReportSpecialStain,
-      writeAuditLog: options.writeAuditLog ?? defaultDeps!.writeAuditLog,
-    };
-  }
-
   async function authenticateAdminUser(
     request: FastifyRequest,
     reply: FastifyReply,
@@ -296,8 +222,13 @@ export const adminReportWorkflowNativeRoutes: FastifyPluginAsync<
   app.options("/:id/special-stain", optionsHandler);
 
   app.get<{ Querystring: WorkflowQuery }>("/", async (request, reply) => {
-    const deps = await resolveDeps();
-    const admin = await authenticateAdminUser(request, reply, deps);
+    const composition =
+      await createAdminReportWorkflowRouteComposition(options);
+    const admin = await authenticateAdminUser(
+      request,
+      reply,
+      composition.auth,
+    );
 
     if (!admin) {
       return reply;
@@ -313,7 +244,7 @@ export const adminReportWorkflowNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const listed = await deps.listAdminReportWorkflowItems({
+    const listed = await composition.service.listAdminWorkflow({
       limit: limit + 1,
       offset,
     });
@@ -337,8 +268,13 @@ export const adminReportWorkflowNativeRoutes: FastifyPluginAsync<
         return reply;
       }
 
-      const deps = await resolveDeps();
-      const admin = await authenticateAdminUser(request, reply, deps);
+      const composition =
+        await createAdminReportWorkflowRouteComposition(options);
+      const admin = await authenticateAdminUser(
+        request,
+        reply,
+        composition.auth,
+      );
 
       if (!admin) {
         return reply;
@@ -364,42 +300,23 @@ export const adminReportWorkflowNativeRoutes: FastifyPluginAsync<
         });
       }
 
-      const current = await deps.getAdminReportWorkflowItem(reportId);
-
-      if (!current) {
-        return reply.code(404).send({
-          success: false,
-          error: "Informe no encontrado",
-        });
-      }
-
-      const updated = await deps.updateAdminReportWorkflowStage(
+      const result = await composition.service.changeWorkflowStage({
         reportId,
-        request.body.stage,
-        new Date(now()),
-      );
+        stage: request.body.stage,
+        now: new Date(now()),
+        auditContext: createAuditRequestLike(request, admin),
+      });
 
-      if (!updated) {
+      if (result.type === "not_found") {
         return reply.code(404).send({
           success: false,
           error: "Informe no encontrado",
         });
       }
-
-      await deps.writeAuditLog(createAuditRequestLike(request, admin), {
-        event: AUDIT_EVENTS.REPORT_WORKFLOW_STAGE_CHANGED,
-        clinicId: updated.clinicId,
-        reportId: updated.id,
-        metadata: {
-          previousStage: current.workflowStage,
-          nextStage: updated.workflowStage,
-          workflowUpdatedAt: updated.workflowUpdatedAt,
-        },
-      });
 
       return reply.code(200).send({
         success: true,
-        report: updated,
+        report: result.report,
       });
     },
   );
@@ -411,8 +328,13 @@ export const adminReportWorkflowNativeRoutes: FastifyPluginAsync<
         return reply;
       }
 
-      const deps = await resolveDeps();
-      const admin = await authenticateAdminUser(request, reply, deps);
+      const composition =
+        await createAdminReportWorkflowRouteComposition(options);
+      const admin = await authenticateAdminUser(
+        request,
+        reply,
+        composition.auth,
+      );
 
       if (!admin) {
         return reply;
@@ -437,42 +359,23 @@ export const adminReportWorkflowNativeRoutes: FastifyPluginAsync<
         });
       }
 
-      const current = await deps.getAdminReportWorkflowItem(reportId);
-
-      if (!current) {
-        return reply.code(404).send({
-          success: false,
-          error: "Informe no encontrado",
-        });
-      }
-
-      const updated = await deps.updateAdminReportSpecialStain(
+      const result = await composition.service.changeSpecialStain({
         reportId,
-        request.body.requested,
-        new Date(now()),
-      );
+        requested: request.body.requested,
+        now: new Date(now()),
+        auditContext: createAuditRequestLike(request, admin),
+      });
 
-      if (!updated) {
+      if (result.type === "not_found") {
         return reply.code(404).send({
           success: false,
           error: "Informe no encontrado",
         });
       }
-
-      await deps.writeAuditLog(createAuditRequestLike(request, admin), {
-        event: AUDIT_EVENTS.REPORT_SPECIAL_STAIN_CHANGED,
-        clinicId: updated.clinicId,
-        reportId: updated.id,
-        metadata: {
-          previousRequested: current.specialStainRequested,
-          requested: updated.specialStainRequested,
-          specialStainAt: updated.specialStainAt,
-        },
-      });
 
       return reply.code(200).send({
         success: true,
-        report: updated,
+        report: result.report,
       });
     },
   );

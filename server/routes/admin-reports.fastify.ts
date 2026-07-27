@@ -12,7 +12,6 @@ import type {
   StudyTrackingNotification,
 } from "../../drizzle/schema.ts";
 import type { Multer } from "multer";
-import { AUDIT_EVENTS } from "../lib/audit.ts";
 import { ENV } from "../lib/env.ts";
 import {
   getAllowedOrigins,
@@ -23,9 +22,6 @@ import {
 import { authenticateFastifyAdmin } from "../lib/fastify-admin-auth.ts";
 import { ALLOWED_MIME_TYPES } from "../lib/supabase.ts";
 import {
-  normalizeSearchText,
-  parseReportStudyType,
-  parseOptionalDate,
   parseReportId,
   serializeSafeReport,
 } from "../features/reports/domain/index.ts";
@@ -37,7 +33,7 @@ import {
   createRuntimeTimer,
   type RuntimeTimer,
 } from "../lib/runtime-timing.ts";
-import { ensureStudyTrackingCaseForToken } from "../features/study-tracking/domain/index.ts";
+import { createAdminReportsRouteComposition } from "../features/reports/composition/index.ts";
 
 type AdminUserRecord = {
   id: number;
@@ -185,139 +181,8 @@ type NativeAdminReportsDeps = Required<
     | "getAdminUserById"
     | "updateAdminSessionLastAccess"
     | "hashSessionToken"
-    | "getClinicById"
-    | "getReportById"
-    | "uploadReport"
-    | "upsertReport"
-    | "getParticularTokenById"
-    | "updateParticularTokenReport"
-    | "getParticularStudyTrackingCase"
-    | "getStudyTrackingCaseByReportId"
-    | "createStudyTrackingCase"
-    | "updateStudyTrackingCase"
-    | "createStudyTrackingNotification"
-    | "createSignedReportUrl"
-    | "createSignedReportDownloadUrl"
-    | "writeAuditLog"
   >
 >;
-
-let defaultDepsPromise: Promise<NativeAdminReportsDeps> | undefined;
-
-async function loadDefaultDeps(): Promise<NativeAdminReportsDeps> {
-  if (!defaultDepsPromise) {
-    defaultDepsPromise = (async () => {
-      const db = await import("../db.ts");
-      const authSecurity = await import("../lib/auth-security.ts");
-      const storage = await import("../lib/supabase.ts");
-      const audit = await import("../lib/audit.ts");
-      const dbParticular = await import("../db-particular.ts");
-      const dbStudyTracking = await import("../db-study-tracking.ts");
-
-      return {
-        deleteAdminSession: db.deleteAdminSession,
-        getAdminSessionByToken: db.getAdminSessionByToken,
-        getAdminUserById: db.getAdminUserById,
-        updateAdminSessionLastAccess: db.updateAdminSessionLastAccess,
-        hashSessionToken: authSecurity.hashSessionToken,
-        getClinicById: db.getClinicById,
-        getReportById: db.getReportById,
-        uploadReport: storage.uploadReport,
-        upsertReport: db.upsertReport,
-        getParticularTokenById: dbParticular.getParticularTokenById,
-        updateParticularTokenReport: dbParticular.updateParticularTokenReport,
-        getParticularStudyTrackingCase:
-          dbStudyTracking.getParticularStudyTrackingCase,
-        getStudyTrackingCaseByReportId:
-          dbStudyTracking.getStudyTrackingCaseByReportId,
-        createStudyTrackingCase: dbStudyTracking.createStudyTrackingCase,
-        updateStudyTrackingCase: dbStudyTracking.updateStudyTrackingCase,
-        createStudyTrackingNotification:
-          dbStudyTracking.createStudyTrackingNotification,
-        createSignedReportUrl: storage.createSignedReportUrl,
-        createSignedReportDownloadUrl: storage.createSignedReportDownloadUrl,
-        writeAuditLog: audit.writeAuditLog as (
-          req: unknown,
-          input: AuditWriteInput,
-        ) => Promise<void>,
-      };
-    })();
-  }
-
-  return defaultDepsPromise;
-}
-
-function hasAllInjectedDeps(options: AdminReportsNativeRoutesOptions) {
-  return (
-    !!options.deleteAdminSession &&
-    !!options.getAdminSessionByToken &&
-    !!options.getAdminUserById &&
-    !!options.updateAdminSessionLastAccess &&
-    !!options.hashSessionToken &&
-    !!options.getClinicById &&
-    !!options.getReportById &&
-    !!options.uploadReport &&
-    !!options.upsertReport &&
-    !!options.getParticularTokenById &&
-    !!options.updateParticularTokenReport &&
-    !!options.getParticularStudyTrackingCase &&
-    !!options.getStudyTrackingCaseByReportId &&
-    !!options.createStudyTrackingCase &&
-    !!options.updateStudyTrackingCase &&
-    !!options.createStudyTrackingNotification &&
-    !!options.createSignedReportUrl &&
-    !!options.createSignedReportDownloadUrl &&
-    !!options.writeAuditLog
-  );
-}
-
-async function resolveDeps(
-  options: AdminReportsNativeRoutesOptions,
-): Promise<NativeAdminReportsDeps> {
-  const defaultDeps = hasAllInjectedDeps(options) ? undefined : await loadDefaultDeps();
-
-  return {
-    deleteAdminSession:
-      options.deleteAdminSession ?? defaultDeps!.deleteAdminSession,
-    getAdminSessionByToken:
-      options.getAdminSessionByToken ?? defaultDeps!.getAdminSessionByToken,
-    getAdminUserById:
-      options.getAdminUserById ?? defaultDeps!.getAdminUserById,
-    updateAdminSessionLastAccess:
-      options.updateAdminSessionLastAccess ??
-      defaultDeps!.updateAdminSessionLastAccess,
-    hashSessionToken:
-      options.hashSessionToken ?? defaultDeps!.hashSessionToken,
-    getClinicById: options.getClinicById ?? defaultDeps!.getClinicById,
-    getReportById: options.getReportById ?? defaultDeps!.getReportById,
-    uploadReport: options.uploadReport ?? defaultDeps!.uploadReport,
-    upsertReport: options.upsertReport ?? defaultDeps!.upsertReport,
-    getParticularTokenById:
-      options.getParticularTokenById ?? defaultDeps!.getParticularTokenById,
-    updateParticularTokenReport:
-      options.updateParticularTokenReport ??
-      defaultDeps!.updateParticularTokenReport,
-    getParticularStudyTrackingCase:
-      options.getParticularStudyTrackingCase ??
-      defaultDeps!.getParticularStudyTrackingCase,
-    getStudyTrackingCaseByReportId:
-      options.getStudyTrackingCaseByReportId ??
-      defaultDeps!.getStudyTrackingCaseByReportId,
-    createStudyTrackingCase:
-      options.createStudyTrackingCase ?? defaultDeps!.createStudyTrackingCase,
-    updateStudyTrackingCase:
-      options.updateStudyTrackingCase ?? defaultDeps!.updateStudyTrackingCase,
-    createStudyTrackingNotification:
-      options.createStudyTrackingNotification ??
-      defaultDeps!.createStudyTrackingNotification,
-    createSignedReportUrl:
-      options.createSignedReportUrl ?? defaultDeps!.createSignedReportUrl,
-    createSignedReportDownloadUrl:
-      options.createSignedReportDownloadUrl ??
-      defaultDeps!.createSignedReportDownloadUrl,
-    writeAuditLog: options.writeAuditLog ?? defaultDeps!.writeAuditLog,
-  };
-}
 
 function applyCorsHeaders(
   request: FastifyRequest,
@@ -403,110 +268,7 @@ function createAuditRequestLike(
   };
 }
 
-async function ensureDeliveredTrackingByReportId(
-  deps: NativeAdminReportsDeps,
-  reportId: number,
-  nowDate: Date,
-) {
-  const trackingCase =
-    (await deps.getStudyTrackingCaseByReportId(reportId)) ?? null;
-
-  if (!trackingCase || trackingCase.currentStage === "delivered") {
-    return trackingCase;
-  }
-
-  return (
-    (await deps.updateStudyTrackingCase(trackingCase.id, {
-      reportId,
-      currentStage: "delivered",
-      deliveredAt: trackingCase.deliveredAt ?? nowDate,
-    })) ?? trackingCase
-  );
-}
-
-async function ensureTrackingForLinkedToken(
-  deps: NativeAdminReportsDeps,
-  token: ParticularToken,
-  input: {
-    adminUserId: number;
-    nowDate: Date;
-  },
-) {
-  return ensureStudyTrackingCaseForToken(
-    {
-      getParticularStudyTrackingCase: deps.getParticularStudyTrackingCase,
-      getStudyTrackingCaseByReportId: deps.getStudyTrackingCaseByReportId,
-      createStudyTrackingCase: deps.createStudyTrackingCase,
-      updateStudyTrackingCase: deps.updateStudyTrackingCase,
-    },
-    {
-      token,
-      createdByAdminId: input.adminUserId,
-      createdByClinicUserId: token.createdByClinicUserId ?? null,
-      now: input.nowDate,
-    },
-  );
-}
-
-function shouldCreateReportDeliveredNotification(input: {
-  previousTrackingCase: StudyTrackingCase | null;
-  trackingCase: StudyTrackingCase | null;
-}) {
-  const { previousTrackingCase, trackingCase } = input;
-
-  if (!trackingCase || trackingCase.currentStage !== "delivered") {
-    return false;
-  }
-
-  if (!previousTrackingCase) {
-    return true;
-  }
-
-  return previousTrackingCase.currentStage !== "delivered";
-}
-
-async function createReportDeliveredNotificationSafely(
-  deps: NativeAdminReportsDeps,
-  input: {
-    previousTrackingCase: StudyTrackingCase | null;
-    trackingCase: StudyTrackingCase | null;
-    clinicId: number;
-    reportId: number;
-  },
-) {
-  if (!shouldCreateReportDeliveredNotification(input) || !input.trackingCase) {
-    return;
-  }
-
-  try {
-    await deps.createStudyTrackingNotification({
-      studyTrackingCaseId: input.trackingCase.id,
-      clinicId: input.clinicId,
-      reportId: input.reportId,
-      particularTokenId: input.trackingCase.particularTokenId,
-      type: "report_delivered",
-      title: "Informe disponible",
-      message: "El informe del estudio ya está disponible.",
-      isRead: false,
-      readAt: null,
-    });
-  } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "unknown_error";
-
-    console.warn(
-      "[admin-reports] report_delivered notification failed",
-      JSON.stringify({
-        reportId: input.reportId,
-        clinicId: input.clinicId,
-        trackingCaseId: input.trackingCase.id,
-        error: errorMessage,
-      }),
-    );
-  }
-}
-
-function serializeReport(report: Report, _deps: NativeAdminReportsDeps) {
+function serializeReport(report: Report) {
   return serializeSafeReport(report);
 }
 
@@ -582,8 +344,13 @@ export const adminReportsNativeRoutes: FastifyPluginAsync<
       reportId?: unknown;
     };
   }>("/:reportId/preview-url", async (request, reply) => {
-    const deps = await resolveDeps(options);
-    const admin = await authenticateAdminUser(request, reply, deps, now);
+    const composition = await createAdminReportsRouteComposition(options);
+    const admin = await authenticateAdminUser(
+      request,
+      reply,
+      composition.auth,
+      now,
+    );
 
     if (!admin) {
       return reply;
@@ -598,20 +365,19 @@ export const adminReportsNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const report = await deps.getReportById(reportId);
+    const result =
+      await composition.service.getSignedPreviewUrl(reportId);
 
-    if (!report) {
+    if (result.type === "not_found") {
       return reply.code(404).send({
         success: false,
         error: "Informe no encontrado",
       });
     }
 
-    const previewUrl = await deps.createSignedReportUrl(report.storagePath);
-
     return reply.code(200).send({
       success: true,
-      previewUrl,
+      previewUrl: result.previewUrl,
     });
   });
 
@@ -620,8 +386,13 @@ export const adminReportsNativeRoutes: FastifyPluginAsync<
       reportId?: unknown;
     };
   }>("/:reportId/download-url", async (request, reply) => {
-    const deps = await resolveDeps(options);
-    const admin = await authenticateAdminUser(request, reply, deps, now);
+    const composition = await createAdminReportsRouteComposition(options);
+    const admin = await authenticateAdminUser(
+      request,
+      reply,
+      composition.auth,
+      now,
+    );
 
     if (!admin) {
       return reply;
@@ -636,23 +407,19 @@ export const adminReportsNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const report = await deps.getReportById(reportId);
+    const result =
+      await composition.service.getSignedDownloadUrl(reportId);
 
-    if (!report) {
+    if (result.type === "not_found") {
       return reply.code(404).send({
         success: false,
         error: "Informe no encontrado",
       });
     }
 
-    const downloadUrl = await deps.createSignedReportDownloadUrl(
-      report.storagePath,
-      report.fileName ?? undefined,
-    );
-
     return reply.code(200).send({
       success: true,
-      downloadUrl,
+      downloadUrl: result.downloadUrl,
     });
   });
 
@@ -661,8 +428,13 @@ export const adminReportsNativeRoutes: FastifyPluginAsync<
       return reply;
     }
 
-    const deps = await resolveDeps(options);
-    const admin = await authenticateAdminUser(request, reply, deps, now);
+    const composition = await createAdminReportsRouteComposition(options);
+    const admin = await authenticateAdminUser(
+      request,
+      reply,
+      composition.auth,
+      now,
+    );
 
     if (!admin) {
       return reply;
@@ -707,132 +479,56 @@ export const adminReportsNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const clinic = await deps.getClinicById(clinicId);
+    const result = await composition.service.uploadAdminReport({
+      clinicId,
+      particularTokenId,
+      file: file
+        ? {
+            buffer: file.buffer,
+            fileName: file.originalname,
+            mimeType: file.mimetype,
+          }
+        : undefined,
+      patientName: body.patientName,
+      studyType: body.studyType,
+      uploadDate: body.uploadDate,
+      adminUserId: admin.id,
+      auditContext: createAuditRequestLike(request, admin),
+      now: new Date(now()),
+    });
 
-    if (!clinic) {
+    if (result.type === "clinic_not_found") {
       return reply.code(404).send({
         success: false,
         error: "Clinica no encontrada",
       });
     }
 
-    if (!file) {
+    if (result.type === "file_missing") {
       return reply.code(400).send({
         success: false,
         error: "No se proporciono ningun archivo",
       });
     }
 
-    const selectedParticularToken =
-      typeof particularTokenId === "number"
-        ? await deps.getParticularTokenById(particularTokenId)
-        : null;
-
-    if (typeof particularTokenId === "number" && !selectedParticularToken) {
+    if (result.type === "token_not_found") {
       return reply.code(404).send({
         success: false,
         error: "Token particular no encontrado",
       });
     }
 
-    if (
-      selectedParticularToken &&
-      selectedParticularToken.clinicId !== clinicId
-    ) {
+    if (result.type === "token_clinic_mismatch") {
       return reply.code(400).send({
         success: false,
         error: "El token particular no pertenece a la clínica indicada",
       });
     }
 
-    const storagePath = await deps.uploadReport({
-      file: file.buffer,
-      fileName: file.originalname,
-      clinicId,
-      mimeType: file.mimetype,
-    });
-
-    const patientName = normalizeSearchText(body.patientName);
-    const studyType = parseReportStudyType(body.studyType);
-    const uploadDate = parseOptionalDate(body.uploadDate);
-
-    const report = await deps.upsertReport({
-      clinicId,
-      patientName: patientName ?? null,
-      studyType: studyType ?? null,
-      uploadDate: uploadDate ?? null,
-      fileName: file.originalname,
-      storagePath,
-      createdByAdminUserId: admin.id,
-    });
-
-    const nowDate = new Date(now());
-    let trackingCase: StudyTrackingCase | null = null;
-    let previousTrackingCase: StudyTrackingCase | null = null;
-    let linkedTokenId: number | null = null;
-
-    if (selectedParticularToken) {
-      previousTrackingCase =
-        (await deps.getParticularStudyTrackingCase(selectedParticularToken.id)) ??
-        (await deps.getStudyTrackingCaseByReportId(report.id)) ??
-        null;
-
-      const updatedToken = await deps.updateParticularTokenReport(
-        selectedParticularToken.id,
-        report.id,
-      );
-      const tokenForTracking = {
-        ...selectedParticularToken,
-        reportId: report.id,
-        updatedAt: nowDate,
-      } as ParticularToken;
-      const linkedToken = updatedToken ?? tokenForTracking;
-
-      linkedTokenId = linkedToken.id;
-      trackingCase = await ensureTrackingForLinkedToken(deps, linkedToken, {
-        adminUserId: admin.id,
-        nowDate,
-      });
-    } else {
-      previousTrackingCase =
-        (await deps.getStudyTrackingCaseByReportId(report.id)) ?? null;
-
-      trackingCase = await ensureDeliveredTrackingByReportId(
-        deps,
-        report.id,
-        nowDate,
-      );
-      linkedTokenId = trackingCase?.particularTokenId ?? null;
-    }
-
-    await createReportDeliveredNotificationSafely(deps, {
-      previousTrackingCase,
-      trackingCase,
-      clinicId: report.clinicId,
-      reportId: report.id,
-    });
-
-    await deps.writeAuditLog(createAuditRequestLike(request, admin), {
-      event: AUDIT_EVENTS.REPORT_UPLOADED,
-      clinicId: report.clinicId,
-      reportId: report.id,
-      metadata: {
-        fileName: file.originalname,
-        mimeType: file.mimetype,
-        patientName: patientName ?? null,
-        studyType: studyType ?? null,
-        uploadDate: uploadDate ?? null,
-        uploadedVia: "admin",
-        particularTokenId: linkedTokenId,
-        trackingCaseId: trackingCase?.id ?? null,
-        trackingStage: trackingCase?.currentStage ?? null,
-      },
-    });
-
     return reply.code(201).send({
       success: true,
       message: "Informe subido correctamente",
-      report: await serializeReport(report, deps),
+      report: serializeReport(result.report as Report),
     });
   });
 };

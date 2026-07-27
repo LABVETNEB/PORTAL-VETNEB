@@ -18,9 +18,8 @@ const thinRouteConsumers = [
   "server/routes/particular-study-tracking.fastify.ts",
 ] as const;
 
-const legacyRuntimeConsumers = [
-  "server/routes/admin-reports.fastify.ts",
-] as const;
+const reportsCompositionFile =
+  "server/features/reports/composition/report-route-composition.ts";
 
 const publicFunctions = [
   "createStudyTrackingCase",
@@ -203,16 +202,14 @@ test("las rutas M32/M32b atraviesan una composición feature-level sin tocar per
   );
 });
 
-test("el consumidor residual Reports conserva el shim M31", () => {
-  for (const file of legacyRuntimeConsumers) {
-    const targets = listImportSpecifiers(readText(file)).map((specifier) =>
-      resolveSpecifier(file, specifier)
-    );
+test("Reports composition M39 consume infrastructure canónica sin shim", () => {
+  const targets = listImportSpecifiers(
+    readText(reportsCompositionFile),
+  ).map((specifier) => resolveSpecifier(reportsCompositionFile, specifier));
 
-    assert.ok(targets.includes(legacyShimFile), file);
-    assert.equal(targets.includes(repositoryFile), false, file);
-    assert.equal(targets.includes(infrastructureIndexFile), false, file);
-  }
+  assert.equal(targets.includes(legacyShimFile), false);
+  assert.equal(targets.includes(repositoryFile), false);
+  assert.ok(targets.includes(infrastructureIndexFile));
 });
 
 test("los contratos source-only leen el repository canónico", () => {

@@ -200,6 +200,9 @@ test("report write surface owner registry queda limitado al router admin reports
 
 test("admin reports upload exige admin auth antes de storage y persiste autoria admin", () => {
   const source = readSource("server/routes/admin-reports.fastify.ts");
+  const service = readSource(
+    "server/features/reports/application/report-route-service.ts",
+  );
   const uploadBlock = extractRouteBlock(
     "server/routes/admin-reports.fastify.ts",
     "post",
@@ -207,15 +210,13 @@ test("admin reports upload exige admin auth antes de storage y persiste autoria 
   );
 
   assert.match(source, /prefix: "\/api\/admin\/reports"|adminReportsNativeRoutes/);
-  assert.match(uploadBlock, /authenticateAdminUser\(request, reply, deps, now\)/);
-  assert.match(uploadBlock, /createdByAdminUserId: admin\.id/);
+  assert.match(uploadBlock, /authenticateAdminUser\([\s\S]*composition\.auth/);
+  assert.match(uploadBlock, /adminUserId: admin\.id/);
   assert.doesNotMatch(uploadBlock, /createdByClinicUserId/);
 
   for (const protectedCall of [
     "runReportUpload",
-    "deps.getClinicById",
-    "deps.uploadReport",
-    "deps.upsertReport",
+    "composition.service.uploadAdminReport",
   ]) {
     assertBefore(
       uploadBlock,
@@ -231,12 +232,9 @@ test("admin reports upload exige admin auth antes de storage y persiste autoria 
     );
   }
 
-  assertBefore(
-    uploadBlock,
-    "deps.uploadReport",
-    "deps.upsertReport",
-    "admin report upload",
-  );
+  assertBefore(service, "dependencies.getClinicById", "dependencies.uploadReport", "admin report upload");
+  assertBefore(service, "dependencies.uploadReport", "dependencies.createOrEditReport", "admin report upload");
+  assert.match(service, /createdByAdminUserId: input\.adminUserId/);
 });
 
 test("admin autenticado puede subir informe y queda como owner de escritura", async () => {

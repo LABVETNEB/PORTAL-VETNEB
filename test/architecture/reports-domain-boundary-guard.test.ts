@@ -342,7 +342,7 @@ test("domain no contiene transporte infraestructura I/O ni side effects", () => 
   assert.deepEqual(violations, []);
 });
 
-test("M37 y M38 quedan fuera del dominio y M39 permanece ausente", () => {
+test("M37 a M39 quedan fuera del dominio y M39 está materializado", () => {
   for (const path of [
     `${featureDir}/application`,
     `${featureDir}/infrastructure`,
@@ -366,7 +366,7 @@ test("M37 y M38 quedan fuera del dominio y M39 permanece ausente", () => {
 
   assert.equal(
     existsSync(join(repoRoot, `${featureDir}/infrastructure/db-report-workflow.ts`)),
-    false,
+    true,
   );
   assert.equal(
     existsSync(
@@ -378,8 +378,14 @@ test("M37 y M38 quedan fuera del dominio y M39 permanece ausente", () => {
     true,
   );
   assert.equal(
+    existsSync(
+      join(repoRoot, `${featureDir}/application/report-route-service.ts`),
+    ),
+    true,
+  );
+  assert.equal(
     walkTsFiles(`${featureDir}/application`).some((file) =>
-      /report-query|route-service/i.test(file),
+      /report-query/i.test(file),
     ),
     false,
   );

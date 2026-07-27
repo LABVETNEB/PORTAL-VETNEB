@@ -49,12 +49,18 @@ const REPORTS_SUITE: readonly ReportsSuiteEntry[] = [
           "export const adminReportsNativeRoutes",
           "app.post(\"/upload\"",
           "enforceTrustedOrigin(request, reply, allowedOrigins)",
-          "authenticateAdminUser(request, reply, deps, now)",
-          "parseReportStudyType(body.studyType)",
-          "const storagePath = await deps.uploadReport({",
-          "createdByAdminUserId: admin.id",
-          "AUDIT_EVENTS.REPORT_UPLOADED",
+          "createAdminReportsRouteComposition",
+          "composition.service.uploadAdminReport({",
           "return reply.code(201).send({",
+        ],
+      },
+      {
+        path: "server/features/reports/application/report-route-service.ts",
+        markers: [
+          "const storagePath = await dependencies.uploadReport({",
+          "dependencies.parseReportStudyType(input.studyType)",
+          "createdByAdminUserId: input.adminUserId",
+          "auditEvents.reportUploaded",
         ],
       },
     ],
@@ -169,8 +175,8 @@ const REPORTS_SUITE: readonly ReportsSuiteEntry[] = [
         ],
       },
       {
-        path: "server/routes/admin-reports.fastify.ts",
-        markers: ["parseReportStudyType(body.studyType)"],
+        path: "server/features/reports/application/report-route-service.ts",
+        markers: ["dependencies.parseReportStudyType(input.studyType)"],
       },
       {
         path: "server/routes/reports.fastify.ts",
@@ -371,13 +377,13 @@ const REPORTS_SUITE: readonly ReportsSuiteEntry[] = [
           "Reports conserva domain M36 y admite inventario M37 autorizado",
           "consumidores externos usan exclusivamente el barrel canonico",
           "domain aplica default-deny",
-          "M39 permanece ausente",
+          "M39 est\u00e1 materializado",
         ],
       },
       {
         path: "test/architecture/reports-workflow-ports-boundary-guard.test.ts",
         markers: [
-          "M37 crea inventario exacto de application ports infrastructure y composition",
+          "M39 conserva inventario exacto de application ports infrastructure y composition",
           "application y ports aplican default deny",
           "composition es el unico bridge M37",
           "best effort catch y logging seguro",
@@ -427,9 +433,9 @@ const REPORTS_SUITE: readonly ReportsSuiteEntry[] = [
       {
         path: "test/architecture/reports-command-use-cases-boundary-guard.test.ts",
         markers: [
-          "M38 fija inventario productivo exacto",
+          "M39 fija inventario productivo exacto",
           "application y ports aplican default deny",
-          "M39 a M41 ausentes",
+          "M40 ausente",
         ],
       },
       {
@@ -474,7 +480,20 @@ const REPORTS_SUITE: readonly ReportsSuiteEntry[] = [
     runtimeAnchors: [
       {
         path: "server/routes/admin-reports.fastify.ts",
-        markers: ["uploadReport", "createSignedReportUrl", "writeAuditLog"],
+        markers: [
+          "uploadReport?:",
+          "createSignedReportUrl?:",
+          "writeAuditLog?:",
+          "createAdminReportsRouteComposition",
+        ],
+      },
+      {
+        path: "server/features/reports/application/report-route-service.ts",
+        markers: [
+          "dependencies.uploadReport",
+          "dependencies.createSignedReportUrl",
+          "dependencies.writeAuditLog",
+        ],
       },
       {
         path: "server/routes/reports.fastify.ts",

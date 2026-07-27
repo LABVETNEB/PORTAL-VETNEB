@@ -49,7 +49,7 @@ test("listadores backend compartidos normalizan paginación antes de consultar",
     "server/features/particular-access/infrastructure/particular-access-repository.ts",
     "server/features/report-access/infrastructure/report-access-repository.ts",
     "server/features/study-tracking/infrastructure/study-tracking-repository.ts",
-    "server/db-report-workflow.ts",
+    "server/features/reports/infrastructure/db-report-workflow.ts",
     "server/features/clinics/infrastructure/admin-clinics-repository.ts",
     "server/db-admin-failed-login-alerts.ts",
   ];

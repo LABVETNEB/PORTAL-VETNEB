@@ -188,11 +188,24 @@ const STORAGE_SUITE: readonly StorageSuiteEntry[] = [
           "uploadReport?:",
           "createSignedReportUrl?:",
           "createSignedReportDownloadUrl?:",
+          "createAdminReportsRouteComposition",
+          "composition.service.uploadAdminReport",
+          "serializeReport(result.report",
+        ],
+      },
+      {
+        path: "server/features/reports/composition/report-route-composition.ts",
+        markers: [
           "uploadReport: storage.uploadReport",
           "createSignedReportUrl: storage.createSignedReportUrl",
           "createSignedReportDownloadUrl: storage.createSignedReportDownloadUrl",
-          "const storagePath = await deps.uploadReport({",
-          "report: await serializeReport(report, deps)",
+        ],
+      },
+      {
+        path: "server/features/reports/application/report-route-service.ts",
+        markers: [
+          "const storagePath = await dependencies.uploadReport({",
+          "const report = await dependencies.createOrEditReport({",
         ],
       },
       {

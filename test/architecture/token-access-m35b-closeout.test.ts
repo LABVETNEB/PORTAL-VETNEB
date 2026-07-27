@@ -15,6 +15,8 @@ const reportsM37Closeout =
   "docs/implementation/m37-reports-workflow-data-notification-ports.md";
 const reportsM38Closeout =
   "docs/implementation/m38-reports-create-edit-transition-use-cases.md";
+const reportsM39Closeout =
+  "docs/implementation/m39-reports-admin-thin-routes-workflow.md";
 
 const featureLayers = [
   {
@@ -328,7 +330,7 @@ test("M35b reutiliza la allowlist M33 de shims Particular sin ampliarla", () => 
   const expected = stringArrayInitializer(m33Guard, "particularShimConsumers")
     .slice()
     .sort();
-  assert.equal(expected.length, 9);
+  assert.equal(expected.length, 8);
 
   const actual = walk("server")
     .filter((file) => file.endsWith(".ts") && file !== "server/db-particular.ts")
@@ -380,6 +382,7 @@ test("M35b documenta cierre de Fase H y preserva fases siguientes", () => {
   assert.equal(existsSync(resolve(root, reportsM36Closeout)), true);
   assert.equal(existsSync(resolve(root, reportsM37Closeout)), true);
   assert.equal(existsSync(resolve(root, reportsM38Closeout)), true);
+  assert.equal(existsSync(resolve(root, reportsM39Closeout)), true);
 
   for (const path of [
     "server/features/reports/application",
@@ -390,7 +393,7 @@ test("M35b documenta cierre de Fase H y preserva fases siguientes", () => {
   }
 
   const futureCloseouts = walk("docs/implementation").filter((path) =>
-    /\/(?:m(?:39|40|41)-|reports-phase-i)/i.test(path),
+    /\/(?:m(?:40|41)-|reports-phase-i)/i.test(path),
   );
   assert.deepEqual(futureCloseouts, []);
 });
