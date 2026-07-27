@@ -20,16 +20,16 @@ type AdminUsersRolesNativeRoutesOptions = import(
   "../../../../server/routes/admin-users-roles.fastify.ts"
 ).AdminUsersRolesNativeRoutesOptions;
 type AdminUsersRolesQuery = import(
-  "../../../../server/db-admin-users-roles.ts"
+  "../../../../server/features/users-roles/application/index.ts"
 ).AdminUsersRolesQuery;
 type AdminUsersRolesSnapshot = import(
-  "../../../../server/db-admin-users-roles.ts"
+  "../../../../server/features/users-roles/application/index.ts"
 ).AdminUsersRolesSnapshot;
 type AdminRoleUserSummary = import(
-  "../../../../server/db-admin-users-roles.ts"
+  "../../../../server/features/users-roles/application/index.ts"
 ).AdminRoleUserSummary;
 type AdminClinicUserRoleChangeResult = import(
-  "../../../../server/db-admin-users-roles.ts"
+  "../../../../server/features/users-roles/application/index.ts"
 ).AdminClinicUserRoleChangeResult;
 type AdminClinicUserCredentialsUpdateResult = import(
   "../../../../server/features/clinics/admin-clinics-command-service.ts"

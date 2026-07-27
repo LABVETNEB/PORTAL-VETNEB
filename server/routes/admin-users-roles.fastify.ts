@@ -16,11 +16,16 @@ import { authenticateFastifyAdmin } from "../lib/fastify-admin-auth.ts";
 import type {
   AdminClinicUserRoleChangeInput,
   AdminClinicUserRoleChangeResult,
-  AdminRoleUserRole,
-  AdminRoleUserType,
   AdminUsersRolesQuery,
   AdminUsersRolesSnapshot,
-} from "../db-admin-users-roles.ts";
+} from "../features/users-roles/application/index.ts";
+import { createAdminUsersRolesUseCases } from "../features/users-roles/application/index.ts";
+import {
+  parseAdminClinicUserRole,
+  parseAdminRoleUserRole,
+  parseAdminRoleUserType,
+  type AdminClinicUserRole,
+} from "../features/users-roles/domain/index.ts";
 import type {
   AdminClinicUserCredentialsUpdateInput,
   AdminClinicUserCredentialsUpdateResult,
@@ -28,8 +33,6 @@ import type {
 import {
   updateAdminClinicUserCredentialsCommand,
 } from "../features/clinics/admin-clinics-command-service.ts";
-
-type AdminClinicUserRole = Exclude<AdminRoleUserRole, "admin">;
 
 type AdminSessionRecord = {
   id: number;
@@ -182,34 +185,6 @@ function applyCorsHeaders(
   reply.header("access-control-allow-credentials", "true");
 }
 
-function parseUserType(value: string | undefined): AdminRoleUserType | undefined | null {
-  if (value === undefined) return undefined;
-  if (value === "admin" || value === "clinic") return value;
-  return null;
-}
-
-function parseRole(value: string | undefined): AdminRoleUserRole | undefined | null {
-  if (value === undefined) return undefined;
-
-  if (
-    value === "admin" ||
-    value === "clinic_owner" ||
-    value === "clinic_staff"
-  ) {
-    return value;
-  }
-
-  return null;
-}
-
-function parseClinicUserRole(value: unknown): AdminClinicUserRole | null {
-  if (value === "clinic_owner" || value === "clinic_staff") {
-    return value;
-  }
-
-  return null;
-}
-
 function parseClinicUserCredentialsBody(
   body: AdminUsersRolesCredentialsChangeBody | undefined,
 ):
@@ -329,8 +304,14 @@ function parsePositiveIntegerParam(value: string | undefined) {
 function parseUsersRolesQuery(
   query: AdminUsersRolesRequestQuery,
 ): AdminUsersRolesQuery | null {
-  const userType = parseUserType(query.userType);
-  const role = parseRole(query.role);
+  const userType =
+    query.userType === undefined
+      ? undefined
+      : parseAdminRoleUserType(query.userType);
+  const role =
+    query.role === undefined
+      ? undefined
+      : parseAdminRoleUserRole(query.role);
   const limit = parseIntegerParam(query.limit, 50, 1, 100);
   const offset = parseIntegerParam(query.offset, 0, 0, 100_000);
   const search = parseSearchParam(query.search);
@@ -412,6 +393,13 @@ export const adminUsersRolesNativeRoutes: FastifyPluginAsync<
     };
   }
 
+  const usersRolesUseCases = createAdminUsersRolesUseCases({
+    getAdminUsersRolesSnapshot: async (query) =>
+      (await resolveDeps()).getAdminUsersRolesSnapshot(query),
+    changeClinicUserRole: async (input) =>
+      (await resolveDeps()).changeClinicUserRole(input),
+  });
+
   app.addHook("onRequest", async (request, reply) => {
     applyCorsHeaders(request, reply, allowedOrigins);
   });
@@ -465,7 +453,8 @@ export const adminUsersRolesNativeRoutes: FastifyPluginAsync<
         });
       }
 
-      const snapshot = await deps.getAdminUsersRolesSnapshot(params);
+      const snapshot =
+        await usersRolesUseCases.listAdminUsersRoles(params);
 
       return reply.code(200).send({
         ...snapshot,
@@ -501,7 +490,8 @@ export const adminUsersRolesNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const role = parseClinicUserRole(request.body?.role);
+    const role: AdminClinicUserRole | null =
+      parseAdminClinicUserRole(request.body?.role);
 
     if (!role) {
       return reply.code(400).send({
@@ -510,7 +500,7 @@ export const adminUsersRolesNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const result = await deps.changeClinicUserRole({
+    const result = await usersRolesUseCases.changeClinicUserRole({
       clinicUserId,
       role,
       now: new Date(now()),

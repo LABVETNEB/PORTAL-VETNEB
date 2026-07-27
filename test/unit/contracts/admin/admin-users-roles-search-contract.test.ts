@@ -113,7 +113,9 @@ test("search se aplica tanto al conteo (total/totalPages) como al listado pagina
 });
 
 test("AdminUsersRolesQuery expone search opcional sin romper el shape existente", () => {
-  const source = read("server/db-admin-users-roles.ts");
+  const source = read(
+    "server/features/users-roles/application/ports/admin-users-roles-repository.ts",
+  );
 
   const typeStart = source.indexOf("export type AdminUsersRolesQuery = {");
   const typeEnd = source.indexOf("};", typeStart) + 2;
