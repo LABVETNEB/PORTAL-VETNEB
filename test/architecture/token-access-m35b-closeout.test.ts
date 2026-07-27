@@ -13,6 +13,8 @@ const reportsM36Closeout =
   "docs/implementation/m36-reports-domain-moves-catalog-census.md";
 const reportsM37Closeout =
   "docs/implementation/m37-reports-workflow-data-notification-ports.md";
+const reportsM38Closeout =
+  "docs/implementation/m38-reports-create-edit-transition-use-cases.md";
 
 const featureLayers = [
   {
@@ -377,6 +379,7 @@ test("M35b documenta cierre de Fase H y preserva fases siguientes", () => {
 
   assert.equal(existsSync(resolve(root, reportsM36Closeout)), true);
   assert.equal(existsSync(resolve(root, reportsM37Closeout)), true);
+  assert.equal(existsSync(resolve(root, reportsM38Closeout)), true);
 
   for (const path of [
     "server/features/reports/application",
@@ -387,7 +390,7 @@ test("M35b documenta cierre de Fase H y preserva fases siguientes", () => {
   }
 
   const futureCloseouts = walk("docs/implementation").filter((path) =>
-    /\/(?:m(?:38|39|40|41)-|reports-phase-i)/i.test(path),
+    /\/(?:m(?:39|40|41)-|reports-phase-i)/i.test(path),
   );
   assert.deepEqual(futureCloseouts, []);
 });
