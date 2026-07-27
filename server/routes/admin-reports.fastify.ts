@@ -1,4 +1,3 @@
-import { parseReportStudyType } from "../lib/report-study-types.ts";
 import type {
   FastifyPluginAsync,
   FastifyReply,
@@ -25,10 +24,11 @@ import { authenticateFastifyAdmin } from "../lib/fastify-admin-auth.ts";
 import { ALLOWED_MIME_TYPES } from "../lib/supabase.ts";
 import {
   normalizeSearchText,
+  parseReportStudyType,
   parseOptionalDate,
   parseReportId,
   serializeSafeReport,
-} from "../lib/reports.ts";
+} from "../features/reports/domain/index.ts";
 import {
   buildRequestLogLine,
   sanitizeUrlForLogs,

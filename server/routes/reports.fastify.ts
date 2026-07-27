@@ -1,4 +1,3 @@
-import { parseReportStudyType } from "../lib/report-study-types.ts";
 import type {
   FastifyPluginAsync,
   FastifyReply,
@@ -13,15 +12,16 @@ import {
   getRequestOrigin,
 } from "../lib/cors-headers.ts";
 import {
+  REPORT_STATUSES,
   getReadClinicScope,
   normalizeSearchText,
   parseOffset,
   parsePositiveInt,
   parseReportId,
   parseReportStatus,
+  parseReportStudyType,
   serializeSafeReport,
-} from "../lib/reports.ts";
-import { REPORT_STATUSES } from "../lib/report-status.ts";
+} from "../features/reports/domain/index.ts";
 import { normalizeClinicUserRole } from "../lib/permissions.ts";
 import {
   buildRequestLogLine,

@@ -17,7 +17,9 @@ const { reportsNativeRoutes } = await import("../../../../server/routes/reports.
 const { publicReportAccessNativeRoutes } = await import(
   "../../../../server/routes/public-report-access.fastify.ts"
 );
-const { serializeSafeReport } = await import("../../../../server/lib/reports.ts");
+const { serializeSafeReport } = await import(
+  "../../../../server/features/reports/domain/index.ts"
+);
 const { createMemoryRateLimitStore } = await import(
   "../../../../server/lib/rate-limit-store.ts"
 );

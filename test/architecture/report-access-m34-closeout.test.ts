@@ -61,7 +61,7 @@ function importTargets(path: string): string[] {
   return result;
 }
 
-test("M34 crea sólo el feature canónico y no inicia M35b ni Reports Phase I", () => {
+test("M34 conserva sólo su feature y Reports Phase I abre independientemente en M36", () => {
   for (const path of [
     `${feature}/README.md`,
     `${domain}/report-access.ts`,
@@ -74,7 +74,16 @@ test("M34 crea sólo el feature canónico y no inicia M35b ni Reports Phase I", 
   ]) {
     assert.equal(existsSync(resolve(root, path)), true, path);
   }
-  assert.equal(existsSync(resolve(root, "server/features/reports")), false);
+  assert.equal(existsSync(resolve(root, "server/features/reports")), true);
+  assert.equal(
+    existsSync(resolve(root, "server/features/reports/application")),
+    false,
+  );
+  assert.equal(
+    existsSync(resolve(root, "server/features/reports/infrastructure")),
+    false,
+  );
+  assert.ok(read("server/features/reports/README.md").includes("M36"));
   assert.equal(existsSync(resolve(root, "server/features/report-access-v2")), false);
 });
 

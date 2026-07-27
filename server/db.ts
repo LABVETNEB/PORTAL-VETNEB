@@ -1,4 +1,4 @@
-import { getReportStudyTypes as getCanonicalReportStudyTypes, REPORT_STUDY_TYPE_LABELS } from "./lib/report-study-types.ts";
+import { getReportStudyTypes as getCanonicalReportStudyTypes, REPORT_STUDY_TYPE_LABELS } from "./features/reports/domain/index.ts";
 import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { and, desc, eq, ilike, isNotNull, lt, lte, or, sql } from "drizzle-orm";

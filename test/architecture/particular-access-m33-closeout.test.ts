@@ -342,7 +342,7 @@ test("shims conservan una línea y allowlists residuales exactas", () => {
   ]);
 });
 
-test("Auth y Reports denylist permanecen byte-identical", () => {
+test("Auth permanece byte-identical y Reports sólo recibe el reanchor M36", () => {
   assert.equal(
     digest("server/routes/particular-auth.fastify.ts"),
     "ae2847fd9c6dd68a13f88ad1d9672d0863741c2839c0343696dd67133e21078a",
@@ -353,7 +353,7 @@ test("Auth y Reports denylist permanecen byte-identical", () => {
   );
   assert.equal(
     digest("server/routes/admin-reports.fastify.ts"),
-    "7724b90996d023a5b1b1e4966dd092cb78768034dc46d97f27e30848d46dfe04",
+    "4ccd2b7318cc2ceb45b098bbf9738448b283cba3360f6ab2f26df28a6a0e2e19",
   );
 });
 

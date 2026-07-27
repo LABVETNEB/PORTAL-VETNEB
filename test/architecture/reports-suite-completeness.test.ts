@@ -131,7 +131,7 @@ const REPORTS_SUITE: readonly ReportsSuiteEntry[] = [
         ],
       },
       {
-        path: "server/lib/report-status.ts",
+        path: "server/features/reports/domain/report-status.ts",
         markers: [
           "export const REPORT_STATUSES",
           "export function canTransitionReportStatus",
@@ -157,7 +157,7 @@ const REPORTS_SUITE: readonly ReportsSuiteEntry[] = [
     ],
     runtimeAnchors: [
       {
-        path: "server/lib/report-study-types.ts",
+        path: "server/features/reports/domain/report-study-types.ts",
         markers: [
           "REPORT_STUDY_TYPES",
           "REPORT_STUDY_TYPE_LABELS",
@@ -366,6 +366,15 @@ const REPORTS_SUITE: readonly ReportsSuiteEntry[] = [
       "Reports remain connected to security, audit and storage suite registries that protect ownership, lifecycle and signed URLs.",
     testFiles: [
       {
+        path: "test/architecture/reports-domain-boundary-guard.test.ts",
+        markers: [
+          "Reports abre Fase I con inventario M36 exacto",
+          "consumidores externos usan exclusivamente el barrel canonico",
+          "domain aplica default-deny",
+          "M37 permanece ausente",
+        ],
+      },
+      {
         path: "test/architecture/security/security-resource-ownership-boundaries.test.ts",
         markers: [
           "resource ownership matrix",
@@ -491,6 +500,7 @@ test("reports suite registers canonical reports guardrail files", () => {
     "particular-token.test.ts",
     "particular-tokens.fastify.test.ts",
     "admin-particular-tokens.fastify.test.ts",
+    "reports-domain-boundary-guard.test.ts",
   ]) {
     assert.equal(
       registeredFiles.includes(requiredFile),
