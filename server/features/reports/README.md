@@ -1,7 +1,7 @@
 # Reports
 
-M36 abre la Fase I estableciendo la frontera de dominio de Reports sin cambiar
-comportamiento runtime.
+M36 estableció la frontera de dominio y M37 desacopla la comunicación interna
+del workflow sin cambiar comportamiento runtime.
 
 ## Superficie disponible
 
@@ -9,16 +9,22 @@ comportamiento runtime.
 - `domain/report-status.ts` conserva el catálogo y las transiciones de estado.
 - `domain/report-study-types.ts` conserva el catálogo de tipos de estudio.
 - `domain/reports.ts` conserva parsing, scoping y serialización segura.
+- `application/index.ts` expone la operación inyectable y sus dos puertos.
+- `infrastructure/index.ts` expone los adapters de datos y notificación.
+- `composition/index.ts` es el entrypoint runtime de
+  `createReportWorkflowNotification`.
 
-## Límites de M36
+## Dependencias entre capas
 
 El dominio sólo puede depender de archivos de su propia capa y de
-`drizzle/schema.ts` mediante `import type`. Fastify, rutas, DB runtime,
-repositorios, auth, sesiones, CORS, rate limits, auditoría, email, storage e I/O
-permanecen fuera.
+`drizzle/schema.ts` mediante `import type`. Application sólo depende de sus
+puertos. Infrastructure implementa esos puertos y es la única capa M37 con DB,
+Drizzle, schema y tablas de Study Tracking. Composition es el único bridge
+application → infrastructure.
 
-Las capas `application`, `infrastructure` y `composition` no existen todavía.
-M37 será responsable del desacople de workflow communication y persistencia.
+`server/lib/report-workflow-communication.ts` permanece como shim temporal de
+una línea hasta M41. Ningún consumidor runtime ni test de comportamiento debe
+usarlo.
 
-Los shims de `server/lib` se conservan temporalmente hasta el censo final de la
-Fase I; ningún consumidor runtime ni test de comportamiento debe usarlos.
+M38–M41 siguen pendientes: M38 contiene los casos de uso generales de Reports,
+M39/M40 las rutas delgadas y M41 el closeout y retiro final de shims.

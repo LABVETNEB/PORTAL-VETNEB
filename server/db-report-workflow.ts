@@ -7,7 +7,7 @@ import {
   type ReportWorkflowStage,
 } from "../drizzle/schema.ts";
 import { normalizeListPagination } from "./lib/list-pagination.ts";
-import { createReportWorkflowNotification } from "./lib/report-workflow-communication.ts";
+import { createReportWorkflowNotification } from "./features/reports/composition/index.ts";
 
 export type AdminReportWorkflowItem = {
   id: number;
