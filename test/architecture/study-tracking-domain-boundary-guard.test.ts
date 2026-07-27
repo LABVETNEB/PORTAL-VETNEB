@@ -21,7 +21,7 @@ const runtimeConsumers = [
   "server/routes/study-tracking.fastify.ts",
   "server/routes/admin-study-tracking.fastify.ts",
   "server/routes/particular-study-tracking.fastify.ts",
-  "server/routes/admin-reports.fastify.ts",
+  "server/features/reports/composition/report-route-composition.ts",
 ] as const;
 
 type ImportReference = {

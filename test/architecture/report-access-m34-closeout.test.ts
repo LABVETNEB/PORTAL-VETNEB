@@ -113,7 +113,7 @@ test("M34 conserva sólo su feature y Reports avanza independientemente hasta M3
         "server/features/reports/infrastructure/db-report-workflow.ts",
       ),
     ),
-    false,
+    true,
   );
   assert.equal(existsSync(resolve(root, "server/features/report-access-v2")), false);
 });

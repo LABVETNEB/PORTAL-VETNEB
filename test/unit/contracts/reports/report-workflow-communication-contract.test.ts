@@ -19,7 +19,8 @@ const composition =
   "server/features/reports/composition/report-workflow-communication-composition.ts";
 const compositionIndex = "server/features/reports/composition/index.ts";
 const shim = "server/lib/report-workflow-communication.ts";
-const workflow = "server/db-report-workflow.ts";
+const workflow =
+  "server/features/reports/infrastructure/db-report-workflow.ts";
 
 function read(path: string): string {
   return readFileSync(resolve(root, path), "utf8")
@@ -55,13 +56,6 @@ function resolveImport(path: string, specifier: string): string {
     return specifier;
   }
   return relative(root, resolve(root, dirname(path), specifier)).replaceAll("\\", "/");
-}
-
-function functionSource(source: string, name: string): string {
-  const start = source.indexOf(`export async function ${name}(`);
-  assert.notEqual(start, -1, `Missing function ${name}`);
-  const nextExport = source.indexOf("\nexport async function ", start + 1);
-  return nextExport === -1 ? source.slice(start) : source.slice(start, nextExport);
 }
 
 test("M37 expone application puertos adapters composition y shim canonicos", () => {
@@ -148,22 +142,17 @@ test("composition cablea exactamente ambos puertos y reloj", () => {
   }
 });
 
-test("db workflow importa composition y preserva stage special stain y best effort", () => {
+test("db workflow recibe comunicación M37 y preserva stage special stain y best effort", () => {
   const source = read(workflow);
-  const updateStage = functionSource(source, "updateAdminReportWorkflowStage");
-  const updateSpecialStain = functionSource(source, "updateAdminReportSpecialStain");
 
+  assert.ok(source.includes("createDbReportWorkflowRepository"));
+  assert.ok(source.includes("dependencies.createReportWorkflowNotification"));
+  assert.equal(source.includes("../composition"), false);
+  assert.ok(source.includes("createWorkflowCommunicationSafely({"));
+  assert.ok(source.includes('type: "stage_changed"'));
+  assert.ok(source.includes('title: "Estado de informe actualizado"'));
   assert.ok(
     source.includes(
-      'import { createReportWorkflowNotification } from "./features/reports/composition/index.ts";',
-    ),
-  );
-  assert.ok(updateStage.includes("createWorkflowCommunicationSafely({"));
-  assert.ok(updateStage.includes('type: "stage_changed"'));
-  assert.ok(updateStage.includes('title: "Estado de informe actualizado"'));
-  assert.ok(updateSpecialStain.includes("createWorkflowCommunicationSafely({"));
-  assert.ok(
-    updateSpecialStain.includes(
       'requested ? "special_stain_required" : "special_stain_resolved"',
     ),
   );

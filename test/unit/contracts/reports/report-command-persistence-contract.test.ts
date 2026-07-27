@@ -107,10 +107,8 @@ test("rutas conservan Options y exports compatibility previos", () => {
 
   for (const marker of [
     "export type AdminReportsNativeRoutesOptions",
-    "const db = await import(\"../db.ts\")",
-    "getReportById: db.getReportById",
-    "upsertReport: db.upsertReport",
-    "const report = await deps.upsertReport({",
+    "createAdminReportsRouteComposition",
+    "composition.service.uploadAdminReport({",
   ]) {
     assert.ok(admin.includes(marker), marker);
   }
@@ -124,7 +122,7 @@ test("rutas conservan Options y exports compatibility previos", () => {
     assert.ok(status.includes(marker), marker);
   }
   assert.ok(reads.includes("getReportStatusHistory: db.getReportStatusHistory"));
-  assert.equal(admin.includes("report-command-composition"), false);
+  assert.equal(admin.includes("../db.ts"), false);
   assert.equal(status.includes("report-command-composition"), false);
 });
 
@@ -161,11 +159,19 @@ test("compatibility update atraviesa composition y application sin queries", () 
     }
   }
 
-  for (const absent of [
-    "server/features/reports/application/report-query-use-cases.ts",
+  for (const present of [
     "server/features/reports/application/report-route-service.ts",
     "server/features/reports/composition/report-route-composition.ts",
   ]) {
-    assert.equal(existsSync(resolve(root, absent)), false, absent);
+    assert.equal(existsSync(resolve(root, present)), true, present);
   }
+  assert.equal(
+    existsSync(
+      resolve(
+        root,
+        "server/features/reports/application/report-query-use-cases.ts",
+      ),
+    ),
+    false,
+  );
 });

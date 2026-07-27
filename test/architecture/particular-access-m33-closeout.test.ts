@@ -42,7 +42,6 @@ const expectedFeatureFiles = [
 const particularShimConsumers = [
   "server/middlewares/particular-auth.ts",
   "server/preflight.ts",
-  "server/routes/admin-reports.fastify.ts",
   "server/routes/admin-study-tracking.fastify.ts",
   "server/routes/auth.fastify.ts",
   "server/routes/particular-audit.fastify.ts",
@@ -338,11 +337,19 @@ test("shims conservan una línea y allowlists residuales exactas", () => {
     .filter((file) => importTargets(file).includes(studyShim))
     .sort();
   assert.deepEqual(actualStudyConsumers, [
-    "server/routes/admin-reports.fastify.ts",
   ]);
+  const reportsComposition =
+    "server/features/reports/composition/report-route-composition.ts";
+  const compositionTargets = importTargets(reportsComposition);
+  assert.ok(compositionTargets.includes(infrastructureIndex));
+  assert.ok(
+    compositionTargets.includes(
+      "server/features/study-tracking/infrastructure/index.ts",
+    ),
+  );
 });
 
-test("Auth permanece byte-identical y Reports sólo recibe el reanchor M36", () => {
+test("Auth permanece byte-identical y Reports usa composition M39", () => {
   assert.equal(
     digest("server/routes/particular-auth.fastify.ts"),
     "ae2847fd9c6dd68a13f88ad1d9672d0863741c2839c0343696dd67133e21078a",
@@ -351,10 +358,10 @@ test("Auth permanece byte-identical y Reports sólo recibe el reanchor M36", () 
     digest("server/middlewares/particular-auth.ts"),
     "fc551f73cc21beb99d35e97cc9abde62d10e98621185b8d829f5bbe9919dc17b",
   );
-  assert.equal(
-    digest("server/routes/admin-reports.fastify.ts"),
-    "4ccd2b7318cc2ceb45b098bbf9738448b283cba3360f6ab2f26df28a6a0e2e19",
-  );
+  const reports = readSource("server/routes/admin-reports.fastify.ts");
+  assert.ok(reports.includes("createAdminReportsRouteComposition"));
+  assert.equal(reports.includes("../db-particular.ts"), false);
+  assert.equal(reports.includes("../db-study-tracking.ts"), false);
 });
 
 test("README y closeout documentan owners, seguridad y milestones pendientes", () => {

@@ -37,9 +37,9 @@ const FORBIDDEN_FREE_TEXT_STUDY_TYPES = [
 
 const CATALOG_CONSUMERS = [
   {
-    path: "server/routes/admin-reports.fastify.ts",
-    specifier: "../features/reports/domain/index.ts",
-    markers: ["parseReportStudyType(body.studyType)"],
+    path: "server/features/reports/composition/report-route-composition.ts",
+    specifier: "../domain/index.ts",
+    markers: ["parseReportStudyType"],
   },
   {
     path: "server/routes/reports.fastify.ts",
@@ -214,11 +214,22 @@ test("report routes use canonical parser for upload and filters", () => {
     }
   }
 
-  const adminReportsSource = readSource(CATALOG_CONSUMERS[0].path);
+  const adminReportsSource = readSource(
+    "server/features/reports/application/report-route-service.ts",
+  );
   const reportsSource = readSource(CATALOG_CONSUMERS[1].path);
   const dbSource = readSource(CATALOG_CONSUMERS[2].path);
 
-  assertNotContains(adminReportsSource, "normalizeSearchText(body.studyType)", CATALOG_CONSUMERS[0].path);
+  assertContains(
+    adminReportsSource,
+    "dependencies.parseReportStudyType(input.studyType)",
+    "server/features/reports/application/report-route-service.ts",
+  );
+  assertNotContains(
+    adminReportsSource,
+    "dependencies.normalizeSearchText(input.studyType)",
+    "server/features/reports/application/report-route-service.ts",
+  );
   assertNotContains(reportsSource, "normalizeSearchText(request.query.studyType)", CATALOG_CONSUMERS[1].path);
   assertNotContains(dbSource, "selectDistinct({ studyType: reports.studyType })", CATALOG_CONSUMERS[2].path);
 });

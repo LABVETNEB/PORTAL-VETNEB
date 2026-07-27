@@ -243,6 +243,9 @@ test("auth login audit happens after session persistence and before success resp
 test("report mutation audit happens after durable mutation and before success response", () => {
   const reportsStatus = readSource("server/routes/reports-status.fastify.ts");
   const adminReports = readSource("server/routes/admin-reports.fastify.ts");
+  const reportService = readSource(
+    "server/features/reports/application/report-route-service.ts",
+  );
 
   assertContainsInOrder(
     reportsStatus,
@@ -258,17 +261,25 @@ test("report mutation audit happens after durable mutation and before success re
   );
 
   assertContainsInOrder(
+    reportService,
+    [
+      "const storagePath = await dependencies.uploadReport({",
+      "const report = await dependencies.createOrEditReport({",
+      "await dependencies.writeAuditLog(input.auditContext, {",
+      "event: dependencies.auditEvents.reportUploaded",
+      'return { type: "uploaded", report };',
+    ],
+    "admin report upload audit phase",
+  );
+  assertContainsInOrder(
     adminReports,
     [
       "if (!enforceTrustedOrigin(request, reply, allowedOrigins)) {",
       "const admin = await authenticateAdminUser(",
-      "const storagePath = await deps.uploadReport({",
-      "const report = await deps.upsertReport({",
-      "await deps.writeAuditLog(createAuditRequestLike(request, admin), {",
-      "event: AUDIT_EVENTS.REPORT_UPLOADED",
+      "await composition.service.uploadAdminReport({",
       "return reply.code(201).send({",
     ],
-    "admin report upload audit phase",
+    "admin report upload HTTP phase",
   );
 });
 
@@ -372,12 +383,27 @@ test("critical audit routes keep writeAuditLog injectable with real defaults", (
     "server/routes/report-access-tokens.fastify.ts",
     "server/routes/admin-report-access-tokens.fastify.ts",
     "server/routes/public-report-access.fastify.ts",
-    "server/routes/admin-reports.fastify.ts",
     "server/routes/study-tracking.fastify.ts",
     "server/routes/admin-study-tracking.fastify.ts",
   ] as const) {
     assertRouteKeepsInjectedAuditDeps(file);
   }
+
+  const route = readSource("server/routes/admin-reports.fastify.ts");
+  const composition = readSource(
+    "server/features/reports/composition/report-route-composition.ts",
+  );
+  assertContains(route, "writeAuditLog?:", "admin reports audit Option");
+  assertContains(
+    composition,
+    "writeAuditLog: audit.writeAuditLog",
+    "admin reports real audit default",
+  );
+  assertContains(
+    composition,
+    "options.writeAuditLog ?? defaults!.writeAuditLog",
+    "admin reports injected audit selection",
+  );
 });
 
 test("runtime audit tests remain explicit for success and failure phases", () => {

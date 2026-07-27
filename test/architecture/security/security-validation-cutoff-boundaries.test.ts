@@ -287,6 +287,9 @@ test("clinic report access token revoke validates token id before scoped lookup 
 
 test("admin report upload validates clinicId before storage upload upsert signed urls and audit", () => {
   const source = readSource("server/routes/admin-reports.fastify.ts");
+  const service = readSource(
+    "server/features/reports/application/report-route-service.ts",
+  );
   const uploadRoute = sliceFrom(
     source,
     'app.post("/upload", async (request, reply) => {',
@@ -300,13 +303,21 @@ test("admin report upload validates clinicId before storage upload upsert signed
       "const clinicId = parseReportId(body.clinicId);",
       'if (typeof clinicId !== "number") {',
       "return reply.code(400).send({",
-      "const clinic = await deps.getClinicById(clinicId);",
-      "const storagePath = await deps.uploadReport({",
-      "const report = await deps.upsertReport({",
-      "await deps.writeAuditLog(createAuditRequestLike(request, admin), {",
-      "report: await serializeReport(report, deps),",
+      "await composition.service.uploadAdminReport({",
+      "serializeReport(result.report",
     ],
     "admin report upload validation cut-off",
+  );
+  assertContainsInOrder(
+    service,
+    [
+      "const clinic = await dependencies.getClinicById(input.clinicId);",
+      'return { type: "clinic_not_found" };',
+      "const storagePath = await dependencies.uploadReport({",
+      "const report = await dependencies.createOrEditReport({",
+      "await dependencies.writeAuditLog(input.auditContext, {",
+    ],
+    "admin report upload application cut-off",
   );
 });
 

@@ -31,7 +31,12 @@ test("report workflow schema y migración amplían reports sin tabla paralela", 
 test("workflow admin se registra en Fastify sobre la superficie global reports", () => {
   const app = read("server/fastify-app.ts");
   const route = read("server/routes/admin-report-workflow.fastify.ts");
-  const database = read("server/db-report-workflow.ts");
+  const database = read(
+    "server/features/reports/infrastructure/db-report-workflow.ts",
+  );
+  const service = read(
+    "server/features/reports/application/report-route-service.ts",
+  );
 
   assert.ok(app.includes("adminReportWorkflowNativeRoutes"));
   assert.ok(app.includes('prefix: "/api/admin/report-workflow"'));
@@ -39,8 +44,9 @@ test("workflow admin se registra en Fastify sobre la superficie global reports",
   assert.ok(route.includes('"/:id/stage"'));
   assert.ok(route.includes('"/:id/special-stain"'));
   assert.ok(route.includes("REPORT_WORKFLOW_STAGES"));
-  assert.ok(route.includes("AUDIT_EVENTS.REPORT_WORKFLOW_STAGE_CHANGED"));
-  assert.ok(route.includes("AUDIT_EVENTS.REPORT_SPECIAL_STAIN_CHANGED"));
+  assert.ok(route.includes("createAdminReportWorkflowRouteComposition"));
+  assert.ok(service.includes("workflowStageChanged"));
+  assert.ok(service.includes("specialStainChanged"));
   assert.equal(route.includes("particularToken"), false);
   assert.ok(database.includes(".from(reports)"));
   assert.equal(database.includes("studyTracking"), false);
