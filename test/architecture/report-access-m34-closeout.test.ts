@@ -61,7 +61,7 @@ function importTargets(path: string): string[] {
   return result;
 }
 
-test("M34 conserva sólo su feature y Reports avanza independientemente hasta M37", () => {
+test("M34 conserva sólo su feature y Reports avanza independientemente hasta M38", () => {
   for (const path of [
     `${feature}/README.md`,
     `${domain}/report-access.ts`,
@@ -88,6 +88,15 @@ test("M34 conserva sólo su feature y Reports avanza independientemente hasta M3
     true,
   );
   assert.ok(read("server/features/reports/README.md").includes("M37"));
+  assert.equal(
+    existsSync(
+      resolve(
+        root,
+        "server/features/reports/application/report-command-use-cases.ts",
+      ),
+    ),
+    true,
+  );
   assert.equal(
     existsSync(
       resolve(

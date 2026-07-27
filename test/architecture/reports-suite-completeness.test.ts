@@ -371,7 +371,7 @@ const REPORTS_SUITE: readonly ReportsSuiteEntry[] = [
           "Reports conserva domain M36 y admite inventario M37 autorizado",
           "consumidores externos usan exclusivamente el barrel canonico",
           "domain aplica default-deny",
-          "M38 permanece ausente",
+          "M39 permanece ausente",
         ],
       },
       {
@@ -398,6 +398,38 @@ const REPORTS_SUITE: readonly ReportsSuiteEntry[] = [
         markers: [
           "data adapter preserva consulta y mapping minimo",
           "notification adapter preserva tabla values y returning exactos",
+        ],
+      },
+      {
+        path: "test/unit/application/reports/report-command-use-cases.test.ts",
+        markers: [
+          "createOrEditReport delega una vez",
+          "transitionReportStatus devuelve not_found",
+          "transitionReportStatus modela desaparici\u00f3n concurrente",
+        ],
+      },
+      {
+        path: "test/unit/infrastructure/reports/report-command-repository-contract.test.ts",
+        markers: [
+          "upsert update conserva transacci\u00f3n",
+          "fallback Drizzle corre s\u00f3lo ante PostgreSQL 42703",
+          "source contract fija SQL dual",
+        ],
+      },
+      {
+        path: "test/unit/contracts/reports/report-command-persistence-contract.test.ts",
+        markers: [
+          "server/db.ts conserva exports compatibles",
+          "infrastructure es owner \u00fanico",
+          "rutas conservan Options",
+        ],
+      },
+      {
+        path: "test/architecture/reports-command-use-cases-boundary-guard.test.ts",
+        markers: [
+          "M38 fija inventario productivo exacto",
+          "application y ports aplican default deny",
+          "M39 a M41 ausentes",
         ],
       },
       {
@@ -530,6 +562,10 @@ test("reports suite registers canonical reports guardrail files", () => {
     "reports-workflow-ports-boundary-guard.test.ts",
     "report-workflow-communication.test.ts",
     "report-workflow-adapters-contract.test.ts",
+    "report-command-use-cases.test.ts",
+    "report-command-repository-contract.test.ts",
+    "report-command-persistence-contract.test.ts",
+    "reports-command-use-cases-boundary-guard.test.ts",
   ]) {
     assert.equal(
       registeredFiles.includes(requiredFile),

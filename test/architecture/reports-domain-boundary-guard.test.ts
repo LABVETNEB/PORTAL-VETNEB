@@ -342,7 +342,7 @@ test("domain no contiene transporte infraestructura I/O ni side effects", () => 
   assert.deepEqual(violations, []);
 });
 
-test("M37 queda fuera del dominio y M38 permanece ausente", () => {
+test("M37 y M38 quedan fuera del dominio y M39 permanece ausente", () => {
   for (const path of [
     `${featureDir}/application`,
     `${featureDir}/infrastructure`,
@@ -369,8 +369,17 @@ test("M37 queda fuera del dominio y M38 permanece ausente", () => {
     false,
   );
   assert.equal(
+    existsSync(
+      join(
+        repoRoot,
+        `${featureDir}/application/report-command-use-cases.ts`,
+      ),
+    ),
+    true,
+  );
+  assert.equal(
     walkTsFiles(`${featureDir}/application`).some((file) =>
-      /(?:create|update|transition)-report/i.test(file)
+      /report-query|route-service/i.test(file),
     ),
     false,
   );

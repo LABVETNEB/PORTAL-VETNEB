@@ -18,20 +18,24 @@ const route = "server/routes/admin-report-workflow.fastify.ts";
 const expectedApplication = [
   `${application}/README.md`,
   `${application}/index.ts`,
+  `${application}/report-command-use-cases.ts`,
   `${application}/report-workflow-communication.ts`,
   `${ports}/index.ts`,
+  `${ports}/report-command-repository.ts`,
   `${ports}/report-workflow-data-port.ts`,
   `${ports}/report-workflow-notification-port.ts`,
 ] as const;
 const expectedInfrastructure = [
   `${infrastructure}/README.md`,
   `${infrastructure}/index.ts`,
+  `${infrastructure}/report-command-repository.ts`,
   `${infrastructure}/report-workflow-data-adapter.ts`,
   `${infrastructure}/report-workflow-notification-adapter.ts`,
 ] as const;
 const expectedComposition = [
   `${composition}/README.md`,
   `${composition}/index.ts`,
+  `${composition}/report-command-composition.ts`,
   `${composition}/report-workflow-communication-composition.ts`,
 ] as const;
 
@@ -191,7 +195,13 @@ test("application y ports aplican default deny sin DB Drizzle schema ni capas su
   for (const path of walk(application).filter((candidate) => candidate.endsWith(".ts"))) {
     for (const reference of imports(path)) {
       const resolved = target(path, reference.specifier);
-      if (!resolved.startsWith(`${application}/`)) {
+      if (
+        !resolved.startsWith(`${application}/`) &&
+        !(
+          path === `${application}/report-command-use-cases.ts` &&
+          resolved === `${domain}/index.ts`
+        )
+      ) {
         violations.push(`${path}: dependency not allowed "${reference.specifier}"`);
       }
     }
@@ -277,6 +287,7 @@ test("composition es el unico bridge M37 entre application e infrastructure", ()
     });
 
   assert.deepEqual(bridgeFiles, [
+    `${composition}/report-command-composition.ts`,
     `${composition}/report-workflow-communication-composition.ts`,
   ]);
 });
@@ -361,16 +372,25 @@ test("fastify app conserva el registro actual sin imports M37", () => {
   );
 });
 
-test("M38 permanece ausente y db-report-workflow no se mueve prematuramente", () => {
+test("M38 agrega comandos separados y db-report-workflow no se mueve prematuramente", () => {
   assert.equal(existsSync(resolve(root, workflow)), true);
   assert.equal(
     existsSync(resolve(root, `${infrastructure}/db-report-workflow.ts`)),
     false,
   );
 
+  for (const path of [
+    `${application}/report-command-use-cases.ts`,
+    `${ports}/report-command-repository.ts`,
+    `${infrastructure}/report-command-repository.ts`,
+    `${composition}/report-command-composition.ts`,
+  ]) {
+    assert.equal(existsSync(resolve(root, path)), true, path);
+  }
   const forbiddenFiles = walk(feature).filter((path) =>
-    /(?:create|update|transition).*(?:report|status)|reports?-repository|handlers?|controllers?|services?/i
-      .test(path.slice(feature.length + 1))
+    /handlers?|controllers?|route-services?|report-query/i.test(
+      path.slice(feature.length + 1),
+    ),
   );
   assert.deepEqual(forbiddenFiles, []);
 });
@@ -427,5 +447,12 @@ test("best effort catch y logging seguro permanecen solo en db workflow", () => 
   const catches = walk(feature)
     .filter((path) => path.endsWith(".ts"))
     .filter((path) => /\bcatch\b/.test(read(path)));
-  assert.deepEqual(catches, []);
+  assert.deepEqual(catches, [
+    `${infrastructure}/report-command-repository.ts`,
+  ]);
+  const commandRepository = read(
+    `${infrastructure}/report-command-repository.ts`,
+  );
+  assert.equal(commandRepository.match(/\bcatch\s*\(/g)?.length, 1);
+  assert.ok(commandRepository.includes('error.code !== "42703"'));
 });
