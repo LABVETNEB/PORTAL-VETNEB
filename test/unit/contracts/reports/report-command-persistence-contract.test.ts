@@ -114,16 +114,14 @@ test("rutas conservan Options y exports compatibility previos", () => {
   }
   for (const marker of [
     "export type ReportsStatusNativeRoutesOptions",
-    "const db = await import(\"../db.ts\")",
-    "getClinicScopedReportById: db.getClinicScopedReportById",
-    "updateReportStatus: db.updateReportStatus",
-    "const updated = await deps.updateReportStatus({",
+    "createClinicReportStatusRouteComposition",
+    "transitionClinicReportStatus({",
   ]) {
     assert.ok(status.includes(marker), marker);
   }
-  assert.ok(reads.includes("getReportStatusHistory: db.getReportStatusHistory"));
+  assert.ok(reads.includes("createClinicReportsRouteComposition"));
   assert.equal(admin.includes("../db.ts"), false);
-  assert.equal(status.includes("report-command-composition"), false);
+  assert.equal(status.includes("../db.ts"), false);
 });
 
 test("compatibility update atraviesa composition y application sin queries", () => {
@@ -172,6 +170,6 @@ test("compatibility update atraviesa composition y application sin queries", () 
         "server/features/reports/application/report-query-use-cases.ts",
       ),
     ),
-    false,
+    true,
   );
 });

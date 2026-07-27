@@ -102,8 +102,8 @@ test("report status crítico audita después de mutar estado exitosamente", () =
   assertContainsInOrder(
     source,
     [
-      "const updated = await deps.updateReportStatus({",
-      "await deps.writeAuditLog(createAuditRequestLike(request, auth), {",
+      "const result = await composition.queries.transitionClinicReportStatus({",
+      "await composition.writeAuditLog(createAuditRequestLike(request, auth), {",
       "event: AUDIT_EVENTS.REPORT_STATUS_CHANGED",
     ],
     "reports status audit order",
@@ -112,9 +112,9 @@ test("report status crítico audita después de mutar estado exitosamente", () =
   assertContainsAll(
     source,
     [
-      "clinicId: updated.clinicId",
-      "reportId: updated.id",
-      "fromStatus: reportResult.report.currentStatus",
+      "clinicId: result.report.clinicId",
+      "reportId: result.report.id",
+      "fromStatus: result.previousStatus",
       "toStatus: nextStatus",
       "note,",
     ],
@@ -265,11 +265,14 @@ test("rutas críticas auditadas mantienen writeAuditLog inyectable y default rea
   ] as const;
 
   for (const file of files) {
-    const source = readSource(file);
+    const source =
+      file === "server/routes/reports-status.fastify.ts"
+        ? `${readSource(file)}\n${readSource("server/features/reports/composition/report-query-composition.ts")}`
+        : readSource(file);
 
     assert.match(source, /writeAuditLog\?:/);
     assert.match(source, /writeAuditLog: audit\.writeAuditLog/);
-    assert.match(source, /options\.writeAuditLog \?\? defaultDeps!\.writeAuditLog|writeAuditLog: options\.writeAuditLog \?\? defaultDeps!\.writeAuditLog/);
+    assert.match(source, /options\.writeAuditLog \?\? defaultDeps!\.writeAuditLog|writeAuditLog: options\.writeAuditLog \?\? defaultDeps!\.writeAuditLog|options\.writeAuditLog \?\? defaults!\.writeAuditLog/);
   }
 });
 

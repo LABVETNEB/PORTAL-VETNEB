@@ -18,7 +18,12 @@ paginación 20/21, orden, updates y reload. La factory
 cada mutación ejecuta update → reload → comunicación best-effort → return sin
 consultar Study Tracking directamente.
 
+M40 agrega `report-query-repository.ts`, owner único de lookup clinic-scoped,
+historial, listado, búsqueda, counts y catálogo. Conserva filtros tenant,
+orden, paginación, `ilike`, `count(*)` y conversión numérica legacy. El
+catálogo delega al domain canónico y no consulta DB.
+
 Esta capa es la única superficie de Reports que importa DB, Drizzle, schema y
-tablas para comandos y workflow. No importa composition ni contiene auditoría,
-auth, storage o transporte HTTP. `server/db.ts` y
+tablas para comandos, queries y workflow. No importa composition ni contiene
+auditoría, auth, storage o transporte HTTP. `server/db.ts` y
 `server/db-report-workflow.ts` sólo preservan compatibilidad temporal.

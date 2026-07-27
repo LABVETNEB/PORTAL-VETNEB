@@ -15,12 +15,11 @@ import {
 } from "../lib/cors-headers.ts";
 import {
   REPORT_STATUSES,
-  canTransitionReportStatus,
   normalizeOptionalNote,
   parseReportId,
   parseReportStatus,
-  serializeSafeReport,
 } from "../features/reports/domain/index.ts";
+import { createClinicReportStatusRouteComposition } from "../features/reports/composition/index.ts";
 import {
   getClinicPermissions,
   normalizeClinicUserRole,
@@ -117,94 +116,8 @@ type NativeReportsStatusDeps = Required<
     | "getClinicUserById"
     | "updateSessionLastAccess"
     | "hashSessionToken"
-    | "getClinicScopedReportById"
-    | "updateReportStatus"
-    | "createSignedReportUrl"
-    | "createSignedReportDownloadUrl"
-    | "writeAuditLog"
   >
 >;
-
-let defaultDepsPromise: Promise<NativeReportsStatusDeps> | undefined;
-
-async function loadDefaultDeps(): Promise<NativeReportsStatusDeps> {
-  if (!defaultDepsPromise) {
-    defaultDepsPromise = (async () => {
-      const db = await import("../db.ts");
-      const authSecurity = await import("../lib/auth-security.ts");
-      const storage = await import("../lib/supabase.ts");
-      const audit = await import("../lib/audit.ts");
-
-      return {
-        deleteActiveSession: db.deleteActiveSession,
-        getActiveSessionByToken: db.getActiveSessionByToken,
-        getClinicUserById: db.getClinicUserById,
-        updateSessionLastAccess: db.updateSessionLastAccess,
-        hashSessionToken: authSecurity.hashSessionToken,
-        getClinicScopedReportById: db.getClinicScopedReportById,
-        updateReportStatus: db.updateReportStatus,
-        createSignedReportUrl: storage.createSignedReportUrl,
-        createSignedReportDownloadUrl: storage.createSignedReportDownloadUrl,
-        writeAuditLog: audit.writeAuditLog as (
-          req: unknown,
-          input: AuditWriteInput,
-        ) => Promise<void>,
-      };
-    })();
-  }
-
-  return defaultDepsPromise!;
-}
-
-function hasAllInjectedDeps(options: ReportsStatusNativeRoutesOptions) {
-  return (
-    !!options.deleteActiveSession &&
-    !!options.getActiveSessionByToken &&
-    !!options.getClinicUserById &&
-    !!options.updateSessionLastAccess &&
-    !!options.hashSessionToken &&
-    (!!options.getClinicScopedReportById || !!options.getReportById) &&
-    !!options.updateReportStatus &&
-    !!options.createSignedReportUrl &&
-    !!options.createSignedReportDownloadUrl &&
-    !!options.writeAuditLog
-  );
-}
-
-async function resolveDeps(
-  options: ReportsStatusNativeRoutesOptions,
-): Promise<NativeReportsStatusDeps> {
-  const defaultDeps = hasAllInjectedDeps(options) ? undefined : await loadDefaultDeps();
-
-  return {
-    deleteActiveSession:
-      options.deleteActiveSession ?? defaultDeps!.deleteActiveSession,
-    getActiveSessionByToken:
-      options.getActiveSessionByToken ?? defaultDeps!.getActiveSessionByToken,
-    getClinicUserById:
-      options.getClinicUserById ?? defaultDeps!.getClinicUserById,
-    updateSessionLastAccess:
-      options.updateSessionLastAccess ?? defaultDeps!.updateSessionLastAccess,
-    hashSessionToken:
-      options.hashSessionToken ?? defaultDeps!.hashSessionToken,
-    getClinicScopedReportById:
-      options.getClinicScopedReportById ??
-      (options.getReportById
-        ? async (reportId: number, clinicId: number) => {
-            const report = await options.getReportById!(reportId);
-            return report?.clinicId === clinicId ? report : null;
-          }
-        : defaultDeps!.getClinicScopedReportById),
-    updateReportStatus:
-      options.updateReportStatus ?? defaultDeps!.updateReportStatus,
-    createSignedReportUrl:
-      options.createSignedReportUrl ?? defaultDeps!.createSignedReportUrl,
-    createSignedReportDownloadUrl:
-      options.createSignedReportDownloadUrl ??
-      defaultDeps!.createSignedReportDownloadUrl,
-    writeAuditLog: options.writeAuditLog ?? defaultDeps!.writeAuditLog,
-  };
-}
 
 function applyCorsHeaders(
   request: FastifyRequest,
@@ -416,29 +329,6 @@ function requireReportStatusWritePermission(
   return false;
 }
 
-async function getAuthorizedReport(
-  reportId: number,
-  clinicId: number,
-  deps: NativeReportsStatusDeps,
-): Promise<{ report: Report } | { status: 404; error: string }> {
-  const report = await deps.getClinicScopedReportById(reportId, clinicId);
-
-  if (!report) {
-    return {
-      status: 404,
-      error: "Informe no encontrado",
-    };
-  }
-
-  return {
-    report,
-  };
-}
-
-function serializeReport(report: Report, _deps: NativeReportsStatusDeps) {
-  return serializeSafeReport(report);
-}
-
 export const reportsStatusNativeRoutes: FastifyPluginAsync<
   ReportsStatusNativeRoutesOptions
 > = async (app, options) => {
@@ -513,8 +403,14 @@ export const reportsStatusNativeRoutes: FastifyPluginAsync<
       return reply;
     }
 
-    const deps = await resolveDeps(options);
-    const auth = await authenticateClinicUser(request, reply, deps, now);
+    const composition =
+      await createClinicReportStatusRouteComposition(options);
+    const auth = await authenticateClinicUser(
+      request,
+      reply,
+      composition.auth,
+      now,
+    );
 
     if (!auth) {
       return reply;
@@ -543,37 +439,8 @@ export const reportsStatusNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const reportResult = await getAuthorizedReport(
-      reportId,
-      auth.clinicId,
-      deps,
-    );
-
-    if (!("report" in reportResult)) {
-      return reply.code(reportResult.status).send({
-        success: false,
-        error: reportResult.error,
-      });
-    }
-
-    if (reportResult.report.currentStatus === nextStatus) {
-      return reply.code(400).send({
-        success: false,
-        error: "El informe ya se encuentra en ese estado",
-      });
-    }
-
-    if (!canTransitionReportStatus(reportResult.report.currentStatus, nextStatus)) {
-      return reply.code(400).send({
-        success: false,
-        error: "La transición de estado no está permitida",
-        currentStatus: reportResult.report.currentStatus,
-        requestedStatus: nextStatus,
-        allowedStatuses: REPORT_STATUSES,
-      });
-    }
-
-    const updated = await deps.updateReportStatus({
+    const result = await composition.queries.transitionClinicReportStatus({
+      clinicId: auth.clinicId,
       reportId,
       toStatus: nextStatus,
       note,
@@ -581,19 +448,36 @@ export const reportsStatusNativeRoutes: FastifyPluginAsync<
       changedByAdminUserId: null,
     });
 
-    if (!updated) {
+    if (result.type === "not_found" || result.type === "concurrent_not_found") {
       return reply.code(404).send({
         success: false,
         error: "Informe no encontrado",
       });
     }
 
-    await deps.writeAuditLog(createAuditRequestLike(request, auth), {
+    if (result.type === "same_status") {
+      return reply.code(400).send({
+        success: false,
+        error: "El informe ya se encuentra en ese estado",
+      });
+    }
+
+    if (result.type === "transition_not_allowed") {
+      return reply.code(400).send({
+        success: false,
+        error: "La transición de estado no está permitida",
+        currentStatus: result.currentStatus,
+        requestedStatus: result.requestedStatus,
+        allowedStatuses: REPORT_STATUSES,
+      });
+    }
+
+    await composition.writeAuditLog(createAuditRequestLike(request, auth), {
       event: AUDIT_EVENTS.REPORT_STATUS_CHANGED,
-      clinicId: updated.clinicId,
-      reportId: updated.id,
+      clinicId: result.report.clinicId,
+      reportId: result.report.id,
       metadata: {
-        fromStatus: reportResult.report.currentStatus,
+        fromStatus: result.previousStatus,
         toStatus: nextStatus,
         note,
       },
@@ -602,7 +486,7 @@ export const reportsStatusNativeRoutes: FastifyPluginAsync<
     return reply.code(200).send({
       success: true,
       message: "Estado de informe actualizado correctamente",
-      report: await serializeReport(updated, deps),
+      report: result.report,
     });
   });
 };

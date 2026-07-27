@@ -16,10 +16,12 @@ const expectedApplication = [
   `${application}/README.md`,
   `${application}/index.ts`,
   `${application}/report-command-use-cases.ts`,
+  `${application}/report-query-use-cases.ts`,
   `${application}/report-route-service.ts`,
   `${application}/report-workflow-communication.ts`,
   `${ports}/index.ts`,
   `${ports}/report-command-repository.ts`,
+  `${ports}/report-query-repository.ts`,
   `${ports}/report-workflow-data-port.ts`,
   `${ports}/report-workflow-notification-port.ts`,
 ].sort();
@@ -28,6 +30,7 @@ const expectedInfrastructure = [
   `${infrastructure}/index.ts`,
   `${infrastructure}/db-report-workflow.ts`,
   `${infrastructure}/report-command-repository.ts`,
+  `${infrastructure}/report-query-repository.ts`,
   `${infrastructure}/report-workflow-data-adapter.ts`,
   `${infrastructure}/report-workflow-notification-adapter.ts`,
 ].sort();
@@ -35,6 +38,7 @@ const expectedComposition = [
   `${composition}/README.md`,
   `${composition}/index.ts`,
   `${composition}/report-command-composition.ts`,
+  `${composition}/report-query-composition.ts`,
   `${composition}/report-route-composition.ts`,
   `${composition}/report-workflow-communication-composition.ts`,
 ].sort();
@@ -110,7 +114,7 @@ function target(path: string, specifier: string): string {
     : normalized;
 }
 
-test("M39 fija inventario productivo exacto de Reports", () => {
+test("M40 fija inventario productivo exacto de Reports", () => {
   assert.deepEqual(walk(application).sort(), expectedApplication);
   assert.deepEqual(walk(infrastructure).sort(), expectedInfrastructure);
   assert.deepEqual(walk(composition).sort(), expectedComposition);
@@ -155,7 +159,7 @@ test("application y ports aplican default deny con único acceso al domain canó
       const resolved = target(path, specifier);
       const allowed =
         resolved.startsWith(`${application}/`) ||
-        (path === `${application}/report-command-use-cases.ts` &&
+        ([`${application}/report-command-use-cases.ts`, `${application}/report-query-use-cases.ts`].includes(path) &&
           resolved === `${domain}/index.ts`);
       if (!allowed) {
         violations.push(`${path}: ${specifier} -> ${resolved}`);
@@ -205,6 +209,7 @@ test("composition contiene los únicos bridges application a infrastructure", ()
 
   assert.deepEqual(bridges, [
     `${composition}/report-command-composition.ts`,
+    `${composition}/report-query-composition.ts`,
     `${composition}/report-route-composition.ts`,
     `${composition}/report-workflow-communication-composition.ts`,
   ]);
@@ -255,7 +260,7 @@ test("infrastructure es owner único de DB transacciones tablas y SQL M38", () =
   assert.equal(repository.includes("../composition/"), false);
 });
 
-test("compatibilidad db y rutas M39 quedan conectadas por composition", () => {
+test("compatibilidad db y rutas M40 quedan conectadas por composition", () => {
   const database = read("server/db.ts");
   const admin = read("server/routes/admin-reports.fastify.ts");
   const status = read("server/routes/reports-status.fastify.ts");
@@ -294,8 +299,8 @@ test("compatibilidad db y rutas M39 quedan conectadas por composition", () => {
   }
   for (const [source, markers] of [
     [admin, ["export type AdminReportsNativeRoutesOptions", "createAdminReportsRouteComposition"]],
-    [status, ["export type ReportsStatusNativeRoutesOptions", "updateReportStatus: db.updateReportStatus"]],
-    [reportsRoute, ["export type ReportsNativeRoutesOptions", "getReportStatusHistory: db.getReportStatusHistory"]],
+    [status, ["export type ReportsStatusNativeRoutesOptions", "createClinicReportStatusRouteComposition"]],
+    [reportsRoute, ["export type ReportsNativeRoutesOptions", "createClinicReportsRouteComposition"]],
     [workflow, ["export type AdminReportWorkflowNativeRoutesOptions", "createAdminReportWorkflowRouteComposition"]],
     [app, ['prefix: "/api/reports"', "reportsNativeRoutes", "reportsStatusNativeRoutes"]],
   ] as const) {
@@ -306,7 +311,7 @@ test("compatibilidad db y rutas M39 quedan conectadas por composition", () => {
   }
 });
 
-test("M36 a M39 permanecen materializados y M40 ausente", () => {
+test("M36 a M40 permanecen materializados", () => {
   assert.deepEqual(
     walk(domain).sort(),
     [
@@ -337,7 +342,7 @@ test("M36 a M39 permanecen materializados y M40 ausente", () => {
   }
   assert.equal(
     existsSync(resolve(root, `${application}/report-query-use-cases.ts`)),
-    false,
+    true,
   );
 });
 

@@ -1,7 +1,20 @@
 import type { Report, ReportStatus } from "../../../../drizzle/schema.ts";
 import { normalizeReportStatus } from "./report-status.ts";
 
-type ReportWithDisplayFields = Report & {
+type ReportWithDisplayFields = Pick<
+  Report,
+  | "id"
+  | "clinicId"
+  | "patientName"
+  | "studyType"
+  | "currentStatus"
+  | "uploadDate"
+  | "fileName"
+  | "storagePath"
+  | "createdAt"
+  | "updatedAt"
+  | "statusChangedAt"
+> & {
   clinicName?: string | null;
 };
 

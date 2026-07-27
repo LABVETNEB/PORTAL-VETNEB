@@ -120,7 +120,10 @@ function assertContainsInOrder(
 }
 
 function assertRouteKeepsInjectedAuditDeps(file: string): void {
-  const source = readSource(file);
+  const source =
+    file === "server/routes/reports-status.fastify.ts"
+      ? `${readSource(file)}\n${readSource("server/features/reports/composition/report-query-composition.ts")}`
+      : readSource(file);
 
   assertContains(source, "writeAuditLog?:", `${file} audit dependency type`);
   assertContains(
@@ -130,7 +133,7 @@ function assertRouteKeepsInjectedAuditDeps(file: string): void {
   );
   assertMatches(
     source,
-    /options\.writeAuditLog \?\? defaultDeps!\.writeAuditLog|writeAuditLog: options\.writeAuditLog \?\? defaultDeps!\.writeAuditLog/,
+    /options\.writeAuditLog \?\? defaultDeps!\.writeAuditLog|writeAuditLog: options\.writeAuditLog \?\? defaultDeps!\.writeAuditLog|options\.writeAuditLog \?\? defaults!\.writeAuditLog/,
     `${file} injected audit dependency selection`,
   );
 }
@@ -252,8 +255,8 @@ test("report mutation audit happens after durable mutation and before success re
     [
       "if (!enforceTrustedOrigin(request, reply, allowedOrigins)) {",
       "const auth = await authenticateClinicUser(",
-      "const updated = await deps.updateReportStatus({",
-      "await deps.writeAuditLog(createAuditRequestLike(request, auth), {",
+      "const result = await composition.queries.transitionClinicReportStatus({",
+      "await composition.writeAuditLog(createAuditRequestLike(request, auth), {",
       "event: AUDIT_EVENTS.REPORT_STATUS_CHANGED",
       "return reply.code(200).send({",
     ],

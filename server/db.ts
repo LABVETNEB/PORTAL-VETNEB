@@ -1,7 +1,6 @@
-import { getReportStudyTypes as getCanonicalReportStudyTypes, REPORT_STUDY_TYPE_LABELS } from "./features/reports/domain/index.ts";
 import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
-import { and, desc, eq, ilike, isNotNull, lt, lte, or, sql } from "drizzle-orm";
+import { eq, lt, lte, or, sql } from "drizzle-orm";
 import {
   activeSessions,
   adminSessions,
@@ -10,17 +9,22 @@ import {
   clinics,
   loginFailedAttempts,
   loginRateLimits,
-  reports,
-  reportStatusHistory,
   type ClinicUserRole,
   type LoginFailedAttemptReason,
   type LoginFailedAttemptSurface,
-  type ReportStatus,
 } from "../drizzle/schema.ts";
 import { ENV } from "./lib/env.ts";
 import { normalizeClinicUserRole } from "./lib/permissions.ts";
 export {
+  countReportsByClinicId,
+  countSearchReports,
+  getClinicScopedReportById,
+  getReportsByClinicId,
+  getReportStatusHistory,
   getReportById,
+  getReportStudyTypes,
+  getStudyTypes,
+  searchReports,
   upsertReport,
 } from "./features/reports/infrastructure/index.ts";
 export {
@@ -510,140 +514,3 @@ export async function deleteExpiredAdminSessions(): Promise<number> {
 
   return result.length;
 }
-
-/* ========================= REPORTS ========================= */
-
-export async function getClinicScopedReportById(id: number, clinicId: number) {
-  const result = await db
-    .select()
-    .from(reports)
-    .where(and(eq(reports.id, id), eq(reports.clinicId, clinicId)))
-    .limit(1);
-
-  return result[0];
-}
-
-export async function getReportStatusHistory(reportId: number) {
-  return db
-    .select()
-    .from(reportStatusHistory)
-    .where(eq(reportStatusHistory.reportId, reportId))
-    .orderBy(desc(reportStatusHistory.createdAt), desc(reportStatusHistory.id));
-}
-
-export async function getReportsByClinicId(
-  clinicId: number,
-  limit = 50,
-  offset = 0,
-  currentStatus?: ReportStatus,
-) {
-  const filters = [eq(reports.clinicId, clinicId)];
-
-  if (currentStatus) {
-    filters.push(eq(reports.currentStatus, currentStatus));
-  }
-
-  return db
-    .select()
-    .from(reports)
-    .where(and(...filters))
-    .orderBy(desc(reports.createdAt))
-    .limit(limit)
-    .offset(offset);
-}
-
-export async function searchReports(
-  clinicId: number,
-  query?: string,
-  studyType?: string,
-  limit = 50,
-  offset = 0,
-  currentStatus?: ReportStatus,
-) {
-  const filters = [eq(reports.clinicId, clinicId)];
-
-  if (studyType) {
-    filters.push(eq(reports.studyType, studyType));
-  }
-
-  if (currentStatus) {
-    filters.push(eq(reports.currentStatus, currentStatus));
-  }
-
-  if (query) {
-    filters.push(
-      or(
-        ilike(reports.patientName, "%" + query + "%"),
-        ilike(reports.fileName, "%" + query + "%"),
-        ilike(reports.studyType, "%" + query + "%"),
-      )!,
-    );
-  }
-
-  return db
-    .select()
-    .from(reports)
-    .where(and(...filters))
-    .orderBy(desc(reports.createdAt))
-    .limit(limit)
-    .offset(offset);
-}
-
-export async function countReportsByClinicId(
-  clinicId: number,
-  currentStatus?: ReportStatus,
-): Promise<number> {
-  const filters = [eq(reports.clinicId, clinicId)];
-
-  if (currentStatus) {
-    filters.push(eq(reports.currentStatus, currentStatus));
-  }
-
-  const result = await db
-    .select({ value: sql<string>`count(*)` })
-    .from(reports)
-    .where(and(...filters));
-
-  return Number(result[0]?.value ?? 0);
-}
-
-export async function countSearchReports(
-  clinicId: number,
-  query?: string,
-  studyType?: string,
-  currentStatus?: ReportStatus,
-): Promise<number> {
-  const filters = [eq(reports.clinicId, clinicId)];
-
-  if (studyType) {
-    filters.push(eq(reports.studyType, studyType));
-  }
-
-  if (currentStatus) {
-    filters.push(eq(reports.currentStatus, currentStatus));
-  }
-
-  if (query) {
-    filters.push(
-      or(
-        ilike(reports.patientName, "%" + query + "%"),
-        ilike(reports.fileName, "%" + query + "%"),
-        ilike(reports.studyType, "%" + query + "%"),
-      )!,
-    );
-  }
-
-  const result = await db
-    .select({ value: sql<string>`count(*)` })
-    .from(reports)
-    .where(and(...filters));
-
-  return Number(result[0]?.value ?? 0);
-}
-
-export async function getReportStudyTypes(_clinicId: number) {
-  void REPORT_STUDY_TYPE_LABELS;
-  return getCanonicalReportStudyTypes();
-}
-
-export const getStudyTypes = getReportStudyTypes;

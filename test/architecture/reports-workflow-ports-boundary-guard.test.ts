@@ -20,10 +20,12 @@ const expectedApplication = [
   `${application}/README.md`,
   `${application}/index.ts`,
   `${application}/report-command-use-cases.ts`,
+  `${application}/report-query-use-cases.ts`,
   `${application}/report-route-service.ts`,
   `${application}/report-workflow-communication.ts`,
   `${ports}/index.ts`,
   `${ports}/report-command-repository.ts`,
+  `${ports}/report-query-repository.ts`,
   `${ports}/report-workflow-data-port.ts`,
   `${ports}/report-workflow-notification-port.ts`,
 ] as const;
@@ -32,6 +34,7 @@ const expectedInfrastructure = [
   `${infrastructure}/index.ts`,
   `${infrastructure}/db-report-workflow.ts`,
   `${infrastructure}/report-command-repository.ts`,
+  `${infrastructure}/report-query-repository.ts`,
   `${infrastructure}/report-workflow-data-adapter.ts`,
   `${infrastructure}/report-workflow-notification-adapter.ts`,
 ] as const;
@@ -39,6 +42,7 @@ const expectedComposition = [
   `${composition}/README.md`,
   `${composition}/index.ts`,
   `${composition}/report-command-composition.ts`,
+  `${composition}/report-query-composition.ts`,
   `${composition}/report-route-composition.ts`,
   `${composition}/report-workflow-communication-composition.ts`,
 ] as const;
@@ -146,7 +150,7 @@ function target(path: string, specifier: string): string {
     : resolved;
 }
 
-test("M39 conserva inventario exacto de application ports infrastructure y composition", () => {
+test("M40 conserva inventario exacto de application ports infrastructure y composition", () => {
   for (const directory of [application, ports, infrastructure, composition]) {
     assert.equal(existsSync(resolve(root, directory)), true, directory);
   }
@@ -202,7 +206,10 @@ test("application y ports aplican default deny sin DB Drizzle schema ni capas su
       if (
         !resolved.startsWith(`${application}/`) &&
         !(
-          path === `${application}/report-command-use-cases.ts` &&
+          [
+            `${application}/report-command-use-cases.ts`,
+            `${application}/report-query-use-cases.ts`,
+          ].includes(path) &&
           resolved === `${domain}/index.ts`
         )
       ) {
@@ -303,6 +310,7 @@ test("composition es el unico bridge M37 entre application e infrastructure", ()
 
   assert.deepEqual(bridgeFiles, [
     `${composition}/report-command-composition.ts`,
+    `${composition}/report-query-composition.ts`,
     `${composition}/report-route-composition.ts`,
     `${composition}/report-workflow-communication-composition.ts`,
   ]);
@@ -381,7 +389,7 @@ test("fastify app conserva el registro actual sin imports M37", () => {
   );
 });
 
-test("M39 agrega route service y mueve db-report-workflow sin ejecutar M40", () => {
+test("M39 conserva route service y M40 agrega queries sin ejecutar M41", () => {
   assert.equal(existsSync(resolve(root, workflow)), true);
   assert.equal(
     existsSync(resolve(root, `${infrastructure}/db-report-workflow.ts`)),
@@ -399,7 +407,7 @@ test("M39 agrega route service y mueve db-report-workflow sin ejecutar M40", () 
     assert.equal(existsSync(resolve(root, path)), true, path);
   }
   const forbiddenFiles = walk(feature).filter((path) =>
-    /handlers?|controllers?|report-query/i.test(
+    /handlers?|controllers?/i.test(
       path.slice(feature.length + 1),
     ),
   );

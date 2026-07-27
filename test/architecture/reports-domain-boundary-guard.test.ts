@@ -28,7 +28,8 @@ const runtimeConsumers = [
   "server/routes/admin-reports.fastify.ts",
   "server/routes/reports.fastify.ts",
   "server/routes/reports-status.fastify.ts",
-  "server/db.ts",
+  "server/features/reports/application/report-query-use-cases.ts",
+  "server/features/reports/infrastructure/report-query-repository.ts",
   "server/lib/particular-token.ts",
   "server/lib/report-access-token.ts",
 ] as const;
@@ -342,7 +343,7 @@ test("domain no contiene transporte infraestructura I/O ni side effects", () => 
   assert.deepEqual(violations, []);
 });
 
-test("M37 a M39 quedan fuera del dominio y M39 está materializado", () => {
+test("M37 a M40 quedan fuera del dominio y M40 está materializado", () => {
   for (const path of [
     `${featureDir}/application`,
     `${featureDir}/infrastructure`,
@@ -387,7 +388,7 @@ test("M37 a M39 quedan fuera del dominio y M39 está materializado", () => {
     walkTsFiles(`${featureDir}/application`).some((file) =>
       /report-query/i.test(file),
     ),
-    false,
+    true,
   );
 });
 

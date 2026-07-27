@@ -210,10 +210,9 @@ test("report status validates route id and requested status before lookup mutati
       "return reply.code(400).send({",
       "if (!nextStatus) {",
       "return reply.code(400).send({",
-      "const reportResult = await getAuthorizedReport(",
-      "const updated = await deps.updateReportStatus({",
-      "await deps.writeAuditLog(createAuditRequestLike(request, auth), {",
-      "report: await serializeReport(updated, deps),",
+      "const result = await composition.queries.transitionClinicReportStatus({",
+      "await composition.writeAuditLog(createAuditRequestLike(request, auth), {",
+      "report: result.report,",
     ],
     "report status validation cut-off",
   );
