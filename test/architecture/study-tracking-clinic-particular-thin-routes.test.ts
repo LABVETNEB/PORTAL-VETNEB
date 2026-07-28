@@ -252,17 +252,17 @@ test("M32 routes no importan shim ni infrastructure y particular resuelve lazy p
   );
 });
 
-test("M32 preserva rutas y M41 migra sólo el owner Reports clínico", () => {
+test("M44 preserva rutas M32 y realinea sólo el specifier Particular Access", () => {
   assert.equal(
     createHash("sha256")
       .update(readFileSync(resolve(repoRoot, clinicRoute)))
       .digest("hex"),
-    "f2b8e5afbe0ded7fcb75ece389cfd476d8667c49f792a104f9ee3bb7379f7319",
+    "aeacf4866ffa9a70d1ee867cd652f49e35b5bb86709fa4b3003d95c178078ae7",
   );
   assert.equal(
     createHash("sha256")
       .update(readFileSync(resolve(repoRoot, particularRoute)))
       .digest("hex"),
-    "ed7d3f4a949af488a9dab5a9a89ccc9e89d19399ddde7230a25a3189a32591fb",
+    "88d6cd63bb808fbb6d613aea60fcf9fae25c2681f8679c3acc3c3d3ad16501aa",
   );
 });

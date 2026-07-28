@@ -57,6 +57,22 @@ const ownRoutes = [
   "server/routes/public-report-access.fastify.ts",
 ] as const;
 
+const legacyParticularPath = "server/db-particular.ts";
+const particularInfrastructureIndex =
+  "server/features/particular-access/infrastructure/index.ts";
+const reportsComposition =
+  "server/features/reports/composition/report-route-composition.ts";
+const expectedExternalParticularConsumers = [
+  "server/middlewares/particular-auth.ts",
+  "server/preflight.ts",
+  "server/routes/admin-study-tracking.fastify.ts",
+  "server/routes/auth.fastify.ts",
+  "server/routes/particular-audit.fastify.ts",
+  "server/routes/particular-auth.fastify.ts",
+  "server/routes/particular-study-tracking.fastify.ts",
+  "server/routes/study-tracking.fastify.ts",
+].sort();
+
 const globalGuardAnchors = [
   {
     path: "test/architecture/security/security-access-lifecycle-boundaries.test.ts",
@@ -231,34 +247,6 @@ function scenarioNames(path: string, variableName: string): string[] {
   return names;
 }
 
-function stringArrayInitializer(path: string, variableName: string): string[] {
-  let values: string[] | undefined;
-  function visit(node: ts.Node): void {
-    if (
-      ts.isVariableDeclaration(node) &&
-      ts.isIdentifier(node.name) &&
-      node.name.text === variableName &&
-      node.initializer
-    ) {
-      const initializer =
-        ts.isCallExpression(node.initializer) &&
-        ts.isPropertyAccessExpression(node.initializer.expression) &&
-        node.initializer.expression.name.text === "sort"
-          ? node.initializer.expression.expression
-          : node.initializer;
-      if (ts.isArrayLiteralExpression(initializer)) {
-        values = initializer.elements
-          .filter(ts.isStringLiteral)
-          .map((element) => element.text);
-      }
-    }
-    node.forEachChild(visit);
-  }
-  parse(path).forEachChild(visit);
-  assert.ok(values, `${variableName} must remain an explicit string array`);
-  return values;
-}
-
 test("M35b conserva features, closeouts y evidencia canónicos", () => {
   for (const { feature, required } of featureLayers) {
     for (const layer of required) {
@@ -333,28 +321,43 @@ test("M35b prohíbe repositories legacy e imports ejecutables directos desde rut
   }
 });
 
-test("M35b reutiliza la allowlist M33 de shims Particular sin ampliarla", () => {
-  const m33Guard = "test/architecture/particular-access-m33-closeout.test.ts";
-  const expected = stringArrayInitializer(m33Guard, "particularShimConsumers")
-    .slice()
-    .sort();
-  assert.equal(expected.length, 8);
+test("M44 retira el shim Particular y fija ocho consumidores canónicos", () => {
+  assert.equal(existsSync(resolve(root, legacyParticularPath)), false);
 
-  const actual = walk("server")
-    .filter((file) => file.endsWith(".ts") && file !== "server/db-particular.ts")
+  const legacyViolations = ["server", "test"].flatMap((scanRoot) =>
+    walk(scanRoot)
+      .filter((file) => file.endsWith(".ts"))
+      .filter((file) =>
+        executableImportTargets(file).includes(legacyParticularPath),
+      ),
+  );
+  assert.deepEqual(legacyViolations, []);
+
+  const actualExternalConsumers = walk("server")
+    .filter((file) => file.endsWith(".ts"))
+    .filter(
+      (file) =>
+        !file.startsWith("server/features/particular-access/") &&
+        file !== reportsComposition,
+    )
     .filter((file) =>
-      executableImportTargets(file).includes("server/db-particular.ts"),
+      executableImportTargets(file).includes(particularInfrastructureIndex),
     )
     .sort();
-  assert.deepEqual(actual, expected);
-
-  const source = read(m33Guard);
-  assert.equal(
-    source.includes(
-      'test("shims conservan una línea y allowlists residuales exactas"',
-    ),
-    true,
+  assert.deepEqual(
+    actualExternalConsumers,
+    expectedExternalParticularConsumers,
   );
+
+  for (const route of ownRoutes) {
+    assert.equal(
+      executableImportTargets(route).some((target) =>
+        target.includes("/infrastructure/"),
+      ),
+      false,
+      route,
+    );
+  }
 });
 
 test("M35b mantiene conectados los guards globales de token access", () => {

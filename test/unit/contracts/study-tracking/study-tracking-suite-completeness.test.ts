@@ -146,14 +146,14 @@ const STUDY_TRACKING_SUITE: readonly StudyTrackingSuiteEntry[] = [
         markers: [
           "M32 conserva exactamente Options y endpoints",
           "M32 routes delegan",
-          "M32 preserva rutas y M41 migra s\u00f3lo el owner Reports cl\u00ednico",
+          "M44 preserva rutas M32 y realinea s\u00f3lo el specifier Particular Access",
         ],
       },
       {
         path: "test/architecture/study-tracking-phase-closeout.test.ts",
         markers: [
           "M33 extiende el inventario canonico de Study Tracking",
-          "M35 conserva el shim DB de una linea con allowlist externa exacta",
+          "M44 retira el path DB legacy de Study Tracking sin consumidores",
           "los tres realms quedan separados con evidencia runtime",
         ],
       },

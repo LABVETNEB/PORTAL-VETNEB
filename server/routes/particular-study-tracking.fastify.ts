@@ -110,7 +110,7 @@ type NativeParticularStudyTrackingDeps = Required<
 >;
 
 async function loadDefaultDeps(): Promise<NativeParticularStudyTrackingDeps> {
-  const dbParticular = await import("../db-particular.ts");
+  const dbParticular = await import("../features/particular-access/infrastructure/index.ts");
   const authSecurity = await import("../lib/auth-security.ts");
   const { loadParticularStudyTrackingPersistence } = await import(
     "../features/study-tracking/study-tracking-route-composition.ts"

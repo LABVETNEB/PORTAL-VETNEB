@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import test from "node:test";
+import ts from "typescript";
 
 const repoRoot = process.cwd();
 const featureDir = "server/features/study-tracking";
@@ -102,7 +103,58 @@ function resolveSpecifier(file: string, specifier: string): string {
   return existsSync(join(repoRoot, indexFile)) ? indexFile : resolved;
 }
 
-test("M31 mueve el repository completo a infrastructure con barrel y shim", () => {
+function executableImportTargets(relativePath: string): string[] {
+  const sourceFile = ts.createSourceFile(
+    relativePath,
+    readText(relativePath),
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  );
+  const targets: string[] = [];
+
+  function visit(node: ts.Node): void {
+    if (
+      ts.isImportDeclaration(node) &&
+      ts.isStringLiteral(node.moduleSpecifier)
+    ) {
+      const clause = node.importClause;
+      const bindings = clause?.namedBindings;
+      const typeOnlyBindings =
+        bindings &&
+        ts.isNamedImports(bindings) &&
+        bindings.elements.length > 0 &&
+        bindings.elements.every((element) => element.isTypeOnly);
+      if (!clause?.isTypeOnly && (clause?.name || !typeOnlyBindings)) {
+        targets.push(resolveSpecifier(relativePath, node.moduleSpecifier.text));
+      }
+    } else if (
+      ts.isExportDeclaration(node) &&
+      !node.isTypeOnly &&
+      node.moduleSpecifier &&
+      ts.isStringLiteral(node.moduleSpecifier)
+    ) {
+      targets.push(resolveSpecifier(relativePath, node.moduleSpecifier.text));
+    } else if (
+      ts.isCallExpression(node) &&
+      node.arguments[0] &&
+      ts.isStringLiteral(node.arguments[0]) &&
+      (
+        node.expression.kind === ts.SyntaxKind.ImportKeyword ||
+        (ts.isIdentifier(node.expression) && node.expression.text === "require")
+      )
+    ) {
+      targets.push(resolveSpecifier(relativePath, node.arguments[0].text));
+    }
+
+    node.forEachChild(visit);
+  }
+
+  visit(sourceFile);
+  return targets;
+}
+
+test("M44 conserva repository y barrel canónicos y retira el shim", () => {
   assert.deepEqual(walkTsFiles(infrastructureDir).sort(), [
     infrastructureIndexFile,
     repositoryFile,
@@ -111,10 +163,16 @@ test("M31 mueve el repository completo a infrastructure con barrel y shim", () =
     readText(infrastructureIndexFile).trim(),
     'export * from "./study-tracking-repository.ts";',
   );
-  assert.equal(
-    readText(legacyShimFile).trim(),
-    'export * from "./features/study-tracking/infrastructure/index.ts";',
+  assert.equal(existsSync(join(repoRoot, legacyShimFile)), false);
+
+  const violations = ["server", "test"].flatMap((root) =>
+    walkTsFiles(root)
+      .filter((file) =>
+        executableImportTargets(file).includes(legacyShimFile),
+      )
+      .map((file) => `${file} -> ${legacyShimFile}`),
   );
+  assert.deepEqual(violations, []);
 });
 
 test("el repository conserva la superficie pública completa", () => {

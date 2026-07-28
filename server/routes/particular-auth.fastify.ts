@@ -150,7 +150,7 @@ async function loadDefaultDeps(): Promise<NativeParticularAuthDefaultDeps> {
   if (!defaultDepsPromise) {
     defaultDepsPromise = (async () => {
       const db = await import("../db.ts");
-      const dbParticular = await import("../db-particular.ts");
+      const dbParticular = await import("../features/particular-access/infrastructure/index.ts");
       const authSecurity = await import("../lib/auth-security.ts");
       const supabase = await import("../lib/supabase.ts");
       const reportCommands = await import(

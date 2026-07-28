@@ -219,7 +219,7 @@ async function loadDefaultDeps(): Promise<NativeStudyTrackingDeps> {
   const reportCommands = await import(
     "../features/reports/composition/index.ts"
   );
-  const dbParticular = await import("../db-particular.ts");
+  const dbParticular = await import("../features/particular-access/infrastructure/index.ts");
   const email = await import("../lib/email.ts");
   const audit = await import("../lib/audit.ts");
   const { loadClinicStudyTrackingPersistence } = await import(
