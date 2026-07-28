@@ -459,7 +459,7 @@ test("M46 retiene cors-headers con sus 30 consumidores runtime exactos", () => {
   );
 });
 
-test("M46 materializa closeout y mantiene C5/M48 sin ejecutar", () => {
+test("M46 preserva su closeout histórico y reconoce el cierre vigente M48", () => {
   assert.equal(existsSync(resolve(repoRoot, closeoutPath)), true, closeoutPath);
 
   const closeout = read(closeoutPath);
@@ -478,7 +478,10 @@ test("M46 materializa closeout y mantiene C5/M48 sin ejecutar", () => {
   }
 
   assert.ok(audit.includes("M46 — completado"));
+  assert.ok(audit.includes("M47 — NO-GO"));
+  assert.ok(audit.includes("M48 — completado"));
   assert.ok(inventory.includes("M46 — completado"));
+  assert.ok(inventory.includes("M48 — completado"));
   assert.ok(m45Closeout.includes("M46 — NOT_RUN"));
 });
 
