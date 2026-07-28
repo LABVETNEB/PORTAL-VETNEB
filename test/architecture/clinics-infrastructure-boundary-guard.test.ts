@@ -18,6 +18,7 @@ const queryServiceFile =
   featureDir + "/admin-clinics-query-service.ts";
 const commandServiceFile =
   featureDir + "/admin-clinics-command-service.ts";
+const publicBarrelFile = featureDir + "/index.ts";
 const usersRolesCompositionFile =
   "server/features/users-roles/admin-users-roles-route-composition.ts";
 const publicProfileQueryServiceFile =
@@ -27,7 +28,7 @@ const publicProfileCommandServiceFile =
 const publicProfileRouteFile =
   "server/routes/clinic-public-profile.fastify.ts";
 const publicProfessionalsBarrelFile =
-  "server/features/public-professionals/infrastructure/index.ts";
+  "server/features/public-professionals/index.ts";
 const publicProfessionalsMappingFile =
   "server/features/public-professionals/infrastructure/public-professionals-mapping.ts";
 const publicProfessionalsRepositoryFile =
@@ -533,7 +534,7 @@ test(
         .map((specifier) =>
           resolveSpecifier(usersRolesCompositionFile, specifier),
         )
-        .includes(commandServiceFile),
+        .includes(publicBarrelFile),
     );
 
     for (const unrelatedCommand of [

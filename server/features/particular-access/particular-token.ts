@@ -1,7 +1,7 @@
 import { z } from "zod";
-import type { ParticularToken, Report } from "../../drizzle/schema.ts";
-import { hasLinkedParticularReport } from "../features/particular-access/domain/index.ts";
-import { serializeSafeReport } from "../features/reports/domain/index.ts";
+import type { ParticularToken, Report } from "../../../drizzle/schema.ts";
+import { hasLinkedParticularReport } from "./domain/index.ts";
+import { serializeSafeReport } from "../reports/index.ts";
 
 const requiredText = (max: number, label: string) =>
   z.string().trim().min(1, `${label} es obligatorio`).max(max);

@@ -1,6 +1,6 @@
 import {
   createTokenStudyTrackingOperations,
-} from "../../study-tracking/application/index.ts";
+} from "../../study-tracking/index.ts";
 import {
   belongsToClinic,
   getParticularTokenLast4,

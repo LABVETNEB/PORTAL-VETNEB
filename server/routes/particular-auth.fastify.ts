@@ -30,7 +30,7 @@ import {
   type RateLimitEntry,
   type RateLimitStore,
 } from "../lib/rate-limit-store.ts";
-import { serializeParticularTokenDetail } from "../lib/particular-token.ts";
+import { serializeParticularTokenDetail } from "../features/particular-access/index.ts";
 import {
   buildRequestLogLine,
   sanitizeUrlForLogs,

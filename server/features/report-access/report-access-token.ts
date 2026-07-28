@@ -2,14 +2,14 @@ import { z } from "zod";
 import type {
   Report,
   ReportAccessToken,
-} from "../../drizzle/schema.ts";
-import { serializeSafeReport } from "../features/reports/domain/index.ts";
+} from "../../../drizzle/schema.ts";
+import { serializeSafeReport } from "../reports/index.ts";
 import {
   canAccessReportPublicly,
   getReportAccessTokenState,
   isReportAccessTokenExpired,
   isReportAccessTokenRevoked,
-} from "../features/report-access/domain/index.ts";
+} from "./domain/index.ts";
 
 export {
   canAccessReportPublicly,

@@ -27,7 +27,7 @@ import {
   serializeParticularToken,
   serializeParticularTokenDetail,
   updateParticularTokenReportSchema,
-} from "../lib/particular-token.ts";
+} from "../features/particular-access/index.ts";
 import {
   buildRequestLogLine,
   sanitizeUrlForLogs,

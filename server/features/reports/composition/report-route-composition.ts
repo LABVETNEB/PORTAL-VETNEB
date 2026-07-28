@@ -6,7 +6,7 @@ import type {
   StudyTrackingNotification,
 } from "../../../../drizzle/schema.ts";
 import type { AuditWriteInput } from "../../../lib/audit.ts";
-import { ensureStudyTrackingCaseForToken } from "../../study-tracking/domain/index.ts";
+import { ensureStudyTrackingCaseForToken } from "../../study-tracking/index.ts";
 import {
   normalizeSearchText,
   parseOptionalDate,
@@ -212,8 +212,14 @@ async function loadDefaultAdminReportsDependencies() {
         import("../../../lib/auth-security.ts"),
         import("../../../lib/supabase.ts"),
         import("../../../lib/audit.ts"),
-        import("../../particular-access/infrastructure/index.ts"),
-        import("../../study-tracking/infrastructure/index.ts"),
+        import("../../particular-access/index.ts").then(
+          ({ loadReportsParticularAccessPersistence }) =>
+            loadReportsParticularAccessPersistence(),
+        ),
+        import("../../study-tracking/index.ts").then(
+          ({ loadParticularAccessStudyTrackingPersistence }) =>
+            loadParticularAccessStudyTrackingPersistence(),
+        ),
         import("./report-command-composition.ts"),
       ]);
 

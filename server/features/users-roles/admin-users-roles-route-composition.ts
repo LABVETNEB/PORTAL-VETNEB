@@ -3,7 +3,7 @@ import type {
   AdminClinicUserCredentialsCommandInput,
   AdminClinicUserCredentialsUpdateInput,
   AdminClinicUserCredentialsUpdateResult,
-} from "../clinics/admin-clinics-command-service.ts";
+} from "../clinics/index.ts";
 import {
   createAdminUsersRolesUseCases,
   type AdminClinicUserRoleChangeInput,
@@ -161,7 +161,7 @@ export function createAdminUsersRolesRouteComposition(
     deps: AdminUsersRolesResolvedRouteDeps,
   ): Promise<AdminClinicUserCredentialsUpdateResult> {
     const { updateAdminClinicUserCredentialsCommand } = await import(
-      "../clinics/admin-clinics-command-service.ts"
+      "../clinics/index.ts"
     );
 
     return updateAdminClinicUserCredentialsCommand(input, {

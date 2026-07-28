@@ -6,7 +6,7 @@ import {
   serializeParticularToken,
   serializeParticularTokenDetail,
   updateParticularTokenReportSchema,
-} from "../../../../server/lib/particular-token.ts";
+} from "../../../../server/features/particular-access/index.ts";
 
 test("clinicCreateParticularTokenSchema acepta reportId positivo y detailsLesion al limite", () => {
   const parsed = clinicCreateParticularTokenSchema.safeParse({

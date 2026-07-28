@@ -5,7 +5,7 @@ import {
 } from "./domain/index.ts";
 import type {
   UpsertClinicPublicProfileInput,
-} from "../public-professionals/infrastructure/index.ts";
+} from "../public-professionals/index.ts";
 
 export type ClinicPublicProfilePublication = {
   isPublic: boolean;
@@ -105,7 +105,7 @@ async function loadDefaultDeps(): Promise<ClinicPublicProfileCommandServiceDeps>
   if (!defaultDepsPromise) {
     defaultDepsPromise = Promise.all([
       import(
-        "../public-professionals/infrastructure/index.ts"
+        "../public-professionals/index.ts"
       ),
       import("../../lib/supabase.ts"),
     ]).then(([publicProfiles, storage]) => ({

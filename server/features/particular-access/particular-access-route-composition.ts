@@ -1,4 +1,4 @@
-import { loadParticularAccessStudyTrackingPersistence } from "../study-tracking/study-tracking-route-composition.ts";
+import { loadParticularAccessStudyTrackingPersistence } from "../study-tracking/index.ts";
 
 export async function loadAdminParticularAccessRouteDeps() {
   const [
@@ -14,7 +14,10 @@ export async function loadAdminParticularAccessRouteDeps() {
     import("./infrastructure/index.ts"),
     import("../../lib/email.ts"),
     loadParticularAccessStudyTrackingPersistence(),
-    import("../reports/composition/index.ts"),
+    import("../reports/index.ts").then(
+      ({ loadParticularAccessReportCommands }) =>
+        loadParticularAccessReportCommands(),
+    ),
   ]);
 
   return {
@@ -51,7 +54,10 @@ export async function loadClinicParticularAccessRouteDeps() {
     import("./infrastructure/index.ts"),
     import("../../lib/email.ts"),
     loadParticularAccessStudyTrackingPersistence(),
-    import("../reports/composition/index.ts"),
+    import("../reports/index.ts").then(
+      ({ loadParticularAccessReportCommands }) =>
+        loadParticularAccessReportCommands(),
+    ),
   ]);
 
   return {

@@ -1,4 +1,4 @@
-import type { TokenStudyTrackingOperationsDeps } from "../../../study-tracking/application/index.ts";
+import type { TokenStudyTrackingOperationsDeps } from "../../../study-tracking/index.ts";
 
 export type ParticularAccessTokenRecord = {
   id: number;

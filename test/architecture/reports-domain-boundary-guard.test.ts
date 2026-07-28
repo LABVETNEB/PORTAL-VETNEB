@@ -30,8 +30,6 @@ const runtimeConsumers = [
   "server/routes/reports-status.fastify.ts",
   "server/features/reports/application/report-query-use-cases.ts",
   "server/features/reports/infrastructure/report-query-repository.ts",
-  "server/lib/particular-token.ts",
-  "server/lib/report-access-token.ts",
 ] as const;
 
 type ImportReference = {
@@ -124,7 +122,15 @@ test("Reports conserva domain M36 y admite inventario M37 autorizado", () => {
 
   assert.deepEqual(
     readdirSync(join(repoRoot, featureDir)).sort(),
-    ["README.md", "application", "composition", "domain", "infrastructure"],
+    [
+      "README.md",
+      "application",
+      "composition",
+      "domain",
+      "index.ts",
+      "infrastructure",
+      "reports-public-composition.ts",
+    ],
   );
   assert.deepEqual(
     readdirSync(join(repoRoot, domainDir)).sort(),

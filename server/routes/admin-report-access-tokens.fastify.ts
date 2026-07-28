@@ -35,7 +35,7 @@ import {
   parsePositiveInt,
   serializeReportAccessToken,
   serializeReportAccessTokenDetail,
-} from "../lib/report-access-token.ts";
+} from "../features/report-access/index.ts";
 import {
   buildRequestLogLine,
   sanitizeUrlForLogs,

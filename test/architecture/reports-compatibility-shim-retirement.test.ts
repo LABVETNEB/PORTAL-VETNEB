@@ -187,8 +187,11 @@ test("consumidores runtime migrados resuelven Reports por composition", () => {
     const targets = imports(path).map((reference) =>
       target(path, reference.specifier)
     );
+    const expectedTarget = path.startsWith("server/features/")
+      ? `${feature}/index.ts`
+      : `${composition}/index.ts`;
 
-    assert.ok(targets.includes(`${composition}/index.ts`), path);
+    assert.ok(targets.includes(expectedTarget), path);
     assert.doesNotMatch(
       source,
       /\bdb\.(?:getReportById|getClinicScopedReportById)\b/,

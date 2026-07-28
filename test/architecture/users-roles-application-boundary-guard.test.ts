@@ -135,7 +135,7 @@ test("credenciales siguen en Clinics y M43 queda compuesto", () => {
   assert.doesNotMatch(route, /updateAdminClinicUserCredentialsCommand\(/);
   assert.match(
     composition,
-    /\.\.\/clinics\/admin-clinics-command-service\.ts/,
+    /\.\.\/clinics\/index\.ts/,
   );
   assert.match(composition, /updateAdminClinicUserCredentialsCommand/);
   assert.doesNotMatch(

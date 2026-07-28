@@ -23,7 +23,7 @@ import {
 import {
   reportAccessTokenRawTokenSchema,
   serializePublicReportAccess,
-} from "../lib/report-access-token.ts";
+} from "../features/report-access/index.ts";
 import {
   createSignedReportDownloadUrl as defaultCreateSignedReportDownloadUrl,
   createSignedReportUrl as defaultCreateSignedReportUrl,

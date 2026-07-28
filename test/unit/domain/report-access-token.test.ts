@@ -8,7 +8,7 @@ import {
   isReportAccessTokenExpired,
   isReportAccessTokenRevoked,
   reportAccessTokenRawTokenSchema,
-} from "../../../server/lib/report-access-token.ts";
+} from "../../../server/features/report-access/index.ts";
 
 test("reportAccessTokenRawTokenSchema acepta tokens hex de 64 caracteres", () => {
   const token = "a".repeat(64);

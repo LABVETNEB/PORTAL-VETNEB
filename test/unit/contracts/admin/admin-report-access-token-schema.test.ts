@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   adminCreateReportAccessTokenSchema,
-} from "../../../../server/lib/report-access-token.ts";
+} from "../../../../server/features/report-access/index.ts";
 
 test("adminCreateReportAccessTokenSchema requiere clinicId y reportId válidos", () => {
   const parsed = adminCreateReportAccessTokenSchema.safeParse({
