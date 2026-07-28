@@ -10,13 +10,37 @@
 
 ## Status
 
-**Proposed.**
+**Accepted.**
 
-Estas reglas de frontera se proponen como contrato de dependencia para los PRs de
-migración posteriores (ARCH-3 en adelante). No hay todavía ninguna migración
-ejecutada que las valide en código; por eso el estado es *Proposed* y no
-*Accepted*. Pasa a **Accepted** cuando el primer PR piloto (ARCH-4, Logistics)
-demuestre la frontera detrás de contratos con tests verdes.
+Estas reglas de frontera se propusieron originalmente como contrato de
+dependencia para los PRs de migración posteriores (ARCH-3 en adelante). El
+estado inicial fue *Proposed*, con esta condición de paso a *Accepted*: que el
+primer PR piloto (ARCH-4, Logistics) demostrara la frontera detrás de contratos
+con tests verdes.
+
+**Evidencia de aceptación (2026-07-28).** La condición se cumplió y quedó
+ampliamente superada:
+
+- **piloto Logistics demostrado** con las cuatro capas reales y doce puertos
+  mínimos genéricos, detrás de los contratos por-ruta existentes;
+- **fases A–C cerradas** (domain, application, infrastructure/rutas thin), con
+  shims retirados y guards de frontera ejecutables;
+- **programa M01–M48 certificado** como `CERTIFIED_WITH_RESIDUAL_RISKS`, con
+  nueve features migradas, grafo de dependencias congelado por guard y cero
+  imports `lib → features` o `features → routes/middlewares`;
+- **PR #1586 mergeado** (`cb6f013e90d1363373a86f6bcce26bff68ac453e`,
+  `2026-07-28T15:27:31Z`), que materializa la certificación final y su guard;
+- **auditoría independiente PR #1587**
+  (`e1d1cfdb3eeae9517927f96f355e8fdadd3e5862`), veredicto
+  `EXCELLENT_WITH_RESIDUAL_RISKS` (93/100), que recomputó el grafo y las capas
+  desde cero y confirmó el cumplimiento de estas reglas.
+
+Las decisiones arquitectónicas de este ADR no cambian: las secciones
+*Decision*, *Dependency rules*, *Folder target*, *Alternatives considered* y
+*Non-goals* se conservan tal como fueron acordadas. Evidencia:
+[`m48-backend-modularization-final-certification.md`](../implementation/m48-backend-modularization-final-certification.md)
+y
+[`post-m48-backend-reordering-excellence-audit.md`](../audit/post-m48-backend-reordering-excellence-audit.md).
 
 ## Date
 

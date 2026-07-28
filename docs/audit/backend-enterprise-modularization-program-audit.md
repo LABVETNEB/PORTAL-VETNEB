@@ -1051,7 +1051,10 @@ global anti-ciclos + matriz de deps entre features · **M46** reclasificación r
 **M48** certificación final con evidencia acumulada. *(M47 infra-residual: opcional, dentro del
 techo de 60.)*
 
-> **Status de ejecución (2026-07-28):** **M44 — completado** localmente. Se
+> **Status de ejecución (2026-07-28) — snapshot histórico previo a los merges.**
+> Los tres bloques siguientes registran el estado local de M44, M45 y M46 en el
+> momento de su redacción; el estado vigente es el **Addendum de cierre M48**
+> que los sigue. **M44 — completado** localmente. Se
 > retiraron los dos shims residuales `server/db-particular.ts` y
 > `server/db-study-tracking.ts`; ocho imports dinámicos se realinearon al
 > barrel canónico de Particular Access, sin cambios funcionales.
@@ -1078,17 +1081,30 @@ techo de 60.)*
 > Este status no altera el conteo recomendado, los riesgos ni las conclusiones
 > históricas.
 >
-> **Addendum de cierre M48 (2026-07-28).** El estado vigente, posterior a los
-> closeouts históricos anteriores, es: **M44 — MERGED** mediante PR #1583,
+> **Addendum de cierre M48 (2026-07-28) — estado vigente.** Éste es el único
+> bloque que describe el estado actual del programa; todo lo anterior es
+> snapshot histórico. **M44 — MERGED** mediante PR #1583,
 > **M45 — MERGED** mediante PR #1584 y **M46 — MERGED** mediante PR #1585.
 > **M47 — NO-GO** tras recenso independiente: 0 MOVE, 5 KEEP, 0 DELETE; no se
 > creó `server/lib/infra`, guard, diff, commit ni PR. **C5 — NOT_RUN** porque el
 > único SCC full/runtime continúa siendo `particular-access ↔ reports`.
-> **M48 — completado** localmente mediante guard y certificación acumulada;
-> **Fase K — cerrada** y **Programa — cerrado** con veredicto
-> **CERTIFIED_WITH_RESIDUAL_RISKS**. Baseline final:
-> `7a05cb8c5c9d0fd3f8f1d64f05bc5812d39a59eb`. Evidencia:
+> **M48 — completado y MERGED** mediante **PR #1586**, squash
+> `cb6f013e90d1363373a86f6bcce26bff68ac453e`, mergeado el
+> `2026-07-28T15:27:31Z`. **Fase K — cerrada (`CLOSED`)** y
+> **Programa — cerrado (`CERTIFIED_WITH_RESIDUAL_RISKS`)**. Baseline previo al
+> merge M48: `7a05cb8c5c9d0fd3f8f1d64f05bc5812d39a59eb`; HEAD del programa tras
+> el merge: `cb6f013e90d1363373a86f6bcce26bff68ac453e`. Validaciones del
+> artefacto mergeado: guard M48 35 tests; arquitectura 583 totales
+> (582 pass, 1 skip); `pnpm validate:local` 3.963 totales (3.962 pass, 1 skip);
+> build `PASSED`. Evidencia:
 > [`m48-backend-modularization-final-certification.md`](../implementation/m48-backend-modularization-final-certification.md).
+>
+> **Auditoría independiente posterior (2026-07-28).** El programa fue auditado
+> de forma independiente en **PR #1587**, squash
+> `e1d1cfdb3eeae9517927f96f355e8fdadd3e5862`, con veredicto
+> **`EXCELLENT_WITH_RESIDUAL_RISKS` (93/100)**: cero P0, cero P1, cero P2 y
+> siete hallazgos P3 documentales u operativos. Detalle en
+> [`post-m48-backend-reordering-excellence-audit.md`](./post-m48-backend-reordering-excellence-audit.md).
 
 **Contingencia (fuera del conteo):** C1 coverage (autorizar dep c8 primero) · C2 límites de
 complejidad · C3 `lib/shared` · C4 secuencia de seguridad Auth (diseño separado + sign-off) ·
