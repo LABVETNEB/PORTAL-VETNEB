@@ -786,7 +786,7 @@ test("M45 materializa closeout y estados de Fase K", () => {
 
   assert.ok(audit.includes("M45 — completado"));
   assert.ok(audit.includes("C5 — NOT_RUN"));
-  assert.ok(audit.includes("M46 — NOT_RUN"));
+  assert.ok(audit.includes("M46 — completado"));
   assert.ok(audit.includes("M48 — NOT_RUN"));
 
   assert.ok(

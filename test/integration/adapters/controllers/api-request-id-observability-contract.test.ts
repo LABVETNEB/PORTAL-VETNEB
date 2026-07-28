@@ -16,7 +16,7 @@ const repoRoot = resolve(fileURLToPath(new URL("../../../../", import.meta.url))
 const { ENV } = await import("../../../../server/lib/env.ts");
 const { createFastifyApp } = await import("../../../../server/fastify-app.ts");
 const { API_REQUEST_ID_HEADER_KEY } = await import(
-  "../../../../server/lib/api-request-id.ts"
+  "../../../../server/lib/http/api-request-id.ts"
 );
 const { clearPublicPricingCache } = await import(
   "../../../../server/features/pricing/infrastructure/public-pricing-cache.ts"
@@ -334,7 +334,7 @@ test(
 
 test("API request id observability no introduce dependencia frontend/UI", () => {
   const importSpecifiers = [
-    ...listImportSpecifiers(readSource("server/lib/api-request-id.ts")),
+    ...listImportSpecifiers(readSource("server/lib/http/api-request-id.ts")),
     ...listImportSpecifiers(readSource("server/fastify-app.ts")),
   ];
   const forbiddenImports = importSpecifiers.filter((specifier) =>

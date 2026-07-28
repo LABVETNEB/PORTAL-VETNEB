@@ -324,7 +324,7 @@ test(
 test("API error content-type contract no introduce dependencia frontend/UI", () => {
   const importSpecifiers = [
     ...listImportSpecifiers(readSource("server/fastify-app.ts")),
-    ...listImportSpecifiers(readSource("server/lib/api-request-id.ts")),
+    ...listImportSpecifiers(readSource("server/lib/http/api-request-id.ts")),
     ...listImportSpecifiers(
       readSource("test/integration/adapters/controllers/api-error-content-type-contract.test.ts"),
     ),

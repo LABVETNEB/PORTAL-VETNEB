@@ -943,3 +943,34 @@ de la detección: es runtime legítimo hasta M13.
 Las filas de la matriz origen-destino previas (`lib/logistics/*` → `features/logistics/domain/`,
 milestones M02b/M03/M04) reflejaban el **plan**; con este addendum quedan **ejecutadas**.
 Ninguna cifra histórica de la matriz M01 se altera.
+
+---
+
+## Addendum de ejecución — M46 / frontera HTTP residual
+
+> **Fecha:** 2026-07-28. Este addendum registra el recenso de M46 sobre HEAD
+> `4adb55a458e36d5905f8d0d497f5a5ef14b8512f`; no reescribe las métricas
+> históricas M01 de las secciones anteriores.
+
+**M46 — completado.** El estado actual previo al move era 27 archivos
+TypeScript bajo `server/lib`. Los cuatro candidatos residuales recibieron
+decisión final:
+
+| Candidato | LOC | Fan-in runtime/test | Decisión | Path canónico |
+| --- | ---: | ---: | --- | --- |
+| `cors-headers.ts` | 143 | 30 / 1 | `KEEP` | `server/lib/cors-headers.ts` |
+| `api-request-id.ts` | 104 | 1 / 3 imports directos | `MOVE` | `server/lib/http/api-request-id.ts` |
+| `api-response-security.ts` | 65 | 2 / 2 | `MOVE` | `server/lib/http/api-response-security.ts` |
+| `sensitive-response-cache.ts` | 19 | 1 / 2 | `MOVE` | `server/lib/http/sensitive-response-cache.ts` |
+
+El move de los cuatro candidatos proyectaba 50 paths lógicos y fue
+descartado. La decisión mixta proyectó 17 paths lógicos, preservó los blobs
+de implementación y no usa barrel ni shims. `server/lib/http` queda cerrado
+a los tres archivos movidos y sin dependencias hacia features, routes,
+middlewares, DB, Auth, sesiones, cookies, email, Supabase o frontend.
+
+`cors-headers.ts` queda retenido por su blast radius, no por ambigüedad: el
+guard M46 fija su path y sus 30 consumidores runtime. CORS/trusted-origin,
+orden de hooks, request ID, headers de seguridad y cache-control permanecen
+sin cambio funcional. C5 — NOT_RUN. M48 — NOT_RUN. Detalle:
+[`m46-http-lib-reclassification-closeout.md`](../implementation/m46-http-lib-reclassification-closeout.md).
