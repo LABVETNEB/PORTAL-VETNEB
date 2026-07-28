@@ -4,15 +4,19 @@
 
 ## Criterio de vigencia
 
-Este índice considera como vigentes únicamente las auditorías generadas en Wave 0, incorporadas a `main` mediante el PR #1097.
+Este índice considera como vigentes únicamente las auditorías generadas en Wave 0, incorporadas a `main` mediante el PR #1097, los snapshots enterprise aprobados y los documentos rectores enterprise incorporados posteriormente como auditorías docs-only explícitas.
 
-Los documentos históricos previos dentro de `docs/audit/` se conservan como antecedentes, pero no forman parte del índice operativo vigente para la próxima implementación enterprise.
+Los documentos históricos previos dentro de `docs/audit/` se conservan como antecedentes, pero no forman parte del índice operativo vigente para la próxima implementación enterprise salvo que estén listados expresamente abajo.
 
 > **PR-CLEAN2 (2026-06-28):** `docs/audits/` (plural, 10 archivos `AUDIT_*`/`DASHBOARD_*_PLAN`) se
 > unificó dentro de esta carpeta. Siguen siendo históricos (no entran al índice vigente de abajo);
 > ver clasificación archivo-por-archivo en `docs/HISTORICAL_DOCUMENTATION.md`.
 
-## Auditorías vigentes
+## Documentos rectores enterprise recientes
+
+| Documento | Propósito operativo | Estado |
+| --- | --- | --- |
+| [enterprise-repository-maturity-audit-roadmap.md](./enterprise-repository-maturity-audit-roadmap.md) | Auditoría y roadmap enterprise del repositorio: scorecard de 25 ejes, brechas P0/P1/P2/P3, roadmap por fases, matriz de validación, risk register y definición de cierre 100% enterprise. | Vigente |
 
 ## Documentos rectores recientes
 
@@ -55,4 +59,4 @@ Toda nueva auditoría que pretenda incorporarse al índice vigente debe cumplir 
 
 ## Próximo paso recomendado
 
-Crear un backlog maestro de implementación derivado exclusivamente de estas 4 auditorías vigentes, priorizado por riesgo, impacto operativo y dependencia técnica.
+Ejecutar la Fase 0 del roadmap enterprise: registrar divergencias en el Enterprise Control Register, alinear el runbook de CI con `qga-workflow-security`, actualizar `docs/SOURCES_OF_TRUTH.md` y mantener esta auditoría como documento rector vigente.
