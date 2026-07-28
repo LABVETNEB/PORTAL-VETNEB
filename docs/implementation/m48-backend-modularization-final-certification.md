@@ -13,13 +13,33 @@
   documentación. Cero refactor runtime.
 - Veredicto final: **CERTIFIED_WITH_RESIDUAL_RISKS**.
 
+Estado vigente posterior al merge (addendum 2026-07-28):
+
+- PR: **#1586** — `MERGED`;
+- squash commit: `cb6f013e90d1363373a86f6bcce26bff68ac453e`;
+- fecha de merge: `2026-07-28T15:27:31Z`;
+- M48: **MERGED**; Fase K: **CLOSED**; Programa:
+  **CERTIFIED_WITH_RESIDUAL_RISKS**;
+- rama `test/backend-modularization-m48-final-certification`: eliminada local y
+  remotamente tras el squash;
+- auditoría independiente posterior: PR **#1587**, squash
+  `e1d1cfdb3eeae9517927f96f355e8fdadd3e5862`
+  (`docs/audit/post-m48-backend-reordering-excellence-audit.md`,
+  veredicto `EXCELLENT_WITH_RESIDUAL_RISKS`, 93/100, cero P0/P1/P2);
+- M47 continúa **NO-GO** y C5 continúa **NOT_RUN**.
+
+Todo dato de este documento anterior a este addendum que describa el estado
+local pre-merge es snapshot histórico, no estado vigente.
+
 Este veredicto certifica la arquitectura objetivo proporcional definida por el
 programa, no una norma externa ni una cobertura absoluta. Los riesgos
 residuales aceptados se separan de defectos abiertos en la sección 29.
 
 ## 2. Baseline y precondiciones
 
-La entrada se verificó antes de modificar archivos:
+La entrada se verificó antes de modificar archivos. Esta tabla es el **baseline
+inmutable** de M48 (snapshot previo al commit); no describe el estado vigente,
+que es el registrado en la sección 1 y en la sección 18:
 
 | Precondición | Resultado |
 | --- | --- |
@@ -144,7 +164,7 @@ por su cohorte funcional, sin inventar un guard independiente.
 | M45 | K | grafo global y dependency guard | MERGED | #1584 | `4adb55a458e36d5905f8d0d497f5a5ef14b8512f` | 2026-07-28 | M45 feature dependency | `m45-backend-feature-dependency-guard-closeout.md` | SCC permitido |
 | M46 | K | frontera HTTP residual | MERGED | #1585 | `7a05cb8c5c9d0fd3f8f1d64f05bc5812d39a59eb` | 2026-07-28 | M46 HTTP reclassification | `m46-http-lib-reclassification-closeout.md` | CORS KEEP |
 | M47 | K | evaluar `lib/infra` | NO-GO | — | — | 2026-07-28 | evidencia integrada M48 | sección M47 | 5 KEEP; sin diff/commit/PR |
-| M48 | K | certificación final | COMPLETED | NOT_RUN | HEAD sin cambio | 2026-07-28 | M48 final certification | este documento | pendiente de commit/PR por Nico |
+| M48 | K | certificación final | MERGED | #1586 | `cb6f013e90d1363373a86f6bcce26bff68ac453e` | 2026-07-28 | M48 final certification | este documento; auditoría independiente #1587 | ninguno |
 | C5 | Contingencia | rediseño de ciclos imprevistos | NOT_RUN | — | — | — | M45/M48 | SCC esperado único | no fue necesario |
 
 M35 precedió en merge a M33/M34 por la secuencia real del programa: cerró
@@ -163,7 +183,7 @@ Study Tracking; M35b cerró después la fase separada de accesos por token.
 | H | Accesos Particular/Report cerrados con regresión M35b |
 | I | Reports cerrada y compatibilidad temporal retirada |
 | J | Users/Roles cerrada; permissions continúa shared kernel |
-| K | M44–M46 mergeados, M47 NO-GO reproducido y M48 completado |
+| K | M44–M46 mergeados, M47 NO-GO reproducido y M48 mergeado (#1586); fase CLOSED |
 
 ## Censo final del backend
 
@@ -414,7 +434,11 @@ relajó M46 ni se tocó runtime.
 
 ## Validaciones finales
 
-Esta tabla se completa con resultados observados en el mismo working tree.
+**Medición pre-commit (snapshot histórico).** Esta tabla registra los resultados
+observados en el working tree local, antes del review P2 de censo LOC y antes
+del commit. Sus conteos (32 tests de guard M48 / 580 de arquitectura / 3.960
+totales) quedaron superados por el artefacto realmente mergeado; el estado
+vigente es la tabla siguiente.
 
 | Comando | Estado | Conteos / resultado | Duración | Exit |
 | --- | --- | --- | ---: | ---: |
@@ -440,17 +464,44 @@ Los incidentes de tooling se registran, no se ocultan:
   sobrevivía a `filter().map()`; se agregó un type predicate local, el
   reintento pasó y el guard M48 volvió a 32/32.
 
+**Validaciones vigentes del artefacto mergeado (#1586).** El fix causal del
+review P2 de censo LOC agregó tres assertions ejecutables; los conteos
+definitivos son:
+
+| Comando | Estado | Conteos / resultado |
+| --- | --- | --- |
+| guard M48 aislado | PASSED | **35 tests, 35 pass, 0 fail** |
+| arquitectura completa (`test/architecture/**`) | PASSED | **583 tests, 582 pass, 1 skip Windows esperado, 0 fail** |
+| `pnpm validate:local` | PASSED | **3.963 tests, 3.962 pass, 1 skip, 0 fail** |
+| build | PASSED | `dist/index.js` 922,4 kb |
+| `pnpm validate:local:schema` | NOT_RUN | requiere DB real; prohibido cargar `.env` |
+
+Estos conteos fueron reproducidos de forma independiente por la auditoría del
+PR #1587 (`docs/audit/post-m48-backend-reordering-excellence-audit.md`, §8).
+
 ## 18. Estado Git/GitHub de M48
+
+**Snapshot local previo al merge (histórico).**
 
 - `HEAD`: baseline sin modificar.
 - Working tree: cambios M48 locales sin stage.
 - Índice: vacío.
 - Runtime diff: cero.
-- Stage: NOT_RUN.
-- Commit: NOT_RUN.
-- Push: NOT_RUN.
-- PR: NOT_RUN.
-- Merge: NOT_RUN.
+- Stage, Commit, Push, PR y Merge: `NOT_RUN` en el momento de redactar la
+  certificación.
+
+**Estado vigente post-merge.**
+
+- PR: **#1586**, `MERGED`.
+- Squash commit: `cb6f013e90d1363373a86f6bcce26bff68ac453e`.
+- Fecha de merge: `2026-07-28T15:27:31Z` (UTC).
+- Base del merge: `main`; checks `validate-backend` ×2,
+  `validate-pr-governance` y `qga-workflow-security` en verde.
+- Rama `test/backend-modularization-m48-final-certification`: eliminada local y
+  remotamente.
+- Runtime diff del PR: cero (docs + guard).
+- Auditoría independiente posterior: PR **#1587**, `MERGED`, squash
+  `e1d1cfdb3eeae9517927f96f355e8fdadd3e5862`.
 
 ## 19. Riesgos residuales aceptados
 
@@ -482,9 +533,11 @@ DB/schema/datos y no existe compensación productiva.
 
 ## 22. Declaración final
 
-M44, M45 y M46 están mergeados; M47 es `NO-GO`; M48 está completado
-localmente; C5 continúa `NOT_RUN`. La Fase K y el programa quedan cerrados
-arquitectónicamente en este árbol fuente con riesgos residuales explícitos y
-sin cambios runtime.
+M44, M45 y M46 están mergeados; M47 es `NO-GO`; M48 está **mergeado** mediante
+PR #1586 (`cb6f013e90d1363373a86f6bcce26bff68ac453e`, 2026-07-28T15:27:31Z);
+C5 continúa `NOT_RUN`. La **Fase K queda CLOSED** y el **programa queda
+CERTIFIED_WITH_RESIDUAL_RISKS**, con riesgos residuales explícitos y sin
+cambios runtime. La auditoría independiente del PR #1587 ratificó la
+certificación con `EXCELLENT_WITH_RESIDUAL_RISKS` (93/100).
 
 Veredicto final: **CERTIFIED_WITH_RESIDUAL_RISKS**.

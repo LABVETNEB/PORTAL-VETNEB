@@ -135,10 +135,23 @@ dinámicos) [CONFIRMED, `git grep`]:**
 `session-last-access` 17 · `fastify-admin-auth` 15 · `audit` 15 · `permissions` 14 ·
 `supabase` 8 · `rate-limit-store` 8 · `list-pagination` 8 · `http-types` 8 · `email` 5.
 
-> Metodología de fan-in: se cuentan archivos de `server/` que importan `lib/<módulo>`
-> incluyendo **imports dinámicos** (`await import("../lib/auth-security.ts")` en los tres
-> middlewares de auth y 31 rutas). Ignorar los dinámicos subcontabiliza `auth-security`
-> (1→34), `env` (39→42), `supabase` (2→8) y `email` (3→5).
+> Metodología de fan-in **M01 (snapshot histórico, superada)**: se cuentan archivos de
+> `server/` que importan `lib/<módulo>` incluyendo **imports dinámicos**
+> (`await import("../lib/auth-security.ts")` en los tres middlewares de auth y 31 rutas).
+> Ignorar los dinámicos subcontabiliza `auth-security` (1→34), `env` (39→42),
+> `supabase` (2→8) y `email` (3→5).
+>
+> **Limitación declarada de esta metodología:** el censo M01 excluía a los
+> **consumidores intra-`lib`** (módulos de `server/lib` que importan a otro módulo de
+> `server/lib`), por lo que sus fan-ins son **cotas inferiores**, no totales. Los conteos
+> de esta sección se conservan como snapshot M01 y **no son el censo autoritativo**.
+> El censo vigente y autoritativo es el **recenso independiente M46/M47/M48**
+> (ver «Addendum de cierre — Inventario final M48»), que resuelve imports estáticos y
+> dinámicos incluyendo los intra-`lib`: allí `env.ts` tiene **46 consumidores**
+> resueltos, frente a los 42 de este snapshot. La corrección **no altera ninguna
+> decisión**: un fan-in mayor sólo **refuerza** el `NO-GO` de M47, cuyo resultado
+> permanece **0 MOVE, 5 KEEP, 0 DELETE**. Este párrafo responde al review P2 del
+> PR #1496.
 
 **Transacciones:** **11 call-sites de `.transaction(` en exactamente 3 archivos**:
 `db-logistics.ts` (7), `db.ts` (2), `db-admin-clinics.ts` (2) [CONFIRMED]. **Email desde
@@ -190,6 +203,11 @@ mover**:
 ---
 
 ## 4. Inventario vigente de `server/lib` [CONFIRMED clasificación por import]
+
+> **Snapshot M01.** Esta tabla refleja `server/lib` antes del programa M01–M48 y usa la
+> metodología de fan-in M01 descrita arriba (excluye consumidores intra-`lib`; cotas
+> inferiores). El inventario **vigente** es el del «Addendum de cierre — Inventario
+> final M48» al pie de este documento.
 
 `server/lib/**` — 43 archivos, 7.053 LOC. Clasificación por **imports reales** (no por
 nombre); fan-in = archivos de `server/` que lo importan. `Estado`: **mover** (a una feature) ·
@@ -977,8 +995,9 @@ sin cambio funcional. C5 — NOT_RUN. M48 — NOT_RUN. Detalle:
 
 ## Addendum de cierre — Inventario final M48
 
-> **Fecha:** 2026-07-28. Este addendum es el inventario vigente; las tablas M01
-> anteriores permanecen como evidencia histórica.
+> **Fecha:** 2026-07-28. Este addendum es el inventario vigente y autoritativo;
+> las tablas M01 anteriores permanecen como evidencia histórica y sus fan-ins
+> son cotas inferiores (metodología M01, sin consumidores intra-`lib`).
 
 El recenso final contiene 27 archivos TypeScript bajo `server/lib`: 24 en la
 raíz y tres en `server/lib/http`. M46 quedó mergeado mediante PR #1585 y su
@@ -992,6 +1011,17 @@ continúa como KEEP canónico con 30 consumidores runtime.
 CORS, storage y entrypoints, por lo que excede el máximo de 30 paths. La
 agrupación coherente amplía todavía más el blast radius. No existe
 `server/lib/infra` y no se creó shim, guard, closeout runtime, commit o PR M47.
+
+**Aclaración metodológica del fan-in (review P2 del PR #1496).** Los 46
+consumidores de `env.ts` provienen de este recenso vigente, que resuelve
+imports estáticos y dinámicos **incluyendo los consumidores intra-`lib`**. El
+censo M01 (§«Fan-in de `server/lib`») los excluía y por eso registró 42: aquel
+número es un snapshot de metodología anterior, no un error de este addendum, y
+se conserva sin modificar. Ambas cifras conviven porque miden universos
+distintos. El fan-in mayor **refuerza** el `NO-GO` y **no cambia** el
+resultado M47, que permanece **0 MOVE, 5 KEEP, 0 DELETE**. La auditoría
+independiente del PR #1587 recomputó estos fan-ins y los dio por coincidentes
+con el recenso M46/M47/M48.
 
 Clasificación vigente:
 
@@ -1009,6 +1039,12 @@ Clasificación vigente:
 - HTTP M46: tres módulos en `server/lib/http`;
 - CORS: KEEP en `server/lib/cors-headers.ts`.
 
-**M48 — completado** localmente; **C5 — NOT_RUN**; Fase K y programa cerrados
-con `CERTIFIED_WITH_RESIDUAL_RISKS`. Detalle:
+**M48 — completado y MERGED** mediante **PR #1586**, squash
+`cb6f013e90d1363373a86f6bcce26bff68ac453e`, mergeado el `2026-07-28T15:27:31Z`;
+**C5 — NOT_RUN**; **Fase K `CLOSED`** y programa cerrado con
+`CERTIFIED_WITH_RESIDUAL_RISKS`. Detalle:
 [`m48-backend-modularization-final-certification.md`](../implementation/m48-backend-modularization-final-certification.md).
+La auditoría independiente **PR #1587**
+(`e1d1cfdb3eeae9517927f96f355e8fdadd3e5862`) ratificó este inventario y el
+`NO-GO` M47 con veredicto `EXCELLENT_WITH_RESIDUAL_RISKS` (93/100):
+[`post-m48-backend-reordering-excellence-audit.md`](../audit/post-m48-backend-reordering-excellence-audit.md).
