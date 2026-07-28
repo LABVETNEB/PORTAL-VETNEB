@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 
 const { isSafeRequestId } = await import(
-  "../../server/lib/api-request-id.ts"
+  "../../server/lib/http/api-request-id.ts"
 );
 
 type ResponseWithHeaders = {

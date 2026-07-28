@@ -11,7 +11,7 @@ process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 const { ENV } = await import("../../../server/lib/env.ts");
 const { createFastifyApp } = await import("../../../server/fastify-app.ts");
 const { API_NOSNIFF_HEADER_VALUE, API_REFERRER_POLICY_HEADER_VALUE } =
-  await import("../../../server/lib/api-response-security.ts");
+  await import("../../../server/lib/http/api-response-security.ts");
 const {
   assertApiErrorLogRequestId,
   assertBodyDoesNotIncludeRequestId,

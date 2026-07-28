@@ -147,13 +147,13 @@ import {
 } from "./routes/logistics-sla.fastify.ts";
 import { requireTrustedOriginForFastify } from "./middlewares/trusted-origin.ts";
 import { requireMinimumClientVersionForFastify } from "./middlewares/version-gate.ts";
-import { applySensitiveApiNoStoreHeaders } from "./lib/sensitive-response-cache.ts";
-import { applyApiSecurityHeaders } from "./lib/api-response-security.ts";
+import { applySensitiveApiNoStoreHeaders } from "./lib/http/sensitive-response-cache.ts";
+import { applyApiSecurityHeaders } from "./lib/http/api-response-security.ts";
 import {
   applyApiRequestIdHeader,
   generateFastifyRequestId,
   getSafeApiResponseRequestId,
-} from "./lib/api-request-id.ts";
+} from "./lib/http/api-request-id.ts";
 
 type HealthCheckResponse = {
   statusCode: number;

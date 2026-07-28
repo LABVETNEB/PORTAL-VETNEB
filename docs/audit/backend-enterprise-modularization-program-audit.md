@@ -1063,9 +1063,20 @@ techo de 60.)*
 > se clasifica como type-only. Los módulos de token se movieron 1:1 a
 > Particular Access y Report Access. El único SCC full/runtime preexistente
 > permitido sigue siendo `particular-access ↔ reports`.
-> **C5 — NOT_RUN**, **M46 — NOT_RUN** y **M48 — NOT_RUN**. Este status no
-> altera el conteo recomendado, la definición de M46/M48, los riesgos ni las
-> conclusiones históricas.
+> **C5 — NOT_RUN** y **M48 — NOT_RUN**.
+>
+> **M46 — completado localmente (2026-07-28).** El recenso de los 27 archivos
+> actuales bajo `server/lib` aprobó una frontera HTTP de tres módulos:
+> `api-request-id`, `api-response-security` y `sensitive-response-cache`
+> se movieron 1:1 a `server/lib/http/`, sin barrel, shim ni cambio funcional.
+> `cors-headers.ts` queda `KEEP` canónico en su path actual: 30 consumidores
+> runtime y dos anclas de seguridad harían superar el límite de 30 paths.
+> El guard M46 congela destinos, exports, carga eager, consumidores, ausencia
+> de legacy, dependencias prohibidas, la decisión CORS y M48 `NOT_RUN`.
+> Detalle en
+> [`docs/implementation/m46-http-lib-reclassification-closeout.md`](../implementation/m46-http-lib-reclassification-closeout.md).
+> Este status no altera el conteo recomendado, los riesgos ni las conclusiones
+> históricas.
 
 **Contingencia (fuera del conteo):** C1 coverage (autorizar dep c8 primero) · C2 límites de
 complejidad · C3 `lib/shared` · C4 secuencia de seguridad Auth (diseño separado + sign-off) ·

@@ -9,7 +9,7 @@ const { normalizeListPagination } = await import(
 const {
   shouldApplySensitiveApiNoStore,
   SENSITIVE_API_CACHE_CONTROL,
-} = await import("../../../server/lib/sensitive-response-cache.ts");
+} = await import("../../../server/lib/http/sensitive-response-cache.ts");
 
 type HeavySurface = {
   file: string;
@@ -115,8 +115,8 @@ test("sensitive no-store applies only to non-public API surfaces", () => {
 test("resilience contracts keep request ids security headers and safe logging wired", () => {
   const fastifyApp = read("server/fastify-app.ts");
   const requestLogger = read("server/middlewares/request-logger.ts");
-  const apiRequestId = read("server/lib/api-request-id.ts");
-  const apiResponseSecurity = read("server/lib/api-response-security.ts");
+  const apiRequestId = read("server/lib/http/api-request-id.ts");
+  const apiResponseSecurity = read("server/lib/http/api-response-security.ts");
 
   for (const marker of [
     "generateFastifyRequestId",

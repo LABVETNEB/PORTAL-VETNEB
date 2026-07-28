@@ -9,7 +9,7 @@ const REPO_ROOT = resolve(fileURLToPath(new URL("../../", import.meta.url)));
 const {
   SENSITIVE_API_CACHE_CONTROL,
   shouldApplySensitiveApiNoStore,
-} = await import("../../server/lib/sensitive-response-cache.ts");
+} = await import("../../server/lib/http/sensitive-response-cache.ts");
 
 function readSource(relativePath: string): string {
   return readFileSync(resolve(REPO_ROOT, relativePath), "utf8");
@@ -97,7 +97,7 @@ test("public-pricing mantiene Cache-Control publico propio", () => {
 });
 
 test("no-store sensible no introduce dependencia de frontend o UI", () => {
-  const helperSource = readSource("server/lib/sensitive-response-cache.ts");
+  const helperSource = readSource("server/lib/http/sensitive-response-cache.ts");
   const fastifyAppSource = readSource("server/fastify-app.ts");
   const combined = `${helperSource}\n${fastifyAppSource}`;
 

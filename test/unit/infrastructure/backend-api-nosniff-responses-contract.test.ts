@@ -12,14 +12,14 @@ const {
   API_REFERRER_POLICY_HEADER_NAME,
   API_REFERRER_POLICY_HEADER_VALUE,
   shouldApplyApiSecurityHeaders,
-} = await import("../../../server/lib/api-response-security.ts");
+} = await import("../../../server/lib/http/api-response-security.ts");
 const {
   API_REQUEST_ID_HEADER_KEY,
   API_REQUEST_ID_HEADER_NAME,
   API_REQUEST_ID_MAX_LENGTH,
   generateFastifyRequestId,
   isSafeRequestId,
-} = await import("../../../server/lib/api-request-id.ts");
+} = await import("../../../server/lib/http/api-request-id.ts");
 
 function readSource(relativePath: string): string {
   return readFileSync(resolve(REPO_ROOT, relativePath), "utf8");
@@ -99,8 +99,8 @@ test("fastify-app registra hook central de security headers antes de cortes temp
 });
 
 test("api security headers no introduce dependencia de frontend o UI", () => {
-  const helperSource = readSource("server/lib/api-response-security.ts");
-  const requestIdSource = readSource("server/lib/api-request-id.ts");
+  const helperSource = readSource("server/lib/http/api-response-security.ts");
+  const requestIdSource = readSource("server/lib/http/api-request-id.ts");
   const fastifyAppSource = readSource("server/fastify-app.ts");
   const combined = `${helperSource}\n${requestIdSource}\n${fastifyAppSource}`;
 

@@ -163,7 +163,7 @@ const GLOBAL_SURFACES: readonly GlobalSurface[] = [
         markers: ["DEFAULT_LIST_LIMIT", "MAX_LIST_LIMIT", "MAX_LIST_OFFSET"],
       },
       {
-        path: "server/lib/sensitive-response-cache.ts",
+        path: "server/lib/http/sensitive-response-cache.ts",
         markers: ["SENSITIVE_API_CACHE_CONTROL", "!url.startsWith(\"/api/public/\")"],
       },
       {
