@@ -17,6 +17,7 @@ Los documentos históricos previos dentro de `docs/audit/` se conservan como ant
 | Documento | Propósito operativo | Estado |
 | --- | --- | --- |
 | [enterprise-repository-maturity-audit-roadmap.md](./enterprise-repository-maturity-audit-roadmap.md) | Auditoría y roadmap enterprise del repositorio: scorecard de 25 ejes, brechas P0/P1/P2/P3, roadmap por fases, matriz de validación, risk register y definición de cierre 100% enterprise. | Vigente |
+| [enterprise-roadmap-consolidation-plan.md](./enterprise-roadmap-consolidation-plan.md) | Plan consolidado para reducir el roadmap enterprise a 18 PRs ejecutables, agrupando scopes compatibles sin romper seguridad, trazabilidad ni disciplina VETNEB. | Vigente |
 
 ## Documentos rectores recientes
 
