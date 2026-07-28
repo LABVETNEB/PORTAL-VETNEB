@@ -51,7 +51,7 @@ export async function preflight(
     supabaseModule,
   ] = await Promise.all([
     import("./db.ts"),
-    import("./db-particular.ts"),
+    import("./features/particular-access/infrastructure/index.ts"),
     import("./lib/supabase.ts"),
   ]);
 

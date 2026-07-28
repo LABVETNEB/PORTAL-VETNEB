@@ -10,7 +10,7 @@ const featureDir = "server/features/study-tracking";
 const applicationIndex = `${featureDir}/application/index.ts`;
 const infrastructureIndex = `${featureDir}/infrastructure/index.ts`;
 const compositionFile = `${featureDir}/study-tracking-route-composition.ts`;
-const dbShim = "server/db-study-tracking.ts";
+const legacyDbPath = "server/db-study-tracking.ts";
 const domainShims = [
   "server/lib/study-tracking.ts",
   "server/lib/token-study-tracking.ts",
@@ -22,9 +22,9 @@ const routes = {
 } as const;
 
 const routeHashes = new Map<string, string>([
-  [routes.clinic, "f2b8e5afbe0ded7fcb75ece389cfd476d8667c49f792a104f9ee3bb7379f7319"],
-  [routes.particular, "ed7d3f4a949af488a9dab5a9a89ccc9e89d19399ddde7230a25a3189a32591fb"],
-  [routes.admin, "15aab9bd2b23caf27644185b5421cabe206644ed5b837c54e3dac66fa109c892"],
+  [routes.clinic, "aeacf4866ffa9a70d1ee867cd652f49e35b5bb86709fa4b3003d95c178078ae7"],
+  [routes.particular, "88d6cd63bb808fbb6d613aea60fcf9fae25c2681f8679c3acc3c3d3ad16501aa"],
+  [routes.admin, "4454a06d394f6d377eedfb1420bc2e3a6e8e651096d3a230c2cd809db0dcb6de"],
 ]);
 
 const expectedFeatureFiles = [
@@ -173,31 +173,19 @@ test("M35 retira ambos shims domain y prohíbe imports globales a sus paths", ()
   assert.deepEqual(violations, []);
 });
 
-test("M35 conserva el shim DB de una linea con allowlist externa exacta", () => {
-  assert.equal(
-    readSource(dbShim).trim(),
-    'export * from "./features/study-tracking/infrastructure/index.ts";',
+test("M44 retira el path DB legacy de Study Tracking sin consumidores", () => {
+  assert.equal(existsSync(resolve(repoRoot, legacyDbPath)), false);
+
+  const actualConsumers = ["server", "test"].flatMap((root) =>
+    walkFiles(root)
+      .filter((file) => file.endsWith(".ts"))
+      .filter((file) => importTargets(file).includes(legacyDbPath)),
   );
-
-  const actualConsumers = walkFiles("server")
-    .filter((file) => file.endsWith(".ts") && file !== dbShim)
-    .filter((file) => importTargets(file).includes(dbShim))
-    .sort();
-
-  assert.deepEqual(actualConsumers, [...residualDbConsumers.keys()].sort());
+  assert.deepEqual(actualConsumers, []);
 });
 
-test("cada consumidor residual del shim DB tiene owner y milestone documentados", () => {
-  const readme = readSource(`${featureDir}/README.md`);
-  const closeout = readSource("docs/implementation/m35-study-tracking-phase-closeout.md");
-
-  for (const [consumer, ownership] of residualDbConsumers) {
-    for (const source of [readme, closeout]) {
-      assert.ok(source.includes(consumer), consumer);
-      assert.ok(source.includes(ownership.owner), ownership.owner);
-      assert.ok(source.includes(ownership.milestone), ownership.milestone);
-    }
-  }
+test("residualDbConsumers permanece vacío después de M44", () => {
+  assert.equal(residualDbConsumers.size, 0);
 });
 
 test("las tres rutas permanecen exactas y sólo atraviesan application y composition", () => {
@@ -207,7 +195,7 @@ test("las tres rutas permanecen exactas y sólo atraviesan application y composi
     const targets = importTargets(route);
     assert.ok(targets.includes(applicationIndex), route);
     assert.ok(targets.includes(compositionFile), route);
-    assert.equal(targets.includes(dbShim), false, route);
+    assert.equal(targets.includes(legacyDbPath), false, route);
     assert.equal(
       targets.some((target) => target.startsWith(`${featureDir}/infrastructure/`)),
       false,

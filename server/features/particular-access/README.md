@@ -9,7 +9,20 @@ tokens particulares.
 - `particular-access-route-composition.ts`: único seam de las rutas propias a
   infraestructura y a la composición canónica de Study Tracking.
 
-`server/db-particular.ts` queda como shim de compatibilidad controlado. Owner:
-Particular Access. Retiro futuro: milestone de Auth/consumidores externos aún
-no planificado; M34 y M35b no forman parte de este cierre.
-`server/routes/admin-reports.fastify.ts` permanece allowlisted hasta M36.
+M33 introdujo `server/db-particular.ts` como compatibilidad temporal. M44
+retiró ese shim y realineó sus ocho consumidores externos al barrel canónico
+`server/features/particular-access/infrastructure/index.ts`:
+
+- `server/middlewares/particular-auth.ts`;
+- `server/preflight.ts`;
+- `server/routes/admin-study-tracking.fastify.ts`;
+- `server/routes/auth.fastify.ts`;
+- `server/routes/particular-audit.fastify.ts`;
+- `server/routes/particular-auth.fastify.ts`;
+- `server/routes/particular-study-tracking.fastify.ts`;
+- `server/routes/study-tracking.fastify.ts`.
+
+Las rutas propias continúan llegando a infrastructure mediante
+`particular-access-route-composition.ts`; Reports conserva su composición
+canónica. M44 no reorganizó Auth ni cambió comportamiento funcional, lazy
+loading, sesiones, cookies, rate limits, auditoría o contratos HTTP.

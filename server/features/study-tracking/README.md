@@ -22,14 +22,10 @@ Bounded context backend cerrado en M35 después de M30, M31, M32 y M32b.
 - `server/lib/study-tracking.ts` y
   `server/lib/token-study-tracking.ts` fueron retirados en M35: el censo
   textual y AST confirmó cero consumidores ejecutables.
-- `server/db-study-tracking.ts` permanece como shim externo controlado de una
-  línea. Las tres rutas propias no lo consumen y, tras M33, su allowlist
-  residual exacta
-  es:
-
-| Consumidor | Owner | Retiro |
-| --- | --- | --- |
-| `server/routes/admin-reports.fastify.ts` | Reports | M36 |
+- M35 conservó `server/db-study-tracking.ts` como shim externo temporal. Tras
+  M41 su censo residual ya era cero; M44 retiró el path y confirmó cero imports
+  ejecutables. Las tres rutas propias continúan usando su composición
+  feature-level y Reports continúa usando su composición canónica.
 
 M32 adelgazó únicamente `study-tracking.fastify.ts` y
 `particular-study-tracking.fastify.ts`. M32b adelgaza exclusivamente
@@ -40,5 +36,6 @@ filtro clinic-scoped opcional, CORS, payloads, SQL, schema y migraciones no
 cambian.
 
 M30, M31, M32, M32b y M35 están cerrados. M33 retiró los dos consumidores de
-Particular Access mediante composition y el barrel application canónico. No se
-afirma RLS; Reports continúa pendiente para M36.
+Particular Access mediante composition y el barrel application canónico; M44
+retiró el shim DB ya sin consumidores. Auth no fue reorganizado y no hubo
+cambios funcionales. No se afirma RLS.

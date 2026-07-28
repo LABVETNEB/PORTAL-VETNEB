@@ -14,8 +14,8 @@ const applicationIndex = `${applicationDir}/index.ts`;
 const infrastructureIndex = `${infrastructureDir}/index.ts`;
 const repositoryFile = `${infrastructureDir}/particular-access-repository.ts`;
 const compositionFile = `${featureDir}/particular-access-route-composition.ts`;
-const dbShim = "server/db-particular.ts";
-const studyShim = "server/db-study-tracking.ts";
+const legacyParticularPath = "server/db-particular.ts";
+const legacyStudyTrackingPath = "server/db-study-tracking.ts";
 const closeout =
   "docs/implementation/m33-particular-access-domain-repository-thin-closeout.md";
 const routes = [
@@ -39,7 +39,7 @@ const expectedFeatureFiles = [
   compositionFile,
 ].sort();
 
-const particularShimConsumers = [
+const expectedExternalParticularConsumers = [
   "server/middlewares/particular-auth.ts",
   "server/preflight.ts",
   "server/routes/admin-study-tracking.fastify.ts",
@@ -218,8 +218,8 @@ test("composition es el único seam de rutas propias a infrastructure", () => {
     const targets = importTargets(route);
     assert.ok(targets.includes(applicationIndex), route);
     assert.ok(targets.includes(compositionFile), route);
-    assert.equal(targets.includes(dbShim), false, route);
-    assert.equal(targets.includes(studyShim), false, route);
+    assert.equal(targets.includes(legacyParticularPath), false, route);
+    assert.equal(targets.includes(legacyStudyTrackingPath), false, route);
     assert.equal(
       targets.some((target) => target.startsWith(`${infrastructureDir}/`)),
       false,
@@ -318,28 +318,38 @@ test("Options y endpoints de ambas rutas permanecen completos", () => {
   }
 });
 
-test("shims conservan una línea y allowlists residuales exactas", () => {
-  assert.equal(
-    readSource(dbShim).trim(),
-    'export * from "./features/particular-access/infrastructure/index.ts";',
+test("M44 retira paths legacy y realinea los ocho consumidores externos", () => {
+  assert.equal(existsSync(resolve(repoRoot, legacyParticularPath)), false);
+  assert.equal(existsSync(resolve(repoRoot, legacyStudyTrackingPath)), false);
+
+  const legacyViolations = ["server", "test"].flatMap((root) =>
+    walkFiles(root)
+      .filter((file) => file.endsWith(".ts"))
+      .flatMap((file) =>
+        importTargets(file)
+          .filter(
+            (target) =>
+              target === legacyParticularPath ||
+              target === legacyStudyTrackingPath,
+          )
+          .map((target) => `${file} -> ${target}`),
+      ),
   );
-  assert.equal(
-    readSource(studyShim).trim(),
-    'export * from "./features/study-tracking/infrastructure/index.ts";',
-  );
-  const actualParticularConsumers = walkFiles("server")
-    .filter((file) => file.endsWith(".ts") && file !== dbShim)
-    .filter((file) => importTargets(file).includes(dbShim))
-    .sort();
-  assert.deepEqual(actualParticularConsumers, particularShimConsumers);
-  const actualStudyConsumers = walkFiles("server")
-    .filter((file) => file.endsWith(".ts") && file !== studyShim)
-    .filter((file) => importTargets(file).includes(studyShim))
-    .sort();
-  assert.deepEqual(actualStudyConsumers, [
-  ]);
+  assert.deepEqual(legacyViolations, []);
+
   const reportsComposition =
     "server/features/reports/composition/report-route-composition.ts";
+  const actualExternalParticularConsumers = walkFiles("server")
+    .filter((file) => file.endsWith(".ts"))
+    .filter((file) => !file.startsWith(`${featureDir}/`))
+    .filter((file) => file !== reportsComposition)
+    .filter((file) => importTargets(file).includes(infrastructureIndex))
+    .sort();
+  assert.deepEqual(
+    actualExternalParticularConsumers,
+    expectedExternalParticularConsumers,
+  );
+
   const compositionTargets = importTargets(reportsComposition);
   assert.ok(compositionTargets.includes(infrastructureIndex));
   assert.ok(
@@ -352,11 +362,11 @@ test("shims conservan una línea y allowlists residuales exactas", () => {
 test("Auth preserva contrato y Reports usa composition M41", () => {
   assert.equal(
     digest("server/routes/particular-auth.fastify.ts"),
-    "5ed5bf6f6ec6edb72983cdcfca84b283b89a3db4ff3b408349b557aa9a0d1561",
+    "e94e5a2847f635f30a8edd81fa5270fd1501f727fc1b91e434677c3d101a0c86",
   );
   assert.equal(
     digest("server/middlewares/particular-auth.ts"),
-    "fc551f73cc21beb99d35e97cc9abde62d10e98621185b8d829f5bbe9919dc17b",
+    "5004967d61238de6d5fc38582ca48e0da1468189e418d279a4cd9786126c4683",
   );
   const reports = readSource("server/routes/admin-reports.fastify.ts");
   assert.ok(reports.includes("createAdminReportsRouteComposition"));
@@ -364,19 +374,27 @@ test("Auth preserva contrato y Reports usa composition M41", () => {
   assert.equal(reports.includes("../db-study-tracking.ts"), false);
 });
 
-test("README y closeout documentan owners, seguridad y milestones pendientes", () => {
-  for (const file of [`${featureDir}/README.md`, closeout]) {
-    const source = readSource(file);
-    for (const marker of [
-      "server/db-particular.ts",
-      "admin-reports.fastify.ts",
-      "M34",
-      "M35b",
-    ]) {
-      assert.ok(source.includes(marker), `${file}: ${marker}`);
-    }
+test("README vigente M44 y closeout histórico M33 permanecen trazables", () => {
+  const readme = readSource(`${featureDir}/README.md`);
+  for (const marker of [
+    "server/db-particular.ts",
+    "M44",
+    "ocho consumidores externos",
+    "M44 no reorganizó Auth",
+  ]) {
+    assert.ok(readme.includes(marker), `${featureDir}/README.md: ${marker}`);
   }
-  const source = readSource(closeout);
+
+  const historicalCloseout = readSource(closeout);
+  for (const marker of [
+    "server/db-particular.ts",
+    "admin-reports.fastify.ts",
+    "M34",
+    "M35b",
+  ]) {
+    assert.ok(historicalCloseout.includes(marker), `${closeout}: ${marker}`);
+  }
+
   for (const marker of [
     "cross-tenant",
     "anti-enumeración",
@@ -384,6 +402,6 @@ test("README y closeout documentan owners, seguridad y milestones pendientes", (
     "No se afirma RLS",
     "Rollback",
   ]) {
-    assert.ok(source.includes(marker), marker);
+    assert.ok(historicalCloseout.includes(marker), marker);
   }
 });

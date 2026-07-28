@@ -1051,6 +1051,14 @@ global anti-ciclos + matriz de deps entre features · **M46** reclasificación r
 **M48** certificación final con evidencia acumulada. *(M47 infra-residual: opcional, dentro del
 techo de 60.)*
 
+> **Status de ejecución (2026-07-28):** **M44 — completado** localmente. Se
+> retiraron los dos shims residuales `server/db-particular.ts` y
+> `server/db-study-tracking.ts`; ocho imports dinámicos se realinearon al
+> barrel canónico de Particular Access, sin cambios funcionales.
+> **M45 — NOT_RUN** y permanece como el siguiente milestone. Este status no altera el
+> conteo recomendado, la definición de M45/M46/M48, los riesgos ni las
+> conclusiones históricas.
+
 **Contingencia (fuera del conteo):** C1 coverage (autorizar dep c8 primero) · C2 límites de
 complejidad · C3 `lib/shared` · C4 secuencia de seguridad Auth (diseño separado + sign-off) ·
 C5 ciclos residuales imprevistos.

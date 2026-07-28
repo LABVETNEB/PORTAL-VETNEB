@@ -279,7 +279,7 @@ async function loadDefaultDeps(): Promise<NativeAuthDefaultDeps> {
   if (!defaultDepsPromise) {
     defaultDepsPromise = (async () => {
       const db = await import("../db.ts");
-      const dbParticular = await import("../db-particular.ts");
+      const dbParticular = await import("../features/particular-access/infrastructure/index.ts");
       const authSecurity = await import("../lib/auth-security.ts");
       const audit = await import("../lib/audit.ts");
       const getClinicUserByIdentifier = async (identifier: string) =>

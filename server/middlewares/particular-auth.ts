@@ -50,7 +50,7 @@ let defaultDepsPromise: Promise<ParticularAuthDeps> | null = null;
 async function loadDefaultDeps(): Promise<ParticularAuthDeps> {
   if (!defaultDepsPromise) {
     defaultDepsPromise = (async () => {
-      const db = await import("../db-particular.ts");
+      const db = await import("../features/particular-access/infrastructure/index.ts");
       const authSecurity = await import("../lib/auth-security.ts");
       const envModule = await import("../lib/env.ts");
 
