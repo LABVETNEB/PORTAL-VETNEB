@@ -126,7 +126,7 @@ const GLOBAL_SURFACES: readonly GlobalSurface[] = [
       "Private report storage paths, access tokens and signed URLs stay lazy, scoped and absent from public JSON.",
     runtimeFiles: [
       {
-        path: "server/lib/report-access-token.ts",
+        path: "server/features/report-access/report-access-token.ts",
         markers: ["serializePublicReportAccess", "serializeReportAccessToken"],
       },
       {

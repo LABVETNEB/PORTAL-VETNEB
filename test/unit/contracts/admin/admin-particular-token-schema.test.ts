@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   adminCreateParticularTokenSchema,
-} from "../../../../server/lib/particular-token.ts";
+} from "../../../../server/features/particular-access/index.ts";
 
 test("adminCreateParticularTokenSchema requiere clinicId válido y normaliza campos base", () => {
   const parsed = adminCreateParticularTokenSchema.safeParse({

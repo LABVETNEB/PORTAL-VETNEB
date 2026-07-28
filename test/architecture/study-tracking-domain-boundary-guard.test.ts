@@ -144,9 +144,12 @@ test("los cuatro consumidores runtime usan únicamente el barrel canónico", () 
     const targets = listImportReferences(readText(file)).map(({ specifier }) =>
       resolveSpecifier(file, specifier)
     );
+    const expectedTarget = file.startsWith("server/features/")
+      ? `${featureDir}/index.ts`
+      : domainIndexFile;
 
-    if (!targets.includes(domainIndexFile)) {
-      violations.push(`${file}: no importa ${domainIndexFile}`);
+    if (!targets.includes(expectedTarget)) {
+      violations.push(`${file}: no importa ${expectedTarget}`);
     }
 
     for (const legacyShimFile of legacyShimFiles) {

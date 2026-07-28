@@ -9,6 +9,7 @@ const featureDir = "server/features/study-tracking";
 const infrastructureDir = `${featureDir}/infrastructure`;
 const repositoryFile = `${infrastructureDir}/study-tracking-repository.ts`;
 const infrastructureIndexFile = `${infrastructureDir}/index.ts`;
+const publicIndexFile = `${featureDir}/index.ts`;
 const legacyShimFile = "server/db-study-tracking.ts";
 const routeCompositionFile =
   "server/features/study-tracking/study-tracking-route-composition.ts";
@@ -267,7 +268,7 @@ test("Reports composition M39 consume infrastructure canónica sin shim", () => 
 
   assert.equal(targets.includes(legacyShimFile), false);
   assert.equal(targets.includes(repositoryFile), false);
-  assert.ok(targets.includes(infrastructureIndexFile));
+  assert.ok(targets.includes(publicIndexFile));
 });
 
 test("los contratos source-only leen el repository canónico", () => {

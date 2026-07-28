@@ -48,6 +48,7 @@ const expectedFeatureFiles = [
   `${featureDir}/domain/index.ts`,
   `${featureDir}/domain/study-tracking.ts`,
   `${featureDir}/domain/token-study-tracking.ts`,
+  `${featureDir}/index.ts`,
   `${featureDir}/infrastructure/README.md`,
   `${featureDir}/infrastructure/index.ts`,
   `${featureDir}/infrastructure/study-tracking-repository.ts`,

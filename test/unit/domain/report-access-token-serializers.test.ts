@@ -4,7 +4,7 @@ import {
   serializePublicReportAccess,
   serializeReportAccessToken,
   serializeReportAccessTokenDetail,
-} from "../../../server/lib/report-access-token.ts";
+} from "../../../server/features/report-access/index.ts";
 
 test("serializeReportAccessToken expone estado y banderas derivadas", () => {
   const token = {

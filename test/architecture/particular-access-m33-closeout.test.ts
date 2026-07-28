@@ -14,6 +14,7 @@ const applicationIndex = `${applicationDir}/index.ts`;
 const infrastructureIndex = `${infrastructureDir}/index.ts`;
 const repositoryFile = `${infrastructureDir}/particular-access-repository.ts`;
 const compositionFile = `${featureDir}/particular-access-route-composition.ts`;
+const publicCompositionFile = `${featureDir}/particular-access-public-composition.ts`;
 const legacyParticularPath = "server/db-particular.ts";
 const legacyStudyTrackingPath = "server/db-study-tracking.ts";
 const closeout =
@@ -33,10 +34,13 @@ const expectedFeatureFiles = [
   `${domainDir}/README.md`,
   `${domainDir}/index.ts`,
   `${domainDir}/particular-access.ts`,
+  `${featureDir}/index.ts`,
+  `${featureDir}/particular-token.ts`,
   `${infrastructureDir}/README.md`,
   infrastructureIndex,
   repositoryFile,
   compositionFile,
+  publicCompositionFile,
 ].sort();
 
 const expectedExternalParticularConsumers = [
@@ -230,7 +234,7 @@ test("composition es el único seam de rutas propias a infrastructure", () => {
   assert.ok(compositionTargets.includes(infrastructureIndex));
   assert.ok(
     compositionTargets.includes(
-      "server/features/study-tracking/study-tracking-route-composition.ts",
+      "server/features/study-tracking/index.ts",
     ),
   );
   assert.equal(readSource(compositionFile).includes("drizzle-orm"), false);
@@ -351,18 +355,18 @@ test("M44 retira paths legacy y realinea los ocho consumidores externos", () => 
   );
 
   const compositionTargets = importTargets(reportsComposition);
-  assert.ok(compositionTargets.includes(infrastructureIndex));
   assert.ok(
-    compositionTargets.includes(
-      "server/features/study-tracking/infrastructure/index.ts",
-    ),
+    compositionTargets.includes("server/features/particular-access/index.ts"),
+  );
+  assert.ok(
+    compositionTargets.includes("server/features/study-tracking/index.ts"),
   );
 });
 
 test("Auth preserva contrato y Reports usa composition M41", () => {
   assert.equal(
     digest("server/routes/particular-auth.fastify.ts"),
-    "e94e5a2847f635f30a8edd81fa5270fd1501f727fc1b91e434677c3d101a0c86",
+    "33ffa0c6da11304dbeb8c000b9ec0b55d03781b90fd2980a76365bdfaeed049f",
   );
   assert.equal(
     digest("server/middlewares/particular-auth.ts"),

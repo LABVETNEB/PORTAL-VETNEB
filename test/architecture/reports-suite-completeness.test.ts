@@ -217,7 +217,7 @@ const REPORTS_SUITE: readonly ReportsSuiteEntry[] = [
     ],
     runtimeAnchors: [
       {
-        path: "server/lib/report-access-token.ts",
+        path: "server/features/report-access/report-access-token.ts",
         markers: [
           "reportAccessTokenRawTokenSchema",
           "clinicCreateReportAccessTokenSchema",

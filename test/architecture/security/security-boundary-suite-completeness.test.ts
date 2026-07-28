@@ -481,7 +481,7 @@ const SECURITY_BOUNDARY_SUITE: readonly SecurityBoundaryGuardrail[] = [
         markers: ["parseReportId(body.clinicId)", "uploadReport"],
       },
       {
-        path: "server/lib/report-access-token.ts",
+        path: "server/features/report-access/report-access-token.ts",
         markers: ["reportAccessTokenRawTokenSchema", "parseEntityId"],
       },
     ],

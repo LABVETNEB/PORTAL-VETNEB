@@ -33,7 +33,7 @@ async function loadDefaultDeps(): Promise<ClinicPublicProfileQueryServiceDeps> {
   if (!defaultDepsPromise) {
     defaultDepsPromise = Promise.all([
       import(
-        "../public-professionals/infrastructure/index.ts"
+        "../public-professionals/index.ts"
       ),
       import("../../lib/supabase.ts"),
     ]).then(([publicProfiles, storage]) => ({

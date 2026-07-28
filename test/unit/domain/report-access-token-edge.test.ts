@@ -8,7 +8,7 @@ import {
   isReportAccessTokenExpired,
   isReportAccessTokenRevoked,
   reportAccessTokenRawTokenSchema,
-} from "../../../server/lib/report-access-token.ts";
+} from "../../../server/features/report-access/index.ts";
 
 test("reportAccessTokenRawTokenSchema rechaza longitudes distintas de 64", () => {
   const tooShort = reportAccessTokenRawTokenSchema.safeParse("a".repeat(63));

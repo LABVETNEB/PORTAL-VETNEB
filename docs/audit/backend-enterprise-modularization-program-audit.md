@@ -1055,8 +1055,16 @@ techo de 60.)*
 > retiraron los dos shims residuales `server/db-particular.ts` y
 > `server/db-study-tracking.ts`; ocho imports dinámicos se realinearon al
 > barrel canónico de Particular Access, sin cambios funcionales.
-> **M45 — NOT_RUN** y permanece como el siguiente milestone. Este status no altera el
-> conteo recomendado, la definición de M45/M46/M48, los riesgos ni las
+> **M45 — completado** localmente y corregido tras review P2: el guard global
+> AST congela una matriz full/runtime de 9 features, 149 archivos TypeScript,
+> 16 referencias cross-feature y 7 aristas dirigidas. Todos los imports
+> cross-feature pasan exclusivamente por barrels públicos raíz, el scan de
+> `server/lib` queda en cero dependencias hacia features y `ImportTypeNode`
+> se clasifica como type-only. Los módulos de token se movieron 1:1 a
+> Particular Access y Report Access. El único SCC full/runtime preexistente
+> permitido sigue siendo `particular-access ↔ reports`.
+> **C5 — NOT_RUN**, **M46 — NOT_RUN** y **M48 — NOT_RUN**. Este status no
+> altera el conteo recomendado, la definición de M46/M48, los riesgos ni las
 > conclusiones históricas.
 
 **Contingencia (fuera del conteo):** C1 coverage (autorizar dep c8 primero) · C2 límites de

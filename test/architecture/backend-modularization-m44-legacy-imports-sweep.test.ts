@@ -15,11 +15,12 @@ const studyTrackingInfrastructureIndex =
   "server/features/study-tracking/infrastructure/index.ts";
 const particularComposition =
   "server/features/particular-access/particular-access-route-composition.ts";
-const reportsComposition =
-  "server/features/reports/composition/report-route-composition.ts";
-const reportAccessTokenModule = "server/lib/report-access-token.ts";
+const reportAccessTokenModule =
+  "server/features/report-access/report-access-token.ts";
 const m44Closeout =
   "docs/implementation/m44-legacy-imports-sweep-closeout.md";
+const m45Closeout =
+  "docs/implementation/m45-backend-feature-dependency-guard-closeout.md";
 const programAudit =
   "docs/audit/backend-enterprise-modularization-program-audit.md";
 const guardFile =
@@ -239,22 +240,22 @@ test("los ocho consumidores migrados apuntan al barrel Particular Access", () =>
       executableImportTargets(file).includes(particularInfrastructureIndex),
     )
     .sort();
-  const preexistingCanonicalConsumers = [
+  const canonicalInternalConsumers = [
     particularComposition,
-    reportsComposition,
+    "server/features/particular-access/particular-access-public-composition.ts",
   ].sort();
 
   assert.deepEqual(
     canonicalConsumers.filter(
-      (file) => !preexistingCanonicalConsumers.includes(file),
+      (file) => !canonicalInternalConsumers.includes(file),
     ),
     expectedMigratedConsumers,
   );
   assert.deepEqual(
     canonicalConsumers.filter((file) =>
-      preexistingCanonicalConsumers.includes(file),
+      canonicalInternalConsumers.includes(file),
     ),
-    preexistingCanonicalConsumers,
+    canonicalInternalConsumers,
   );
 
   for (const consumer of expectedMigratedConsumers) {
@@ -288,24 +289,17 @@ test("los barrels canónicos existen y no hay aliases forwarding alternativos", 
   assert.deepEqual(alternateAliases, []);
 });
 
-test("M44 tiene closeout y M45 permanece NOT_RUN", () => {
+test("M44 conserva su closeout y reconoce el cierre M45", () => {
   assert.equal(existsSync(resolve(repoRoot, m44Closeout)), true);
-  assert.equal(
-    existsSync(
-      resolve(
-        repoRoot,
-        "docs/implementation/m45-backend-feature-dependency-guard-closeout.md",
-      ),
-    ),
-    false,
-  );
+  assert.equal(existsSync(resolve(repoRoot, m45Closeout)), true);
 
-  const closeout = readSource(m44Closeout);
+  const m44CloseoutSource = readSource(m44Closeout);
+  const m45CloseoutSource = readSource(m45Closeout);
   const audit = readSource(programAudit);
-  assert.ok(closeout.includes("M44 CLOSED localmente"));
-  assert.match(closeout, /M45\s+NOT_RUN/);
+  assert.ok(m44CloseoutSource.includes("M44 CLOSED localmente"));
+  assert.ok(m45CloseoutSource.includes("M45 CLOSED localmente"));
   assert.ok(audit.includes("M44 — completado"));
-  assert.match(audit, /M45 —\s+NOT_RUN/);
+  assert.ok(audit.includes("M45 — completado"));
 });
 
 test("el guard M44 no consulta estado Git ni worktrees", () => {

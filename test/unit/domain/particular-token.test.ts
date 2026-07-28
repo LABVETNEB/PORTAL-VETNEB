@@ -9,7 +9,7 @@ import {
   serializeParticularToken,
   serializeParticularTokenDetail,
   updateParticularTokenReportSchema,
-} from "../../../server/lib/particular-token.ts";
+} from "../../../server/features/particular-access/index.ts";
 
 test("clinicCreateParticularTokenSchema normaliza detailsLesion vacío y reportId null", () => {
   const parsed = clinicCreateParticularTokenSchema.safeParse({

@@ -1,4 +1,4 @@
-import { createTokenStudyTrackingOperations } from "../../study-tracking/application/index.ts";
+import { createTokenStudyTrackingOperations } from "../../study-tracking/index.ts";
 import { getParticularTokenLast4 } from "../domain/index.ts";
 import type {
   CreateParticularAccessTokenData,

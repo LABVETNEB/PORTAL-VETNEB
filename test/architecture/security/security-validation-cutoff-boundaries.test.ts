@@ -516,8 +516,8 @@ test("audit list and export filters return 400 before listing or exporting data"
 });
 test("numeric id helpers reject invalid identifiers instead of defaulting sensitive ids", () => {
   for (const file of [
-    "server/lib/report-access-token.ts",
-    "server/lib/particular-token.ts",
+    "server/features/report-access/report-access-token.ts",
+    "server/features/particular-access/particular-token.ts",
     "server/features/study-tracking/domain/study-tracking.ts",
   ] as const) {
     const source = readSource(file);
