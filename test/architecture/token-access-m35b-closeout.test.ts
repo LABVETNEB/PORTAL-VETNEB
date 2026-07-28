@@ -153,9 +153,37 @@ function parse(path: string): ts.SourceFile {
 }
 
 function resolveImportTarget(path: string, specifier: string): string {
-  return specifier.startsWith(".")
-    ? relative(root, resolve(root, dirname(path), specifier)).replaceAll("\\", "/")
-    : specifier;
+  if (!specifier.startsWith(".")) {
+    return specifier;
+  }
+  const target = relative(
+    root,
+    resolve(root, dirname(path), specifier),
+  ).replaceAll("\\", "/");
+  if (target.endsWith(".ts")) {
+    return target;
+  }
+
+  let emittedTypeScriptTarget: string | null = null;
+  if (target.endsWith(".mjs")) {
+    emittedTypeScriptTarget = `${target.slice(0, -4)}.ts`;
+  } else if (target.endsWith(".js")) {
+    emittedTypeScriptTarget = `${target.slice(0, -3)}.ts`;
+  }
+
+  if (
+    emittedTypeScriptTarget !== null &&
+    existsSync(resolve(root, emittedTypeScriptTarget))
+  ) {
+    return emittedTypeScriptTarget;
+  }
+
+  if (existsSync(resolve(root, `${target}.ts`))) {
+    return `${target}.ts`;
+  }
+  return existsSync(resolve(root, `${target}/index.ts`))
+    ? `${target}/index.ts`
+    : target;
 }
 
 function executableImportTargets(path: string): string[] {
@@ -297,6 +325,45 @@ test("M35b ancla la matriz ejecutable conjunta por tests y escenarios concretos"
 });
 
 test("M35b prohíbe repositories legacy e imports ejecutables directos desde rutas", () => {
+  assert.equal(
+    resolveImportTarget("server/preflight.ts", "./db.ts"),
+    "server/db.ts",
+  );
+  assert.equal(
+    resolveImportTarget("server/preflight.ts", "./db"),
+    "server/db.ts",
+  );
+  assert.equal(
+    resolveImportTarget("server/preflight.ts", "./db.js"),
+    "server/db.ts",
+  );
+  assert.equal(
+    resolveImportTarget("server/preflight.ts", "./db.mjs"),
+    "server/db.ts",
+  );
+  assert.equal(
+    resolveImportTarget(
+      "server/preflight.ts",
+      "./db-report-access.js",
+    ),
+    "server/db-report-access.js",
+  );
+  assert.equal(
+    resolveImportTarget(
+      "server/routes/admin-particular-tokens.fastify.ts",
+      "../features/particular-access/infrastructure",
+    ),
+    particularInfrastructureIndex,
+  );
+  assert.equal(
+    resolveImportTarget("server/preflight.ts", "./db-report-access"),
+    "server/db-report-access",
+  );
+  assert.equal(
+    resolveImportTarget("server/preflight.ts", "typescript"),
+    "typescript",
+  );
+
   assert.equal(existsSync(resolve(root, "server/db-report-access.ts")), false);
 
   for (const path of walk("server").filter((file) => file.endsWith(".ts"))) {
