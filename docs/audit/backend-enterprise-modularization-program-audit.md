@@ -1077,6 +1077,18 @@ techo de 60.)*
 > [`docs/implementation/m46-http-lib-reclassification-closeout.md`](../implementation/m46-http-lib-reclassification-closeout.md).
 > Este status no altera el conteo recomendado, los riesgos ni las conclusiones
 > históricas.
+>
+> **Addendum de cierre M48 (2026-07-28).** El estado vigente, posterior a los
+> closeouts históricos anteriores, es: **M44 — MERGED** mediante PR #1583,
+> **M45 — MERGED** mediante PR #1584 y **M46 — MERGED** mediante PR #1585.
+> **M47 — NO-GO** tras recenso independiente: 0 MOVE, 5 KEEP, 0 DELETE; no se
+> creó `server/lib/infra`, guard, diff, commit ni PR. **C5 — NOT_RUN** porque el
+> único SCC full/runtime continúa siendo `particular-access ↔ reports`.
+> **M48 — completado** localmente mediante guard y certificación acumulada;
+> **Fase K — cerrada** y **Programa — cerrado** con veredicto
+> **CERTIFIED_WITH_RESIDUAL_RISKS**. Baseline final:
+> `7a05cb8c5c9d0fd3f8f1d64f05bc5812d39a59eb`. Evidencia:
+> [`m48-backend-modularization-final-certification.md`](../implementation/m48-backend-modularization-final-certification.md).
 
 **Contingencia (fuera del conteo):** C1 coverage (autorizar dep c8 primero) · C2 límites de
 complejidad · C3 `lib/shared` · C4 secuencia de seguridad Auth (diseño separado + sign-off) ·

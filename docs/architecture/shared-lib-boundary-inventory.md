@@ -974,3 +974,41 @@ guard M46 fija su path y sus 30 consumidores runtime. CORS/trusted-origin,
 orden de hooks, request ID, headers de seguridad y cache-control permanecen
 sin cambio funcional. C5 — NOT_RUN. M48 — NOT_RUN. Detalle:
 [`m46-http-lib-reclassification-closeout.md`](../implementation/m46-http-lib-reclassification-closeout.md).
+
+## Addendum de cierre — Inventario final M48
+
+> **Fecha:** 2026-07-28. Este addendum es el inventario vigente; las tablas M01
+> anteriores permanecen como evidencia histórica.
+
+El recenso final contiene 27 archivos TypeScript bajo `server/lib`: 24 en la
+raíz y tres en `server/lib/http`. M46 quedó mergeado mediante PR #1585 y su
+frontera HTTP contiene exactamente `api-request-id`,
+`api-response-security` y `sensitive-response-cache`; `cors-headers.ts`
+continúa como KEEP canónico con 30 consumidores runtime.
+
+**M47 — NO-GO** fue reproducido sobre `env.ts`, `logger.ts`,
+`http-runtime.ts`, `runtime-timing.ts` y `rate-limit-store.ts`: **0 MOVE,
+5 KEEP, 0 DELETE**. `env.ts` solo ya cruza 46 consumidores runtime, Auth, DB,
+CORS, storage y entrypoints, por lo que excede el máximo de 30 paths. La
+agrupación coherente amplía todavía más el blast radius. No existe
+`server/lib/infra` y no se creó shim, guard, closeout runtime, commit o PR M47.
+
+Clasificación vigente:
+
+- audit cross-cutting: `admin-audit`, `audit-log`, `audit`, `clinic-audit`,
+  `particular-audit`;
+- Auth/security congelado: `auth-security`, `fastify-admin-auth`,
+  `login-rate-limit`, `session-last-access`;
+- rate limits compartidos: `contact-rate-limit`,
+  `public-report-access-rate-limit`, `report-access-token-rate-limit`,
+  `rate-limit-store`;
+- infra/cross-cutting KEEP: `env`, `logger`, `http-runtime`,
+  `runtime-timing`, `email`, `supabase`;
+- técnico compartido: `http-types`, `list-pagination`;
+- kernels/ops: `permissions`, `schema-health`;
+- HTTP M46: tres módulos en `server/lib/http`;
+- CORS: KEEP en `server/lib/cors-headers.ts`.
+
+**M48 — completado** localmente; **C5 — NOT_RUN**; Fase K y programa cerrados
+con `CERTIFIED_WITH_RESIDUAL_RISKS`. Detalle:
+[`m48-backend-modularization-final-certification.md`](../implementation/m48-backend-modularization-final-certification.md).
