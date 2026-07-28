@@ -11,7 +11,9 @@ function read(relativePath: string): string {
 }
 
 test("getAdminUsersRolesSnapshot filtra por search usando ilike parametrizado (sin concatenar SQL crudo)", () => {
-  const source = read("server/db-admin-users-roles.ts");
+  const source = read(
+    "server/features/users-roles/infrastructure/admin-users-roles-repository.ts",
+  );
 
   assert.ok(
     source.includes("ilike(adminUsers.username, `%${search}%`)"),
@@ -34,7 +36,9 @@ test("getAdminUsersRolesSnapshot filtra por search usando ilike parametrizado (s
 });
 
 test("search vacío o undefined equivale a no aplicar filtro (normalizeSearch)", () => {
-  const source = read("server/db-admin-users-roles.ts");
+  const source = read(
+    "server/features/users-roles/infrastructure/admin-users-roles-repository.ts",
+  );
 
   const fnStart = source.indexOf("function normalizeSearch(");
   assert.ok(fnStart >= 0, "normalizeSearch debe existir");
@@ -50,7 +54,9 @@ test("search vacío o undefined equivale a no aplicar filtro (normalizeSearch)",
 });
 
 test("search compone (AND) con el filtro de role existente para clinic users", () => {
-  const source = read("server/db-admin-users-roles.ts");
+  const source = read(
+    "server/features/users-roles/infrastructure/admin-users-roles-repository.ts",
+  );
 
   const fnStart = source.indexOf(
     "export async function getAdminUsersRolesSnapshot(",
@@ -79,7 +85,9 @@ test("search compone (AND) con el filtro de role existente para clinic users", (
 });
 
 test("search se aplica tanto al conteo (total/totalPages) como al listado paginado", () => {
-  const source = read("server/db-admin-users-roles.ts");
+  const source = read(
+    "server/features/users-roles/infrastructure/admin-users-roles-repository.ts",
+  );
 
   const fnStart = source.indexOf(
     "export async function getAdminUsersRolesSnapshot(",

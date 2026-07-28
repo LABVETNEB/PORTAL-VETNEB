@@ -106,10 +106,12 @@ test("Users/Roles domain fija catálogos exactos sin enums ni permisos duplicado
 
 test("los consumidores productivos usan domain/index.ts", () => {
   const route = read("server/routes/admin-users-roles.fastify.ts");
-  const persistence = read("server/db-admin-users-roles.ts");
+  const persistence = read(
+    "server/features/users-roles/infrastructure/admin-users-roles-repository.ts",
+  );
 
   assert.match(route, /features\/users-roles\/domain\/index\.ts/);
-  assert.match(persistence, /features\/users-roles\/domain\/index\.ts/);
+  assert.match(persistence, /\.\.\/domain\/index\.ts/);
   assert.doesNotMatch(
     `${route}\n${persistence}`,
     /features\/users-roles\/domain\/user-role-policy\.ts/,

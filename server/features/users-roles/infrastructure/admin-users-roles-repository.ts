@@ -1,24 +1,24 @@
 import { and, asc, eq, ilike, ne, or, sql } from "drizzle-orm";
 
-import { db } from "./db.ts";
+import { db } from "../../../db.ts";
 import {
   adminUsers,
   clinicPublicProfiles,
   clinicUsers,
   clinics,
-} from "../drizzle/schema.ts";
+} from "../../../../drizzle/schema.ts";
 import type {
   AdminClinicUserRole,
   AdminRoleUserRole,
-} from "./features/users-roles/domain/index.ts";
+} from "../domain/index.ts";
 import type {
   AdminClinicUserRoleChangeInput,
   AdminClinicUserRoleChangeResult,
   AdminRoleUserSummary,
   AdminUsersRolesQuery,
   AdminUsersRolesSnapshot,
-} from "./features/users-roles/application/index.ts";
-import { normalizeListPagination } from "./lib/list-pagination.ts";
+} from "../application/index.ts";
+import { normalizeListPagination } from "../../../lib/list-pagination.ts";
 
 type ClinicUserRoleRow = {
   userId: number;

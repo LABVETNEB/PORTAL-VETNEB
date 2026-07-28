@@ -67,7 +67,9 @@ test("listadores backend compartidos normalizan paginación antes de consultar",
 });
 
 test("admin users roles pagina consultas DB antes de combinar resultados", () => {
-  const source = readSource("server/db-admin-users-roles.ts");
+  const source = readSource(
+    "server/features/users-roles/infrastructure/admin-users-roles-repository.ts",
+  );
 
   assert.match(
     source,

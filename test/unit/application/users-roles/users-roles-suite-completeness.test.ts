@@ -6,8 +6,11 @@ import test from "node:test";
 const root = process.cwd();
 const domainDir = "server/features/users-roles/domain";
 const applicationDir = "server/features/users-roles/application";
+const infrastructureDir = "server/features/users-roles/infrastructure";
 const domainTestDir = "test/unit/domain/users-roles";
 const applicationTestDir = "test/unit/application/users-roles";
+const infrastructureTestDir =
+  "test/unit/infrastructure/users-roles";
 const self = "users-roles-suite-completeness.test.ts";
 
 function read(path: string) {
@@ -21,7 +24,7 @@ function names(path: string, suffix: string) {
     .sort();
 }
 
-test("cada módulo productivo de domain y application tiene test correlativo", () => {
+test("cada módulo productivo de Users/Roles tiene test correlativo", () => {
   const domainModules = names(domainDir, ".ts").filter(
     (name) => name !== "index",
   );
@@ -32,14 +35,23 @@ test("cada módulo productivo de domain y application tiene test correlativo", (
   const applicationTests = names(applicationTestDir, ".test.ts").filter(
     (name) => `${name}.test.ts` !== self,
   );
+  const infrastructureModules = names(infrastructureDir, ".ts").filter(
+    (name) => name !== "index",
+  );
+  const infrastructureTests = names(
+    infrastructureTestDir,
+    ".test.ts",
+  );
 
   assert.deepEqual(domainTests, domainModules);
   assert.deepEqual(applicationTests, applicationModules);
+  assert.deepEqual(infrastructureTests, infrastructureModules);
 });
 
 test("los barrels cubren todos los módulos y puertos", () => {
   const domainIndex = read(`${domainDir}/index.ts`);
   const applicationIndex = read(`${applicationDir}/index.ts`);
+  const infrastructureIndex = read(`${infrastructureDir}/index.ts`);
   const portsIndex = read(`${applicationDir}/ports/index.ts`);
 
   for (const module of names(domainDir, ".ts").filter(
@@ -56,6 +68,11 @@ test("los barrels cubren todos los módulos y puertos", () => {
     (name) => name !== "index",
   )) {
     assert.match(portsIndex, new RegExp(`\\./${port}\\.ts`));
+  }
+  for (const module of names(infrastructureDir, ".ts").filter(
+    (name) => name !== "index",
+  )) {
+    assert.match(infrastructureIndex, new RegExp(`\\./${module}\\.ts`));
   }
 });
 

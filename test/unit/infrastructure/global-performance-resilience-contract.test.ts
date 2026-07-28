@@ -32,7 +32,8 @@ const HEAVY_SURFACES: readonly HeavySurface[] = [
     markers: ["normalizeListPagination", "fetchLimit", ".limit(fetchLimit)"],
   },
   {
-    file: "server/db-admin-users-roles.ts",
+    // M43: Users/Roles persistence moved to its canonical infrastructure layer.
+    file: "server/features/users-roles/infrastructure/admin-users-roles-repository.ts",
     markers: ["normalizeListPagination", ".limit(adminLimit)", ".limit(clinicLimit)"],
   },
   {

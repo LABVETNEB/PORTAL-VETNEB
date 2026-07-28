@@ -6,6 +6,10 @@ import test from "node:test";
 const root = process.cwd();
 const applicationDir = "server/features/users-roles/application";
 const routeFile = "server/routes/admin-users-roles.fastify.ts";
+const compositionFile =
+  "server/features/users-roles/admin-users-roles-route-composition.ts";
+const infrastructureDir =
+  "server/features/users-roles/infrastructure";
 
 function read(path: string) {
   return readFileSync(join(root, path), "utf8").replace(/\r\n/g, "\n");
@@ -96,12 +100,15 @@ test("el puerto Users/Roles es mínimo y cada operación tiene caso de uso", () 
 test("la factory pública tiene consumidor productivo y los handlers delegan", () => {
   const index = read(`${applicationDir}/index.ts`);
   const route = read(routeFile);
+  const composition = read(compositionFile);
 
   assert.match(index, /createAdminUsersRolesUseCases/);
   assert.equal(
-    (route.match(/createAdminUsersRolesUseCases\s*\(/g) ?? []).length,
+    (composition.match(/createAdminUsersRolesUseCases\s*\(/g) ?? []).length,
     1,
   );
+  assert.doesNotMatch(route, /createAdminUsersRolesUseCases\s*\(/);
+  assert.match(route, /createAdminUsersRolesRouteComposition\(options\)/);
   assert.match(
     route,
     /usersRolesUseCases\.listAdminUsersRoles\(params\)/,
@@ -114,22 +121,37 @@ test("la factory pública tiene consumidor productivo y los handlers delegan", (
   assert.doesNotMatch(route, /deps\.changeClinicUserRole\(/);
 });
 
-test("credenciales siguen en Clinics y M43 no fue anticipado", () => {
+test("credenciales siguen en Clinics y M43 queda compuesto", () => {
   const route = read(routeFile);
-  const featureSource = walk("server/features/users-roles")
+  const composition = read(compositionFile);
+  const ownedLayerSource = [
+    ...walk("server/features/users-roles/domain"),
+    ...walk(applicationDir),
+    ...walk(infrastructureDir),
+  ]
     .map(read)
     .join("\n");
 
-  assert.match(route, /updateAdminClinicUserCredentialsCommand\(/);
+  assert.doesNotMatch(route, /updateAdminClinicUserCredentialsCommand\(/);
   assert.match(
-    route,
-    /features\/clinics\/admin-clinics-command-service\.ts/,
+    composition,
+    /\.\.\/clinics\/admin-clinics-command-service\.ts/,
   );
-  assert.doesNotMatch(featureSource, /Credentials|password|passwordHash/);
+  assert.match(composition, /updateAdminClinicUserCredentialsCommand/);
+  assert.doesNotMatch(
+    ownedLayerSource,
+    /Credentials|password|passwordHash/,
+  );
   assert.equal(
-    existsSync(join(root, "server/features/users-roles/infrastructure")),
+    existsSync(join(root, infrastructureDir)),
+    true,
+  );
+  assert.equal(
+    existsSync(join(root, "server/db-admin-users-roles.ts")),
     false,
   );
-  assert.equal(existsSync(join(root, "server/db-admin-users-roles.ts")), true);
-  assert.doesNotMatch(featureSource, /\b(?:compat|legacy|shim)\b/i);
+  assert.doesNotMatch(
+    `${route}\n${composition}\n${ownedLayerSource}`,
+    /\b(?:compat|legacy|shim)\b/i,
+  );
 });

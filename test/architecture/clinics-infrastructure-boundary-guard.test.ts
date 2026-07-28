@@ -18,6 +18,8 @@ const queryServiceFile =
   featureDir + "/admin-clinics-query-service.ts";
 const commandServiceFile =
   featureDir + "/admin-clinics-command-service.ts";
+const usersRolesCompositionFile =
+  "server/features/users-roles/admin-users-roles-route-composition.ts";
 const publicProfileQueryServiceFile =
   featureDir + "/clinic-public-profile-query-service.ts";
 const publicProfileCommandServiceFile =
@@ -467,7 +469,7 @@ test(
       ],
       [
         "server/routes/admin-users-roles.fastify.ts",
-        [commandServiceFile],
+        [usersRolesCompositionFile],
       ],
     ]);
 
@@ -509,17 +511,29 @@ test(
 );
 
 test(
-  "admin-users-roles delega sólo el comando Clinics de credenciales",
+  "composition Users/Roles delega sólo el comando Clinics de credenciales",
   () => {
-    const source = readText(
+    const routeSource = readText(
       "server/routes/admin-users-roles.fastify.ts",
     );
+    const source = readText(usersRolesCompositionFile);
 
     assert.equal(
       source.match(
         /\bupdateAdminClinicUserCredentialsCommand\s*\(/g,
       )?.length ?? 0,
       1,
+    );
+    assert.equal(
+      routeSource.includes("updateAdminClinicUserCredentialsCommand"),
+      false,
+    );
+    assert.ok(
+      listImportSpecifiers(source)
+        .map((specifier) =>
+          resolveSpecifier(usersRolesCompositionFile, specifier),
+        )
+        .includes(commandServiceFile),
     );
 
     for (const unrelatedCommand of [
