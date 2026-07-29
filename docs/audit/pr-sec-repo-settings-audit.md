@@ -7,34 +7,34 @@ bloque enterprise `PR-SEC-REPO-SETTINGS`.
 | --- | --- |
 | Document owner | Security / Engineering governance |
 | Domain | Repository secret protection and public security documentation |
-| Lifecycle status | PROPOSED |
-| Authoritative source role | Evidencia documental propuesta del bloque; no reemplaza la configuración efectiva de GitHub |
-| Effective date | 2026-07-29, condicionada a aprobación y merge |
+| Lifecycle status | ACTIVE |
+| Authoritative source role | Evidencia activa y closeout documental del bloque; registra configuración efectiva sanitizada sin reemplazar GitHub como fuente técnica |
+| Effective date | 2026-07-29 |
 | Last verified date | 2026-07-29 |
-| Review cadence | Ante cada cambio de settings y trimestral mientras el bloque permanezca abierto |
+| Review cadence | Trimestral y ante cada cambio de settings, titularidad o producto |
 | Supersedes | Ninguno |
 | Superseded by | Ninguno |
 | Related controls or gaps | `ERM-CTRL-016`; `GAP-P0-1`; `PR-SEC-0`; `PR-SEC-2` |
-| Evidence or approval reference | Lectura local y administrativa de solo lectura sobre `main@f2d8e05ef75aa91d27c1832489a4b94b723bd84a`; aprobación y merge pendientes |
+| Evidence or approval reference | PR #1591, merge commit `9479f6d36dd6dfa1ed25a81beacb22e1bed98f34`; habilitación R2 del 2026-07-29 y dos lecturas administrativas independientes coincidentes |
 | Document classification | PUBLIC_SANITIZED |
 
 ## 1. Resumen ejecutivo
 
-La fase documental de `PR-SEC-REPO-SETTINGS` consolida la baseline real de
-secret protection, determina elegibilidad por feature y formaliza el perfil de
-exposición de `docs/security/**`.
+`PR-SEC-REPO-SETTINGS` queda cerrado documentalmente después de la aprobación
+y merge de la fase documental mediante PR #1591, la habilitación R2 de las dos
+features elegibles y dos lecturas administrativas independientes coincidentes
+del 2026-07-29.
 
-El bloque no está cerrado:
+- secret scanning básico y repository push protection están `enabled`;
+- validity checks y non-provider patterns permanecen `disabled` y se
+  clasifican `NOT_AVAILABLE` bajo titularidad y producto actuales;
+- no hubo drift entre las dos lecturas de las features avanzadas;
+- la gestión restringida de alertas no fue ejecutada ni requerida para probar
+  la configuración efectiva;
+- la evidencia runtime cross-tenant, tenant/session, RLS runtime, staging y
+  producción permanece fuera de scope y abierta.
 
-- secret scanning básico y repository push protection permanecen `disabled` y
-  requieren una autorización R2 posterior y específica;
-- validity checks y non-provider patterns son `NOT_AVAILABLE` bajo titularidad
-  de usuario y producto actuales;
-- no se ejecutó ninguna mutación de GitHub settings;
-- la evidencia runtime cross-tenant, RLS runtime y staging permanece fuera de
-  scope y abierta.
-
-## 2. Baseline verificada
+## 2. Baseline histórica anterior
 
 ### 2.1 Repositorio local
 
@@ -64,6 +64,28 @@ Lectura de solo lectura limitada a campos no sensibles, verificada el
 No se almacenó una respuesta API completa, inventario de alertas, token ni
 valor de secreto.
 
+Esta baseline conserva el estado inmediatamente anterior a la habilitación R2.
+No representa el estado operativo actual y no se reemplaza para simular
+continuidad histórica.
+
+### 2.3 Estado efectivo posterior
+
+La habilitación R2 se ejecutó el 2026-07-29 mediante un archivo `.ps1`
+independiente, fail-fast y con rollback automático preparado. No se ejecutó
+rollback. Dos lecturas administrativas independientes posteriores coincidieron
+en los siguientes estados sanitizados:
+
+| Atributo | Estado efectivo | Clasificación |
+| --- | --- | --- |
+| `secret_scanning` | `enabled` | `ENABLED` |
+| `secret_scanning_push_protection` | `enabled` | `ENABLED` |
+| `secret_scanning_validity_checks` | `disabled` | `NOT_AVAILABLE` bajo titularidad/producto actual |
+| `secret_scanning_non_provider_patterns` | `disabled` | `NOT_AVAILABLE` bajo titularidad/producto actual |
+
+Las lecturas se limitaron a campos de configuración no sensibles. No se
+leyeron ni enumeraron alertas y no se conservaron respuestas administrativas
+completas, rutas temporales, datos de autenticación ni valores de secretos.
+
 ## 3. Alcance
 
 Incluido:
@@ -77,7 +99,8 @@ Incluido:
 
 Excluido:
 
-- cualquier mutación de GitHub settings;
+- nuevas mutaciones de GitHub settings posteriores al estado efectivo
+  documentado;
 - alertas de secret scanning y respuesta a secretos reales;
 - branch protection, Actions permissions, owner, plan, visibilidad o
   transferencia;
@@ -85,7 +108,7 @@ Excluido:
   migraciones, tests, scripts, workflows, dependencias, manifiestos y lockfiles;
 - evidencia runtime cross-tenant, RLS runtime, staging y producción.
 
-## 4. Incidente previo, intento parcial y rollback
+## 4. Incidente previo, intento parcial y rollback histórico
 
 Un intento anterior de mutación fue pegado línea por línea en PowerShell. El
 guard lanzó una excepción, pero PowerShell continuó ejecutando comandos de
@@ -96,7 +119,7 @@ Los mensajes `PASSED` impresos después de la excepción eran incondicionales y
 no constituyen evidencia. Se ejecutó rollback y una lectura independiente
 posterior confirmó nuevamente los cuatro settings en `disabled`.
 
-Control preventivo para cualquier intento futuro:
+Control preventivo aplicado a la habilitación R2 posterior:
 
 - ejecutar el cambio como archivo `.ps1` revisado o bloque atómico
   `& { ... }`;
@@ -107,14 +130,17 @@ Control preventivo para cualquier intento futuro:
 - efectuar una lectura independiente posterior y limitar la evidencia a
   estados sanitizados.
 
-Este documento no contiene ni propone un script mutante.
+La ejecución autorizada posterior utilizó un archivo `.ps1` independiente,
+fail-fast y con rollback preparado; las dos lecturas posteriores coincidieron
+y no se ejecutó rollback. Este documento no contiene el script ni respuestas
+administrativas completas.
 
 ## 5. Elegibilidad por feature
 
 | Feature | Evidencia de elegibilidad | Clasificación del bloque |
 | --- | --- | --- |
-| Secret scanning básico | GitHub documenta secret scanning gratuito para repositorios públicos. | Pendiente de autorización R2. |
-| Repository push protection | GitHub permite habilitar push protection en el repositorio después de habilitar Secret Protection. | Pendiente de autorización R2. |
+| Secret scanning básico | GitHub documenta secret scanning gratuito para repositorios públicos. | Elegible y `enabled` desde el 2026-07-29. |
+| Repository push protection | GitHub permite habilitar push protection en el repositorio después de habilitar Secret Protection. | Elegible y `enabled` desde el 2026-07-29. |
 | Validity checks | GitHub lo limita a repositorios de organización con GitHub Team y GitHub Secret Protection. El owner observado es `User`. | `NOT_AVAILABLE` bajo titularidad/producto actual. |
 | Non-provider patterns | GitHub lo limita a repositorios de organización con GitHub Team y GitHub Secret Protection. El owner observado es `User`. | `NOT_AVAILABLE` bajo titularidad/producto actual. |
 
@@ -160,10 +186,10 @@ La política detallada queda en
 
 | Riesgo | Estado | Mitigación |
 | --- | --- | --- |
-| Secreto publicado sin detección a nivel repositorio | Abierto: secret scanning y push protection `disabled`. | Autorización R2 posterior para habilitar solo las dos features elegibles y verificar cada estado. |
+| Secreto publicado sin detección a nivel repositorio | Mitigado parcialmente: secret scanning y push protection están `enabled`; la respuesta a alertas es un proceso separado. | Revisión periódica de configuración y triaje restringido cuando corresponda. |
 | Falsa expectativa de cuatro features habilitables | Mitigado documentalmente. | Validity checks y non-provider patterns figuran `NOT_AVAILABLE`. |
-| Evidencia pública con valores sensibles | Mitigación documental propuesta. | Clasificación, minimización, checklist y reglas de incidente del perfil público. |
-| Repetición de ejecución parcial en PowerShell | Mitigación preventiva documentada. | Archivo `.ps1` revisado o bloque atómico, fail-fast y verificación independiente. |
+| Evidencia pública con valores sensibles | Mitigado documentalmente. | Perfil público `ACTIVE`, minimización, checklist y reglas de incidente. |
+| Repetición de ejecución parcial en PowerShell | Mitigado para esta ejecución. | Archivo `.ps1` independiente, fail-fast, rollback preparado y verificación independiente. |
 | Transferencia usada para mejorar una métrica | Fuera de scope. | No recomendar transferencia; tratarla como decisión estructural separada. |
 | Gaps runtime interpretados como cerrados | Abierto y separado. | `ERM-CTRL-016` permanece `PARTIAL`; `ERM-SEC-001`, RLS runtime y staging no se cierran. |
 
@@ -171,11 +197,11 @@ La política detallada queda en
 
 | Archivo | Cambio |
 | --- | --- |
-| `docs/security/public-repository-exposure-profile.md` | Nuevo perfil propuesto de clasificación y sanitización pública. |
-| `docs/audit/pr-sec-repo-settings-audit.md` | Nueva evidencia documental propuesta del bloque. |
-| `docs/SOURCES_OF_TRUTH.md` | Registra las fuentes propuestas sin promoverlas antes de aprobación. |
-| `docs/audit/README.md` | Enlaza la auditoría en revisión y mantiene el bloque abierto. |
-| `docs/governance/enterprise-control-register.md` | Mejora evidencia, fecha, next action y closure criteria de `ERM-CTRL-016`, que permanece `PARTIAL`. |
+| `docs/security/public-repository-exposure-profile.md` | Promueve el perfil normativo de clasificación y sanitización pública a `ACTIVE` y conserva la baseline histórica. |
+| `docs/audit/pr-sec-repo-settings-audit.md` | Promueve la evidencia de bloque a `ACTIVE` y registra el closeout sanitizado. |
+| `docs/SOURCES_OF_TRUTH.md` | Incorpora el perfil público como fuente vigente y retira la sección propuesta. |
+| `docs/audit/README.md` | Mueve la auditoría al índice vigente y señala el bloque como cerrado. |
+| `docs/governance/enterprise-control-register.md` | Registra la evidencia efectiva y el trabajo residual de `ERM-CTRL-016`, que permanece `PARTIAL`. |
 
 Los seis documentos inventariados, los snapshots históricos y cualquier
 archivo técnico permanecen sin cambios.
@@ -183,28 +209,31 @@ archivo técnico permanecen sin cambios.
 ## 9. Rollback documental
 
 El rollback consiste en retirar, mediante un cambio documental posterior
-autorizado y revisado, los dos documentos propuestos y las referencias
-incorporadas en los tres índices/registros. No requiere ni autoriza modificar
-settings, reescribir historial, borrar evidencia histórica ni tocar archivos
-técnicos.
+autorizado y revisado, la autoridad `ACTIVE` de los dos documentos y actualizar
+sus referencias en los tres índices/registros según la Documentation Lifecycle
+Policy. No requiere ni autoriza modificar settings, reescribir historial,
+borrar evidencia histórica ni tocar archivos técnicos.
 
 ## 10. Criterio de cierre
 
-`PR-SEC-REPO-SETTINGS` puede cerrarse únicamente cuando:
+El cierre de `PR-SEC-REPO-SETTINGS` satisface estos criterios:
 
-1. el perfil público y esta auditoría sean aprobados, mergeados y promovidos
-   según la Documentation Lifecycle Policy;
-2. una autorización R2 posterior habilite `secret_scanning` y
-   `secret_scanning_push_protection`;
-3. una lectura independiente posterior confirme ambas features en `enabled`;
+1. el perfil público y esta auditoría fueron aprobados mediante PR #1591,
+   mergeados y promovidos según la Documentation Lifecycle Policy;
+2. una autorización R2 posterior habilitó `secret_scanning` y
+   `secret_scanning_push_protection` el 2026-07-29;
+3. dos lecturas independientes posteriores confirmaron ambas features en
+   `enabled`;
 4. validity checks y non-provider patterns permanezcan documentados como
    `NOT_AVAILABLE` mientras no cambien titularidad y producto;
-5. cualquier alerta generada sea tratada en un flujo restringido sin publicar
-   secretos ni respuestas completas;
-6. las validaciones documentales y la revisión de scope estén en `PASSED`.
+5. la gestión de alertas, si existen, permanece como proceso restringido
+   separado y no es necesaria para demostrar estos estados de configuración;
+6. las validaciones documentales y la revisión de scope están en `PASSED`.
 
 El cierre de este bloque no cierra `ERM-SEC-001`, evidencia cross-tenant, RLS
-runtime, staging ni otros controles de seguridad.
+runtime, tenant/session, staging, producción ni otros controles de seguridad.
+
+**PR-SEC-REPO-SETTINGS: CLOSED**
 
 ## 11. Validaciones
 
@@ -215,6 +244,8 @@ runtime, staging ni otros controles de seguridad.
 | Contenido sensible sobre líneas añadidas | PASSED | Revisión limitada al diff añadido con patrones seguros; sin valores sensibles detectados. |
 | `git diff --check` | PASSED | Exit code 0; los archivos nuevos también pasaron revisión de whitespace y LF final. |
 | Integridad de `ERM-CTRL-*` | PASSED | 25 filas, IDs `001..025` únicos y statuses permitidos. |
+| Estado efectivo de secret protection | PASSED | Dos lecturas independientes coinciden: secret scanning y push protection `enabled`; las otras dos features `NOT_AVAILABLE`. |
+| Triaje de alertas | NOT_RUN | Proceso restringido separado; no es necesario para demostrar la configuración efectiva y no se afirma que no existan alertas. |
 | UTF-8 sin BOM | PASSED | Los cinco archivos verificados sin BOM. |
 | Scope exclusivo docs-only | PASSED | Sin paths técnicos, históricos o fuera de los cinco candidatos. |
 | Ausencia de `next-env.d.ts` modificado | PASSED | No aparece en el estado ni en los paths cambiados. |
@@ -223,10 +254,11 @@ runtime, staging ni otros controles de seguridad.
 
 ## 12. Estado y próximo paso exacto
 
-Estado: fase documental implementada localmente y pendiente de revisión; bloque
-enterprise abierto; cero mutaciones de settings.
+Estado: auditoría y perfil `ACTIVE`; `PR-SEC-REPO-SETTINGS: CLOSED`; bloque
+consolidado 02 cerrado. `ERM-CTRL-016` permanece `PARTIAL` porque la evidencia
+runtime tenant/session y cross-tenant, RLS runtime y los gaps relacionados
+siguen abiertos.
 
-Próximo paso: Nico revisa este diff. Una tarea posterior debe otorgar
-autorización R2 específica si se decide habilitar únicamente secret scanning y
-repository push protection mediante ejecución atómica, fail-fast, verificación
-individual y lectura independiente posterior.
+Próximo paso: `PR-SEC-SECRET-PATTERNS`, bloque 03 del Plan B, con scope ci-only,
+riesgo medio-alto y autorización R2 separada. Toca el validador requerido y no
+debe iniciarse dentro de este closeout.
