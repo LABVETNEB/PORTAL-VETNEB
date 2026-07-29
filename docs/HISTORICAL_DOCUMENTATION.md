@@ -2,6 +2,20 @@
 
 Clasificación vigente de documentación histórica, secundaria y superseded del proyecto VETNEB.
 
+| Campo | Valor |
+| --- | --- |
+| Document owner | Governance / Docs owner |
+| Domain | Documentation lifecycle governance |
+| Lifecycle status | ACTIVE |
+| Authoritative source role | Clasificación operativa de documentación histórica, secundaria y superseded |
+| Effective date | 2026-07-28 |
+| Last verified date | 2026-07-28 |
+| Review cadence | Mensual y ante movimientos o reclasificaciones documentales |
+| Supersedes | Clasificación por patrones ambiguos de documentos sueltos en `docs/` |
+| Superseded by | Ninguno |
+| Related controls or gaps | `ERM-CTRL-004`; `ERM-CTRL-005`; `ERM-DOC-001`; `ERM-DOC-002` |
+| Evidence or approval reference | Inventario rastreado de Markdown suelto verificado para `PR-AUDIT-ENTERPRISE-DOCS` |
+
 ## Propósito
 
 Este documento separa documentación histórica de fuentes vigentes para evitar re-auditorías, decisiones obsoletas y consumo innecesario de contexto.
@@ -40,7 +54,7 @@ cada tabla.
 | Auditorías legacy (`AUDIT_*`, `DASHBOARD_*_PLAN`) | `docs/audit/` (ex `docs/audits/`, consolidado por PR-CLEAN2) | Histórico | No | Usar solo para trazabilidad puntual |
 | Historial de PRs | `docs/pr-history/` (incluye los `pr-*.md` sueltos de la raíz, consolidados por PR-CLEAN2) | Histórico | No | No usar como base de implementación |
 | Historial de implementaciones (`IMPLEMENTACION-PR-*`) | `docs/implementation/` (ex `docs/implementation-history/`, consolidado por PR-CLEAN2) | Histórico | No | No usar como plan vigente |
-| Notas sueltas antiguas (resto, no PR docs) | `docs/fix-*`, `docs/audit-*`, `docs/production-*`, `docs/smoke-*`, `docs/legal-*`, `docs/entrega-*` | Histórico / pendiente de archivo futuro | No | No mover en este PR |
+| Documentos sueltos de `docs/` | Tabla exacta de esta clasificación | Mixto: vigente acotado, secundario, histórico o superseded | Según archivo | No inferir estado por prefijo ni mover en este PR |
 | Implementation notes (`IMPLEMENTATION_*` mayúsc. + kebab-case) | `docs/implementation/` (ex `IMPLEMENTATION_NOTES/`, consolidado por PR-CLEAN2) | Secundario | No por defecto | Leer solo si un dominio lo requiere |
 | Implementaciones recientes | `docs/implementation/` | Secundario vigente por dominio | Solo si corresponde | Preferir closeout/auditoría vigente cuando exista |
 
@@ -99,21 +113,27 @@ Fuentes históricas o superseded:
 - `docs/implementation/IMPLEMENTACION-PR-8-dashboard-accessibility-keyboard-hardening.md`
 - `docs/implementation/IMPLEMENTACION-PR-9-dashboard-final-premium-qa-cleanup.md`
 
-## Root `docs/` loose historical documents
+## Documentos Markdown sueltos en `docs/`
 
-Los documentos sueltos de la raíz `docs/` quedan clasificados como históricos o secundarios. No se mueven en este PR (excepto los patrones `pr-*`/`prN-*`, que PR-CLEAN2 ya recolectó en `docs/pr-history/`; ver fila siguiente).
+La clasificación es por archivo, no por patrón. No se mueve, borra ni renombra ninguno.
 
-| Patrón | Estado | Regla |
-| --- | --- | --- |
-| `docs/pr-*`, `docs/pr0-*`, `docs/pr1-*`, `docs/pr2-*`, `docs/pr3b-*`, `docs/pr3c-*`, `docs/pr4-*`, `docs/pr5-*`, `docs/pr5b-*` | Histórico — movidos a `docs/pr-history/` por PR-CLEAN2 | No leer por defecto |
-| `docs/fix-*` | Histórico | Usar solo para trazabilidad puntual |
-| `docs/audit-*` | Histórico / superseded si hay fuente vigente posterior | No leer por defecto |
-| `docs/production-*` | Histórico | Preferir `docs/ops/*` y auditorías Wave 0 |
-| `docs/release-readiness.md` | Secundario vigente parcial | Usar como complemento hasta PR-REL1 |
-| `docs/review-governance.md` | Secundario vigente parcial | Usar como complemento hasta PR-GOV1 |
-| `docs/smoke-*` | Histórico / operativo puntual | Preferir `docs/ops/*` |
-| `docs/legal-*` | Histórico / requiere confirmación legal | No usar como obligación vigente sin validación humana |
-| `docs/entrega-*` | Histórico | No leer por defecto |
+| Documento | Lifecycle | Rol de lectura | Fuente vigente o regla |
+| --- | --- | --- | --- |
+| `docs/audit-premium-dashboard-interaction-value.md` | `SUPERSEDED` | Antecedente visual; no gobierna implementación | Usar las fuentes dashboard vigentes listadas en la sección “Dashboard plans superseded” |
+| `docs/entrega-particular-email-generated-token.md` | `HISTORICAL` | Evidencia de una entrega pasada; no es blueprint | Para cambios actuales consultar fuentes de seguridad, tokens y email del dominio |
+| `docs/fix-auth-token-rate-limit-429.md` | `HISTORICAL` | Registro de fix pasado; no reabrir como backlog | Revalidar contra código, tests y fuentes security vigentes si aparece una regresión |
+| `docs/legal-commercial-readiness.md` | `SECONDARY` | Checklist de evidencia y decisión humana | Complementa release readiness; no crea obligación legal sin validación humana responsable |
+| `docs/PRODUCTION_PROGRESS_INVARIANTS.md` | `ACTIVE` acotado | Contratos de regresión productiva ya cerrados | Está protegido por `test/progress-production-invariants.test.ts`; no es roadmap ni backlog |
+| `docs/production-readiness-evidence.md` | `SECONDARY` | Registro de evidencia sanitizada | Complementa `docs/release/README.md`, la política go/no-go y runbooks de `docs/ops/` |
+| `docs/production-readiness-snapshot-2026-05-27.md` | `HISTORICAL` | Snapshot inmutable de readiness | No actualizar para representar el estado actual |
+| `docs/release-readiness.md` | `SECONDARY` | Checklist amplio de readiness | Leer a través de `docs/release/README.md`; la política go/no-go gobierna la decisión |
+| `docs/review-governance.md` | `ACTIVE` complementario | Política humana del modelo de review | Para checks efectivos usar `docs/ops/CI_PR_CHECKS_RUNBOOK.md` y branch protection; su inventario de checks del 2026-07-11 no gobierna el estado actual |
+| `docs/smoke-local.md` | `SECONDARY` | Runbook de desarrollo local | No demuestra readiness de staging o producción |
+| `docs/smoke-prod-public.md` | `SECONDARY` | Runbook del smoke público ejecutable | Registrar evidencia sanitizada; no reemplaza smoke autenticado ni go/no-go |
+| `docs/staging-smoke-runbook.md` | `SECONDARY` | Runbook operativo de staging | Usar junto con release readiness y fuentes vigentes de `docs/ops/`; no tomar resultados antiguos como evidencia actual |
+
+`docs/SOURCES_OF_TRUTH.md` y este documento también viven en la raíz de `docs/`, pero son fuentes
+`ACTIVE` de navegación y clasificación, no documentos sueltos ambiguos.
 
 ## `docs/pr-history/`
 
@@ -160,12 +180,11 @@ Antes de una auditoría futura:
 5. No reabrir bloques cerrados por closeout salvo evidencia nueva.
 6. No mover archivos históricos sin un PR move-only posterior (PR-CLEAN2 ya ejecutó el move-only de `docs/audits/`, `IMPLEMENTATION_NOTES/`, `docs/implementation-history/` y los `pr-*.md` sueltos; no repetirlo).
 7. No mezclar clasificación documental con frontend, backend, API, auth, DB, migraciones, dependencias, lockfiles, CI, scripts de package ni configuración Playwright.
+8. Los closeouts M01–M48 son evidencia de trabajo cerrado: no constituyen backlog pendiente y no
+   se reabren sin regresión o evidencia nueva documentada.
 
 ## Próximo paso recomendado
 
-Después de PR-O3, avanzar a PR-GOV1 docs-only para base de gobernanza:
-
-- ADR template.
-- RFC / change-control template.
-- Ownership model documentado.
-- PR readiness review checklist.
+Completar `PR-AUDIT-ENTERPRISE-DOCS`, bloque 1 del
+[Plan B](./audit/enterprise-roadmap-consolidation-plan.md). Tras su cierre, continuar con
+`PR-SEC-REPO-SETTINGS`. No reconstruir el roadmap desde PR-O3, PR-GOV1 ni closeouts históricos.

@@ -2,6 +2,20 @@
 
 Índice vigente de auditorías documentales activas del proyecto VETNEB.
 
+| Campo | Valor |
+| --- | --- |
+| Document owner | Governance / Docs owner |
+| Domain | Enterprise audit indexing |
+| Lifecycle status | ACTIVE |
+| Authoritative source role | Índice operativo de auditorías activas |
+| Effective date | 2026-07-28 |
+| Last verified date | 2026-07-28 |
+| Review cadence | Mensual y ante nuevas auditorías rectoras |
+| Supersedes | Ninguno |
+| Superseded by | Ninguno |
+| Related controls or gaps | `ERM-CTRL-004`; `ERM-CTRL-005` |
+| Evidence or approval reference | Árbol documental verificado para `PR-AUDIT-ENTERPRISE-DOCS` |
+
 ## Criterio de vigencia
 
 Este índice considera como vigentes únicamente las auditorías generadas en Wave 0, incorporadas a `main` mediante el PR #1097, los snapshots enterprise aprobados y los documentos rectores enterprise incorporados posteriormente como auditorías docs-only explícitas.
@@ -16,8 +30,16 @@ Los documentos históricos previos dentro de `docs/audit/` se conservan como ant
 
 | Documento | Propósito operativo | Estado |
 | --- | --- | --- |
-| [enterprise-repository-maturity-audit-roadmap.md](./enterprise-repository-maturity-audit-roadmap.md) | Auditoría y roadmap enterprise del repositorio: scorecard de 25 ejes, brechas P0/P1/P2/P3, roadmap por fases, matriz de validación, risk register y definición de cierre 100% enterprise. | Vigente |
-| [enterprise-roadmap-consolidation-plan.md](./enterprise-roadmap-consolidation-plan.md) | Plan consolidado para reducir el roadmap enterprise a 18 PRs ejecutables, agrupando scopes compatibles sin romper seguridad, trazabilidad ni disciplina VETNEB. | Vigente |
+| [enterprise-repository-maturity-audit-roadmap.md](./enterprise-repository-maturity-audit-roadmap.md) | Auditoría global y roadmap original: scorecard de 25 ejes, diagnóstico, brechas P0/P1/P2/P3, matriz de validación y trazabilidad. | Vigente rector de diagnóstico |
+| [enterprise-roadmap-consolidation-plan.md](./enterprise-roadmap-consolidation-plan.md) | Secuencia operativa vigente Plan B de 18 PRs; agrupa scopes compatibles sin reescribir el diagnóstico del roadmap global. | Vigente rector operativo |
+
+### Precedencia enterprise
+
+1. El roadmap global preserva auditoría, scorecard, prioridades y trazabilidad del plan original.
+2. El plan consolidado gobierna la ejecución por bloques del Plan B.
+3. El [Enterprise Control Register](../governance/enterprise-control-register.md) gobierna el
+   estado operativo vivo de cada capability.
+4. El baseline y el gap register permanecen snapshots históricos inmutables.
 
 ## Documentos rectores recientes
 
@@ -60,4 +82,7 @@ Toda nueva auditoría que pretenda incorporarse al índice vigente debe cumplir 
 
 ## Próximo paso recomendado
 
-Ejecutar la Fase 0 del roadmap enterprise: registrar divergencias en el Enterprise Control Register, alinear el runbook de CI con `qga-workflow-security`, actualizar `docs/SOURCES_OF_TRUTH.md` y mantener esta auditoría como documento rector vigente.
+Completar `PR-AUDIT-ENTERPRISE-DOCS`, bloque 1 del Plan B. Tras su cierre, continuar con
+`PR-SEC-REPO-SETTINGS` según el
+[plan consolidado](./enterprise-roadmap-consolidation-plan.md). Los closeouts M01–M48 y los
+snapshots enterprise no se usan como backlog pendiente.

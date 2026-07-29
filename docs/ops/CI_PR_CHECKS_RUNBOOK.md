@@ -1,5 +1,19 @@
 # CI PR Checks Runbook
 
+| Campo | Valor |
+| --- | --- |
+| Document owner | CI owner |
+| Domain | CI/CD and Pull Request Governance |
+| Lifecycle status | ACTIVE |
+| Authoritative source role | Mapa operativo de checks efectivos y criterios antes de merge |
+| Effective date | 2026-07-28 |
+| Last verified date | 2026-07-28 |
+| Review cadence | Mensual y ante cambios de workflows, jobs o branch protection |
+| Supersedes | Versión que documentaba un solo required check global |
+| Superseded by | Ninguno |
+| Related controls or gaps | `ERM-CTRL-013`; `ERM-CTRL-014`; `ERM-CI-001`; `ERM-CI-002` |
+| Evidence or approval reference | Workflows locales y branch protection de `main` consultada en modo read-only el 2026-07-28 |
+
 ## Objetivo
 
 Documentar cómo verificar los checks de GitHub Actions en pull requests de Portal VETNEB sin confundir:
@@ -11,12 +25,18 @@ Documentar cómo verificar los checks de GitHub Actions en pull requests de Port
 
 ## Mapa de checks vigente
 
-| Check / integración | Aplica a | Requerido globalmente | Estado esperado |
-| --- | --- | --- | --- |
-| `validate-pr-governance` | Todos los PR hacia `main` | Sí | `SUCCESS` antes de merge |
-| `validate-backend` | PR no docs-only y cambios alcanzados por Backend CI | No; condicional por workflow | `SUCCESS` cuando aparece |
-| `validate-frontend` | Paths frontend, manifests y workspace definidos | No; condicional por workflow | `SUCCESS` cuando aparece |
-| Supabase Preview | Paths administrados por la integración | No | Puede ser `SUCCESS` o `SKIPPED` |
+| Check / integración | Clase | Aplica a | Required efectivo | Estado esperado |
+| --- | --- | --- | --- | --- |
+| `validate-pr-governance` | Required global | Todos los PR hacia `main` | Sí | `SUCCESS` antes de merge |
+| `qga-workflow-security` | Required global | Todos los PR hacia `main` | Sí | `SUCCESS` antes de merge |
+| `validate-backend` | Condicional por workflow | PR no docs-only alcanzados por Backend CI | No | `SUCCESS` cuando aplica |
+| `validate-frontend` | Condicional por paths | Frontend, manifests, workspace o su workflow | No | `SUCCESS` cuando aplica |
+| Supabase Preview | Integración externa | Paths administrados por la integración | No | `SUCCESS` cuando aplica; `SKIPPED` legítimo cuando no aplica |
+| Required funcional backend/frontend | Check ausente | No configurado actualmente | No | No confundir intención futura con enforcement actual |
+
+La presencia de un workflow o job en el árbol no lo vuelve required. La fuente efectiva para esa
+clasificación es branch protection de `main`, verificada el 2026-07-28 con exactamente estos
+contextos: `validate-pr-governance` y `qga-workflow-security`.
 
 ## PR Governance
 
@@ -47,6 +67,28 @@ No mergear si este job aparece como:
 - `CANCELLED`;
 - `TIMED_OUT`;
 - ausente cuando el PR apunta a `main`.
+
+## QGA Workflow Security
+
+`QGA Governance` corre en todos los pull requests hacia `main` mediante `pull_request_target`.
+Ejecuta el validador confiable de la rama base sobre el head candidato tratado como datos inertes.
+
+El contexto requerido se denomina exactamente:
+
+```text
+qga-workflow-security
+```
+
+Valida, entre otros controles:
+
+- actions externas pinneadas a SHA de 40 caracteres y repositorios allowlisted;
+- permisos top-level exactamente `contents: read`;
+- referencias locales restringidas a `.github/actions`;
+- imágenes de contenedor por digest o excepción exacta gobernada;
+- YAML parseable sin aliases.
+
+Un fallo, cancelación, timeout o ausencia de este contexto bloquea el merge. Su éxito prueba la
+política de seguridad de workflows; no reemplaza typecheck, tests, builds ni E2E funcionales.
 
 ## Backend CI
 
@@ -82,7 +124,8 @@ Backend CI ejecuta:
 6. `pnpm test`;
 7. `pnpm build`.
 
-Un PR docs-only puede omitir Backend CI por diseño. Esa omisión no equivale a fallo mientras `validate-pr-governance` esté presente y verde.
+Un PR docs-only puede omitir Backend CI por diseño. Esa omisión no equivale a fallo mientras
+ambos required globales estén presentes y verdes.
 
 ## Frontend CI
 
@@ -110,6 +153,18 @@ Frontend CI ejecuta:
 
 Un PR sin paths frontend/dependencias puede omitir Frontend CI por diseño.
 
+## Semántica docs-only
+
+Cuando todo el diff queda bajo `docs/**` o termina en `.md`:
+
+- `validate-pr-governance` y `qga-workflow-security` siguen siendo required y deben terminar en
+  `SUCCESS`;
+- `validate-backend` puede estar ausente por `paths-ignore`;
+- `validate-frontend` puede estar ausente porque sus paths no fueron alcanzados;
+- Supabase Preview puede estar ausente o `SKIPPED` si la integración no aplica;
+- cualquier check presente que falle sigue siendo bloqueante: docs-only no convierte un fallo en
+  skip legítimo.
+
 ## Supabase Preview
 
 Supabase Preview puede aparecer como `SKIPPED` cuando el diff no afecta los paths administrados por la integración.
@@ -120,11 +175,9 @@ No asumir que cualquier otro check `SKIPPED` es aceptable: evaluar su aplicabili
 
 ## Verificación antes de mergear
 
-### Terminal 1
+Ejecutar desde la raíz del repositorio:
 
 ```powershell
-cd C:\PORTAL-VETNEB
-
 $prNumber = <NUMERO_REAL_DEL_PR>
 
 gh pr view $prNumber `
@@ -132,17 +185,24 @@ gh pr view $prNumber `
   --json number,title,state,headRefName,headRefOid,baseRefName,mergeStateStatus,statusCheckRollup
 
 gh pr checks $prNumber `
-  --repo LABVETNEB/PORTAL-VETNEB `
-  --watch
+  --repo LABVETNEB/PORTAL-VETNEB
 ```
 
 No ejecutar comandos finales con placeholders. Sustituir `<NUMERO_REAL_DEL_PR>` antes de ejecutar.
+
+`gh pr checks --watch` es una acción **[MANUAL-NICO]**. Se ejecuta desde la rama del PR activo,
+sin número de PR:
+
+```powershell
+gh pr checks --watch
+```
 
 ## Estado aceptable antes de mergear
 
 Se puede considerar el merge solamente cuando:
 
 - `validate-pr-governance` está en `SUCCESS`;
+- `qga-workflow-security` está en `SUCCESS`;
 - no hay checks aplicables en `QUEUED` o `IN_PROGRESS`;
 - no hay checks aplicables en `FAILURE`, `CANCELLED` o `TIMED_OUT`;
 - `validate-backend` está en `SUCCESS` cuando corresponde;
@@ -156,8 +216,10 @@ Se puede considerar el merge solamente cuando:
 
 No mergear si ocurre cualquiera de estos casos:
 
-- `validate-pr-governance` ausente o no exitoso;
+- `validate-pr-governance` o `qga-workflow-security` ausente o no exitoso;
 - check aplicable pendiente o fallido;
+- `validate-backend` o `validate-frontend` ausente cuando los paths indican que debía disparar,
+  hasta diagnosticar el routing;
 - head SHA cambió después de la revisión;
 - aparecieron archivos fuera de scope;
 - el PR está detrás de `main` y la política vigente exige actualización;
@@ -168,11 +230,9 @@ No mergear si ocurre cualquiera de estos casos:
 
 Usar squash merge explícito y fijar el head SHA cuando se automatiza mediante API o conector.
 
-### Terminal 1
+Acción **[MANUAL-NICO]**, desde la raíz del repositorio:
 
 ```powershell
-cd C:\PORTAL-VETNEB
-
 $prNumber = <NUMERO_REAL_DEL_PR>
 
 gh pr merge $prNumber `
@@ -180,17 +240,15 @@ gh pr merge $prNumber `
   --squash
 ```
 
-No usar `--admin` para evitar checks requeridos.
+No usar `--admin`. Ninguna urgencia documental autoriza eludir checks requeridos.
 
 ## Sincronización posterior al merge
 
 Desde `main`, no ejecutar `gh pr checks --watch` sin número esperando que encuentre el PR recién fusionado. Puede responder que no existe un PR para la rama `main`; eso es normal.
 
-### Terminal 1
+Desde la raíz del repositorio:
 
 ```powershell
-cd C:\PORTAL-VETNEB
-
 git branch --show-current
 git status --short --untracked-files=all
 git fetch --prune
@@ -220,8 +278,6 @@ Eliminar una rama remota solamente después de verificar:
 Después de eliminar:
 
 ```powershell
-cd C:\PORTAL-VETNEB
-
 git fetch --prune
 git branch --remotes
 git ls-remote --heads origin
@@ -233,8 +289,6 @@ git worktree list
 Usar el número real del PR:
 
 ```powershell
-cd C:\PORTAL-VETNEB
-
 $prNumber = <NUMERO_REAL_DEL_PR>
 
 gh pr view $prNumber `
@@ -253,6 +307,9 @@ gh pr view $prNumber `
 
 ## Evidencia relacionada
 
+- [PR Governance workflow](../../.github/workflows/pr-governance.yml)
+- [QGA Governance workflow](../../.github/workflows/qga-governance.yml)
+- [Workflow Security Validator](../../scripts/governance/workflow-security-validator.mjs)
 - [CI/CD Pipeline Governance implementation closeout](../implementation/ci-pipeline-governance-closeout.md)
 - [CI/CD Pipeline Governance closeout audit](../audit/ci-pipeline-governance-closeout-audit.md)
 - [Branch Protection Governance implementation closeout](../implementation/branch-protection-governance-closeout.md)

@@ -7,14 +7,29 @@
 | Campo | Valor |
 | --- | --- |
 | Tipo | docs-only |
+| Document owner | Engineering governance |
 | Rama de trabajo | `docs/enterprise-repository-maturity-audit-roadmap` |
 | Base observada por la auditoría | `main` limpio, HEAD `db1da94` |
-| Estado | Vigente |
+| Lifecycle status | ACTIVE |
+| Authoritative source role | Auditoría global, diagnóstico y roadmap original |
+| Effective date | 2026-07-28 |
+| Last verified date | 2026-07-28 |
+| Review cadence | Mensual y ante cambios materiales de controles enterprise |
 | Propósito | Auditoría y roadmap enterprise del repositorio |
 | Alcance | Gobernanza, documentación, PRs, tests, CI/CD, seguridad, datos, observabilidad, release, dependencias, calidad y operación |
 | No-scope | No modifica runtime, backend, frontend, DB, migraciones, dependencias, lockfiles, workflows ni configuración productiva |
+| Related controls or gaps | `ERM-CTRL-001..025`; gaps P0/P1/P2/P3 de este documento |
+| Evidence or approval reference | Auditoría original sobre `main@db1da94`; reconciliación documental `PR-AUDIT-ENTERPRISE-DOCS` |
 
 He completado la auditoría. Baseline capturado: `main` limpio, HEAD `db1da94`, working tree sin cambios. **No modifiqué, moví ni creé ningún archivo**; solo lectura, inspección local y `gh api` de solo lectura.
+
+## Precedencia operativa posterior a la auditoría
+
+Este documento preserva el diagnóstico, scorecard, prioridades y roadmap original de 39 PRs.
+La secuencia ejecutable recomendada vigente es el
+[Plan B de 18 PRs](./enterprise-roadmap-consolidation-plan.md). El
+[Enterprise Control Register](../governance/enterprise-control-register.md) gobierna el estado
+operativo vivo; el baseline y el gap register permanecen snapshots históricos y no se reescriben.
 
 ---
 
@@ -70,7 +85,7 @@ Solo 2 contextos son required, y ambos validan *metadatos y workflows*, no *cód
 | 8 | Architecture Boundary Enforcement | 70 | Avanzado incompleto | 72 guards en `test/architecture/`; `backend-boundary-adr.md`; sin gate ADR/RFC | Medio | P2 |
 | 9 | Enterprise Test Architecture | 80 | Empresarial fuerte | 514 tests; `test/*.test.ts` = 0; `test/README.md` normativo | Bajo-medio | P1 |
 | 10 | Test Suite Taxonomy | 72 | Avanzado incompleto | Sin `test/fixtures\|factories\|mocks\|setup`; 367/514 (71%) leen código fuente; 134 usos de `readdirSync` | Medio-alto: refactors legítimos rompen tests por path | P2 |
-| 11 | CI/CD Pipeline Governance | 70 | Avanzado incompleto | 6 workflows, 100% SHA-pinned, `permissions: contents: read`; runbook **omite** `qga-workflow-security` (que sí es required) | Medio | P1 |
+| 11 | CI/CD Pipeline Governance | 70 | Avanzado incompleto | 6 workflows, 100% SHA-pinned, `permissions: contents: read`; runbook reconciliado el 2026-07-28 con ambos required checks; gates funcionales siguen no requeridos | Medio | P1 |
 | 12 | Quality Gate Architecture | 50 | Parcial | Required = solo `validate-pr-governance` + `qga-workflow-security`; backend/frontend CI **no required** | **Crítico: código sin gate de merge** | **P0** |
 | 13 | Branch Protection Governance | 85 | Empresarial fuerte | API en vivo: admins, strict, linear, no force-push, no delete, conversation | Bajo | P3 |
 | 14 | Security Hardening Program | 65 | Avanzado incompleto | 17 guards en `architecture/security/` + 10 en `test/security/`; **repo público con secret scanning off** | **Crítico** | **P0** |
@@ -171,7 +186,7 @@ Esto contradice la invariante declarada por la propia auditoría rectora: *"la u
 
 | ID | Brecha | Evidencia |
 |---|---|---|
-| GAP-CI-1 | `qga-workflow-security` es required en GitHub pero **ausente del mapa de checks** del runbook, que se auto-obliga a estar alineado | `grep -n "qga" docs/ops/CI_PR_CHECKS_RUNBOOK.md` → 0 matches |
+| GAP-CI-1 | Hallazgo original: `qga-workflow-security` era required en GitHub pero faltaba en el runbook. Reconciliado documentalmente el 2026-07-28; el ID se conserva para trazabilidad | `docs/ops/CI_PR_CHECKS_RUNBOOK.md` ahora distingue ambos required globales de los checks funcionales condicionales |
 | GAP-CI-2 | `default_workflow_permissions: "write"`, `allowed_actions: "all"`, `sha_pinning_required: false` a nivel repo | `gh api .../actions/permissions{,/workflow}` |
 
 GAP-CI-2 está *compensado* (los 6 workflows declaran `contents: read` y pinnean todo), pero cualquier workflow nuevo que omita `permissions:` hereda `write`.
@@ -220,18 +235,20 @@ Adicional (P2): `dependabot.yml` no declara `directory: /frontend`; con `pnpm-wo
 | GAP-CFG-1 | `allow_merge_commit: true` con `linear_history: true` (estrategia inutilizable); `delete_branch_on_merge: false` | API en vivo |
 | GAP-E2E-1 | Playwright con **un solo project (chromium)**: 0 cobertura Firefox/WebKit | `frontend/playwright.config.ts:75-79` |
 
-## 4.10 P2 — Deriva del Enterprise Control Register (hallazgo transversal)
+## 4.10 P2 — Deriva del Enterprise Control Register (hallazgo transversal reconciliado)
 
-El registro se declara *"fuente de verdad operativa viva"*, pero 4 filas están desactualizadas respecto al árbol:
+La auditoría detectó cuatro divergencias respecto al estado del registro del 2026-07-11:
 
 | Control | Dice el registro (2026-07-11) | Estado real observado hoy |
 |---|---|---|
 | `ERM-CTRL-009` CODEOWNERS Domain Model, PARTIAL/1 | *"global `* @LABVETNEB` ownership and no path-domain model"* | `.github/CODEOWNERS` tiene modelo por 9 paths + `docs/audit/enterprise-codeowners-domain-model-audit.md`. Lo que falta es *enforcement*, no el modelo |
 | `ERM-CTRL-014` Quality Gate Architecture, next action | *"Add impact-aware docs/test taxonomy gate and reduce Actions permissions"* | `quality-gate-impact-{policy,validator}.mjs` existen y están cableados en `pr-governance-validator.mjs:10`; los 6 workflows ya declaran `contents: read` |
 | `ERM-CTRL-024` Dependency Governance | *"did not observe … full action pinning"* | 100% de actions pinneadas a SHA + `workflow-security-validator.mjs` con enforcement required |
-| **Ausente** | Ninguna fila registra `qga-workflow-security` | Es **required check en producción** (verificado por API) |
+| Evidencia transversal no registrada | Ninguna fila registra `qga-workflow-security` | Es **required check en producción** (verificado por API); debe integrarse en `ERM-CTRL-013` y `ERM-CTRL-014`, sin crear una capability 26 |
 
-Consecuencia: el registro **subreporta** madurez en 3 controles y **omite** un control activo. Un lector que confíe en él re-implementaría trabajo ya hecho.
+La reconciliación del 2026-07-28 corrigió la evidencia operativa en el registro vigente sin
+reescribir este diagnóstico ni los snapshots históricos. Se conservan exactamente 25 master
+capabilities.
 
 ---
 
@@ -243,7 +260,7 @@ Reglas transversales: un scope por PR; nada de `--fix` masivo; todo PR que toque
 
 | PR | Tipo | Objetivo | Archivos probables | Riesgo | Validaciones | Criterio de merge | Rollback |
 |---|---|---|---|---|---|---|---|
-| **PR-GOV-1** | docs-only | Registrar en el control register las 4 divergencias de §4.10 + crear fila/evidencia para `qga-workflow-security` | `docs/governance/enterprise-control-register.md` | Bajo | `git diff --check`; PR Gov | Registro refleja el árbol real; snapshots históricos intactos | `git revert` |
+| **PR-GOV-1** | docs-only | Registrar en el control register las divergencias de §4.10 e integrar `qga-workflow-security` como evidencia en `ERM-CTRL-013`/`014`, sin capability 26 | `docs/governance/enterprise-control-register.md` | Bajo | `git diff --check`; PR Gov | Registro refleja el árbol real; conserva 25 filas y snapshots históricos intactos | `git revert` |
 | **PR-CI-0** | docs-only | Alinear el mapa de checks del runbook con la config real (añadir `qga-workflow-security` como required) | `docs/ops/CI_PR_CHECKS_RUNBOOK.md` | Bajo | PR Gov | Mapa == `gh api .../protection` | `git revert` |
 | **PR-SOT-1** | docs-only | Actualizar `SOURCES_OF_TRUTH.md`: `PR-C3` cerrado, añadir esta auditoría, marcar `docs/fix-*`/`docs/audit-*` sueltos | `docs/SOURCES_OF_TRUTH.md`, `docs/HISTORICAL_DOCUMENTATION.md` | Bajo | PR Gov | Todo `docs/` raíz clasificado | `git revert` |
 | **PR-DOC-1** | docs-only | Esta auditoría + roadmap como documento rector | `docs/audit/enterprise-repository-maturity-audit-roadmap.md`, `docs/audit/README.md` | Bajo | PR Gov | Enlazado desde índice y SoT | `git revert` |
@@ -384,10 +401,10 @@ Solo scripts **verificados en `package.json` / `frontend/package.json`**. Ningú
 | Documento | Rol | Acción |
 |---|---|---|
 | `AGENTS.md` | Contrato operativo, precedencia máxima | Sin cambios |
-| `docs/SOURCES_OF_TRUTH.md` | Mapa por dominio | **PR-SOT-1**: cerrar PR-C3, añadir esta auditoría, clasificar los 14 sueltos de `docs/` raíz |
-| `docs/governance/enterprise-control-register.md` | Estado operativo vivo de los 25 controles | **PR-GOV-1**: corregir las 4 divergencias de §4.10 |
+| `docs/SOURCES_OF_TRUTH.md` | Mapa por dominio | Reconciliado por `PR-AUDIT-ENTERPRISE-DOCS`: precedencia Plan B, deuda técnica y documentos sueltos clasificados |
+| `docs/governance/enterprise-control-register.md` | Estado operativo vivo de los 25 controles | Reconciliado por `PR-AUDIT-ENTERPRISE-DOCS`: evidencia de §4.10 integrada sin capability 26 |
 | `docs/audit/README.md` | Índice de auditorías activas | **PR-DOC-1**: añadir esta auditoría |
-| `docs/ops/CI_PR_CHECKS_RUNBOOK.md` | Mapa de checks | **PR-CI-0**: añadir `qga-workflow-security` |
+| `docs/ops/CI_PR_CHECKS_RUNBOOK.md` | Mapa de checks | Reconciliado por `PR-AUDIT-ENTERPRISE-DOCS`: required globales, checks condicionales e integración externa diferenciados |
 | `test/README.md` | Índice de suite (bloque autogenerado) | Regenerar solo si cambia `quality-gate-impact-policy.mjs` |
 | `docs/architecture/rls-tenant-isolation-adr.md` | Decisión RLS (Accepted) | Actualizar tras PR-RLS-1 |
 | `docs/governance/documentation-lifecycle-policy.md` | Ciclo de vida documental | Activar enforcement (`ERM-DOC-001`) |
@@ -486,6 +503,9 @@ Checklist medible. Cada línea verificable con un comando o una llamada de API.
 # 10. Next 10 PRs Recommended
 
 Orden por reducción de riesgo por unidad de esfuerzo y por dependencia técnica.
+
+Esta lista preserva la recomendación granular del roadmap original. Para ejecución vigente por
+bloques prevalece el [Plan B de 18 PRs](./enterprise-roadmap-consolidation-plan.md).
 
 | # | PR | Tipo | Razón | Riesgo | Validación mínima |
 |---:|---|---|---|---|---|

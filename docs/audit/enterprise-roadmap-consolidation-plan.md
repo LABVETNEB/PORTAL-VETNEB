@@ -7,14 +7,32 @@
 | Campo | Valor |
 | --- | --- |
 | Tipo | docs-only |
+| Document owner | Engineering governance |
 | Rama de trabajo | `docs/enterprise-repository-maturity-audit-roadmap` |
 | Documento base | `docs/audit/enterprise-repository-maturity-audit-roadmap.md` |
-| Estado | Vigente |
+| Lifecycle status | ACTIVE |
+| Authoritative source role | Secuencia operativa vigente del enterprise roadmap |
+| Effective date | 2026-07-28 |
+| Last verified date | 2026-07-28 |
+| Review cadence | Mensual y ante cambios de dependencias o riesgo del roadmap |
 | Propósito | Consolidar el roadmap enterprise en bloques ejecutables con menor cantidad de PRs |
 | Alcance | PR planning, consolidation strategy, scope governance, dependencies, risk, validations and sequencing |
 | No-scope | No modifica runtime, backend, frontend, DB, migraciones, dependencias, lockfiles, workflows ni configuración productiva |
+| Related controls or gaps | `ERM-CTRL-001..025`; roadmap enterprise global |
+| Evidence or approval reference | Plan B consolidado en `docs/enterprise-audit-block-01` |
 
 ---
+
+# 0. Autoridad y precedencia
+
+- [Enterprise Repository Maturity Audit and Roadmap](./enterprise-repository-maturity-audit-roadmap.md)
+  preserva el diagnóstico, scorecard, prioridades y roadmap original.
+- Este documento gobierna la secuencia ejecutable recomendada del Plan B de 18 PRs.
+- [Enterprise Control Register](../governance/enterprise-control-register.md) gobierna el estado
+  operativo vivo y puede registrar evidencia posterior sin reescribir este plan.
+- El baseline y el gap register enterprise son snapshots históricos inmutables.
+
+El Plan B no elimina PRs ni hallazgos del roadmap original: los absorbe en bloques trazables.
 
 # 1. Diagnóstico directo
 
