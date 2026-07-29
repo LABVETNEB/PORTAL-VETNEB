@@ -60,25 +60,77 @@ const SENSITIVE_PATH_PATTERNS = [
 ];
 
 const SECRET_PATTERNS = [
-  ["private key block", /-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----/],
-  ["GitHub token", /\bgh[pousr]_[A-Za-z0-9_]{36,255}\b/],
-  ["GitHub fine-grained token", /\bgithub_pat_[A-Za-z0-9_]{22}_[A-Za-z0-9_]{59,255}\b/],
-  ["AWS access key", /\b(?:AKIA|ASIA)[A-Z0-9]{16}\b/],
-  ["Google API key", /\bAIza[0-9A-Za-z_-]{35}\b/],
-  ["Stripe live secret key", /\bsk_live_[0-9A-Za-z]{24,}\b/],
-  ["OpenAI project key", /\bsk-proj-[A-Za-z0-9_-]{20,}\b/],
-  [
-    "production credential URL",
-    /\b(?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis):\/\/[^:@\s/]+:[^@\s]+@[^/\s]+/i,
-  ],
-  [
-    "explicit production secret assignment",
-    /\b(?:PROD|PRODUCTION)_[A-Z0-9_]*(?:SECRET|TOKEN|PASSWORD|API_KEY)\s*[:=]\s*["']?[A-Za-z0-9_./+=-]{16,}/i,
-  ],
+  {
+    category: "private key block",
+    pattern: /-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----/,
+    candidateGroup: null,
+  },
+  {
+    category: "GitHub token",
+    pattern: /\bgh[pousr]_[A-Za-z0-9_]{36,255}\b/,
+    candidateGroup: 0,
+  },
+  {
+    category: "GitHub fine-grained token",
+    pattern: /\bgithub_pat_[A-Za-z0-9_]{22}_[A-Za-z0-9_]{59,255}\b/,
+    candidateGroup: 0,
+  },
+  {
+    category: "AWS access key",
+    pattern: /\b(?:AKIA|ASIA)[A-Z0-9]{16}\b/,
+    candidateGroup: 0,
+  },
+  {
+    category: "Google API key",
+    pattern: /\bAIza[0-9A-Za-z_-]{35}\b/,
+    candidateGroup: 0,
+  },
+  {
+    category: "Stripe live secret key",
+    pattern: /\bsk_live_[0-9A-Za-z]{24,}\b/,
+    candidateGroup: 0,
+  },
+  {
+    category: "OpenAI project key",
+    pattern: /\bsk-proj-[A-Za-z0-9_-]{20,}\b/,
+    candidateGroup: 0,
+  },
+  {
+    category: "Supabase secret key",
+    pattern: /\bsb_secret_[A-Za-z0-9_-]{20,}_[A-Za-z0-9_-]{6,}\b/,
+    candidateGroup: 0,
+  },
+  {
+    category: "production credential URL",
+    pattern:
+      /\b(?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis):\/\/[^:@\s/]+:([^@\s]+)@[^/\s]+/i,
+    candidateGroup: 1,
+  },
+  {
+    category: "SMTP credential URL",
+    pattern: /\bsmtps?:\/\/[^:@\s/]+:([^@\s]+)@[^/\s]+/i,
+    candidateGroup: 1,
+  },
+  {
+    category: "explicit production secret assignment",
+    pattern:
+      /\b(?:PROD|PRODUCTION)_[A-Z0-9_]*(?:SECRET|TOKEN|PASSWORD|API_KEY)\s*[:=]\s*["']?([A-Za-z0-9_./+=-]{16,})(?=["'\s,;}]|$)/i,
+    candidateGroup: 1,
+  },
 ];
 
 const PLACEHOLDER_RE =
   /(example|placeholder|dummy|fake|sample|changeme|change-me|your[_-]|xxx|xxxxx|<[^>]+>|\.\.\.|localhost|127\.0\.0\.1|example\.com)/i;
+const ARCHITECTURE_PLACEHOLDER_RE =
+  /(placeholder|dummy|sample|changeme|change-me|your[_-]|xxx|xxxxx|<[^>]+>|\.\.\.|\bTODO\b|\bTBD\b|template)/i;
+const JWT_RE =
+  /\b[A-Za-z0-9_-]{2,1024}\.([A-Za-z0-9_-]{2,4096})\.[A-Za-z0-9_-]{2,2048}\b/g;
+const ASSIGNED_SERVICE_ROLE_JWT_RE =
+  /\b(?:SUPABASE_SERVICE_ROLE_KEY|SERVICE_ROLE_KEY)\b["']?\s*[:=]\s*["']?[A-Za-z0-9_-]{2,1024}\.[A-Za-z0-9_-]{2,4096}\.[A-Za-z0-9_-]{2,2048}(?=["'\s,;}]|$)/i;
+const RENDER_ASSIGNMENT_RE =
+  /\b(?:RENDER_API_KEY|RENDER_API_TOKEN)\b["']?\s*[:=]\s*(["']?)([A-Za-z0-9_+/=-]{24,256})\1(?=[\s,;}]|$)/i;
+const SMTP_ASSIGNMENT_RE =
+  /\b(?:SMTP_PASSWORD|SMTP_PASS|SMTP_TOKEN|SMTP_API_KEY|MAIL_PASSWORD|EMAIL_PASSWORD)\b["']?\s*[:=]\s*(["']?)([^\s"',;}{]{16,256})\1(?=[\s,;}]|$)/i;
 
 function runGit(args, check = false) {
   const result = spawnSync("git", args, {
@@ -114,6 +166,94 @@ function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function looksLikeCredential(
+  value,
+  {
+    minimumLength,
+    minimumCharacterClasses,
+    minimumDistinctCharacters,
+  },
+) {
+  if (value.length < minimumLength || PLACEHOLDER_RE.test(value)) return false;
+  const characterClasses = [
+    /[a-z]/.test(value),
+    /[A-Z]/.test(value),
+    /\d/.test(value),
+    /[^A-Za-z0-9]/.test(value),
+  ].filter(Boolean).length;
+  return (
+    characterClasses >= minimumCharacterClasses &&
+    new Set(value).size >= minimumDistinctCharacters
+  );
+}
+
+function jwtPayloadHasServiceRole(payloadSegment) {
+  if (payloadSegment.length > 4096) return false;
+
+  try {
+    const payloadBytes = Buffer.from(payloadSegment, "base64url");
+    if (payloadBytes.length === 0 || payloadBytes.length > 4096) return false;
+    const payload = JSON.parse(payloadBytes.toString("utf8"));
+    return (
+      payload !== null &&
+      typeof payload === "object" &&
+      !Array.isArray(payload) &&
+      payload.role === "service_role"
+    );
+  } catch {
+    return false;
+  }
+}
+
+export function detectSecretPattern(lineText) {
+  for (const { category, pattern, candidateGroup } of SECRET_PATTERNS) {
+    const match = pattern.exec(lineText);
+    if (!match) continue;
+    if (
+      candidateGroup === null ||
+      !PLACEHOLDER_RE.test(match[candidateGroup])
+    ) {
+      return category;
+    }
+  }
+
+  if (ASSIGNED_SERVICE_ROLE_JWT_RE.test(lineText)) {
+    return "Supabase service_role JWT";
+  }
+
+  for (const match of lineText.matchAll(JWT_RE)) {
+    if (jwtPayloadHasServiceRole(match[1])) {
+      return "Supabase service_role JWT";
+    }
+  }
+
+  const renderAssignment = RENDER_ASSIGNMENT_RE.exec(lineText);
+  if (
+    renderAssignment &&
+    looksLikeCredential(renderAssignment[2], {
+      minimumLength: 24,
+      minimumCharacterClasses: 2,
+      minimumDistinctCharacters: 8,
+    })
+  ) {
+    return "Render API credential";
+  }
+
+  const smtpAssignment = SMTP_ASSIGNMENT_RE.exec(lineText);
+  if (
+    smtpAssignment &&
+    looksLikeCredential(smtpAssignment[2], {
+      minimumLength: 16,
+      minimumCharacterClasses: 1,
+      minimumDistinctCharacters: 8,
+    })
+  ) {
+    return "SMTP credential";
+  }
+
+  return null;
+}
+
 export function extractSection(body, sectionName) {
   const heading = new RegExp(`^\\s*##\\s+${escapeRegExp(sectionName)}\\s*$`, "im");
   const headingMatch = heading.exec(body);
@@ -137,6 +277,7 @@ export function classifyPath(inputPath) {
   if (
     [
       "scripts/governance/pr-governance-validator.mjs",
+      "scripts/governance/pr-governance-validator.d.mts",
       "scripts/governance/quality-gate-impact-policy.mjs",
       "scripts/governance/quality-gate-impact-policy.d.mts",
       "scripts/governance/workflow-security-policy.mjs",
@@ -292,6 +433,208 @@ function sameSet(left, right) {
   return left.length === right.length && left.every((value) => new Set(right).has(value));
 }
 
+function architectureEntryPaths(entry) {
+  return [entry.path, entry.oldPath, entry.newPath]
+    .filter(Boolean)
+    .map(normalizePath);
+}
+
+export function requiresArchitectureDecision(entries) {
+  return entries.some((entry) => {
+    const paths = architectureEntryPaths(entry);
+    if (
+      paths.some(
+        (entryPath) =>
+          entryPath.startsWith("drizzle/") ||
+          entryPath.startsWith(".github/workflows/"),
+      )
+    ) {
+      return true;
+    }
+
+    const status = entry.status?.[0] ?? "";
+    if (
+      ["A", "D", "R", "C"].includes(status) &&
+      paths.some((entryPath) => entryPath.startsWith("server/"))
+    ) {
+      return true;
+    }
+
+    return (
+      status === "M" &&
+      paths.some((entryPath) => /^server\/[^/]+\.ts$/.test(entryPath))
+    );
+  });
+}
+
+function extractArchitectureField(section, fieldName) {
+  const field = new RegExp(`^\\s*-\\s*${escapeRegExp(fieldName)}\\s*:\\s*(.*)$`, "im");
+  const match = field.exec(section);
+  if (!match) return "";
+
+  const remainder = section.slice(match.index + match[0].length);
+  const nextField = /^\s*-\s*(?:Reference|Justification)\s*:/im.exec(remainder);
+  return `${match[1]}\n${nextField ? remainder.slice(0, nextField.index) : remainder}`.trim();
+}
+
+function validateArchitectureReference(reference, rootDir) {
+  const failures = [];
+  const links = [...reference.matchAll(/\[[^\]\n]+\]\(([^)\n]+)\)/g)];
+
+  if (links.length !== 1 || meaningfulText(reference).length === 0) {
+    return ["Architecture Decision Reference must contain exactly one Markdown link to an ADR/RFC."];
+  }
+  if (
+    /<!--|-->/.test(reference) ||
+    ARCHITECTURE_PLACEHOLDER_RE.test(reference)
+  ) {
+    return ["Architecture Decision Reference cannot contain template comments or placeholders."];
+  }
+
+  const target = extractLinkTarget(links[0][1]);
+  if (
+    !target ||
+    target.startsWith("/") ||
+    target.startsWith("//") ||
+    target.startsWith("#") ||
+    /^[a-z][a-z0-9+.-]*:/i.test(target) ||
+    /^[A-Za-z]:/.test(target) ||
+    target.includes("\\")
+  ) {
+    return ["Architecture Decision Reference must use a repository-relative Markdown path."];
+  }
+
+  let decoded;
+  try {
+    decoded = decodeURIComponent(target.split("#", 1)[0].split("?", 1)[0]);
+  } catch {
+    return ["Architecture Decision Reference contains an invalid encoded path."];
+  }
+
+  if (!decoded || decoded.includes("\\")) {
+    return ["Architecture Decision Reference must use a repository-relative Markdown path."];
+  }
+
+  const repoPath = posix.normalize(decoded.replace(/^\.\//, ""));
+  const candidate = resolve(rootDir, repoPath);
+  const resolvedRoot = resolve(rootDir);
+  const rootPrefix = resolvedRoot.endsWith(sep)
+    ? resolvedRoot
+    : `${resolvedRoot}${sep}`;
+
+  if (
+    (candidate !== resolvedRoot && !candidate.startsWith(rootPrefix)) ||
+    repoPath === ".." ||
+    repoPath.startsWith("../")
+  ) {
+    failures.push("Architecture Decision Reference cannot leave the repository.");
+  } else if (!repoPath.toLowerCase().startsWith("docs/")) {
+    failures.push("Architecture Decision Reference must point below docs/.");
+  } else if (!repoPath.toLowerCase().endsWith(".md")) {
+    failures.push("Architecture Decision Reference must point to a Markdown file.");
+  } else if (
+    !/(^|[-_/])(adr|rfc)([-_/.]|$)/i.test(repoPath) ||
+    /template/i.test(repoPath)
+  ) {
+    failures.push("Architecture Decision Reference must clearly identify an ADR or RFC.");
+  } else if (!existsSync(candidate)) {
+    failures.push("Architecture Decision Reference must point to an existing file.");
+  }
+
+  return failures;
+}
+
+export function evaluateArchitectureDecisionContract({
+  body,
+  entries,
+  rootDir,
+  trustedDependabot,
+}) {
+  const failures = [];
+  const details = [];
+  const required = requiresArchitectureDecision(entries);
+
+  details.push(`Architecture trigger: ${required}.`);
+  if (!required) {
+    details.push("No architectural path trigger was detected.");
+    return { status: "N/A", failures, details };
+  }
+
+  const trustedWorkflowOnly =
+    trustedDependabot &&
+    entries.length > 0 &&
+    entries.every(
+      (entry) =>
+        entry.status === "M" &&
+        normalizePath(entry.path).startsWith(".github/workflows/"),
+    );
+
+  if (trustedWorkflowOnly) {
+    details.push("Architecture Decision: N/A — trusted dependency automation.");
+    return { status: "N/A", failures, details };
+  }
+
+  if (!sectionPresent(body, "Architecture Decision")) {
+    failures.push(
+      "Missing required ## Architecture Decision section for an architectural change.",
+    );
+    return { status: "FAIL", failures, details };
+  }
+
+  const section = extractSection(body, "Architecture Decision");
+  const selected = [];
+  for (const match of section.matchAll(/^\s*-\s*\[([ xX])\]\s+(ADR\/RFC linked|Not applicable)\s*$/gim)) {
+    if (match[1].toLowerCase() === "x") selected.push(normalizeLabel(match[2]));
+  }
+
+  if (selected.length !== 1) {
+    failures.push(
+      "Architecture Decision must select exactly one option: ADR/RFC linked or Not applicable.",
+    );
+  }
+  if (/<!--|-->/.test(section)) {
+    failures.push(
+      "Architecture Decision must not retain HTML template comments when the gate applies.",
+    );
+  }
+
+  if (selected.length === 1 && selected[0] === "adr/rfc linked") {
+    failures.push(
+      ...validateArchitectureReference(
+        extractArchitectureField(section, "Reference"),
+        rootDir,
+      ),
+    );
+  }
+
+  if (selected.length === 1 && selected[0] === "not applicable") {
+    const justification = extractArchitectureField(section, "Justification");
+    if (
+      meaningfulText(justification).length < 80 ||
+      /<!--|-->/.test(justification) ||
+      ARCHITECTURE_PLACEHOLDER_RE.test(justification)
+    ) {
+      failures.push(
+        "Architecture Decision Not applicable requires a substantive justification of at least 80 meaningful characters without comments or placeholders.",
+      );
+    }
+  }
+
+  if (failures.length === 0) {
+    details.push(
+      selected[0] === "adr/rfc linked"
+        ? "A repository-local ADR/RFC reference was validated."
+        : "A substantive Not applicable justification was validated.",
+    );
+  }
+
+  return {
+    status: failures.length === 0 ? "PASS" : "FAIL",
+    failures,
+    details,
+  };
+}
+
 export function evaluateScopeContract({ body, categories }) {
   const failures = [];
   const primary = derivePrimaryCategories(categories);
@@ -382,7 +725,7 @@ function determineRange(event, fail, detail) {
 
 function changedFiles(baseSha, headSha) {
   const tokens = runGit(
-    ["diff", "--name-status", "-z", "--diff-filter=AMRD", baseSha, headSha],
+    ["diff", "--name-status", "-z", "--diff-filter=AMRDC", baseSha, headSha],
     true,
   ).stdout.split("\0");
   if (tokens.at(-1) === "") tokens.pop();
@@ -390,7 +733,7 @@ function changedFiles(baseSha, headSha) {
   const entries = [];
   for (let index = 0; index < tokens.length; ) {
     const status = tokens[index++];
-    if (status.startsWith("R")) {
+    if (status.startsWith("R") || status.startsWith("C")) {
       const oldPath = normalizePath(tokens[index++]);
       const newPath = normalizePath(tokens[index++]);
       entries.push({ status, path: newPath, oldPath, newPath, display: `${oldPath} -> ${newPath}` });
@@ -463,9 +806,8 @@ function addedLines(baseSha, headSha) {
 function validateSecrets(baseSha, headSha, pass, fail) {
   const findings = [];
   for (const line of addedLines(baseSha, headSha)) {
-    if (PLACEHOLDER_RE.test(line.text)) continue;
-    const matched = SECRET_PATTERNS.find(([, pattern]) => pattern.test(line.text));
-    if (matched) findings.push(`${line.path}:${line.lineNumber} (${matched[0]})`);
+    const category = detectSecretPattern(line.text);
+    if (category) findings.push(`${line.path}:${line.lineNumber} (${category})`);
   }
 
   if (findings.length > 0) {
@@ -598,6 +940,7 @@ export function main() {
     "quality gate impact": "NOT RUN",
     metadata: "NOT RUN",
     scope: "NOT RUN",
+    "architecture decision": "NOT RUN",
   };
   const details = Object.fromEntries(Object.keys(results).map((name) => [name, []]));
   const fail = (section, message) => {
@@ -645,7 +988,10 @@ export function main() {
       }
 
       if (EVENT_NAME === "pull_request") {
-        if (isTrustedDependabotPullRequest(event)) {
+        const trustedDependabot = isTrustedDependabotPullRequest(event);
+        const body = event.pull_request?.body ?? "";
+
+        if (trustedDependabot) {
           pass(
             "metadata",
             "Trusted Dependabot pull request detected; generated PR body metadata accepted.",
@@ -670,7 +1016,6 @@ export function main() {
             );
           }
         } else {
-          const body = event.pull_request?.body ?? "";
           const missing = REQUIRED_SECTIONS.filter(
             (section) => !sectionPresent(body, section),
           );
@@ -707,10 +1052,36 @@ export function main() {
             );
           }
         }
+
+        try {
+          const architecture = evaluateArchitectureDecisionContract({
+            body,
+            entries,
+            rootDir: ROOT,
+            trustedDependabot,
+          });
+
+          architecture.details.forEach((message) =>
+            detail("architecture decision", message),
+          );
+          architecture.failures.forEach((message) =>
+            fail("architecture decision", message),
+          );
+          if (architecture.status !== "FAIL") {
+            results["architecture decision"] = architecture.status;
+          }
+        } catch (error) {
+          fail(
+            "architecture decision",
+            `Architecture Decision validation crashed: ${error.message}`,
+          );
+        }
       } else {
         results.metadata = "N/A";
         if (results.scope !== "FAIL") results.scope = "N/A";
+        results["architecture decision"] = "N/A";
         detail("metadata", "Skipped for workflow_dispatch.");
+        detail("architecture decision", "Skipped for workflow_dispatch.");
       }
     }
   }
