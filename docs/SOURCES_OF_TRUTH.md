@@ -2,6 +2,20 @@
 
 Mapa vigente de fuentes de verdad documentales del proyecto VETNEB.
 
+| Campo | Valor |
+| --- | --- |
+| Document owner | Governance / Docs owner |
+| Domain | Source-of-Truth Management |
+| Lifecycle status | ACTIVE |
+| Authoritative source role | Mapa primario de fuentes vigentes por dominio |
+| Effective date | 2026-07-28 |
+| Last verified date | 2026-07-28 |
+| Review cadence | Mensual y ante cambios de autoridad documental |
+| Supersedes | Ninguno |
+| Superseded by | Ninguno |
+| Related controls or gaps | `ERM-CTRL-004`; `ERM-DOC-002` |
+| Evidence or approval reference | Árbol del repositorio y configuración GitHub verificados para `PR-AUDIT-ENTERPRISE-DOCS` |
+
 ## Propósito
 
 Este documento define qué archivo debe leerse primero para cada dominio del proyecto, evita re-auditorías innecesarias y separa documentación vigente de documentación histórica.
@@ -17,7 +31,7 @@ Regla principal:
 
 | Dominio | Fuente de verdad vigente | Complementos permitidos | Estado | Regla |
 | --- | --- | --- | --- | --- |
-| Índice de auditorías activas | `docs/audit/README.md` | Las 4 auditorías Wave 0 enlazadas desde ese índice | Vigente | Punto de entrada documental de auditorías activas |
+| Índice de auditorías activas | `docs/audit/README.md` | Las 4 auditorías Wave 0 enlazadas desde ese índice y documentos rectores enterprise vigentes | Vigente | Punto de entrada documental de auditorías activas |
 | Visual/frontend total | `docs/audit/total-visual-engineering-audit.md` | `docs/audit/design-system-contract.md`, `docs/audit/total-engineering-roadmap.md` | Vigente | Gobierna visual/frontend, tokens, CSS, primitivas, dashboards, no-scroll y PR-VIS-* |
 | Ingeniería dura total | `docs/audit/total-software-engineering-audit.md` | `docs/audit/total-engineering-roadmap.md` | Vigente | Gobierna backend, DB, seguridad, CI, testing, observabilidad y PRs ENG/SEC/OBS/LINT/COV |
 | Roadmap integrado total | `docs/audit/total-engineering-roadmap.md` | `docs/audit/total-visual-engineering-audit.md`, `docs/audit/total-software-engineering-audit.md` | Vigente | Orquesta secuencia, dependencias, fases, gates y trazabilidad VIS + ENG |
@@ -26,25 +40,30 @@ Regla principal:
 | Readiness enterprise de ingeniería | `docs/audit/vetneb-enterprise-engineering-readiness-audit.md` | `docs/audit/vetneb-supreme-system-level-alignment-plan.md` | Vigente | Usar para gaps enterprise, testing, observabilidad, performance y arquitectura |
 | Readiness multinacional extrema | `docs/audit/vetneb-extreme-multinational-enterprise-readiness-audit.md` | `docs/audit/vetneb-supreme-system-level-alignment-plan.md` | Vigente | Usar para P0/P1 de gobernanza, seguridad, SRE, datos y confianza ejecutiva |
 | Alineación sistémica superior | `docs/audit/vetneb-supreme-system-level-alignment-plan.md` | Las otras 3 auditorías Wave 0 | Vigente | Usar para reconciliar prioridades, dependencias, waves y PR families |
-| Enterprise control register | `docs/governance/enterprise-control-register.md` | `docs/audit/enterprise-repository-maturity-baseline.md`, `docs/audit/enterprise-repository-gap-register.md` | Vigente operativo | Fuente de verdad operativa viva para conocer el estado actual de controles enterprise con evidencia |
+| Enterprise repository maturity audit and roadmap | `docs/audit/enterprise-repository-maturity-audit-roadmap.md` | `docs/governance/enterprise-control-register.md`, `docs/ops/CI_PR_CHECKS_RUNBOOK.md`, `docs/architecture/rls-tenant-isolation-adr.md` | Vigente rector | Auditoría global, diagnóstico, scorecard, brechas P0/P1/P2/P3 y roadmap original de 39 PRs. Preserva trazabilidad; no reemplaza la secuencia ejecutable del Plan B |
+| Enterprise roadmap consolidation plan | `docs/audit/enterprise-roadmap-consolidation-plan.md` | `docs/audit/enterprise-repository-maturity-audit-roadmap.md`, `docs/governance/enterprise-control-register.md`, `docs/ops/CI_PR_CHECKS_RUNBOOK.md` | Vigente rector operativo | Secuencia ejecutable recomendada: Plan B de 18 PRs consolidados. Gobierna el orden de implementación sin reescribir el diagnóstico del roadmap global |
+| Enterprise control register | `docs/governance/enterprise-control-register.md` | `docs/audit/enterprise-repository-maturity-baseline.md`, `docs/audit/enterprise-repository-gap-register.md`, `docs/audit/enterprise-repository-maturity-audit-roadmap.md` | Vigente operativo | Fuente de verdad operativa viva para conocer el estado actual de controles enterprise con evidencia |
+| Enterprise technical debt | `docs/governance/technical-debt-register.md` | `docs/governance/enterprise-control-register.md`, `docs/governance/ownership-model.md`, `docs/audit/enterprise-repository-maturity-audit-roadmap.md` | Vigente operativo | Registro vivo de deuda verificable con owner, trigger y criterio de cierre; documentar deuda no cierra controles ni gaps |
 | Documentation lifecycle governance | `docs/governance/documentation-lifecycle-policy.md` | `docs/SOURCES_OF_TRUTH.md`, `docs/HISTORICAL_DOCUMENTATION.md`, `docs/governance/enterprise-control-register.md` | Vigente normativo | Gobierna creación, promoción, revisión, reclasificación, supersession, cierre y conservación histórica de documentos; no reemplaza fuentes rectoras por dominio. |
-| Enterprise repository maturity baseline | `docs/audit/enterprise-repository-maturity-baseline.md` | `docs/governance/enterprise-control-register.md`, `docs/audit/enterprise-repository-gap-register.md` | Snapshot histórico aprobado | Baseline de auditoría aprobado por PR #1436; histórico verificable; no usar como estado operativo mutable |
-| Enterprise repository gap register | `docs/audit/enterprise-repository-gap-register.md` | `docs/governance/enterprise-control-register.md`, `docs/audit/enterprise-repository-maturity-baseline.md` | Snapshot histórico aprobado | Backlog priorizado derivado del snapshot; evidencia de hallazgos a fecha de auditoría; no reescribir para simular cierres posteriores |
+| Enterprise repository maturity baseline | `docs/audit/enterprise-repository-maturity-baseline.md` | `docs/governance/enterprise-control-register.md`, `docs/audit/enterprise-repository-gap-register.md`, `docs/audit/enterprise-repository-maturity-audit-roadmap.md` | Snapshot histórico aprobado | Baseline de auditoría aprobado por PR #1436; histórico verificable; no usar como estado operativo mutable |
+| Enterprise repository gap register | `docs/audit/enterprise-repository-gap-register.md` | `docs/governance/enterprise-control-register.md`, `docs/audit/enterprise-repository-maturity-baseline.md`, `docs/audit/enterprise-repository-maturity-audit-roadmap.md` | Snapshot histórico aprobado | Backlog priorizado derivado del snapshot; evidencia de hallazgos a fecha de auditoría; no reescribir para simular cierres posteriores |
 | Protocolo operativo de agentes | `AGENTS.md` | `docs/protocol/vetneb-ai-working-protocol.md`, `.cursor/rules/*` | Vigente | `AGENTS.md` manda; reglas derivadas no deben contradecirlo |
 | Gobernanza / ADR / RFC / ownership | `docs/governance/README.md` | `docs/governance/adr-template.md`, `docs/governance/rfc-change-control-template.md`, `docs/governance/ownership-model.md`, `docs/governance/pr-readiness-review-checklist.md` | Vigente | Usar antes de cambios estructurales, mixed-scope, ownership ambiguo o decisiones duraderas |
 | PR readiness / scope discipline | `docs/governance/pr-readiness-review-checklist.md` | `docs/governance/ownership-model.md`, `docs/qa/regression-strategy.md` | Vigente | Usar antes de crear PR, antes de push y antes de merge |
+| Review y merge governance | `docs/review-governance.md` | `.github/PULL_REQUEST_TEMPLATE.md`, `docs/governance/ownership-model.md`, `docs/ops/CI_PR_CHECKS_RUNBOOK.md` | Vigente complementario | Interpreta el modelo single-maintainer; la configuración efectiva de GitHub y los checks reales prevalecen para enforcement |
 | QA / flaky tests / regression strategy | `docs/qa/README.md` | `docs/qa/flaky-test-policy.md`, `docs/qa/regression-strategy.md` | Vigente | Usar para clasificar fallos, elegir validaciones y evitar fixes improvisados |
 | Flaky tests | `docs/qa/flaky-test-policy.md` | `docs/qa/regression-strategy.md` | Vigente | No llamar flaky a una regresión determinística; exigir evidencia, owner y plan |
 | Regression strategy | `docs/qa/regression-strategy.md` | `frontend/package.json`, `package.json`, `docs/ops/CI_PR_CHECKS_RUNBOOK.md` | Vigente | Elegir validaciones por riesgo real del PR, no por costumbre |
 | Release / go-no-go / deployment readiness | `docs/release/README.md` | `docs/release/release-go-no-go-policy.md`, `docs/release-readiness.md`, `docs/ops/BACKUP_RESTORE_ROLLBACK.md` | Vigente | Usar antes de releases, cambios productivos o decisiones go/no-go |
 | Rollback / backup / restore operativo | `docs/ops/BACKUP_RESTORE_ROLLBACK.md` | `docs/release/release-go-no-go-policy.md`, `docs/production-readiness-evidence.md` | Vigente | Usar para rollback triggers, restore drills, evidencia sanitizada y operaciones productivas |
-| CI / PR checks runbook | `docs/ops/CI_PR_CHECKS_RUNBOOK.md` | `docs/qa/regression-strategy.md`, `docs/governance/pr-readiness-review-checklist.md` | Vigente | Usar para checks de PR, merge y limpieza local |
+| CI / PR checks runbook | `docs/ops/CI_PR_CHECKS_RUNBOOK.md` | `docs/qa/regression-strategy.md`, `docs/governance/pr-readiness-review-checklist.md`, `docs/audit/enterprise-repository-maturity-audit-roadmap.md` | Vigente | Usar para checks de PR, merge y limpieza local; debe alinearse con required checks reales |
 | CI / E2E layering | `docs/audit/e2e-ci-layering-strategy-audit.md` | `frontend/package.json`, `docs/ops/CI_PR_CHECKS_RUNBOOK.md`, `docs/qa/regression-strategy.md` | Vigente parcial | PR-C1 y PR-C2 cerrados; antes de PR-C3 validar unión de capas == full |
 | Dashboard Admin horizontal-nav | `docs/audit/dashboard-horizontal-navigation-information-architecture.md` | `docs/implementation/dashboard-horizontal-shell-navigation.md` | Vigente en curso | No mezclar con ordenamiento documental ni con PRs enterprise foundation |
 | Dashboard mobile/admin density | `docs/audit/admin-mobile-density-closeout.md` | Closeouts y auditorías admin-mobile relacionadas | Cerrado | No re-auditar de cero salvo regresión visual nueva |
-| Seguridad / sesiones / superficie pública | `docs/security/*` | Tests `security-*`, `auth-*`, matrices RBAC/endpoints/CSP | Vigente estable | Usar para invariantes; PR-S1 debe ser auditoría enfocada antes de tocar auth/API |
-| Tenant isolation / decisión arquitectónica RLS | `docs/architecture/rls-tenant-isolation-adr.md` | `docs/security/rls-enforcement-matrix.md`, `docs/governance/enterprise-control-register.md` (ERM-CTRL-018) | Vigente | Fuente de la decisión de gobernanza RLS (Accepted): adopta RLS incremental como defensa en profundidad manteniendo el scoping aplicativo obligatorio. No afirma RLS runtime activo ni cierra evidencia cross-tenant. Diferenciar de las matrices operativas de seguridad, de las auditorías históricas, del gap register histórico, de la evidencia runtime y de `docs/security/*` como invariantes. |
-| Operación / production readiness | `docs/ops/*` | `docs/release/README.md`, `docs/release-readiness.md`, `docs/production-readiness-evidence.md` | Vigente | Usar para runbooks operativos; no mezclar con CI-only ni deploy changes |
+| Seguridad / sesiones / superficie pública | `docs/security/*` | Tests `security-*`, `auth-*`, matrices RBAC/endpoints/CSP, `docs/audit/enterprise-repository-maturity-audit-roadmap.md` | Vigente estable | Usar para invariantes; para brechas P0/P1 enterprise leer también el roadmap de madurez |
+| Invariantes de regresión productiva cerradas | `docs/PRODUCTION_PROGRESS_INVARIANTS.md` | `test/progress-production-invariants.test.ts`, fuentes vigentes del dominio afectado | Vigente acotado | Preserva contratos de regresión ya cerrados; no usar como roadmap ni backlog nuevo |
+| Tenant isolation / decisión arquitectónica RLS | `docs/architecture/rls-tenant-isolation-adr.md` | `docs/security/rls-enforcement-matrix.md`, `docs/governance/enterprise-control-register.md` (ERM-CTRL-018), `docs/audit/enterprise-repository-maturity-audit-roadmap.md` | Vigente | Fuente de la decisión de gobernanza RLS (Accepted): adopta RLS incremental como defensa en profundidad manteniendo el scoping aplicativo obligatorio. No afirma RLS runtime activo ni cierra evidencia cross-tenant. Diferenciar de las matrices operativas de seguridad, de las auditorías históricas, del gap register histórico, de la evidencia runtime y de `docs/security/*` como invariantes. |
+| Operación / production readiness | `docs/ops/*` | `docs/release/README.md`, `docs/release-readiness.md`, `docs/production-readiness-evidence.md`, `docs/audit/enterprise-repository-maturity-audit-roadmap.md` | Vigente | Usar para runbooks operativos; no mezclar con CI-only ni deploy changes |
 | Implementaciones recientes | `docs/implementation/*` | Subconjunto histórico/secundario `IMPLEMENTATION_*` / `IMPLEMENTACION-PR-*` en el mismo árbol (ex `IMPLEMENTATION_NOTES/` + `docs/implementation-history/`, consolidados por PR-CLEAN2) | Referencia secundaria | Leer solo si el dominio lo exige; no usar como fuente primaria si hay closeout/auditoría vigente |
 
 ## Consolidación documental PR-CLEAN2 (2026-06-28)
@@ -67,14 +86,17 @@ carpetas viejas ya no existen; el detalle archivo-por-archivo está en
 Para controles enterprise, leer en este orden:
 
 1. `docs/SOURCES_OF_TRUTH.md`
-2. `docs/governance/enterprise-control-register.md`
-3. `docs/audit/enterprise-repository-maturity-baseline.md` y `docs/audit/enterprise-repository-gap-register.md` para trazabilidad histórica
-4. Evidencia específica del control, dominio o configuración
+2. `docs/audit/enterprise-repository-maturity-audit-roadmap.md`
+3. `docs/audit/enterprise-roadmap-consolidation-plan.md`
+4. `docs/governance/enterprise-control-register.md`
+5. `docs/audit/enterprise-repository-maturity-baseline.md` y `docs/audit/enterprise-repository-gap-register.md` para trazabilidad histórica
+6. Evidencia específica del control, dominio o configuración
 
 El orden de lectura no reemplaza las fuentes rectoras existentes de frontend, backend, seguridad,
-datos, release u operación. El baseline es un snapshot de auditoría aprobado e histórico verificable;
-el gap register es un backlog priorizado derivado del snapshot; el control register es la fuente viva
-para el estado operativo vigente de controles enterprise.
+datos, release u operación. El roadmap enterprise conserva el diagnóstico y el roadmap original;
+el plan consolidado gobierna la ejecución por bloques del Plan B; el control register gobierna el
+estado operativo vivo. El baseline y el gap register son snapshots históricos aprobados y no se
+reescriben para representar cierres posteriores.
 
 ## Reglas de lectura para futuras auditorías
 
@@ -105,16 +127,16 @@ Antes de auditar o implementar:
 | PR-QA1 | docs-only | Política QA/flaky/regression en `docs/qa/*` |
 | PR-REL1 | docs-only | Política release/go-no-go en `docs/release/*` |
 
-## Próximo orden recomendado
+## Secuencia operativa vigente
 
-| Orden | PR | Tipo | Objetivo |
-| --- | --- | --- | --- |
-| 1 | PR-C3 | CI-only | Usar capas E2E en CI sin pérdida de cobertura, después de validación local |
-| 2 | PR-S1 | docs-only | Auditoría enfocada de seguridad, sesiones, tenant isolation y RLS |
-| 3 | PR-OBS1 | docs-only | Baseline de observabilidad, SLOs y runbook de incidentes |
-| 4 | PR-DATA1 | docs-only | Auditoría enfocada de datos, backup/restore drills, retention y evidencia sanitizada |
-| 5 | PR-DEPS1 | docs-only | Estrategia para Dependabot sin mezclar updates con cambios funcionales |
+La secuencia ejecutable recomendada es el
+[Plan B de 18 PRs consolidados](./audit/enterprise-roadmap-consolidation-plan.md).
+`PR-AUDIT-ENTERPRISE-DOCS` es el bloque 1. Tras su cierre, el siguiente bloque es
+`PR-SEC-REPO-SETTINGS`; las prioridades, dependencias y separaciones de riesgo se leen en el
+plan consolidado, no reconstruyendo backlog desde el roadmap original ni desde closeouts
+históricos.
 
 ## Estado
 
-Este mapa queda actualizado por PR-SOT1 después de PR-GOV1, PR-QA1 y PR-REL1.
+Este mapa incorpora la precedencia explícita entre auditoría global, Plan B, estado operativo vivo
+y snapshots históricos para `PR-AUDIT-ENTERPRISE-DOCS`.
