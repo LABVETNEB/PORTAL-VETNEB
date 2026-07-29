@@ -9,12 +9,12 @@ Mapa vigente de fuentes de verdad documentales del proyecto VETNEB.
 | Lifecycle status | ACTIVE |
 | Authoritative source role | Mapa primario de fuentes vigentes por dominio |
 | Effective date | 2026-07-28 |
-| Last verified date | 2026-07-28 |
+| Last verified date | 2026-07-29 |
 | Review cadence | Mensual y ante cambios de autoridad documental |
 | Supersedes | Ninguno |
 | Superseded by | Ninguno |
 | Related controls or gaps | `ERM-CTRL-004`; `ERM-DOC-002` |
-| Evidence or approval reference | Árbol del repositorio y configuración GitHub verificados para `PR-AUDIT-ENTERPRISE-DOCS` |
+| Evidence or approval reference | Árbol del repositorio y configuración GitHub verificados para `PR-AUDIT-ENTERPRISE-DOCS`; fuentes propuestas de `PR-SEC-REPO-SETTINGS` verificadas localmente el 2026-07-29 |
 
 ## Propósito
 
@@ -65,6 +65,15 @@ Regla principal:
 | Tenant isolation / decisión arquitectónica RLS | `docs/architecture/rls-tenant-isolation-adr.md` | `docs/security/rls-enforcement-matrix.md`, `docs/governance/enterprise-control-register.md` (ERM-CTRL-018), `docs/audit/enterprise-repository-maturity-audit-roadmap.md` | Vigente | Fuente de la decisión de gobernanza RLS (Accepted): adopta RLS incremental como defensa en profundidad manteniendo el scoping aplicativo obligatorio. No afirma RLS runtime activo ni cierra evidencia cross-tenant. Diferenciar de las matrices operativas de seguridad, de las auditorías históricas, del gap register histórico, de la evidencia runtime y de `docs/security/*` como invariantes. |
 | Operación / production readiness | `docs/ops/*` | `docs/release/README.md`, `docs/release-readiness.md`, `docs/production-readiness-evidence.md`, `docs/audit/enterprise-repository-maturity-audit-roadmap.md` | Vigente | Usar para runbooks operativos; no mezclar con CI-only ni deploy changes |
 | Implementaciones recientes | `docs/implementation/*` | Subconjunto histórico/secundario `IMPLEMENTATION_*` / `IMPLEMENTACION-PR-*` en el mismo árbol (ex `IMPLEMENTATION_NOTES/` + `docs/implementation-history/`, consolidados por PR-CLEAN2) | Referencia secundaria | Leer solo si el dominio lo exige; no usar como fuente primaria si hay closeout/auditoría vigente |
+
+## Fuentes propuestas pendientes de aprobación
+
+Estas fuentes se registran para revisión sin promoverlas antes de aprobación y
+merge. Mientras mantengan lifecycle `PROPOSED`, no desplazan fuentes `ACTIVE`.
+
+| Dominio | Fuente propuesta | Complemento | Estado | Promoción esperada |
+| --- | --- | --- | --- | --- |
+| Exposición pública de documentación de seguridad | `docs/security/public-repository-exposure-profile.md` | `docs/audit/pr-sec-repo-settings-audit.md`, `docs/security/*`, `docs/audit/enterprise-repository-maturity-audit-roadmap.md` | `PROPOSED` | Promover a `ACTIVE` tras aprobación y merge de la fase documental de `PR-SEC-REPO-SETTINGS` |
 
 ## Consolidación documental PR-CLEAN2 (2026-06-28)
 
@@ -139,4 +148,5 @@ históricos.
 ## Estado
 
 Este mapa incorpora la precedencia explícita entre auditoría global, Plan B, estado operativo vivo
-y snapshots históricos para `PR-AUDIT-ENTERPRISE-DOCS`.
+y snapshots históricos. También registra, sin promoción anticipada, el perfil público y la
+auditoría propuestos para `PR-SEC-REPO-SETTINGS`.
