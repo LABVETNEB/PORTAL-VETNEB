@@ -1,7 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { execFileSync } from "node:child_process";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 
 const workflowPath = resolve(
   process.cwd(),
@@ -12,6 +20,89 @@ const workflowPath = resolve(
 
 function readWorkflow(): string {
   return readFileSync(workflowPath, "utf8").replace(/\r\n/g, "\n");
+}
+
+function runGit(repository: string, args: readonly string[]): string {
+  return execFileSync("git", [...args], {
+    cwd: repository,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  }).trim();
+}
+
+function initializeFixtureRepository(repository: string): void {
+  runGit(repository, ["init", "-b", "main"]);
+
+  const disabledHooksPath = resolve(repository, ".git", "disabled-hooks");
+  mkdirSync(disabledHooksPath, { recursive: true });
+
+  runGit(repository, ["config", "--local", "commit.gpgSign", "false"]);
+  runGit(repository, [
+    "config",
+    "--local",
+    "core.hooksPath",
+    ".git/disabled-hooks",
+  ]);
+  runGit(repository, ["config", "--local", "user.name", "VETNEB CI Test"]);
+  runGit(repository, [
+    "config",
+    "--local",
+    "user.email",
+    "ci-test@invalid.local",
+  ]);
+
+  assert.equal(
+    runGit(repository, ["config", "--local", "--get", "commit.gpgSign"]),
+    "false",
+  );
+  assert.equal(
+    runGit(repository, ["config", "--local", "--get", "core.hooksPath"]),
+    ".git/disabled-hooks",
+  );
+}
+
+function commitFile(
+  repository: string,
+  relativePath: string,
+  content: string,
+  message: string,
+): string {
+  const absolutePath = resolve(repository, relativePath);
+
+  mkdirSync(dirname(absolutePath), { recursive: true });
+  writeFileSync(absolutePath, content, "utf8");
+  runGit(repository, ["add", "--", relativePath]);
+  runGit(repository, ["commit", "-m", message]);
+
+  return runGit(repository, ["rev-parse", "HEAD"]);
+}
+
+function changedFiles(
+  repository: string,
+  fromCommit: string,
+  toCommit: string,
+): string[] {
+  return execFileSync(
+    "git",
+    [
+      "diff",
+      "--name-only",
+      "-z",
+      "--diff-filter=ACDMRTUXB",
+      fromCommit,
+      toCommit,
+    ],
+    { cwd: repository, encoding: "utf8" },
+  )
+    .split("\0")
+    .filter(Boolean);
+}
+
+function shouldRunBackend(changedPaths: readonly string[]): boolean {
+  return changedPaths.some(
+    (changedPath) =>
+      !changedPath.startsWith("docs/") && !changedPath.endsWith(".md"),
+  );
 }
 
 function assertContains(source: string, expected: string): void {
@@ -125,9 +216,83 @@ test("Backend CI detecta impacto con rango PR seguro, push pesado y fallo cerrad
   assertContains(detector, 'git cat-file -e "${HEAD_SHA}^{commit}"');
   assertContains(
     detector,
-    'git diff --name-only -z --diff-filter=ACDMRTUXB "$BASE_SHA" "$HEAD_SHA" > "$changed_file_list"',
+    'if ! MERGE_BASE="$(git merge-base "$BASE_SHA" "$HEAD_SHA")"; then',
+  );
+  assertContains(
+    detector,
+    'if [[ ! "$MERGE_BASE" =~ ^[0-9a-f]{40}$ ]]; then',
+  );
+  assertContains(detector, 'git cat-file -e "${MERGE_BASE}^{commit}"');
+  assertContains(
+    detector,
+    'git diff --name-only -z --diff-filter=ACDMRTUXB "$MERGE_BASE" "$HEAD_SHA" > "$changed_file_list"',
+  );
+  assertNotContains(
+    detector,
+    'git diff --name-only -z --diff-filter=ACDMRTUXB "$BASE_SHA" "$HEAD_SHA"',
   );
   assertNotContains(detector, "continue-on-error");
+});
+
+test("Backend CI excluye cambios exclusivos de una base que avanzó", () => {
+  const repository = mkdtempSync(join(tmpdir(), "vetneb-backend-ci-"));
+
+  try {
+    initializeFixtureRepository(repository);
+
+    const commonCommit = commitFile(
+      repository,
+      "README.md",
+      "common\n",
+      "common commit",
+    );
+
+    runGit(repository, ["switch", "-c", "docs-only"]);
+    runGit(repository, ["switch", "main"]);
+    const baseSha = commitFile(
+      repository,
+      "server/base-only.ts",
+      "export const baseOnly = true;\n",
+      "advance main",
+    );
+
+    runGit(repository, ["switch", "docs-only"]);
+    const docsHeadSha = commitFile(
+      repository,
+      "docs/pull-request.md",
+      "# Pull request\n",
+      "docs-only change",
+    );
+
+    const directRangeFiles = changedFiles(repository, baseSha, docsHeadSha);
+    assert.ok(directRangeFiles.includes("server/base-only.ts"));
+
+    const mergeBase = runGit(repository, [
+      "merge-base",
+      baseSha,
+      docsHeadSha,
+    ]);
+    assert.equal(mergeBase, commonCommit);
+
+    const pullRequestFiles = changedFiles(
+      repository,
+      mergeBase,
+      docsHeadSha,
+    );
+    assert.deepEqual(pullRequestFiles, ["docs/pull-request.md"]);
+    assert.equal(shouldRunBackend(pullRequestFiles), false);
+
+    const backendHeadSha = commitFile(
+      repository,
+      "server/pull-request.ts",
+      "export const pullRequestChange = true;\n",
+      "backend change",
+    );
+    const backendFiles = changedFiles(repository, mergeBase, backendHeadSha);
+    assert.equal(shouldRunBackend(backendFiles), true);
+  } finally {
+    rmSync(repository, { recursive: true, force: true });
+  }
 });
 
 test("Backend CI omite docs y Markdown pero solicita heavy para cualquier otro archivo", () => {

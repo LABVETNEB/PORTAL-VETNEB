@@ -64,8 +64,23 @@ jobs:
           git cat-file -e "${BASE_SHA}^{commit}"
           git cat-file -e "${HEAD_SHA}^{commit}"
 
+          if ! MERGE_BASE="$(git merge-base "$BASE_SHA" "$HEAD_SHA")"; then
+            echo "Unable to determine pull request merge base." >&2
+            exit 1
+          fi
+
+          if [[ ! "$MERGE_BASE" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Invalid pull request merge base." >&2
+            exit 1
+          fi
+
+          if ! git cat-file -e "${MERGE_BASE}^{commit}"; then
+            echo "Pull request merge base commit is unavailable." >&2
+            exit 1
+          fi
+
           changed_file_list="${RUNNER_TEMP}/backend-changed-files"
-          git diff --name-only -z --diff-filter=ACDMRTUXB "$BASE_SHA" "$HEAD_SHA" > "$changed_file_list"
+          git diff --name-only -z --diff-filter=ACDMRTUXB "$MERGE_BASE" "$HEAD_SHA" > "$changed_file_list"
 
           should_run=false
           while IFS= read -r -d '' changed_path; do
