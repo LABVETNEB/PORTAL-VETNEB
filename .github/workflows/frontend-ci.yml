@@ -13,12 +13,6 @@ on:
   pull_request:
     branches:
       - main
-    paths:
-      - 'frontend/**'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
-      - 'package.json'
-      - '.github/workflows/frontend-ci.yml'
 
 permissions:
   contents: read
@@ -28,8 +22,66 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  detect-frontend-impact:
+    name: detect-frontend-impact
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      should_run: ${{ steps.detect.outputs.should_run }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - name: Detect frontend impact
+        id: detect
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$EVENT_NAME" == "push" ]]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ "$EVENT_NAME" != "pull_request" ]]; then
+            echo "Unsupported event: $EVENT_NAME" >&2
+            exit 1
+          fi
+
+          if [[ ! "$BASE_SHA" =~ ^[0-9a-f]{40}$ || ! "$HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Invalid pull request commit range." >&2
+            exit 1
+          fi
+
+          git cat-file -e "${BASE_SHA}^{commit}"
+          git cat-file -e "${HEAD_SHA}^{commit}"
+
+          changed_file_list="${RUNNER_TEMP}/frontend-changed-files"
+          git diff --name-only -z --diff-filter=ACDMRTUXB "$BASE_SHA" "$HEAD_SHA" > "$changed_file_list"
+
+          should_run=false
+          while IFS= read -r -d '' changed_path; do
+            case "$changed_path" in
+              frontend/*|pnpm-lock.yaml|pnpm-workspace.yaml|package.json|.github/workflows/frontend-ci.yml)
+                should_run=true
+                break
+                ;;
+            esac
+          done < "$changed_file_list"
+
+          echo "should_run=$should_run" >> "$GITHUB_OUTPUT"
+
   validate-frontend:
-    name: validate-frontend
+    name: frontend-heavy-validation
+    needs: detect-frontend-impact
+    if: ${{ needs.detect-frontend-impact.outputs.should_run == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -83,3 +135,40 @@ jobs:
           name: frontend-playwright-report
           path: frontend/playwright-report/
           if-no-files-found: ignore
+
+  frontend-check:
+    name: validate-frontend
+    needs:
+      - detect-frontend-impact
+      - validate-frontend
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Resolve frontend validation result
+        shell: bash
+        env:
+          DETECTOR_RESULT: ${{ needs.detect-frontend-impact.result }}
+          SHOULD_RUN: ${{ needs.detect-frontend-impact.outputs.should_run }}
+          HEAVY_RESULT: ${{ needs.validate-frontend.result }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$DETECTOR_RESULT" != "success" ]]; then
+            echo "Frontend impact detector did not succeed: $DETECTOR_RESULT" >&2
+            exit 1
+          fi
+
+          if [[ "$SHOULD_RUN" == "false" && "$HEAVY_RESULT" == "skipped" ]]; then
+            echo "Frontend validation was not required."
+            exit 0
+          fi
+
+          if [[ "$SHOULD_RUN" == "true" && "$HEAVY_RESULT" == "success" ]]; then
+            echo "Frontend validation succeeded."
+            exit 0
+          fi
+
+          echo "Unexpected frontend validation state: should_run=$SHOULD_RUN heavy=$HEAVY_RESULT" >&2
+          exit 1
