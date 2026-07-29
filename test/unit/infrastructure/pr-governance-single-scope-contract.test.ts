@@ -30,6 +30,8 @@ test("classifyPath maps repository paths to governed categories", () => {
   assert.equal(classifyPath("frontend/src/example.tsx"), "frontend");
   assert.equal(classifyPath("test/unit/example.test.ts"), "tests");
   assert.equal(classifyPath(".github/workflows/pr-governance.yml"), "workflows/CI");
+  assert.equal(classifyPath("scripts/governance/pr-governance-validator.mjs"), "workflows/CI");
+  assert.equal(classifyPath("scripts/governance/pr-governance-validator.d.mts"), "workflows/CI");
   assert.equal(classifyPath("scripts/governance/quality-gate-impact-policy.mjs"), "workflows/CI");
   assert.equal(classifyPath("scripts/governance/workflow-security-policy.mjs"), "workflows/CI");
   assert.equal(classifyPath("drizzle/0001_example.sql"), "database/migrations");
@@ -61,6 +63,31 @@ test("single backend scope passes with supporting docs and tests", () => {
   assert.deepEqual(result.failures, []);
   assert.deepEqual(result.primary, ["backend"]);
   assert.deepEqual(result.selected, ["backend"]);
+});
+
+test("PR governance runtime and declarations remain one workflow scope", () => {
+  const categories = [
+    ".github/PULL_REQUEST_TEMPLATE.md",
+    "scripts/governance/pr-governance-validator.d.mts",
+    "scripts/governance/pr-governance-validator.mjs",
+    "test/unit/infrastructure/pr-governance-architecture-decision-contract.test.ts",
+    "test/unit/infrastructure/pr-governance-secret-patterns-contract.test.ts",
+  ].map(classifyPath);
+  const result = evaluateScopeContract({
+    body: prBody(["- [x] workflows/ci"]),
+    categories,
+  });
+
+  assert.deepEqual(categories, [
+    "documentation",
+    "workflows/CI",
+    "workflows/CI",
+    "tests",
+    "tests",
+  ]);
+  assert.deepEqual(result.failures, []);
+  assert.deepEqual(result.primary, ["workflows/CI"]);
+  assert.deepEqual(result.selected, ["workflows/CI"]);
 });
 
 test("mixed backend and frontend scope fails without exception", () => {

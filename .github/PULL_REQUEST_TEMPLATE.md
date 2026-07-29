@@ -24,6 +24,15 @@ Select every affected **primary** scope. Documentation and tests that only suppo
 ## Other Scope Detail
 <!-- Required only when `other` is selected. Identify the paths and explain why no standard scope applies. Delete this comment and write the detail. -->
 
+## Architecture Decision
+<!-- Complete this section only when the Architecture Decision gate applies, then delete this comment. Select exactly one option. Reference must be a repository-relative Markdown link to an existing ADR/RFC under docs/. Justification must explain why the change does not alter architectural boundaries, the data model, composition, or governed workflow behavior. -->
+
+- [ ] ADR/RFC linked
+- [ ] Not applicable
+
+- Reference:
+- Justification:
+
 ## Validation
 - [ ] `pnpm typecheck`
 - [ ] `pnpm typecheck:test`
