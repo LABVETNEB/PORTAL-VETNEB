@@ -9,12 +9,12 @@
 | Lifecycle status | ACTIVE |
 | Authoritative source role | Índice operativo de auditorías activas |
 | Effective date | 2026-07-28 |
-| Last verified date | 2026-07-28 |
+| Last verified date | 2026-07-29 |
 | Review cadence | Mensual y ante nuevas auditorías rectoras |
 | Supersedes | Ninguno |
 | Superseded by | Ninguno |
 | Related controls or gaps | `ERM-CTRL-004`; `ERM-CTRL-005` |
-| Evidence or approval reference | Árbol documental verificado para `PR-AUDIT-ENTERPRISE-DOCS` |
+| Evidence or approval reference | Árbol documental verificado para `PR-AUDIT-ENTERPRISE-DOCS`; auditoría propuesta de `PR-SEC-REPO-SETTINGS` verificada localmente el 2026-07-29 |
 
 ## Criterio de vigencia
 
@@ -40,6 +40,12 @@ Los documentos históricos previos dentro de `docs/audit/` se conservan como ant
 3. El [Enterprise Control Register](../governance/enterprise-control-register.md) gobierna el
    estado operativo vivo de cada capability.
 4. El baseline y el gap register permanecen snapshots históricos inmutables.
+
+## Auditorías de bloque en revisión
+
+| Documento | Propósito operativo | Estado |
+| --- | --- | --- |
+| [pr-sec-repo-settings-audit.md](./pr-sec-repo-settings-audit.md) | Baseline sanitizada, elegibilidad por feature y decisión de exposición pública para el bloque 2 del Plan B. | `PROPOSED`; el bloque permanece abierto y sin mutaciones de settings |
 
 ## Documentos rectores recientes
 
@@ -82,7 +88,8 @@ Toda nueva auditoría que pretenda incorporarse al índice vigente debe cumplir 
 
 ## Próximo paso recomendado
 
-Completar `PR-AUDIT-ENTERPRISE-DOCS`, bloque 1 del Plan B. Tras su cierre, continuar con
-`PR-SEC-REPO-SETTINGS` según el
-[plan consolidado](./enterprise-roadmap-consolidation-plan.md). Los closeouts M01–M48 y los
-snapshots enterprise no se usan como backlog pendiente.
+Revisar la fase documental propuesta de `PR-SEC-REPO-SETTINGS` según el
+[plan consolidado](./enterprise-roadmap-consolidation-plan.md). El bloque no se cierra hasta
+aprobar la documentación y completar, bajo autorización R2 separada, las dos mutaciones
+elegibles con verificación independiente. Los closeouts M01–M48 y los snapshots enterprise no
+se usan como backlog pendiente.
