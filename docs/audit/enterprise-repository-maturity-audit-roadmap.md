@@ -13,13 +13,13 @@
 | Lifecycle status | ACTIVE |
 | Authoritative source role | Auditoría global, diagnóstico y roadmap original |
 | Effective date | 2026-07-28 |
-| Last verified date | 2026-07-28 |
+| Last verified date | 2026-07-29 |
 | Review cadence | Mensual y ante cambios materiales de controles enterprise |
 | Propósito | Auditoría y roadmap enterprise del repositorio |
 | Alcance | Gobernanza, documentación, PRs, tests, CI/CD, seguridad, datos, observabilidad, release, dependencias, calidad y operación |
 | No-scope | No modifica runtime, backend, frontend, DB, migraciones, dependencias, lockfiles, workflows ni configuración productiva |
 | Related controls or gaps | `ERM-CTRL-001..025`; gaps P0/P1/P2/P3 de este documento |
-| Evidence or approval reference | Auditoría original sobre `main@db1da94`; reconciliación documental `PR-AUDIT-ENTERPRISE-DOCS` |
+| Evidence or approval reference | Auditoría original sobre `main@db1da94`; reconciliación documental `PR-AUDIT-ENTERPRISE-DOCS`; PR #1593 y [closeout del bloque 03](./pr-sec-secret-patterns-audit.md) |
 
 He completado la auditoría. Baseline capturado: `main` limpio, HEAD `db1da94`, working tree sin cambios. **No modifiqué, moví ni creé ningún archivo**; solo lectura, inspección local y `gh api` de solo lectura.
 
@@ -30,6 +30,24 @@ La secuencia ejecutable recomendada vigente es el
 [Plan B de 18 PRs](./enterprise-roadmap-consolidation-plan.md). El
 [Enterprise Control Register](../governance/enterprise-control-register.md) gobierna el estado
 operativo vivo; el baseline y el gap register permanecen snapshots históricos y no se reescriben.
+
+## Estado operativo posterior — bloque 03
+
+El bloque 03 del Plan B, `PR-SEC-SECRET-PATTERNS`, quedó `CLOSED` el
+2026-07-29. PR #1593 integró la implementación técnica; #1594 y #1595
+demostraron las rutas positiva y negativa sanitizada de secret patterns; #1597,
+#1598 y #1599 demostraron las rutas positiva, negativa y no-trigger de
+`Architecture Decision`.
+
+El intento #1596 se conserva como evidencia de diseño: PR Governance pasó, pero
+el censo arquitectónico M48 rechazó el archivo nuevo. La canaria fue rediseñada
+en #1597 para preservar file count y LOC no vacías.
+
+La evidencia completa, los head SHAs, run IDs, conclusiones y cierre sin merge
+de todas las canarias se mantienen en
+[PR-SEC-SECRET-PATTERNS Audit](./pr-sec-secret-patterns-audit.md).
+`GAP-P0-3` y `ERM-ARC-001` quedan cerrados operativamente sin reescribir sus
+snapshots históricos. El bloque 04 permanece `NOT_RUN`.
 
 ---
 
@@ -294,6 +312,10 @@ Reglas transversales: un scope por PR; nada de `--fix` masivo; todo PR que toque
 | **PR-SEC-3** | ops-only | Ejecutar CT-01..CT-16 en staging con evidencia sanitizada | `docs/ops/CROSS_TENANT_SMOKE_EVIDENCE_RUNBOOK.md`, evidencia | Medio (requiere staging) | Runbook ejecutado | Acta con timestamp, commit/deploy, rol responsable, 0 secretos; cierra `ERM-SEC-001` |
 | **PR-RLS-1** | docs-only | Fase 1 del ADR: verificación externa del rol DB efectivo (`rolsuper`, `rolbypassrls`, ownership, pooler, transacciones) | `docs/security/rls-enforcement-matrix.md` | Bajo | Consultas de solo lectura a la DB | Matriz con hallazgos reales; GO/NO-GO para diseño de policies |
 | **PR-RLS-2** | data-only (R2/R3) | Piloto RLS en **una** tabla tenant-scoped con criterios de entrada/salida del ADR | `drizzle/migrations/00XX_*.sql` | **Alto** | `pnpm validate:local:schema`; smoke cross-tenant | Piloto con rollback probado; **requiere autorización explícita** |
+
+Estado posterior: `PR-SEC-1` y `PR-ARCH-1` fueron consolidados en el bloque 03,
+implementados por PR #1593 y cerrados con la matriz de canarias #1594–#1599.
+Ver [closeout del bloque 03](./pr-sec-secret-patterns-audit.md).
 
 ## Fase 4 — Data governance, backup/restore, RPO/RTO, DR
 

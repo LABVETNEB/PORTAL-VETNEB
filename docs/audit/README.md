@@ -14,7 +14,7 @@
 | Supersedes | Ninguno |
 | Superseded by | Ninguno |
 | Related controls or gaps | `ERM-CTRL-004`; `ERM-CTRL-005` |
-| Evidence or approval reference | Árbol documental verificado para `PR-AUDIT-ENTERPRISE-DOCS`; PR #1591 y closeout sanitizado de `PR-SEC-REPO-SETTINGS` verificados el 2026-07-29 |
+| Evidence or approval reference | Árbol documental verificado para `PR-AUDIT-ENTERPRISE-DOCS`; PR #1591 y closeout sanitizado de `PR-SEC-REPO-SETTINGS`; PR #1593 y closeout del bloque 03 verificados el 2026-07-29 |
 
 ## Criterio de vigencia
 
@@ -46,6 +46,7 @@ Los documentos históricos previos dentro de `docs/audit/` se conservan como ant
 | Documento | Propósito operativo | Estado |
 | --- | --- | --- |
 | [pr-sec-repo-settings-audit.md](./pr-sec-repo-settings-audit.md) | Baseline histórica, estado efectivo sanitizado, elegibilidad por feature y closeout del bloque 2 del Plan B. | `ACTIVE`; `PR-SEC-REPO-SETTINGS CLOSED` |
+| [pr-sec-secret-patterns-audit.md](./pr-sec-secret-patterns-audit.md) | Implementación técnica #1593, matriz completa de canarias #1594–#1599 y closeout de secret patterns más Architecture Decision. | `ACTIVE`; `PR-SEC-SECRET-PATTERNS CLOSED` |
 
 ## Documentos rectores recientes
 
@@ -86,10 +87,11 @@ Toda nueva auditoría que pretenda incorporarse al índice vigente debe cumplir 
 - Definir claramente si reemplaza, complementa o deja obsoleta una auditoría previa.
 - Mantener este README como punto de entrada documental actual.
 
-## Próximo paso recomendado
+## Estado de secuencia
 
-Preparar por separado `PR-SEC-SECRET-PATTERNS`, bloque 03 del
-[plan consolidado](./enterprise-roadmap-consolidation-plan.md). Su scope es ci-only, su riesgo
-es medio-alto, requiere autorización R2 específica y toca el validador requerido. No debe
-iniciarse dentro del closeout documental de `PR-SEC-REPO-SETTINGS`. Los closeouts M01–M48 y los
-snapshots enterprise no se usan como backlog pendiente.
+`PR-SEC-SECRET-PATTERNS`, bloque 03 del
+[plan consolidado](./enterprise-roadmap-consolidation-plan.md), está `CLOSED`.
+PR #1593 fue integrado; #1594–#1599 quedaron cerradas sin merge y sin ramas
+residuales. El bloque 04 permanece `NOT_RUN` y no se inicia ni autoriza desde
+este closeout. Los closeouts M01–M48 y los snapshots enterprise no se usan como
+backlog pendiente.
