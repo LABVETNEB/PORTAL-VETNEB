@@ -7,19 +7,19 @@
 | Lifecycle status | ACTIVE |
 | Authoritative source role | Mapa operativo de checks efectivos y criterios antes de merge |
 | Effective date | 2026-07-28 |
-| Last verified date | 2026-07-28 |
+| Last verified date | 2026-07-29 |
 | Review cadence | Mensual y ante cambios de workflows, jobs o branch protection |
 | Supersedes | Versión que documentaba un solo required check global |
 | Superseded by | Ninguno |
 | Related controls or gaps | `ERM-CTRL-013`; `ERM-CTRL-014`; `ERM-CI-001`; `ERM-CI-002` |
-| Evidence or approval reference | Workflows locales y branch protection de `main` consultada en modo read-only el 2026-07-28 |
+| Evidence or approval reference | PR #1601 y canarias #1602/#1603; workflows locales y branch protection de `main` verificadas en modo read-only |
 
 ## Objetivo
 
 Documentar cómo verificar los checks de GitHub Actions en pull requests de Portal VETNEB sin confundir:
 
 - el gate global requerido por branch protection;
-- workflows condicionales por paths;
+- workflows/contextos siempre presentes y jobs pesados condicionales por impacto;
 - integraciones externas que pueden aparecer como `SKIPPED`;
 - estados transitorios de GitHub CLI con ausencia real de CI.
 
@@ -29,10 +29,10 @@ Documentar cómo verificar los checks de GitHub Actions en pull requests de Port
 | --- | --- | --- | --- | --- |
 | `validate-pr-governance` | Required global | Todos los PR hacia `main` | Sí | `SUCCESS` antes de merge |
 | `qga-workflow-security` | Required global | Todos los PR hacia `main` | Sí | `SUCCESS` antes de merge |
-| `validate-backend` | Condicional por workflow | PR no docs-only alcanzados por Backend CI | No | `SUCCESS` cuando aplica |
-| `validate-frontend` | Condicional por paths | Frontend, manifests, workspace o su workflow | No | `SUCCESS` cuando aplica |
+| `validate-backend` | Contexto always-run | Todos los PR hacia `main`; heavy condicional por impacto | No | `SUCCESS` en todos los PR hacia `main` |
+| `validate-frontend` | Contexto always-run | Todos los PR hacia `main`; heavy condicional por impacto | No | `SUCCESS` en todos los PR hacia `main` |
 | Supabase Preview | Integración externa | Paths administrados por la integración | No | `SUCCESS` cuando aplica; `SKIPPED` legítimo cuando no aplica |
-| Required funcional backend/frontend | Check ausente | No configurado actualmente | No | No confundir intención futura con enforcement actual |
+| Required funcional backend/frontend | Branch protection pendiente | No configurado actualmente | No | No confundir presencia de contexto con enforcement required |
 
 La presencia de un workflow o job en el árbol no lo vuelve required. La fuente efectiva para esa
 clasificación es branch protection de `main`, verificada el 2026-07-28 con exactamente estos
@@ -92,12 +92,22 @@ política de seguridad de workflows; no reemplaza typecheck, tests, builds ni E2
 
 ## Backend CI
 
-Backend CI corre en pull requests hacia `main`, excepto cuando todo el diff queda cubierto por:
+Backend CI se crea en todos los pull requests hacia `main`. Su detector liviano
+`detect-backend-impact` separa la presencia estable del contexto de la ejecución del job pesado:
 
-- `docs/**`;
-- `**/*.md`.
+```text
+docs-only:
+  detect-backend-impact: success
+  backend-heavy-validation: skipped
+  validate-backend: success
 
-También corre en push hacia `main` y hacia ramas:
+cambio no documental/backend:
+  detect-backend-impact: success
+  backend-heavy-validation: ejecutado
+  validate-backend: refleja el resultado del heavy
+```
+
+También soporta push hacia `main` y hacia ramas:
 
 - `chore/**`;
 - `feat/**`;
@@ -107,14 +117,13 @@ También corre en push hacia `main` y hacia ramas:
 - `test/**`;
 - `codex/**`.
 
-Por eso, en algunas ramas puede aparecer `validate-backend` dos veces:
+En push, el detector fija impacto verdadero y ejecuta el heavy. Por eso, en algunas ramas puede
+aparecer `validate-backend` dos veces:
 
 - evento `push`;
 - evento `pull_request`.
 
-Cuando corresponde, el job debe finalizar en `SUCCESS`.
-
-Backend CI ejecuta:
+`backend-heavy-validation` ejecuta:
 
 1. instalación con lockfile congelado;
 2. auditoría de dependencias;
@@ -124,12 +133,14 @@ Backend CI ejecuta:
 6. `pnpm test`;
 7. `pnpm build`.
 
-Un PR docs-only puede omitir Backend CI por diseño. Esa omisión no equivale a fallo mientras
-ambos required globales estén presentes y verdes.
+El contexto final `validate-backend` usa `if: always()` y falla de forma cerrada si el detector
+no termina en `success`, si el heavy no refleja el impacto detectado o si aparece cualquier
+combinación de estados inesperada. Postgres existe únicamente dentro del heavy.
 
 ## Frontend CI
 
-Frontend CI corre en pull requests hacia `main` cuando cambian:
+Frontend CI se crea en todos los pull requests hacia `main`. El detector
+`detect-frontend-impact` activa `frontend-heavy-validation` cuando cambian:
 
 - `frontend/**`;
 - `pnpm-lock.yaml`;
@@ -137,11 +148,24 @@ Frontend CI corre en pull requests hacia `main` cuando cambian:
 - `package.json`;
 - `.github/workflows/frontend-ci.yml`.
 
-También corre en push hacia `main` para esos mismos paths.
+Comportamiento:
 
-Cuando corresponde, `validate-frontend` debe finalizar en `SUCCESS`.
+```text
+sin impacto frontend:
+  detect-frontend-impact: success
+  frontend-heavy-validation: skipped
+  validate-frontend: success
 
-Frontend CI ejecuta:
+con impacto frontend:
+  detect-frontend-impact: success
+  frontend-heavy-validation: ejecutado
+  validate-frontend: refleja el resultado del heavy
+```
+
+En push hacia `main`, el workflow conserva los filtros de paths listados y el heavy se ejecuta
+cuando el workflow es disparado.
+
+`frontend-heavy-validation` ejecuta:
 
 1. instalación con lockfile congelado;
 2. lint frontend;
@@ -151,7 +175,8 @@ Frontend CI ejecuta:
 6. suites E2E estratificadas;
 7. artifact Playwright solo ante failure.
 
-Un PR sin paths frontend/dependencias puede omitir Frontend CI por diseño.
+El contexto final `validate-frontend` usa `if: always()` y aplica la misma propagación
+fail-closed. Playwright y su artifact de failure existen únicamente dentro del heavy.
 
 ## Semántica docs-only
 
@@ -159,11 +184,14 @@ Cuando todo el diff queda bajo `docs/**` o termina en `.md`:
 
 - `validate-pr-governance` y `qga-workflow-security` siguen siendo required y deben terminar en
   `SUCCESS`;
-- `validate-backend` puede estar ausente por `paths-ignore`;
-- `validate-frontend` puede estar ausente porque sus paths no fueron alcanzados;
+- `validate-backend` está presente en `SUCCESS` con detector exitoso y Backend heavy `skipped`;
+- `validate-frontend` está presente en `SUCCESS` con detector exitoso y Frontend heavy `skipped`;
 - Supabase Preview puede estar ausente o `SKIPPED` si la integración no aplica;
 - cualquier check presente que falle sigue siendo bloqueante: docs-only no convierte un fallo en
   skip legítimo.
+
+Un heavy `skipped` solo es legítimo cuando su detector concluye `impact=false` y el contexto final
+termina en `SUCCESS`.
 
 ## Supabase Preview
 
@@ -205,8 +233,8 @@ Se puede considerar el merge solamente cuando:
 - `qga-workflow-security` está en `SUCCESS`;
 - no hay checks aplicables en `QUEUED` o `IN_PROGRESS`;
 - no hay checks aplicables en `FAILURE`, `CANCELLED` o `TIMED_OUT`;
-- `validate-backend` está en `SUCCESS` cuando corresponde;
-- `validate-frontend` está en `SUCCESS` cuando corresponde;
+- `validate-backend` está presente y en `SUCCESS`;
+- `validate-frontend` está presente y en `SUCCESS`;
 - Supabase Preview puede estar `SKIPPED` cuando no aplica;
 - el PR sigue abierto, no es draft y apunta a `main`;
 - el head SHA verificado coincide con el SHA que se va a fusionar;
@@ -218,8 +246,9 @@ No mergear si ocurre cualquiera de estos casos:
 
 - `validate-pr-governance` o `qga-workflow-security` ausente o no exitoso;
 - check aplicable pendiente o fallido;
-- `validate-backend` o `validate-frontend` ausente cuando los paths indican que debía disparar,
-  hasta diagnosticar el routing;
+- `validate-backend` o `validate-frontend` ausente en cualquier PR hacia `main`;
+- heavy `skipped` cuando el detector no concluyó `impact=false` o el contexto final no termina
+  en `SUCCESS`;
 - head SHA cambió después de la revisión;
 - aparecieron archivos fuera de scope;
 - el PR está detrás de `main` y la política vigente exige actualización;
@@ -299,7 +328,9 @@ gh pr view $prNumber `
 ## Regla operativa
 
 - No usar comandos finales con placeholders.
-- No tratar un check condicional ausente como fallo sin revisar sus paths.
+- Tratar `validate-backend` o `validate-frontend` ausente como anomalía bloqueante y diagnosticar
+  el routing.
+- Diferenciar siempre el workflow/contexto presente del job pesado condicional.
 - No tratar `mergeable` como equivalente a cumplimiento de branch protection.
 - No usar `--admin` para eludir gates.
 - No usar `git reset --hard` como cleanup estándar.
@@ -312,5 +343,6 @@ gh pr view $prNumber `
 - [Workflow Security Validator](../../scripts/governance/workflow-security-validator.mjs)
 - [CI/CD Pipeline Governance implementation closeout](../implementation/ci-pipeline-governance-closeout.md)
 - [CI/CD Pipeline Governance closeout audit](../audit/ci-pipeline-governance-closeout-audit.md)
+- [PR-CI-ALWAYS-RUN-GATES closeout audit](../audit/pr-ci-always-run-gates-audit.md)
 - [Branch Protection Governance implementation closeout](../implementation/branch-protection-governance-closeout.md)
 - [Review Governance](../review-governance.md)
