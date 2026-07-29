@@ -4,7 +4,7 @@ import { createFastifyApp } from "./fastify-app.ts";
 import { ENV } from "./lib/env.ts";
 import { preflight } from "./preflight.ts";
 
-async function closeResources() {
+async function closeResources(): Promise<void> {
   await closeDbConnection();
 }
 
