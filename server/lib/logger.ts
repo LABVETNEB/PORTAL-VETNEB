@@ -1,4 +1,4 @@
-export function logInfo(...args: any[]) {
+export function logInfo(...args: any[]): void {
   console.log('[INFO]', ...args);
 }
 
