@@ -79,8 +79,8 @@ const mutableActionReferences = [
 
 const canonicalWorkflowDigests = new Map<string, string>([
   [".github/workflows/app-version-force-update.yml", "25c69fb58364b709395f0ee920560845a83941eeb86efdd759a69af5f880d701"],
-  [".github/workflows/backend-ci.yml", "aa70fb1e91bc4527819f778b65e19f24e4a2a9a4311033f968323014d3e5e629"],
-  [".github/workflows/frontend-ci.yml", "58258646ff64fcf4a71433f879a41bac59cbcdef306d5bab92417f3f08699476"],
+  [".github/workflows/backend-ci.yml", "cfb2eeb59d24cf12bdca161b3f1bfeea420416bd6d2f7e8c0f885f5e8042f4e6"],
+  [".github/workflows/frontend-ci.yml", "f84f9744494ca5c0ca6d58dfea4fe132aa6149134a60cedb2e604378ec2ff5cf"],
   [".github/workflows/pr-governance.yml", "4e0bf177a8581c9dd655f1ca6aa1510a823cdd976c885c4ba50b41129e4157d7"],
   [".github/workflows/qga-governance.yml", "88ed322d67eda6fbec0a7ed0fa106625a43263a4d6998d6eceb24aeee389b393"],
   [".github/workflows/visual-regression-manual.yml", "86784fe26f1f15e2ae6fb60ee8c26ef050f311bcebab72a2e1732739e035fee9"],

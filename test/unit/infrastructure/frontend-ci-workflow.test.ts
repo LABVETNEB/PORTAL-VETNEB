@@ -49,60 +49,134 @@ function assertOrdered(source: string, expectedItems: readonly string[]): void {
   }
 }
 
-function getEventBlock(source: string, eventName: string): string {
-  const eventHeader = `  ${eventName}:\n`;
-  const eventStart = source.indexOf(eventHeader);
+function getTopLevelBlock(
+  source: string,
+  header: string,
+  nextHeaderPattern: RegExp,
+): string {
+  const start = source.indexOf(header);
 
   assert.notEqual(
-    eventStart,
+    start,
     -1,
-    `frontend-ci.yml debe contener el evento: ${eventName}`,
+    `frontend-ci.yml debe contener: ${header.trim()}`,
   );
 
-  const afterEventHeader = eventStart + eventHeader.length;
-  const nextEventMatch = source.slice(afterEventHeader).match(/\n  [a-z_]+:\n/);
-  const nextEventIndex =
-    nextEventMatch && typeof nextEventMatch.index === "number"
-      ? nextEventMatch.index
-      : -1;
-  const eventEnd =
-    nextEventIndex >= 0 ? afterEventHeader + nextEventIndex + 1 : source.length;
+  const afterHeader = start + header.length;
+  const nextMatch = source.slice(afterHeader).match(nextHeaderPattern);
+  const nextIndex =
+    nextMatch && typeof nextMatch.index === "number" ? nextMatch.index : -1;
+  const end = nextIndex >= 0 ? afterHeader + nextIndex + 1 : source.length;
 
-  return source.slice(eventStart, eventEnd);
+  return source.slice(start, end);
 }
 
-function assertEventPathFilters(source: string, eventName: string): void {
-  const eventBlock = getEventBlock(source, eventName);
-
-  assertContains(eventBlock, "    branches:");
-  assertContains(eventBlock, "      - main");
-  assertContains(eventBlock, "    paths:");
-
-  for (const pathPattern of frontendPathFilters) {
-    assertContains(eventBlock, pathPattern);
-  }
+function getEventBlock(source: string, eventName: string): string {
+  return getTopLevelBlock(
+    source,
+    `  ${eventName}:\n`,
+    /\n  [a-z_]+:\n/,
+  );
 }
 
-test("Frontend CI dispara en push y pull_request para rutas de frontend", () => {
+function getJobBlock(source: string, jobName: string): string {
+  return getTopLevelBlock(
+    source,
+    `  ${jobName}:\n`,
+    /\n  [a-z0-9-]+:\n/,
+  );
+}
+
+test("Frontend CI dispara todo pull request a main y preserva filtros de push", () => {
   const source = readWorkflow();
+  const push = getEventBlock(source, "push");
+  const pullRequest = getEventBlock(source, "pull_request");
 
   assertContains(source, "on:");
-  assertContains(source, "push:");
-  assertContains(source, "pull_request:");
   assertContains(source, "  contents: read");
   assertContains(
     source,
     "concurrency:\n  group: frontend-ci-${{ github.workflow }}-${{ github.ref }}\n  cancel-in-progress: true",
   );
 
-  assertEventPathFilters(source, "push");
-  assertEventPathFilters(source, "pull_request");
+  assertContains(push, "    branches:\n      - main");
+  assertContains(push, "    paths:");
+  for (const pathPattern of frontendPathFilters) {
+    assertContains(push, pathPattern);
+  }
+
+  assertContains(pullRequest, "    branches:\n      - main");
+  assertNotContains(pullRequest, "paths:");
+  for (const pathPattern of frontendPathFilters) {
+    assertNotContains(pullRequest, pathPattern);
+  }
+});
+
+test("Frontend CI detecta impacto con rango PR seguro, push pesado y fallo cerrado", () => {
+  const detector = getJobBlock(readWorkflow(), "detect-frontend-impact");
+
+  assertContains(
+    detector,
+    "outputs:\n      should_run: ${{ steps.detect.outputs.should_run }}",
+  );
+  assertContains(
+    detector,
+    "uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7\n        with:\n          fetch-depth: 0",
+  );
+  assertContains(detector, "EVENT_NAME: ${{ github.event_name }}");
+  assertContains(detector, "BASE_SHA: ${{ github.event.pull_request.base.sha }}");
+  assertContains(detector, "HEAD_SHA: ${{ github.event.pull_request.head.sha }}");
+  assertContains(
+    detector,
+    'if [[ "$EVENT_NAME" == "push" ]]; then\n            echo "should_run=true" >> "$GITHUB_OUTPUT"',
+  );
+  assertContains(detector, 'if [[ "$EVENT_NAME" != "pull_request" ]]');
+  assertContains(detector, 'if [[ ! "$BASE_SHA" =~ ^[0-9a-f]{40}$ || ! "$HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]');
+  assertContains(detector, 'git cat-file -e "${BASE_SHA}^{commit}"');
+  assertContains(detector, 'git cat-file -e "${HEAD_SHA}^{commit}"');
+  assertContains(
+    detector,
+    'git diff --name-only -z --diff-filter=ACDMRTUXB "$BASE_SHA" "$HEAD_SHA" > "$changed_file_list"',
+  );
+  assertNotContains(detector, "continue-on-error");
+});
+
+test("Frontend CI usa exactamente las cinco rutas vigentes para solicitar heavy", () => {
+  const detector = getJobBlock(readWorkflow(), "detect-frontend-impact");
+
+  assertContains(
+    detector,
+    `          should_run=false
+          while IFS= read -r -d '' changed_path; do
+            case "$changed_path" in
+              frontend/*|pnpm-lock.yaml|pnpm-workspace.yaml|package.json|.github/workflows/frontend-ci.yml)
+                should_run=true
+                break
+                ;;
+            esac
+          done < "$changed_file_list"
+
+          echo "should_run=$should_run" >> "$GITHUB_OUTPUT"`,
+  );
+  assertNotContains(detector, ".github/workflows/backend-ci.yml)");
+});
+
+test("Frontend CI condiciona el job pesado al output del detector", () => {
+  const heavy = getJobBlock(readWorkflow(), "validate-frontend");
+
+  assertContains(heavy, "name: frontend-heavy-validation");
+  assertContains(heavy, "needs: detect-frontend-impact");
+  assertContains(
+    heavy,
+    "if: ${{ needs.detect-frontend-impact.outputs.should_run == 'true' }}",
+  );
 });
 
 test("Frontend CI define toolchain y cache de pnpm esperados", () => {
   const source = readWorkflow();
+  const heavy = getJobBlock(source, "validate-frontend");
 
-  assertContains(source, "timeout-minutes: 20");
+  assertContains(heavy, "timeout-minutes: 20");
   assertContains(source, "uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7");
   assertContains(source, "uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9");
   assertContains(source, "uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7");
@@ -119,9 +193,9 @@ test("Frontend CI define toolchain y cache de pnpm esperados", () => {
 });
 
 test("Frontend CI ejecuta gates obligatorios en orden", () => {
-  const source = readWorkflow();
+  const heavy = getJobBlock(readWorkflow(), "validate-frontend");
 
-  assertOrdered(source, [
+  assertOrdered(heavy, [
     "      - name: Install dependencies\n        run: pnpm install --frozen-lockfile",
     "      - name: Lint frontend\n        run: pnpm --dir frontend lint",
     "      - name: Typecheck frontend\n        run: pnpm --dir frontend typecheck",
@@ -133,7 +207,7 @@ test("Frontend CI ejecuta gates obligatorios en orden", () => {
 });
 
 test("Frontend CI compila el bundle E2E con la URL pública del fixture", () => {
-  const source = readWorkflow();
+  const source = getJobBlock(readWorkflow(), "validate-frontend");
 
   assertContains(
     source,
@@ -150,9 +224,10 @@ test("Frontend CI compila el bundle E2E con la URL pública del fixture", () => 
 
 test("Frontend CI usa una sola invocación Playwright catalogada", () => {
   const source = readWorkflow();
+  const heavy = getJobBlock(source, "validate-frontend");
 
   assertContains(
-    source,
+    heavy,
     "      - name: Run frontend E2E layered tests\n        run: pnpm --dir frontend e2e:ci",
   );
 
@@ -168,6 +243,7 @@ test("Frontend CI usa una sola invocación Playwright catalogada", () => {
 
 test("Frontend CI activa el runner productivo únicamente en el step e2e:ci (P1 PR #1495)", () => {
   const source = readWorkflow();
+  const heavy = getJobBlock(source, "validate-frontend");
 
   // Other workflows (e.g. visual-regression-manual.yml) run Playwright with
   // CI=true but never `pnpm --dir frontend build`; VETNEB_E2E_PRODUCTION_RUNNER
@@ -180,13 +256,13 @@ test("Frontend CI activa el runner productivo únicamente en el step e2e:ci (P1 
   );
 
   assertContains(
-    source,
+    heavy,
     "      - name: Run frontend E2E layered tests\n        run: pnpm --dir frontend e2e:ci\n        env:\n          VETNEB_E2E_PRODUCTION_RUNNER: \"1\"",
   );
 });
 
 test("Frontend CI sube reporte de Playwright solo en fallo", () => {
-  const source = readWorkflow();
+  const source = getJobBlock(readWorkflow(), "validate-frontend");
 
   assertContains(source, "      - name: Upload Playwright report");
   assertContains(source, "        if: failure()");
@@ -194,4 +270,45 @@ test("Frontend CI sube reporte de Playwright solo en fallo", () => {
   assertContains(source, "          name: frontend-playwright-report");
   assertContains(source, "          path: frontend/playwright-report/");
   assertContains(source, "          if-no-files-found: ignore");
+});
+
+test("Frontend CI publica un check final siempre presente con propagación estricta", () => {
+  const finalCheck = getJobBlock(readWorkflow(), "frontend-check");
+
+  assertContains(finalCheck, "name: validate-frontend");
+  assertContains(
+    finalCheck,
+    "needs:\n      - detect-frontend-impact\n      - validate-frontend",
+  );
+  assertContains(finalCheck, "if: ${{ always() }}");
+  assertContains(
+    finalCheck,
+    "DETECTOR_RESULT: ${{ needs.detect-frontend-impact.result }}",
+  );
+  assertContains(
+    finalCheck,
+    "SHOULD_RUN: ${{ needs.detect-frontend-impact.outputs.should_run }}",
+  );
+  assertContains(
+    finalCheck,
+    "HEAVY_RESULT: ${{ needs.validate-frontend.result }}",
+  );
+  assertContains(
+    finalCheck,
+    'if [[ "$DETECTOR_RESULT" != "success" ]]; then',
+  );
+  assertContains(
+    finalCheck,
+    'if [[ "$SHOULD_RUN" == "false" && "$HEAVY_RESULT" == "skipped" ]]; then',
+  );
+  assertContains(
+    finalCheck,
+    'if [[ "$SHOULD_RUN" == "true" && "$HEAVY_RESULT" == "success" ]]; then',
+  );
+  assertContains(finalCheck, "Unexpected frontend validation state:");
+  assert.equal(finalCheck.match(/exit 0/g)?.length, 2);
+  assert.equal(finalCheck.match(/exit 1/g)?.length, 2);
+  assertNotContains(finalCheck, '"$HEAVY_RESULT" == "failure"');
+  assertNotContains(finalCheck, '"$HEAVY_RESULT" == "cancelled"');
+  assertNotContains(finalCheck, "continue-on-error");
 });

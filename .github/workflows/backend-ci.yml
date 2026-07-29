@@ -4,9 +4,6 @@ on:
   pull_request:
     branches:
       - main
-    paths-ignore:
-      - 'docs/**'
-      - '**/*.md'
   push:
     branches:
       - main
@@ -26,7 +23,68 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  detect-backend-impact:
+    name: detect-backend-impact
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      should_run: ${{ steps.detect.outputs.should_run }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - name: Detect backend impact
+        id: detect
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$EVENT_NAME" == "push" ]]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ "$EVENT_NAME" != "pull_request" ]]; then
+            echo "Unsupported event: $EVENT_NAME" >&2
+            exit 1
+          fi
+
+          if [[ ! "$BASE_SHA" =~ ^[0-9a-f]{40}$ || ! "$HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Invalid pull request commit range." >&2
+            exit 1
+          fi
+
+          git cat-file -e "${BASE_SHA}^{commit}"
+          git cat-file -e "${HEAD_SHA}^{commit}"
+
+          changed_file_list="${RUNNER_TEMP}/backend-changed-files"
+          git diff --name-only -z --diff-filter=ACDMRTUXB "$BASE_SHA" "$HEAD_SHA" > "$changed_file_list"
+
+          should_run=false
+          while IFS= read -r -d '' changed_path; do
+            case "$changed_path" in
+              docs/*|*.md)
+                ;;
+              *)
+                should_run=true
+                break
+                ;;
+            esac
+          done < "$changed_file_list"
+
+          echo "should_run=$should_run" >> "$GITHUB_OUTPUT"
+
   validate-backend:
+    name: backend-heavy-validation
+    needs: detect-backend-impact
+    if: ${{ needs.detect-backend-impact.outputs.should_run == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -87,3 +145,40 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+  backend-check:
+    name: validate-backend
+    needs:
+      - detect-backend-impact
+      - validate-backend
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Resolve backend validation result
+        shell: bash
+        env:
+          DETECTOR_RESULT: ${{ needs.detect-backend-impact.result }}
+          SHOULD_RUN: ${{ needs.detect-backend-impact.outputs.should_run }}
+          HEAVY_RESULT: ${{ needs.validate-backend.result }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$DETECTOR_RESULT" != "success" ]]; then
+            echo "Backend impact detector did not succeed: $DETECTOR_RESULT" >&2
+            exit 1
+          fi
+
+          if [[ "$SHOULD_RUN" == "false" && "$HEAVY_RESULT" == "skipped" ]]; then
+            echo "Backend validation was not required."
+            exit 0
+          fi
+
+          if [[ "$SHOULD_RUN" == "true" && "$HEAVY_RESULT" == "success" ]]; then
+            echo "Backend validation succeeded."
+            exit 0
+          fi
+
+          echo "Unexpected backend validation state: should_run=$SHOULD_RUN heavy=$HEAVY_RESULT" >&2
+          exit 1
