@@ -30,6 +30,10 @@ Each workflow uses three stages:
 
 For push events already supported by the workflows, heavy validation remains mandatory.
 
+For pull requests, each detector computes changed files from the common merge base of the base
+and head commits through the candidate head. Changes that exist only on a base branch that
+advanced after the pull-request branch diverged are not classified as pull-request impact.
+
 The final job fails closed when detection fails, when required heavy validation fails or is cancelled, or when an unexpected job state is observed.
 
 ## Preserved invariants
@@ -38,6 +42,8 @@ The final job fails closed when detection fails, when required heavy validation 
 - PostgreSQL remains isolated to backend heavy validation.
 - Playwright installation and execution remain isolated to frontend heavy validation.
 - Existing permissions, timeouts, concurrency and SHA-pinned Actions remain enforced.
+- Legitimate heavy-validation skips are preserved for outdated pull-request branches whose only
+  candidate changes are unrelated to that heavy.
 - No application runtime, authentication, database, schema, dependency or production configuration is changed.
 - No failure is hidden with `continue-on-error`.
 
