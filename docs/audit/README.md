@@ -14,7 +14,7 @@
 | Supersedes | Ninguno |
 | Superseded by | Ninguno |
 | Related controls or gaps | `ERM-CTRL-004`; `ERM-CTRL-005` |
-| Evidence or approval reference | Árbol documental verificado para `PR-AUDIT-ENTERPRISE-DOCS`; auditoría propuesta de `PR-SEC-REPO-SETTINGS` verificada localmente el 2026-07-29 |
+| Evidence or approval reference | Árbol documental verificado para `PR-AUDIT-ENTERPRISE-DOCS`; PR #1591 y closeout sanitizado de `PR-SEC-REPO-SETTINGS` verificados el 2026-07-29 |
 
 ## Criterio de vigencia
 
@@ -41,11 +41,11 @@ Los documentos históricos previos dentro de `docs/audit/` se conservan como ant
    estado operativo vivo de cada capability.
 4. El baseline y el gap register permanecen snapshots históricos inmutables.
 
-## Auditorías de bloque en revisión
+## Auditorías de bloque vigentes
 
 | Documento | Propósito operativo | Estado |
 | --- | --- | --- |
-| [pr-sec-repo-settings-audit.md](./pr-sec-repo-settings-audit.md) | Baseline sanitizada, elegibilidad por feature y decisión de exposición pública para el bloque 2 del Plan B. | `PROPOSED`; el bloque permanece abierto y sin mutaciones de settings |
+| [pr-sec-repo-settings-audit.md](./pr-sec-repo-settings-audit.md) | Baseline histórica, estado efectivo sanitizado, elegibilidad por feature y closeout del bloque 2 del Plan B. | `ACTIVE`; `PR-SEC-REPO-SETTINGS CLOSED` |
 
 ## Documentos rectores recientes
 
@@ -88,8 +88,8 @@ Toda nueva auditoría que pretenda incorporarse al índice vigente debe cumplir 
 
 ## Próximo paso recomendado
 
-Revisar la fase documental propuesta de `PR-SEC-REPO-SETTINGS` según el
-[plan consolidado](./enterprise-roadmap-consolidation-plan.md). El bloque no se cierra hasta
-aprobar la documentación y completar, bajo autorización R2 separada, las dos mutaciones
-elegibles con verificación independiente. Los closeouts M01–M48 y los snapshots enterprise no
-se usan como backlog pendiente.
+Preparar por separado `PR-SEC-SECRET-PATTERNS`, bloque 03 del
+[plan consolidado](./enterprise-roadmap-consolidation-plan.md). Su scope es ci-only, su riesgo
+es medio-alto, requiere autorización R2 específica y toca el validador requerido. No debe
+iniciarse dentro del closeout documental de `PR-SEC-REPO-SETTINGS`. Los closeouts M01–M48 y los
+snapshots enterprise no se usan como backlog pendiente.

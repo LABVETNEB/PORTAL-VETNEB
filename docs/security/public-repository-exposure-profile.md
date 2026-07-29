@@ -7,15 +7,15 @@ Perfil documental de exposición pública para la seguridad del repositorio
 | --- | --- |
 | Document owner | Security / Repository governance |
 | Domain | Public repository security exposure |
-| Lifecycle status | PROPOSED |
-| Authoritative source role | Perfil normativo propuesto para clasificar y sanitizar documentación de seguridad publicada |
-| Effective date | 2026-07-29, condicionada a aprobación y merge |
+| Lifecycle status | ACTIVE |
+| Authoritative source role | Perfil normativo vigente para clasificar y sanitizar documentación de seguridad publicada |
+| Effective date | 2026-07-29 |
 | Last verified date | 2026-07-29 |
 | Review cadence | Mensual y ante cambios de visibilidad, titularidad, producto GitHub, superficie documental o incidente de secretos |
 | Supersedes | Ninguno |
 | Superseded by | Ninguno |
 | Related controls or gaps | `ERM-CTRL-016`; `GAP-P0-1`; `PR-SEC-REPO-SETTINGS` |
-| Evidence or approval reference | Auditoría de contenido y lectura administrativa sanitizada sobre `main@f2d8e05ef75aa91d27c1832489a4b94b723bd84a`; aprobación y merge pendientes |
+| Evidence or approval reference | PR #1591, merge commit `9479f6d36dd6dfa1ed25a81beacb22e1bed98f34`; closeout R2 sanitizado del 2026-07-29 con dos lecturas administrativas independientes coincidentes |
 | Document classification | PUBLIC |
 
 ## 1. Propósito y autoridad
@@ -24,10 +24,9 @@ Este perfil define qué información de seguridad puede permanecer en el
 repositorio público, qué debe sanitizarse, qué debe mantenerse restringido y
 qué no debe incorporarse nunca al repositorio.
 
-Mientras su lifecycle sea `PROPOSED`, orienta la revisión de
-`PR-SEC-REPO-SETTINGS` pero no desplaza las fuentes `ACTIVE`. Tras aprobación y
-merge debe promoverse a `ACTIVE` y registrarse como fuente normativa de
-exposición pública en [VETNEB Sources of Truth](../SOURCES_OF_TRUTH.md).
+Su lifecycle `ACTIVE`, aprobado mediante PR #1591, lo establece como perfil
+normativo vigente de exposición pública y lo registra en
+[VETNEB Sources of Truth](../SOURCES_OF_TRUTH.md).
 
 Este documento clasifica evidencia documental. No demuestra enforcement
 técnico, no habilita features de GitHub y no cierra controles de seguridad
@@ -56,7 +55,7 @@ runtime.
 Cada fragmento debe ser necesario para gobernanza, verificable sin revelar
 valores reales y seguro frente a correlación con otras fuentes.
 
-## 4. Baseline de secret protection
+## 4. Baseline histórica de secret protection
 
 Lectura administrativa de solo lectura y salida limitada a campos no sensibles,
 verificada el 2026-07-29:
@@ -74,14 +73,26 @@ La lectura no incluyó alertas, secretos, tokens ni respuestas API completas.
 Los mensajes impresos por el intento mutante previo no forman parte de esta
 evidencia.
 
-## 5. Elegibilidad real
+La tabla conserva el estado inmediatamente anterior a la habilitación R2. No
+representa la configuración efectiva actual.
+
+## 5. Estado efectivo y elegibilidad real
+
+La habilitación R2 del 2026-07-29 se ejecutó mediante un archivo `.ps1`
+independiente, fail-fast y con rollback automático preparado. No se ejecutó
+rollback. Dos lecturas administrativas independientes posteriores coincidieron
+en los siguientes estados sanitizados:
 
 | Feature | Elegibilidad actual | Estado operativo | Decisión |
 | --- | --- | --- | --- |
-| Secret scanning básico | Disponible para repositorios públicos. | `disabled` | Pendiente de autorización R2 específica. |
-| Repository push protection | Disponible para este repositorio público cuando Secret Protection está habilitado. | `disabled` | Pendiente de autorización R2 específica. |
-| Validity checks | Requiere repositorio perteneciente a una organización con GitHub Team y GitHub Secret Protection. | `disabled` | `NOT_AVAILABLE` bajo titularidad y producto actuales. |
-| Non-provider patterns | Requiere repositorio perteneciente a una organización con GitHub Team y GitHub Secret Protection. | `disabled` | `NOT_AVAILABLE` bajo titularidad y producto actuales. |
+| Secret scanning básico (`secret_scanning`) | Disponible para repositorios públicos. | `enabled` | `ENABLED`; revisión periódica. |
+| Repository push protection (`secret_scanning_push_protection`) | Disponible para este repositorio público cuando Secret Protection está habilitado. | `enabled` | `ENABLED`; revisión periódica. |
+| Validity checks (`secret_scanning_validity_checks`) | Requiere repositorio perteneciente a una organización con GitHub Team y GitHub Secret Protection. | `disabled` | `NOT_AVAILABLE` bajo titularidad y producto actuales. |
+| Non-provider patterns (`secret_scanning_non_provider_patterns`) | Requiere repositorio perteneciente a una organización con GitHub Team y GitHub Secret Protection. | `disabled` | `NOT_AVAILABLE` bajo titularidad y producto actuales. |
+
+No hubo drift entre las dos lecturas de las features avanzadas. Las lecturas no
+incluyeron alertas, secretos, tokens, datos de autenticación ni respuestas API
+completas.
 
 Fuentes oficiales verificadas el 2026-07-29:
 
@@ -224,10 +235,8 @@ relacionados cuando cambie autoridad documental.
 ## 14. Relación con Sources of Truth
 
 [VETNEB Sources of Truth](../SOURCES_OF_TRUTH.md) sigue siendo el mapa primario
-para determinar autoridad documental. Durante la revisión, ese mapa registra
-este perfil en su sección de fuentes propuestas. Si el perfil se aprueba y
-mergea, debe promoverse a `ACTIVE` y la entrada debe trasladarse a las fuentes
-vigentes del dominio.
+para determinar autoridad documental y registra este perfil `ACTIVE` como
+fuente vigente de exposición pública de documentación de seguridad.
 
 Las matrices y auditorías `docs/security/**` conservan su autoridad técnica
 acotada sobre invariantes, boundaries y evidencia pendiente. Este perfil solo

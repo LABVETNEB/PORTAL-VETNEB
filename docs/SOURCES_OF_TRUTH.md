@@ -14,7 +14,7 @@ Mapa vigente de fuentes de verdad documentales del proyecto VETNEB.
 | Supersedes | Ninguno |
 | Superseded by | Ninguno |
 | Related controls or gaps | `ERM-CTRL-004`; `ERM-DOC-002` |
-| Evidence or approval reference | Árbol del repositorio y configuración GitHub verificados para `PR-AUDIT-ENTERPRISE-DOCS`; fuentes propuestas de `PR-SEC-REPO-SETTINGS` verificadas localmente el 2026-07-29 |
+| Evidence or approval reference | Árbol del repositorio y configuración GitHub verificados para `PR-AUDIT-ENTERPRISE-DOCS`; PR #1591 y closeout sanitizado de `PR-SEC-REPO-SETTINGS` verificados el 2026-07-29 |
 
 ## Propósito
 
@@ -61,19 +61,11 @@ Regla principal:
 | Dashboard Admin horizontal-nav | `docs/audit/dashboard-horizontal-navigation-information-architecture.md` | `docs/implementation/dashboard-horizontal-shell-navigation.md` | Vigente en curso | No mezclar con ordenamiento documental ni con PRs enterprise foundation |
 | Dashboard mobile/admin density | `docs/audit/admin-mobile-density-closeout.md` | Closeouts y auditorías admin-mobile relacionadas | Cerrado | No re-auditar de cero salvo regresión visual nueva |
 | Seguridad / sesiones / superficie pública | `docs/security/*` | Tests `security-*`, `auth-*`, matrices RBAC/endpoints/CSP, `docs/audit/enterprise-repository-maturity-audit-roadmap.md` | Vigente estable | Usar para invariantes; para brechas P0/P1 enterprise leer también el roadmap de madurez |
+| Exposición pública de documentación de seguridad | `docs/security/public-repository-exposure-profile.md` | `docs/audit/pr-sec-repo-settings-audit.md`, `docs/security/*` | Vigente | Gobierna clasificación y sanitización para publicación; no demuestra ni reemplaza enforcement runtime |
 | Invariantes de regresión productiva cerradas | `docs/PRODUCTION_PROGRESS_INVARIANTS.md` | `test/progress-production-invariants.test.ts`, fuentes vigentes del dominio afectado | Vigente acotado | Preserva contratos de regresión ya cerrados; no usar como roadmap ni backlog nuevo |
 | Tenant isolation / decisión arquitectónica RLS | `docs/architecture/rls-tenant-isolation-adr.md` | `docs/security/rls-enforcement-matrix.md`, `docs/governance/enterprise-control-register.md` (ERM-CTRL-018), `docs/audit/enterprise-repository-maturity-audit-roadmap.md` | Vigente | Fuente de la decisión de gobernanza RLS (Accepted): adopta RLS incremental como defensa en profundidad manteniendo el scoping aplicativo obligatorio. No afirma RLS runtime activo ni cierra evidencia cross-tenant. Diferenciar de las matrices operativas de seguridad, de las auditorías históricas, del gap register histórico, de la evidencia runtime y de `docs/security/*` como invariantes. |
 | Operación / production readiness | `docs/ops/*` | `docs/release/README.md`, `docs/release-readiness.md`, `docs/production-readiness-evidence.md`, `docs/audit/enterprise-repository-maturity-audit-roadmap.md` | Vigente | Usar para runbooks operativos; no mezclar con CI-only ni deploy changes |
 | Implementaciones recientes | `docs/implementation/*` | Subconjunto histórico/secundario `IMPLEMENTATION_*` / `IMPLEMENTACION-PR-*` en el mismo árbol (ex `IMPLEMENTATION_NOTES/` + `docs/implementation-history/`, consolidados por PR-CLEAN2) | Referencia secundaria | Leer solo si el dominio lo exige; no usar como fuente primaria si hay closeout/auditoría vigente |
-
-## Fuentes propuestas pendientes de aprobación
-
-Estas fuentes se registran para revisión sin promoverlas antes de aprobación y
-merge. Mientras mantengan lifecycle `PROPOSED`, no desplazan fuentes `ACTIVE`.
-
-| Dominio | Fuente propuesta | Complemento | Estado | Promoción esperada |
-| --- | --- | --- | --- | --- |
-| Exposición pública de documentación de seguridad | `docs/security/public-repository-exposure-profile.md` | `docs/audit/pr-sec-repo-settings-audit.md`, `docs/security/*`, `docs/audit/enterprise-repository-maturity-audit-roadmap.md` | `PROPOSED` | Promover a `ACTIVE` tras aprobación y merge de la fase documental de `PR-SEC-REPO-SETTINGS` |
 
 ## Consolidación documental PR-CLEAN2 (2026-06-28)
 
@@ -140,13 +132,14 @@ Antes de auditar o implementar:
 
 La secuencia ejecutable recomendada es el
 [Plan B de 18 PRs consolidados](./audit/enterprise-roadmap-consolidation-plan.md).
-`PR-AUDIT-ENTERPRISE-DOCS` es el bloque 1. Tras su cierre, el siguiente bloque es
-`PR-SEC-REPO-SETTINGS`; las prioridades, dependencias y separaciones de riesgo se leen en el
+`PR-AUDIT-ENTERPRISE-DOCS` es el bloque 1 y `PR-SEC-REPO-SETTINGS`, bloque 2,
+quedó cerrado el 2026-07-29. El siguiente bloque es
+`PR-SEC-SECRET-PATTERNS`; las prioridades, dependencias y separaciones de riesgo se leen en el
 plan consolidado, no reconstruyendo backlog desde el roadmap original ni desde closeouts
 históricos.
 
 ## Estado
 
 Este mapa incorpora la precedencia explícita entre auditoría global, Plan B, estado operativo vivo
-y snapshots históricos. También registra, sin promoción anticipada, el perfil público y la
-auditoría propuestos para `PR-SEC-REPO-SETTINGS`.
+y snapshots históricos. También registra el perfil público `ACTIVE` y la auditoría de closeout
+`ACTIVE` de `PR-SEC-REPO-SETTINGS`.
