@@ -14,7 +14,7 @@
 | Supersedes | Ninguno |
 | Superseded by | Ninguno |
 | Related controls or gaps | `ERM-CTRL-004`; `ERM-CTRL-005` |
-| Evidence or approval reference | Árbol documental verificado para `PR-AUDIT-ENTERPRISE-DOCS`; PR #1591 y closeout sanitizado de `PR-SEC-REPO-SETTINGS`; PR #1593 y closeout del bloque 03 verificados el 2026-07-29 |
+| Evidence or approval reference | Árbol documental verificado para `PR-AUDIT-ENTERPRISE-DOCS`; PR #1591 y closeout sanitizado de `PR-SEC-REPO-SETTINGS`; PR #1593 y closeout del bloque 03; PR #1601, canarias #1602/#1603 y PR correctiva #1605 del bloque 04 verificados el 2026-07-30 |
 
 ## Criterio de vigencia
 
@@ -47,6 +47,7 @@ Los documentos históricos previos dentro de `docs/audit/` se conservan como ant
 | --- | --- | --- |
 | [pr-sec-repo-settings-audit.md](./pr-sec-repo-settings-audit.md) | Baseline histórica, estado efectivo sanitizado, elegibilidad por feature y closeout del bloque 2 del Plan B. | `ACTIVE`; `PR-SEC-REPO-SETTINGS CLOSED` |
 | [pr-sec-secret-patterns-audit.md](./pr-sec-secret-patterns-audit.md) | Implementación técnica #1593, matriz completa de canarias #1594–#1599 y closeout de secret patterns más Architecture Decision. | `ACTIVE`; `PR-SEC-SECRET-PATTERNS CLOSED` |
+| [pr-ci-always-run-gates-audit.md](./pr-ci-always-run-gates-audit.md) | Implementación técnica #1601, matrices de canarias #1602/#1603, corrección de rango #1605, validación stale-base y closeout de contextos CI always-run. | `ACTIVE`; `PR-CI-ALWAYS-RUN-GATES CLOSED` |
 
 ## Documentos rectores recientes
 
@@ -89,9 +90,19 @@ Toda nueva auditoría que pretenda incorporarse al índice vigente debe cumplir 
 
 ## Estado de secuencia
 
+```text
+BLOQUE 03: CLOSED
+BLOQUE 04: CLOSED
+BLOQUE 05: NOT_RUN
+```
+
 `PR-SEC-SECRET-PATTERNS`, bloque 03 del
 [plan consolidado](./enterprise-roadmap-consolidation-plan.md), está `CLOSED`.
 PR #1593 fue integrado; #1594–#1599 quedaron cerradas sin merge y sin ramas
-residuales. El bloque 04 permanece `NOT_RUN` y no se inicia ni autoriza desde
-este closeout. Los closeouts M01–M48 y los snapshots enterprise no se usan como
+residuales. `PR-CI-ALWAYS-RUN-GATES`, bloque 04, está `CLOSED`: PR #1601 fue
+integrado; #1602 y #1603 quedaron cerradas sin merge y con ramas residuales 0; la
+PR correctiva #1605 fijó el rango de impacto en merge-base → head y agregó la
+validación stale-base que las canarias de base alineada no podían aportar.
+`PR-CI-REQUIRED-CHECKS`, bloque 05, permanece `NOT_RUN` y requiere autorización
+R3 separada. Los closeouts M01–M48 y los snapshots enterprise no se usan como
 backlog pendiente.
