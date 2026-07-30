@@ -66,7 +66,10 @@ test/
 │   ├── infrastructure/
 │   ├── migrations/
 │   └── ui/
-└── helpers/
+├── helpers/
+├── fixtures/
+├── factories/
+└── mocks/
 ```
 
 Las carpetas pueden subdividirse por dominio, por ejemplo `admin`, `clinic`, `dashboard`, `frontend`, `logistics`, `particular`, `pricing`, `public`, `public-professionals`, `reports` o `study-tracking`.
@@ -104,6 +107,9 @@ La ubicación se decide por el comportamiento real del test, no solo por su nomb
 | `integration/external-services/**` | Integraciones con Supabase, email, Gmail u otros proveedores mediante fakes o servidores locales | Endpoints y credenciales reales |
 | `security/**` | Invariantes conductuales de seguridad que cruzan componentes | Tests puramente estructurales sin conducta |
 | `helpers/**` | Fixtures, builders, stubs, fakes, spies, setup y utilidades reutilizables | Archivos ejecutables `*.test.ts` salvo que sean tests del helper |
+| `fixtures/**` | Datos estáticos, escenarios, payloads y resultados esperados inmutables | Builders configurables o dobles conductuales |
+| `factories/**` | Builders y funciones que generan datos configurables por test | Acceso a infraestructura real |
+| `mocks/**` | Stubs, fakes, spies, clientes falsos e implementaciones sustitutas | Datos productivos o acceso externo real |
 
 ### 4.1. Regla de desempate
 

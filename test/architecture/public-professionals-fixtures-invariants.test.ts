@@ -2,8 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   buildPublicProfessionalFixtureRow,
+} from "../factories/public-professionals.ts";
+import {
   buildPublicProfessionalsRouteFixtureStubs,
-} from "../helpers/public-professionals-fixtures.ts";
+} from "../mocks/public-professionals-route.ts";
 
 test("public professionals fixture row mantiene defaults públicos determinísticos", () => {
   const row = buildPublicProfessionalFixtureRow();

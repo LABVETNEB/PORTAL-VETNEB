@@ -11,6 +11,9 @@
 - Todo test backend ejecutable vive bajo una carpeta canónica de `test/**`.
 - El runner `pnpm test` descubre recursivamente `test/**/*.test.ts`.
 - Los helpers no ejecutables viven en `test/helpers/**` y no usan el sufijo `*.test.ts`.
+- Datos estáticos, builders y dobles conductuales compartidos viven,
+  respectivamente, en `test/fixtures/**`, `test/factories/**` y `test/mocks/**`.
+- Los censos de árbol reutilizan `test/helpers/tracked-source-files.ts`.
 - Playwright permanece físicamente en `frontend/e2e/**`.
 - Un movimiento actualiza imports, registries, censos, paths y docs en el mismo PR.
 - No se mezclan reorganizaciones con cambios de runtime.
@@ -46,7 +49,10 @@ test/
 │   ├── infrastructure/
 │   ├── migrations/
 │   └── ui/
-└── helpers/
+├── helpers/
+├── fixtures/
+├── factories/
+└── mocks/
 ```
 
 Las carpetas se subdividen por dominio cuando aporta ownership: `admin`, `clinic`, `dashboard`, `frontend`, `logistics`, `particular`, `pricing`, `public`, `public-professionals`, `reports`, `study-tracking`, entre otros.

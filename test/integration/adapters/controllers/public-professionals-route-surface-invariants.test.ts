@@ -5,8 +5,10 @@ import { resolve } from "node:path";
 import Fastify from "fastify";
 import {
   buildPublicProfessionalFixtureRow,
+} from "../../../factories/public-professionals.ts";
+import {
   buildPublicProfessionalsRouteFixtureStubs,
-} from "../../../helpers/public-professionals-fixtures.ts";
+} from "../../../mocks/public-professionals-route.ts";
 
 process.env.NODE_ENV ??= "development";
 process.env.SUPABASE_URL ??= "https://example.supabase.co";

@@ -194,3 +194,13 @@ ruta automática Ubuntu `e2e:full`; el head de closeout completado
 `90955867044`, demostró 72 specs y 786 tests con `SUCCESS`: 782 pases directos
 y 4 tras retry acotado. El closeout se conserva en
 [PR-E2E-CI-COMPLETENESS Audit](./pr-e2e-ci-completeness-audit.md).
+
+## Estado operativo local del slot 7
+
+`PR-TEST-ARCHITECTURE-CONSOLIDATION` absorbe `PR-TEST-ARCH-1/2/3` en una
+única rama y PR. El baseline exacto es 517 tests, 370 source-coupled y 134
+ocurrencias textuales de `readdirSync`. El soporte compartido queda separado
+en `test/fixtures`, `test/factories` y `test/mocks`; el walker canónico vive en
+`test/helpers/tracked-source-files.ts`. El censo y la evidencia local se
+conservan en
+[PR-TEST-ARCHITECTURE-CONSOLIDATION Audit](./pr-test-architecture-consolidation-audit.md).

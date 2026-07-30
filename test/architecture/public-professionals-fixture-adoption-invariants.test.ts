@@ -10,8 +10,10 @@ function readSource(relativePath: string): string {
   );
 }
 
-const MOVED_PUBLIC_PROFESSIONALS_FIXTURE_IMPORT =
-  "../../../helpers/public-professionals-fixtures.ts";
+const PUBLIC_PROFESSIONALS_FACTORY_IMPORT =
+  "../../../factories/public-professionals.ts";
+const PUBLIC_PROFESSIONALS_MOCK_IMPORT =
+  "../../../mocks/public-professionals-route.ts";
 
 test("route surface tests usan fixtures compartidos sin stubs locales de profesionales públicos", () => {
   const source = readSource(
@@ -19,8 +21,9 @@ test("route surface tests usan fixtures compartidos sin stubs locales de profesi
   );
 
   assert.ok(
-    source.includes(`from "${MOVED_PUBLIC_PROFESSIONALS_FIXTURE_IMPORT}"`),
-    "route surface debe importar fixtures compartidos",
+    source.includes(`from "${PUBLIC_PROFESSIONALS_FACTORY_IMPORT}"`) &&
+      source.includes(`from "${PUBLIC_PROFESSIONALS_MOCK_IMPORT}"`),
+    "route surface debe importar factory y mock compartidos",
   );
 
   assert.ok(
@@ -47,7 +50,7 @@ test("route surface tests usan fixtures compartidos sin stubs locales de profesi
   );
 });
 
-test("tests recientes de profesionales públicos comparten el helper de fixtures", () => {
+test("tests recientes de profesionales públicos comparten el mock canónico", () => {
   const checkedFiles = [
     "test/integration/adapters/controllers/public-professionals-response-headers-invariants.test.ts",
     "test/integration/adapters/controllers/public-professionals-logging-invariants.test.ts",
@@ -58,8 +61,8 @@ test("tests recientes de profesionales públicos comparten el helper de fixtures
     const source = readSource(file);
 
     assert.ok(
-      source.includes(`from "${MOVED_PUBLIC_PROFESSIONALS_FIXTURE_IMPORT}"`),
-      `${file} debe importar fixtures compartidos`,
+      source.includes(`from "${PUBLIC_PROFESSIONALS_MOCK_IMPORT}"`),
+      `${file} debe importar el mock compartido`,
     );
 
     assert.ok(

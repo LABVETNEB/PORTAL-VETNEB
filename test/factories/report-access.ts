@@ -1,9 +1,10 @@
 import type {
   ReportAccessReportRecord,
   ReportAccessTokenRecord,
-} from "../../../../server/features/report-access/application/index.ts";
+} from "../../server/features/report-access/application/index.ts";
+import { reportAccessNow } from "../fixtures/report-access.ts";
 
-export const now = new Date("2026-07-25T12:00:00.000Z");
+export const now = reportAccessNow;
 
 export function token(
   overrides: Partial<ReportAccessTokenRecord> = {},

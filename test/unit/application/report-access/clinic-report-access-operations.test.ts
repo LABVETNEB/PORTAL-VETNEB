@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createClinicReportAccessOperations } from "../../../../server/features/report-access/application/index.ts";
-import { report, token } from "./fixtures.ts";
+import { report, token } from "../../../factories/report-access.ts";
 
 function setup(scopedToken: ReturnType<typeof token> | null = token()) {
   const calls: string[] = [];

@@ -30,7 +30,7 @@ const REQUIRED_INTENT_TERMS = new Map<string, string[]>([
   ],
   [
     "test/architecture/public-professionals-fixture-adoption-invariants.test.ts",
-    ["fixtures compartidos", "stubs locales", "helper"],
+    ["fixtures compartidos", "stubs locales", "mock canonico"],
   ],
   [
     "test/architecture/public-professionals-fixture-isolation-invariants.test.ts",
@@ -38,11 +38,11 @@ const REQUIRED_INTENT_TERMS = new Map<string, string[]>([
   ],
   [
     "test/architecture/public-professionals-fixture-helper-boundaries-invariants.test.ts",
-    ["helper", "runtime", "db storage"],
+    ["apis canonicas", "runtime", "infraestructura real"],
   ],
   [
     "test/architecture/public-professionals-fixture-file-scope-invariants.test.ts",
-    ["file scope", "helper canonico", "factories locales"],
+    ["soporte", "definiciones canonicas", "paths canonicos"],
   ],
   [
     "test/architecture/public-professionals-fixture-assertions-quality-invariants.test.ts",

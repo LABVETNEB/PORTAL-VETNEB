@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createPublicReportAccessOperations } from "../../../../server/features/report-access/application/index.ts";
-import { now, report, token } from "./fixtures.ts";
+import { now, report, token } from "../../../factories/report-access.ts";
 
 function setup(
   record: { token: ReturnType<typeof token>; report: ReturnType<typeof report> } | null = {

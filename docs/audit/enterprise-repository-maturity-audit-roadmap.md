@@ -382,6 +382,13 @@ Reglas transversales: un scope por PR; nada de `--fix` masivo; todo PR que toque
 
 > Bloqueo conocido (memoria del proyecto): el trío `reports/admin-reports/reports-status` sigue anclado por `report-study-types-catalog` (censo por lista hardcodeada + `deepEqual`). Requiere **TEST-ARCH-15-b path-aware** antes de mover esos controllers. No incluir en PR-TEST-ARCH-2/3.
 
+Estado operativo local del slot 07: el censo recalculado sobre
+`main@c40c92f8415418f42ee4733671379eb72774ae70` encontró 517 tests, 370
+source-coupled y 134 ocurrencias textuales de `readdirSync`. La implementación
+consolidada y el anexo exhaustivo viven en
+[PR-TEST-ARCHITECTURE-CONSOLIDATION Audit](./pr-test-architecture-consolidation-audit.md);
+los números 367/514 de la observación histórica no se reutilizaron.
+
 ## Fase 2 — CI/CD gates, required checks y branch protection ← **empieza aquí en la práctica**
 
 | PR | Tipo | Objetivo | Archivos | Riesgo | Validaciones | Criterio de merge |
