@@ -268,11 +268,13 @@ test("completeness job preserves Linux baseline compatibility, build ordering an
   assert.ok(stepNames.indexOf("Install Playwright Chromium") < stepNames.indexOf("Run complete cataloged E2E suite"));
 
   const build = stepByName(workflowJob, "Build frontend");
+  const runFull = stepByName(workflowJob, "Run complete cataloged E2E suite");
   assert.deepEqual(build.env, {
     NEXT_PUBLIC_API_URL: "http://127.0.0.1:3107",
     VETNEB_E2E_ALLOW_LOCAL_API: "1",
     VETNEB_E2E_DISABLE_EXTERNAL_EMBEDS: "1",
   });
+  assert.equal(runFull.run, "pnpm --dir frontend e2e:full -- --workers=1");
   assert.equal(
     source.includes("VETNEB_E2E_PRODUCTION_RUNNER"),
     false,

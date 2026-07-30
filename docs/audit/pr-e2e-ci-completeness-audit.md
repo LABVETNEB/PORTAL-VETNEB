@@ -46,8 +46,9 @@ Se adoptó el [RFC de completitud E2E](./pr-e2e-ci-completeness-rfc.md):
 3. El job instala el workspace congelado, verifica catálogo, construye con el
    fixture local, audita superficie pública, instala Chromium y ejecuta una
    única invocación `e2e:full` con el runner `next dev` compatible con los
-   baselines Linux versionados. `Frontend CI` conserva la validación separada
-   de 43 specs contra el bundle de producción.
+   baselines Linux versionados y un solo worker para evitar la clase de
+   contención dev-mode documentada. `Frontend CI` conserva la validación
+   separada de 43 specs contra el bundle de producción.
 4. Los artifacts se suben solo ante fallo; teardown, higiene de source y
    limpieza de outputs se ejecutan siempre.
 5. Un contrato parser-backed deriva eventos, jobs y comandos desde YAML, cruza
@@ -62,6 +63,13 @@ misma cohorte `extended` pasó localmente con `CI=true` y el runner dev
 (176 tests, exit code 0). Dado que reescribir snapshots o assertions estaba
 prohibido, el gate completo adoptó el runner de baseline; el gate rápido de
 producción quedó intacto.
+
+La segunda ejecución remota eliminó los diez fallos anteriores y ejecutó los
+786 tests: 782 pasaron y cuatro fallaron por la clase de contención dev-mode
+ya registrada para `admin-users-visual-quality-gate` y contratos adaptativos.
+La evidencia histórica del repositorio registra 3/3 corridas verdes con
+`--workers=1`, por lo que el gate focalizado/semanal serializa workers sin
+dividir la suite, agregar retries ni omitir contratos.
 
 No se modificaron catálogo, runner, Playwright config, manifests, lockfile,
 specs funcionales, fixtures, helpers ni snapshots.
@@ -104,7 +112,8 @@ timeout explícito, Node 24, PNPM 11.13.0, instalación frozen y únicamente
 actions allowlisted pinneadas a SHA completa. `E2E Completeness` no activa
 `VETNEB_E2E_PRODUCTION_RUNNER`: esa señal permanece exclusivamente en
 `Frontend CI`, después de su build, donde valida el bundle de producción sin
-romper la compatibilidad de los baselines Linux del gate completo.
+romper la compatibilidad de los baselines Linux del gate completo. La única
+invocación full usa `--workers=1`; no usa retries, skips ni `continue-on-error`.
 
 ## Evidencia local
 
@@ -122,6 +131,7 @@ romper la compatibilidad de los baselines Linux del gate completo.
 | PR única | `PENDING` |
 | Head SHA | `PENDING` |
 | Primer full run diagnóstico | `30561687257` / job `90936044042` — `FAILED`; selección y descubrimiento 72/72, incompatibilidad de runner confirmada |
+| Segundo full run diagnóstico | `30562790288` / job `90939789237` — `FAILED`; 782/786 pass, cuatro flakes de contención dev-mode confirmados |
 | `e2e-full-completeness` run/job | `PENDING_LIVE_EVIDENCE` |
 | Required checks y heavies | `PENDING_LIVE_EVIDENCE` |
 | Review threads | `PENDING` |

@@ -30,7 +30,8 @@ Add a separate `E2E Completeness` workflow with focused `pull_request`,
 `workflow_dispatch` and weekly `schedule` events. Its single browser command is
 `pnpm --dir frontend e2e:full`, derived from the catalog and executed on Ubuntu
 with the `next dev` runner used to author the immutable Chromium Linux
-baselines. `Frontend CI` remains the separate production-bundle gate for the
+baselines and `--workers=1`, the repository's proven mitigation for dev-mode
+contention. `Frontend CI` remains the separate production-bundle gate for the
 43-spec `ci` cohort.
 
 The completeness workflow is non-required. It runs for changes that can alter
@@ -50,7 +51,8 @@ resolves them through the catalog and fails unless automatic coverage equals
   refs from the effective allowlist.
 - No functional spec, fixture, helper, snapshot, manifest, dependency or
   product runtime changes.
-- No `skip`, `fixme`, `continue-on-error` or literal workflow spec list.
+- No retries, `skip`, `fixme`, `continue-on-error` or literal workflow spec
+  list.
 
 ## Alternatives considered
 
@@ -60,7 +62,8 @@ resolves them through the catalog and fails unless automatic coverage equals
 | Extend the manual visual workflow | Rejected: manual dispatch is not a durable automatic route and its literal visual list can drift. |
 | Run three separate residual cohorts | Rejected: three Playwright lifecycles add cost and a larger drift surface; `full` already derives the exact union. |
 | Run completeness against `next start` | Rejected after live evidence: the 320 px Linux baselines contain the `next dev` indicator and seven adaptive contracts failed under that runner; changing snapshots or assertions is outside scope. |
-| Dedicated automatic `e2e:full` workflow | Accepted: one catalog-derived dev-runner invocation, Linux baselines and isolated non-required completeness, while `Frontend CI` retains production coverage. |
+| Keep two default CI workers | Rejected after live evidence: 782/786 passed, while the remaining four failures match the documented dev-mode contention class. |
+| Dedicated automatic `e2e:full -- --workers=1` workflow | Accepted: one catalog-derived dev-runner invocation, Linux baselines and isolated non-required completeness, while `Frontend CI` retains production coverage. |
 
 ## Validation and rollback
 

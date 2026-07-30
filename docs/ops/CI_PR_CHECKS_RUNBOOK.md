@@ -243,7 +243,9 @@ La ruta completa construye primero el frontend con el fixture local, audita la
 superficie pública e instala Chromium. Ejecuta `e2e:full` con `next dev` porque
 los baselines Linux versionados fueron creados con ese runner e incluyen su
 indicador visual. La validación contra el bundle de producción permanece en
-`Frontend CI` (`e2e:ci`, 43 specs). Los baselines `visual-linux` se ejecutan
+`Frontend CI` (`e2e:ci`, 43 specs). La suite completa usa `--workers=1` para
+evitar la clase de contención dev-mode documentada; continúa siendo una sola
+invocación sin retries ni omisiones. Los baselines `visual-linux` se ejecutan
 solo en Ubuntu. Ante fallo sube `playwright-report` y `test-results`; luego
 verifica teardown, source hygiene y limpia esos outputs del checkout efímero.
 
