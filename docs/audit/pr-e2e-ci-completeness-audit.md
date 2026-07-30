@@ -45,12 +45,23 @@ Se adoptó el [RFC de completitud E2E](./pr-e2e-ci-completeness-rfc.md):
    schedule semanal sobre Ubuntu.
 3. El job instala el workspace congelado, verifica catálogo, construye con el
    fixture local, audita superficie pública, instala Chromium y ejecuta una
-   única invocación `e2e:full` contra el bundle de producción.
+   única invocación `e2e:full` con el runner `next dev` compatible con los
+   baselines Linux versionados. `Frontend CI` conserva la validación separada
+   de 43 specs contra el bundle de producción.
 4. Los artifacts se suben solo ante fallo; teardown, higiene de source y
    limpieza de outputs se ejecutan siempre.
 5. Un contrato parser-backed deriva eventos, jobs y comandos desde YAML, cruza
    cohortes con el catálogo y prueba rutas negativas mediante mutación en
    memoria.
+
+La primera ejecución remota contra `next start` seleccionó correctamente los
+72 specs y descubrió los 72 archivos, pero falló: los snapshots de 320 px
+incluyen el indicador de `next dev`, ausente en producción, y la cohorte
+`extended` expuso bajo esa modalidad siete fallos de render adaptativo. La
+misma cohorte `extended` pasó localmente con `CI=true` y el runner dev
+(176 tests, exit code 0). Dado que reescribir snapshots o assertions estaba
+prohibido, el gate completo adoptó el runner de baseline; el gate rápido de
+producción quedó intacto.
 
 No se modificaron catálogo, runner, Playwright config, manifests, lockfile,
 specs funcionales, fixtures, helpers ni snapshots.
@@ -90,15 +101,17 @@ Las pruebas negativas no crean archivos persistentes ni PRs auxiliares:
 
 El workflow declara `permissions: contents: read`, concurrency con cancelación,
 timeout explícito, Node 24, PNPM 11.13.0, instalación frozen y únicamente
-actions allowlisted pinneadas a SHA completa. El flag
-`VETNEB_E2E_PRODUCTION_RUNNER=1` aparece una sola vez, después del build y solo
-en el step `e2e:full`.
+actions allowlisted pinneadas a SHA completa. `E2E Completeness` no activa
+`VETNEB_E2E_PRODUCTION_RUNNER`: esa señal permanece exclusivamente en
+`Frontend CI`, después de su build, donde valida el bundle de producción sin
+romper la compatibilidad de los baselines Linux del gate completo.
 
 ## Evidencia local
 
 | Validación | Estado |
 | --- | --- |
 | Contratos focales de catálogo, workflows, production runner y workflow security | `PASSED` — 79/79 |
+| `CI=true pnpm --dir frontend e2e:extended` | `PASSED` — 176 tests |
 | Resto de gates obligatorios del slot | `PENDING` |
 | `e2e:full` real Linux | `PENDING_LIVE_EVIDENCE` |
 
@@ -108,6 +121,7 @@ en el step `e2e:full`.
 | --- | --- |
 | PR única | `PENDING` |
 | Head SHA | `PENDING` |
+| Primer full run diagnóstico | `30561687257` / job `90936044042` — `FAILED`; selección y descubrimiento 72/72, incompatibilidad de runner confirmada |
 | `e2e-full-completeness` run/job | `PENDING_LIVE_EVIDENCE` |
 | Required checks y heavies | `PENDING_LIVE_EVIDENCE` |
 | Review threads | `PENDING` |

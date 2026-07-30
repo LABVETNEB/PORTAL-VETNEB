@@ -252,7 +252,7 @@ test("completeness workflow has focused durable triggers and no literal spec lis
   assert.deepEqual(routedCohorts(document), ["full"]);
 });
 
-test("completeness job preserves production-runner ordering, Linux baselines and hygiene", () => {
+test("completeness job preserves Linux baseline compatibility, build ordering and hygiene", () => {
   const source = readWorkflow(COMPLETENESS_WORKFLOW);
   const document = parseWorkflow(source);
   const workflowJob = job(document, "e2e-full-completeness");
@@ -268,14 +268,16 @@ test("completeness job preserves production-runner ordering, Linux baselines and
   assert.ok(stepNames.indexOf("Install Playwright Chromium") < stepNames.indexOf("Run complete cataloged E2E suite"));
 
   const build = stepByName(workflowJob, "Build frontend");
-  const runFull = stepByName(workflowJob, "Run complete cataloged E2E suite");
   assert.deepEqual(build.env, {
     NEXT_PUBLIC_API_URL: "http://127.0.0.1:3107",
     VETNEB_E2E_ALLOW_LOCAL_API: "1",
     VETNEB_E2E_DISABLE_EXTERNAL_EMBEDS: "1",
   });
-  assert.deepEqual(runFull.env, { VETNEB_E2E_PRODUCTION_RUNNER: "1" });
-  assert.equal(source.match(/VETNEB_E2E_PRODUCTION_RUNNER/g)?.length, 1);
+  assert.equal(
+    source.includes("VETNEB_E2E_PRODUCTION_RUNNER"),
+    false,
+    "full must use next dev because the immutable Linux baselines include the Next.js development indicator",
+  );
   assert.equal(stepByName(workflowJob, "Upload Playwright diagnostics").if, "failure()");
   assert.equal(stepByName(workflowJob, "Verify E2E teardown").if, "always()");
   assert.equal(stepByName(workflowJob, "Verify source hygiene and clean generated artifacts").if, "always()");

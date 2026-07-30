@@ -240,10 +240,12 @@ E2E Completeness:
 ```
 
 La ruta completa construye primero el frontend con el fixture local, audita la
-superficie pública, instala Chromium y activa el production runner únicamente
-en el step posterior al build. Los baselines `visual-linux` se ejecutan solo en
-Ubuntu. Ante fallo sube `playwright-report` y `test-results`; luego verifica
-teardown, source hygiene y limpia esos outputs del checkout efímero.
+superficie pública e instala Chromium. Ejecuta `e2e:full` con `next dev` porque
+los baselines Linux versionados fueron creados con ese runner e incluyen su
+indicador visual. La validación contra el bundle de producción permanece en
+`Frontend CI` (`e2e:ci`, 43 specs). Los baselines `visual-linux` se ejecutan
+solo en Ubuntu. Ante fallo sube `playwright-report` y `test-results`; luego
+verifica teardown, source hygiene y limpia esos outputs del checkout efímero.
 
 Un cambio E2E no está listo si `validate-frontend` pasa pero
 `e2e-full-completeness` falla. Para diagnosticar:

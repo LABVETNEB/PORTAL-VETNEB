@@ -74,8 +74,6 @@ jobs:
 
       - name: Run complete cataloged E2E suite
         run: pnpm --dir frontend e2e:full
-        env:
-          VETNEB_E2E_PRODUCTION_RUNNER: "1"
 
       - name: Upload Playwright diagnostics
         if: failure()
