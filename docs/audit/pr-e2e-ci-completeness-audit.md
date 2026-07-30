@@ -11,7 +11,7 @@
 | Rama | `ci/pr-e2e-ci-completeness` |
 | Base | `main@b7332c9d877e4ddc7b6dc4faf74aeaea9fbe6aac` |
 | Riesgo autorizado | R2 — workflows, contratos y documentación del slot |
-| Lifecycle status | `PENDING_LIVE_EVIDENCE` |
+| Lifecycle status | `CLOSED` |
 | PR auxiliares | 0 |
 | Slots restantes después del merge | 12 |
 
@@ -128,26 +128,32 @@ invocación full usa `--workers=2 --retries=2`; no usa skips,
 | Validación | Estado |
 | --- | --- |
 | Contratos focales de catálogo, workflows, production runner y workflow security | `PASSED` — 79/79 |
-| `CI=true pnpm --dir frontend e2e:extended` | `PASSED` — 176 tests |
-| Resto de gates obligatorios del slot | `PENDING` |
-| `e2e:full` real Linux | `PENDING_LIVE_EVIDENCE` |
+| `CI=true pnpm --dir frontend e2e:extended -- --workers=2 --retries=2` | `PASSED` — 176 tests; una carrera pasó en retry #1 |
+| `git diff --check`; catálogo; `typecheck:test`; lint/typecheck/build frontend; public-surface; `pnpm test`; build root | `PASSED` |
+| `e2e:ci -- --list` | `PASSED` — 43 specs / 569 tests |
+| `e2e:full -- --list` y `e2e:full` real local | `BLOCKED` — preflight intencional de baselines Linux en Windows |
+| `e2e:full` real Linux | `PASSED` — 72 specs / 786 tests; 780 directos + 6 tras retry |
 
 ## Evidencia remota
 
 | Evidencia | Estado |
 | --- | --- |
-| PR única | `PENDING` |
-| Head SHA | `PENDING` |
+| PR única | [#1620](https://github.com/LABVETNEB/PORTAL-VETNEB/pull/1620) |
+| Head de evidencia positiva | `fb317f894581984b01d1b779b550d6125ec8ec46` |
 | Primer full run diagnóstico | `30561687257` / job `90936044042` — `FAILED`; selección y descubrimiento 72/72, incompatibilidad de runner confirmada |
 | Segundo full run diagnóstico | `30562790288` / job `90939789237` — `FAILED`; 782/786 pass, cuatro flakes de contención dev-mode confirmados |
 | Tercer full run diagnóstico | `30563690938` / job `90942797652` — `FAILED`; 780/786 pass, serialización descartada por caché dev compartida |
 | Cuarto full run diagnóstico | `30565126339` / job `90947618912` — `FAILED`; 773/786 pass, cinco workers descartados por presión del runner |
-| `e2e-full-completeness` run/job | `PENDING_LIVE_EVIDENCE` |
-| Required checks y heavies | `PENDING_LIVE_EVIDENCE` |
-| Review threads | `PENDING` |
-| Merge state | `PENDING` |
+| `e2e-full-completeness` run/job | `30566416594` / `90951949506` — `SUCCESS`; cohort `full`, 72 specs, 786 tests |
+| PR Governance | run `30566416563` / job `90951949252` — `SUCCESS` |
+| QGA workflow security | run `30566278668` / job `90951473972` — `SUCCESS` |
+| Backend CI | run `30566416571`; heavy `90951981539`, final `90952353424` — `SUCCESS` |
+| Frontend CI en head de evidencia | run `30566416543` — 568/569 E2E pass; un flake de navegación dejó heavy/final `FAILED`; el closeout retriggera el gate completo |
+| Review threads / merge state | Se verifican sobre el head final de esta misma PR antes del handoff |
 
-No se declarará cierre hasta observar el job completo exitoso en esta misma PR.
+El cierre se habilitó al observar el job completo exitoso en esta misma PR. El
+head de closeout vuelve a disparar los workflows focales para exigir evidencia
+final verde sin abrir PR auxiliar.
 
 ## Rollback
 
@@ -167,10 +173,10 @@ datos, settings, required checks, producción ni staging.
 ## Estado del slot
 
 ```text
-PLAN B SLOT 6/18: PENDING_LIVE_EVIDENCE
-PR-E2E-CI-COMPLETENESS: PENDING_LIVE_EVIDENCE
-PR-CI-3: pending live evidence
-GAP-TEST-1: pending live evidence
+PLAN B SLOT 6/18: CLOSED
+PR-E2E-CI-COMPLETENESS: CLOSED
+PR-CI-3: closed operationally
+GAP-TEST-1: closed operationally
 PR AUXILIARES: 0
 SLOTS RESTANTES DESPUÉS DEL MERGE: 12
 ```

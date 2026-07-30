@@ -19,7 +19,7 @@
 | Alcance | Gobernanza, documentación, PRs, tests, CI/CD, seguridad, datos, observabilidad, release, dependencias, calidad y operación |
 | No-scope | No modifica runtime, backend, frontend, DB, migraciones, dependencias, lockfiles, workflows ni configuración productiva |
 | Related controls or gaps | `ERM-CTRL-001..025`; gaps P0/P1/P2/P3 de este documento |
-| Evidence or approval reference | Auditoría original sobre `main@db1da94`; reconciliación documental `PR-AUDIT-ENTERPRISE-DOCS`; PR #1593 y [closeout del bloque 03](./pr-sec-secret-patterns-audit.md); PR #1601, canarias #1602/#1603, PR correctiva #1605 y [closeout del bloque 04](./pr-ci-always-run-gates-audit.md); required checks efectivos, hardening de Actions, canarias #1616/#1618 y [closeout del bloque 05](./pr-ci-required-checks-audit.md); [bloque 06](./pr-e2e-ci-completeness-audit.md) en `PENDING_LIVE_EVIDENCE` |
+| Evidence or approval reference | Auditoría original sobre `main@db1da94`; reconciliación documental `PR-AUDIT-ENTERPRISE-DOCS`; PR #1593 y [closeout del bloque 03](./pr-sec-secret-patterns-audit.md); PR #1601, canarias #1602/#1603, PR correctiva #1605 y [closeout del bloque 04](./pr-ci-always-run-gates-audit.md); required checks efectivos, hardening de Actions, canarias #1616/#1618 y [closeout del bloque 05](./pr-ci-required-checks-audit.md); PR #1620, run `30566416594` y [closeout del bloque 06](./pr-e2e-ci-completeness-audit.md) |
 
 He completado la auditoría. Baseline capturado: `main` limpio, HEAD `db1da94`, working tree sin cambios. **No modifiqué, moví ni creé ningún archivo**; solo lectura, inspección local y `gh api` de solo lectura.
 
@@ -127,13 +127,14 @@ del bloque 05, no por el texto de diagnóstico.
 
 ## Estado operativo posterior — bloque 06
 
-`PR-E2E-CI-COMPLETENESS` está `PENDING_LIVE_EVIDENCE`. El diseño conserva
-`Frontend CI` con `e2e:ci` (43 specs) y agrega `E2E Completeness` con una única
-invocación Ubuntu `e2e:full` para cubrir automáticamente `extended` (24),
-`evidence` (2) y `visual-linux` (3). El contrato parser-backed deriva las
-cohortes desde YAML y el catálogo, sin lista paralela de specs, y prueba
-mutaciones negativas en memoria. `GAP-TEST-1` y `PR-CI-3` permanecen abiertos
-hasta que la suite real de 72 specs sea verde en la única PR del slot.
+`PR-E2E-CI-COMPLETENESS` está `CLOSED` operacionalmente en la PR #1620. El
+diseño conserva `Frontend CI` con `e2e:ci` (43 specs) y agrega `E2E
+Completeness` con una única invocación Ubuntu `e2e:full` para cubrir
+automáticamente `extended` (24), `evidence` (2) y `visual-linux` (3). El
+contrato parser-backed deriva las cohortes desde YAML y el catálogo, sin lista
+paralela de specs, y prueba mutaciones negativas en memoria. Run
+`30566416594`, job `90951949506`, ejecutó 72 specs / 786 tests con `SUCCESS`;
+`GAP-TEST-1` y `PR-CI-3` quedan cerrados operacionalmente.
 
 ---
 

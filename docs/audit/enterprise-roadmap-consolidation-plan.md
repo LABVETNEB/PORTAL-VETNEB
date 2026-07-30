@@ -187,8 +187,8 @@ No se recomienda Plan C salvo autorización explícita de Nico y aceptación de 
 
 ## Estado operativo del slot 6
 
-`PR-E2E-CI-COMPLETENESS` está `PENDING_LIVE_EVIDENCE` en su única PR. La
-implementación mantiene el gate rápido `e2e:ci` y agrega una ruta automática
-Ubuntu `e2e:full`; el cierre se registra en
-[PR-E2E-CI-COMPLETENESS Audit](./pr-e2e-ci-completeness-audit.md) únicamente
-después de observar la suite completa verde.
+`PR-E2E-CI-COMPLETENESS` está `CLOSED` operacionalmente en su única PR #1620.
+La implementación mantiene el gate rápido productivo `e2e:ci` y agrega una
+ruta automática Ubuntu `e2e:full`; run `30566416594`, job `90951949506`,
+demostró 72 specs y 786 tests con `SUCCESS`. El closeout se conserva en
+[PR-E2E-CI-COMPLETENESS Audit](./pr-e2e-ci-completeness-audit.md).
