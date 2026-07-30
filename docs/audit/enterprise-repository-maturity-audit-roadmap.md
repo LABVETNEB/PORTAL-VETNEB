@@ -13,13 +13,13 @@
 | Lifecycle status | ACTIVE |
 | Authoritative source role | Auditoría global, diagnóstico y roadmap original |
 | Effective date | 2026-07-28 |
-| Last verified date | 2026-07-29 |
+| Last verified date | 2026-07-30 |
 | Review cadence | Mensual y ante cambios materiales de controles enterprise |
 | Propósito | Auditoría y roadmap enterprise del repositorio |
 | Alcance | Gobernanza, documentación, PRs, tests, CI/CD, seguridad, datos, observabilidad, release, dependencias, calidad y operación |
 | No-scope | No modifica runtime, backend, frontend, DB, migraciones, dependencias, lockfiles, workflows ni configuración productiva |
 | Related controls or gaps | `ERM-CTRL-001..025`; gaps P0/P1/P2/P3 de este documento |
-| Evidence or approval reference | Auditoría original sobre `main@db1da94`; reconciliación documental `PR-AUDIT-ENTERPRISE-DOCS`; PR #1593 y [closeout del bloque 03](./pr-sec-secret-patterns-audit.md); PR #1601, canarias #1602/#1603, PR correctiva #1605 y [closeout del bloque 04](./pr-ci-always-run-gates-audit.md) |
+| Evidence or approval reference | Auditoría original sobre `main@db1da94`; reconciliación documental `PR-AUDIT-ENTERPRISE-DOCS`; PR #1593 y [closeout del bloque 03](./pr-sec-secret-patterns-audit.md); PR #1601, canarias #1602/#1603, PR correctiva #1605 y [closeout del bloque 04](./pr-ci-always-run-gates-audit.md); required checks efectivos, hardening de Actions, canarias #1616/#1618 y [closeout del bloque 05](./pr-ci-required-checks-audit.md) |
 
 He completado la auditoría. Baseline capturado: `main` limpio, HEAD `db1da94`, working tree sin cambios. **No modifiqué, moví ni creé ningún archivo**; solo lectura, inspección local y `gh api` de solo lectura.
 
@@ -83,11 +83,47 @@ head final `a6b5ad4229daa488a84e0c5072be755ae9586502`. Esto demuestra enforcemen
 positivo de `Architecture Decision`, no un fallo de la arquitectura CI.
 
 La evidencia completa se conserva en
-[PR-CI-ALWAYS-RUN-GATES Audit](./pr-ci-always-run-gates-audit.md). Los contextos
-funcionales `validate-backend` y `validate-frontend` permanecen no required:
-branch protection no fue modificada, `ERM-CI-002` sigue abierto,
-`ERM-CTRL-014` conserva `PARTIAL` y el bloque 05 `PR-CI-REQUIRED-CHECKS`
-permanece `NOT_RUN`.
+[PR-CI-ALWAYS-RUN-GATES Audit](./pr-ci-always-run-gates-audit.md). Al cierre del
+bloque 04 los contextos funcionales `validate-backend` y `validate-frontend`
+estaban siempre presentes pero todavía no eran required; ese límite fue
+levantado por el bloque 05, registrado a continuación.
+
+## Estado operativo posterior — bloque 05
+
+El bloque 05 del Plan B, `PR-CI-REQUIRED-CHECKS`, quedó `CLOSED` el 2026-07-30
+bajo autorización R3. El bloque absorbió `PR-CI-1` (required functional checks) y
+`PR-CI-4` (GitHub Actions permissions hardening), ambos config-only.
+
+```text
+P0-2 / PR-CI-1: closed operationally 2026-07-30
+PR-CI-4: closed operationally 2026-07-30
+BLOQUE 05 PR-CI-REQUIRED-CHECKS: CLOSED
+```
+
+Branch protection de `main` exige ahora cuatro contextos con `strict: true`:
+`validate-pr-governance` (`app_id 15368`), `qga-workflow-security`
+(`app_id 4291335`), `validate-backend` (`app_id 15368`) y `validate-frontend`
+(`app_id 15368`). La política de Actions quedó en `allowed_actions: selected`
+con `sha_pinning_required: true`, `verified_allowed: false`, patrón
+`pnpm/action-setup@*` y `default_workflow_permissions: read`.
+
+| PR canaria | Rol | Resultado |
+| --- | --- | --- |
+| #1616 | Positiva docs-only | Cuatro required `success`; heavies `skipped`; `mergeStateStatus` final `CLEAN` |
+| #1617 | Inválida | No es evidencia negativa; hallazgo diagnóstico de descubrimiento de tests |
+| #1618 | Negativa válida | `validate-backend` `failure`; merge `BLOCKED` con `mergeable: MERGEABLE` |
+
+La evidencia completa se conserva en
+[PR-CI-REQUIRED-CHECKS Audit](./pr-ci-required-checks-audit.md).
+`ERM-CI-002` queda cerrado operativamente y `ERM-CTRL-014` transiciona a
+`IMPLEMENTED` en el
+[Enterprise Control Register](../governance/enterprise-control-register.md).
+
+El diagnóstico histórico de este documento —incluidas las brechas `P0-2` y
+`GAP-P0-2`, el scorecard y la tabla de riesgos— sigue siendo válido para su
+fecha original de observación y no se reescribe. El estado vivo de estos
+controles está gobernado por el Enterprise Control Register y por el closeout
+del bloque 05, no por el texto de diagnóstico.
 
 ---
 
