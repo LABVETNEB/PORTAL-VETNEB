@@ -14,7 +14,7 @@
 | Supersedes | Ninguno |
 | Superseded by | Ninguno |
 | Related controls or gaps | `ERM-CTRL-004`; `ERM-CTRL-005` |
-| Evidence or approval reference | Árbol documental verificado para `PR-AUDIT-ENTERPRISE-DOCS`; PR #1591 y closeout sanitizado de `PR-SEC-REPO-SETTINGS`; PR #1593 y closeout del bloque 03; PR #1601, canarias #1602/#1603 y PR correctiva #1605 del bloque 04; required checks efectivos, hardening de Actions y canarias #1616/#1618 del bloque 05; PR #1620 y full run `30566416594` del bloque 06 |
+| Evidence or approval reference | Árbol documental verificado para `PR-AUDIT-ENTERPRISE-DOCS`; PR #1591 y closeout sanitizado de `PR-SEC-REPO-SETTINGS`; PR #1593 y closeout del bloque 03; PR #1601, canarias #1602/#1603 y PR correctiva #1605 del bloque 04; required checks efectivos, hardening de Actions y canarias #1616/#1618 del bloque 05; PR #1620, head de closeout completado `2d9eda213d2a913786d2497ae18f345011d5eec7` y full run `30567587561` / job `90955867044` del bloque 06 |
 
 ## Criterio de vigencia
 

@@ -132,28 +132,35 @@ invocación full usa `--workers=2 --retries=2`; no usa skips,
 | `git diff --check`; catálogo; `typecheck:test`; lint/typecheck/build frontend; public-surface; `pnpm test`; build root | `PASSED` |
 | `e2e:ci -- --list` | `PASSED` — 43 specs / 569 tests |
 | `e2e:full -- --list` y `e2e:full` real local | `BLOCKED` — preflight intencional de baselines Linux en Windows |
-| `e2e:full` real Linux | `PASSED` — 72 specs / 786 tests; 780 directos + 6 tras retry |
+| `e2e:full` real Linux (GitHub Actions, head de closeout completado) | `PASSED` — 72 specs / 786 tests; 782 directos + 4 tras retry acotado |
 
 ## Evidencia remota
 
 | Evidencia | Estado |
 | --- | --- |
 | PR única | [#1620](https://github.com/LABVETNEB/PORTAL-VETNEB/pull/1620) |
-| Head de evidencia positiva | `fb317f894581984b01d1b779b550d6125ec8ec46` |
+| Primer head de implementación exitoso (histórico intermedio) | `fb317f894581984b01d1b779b550d6125ec8ec46` |
 | Primer full run diagnóstico | `30561687257` / job `90936044042` — `FAILED`; selección y descubrimiento 72/72, incompatibilidad de runner confirmada |
 | Segundo full run diagnóstico | `30562790288` / job `90939789237` — `FAILED`; 782/786 pass, cuatro flakes de contención dev-mode confirmados |
 | Tercer full run diagnóstico | `30563690938` / job `90942797652` — `FAILED`; 780/786 pass, serialización descartada por caché dev compartida |
 | Cuarto full run diagnóstico | `30565126339` / job `90947618912` — `FAILED`; 773/786 pass, cinco workers descartados por presión del runner |
-| `e2e-full-completeness` run/job | `30566416594` / `90951949506` — `SUCCESS`; cohort `full`, 72 specs, 786 tests |
-| PR Governance | run `30566416563` / job `90951949252` — `SUCCESS` |
-| QGA workflow security | run `30566278668` / job `90951473972` — `SUCCESS` |
-| Backend CI | run `30566416571`; heavy `90951981539`, final `90952353424` — `SUCCESS` |
-| Frontend CI en head de evidencia | run `30566416543` — 568/569 E2E pass; un flake de navegación dejó heavy/final `FAILED`; el closeout retriggera el gate completo |
-| Review threads / merge state | Se verifican sobre el head final de esta misma PR antes del handoff |
+| Primer full run exitoso de implementación (histórico intermedio) | `30566416594` / job `90951949506` — `SUCCESS`; cohort `full`, 72 specs, 786 tests; 780 directos y 6 tras retry acotado |
+| Checks del primer head exitoso (históricos intermedios) | PR Governance `30566416563` / `90951949252`, QGA `30566278668` / `90951473972` y Backend CI `30566416571` / heavy `90951981539` / final `90952353424` — `SUCCESS` |
+| Frontend CI del primer head exitoso (histórico intermedio) | run `30566416543` — 568/569 E2E pass; un flake de navegación dejó heavy/final `FAILED`; no representa el estado del closeout |
+| Head de closeout completado previo a esta normalización documental | `2d9eda213d2a913786d2497ae18f345011d5eec7` |
+| `e2e-full-completeness` final de closeout | run `30567587561` / job `90955867044` — `SUCCESS`; cohort `full`, 72 specs, 786 tests; 782 directos y 4 tras retry acotado; teardown `SUCCESS`; source hygiene `SUCCESS` |
+| Frontend CI final de closeout | run `30567587547`; detect `90955866591`, heavy `90955897685`, final `90957114515` — `SUCCESS` |
+| Backend CI final de closeout | run `30567587684`; detect `90955864885`, heavy `90955899119`, final `90956202277` — `SUCCESS` |
+| PR Governance final de closeout | run `30567587545` / job `90955864776` — `SUCCESS` |
+| QGA workflow security final de closeout | run `30567586557` / job `90955866651` — `SUCCESS` |
+| Estado observado de la PR | 0 hilos sin resolver; PR abierta; `CLEAN`; `MERGEABLE` |
 
-El cierre se habilitó al observar el job completo exitoso en esta misma PR. El
-head de closeout vuelve a disparar los workflows focales para exigir evidencia
-final verde sin abrir PR auxiliar.
+La evidencia durable usa un modelo no autorreferencial. La documentación del
+repositorio registra el último head de closeout ya completado antes de esta
+normalización (`2d9eda213d2a913786d2497ae18f345011d5eec7`) y sus runs
+observados. El body de la PR registra los checks y los identificadores del
+head más nuevo generado por esta corrección documental; no se crea otro commit
+solo para insertar identificadores que nacen después del propio commit.
 
 ## Rollback
 

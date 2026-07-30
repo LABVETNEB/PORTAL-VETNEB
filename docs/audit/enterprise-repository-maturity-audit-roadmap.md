@@ -19,7 +19,7 @@
 | Alcance | Gobernanza, documentación, PRs, tests, CI/CD, seguridad, datos, observabilidad, release, dependencias, calidad y operación |
 | No-scope | No modifica runtime, backend, frontend, DB, migraciones, dependencias, lockfiles, workflows ni configuración productiva |
 | Related controls or gaps | `ERM-CTRL-001..025`; gaps P0/P1/P2/P3 de este documento |
-| Evidence or approval reference | Auditoría original sobre `main@db1da94`; reconciliación documental `PR-AUDIT-ENTERPRISE-DOCS`; PR #1593 y [closeout del bloque 03](./pr-sec-secret-patterns-audit.md); PR #1601, canarias #1602/#1603, PR correctiva #1605 y [closeout del bloque 04](./pr-ci-always-run-gates-audit.md); required checks efectivos, hardening de Actions, canarias #1616/#1618 y [closeout del bloque 05](./pr-ci-required-checks-audit.md); PR #1620, run `30566416594` y [closeout del bloque 06](./pr-e2e-ci-completeness-audit.md) |
+| Evidence or approval reference | Auditoría original sobre `main@db1da94`; reconciliación documental `PR-AUDIT-ENTERPRISE-DOCS`; PR #1593 y [closeout del bloque 03](./pr-sec-secret-patterns-audit.md); PR #1601, canarias #1602/#1603, PR correctiva #1605 y [closeout del bloque 04](./pr-ci-always-run-gates-audit.md); required checks efectivos, hardening de Actions, canarias #1616/#1618 y [closeout del bloque 05](./pr-ci-required-checks-audit.md); PR #1620, head de closeout completado `2d9eda213d2a913786d2497ae18f345011d5eec7`, run `30567587561` / job `90955867044` y [closeout del bloque 06](./pr-e2e-ci-completeness-audit.md) |
 
 He completado la auditoría. Baseline capturado: `main` limpio, HEAD `db1da94`, working tree sin cambios. **No modifiqué, moví ni creé ningún archivo**; solo lectura, inspección local y `gh api` de solo lectura.
 
@@ -132,9 +132,11 @@ diseño conserva `Frontend CI` con `e2e:ci` (43 specs) y agrega `E2E
 Completeness` con una única invocación Ubuntu `e2e:full` para cubrir
 automáticamente `extended` (24), `evidence` (2) y `visual-linux` (3). El
 contrato parser-backed deriva las cohortes desde YAML y el catálogo, sin lista
-paralela de specs, y prueba mutaciones negativas en memoria. Run
-`30566416594`, job `90951949506`, ejecutó 72 specs / 786 tests con `SUCCESS`;
-`GAP-TEST-1` y `PR-CI-3` quedan cerrados operacionalmente.
+paralela de specs, y prueba mutaciones negativas en memoria. El head de
+closeout completado `2d9eda213d2a913786d2497ae18f345011d5eec7`,
+run `30567587561` / job `90955867044`, ejecutó 72 specs / 786 tests con
+`SUCCESS`: 782 pases directos y 4 tras retry acotado. `GAP-TEST-1` y
+`PR-CI-3` quedan cerrados operacionalmente.
 
 ---
 
