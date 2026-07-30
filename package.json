@@ -18,6 +18,7 @@
     "smoke:upload": "node scripts/smoke/smoke-upload.mjs",
     "smoke:prod:public": "node scripts/smoke/smoke-prod-public.mjs",
     "smoke:staging": "powershell -ExecutionPolicy Bypass -File scripts/dev/smoke-staging.ps1",
+    "lint:backend": "eslint \"server/**/*.{ts,mts,mjs}\" \"scripts/**/*.{ts,mts,mjs}\" \"drizzle/**/*.{ts,mts,mjs}\"",
     "test": "node --experimental-strip-types --experimental-specifier-resolution=node --test test/**/*.test.ts",
     "test:coverage": "node --experimental-strip-types --experimental-specifier-resolution=node --experimental-test-coverage --test \"test/**/*.test.ts\"",
     "security:public-surface": "node scripts/security/audit-public-devtools-surface.mjs",
@@ -37,11 +38,16 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/multer": "^2.1.0",
     "@types/node": "^26.1.1",
     "@types/nodemailer": "^8.0.1",
+    "@typescript-eslint/eslint-plugin": "8.62.0",
+    "@typescript-eslint/parser": "8.62.0",
     "drizzle-kit": "^0.31.10",
     "esbuild": "^0.28.1",
+    "eslint": "^10.7.0",
+    "globals": "16.4.0",
     "js-yaml": "5.2.1",
     "tsx": "^4.23.1",
     "typescript": "^5.9.3"

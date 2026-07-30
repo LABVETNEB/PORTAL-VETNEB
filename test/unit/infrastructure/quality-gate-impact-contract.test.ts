@@ -134,6 +134,7 @@ test("impact routing classifies representative paths", () => {
     [".cursorignore", "repo-config-cursorignore"],
     [".vscode/settings.json", "repo-config-vscode"],
     ["docs/governance/example.md", "docs"],
+    ["eslint.config.mjs", "backend-eslint-config"],
     ["package.json", "root-package"],
     ["frontend/package.json", "frontend-package"],
     ["pnpm-lock.yaml", "pnpm-lockfile"],

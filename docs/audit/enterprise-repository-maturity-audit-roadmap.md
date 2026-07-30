@@ -471,6 +471,12 @@ Ver [closeout del bloque 03](./pr-sec-secret-patterns-audit.md).
 | **PR-ARCH-1** | ci-only | Gate ADR/RFC: PR que toca `server/**` estructural, `drizzle/**` o `.github/workflows/**` debe enlazar ADR/RFC o justificar `not applicable` | `scripts/governance/pr-governance-validator.mjs`, PR template | Medio | Canaria positiva + negativa | Cierra `ERM-ARC-001` |
 | **PR-OWNERS-1** | docs-only | Documentar explícitamente el riesgo de bus factor 1 y el disparador para pasar a review independiente | `docs/governance/ownership-model.md` | Bajo | PR Gov | Trigger de reasignación definido |
 
+Estado operativo al 2026-07-30: `PR-QUALITY-1` fue cerrado por el slot 08 y
+`PR-QUALITY-2` queda implementado localmente por el slot 09. El segundo publica
+un baseline de 253 archivos, 0 errors y 52 warnings, con cero autofix y sin
+enforcement CI; la evidencia viva está en
+[PR-QUALITY-BACKEND-LINT-BASELINE Audit](./pr-quality-backend-lint-baseline-audit.md).
+
 ## Fase 9 — Enterprise closeout
 
 | PR | Tipo | Objetivo |

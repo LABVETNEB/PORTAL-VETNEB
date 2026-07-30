@@ -54,6 +54,7 @@ Los documentos históricos previos dentro de `docs/audit/` se conservan como ant
 | [pr-test-architecture-consolidation-audit.md](./pr-test-architecture-consolidation-audit.md) | Censo exacto source-coupled, soporte canónico, walker recursivo y evidencia local positiva/negativa del slot 07. | `ACTIVE`; validación remota vive en la PR |
 | [pr-test-architecture-consolidation-source-coupled-inventory.md](./pr-test-architecture-consolidation-source-coupled-inventory.md) | Anexo exhaustivo path por path de los 370 tests source-coupled observados en el baseline del slot 07. | `ACTIVE`; anexo del closeout |
 | [pr-quality-coverage-baseline-audit.md](./pr-quality-coverage-baseline-audit.md) | Script separado de cobertura nativa, contrato positivo/negativo y baseline real del slot 08. | `ACTIVE`; `PR-QUALITY-COVERAGE-BASELINE IMPLEMENTED_LOCALLY` |
+| [pr-quality-backend-lint-baseline-audit.md](./pr-quality-backend-lint-baseline-audit.md) | Flat config raíz independiente, contrato positivo/negativo y baseline real ESLint sobre backend tooling del slot 09. | `ACTIVE`; `PR-QUALITY-BACKEND-LINT-BASELINE IMPLEMENTED_LOCALLY` |
 
 ## Documentos rectores recientes
 
@@ -103,6 +104,7 @@ BLOQUE 05: CLOSED
 BLOQUE 06: CLOSED
 BLOQUE 07: IMPLEMENTED_LOCALLY
 BLOQUE 08: IMPLEMENTED_LOCALLY
+BLOQUE 09: IMPLEMENTED_LOCALLY
 ```
 
 `PR-SEC-SECRET-PATTERNS`, bloque 03 del
@@ -134,3 +136,9 @@ cobertura nativa de Node sin modificar `pnpm test`, dependencias, lockfile,
 workflows ni thresholds. El baseline local observado y las mutaciones negativas
 se conservan en
 [pr-quality-coverage-baseline-audit.md](./pr-quality-coverage-baseline-audit.md).
+
+`PR-QUALITY-BACKEND-LINT-BASELINE`, bloque 09, cubre 253 archivos versionados de
+`server`, `scripts` y `drizzle` con una flat config raíz independiente. El
+baseline local es 0 errors y 52 warnings, sin autofix, reformateo, cambios
+runtime ni enforcement CI. El detalle y los agregados se conservan en
+[pr-quality-backend-lint-baseline-audit.md](./pr-quality-backend-lint-baseline-audit.md).

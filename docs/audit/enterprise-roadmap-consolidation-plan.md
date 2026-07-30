@@ -214,3 +214,11 @@ local observado es 4.023 tests, 81,70% líneas, 78,55% branches y 78,74%
 funciones. El contrato positivo, las mutaciones negativas y el closeout se
 conservan en
 [PR-QUALITY-COVERAGE-BASELINE Audit](./pr-quality-coverage-baseline-audit.md).
+
+## Estado operativo local del slot 9
+
+`PR-QUALITY-BACKEND-LINT-BASELINE` absorbe `PR-QUALITY-2` en una única rama y
+PR. El baseline ESLint raíz cubre 253 archivos de `server`, `scripts` y
+`drizzle`: 0 errors y 52 warnings, sin autofix, reformateo, cambios runtime ni
+enforcement CI. El contrato, censo y evidencia local se conservan en
+[PR-QUALITY-BACKEND-LINT-BASELINE Audit](./pr-quality-backend-lint-baseline-audit.md).

@@ -405,6 +405,15 @@ export const IMPACT_RULES = deepFreeze([
     description: "VS Code workspace settings affect repository editor configuration and require governance review.",
   },
   {
+    id: "backend-eslint-config",
+    matcher: { type: "exact", path: "eslint.config.mjs" },
+    impacts: ["backend-lint-configuration", "backend-toolchain"],
+    gates: ["pr-governance", "backend-ci", "manual-review"],
+    suiteIds: ["backend-test-typecheck", "backend-tests"],
+    description:
+      "Root ESLint configuration affects the diagnostic backend lint baseline without making lint a required CI gate.",
+  },
+  {
     id: "root-package",
     matcher: { type: "exact", path: "package.json" },
     impacts: ["root-package-scripts", "backend-toolchain", "frontend-public-surface"],

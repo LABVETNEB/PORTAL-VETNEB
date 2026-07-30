@@ -62,6 +62,7 @@ Regla principal:
 | CI / E2E completeness | `docs/audit/pr-e2e-ci-completeness-audit.md` | `docs/audit/pr-e2e-ci-completeness-rfc.md`, `.github/workflows/e2e-completeness.yml`, `.github/workflows/frontend-ci.yml`, `frontend/e2e/suites/catalog.ts`, `docs/ops/CI_PR_CHECKS_RUNBOOK.md` | Closeout activo; slot 06 `CLOSED` | Fuente operativa del slot 06: preserva el gate rápido productivo `e2e:ci` y añade la ruta automática Ubuntu `e2e:full`; PR #1620, head de closeout completado `2d9eda213d2a913786d2497ae18f345011d5eec7` y run `30567587561` / job `90955867044` prueban 72 specs / 786 tests, con 782 pases directos y 4 tras retry acotado |
 | Test architecture consolidation | `docs/audit/pr-test-architecture-consolidation-audit.md` | `docs/audit/pr-test-architecture-consolidation-source-coupled-inventory.md`, `test/README.md`, `docs/implementation/test-suite-enterprise-organization-convention.md`, `test/helpers/tracked-source-files.ts` | Closeout local activo; slot 07 | Fuente operativa del censo source-coupled, soporte compartido canónico, walker recursivo y contratos positivos/negativos del slot 07. La evidencia remota pertenece al body de la PR |
 | Quality coverage baseline | `docs/audit/pr-quality-coverage-baseline-audit.md` | `package.json`, `test/unit/infrastructure/quality-coverage-script-contract.test.ts`, `docs/governance/enterprise-control-register.md` | Closeout local activo; slot 08 | Fuente operativa del baseline nativo de Node: 4.023 tests, 81,70% líneas, 78,55% branches y 78,74% funciones; sin thresholds, enforcement, dependencias ni cambio de `pnpm test` |
+| Quality backend lint baseline | `docs/audit/pr-quality-backend-lint-baseline-audit.md` | `package.json`, `eslint.config.mjs`, `test/unit/infrastructure/backend-lint-baseline-contract.test.ts`, `docs/governance/enterprise-control-register.md` | Closeout local activo; slot 09 | Fuente operativa del baseline ESLint raíz: 253 archivos, 0 errors y 52 warnings; tres scopes explícitos, cero autofix, cero cambios runtime y sin enforcement CI |
 | CI / E2E layering histórico | `docs/audit/e2e-ci-layering-strategy-audit.md` | `frontend/package.json`, `docs/ops/CI_PR_CHECKS_RUNBOOK.md`, `docs/qa/regression-strategy.md` | Vigente histórico parcial | Estrategia previa a PR-CI-3; la fuente operativa de completitud es el closeout del slot 06 y los workflows ejecutables |
 | Dashboard Admin horizontal-nav | `docs/audit/dashboard-horizontal-navigation-information-architecture.md` | `docs/implementation/dashboard-horizontal-shell-navigation.md` | Vigente en curso | No mezclar con ordenamiento documental ni con PRs enterprise foundation |
 | Dashboard mobile/admin density | `docs/audit/admin-mobile-density-closeout.md` | Closeouts y auditorías admin-mobile relacionadas | Cerrado | No re-auditar de cero salvo regresión visual nueva |
@@ -153,9 +154,11 @@ conserva sólo como hallazgo diagnóstico. El bloque 06 está `CLOSED`: la PR
 #1620 conserva el gate productivo `e2e:ci`; el head de closeout completado
 `2d9eda213d2a913786d2497ae18f345011d5eec7` y el full run `30567587561`
 demuestran la ruta automática de 72/72 specs con 786 tests, 782 pases directos
-y 4 tras retry acotado. Las
-prioridades, dependencias y separaciones de riesgo
-se leen en el plan consolidado, no reconstruyendo backlog desde el roadmap
+y 4 tras retry acotado. Los slots 08 y 09 agregan
+respectivamente el baseline nativo de cobertura y el baseline ESLint backend
+diagnóstico; ambos conservan enforcement y thresholds fuera de scope. Las
+prioridades, dependencias, separaciones de riesgo y el detalle operativo se leen
+en el plan consolidado, no reconstruyendo backlog desde el roadmap
 original ni desde closeouts históricos.
 
 ## Estado
@@ -163,4 +166,4 @@ original ni desde closeouts históricos.
 Este mapa incorpora la precedencia explícita entre auditoría global, Plan B, estado operativo vivo
 y snapshots históricos. También registra el perfil público `ACTIVE` y la auditoría de closeout
 `ACTIVE` de `PR-SEC-REPO-SETTINGS`, además de los closeouts `ACTIVE` de los bloques 03, 04 y 05
-y el closeout en curso del bloque 06.
+y los closeouts locales de los slots 06 a 09.
