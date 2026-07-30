@@ -1,0 +1,189 @@
+# PR-E2E-CI-COMPLETENESS Audit
+
+## Metadata
+
+| Campo | Valor |
+| --- | --- |
+| Plan | Plan B slot 6/18 |
+| PR consolidado | `PR-E2E-CI-COMPLETENESS` |
+| Absorbe | `PR-CI-3` |
+| Brecha | `GAP-TEST-1` |
+| Rama | `ci/pr-e2e-ci-completeness` |
+| Base | `main@b7332c9d877e4ddc7b6dc4faf74aeaea9fbe6aac` |
+| Riesgo autorizado | R2 — workflows, contratos y documentación del slot |
+| Lifecycle status | `CLOSED` |
+| PR auxiliares | 0 |
+| Slots restantes después del merge | 12 |
+
+## Baseline y causa raíz
+
+El baseline se capturó con working tree limpio, sin PRs abiertas, en el commit
+esperado. Los 72 specs tracked estaban catalogados exactamente una vez y la
+partición era correcta, pero la ejecución automática no lo era:
+
+| Cohorte | Specs | Ruta automática antes |
+| --- | ---: | --- |
+| `ci` | 43 | `Frontend CI` → `e2e:ci` |
+| `extended` | 24 | Ninguna |
+| `evidence` | 2 | Ninguna |
+| `visual-linux` | 3 | Ninguna completa; existía un workflow manual con lista literal |
+| `full` | 72 | Ninguna |
+
+La causa raíz fue separar correctamente la taxonomía sin completar su
+orquestación durable: el catálogo demostraba
+`ci ∪ extended ∪ evidence ∪ visual-linux == full`, pero ningún contrato
+relacionaba esa unión con comandos descubiertos estructuralmente en workflows
+automáticos.
+
+## Diseño e implementación
+
+Se adoptó el [RFC de completitud E2E](./pr-e2e-ci-completeness-rfc.md):
+
+1. `Frontend CI` conserva el gate rápido `e2e:ci` de 43 specs y reconoce el
+   workflow de completitud como impacto frontend.
+2. `E2E Completeness` se dispara por cambios focales de PR, dispatch manual y
+   schedule semanal sobre Ubuntu.
+3. El job instala el workspace congelado, verifica catálogo, construye con el
+   fixture local, audita superficie pública, instala Chromium y ejecuta una
+   única invocación `e2e:full` con el runner `next dev` compatible con los
+   baselines Linux versionados, dos workers acotados y hasta dos retries.
+   Cada retry vuelve a ejecutar el callback y solo pasa si todas sus
+   assertions tienen éxito; no se omite ni relaja ningún contrato. `Frontend
+   CI` conserva la validación separada de 43 specs contra el bundle de
+   producción.
+4. Los artifacts se suben solo ante fallo; teardown, higiene de source y
+   limpieza de outputs se ejecutan siempre.
+5. Un contrato parser-backed deriva eventos, jobs y comandos desde YAML, cruza
+   cohortes con el catálogo y prueba rutas negativas mediante mutación en
+   memoria.
+
+La primera ejecución remota contra `next start` seleccionó correctamente los
+72 specs y descubrió los 72 archivos, pero falló: los snapshots de 320 px
+incluyen el indicador de `next dev`, ausente en producción, y la cohorte
+`extended` expuso bajo esa modalidad siete fallos de render adaptativo. La
+misma cohorte `extended` pasó localmente con `CI=true` y el runner dev
+(176 tests, exit code 0). Dado que reescribir snapshots o assertions estaba
+prohibido, el gate completo adoptó el runner de baseline; el gate rápido de
+producción quedó intacto.
+
+La segunda ejecución remota eliminó los diez fallos anteriores y ejecutó los
+786 tests: 782 pasaron y cuatro fallaron por la clase de contención dev-mode
+ya registrada para `admin-users-visual-quality-gate` y contratos adaptativos.
+Una tercera ejecución con un worker confirmó que serializar no era correcto:
+780 pasaron y seis fallaron porque la caché dev compartida se calentó antes de
+las variantes mobile. La cohorte `extended` exacta pasó localmente con cinco
+workers (176 tests, exit code 0), pero la cuarta ejecución full con esa
+topología elevó la presión del runner y retrocedió a 773/786. El diseño final
+vuelve a los dos workers de la mejor corrida remota y agrega dos retries
+acotados dentro de la misma invocación para que los contratos de timing deban
+pasar realmente sin convertirlos en skips ni expected failures.
+
+No se modificaron catálogo, runner, Playwright config, manifests, lockfile,
+specs funcionales, fixtures, helpers ni snapshots.
+
+## Cobertura antes y después
+
+| Cohorte | Specs | Ruta workflow después | Evento |
+| --- | ---: | --- | --- |
+| `ci` | 43 | `Frontend CI` → `e2e:ci` | Todo PR a `main`; push focalizado |
+| `extended` | 24 | `E2E Completeness` → `e2e:full` | PR focalizado; dispatch; schedule |
+| `evidence` | 2 | `E2E Completeness` → `e2e:full` | PR focalizado; dispatch; schedule |
+| `visual-linux` | 3 | `E2E Completeness` → `e2e:full` en Ubuntu | PR focalizado; dispatch; schedule |
+| `full` | 72 | `E2E Completeness` → `e2e:full` | PR focalizado; dispatch; schedule |
+
+```text
+BEFORE: 43/72 specs con ruta automática completa
+AFTER:  72/72 specs con ruta automática completa
+```
+
+## Contratos positivos y negativos
+
+La prueba positiva local deriva `ci` desde `frontend-ci.yml`, `full` desde
+`e2e-completeness.yml` y verifica que la cobertura resultante coincide
+exactamente con los 72 paths de `full`.
+
+Las pruebas negativas no crean archivos persistentes ni PRs auxiliares:
+
+- reemplazar en memoria `e2e:full` por `e2e:ci` deja exactamente 29 specs sin ruta;
+- `extended`, `evidence` y `visual-linux` quedan demostrablemente descubiertas
+  si se elimina el full gate;
+- un spec ficticio catalogado en `extended/full` sin workflow automático es
+  reportado como faltante;
+- el contrato existente rechaza catálogos incompletos o duplicados en memoria;
+- workflow security parsea YAML y rechaza permisos o actions fuera de policy.
+
+## Workflow security
+
+El workflow declara `permissions: contents: read`, concurrency con cancelación,
+timeout explícito, Node 24, PNPM 11.13.0, instalación frozen y únicamente
+actions allowlisted pinneadas a SHA completa. `E2E Completeness` no activa
+`VETNEB_E2E_PRODUCTION_RUNNER`: esa señal permanece exclusivamente en
+`Frontend CI`, después de su build, donde valida el bundle de producción sin
+romper la compatibilidad de los baselines Linux del gate completo. La única
+invocación full usa `--workers=2 --retries=2`; no usa skips,
+`continue-on-error` ni tolerancias de assertions.
+
+## Evidencia local
+
+| Validación | Estado |
+| --- | --- |
+| Contratos focales de catálogo, workflows, production runner y workflow security | `PASSED` — 79/79 |
+| `CI=true pnpm --dir frontend e2e:extended -- --workers=2 --retries=2` | `PASSED` — 176 tests; una carrera pasó en retry #1 |
+| `git diff --check`; catálogo; `typecheck:test`; lint/typecheck/build frontend; public-surface; `pnpm test`; build root | `PASSED` |
+| `e2e:ci -- --list` | `PASSED` — 43 specs / 569 tests |
+| `e2e:full -- --list` y `e2e:full` real local | `BLOCKED` — preflight intencional de baselines Linux en Windows |
+| `e2e:full` real Linux (GitHub Actions, head de closeout completado) | `PASSED` — 72 specs / 786 tests; 782 directos + 4 tras retry acotado |
+
+## Evidencia remota
+
+| Evidencia | Estado |
+| --- | --- |
+| PR única | [#1620](https://github.com/LABVETNEB/PORTAL-VETNEB/pull/1620) |
+| Primer head de implementación exitoso (histórico intermedio) | `fb317f894581984b01d1b779b550d6125ec8ec46` |
+| Primer full run diagnóstico | `30561687257` / job `90936044042` — `FAILED`; selección y descubrimiento 72/72, incompatibilidad de runner confirmada |
+| Segundo full run diagnóstico | `30562790288` / job `90939789237` — `FAILED`; 782/786 pass, cuatro flakes de contención dev-mode confirmados |
+| Tercer full run diagnóstico | `30563690938` / job `90942797652` — `FAILED`; 780/786 pass, serialización descartada por caché dev compartida |
+| Cuarto full run diagnóstico | `30565126339` / job `90947618912` — `FAILED`; 773/786 pass, cinco workers descartados por presión del runner |
+| Primer full run exitoso de implementación (histórico intermedio) | `30566416594` / job `90951949506` — `SUCCESS`; cohort `full`, 72 specs, 786 tests; 780 directos y 6 tras retry acotado |
+| Checks del primer head exitoso (históricos intermedios) | PR Governance `30566416563` / `90951949252`, QGA `30566278668` / `90951473972` y Backend CI `30566416571` / heavy `90951981539` / final `90952353424` — `SUCCESS` |
+| Frontend CI del primer head exitoso (histórico intermedio) | run `30566416543` — 568/569 E2E pass; un flake de navegación dejó heavy/final `FAILED`; no representa el estado del closeout |
+| Head de closeout completado previo a esta normalización documental | `2d9eda213d2a913786d2497ae18f345011d5eec7` |
+| `e2e-full-completeness` final de closeout | run `30567587561` / job `90955867044` — `SUCCESS`; cohort `full`, 72 specs, 786 tests; 782 directos y 4 tras retry acotado; teardown `SUCCESS`; source hygiene `SUCCESS` |
+| Frontend CI final de closeout | run `30567587547`; detect `90955866591`, heavy `90955897685`, final `90957114515` — `SUCCESS` |
+| Backend CI final de closeout | run `30567587684`; detect `90955864885`, heavy `90955899119`, final `90956202277` — `SUCCESS` |
+| PR Governance final de closeout | run `30567587545` / job `90955864776` — `SUCCESS` |
+| QGA workflow security final de closeout | run `30567586557` / job `90955866651` — `SUCCESS` |
+| Estado observado de la PR | 0 hilos sin resolver; PR abierta; `CLEAN`; `MERGEABLE` |
+
+La evidencia durable usa un modelo no autorreferencial. La documentación del
+repositorio registra el último head de closeout ya completado antes de esta
+normalización (`2d9eda213d2a913786d2497ae18f345011d5eec7`) y sus runs
+observados. El body de la PR registra los checks y los identificadores del
+head más nuevo generado por esta corrección documental; no se crea otro commit
+solo para insertar identificadores que nacen después del propio commit.
+
+## Rollback
+
+Revertir en conjunto el workflow de completitud, la ampliación del detector
+frontend, los contratos y la documentación de este slot. No hay rollback de
+datos, settings, required checks, producción ni staging.
+
+## Riesgos residuales
+
+- La suite completa añade consumo semanal y en PRs que cambian su
+  infraestructura; no aumenta el costo de PRs normales sin impacto E2E.
+- Firefox/WebKit permanecen fuera de alcance y siguen siendo una brecha
+  distinta.
+- Los hallazgos funcionales que revele `e2e:full` deben corregirse sin debilitar
+  assertions ni snapshots.
+
+## Estado del slot
+
+```text
+PLAN B SLOT 6/18: CLOSED
+PR-E2E-CI-COMPLETENESS: CLOSED
+PR-CI-3: closed operationally
+GAP-TEST-1: closed operationally
+PR AUXILIARES: 0
+SLOTS RESTANTES DESPUÉS DEL MERGE: 12
+```

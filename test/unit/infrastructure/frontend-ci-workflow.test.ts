@@ -24,6 +24,7 @@ const frontendPathFilters = [
   "      - 'pnpm-workspace.yaml'",
   "      - 'package.json'",
   "      - '.github/workflows/frontend-ci.yml'",
+  "      - '.github/workflows/e2e-completeness.yml'",
 ] as const;
 
 const frontendImpactPaths = new Set([
@@ -31,6 +32,7 @@ const frontendImpactPaths = new Set([
   "pnpm-workspace.yaml",
   "package.json",
   ".github/workflows/frontend-ci.yml",
+  ".github/workflows/e2e-completeness.yml",
 ]);
 
 function readWorkflow(): string {
@@ -318,7 +320,7 @@ test("Frontend CI excluye cambios exclusivos de una base que avanzó", () => {
   }
 });
 
-test("Frontend CI usa exactamente las cinco rutas vigentes para solicitar heavy", () => {
+test("Frontend CI usa exactamente las seis rutas vigentes para solicitar heavy", () => {
   const detector = getJobBlock(readWorkflow(), "detect-frontend-impact");
 
   assertContains(
@@ -326,7 +328,7 @@ test("Frontend CI usa exactamente las cinco rutas vigentes para solicitar heavy"
     `          should_run=false
           while IFS= read -r -d '' changed_path; do
             case "$changed_path" in
-              frontend/*|pnpm-lock.yaml|pnpm-workspace.yaml|package.json|.github/workflows/frontend-ci.yml)
+              frontend/*|pnpm-lock.yaml|pnpm-workspace.yaml|package.json|.github/workflows/frontend-ci.yml|.github/workflows/e2e-completeness.yml)
                 should_run=true
                 break
                 ;;

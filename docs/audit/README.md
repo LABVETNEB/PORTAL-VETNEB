@@ -14,7 +14,7 @@
 | Supersedes | Ninguno |
 | Superseded by | Ninguno |
 | Related controls or gaps | `ERM-CTRL-004`; `ERM-CTRL-005` |
-| Evidence or approval reference | Árbol documental verificado para `PR-AUDIT-ENTERPRISE-DOCS`; PR #1591 y closeout sanitizado de `PR-SEC-REPO-SETTINGS`; PR #1593 y closeout del bloque 03; PR #1601, canarias #1602/#1603 y PR correctiva #1605 del bloque 04; required checks efectivos, hardening de Actions y canarias #1616/#1618 del bloque 05 verificados el 2026-07-30 |
+| Evidence or approval reference | Árbol documental verificado para `PR-AUDIT-ENTERPRISE-DOCS`; PR #1591 y closeout sanitizado de `PR-SEC-REPO-SETTINGS`; PR #1593 y closeout del bloque 03; PR #1601, canarias #1602/#1603 y PR correctiva #1605 del bloque 04; required checks efectivos, hardening de Actions y canarias #1616/#1618 del bloque 05; PR #1620, head de closeout completado `2d9eda213d2a913786d2497ae18f345011d5eec7` y full run `30567587561` / job `90955867044` del bloque 06 |
 
 ## Criterio de vigencia
 
@@ -49,6 +49,8 @@ Los documentos históricos previos dentro de `docs/audit/` se conservan como ant
 | [pr-sec-secret-patterns-audit.md](./pr-sec-secret-patterns-audit.md) | Implementación técnica #1593, matriz completa de canarias #1594–#1599 y closeout de secret patterns más Architecture Decision. | `ACTIVE`; `PR-SEC-SECRET-PATTERNS CLOSED` |
 | [pr-ci-always-run-gates-audit.md](./pr-ci-always-run-gates-audit.md) | Implementación técnica #1601, matrices de canarias #1602/#1603, corrección de rango #1605, validación stale-base y closeout de contextos CI always-run. | `ACTIVE`; `PR-CI-ALWAYS-RUN-GATES CLOSED` |
 | [pr-ci-required-checks-audit.md](./pr-ci-required-checks-audit.md) | Required checks efectivos con app ID, hardening de GitHub Actions, canarias #1616/#1618, clasificación diagnóstica de #1617 y closeout del bloque 05. | `ACTIVE`; `PR-CI-REQUIRED-CHECKS CLOSED` |
+| [pr-e2e-ci-completeness-audit.md](./pr-e2e-ci-completeness-audit.md) | Workflow automático de completitud, contratos positivos/negativos y evidencia del slot 06. | `ACTIVE`; `PR-E2E-CI-COMPLETENESS CLOSED` |
+| [pr-e2e-ci-completeness-rfc.md](./pr-e2e-ci-completeness-rfc.md) | Decisión arquitectónica del gate rápido de 43 specs más gate completo no-required de 72 specs. | `ACCEPTED` |
 
 ## Documentos rectores recientes
 
@@ -95,7 +97,7 @@ Toda nueva auditoría que pretenda incorporarse al índice vigente debe cumplir 
 BLOQUE 03: CLOSED
 BLOQUE 04: CLOSED
 BLOQUE 05: CLOSED
-BLOQUE 06: NOT_RUN
+BLOQUE 06: CLOSED
 ```
 
 `PR-SEC-SECRET-PATTERNS`, bloque 03 del

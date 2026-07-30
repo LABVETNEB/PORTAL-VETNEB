@@ -16,6 +16,7 @@ import { evaluateChangedPathImpact } from "../../../scripts/governance/quality-g
 const canonicalWorkflowPaths = [
   ".github/workflows/app-version-force-update.yml",
   ".github/workflows/backend-ci.yml",
+  ".github/workflows/e2e-completeness.yml",
   ".github/workflows/frontend-ci.yml",
   ".github/workflows/pr-governance.yml",
   ".github/workflows/qga-governance.yml",
@@ -30,6 +31,15 @@ const pinnedActionReferences = new Map<string, readonly string[]>([
       "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
       "pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271",
       "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+    ],
+  ],
+  [
+    ".github/workflows/e2e-completeness.yml",
+    [
+      "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271",
+      "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+      "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
     ],
   ],
   [
@@ -80,7 +90,8 @@ const mutableActionReferences = [
 const canonicalWorkflowDigests = new Map<string, string>([
   [".github/workflows/app-version-force-update.yml", "25c69fb58364b709395f0ee920560845a83941eeb86efdd759a69af5f880d701"],
   [".github/workflows/backend-ci.yml", "e696873b397ae05da365e436c9e150bef7a98517cdce545a9a9549252b1037b3"],
-  [".github/workflows/frontend-ci.yml", "77a0134fad5d81c78e47ff0d1e30c7e3d6d1e32b597580f08cc4a7541d878586"],
+  [".github/workflows/e2e-completeness.yml", "3ecc24d620b47bd71c53c3371d04a62de0a616439c84236d2135afd16f0d17a7"],
+  [".github/workflows/frontend-ci.yml", "4be3b3303e74152a053d26d739fce5b0fea4cade7e54c1bb86d5c0ba248fe4eb"],
   [".github/workflows/pr-governance.yml", "4e0bf177a8581c9dd655f1ca6aa1510a823cdd976c885c4ba50b41129e4157d7"],
   [".github/workflows/qga-governance.yml", "88ed322d67eda6fbec0a7ed0fa106625a43263a4d6998d6eceb24aeee389b393"],
   [".github/workflows/visual-regression-manual.yml", "86784fe26f1f15e2ae6fb60ee8c26ef050f311bcebab72a2e1732739e035fee9"],
@@ -136,7 +147,7 @@ test("workflow security policy exposes immutable QGA-4 declarative contract", ()
   ]);
 });
 
-test("repository tracks exactly the six canonical workflow files", () => {
+test("repository tracks exactly the seven canonical workflow files", () => {
   const actualWorkflowPaths = readdirSync(resolve(process.cwd(), ".github/workflows"))
     .filter((name) => name.endsWith(".yml") || name.endsWith(".yaml"))
     .map((name) => `.github/workflows/${name}`)

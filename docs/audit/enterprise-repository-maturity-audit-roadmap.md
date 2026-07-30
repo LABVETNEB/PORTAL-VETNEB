@@ -19,7 +19,7 @@
 | Alcance | Gobernanza, documentación, PRs, tests, CI/CD, seguridad, datos, observabilidad, release, dependencias, calidad y operación |
 | No-scope | No modifica runtime, backend, frontend, DB, migraciones, dependencias, lockfiles, workflows ni configuración productiva |
 | Related controls or gaps | `ERM-CTRL-001..025`; gaps P0/P1/P2/P3 de este documento |
-| Evidence or approval reference | Auditoría original sobre `main@db1da94`; reconciliación documental `PR-AUDIT-ENTERPRISE-DOCS`; PR #1593 y [closeout del bloque 03](./pr-sec-secret-patterns-audit.md); PR #1601, canarias #1602/#1603, PR correctiva #1605 y [closeout del bloque 04](./pr-ci-always-run-gates-audit.md); required checks efectivos, hardening de Actions, canarias #1616/#1618 y [closeout del bloque 05](./pr-ci-required-checks-audit.md) |
+| Evidence or approval reference | Auditoría original sobre `main@db1da94`; reconciliación documental `PR-AUDIT-ENTERPRISE-DOCS`; PR #1593 y [closeout del bloque 03](./pr-sec-secret-patterns-audit.md); PR #1601, canarias #1602/#1603, PR correctiva #1605 y [closeout del bloque 04](./pr-ci-always-run-gates-audit.md); required checks efectivos, hardening de Actions, canarias #1616/#1618 y [closeout del bloque 05](./pr-ci-required-checks-audit.md); PR #1620, head de closeout completado `2d9eda213d2a913786d2497ae18f345011d5eec7`, run `30567587561` / job `90955867044` y [closeout del bloque 06](./pr-e2e-ci-completeness-audit.md) |
 
 He completado la auditoría. Baseline capturado: `main` limpio, HEAD `db1da94`, working tree sin cambios. **No modifiqué, moví ni creé ningún archivo**; solo lectura, inspección local y `gh api` de solo lectura.
 
@@ -124,6 +124,19 @@ El diagnóstico histórico de este documento —incluidas las brechas `P0-2` y
 fecha original de observación y no se reescribe. El estado vivo de estos
 controles está gobernado por el Enterprise Control Register y por el closeout
 del bloque 05, no por el texto de diagnóstico.
+
+## Estado operativo posterior — bloque 06
+
+`PR-E2E-CI-COMPLETENESS` está `CLOSED` operacionalmente en la PR #1620. El
+diseño conserva `Frontend CI` con `e2e:ci` (43 specs) y agrega `E2E
+Completeness` con una única invocación Ubuntu `e2e:full` para cubrir
+automáticamente `extended` (24), `evidence` (2) y `visual-linux` (3). El
+contrato parser-backed deriva las cohortes desde YAML y el catálogo, sin lista
+paralela de specs, y prueba mutaciones negativas en memoria. El head de
+closeout completado `2d9eda213d2a913786d2497ae18f345011d5eec7`,
+run `30567587561` / job `90955867044`, ejecutó 72 specs / 786 tests con
+`SUCCESS`: 782 pases directos y 4 tras retry acotado. `GAP-TEST-1` y
+`PR-CI-3` quedan cerrados operacionalmente.
 
 ---
 
