@@ -19,6 +19,7 @@
     "smoke:prod:public": "node scripts/smoke/smoke-prod-public.mjs",
     "smoke:staging": "powershell -ExecutionPolicy Bypass -File scripts/dev/smoke-staging.ps1",
     "test": "node --experimental-strip-types --experimental-specifier-resolution=node --test test/**/*.test.ts",
+    "test:coverage": "node --experimental-strip-types --experimental-specifier-resolution=node --experimental-test-coverage --test \"test/**/*.test.ts\"",
     "security:public-surface": "node scripts/security/audit-public-devtools-surface.mjs",
     "schema:verify": "node scripts/schema-verify.mjs",
     "validate:local": "pnpm typecheck && pnpm typecheck:test && pnpm test && pnpm build",

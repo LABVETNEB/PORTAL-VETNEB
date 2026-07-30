@@ -138,6 +138,20 @@ run `30567587561` / job `90955867044`, ejecutó 72 specs / 786 tests con
 `SUCCESS`: 782 pases directos y 4 tras retry acotado. `GAP-TEST-1` y
 `PR-CI-3` quedan cerrados operacionalmente.
 
+## Estado operativo posterior — bloque 08
+
+`PR-QUALITY-COVERAGE-BASELINE` implementa localmente `PR-QUALITY-1` sobre
+`main@5da554cc55776dda275a990f62438fee35df45a9`. `pnpm test` conserva su valor
+literal y el script separado `test:coverage` usa
+`--experimental-test-coverage` de Node sin dependencia, threshold, workflow ni
+enforcement. La corrida única local pasó 4.023 tests (4.022 pass, 1 skipped,
+0 fail) y observó 81,70% de líneas, 78,55% de branches y 78,74% de funciones.
+La evidencia y los límites se conservan en
+[PR-QUALITY-COVERAGE-BASELINE Audit](./pr-quality-coverage-baseline-audit.md).
+El diagnóstico histórico de cobertura ausente permanece como snapshot de su
+fecha; el estado operativo vivo se actualiza sin convertir este baseline en un
+quality gate.
+
 ---
 
 # 1. Executive Summary
