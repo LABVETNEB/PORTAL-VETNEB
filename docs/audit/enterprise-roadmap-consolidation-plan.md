@@ -13,7 +13,7 @@
 | Lifecycle status | ACTIVE |
 | Authoritative source role | Secuencia operativa vigente del enterprise roadmap |
 | Effective date | 2026-07-28 |
-| Last verified date | 2026-07-28 |
+| Last verified date | 2026-07-30 |
 | Review cadence | Mensual y ante cambios de dependencias o riesgo del roadmap |
 | Propósito | Consolidar el roadmap enterprise en bloques ejecutables con menor cantidad de PRs |
 | Alcance | PR planning, consolidation strategy, scope governance, dependencies, risk, validations and sequencing |
@@ -184,3 +184,11 @@ Razones:
 7. Mantiene la disciplina de scope de VETNEB.
 
 No se recomienda Plan C salvo autorización explícita de Nico y aceptación de mayor riesgo operativo.
+
+## Estado operativo del slot 6
+
+`PR-E2E-CI-COMPLETENESS` está `PENDING_LIVE_EVIDENCE` en su única PR. La
+implementación mantiene el gate rápido `e2e:ci` y agrega una ruta automática
+Ubuntu `e2e:full`; el cierre se registra en
+[PR-E2E-CI-COMPLETENESS Audit](./pr-e2e-ci-completeness-audit.md) únicamente
+después de observar la suite completa verde.

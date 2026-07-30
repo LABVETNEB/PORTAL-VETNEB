@@ -223,6 +223,37 @@ cuando el workflow es disparado.
 El contexto final `validate-frontend` usa `if: always()` y aplica la misma propagación
 fail-closed. Playwright y su artifact de failure existen únicamente dentro del heavy.
 
+## E2E Completeness
+
+El workflow no-required `E2E Completeness` complementa, sin reemplazar,
+`validate-frontend`. Se ejecuta automáticamente en PRs que cambian la suite,
+catálogo, runner, configuración o contratos relacionados; también admite
+`workflow_dispatch` y un schedule semanal.
+
+```text
+Frontend CI:
+  Ubuntu → e2e:ci → 43 specs → una invocación Playwright
+
+E2E Completeness:
+  Ubuntu → e2e:full → 72 specs → una invocación Playwright
+  full == ci ∪ extended ∪ evidence ∪ visual-linux
+```
+
+La ruta completa construye primero el frontend con el fixture local, audita la
+superficie pública, instala Chromium y activa el production runner únicamente
+en el step posterior al build. Los baselines `visual-linux` se ejecutan solo en
+Ubuntu. Ante fallo sube `playwright-report` y `test-results`; luego verifica
+teardown, source hygiene y limpia esos outputs del checkout efímero.
+
+Un cambio E2E no está listo si `validate-frontend` pasa pero
+`e2e-full-completeness` falla. Para diagnosticar:
+
+1. confirmar en logs `[e2e] cohort: full` y `[e2e] specs: 72`;
+2. confirmar descubrimiento de 72 archivos;
+3. descargar artifacts solo si el job falló;
+4. no actualizar snapshots para esconder diferencias;
+5. corregir en la misma rama y volver a observar el mismo workflow.
+
 ## Rango de comparación del pull request
 
 Ambos detectores calculan los archivos cambiados desde el merge base común de la base y el head

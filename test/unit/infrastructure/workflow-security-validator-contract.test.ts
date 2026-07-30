@@ -83,7 +83,7 @@ function assertFailsWith(
   }
 }
 
-test("parser-backed validator accepts the six real workflows", () => {
+test("parser-backed validator accepts the seven real workflows", () => {
   const report = evaluateWorkflowSecurity();
 
   assertPasses(report);
@@ -92,6 +92,7 @@ test("parser-backed validator accepts the six real workflows", () => {
     [
       ".github/workflows/app-version-force-update.yml",
       ".github/workflows/backend-ci.yml",
+      ".github/workflows/e2e-completeness.yml",
       ".github/workflows/frontend-ci.yml",
       ".github/workflows/pr-governance.yml",
       ".github/workflows/qga-governance.yml",

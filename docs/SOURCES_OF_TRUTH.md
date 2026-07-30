@@ -59,7 +59,8 @@ Regla principal:
 | CI / PR checks runbook | `docs/ops/CI_PR_CHECKS_RUNBOOK.md` | `docs/qa/regression-strategy.md`, `docs/governance/pr-readiness-review-checklist.md`, `docs/audit/enterprise-repository-maturity-audit-roadmap.md` | Vigente | Usar para checks de PR, merge y limpieza local; debe alinearse con required checks reales |
 | CI required checks and Actions policy | `docs/audit/pr-ci-required-checks-audit.md` | `docs/ops/CI_PR_CHECKS_RUNBOOK.md`, `docs/governance/enterprise-control-register.md`, `.github/workflows/backend-ci.yml`, `.github/workflows/frontend-ci.yml` | Closeout activo; bloque 05 `CLOSED` | Evidencia durable de los cuatro required checks con app ID, del hardening de GitHub Actions y de las canarias #1616/#1618; #1617 queda registrada como hallazgo diagnóstico, no como evidencia negativa. No reemplaza los workflows ni la configuración efectiva de GitHub como fuentes ejecutables |
 | CI always-run gates | `docs/audit/pr-ci-always-run-gates-audit.md` | `docs/architecture/ci-always-run-gates-rfc.md`, `docs/ops/CI_PR_CHECKS_RUNBOOK.md`, `.github/workflows/backend-ci.yml`, `.github/workflows/frontend-ci.yml`, `docs/governance/enterprise-control-register.md` | Closeout activo; bloque 04 `CLOSED` | Evidencia durable de #1601, canarias #1602/#1603 y corrección de rango de #1605; distingue contextos siempre presentes de heavies condicionales, fija el rango merge-base → head y no declara required los checks funcionales |
-| CI / E2E layering | `docs/audit/e2e-ci-layering-strategy-audit.md` | `frontend/package.json`, `docs/ops/CI_PR_CHECKS_RUNBOOK.md`, `docs/qa/regression-strategy.md` | Vigente parcial | PR-C1 y PR-C2 cerrados; antes de PR-C3 validar unión de capas == full |
+| CI / E2E completeness | `docs/audit/pr-e2e-ci-completeness-audit.md` | `docs/audit/pr-e2e-ci-completeness-rfc.md`, `.github/workflows/e2e-completeness.yml`, `.github/workflows/frontend-ci.yml`, `frontend/e2e/suites/catalog.ts`, `docs/ops/CI_PR_CHECKS_RUNBOOK.md` | `PENDING_LIVE_EVIDENCE` | Fuente operativa del slot 06: preserva el gate rápido `e2e:ci` y añade la ruta automática `e2e:full`; el cierre depende de evidencia real verde en la PR única |
+| CI / E2E layering histórico | `docs/audit/e2e-ci-layering-strategy-audit.md` | `frontend/package.json`, `docs/ops/CI_PR_CHECKS_RUNBOOK.md`, `docs/qa/regression-strategy.md` | Vigente histórico parcial | Estrategia previa a PR-CI-3; la fuente operativa de completitud es el closeout del slot 06 y los workflows ejecutables |
 | Dashboard Admin horizontal-nav | `docs/audit/dashboard-horizontal-navigation-information-architecture.md` | `docs/implementation/dashboard-horizontal-shell-navigation.md` | Vigente en curso | No mezclar con ordenamiento documental ni con PRs enterprise foundation |
 | Dashboard mobile/admin density | `docs/audit/admin-mobile-density-closeout.md` | Closeouts y auditorías admin-mobile relacionadas | Cerrado | No re-auditar de cero salvo regresión visual nueva |
 | Seguridad / sesiones / superficie pública | `docs/security/*` | Tests `security-*`, `auth-*`, matrices RBAC/endpoints/CSP, `docs/audit/enterprise-repository-maturity-audit-roadmap.md` | Vigente estable | Usar para invariantes; para brechas P0/P1 enterprise leer también el roadmap de madurez |
@@ -146,7 +147,9 @@ merge-base → head. `PR-CI-REQUIRED-CHECKS`, bloque 05, está `CLOSED` desde el
 required con `strict: true` y la política de Actions quedó en `selected` con SHA
 pinning obligatorio y `GITHUB_TOKEN` predeterminado `read`; #1616 y #1618
 quedaron cerradas sin merge como evidencia positiva y negativa, y #1617 se
-conserva sólo como hallazgo diagnóstico. El bloque 06 permanece `NOT_RUN`. Las
+conserva sólo como hallazgo diagnóstico. El bloque 06 está
+`PENDING_LIVE_EVIDENCE`: su workflow y contratos cubren 72/72 specs por diseño,
+pero el cierre depende de observar `e2e:full` verde en la única PR. Las
 prioridades, dependencias y separaciones de riesgo
 se leen en el plan consolidado, no reconstruyendo backlog desde el roadmap
 original ni desde closeouts históricos.
@@ -155,4 +158,5 @@ original ni desde closeouts históricos.
 
 Este mapa incorpora la precedencia explícita entre auditoría global, Plan B, estado operativo vivo
 y snapshots históricos. También registra el perfil público `ACTIVE` y la auditoría de closeout
-`ACTIVE` de `PR-SEC-REPO-SETTINGS`, además de los closeouts `ACTIVE` de los bloques 03, 04 y 05.
+`ACTIVE` de `PR-SEC-REPO-SETTINGS`, además de los closeouts `ACTIVE` de los bloques 03, 04 y 05
+y el closeout en curso del bloque 06.

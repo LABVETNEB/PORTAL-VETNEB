@@ -1,0 +1,102 @@
+name: E2E Completeness
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/e2e-completeness.yml'
+      - '.github/workflows/frontend-ci.yml'
+      - 'frontend/e2e/**'
+      - 'frontend/playwright.config.ts'
+      - 'frontend/package.json'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'scripts/governance/**'
+      - 'test/architecture/e2e-suite-catalog-completeness.test.ts'
+      - 'test/unit/infrastructure/e2e-completeness-workflow.test.ts'
+      - 'test/unit/infrastructure/frontend-ci-workflow.test.ts'
+      - 'test/unit/infrastructure/frontend-playwright-production-runner.test.ts'
+      - 'test/unit/infrastructure/workflow-security-policy-contract.test.ts'
+      - 'test/unit/infrastructure/workflow-security-validator-contract.test.ts'
+  workflow_dispatch:
+  schedule:
+    - cron: '17 3 * * 2'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-completeness-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e-full-completeness:
+    name: e2e-full-completeness
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+        with:
+          version: 11.13.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify E2E catalog
+        run: pnpm --dir frontend e2e:verify-catalog
+
+      - name: Build frontend
+        run: pnpm --dir frontend build
+        env:
+          NEXT_PUBLIC_API_URL: http://127.0.0.1:3107
+          VETNEB_E2E_ALLOW_LOCAL_API: "1"
+          VETNEB_E2E_DISABLE_EXTERNAL_EMBEDS: "1"
+
+      - name: Audit built public surface
+        run: pnpm security:public-surface
+
+      - name: Install Playwright Chromium
+        run: pnpm --dir frontend exec playwright install --with-deps chromium
+
+      - name: Run complete cataloged E2E suite
+        run: pnpm --dir frontend e2e:full
+        env:
+          VETNEB_E2E_PRODUCTION_RUNNER: "1"
+
+      - name: Upload Playwright diagnostics
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: e2e-completeness-playwright-${{ github.run_attempt }}
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Verify E2E teardown
+        if: always()
+        run: pnpm --dir frontend e2e:verify-teardown
+
+      - name: Verify source hygiene and clean generated artifacts
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf frontend/playwright-report frontend/test-results
+          git diff --exit-code -- frontend/next-env.d.ts frontend/e2e
+          test -z "$(git status --short --untracked-files=all -- frontend/next-env.d.ts frontend/e2e)"
