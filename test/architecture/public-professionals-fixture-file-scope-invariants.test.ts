@@ -14,6 +14,18 @@ function readSource(relativePath: string): string {
   return readFileSync(resolve(REPO_ROOT, relativePath), "utf8");
 }
 
+function definesSupportSymbol(source: string, symbol: string): boolean {
+  const escapedSymbol = symbol.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+  return new RegExp(
+    [
+      `^\\s*(?:export\\s+)?(?:async\\s+)?function\\s+${escapedSymbol}\\s*\\(`,
+      `^\\s*(?:export\\s+)?(?:const|let|var)\\s+${escapedSymbol}\\b[^=]*=`,
+    ].join("|"),
+    "m",
+  ).test(source);
+}
+
 test("soporte de profesionales públicos vive en factories y mocks canónicos", () => {
   for (const path of CANONICAL_SUPPORT_PATHS) {
     assert.ok(readSource(path).length > 0, `${path} debe existir`);
@@ -39,7 +51,7 @@ test("fixtures públicos no reintroducen definiciones canónicas fuera de sus ar
     for (const definition of definitions) {
       if (
         file !== definition.owner &&
-        new RegExp(`export function ${definition.name}\\(`).test(source)
+        definesSupportSymbol(source, definition.name)
       ) {
         offenders.push(`${file}: ${definition.name}`);
       }
@@ -47,6 +59,31 @@ test("fixtures públicos no reintroducen definiciones canónicas fuera de sus ar
   }
 
   assert.deepEqual(offenders, []);
+});
+
+test("fixtures públicos detectan formas alternativas de factories duplicadas", () => {
+  for (const source of [
+    "function buildPublicProfessionalFixtureRow() {}",
+    "export async function  buildPublicProfessionalFixtureRow () {}",
+    "const buildPublicProfessionalFixtureRow = () => ({});",
+    "export const buildPublicProfessionalFixtureRow = () => ({});",
+    "let buildPublicProfessionalFixtureRow: unknown = null;",
+    "var buildPublicProfessionalFixtureRow = function () {};",
+  ]) {
+    assert.equal(
+      definesSupportSymbol(source, "buildPublicProfessionalFixtureRow"),
+      true,
+      source,
+    );
+  }
+
+  assert.equal(
+    definesSupportSymbol(
+      "const buildDifferentPublicProfessionalFixtureRow = () => ({});",
+      "buildPublicProfessionalFixtureRow",
+    ),
+    false,
+  );
 });
 
 test("fixtures públicos se importan desde paths canónicos", () => {
