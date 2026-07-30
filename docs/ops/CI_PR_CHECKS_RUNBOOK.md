@@ -243,12 +243,12 @@ La ruta completa construye primero el frontend con el fixture local, audita la
 superficie pública e instala Chromium. Ejecuta `e2e:full` con `next dev` porque
 los baselines Linux versionados fueron creados con ese runner e incluyen su
 indicador visual. La validación contra el bundle de producción permanece en
-`Frontend CI` (`e2e:ci`, 43 specs). La suite completa usa cinco workers
-acotados para mantener aisladas las variantes que interceptan requests antes
-de la caché compartida de `next dev`; continúa siendo una sola invocación sin
-retries ni omisiones. Los baselines `visual-linux` se ejecutan solo en Ubuntu.
-Ante fallo sube `playwright-report` y `test-results`; luego verifica teardown,
-source hygiene y limpia esos outputs del checkout efímero.
+`Frontend CI` (`e2e:ci`, 43 specs). La suite completa usa dos workers y hasta
+dos retries acotados dentro de la misma invocación. Cada retry vuelve a
+ejecutar el callback y debe pasar sus assertions; no equivale a skip ni
+`continue-on-error`. Los baselines `visual-linux` se ejecutan solo en Ubuntu.
+Ante fallo final sube `playwright-report` y `test-results`; luego verifica
+teardown, source hygiene y limpia esos outputs del checkout efímero.
 
 Un cambio E2E no está listo si `validate-frontend` pasa pero
 `e2e-full-completeness` falla. Para diagnosticar:

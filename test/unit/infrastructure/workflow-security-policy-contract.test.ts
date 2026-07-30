@@ -90,7 +90,7 @@ const mutableActionReferences = [
 const canonicalWorkflowDigests = new Map<string, string>([
   [".github/workflows/app-version-force-update.yml", "25c69fb58364b709395f0ee920560845a83941eeb86efdd759a69af5f880d701"],
   [".github/workflows/backend-ci.yml", "e696873b397ae05da365e436c9e150bef7a98517cdce545a9a9549252b1037b3"],
-  [".github/workflows/e2e-completeness.yml", "5b9fb029f4a59ff0a17769de51c7a2ce49a1f878bfa87ee1069f8c62a8f2ff88"],
+  [".github/workflows/e2e-completeness.yml", "b1b99b754aedffc5caf66288c00ec38bef21ec5abe0d0e9e4603beae2dd36d7e"],
   [".github/workflows/frontend-ci.yml", "4be3b3303e74152a053d26d739fce5b0fea4cade7e54c1bb86d5c0ba248fe4eb"],
   [".github/workflows/pr-governance.yml", "4e0bf177a8581c9dd655f1ca6aa1510a823cdd976c885c4ba50b41129e4157d7"],
   [".github/workflows/qga-governance.yml", "88ed322d67eda6fbec0a7ed0fa106625a43263a4d6998d6eceb24aeee389b393"],

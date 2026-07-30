@@ -274,7 +274,7 @@ test("completeness job preserves Linux baseline compatibility, build ordering an
     VETNEB_E2E_ALLOW_LOCAL_API: "1",
     VETNEB_E2E_DISABLE_EXTERNAL_EMBEDS: "1",
   });
-  assert.equal(runFull.run, "pnpm --dir frontend e2e:full -- --workers=5");
+  assert.equal(runFull.run, "pnpm --dir frontend e2e:full -- --workers=2 --retries=2");
   assert.equal(
     source.includes("VETNEB_E2E_PRODUCTION_RUNNER"),
     false,

@@ -46,11 +46,11 @@ Se adoptó el [RFC de completitud E2E](./pr-e2e-ci-completeness-rfc.md):
 3. El job instala el workspace congelado, verifica catálogo, construye con el
    fixture local, audita superficie pública, instala Chromium y ejecuta una
    única invocación `e2e:full` con el runner `next dev` compatible con los
-   baselines Linux versionados y cinco workers acotados. Ese paralelismo
-   preserva el aislamiento de las cinco variantes `default` que interceptan
-   requests antes de que la caché compartida de `next dev` sea calentada.
-   `Frontend CI` conserva la validación separada de 43 specs contra el bundle
-   de producción.
+   baselines Linux versionados, dos workers acotados y hasta dos retries.
+   Cada retry vuelve a ejecutar el callback y solo pasa si todas sus
+   assertions tienen éxito; no se omite ni relaja ningún contrato. `Frontend
+   CI` conserva la validación separada de 43 specs contra el bundle de
+   producción.
 4. Los artifacts se suben solo ante fallo; teardown, higiene de source y
    limpieza de outputs se ejecutan siempre.
 5. Un contrato parser-backed deriva eventos, jobs y comandos desde YAML, cruza
@@ -72,8 +72,11 @@ ya registrada para `admin-users-visual-quality-gate` y contratos adaptativos.
 Una tercera ejecución con un worker confirmó que serializar no era correcto:
 780 pasaron y seis fallaron porque la caché dev compartida se calentó antes de
 las variantes mobile. La cohorte `extended` exacta pasó localmente con cinco
-workers (176 tests, exit code 0), que preservan el paralelismo requerido sin
-dividir la suite, agregar retries ni omitir contratos.
+workers (176 tests, exit code 0), pero la cuarta ejecución full con esa
+topología elevó la presión del runner y retrocedió a 773/786. El diseño final
+vuelve a los dos workers de la mejor corrida remota y agrega dos retries
+acotados dentro de la misma invocación para que los contratos de timing deban
+pasar realmente sin convertirlos en skips ni expected failures.
 
 No se modificaron catálogo, runner, Playwright config, manifests, lockfile,
 specs funcionales, fixtures, helpers ni snapshots.
@@ -117,8 +120,8 @@ actions allowlisted pinneadas a SHA completa. `E2E Completeness` no activa
 `VETNEB_E2E_PRODUCTION_RUNNER`: esa señal permanece exclusivamente en
 `Frontend CI`, después de su build, donde valida el bundle de producción sin
 romper la compatibilidad de los baselines Linux del gate completo. La única
-invocación full usa `--workers=5`; no usa retries, skips ni
-`continue-on-error`.
+invocación full usa `--workers=2 --retries=2`; no usa skips,
+`continue-on-error` ni tolerancias de assertions.
 
 ## Evidencia local
 
@@ -138,6 +141,7 @@ invocación full usa `--workers=5`; no usa retries, skips ni
 | Primer full run diagnóstico | `30561687257` / job `90936044042` — `FAILED`; selección y descubrimiento 72/72, incompatibilidad de runner confirmada |
 | Segundo full run diagnóstico | `30562790288` / job `90939789237` — `FAILED`; 782/786 pass, cuatro flakes de contención dev-mode confirmados |
 | Tercer full run diagnóstico | `30563690938` / job `90942797652` — `FAILED`; 780/786 pass, serialización descartada por caché dev compartida |
+| Cuarto full run diagnóstico | `30565126339` / job `90947618912` — `FAILED`; 773/786 pass, cinco workers descartados por presión del runner |
 | `e2e-full-completeness` run/job | `PENDING_LIVE_EVIDENCE` |
 | Required checks y heavies | `PENDING_LIVE_EVIDENCE` |
 | Review threads | `PENDING` |

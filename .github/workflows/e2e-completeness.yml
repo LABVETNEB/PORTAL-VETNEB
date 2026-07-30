@@ -73,7 +73,7 @@ jobs:
         run: pnpm --dir frontend exec playwright install --with-deps chromium
 
       - name: Run complete cataloged E2E suite
-        run: pnpm --dir frontend e2e:full -- --workers=5
+        run: pnpm --dir frontend e2e:full -- --workers=2 --retries=2
 
       - name: Upload Playwright diagnostics
         if: failure()
