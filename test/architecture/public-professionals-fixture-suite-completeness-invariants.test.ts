@@ -20,7 +20,7 @@ const SUITE_GUARDRAILS: readonly SuiteGuardrail[] = [
     mustReference: [
       "fixtures compartidos",
       "stubs locales",
-      "public-professionals-fixtures",
+      "public-professionals-route",
     ],
   },
   {
@@ -34,7 +34,7 @@ const SUITE_GUARDRAILS: readonly SuiteGuardrail[] = [
     path: "test/architecture/public-professionals-fixture-file-scope-invariants.test.ts",
     category: "scope",
     mustReference: [
-      "CANONICAL_FIXTURE_HELPER_PATH",
+      "CANONICAL_SUPPORT_PATHS",
       "buildPublicProfessionalFixtureRow",
       "buildPublicProfessionalsRouteFixtureStubs",
     ],
@@ -44,7 +44,7 @@ const SUITE_GUARDRAILS: readonly SuiteGuardrail[] = [
     path: "test/architecture/public-professionals-fixture-helper-boundaries-invariants.test.ts",
     category: "boundaries",
     mustReference: [
-      "clonePublicProfessionalFixtureRow",
+      "FACTORY_PATH",
       "runtime",
       "process.env",
     ],

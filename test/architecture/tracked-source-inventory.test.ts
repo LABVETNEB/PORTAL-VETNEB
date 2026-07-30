@@ -1,8 +1,16 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
 import {
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
+import {
+  listSourceFiles,
   listTrackedFiles,
   listTrackedSourceFiles,
 } from "../helpers/tracked-source-files.ts";
@@ -104,5 +112,60 @@ test("un archivo trackeado con contenido prohibido sigue siendo detectable", () 
   assert.ok(
     sourceFiles.includes("test/helpers/tracked-source-files.ts"),
     "el helper del inventario debe auditarse a sí mismo",
+  );
+});
+
+test("walker canónico recorre árboles, filtra extensiones y excluye generados", () => {
+  const root = mkdtempSync(join(tmpdir(), "vetneb-source-walk-"));
+
+  try {
+    for (const directory of [
+      "nested/deep",
+      "ignored/node_modules",
+      "ignored/dist",
+    ]) {
+      mkdirSync(resolve(root, directory), { recursive: true });
+    }
+
+    for (const file of [
+      "root-file.ts",
+      "nested/child-file.ts",
+      "nested/deep/grandchild-file.ts",
+      "ignored/node_modules/ignored.ts",
+      "ignored/dist/ignored.ts",
+      "non-matching.txt",
+    ]) {
+      writeFileSync(resolve(root, file), "export {};\n", "utf8");
+    }
+
+    const recursive = listSourceFiles(root, { extensions: [".ts"] });
+    const flat = readdirSync(root)
+      .filter((file) => file.endsWith(".ts"))
+      .sort();
+
+    assert.deepEqual(recursive, [
+      "nested/child-file.ts",
+      "nested/deep/grandchild-file.ts",
+      "root-file.ts",
+    ]);
+    assert.deepEqual(flat, ["root-file.ts"]);
+    assert.ok(recursive.every((file) => !file.includes("\\")));
+    assert.ok(!recursive.includes("non-matching.txt"));
+    assert.ok(!recursive.some((file) => file.includes("node_modules")));
+    assert.ok(!recursive.some((file) => file.includes("/dist/")));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("walker canónico falla explícitamente para un root inexistente", () => {
+  const missingRoot = resolve(
+    tmpdir(),
+    `vetneb-missing-source-root-${process.pid}-${Date.now()}`,
+  );
+
+  assert.throws(
+    () => listSourceFiles(missingRoot),
+    /Source root does not exist:/,
   );
 });

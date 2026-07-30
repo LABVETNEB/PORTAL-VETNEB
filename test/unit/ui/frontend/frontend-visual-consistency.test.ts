@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
+import { listSourceFiles } from "../../../helpers/tracked-source-files.ts";
 
 const GLOBALS_CSS_PATH = "frontend/src/app/globals.css";
 const HOME_PAGE_PATH = "frontend/src/app/page.tsx";
@@ -36,17 +37,9 @@ function read(relativePath: string): string {
 }
 
 function listFrontendSourceFiles(relativeDir = "frontend/src"): string[] {
-  return readdirSync(resolve(process.cwd(), relativeDir), {
-    withFileTypes: true,
-  }).flatMap((entry) => {
-    const entryPath = `${relativeDir}/${entry.name}`;
-
-    if (entry.isDirectory()) {
-      return listFrontendSourceFiles(entryPath);
-    }
-
-    return /\.(?:ts|tsx|js|jsx)$/.test(entry.name) ? [entryPath] : [];
-  });
+  return listSourceFiles(resolve(process.cwd(), relativeDir), {
+    extensions: [".ts", ".tsx", ".js", ".jsx"],
+  }).map((file) => `${relativeDir}/${file}`);
 }
 
 function assertContainsAll(

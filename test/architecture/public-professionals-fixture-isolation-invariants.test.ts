@@ -2,8 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   buildPublicProfessionalFixtureRow,
+} from "../factories/public-professionals.ts";
+import {
   buildPublicProfessionalsRouteFixtureStubs,
-} from "../helpers/public-professionals-fixtures.ts";
+} from "../mocks/public-professionals-route.ts";
 
 const DEFAULT_UPDATED_AT = "2026-04-29T20:00:00.000Z";
 

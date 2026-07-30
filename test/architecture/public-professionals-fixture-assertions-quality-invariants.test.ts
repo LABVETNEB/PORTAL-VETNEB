@@ -219,16 +219,16 @@ test("guardrails de file scope y helper boundaries usan deepEqual para listas de
     [
       "test/architecture/public-professionals-fixture-helper-boundaries-invariants.test.ts",
       [
-        "assert.deepEqual(extractTypeExports(source), [",
-        "assert.deepEqual(extractValueExports(source), [",
-        "assert.deepEqual(\n    offenders,\n    [],",
+        "assert.match(\n    factorySource,",
+        "assert.match(\n    mockSource,",
+        "assert.deepEqual(offenders, []);",
       ],
     ],
     [
       "test/architecture/public-professionals-fixture-file-scope-invariants.test.ts",
       [
-        "assert.deepEqual(\n    offenders,\n    [],",
-        "assert.deepEqual(publicProfessionalHelperFiles, [",
+        "assert.deepEqual(offenders, []);",
+        "assert.ok(readSource(path).length > 0",
       ],
     ],
   ]);

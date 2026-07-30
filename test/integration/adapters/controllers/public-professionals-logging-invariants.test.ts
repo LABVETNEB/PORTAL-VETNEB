@@ -3,9 +3,11 @@ import assert from "node:assert/strict";
 import Fastify from "fastify";
 import {
   buildPublicProfessionalFixtureRow,
+} from "../../../factories/public-professionals.ts";
+import {
   buildPublicProfessionalsRouteFixtureStubs,
   type PublicProfessionalsRouteFixtureStubs,
-} from "../../../helpers/public-professionals-fixtures.ts";
+} from "../../../mocks/public-professionals-route.ts";
 
 process.env.NODE_ENV ??= "development";
 process.env.SUPABASE_URL ??= "https://example.supabase.co";
@@ -274,4 +276,3 @@ test("public professionals logging registra CORS bloqueado sin headers ni payloa
     await app.close();
   }
 });
-

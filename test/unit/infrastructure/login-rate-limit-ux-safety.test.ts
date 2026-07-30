@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import test from "node:test";
+import { listSourceFiles } from "../../helpers/tracked-source-files.ts";
 
 const LOGIN_CONTENT_PATH = "frontend/src/components/public/LoginContent.tsx";
 const API_CLIENT_PATH = "frontend/src/lib/api.ts";
@@ -16,34 +17,9 @@ function read(relativePath: string): string {
 }
 
 function listFrontendSourceFiles(relativeDir: string): string[] {
-  const absoluteDir = resolve(process.cwd(), relativeDir);
-  const entries = readdirSync(absoluteDir, { withFileTypes: true });
-  const files: string[] = [];
-
-  for (const entry of entries) {
-    const relativePath = join(relativeDir, entry.name).replace(/\\/g, "/");
-
-    if (entry.isDirectory()) {
-      if (entry.name === ".next" || entry.name === "node_modules") {
-        continue;
-      }
-
-      files.push(...listFrontendSourceFiles(relativePath));
-      continue;
-    }
-
-    if (!entry.isFile()) {
-      continue;
-    }
-
-    if (!/\.(ts|tsx|js|jsx)$/.test(entry.name)) {
-      continue;
-    }
-
-    files.push(relativePath);
-  }
-
-  return files;
+  return listSourceFiles(resolve(process.cwd(), relativeDir), {
+    extensions: [".ts", ".tsx", ".js", ".jsx"],
+  }).map((file) => `${relativeDir}/${file}`);
 }
 
 // Strings forbidden from appearing in login UI source and client-side error messages.

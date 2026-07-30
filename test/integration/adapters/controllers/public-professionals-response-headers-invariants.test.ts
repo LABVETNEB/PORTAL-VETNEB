@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import Fastify from "fastify";
 import {
   buildPublicProfessionalsRouteFixtureStubs,
-} from "../../../helpers/public-professionals-fixtures.ts";
+} from "../../../mocks/public-professionals-route.ts";
 
 process.env.NODE_ENV ??= "development";
 process.env.SUPABASE_URL ??= "https://example.supabase.co";
@@ -355,4 +355,3 @@ test("profesionales públicos no setea cookies en 429 ni aliases 404", async () 
     await app.close();
   }
 });
-
