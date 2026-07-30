@@ -5,7 +5,7 @@
 | Document owner | CI owner / Engineering governance |
 | Domain | CI/CD and Quality Gate Governance |
 | Lifecycle status | ACTIVE |
-| Authoritative source role | closeout durable del BLOQUE 05 |
+| Authoritative source role | Closeout durable del BLOQUE 05 |
 | Effective date | 2026-07-30 |
 | Last verified date | 2026-07-30 |
 | Related controls | `ERM-CTRL-013`; `ERM-CTRL-014`; `ERM-CTRL-015`; `ERM-CTRL-024`; `ERM-CI-002` |
@@ -22,33 +22,32 @@
 BLOQUE 05: CLOSED
 ```
 
-El BLOQUE 05 del [Plan B](./enterprise-roadmap-consolidation-plan.md) absorbió dos PRs del
+El BLOQUE 05 del [Plan B](./enterprise-roadmap-consolidation-plan.md) absorbió dos objetivos del
 roadmap original:
 
-- `PR-CI-1` — convertir en required checks los gates funcionales `validate-backend` y
-  `validate-frontend` (brecha `P0-2` / `GAP-P0-2`);
-- `PR-CI-4` — hardening de GitHub Actions: `allowed_actions` selected, SHA pinning obligatorio y
-  `GITHUB_TOKEN` con permiso predeterminado `read`.
+- `PR-CI-1`: convertir en required checks los gates funcionales `validate-backend` y
+  `validate-frontend`;
+- `PR-CI-4`: endurecer GitHub Actions mediante allowlist seleccionada, pinning SHA obligatorio y
+  permiso predeterminado `read` para `GITHUB_TOKEN`.
 
-Ambas mutaciones son config-only: no modificaron backend, frontend, workflows, tests, scripts,
-dependencias ni lockfiles. La evidencia de enforcement se obtuvo con tres pull requests canaria
-cerradas sin merge (#1616, #1617, #1618) y ninguna rama canaria quedó residual.
+Las mutaciones fueron config-only y no modificaron backend, frontend, workflows, tests, scripts,
+dependencias ni lockfiles. El enforcement quedó demostrado mediante las canarias #1616, #1617 y
+#1618, cerradas sin merge, y mediante la PR docs-only #1619 como canaria post-hardening.
 
-Desde el cierre, los cuatro contextos requeridos por branch protection son:
+Los cuatro contextos requeridos efectivos son:
 
 ```text
 validate-pr-governance   app_id 15368
 qga-workflow-security    app_id 4291335
 validate-backend         app_id 15368
 validate-frontend        app_id 15368
+strict: true
 ```
 
-`ERM-CTRL-014` Quality Gate Architecture pasa de `PARTIAL` a `IMPLEMENTED` y `ERM-CI-002` queda
+`ERM-CTRL-014` Quality Gate Architecture pasa de `PARTIAL` a `IMPLEMENTED`; `ERM-CI-002` queda
 cerrado operativamente sin reescribir su snapshot histórico.
 
 ## 2. Estado anterior
-
-Estado observado antes de las mutaciones del bloque.
 
 Branch protection de `main`:
 
@@ -68,11 +67,10 @@ Actions del repositorio:
 allowed_actions: all
 sha_pinning_required: false
 default_workflow_permissions: write
+can_approve_pull_request_reviews: false
 ```
 
-Consecuencia operativa del estado anterior: un pull request que tocara `server/**` podía
-fusionarse con Backend CI en rojo, porque el fallo de un gate funcional no era bloqueante. Los
-dos contextos requeridos validaban metadatos de PR y política de workflows, no código.
+En ese estado, un gate funcional fallido no era un contexto required de branch protection.
 
 ## 3. Estado posterior
 
@@ -85,11 +83,7 @@ Branch protection de `main`, verificada en modo lectura el 2026-07-30:
 | `validate-backend` | 15368 | Gate funcional backend |
 | `validate-frontend` | 15368 | Gate funcional frontend |
 
-```text
-strict: true
-```
-
-Invariantes preservadas por la mutación:
+Invariantes preservadas:
 
 ```text
 enforce_admins: true
@@ -108,17 +102,16 @@ enabled: true
 allowed_actions: selected
 sha_pinning_required: true
 
-selected actions:
-  github_owned_allowed: true
-  verified_allowed: false
-  patterns_allowed:
-    - pnpm/action-setup@*
+github_owned_allowed: true
+verified_allowed: false
+patterns_allowed:
+  - pnpm/action-setup@*
 
 default_workflow_permissions: read
 can_approve_pull_request_reviews: false
 ```
 
-Inventario de workflows auditado sobre la base documental del bloque:
+Inventario auditado:
 
 ```text
 workflows: 6
@@ -128,22 +121,21 @@ unpinned actions: 0
 unknown uses references: 0
 ```
 
-El allowlist de Actions y el SHA pinning son controles simultáneos y no intercambiables: el
-allowlist decide **qué** actions pueden invocarse; el pinning decide **con qué referencia
-inmutable** se invocan. Desactivar uno no queda compensado por el otro.
+El allowlist y el SHA pinning son controles simultáneos: el allowlist limita qué actions pueden
+invocarse y el pinning exige referencias inmutables.
 
 ## 4. Matriz de evidencias
 
 | # | Evidencia | Tipo | Resultado |
 | --- | --- | --- | --- |
-| 1 | Auditoría inicial de branch protection y required checks | Lectura `gh api` | Dos contextos requeridos; gates funcionales no required |
-| 2 | Mutación de required checks a cuatro contextos con `strict: true` | Config-only, R3 | Aplicada; invariantes de protección preservadas |
-| 3 | Canaria positiva #1616 | PR docs-only, cerrada sin merge | Cuatro required `success`; heavies `skipped`; `mergeStateStatus` final `CLEAN` |
-| 4 | Canaria #1617 | PR, cerrada sin merge | **Inválida como evidencia negativa**; clasificada como hallazgo de descubrimiento de tests |
-| 5 | Canaria negativa válida #1618 | PR, cerrada sin merge | `validate-backend` `failure`; `mergeStateStatus` `BLOCKED` con `mergeable: MERGEABLE` |
-| 6 | Auditoría de GitHub Actions settings e inventario de workflows | Lectura `gh api` + árbol | 6 workflows, 20 `uses`, 0 sin pinnear |
-| 7 | Mutación de Actions permissions | Config-only, R3 | `selected` + pinning obligatorio + token `read` |
-| 8 | PR de closeout documental (esta PR) | PR docs-only | Canaria post-hardening; ver sección 8 |
+| 1 | Auditoría inicial de branch protection | Lectura `gh api` | Dos contextos required; gates funcionales no required |
+| 2 | Mutación de required checks | Config-only R3 | Cuatro contextos con `strict: true`; invariantes preservadas |
+| 3 | Canaria positiva #1616 | PR docs-only cerrada sin merge | Cuatro required `success`; heavies `skipped`; estado final `CLEAN` |
+| 4 | Canaria #1617 | PR cerrada sin merge | Inválida como evidencia negativa; hallazgo de descubrimiento de tests |
+| 5 | Canaria negativa válida #1618 | PR cerrada sin merge | `validate-backend` `failure`; merge `BLOCKED` con árbol `MERGEABLE` |
+| 6 | Auditoría de Actions | Lectura `gh api` + árbol | 6 workflows; 20 `uses`; 0 sin pinnear |
+| 7 | Mutación de Actions permissions | Config-only R3 | `selected`; pinning obligatorio; token predeterminado `read` |
+| 8 | PR de closeout #1619 | Canaria docs-only post-hardening | `PASSED`; cuatro required `success`; ambos heavies `skipped` |
 
 ## 5. Canaria positiva #1616
 
@@ -161,60 +153,47 @@ inmutable** se invocan. Desactivar uno no queda compensado por el otro.
 | --- | --- | --- |
 | PR Governance `30540671662` | `validate-pr-governance` | `success` |
 | QGA Governance `30540671695` | `qga-workflow-security` | `success` |
-| Backend CI `30540671681` (`pull_request`) | `detect-backend-impact` | `success` |
-| Backend CI `30540671681` (`pull_request`) | `backend-heavy-validation` | `skipped` |
-| Backend CI `30540671681` (`pull_request`) | `validate-backend` | `success` |
-| Frontend CI `30540671802` (`pull_request`) | `detect-frontend-impact` | `success` |
-| Frontend CI `30540671802` (`pull_request`) | `frontend-heavy-validation` | `skipped` |
-| Frontend CI `30540671802` (`pull_request`) | `validate-frontend` | `success` |
-| Supabase Preview | integración externa | `skipped` |
+| Backend CI `30540671681` | `detect-backend-impact` | `success` |
+| Backend CI `30540671681` | `backend-heavy-validation` | `skipped` |
+| Backend CI `30540671681` | `validate-backend` | `success` |
+| Frontend CI `30540671802` | `detect-frontend-impact` | `success` |
+| Frontend CI `30540671802` | `frontend-heavy-validation` | `skipped` |
+| Frontend CI `30540671802` | `validate-frontend` | `success` |
 
-La rama `test/**` también disparó Backend CI por evento `push` (run `30540668745`), donde el
-detector fija impacto verdadero y el heavy se ejecuta. Ese resultado duplicado es esperado y no
-contradice la ruta de `pull_request`: el contexto debe identificarse por workflow, evento y app,
-no exigiendo unicidad absoluta por nombre.
+La rama `test/**` también generó resultados por `push`. La identificación operativa debe usar
+workflow, evento y app; no debe exigir unicidad absoluta por nombre.
 
-Conclusión: con cuatro required checks, un PR docs-only alcanza `CLEAN` y no queda bloqueado
-indefinidamente. El paso transitorio por `BLOCKED` mientras los checks están pendientes es la
-conducta esperada de strict mode, no una regresión.
+Conclusión: un PR docs-only alcanza `CLEAN` y no queda bloqueado indefinidamente.
 
 ## 6. Canaria #1617 — inválida como evidencia negativa
 
 | Campo | Evidencia |
 | --- | --- |
 | Título | `test(ci): prove failed required gate blocks merge` |
-| Rama | `test/pr-ci-05-required-checks-negative-canary` |
 | Head | `9a744094ca64932cc271f8af587b3a853ec64e34` |
 | Estado | `CLOSED`; `mergedAt=null` |
-| `mergeStateStatus` final | `CLEAN` |
 
-El archivo de la canaria se creó en:
+El archivo intencionalmente fallido se creó en:
 
 ```text
 test/unit/infrastructure/required-checks-negative-canary.test.ts
 ```
 
-El patrón efectivo del script de test de la raíz es:
+El patrón efectivo observado fue:
 
 ```text
 test/**/*.test.ts
 ```
 
-En el runner observado ese patrón no descubrió ese nivel de anidamiento, de modo que el test
-intencionalmente roto nunca formó parte de la suite efectiva. Backend CI pasó correctamente:
-`backend-heavy-validation` y `validate-backend` terminaron en `success` porque no había ningún
-test fallido que ejecutar.
-
-Clasificación: **#1617 no es evidencia negativa de enforcement de required checks**. Su
-resultado se registra exclusivamente como hallazgo diagnóstico de descubrimiento de tests
-(sección 11). No demuestra que un gate fallido no bloquee, y no debe citarse como tal.
+En el runner observado, el patrón no descubrió ese nivel de anidamiento. El test no formó parte de
+la suite efectiva, por lo que Backend CI pasó correctamente. #1617 se conserva únicamente como
+hallazgo diagnóstico y no como evidencia negativa de enforcement.
 
 ## 7. Canaria negativa válida #1618
 
 | Campo | Evidencia |
 | --- | --- |
 | Título | `test(ci): prove failed required check blocks merge` |
-| Rama | `canary/pr-ci-05-required-checks-negative-v2` |
 | Head | `649ae7d702de37680f3cbdbea073a1e8be126a5a` |
 | Estado | `CLOSED`; `mergedAt=null` |
 | `mergeable` | `MERGEABLE` |
@@ -226,30 +205,24 @@ Archivo utilizado:
 test/unit/required-checks-negative-canary.test.ts
 ```
 
-El descubrimiento local mediante `pnpm test` quedó confirmado antes de abrir la PR, de modo que
-el fallo intencional sí pertenecía a la suite efectiva.
-
 | Workflow / run | Job | Resultado |
 | --- | --- | --- |
 | PR Governance `30541832254` | `validate-pr-governance` | `success` |
 | QGA Governance `30541831322` | `qga-workflow-security` | `success` |
 | Backend CI `30541831909` | `detect-backend-impact` | `success` |
-| Backend CI `30541831909` | `backend-heavy-validation` | `failure` (intencional) |
+| Backend CI `30541831909` | `backend-heavy-validation` | `failure` intencional |
 | Backend CI `30541831909` | `validate-backend` | `failure` |
 | Frontend CI `30541831945` | `detect-frontend-impact` | `success` |
 | Frontend CI `30541831945` | `frontend-heavy-validation` | `skipped` |
 | Frontend CI `30541831945` | `validate-frontend` | `success` |
 
-Conclusión: un fallo funcional en un contexto required bloquea el merge. La combinación
-`mergeable: MERGEABLE` con `mergeStateStatus: BLOCKED` demuestra además que `mergeable` describe
-la ausencia de conflictos de árbol, no el cumplimiento de branch protection.
+Conclusión: un fallo funcional requerido bloquea el merge aunque el árbol siga siendo técnicamente
+`MERGEABLE`.
 
-## 8. Canaria post-hardening
+## 8. Canaria post-hardening #1619
 
-La propia PR docs-only de este closeout es la canaria post-hardening del bloque. No se crea otra
-PR canaria.
-
-Antes de su merge debe demostrar:
+La PR docs-only #1619 es la canaria post-hardening del bloque. Sobre el head inicial
+`475eb4c38cb7f95add89ab29b3df93e28e5c2dce` se observaron los resultados requeridos:
 
 ```text
 validate-pr-governance: SUCCESS
@@ -260,35 +233,44 @@ backend-heavy-validation: SKIPPED
 frontend-heavy-validation: SKIPPED
 ```
 
-Ese resultado confirma, después del hardening de Actions, que siguen operativos:
+Evidencia de Actions disponible:
 
-- `actions/checkout`;
-- `actions/setup-node`;
-- `pnpm/action-setup`, cubierta por el patrón allowlisted `pnpm/action-setup@*`;
-- la GitHub App de QGA (`app_id 4291335`) sobre `pull_request_target`;
-- los cuatro required checks;
-- `GITHUB_TOKEN` con `default_workflow_permissions: read`.
+| Workflow / run | Job | Resultado |
+| --- | --- | --- |
+| PR Governance `30545005626` | `validate-pr-governance` | `success` |
+| Backend CI `30545005650` | `detect-backend-impact` | `success` |
+| Backend CI `30545005650` | `backend-heavy-validation` | `skipped` |
+| Backend CI `30545005650` | `validate-backend` | `success` |
+| Frontend CI `30545005643` | `detect-frontend-impact` | `success` |
+| Frontend CI `30545005643` | `frontend-heavy-validation` | `skipped` |
+| Frontend CI `30545005643` | `validate-frontend` | `success` |
+| QGA Governance | `qga-workflow-security` | `success` en el check rollup de la PR |
 
-Un fallo de cualquiera de esos elementos indicaría que el allowlist, el pinning obligatorio o la
-reducción de permisos del token degradaron la ejecución, y sería causa de rollback según la
-sección 10.
+Resultado:
+
+```text
+CANARIA POST-HARDENING: PASSED
+```
+
+La prueba confirma que continúan operativos `actions/checkout`, `actions/setup-node`,
+`pnpm/action-setup`, la GitHub App de QGA, los cuatro required checks y `GITHUB_TOKEN` con permiso
+predeterminado `read`.
+
+La fusión de #1619 publica el closeout durable en `main`; no constituye una condición técnica
+adicional para declarar pasada la canaria, porque los resultados requeridos ya fueron observados.
 
 ## 9. Seguridad
 
-- Ninguna credencial, token, cookie, secreto ni hash de credencial se documenta en este closeout.
-- Ningún payload transcrito contiene tokens ni respuestas API sensibles; solo se registran
-  identificadores públicos de PR, run, job, commit y app.
-- Ninguna ruta local de usuario se incorpora al repositorio; todos los enlaces son relativos.
-- Las evidencias locales de verificación permanecen fuera de Git.
-- Los `app_id` registrados son identificadores públicos de GitHub Apps, no credenciales.
+- No se documentan credenciales, tokens, cookies ni secretos.
+- No se incorporan respuestas API sensibles ni rutas locales de usuario.
+- Los `app_id`, run IDs, job IDs y hashes de commit registrados son identificadores públicos.
+- Las evidencias locales permanecen fuera de Git.
 
 ## 10. Rollback
 
-Rollback preparado, **no ejecutado**. Son dos rollbacks separados e independientes.
+Rollback preparado y no ejecutado. Son dos rollbacks separados.
 
 ### 10.1 Required checks
-
-Restaurar el conjunto anterior de contextos requeridos:
 
 ```json
 {
@@ -308,8 +290,6 @@ Restaurar el conjunto anterior de contextos requeridos:
 
 ### 10.2 Actions
 
-Restaurar la política previa de Actions:
-
 ```text
 allowed_actions: all
 sha_pinning_required: false
@@ -317,9 +297,7 @@ default_workflow_permissions: write
 can_approve_pull_request_reviews: false
 ```
 
-Ambos rollbacks son R3 y requieren autorización específica y actual. Ninguno se ejecutó como
-parte de este bloque. Ejecutar uno no implica ejecutar el otro: el bloque los aplicó como
-mutaciones separadas y así deben revertirse. Las canarias no deben recrearse ni mergearse.
+Ambos rollbacks son R3 y requieren autorización específica. Ninguno se ejecutó.
 
 ## 11. Hallazgo secundario — descubrimiento de tests
 
@@ -327,66 +305,45 @@ mutaciones separadas y así deben revertirse. Las canarias no deben recrearse ni
 test/**/*.test.ts no descubrió el nivel test/unit/infrastructure observado.
 ```
 
-Registro del hallazgo:
-
-- se observó al construir la canaria #1617, sobre el runner efectivo del script de test de la
-  raíz;
-- no es una regresión causada por el BLOQUE 05: ninguna mutación del bloque tocó scripts, runner,
-  workflows ni tests;
-- no invalida las suites de infraestructura existentes, que se ejecutan en CI a través de sus
-  propios paths;
-- no cierra ni reabre ningún control de testing architecture.
-
-Este bloque no abre una iniciativa de testing architecture. Cualquier corrección del patrón de
-descubrimiento requiere su propio scope, con evidencia previa del inventario real de archivos
-descubiertos y no descubiertos.
+El hallazgo se observó en #1617, no fue causado por el BLOQUE 05 y no cierra ni reabre controles
+de testing architecture. Cualquier corrección requiere un scope independiente.
 
 ## 12. Límite del cierre
 
-- Los cuatro required checks son efectivos y verificados en modo lectura el 2026-07-30.
-- El hardening de Actions es efectivo y verificado el 2026-07-30.
-- `ERM-CTRL-014` queda `IMPLEMENTED`; `ERM-CI-002` queda cerrado operativamente y su snapshot
-  histórico se conserva sin reescribir.
-- Este cierre no declara cerrados gaps ajenos: `ERM-FE-001`, `ERM-DEP-001` y los gaps runtime de
-  seguridad, datos, observabilidad y release permanecen abiertos bajo sus controles.
-- Este cierre no implica cobertura de tests, lint backend, SBOM ni Dependabot security updates.
+- Los cuatro required checks son efectivos y verificados.
+- El hardening de Actions es efectivo y verificado.
+- La canaria post-hardening #1619 está `PASSED`.
+- `ERM-CTRL-014` queda `IMPLEMENTED`; `ERM-CI-002` queda cerrado operativamente.
+- No se cierran gaps ajenos de frontend, dependencias, runtime, datos, observabilidad o release.
 - El BLOQUE 06 permanece `NOT_RUN`.
-- El bloque no se declara definitivamente cerrado hasta que la PR de closeout esté fusionada con
-  el resultado de la sección 8.
+- El merge de #1619 publica esta evidencia en `main` y no agrega una nueva condición técnica.
 
 ## 13. Limpieza
 
 - #1616, #1617 y #1618 están cerradas sin merge.
-- Las ramas `test/pr-ci-05-required-checks-canary`,
-  `test/pr-ci-05-required-checks-negative-canary` y
-  `canary/pr-ci-05-required-checks-negative-v2` no existen local ni remotamente.
-- `main` no contiene cambios de ninguna canaria.
-- Al cierre local del bloque hay 0 PRs abiertos.
+- Sus ramas canaria no existen local ni remotamente.
+- `main` no contiene cambios de las canarias.
+- #1619 es la única PR de publicación del closeout durante esta verificación.
 
 ## 14. Validación del closeout
 
 | Verificación | Estado |
 | --- | --- |
 | Cuatro required checks exactos con sus `app_id` | `PASSED` |
-| `strict: true` y invariantes de branch protection preservadas | `PASSED` |
-| `allowed_actions: selected` y `sha_pinning_required: true` | `PASSED` |
-| Selected actions: GitHub-owned permitidas, verified deshabilitadas, patrón `pnpm/action-setup@*` | `PASSED` |
-| `default_workflow_permissions: read`; `can_approve_pull_request_reviews: false` | `PASSED` |
+| `strict: true` e invariantes de branch protection | `PASSED` |
+| `allowed_actions: selected`; `sha_pinning_required: true` | `PASSED` |
+| Selected actions y patrón `pnpm/action-setup@*` | `PASSED` |
+| `default_workflow_permissions: read` | `PASSED` |
 | PRs #1616, #1617 y #1618 cerradas sin merge | `PASSED` |
-| 0 PRs abiertos y 0 ramas canaria residuales | `PASSED` |
-| #1617 clasificada como diagnóstico y no como evidencia negativa | `PASSED` |
-| #1618 usada como única evidencia negativa válida | `PASSED` |
-| Inventario de workflows: 6 workflows, 20 `uses`, 0 sin pinnear | `PASSED` |
-| Allowlist exacta de seis documentos | `PASSED` |
-| Links Markdown relativos válidos | `PASSED` |
-| UTF-8 sin BOM, final newline y ausencia de trailing whitespace | `PASSED` |
-| Enterprise controls: 25 IDs únicos y vocabulario permitido | `PASSED` |
+| #1617 clasificada solo como diagnóstico | `PASSED` |
+| #1618 usada como evidencia negativa válida | `PASSED` |
+| Inventario: 6 workflows; 20 `uses`; 0 sin pinnear | `PASSED` |
+| Enterprise controls: 25 IDs únicos | `PASSED` |
 | `ERM-CTRL-013=IMPLEMENTED`; `ERM-CTRL-014=IMPLEMENTED` | `PASSED` |
-| Mutaciones Git/GitHub ejecutadas por este closeout | `0` |
-| Código, workflows, tests, scripts, dependencias y lockfiles modificados | `0` |
-| Canaria post-hardening (sección 8) | `NOT_RUN` hasta el merge de esta PR |
+| Canaria post-hardening #1619 | `PASSED` |
+| Código, workflows, tests, scripts, deps y lockfiles modificados | `0` |
 
-Resultado documental:
+Resultado:
 
 ```text
 BLOQUE 03: CLOSED
