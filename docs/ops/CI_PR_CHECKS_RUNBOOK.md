@@ -7,12 +7,12 @@
 | Lifecycle status | ACTIVE |
 | Authoritative source role | Mapa operativo de checks efectivos y criterios antes de merge |
 | Effective date | 2026-07-28 |
-| Last verified date | 2026-07-29 |
+| Last verified date | 2026-07-30 |
 | Review cadence | Mensual y ante cambios de workflows, jobs o branch protection |
 | Supersedes | Versión que documentaba un solo required check global |
 | Superseded by | Ninguno |
 | Related controls or gaps | `ERM-CTRL-013`; `ERM-CTRL-014`; `ERM-CI-001`; `ERM-CI-002` |
-| Evidence or approval reference | PR #1601 y canarias #1602/#1603; workflows locales y branch protection de `main` verificadas en modo read-only |
+| Evidence or approval reference | PR #1601 y canarias #1602/#1603; PR #1605 y su validación stale-base; workflows locales y branch protection de `main` verificadas en modo read-only |
 
 ## Objetivo
 
@@ -93,15 +93,17 @@ política de seguridad de workflows; no reemplaza typecheck, tests, builds ni E2
 ## Backend CI
 
 Backend CI se crea en todos los pull requests hacia `main`. Su detector liviano
-`detect-backend-impact` separa la presencia estable del contexto de la ejecución del job pesado:
+`detect-backend-impact` separa la presencia estable del contexto de la ejecución del job pesado.
+El impacto se calcula sobre el rango efectivo del pull request, no sobre la comparación directa
+base/head (ver [Rango de comparación del pull request](#rango-de-comparación-del-pull-request)):
 
 ```text
-docs-only:
+docs-only respecto del rango efectivo:
   detect-backend-impact: success
   backend-heavy-validation: skipped
   validate-backend: success
 
-cambio no documental/backend:
+cambio no documental/backend en el rango efectivo:
   detect-backend-impact: success
   backend-heavy-validation: ejecutado
   validate-backend: refleja el resultado del heavy
@@ -140,7 +142,8 @@ combinación de estados inesperada. Postgres existe únicamente dentro del heavy
 ## Frontend CI
 
 Frontend CI se crea en todos los pull requests hacia `main`. El detector
-`detect-frontend-impact` activa `frontend-heavy-validation` cuando cambian:
+`detect-frontend-impact` activa `frontend-heavy-validation` cuando, dentro del rango efectivo del
+pull request, cambian:
 
 - `frontend/**`;
 - `pnpm-lock.yaml`;
@@ -178,20 +181,46 @@ cuando el workflow es disparado.
 El contexto final `validate-frontend` usa `if: always()` y aplica la misma propagación
 fail-closed. Playwright y su artifact de failure existen únicamente dentro del heavy.
 
+## Rango de comparación del pull request
+
+Ambos detectores calculan los archivos cambiados desde el merge base común de la base y el head
+hacia el head candidato:
+
+```text
+git merge-base "$BASE_SHA" "$HEAD_SHA"
+git diff --name-only -z --diff-filter=ACDMRTUXB "$MERGE_BASE" "$HEAD_SHA"
+```
+
+Git distingue esa forma de la comparación directa `git diff "$BASE_SHA" "$HEAD_SHA"`. La
+comparación directa reporta también los paths que existen únicamente en una base que avanzó
+después de que la rama del PR divergió, y por eso podía lanzar heavies ajenos al diff real. PR
+#1605 la eliminó de ambos workflows; los contratos de infraestructura prohíben su retorno.
+
+Consecuencias operativas:
+
+- el rango efectivo no depende de que la rama esté actualizada respecto de `main`;
+- una rama desactualizada cuyo diff propio es solo documental mantiene ambos heavies `skipped`;
+- si el merge base no resuelve, no tiene formato de 40 hexadígitos o su commit no existe, el
+  detector falla y el contexto final falla de forma cerrada;
+- estar detrás de `main` no es, por sí mismo, causa de ejecución de heavies ni de fallo de
+  contexto.
+
 ## Semántica docs-only
 
-Cuando todo el diff queda bajo `docs/**` o termina en `.md`:
+Cuando todo el diff del rango efectivo merge-base → head queda bajo `docs/**` o termina en `.md`:
 
 - `validate-pr-governance` y `qga-workflow-security` siguen siendo required y deben terminar en
   `SUCCESS`;
 - `validate-backend` está presente en `SUCCESS` con detector exitoso y Backend heavy `skipped`;
 - `validate-frontend` está presente en `SUCCESS` con detector exitoso y Frontend heavy `skipped`;
+- ese contrato se cumple también cuando la rama precede a cambios no documentales de `main`,
+  porque esos cambios quedan fuera del rango efectivo;
 - Supabase Preview puede estar ausente o `SKIPPED` si la integración no aplica;
 - cualquier check presente que falle sigue siendo bloqueante: docs-only no convierte un fallo en
   skip legítimo.
 
-Un heavy `skipped` solo es legítimo cuando su detector concluye `impact=false` y el contexto final
-termina en `SUCCESS`.
+Un heavy `skipped` solo es legítimo cuando su detector concluye `impact=false` sobre el rango
+efectivo y el contexto final termina en `SUCCESS`.
 
 ## Supabase Preview
 
@@ -331,6 +360,7 @@ gh pr view $prNumber `
 - Tratar `validate-backend` o `validate-frontend` ausente como anomalía bloqueante y diagnosticar
   el routing.
 - Diferenciar siempre el workflow/contexto presente del job pesado condicional.
+- Evaluar impacto sobre el rango merge-base → head, nunca sobre la comparación directa base/head.
 - No tratar `mergeable` como equivalente a cumplimiento de branch protection.
 - No usar `--admin` para eludir gates.
 - No usar `git reset --hard` como cleanup estándar.

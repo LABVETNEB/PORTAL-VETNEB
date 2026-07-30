@@ -19,7 +19,7 @@
 | Alcance | Gobernanza, documentación, PRs, tests, CI/CD, seguridad, datos, observabilidad, release, dependencias, calidad y operación |
 | No-scope | No modifica runtime, backend, frontend, DB, migraciones, dependencias, lockfiles, workflows ni configuración productiva |
 | Related controls or gaps | `ERM-CTRL-001..025`; gaps P0/P1/P2/P3 de este documento |
-| Evidence or approval reference | Auditoría original sobre `main@db1da94`; reconciliación documental `PR-AUDIT-ENTERPRISE-DOCS`; PR #1593 y [closeout del bloque 03](./pr-sec-secret-patterns-audit.md); PR #1601, canarias #1602/#1603 y [closeout del bloque 04](./pr-ci-always-run-gates-audit.md) |
+| Evidence or approval reference | Auditoría original sobre `main@db1da94`; reconciliación documental `PR-AUDIT-ENTERPRISE-DOCS`; PR #1593 y [closeout del bloque 03](./pr-sec-secret-patterns-audit.md); PR #1601, canarias #1602/#1603, PR correctiva #1605 y [closeout del bloque 04](./pr-ci-always-run-gates-audit.md) |
 
 He completado la auditoría. Baseline capturado: `main` limpio, HEAD `db1da94`, working tree sin cambios. **No modifiqué, moví ni creé ningún archivo**; solo lectura, inspección local y `gh api` de solo lectura.
 
@@ -63,6 +63,15 @@ Las canarias cerradas sin merge demostraron:
 | --- | --- | --- | --- | --- | --- | --- |
 | #1602 docs-only | `success` | `skipped` | `success` | `success` | `skipped` | `success` |
 | #1603 backend | `success` | `success` | `success` | `success` | `skipped` | `success` |
+
+Ambas canarias usaban base alineada. La revisión de #1604 detectó que el contrato de skip no
+era verdadero para una rama desactualizada, porque ambos detectores comparaban
+`pull_request.base.sha` directamente con el head e incorporaban paths existentes solo en la base
+avanzada. PR #1605, mergeada como `f0d1da6b14f7fa5818eb7e9be990d35ed39be431` desde el head
+`8ba8b1cacba70547afae6300b7a1522aecbcd058`, sustituyó ese rango por el merge base común hacia el
+head candidato, con validación fail-closed del merge base y contratos de infraestructura que
+prohíben el retorno de la forma directa. La validación stale-base se ejecutó sobre esta misma PR
+documental, cuya rama conserva la divergencia previa a #1605.
 
 El head inicial `b26f60fa08da39a08b7dfca762193b70902524d3` de #1601 fue rechazado por
 PR Governance run `30484346394` con
