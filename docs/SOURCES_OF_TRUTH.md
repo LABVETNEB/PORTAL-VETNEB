@@ -9,12 +9,12 @@ Mapa vigente de fuentes de verdad documentales del proyecto VETNEB.
 | Lifecycle status | ACTIVE |
 | Authoritative source role | Mapa primario de fuentes vigentes por dominio |
 | Effective date | 2026-07-28 |
-| Last verified date | 2026-07-29 |
+| Last verified date | 2026-07-30 |
 | Review cadence | Mensual y ante cambios de autoridad documental |
 | Supersedes | Ninguno |
 | Superseded by | Ninguno |
 | Related controls or gaps | `ERM-CTRL-004`; `ERM-DOC-002` |
-| Evidence or approval reference | Árbol del repositorio y configuración GitHub verificados para `PR-AUDIT-ENTERPRISE-DOCS`; PR #1591 y closeout sanitizado de `PR-SEC-REPO-SETTINGS`; PR #1593 y closeout del bloque 03; PR #1601, canarias #1602/#1603 y PR correctiva #1605 del bloque 04 verificados el 2026-07-30 |
+| Evidence or approval reference | Árbol del repositorio y configuración GitHub verificados para `PR-AUDIT-ENTERPRISE-DOCS`; PR #1591 y closeout sanitizado de `PR-SEC-REPO-SETTINGS`; PR #1593 y closeout del bloque 03; PR #1601, canarias #1602/#1603 y PR correctiva #1605 del bloque 04; required checks efectivos, hardening de GitHub Actions y canarias #1616/#1618 del bloque 05 verificados el 2026-07-30 |
 
 ## Propósito
 
@@ -57,6 +57,7 @@ Regla principal:
 | Release / go-no-go / deployment readiness | `docs/release/README.md` | `docs/release/release-go-no-go-policy.md`, `docs/release-readiness.md`, `docs/ops/BACKUP_RESTORE_ROLLBACK.md` | Vigente | Usar antes de releases, cambios productivos o decisiones go/no-go |
 | Rollback / backup / restore operativo | `docs/ops/BACKUP_RESTORE_ROLLBACK.md` | `docs/release/release-go-no-go-policy.md`, `docs/production-readiness-evidence.md` | Vigente | Usar para rollback triggers, restore drills, evidencia sanitizada y operaciones productivas |
 | CI / PR checks runbook | `docs/ops/CI_PR_CHECKS_RUNBOOK.md` | `docs/qa/regression-strategy.md`, `docs/governance/pr-readiness-review-checklist.md`, `docs/audit/enterprise-repository-maturity-audit-roadmap.md` | Vigente | Usar para checks de PR, merge y limpieza local; debe alinearse con required checks reales |
+| CI required checks and Actions policy | `docs/audit/pr-ci-required-checks-audit.md` | `docs/ops/CI_PR_CHECKS_RUNBOOK.md`, `docs/governance/enterprise-control-register.md`, `.github/workflows/backend-ci.yml`, `.github/workflows/frontend-ci.yml` | Closeout activo; bloque 05 `CLOSED` | Evidencia durable de los cuatro required checks con app ID, del hardening de GitHub Actions y de las canarias #1616/#1618; #1617 queda registrada como hallazgo diagnóstico, no como evidencia negativa. No reemplaza los workflows ni la configuración efectiva de GitHub como fuentes ejecutables |
 | CI always-run gates | `docs/audit/pr-ci-always-run-gates-audit.md` | `docs/architecture/ci-always-run-gates-rfc.md`, `docs/ops/CI_PR_CHECKS_RUNBOOK.md`, `.github/workflows/backend-ci.yml`, `.github/workflows/frontend-ci.yml`, `docs/governance/enterprise-control-register.md` | Closeout activo; bloque 04 `CLOSED` | Evidencia durable de #1601, canarias #1602/#1603 y corrección de rango de #1605; distingue contextos siempre presentes de heavies condicionales, fija el rango merge-base → head y no declara required los checks funcionales |
 | CI / E2E layering | `docs/audit/e2e-ci-layering-strategy-audit.md` | `frontend/package.json`, `docs/ops/CI_PR_CHECKS_RUNBOOK.md`, `docs/qa/regression-strategy.md` | Vigente parcial | PR-C1 y PR-C2 cerrados; antes de PR-C3 validar unión de capas == full |
 | Dashboard Admin horizontal-nav | `docs/audit/dashboard-horizontal-navigation-information-architecture.md` | `docs/implementation/dashboard-horizontal-shell-navigation.md` | Vigente en curso | No mezclar con ordenamiento documental ni con PRs enterprise foundation |
@@ -140,8 +141,13 @@ quedó cerrado el 2026-07-29. `PR-SEC-SECRET-PATTERNS`, bloque 03, también est�
 sin merge. `PR-CI-ALWAYS-RUN-GATES`, bloque 04, está `CLOSED`: PR #1601 fue
 integrado, las canarias #1602/#1603 quedaron cerradas sin merge ni ramas
 residuales y la PR correctiva #1605 fijó el cálculo de impacto en el rango
-merge-base → head. `PR-CI-REQUIRED-CHECKS`, bloque 05, permanece `NOT_RUN` y requiere
-autorización R3 separada. Las prioridades, dependencias y separaciones de riesgo
+merge-base → head. `PR-CI-REQUIRED-CHECKS`, bloque 05, está `CLOSED` desde el
+2026-07-30 bajo autorización R3: branch protection exige cuatro contextos
+required con `strict: true` y la política de Actions quedó en `selected` con SHA
+pinning obligatorio y `GITHUB_TOKEN` predeterminado `read`; #1616 y #1618
+quedaron cerradas sin merge como evidencia positiva y negativa, y #1617 se
+conserva sólo como hallazgo diagnóstico. El bloque 06 permanece `NOT_RUN`. Las
+prioridades, dependencias y separaciones de riesgo
 se leen en el plan consolidado, no reconstruyendo backlog desde el roadmap
 original ni desde closeouts históricos.
 
@@ -149,4 +155,4 @@ original ni desde closeouts históricos.
 
 Este mapa incorpora la precedencia explícita entre auditoría global, Plan B, estado operativo vivo
 y snapshots históricos. También registra el perfil público `ACTIVE` y la auditoría de closeout
-`ACTIVE` de `PR-SEC-REPO-SETTINGS`, además de los closeouts `ACTIVE` de los bloques 03 y 04.
+`ACTIVE` de `PR-SEC-REPO-SETTINGS`, además de los closeouts `ACTIVE` de los bloques 03, 04 y 05.

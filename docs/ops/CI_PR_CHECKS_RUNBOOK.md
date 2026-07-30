@@ -9,10 +9,10 @@
 | Effective date | 2026-07-28 |
 | Last verified date | 2026-07-30 |
 | Review cadence | Mensual y ante cambios de workflows, jobs o branch protection |
-| Supersedes | Versión que documentaba un solo required check global |
+| Supersedes | Versión que documentaba dos required checks globales y clasificaba los gates funcionales como no required |
 | Superseded by | Ninguno |
-| Related controls or gaps | `ERM-CTRL-013`; `ERM-CTRL-014`; `ERM-CI-001`; `ERM-CI-002` |
-| Evidence or approval reference | PR #1601 y canarias #1602/#1603; PR #1605 y su validación stale-base; workflows locales y branch protection de `main` verificadas en modo read-only |
+| Related controls or gaps | `ERM-CTRL-013`; `ERM-CTRL-014`; `ERM-CTRL-015`; `ERM-CI-001`; `ERM-CI-002` |
+| Evidence or approval reference | PR #1601 y canarias #1602/#1603; PR #1605 y su validación stale-base; canarias #1616 y #1618 del bloque 05; workflows locales, branch protection de `main` y Actions permissions verificadas en modo read-only el 2026-07-30 |
 
 ## Objetivo
 
@@ -29,14 +29,50 @@ Documentar cómo verificar los checks de GitHub Actions en pull requests de Port
 | --- | --- | --- | --- | --- |
 | `validate-pr-governance` | Required global | Todos los PR hacia `main` | Sí | `SUCCESS` antes de merge |
 | `qga-workflow-security` | Required global | Todos los PR hacia `main` | Sí | `SUCCESS` antes de merge |
-| `validate-backend` | Contexto always-run | Todos los PR hacia `main`; heavy condicional por impacto | No | `SUCCESS` en todos los PR hacia `main` |
-| `validate-frontend` | Contexto always-run | Todos los PR hacia `main`; heavy condicional por impacto | No | `SUCCESS` en todos los PR hacia `main` |
+| `validate-backend` | Required funcional; contexto always-run | Todos los PR hacia `main`; heavy condicional por impacto | Sí | `SUCCESS` en todos los PR hacia `main` |
+| `validate-frontend` | Required funcional; contexto always-run | Todos los PR hacia `main`; heavy condicional por impacto | Sí | `SUCCESS` en todos los PR hacia `main` |
 | Supabase Preview | Integración externa | Paths administrados por la integración | No | `SUCCESS` cuando aplica; `SKIPPED` legítimo cuando no aplica |
-| Required funcional backend/frontend | Branch protection pendiente | No configurado actualmente | No | No confundir presencia de contexto con enforcement required |
 
 La presencia de un workflow o job en el árbol no lo vuelve required. La fuente efectiva para esa
-clasificación es branch protection de `main`, verificada el 2026-07-28 con exactamente estos
-contextos: `validate-pr-governance` y `qga-workflow-security`.
+clasificación es branch protection de `main`, verificada el 2026-07-30 con exactamente estos
+cuatro contextos y sus app IDs:
+
+```text
+strict: true
+
+validate-pr-governance   app_id 15368
+qga-workflow-security    app_id 4291335
+validate-backend         app_id 15368
+validate-frontend        app_id 15368
+```
+
+La evidencia durable del bloque 05, incluidas la canaria positiva #1616 y la canaria negativa
+#1618, se conserva en
+[PR-CI-REQUIRED-CHECKS Audit](../audit/pr-ci-required-checks-audit.md).
+
+## GitHub Actions repository policy
+
+Política efectiva del repositorio verificada el 2026-07-30:
+
+```text
+allowed_actions: selected
+sha_pinning_required: true
+github_owned_allowed: true
+verified_allowed: false
+patterns_allowed:
+  - pnpm/action-setup@*
+default_workflow_permissions: read
+can_approve_pull_request_reviews: false
+```
+
+El allowlist no reemplaza el pinning SHA: ambos controles aplican simultáneamente. El allowlist
+decide qué actions pueden invocarse; el pinning obliga a invocarlas por una referencia inmutable
+de 40 hexadígitos. Una action allowlisted sin pinnear sigue siendo rechazada, y una action
+pinneada fuera del allowlist también.
+
+`default_workflow_permissions: read` fija el permiso predeterminado de `GITHUB_TOKEN`. Un
+workflow que necesite escritura debe declararla explícitamente en su propio scope y queda sujeto
+a `qga-workflow-security`, que exige `contents: read` a nivel top-level.
 
 ## PR Governance
 
@@ -125,6 +161,12 @@ aparecer `validate-backend` dos veces:
 - evento `push`;
 - evento `pull_request`.
 
+Esa duplicación es esperada en ramas cubiertas por los filtros de push, en particular `test/**`,
+y no indica anomalía. Identificar el check por workflow, evento y app, no exigir unicidad
+absoluta por nombre: la instancia que branch protection evalúa es la del evento `pull_request`.
+Un heavy ejecutado por `push` en una rama `test/**` no contradice un heavy `skipped` en la ruta
+`pull_request` del mismo head.
+
 `backend-heavy-validation` ejecuta:
 
 1. instalación con lockfile congelado;
@@ -209,10 +251,11 @@ Consecuencias operativas:
 
 Cuando todo el diff del rango efectivo merge-base → head queda bajo `docs/**` o termina en `.md`:
 
-- `validate-pr-governance` y `qga-workflow-security` siguen siendo required y deben terminar en
-  `SUCCESS`;
-- `validate-backend` está presente en `SUCCESS` con detector exitoso y Backend heavy `skipped`;
-- `validate-frontend` está presente en `SUCCESS` con detector exitoso y Frontend heavy `skipped`;
+- los cuatro contextos required deben terminar en `SUCCESS`;
+- `validate-backend` es required y termina en `SUCCESS` con detector exitoso y Backend heavy
+  `skipped`;
+- `validate-frontend` es required y termina en `SUCCESS` con detector exitoso y Frontend heavy
+  `skipped`;
 - ese contrato se cumple también cuando la rama precede a cambios no documentales de `main`,
   porque esos cambios quedan fuera del rango efectivo;
 - Supabase Preview puede estar ausente o `SKIPPED` si la integración no aplica;
@@ -258,12 +301,11 @@ gh pr checks --watch
 
 Se puede considerar el merge solamente cuando:
 
-- `validate-pr-governance` está en `SUCCESS`;
-- `qga-workflow-security` está en `SUCCESS`;
+- los cuatro contextos required están presentes y en `SUCCESS`:
+  `validate-pr-governance`, `qga-workflow-security`, `validate-backend` y `validate-frontend`;
 - no hay checks aplicables en `QUEUED` o `IN_PROGRESS`;
 - no hay checks aplicables en `FAILURE`, `CANCELLED` o `TIMED_OUT`;
-- `validate-backend` está presente y en `SUCCESS`;
-- `validate-frontend` está presente y en `SUCCESS`;
+- los heavies `skipped` corresponden a detector `impact=false` con contexto final `SUCCESS`;
 - Supabase Preview puede estar `SKIPPED` cuando no aplica;
 - el PR sigue abierto, no es draft y apunta a `main`;
 - el head SHA verificado coincide con el SHA que se va a fusionar;
@@ -273,9 +315,12 @@ Se puede considerar el merge solamente cuando:
 
 No mergear si ocurre cualquiera de estos casos:
 
-- `validate-pr-governance` o `qga-workflow-security` ausente o no exitoso;
+- cualquiera de los cuatro contextos required está ausente, `QUEUED`, `IN_PROGRESS` o en
+  `FAILURE`, `CANCELLED` o `TIMED_OUT`;
+- un contexto required final termina en `FAILURE` aunque el PR siga técnicamente `MERGEABLE`:
+  `mergeable` describe la ausencia de conflictos de árbol, no el cumplimiento de branch
+  protection, y el estado real es `mergeStateStatus: BLOCKED`;
 - check aplicable pendiente o fallido;
-- `validate-backend` o `validate-frontend` ausente en cualquier PR hacia `main`;
 - heavy `skipped` cuando el detector no concluyó `impact=false` o el contexto final no termina
   en `SUCCESS`;
 - head SHA cambió después de la revisión;
@@ -358,7 +403,9 @@ gh pr view $prNumber `
 
 - No usar comandos finales con placeholders.
 - Tratar `validate-backend` o `validate-frontend` ausente como anomalía bloqueante y diagnosticar
-  el routing.
+  el routing; al ser required, su ausencia bloquea el merge en strict mode.
+- Identificar cada check por workflow, evento y app; no exigir unicidad por nombre en ramas que
+  también disparan `push`.
 - Diferenciar siempre el workflow/contexto presente del job pesado condicional.
 - Evaluar impacto sobre el rango merge-base → head, nunca sobre la comparación directa base/head.
 - No tratar `mergeable` como equivalente a cumplimiento de branch protection.
@@ -374,5 +421,6 @@ gh pr view $prNumber `
 - [CI/CD Pipeline Governance implementation closeout](../implementation/ci-pipeline-governance-closeout.md)
 - [CI/CD Pipeline Governance closeout audit](../audit/ci-pipeline-governance-closeout-audit.md)
 - [PR-CI-ALWAYS-RUN-GATES closeout audit](../audit/pr-ci-always-run-gates-audit.md)
+- [PR-CI-REQUIRED-CHECKS closeout audit](../audit/pr-ci-required-checks-audit.md)
 - [Branch Protection Governance implementation closeout](../implementation/branch-protection-governance-closeout.md)
 - [Review Governance](../review-governance.md)
