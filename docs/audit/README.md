@@ -53,6 +53,7 @@ Los documentos históricos previos dentro de `docs/audit/` se conservan como ant
 | [pr-e2e-ci-completeness-rfc.md](./pr-e2e-ci-completeness-rfc.md) | Decisión arquitectónica del gate rápido de 43 specs más gate completo no-required de 72 specs. | `ACCEPTED` |
 | [pr-test-architecture-consolidation-audit.md](./pr-test-architecture-consolidation-audit.md) | Censo exacto source-coupled, soporte canónico, walker recursivo y evidencia local positiva/negativa del slot 07. | `ACTIVE`; validación remota vive en la PR |
 | [pr-test-architecture-consolidation-source-coupled-inventory.md](./pr-test-architecture-consolidation-source-coupled-inventory.md) | Anexo exhaustivo path por path de los 370 tests source-coupled observados en el baseline del slot 07. | `ACTIVE`; anexo del closeout |
+| [pr-quality-coverage-baseline-audit.md](./pr-quality-coverage-baseline-audit.md) | Script separado de cobertura nativa, contrato positivo/negativo y baseline real del slot 08. | `ACTIVE`; `PR-QUALITY-COVERAGE-BASELINE IMPLEMENTED_LOCALLY` |
 
 ## Documentos rectores recientes
 
@@ -101,6 +102,7 @@ BLOQUE 04: CLOSED
 BLOQUE 05: CLOSED
 BLOQUE 06: CLOSED
 BLOQUE 07: IMPLEMENTED_LOCALLY
+BLOQUE 08: IMPLEMENTED_LOCALLY
 ```
 
 `PR-SEC-SECRET-PATTERNS`, bloque 03 del
@@ -126,3 +128,9 @@ está en [pr-ci-required-checks-audit.md](./pr-ci-required-checks-audit.md).
 
 Los closeouts M01–M48 y los snapshots enterprise no se usan como backlog
 pendiente.
+
+`PR-QUALITY-COVERAGE-BASELINE`, bloque 08, agrega un script separado con
+cobertura nativa de Node sin modificar `pnpm test`, dependencias, lockfile,
+workflows ni thresholds. El baseline local observado y las mutaciones negativas
+se conservan en
+[pr-quality-coverage-baseline-audit.md](./pr-quality-coverage-baseline-audit.md).

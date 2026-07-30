@@ -204,3 +204,13 @@ en `test/fixtures`, `test/factories` y `test/mocks`; el walker canónico vive en
 `test/helpers/tracked-source-files.ts`. El censo y la evidencia local se
 conservan en
 [PR-TEST-ARCHITECTURE-CONSOLIDATION Audit](./pr-test-architecture-consolidation-audit.md).
+
+## Estado operativo local del slot 8
+
+`PR-QUALITY-COVERAGE-BASELINE` absorbe `PR-QUALITY-1` en una única rama y PR.
+El script `test` permanece literal e intacto; `test:coverage` usa la cobertura
+nativa de Node sin threshold, dependencia, workflow ni enforcement. El baseline
+local observado es 4.023 tests, 81,70% líneas, 78,55% branches y 78,74%
+funciones. El contrato positivo, las mutaciones negativas y el closeout se
+conservan en
+[PR-QUALITY-COVERAGE-BASELINE Audit](./pr-quality-coverage-baseline-audit.md).
