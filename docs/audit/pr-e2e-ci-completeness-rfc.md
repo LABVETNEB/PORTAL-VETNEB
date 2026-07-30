@@ -30,9 +30,10 @@ Add a separate `E2E Completeness` workflow with focused `pull_request`,
 `workflow_dispatch` and weekly `schedule` events. Its single browser command is
 `pnpm --dir frontend e2e:full`, derived from the catalog and executed on Ubuntu
 with the `next dev` runner used to author the immutable Chromium Linux
-baselines and `--workers=1`, the repository's proven mitigation for dev-mode
-contention. `Frontend CI` remains the separate production-bundle gate for the
-43-spec `ci` cohort.
+baselines and `--workers=5`. Five bounded workers keep the five default
+capacity-matrix variants isolated before shared dev-server cache warming,
+while avoiding an unbounded host-derived worker count. `Frontend CI` remains
+the separate production-bundle gate for the 43-spec `ci` cohort.
 
 The completeness workflow is non-required. It runs for changes that can alter
 the suite, its runner, catalog, workflow contracts or toolchain. A
@@ -63,7 +64,8 @@ resolves them through the catalog and fails unless automatic coverage equals
 | Run three separate residual cohorts | Rejected: three Playwright lifecycles add cost and a larger drift surface; `full` already derives the exact union. |
 | Run completeness against `next start` | Rejected after live evidence: the 320 px Linux baselines contain the `next dev` indicator and seven adaptive contracts failed under that runner; changing snapshots or assertions is outside scope. |
 | Keep two default CI workers | Rejected after live evidence: 782/786 passed, while the remaining four failures match the documented dev-mode contention class. |
-| Dedicated automatic `e2e:full -- --workers=1` workflow | Accepted: one catalog-derived dev-runner invocation, Linux baselines and isolated non-required completeness, while `Frontend CI` retains production coverage. |
+| Serialize with one worker | Rejected after live evidence: shared dev cache warmed between variants and the result regressed to 780/786. |
+| Dedicated automatic `e2e:full -- --workers=5` workflow | Accepted: the exact residual cohort passed 176 tests with five workers; the full gate stays one catalog-derived invocation while `Frontend CI` retains production coverage. |
 
 ## Validation and rollback
 
