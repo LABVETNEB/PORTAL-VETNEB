@@ -28,10 +28,7 @@ import {
   serializeParticularTokenDetail,
   updateParticularTokenReportSchema,
 } from "../features/particular-access/index.ts";
-import {
-  buildRequestLogLine,
-  sanitizeUrlForLogs,
-} from "../middlewares/request-logger.ts";
+import { logRequestCompletion } from "../middlewares/request-logger.ts";
 import {
   createRuntimeTimer,
   type RuntimeTimer,
@@ -363,17 +360,14 @@ export const adminParticularTokensNativeRoutes: FastifyPluginAsync<
       createRuntimeTimer();
 
     const durationMs = timer.elapsedMs();
-    const safeUrl = sanitizeUrlForLogs(request.url);
 
-    console.log(
-      buildRequestLogLine({
-        timestamp: new Date().toISOString(),
-        method: request.method,
-        url: safeUrl,
-        statusCode: reply.statusCode,
-        durationMs,
-      }),
-    );
+    logRequestCompletion({
+      method: request.method,
+      routeTemplate: request.routeOptions?.url,
+      statusCode: reply.statusCode,
+      durationMs,
+      requestId: request.id,
+    });
   });
 
   const optionsHandler = async (

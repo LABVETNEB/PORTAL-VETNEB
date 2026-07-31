@@ -4,7 +4,10 @@ import Fastify, {
   type FastifyRequest,
 } from "fastify";
 import { ENV } from "./lib/env.ts";
-import { sanitizeUrlForLogs } from "./middlewares/request-logger.ts";
+import {
+  normalizeRouteTemplate,
+  sanitizeUrlForLogs,
+} from "./middlewares/request-logger.ts";
 import {
   adminAuditNativeRoutes,
   type AdminAuditNativeRoutesOptions,
@@ -154,6 +157,12 @@ import {
   generateFastifyRequestId,
   getSafeApiResponseRequestId,
 } from "./lib/http/api-request-id.ts";
+import { logError } from "./lib/logger.ts";
+import {
+  getObservabilityMetricsRegistry,
+  type ObservabilityMetricsRegistry,
+} from "./lib/observability-metrics.ts";
+import { createRuntimeTimer, type RuntimeTimer } from "./lib/runtime-timing.ts";
 
 type HealthCheckResponse = {
   statusCode: number;
@@ -173,6 +182,37 @@ function getFastifyErrorMessage(error: unknown) {
   }
 
   return "Unexpected error";
+}
+
+const SAFE_ERROR_NAME_PATTERN = /^[A-Za-z0-9_]{1,64}$/;
+
+function getFastifyErrorName(error: unknown) {
+  const name =
+    error instanceof Error
+      ? error.name
+      : error && typeof error === "object" && "name" in error
+        ? (error as { name?: unknown }).name
+        : undefined;
+
+  return typeof name === "string" && SAFE_ERROR_NAME_PATTERN.test(name)
+    ? name
+    : "UnknownError";
+}
+
+/**
+ * Sólo se exporta un `code` con forma de identificador corto (p. ej. SQLSTATE o
+ * un código de librería). Cualquier otra cosa se descarta para no filtrar
+ * mensajes ni detalle de driver DB.
+ */
+function getFastifyErrorSafeCode(error: unknown) {
+  const code =
+    error && typeof error === "object" && "code" in error
+      ? (error as { code?: unknown }).code
+      : undefined;
+
+  return typeof code === "string" && SAFE_ERROR_NAME_PATTERN.test(code)
+    ? code
+    : undefined;
 }
 
 function getFastifyErrorStatus(error: unknown) {
@@ -300,7 +340,30 @@ function addApiErrorRequestIdToJsonPayload(
   });
 }
 
+const REQUEST_TIMER_KEY = "__observabilityRequestTimer";
+
+type ObservabilityFastifyRequest = FastifyRequest & {
+  [REQUEST_TIMER_KEY]?: RuntimeTimer;
+};
+
+function getFastifyRouteTemplate(request: FastifyRequest): string {
+  return normalizeRouteTemplate(request.routeOptions?.url);
+}
+
+/**
+ * La instrumentacion nunca debe alterar la respuesta: cualquier fallo interno
+ * de metricas o logging se descarta en lugar de propagarse al request.
+ */
+function runFailSafe(operation: () => void) {
+  try {
+    operation();
+  } catch {
+    // fail-safe: la observabilidad no puede tumbar una respuesta HTTP
+  }
+}
+
 export type CreateFastifyAppOptions = {
+  observabilityMetricsRegistry?: ObservabilityMetricsRegistry;
   getNativeHealthCheckResponse?: HealthCheckFactory;
   getServiceInfoPayload?: ServiceInfoFactory;
   appVersionRoutes?: AppVersionNativeRoutesOptions;
@@ -349,7 +412,16 @@ export async function createFastifyApp(
     trustProxy: ENV.trustProxy,
   });
 
+  const metricsRegistry =
+    options.observabilityMetricsRegistry ?? getObservabilityMetricsRegistry();
+
   app.addHook("onRequest", async (request, reply) => {
+    runFailSafe(() => {
+      (request as ObservabilityFastifyRequest)[REQUEST_TIMER_KEY] =
+        createRuntimeTimer();
+      metricsRegistry.recordRequestStarted();
+    });
+
     applyApiRequestIdHeader(request, reply);
     applyApiSecurityHeaders(request, reply);
   });
@@ -366,6 +438,20 @@ export async function createFastifyApp(
     },
   );
 
+  app.addHook("onResponse", async (request, reply) => {
+    runFailSafe(() => {
+      const timer =
+        (request as ObservabilityFastifyRequest)[REQUEST_TIMER_KEY] ??
+        createRuntimeTimer();
+      metricsRegistry.recordRequestCompleted({
+        method: request.method,
+        routeTemplate: getFastifyRouteTemplate(request),
+        statusCode: reply.statusCode,
+        durationMs: timer.elapsedMs(),
+      });
+    });
+  });
+
   app.setNotFoundHandler((request, reply) => {
     return reply.code(404).send({
       success: false,
@@ -379,13 +465,16 @@ export async function createFastifyApp(
     const message = getFastifyErrorMessage(error);
     const requestId = getSafeApiResponseRequestId(request, reply);
 
-    console.error("[API ERROR]", {
+    const safeCode = getFastifyErrorSafeCode(error);
+
+    // Metadata allowlisted: nunca URL, query, path con IDs, error crudo ni stack.
+    logError("API_ERROR", {
       method: request.method,
-      path: request.url,
+      routeTemplate: getFastifyRouteTemplate(request),
       status,
-      message,
+      errorName: getFastifyErrorName(error),
+      ...(safeCode ? { safeCode } : {}),
       ...(requestId ? { requestId } : {}),
-      error,
     });
 
     return reply.code(status).send({

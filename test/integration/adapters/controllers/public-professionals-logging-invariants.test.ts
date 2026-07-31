@@ -70,24 +70,52 @@ function assertSingleLogLine(logs: string[]) {
   return logs[0];
 }
 
+function parseRequestLogEvent(line: string) {
+  const logEvent = JSON.parse(line) as {
+    timestamp: string;
+    level: string;
+    event: string;
+    requestId?: string;
+    context: Record<string, unknown>;
+  };
+
+  assert.equal(logEvent.event, "HTTP_REQUEST_COMPLETED");
+  assert.equal(logEvent.level, "info");
+  assert.match(logEvent.timestamp, /^\d{4}-\d{2}-\d{2}T.*Z$/);
+
+  return logEvent;
+}
+
 function assertRequestLogShape(
   line: string,
   expected: {
     method: string;
-    path: string;
+    routeTemplate: string;
     status: number;
     rateLimited?: boolean;
   },
 ) {
-  assert.match(
-    line,
-    new RegExp(
-      String.raw`^\[\d{4}-\d{2}-\d{2}T.*Z\] ${expected.method} ${expected.path.replace(
-        /[.*+?^${}()|[\]\\]/g,
-        "\\$&",
-      )} ${expected.status} \d+\.\dms${expected.rateLimited ? " RATE_LIMITED" : ""}$`,
-    ),
-  );
+  const { context } = parseRequestLogEvent(line);
+
+  assert.equal(context.method, expected.method);
+  assert.equal(context.routeTemplate, expected.routeTemplate);
+  assert.equal(context.statusCode, expected.status);
+  assert.equal(context.rateLimited, expected.rateLimited ?? false);
+  assert.equal(typeof context.durationMs, "number");
+
+  // Contexto cerrado: ninguna dimension derivada de la URL real.
+  assert.deepEqual(Object.keys(context).sort(), [
+    "durationMs",
+    "method",
+    "rateLimited",
+    "routeTemplate",
+    "statusClass",
+    "statusCode",
+  ]);
+  assert.equal("path" in context, false);
+  assert.equal("url" in context, false);
+
+  return context;
 }
 
 test("public professionals logging registra search y detail con método path status y duración", async () => {
@@ -113,16 +141,27 @@ test("public professionals logging registra search y detail con método path sta
     assert.equal(searchCapture.result.statusCode, 200);
     assertRequestLogShape(assertSingleLogLine(searchCapture.logs), {
       method: "GET",
-      path: "/api/public/professionals/search?q=histo",
+      routeTemplate: "/api/public/professionals/search",
       status: 200,
     });
 
     assert.equal(detailCapture.result.statusCode, 200);
-    assertRequestLogShape(assertSingleLogLine(detailCapture.logs), {
+    const detailLine = assertSingleLogLine(detailCapture.logs);
+    const detailContext = assertRequestLogShape(detailLine, {
       method: "GET",
-      path: "/api/public/professionals/130",
+      routeTemplate: "/api/public/professionals/:clinicId",
       status: 200,
     });
+
+    // El clinicId real (130) nunca entra al log: sólo el template.
+    assert.equal(detailLine.includes("130"), false);
+    assert.equal(JSON.stringify(detailContext).includes("130"), false);
+
+    // El evento siempre lleva un requestId para correlacionar.
+    assert.equal(
+      typeof parseRequestLogEvent(detailLine).requestId,
+      "string",
+    );
   } finally {
     await app.close();
   }
@@ -144,10 +183,13 @@ test("public professionals logging sanitiza token y reportAccessToken en query p
 
     const line = assertSingleLogLine(capture.logs);
 
-    assert.match(
-      line,
-      /^\[\d{4}-\d{2}-\d{2}T.*Z\] GET \/api\/public\/professionals\/search\?q=histo&token=\[REDACTED\]&reportAccessToken=\[REDACTED\] 200 \d+\.\dms$/,
-    );
+    assertRequestLogShape(line, {
+      method: "GET",
+      routeTemplate: "/api/public/professionals/search",
+      status: 200,
+    });
+    assert.equal(line.includes("q=histo"), false);
+    assert.equal(line.includes("REDACTED"), false);
     assert.equal(line.includes("super-secret-token"), false);
     assert.equal(line.includes("another-secret"), false);
   } finally {
@@ -194,7 +236,7 @@ test("public professionals logging marca RATE_LIMITED en respuestas 429 de searc
     assert.equal(searchLimitedCapture.result.statusCode, 429);
     assertRequestLogShape(assertSingleLogLine(searchLimitedCapture.logs), {
       method: "GET",
-      path: "/api/public/professionals/search",
+      routeTemplate: "/api/public/professionals/search",
       status: 429,
       rateLimited: true,
     });
@@ -202,7 +244,7 @@ test("public professionals logging marca RATE_LIMITED en respuestas 429 de searc
     assert.equal(detailLimitedCapture.result.statusCode, 429);
     assertRequestLogShape(assertSingleLogLine(detailLimitedCapture.logs), {
       method: "GET",
-      path: "/api/public/professionals/130",
+      routeTemplate: "/api/public/professionals/:clinicId",
       status: 429,
       rateLimited: true,
     });
@@ -233,10 +275,11 @@ test("public professionals logging no expone datos internos de helpers en errore
 
     const line = assertSingleLogLine(capture.logs);
 
-    assert.match(
-      line,
-      /^\[\d{4}-\d{2}-\d{2}T.*Z\] GET \/api\/public\/professionals\/search\?token=\[REDACTED\] 500 \d+\.\dms$/,
-    );
+    assertRequestLogShape(line, {
+      method: "GET",
+      routeTemplate: "/api/public/professionals/search",
+      status: 500,
+    });
     assert.equal(line.includes("db-password"), false);
     assert.equal(line.includes("very-secret"), false);
     assert.equal(line.includes("raw-secret"), false);
@@ -265,10 +308,11 @@ test("public professionals logging registra CORS bloqueado sin headers ni payloa
 
     const line = assertSingleLogLine(capture.logs);
 
-    assert.match(
-      line,
-      /^\[\d{4}-\d{2}-\d{2}T.*Z\] GET \/api\/public\/professionals\/search\?token=\[REDACTED\] 403 \d+\.\dms$/,
-    );
+    assertRequestLogShape(line, {
+      method: "GET",
+      routeTemplate: "/api/public/professionals/search",
+      status: 403,
+    });
     assert.equal(line.includes("blocked-origin-secret"), false);
     assert.equal(line.includes("https://blocked.example"), false);
     assert.equal(line.includes("Origin no permitido"), false);

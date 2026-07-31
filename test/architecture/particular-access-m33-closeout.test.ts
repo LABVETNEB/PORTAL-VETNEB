@@ -366,7 +366,7 @@ test("M44 retira paths legacy y realinea los ocho consumidores externos", () => 
 test("Auth preserva contrato y Reports usa composition M41", () => {
   assert.equal(
     digest("server/routes/particular-auth.fastify.ts"),
-    "33ffa0c6da11304dbeb8c000b9ec0b55d03781b90fd2980a76365bdfaeed049f",
+    "8aa9bdd2539bbbbbc40a98965c89144ba11c9b36018168664985d3bb686c9706",
   );
   assert.equal(
     digest("server/middlewares/particular-auth.ts"),

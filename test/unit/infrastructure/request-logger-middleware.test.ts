@@ -45,7 +45,7 @@ test("requestLogger llama next inmediatamente", () => {
   assert.equal(nextCalls[0], undefined);
 });
 
-test("requestLogger registra una línea al finalizar la respuesta", () => {
+test("requestLogger registra un evento estructurado al finalizar la respuesta", () => {
   const req = {
     method: "GET",
     originalUrl: "/api/public/report-access/abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890?token=abc",
@@ -75,14 +75,30 @@ test("requestLogger registra una línea al finalizar la respuesta", () => {
   assert.equal(typeof calls[0][0], "string");
 
   const line = calls[0][0] as string;
+  const logEvent = JSON.parse(line) as {
+    event: string;
+    timestamp: string;
+    context: Record<string, unknown>;
+  };
 
-  assert.match(line, /^\[[^\]]+\] GET /);
-  assert.match(line, /200/);
-  assert.match(line, /\[REDACTED\]/);
-  assert.match(line, /[0-9]+\.[0-9]ms$/);
+  assert.equal(logEvent.event, "HTTP_REQUEST_COMPLETED");
+  assert.equal(typeof logEvent.timestamp, "string");
+  assert.equal(logEvent.context.method, "GET");
+  assert.equal(logEvent.context.statusCode, 200);
+  assert.equal(logEvent.context.statusClass, "2xx");
+  assert.equal(logEvent.context.routeTemplate, "UNMATCHED_ROUTE");
+  assert.equal(typeof logEvent.context.durationMs, "number");
+
+  // El token de acceso publico viaja en el path; el evento no puede conservar
+  // ninguna forma de la URL, ni siquiera redactada.
+  assert.equal("path" in logEvent.context, false);
+  assert.equal("url" in logEvent.context, false);
+  assert.equal(line.includes("report-access"), false);
+  assert.equal(line.includes("abcdef1234567890"), false);
+  assert.equal(line.includes("[REDACTED]"), false);
 });
 
-test("requestLogger conserva el marker RATE_LIMITED cuando statusCode es 429", () => {
+test("requestLogger marca rateLimited cuando statusCode es 429", () => {
   const req = {
     method: "POST",
     originalUrl: "/api/auth/login",
@@ -110,8 +126,13 @@ test("requestLogger conserva el marker RATE_LIMITED cuando statusCode es 429", (
 
   assert.equal(calls.length, 1);
 
-  const line = calls[0][0] as string;
-  assert.match(line, /RATE_LIMITED/);
+  const logEvent = JSON.parse(calls[0][0] as string) as {
+    context: Record<string, unknown>;
+  };
+
+  assert.equal(logEvent.context.rateLimited, true);
+  assert.equal(logEvent.context.statusCode, 429);
+  assert.equal(logEvent.context.statusClass, "4xx");
 });
 
 test("buildRequestLogLine usa timestamp y url explícitos para status 200", () => {
@@ -142,4 +163,53 @@ test("buildRequestLogLine agrega RATE_LIMITED para 429", () => {
     line,
     "[2026-04-20T14:00:10.148Z] POST /api/auth/login 429 7.3ms RATE_LIMITED",
   );
+});
+
+test("requestLogger con un ID real en la URL sólo registra el route template", () => {
+  const req = {
+    method: "GET",
+    originalUrl: "/api/reports/4821/history?clinicId=307",
+    route: { path: "/api/reports/:reportId/history" },
+    ip: "127.0.0.1",
+    headers: {
+      "user-agent": "node-test",
+      "x-request-id": "req_correlation-1",
+    },
+  };
+
+  const res = createMockResponse(200);
+
+  const originalConsoleLog = console.log;
+  const calls: unknown[][] = [];
+
+  console.log = (...args: unknown[]) => {
+    calls.push(args);
+  };
+
+  try {
+    requestLogger(req as any, res as any, (() => {}) as any);
+    res.emit("finish");
+  } finally {
+    console.log = originalConsoleLog;
+  }
+
+  const line = calls[0][0] as string;
+  const logEvent = JSON.parse(line) as {
+    requestId?: string;
+    context: Record<string, unknown>;
+  };
+
+  assert.equal(logEvent.context.routeTemplate, "/api/reports/:reportId/history");
+  assert.equal(logEvent.requestId, "req_correlation-1");
+  assert.deepEqual(Object.keys(logEvent.context).sort(), [
+    "durationMs",
+    "method",
+    "rateLimited",
+    "routeTemplate",
+    "statusClass",
+    "statusCode",
+  ]);
+  assert.equal(line.includes("4821"), false);
+  assert.equal(line.includes("clinicId"), false);
+  assert.equal(line.includes("307"), false);
 });

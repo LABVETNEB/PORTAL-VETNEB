@@ -224,8 +224,13 @@ test(
         "genericError",
       );
       assert.equal(genericLogPayload.method, "POST");
-      assert.equal(genericLogPayload.path, "/api/__contract/internal-error");
+      assert.equal(
+        genericLogPayload.routeTemplate,
+        "/api/__contract/internal-error",
+      );
       assert.equal(genericLogPayload.status, 500);
+      assert.equal("path" in genericLogPayload, false);
+      assert.equal("url" in genericLogPayload, false);
 
       const validIncomingRequestId = "client-req_123.abc:456";
       const validIncomingError = await app.inject({

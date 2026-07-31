@@ -1643,8 +1643,13 @@ test(
         "genericError",
       );
       assert.equal(genericLogPayload.method, "POST");
-      assert.equal(genericLogPayload.path, "/api/__test/internal-error");
+      assert.equal(
+        genericLogPayload.routeTemplate,
+        "/api/__test/internal-error",
+      );
       assert.equal(genericLogPayload.status, 500);
+      assert.equal("path" in genericLogPayload, false);
+      assert.equal("url" in genericLogPayload, false);
 
       const validIncomingRequestId = "client-req_123.abc:456";
       const validIncomingError = await app.inject({
@@ -2313,6 +2318,328 @@ test(
       assert.equal(response.body.includes("password"), false);
       assert.equal(response.body.includes("cookie"), false);
     } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "createFastifyApp instrumenta metricas in-process sin alterar el contrato HTTP",
+  async () => {
+    const { createObservabilityMetricsRegistry } = await import(
+      "../../../server/lib/observability-metrics.ts"
+    );
+    const observabilityMetricsRegistry = createObservabilityMetricsRegistry();
+    const app = await createFastifyApp({
+      ...fastifyAppHelpers.buildFastifyDispatchRouteStubs(),
+      observabilityMetricsRegistry,
+    });
+
+    const originalConsoleError = console.error;
+    const consoleErrorCalls: unknown[][] = [];
+
+    console.error = (...args: unknown[]) => {
+      consoleErrorCalls.push(args);
+    };
+
+    try {
+      app.get("/api/__metrics/boom", async () => {
+        throw new Error("detalle interno sensible");
+      });
+      app.get("/api/__metrics/ok", async () => ({ success: true }));
+
+      const health = await app.inject({
+        method: "GET",
+        url: "/api/__metrics/ok",
+      });
+      const notFound = await app.inject({
+        method: "GET",
+        url: "/api/__metrics/no-existe",
+      });
+      const failure = await app.inject({
+        method: "GET",
+        url: "/api/__metrics/boom",
+      });
+
+      assert.equal(health.statusCode, 200);
+      assert.equal(notFound.statusCode, 404);
+      assert.equal(failure.statusCode, 500);
+      assert.deepEqual(JSON.parse(failure.body), {
+        success: false,
+        error: "Error interno del servidor",
+        path: "/api/__metrics/boom",
+        requestId: assertRequestIdHeader(failure, "failure"),
+      });
+
+      const snapshot = observabilityMetricsRegistry.getSnapshot();
+
+      assert.equal(snapshot.requestsStartedTotal, 3);
+      assert.equal(snapshot.requestsCompletedTotal, 3);
+      assert.equal(snapshot.inFlightRequests, 0);
+      assert.equal(snapshot.responsesByStatusClass["2xx"], 1);
+      assert.equal(snapshot.responsesByStatusClass["4xx"], 1);
+      assert.equal(snapshot.responsesByStatusClass["5xx"], 1);
+      assert.equal(snapshot.serverErrors5xxTotal, 1);
+      assert.equal(snapshot.serverErrorRate, 0.3333);
+      assert.equal(snapshot.latencyMs.count, 3);
+      assert.equal(typeof snapshot.latencyMs.p95, "number");
+
+      const routeKeys = snapshot.routes.map((route) => route.route).sort();
+
+      assert.deepEqual(routeKeys, [
+        "GET /api/__metrics/boom",
+        "GET /api/__metrics/ok",
+        "GET UNMATCHED_ROUTE",
+      ]);
+
+      const serializedRoutes = JSON.stringify(snapshot.routes);
+
+      assert.equal(serializedRoutes.includes("no-existe"), false);
+      assert.equal(serializedRoutes.includes("?"), false);
+
+      const errorLog = assertApiErrorLogRequestId(
+        consoleErrorCalls,
+        0,
+        assertRequestIdHeader(failure, "failure"),
+        "metricsFailure",
+      );
+
+      assert.equal(errorLog.status, 500);
+      assert.equal(errorLog.errorName, "Error");
+      assert.equal(errorLog.routeTemplate, "/api/__metrics/boom");
+      assert.equal("path" in errorLog, false);
+      assert.equal("url" in errorLog, false);
+      assert.equal(
+        serializeConsoleCalls(consoleErrorCalls).includes(
+          "detalle interno sensible",
+        ),
+        false,
+      );
+    } finally {
+      console.error = originalConsoleError;
+      await app.close();
+    }
+  },
+);
+
+test(
+  "createFastifyApp mantiene la respuesta cuando la instrumentacion de metricas falla",
+  async () => {
+    const failingRegistry = {
+      recordRequestStarted() {
+        throw new Error("metrics start failure");
+      },
+      recordRequestCompleted() {
+        throw new Error("metrics complete failure");
+      },
+      getSnapshot() {
+        throw new Error("metrics snapshot failure");
+      },
+      reset() {},
+    };
+
+    const app = await createFastifyApp({
+      ...fastifyAppHelpers.buildFastifyDispatchRouteStubs(),
+      observabilityMetricsRegistry: failingRegistry as never,
+    });
+
+    try {
+      app.get("/api/__metrics/resilient", async () => ({ success: true }));
+
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/__metrics/resilient",
+      });
+
+      assert.equal(response.statusCode, 200);
+      assert.deepEqual(JSON.parse(response.body), { success: true });
+      assertRequestIdHeader(response, "respuestaConMetricasRotas");
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "logs y metricas de rutas con IDs reales sólo conservan el route template",
+  async () => {
+    const { createObservabilityMetricsRegistry } = await import(
+      "../../../server/lib/observability-metrics.ts"
+    );
+    const observabilityMetricsRegistry = createObservabilityMetricsRegistry();
+    const app = await createFastifyApp({
+      ...fastifyAppHelpers.buildFastifyDispatchRouteStubs(),
+      observabilityMetricsRegistry,
+    });
+
+    const originalConsoleLog = console.log;
+    const originalConsoleError = console.error;
+    const consoleLogCalls: unknown[][] = [];
+    const consoleErrorCalls: unknown[][] = [];
+
+    console.log = (...args: unknown[]) => {
+      consoleLogCalls.push(args);
+    };
+    console.error = (...args: unknown[]) => {
+      consoleErrorCalls.push(args);
+    };
+
+    try {
+      app.get(
+        "/api/__ids/clinics/:clinicId/reports/:reportId",
+        async () => ({ success: true }),
+      );
+      app.get("/api/__ids/clinics/:clinicId/boom", async () => {
+        throw new Error("detalle interno sensible");
+      });
+
+      const ok = await app.inject({
+        method: "GET",
+        url: "/api/__ids/clinics/307/reports/4821?trackingCaseId=99&token=raw-secret",
+      });
+      const unmatched = await app.inject({
+        method: "GET",
+        url: "/api/__ids/clinics/307/no-existe",
+      });
+      const failure = await app.inject({
+        method: "GET",
+        url: "/api/__ids/clinics/307/boom",
+      });
+
+      assert.equal(ok.statusCode, 200);
+      assert.equal(unmatched.statusCode, 404);
+      assert.equal(failure.statusCode, 500);
+
+      assertRequestIdHeader(ok, "okConIds");
+
+      const serializedLogs = consoleLogCalls
+        .map((call) => String(call[0]))
+        .join("\n");
+
+      for (const leaked of [
+        "307",
+        "4821",
+        "trackingCaseId",
+        "raw-secret",
+        "no-existe",
+        "REDACTED",
+      ]) {
+        assert.equal(
+          serializedLogs.includes(leaked),
+          false,
+          `los access logs no deben conservar ${leaked}`,
+        );
+      }
+
+      // El 404 se agrega bajo UNMATCHED_ROUTE, sin el pathname original.
+      const snapshot = observabilityMetricsRegistry.getSnapshot();
+      const routeKeys = snapshot.routes.map((route) => route.route).sort();
+
+      assert.deepEqual(routeKeys, [
+        "GET /api/__ids/clinics/:clinicId/boom",
+        "GET /api/__ids/clinics/:clinicId/reports/:reportId",
+        "GET UNMATCHED_ROUTE",
+      ]);
+
+      const serializedSnapshot = JSON.stringify(snapshot);
+
+      for (const leaked of [
+        "307",
+        "4821",
+        "clinicId=",
+        "reportId=",
+        "trackingCaseId",
+        "raw-secret",
+        "no-existe",
+        "?",
+      ]) {
+        assert.equal(
+          serializedSnapshot.includes(leaked),
+          false,
+          `las metricas no deben conservar ${leaked}`,
+        );
+      }
+
+      const errorLog = assertApiErrorLogRequestId(
+        consoleErrorCalls,
+        0,
+        assertRequestIdHeader(failure, "failureConIds"),
+        "failureConIds",
+      );
+
+      assert.equal(errorLog.routeTemplate, "/api/__ids/clinics/:clinicId/boom");
+      assert.equal(
+        serializeConsoleCalls(consoleErrorCalls).includes("307"),
+        false,
+      );
+      assert.equal(
+        serializeConsoleCalls(consoleErrorCalls).includes(
+          "detalle interno sensible",
+        ),
+        false,
+      );
+    } finally {
+      console.log = originalConsoleLog;
+      console.error = originalConsoleError;
+      await app.close();
+    }
+  },
+);
+
+test(
+  "el access log estructurado correlaciona con X-Request-ID en la app integrada",
+  async () => {
+    const app = await createFastifyApp(
+      fastifyAppHelpers.buildFastifyDispatchRouteStubs(),
+    );
+
+    const originalConsoleLog = console.log;
+    const consoleLogCalls: unknown[][] = [];
+
+    console.log = (...args: unknown[]) => {
+      consoleLogCalls.push(args);
+    };
+
+    try {
+      const incomingRequestId = "client-req_correlation.1:2";
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/admin/audit-log?limit=25&token=raw-secret",
+        headers: {
+          "x-request-id": incomingRequestId,
+        },
+      });
+
+      const headerRequestId = assertRequestIdHeader(response, "accessLog");
+
+      assert.equal(headerRequestId, incomingRequestId);
+
+      const accessLogLine = consoleLogCalls
+        .map((call) => String(call[0]))
+        .find((line) => line.includes("HTTP_REQUEST_COMPLETED"));
+
+      assert.equal(typeof accessLogLine, "string");
+
+      const logEvent = JSON.parse(accessLogLine as string) as {
+        requestId?: string;
+        context: Record<string, unknown>;
+      };
+
+      assert.equal(logEvent.requestId, headerRequestId);
+      assert.equal(logEvent.context.routeTemplate, "/api/admin/audit-log");
+      assert.deepEqual(Object.keys(logEvent.context).sort(), [
+        "durationMs",
+        "method",
+        "rateLimited",
+        "routeTemplate",
+        "statusClass",
+        "statusCode",
+      ]);
+      assert.equal((accessLogLine as string).includes("raw-secret"), false);
+      assert.equal((accessLogLine as string).includes("limit=25"), false);
+      assert.equal((accessLogLine as string).includes("REDACTED"), false);
+    } finally {
+      console.log = originalConsoleLog;
       await app.close();
     }
   },
