@@ -533,4 +533,3 @@ protocolo es **política futura**: fija las condiciones de cualquier migración,
 
 Criterio de salida: ninguna estructura física se movió sin auditoría aprobada y autorización; toda
 propuesta declara boundaries, ownership, tests afectados, rollback y compatibilidad CI/Render.
-
