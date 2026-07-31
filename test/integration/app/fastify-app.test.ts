@@ -1610,11 +1610,33 @@ test(
       const allowedOrigin = ENV.corsOrigins[0] ?? "http://localhost:3000";
 
       // "Paciente_307" pasaria una regex sintactica de identificador; sólo la
-      // allowlist finita de nombres de Error nativos lo rechaza.
+      // allowlist finita de nombres de Error nativos lo rechaza. El mismo
+      // valor se reutiliza como `code` para probar que el campo no existe en
+      // absoluto: no hay una allowlist parcial de codigos permitidos.
       const manipulatedNameThrow = async () => {
-        const failure = new Error("historia clinica confidencial del paciente");
+        const failure = new Error(
+          "historia clinica confidencial del paciente",
+        ) as Error & { code?: string };
 
         failure.name = "Paciente_307";
+        failure.code = "Paciente_307";
+
+        throw failure;
+      };
+
+      // Un codigo con forma de SQLSTATE tambien debe omitirse por completo:
+      // el contrato es ausencia total de `code`/`safeCode`, no una lista
+      // parcial de valores "tecnicos" aceptados. "40001" (serialization
+      // failure) se elige porque, a diferencia de 23505/23503/22P02/42703,
+      // no dispara el mapeo especial preexistente de getFastifyErrorStatus a
+      // 400: este test aisla el hallazgo (ausencia del campo en el log) sin
+      // interferir con esa logica de status ya existente.
+      const technicalCodeThrow = async () => {
+        const failure = new Error(
+          "could not serialize access due to concurrent update",
+        ) as Error & { code?: string };
+
+        failure.code = "40001";
 
         throw failure;
       };
@@ -1622,6 +1644,7 @@ test(
       app.get("/api/__test/internal-error", throwInternalError);
       app.post("/api/__test/internal-error", throwInternalError);
       app.get("/api/__test/manipulated-error-name", manipulatedNameThrow);
+      app.get("/api/__test/technical-error-code", technicalCodeThrow);
 
       const genericError = await app.inject({
         method: "POST",
@@ -1745,6 +1768,21 @@ test(
         manipulatedNameLogPayload.routeTemplate,
         "/api/__test/manipulated-error-name",
       );
+      assert.equal(manipulatedNameLogPayload.method, "GET");
+      assert.equal(manipulatedNameLogPayload.status, 500);
+
+      // El contexto de API_ERROR es cerrado: exactamente method, routeTemplate,
+      // status y errorName, con requestId promovido al nivel superior. Nunca
+      // safeCode ni code, sin importar que el error los traiga adjuntos.
+      assert.deepEqual(Object.keys(manipulatedNameLogPayload).sort(), [
+        "errorName",
+        "method",
+        "requestId",
+        "routeTemplate",
+        "status",
+      ]);
+      assert.equal("safeCode" in manipulatedNameLogPayload, false);
+      assert.equal("code" in manipulatedNameLogPayload, false);
 
       const manipulatedNameLogLine = serializeConsoleCalls([
         consoleErrorCalls[3] ?? [],
@@ -1758,6 +1796,63 @@ test(
         manipulatedNameLogLine.includes("historia clinica confidencial"),
         false,
       );
+      assert.equal(manipulatedNameLogLine.includes("safeCode"), false);
+      assert.equal(manipulatedNameLogLine.includes('"code"'), false);
+
+      const technicalCodeError = await app.inject({
+        method: "GET",
+        url: "/api/__test/technical-error-code",
+      });
+
+      assert.equal(technicalCodeError.statusCode, 500);
+      const {
+        body: technicalCodeBody,
+        requestId: technicalCodeRequestId,
+      } = assertBodyRequestIdMatchesHeader(
+        technicalCodeError,
+        "technicalCodeError",
+      );
+      assert.deepEqual(technicalCodeBody, {
+        success: false,
+        error: "Error interno del servidor",
+        path: "/api/__test/technical-error-code",
+        requestId: technicalCodeRequestId,
+      });
+      assert.doesNotMatch(
+        technicalCodeError.body,
+        /could not serialize access/,
+      );
+      assert.doesNotMatch(technicalCodeError.body, /40001/);
+
+      const technicalCodeLogPayload = assertApiErrorLogRequestId(
+        consoleErrorCalls,
+        4,
+        technicalCodeRequestId,
+        "technicalCodeError",
+      );
+
+      assert.equal(technicalCodeLogPayload.errorName, "Error");
+      assert.deepEqual(Object.keys(technicalCodeLogPayload).sort(), [
+        "errorName",
+        "method",
+        "requestId",
+        "routeTemplate",
+        "status",
+      ]);
+      assert.equal("safeCode" in technicalCodeLogPayload, false);
+      assert.equal("code" in technicalCodeLogPayload, false);
+
+      const technicalCodeLogLine = serializeConsoleCalls([
+        consoleErrorCalls[4] ?? [],
+      ]);
+
+      assert.equal(technicalCodeLogLine.includes("40001"), false);
+      assert.equal(
+        technicalCodeLogLine.includes("could not serialize access"),
+        false,
+      );
+      assert.equal(technicalCodeLogLine.includes("safeCode"), false);
+      assert.equal(technicalCodeLogLine.includes('"code"'), false);
 
       const publicApiNotFound = await app.inject({
         method: "GET",
@@ -1787,7 +1882,7 @@ test(
       assertBodyDoesNotIncludeRequestId(apiHealth, "apiHealth");
       assert.equal(
         consoleErrorCalls.length,
-        4,
+        5,
         "respuesta API exitosa no debe registrar log de error nuevo",
       );
 

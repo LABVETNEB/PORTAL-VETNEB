@@ -348,10 +348,14 @@ test("los handlers globales no registran el objeto Error crudo", () => {
   );
   assertContains(
     fastifyApp,
+    "...(requestId ? { requestId } : {}),",
+    "fastify error handler keeps requestId correlation",
+  );
+  assertContains(
+    fastifyApp,
     "routeTemplate: getFastifyRouteTemplate(request)",
     "fastify error handler route template",
   );
-  assertContains(fastifyApp, "getFastifyErrorSafeCode", "fastify safe code allowlist");
   assertNotContains(
     fastifyApp,
     "getFastifyErrorName",
@@ -374,14 +378,22 @@ test("los handlers globales no registran el objeto Error crudo", () => {
     "fastify error response path contract",
   );
 
-  // SAFE_ERROR_CODE_PATTERN es una regex sintactica para `code` (p. ej.
-  // SQLSTATE), deliberadamente distinta de la allowlist finita de nombres de
-  // Error: un `code` corto no es un nombre de clase y no exige lista cerrada.
-  assertContains(
+  // `error.code` se omite del todo del log: una regex sintactica sobre un
+  // `code` acepta identificadores con forma de PII (p. ej. "Paciente_307"), y
+  // no existe una allowlist cerrada de SQLSTATE/codigos de libreria que
+  // justifique mantener el campo. El contrato es ausencia total, no una lista
+  // parcial de valores "tecnicos" aceptados.
+  assertNotContains(
     fastifyApp,
     "SAFE_ERROR_CODE_PATTERN",
-    "fastify safe code pattern is distinct from error names",
+    "fastify must not keep a syntactic error-code pattern",
   );
+  assertNotContains(
+    fastifyApp,
+    "getFastifyErrorSafeCode",
+    "fastify must not derive a safeCode from error.code",
+  );
+  assertNotContains(fastifyApp, "safeCode", "fastify API_ERROR must omit safeCode");
   assertNotContains(
     fastifyApp,
     "SAFE_ERROR_NAME_PATTERN",
@@ -406,6 +418,7 @@ test("los handlers globales no registran el objeto Error crudo", () => {
     );
     assertNotContains(source, "path: request.url", `${file} raw url dimension`);
     assertNotContains(source, "sanitizeUrlForLogs", `${file} url log derivation`);
+    assertNotContains(source, "safeCode", `${file} must not derive safeCode`);
     assertNotContains(source, "error.name", `${file} direct error.name usage`);
   }
 });

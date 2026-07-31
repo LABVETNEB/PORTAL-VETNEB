@@ -186,26 +186,6 @@ function getFastifyErrorMessage(error: unknown) {
   return "Unexpected error";
 }
 
-const SAFE_ERROR_CODE_PATTERN = /^[A-Za-z0-9_]{1,64}$/;
-
-/**
- * Sólo se exporta un `code` con forma de identificador corto (p. ej. SQLSTATE o
- * un código de librería). Cualquier otra cosa se descarta para no filtrar
- * mensajes ni detalle de driver DB. Esta regex sintáctica es deliberadamente
- * distinta de la allowlist finita de nombres de Error de serializeError: un
- * `code` corto no es un nombre de clase y no exige lista cerrada.
- */
-function getFastifyErrorSafeCode(error: unknown) {
-  const code =
-    error && typeof error === "object" && "code" in error
-      ? (error as { code?: unknown }).code
-      : undefined;
-
-  return typeof code === "string" && SAFE_ERROR_CODE_PATTERN.test(code)
-    ? code
-    : undefined;
-}
-
 function getFastifyErrorStatus(error: unknown) {
   if (
     error &&
@@ -484,15 +464,16 @@ export async function createFastifyApp(
     const status = getFastifyErrorStatus(error);
     const message = getFastifyErrorMessage(error);
     const requestId = getSafeApiResponseRequestId(request, reply);
-    const safeCode = getFastifyErrorSafeCode(error);
 
     // Metadata allowlisted: nunca URL, query, path con IDs, error crudo ni stack.
+    // Sin `code`: una regex sintactica sobre error.code acepta identificadores
+    // con forma de PII (p. ej. "Paciente_307"), y no existe una allowlist
+    // cerrada de SQLSTATE/codigos de libreria que valga la pena mantener aqui.
     logError("API_ERROR", {
       method: request.method,
       routeTemplate: getFastifyRouteTemplate(request),
       status,
       errorName: serializeError(error).name,
-      ...(safeCode ? { safeCode } : {}),
       ...(requestId ? { requestId } : {}),
     });
 

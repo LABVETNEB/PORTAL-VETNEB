@@ -167,6 +167,8 @@ export function assertApiErrorLogRequestId(
     "detail",
     "cookie",
     "message",
+    "code",
+    "safeCode",
   ]) {
     assert.equal(
       forbiddenKey in loggedContext,
@@ -180,7 +182,6 @@ export function assertApiErrorLogRequestId(
     "routeTemplate",
     "status",
     "errorName",
-    "safeCode",
   ]);
 
   for (const key of Object.keys(loggedContext)) {
