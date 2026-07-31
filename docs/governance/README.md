@@ -28,6 +28,7 @@ Es una base docs-only. No modifica CODEOWNERS, CI, workflows, dependencias, back
 | `pr-readiness-review-checklist.md` | Checklist de preparación antes de abrir o revisar PRs |
 | `enterprise-control-register.md` | Registro operativo vivo de controles enterprise derivado del baseline y gap register aprobados |
 | `documentation-lifecycle-policy.md` | Política normativa de lifecycle documental |
+| `data-classification-retention-policy.md` | Política normativa de clasificación, retención, legal hold y disposición de datos |
 
 ## Autoridad de lifecycle documental
 
@@ -41,6 +42,20 @@ histórica, secundaria y superseded.
 El enforcement automático de esta política sigue pendiente. No se deben reclasificar, cerrar,
 reemplazar, mover ni retirar documentos silenciosamente; cualquier transición documental debe quedar
 declarada en el PR y reflejada en los índices correspondientes cuando aplique.
+
+## Gobernanza de datos
+
+`data-classification-retention-policy.md` es la fuente normativa de clasificación, retención,
+legal hold y disposición. Sus períodos son objetivos internos sujetos a obligaciones legales o
+contractuales confirmadas. La política no implementa jobs, borrado, migraciones, inventario de
+activos ni cambios de Storage.
+
+Se complementa con:
+
+- `docs/ops/data-recovery-objectives.md` para RPO/RTO;
+- `docs/ops/BACKUP_RESTORE_ROLLBACK.md` para ejecución operativa;
+- `docs/ops/INCIDENT_MANAGEMENT_RUNBOOK.md` para incidentes;
+- `docs/ops/METRICS_BASELINE.md` para SLIs/SLOs y diseño de alertas.
 
 ## Regla de uso
 

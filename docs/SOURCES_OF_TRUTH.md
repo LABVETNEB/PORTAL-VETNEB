@@ -9,12 +9,12 @@ Mapa vigente de fuentes de verdad documentales del proyecto VETNEB.
 | Lifecycle status | ACTIVE |
 | Authoritative source role | Mapa primario de fuentes vigentes por dominio |
 | Effective date | 2026-07-28 |
-| Last verified date | 2026-07-30 |
+| Last verified date | 2026-07-31 |
 | Review cadence | Mensual y ante cambios de autoridad documental |
 | Supersedes | Ninguno |
 | Superseded by | Ninguno |
 | Related controls or gaps | `ERM-CTRL-004`; `ERM-DOC-002` |
-| Evidence or approval reference | Árbol del repositorio y configuración GitHub verificados para `PR-AUDIT-ENTERPRISE-DOCS`; PR #1591 y closeout sanitizado de `PR-SEC-REPO-SETTINGS`; PR #1593 y closeout del bloque 03; PR #1601, canarias #1602/#1603 y PR correctiva #1605 del bloque 04; required checks efectivos, hardening de GitHub Actions y canarias #1616/#1618 del bloque 05 verificados el 2026-07-30 |
+| Evidence or approval reference | Árbol del repositorio y configuración GitHub verificados para `PR-AUDIT-ENTERPRISE-DOCS`; PR #1591 y closeout sanitizado de `PR-SEC-REPO-SETTINGS`; PR #1593 y closeout del bloque 03; PR #1601, canarias #1602/#1603 y PR correctiva #1605 del bloque 04; required checks efectivos, hardening de GitHub Actions y canarias #1616/#1618 del bloque 05 verificados el 2026-07-30; PR #1626 / Plan B slot 12 incorpora gobernanza de datos, recovery, incidentes y observabilidad el 2026-07-31 |
 
 ## Propósito
 
@@ -45,6 +45,10 @@ Regla principal:
 | Enterprise control register | `docs/governance/enterprise-control-register.md` | `docs/audit/enterprise-repository-maturity-baseline.md`, `docs/audit/enterprise-repository-gap-register.md`, `docs/audit/enterprise-repository-maturity-audit-roadmap.md` | Vigente operativo | Fuente de verdad operativa viva para conocer el estado actual de controles enterprise con evidencia |
 | Enterprise technical debt | `docs/governance/technical-debt-register.md` | `docs/governance/enterprise-control-register.md`, `docs/governance/ownership-model.md`, `docs/audit/enterprise-repository-maturity-audit-roadmap.md` | Vigente operativo | Registro vivo de deuda verificable con owner, trigger y criterio de cierre; documentar deuda no cierra controles ni gaps |
 | Documentation lifecycle governance | `docs/governance/documentation-lifecycle-policy.md` | `docs/SOURCES_OF_TRUTH.md`, `docs/HISTORICAL_DOCUMENTATION.md`, `docs/governance/enterprise-control-register.md` | Vigente normativo | Gobierna creación, promoción, revisión, reclasificación, supersession, cierre y conservación histórica de documentos; no reemplaza fuentes rectoras por dominio. |
+| Data classification, retention and deletion | `docs/governance/data-classification-retention-policy.md` | `docs/ops/data-recovery-objectives.md`, `docs/ops/BACKUP_RESTORE_ROLLBACK.md`, `docs/governance/enterprise-control-register.md` | Vigente normativo | Gobierna clasificación, retención, legal hold y disposición; no ejecuta borrados ni afirma aprobación legal o enforcement runtime |
+| Data recovery objectives | `docs/ops/data-recovery-objectives.md` | `docs/ops/BACKUP_RESTORE_ROLLBACK.md`, `docs/ops/INCIDENT_MANAGEMENT_RUNBOOK.md`, `docs/ops/METRICS_BASELINE.md` | Vigente normativo | Define RPO/RTO numéricos y criterios de drill; no demuestra capacidad de restore/rollback ni reemplaza el runbook operativo |
+| Incident management | `docs/ops/INCIDENT_MANAGEMENT_RUNBOOK.md` | `docs/ops/data-recovery-objectives.md`, `docs/ops/METRICS_BASELINE.md`, `docs/release/release-go-no-go-policy.md` | Vigente normativo | Gobierna severidades S1–S4, roles, comunicaciones, timeline y postmortem; tabletop, paging y evidencia real permanecen pendientes |
+| Observability metrics, SLO and alert design | `docs/ops/METRICS_BASELINE.md` | `docs/ops/INCIDENT_MANAGEMENT_RUNBOOK.md`, `docs/ops/data-recovery-objectives.md`, `docs/governance/enterprise-control-register.md` | Vigente normativo documental | Define métricas agregadas, SLIs/SLOs, error budgets y diseño de alertas/dashboard; collectors, alerts, paging y dashboards runtime siguen `NOT_IMPLEMENTED` |
 | Enterprise repository maturity baseline | `docs/audit/enterprise-repository-maturity-baseline.md` | `docs/governance/enterprise-control-register.md`, `docs/audit/enterprise-repository-gap-register.md`, `docs/audit/enterprise-repository-maturity-audit-roadmap.md` | Snapshot histórico aprobado | Baseline de auditoría aprobado por PR #1436; histórico verificable; no usar como estado operativo mutable |
 | Enterprise repository gap register | `docs/audit/enterprise-repository-gap-register.md` | `docs/governance/enterprise-control-register.md`, `docs/audit/enterprise-repository-maturity-baseline.md`, `docs/audit/enterprise-repository-maturity-audit-roadmap.md` | Snapshot histórico aprobado | Backlog priorizado derivado del snapshot; evidencia de hallazgos a fecha de auditoría; no reescribir para simular cierres posteriores |
 | Protocolo operativo de agentes | `AGENTS.md` | `docs/protocol/vetneb-ai-working-protocol.md`, `.cursor/rules/*` | Vigente | `AGENTS.md` manda; reglas derivadas no deben contradecirlo |
@@ -55,7 +59,7 @@ Regla principal:
 | Flaky tests | `docs/qa/flaky-test-policy.md` | `docs/qa/regression-strategy.md` | Vigente | No llamar flaky a una regresión determinística; exigir evidencia, owner y plan |
 | Regression strategy | `docs/qa/regression-strategy.md` | `frontend/package.json`, `package.json`, `docs/ops/CI_PR_CHECKS_RUNBOOK.md` | Vigente | Elegir validaciones por riesgo real del PR, no por costumbre |
 | Release / go-no-go / deployment readiness | `docs/release/README.md` | `docs/release/release-go-no-go-policy.md`, `docs/release-readiness.md`, `docs/ops/BACKUP_RESTORE_ROLLBACK.md` | Vigente | Usar antes de releases, cambios productivos o decisiones go/no-go |
-| Rollback / backup / restore operativo | `docs/ops/BACKUP_RESTORE_ROLLBACK.md` | `docs/release/release-go-no-go-policy.md`, `docs/production-readiness-evidence.md` | Vigente | Usar para rollback triggers, restore drills, evidencia sanitizada y operaciones productivas |
+| Rollback / backup / restore operativo | `docs/ops/BACKUP_RESTORE_ROLLBACK.md` | `docs/ops/data-recovery-objectives.md`, `docs/release/release-go-no-go-policy.md`, `docs/production-readiness-evidence.md` | Vigente | Usar para rollback triggers, restore drills, evidencia sanitizada y operaciones productivas; RPO/RTO se leen en la fuente específica |
 | CI / PR checks runbook | `docs/ops/CI_PR_CHECKS_RUNBOOK.md` | `docs/qa/regression-strategy.md`, `docs/governance/pr-readiness-review-checklist.md`, `docs/audit/enterprise-repository-maturity-audit-roadmap.md` | Vigente | Usar para checks de PR, merge y limpieza local; debe alinearse con required checks reales |
 | CI required checks and Actions policy | `docs/audit/pr-ci-required-checks-audit.md` | `docs/ops/CI_PR_CHECKS_RUNBOOK.md`, `docs/governance/enterprise-control-register.md`, `.github/workflows/backend-ci.yml`, `.github/workflows/frontend-ci.yml` | Closeout activo; bloque 05 `CLOSED` | Evidencia durable de los cuatro required checks con app ID, del hardening de GitHub Actions y de las canarias #1616/#1618; #1617 queda registrada como hallazgo diagnóstico, no como evidencia negativa. No reemplaza los workflows ni la configuración efectiva de GitHub como fuentes ejecutables |
 | CI always-run gates | `docs/audit/pr-ci-always-run-gates-audit.md` | `docs/architecture/ci-always-run-gates-rfc.md`, `docs/ops/CI_PR_CHECKS_RUNBOOK.md`, `.github/workflows/backend-ci.yml`, `.github/workflows/frontend-ci.yml`, `docs/governance/enterprise-control-register.md` | Closeout activo; bloque 04 `CLOSED` | Evidencia durable de #1601, canarias #1602/#1603 y corrección de rango de #1605; distingue contextos siempre presentes de heavies condicionales, fija el rango merge-base → head y no declara required los checks funcionales |
@@ -156,14 +160,17 @@ conserva sólo como hallazgo diagnóstico. El bloque 06 está `CLOSED`: la PR
 demuestran la ruta automática de 72/72 specs con 786 tests, 782 pases directos
 y 4 tras retry acotado. Los slots 08 y 09 agregan
 respectivamente el baseline nativo de cobertura y el baseline ESLint backend
-diagnóstico; ambos conservan enforcement y thresholds fuera de scope. Las
+diagnóstico; ambos conservan enforcement y thresholds fuera de scope. Slot 10
+consolida la decisión documental RLS sin habilitar runtime. Slot 11 permanece
+`BLOCKED` por precondiciones de staging. Slot 12 publica la gobernanza de datos,
+RPO/RTO, incidentes y observabilidad sin ejecutar capacidades operativas. Las
 prioridades, dependencias, separaciones de riesgo y el detalle operativo se leen
-en el plan consolidado, no reconstruyendo backlog desde el roadmap
-original ni desde closeouts históricos.
+en el plan consolidado, no reconstruyendo backlog desde el roadmap original ni
+desde closeouts históricos.
 
 ## Estado
 
 Este mapa incorpora la precedencia explícita entre auditoría global, Plan B, estado operativo vivo
 y snapshots históricos. También registra el perfil público `ACTIVE` y la auditoría de closeout
-`ACTIVE` de `PR-SEC-REPO-SETTINGS`, además de los closeouts `ACTIVE` de los bloques 03, 04 y 05
-y los closeouts locales de los slots 06 a 09.
+`ACTIVE` de `PR-SEC-REPO-SETTINGS`, los closeouts `ACTIVE` de los bloques 03, 04 y 05,
+los closeouts locales de los slots 06 a 10 y las fuentes normativas documentales del slot 12.
