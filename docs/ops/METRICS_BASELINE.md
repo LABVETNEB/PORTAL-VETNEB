@@ -81,7 +81,7 @@ cumplimiento real permanecen `NOT_VERIFIED` hasta implementar collectors.
 
 | Servicio / flujo | SLI | Ventana | SLO inicial | Exclusiones controladas |
 | --- | --- | --- | ---: | --- |
-| Backend core | requests elegibles con respuesta no-5xx / requests elegibles | 30 días | 99,5% | health probes malformados y mantenimiento autorizado registrado |
+| Backend core | respuestas `2xx`/`3xx` / requests de disponibilidad elegibles; los `4xx` contractualmente esperados se excluyen de numerador y denominador antes de agregar | 30 días | 99,5% | health probes malformados y mantenimiento autorizado registrado |
 | Login clínica/admin | logins válidos completados / intentos válidos controlados | 30 días | 99,5% | credenciales inválidas, rate limit legítimo, cuentas bloqueadas |
 | Lectura de reportes propia | respuestas válidas exitosas / solicitudes autorizadas | 30 días | 99,5% | 4xx esperados por recurso ausente/ajeno |
 | Preview/download propio | acceso propio exitoso / solicitudes autorizadas | 30 días | 99,0% | token expirado/revocado y recurso inexistente |
@@ -92,8 +92,16 @@ cumplimiento real permanecen `NOT_VERIFIED` hasta implementar collectors.
 | Recovery DB | duración desde autorización hasta validación mínima | por drill | <= 8 h | ninguna |
 | Recovery Storage | duración hasta privacidad e integridad mínima | por drill | <= 12 h | ninguna |
 
-Los 4xx esperados no mejoran artificialmente disponibilidad: se mantienen en
-métricas separadas de seguridad, abuso y UX.
+Clasificación obligatoria del ratio de disponibilidad:
+
+- los `4xx` contractualmente esperados se excluyen del numerador y del denominador;
+- los `4xx` inesperados nunca cuentan como éxito, permanecen en el denominador y se
+  registran además como fallos de contrato;
+- los `5xx` permanecen en el denominador y nunca en el numerador;
+- sólo `2xx`/`3xx` elegibles cuentan como éxito.
+
+Así, tráfico no autorizado, recursos ausentes esperados o tokens revocados no
+diluyen el error rate ni mejoran artificialmente la disponibilidad.
 
 ## 5. Presupuesto de error
 
