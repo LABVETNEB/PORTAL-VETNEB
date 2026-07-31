@@ -4,6 +4,17 @@
 
 | Campo | Valor |
 | --- | --- |
+| Document owner | Security / Backend owner |
+| Domain | Security Governance and Hardening — Tenant Isolation / RLS |
+| Lifecycle status | `CLOSED` |
+| Authoritative source role | Closeout evidence for Plan B slot 10/18; complementary to the accepted ADR and RLS enforcement matrix |
+| Effective date | 2026-07-31 |
+| Last verified date | 2026-07-31 |
+| Review cadence | On RLS governance drift, connection/pooler changes, or correction of slot evidence |
+| Supersedes | None |
+| Superseded by | None |
+| Related controls or gaps | `ERM-CTRL-017`, `ERM-CTRL-018`, `ERM-SEC-001`, `ERM-SEC-002`; Plan B slot 10/18 |
+| Evidence or approval reference | PR #1625; base `acacf297ba946a6dd8c36723654a2342f4920c3b`; reviewed branch evidence |
 | Plan | Plan B slot 10/18 |
 | PR consolidado | `PR-SEC-TENANT-RLS-DESIGN` |
 | Absorbe | `PR-RLS-1` |
@@ -13,7 +24,6 @@
 | Riesgo | R2, autorizado exclusivamente para diseño documental RLS/tenant |
 | Estado de implementación RLS | `NOT_IMPLEMENTED` |
 | Estado del piloto | `BLOCKED` |
-| Fecha de verificación documental | 2026-07-31 |
 
 ## 1. Objetivo
 
@@ -38,6 +48,7 @@ impiden avanzar al piloto.
 - [Backup, Restore and Rollback](../ops/BACKUP_RESTORE_ROLLBACK.md).
 - [Cross-tenant Smoke Evidence Runbook](../ops/CROSS_TENANT_SMOKE_EVIDENCE_RUNBOOK.md).
 - [Metrics Baseline](../ops/METRICS_BASELINE.md).
+- [Documentation Lifecycle Policy](../governance/documentation-lifecycle-policy.md).
 
 ## 3. Decisión consolidada
 
@@ -171,6 +182,8 @@ Todos permanecen `NOT_RUN` porque el piloto no fue autorizado ni ejecutado:
 - Clinic A no puede leer ni mutar filas de Clinic B.
 - Ausencia de contexto deniega acceso.
 - Contexto inválido deniega acceso.
+- Deny-by-default queda verificado para cada actor, rol y familia de recurso del piloto.
+- Least privilege queda verificado para cada rol del piloto.
 - Admin autorizado conserva sus operaciones requeridas.
 - Particular y token público quedan limitados al recurso vinculado.
 - Jobs usan un rol explícito y mínimo.
@@ -197,8 +210,8 @@ Un documento o runbook no equivale a un rollback probado.
 
 Orden obligatorio para trabajos posteriores:
 
-1. Verificación externa R0/R3 autorizada de rol, privilegios, ownership, pooler,
-   transacciones y policies externas.
+1. Verificación externa R3 autorizada de rol, privilegios, ownership, pooler,
+   transacciones y policies externas contra la DB o entorno expresamente autorizado.
 2. Cierre de restore, rollback, observabilidad y evidencia cross-tenant en sus
    scopes separados.
 3. Diseño técnico específico del piloto con su propia autorización R2.
@@ -217,6 +230,7 @@ anterior.
 | Censo de `AGENTS.md` anidados | La evidencia de baseline confirmó sólo el raíz | `PASSED` |
 | Base remota | `main@acacf297ba946a6dd8c36723654a2342f4920c3b` | `PASSED` |
 | Fuentes rectoras RLS/DR/observabilidad | Revisadas mediante GitHub connector | `PASSED` |
+| Metadata de lifecycle | Campos mínimos declarados según la política documental | `PASSED` |
 | Scope | Un archivo nuevo bajo `docs/audit/**` | `PASSED` |
 | Secretos y datos clínicos | No incluidos | `PASSED` |
 | SQL ejecutable | No incluido | `PASSED` |
@@ -237,7 +251,7 @@ Los checks remotos del PR son la validación ejecutable pendiente y no se declar
 
 ## 14. Rollback del cambio documental
 
-Revertir el único commit de este slot elimina este closeout sin impacto en runtime,
+Revertir el squash commit de este slot elimina este closeout sin impacto en runtime,
 DB, datos, dependencias ni configuración productiva.
 
 ## 15. Resultado
