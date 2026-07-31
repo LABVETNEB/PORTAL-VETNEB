@@ -166,8 +166,9 @@ PASSED        = ejecutado, exit code 0
 FAILED        = ejecutado, falló
 NOT_RUN       = no seleccionado para este cambio
 NOT_AVAILABLE = el script no existe (reportar, no inventar equivalentes)
-BLOCKED       = el script existe pero el entorno requerido no está disponible
-                (DB, navegadores Playwright, staging, secretos)
+BLOCKED       = no puede ejecutarse por falta de autorización, entorno, secreto, DB,
+                navegador, staging, permiso externo o precondición; aplica a scripts
+                existentes y a acciones no-script R2/R3
 ```
 
 No simular éxito. Nunca marcar PASSED sin exit code 0 observado.
@@ -282,8 +283,8 @@ Nombres `data-*` en `frontend/src` no pueden contener stems sensibles (token/ses
 
 Evidencia sanitizada — regla transversal (detalle operativo en §§14–17). Ningún artefacto
 producido por el trabajo (captura, log, acta, fixture, export, adjunto de PR, respuesta) puede
-contener: secretos o valores de variables de entorno, cookies o session IDs, tokens crudos o sus
-hashes, signed URLs completas, paths privados de storage, connection strings, dumps o backups,
+contener: secretos o valores de variables de entorno, cookies o session IDs, tokens crudos, hashes de passwords, hashes de credenciales, hashes de sesiones o
+hashes derivados de secretos, signed URLs completas, paths privados de storage, connection strings, dumps o backups,
 datos clínicos, nombres reales de pacientes o tutores, emails reales sin sanitizar, ni payloads o
 headers completos de request/response. Los fixtures y datos de prueba usan valores sintéticos, no
 copias de datos reales. Un artefacto que incumple esto se descarta: no se recorta, no se difumina
@@ -532,3 +533,4 @@ protocolo es **política futura**: fija las condiciones de cualquier migración,
 
 Criterio de salida: ninguna estructura física se movió sin auditoría aprobada y autorización; toda
 propuesta declara boundaries, ownership, tests afectados, rollback y compatibilidad CI/Render.
+
