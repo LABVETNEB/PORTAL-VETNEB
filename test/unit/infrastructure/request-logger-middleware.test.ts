@@ -173,7 +173,7 @@ test("requestLogger con un ID real en la URL sólo registra el route template", 
     ip: "127.0.0.1",
     headers: {
       "user-agent": "node-test",
-      "x-request-id": "req_correlation-1",
+      "x-request-id": "323e4567-e89b-42d3-a456-426614174002",
     },
   };
 
@@ -200,7 +200,7 @@ test("requestLogger con un ID real en la URL sólo registra el route template", 
   };
 
   assert.equal(logEvent.context.routeTemplate, "/api/reports/:reportId/history");
-  assert.equal(logEvent.requestId, "req_correlation-1");
+  assert.equal(logEvent.requestId, "323e4567-e89b-42d3-a456-426614174002");
   assert.deepEqual(Object.keys(logEvent.context).sort(), [
     "durationMs",
     "method",
@@ -212,4 +212,55 @@ test("requestLogger con un ID real en la URL sólo registra el route template", 
   assert.equal(line.includes("4821"), false);
   assert.equal(line.includes("clinicId"), false);
   assert.equal(line.includes("307"), false);
+});
+
+test("requestLogger no promueve un request id opaco con caracteres previamente permitidos", () => {
+  const credentialShapedRequestId = [
+    "sess",
+    "opaque",
+    "fixture",
+    "abc123",
+  ].join("_");
+
+  const req = {
+    method: "GET",
+    originalUrl: "/api/health",
+    route: { path: "/api/health" },
+    headers: {
+      "x-request-id": credentialShapedRequestId,
+    },
+  };
+
+  const res = createMockResponse(200);
+  const originalConsoleLog = console.log;
+  const calls: unknown[][] = [];
+
+  console.log = (...args: unknown[]) => {
+    calls.push(args);
+  };
+
+  try {
+    requestLogger(req as any, res as any, (() => {}) as any);
+    res.emit("finish");
+  } finally {
+    console.log = originalConsoleLog;
+  }
+
+  assert.equal(calls.length, 1);
+
+  const line = String(calls[0]?.[0]);
+  const logEvent = JSON.parse(line) as {
+    requestId?: string;
+    context: Record<string, unknown>;
+  };
+
+  assert.equal("requestId" in logEvent, false);
+  assert.equal(
+    line.includes(credentialShapedRequestId),
+    false,
+  );
+  assert.equal(
+    logEvent.context.routeTemplate,
+    "/api/health",
+  );
 });

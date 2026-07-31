@@ -1685,7 +1685,7 @@ test(
       assert.equal("path" in genericLogPayload, false);
       assert.equal("url" in genericLogPayload, false);
 
-      const validIncomingRequestId = "client-req_123.abc:456";
+      const validIncomingRequestId = "123e4567-e89b-42d3-a456-426614174000";
       const validIncomingError = await app.inject({
         method: "GET",
         url: "/api/__test/internal-error",
@@ -1708,7 +1708,12 @@ test(
         "validIncomingError",
       );
 
-      const invalidIncomingRequestId = "client request id";
+      const invalidIncomingRequestId = [
+        "sess",
+        "opaque",
+        "fixture",
+        "abc123",
+      ].join("_");
       const invalidIncomingError = await app.inject({
         method: "GET",
         url: "/api/__test/internal-error",
@@ -1724,6 +1729,10 @@ test(
 
       assert.notEqual(invalidRequestId, invalidIncomingRequestId);
       assert.equal(invalidIncomingBody.requestId, invalidRequestId);
+      assert.match(
+        invalidRequestId,
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+      );
       assertApiErrorLogRequestId(
         consoleErrorCalls,
         2,
@@ -2116,7 +2125,7 @@ test(
         method: "GET",
         url: "/api/health",
         headers: {
-          "x-request-id": "client-req_123.abc:456",
+          "x-request-id": "123e4567-e89b-42d3-a456-426614174000",
         },
       });
 
@@ -2161,7 +2170,7 @@ test(
 
       assert.equal(
         apiHealthWithValidRequestId.headers["x-request-id"],
-        "client-req_123.abc:456",
+        "123e4567-e89b-42d3-a456-426614174000",
       );
       const replacementRequestId = assertRequestIdHeader(
         apiHealthWithInvalidRequestId,
@@ -2777,7 +2786,7 @@ test(
     };
 
     try {
-      const incomingRequestId = "client-req_correlation.1:2";
+      const incomingRequestId = "423e4567-e89b-42d3-a456-426614174003";
       const response = await app.inject({
         method: "GET",
         url: "/api/admin/audit-log?limit=25&token=raw-secret",

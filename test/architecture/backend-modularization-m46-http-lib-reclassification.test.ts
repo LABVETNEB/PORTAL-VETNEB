@@ -92,6 +92,7 @@ const expectedConsumerKeys = [
   "server/middlewares/request-logger.ts|static|runtime|../lib/http/api-request-id.ts|server/lib/http/api-request-id.ts",
   "test/helpers/api-request-id-contract.ts|dynamic|runtime|../../server/lib/http/api-request-id.ts|server/lib/http/api-request-id.ts",
   "test/integration/adapters/controllers/api-request-id-observability-contract.test.ts|dynamic|runtime|../../../../server/lib/http/api-request-id.ts|server/lib/http/api-request-id.ts",
+  "test/integration/adapters/controllers/public-professionals-logging-invariants.test.ts|static|runtime|../../../../server/lib/http/api-request-id.ts|server/lib/http/api-request-id.ts",
   "test/integration/app/fastify-app.test.ts|dynamic|runtime|../../../server/lib/http/api-response-security.ts|server/lib/http/api-response-security.ts",
   "test/security/backend-api-no-store-cache-contract.test.ts|dynamic|runtime|../../server/lib/http/sensitive-response-cache.ts|server/lib/http/sensitive-response-cache.ts",
   "test/unit/infrastructure/backend-api-nosniff-responses-contract.test.ts|dynamic|runtime|../../../server/lib/http/api-request-id.ts|server/lib/http/api-request-id.ts",

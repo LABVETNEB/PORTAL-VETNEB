@@ -679,3 +679,62 @@ test("sensitive log redaction guardrail source stays ascii only", () => {
     );
   }
 });
+
+test("request ids solo aceptan UUID v4 antes de llegar a logs", () => {
+  const requestIdSource = readSource(
+    "server/lib/http/api-request-id.ts",
+  );
+  const loggerSource = readSource("server/lib/logger.ts");
+
+  assertContains(
+    requestIdSource,
+    "API_REQUEST_ID_UUID_V4_PATTERN",
+    "request id UUID v4 boundary",
+  );
+  assertContains(
+    requestIdSource,
+    "value.length === API_REQUEST_ID_MAX_LENGTH",
+    "request id exact UUID length",
+  );
+  assertContains(
+    requestIdSource,
+    "randomUUID()",
+    "server-generated request id",
+  );
+  assertNotContains(
+    requestIdSource,
+    "API_REQUEST_ID_ALLOWED_CHARACTERS",
+    "request id character-only allowlist",
+  );
+
+  assertContains(
+    loggerSource,
+    "isSafeRequestId(requestId)",
+    "logger request id promotion boundary",
+  );
+});
+
+test("sensitive log keys no permiten bypass por sufijos Id o Count", () => {
+  const logger = readSource("server/lib/logger.ts");
+
+  assertNotContains(
+    logger,
+    'endsWith("tokenid")',
+    "logger tokenId suffix bypass",
+  );
+  assertNotContains(
+    logger,
+    'endsWith("count")',
+    "logger count suffix bypass",
+  );
+  assertNotContains(
+    logger,
+    "function isSafeLogKey",
+    "logger broad safe-key bypass",
+  );
+  assertContains(
+    logger,
+    "SENSITIVE_KEY_FRAGMENTS.some",
+    "logger sensitive fragment boundary",
+  );
+});

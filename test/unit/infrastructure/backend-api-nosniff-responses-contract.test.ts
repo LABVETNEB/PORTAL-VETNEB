@@ -32,7 +32,7 @@ test("api security headers helper clasifica solo superficie API", () => {
   assert.equal(API_REFERRER_POLICY_HEADER_VALUE, "no-referrer");
   assert.equal(API_REQUEST_ID_HEADER_NAME, "X-Request-ID");
   assert.equal(API_REQUEST_ID_HEADER_KEY, "x-request-id");
-  assert.equal(API_REQUEST_ID_MAX_LENGTH, 128);
+  assert.equal(API_REQUEST_ID_MAX_LENGTH, 36);
   assert.equal(shouldApplyApiSecurityHeaders("/api"), true);
   assert.equal(shouldApplyApiSecurityHeaders("/api/health"), true);
   assert.equal(shouldApplyApiSecurityHeaders("/api/admin/system/health"), true);
@@ -46,21 +46,46 @@ test("api security headers helper clasifica solo superficie API", () => {
   assert.equal(shouldApplyApiSecurityHeaders("/"), false);
 });
 
-test("api request id helper valida formato seguro y genera fallback", () => {
-  const validRequestId = "client-req_123.abc:456";
-  const invalidRequestId = "client request id";
+test("api request id helper acepta UUID v4 y reemplaza identificadores opacos", () => {
+  const validRequestId = "123e4567-e89b-42d3-a456-426614174000";
+  const credentialShapedRequestId = [
+    "sess",
+    "opaque",
+    "fixture",
+    "abc123",
+  ].join("_");
+
   const generatedWithoutHeader = generateFastifyRequestId({
     headers: {},
   } as any);
-  const generatedFromInvalidHeader = generateFastifyRequestId({
+
+  const generatedFromCredentialShapedHeader = generateFastifyRequestId({
     headers: {
-      [API_REQUEST_ID_HEADER_KEY]: invalidRequestId,
+      [API_REQUEST_ID_HEADER_KEY]: credentialShapedRequestId,
     },
   } as any);
 
+  assert.equal(API_REQUEST_ID_MAX_LENGTH, 36);
+
   assert.equal(isSafeRequestId(validRequestId), true);
-  assert.equal(isSafeRequestId(invalidRequestId), false);
-  assert.equal(isSafeRequestId(`req-${"a".repeat(129)}`), false);
+  assert.equal(isSafeRequestId(validRequestId.toUpperCase()), true);
+
+  assert.equal(isSafeRequestId(credentialShapedRequestId), false);
+  assert.equal(isSafeRequestId("client-req_123.abc:456"), false);
+  assert.equal(isSafeRequestId("client request id"), false);
+  assert.equal(
+    isSafeRequestId("123e4567-e89b-12d3-a456-426614174000"),
+    false,
+  );
+  assert.equal(
+    isSafeRequestId("123e4567-e89b-42d3-7456-426614174000"),
+    false,
+  );
+  assert.equal(
+    isSafeRequestId("123e4567-e89b-42d3-a456-42661417400"),
+    false,
+  );
+
   assert.equal(
     generateFastifyRequestId({
       headers: {
@@ -69,9 +94,17 @@ test("api request id helper valida formato seguro y genera fallback", () => {
     } as any),
     validRequestId,
   );
+
   assert.equal(isSafeRequestId(generatedWithoutHeader), true);
-  assert.equal(isSafeRequestId(generatedFromInvalidHeader), true);
-  assert.notEqual(generatedFromInvalidHeader, invalidRequestId);
+  assert.equal(
+    isSafeRequestId(generatedFromCredentialShapedHeader),
+    true,
+  );
+
+  assert.notEqual(
+    generatedFromCredentialShapedHeader,
+    credentialShapedRequestId,
+  );
 });
 
 test("fastify-app registra hook central de security headers antes de cortes tempranos", () => {

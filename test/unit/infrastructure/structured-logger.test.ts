@@ -59,23 +59,40 @@ test("el logger emite una linea JSON parseable con campos estables", () => {
   );
 });
 
-test("el logger conserva requestId valido y descarta el invalido", () => {
+test("el logger promueve sólo requestId UUID v4", () => {
+  const validRequestId =
+    "123e4567-e89b-42d3-a456-426614174000";
+
   const valid = captureJsonLine("error", () => {
-    logError("SAMPLE_ERROR", { requestId: "client-req_1.a:2", status: 500 });
+    logError("SAMPLE_ERROR", {
+      requestId: validRequestId,
+      status: 500,
+    });
   });
 
-  assert.equal(valid.requestId, "client-req_1.a:2");
+  assert.equal(valid.requestId, validRequestId);
   assert.deepEqual(valid.context, { status: 500 });
+
+  const credentialShapedRequestId = [
+    "sess",
+    "opaque",
+    "fixture",
+    "abc123",
+  ].join("_");
 
   const invalid = captureJsonLine("error", () => {
     logError("SAMPLE_ERROR", {
-      requestId: "bad id;Authorization=Bearer secret",
+      requestId: credentialShapedRequestId,
       status: 500,
     });
   });
 
   assert.equal("requestId" in invalid, false);
   assert.deepEqual(invalid.context, { status: 500 });
+  assert.equal(
+    JSON.stringify(invalid).includes(credentialShapedRequestId),
+    false,
+  );
 });
 
 test("redactLogValue redacta claves sensibles anidadas y en arrays", () => {
@@ -105,33 +122,73 @@ test("redactLogValue redacta claves sensibles anidadas y en arrays", () => {
     assert.equal(value, "[REDACTED]");
   }
 
-  assert.deepEqual(redacted.list, [{ sessionToken: "[REDACTED]", tokenId: 12 }]);
+  assert.deepEqual(redacted.list, [
+    {
+      sessionToken: "[REDACTED]",
+      tokenId: "[REDACTED]",
+    },
+  ]);
 });
 
-test("redactLogValue preserva identificadores seguros", () => {
+test("redactLogValue no permite bypass sensible mediante sufijos Id o Count", () => {
+  const validRequestId =
+    "123e4567-e89b-42d3-a456-426614174000";
+
   const redacted = redactLogValue({
-    tokenId: 4,
-    reportAccessTokenId: 5,
-    actorReportAccessTokenId: 6,
-    targetReportAccessTokenId: 7,
-    tokenCount: 8,
-    requestId: "req-1",
+    clinicId: 4,
+    reportId: 5,
+    clinicCount: 8,
+    requestId: validRequestId,
+
+    tokenId: 10,
+    reportAccessTokenId: 11,
+    actorReportAccessTokenId: 12,
+    targetReportAccessTokenId: 13,
+    tokenCount: 14,
+    sessionTokenId: "opaque-session-value",
+    refreshTokenCount: "opaque-refresh-value",
   });
 
   assert.deepEqual(redacted, {
-    tokenId: 4,
-    reportAccessTokenId: 5,
-    actorReportAccessTokenId: 6,
-    targetReportAccessTokenId: 7,
-    tokenCount: 8,
-    requestId: "req-1",
+    clinicId: 4,
+    reportId: 5,
+    clinicCount: 8,
+    requestId: validRequestId,
+
+    tokenId: "[REDACTED]",
+    reportAccessTokenId: "[REDACTED]",
+    actorReportAccessTokenId: "[REDACTED]",
+    targetReportAccessTokenId: "[REDACTED]",
+    tokenCount: "[REDACTED]",
+    sessionTokenId: "[REDACTED]",
+    refreshTokenCount: "[REDACTED]",
   });
 
-  assert.equal(isSensitiveLogKey("tokenId"), false);
+  const serialized = JSON.stringify(redacted);
+
+  assert.equal(
+    serialized.includes("opaque-session-value"),
+    false,
+  );
+  assert.equal(
+    serialized.includes("opaque-refresh-value"),
+    false,
+  );
+
   assert.equal(isSensitiveLogKey("requestId"), false);
+  assert.equal(isSensitiveLogKey("clinicId"), false);
+  assert.equal(isSensitiveLogKey("clinicCount"), false);
+
+  assert.equal(isSensitiveLogKey("tokenId"), true);
+  assert.equal(isSensitiveLogKey("reportAccessTokenId"), true);
+  assert.equal(isSensitiveLogKey("sessionTokenId"), true);
+  assert.equal(isSensitiveLogKey("refreshTokenCount"), true);
   assert.equal(isSensitiveLogKey("sessionId"), true);
   assert.equal(isSensitiveLogKey("set-cookie"), true);
-  assert.equal(isSensitiveLogKey("proxy-authorization"), true);
+  assert.equal(
+    isSensitiveLogKey("proxy-authorization"),
+    true,
+  );
 });
 
 test("redactSensitiveText redacta secretos embebidos en strings", () => {

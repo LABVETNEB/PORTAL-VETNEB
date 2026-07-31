@@ -55,18 +55,22 @@ function normalizeLogKey(key: string): string {
   return key.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
-function isSafeLogKey(normalizedKey: string): boolean {
-  return (
-    normalizedKey === "requestid" ||
-    normalizedKey.endsWith("tokenid") ||
-    normalizedKey.endsWith("count")
-  );
-}
-
+/**
+ * Las claves sensibles se evalúan sin excepciones amplias por sufijo.
+ *
+ * Un nombre como `sessionTokenId`, `reportAccessTokenId` o
+ * `refreshTokenCount` sigue describiendo material sensible aunque termine en
+ * `Id` o `Count`. La clave por sí sola no demuestra que su valor sea un
+ * identificador numérico inocuo.
+ *
+ * `requestId` no requiere una excepción: no contiene fragmentos sensibles y
+ * su valor se valida separadamente como UUID v4 antes de promoverse al nivel
+ * superior del evento.
+ */
 export function isSensitiveLogKey(key: string): boolean {
   const normalizedKey = normalizeLogKey(key);
 
-  if (!normalizedKey || isSafeLogKey(normalizedKey)) {
+  if (!normalizedKey) {
     return false;
   }
 

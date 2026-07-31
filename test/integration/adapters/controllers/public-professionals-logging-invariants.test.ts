@@ -8,6 +8,7 @@ import {
   buildPublicProfessionalsRouteFixtureStubs,
   type PublicProfessionalsRouteFixtureStubs,
 } from "../../../mocks/public-professionals-route.ts";
+import { generateFastifyRequestId } from "../../../../server/lib/http/api-request-id.ts";
 
 process.env.NODE_ENV ??= "development";
 process.env.SUPABASE_URL ??= "https://example.supabase.co";
@@ -25,6 +26,7 @@ async function buildLoggingApp(
 ) {
   const app = Fastify({
     logger: false,
+    genReqId: generateFastifyRequestId,
   });
 
   await app.register(publicProfessionalsNativeRoutes, {
