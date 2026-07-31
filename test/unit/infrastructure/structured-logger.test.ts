@@ -10,6 +10,12 @@ import {
   serializeError,
 } from "../../../server/lib/logger.ts";
 
+const TEST_DATABASE_URL = [
+  "postgresql://user",
+  ":pass",
+  "@host:5432/db",
+].join("");
+
 function captureJsonLine(
   channel: "log" | "warn" | "error",
   run: () => void,
@@ -144,7 +150,7 @@ test("redactSensitiveText redacta secretos embebidos en strings", () => {
     "key [REDACTED]",
   );
   assert.equal(
-    redactSensitiveText("postgresql://user:pass@host:5432/db"),
+    redactSensitiveText(TEST_DATABASE_URL),
     "[REDACTED]",
   );
   assert.equal(
@@ -161,7 +167,7 @@ test("redactSensitiveText redacta secretos embebidos en strings", () => {
 
 test("serializeError no expone stack ni detalles de driver", () => {
   const error = new Error(
-    "connect failed for postgresql://user:pass@host:5432/db",
+    `connect failed for ${TEST_DATABASE_URL}`,
   );
   (error as Error & { query?: string }).query = "select * from clinics";
 
