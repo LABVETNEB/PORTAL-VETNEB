@@ -98,7 +98,7 @@ test("buildRequestLogLine redondea duraciones muy pequeñas y no agrega RATE_LIM
   );
 });
 
-test("requestLogger registra url sanitizada y no agrega RATE_LIMITED para status no 429", () => {
+test("requestLogger registra evento estructurado sin marcar rateLimited fuera de 429", () => {
   const req = {
     method: "DELETE",
     originalUrl: "/api/reports/12?reportAccessToken=secret-token&foo=1",
@@ -124,9 +124,44 @@ test("requestLogger registra url sanitizada y no agrega RATE_LIMITED para status
   assert.equal(typeof calls[0][0], "string");
 
   const line = calls[0][0] as string;
+  const logEvent = JSON.parse(line) as {
+    event: string;
+    level: string;
+    context: Record<string, unknown>;
+  };
 
-  assert.match(line, /^\[[^\]]+\] DELETE /);
-  assert.match(line, /500/);
-  assert.match(line, /reportAccessToken=\[REDACTED\]/);
-  assert.doesNotMatch(line, /RATE_LIMITED/);
+  assert.equal(logEvent.event, "HTTP_REQUEST_COMPLETED");
+  assert.equal(logEvent.level, "info");
+  assert.equal(logEvent.context.method, "DELETE");
+  assert.equal(logEvent.context.statusCode, 500);
+  assert.equal(logEvent.context.statusClass, "5xx");
+  assert.equal(logEvent.context.rateLimited, false);
+  assert.equal(logEvent.context.routeTemplate, "UNMATCHED_ROUTE");
+
+  // Sin template seguro el evento cae a UNMATCHED_ROUTE y no conserva el
+  // pathname original: /api/reports/12 lleva un reportId real.
+  assert.deepEqual(Object.keys(logEvent.context).sort(), [
+    "durationMs",
+    "method",
+    "rateLimited",
+    "statusClass",
+    "statusCode",
+    "routeTemplate",
+  ].sort());
+  assert.equal("path" in logEvent.context, false);
+  assert.equal("url" in logEvent.context, false);
+
+  // Sólo las dimensiones string son deterministas: durationMs es un float y
+  // puede contener cualquier secuencia de digitos.
+  const serializedDimensions = JSON.stringify({
+    method: logEvent.context.method,
+    routeTemplate: logEvent.context.routeTemplate,
+    statusClass: logEvent.context.statusClass,
+  });
+
+  assert.equal(serializedDimensions.includes("secret-token"), false);
+  assert.equal(serializedDimensions.includes("/api/reports"), false);
+  assert.equal(serializedDimensions.includes("12"), false);
+  assert.equal(line.includes("secret-token"), false);
+  assert.equal(line.includes("/api/reports"), false);
 });

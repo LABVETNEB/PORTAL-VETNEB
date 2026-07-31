@@ -5,15 +5,23 @@ import { shouldApplyApiSecurityHeaders } from "./api-response-security.ts";
 
 export const API_REQUEST_ID_HEADER_NAME = "X-Request-ID";
 export const API_REQUEST_ID_HEADER_KEY = "x-request-id";
-export const API_REQUEST_ID_MAX_LENGTH = 128;
-const API_REQUEST_ID_ALLOWED_CHARACTERS = /^[A-Za-z0-9._:-]+$/;
+export const API_REQUEST_ID_MAX_LENGTH = 36;
+
+/**
+ * Sólo se preservan identificadores UUID v4.
+ *
+ * Una allowlist de caracteres no demuestra que el valor no sea una
+ * credencial, porque un token opaco puede estar compuesto únicamente por
+ * letras, números, guiones, puntos o underscores.
+ */
+const API_REQUEST_ID_UUID_V4_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export function isSafeRequestId(value: unknown): value is string {
   return (
     typeof value === "string" &&
-    value.length > 0 &&
-    value.length <= API_REQUEST_ID_MAX_LENGTH &&
-    API_REQUEST_ID_ALLOWED_CHARACTERS.test(value)
+    value.length === API_REQUEST_ID_MAX_LENGTH &&
+    API_REQUEST_ID_UUID_V4_PATTERN.test(value)
   );
 }
 
@@ -47,7 +55,11 @@ function setReplyHeaderIfUnset(
   }
 }
 
-function setReplyHeader(reply: FastifyReply, name: string, value: string) {
+function setReplyHeader(
+  reply: FastifyReply,
+  name: string,
+  value: string,
+) {
   reply.header(name, value);
   reply.raw.setHeader(name, value);
 }

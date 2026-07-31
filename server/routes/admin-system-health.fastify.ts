@@ -11,6 +11,10 @@ import {
   getRequestOrigin,
 } from "../lib/cors-headers.ts";
 import { authenticateFastifyAdmin } from "../lib/fastify-admin-auth.ts";
+import {
+  getObservabilityMetricsSnapshot as getProcessObservabilityMetricsSnapshot,
+  type ObservabilityMetricsSnapshot,
+} from "../lib/observability-metrics.ts";
 
 type AdminSessionRecord = {
   adminUserId: number;
@@ -46,6 +50,7 @@ export type AdminSystemHealthNativeRoutesOptions = {
   hashSessionToken?: (token: string) => string;
   getSystemHealthSnapshot?: () => Promise<SystemHealthSnapshot>;
   getBackendVersion?: () => string;
+  getObservabilityMetricsSnapshot?: () => ObservabilityMetricsSnapshot;
   now?: () => number;
 };
 
@@ -314,7 +319,25 @@ export const adminSystemHealthNativeRoutes: FastifyPluginAsync<
     return reply.code(204).send();
   };
 
+  const getObservabilityMetrics =
+    options.getObservabilityMetricsSnapshot ??
+    getProcessObservabilityMetricsSnapshot;
+
   app.options("/", optionsHandler);
+  app.options("/metrics", optionsHandler);
+
+  app.get("/metrics", async (request, reply) => {
+    const admin = await authenticateAdminUser(request, reply, deps, now);
+
+    if (!admin) {
+      return reply;
+    }
+
+    return reply.code(200).send({
+      success: true,
+      metrics: getObservabilityMetrics(),
+    });
+  });
 
   app.get("/", async (request, reply) => {
     const admin = await authenticateAdminUser(request, reply, deps, now);

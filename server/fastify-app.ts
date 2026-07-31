@@ -4,7 +4,10 @@ import Fastify, {
   type FastifyRequest,
 } from "fastify";
 import { ENV } from "./lib/env.ts";
-import { sanitizeUrlForLogs } from "./middlewares/request-logger.ts";
+import {
+  normalizeRouteTemplate,
+  sanitizeUrlForLogs,
+} from "./middlewares/request-logger.ts";
 import {
   adminAuditNativeRoutes,
   type AdminAuditNativeRoutesOptions,
@@ -154,6 +157,14 @@ import {
   generateFastifyRequestId,
   getSafeApiResponseRequestId,
 } from "./lib/http/api-request-id.ts";
+import { logError, serializeError } from "./lib/logger.ts";
+import {
+  createObservabilityRequestFinalizer,
+  getObservabilityMetricsRegistry,
+  type ObservabilityMetricsRegistry,
+  type ObservabilityRequestFinalizer,
+} from "./lib/observability-metrics.ts";
+import { createRuntimeTimer, type RuntimeTimer } from "./lib/runtime-timing.ts";
 
 type HealthCheckResponse = {
   statusCode: number;
@@ -300,7 +311,39 @@ function addApiErrorRequestIdToJsonPayload(
   });
 }
 
+const REQUEST_OBSERVABILITY_KEY = "__observabilityRequestState";
+
+type ObservabilityRequestState = {
+  timer: RuntimeTimer;
+  finalizer: ObservabilityRequestFinalizer;
+};
+
+type ObservabilityFastifyRequest = FastifyRequest & {
+  [REQUEST_OBSERVABILITY_KEY]?: ObservabilityRequestState;
+};
+
+function getObservabilityRequestState(request: FastifyRequest) {
+  return (request as ObservabilityFastifyRequest)[REQUEST_OBSERVABILITY_KEY];
+}
+
+function getFastifyRouteTemplate(request: FastifyRequest): string {
+  return normalizeRouteTemplate(request.routeOptions?.url);
+}
+
+/**
+ * La instrumentacion nunca debe alterar la respuesta: cualquier fallo interno
+ * de metricas o logging se descarta en lugar de propagarse al request.
+ */
+function runFailSafe(operation: () => void) {
+  try {
+    operation();
+  } catch {
+    // fail-safe: la observabilidad no puede tumbar una respuesta HTTP
+  }
+}
+
 export type CreateFastifyAppOptions = {
+  observabilityMetricsRegistry?: ObservabilityMetricsRegistry;
   getNativeHealthCheckResponse?: HealthCheckFactory;
   getServiceInfoPayload?: ServiceInfoFactory;
   appVersionRoutes?: AppVersionNativeRoutesOptions;
@@ -349,7 +392,24 @@ export async function createFastifyApp(
     trustProxy: ENV.trustProxy,
   });
 
+  const metricsRegistry =
+    options.observabilityMetricsRegistry ?? getObservabilityMetricsRegistry();
+
   app.addHook("onRequest", async (request, reply) => {
+    runFailSafe(() => {
+      const timer = createRuntimeTimer();
+
+      metricsRegistry.recordRequestStarted();
+
+      // El estado sólo se publica una vez que el inicio quedó contabilizado,
+      // para que ninguna finalización pueda decrementar un in-flight que nunca
+      // se incrementó.
+      (request as ObservabilityFastifyRequest)[REQUEST_OBSERVABILITY_KEY] = {
+        timer,
+        finalizer: createObservabilityRequestFinalizer(metricsRegistry),
+      };
+    });
+
     applyApiRequestIdHeader(request, reply);
     applyApiSecurityHeaders(request, reply);
   });
@@ -366,6 +426,32 @@ export async function createFastifyApp(
     },
   );
 
+  app.addHook("onResponse", async (request, reply) => {
+    runFailSafe(() => {
+      const state = getObservabilityRequestState(request);
+
+      if (!state) {
+        return;
+      }
+
+      state.finalizer.recordCompleted({
+        method: request.method,
+        routeTemplate: getFastifyRouteTemplate(request),
+        statusCode: reply.statusCode,
+        durationMs: state.timer.elapsedMs(),
+      });
+    });
+  });
+
+  // El cliente cortó la conexión antes de la respuesta: se libera el in-flight
+  // sin inventar un status code, porque no existe taxonomía aprobada para un
+  // request abortado.
+  app.addHook("onRequestAbort", async (request) => {
+    runFailSafe(() => {
+      getObservabilityRequestState(request)?.finalizer.recordAborted();
+    });
+  });
+
   app.setNotFoundHandler((request, reply) => {
     return reply.code(404).send({
       success: false,
@@ -379,13 +465,16 @@ export async function createFastifyApp(
     const message = getFastifyErrorMessage(error);
     const requestId = getSafeApiResponseRequestId(request, reply);
 
-    console.error("[API ERROR]", {
+    // Metadata allowlisted: nunca URL, query, path con IDs, error crudo ni stack.
+    // Sin `code`: una regex sintactica sobre error.code acepta identificadores
+    // con forma de PII (p. ej. "Paciente_307"), y no existe una allowlist
+    // cerrada de SQLSTATE/codigos de libreria que valga la pena mantener aqui.
+    logError("API_ERROR", {
       method: request.method,
-      path: request.url,
+      routeTemplate: getFastifyRouteTemplate(request),
       status,
-      message,
+      errorName: serializeError(error).name,
       ...(requestId ? { requestId } : {}),
-      error,
     });
 
     return reply.code(status).send({
@@ -494,6 +583,10 @@ export async function createFastifyApp(
 
   await app.register(adminSystemHealthNativeRoutes, {
     prefix: "/api/admin/system/health",
+    // La superficie privada de metricas debe leer la misma instancia que
+    // instrumenta esta app; sin este getter el plugin caeria en el singleton de
+    // proceso y podria reportar series distintas de las medidas aqui.
+    getObservabilityMetricsSnapshot: () => metricsRegistry.getSnapshot(),
     ...(options.adminSystemHealthRoutes ?? {}),
   });
 

@@ -476,7 +476,10 @@ test("errores internos se loguean, pero la respuesta 500 no expone detalles", ()
   const source = read(file);
 
   assertContains(source, "app.setErrorHandler((error, request, reply) => {", file);
-  assertContains(source, 'console.error("[API ERROR]"', file);
+  assertContains(source, 'logError("API_ERROR", {', file);
+  assertContains(source, "errorName: serializeError(error).name", file);
+  assertNotContains(source, 'console.error("[API ERROR]"', file);
+  assertNotContains(source, "\n      error,\n", file);
   assertContains(
     source,
     'error: status >= 500 ? "Error interno del servidor" : message',
@@ -500,13 +503,19 @@ test("logs de request sanitizan tokens y accesos públicos antes de escribir con
   assertContains(loggerSource, "[REDACTED]", loggerFile);
   assertContains(loggerSource, "token|reportAccessToken", loggerFile);
   assertContains(loggerSource, "RATE_LIMITED", loggerFile);
+  assertContains(loggerSource, "HTTP_REQUEST_COMPLETED", loggerFile);
 
+  // El access log ya no deriva ninguna dimension de la URL real: la unica
+  // dimension de ruta es el template Fastify normalizado.
   for (const file of authRouteFiles) {
     const source = read(file);
 
-    assertContains(source, "sanitizeUrlForLogs(request.url)", file);
-    assertContains(source, "url: safeUrl", file);
-    assertContains(source, "buildRequestLogLine({", file);
+    assertContains(source, "logRequestCompletion({", file);
+    assertContains(source, "routeTemplate: request.routeOptions?.url", file);
+    assertContains(source, "requestId: request.id", file);
+    assertNotContains(source, "console.log(", file);
+    assertNotContains(source, "sanitizeUrlForLogs", file);
+    assertNotContains(source, "url: safeUrl", file);
   }
 });
 

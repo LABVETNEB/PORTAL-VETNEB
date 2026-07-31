@@ -5,6 +5,8 @@ import {
   type ListPublicPricingItemsFn,
   type PublicPricingCacheStatus,
 } from "../features/pricing/public-pricing-service.ts";
+import { logError, serializeError } from "../lib/logger.ts";
+import { normalizeRouteTemplate } from "../middlewares/request-logger.ts";
 
 export type PublicPricingNativeRoutesOptions = {
   listPublicPricingItems?: ListPublicPricingItemsFn;
@@ -34,9 +36,10 @@ export const publicPricingNativeRoutes: FastifyPluginAsync<
 
       return reply.code(200).send(snapshot);
     } catch (error) {
-      console.error("[PUBLIC_PRICING_LIST_ERROR]", {
-        path: request.url,
-        error,
+      logError("PUBLIC_PRICING_LIST_ERROR", {
+        requestId: request.id,
+        routeTemplate: normalizeRouteTemplate(request.routeOptions?.url),
+        errorName: serializeError(error).name,
       });
 
       return reply.code(500).send({

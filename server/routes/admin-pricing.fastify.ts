@@ -12,6 +12,8 @@ import {
 } from "../lib/cors-headers.ts";
 import { AUDIT_EVENTS, type AuditWriteInput } from "../lib/audit.ts";
 import { authenticateFastifyAdmin } from "../lib/fastify-admin-auth.ts";
+import { logError, serializeError } from "../lib/logger.ts";
+import { normalizeRouteTemplate } from "../middlewares/request-logger.ts";
 import {
   invalidatePublicPricingCache,
   listAdminPricingCategories,
@@ -345,9 +347,10 @@ export const adminPricingNativeRoutes: FastifyPluginAsync<
         categories,
       });
     } catch (error) {
-      console.error("[ADMIN_PRICING_LIST_ERROR]", {
-        path: request.url,
-        error,
+      logError("ADMIN_PRICING_LIST_ERROR", {
+        requestId: request.id,
+        routeTemplate: normalizeRouteTemplate(request.routeOptions?.url),
+        errorName: serializeError(error).name,
       });
 
       return reply.code(500).send({
@@ -437,9 +440,10 @@ export const adminPricingNativeRoutes: FastifyPluginAsync<
         pricingItem: serializeAdminPricingItem(updated),
       });
     } catch (error) {
-      console.error("[ADMIN_PRICING_PATCH_ERROR]", {
-        path: request.url,
-        error,
+      logError("ADMIN_PRICING_PATCH_ERROR", {
+        requestId: request.id,
+        routeTemplate: normalizeRouteTemplate(request.routeOptions?.url),
+        errorName: serializeError(error).name,
       });
 
       return reply.code(500).send({

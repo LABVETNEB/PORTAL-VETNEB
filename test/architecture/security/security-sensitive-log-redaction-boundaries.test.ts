@@ -11,6 +11,20 @@ const SENSITIVE_LOG_REDACTION_BOUNDARIES = {
     middleware: "server/middlewares/request-logger.ts",
     redactionMarker: "[REDACTED]",
   },
+  structuredLogger: {
+    module: "server/lib/logger.ts",
+    redactionEntrypoint: "redactLogValue",
+    textRedactionEntrypoint: "redactSensitiveText",
+    errorSerializer: "serializeError",
+  },
+  observabilityMetrics: {
+    module: "server/lib/observability-metrics.ts",
+    routeDimension: "buildRouteMetricsKey",
+  },
+  globalErrorHandlers: {
+    fastifyApp: "server/fastify-app.ts",
+    event: "API_ERROR",
+  },
   authSecrets: {
     sessionHash: "hashSessionToken",
     passwordVerifier: "verifyPassword",
@@ -83,6 +97,20 @@ test("sensitive log redaction matrix documents protected boundaries", () => {
       middleware: "server/middlewares/request-logger.ts",
       redactionMarker: "[REDACTED]",
     },
+    structuredLogger: {
+      module: "server/lib/logger.ts",
+      redactionEntrypoint: "redactLogValue",
+      textRedactionEntrypoint: "redactSensitiveText",
+      errorSerializer: "serializeError",
+    },
+    observabilityMetrics: {
+      module: "server/lib/observability-metrics.ts",
+      routeDimension: "buildRouteMetricsKey",
+    },
+    globalErrorHandlers: {
+      fastifyApp: "server/fastify-app.ts",
+      event: "API_ERROR",
+    },
     authSecrets: {
       sessionHash: "hashSessionToken",
       passwordVerifier: "verifyPassword",
@@ -108,8 +136,362 @@ test("request logger keeps token and query redaction centralized", () => {
   assertContains(requestLogger, "method", "request logger method");
   assertContains(requestLogger, "statusCode", "request logger status code");
   assertContains(logger, "console", "central logger console boundary");
+  assertContains(
+    requestLogger,
+    "logRequestCompletion",
+    "request logger structured emitter",
+  );
+  assertNotContains(requestLogger, "console.", "request logger console boundary");
+
+  // El contexto del access log es cerrado: sin path, url ni pathname reales.
+  const contextTypeStart = requestLogger.indexOf(
+    "export type RequestCompletionLogContext = {",
+  );
+
+  assert.notEqual(contextTypeStart, -1, "request logger context type");
+
+  const contextType = requestLogger.slice(
+    contextTypeStart,
+    requestLogger.indexOf("};", contextTypeStart),
+  );
+
+  assert.deepEqual(
+    contextType
+      .split("\n")
+      .map((line) => line.trim().split(":")[0])
+      .filter((name) => /^[a-zA-Z]+$/.test(name))
+      .sort(),
+    [
+      "durationMs",
+      "method",
+      "rateLimited",
+      "routeTemplate",
+      "statusClass",
+      "statusCode",
+    ],
+  );
+
+  assertNotContains(
+    requestLogger,
+    "sanitizeUrlForLogs(input.url",
+    "request logger url dimension",
+  );
+  assertContains(requestLogger, "UNMATCHED_ROUTE", "request logger route fallback");
+  assertContains(
+    requestLogger,
+    "routeTemplate: normalizeRouteTemplate(input.routeTemplate)",
+    "request logger route template normalization",
+  );
+
+  for (const file of [
+    "server/routes/admin-auth.fastify.ts",
+    "server/routes/auth.fastify.ts",
+    "server/routes/particular-auth.fastify.ts",
+    "server/routes/public-report-access.fastify.ts",
+    "server/routes/reports.fastify.ts",
+    "server/routes/study-tracking.fastify.ts",
+  ] as const) {
+    const source = readSource(file);
+
+    assertContains(source, "logRequestCompletion({", `${file} structured access log`);
+    assertContains(
+      source,
+      "routeTemplate: request.routeOptions?.url",
+      `${file} route template dimension`,
+    );
+    assertNotContains(source, "url: safeUrl", `${file} url dimension`);
+    assertNotContains(source, "sanitizeUrlForLogs", `${file} url log derivation`);
+  }
 
   assertNoDirectSecretLogging(requestLogger, "request logger middleware");
+});
+
+test("structured logger centraliza la redaccion y es el unico boundary de console migrado", () => {
+  const logger = readSource("server/lib/logger.ts");
+
+  for (const marker of [
+    "export function redactLogValue",
+    "export function redactSensitiveText",
+    "export function serializeError",
+    "export function isSensitiveLogKey",
+    "isSafeRequestId",
+    "[REDACTED]",
+  ]) {
+    assertContains(logger, marker, "structured logger redaction boundary");
+  }
+
+  for (const fragment of [
+    "authorization",
+    "cookie",
+    "password",
+    "secret",
+    "servicerole",
+    "apikey",
+    "token",
+    "session",
+    "signedurl",
+    "storagepath",
+    "databaseurl",
+    "connectionstring",
+  ]) {
+    assertContains(logger, `"${fragment}"`, "structured logger key matrix");
+  }
+
+  assertNotContains(logger, "error.stack", "structured logger stack export");
+  assertNoDirectSecretLogging(logger, "structured logger");
+
+  // El mensaje libre de un error nunca se exporta: una regex de credenciales no
+  // puede demostrar que no contiene datos clinicos, SQL o PII.
+  assertNotContains(logger, "error.message", "structured logger free-form message");
+  assertContains(
+    logger,
+    "messageSanitized: LOG_REDACTED_VALUE",
+    "structured logger closed error envelope",
+  );
+  assertContains(logger, "UnknownError", "structured logger non-Error envelope");
+
+  // Las rutas migradas emiten via logInfo/logError, no via console directo.
+  for (const file of [
+    "server/routes/admin-pricing.fastify.ts",
+    "server/routes/public-pricing.fastify.ts",
+  ] as const) {
+    const source = readSource(file);
+
+    assertContains(source, "logError(", `${file} structured error logging`);
+    assertContains(source, "requestId: request.id", `${file} error correlation`);
+    assertNotContains(source, "console.", `${file} console boundary`);
+    assertNotContains(source, "\n        error,\n", `${file} raw error payload`);
+
+    // El nombre del error pasa por la allowlist central del logger: un `name`
+    // manipulado no puede exportar PII, email ni SQL a traves del log.
+    assertContains(source, "serializeError", `${file} central error envelope`);
+    assertContains(
+      source,
+      "errorName: serializeError(error).name,",
+      `${file} allowlisted error name`,
+    );
+    assertNotContains(source, "getSafeErrorName", `${file} local error name helper`);
+    assertNotContains(source, "error.message", `${file} free-form error message`);
+    assertNotContains(source, "messageSanitized", `${file} error message export`);
+  }
+});
+
+test("las metricas finalizan cada request exactamente una vez", () => {
+  const metrics = readSource("server/lib/observability-metrics.ts");
+  const fastifyApp = readSource("server/fastify-app.ts");
+
+  for (const marker of [
+    "recordRequestAborted",
+    "createObservabilityRequestFinalizer",
+  ] as const) {
+    assertContains(metrics, marker, "metrics finalization boundary");
+  }
+
+  assertContains(
+    fastifyApp,
+    "createObservabilityRequestFinalizer",
+    "fastify finalization boundary",
+  );
+  assertContains(fastifyApp, "onRequestAbort", "fastify abort hook");
+  assertContains(
+    fastifyApp,
+    "finalizer.recordAborted()",
+    "fastify abort finalization",
+  );
+  assertNotContains(
+    fastifyApp,
+    "metricsRegistry.recordRequestAborted(",
+    "fastify direct abort bypassing the finalizer",
+  );
+  assertContains(
+    fastifyApp,
+    "state.finalizer.recordCompleted({",
+    "fastify once-only completion",
+  );
+  assertNotContains(
+    fastifyApp,
+    "metricsRegistry.recordRequestCompleted(",
+    "fastify direct completion bypassing the finalizer",
+  );
+
+  // Un aborto libera in-flight sin inventar un status code ni una latencia.
+  const abortedStart = metrics.indexOf("recordRequestAborted() {");
+
+  assert.notEqual(abortedStart, -1, "metrics aborted recorder");
+
+  const abortedBody = metrics.slice(
+    abortedStart,
+    metrics.indexOf("},", abortedStart),
+  );
+
+  for (const forbidden of [
+    "requestsCompletedTotal",
+    "responsesByStatusClass",
+    "serverErrors5xxTotal",
+    "rateLimitedResponsesTotal",
+    "pushBoundedSample",
+    "resolveRouteBucket",
+    "499",
+  ]) {
+    assertNotContains(abortedBody, forbidden, "metrics aborted recorder scope");
+  }
+});
+
+test("los handlers globales no registran el objeto Error crudo", () => {
+  const fastifyApp = readSource("server/fastify-app.ts");
+
+  assertContains(fastifyApp, 'logError("API_ERROR", {', "fastify error handler event");
+  assertContains(
+    fastifyApp,
+    "errorName: serializeError(error).name",
+    "fastify error handler central allowlist",
+  );
+  assertContains(
+    fastifyApp,
+    "...(requestId ? { requestId } : {}),",
+    "fastify error handler keeps requestId correlation",
+  );
+  assertContains(
+    fastifyApp,
+    "routeTemplate: getFastifyRouteTemplate(request)",
+    "fastify error handler route template",
+  );
+  assertNotContains(
+    fastifyApp,
+    "getFastifyErrorName",
+    "fastify local error name helper",
+  );
+  assertNotContains(fastifyApp, "\n      error,\n", "fastify raw error payload");
+  assertNotContains(fastifyApp, "error.stack", "fastify stack export");
+  assertNotContains(fastifyApp, "console.", "fastify console boundary");
+  assertNotContains(
+    fastifyApp,
+    "path: getFastifyErrorResponsePath(request),\n      routeTemplate",
+    "fastify error log path dimension",
+  );
+  assertNoDirectSecretLogging(fastifyApp, "fastify app");
+
+  // El path sanitizado sigue siendo parte del body publico, no del log.
+  assertContains(
+    fastifyApp,
+    "path: getFastifyErrorResponsePath(request),",
+    "fastify error response path contract",
+  );
+
+  // `error.code` se omite del todo del log: una regex sintactica sobre un
+  // `code` acepta identificadores con forma de PII (p. ej. "Paciente_307"), y
+  // no existe una allowlist cerrada de SQLSTATE/codigos de libreria que
+  // justifique mantener el campo. El contrato es ausencia total, no una lista
+  // parcial de valores "tecnicos" aceptados.
+  assertNotContains(
+    fastifyApp,
+    "SAFE_ERROR_CODE_PATTERN",
+    "fastify must not keep a syntactic error-code pattern",
+  );
+  assertNotContains(
+    fastifyApp,
+    "getFastifyErrorSafeCode",
+    "fastify must not derive a safeCode from error.code",
+  );
+  assertNotContains(fastifyApp, "safeCode", "fastify API_ERROR must omit safeCode");
+  assertNotContains(
+    fastifyApp,
+    "SAFE_ERROR_NAME_PATTERN",
+    "fastify must not keep a syntactic error-name pattern",
+  );
+
+  for (const file of [
+    "server/routes/admin-pricing.fastify.ts",
+    "server/routes/public-pricing.fastify.ts",
+  ] as const) {
+    const source = readSource(file);
+
+    assertContains(
+      source,
+      "routeTemplate: normalizeRouteTemplate(request.routeOptions?.url)",
+      `${file} route template dimension`,
+    );
+    assertContains(
+      source,
+      "errorName: serializeError(error).name,",
+      `${file} allowlisted error name`,
+    );
+    assertNotContains(source, "path: request.url", `${file} raw url dimension`);
+    assertNotContains(source, "sanitizeUrlForLogs", `${file} url log derivation`);
+    assertNotContains(source, "safeCode", `${file} must not derive safeCode`);
+    assertNotContains(source, "error.name", `${file} direct error.name usage`);
+  }
+});
+
+test("serializeError usa una allowlist finita de nombres, no una regex sintactica", () => {
+  const logger = readSource("server/lib/logger.ts");
+
+  assertNotContains(
+    logger,
+    "SAFE_ERROR_NAME_PATTERN",
+    "logger must not keep the syntactic error-name pattern",
+  );
+  assertContains(logger, "SAFE_ERROR_NAMES", "logger finite error-name allowlist");
+
+  for (const builtin of [
+    "Error",
+    "TypeError",
+    "RangeError",
+    "ReferenceError",
+    "SyntaxError",
+    "URIError",
+    "EvalError",
+    "AggregateError",
+  ] as const) {
+    assertContains(
+      logger,
+      `"${builtin}"`,
+      `logger allowlist must include native error class ${builtin}`,
+    );
+  }
+
+  // Nombres custom de librerias/frameworks nunca deben sumarse a la allowlist:
+  // deben degradar a "Error" via serializeError, no listarse como seguros.
+  for (const disallowed of [
+    "ZodError",
+    "PostgresError",
+    "FastifyError",
+    "ValidationError",
+  ] as const) {
+    assertNotContains(
+      logger,
+      `"${disallowed}"`,
+      `logger allowlist must not include library-specific name ${disallowed}`,
+    );
+  }
+});
+
+test("las metricas de observabilidad no admiten labels prohibidas", () => {
+  const metrics = readSource("server/lib/observability-metrics.ts");
+
+  assertContains(metrics, "export function buildRouteMetricsKey", "metrics route key boundary");
+  assertContains(metrics, "UNMATCHED_ROUTE", "metrics unmatched route fallback");
+  assertContains(metrics, "MAX_ROUTE_TEMPLATE_LENGTH", "metrics route length bound");
+  assertContains(metrics, "routeKeyLimit", "metrics cardinality bound");
+  assertContains(metrics, "latencySampleLimit", "metrics latency buffer bound");
+
+  for (const forbidden of [
+    "clinicId",
+    "reportId",
+    "patientId",
+    "tutorId",
+    "email",
+    "sessionId",
+    "cookie",
+    "token",
+    "tenant",
+    "username",
+    "process.env",
+  ]) {
+    assertNotContains(metrics, forbidden, "metrics forbidden dimension");
+  }
+
+  assertNoDirectSecretLogging(metrics, "observability metrics");
 });
 
 test("auth routes hash session tokens and avoid logging raw credentials", () => {
@@ -296,4 +678,63 @@ test("sensitive log redaction guardrail source stays ascii only", () => {
       `guardrail source must stay ascii-only at index ${index}`,
     );
   }
+});
+
+test("request ids solo aceptan UUID v4 antes de llegar a logs", () => {
+  const requestIdSource = readSource(
+    "server/lib/http/api-request-id.ts",
+  );
+  const loggerSource = readSource("server/lib/logger.ts");
+
+  assertContains(
+    requestIdSource,
+    "API_REQUEST_ID_UUID_V4_PATTERN",
+    "request id UUID v4 boundary",
+  );
+  assertContains(
+    requestIdSource,
+    "value.length === API_REQUEST_ID_MAX_LENGTH",
+    "request id exact UUID length",
+  );
+  assertContains(
+    requestIdSource,
+    "randomUUID()",
+    "server-generated request id",
+  );
+  assertNotContains(
+    requestIdSource,
+    "API_REQUEST_ID_ALLOWED_CHARACTERS",
+    "request id character-only allowlist",
+  );
+
+  assertContains(
+    loggerSource,
+    "isSafeRequestId(requestId)",
+    "logger request id promotion boundary",
+  );
+});
+
+test("sensitive log keys no permiten bypass por sufijos Id o Count", () => {
+  const logger = readSource("server/lib/logger.ts");
+
+  assertNotContains(
+    logger,
+    'endsWith("tokenid")',
+    "logger tokenId suffix bypass",
+  );
+  assertNotContains(
+    logger,
+    'endsWith("count")',
+    "logger count suffix bypass",
+  );
+  assertNotContains(
+    logger,
+    "function isSafeLogKey",
+    "logger broad safe-key bypass",
+  );
+  assertContains(
+    logger,
+    "SENSITIVE_KEY_FRAGMENTS.some",
+    "logger sensitive fragment boundary",
+  );
 });

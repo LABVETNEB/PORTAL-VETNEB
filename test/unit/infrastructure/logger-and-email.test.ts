@@ -19,78 +19,84 @@ process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 const { ENV } = await import("../../../server/lib/env.ts");
 const { sendContactMessageEmail, sendSpecialStainRequiredEmail } = await import("../../../server/lib/email.ts");
 
-test("logInfo agrega prefijo [INFO]", () => {
-  const original = console.log;
+function captureSingleJsonLine(
+  channel: "log" | "warn" | "error",
+  run: () => void,
+) {
+  const original = console[channel];
   const calls: unknown[][] = [];
 
-  console.log = (...args: unknown[]) => {
+  console[channel] = (...args: unknown[]) => {
     calls.push(args);
   };
 
   try {
-    logInfo("hola", { ok: true });
+    run();
   } finally {
-    console.log = original;
+    console[channel] = original;
   }
 
   assert.equal(calls.length, 1);
-  assert.deepEqual(calls[0], ["[INFO]", "hola", { ok: true }]);
+  assert.equal(calls[0].length, 1);
+  assert.equal(typeof calls[0][0], "string");
+
+  return JSON.parse(calls[0][0] as string) as Record<string, unknown>;
+}
+
+test("logInfo emite una linea JSON estructurada con nivel info", () => {
+  const logEvent = captureSingleJsonLine("log", () => {
+    logInfo("HOLA_EVENTO", { ok: true });
+  });
+
+  assert.equal(logEvent.level, "info");
+  assert.equal(logEvent.event, "HOLA_EVENTO");
+  assert.deepEqual(logEvent.context, { ok: true });
+  assert.equal(typeof logEvent.timestamp, "string");
 });
 
-test("logWarn agrega prefijo [WARN]", () => {
-  const original = console.warn;
-  const calls: unknown[][] = [];
-
-  console.warn = (...args: unknown[]) => {
-    calls.push(args);
-  };
-
-  try {
+test("logWarn emite una linea JSON estructurada con nivel warn", () => {
+  const logEvent = captureSingleJsonLine("warn", () => {
     logWarn("atención", 123);
-  } finally {
-    console.warn = original;
-  }
+  });
 
-  assert.equal(calls.length, 1);
-  assert.deepEqual(calls[0], ["[WARN]", "atención", 123]);
+  assert.equal(logEvent.level, "warn");
+  assert.equal(logEvent.event, "LOG_WARN");
+  assert.deepEqual(logEvent.context, { args: ["atención", 123] });
 });
 
-test("logError agrega prefijo [ERROR]", () => {
-  const original = console.error;
-  const calls: unknown[][] = [];
+test("logError emite una linea JSON estructurada con nivel error", () => {
+  const logEvent = captureSingleJsonLine("error", () => {
+    logError("FALLO_EVENTO", { code: "E_TEST" });
+  });
 
-  console.error = (...args: unknown[]) => {
-    calls.push(args);
-  };
-
-  try {
-    logError("falló", { code: "E_TEST" });
-  } finally {
-    console.error = original;
-  }
-
-  assert.equal(calls.length, 1);
-  assert.deepEqual(calls[0], ["[ERROR]", "falló", { code: "E_TEST" }]);
+  assert.equal(logEvent.level, "error");
+  assert.equal(logEvent.event, "FALLO_EVENTO");
+  assert.deepEqual(logEvent.context, { code: "E_TEST" });
 });
 
-test("serializeError serializa instancias de Error", () => {
+test("serializeError expone sólo el nombre, nunca el mensaje libre", () => {
   const error = new TypeError("mensaje de prueba");
-  const serialized = serializeError(error) as {
-    message: string;
-    name: string;
-    stack?: string;
-  };
+  const serialized = serializeError(error) as Record<string, unknown>;
 
-  assert.equal(serialized.message, "mensaje de prueba");
-  assert.equal(serialized.name, "TypeError");
-  assert.equal(typeof serialized.stack, "string");
+  assert.deepEqual(serialized, {
+    name: "TypeError",
+    messageSanitized: "[REDACTED]",
+  });
+  assert.equal("stack" in serialized, false);
+  assert.equal(JSON.stringify(serialized).includes("mensaje de prueba"), false);
 });
 
-test("serializeError deja intactos valores no Error", () => {
-  const payload = { ok: false, code: "X" };
-  assert.equal(serializeError(payload), payload);
-  assert.equal(serializeError("texto"), "texto");
-  assert.equal(serializeError(null), null);
+test("serializeError encapsula valores no Error sin mutar el original", () => {
+  const payload = { ok: false, code: "X", sessionToken: "raw-value" };
+  const expected = {
+    name: "UnknownError",
+    messageSanitized: "[REDACTED]",
+  };
+
+  assert.deepEqual(serializeError(payload), expected);
+  assert.deepEqual(payload, { ok: false, code: "X", sessionToken: "raw-value" });
+  assert.deepEqual(serializeError("texto"), expected);
+  assert.deepEqual(serializeError(null), expected);
 });
 
 test("sendContactMessageEmail usa CONTACT_TO y fallback SMTP_FROM sin loguear secretos", async () => {
