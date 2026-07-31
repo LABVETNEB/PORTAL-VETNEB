@@ -151,10 +151,17 @@ test("requestLogger registra evento estructurado sin marcar rateLimited fuera de
   assert.equal("path" in logEvent.context, false);
   assert.equal("url" in logEvent.context, false);
 
-  const serializedContext = JSON.stringify(logEvent.context);
+  // Sólo las dimensiones string son deterministas: durationMs es un float y
+  // puede contener cualquier secuencia de digitos.
+  const serializedDimensions = JSON.stringify({
+    method: logEvent.context.method,
+    routeTemplate: logEvent.context.routeTemplate,
+    statusClass: logEvent.context.statusClass,
+  });
 
-  assert.equal(serializedContext.includes("secret-token"), false);
-  assert.equal(serializedContext.includes("/api/reports"), false);
-  assert.equal(serializedContext.includes("12"), false);
+  assert.equal(serializedDimensions.includes("secret-token"), false);
+  assert.equal(serializedDimensions.includes("/api/reports"), false);
+  assert.equal(serializedDimensions.includes("12"), false);
   assert.equal(line.includes("secret-token"), false);
+  assert.equal(line.includes("/api/reports"), false);
 });

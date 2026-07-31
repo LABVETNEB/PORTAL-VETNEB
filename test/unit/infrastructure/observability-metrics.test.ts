@@ -4,6 +4,7 @@ import {
   buildRouteMetricsKey,
   computePercentile,
   createObservabilityMetricsRegistry,
+  createObservabilityRequestFinalizer,
   getStatusClass,
   OVERFLOW_ROUTE_KEY,
   UNMATCHED_ROUTE_TEMPLATE,
@@ -234,4 +235,165 @@ test("el snapshot reporta startedAt y uptime a partir del reloj inyectado", () =
 
   assert.equal(snapshot.startedAt, new Date(1_800_000_000_000).toISOString());
   assert.equal(snapshot.uptimeSeconds, 90);
+});
+
+test("recordRequestAborted libera in-flight sin contar una respuesta", () => {
+  const registry = createObservabilityMetricsRegistry();
+
+  registry.recordRequestStarted();
+  registry.recordRequestStarted();
+  registry.recordRequestAborted();
+
+  const snapshot = registry.getSnapshot();
+
+  assert.equal(snapshot.requestsStartedTotal, 2);
+  assert.equal(snapshot.inFlightRequests, 1);
+  assert.equal(snapshot.requestsCompletedTotal, 0);
+  assert.deepEqual(snapshot.responsesByStatusClass, {
+    "1xx": 0,
+    "2xx": 0,
+    "3xx": 0,
+    "4xx": 0,
+    "5xx": 0,
+  });
+  assert.equal(snapshot.serverErrors5xxTotal, 0);
+  assert.equal(snapshot.serverErrorRate, null);
+  assert.equal(snapshot.rateLimitedResponsesTotal, 0);
+  assert.equal(snapshot.latencyMs.count, 0);
+  assert.deepEqual(snapshot.routes, []);
+});
+
+test("múltiples abortos nunca dejan in-flight negativo", () => {
+  const registry = createObservabilityMetricsRegistry();
+
+  registry.recordRequestStarted();
+  registry.recordRequestAborted();
+  registry.recordRequestAborted();
+  registry.recordRequestAborted();
+
+  const snapshot = registry.getSnapshot();
+
+  assert.equal(snapshot.inFlightRequests, 0);
+  assert.equal(snapshot.requestsCompletedTotal, 0);
+});
+
+test("el finalizer ejecuta abort una sola vez y bloquea el complete posterior", () => {
+  const registry = createObservabilityMetricsRegistry();
+  const finalizer = createObservabilityRequestFinalizer(registry);
+
+  registry.recordRequestStarted();
+
+  assert.equal(finalizer.recordAborted(), true);
+  assert.equal(finalizer.recordAborted(), false);
+  assert.equal(
+    finalizer.recordCompleted({
+      method: "GET",
+      routeTemplate: "/api/health",
+      statusCode: 200,
+      durationMs: 10,
+    }),
+    false,
+  );
+
+  const snapshot = registry.getSnapshot();
+
+  assert.equal(snapshot.inFlightRequests, 0);
+  assert.equal(snapshot.requestsCompletedTotal, 0);
+  assert.equal(snapshot.responsesByStatusClass["2xx"], 0);
+  assert.equal(snapshot.latencyMs.count, 0);
+  assert.deepEqual(snapshot.routes, []);
+});
+
+test("el finalizer ejecuta complete una sola vez y bloquea el abort posterior", () => {
+  const registry = createObservabilityMetricsRegistry();
+  const finalizer = createObservabilityRequestFinalizer(registry);
+  const completedInput = {
+    method: "GET",
+    routeTemplate: "/api/health",
+    statusCode: 200,
+    durationMs: 10,
+  };
+
+  registry.recordRequestStarted();
+
+  assert.equal(finalizer.recordCompleted(completedInput), true);
+  assert.equal(finalizer.recordCompleted(completedInput), false);
+  assert.equal(finalizer.recordAborted(), false);
+
+  const snapshot = registry.getSnapshot();
+
+  assert.equal(snapshot.inFlightRequests, 0);
+  assert.equal(snapshot.requestsCompletedTotal, 1);
+  assert.equal(snapshot.responsesByStatusClass["2xx"], 1);
+  assert.equal(snapshot.latencyMs.count, 1);
+  assert.deepEqual(snapshot.routes, [
+    {
+      route: "GET /api/health",
+      count: 1,
+      serverErrors5xx: 0,
+      p50: 10,
+      p95: 10,
+    },
+  ]);
+});
+
+test("el finalizer queda consumido aunque la registry inyectada lance", () => {
+  const calls: string[] = [];
+  const throwingRegistry = {
+    recordRequestStarted() {
+      calls.push("started");
+    },
+    recordRequestCompleted() {
+      calls.push("completed");
+      throw new Error("registry failure");
+    },
+    recordRequestAborted() {
+      calls.push("aborted");
+    },
+    getSnapshot() {
+      throw new Error("snapshot failure");
+    },
+    reset() {},
+  };
+
+  const finalizer = createObservabilityRequestFinalizer(throwingRegistry);
+
+  assert.throws(() =>
+    finalizer.recordCompleted({
+      method: "GET",
+      routeTemplate: "/api/health",
+      statusCode: 200,
+      durationMs: 10,
+    }),
+  );
+
+  // La finalización ya fue reclamada: no puede volver a contarse.
+  assert.equal(finalizer.recordAborted(), false);
+  assert.deepEqual(calls, ["completed"]);
+});
+
+test("cada finalizer es independiente por request", () => {
+  const registry = createObservabilityMetricsRegistry();
+  const first = createObservabilityRequestFinalizer(registry);
+  const second = createObservabilityRequestFinalizer(registry);
+
+  registry.recordRequestStarted();
+  registry.recordRequestStarted();
+
+  assert.equal(first.recordAborted(), true);
+  assert.equal(
+    second.recordCompleted({
+      method: "GET",
+      routeTemplate: "/api/health",
+      statusCode: 500,
+      durationMs: 5,
+    }),
+    true,
+  );
+
+  const snapshot = registry.getSnapshot();
+
+  assert.equal(snapshot.inFlightRequests, 0);
+  assert.equal(snapshot.requestsCompletedTotal, 1);
+  assert.equal(snapshot.serverErrors5xxTotal, 1);
 });

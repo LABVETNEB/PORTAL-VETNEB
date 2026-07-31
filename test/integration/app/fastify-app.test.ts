@@ -2432,6 +2432,9 @@ test(
       recordRequestCompleted() {
         throw new Error("metrics complete failure");
       },
+      recordRequestAborted() {
+        throw new Error("metrics abort failure");
+      },
       getSnapshot() {
         throw new Error("metrics snapshot failure");
       },
@@ -2512,8 +2515,19 @@ test(
 
       assertRequestIdHeader(ok, "okConIds");
 
-      const serializedLogs = consoleLogCalls
+      // Se inspeccionan las dimensiones string deterministas: requestId es un
+      // UUID y durationMs un float, de modo que incluirlos en un scan de
+      // substrings volveria el assert dependiente del azar.
+      const loggedDimensions = consoleLogCalls
         .map((call) => String(call[0]))
+        .map((line) => JSON.parse(line) as { context: Record<string, unknown> })
+        .map(({ context }) =>
+          JSON.stringify({
+            method: context.method,
+            routeTemplate: context.routeTemplate,
+            statusClass: context.statusClass,
+          }),
+        )
         .join("\n");
 
       for (const leaked of [
@@ -2523,9 +2537,11 @@ test(
         "raw-secret",
         "no-existe",
         "REDACTED",
+        "path",
+        "url",
       ]) {
         assert.equal(
-          serializedLogs.includes(leaked),
+          loggedDimensions.includes(leaked),
           false,
           `los access logs no deben conservar ${leaked}`,
         );
@@ -2541,7 +2557,9 @@ test(
         "GET UNMATCHED_ROUTE",
       ]);
 
-      const serializedSnapshot = JSON.stringify(snapshot);
+      // Las route keys son la unica dimension libre del snapshot; el resto son
+      // contadores y latencias numericas.
+      const serializedRouteKeys = JSON.stringify(routeKeys);
 
       for (const leaked of [
         "307",
@@ -2554,7 +2572,7 @@ test(
         "?",
       ]) {
         assert.equal(
-          serializedSnapshot.includes(leaked),
+          serializedRouteKeys.includes(leaked),
           false,
           `las metricas no deben conservar ${leaked}`,
         );
@@ -2568,10 +2586,11 @@ test(
       );
 
       assert.equal(errorLog.routeTemplate, "/api/__ids/clinics/:clinicId/boom");
-      assert.equal(
-        serializeConsoleCalls(consoleErrorCalls).includes("307"),
-        false,
-      );
+
+      const { requestId: loggedRequestId, ...errorLogDimensions } = errorLog;
+
+      assert.equal(typeof loggedRequestId, "string");
+      assert.equal(JSON.stringify(errorLogDimensions).includes("307"), false);
       assert.equal(
         serializeConsoleCalls(consoleErrorCalls).includes(
           "detalle interno sensible",
@@ -2640,6 +2659,278 @@ test(
       assert.equal((accessLogLine as string).includes("REDACTED"), false);
     } finally {
       console.log = originalConsoleLog;
+      await app.close();
+    }
+  },
+);
+
+test(
+  "los errores de pricing se correlacionan con X-Request-ID sin metadata extra",
+  async () => {
+    // El name viene manipulado a proposito: sin allowlist, un Error construido
+    // por una libreria o por datos externos filtraria PII al log.
+    const sensitiveErrorMessage =
+      "Paciente Maria Gomez biopsia con celulas atipicas tutor@example.com";
+    const listFailure = () => {
+      const failure = new Error(sensitiveErrorMessage);
+
+      failure.name = "Postgres Error usuario@example.com";
+
+      throw failure;
+    };
+
+    const app = await createFastifyApp({
+      ...fastifyAppHelpers.buildFastifyDispatchRouteStubs(),
+      adminPricingRoutes: {
+        deleteAdminSession: async () => {},
+        getAdminSessionByToken: async () => ({
+          id: 1,
+          adminUserId: 1,
+          expiresAt: new Date("2099-01-01T00:00:00.000Z"),
+        }),
+        getAdminUserById: async () => ({ id: 1, username: "VETNEB" }),
+        updateAdminSessionLastAccess: async () => {},
+        hashSessionToken: (token: string) => `hash:${token}`,
+        listAdminPricingItems: listFailure,
+        updatePricingItem: listFailure,
+        writeAuditLog: async () => {},
+      },
+      publicPricingRoutes: {
+        listPublicPricingItems: listFailure,
+      },
+    });
+
+    const { invalidatePublicPricingCache } = await import(
+      "../../../server/features/pricing/admin-pricing-service.ts"
+    );
+
+    // El listado publico se sirve con read-through cache: sin invalidarla, una
+    // suite previa del mismo proceso puede devolver 200 desde memoria.
+    invalidatePublicPricingCache();
+
+    const originalConsoleError = console.error;
+    const consoleErrorCalls: unknown[][] = [];
+
+    console.error = (...args: unknown[]) => {
+      consoleErrorCalls.push(args);
+    };
+
+    try {
+      const adminCookie = `${ENV.adminCookieName}=admin-session-value`;
+      const allowedOrigin = ENV.corsOrigins[0] ?? "http://localhost:3000";
+
+      const cases = [
+        {
+          label: "ADMIN_PRICING_LIST_ERROR",
+          routeTemplate: "/api/admin/pricing",
+          response: await app.inject({
+            method: "GET",
+            url: "/api/admin/pricing",
+            headers: { cookie: adminCookie },
+          }),
+          expectedBody: {
+            success: false,
+            error: "No se pudieron cargar los precios administrables.",
+          },
+        },
+        {
+          label: "ADMIN_PRICING_PATCH_ERROR",
+          routeTemplate: "/api/admin/pricing/:id",
+          response: await app.inject({
+            method: "PATCH",
+            url: "/api/admin/pricing/4821",
+            headers: { cookie: adminCookie, origin: allowedOrigin },
+            payload: { isActive: false },
+          }),
+          expectedBody: {
+            success: false,
+            error: "No se pudieron guardar los cambios de precio.",
+          },
+        },
+        {
+          label: "PUBLIC_PRICING_LIST_ERROR",
+          routeTemplate: "/api/public/pricing",
+          response: await app.inject({
+            method: "GET",
+            url: "/api/public/pricing",
+          }),
+          expectedBody: {
+            success: false,
+            error: "Error interno del servidor",
+          },
+        },
+      ];
+
+      const logLines = consoleErrorCalls.map((call) => String(call[0]));
+
+      for (const testCase of cases) {
+        assert.equal(testCase.response.statusCode, 500, testCase.label);
+
+        const headerRequestId = assertRequestIdHeader(
+          testCase.response,
+          testCase.label,
+        );
+
+        assert.deepEqual(JSON.parse(testCase.response.body), {
+          ...testCase.expectedBody,
+          requestId: headerRequestId,
+        });
+
+        const logLine = logLines.find((line) =>
+          line.includes(`"event":"${testCase.label}"`),
+        );
+
+        assert.equal(typeof logLine, "string", testCase.label);
+
+        const logEvent = JSON.parse(logLine as string) as {
+          level: string;
+          event: string;
+          requestId?: string;
+          context: Record<string, unknown>;
+        };
+
+        assert.equal(logEvent.event, testCase.label);
+        assert.equal(logEvent.level, "error");
+
+        // requestId se promueve al nivel superior y no queda duplicado.
+        assert.equal(logEvent.requestId, headerRequestId);
+        assert.equal("requestId" in logEvent.context, false);
+
+        // El name manipulado se degrada a la allowlist del logger.
+        assert.deepEqual(logEvent.context, {
+          routeTemplate: testCase.routeTemplate,
+          errorName: "Error",
+        });
+        assert.deepEqual(Object.keys(logEvent.context).sort(), [
+          "errorName",
+          "routeTemplate",
+        ]);
+
+        for (const forbidden of [
+          sensitiveErrorMessage,
+          "Maria",
+          "Gomez",
+          "biopsia",
+          "atipicas",
+          "tutor@example.com",
+          "usuario@example.com",
+          "Postgres Error",
+          "admin-session-value",
+          "hash:",
+          "VETNEB",
+          "4821",
+          "isActive",
+          "cookie",
+          "session",
+          "message",
+          "stack",
+          "path",
+          "url",
+          "body",
+        ]) {
+          assert.equal(
+            (logLine as string).includes(forbidden),
+            false,
+            `${testCase.label} no debe registrar ${forbidden}`,
+          );
+        }
+
+        // "error" se verifica contra el context porque el nivel del evento es
+        // literalmente "error" en el nivel superior del JSON.
+        const serializedContext = JSON.stringify(logEvent.context);
+
+        for (const forbiddenKey of [
+          "error",
+          "message",
+          "stack",
+          "path",
+          "url",
+          "body",
+          "cookie",
+          "session",
+          "messageSanitized",
+          "code",
+          "params",
+        ]) {
+          assert.equal(
+            forbiddenKey in (logEvent.context as Record<string, unknown>),
+            false,
+            `${testCase.label} no debe registrar la clave ${forbiddenKey}`,
+          );
+          assert.equal(
+            serializedContext.includes(`"${forbiddenKey}"`),
+            false,
+            `${testCase.label} no debe serializar ${forbiddenKey}`,
+          );
+        }
+      }
+    } finally {
+      console.error = originalConsoleError;
+      invalidatePublicPricingCache();
+      await app.close();
+    }
+  },
+);
+
+test(
+  "un request finalizado por la app no vuelve a finalizarse ante un aborto",
+  async () => {
+    const {
+      createObservabilityMetricsRegistry,
+      createObservabilityRequestFinalizer,
+    } = await import("../../../server/lib/observability-metrics.ts");
+    const observabilityMetricsRegistry = createObservabilityMetricsRegistry();
+    const app = await createFastifyApp({
+      ...fastifyAppHelpers.buildFastifyDispatchRouteStubs(),
+      observabilityMetricsRegistry,
+    });
+
+    try {
+      app.get("/api/__finalize/ok", async () => ({ success: true }));
+
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/__finalize/ok",
+      });
+
+      assert.equal(response.statusCode, 200);
+
+      const afterResponse = observabilityMetricsRegistry.getSnapshot();
+
+      assert.equal(afterResponse.requestsStartedTotal, 1);
+      assert.equal(afterResponse.requestsCompletedTotal, 1);
+      assert.equal(afterResponse.inFlightRequests, 0);
+      assert.equal(afterResponse.responsesByStatusClass["2xx"], 1);
+      assert.equal(afterResponse.latencyMs.count, 1);
+
+      // Contrato de finalizacion once-only: el mismo finalizer que ya cerro el
+      // request no puede volver a tocar la registry por la via de aborto.
+      const finalizer = createObservabilityRequestFinalizer(
+        observabilityMetricsRegistry,
+      );
+
+      assert.equal(
+        finalizer.recordCompleted({
+          method: "GET",
+          routeTemplate: "/api/__finalize/ok",
+          statusCode: 200,
+          durationMs: 1,
+        }),
+        true,
+      );
+      assert.equal(finalizer.recordAborted(), false);
+      assert.equal(finalizer.recordCompleted({
+        method: "GET",
+        routeTemplate: "/api/__finalize/ok",
+        statusCode: 200,
+        durationMs: 1,
+      }), false);
+
+      const afterFinalizer = observabilityMetricsRegistry.getSnapshot();
+
+      assert.equal(afterFinalizer.requestsCompletedTotal, 2);
+      assert.equal(afterFinalizer.inFlightRequests, 0);
+    } finally {
       await app.close();
     }
   },

@@ -159,8 +159,10 @@ import {
 } from "./lib/http/api-request-id.ts";
 import { logError } from "./lib/logger.ts";
 import {
+  createObservabilityRequestFinalizer,
   getObservabilityMetricsRegistry,
   type ObservabilityMetricsRegistry,
+  type ObservabilityRequestFinalizer,
 } from "./lib/observability-metrics.ts";
 import { createRuntimeTimer, type RuntimeTimer } from "./lib/runtime-timing.ts";
 
@@ -340,11 +342,20 @@ function addApiErrorRequestIdToJsonPayload(
   });
 }
 
-const REQUEST_TIMER_KEY = "__observabilityRequestTimer";
+const REQUEST_OBSERVABILITY_KEY = "__observabilityRequestState";
+
+type ObservabilityRequestState = {
+  timer: RuntimeTimer;
+  finalizer: ObservabilityRequestFinalizer;
+};
 
 type ObservabilityFastifyRequest = FastifyRequest & {
-  [REQUEST_TIMER_KEY]?: RuntimeTimer;
+  [REQUEST_OBSERVABILITY_KEY]?: ObservabilityRequestState;
 };
+
+function getObservabilityRequestState(request: FastifyRequest) {
+  return (request as ObservabilityFastifyRequest)[REQUEST_OBSERVABILITY_KEY];
+}
 
 function getFastifyRouteTemplate(request: FastifyRequest): string {
   return normalizeRouteTemplate(request.routeOptions?.url);
@@ -417,9 +428,17 @@ export async function createFastifyApp(
 
   app.addHook("onRequest", async (request, reply) => {
     runFailSafe(() => {
-      (request as ObservabilityFastifyRequest)[REQUEST_TIMER_KEY] =
-        createRuntimeTimer();
+      const timer = createRuntimeTimer();
+
       metricsRegistry.recordRequestStarted();
+
+      // El estado sólo se publica una vez que el inicio quedó contabilizado,
+      // para que ninguna finalización pueda decrementar un in-flight que nunca
+      // se incrementó.
+      (request as ObservabilityFastifyRequest)[REQUEST_OBSERVABILITY_KEY] = {
+        timer,
+        finalizer: createObservabilityRequestFinalizer(metricsRegistry),
+      };
     });
 
     applyApiRequestIdHeader(request, reply);
@@ -440,15 +459,27 @@ export async function createFastifyApp(
 
   app.addHook("onResponse", async (request, reply) => {
     runFailSafe(() => {
-      const timer =
-        (request as ObservabilityFastifyRequest)[REQUEST_TIMER_KEY] ??
-        createRuntimeTimer();
-      metricsRegistry.recordRequestCompleted({
+      const state = getObservabilityRequestState(request);
+
+      if (!state) {
+        return;
+      }
+
+      state.finalizer.recordCompleted({
         method: request.method,
         routeTemplate: getFastifyRouteTemplate(request),
         statusCode: reply.statusCode,
-        durationMs: timer.elapsedMs(),
+        durationMs: state.timer.elapsedMs(),
       });
+    });
+  });
+
+  // El cliente cortó la conexión antes de la respuesta: se libera el in-flight
+  // sin inventar un status code, porque no existe taxonomía aprobada para un
+  // request abortado.
+  app.addHook("onRequestAbort", async (request) => {
+    runFailSafe(() => {
+      getObservabilityRequestState(request)?.finalizer.recordAborted();
     });
   });
 
@@ -464,7 +495,6 @@ export async function createFastifyApp(
     const status = getFastifyErrorStatus(error);
     const message = getFastifyErrorMessage(error);
     const requestId = getSafeApiResponseRequestId(request, reply);
-
     const safeCode = getFastifyErrorSafeCode(error);
 
     // Metadata allowlisted: nunca URL, query, path con IDs, error crudo ni stack.

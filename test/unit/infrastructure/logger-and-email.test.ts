@@ -74,28 +74,29 @@ test("logError emite una linea JSON estructurada con nivel error", () => {
   assert.deepEqual(logEvent.context, { code: "E_TEST" });
 });
 
-test("serializeError expone allowlist sin stack", () => {
+test("serializeError expone sólo el nombre, nunca el mensaje libre", () => {
   const error = new TypeError("mensaje de prueba");
   const serialized = serializeError(error) as Record<string, unknown>;
 
   assert.deepEqual(serialized, {
     name: "TypeError",
-    messageSanitized: "mensaje de prueba",
+    messageSanitized: "[REDACTED]",
   });
   assert.equal("stack" in serialized, false);
+  assert.equal(JSON.stringify(serialized).includes("mensaje de prueba"), false);
 });
 
-test("serializeError redacta valores no Error sin mutar el original", () => {
-  const payload = { ok: false, code: "X", sessionToken: "raw-secret" };
+test("serializeError encapsula valores no Error sin mutar el original", () => {
+  const payload = { ok: false, code: "X", sessionToken: "raw-value" };
+  const expected = {
+    name: "UnknownError",
+    messageSanitized: "[REDACTED]",
+  };
 
-  assert.deepEqual(serializeError(payload), {
-    ok: false,
-    code: "X",
-    sessionToken: "[REDACTED]",
-  });
-  assert.equal(payload.sessionToken, "raw-secret");
-  assert.equal(serializeError("texto"), "texto");
-  assert.equal(serializeError(null), null);
+  assert.deepEqual(serializeError(payload), expected);
+  assert.deepEqual(payload, { ok: false, code: "X", sessionToken: "raw-value" });
+  assert.deepEqual(serializeError("texto"), expected);
+  assert.deepEqual(serializeError(null), expected);
 });
 
 test("sendContactMessageEmail usa CONTACT_TO y fallback SMTP_FROM sin loguear secretos", async () => {

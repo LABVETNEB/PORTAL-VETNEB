@@ -165,20 +165,133 @@ test("redactSensitiveText redacta secretos embebidos en strings", () => {
   );
 });
 
-test("serializeError no expone stack ni detalles de driver", () => {
+test("serializeError elimina el mensaje libre completo, no sólo credenciales", () => {
   const error = new Error(
-    `connect failed for ${TEST_DATABASE_URL}`,
+    [
+      "Paciente Maria Gomez",
+      "tutor@example.com",
+      "biopsia con celulas atipicas",
+      "select nombre from pacientes where id = $1",
+      TEST_DATABASE_URL,
+    ].join(" | "),
   );
   (error as Error & { query?: string }).query = "select * from clinics";
+  (error as Error & { detail?: string }).detail = "Key (id)=(4821) exists";
+  (error as Error & { parameters?: unknown[] }).parameters = [4821];
+  (error as Error & { code?: string }).code = "23505";
 
   const serialized = serializeError(error) as Record<string, unknown>;
 
   assert.deepEqual(serialized, {
     name: "Error",
-    messageSanitized: "connect failed for [REDACTED]",
+    messageSanitized: "[REDACTED]",
   });
-  assert.equal("stack" in serialized, false);
-  assert.equal("query" in serialized, false);
+
+  const encoded = JSON.stringify(serialized);
+
+  for (const leaked of [
+    "Maria",
+    "Gomez",
+    "tutor@example.com",
+    "biopsia",
+    "atipicas",
+    "select",
+    "pacientes",
+    TEST_DATABASE_URL,
+    "4821",
+    "23505",
+    "Key (id)",
+  ]) {
+    assert.equal(
+      encoded.includes(leaked),
+      false,
+      `serializeError no debe exportar ${leaked}`,
+    );
+  }
+
+  for (const forbiddenKey of [
+    "stack",
+    "cause",
+    "message",
+    "query",
+    "detail",
+    "parameters",
+    "code",
+  ]) {
+    assert.equal(forbiddenKey in serialized, false, forbiddenKey);
+  }
+});
+
+test("serializeError conserva el nombre de la clase de error cuando es seguro", () => {
+  assert.deepEqual(serializeError(new TypeError("dato sensible")), {
+    name: "TypeError",
+    messageSanitized: "[REDACTED]",
+  });
+  assert.deepEqual(serializeError(new RangeError("otro dato")), {
+    name: "RangeError",
+    messageSanitized: "[REDACTED]",
+  });
+});
+
+test("serializeError degrada nombres de error inválidos a Error", () => {
+  const error = new Error("mensaje irrelevante");
+
+  error.name = "Postgres Error usuario@example.com";
+
+  const serialized = serializeError(error) as Record<string, unknown>;
+
+  assert.deepEqual(serialized, {
+    name: "Error",
+    messageSanitized: "[REDACTED]",
+  });
+  assert.equal(JSON.stringify(serialized).includes("usuario@example.com"), false);
+});
+
+test("serializeError encapsula cualquier valor lanzado que no sea Error", () => {
+  const expected = {
+    name: "UnknownError",
+    messageSanitized: "[REDACTED]",
+  };
+
+  assert.deepEqual(serializeError("Paciente Maria maria@example.com"), expected);
+  assert.deepEqual(serializeError({ patientName: "Maria", clinicId: 307 }), expected);
+  assert.deepEqual(serializeError(["maria@example.com", 4821]), expected);
+  assert.deepEqual(serializeError(null), expected);
+  assert.deepEqual(serializeError(undefined), expected);
+  assert.deepEqual(serializeError(42), expected);
+});
+
+test("serializeError no muta el input original", () => {
+  const error = new Error("mensaje original");
+  (error as Error & { query?: string }).query = "select 1";
+
+  serializeError(error);
+
+  assert.equal(error.message, "mensaje original");
+  assert.equal(error.name, "Error");
+  assert.equal((error as Error & { query?: string }).query, "select 1");
+
+  const thrown = { patientName: "Maria" };
+
+  serializeError(thrown);
+
+  assert.deepEqual(thrown, { patientName: "Maria" });
+});
+
+test("redactLogValue delega instancias Error al envelope seguro", () => {
+  const logEvent = captureJsonLine("error", () => {
+    logError("NESTED_ERROR_EVENT", {
+      cause: new TypeError("Paciente Maria maria@example.com"),
+    });
+  });
+
+  assert.deepEqual(logEvent.context, {
+    cause: {
+      name: "TypeError",
+      messageSanitized: "[REDACTED]",
+    },
+  });
+  assert.equal(JSON.stringify(logEvent).includes("Maria"), false);
 });
 
 test("el logger tolera referencias circulares, fechas y arrays", () => {

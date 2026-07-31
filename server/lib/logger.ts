@@ -230,15 +230,37 @@ export function redactLogValue(value: unknown): unknown {
   return redactValue(value, 0, new WeakSet<object>());
 }
 
-export function serializeError(error: unknown): unknown {
-  if (error instanceof Error) {
+const SAFE_ERROR_NAME_PATTERN = /^[A-Za-z][A-Za-z0-9_]{0,63}$/;
+
+export type SerializedError = {
+  name: string;
+  messageSanitized: typeof LOG_REDACTED_VALUE;
+};
+
+/**
+ * Envelope cerrado: nunca se exporta el mensaje libre de un error. Una regex de
+ * credenciales no puede demostrar que un mensaje arbitrario no contiene nombre
+ * de paciente, email, contenido clinico, SQL, parametros DB o paths internos,
+ * asi que el mensaje se elimina por diseno y solo sobrevive el nombre de la
+ * clase de error, validado contra una allowlist.
+ */
+export function serializeError(error: unknown): SerializedError {
+  if (!(error instanceof Error)) {
     return {
-      name: error.name,
-      messageSanitized: redactSensitiveText(error.message),
+      name: "UnknownError",
+      messageSanitized: LOG_REDACTED_VALUE,
     };
   }
 
-  return redactLogValue(error);
+  const name = error.name;
+
+  return {
+    name:
+      typeof name === "string" && SAFE_ERROR_NAME_PATTERN.test(name)
+        ? name
+        : "Error",
+    messageSanitized: LOG_REDACTED_VALUE,
+  };
 }
 
 function buildLogContext(args: unknown[]): Record<string, unknown> {

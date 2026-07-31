@@ -65,9 +65,59 @@ export type ObservabilityMetricsSnapshot = {
 export type ObservabilityMetricsRegistry = {
   recordRequestStarted: () => void;
   recordRequestCompleted: (input: RecordRequestCompletedInput) => void;
+  recordRequestAborted: () => void;
   getSnapshot: () => ObservabilityMetricsSnapshot;
   reset: () => void;
 };
+
+/**
+ * Finaliza un request exactamente una vez. Un aborto sin respuesta no es una
+ * respuesta completada: sólo libera el contador in-flight.
+ */
+export type ObservabilityRequestFinalizer = {
+  recordCompleted: (input: RecordRequestCompletedInput) => boolean;
+  recordAborted: () => boolean;
+};
+
+export function createObservabilityRequestFinalizer(
+  registry: ObservabilityMetricsRegistry,
+): ObservabilityRequestFinalizer {
+  let finalized = false;
+
+  // Se marca antes de invocar la registry: si la implementacion inyectada
+  // lanza, el request ya no puede volver a finalizarse y contar dos veces.
+  function claim(): boolean {
+    if (finalized) {
+      return false;
+    }
+
+    finalized = true;
+
+    return true;
+  }
+
+  return {
+    recordCompleted(input) {
+      if (!claim()) {
+        return false;
+      }
+
+      registry.recordRequestCompleted(input);
+
+      return true;
+    },
+
+    recordAborted() {
+      if (!claim()) {
+        return false;
+      }
+
+      registry.recordRequestAborted();
+
+      return true;
+    },
+  };
+}
 
 const HTTP_METHOD_PATTERN = /^[A-Z]{3,10}$/;
 const ROUTE_TEMPLATE_PATTERN = /^[A-Za-z0-9/_:*.-]+$/;
@@ -262,6 +312,12 @@ export function createObservabilityMetricsRegistry(
     recordRequestStarted() {
       requestsStartedTotal += 1;
       inFlightRequests += 1;
+    },
+
+    recordRequestAborted() {
+      // Un aborto libera el in-flight pero no produce respuesta: no alimenta
+      // completadas, status classes, 5xx, rate limit, latencias ni rutas.
+      inFlightRequests = Math.max(0, inFlightRequests - 1);
     },
 
     recordRequestCompleted(input) {

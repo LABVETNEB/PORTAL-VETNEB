@@ -240,6 +240,16 @@ test("structured logger centraliza la redaccion y es el unico boundary de consol
   assertNotContains(logger, "error.stack", "structured logger stack export");
   assertNoDirectSecretLogging(logger, "structured logger");
 
+  // El mensaje libre de un error nunca se exporta: una regex de credenciales no
+  // puede demostrar que no contiene datos clinicos, SQL o PII.
+  assertNotContains(logger, "error.message", "structured logger free-form message");
+  assertContains(
+    logger,
+    "messageSanitized: LOG_REDACTED_VALUE",
+    "structured logger closed error envelope",
+  );
+  assertContains(logger, "UnknownError", "structured logger non-Error envelope");
+
   // Las rutas migradas emiten via logInfo/logError, no via console directo.
   for (const file of [
     "server/routes/admin-pricing.fastify.ts",
@@ -248,9 +258,82 @@ test("structured logger centraliza la redaccion y es el unico boundary de consol
     const source = readSource(file);
 
     assertContains(source, "logError(", `${file} structured error logging`);
-    assertContains(source, "errorName:", `${file} allowlisted error metadata`);
+    assertContains(source, "requestId: request.id", `${file} error correlation`);
     assertNotContains(source, "console.", `${file} console boundary`);
     assertNotContains(source, "\n        error,\n", `${file} raw error payload`);
+
+    // El nombre del error pasa por la allowlist central del logger: un `name`
+    // manipulado no puede exportar PII, email ni SQL a traves del log.
+    assertContains(source, "serializeError", `${file} central error envelope`);
+    assertContains(
+      source,
+      "errorName: serializeError(error).name,",
+      `${file} allowlisted error name`,
+    );
+    assertNotContains(source, "getSafeErrorName", `${file} local error name helper`);
+    assertNotContains(source, "error.message", `${file} free-form error message`);
+    assertNotContains(source, "messageSanitized", `${file} error message export`);
+  }
+});
+
+test("las metricas finalizan cada request exactamente una vez", () => {
+  const metrics = readSource("server/lib/observability-metrics.ts");
+  const fastifyApp = readSource("server/fastify-app.ts");
+
+  for (const marker of [
+    "recordRequestAborted",
+    "createObservabilityRequestFinalizer",
+  ] as const) {
+    assertContains(metrics, marker, "metrics finalization boundary");
+  }
+
+  assertContains(
+    fastifyApp,
+    "createObservabilityRequestFinalizer",
+    "fastify finalization boundary",
+  );
+  assertContains(fastifyApp, "onRequestAbort", "fastify abort hook");
+  assertContains(
+    fastifyApp,
+    "finalizer.recordAborted()",
+    "fastify abort finalization",
+  );
+  assertNotContains(
+    fastifyApp,
+    "metricsRegistry.recordRequestAborted(",
+    "fastify direct abort bypassing the finalizer",
+  );
+  assertContains(
+    fastifyApp,
+    "state.finalizer.recordCompleted({",
+    "fastify once-only completion",
+  );
+  assertNotContains(
+    fastifyApp,
+    "metricsRegistry.recordRequestCompleted(",
+    "fastify direct completion bypassing the finalizer",
+  );
+
+  // Un aborto libera in-flight sin inventar un status code ni una latencia.
+  const abortedStart = metrics.indexOf("recordRequestAborted() {");
+
+  assert.notEqual(abortedStart, -1, "metrics aborted recorder");
+
+  const abortedBody = metrics.slice(
+    abortedStart,
+    metrics.indexOf("},", abortedStart),
+  );
+
+  for (const forbidden of [
+    "requestsCompletedTotal",
+    "responsesByStatusClass",
+    "serverErrors5xxTotal",
+    "rateLimitedResponsesTotal",
+    "pushBoundedSample",
+    "resolveRouteBucket",
+    "499",
+  ]) {
+    assertNotContains(abortedBody, forbidden, "metrics aborted recorder scope");
   }
 });
 
