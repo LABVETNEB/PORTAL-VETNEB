@@ -230,7 +230,22 @@ export function redactLogValue(value: unknown): unknown {
   return redactValue(value, 0, new WeakSet<object>());
 }
 
-const SAFE_ERROR_NAME_PATTERN = /^[A-Za-z][A-Za-z0-9_]{0,63}$/;
+/**
+ * Allowlist finita e inmutable de nombres de clases de Error nativas de
+ * JavaScript. Una regex sintactica (p. ej. "cualquier identificador") sigue
+ * aceptando nombres con forma de PII como "MariaGomez" o "Paciente_307": sólo
+ * una lista cerrada de valores conocidos elimina esa clase de fuga.
+ */
+const SAFE_ERROR_NAMES: ReadonlySet<string> = new Set([
+  "Error",
+  "TypeError",
+  "RangeError",
+  "ReferenceError",
+  "SyntaxError",
+  "URIError",
+  "EvalError",
+  "AggregateError",
+]);
 
 export type SerializedError = {
   name: string;
@@ -242,7 +257,7 @@ export type SerializedError = {
  * credenciales no puede demostrar que un mensaje arbitrario no contiene nombre
  * de paciente, email, contenido clinico, SQL, parametros DB o paths internos,
  * asi que el mensaje se elimina por diseno y solo sobrevive el nombre de la
- * clase de error, validado contra una allowlist.
+ * clase de error, validado contra la allowlist finita.
  */
 export function serializeError(error: unknown): SerializedError {
   if (!(error instanceof Error)) {
@@ -256,9 +271,7 @@ export function serializeError(error: unknown): SerializedError {
 
   return {
     name:
-      typeof name === "string" && SAFE_ERROR_NAME_PATTERN.test(name)
-        ? name
-        : "Error",
+      typeof name === "string" && SAFE_ERROR_NAMES.has(name) ? name : "Error",
     messageSanitized: LOG_REDACTED_VALUE,
   };
 }

@@ -477,7 +477,7 @@ test("errores internos se loguean, pero la respuesta 500 no expone detalles", ()
 
   assertContains(source, "app.setErrorHandler((error, request, reply) => {", file);
   assertContains(source, 'logError("API_ERROR", {', file);
-  assertContains(source, "errorName: getFastifyErrorName(error)", file);
+  assertContains(source, "errorName: serializeError(error).name", file);
   assertNotContains(source, 'console.error("[API ERROR]"', file);
   assertNotContains(source, "\n      error,\n", file);
   assertContains(

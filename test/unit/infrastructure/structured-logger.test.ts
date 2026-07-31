@@ -222,29 +222,68 @@ test("serializeError elimina el mensaje libre completo, no sólo credenciales", 
   }
 });
 
-test("serializeError conserva el nombre de la clase de error cuando es seguro", () => {
-  assert.deepEqual(serializeError(new TypeError("dato sensible")), {
-    name: "TypeError",
-    messageSanitized: "[REDACTED]",
-  });
-  assert.deepEqual(serializeError(new RangeError("otro dato")), {
-    name: "RangeError",
+test("serializeError conserva el nombre de la clase de error cuando esta en la allowlist finita", () => {
+  for (const [ErrorClass, name] of [
+    [Error, "Error"],
+    [TypeError, "TypeError"],
+    [RangeError, "RangeError"],
+    [ReferenceError, "ReferenceError"],
+    [SyntaxError, "SyntaxError"],
+    [URIError, "URIError"],
+    [EvalError, "EvalError"],
+  ] as const) {
+    assert.deepEqual(serializeError(new ErrorClass("dato sensible")), {
+      name,
+      messageSanitized: "[REDACTED]",
+    });
+  }
+});
+
+test("serializeError conserva AggregateError como caso limite del constructor variadico", () => {
+  const aggregate = new AggregateError(
+    [new Error("uno"), new Error("dos")],
+    "dato sensible agregado",
+  );
+
+  assert.deepEqual(serializeError(aggregate), {
+    name: "AggregateError",
     messageSanitized: "[REDACTED]",
   });
 });
 
-test("serializeError degrada nombres de error inválidos a Error", () => {
-  const error = new Error("mensaje irrelevante");
+test("serializeError degrada a Error cualquier name con forma de identificador pero fuera de la allowlist finita", () => {
+  // Una regex sintactica ("cualquier identificador valido") sigue aceptando
+  // nombres con forma de PII. Sólo una lista cerrada de valores conocidos
+  // elimina esa clase de fuga; estos nombres pasarian una regex de
+  // identificador pero deben degradar igual que un name con espacios.
+  for (const rejectedName of [
+    "MariaGomez",
+    "Paciente_307",
+    "HistoriaClinica",
+    "BiopsiaAtipica",
+    "PostgresError",
+    "ZodError",
+    "FastifyError",
+    "ValidationError",
+    "Postgres Error usuario@example.com",
+  ]) {
+    const error = new Error("mensaje irrelevante");
 
-  error.name = "Postgres Error usuario@example.com";
+    error.name = rejectedName;
 
-  const serialized = serializeError(error) as Record<string, unknown>;
+    const serialized = serializeError(error) as Record<string, unknown>;
 
-  assert.deepEqual(serialized, {
-    name: "Error",
-    messageSanitized: "[REDACTED]",
-  });
-  assert.equal(JSON.stringify(serialized).includes("usuario@example.com"), false);
+    assert.deepEqual(
+      serialized,
+      { name: "Error", messageSanitized: "[REDACTED]" },
+      rejectedName,
+    );
+    assert.equal(
+      JSON.stringify(serialized).includes(rejectedName),
+      false,
+      rejectedName,
+    );
+  }
 });
 
 test("serializeError encapsula cualquier valor lanzado que no sea Error", () => {

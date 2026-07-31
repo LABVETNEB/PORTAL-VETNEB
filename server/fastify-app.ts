@@ -157,7 +157,7 @@ import {
   generateFastifyRequestId,
   getSafeApiResponseRequestId,
 } from "./lib/http/api-request-id.ts";
-import { logError } from "./lib/logger.ts";
+import { logError, serializeError } from "./lib/logger.ts";
 import {
   createObservabilityRequestFinalizer,
   getObservabilityMetricsRegistry,
@@ -186,25 +186,14 @@ function getFastifyErrorMessage(error: unknown) {
   return "Unexpected error";
 }
 
-const SAFE_ERROR_NAME_PATTERN = /^[A-Za-z0-9_]{1,64}$/;
-
-function getFastifyErrorName(error: unknown) {
-  const name =
-    error instanceof Error
-      ? error.name
-      : error && typeof error === "object" && "name" in error
-        ? (error as { name?: unknown }).name
-        : undefined;
-
-  return typeof name === "string" && SAFE_ERROR_NAME_PATTERN.test(name)
-    ? name
-    : "UnknownError";
-}
+const SAFE_ERROR_CODE_PATTERN = /^[A-Za-z0-9_]{1,64}$/;
 
 /**
  * Sólo se exporta un `code` con forma de identificador corto (p. ej. SQLSTATE o
  * un código de librería). Cualquier otra cosa se descarta para no filtrar
- * mensajes ni detalle de driver DB.
+ * mensajes ni detalle de driver DB. Esta regex sintáctica es deliberadamente
+ * distinta de la allowlist finita de nombres de Error de serializeError: un
+ * `code` corto no es un nombre de clase y no exige lista cerrada.
  */
 function getFastifyErrorSafeCode(error: unknown) {
   const code =
@@ -212,7 +201,7 @@ function getFastifyErrorSafeCode(error: unknown) {
       ? (error as { code?: unknown }).code
       : undefined;
 
-  return typeof code === "string" && SAFE_ERROR_NAME_PATTERN.test(code)
+  return typeof code === "string" && SAFE_ERROR_CODE_PATTERN.test(code)
     ? code
     : undefined;
 }
@@ -502,7 +491,7 @@ export async function createFastifyApp(
       method: request.method,
       routeTemplate: getFastifyRouteTemplate(request),
       status,
-      errorName: getFastifyErrorName(error),
+      errorName: serializeError(error).name,
       ...(safeCode ? { safeCode } : {}),
       ...(requestId ? { requestId } : {}),
     });
@@ -613,6 +602,10 @@ export async function createFastifyApp(
 
   await app.register(adminSystemHealthNativeRoutes, {
     prefix: "/api/admin/system/health",
+    // La superficie privada de metricas debe leer la misma instancia que
+    // instrumenta esta app; sin este getter el plugin caeria en el singleton de
+    // proceso y podria reportar series distintas de las medidas aqui.
+    getObservabilityMetricsSnapshot: () => metricsRegistry.getSnapshot(),
     ...(options.adminSystemHealthRoutes ?? {}),
   });
 

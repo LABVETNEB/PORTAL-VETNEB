@@ -196,11 +196,11 @@ newline final no se cuenta.
 | --- | ---: | ---: |
 | `server/features` | 149 | 16.980 |
 | `server/routes` | 35 | 22.934 |
-| `server/lib` | 28 | 4.599 |
+| `server/lib` | 28 | 4.612 |
 | `server/middlewares` | 7 | 947 |
-| raíz/entrypoints `server/*.ts` | 9 | 2.397 |
+| raíz/entrypoints `server/*.ts` | 9 | 2.390 |
 | otros | 0 | 0 |
-| **Total `server`** | **228** | **47.857** |
+| **Total `server`** | **228** | **47.863** |
 
 El review P2 de M48 detectó que la primera metodología aplicaba una semántica
 equivalente a `source.split("\n").length`, que sumaba un segmento vacío por

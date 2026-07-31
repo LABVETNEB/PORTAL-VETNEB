@@ -1609,8 +1609,19 @@ test(
       };
       const allowedOrigin = ENV.corsOrigins[0] ?? "http://localhost:3000";
 
+      // "Paciente_307" pasaria una regex sintactica de identificador; sólo la
+      // allowlist finita de nombres de Error nativos lo rechaza.
+      const manipulatedNameThrow = async () => {
+        const failure = new Error("historia clinica confidencial del paciente");
+
+        failure.name = "Paciente_307";
+
+        throw failure;
+      };
+
       app.get("/api/__test/internal-error", throwInternalError);
       app.post("/api/__test/internal-error", throwInternalError);
+      app.get("/api/__test/manipulated-error-name", manipulatedNameThrow);
 
       const genericError = await app.inject({
         method: "POST",
@@ -1697,6 +1708,57 @@ test(
         "invalidIncomingError",
       );
 
+      const manipulatedNameError = await app.inject({
+        method: "GET",
+        url: "/api/__test/manipulated-error-name",
+      });
+
+      assert.equal(manipulatedNameError.statusCode, 500);
+      const {
+        body: manipulatedNameBody,
+        requestId: manipulatedNameRequestId,
+      } = assertBodyRequestIdMatchesHeader(
+        manipulatedNameError,
+        "manipulatedNameError",
+      );
+      assert.deepEqual(manipulatedNameBody, {
+        success: false,
+        error: "Error interno del servidor",
+        path: "/api/__test/manipulated-error-name",
+        requestId: manipulatedNameRequestId,
+      });
+      assert.doesNotMatch(
+        manipulatedNameError.body,
+        /historia clinica confidencial/,
+      );
+      assert.doesNotMatch(manipulatedNameError.body, /Paciente_307/);
+
+      const manipulatedNameLogPayload = assertApiErrorLogRequestId(
+        consoleErrorCalls,
+        3,
+        manipulatedNameRequestId,
+        "manipulatedNameError",
+      );
+
+      assert.equal(manipulatedNameLogPayload.errorName, "Error");
+      assert.equal(
+        manipulatedNameLogPayload.routeTemplate,
+        "/api/__test/manipulated-error-name",
+      );
+
+      const manipulatedNameLogLine = serializeConsoleCalls([
+        consoleErrorCalls[3] ?? [],
+      ]);
+
+      assert.equal(
+        manipulatedNameLogLine.includes("Paciente_307"),
+        false,
+      );
+      assert.equal(
+        manipulatedNameLogLine.includes("historia clinica confidencial"),
+        false,
+      );
+
       const publicApiNotFound = await app.inject({
         method: "GET",
         url: "/api/public/no-existe",
@@ -1725,7 +1787,7 @@ test(
       assertBodyDoesNotIncludeRequestId(apiHealth, "apiHealth");
       assert.equal(
         consoleErrorCalls.length,
-        3,
+        4,
         "respuesta API exitosa no debe registrar log de error nuevo",
       );
 
@@ -2667,14 +2729,17 @@ test(
 test(
   "los errores de pricing se correlacionan con X-Request-ID sin metadata extra",
   async () => {
-    // El name viene manipulado a proposito: sin allowlist, un Error construido
-    // por una libreria o por datos externos filtraria PII al log.
+    // El name viene manipulado a proposito con forma de identificador valido
+    // ("MariaGomez" pasaria una regex sintactica de tipo /^[A-Za-z][\w]*$/):
+    // sólo una allowlist finita de nombres de Error nativos lo rechaza. Sin
+    // esa allowlist, un Error construido por una libreria o por datos
+    // externos filtraria PII al log a traves del nombre de la clase.
     const sensitiveErrorMessage =
       "Paciente Maria Gomez biopsia con celulas atipicas tutor@example.com";
     const listFailure = () => {
       const failure = new Error(sensitiveErrorMessage);
 
-      failure.name = "Postgres Error usuario@example.com";
+      failure.name = "MariaGomez";
 
       throw failure;
     };
@@ -2813,8 +2878,7 @@ test(
           "biopsia",
           "atipicas",
           "tutor@example.com",
-          "usuario@example.com",
-          "Postgres Error",
+          "MariaGomez",
           "admin-session-value",
           "hash:",
           "VETNEB",
@@ -2930,6 +2994,195 @@ test(
 
       assert.equal(afterFinalizer.requestsCompletedTotal, 2);
       assert.equal(afterFinalizer.inFlightRequests, 0);
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+function buildAuthenticatedAdminSystemHealthStubs(
+  overrides: Record<string, unknown> = {},
+) {
+  return {
+    ...fastifyAppHelpers.buildAdminSystemHealthRouteStubs(),
+    getAdminSessionByToken: async () => ({
+      adminUserId: 1,
+      expiresAt: new Date("2099-01-01T00:00:00.000Z"),
+      lastAccess: new Date("2026-07-31T00:00:00.000Z"),
+    }),
+    getAdminUserById: async () => ({ id: 1, username: "VETNEB" }),
+    ...overrides,
+  };
+}
+
+test(
+  "el endpoint privado de metricas lee la registry instrumentada por createFastifyApp",
+  async () => {
+    const { createObservabilityMetricsRegistry } = await import(
+      "../../../server/lib/observability-metrics.ts"
+    );
+    const observabilityMetricsRegistry = createObservabilityMetricsRegistry();
+    const sentinelRoute = "/api/__injected-registry-sentinel";
+
+    // La sentinel se siembra directamente en la registry inyectada: no es
+    // alcanzable por HTTP, asi que su presencia prueba que el endpoint consulta
+    // esta instancia y no otra.
+    observabilityMetricsRegistry.recordRequestStarted();
+    observabilityMetricsRegistry.recordRequestCompleted({
+      method: "GET",
+      routeTemplate: sentinelRoute,
+      statusCode: 200,
+      durationMs: 17,
+    });
+
+    const app = await createFastifyApp({
+      ...fastifyAppHelpers.buildFastifyDispatchRouteStubs(),
+      observabilityMetricsRegistry,
+      adminSystemHealthRoutes: buildAuthenticatedAdminSystemHealthStubs(),
+    });
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/admin/system/health/metrics",
+        headers: {
+          cookie: `${ENV.adminCookieName}=admin-session-value`,
+        },
+      });
+
+      assert.equal(response.statusCode, 200);
+
+      const body = JSON.parse(response.body) as {
+        success: boolean;
+        metrics: {
+          routes: Array<{ route: string; count: number; p50: number | null }>;
+          requestsStartedTotal: number;
+          inFlightRequests: number;
+          requestsCompletedTotal: number;
+          latencyMs: { count: number };
+        };
+      };
+
+      assert.equal(body.success, true);
+
+      const sentinelEntry = body.metrics.routes.find(
+        (route) => route.route === `GET ${sentinelRoute}`,
+      );
+
+      assert.ok(
+        sentinelEntry,
+        "el endpoint debe exponer la ruta sembrada en la registry inyectada",
+      );
+      assert.equal(sentinelEntry.count, 1);
+      assert.equal(sentinelEntry.p50, 17);
+
+      // El propio GET /metrics ya esta iniciado y en vuelo cuando el handler
+      // toma el snapshot: se afirma la semantica, no un conteo cerrado.
+      assert.equal(body.metrics.requestsStartedTotal >= 2, true);
+      assert.equal(body.metrics.inFlightRequests >= 1, true);
+      assert.equal(body.metrics.requestsCompletedTotal >= 1, true);
+      assert.equal(body.metrics.latencyMs.count >= 1, true);
+
+      // No es una fixture estatica: la registry sigue viva y acumula.
+      const afterResponse = observabilityMetricsRegistry.getSnapshot();
+
+      assert.equal(afterResponse.inFlightRequests, 0);
+      assert.equal(
+        afterResponse.routes.some(
+          (route) => route.route === "GET /api/admin/system/health/metrics",
+        ),
+        true,
+      );
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "adminSystemHealthRoutes puede sobrescribir el getter de metricas inyectado",
+  async () => {
+    const { createObservabilityMetricsRegistry } = await import(
+      "../../../server/lib/observability-metrics.ts"
+    );
+    const observabilityMetricsRegistry = createObservabilityMetricsRegistry();
+
+    observabilityMetricsRegistry.recordRequestStarted();
+    observabilityMetricsRegistry.recordRequestCompleted({
+      method: "GET",
+      routeTemplate: "/api/__injected-registry-sentinel",
+      statusCode: 200,
+      durationMs: 17,
+    });
+
+    const overrideSnapshot = {
+      startedAt: "2026-07-31T00:00:00.000Z",
+      uptimeSeconds: 42,
+      requestsStartedTotal: 7,
+      requestsCompletedTotal: 7,
+      inFlightRequests: 0,
+      responsesByStatusClass: {
+        "1xx": 0,
+        "2xx": 7,
+        "3xx": 0,
+        "4xx": 0,
+        "5xx": 0,
+      },
+      serverErrors5xxTotal: 0,
+      serverErrorRate: 0,
+      rateLimitedResponsesTotal: 0,
+      latencyMs: {
+        count: 7,
+        min: 1,
+        max: 9,
+        average: 4,
+        p50: 4,
+        p95: 9,
+        p99: 9,
+      },
+      routes: [
+        {
+          route: "GET /api/__override-snapshot-sentinel",
+          count: 7,
+          serverErrors5xx: 0,
+          p50: 4,
+          p95: 9,
+        },
+      ],
+      routeKeysTracked: 1,
+      routeKeyLimitReached: false,
+      latencySampleLimit: 1024,
+    } as const;
+
+    const app = await createFastifyApp({
+      ...fastifyAppHelpers.buildFastifyDispatchRouteStubs(),
+      observabilityMetricsRegistry,
+      adminSystemHealthRoutes: buildAuthenticatedAdminSystemHealthStubs({
+        getObservabilityMetricsSnapshot: () => overrideSnapshot,
+      }),
+    });
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/admin/system/health/metrics",
+        headers: {
+          cookie: `${ENV.adminCookieName}=admin-session-value`,
+        },
+      });
+
+      assert.equal(response.statusCode, 200);
+
+      // El spread de options va despues del getter por defecto: un override
+      // explicito sigue ganando.
+      assert.deepEqual(JSON.parse(response.body), {
+        success: true,
+        metrics: overrideSnapshot,
+      });
+      assert.equal(
+        response.body.includes("__injected-registry-sentinel"),
+        false,
+      );
     } finally {
       await app.close();
     }

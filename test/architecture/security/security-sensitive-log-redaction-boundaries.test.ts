@@ -343,8 +343,8 @@ test("los handlers globales no registran el objeto Error crudo", () => {
   assertContains(fastifyApp, 'logError("API_ERROR", {', "fastify error handler event");
   assertContains(
     fastifyApp,
-    "errorName: getFastifyErrorName(error)",
-    "fastify error handler allowlist",
+    "errorName: serializeError(error).name",
+    "fastify error handler central allowlist",
   );
   assertContains(
     fastifyApp,
@@ -352,6 +352,11 @@ test("los handlers globales no registran el objeto Error crudo", () => {
     "fastify error handler route template",
   );
   assertContains(fastifyApp, "getFastifyErrorSafeCode", "fastify safe code allowlist");
+  assertNotContains(
+    fastifyApp,
+    "getFastifyErrorName",
+    "fastify local error name helper",
+  );
   assertNotContains(fastifyApp, "\n      error,\n", "fastify raw error payload");
   assertNotContains(fastifyApp, "error.stack", "fastify stack export");
   assertNotContains(fastifyApp, "console.", "fastify console boundary");
@@ -369,6 +374,20 @@ test("los handlers globales no registran el objeto Error crudo", () => {
     "fastify error response path contract",
   );
 
+  // SAFE_ERROR_CODE_PATTERN es una regex sintactica para `code` (p. ej.
+  // SQLSTATE), deliberadamente distinta de la allowlist finita de nombres de
+  // Error: un `code` corto no es un nombre de clase y no exige lista cerrada.
+  assertContains(
+    fastifyApp,
+    "SAFE_ERROR_CODE_PATTERN",
+    "fastify safe code pattern is distinct from error names",
+  );
+  assertNotContains(
+    fastifyApp,
+    "SAFE_ERROR_NAME_PATTERN",
+    "fastify must not keep a syntactic error-name pattern",
+  );
+
   for (const file of [
     "server/routes/admin-pricing.fastify.ts",
     "server/routes/public-pricing.fastify.ts",
@@ -380,8 +399,57 @@ test("los handlers globales no registran el objeto Error crudo", () => {
       "routeTemplate: normalizeRouteTemplate(request.routeOptions?.url)",
       `${file} route template dimension`,
     );
+    assertContains(
+      source,
+      "errorName: serializeError(error).name,",
+      `${file} allowlisted error name`,
+    );
     assertNotContains(source, "path: request.url", `${file} raw url dimension`);
     assertNotContains(source, "sanitizeUrlForLogs", `${file} url log derivation`);
+    assertNotContains(source, "error.name", `${file} direct error.name usage`);
+  }
+});
+
+test("serializeError usa una allowlist finita de nombres, no una regex sintactica", () => {
+  const logger = readSource("server/lib/logger.ts");
+
+  assertNotContains(
+    logger,
+    "SAFE_ERROR_NAME_PATTERN",
+    "logger must not keep the syntactic error-name pattern",
+  );
+  assertContains(logger, "SAFE_ERROR_NAMES", "logger finite error-name allowlist");
+
+  for (const builtin of [
+    "Error",
+    "TypeError",
+    "RangeError",
+    "ReferenceError",
+    "SyntaxError",
+    "URIError",
+    "EvalError",
+    "AggregateError",
+  ] as const) {
+    assertContains(
+      logger,
+      `"${builtin}"`,
+      `logger allowlist must include native error class ${builtin}`,
+    );
+  }
+
+  // Nombres custom de librerias/frameworks nunca deben sumarse a la allowlist:
+  // deben degradar a "Error" via serializeError, no listarse como seguros.
+  for (const disallowed of [
+    "ZodError",
+    "PostgresError",
+    "FastifyError",
+    "ValidationError",
+  ] as const) {
+    assertNotContains(
+      logger,
+      `"${disallowed}"`,
+      `logger allowlist must not include library-specific name ${disallowed}`,
+    );
   }
 });
 
