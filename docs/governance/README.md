@@ -29,6 +29,7 @@ Es una base docs-only. No modifica CODEOWNERS, CI, workflows, dependencias, back
 | `enterprise-control-register.md` | Registro operativo vivo de controles enterprise derivado del baseline y gap register aprobados |
 | `documentation-lifecycle-policy.md` | Política normativa de lifecycle documental |
 | `data-classification-retention-policy.md` | Política normativa de clasificación, retención, legal hold y disposición de datos |
+| `supply-chain-policy.md` | Política normativa de dependencias, Dependabot, actions pinneadas por SHA y SBOM |
 
 ## Autoridad de lifecycle documental
 
@@ -56,6 +57,19 @@ Se complementa con:
 - `docs/ops/BACKUP_RESTORE_ROLLBACK.md` para ejecución operativa;
 - `docs/ops/INCIDENT_MANAGEMENT_RUNBOOK.md` para incidentes;
 - `docs/ops/METRICS_BASELINE.md` para SLIs/SLOs y diseño de alertas.
+
+## Gobernanza de supply chain
+
+`supply-chain-policy.md` es la fuente normativa de gobernanza de dependencias: ownership por
+rol, cadencia, clasificación de riesgo, separación entre npm raíz, npm frontend y GitHub
+Actions, reglas de majors/minors/patches/security fixes, audits, lockfile, pruebas, rollback,
+tratamiento de actions pinneadas por SHA, prohibición de merge automático y rol del SBOM como
+evidencia no bloqueante.
+
+La decisión durable sobre la herramienta SBOM y la semántica no bloqueante del job vive en
+`docs/architecture/supply-chain-sbom-rfc.md`. El enforcement efectivo vive en
+`.github/dependabot.yml`, `scripts/governance/workflow-security-validator.mjs` y los contratos
+de `test/`; la política por sí sola no prueba enforcement.
 
 ## Regla de uso
 

@@ -55,6 +55,7 @@ Los documentos históricos previos dentro de `docs/audit/` se conservan como ant
 | [pr-test-architecture-consolidation-source-coupled-inventory.md](./pr-test-architecture-consolidation-source-coupled-inventory.md) | Anexo exhaustivo path por path de los 370 tests source-coupled observados en el baseline del slot 07. | `ACTIVE`; anexo del closeout |
 | [pr-quality-coverage-baseline-audit.md](./pr-quality-coverage-baseline-audit.md) | Script separado de cobertura nativa, contrato positivo/negativo y baseline real del slot 08. | `ACTIVE`; `PR-QUALITY-COVERAGE-BASELINE IMPLEMENTED_LOCALLY` |
 | [pr-quality-backend-lint-baseline-audit.md](./pr-quality-backend-lint-baseline-audit.md) | Flat config raíz independiente, contrato positivo/negativo y baseline real ESLint sobre backend tooling del slot 09. | `ACTIVE`; `PR-QUALITY-BACKEND-LINT-BASELINE IMPLEMENTED_LOCALLY` |
+| [pr-deps-supply-chain-governance-audit.md](./pr-deps-supply-chain-governance-audit.md) | Política de supply chain, cobertura Dependabot por ecosistema, agrupación de riesgo y SBOM CycloneDX no bloqueante del slot 16. | `ACTIVE`; `ERM-CTRL-024 PARTIAL`; security updates y artifact SBOM `NOT_RUN` |
 
 ## Documentos rectores recientes
 
