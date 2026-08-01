@@ -172,7 +172,7 @@ Registrar:
 | Decisión | Go / No-go |
 | Owner |  |
 | Evidencia |  |
-| Archivo de evidencia | `docs/release/evidence/YYYY-MM-DD-<release-id>.md` |
+| Archivo de evidencia | `docs/release/evidence/<release-id>.md` |
 | Clase de retención | 24 meses / 60 meses |
 
 ## Criterio de cierre

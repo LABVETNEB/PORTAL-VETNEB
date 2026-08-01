@@ -32,11 +32,11 @@ operaciones sobre staging o producción.
 | Evidencia | Ubicación |
 | --- | --- |
 | Política go/no-go | `docs/release/release-go-no-go-policy.md` |
-| Registro sanitizado de un release | `docs/release/evidence/YYYY-MM-DD-<release-id>.md` |
+| Registro sanitizado de un release | `docs/release/evidence/<release-id>.md` |
 | Evidencia de configuración de environments | `docs/release/production-readiness-environments-evidence.md` |
 | Checks y PRs | GitHub, enlazados desde el registro sanitizado |
 | Runs y artifacts CI | GitHub Actions, enlazados por run ID |
-| Backup, restore y rollback | Fuera del repositorio; solo acta sanitizada y hashes permitidos |
+| Backup, restore y rollback | Fuera del repositorio; solo acta sanitizada y checksums de integridad de archivos no secretos permitidos |
 | Evidencia histórica reemplazada | `docs/HISTORICAL_DOCUMENTATION.md` o archivo marcado como histórico |
 
 No se versionan ZIP, dumps, bases de datos, exportaciones de Storage, cookies,
@@ -102,7 +102,8 @@ Está permitido registrar:
 - configuración no secreta de deployment protection;
 - timestamps;
 - duración;
-- hashes;
+- commit SHAs públicos;
+- checksums de integridad de archivos no secretos;
 - tamaños;
 - resultados de smoke sanitizados.
 
@@ -119,7 +120,11 @@ Está prohibido registrar:
 - paths privados de Storage;
 - datos clínicos reales;
 - emails reales no sanitizados;
-- payloads o logs sensibles.
+- payloads o logs sensibles;
+- password hashes;
+- session-token hashes;
+- credential-derived hashes;
+- secret-derived hashes o digests derivados de material de autenticación.
 
 ## Relación con go/no-go
 

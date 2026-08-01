@@ -9,7 +9,14 @@ Evidencia sanitizada de la configuración GitHub realizada para Plan B Slot 17,
 | --- | --- |
 | Document owner | Release / Ops owner |
 | Domain | Release and production readiness |
-| Lifecycle status | ACTIVE |
+| Lifecycle status | HISTORICAL |
+| Lifecycle transition justification | `ACTIVE` → `HISTORICAL`: registro puntual y fechado de una configuración de GitHub environments ya completada y verificada (Plan B Slot 17); no gobierna decisiones futuras. Transición no listada en la matriz de [Documentation Lifecycle Policy](../governance/documentation-lifecycle-policy.md), autorizada explícitamente en este PR docs-only por el Release / Ops owner conforme a la sección 7 de esa política. |
+| Authoritative source role | Evidencia histórica y puntual; no es fuente normativa vigente. La fuente normativa activa relacionada es [Release Go/No-Go Policy](./release-go-no-go-policy.md) y [Release Evidence Archive Policy](./release-evidence-archive-policy.md). |
+| Effective date | 2026-08-01 |
+| Last verified date | 2026-08-01 |
+| Review cadence | No aplica; documento histórico sin rol normativo vigente, conservado para trazabilidad |
+| Supersedes | Ninguno |
+| Superseded by | Ninguno |
 | Evidence status | PARTIAL |
 | Verification date | 2026-08-01 |
 | Verification timestamp UTC | `2026-08-01T19:20:23Z` |
@@ -20,6 +27,7 @@ Evidencia sanitizada de la configuración GitHub realizada para Plan B Slot 17,
 | Operator role | Repository administrator |
 | Risk classification | R3 |
 | Related controls or gaps | `ERM-CTRL-023`; `ERM-REL-001`; Plan B Slot 17 |
+| Evidence or approval reference | Autorización explícita de Nico para Slot 17 (sección "Autorización" de este documento); PR #1629 |
 | Evidence retention class | Security / operational configuration — 60 months |
 
 ## Autorización
