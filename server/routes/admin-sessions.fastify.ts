@@ -12,6 +12,7 @@ import {
   enforceTrustedOrigin,
 } from "../lib/cors-headers.ts";
 import { authenticateFastifyAdmin } from "../lib/fastify-admin-auth.ts";
+import { logError, serializeError } from "../lib/logger.ts";
 import type {
   AdminSessionsQuery,
   AdminSessionsSnapshot,
@@ -409,37 +410,45 @@ export const adminSessionsNativeRoutes: FastifyPluginAsync<
         });
       }
 
-      await deps.createAuditLog({
-        event: "auth.session.revoked",
-        actorType: "admin_user",
-        actorAdminUserId: admin.id,
-        targetAdminUserId:
-          revokedSession.actorType === "admin_user"
-            ? revokedSession.actorId
-            : null,
-        targetClinicUserId:
-          revokedSession.actorType === "clinic_user"
-            ? revokedSession.actorId
-            : null,
-        requestMethod: request.method,
-        requestPath: request.url,
-        ipAddress: request.ip,
-        userAgent: getRequestUserAgent(request),
-        metadata: {
-          sessionType: revokedSession.sessionType,
-          sessionId: revokedSession.sessionId,
-          actorType: revokedSession.actorType,
-          actorId: revokedSession.actorId,
-          statusAtRevocation: revokedSession.status,
-          createdAt: revokedSession.createdAt,
-          lastAccess: revokedSession.lastAccess,
-          expiresAt: revokedSession.expiresAt,
-          revokedAt: revokedSession.revokedAt,
-        },
-        action: "auth.session.revoked",
-        entity: "session",
-        entityId: revokedSession.sessionId,
-      });
+      try {
+        await deps.createAuditLog({
+          event: "auth.session.revoked",
+          actorType: "admin_user",
+          actorAdminUserId: admin.id,
+          targetAdminUserId:
+            revokedSession.actorType === "admin_user"
+              ? revokedSession.actorId
+              : null,
+          targetClinicUserId:
+            revokedSession.actorType === "clinic_user"
+              ? revokedSession.actorId
+              : null,
+          requestMethod: request.method,
+          requestPath: request.url,
+          ipAddress: request.ip,
+          userAgent: getRequestUserAgent(request),
+          metadata: {
+            sessionType: revokedSession.sessionType,
+            sessionId: revokedSession.sessionId,
+            actorType: revokedSession.actorType,
+            actorId: revokedSession.actorId,
+            statusAtRevocation: revokedSession.status,
+            createdAt: revokedSession.createdAt,
+            lastAccess: revokedSession.lastAccess,
+            expiresAt: revokedSession.expiresAt,
+            revokedAt: revokedSession.revokedAt,
+          },
+          action: "auth.session.revoked",
+          entity: "session",
+          entityId: revokedSession.sessionId,
+        });
+      } catch (error) {
+        logError("ADMIN_SESSION_REVOKE_AUDIT_WRITE_ERROR", {
+          requestId: request.id,
+          event: "auth.session.revoked",
+          error: serializeError(error),
+        });
+      }
 
       return reply.code(200).send({
         success: true,

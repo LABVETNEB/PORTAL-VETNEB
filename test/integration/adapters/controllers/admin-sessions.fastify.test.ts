@@ -268,6 +268,65 @@ test("admin sessions revoca sesión remota y audita sin filtrar tokenHash", asyn
   }
 });
 
+test("admin sessions revoke conserva 200 y success cuando createAuditLog falla", async () => {
+  const app = Fastify();
+  const revokeCalls: unknown[] = [];
+  let auditAttempted = false;
+
+  await app.register(
+    adminSessionsNativeRoutes,
+    buildDeps({
+      revokeAdminSessionById: async (target): Promise<AdminSessionRevocationResult> => {
+        revokeCalls.push(target);
+
+        return {
+          sessionType: "clinic",
+          sessionId: target.sessionId,
+          actorType: "clinic_user",
+          actorId: 7,
+          createdAt: "2026-05-08T00:00:00.000Z",
+          lastAccess: "2026-05-08T00:10:00.000Z",
+          expiresAt: "2099-01-01T00:00:00.000Z",
+          status: "active",
+          revokedAt: "2026-05-08T00:00:00.000Z",
+        };
+      },
+      createAuditLog: async () => {
+        auditAttempted = true;
+        throw new Error("db down");
+      },
+    }),
+  );
+
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/clinic/20/revoke",
+      headers: {
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+        "user-agent": "node-test",
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const body = JSON.parse(response.body);
+    const serialized = JSON.stringify(body);
+
+    assert.equal(body.success, true);
+    assert.equal(body.revokedSession.sessionType, "clinic");
+    assert.equal(body.revokedSession.sessionId, 20);
+    assert.equal(body.revokedSession.tokenHash, undefined);
+    assert.equal(body.revokedSession.token, undefined);
+    assert.equal(serialized.includes("hash:"), false);
+    assert.equal(serialized.includes("admin-session-token"), false);
+    assert.equal(auditAttempted, true);
+    assert.deepEqual(revokeCalls, [{ sessionType: "clinic", sessionId: 20 }]);
+  } finally {
+    await app.close();
+  }
+});
+
 test("admin sessions bloquea auto-revocación de sesión admin actual", async () => {
   const app = Fastify();
   let revokeCalled = false;
