@@ -142,6 +142,18 @@ Prohibido:
 - Dumps completos.
 - Capturas con información sensible.
 
+## Archivo y retención de evidencia
+
+Toda decisión debe archivar su evidencia conforme a
+[Release Evidence Archive Policy](./release-evidence-archive-policy.md).
+
+El registro debe indicar la ubicación del archivo y la clase de retención.
+Una evidencia no ejecutada permanece `NOT_RUN` o `BLOCKED`; nunca se infiere
+`PASSED` por existir documentación o configuración.
+
+La evidencia de configuración inicial de GitHub environments se conserva en
+[Production Readiness Environments Evidence](./production-readiness-environments-evidence.md).
+
 ## Registro go/no-go
 
 Registrar:
@@ -160,6 +172,8 @@ Registrar:
 | Decisión | Go / No-go |
 | Owner |  |
 | Evidencia |  |
+| Archivo de evidencia | `docs/release/evidence/<release-id>.md` |
+| Clase de retención | 24 meses / 60 meses |
 
 ## Criterio de cierre
 

@@ -28,6 +28,8 @@ Es una base docs-only. No modifica scripts, CI, workflows, deploy settings, Rend
 | Documento | Propósito |
 | --- | --- |
 | `release-go-no-go-policy.md` | Política de decisión go/no-go, deploy readiness y rollback |
+| `release-evidence-archive-policy.md` | Ubicación, sanitización y retención de evidencia de releases |
+| `production-readiness-environments-evidence.md` | Evidencia sanitizada de GitHub environments para Plan B Slot 17 |
 
 ## Regla de uso
 
@@ -40,7 +42,8 @@ Antes de un release o cambio con impacto productivo:
 5. Revisar backup, restore y rollback en `docs/ops/BACKUP_RESTORE_ROLLBACK.md`.
 6. Confirmar checks de PR con `docs/ops/CI_PR_CHECKS_RUNBOOK.md`.
 7. Registrar decisión go/no-go.
-8. No mezclar release readiness con cambios funcionales, CI, dependencias o migraciones.
+8. Archivar la evidencia según `release-evidence-archive-policy.md`.
+9. No mezclar release readiness con cambios funcionales, CI, dependencias o migraciones.
 
 ## Estado
 
