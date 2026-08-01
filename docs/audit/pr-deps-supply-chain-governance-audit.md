@@ -154,9 +154,32 @@ bloqueante del job.
 ### 7.1 Evidencia local del generador
 
 Ejecución local de `node scripts/supply-chain/generate-sbom.mjs`: documento CycloneDX 1.6 con
-618 componentes, 46 marcados `direct` y 572 `transitive`, 0 componentes sin digest de
-integridad, raíz `pkg:npm/portal-vetneb-backend@2.1.0`. El archivo queda en `sbom/`, ignorado
-por git y ausente del diff.
+618 componentes de paquete, 46 marcados `direct` y 572 `transitive`, 0 componentes sin digest
+de integridad. El archivo queda en `sbom/`, ignorado por git y ausente del diff.
+
+El sujeto del BOM es la plataforma/monorepo `portal-vetneb`, no un deployable individual. Los
+dos deployables cuelgan de él como aplicaciones explícitas:
+
+| Deployable | Manifiesto | Nombre | Versión | purl |
+| --- | --- | --- | --- | --- |
+| Backend | `package.json` | `portal-vetneb-backend` | `2.1.0` | `pkg:npm/portal-vetneb-backend@2.1.0` |
+| Frontend | `frontend/package.json` | `portal-vetneb-frontend` | `1.0.0` | `pkg:npm/portal-vetneb-frontend@1.0.0` |
+
+Nombre, versión y purl se derivan dinámicamente de cada manifiesto; no hay valores
+hardcodeados ni fallbacks. Los dos deployables viven en `metadata.component.components` y no
+inflan el inventario: `document.components` conserva exactamente los 618 paquetes del lockfile.
+La representación describe composición declarada, **no** prueba despliegue ni runtime.
+
+Corrección aplicada tras el review thread `PRRT_kwDOR5qlsc6VrJFz` (P2) sobre
+`scripts/supply-chain/generate-sbom.mjs:186`: el sujeto anterior declaraba únicamente
+`pkg:npm/portal-vetneb-backend@2.1.0` mientras el inventario cubría el lockfile combinado, lo
+que atribuía paquetes exclusivos de frontend (`next`, `react`) al backend y omitía
+`portal-vetneb-frontend` como aplicación.
+
+El artifact remoto `sbom-cyclonedx` verificado hasta ahora pertenece al head anterior
+`7f96c5e16bc65817f6b3c6231e7fa0ed7512293b` y **no** refleja esta corrección. Deberá
+regenerarse y volver a verificarse tras el push correctivo; hasta entonces su estado es
+`NOT_RUN`.
 
 ## 8. Estado de `ERM-CTRL-024`
 

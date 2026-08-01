@@ -1,17 +1,21 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 
 import {
   DEFAULT_SBOM_OUTPUT_PATH,
+  SBOM_DEPLOYABLE_MANIFEST_PATHS,
   SBOM_GENERATOR_NAME,
+  SBOM_PLATFORM_COMPONENT_NAME,
   SBOM_SPEC_VERSION,
   generateSbom,
   integrityToHash,
   normalizeVersion,
   packageUrl,
+  readDeployableIdentity,
   renderSbom,
   splitPackageKey,
 } from "../../../scripts/supply-chain/generate-sbom.mjs";
@@ -74,6 +78,61 @@ type Workflow = {
   permissions?: Record<string, string>;
   jobs?: Record<string, WorkflowJob>;
 };
+
+const FIXTURE_INTEGRITY = `sha512-${Buffer.alloc(64, 7).toString("base64")}`;
+
+const FIXTURE_LOCKFILE = `lockfileVersion: '9.0'
+
+importers:
+
+  .:
+    dependencies:
+      fastify:
+        specifier: ^5.10.0
+        version: 5.10.0
+
+packages:
+
+  fastify@5.10.0:
+    resolution: {integrity: ${FIXTURE_INTEGRITY}}
+`;
+
+type FixtureManifests = {
+  root?: string;
+  frontend?: string;
+};
+
+/**
+ * Builds an isolated workspace so negative mutations never touch the real
+ * manifests in the working tree.
+ */
+function withFixtureWorkspace<T>(
+  manifests: FixtureManifests,
+  callback: (rootDir: string) => T,
+): T {
+  const rootDir = mkdtempSync(join(tmpdir(), "vetneb-sbom-"));
+
+  try {
+    writeFileSync(join(rootDir, "pnpm-lock.yaml"), FIXTURE_LOCKFILE, "utf8");
+    if (manifests.root !== undefined) {
+      writeFileSync(join(rootDir, "package.json"), manifests.root, "utf8");
+    }
+    if (manifests.frontend !== undefined) {
+      mkdirSync(join(rootDir, "frontend"), { recursive: true });
+      writeFileSync(join(rootDir, "frontend", "package.json"), manifests.frontend, "utf8");
+    }
+    return callback(rootDir);
+  } finally {
+    rmSync(rootDir, { recursive: true, force: true });
+  }
+}
+
+function manifest(name: unknown, version: unknown): string {
+  return JSON.stringify({ name, version });
+}
+
+const VALID_ROOT_MANIFEST = manifest("fixture-backend", "2.1.0");
+const VALID_FRONTEND_MANIFEST = manifest("fixture-frontend", "1.0.0");
 
 function read(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(/\r\n/g, "\n");
@@ -376,6 +435,226 @@ test("generated SBOM omits non-reproducible and non-sanitized fields", () => {
         : ["name", "properties", "purl", "type", "version"],
     );
   }
+});
+
+test("the SBOM subject is the monorepo platform and never a single deployable", () => {
+  const subject = generateSbom({ rootDir: process.cwd(), sourceCommit: undefined }).metadata
+    .component;
+
+  assert.equal(subject.type, "application");
+  assert.equal(subject.name, SBOM_PLATFORM_COMPONENT_NAME);
+  assert.equal(subject["bom-ref"], SBOM_PLATFORM_COMPONENT_NAME);
+  assert.ok(subject.description.length > 0);
+
+  assert.equal(Object.hasOwn(subject, "purl"), false);
+  assert.equal(Object.hasOwn(subject, "version"), false);
+  assert.notEqual(subject.name, "portal-vetneb-backend");
+  assert.notEqual(subject.name, "portal-vetneb-frontend");
+});
+
+test("both workspace deployables hang off the subject and derive from their own manifests", () => {
+  const subject = generateSbom({ rootDir: process.cwd(), sourceCommit: undefined }).metadata
+    .component;
+
+  assert.deepEqual(SBOM_DEPLOYABLE_MANIFEST_PATHS, ["package.json", "frontend/package.json"]);
+  assert.equal(subject.components.length, 2);
+
+  for (const manifestPath of SBOM_DEPLOYABLE_MANIFEST_PATHS) {
+    const identity = readDeployableIdentity(process.cwd(), manifestPath);
+    const child = subject.components.find(
+      (candidate) => candidate.properties[0]?.value === manifestPath,
+    );
+
+    assert.ok(child, `${manifestPath} must produce a deployable component`);
+    assert.equal(child.type, "application");
+    assert.equal(child.name, identity.name);
+    assert.equal(child.version, identity.version);
+    assert.equal(child.purl, identity.purl);
+    assert.equal(child["bom-ref"], identity.purl);
+    assert.equal(child.properties[0].name, "vetneb:manifest");
+  }
+
+  const names = subject.components.map((child) => child.name);
+  assert.equal(new Set(names).size, 2, "deployables must be two distinct applications");
+});
+
+test("deployable order is deterministic and sorted by bom-ref", () => {
+  const subject = generateSbom({ rootDir: process.cwd(), sourceCommit: undefined }).metadata
+    .component;
+  const references = subject.components.map((child) => child["bom-ref"]);
+
+  assert.deepEqual(references, [...references].sort((left, right) => left.localeCompare(right)));
+});
+
+test("deployables do not inflate the lockfile package inventory", () => {
+  const document = generateSbom({ rootDir: process.cwd(), sourceCommit: undefined });
+  const deployablePurls = new Set(document.metadata.component.components.map((c) => c.purl));
+
+  assert.ok(document.components.length > 500);
+  for (const component of document.components) {
+    assert.equal(component.type, "library");
+    assert.ok(!deployablePurls.has(component.purl), `${component.purl} must not be duplicated`);
+  }
+});
+
+test("frontend-only packages are not attributed to a backend-only subject", () => {
+  const document = generateSbom({ rootDir: process.cwd(), sourceCommit: undefined });
+  const names = new Set(document.components.map((component) => component.name));
+
+  assert.ok(names.has("next"), "the workspace inventory includes frontend-only packages");
+  assert.ok(names.has("react"));
+
+  const subject = document.metadata.component;
+  assert.equal(subject.name, SBOM_PLATFORM_COMPONENT_NAME);
+  assert.ok(
+    subject.components.some((child) => child.properties[0]?.value === "frontend/package.json"),
+    "the frontend application must be present alongside the frontend packages",
+  );
+});
+
+test("the platform subject is byte-stable across consecutive generations", () => {
+  const first = generateSbom({ rootDir: process.cwd(), sourceCommit: undefined });
+  const second = generateSbom({ rootDir: process.cwd(), sourceCommit: undefined });
+
+  assert.equal(
+    JSON.stringify(first.metadata.component),
+    JSON.stringify(second.metadata.component),
+  );
+  assert.equal(renderSbom(first), renderSbom(second));
+});
+
+test("an isolated fixture workspace produces the same two-deployable shape", () => {
+  withFixtureWorkspace(
+    { root: VALID_ROOT_MANIFEST, frontend: VALID_FRONTEND_MANIFEST },
+    (rootDir) => {
+      const subject = generateSbom({ rootDir, sourceCommit: undefined }).metadata.component;
+
+      assert.equal(subject.name, SBOM_PLATFORM_COMPONENT_NAME);
+      assert.deepEqual(
+        subject.components.map((child) => child.purl),
+        ["pkg:npm/fixture-backend@2.1.0", "pkg:npm/fixture-frontend@1.0.0"],
+      );
+    },
+  );
+});
+
+test("generation fails closed on unusable workspace manifests", () => {
+  const cases: Array<[string, FixtureManifests, RegExp]> = [
+    [
+      "frontend manifest absent",
+      { root: VALID_ROOT_MANIFEST },
+      /frontend\/package\.json is required to build the SBOM subject/,
+    ],
+    [
+      "frontend manifest invalid JSON",
+      { root: VALID_ROOT_MANIFEST, frontend: "{ not json" },
+      /frontend\/package\.json is not valid JSON/,
+    ],
+    [
+      "frontend manifest is not an object",
+      { root: VALID_ROOT_MANIFEST, frontend: "[]" },
+      /frontend\/package\.json must contain a JSON object/,
+    ],
+    [
+      "frontend without name",
+      { root: VALID_ROOT_MANIFEST, frontend: JSON.stringify({ version: "1.0.0" }) },
+      /frontend\/package\.json must declare a non-empty string name/,
+    ],
+    [
+      "frontend without version",
+      { root: VALID_ROOT_MANIFEST, frontend: JSON.stringify({ name: "fixture-frontend" }) },
+      /frontend\/package\.json must declare a non-empty string version/,
+    ],
+    [
+      "frontend with blank version",
+      { root: VALID_ROOT_MANIFEST, frontend: manifest("fixture-frontend", "   ") },
+      /frontend\/package\.json must declare a non-empty string version/,
+    ],
+    [
+      "root without name",
+      { root: JSON.stringify({ version: "2.1.0" }), frontend: VALID_FRONTEND_MANIFEST },
+      /Error: package\.json must declare a non-empty string name/,
+    ],
+    [
+      "root without version",
+      { root: JSON.stringify({ name: "fixture-backend" }), frontend: VALID_FRONTEND_MANIFEST },
+      /Error: package\.json must declare a non-empty string version/,
+    ],
+    [
+      "root name is not encodable as an npm package URL",
+      { root: manifest("Fixture Backend", "2.1.0"), frontend: VALID_FRONTEND_MANIFEST },
+      /Error: package\.json name cannot be encoded as an npm package URL/,
+    ],
+    [
+      "frontend version is not encodable as an npm package URL",
+      { root: VALID_ROOT_MANIFEST, frontend: manifest("fixture-frontend", "1.0.0@beta") },
+      /frontend\/package\.json version cannot be encoded as an npm package URL/,
+    ],
+    [
+      "both manifests resolve to the same identity",
+      { root: VALID_ROOT_MANIFEST, frontend: VALID_ROOT_MANIFEST },
+      /must resolve to distinct npm package URLs/,
+    ],
+  ];
+
+  for (const [label, manifests, expected] of cases) {
+    withFixtureWorkspace(manifests, (rootDir) => {
+      assert.throws(() => generateSbom({ rootDir, sourceCommit: undefined }), expected, label);
+    });
+  }
+});
+
+test("fail-closed errors never echo manifest content", () => {
+  const secretish = manifest("fixture-frontend", "1.0.0@beta");
+
+  withFixtureWorkspace({ root: VALID_ROOT_MANIFEST, frontend: secretish }, (rootDir) => {
+    try {
+      generateSbom({ rootDir, sourceCommit: undefined });
+      assert.fail("generation must fail closed");
+    } catch (error) {
+      const message = String((error as Error).message);
+      assert.ok(!message.includes(secretish));
+      assert.ok(!message.includes(rootDir));
+      assert.ok(message.startsWith("frontend/package.json "));
+    }
+  });
+});
+
+test("in-memory subject mutations are rejected by the deployable contract", () => {
+  const baseline = generateSbom({ rootDir: process.cwd(), sourceCommit: undefined }).metadata
+    .component;
+
+  const assertContract = (subject: typeof baseline): void => {
+    assert.equal(subject.name, SBOM_PLATFORM_COMPONENT_NAME);
+    assert.equal(Object.hasOwn(subject, "purl"), false);
+    assert.equal(subject.components.length, 2);
+
+    const manifests = subject.components.map((child) => child.properties[0]?.value);
+    assert.deepEqual([...manifests].sort(), ["frontend/package.json", "package.json"]);
+
+    const references = subject.components.map((child) => child["bom-ref"]);
+    assert.deepEqual(references, [...references].sort((l, r) => l.localeCompare(r)));
+  };
+
+  assertContract(baseline);
+
+  const withoutFrontend = structuredClone(baseline);
+  withoutFrontend.components = withoutFrontend.components.filter(
+    (child) => child.properties[0]?.value !== "frontend/package.json",
+  );
+  assert.throws(() => assertContract(withoutFrontend));
+
+  const backendOnlySubject = {
+    ...structuredClone(baseline),
+    name: "portal-vetneb-backend",
+    purl: "pkg:npm/portal-vetneb-backend@2.1.0",
+    components: [] as typeof baseline.components,
+  };
+  assert.throws(() => assertContract(backendOnlySubject));
+
+  const reordered = structuredClone(baseline);
+  reordered.components = [...reordered.components].reverse();
+  assert.throws(() => assertContract(reordered));
 });
 
 test("source commit metadata is recorded only for an exact 40-character SHA", () => {

@@ -41,6 +41,28 @@ The document is deterministic for a given commit: `serialNumber` and `metadata.t
 are omitted, and components are sorted by package URL. Component integrity digests are
 converted from the lockfile Subresource Integrity values to CycloneDX hex hashes.
 
+### 1.1 The BOM subject is the monorepo, not a single deployable
+
+The lockfile is a single combined pnpm workspace inventory, so no individual application may
+claim it. `metadata.component` is therefore an aggregate platform subject (`portal-vetneb`)
+that carries no version and no package URL, and both deployables hang off it as explicit child
+applications in `metadata.component.components`:
+
+| Deployable | Manifest |
+| --- | --- |
+| Backend | `package.json` |
+| Frontend | `frontend/package.json` |
+
+Name, version and package URL are derived dynamically from each manifest; nothing is
+hardcoded. The children live inside the subject and never enter `components`, so the lockfile
+package count is not inflated. One artifact and one output file are preserved.
+
+Manifest reading is fail-closed: an unreadable, non-JSON, non-object, unnamed, unversioned or
+non-URL-encodable manifest, or two manifests resolving to the same package URL, aborts
+generation. There is no `0.0.0` fallback that could hide an invalid manifest, and error
+messages carry the manifest path and the reason only, never manifest content or absolute
+paths.
+
 ### 2. SBOM runs as an isolated, structurally non-blocking job
 
 The `generate-sbom` job lives in `.github/workflows/backend-ci.yml`. It declares no `needs`,

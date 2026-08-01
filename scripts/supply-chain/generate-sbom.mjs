@@ -9,11 +9,14 @@ export const SBOM_GENERATOR_NAME = "vetneb-sbom-generator";
 export const SBOM_GENERATOR_VERSION = "1.0.0";
 export const SBOM_SPEC_VERSION = "1.6";
 export const DEFAULT_SBOM_OUTPUT_PATH = "sbom/portal-vetneb.cdx.json";
+export const SBOM_PLATFORM_COMPONENT_NAME = "portal-vetneb";
+export const SBOM_DEPLOYABLE_MANIFEST_PATHS = ["package.json", "frontend/package.json"];
 
 const LOCKFILE_PATH = "pnpm-lock.yaml";
-const ROOT_MANIFEST_PATH = "package.json";
 const MAX_YAML_DEPTH = 100;
 const INTEGRITY_RE = /^(sha512|sha256|sha1)-([A-Za-z0-9+/]+={0,2})$/;
+const NPM_NAME_RE = /^(?:@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*$/;
+const NPM_VERSION_RE = /^[^\s/@]+$/;
 
 const HASH_ALGORITHMS = new Map([
   ["sha512", "SHA-512"],
@@ -144,6 +147,92 @@ function buildMetadataProperties({ lockfile, sourceCommit }) {
 }
 
 /**
+ * Reads one workspace manifest and derives the identity of its deployable.
+ * Fails closed: an unreadable, non-JSON, unnamed, unversioned or non-encodable
+ * manifest aborts generation instead of degrading to a placeholder identity.
+ * Error messages carry the manifest path and the reason only, never content.
+ */
+export function readDeployableIdentity(rootDir, manifestPath) {
+  let source;
+  try {
+    source = readText(rootDir, manifestPath);
+  } catch {
+    throw new Error(`${manifestPath} is required to build the SBOM subject and could not be read.`);
+  }
+
+  let manifest;
+  try {
+    manifest = JSON.parse(source);
+  } catch {
+    throw new Error(`${manifestPath} is not valid JSON.`);
+  }
+
+  if (!isPlainObject(manifest)) {
+    throw new Error(`${manifestPath} must contain a JSON object.`);
+  }
+
+  const { name, version } = manifest;
+
+  if (typeof name !== "string" || name.trim() === "") {
+    throw new Error(`${manifestPath} must declare a non-empty string name.`);
+  }
+  if (typeof version !== "string" || version.trim() === "") {
+    throw new Error(`${manifestPath} must declare a non-empty string version.`);
+  }
+  if (!NPM_NAME_RE.test(name)) {
+    throw new Error(`${manifestPath} name cannot be encoded as an npm package URL.`);
+  }
+  if (!NPM_VERSION_RE.test(version)) {
+    throw new Error(`${manifestPath} version cannot be encoded as an npm package URL.`);
+  }
+
+  const purl = packageUrl(name, version);
+  if (!purl.startsWith(`pkg:npm/`) || !purl.endsWith(`@${encodeURIComponent(version)}`)) {
+    throw new Error(`${manifestPath} does not produce a valid npm package URL.`);
+  }
+
+  return { name, version, purl, manifestPath };
+}
+
+function deployableComponent(identity) {
+  return {
+    type: "application",
+    "bom-ref": identity.purl,
+    name: identity.name,
+    version: identity.version,
+    purl: identity.purl,
+    properties: [{ name: "vetneb:manifest", value: identity.manifestPath }],
+  };
+}
+
+/**
+ * Builds the aggregate monorepo subject. The BOM covers the whole workspace, so
+ * the subject is the platform and both deployables hang off it as child
+ * applications; neither one may claim the combined lockfile inventory.
+ */
+function buildPlatformSubject(rootDir) {
+  const identities = SBOM_DEPLOYABLE_MANIFEST_PATHS.map((manifestPath) =>
+    readDeployableIdentity(rootDir, manifestPath),
+  );
+
+  const references = new Set(identities.map((identity) => identity.purl));
+  if (references.size !== identities.length) {
+    throw new Error("Workspace deployables must resolve to distinct npm package URLs.");
+  }
+
+  return {
+    type: "application",
+    "bom-ref": SBOM_PLATFORM_COMPONENT_NAME,
+    name: SBOM_PLATFORM_COMPONENT_NAME,
+    description:
+      "Aggregate subject for the VETNEB monorepo. The package inventory is the combined pnpm workspace lockfile and belongs to no single deployable.",
+    components: identities
+      .map(deployableComponent)
+      .sort((left, right) => left["bom-ref"].localeCompare(right["bom-ref"])),
+  };
+}
+
+/**
  * Builds a deterministic CycloneDX document from the committed pnpm lockfile.
  * The document intentionally omits `serialNumber` and `metadata.timestamp`
  * so that the same commit always produces byte-identical output.
@@ -161,9 +250,7 @@ export function generateSbom({ rootDir = process.cwd(), sourceCommit = process.e
     throw new Error(`${LOCKFILE_PATH} must parse into a mapping object.`);
   }
 
-  const manifest = JSON.parse(readText(rootDir, ROOT_MANIFEST_PATH));
-  const rootName = typeof manifest.name === "string" ? manifest.name : "portal-vetneb";
-  const rootVersion = typeof manifest.version === "string" ? manifest.version : "0.0.0";
+  const component = buildPlatformSubject(rootDir);
 
   return {
     bomFormat: "CycloneDX",
@@ -179,12 +266,7 @@ export function generateSbom({ rootDir = process.cwd(), sourceCommit = process.e
           },
         ],
       },
-      component: {
-        type: "application",
-        name: rootName,
-        version: rootVersion,
-        purl: packageUrl(rootName, rootVersion),
-      },
+      component,
       properties: buildMetadataProperties({ lockfile, sourceCommit }),
     },
     components: buildComponents(lockfile),
