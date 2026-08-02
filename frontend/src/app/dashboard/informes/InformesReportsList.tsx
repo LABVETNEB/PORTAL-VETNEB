@@ -269,10 +269,20 @@ export function InformesReportsList({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
+  // The measured `effectiveLimit` can shrink faster than the corrective
+  // server re-fetch resolves (network round trip). Capping the rendered
+  // rows at the current limit prevents briefly showing more rows than the
+  // measured canvas actually fits (silent clipping under `overflow-hidden`)
+  // while the fetch for the smaller page size is still in flight.
+  const visibleReports = useMemo(
+    () => (reports.length > effectiveLimit ? reports.slice(0, effectiveLimit) : reports),
+    [reports, effectiveLimit],
+  );
+
   const reportsTotalPages = Math.max(1, Math.ceil(totalCount / effectiveLimit));
   const page = Math.min(Math.floor(offset / effectiveLimit) + 1, reportsTotalPages);
   const pageStart = totalCount > 0 ? offset + 1 : 0;
-  const pageEnd = Math.min(offset + reports.length, totalCount);
+  const pageEnd = Math.min(offset + visibleReports.length, totalCount);
   const hasActiveFilters = Boolean(filters.query || filters.status || filters.studyType);
 
   const selectedReport =
@@ -555,7 +565,7 @@ export function InformesReportsList({
               data-informes-rows-canvas="true"
               className="flex min-h-0 flex-1 flex-col divide-y divide-vetneb-line/60 overflow-hidden"
             >
-              {reports.map((report, index) => {
+              {visibleReports.map((report, index) => {
                 const isSelected = selectedReport?.id === report.id;
 
                 return (

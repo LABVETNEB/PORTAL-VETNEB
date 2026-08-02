@@ -150,8 +150,15 @@ test("dashboard informes pagination is server-adaptive and does not use client-s
   assert.ok(source.includes("useAdaptiveItemsPerPage"));
   assert.ok(source.includes("effectiveLimit = rowsPerPage"));
   assert.ok(source.includes("getInformesPage("));
-  assert.equal(source.includes("reports.slice("), false);
+  // Pagination itself must stay server-driven (page/pageSize/offset via
+  // getInformesPage): no offset-based client slice may stand in for it.
+  assert.equal(source.includes("reports.slice(offset"), false);
   assert.equal(source.includes("reports.filter("), false);
+  // The one allowed client-side trim caps the already-fetched page at the
+  // measured canvas capacity (always from index 0, never offset-derived) so
+  // the corrective re-fetch's network latency can't render more rows than
+  // the container actually fits.
+  assert.ok(source.includes("reports.slice(0, effectiveLimit)"));
 });
 
 test("dashboard informes reportId null selects first report by default without silent fallback", () => {

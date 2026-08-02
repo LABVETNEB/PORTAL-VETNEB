@@ -156,7 +156,7 @@ test("dashboard informes renders compact inline filters and profile-layout list/
 test("dashboard informes keeps list rendering badges dates and selected report actions", () => {
   const source = read(INFORMES_LIST_PATH);
 
-  assert.ok(source.includes("reports.map((report, index) =>"));
+  assert.ok(source.includes("visibleReports.map((report, index) =>"));
   assert.ok(source.includes("const isSelected = selectedReport?.id === report.id;"));
   assert.ok(source.includes('report.patientName ?? "Paciente sin nombre"'));
   assert.ok(source.includes('report.studyType ?? "Tipo sin registrar"'));
