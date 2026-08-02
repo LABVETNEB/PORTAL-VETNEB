@@ -7,7 +7,7 @@
 | Lifecycle status | ACTIVE |
 | Authoritative source role | Closeout local del slot 16; evidencia, no política |
 | Effective date | 2026-08-01 |
-| Last verified date | 2026-08-01 |
+| Last verified date | 2026-08-02 |
 | Review cadence | Ante cambios de Dependabot, workflows, SBOM o `ERM-CTRL-024` |
 | Supersedes | Ninguno |
 | Superseded by | Ninguno |
@@ -20,12 +20,21 @@
 `PR-DEPS-SUPPLY-CHAIN-GOVERNANCE` absorbe `PR-DEPS-1`, `PR-DEPS-2`, `PR-DEPS-3` y `PR-DEPS-4`
 en una sola entrega con mixed-scope exception declarada.
 
-| Sub-PR | Objetivo | Resultado local |
+| Sub-PR | Objetivo | Resultado (2026-08-02) |
 | --- | --- | --- |
-| `PR-DEPS-1` | Dependabot security updates | `NOT_RUN` — mutación externa R2, entregada como bloque manual para el repository admin |
-| `PR-DEPS-2` | Política de supply chain | `IMPLEMENTED_LOCAL` — `docs/governance/supply-chain-policy.md` |
-| `PR-DEPS-3` | Cobertura Dependabot | `IMPLEMENTED_LOCAL` — npm `/`, npm `/frontend`, `github-actions` `/` con agrupación por riesgo |
-| `PR-DEPS-4` | SBOM CycloneDX | `IMPLEMENTED_LOCAL` / `NOT_VERIFIED_REMOTE` — job no bloqueante y generador propio |
+| `PR-DEPS-1` | Dependabot security updates | `ENABLED_VERIFIED` — mutación R2 ejecutada por el repository admin (`LABVETNEB`); readback confirma `enabled=true`, `paused=false` |
+| `PR-DEPS-2` | Política de supply chain | `IMPLEMENTED` — `docs/governance/supply-chain-policy.md` |
+| `PR-DEPS-3` | Cobertura Dependabot | `IMPLEMENTED_VERIFIED` — npm `/`, npm `/frontend`, `github-actions` `/` con agrupación por riesgo; configuración efectiva confirmada |
+| `PR-DEPS-4` | SBOM CycloneDX | `IMPLEMENTED_VERIFIED_REMOTE` — job no bloqueante, artifact `sbom-cyclonedx` observado en CI contra el head final |
+
+Resultado local original al momento de la implementación (2026-08-01), preservado como estado previo:
+
+| Sub-PR | Resultado local (2026-08-01) |
+| --- | --- |
+| `PR-DEPS-1` | `NOT_RUN` — mutación externa R2, entregada como bloque manual para el repository admin |
+| `PR-DEPS-2` | `IMPLEMENTED_LOCAL` |
+| `PR-DEPS-3` | `IMPLEMENTED_LOCAL` |
+| `PR-DEPS-4` | `IMPLEMENTED_LOCAL` / `NOT_VERIFIED_REMOTE` — job no bloqueante y generador propio |
 
 ## 2. Estado previo observado
 
@@ -146,10 +155,30 @@ bloqueante del job.
 | `git diff --check` | `PASSED` | exit 0 |
 | `pnpm install --frozen-lockfile` | `NOT_RUN` | Manifiesto y lockfile sin cambios |
 | `pnpm security:public-surface` | `NOT_RUN` | Sin cambios en superficie pública |
-| Cohortes E2E / Playwright | `NOT_RUN` | Sin cambios de frontend ni visuales |
+| Cohortes E2E / Playwright locales | `NOT_RUN` | Sin cambios de frontend ni visuales; ver §7.2 para `E2E Completeness` remoto |
 | `pnpm db:migrate` | `NOT_RUN` | Sin cambios de schema ni migraciones |
-| Generación real del artifact SBOM en CI | `NOT_RUN` | Requiere corrida remota |
-| Mutación de Dependabot security updates | `NOT_RUN` | R2 externo; bloque manual entregado a Nico |
+| Generación real del artifact SBOM en CI | `VERIFIED` (2026-08-02) | Ver §7.2; superseded del `NOT_RUN` registrado el 2026-08-01 |
+| Mutación de Dependabot security updates | `ENABLED_VERIFIED` (2026-08-02) | Ver §7.2; superseded del `NOT_RUN` registrado el 2026-08-01 |
+
+### 7.2 Evidencia remota final (2026-08-02)
+
+Verificación observada sobre PR #1630, head `89d00f7d9c8a4430d8f8dc209f2e0252c09ad139`, estado
+`OPEN`, 14/14 archivos del scope declarado, `mergeable: MERGEABLE`; los archivos de dashboard
+permanecen ausentes del diff del PR.
+
+| Item | Evidencia |
+| --- | --- |
+| Contextos required | `validate-pr-governance`, `validate-backend`, `validate-frontend`, `qga-workflow-security` — los cuatro únicos en `SUCCESS` |
+| `E2E Completeness` | run `30770495510`, job `91556690305`, `SUCCESS` |
+| Backend CI (`pull_request`) | run `30770495535`, head exacto `89d00f7d9c8a4430d8f8dc209f2e0252c09ad139`, `SUCCESS` |
+| Job `generate-sbom` | job `91556690313`, `SUCCESS` |
+| Artifact SBOM | ID `8840354235`, nombre `sbom-cyclonedx`, 59515 bytes, digest `sha256:94636f161cbf015708cad8c79bd29ca40e90b615862282866a724f1e7720ecc9`, SHA-256 del archivo descargado `6e355dfbb36d9e6486ce0c3a553936cadfde0050bc9066c2b8a03caab37e2dd6`, CycloneDX 1.6, 618 package components, deployables no duplicados en `document.components` |
+| Review thread | `PRRT_kwDOR5qlsc6VrJFz`, comentario raíz `3696706464`, respuesta `3700543458`, estado final `RESOLVED`; la implementación correctiva permanece en el head actual |
+| Vulnerability alerts | `ENABLED`, verificado por lectura administrativa (`LABVETNEB`) |
+| Dependabot security updates | pre-estado `enabled=false`, `paused=false`; estado final `enabled=true`, `paused=false`; verificado 2026-08-02 |
+
+Esta evidencia no constituye escaneo de vulnerabilidades privadas, despliegue ni verificación
+de runtime; es lectura de estado de CI, artifact y configuración de GitHub.
 
 ### 7.1 Evidencia local del generador
 
@@ -176,12 +205,25 @@ Corrección aplicada tras el review thread `PRRT_kwDOR5qlsc6VrJFz` (P2) sobre
 que atribuía paquetes exclusivos de frontend (`next`, `react`) al backend y omitía
 `portal-vetneb-frontend` como aplicación.
 
-El artifact remoto `sbom-cyclonedx` verificado hasta ahora pertenece al head anterior
-`7f96c5e16bc65817f6b3c6231e7fa0ed7512293b` y **no** refleja esta corrección. Deberá
-regenerarse y volver a verificarse tras el push correctivo; hasta entonces su estado es
-`NOT_RUN`.
+Estado previo (2026-08-01): el artifact remoto `sbom-cyclonedx` verificado hasta ese momento
+pertenecía al head anterior `7f96c5e16bc65817f6b3c6231e7fa0ed7512293b` y **no** reflejaba esta
+corrección. Su estado quedó registrado como `NOT_RUN` hasta regenerarse tras el push correctivo.
+
+Verificación final (2026-08-02): el job `generate-sbom` (job `91556690313`, `SUCCESS`) del
+run de Backend CI `30770495535` produjo el artifact contra el head final
+`89d00f7d9c8a4430d8f8dc209f2e0252c09ad139` (`pull_request`, mismo head verificado en PR #1630).
+Artifact ID `8840354235`, nombre `sbom-cyclonedx`, tamaño 59515 bytes, digest del artifact
+`sha256:94636f161cbf015708cad8c79bd29ca40e90b615862282866a724f1e7720ecc9`, SHA-256 del archivo
+descargado `6e355dfbb36d9e6486ce0c3a553936cadfde0050bc9066c2b8a03caab37e2dd6`. El documento
+observado es CycloneDX 1.6, aplicación agregada `portal-vetneb`, con los dos deployables
+anidados (`portal-vetneb-backend` `2.1.0`, `portal-vetneb-frontend` `1.0.0`), 618 package
+components y sin duplicación de los deployables en `document.components`. Esta verificación
+confirma la corrección del review thread sobre el head final; no constituye escaneo de
+vulnerabilidades ni evidencia de runtime/despliegue.
 
 ## 8. Estado de `ERM-CTRL-024`
+
+Estado previo (2026-08-01), preservado como histórico:
 
 ```text
 ERM-CTRL-024: PARTIAL
@@ -196,27 +238,48 @@ qga-workflow-security: REQUIRED
 Production readiness: PARTIAL/BLOCKED
 ```
 
-El control **no** se promueve a `IMPLEMENTED`. Sus closure criteria exigen security updates
-habilitados y verificados, cobertura frontend verificada y evidencia de SBOM observada; dos de
-esos tres dependen de evidencia remota que todavía no existe.
+Estado final (2026-08-02), tras verificación remota completa (§7.2):
+
+```text
+ERM-CTRL-024: IMPLEMENTED
+Dependabot security updates: ENABLED_VERIFIED (enabled=true, paused=false)
+Frontend coverage config: IMPLEMENTED_VERIFIED
+Risk grouping: IMPLEMENTED_VERIFIED
+Supply-chain policy: IMPLEMENTED
+SBOM workflow: IMPLEMENTED_VERIFIED_REMOTE
+SBOM artifact: VERIFIED (artifact 8840354235, run 30770495535, job 91556690313)
+Workflow SHA pinning: IMPLEMENTED
+qga-workflow-security: REQUIRED
+Review thread PRRT_kwDOR5qlsc6VrJFz: RESOLVED
+Production readiness: PARTIAL/BLOCKED (sin cambios; fuera de alcance de este control)
+```
+
+El control se promueve a `IMPLEMENTED`. Los tres closure criteria observados: security updates
+habilitados y verificados por readback administrativo, cobertura frontend `/frontend`
+contract-verified y evidencia de SBOM observada contra el head final del PR. `ERM-DEP-001`
+permanece `OPEN` como seguimiento operativo del primer PR real de Dependabot contra
+`frontend/package.json`, que todavía no se observó.
 
 ## 9. Riesgos residuales
 
-1. **Dependabot security updates siguen deshabilitados.** Es el riesgo dominante: los avisos
-   de seguridad no generan PR automático hasta que el repository admin ejecute la mutación R2.
-2. **El SBOM no está verificado en remoto.** El job está validado estructuralmente por
-   contratos locales, pero ninguna corrida real de CI produjo todavía el artifact.
-3. **El generador es código propio.** Un cambio de formato de `pnpm-lock.yaml` (por ejemplo un
+Riesgos previos eliminados de esta lista tras verificación (2026-08-02): la desactivación de
+Dependabot security updates y la ausencia del artifact SBOM remoto quedaron resueltas por la
+evidencia de §7.2 y ya no son riesgos residuales.
+
+1. **El generador es código propio.** Un cambio de formato de `pnpm-lock.yaml` (por ejemplo un
    `lockfileVersion` nuevo) podría degradar la salida. Está cubierto por contratos, pero no por
    un validador CycloneDX externo.
-4. **El SBOM refleja el lockfile, no el runtime.** No detecta código vendorizado, cargado
+2. **El SBOM refleja el lockfile, no el runtime.** No detecta código vendorizado, cargado
    dinámicamente ni dependencias del sistema operativo del runner.
-5. **La agrupación aumenta el tamaño de los PR de minor/patch.** Un fallo dentro de un grupo
+3. **La agrupación aumenta el tamaño de los PR de minor/patch.** Un fallo dentro de un grupo
    obliga a revertir el grupo completo o a desagruparlo manualmente.
-6. **`backend-ci.yml` gana un job por PR y por push**, con su coste de instalación.
-7. **Deriva del digest revisado.** Todo cambio futuro de `backend-ci.yml` obliga a recalcular
+4. **`backend-ci.yml` gana un job por PR y por push**, con su coste de instalación.
+5. **Deriva del digest revisado.** Todo cambio futuro de `backend-ci.yml` obliga a recalcular
    `canonicalWorkflowDigests`; omitirlo rompe `qga-workflow-security`.
-8. **Production readiness sigue `PARTIAL/BLOCKED`.** Este slot no la modifica.
+6. **Production readiness sigue `PARTIAL/BLOCKED`.** Este slot no la modifica.
+7. **Primer canary `/frontend` pendiente.** La cobertura Dependabot de `frontend/package.json`
+   está configurada y contract-verified, pero todavía no se observó un PR real de Dependabot
+   abierto contra ese manifiesto. `ERM-DEP-001` permanece `OPEN` hasta esa observación.
 
 ## 10. Rollback lógico
 
@@ -236,6 +299,8 @@ PR y se revierte por separado desde settings.
 
 ## 11. Punto de detención declarado
 
+Estado previo (2026-08-01), preservado como histórico:
+
 ```text
 SLOT 16 LOCAL IMPLEMENTATION: APPLIED
 LOCAL VALIDATIONS: PASSED
@@ -250,4 +315,20 @@ ERM-CTRL-024: PARTIAL
 PRODUCTION READINESS: PARTIAL/BLOCKED
 ```
 
-El slot 18 no se inicia. El roadmap enterprise no se declara cerrado.
+Estado final (2026-08-02):
+
+```text
+LOCAL IMPLEMENTATION: PASSED
+REMOTE CI: PASSED
+E2E: PASSED
+SBOM: VERIFIED
+THREAD: RESOLVED
+VULNERABILITY ALERTS: ENABLED_VERIFIED
+DEPENDABOT SECURITY UPDATES: ENABLED_VERIFIED
+MERGE: NOT_RUN
+ERM-CTRL-024: IMPLEMENTED
+PRODUCTION READINESS: PARTIAL/BLOCKED
+```
+
+El slot 18 no se inicia. El roadmap enterprise no se declara cerrado. El merge de PR #1630
+queda como acción manual pendiente de Nico.

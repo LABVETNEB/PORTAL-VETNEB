@@ -7,7 +7,7 @@
 | Lifecycle status | ACTIVE |
 | Authoritative source role | Fuente normativa vigente para gobernanza de dependencias, Dependabot, actions pinneadas y SBOM; complemento de [VETNEB Sources of Truth](../SOURCES_OF_TRUTH.md) y del [Enterprise Control Register](./enterprise-control-register.md) |
 | Effective date | 2026-08-01 |
-| Last verified date | 2026-08-01 |
+| Last verified date | 2026-08-02 |
 | Review cadence | Mensual para dependencias; trimestral para la política |
 | Supersedes | Ninguno |
 | Superseded by | Ninguno |
@@ -244,3 +244,4 @@ observada. En particular:
 | Fecha | Cambio | Estado resultante | Evidencia |
 | --- | --- | --- | --- |
 | 2026-08-01 | Creación inicial de la política de supply chain | `ACTIVE` al aprobarse el PR | `PR-DEPS-SUPPLY-CHAIN-GOVERNANCE`; `ERM-CTRL-024` permanece `PARTIAL` |
+| 2026-08-02 | Verificación remota final del slot 16 | `ACTIVE`; vulnerability alerts habilitados y verificados; Dependabot security updates habilitados y verificados (`enabled=true`, `paused=false`); artifact SBOM verificado remotamente (ID `8840354235`, run `30770495535`, job `91556690313`); `ERM-CTRL-024` promovido a `IMPLEMENTED` | [Auditoría del slot 16](../audit/pr-deps-supply-chain-governance-audit.md); PR #1630 (head `89d00f7d9c8a4430d8f8dc209f2e0252c09ad139`); review thread `PRRT_kwDOR5qlsc6VrJFz` `RESOLVED` |
