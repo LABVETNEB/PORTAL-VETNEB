@@ -48,7 +48,7 @@ test("frontend reports page uses reports API client wrapper", () => {
   assertIncludes(source, ": await getReportsPaginated(", reportsPage);
   assertIncludes(source, "{ throwOnError: true }", reportsPage);
   assertIncludes(source, "const reports = pagedResult.reports", reportsPage);
-  assertIncludes(listSource, "reports.map", reportsList);
+  assertIncludes(listSource, "visibleReports.map", reportsList);
   assertIncludes(listSource, "reports.length", reportsList);
   assertIncludes(listSource, "totalCount", reportsList);
   assertIncludes(listSource, "reportsTotalPages", reportsList);
