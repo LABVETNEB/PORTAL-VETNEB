@@ -60,7 +60,7 @@ test("dashboard informes page shows empty state when reports are unavailable", (
   assert.ok(listSource.includes('role="alert"'));
   assert.ok(listSource.includes("No hay informes disponibles."));
   assert.ok(listSource.includes("<EmptyState"));
-  assert.ok(listSource.includes("reports.map((report"));
+  assert.ok(listSource.includes("visibleReports.map((report"));
 });
 
 test("dashboard logistics page distinguishes overview load failures from empty states", () => {
