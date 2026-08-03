@@ -1,3 +1,7 @@
+# Supply-chain governance: docs/governance/supply-chain-policy.md
+# npm root, npm frontend and GitHub Actions stay separate ecosystems.
+# Major updates are never grouped; they must arrive as isolated pull requests.
+# Automatic merge is never enabled here or in repository settings.
 version: 2
 updates:
   - package-ecosystem: npm
@@ -7,6 +11,26 @@ updates:
     open-pull-requests-limit: 10
     labels:
       - dependencies
+    groups:
+      npm-root-low-risk:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    labels:
+      - dependencies
+    groups:
+      npm-frontend-low-risk:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
 
   - package-ecosystem: github-actions
     directory: /
@@ -15,3 +39,9 @@ updates:
     open-pull-requests-limit: 10
     labels:
       - dependencies
+    groups:
+      github-actions-low-risk:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch

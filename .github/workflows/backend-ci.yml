@@ -197,3 +197,41 @@ jobs:
 
           echo "Unexpected backend validation state: should_run=$SHOULD_RUN heavy=$HEAVY_RESULT" >&2
           exit 1
+
+  generate-sbom:
+    # Supply-chain evidence only. No job depends on this one and the required
+    # `validate-backend` context never observes its result, so it cannot block a
+    # merge. Failures stay visible instead of being masked.
+    name: generate-sbom
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+        with:
+          version: 11.13.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate CycloneDX SBOM
+        run: node scripts/supply-chain/generate-sbom.mjs --out sbom/portal-vetneb.cdx.json
+
+      - name: Upload CycloneDX SBOM
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: sbom-cyclonedx
+          path: sbom/portal-vetneb.cdx.json
+          if-no-files-found: error
+          retention-days: 90
