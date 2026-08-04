@@ -187,10 +187,10 @@ Las 10 skills se descomprimieron y leyeron íntegras. Comparten un bloque «Prot
 | `staff-senior-full-stack-engineer` | **Sí** | Evidencia real del repo, contratos, fronteras entre capas. | «Leer archivos reales antes de modificar» produjo el Hecho 2 (tres hooks adaptativos), invisible sin abrir los tres. «No simular éxito» produjo la corrección del §1.2. Todas las referencias son `ruta:línea`. | 6, 13–21, 41–45 |
 | `production-web-optimization-engineer` | **Sí** | Renderizado, reflow, ResizeObserver, densidad, CSS, sobreingeniería, escala P0–P3. | Su checklist de frontend detectó: componentes de 62–83 KB (§14), `.field-select` duplicando `Select` (§15), 3 hooks adaptativos equivalentes (§20), 17 456 B de componentes muertos (§14.3). Su regla «no introducir abstracciones innecesarias» hizo rechazar un `SuperSearchBar` monolítico (§47.3). | 15, 16, 21, 40, 48 |
 | `admin-dashboard-operational-actions` | **Sí** | Acciones, filtros, botones, mutaciones, toolbars, selección. | Inventario de las 10 superficies admin con su acción real (§12); verificación en runtime de que Aplicar/Limpiar/Actualizar tienen handler; detección de que la barra de tokens de clínica desaparece con dataset vacío (§17, P2-09). | 13, 18, 20, 32–34 |
-| `security-production-invariants` | **Sí** | Roles, sesiones, cookies, IDs, tokens, rutas admin, datos sensibles. | Verificación de separación `admin_session_id` / `app_session_id` en las 15 superficies medidas; ningún filtro acepta token completo («Últimos 4»); ningún `data-*` contiene lexemas sensibles; ninguna colección expone hashes. | 12, 18, 61 |
+| `security-production-invariants` | **Sí** | Roles, sesiones, cookies, IDs, tokens, rutas admin, datos sensibles. | Verificación de separación `admin_session_id` / `app_session_id` en los 15 módulos verificados; ningún filtro acepta token completo («Últimos 4»); ningún `data-*` contiene lexemas sensibles; ninguna colección expone hashes. | 12, 18, 61 |
 | `web-end-to-end-global` | **Sí** | Coherencia global admin + clínica, responsive, regresiones cruzadas. | Detectó el Hecho 3 (dos app shells para el rol clínica), que sólo aparece comparando `/dashboard` con `/dashboard/informes`. Motivó medir las 10 superficies de clínica además de las 11 de admin. | 13, 14, 17, 38, 57 |
 | `bugs-errores-optimizacion-rutas` | **Sí (condicional)** | Persisten defectos funcionales/UX. | 5 correctivos separados en §52: `line-height` degenerado, `aria-label` sobre `div` sin rol, barra condicionada a datos, doble shell de clínica, canvas de usuarios desalineado con su `limit`. | 41–45, 53 |
-| `protocolos-comunicacion` | **Sí (condicional)** | Las colecciones producen llamadas con cookies de sesión y `limit`/`offset`. | Mapa filtro → parámetro → endpoint (§17.2); trazado de `limit` a la query real (§20). | 18, 21, 56 |
+| `protocolos-comunicacion` | **Sí (condicional)** | Las colecciones producen llamadas con cookies de sesión y `limit`/`offset`. | Mapa filtro → parámetro → endpoint (§7.4); trazado de `limit` a la query real (§20). | 18, 21, 56 |
 | `lanzamiento-mantenimiento` | **Sí (condicional)** | Se piden readiness, gates y rollback. | 12 gates en §58, rollback lógico por PR en §61. Ningún despliegue ejecutado. | 59, 62 |
 | `pwa-end-to-end` | **No** | Condición no cumplida — **descarte reconfirmado**. | La política PWA de la propia skill **prohíbe cachear** `/dashboard/*` y `/dashboard/admin/*`. Las 7 rutas auditadas están íntegramente bajo `/dashboard`. Por construcción, el service worker no puede servir una versión obsoleta de ninguna superficie de este rediseño, y ningún PR propuesto toca manifest, SW ni caché. | 11 |
 
@@ -385,7 +385,7 @@ WorkspaceAppShell                       (100dvh, overflow-hidden, min-height:0)
 
 ## 14. Inventario de componentes
 
-### 15.1 Recuento
+### 14.1 Recuento
 
 | Ubicación | Archivos | Bytes |
 |---|---:|---:|
@@ -396,7 +396,7 @@ WorkspaceAppShell                       (100dvh, overflow-hidden, min-height:0)
 | `features/dashboard/` | 14 | 18 196 |
 | **Total dashboard** | **89** | ~865 000 |
 
-### 15.2 Componentes por nivel arquitectónico
+### 14.2 Componentes por nivel arquitectónico
 
 | Nivel | Componentes | Estado |
 |---|---|---|
@@ -412,7 +412,7 @@ WorkspaceAppShell                       (100dvh, overflow-hidden, min-height:0)
 | **Detalle** | `StudyTimeline`, `AdminReportWorkflowViewerCard`, `ParticularTokensCardPrimitives` | **Extraer** `DetailsPane` |
 | **Monolitos** | `AdminParticularTokensCard` 83 115 B · `ClinicParticularTokensCard` 62 976 B · `AdminReportsCard` 39 205 B · `AdminUsersRolesReadOnlyCard` 36 152 B · `AdminClinicsManagementCard` 33 302 B · `AdminSessionsReadOnlyCard` 30 847 B · `page.tsx` admin 30 672 B · `UploadReportModal` 28 656 B · `ClinicPublicProfileCard` 28 010 B · `AdminPricingEditorCard` 27 254 B · `ClinicInformesWorkspaceSummary` 25 282 B · `DashboardNotificationsBell` 23 503 B | **12 archivos > 23 KB**; la barra, la tabla, el pager y el detalle viven dentro del mismo archivo |
 
-### 15.3 Componentes sin consumidores (código muerto verificado)
+### 14.3 Componentes sin consumidores (código muerto verificado)
 
 | Componente | Bytes | Evidencia |
 |---|---:|---|
@@ -424,7 +424,7 @@ WorkspaceAppShell                       (100dvh, overflow-hidden, min-height:0)
 | `DashboardSidebar.tsx` | 149 | 0 usos JSX |
 | **Total** | **17 456** | Cadena completa sin punto de entrada desde ninguna página |
 
-### 15.4 Arquitectura de destino ya andamiada
+### 14.4 Arquitectura de destino ya andamiada
 
 `features/dashboard/` contiene `application/` (2), `config/` (2), `domain/` (1), `presentation/` (7 barriles + `DashboardStatusBadge.tsx`) y un `README.md` que ya describe el destino. **La estructura existe y está vacía**: poblarla es mover, no inventar.
 
@@ -449,7 +449,7 @@ WorkspaceAppShell                       (100dvh, overflow-hidden, min-height:0)
 | `styles/dashboard/tokens.css` | **514** | Tokens del dashboard |
 | **Total** | **149 266** (4 119 líneas) | |
 
-### 16.1 Diagnóstico
+### 15.1 Diagnóstico
 
 - **`tokens.css` tiene 514 bytes** frente a 148 752 de reglas. No existe un sistema de tokens del dashboard: existen valores dispersos. Es el hallazgo CSS estructural (P1-08).
 - **Duplicación verificada:** `.field-select` (`globals.css:374`) reimplementa `components/ui/select.tsx` con radio 8 px (vs 6), fondo `rgb(248,251,252)` (vs `bg-card/96`) y sombra doble (vs simple). Se usa en Usuarios y roles y en formularios admin.
@@ -587,7 +587,7 @@ Los 7 superbuscadores se incorporan al programa global conservando íntegro su i
 
 ## 22. Métricas de chrome
 
-### 23.1 Descomposición vertical — Informes admin, 1920 × 1080
+### 22.1 Descomposición vertical — Informes admin, 1920 × 1080
 
 | Banda | y | Alto | % del chrome |
 |---|---:|---:|---:|
@@ -601,7 +601,7 @@ Los 7 superbuscadores se incorporan al programa global conservando íntegro su i
 
 El superbuscador es el **cuarto** consumidor. Los dos primeros (header de aplicación 92.33 + encabezado de workspace 73.95 = **166.28 px, el 51.4 %**) se resuelven en el Programa B, Nivel 5 (§49, B11–B14).
 
-### 23.2 Chrome por viewport (% del alto del viewport antes de la primera fila)
+### 22.2 Chrome por viewport (% del alto del viewport antes de la primera fila)
 
 | Viewport | Mín | Máx | Superficie del máximo | Drive |
 |---|---:|---:|---|---:|
@@ -661,7 +661,7 @@ El superbuscador es el **cuarto** consumidor. Los dos primeros (header de aplica
 
 ## 25. Datos de Google Drive utilizados
 
-### 26.1 Condiciones de captura
+### 25.1 Condiciones de captura
 
 | Grupo | Viewport CSS | DPR | Estados | Uso |
 |---|---|---:|---|---|
@@ -670,7 +670,7 @@ El superbuscador es el **cuarto** consumidor. Los dos primeros (header de aplica
 | Excluido | 1920 × 911 | 1 | 19, 20 (visor PDF, tema oscuro) | Sólo §35 (visor) |
 | Mobile | **390 × 844** | 2 / 3 | 01–07 | §37 (responsive) |
 
-### 26.2 Valores canónicos
+### 25.2 Valores canónicos
 
 | Ruta técnica | Valor | Código | Aplicabilidad |
 |---|---|---|---|
@@ -702,7 +702,7 @@ El superbuscador es el **cuarto** consumidor. Los dos primeros (header de aplica
 | Mobile: fila | **58 px** | 01–04 | §37 |
 | Mobile: input de búsqueda | 334 × 37 @ x = 56 · **16 px** · sin borde ni radio · 85.64 % del ancho | `G01020`, `C00224` | §37 |
 
-### 26.3 Limitaciones de comparación
+### 25.3 Limitaciones de comparación
 
 1. Drive gestiona **una** entidad con **un** campo de búsqueda; VETNEB filtra entidades heterogéneas con 3–8 dimensiones. La composición es transferible; el número de dimensiones no.
 2. Los estados de Drive son de **tema claro** (salvo 19/20); las capturas del propietario son de **tema oscuro**; la medición VETNEB fue en claro. Los colores se comparan por **relación** (Δ de luminosidad respecto a la página), nunca por hex absoluto.
@@ -890,11 +890,11 @@ Inventario vigente: **P1-01** (tres implementaciones), **P1-02** (colapso 768–
 
 | ID | Título | Alcance | Evidencia |
 |---|---|---|---|
-| P1-01 | Tres implementaciones de superbuscador (+ 3 orígenes y 3 anchos) | 7 superbuscadores | `AdminUsersRolesReadOnlyCard.tsx:540`, `AdminClinicsManagementCard.tsx:606`; §10 doc. anterior |
+| P1-01 | Tres implementaciones de superbuscador (+ 3 orígenes y 3 anchos) | 7 superbuscadores | `AdminUsersRolesReadOnlyCard.tsx:540-605` (sin primitiva, `div` + `.field-select`); `AdminClinicsManagementCard.tsx:606-620` (sin primitiva, `<input>` suelto); las 5 superficies restantes usan `FilterBar` (§7.1); 3 orígenes/3 anchos medidos en runtime al mismo viewport — x = 26.39/27.39/43.39, ancho = 1833.22/1865.22/1867.22 (§24, §26) |
 | P1-02 | Colapso de densidad de filtros en 768–1023 px (42–60.5 → 117–155) | 5 superbuscadores | Medición anterior, reconfirmada |
-| P1-03 | Sin campo de búsqueda primario; reparto fraccional 180–394 px | 7 superbuscadores | §10.4 doc. anterior |
+| P1-03 | Sin campo de búsqueda primario; reparto fraccional 180–394 px | 7 superbuscadores | `AdminAuditFilterBar.tsx:61` (`lg:grid-cols-[minmax(11rem,1.4fr)_minmax(8rem,1fr)_minmax(8rem,1fr)_minmax(8rem,1fr)_minmax(7rem,0.8fr)_minmax(7rem,0.8fr)_auto_auto]`), `AdminReportsCard.tsx:538` (`xl:grid-cols-[0.8fr_1fr_0.95fr_0.95fr_0.9fr_0.9fr_0.85fr_0.85fr_auto_auto]`) y plantillas fraccionales equivalentes en S2/S6/S7 (§7.1): ningún superbuscador reserva una columna dominante, los 7–9 campos comparten fracciones (`0.8fr`–`1.4fr`) del mismo ancho de banda. El rango de 180–394 px por campo resulta de resolver esas fracciones sobre el ancho de banda medido en runtime (1833.22–1867.22 px, §24, §26) |
 | **P1-04** | **Chrome vertical (CORREGIDO)**: 29.9–54.7 % vs 19.2 %; peor en 1366×768 y 1280×720 | Todo el dashboard | §22; corrige la cifra «9 filas» del baseline |
-| P1-05 | Usuarios y roles + Clínicas no usan las primitivas | 2 módulos | §10.5 doc. anterior |
+| P1-05 | Usuarios y roles + Clínicas no usan las primitivas | 2 módulos | `AdminUsersRolesReadOnlyCard.tsx:540-605` — `div` con `flex` + `.field-select` (`globals.css:374`, radio 8 px, fondo `rgb(248,251,252)`, sombra doble) en vez de `FilterBar`/`Select`; `AdminClinicsManagementCard.tsx:606-620` — `<input>` suelto de `components/ui/input.tsx`, sin `FilterBar` ni región nombrada. Primitiva compartida por las 5 superficies restantes: `FilterBar.tsx` (S1/S2/S3/S6/S7, §7.1) |
 | P1-06 | Superficie invertida (contenedor teñido, campos blancos) | Sistema visual | `C01621` vs runtime |
 | P1-07 | Seis alturas de fila (35.66 · 37 · 41 · 49 · 51 · 156.5) vs 48 homogéneas | 12 colecciones | §18 |
 | P1-08 | Sin sistema de tokens del dashboard (`tokens.css` = 514 B) | CSS | §15 |
@@ -975,7 +975,7 @@ Inventario vigente: **P1-01** (tres implementaciones), **P1-02** (colapso 768–
 
 ## 45. Sistema visual de destino
 
-### 46.1 Tokens dashboard-scoped
+### 45.1 Tokens dashboard-scoped
 
 Derivados de los tokens VETNEB existentes (`globals.css:16-49` claro, `:1663-1695` oscuro), **no impuestos a la web pública**.
 
@@ -1002,7 +1002,7 @@ Derivados de los tokens VETNEB existentes (`globals.css:16-49` claro, `:1663-169
 
 **Justificación del token clave.** Drive tiñe su campo de búsqueda con `#E9EEF6` sobre página `#FFFFFF`: Δ L ≈ −6 puntos. En VETNEB claro la página es `--background` con L = 96; `--muted` tiene L = 91 → Δ L = −5. En oscuro, `--background` L = 12 y `--muted` L = 20 → Δ L = +8. `--muted` es por tanto el equivalente tonal nativo de `#E9EEF6`, **sin copiar el hex**.
 
-### 46.2 Escalas
+### 45.2 Escalas
 
 | Escala | Valores |
 |---|---|
@@ -1053,7 +1053,7 @@ Derivados de los tokens VETNEB existentes (`globals.css:16-49` claro, `:1663-169
 
 ## 47. Arquitectura de componentes
 
-### 48.1 Destino
+### 47.1 Destino
 
 ```
 features/dashboard/
@@ -1078,7 +1078,7 @@ features/dashboard/
     └── clinic/             composición por módulo clínica
 ```
 
-### 48.2 Destino de cada componente actual
+### 47.2 Destino de cada componente actual
 
 | Acción | Componentes |
 |---|---|
@@ -1089,7 +1089,7 @@ features/dashboard/
 | **Retirar** | `DashboardSidebar`, `AdminDashboardSidebar`, `ClinicDashboardSidebar`, `DashboardSidebarFrame`, `StickyFilterBar`, `FilterDrawer` (17 456 B) |
 | **Reexportar durante la migración** | Barriles de `presentation/*` reexportan desde `components/dashboard/` hasta que el último consumidor migre |
 
-### 48.3 Abstracciones rechazadas
+### 47.3 Abstracciones rechazadas
 
 - **`SuperSearchBar` monolítico:** necesitaría props para mecanismo de submit, presencia de cada acción, política de renderizado condicional, política de etiquetas, reset por control y plantilla de columnas. API inmanejable. **Rechazado.**
 - **`CollectionWorkspace` con fetch integrado:** acoplaría presentación y API. La colección recibe datos y callbacks; nunca llama al backend.
@@ -1103,14 +1103,14 @@ features/dashboard/
 
 | PR | Nivel | Objetivo | Dependencias |
 |---|---|---|---|
-| **A01** | 0 | Baseline de contrato operativo de las 15 superficies (handlers, params, endpoints, defaults, reset de página) | — |
-| **A02** | 0 | Baseline geométrico E2E: 13 viewports × 15 superficies, con tolerancias | A01 |
+| **A01** | 0 | Baseline de contrato operativo de los 15 módulos (handlers, params, endpoints, defaults, reset de página) | — |
+| **A02** | 0 | Baseline geométrico E2E: 21 superficies × 13 viewports (273 combinaciones), con tolerancias | A01 |
 | **A03** | 0 | Baseline de `limit`/`offset` por módulo y viewport (los 15 de §20) | A01 |
 | **A04** | 0 | Baseline de seguridad: separación de sesión, ausencia de secretos, `data-*` sin lexemas sensibles | — |
 | **A05** | 1 | **Reserva geométrica estable**: las regiones estructurales declaran altura reservada; el canvas de filas queda invariante al CSS interno | A02, A03 |
 | **A06** | 1 | Unificar los 3 hooks adaptativos en uno con regiones declaradas | A05 |
 | **A07** | 1 | Migrar los 15 módulos al hook unificado, con `limit` invariante demostrado | A06 |
-| **A08** | 1 | Congelar el contrato zero-scroll como test de 13 viewports × 15 superficies | A02 |
+| **A08** | 1 | Congelar el contrato zero-scroll como test de 21 superficies × 13 viewports (273 combinaciones) | A02 |
 
 ---
 
@@ -1193,12 +1193,12 @@ features/dashboard/
 | **12** | Microgeometría | C25 |
 | **13** | Validación y rollout | C26 |
 
-### 52.1 Mapeo de los 19 PR anteriores
+### 51.1 Mapeo de los 19 PR anteriores
 
 | Anterior | Nuevo | Nota |
 |---|---|---|
-| SB-01 contract test | **A01** | Ampliado de 7 a 15 superficies |
-| SB-02 baseline geométrico | **A02** | Ampliado a 13 × 15 |
+| SB-01 contract test | **A01** | Ampliado de 7 a 15 módulos |
+| SB-02 baseline geométrico | **A02** | Ampliado a 21 × 13 (273 combinaciones) |
 | SB-03 desacoplar altura↔limit | **A05 + A06 + A07** | Dividido: la evidencia mostró 3 hooks y 15 módulos |
 | SB-04 S5 → primitivas | **C11** | Absorbido por el subsistema de filtros |
 | SB-05 S4 → primitivas | **C11** | idem |
@@ -1223,7 +1223,7 @@ features/dashboard/
 
 ## 52. Selección del piloto
 
-### 53.1 Evaluación
+### 52.1 Evaluación
 
 | Candidato | Filtros | Superbuscador | Paginación adaptativa | Selección potencial | Detalle | Visor | Densidad | Riesgo | Apto |
 |---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|---|:-:|
@@ -1233,13 +1233,13 @@ features/dashboard/
 | Clínicas | 1 campo | S4 | cliente + servidor | Media | Drawer | No | 156.5 px | Bajo | No (poca densidad) |
 | Informes clínica | 7 campos | S6 | cliente | Media | Master-detail | No | 49 px | Medio | Alternativa |
 
-### 53.2 Decisión
+### 52.2 Decisión
 
 **Informes administrativos se confirma como piloto.** Es el único módulo que ejercita simultáneamente los doce elementos de la arquitectura: superbuscador de 8 campos con `Aplicar`/`Limpiar`, paginación adaptativa contra servidor con el mayor rango medido (9 → 20 filas según viewport) y el cap más alto (36), colección tabular, visor documental, subida de archivos y acciones por fila que justifican selección múltiple.
 
 **Se descarta Auditoría** pese a su densidad: su `<form method="get">` con navegación de URL es el contrato más frágil del dashboard y no debe ser el primero en migrar.
 
-### 53.3 El piloto debe validar
+### 52.3 El piloto debe validar
 
 Tokens · `WorkspaceScaffold` · colección · toolbar · filtros · selección · detalle · menús · responsive en los 13 viewports · **`limit` invariante** · zero-scroll · suite de pruebas completa.
 
@@ -1265,13 +1265,13 @@ Estructura completa por PR: **ID · Programa · Nivel · Título · Objetivo · 
 | PR | Prog. | Nivel | Objetivo | Dependencias | Superficies | Riesgo | Tests | Cierre |
 |---|---|---|---|---|---|---|---|---|
 | A01 | A | 0 | Contrato operativo | — | 15 | Bajo | +`dashboard-operational-contract` | Falla si cambia handler/param/endpoint/default |
-| A02 | A | 0 | Baseline geométrico | A01 | 15 | Bajo | +`dashboard-geometry-baseline.spec` | Verde en 13 × 15 |
+| A02 | A | 0 | Baseline geométrico | A01 | 21 | Bajo | +`dashboard-geometry-baseline.spec` | Verde en 21 × 13 (273 combinaciones) |
 | A03 | A | 0 | Baseline de `limit` | A01 | 15 | Bajo | +`adaptive-limit-baseline` | `limit` registrado por viewport |
 | A04 | A | 0 | Baseline de seguridad | — | 15 | Bajo | +`dashboard-security-invariants` | Sesiones separadas, sin secretos |
 | A05 | A | 1 | Reserva geométrica | A02, A03 | 15 | **Alto** | `limit-invariance` | `limit` idéntico con regiones de 32/48/64 px |
 | A06 | A | 1 | Hook unificado | A05 | — | **Alto** | unit del hook | Un hook; 3 reglas equivalentes cubiertas |
 | A07 | A | 1 | Migrar 15 módulos | A06 | 15 | **Alto** | `limit-invariance` × 15 | `limit` invariante en los 15 |
-| A08 | A | 1 | Congelar zero-scroll | A02 | 15 | Bajo | +`zero-scroll-contract` | 0 desbordamientos en 13 × 15 |
+| A08 | A | 1 | Congelar zero-scroll | A02 | 21 | Bajo | +`zero-scroll-contract` | 0 desbordamientos en 21 × 13 (273 combinaciones) |
 | B01 | B | 2 | Poblar `presentation/` | A07 | — | Bajo | reglas de import | Sin imports cruzados |
 | B02 | B | 2 | Retirar muertos | B01 | — | Bajo | ajustar 3 tests | `git grep` sin resultados |
 | B03 | B | 3 | Tokens | B01 | — | Medio | +contract de tokens | Escalas completas, claro y oscuro |
@@ -1318,28 +1318,28 @@ Estructura completa por PR: **ID · Programa · Nivel · Título · Objetivo · 
 
 ## 56. Plan de pruebas
 
-### 57.1 Arquitectura
+### 56.1 Arquitectura
 Reglas de import (`presentation/` no importa de `app/`) · sin llamadas API desde presentación · sin duplicación de catálogos de módulos · sin componentes muertos.
 
-### 57.2 Contratos
+### 56.2 Contratos
 Handlers · URL y query string (incluida la de Auditoría) · payloads · endpoints · **`limit` y `offset` por viewport** · permisos · estados · defaults · semántica de fechas · reset de página por control · política de renderizado condicional.
 
-### 57.3 Unit
+### 56.3 Unit
 Primitivas de `collection/`, `filters/`, `details/`, `menus/`, `viewer/` · variantes · selección · overflow · truncamiento · `clamp` de anchura · estados disabled/loading/error/empty.
 
-### 57.4 E2E
+### 56.4 E2E
 Navegación entre los 15 módulos · deep links `?module=` · búsqueda · filtros · selección individual y múltiple · acciones masivas · Back/Forward · recarga · cambio de viewport en caliente (verifica A05) · diálogos · menús por teclado (Tab/Shift+Tab/Enter/Escape) · visor · mobile.
 
-### 57.5 Regresión visual
-15 superficies × 13 viewports × 2 temas × estados {inicial, hover, focus, selección, filtros activos, loading, error, empty}. **Artefactos fuera de `docs/`.** Playwright borra `test-results/` al inicio de cada corrida: preservar el «antes» fuera de ese directorio.
+### 56.5 Regresión visual
+21 superficies × 13 viewports × 2 temas × estados {inicial, hover, focus, selección, filtros activos, loading, error, empty}. **Artefactos fuera de `docs/`.** Playwright borra `test-results/` al inicio de cada corrida: preservar el «antes» fuera de ese directorio.
 
-### 57.6 Accesibilidad
-`@axe-core/playwright` sobre las 15 superficies en ambos temas · roles · etiquetas · orden de tabulación · foco visible bajo `forced-colors` · contraste ≥ 4.5:1 texto y ≥ 3:1 bordes · objetivos táctiles ≥ 44 px · `prefers-reduced-motion` · anuncio de conteo por live region.
+### 56.6 Accesibilidad
+`@axe-core/playwright` sobre las 21 superficies en ambos temas · roles · etiquetas · orden de tabulación · foco visible bajo `forced-colors` · contraste ≥ 4.5:1 texto y ≥ 3:1 bordes · objetivos táctiles ≥ 44 px · `prefers-reduced-motion` · anuncio de conteo por live region.
 
-### 57.7 Rendimiento
+### 56.7 Rendimiento
 Re-renders por interacción · hidratación · layout shift · disparos de `ResizeObserver` · peso CSS antes/después · long tasks · **número de peticiones de paginación por cambio de viewport** (detecta *thrash* de `limit`) · estabilidad en viewport corto (768 × 600).
 
-### 57.8 Comandos (Terminal 1)
+### 56.8 Comandos (Terminal 1)
 
 ```powershell
 pnpm --dir frontend lint
@@ -1375,11 +1375,11 @@ pnpm --dir frontend e2e:<cohorte-seleccionada>
 
 | Dimensión | Cobertura |
 |---|---|
-| Superficies | 15 (11 admin + 10 clínica, descontando solapes de ruta) |
+| Superficies | 21 (11 admin + 10 clínica; §12, §13) |
 | Viewports | 13 |
 | Temas | claro + oscuro |
 | Estados | inicial · hover · focus · selección · filtros activos · loading · error · empty · disabled |
-| Total nominal | **15 × 13 × 2 × 9 = 3 510 capturas** |
+| Total nominal | **21 × 13 × 2 × 9 = 4 914 capturas** |
 | Estrategia | Baseline completo en A02; en cada PR sólo las superficies tocadas; suite completa en C26 |
 | Aprobación | Manual, con comparación lado a lado; sin aprobación automática de diferencias |
 
@@ -1400,7 +1400,7 @@ pnpm --dir frontend e2e:<cohorte-seleccionada>
 | G9 | Chrome ≤ 240 px a 1920 y ≤ 32 % en 768–1366 (B11–B14) | Antes de C17 |
 | G10 | Piloto cerrado con los 12 puntos de §52.3 (C17) | Antes de C18 |
 | G11 | axe sin violaciones críticas ni serias en ambos temas | Antes de C26 |
-| G12 | Staging: deploy Live en el commit esperado; las 15 superficies operativas con tenants y usuarios de prueba controlados (nunca datos de una clínica real, AGENTS.md §17); evidencia sanitizada; auditoría sin secretos; sin incremento de 4xx/5xx en 48 h | Tras C26 |
+| G12 | Staging: deploy Live en el commit esperado; las 21 superficies operativas con tenants y usuarios de prueba controlados (nunca datos de una clínica real, AGENTS.md §17); evidencia sanitizada; auditoría sin secretos; sin incremento de 4xx/5xx en 48 h | Tras C26 |
 
 ---
 
@@ -1437,7 +1437,7 @@ pnpm --dir frontend e2e:<cohorte-seleccionada>
 | R7 | El popover expone `listbox`/`dialog` con teclado completo; axe en C11 y C26 |
 | R8 | A08 congela el contrato; se ejecuta en cada PR desde B06 |
 | R9 | B03 obliga a tokens en ambos temas; regresión visual dual desde B04 |
-| R10 | Las 15 superficies en cada gate, no sólo las de admin |
+| R10 | Las 21 superficies en cada gate, no sólo las de admin |
 | R11 | Prohibido animar alturas de región; sólo `background-color` y `opacity` |
 | R12 | El rail de 80 px es el modo por defecto en 768–1279; el drawer sólo ≥ 1280 |
 | R13 | C05 depende de A07; si el `limit` cae, se revierte a 36 px con justificación medida |
@@ -1478,7 +1478,7 @@ El programa sólo puede cerrarse cuando, simultáneamente:
 9. Los paneles de detalle son reutilizables (un `DetailsPane`, no cuatro patrones).
 10. **La operativa de los 7 superbuscadores es idéntica** (A01 verde).
 11. **La paginación adaptativa sigue siendo correcta y el `limit` por viewport es invariante** respecto del baseline (A03, G3).
-12. No existe scroll accidental; zero-scroll se conserva en 13 × 15 (A08).
+12. No existe scroll accidental; zero-scroll se conserva en 21 superficies × 13 viewports = 273 combinaciones (A08).
 13. No se rompen permisos ni fronteras de sesión (A04).
 14. No se modifica backend sin PR separado.
 15. La accesibilidad no retrocede: axe sin violaciones críticas ni serias en ambos temas.
@@ -1495,8 +1495,8 @@ El programa sólo puede cerrarse cuando, simultáneamente:
 | Dato | Estado | Medición que lo resolvería |
 |---|---|---|
 | Geometría en runtime de S7 (tokens de clínica) | **NO DETERMINADO CON LA EVIDENCIA DISPONIBLE** — el fixture no puebla tokens de clínica y la barra sólo se renderiza con `tokens.length` verdadero | Fixture con tokens poblados, o staging con sesión de clínica real |
-| Valores en **tema oscuro** de las 15 superficies | **NO DETERMINADO** — la medición fue en claro; las capturas del propietario están en oscuro | Repetir §21–§24 con `localStorage['vetneb-theme-mode']='dark-gray'` y `emulateMedia({colorScheme:'dark'})` |
-| Ratios de contraste WCAG reales | **NO DETERMINADO** — no se ejecutó axe | `@axe-core/playwright` sobre las 15 superficies, ambos temas |
+| Valores en **tema oscuro** de las 21 superficies | **NO DETERMINADO** — la medición fue en claro; las capturas del propietario están en oscuro | Repetir §21–§24 con `localStorage['vetneb-theme-mode']='dark-gray'` y `emulateMedia({colorScheme:'dark'})` |
+| Ratios de contraste WCAG reales | **NO DETERMINADO** — no se ejecutó axe | `@axe-core/playwright` sobre las 21 superficies, ambos temas |
 | `--md-sys-color-error` / `-error-container` | **NO DETERMINADO** | Censar los tokens de error actuales en `globals.css` |
 | Área de datos como % del viewport (equivalente a `dataViewport.viewportAreaPercent` de Drive) | **NO DETERMINADO** — se midió el inicio del dato, no el área | Probe que calcule el área del canvas de filas / área del viewport |
 | Estado `pressed` (`:active`) de acciones, chips y filas | **NO DETERMINADO** | `page.mouse.down()` sostenido + `getComputedStyle` |
