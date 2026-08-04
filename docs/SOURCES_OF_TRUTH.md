@@ -9,12 +9,12 @@ Mapa vigente de fuentes de verdad documentales del proyecto VETNEB.
 | Lifecycle status | ACTIVE |
 | Authoritative source role | Mapa primario de fuentes vigentes por dominio |
 | Effective date | 2026-07-28 |
-| Last verified date | 2026-07-31 |
+| Last verified date | 2026-08-04 |
 | Review cadence | Mensual y ante cambios de autoridad documental |
 | Supersedes | Ninguno |
 | Superseded by | Ninguno |
 | Related controls or gaps | `ERM-CTRL-004`; `ERM-DOC-002` |
-| Evidence or approval reference | Árbol del repositorio y configuración GitHub verificados para `PR-AUDIT-ENTERPRISE-DOCS`; PR #1591 y closeout sanitizado de `PR-SEC-REPO-SETTINGS`; PR #1593 y closeout del bloque 03; PR #1601, canarias #1602/#1603 y PR correctiva #1605 del bloque 04; required checks efectivos, hardening de GitHub Actions y canarias #1616/#1618 del bloque 05 verificados el 2026-07-30; PR #1626 / Plan B slot 12 incorpora gobernanza de datos, recovery, incidentes y observabilidad el 2026-07-31 |
+| Evidence or approval reference | Árbol del repositorio y configuración GitHub verificados para `PR-AUDIT-ENTERPRISE-DOCS`; PR #1591 y closeout sanitizado de `PR-SEC-REPO-SETTINGS`; PR #1593 y closeout del bloque 03; PR #1601, canarias #1602/#1603 y PR correctiva #1605 del bloque 04; required checks efectivos, hardening de GitHub Actions y canarias #1616/#1618 del bloque 05 verificados el 2026-07-30; PR #1626 / Plan B slot 12 incorpora gobernanza de datos, recovery, incidentes y observabilidad el 2026-07-31; PR #1635 incorpora la fuente vigente de dashboard/rediseño Drive-like el 2026-08-04 |
 
 ## Propósito
 
@@ -32,6 +32,7 @@ Regla principal:
 | Dominio | Fuente de verdad vigente | Complementos permitidos | Estado | Regla |
 | --- | --- | --- | --- | --- |
 | Índice de auditorías activas | `docs/audit/README.md` | Las 4 auditorías Wave 0 enlazadas desde ese índice y documentos rectores enterprise vigentes | Vigente | Punto de entrada documental de auditorías activas |
+| Dashboard autenticado / rediseño Drive-like | `docs/audit/AUDITORIA_GLOBAL_DASHBOARD_VETNEB_VS_DRIVE.md` | Ninguno | `ACTIVE` | Única fuente para Programa A/B/C, geometría, hallazgos P0–P4 y criterios de aceptación del rediseño del dashboard |
 | Visual/frontend total | `docs/audit/total-visual-engineering-audit.md` | `docs/audit/design-system-contract.md`, `docs/audit/total-engineering-roadmap.md` | Vigente | Gobierna visual/frontend, tokens, CSS, primitivas, dashboards, no-scroll y PR-VIS-* |
 | Ingeniería dura total | `docs/audit/total-software-engineering-audit.md` | `docs/audit/total-engineering-roadmap.md` | Vigente | Gobierna backend, DB, seguridad, CI, testing, observabilidad y PRs ENG/SEC/OBS/LINT/COV |
 | Roadmap integrado total | `docs/audit/total-engineering-roadmap.md` | `docs/audit/total-visual-engineering-audit.md`, `docs/audit/total-software-engineering-audit.md` | Vigente | Orquesta secuencia, dependencias, fases, gates y trazabilidad VIS + ENG |
