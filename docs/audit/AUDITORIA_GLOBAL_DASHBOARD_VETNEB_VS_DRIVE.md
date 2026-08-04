@@ -14,7 +14,7 @@
 
 ### 1.1 Qué cambió respecto de la auditoría anterior
 
-La auditoría previa cubrió 7 superbuscadores. Ésta cubre **todo el dashboard autenticado**: 7 rutas, 15 módulos, 89 componentes, 13 archivos CSS (149 266 bytes, 4 119 líneas) y 143 combinaciones ruta × viewport medidas en runtime.
+La auditoría previa cubrió 7 superbuscadores. Ésta cubre **todo el dashboard autenticado**: 7 rutas, 15 módulos, 89 componentes, 13 archivos CSS (149 266 bytes, 4 119 líneas) y 143 combinaciones (superficie, viewport) medidas en runtime sobre una muestra estratificada de las 21 superficies del inventario (§13, §14; metodología en §4.7).
 
 ### 1.2 Una corrección obligatoria del baseline anterior
 
@@ -66,7 +66,7 @@ Se contaron **4 capas de superficie que pintan** (fondo, borde o sombra) entre e
 
 ### 1.4 Veredicto
 
-El dashboard funciona, es seguro y cumple el contrato zero-scroll sin una sola excepción en **143 combinaciones medidas** (0 px de desbordamiento horizontal y vertical). No hay que reconstruirlo: hay que **desacoplar la geometría de la paginación, unificar el shell y trasladar el presupuesto vertical del chrome al contenido**.
+El dashboard funciona, es seguro y cumple el contrato zero-scroll sin una sola excepción en las **143 combinaciones (superficie, viewport) efectivamente medidas** (§4.7; 0 px de desbordamiento horizontal y vertical). No hay que reconstruirlo: hay que **desacoplar la geometría de la paginación, unificar el shell y trasladar el presupuesto vertical del chrome al contenido**.
 
 Se proponen **44 PR** en tres programas coordinados, ordenados del Nivel 0 al Nivel 13.
 
@@ -80,7 +80,7 @@ Se proponen **44 PR** en tres programas coordinados, ordenados del Nivel 0 al Ni
 | Rutas | 5 módulos admin + 2 clínica | **7 rutas, 15 módulos** |
 | Componentes | 12 | **89** |
 | CSS | `globals.css` puntual | **13 archivos, 149 266 B, 4 119 líneas** |
-| Mediciones | 78 combinaciones | **143 combinaciones** + límites adaptativos reales |
+| Mediciones | 78 combinaciones | **143 combinaciones** (muestra estratificada, §4.7) + límites adaptativos reales |
 | Drive usado para | app bar, búsqueda, chips, low-chrome | + drawer, rail, colecciones, selección, menús, paneles, visor, mobile |
 | Hallazgos | 29 | **50** (29 heredados + 21 nuevos) |
 | PR | 19 | **44** |
@@ -114,7 +114,7 @@ Chromium vía Playwright 1.61.0 headless · Windows 11 Pro 10.0.26200 · DPR 1 �
 
 ### 4.3 Backend
 
-**Fixture API hermético del propio repositorio** (`frontend/e2e/fixtures/admin-populated-api-server.mjs`, puerto 3107) + `next dev` en 3000. **No se tocó producción, staging ni la base de datos.** Cookies del fixture: `admin_session_id=e2e_populated_admin_session`, `app_session_id=e2e_populated_clinic_session`.
+**Fixture API hermético del propio repositorio** (`frontend/e2e/fixtures/admin-populated-api-server.mjs`, puerto 3107) + `next dev` en 3000. **No se tocó producción, staging ni la base de datos.** Las mediciones autenticadas utilizaron sesiones sintéticas controladas para los roles administrativo y clínica dentro del fixture hermético. No se conservaron cookies, identificadores de sesión, credenciales ni valores de autenticación en los artefactos de auditoría.
 
 ### 4.4 Instrumentación
 
@@ -127,6 +127,25 @@ La primera pasada contó **filas renderizadas**, que están limitadas por el dat
 ### 4.6 Higiene del repositorio
 
 `next dev` reescribe `frontend/next-env.d.ts` (archivo versionado). Se detectó con `git status --short` y se revirtió con `git checkout --`. Árbol verificado limpio al cierre. Capturas de evidencia guardadas **fuera del repositorio**, en el scratchpad de sesión.
+
+### 4.7 Cobertura de la muestra
+
+La medición no barrió los 13 viewports en las 21 superficies del inventario (§13, §14) de forma uniforme — eso habría exigido 21 × 13 = 273 mediciones, no ejecutadas — sino con una muestra estratificada de dos profundidades, verificada contra el JSON de medición original:
+
+**Cohorte A — 8 superficies medidas en los 13 viewports completos (104 combinaciones):**
+hub administrativo (`admin-hub`), Informes admin (`admin-informes`, módulo `admin-report-upload`), Clínicas (`admin-clinicas`, módulo `admin-clinics`), Usuarios y roles (`admin-usuarios`, módulo `admin-users-roles`), Auditoría (`admin-auditoria`, módulo `audit-log`), Operaciones clínica (`clinic-operaciones`, módulo `operaciones`), Informes clínica módulo (`clinic-informes`, `?module=informes`) e Informes clínica ruta completa (`clinic-informes-full`, `/dashboard/informes`).
+
+**Cohorte B — 13 superficies medidas en 3 viewports representativos** (1920×1080, 1366×768, 390×844; 39 combinaciones):
+Resumen admin (`admin-resumen`, módulo `admin`), Estado del sistema (`admin-estado`, módulo `admin-health`), Tokens admin (`admin-tokens`, módulo `admin-particular-tokens`), Precios (`admin-precios`, módulo `admin-pricing`), Sesiones (`admin-sesiones`, módulo `admin-sessions`), Mantenimiento (`admin-mantenimiento`, módulo `admin-maintenance`), Logística clínica módulo (`clinic-logistica`, `?module=logistica`), Perfil (`clinic-perfil`, módulo `perfil`), Tokens clínica (`clinic-tokens`, módulo `tokens`) y las 4 rutas completas de logística: `clinic-logistica-full` (`/dashboard/logistica`), `clinic-log-metricas` (`/dashboard/logistica/metricas`), `clinic-log-rutas` (`/dashboard/logistica/rutas`), `clinic-log-visitas` (`/dashboard/logistica/visitas`).
+
+Total: 8 × 13 + 13 × 3 = 104 + 39 = **143 combinaciones (superficie, viewport) efectivamente medidas**, en 0 de las cuales se registró desbordamiento.
+
+**Precisiones obligatorias sobre esta cobertura:**
+
+- Las 143 combinaciones corresponden a **8 superficies con cobertura completa (cohorte A) más 13 con cobertura parcial de 3 viewports (cohorte B)** — no a 11 superficies homogéneas ni a ninguna otra agrupación uniforme.
+- **Los «15 módulos» declarados en §1.1 y §2 no fueron medidos en los 13 viewports.** «Módulos» (15 = 10 IDs `?module=` de admin + 5 de clínica) y «superficies» (21 = 11 filas de §13 + 10 filas de §14, que además cuentan las rutas completas de clínica como entradas propias) son dos recuentos distintos; el inventario de §13/§14 usa «superficies», y es sobre esas 21 que se construyó la muestra estratificada anterior.
+- **Cobertura pendiente:** las 13 superficies de la cohorte B carecen de datos en los 10 viewports restantes (1600×900, 1440×900, 1280×720, 1024×768, 834×1194, 768×1024, 430×932, 412×915, 375×812, 360×800) — 130 combinaciones no ejecutadas. Cerrarlas exige una nueva pasada de medición, no una relectura de los datos existentes.
+- Toda conclusión de zero-scroll o de chrome en §1, §7, §12, §22–§24 y §65 se limita a estas 143 combinaciones efectivamente ejecutadas; no debe leerse como cobertura de las 21 superficies en los 13 viewports.
 
 ---
 
@@ -181,7 +200,7 @@ Las 10 skills se descomprimieron y leyeron íntegras. Comparten un bloque «Prot
 | Commit auditado | Idéntico (`065860c5`) → evidencia de código vigente |
 | Mediciones de superbuscadores (§11 del doc anterior) | **Vigentes**, reconfirmadas |
 | Datos de Drive (§9 del doc anterior) | **Vigentes**, ampliados aquí |
-| Contrato zero-scroll | **Vigente y ampliado**: 0 desbordamientos en 143 combinaciones (antes 78) |
+| Contrato zero-scroll | **Vigente y ampliado**: 0 desbordamientos en las 143 combinaciones medidas (antes 78; muestra estratificada, §4.7) |
 | Conclusión de densidad («9 filas vs 15–16») | **CORREGIDA** — ver §1.2 y §8 |
 | `PR-ADJ-01/02` (app header y module header) | **Promovidos** de adyacentes a Programa B, Nivel 5 |
 | Los 19 PR | **Mapeados** al nuevo roadmap (§52.1); ninguno se pierde |
@@ -280,7 +299,7 @@ WorkspaceAppShell                       (100dvh, overflow-hidden, min-height:0)
 
 **Arquitectura.** `100dvh` + `overflow-hidden` + `min-height: 0` · contrato zero-scroll · una sola región de scroll de datos por módulo · deep-link por `?module=` · Back/Forward seguro.
 
-**Verificado en runtime:** ningún superbuscador acepta token completo (placeholder «Últimos 4»); ningún `data-*` del dashboard contiene lexemas sensibles; las 143 combinaciones medidas respetan zero-scroll.
+**Verificado en runtime:** ningún superbuscador acepta token completo (placeholder «Últimos 4»); ningún `data-*` del dashboard contiene lexemas sensibles; las 143 combinaciones (superficie, viewport) medidas respetan zero-scroll (muestra estratificada, §4.7).
 
 ---
 
@@ -1289,16 +1308,24 @@ pnpm --dir frontend typecheck
 ```
 
 ```powershell
-pnpm validate:local
+pnpm --dir frontend build
 ```
-
-Terminal 2, tras `pnpm --dir frontend build`:
 
 ```powershell
-pnpm --dir frontend e2e
+pnpm security:public-surface
 ```
 
-> **Higiene obligatoria:** `pnpm e2e` levanta `next dev`, que reescribe `frontend/next-env.d.ts`. Revertirlo antes de `pnpm test`. Si se editó CSS con el dev server caído, borrar `frontend/.next` antes de re-correr Playwright (Turbopack sirve el CSS previo a la edición).
+Terminal 2, tras el gate de seguridad: seleccionar la **cohorte E2E mínima suficiente** según los paths y contratos realmente afectados por el PR (tabla de decisión y catálogo en AGENTS.md §7 / `frontend/e2e/suites/catalog.ts`; candidatas: `e2e:visual-contract`, `e2e:admin-mobile`, `e2e:extended`, `e2e:public-clinic`, `e2e:smoke`, `e2e:affected`).
+
+```powershell
+pnpm --dir frontend e2e:<cohorte-seleccionada>
+```
+
+> **`pnpm validate:local` es el gate de backend** (`typecheck && typecheck:test && test && build` de `server/`) y no sustituye ninguno de los cuatro comandos de frontend anteriores.
+> **Ningún E2E genérico sustituye `pnpm security:public-surface`.** Es un gate estático independiente, obligatorio siempre que se toque superficie pública de frontend.
+> **`pnpm --dir frontend e2e:full` (suite completa) sólo se ejecuta cuando Nico lo pide explícitamente o cuando no existe una cohorte mínima suficiente** para el contrato afectado (AGENTS.md §7).
+
+> **Higiene obligatoria:** `pnpm e2e*` levanta `next dev`, que reescribe `frontend/next-env.d.ts`. Revertirlo antes de `pnpm test`. Si se editó CSS con el dev server caído, borrar `frontend/.next` antes de re-correr Playwright (Turbopack sirve el CSS previo a la edición).
 
 ---
 
@@ -1331,7 +1358,7 @@ pnpm --dir frontend e2e
 | G9 | Chrome ≤ 240 px a 1920 y ≤ 32 % en 768–1366 (B11–B14) | Antes de C17 |
 | G10 | Piloto cerrado con los 12 puntos de §53.3 (C17) | Antes de C18 |
 | G11 | axe sin violaciones críticas ni serias en ambos temas | Antes de C26 |
-| G12 | Staging: deploy Live en el commit esperado; las 15 superficies operativas con datos reales; auditoría sin secretos; sin incremento de 4xx/5xx en 48 h | Tras C26 |
+| G12 | Staging: deploy Live en el commit esperado; las 15 superficies operativas con tenants y usuarios de prueba controlados (nunca datos de una clínica real, AGENTS.md §17); evidencia sanitizada; auditoría sin secretos; sin incremento de 4xx/5xx en 48 h | Tras C26 |
 
 ---
 
@@ -1416,7 +1443,7 @@ El programa sólo puede cerrarse cuando, simultáneamente:
 16. Mobile es plenamente operativo con objetivos táctiles ≥ 44 px.
 17. Las medidas están dentro de la tolerancia de §47.
 18. La regresión visual está aprobada manualmente.
-19. CI está verde (`lint` + `typecheck` + `build` + `validate:local` + `e2e`).
+19. CI está verde: backend `pnpm validate:local`; frontend `pnpm --dir frontend lint` → `pnpm --dir frontend typecheck` → `pnpm --dir frontend build` → `pnpm security:public-surface` → cohortes E2E relevantes (§57).
 20. Staging está validado y existe rollback lógico para cada PR.
 
 ---
@@ -1442,7 +1469,7 @@ El programa sólo puede cerrarse cuando, simultáneamente:
 
 ## 65. Conclusión técnica
 
-El dashboard de VETNEB no está roto. Funciona, es seguro, mantiene la separación de sesiones, no expone secretos y cumple el contrato zero-scroll sin una sola excepción en **143 combinaciones de ruta y viewport**. Cualquier plan que empiece diciendo lo contrario está mal informado.
+El dashboard de VETNEB no está roto. Funciona, es seguro, mantiene la separación de sesiones, no expone secretos y cumple el contrato zero-scroll sin una sola excepción en las **143 combinaciones (superficie, viewport) efectivamente medidas** (muestra estratificada, §4.7). Cualquier plan que empiece diciendo lo contrario está mal informado.
 
 Lo que sí ocurre es que su **arquitectura visible pertenece a otra categoría de producto**. Es un dashboard premium basado en hubs, tarjetas y navegación múltiple, y el objetivo declarado es un productivity workspace content-first. Esa distancia no se cierra con color, radio ni sombra: se cierra cambiando qué ocupa el espacio y quién manda en la jerarquía.
 

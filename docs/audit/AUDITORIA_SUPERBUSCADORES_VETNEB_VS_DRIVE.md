@@ -360,7 +360,7 @@ Todos los valores siguientes se extrajeron de `DATOS_CONSOLIDADOS_SIN_DUPLICADOS
 
 ### 10.2 Backend
 
-Se usó el **fixture API hermético del propio repositorio**, `frontend/e2e/fixtures/admin-populated-api-server.mjs` en `127.0.0.1:3107`, y `next dev` en `127.0.0.1:3000` con `NEXT_PUBLIC_API_URL=http://127.0.0.1:3107`. **No se tocó producción, ni staging, ni la base de datos.** Sesiones simuladas con las cookies del propio fixture: `admin_session_id=e2e_populated_admin_session` y `app_session_id=e2e_populated_clinic_session`.
+Se usó el **fixture API hermético del propio repositorio**, `frontend/e2e/fixtures/admin-populated-api-server.mjs` en `127.0.0.1:3107`, y `next dev` en `127.0.0.1:3000` con `NEXT_PUBLIC_API_URL=http://127.0.0.1:3107`. **No se tocó producción, ni staging, ni la base de datos.** Las mediciones autenticadas utilizaron sesiones sintéticas controladas para los roles administrativo y clínica dentro del fixture hermético. No se conservaron cookies, identificadores de sesión, credenciales ni valores de autenticación en los artefactos de auditoría.
 
 ### 10.3 Instrumentación
 
@@ -911,16 +911,24 @@ pnpm --dir frontend typecheck
 ```
 
 ```powershell
-pnpm validate:local
+pnpm --dir frontend build
 ```
-
-Terminal 2, tras `pnpm --dir frontend build`:
 
 ```powershell
-pnpm --dir frontend e2e
+pnpm security:public-surface
 ```
 
-> **Higiene obligatoria entre pasadas:** `pnpm e2e` levanta `next dev`, que reescribe `frontend/next-env.d.ts`. Revertirlo antes de `pnpm test` o varios tests de scope fallarán. Si se editó `globals.css` con el dev server caído, borrar `frontend/.next` antes de volver a correr Playwright (Turbopack sirve CSS previo a la edición).
+Terminal 2, tras el gate de seguridad: seleccionar la **cohorte E2E mínima suficiente** según los paths y contratos realmente afectados por el PR (tabla de decisión y catálogo en AGENTS.md §7 / `frontend/e2e/suites/catalog.ts`; candidatas: `e2e:visual-contract`, `e2e:admin-mobile`, `e2e:extended`, `e2e:public-clinic`, `e2e:smoke`, `e2e:affected`).
+
+```powershell
+pnpm --dir frontend e2e:<cohorte-seleccionada>
+```
+
+> **`pnpm validate:local` es el gate de backend** (`typecheck && typecheck:test && test && build` de `server/`) y no sustituye ninguno de los cuatro comandos de frontend anteriores.
+> **Ningún E2E genérico sustituye `pnpm security:public-surface`.** Es un gate estático independiente, obligatorio siempre que se toque superficie pública de frontend.
+> **`pnpm --dir frontend e2e:full` (suite completa) sólo se ejecuta cuando Nico lo pide explícitamente o cuando no existe una cohorte mínima suficiente** para el contrato afectado (AGENTS.md §7).
+
+> **Higiene obligatoria entre pasadas:** `pnpm e2e*` levanta `next dev`, que reescribe `frontend/next-env.d.ts`. Revertirlo antes de `pnpm test` o varios tests de scope fallarán. Si se editó `globals.css` con el dev server caído, borrar `frontend/.next` antes de volver a correr Playwright (Turbopack sirve CSS previo a la edición).
 
 ---
 
@@ -965,8 +973,8 @@ pnpm --dir frontend e2e
 | G5 — Zero-scroll | 0 px de desbordamiento en 13 viewports | En cada PR desde SB-06 |
 | G6 — Accesibilidad | axe sin violaciones críticas ni serias en ambos temas | Antes de SB-16 |
 | G7 — Regresión visual | Capturas aprobadas manualmente en 7 × 13 × 2 | En SB-16 |
-| G8 — Validación local | `lint` + `typecheck` + `build` + `validate:local` en verde | En cada PR |
-| G9 — Staging | Deploy Live en el commit esperado; las 7 superficies operativas con datos reales; auditoría sin secretos | Tras SB-16 |
+| G8 — Validación local | Backend `validate:local` en verde; frontend `lint` → `typecheck` → `build` → `security:public-surface` → cohortes E2E relevantes (§19.7) | En cada PR |
+| G9 — Staging | Deploy Live en el commit esperado; las 7 superficies operativas. La validación de staging debe ejecutarse exclusivamente con tenants, usuarios, clínicas, pacientes, informes y archivos sintéticos controlados. La evidencia debe permanecer sanitizada y no puede contener información de clínicas reales, PII, cookies, sesiones, credenciales, URLs firmadas ni identificadores reutilizables; auditoría sin secretos | Tras SB-16 |
 | G10 — Monitoreo | Sin incremento de 4xx/5xx en los endpoints de las 7 superficies durante 48 h | Post-staging |
 
 **Rollback:** `git revert` del PR afectado. Sin migraciones ni cambios de esquema en ninguno de los 19.
