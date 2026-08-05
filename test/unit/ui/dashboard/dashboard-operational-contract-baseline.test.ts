@@ -226,13 +226,13 @@ test("query mode partition matches the runtime: 4 client-submit, 2 debounced-ser
 
 test("refresh, loading and disabled wiring is declared only where runtime has it", () => {
   const withRefresh = SUPER_SEARCH_CONTRACTS.filter((entry) => entry.refresh !== null);
-  assert.deepEqual(withRefresh.map((entry) => entry.id), ["S2", "S4", "S5", "S7"]);
+  assert.deepEqual(withRefresh.map((entry) => entry.id), ["S2", "S3", "S4", "S5", "S7"]);
 
   const withoutDisabled = SUPER_SEARCH_CONTRACTS.filter((entry) => entry.disabled === null);
   assert.deepEqual(withoutDisabled.map((entry) => entry.id), ["S1", "S6"]);
 
   const withoutLoading = SUPER_SEARCH_CONTRACTS.filter((entry) => entry.loading === null);
-  assert.deepEqual(withoutLoading.map((entry) => entry.id), ["S1"]);
+  assert.deepEqual(withoutLoading.map((entry) => entry.id), ["S1", "S6"]);
 
   // A declared disabled/loading wiring must never be an empty string.
   for (const contract of SUPER_SEARCH_CONTRACTS) {
