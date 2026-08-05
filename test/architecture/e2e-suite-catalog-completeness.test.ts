@@ -22,14 +22,14 @@ const TEST_FILE = fileURLToPath(import.meta.url);
 const REPO_ROOT = resolve(dirname(TEST_FILE), "..", "..");
 process.chdir(REPO_ROOT);
 
-const EXPECTED_SPEC_COUNT = 73;
+const EXPECTED_SPEC_COUNT = 74;
 const EXPECTED_DOMAIN_COUNTS = new Map([
   ["admin", 18],
   ["clinic", 21],
   ["public", 8],
   ["particular", 2],
   ["platform", 18],
-  ["regression", 6],
+  ["regression", 7],
 ]);
 const EXPECTED_CURRENT_COUNTS = new Map([
   ["smoke", 9],
@@ -39,10 +39,10 @@ const EXPECTED_CURRENT_COUNTS = new Map([
 ]);
 const EXPECTED_EXECUTION_COUNTS = new Map<E2eExecutionCohort, number>([
   ["ci", 44],
-  ["extended", 24],
+  ["extended", 25],
   ["evidence", 2],
   ["visual-linux", 3],
-  ["full", 73],
+  ["full", 74],
   ["affected", 0],
 ]);
 const EXECUTION_PARTITION_COHORTS = [
@@ -283,8 +283,8 @@ test("catalog validation catches missing and duplicate entries in memory", async
   const missing = E2E_SUITE_CATALOG.slice(1);
   const duplicated = [...E2E_SUITE_CATALOG, E2E_SUITE_CATALOG[0]];
 
-  assert.throws(() => validateCatalog(missing, trackedSpecs), /73|cataloged/);
-  assert.throws(() => validateCatalog(duplicated, trackedSpecs), /73|unique/);
+  assert.throws(() => validateCatalog(missing, trackedSpecs), /74|cataloged/);
+  assert.throws(() => validateCatalog(duplicated, trackedSpecs), /74|unique/);
 });
 
 test("runner rejects unknown cohorts and prints valid cohorts", () => {
