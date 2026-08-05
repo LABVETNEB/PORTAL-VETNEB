@@ -150,6 +150,7 @@ export const E2E_SUITE_CATALOG = [
   entry("e2e/public/reports/public-report-preview.spec.ts", "public", "reports", "public report preview", ["public-clinic"], ci),
   entry("e2e/public/routes/public-routes.spec.ts", "public", "routes", "public routes resolve", ["smoke"], ci, { criticality: "P1", notes: "Availability boundary; do not demote." }),
   entry("e2e/public/services/public-service-bento-specimen-journey.spec.ts", "public", "services", "service bento specimen journey", ["public-clinic"], ci),
+  entry("e2e/regression/dashboard-operational-contract.spec.ts", "regression", "dashboard", "operational contract S1", ["smoke"], ci, { criticality: "P1", notes: "A01: this E2E covers S1 (the only URL-persisted super searcher); the source-backed matrix in test/unit/ui/dashboard/dashboard-operational-contract-baseline.test.ts covers S1-S7." }),
   entry("e2e/regression/evidence/dashboard-runtime-post-ux1-visual-evidence.spec.ts", "regression", "evidence", "runtime visual evidence", [], evidence, { evidence: "test-results" }),
   entry("e2e/regression/evidence/remove-home-unified-workspace-screenshots.spec.ts", "regression", "evidence", "workspace screenshots evidence", [], evidence, { evidence: "test-results" }),
   entry("e2e/regression/visual/visual-regression-authenticated.spec.ts", "regression", "visual", "authenticated pixel baseline", [], visualLinux, { platform: "linux", evidence: "snapshots", targetGate: "manual" }),
