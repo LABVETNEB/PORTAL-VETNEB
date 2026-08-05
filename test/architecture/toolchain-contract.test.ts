@@ -17,13 +17,13 @@ const PNPM_WORKFLOW_FILES = [
 ] as const;
 
 const SECURITY_OVERRIDE_LINES = [
-  '  "brace-expansion@<=5.0.7": "5.0.8"',
+  '  "brace-expansion@>=4.0.0 <5.0.9": "5.0.9"',
   '  esbuild: "0.28.1"',
-  '  "fast-uri@<3.1.4": "3.1.4"',
-  '  "fast-uri@>=4.0.0 <4.1.1": "4.1.1"',
+  '  "fast-uri@<3.1.5": "3.1.5"',
+  '  "fast-uri@>=4.0.0 <4.1.2": "4.1.2"',
   '  "find-my-way@<=9.6.0": "9.7.0"',
   '  "sharp@<0.35.0": "0.35.3"',
-  '  "postcss@<=8.5.17": "8.5.19"',
+  '  "postcss@<=8.5.22": "8.5.23"',
   '  "ws@>=8.0.0 <8.20.1": "8.20.1"',
   '  "js-yaml@<=5.2.1": "5.2.2"',
 ] as const;
