@@ -550,7 +550,11 @@ export type DashboardGeometryBaselineFile = {
   readonly baseCommit: string;
   readonly capturedAt: string;
   readonly environment: {
-    /** Capture OS — Linux font rasterization can legitimately differ. */
+    /**
+     * `process.platform` of the run that produced `records`. This is capture
+     * PROVENANCE, not a runtime invariant: A02 never requires CI to be Windows.
+     * It selects which record set applies — see `resolveBaselineRecords`.
+     */
     readonly platform: string;
     readonly browser: string;
     readonly devicePixelRatio: number;
@@ -561,8 +565,50 @@ export type DashboardGeometryBaselineFile = {
   readonly surfaceCount: number;
   readonly viewportCount: number;
   readonly combinationCount: number;
+  /** The set captured on `environment.platform`. */
   readonly records: readonly DashboardGeometryRecord[];
+  /**
+   * Real captures from other platforms, keyed by `process.platform`. Text
+   * rasterization differs enough between Windows and Linux that a single set
+   * cannot hold at a 2 px structural tolerance, and widening the tolerance
+   * would defeat the baseline. Each entry must be a COMPLETE, really-measured
+   * set of `combinationCount` records; there is no partial or derived mode.
+   */
+  readonly platformRecords: Readonly<
+    Record<string, readonly DashboardGeometryRecord[]>
+  >;
 };
+
+/**
+ * Picks the record set for the running platform, or returns null so the caller
+ * fails CLOSED. A platform without a real capture is never silently compared
+ * against another platform's numbers.
+ */
+export function resolveBaselineRecords(
+  file: DashboardGeometryBaselineFile,
+  platform: string,
+): { readonly records: readonly DashboardGeometryRecord[]; readonly provenance: string } | null {
+  if (platform === file.environment.platform) {
+    return { records: file.records, provenance: file.environment.platform };
+  }
+
+  const platformSet = file.platformRecords[platform];
+  if (platformSet && platformSet.length === file.combinationCount) {
+    return { records: platformSet, provenance: platform };
+  }
+
+  return null;
+}
+
+/**
+ * Source-controlled capture switch. Flipping it to "capture" is a deliberate,
+ * reviewable one-line diff that makes the A02 case MEASURE and attach all 273
+ * records instead of comparing — and then fail on purpose, so the pipeline can
+ * never turn a red baseline green by re-capturing. It is the only way to obtain
+ * a real capture from a platform that is not the developer's, and it must be
+ * flipped back to "off" in the same PR that lands the captured records.
+ */
+export const DASHBOARD_GEOMETRY_CAPTURE_MODE: "off" | "capture" = "capture";
 
 // ── Selectors ────────────────────────────────────────────────────────────────
 // Every selector below already exists in the runtime. A02 adds no data-*

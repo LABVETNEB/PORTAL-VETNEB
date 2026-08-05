@@ -6,6 +6,7 @@ import {
   assertSurfaceLoaded,
   clearDashboardModuleMemory,
   compareGeometryRecords,
+  DASHBOARD_GEOMETRY_CAPTURE_MODE,
   DASHBOARD_GEOMETRY_COMBINATION_COUNT,
   DASHBOARD_GEOMETRY_SESSION_COOKIE,
   DASHBOARD_GEOMETRY_SURFACE_COUNT,
@@ -16,6 +17,7 @@ import {
   geometryKey,
   installSurfaceMocks,
   measureSurfaceGeometry,
+  resolveBaselineRecords,
   suppressNextDevChrome,
   waitForLayoutSettled,
   type DashboardGeometryRecord,
@@ -36,20 +38,39 @@ import {
 const APP_ORIGIN = "http://127.0.0.1:3000";
 
 /**
- * Opt-in capture pass. Writes one JSON per surface into `test-results/` and
- * skips comparison; it never touches the versioned baseline. Fails closed on
- * CI so a red baseline can never be "fixed" by a pipeline re-capture.
+ * Local opt-in capture pass. Writes one JSON per surface into `test-results/`
+ * and skips comparison; it never touches the versioned baseline. Fails closed
+ * on CI so a red baseline can never be "fixed" by a pipeline re-capture.
  */
-const captureRequested = process.env.VETNEB_A02_GEOMETRY_CAPTURE === "1";
+const localCaptureRequested = process.env.VETNEB_A02_GEOMETRY_CAPTURE === "1";
 
-if (captureRequested && process.env.CI === "true") {
+if (localCaptureRequested && process.env.CI === "true") {
   throw new Error(
     "VETNEB_A02_GEOMETRY_CAPTURE is a local-only capture mode and must not run with CI=true",
   );
 }
 
+/**
+ * Source-controlled capture pass — the only way to obtain a real capture from a
+ * platform nobody can run locally. It attaches all 13 records per surface and
+ * then fails DELIBERATELY, so a capture run is always red and can never be
+ * mistaken for a passing baseline.
+ */
+// Capture provenance is `process.platform`; the baseline stores the Windows set
+// under `records` and every other real capture under `platformRecords`.
+const resolvedBaseline = resolveBaselineRecords(
+  DASHBOARD_GEOMETRY_BASELINE,
+  process.platform,
+);
+
+// Scoped to platforms that have NO baseline yet, so a platform already covered
+// keeps comparing normally and can never be silently downgraded to a capture.
+const ciCaptureRequested =
+  DASHBOARD_GEOMETRY_CAPTURE_MODE === "capture" && resolvedBaseline === null;
+const captureRequested = localCaptureRequested || ciCaptureRequested;
+
 const baselineIndex = new Map<string, DashboardGeometryRecord>(
-  DASHBOARD_GEOMETRY_BASELINE.records.map((record) => [
+  (resolvedBaseline?.records ?? []).map((record) => [
     geometryKey(record.surfaceId, record.viewportSlug),
     record,
   ]),
@@ -75,11 +96,20 @@ test.beforeAll(() => {
     "expected combinations",
   ).toBe(DASHBOARD_GEOMETRY_COMBINATION_COUNT);
 
+  expect(
+    DASHBOARD_GEOMETRY_BASELINE.records.length,
+    "captured baseline record count",
+  ).toBe(DASHBOARD_GEOMETRY_COMBINATION_COUNT);
+
   if (captureRequested) return;
 
-  expect(DASHBOARD_GEOMETRY_BASELINE.records.length, "baseline record count").toBe(
-    DASHBOARD_GEOMETRY_COMBINATION_COUNT,
-  );
+  // Fail closed: a platform without a real capture is never compared against
+  // another platform's numbers, and tolerances are never widened to bridge them.
+  expect(
+    resolvedBaseline,
+    `no A02 baseline captured for platform "${process.platform}" — capture it with DASHBOARD_GEOMETRY_CAPTURE_MODE = "capture" and land the records under platformRecords`,
+  ).not.toBeNull();
+
   expect(baselineIndex.size, "baseline keys must be unique").toBe(
     DASHBOARD_GEOMETRY_COMBINATION_COUNT,
   );
@@ -148,11 +178,26 @@ test.describe("A02 · dashboard geometry baseline 21x13", () => {
       );
 
       if (captureRequested) {
+        // `outputPath` lives under test-results/, which the E2E Completeness
+        // workflow already uploads on failure — no workflow change needed.
         await writeFile(
           testInfo.outputPath(`a02-geometry-${surface.id}.json`),
           `${JSON.stringify(captured, null, 2)}\n`,
           "utf8",
         );
+
+        if (ciCaptureRequested) {
+          await testInfo.attach(`a02-geometry-${surface.id}.json`, {
+            path: testInfo.outputPath(`a02-geometry-${surface.id}.json`),
+            contentType: "application/json",
+          });
+
+          expect(
+            DASHBOARD_GEOMETRY_CAPTURE_MODE,
+            `A02 capture pass for platform "${process.platform}": ${captured.length} records attached. This failure is intentional — capture mode never reports a passing baseline.`,
+          ).toBe("off");
+        }
+
         return;
       }
 
