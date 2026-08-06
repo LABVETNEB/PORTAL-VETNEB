@@ -9,6 +9,7 @@ import test from "node:test";
 // state so neither source of truth can silently reappear in Admin runtime.
 
 const ADMIN_ROOT = "frontend/src/app/dashboard/admin";
+const MAINTENANCE_MODULE = `${ADMIN_ROOT}/AdminMobileMaintenanceModule.tsx`;
 const CODE_EXTENSIONS = new Set([".ts", ".tsx"]);
 
 // These three modules keep a real `window.matchMedia` call, but only to gate
@@ -18,7 +19,7 @@ const CODE_EXTENSIONS = new Set([".ts", ".tsx"]);
 // docs/audit/final-global-vetneb-50-60-pr-roadmap.md R-08).
 const NON_CARDINAL_MATCHMEDIA_ALLOWLIST = new Set([
   `${ADMIN_ROOT}/AdminMobileHealthModule.tsx`,
-  `${ADMIN_ROOT}/AdminMobileMaintenanceModule.tsx`,
+  MAINTENANCE_MODULE,
   `${ADMIN_ROOT}/AdminMobilePricingModule.tsx`,
 ]);
 
@@ -93,5 +94,29 @@ test("non-cardinal matchMedia allowlist only contains files that still exist and
     stale,
     [],
     `Allowlist entries must exist and still use matchMedia (remove stale entries): ${stale.join(", ")}`,
+  );
+});
+
+test("maintenance dry-run resets the adaptive pager before publishing a fresh snapshot", () => {
+  const source = read(MAINTENANCE_MODULE);
+  const fetchIndex = source.indexOf(
+    "const nextSnapshot = await getAdminMaintenancePurgeDryRun();",
+  );
+  const resetIndex = source.indexOf("pagedCandidates.setPage(0);");
+  const publishIndex = source.indexOf("setSnapshot(nextSnapshot);");
+
+  assert.ok(fetchIndex >= 0, "the successful dry-run must name the fresh snapshot");
+  assert.ok(
+    resetIndex > fetchIndex,
+    "the adaptive pager must reset after the fresh snapshot resolves",
+  );
+  assert.ok(
+    publishIndex > resetIndex,
+    "the first-page cursor must be queued before the fresh snapshot is published",
+  );
+  assert.doesNotMatch(
+    source,
+    /useEffect\(\(\) => \{\s*pagedCandidates\.setPage\(0\);[\s\S]*?\}, \[snapshot\]\);/,
+    "a passive snapshot effect must not reintroduce an intermediate stale cursor render",
   );
 });

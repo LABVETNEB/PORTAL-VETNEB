@@ -38,6 +38,14 @@ type PageSearchParams = {
   module?: string;
 };
 
+// Hermetic data window handed to the client-side adaptive summaries. It bounds
+// how much this server component fetches; it is NOT a page size. The measured
+// page size stays owned by `useAdaptiveRowsPerPage` inside each workspace
+// summary (audit §20). The previous window of 24 sat below the largest measured
+// canvas, so the second page was truncated by the end of the dataset on tall
+// viewports — exactly what the A03 contract forbids (§20.4).
+const CLINIC_DASHBOARD_ADAPTIVE_SUPERSET_LIMIT = 100;
+
 export default async function DashboardPage({
   searchParams,
 }: {
@@ -69,11 +77,18 @@ export default async function DashboardPage({
       try {
         // Viewport-safe superset: the informes/logistica workspace summaries
         // paginate client-side with a measured adaptive page size, so the
-        // fetch cap must cover the largest desktop canvas (matches
-        // INFORMES_LIMIT_CAP), not the smallest mobile page.
-        reports = await getReports(requestOptions, { limit: 24, offset: 0 }, {
-          throwOnError: true,
-        });
+        // fetch window must cover a COMPLETE second page at the largest
+        // desktop canvas, not just the first page.
+        reports = await getReports(
+          requestOptions,
+          {
+            limit: CLINIC_DASHBOARD_ADAPTIVE_SUPERSET_LIMIT,
+            offset: 0,
+          },
+          {
+            throwOnError: true,
+          },
+        );
       } catch (error) {
         redirectToLoginOnUnauthorized(error);
         reportsLoadError = true;
@@ -91,8 +106,12 @@ export default async function DashboardPage({
     })(),
   ]);
 
-  const recentReports = reports.slice(0, 24);
-  const recentVisits = visits.slice(0, 24);
+  // The adaptive workspace summaries receive the collections whole: a cap here
+  // competed with the measured page size and truncated their second page. The
+  // compact `.slice(0, 3)` handed to ClinicCommandCenter below is a different,
+  // non-normative summary and is deliberately kept.
+  const recentReports = reports;
+  const recentVisits = visits;
 
   return (
     <>

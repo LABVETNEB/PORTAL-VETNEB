@@ -52,13 +52,26 @@ test("frontend dashboard page uses API client wrappers", () => {
   assertIncludes(source, "let reportsLoadError = false;", dashboardPage);
   assertIncludes(source, "let visits: Awaited<ReturnType<typeof getLogisticsFieldVisits>> = [];", dashboardPage);
   assertIncludes(source, "let visitsLoadError = false;", dashboardPage);
-  // Zero-scroll adaptive density: the workspace summaries paginate a
-  // viewport-safe superset (24, matching INFORMES_LIMIT_CAP) client-side.
+  // The clinic workspace summaries receive a bounded server-side superset;
+  // their measured hooks, not this fetch window, own visible cardinality.
   assertIncludes(
     source,
-    "getReports(requestOptions, { limit: 24, offset: 0 }, {",
+    "const CLINIC_DASHBOARD_ADAPTIVE_SUPERSET_LIMIT = 100;",
     dashboardPage,
   );
+  assertIncludes(source, "reports = await getReports(", dashboardPage);
+  assertIncludes(source, "requestOptions,", dashboardPage);
+  assertIncludes(
+    source,
+    "limit: CLINIC_DASHBOARD_ADAPTIVE_SUPERSET_LIMIT,",
+    dashboardPage,
+  );
+  assertIncludes(source, "offset: 0,", dashboardPage);
+  assertIncludes(source, "const recentReports = reports;", dashboardPage);
+  assertIncludes(source, "const recentVisits = visits;", dashboardPage);
+  assertNotIncludes(source, "limit: 24", dashboardPage);
+  assertNotIncludes(source, "reports.slice(0, 24)", dashboardPage);
+  assertNotIncludes(source, "visits.slice(0, 24)", dashboardPage);
   assertIncludes(source, "getLogisticsFieldVisits(requestOptions, {", dashboardPage);
   assertIncludes(source, "throwOnError: true,", dashboardPage);
 });

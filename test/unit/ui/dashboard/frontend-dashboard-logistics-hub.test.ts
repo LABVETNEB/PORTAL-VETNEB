@@ -156,11 +156,18 @@ test("LogisticsCommandCenter renders section heading with aria labelling", () =>
 
 // ── Visits list ──────────────────────────────────────────────────────────────
 
-test("LogisticsCommandCenter renders visit list limited to 5 items with StatusBadge", () => {
+test("LogisticsCommandCenter hands the full ordered visit collection to the bounded canvas with StatusBadge", () => {
   const source = read(COMMAND_CENTER_PATH);
 
   assert.ok(source.includes("Visitas de campo"));
-  assert.ok(source.includes("const recentVisits = fieldVisits.slice(0, 5);"));
+  // A03: cardinality belongs to LogisticsRecentListCanvas, which measures its
+  // own height. A pre-pagination cap here capped the list below the measured
+  // page size and made a complete second page unreachable on tall viewports.
+  assert.ok(source.includes("const recentVisits = fieldVisits;"));
+  assert.ok(
+    !/const recentVisits = fieldVisits\.slice\(/.test(source),
+    "recentVisits must not be truncated before the adaptive canvas pages it",
+  );
   assert.ok(source.includes("recentVisits.map((visit) =>"));
   assert.ok(source.includes("{visit.clinicName ?? `Clínica #${visit.clinicId}`}"));
   assert.ok(source.includes('visit.address ?? "Sin dirección"'));
@@ -188,11 +195,15 @@ test("LogisticsCommandCenter renders EmptyState for missing visits", () => {
 
 // ── Route plans list ─────────────────────────────────────────────────────────
 
-test("LogisticsCommandCenter renders route plans list limited to 5 items with status badge", () => {
+test("LogisticsCommandCenter hands the full ordered route plan collection to the bounded canvas with status badge", () => {
   const source = read(COMMAND_CENTER_PATH);
 
   assert.ok(source.includes("Planes de ruta"));
-  assert.ok(source.includes("const recentPlans = routePlans.slice(0, 5);"));
+  assert.ok(source.includes("const recentPlans = routePlans;"));
+  assert.ok(
+    !/const recentPlans = routePlans\.slice\(/.test(source),
+    "recentPlans must not be truncated before the adaptive canvas pages it",
+  );
   assert.ok(source.includes("recentPlans.map((plan) =>"));
   assert.ok(source.includes("{plan.name}"));
   assert.ok(source.includes("{plan.completedStops}/{plan.totalStops} paradas"));
