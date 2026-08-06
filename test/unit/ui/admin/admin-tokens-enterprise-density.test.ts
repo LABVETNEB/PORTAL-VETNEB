@@ -29,8 +29,8 @@ const FORBIDDEN_OVERSIZED = [
 ];
 
 // The endpoint exposes no `total`, so the initial bounded window must cover
-// two complete pages at the largest measured adaptive cardinality. The hook
-// remains the page-size owner and "Cargar más" keeps its explicit batch.
+// two complete pages (17 × 2 = 34) at the largest measured adaptive cardinality.
+// The hook remains the page-size owner and "Cargar más" keeps its explicit batch.
 test("admin tokens keeps a bounded two-page adaptive window plus cargar más", () => {
   const source = read(TOKENS_CARD_PATH);
 
