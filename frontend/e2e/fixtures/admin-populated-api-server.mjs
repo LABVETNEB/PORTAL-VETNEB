@@ -5,6 +5,26 @@ const PORT = 3107;
 const POPULATED_ADMIN_SESSION = "e2e_populated_admin_session";
 const POPULATED_CLINIC_SESSION = "e2e_populated_clinic_session";
 
+// ─────────────────────────────────────────────────────────────────────────────
+// A03 · Adaptive pagination dataset (additive, opt-in, test-only).
+//
+// The historical logistics fixtures answer with exactly three records and
+// ignore limit/offset, so no logistics consumer can ever reach a COMPLETE
+// second page — the observation point the A03 baseline requires (audit §20.3
+// and §20.4). Those routes are rendered by SERVER components, so Playwright's
+// `page.route` cannot substitute their payload: the fetch leaves the Next
+// process, never the browser.
+//
+// This opt-in branch is the only way to make that observation point reachable
+// without touching `frontend/src/**`. It requires BOTH a populated clinic
+// session AND the auxiliary cookie below, so every existing consumer — A01,
+// A02 and the whole current suite — keeps receiving byte-identical historical
+// payloads. Presence of the auxiliary cookie alone never activates it.
+// ─────────────────────────────────────────────────────────────────────────────
+const A03_ADAPTIVE_COOKIE_NAME = "e2e_a03_adaptive_pagination";
+const A03_ADAPTIVE_COOKIE_VALUE = "1";
+const A03_DATASET_SIZE = 256;
+
 const CLINIC_REPORT_STATUSES = [
   "uploaded",
   "processing",
@@ -218,6 +238,109 @@ const CLINIC_ROUTE_METRICS_BY_PLAN_ID = {
     averageDurationMinutes: null,
   },
 };
+
+// ── A03 datasets ─────────────────────────────────────────────────────────────
+// Deterministic by construction: fixed ISO timestamps, index-derived values,
+// no Date.now(), no randomness, no execution-order dependency. The three
+// historical records stay at indexes 0..2 so the A03 dataset is a strict
+// superset of the historical one and the first page keeps rendering the same
+// leading rows; synthetic records extend it to A03_DATASET_SIZE.
+
+const A03_FIXED_SCHEDULED_AT = "2026-06-22T09:00:00.000Z";
+const A03_FIXED_COMPLETED_AT = "2026-06-22T10:30:00.000Z";
+const A03_FIXED_CREATED_AT = "2026-06-15T08:00:00.000Z";
+const A03_FIXED_UPDATED_AT = "2026-06-20T12:00:00.000Z";
+const A03_FIXED_PLANNED_DATE = "2026-06-23T07:30:00.000Z";
+const A03_VISIT_STATUSES = ["pending", "scheduled", "in_progress", "done"];
+const A03_ROUTE_PLAN_STATUSES = [
+  "draft",
+  "released",
+  "in_progress",
+  "completed",
+];
+
+const pad3 = (value) => String(value).padStart(3, "0");
+
+function createA03FieldVisit(index) {
+  const ordinal = pad3(index + 1);
+
+  return {
+    id: 20000 + index,
+    clinicId: 900 + (index % 24),
+    clinicName: `Clinica Adaptativa E2E ${ordinal}`,
+    status: A03_VISIT_STATUSES[index % A03_VISIT_STATUSES.length],
+    scheduledAt: A03_FIXED_SCHEDULED_AT,
+    completedAt:
+      A03_VISIT_STATUSES[index % A03_VISIT_STATUSES.length] === "done"
+        ? A03_FIXED_COMPLETED_AT
+        : null,
+    address: `Avenida Sintetica ${1000 + index}, Buenos Aires`,
+    notes: `Visita sintetica determinista ${ordinal}.`,
+    createdAt: A03_FIXED_CREATED_AT,
+    updatedAt: A03_FIXED_UPDATED_AT,
+  };
+}
+
+function createA03RoutePlan(index) {
+  const ordinal = pad3(index + 1);
+  const totalStops = 4 + (index % 9);
+
+  return {
+    id: 30000 + index,
+    name: `Ruta Adaptativa E2E ${ordinal}`,
+    status: A03_ROUTE_PLAN_STATUSES[index % A03_ROUTE_PLAN_STATUSES.length],
+    plannedDate: A03_FIXED_PLANNED_DATE,
+    totalStops,
+    completedStops: index % (totalStops + 1),
+    createdAt: A03_FIXED_CREATED_AT,
+    updatedAt: A03_FIXED_UPDATED_AT,
+  };
+}
+
+const A03_FIELD_VISITS = [
+  ...CLINIC_FIELD_VISITS,
+  ...Array.from({ length: A03_DATASET_SIZE - CLINIC_FIELD_VISITS.length }, (_, index) =>
+    createA03FieldVisit(index),
+  ),
+];
+
+const A03_ROUTE_PLANS = [
+  ...CLINIC_ROUTE_PLANS,
+  ...Array.from({ length: A03_DATASET_SIZE - CLINIC_ROUTE_PLANS.length }, (_, index) =>
+    createA03RoutePlan(index),
+  ),
+];
+
+/**
+ * Metrics for every A03 plan, historical ids included. The historical map is
+ * never mutated: its three entries are copied in first and win, so a request
+ * without the A03 cookie keeps resolving through `CLINIC_ROUTE_METRICS_BY_PLAN_ID`
+ * exactly as before.
+ */
+const A03_ROUTE_METRICS_BY_PLAN_ID = Object.fromEntries(
+  A03_ROUTE_PLANS.map((plan) => {
+    const historical = CLINIC_ROUTE_METRICS_BY_PLAN_ID[plan.id];
+    if (historical) {
+      return [plan.id, historical];
+    }
+
+    const completedStops = plan.completedStops;
+    const skippedStops = plan.totalStops - completedStops > 0 ? 1 : 0;
+
+    return [
+      plan.id,
+      {
+        routePlanId: plan.id,
+        totalStops: plan.totalStops,
+        completedStops,
+        skippedStops,
+        noShowStops: 0,
+        complianceRate: Math.round((completedStops / plan.totalStops) * 100),
+        averageDurationMinutes: 30 + (plan.id % 30),
+      },
+    ];
+  }),
+);
 
 // PR-R06: audit is RF debounced (high-volume, no over-fetch superset), so the
 // mobile adaptive list can request a limit up to ADMIN_AUDIT_LIMIT_CAP (32).
@@ -682,6 +805,58 @@ function hasPopulatedClinicSession(request) {
     .includes(`app_session_id=${POPULATED_CLINIC_SESSION}`);
 }
 
+/**
+ * A03 opt-in gate. Deliberately conjunctive: the auxiliary cookie ALONE never
+ * activates the dataset, so an unauthenticated or non-populated caller can
+ * never reach it, and the historical path stays byte-identical for every
+ * request that does not carry the exact cookie value.
+ */
+function hasA03AdaptiveDataset(request) {
+  if (!hasPopulatedClinicSession(request)) {
+    return false;
+  }
+
+  return (request.headers.cookie ?? "")
+    .split(";")
+    .map((cookie) => cookie.trim())
+    .includes(`${A03_ADAPTIVE_COOKIE_NAME}=${A03_ADAPTIVE_COOKIE_VALUE}`);
+}
+
+/**
+ * Pagination semantics of the A03 datasets, mirroring what the real logistics
+ * endpoints do (`server/routes/logistics-field-visits.fastify.ts`:
+ * `parsePositiveInt(request.query.limit, 50, 100)`):
+ *
+ * - no `limit` and no `offset` → the FULL dataset, so `client-slice` consumers
+ *   page over a set wide enough to hold a complete second page;
+ * - `limit` present → positive integer, capped at `maxLimit` (never above 100);
+ *   a non-integer or non-positive value falls back to `defaultLimit`, it is not
+ *   silently coerced into whatever the caller sent;
+ * - `offset` present → non-negative integer; anything else normalizes to 0;
+ * - the slice is exactly `slice(offset, offset + limit)`, and the response
+ *   shape is unchanged (no `total`, which the runtime endpoints do not expose).
+ */
+function sliceA03Dataset(url, items, defaultLimit, maxLimit) {
+  const hasLimit = url.searchParams.has("limit");
+  const hasOffset = url.searchParams.has("offset");
+
+  if (!hasLimit && !hasOffset) {
+    return items;
+  }
+
+  const rawLimit = Number(url.searchParams.get("limit"));
+  const limit =
+    hasLimit && Number.isInteger(rawLimit) && rawLimit > 0
+      ? Math.min(rawLimit, maxLimit)
+      : defaultLimit;
+
+  const rawOffset = Number(url.searchParams.get("offset"));
+  const offset =
+    hasOffset && Number.isInteger(rawOffset) && rawOffset >= 0 ? rawOffset : 0;
+
+  return items.slice(offset, offset + limit);
+}
+
 function auditSnapshot(url) {
   const event = url.searchParams.get("event");
   const limit = Number(url.searchParams.get("limit") ?? 9);
@@ -870,6 +1045,29 @@ const server = createServer((request, response) => {
     return;
   }
 
+  // A03 branches are evaluated first and are strictly narrower than the
+  // historical ones (they additionally require the auxiliary cookie), so a
+  // request without it falls through to the untouched historical payload.
+  if (
+    hasA03AdaptiveDataset(request) &&
+    url.pathname === "/api/logistics/field-visits"
+  ) {
+    sendJson(response, 200, {
+      visits: sliceA03Dataset(url, A03_FIELD_VISITS, 50, 100),
+    });
+    return;
+  }
+
+  if (
+    hasA03AdaptiveDataset(request) &&
+    url.pathname === "/api/logistics/route-plans"
+  ) {
+    sendJson(response, 200, {
+      routePlans: sliceA03Dataset(url, A03_ROUTE_PLANS, 50, 100),
+    });
+    return;
+  }
+
   if (
     hasPopulatedClinicSession(request) &&
     url.pathname === "/api/logistics/field-visits"
@@ -891,7 +1089,9 @@ const server = createServer((request, response) => {
   );
   if (hasPopulatedClinicSession(request) && routePlanMetricsMatch) {
     const planId = Number(routePlanMetricsMatch[1]);
-    const metrics = CLINIC_ROUTE_METRICS_BY_PLAN_ID[planId];
+    const metrics = hasA03AdaptiveDataset(request)
+      ? A03_ROUTE_METRICS_BY_PLAN_ID[planId]
+      : CLINIC_ROUTE_METRICS_BY_PLAN_ID[planId];
     if (metrics) {
       sendJson(response, 200, { metrics });
     } else {
