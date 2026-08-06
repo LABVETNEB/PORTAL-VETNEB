@@ -74,15 +74,44 @@ test("dashboard home reads stats reports and field visits through API helpers", 
   assert.ok(source.includes("let visits: Awaited<ReturnType<typeof getLogisticsFieldVisits>> = [];"));
   assert.ok(source.includes("let visitsLoadError = false;"));
   assert.ok(source.includes("await Promise.all(["));
-  // Zero-scroll adaptive density: the workspace summaries paginate a
-  // viewport-safe superset (24, matching INFORMES_LIMIT_CAP) client-side, so
-  // the fetch cap is no longer the fixed 3-row summary constant. The
-  // operaciones command center keeps its 3-row slices at the call site.
-  assert.ok(source.includes("getReports(requestOptions, { limit: 24, offset: 0 }, {"));
+  // Zero-scroll adaptive density (A03): the workspace summaries paginate a
+  // hermetic superset client-side. The fetch window is a NAMED constant and is
+  // never a page size; the previous window of 24 sat below the largest measured
+  // canvas and truncated the second page on tall viewports (audit §20.4).
+  assert.ok(
+    source.includes("const CLINIC_DASHBOARD_ADAPTIVE_SUPERSET_LIMIT = 100;"),
+    "the fetch window must be a named constant, not an inline literal",
+  );
+  assert.ok(
+    source.includes("limit: CLINIC_DASHBOARD_ADAPTIVE_SUPERSET_LIMIT,"),
+    "getReports must fetch through the named superset constant",
+  );
   assert.ok(source.includes("getLogisticsFieldVisits(requestOptions, {"));
   assert.ok(source.includes("throwOnError: true,"));
-  assert.ok(source.includes("const recentReports = reports.slice(0, 24);"));
-  assert.ok(source.includes("const recentVisits = visits.slice(0, 24);"));
+
+  // The adaptive consumers receive their collections whole: any pre-pagination
+  // cap here competes with `useAdaptiveRowsPerPage`, which owns the page size.
+  assert.ok(source.includes("const recentReports = reports;"));
+  assert.ok(source.includes("const recentVisits = visits;"));
+  assert.ok(
+    !/const recentReports = reports\.slice\(/.test(source),
+    "recentReports must not be truncated before the adaptive summary pages it",
+  );
+  assert.ok(
+    !/const recentVisits = visits\.slice\(/.test(source),
+    "recentVisits must not be truncated before the adaptive summary pages it",
+  );
+  assert.ok(
+    !/\.slice\(0,\s*24\)/.test(source),
+    "the 24-item cap must not reappear anywhere in the clinic dashboard page",
+  );
+  assert.ok(
+    !/limit:\s*24\b/.test(source),
+    "the 24-item fetch window must not reappear",
+  );
+
+  // The compact operational summary of ClinicCommandCenter is a DIFFERENT,
+  // non-normative surface for §20 rows 11 and 12: its 3-row slices stay.
   assert.ok(source.includes("recentReports={recentReports.slice(0, 3)}"));
   assert.ok(source.includes("recentVisits={recentVisits.slice(0, 3)}"));
 });

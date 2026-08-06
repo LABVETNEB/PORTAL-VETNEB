@@ -555,7 +555,7 @@ Los 7 superbuscadores se incorporan al programa global conservando íntegro su i
 | Intentos fallidos | `useAdaptiveItemsPerPage` | idem | **48** | sí | 1 | **25** | `limit` servidor | **Alto** |
 | Precios | `useAdaptiveItemsPerPage` | `formsBodyNode` | `reservedFormHeightPx + gap` | no | **1** | **6** | cliente (`usePagedRows`) | Medio |
 | Informes (ruta completa) | `useAdaptiveItemsPerPage` | `measurement.containerNode` | **88** | no | 1 | **24** | `limit` servidor | **Alto** |
-| Mantenimiento | `useAdaptiveRowsPerPage` | `candidatesListNode` | **76** | no | 2 *(def.)* | — | cliente | Bajo |
+| Mantenimiento | `useAdaptiveRowsPerPage` | `candidatesListNode` (desktop) · lista de candidatos mobile | **76** desktop / **44** mobile | no | 2 *(def.)* | — | cliente | Bajo |
 | Informes clínica | `useAdaptiveRowsPerPage` | `reportsListBodyNode` | **44** | sí | 2 | — | cliente | Medio |
 | Logística clínica | `useAdaptiveRowsPerPage` | `visitsListBodyNode` | **44** | no | 2 | — | cliente | Bajo |
 | Tokens clínica | `useAdaptiveRowsPerPage` | body de lista | **44** | no | 2 | — | cliente | Medio |
@@ -566,6 +566,16 @@ Los 7 superbuscadores se incorporan al programa global conservando íntegro su i
 `useAdaptiveItemsPerPage` descuenta `headerHeightPx + safetyGapPx` (por defecto 6).
 `useAdaptiveRowsPerPage` es un envoltorio con `minItems` por defecto **2**.
 `useAdaptiveDashboardPageSize` descuenta `chromeHeightPx + headerHeightPx + paginationHeightPx + safetyBufferPx` (por defecto 6).
+
+**Correcciones de runtime aplicadas antes de congelar A03.** El diagnóstico ejecutable previo a A03 encontró dos superficies en las que el runtime contradecía este inventario. Ambas se corrigieron **antes** de capturar el baseline, de modo que A03 congela un comportamiento adaptativo real y no una cardinalidad fija:
+
+- **Mantenimiento.** Por debajo de 768 px la superficie visible paginaba con una constante fija de 3 y ningún hook adaptativo, mientras el consumidor de esta tabla sólo se montaba en `≥768 px`. La implementación mobile visible pasa a consumir `useAdaptiveRowsPerPage` sobre su propia lista de candidatos medida, con `minItems` 2 y huella de fila real (fila + gap). El consumidor adaptativo es ahora **visible y observable en los 13 viewports canónicos**; ninguna evidencia de A03 proviene de un componente oculto.
+- **Logística lista reciente.** El command center recortaba ambas colecciones a 5 elementos *antes* de la paginación, por debajo del `maxItems` **12** de este mismo inventario, lo que impedía una segunda página en 1920 × 1080 y la dejaba truncada en 1600 × 900 y 1440 × 900. Ese recorte previo se eliminó: el canvas acotado recibe las colecciones ordenadas completas y sigue siendo el **único** dueño de la cardinalidad. No se modificaron `useAdaptiveDashboardPageSize`, `minItems` **2**, `maxItems` **12** ni los breakpoints.
+- **Informes clínica y Logística clínica (resúmenes del workspace).** El server component de `/dashboard` obtenía un superset de 24 informes y recortaba **ambos** datasets con `slice(0, 24)` antes de entregarlos a los consumidores adaptativos. Como el `limit` medido llega a 13–16 en los viewports altos, la segunda página quedaba truncada por fin de dataset: medido 13 → 11 en 1920 × 1080, 14 → 10 en 834 × 1194 y 14 → 10 en 430 × 932 para Informes clínica; 14 → 10, 16 → 8 y 13 → 11 en 1920 × 1080, 834 × 1194 y 768 × 1024 para Logística clínica. Se retiró el cap previo: el fetch de informes pasa a una ventana hermética declarada como constante nombrada (`CLINIC_DASHBOARD_ADAPTIVE_SUPERSET_LIMIT` = **100**) y ambos workspaces reciben **completas** las colecciones obtenidas por la página. La ventana de 100 acota cuántos datos hay disponibles; **no** es un tamaño de página: `useAdaptiveRowsPerPage` sigue siendo el único dueño del `limit` visible. Los recortes `.slice(0, 3)` que alimentan `ClinicCommandCenter` se conservan intactos: pertenecen al resumen operativo compacto, que no es la superficie normativa de las filas 11 y 12 de §20.
+
+La ampliación deliberada de la ventana de 24 a 100 ensanchó el pager visible de `clinic-informes`. A02 se realineó sólo en `x` y `width` del pager para ocho viewports; sus tolerancias estructurales y textuales permanecen intactas, y las otras 20 superficies y todos los demás campos no cambiaron.
+
+Ninguna de las dos correcciones implementa A05 ni A06: no hay reserva geométrica estable, ni unificación de hooks, ni cambio de límites, breakpoints o algoritmo adaptativo (§20.5, §48).
 
 **Solución preferente (§48, PR-A05):** crear una **reserva geométrica estable** — las regiones estructurales (toolbar, superbuscador, pager, encabezado) declaran su altura reservada al canvas de filas mediante variables CSS, de modo que el canvas medido sea invariante a cambios de CSS interno. El `limit` sigue adaptándose al viewport.
 **Alternativa admisible (§48, PR-A06):** medición explícita por regiones (app header · module header · toolbar · filtros · resumen · rows canvas · pager) con un solo hook unificado.

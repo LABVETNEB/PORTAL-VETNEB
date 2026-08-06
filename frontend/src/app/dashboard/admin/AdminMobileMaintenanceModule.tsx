@@ -1,9 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+  useTransition,
+} from "react";
 import { Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { usePagedRows } from "@/components/dashboard/usePagedRows";
+import { useAdaptiveRowsPerPage } from "@/hooks/useAdaptiveRowsPerPage";
 import {
   getAdminMaintenancePurgeDryRun,
   getAdminSchemaHealth,
@@ -17,7 +25,13 @@ import type {
 import { AdminMobileConfigModule } from "./AdminMobileConfigModule";
 import { AdminMobileOpsPager } from "./AdminMobileOpsPager";
 
-const CANDIDATE_PAGE_SIZE = 3;
+// Pre-measurement fallback only: the effective page size comes from the
+// measured candidates canvas (audit §20, A03 contract), never from a constant.
+const CANDIDATE_FALLBACK_ROWS = 3;
+const CANDIDATE_ROW_HEIGHT_FALLBACK_PX = 44;
+// Matches the `gap-1.5` between candidate rows so the adaptive measurement
+// accounts for the full per-row footprint, not just the row's own height.
+const CANDIDATE_ROW_GAP_PX = 6;
 
 function useIsMobileViewport() {
   const [isMobileViewport, setIsMobileViewport] = useState(false);
@@ -153,8 +167,14 @@ function MaintenanceDryRunSection() {
   const isMobileViewport = useIsMobileViewport();
   const [snapshot, setSnapshot] = useState<MaintenancePurgeDryRunSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [offset, setOffset] = useState(0);
   const [isPending, startTransition] = useTransition();
+  const [candidatesListNode, setCandidatesListNode] =
+    useState<HTMLDivElement | null>(null);
+  const [firstCandidateRowNode, setFirstCandidateRowNode] =
+    useState<HTMLDivElement | null>(null);
+  const [rowHeightPx, setRowHeightPx] = useState(
+    CANDIDATE_ROW_HEIGHT_FALLBACK_PX,
+  );
 
   function analyze() {
     if (!isMobileViewport) return;
@@ -163,7 +183,6 @@ function MaintenanceDryRunSection() {
       void (async () => {
         try {
           setSnapshot(await getAdminMaintenancePurgeDryRun());
-          setOffset(0);
         } catch (err) {
           setError(
             err instanceof Error ? err.message : "No se pudo analizar la limpieza.",
@@ -177,13 +196,50 @@ function MaintenanceDryRunSection() {
     () => snapshot?.candidates ?? [],
     [snapshot],
   );
-  const pageCandidates = useMemo(
-    () => candidates.slice(offset, offset + CANDIDATE_PAGE_SIZE),
-    [candidates, offset],
-  );
-  const page = Math.floor(offset / CANDIDATE_PAGE_SIZE) + 1;
-  const pageCount = Math.max(1, Math.ceil(candidates.length / CANDIDATE_PAGE_SIZE));
-  const hasNext = offset + CANDIDATE_PAGE_SIZE < candidates.length;
+
+  // Row footprint comes from a real rendered row, so the derived page size
+  // tracks the actual mobile density instead of a hard-coded cardinality.
+  useLayoutEffect(() => {
+    if (!firstCandidateRowNode) {
+      return;
+    }
+
+    const measureRowHeight = () => {
+      const height = firstCandidateRowNode.getBoundingClientRect().height;
+
+      if (height > 0) {
+        setRowHeightPx(height + CANDIDATE_ROW_GAP_PX);
+      }
+    };
+
+    const observer = new ResizeObserver(measureRowHeight);
+    observer.observe(firstCandidateRowNode);
+    measureRowHeight();
+
+    return () => observer.disconnect();
+  }, [firstCandidateRowNode]);
+
+  const { rowsPerPage } = useAdaptiveRowsPerPage({
+    containerNode: candidatesListNode,
+    fallbackRows: CANDIDATE_FALLBACK_ROWS,
+    rowHeightPx,
+    minRows: 2,
+  });
+
+  // `usePagedRows` owns the page cursor and clamps it whenever the measured
+  // page size grows or the dataset shrinks, so a limit change can never leave
+  // the list on an out-of-range page or produce a negative offset.
+  const pagedCandidates = usePagedRows(candidates, rowsPerPage);
+  const pageCandidates = pagedCandidates.pageItems;
+  const page = pagedCandidates.page + 1;
+  const pageCount = pagedCandidates.pageCount;
+  const hasNext = pagedCandidates.hasNext;
+
+  // A fresh dry-run restarts at the first page, as before.
+  useEffect(() => {
+    pagedCandidates.setPage(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [snapshot]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
@@ -211,13 +267,19 @@ function MaintenanceDryRunSection() {
             <MaintenanceMetric label="Soportados" value={snapshot.totals.supportedCandidateRecords} />
             <MaintenanceMetric label="No sop." value={snapshot.totals.unsupportedGroups} />
           </div>
-          <div className="grid min-h-0 flex-1 grid-rows-3 gap-1.5 overflow-hidden">
+          <div
+            ref={setCandidatesListNode}
+            data-admin-mobile-maintenance-candidates-list="true"
+            className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden"
+          >
             {pageCandidates.length ? (
-              pageCandidates.map((candidate) => (
+              pageCandidates.map((candidate, index) => (
                 <div
                   key={candidate.category}
+                  ref={index === 0 ? setFirstCandidateRowNode : undefined}
                   data-admin-mobile-config-item="true"
-                  className="flex min-h-0 items-center justify-between gap-2 overflow-hidden rounded-md border border-vetneb-line/70 bg-card/95 px-2.5 py-1.5"
+                  data-admin-mobile-maintenance-candidate-row="true"
+                  className="flex min-h-0 shrink-0 items-center justify-between gap-2 overflow-hidden rounded-md border border-vetneb-line/70 bg-card/95 px-2.5 py-1.5"
                 >
                   <div className="min-w-0">
                     <p className="truncate text-xs font-medium text-vetneb-ink">
@@ -241,7 +303,7 @@ function MaintenanceDryRunSection() {
                 </div>
               ))
             ) : (
-              <div className="row-span-3 flex items-center justify-center px-4 text-center text-xs text-muted-foreground">
+              <div className="flex min-h-0 flex-1 items-center justify-center px-4 text-center text-xs text-muted-foreground">
                 Sin candidatos de limpieza.
               </div>
             )}
@@ -252,14 +314,14 @@ function MaintenanceDryRunSection() {
             pageCount={pageCount}
             rangeLabel={
               candidates.length
-                ? `${offset + 1}–${Math.min(offset + CANDIDATE_PAGE_SIZE, candidates.length)} de ${candidates.length}`
+                ? `${pagedCandidates.rangeStart}–${pagedCandidates.rangeEnd} de ${pagedCandidates.total}`
                 : "Sin candidatos"
             }
-            previousDisabled={offset === 0}
+            previousDisabled={!pagedCandidates.hasPrev}
             nextDisabled={!hasNext}
             disabled={isPending}
-            onPrevious={() => setOffset(Math.max(0, offset - CANDIDATE_PAGE_SIZE))}
-            onNext={() => setOffset(offset + CANDIDATE_PAGE_SIZE)}
+            onPrevious={pagedCandidates.goPrev}
+            onNext={pagedCandidates.goNext}
           />
         </>
       ) : (

@@ -30,8 +30,13 @@ export function LogisticsCommandCenter({
   const activePlans = routePlans.filter(
     (p) => p.status === "in_progress" || p.status === "released",
   );
-  const recentVisits = fieldVisits.slice(0, 5);
-  const recentPlans = routePlans.slice(0, 5);
+  // The bounded canvas is the single owner of cardinality: it measures its own
+  // height and pages the rows adaptively (audit §20, A03 contract). Truncating
+  // here first capped both lists below the measured page size, which made a
+  // complete second page unreachable on tall viewports. The ordered
+  // collections are handed over whole, in the order the server produced them.
+  const recentVisits = fieldVisits;
+  const recentPlans = routePlans;
 
   return (
     <section
