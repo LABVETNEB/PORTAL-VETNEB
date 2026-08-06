@@ -219,7 +219,11 @@ El re-fetch por cardinalidad introduce concurrencia que hoy no existe. Reglas ob
    | Clínicas | 9 | 36 |
    | Informes workflow | 9 | 36 |
    | Alertas login | 5 | 25 |
-   | Tokens admin | 9 (sin total) | 30 + "cargar más" |
+   | Tokens admin | 9 (sin total) | 34 iniciales (2 × 17) + "cargar más" |
+
+   Para Tokens admin, **34** es la ventana inicial acotada mínima que cubre dos páginas completas del máximo
+   medido de **17** filas; no es el `page size` visible. `useAdaptiveItemsPerPage` conserva la cardinalidad y
+   `Cargar más` mantiene lotes incrementales posteriores de **30** registros, en el orden del servidor.
 
 2. **Cuándo pedir más.** En híbrido, se re-fetchea un superset mayor **sólo** cuando `itemsPerPage` derivado
    supera el superset actual (viewport enorme) o cuando cambia un filtro server-side. En OF puro (Tokens admin),
@@ -267,7 +271,6 @@ Roles queda como **primer módulo de PR-SRV-2** (patrón idéntico ya validado e
 
 Sólo tras migrar los módulos que consumían cada constante: elimina `MOBILE_PAGE_SIZE` como fuente de verdad y
 el `matchMedia` de cardinalidad de los módulos ya adaptativos. Grep-guard (§10) pasa a bloqueante al cerrar.
-
 ---
 
 ## 10. Validaciones esperadas para futuros PRs
