@@ -158,7 +158,7 @@ Total: 8 × 13 + 13 × 3 = 104 + 39 = **143 combinaciones (superficie, viewport)
 **Precisiones obligatorias sobre esta cobertura:**
 
 - Las 143 combinaciones corresponden a **8 superficies con cobertura completa (cohorte A) más 13 con cobertura parcial de 3 viewports (cohorte B)** — no a 11 superficies homogéneas ni a ninguna otra agrupación uniforme.
-- **Los «15 módulos» declarados en §1.1 y §2 no fueron medidos en los 13 viewports.** «Módulos» (15 = 10 IDs `?module=` de admin + 5 de clínica) y «superficies» (21 = 11 filas de §12 + 10 filas de §13, que además cuentan las rutas completas de clínica como entradas propias) son dos recuentos distintos; el inventario de §12/§13 usa «superficies», y es sobre esas 21 que se construyó la muestra estratificada anterior.
+- **Los «15 módulos de navegación (`?module=`)» declarados en §1.1 y §2 no fueron medidos en los 13 viewports.** «Módulos de navegación» (15 = 10 IDs `?module=` de admin + 5 de clínica) y «superficies» (21 = 11 filas de §12 + 10 filas de §13, que además cuentan las rutas completas de clínica como entradas propias) son dos recuentos distintos; el inventario de §12/§13 usa «superficies», y es sobre esas 21 que se construyó la muestra estratificada anterior. **Ninguno de estos dos recuentos define el universo de A03**, que son los **15 consumidores de paginación adaptativa de §20** (§4.8, §20.1).
 - **Cobertura pendiente:** las 13 superficies de la cohorte B carecen de datos en los 10 viewports restantes (1600×900, 1440×900, 1280×720, 1024×768, 834×1194, 768×1024, 430×932, 412×915, 375×812, 360×800) — 130 combinaciones no ejecutadas. Cerrarlas exige una nueva pasada de medición, no una relectura de los datos existentes.
 - Toda conclusión de zero-scroll o de chrome en §1, §11, §21–§23 y §64 se limita a estas 143 combinaciones efectivamente ejecutadas; no debe leerse como cobertura de las 21 superficies en los 13 viewports.
 
@@ -167,13 +167,18 @@ Total: 8 × 13 + 13 × 3 = 104 + 39 = **143 combinaciones (superficie, viewport)
 | Unidad | Cantidad | Definición |
 |---|---:|---|
 | Rutas | **7** | Rutas de Next.js distintas (§12, §13) |
-| Módulos | **15** | IDs `?module=` distintos: 10 admin + 5 clínica |
+| Módulos de navegación (`?module=`) | **15** | IDs `?module=` distintos: 10 admin + 5 clínica. Inventario de navegación y de contratos generales. **No es el universo de A03** (§20.1) |
+| Consumidores de paginación adaptativa | **15** | Los 15 consumidores de hooks adaptativos de §20 (§40 P0-03). **Universo canónico de A03** (§20.1) |
 | Superficies visibles | **21** | 11 filas de §12 (admin, incluye hub) + 10 filas de §13 (clínica, incluye rutas completas como entradas propias) |
 | Combinaciones medidas | **143** | Muestra estratificada efectivamente ejecutada (§4.7) |
 | Combinaciones pendientes | **130** | 13 superficies de la cohorte B × 10 viewports restantes (§4.7) |
 | Matriz completa objetivo | **273** | 21 superficies × 13 viewports, no ejecutada |
+| Registros primarios de A03 | **195** | 15 consumidores × 13 viewports (§20.1) |
+| Observaciones hoja de A03 | **234** | 169 + 26 + 39, por los dos consumidores compuestos (§20.2) |
 
-**Regla de selección de unidad por tipo de prueba:** las pruebas visuales y de zero-scroll (§56.5, §57) deben usar las **21 superficies** cuando la diferencia de ruta o de shell produce una superficie distinta (p. ej. Informes clínica módulo vs Informes clínica ruta completa, que comparten módulo lógico pero no shell — Hecho 3, P0-04). Los contract tests funcionales (§56.2) pueden operar sobre los **15 módulos** cuando ésa sea la unidad correcta — p. ej. el contrato operativo de un módulo lógico es el mismo con independencia de por cuál shell se acceda.
+**Regla de selección de unidad por tipo de prueba:** las pruebas visuales y de zero-scroll (§56.5, §57) deben usar las **21 superficies** cuando la diferencia de ruta o de shell produce una superficie distinta (p. ej. Informes clínica módulo vs Informes clínica ruta completa, que comparten módulo lógico pero no shell — Hecho 3, P0-04). Los contract tests funcionales (§56.2) pueden operar sobre los **15 módulos de navegación** cuando ésa sea la unidad correcta — p. ej. el contrato operativo de un módulo lógico es el mismo con independencia de por cuál shell se acceda.
+
+**Excepción normativa — A03.** Los **15 módulos de navegación de esta tabla no constituyen el universo de A03**, y ninguna lectura de A03 puede sustituir su universo por ellos. El universo de A03 son los **15 consumidores de hooks adaptativos de §20**, definidos como contrato normativo en §20.1–§20.5. Los dos conjuntos de 15 no coinciden: los módulos de navegación incluyen `admin-health`, `operaciones` y `perfil`, que no consumen ningún hook adaptativo, y excluyen los consumidores de `/dashboard/informes` y de `/dashboard/logistica*`, que §20 clasifica con riesgo **Alto**.
 
 ---
 
@@ -554,8 +559,8 @@ Los 7 superbuscadores se incorporan al programa global conservando íntegro su i
 | Informes clínica | `useAdaptiveRowsPerPage` | `reportsListBodyNode` | **44** | sí | 2 | — | cliente | Medio |
 | Logística clínica | `useAdaptiveRowsPerPage` | `visitsListBodyNode` | **44** | no | 2 | — | cliente | Bajo |
 | Tokens clínica | `useAdaptiveRowsPerPage` | body de lista | **44** | no | 2 | — | cliente | Medio |
-| Logística lista reciente | `useAdaptiveDashboardPageSize` | `containerRef` | variable | no | **2** | **12** | cliente | Bajo |
-| Logística canvas acotado | `useAdaptiveDashboardPageSize` | `containerRef` | variable | sí | `minLimit` | `maxLimit` | **servidor** (si no hay `limit` explícito) | **Alto** |
+| Logística lista reciente **· compuesto (2 variantes, §20.2)** | `useAdaptiveDashboardPageSize` | `containerRef` | variable | no | **2** | **12** | cliente | Bajo |
+| Logística canvas acotado **· compuesto (3 variantes, §20.2)** | `useAdaptiveDashboardPageSize` | `containerRef` | variable | sí | `minLimit` | `maxLimit` | **servidor** (si no hay `limit` explícito) | **Alto** |
 
 **15 módulos · 3 hooks · 3 reglas de descuento distintas.**
 `useAdaptiveItemsPerPage` descuenta `headerHeightPx + safetyGapPx` (por defecto 6).
@@ -565,6 +570,120 @@ Los 7 superbuscadores se incorporan al programa global conservando íntegro su i
 **Solución preferente (§48, PR-A05):** crear una **reserva geométrica estable** — las regiones estructurales (toolbar, superbuscador, pager, encabezado) declaran su altura reservada al canvas de filas mediante variables CSS, de modo que el canvas medido sea invariante a cambios de CSS interno. El `limit` sigue adaptándose al viewport.
 **Alternativa admisible (§48, PR-A06):** medición explícita por regiones (app header · module header · toolbar · filtros · resumen · rows canvas · pager) con un solo hook unificado.
 **Solución prohibida:** fijar `limit = 12`, `limit = 16` o cualquier valor global. La paginación debe seguir adaptándose al viewport y al zero-scroll.
+
+### 20.1 Universo canónico de A03 *(normativo)*
+
+**La unidad canónica de A03 son los 15 consumidores de hooks adaptativos inventariados en la tabla anterior**, los mismos que §40 P0-03 referencia como «15 consumidores (§20)» y que el Hecho 2 de §1.3 cuenta como «15 módulos con 15 pares (fila, fallback, cap) distintos».
+
+Los 15 IDs `?module=` de §4.8 son un inventario de navegación y de contratos generales: **no constituyen el universo de A03**. Queda excluida toda lectura por la cual A03 pueda interpretarse sobre ese conjunto.
+
+**Registro normativo de `moduleId`.** Los siguientes son los **únicos 15 `moduleId` válidos para A03**, en el **orden canónico del baseline**:
+
+| Fila §20 | Consumidor | `moduleId` normativo |
+|---:|---|---|
+| 1 | Auditoría | `admin-audit-log` |
+| 2 | Informes admin | `admin-report-upload` |
+| 3 | Tokens admin | `admin-particular-tokens` |
+| 4 | Clínicas | `admin-clinics` |
+| 5 | Usuarios y roles | `admin-users-roles` |
+| 6 | Sesiones | `admin-sessions` |
+| 7 | Intentos fallidos | `admin-failed-login-alerts` |
+| 8 | Precios | `admin-pricing` |
+| 9 | Informes — ruta completa | `informes-reports-list` |
+| 10 | Mantenimiento | `admin-maintenance` |
+| 11 | Informes clínica | `clinic-informes-summary` |
+| 12 | Logística clínica | `clinic-logistica-summary` |
+| 13 | Tokens clínica | `clinic-particular-tokens` |
+| 14 | Logística lista reciente | `logistics-recent-list` |
+| 15 | Logística canvas acotado | `logistics-bounded-canvas` |
+
+Reglas normativas de este registro:
+
+- Éstos son los **únicos 15 `moduleId` válidos** para A03; no existe ningún otro.
+- **No** se permite derivarlos de labels traducidos, de rutas ni de nombres de componentes: el literal de esta tabla es la única fuente.
+- El orden de la tabla es el **orden canónico del baseline**.
+- Cada `moduleId` debe generar **exactamente 13 claves primarias**, una por viewport canónico.
+- Toda clave desconocida —`moduleId`, `viewportSlug` o `variantId` no declarados— debe **fallar de forma cerrada**.
+- Los `variantId` existen **sólo** para los módulos compuestos definidos en §20.2 (`logistics-recent-list`, `logistics-bounded-canvas`).
+- Los `variantId` **no sustituyen ni modifican** el `moduleId`: refinan la identidad de la observación hoja, no la del registro primario.
+
+Matriz primaria de A03 — invariante:
+
+| Magnitud | Valor |
+|---|---:|
+| Módulos canónicos | **15** |
+| Viewports canónicos (§4.7) | **13** |
+| Registros primarios | **195** |
+| Claves primarias únicas | **195** |
+| Observaciones hoja | **234** |
+
+Cada módulo aparece exactamente **13** veces; cada viewport, exactamente **15**.
+
+Esquema de identidad:
+
+```text
+clave primaria     = moduleId::viewportSlug
+identidad de hoja  = moduleId::viewportSlug::variantId
+```
+
+### 20.2 Consumidores compuestos y conteo de observaciones *(normativo)*
+
+Las filas 14 y 15 de §20 son **consumidores compuestos**: un único consumidor del hook con varias instancias o rutas reales, cada una con su propio contenedor medido y su propio contrato. El registro primario de cada combinación módulo/viewport contiene una **colección tipada de observaciones hoja**, una por variante. Está prohibido seleccionar arbitrariamente una única instancia o ruta y está prohibido agregar sus valores por mínimo, máximo, promedio o primer elemento (§20.5).
+
+| Fila §20 | `moduleId` | `variantId` obligatorio | Instancia o ruta real |
+|---|---|---|---|
+| 14 · Logística lista reciente | `logistics-recent-list` | `recent-visits` | `/dashboard/logistica` — lista «Visitas de campo» |
+| 14 · Logística lista reciente | `logistics-recent-list` | `recent-plans` | `/dashboard/logistica` — lista «Planes de ruta» |
+| 15 · Logística canvas acotado | `logistics-bounded-canvas` | `bounded-visitas` | `/dashboard/logistica/visitas` |
+| 15 · Logística canvas acotado | `logistics-bounded-canvas` | `bounded-rutas` | `/dashboard/logistica/rutas` |
+| 15 · Logística canvas acotado | `logistics-bounded-canvas` | `bounded-metricas` | `/dashboard/logistica/metricas` |
+
+Los otros **13** módulos tienen exactamente **una** observación hoja por registro primario.
+
+Desglose obligatorio de las observaciones hoja:
+
+| Origen | Cálculo | Observaciones |
+|---|---|---:|
+| 13 módulos simples | 13 × 13 viewports | **169** |
+| `logistics-recent-list` | 2 variantes × 13 viewports | **26** |
+| `logistics-bounded-canvas` | 3 variantes × 13 viewports | **39** |
+| **Total** | | **234** |
+
+Las variantes **no** crean `moduleId` adicionales ni claves primarias adicionales: el universo primario permanece en 15 `moduleId` y 195 claves primarias.
+
+### 20.3 Punto temporal de observación *(normativo)*
+
+El baseline **no** registra el fallback previo a la medición adaptativa, ni ningún valor anterior a `ResizeObserver`, al layout o a la convergencia de la medición, ni el primer request transitorio. Para cada combinación (módulo, variante, viewport):
+
+1. cargar el estado hermético representativo;
+2. esperar readiness semántica;
+3. esperar la convergencia de la medición adaptativa, sin sleeps fijos;
+4. partir desde la primera página;
+5. ejecutar **exactamente una** transición válida hacia la página siguiente;
+6. esperar la estabilización del contrato resultante;
+7. registrar el `limit` y el `offset` efectivos de esa **segunda página**.
+
+Prohibido usar `waitForTimeout`, sleeps, retries o promedios para decidir la estabilidad. Que un cambio de viewport pueda producir más de un request de paginación es un hecho reconocido (§56.7, *thrash* de `limit`): A03 lo **registra**, no lo corrige (§20.5).
+
+### 20.4 Origen semántico del contrato *(normativo)*
+
+Cada observación hoja declara su fuente mediante una **unión discriminada** de exactamente tres variantes:
+
+**1 · `server-request`** — consumidores cuya paginación efectiva se transmite al servidor. Registra: el request final estable provocado por la transición de página, el endpoint, el método, el `limit` real, el `offset` real y provenance suficiente para asociar el request a su módulo, variante y viewport.
+
+**2 · `url-query`** — consumidores cuya paginación efectiva se expresa en la URL. Registra: el `pathname`, la query final estabilizada, el `limit` real, el `offset` real y provenance suficiente.
+
+**3 · `client-slice`** — consumidores paginados íntegramente en cliente. Registra, desde una ejecución real: la cantidad efectiva de elementos de la segunda página, el `limit` efectivo, el índice base cero del primer elemento renderizado, ese mismo índice como `offset`, los identificadores ordenados del fixture que demuestran la posición de la porción, y provenance suficiente.
+
+**Significado de `offset` en `client-slice`.** No implica que el runtime exponga una variable o un parámetro llamado `offset`. Significa el **índice base cero observable del primer elemento de la porción cliente después de una transición real de página**. Prohibido registrar `offset: null`; prohibido asumir `offset: 0`; prohibido derivar el valor exclusivamente de una tabla estática o de la lectura del código. El fixture debe contener elementos suficientes para que la segunda página sea **completa** y el `limit` pueda observarse sin truncamiento por final de dataset.
+
+**Tokens admin y derivas registradas por A01.** En los consumidores donde el request obtiene un *superset* y el paginado adaptativo ocurre en cliente — caso de Tokens admin, deriva **D-03** de A01 — la fuente de A03 es `client-slice`: el `limit` de A03 es el tamaño de página adaptativo efectivo y el `offset` de A03 es el índice observable de inicio de la porción cliente. El límite fijo o *cap* del request de superset **no** reemplaza el contrato adaptativo. La deriva existente se conserva y se referencia; A03 no la corrige.
+
+### 20.5 No normalización y frontera con A05/A06 *(normativo)*
+
+Queda prohibido, dentro de A03: elegir sólo la primera instancia de un consumidor compuesto; seleccionar una ruta «representativa» sin medir las demás; aplicar mínimo; aplicar máximo; calcular promedio; colapsar las variantes a un único valor; expandir el universo primario a 18 `moduleId`; convertir las variantes en módulos nuevos; fijar globalmente un `limit`; y corregir offsets, hooks o paginación.
+
+A03 **sólo captura el comportamiento existente**. No implementa reserva geométrica estable, nuevos breakpoints, corrección del algoritmo adaptativo, unificación de hooks, cambio de límites, cambio de `offset`, deduplicación de requests, prevención de *thrash*, ni ninguna corrección de A05 o A06. A03 depende de A01 y precede a A05 y A06 (§48). Las incoherencias que A03 descubra se **registran y documentan como riesgo**; no se corrigen en A03.
 
 ---
 
@@ -881,7 +1000,7 @@ Inventario vigente: **P1-01** (tres implementaciones), **P1-02** (colapso 768–
 |---|---|---|---|---|---|---|
 | **P0-01** | La altura de las regiones determina el `limit` enviado al backend | `useAdaptiveItemsPerPage.ts:92-105`; `AdminAuditCard.tsx:188,198` | Cualquier cambio de CSS altera la paginación real, operativa protegida | Reserva geométrica estable (§20) antes de tocar geometría | `supersearch-limit-invariance` | `limit` por viewport idéntico al baseline |
 | **P0-02** | Los tests de contrato de fuente congelan la geometría | `frontend-dashboard-filter-drawer-sticky-filters.test.ts:180`; `admin-tokens-enterprise-density.test.ts:84,89` | Un PR de CSS hace fallar `pnpm test` | Realinear anclas **en el mismo PR**, nunca debilitarlas | Suite completa | `pnpm validate:local` verde |
-| **P0-03** | Tres hooks adaptativos con tres reglas de descuento | `useAdaptiveItemsPerPage.ts`, `useAdaptiveRowsPerPage.ts`, `useAdaptiveDashboardPageSize.ts`; 15 consumidores (§20) | Un desacoplamiento parcial deja la mitad del dashboard expuesta | Unificar en un hook con regiones declaradas | Test de invariancia sobre los 15 módulos | Un solo hook; los 15 módulos con `limit` invariante |
+| **P0-03** | Tres hooks adaptativos con tres reglas de descuento | `useAdaptiveItemsPerPage.ts`, `useAdaptiveRowsPerPage.ts`, `useAdaptiveDashboardPageSize.ts`; 15 consumidores (§20) | Un desacoplamiento parcial deja la mitad del dashboard expuesta | Unificar en un hook con regiones declaradas | Test de invariancia sobre los 15 consumidores (universo canónico de A03, §20.1) | Un solo hook; los 15 consumidores con `limit` invariante |
 | **P0-04** | Dos app shells para el rol clínica | `/dashboard` topbar 55.33 + rail 39.39; `/dashboard/informes` topbar 92.33 + hnav 37 (§13, §21) | Unificar el shell cambia el canvas medido en **ambas** rutas → doble riesgo de `limit` | Unificar tras P0-03, con baseline de `limit` en las 10 superficies de clínica | E2E de paridad de shell | Un solo shell; `limit` invariante en las 10 |
 
 ---
@@ -1105,7 +1224,7 @@ features/dashboard/
 |---|---|---|---|
 | **A01** | 0 | Baseline de contrato operativo de los 15 módulos (handlers, params, endpoints, defaults, reset de página) | — |
 | **A02** | 0 | Baseline geométrico E2E: 21 superficies × 13 viewports (273 combinaciones), con tolerancias | A01 |
-| **A03** | 0 | Baseline de `limit`/`offset` por módulo y viewport (los 15 de §20) | A01 |
+| **A03** | 0 | Baseline de `limit`/`offset` por módulo, variante y viewport sobre los **15 consumidores de §20** — no sobre los IDs `?module=` de §4.8: 195 registros primarios y 234 observaciones hoja; contrato normativo en §20.1–§20.5 | A01 |
 | **A04** | 0 | Baseline de seguridad: separación de sesión, ausencia de secretos, `data-*` sin lexemas sensibles | — |
 | **A05** | 1 | **Reserva geométrica estable**: las regiones estructurales declaran altura reservada; el canvas de filas queda invariante al CSS interno | A02, A03 |
 | **A06** | 1 | Unificar los 3 hooks adaptativos en uno con regiones declaradas | A05 |
@@ -1266,7 +1385,7 @@ Estructura completa por PR: **ID · Programa · Nivel · Título · Objetivo · 
 |---|---|---|---|---|---|---|---|---|
 | A01 | A | 0 | Contrato operativo | — | 15 | Bajo | +`dashboard-operational-contract` | Falla si cambia handler/param/endpoint/default |
 | A02 | A | 0 | Baseline geométrico | A01 | 21 | Bajo | +`dashboard-geometry-baseline.spec` | Verde en 21 × 13 (273 combinaciones) |
-| A03 | A | 0 | Baseline de `limit` | A01 | 15 | Bajo | +`adaptive-limit-baseline` | `limit` registrado por viewport |
+| A03 | A | 0 | Baseline de `limit`/`offset` | A01 | 15 consumidores (§20.1) | Bajo | +`adaptive-limit-baseline` | 195 registros primarios · 195 claves · 234 observaciones hoja (§20.1–§20.4) |
 | A04 | A | 0 | Baseline de seguridad | — | 15 | Bajo | +`dashboard-security-invariants` | Sesiones separadas, sin secretos |
 | A05 | A | 1 | Reserva geométrica | A02, A03 | 15 | **Alto** | `limit-invariance` | `limit` idéntico con regiones de 32/48/64 px |
 | A06 | A | 1 | Hook unificado | A05 | — | **Alto** | unit del hook | Un hook; 3 reglas equivalentes cubiertas |
@@ -1322,7 +1441,7 @@ Estructura completa por PR: **ID · Programa · Nivel · Título · Objetivo · 
 Reglas de import (`presentation/` no importa de `app/`) · sin llamadas API desde presentación · sin duplicación de catálogos de módulos · sin componentes muertos.
 
 ### 56.2 Contratos
-Handlers · URL y query string (incluida la de Auditoría) · payloads · endpoints · **`limit` y `offset` por viewport** · permisos · estados · defaults · semántica de fechas · reset de página por control · política de renderizado condicional.
+Handlers · URL y query string (incluida la de Auditoría) · payloads · endpoints · **`limit` y `offset` por módulo, variante y viewport** — sobre los 15 consumidores de §20 (no sobre los IDs `?module=` de §4.8), observados en la **segunda página** tras la convergencia adaptativa y clasificados como `server-request`, `url-query` o `client-slice` (§20.1–§20.4) · permisos · estados · defaults · semántica de fechas · reset de página por control · política de renderizado condicional.
 
 ### 56.3 Unit
 Primitivas de `collection/`, `filters/`, `details/`, `menus/`, `viewer/` · variantes · selección · overflow · truncamiento · `clamp` de anchura · estados disabled/loading/error/empty.
@@ -1390,7 +1509,7 @@ pnpm --dir frontend e2e:<cohorte-seleccionada>
 | Gate | Condición | Cuándo |
 |---|---|---|
 | G1 | Contrato operativo congelado (A01 verde) | Antes de A05 |
-| G2 | Baseline geométrico y de `limit` capturados (A02, A03) | Antes de A05 |
+| G2 | Baseline geométrico (A02: 21 × 13 = 273 combinaciones) y baseline de `limit`/`offset` (A03: 195 registros primarios · 195 claves · 234 observaciones hoja, §20.1) capturados | Antes de A05 |
 | G3 | **`limit` invariante** con regiones de 32/48/64 px (A05–A07) | Antes de B01 |
 | G4 | Zero-scroll congelado (A08) | Antes de B06 |
 | G5 | Tokens completos claro + oscuro (B03) | Antes de B06 |
@@ -1477,7 +1596,7 @@ El programa sólo puede cerrarse cuando, simultáneamente:
 8. Los filtros son progresivos (campo primario + chips + overflow).
 9. Los paneles de detalle son reutilizables (un `DetailsPane`, no cuatro patrones).
 10. **La operativa de los 7 superbuscadores es idéntica** (A01 verde).
-11. **La paginación adaptativa sigue siendo correcta y el `limit` por viewport es invariante** respecto del baseline (A03, G3).
+11. **La paginación adaptativa sigue siendo correcta y el `limit` por módulo, variante y viewport es invariante** respecto del baseline (A03, G3).
 12. No existe scroll accidental; zero-scroll se conserva en 21 superficies × 13 viewports = 273 combinaciones (A08).
 13. No se rompen permisos ni fronteras de sesión (A04).
 14. No se modifica backend sin PR separado.
