@@ -176,22 +176,6 @@ function MaintenanceDryRunSection() {
     CANDIDATE_ROW_HEIGHT_FALLBACK_PX,
   );
 
-  function analyze() {
-    if (!isMobileViewport) return;
-    setError(null);
-    startTransition(() => {
-      void (async () => {
-        try {
-          setSnapshot(await getAdminMaintenancePurgeDryRun());
-        } catch (err) {
-          setError(
-            err instanceof Error ? err.message : "No se pudo analizar la limpieza.",
-          );
-        }
-      })();
-    });
-  }
-
   const candidates: MaintenancePurgeCandidateGroup[] = useMemo(
     () => snapshot?.candidates ?? [],
     [snapshot],
@@ -235,11 +219,26 @@ function MaintenanceDryRunSection() {
   const pageCount = pagedCandidates.pageCount;
   const hasNext = pagedCandidates.hasNext;
 
-  // A fresh dry-run restarts at the first page, as before.
-  useEffect(() => {
-    pagedCandidates.setPage(0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [snapshot]);
+  function analyze() {
+    if (!isMobileViewport) return;
+    setError(null);
+    startTransition(() => {
+      void (async () => {
+        try {
+          const nextSnapshot = await getAdminMaintenancePurgeDryRun();
+          // Publish the fresh dataset and its first-page cursor in the same
+          // React batch. A passive effect ran after paint and briefly exposed
+          // the previous cursor against the new snapshot.
+          pagedCandidates.setPage(0);
+          setSnapshot(nextSnapshot);
+        } catch (err) {
+          setError(
+            err instanceof Error ? err.message : "No se pudo analizar la limpieza.",
+          );
+        }
+      })();
+    });
+  }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
