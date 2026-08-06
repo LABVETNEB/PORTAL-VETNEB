@@ -127,6 +127,7 @@ test("impact routing classifies representative paths", () => {
     [".github/workflows/frontend-ci.yml", "frontend-ci-workflow"],
     [".github/workflows/pr-governance.yml", "pr-governance-workflow"],
     [".github/CODEOWNERS", "github-config"],
+    [".env.example", "root-env-example"],
     [".gitignore", "repo-config-gitignore"],
     [".gitattributes", "repo-config-gitattributes"],
     [".npmrc", "repo-config-npmrc"],
@@ -157,6 +158,31 @@ test("impact routing classifies representative paths", () => {
     assert.equal(routed.rule?.id, expectations.get(routed.path), routed.path);
     assert.ok(routed.gates.length > 0, `${routed.path} must have gates`);
   }
+});
+
+test("root env example routes deployment configuration through backend governance", () => {
+  const result = evaluateChangedPathImpact({
+    entries: [
+      {
+        status: "M",
+        path: ".env.example",
+        display: ".env.example",
+      },
+    ],
+  });
+  const routed = result.changedPaths[0];
+  const gateIds = ids(routed.gates);
+  const suiteIds = ids(routed.suites);
+
+  assert.deepEqual(result.failures, []);
+  assert.equal(routed.rule?.id, "root-env-example");
+  assert.ok(gateIds.includes("pr-governance"));
+  assert.ok(gateIds.includes("backend-ci"));
+  assert.ok(gateIds.includes("manual-review"));
+  assert.ok(suiteIds.includes("backend-test-typecheck"));
+  assert.ok(suiteIds.includes("backend-tests"));
+  assert.ok(routed.impacts.includes("deployment-configuration"));
+  assert.ok(routed.impacts.includes("runtime-configuration-example"));
 });
 
 test("PR governance classifyPath maps cursorignore to repository configuration", () => {
