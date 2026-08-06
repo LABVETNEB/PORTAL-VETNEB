@@ -271,6 +271,7 @@ Roles queda como **primer módulo de PR-SRV-2** (patrón idéntico ya validado e
 
 Sólo tras migrar los módulos que consumían cada constante: elimina `MOBILE_PAGE_SIZE` como fuente de verdad y
 el `matchMedia` de cardinalidad de los módulos ya adaptativos. Grep-guard (§10) pasa a bloqueante al cerrar.
+
 ---
 
 ## 10. Validaciones esperadas para futuros PRs
