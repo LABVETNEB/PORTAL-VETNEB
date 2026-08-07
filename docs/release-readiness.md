@@ -45,9 +45,13 @@ Tabla sin secretos para configurar el runtime backend:
 | `MAX_UPLOAD_FILE_SIZE_MB` | Opcional con aprobacion del default | `20` | Limite de upload de informes/imagenes. |
 | `SUPABASE_SIGNED_URL_EXPIRES_IN_SECONDS` | Opcional con aprobacion del default | `900` | Expiracion de signed URLs. |
 | `SESSION_TTL_HOURS` | Opcional con aprobacion del default | `24` | TTL de sesiones. |
-| `GMAIL_API_CLIENT_ID`, `GMAIL_API_CLIENT_SECRET`, `GMAIL_API_REFRESH_TOKEN`, `GMAIL_API_FROM` | Condicional preferida | - | Transporte Gmail API por HTTPS/443; usar cuando Render -> Gmail SMTP falla con `CONN`/`ETIMEDOUT`. No exponer secretos. |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | Condicional fallback | `587`/`false` para puerto/secure (`SMTP_PASS=<GMAIL_APP_PASSWORD_WITHOUT_SPACES>`) | SMTP se mantiene como fallback si Gmail API no esta configurado. |
+| `GMAIL_API_CLIENT_ID`, `GMAIL_API_CLIENT_SECRET`, `GMAIL_API_REFRESH_TOKEN`, `GMAIL_API_FROM` | No configurar con Resend SMTP | Vacías o ausentes | El runtime prioriza Gmail API cuando las cuatro variables están completas; mantenerlas vacías o no configuradas para usar Resend SMTP. |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | Condicional preferida | `smtp.resend.com` / `465` / `true` / `resend` / `SMTP_PASS=<RESEND_API_KEY>` / `SMTP_FROM=VETNEB <notificaciones@correo.vetneb.com.ar>` | Resend SMTP mediante el transporte SMTP genérico existente. No exponer la API key real. |
 | `CONTACT_TO` | Condicional | - | Destinatarios del formulario de contacto; soporta coma o punto y coma y debe estar configurado explícitamente en staging/prod. |
+
+En el panel key/value de Render, configurar `SMTP_FROM` sin comillas exteriores.
+El archivo dotenv `.env.example` puede conservar sus comillas exteriores porque
+esa sintaxis pertenece al archivo y no al valor operativo almacenado por Render.
 
 ### Requeridas para boot productivo
 
@@ -80,12 +84,12 @@ Tabla sin secretos para configurar el runtime backend:
 ### Condicionales
 
 - [ ] `[BLOCKER]` Si el lanzamiento incluye formularios o notificaciones por
-  email, configurar Gmail API preferido:
-  `GMAIL_API_CLIENT_ID`, `GMAIL_API_CLIENT_SECRET`,
-  `GMAIL_API_REFRESH_TOKEN` y `GMAIL_API_FROM`.
-- [ ] `[BLOCKER]` Si Gmail API no se usa o se quiere fallback explícito,
-  configurar `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`,
-  `SMTP_PASS` y `SMTP_FROM`.
+  email, configurar Resend SMTP: `SMTP_HOST=smtp.resend.com`, `SMTP_PORT=465`,
+  `SMTP_SECURE=true`, `SMTP_USER=resend`, `SMTP_PASS=<RESEND_API_KEY>` y
+  `SMTP_FROM=VETNEB <notificaciones@correo.vetneb.com.ar>`.
+- [ ] `[BLOCKER]` Mantener `GMAIL_API_CLIENT_ID`, `GMAIL_API_CLIENT_SECRET`,
+  `GMAIL_API_REFRESH_TOKEN` y `GMAIL_API_FROM` vacías o no configuradas porque
+  el runtime prioriza Gmail API cuando su configuración está completa.
 - [ ] `[BLOCKER]` `CONTACT_TO` configurado explícitamente para formularios públicos.
 - [ ] `[NON-BLOCKER]` `OWNER_OPEN_ID` documentado o removido del entorno si no
   forma parte del flujo productivo actual.
@@ -159,15 +163,16 @@ Tabla sin secretos para configurar el build/runtime frontend:
 - [ ] `[BLOCKER]` Servicio backend staging en Render: `portal-vetneb-backend-staging`.
 - [ ] `[BLOCKER]` Servicio frontend staging en Render: `portal-vetneb-frontend-staging`.
 - [ ] `[BLOCKER]` Frontend staging tiene `NEXT_PUBLIC_API_URL` público (`https://...onrender.com`), no vacío y sin localhost/LAN.
-- [ ] `[BLOCKER]` Backend staging tiene Gmail API completo
-  (`GMAIL_API_CLIENT_ID`, `GMAIL_API_CLIENT_SECRET`,
-  `GMAIL_API_REFRESH_TOKEN`, `GMAIL_API_FROM`) como transporte preferido
-  HTTPS/443, o SMTP completo como fallback (`SMTP_HOST`, `SMTP_PORT`,
-  `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`).
+- [ ] `[BLOCKER]` Backend staging usa Resend SMTP como transporte preferido:
+  `SMTP_HOST=smtp.resend.com`, `SMTP_PORT=465`, `SMTP_SECURE=true`,
+  `SMTP_USER=resend`, `SMTP_PASS=<RESEND_API_KEY>` y
+  `SMTP_FROM=VETNEB <notificaciones@correo.vetneb.com.ar>`; las variables
+  `GMAIL_API_CLIENT_ID=`, `GMAIL_API_CLIENT_SECRET=`,
+  `GMAIL_API_REFRESH_TOKEN=` y `GMAIL_API_FROM=` están vacías o no configuradas.
 - [ ] `[BLOCKER]` Backend staging tiene `CONTACT_TO` explícito.
 - [ ] `[BLOCKER]` Backend staging tiene `CORS_ORIGIN=https://portal-vetneb-frontend-staging.onrender.com`.
 - [ ] `[BLOCKER]` `/api/admin/system/health` en staging muestra
-  `gmail_api=configured` o `smtp=configured`, `contact_email=configured` y
+  `gmail_api=not_configured`, `smtp=configured`, `contact_email=configured` y
   `cors=configured`.
 - [ ] `[BLOCKER]` `/contacto` público de staging no devuelve `smtp_disabled`.
 
@@ -254,10 +259,10 @@ Orden operativo staging -> produccion:
 5. Desplegar frontend staging con `NEXT_PUBLIC_API_URL` y
    `NEXT_PUBLIC_SITE_URL` de staging.
    Backend staging esperado para contacto:
-   Gmail API preferido (`GMAIL_API_CLIENT_ID`, `GMAIL_API_CLIENT_SECRET`,
-   `GMAIL_API_REFRESH_TOKEN`, `GMAIL_API_FROM`) por HTTPS/443, SMTP fallback
-   (`SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`,
-   `SMTP_FROM`), `CONTACT_TO` y
+   Resend SMTP preferido (`SMTP_HOST=smtp.resend.com`, `SMTP_PORT=465`,
+   `SMTP_SECURE=true`, `SMTP_USER=resend`, `SMTP_PASS=<RESEND_API_KEY>`,
+   `SMTP_FROM=VETNEB <notificaciones@correo.vetneb.com.ar>`), las cuatro
+   variables `GMAIL_API_*` vacías o no configuradas, `CONTACT_TO` y
    `CORS_ORIGIN=https://portal-vetneb-frontend-staging.onrender.com`.
    Frontend staging esperado:
    `NEXT_PUBLIC_API_URL=https://portal-vetneb-backend-staging.onrender.com`.
@@ -419,8 +424,9 @@ Remove-Item Env:\SMOKE_PASSWORD
   sanitizada.
 - [ ] `[BLOCKER]` Upload admin de PDF funciona y queda visible para la clinica
   correcta.
-- [ ] `[BLOCKER]` Estado admin refleja transporte de correo real
-  (`Gmail API HTTPS` o `SMTP`) y no induce a error de transporte.
+- [ ] `[BLOCKER]` Estado admin refleja el transporte de correo real (`SMTP` para
+  Resend SMTP) y no induce a error de transporte; el rótulo legado
+  `Gmail API HTTPS` no aparece con esta configuración.
 - [ ] `[BLOCKER]` No se usa demo/smoke/smock como operación real. Si existen
   datos heredados de ese tipo, se eliminan solo desde Admin > Clínicas con
   confirmación exacta.
@@ -545,10 +551,8 @@ Checklist legal/comercial detallada y registro de aprobación formal:
   login y particulares revisados por negocio.
 - [ ] `[BLOCKER]` Datos comerciales productivos de pricing revisados desde admin
   si el lanzamiento expone precios.
-- [ ] `[BLOCKER]` Formulario de contacto probado end-to-end si Gmail API o SMTP
-  quedan incluidos en el lanzamiento. Gmail API por HTTPS/443 es la alternativa
-  preferida si SMTP Render -> Gmail falla con `CONN`/`ETIMEDOUT`; SMTP queda
-  como fallback.
+- [ ] `[BLOCKER]` Formulario de contacto probado end-to-end con Resend SMTP
+  mediante el transporte SMTP genérico existente.
 - [ ] `[BLOCKER]` Textos legales obligatorios publicados o enlazados segun el
   criterio legal/comercial vigente: privacidad, terminos, tratamiento de datos,
   condiciones de uso de informes y contacto responsable.
@@ -598,7 +602,8 @@ No lanzar si ocurre cualquiera de estos casos:
 - [ ] Admin, clinica o particular no pueden completar su smoke principal.
 - [ ] Hay dudas legales/comerciales bloqueantes sobre contenido publico.
 - [ ] En staging público, el formulario `/contacto` muestra `smtp_disabled` o
-  el health admin queda degradado para Gmail API/SMTP/contacto/CORS.
+  el health admin no muestra `gmail_api=not_configured`, `smtp=configured`,
+  `contact_email=configured` y `cors=configured`.
 
 ### Env critica faltante
 

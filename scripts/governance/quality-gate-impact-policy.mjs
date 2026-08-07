@@ -357,6 +357,15 @@ export const IMPACT_RULES = deepFreeze([
     description: "Workflow changes affect CI routing and required-check architecture.",
   },
   {
+    id: "root-env-example",
+    matcher: { type: "exact", path: ".env.example" },
+    impacts: ["deployment-configuration", "runtime-configuration-example"],
+    gates: ["pr-governance", "backend-ci", "manual-review"],
+    suiteIds: ["backend-test-typecheck", "backend-tests"],
+    description:
+      "The root environment example affects deployment configuration contracts and requires governance, backend validation and manual review.",
+  },
+  {
     id: "repo-config-gitignore",
     matcher: { type: "exact", path: ".gitignore" },
     impacts: ["repository-configuration"],
