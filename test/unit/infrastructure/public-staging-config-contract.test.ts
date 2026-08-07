@@ -10,6 +10,29 @@ function read(relativePath: string): string {
   );
 }
 
+function activeAssignmentValues(source: string, expectedKey: string): string[] {
+  return source.split("\n").flatMap((line) => {
+    const activeLine = line.trimStart();
+    if (!activeLine || activeLine.startsWith("#")) return [];
+
+    const separatorIndex = activeLine.indexOf("=");
+    if (separatorIndex < 0) return [];
+
+    const key = activeLine.slice(0, separatorIndex).trim();
+    if (key !== expectedKey) return [];
+
+    return [activeLine.slice(separatorIndex + 1)];
+  });
+}
+
+function assertExactlyOneEmptyActiveAssignment(source: string, key: string): void {
+  assert.deepEqual(
+    activeAssignmentValues(source, key),
+    [""],
+    `${key} must have exactly one empty active assignment`,
+  );
+}
+
 test("root env example prioritizes public production communication config", () => {
   const source = read(".env.example");
 
@@ -18,20 +41,25 @@ test("root env example prioritizes public production communication config", () =
     "PORT=10000",
     "CORS_ORIGIN=https://vetneb.com.ar",
     "TRUST_PROXY=1",
-    "GMAIL_API_CLIENT_ID=<google-oauth-client-id>",
-    "GMAIL_API_CLIENT_SECRET=<google-oauth-client-secret>",
-    "GMAIL_API_REFRESH_TOKEN=<google-oauth-refresh-token>",
-    "GMAIL_API_FROM=lab.vetneb@gmail.com",
-    "SMTP_HOST=smtp.gmail.com",
-    "SMTP_PORT=587",
-    "SMTP_SECURE=false",
-    "SMTP_USER=lab.vetneb@gmail.com",
-    "SMTP_PASS=<GMAIL_APP_PASSWORD_WITHOUT_SPACES>",
-    "SMTP_FROM=lab.vetneb@gmail.com",
+    "SMTP_HOST=smtp.resend.com",
+    "SMTP_PORT=465",
+    "SMTP_SECURE=true",
+    "SMTP_USER=resend",
+    "SMTP_PASS=<RESEND_API_KEY>",
+    "SMTP_FROM=\"VETNEB <notificaciones@correo.vetneb.com.ar>\"",
     "CONTACT_TO=lab.vetneb@gmail.com",
     "Solo desarrollo local (auxiliar)",
   ]) {
     assert.ok(source.includes(marker), `.env.example missing ${marker}`);
+  }
+
+  for (const key of [
+    "GMAIL_API_CLIENT_ID",
+    "GMAIL_API_CLIENT_SECRET",
+    "GMAIL_API_REFRESH_TOKEN",
+    "GMAIL_API_FROM",
+  ]) {
+    assertExactlyOneEmptyActiveAssignment(source, key);
   }
 
   // TRUST_PROXY=true rompe startup; ninguna línea activa debe usar ese valor.
@@ -41,6 +69,31 @@ test("root env example prioritizes public production communication config", () =
   assert.ok(
     !activeTrustProxyTrue,
     ".env.example must not set TRUST_PROXY=true as an active (uncommented) line",
+  );
+});
+
+test("active Gmail assignments reject non-empty values and duplicates", () => {
+  assert.doesNotThrow(() =>
+    assertExactlyOneEmptyActiveAssignment(
+      "# GMAIL_API_CLIENT_ID=commented-legacy-id\n\nGMAIL_API_CLIENT_ID=\n",
+      "GMAIL_API_CLIENT_ID",
+    ),
+  );
+  assert.throws(
+    () =>
+      assertExactlyOneEmptyActiveAssignment(
+        "GMAIL_API_CLIENT_ID=legacy-id\n",
+        "GMAIL_API_CLIENT_ID",
+      ),
+    /must have exactly one empty active assignment/,
+  );
+  assert.throws(
+    () =>
+      assertExactlyOneEmptyActiveAssignment(
+        "GMAIL_API_CLIENT_ID=\nGMAIL_API_CLIENT_ID=\n",
+        "GMAIL_API_CLIENT_ID",
+      ),
+    /must have exactly one empty active assignment/,
   );
 });
 
@@ -86,9 +139,14 @@ test("public staging docs enforce Render configuration and redeploy", () => {
   for (const marker of [
     "portal-vetneb-backend-staging",
     "portal-vetneb-frontend-staging.onrender.com",
-    "GMAIL_API_CLIENT_SECRET=<google-oauth-client-secret>",
-    "Gmail API por HTTPS/443",
-    "SMTP_PASS=<GMAIL_APP_PASSWORD_WITHOUT_SPACES>",
+    "Resend SMTP",
+    "GMAIL_API_CLIENT_SECRET=",
+    "SMTP_HOST=smtp.resend.com",
+    "SMTP_PORT=465",
+    "SMTP_SECURE=true",
+    "SMTP_USER=resend",
+    "SMTP_PASS=<RESEND_API_KEY>",
+    "SMTP_FROM=VETNEB <notificaciones@correo.vetneb.com.ar>",
     "NEXT_PUBLIC_API_URL=https://portal-vetneb-backend-staging.onrender.com",
     "CORS_ORIGIN=https://portal-vetneb-frontend-staging.onrender.com",
     "Redeploy backend Render.",
@@ -103,9 +161,16 @@ test("public staging docs enforce Render configuration and redeploy", () => {
     "Bloqueos obligatorios para staging público de contacto",
     "portal-vetneb-backend-staging",
     "portal-vetneb-frontend-staging",
-    "GMAIL_API_REFRESH_TOKEN",
-    "HTTPS/443",
-    "SMTP_PASS=<GMAIL_APP_PASSWORD_WITHOUT_SPACES>",
+    "GMAIL_API_CLIENT_ID=",
+    "GMAIL_API_CLIENT_SECRET=",
+    "GMAIL_API_REFRESH_TOKEN=",
+    "GMAIL_API_FROM=",
+    "smtp.resend.com",
+    "SMTP_PORT=465",
+    "SMTP_SECURE=true",
+    "SMTP_USER=resend",
+    "SMTP_PASS=<RESEND_API_KEY>",
+    "SMTP_FROM=VETNEB <notificaciones@correo.vetneb.com.ar>",
     "NEXT_PUBLIC_API_URL=https://portal-vetneb-backend-staging.onrender.com",
     "CORS_ORIGIN=https://portal-vetneb-frontend-staging.onrender.com",
     "portal-vetneb-frontend-staging.onrender.com",
@@ -114,4 +179,16 @@ test("public staging docs enforce Render configuration and redeploy", () => {
   ]) {
     assert.ok(releaseReadiness.includes(marker), `docs/release-readiness.md missing ${marker}`);
   }
+
+  const quotedRenderSmtpFrom = "SMTP_FROM=\"VETNEB <notificaciones@correo.vetneb.com.ar>\"";
+  assert.equal(
+    stagingRunbook.includes(quotedRenderSmtpFrom),
+    false,
+    "docs/staging-smoke-runbook.md must not quote the Render SMTP_FROM value",
+  );
+  assert.equal(
+    releaseReadiness.includes(quotedRenderSmtpFrom),
+    false,
+    "docs/release-readiness.md must not quote the Render SMTP_FROM value",
+  );
 });

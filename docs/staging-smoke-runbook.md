@@ -69,24 +69,29 @@ Remove-Item Env:\SMOKE_UPLOAD_FILE -ErrorAction SilentlyContinue
 Antes del smoke del formulario de contacto, confirmar en Render que quedaron
 configuradas estas variables y luego ejecutar redeploy:
 
-Transporte preferido cuando Render no logra abrir SMTP Gmail
-(`CONN`/`ETIMEDOUT` en 587 o 465): Gmail API por HTTPS/443. No pegar secretos
-en tickets, logs ni capturas. SMTP queda documentado y disponible como fallback.
+El transporte preferido es Resend SMTP mediante el transporte SMTP genérico ya
+existente. No pegar secretos en tickets, logs ni capturas. Mantener las cuatro
+variables `GMAIL_API_*` vacías o no configuradas: el runtime prioriza Gmail API
+si encuentra su configuración completa.
+
+El panel key/value de Render recibe `SMTP_FROM` sin comillas exteriores. El
+archivo dotenv `.env.example` conserva sus comillas exteriores porque esa
+sintaxis pertenece al formato dotenv, no al valor que se pega en Render.
 
 - Servicio backend staging: `portal-vetneb-backend-staging`
   - `NODE_ENV=production`
   - `PORT=10000`
   - `CORS_ORIGIN=https://portal-vetneb-frontend-staging.onrender.com`
-  - `GMAIL_API_CLIENT_ID=<google-oauth-client-id>`
-  - `GMAIL_API_CLIENT_SECRET=<google-oauth-client-secret>`
-  - `GMAIL_API_REFRESH_TOKEN=<google-oauth-refresh-token>`
-  - `GMAIL_API_FROM=lab.vetneb@gmail.com`
-  - `SMTP_HOST=smtp.gmail.com`
-  - `SMTP_PORT=587`
-  - `SMTP_SECURE=false`
-  - `SMTP_USER=lab.vetneb@gmail.com`
-  - `SMTP_PASS=<GMAIL_APP_PASSWORD_WITHOUT_SPACES>`
-  - `SMTP_FROM=lab.vetneb@gmail.com`
+  - `GMAIL_API_CLIENT_ID=`
+  - `GMAIL_API_CLIENT_SECRET=`
+  - `GMAIL_API_REFRESH_TOKEN=`
+  - `GMAIL_API_FROM=`
+  - `SMTP_HOST=smtp.resend.com`
+  - `SMTP_PORT=465`
+  - `SMTP_SECURE=true`
+  - `SMTP_USER=resend`
+  - `SMTP_PASS=<RESEND_API_KEY>`
+  - `SMTP_FROM=VETNEB <notificaciones@correo.vetneb.com.ar>`
   - `CONTACT_TO=lab.vetneb@gmail.com`
 - Servicio frontend staging: `portal-vetneb-frontend-staging`
   - `NODE_ENV=production`
@@ -110,9 +115,10 @@ Secuencia mínima obligatoria en staging:
 4. Redeploy frontend Render.
 5. Verificar `/dashboard/admin` autenticado y, si hace falta, el payload de
    `/api/admin/system/health`:
-   - `gmail_api=configured` cuando se usa Gmail API HTTPS/443.
-   - `Transporte de correo` en UI admin muestra `Gmail API HTTPS` o `SMTP`.
-   - `SMTP` = `Configurado` solo si se configuró el fallback SMTP.
+   - `gmail_api=not_configured` con las variables `GMAIL_API_*` vacías o ausentes.
+   - `Transporte de correo` en UI admin muestra `SMTP`.
+   - `smtp=configured` y `SMTP` = `Configurado` para Resend SMTP.
+   - El rótulo legado `Gmail API HTTPS` no debe aparecer cuando Resend SMTP está activo.
    - `Contacto email` = `Configurado`
    - `CORS público` incluye `https://portal-vetneb-frontend-staging.onrender.com`
 
@@ -283,10 +289,9 @@ foreach ($Path in $PublicPaths) {
 2. Enviar un formulario válido (nombre, email, mensaje >= 10 caracteres).
 3. Confirmar en `/dashboard/admin` que:
    - `Contacto email` está `Configurado`.
-   - Si se usa Gmail API HTTPS/443, `/api/admin/system/health` expone
-     `gmail_api=configured`.
-   - `Transporte de correo` muestra `Gmail API HTTPS` o `SMTP`.
-   - Si se usa SMTP fallback, `SMTP` está `Configurado`.
+   - `/api/admin/system/health` expone `gmail_api=not_configured`.
+   - `Transporte de correo` muestra `SMTP`.
+   - `smtp=configured` y `SMTP` está `Configurado` para Resend SMTP.
    - `CONTACT_TO` figura `Configurado`.
    - `CORS público` muestra el frontend staging activo.
 4. Confirmar en UI mensaje de éxito:
