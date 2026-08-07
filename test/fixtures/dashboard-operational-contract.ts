@@ -225,7 +225,7 @@ export const SUPER_SEARCH_CONTRACTS: readonly SuperSearchContract[] = [
       "disabled={isLoadingTokens}",
       "onClick={() => void loadTokens()}",
       "getAdminParticularTokens({",
-      "TOKENS_SUPERSET_CAP",
+      "TOKENS_INITIAL_ADAPTIVE_WINDOW_SIZE",
       "hidden shrink-0 md:grid",
       'data-admin-filter-bar={mobile ? "advanced-mobile" : "advanced"}',
     ],
@@ -489,11 +489,11 @@ export const DASHBOARD_OPERATIONAL_DRIFT: readonly DashboardDriftRecord[] = [
     auditClaim:
       "The 7 S2 parameters (`token`, `clinic`, `reportId`, `patient`, `status`, `from`, `to`) have `loadTokens()` as their destination.",
     runtimeBehaviour:
-      "`loadTokens()` takes no filter argument: it over-fetches a superset (`limit: TOKENS_SUPERSET_CAP, offset: 0`) and the 7 filters are a client-side predicate over the loaded rows.",
+      "`loadTokens()` takes no filter argument: it fetches the bounded initial adaptive window (`limit: TOKENS_INITIAL_ADAPTIVE_WINDOW_SIZE, offset: 0`) and the 7 filters are a client-side predicate over the loaded rows.",
     runtimeSourcePath: "frontend/src/app/dashboard/admin/AdminParticularTokensCard.tsx",
     runtimeMarkers: [
       "getAdminParticularTokens({",
-      "limit: TOKENS_SUPERSET_CAP,",
+      "limit: TOKENS_INITIAL_ADAPTIVE_WINDOW_SIZE,",
       "matchesAdminParticularTokenFilters(",
     ],
     resolution: "runtime-prevails",

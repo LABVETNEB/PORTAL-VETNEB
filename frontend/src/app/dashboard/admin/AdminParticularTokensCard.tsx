@@ -102,20 +102,18 @@ const CREATE_STEP_LABELS: Record<CreateStep, string> = {
   sample: "Muestra",
 };
 
-// Server pagination is now sized by the measured rows container (Zero-Scroll
-// adaptive contract, R-05/PR-SRV-0 module #5, R-04 confirmed no `total` on
-// this endpoint). Strategy is over-fetch-with-cap: fetch a superset once (cap
-// below), paginate it client-side with usePagedRows, and offer "Cargar más"
-// only when the last fetched batch filled the cap (heuristic there may be
-// more on the server). TOKENS_FALLBACK_ROWS survives only as the
-// pre-measurement fallback and desktop floor; the old fixed mobile row count
-// and the media-query cardinality gate are gone — one measured runtime feeds
-// both the desktop table and the mobile list.
+// The endpoint exposes no `total`: fetch a bounded initial window, paginate it
+// client-side with usePagedRows, and offer "Cargar más" when the last fetched
+// batch was full. The initial window covers two complete pages at the largest
+// adaptive cardinality observed across the 13 canonical A02 viewports.
 const TOKENS_FALLBACK_ROWS = 9;
-// Over-fetch cap: a single superset fetch never asks the server for more than
-// this many rows. Per docs/implementation/server-adaptive-pagination-strategy.md
-// §8 ("Tokens admin | 9 (sin total) | 30 + 'cargar más'").
-const TOKENS_SUPERSET_CAP = 30;
+const TOKENS_MAX_OBSERVED_ADAPTIVE_ROWS = 17;
+const TOKENS_INITIAL_ADAPTIVE_WINDOW_SIZE =
+  TOKENS_MAX_OBSERVED_ADAPTIVE_ROWS * 2;
+// Preserve the established adaptive clamp and explicit incremental batch.
+// They are deliberately separate from the initial two-page window.
+const TOKENS_ADAPTIVE_MAX_ROWS = 30;
+const TOKENS_LOAD_MORE_BATCH_SIZE = 30;
 // Fixed header row height of the desktop table (`[&_th]:h-7`), discounted from
 // the measured region so the row math never counts the header as a data row.
 const TOKENS_TABLE_HEADER_PX = 28;
@@ -531,8 +529,8 @@ export function AdminParticularTokensCard() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   // The server exposes no `total` for this endpoint (R-04): hasMoreFromServer
-  // is a page-full heuristic (last fetched batch length === the cap), driving
-  // the explicit "Cargar más" affordance instead of a real page count.
+  // is a requested-batch-full heuristic driving the explicit "Cargar más"
+  // affordance instead of a real page count.
   const [hasMoreFromServer, setHasMoreFromServer] = useState(false);
   const [isLoadingMoreTokens, setIsLoadingMoreTokens] = useState(false);
   const latestRequestRef = useRef(0);
@@ -631,7 +629,7 @@ export function AdminParticularTokensCard() {
     itemHeightPx: measurement.rowHeightPx,
     headerHeightPx: measurement.headerHeightPx,
     minItems: isDesktopMeasurement ? TOKENS_FALLBACK_ROWS : 1,
-    maxItems: TOKENS_SUPERSET_CAP,
+    maxItems: TOKENS_ADAPTIVE_MAX_ROWS,
   });
 
   const selectedClinic = clinicOptions.find(
@@ -683,10 +681,8 @@ export function AdminParticularTokensCard() {
   const createStepIndex = getCreateStepIndex(createStep);
   const isLastCreateStep = createStep === "sample";
 
-  // Single over-fetch of the superset (cap above); no `total` clamp is
-  // possible (endpoint exposes none — R-04), so pagination past this point is
-  // client-side (usePagedRows) and "Cargar más" only re-fetches when the
-  // admin reaches the edge of what is currently loaded.
+  // The initial bounded window has no `total` clamp (R-04), so pagination is
+  // client-side and "Cargar más" only re-fetches at the loaded edge.
   const loadTokens = useCallback(async () => {
     setIsLoadingTokens(true);
     setErrorMessage(null);
@@ -694,13 +690,14 @@ export function AdminParticularTokensCard() {
 
     try {
       const snapshot = await getAdminParticularTokens({
-        limit: TOKENS_SUPERSET_CAP,
+        limit: TOKENS_INITIAL_ADAPTIVE_WINDOW_SIZE,
         offset: 0,
       });
       if (requestId !== latestRequestRef.current) return;
       setTokens(snapshot.particularTokens);
       setHasMoreFromServer(
-        snapshot.particularTokens.length === TOKENS_SUPERSET_CAP,
+        snapshot.particularTokens.length ===
+          TOKENS_INITIAL_ADAPTIVE_WINDOW_SIZE,
       );
       setSelectedTokenId((current) =>
         current && snapshot.particularTokens.some((token) => token.id === current)
@@ -730,13 +727,13 @@ export function AdminParticularTokensCard() {
 
     try {
       const snapshot = await getAdminParticularTokens({
-        limit: TOKENS_SUPERSET_CAP,
+        limit: TOKENS_LOAD_MORE_BATCH_SIZE,
         offset: tokens.length,
       });
       if (requestId !== latestRequestRef.current) return;
       setTokens((current) => [...current, ...snapshot.particularTokens]);
       setHasMoreFromServer(
-        snapshot.particularTokens.length === TOKENS_SUPERSET_CAP,
+        snapshot.particularTokens.length === TOKENS_LOAD_MORE_BATCH_SIZE,
       );
     } catch (error) {
       if (requestId !== latestRequestRef.current) return;

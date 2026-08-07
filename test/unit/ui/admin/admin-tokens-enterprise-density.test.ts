@@ -28,18 +28,27 @@ const FORBIDDEN_OVERSIZED = [
   "h-16",
 ];
 
-// R-05 (admin-particular-tokens-server-adaptive-pagination): the endpoint
-// exposes no `total` (R-04 confirmed), so the strategy is over-fetch with a
-// cap (30) paginated client-side (usePagedRows), plus an explicit "Cargar
-// más" affordance gated by the last fetched batch filling the cap
-// (hasMoreFromServer). TOKENS_FALLBACK_ROWS survives only as the
-// pre-measurement fallback/desktop floor; MOBILE_PAGE_SIZE and the
-// matchMedia cardinality gate are gone (single collapsed runtime).
-test("admin tokens uses viewport-safe server pagination adaptive by viewport (OF cap 30 + cargar más)", () => {
+// The endpoint exposes no `total`, so the initial bounded window must cover
+// two complete pages (17 × 2 = 34) at the largest measured adaptive cardinality.
+// The hook remains the page-size owner and "Cargar más" keeps its explicit batch.
+test("admin tokens keeps a bounded two-page adaptive window plus cargar más", () => {
   const source = read(TOKENS_CARD_PATH);
 
   assert.ok(source.includes("const TOKENS_FALLBACK_ROWS = 9;"));
-  assert.ok(source.includes("const TOKENS_SUPERSET_CAP = 30;"));
+  assert.ok(
+    source.includes("const TOKENS_MAX_OBSERVED_ADAPTIVE_ROWS = 17;"),
+  );
+  assert.ok(
+    source.includes(
+      "TOKENS_MAX_OBSERVED_ADAPTIVE_ROWS * 2;",
+    ),
+  );
+  assert.ok(source.includes("const TOKENS_ADAPTIVE_MAX_ROWS = 30;"));
+  assert.ok(source.includes("const TOKENS_LOAD_MORE_BATCH_SIZE = 30;"));
+  assert.ok(source.includes("limit: TOKENS_INITIAL_ADAPTIVE_WINDOW_SIZE,"));
+  assert.ok(source.includes("limit: TOKENS_LOAD_MORE_BATCH_SIZE,"));
+  assert.ok(source.includes("maxItems: TOKENS_ADAPTIVE_MAX_ROWS,"));
+  assert.equal(source.includes("TOKENS_SUPERSET_CAP"), false);
   assert.ok(source.includes("useAdaptiveItemsPerPage"));
   assert.ok(source.includes("usePagedRows"));
   assert.ok(source.includes("hasMoreFromServer"));
