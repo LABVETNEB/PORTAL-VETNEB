@@ -46,8 +46,12 @@ Tabla sin secretos para configurar el runtime backend:
 | `SUPABASE_SIGNED_URL_EXPIRES_IN_SECONDS` | Opcional con aprobacion del default | `900` | Expiracion de signed URLs. |
 | `SESSION_TTL_HOURS` | Opcional con aprobacion del default | `24` | TTL de sesiones. |
 | `GMAIL_API_CLIENT_ID`, `GMAIL_API_CLIENT_SECRET`, `GMAIL_API_REFRESH_TOKEN`, `GMAIL_API_FROM` | No configurar con Resend SMTP | Vacías o ausentes | El runtime prioriza Gmail API cuando las cuatro variables están completas; mantenerlas vacías o no configuradas para usar Resend SMTP. |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | Condicional preferida | `smtp.resend.com` / `465` / `true` / `resend` / `SMTP_PASS=<RESEND_API_KEY>` / `SMTP_FROM="VETNEB <notificaciones@correo.vetneb.com.ar>"` | Resend SMTP mediante el transporte SMTP genérico existente. No exponer la API key real. |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | Condicional preferida | `smtp.resend.com` / `465` / `true` / `resend` / `SMTP_PASS=<RESEND_API_KEY>` / `SMTP_FROM=VETNEB <notificaciones@correo.vetneb.com.ar>` | Resend SMTP mediante el transporte SMTP genérico existente. No exponer la API key real. |
 | `CONTACT_TO` | Condicional | - | Destinatarios del formulario de contacto; soporta coma o punto y coma y debe estar configurado explícitamente en staging/prod. |
+
+En el panel key/value de Render, configurar `SMTP_FROM` sin comillas exteriores.
+El archivo dotenv `.env.example` puede conservar sus comillas exteriores porque
+esa sintaxis pertenece al archivo y no al valor operativo almacenado por Render.
 
 ### Requeridas para boot productivo
 
@@ -82,7 +86,7 @@ Tabla sin secretos para configurar el runtime backend:
 - [ ] `[BLOCKER]` Si el lanzamiento incluye formularios o notificaciones por
   email, configurar Resend SMTP: `SMTP_HOST=smtp.resend.com`, `SMTP_PORT=465`,
   `SMTP_SECURE=true`, `SMTP_USER=resend`, `SMTP_PASS=<RESEND_API_KEY>` y
-  `SMTP_FROM="VETNEB <notificaciones@correo.vetneb.com.ar>"`.
+  `SMTP_FROM=VETNEB <notificaciones@correo.vetneb.com.ar>`.
 - [ ] `[BLOCKER]` Mantener `GMAIL_API_CLIENT_ID`, `GMAIL_API_CLIENT_SECRET`,
   `GMAIL_API_REFRESH_TOKEN` y `GMAIL_API_FROM` vacías o no configuradas porque
   el runtime prioriza Gmail API cuando su configuración está completa.
@@ -162,7 +166,7 @@ Tabla sin secretos para configurar el build/runtime frontend:
 - [ ] `[BLOCKER]` Backend staging usa Resend SMTP como transporte preferido:
   `SMTP_HOST=smtp.resend.com`, `SMTP_PORT=465`, `SMTP_SECURE=true`,
   `SMTP_USER=resend`, `SMTP_PASS=<RESEND_API_KEY>` y
-  `SMTP_FROM="VETNEB <notificaciones@correo.vetneb.com.ar>"`; las variables
+  `SMTP_FROM=VETNEB <notificaciones@correo.vetneb.com.ar>`; las variables
   `GMAIL_API_CLIENT_ID=`, `GMAIL_API_CLIENT_SECRET=`,
   `GMAIL_API_REFRESH_TOKEN=` y `GMAIL_API_FROM=` están vacías o no configuradas.
 - [ ] `[BLOCKER]` Backend staging tiene `CONTACT_TO` explícito.
@@ -257,7 +261,7 @@ Orden operativo staging -> produccion:
    Backend staging esperado para contacto:
    Resend SMTP preferido (`SMTP_HOST=smtp.resend.com`, `SMTP_PORT=465`,
    `SMTP_SECURE=true`, `SMTP_USER=resend`, `SMTP_PASS=<RESEND_API_KEY>`,
-   `SMTP_FROM="VETNEB <notificaciones@correo.vetneb.com.ar>"`), las cuatro
+   `SMTP_FROM=VETNEB <notificaciones@correo.vetneb.com.ar>`), las cuatro
    variables `GMAIL_API_*` vacías o no configuradas, `CONTACT_TO` y
    `CORS_ORIGIN=https://portal-vetneb-frontend-staging.onrender.com`.
    Frontend staging esperado:

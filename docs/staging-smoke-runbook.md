@@ -74,6 +74,10 @@ existente. No pegar secretos en tickets, logs ni capturas. Mantener las cuatro
 variables `GMAIL_API_*` vacías o no configuradas: el runtime prioriza Gmail API
 si encuentra su configuración completa.
 
+El panel key/value de Render recibe `SMTP_FROM` sin comillas exteriores. El
+archivo dotenv `.env.example` conserva sus comillas exteriores porque esa
+sintaxis pertenece al formato dotenv, no al valor que se pega en Render.
+
 - Servicio backend staging: `portal-vetneb-backend-staging`
   - `NODE_ENV=production`
   - `PORT=10000`
@@ -87,7 +91,7 @@ si encuentra su configuración completa.
   - `SMTP_SECURE=true`
   - `SMTP_USER=resend`
   - `SMTP_PASS=<RESEND_API_KEY>`
-  - `SMTP_FROM="VETNEB <notificaciones@correo.vetneb.com.ar>"`
+  - `SMTP_FROM=VETNEB <notificaciones@correo.vetneb.com.ar>`
   - `CONTACT_TO=lab.vetneb@gmail.com`
 - Servicio frontend staging: `portal-vetneb-frontend-staging`
   - `NODE_ENV=production`
