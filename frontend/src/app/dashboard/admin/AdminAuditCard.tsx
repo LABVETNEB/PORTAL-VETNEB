@@ -34,6 +34,16 @@ export const ADMIN_AUDIT_LIMIT_CAP = 32;
 const ADMIN_AUDIT_TABLE_HEADER_PX = 32;
 // `[&_td]:h-9` on the desktop table / mobile item min-height fallback.
 const ADMIN_AUDIT_ROW_HEIGHT_FALLBACK_PX = 36;
+// The hook's own default tail separation, restated here because the desktop
+// value below is derived from it.
+const ADMIN_AUDIT_ADAPTIVE_SAFETY_GAP_PX = 6;
+// `py-2` on the measured desktop rows region. The node is `border-box`, so its
+// measured height includes both paddings, but only the TOP one displaces the
+// table: the fit must discount the 8px the table starts below the container
+// edge. The bottom padding is NOT discounted as well — the safety gap already
+// reserves the tail, and double-counting it costs a full canonical row at
+// 1366x768 / 1024x768 for sub-pixel gain.
+const ADMIN_AUDIT_DESKTOP_TOP_PADDING_PX = 8;
 
 type Measurement = {
   containerNode: HTMLElement | null;
@@ -176,12 +186,21 @@ export function AdminAuditCard({
   // rows spilled over the pager and intercepted its hit-test). The mobile list
   // keeps the RF cap and floor 1 to shrink on short phones (same trade-off as
   // Reports/Users-Roles, SRV-2).
+  //
+  // Desktop fit, with H the measured container height:
+  //   N = floor((H - 32 - 14) / 37)   =>   H >= 32 + 14 + 37N
+  // The table starts 8px below the container edge, so it ends at 8 + 32 + 37N,
+  // which is at most H - 6: the pager keeps at least the 6px safety gap of
+  // clearance at every boundary, without spending a row on the bottom padding.
   const isDesktopMeasurement = measurement.headerHeightPx > 0;
   const { itemsPerPage: rowsPerPage } = useAdaptiveItemsPerPage({
     containerNode: measurement.containerNode,
     fallbackItems: ADMIN_AUDIT_FALLBACK_ROWS,
     itemHeightPx: measurement.rowHeightPx,
     headerHeightPx: measurement.headerHeightPx,
+    safetyGapPx: isDesktopMeasurement
+      ? ADMIN_AUDIT_ADAPTIVE_SAFETY_GAP_PX + ADMIN_AUDIT_DESKTOP_TOP_PADDING_PX
+      : ADMIN_AUDIT_ADAPTIVE_SAFETY_GAP_PX,
     minItems: 1,
     maxItems: isDesktopMeasurement
       ? ADMIN_AUDIT_FALLBACK_ROWS

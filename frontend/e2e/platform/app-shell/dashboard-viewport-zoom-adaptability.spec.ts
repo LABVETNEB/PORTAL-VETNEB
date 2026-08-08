@@ -875,8 +875,17 @@ const AUDIT_ROW_SELECTOR = "#audit-log table tbody tr";
 // `#audit-log` mounts the mobile list first, so the desktop card must be
 // addressed by its own labelled heading, never by child order.
 const AUDIT_DESKTOP_CARD = '#audit-log > section[aria-labelledby="admin-audit-register-title"]';
+// `boundary-1280x736` is the fit boundary, not a device: its measured rows
+// region is ~340.5px, where the previous 6px gap admitted 8 rows —
+// `floor((340.5 - 32 - 6) / 37) = 8` — even though the table only starts 8px
+// below the container edge, so those 8 rows ended 328px + 8px into a 340.5px
+// box and left under 6px of clearance to the pager. The desktop gap (6px
+// safety + 8px top padding) resolves it to 7 rows. It is the smallest height
+// that exercises that transition while the three real sizes below keep their
+// canonical row counts.
 const AUDIT_DESKTOP_VIEWPORTS = [
   { name: "zoom-eff-1280x720", width: 1280, height: 720 },
+  { name: "boundary-1280x736", width: 1280, height: 736 },
   { name: "laptop-1366x768", width: 1366, height: 768 },
   { name: "laptop-1440x900", width: 1440, height: 900 },
 ] as const;
