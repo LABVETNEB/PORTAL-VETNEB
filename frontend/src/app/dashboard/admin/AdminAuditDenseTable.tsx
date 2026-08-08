@@ -27,10 +27,10 @@ type AdminAuditDenseTableProps = {
   rows: AdminAuditRow[];
   loadError: boolean;
   hasActiveFilters: boolean;
-  // Measurement hooks for the Zero-Scroll adaptive contract (viewport-safe
-  // server pagination). The desktop body wraps the table region measured to
-  // derive `effectiveLimit`; the first row is measured for real row height.
-  desktopBodyRef?: (node: HTMLElement | null) => void;
+  // Measurement hook for the Zero-Scroll adaptive contract (viewport-safe
+  // server pagination): the first row gives the real row height. The measured
+  // container is the rows region owned by `AdminAuditCard`, not this wrapper —
+  // this one is content-sized, so measuring it would be self-referential.
   desktopRowRef?: (node: HTMLElement | null) => void;
 };
 
@@ -38,7 +38,6 @@ export function AdminAuditDenseTable({
   rows,
   loadError,
   hasActiveFilters,
-  desktopBodyRef,
   desktopRowRef,
 }: AdminAuditDenseTableProps) {
   const emptyMessage = hasActiveFilters
@@ -47,7 +46,7 @@ export function AdminAuditDenseTable({
 
   return (
     <>
-      <div ref={desktopBodyRef} className="dashboard-fitted-table hidden px-3 md:block sm:px-4">
+      <div className="dashboard-fitted-table hidden px-3 md:block sm:px-4">
         {loadError ? (
           <div className="mx-0 flex min-h-24 items-center justify-center rounded-lg border border-vetneb-line/70 bg-muted/20 px-4 text-center text-xs text-muted-foreground" role="alert">
             No se pudieron cargar los eventos. Reintentá la consulta.

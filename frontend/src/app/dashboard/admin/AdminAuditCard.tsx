@@ -168,20 +168,24 @@ export function AdminAuditCard({
     };
   }, [desktopBodyNode, mobileBodyNode, desktopRowNode, mobileRowNode]);
 
-  // Desktop is pinned by the App Shell contract (`expectNinePopulatedRows`,
-  // `dashboard-real-app-shell-no-scroll-contract.spec.ts`, 1440x900 /
-  // 1366x768): a positive safety gap could round the fit down to eight, so
-  // the desktop context — detected by the discounted header — keeps a floor
-  // of `ADMIN_AUDIT_FALLBACK_ROWS`. The mobile list keeps floor 1 to shrink
-  // on short phones (same trade-off as Reports/Users-Roles, SRV-2).
+  // Desktop keeps the nine-row page of the App Shell contract
+  // (`expectNinePopulatedRows`, `dashboard-real-app-shell-no-scroll-contract.spec.ts`,
+  // 1440x900 / 1366x768) as a CEILING, not a floor: the measured region is the
+  // space the flex chain really allocates, so nine rows are served wherever
+  // nine rows fit and the page shrinks where they do not (at 1280x720 nine
+  // rows spilled over the pager and intercepted its hit-test). The mobile list
+  // keeps the RF cap and floor 1 to shrink on short phones (same trade-off as
+  // Reports/Users-Roles, SRV-2).
   const isDesktopMeasurement = measurement.headerHeightPx > 0;
   const { itemsPerPage: rowsPerPage } = useAdaptiveItemsPerPage({
     containerNode: measurement.containerNode,
     fallbackItems: ADMIN_AUDIT_FALLBACK_ROWS,
     itemHeightPx: measurement.rowHeightPx,
     headerHeightPx: measurement.headerHeightPx,
-    minItems: isDesktopMeasurement ? ADMIN_AUDIT_FALLBACK_ROWS : 1,
-    maxItems: ADMIN_AUDIT_LIMIT_CAP,
+    minItems: 1,
+    maxItems: isDesktopMeasurement
+      ? ADMIN_AUDIT_FALLBACK_ROWS
+      : ADMIN_AUDIT_LIMIT_CAP,
   });
 
   // Effective server page size: the measured rows, bounded by the RF cap.
@@ -328,12 +332,17 @@ export function AdminAuditCard({
         hasActiveFilters={hasActiveFilters}
       />
 
-      <div className="min-h-0 flex-1 py-2">
+      {/* Measured rows region. It is the flex-allocated space between the
+          filter bar and the pager (`min-h-0 flex-1` keeps it shrinkable), so
+          its height is the space that really exists. The table wrapper inside
+          it is content-sized, which made the previous measurement
+          self-referential: nine rows measured nine rows' worth of height and
+          the fit never fell below nine, whatever the viewport. */}
+      <div ref={setDesktopBodyNode} className="min-h-0 flex-1 py-2">
         <AdminAuditDenseTable
           rows={rows}
           loadError={loadError}
           hasActiveFilters={hasActiveFilters}
-          desktopBodyRef={setDesktopBodyNode}
           desktopRowRef={setDesktopRowNode}
         />
       </div>
