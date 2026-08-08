@@ -860,3 +860,218 @@ test("master/detail panel floor adapts or remains floorless as the effective vie
     }
   }).toPass({ timeout: 5_000 });
 });
+
+// ── Admin Auditoría · desktop pager operability under compact height ─────────
+// Same adaptability layer as the clinic Tokens case above, on the module whose
+// density is derived server-side. The regression: the desktop audit table kept
+// a pinned nine-row page even at effective viewport heights where nine rows do
+// not fit, so the trailing rows spilled out of their region and intercepted the
+// hit-test of the real "Página siguiente" button — visible and enabled, yet
+// unreachable with a pointer. Everything below is measured on the real runtime
+// and clicked without `force`.
+
+const AUDIT_MODULE_PATH = "/dashboard/admin?module=audit-log";
+const AUDIT_ROW_SELECTOR = "#audit-log table tbody tr";
+// `#audit-log` mounts the mobile list first, so the desktop card must be
+// addressed by its own labelled heading, never by child order.
+const AUDIT_DESKTOP_CARD = '#audit-log > section[aria-labelledby="admin-audit-register-title"]';
+// `boundary-1280x736` is the fit boundary, not a device: its measured rows
+// region is ~340.5px, where the previous 6px gap admitted 8 rows —
+// `floor((340.5 - 32 - 6) / 37) = 8` — even though the table only starts 8px
+// below the container edge, so those 8 rows ended 328px + 8px into a 340.5px
+// box and left under 6px of clearance to the pager. The desktop gap (6px
+// safety + 8px top padding) resolves it to 7 rows. It is the smallest height
+// that exercises that transition while the three real sizes below keep their
+// canonical row counts.
+const AUDIT_DESKTOP_VIEWPORTS = [
+  { name: "zoom-eff-1280x720", width: 1280, height: 720 },
+  { name: "boundary-1280x736", width: 1280, height: 736 },
+  { name: "laptop-1366x768", width: 1366, height: 768 },
+  { name: "laptop-1440x900", width: 1440, height: 900 },
+] as const;
+
+type AuditPagerContract = {
+  sectionPresent: boolean;
+  regionTop: number;
+  regionBottom: number;
+  tableTop: number;
+  tableBottom: number;
+  headerHeight: number;
+  rowCount: number;
+  rowHeight: number;
+  lastRowBottom: number;
+  footerTop: number;
+  footerHeight: number;
+  nextPresent: boolean;
+  nextDisabled: boolean;
+  nextLeft: number;
+  nextTop: number;
+  nextWidth: number;
+  nextHeight: number;
+  /** `document.elementFromPoint` at the exact center of the real button. */
+  hitTarget: string;
+  hitOwnedByNext: boolean;
+  rangeLabel: string;
+};
+
+/**
+ * Reads the whole rows→pager chain of the DESKTOP audit card in one pass. The
+ * mobile module is `md:hidden`, so scoping to `#audit-log > section` keeps the
+ * measurement unambiguous at every viewport of this matrix.
+ */
+async function readAuditPagerContract(page: Page): Promise<AuditPagerContract> {
+  return page.evaluate((cardSelector) => {
+    const describe = (element: Element | null) => {
+      if (!element) return "none";
+      const className =
+        typeof element.className === "string"
+          ? element.className.split(/\s+/).filter(Boolean).slice(0, 2).join(".")
+          : "";
+      const label = element.getAttribute("aria-label");
+      return `${element.tagName.toLowerCase()}${className ? `.${className}` : ""}${
+        label ? `[aria-label="${label}"]` : ""
+      }`;
+    };
+
+    const section = document.querySelector<HTMLElement>(cardSelector);
+    const region = section?.querySelector<HTMLElement>(".dashboard-fitted-table") ?? null;
+    const table = section?.querySelector<HTMLElement>("table") ?? null;
+    const header = table?.querySelector<HTMLElement>("thead") ?? null;
+    const rows = Array.from(
+      section?.querySelectorAll<HTMLElement>("tbody tr") ?? [],
+    ).filter((row) => {
+      const rect = row.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    });
+    const footer = section?.querySelector<HTMLElement>("footer") ?? null;
+    const next =
+      footer?.querySelector<HTMLButtonElement>('[aria-label="Página siguiente"]') ?? null;
+
+    const regionRect = region?.getBoundingClientRect();
+    const tableRect = table?.getBoundingClientRect();
+    const footerRect = footer?.getBoundingClientRect();
+    const nextRect = next?.getBoundingClientRect();
+    const lastRowRect = rows.at(-1)?.getBoundingClientRect();
+
+    const hit =
+      nextRect && nextRect.width > 0 && nextRect.height > 0
+        ? document.elementFromPoint(
+            nextRect.left + nextRect.width / 2,
+            nextRect.top + nextRect.height / 2,
+          )
+        : null;
+
+    return {
+      sectionPresent: section !== null,
+      regionTop: regionRect?.top ?? 0,
+      regionBottom: regionRect?.bottom ?? 0,
+      tableTop: tableRect?.top ?? 0,
+      tableBottom: tableRect?.bottom ?? 0,
+      headerHeight: header?.getBoundingClientRect().height ?? 0,
+      rowCount: rows.length,
+      rowHeight: rows[0]?.getBoundingClientRect().height ?? 0,
+      lastRowBottom: lastRowRect?.bottom ?? 0,
+      footerTop: footerRect?.top ?? 0,
+      footerHeight: footerRect?.height ?? 0,
+      nextPresent: next !== null,
+      nextDisabled: next?.disabled ?? true,
+      nextLeft: nextRect?.left ?? 0,
+      nextTop: nextRect?.top ?? 0,
+      nextWidth: nextRect?.width ?? 0,
+      nextHeight: nextRect?.height ?? 0,
+      hitTarget: describe(hit),
+      hitOwnedByNext: next !== null && hit !== null && next.contains(hit),
+      rangeLabel: footer?.querySelector("span")?.textContent?.trim() ?? "",
+    };
+  }, AUDIT_DESKTOP_CARD);
+}
+
+function assertAuditPagerOperable(metrics: AuditPagerContract, label: string) {
+  expect(metrics.sectionPresent, `${label}: desktop audit card present`).toBe(true);
+  expect(metrics.rowCount, `${label}: populated audit rows`).toBeGreaterThan(0);
+  expect(metrics.nextPresent, `${label}: "Página siguiente" rendered`).toBe(true);
+  expect(metrics.nextDisabled, `${label}: "Página siguiente" enabled`).toBe(false);
+
+  // 1. No row may invade the pager band.
+  expect(
+    metrics.lastRowBottom,
+    `${label}: last row (bottom ${metrics.lastRowBottom}) overlaps the pager (top ${metrics.footerTop})`,
+  ).toBeLessThanOrEqual(metrics.footerTop + TOLERANCE);
+
+  // 2. The whole rows region — not just its last row — stays above the pager
+  //    band, so nothing can spill into it at any row count.
+  expect(
+    metrics.regionBottom,
+    `${label}: rows region (bottom ${metrics.regionBottom}) spills into the pager band (top ${metrics.footerTop})`,
+  ).toBeLessThanOrEqual(metrics.footerTop + TOLERANCE);
+
+  // 3. The real hit-test at the button center resolves to the button itself.
+  expect(
+    metrics.hitOwnedByNext,
+    `${label}: hit-test at the "Página siguiente" center returned ${metrics.hitTarget}`,
+  ).toBe(true);
+}
+
+for (const viewport of AUDIT_DESKTOP_VIEWPORTS) {
+  test(`admin Auditoría pager stays operable and free of row overlap — ${viewport.name}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await page.context().addCookies([
+      {
+        name: "admin_session_id",
+        value: "e2e_populated_admin_session",
+        url: "http://127.0.0.1:3000",
+      },
+    ]);
+    await page.goto(AUDIT_MODULE_PATH);
+    await expect(
+      page.locator('[data-dashboard-module-workspace="audit-log"]'),
+    ).toBeVisible({ timeout: 15_000 });
+
+    // The server page size is derived from a measured container, so the row
+    // count settles one re-fetch after the first paint. Waiting for the first
+    // row first keeps `waitForSettledVisibleCount` from settling on a stable
+    // pre-fetch zero.
+    await expect(page.locator(AUDIT_ROW_SELECTOR).first()).toBeVisible({
+      timeout: 15_000,
+    });
+    const settledRows = await waitForSettledVisibleCount(
+      page,
+      AUDIT_ROW_SELECTOR,
+      `${viewport.name} admin Auditoría rows`,
+    );
+    expect(settledRows, `${viewport.name}: settled audit rows`).toBeGreaterThan(0);
+
+    const before = await readAuditPagerContract(page);
+    assertAuditPagerOperable(before, `${viewport.name} admin Auditoría`);
+
+    // 4. A real pointer click (never forced) must reach page 2.
+    const footer = page.locator(`${AUDIT_DESKTOP_CARD} footer`);
+    await footer.getByRole("button", { name: "Página siguiente" }).click();
+
+    await expect(
+      footer.getByText(/^Pág\. 2 \//),
+      `${viewport.name}: pager advanced to page 2`,
+    ).toBeVisible({ timeout: 10_000 });
+    await expect(
+      footer.locator("span").first(),
+      `${viewport.name}: range label advanced past the first page`,
+    ).not.toHaveText(before.rangeLabel);
+
+    // 5. Page 2 introduces no global scroll and keeps the same geometry contract.
+    await expect(async () => {
+      const metrics = await readScrollContract(page);
+      assertAdaptiveNoScroll(
+        metrics,
+        `${viewport.name} admin Auditoría page 2`,
+        viewport.width,
+      );
+      const after = await readAuditPagerContract(page);
+      expect(
+        after.lastRowBottom,
+        `${viewport.name} page 2: last row overlaps the pager`,
+      ).toBeLessThanOrEqual(after.footerTop + TOLERANCE);
+    }).toPass({ timeout: 10_000 });
+  });
+}

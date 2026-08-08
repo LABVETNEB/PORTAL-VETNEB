@@ -34,6 +34,16 @@ export const ADMIN_AUDIT_LIMIT_CAP = 32;
 const ADMIN_AUDIT_TABLE_HEADER_PX = 32;
 // `[&_td]:h-9` on the desktop table / mobile item min-height fallback.
 const ADMIN_AUDIT_ROW_HEIGHT_FALLBACK_PX = 36;
+// The hook's own default tail separation, restated here because the desktop
+// value below is derived from it.
+const ADMIN_AUDIT_ADAPTIVE_SAFETY_GAP_PX = 6;
+// `py-2` on the measured desktop rows region. The node is `border-box`, so its
+// measured height includes both paddings, but only the TOP one displaces the
+// table: the fit must discount the 8px the table starts below the container
+// edge. The bottom padding is NOT discounted as well — the safety gap already
+// reserves the tail, and double-counting it costs a full canonical row at
+// 1366x768 / 1024x768 for sub-pixel gain.
+const ADMIN_AUDIT_DESKTOP_TOP_PADDING_PX = 8;
 
 type Measurement = {
   containerNode: HTMLElement | null;
@@ -168,20 +178,33 @@ export function AdminAuditCard({
     };
   }, [desktopBodyNode, mobileBodyNode, desktopRowNode, mobileRowNode]);
 
-  // Desktop is pinned by the App Shell contract (`expectNinePopulatedRows`,
-  // `dashboard-real-app-shell-no-scroll-contract.spec.ts`, 1440x900 /
-  // 1366x768): a positive safety gap could round the fit down to eight, so
-  // the desktop context — detected by the discounted header — keeps a floor
-  // of `ADMIN_AUDIT_FALLBACK_ROWS`. The mobile list keeps floor 1 to shrink
-  // on short phones (same trade-off as Reports/Users-Roles, SRV-2).
+  // Desktop keeps the nine-row page of the App Shell contract
+  // (`expectNinePopulatedRows`, `dashboard-real-app-shell-no-scroll-contract.spec.ts`,
+  // 1440x900 / 1366x768) as a CEILING, not a floor: the measured region is the
+  // space the flex chain really allocates, so nine rows are served wherever
+  // nine rows fit and the page shrinks where they do not (at 1280x720 nine
+  // rows spilled over the pager and intercepted its hit-test). The mobile list
+  // keeps the RF cap and floor 1 to shrink on short phones (same trade-off as
+  // Reports/Users-Roles, SRV-2).
+  //
+  // Desktop fit, with H the measured container height:
+  //   N = floor((H - 32 - 14) / 37)   =>   H >= 32 + 14 + 37N
+  // The table starts 8px below the container edge, so it ends at 8 + 32 + 37N,
+  // which is at most H - 6: the pager keeps at least the 6px safety gap of
+  // clearance at every boundary, without spending a row on the bottom padding.
   const isDesktopMeasurement = measurement.headerHeightPx > 0;
   const { itemsPerPage: rowsPerPage } = useAdaptiveItemsPerPage({
     containerNode: measurement.containerNode,
     fallbackItems: ADMIN_AUDIT_FALLBACK_ROWS,
     itemHeightPx: measurement.rowHeightPx,
     headerHeightPx: measurement.headerHeightPx,
-    minItems: isDesktopMeasurement ? ADMIN_AUDIT_FALLBACK_ROWS : 1,
-    maxItems: ADMIN_AUDIT_LIMIT_CAP,
+    safetyGapPx: isDesktopMeasurement
+      ? ADMIN_AUDIT_ADAPTIVE_SAFETY_GAP_PX + ADMIN_AUDIT_DESKTOP_TOP_PADDING_PX
+      : ADMIN_AUDIT_ADAPTIVE_SAFETY_GAP_PX,
+    minItems: 1,
+    maxItems: isDesktopMeasurement
+      ? ADMIN_AUDIT_FALLBACK_ROWS
+      : ADMIN_AUDIT_LIMIT_CAP,
   });
 
   // Effective server page size: the measured rows, bounded by the RF cap.
@@ -328,12 +351,17 @@ export function AdminAuditCard({
         hasActiveFilters={hasActiveFilters}
       />
 
-      <div className="min-h-0 flex-1 py-2">
+      {/* Measured rows region. It is the flex-allocated space between the
+          filter bar and the pager (`min-h-0 flex-1` keeps it shrinkable), so
+          its height is the space that really exists. The table wrapper inside
+          it is content-sized, which made the previous measurement
+          self-referential: nine rows measured nine rows' worth of height and
+          the fit never fell below nine, whatever the viewport. */}
+      <div ref={setDesktopBodyNode} className="min-h-0 flex-1 py-2">
         <AdminAuditDenseTable
           rows={rows}
           loadError={loadError}
           hasActiveFilters={hasActiveFilters}
-          desktopBodyRef={setDesktopBodyNode}
           desktopRowRef={setDesktopRowNode}
         />
       </div>

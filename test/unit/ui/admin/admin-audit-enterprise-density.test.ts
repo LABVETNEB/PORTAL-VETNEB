@@ -39,6 +39,13 @@ test("R-06 uses RF debounced viewport-adaptive pagination and existing filters",
   assert.ok(card.includes("export const ADMIN_AUDIT_LIMIT_CAP = 32;"));
   assert.ok(card.includes("useAdaptiveItemsPerPage"));
   assert.ok(card.includes("effectiveLimit = rowsPerPage"));
+  // The nine-row desktop page of the App Shell contract is a CEILING derived
+  // from the measured region, never a floor: a floor kept nine rows at
+  // 1280x720, where they spill over the pager and steal its hit-test.
+  assert.ok(card.includes("minItems: 1,"));
+  assert.ok(card.includes("maxItems: isDesktopMeasurement"));
+  assert.ok(card.includes("? ADMIN_AUDIT_FALLBACK_ROWS"));
+  assert.ok(card.includes(": ADMIN_AUDIT_LIMIT_CAP,"));
   assert.ok(card.includes("getAdminAuditPage(query)"));
   assert.ok(card.includes("latestRequestRef"));
   assert.ok(card.includes("previousLimitRef"));
@@ -64,7 +71,12 @@ test("R-06 collapses AdminMobileAuditModule into a single shared-data pipeline",
   assert.ok(mobile.includes("onNext"));
   assert.ok(card.includes("<AdminMobileAuditModule"));
   assert.ok(card.includes("bodyRef={setMobileBodyNode}"));
-  assert.ok(card.includes("desktopBodyRef={setDesktopBodyNode}"));
+  // The desktop container measured for `effectiveLimit` is the flex-allocated
+  // rows region owned by the card, not the content-sized table wrapper.
+  assert.ok(
+    card.includes('<div ref={setDesktopBodyNode} className="min-h-0 flex-1 py-2">'),
+  );
+  assert.ok(card.includes("desktopRowRef={setDesktopRowNode}"));
 });
 
 test("R-06 audit surfaces keep enterprise density tokens", () => {
