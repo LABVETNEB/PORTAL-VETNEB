@@ -42,6 +42,10 @@ export function LogisticsCommandCenter({
     <section
       className="flex min-h-0 flex-1 flex-col gap-5"
       aria-labelledby="logistics-command-center-heading"
+      // Scope hook for the mobile density block in styles/dashboard/zero-scroll.css:
+      // below `md` the informational chrome above the grid consumed the whole
+      // track and the two card canvases collapsed under one row height.
+      data-logistics-command-center="true"
     >
       <section
         className="surface-note-info shrink-0"
@@ -100,12 +104,21 @@ export function LogisticsCommandCenter({
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 min-h-0 flex-1 auto-rows-fr">
+      {/* `minmax(0,1fr)` instead of `auto-rows-fr` (`minmax(auto,1fr)`): inside a
+          bounded no-scroll canvas the rows must be allowed to shrink below their
+          min-content, or the stacked mobile cards overflow their tracks and paint
+          over each other — which puts the lower card's pager behind the upper
+          card and blocks its pointer events. Same grammar the other no-scroll
+          grids already use (styles/dashboard/shell.css, surfaces.css). */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 min-h-0 flex-1 auto-rows-[minmax(0,1fr)]">
         <Card className="dashboard-surface flex min-h-0 flex-col overflow-hidden">
           <CardHeader className="flex shrink-0 flex-row items-start justify-between pb-3">
             <div>
               <CardTitle className="text-base">Visitas de campo</CardTitle>
-              <p className="mt-1 text-xs text-muted-foreground">
+              <p
+                className="mt-1 text-xs text-muted-foreground"
+                data-dashboard-chrome-secondary="true"
+              >
                 Programadas y en curso.
               </p>
             </div>
@@ -150,7 +163,10 @@ export function LogisticsCommandCenter({
           <CardHeader className="flex shrink-0 flex-row items-start justify-between pb-3">
             <div>
               <CardTitle className="text-base">Planes de ruta</CardTitle>
-              <p className="mt-1 text-xs text-muted-foreground">
+              <p
+                className="mt-1 text-xs text-muted-foreground"
+                data-dashboard-chrome-secondary="true"
+              >
                 Liberados y en ejecución.
               </p>
             </div>

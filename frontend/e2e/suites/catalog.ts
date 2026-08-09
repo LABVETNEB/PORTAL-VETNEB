@@ -103,6 +103,7 @@ export const E2E_SUITE_CATALOG = [
   entry("e2e/admin/users/admin-users-workspace-mobile-5000.spec.ts", "admin", "users", "mobile workspace capacity 5000", [], extended, { fixture: "admin-mobile-contracts", notes: "Audit CAP classification mapped to extended in E2E-ORG-1." }),
   entry("e2e/clinic/logistics/dashboard-clinic-logistica-mobile-parity.spec.ts", "clinic", "logistics", "mobile logistics parity", ["public-clinic"], ci),
   entry("e2e/clinic/logistics/dashboard-logistica-metricas-full-route-adaptive.spec.ts", "clinic", "logistics", "metrics full route adaptive", [], extended),
+  entry("e2e/clinic/logistics/dashboard-logistica-mobile-action-bar-reachability.spec.ts", "clinic", "logistics", "mobile bottom chrome reachability", [], extended, { criticality: "P1", fixture: "admin-populated-api-server", notes: "Hit-testability (not visibility) of the hub pagers and the StickyActionBar actions under the role bottom nav; 5 mobile viewports + the md boundary." }),
   entry("e2e/clinic/logistics/dashboard-logistica-rutas-full-route-adaptive.spec.ts", "clinic", "logistics", "routes full route adaptive", [], extended),
   entry("e2e/clinic/logistics/dashboard-logistica-visitas-full-route-adaptive.spec.ts", "clinic", "logistics", "visits full route adaptive", [], extended),
   entry("e2e/clinic/logistics/logistics-mobile-no-horizontal-table.spec.ts", "clinic", "logistics", "mobile no horizontal table", [], extended),

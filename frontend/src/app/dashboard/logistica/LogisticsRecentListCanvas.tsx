@@ -28,11 +28,18 @@ export function LogisticsRecentListCanvas({
   const items = Children.toArray(children);
   const [rowHeightPx, setRowHeightPx] = useState(52);
 
+  // `minItems: 1`: the floor of two was an artificial one. On the shortest
+  // phones the measured canvas is smaller than two rows, so a floor of two
+  // forced a row the canvas could not hold and `overflow: hidden` clipped it —
+  // the cardinality stopped being the measured one. The hook stays the sole
+  // owner of it (`floor(usable / measuredRowHeight)` clamped); this only lets
+  // the natural result reach one row where one row is what fits. Same floor the
+  // other mobile lists of the dashboard already use.
   const { containerRef, itemsPerPage } = useAdaptiveDashboardPageSize({
     fallbackItems: 3,
     rowHeightPx,
     safetyBufferPx: 8,
-    minItems: 2,
+    minItems: 1,
     maxItems: 12,
   });
 
