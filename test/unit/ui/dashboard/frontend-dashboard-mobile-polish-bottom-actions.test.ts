@@ -62,8 +62,25 @@ test("PR-9 StickyActionBar keeps mobile bottom safe-area action contract", () =>
   assert.ok(source.includes("md:sticky md:top-[4.75rem]"));
   assert.ok(source.includes("pointer-events-none"));
   assert.ok(source.includes("pointer-events-auto"));
-  assert.ok(source.includes("grid min-w-0 grid-cols-1 gap-2 min-[420px]:grid-cols-2"));
+  // Mobile actions occupy a SINGLE row sized by the action count. The previous
+  // stacked grid (`grid-cols-1` / `min-[420px]:grid-cols-2`) made the bar 185px
+  // tall on a 360px phone, which left the logistics hub cards without enough
+  // height for their pagers. `grid-flow-col auto-cols-fr` responds to the
+  // content instead of hardcoding a column count or a height.
+  assert.ok(
+    source.includes("grid min-w-0 grid-flow-col auto-cols-fr gap-2"),
+    "StickyActionBar keeps the single-row content-sized mobile action grid",
+  );
+  assert.equal(
+    source.includes("min-[420px]:grid-cols-2"),
+    false,
+    "the stacked mobile action grid must not come back",
+  );
   assert.ok(source.includes("min-h-10 w-full whitespace-normal"));
+  // The out-of-flow bar must keep publishing its measured height so the shell
+  // can reserve it; a hardcoded spacer is what the guard below forbids.
+  assert.ok(source.includes("--dash-sticky-action-h"));
+  assert.ok(source.includes('position === "fixed" || position === "absolute"'));
   assert.ok(source.includes('type="button"'));
   assert.ok(source.includes("<span>{action.label}</span>"));
   assert.ok(source.includes("focus-visible:ring-2"));

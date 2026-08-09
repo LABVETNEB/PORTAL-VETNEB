@@ -100,7 +100,13 @@ export function LogisticsCommandCenter({
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 min-h-0 flex-1 auto-rows-fr">
+      {/* `minmax(0,1fr)` instead of `auto-rows-fr` (`minmax(auto,1fr)`): inside a
+          bounded no-scroll canvas the rows must be allowed to shrink below their
+          min-content, or the stacked mobile cards overflow their tracks and paint
+          over each other — which puts the lower card's pager behind the upper
+          card and blocks its pointer events. Same grammar the other no-scroll
+          grids already use (styles/dashboard/shell.css, surfaces.css). */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 min-h-0 flex-1 auto-rows-[minmax(0,1fr)]">
         <Card className="dashboard-surface flex min-h-0 flex-col overflow-hidden">
           <CardHeader className="flex shrink-0 flex-row items-start justify-between pb-3">
             <div>

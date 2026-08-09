@@ -54,6 +54,7 @@
     }
   }
 
+
   /*
     Shared centered pager grammar (Block C):
     Anterior | Pagina X de Y | Siguiente.
@@ -109,6 +110,38 @@
   Unlayered zero-scroll overrides (win over the flattened utility classes the
   same way the admin-mobile blocks above do).
 */
+
+/* Mobile action bar: clear the role bottom nav, then reserve the height.
+
+   Two independent defects lived here. (1) The bar is `fixed bottom-0 z-50`, so
+   it anchors to the VIEWPORT and lands under `.clinic-mobile-bottom-nav`
+   (`z-65`), which swallowed the pointer events of the bar's own lowest action
+   row. Re-anchoring it to `absolute` pins it to `main` — which the shell
+   already sizes to exclude the bottom nav — so the bar clears the nav without
+   any magic offset, and every action stays clickable. (2) Out of flow either
+   way, `main` kept handing its full height to the surface, so the last
+   interactive row of that surface — on the logistics hub, the pager of the
+   lower list — rendered underneath the bar. The reserve extends the clinic
+   mobile shell gutter with the bar's OWN measured height, published by the
+   component as `--dash-sticky-action-h`; a hardcoded spacer would break as
+   soon as the action count or the label wrapping changes.
+
+   `:has()` scopes both rules to the surfaces that actually mount the bar, and
+   the variable is 0 from `md` up, where the bar is sticky and occupies flow.
+   Unlayered so they win over the mobile shell padding shorthand in
+   mobile-clinic.css, which is unlayered too. */
+@media (max-width: 767px) {
+  [data-vetneb-app-shell-surface="clinic"] [data-sticky-action-bar="true"] {
+    position: absolute;
+  }
+
+  [data-vetneb-app-shell-surface="clinic"]
+    .dashboard-main:has(> [data-sticky-action-bar="true"]) {
+    padding-block-end: calc(
+      var(--clinic-mobile-shell-gutter) + var(--dash-sticky-action-h, 0px)
+    );
+  }
+}
 
 /* The generic Table wrapper is overflow-auto by design; inside a bounded
    zero-scroll canvas that would become a forbidden internal scroller, so the
