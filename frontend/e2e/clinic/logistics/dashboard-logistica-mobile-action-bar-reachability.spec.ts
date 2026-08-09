@@ -16,6 +16,14 @@ import { expect, test, type Page } from "@playwright/test";
 // assertion resolves `elementFromPoint` at the control's own click point and
 // requires the control itself to answer, then performs a REAL click. No
 // `force`, no `dispatchEvent`, no keyboard fallback.
+//
+// A third defect had the same shape and the same blind spot: with every pager
+// and action reachable, the two stacked cards could still compress BELOW the
+// height of one data row. The canvas is `overflow: hidden`, so the rows were
+// clipped silently — measured 45.91 / 38.23 / 5.31 / 0 / 0 px of canvas against
+// a ~51px row. `toBeVisible()` cannot see that, so the row contract below is
+// geometric: the row must be fully CONTAINED by its own canvas and answer its
+// own hit test, on page 1 and after a real transition to page 2.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const MOBILE_VIEWPORTS = [
@@ -88,6 +96,155 @@ async function isHitTestable(page: Page, selector: string): Promise<string> {
   }, selector);
 }
 
+/** Sub-pixel slack: layout rounds, the containment contract must not. */
+const ROW_CONTAINMENT_TOLERANCE_PX = 0.5;
+
+type RowObservation = {
+  index: number;
+  width: number;
+  height: number;
+  overflowTopPx: number;
+  overflowBottomPx: number;
+  overflowLeftPx: number;
+  overflowRightPx: number;
+  hit: string;
+};
+
+type CanvasGeometry = {
+  canvasHeight: number;
+  canvasWidth: number;
+  renderedRows: number;
+  rows: RowObservation[];
+};
+
+/**
+ * Geometry of EVERY rendered data row of one list, read against its own canvas.
+ *
+ * `toBeVisible()` is not enough here: a row clipped by the canvas's
+ * `overflow: hidden` still reports visible. Every row the canvas actually
+ * rendered — not just the first — must be inside it and must answer
+ * `elementFromPoint` at its own centre, or the adaptive cardinality is no
+ * longer the measured one.
+ */
+async function readCanvasGeometry(page: Page, pager: string): Promise<CanvasGeometry | null> {
+  return page.evaluate((pagerSelector) => {
+    const nav = document.querySelector(pagerSelector);
+    if (!nav?.parentElement) return null;
+    const canvas = nav.parentElement.querySelector<HTMLElement>(
+      '[data-logistics-recent-list-canvas="true"]',
+    );
+    if (!canvas) return null;
+
+    const canvasBox = canvas.getBoundingClientRect();
+    const rows = Array.from(canvas.querySelectorAll<HTMLElement>(".dashboard-list-row"));
+
+    return {
+      canvasHeight: canvasBox.height,
+      canvasWidth: canvasBox.width,
+      renderedRows: rows.length,
+      rows: rows.map((row, index) => {
+        const rowBox = row.getBoundingClientRect();
+        const hitTarget = document.elementFromPoint(
+          Math.round(rowBox.x + rowBox.width / 2),
+          Math.round(rowBox.y + rowBox.height / 2),
+        );
+
+        return {
+          index,
+          width: rowBox.width,
+          height: rowBox.height,
+          overflowTopPx: canvasBox.top - rowBox.top,
+          overflowBottomPx: rowBox.bottom - canvasBox.bottom,
+          overflowLeftPx: canvasBox.left - rowBox.left,
+          overflowRightPx: rowBox.right - canvasBox.right,
+          hit: !hitTarget
+            ? "nothing"
+            : row.contains(hitTarget)
+              ? "self"
+              : hitTarget.tagName.toLowerCase(),
+        };
+      }),
+    };
+  }, pager);
+}
+
+/**
+ * EVERY rendered row must be real, fully inside its canvas and hit-testable.
+ * Returns the settled geometry so the run can report what actually converged —
+ * the row count is never asserted against a hardcoded number.
+ */
+async function expectEveryRowReachable(
+  page: Page,
+  pager: string,
+  label: string,
+): Promise<CanvasGeometry> {
+  let settled: CanvasGeometry | null = null;
+
+  // The canvas re-measures its own page size after paint; poll the geometry
+  // instead of sleeping so the contract is read on the settled layout.
+  await expect(async () => {
+    const geometry = await readCanvasGeometry(page, pager);
+    expect(geometry, `${label}: canvas must exist`).not.toBeNull();
+    const canvas = geometry as CanvasGeometry;
+
+    expect(canvas.canvasHeight, `${label}: canvas must have height`).toBeGreaterThan(0);
+    expect(canvas.renderedRows, `${label}: at least one row rendered`).toBeGreaterThan(0);
+
+    for (const row of canvas.rows) {
+      const where = `${label}: row ${row.index + 1}/${canvas.renderedRows}`;
+      expect(row.width, `${where}: width`).toBeGreaterThan(0);
+      expect(row.height, `${where}: height`).toBeGreaterThan(0);
+      expect(
+        row.overflowTopPx,
+        `${where}: clipped above its canvas`,
+      ).toBeLessThanOrEqual(ROW_CONTAINMENT_TOLERANCE_PX);
+      expect(
+        row.overflowBottomPx,
+        `${where}: clipped below its canvas (canvas=${canvas.canvasHeight}px, row=${row.height}px)`,
+      ).toBeLessThanOrEqual(ROW_CONTAINMENT_TOLERANCE_PX);
+      expect(
+        row.overflowLeftPx,
+        `${where}: clipped left of its canvas`,
+      ).toBeLessThanOrEqual(ROW_CONTAINMENT_TOLERANCE_PX);
+      expect(
+        row.overflowRightPx,
+        `${where}: clipped right of its canvas`,
+      ).toBeLessThanOrEqual(ROW_CONTAINMENT_TOLERANCE_PX);
+      expect(row.hit, `${where}: must answer its own hit test`).toBe("self");
+    }
+
+    settled = canvas;
+  }).toPass({ timeout: 15_000 });
+
+  return settled as unknown as CanvasGeometry;
+}
+
+/**
+ * Records what the adaptive canvas actually converged to. Observability only —
+ * no assertion depends on these numbers, so a legitimate future density change
+ * moves the log, never the contract.
+ */
+function reportConvergence(
+  viewport: string,
+  pages: {
+    visitsPage1: CanvasGeometry;
+    plansPage1: CanvasGeometry;
+    visitsPage2: CanvasGeometry;
+    plansPage2: CanvasGeometry;
+  },
+) {
+  const describe = (geometry: CanvasGeometry) =>
+    `rows=${geometry.renderedRows} canvas=${geometry.canvasHeight.toFixed(2)}px row=${(
+      geometry.rows[0]?.height ?? 0
+    ).toFixed(2)}px`;
+
+  console.log(
+    `[logistics-convergence] ${viewport} | visits p1 ${describe(pages.visitsPage1)} | visits p2 ${describe(
+      pages.visitsPage2,
+    )} | plans p1 ${describe(pages.plansPage1)} | plans p2 ${describe(pages.plansPage2)}`,
+  );
+}
+
 async function expectSecondPageReachable(page: Page, pager: string, label: string) {
   const next = page.locator(`${pager} ${NEXT}`);
 
@@ -118,6 +275,34 @@ async function expectNoHorizontalOverflow(page: Page, label: string) {
   });
   expect(overflow.document, `${label}: document horizontal overflow`).toBeLessThanOrEqual(1);
   expect(overflow.shell, `${label}: shell horizontal overflow`).toBeLessThanOrEqual(1);
+}
+
+/**
+ * Zero document scroll, and no list canvas silently promoted to a scroller.
+ * `overflow: hidden` is the contracted mode for the canvas: it must clip, never
+ * scroll, or the row contract above would be satisfiable by a hidden scrollbar.
+ */
+async function expectNoUnauthorizedScroll(page: Page, label: string) {
+  const scroll = await page.evaluate(() => {
+    const html = document.documentElement;
+    return {
+      documentVertical: html.scrollHeight - html.clientHeight,
+      scrollableCanvases: Array.from(
+        document.querySelectorAll<HTMLElement>(
+          '[data-logistics-recent-list-canvas="true"]',
+        ),
+      ).filter((canvas) => {
+        const overflowY = getComputedStyle(canvas).overflowY;
+        return overflowY === "auto" || overflowY === "scroll";
+      }).length,
+    };
+  });
+
+  expect(scroll.documentVertical, `${label}: document vertical scroll`).toBeLessThanOrEqual(1);
+  expect(
+    scroll.scrollableCanvases,
+    `${label}: no list canvas may become an internal scroller`,
+  ).toBe(0);
 }
 
 for (const viewport of MOBILE_VIEWPORTS) {
@@ -187,11 +372,45 @@ for (const viewport of MOBILE_VIEWPORTS) {
       `${viewport.name}: the lowest quick action really navigates`,
     ).toHaveURL(/\/dashboard\/logistica\/metricas/);
 
-    // 3 · Both hub pagers reach their second page with a real click.
+    // 3 · EVERY rendered row of each list is fully inside its own canvas and
+    //     hit-testable — on page 1 and after a real transition to page 2. The
+    //     row count is whatever the canvas measured; it is never asserted
+    //     against a hardcoded number.
     await openHub(page);
-    await expectSecondPageReachable(page, VISITS_PAGER, `${viewport.name}: visits pager`);
-    await expectSecondPageReachable(page, PLANS_PAGER, `${viewport.name}: plans pager`);
+    const visitsPage1 = await expectEveryRowReachable(
+      page,
+      VISITS_PAGER,
+      `${viewport.name}: visits rows (page 1)`,
+    );
+    const plansPage1 = await expectEveryRowReachable(
+      page,
+      PLANS_PAGER,
+      `${viewport.name}: plans rows (page 1)`,
+    );
 
+    // 4 · Both hub pagers reach their second page with a real click, and every
+    //     row page 2 renders is contained and hit-testable as well.
+    await expectSecondPageReachable(page, VISITS_PAGER, `${viewport.name}: visits pager`);
+    const visitsPage2 = await expectEveryRowReachable(
+      page,
+      VISITS_PAGER,
+      `${viewport.name}: visits rows (page 2)`,
+    );
+    await expectSecondPageReachable(page, PLANS_PAGER, `${viewport.name}: plans pager`);
+    const plansPage2 = await expectEveryRowReachable(
+      page,
+      PLANS_PAGER,
+      `${viewport.name}: plans rows (page 2)`,
+    );
+
+    reportConvergence(viewport.name, {
+      visitsPage1,
+      plansPage1,
+      visitsPage2,
+      plansPage2,
+    });
+
+    await expectNoUnauthorizedScroll(page, viewport.name);
     await expectNoHorizontalOverflow(page, viewport.name);
   });
 }
@@ -236,7 +455,32 @@ test(`logistics hub keeps the desktop action bar contract at ${MD_BOUNDARY.name}
     ).toBe("self");
   }
 
+  const visitsPage1 = await expectEveryRowReachable(
+    page,
+    VISITS_PAGER,
+    `${MD_BOUNDARY.name}: visits rows (page 1)`,
+  );
+  const plansPage1 = await expectEveryRowReachable(
+    page,
+    PLANS_PAGER,
+    `${MD_BOUNDARY.name}: plans rows (page 1)`,
+  );
+
   await expectSecondPageReachable(page, VISITS_PAGER, `${MD_BOUNDARY.name}: visits pager`);
+  const visitsPage2 = await expectEveryRowReachable(
+    page,
+    VISITS_PAGER,
+    `${MD_BOUNDARY.name}: visits rows (page 2)`,
+  );
   await expectSecondPageReachable(page, PLANS_PAGER, `${MD_BOUNDARY.name}: plans pager`);
+  const plansPage2 = await expectEveryRowReachable(
+    page,
+    PLANS_PAGER,
+    `${MD_BOUNDARY.name}: plans rows (page 2)`,
+  );
+
+  reportConvergence(MD_BOUNDARY.name, { visitsPage1, plansPage1, visitsPage2, plansPage2 });
+
+  await expectNoUnauthorizedScroll(page, MD_BOUNDARY.name);
   await expectNoHorizontalOverflow(page, MD_BOUNDARY.name);
 });

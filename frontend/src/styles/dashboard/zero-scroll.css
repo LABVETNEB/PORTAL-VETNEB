@@ -210,6 +210,58 @@
   }
 }
 
+/* Logistics hub mobile density — "preserve space for the data rows".
+
+   Below `md` the two lists stack, so each card owns half of whatever the grid
+   track is left with. The chrome above the track (status note + section
+   heading) and each card's desktop padding consumed so much of it that the
+   measured canvas fell to 45.91 / 38.23 / 5.31 / 0 / 0 px at 430 / 412 / 390 /
+   375 / 360 while a `.dashboard-list-row` is ~51px: no row could ever render
+   fully inside its canvas, and `overflow: hidden` clipped it silently while
+   every visibility assertion still passed.
+
+   Each rule returns vertical space to the canvas; none hides a datum. The KPI
+   counters, both card titles and every row stay rendered — only padding, gaps
+   and the wrapping of one advisory sentence change. Scoped to this surface so
+   no other dashboard grid moves, and to `max-width: 767px` so the `md`+
+   geometry (sticky bar, 2-column grid) is untouched. */
+@media (max-width: 767px) {
+  [data-logistics-command-center="true"] {
+    row-gap: 0.75rem;
+  }
+
+  [data-logistics-command-center="true"] .surface-note-info {
+    padding: 0.5rem 0.75rem;
+  }
+
+  [data-logistics-command-center="true"] .surface-note-info > div {
+    gap: 0.5rem;
+  }
+
+  /* Kept in the a11y tree (it names the region) — collapsed to one line. */
+  [data-logistics-command-center="true"] #logistics-operational-priority {
+    display: -webkit-box;
+    overflow: hidden;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+  }
+
+  [data-logistics-command-center="true"] > .grid {
+    gap: 0.75rem;
+  }
+
+  /* Card chrome: the title stays, the desktop padding does not. */
+  [data-logistics-command-center="true"] .dashboard-surface > :first-child {
+    padding: 0.6rem 0.8rem 0.3rem;
+  }
+
+  [data-logistics-command-center="true"] .dashboard-surface > :last-child {
+    padding: 0 0.8rem 0.5rem;
+  }
+}
+
 /* Métricas mobile blocks: the 2x4 stat grid inside each plan block compacts
    to one 4-up line so a block stops consuming ~134px of a 740px viewport. */
 @media (max-width: 767px) {
