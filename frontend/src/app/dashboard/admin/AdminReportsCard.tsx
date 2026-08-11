@@ -233,6 +233,55 @@ export function AdminReportsCard() {
 
   const latestRequestRef = useRef(0);
 
+  // Row pitch accepted for the current layout. Reports rows are NOT uniform —
+  // a row carrying the "Tinción" marker is ~41px, a plain one ~35.7px — so
+  // probing "the first rendered row" made the pitch depend on which records
+  // happened to be on screen: page 1 measured 41 and page 2 measured 35.7, the
+  // effective limit jumped mid-transition, the offset recompute below
+  // re-anchored against the jumped limit, and one "Siguiente" click emitted
+  // four windows and could settle back on page 1 (834x1194). The pitch is a
+  // property of the layout, not of the current page, so it is re-probed when
+  // the measured region changes size (viewport, zoom, chrome) and reused
+  // across data swaps.
+  const rowPitchRef = useRef<{
+    node: HTMLElement | null;
+    containerHeight: number;
+    rowHeightPx: number;
+  }>({ node: null, containerHeight: 0, rowHeightPx: 0 });
+  const onFirstPageRef = useRef(true);
+  const isOnFirstPage = offset === 0;
+  useLayoutEffect(() => {
+    onFirstPageRef.current = isOnFirstPage;
+  }, [isOnFirstPage]);
+
+  function resolveRowPitch(
+    container: HTMLElement,
+    containerHeight: number,
+    measuredRowHeight: number,
+  ): number {
+    const cached = rowPitchRef.current;
+    const layoutChanged =
+      cached.node !== container || cached.containerHeight !== containerHeight;
+
+    // Held while paging, re-probed on the first page. On page 1 the probe keeps
+    // correcting until the layout settles (an early frame can read a row that
+    // has not reached its final height); from page 2 onward the value is held,
+    // so a page whose records render at a different height cannot resize the
+    // page under the user. A resize of the measured region re-opens probing.
+    if (!layoutChanged && cached.rowHeightPx > 0 && !onFirstPageRef.current) {
+      return cached.rowHeightPx;
+    }
+
+    const rowHeightPx =
+      measuredRowHeight > 0 ? measuredRowHeight : REPORTS_ROW_HEIGHT_FALLBACK_PX;
+    rowPitchRef.current = {
+      node: container,
+      containerHeight,
+      rowHeightPx: measuredRowHeight > 0 ? measuredRowHeight : 0,
+    };
+    return rowHeightPx;
+  }
+
   useLayoutEffect(() => {
     const nodes = [
       desktopBodyNode,
@@ -255,8 +304,7 @@ export function AdminReportsCard() {
         setMeasurement((previous) => {
           const next: Measurement = {
             containerNode: mobileBodyNode,
-            rowHeightPx:
-              rowHeight > 0 ? rowHeight : REPORTS_ROW_HEIGHT_FALLBACK_PX,
+            rowHeightPx: resolveRowPitch(mobileBodyNode, mobileHeight, rowHeight),
             headerHeightPx: 0,
           };
           return measurementsEqual(previous, next) ? previous : next;
@@ -270,8 +318,7 @@ export function AdminReportsCard() {
         setMeasurement((previous) => {
           const next: Measurement = {
             containerNode: desktopBodyNode,
-            rowHeightPx:
-              rowHeight > 0 ? rowHeight : REPORTS_ROW_HEIGHT_FALLBACK_PX,
+            rowHeightPx: resolveRowPitch(desktopBodyNode, desktopHeight, rowHeight),
             headerHeightPx: REPORTS_TABLE_HEADER_PX,
           };
           return measurementsEqual(previous, next) ? previous : next;

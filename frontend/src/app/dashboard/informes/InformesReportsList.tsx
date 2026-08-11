@@ -151,6 +151,50 @@ export function InformesReportsList({
   const latestRequestRef = useRef(0);
   const totalRef = useRef(initialTotal);
 
+  // Row pitch accepted for the current layout. Informes rows are not uniform —
+  // a long study name wraps on a narrow phone and grows the row — so probing
+  // "the first rendered row" made the pitch depend on which reports happened to
+  // be on screen: page 1 and page 2 measured different heights, the page size
+  // changed mid-transition and a single "Página siguiente" emitted two server
+  // actions (observed at 360x800 under a full serial matrix run). The pitch is
+  // a property of the layout, not of the current page: probed once per measured
+  // -region size, reused across page changes, re-probed when that region
+  // resizes. Same rule as AdminReportsCard / AdminMaintenanceDryRunCard.
+  const rowPitchRef = useRef<{
+    node: HTMLElement | null;
+    containerHeight: number;
+    rowHeightPx: number;
+  }>({ node: null, containerHeight: 0, rowHeightPx: 0 });
+  const onFirstPageRef = useRef(true);
+  const isOnFirstPage = offset === 0;
+  useLayoutEffect(() => {
+    onFirstPageRef.current = isOnFirstPage;
+  }, [isOnFirstPage]);
+
+  function resolveRowPitch(
+    container: HTMLElement,
+    containerHeight: number,
+    measuredRowHeight: number,
+  ): number {
+    const cached = rowPitchRef.current;
+    const layoutChanged =
+      cached.node !== container || cached.containerHeight !== containerHeight;
+
+    // Held while paging, re-probed on the first page — see AdminReportsCard.
+    if (!layoutChanged && cached.rowHeightPx > 0 && !onFirstPageRef.current) {
+      return cached.rowHeightPx;
+    }
+
+    const rowHeightPx =
+      measuredRowHeight > 0 ? measuredRowHeight : INFORMES_ROW_HEIGHT_FALLBACK_PX;
+    rowPitchRef.current = {
+      node: container,
+      containerHeight,
+      rowHeightPx: measuredRowHeight > 0 ? measuredRowHeight : 0,
+    };
+    return rowHeightPx;
+  }
+
   useEffect(() => {
     totalRef.current = totalCount;
   }, [totalCount]);
@@ -174,7 +218,7 @@ export function InformesReportsList({
       setMeasurement((previous) => {
         const next: Measurement = {
           containerNode: bodyNode,
-          rowHeightPx: rowHeight > 0 ? rowHeight : INFORMES_ROW_HEIGHT_FALLBACK_PX,
+          rowHeightPx: resolveRowPitch(bodyNode, containerHeight, rowHeight),
         };
         return measurementsEqual(previous, next) ? previous : next;
       });

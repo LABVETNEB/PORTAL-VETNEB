@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useLayoutEffect, useState } from "react";
+import { FormEvent, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { Filter } from "lucide-react";
 import { useAdaptiveRowsPerPage } from "@/hooks/useAdaptiveRowsPerPage";
@@ -405,6 +405,19 @@ export function ClinicParticularTokensCard() {
   // which collapses it to a zero-height rect), so the max of the two is
   // always the real height of whichever layout is currently on screen —
   // without deciding by a hardcoded breakpoint.
+  // ...and because that wrapping depends on the RECORDS on screen, the probe is
+  // page-dependent: page 1 and page 2 measured different heights, so the page
+  // size changed mid-transition and the second page came back shorter than the
+  // first (observed at 360x800). The pitch is a property of the layout, not of
+  // the current page: probed once per measured-region size, reused across page
+  // changes, re-probed when that region resizes.
+  const rowPitchRef = useRef<{
+    node: HTMLElement | null;
+    containerHeight: number;
+    rowHeightPx: number;
+  }>({ node: null, containerHeight: 0, rowHeightPx: 0 });
+  const onFirstPageRef = useRef(true);
+
   useLayoutEffect(() => {
     if (!firstDesktopRowNode && !firstMobileRowNode) {
       return;
@@ -416,9 +429,29 @@ export function ClinicParticularTokensCard() {
       const mobileHeight =
         firstMobileRowNode?.getBoundingClientRect().height ?? 0;
       const height = Math.max(desktopHeight, mobileHeight);
-      if (height > 0) {
-        setRowHeightPx(height);
+      if (height <= 0) {
+        return;
       }
+
+      const containerHeight = panelBodyNode?.getBoundingClientRect().height ?? 0;
+      const cached = rowPitchRef.current;
+      const layoutChanged =
+        cached.node !== panelBodyNode || cached.containerHeight !== containerHeight;
+
+      // Held while paging, re-probed on the first page — see AdminReportsCard.
+      if (!layoutChanged && cached.rowHeightPx > 0 && !onFirstPageRef.current) {
+        return;
+      }
+      if (!layoutChanged && height === cached.rowHeightPx) {
+        return;
+      }
+
+      rowPitchRef.current = {
+        node: panelBodyNode,
+        containerHeight,
+        rowHeightPx: height,
+      };
+      setRowHeightPx(height);
     };
 
     const observer = new ResizeObserver(measureRowHeight);
@@ -428,10 +461,13 @@ export function ClinicParticularTokensCard() {
     if (firstMobileRowNode) {
       observer.observe(firstMobileRowNode);
     }
+    if (panelBodyNode) {
+      observer.observe(panelBodyNode);
+    }
     measureRowHeight();
 
     return () => observer.disconnect();
-  }, [firstDesktopRowNode, firstMobileRowNode]);
+  }, [firstDesktopRowNode, firstMobileRowNode, panelBodyNode]);
 
   useLayoutEffect(() => {
     if (!tableHeaderNode) {
@@ -461,6 +497,10 @@ export function ClinicParticularTokensCard() {
     matchesClinicParticularTokenFilters(token, appliedFilters),
   );
   const pagedTokens = usePagedRows(filteredTokens, rowsPerPage);
+  const isOnFirstTokensPage = pagedTokens.page === 0;
+  useLayoutEffect(() => {
+    onFirstPageRef.current = isOnFirstTokensPage;
+  }, [isOnFirstTokensPage]);
   const selectedToken =
     selectedTokenId === null
       ? null

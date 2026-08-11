@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useState, useTransition, type Ref } from "react";
+import { useLayoutEffect, useRef, useState, useTransition, type Ref } from "react";
 import { Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -104,6 +104,21 @@ export function AdminMaintenanceDryRunCard() {
     CANDIDATE_ROW_HEIGHT_FALLBACK_PX,
   );
 
+  // Candidate rows are NOT uniform: an unsupported group renders an extra
+  // reason line, so it is taller than a supported one. Probing "the first
+  // rendered row" therefore made the pitch depend on which groups happened to
+  // be on the current page — page 1 and page 2 measured different heights, so
+  // `rowsPerPage` changed while paging and a page could render fewer rows than
+  // the page it came from. The pitch belongs to the layout, not to the current
+  // page: it is probed once per measured-region size and reused across page
+  // changes, and re-probed whenever that region resizes (viewport, zoom).
+  const rowPitchRef = useRef<{
+    node: HTMLElement | null;
+    containerHeight: number;
+    rowHeightPx: number;
+  }>({ node: null, containerHeight: 0, rowHeightPx: 0 });
+  const onFirstPageRef = useRef(true);
+
   useLayoutEffect(() => {
     if (!firstCandidateRowNode) {
       return;
@@ -111,10 +126,33 @@ export function AdminMaintenanceDryRunCard() {
 
     const measureRowHeight = () => {
       const height = firstCandidateRowNode.getBoundingClientRect().height;
-
-      if (height > 0) {
-        setRowHeightPx(height + CANDIDATE_ROW_GAP_PX);
+      if (height <= 0) {
+        return;
       }
+
+      const containerHeight =
+        candidatesListNode?.getBoundingClientRect().height ?? 0;
+      const cached = rowPitchRef.current;
+      const layoutChanged =
+        cached.node !== candidatesListNode ||
+        cached.containerHeight !== containerHeight;
+
+      // Held while paging, re-probed on the first page — see AdminReportsCard.
+      if (!layoutChanged && cached.rowHeightPx > 0 && !onFirstPageRef.current) {
+        return;
+      }
+
+      const pitch = height + CANDIDATE_ROW_GAP_PX;
+      if (!layoutChanged && pitch === cached.rowHeightPx) {
+        return;
+      }
+
+      rowPitchRef.current = {
+        node: candidatesListNode,
+        containerHeight,
+        rowHeightPx: pitch,
+      };
+      setRowHeightPx(pitch);
     };
 
     const observer = new ResizeObserver(measureRowHeight);
@@ -122,7 +160,7 @@ export function AdminMaintenanceDryRunCard() {
     measureRowHeight();
 
     return () => observer.disconnect();
-  }, [firstCandidateRowNode]);
+  }, [firstCandidateRowNode, candidatesListNode]);
 
   const { rowsPerPage } = useAdaptiveRowsPerPage({
     containerNode: candidatesListNode,
@@ -131,6 +169,10 @@ export function AdminMaintenanceDryRunCard() {
   });
 
   const pagedCandidates = usePagedRows(snapshot?.candidates ?? [], rowsPerPage);
+  const isOnFirstCandidatePage = pagedCandidates.page === 0;
+  useLayoutEffect(() => {
+    onFirstPageRef.current = isOnFirstCandidatePage;
+  }, [isOnFirstCandidatePage]);
 
   function handleAnalyze() {
     setError(null);

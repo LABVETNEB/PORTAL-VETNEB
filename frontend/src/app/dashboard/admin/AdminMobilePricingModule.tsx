@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
+import { useAdaptiveRowsPerPage } from "@/hooks/useAdaptiveRowsPerPage";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,7 +23,16 @@ type FlatPricingItem = {
   isActive: boolean;
 };
 
-const CATALOG_PAGE_SIZE = 4;
+// Pre-measurement fallback only. The visible mobile catalog used to slice the
+// price list with this constant while the desktop editor (hidden below `md`)
+// was the only measured consumer, so Precios had no measured cardinality at all
+// on phones — the one adaptive consumer of §20 that the viewport could not
+// observe. The page size now comes from the measured catalog canvas through the
+// same hook the desktop card uses, so there is a single semantics of
+// `limit + client slice` for admin-pricing across the 13 viewports.
+const CATALOG_FALLBACK_ROWS = 4;
+// `gap-1.5` between catalog rows, part of the pitch each row occupies.
+const CATALOG_ROW_GAP_PX = 6;
 
 function normalizePriceLabel(value: string | null): string {
   const trimmed = (value ?? "").trim();
@@ -35,6 +45,34 @@ export function AdminMobilePricingModule() {
   const [index, setIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  // Measured catalog canvas: the flex-allocated space between the editor and
+  // the pager, plus the real pitch of one catalog row.
+  const [catalogListNode, setCatalogListNode] = useState<HTMLDivElement | null>(
+    null,
+  );
+  const [firstCatalogRowNode, setFirstCatalogRowNode] =
+    useState<HTMLButtonElement | null>(null);
+  const [catalogRowHeightPx, setCatalogRowHeightPx] = useState(0);
+
+  useLayoutEffect(() => {
+    if (!firstCatalogRowNode) {
+      return;
+    }
+
+    const measure = () => {
+      const height = firstCatalogRowNode.getBoundingClientRect().height;
+      if (height > 0) {
+        setCatalogRowHeightPx(height + CATALOG_ROW_GAP_PX);
+      }
+    };
+
+    const observer = new ResizeObserver(measure);
+    observer.observe(firstCatalogRowNode);
+    measure();
+
+    return () => observer.disconnect();
+  }, [firstCatalogRowNode]);
 
   const [priceDraft, setPriceDraft] = useState("");
   const [orderDraft, setOrderDraft] = useState("");
@@ -163,18 +201,25 @@ export function AdminMobilePricingModule() {
     }
   }
 
-  const catalogPage = Math.floor(index / CATALOG_PAGE_SIZE);
+  const { rowsPerPage: catalogPageSize } = useAdaptiveRowsPerPage({
+    containerNode: catalogListNode,
+    fallbackRows: CATALOG_FALLBACK_ROWS,
+    rowHeightPx: catalogRowHeightPx,
+    minRows: 1,
+  });
+
+  const catalogPage = Math.floor(index / catalogPageSize);
   const catalogRows = useMemo(
     () =>
       items.slice(
-        catalogPage * CATALOG_PAGE_SIZE,
-        catalogPage * CATALOG_PAGE_SIZE + CATALOG_PAGE_SIZE,
+        catalogPage * catalogPageSize,
+        catalogPage * catalogPageSize + catalogPageSize,
       ),
-    [items, catalogPage],
+    [items, catalogPage, catalogPageSize],
   );
   const catalogTotalPages = Math.max(
     1,
-    Math.ceil(items.length / CATALOG_PAGE_SIZE),
+    Math.ceil(items.length / catalogPageSize),
   );
 
   const editorSection = (
@@ -293,18 +338,22 @@ export function AdminMobilePricingModule() {
       <p className="shrink-0 truncate text-xs font-semibold text-vetneb-ink">
         {items.length ? `${items.length} estudios` : isLoading ? "Cargando…" : "Catálogo de precios"}
       </p>
-      <div className="grid min-h-0 flex-1 grid-rows-4 gap-1.5 overflow-hidden">
+      <div
+        ref={setCatalogListNode}
+        className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden"
+      >
         {catalogRows.length ? (
-          catalogRows.map((item) => {
+          catalogRows.map((item, rowIndex) => {
             const itemIndex = items.indexOf(item);
             const isCurrent = itemIndex === index;
             return (
               <button
                 key={item.id}
+                ref={rowIndex === 0 ? setFirstCatalogRowNode : undefined}
                 type="button"
                 data-admin-mobile-config-item="true"
                 onClick={() => goToIndex(itemIndex)}
-                className={`flex min-h-0 items-center justify-between gap-2 overflow-hidden rounded-md border px-2.5 py-1.5 text-left ${isCurrent ? "border-vetneb-teal/60 bg-vetneb-surface-muted/60" : "border-vetneb-line/70 bg-card/95"}`}
+                className={`flex shrink-0 items-center justify-between gap-2 overflow-hidden rounded-md border px-2.5 py-1.5 text-left ${isCurrent ? "border-vetneb-teal/60 bg-vetneb-surface-muted/60" : "border-vetneb-line/70 bg-card/95"}`}
               >
                 <div className="min-w-0">
                   <p className="truncate text-xs font-medium text-vetneb-ink">
@@ -324,7 +373,7 @@ export function AdminMobilePricingModule() {
             );
           })
         ) : (
-          <div className="row-span-4 flex items-center justify-center px-4 text-center text-xs text-muted-foreground">
+          <div className="flex min-h-0 flex-1 items-center justify-center px-4 text-center text-xs text-muted-foreground">
             {loadError ?? (isLoading ? "Cargando precios…" : "Sin precios configurados.")}
           </div>
         )}
@@ -335,14 +384,14 @@ export function AdminMobilePricingModule() {
         pageCount={catalogTotalPages}
         rangeLabel={
           items.length
-            ? `${catalogPage * CATALOG_PAGE_SIZE + 1}–${Math.min((catalogPage + 1) * CATALOG_PAGE_SIZE, items.length)} de ${items.length}`
+            ? `${catalogPage * catalogPageSize + 1}–${Math.min((catalogPage + 1) * catalogPageSize, items.length)} de ${items.length}`
             : "Sin precios"
         }
         previousDisabled={catalogPage === 0}
         nextDisabled={catalogPage >= catalogTotalPages - 1}
         disabled={!items.length}
-        onPrevious={() => goToIndex((catalogPage - 1) * CATALOG_PAGE_SIZE)}
-        onNext={() => goToIndex((catalogPage + 1) * CATALOG_PAGE_SIZE)}
+        onPrevious={() => goToIndex((catalogPage - 1) * catalogPageSize)}
+        onNext={() => goToIndex((catalogPage + 1) * catalogPageSize)}
       />
     </div>
   );
