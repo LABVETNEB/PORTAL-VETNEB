@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { readFileSync, readdirSync } from "node:fs";
+import { dirname, join, relative, resolve, sep } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -10,6 +10,7 @@ import {
   DOMAINS,
   E2E_COHORT_SPECS,
   E2E_CURRENT_COHORT_SPECS,
+  E2E_MANUAL_ONLY_SPECS,
   E2E_SUITE_CATALOG,
   EXECUTION_COHORTS,
   PLATFORMS,
@@ -22,14 +23,16 @@ const TEST_FILE = fileURLToPath(import.meta.url);
 const REPO_ROOT = resolve(dirname(TEST_FILE), "..", "..");
 process.chdir(REPO_ROOT);
 
-const EXPECTED_SPEC_COUNT = 75;
+const EXPECTED_WORKSPACE_SPEC_COUNT = 78;
+const EXPECTED_CATALOG_SPEC_COUNT = 77;
+const EXPECTED_MANUAL_ONLY_SPEC_COUNT = 1;
 const EXPECTED_DOMAIN_COUNTS = new Map([
-  ["admin", 18],
+  ["admin", 19],
   ["clinic", 22],
   ["public", 8],
   ["particular", 2],
   ["platform", 18],
-  ["regression", 7],
+  ["regression", 8],
 ]);
 const EXPECTED_CURRENT_COUNTS = new Map([
   ["smoke", 9],
@@ -39,10 +42,10 @@ const EXPECTED_CURRENT_COUNTS = new Map([
 ]);
 const EXPECTED_EXECUTION_COUNTS = new Map<E2eExecutionCohort, number>([
   ["ci", 44],
-  ["extended", 26],
+  ["extended", 28],
   ["evidence", 2],
   ["visual-linux", 3],
-  ["full", 75],
+  ["full", 77],
   ["affected", 0],
 ]);
 const EXECUTION_PARTITION_COHORTS = [
@@ -68,14 +71,6 @@ const REQUIRED_SCRIPTS = [
   "e2e:affected",
   "e2e:verify-catalog",
 ] as const;
-
-function frontendPath(path: string): string {
-  return path.startsWith("frontend/") ? path.slice("frontend/".length) : path;
-}
-
-function repoPath(path: string): string {
-  return path.startsWith("frontend/") ? path : `frontend/${path}`;
-}
 
 function unique<T>(items: readonly T[]): T[] {
   return [...new Set(items)];
@@ -151,35 +146,69 @@ function readPackageScripts(): Record<string, string> {
   return packageJson.scripts ?? {};
 }
 
-async function trackedE2eSpecs(): Promise<string[]> {
-  const { listTrackedFiles } = await import("../helpers/tracked-source-files.ts");
-  return listTrackedFiles()
-    .filter((path) => path.startsWith("frontend/e2e/") && path.endsWith(".spec.ts"))
-    .sort();
+const EXCLUDED_E2E_DIRECTORIES = new Set([
+  "node_modules",
+  "test-results",
+  "playwright-report",
+  "helpers",
+  "fixtures",
+  "scripts",
+]);
+
+function workspaceE2eSpecs(): string[] {
+  const e2eRoot = resolve(REPO_ROOT, "frontend/e2e");
+  const specs: string[] = [];
+
+  function visit(directory: string): void {
+    for (const item of readdirSync(directory, { withFileTypes: true })) {
+      if (item.isDirectory()) {
+        if (!EXCLUDED_E2E_DIRECTORIES.has(item.name)) visit(join(directory, item.name));
+        continue;
+      }
+      if (!item.isFile() || !item.name.endsWith(".spec.ts")) continue;
+
+      specs.push(relative(resolve(REPO_ROOT, "frontend"), join(directory, item.name)).split(sep).join("/"));
+    }
+  }
+
+  visit(e2eRoot);
+  return specs.sort((a, b) => a.localeCompare(b));
 }
 
-function validateCatalog(entries: readonly E2eCatalogEntry[], trackedSpecs: readonly string[]): void {
+function validateCatalog(
+  entries: readonly E2eCatalogEntry[],
+  workspaceSpecs: readonly string[],
+  manualOnlySpecs: readonly string[],
+): void {
   const catalogPaths = entries.map((entry) => entry.path);
-  const catalogRepoPaths = catalogPaths.map(repoPath);
   const sortedCatalogPaths = [...catalogPaths].sort((a, b) => a.localeCompare(b));
+  const sortedManualOnlySpecs = [...manualOnlySpecs].sort((a, b) => a.localeCompare(b));
+  const classifiedPaths = [...catalogPaths, ...manualOnlySpecs].sort((a, b) => a.localeCompare(b));
 
-  assert.equal(trackedSpecs.length, EXPECTED_SPEC_COUNT);
-  assert.equal(entries.length, EXPECTED_SPEC_COUNT);
+  assert.equal(workspaceSpecs.length, EXPECTED_WORKSPACE_SPEC_COUNT);
+  assert.equal(entries.length, EXPECTED_CATALOG_SPEC_COUNT);
+  assert.equal(manualOnlySpecs.length, EXPECTED_MANUAL_ONLY_SPEC_COUNT);
   assert.deepEqual(catalogPaths, sortedCatalogPaths, "catalog paths must stay sorted");
+  assert.deepEqual(manualOnlySpecs, sortedManualOnlySpecs, "manual-only paths must stay sorted");
   assert.equal(new Set(catalogPaths).size, catalogPaths.length, "catalog paths must be unique");
+  assert.equal(
+    new Set(manualOnlySpecs).size,
+    manualOnlySpecs.length,
+    "manual-only paths must be unique",
+  );
+  assert.equal(
+    catalogPaths.some((path) => manualOnlySpecs.includes(path)),
+    false,
+    "catalog and manual-only specs must be disjoint",
+  );
 
   assert.deepEqual(
-    trackedSpecs.map(frontendPath).sort(),
-    catalogPaths,
-    "every tracked frontend/e2e spec must be cataloged exactly once",
-  );
-  assert.deepEqual(
-    catalogRepoPaths.sort(),
-    trackedSpecs,
-    "every catalog entry must point to a tracked spec",
+    workspaceSpecs,
+    classifiedPaths,
+    "every physical frontend/e2e spec must be classified exactly once as cataloged or manual-only",
   );
 
-  for (const path of catalogPaths) {
+  for (const path of classifiedPaths) {
     assert.equal(path.includes("\\"), false, `${path} must use forward slashes`);
     assert.equal(path.startsWith("e2e/"), true, `${path} must be relative to frontend/`);
     assert.equal(path.endsWith(".spec.ts"), true, `${path} must be a Playwright spec`);
@@ -247,8 +276,8 @@ function validateCatalog(entries: readonly E2eCatalogEntry[], trackedSpecs: read
 }
 
 test("E2E suite catalog is complete, deterministic and fail-closed", async () => {
-  const trackedSpecs = await trackedE2eSpecs();
-  validateCatalog(E2E_SUITE_CATALOG, trackedSpecs);
+  const workspaceSpecs = workspaceE2eSpecs();
+  validateCatalog(E2E_SUITE_CATALOG, workspaceSpecs, E2E_MANUAL_ONLY_SPECS);
 });
 
 test("frontend package scripts delegate cohorts to the catalog runner", () => {
@@ -279,12 +308,18 @@ test("frontend package scripts delegate cohorts to the catalog runner", () => {
 });
 
 test("catalog validation catches missing and duplicate entries in memory", async () => {
-  const trackedSpecs = await trackedE2eSpecs();
+  const workspaceSpecs = workspaceE2eSpecs();
   const missing = E2E_SUITE_CATALOG.slice(1);
   const duplicated = [...E2E_SUITE_CATALOG, E2E_SUITE_CATALOG[0]];
 
-  assert.throws(() => validateCatalog(missing, trackedSpecs), /75|cataloged/);
-  assert.throws(() => validateCatalog(duplicated, trackedSpecs), /75|unique/);
+  assert.throws(
+    () => validateCatalog(missing, workspaceSpecs, E2E_MANUAL_ONLY_SPECS),
+    /77|classified/,
+  );
+  assert.throws(
+    () => validateCatalog(duplicated, workspaceSpecs, E2E_MANUAL_ONLY_SPECS),
+    /77|unique/,
+  );
 });
 
 test("runner rejects unknown cohorts and prints valid cohorts", () => {

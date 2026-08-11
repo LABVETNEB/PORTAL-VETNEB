@@ -619,7 +619,10 @@ export function AdminClinicsManagementCard() {
             />
           </div>
           {totalClinics > 0 ? (
-            <div className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
+            <div
+              data-dashboard-adaptive-reserved-region="pager"
+              className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground"
+            >
               <span className="tabular-nums">
                 {pageStart}–{pageEnd} de {totalClinics}
               </span>
@@ -651,6 +654,7 @@ export function AdminClinicsManagementCard() {
 
         <div
           ref={setDesktopBodyNode}
+          data-dashboard-adaptive-rows-canvas="true"
           className="dashboard-table-responsive hidden min-h-0 flex-1 md:block"
         >
           <Table className="text-[0.8125rem] [&_th]:h-9 [&_th]:px-3 [&_td]:px-3">
@@ -784,6 +788,7 @@ export function AdminClinicsManagementCard() {
 
           <div
             ref={setMobileBodyNode}
+            data-dashboard-adaptive-rows-canvas="true"
             className="min-h-0 flex-1 divide-y divide-vetneb-line/60 overflow-hidden rounded-lg border border-vetneb-line/75"
             data-admin-clinics-mobile-list="true"
           >
@@ -851,6 +856,7 @@ export function AdminClinicsManagementCard() {
             <div
               className="flex shrink-0 items-center justify-center gap-1.5 border-t border-vetneb-line/65 pt-1.5 text-xs text-muted-foreground"
               data-admin-mobile-core-pager="true"
+              data-dashboard-adaptive-reserved-region="pager"
             >
               <Button
                 type="button"

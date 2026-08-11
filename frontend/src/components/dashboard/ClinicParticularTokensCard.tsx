@@ -989,6 +989,7 @@ export function ClinicParticularTokensCard() {
                 <ParticularTokensPanelBody
                   ref={setPanelBodyNode}
                   data-clinic-access-list-body="true"
+                  data-dashboard-adaptive-rows-canvas="true"
                   className="relative"
                 >
                   {filteredTokens.length ? (
@@ -1130,6 +1131,7 @@ export function ClinicParticularTokensCard() {
 
                 <ParticularTokensPanelFooter
                   data-clinic-access-pagination-footer="true"
+                  data-dashboard-adaptive-reserved-region="pager"
                 >
                   <div
                     data-clinic-access-pagination-controls="true"

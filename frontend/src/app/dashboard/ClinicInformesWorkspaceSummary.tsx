@@ -458,6 +458,7 @@ export function ClinicInformesWorkspaceSummary({
           <div
             ref={setReportsListBodyNode}
             data-clinic-reports-list-body="true"
+            data-dashboard-adaptive-rows-canvas="true"
             className="flex min-h-0 flex-1 flex-col overflow-hidden"
           >
             {filteredReports.length ? (
@@ -583,6 +584,7 @@ export function ClinicInformesWorkspaceSummary({
 
           <div
             data-clinic-reports-pagination-footer="true"
+            data-dashboard-adaptive-reserved-region="pager"
             className="flex shrink-0 items-center justify-center border-t border-vetneb-line/65 px-3 text-xs text-muted-foreground"
           >
             <nav

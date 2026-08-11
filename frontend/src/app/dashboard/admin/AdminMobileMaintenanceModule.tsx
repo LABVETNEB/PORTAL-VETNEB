@@ -316,6 +316,7 @@ function MaintenanceDryRunSection() {
           <div
             ref={setCandidatesListNode}
             data-admin-mobile-maintenance-candidates-list="true"
+            data-dashboard-adaptive-rows-canvas="true"
             className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden"
           >
             {pageCandidates.length ? (

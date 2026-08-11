@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -62,7 +62,15 @@ export function DashboardPager({
     <nav
       aria-label={ariaLabel}
       data-dashboard-pager="true"
+      data-dashboard-adaptive-reserved-region="pager"
       className={cn("dashboard-pager", className)}
+      style={{
+        "--dash-adaptive-pager-reserved-block-size":
+          "var(--dash-pagination-h, 2.5rem)",
+        blockSize: "var(--dash-adaptive-pager-reserved-block-size)",
+        minBlockSize: "var(--dash-adaptive-pager-reserved-block-size)",
+        maxBlockSize: "var(--dash-adaptive-pager-reserved-block-size)",
+      } as CSSProperties}
     >
       <span data-dashboard-pager-prev="true" className="inline-flex">
         {prevControl ?? (

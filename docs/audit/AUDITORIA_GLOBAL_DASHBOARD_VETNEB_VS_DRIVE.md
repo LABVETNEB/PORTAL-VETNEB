@@ -596,6 +596,40 @@ Ninguna de estas cuatro correcciones implementa A05 ni A06: no hay reserva geom�
 **Alternativa admisible (§48, PR-A06):** medición explícita por regiones (app header · module header · toolbar · filtros · resumen · rows canvas · pager) con un solo hook unificado.
 **Solución prohibida:** fijar `limit = 12`, `limit = 16` o cualquier valor global. La paginación debe seguir adaptándose al viewport y al zero-scroll.
 
+### 20.7 Estado supervisor de A05 e inversión controlada de dependencia *(2026-08-11)*
+
+**A05 queda CLOSED por el gate supervisor.** Los **15 consumidores canónicos** declaran una reserva geométrica estable para sus regiones estructurales; el pager compartido y la barra de acción sticky publican una huella estable antes de que el canvas adaptativo derive su capacidad. Los tres hooks existentes (`useAdaptiveItemsPerPage`, `useAdaptiveRowsPerPage` y `useAdaptiveDashboardPageSize`) se preservan: A05 no los unifica, no fija un `limit`, no cambia sus breakpoints y no implementa A06 ni A07. La implementación, su oracle y el `e2e:extended` definitivo cerraron con exit 0 sobre el worktree supervisado.
+
+La implementación verificó, en los 15 consumidores y los 13 viewports canónicos, que regiones reservadas de **32/48/64 px** y un resize en caliente conservan el `limit`, y que cambios internos de contenido no provocan refetches geométricos espurios. A06 (**hook unificado**) y A07 (**migración de los 15 consumidores al hook unificado**) permanecen **NOT_IMPLEMENTED**.
+
+**Inversión controlada de dependencia.** El orden conceptual del roadmap mantiene A03 → A05, pero el freeze de A03 quedó bloqueado por la carrera geométrica descrita en §20.6. A05 se adelantó deliberadamente para eliminar esa realimentación; no convierte la evidencia de A03 en freeze ni satisface su regla de dos corridas completas en frío consecutivas. A03 permanece **OPEN / NOT FROZEN** y su siguiente operación, después de integrar A05, es ejecutar `cold-1` + `cold-2`, exigir 195/195/234/234 en ambas y confirmar `DRIFT_COUNT = 0` antes de congelar.
+
+**Revisión supervisora del expected-fail de CAP-C3.** El colapso en la carga inicial no fue introducido por A05: el commit versionado `66dbda3d7e50acc30ff912f43aaaa094cce9c629` (2026-07-17), en `docs/implementation/e2e-org-5-platform-domain-organization.md`, registra que ocurre durante `page.goto`, antes de cualquier navegación por `searchParams`, reproduce con un worker y puede dejar `/dashboard/informes` limitado a una sola fila. El guard inicial queda separado del guard histórico de `searchParams` y sólo acepta esta firma: ruta `/dashboard/informes` sin query, viewport 1280 × 720, fila inicial `8401`, total 1000, `Mostrando 1-1`, página y pager `1 / 1000`, datos presentes, canvas y fila con la geometría recortada conocida, pager visible, cero error/loading/empty, cero overflow global, cero respuestas HTTP ≥500 y cero `pageerror`. Un contrato por mutaciones demuestra que `limit = 2`, datos vacíos, error, loading, canvas 0, pager ausente, overflow, ruta/query distintas, HTTP 500 o `pageerror` no arman el expected-fail. CAP-C3 cerró 6/6 con 3 pases normales, 3 expected-fails históricos y 0 fallos inesperados; el first-page repeat cerró 20 pases normales, 0 expected-fails y 0 fallos inesperados.
+
+**Reconciliación A02 acotada.** La corrección legítima del pager de Usuarios/Roles descrita arriba dejó obsoletos únicamente sus registros Windows. Se recapturó esa superficie completa —**13 registros, 13 claves únicas**— y se realinearon sólo **8 viewports**, con **7 rutas métricas únicas** y **42 valores escalares** modificados. No hubo rebaseline global, cambios de tolerancia, cambios de schema ni cambios de provenance global; la captura queda identificada como reconciliación parcial A02 de esta fecha sobre el linaje `ceeb64d330fdca890af3c30ab0b74058b2d82124`. La matriz A02 completa volvió a cerrar en **21 superficies × 13 viewports = 273 combinaciones**.
+
+**Reconciliación del catálogo E2E.** El árbol físico contiene **78 specs**: **77** pertenecen al catálogo estático y **1** (`e2e/regression/dashboard-adaptive-limit-baseline.spec.ts`) queda declarada manual-only mientras A03 está pre-freeze. No hay faltantes, duplicados ni solapamiento entre ambos conjuntos. El catálogo conserva **19 admin**, **8 regression**, **28 extended** y **77 full**. `admin-users-roles-pager-reachability.spec.ts` se clasifica como admin/users, P1, fixture poblado y cohortes extended/full; `dashboard-limit-invariance.spec.ts` como regression/dashboard, P1 y extended/full; el baseline adaptativo A03 no pertenece a cohortes estáticas y sigue siendo opt-in local.
+
+Evidencia de cierre observada en este worktree:
+
+| Gate | Resultado |
+|---|---|
+| Arquitectura / verificación de catálogo | **PASSED** · 6/6 + 6/6 · exit 0 |
+| A02 Usuarios/Roles, captura dirigida y post-reconciliación | **PASSED** · 13 registros únicos · exit 0 |
+| A02 completo | **PASSED** · 21/21 superficies · 273/273 combinaciones · exit 0 |
+| Unit A05 | **PASSED** · 12/12 · exit 0 |
+| Invariancia A05 | **PASSED** · 15/15 consumidores · 13 viewports · 32/48/64 px + hot resize · exit 0 |
+| CAP-C3 supervisor | **PASSED** · 6/6 · 3 normales + 3 expected-fails históricos + 0 inesperados · exit 0 |
+| CAP-C3 first-page repeat | **PASSED** · 20 normales + 0 expected-fails + 0 inesperados · exit 0 |
+| E2E `extended` supervisor | **PASSED** · 28 specs · 222 tests · 222 expected + 0 unexpected · exit 0 |
+| E2E `affected` conservador | **NOT_RUN** · el correctivo quedó limitado al readiness de un spec; no cambió helper, catálogo ni infraestructura compartida |
+| Frontend lint / typecheck | **PASSED** · exit 0 / exit 0 |
+| Frontend build / `security:public-surface` | **PASSED** · evidencia previa del mismo worktree, no invalidada; no reejecutados durante esta continuación |
+
+Las dos corridas supervisoras previas fallaron únicamente en `admin-users-visual-quality-gate.spec.ts`, estados iniciales mobile 390 × 844 y 430 × 932. El fallo real no era una colección asentada en cero: la aserción prematura observaba `rewrittenUrls.length === 0` unos milisegundos después de que el wrapper móvil ya fuera visible, antes de que el `useEffect` cliente emitiera `/api/admin/users-roles`. En aislamiento, la compilación más lenta ocultaba la carrera. El readiness del spec registra ahora, antes de navegar, la respuesta GET de `/api/admin/users-roles` ya reescrita con `dataset=high-volume`, exige respuesta HTTP exitosa y sólo después evalúa estado, primera fila y métricas asentadas. Se preservan `rewrittenUrls.length > 0`, la comprobación de `dataset=high-volume`, `rowCount > 0` y todas las aserciones de total, paginación y geometría; no se añadieron retries, sleeps, tolerancias ni timeouts.
+
+El correctivo cerró **2/2** casos dirigidos, **15/15** estados del spec completo y **150/150** ejecuciones del spec con `--repeat-each=10`, todos con cero fallos inesperados y exit 0. El único `e2e:extended` posterior cerró **28 specs / 222 tests / 222 expected / 0 unexpected**, exit 0. El guard supervisor CAP-C3 permanece fail-closed y sin cambios. Por ello A05 queda **CLOSED**; A03 sigue **OPEN / NOT FROZEN**, no se inició en esta tarea, y A06/A07 siguen **NOT_IMPLEMENTED**.
+
 ### 20.1 Universo canónico de A03 *(normativo)*
 
 **La unidad canónica de A03 son los 15 consumidores de hooks adaptativos inventariados en la tabla anterior**, los mismos que §40 P0-03 referencia como «15 consumidores (§20)» y que el Hecho 2 de §1.3 cuenta como «15 módulos con 15 pares (fila, fallback, cap) distintos».
@@ -708,7 +742,7 @@ Cada observación hoja declara su fuente mediante una **unión discriminada** de
 
 Queda prohibido, dentro de A03: elegir sólo la primera instancia de un consumidor compuesto; seleccionar una ruta «representativa» sin medir las demás; aplicar mínimo; aplicar máximo; calcular promedio; colapsar las variantes a un único valor; expandir el universo primario a 18 `moduleId`; convertir las variantes en módulos nuevos; fijar globalmente un `limit`; y corregir offsets, hooks o paginación.
 
-A03 **sólo captura el comportamiento existente**. No implementa reserva geométrica estable, nuevos breakpoints, corrección del algoritmo adaptativo, unificación de hooks, cambio de límites, cambio de `offset`, deduplicación de requests, prevención de *thrash*, ni ninguna corrección de A05 o A06. A03 depende de A01 y precede a A05 y A06 (§48). Las incoherencias que A03 descubra se **registran y documentan como riesgo**; no se corrigen en A03.
+A03 **sólo captura el comportamiento existente**. No implementa reserva geométrica estable, nuevos breakpoints, corrección del algoritmo adaptativo, unificación de hooks, cambio de límites, cambio de `offset`, deduplicación de requests, prevención de *thrash*, ni ninguna corrección de A05 o A06. A03 depende de A01 y conceptualmente precede a A05 y A06 (§48); la excepción operativa controlada que adelantó A05 para desbloquear el freeze se documenta en §20.7 y no congela A03. Las incoherencias que A03 descubra se **registran y documentan como riesgo**; no se corrigen en A03.
 
 ---
 

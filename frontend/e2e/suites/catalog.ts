@@ -98,6 +98,7 @@ export const E2E_SUITE_CATALOG = [
   entry("e2e/admin/shell/admin-mobile-status-modules-no-scroll.spec.ts", "admin", "shell", "status modules no-scroll", ["admin-mobile"], ci, { fixture: "admin-mobile-contracts", evidence: "test-results" }),
   entry("e2e/admin/tokens/admin-tokens-mobile-toolbar-layout.spec.ts", "admin", "tokens", "mobile toolbar layout", ["admin-mobile"], ci),
   entry("e2e/admin/users/admin-users-fixture-pagination.spec.ts", "admin", "users", "fixture pagination", [], extended, { fixture: "admin-populated-api-server" }),
+  entry("e2e/admin/users/admin-users-roles-pager-reachability.spec.ts", "admin", "users", "pager reachability under adaptive geometry", [], extended, { criticality: "P1", fixture: "admin-populated-api-server", notes: "A03 PASS 3 regression: the adaptive desktop row floor must keep the pager reachable." }),
   entry("e2e/admin/users/admin-users-visual-quality-gate.spec.ts", "admin", "users", "visual quality capacity", [], extended, { fixture: "admin-mobile-contracts", notes: "Audit CAP classification mapped to extended in E2E-ORG-1." }),
   entry("e2e/admin/users/admin-users-workspace-5000.spec.ts", "admin", "users", "workspace capacity 5000", [], extended, { notes: "Audit CAP classification mapped to extended in E2E-ORG-1." }),
   entry("e2e/admin/users/admin-users-workspace-mobile-5000.spec.ts", "admin", "users", "mobile workspace capacity 5000", [], extended, { fixture: "admin-mobile-contracts", notes: "Audit CAP classification mapped to extended in E2E-ORG-1." }),
@@ -152,6 +153,7 @@ export const E2E_SUITE_CATALOG = [
   entry("e2e/public/routes/public-routes.spec.ts", "public", "routes", "public routes resolve", ["smoke"], ci, { criticality: "P1", notes: "Availability boundary; do not demote." }),
   entry("e2e/public/services/public-service-bento-specimen-journey.spec.ts", "public", "services", "service bento specimen journey", ["public-clinic"], ci),
   entry("e2e/regression/dashboard-geometry-baseline.spec.ts", "regression", "dashboard", "geometry baseline 21x13", [], extended, { criticality: "P1", fixture: "admin-populated-api-server", evidence: "test-results", notes: "A02: frozen CURRENT geometry of 21 surfaces x 13 viewports (273 combinations); not target geometry (audit §46), not the A08 zero-scroll contract." }),
+  entry("e2e/regression/dashboard-limit-invariance.spec.ts", "regression", "dashboard", "A05 stable geometry reservation limit invariance 15x13", [], extended, { criticality: "P1", fixture: "admin-populated-api-server", notes: "A05: 15 adaptive consumers across the 13 canonical viewports; exact 32/48/64 internal-region invariance plus hot A-B-A viewport transitions." }),
   entry("e2e/regression/dashboard-operational-contract.spec.ts", "regression", "dashboard", "operational contract S1", ["smoke"], ci, { criticality: "P1", notes: "A01: this E2E covers S1 (the only URL-persisted super searcher); the source-backed matrix in test/unit/ui/dashboard/dashboard-operational-contract-baseline.test.ts covers S1-S7." }),
   entry("e2e/regression/evidence/dashboard-runtime-post-ux1-visual-evidence.spec.ts", "regression", "evidence", "runtime visual evidence", [], evidence, { evidence: "test-results" }),
   entry("e2e/regression/evidence/remove-home-unified-workspace-screenshots.spec.ts", "regression", "evidence", "workspace screenshots evidence", [], evidence, { evidence: "test-results" }),
@@ -159,6 +161,12 @@ export const E2E_SUITE_CATALOG = [
   entry("e2e/regression/visual/visual-regression-public.spec.ts", "regression", "visual", "public pixel baseline", [], visualLinux, { platform: "linux", evidence: "snapshots", targetGate: "manual", notes: "Linux-only baseline; public spec has no platform skip." }),
   entry("e2e/regression/visual/visual-regression-stress.spec.ts", "regression", "visual", "stress pixel baseline", [], visualLinux, { platform: "linux", evidence: "snapshots", targetGate: "manual" }),
 ] as const satisfies readonly E2eCatalogEntry[];
+
+// A03 pre-freeze, local opt-in only. Not part of static execution cohorts;
+// remove this exception when A03 is frozen.
+export const E2E_MANUAL_ONLY_SPECS = [
+  "e2e/regression/dashboard-adaptive-limit-baseline.spec.ts",
+] as const satisfies readonly `e2e/${string}.spec.ts`[];
 
 export const E2E_COHORT_SPECS: Readonly<Record<E2eExecutionCohort, readonly E2eCatalogEntry["path"][]>> =
   Object.freeze({

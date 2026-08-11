@@ -1472,6 +1472,7 @@ export function AdminParticularTokensCard() {
         >
           <div
             ref={setDesktopBodyNode}
+            data-dashboard-adaptive-rows-canvas="true"
             className="dashboard-table-responsive hidden min-h-0 flex-1 md:block"
           >
             <Table className="table-fixed text-xs [&_th]:h-7 [&_th]:px-2 [&_td]:px-2">
@@ -1543,6 +1544,7 @@ export function AdminParticularTokensCard() {
           >
             <ParticularTokensMobileList
               ref={setMobileBodyNode}
+              data-dashboard-adaptive-rows-canvas="true"
               data-admin-particulars-mobile-list="true"
             >
               {visibleTokens.map((token, index) => (
@@ -1594,6 +1596,7 @@ export function AdminParticularTokensCard() {
               <div
                 className="flex shrink-0 items-center justify-center gap-1.5 border-t border-vetneb-line/65 pt-1.5 text-xs text-muted-foreground"
                 data-admin-mobile-core-pager="true"
+                data-dashboard-adaptive-reserved-region="pager"
               >
                 <Button
                   type="button"
@@ -1649,7 +1652,10 @@ export function AdminParticularTokensCard() {
             </p>
           ) : null}
 
-          <div className="mt-2 hidden min-h-10 shrink-0 items-center justify-between gap-2 border-t border-vetneb-line/65 px-1 pt-2 text-xs text-muted-foreground md:mt-1 md:flex md:min-h-8 md:pt-1">
+          <div
+            data-dashboard-adaptive-reserved-region="pager"
+            className="mt-2 hidden min-h-10 shrink-0 items-center justify-between gap-2 border-t border-vetneb-line/65 px-1 pt-2 text-xs text-muted-foreground md:mt-1 md:flex md:min-h-8 md:pt-1"
+          >
             <span>
               {filteredTokens.length
                 ? `${pagedTokens.rangeStart}–${pagedTokens.rangeEnd}`

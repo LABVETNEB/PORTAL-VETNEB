@@ -488,6 +488,7 @@ export function AdminSessionsReadOnlyCard() {
         <div
           ref={setDesktopBodyNode}
           data-admin-sesiones-list-body="true"
+          data-dashboard-adaptive-rows-canvas="true"
           className="min-h-0 flex-1 py-1"
         >
           {sessions.length ? (
@@ -600,6 +601,7 @@ export function AdminSessionsReadOnlyCard() {
 
         <footer
           data-admin-sesiones-pagination="true"
+          data-dashboard-adaptive-reserved-region="pager"
           className="dashboard-table-pagination min-h-9 shrink-0 border-t border-vetneb-line/70 px-3 py-1 text-xs text-muted-foreground sm:px-4"
           aria-label="Paginación de sesiones"
         >
@@ -719,6 +721,7 @@ export function AdminSessionsReadOnlyCard() {
         <div
           ref={setMobileBodyNode}
           data-admin-sesiones-list-body="true"
+          data-dashboard-adaptive-rows-canvas="true"
           className="min-h-0 flex-1 divide-y divide-vetneb-line/70 overflow-hidden"
         >
           {sessions.length ? (

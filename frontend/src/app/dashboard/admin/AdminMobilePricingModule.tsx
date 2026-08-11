@@ -340,6 +340,7 @@ export function AdminMobilePricingModule() {
       </p>
       <div
         ref={setCatalogListNode}
+        data-dashboard-adaptive-rows-canvas="true"
         className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden"
       >
         {catalogRows.length ? (

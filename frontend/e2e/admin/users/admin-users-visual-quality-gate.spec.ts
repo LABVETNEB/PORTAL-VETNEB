@@ -959,7 +959,18 @@ test.describe("admin users-roles visual quality gate (PR-CAP-QA1)", () => {
 
       const rewrittenUrls: string[] = [];
       await routeHighVolumeUsersRoles(page, rewrittenUrls);
+      const highVolumeResponsePromise = page.waitForResponse((response) => {
+        const url = new URL(response.url());
+        return (
+          response.request().method() === "GET" &&
+          url.pathname === "/api/admin/users-roles" &&
+          url.searchParams.get("dataset") === "high-volume"
+        );
+      });
       await openUsersRolesWorkspace(page, viewport.isDesktop);
+
+      const highVolumeResponse = await highVolumeResponsePromise;
+      expect(highVolumeResponse.ok()).toBe(true);
 
       if (state !== "default") {
         if (viewport.isDesktop) {

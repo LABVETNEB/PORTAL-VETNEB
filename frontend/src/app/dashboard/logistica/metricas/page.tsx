@@ -325,6 +325,7 @@ export default async function MetricasPage({
           <nav
             aria-label="Paginación de métricas de ruta"
             data-dashboard-pager="true"
+            data-dashboard-adaptive-reserved-region="pager"
             className="dashboard-pager shrink-0 border-t border-vetneb-line/70"
           >
             <span data-dashboard-pager-prev="true" className="inline-flex">
