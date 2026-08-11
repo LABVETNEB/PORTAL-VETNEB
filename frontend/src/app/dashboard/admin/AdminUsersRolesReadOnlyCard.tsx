@@ -49,6 +49,7 @@ const USERS_ROLES_ROW_HEIGHT_FALLBACK_PX = 40;
 
 type Measurement = {
   containerNode: HTMLElement | null;
+  containerHeightPx: number;
   rowHeightPx: number;
   headerHeightPx: number;
 };
@@ -56,6 +57,7 @@ type Measurement = {
 function measurementsEqual(a: Measurement, b: Measurement) {
   return (
     a.containerNode === b.containerNode &&
+    a.containerHeightPx === b.containerHeightPx &&
     a.rowHeightPx === b.rowHeightPx &&
     a.headerHeightPx === b.headerHeightPx
   );
@@ -189,6 +191,7 @@ export function AdminUsersRolesReadOnlyCard() {
   const [mobileRowNode, setMobileRowNode] = useState<HTMLElement | null>(null);
   const [measurement, setMeasurement] = useState<Measurement>({
     containerNode: null,
+    containerHeightPx: 0,
     rowHeightPx: USERS_ROLES_ROW_HEIGHT_FALLBACK_PX,
     headerHeightPx: 0,
   });
@@ -222,6 +225,7 @@ export function AdminUsersRolesReadOnlyCard() {
         setMeasurement((previous) => {
           const next: Measurement = {
             containerNode: mobileBodyNode,
+            containerHeightPx: mobileHeight,
             rowHeightPx:
               rowHeight > 0 ? rowHeight : USERS_ROLES_ROW_HEIGHT_FALLBACK_PX,
             headerHeightPx: 0,
@@ -237,6 +241,7 @@ export function AdminUsersRolesReadOnlyCard() {
         setMeasurement((previous) => {
           const next: Measurement = {
             containerNode: desktopBodyNode,
+            containerHeightPx: desktopHeight,
             rowHeightPx:
               rowHeight > 0 ? rowHeight : USERS_ROLES_ROW_HEIGHT_FALLBACK_PX,
             headerHeightPx: USERS_ROLES_TABLE_HEADER_PX,
@@ -264,21 +269,32 @@ export function AdminUsersRolesReadOnlyCard() {
     };
   }, [desktopBodyNode, mobileBodyNode, desktopRowNode, mobileRowNode]);
 
-  // The desktop table has two-line rows (~41px), so at the shortest supported
-  // desktop viewport (1366×768) exactly nine rows fit the measured container.
-  // A positive safety cushion would floor that to eight and break the
-  // established "nine populated rows" desktop contract, so the desktop context
-  // (detected by the discounted table header) keeps a floor of nine — matching
-  // the pre-adaptive fixed page size — while still adapting upward on taller
-  // viewports. The mobile list (no table header) keeps a floor of one so it can
-  // shrink freely on short phones.
+  // Keep the nine-row desktop density only when the measured physical canvas
+  // can actually contain nine rows. Short desktop canvases are allowed to
+  // contract below nine so the pager remains reachable; mobile keeps a floor
+  // of one. Cardinality remains derived from measured geometry, not viewport
+  // names or width-specific mappings.
   const isDesktopMeasurement = measurement.headerHeightPx > 0;
+  const physicalRowCapacity =
+    measurement.rowHeightPx > 0
+      ? Math.floor(
+          Math.max(
+            0,
+            measurement.containerHeightPx - measurement.headerHeightPx,
+          ) / measurement.rowHeightPx,
+        )
+      : 0;
+  const desktopNineRowFloorFits =
+    isDesktopMeasurement &&
+    physicalRowCapacity >= USERS_ROLES_FALLBACK_ROWS;
+
   const { itemsPerPage: rowsPerPage } = useAdaptiveItemsPerPage({
     containerNode: measurement.containerNode,
     fallbackItems: USERS_ROLES_FALLBACK_ROWS,
     itemHeightPx: measurement.rowHeightPx,
     headerHeightPx: measurement.headerHeightPx,
-    minItems: isDesktopMeasurement ? USERS_ROLES_FALLBACK_ROWS : 1,
+    safetyGapPx: isDesktopMeasurement ? 0 : 6,
+    minItems: desktopNineRowFloorFits ? USERS_ROLES_FALLBACK_ROWS : 1,
     maxItems: USERS_ROLES_SUPERSET_CAP,
   });
 
@@ -606,7 +622,7 @@ export function AdminUsersRolesReadOnlyCard() {
 
         <div
           ref={setDesktopBodyNode}
-          className="min-h-0 flex-1 py-2 md:py-1"
+          className="min-h-0 flex-1"
         >
           {users.length ? (
             <div className="dashboard-table-responsive dashboard-fitted-table px-3 sm:px-4">

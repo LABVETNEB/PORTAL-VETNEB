@@ -141,6 +141,12 @@ export function InformesReportsList({
     useState<ReportDetailSection>("resumen");
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
 
+  const [hasMeasuredRows, setHasMeasuredRows] = useState(false);
+  // Row height is font-dependent, so a pitch measured before the webfonts land
+  // is provisional: committing it issued a fetch with a limit that the very
+  // next layout pass invalidated (§20.3 limit thrash). The measurement waits
+  // for the same signal the convergence contract uses.
+  const [fontsReady, setFontsReady] = useState(false);
   const [bodyNode, setBodyNode] = useState<HTMLElement | null>(null);
   const [rowNode, setRowNode] = useState<HTMLElement | null>(null);
   const [measurement, setMeasurement] = useState<Measurement>({
@@ -150,13 +156,40 @@ export function InformesReportsList({
 
   const latestRequestRef = useRef(0);
   const totalRef = useRef(initialTotal);
+  const rowPitchRef = useRef({ containerHeight: 0, rowHeightPx: 0 });
+  const onFirstPageRef = useRef(true);
+
+  useLayoutEffect(() => {
+    onFirstPageRef.current = offset === 0;
+  }, [offset]);
 
   useEffect(() => {
     totalRef.current = totalCount;
   }, [totalCount]);
 
+  useEffect(() => {
+    let cancelled = false;
+    const fonts = document.fonts;
+
+    if (!fonts) {
+      setFontsReady(true);
+      return;
+    }
+
+    void fonts.ready.then(() => {
+      if (!cancelled) {
+        setFontsReady(true);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+
   useLayoutEffect(() => {
-    if (!bodyNode) {
+    if (!bodyNode || !fontsReady) {
       return;
     }
 
@@ -170,7 +203,32 @@ export function InformesReportsList({
         return;
       }
 
-      const rowHeight = rowNode?.getBoundingClientRect().height ?? 0;
+      const cached = rowPitchRef.current;
+
+      // Row pitch belongs to the LAYOUT, not to the page being shown. It is learned ONCE per canvas
+      // geometry, so a taller row in another slice cannot change the page size,
+      // refetch and re-render — the limit thrash of §20.3.
+      if (cached.rowHeightPx > 0 &&
+        (!onFirstPageRef.current ||
+          cached.containerHeight === containerHeight)) {
+        return;
+      }
+
+      // Derived from the measured row itself: `setBodyNode` is attached to two
+      // different elements across renders, so its children are not reliably the
+      // rows. The row's grandparent IS the canvas that stacks them.
+      const canvas = rowNode?.parentElement?.parentElement ?? null;
+      const rows = canvas ? (Array.from(canvas.children) as HTMLElement[]) : [];
+      const rowHeight = rows.reduce(
+        (maximum, row) => Math.max(maximum, row.getBoundingClientRect().height),
+        rowNode?.getBoundingClientRect().height ?? 0,
+      );
+
+      if (rowHeight > 0) {
+        rowPitchRef.current = { containerHeight, rowHeightPx: rowHeight };
+        setHasMeasuredRows(true);
+      }
+
       setMeasurement((previous) => {
         const next: Measurement = {
           containerNode: bodyNode,
@@ -191,15 +249,22 @@ export function InformesReportsList({
     if (rowNode) {
       observer.observe(rowNode);
     }
+
+    // Rows are replaced wholesale on a page change; the replacement is the
+    // signal that a reprobe may be due.
+    const mutationObserver = new MutationObserver(scheduleRecompute);
+    mutationObserver.observe(bodyNode, { childList: true, subtree: true });
+
     recompute();
 
     return () => {
+      mutationObserver.disconnect();
       observer.disconnect();
       if (frame !== null) {
         cancelAnimationFrame(frame);
       }
     };
-  }, [bodyNode, rowNode]);
+  }, [bodyNode, rowNode, fontsReady]);
 
   const { itemsPerPage: rowsPerPage } = useAdaptiveItemsPerPage({
     containerNode: measurement.containerNode,
@@ -209,7 +274,23 @@ export function InformesReportsList({
     maxItems: INFORMES_LIMIT_CAP,
   });
 
-  const effectiveLimit = rowsPerPage;
+  // The measured page size is settled on page 1 and PINNED for the rest of the
+  // pagination run. `bodyNode` is attached to two different elements across the
+  // loading/populated branches, so a transition could swap the measured
+  // container and change `rowsPerPage` mid-flight — which re-issued the request
+  // with a new pageSize AND recomputed the offset: the §20.3 limit thrash.
+  // Returning to page 1 re-learns it, so a resize still adapts.
+  const [pinnedLimit, setPinnedLimit] = useState<number | null>(null);
+
+  useLayoutEffect(() => {
+    if (offset === 0) {
+      setPinnedLimit((previous) =>
+        previous === rowsPerPage ? previous : rowsPerPage,
+      );
+    }
+  }, [offset, rowsPerPage]);
+
+  const effectiveLimit = offset === 0 ? rowsPerPage : (pinnedLimit ?? rowsPerPage);
 
   const query = useMemo(
     () => ({
@@ -245,6 +326,16 @@ export function InformesReportsList({
   }, [effectiveLimit]);
 
   useEffect(() => {
+    // The server already rendered page 1. Issuing the first client fetch with
+    // the PRE-MEASUREMENT fallback limit produced a second request the moment
+    // the real row pitch landed — two requests for one page, which is the
+    // §20.3 limit thrash. Wait until the canvas has actually been measured, so
+    // the first client request already carries the measured limit. An empty
+    // collection has no row to measure and must not be blocked.
+    if (!hasMeasuredRows && reports.length > 0) {
+      return;
+    }
+
     const requestId = latestRequestRef.current + 1;
     latestRequestRef.current = requestId;
 
@@ -267,7 +358,7 @@ export function InformesReportsList({
       setLoadError(result.loadError);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query]);
+  }, [query, hasMeasuredRows]);
 
   // The measured `effectiveLimit` can shrink faster than the corrective
   // server re-fetch resolves (network round trip). Capping the rendered

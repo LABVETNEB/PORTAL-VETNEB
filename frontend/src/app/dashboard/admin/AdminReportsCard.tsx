@@ -232,6 +232,13 @@ export function AdminReportsCard() {
   });
 
   const latestRequestRef = useRef(0);
+  const rowPitchRef = useRef({ containerHeight: 0, rowHeightPx: 0 });
+  const onFirstPageRef = useRef(true);
+
+  useLayoutEffect(() => {
+    onFirstPageRef.current = offset === 0;
+  }, [offset]);
+
 
   useLayoutEffect(() => {
     const nodes = [
@@ -246,12 +253,53 @@ export function AdminReportsCard() {
 
     let frame: number | null = null;
 
+    // Row pitch is a property of the LAYOUT, not of the slice being shown: the
+    // tallest row of the container is the pitch, learned ONCE per canvas
+    // geometry. Re-learning it from a different slice changed the limit, which
+    // refetched, which re-rendered — the limit thrash of §20.3. Content changes
+    // never re-learn it; a real resize does.
+    const measureRowPitch = (
+      container: HTMLElement,
+      rowSelector: string,
+      firstRowNode: HTMLElement | null,
+    ): number => {
+      const containerHeight = container.getBoundingClientRect().height;
+      const cached = rowPitchRef.current;
+
+      if (cached.rowHeightPx > 0 &&
+        (!onFirstPageRef.current ||
+          cached.containerHeight === containerHeight)) {
+        return cached.rowHeightPx;
+      }
+
+      const rows = Array.from(
+        container.querySelectorAll<HTMLElement>(rowSelector),
+      );
+      const measured = rows.reduce(
+        (maximum, row) => Math.max(maximum, row.getBoundingClientRect().height),
+        firstRowNode?.getBoundingClientRect().height ?? 0,
+      );
+
+      if (measured > 0) {
+        rowPitchRef.current = { containerHeight, rowHeightPx: measured };
+        return measured;
+      }
+
+      return cached.rowHeightPx > 0
+        ? cached.rowHeightPx
+        : REPORTS_ROW_HEIGHT_FALLBACK_PX;
+    };
+
     const recompute = () => {
       frame = null;
 
       const mobileHeight = mobileBodyNode?.getBoundingClientRect().height ?? 0;
       if (mobileHeight > 0 && mobileBodyNode) {
-        const rowHeight = mobileRowNode?.getBoundingClientRect().height ?? 0;
+        const rowHeight = measureRowPitch(
+          mobileBodyNode,
+          '[data-admin-mobile-core-item="true"]',
+          mobileRowNode,
+        );
         setMeasurement((previous) => {
           const next: Measurement = {
             containerNode: mobileBodyNode,
@@ -266,7 +314,11 @@ export function AdminReportsCard() {
 
       const desktopHeight = desktopBodyNode?.getBoundingClientRect().height ?? 0;
       if (desktopHeight > 0 && desktopBodyNode) {
-        const rowHeight = desktopRowNode?.getBoundingClientRect().height ?? 0;
+        const rowHeight = measureRowPitch(
+          desktopBodyNode,
+          "tbody tr",
+          desktopRowNode,
+        );
         setMeasurement((previous) => {
           const next: Measurement = {
             containerNode: desktopBodyNode,
@@ -287,9 +339,22 @@ export function AdminReportsCard() {
 
     const observer = new ResizeObserver(scheduleRecompute);
     nodes.forEach((node) => observer.observe(node));
+
+    // Rows are replaced wholesale on a page change; the replacement itself is
+    // the signal that a reprobe may be due.
+    const mutationObserver = new MutationObserver(scheduleRecompute);
+    const collectionNode = mobileBodyNode ?? desktopBodyNode;
+    if (collectionNode) {
+      mutationObserver.observe(collectionNode, {
+        childList: true,
+        subtree: true,
+      });
+    }
+
     scheduleRecompute();
 
     return () => {
+      mutationObserver.disconnect();
       observer.disconnect();
       if (frame !== null) {
         cancelAnimationFrame(frame);

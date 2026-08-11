@@ -4,6 +4,7 @@ import {
   useEffect,
   useLayoutEffect,
   useMemo,
+  useRef,
   useState,
   useTransition,
 } from "react";
@@ -172,6 +173,8 @@ function MaintenanceDryRunSection() {
     useState<HTMLDivElement | null>(null);
   const [firstCandidateRowNode, setFirstCandidateRowNode] =
     useState<HTMLDivElement | null>(null);
+  const candidatePitchRef = useRef({ containerHeight: 0, rowHeightPx: 0 });
+  const onFirstCandidatePageRef = useRef(true);
   const [rowHeightPx, setRowHeightPx] = useState(
     CANDIDATE_ROW_HEIGHT_FALLBACK_PX,
   );
@@ -188,20 +191,59 @@ function MaintenanceDryRunSection() {
       return;
     }
 
+    // Row pitch belongs to the LAYOUT, not to the page on screen: learning it
+    // from another page's taller candidate changed `rowsPerPage` and re-sliced
+    // the list mid-transition. It is learned ONCE per canvas
+      // geometry: content changes never re-learn it, a real resize does.
     const measureRowHeight = () => {
-      const height = firstCandidateRowNode.getBoundingClientRect().height;
+      const containerHeight =
+        candidatesListNode?.getBoundingClientRect().height ?? 0;
+      const cached = candidatePitchRef.current;
+
+      if (
+        cached.rowHeightPx > 0 &&
+        (!onFirstCandidatePageRef.current ||
+          cached.containerHeight === containerHeight)
+      ) {
+        return;
+      }
+
+      const rows = candidatesListNode
+        ? (Array.from(candidatesListNode.children) as HTMLElement[])
+        : [];
+      const height = rows.reduce(
+        (maximum, row) => Math.max(maximum, row.getBoundingClientRect().height),
+        firstCandidateRowNode.getBoundingClientRect().height,
+      );
 
       if (height > 0) {
-        setRowHeightPx(height + CANDIDATE_ROW_GAP_PX);
+        const pitch = height + CANDIDATE_ROW_GAP_PX;
+        candidatePitchRef.current = { containerHeight, rowHeightPx: pitch };
+        setRowHeightPx((previous) => (previous === pitch ? previous : pitch));
       }
     };
 
     const observer = new ResizeObserver(measureRowHeight);
     observer.observe(firstCandidateRowNode);
+    if (candidatesListNode) {
+      observer.observe(candidatesListNode);
+    }
+
+    const mutationObserver = new MutationObserver(measureRowHeight);
+    if (candidatesListNode) {
+      mutationObserver.observe(candidatesListNode, {
+        childList: true,
+        subtree: true,
+      });
+    }
+
     measureRowHeight();
 
-    return () => observer.disconnect();
-  }, [firstCandidateRowNode]);
+    return () => {
+      mutationObserver.disconnect();
+      observer.disconnect();
+    };
+  }, [firstCandidateRowNode, candidatesListNode]);
 
   const { rowsPerPage } = useAdaptiveRowsPerPage({
     containerNode: candidatesListNode,
@@ -214,6 +256,11 @@ function MaintenanceDryRunSection() {
   // page size grows or the dataset shrinks, so a limit change can never leave
   // the list on an out-of-range page or produce a negative offset.
   const pagedCandidates = usePagedRows(candidates, rowsPerPage);
+
+  useLayoutEffect(() => {
+    onFirstCandidatePageRef.current = pagedCandidates.page === 0;
+  }, [pagedCandidates.page]);
+
   const pageCandidates = pagedCandidates.pageItems;
   const page = pagedCandidates.page + 1;
   const pageCount = pagedCandidates.pageCount;

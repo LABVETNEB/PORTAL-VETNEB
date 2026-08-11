@@ -1,6 +1,12 @@
 "use client";
 
-import { Children, useLayoutEffect, useState, type ReactNode } from "react";
+import {
+  Children,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 
 import { DashboardPager } from "@/components/dashboard/DashboardPager";
 import { usePagedRows } from "@/components/dashboard/usePagedRows";
@@ -27,14 +33,15 @@ export function LogisticsRecentListCanvas({
 }: LogisticsRecentListCanvasProps) {
   const items = Children.toArray(children);
   const [rowHeightPx, setRowHeightPx] = useState(52);
+  const rowPitchRef = useRef({
+    containerHeight: 0,
+    rowHeightPx: 0,
+  });
+  const onFirstPageRef = useRef(true);
 
   // `minItems: 1`: the floor of two was an artificial one. On the shortest
   // phones the measured canvas is smaller than two rows, so a floor of two
-  // forced a row the canvas could not hold and `overflow: hidden` clipped it —
-  // the cardinality stopped being the measured one. The hook stays the sole
-  // owner of it (`floor(usable / measuredRowHeight)` clamped); this only lets
-  // the natural result reach one row where one row is what fits. Same floor the
-  // other mobile lists of the dashboard already use.
+  // forced a row the canvas could not hold and `overflow: hidden` clipped it.
   const { containerRef, itemsPerPage } = useAdaptiveDashboardPageSize({
     fallbackItems: 3,
     rowHeightPx,
@@ -53,10 +60,45 @@ export function LogisticsRecentListCanvas({
 
     const measure = () => {
       frame = null;
-      const row = node.querySelector(".dashboard-list-row");
-      const height = row?.getBoundingClientRect().height ?? 0;
+
+      const rows = Array.from(
+        node.querySelectorAll<HTMLElement>(".dashboard-list-row"),
+      );
+
+      const height = rows.reduce(
+        (maximum, row) =>
+          Math.max(maximum, row.getBoundingClientRect().height),
+        0,
+      );
+
+      const containerHeight = node.getBoundingClientRect().height;
+      const cached = rowPitchRef.current;
+
+
+      // Once page 1 has established a pitch for this exact canvas geometry,
+      // page 2 must reuse it instead of learning a data-dependent pitch from a
+      // different slice.
+      if (
+        cached.rowHeightPx > 0 &&
+        (!onFirstPageRef.current ||
+          cached.containerHeight === containerHeight)
+      ) {
+        return;
+      }
+
+      if (height === cached.rowHeightPx) {
+        return;
+      }
+
       if (height > 0) {
-        setRowHeightPx((previous) => (previous === height ? previous : height));
+        rowPitchRef.current = {
+          containerHeight,
+          rowHeightPx: height,
+        };
+
+        setRowHeightPx((previous) =>
+          previous === height ? previous : height,
+        );
       }
     };
 
@@ -68,12 +110,39 @@ export function LogisticsRecentListCanvas({
       frame = requestAnimationFrame(measure);
     };
 
-    const observer = new ResizeObserver(scheduleMeasure);
-    observer.observe(node);
+    const resizeObserver = new ResizeObserver(scheduleMeasure);
+
+    const observeRows = () => {
+      const rows = node.querySelectorAll<HTMLElement>(
+        ".dashboard-list-row",
+      );
+
+      rows.forEach((row) => {
+        resizeObserver.observe(row);
+      });
+    };
+
+    resizeObserver.observe(node);
+    observeRows();
+
+    const mutationObserver = new MutationObserver(() => {
+      observeRows();
+      scheduleMeasure();
+    });
+
+    mutationObserver.observe(node, {
+      childList: true,
+      subtree: true,
+    });
+
+    // Synchronous first probe; subsequent content/layout growth is captured by
+    // the row ResizeObserver and node-replacement MutationObserver.
     measure();
 
     return () => {
-      observer.disconnect();
+      mutationObserver.disconnect();
+      resizeObserver.disconnect();
+
       if (frame !== null) {
         cancelAnimationFrame(frame);
       }
@@ -81,6 +150,11 @@ export function LogisticsRecentListCanvas({
   }, [containerRef]);
 
   const paged = usePagedRows(items, itemsPerPage);
+  useLayoutEffect(() => {
+    onFirstPageRef.current = paged.page === 0;
+  }, [paged.page]);
+
+
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -93,6 +167,7 @@ export function LogisticsRecentListCanvas({
       >
         {paged.pageItems}
       </div>
+
       <DashboardPager
         aria-label={pagerAriaLabel}
         page={paged.page}

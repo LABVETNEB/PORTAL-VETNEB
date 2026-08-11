@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useState, type FormEvent } from "react";
+import { useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import type { Report } from "@/types";
 import { ClipboardList, ExternalLink, Filter } from "lucide-react";
 import { useAdaptiveRowsPerPage } from "@/hooks/useAdaptiveRowsPerPage";
@@ -149,6 +149,8 @@ export function ClinicInformesWorkspaceSummary({
     useState<HTMLDivElement | null>(null);
   const [tableHeaderNode, setTableHeaderNode] =
     useState<HTMLTableSectionElement | null>(null);
+  const rowPitchRef = useRef({ containerHeight: 0, rowHeightPx: 0 });
+  const onFirstPageRef = useRef(true);
   const [rowHeightPx, setRowHeightPx] = useState(REPORTS_ROW_HEIGHT_FALLBACK_PX);
   const [tableHeaderHeightPx, setTableHeaderHeightPx] = useState(0);
 
@@ -157,15 +159,40 @@ export function ClinicInformesWorkspaceSummary({
       return;
     }
 
+    // Row pitch belongs to the LAYOUT, not to the page on screen. The first row
+    // of page 1 can be the selected one and render taller than the rest, so
+    // learning the pitch again on page 2 changed `rowsPerPage` and re-sliced the
+    // list. The tallest row of the settled canvas is the pitch; it is learned ONCE per canvas
+    // geometry, so content changes never re-learn it and a real resize does.
     const measureRowHeight = () => {
-      const desktopHeight =
-        firstDesktopRowNode?.getBoundingClientRect().height ?? 0;
-      const mobileHeight =
-        firstMobileRowNode?.getBoundingClientRect().height ?? 0;
-      const height = Math.max(desktopHeight, mobileHeight);
+      const containerHeight =
+        reportsListBodyNode?.getBoundingClientRect().height ?? 0;
+      const cached = rowPitchRef.current;
+
+      if (cached.rowHeightPx > 0 &&
+        (!onFirstPageRef.current ||
+          cached.containerHeight === containerHeight)) {
+        return;
+      }
+
+      const rows = reportsListBodyNode
+        ? Array.from(
+            reportsListBodyNode.querySelectorAll<HTMLElement>(
+              '[data-clinic-reports-table-row="true"], [data-clinic-reports-mobile-row="true"]',
+            ),
+          )
+        : [];
+      const height = rows.reduce(
+        (maximum, row) => Math.max(maximum, row.getBoundingClientRect().height),
+        Math.max(
+          firstDesktopRowNode?.getBoundingClientRect().height ?? 0,
+          firstMobileRowNode?.getBoundingClientRect().height ?? 0,
+        ),
+      );
 
       if (height > 0) {
-        setRowHeightPx(height);
+        rowPitchRef.current = { containerHeight, rowHeightPx: height };
+        setRowHeightPx((previous) => (previous === height ? previous : height));
       }
     };
 
@@ -176,10 +203,25 @@ export function ClinicInformesWorkspaceSummary({
     if (firstMobileRowNode) {
       observer.observe(firstMobileRowNode);
     }
+    if (reportsListBodyNode) {
+      observer.observe(reportsListBodyNode);
+    }
+
+    const mutationObserver = new MutationObserver(measureRowHeight);
+    if (reportsListBodyNode) {
+      mutationObserver.observe(reportsListBodyNode, {
+        childList: true,
+        subtree: true,
+      });
+    }
+
     measureRowHeight();
 
-    return () => observer.disconnect();
-  }, [firstDesktopRowNode, firstMobileRowNode]);
+    return () => {
+      mutationObserver.disconnect();
+      observer.disconnect();
+    };
+  }, [firstDesktopRowNode, firstMobileRowNode, reportsListBodyNode]);
 
   useLayoutEffect(() => {
     if (!tableHeaderNode) {
@@ -208,6 +250,11 @@ export function ClinicInformesWorkspaceSummary({
     matchesClinicReportFilters(report, appliedFilters),
   );
   const pagedReports = usePagedRows(filteredReports, rowsPerPage);
+  useLayoutEffect(() => {
+    onFirstPageRef.current = pagedReports.page === 0;
+  }, [pagedReports.page]);
+
+
   const selectedReport =
     selectedReportId === null
       ? null

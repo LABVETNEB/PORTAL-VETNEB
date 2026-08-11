@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useState, useTransition, type Ref } from "react";
+import { useLayoutEffect, useRef, useState, useTransition, type Ref } from "react";
 import { Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -104,25 +104,67 @@ export function AdminMaintenanceDryRunCard() {
     CANDIDATE_ROW_HEIGHT_FALLBACK_PX,
   );
 
+  const candidatePitchRef = useRef({ containerHeight: 0, rowHeightPx: 0 });
+  const onFirstCandidatePageRef = useRef(true);
+
   useLayoutEffect(() => {
     if (!firstCandidateRowNode) {
       return;
     }
 
+    // Row pitch belongs to the LAYOUT, not to the page on screen: candidate
+    // labels and counts differ per group, so learning the pitch from another
+    // page changed `rowsPerPage` and re-sliced the list mid-transition. It is learned ONCE per canvas
+      // geometry: content changes never re-learn it, a real resize does.
     const measureRowHeight = () => {
-      const height = firstCandidateRowNode.getBoundingClientRect().height;
+      const containerHeight =
+        candidatesListNode?.getBoundingClientRect().height ?? 0;
+      const cached = candidatePitchRef.current;
+
+      if (
+        cached.rowHeightPx > 0 &&
+        (!onFirstCandidatePageRef.current ||
+          cached.containerHeight === containerHeight)
+      ) {
+        return;
+      }
+
+      const rows = candidatesListNode
+        ? (Array.from(candidatesListNode.children) as HTMLElement[])
+        : [];
+      const height = rows.reduce(
+        (maximum, row) => Math.max(maximum, row.getBoundingClientRect().height),
+        firstCandidateRowNode.getBoundingClientRect().height,
+      );
 
       if (height > 0) {
-        setRowHeightPx(height + CANDIDATE_ROW_GAP_PX);
+        const pitch = height + CANDIDATE_ROW_GAP_PX;
+        candidatePitchRef.current = { containerHeight, rowHeightPx: pitch };
+        setRowHeightPx((previous) => (previous === pitch ? previous : pitch));
       }
     };
 
     const observer = new ResizeObserver(measureRowHeight);
     observer.observe(firstCandidateRowNode);
+    if (candidatesListNode) {
+      observer.observe(candidatesListNode);
+    }
+
+    const mutationObserver = new MutationObserver(measureRowHeight);
+    if (candidatesListNode) {
+      mutationObserver.observe(candidatesListNode, {
+        childList: true,
+        subtree: true,
+      });
+    }
+
     measureRowHeight();
 
-    return () => observer.disconnect();
-  }, [firstCandidateRowNode]);
+    return () => {
+      mutationObserver.disconnect();
+      observer.disconnect();
+    };
+  }, [firstCandidateRowNode, candidatesListNode]);
 
   const { rowsPerPage } = useAdaptiveRowsPerPage({
     containerNode: candidatesListNode,
@@ -131,6 +173,11 @@ export function AdminMaintenanceDryRunCard() {
   });
 
   const pagedCandidates = usePagedRows(snapshot?.candidates ?? [], rowsPerPage);
+
+  useLayoutEffect(() => {
+    onFirstCandidatePageRef.current = pagedCandidates.page === 0;
+  }, [pagedCandidates.page]);
+
 
   function handleAnalyze() {
     setError(null);

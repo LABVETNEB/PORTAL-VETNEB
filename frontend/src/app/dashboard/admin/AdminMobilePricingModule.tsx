@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MutableRefObject,
+} from "react";
 import { Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,6 +17,7 @@ import {
   updateAdminPricingItem,
   type AdminPricingUpdatePayload,
 } from "@/lib/api";
+import { useAdaptiveDashboardPageSize } from "@/hooks/useAdaptiveDashboardPageSize";
 import { AdminMobileConfigModule } from "./AdminMobileConfigModule";
 import { AdminMobileOpsPager } from "./AdminMobileOpsPager";
 
@@ -22,7 +30,10 @@ type FlatPricingItem = {
   isActive: boolean;
 };
 
-const CATALOG_PAGE_SIZE = 4;
+/** Pre-measurement fallback only; the measured canvas owns the real cardinality. */
+const CATALOG_FALLBACK_ROWS = 4;
+/** Row pitch used until a real catalog row is measured. */
+const CATALOG_ROW_HEIGHT_FALLBACK_PX = 44;
 
 function normalizePriceLabel(value: string | null): string {
   const trimmed = (value ?? "").trim();
@@ -163,19 +174,107 @@ export function AdminMobilePricingModule() {
     }
   }
 
-  const catalogPage = Math.floor(index / CATALOG_PAGE_SIZE);
+  const [catalogCanvasNode, setCatalogCanvasNode] = useState<HTMLElement | null>(
+    null,
+  );
+  const [catalogRowHeightPx, setCatalogRowHeightPx] = useState(
+    CATALOG_ROW_HEIGHT_FALLBACK_PX,
+  );
+  const catalogPitchRef = useRef({ containerHeight: 0, rowHeightPx: 0 });
+  const onFirstCatalogPageRef = useRef(true);
+
+  // The catalog page size is MEASURED, never a fixed count: the previous
+  // `CATALOG_PAGE_SIZE` (and the `grid-rows-4` that stretched four rows to fill
+  // the canvas whatever their natural height) made the rendered cardinality
+  // independent of the viewport, which is precisely what the adaptive contract
+  // forbids. The hook owns cardinality; this only feeds it a measured pitch.
+  const { containerRef: catalogCanvasRef, itemsPerPage: catalogPageSize } =
+    useAdaptiveDashboardPageSize({
+      fallbackItems: CATALOG_FALLBACK_ROWS,
+      rowHeightPx: catalogRowHeightPx,
+      minItems: 1,
+    });
+
+  const catalogPage = Math.floor(index / catalogPageSize);
   const catalogRows = useMemo(
     () =>
       items.slice(
-        catalogPage * CATALOG_PAGE_SIZE,
-        catalogPage * CATALOG_PAGE_SIZE + CATALOG_PAGE_SIZE,
+        catalogPage * catalogPageSize,
+        catalogPage * catalogPageSize + catalogPageSize,
       ),
-    [items, catalogPage],
+    [items, catalogPage, catalogPageSize],
   );
   const catalogTotalPages = Math.max(
     1,
-    Math.ceil(items.length / CATALOG_PAGE_SIZE),
+    Math.ceil(items.length / catalogPageSize),
   );
+
+  useLayoutEffect(() => {
+    onFirstCatalogPageRef.current = catalogPage === 0;
+  }, [catalogPage]);
+
+
+  // Row pitch belongs to the LAYOUT, not to the slice on screen: once page 1
+  // settled it for this canvas geometry, later pages reuse it instead of
+  // re-learning a data-dependent pitch that would change the page size and
+  // re-slice the list. It is learned ONCE per canvas
+      // geometry: content changes never re-learn it, a real resize does.
+  useLayoutEffect(() => {
+    const node = catalogCanvasNode;
+    if (!node) return;
+
+    let frame: number | null = null;
+
+    const measure = () => {
+      frame = null;
+
+      const containerHeight = node.getBoundingClientRect().height;
+      const cached = catalogPitchRef.current;
+
+      if (cached.rowHeightPx > 0 &&
+        (!onFirstCatalogPageRef.current ||
+          cached.containerHeight === containerHeight)) {
+        return;
+      }
+
+      const rows = Array.from(
+        node.querySelectorAll<HTMLElement>('[data-admin-mobile-config-item="true"]'),
+      );
+      const height = rows.reduce(
+        (maximum, row) => Math.max(maximum, row.getBoundingClientRect().height),
+        0,
+      );
+
+      if (height > 0) {
+        catalogPitchRef.current = { containerHeight, rowHeightPx: height };
+        setCatalogRowHeightPx((previous) =>
+          previous === height ? previous : height,
+        );
+      }
+    };
+
+    const scheduleMeasure = () => {
+      if (frame === null) {
+        frame = requestAnimationFrame(measure);
+      }
+    };
+
+    const resizeObserver = new ResizeObserver(scheduleMeasure);
+    resizeObserver.observe(node);
+
+    const mutationObserver = new MutationObserver(scheduleMeasure);
+    mutationObserver.observe(node, { childList: true, subtree: true });
+
+    measure();
+
+    return () => {
+      mutationObserver.disconnect();
+      resizeObserver.disconnect();
+      if (frame !== null) {
+        cancelAnimationFrame(frame);
+      }
+    };
+  }, [catalogCanvasNode]);
 
   const editorSection = (
     <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
@@ -293,7 +392,15 @@ export function AdminMobilePricingModule() {
       <p className="shrink-0 truncate text-xs font-semibold text-vetneb-ink">
         {items.length ? `${items.length} estudios` : isLoading ? "Cargando…" : "Catálogo de precios"}
       </p>
-      <div className="grid min-h-0 flex-1 grid-rows-4 gap-1.5 overflow-hidden">
+      <div
+        ref={(node) => {
+          (
+            catalogCanvasRef as MutableRefObject<HTMLElement | null>
+          ).current = node;
+          setCatalogCanvasNode(node);
+        }}
+        className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden"
+      >
         {catalogRows.length ? (
           catalogRows.map((item) => {
             const itemIndex = items.indexOf(item);
@@ -304,7 +411,7 @@ export function AdminMobilePricingModule() {
                 type="button"
                 data-admin-mobile-config-item="true"
                 onClick={() => goToIndex(itemIndex)}
-                className={`flex min-h-0 items-center justify-between gap-2 overflow-hidden rounded-md border px-2.5 py-1.5 text-left ${isCurrent ? "border-vetneb-teal/60 bg-vetneb-surface-muted/60" : "border-vetneb-line/70 bg-card/95"}`}
+                className={`flex shrink-0 items-center justify-between gap-2 overflow-hidden rounded-md border px-2.5 py-1.5 text-left ${isCurrent ? "border-vetneb-teal/60 bg-vetneb-surface-muted/60" : "border-vetneb-line/70 bg-card/95"}`}
               >
                 <div className="min-w-0">
                   <p className="truncate text-xs font-medium text-vetneb-ink">
@@ -324,7 +431,7 @@ export function AdminMobilePricingModule() {
             );
           })
         ) : (
-          <div className="row-span-4 flex items-center justify-center px-4 text-center text-xs text-muted-foreground">
+          <div className="flex flex-1 items-center justify-center px-4 text-center text-xs text-muted-foreground">
             {loadError ?? (isLoading ? "Cargando precios…" : "Sin precios configurados.")}
           </div>
         )}
@@ -335,14 +442,14 @@ export function AdminMobilePricingModule() {
         pageCount={catalogTotalPages}
         rangeLabel={
           items.length
-            ? `${catalogPage * CATALOG_PAGE_SIZE + 1}–${Math.min((catalogPage + 1) * CATALOG_PAGE_SIZE, items.length)} de ${items.length}`
+            ? `${catalogPage * catalogPageSize + 1}–${Math.min((catalogPage + 1) * catalogPageSize, items.length)} de ${items.length}`
             : "Sin precios"
         }
         previousDisabled={catalogPage === 0}
         nextDisabled={catalogPage >= catalogTotalPages - 1}
         disabled={!items.length}
-        onPrevious={() => goToIndex((catalogPage - 1) * CATALOG_PAGE_SIZE)}
-        onNext={() => goToIndex((catalogPage + 1) * CATALOG_PAGE_SIZE)}
+        onPrevious={() => goToIndex((catalogPage - 1) * catalogPageSize)}
+        onNext={() => goToIndex((catalogPage + 1) * catalogPageSize)}
       />
     </div>
   );
