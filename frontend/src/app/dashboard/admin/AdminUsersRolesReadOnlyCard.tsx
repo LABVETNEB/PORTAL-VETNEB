@@ -637,7 +637,11 @@ export function AdminUsersRolesReadOnlyCard() {
             strictly local to this card, no row content, header or shell
             touched — is what lets the nine-row contract hold honestly there and
             lets 1280×720 fall to its real capacity instead of clipping. */}
-        <div ref={setDesktopBodyNode} className="min-h-0 flex-1">
+        <div
+          ref={setDesktopBodyNode}
+          data-dashboard-adaptive-rows-canvas="true"
+          className="min-h-0 flex-1"
+        >
           {users.length ? (
             <div className="dashboard-table-responsive dashboard-fitted-table px-3 sm:px-4">
               <Table
@@ -734,6 +738,7 @@ export function AdminUsersRolesReadOnlyCard() {
         </div>
 
         <footer
+          data-dashboard-adaptive-reserved-region="pager"
           className="dashboard-table-pagination min-h-10 shrink-0 border-t border-vetneb-line/70 px-3 py-1.5 text-xs text-muted-foreground sm:px-4 md:min-h-8 md:py-1"
           aria-label="Paginación de usuarios y roles"
         >
@@ -902,6 +907,7 @@ export function AdminUsersRolesReadOnlyCard() {
 
         <div
           ref={setMobileBodyNode}
+          data-dashboard-adaptive-rows-canvas="true"
           className="min-h-0 flex-1 divide-y divide-vetneb-line/70 overflow-hidden"
         >
           {users.length ? (

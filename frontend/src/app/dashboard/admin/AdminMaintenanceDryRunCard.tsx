@@ -265,6 +265,7 @@ export function AdminMaintenanceDryRunCard() {
             <div
               ref={setCandidatesListNode}
               data-admin-maintenance-candidates-list="true"
+              data-dashboard-adaptive-rows-canvas="true"
               className="min-h-0 flex-1 space-y-2 overflow-hidden"
             >
               {pagedCandidates.pageItems.map((candidate, index) => (

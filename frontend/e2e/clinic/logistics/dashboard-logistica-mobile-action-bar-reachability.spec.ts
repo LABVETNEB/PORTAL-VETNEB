@@ -62,11 +62,12 @@ async function setClinicSession(page: Page) {
 async function openHub(page: Page) {
   await page.goto("/dashboard/logistica");
   await expect(page.locator(PLANS_PAGER)).toBeVisible({ timeout: 30_000 });
-  // The reserve is published on hydration; without it the layout below is the
-  // pre-measurement one and the assertions would read a transient state.
+  // A05 publishes the stable reserve on the route's reservation root before
+  // first layout; wait for that scoped contract instead of the removed
+  // documentElement measurement side effect.
   await page.waitForFunction(
     () =>
-      getComputedStyle(document.documentElement)
+      getComputedStyle(document.querySelector<HTMLElement>(".dashboard-main")!)
         .getPropertyValue("--dash-sticky-action-h")
         .trim().length > 0,
     undefined,
@@ -317,12 +318,17 @@ for (const viewport of MOBILE_VIEWPORTS) {
     const chrome = await page.evaluate((bar) => {
       const element = document.querySelector(bar)!;
       const nav = document.querySelector(".clinic-mobile-bottom-nav");
+      const reservationRoot = document.querySelector<HTMLElement>(".dashboard-main")!;
+      const reserveProbe = document.createElement("div");
+      reserveProbe.style.cssText =
+        "position:absolute;visibility:hidden;block-size:var(--dash-sticky-action-h);";
+      reservationRoot.append(reserveProbe);
       const box = element.getBoundingClientRect();
+      const reserve = Math.round(reserveProbe.getBoundingClientRect().height);
+      reserveProbe.remove();
       return {
         position: getComputedStyle(element).position,
-        reserve: getComputedStyle(document.documentElement)
-          .getPropertyValue("--dash-sticky-action-h")
-          .trim(),
+        reserve,
         height: Math.round(box.height),
         overlapWithNav: nav
           ? Math.round(Math.max(0, box.bottom - nav.getBoundingClientRect().top))
@@ -337,8 +343,8 @@ for (const viewport of MOBILE_VIEWPORTS) {
     ).toBe(0);
     expect(
       chrome.reserve,
-      `${viewport.name}: the shell must reserve the measured bar height`,
-    ).toBe(`${chrome.height}px`);
+      `${viewport.name}: the shell must reserve the stable bar height`,
+    ).toBe(chrome.height);
 
     // 2 · Every quick action answers its own hit test, and one really navigates.
     for (const action of BAR_ACTIONS) {
@@ -422,16 +428,29 @@ test(`logistics hub keeps the desktop action bar contract at ${MD_BOUNDARY.name}
   await setClinicSession(page);
   await openHub(page);
 
-  const chrome = await page.evaluate((bar) => ({
-    position: getComputedStyle(document.querySelector(bar)!).position,
-    reserve: getComputedStyle(document.documentElement)
-      .getPropertyValue("--dash-sticky-action-h")
-      .trim(),
-  }), BAR);
+  const chrome = await page.evaluate((bar) => {
+    const reservationRoot = document.querySelector<HTMLElement>(".dashboard-main")!;
+    const reserveProbe = document.createElement("div");
+    reserveProbe.style.cssText =
+      "position:absolute;visibility:hidden;block-size:var(--dash-sticky-action-h);";
+    reservationRoot.append(reserveProbe);
+    const reserve = reserveProbe.getBoundingClientRect().height;
+    reserveProbe.remove();
+
+    return {
+      position: getComputedStyle(document.querySelector(bar)!).position,
+      reserve,
+      paddingBlockEnd: Number.parseFloat(getComputedStyle(reservationRoot).paddingBlockEnd),
+    };
+  }, BAR);
 
   // From `md` the bar occupies flow, so it must contribute nothing to the ledger.
   expect(chrome.position, `${MD_BOUNDARY.name}: bar stays sticky`).toBe("sticky");
-  expect(chrome.reserve, `${MD_BOUNDARY.name}: no mobile reserve`).toBe("0px");
+  expect(chrome.reserve, `${MD_BOUNDARY.name}: stable reserve remains declared`).toBeGreaterThan(0);
+  expect(
+    chrome.paddingBlockEnd,
+    `${MD_BOUNDARY.name}: stable reserve is not applied out of mobile`,
+  ).toBeLessThan(chrome.reserve);
 
   for (const action of BAR_ACTIONS) {
     expect(

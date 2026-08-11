@@ -335,6 +335,7 @@ function PricingCategoryItems({
     <div className="flex min-h-0 flex-1 flex-col gap-3">
       <div
         ref={setFormsBodyNode}
+        data-dashboard-adaptive-rows-canvas="true"
         className="flex min-h-0 flex-1 flex-col gap-3 content-start"
       >
         {paged.pageItems.map((item) => {

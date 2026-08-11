@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
+import type { CSSProperties } from "react";
 import { cookies } from "next/headers";
 import { BarChart3, MapPinned, Truck } from "lucide-react";
 import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";
 import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";
 import {
   StickyActionBar,
+  STICKY_ACTION_RESERVED_BLOCK_SIZE,
   type StickyActionBarAction,
 } from "@/components/dashboard/StickyActionBar";
 import { ROUTES } from "@/lib/routes";
@@ -97,7 +99,13 @@ export default async function LogisticaPage() {
         subtitle="Visitas de campo y planes de ruta"
         notifications="clinic"
       />
-      <main className="dashboard-main">
+      <main
+        className="dashboard-main"
+        data-dashboard-adaptive-reservation="true"
+        style={{
+          "--dash-sticky-action-h": STICKY_ACTION_RESERVED_BLOCK_SIZE,
+        } as CSSProperties}
+      >
         <DashboardPageHeader
           title="Hub de logística"
           description="Estado operativo de visitas de campo, planes de ruta y métricas de cumplimiento."

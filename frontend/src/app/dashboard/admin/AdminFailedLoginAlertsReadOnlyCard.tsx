@@ -433,7 +433,11 @@ export function AdminFailedLoginAlertsReadOnlyCard({
           </div>
         ) : null}
 
-        <div ref={setDesktopBodyNode} className="min-h-0 flex-1">
+        <div
+          ref={setDesktopBodyNode}
+          data-dashboard-adaptive-rows-canvas="true"
+          className="min-h-0 flex-1"
+        >
           <div className="dashboard-table-responsive">
             <Table>
               <TableHeader>
@@ -513,7 +517,10 @@ export function AdminFailedLoginAlertsReadOnlyCard({
           </div>
         </div>
 
-        <div className="dashboard-table-pagination shrink-0">
+        <div
+          data-dashboard-adaptive-reserved-region="pager"
+          className="dashboard-table-pagination shrink-0"
+        >
           <div className="dashboard-table-pagination-controls">
             <Button
               type="button"
@@ -573,6 +580,7 @@ export function AdminFailedLoginAlertsReadOnlyCard({
 
         <div
           ref={setMobileBodyNode}
+          data-dashboard-adaptive-rows-canvas="true"
           className="min-h-0 flex-1 divide-y divide-vetneb-line/60 overflow-hidden rounded-lg border border-vetneb-line/75"
         >
           {alerts.length ? (

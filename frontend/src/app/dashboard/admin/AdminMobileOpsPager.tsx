@@ -29,6 +29,7 @@ export function AdminMobileOpsPager({
     <nav
       aria-label={ariaLabel}
       data-admin-mobile-ops-pager="true"
+      data-dashboard-adaptive-reserved-region="pager"
       className="flex min-h-10 shrink-0 items-center justify-center gap-1.5 overflow-hidden border-t border-vetneb-line/70 px-2 py-0.5 text-xs text-muted-foreground"
     >
       <span className="sr-only" aria-live="polite">

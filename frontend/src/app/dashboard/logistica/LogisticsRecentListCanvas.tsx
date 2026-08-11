@@ -143,12 +143,16 @@ export function LogisticsRecentListCanvas({
   }, [isOnFirstPage]);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+    <div
+      data-dashboard-adaptive-reservation="true"
+      className="flex min-h-0 flex-1 flex-col overflow-hidden"
+    >
       <div
         ref={(node) => {
           containerRef.current = node;
         }}
         data-logistics-recent-list-canvas="true"
+        data-dashboard-adaptive-rows-canvas="true"
         className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden"
       >
         {paged.pageItems}

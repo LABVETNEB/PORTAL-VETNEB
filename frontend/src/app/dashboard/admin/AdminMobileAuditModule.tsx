@@ -90,7 +90,11 @@ export function AdminMobileAuditModule({
         hasActiveFilters={hasActiveFilters}
       />
 
-      <div ref={bodyRef} className="min-h-0 flex-1 divide-y divide-vetneb-line/70 overflow-hidden">
+      <div
+        ref={bodyRef}
+        data-dashboard-adaptive-rows-canvas="true"
+        className="min-h-0 flex-1 divide-y divide-vetneb-line/70 overflow-hidden"
+      >
         {loadError ? (
           <div className="flex h-full items-center justify-center px-4 text-center text-xs text-destructive" role="alert">
             No se pudieron cargar los eventos.

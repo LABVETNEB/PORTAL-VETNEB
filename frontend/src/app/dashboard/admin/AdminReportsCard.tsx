@@ -785,6 +785,7 @@ export function AdminReportsCard() {
         >
           <div
             ref={setDesktopBodyNode}
+            data-dashboard-adaptive-rows-canvas="true"
             className="dashboard-table-responsive hidden min-h-0 flex-1 md:block"
           >
             {filteredReports.length ? (
@@ -870,6 +871,7 @@ export function AdminReportsCard() {
           >
             <div
               ref={setMobileBodyNode}
+              data-dashboard-adaptive-rows-canvas="true"
               className="min-h-0 flex-1 divide-y divide-vetneb-line/60 overflow-hidden rounded-md border border-vetneb-line/75"
               data-admin-reports-mobile-list="true"
             >
@@ -916,6 +918,7 @@ export function AdminReportsCard() {
               <div
                 className="flex shrink-0 items-center justify-center gap-1.5 border-t border-vetneb-line/65 pt-1.5 text-xs text-muted-foreground"
                 data-admin-mobile-core-pager="true"
+                data-dashboard-adaptive-reserved-region="pager"
               >
                 <Button
                   type="button"
@@ -945,6 +948,7 @@ export function AdminReportsCard() {
           </div>
 
           <nav
+            data-dashboard-adaptive-reserved-region="pager"
             className="mt-2 hidden min-h-10 shrink-0 items-center justify-between gap-2 border-t border-vetneb-line/65 px-1 pt-2 text-xs text-muted-foreground md:mt-0.5 md:flex md:min-h-7 md:pt-0.5"
             aria-label="Paginación de informes admin"
           >

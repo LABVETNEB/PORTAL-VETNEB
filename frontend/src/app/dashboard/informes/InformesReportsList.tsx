@@ -593,6 +593,7 @@ export function InformesReportsList({
           <section
             id="reports-master-list"
             aria-labelledby="reports-list-heading"
+            data-dashboard-adaptive-reservation="true"
             className="dashboard-master-panel flex min-h-0 flex-col overflow-hidden rounded-xl border border-vetneb-line/75 bg-card/82"
           >
             <div className="shrink-0 border-b border-vetneb-line/70 px-4 py-2.5">
@@ -607,6 +608,7 @@ export function InformesReportsList({
             <div
               ref={setBodyNode}
               data-informes-rows-canvas="true"
+              data-dashboard-adaptive-rows-canvas="true"
               className="flex min-h-0 flex-1 flex-col divide-y divide-vetneb-line/60 overflow-hidden"
             >
               {visibleReports.map((report, index) => {
@@ -684,6 +686,7 @@ export function InformesReportsList({
             <nav
               aria-label="Paginación de informes"
               data-dashboard-pager="true"
+              data-dashboard-adaptive-reserved-region="pager"
               className="dashboard-pager shrink-0 border-t border-vetneb-line/70"
             >
               <span data-dashboard-pager-prev="true" className="inline-flex">

@@ -357,7 +357,11 @@ export function AdminAuditCard({
           it is content-sized, which made the previous measurement
           self-referential: nine rows measured nine rows' worth of height and
           the fit never fell below nine, whatever the viewport. */}
-      <div ref={setDesktopBodyNode} className="min-h-0 flex-1 py-2">
+      <div
+        ref={setDesktopBodyNode}
+        data-dashboard-adaptive-rows-canvas="true"
+        className="min-h-0 flex-1 py-2"
+      >
         <AdminAuditDenseTable
           rows={rows}
           loadError={loadError}
@@ -366,7 +370,10 @@ export function AdminAuditCard({
         />
       </div>
 
-      <footer className="flex min-h-10 shrink-0 items-center justify-between gap-2 border-t border-vetneb-line/70 px-3 py-1.5 text-xs text-muted-foreground sm:px-4">
+      <footer
+        data-dashboard-adaptive-reserved-region="pager"
+        className="flex min-h-10 shrink-0 items-center justify-between gap-2 border-t border-vetneb-line/70 px-3 py-1.5 text-xs text-muted-foreground sm:px-4"
+      >
         <span aria-live="polite">
           {totalCount === 0 ? "Sin eventos" : `${rangeStart}–${rangeEnd} de ${totalCount}`}
         </span>

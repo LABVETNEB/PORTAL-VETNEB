@@ -153,6 +153,8 @@ export function LogisticsBoundedCanvas({
         containerRef.current = node;
       }}
       data-dashboard-table-canvas={canvas}
+      data-dashboard-adaptive-rows-canvas="true"
+      className="h-full min-h-0"
     >
       {children}
     </div>

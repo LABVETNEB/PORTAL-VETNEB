@@ -154,6 +154,7 @@ export function ClinicLogisticaWorkspaceSummary({
           <div
             ref={setVisitsListBodyNode}
             data-clinic-logistics-list-body="true"
+            data-dashboard-adaptive-rows-canvas="true"
             className="flex min-h-0 flex-1 flex-col divide-y divide-vetneb-line/60 overflow-hidden"
           >
             {pagedVisits.pageItems.map((visit, index) => (
@@ -184,6 +185,7 @@ export function ClinicLogisticaWorkspaceSummary({
 
           <div
             data-clinic-logistics-pagination-footer="true"
+            data-dashboard-adaptive-reserved-region="pager"
             className="flex shrink-0 items-center justify-center border-t border-vetneb-line/65 px-3 text-xs text-muted-foreground"
           >
             <DashboardPager

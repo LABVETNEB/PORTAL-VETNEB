@@ -43,6 +43,7 @@ export function CompactPager({
       className={cn("dashboard-compact-pager", className)}
       data-dashboard-compact-pager="true"
       data-dashboard-pager="compact"
+      data-dashboard-adaptive-reserved-region="pager"
     >
       <span aria-live="polite" aria-atomic="true">
         {total === 0

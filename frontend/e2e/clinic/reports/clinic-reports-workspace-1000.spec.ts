@@ -8,6 +8,22 @@ type WorkspaceState = {
   text: string;
   paginationText: string | null;
   summary: Record<string, string>;
+  pathname: string;
+  search: string;
+  viewport: { width: number; height: number };
+  pagerVisible: boolean;
+  errorVisible: boolean;
+  emptyVisible: boolean;
+  loadingVisible: boolean;
+  rowsCanvasHeight: number;
+  firstRowHeight: number;
+  htmlOverflowY: number;
+  bodyOverflowY: number;
+};
+
+type InitialLoadRuntimeEvidence = {
+  unexpectedResponses: string[];
+  pageErrors: string[];
 };
 
 async function setPopulatedClinicSession(page: Page) {
@@ -23,9 +39,10 @@ async function setPopulatedClinicSession(page: Page) {
 async function readWorkspaceState(page: Page): Promise<WorkspaceState> {
   return page.evaluate((rowPatternSource) => {
     const rowPattern = new RegExp(rowPatternSource);
-    const reportRows = Array.from(
+    const reportRowElements = Array.from(
       document.querySelectorAll<HTMLElement>("#reports-master-list [id]"),
-    ).flatMap((element) => {
+    ).filter((element) => rowPattern.test(element.id));
+    const reportRows = reportRowElements.flatMap((element) => {
       const match = element.id.match(rowPattern);
 
       return match ? [Number(match[1])] : [];
@@ -44,14 +61,56 @@ async function readWorkspaceState(page: Page): Promise<WorkspaceState> {
         },
       ),
     );
+    const rowsCanvas = document.querySelector<HTMLElement>(
+      '[data-informes-rows-canvas="true"]',
+    );
+    const firstRow = reportRowElements[0] ?? null;
+    const pagerRect = pagination?.getBoundingClientRect();
+    const rowsCanvasRect = rowsCanvas?.getBoundingClientRect();
+    const firstRowRect = firstRow?.getBoundingClientRect();
+    const bodyText = document.body.innerText;
+    const html = document.documentElement;
+    const body = document.body;
 
     return {
       rowIds: reportRows,
-      text: document.body.innerText,
+      text: bodyText,
       paginationText: pagination?.innerText ?? null,
       summary,
+      pathname: window.location.pathname,
+      search: window.location.search,
+      viewport: { width: window.innerWidth, height: window.innerHeight },
+      pagerVisible: Boolean(pagerRect && pagerRect.width > 0 && pagerRect.height > 0),
+      errorVisible: document.querySelector('[role="alert"]') !== null,
+      emptyVisible: bodyText.includes("No hay informes disponibles."),
+      loadingVisible:
+        document.querySelector('[aria-busy="true"]') !== null ||
+        bodyText.includes("Cargando informes"),
+      rowsCanvasHeight: rowsCanvasRect?.height ?? 0,
+      firstRowHeight: firstRowRect?.height ?? 0,
+      htmlOverflowY: Math.max(0, html.scrollHeight - html.clientHeight),
+      bodyOverflowY: Math.max(0, body.scrollHeight - body.clientHeight),
     };
   }, REPORT_ROW_ID.source);
+}
+
+function observeInitialLoadRuntime(page: Page): InitialLoadRuntimeEvidence {
+  const evidence: InitialLoadRuntimeEvidence = {
+    unexpectedResponses: [],
+    pageErrors: [],
+  };
+
+  page.on("response", (response) => {
+    if (response.status() < 500) return;
+    evidence.unexpectedResponses.push(
+      `${response.status()} ${new URL(response.url()).pathname}`,
+    );
+  });
+  page.on("pageerror", (error) => {
+    evidence.pageErrors.push(error.name);
+  });
+
+  return evidence;
 }
 
 async function expectWorkspaceReady(page: Page) {
@@ -107,8 +166,8 @@ async function expectSettledWorkspace(
 }
 
 // Signature of the known adaptive collapse (E2E-STAB-1 §8.1, family of
-// #1465): a searchParams navigation remounts the informes list and its
-// adaptive page size can stay frozen at the 1-row fallback request. The
+// #1465): a searchParams navigation can leave the informes list at a
+// coherent 1-row state. The
 // frozen workspace is coherent with a page size of 1: exactly one row
 // renders, "Mostrando" is a single-index range ("1-1" after a filter submit
 // that resets to page 1, "N-N" when the frozen pager advanced) and the pager
@@ -131,6 +190,45 @@ function isOneRowCollapse(state: WorkspaceState): boolean {
 
 const ONE_ROW_COLLAPSE_GUARD =
   "Known product defect: adaptive informes page size remained on the one-row fallback after searchParams navigation.";
+
+// Versioned pre-A05 provenance: commit 66dbda3d, e2e-org-5 platform-domain
+// audit, lines 203-240. It records a single-worker first-load failure during
+// page.goto that leaves /dashboard/informes at one row and explicitly keeps
+// it as a product-defect witness. This separate guard accepts only that exact
+// default-fixture/default-viewport state; the broader searchParams signature
+// above is not sufficient for an initial-load expected-fail.
+function isKnownInitialLoadOneRowCollapse(
+  state: WorkspaceState,
+  runtime: InitialLoadRuntimeEvidence,
+): boolean {
+  return (
+    isOneRowCollapse(state) &&
+    state.pathname === "/dashboard/informes" &&
+    state.search === "" &&
+    state.viewport.width === 1280 &&
+    state.viewport.height === 720 &&
+    state.rowIds.length === 1 &&
+    state.rowIds[0] === 8401 &&
+    state.summary.Total === "1000" &&
+    state.summary.Mostrando === "1-1" &&
+    state.summary.Página === "1 / 1000" &&
+    state.summary.Filtros === "Sin filtros" &&
+    state.paginationText?.includes("Página 1 de 1000") === true &&
+    state.pagerVisible &&
+    !state.errorVisible &&
+    !state.emptyVisible &&
+    !state.loadingVisible &&
+    state.rowsCanvasHeight > 0 &&
+    state.firstRowHeight > state.rowsCanvasHeight &&
+    state.htmlOverflowY === 0 &&
+    state.bodyOverflowY === 0 &&
+    runtime.unexpectedResponses.length === 0 &&
+    runtime.pageErrors.length === 0
+  );
+}
+
+const INITIAL_LOAD_ONE_ROW_COLLAPSE_GUARD =
+  "Pre-A05 product defect (66dbda3d): first-load informes stayed on the exact one-row fallback signature.";
 
 // Semantic probe for the defect: polls with the same settle budget as
 // expectSettledWorkspace and terminates only on one of two known outcomes —
@@ -227,16 +325,83 @@ const SETTLED_FIRST_PAGE = {
 // fallback → measured transition can freeze the request at the 1-row fallback
 // limit, so every test settles the first page before driving the workspace.
 async function openSettledWorkspace(page: Page) {
+  const runtime = observeInitialLoadRuntime(page);
   await setPopulatedClinicSession(page);
   await page.goto("/dashboard/informes");
   await expectWorkspaceReady(page);
-  return expectSettledWorkspace(page, {
+  const expected = {
     ...SETTLED_FIRST_PAGE,
     rowIds: [...SETTLED_FIRST_PAGE.rowIds],
-  });
+  };
+  const outcome = await settleOrDetectOneRowCollapse(page, expected);
+  const knownInitialLoadCollapse =
+    outcome.collapsed && isKnownInitialLoadOneRowCollapse(outcome.state, runtime);
+
+  test.fail(knownInitialLoadCollapse, INITIAL_LOAD_ONE_ROW_COLLAPSE_GUARD);
+  assertWorkspaceState(outcome.state, expected);
+  return outcome.state;
 }
 
 test.describe("clinic reports workspace 1000-report fixture (CAP-C3)", () => {
+  test("first-load expected-fail signature rejects every unknown failure shape", () => {
+    const knownState: WorkspaceState = {
+      rowIds: [8401],
+      text: "Informes",
+      paginationText: "Página 1 de 1000",
+      summary: {
+        Total: "1000",
+        Mostrando: "1-1",
+        Página: "1 / 1000",
+        Filtros: "Sin filtros",
+      },
+      pathname: "/dashboard/informes",
+      search: "",
+      viewport: { width: 1280, height: 720 },
+      pagerVisible: true,
+      errorVisible: false,
+      emptyVisible: false,
+      loadingVisible: false,
+      rowsCanvasHeight: 70,
+      firstRowHeight: 82,
+      htmlOverflowY: 0,
+      bodyOverflowY: 0,
+    };
+    const cleanRuntime: InitialLoadRuntimeEvidence = {
+      unexpectedResponses: [],
+      pageErrors: [],
+    };
+    const stateMutations: WorkspaceState[] = [
+      { ...knownState, rowIds: [8401, 8402], summary: { ...knownState.summary, Mostrando: "1-2", Página: "1 / 500" } },
+      { ...knownState, rowIds: [] },
+      { ...knownState, errorVisible: true },
+      { ...knownState, emptyVisible: true },
+      { ...knownState, loadingVisible: true },
+      { ...knownState, rowsCanvasHeight: 0 },
+      { ...knownState, pagerVisible: false },
+      { ...knownState, htmlOverflowY: 1 },
+      { ...knownState, bodyOverflowY: 1 },
+      { ...knownState, pathname: "/dashboard" },
+      { ...knownState, search: "?status=delivered" },
+    ];
+
+    expect(isKnownInitialLoadOneRowCollapse(knownState, cleanRuntime)).toBe(true);
+    for (const mutation of stateMutations) {
+      expect(isKnownInitialLoadOneRowCollapse(mutation, cleanRuntime)).toBe(false);
+    }
+    expect(
+      isKnownInitialLoadOneRowCollapse(knownState, {
+        unexpectedResponses: ["500 /dashboard/informes"],
+        pageErrors: [],
+      }),
+    ).toBe(false);
+    expect(
+      isKnownInitialLoadOneRowCollapse(knownState, {
+        unexpectedResponses: [],
+        pageErrors: ["Error"],
+      }),
+    ).toBe(false);
+  });
+
   test("first page renders a bounded slice and coherent 1000-report pagination", async ({
     page,
   }) => {
@@ -244,13 +409,14 @@ test.describe("clinic reports workspace 1000-report fixture (CAP-C3)", () => {
     expect(state.text).not.toContain("Paciente E2E 0999");
   });
 
-  // Known product defect (E2E-STAB-1 follow-up, family of #1465): a
-  // searchParams navigation (pager or filter submit) can freeze the adaptive
-  // page size at the 1-row fallback (see isOneRowCollapse).
+  // Known product defects: commit 66dbda3d records the exact initial-mount
+  // signature guarded above; E2E-STAB-1 records the searchParams signature
+  // used by pager/filter interactions (see isOneRowCollapse).
   //
-  // The four interaction tests below are NOT skipped — every callback runs on
-  // every execution. Three of them (page 2, status filter, combined filters)
-  // carry a CONDITIONAL expected-failure guard: after each searchParams
+  // All six callbacks in this spec are NOT skipped — every callback runs on
+  // every execution. The initial mount and three interactions (page 2, status
+  // filter, combined filters) carry a CONDITIONAL expected-failure guard:
+  // after each mount/searchParams
   // navigation they poll until they observe either the correct settled state
   // or the documented collapse signature. Only the signature arms `test.fail`
   // before the explicit state assertion, so the documented defect registers
