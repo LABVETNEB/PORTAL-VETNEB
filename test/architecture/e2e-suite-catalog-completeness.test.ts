@@ -24,15 +24,15 @@ const REPO_ROOT = resolve(dirname(TEST_FILE), "..", "..");
 process.chdir(REPO_ROOT);
 
 const EXPECTED_WORKSPACE_SPEC_COUNT = 78;
-const EXPECTED_CATALOG_SPEC_COUNT = 77;
-const EXPECTED_MANUAL_ONLY_SPEC_COUNT = 1;
+const EXPECTED_CATALOG_SPEC_COUNT = 78;
+const EXPECTED_MANUAL_ONLY_SPEC_COUNT = 0;
 const EXPECTED_DOMAIN_COUNTS = new Map([
   ["admin", 19],
   ["clinic", 22],
   ["public", 8],
   ["particular", 2],
   ["platform", 18],
-  ["regression", 8],
+  ["regression", 9],
 ]);
 const EXPECTED_CURRENT_COUNTS = new Map([
   ["smoke", 9],
@@ -42,10 +42,10 @@ const EXPECTED_CURRENT_COUNTS = new Map([
 ]);
 const EXPECTED_EXECUTION_COUNTS = new Map<E2eExecutionCohort, number>([
   ["ci", 44],
-  ["extended", 28],
+  ["extended", 29],
   ["evidence", 2],
   ["visual-linux", 3],
-  ["full", 77],
+  ["full", 78],
   ["affected", 0],
 ]);
 const EXECUTION_PARTITION_COHORTS = [
@@ -314,11 +314,11 @@ test("catalog validation catches missing and duplicate entries in memory", async
 
   assert.throws(
     () => validateCatalog(missing, workspaceSpecs, E2E_MANUAL_ONLY_SPECS),
-    /77|classified/,
+    /78|classified/,
   );
   assert.throws(
     () => validateCatalog(duplicated, workspaceSpecs, E2E_MANUAL_ONLY_SPECS),
-    /77|unique/,
+    /78|unique/,
   );
 });
 

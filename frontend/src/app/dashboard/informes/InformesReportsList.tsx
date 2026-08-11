@@ -41,6 +41,22 @@ function measurementsEqual(a: Measurement, b: Measurement) {
   return a.containerNode === b.containerNode && a.rowHeightPx === b.rowHeightPx;
 }
 
+function normalizeOffsetForLimit(
+  currentOffset: number,
+  limit: number,
+  total: number,
+) {
+  let nextOffset = Math.floor(currentOffset / limit) * limit;
+  if (total > 0) {
+    const lastValidOffset = Math.max(
+      0,
+      (Math.ceil(total / limit) - 1) * limit,
+    );
+    nextOffset = Math.min(nextOffset, lastValidOffset);
+  }
+  return Math.max(0, nextOffset);
+}
+
 function getReportTitle(report: Report) {
   return report.patientName
     ? `${report.patientName} · Informe #${report.id}`
@@ -132,7 +148,10 @@ export function InformesReportsList({
 }: InformesReportsListProps) {
   const [reports, setReports] = useState<Report[]>(initialReports);
   const [totalCount, setTotalCount] = useState(initialTotal);
-  const [offset, setOffset] = useState((initialPage - 1) * initialPageSize);
+  const [requestWindow, setRequestWindow] = useState({
+    limit: initialPageSize,
+    offset: (initialPage - 1) * initialPageSize,
+  });
   const [loadError, setLoadError] = useState(initialLoadError);
   const [selectedReportId, setSelectedReportId] = useState<number | null>(
     initialSelectedReportId,
@@ -149,7 +168,6 @@ export function InformesReportsList({
   });
 
   const latestRequestRef = useRef(0);
-  const totalRef = useRef(initialTotal);
 
   // Row pitch accepted for the current layout. Informes rows are not uniform —
   // a long study name wraps on a narrow phone and grows the row — so probing
@@ -166,7 +184,7 @@ export function InformesReportsList({
     rowHeightPx: number;
   }>({ node: null, containerHeight: 0, rowHeightPx: 0 });
   const onFirstPageRef = useRef(true);
-  const isOnFirstPage = offset === 0;
+  const isOnFirstPage = requestWindow.offset === 0;
   useLayoutEffect(() => {
     onFirstPageRef.current = isOnFirstPage;
   }, [isOnFirstPage]);
@@ -194,10 +212,6 @@ export function InformesReportsList({
     };
     return rowHeightPx;
   }
-
-  useEffect(() => {
-    totalRef.current = totalCount;
-  }, [totalCount]);
 
   useLayoutEffect(() => {
     if (!bodyNode) {
@@ -255,45 +269,40 @@ export function InformesReportsList({
 
   const effectiveLimit = rowsPerPage;
 
+  useLayoutEffect(() => {
+    setRequestWindow((current) => {
+      if (current.limit === effectiveLimit) {
+        return current;
+      }
+
+      return {
+        limit: effectiveLimit,
+        offset: normalizeOffsetForLimit(
+          current.offset,
+          effectiveLimit,
+          totalCount,
+        ),
+      };
+    });
+  }, [effectiveLimit, totalCount]);
+
   const query = useMemo(
     () => ({
       query: filters.query || undefined,
       status: filters.status || undefined,
       studyType: filters.studyType || undefined,
-      pageSize: effectiveLimit,
-      offset,
+      pageSize: requestWindow.limit,
+      offset: requestWindow.offset,
     }),
-    [filters.query, filters.status, filters.studyType, effectiveLimit, offset],
+    [filters.query, filters.status, filters.studyType, requestWindow],
   );
-
-  const previousLimitRef = useRef(effectiveLimit);
-  useEffect(() => {
-    if (previousLimitRef.current === effectiveLimit) {
-      return;
-    }
-    previousLimitRef.current = effectiveLimit;
-
-    setOffset((currentOffset) => {
-      let nextOffset = Math.floor(currentOffset / effectiveLimit) * effectiveLimit;
-      const total = totalRef.current;
-      if (total > 0) {
-        const lastValidOffset = Math.max(
-          0,
-          (Math.ceil(total / effectiveLimit) - 1) * effectiveLimit,
-        );
-        nextOffset = Math.min(nextOffset, lastValidOffset);
-      }
-      nextOffset = Math.max(0, nextOffset);
-      return nextOffset === currentOffset ? currentOffset : nextOffset;
-    });
-  }, [effectiveLimit]);
 
   useEffect(() => {
     const requestId = latestRequestRef.current + 1;
     latestRequestRef.current = requestId;
 
     void (async () => {
-      const page = Math.floor(offset / query.pageSize) + 1;
+      const page = Math.floor(query.offset / query.pageSize) + 1;
       const result = await getInformesPage({
         query: query.query,
         status: query.status,
@@ -307,10 +316,14 @@ export function InformesReportsList({
       }
 
       setReports(result.reports);
+      setSelectedReportId((current) =>
+        current === null || result.reports.some((report) => report.id === current)
+          ? current
+          : (result.reports[0]?.id ?? null),
+      );
       setTotalCount(result.total);
       setLoadError(result.loadError);
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
   // The measured `effectiveLimit` can shrink faster than the corrective
@@ -324,9 +337,15 @@ export function InformesReportsList({
   );
 
   const reportsTotalPages = Math.max(1, Math.ceil(totalCount / effectiveLimit));
-  const page = Math.min(Math.floor(offset / effectiveLimit) + 1, reportsTotalPages);
-  const pageStart = totalCount > 0 ? offset + 1 : 0;
-  const pageEnd = Math.min(offset + visibleReports.length, totalCount);
+  const page = Math.min(
+    Math.floor(requestWindow.offset / effectiveLimit) + 1,
+    reportsTotalPages,
+  );
+  const pageStart = totalCount > 0 ? requestWindow.offset + 1 : 0;
+  const pageEnd = Math.min(
+    requestWindow.offset + visibleReports.length,
+    totalCount,
+  );
   const hasActiveFilters = Boolean(filters.query || filters.status || filters.studyType);
 
   const selectedReport =
@@ -339,11 +358,31 @@ export function InformesReportsList({
     : [];
 
   function goToPreviousPage() {
-    setOffset((current) => Math.max(0, current - effectiveLimit));
+    setRequestWindow((current) => {
+      const currentOffset = normalizeOffsetForLimit(
+        current.offset,
+        effectiveLimit,
+        totalCount,
+      );
+      return {
+        limit: effectiveLimit,
+        offset: Math.max(0, currentOffset - effectiveLimit),
+      };
+    });
   }
 
   function goToNextPage() {
-    setOffset((current) => current + effectiveLimit);
+    setRequestWindow((current) => {
+      const currentOffset = normalizeOffsetForLimit(
+        current.offset,
+        effectiveLimit,
+        totalCount,
+      );
+      return {
+        limit: effectiveLimit,
+        offset: currentOffset + effectiveLimit,
+      };
+    });
   }
 
   function selectReport(reportId: number) {

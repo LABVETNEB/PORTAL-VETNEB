@@ -2,6 +2,7 @@ import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { expect, test, type TestInfo } from "@playwright/test";
 
+import { DASHBOARD_ADAPTIVE_LIMIT_BASELINE } from "../fixtures/dashboard-adaptive-limit-baseline";
 import { DASHBOARD_GEOMETRY_VIEWPORTS } from "../helpers/dashboard-geometry-matrix";
 import {
   A03_LEAF_OBSERVATION_COUNT,
@@ -9,11 +10,12 @@ import {
   A03_OBSERVERS,
   A03_PRIMARY_RECORD_COUNT,
   assertA03Cardinality,
+  assertMatchesBaseline,
   assertMatrixIntegrity,
   observeLeaf,
   prepareContext,
   primaryKey,
-  resolveMatrixMode,
+  resolveBaselineObservations,
   sortObservations,
   type A03ModuleId,
   type A03Observation,
@@ -28,12 +30,12 @@ import {
 // serial case aggregates every module's observations and asserts the full
 // cardinality contract of audit §20.1–§20.2.
 //
-// NOT frozen yet: this run captures and validates; it compares against no
-// versioned baseline and is registered in no cohort. It fails closed unless
-// VETNEB_A03_MATRIX=1 and refuses to run under CI.
+// Frozen on Win32 Chromium from two consecutive post-A05 cold runs with exact
+// zero drift. A platform without a real baseline fails closed; capture mode
+// only preserves its observations in test-results and never borrows Win32.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const matrix = resolveMatrixMode();
+const A03_PLATFORM_CAPTURE_MODE: "off" | "capture" = "capture";
 
 /** Shared, run-scoped sink. `test-results/` is cleared by Playwright at start. */
 function matrixDir(testInfo: TestInfo): string {
@@ -114,7 +116,7 @@ test.describe("A03 · adaptive limit/offset matrix 15x13", () => {
     const sorted = sortObservations(observations);
     const rendered = `${JSON.stringify(
       {
-        schema: "a03-adaptive-limit-matrix-run/1",
+        schema: "a03-matrix-run/1",
         primaryRecords: new Set(
           sorted.map((o) => primaryKey(o.moduleId, o.viewportSlug)),
         ).size,
@@ -128,12 +130,24 @@ test.describe("A03 · adaptive limit/offset matrix 15x13", () => {
     const outputFile = path.join(directory, "a03-matrix-observations.json");
     await writeFile(outputFile, rendered, "utf8");
 
-    if (matrix.capture) {
-      await testInfo.attach("a03-matrix-observations.json", {
-        path: outputFile,
-        contentType: "application/json",
-      });
+    const baseline = resolveBaselineObservations(
+      DASHBOARD_ADAPTIVE_LIMIT_BASELINE,
+      process.platform,
+    );
+    if (baseline === null) {
+      if (A03_PLATFORM_CAPTURE_MODE === "capture") {
+        await testInfo.attach("a03-matrix-observations.json", {
+          path: outputFile,
+          contentType: "application/json",
+        });
+      }
+      throw new Error(
+        `A03 baseline is unavailable for platform "${process.platform}"; ` +
+          `capture=${A03_PLATFORM_CAPTURE_MODE}. Add only a real 234-leaf capture.`,
+      );
     }
+
+    assertMatchesBaseline(sorted, baseline.observations, baseline.provenance);
 
     console.log(
       `\n[A03 matrix] ${sorted.length}/${A03_LEAF_OBSERVATION_COUNT} leaves · ` +

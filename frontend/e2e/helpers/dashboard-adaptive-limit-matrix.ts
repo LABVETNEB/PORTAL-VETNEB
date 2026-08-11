@@ -969,6 +969,8 @@ export type ModuleObserver = {
   readonly stubs: readonly StubDefinition[];
   /** Wire-level opt-in flags for hermetic fixtures the repo already ships. */
   readonly rewrites?: readonly RequestRewrite[];
+  /** Initial rewritten response that must succeed before DOM readiness is read. */
+  readonly initialResponse?: RequestRewrite;
   readonly leaves: readonly LeafTarget[];
   /** server-request only. */
   readonly transport?: "http" | "next-server-action";
@@ -1179,6 +1181,7 @@ export const A03_OBSERVERS: Readonly<Record<A03ModuleId, ModuleObserver>> = Obje
     // user hermetic dataset already in the repo removes that ceiling without
     // touching the limit/offset the card computes.
     rewrites: [REWRITE_USERS_ROLES_HIGH_VOLUME],
+    initialResponse: REWRITE_USERS_ROLES_HIGH_VOLUME,
     leaves: [
       {
         variantId: null,
@@ -1518,7 +1521,27 @@ export async function observeLeaf(
     leafKey: label,
   };
 
+  const initialResponsePromise = observer.initialResponse
+    ? page.waitForResponse((response) => {
+        const expected = observer.initialResponse!;
+        const url = new URL(response.url());
+        return (
+          response.request().method() === expected.method &&
+          url.pathname === expected.pathname &&
+          Object.entries(expected.searchParams).every(
+            ([name, value]) => url.searchParams.get(name) === value,
+          )
+        );
+      })
+    : null;
+
   await page.goto(leaf.route);
+  if (initialResponsePromise) {
+    const initialResponse = await initialResponsePromise;
+    expect(initialResponse.ok(), `${label}: rewritten initial response must be HTTP 2xx`).toBe(
+      true,
+    );
+  }
   await expect(
     page.locator(`${leaf.readinessSelector} >> visible=true`).first(),
     `${label}: readiness`,
@@ -1703,9 +1726,26 @@ async function observeServerRequestLeaf(
   await waitForAdaptiveConvergence(page, leaf.convergenceSelector, `${label} page 2`);
   page.off("request", collect);
 
+  const capturedWindows = captured.map((request) => {
+    if (transport === "next-server-action") {
+      const payload = parseServerActionPayload(
+        request.body,
+        observer.payloadShape ?? "limit-offset",
+        label,
+      );
+      return { limit: payload.limit, offset: payload.offset };
+    }
+
+    const url = new URL(request.url);
+    return {
+      limit: Number(url.searchParams.get("limit")),
+      offset: Number(url.searchParams.get("offset")),
+    };
+  });
+
   expect(
     captured.length,
-    `${label}: one transition must produce exactly one ${wantedMethod} ${pathname} request (more than one is limit thrash — §20.3 records it, A03 never picks a convenient one)`,
+    `${label}: one transition must produce exactly one ${wantedMethod} ${pathname} request; observed ${JSON.stringify(capturedWindows)} (more than one is limit thrash — §20.3 records it, A03 never picks a convenient one)`,
   ).toBe(1);
 
   let limit: number;
@@ -1868,33 +1908,6 @@ async function observeClientSliceLeaf(
   };
 }
 
-// ── Local capture mode ───────────────────────────────────────────────────────
-
-/**
- * Matrix execution switch. OFF by default and refused under CI: the run is a
- * local diagnostic pass until the baseline is frozen. Capture output goes to
- * Playwright's `outputPath` (test-results/), never a tracked path.
- */
-export function resolveMatrixMode(): { readonly capture: boolean } {
-  const isCi = process.env.CI === "true";
-  const enabled = process.env.VETNEB_A03_MATRIX === "1";
-  const capture = process.env.VETNEB_A03_MATRIX_CAPTURE === "1";
-
-  if (isCi && (enabled || capture)) {
-    throw new Error(
-      "VETNEB_A03_MATRIX / VETNEB_A03_MATRIX_CAPTURE are local-only and must not run with CI=true",
-    );
-  }
-
-  if (!enabled) {
-    throw new Error(
-      "A03 matrix is fail-closed: run it explicitly with VETNEB_A03_MATRIX=1 (local only). It is not registered in frontend/e2e/suites/catalog.ts and no cohort executes it.",
-    );
-  }
-
-  return { capture };
-}
-
 /** Canonical ordering: module → viewport → variant. */
 export function sortObservations(
   observations: readonly A03Observation[],
@@ -1920,7 +1933,7 @@ export function sortObservations(
 
 export const A03_BASELINE_SCHEMA = "a03-adaptive-limit-baseline/1";
 /** Commit whose runtime produced the frozen observations. */
-export const A03_BASELINE_COMMIT = "8d533c33bb37a95896f0f9833b2bbef7538e06a2";
+export const A03_BASELINE_COMMIT = "11e735c5613bb8869186a228ffec0588c463a669";
 
 export type A03BaselineFile = {
   readonly schema: string;
