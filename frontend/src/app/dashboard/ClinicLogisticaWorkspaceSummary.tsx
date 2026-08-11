@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import type { FieldVisit } from "@/types";
 import { Route as RouteIcon, ExternalLink } from "lucide-react";
 import { useAdaptiveRowsPerPage } from "@/hooks/useAdaptiveRowsPerPage";
@@ -33,6 +33,8 @@ export function ClinicLogisticaWorkspaceSummary({
   const [firstRowNode, setFirstRowNode] = useState<HTMLButtonElement | null>(
     null,
   );
+  const rowPitchRef = useRef({ containerHeight: 0, rowHeightPx: 0 });
+  const onFirstPageRef = useRef(true);
   const [rowHeightPx, setRowHeightPx] = useState(VISITS_ROW_HEIGHT_FALLBACK_PX);
 
   useLayoutEffect(() => {
@@ -40,19 +42,60 @@ export function ClinicLogisticaWorkspaceSummary({
       return;
     }
 
+    // Row pitch belongs to the LAYOUT, not to the page on screen: learning it
+    // again from another slice changed `rowsPerPage` and re-sliced the list, so
+    // page 2 stopped matching the measured page size. It is learned ONCE per canvas
+      // geometry: content changes never re-learn it, a real resize does.
     const measureRowHeight = () => {
-      const height = firstRowNode.getBoundingClientRect().height;
+      const containerHeight =
+        visitsListBodyNode?.getBoundingClientRect().height ?? 0;
+      const cached = rowPitchRef.current;
+
+      if (cached.rowHeightPx > 0 &&
+        (!onFirstPageRef.current ||
+          cached.containerHeight === containerHeight)) {
+        return;
+      }
+
+      const rows = visitsListBodyNode
+        ? Array.from(
+            visitsListBodyNode.querySelectorAll<HTMLElement>(
+              '[data-clinic-logistics-row="true"]',
+            ),
+          )
+        : [];
+      const height = rows.reduce(
+        (maximum, row) => Math.max(maximum, row.getBoundingClientRect().height),
+        firstRowNode.getBoundingClientRect().height,
+      );
+
       if (height > 0) {
-        setRowHeightPx(height);
+        rowPitchRef.current = { containerHeight, rowHeightPx: height };
+        setRowHeightPx((previous) => (previous === height ? previous : height));
       }
     };
 
     const observer = new ResizeObserver(measureRowHeight);
     observer.observe(firstRowNode);
+    if (visitsListBodyNode) {
+      observer.observe(visitsListBodyNode);
+    }
+
+    const mutationObserver = new MutationObserver(measureRowHeight);
+    if (visitsListBodyNode) {
+      mutationObserver.observe(visitsListBodyNode, {
+        childList: true,
+        subtree: true,
+      });
+    }
+
     measureRowHeight();
 
-    return () => observer.disconnect();
-  }, [firstRowNode]);
+    return () => {
+      mutationObserver.disconnect();
+      observer.disconnect();
+    };
+  }, [firstRowNode, visitsListBodyNode]);
 
   // Adaptive density: the visible row count derives from the measured list
   // canvas (390x844 fits fewer rows than 1440x900); the fixed page size is
@@ -64,6 +107,11 @@ export function ClinicLogisticaWorkspaceSummary({
   });
 
   const pagedVisits = usePagedRows(recentVisits, rowsPerPage);
+  useLayoutEffect(() => {
+    onFirstPageRef.current = pagedVisits.page === 0;
+  }, [pagedVisits.page]);
+
+
   const selectedVisit =
     selectedVisitId === null
       ? null
