@@ -683,8 +683,31 @@ export async function clearDashboardModuleMemory(page: Page): Promise<void> {
 // ── Adaptive convergence (§20.3) ─────────────────────────────────────────────
 
 /**
- * Proves the adaptive measurement has CONVERGED by draining the runtime's own
- * re-measure pipeline instead of guessing with a timeout.
+ * Consecutive identical renders required before the measurement is accepted.
+ *
+ * One drained cycle is NOT sufficient evidence. The dashboard consumers couple
+ * TWO adaptive stages: the row-pitch probe (`LogisticsRecentListCanvas` and
+ * peers) feeds `rowHeightPx` into `useAdaptiveDashboardPageSize`, whose layout
+ * effect lists that value as a dependency. When a re-probe changes the pitch
+ * WITHOUT changing the resulting page size, React commits a render that mutates
+ * nothing inside the container and resizes nothing, then re-subscribes the
+ * hook's `ResizeObserver`, whose fresh initial callback re-measures one or more
+ * frames later. That window is silent to both observers below, so a single
+ * drain can resolve inside it and read a cardinality the runtime is about to
+ * replace — observed at 0–6 frames after the drain resolved (canvas descendants
+ * 26 → 35 at an IDENTICAL 251.891px canvas height).
+ *
+ * Requiring the SAME render twice in a row, with a full drained cycle between
+ * the observations, spans that window with a condition instead of a duration.
+ */
+const ADAPTIVE_STABLE_RENDER_REPEATS = 2;
+
+/** Bounded fail-closed budget: a container that never stabilises throws. */
+const ADAPTIVE_STABILITY_ATTEMPTS = 12;
+
+/**
+ * Drains the runtime's own re-measure pipeline once and returns the RENDER
+ * SIGNATURE observed at the moment it went quiet.
  *
  * Every adaptive hook re-measures through exactly one path: a `ResizeObserver`
  * callback that schedules the measurement on the next `requestAnimationFrame`;
@@ -693,30 +716,19 @@ export async function clearDashboardModuleMemory(page: Page): Promise<void> {
  * frame elapses with NO resize callback and NO mutation inside the measured
  * container. Waiting for three consecutive quiet frames observes the ABSENCE of
  * pending work — it is not a sleep, a retry loop, a poll that selects a
- * convenient value, or an average: no value is read or compared here. If the
- * pipeline never goes quiet the call THROWS instead of returning a mid-flight
- * value.
+ * convenient value, or an average. If the pipeline never goes quiet the call
+ * THROWS instead of returning a mid-flight value.
  *
- * `containerIndex` selects WHICH match of `containerSelector` is drained, for
- * the compound consumers of §20.2 whose instances each own a measured
- * container. It is an index over the selector's own matches — never a CSS
- * positional pseudo-class, which counts siblings by tag and does not express
- * "the nth match". A missing index fails closed; it never falls back to the
- * first match, which would silently drain another instance's container.
+ * The signature is the rendered cardinality of the container plus its measured
+ * block size: exactly the two quantities every A03/A05 observation reads.
  */
-export async function waitForAdaptiveConvergence(
+async function drainToRenderSignature(
   page: Page,
   containerSelector: string,
   label: string,
-  containerIndex = 0,
-): Promise<void> {
-  if (!Number.isInteger(containerIndex) || containerIndex < 0) {
-    throw new Error(
-      `${label}: adaptive container index must be a non-negative integer, received ${containerIndex}`,
-    );
-  }
-
-  await page.evaluate(
+  containerIndex: number,
+): Promise<string> {
+  return page.evaluate(
     async ({ selector, index, quietFrames, frameBudget, context }) => {
       const matches = document.querySelectorAll(selector);
       const node = matches[index];
@@ -783,6 +795,10 @@ export async function waitForAdaptiveConvergence(
 
         requestAnimationFrame(tick);
       });
+
+      return `${node.querySelectorAll("*").length}|${Math.round(
+        node.getBoundingClientRect().height * 1_000,
+      )}`;
     },
     {
       selector: containerSelector,
@@ -791,6 +807,64 @@ export async function waitForAdaptiveConvergence(
       frameBudget: 600,
       context: label,
     },
+  );
+}
+
+/**
+ * Proves the adaptive measurement has CONVERGED **and stayed converged**, by
+ * requiring the same render signature from consecutive drained cycles instead
+ * of trusting a single quiet window (see ADAPTIVE_STABLE_RENDER_REPEATS).
+ *
+ * Every observation is separated from the previous one by a real drained
+ * measurement cycle — a render signal, never a duration. No value is selected
+ * from a pool and no tolerance is applied: the signatures must be identical.
+ * A container that never stabilises THROWS instead of returning a mid-flight
+ * cardinality.
+ *
+ * `containerIndex` selects WHICH match of `containerSelector` is drained, for
+ * the compound consumers of §20.2 whose instances each own a measured
+ * container. It is an index over the selector's own matches — never a CSS
+ * positional pseudo-class, which counts siblings by tag and does not express
+ * "the nth match". A missing index fails closed; it never falls back to the
+ * first match, which would silently drain another instance's container.
+ */
+export async function waitForAdaptiveConvergence(
+  page: Page,
+  containerSelector: string,
+  label: string,
+  containerIndex = 0,
+): Promise<void> {
+  if (!Number.isInteger(containerIndex) || containerIndex < 0) {
+    throw new Error(
+      `${label}: adaptive container index must be a non-negative integer, received ${containerIndex}`,
+    );
+  }
+
+  let previous: string | null = null;
+  let repeats = 0;
+
+  for (let attempt = 0; attempt < ADAPTIVE_STABILITY_ATTEMPTS; attempt += 1) {
+    const signature = await drainToRenderSignature(
+      page,
+      containerSelector,
+      label,
+      containerIndex,
+    );
+
+    if (signature === previous) {
+      repeats += 1;
+      if (repeats >= ADAPTIVE_STABLE_RENDER_REPEATS) {
+        return;
+      }
+      continue;
+    }
+
+    previous = signature;
+    repeats = 0;
+  }
+
+  throw new Error(
+    `${label}: adaptive render never stabilised — ${ADAPTIVE_STABILITY_ATTEMPTS} drained cycles never produced ${ADAPTIVE_STABLE_RENDER_REPEATS} consecutive identical renders of "${containerSelector}" index ${containerIndex}`,
   );
 }
 
