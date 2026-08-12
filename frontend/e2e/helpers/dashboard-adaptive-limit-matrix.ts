@@ -841,7 +841,7 @@ export async function waitForAdaptiveConvergence(
   }
 
   let previous: string | null = null;
-  let repeats = 0;
+  let stableRenderCount = 0;
 
   for (let attempt = 0; attempt < ADAPTIVE_STABILITY_ATTEMPTS; attempt += 1) {
     const signature = await drainToRenderSignature(
@@ -851,16 +851,20 @@ export async function waitForAdaptiveConvergence(
       containerIndex,
     );
 
+    // The budget counts identical RENDERS, not repetitions of a previous one:
+    // the drained cycle that first produced a signature already contributes the
+    // first of them. Counting transitions demanded THREE drains for the
+    // documented "twice in a row" and spent one full cycle per convergence.
     if (signature === previous) {
-      repeats += 1;
-      if (repeats >= ADAPTIVE_STABLE_RENDER_REPEATS) {
-        return;
-      }
-      continue;
+      stableRenderCount += 1;
+    } else {
+      previous = signature;
+      stableRenderCount = 1;
     }
 
-    previous = signature;
-    repeats = 0;
+    if (stableRenderCount >= ADAPTIVE_STABLE_RENDER_REPEATS) {
+      return;
+    }
   }
 
   throw new Error(
