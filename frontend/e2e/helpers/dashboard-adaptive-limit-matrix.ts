@@ -1571,6 +1571,11 @@ export async function observeLeaf(
     await expect(pageLabel, `${label}: page 1`).toHaveText(pageLabelPattern(1));
   }
 
+  if (observer.source === "client-slice") {
+    await page.waitForLoadState("networkidle");
+    await waitForAdaptiveConvergence(page, leaf.convergenceSelector, label, convergenceIndex);
+  }
+
   const firstPageRows = await resolveVisibleRows(page, leaf.rowSelectors, label);
   const firstPageCount = await firstPageRows.count();
   expect(firstPageCount, `${label}: converged first page must render rows`).toBeGreaterThan(0);
