@@ -1686,6 +1686,17 @@ async function observeServerRequestLeaf(
   const pathname = observer.requestPathname ?? "";
   const wantedMethod = transport === "http" ? "GET" : "POST";
 
+  // A slow server-action render can leave its page-1 request in flight after
+  // the adaptive container itself is quiet. Drain it before arming the
+  // transition listener so only the explicit page-2 action is observed.
+  await page.waitForLoadState("networkidle");
+  await waitForAdaptiveConvergence(
+    page,
+    leaf.convergenceSelector,
+    `${label} before page 2`,
+    leaf.scopeNth ?? 0,
+  );
+
   // The expectation is armed BEFORE the click, so the observation is bound to
   // the transition and never selected afterwards from a pool.
   const captured: { url: string; body: string; hasNextAction: boolean }[] = [];

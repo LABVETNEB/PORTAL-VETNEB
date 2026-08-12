@@ -62,7 +62,7 @@ async function reservePager(
   await expect(reservedRegion, `${label}: declared pager reservation`).toHaveCount(1);
   await expect(internalControl, `${label}: pager internal control`).toHaveCount(1);
   await reservedRegion.evaluate(
-    (node, reservePx) => {
+    (node, { reservePx, controlPx }) => {
       const element = node as HTMLElement;
       element.style.setProperty(
         "--dash-adaptive-pager-reserved-block-size",
@@ -73,16 +73,16 @@ async function reservePager(
       element.style.setProperty("max-block-size", `${reservePx}px`, "important");
       element.style.setProperty("flex-basis", `${reservePx}px`, "important");
       element.style.setProperty("box-sizing", "border-box");
+
+      const control = element.querySelector("button") as HTMLElement | null;
+      if (!control) throw new Error("A05 pager internal control disappeared");
+      control.style.setProperty("block-size", `${controlPx}px`, "important");
+      control.style.setProperty("min-block-size", `${controlPx}px`, "important");
+      control.style.setProperty("max-block-size", `${controlPx}px`, "important");
+      control.style.setProperty("box-sizing", "border-box");
     },
-    CONTRACTUAL_PAGER_RESERVE_PX,
+    { reservePx: CONTRACTUAL_PAGER_RESERVE_PX, controlPx: scenario },
   );
-  await internalControl.evaluate((node, blockSize) => {
-    const element = node as HTMLElement;
-    element.style.setProperty("block-size", `${blockSize}px`, "important");
-    element.style.setProperty("min-block-size", `${blockSize}px`, "important");
-    element.style.setProperty("max-block-size", `${blockSize}px`, "important");
-    element.style.setProperty("box-sizing", "border-box");
-  }, scenario);
 }
 
 async function readStableState(
