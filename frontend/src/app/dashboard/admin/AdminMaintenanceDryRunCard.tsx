@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState, useTransition, type Ref } from "react";
+import { useState, useTransition, type Ref } from "react";
 import { Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/card";
 import { CompactPager } from "@/components/dashboard/CompactPager";
 import { usePagedRows } from "@/components/dashboard/usePagedRows";
-import { useAdaptiveRowsPerPage } from "@/hooks/useAdaptiveRowsPerPage";
+import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
 import { getAdminMaintenancePurgeDryRun } from "@/lib/api";
 import type {
   MaintenancePurgeCandidateGroup,
@@ -21,10 +21,8 @@ import type {
 } from "@/types";
 
 const CANDIDATES_FALLBACK_ROWS = 4;
-const CANDIDATE_ROW_HEIGHT_FALLBACK_PX = 76;
 // Matches the space-y-2 gap between candidate rows so the adaptive measurement
 // accounts for the full per-row footprint, not just the row's own height.
-const CANDIDATE_ROW_GAP_PX = 8;
 
 function formatGeneratedAt(value: string) {
   const date = new Date(value);
@@ -57,7 +55,11 @@ function MaintenanceCandidateRow({
   ref?: Ref<HTMLDivElement>;
 }) {
   return (
-    <div ref={ref} className="clinical-muted-band rounded-lg px-3 py-3">
+    <div
+      ref={ref}
+      data-dashboard-adaptive-row="true"
+      className="clinical-muted-band rounded-lg px-3 py-3"
+    >
       <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
         <div>
           <p className="text-sm font-semibold text-vetneb-ink">
@@ -98,81 +100,17 @@ export function AdminMaintenanceDryRunCard() {
   const [isPending, startTransition] = useTransition();
   const [candidatesListNode, setCandidatesListNode] =
     useState<HTMLDivElement | null>(null);
-  const [firstCandidateRowNode, setFirstCandidateRowNode] =
-    useState<HTMLDivElement | null>(null);
-  const [rowHeightPx, setRowHeightPx] = useState(
-    CANDIDATE_ROW_HEIGHT_FALLBACK_PX,
-  );
-
-  // Candidate rows are NOT uniform: an unsupported group renders an extra
-  // reason line, so it is taller than a supported one. Probing "the first
-  // rendered row" therefore made the pitch depend on which groups happened to
-  // be on the current page — page 1 and page 2 measured different heights, so
-  // `rowsPerPage` changed while paging and a page could render fewer rows than
-  // the page it came from. The pitch belongs to the layout, not to the current
-  // page: it is probed once per measured-region size and reused across page
-  // changes, and re-probed whenever that region resizes (viewport, zoom).
-  const rowPitchRef = useRef<{
-    node: HTMLElement | null;
-    containerHeight: number;
-    rowHeightPx: number;
-  }>({ node: null, containerHeight: 0, rowHeightPx: 0 });
-  const onFirstPageRef = useRef(true);
-
-  useLayoutEffect(() => {
-    if (!firstCandidateRowNode) {
-      return;
-    }
-
-    const measureRowHeight = () => {
-      const height = firstCandidateRowNode.getBoundingClientRect().height;
-      if (height <= 0) {
-        return;
-      }
-
-      const containerHeight =
-        candidatesListNode?.getBoundingClientRect().height ?? 0;
-      const cached = rowPitchRef.current;
-      const layoutChanged =
-        cached.node !== candidatesListNode ||
-        cached.containerHeight !== containerHeight;
-
-      // Held while paging, re-probed on the first page — see AdminReportsCard.
-      if (!layoutChanged && cached.rowHeightPx > 0 && !onFirstPageRef.current) {
-        return;
-      }
-
-      const pitch = height + CANDIDATE_ROW_GAP_PX;
-      if (!layoutChanged && pitch === cached.rowHeightPx) {
-        return;
-      }
-
-      rowPitchRef.current = {
-        node: candidatesListNode,
-        containerHeight,
-        rowHeightPx: pitch,
-      };
-      setRowHeightPx(pitch);
-    };
-
-    const observer = new ResizeObserver(measureRowHeight);
-    observer.observe(firstCandidateRowNode);
-    measureRowHeight();
-
-    return () => observer.disconnect();
-  }, [firstCandidateRowNode, candidatesListNode]);
-
-  const { rowsPerPage } = useAdaptiveRowsPerPage({
-    containerNode: candidatesListNode,
-    fallbackRows: CANDIDATES_FALLBACK_ROWS,
-    rowHeightPx,
+  // The pitch is a CSS token and the gap a declared one, so the non-uniform
+  // candidate rows (an unsupported group carries an extra reason line) can no
+  // longer make the page size depend on which groups the current page happens
+  // to hold.
+  const { capacity: rowsPerPage } = useDashboardCanvasCapacity({
+    canvasNode: candidatesListNode,
+    fallbackItems: CANDIDATES_FALLBACK_ROWS,
+    minItems: 2,
   });
 
   const pagedCandidates = usePagedRows(snapshot?.candidates ?? [], rowsPerPage);
-  const isOnFirstCandidatePage = pagedCandidates.page === 0;
-  useLayoutEffect(() => {
-    onFirstPageRef.current = isOnFirstCandidatePage;
-  }, [isOnFirstCandidatePage]);
 
   function handleAnalyze() {
     setError(null);
@@ -266,13 +204,14 @@ export function AdminMaintenanceDryRunCard() {
               ref={setCandidatesListNode}
               data-admin-maintenance-candidates-list="true"
               data-dashboard-adaptive-rows-canvas="true"
+              data-dashboard-row-pitch="card"
+              data-dashboard-row-gap="loose"
               className="min-h-0 flex-1 space-y-2 overflow-hidden"
             >
-              {pagedCandidates.pageItems.map((candidate, index) => (
+              {pagedCandidates.pageItems.map((candidate) => (
                 <MaintenanceCandidateRow
                   key={candidate.category}
                   candidate={candidate}
-                  ref={index === 0 ? setFirstCandidateRowNode : undefined}
                 />
               ))}
             </div>

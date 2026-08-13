@@ -10,10 +10,10 @@ const CLINIC_DASHBOARD_SIDEBAR_PATH =
   "frontend/src/components/dashboard/ClinicDashboardSidebar.tsx";
 const CLINIC_TOKENS_CARD_PATH =
   "frontend/src/components/dashboard/ClinicParticularTokensCard.tsx";
-const ADAPTIVE_ITEMS_HOOK_PATH =
-  "frontend/src/hooks/useAdaptiveItemsPerPage.ts";
-const ADAPTIVE_ROWS_HOOK_PATH =
-  "frontend/src/hooks/useAdaptiveRowsPerPage.ts";
+const CAPACITY_OWNER_PATH =
+  "frontend/src/hooks/useDashboardCanvasCapacity.ts";
+const CAPACITY_ENGINE_PATH =
+  "frontend/src/lib/dashboard/capacity/computeCapacity.ts";
 const API_PATH = "frontend/src/lib/api.ts";
 
 function read(relativePath: string): string {
@@ -86,11 +86,12 @@ test("clinic tokens uses table/list row actions with dialog detail and step dial
   const source = read(CLINIC_TOKENS_CARD_PATH);
 
   assert.ok(source.includes("const TOKENS_PAGE_SIZE = 4;"));
-  assert.ok(source.includes("useAdaptiveRowsPerPage"));
-  assert.ok(source.includes("fallbackRows: TOKENS_PAGE_SIZE"));
+  assert.ok(source.includes("useDashboardCanvasCapacity"));
+  assert.ok(source.includes("fallbackItems: TOKENS_PAGE_SIZE"));
   assert.equal(source.includes("usePagedRows(filteredTokens, TOKENS_PAGE_SIZE)"), false);
   assert.ok(source.includes("usePagedRows(filteredTokens, rowsPerPage)"));
   assert.equal(source.includes("useAdaptiveItemsPerPage"), false);
+  assert.equal(source.includes("useAdaptiveRowsPerPage"), false);
   assert.ok(source.includes("selectedTokenId"));
   assert.ok(source.includes("ModuleSurface"));
   assert.ok(source.includes('data-clinic-access-table="true"'));
@@ -129,41 +130,50 @@ test("clinic tokens uses table/list row actions with dialog detail and step dial
   assert.equal(source.includes("overflow-y-auto"), false);
 });
 
-test("adaptive rows wrapper delegates to adaptive items foundation", () => {
+// The rows/items wrapper pair is gone: `useAdaptiveRowsPerPage` only renamed
+// the fields of `useAdaptiveItemsPerPage`, so "the wrapper delegates to the
+// foundation" was a contract about an indirection, not about behaviour. Both
+// collapsed into one owner over a pure engine, and the guard now pins that
+// split: the owner touches the DOM, the engine is arithmetic.
+test("the capacity owner delegates its arithmetic to the pure engine", () => {
   assert.equal(
-    existsSync(resolve(process.cwd(), ADAPTIVE_ITEMS_HOOK_PATH)),
+    existsSync(resolve(process.cwd(), CAPACITY_OWNER_PATH)),
     true,
-    "adaptive items hook must exist",
+    "capacity owner must exist",
   );
   assert.equal(
-    existsSync(resolve(process.cwd(), ADAPTIVE_ROWS_HOOK_PATH)),
+    existsSync(resolve(process.cwd(), CAPACITY_ENGINE_PATH)),
     true,
-    "adaptive rows wrapper must exist",
+    "capacity engine must exist",
   );
 
-  const itemsHook = read(ADAPTIVE_ITEMS_HOOK_PATH);
-  const rowsHook = read(ADAPTIVE_ROWS_HOOK_PATH);
+  const owner = read(CAPACITY_OWNER_PATH);
+  const engine = read(CAPACITY_ENGINE_PATH);
 
-  assert.ok(itemsHook.includes("export function useAdaptiveItemsPerPage"));
-  assert.ok(itemsHook.includes("containerNode: HTMLElement | null"));
-  assert.ok(itemsHook.includes("fallbackItems: number"));
-  assert.ok(itemsHook.includes("itemHeightPx: number"));
-  assert.ok(itemsHook.includes("ResizeObserver"));
-  assert.ok(itemsHook.includes("requestAnimationFrame"));
-  assert.equal(itemsHook.includes("matchMedia"), false);
-  assert.equal(itemsHook.includes("overflow-y-auto"), false);
+  assert.ok(owner.includes("export function useDashboardCanvasCapacity("));
+  assert.ok(owner.includes("canvasNode: HTMLElement | null"));
+  assert.ok(owner.includes("ResizeObserver"));
+  assert.ok(owner.includes("requestAnimationFrame"));
+  assert.ok(
+    owner.includes("computeCapacity({"),
+    "the owner must not re-implement the arithmetic it delegates",
+  );
+  assert.equal(owner.includes("matchMedia"), false);
+  assert.equal(owner.includes("overflow-y-auto"), false);
 
-  assert.ok(rowsHook.includes('import { useAdaptiveItemsPerPage } from "@/hooks/useAdaptiveItemsPerPage";'));
-  assert.ok(rowsHook.includes("type AdaptiveRowsPerPageOptions"));
-  assert.ok(rowsHook.includes("fallbackRows: number"));
-  assert.ok(rowsHook.includes("rowHeightPx: number"));
-  assert.ok(rowsHook.includes("const { itemsPerPage } = useAdaptiveItemsPerPage({"));
-  assert.ok(rowsHook.includes("fallbackItems: options.fallbackRows"));
-  assert.ok(rowsHook.includes("itemHeightPx: options.rowHeightPx"));
-  assert.ok(rowsHook.includes("minItems: options.minRows ?? 2"));
-  assert.ok(rowsHook.includes("return { rowsPerPage: itemsPerPage };"));
-  assert.equal(rowsHook.includes("matchMedia"), false);
-  assert.equal(rowsHook.includes("overflow-y-auto"), false);
+  assert.ok(engine.includes("export function computeCapacity("));
+  assert.ok(engine.includes("canvasBlockSizePx: number"));
+  assert.ok(engine.includes("rowPitchPx: number"));
+
+  // The engine is arithmetic: no DOM, no React, no dataset. Asserted against
+  // CODE — the module documents why `itemCount` is not a parameter, and that
+  // prose must not read as the violation it exists to prevent.
+  const engineCode = engine
+    .replace(/\/\*[\s\S]*?\*\//g, " ")
+    .replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+  assert.equal(engineCode.includes("ResizeObserver"), false);
+  assert.equal(engineCode.includes("useState"), false);
+  assert.equal(engineCode.includes("itemCount"), false);
 });
 
 test("clinic tokens exposes advanced filters over visible token fields", () => {

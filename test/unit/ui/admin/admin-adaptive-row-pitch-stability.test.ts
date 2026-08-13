@@ -14,10 +14,17 @@ import test from "node:test";
 // limit, and one click on "Siguiente" emitted several windows (admin-report-
 // upload at 834x1194 emitted four and settled back on page 1).
 //
-// The pitch is a property of the layout, not of the current page: it is probed
-// once per measured-region size and reused across page changes, and re-probed
-// when that region resizes. These guards pin that rule at the source, per card,
-// without freezing any measured value.
+// That rule used to be "probe the pitch once per measured-region size and reuse
+// it across page changes". Option D removes its premise: the pitch is not probed
+// at all. It is a CSS token (`--dash-row-pitch`) that the rows are themselves
+// locked to, so no rendered record can reach the page size and there is nothing
+// left to cache, hold across pages or re-probe on resize.
+//
+// These guards therefore keep the same SUBJECTS — one per card — but assert the
+// stronger property: no card may retain a second source of truth for the pitch,
+// probe its rows, or re-arm measurement from a mutation. A card that reintroduced
+// any of those would reopen exactly the loop that made one "Siguiente" emit
+// several windows.
 
 const REPORTS_PATH = "frontend/src/app/dashboard/admin/AdminReportsCard.tsx";
 const MAINTENANCE_PATH =
@@ -38,132 +45,105 @@ function read(relativePath: string) {
   );
 }
 
-test("AdminReportsCard reutiliza el pitch medido entre páginas y lo revalida por tamaño de región", () => {
-  const source = read(REPORTS_PATH);
+/**
+ * Source with comments removed, for guards that assert the ABSENCE of a
+ * construct: a file that documents why it no longer probes rows would otherwise
+ * fail on the very prose that records the fix.
+ */
+function readCode(relativePath: string) {
+  return read(relativePath)
+    .replace(/\/\*[\s\S]*?\*\//g, " ")
+    .replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+}
+
+/**
+ * Shared contract for a migrated card: the capacity comes from the single owner
+ * bound to a canvas that declares its density tier, and nothing in the file
+ * measures, caches or re-probes a row.
+ */
+function assertPitchLocked(path: string, label: string) {
+  const source = read(path);
+  const code = readCode(path);
 
   assert.ok(
-    source.includes("const rowPitchRef = useRef<{"),
-    "el pitch debe vivir en un ref por layout, no recalcularse en cada swap de datos",
+    source.includes('from "@/hooks/useDashboardCanvasCapacity"') &&
+      source.includes("useDashboardCanvasCapacity({"),
+    `${label}: la cardinalidad debe salir del owner único`,
   );
   assert.ok(
-    source.includes("function resolveRowPitch("),
-    "la resolución del pitch debe estar centralizada para ambas presentaciones",
+    source.includes('data-dashboard-row-pitch="'),
+    `${label}: el canvas debe declarar su tier de densidad`,
   );
   assert.ok(
-    source.includes(
-      "cached.node !== container || cached.containerHeight !== containerHeight",
-    ),
-    "el pitch sólo se vuelve a medir cuando cambia la región medida",
+    !code.includes("rowPitchRef") &&
+      !code.includes("onFirstPageRef") &&
+      !code.includes("resolveRowPitch") &&
+      !code.includes("measurementsEqual"),
+    `${label}: no puede quedar una caché de pitch en la card`,
   );
   assert.ok(
-    source.includes("if (!layoutChanged && cached.rowHeightPx > 0 && !onFirstPageRef.current)") &&
-      source.includes("onFirstPageRef.current = isOnFirstPage;"),
-    "el pitch se sondea en la primera página y se sostiene mientras se pagina",
+    !code.includes("MutationObserver") && !code.includes("new ResizeObserver"),
+    `${label}: el sondeo de filas y su re-armado por mutación deben haber desaparecido`,
   );
+  assert.ok(
+    !/ROW_HEIGHT_FALLBACK_PX/.test(code),
+    `${label}: el alto de fila deja de ser una constante del runtime`,
+  );
+}
 
-  // Ambas presentaciones pasan por la misma resolución: una sola semántica.
-  assert.ok(
-    source.includes(
-      "rowHeightPx: resolveRowPitch(mobileBodyNode, mobileHeight, rowHeight),",
-    ),
-  );
-  assert.ok(
-    source.includes(
-      "rowHeightPx: resolveRowPitch(desktopBodyNode, desktopHeight, rowHeight),",
-    ),
-  );
-
-  // El fallback sigue siendo sólo pre-medición: no se fija ningún limit.
-  assert.ok(source.includes("const REPORTS_ROW_HEIGHT_FALLBACK_PX = 36;"));
-  assert.ok(
-    !source.includes("itemsPerPage: 9") && !source.includes("limit: 9,"),
-    "no se congela ningún limit; la cardinalidad sigue siendo medida",
-  );
+test("AdminReportsCard deriva su cardinalidad del owner pitch-locked", () => {
+  assertPitchLocked(REPORTS_PATH, "AdminReportsCard");
 });
 
-test("AdminMaintenanceDryRunCard no re-mide el pitch al cambiar de página", () => {
-  const source = read(MAINTENANCE_PATH);
-
-  assert.ok(source.includes("const rowPitchRef = useRef<{"));
-  assert.ok(
-    source.includes("cached.node !== candidatesListNode ||") &&
-      source.includes("cached.containerHeight !== containerHeight;") &&
-      source.includes("onFirstPageRef.current = isOnFirstCandidatePage;"),
-    "el pitch se sondea en la primera página y se sostiene mientras se pagina",
-  );
-  assert.ok(
-    source.includes("}, [firstCandidateRowNode, candidatesListNode]);"),
-    "la medición debe observar también el contenedor para revalidar por resize",
-  );
+test("AdminMaintenanceDryRunCard deriva su cardinalidad del owner pitch-locked", () => {
+  assertPitchLocked(MAINTENANCE_PATH, "AdminMaintenanceDryRunCard");
 });
 
-test("InformesReportsList conserva el pitch entre páginas y lo revalida por tamaño de región", () => {
-  const source = read(INFORMES_PATH);
-
-  assert.ok(source.includes("const rowPitchRef = useRef<{"));
-  assert.ok(source.includes("function resolveRowPitch("));
-  assert.ok(
-    source.includes(
-      "cached.node !== container || cached.containerHeight !== containerHeight",
-    ),
-  );
-  assert.ok(
-    source.includes(
-      "rowHeightPx: resolveRowPitch(bodyNode, containerHeight, rowHeight),",
-    ),
-    "la medición debe pasar por la resolución cacheada, no por la fila cruda",
-  );
-  assert.ok(source.includes("const INFORMES_ROW_HEIGHT_FALLBACK_PX = 88;"));
+test("InformesReportsList deriva su cardinalidad del owner pitch-locked", () => {
+  assertPitchLocked(INFORMES_PATH, "InformesReportsList");
 });
 
-test("ClinicParticularTokensCard no re-mide el pitch al cambiar de página", () => {
-  const source = read(CLINIC_TOKENS_PATH);
-
-  assert.ok(source.includes("const rowPitchRef = useRef<{"));
-  assert.ok(
-    source.includes("cached.node !== panelBodyNode || cached.containerHeight !== containerHeight;") &&
-      source.includes("!onFirstPageRef.current") &&
-      source.includes("onFirstPageRef.current = isOnFirstTokensPage;"),
-  );
-  assert.ok(
-    source.includes(
-      "}, [firstDesktopRowNode, firstMobileRowNode, panelBodyNode]);",
-    ),
-    "la región medida debe observarse para revalidar el pitch por resize",
-  );
+test("ClinicParticularTokensCard deriva su cardinalidad del owner pitch-locked", () => {
+  assertPitchLocked(CLINIC_TOKENS_PATH, "ClinicParticularTokensCard");
 });
 
-// LogisticsRecentListCanvas endureció la regla: sostener el pitch entre páginas
-// no bastaba. La clave de layout era sólo la altura, así que un cambio de
-// geometría estando en la página N promovía a canónico el pitch de esa página y
-// la misma geometría quedaba con un limit distinto según cómo se hubiera
-// llegado (histéresis A -> B -> A). La regla vive ahora en la primitiva
-// `adaptiveRowPitchCalibration`, con invariantes cubiertas por
-// test/unit/ui/dashboard/dashboard-adaptive-row-pitch-calibration.test.ts.
-test("LogisticsRecentListCanvas calibra el pitch sólo con evidencia canónica", () => {
+// LogisticsRecentListCanvas es el piloto de la arquitectura pitch-locked
+// (Opción D). La regla anterior — calibrar el pitch con evidencia de la página
+// canónica y congelarlo por geometría en una LRU — existía para domar un pitch
+// MEDIDO del contenido: era memoria contra la histéresis A -> B -> A. Ese pitch
+// ya no se mide. Lo publica CSS (`--dash-row-pitch`), las filas quedan ancladas
+// al mismo token y el owner único lo lee, así que no hay nada que calibrar ni
+// que recordar. El guard se endurece en consecuencia: ya no exige una primitiva
+// de calibración, exige que NINGUNA segunda fuente de verdad del pitch
+// sobreviva en el canvas. Las invariantes del motor viven en
+// test/unit/ui/dashboard/dashboard-capacity-engine.test.ts y su contrato
+// estructural en test/architecture/dashboard-capacity-single-owner.test.ts.
+test("LogisticsRecentListCanvas deriva su cardinalidad del owner pitch-locked", () => {
   const source = read(LOGISTICS_RECENT_PATH);
 
   assert.ok(
-    source.includes(
-      'from "@/components/dashboard/adaptiveRowPitchCalibration"',
-    ) && source.includes("createAdaptiveRowPitchCalibrator()"),
-    "la calibración debe delegar en la primitiva, no reimplementarse aquí",
+    source.includes('from "@/hooks/useDashboardCanvasCapacity"') &&
+      source.includes("useDashboardCanvasCapacity({"),
+    "la cardinalidad debe salir del owner único, no de una medición local",
   );
   assert.ok(
-    source.includes("const outcome = calibrator.reconcile({") &&
-      source.includes("inlineSize: canvas.width,") &&
-      source.includes("blockSize: canvas.height,") &&
-      source.includes("page: pageRef.current,"),
-    "la geometría material (ancho y alto) y la página medida entran en la clave",
+    source.includes('data-dashboard-adaptive-rows-canvas="true"') &&
+      source.includes('data-dashboard-row-pitch="'),
+    "el canvas debe declarar su tier para que el pitch sea un token y no una medida",
   );
+  const code = readCode(LOGISTICS_RECENT_PATH);
   assert.ok(
-    source.includes("if (outcome.requestedPage !== null) {") &&
-      source.includes("setPageRef.current(outcome.requestedPage);"),
-    "la transición a la página canónica y su restitución deben aplicarse",
-  );
-  assert.ok(
-    !source.includes("rowPitchRef") && !source.includes("onFirstPageRef"),
+    !code.includes("rowPitchRef") &&
+      !code.includes("onFirstPageRef") &&
+      !code.includes("adaptiveRowPitchCalibration") &&
+      !code.includes("setRowHeightPx"),
     "no puede quedar una segunda fuente de verdad del pitch en el canvas",
+  );
+  assert.ok(
+    !code.includes("MutationObserver") &&
+      !code.includes("querySelectorAll") &&
+      !code.includes("setPageRef"),
+    "ni sondeo de filas, ni re-armado por mutación, ni escritura de la página desde la medición",
   );
 });
 
@@ -179,18 +159,18 @@ test("AdminMobilePricingModule deriva la cardinalidad del canvas medido", () => 
     "el 4 sobrevive únicamente como fallback pre-medición",
   );
   assert.ok(
-    source.includes('import { useAdaptiveRowsPerPage } from "@/hooks/useAdaptiveRowsPerPage";'),
+    source.includes('import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";'),
     "debe reutilizar el hook adaptativo del repo, no una segunda fuente de verdad",
   );
   assert.ok(
-    source.includes("const { rowsPerPage: catalogPageSize } = useAdaptiveRowsPerPage({") &&
-      source.includes("containerNode: catalogListNode,"),
+    source.includes("const { capacity: catalogPageSize } = useDashboardCanvasCapacity({") &&
+      source.includes("canvasNode: catalogListNode,"),
     "la cardinalidad sale del canvas de catálogo realmente medido",
   );
   assert.ok(
     source.includes("ref={setCatalogListNode}") &&
-      source.includes("ref={rowIndex === 0 ? setFirstCatalogRowNode : undefined}"),
-    "hacen falta el contenedor medido y la fila de referencia",
+      source.includes('data-dashboard-row-pitch="'),
+    "hace falta el canvas acotado y su tier; la fila de referencia ya no se mide",
   );
   assert.ok(
     !source.includes("grid-rows-4") && !source.includes("row-span-4"),

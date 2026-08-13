@@ -123,13 +123,14 @@ test("A05 covers every physical rendering of the canonical adaptive consumers", 
   }
 });
 
-test("A05 preserves the three hook APIs and introduces no fixed limit or viewport patch", () => {
-  for (const [path, exportedHook] of [
-    ["frontend/src/hooks/useAdaptiveItemsPerPage.ts", "useAdaptiveItemsPerPage"],
-    ["frontend/src/hooks/useAdaptiveRowsPerPage.ts", "useAdaptiveRowsPerPage"],
-    ["frontend/src/hooks/useAdaptiveDashboardPageSize.ts", "useAdaptiveDashboardPageSize"],
+test("A05 preserves the capacity API and introduces no fixed limit or viewport patch", () => {
+  // The three legacy hooks were retired once their consumer count reached 0;
+  // their API surface collapsed into one owner plus the pure engine it calls.
+  for (const [path, exportedSymbol] of [
+    ["frontend/src/hooks/useDashboardCanvasCapacity.ts", "useDashboardCanvasCapacity"],
+    ["frontend/src/lib/dashboard/capacity/computeCapacity.ts", "computeCapacity"],
   ] as const) {
-    assert.ok(read(path).includes(`export function ${exportedHook}(`), path);
+    assert.ok(read(path).includes(`export function ${exportedSymbol}(`), path);
   }
 
   const contract = [

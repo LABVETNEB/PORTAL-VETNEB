@@ -7,3 +7,109 @@
  * app/globals.css :root under @layer base. The dashboard runtime accent
  * tokens (--dash-accent-*) stay colocated with their consumers in
  * surfaces.css (premium grammar) to preserve that verbatim section. */
+
+/* dashboard-row-pitch-contract:start
+ *
+ * Row pitch contract (Option D — pitch-locked canvas).
+ *
+ * CSS is the single owner of how tall a row is; `useDashboardCanvasCapacity`
+ * only reads these tokens back. That direction matters: the previous engine
+ * derived the pitch from a row that happened to be rendered, so capacity
+ * depended on the dataset and the active page, and `A -> B -> A` was free to
+ * return a different number. A token cannot depend on content.
+ *
+ * AUTHORED AS PX LITERALS ON PURPOSE. Custom properties compute to their
+ * substituted token, not to an absolute length, so `getPropertyValue` returns
+ * something parseable only while these stay plain px. A `rem`, a `clamp()` or
+ * a `calc()` here would be read as "no usable pitch" and every adaptive canvas
+ * would silently fall back to its pre-measurement page size. The tier steps
+ * below are therefore expressed as `@media` breakpoints rather than as the
+ * fluid `clamp()` the surrounding density tokens use — still a pure function of
+ * the viewport, and the alternative the roadmap sanctions when a token has to
+ * survive being read back by script. Enforced by
+ * `test/architecture/dashboard-capacity-single-owner.test.ts`. */
+.dashboard-app-shell {
+  /* Density tiers describe the GRAMMAR of a row — how many lines it carries —
+     never the module it belongs to. compact: dense single-line table row.
+     regular: default list/table row. tall: two-line list row. card: a row that
+     renders a block of its own (heading + detail lines). */
+  --dash-row-pitch-compact: 36px;
+  --dash-row-pitch-regular: 44px;
+  --dash-row-pitch-tall: 52px;
+  --dash-row-pitch-card: 76px;
+  /* block: a metric panel carrying its own heading and stat grid. */
+  --dash-row-pitch-block: 168px;
+  /* form: a full editable block (fields + message area), not a row. */
+  --dash-row-pitch-form: 220px;
+
+  /* Density grammar of a canvas that declares none. */
+  --dash-row-pitch: var(--dash-row-pitch-regular);
+  /* Rows stack flush unless a canvas opts into a gap. */
+  --dash-row-gap: 0px;
+
+  /* Chrome reserved inside the canvas. A token instead of a second
+     ResizeObserver on the table head: the reserve the capacity engine
+     subtracts and the height the head actually occupies are then the same
+     number by construction, not two measurements racing each other. */
+  --dash-table-head-h: 32px;
+  --dash-canvas-reserved: 0px;
+}
+
+/* Short viewports step the tier down instead of letting rows shrink fluidly:
+   a step function of the viewport is still content-independent, and it keeps
+   the pitch on a value the capacity owner can parse. */
+@media (max-height: 760px) {
+  .dashboard-app-shell {
+    --dash-row-pitch-regular: 40px;
+    --dash-row-pitch-tall: 46px;
+    --dash-row-pitch-card: 68px;
+  }
+}
+
+/* Semantic density tiers. A canvas declares the grammar of its rows, never its
+   module identity — a `data-dashboard-module=<id>` exception here would mean
+   the primitive is wrong, not that the module is special. */
+.dashboard-app-shell [data-dashboard-row-pitch="compact"] {
+  --dash-row-pitch: var(--dash-row-pitch-compact);
+}
+
+.dashboard-app-shell [data-dashboard-row-pitch="regular"] {
+  --dash-row-pitch: var(--dash-row-pitch-regular);
+}
+
+.dashboard-app-shell [data-dashboard-row-pitch="tall"] {
+  --dash-row-pitch: var(--dash-row-pitch-tall);
+}
+
+/* Canvases whose rows live under a table head reserve it here. */
+.dashboard-app-shell [data-dashboard-canvas-reserve="table-head"] {
+  --dash-canvas-reserved: var(--dash-table-head-h);
+}
+
+/* Row separation grammar. Orthogonal to the tier: a canvas whose rows read as
+   separate cards declares a gap, and the capacity owner charges it once per
+   extra row rather than once per row. */
+.dashboard-app-shell [data-dashboard-row-pitch="card"] {
+  --dash-row-pitch: var(--dash-row-pitch-card);
+}
+
+.dashboard-app-shell [data-dashboard-row-gap="spaced"] {
+  --dash-row-gap: 6px;
+}
+
+.dashboard-app-shell [data-dashboard-row-pitch="block"] {
+  --dash-row-pitch: var(--dash-row-pitch-block);
+}
+
+.dashboard-app-shell [data-dashboard-row-pitch="form"] {
+  --dash-row-pitch: var(--dash-row-pitch-form);
+}
+
+.dashboard-app-shell [data-dashboard-row-gap="loose"] {
+  --dash-row-gap: 8px;
+}
+
+.dashboard-app-shell [data-dashboard-row-gap="wide"] {
+  --dash-row-gap: 12px;
+}
+/* dashboard-row-pitch-contract:end */

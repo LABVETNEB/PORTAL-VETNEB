@@ -36,7 +36,7 @@ import {
   updateAdminClinic,
   updateAdminClinicUserCredentials,
 } from "@/lib/api";
-import { useAdaptiveItemsPerPage } from "@/hooks/useAdaptiveItemsPerPage";
+import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
 import { formatDateTime } from "@/lib/utils";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { LoadingState } from "@/components/dashboard/LoadingState";
@@ -68,20 +68,6 @@ const CLINICS_SUPERSET_CAP = 36;
 const CLINICS_TABLE_HEADER_PX = 36;
 // Fallback item height used until a real row is measured.
 const CLINICS_ROW_HEIGHT_FALLBACK_PX = 36;
-
-type Measurement = {
-  containerNode: HTMLElement | null;
-  rowHeightPx: number;
-  headerHeightPx: number;
-};
-
-function measurementsEqual(a: Measurement, b: Measurement) {
-  return (
-    a.containerNode === b.containerNode &&
-    a.rowHeightPx === b.rowHeightPx &&
-    a.headerHeightPx === b.headerHeightPx
-  );
-}
 
 type CreateClinicForm = {
   clinicName: string;
@@ -153,13 +139,6 @@ export function AdminClinicsManagementCard() {
     null,
   );
   const [mobileBodyNode, setMobileBodyNode] = useState<HTMLElement | null>(null);
-  const [desktopRowNode, setDesktopRowNode] = useState<HTMLElement | null>(null);
-  const [mobileRowNode, setMobileRowNode] = useState<HTMLElement | null>(null);
-  const [measurement, setMeasurement] = useState<Measurement>({
-    containerNode: null,
-    rowHeightPx: CLINICS_ROW_HEIGHT_FALLBACK_PX,
-    headerHeightPx: 0,
-  });
 
   const latestRequestRef = useRef(0);
   const snapshotRef = useRef<AdminClinicsSnapshot | null>(null);
@@ -168,84 +147,32 @@ export function AdminClinicsManagementCard() {
     snapshotRef.current = snapshot;
   }, [snapshot]);
 
-  useLayoutEffect(() => {
-    const nodes = [
-      desktopBodyNode,
-      mobileBodyNode,
-      desktopRowNode,
-      mobileRowNode,
-    ].filter((node): node is HTMLElement => node !== null);
-    if (nodes.length === 0) {
-      return;
-    }
-
-    let frame: number | null = null;
-
-    const recompute = () => {
-      frame = null;
-
-      const mobileHeight = mobileBodyNode?.getBoundingClientRect().height ?? 0;
-      if (mobileHeight > 0 && mobileBodyNode) {
-        const rowHeight = mobileRowNode?.getBoundingClientRect().height ?? 0;
-        setMeasurement((previous) => {
-          const next: Measurement = {
-            containerNode: mobileBodyNode,
-            rowHeightPx:
-              rowHeight > 0 ? rowHeight : CLINICS_ROW_HEIGHT_FALLBACK_PX,
-            headerHeightPx: 0,
-          };
-          return measurementsEqual(previous, next) ? previous : next;
-        });
-        return;
-      }
-
-      const desktopHeight = desktopBodyNode?.getBoundingClientRect().height ?? 0;
-      if (desktopHeight > 0 && desktopBodyNode) {
-        const rowHeight = desktopRowNode?.getBoundingClientRect().height ?? 0;
-        setMeasurement((previous) => {
-          const next: Measurement = {
-            containerNode: desktopBodyNode,
-            rowHeightPx:
-              rowHeight > 0 ? rowHeight : CLINICS_ROW_HEIGHT_FALLBACK_PX,
-            headerHeightPx: CLINICS_TABLE_HEADER_PX,
-          };
-          return measurementsEqual(previous, next) ? previous : next;
-        });
-      }
-    };
-
-    const scheduleRecompute = () => {
-      if (frame === null) {
-        frame = requestAnimationFrame(recompute);
-      }
-    };
-
-    const observer = new ResizeObserver(scheduleRecompute);
-    nodes.forEach((node) => observer.observe(node));
-    scheduleRecompute();
-
-    return () => {
-      observer.disconnect();
-      if (frame !== null) {
-        cancelAnimationFrame(frame);
-      }
-    };
-  }, [desktopBodyNode, mobileBodyNode, desktopRowNode, mobileRowNode]);
 
   // Desktop context (detected by the discounted table header) keeps a floor of
   // nine rows — the pre-adaptive fixed page size — so a transiently collapsed
   // container can never feed back into a one-row page (VIS-ADMIN-001). The
   // mobile list (no table header) keeps a floor of one so it can shrink freely
   // on short phones.
-  const isDesktopMeasurement = measurement.headerHeightPx > 0;
-  const { itemsPerPage: rowsPerPage } = useAdaptiveItemsPerPage({
-    containerNode: measurement.containerNode,
+  // One owner per canvas. The two presentations are mutually exclusive by
+  // media query, so exactly one reports `measured` — a function of the
+  // viewport alone, with no row content, page or history in it.
+  const mobileCapacity = useDashboardCanvasCapacity({
+    canvasNode: mobileBodyNode,
     fallbackItems: CLINICS_FALLBACK_ROWS,
-    itemHeightPx: measurement.rowHeightPx,
-    headerHeightPx: measurement.headerHeightPx,
-    minItems: isDesktopMeasurement ? CLINICS_FALLBACK_ROWS : 1,
+    minItems: 1,
     maxItems: CLINICS_SUPERSET_CAP,
   });
+  const desktopCapacity = useDashboardCanvasCapacity({
+    canvasNode: desktopBodyNode,
+    fallbackItems: CLINICS_FALLBACK_ROWS,
+    minItems: CLINICS_FALLBACK_ROWS,
+    maxItems: CLINICS_SUPERSET_CAP,
+  });
+  const rowsPerPage = mobileCapacity.measured
+    ? mobileCapacity.capacity
+    : desktopCapacity.measured
+      ? desktopCapacity.capacity
+      : CLINICS_FALLBACK_ROWS;
 
   // Effective server page size: at least the measured rows, capped at the
   // superset ceiling. The hook already clamps to [1, CLINICS_SUPERSET_CAP].
@@ -655,6 +582,8 @@ export function AdminClinicsManagementCard() {
         <div
           ref={setDesktopBodyNode}
           data-dashboard-adaptive-rows-canvas="true"
+              data-dashboard-row-pitch="regular"
+              data-dashboard-canvas-reserve="table-head"
           className="dashboard-table-responsive hidden min-h-0 flex-1 md:block"
         >
           <Table className="text-[0.8125rem] [&_th]:h-9 [&_th]:px-3 [&_td]:px-3">
@@ -672,7 +601,6 @@ export function AdminClinicsManagementCard() {
                 rows.map(({ clinic, user, extraUsers }, index) => (
                   <TableRow
                     key={`${clinic.clinicId}-${user?.userId ?? "empty"}`}
-                    ref={index === 0 ? setDesktopRowNode : undefined}
                   >
                     <TableCell className="py-1">
                       <span className="flex items-center gap-1.5">
@@ -789,6 +717,7 @@ export function AdminClinicsManagementCard() {
           <div
             ref={setMobileBodyNode}
             data-dashboard-adaptive-rows-canvas="true"
+              data-dashboard-row-pitch="regular"
             className="min-h-0 flex-1 divide-y divide-vetneb-line/60 overflow-hidden rounded-lg border border-vetneb-line/75"
             data-admin-clinics-mobile-list="true"
           >
@@ -796,10 +725,10 @@ export function AdminClinicsManagementCard() {
             rows.map(({ clinic, user, extraUsers }, index) => (
               <article
                 key={`mobile-${clinic.clinicId}-${user?.userId ?? "empty"}`}
-                ref={index === 0 ? setMobileRowNode : undefined}
                 className="flex min-h-9 items-center justify-between gap-2 px-2.5 py-0.5"
                 data-admin-clinic-mobile-card="true"
                 data-admin-mobile-core-item="true"
+                    data-dashboard-adaptive-row="true"
               >
                 <div className="min-w-0 flex-1">
                   <h3 className="truncate text-xs font-semibold leading-tight text-vetneb-ink">

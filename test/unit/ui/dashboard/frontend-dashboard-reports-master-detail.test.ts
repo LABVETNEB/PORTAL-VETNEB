@@ -149,7 +149,7 @@ test("dashboard informes server-side pagination controls and compact summary", (
 test("dashboard informes pagination is server-adaptive and does not use client-side array filtering", () => {
   const source = read(INFORMES_LIST_PATH);
 
-  assert.ok(source.includes("useAdaptiveItemsPerPage"));
+  assert.ok(source.includes("useDashboardCanvasCapacity"));
   assert.ok(source.includes("effectiveLimit = rowsPerPage"));
   assert.ok(source.includes("function normalizeOffsetForLimit("));
   assert.ok(source.includes("const [requestWindow, setRequestWindow] = useState({"));

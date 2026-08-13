@@ -49,7 +49,7 @@ test("admin tokens keeps a bounded two-page adaptive window plus cargar más", (
   assert.ok(source.includes("limit: TOKENS_LOAD_MORE_BATCH_SIZE,"));
   assert.ok(source.includes("maxItems: TOKENS_ADAPTIVE_MAX_ROWS,"));
   assert.equal(source.includes("TOKENS_SUPERSET_CAP"), false);
-  assert.ok(source.includes("useAdaptiveItemsPerPage"));
+  assert.ok(source.includes("useDashboardCanvasCapacity"));
   assert.ok(source.includes("usePagedRows"));
   assert.ok(source.includes("hasMoreFromServer"));
   assert.equal(source.includes("const PAGE_SIZE = 9;"), false);
@@ -73,12 +73,13 @@ test("admin tokens recomputa pagina localmente y descarta respuestas viejas (ant
   assert.ok(source.includes("const requestId = ++latestRequestRef.current;"));
   assert.ok(source.includes("if (requestId !== latestRequestRef.current) return;"));
 
-  // Desktop keeps the nine-row floor (App Shell contract), mobile floors at one.
-  assert.ok(
-    source.includes(
-      "minItems: isDesktopMeasurement ? TOKENS_FALLBACK_ROWS : 1,",
-    ),
-  );
+  // Desktop keeps the nine-row floor (App Shell contract), mobile floors at
+  // one. Expressed per canvas now that each presentation owns its capacity,
+  // instead of branching on whether a measured header height was non-zero.
+  assert.ok(source.includes("canvasNode: desktopBodyNode,"));
+  assert.ok(source.includes("canvasNode: mobileBodyNode,"));
+  assert.ok(source.includes("minItems: TOKENS_FALLBACK_ROWS,"));
+  assert.ok(source.includes("minItems: 1,"));
 });
 
 test("admin tokens toolbar is mobile-safe and wraps actions", () => {

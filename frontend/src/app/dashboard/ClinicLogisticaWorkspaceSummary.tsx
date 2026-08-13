@@ -1,9 +1,9 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState } from "react";
+import { useState } from "react";
 import type { FieldVisit } from "@/types";
 import { Route as RouteIcon, ExternalLink } from "lucide-react";
-import { useAdaptiveRowsPerPage } from "@/hooks/useAdaptiveRowsPerPage";
+import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { DashboardPager } from "@/components/dashboard/DashboardPager";
@@ -21,7 +21,6 @@ type Props = {
 };
 
 const VISITS_PAGE_SIZE = 3;
-const VISITS_ROW_HEIGHT_FALLBACK_PX = 44;
 
 export function ClinicLogisticaWorkspaceSummary({
   recentVisits,
@@ -30,86 +29,19 @@ export function ClinicLogisticaWorkspaceSummary({
   const [selectedVisitId, setSelectedVisitId] = useState<number | null>(null);
   const [visitsListBodyNode, setVisitsListBodyNode] =
     useState<HTMLDivElement | null>(null);
-  const [firstRowNode, setFirstRowNode] = useState<HTMLButtonElement | null>(
-    null,
-  );
-  const rowPitchRef = useRef({ containerHeight: 0, rowHeightPx: 0 });
-  const onFirstPageRef = useRef(true);
-  const [rowHeightPx, setRowHeightPx] = useState(VISITS_ROW_HEIGHT_FALLBACK_PX);
 
-  useLayoutEffect(() => {
-    if (!firstRowNode) {
-      return;
-    }
-
-    // Row pitch belongs to the LAYOUT, not to the page on screen: learning it
-    // again from another slice changed `rowsPerPage` and re-sliced the list, so
-    // page 2 stopped matching the measured page size. It is learned ONCE per canvas
-      // geometry: content changes never re-learn it, a real resize does.
-    const measureRowHeight = () => {
-      const containerHeight =
-        visitsListBodyNode?.getBoundingClientRect().height ?? 0;
-      const cached = rowPitchRef.current;
-
-      if (cached.rowHeightPx > 0 &&
-        (!onFirstPageRef.current ||
-          cached.containerHeight === containerHeight)) {
-        return;
-      }
-
-      const rows = visitsListBodyNode
-        ? Array.from(
-            visitsListBodyNode.querySelectorAll<HTMLElement>(
-              '[data-clinic-logistics-row="true"]',
-            ),
-          )
-        : [];
-      const height = rows.reduce(
-        (maximum, row) => Math.max(maximum, row.getBoundingClientRect().height),
-        firstRowNode.getBoundingClientRect().height,
-      );
-
-      if (height > 0) {
-        rowPitchRef.current = { containerHeight, rowHeightPx: height };
-        setRowHeightPx((previous) => (previous === height ? previous : height));
-      }
-    };
-
-    const observer = new ResizeObserver(measureRowHeight);
-    observer.observe(firstRowNode);
-    if (visitsListBodyNode) {
-      observer.observe(visitsListBodyNode);
-    }
-
-    const mutationObserver = new MutationObserver(measureRowHeight);
-    if (visitsListBodyNode) {
-      mutationObserver.observe(visitsListBodyNode, {
-        childList: true,
-        subtree: true,
-      });
-    }
-
-    measureRowHeight();
-
-    return () => {
-      mutationObserver.disconnect();
-      observer.disconnect();
-    };
-  }, [firstRowNode, visitsListBodyNode]);
-
-  // Adaptive density: the visible row count derives from the measured list
+  // Adaptive density: the visible row count derives from the bounded list
   // canvas (390x844 fits fewer rows than 1440x900); the fixed page size is
-  // only the pre-measurement fallback.
-  const { rowsPerPage } = useAdaptiveRowsPerPage({
-    containerNode: visitsListBodyNode,
-    fallbackRows: VISITS_PAGE_SIZE,
-    rowHeightPx,
+  // only the pre-measurement fallback. The pitch is a CSS token, so probing the
+  // rendered rows for it — which made the page size depend on the slice, and
+  // the slice on the page size — is neither needed nor possible here.
+  const { capacity: rowsPerPage } = useDashboardCanvasCapacity({
+    canvasNode: visitsListBodyNode,
+    fallbackItems: VISITS_PAGE_SIZE,
+    minItems: 2,
   });
 
   const pagedVisits = usePagedRows(recentVisits, rowsPerPage);
-  useLayoutEffect(() => {
-    onFirstPageRef.current = pagedVisits.page === 0;
-  }, [pagedVisits.page]);
 
 
   const selectedVisit =
@@ -155,14 +87,15 @@ export function ClinicLogisticaWorkspaceSummary({
             ref={setVisitsListBodyNode}
             data-clinic-logistics-list-body="true"
             data-dashboard-adaptive-rows-canvas="true"
+            data-dashboard-row-pitch="regular"
             className="flex min-h-0 flex-1 flex-col divide-y divide-vetneb-line/60 overflow-hidden"
           >
-            {pagedVisits.pageItems.map((visit, index) => (
+            {pagedVisits.pageItems.map((visit) => (
               <button
                 key={visit.id}
                 type="button"
-                ref={index === 0 ? setFirstRowNode : undefined}
                 data-clinic-logistics-row="true"
+                data-dashboard-adaptive-row="true"
                 onClick={() => setSelectedVisitId(visit.id)}
                 aria-haspopup="dialog"
                 aria-label={`Ver detalle de la visita en ${

@@ -33,7 +33,7 @@ test("admin sessions card is client-side and imports required dependencies", () 
   assert.ok(source.includes('import { getAdminSessions, revokeAdminSession } from "@/lib/api";'));
   assert.ok(
     source.includes(
-      'import { useAdaptiveItemsPerPage } from "@/hooks/useAdaptiveItemsPerPage";',
+      'import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";',
     ),
   );
   assert.ok(source.includes('import { formatDateTime } from "@/lib/utils";'));

@@ -22,7 +22,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { changeAdminClinicUserRole, getAdminUsersRoles } from "@/lib/api";
-import { useAdaptiveItemsPerPage } from "@/hooks/useAdaptiveItemsPerPage";
+import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
 import { formatDateTime } from "@/lib/utils";
 import type {
   AdminRoleUserRole,
@@ -46,22 +46,6 @@ const USERS_ROLES_TABLE_HEADER_PX = 32;
 // Fallback item height used until a real row is measured. Mobile rows use
 // `min-h-10`, so the pre-measurement limit must not overestimate capacity.
 const USERS_ROLES_ROW_HEIGHT_FALLBACK_PX = 40;
-
-type Measurement = {
-  containerNode: HTMLElement | null;
-  containerHeightPx: number;
-  rowHeightPx: number;
-  headerHeightPx: number;
-};
-
-function measurementsEqual(a: Measurement, b: Measurement) {
-  return (
-    a.containerNode === b.containerNode &&
-    a.containerHeightPx === b.containerHeightPx &&
-    a.rowHeightPx === b.rowHeightPx &&
-    a.headerHeightPx === b.headerHeightPx
-  );
-}
 
 function formatUserType(value: AdminRoleUserType) {
   return value === "admin" ? "Admin" : "Clínica";
@@ -187,14 +171,6 @@ export function AdminUsersRolesReadOnlyCard() {
     null,
   );
   const [mobileBodyNode, setMobileBodyNode] = useState<HTMLElement | null>(null);
-  const [desktopRowNode, setDesktopRowNode] = useState<HTMLElement | null>(null);
-  const [mobileRowNode, setMobileRowNode] = useState<HTMLElement | null>(null);
-  const [measurement, setMeasurement] = useState<Measurement>({
-    containerNode: null,
-    containerHeightPx: 0,
-    rowHeightPx: USERS_ROLES_ROW_HEIGHT_FALLBACK_PX,
-    headerHeightPx: 0,
-  });
 
   const latestRequestRef = useRef(0);
   const snapshotRef = useRef<AdminUsersRolesSnapshot | null>(null);
@@ -203,71 +179,6 @@ export function AdminUsersRolesReadOnlyCard() {
     snapshotRef.current = snapshot;
   }, [snapshot]);
 
-  useLayoutEffect(() => {
-    const nodes = [
-      desktopBodyNode,
-      mobileBodyNode,
-      desktopRowNode,
-      mobileRowNode,
-    ].filter((node): node is HTMLElement => node !== null);
-    if (nodes.length === 0) {
-      return;
-    }
-
-    let frame: number | null = null;
-
-    const recompute = () => {
-      frame = null;
-
-      const mobileHeight = mobileBodyNode?.getBoundingClientRect().height ?? 0;
-      if (mobileHeight > 0 && mobileBodyNode) {
-        const rowHeight = mobileRowNode?.getBoundingClientRect().height ?? 0;
-        setMeasurement((previous) => {
-          const next: Measurement = {
-            containerNode: mobileBodyNode,
-            containerHeightPx: mobileHeight,
-            rowHeightPx:
-              rowHeight > 0 ? rowHeight : USERS_ROLES_ROW_HEIGHT_FALLBACK_PX,
-            headerHeightPx: 0,
-          };
-          return measurementsEqual(previous, next) ? previous : next;
-        });
-        return;
-      }
-
-      const desktopHeight = desktopBodyNode?.getBoundingClientRect().height ?? 0;
-      if (desktopHeight > 0 && desktopBodyNode) {
-        const rowHeight = desktopRowNode?.getBoundingClientRect().height ?? 0;
-        setMeasurement((previous) => {
-          const next: Measurement = {
-            containerNode: desktopBodyNode,
-            containerHeightPx: desktopHeight,
-            rowHeightPx:
-              rowHeight > 0 ? rowHeight : USERS_ROLES_ROW_HEIGHT_FALLBACK_PX,
-            headerHeightPx: USERS_ROLES_TABLE_HEADER_PX,
-          };
-          return measurementsEqual(previous, next) ? previous : next;
-        });
-      }
-    };
-
-    const scheduleRecompute = () => {
-      if (frame === null) {
-        frame = requestAnimationFrame(recompute);
-      }
-    };
-
-    const observer = new ResizeObserver(scheduleRecompute);
-    nodes.forEach((node) => observer.observe(node));
-    scheduleRecompute();
-
-    return () => {
-      observer.disconnect();
-      if (frame !== null) {
-        cancelAnimationFrame(frame);
-      }
-    };
-  }, [desktopBodyNode, mobileBodyNode, desktopRowNode, mobileRowNode]);
 
   // The desktop table has two-line rows (~41px). Nine of them are the
   // established "nine populated rows" contract at 1440×900 / 1366×768, and that
@@ -285,27 +196,32 @@ export function AdminUsersRolesReadOnlyCard() {
   // subtracting a further cushion would floor 1366×768 to eight rows even
   // though nine fit with clearance to spare. The mobile list keeps the hook
   // default and a floor of one so it can shrink freely on short phones.
-  const isDesktopMeasurement = measurement.headerHeightPx > 0;
-  const desktopPhysicalCapacity =
-    measurement.rowHeightPx > 0
-      ? Math.floor(
-          (measurement.containerHeightPx - measurement.headerHeightPx) /
-            measurement.rowHeightPx,
-        )
-      : 0;
-  const desktopMinItems =
-    desktopPhysicalCapacity >= USERS_ROLES_FALLBACK_ROWS
-      ? USERS_ROLES_FALLBACK_ROWS
-      : 1;
-  const { itemsPerPage: rowsPerPage } = useAdaptiveItemsPerPage({
-    containerNode: measurement.containerNode,
+  // SRV-2 desktop floor, resolved: it raised `minItems` to the nine-row App
+  // Shell page only when nine rows PHYSICALLY fit — and in that case the fit is
+  // already nine or more, so the clamp could never raise anything. With the
+  // desktop safety gap at 0 the two arithmetics were identical, which makes the
+  // floor provably equivalent to `minItems: 1`. Kept as 1 rather than restated,
+  // so no dead branch survives to be mistaken for a contract.
+  // One owner per canvas. The two presentations are mutually exclusive by
+  // media query, so exactly one reports `measured` — a function of the
+  // viewport alone, with no row content, page or history in it.
+  const mobileCapacity = useDashboardCanvasCapacity({
+    canvasNode: mobileBodyNode,
     fallbackItems: USERS_ROLES_FALLBACK_ROWS,
-    itemHeightPx: measurement.rowHeightPx,
-    headerHeightPx: measurement.headerHeightPx,
-    safetyGapPx: isDesktopMeasurement ? 0 : undefined,
-    minItems: isDesktopMeasurement ? desktopMinItems : 1,
+    minItems: 1,
     maxItems: USERS_ROLES_SUPERSET_CAP,
   });
+  const desktopCapacity = useDashboardCanvasCapacity({
+    canvasNode: desktopBodyNode,
+    fallbackItems: USERS_ROLES_FALLBACK_ROWS,
+    minItems: 1,
+    maxItems: USERS_ROLES_SUPERSET_CAP,
+  });
+  const rowsPerPage = mobileCapacity.measured
+    ? mobileCapacity.capacity
+    : desktopCapacity.measured
+      ? desktopCapacity.capacity
+      : USERS_ROLES_FALLBACK_ROWS;
 
   // Effective server page size: at least the measured rows, capped at the
   // superset ceiling. The hook already clamps to [1, USERS_ROLES_SUPERSET_CAP].
@@ -640,6 +556,8 @@ export function AdminUsersRolesReadOnlyCard() {
         <div
           ref={setDesktopBodyNode}
           data-dashboard-adaptive-rows-canvas="true"
+              data-dashboard-row-pitch="regular"
+              data-dashboard-canvas-reserve="table-head"
           className="min-h-0 flex-1"
         >
           {users.length ? (
@@ -668,7 +586,6 @@ export function AdminUsersRolesReadOnlyCard() {
                     return (
                       <TableRow
                         key={userKey}
-                        ref={index === 0 ? setDesktopRowNode : undefined}
                         className={wasChanged ? "bg-vetneb-teal/10" : undefined}
                       >
                         <TableCell>
@@ -908,6 +825,7 @@ export function AdminUsersRolesReadOnlyCard() {
         <div
           ref={setMobileBodyNode}
           data-dashboard-adaptive-rows-canvas="true"
+              data-dashboard-row-pitch="regular"
           className="min-h-0 flex-1 divide-y divide-vetneb-line/70 overflow-hidden"
         >
           {users.length ? (
@@ -918,8 +836,8 @@ export function AdminUsersRolesReadOnlyCard() {
               return (
                 <article
                   key={userKey}
-                  ref={index === 0 ? setMobileRowNode : undefined}
                   data-admin-mobile-ops-item="true"
+                  data-dashboard-adaptive-row="true"
                   className="flex min-h-10 items-center gap-2 overflow-hidden px-2 py-1"
                 >
                   <div className="min-w-0 flex-1">

@@ -31,14 +31,12 @@ type AdminAuditDenseTableProps = {
   // server pagination): the first row gives the real row height. The measured
   // container is the rows region owned by `AdminAuditCard`, not this wrapper —
   // this one is content-sized, so measuring it would be self-referential.
-  desktopRowRef?: (node: HTMLElement | null) => void;
 };
 
 export function AdminAuditDenseTable({
   rows,
   loadError,
   hasActiveFilters,
-  desktopRowRef,
 }: AdminAuditDenseTableProps) {
   const emptyMessage = hasActiveFilters
     ? "No hay eventos para los filtros seleccionados."
@@ -69,7 +67,7 @@ export function AdminAuditDenseTable({
             </TableHeader>
             <TableBody>
               {rows.map((row, index) => (
-                <TableRow key={row.id} ref={index === 0 ? desktopRowRef : undefined}>
+                <TableRow key={row.id}>
                   <TableCell className="truncate text-xs text-muted-foreground">
                     {row.date}
                   </TableCell>

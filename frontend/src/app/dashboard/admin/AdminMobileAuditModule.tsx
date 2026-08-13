@@ -32,7 +32,6 @@ type AdminMobileAuditModuleProps = {
   onPrevious: () => void;
   onNext: () => void;
   bodyRef: (node: HTMLElement | null) => void;
-  rowRef: (node: HTMLElement | null) => void;
 };
 
 export function AdminMobileAuditModule({
@@ -51,7 +50,6 @@ export function AdminMobileAuditModule({
   onPrevious,
   onNext,
   bodyRef,
-  rowRef,
 }: AdminMobileAuditModuleProps) {
   const hasActiveFilters = Object.values(filters).some(Boolean);
 
@@ -93,6 +91,7 @@ export function AdminMobileAuditModule({
       <div
         ref={bodyRef}
         data-dashboard-adaptive-rows-canvas="true"
+          data-dashboard-row-pitch="regular"
         className="min-h-0 flex-1 divide-y divide-vetneb-line/70 overflow-hidden"
       >
         {loadError ? (
@@ -103,8 +102,8 @@ export function AdminMobileAuditModule({
           rows.map((row, index) => (
             <article
               key={row.id}
-              ref={index === 0 ? rowRef : undefined}
               data-admin-mobile-ops-item="true"
+              data-dashboard-adaptive-row="true"
               className="flex min-h-9 items-center gap-2 overflow-hidden px-2 py-0.5"
             >
               <div className="min-w-0 flex-1">

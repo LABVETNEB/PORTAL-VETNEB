@@ -40,7 +40,7 @@ test("PR-7B uses viewport-safe server pagination with eight rows", () => {
   assert.ok(card.includes("const SESSIONS_SUPERSET_CAP = 32;"));
   assert.ok(card.includes("limit: effectiveLimit"));
   assert.equal(card.includes("limit: PAGE_SIZE"), false);
-  assert.ok(card.includes("useAdaptiveItemsPerPage"));
+  assert.ok(card.includes("useDashboardCanvasCapacity"));
   assert.ok(card.includes("offset"));
   assert.ok(card.includes("getAdminSessions(query)"));
   assert.ok(card.includes("offset + snapshot.sessions.length < snapshot.total"));

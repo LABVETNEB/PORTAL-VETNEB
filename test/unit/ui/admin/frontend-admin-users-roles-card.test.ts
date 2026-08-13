@@ -34,7 +34,7 @@ test("admin users roles card is client-side and imports required dependencies", 
   assert.ok(source.includes("getAdminUsersRoles"));
   assert.ok(
     source.includes(
-      'import { useAdaptiveItemsPerPage } from "@/hooks/useAdaptiveItemsPerPage";',
+      'import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";',
     ),
   );
   assert.ok(source.includes('import { formatDateTime } from "@/lib/utils";'));
@@ -119,7 +119,7 @@ test("admin users roles card builds query and disables actions during mutations"
   assert.ok(source.includes('...(role !== "all" ? { role } : {})'));
   assert.ok(source.includes("limit: effectiveLimit"));
   assert.equal(source.includes("limit: PAGE_SIZE"), false);
-  assert.ok(source.includes("useAdaptiveItemsPerPage"));
+  assert.ok(source.includes("useDashboardCanvasCapacity"));
   assert.ok(source.includes("const effectiveLimit = rowsPerPage;"));
   assert.ok(source.includes("offset"));
   assert.ok(source.includes("[debouncedSearch, effectiveLimit, offset, role, userType]"));

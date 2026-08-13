@@ -46,7 +46,7 @@ import {
   type AdminReportWorkflowItem,
   type AdminReportWorkflowStage,
 } from "@/lib/api";
-import { useAdaptiveItemsPerPage } from "@/hooks/useAdaptiveItemsPerPage";
+import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
 import {
   ADMIN_REPORT_STAGE_OPTIONS,
   AdminReportStatusBadge,
@@ -68,21 +68,6 @@ const REPORTS_SUPERSET_CAP = 36;
 // the measured region so the row math never counts the header as a data row.
 const REPORTS_TABLE_HEADER_PX = 28;
 // Fallback item height used until a real row is measured.
-const REPORTS_ROW_HEIGHT_FALLBACK_PX = 36;
-
-type Measurement = {
-  containerNode: HTMLElement | null;
-  rowHeightPx: number;
-  headerHeightPx: number;
-};
-
-function measurementsEqual(a: Measurement, b: Measurement) {
-  return (
-    a.containerNode === b.containerNode &&
-    a.rowHeightPx === b.rowHeightPx &&
-    a.headerHeightPx === b.headerHeightPx
-  );
-}
 
 const STUDY_LABELS: Record<string, string> = {
   histopatologia: "Histopatología",
@@ -223,13 +208,6 @@ export function AdminReportsCard() {
     null,
   );
   const [mobileBodyNode, setMobileBodyNode] = useState<HTMLElement | null>(null);
-  const [desktopRowNode, setDesktopRowNode] = useState<HTMLElement | null>(null);
-  const [mobileRowNode, setMobileRowNode] = useState<HTMLElement | null>(null);
-  const [measurement, setMeasurement] = useState<Measurement>({
-    containerNode: null,
-    rowHeightPx: REPORTS_ROW_HEIGHT_FALLBACK_PX,
-    headerHeightPx: 0,
-  });
 
   const latestRequestRef = useRef(0);
 
@@ -243,106 +221,7 @@ export function AdminReportsCard() {
   // property of the layout, not of the current page, so it is re-probed when
   // the measured region changes size (viewport, zoom, chrome) and reused
   // across data swaps.
-  const rowPitchRef = useRef<{
-    node: HTMLElement | null;
-    containerHeight: number;
-    rowHeightPx: number;
-  }>({ node: null, containerHeight: 0, rowHeightPx: 0 });
-  const onFirstPageRef = useRef(true);
-  const isOnFirstPage = offset === 0;
-  useLayoutEffect(() => {
-    onFirstPageRef.current = isOnFirstPage;
-  }, [isOnFirstPage]);
 
-  function resolveRowPitch(
-    container: HTMLElement,
-    containerHeight: number,
-    measuredRowHeight: number,
-  ): number {
-    const cached = rowPitchRef.current;
-    const layoutChanged =
-      cached.node !== container || cached.containerHeight !== containerHeight;
-
-    // Held while paging, re-probed on the first page. On page 1 the probe keeps
-    // correcting until the layout settles (an early frame can read a row that
-    // has not reached its final height); from page 2 onward the value is held,
-    // so a page whose records render at a different height cannot resize the
-    // page under the user. A resize of the measured region re-opens probing.
-    if (!layoutChanged && cached.rowHeightPx > 0 && !onFirstPageRef.current) {
-      return cached.rowHeightPx;
-    }
-
-    const rowHeightPx =
-      measuredRowHeight > 0 ? measuredRowHeight : REPORTS_ROW_HEIGHT_FALLBACK_PX;
-    rowPitchRef.current = {
-      node: container,
-      containerHeight,
-      rowHeightPx: measuredRowHeight > 0 ? measuredRowHeight : 0,
-    };
-    return rowHeightPx;
-  }
-
-  useLayoutEffect(() => {
-    const nodes = [
-      desktopBodyNode,
-      mobileBodyNode,
-      desktopRowNode,
-      mobileRowNode,
-    ].filter((node): node is HTMLElement => node !== null);
-    if (nodes.length === 0) {
-      return;
-    }
-
-    let frame: number | null = null;
-
-    const recompute = () => {
-      frame = null;
-
-      const mobileHeight = mobileBodyNode?.getBoundingClientRect().height ?? 0;
-      if (mobileHeight > 0 && mobileBodyNode) {
-        const rowHeight = mobileRowNode?.getBoundingClientRect().height ?? 0;
-        setMeasurement((previous) => {
-          const next: Measurement = {
-            containerNode: mobileBodyNode,
-            rowHeightPx: resolveRowPitch(mobileBodyNode, mobileHeight, rowHeight),
-            headerHeightPx: 0,
-          };
-          return measurementsEqual(previous, next) ? previous : next;
-        });
-        return;
-      }
-
-      const desktopHeight = desktopBodyNode?.getBoundingClientRect().height ?? 0;
-      if (desktopHeight > 0 && desktopBodyNode) {
-        const rowHeight = desktopRowNode?.getBoundingClientRect().height ?? 0;
-        setMeasurement((previous) => {
-          const next: Measurement = {
-            containerNode: desktopBodyNode,
-            rowHeightPx: resolveRowPitch(desktopBodyNode, desktopHeight, rowHeight),
-            headerHeightPx: REPORTS_TABLE_HEADER_PX,
-          };
-          return measurementsEqual(previous, next) ? previous : next;
-        });
-      }
-    };
-
-    const scheduleRecompute = () => {
-      if (frame === null) {
-        frame = requestAnimationFrame(recompute);
-      }
-    };
-
-    const observer = new ResizeObserver(scheduleRecompute);
-    nodes.forEach((node) => observer.observe(node));
-    scheduleRecompute();
-
-    return () => {
-      observer.disconnect();
-      if (frame !== null) {
-        cancelAnimationFrame(frame);
-      }
-    };
-  }, [desktopBodyNode, mobileBodyNode, desktopRowNode, mobileRowNode]);
 
   // The desktop table is pinned to nine populated rows at the shortest
   // supported desktop viewport (1366×768) by the App Shell contract
@@ -353,15 +232,26 @@ export function AdminReportsCard() {
   // viewports. The mobile list (no table header) keeps a floor of one so it can
   // shrink freely on short phones. Same exception documented for Users/Roles
   // (SRV-2); Clínicas (R-02) has no such contract and uses a floor of one.
-  const isDesktopMeasurement = measurement.headerHeightPx > 0;
-  const { itemsPerPage: rowsPerPage } = useAdaptiveItemsPerPage({
-    containerNode: measurement.containerNode,
+  // One owner per canvas. The two presentations are mutually exclusive by
+  // media query, so exactly one reports `measured` — a function of the
+  // viewport alone, with no row content, page or history in it.
+  const mobileCapacity = useDashboardCanvasCapacity({
+    canvasNode: mobileBodyNode,
     fallbackItems: REPORTS_FALLBACK_ROWS,
-    itemHeightPx: measurement.rowHeightPx,
-    headerHeightPx: measurement.headerHeightPx,
-    minItems: isDesktopMeasurement ? REPORTS_FALLBACK_ROWS : 1,
+    minItems: 1,
     maxItems: REPORTS_SUPERSET_CAP,
   });
+  const desktopCapacity = useDashboardCanvasCapacity({
+    canvasNode: desktopBodyNode,
+    fallbackItems: REPORTS_FALLBACK_ROWS,
+    minItems: REPORTS_FALLBACK_ROWS,
+    maxItems: REPORTS_SUPERSET_CAP,
+  });
+  const rowsPerPage = mobileCapacity.measured
+    ? mobileCapacity.capacity
+    : desktopCapacity.measured
+      ? desktopCapacity.capacity
+      : REPORTS_FALLBACK_ROWS;
 
   // Effective server page size: at least the measured rows, capped at the
   // superset ceiling. The hook already clamps to [minItems, REPORTS_SUPERSET_CAP].
@@ -786,6 +676,8 @@ export function AdminReportsCard() {
           <div
             ref={setDesktopBodyNode}
             data-dashboard-adaptive-rows-canvas="true"
+              data-dashboard-row-pitch="regular"
+              data-dashboard-canvas-reserve="table-head"
             className="dashboard-table-responsive hidden min-h-0 flex-1 md:block"
           >
             {filteredReports.length ? (
@@ -805,7 +697,6 @@ export function AdminReportsCard() {
                   {filteredReports.map((report, index) => (
                     <TableRow
                       key={report.id}
-                      ref={index === 0 ? setDesktopRowNode : undefined}
                     >
                       <TableCell className="py-0.5">
                         <p className="truncate font-medium text-vetneb-ink">
@@ -872,6 +763,7 @@ export function AdminReportsCard() {
             <div
               ref={setMobileBodyNode}
               data-dashboard-adaptive-rows-canvas="true"
+              data-dashboard-row-pitch="regular"
               className="min-h-0 flex-1 divide-y divide-vetneb-line/60 overflow-hidden rounded-md border border-vetneb-line/75"
               data-admin-reports-mobile-list="true"
             >
@@ -879,9 +771,9 @@ export function AdminReportsCard() {
                 filteredReports.map((report, index) => (
                   <div
                     key={report.id}
-                    ref={index === 0 ? setMobileRowNode : undefined}
                     className="flex min-h-9 items-center gap-2 px-2.5 py-0.5"
                     data-admin-mobile-core-item="true"
+                    data-dashboard-adaptive-row="true"
                   >
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-xs font-semibold">

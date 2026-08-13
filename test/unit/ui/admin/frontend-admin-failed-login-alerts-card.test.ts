@@ -49,10 +49,10 @@ test("admin failed login alerts card derives the effective limit from the adapti
 
   assert.ok(
     source.includes(
-      'import { useAdaptiveItemsPerPage } from "@/hooks/useAdaptiveItemsPerPage";',
+      'import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";',
     ),
   );
-  assert.ok(source.includes("const { itemsPerPage: rowsPerPage } = useAdaptiveItemsPerPage({"));
+  assert.ok(source.includes("useDashboardCanvasCapacity({"));
   assert.ok(source.includes("const effectiveLimit = rowsPerPage;"));
   assert.ok(source.includes("limit: effectiveLimit,"));
   assert.ok(source.includes("[effectiveLimit, offset, reason, surface]"));
@@ -61,12 +61,12 @@ test("admin failed login alerts card derives the effective limit from the adapti
 test("admin failed login alerts card measures a real rows container per presentation", () => {
   const source = read(ADMIN_FAILED_LOGIN_ALERTS_CARD_PATH);
 
-  assert.ok(source.includes("containerNode: measurement.containerNode,"));
-  assert.ok(source.includes("itemHeightPx: measurement.rowHeightPx,"));
-  assert.ok(source.includes("headerHeightPx: measurement.headerHeightPx,"));
-  assert.ok(source.includes("new ResizeObserver("));
-  assert.ok(source.includes("ref={index === 0 ? setDesktopRowNode : undefined}"));
-  assert.ok(source.includes("ref={index === 0 ? setMobileRowNode : undefined}"));
+  assert.ok(source.includes("canvasNode: mobileBodyNode,"));
+  assert.ok(source.includes("canvasNode: desktopBodyNode,"));
+  assert.ok(source.includes('data-dashboard-canvas-reserve="table-head"'));
+  assert.ok(source.includes('data-dashboard-row-pitch="regular"'));
+  assert.equal(source.includes("setDesktopRowNode"), false);
+  assert.equal(source.includes("setMobileRowNode"), false);
   assert.ok(source.includes("ref={setDesktopBodyNode}"));
   assert.ok(source.includes("ref={setMobileBodyNode}"));
 });

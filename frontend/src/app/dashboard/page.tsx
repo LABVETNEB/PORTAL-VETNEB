@@ -40,7 +40,7 @@ type PageSearchParams = {
 
 // Hermetic data window handed to the client-side adaptive summaries. It bounds
 // how much this server component fetches; it is NOT a page size. The measured
-// page size stays owned by `useAdaptiveRowsPerPage` inside each workspace
+// page size stays owned by `useDashboardCanvasCapacity` inside each workspace
 // summary (audit §20). The previous window of 24 sat below the largest measured
 // canvas, so the second page was truncated by the end of the dataset on tall
 // viewports — exactly what the A03 contract forbids (§20.4).

@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
-import { useAdaptiveRowsPerPage } from "@/hooks/useAdaptiveRowsPerPage";
+import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,8 +31,6 @@ type FlatPricingItem = {
 // same hook the desktop card uses, so there is a single semantics of
 // `limit + client slice` for admin-pricing across the 13 viewports.
 const CATALOG_FALLBACK_ROWS = 4;
-// `gap-1.5` between catalog rows, part of the pitch each row occupies.
-const CATALOG_ROW_GAP_PX = 6;
 
 function normalizePriceLabel(value: string | null): string {
   const trimmed = (value ?? "").trim();
@@ -51,29 +49,6 @@ export function AdminMobilePricingModule() {
   const [catalogListNode, setCatalogListNode] = useState<HTMLDivElement | null>(
     null,
   );
-  const [firstCatalogRowNode, setFirstCatalogRowNode] =
-    useState<HTMLButtonElement | null>(null);
-  const [catalogRowHeightPx, setCatalogRowHeightPx] = useState(0);
-
-  useLayoutEffect(() => {
-    if (!firstCatalogRowNode) {
-      return;
-    }
-
-    const measure = () => {
-      const height = firstCatalogRowNode.getBoundingClientRect().height;
-      if (height > 0) {
-        setCatalogRowHeightPx(height + CATALOG_ROW_GAP_PX);
-      }
-    };
-
-    const observer = new ResizeObserver(measure);
-    observer.observe(firstCatalogRowNode);
-    measure();
-
-    return () => observer.disconnect();
-  }, [firstCatalogRowNode]);
-
   const [priceDraft, setPriceDraft] = useState("");
   const [orderDraft, setOrderDraft] = useState("");
   const [activeDraft, setActiveDraft] = useState(true);
@@ -201,11 +176,10 @@ export function AdminMobilePricingModule() {
     }
   }
 
-  const { rowsPerPage: catalogPageSize } = useAdaptiveRowsPerPage({
-    containerNode: catalogListNode,
-    fallbackRows: CATALOG_FALLBACK_ROWS,
-    rowHeightPx: catalogRowHeightPx,
-    minRows: 1,
+  const { capacity: catalogPageSize } = useDashboardCanvasCapacity({
+    canvasNode: catalogListNode,
+    fallbackItems: CATALOG_FALLBACK_ROWS,
+    minItems: 1,
   });
 
   const catalogPage = Math.floor(index / catalogPageSize);
@@ -341,18 +315,20 @@ export function AdminMobilePricingModule() {
       <div
         ref={setCatalogListNode}
         data-dashboard-adaptive-rows-canvas="true"
+        data-dashboard-row-pitch="compact"
+        data-dashboard-row-gap="spaced"
         className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden"
       >
         {catalogRows.length ? (
-          catalogRows.map((item, rowIndex) => {
+          catalogRows.map((item) => {
             const itemIndex = items.indexOf(item);
             const isCurrent = itemIndex === index;
             return (
               <button
                 key={item.id}
-                ref={rowIndex === 0 ? setFirstCatalogRowNode : undefined}
                 type="button"
                 data-admin-mobile-config-item="true"
+                data-dashboard-adaptive-row="true"
                 onClick={() => goToIndex(itemIndex)}
                 className={`flex shrink-0 items-center justify-between gap-2 overflow-hidden rounded-md border px-2.5 py-1.5 text-left ${isCurrent ? "border-vetneb-teal/60 bg-vetneb-surface-muted/60" : "border-vetneb-line/70 bg-card/95"}`}
               >

@@ -19,7 +19,7 @@ test("admin maintenance dry-run card is client-side and imports required depende
   assert.ok(source.includes('"use client";'));
   assert.ok(
     source.includes(
-      'import { useLayoutEffect, useState, useTransition, type Ref } from "react";',
+      'import { useState, useTransition, type Ref } from "react";',
     ),
   );
   assert.ok(source.includes('import { Badge } from "@/components/ui/badge";'));
@@ -28,7 +28,7 @@ test("admin maintenance dry-run card is client-side and imports required depende
   assert.ok(source.includes('import { usePagedRows } from "@/components/dashboard/usePagedRows";'));
   assert.ok(
     source.includes(
-      'import { useAdaptiveRowsPerPage } from "@/hooks/useAdaptiveRowsPerPage";',
+      'import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";',
     ),
   );
   assert.ok(source.includes('import { getAdminMaintenancePurgeDryRun } from "@/lib/api";'));
@@ -63,7 +63,7 @@ test("admin maintenance dry-run card renders candidate rows safely", () => {
   assert.ok(source.includes("function MaintenanceCandidateRow({"));
   assert.ok(source.includes("candidate: MaintenancePurgeCandidateGroup;"));
   assert.ok(source.includes("ref?: Ref<HTMLDivElement>;"));
-  assert.ok(source.includes('<div ref={ref} className="clinical-muted-band rounded-lg px-3 py-3">'));
+  assert.ok(source.includes('data-dashboard-adaptive-row="true"'));
   assert.ok(source.includes("{candidate.label}"));
   assert.ok(source.includes("{candidate.category}"));
   assert.ok(source.includes("<Badge variant={getCandidateVariant(candidate)}>"));
@@ -92,20 +92,20 @@ test("admin maintenance dry-run card derives rowsPerPage from a measured contain
   const source = read(ADMIN_MAINTENANCE_CARD_PATH);
 
   assert.ok(source.includes("const CANDIDATES_FALLBACK_ROWS = 4;"));
-  assert.ok(source.includes("const { rowsPerPage } = useAdaptiveRowsPerPage({"));
-  assert.ok(source.includes("containerNode: candidatesListNode,"));
-  assert.ok(source.includes("fallbackRows: CANDIDATES_FALLBACK_ROWS,"));
-  assert.ok(source.includes("rowHeightPx,"));
+  assert.ok(source.includes("const { capacity: rowsPerPage } = useDashboardCanvasCapacity({"));
+  assert.ok(source.includes("canvasNode: candidatesListNode,"));
+  assert.ok(source.includes("fallbackItems: CANDIDATES_FALLBACK_ROWS,"));
+  assert.ok(source.includes('data-dashboard-row-pitch="card"'));
   assert.ok(
     source.includes(
       'data-admin-maintenance-candidates-list="true"',
     ),
   );
-  assert.ok(
-    source.includes(
-      "ref={index === 0 ? setFirstCandidateRowNode : undefined}",
-    ),
-  );
+  // No ref reaches a candidate row: the pitch is declared, not probed, so the
+  // non-uniform rows (an unsupported group carries an extra reason line) can no
+  // longer decide the page size from whichever groups the page happens to hold.
+  assert.equal(source.includes("setFirstCandidateRowNode"), false);
+  assert.equal(source.includes('data-dashboard-row-gap="loose"'), true);
   assert.equal(source.includes("matchMedia"), false);
   assert.equal(source.includes("overflow-y-auto"), false);
 });
@@ -165,7 +165,7 @@ test("admin maintenance dry-run card renders candidate list from snapshot", () =
   const source = read(ADMIN_MAINTENANCE_CARD_PATH);
 
   assert.ok(
-    source.includes("pagedCandidates.pageItems.map((candidate, index) => ("),
+    source.includes("pagedCandidates.pageItems.map((candidate) => ("),
   );
   assert.ok(source.includes("<MaintenanceCandidateRow"));
   assert.ok(source.includes("key={candidate.category}"));

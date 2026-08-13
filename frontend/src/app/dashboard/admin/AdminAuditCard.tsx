@@ -2,7 +2,6 @@
 
 import {
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -16,7 +15,7 @@ import {
 } from "./AdminAuditFilterBar";
 import { AdminMobileAuditModule } from "./AdminMobileAuditModule";
 import { getAdminAuditPage } from "./admin-audit.actions";
-import { useAdaptiveItemsPerPage } from "@/hooks/useAdaptiveItemsPerPage";
+import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
 
 // Server pagination is now sized by the measured rows container (Zero-Scroll
 // adaptive contract). The legacy fixed page size survives only as the
@@ -30,34 +29,6 @@ export const ADMIN_AUDIT_FALLBACK_ROWS = 9;
 // never an unbounded over-fetch superset. The effective `limit` never exceeds
 // this cap, protecting the payload.
 export const ADMIN_AUDIT_LIMIT_CAP = 32;
-// `[&_th]:h-8` on the desktop table.
-const ADMIN_AUDIT_TABLE_HEADER_PX = 32;
-// `[&_td]:h-9` on the desktop table / mobile item min-height fallback.
-const ADMIN_AUDIT_ROW_HEIGHT_FALLBACK_PX = 36;
-// The hook's own default tail separation, restated here because the desktop
-// value below is derived from it.
-const ADMIN_AUDIT_ADAPTIVE_SAFETY_GAP_PX = 6;
-// `py-2` on the measured desktop rows region. The node is `border-box`, so its
-// measured height includes both paddings, but only the TOP one displaces the
-// table: the fit must discount the 8px the table starts below the container
-// edge. The bottom padding is NOT discounted as well — the safety gap already
-// reserves the tail, and double-counting it costs a full canonical row at
-// 1366x768 / 1024x768 for sub-pixel gain.
-const ADMIN_AUDIT_DESKTOP_TOP_PADDING_PX = 8;
-
-type Measurement = {
-  containerNode: HTMLElement | null;
-  rowHeightPx: number;
-  headerHeightPx: number;
-};
-
-function measurementsEqual(a: Measurement, b: Measurement) {
-  return (
-    a.containerNode === b.containerNode &&
-    a.rowHeightPx === b.rowHeightPx &&
-    a.headerHeightPx === b.headerHeightPx
-  );
-}
 
 type AuditSummary = {
   total: number;
@@ -99,13 +70,6 @@ export function AdminAuditCard({
   // fetch — no second pipeline (`AdminMobileAuditModule` no longer fetches).
   const [desktopBodyNode, setDesktopBodyNode] = useState<HTMLElement | null>(null);
   const [mobileBodyNode, setMobileBodyNode] = useState<HTMLElement | null>(null);
-  const [desktopRowNode, setDesktopRowNode] = useState<HTMLElement | null>(null);
-  const [mobileRowNode, setMobileRowNode] = useState<HTMLElement | null>(null);
-  const [measurement, setMeasurement] = useState<Measurement>({
-    containerNode: null,
-    rowHeightPx: ADMIN_AUDIT_ROW_HEIGHT_FALLBACK_PX,
-    headerHeightPx: 0,
-  });
 
   const latestRequestRef = useRef(0);
   const totalRef = useRef(0);
@@ -114,69 +78,6 @@ export function AdminAuditCard({
     totalRef.current = totalCount;
   }, [totalCount]);
 
-  useLayoutEffect(() => {
-    const nodes = [
-      desktopBodyNode,
-      mobileBodyNode,
-      desktopRowNode,
-      mobileRowNode,
-    ].filter((node): node is HTMLElement => node !== null);
-    if (nodes.length === 0) {
-      return;
-    }
-
-    let frame: number | null = null;
-
-    const recompute = () => {
-      frame = null;
-
-      const mobileHeight = mobileBodyNode?.getBoundingClientRect().height ?? 0;
-      if (mobileHeight > 0 && mobileBodyNode) {
-        const rowHeight = mobileRowNode?.getBoundingClientRect().height ?? 0;
-        setMeasurement((previous) => {
-          const next: Measurement = {
-            containerNode: mobileBodyNode,
-            rowHeightPx:
-              rowHeight > 0 ? rowHeight : ADMIN_AUDIT_ROW_HEIGHT_FALLBACK_PX,
-            headerHeightPx: 0,
-          };
-          return measurementsEqual(previous, next) ? previous : next;
-        });
-        return;
-      }
-
-      const desktopHeight = desktopBodyNode?.getBoundingClientRect().height ?? 0;
-      if (desktopHeight > 0 && desktopBodyNode) {
-        const rowHeight = desktopRowNode?.getBoundingClientRect().height ?? 0;
-        setMeasurement((previous) => {
-          const next: Measurement = {
-            containerNode: desktopBodyNode,
-            rowHeightPx:
-              rowHeight > 0 ? rowHeight : ADMIN_AUDIT_ROW_HEIGHT_FALLBACK_PX,
-            headerHeightPx: ADMIN_AUDIT_TABLE_HEADER_PX,
-          };
-          return measurementsEqual(previous, next) ? previous : next;
-        });
-      }
-    };
-
-    const scheduleRecompute = () => {
-      if (frame === null) {
-        frame = requestAnimationFrame(recompute);
-      }
-    };
-
-    const observer = new ResizeObserver(scheduleRecompute);
-    nodes.forEach((node) => observer.observe(node));
-    scheduleRecompute();
-
-    return () => {
-      observer.disconnect();
-      if (frame !== null) {
-        cancelAnimationFrame(frame);
-      }
-    };
-  }, [desktopBodyNode, mobileBodyNode, desktopRowNode, mobileRowNode]);
 
   // Desktop keeps the nine-row page of the App Shell contract
   // (`expectNinePopulatedRows`, `dashboard-real-app-shell-no-scroll-contract.spec.ts`,
@@ -187,25 +88,35 @@ export function AdminAuditCard({
   // keeps the RF cap and floor 1 to shrink on short phones (same trade-off as
   // Reports/Users-Roles, SRV-2).
   //
-  // Desktop fit, with H the measured container height:
-  //   N = floor((H - 32 - 14) / 37)   =>   H >= 32 + 14 + 37N
-  // The table starts 8px below the container edge, so it ends at 8 + 32 + 37N,
-  // which is at most H - 6: the pager keeps at least the 6px safety gap of
-  // clearance at every boundary, without spending a row on the bottom padding.
-  const isDesktopMeasurement = measurement.headerHeightPx > 0;
-  const { itemsPerPage: rowsPerPage } = useAdaptiveItemsPerPage({
-    containerNode: measurement.containerNode,
+  // This is the leaf that failed CI: `A -> B -> A` returned 8 where the same
+  // viewport had just measured 9, because `N = floor((H - 32 - 14) / pitch)`
+  // sits exactly on its discontinuity at pitch 37, and the pitch was probed
+  // from a row keyed by `row.id` that unmounted on every refetch — so the loop
+  // closed through the network. Both magic subtrahends are gone: the head is
+  // reserved by the token CSS locks it to, and the `py-2` that used to be
+  // discounted by hand no longer sits on the measured canvas.
+  //
+  // One owner per canvas. The two presentations are mutually exclusive by media
+  // query, so exactly one reports `measured` — a pure function of the viewport,
+  // with no content, page or history in it.
+  const mobileCapacity = useDashboardCanvasCapacity({
+    canvasNode: mobileBodyNode,
     fallbackItems: ADMIN_AUDIT_FALLBACK_ROWS,
-    itemHeightPx: measurement.rowHeightPx,
-    headerHeightPx: measurement.headerHeightPx,
-    safetyGapPx: isDesktopMeasurement
-      ? ADMIN_AUDIT_ADAPTIVE_SAFETY_GAP_PX + ADMIN_AUDIT_DESKTOP_TOP_PADDING_PX
-      : ADMIN_AUDIT_ADAPTIVE_SAFETY_GAP_PX,
     minItems: 1,
-    maxItems: isDesktopMeasurement
-      ? ADMIN_AUDIT_FALLBACK_ROWS
-      : ADMIN_AUDIT_LIMIT_CAP,
+    maxItems: ADMIN_AUDIT_LIMIT_CAP,
   });
+  const desktopCapacity = useDashboardCanvasCapacity({
+    canvasNode: desktopBodyNode,
+    fallbackItems: ADMIN_AUDIT_FALLBACK_ROWS,
+    minItems: 1,
+    // Desktop keeps the nine-row App Shell page as a CEILING, not a floor.
+    maxItems: ADMIN_AUDIT_FALLBACK_ROWS,
+  });
+  const rowsPerPage = mobileCapacity.measured
+    ? mobileCapacity.capacity
+    : desktopCapacity.measured
+      ? desktopCapacity.capacity
+      : ADMIN_AUDIT_FALLBACK_ROWS;
 
   // Effective server page size: the measured rows, bounded by the RF cap.
   const effectiveLimit = rowsPerPage;
@@ -302,7 +213,6 @@ export function AdminAuditCard({
         onPrevious={goToPreviousPage}
         onNext={goToNextPage}
         bodyRef={setMobileBodyNode}
-        rowRef={setMobileRowNode}
       />
 
       <section
@@ -360,13 +270,14 @@ export function AdminAuditCard({
       <div
         ref={setDesktopBodyNode}
         data-dashboard-adaptive-rows-canvas="true"
-        className="min-h-0 flex-1 py-2"
+        data-dashboard-row-pitch="compact"
+        data-dashboard-canvas-reserve="table-head"
+        className="min-h-0 flex-1"
       >
         <AdminAuditDenseTable
           rows={rows}
           loadError={loadError}
           hasActiveFilters={hasActiveFilters}
-          desktopRowRef={setDesktopRowNode}
         />
       </div>
 

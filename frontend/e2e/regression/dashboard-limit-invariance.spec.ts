@@ -131,8 +131,15 @@ async function applyScenario(
   return readStableState(page, leaf, label);
 }
 
-test.describe.configure({ mode: "serial" });
-
+// Deliberately NOT serial. The serial mode existed because capacity was
+// path-dependent: a leaf that had drifted could poison the next one, so the
+// suite was forced onto a single worker and, worse, a failure SKIPPED every
+// module after it. Neither reason survives the pitch-locked engine — capacity
+// is a function of the geometry alone — and these tests share nothing: each
+// owns its `page` fixture and browser context, `prepareContext` re-establishes
+// cookies per test, there is no `beforeAll`, no module-level state and no file
+// written between tests. Serialising 15 independent module matrices is what
+// made `E2E Completeness` approach its 1800 s budget.
 test.describe("A05 · stable geometry reservation limit invariance", () => {
   for (const moduleId of A03_MODULE_IDS) {
     const observer = A03_OBSERVERS[moduleId];

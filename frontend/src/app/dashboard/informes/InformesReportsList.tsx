@@ -13,18 +13,12 @@ import {
   StudyTimeline,
   type StudyTimelineStep,
 } from "@/components/dashboard/StudyTimeline";
-import { useAdaptiveItemsPerPage } from "@/hooks/useAdaptiveItemsPerPage";
+import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
 import { cn, getReportStatusLabel, getReportStatusVariant, formatDate } from "@/lib/utils";
 import type { Report, ReportStatus } from "@/types";
 import { getInformesPage } from "./informes.actions";
 import { INFORMES_FALLBACK_ROWS, INFORMES_LIMIT_CAP } from "./informes.constants";
 
-const INFORMES_ROW_HEIGHT_FALLBACK_PX = 88;
-
-type Measurement = {
-  containerNode: HTMLElement | null;
-  rowHeightPx: number;
-};
 
 type ReportDetailSection = "resumen" | "archivos" | "timeline";
 
@@ -36,10 +30,6 @@ const REPORT_DETAIL_SECTIONS: Array<{
   { id: "archivos", label: "Archivos" },
   { id: "timeline", label: "Timeline" },
 ];
-
-function measurementsEqual(a: Measurement, b: Measurement) {
-  return a.containerNode === b.containerNode && a.rowHeightPx === b.rowHeightPx;
-}
 
 function normalizeOffsetForLimit(
   currentOffset: number,
@@ -161,108 +151,18 @@ export function InformesReportsList({
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
 
   const [bodyNode, setBodyNode] = useState<HTMLElement | null>(null);
-  const [rowNode, setRowNode] = useState<HTMLElement | null>(null);
-  const [measurement, setMeasurement] = useState<Measurement>({
-    containerNode: null,
-    rowHeightPx: INFORMES_ROW_HEIGHT_FALLBACK_PX,
-  });
 
   const latestRequestRef = useRef(0);
 
-  // Row pitch accepted for the current layout. Informes rows are not uniform —
-  // a long study name wraps on a narrow phone and grows the row — so probing
-  // "the first rendered row" made the pitch depend on which reports happened to
-  // be on screen: page 1 and page 2 measured different heights, the page size
-  // changed mid-transition and a single "Página siguiente" emitted two server
-  // actions (observed at 360x800 under a full serial matrix run). The pitch is
-  // a property of the layout, not of the current page: probed once per measured
-  // -region size, reused across page changes, re-probed when that region
-  // resizes. Same rule as AdminReportsCard / AdminMaintenanceDryRunCard.
-  const rowPitchRef = useRef<{
-    node: HTMLElement | null;
-    containerHeight: number;
-    rowHeightPx: number;
-  }>({ node: null, containerHeight: 0, rowHeightPx: 0 });
-  const onFirstPageRef = useRef(true);
-  const isOnFirstPage = requestWindow.offset === 0;
-  useLayoutEffect(() => {
-    onFirstPageRef.current = isOnFirstPage;
-  }, [isOnFirstPage]);
-
-  function resolveRowPitch(
-    container: HTMLElement,
-    containerHeight: number,
-    measuredRowHeight: number,
-  ): number {
-    const cached = rowPitchRef.current;
-    const layoutChanged =
-      cached.node !== container || cached.containerHeight !== containerHeight;
-
-    // Held while paging, re-probed on the first page — see AdminReportsCard.
-    if (!layoutChanged && cached.rowHeightPx > 0 && !onFirstPageRef.current) {
-      return cached.rowHeightPx;
-    }
-
-    const rowHeightPx =
-      measuredRowHeight > 0 ? measuredRowHeight : INFORMES_ROW_HEIGHT_FALLBACK_PX;
-    rowPitchRef.current = {
-      node: container,
-      containerHeight,
-      rowHeightPx: measuredRowHeight > 0 ? measuredRowHeight : 0,
-    };
-    return rowHeightPx;
-  }
-
-  useLayoutEffect(() => {
-    if (!bodyNode) {
-      return;
-    }
-
-    let frame: number | null = null;
-
-    const recompute = () => {
-      frame = null;
-
-      const containerHeight = bodyNode.getBoundingClientRect().height;
-      if (containerHeight <= 0) {
-        return;
-      }
-
-      const rowHeight = rowNode?.getBoundingClientRect().height ?? 0;
-      setMeasurement((previous) => {
-        const next: Measurement = {
-          containerNode: bodyNode,
-          rowHeightPx: resolveRowPitch(bodyNode, containerHeight, rowHeight),
-        };
-        return measurementsEqual(previous, next) ? previous : next;
-      });
-    };
-
-    const scheduleRecompute = () => {
-      if (frame === null) {
-        frame = requestAnimationFrame(recompute);
-      }
-    };
-
-    const observer = new ResizeObserver(scheduleRecompute);
-    observer.observe(bodyNode);
-    if (rowNode) {
-      observer.observe(rowNode);
-    }
-    recompute();
-
-    return () => {
-      observer.disconnect();
-      if (frame !== null) {
-        cancelAnimationFrame(frame);
-      }
-    };
-  }, [bodyNode, rowNode]);
-
-  const { itemsPerPage: rowsPerPage } = useAdaptiveItemsPerPage({
-    containerNode: measurement.containerNode,
+  // Informes rows are not uniform — a long study name wraps on a narrow phone —
+  // so probing "the first rendered row" made the pitch depend on which reports
+  // happened to be on screen: page 1 and page 2 measured different heights, the
+  // page size changed mid-transition and a single "Página siguiente" emitted two
+  // server actions (observed at 360x800 under a full serial matrix run). The
+  // pitch is a token now, so the wrap cannot reach the page size at all.
+  const { capacity: rowsPerPage } = useDashboardCanvasCapacity({
+    canvasNode: bodyNode,
     fallbackItems: INFORMES_FALLBACK_ROWS,
-    itemHeightPx: measurement.rowHeightPx,
     minItems: 1,
     maxItems: INFORMES_LIMIT_CAP,
   });
@@ -648,14 +548,19 @@ export function InformesReportsList({
               ref={setBodyNode}
               data-informes-rows-canvas="true"
               data-dashboard-adaptive-rows-canvas="true"
+              data-dashboard-row-pitch="card"
               className="flex min-h-0 flex-1 flex-col divide-y divide-vetneb-line/60 overflow-hidden"
             >
               {visibleReports.map((report, index) => {
                 const isSelected = selectedReport?.id === report.id;
 
                 return (
-                  <div key={report.id} className="min-w-0 shrink-0">
-                    <div ref={index === 0 ? setRowNode : undefined}>
+                  <div
+                    key={report.id}
+                    data-dashboard-adaptive-row="true"
+                    className="min-w-0 shrink-0"
+                  >
+                    <div>
                       <button
                         type="button"
                         id={`report-${report.id}`}

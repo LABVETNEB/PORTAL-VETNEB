@@ -346,6 +346,63 @@
   }
 }
 
+/* Pitch-lock (Option D). The capacity of a bounded canvas is
+   `floor((H + gap) / (pitch + gap))`, and that inequality is only exact while
+   the rows cannot grow after it is evaluated. They used to: a row reached its
+   final height a frame or two after mounting (wrapping, fonts), which is the
+   defect recorded in LogisticsRecentListCanvas — "the pitch froze at ~40px
+   instead of ~51px and the canvas claimed three rows where two fit, leaving the
+   third clipped". Locking the row to the same token the capacity owner reads
+   makes the arithmetic exact at evaluation time and exact afterwards.
+
+   Truncation here is accessible truncation, not blind clipping: the row keeps
+   its full accessible name, every critical action stays inside the box, and a
+   surface that genuinely needs two lines declares a taller tier instead of a
+   per-module exception. */
+[data-dashboard-adaptive-rows-canvas="true"] {
+  row-gap: var(--dash-row-gap);
+}
+
+/* The attribute form matches any depth: several grammars (metric blocks, the
+   informes cards) sit under a wrapper rather than directly on the canvas. */
+[data-dashboard-adaptive-rows-canvas="true"] > .dashboard-list-row,
+[data-dashboard-adaptive-rows-canvas="true"] [data-dashboard-adaptive-row="true"],
+[data-dashboard-adaptive-rows-canvas="true"] table tbody > tr {
+  block-size: var(--dash-row-pitch);
+  min-block-size: var(--dash-row-pitch);
+  max-block-size: var(--dash-row-pitch);
+  overflow: hidden;
+}
+
+/* Table rows cannot be clamped from above: `max-block-size` is undefined on
+   table boxes and `block-size` acts as a MINIMUM, so a row always grows to fit
+   its cells. Locking the row therefore has to go through the cell — and through
+   the one thing that actually makes these rows tall, which is their own
+   vertical padding (`p-3.5` = 28px of it, more than half a compact row).
+   Zeroing the block padding and giving the cell the token as its height makes
+   the natural row height EQUAL the pitch instead of merely bounded by it; the
+   inline padding, and therefore the column rhythm, is untouched.
+
+   Without this the engine sized pages against a 36px tier while the rows
+   rendered at ~48px, and the surplus row landed on top of the pager and
+   swallowed the hit-test of "Siguiente". */
+[data-dashboard-adaptive-rows-canvas="true"] table tbody > tr > td {
+  block-size: var(--dash-row-pitch);
+  padding-block: 0;
+  overflow: hidden;
+}
+
+/* The reserved head is locked to the token the engine subtracts. */
+[data-dashboard-canvas-reserve="table-head"] table thead,
+[data-dashboard-canvas-reserve="table-head"] table thead > tr {
+  block-size: var(--dash-table-head-h);
+}
+
+[data-dashboard-canvas-reserve="table-head"] table thead th {
+  max-block-size: var(--dash-table-head-h);
+  overflow: hidden;
+}
+
 /* Centered pager migration for the pinned CompactPager consumers (admin
    pricing / maintenance): cluster centered, height reserved. */
 .dashboard-app-shell .dashboard-compact-pager {

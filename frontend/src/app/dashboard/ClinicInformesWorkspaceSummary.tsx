@@ -1,9 +1,9 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import type { Report } from "@/types";
 import { ClipboardList, ExternalLink, Filter } from "lucide-react";
-import { useAdaptiveRowsPerPage } from "@/hooks/useAdaptiveRowsPerPage";
+import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
 import {
   dashboardFilterActionClassName,
   dashboardFilterControlClassName,
@@ -31,7 +31,6 @@ type Props = {
 };
 
 const REPORTS_PAGE_SIZE = 3;
-const REPORTS_ROW_HEIGHT_FALLBACK_PX = 44;
 
 type ClinicReportsFilterState = {
   report: string;
@@ -143,116 +142,22 @@ export function ClinicInformesWorkspaceSummary({
   const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
   const [reportsListBodyNode, setReportsListBodyNode] =
     useState<HTMLDivElement | null>(null);
-  const [firstDesktopRowNode, setFirstDesktopRowNode] =
-    useState<HTMLTableRowElement | null>(null);
-  const [firstMobileRowNode, setFirstMobileRowNode] =
-    useState<HTMLDivElement | null>(null);
-  const [tableHeaderNode, setTableHeaderNode] =
-    useState<HTMLTableSectionElement | null>(null);
-  const rowPitchRef = useRef({ containerHeight: 0, rowHeightPx: 0 });
-  const onFirstPageRef = useRef(true);
-  const [rowHeightPx, setRowHeightPx] = useState(REPORTS_ROW_HEIGHT_FALLBACK_PX);
-  const [tableHeaderHeightPx, setTableHeaderHeightPx] = useState(0);
 
-  useLayoutEffect(() => {
-    if (!firstDesktopRowNode && !firstMobileRowNode) {
-      return;
-    }
-
-    // Row pitch belongs to the LAYOUT, not to the page on screen. The first row
-    // of page 1 can be the selected one and render taller than the rest, so
-    // learning the pitch again on page 2 changed `rowsPerPage` and re-sliced the
-    // list. The tallest row of the settled canvas is the pitch; it is learned ONCE per canvas
-    // geometry, so content changes never re-learn it and a real resize does.
-    const measureRowHeight = () => {
-      const containerHeight =
-        reportsListBodyNode?.getBoundingClientRect().height ?? 0;
-      const cached = rowPitchRef.current;
-
-      if (cached.rowHeightPx > 0 &&
-        (!onFirstPageRef.current ||
-          cached.containerHeight === containerHeight)) {
-        return;
-      }
-
-      const rows = reportsListBodyNode
-        ? Array.from(
-            reportsListBodyNode.querySelectorAll<HTMLElement>(
-              '[data-clinic-reports-table-row="true"], [data-clinic-reports-mobile-row="true"]',
-            ),
-          )
-        : [];
-      const height = rows.reduce(
-        (maximum, row) => Math.max(maximum, row.getBoundingClientRect().height),
-        Math.max(
-          firstDesktopRowNode?.getBoundingClientRect().height ?? 0,
-          firstMobileRowNode?.getBoundingClientRect().height ?? 0,
-        ),
-      );
-
-      if (height > 0) {
-        rowPitchRef.current = { containerHeight, rowHeightPx: height };
-        setRowHeightPx((previous) => (previous === height ? previous : height));
-      }
-    };
-
-    const observer = new ResizeObserver(measureRowHeight);
-    if (firstDesktopRowNode) {
-      observer.observe(firstDesktopRowNode);
-    }
-    if (firstMobileRowNode) {
-      observer.observe(firstMobileRowNode);
-    }
-    if (reportsListBodyNode) {
-      observer.observe(reportsListBodyNode);
-    }
-
-    const mutationObserver = new MutationObserver(measureRowHeight);
-    if (reportsListBodyNode) {
-      mutationObserver.observe(reportsListBodyNode, {
-        childList: true,
-        subtree: true,
-      });
-    }
-
-    measureRowHeight();
-
-    return () => {
-      mutationObserver.disconnect();
-      observer.disconnect();
-    };
-  }, [firstDesktopRowNode, firstMobileRowNode, reportsListBodyNode]);
-
-  useLayoutEffect(() => {
-    if (!tableHeaderNode) {
-      return;
-    }
-
-    const measureHeaderHeight = () => {
-      setTableHeaderHeightPx(tableHeaderNode.getBoundingClientRect().height);
-    };
-
-    const observer = new ResizeObserver(measureHeaderHeight);
-    observer.observe(tableHeaderNode);
-    measureHeaderHeight();
-
-    return () => observer.disconnect();
-  }, [tableHeaderNode]);
-
-  const { rowsPerPage } = useAdaptiveRowsPerPage({
-    containerNode: reportsListBodyNode,
-    fallbackRows: REPORTS_PAGE_SIZE,
-    rowHeightPx,
-    headerHeightPx: tableHeaderHeightPx,
+  // The pitch and the table-head reserve are CSS tokens, so neither the rows nor
+  // the header need to be observed: the two observers this surface used to run —
+  // one probing the tallest rendered row, one measuring the head — published
+  // into a single capacity without a common snapshot, which is how the same
+  // geometry settled on different cardinalities depending on the active slice.
+  const { capacity: rowsPerPage } = useDashboardCanvasCapacity({
+    canvasNode: reportsListBodyNode,
+    fallbackItems: REPORTS_PAGE_SIZE,
+    minItems: 2,
   });
 
   const filteredReports = recentReports.filter((report) =>
     matchesClinicReportFilters(report, appliedFilters),
   );
   const pagedReports = usePagedRows(filteredReports, rowsPerPage);
-  useLayoutEffect(() => {
-    onFirstPageRef.current = pagedReports.page === 0;
-  }, [pagedReports.page]);
 
 
   const selectedReport =
@@ -459,6 +364,8 @@ export function ClinicInformesWorkspaceSummary({
             ref={setReportsListBodyNode}
             data-clinic-reports-list-body="true"
             data-dashboard-adaptive-rows-canvas="true"
+            data-dashboard-row-pitch="regular"
+            data-dashboard-canvas-reserve="table-head"
             className="flex min-h-0 flex-1 flex-col overflow-hidden"
           >
             {filteredReports.length ? (
@@ -469,7 +376,6 @@ export function ClinicInformesWorkspaceSummary({
                 >
                   <table className="w-full table-fixed text-[0.8125rem]">
                     <thead
-                      ref={setTableHeaderNode}
                       className="border-b border-vetneb-line/65 bg-vetneb-surface-muted/65 text-xs font-semibold uppercase text-muted-foreground"
                     >
                       <tr>
@@ -489,7 +395,6 @@ export function ClinicInformesWorkspaceSummary({
                       {pagedReports.pageItems.map((report, index) => (
                         <tr
                           key={report.id}
-                          ref={index === 0 ? setFirstDesktopRowNode : undefined}
                           data-clinic-reports-table-row="true"
                           className="hover:bg-vetneb-cyan/8"
                         >
@@ -541,8 +446,8 @@ export function ClinicInformesWorkspaceSummary({
                   {pagedReports.pageItems.map((report, index) => (
                     <div
                       key={report.id}
-                      ref={index === 0 ? setFirstMobileRowNode : undefined}
                       data-clinic-reports-mobile-row="true"
+                  data-dashboard-adaptive-row="true"
                       className="grid min-h-11 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 py-1.5"
                     >
                       <div className="min-w-0">
