@@ -133,22 +133,37 @@ test("ClinicParticularTokensCard no re-mide el pitch al cambiar de página", () 
   );
 });
 
-test("LogisticsRecentListCanvas no re-mide el pitch al cambiar de página", () => {
+// LogisticsRecentListCanvas endureció la regla: sostener el pitch entre páginas
+// no bastaba. La clave de layout era sólo la altura, así que un cambio de
+// geometría estando en la página N promovía a canónico el pitch de esa página y
+// la misma geometría quedaba con un limit distinto según cómo se hubiera
+// llegado (histéresis A -> B -> A). La regla vive ahora en la primitiva
+// `adaptiveRowPitchCalibration`, con invariantes cubiertas por
+// test/unit/ui/dashboard/dashboard-adaptive-row-pitch-calibration.test.ts.
+test("LogisticsRecentListCanvas calibra el pitch sólo con evidencia canónica", () => {
   const source = read(LOGISTICS_RECENT_PATH);
 
   assert.ok(
     source.includes(
-      "const rowPitchRef = useRef<{ containerHeight: number; rowHeightPx: number }>({",
-    ),
+      'from "@/components/dashboard/adaptiveRowPitchCalibration"',
+    ) && source.includes("createAdaptiveRowPitchCalibrator()"),
+    "la calibración debe delegar en la primitiva, no reimplementarse aquí",
   );
   assert.ok(
-    source.includes("const layoutChanged = cached.containerHeight !== containerHeight;") &&
-      source.includes("!onFirstPageRef.current") &&
-      source.includes("onFirstPageRef.current = isOnFirstPage;"),
-    "el pitch se sondea en la primera página y se sostiene entre páginas",
+    source.includes("const outcome = calibrator.reconcile({") &&
+      source.includes("inlineSize: canvas.width,") &&
+      source.includes("blockSize: canvas.height,") &&
+      source.includes("page: pageRef.current,"),
+    "la geometría material (ancho y alto) y la página medida entran en la clave",
   );
   assert.ok(
-    source.includes("rowPitchRef.current = { containerHeight, rowHeightPx: height };"),
+    source.includes("if (outcome.requestedPage !== null) {") &&
+      source.includes("setPageRef.current(outcome.requestedPage);"),
+    "la transición a la página canónica y su restitución deben aplicarse",
+  );
+  assert.ok(
+    !source.includes("rowPitchRef") && !source.includes("onFirstPageRef"),
+    "no puede quedar una segunda fuente de verdad del pitch en el canvas",
   );
 });
 

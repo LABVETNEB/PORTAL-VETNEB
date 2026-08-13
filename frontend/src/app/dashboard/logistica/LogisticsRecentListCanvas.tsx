@@ -2,9 +2,17 @@
 
 import { Children, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
+import {
+  createAdaptiveRowPitchCalibrator,
+  type AdaptiveRowPitchCalibrator,
+} from "@/components/dashboard/adaptiveRowPitchCalibration";
 import { DashboardPager } from "@/components/dashboard/DashboardPager";
 import { usePagedRows } from "@/components/dashboard/usePagedRows";
 import { useAdaptiveDashboardPageSize } from "@/hooks/useAdaptiveDashboardPageSize";
+
+/** Pre-measurement seed only: no page size is frozen anywhere. */
+const RECENT_ROW_PITCH_FALLBACK_PX = 52;
+const RECENT_ROW_SELECTOR = ".dashboard-list-row";
 
 export type LogisticsRecentListCanvasProps = {
   /** Accessible name for the pager landmark of this list. */
@@ -26,12 +34,7 @@ export function LogisticsRecentListCanvas({
   children,
 }: LogisticsRecentListCanvasProps) {
   const items = Children.toArray(children);
-  const [rowHeightPx, setRowHeightPx] = useState(52);
-  const rowPitchRef = useRef<{ containerHeight: number; rowHeightPx: number }>({
-    containerHeight: 0,
-    rowHeightPx: 0,
-  });
-  const onFirstPageRef = useRef(true);
+  const [rowHeightPx, setRowHeightPx] = useState(RECENT_ROW_PITCH_FALLBACK_PX);
 
   // `minItems: 1`: the floor of two was an artificial one. On the shortest
   // phones the measured canvas is smaller than two rows, so a floor of two
@@ -48,6 +51,33 @@ export function LogisticsRecentListCanvas({
     maxItems: 12,
   });
 
+  const paged = usePagedRows(items, itemsPerPage);
+
+  // The pitch is a property of the LAYOUT, not of the page the user happens to
+  // be on: rows are not uniform, so probing "the rows currently rendered" made
+  // the measured pitch depend on the active slice, the slice depend on the page
+  // size and the page size depend on the pitch. That loop settles on a
+  // different value per entry path — the same viewport reached cold and reached
+  // through a resize disagreed, and A -> B -> A did not return to A. The
+  // calibrator owns the rule instead: canonical-page evidence only, one frozen
+  // pitch per material geometry (inline size AND block size), replayed on
+  // return. See `adaptiveRowPitchCalibration.ts`.
+  const calibratorRef = useRef<AdaptiveRowPitchCalibrator | null>(null);
+  if (calibratorRef.current === null) {
+    calibratorRef.current = createAdaptiveRowPitchCalibrator();
+  }
+
+  // Read at callback time by the measurement effect below, which subscribes its
+  // observers exactly once: paging and data changes must never re-arm them.
+  const pageRef = useRef(paged.page);
+  const setPageRef = useRef(paged.setPage);
+  const itemCountRef = useRef(items.length);
+  useLayoutEffect(() => {
+    pageRef.current = paged.page;
+    setPageRef.current = paged.setPage;
+    itemCountRef.current = items.length;
+  });
+
   useLayoutEffect(() => {
     const node = containerRef.current;
     if (!node) {
@@ -58,43 +88,47 @@ export function LogisticsRecentListCanvas({
 
     const measure = () => {
       frame = null;
+      const calibrator = calibratorRef.current;
+      if (!calibrator) {
+        return;
+      }
+
+      const canvas = node.getBoundingClientRect();
       // Tallest row currently rendered, not the first one: a long clinic or
       // plan name wraps on a narrow phone, so sizing the page by row 0 could
       // fit three short rows on paper while the third real row was clipped by
-      // this zero-scroll canvas.
-      let height = 0;
-      for (const row of node.querySelectorAll(".dashboard-list-row")) {
-        height = Math.max(height, row.getBoundingClientRect().height);
-      }
-      if (height <= 0) {
-        return;
-      }
-
-      // Rows are not uniform: a long clinic or plan name wraps on a narrow
-      // phone and grows its row. Probing "the first rendered row" therefore
-      // made the pitch depend on which records were on the current page, so
-      // paging changed the page size and the second page came back shorter
-      // than the first (observed at 360x800). The pitch belongs to the layout:
-      // probed once per measured-canvas size, reused across page changes,
-      // re-probed when the canvas itself resizes.
-      const containerHeight = node.getBoundingClientRect().height;
-      const cached = rowPitchRef.current;
-      const layoutChanged = cached.containerHeight !== containerHeight;
-
-      // Held while paging, re-probed on the first page: on page 1 the probe
-      // keeps correcting until the canvas settles, and from page 2 onward the
-      // value is held so a page whose records render taller cannot resize the
-      // page under the user (its extra row would be clipped by the zero-scroll
-      // canvas). A resize of the canvas re-opens probing.
-      if (!layoutChanged && cached.rowHeightPx > 0 && !onFirstPageRef.current) {
-        return;
-      }
-      if (!layoutChanged && height === cached.rowHeightPx) {
-        return;
+      // this zero-scroll canvas. Whether this reading is allowed to CALIBRATE
+      // the geometry is the calibrator's decision, not this probe's.
+      let measuredRowPitchPx = 0;
+      for (const row of node.querySelectorAll(RECENT_ROW_SELECTOR)) {
+        measuredRowPitchPx = Math.max(
+          measuredRowPitchPx,
+          row.getBoundingClientRect().height,
+        );
       }
 
-      rowPitchRef.current = { containerHeight, rowHeightPx: height };
-      setRowHeightPx((previous) => (previous === height ? previous : height));
+      const outcome = calibrator.reconcile({
+        geometry: {
+          inlineSize: canvas.width,
+          blockSize: canvas.height,
+          itemCount: itemCountRef.current,
+        },
+        page: pageRef.current,
+        measuredRowPitchPx,
+      });
+
+      if (outcome.rowPitchPx > 0) {
+        setRowHeightPx((previous) =>
+          previous === outcome.rowPitchPx ? previous : outcome.rowPitchPx,
+        );
+      }
+
+      // Only ever set while a geometry is being calibrated off the canonical
+      // page, and once more to hand the user's page back. A settled geometry
+      // returns `null` forever, so this closes no feedback loop.
+      if (outcome.requestedPage !== null) {
+        setPageRef.current(outcome.requestedPage);
+      }
     };
 
     const scheduleMeasure = () => {
@@ -115,7 +149,7 @@ export function LogisticsRecentListCanvas({
     // where two fit, leaving the third clipped. A `MutationObserver` re-arms
     // the row observers whenever the rendered page changes.
     const observeRows = () => {
-      for (const row of node.querySelectorAll(".dashboard-list-row")) {
+      for (const row of node.querySelectorAll(RECENT_ROW_SELECTOR)) {
         observer.observe(row);
       }
     };
@@ -135,12 +169,6 @@ export function LogisticsRecentListCanvas({
       }
     };
   }, [containerRef]);
-
-  const paged = usePagedRows(items, itemsPerPage);
-  const isOnFirstPage = paged.page === 0;
-  useLayoutEffect(() => {
-    onFirstPageRef.current = isOnFirstPage;
-  }, [isOnFirstPage]);
 
   return (
     <div
