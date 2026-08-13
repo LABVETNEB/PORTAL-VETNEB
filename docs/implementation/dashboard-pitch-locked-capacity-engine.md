@@ -38,6 +38,49 @@ devolver `N` (`admin-audit-log::w1440x900`, esperado 9, recibido 8).
 capacity = clamp(floor((canvasContentBox − reserved + gap) / (pitch + gap)), minItems, maxItems)
 ```
 
+### El término `gap` en tablas con `border-collapse: collapse`
+
+Una tabla colapsada **comparte un borde entre filas adyacentes**, así que cada fila *avanza* un
+píxel más de lo que mide su propia caja: la celda resuelve al pitch y el separador colapsado queda
+entre filas exactamente como un gap. Medido sobre `admin-users-roles`: celda 36 px, **avance de
+fila 37 px**, uniforme en todas las filas y viewports (la media aparente de 36.944 era el artefacto
+de la última fila, 36.5, sin borde inferior).
+
+Declararlo como el término `gap` es lo que hace que la ecuación **reproduzca las cardinalidades
+A03 congeladas** en vez de reclamar una fila de más por canvas:
+
+| Viewport | `floor((canvas − reserved + gap) / (pitch + gap))` | A03 congelado |
+|---|---|---|
+| 1366×768 | `floor((375.69 − 32 + 1) / 37)` = **9** | 9 |
+| 1440×900 | `floor((502.89 − 32 + 1) / 37)` = **12** | 12 |
+
+Que la aritmética corregida reproduzca **independientemente** ambos valores congelados es la
+evidencia más fuerte disponible de que el modelo es correcto, y no meramente de que el test pasa.
+
+> **Trampa registrada.** El token del tier NO debe subirse a 37: `block-size` fija la **celda**, y
+> el borde colapsado se suma encima, de modo que un token de 37 produce un avance de 38 —
+> el mismo off-by-one un píxel más arriba. El separador es un `gap`, no parte del pitch.
+
+### Por qué esta fase costó cuatro intentos
+
+Los tres primeros intentos atacaron un síntoma producido por el anterior, no la caja:
+
+| # | Cambio | Por qué falló |
+|---|---|---|
+| 1 | forzar filas 48→44 con `padding-block: 0` | un tier por debajo de la altura natural no es un lock, es una sobre-reclamación |
+| 2 | subir el reserve del head 32→44 | consumió altura; el conteo cayó a 8 |
+| 3 | `minItems: 9` incondicional | forzó 9 filas donde caben 7 ⇒ el pager quedó cubierto y se comió el hit-test de "Siguiente" |
+| **4** | **`--dash-row-gap: 1px`** | **modeló el borde colapsado: el término que faltaba** |
+
+Corolario que conviene no volver a perder: **una vez el box model es correcto, las compensaciones
+dejan de ser innecesarias y pasan a ser dañinas.** El floor `minItems` pudo volver a `1` porque
+sólo existía para tapar una geometría mal modelada; con el `gap` declarado, 1366×768 resuelve 9 de
+forma natural y 1280×720 resuelve su ajuste real (7, el valor A03 congelado).
+
+Regla operativa para geometría de tablas: `max-block-size` es **undefined** en cajas de tabla y
+`block-size` actúa como **mínimo**, así que la única autoridad es el DOM medido — nunca el valor
+del token razonado sobre el papel.
+
 CSS es dueño de la geometría; el owner sólo la lee. El contenido queda al final del grafo y
 ninguna flecha vuelve hacia arriba.
 

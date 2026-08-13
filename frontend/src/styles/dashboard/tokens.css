@@ -35,6 +35,11 @@
      renders a block of its own (heading + detail lines). */
   --dash-row-pitch-compact: 36px;
   --dash-row-pitch-regular: 44px;
+  /* table: the design-system `TableCell` (`p-3.5`) around one line of text.
+     The tier states the row's NATURAL height rather than forcing a smaller one:
+     a table row grows to fit its cells whatever we declare, so a tier below the
+     natural height is not a lock, it is an over-claim. */
+  --dash-row-pitch-table: 48px;
   --dash-row-pitch-tall: 52px;
   --dash-row-pitch-card: 76px;
   /* block: a metric panel carrying its own heading and stat grid. */
@@ -51,7 +56,10 @@
      ResizeObserver on the table head: the reserve the capacity engine
      subtracts and the height the head actually occupies are then the same
      number by construction, not two measurements racing each other. */
-  --dash-table-head-h: 32px;
+  /* Matches the design-system `TableHead` (`h-11`). Reserving less than the
+     head actually occupies is not a rounding error: the surplus lands on the
+     last row and turns the table wrapper into an internal scroller. */
+  --dash-table-head-h: 44px;
   --dash-canvas-reserved: 0px;
 }
 
@@ -77,12 +85,35 @@
   --dash-row-pitch: var(--dash-row-pitch-regular);
 }
 
+.dashboard-app-shell [data-dashboard-row-pitch="table"] {
+  --dash-row-pitch: var(--dash-row-pitch-table);
+}
+
 .dashboard-app-shell [data-dashboard-row-pitch="tall"] {
   --dash-row-pitch: var(--dash-row-pitch-tall);
 }
 
-/* Canvases whose rows live under a table head reserve it here. */
+/* Canvases whose rows live under a table head reserve it here. The dense
+   variant is for tables that override the head height (`AdminAuditDenseTable`
+   uses `[&_th]:h-8`); the reserve follows the head, never the other way round. */
+/* A `border-collapse: collapse` table shares one border between adjacent rows,
+   so each row ADVANCES one pixel more than its own box: the cell resolves to
+   the pitch, and the collapsed separator sits between rows exactly like a gap.
+   Measured on `admin-users-roles`: cell block-size 36px, row advance 37px,
+   uniform across every row and viewport. Declaring it as the gap term is what
+   makes `floor((canvas - reserved + gap) / (pitch + gap))` reproduce the frozen
+   A03 cardinalities (12 at 1440x900, 9 at 1366x768) instead of over-claiming a
+   row per canvas. */
+.dashboard-app-shell [data-dashboard-canvas-reserve^="table-head"] {
+  --dash-row-gap: 1px;
+}
+
 .dashboard-app-shell [data-dashboard-canvas-reserve="table-head"] {
+  --dash-canvas-reserved: var(--dash-table-head-h);
+}
+
+.dashboard-app-shell [data-dashboard-canvas-reserve="table-head-dense"] {
+  --dash-table-head-h: 32px;
   --dash-canvas-reserved: var(--dash-table-head-h);
 }
 

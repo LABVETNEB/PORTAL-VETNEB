@@ -417,8 +417,8 @@ export function AdminSessionsReadOnlyCard() {
           ref={setDesktopBodyNode}
           data-admin-sesiones-list-body="true"
           data-dashboard-adaptive-rows-canvas="true"
-              data-dashboard-row-pitch="regular"
-              data-dashboard-canvas-reserve="table-head"
+              data-dashboard-row-pitch="compact"
+              data-dashboard-canvas-reserve="table-head-dense"
           className="min-h-0 flex-1 py-1"
         >
           {sessions.length ? (

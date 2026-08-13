@@ -81,7 +81,7 @@ test("R-06 collapses AdminMobileAuditModule into a single shared-data pipeline",
   // `floor` discontinuity that returned 8 where 9 had just been measured.
   assert.ok(card.includes("ref={setDesktopBodyNode}"));
   assert.ok(card.includes('className="min-h-0 flex-1"'));
-  assert.ok(card.includes('data-dashboard-canvas-reserve="table-head"'));
+  assert.ok(card.includes('data-dashboard-canvas-reserve="table-head-dense"'));
   // The row is no longer probed, so no ref reaches it.
   assert.equal(card.includes("desktopRowRef"), false);
 });

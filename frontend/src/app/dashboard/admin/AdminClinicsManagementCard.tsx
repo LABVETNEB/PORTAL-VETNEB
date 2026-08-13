@@ -582,8 +582,8 @@ export function AdminClinicsManagementCard() {
         <div
           ref={setDesktopBodyNode}
           data-dashboard-adaptive-rows-canvas="true"
-              data-dashboard-row-pitch="regular"
-              data-dashboard-canvas-reserve="table-head"
+              data-dashboard-row-pitch="compact"
+              data-dashboard-canvas-reserve="table-head-dense"
           className="dashboard-table-responsive hidden min-h-0 flex-1 md:block"
         >
           <Table className="text-[0.8125rem] [&_th]:h-9 [&_th]:px-3 [&_td]:px-3">

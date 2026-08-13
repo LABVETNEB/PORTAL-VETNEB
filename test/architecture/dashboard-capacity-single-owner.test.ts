@@ -323,18 +323,28 @@ test("the pitch tokens stay readable by the capacity owner", () => {
   // Custom properties compute to their substituted token, so a tier authored in
   // rem/clamp/calc would be read back as "no usable pitch" and every adaptive
   // canvas would silently sit on its fallback page size.
-  for (const tier of ["compact", "regular", "tall", "card"]) {
-    const declaration = new RegExp(`--dash-row-pitch-${tier}:\\s*([^;]+);`, "g");
-    const matches = [...css.matchAll(declaration)];
+  // Derived, not listed: a tier added later must inherit the contract instead
+  // of silently escaping a hardcoded roster.
+  const tierDeclarations = [
+    ...css.matchAll(/--dash-row-pitch-([a-z]+):\s*([^;]+);/g),
+  ];
+  assert.ok(tierDeclarations.length > 0, "pitch tiers must be declared");
 
-    assert.ok(matches.length > 0, `--dash-row-pitch-${tier} must be declared`);
-    for (const match of matches) {
-      assert.match(
-        match[1].trim(),
-        /^\d+(?:\.\d+)?px$/,
-        `--dash-row-pitch-${tier} must be a plain px literal, got "${match[1].trim()}"`,
-      );
-    }
+  for (const [, tier, value] of tierDeclarations) {
+    assert.match(
+      value.trim(),
+      /^\d+(?:\.\d+)?px$/,
+      `--dash-row-pitch-${tier} must be a plain px literal, got "${value.trim()}"`,
+    );
+  }
+
+  // The head reserve is read back by the same parser and obeys the same rule.
+  for (const [, value] of css.matchAll(/--dash-table-head-h:\s*([^;]+);/g)) {
+    assert.match(
+      value.trim(),
+      /^\d+(?:\.\d+)?px$/,
+      `--dash-table-head-h must be a plain px literal, got "${value.trim()}"`,
+    );
   }
 
   // The lock is authored as a selector LIST (list rows, attribute-marked rows,

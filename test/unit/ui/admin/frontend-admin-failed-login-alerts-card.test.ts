@@ -63,7 +63,7 @@ test("admin failed login alerts card measures a real rows container per presenta
 
   assert.ok(source.includes("canvasNode: mobileBodyNode,"));
   assert.ok(source.includes("canvasNode: desktopBodyNode,"));
-  assert.ok(source.includes('data-dashboard-canvas-reserve="table-head"'));
+  assert.ok(source.includes('data-dashboard-canvas-reserve="table-head-dense"'));
   assert.ok(source.includes('data-dashboard-row-pitch="regular"'));
   assert.equal(source.includes("setDesktopRowNode"), false);
   assert.equal(source.includes("setMobileRowNode"), false);

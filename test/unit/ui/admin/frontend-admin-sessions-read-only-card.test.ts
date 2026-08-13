@@ -48,7 +48,7 @@ test("admin sessions card measures a real rows container per presentation", () =
   assert.ok(source.includes('data-admin-sesiones-list-body="true"'));
   assert.ok(source.includes("canvasNode: mobileBodyNode,"));
   assert.ok(source.includes("canvasNode: desktopBodyNode,"));
-  assert.ok(source.includes('data-dashboard-canvas-reserve="table-head"'));
+  assert.ok(source.includes('data-dashboard-canvas-reserve="table-head-dense"'));
   assert.ok(source.includes('data-dashboard-row-pitch="regular"'));
   assert.equal(source.includes("setDesktopRowNode"), false);
   assert.equal(source.includes("setMobileRowNode"), false);
