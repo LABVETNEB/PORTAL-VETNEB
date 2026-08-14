@@ -176,7 +176,7 @@ test("automatic workflow coverage is derived from catalog cohorts and equals ful
   assert.deepEqual(result.coveredSpecs, [...E2E_COHORT_SPECS.full].sort());
   assert.deepEqual(result.automaticRoutes.get(FRONTEND_WORKFLOW), ["ci"]);
   assert.deepEqual(result.automaticRoutes.get(COMPLETENESS_WORKFLOW), ["full"]);
-  assert.equal(E2E_SUITE_CATALOG.length, 74);
+  assert.equal(E2E_SUITE_CATALOG.length, 78);
 
   const partitionUnion = new Set(PARTITION_COHORTS.flatMap((cohort) => E2E_COHORT_SPECS[cohort]));
   assert.deepEqual([...partitionUnion].sort(), [...E2E_COHORT_SPECS.full].sort());
@@ -193,7 +193,7 @@ test("coverage fails closed when the full route or any partition contribution is
   };
   const result = evaluateAutomaticCoverage(withoutFull);
 
-  assert.equal(result.missingSpecs.length, 30);
+  assert.equal(result.missingSpecs.length, 34);
   for (const cohort of ["extended", "evidence", "visual-linux"] as const) {
     assert.ok(
       E2E_COHORT_SPECS[cohort].every((spec) => result.missingSpecs.includes(spec)),

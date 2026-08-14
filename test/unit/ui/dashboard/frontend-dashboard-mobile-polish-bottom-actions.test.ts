@@ -77,10 +77,17 @@ test("PR-9 StickyActionBar keeps mobile bottom safe-area action contract", () =>
     "the stacked mobile action grid must not come back",
   );
   assert.ok(source.includes("min-h-10 w-full whitespace-normal"));
-  // The out-of-flow bar must keep publishing its measured height so the shell
-  // can reserve it; a hardcoded spacer is what the guard below forbids.
-  assert.ok(source.includes("--dash-sticky-action-h"));
-  assert.ok(source.includes('position === "fixed" || position === "absolute"'));
+  // The out-of-flow bar must keep its height reserved by the shell ledger; a
+  // hardcoded spacer is what the guard below forbids. A05 (#1649) moved that
+  // reserve from a height the bar measured and published after mount to a
+  // declarative constant the bar exports and its route publishes into
+  // `--dash-sticky-action-h` before the first layout — the post-mount
+  // measurement was the A05 feedback loop. The end of the ledger contract is
+  // pinned by `dashboard-stable-geometry-reservation.test.ts`.
+  assert.ok(source.includes("export const STICKY_ACTION_RESERVED_BLOCK_SIZE"));
+  assert.ok(
+    source.includes("calc(5.5625rem + env(safe-area-inset-bottom, 0px))"),
+  );
   assert.ok(source.includes('type="button"'));
   assert.ok(source.includes("<span>{action.label}</span>"));
   assert.ok(source.includes("focus-visible:ring-2"));

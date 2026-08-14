@@ -63,7 +63,12 @@ test("dashboard logistica computes active visits and active route plans explicit
 
 test("dashboard logistica composes command center, sticky actions, and page header", () => {
   const source = read(LOGISTICA_PAGE_PATH);
-  const mainSource = source.slice(source.indexOf('<main className="dashboard-main">'));
+  // A05 (#1649) turned this `<main>` into a multi-line element (it now carries
+  // the adaptive reservation root and the sticky-action ledger var), so the
+  // slice anchors on the class attribute instead of a one-line open tag.
+  const mainStart = source.indexOf('className="dashboard-main"');
+  assert.ok(mainStart >= 0, "logistics hub must render the dashboard main region");
+  const mainSource = source.slice(mainStart);
 
   assert.ok(source.includes("<DashboardPageHeader"));
   assert.ok(source.includes('title="Hub de logística"'));
