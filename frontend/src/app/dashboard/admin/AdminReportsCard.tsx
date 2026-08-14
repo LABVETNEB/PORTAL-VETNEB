@@ -48,6 +48,10 @@ import {
 } from "@/lib/api";
 import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
 import {
+  DASHBOARD_PAGER_RESERVATION,
+  DASHBOARD_TOUCH_PAGER_RESERVATION,
+} from "@/components/dashboard/DashboardPager";
+import {
   ADMIN_REPORT_STAGE_OPTIONS,
   AdminReportStatusBadge,
 } from "./AdminReportStatusBadge";
@@ -808,7 +812,8 @@ export function AdminReportsCard() {
 
             {filteredReports.length || hasPrev ? (
               <div
-                className="flex shrink-0 items-center justify-center gap-1.5 border-t border-vetneb-line/65 pt-1.5 text-xs text-muted-foreground"
+                className="dashboard-pager flex shrink-0 items-center justify-center gap-1.5 overflow-hidden border-t border-vetneb-line/65 text-xs text-muted-foreground"
+                style={DASHBOARD_TOUCH_PAGER_RESERVATION}
                 data-admin-mobile-core-pager="true"
                 data-dashboard-adaptive-reserved-region="pager"
               >
@@ -841,7 +846,8 @@ export function AdminReportsCard() {
 
           <nav
             data-dashboard-adaptive-reserved-region="pager"
-            className="mt-2 hidden min-h-10 shrink-0 items-center justify-between gap-2 border-t border-vetneb-line/65 px-1 pt-2 text-xs text-muted-foreground md:mt-0.5 md:flex md:min-h-7 md:pt-0.5"
+            className="mt-2 hidden shrink-0 items-center justify-between gap-2 overflow-hidden border-t border-vetneb-line/65 px-1 text-xs text-muted-foreground md:mt-0.5 md:flex"
+            style={DASHBOARD_PAGER_RESERVATION}
             aria-label="Paginación de informes admin"
           >
             <span>

@@ -37,6 +37,10 @@ import {
   updateAdminClinicUserCredentials,
 } from "@/lib/api";
 import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
+import {
+  DASHBOARD_INLINE_PAGER_RESERVATION,
+  DASHBOARD_TOUCH_PAGER_RESERVATION,
+} from "@/components/dashboard/DashboardPager";
 import { formatDateTime } from "@/lib/utils";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { LoadingState } from "@/components/dashboard/LoadingState";
@@ -548,7 +552,8 @@ export function AdminClinicsManagementCard() {
           {totalClinics > 0 ? (
             <div
               data-dashboard-adaptive-reserved-region="pager"
-              className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground"
+              className="flex shrink-0 items-center gap-2 overflow-hidden text-xs text-muted-foreground"
+              style={DASHBOARD_INLINE_PAGER_RESERVATION}
             >
               <span className="tabular-nums">
                 {pageStart}–{pageEnd} de {totalClinics}
@@ -783,7 +788,8 @@ export function AdminClinicsManagementCard() {
 
           {totalClinics > 0 ? (
             <div
-              className="flex shrink-0 items-center justify-center gap-1.5 border-t border-vetneb-line/65 pt-1.5 text-xs text-muted-foreground"
+              className="dashboard-pager flex shrink-0 items-center justify-center gap-1.5 overflow-hidden border-t border-vetneb-line/65 text-xs text-muted-foreground"
+              style={DASHBOARD_TOUCH_PAGER_RESERVATION}
               data-admin-mobile-core-pager="true"
               data-dashboard-adaptive-reserved-region="pager"
             >

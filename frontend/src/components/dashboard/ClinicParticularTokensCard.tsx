@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { Filter } from "lucide-react";
 import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
+import { DASHBOARD_PAGER_RESERVATION } from "@/components/dashboard/DashboardPager";
 import {
   dashboardFilterActionClassName,
   dashboardFilterControlClassName,
@@ -1035,6 +1036,8 @@ export function ClinicParticularTokensCard() {
                 </ParticularTokensPanelBody>
 
                 <ParticularTokensPanelFooter
+                  className="min-h-0 overflow-hidden py-0"
+                  style={DASHBOARD_PAGER_RESERVATION}
                   data-clinic-access-pagination-footer="true"
                   data-dashboard-adaptive-reserved-region="pager"
                 >

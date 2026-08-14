@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/table";
 import { getAdminSessions, revokeAdminSession } from "@/lib/api";
 import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
+import { DASHBOARD_PAGER_RESERVATION } from "@/components/dashboard/DashboardPager";
 import { formatDateTime } from "@/lib/utils";
 import type {
   AdminSessionStatus,
@@ -531,7 +532,8 @@ export function AdminSessionsReadOnlyCard() {
         <footer
           data-admin-sesiones-pagination="true"
           data-dashboard-adaptive-reserved-region="pager"
-          className="dashboard-table-pagination min-h-9 shrink-0 border-t border-vetneb-line/70 px-3 py-1 text-xs text-muted-foreground sm:px-4"
+          className="dashboard-table-pagination shrink-0 overflow-hidden border-t border-vetneb-line/70 px-3 text-xs text-muted-foreground sm:px-4"
+          style={DASHBOARD_PAGER_RESERVATION}
           aria-label="Paginación de sesiones"
         >
           <span aria-live="polite">

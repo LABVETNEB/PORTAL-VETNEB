@@ -31,6 +31,7 @@ import {
   getAdminFailedLoginAlerts,
 } from "@/lib/api";
 import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
+import { DASHBOARD_TOUCH_PAGER_RESERVATION } from "@/components/dashboard/DashboardPager";
 import { formatDateTime } from "@/lib/utils";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { LoadingState } from "@/components/dashboard/LoadingState";
@@ -448,7 +449,8 @@ export function AdminFailedLoginAlertsReadOnlyCard({
 
         <div
           data-dashboard-adaptive-reserved-region="pager"
-          className="dashboard-table-pagination shrink-0"
+          className="dashboard-table-pagination shrink-0 overflow-hidden"
+          style={DASHBOARD_TOUCH_PAGER_RESERVATION}
         >
           <div className="dashboard-table-pagination-controls">
             <Button

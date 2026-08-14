@@ -39,6 +39,10 @@ import {
 } from "@/components/ui/table";
 import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
 import {
+  DASHBOARD_PAGER_RESERVATION,
+  DASHBOARD_TOUCH_PAGER_RESERVATION,
+} from "@/components/dashboard/DashboardPager";
+import {
   createAdminParticularToken,
   deleteAdminParticularToken,
   getAdminUsersRoles,
@@ -1523,7 +1527,8 @@ export function AdminParticularTokensCard() {
 
             {filteredTokens.length ? (
               <div
-                className="flex shrink-0 items-center justify-center gap-1.5 border-t border-vetneb-line/65 pt-1.5 text-xs text-muted-foreground"
+                className="dashboard-pager flex shrink-0 items-center justify-center gap-1.5 overflow-hidden border-t border-vetneb-line/65 text-xs text-muted-foreground"
+                style={DASHBOARD_TOUCH_PAGER_RESERVATION}
                 data-admin-mobile-core-pager="true"
                 data-dashboard-adaptive-reserved-region="pager"
               >
@@ -1583,7 +1588,8 @@ export function AdminParticularTokensCard() {
 
           <div
             data-dashboard-adaptive-reserved-region="pager"
-            className="mt-2 hidden min-h-10 shrink-0 items-center justify-between gap-2 border-t border-vetneb-line/65 px-1 pt-2 text-xs text-muted-foreground md:mt-1 md:flex md:min-h-8 md:pt-1"
+            className="mt-2 hidden shrink-0 items-center justify-between gap-2 overflow-hidden border-t border-vetneb-line/65 px-1 text-xs text-muted-foreground md:mt-1 md:flex"
+            style={DASHBOARD_PAGER_RESERVATION}
           >
             <span>
               {filteredTokens.length

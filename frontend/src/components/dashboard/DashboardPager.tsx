@@ -18,6 +18,60 @@ import { cn } from "@/lib/utils";
  *    aria-labels); the pager only contributes the centered geometry and the
  *    stable selectors.
  */
+/**
+ * Canonical pager reservation, shared by every surface that owns pager markup
+ * of its own instead of rendering this component.
+ *
+ * A reserved region declared only with `shrink-0` and a `min-h-*` floor is NOT
+ * reserved: `max-block-size` stays `none` and `flex-basis` stays `auto`, so the
+ * region grows with its own content, the sibling rows canvas (`flex-1 min-h-0`)
+ * gives the pixels back 1:1, and the capacity engine recomputes a different
+ * adaptive limit from a canvas that only moved because the pager did.
+ *
+ * The trio is applied INLINE on purpose: Tailwind utilities outrank the
+ * `components` layer that carries `.dashboard-pager`, so a `min-h-*` left on
+ * the consumer would otherwise win over the primitive's own reservation.
+ */
+export const DASHBOARD_PAGER_RESERVATION = {
+  "--dash-adaptive-pager-reserved-block-size": "var(--dash-pagination-h, 2.5rem)",
+  blockSize: "var(--dash-adaptive-pager-reserved-block-size)",
+  minBlockSize: "var(--dash-adaptive-pager-reserved-block-size)",
+  maxBlockSize: "var(--dash-adaptive-pager-reserved-block-size)",
+} as CSSProperties;
+
+/**
+ * Same reservation for the pagers whose controls are touch targets.
+ *
+ * `--dash-pagination-h` floors at 2.25rem, which is SMALLER than the 2.25rem
+ * button plus its 1px separator, so pinning those regions to the plain token
+ * would clip a control that `test/unit/ui/admin/admin-mobile-*-pager-canonical-
+ * layout.test.ts` pins at >=36px on purpose. The floor raised here is the
+ * `min-h-10` those pagers already declare — the reservation stops being a
+ * minimum and becomes exact, which is the whole defect being fixed; the touch
+ * target itself is left untouched.
+ */
+export const DASHBOARD_TOUCH_PAGER_RESERVATION = {
+  "--dash-adaptive-pager-reserved-block-size":
+    "max(var(--dash-pagination-h, 2.5rem), 2.5rem)",
+  blockSize: "var(--dash-adaptive-pager-reserved-block-size)",
+  minBlockSize: "var(--dash-adaptive-pager-reserved-block-size)",
+  maxBlockSize: "var(--dash-adaptive-pager-reserved-block-size)",
+} as CSSProperties;
+
+/**
+ * Reservation for a pager that is NOT a footer: a compact prev/next cluster
+ * sitting inside a toolbar row (Clínicas). Reserving the full pagination
+ * footer height there would inflate the toolbar by ~11px for nothing, so the
+ * region reserves the control token it actually renders. Still exact, still
+ * content-independent — only the magnitude is the right one for the row.
+ */
+export const DASHBOARD_INLINE_PAGER_RESERVATION = {
+  "--dash-adaptive-pager-reserved-block-size": "var(--dash-control-h, 2rem)",
+  blockSize: "var(--dash-adaptive-pager-reserved-block-size)",
+  minBlockSize: "var(--dash-adaptive-pager-reserved-block-size)",
+  maxBlockSize: "var(--dash-adaptive-pager-reserved-block-size)",
+} as CSSProperties;
+
 export type DashboardPagerProps = {
   /** Accessible name of the pagination landmark. */
   "aria-label": string;
@@ -64,13 +118,7 @@ export function DashboardPager({
       data-dashboard-pager="true"
       data-dashboard-adaptive-reserved-region="pager"
       className={cn("dashboard-pager", className)}
-      style={{
-        "--dash-adaptive-pager-reserved-block-size":
-          "var(--dash-pagination-h, 2.5rem)",
-        blockSize: "var(--dash-adaptive-pager-reserved-block-size)",
-        minBlockSize: "var(--dash-adaptive-pager-reserved-block-size)",
-        maxBlockSize: "var(--dash-adaptive-pager-reserved-block-size)",
-      } as CSSProperties}
+      style={DASHBOARD_PAGER_RESERVATION}
     >
       <span data-dashboard-pager-prev="true" className="inline-flex">
         {prevControl ?? (

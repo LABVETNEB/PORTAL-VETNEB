@@ -2,6 +2,7 @@
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DASHBOARD_PAGER_RESERVATION } from "@/components/dashboard/DashboardPager";
 
 export type CompactPagerProps = {
   page: number;
@@ -40,7 +41,8 @@ export function CompactPager({
 }: CompactPagerProps) {
   return (
     <div
-      className={cn("dashboard-compact-pager", className)}
+      className={cn("dashboard-compact-pager overflow-hidden pt-0", className)}
+      style={DASHBOARD_PAGER_RESERVATION}
       data-dashboard-compact-pager="true"
       data-dashboard-pager="compact"
       data-dashboard-adaptive-reserved-region="pager"

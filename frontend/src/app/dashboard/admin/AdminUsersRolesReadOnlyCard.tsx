@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/table";
 import { changeAdminClinicUserRole, getAdminUsersRoles } from "@/lib/api";
 import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
+import { DASHBOARD_PAGER_RESERVATION } from "@/components/dashboard/DashboardPager";
 import { formatDateTime } from "@/lib/utils";
 import type {
   AdminRoleUserRole,
@@ -656,7 +657,8 @@ export function AdminUsersRolesReadOnlyCard() {
 
         <footer
           data-dashboard-adaptive-reserved-region="pager"
-          className="dashboard-table-pagination min-h-10 shrink-0 border-t border-vetneb-line/70 px-3 py-1.5 text-xs text-muted-foreground sm:px-4 md:min-h-8 md:py-1"
+          className="dashboard-table-pagination shrink-0 overflow-hidden border-t border-vetneb-line/70 px-3 text-xs text-muted-foreground sm:px-4"
+          style={DASHBOARD_PAGER_RESERVATION}
           aria-label="Paginación de usuarios y roles"
         >
           <span aria-live="polite">

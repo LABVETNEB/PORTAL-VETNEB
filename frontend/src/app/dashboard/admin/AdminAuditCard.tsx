@@ -16,6 +16,7 @@ import {
 import { AdminMobileAuditModule } from "./AdminMobileAuditModule";
 import { getAdminAuditPage } from "./admin-audit.actions";
 import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
+import { DASHBOARD_PAGER_RESERVATION } from "@/components/dashboard/DashboardPager";
 
 // Server pagination is now sized by the measured rows container (Zero-Scroll
 // adaptive contract). The legacy fixed page size survives only as the
@@ -283,7 +284,8 @@ export function AdminAuditCard({
 
       <footer
         data-dashboard-adaptive-reserved-region="pager"
-        className="flex min-h-10 shrink-0 items-center justify-between gap-2 border-t border-vetneb-line/70 px-3 py-1.5 text-xs text-muted-foreground sm:px-4"
+        className="flex shrink-0 items-center justify-between gap-2 overflow-hidden border-t border-vetneb-line/70 px-3 text-xs text-muted-foreground sm:px-4"
+        style={DASHBOARD_PAGER_RESERVATION}
       >
         <span aria-live="polite">
           {totalCount === 0 ? "Sin eventos" : `${rangeStart}–${rangeEnd} de ${totalCount}`}

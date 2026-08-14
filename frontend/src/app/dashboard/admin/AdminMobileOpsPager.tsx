@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { DASHBOARD_TOUCH_PAGER_RESERVATION } from "@/components/dashboard/DashboardPager";
 
 type AdminMobileOpsPagerProps = {
   ariaLabel: string;
@@ -30,7 +31,8 @@ export function AdminMobileOpsPager({
       aria-label={ariaLabel}
       data-admin-mobile-ops-pager="true"
       data-dashboard-adaptive-reserved-region="pager"
-      className="flex min-h-10 shrink-0 items-center justify-center gap-1.5 overflow-hidden border-t border-vetneb-line/70 px-2 py-0.5 text-xs text-muted-foreground"
+      className="dashboard-pager flex min-h-10 shrink-0 items-center justify-center gap-1.5 overflow-hidden border-t border-vetneb-line/70 px-2 text-xs text-muted-foreground"
+      style={DASHBOARD_TOUCH_PAGER_RESERVATION}
     >
       <span className="sr-only" aria-live="polite">
         {rangeLabel}
