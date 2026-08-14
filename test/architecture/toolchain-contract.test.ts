@@ -26,6 +26,7 @@ const SECURITY_OVERRIDE_LINES = [
   '  "postcss@<=8.5.22": "8.5.23"',
   '  "ws@>=8.0.0 <8.20.1": "8.20.1"',
   '  "js-yaml@<=5.2.1": "5.2.2"',
+  '  "nanoid@>=3.0.0 <3.3.18": "3.3.18"',
 ] as const;
 
 function readTextFile(...segments: string[]): string {
