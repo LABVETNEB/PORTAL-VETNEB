@@ -56,7 +56,20 @@ async function writeModuleObservations(
   );
 }
 
-test.describe.configure({ mode: "serial" });
+// Serial is structural: `matrix integrity` aggregates the per-module JSON the
+// 15 module cases write, so it can only run after all of them, on one worker.
+//
+// `retries: 0` is the consequence of that structure, not a concession. In serial
+// mode a failure re-runs the WHOLE group from the beginning, and the failing
+// case is the LAST of sixteen — so a suite-level `--retries=2` re-executed the
+// entire 15×13 matrix three times to re-derive an outcome that cannot change:
+// every leaf is an exact integer comparison against versioned data, and the
+// platform gate is a fail-closed `null` check. A retry here buys no information
+// and spends the run's global budget, which is what left 55 cases unexecuted in
+// run 31833334397. It also makes any genuine non-determinism LOUDER rather than
+// quieter: a drifting leaf now fails instead of being retried into green, which
+// is the only acceptable behaviour for a frozen baseline.
+test.describe.configure({ mode: "serial", retries: 0 });
 
 test.beforeAll(() => {
   assertA03Cardinality();

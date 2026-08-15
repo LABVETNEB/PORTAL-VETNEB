@@ -53,6 +53,77 @@ function isPaginationRequest(request: Request, observer: ModuleObserver): boolea
   return url.pathname === observer.requestPathname;
 }
 
+/**
+ * Data traffic, whatever the module's A03 pagination semantics.
+ *
+ * Render quiescence alone cannot prove a reading is coherent. A capacity change
+ * refetches, and while that request flies the runtime keeps the PREVIOUS page
+ * painted: the rows canvas is flex-allocated, so its block size does not depend
+ * on the row count, and its subtree is not mutated. Both halves of the drained
+ * render signature — descendant count and canvas block size — are therefore
+ * constant across the whole flight, and a drained cycle can converge on the
+ * cardinality the SUPERSEDED limit produced. `admin-audit-log` read `limit` 8
+ * (viewport B's page) inside a viewport A canvas for exactly that reason.
+ *
+ * The filter is resource type, not `observer.requestPathname`, because
+ * `client-slice` classifies how a consumer PAGES, not how it loads: several
+ * client-sliced modules size their dataset fetch from the measured capacity
+ * (`resolveTokensFetchLimit` in `ClinicParticularTokensCard`), so a viewport
+ * change refetches and `usePagedRows` slices the previous array until it lands.
+ * Scoping to the declared pathname left exactly those modules uncovered, which
+ * is how `clinic-particular-tokens` read 7 rows of an 8-row page with the canvas
+ * already back to its final block size.
+ *
+ * Documents, scripts, stylesheets and images are excluded so `next dev` chunk
+ * traffic cannot starve the condition; HMR runs over a websocket and never
+ * surfaces here. Settlement is what closes it: a reading is only accepted when
+ * no data request started or settled during the cycle that produced it and none
+ * is in flight — the same coupling `observeLeaf` already applies in A03.
+ */
+function isDataRequest(request: Request): boolean {
+  const resourceType = request.resourceType();
+  return resourceType === "fetch" || resourceType === "xhr";
+}
+
+type PaginationFlight = {
+  /** Pagination requests observed since tracking began (assertion input). */
+  readonly paginationStarted: () => number;
+  /** Data requests observed since tracking began (coherence input). */
+  readonly dataStarted: () => number;
+  /** Data requests that finished or failed since tracking began. */
+  readonly dataSettled: () => number;
+  readonly dispose: () => void;
+};
+
+function trackPaginationFlight(page: Page, observer: ModuleObserver): PaginationFlight {
+  let paginationStarted = 0;
+  let dataStarted = 0;
+  let dataSettled = 0;
+
+  const onRequest = (request: Request) => {
+    if (isPaginationRequest(request, observer)) paginationStarted += 1;
+    if (isDataRequest(request)) dataStarted += 1;
+  };
+  const onSettled = (request: Request) => {
+    if (isDataRequest(request)) dataSettled += 1;
+  };
+
+  page.on("request", onRequest);
+  page.on("requestfinished", onSettled);
+  page.on("requestfailed", onSettled);
+
+  return {
+    paginationStarted: () => paginationStarted,
+    dataStarted: () => dataStarted,
+    dataSettled: () => dataSettled,
+    dispose: () => {
+      page.off("request", onRequest);
+      page.off("requestfinished", onSettled);
+      page.off("requestfailed", onSettled);
+    },
+  };
+}
+
 async function visibleCanvas(
   page: Page,
   leaf: LeafTarget,
@@ -121,35 +192,64 @@ async function readPagerReservation(
   return { blockSize: roundSubpixel(box?.height ?? 0), ...computed };
 }
 
+/** Bounded fail-closed budget for the coherence condition below. */
+const STABLE_READING_ATTEMPTS = 8;
+
 async function readStableState(
   page: Page,
   leaf: LeafTarget,
   label: string,
+  flight: PaginationFlight,
 ): Promise<StableReading> {
-  await waitForAdaptiveConvergence(
-    page,
-    '[data-a05-active-canvas="true"]',
-    label,
-    0,
-  );
-  await page.waitForLoadState("networkidle");
-  await waitForAdaptiveConvergence(
-    page,
-    '[data-a05-active-canvas="true"]',
-    label,
-    0,
-  );
+  for (let attempt = 0; attempt < STABLE_READING_ATTEMPTS; attempt += 1) {
+    const startedBefore = flight.dataStarted();
+    const settledBefore = flight.dataSettled();
 
-  const rows = await resolveVisibleRows(page, leaf.rowSelectors, label);
-  const canvas = page.locator('[data-a05-active-canvas="true"]');
-  const box = await canvas.boundingBox();
-  expect(box, `${label}: rows canvas bounds`).not.toBeNull();
+    await waitForAdaptiveConvergence(
+      page,
+      '[data-a05-active-canvas="true"]',
+      label,
+      0,
+    );
+    await page.waitForLoadState("networkidle");
+    await waitForAdaptiveConvergence(
+      page,
+      '[data-a05-active-canvas="true"]',
+      label,
+      0,
+    );
 
-  return {
-    canvasBlockSize: roundSubpixel(box?.height ?? 0),
-    limit: await rows.count(),
-    pager: await readPagerReservation(page, leaf, label),
-  };
+    const rows = await resolveVisibleRows(page, leaf.rowSelectors, label);
+    const canvas = page.locator('[data-a05-active-canvas="true"]');
+    const box = await canvas.boundingBox();
+    expect(box, `${label}: rows canvas bounds`).not.toBeNull();
+
+    const reading: StableReading = {
+      canvasBlockSize: roundSubpixel(box?.height ?? 0),
+      limit: await rows.count(),
+      pager: await readPagerReservation(page, leaf, label),
+    };
+
+    // Coherence, not duration: the drained cycle that produced this reading
+    // must have crossed NO pagination boundary and must leave nothing in
+    // flight. A cycle that did is discarded and re-run — the reading it
+    // produced describes the limit the runtime has already superseded.
+    // Steady state satisfies this on the first attempt, so the common path
+    // costs exactly what it did before.
+    if (
+      flight.dataStarted() === startedBefore &&
+      flight.dataSettled() === settledBefore &&
+      flight.dataStarted() === flight.dataSettled()
+    ) {
+      return reading;
+    }
+  }
+
+  throw new Error(
+    `${label}: data never settled — ${STABLE_READING_ATTEMPTS} drained cycles ` +
+      `each crossed a data request boundary or left one in flight ` +
+      `(started=${flight.dataStarted()} settled=${flight.dataSettled()})`,
+  );
 }
 
 async function applyScenario(
@@ -157,7 +257,7 @@ async function applyScenario(
   leaf: LeafTarget,
   scenario: (typeof INTERNAL_CONTROL_SCENARIOS)[number],
   label: string,
-  paginationRequests: () => number,
+  flight: PaginationFlight,
 ): Promise<StableReading> {
   await page
     .locator('[data-a05-active-canvas="true"]')
@@ -166,7 +266,7 @@ async function applyScenario(
     });
   await visibleCanvas(page, leaf, label);
   await driveInternalControl(page, leaf, scenario, label);
-  const reading = await readStableState(page, leaf, label);
+  const reading = await readStableState(page, leaf, label, flight);
 
   console.log(
     `[A05 observation] ${label} · CONTROL=${scenario}px` +
@@ -177,7 +277,8 @@ async function applyScenario(
       ` · PAGER_FLEX_BASIS=${reading.pager.flexBasis}` +
       ` · ROWS_CANVAS_BLOCK_SIZE=${reading.canvasBlockSize}` +
       ` · LIMIT=${reading.limit}` +
-      ` · PAGINATION_REQUESTS=${paginationRequests()}`,
+      ` · PAGINATION_REQUESTS=${flight.paginationStarted()}` +
+      ` · DATA_REQUESTS=${flight.dataStarted()}`,
   );
 
   return reading;
@@ -216,17 +317,12 @@ test.describe("A05 · stable geometry reservation limit invariance", () => {
           await observeLeaf(page, observer, leaf, viewport.slug);
           await visibleCanvas(page, leaf, label);
 
-          let paginationRequests = 0;
-          const countPaginationRequest = (request: Request) => {
-            if (isPaginationRequest(request, observer)) paginationRequests += 1;
-          };
-          page.on("request", countPaginationRequest);
+          const flight = trackPaginationFlight(page, observer);
 
-          const readRequests = () => paginationRequests;
-          const scenario32 = await applyScenario(page, leaf, 32, `${label}::32`, readRequests);
-          const requestsAfterReservation = paginationRequests;
-          const scenario48 = await applyScenario(page, leaf, 48, `${label}::48`, readRequests);
-          const scenario64 = await applyScenario(page, leaf, 64, `${label}::64`, readRequests);
+          const scenario32 = await applyScenario(page, leaf, 32, `${label}::32`, flight);
+          const requestsAfterReservation = flight.paginationStarted();
+          const scenario48 = await applyScenario(page, leaf, 48, `${label}::48`, flight);
+          const scenario64 = await applyScenario(page, leaf, 64, `${label}::64`, flight);
 
           // The reservation is the primitive under test: a region that grows
           // with its own content is the defect, and it is what steals the
@@ -252,7 +348,7 @@ test.describe("A05 · stable geometry reservation limit invariance", () => {
             scenario48.canvasBlockSize,
           );
           expect(
-            paginationRequests,
+            flight.paginationStarted(),
             `${label}: internal pager geometry must emit no pagination request`,
           ).toBe(requestsAfterReservation);
 
@@ -265,7 +361,7 @@ test.describe("A05 · stable geometry reservation limit invariance", () => {
             page.locator(`${leaf.rowSelectors.join(", ")} >> visible=true`).first(),
             `${label}: hot viewport B data row`,
           ).toBeVisible({ timeout: 30_000 });
-          const hotReading = await applyScenario(page, leaf, 64, `${label}::hot-b`, readRequests);
+          const hotReading = await applyScenario(page, leaf, 64, `${label}::hot-b`, flight);
           expect(hotReading.limit, `${label}: hot viewport B limit`).toBeGreaterThan(0);
 
           await page.setViewportSize({ width: viewport.width, height: viewport.height });
@@ -274,7 +370,7 @@ test.describe("A05 · stable geometry reservation limit invariance", () => {
             page.locator(`${leaf.rowSelectors.join(", ")} >> visible=true`).first(),
             `${label}: returned viewport A data row`,
           ).toBeVisible({ timeout: 30_000 });
-          const returned = await applyScenario(page, leaf, 64, `${label}::hot-a`, readRequests);
+          const returned = await applyScenario(page, leaf, 64, `${label}::hot-a`, flight);
           expect(returned.limit, `${label}: A -> B -> A limit`).toBe(scenario64.limit);
           expect(
             returned.canvasBlockSize,
@@ -285,7 +381,7 @@ test.describe("A05 · stable geometry reservation limit invariance", () => {
             `${label}: A -> B -> A pager reservation`,
           ).toBe(scenario64.pager.blockSize);
 
-          page.off("request", countPaginationRequest);
+          flight.dispose();
           coveredLeaves += 1;
         }
       }

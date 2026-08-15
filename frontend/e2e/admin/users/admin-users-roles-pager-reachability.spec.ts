@@ -122,15 +122,61 @@ function expectNoPagerInvasion(geometry: Geometry, label: string) {
   expect(geometry.documentScrolls, `${label}: document must not scroll`).toBe(false);
 }
 
+/** Bounded fail-closed budget for the settle condition below. */
+const WORKSPACE_SETTLE_ATTEMPTS = 10;
+
+/**
+ * A workspace with rows is NOT a workspace at rest.
+ *
+ * The adaptive measurement lands after the first paint and moves the effective
+ * limit off `USERS_ROLES_FALLBACK_ROWS`, which refetches inside a
+ * `useTransition`. React keeps the PREVIOUS page painted for the whole flight,
+ * so "rows exist" is satisfiable mid-refetch — and the pager is legitimately
+ * disabled there, because `disabled = !hasNextPage || isPending ||
+ * isMutatingRole`. Reading the geometry in that window reported "Siguiente"
+ * unreachable on a card that was merely busy.
+ *
+ * The gate is the runtime's own in-flight marker (`aria-busy`, already emitted
+ * by the card) plus a rendered cardinality that survives a network-idle
+ * boundary unchanged. It is a condition, not a duration: no sleep participates
+ * and no assertion is relaxed. The runtime behaviour of disabling the pager
+ * during a refetch is correct and is left untouched.
+ */
+async function settleWorkspace(page: Page) {
+  const busy = page.locator(`${WORKSPACE} [aria-busy="true"]`);
+  const rows = page.locator(`${WORKSPACE} tbody tr`);
+
+  let previous = -1;
+  for (let attempt = 0; attempt < WORKSPACE_SETTLE_ATTEMPTS; attempt += 1) {
+    await expect(
+      busy,
+      "adaptive refetch must not be in flight before the geometry is read",
+    ).toHaveCount(0, { timeout: 30_000 });
+    await page.waitForLoadState("networkidle");
+
+    if ((await busy.count()) > 0) {
+      previous = -1;
+      continue;
+    }
+
+    const rendered = await rows.count();
+    if (rendered > 0 && rendered === previous) return;
+    previous = rendered;
+  }
+
+  throw new Error(
+    `admin-users-roles never reached a settled page: ${WORKSPACE_SETTLE_ATTEMPTS} ` +
+      "network-idle boundaries never produced two identical rendered cardinalities " +
+      "with no transition in flight",
+  );
+}
+
 async function openWorkspace(page: Page) {
   await page.goto("/dashboard/admin?module=admin-users-roles");
   await expect(page.locator(`${WORKSPACE} tbody tr`).first()).toBeVisible({
     timeout: 30_000,
   });
-  // Let the adaptive measurement settle before reading any geometry.
-  await expect
-    .poll(async () => (await readGeometry(page)).renderedRows, { timeout: 15_000 })
-    .toBeGreaterThan(0);
+  await settleWorkspace(page);
 }
 
 test.describe("Admin Usuarios/Roles · pager reachability across desktop heights", () => {
@@ -167,6 +213,10 @@ test.describe("Admin Usuarios/Roles · pager reachability across desktop heights
       Number(transition.searchParams.get("offset")),
       "1280x720: the transition must advance the window",
     ).toBeGreaterThan(0);
+
+    // The poll above proves the request STARTED; the page-2 geometry is only
+    // readable once it has landed and the transition has left flight.
+    await settleWorkspace(page);
 
     const second = await readGeometry(page);
     expect(
