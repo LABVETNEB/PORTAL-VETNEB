@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page, type Response } from "@playwright/test";
 import {
   ADMIN_MOBILE_TOLERANCE,
   ADMIN_MOBILE_VIEWPORTS,
@@ -46,6 +46,20 @@ type MobileWorkspaceState = {
   rangeText: string | null;
   pageText: string | null;
   bodyText: string;
+  busy: boolean;
+};
+
+type AdminUsersRolesPageResponse = {
+  users: Array<{ username: string }>;
+  total: number;
+  limit: number;
+  offset: number;
+};
+
+type ExpectedMobilePage = {
+  offset: number;
+  pageText: string;
+  response: AdminUsersRolesPageResponse;
 };
 
 // Mirrors the deterministic USERS ordering of
@@ -61,7 +75,8 @@ function expectedUsernameAt(index: number): string {
 // Test-only opt-in: rewrite every browser GET to /api/admin/users-roles so it
 // carries `dataset=high-volume`. `route.continue({ url })` overrides are not
 // reflected back into the Playwright Request/Response objects, so the handler
-// records each rewritten URL for later assertion instead of waitForResponse.
+// records each rewritten URL for the dataset assertion. Transition waits match
+// the original request's limit/offset and verify the resulting response body.
 async function routeHighVolumeUsersRoles(page: Page, rewrittenUrls: string[]) {
   await page.route(
     (url) => url.pathname === "/api/admin/users-roles",
@@ -144,6 +159,7 @@ async function readMobileWorkspaceState(page: Page): Promise<MobileWorkspaceStat
         rangeText,
         pageText,
         bodyText: document.body.innerText,
+        busy: Boolean(root?.querySelector('[aria-busy="true"]')),
       };
     },
     { moduleSelector: MOBILE_MODULE_SELECTOR, paginationLabel: MOBILE_PAGINATION_LABEL },
@@ -173,6 +189,7 @@ function stateSignature(state: MobileWorkspaceState): string {
 async function readStableMobileState(
   page: Page,
   expectedTotal: number,
+  expectedPage?: ExpectedMobilePage,
 ): Promise<MobileWorkspaceState> {
   let stable: MobileWorkspaceState | null = null;
   let previousSignature = "";
@@ -185,7 +202,14 @@ async function readStableMobileState(
           state.headerTotal === String(expectedTotal) &&
           state.usernames.length > 0 &&
           state.usernames.length <= MOBILE_ADAPTIVE_LIMIT_CAP &&
-          state.itemBoxes.every((box) => box.visible);
+          state.itemBoxes.every((box) => box.visible) &&
+          !state.busy &&
+          (!expectedPage ||
+            (state.pageText === expectedPage.pageText &&
+              state.rangeText ===
+                `${expectedPage.offset + 1}–${expectedPage.offset + expectedPage.response.users.length} de ${expectedPage.response.total}` &&
+              state.usernames.length === expectedPage.response.users.length &&
+              state.usernames[0] === expectedPage.response.users[0]?.username));
 
         if (!valid) {
           previousSignature = "";
@@ -222,8 +246,24 @@ async function stepMobilePage(
   page: Page,
   buttonName: "Siguiente" | "Anterior",
   expectedPageText: string,
-) {
-  await expect(async () => {
+  expectedOffset: number,
+  expectedLimit: number,
+  expectedTotal: number,
+): Promise<MobileWorkspaceState> {
+  const responsePromise = page.waitForResponse(
+    (response: Response) => {
+      const requestUrl = new URL(response.request().url());
+      return (
+        response.request().method() === "GET" &&
+        requestUrl.pathname === "/api/admin/users-roles" &&
+        Number(requestUrl.searchParams.get("offset") ?? 0) === expectedOffset &&
+        Number(requestUrl.searchParams.get("limit")) === expectedLimit
+      );
+    },
+    { timeout: 15_000 },
+  );
+
+  const navigationPromise = expect(async () => {
     const before = await readMobileWorkspaceState(page);
     if (before.pageText !== expectedPageText) {
       await mobilePagination(page)
@@ -236,6 +276,27 @@ async function stepMobilePage(
       })
       .toBe(expectedPageText);
   }).toPass({ timeout: 15_000 });
+
+  const [response] = await Promise.all([responsePromise, navigationPromise]);
+  expect(response.ok()).toBe(true);
+
+  const requestUrl = new URL(response.request().url());
+  expect(Number(requestUrl.searchParams.get("offset") ?? 0)).toBe(expectedOffset);
+  expect(Number(requestUrl.searchParams.get("limit"))).toBe(expectedLimit);
+
+  const responsePage = (await response.json()) as AdminUsersRolesPageResponse;
+  expect(responsePage.offset).toBe(expectedOffset);
+  expect(responsePage.limit).toBe(expectedLimit);
+  expect(responsePage.total).toBe(expectedTotal);
+  expect(responsePage.users.length).toBeGreaterThan(0);
+  expect(responsePage.users.length).toBeLessThanOrEqual(responsePage.limit);
+  expect(responsePage.users[0]?.username).toBeTruthy();
+
+  return readStableMobileState(page, expectedTotal, {
+    offset: expectedOffset,
+    pageText: expectedPageText,
+    response: responsePage,
+  });
 }
 
 test.describe("admin users-roles workspace 5000-user fixture mobile (CAP-A3)", () => {
@@ -295,9 +356,14 @@ test.describe("admin users-roles workspace 5000-user fixture mobile (CAP-A3)", (
       const limit = firstPage.usernames.length;
       const pageCount = Math.ceil(HIGH_VOLUME_TOTAL / limit);
 
-      await stepMobilePage(page, "Siguiente", `Pág. 2 / ${pageCount}`);
-
-      const secondPage = await readStableMobileState(page, HIGH_VOLUME_TOTAL);
+      const secondPage = await stepMobilePage(
+        page,
+        "Siguiente",
+        `Pág. 2 / ${pageCount}`,
+        limit,
+        limit,
+        HIGH_VOLUME_TOTAL,
+      );
       expect(secondPage.rangeText).toBe(
         `${limit + 1}–${limit * 2} de ${HIGH_VOLUME_TOTAL}`,
       );
@@ -307,9 +373,14 @@ test.describe("admin users-roles workspace 5000-user fixture mobile (CAP-A3)", (
       );
       expect(secondPage.usernames).not.toContain("admin_operaciones");
 
-      await stepMobilePage(page, "Anterior", `Pág. 1 / ${pageCount}`);
-
-      const backToFirst = await readStableMobileState(page, HIGH_VOLUME_TOTAL);
+      const backToFirst = await stepMobilePage(
+        page,
+        "Anterior",
+        `Pág. 1 / ${pageCount}`,
+        0,
+        limit,
+        HIGH_VOLUME_TOTAL,
+      );
       expect(backToFirst.rangeText).toBe(`1–${limit} de ${HIGH_VOLUME_TOTAL}`);
       expect(backToFirst.pageText).toBe(`Pág. 1 / ${pageCount}`);
       expect(backToFirst.usernames[0]).toBe("admin_operaciones");

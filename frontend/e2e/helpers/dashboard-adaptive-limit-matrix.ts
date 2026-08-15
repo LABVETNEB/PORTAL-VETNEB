@@ -16,8 +16,6 @@ import { DASHBOARD_GEOMETRY_VIEWPORTS } from "./dashboard-geometry-matrix";
 // and never redeclared. Nothing else is imported from A02, which stays CLOSED.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const DASHBOARD_ADAPTIVE_LIMIT_SCHEMA = "a03-adaptive-limit-baseline/1";
-
 const APP_ORIGIN = "http://127.0.0.1:3000";
 const FIXTURE_API_ORIGIN = "http://127.0.0.1:3107";
 

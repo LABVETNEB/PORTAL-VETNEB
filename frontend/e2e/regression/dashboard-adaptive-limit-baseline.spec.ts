@@ -35,7 +35,7 @@ import {
 // only preserves its observations in test-results and never borrows Win32.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const A03_PLATFORM_CAPTURE_MODE: "off" | "capture" = "capture";
+const A03_PLATFORM_CAPTURE_MODE = "off" as "off" | "capture";
 
 /** Shared, run-scoped sink. `test-results/` is cleared by Playwright at start. */
 function matrixDir(testInfo: TestInfo): string {

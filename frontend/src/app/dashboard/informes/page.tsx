@@ -177,7 +177,10 @@ export default async function InformesPage({
           }
         />
 
-        <Card className="dashboard-surface flex min-h-0 flex-1 flex-col overflow-hidden">
+        <Card
+          data-informes-workspace="true"
+          className="dashboard-surface flex min-h-0 flex-1 flex-col overflow-hidden"
+        >
           <CardHeader className="shrink-0 border-b border-vetneb-line/70">
             <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
               <div className="min-w-0">

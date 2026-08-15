@@ -92,6 +92,8 @@ type PaginationFlight = {
   readonly dataStarted: () => number;
   /** Data requests that finished or failed since tracking began. */
   readonly dataSettled: () => number;
+  /** Resolves on the terminal event of every currently tracked request. */
+  readonly waitForIdle: () => Promise<void>;
   readonly dispose: () => void;
 };
 
@@ -99,28 +101,57 @@ function trackPaginationFlight(page: Page, observer: ModuleObserver): Pagination
   let paginationStarted = 0;
   let dataStarted = 0;
   let dataSettled = 0;
+  let disposed = false;
+  const trackedDataRequests = new Set<Request>();
+  const idleResolvers = new Set<() => void>();
+
+  const resolveIdle = () => {
+    if (trackedDataRequests.size > 0) return;
+    for (const resolve of idleResolvers) resolve();
+    idleResolvers.clear();
+  };
 
   const onRequest = (request: Request) => {
     if (isPaginationRequest(request, observer)) paginationStarted += 1;
-    if (isDataRequest(request)) dataStarted += 1;
+    if (isDataRequest(request)) {
+      trackedDataRequests.add(request);
+      dataStarted += 1;
+    }
   };
   const onSettled = (request: Request) => {
-    if (isDataRequest(request)) dataSettled += 1;
+    if (trackedDataRequests.delete(request)) {
+      dataSettled += 1;
+      resolveIdle();
+    }
+  };
+
+  const waitForIdle = () => {
+    if (trackedDataRequests.size === 0) return Promise.resolve();
+    return new Promise<void>((resolve) => idleResolvers.add(resolve));
+  };
+
+  const dispose = () => {
+    if (disposed) return;
+    disposed = true;
+    page.off("request", onRequest);
+    page.off("requestfinished", onSettled);
+    page.off("requestfailed", onSettled);
+    page.off("close", dispose);
+    trackedDataRequests.clear();
+    resolveIdle();
   };
 
   page.on("request", onRequest);
   page.on("requestfinished", onSettled);
   page.on("requestfailed", onSettled);
+  page.once("close", dispose);
 
   return {
     paginationStarted: () => paginationStarted,
     dataStarted: () => dataStarted,
     dataSettled: () => dataSettled,
-    dispose: () => {
-      page.off("request", onRequest);
-      page.off("requestfinished", onSettled);
-      page.off("requestfailed", onSettled);
-    },
+    waitForIdle,
+    dispose,
   };
 }
 
@@ -202,6 +233,9 @@ async function readStableState(
   flight: PaginationFlight,
 ): Promise<StableReading> {
   for (let attempt = 0; attempt < STABLE_READING_ATTEMPTS; attempt += 1) {
+    // Render convergence cannot finish a request. Bind the read to the exact
+    // terminal events observed by this tracker before draining the UI.
+    await flight.waitForIdle();
     const startedBefore = flight.dataStarted();
     const settledBefore = flight.dataSettled();
 
@@ -309,15 +343,14 @@ test.describe("A05 · stable geometry reservation limit invariance", () => {
             (viewportIndex + 1) % DASHBOARD_GEOMETRY_VIEWPORTS.length
           ];
 
-        await page.setViewportSize({ width: viewport.width, height: viewport.height });
-
         for (const leaf of observer.leaves) {
           const label = `${moduleId}::${viewport.slug}${leaf.variantId ? `::${leaf.variantId}` : ""}`;
           console.log(`[A05 invariance] → ${label}`);
+          const flight = trackPaginationFlight(page, observer);
+
+          await page.setViewportSize({ width: viewport.width, height: viewport.height });
           await observeLeaf(page, observer, leaf, viewport.slug);
           await visibleCanvas(page, leaf, label);
-
-          const flight = trackPaginationFlight(page, observer);
 
           const scenario32 = await applyScenario(page, leaf, 32, `${label}::32`, flight);
           const requestsAfterReservation = flight.paginationStarted();

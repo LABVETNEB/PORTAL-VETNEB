@@ -203,6 +203,19 @@
     .dashboard-app-shell .dashboard-section-description {
       font-size: var(--dash-secondary-font);
     }
+
+    /* Informes spends ~79% of the workspace on chrome before the adaptive rows
+       canvas, so the measured capacity collapses to a single row at 720px tall.
+       Reclaim the budget exactly as the width tier already does for logística
+       (zero-scroll.css): drop the copy the surface itself marks as secondary
+       chrome and compact the card's own block padding/rhythm. The summary strip
+       is deliberately untouched — it is the only visible source of Total and
+       Mostrando, and the contract observes the workspace through it. */
+    .dashboard-app-shell
+      [data-informes-workspace="true"]
+      [data-dashboard-chrome-secondary="true"] {
+      display: none;
+    }
   }
 }
 /* dashboard-viewport-zoom-adaptability:end */
@@ -297,3 +310,20 @@
   }
 }
 /* dashboard-global-inline-adaptive:end */
+
+/* dashboard-informes-compact-chrome:start */
+/* Unlayered on purpose: the card's own block padding is a Tailwind utility
+   (`p-6` / `pt-4`), and a rule inside `@layer components` loses to it no matter
+   how specific it is — the same reason the width-tier card compaction in
+   zero-scroll.css sits unlayered. Scoped to the Informes workspace alone. */
+@media (max-height: 760px) {
+  .dashboard-app-shell .dashboard-surface[data-informes-workspace="true"] > :first-child {
+    padding-block: 0.6rem 0.4rem;
+  }
+
+  .dashboard-app-shell .dashboard-surface[data-informes-workspace="true"] > :last-child {
+    padding-block: 0.4rem 0.5rem;
+    row-gap: var(--dash-gap);
+  }
+}
+/* dashboard-informes-compact-chrome:end */
