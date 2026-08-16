@@ -13,6 +13,7 @@ const ROOT = resolve(process.cwd());
 const EVENT_NAME = process.env.GITHUB_EVENT_NAME ?? "";
 const EVENT_PATH = process.env.GITHUB_EVENT_PATH ?? "";
 const SUMMARY_PATH = process.env.GITHUB_STEP_SUMMARY ?? "";
+const GIT_MAX_BUFFER_BYTES = 64 * 1024 * 1024;
 
 export const CATEGORY_ORDER = [
   "backend",
@@ -137,6 +138,7 @@ function runGit(args, check = false) {
     cwd: ROOT,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
+    maxBuffer: GIT_MAX_BUFFER_BYTES,
   });
 
   if (result.error) throw result.error;
