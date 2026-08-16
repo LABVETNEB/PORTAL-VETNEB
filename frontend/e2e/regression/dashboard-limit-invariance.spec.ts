@@ -40,6 +40,14 @@ type StableReading = {
   readonly pager: PagerReservation;
 };
 
+type PendingRequestMetadata = {
+  readonly method: string;
+  readonly resourceType: string;
+  readonly origin: string;
+  readonly pathname: string;
+  readonly responseSeen: boolean;
+};
+
 function roundSubpixel(value: number): number {
   return Math.round(value * 1_000) / 1_000;
 }
@@ -93,9 +101,17 @@ type PaginationFlight = {
   /** Data requests that finished or failed since tracking began. */
   readonly dataSettled: () => number;
   /** Resolves on the terminal event of every currently tracked request. */
-  readonly waitForIdle: () => Promise<void>;
+  readonly waitForIdle: (label: string) => Promise<void>;
   readonly dispose: () => void;
 };
+
+type IdleWaiter = {
+  readonly resolve: () => void;
+  readonly reject: (error: Error) => void;
+  readonly timer: ReturnType<typeof setTimeout>;
+};
+
+const DATA_IDLE_TIMEOUT_MS = 30_000;
 
 function trackPaginationFlight(page: Page, observer: ModuleObserver): PaginationFlight {
   let paginationStarted = 0;
@@ -103,12 +119,28 @@ function trackPaginationFlight(page: Page, observer: ModuleObserver): Pagination
   let dataSettled = 0;
   let disposed = false;
   const trackedDataRequests = new Set<Request>();
-  const idleResolvers = new Set<() => void>();
+  const responseSeen = new Set<Request>();
+  const idleWaiters = new Set<IdleWaiter>();
+
+  const pendingRequests = (): readonly PendingRequestMetadata[] =>
+    [...trackedDataRequests].map((request) => {
+      const url = new URL(request.url());
+      return {
+        method: request.method(),
+        resourceType: request.resourceType(),
+        origin: url.origin,
+        pathname: url.pathname,
+        responseSeen: responseSeen.has(request),
+      };
+    });
 
   const resolveIdle = () => {
     if (trackedDataRequests.size > 0) return;
-    for (const resolve of idleResolvers) resolve();
-    idleResolvers.clear();
+    for (const waiter of idleWaiters) {
+      clearTimeout(waiter.timer);
+      waiter.resolve();
+    }
+    idleWaiters.clear();
   };
 
   const onRequest = (request: Request) => {
@@ -118,30 +150,56 @@ function trackPaginationFlight(page: Page, observer: ModuleObserver): Pagination
       dataStarted += 1;
     }
   };
+  const onResponse = (response: { request: () => Request }) => {
+    const request = response.request();
+    if (trackedDataRequests.has(request)) responseSeen.add(request);
+  };
   const onSettled = (request: Request) => {
     if (trackedDataRequests.delete(request)) {
+      responseSeen.delete(request);
       dataSettled += 1;
       resolveIdle();
     }
   };
 
-  const waitForIdle = () => {
+  const waitForIdle = (label: string) => {
     if (trackedDataRequests.size === 0) return Promise.resolve();
-    return new Promise<void>((resolve) => idleResolvers.add(resolve));
+    return new Promise<void>((resolve, reject) => {
+      let waiter: IdleWaiter;
+      const timer = setTimeout(() => {
+        idleWaiters.delete(waiter);
+        reject(
+          new Error(
+            `${label}: timed out after ${DATA_IDLE_TIMEOUT_MS}ms waiting for ` +
+              `${trackedDataRequests.size} data request(s) to finish: ` +
+              JSON.stringify(pendingRequests()),
+          ),
+        );
+      }, DATA_IDLE_TIMEOUT_MS);
+      waiter = { resolve, reject, timer };
+      idleWaiters.add(waiter);
+    });
   };
 
   const dispose = () => {
     if (disposed) return;
     disposed = true;
     page.off("request", onRequest);
+    page.off("response", onResponse);
     page.off("requestfinished", onSettled);
     page.off("requestfailed", onSettled);
     page.off("close", dispose);
+    for (const waiter of idleWaiters) {
+      clearTimeout(waiter.timer);
+      waiter.reject(new Error("A05 data request tracker disposed before becoming idle"));
+    }
+    idleWaiters.clear();
     trackedDataRequests.clear();
-    resolveIdle();
+    responseSeen.clear();
   };
 
   page.on("request", onRequest);
+  page.on("response", onResponse);
   page.on("requestfinished", onSettled);
   page.on("requestfailed", onSettled);
   page.once("close", dispose);
@@ -235,7 +293,7 @@ async function readStableState(
   for (let attempt = 0; attempt < STABLE_READING_ATTEMPTS; attempt += 1) {
     // Render convergence cannot finish a request. Bind the read to the exact
     // terminal events observed by this tracker before draining the UI.
-    await flight.waitForIdle();
+    await flight.waitForIdle(`${label}: before stable read`);
     const startedBefore = flight.dataStarted();
     const settledBefore = flight.dataSettled();
 
