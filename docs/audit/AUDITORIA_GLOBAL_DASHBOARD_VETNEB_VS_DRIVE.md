@@ -788,9 +788,19 @@ Fail-closed demostrado por control de mutación, no afirmado:
 | Un owner declarado no existe en disco | **FAIL** · 2 aserciones |
 | Un owner declarado no adopta el hook | **FAIL** · 2 aserciones |
 
-Como efecto colateral deseado, las aserciones preexistentes del guard (segunda ruta de capacidad,
-observadores, scroller interno, reserva de pager, bloqueo al pitch) quedan ancladas a un conjunto
-ahora **probadamente completo**, no sólo al conjunto que se hubiera descubierto.
+**Retiro legacy verificado sobre todo el árbol** *(corrección posterior al review P2)*. La aserción
+de segunda ruta de capacidad recorría **sólo** el conjunto descubierto, lo que dejaba el retiro
+demostrado únicamente allí donde el propietario ya había sido adoptado: un helper nuevo podía
+reintroducir un propietario legacy, quedar fuera del conjunto descubierto por esa misma razón y
+mantener el guard en verde. Ahora recorre `ALL_SOURCE_FILES` sobre código sin comentarios, de modo
+que el retiro es una propiedad del **árbol completo** y no del subconjunto migrado. Control de
+mutación: un archivo de `frontend/src` que referencia `useAdaptiveRowsPerPage` sin adoptar el
+propietario **pasaba** el guard anterior (16/16, exit 0) y **falla** el actual, nombrando archivo y
+propietario.
+
+Como efecto colateral deseado, las aserciones preexistentes del guard (observadores, scroller
+interno, reserva de pager, bloqueo al pitch) quedan ancladas a un conjunto ahora **probadamente
+completo**, no sólo al conjunto que se hubiera descubierto.
 
 **A04 = PENDING.** Esta tarea no lo toca. El baseline de seguridad de A04 (separación de sesión,
 ausencia de secretos, `data-*` sin lexemas sensibles) sigue fuera de alcance.

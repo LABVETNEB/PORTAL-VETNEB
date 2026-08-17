@@ -123,9 +123,19 @@ test("every capacity owner is bound to a canvas", () => {
   }
 });
 
-test("no migrated consumer keeps a second capacity path", () => {
-  for (const path of MIGRATED_CONSUMERS) {
-    const source = readSource(path);
+test("no frontend source keeps a legacy capacity owner", () => {
+  // Scanned over EVERY source file, not just the migrated ones. Scoping this to
+  // `MIGRATED_CONSUMERS` left the retirement provable only where the owner had
+  // already been adopted: a new helper — or a surface that never migrated —
+  // could reintroduce a legacy owner, stay out of the discovered set for that
+  // very reason, and keep this guard green. Retirement is a property of the
+  // whole tree, so it is asserted against the whole tree.
+  //
+  // Stripped, for the same reason the discovery is: the owner hook's own header
+  // names the three hooks it replaced. Naming a retired owner in prose is
+  // documentation; the contract is about a second capacity path in CODE.
+  for (const path of ALL_SOURCE_FILES) {
+    const source = stripComments(readSource(path));
 
     for (const legacy of LEGACY_CAPACITY_OWNERS) {
       assert.ok(
