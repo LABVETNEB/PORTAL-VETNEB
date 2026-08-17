@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import test from "node:test";
 
@@ -123,9 +123,19 @@ test("every capacity owner is bound to a canvas", () => {
   }
 });
 
-test("no migrated consumer keeps a second capacity path", () => {
-  for (const path of MIGRATED_CONSUMERS) {
-    const source = readSource(path);
+test("no frontend source keeps a legacy capacity owner", () => {
+  // Scanned over EVERY source file, not just the migrated ones. Scoping this to
+  // `MIGRATED_CONSUMERS` left the retirement provable only where the owner had
+  // already been adopted: a new helper — or a surface that never migrated —
+  // could reintroduce a legacy owner, stay out of the discovered set for that
+  // very reason, and keep this guard green. Retirement is a property of the
+  // whole tree, so it is asserted against the whole tree.
+  //
+  // Stripped, for the same reason the discovery is: the owner hook's own header
+  // names the three hooks it replaced. Naming a retired owner in prose is
+  // documentation; the contract is about a second capacity path in CODE.
+  for (const path of ALL_SOURCE_FILES) {
+    const source = stripComments(readSource(path));
 
     for (const legacy of LEGACY_CAPACITY_OWNERS) {
       assert.ok(
@@ -385,4 +395,165 @@ test("the pitch contract carries no per-module exception", () => {
     !/data-dashboard-module=/.test(stripComments(contract[1])),
     "a module-specific pitch means the primitive is wrong, not the module special",
   );
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// A07 · completeness contract.
+//
+// The auto-discovery above proves the single-owner contract holds for whoever
+// adopted the owner; it cannot prove that everyone who MUST adopt it did. A07
+// is closed only while the discovered set IS the normative set, so the census
+// is pinned in both directions: a normative module that quietly drops the owner
+// fails, and a surface that derives capacity without being declared here fails
+// too.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const A03_MATRIX_PATH =
+  "frontend/e2e/helpers/dashboard-adaptive-limit-matrix.ts";
+
+/**
+ * The 15 normative `moduleId` of the audit (§20.1, §20.8) mapped to the files
+ * that physically own their capacity. Two modules render mutually exclusive
+ * desktop and mobile presentations, so the 15 modules resolve to 17 owners.
+ */
+const A07_OWNERS_BY_MODULE_ID: Readonly<Record<string, readonly string[]>> =
+  Object.freeze({
+    "admin-audit-log": ["frontend/src/app/dashboard/admin/AdminAuditCard.tsx"],
+    "admin-report-upload": [
+      "frontend/src/app/dashboard/admin/AdminReportsCard.tsx",
+    ],
+    "admin-particular-tokens": [
+      "frontend/src/app/dashboard/admin/AdminParticularTokensCard.tsx",
+    ],
+    "admin-clinics": [
+      "frontend/src/app/dashboard/admin/AdminClinicsManagementCard.tsx",
+    ],
+    "admin-users-roles": [
+      "frontend/src/app/dashboard/admin/AdminUsersRolesReadOnlyCard.tsx",
+    ],
+    "admin-sessions": [
+      "frontend/src/app/dashboard/admin/AdminSessionsReadOnlyCard.tsx",
+    ],
+    "admin-failed-login-alerts": [
+      "frontend/src/app/dashboard/admin/AdminFailedLoginAlertsReadOnlyCard.tsx",
+    ],
+    "admin-pricing": [
+      "frontend/src/app/dashboard/admin/AdminPricingEditorCard.tsx",
+      "frontend/src/app/dashboard/admin/AdminMobilePricingModule.tsx",
+    ],
+    "informes-reports-list": [
+      "frontend/src/app/dashboard/informes/InformesReportsList.tsx",
+    ],
+    "admin-maintenance": [
+      "frontend/src/app/dashboard/admin/AdminMaintenanceDryRunCard.tsx",
+      "frontend/src/app/dashboard/admin/AdminMobileMaintenanceModule.tsx",
+    ],
+    "clinic-informes-summary": [
+      "frontend/src/app/dashboard/ClinicInformesWorkspaceSummary.tsx",
+    ],
+    "clinic-logistica-summary": [
+      "frontend/src/app/dashboard/ClinicLogisticaWorkspaceSummary.tsx",
+    ],
+    "clinic-particular-tokens": [
+      "frontend/src/components/dashboard/ClinicParticularTokensCard.tsx",
+    ],
+    "logistics-recent-list": [
+      "frontend/src/app/dashboard/logistica/LogisticsRecentListCanvas.tsx",
+    ],
+    "logistics-bounded-canvas": [
+      "frontend/src/app/dashboard/logistica/LogisticsBoundedCanvas.tsx",
+    ],
+  });
+
+const A07_DECLARED_OWNERS = Object.values(A07_OWNERS_BY_MODULE_ID).flat();
+
+/**
+ * Read from the A03 registry rather than restated here: a second hand-written
+ * copy of the 15 ids would drift silently, which is the failure this contract
+ * exists to catch.
+ */
+function readA03ModuleIds(): string[] {
+  const literal = readSource(A03_MATRIX_PATH).match(
+    /export const A03_MODULE_IDS = \[([\s\S]*?)\] as const;/,
+  );
+
+  assert.ok(
+    literal,
+    `${A03_MATRIX_PATH}: the canonical A03 registry literal must stay identifiable`,
+  );
+  return [...literal[1].matchAll(/"([^"]+)"/g)].map(([, id]) => id);
+}
+
+test("the A07 census maps the canonical A03 registry exactly", () => {
+  const registryIds = readA03ModuleIds();
+  const censusIds = Object.keys(A07_OWNERS_BY_MODULE_ID);
+
+  assert.equal(
+    registryIds.length,
+    15,
+    "A03 declares exactly 15 normative modules",
+  );
+  assert.equal(
+    new Set(registryIds).size,
+    registryIds.length,
+    "the A03 registry carries no duplicate moduleId",
+  );
+  assert.equal(
+    new Set(censusIds).size,
+    censusIds.length,
+    "the A07 census carries no duplicate moduleId",
+  );
+  assert.deepEqual(
+    censusIds,
+    registryIds,
+    "the A07 census must cover the 15 canonical moduleId, in canonical order",
+  );
+});
+
+test("every normative module resolves to an existing owner that adopts the hook", () => {
+  assert.equal(
+    A07_DECLARED_OWNERS.length,
+    17,
+    "the 15 normative modules resolve to exactly 17 physical owners",
+  );
+  assert.equal(
+    new Set(A07_DECLARED_OWNERS).size,
+    A07_DECLARED_OWNERS.length,
+    "an owner file may not be claimed by two modules",
+  );
+
+  for (const [moduleId, owners] of Object.entries(A07_OWNERS_BY_MODULE_ID)) {
+    for (const path of owners) {
+      assert.ok(
+        existsSync(resolve(process.cwd(), path)),
+        `${moduleId}: declared owner "${path}" does not exist`,
+      );
+      assert.match(
+        stripComments(readSource(path)),
+        new RegExp(`\\b${OWNER_HOOK_NAME}\\b`),
+        `${moduleId}: "${path}" must derive its capacity from ${OWNER_HOOK_NAME}`,
+      );
+    }
+  }
+});
+
+test("the discovered consumer set is exactly the normative owner set", () => {
+  const declared = [...A07_DECLARED_OWNERS].sort();
+  const discovered = [...MIGRATED_CONSUMERS].sort();
+
+  // Both directions, deliberately. A missing entry is a normative module that
+  // stopped owning its capacity — A07 regressed. An unexpected entry is a
+  // surface deriving capacity outside the census — A07 is no longer complete,
+  // and the audit's 15/15 claim would be unbacked either way.
+  assert.deepEqual(
+    declared.filter((path) => !discovered.includes(path)),
+    [],
+    `normative owners that no longer use ${OWNER_HOOK_NAME}`,
+  );
+  assert.deepEqual(
+    discovered.filter((path) => !declared.includes(path)),
+    [],
+    "capacity owners outside the A07 census",
+  );
+  assert.deepEqual(discovered, declared);
 });

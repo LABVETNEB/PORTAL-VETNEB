@@ -739,6 +739,75 @@ clave primaria     = moduleId::viewportSlug
 identidad de hoja  = moduleId::viewportSlug::variantId
 ```
 
+### 20.9 A06 y A07 cerrados por el guard de completitud *(2026-08-17)*
+
+Esta subsección **no revisa ni reescribe** §20.7 ni §20.8: registra el estado posterior. En los
+puntos temporales de aquellas subsecciones, A06 y A07 estaban efectivamente `NOT_IMPLEMENTED`.
+
+**A06 = CLOSED.** Clasificación: `A06_ALREADY_IMPLEMENTED_BY_OPTION_D`. El hook unificado no se
+implementó como PR-A06 independiente: Option D lo entregó como `useDashboardCanvasCapacity`
+(`frontend/src/hooks/useDashboardCanvasCapacity.ts`) sobre el motor puro
+`frontend/src/lib/dashboard/capacity/computeCapacity.ts`. Un único propietario de capacidad, con
+regiones declaradas y pitch bloqueado, es exactamente el objetivo de A06 (§48, «un solo hook
+unificado»). No se reimplementa nada: A06 se cierra por evidencia de lo ya integrado.
+
+**A07 = CLOSED.** Estado previo: `A07_RUNTIME_COMPLETE_GUARD_INCOMPLETE`. El runtime ya estaba
+migrado; lo que faltaba era demostrarlo de forma **fail-closed**. El guard
+`test/architecture/dashboard-capacity-single-owner.test.ts` descubría a los consumidores por
+auto-discovery, lo cual prueba que quien adoptó el propietario cumple el contrato, pero **no**
+que lo hayan adoptado todos los normativos. Ese era el único gap.
+
+| Censo A07 | Valor |
+|---|---|
+| Runtime migrado | **15/15** `moduleId` normativos |
+| Owners físicos | **17/17** archivos |
+| Consumidores legacy ejecutables | **0** |
+| Motores de capacidad | **1** |
+| Guard de completitud | **PASSED** |
+
+Los 15 módulos resuelven a 17 owners porque `admin-pricing` y `admin-maintenance` renderizan
+presentaciones desktop y móvil mutuamente excluyentes, cada una con su propio canvas acotado.
+
+Los cinco propietarios legacy (`useAdaptiveItemsPerPage`, `useAdaptiveRowsPerPage`,
+`useAdaptiveDashboardPageSize`, `createAdaptiveRowPitchCalibrator`, `adaptiveRowPitchCalibration`)
+no tienen **ninguna** referencia ejecutable en `frontend/src`: las tres ocurrencias restantes son
+prosa del comentario de cabecera del propio hook propietario.
+
+**Lo que añade el contrato de completitud.** Los 15 `moduleId` se leen del registro canónico A03
+(`frontend/e2e/helpers/dashboard-adaptive-limit-matrix.ts`), no se recopian: una segunda lista
+escrita a mano derivaría en silencio, que es justamente el fallo que el contrato existe para
+detectar. Sobre esa base se exige cardinalidad exacta (15 ids · 17 owners), ausencia de duplicados
+en ambos ejes, orden canónico, existencia física de cada owner, adopción del hook por cada owner, y
+—en las dos direcciones— igualdad entre el conjunto descubierto y el conjunto normativo.
+
+Fail-closed demostrado por control de mutación, no afirmado:
+
+| Mutación | Resultado |
+|---|---|
+| Se borra un `moduleId` normativo del censo | **FAIL** · 3 aserciones (registro, cardinalidad, owner descubierto no declarado) |
+| Un owner declarado no existe en disco | **FAIL** · 2 aserciones |
+| Un owner declarado no adopta el hook | **FAIL** · 2 aserciones |
+
+**Retiro legacy verificado sobre todo el árbol** *(corrección posterior al review P2)*. La aserción
+de segunda ruta de capacidad recorría **sólo** el conjunto descubierto, lo que dejaba el retiro
+demostrado únicamente allí donde el propietario ya había sido adoptado: un helper nuevo podía
+reintroducir un propietario legacy, quedar fuera del conjunto descubierto por esa misma razón y
+mantener el guard en verde. Ahora recorre `ALL_SOURCE_FILES` sobre código sin comentarios, de modo
+que el retiro es una propiedad del **árbol completo** y no del subconjunto migrado. Control de
+mutación: un archivo de `frontend/src` que referencia `useAdaptiveRowsPerPage` sin adoptar el
+propietario **pasaba** el guard anterior (16/16, exit 0) y **falla** el actual, nombrando archivo y
+propietario.
+
+Como efecto colateral deseado, las aserciones preexistentes del guard (observadores, scroller
+interno, reserva de pager, bloqueo al pitch) quedan ancladas a un conjunto ahora **probadamente
+completo**, no sólo al conjunto que se hubiera descubierto.
+
+**A04 = PENDING.** Esta tarea no lo toca. El baseline de seguridad de A04 (separación de sesión,
+ausencia de secretos, `data-*` sin lexemas sensibles) sigue fuera de alcance.
+
+Alcance deliberadamente excluido: no se modificó runtime, CSS, el baseline A03, A05, backend, DB,
+CI ni dependencias. El diff es un único archivo de test más este registro documental.
+
 ### 20.2 Consumidores compuestos y conteo de observaciones *(normativo)*
 
 Las filas 14 y 15 de §20 son **consumidores compuestos**: un único consumidor del hook con varias instancias o rutas reales, cada una con su propio contenedor medido y su propio contrato. El registro primario de cada combinación módulo/viewport contiene una **colección tipada de observaciones hoja**, una por variante. Está prohibido seleccionar arbitrariamente una única instancia o ruta y está prohibido agregar sus valores por mínimo, máximo, promedio o primer elemento (§20.5).
