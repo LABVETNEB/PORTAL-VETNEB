@@ -85,7 +85,7 @@ jobs:
           should_run=false
           while IFS= read -r -d '' changed_path; do
             case "$changed_path" in
-              frontend/*|pnpm-lock.yaml|pnpm-workspace.yaml|package.json|.github/workflows/frontend-ci.yml|.github/workflows/e2e-completeness.yml)
+              frontend/*|shared/*|pnpm-lock.yaml|pnpm-workspace.yaml|package.json|.github/workflows/frontend-ci.yml|.github/workflows/e2e-completeness.yml)
                 should_run=true
                 break
                 ;;

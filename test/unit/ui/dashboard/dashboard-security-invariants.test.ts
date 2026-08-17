@@ -219,14 +219,73 @@ const SENSITIVE_DATA_ATTRIBUTE_STEMS = [
   "private_key",
 ] as const;
 
-/** Client-side persistence of an authentication credential. */
-const CLIENT_CREDENTIAL_STORAGE_MARKERS = [
-  "document.cookie",
-  "localStorage",
-  "sessionStorage",
-  "indexedDB",
-  "window.name",
+/**
+ * Manual cookie reads stay absolutely forbidden: the session travels as an
+ * HttpOnly cookie sent by `credentials: "include"`, so a dashboard surface has no
+ * legitimate reason to parse `document.cookie` itself.
+ */
+const MANUAL_COOKIE_READ_MARKER = "document.cookie";
+
+/**
+ * Web Storage is NOT forbidden. Storing UI state — density, dismissed hints,
+ * filters, panel layout — is legitimate and must keep working. What A04 forbids is
+ * putting authentication material there, so the guard inspects the *access* (its
+ * key and value expression) rather than the mere presence of the API name.
+ */
+const CLIENT_STORAGE_ACCESS_PATTERNS: readonly RegExp[] = [
+  // localStorage.setItem("k", v) · getItem("k") · removeItem("k")
+  /(?:localStorage|sessionStorage)\s*\.\s*(?:setItem|getItem|removeItem)\s*\(([^)]*)\)/g,
+  // localStorage["k"] = v
+  /(?:localStorage|sessionStorage)\s*\[([^\]]*)\]/g,
+  // window.name = v
+  /window\s*\.\s*name\s*=([^;\n]*)/g,
+  // indexedDB.open("db")
+  /indexedDB\s*\.\s*open\s*\(([^)]*)\)/g,
+];
+
+/**
+ * Credential lexemes looked for inside a storage access expression. The API name
+ * itself is never part of the captured group, so `sessionStorage` does not match
+ * its own "session" stem and benign keys stay green.
+ */
+const CREDENTIAL_STORAGE_LEXEMES = [
+  "token",
+  "session",
+  "auth",
+  "credential",
+  "password",
+  "passwd",
+  "secret",
+  "cookie",
+  "jwt",
+  "bearer",
+  "apikey",
+  "api_key",
+  "api-key",
+  "private_key",
+  "private-key",
 ] as const;
+
+/** Storage accesses whose key or value expression names credential material. */
+function findCredentialStorageAccesses(source: string): string[] {
+  const offenders: string[] = [];
+
+  for (const pattern of CLIENT_STORAGE_ACCESS_PATTERNS) {
+    for (const match of source.matchAll(pattern)) {
+      const accessExpression = (match[1] ?? "").toLowerCase();
+
+      if (
+        CREDENTIAL_STORAGE_LEXEMES.some((lexeme) =>
+          accessExpression.includes(lexeme),
+        )
+      ) {
+        offenders.push(match[0].trim());
+      }
+    }
+  }
+
+  return offenders;
+}
 
 /** Manual serialization of a credential into a request. */
 const MANUAL_CREDENTIAL_HEADER_MARKERS = ["Authorization", "Bearer "] as const;
@@ -322,13 +381,17 @@ test("no dashboard surface reads cookies or persists credentials client-side", (
   for (const path of DASHBOARD_SURFACE_FILES) {
     const source = stripComments(readSource(path));
 
-    for (const marker of CLIENT_CREDENTIAL_STORAGE_MARKERS) {
-      assert.equal(
-        source.includes(marker),
-        false,
-        `${path}: dashboard surfaces must not use ${marker}; the session is an HttpOnly cookie`,
-      );
-    }
+    assert.equal(
+      source.includes(MANUAL_COOKIE_READ_MARKER),
+      false,
+      `${path}: dashboard surfaces must not read ${MANUAL_COOKIE_READ_MARKER}; the session is an HttpOnly cookie`,
+    );
+
+    assert.deepEqual(
+      findCredentialStorageAccesses(source),
+      [],
+      `${path}: dashboard surfaces must not put credential material in client storage`,
+    );
   }
 });
 
@@ -368,13 +431,17 @@ test("the authenticated user contract carries no credential material", () => {
 test("the auth context never materializes the session value", () => {
   const source = stripComments(readSource(AUTH_CONTEXT_PATH));
 
-  for (const marker of CLIENT_CREDENTIAL_STORAGE_MARKERS) {
-    assert.equal(
-      source.includes(marker),
-      false,
-      `${AUTH_CONTEXT_PATH}: must not use ${marker}`,
-    );
-  }
+  assert.equal(
+    source.includes(MANUAL_COOKIE_READ_MARKER),
+    false,
+    `${AUTH_CONTEXT_PATH}: must not read ${MANUAL_COOKIE_READ_MARKER}`,
+  );
+
+  assert.deepEqual(
+    findCredentialStorageAccesses(source),
+    [],
+    `${AUTH_CONTEXT_PATH}: must not put credential material in client storage`,
+  );
 
   for (const marker of MANUAL_CREDENTIAL_HEADER_MARKERS) {
     assert.equal(

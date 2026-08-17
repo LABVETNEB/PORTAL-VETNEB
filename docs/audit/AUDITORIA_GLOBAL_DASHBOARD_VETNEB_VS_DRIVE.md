@@ -828,7 +828,7 @@ actual:
 | Separación de sesión (frontend) | `frontend/src/proxy.ts` fija los dos nombres de cookie, la selección por `ADMIN_DASHBOARD_PATH_PREFIX` y la redirección sin sesión |
 | Credenciales en el contrato frontend | `AuthUser` no declara `password`, `token`, `hash`, `secret` ni `session` |
 | Lectura manual de cookies | `document.cookie` prohibido en las 110 superficies del dashboard, en `AuthContext` y en el cliente HTTP |
-| Storage cliente | `localStorage`, `sessionStorage`, `indexedDB` y `window.name` prohibidos en las superficies del dashboard |
+| Storage cliente | Web Storage **permitido** para estado de UI; prohibido cuando el acceso nombra material de credencial. El guard inspecciona la clave y el valor del acceso, no la presencia de la API |
 | Cabeceras de credencial | `Authorization` y `Bearer` prohibidos; las llamadas autenticadas viajan por `credentials: "include"` |
 | `data-*` | Ningún nombre `data-*` del dashboard contiene un lexema de credencial de autenticación |
 | Colecciones | `AdminParticularTokenSummary` expone `tokenLast4` y nunca el token crudo; el módulo de sesiones no renderiza `tokenHash` ni material de sesión |
@@ -840,6 +840,7 @@ actual:
 | Un archivo nuevo del dashboard declara `data-auth-token` | **FAIL** · exit 1 |
 | Un archivo nuevo del dashboard lee `document.cookie` | **FAIL** · exit 1 |
 | Un archivo nuevo del dashboard persiste `admin_session_id` en `localStorage` | **FAIL** · exit 1 |
+| Un archivo nuevo guarda `dashboard-density` en `localStorage` | **PASS** · storage de UI legítimo |
 | Se borra un `moduleId` normativo del censo | **FAIL** · 3 aserciones · exit 1 |
 | La evidencia de proxy iguala el nombre de cookie admin y clínica | **FAIL** · exit 1 |
 
@@ -982,6 +983,20 @@ su tabla documental.
 
 **A04 = CLOSED.** Ambos defectos R2 están cerrados: ninguna configuración puede colapsar dos
 fronteras, y clínica/admin no pueden derivar entre backend y proxy.
+
+**Gobernanza del nuevo boundary cross-runtime *(closeout PR #1655)*.** Introducir `shared/` creó un
+path que ninguna política enrutaba: PR Governance falló, correctamente, con *«Quality gate impact
+policy has no route for changed path: shared/session-cookie-names.ts»*. Se cerró gobernando el
+boundary, no silenciando el gate: la regla `shared-cross-runtime` en
+`scripts/governance/quality-gate-impact-policy.mjs` enruta `shared/**` a **backend-ci y frontend-ci
+a la vez**, con los suites de ambos runtimes derivados de la taxonomía en vez de recopiados. Los
+paths desconocidos siguen fail-closed: no se añadió catch-all de raíz.
+
+En paralelo, el detector de impacto de `frontend-ci.yml` reconocía seis rutas y no `shared/*`, de
+modo que un PR que sólo tocara el contrato podía ejecutar Frontend CI con `should_run=false` y
+saltarse lint, typecheck, build, public-surface y E2E. Ahora son siete rutas. Se modificó
+únicamente el detector de `pull_request`; los filtros de `push` quedaron intactos a propósito, y el
+contrato de test distingue ambos mecanismos.
 
 **Riesgos residuales.**
 

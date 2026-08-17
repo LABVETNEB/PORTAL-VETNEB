@@ -117,6 +117,7 @@ test("impact rule precedence resolves specific routes before general routes", ()
 test("impact routing classifies representative paths", () => {
   const expectations = new Map([
     ["server/routes/clinics.ts", "server-runtime"],
+    ["shared/session-cookie-names.ts", "shared-cross-runtime"],
     ["frontend/src/app/page.tsx", "frontend-runtime"],
     ["test/unit/example.test.ts", "node-tests"],
     ["frontend/e2e/admin-mobile.spec.ts", "frontend-e2e"],
@@ -277,6 +278,91 @@ test("frontend CI taxonomy exposes one catalog-backed Playwright command", () =>
         command: "pnpm --dir frontend e2e:ci",
       },
     ],
+  );
+});
+
+test("shared cross-runtime contract routes through both runtime gates", () => {
+  // A04/PR #1655: shared/session-cookie-names.ts is compiled into BOTH the backend
+  // bundle and the Next proxy. Governance previously had no route for it, so the
+  // path failed fail-closed. It must now demand backend and frontend validation
+  // together — routing it to a single runtime would let one half ship unvalidated.
+  const result = evaluateChangedPathImpact({
+    entries: [
+      {
+        status: "M",
+        path: "shared/session-cookie-names.ts",
+        display: "shared/session-cookie-names.ts",
+      },
+    ],
+  });
+
+  assert.deepEqual(result.failures, []);
+  assert.equal(result.passed, true);
+
+  const [routed] = result.changedPaths;
+  assert.equal(routed.rule?.id, "shared-cross-runtime");
+
+  for (const gate of ["pr-governance", "backend-ci", "frontend-ci"]) {
+    assert.ok(
+      routed.rule?.gates.includes(gate),
+      `shared-cross-runtime must require ${gate}`,
+    );
+  }
+
+  for (const impact of [
+    "cross-runtime-contract",
+    "backend-runtime",
+    "frontend-runtime",
+  ]) {
+    assert.ok(
+      routed.rule?.impacts.includes(impact),
+      `shared-cross-runtime must declare ${impact}`,
+    );
+  }
+
+  // Derived from the taxonomy, never restated: a suite added to either runtime is
+  // covered automatically instead of silently escaping the cross-runtime route.
+  const backendSuiteIds = TEST_TAXONOMY.filter(
+    (suite) => suite.gate === "backend-ci",
+  ).map((suite) => suite.id);
+  const frontendSuiteIds = TEST_TAXONOMY.filter(
+    (suite) => suite.gate === "frontend-ci",
+  ).map((suite) => suite.id);
+
+  assert.ok(backendSuiteIds.length > 0 && frontendSuiteIds.length > 0);
+  for (const suiteId of [...backendSuiteIds, ...frontendSuiteIds]) {
+    assert.ok(
+      routed.rule?.suiteIds.includes(suiteId),
+      `shared-cross-runtime must cover suite ${suiteId}`,
+    );
+  }
+});
+
+test("removing the shared cross-runtime rule restores the fail-closed failure", () => {
+  // Mutation control G1: the route is what makes the path governed. Without it the
+  // policy must go back to refusing the path, not silently absorbing it elsewhere.
+  const rulesWithoutShared = IMPACT_RULES.filter(
+    (rule) => rule.id !== "shared-cross-runtime",
+  );
+
+  assert.equal(rulesWithoutShared.length, IMPACT_RULES.length - 1);
+
+  const result = evaluateChangedPathImpact({
+    entries: [
+      {
+        status: "M",
+        path: "shared/session-cookie-names.ts",
+        display: "shared/session-cookie-names.ts",
+      },
+    ],
+    rules: rulesWithoutShared,
+  });
+
+  assert.equal(result.passed, false);
+  assert.ok(
+    result.failures.includes(
+      "Quality gate impact policy has no route for changed path: shared/session-cookie-names.ts",
+    ),
   );
 });
 

@@ -490,6 +490,15 @@ export const IMPACT_RULES = deepFreeze([
     description: "Root TypeScript config affects backend and test typechecking.",
   },
   {
+    id: "shared-cross-runtime",
+    matcher: { type: "prefix", path: "shared/" },
+    impacts: ["cross-runtime-contract", "backend-runtime", "frontend-runtime"],
+    gates: ["pr-governance", "backend-ci", "frontend-ci"],
+    suiteIds: [...BACKEND_SUITE_IDS, ...FRONTEND_SUITE_IDS],
+    description:
+      "Root-level protocol contracts consumed by both runtimes: the backend bundle and the Next proxy compile the same module, so a change must be validated by backend and frontend gates together.",
+  },
+  {
     id: "server-runtime",
     matcher: { type: "prefix", path: "server/" },
     impacts: ["backend-runtime"],
