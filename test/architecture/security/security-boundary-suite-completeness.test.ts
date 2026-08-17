@@ -190,7 +190,11 @@ const SECURITY_BOUNDARY_SUITE: readonly SecurityBoundaryGuardrail[] = [
     runtimeAnchors: [
       {
         path: "server/lib/env.ts",
-        markers: ["COOKIE_NAME", "ADMIN_COOKIE_NAME", "PARTICULAR_COOKIE_NAME"],
+        markers: [
+          "cookieName: CLINIC_SESSION_COOKIE_NAME",
+          "adminCookieName: ADMIN_SESSION_COOKIE_NAME",
+          "particularCookieName: resolveParticularSessionCookieName(",
+        ],
       },
       {
         path: "server/lib/fastify-admin-auth.ts",

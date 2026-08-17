@@ -26,9 +26,9 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
       {
         path: "server/lib/env.ts",
         markers: [
-          'cookieName: rawEnv.COOKIE_NAME ?? "app_session_id"',
-          'adminCookieName: rawEnv.ADMIN_COOKIE_NAME ?? "admin_session_id"',
-          "PARTICULAR_COOKIE_NAME",
+          "cookieName: CLINIC_SESSION_COOKIE_NAME",
+          "adminCookieName: ADMIN_SESSION_COOKIE_NAME",
+          "particularCookieName: resolveParticularSessionCookieName(",
           "trustProxy: rawEnv.TRUST_PROXY ?? 1",
         ],
       },

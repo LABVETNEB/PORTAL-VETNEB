@@ -22,8 +22,9 @@ test("frontend proxy imports Next response and request types", () => {
 test("frontend proxy separates clinic and admin dashboard session cookies", () => {
   const source = read(MIDDLEWARE_PATH);
 
-  assert.ok(source.includes('const CLINIC_SESSION_COOKIE_NAME = "app_session_id";'));
-  assert.ok(source.includes('const ADMIN_SESSION_COOKIE_NAME = "admin_session_id";'));
+  assert.ok(source.includes('from "../../shared/session-cookie-names"'));
+  assert.ok(source.includes("CLINIC_SESSION_COOKIE_NAME"));
+  assert.ok(source.includes("ADMIN_SESSION_COOKIE_NAME"));
   assert.ok(source.includes('const ADMIN_DASHBOARD_PATH_PREFIX = "/dashboard/admin";'));
   assert.ok(source.includes("function isAdminDashboardPath(pathname: string): boolean"));
   assert.ok(source.includes("pathname === ADMIN_DASHBOARD_PATH_PREFIX"));

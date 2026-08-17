@@ -131,24 +131,28 @@ test("session cookie names remain separated across backend and dashboard proxy",
   const envSource = read("server/lib/env.ts");
   const middlewareSource = read("frontend/src/proxy.ts");
 
-  assertContains(envSource, 'cookieName: rawEnv.COOKIE_NAME ?? "app_session_id"', "env clinic cookie");
+  // The names are a fixed shared contract (A04 R2): the backend no longer resolves
+  // them from env, so the anchor is consumption of the contract, not a literal.
   assertContains(
     envSource,
-    'adminCookieName: rawEnv.ADMIN_COOKIE_NAME ?? "admin_session_id"',
-    "env admin cookie",
+    'from "../../shared/session-cookie-names.ts"',
+    "env imports the shared session cookie contract",
   );
-  assertContains(envSource, "PARTICULAR_COOKIE_NAME", "env particular cookie");
+  assertContains(envSource, "cookieName: CLINIC_SESSION_COOKIE_NAME", "env clinic cookie");
+  assertContains(envSource, "adminCookieName: ADMIN_SESSION_COOKIE_NAME", "env admin cookie");
+  assertContains(
+    envSource,
+    "particularCookieName: resolveParticularSessionCookieName(",
+    "env particular cookie",
+  );
 
   assertContains(
     middlewareSource,
-    'const CLINIC_SESSION_COOKIE_NAME = "app_session_id"',
-    "frontend clinic cookie",
+    'from "../../shared/session-cookie-names"',
+    "frontend proxy imports the shared session cookie contract",
   );
-  assertContains(
-    middlewareSource,
-    'const ADMIN_SESSION_COOKIE_NAME = "admin_session_id"',
-    "frontend admin cookie",
-  );
+  assertContains(middlewareSource, "CLINIC_SESSION_COOKIE_NAME", "frontend clinic cookie");
+  assertContains(middlewareSource, "ADMIN_SESSION_COOKIE_NAME", "frontend admin cookie");
   assertContains(
     middlewareSource,
     "ADMIN_DASHBOARD_PATH_PREFIX",

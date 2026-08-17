@@ -196,11 +196,11 @@ newline final no se cuenta.
 | --- | ---: | ---: |
 | `server/features` | 149 | 16.980 |
 | `server/routes` | 35 | 22.943 |
-| `server/lib` | 28 | 4.628 |
+| `server/lib` | 29 | 4.683 |
 | `server/middlewares` | 7 | 947 |
 | raíz/entrypoints `server/*.ts` | 9 | 2.371 |
 | otros | 0 | 0 |
-| **Total `server`** | **228** | **47.869** |
+| **Total `server`** | **229** | **47.924** |
 
 El review P2 de M48 detectó que la primera metodología aplicaba una semántica
 equivalente a `source.split("\n").length`, que sumaba un segmento vacío por
@@ -210,7 +210,7 @@ features.
 
 - Features: 9.
 - Rutas productivas `*.fastify.ts`: 35.
-- Módulos `server/lib` raíz: 24.
+- Módulos `server/lib` raíz: 25.
 - Módulos `server/lib/http`: 3.
 
 ## 8. Inventario y topología por feature

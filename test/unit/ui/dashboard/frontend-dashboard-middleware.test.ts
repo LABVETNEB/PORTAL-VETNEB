@@ -22,8 +22,9 @@ test("frontend dashboard proxy exists and protects dashboard routes", () => {
   const source = read(MIDDLEWARE_PATH);
 
   assert.ok(source.includes('from "next/server"'));
-  assert.ok(source.includes('CLINIC_SESSION_COOKIE_NAME = "app_session_id"'));
-  assert.ok(source.includes('ADMIN_SESSION_COOKIE_NAME = "admin_session_id"'));
+  assert.ok(source.includes('from "../../shared/session-cookie-names"'));
+  assert.ok(source.includes("CLINIC_SESSION_COOKIE_NAME"));
+  assert.ok(source.includes("ADMIN_SESSION_COOKIE_NAME"));
   assert.ok(source.includes('LOGIN_PATH = "/login"'));
   assert.ok(source.includes('ADMIN_DASHBOARD_PATH_PREFIX = "/dashboard/admin"'));
   assert.ok(source.includes("NextResponse.next()"));
