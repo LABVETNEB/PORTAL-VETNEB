@@ -1,7 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-const CLINIC_SESSION_COOKIE_NAME = "app_session_id";
-const ADMIN_SESSION_COOKIE_NAME = "admin_session_id";
+import {
+  ADMIN_SESSION_COOKIE_NAME,
+  CLINIC_SESSION_COOKIE_NAME,
+} from "../../shared/session-cookie-names";
+
 const LOGIN_PATH = "/login";
 const ADMIN_DASHBOARD_PATH_PREFIX = "/dashboard/admin";
 

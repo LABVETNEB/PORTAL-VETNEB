@@ -808,6 +808,210 @@ ausencia de secretos, `data-*` sin lexemas sensibles) sigue fuera de alcance.
 Alcance deliberadamente excluido: no se modificó runtime, CSS, el baseline A03, A05, backend, DB,
 CI ni dependencias. El diff es un único archivo de test más este registro documental.
 
+### 20.10 A04 cerrado: baseline ejecutable + fronteras de sesión garantizadas *(2026-08-17)*
+
+Supersede el registro de §20.9 **sólo** en el estado de A04. Lo anterior queda como estaba: cuando
+se escribió, A04 no tenía baseline y el registro era correcto.
+
+**Qué observó la auditoría histórica.** §11 y §5 afirman que el dashboard mantiene
+`admin_session_id` y `app_session_id` separados, que ningún superbuscador acepta un token completo,
+que ningún `data-*` del dashboard contiene lexemas sensibles y que ninguna colección expone hashes.
+Todo eso fue **observado**, no congelado: nada impedía que un componente nuevo lo rompiera en verde.
+
+**Qué queda congelado ahora.** `test/unit/ui/dashboard/dashboard-security-invariants.test.ts`
+(11 aserciones, 11/11 PASSED) convierte esas propiedades en contrato ejecutable contra la fuente
+actual:
+
+| Dimensión | Contrato ejecutable |
+|---|---|
+| Cobertura normativa | Los 15 `moduleId` se leen del registro canónico A03 y se comparan en ambas direcciones contra el censo A04; 15 módulos → 17 propietarios físicos existentes, sin duplicados y dentro de los árboles auditados |
+| Separación de sesión (frontend) | `frontend/src/proxy.ts` fija los dos nombres de cookie, la selección por `ADMIN_DASHBOARD_PATH_PREFIX` y la redirección sin sesión |
+| Credenciales en el contrato frontend | `AuthUser` no declara `password`, `token`, `hash`, `secret` ni `session` |
+| Lectura manual de cookies | `document.cookie` prohibido en las 110 superficies del dashboard, en `AuthContext` y en el cliente HTTP |
+| Storage cliente | Web Storage **permitido** para estado de UI; prohibido cuando el acceso nombra material de credencial. El guard inspecciona la clave y el valor del acceso, no la presencia de la API |
+| Cabeceras de credencial | `Authorization` y `Bearer` prohibidos; las llamadas autenticadas viajan por `credentials: "include"` |
+| `data-*` | Ningún nombre `data-*` del dashboard contiene un lexema de credencial de autenticación |
+| Colecciones | `AdminParticularTokenSummary` expone `tokenLast4` y nunca el token crudo; el módulo de sesiones no renderiza `tokenHash` ni material de sesión |
+
+**Fail-closed demostrado por control de mutación, no afirmado:**
+
+| Mutación | Resultado |
+|---|---|
+| Un archivo nuevo del dashboard declara `data-auth-token` | **FAIL** · exit 1 |
+| Un archivo nuevo del dashboard lee `document.cookie` | **FAIL** · exit 1 |
+| Un archivo nuevo del dashboard persiste `admin_session_id` en `localStorage` | **FAIL** · exit 1 |
+| Un archivo nuevo guarda `dashboard-density` en `localStorage` | **PASS** · storage de UI legítimo |
+| Se borra un `moduleId` normativo del censo | **FAIL** · 3 aserciones · exit 1 |
+| La evidencia de proxy iguala el nombre de cookie admin y clínica | **FAIL** · exit 1 |
+
+Las tres primeras mutaciones son **archivos nuevos**: el guard no depende de una lista de archivos
+declarada, de modo que una superficie de dashboard creada mañana queda cubierta sin tocar el test.
+La cuarta impide que una omisión silenciosa se vuelva verde (lección A07: auto-discovery por sí solo
+no demuestra completitud).
+
+**Frontera con lo ya cubierto.** La separación de sesión del **backend** no se reescribe aquí: ya
+está congelada por `security-session-cookie-boundaries`, `global-auth-boundary-contract` y
+`security-production-invariants`. A04 cubre el lado dashboard, que era el que no tenía guard.
+
+**Token de producto ≠ credencial de autenticación.** El guard distingue ambos deliberadamente.
+`tokenLast4`, `tokenId` y `tokenStatus` son metadata de dominio permitida; el campo prohibido es el
+token crudo dentro de la colección. Por el mismo criterio, el input `password` del alta de clínica
+(`AdminClinicsManagementCard`) es una **escritura** de credencial nueva, no una lectura de una
+almacenada, y no se marca. La lista de lexemas es el subconjunto de credenciales de autenticación de
+`scripts/security/audit-public-devtools-surface.mjs`; los stems de PII siguen cubiertos allí y no se
+duplican. Se usan stems en inglés a propósito: la convención aprobada del repo renombra las
+superficies sensibles a un stem no sensible (`data-admin-sesiones-*`, PR-SRV-1) precisamente para
+satisfacer ese guard.
+
+---
+
+#### Gap R2 descubierto por el baseline, y cerrado con autorización R2
+
+El baseline estático de arriba quedó verde, pero **no cerraba A04**: al trazar la frontera apareció
+un defecto que ningún test podía cerrar desde `test/`, porque no era una propiedad de la fuente sino
+de la **configuración de runtime**. Se registra aquí completo porque explica por qué A04 estuvo
+bloqueado y qué se cambió para desbloquearlo.
+
+**Hallazgo 1 — los nombres de cookie no tenían validación de unicidad.** `server/lib/env.ts`
+declaraba `COOKIE_NAME`, `ADMIN_COOKIE_NAME` y `PARTICULAR_COOKIE_NAME` como tres opcionales
+independientes con defaults distintos. No existía `refine`, `superRefine`, assertion ni guard de
+arranque que rechazara configurarlos al mismo valor: un deploy podía igualarlos y el proceso
+arrancaba normalmente.
+
+**Hallazgo 2 — no había fuente única de verdad entre proxy y backend.** `frontend/src/proxy.ts`
+**hardcodeaba** `"app_session_id"` y `"admin_session_id"` mientras el backend los leía de `ENV`. Los
+dos lados coincidían por coincidencia entre el literal y el default, no por contrato.
+
+**Camino trazado completo, sin exagerar el impacto.** Con `COOKIE_NAME="admin_session_id"` el gate
+del proxy **dejaba pasar** al route admin —acceso preliminar real—, pero no había exposición de
+contenido protegido: `frontend/src/app/dashboard/admin/page.tsx` es server component, valida contra
+backend antes de emitir HTML y `redirect()` aborta el render. La separación real la imponía la
+infraestructura (tres tablas: `activeSessions`, `adminSessions`, `particularSessions`). Los otros
+drifts producían lockout total de Administración o pisado de cookie entre dominios. El problema de
+fondo: la frontera no la sostenía el gate de sesión del dashboard sino enteramente la segunda
+validación de backend, y el gate era anulable por configuración.
+
+---
+
+#### R2 autorizado — contrato fijo donde cruza la frontera, override conservado donde no *(2026-08-17)*
+
+Nico autorizó R2 acotado a unicidad y drift. Se evaluaron cuatro estrategias; se descartó que el
+proxy leyera su propio env porque **backend y frontend son deploys separados**
+(`api.vetneb.com.ar` / `vetneb.com.ar`, con envs distintos): la misma variable escrita en dos
+servicios no es fuente única, sólo traslada el drift a configuración operacional.
+
+**El cierre se hizo de forma conservadora, separando las fronteras por su alcance real.** Clínica y
+admin **cruzan** backend ↔ proxy, así que su nombre es un contrato entre dos servicios y se fija en
+`shared/session-cookie-names.ts`. Particular **no participa del proxy** —sus consumidores viven
+todos dentro del backend y ya usaban `ENV.particularCookieName`—, así que **sigue siendo
+configurable** por `PARTICULAR_COOKIE_NAME` y ningún deploy con un override histórico se rompe.
+
+| Frontera | ¿Cruza al proxy? | Antes | Ahora |
+|---|:---:|---|---|
+| Clínica | **Sí** | `rawEnv.COOKIE_NAME ?? "app_session_id"` + literal en el proxy | `CLINIC_SESSION_COOKIE_NAME` del contrato, consumido por `env.ts` y por el proxy |
+| Admin | **Sí** | `rawEnv.ADMIN_COOKIE_NAME ?? "admin_session_id"` + literal en el proxy | `ADMIN_SESSION_COOKIE_NAME` del contrato, consumido por ambos |
+| Particular | **No** | `rawEnv.PARTICULAR_COOKIE_NAME ?? "particular_session_id"`, sin validación | Override conservado, resuelto por `resolveParticularSessionCookieName`, que **rechaza la colisión** |
+
+`server/lib/session-cookie-names.ts` aporta esa función pura, deliberadamente fuera de `env.ts` para
+poder probarla sin ejecutar el schema completo ni mutar `process.env` entre tests. Si el override
+iguala la cookie de clínica o de admin, **el proceso falla al arrancar** con un mensaje accionable,
+en vez de degradar una frontera en runtime. Como clínica y admin son distintos por construcción y
+particular no puede igualar a ninguno, las tres parejas quedan garantizadas:
+
+```text
+clinic !== admin        por contrato fijo
+clinic !== particular   rechazado en resolución
+admin  !== particular   rechazado en resolución
+```
+
+**Compatibilidad preservada por diseño, no por comprobación manual.** La versión anterior de este
+cierre fijaba también el nombre de particular, lo que obligaba a verificar a mano la configuración
+del servicio productivo para descartar un override histórico. Ese requisito desaparece: un
+`PARTICULAR_COOKIE_NAME` válido se conserva tal cual. Verificado ejecutando el arranque real:
+
+| Configuración de arranque | Resultado observado |
+|---|---|
+| `PARTICULAR_COOKIE_NAME` sin definir | arranca · `particular_session_id` (default) |
+| `PARTICULAR_COOKIE_NAME=legacy_particular_session` | arranca · override preservado |
+| `PARTICULAR_COOKIE_NAME=admin_session_id` | **rechazado en arranque** |
+| `PARTICULAR_COOKIE_NAME=app_session_id` | **rechazado en arranque** |
+
+Para clínica y admin la fijación sí es segura sin verificación externa: el proxy ya exigía esos
+literales, de modo que un valor no-default en producción habría dejado el dashboard en redirect
+infinito a `/login`. Que funcione demuestra que su configuración efectiva era la default.
+
+**Viabilidad cross-build demostrada empíricamente**, no asumida: el backend importa el contrato con
+extensión `.ts` (`allowImportingTsExtensions` de la raíz) y el frontend sin ella; es el mismo módulo
+físico con dos especificadores. `pnpm typecheck`, `pnpm build`, `pnpm --dir frontend typecheck` y
+`pnpm --dir frontend build` terminan en **exit 0**, sin tocar `package.json`, `tsconfig*` ni
+`next.config`. El contrato compartido es dependency-free y **no llega al bundle cliente**: los
+literales y el resolver aparecen 0 veces en `frontend/.next/static`. La lógica de particular queda
+fuera del proxy por construcción. `security:public-surface` sigue en PASS y clasifica los
+identificadores del proxy como `[server-only]`, igual que antes del cambio.
+
+**El proxy conserva su semántica**: selección de boundary por `ADMIN_DASHBOARD_PATH_PREFIX`, sin
+fallback entre cookies, redirect a `/login` preservando `next`, y sin convertirse en un segundo
+servidor de autorización — el backend sigue siendo la autoridad definitiva.
+
+**Contrato ejecutable.** `test/unit/infrastructure/session-cookie-name-contract.test.ts` (16
+aserciones) prueba el contrato fijo de clínica y admin y su distinctness, el default y el override
+válido de particular, el rechazo de ambas colisiones, el consumo por los dos owners, la ausencia de
+una segunda copia literal, la desaparición de los overrides de clínica/admin, que
+`PARTICULAR_COOKIE_NAME` sigue soportado, que el contrato no importa nada ni toca `process.env`, que
+el resolver backend-only no llega al proxy, y que el boundary del proxy sigue fail-closed.
+
+**Fail-closed demostrado por control de mutación:**
+
+| Mutación | Resultado |
+|---|---|
+| M6 · clínica == admin en el contrato fijo | **FAIL** · T2/T3/T7 · exit 1 |
+| M7 · override de particular == clínica | **FAIL** · resolver lanza · arranque rechazado |
+| M8 · override de particular == admin | **FAIL** · resolver lanza · arranque rechazado |
+| M9 · se reintroduce un literal independiente en el proxy | **FAIL** · T14 y además el baseline A04 · exit 1 |
+| M10 · el proxy deja de consumir la fuente compartida | **FAIL** · T10 · exit 1 |
+
+M1–M4 del baseline siguen vigentes. El antiguo M5 queda **superseded** por M6–M10: la propiedad que
+comprobaba (nombres de cookie compartidos en la evidencia del proxy) ya no es representable, porque
+el proxy no declara nombres.
+
+**Realineación in-PR.** El cambio rompió legítimamente 13 guards que anclaban los literales y el
+censo LOC de M48. Todos se realinearon en el mismo PR y **ninguno se debilitó**: los de clínica y
+admin pasaron de anclar un literal a exigir el consumo del contrato compartido —la aserción
+anti-drift, más fuerte—, y los de particular pasaron a anclar la resolución guardada en vez de un
+literal fijo. M48 se realineó a `server/lib` 29 archivos / 4.683 LOC y total 229 / 47.924, junto a
+su tabla documental.
+
+**A04 = CLOSED.** Ambos defectos R2 están cerrados: ninguna configuración puede colapsar dos
+fronteras, y clínica/admin no pueden derivar entre backend y proxy.
+
+**Gobernanza del nuevo boundary cross-runtime *(closeout PR #1655)*.** Introducir `shared/` creó un
+path que ninguna política enrutaba: PR Governance falló, correctamente, con *«Quality gate impact
+policy has no route for changed path: shared/session-cookie-names.ts»*. Se cerró gobernando el
+boundary, no silenciando el gate: la regla `shared-cross-runtime` en
+`scripts/governance/quality-gate-impact-policy.mjs` enruta `shared/**` a **backend-ci y frontend-ci
+a la vez**, con los suites de ambos runtimes derivados de la taxonomía en vez de recopiados. Los
+paths desconocidos siguen fail-closed: no se añadió catch-all de raíz.
+
+En paralelo, el detector de impacto de `frontend-ci.yml` reconocía seis rutas y no `shared/*`, de
+modo que un PR que sólo tocara el contrato podía ejecutar Frontend CI con `should_run=false` y
+saltarse lint, typecheck, build, public-surface y E2E. Ahora son siete rutas. Se modificó
+únicamente el detector de `pull_request`; los filtros de `push` quedaron intactos a propósito, y el
+contrato de test distingue ambos mecanismos.
+
+**Riesgos residuales.**
+
+1. El contrato compartido vive en `shared/` fuera de los dos `include` de tsconfig; funciona porque
+   ambos compiladores siguen el import. Un cambio futuro de `tsconfig` o de bundler debe re-verificar
+   los cuatro builds.
+2. Los guards son estáticos salvo el resolver, que sí se probó contra el arranque real.
+3. Renombrar la cookie de clínica o de admin exige desplegar backend y frontend juntos: al ser un
+   contrato compilado en ambos bundles, un despliegue parcial dejaría las dos mitades en desacuerdo
+   hasta completarse.
+
+Alcance deliberadamente excluido: no se modificó DB, schema, endpoints, roles, permisos,
+dependencias, `package.json`, `pnpm-lock.yaml`, `tsconfig*`, `next.config`, CI ni workflows; no se
+ejecutó ninguna operación R3.
+
 ### 20.2 Consumidores compuestos y conteo de observaciones *(normativo)*
 
 Las filas 14 y 15 de §20 son **consumidores compuestos**: un único consumidor del hook con varias instancias o rutas reales, cada una con su propio contenedor medido y su propio contrato. El registro primario de cada combinación módulo/viewport contiene una **colección tipada de observaciones hoja**, una por variante. Está prohibido seleccionar arbitrariamente una única instancia o ruta y está prohibido agregar sus valores por mínimo, máximo, promedio o primer elemento (§20.5).

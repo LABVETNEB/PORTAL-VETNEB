@@ -323,12 +323,16 @@ test("proxy protects /dashboard and /dashboard/admin with correct cookies", () =
   const source = read("frontend/src/proxy.ts");
 
   assert.ok(
-    source.includes('app_session_id'),
-    "middleware must check app_session_id for clinic sessions",
+    source.includes('from "../../shared/session-cookie-names"'),
+    "middleware must consume the shared session cookie contract",
   );
   assert.ok(
-    source.includes('admin_session_id'),
-    "middleware must check admin_session_id for admin sessions",
+    source.includes("CLINIC_SESSION_COOKIE_NAME"),
+    "middleware must check the clinic boundary for clinic sessions",
+  );
+  assert.ok(
+    source.includes("ADMIN_SESSION_COOKIE_NAME"),
+    "middleware must check the admin boundary for admin sessions",
   );
   assert.ok(
     source.includes('"/dashboard/:path*"'),

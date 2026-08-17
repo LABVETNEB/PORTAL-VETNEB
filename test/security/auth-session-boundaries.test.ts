@@ -441,8 +441,9 @@ test("frontend proxy mantiene separación dashboard/admin y deja particulares fu
     "utf8",
   ).replace(/\r\n/g, "\n");
 
-  assert.ok(source.includes('const CLINIC_SESSION_COOKIE_NAME = "app_session_id";'));
-  assert.ok(source.includes('const ADMIN_SESSION_COOKIE_NAME = "admin_session_id";'));
+  assert.ok(source.includes('from "../../shared/session-cookie-names"'));
+  assert.ok(source.includes("CLINIC_SESSION_COOKIE_NAME"));
+  assert.ok(source.includes("ADMIN_SESSION_COOKIE_NAME"));
   assert.ok(source.includes("function getRequiredSessionCookieName(pathname: string): string"));
   assert.ok(source.includes("return isAdminDashboardPath(pathname)"));
   assert.ok(source.includes("? ADMIN_SESSION_COOKIE_NAME"));

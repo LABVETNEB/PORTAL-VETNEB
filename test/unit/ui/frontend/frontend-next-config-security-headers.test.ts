@@ -175,12 +175,16 @@ test("middleware session separation contract is intact after next.config changes
   const source = read(MIDDLEWARE_PATH);
 
   assert.ok(
-    source.includes('CLINIC_SESSION_COOKIE_NAME = "app_session_id"'),
-    "clinic session cookie name must be app_session_id",
+    source.includes('from "../../shared/session-cookie-names"'),
+    "proxy must consume the shared session cookie contract",
   );
   assert.ok(
-    source.includes('ADMIN_SESSION_COOKIE_NAME = "admin_session_id"'),
-    "admin session cookie name must be admin_session_id",
+    source.includes("CLINIC_SESSION_COOKIE_NAME"),
+    "clinic session boundary must come from the shared contract",
+  );
+  assert.ok(
+    source.includes("ADMIN_SESSION_COOKIE_NAME"),
+    "admin session boundary must come from the shared contract",
   );
   assert.ok(
     source.includes("return NextResponse.redirect(loginUrl)"),

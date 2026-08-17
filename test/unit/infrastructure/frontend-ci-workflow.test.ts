@@ -119,6 +119,9 @@ function shouldRunFrontend(changedPaths: readonly string[]): boolean {
   return changedPaths.some(
     (changedPath) =>
       changedPath.startsWith("frontend/") ||
+      // shared/** is a cross-runtime protocol contract compiled into the Next
+      // proxy, so a shared-only PR must still request heavy frontend validation.
+      changedPath.startsWith("shared/") ||
       frontendImpactPaths.has(changedPath),
   );
 }
@@ -320,7 +323,7 @@ test("Frontend CI excluye cambios exclusivos de una base que avanzó", () => {
   }
 });
 
-test("Frontend CI usa exactamente las seis rutas vigentes para solicitar heavy", () => {
+test("Frontend CI usa exactamente las siete rutas vigentes para solicitar heavy", () => {
   const detector = getJobBlock(readWorkflow(), "detect-frontend-impact");
 
   assertContains(
@@ -328,7 +331,7 @@ test("Frontend CI usa exactamente las seis rutas vigentes para solicitar heavy",
     `          should_run=false
           while IFS= read -r -d '' changed_path; do
             case "$changed_path" in
-              frontend/*|pnpm-lock.yaml|pnpm-workspace.yaml|package.json|.github/workflows/frontend-ci.yml|.github/workflows/e2e-completeness.yml)
+              frontend/*|shared/*|pnpm-lock.yaml|pnpm-workspace.yaml|package.json|.github/workflows/frontend-ci.yml|.github/workflows/e2e-completeness.yml)
                 should_run=true
                 break
                 ;;
@@ -338,6 +341,33 @@ test("Frontend CI usa exactamente las seis rutas vigentes para solicitar heavy",
           echo "should_run=$should_run" >> "$GITHUB_OUTPUT"`,
   );
   assertNotContains(detector, ".github/workflows/backend-ci.yml)");
+});
+
+test("Frontend CI pide heavy cuando el PR sólo cambia el contrato cross-runtime", () => {
+  // P1: shared/session-cookie-names.ts is compiled into the Next proxy. Before this
+  // route existed a shared-only PR ran Frontend CI with should_run=false and skipped
+  // lint, typecheck, build, public-surface and E2E.
+  assert.equal(shouldRunFrontend(["shared/session-cookie-names.ts"]), true);
+  assert.equal(shouldRunFrontend(["shared/nested/contract.ts"]), true);
+
+  // The benign baselines must stay unchanged.
+  assert.equal(shouldRunFrontend(["docs/audit/example.md"]), false);
+  assert.equal(shouldRunFrontend(["server/routes/example.fastify.ts"]), false);
+});
+
+test("Frontend CI distingue push path filters del detector de impacto de PR", () => {
+  // Only the pull_request impact detector gained shared/*. The push filters are a
+  // separate mechanism and were deliberately left untouched in this change.
+  const pushTriggerBlock = readWorkflow().split("pull_request:")[0];
+
+  assert.ok(
+    !pushTriggerBlock.includes("'shared/**'"),
+    "push paths no deben ampliarse en este cambio",
+  );
+  assertContains(
+    getJobBlock(readWorkflow(), "detect-frontend-impact"),
+    "shared/*|",
+  );
 });
 
 test("Frontend CI condiciona el job pesado al output del detector", () => {

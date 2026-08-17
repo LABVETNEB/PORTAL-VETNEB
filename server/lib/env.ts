@@ -1,6 +1,12 @@
 import "dotenv/config";
 import { z } from "zod";
 
+import {
+  ADMIN_SESSION_COOKIE_NAME,
+  CLINIC_SESSION_COOKIE_NAME,
+} from "../../shared/session-cookie-names.ts";
+import { resolveParticularSessionCookieName } from "./session-cookie-names.ts";
+
 const emptyToUndefined = (value: unknown) => {
   if (typeof value !== "string") return value;
   const trimmed = value.trim();
@@ -84,11 +90,6 @@ const envSchema = z.object({
   SUPABASE_ANON_KEY: z.preprocess(emptyToUndefined, z.string().min(1)),
   SUPABASE_SERVICE_ROLE_KEY: z.preprocess(emptyToUndefined, z.string().min(1)),
   SUPABASE_STORAGE_BUCKET: z.preprocess(
-    emptyToUndefined,
-    z.string().min(1).optional(),
-  ),
-  COOKIE_NAME: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
-  ADMIN_COOKIE_NAME: z.preprocess(
     emptyToUndefined,
     z.string().min(1).optional(),
   ),
@@ -207,10 +208,11 @@ export const ENV = {
   supabaseAnonKey: rawEnv.SUPABASE_ANON_KEY,
   supabaseServiceRoleKey: rawEnv.SUPABASE_SERVICE_ROLE_KEY,
   supabaseStorageBucket: rawEnv.SUPABASE_STORAGE_BUCKET ?? "reports",
-  cookieName: rawEnv.COOKIE_NAME ?? "app_session_id",
-  adminCookieName: rawEnv.ADMIN_COOKIE_NAME ?? "admin_session_id",
-  particularCookieName:
-    rawEnv.PARTICULAR_COOKIE_NAME ?? "particular_session_id",
+  cookieName: CLINIC_SESSION_COOKIE_NAME,
+  adminCookieName: ADMIN_SESSION_COOKIE_NAME,
+  particularCookieName: resolveParticularSessionCookieName(
+    rawEnv.PARTICULAR_COOKIE_NAME,
+  ),
   corsOrigins,
   publicSiteUrl,
   trustProxy: rawEnv.TRUST_PROXY ?? 1,

@@ -320,12 +320,16 @@ test("cookie persistence contract: Next.js proxy guards dashboard using cookie p
     "middleware must read cookies from request to protect dashboard",
   );
   assert.ok(
-    source.includes("app_session_id"),
-    "middleware must check app_session_id for clinic dashboard",
+    source.includes('from "../../shared/session-cookie-names"'),
+    "middleware must consume the shared session cookie contract",
   );
   assert.ok(
-    source.includes("admin_session_id"),
-    "middleware must check admin_session_id for admin dashboard",
+    source.includes("CLINIC_SESSION_COOKIE_NAME"),
+    "middleware must check the clinic boundary for the clinic dashboard",
+  );
+  assert.ok(
+    source.includes("ADMIN_SESSION_COOKIE_NAME"),
+    "middleware must check the admin boundary for the admin dashboard",
   );
   assert.equal(
     source.includes("sessionStorage"),

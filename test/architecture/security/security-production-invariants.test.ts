@@ -51,21 +51,10 @@ test("ENV mantiene cookies de sesión separadas y política productiva segura", 
   const file = "server/lib/env.ts";
   const source = read(file);
 
-  assertContains(
-    source,
-    'cookieName: rawEnv.COOKIE_NAME ?? "app_session_id"',
-    file,
-  );
-  assertContains(
-    source,
-    'adminCookieName: rawEnv.ADMIN_COOKIE_NAME ?? "admin_session_id"',
-    file,
-  );
-  assertContains(
-    source,
-    'rawEnv.PARTICULAR_COOKIE_NAME ?? "particular_session_id"',
-    file,
-  );
+  assertContains(source, 'from "../../shared/session-cookie-names.ts"', file);
+  assertContains(source, "cookieName: CLINIC_SESSION_COOKIE_NAME", file);
+  assertContains(source, "adminCookieName: ADMIN_SESSION_COOKIE_NAME", file);
+  assertContains(source, "particularCookieName: resolveParticularSessionCookieName(", file);
 
   assertContains(source, 'cookieSecure: nodeEnv === "production"', file);
   assertContains(

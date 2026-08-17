@@ -92,7 +92,7 @@ const canonicalWorkflowDigests = new Map<string, string>([
   [".github/workflows/app-version-force-update.yml", "25c69fb58364b709395f0ee920560845a83941eeb86efdd759a69af5f880d701"],
   [".github/workflows/backend-ci.yml", "ff7fca08d621e757c8aad6b71cbd4d6d48b8ebdff5113c5c29dd574102298a38"],
   [".github/workflows/e2e-completeness.yml", "3ecc24d620b47bd71c53c3371d04a62de0a616439c84236d2135afd16f0d17a7"],
-  [".github/workflows/frontend-ci.yml", "4be3b3303e74152a053d26d739fce5b0fea4cade7e54c1bb86d5c0ba248fe4eb"],
+  [".github/workflows/frontend-ci.yml", "4c062a444de53da74aa928906e828b4a6c94cc50433937c1ee99cff09cf76d8d"],
   [".github/workflows/pr-governance.yml", "4e0bf177a8581c9dd655f1ca6aa1510a823cdd976c885c4ba50b41129e4157d7"],
   [".github/workflows/qga-governance.yml", "88ed322d67eda6fbec0a7ed0fa106625a43263a4d6998d6eceb24aeee389b393"],
   [".github/workflows/visual-regression-manual.yml", "86784fe26f1f15e2ae6fb60ee8c26ef050f311bcebab72a2e1732739e035fee9"],

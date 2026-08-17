@@ -122,16 +122,23 @@ test("backend production CORS and session cookie env contract stays credential-s
     "production cookies must remain SameSite=None for credentialed browser sessions",
   );
 
+  // A04 R2: the names moved to the fixed shared contract consumed by env.ts.
+  const sharedContract = readRepoFile("shared/session-cookie-names.ts");
+
   for (const cookieName of [
     "app_session_id",
     "admin_session_id",
     "particular_session_id",
   ]) {
     assert.ok(
-      env.includes(cookieName),
+      sharedContract.includes(cookieName),
       `session cookie name ${cookieName} must remain part of the production contract`,
     );
   }
+  assert.ok(
+    env.includes('from "../../shared/session-cookie-names.ts"'),
+    "env must consume the shared session cookie contract",
+  );
 });
 
 test("critical backend routes keep credentialed CORS preflight coverage", () => {

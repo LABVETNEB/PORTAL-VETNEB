@@ -168,9 +168,10 @@ test("session cookie boundary matrix documents separated auth domains", () => {
 test("env keeps session cookie names separated and production policy secure", () => {
   const envSource = readSource("server/lib/env.ts");
 
-  assertContains(envSource, 'cookieName: rawEnv.COOKIE_NAME ?? "app_session_id"', "clinic cookie env");
-  assertContains(envSource, 'adminCookieName: rawEnv.ADMIN_COOKIE_NAME ?? "admin_session_id"', "admin cookie env");
-  assertContains(envSource, 'rawEnv.PARTICULAR_COOKIE_NAME ?? "particular_session_id"', "particular cookie env");
+  assertContains(envSource, 'from "../../shared/session-cookie-names.ts"', "shared cookie contract");
+  assertContains(envSource, "cookieName: CLINIC_SESSION_COOKIE_NAME", "clinic cookie env");
+  assertContains(envSource, "adminCookieName: ADMIN_SESSION_COOKIE_NAME", "admin cookie env");
+  assertContains(envSource, "particularCookieName: resolveParticularSessionCookieName(", "particular cookie env");
   assertContains(envSource, 'cookieSecure: nodeEnv === "production"', "cookie secure env");
   assertContains(envSource, 'cookieSameSite: (nodeEnv === "production" ? "none" : "lax")', "cookie sameSite env");
 });
