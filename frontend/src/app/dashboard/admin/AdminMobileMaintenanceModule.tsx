@@ -4,6 +4,7 @@ import {
   useEffect,
   useLayoutEffect,
   useMemo,
+  useRef,
   useState,
   useTransition,
 } from "react";
@@ -11,7 +12,7 @@ import { Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { usePagedRows } from "@/components/dashboard/usePagedRows";
-import { useAdaptiveRowsPerPage } from "@/hooks/useAdaptiveRowsPerPage";
+import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
 import {
   getAdminMaintenancePurgeDryRun,
   getAdminSchemaHealth,
@@ -28,10 +29,7 @@ import { AdminMobileOpsPager } from "./AdminMobileOpsPager";
 // Pre-measurement fallback only: the effective page size comes from the
 // measured candidates canvas (audit §20, A03 contract), never from a constant.
 const CANDIDATE_FALLBACK_ROWS = 3;
-const CANDIDATE_ROW_HEIGHT_FALLBACK_PX = 44;
-// Matches the `gap-1.5` between candidate rows so the adaptive measurement
 // accounts for the full per-row footprint, not just the row's own height.
-const CANDIDATE_ROW_GAP_PX = 6;
 
 function useIsMobileViewport() {
   const [isMobileViewport, setIsMobileViewport] = useState(false);
@@ -170,50 +168,24 @@ function MaintenanceDryRunSection() {
   const [isPending, startTransition] = useTransition();
   const [candidatesListNode, setCandidatesListNode] =
     useState<HTMLDivElement | null>(null);
-  const [firstCandidateRowNode, setFirstCandidateRowNode] =
-    useState<HTMLDivElement | null>(null);
-  const [rowHeightPx, setRowHeightPx] = useState(
-    CANDIDATE_ROW_HEIGHT_FALLBACK_PX,
-  );
-
   const candidates: MaintenancePurgeCandidateGroup[] = useMemo(
     () => snapshot?.candidates ?? [],
     [snapshot],
   );
 
-  // Row footprint comes from a real rendered row, so the derived page size
-  // tracks the actual mobile density instead of a hard-coded cardinality.
-  useLayoutEffect(() => {
-    if (!firstCandidateRowNode) {
-      return;
-    }
-
-    const measureRowHeight = () => {
-      const height = firstCandidateRowNode.getBoundingClientRect().height;
-
-      if (height > 0) {
-        setRowHeightPx(height + CANDIDATE_ROW_GAP_PX);
-      }
-    };
-
-    const observer = new ResizeObserver(measureRowHeight);
-    observer.observe(firstCandidateRowNode);
-    measureRowHeight();
-
-    return () => observer.disconnect();
-  }, [firstCandidateRowNode]);
-
-  const { rowsPerPage } = useAdaptiveRowsPerPage({
-    containerNode: candidatesListNode,
-    fallbackRows: CANDIDATE_FALLBACK_ROWS,
-    rowHeightPx,
-    minRows: 2,
+  // Pitch and gap are CSS tokens, so a taller candidate on another page can no
+  // longer re-slice this list mid-transition.
+  const { capacity: rowsPerPage } = useDashboardCanvasCapacity({
+    canvasNode: candidatesListNode,
+    fallbackItems: CANDIDATE_FALLBACK_ROWS,
+    minItems: 2,
   });
 
   // `usePagedRows` owns the page cursor and clamps it whenever the measured
   // page size grows or the dataset shrinks, so a limit change can never leave
   // the list on an out-of-range page or produce a negative offset.
   const pagedCandidates = usePagedRows(candidates, rowsPerPage);
+
   const pageCandidates = pagedCandidates.pageItems;
   const page = pagedCandidates.page + 1;
   const pageCount = pagedCandidates.pageCount;
@@ -269,15 +241,18 @@ function MaintenanceDryRunSection() {
           <div
             ref={setCandidatesListNode}
             data-admin-mobile-maintenance-candidates-list="true"
+            data-dashboard-adaptive-rows-canvas="true"
+              data-dashboard-row-pitch="regular"
+              data-dashboard-row-gap="spaced"
             className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden"
           >
             {pageCandidates.length ? (
               pageCandidates.map((candidate, index) => (
                 <div
                   key={candidate.category}
-                  ref={index === 0 ? setFirstCandidateRowNode : undefined}
                   data-admin-mobile-config-item="true"
                   data-admin-mobile-maintenance-candidate-row="true"
+                  data-dashboard-adaptive-row="true"
                   className="flex min-h-0 shrink-0 items-center justify-between gap-2 overflow-hidden rounded-md border border-vetneb-line/70 bg-card/95 px-2.5 py-1.5"
                 >
                   <div className="min-w-0">

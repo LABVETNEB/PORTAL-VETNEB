@@ -37,15 +37,18 @@ test("R-06 uses RF debounced viewport-adaptive pagination and existing filters",
   assert.ok(card.includes('"use client"'));
   assert.ok(card.includes("export const ADMIN_AUDIT_FALLBACK_ROWS = 9;"));
   assert.ok(card.includes("export const ADMIN_AUDIT_LIMIT_CAP = 32;"));
-  assert.ok(card.includes("useAdaptiveItemsPerPage"));
+  assert.ok(card.includes("useDashboardCanvasCapacity"));
   assert.ok(card.includes("effectiveLimit = rowsPerPage"));
   // The nine-row desktop page of the App Shell contract is a CEILING derived
   // from the measured region, never a floor: a floor kept nine rows at
   // 1280x720, where they spill over the pager and steal its hit-test.
+  // One owner per canvas: the mobile list keeps the RF cap, the desktop table
+  // keeps the nine-row page as its ceiling. Both floor at one.
   assert.ok(card.includes("minItems: 1,"));
-  assert.ok(card.includes("maxItems: isDesktopMeasurement"));
-  assert.ok(card.includes("? ADMIN_AUDIT_FALLBACK_ROWS"));
-  assert.ok(card.includes(": ADMIN_AUDIT_LIMIT_CAP,"));
+  assert.ok(card.includes("maxItems: ADMIN_AUDIT_LIMIT_CAP,"));
+  assert.ok(card.includes("maxItems: ADMIN_AUDIT_FALLBACK_ROWS,"));
+  assert.ok(card.includes("canvasNode: mobileBodyNode,"));
+  assert.ok(card.includes("canvasNode: desktopBodyNode,"));
   assert.ok(card.includes("getAdminAuditPage(query)"));
   assert.ok(card.includes("latestRequestRef"));
   assert.ok(card.includes("previousLimitRef"));
@@ -72,11 +75,15 @@ test("R-06 collapses AdminMobileAuditModule into a single shared-data pipeline",
   assert.ok(card.includes("<AdminMobileAuditModule"));
   assert.ok(card.includes("bodyRef={setMobileBodyNode}"));
   // The desktop container measured for `effectiveLimit` is the flex-allocated
-  // rows region owned by the card, not the content-sized table wrapper.
-  assert.ok(
-    card.includes('<div ref={setDesktopBodyNode} className="min-h-0 flex-1 py-2">'),
-  );
-  assert.ok(card.includes("desktopRowRef={setDesktopRowNode}"));
+  // rows region owned by the card, not the content-sized table wrapper. The
+  // `py-2` it used to carry is gone: padding on the measured canvas had to be
+  // subtracted by hand, and that hand-written subtrahend was half of the
+  // `floor` discontinuity that returned 8 where 9 had just been measured.
+  assert.ok(card.includes("ref={setDesktopBodyNode}"));
+  assert.ok(card.includes('className="min-h-0 flex-1"'));
+  assert.ok(card.includes('data-dashboard-canvas-reserve="table-head-dense"'));
+  // The row is no longer probed, so no ref reaches it.
+  assert.equal(card.includes("desktopRowRef"), false);
 });
 
 test("R-06 audit surfaces keep enterprise density tokens", () => {

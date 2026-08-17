@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
-import { useAdaptiveDashboardPageSize } from "@/hooks/useAdaptiveDashboardPageSize";
+import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
 
 export type LogisticsBoundedCanvasProps = {
   /** Which logistics full-route table/list this canvas bounds. */
@@ -45,88 +45,27 @@ export function LogisticsBoundedCanvas({
 }: LogisticsBoundedCanvasProps) {
   const router = useRouter();
   const replacedRef = useRef(false);
-  const [rowHeightPx, setRowHeightPx] = useState(rowFallbackPx);
-  const [headerHeightPx, setHeaderHeightPx] = useState(0);
-  const [hasMeasurableRows, setHasMeasurableRows] = useState(false);
+  const [canvasNode, setCanvasNode] = useState<HTMLElement | null>(null);
 
-  const { containerRef, itemsPerPage, isMeasured } =
-    useAdaptiveDashboardPageSize({
-      fallbackItems: currentLimit,
-      rowHeightPx,
-      headerHeightPx,
-      safetyBufferPx: 8,
-      minItems: minLimit,
-      maxItems: maxLimit,
-      enabled: !hasExplicitLimit,
-    });
-
-  // Row/header geometry comes from the real rendered rows (desktop table row,
-  // mobile row variant or metric block — whichever is visible).
-  useEffect(() => {
-    const node = containerRef.current;
-    if (!node || hasExplicitLimit) {
-      return;
-    }
-
-    let frame: number | null = null;
-
-    const measure = () => {
-      frame = null;
-
-      const thead = node.querySelector("thead");
-      const theadRect = thead?.getBoundingClientRect();
-      const nextHeaderHeight =
-        theadRect && theadRect.height > 0 ? theadRect.height : 0;
-
-      const rowCandidates = node.querySelectorAll<HTMLElement>(
-        "tbody tr:not(:has(.clinical-table-state)), [data-logistics-mobile-row], [data-logistics-metric-block]",
-      );
-      let nextRowHeight = 0;
-      for (const candidate of rowCandidates) {
-        const rect = candidate.getBoundingClientRect();
-        if (rect.height > 0) {
-          nextRowHeight = rect.height;
-          break;
-        }
-      }
-
-      setHeaderHeightPx((previous) =>
-        previous === nextHeaderHeight ? previous : nextHeaderHeight,
-      );
-      if (nextRowHeight > 0) {
-        setHasMeasurableRows(true);
-        setRowHeightPx((previous) =>
-          previous === nextRowHeight ? previous : nextRowHeight,
-        );
-      }
-    };
-
-    const scheduleMeasure = () => {
-      if (frame !== null) {
-        return;
-      }
-
-      frame = requestAnimationFrame(measure);
-    };
-
-    const observer = new ResizeObserver(scheduleMeasure);
-    observer.observe(node);
-    measure();
-
-    return () => {
-      observer.disconnect();
-      if (frame !== null) {
-        cancelAnimationFrame(frame);
-      }
-    };
-  }, [containerRef, hasExplicitLimit]);
+  // The three composite reserves this canvas used to subtract by hand — the
+  // measured `thead`, the first non-empty row and an 8px cushion — are all CSS
+  // now: the head is the reserve token it is itself locked to, and the row is
+  // the tier token. Probing them meant the URL `limit` was derived from whatever
+  // rows the server had already rendered, so the default page size depended on
+  // the page it was computed from.
+  const { capacity: itemsPerPage, measured } = useDashboardCanvasCapacity({
+    canvasNode,
+    fallbackItems: currentLimit,
+    minItems: minLimit,
+    maxItems: maxLimit,
+    enabled: !hasExplicitLimit,
+  });
 
   useEffect(() => {
     if (
       hasExplicitLimit ||
       replacedRef.current ||
-      !isMeasured ||
-      !hasMeasurableRows ||
+      !measured ||
       itemsPerPage <= 0 ||
       itemsPerPage === currentLimit
     ) {
@@ -141,18 +80,19 @@ export function LogisticsBoundedCanvas({
     basePath,
     currentLimit,
     hasExplicitLimit,
-    hasMeasurableRows,
-    isMeasured,
+    measured,
     itemsPerPage,
     router,
   ]);
 
   return (
     <div
-      ref={(node) => {
-        containerRef.current = node;
-      }}
+      ref={setCanvasNode}
       data-dashboard-table-canvas={canvas}
+      data-dashboard-adaptive-rows-canvas="true"
+      data-dashboard-row-pitch={canvas === "metricas" ? "block" : "tall"}
+      {...(canvas === "metricas" ? {} : { "data-dashboard-canvas-reserve": "table-head" })}
+      className="h-full min-h-0"
     >
       {children}
     </div>

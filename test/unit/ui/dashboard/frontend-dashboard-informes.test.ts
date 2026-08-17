@@ -240,11 +240,11 @@ test("dashboard informes server-adaptive viewport pagination contract (R-07)", (
   );
 
   assert.ok(listSource.includes('"use client";'));
-  assert.ok(listSource.includes("useAdaptiveItemsPerPage"));
-  assert.ok(listSource.includes("new ResizeObserver("));
-  assert.ok(listSource.includes("requestAnimationFrame("));
-  assert.ok(listSource.includes("cancelAnimationFrame("));
-  assert.ok(listSource.includes("observer.disconnect();"));
+  assert.ok(listSource.includes("useDashboardCanvasCapacity"));
+  assert.ok(listSource.includes("canvasNode: bodyNode,"));
+  assert.ok(listSource.includes('data-dashboard-row-pitch="card"'));
+  assert.equal(listSource.includes("cancelAnimationFrame("), false);
+  assert.equal(listSource.includes("observer.disconnect();"), false);
   // The fallback/cap constants must live in a plain (non "use client")
   // module: Next.js turns every named export of a client module into an
   // opaque client reference, so a Server Component importing a numeric

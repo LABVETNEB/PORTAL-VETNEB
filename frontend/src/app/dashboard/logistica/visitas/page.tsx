@@ -283,6 +283,7 @@ export default async function VisitasPage({
           <nav
             aria-label="Paginación de visitas"
             data-dashboard-pager="true"
+            data-dashboard-adaptive-reserved-region="pager"
             className="dashboard-pager shrink-0 border-t border-vetneb-line/70"
           >
             <span data-dashboard-pager-prev="true" className="inline-flex">

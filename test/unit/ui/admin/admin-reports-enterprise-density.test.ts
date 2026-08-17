@@ -54,7 +54,7 @@ test("Admin Informes usa paginación server-side adaptativa por viewport (HY cap
   // matchMedia second pipeline are gone (single collapsed runtime).
   assert.ok(card.includes("const REPORTS_FALLBACK_ROWS = 9;"));
   assert.ok(card.includes("const REPORTS_SUPERSET_CAP = 36;"));
-  assert.ok(card.includes("useAdaptiveItemsPerPage"));
+  assert.ok(card.includes("useDashboardCanvasCapacity"));
   assert.ok(card.includes("const effectiveLimit = rowsPerPage;"));
   assert.equal(card.includes("const PAGE_SIZE = 9;"), false);
   assert.equal(card.includes("const MOBILE_PAGE_SIZE"), false);
@@ -87,10 +87,14 @@ test("Admin Informes recomputa offset y descarta respuestas viejas (anti-race)",
     card.includes("Math.floor(currentOffset / effectiveLimit) * effectiveLimit"),
   );
 
-  // Desktop keeps the nine-row floor (App Shell contract), mobile floors at one.
+  // Desktop keeps the nine-row floor (App Shell contract), mobile floors at
+  // one. Expressed per canvas now that each presentation owns its capacity,
+  // instead of branching on whether a measured header height was non-zero.
+  assert.ok(card.includes("canvasNode: desktopBodyNode,"));
+  assert.ok(card.includes("canvasNode: mobileBodyNode,"));
   assert.ok(
     card.includes(
-      "minItems: isDesktopMeasurement ? REPORTS_FALLBACK_ROWS : 1,",
+      "minItems: REPORTS_FALLBACK_ROWS,",
     ),
   );
 });

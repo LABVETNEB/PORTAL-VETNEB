@@ -37,7 +37,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useAdaptiveItemsPerPage } from "@/hooks/useAdaptiveItemsPerPage";
+import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
+import {
+  DASHBOARD_PAGER_RESERVATION,
+  DASHBOARD_TOUCH_PAGER_RESERVATION,
+} from "@/components/dashboard/DashboardPager";
 import {
   createAdminParticularToken,
   deleteAdminParticularToken,
@@ -119,20 +123,6 @@ const TOKENS_LOAD_MORE_BATCH_SIZE = 30;
 const TOKENS_TABLE_HEADER_PX = 28;
 // Fallback item height used until a real row is measured.
 const TOKENS_ROW_HEIGHT_FALLBACK_PX = 36;
-
-type Measurement = {
-  containerNode: HTMLElement | null;
-  rowHeightPx: number;
-  headerHeightPx: number;
-};
-
-function measurementsEqual(a: Measurement, b: Measurement) {
-  return (
-    a.containerNode === b.containerNode &&
-    a.rowHeightPx === b.rowHeightPx &&
-    a.headerHeightPx === b.headerHeightPx
-  );
-}
 
 const INITIAL_FORM_STATE: AdminParticularTokenFormState = {
   clinicId: "",
@@ -543,77 +533,7 @@ export function AdminParticularTokensCard() {
     null,
   );
   const [mobileBodyNode, setMobileBodyNode] = useState<HTMLElement | null>(null);
-  const [desktopRowNode, setDesktopRowNode] = useState<HTMLElement | null>(null);
-  const [mobileRowNode, setMobileRowNode] = useState<HTMLElement | null>(null);
-  const [measurement, setMeasurement] = useState<Measurement>({
-    containerNode: null,
-    rowHeightPx: TOKENS_ROW_HEIGHT_FALLBACK_PX,
-    headerHeightPx: 0,
-  });
 
-  useLayoutEffect(() => {
-    const nodes = [
-      desktopBodyNode,
-      mobileBodyNode,
-      desktopRowNode,
-      mobileRowNode,
-    ].filter((node): node is HTMLElement => node !== null);
-    if (nodes.length === 0) {
-      return;
-    }
-
-    let frame: number | null = null;
-
-    const recompute = () => {
-      frame = null;
-
-      const mobileHeight = mobileBodyNode?.getBoundingClientRect().height ?? 0;
-      if (mobileHeight > 0 && mobileBodyNode) {
-        const rowHeight = mobileRowNode?.getBoundingClientRect().height ?? 0;
-        setMeasurement((previous) => {
-          const next: Measurement = {
-            containerNode: mobileBodyNode,
-            rowHeightPx:
-              rowHeight > 0 ? rowHeight : TOKENS_ROW_HEIGHT_FALLBACK_PX,
-            headerHeightPx: 0,
-          };
-          return measurementsEqual(previous, next) ? previous : next;
-        });
-        return;
-      }
-
-      const desktopHeight = desktopBodyNode?.getBoundingClientRect().height ?? 0;
-      if (desktopHeight > 0 && desktopBodyNode) {
-        const rowHeight = desktopRowNode?.getBoundingClientRect().height ?? 0;
-        setMeasurement((previous) => {
-          const next: Measurement = {
-            containerNode: desktopBodyNode,
-            rowHeightPx:
-              rowHeight > 0 ? rowHeight : TOKENS_ROW_HEIGHT_FALLBACK_PX,
-            headerHeightPx: TOKENS_TABLE_HEADER_PX,
-          };
-          return measurementsEqual(previous, next) ? previous : next;
-        });
-      }
-    };
-
-    const scheduleRecompute = () => {
-      if (frame === null) {
-        frame = requestAnimationFrame(recompute);
-      }
-    };
-
-    const observer = new ResizeObserver(scheduleRecompute);
-    nodes.forEach((node) => observer.observe(node));
-    scheduleRecompute();
-
-    return () => {
-      observer.disconnect();
-      if (frame !== null) {
-        cancelAnimationFrame(frame);
-      }
-    };
-  }, [desktopBodyNode, mobileBodyNode, desktopRowNode, mobileRowNode]);
 
   // The desktop table is pinned to nine populated rows at the shortest
   // supported desktop viewport (1366×768) by the App Shell contract
@@ -622,15 +542,26 @@ export function AdminParticularTokensCard() {
   // pre-adaptive fixed page size — while still adapting upward on taller
   // viewports. The mobile list (no table header) keeps a floor of one so it
   // can shrink freely on short phones. Same exception as Reports/Users-Roles.
-  const isDesktopMeasurement = measurement.headerHeightPx > 0;
-  const { itemsPerPage: rowsPerPage } = useAdaptiveItemsPerPage({
-    containerNode: measurement.containerNode,
+  // One owner per canvas. The two presentations are mutually exclusive by
+  // media query, so exactly one reports `measured` — a function of the
+  // viewport alone, with no row content, page or history in it.
+  const mobileCapacity = useDashboardCanvasCapacity({
+    canvasNode: mobileBodyNode,
     fallbackItems: TOKENS_FALLBACK_ROWS,
-    itemHeightPx: measurement.rowHeightPx,
-    headerHeightPx: measurement.headerHeightPx,
-    minItems: isDesktopMeasurement ? TOKENS_FALLBACK_ROWS : 1,
+    minItems: 1,
     maxItems: TOKENS_ADAPTIVE_MAX_ROWS,
   });
+  const desktopCapacity = useDashboardCanvasCapacity({
+    canvasNode: desktopBodyNode,
+    fallbackItems: TOKENS_FALLBACK_ROWS,
+    minItems: TOKENS_FALLBACK_ROWS,
+    maxItems: TOKENS_ADAPTIVE_MAX_ROWS,
+  });
+  const rowsPerPage = mobileCapacity.measured
+    ? mobileCapacity.capacity
+    : desktopCapacity.measured
+      ? desktopCapacity.capacity
+      : TOKENS_FALLBACK_ROWS;
 
   const selectedClinic = clinicOptions.find(
     (option) => String(option.id) === formState.clinicId,
@@ -1472,6 +1403,9 @@ export function AdminParticularTokensCard() {
         >
           <div
             ref={setDesktopBodyNode}
+            data-dashboard-adaptive-rows-canvas="true"
+              data-dashboard-row-pitch="compact"
+              data-dashboard-canvas-reserve="table-head-dense"
             className="dashboard-table-responsive hidden min-h-0 flex-1 md:block"
           >
             <Table className="table-fixed text-xs [&_th]:h-7 [&_th]:px-2 [&_td]:px-2">
@@ -1490,7 +1424,6 @@ export function AdminParticularTokensCard() {
                 {visibleTokens.map((token, index) => (
                   <TableRow
                     key={token.id}
-                    ref={index === 0 ? setDesktopRowNode : undefined}
                   >
                     <TableCell className="py-0.5">
                       <p className="truncate font-mono text-xs font-semibold text-vetneb-ink">
@@ -1543,14 +1476,16 @@ export function AdminParticularTokensCard() {
           >
             <ParticularTokensMobileList
               ref={setMobileBodyNode}
+              data-dashboard-adaptive-rows-canvas="true"
+              data-dashboard-row-pitch="regular"
               data-admin-particulars-mobile-list="true"
             >
               {visibleTokens.map((token, index) => (
                 <div
                   key={token.id}
-                  ref={index === 0 ? setMobileRowNode : undefined}
                   className="flex min-h-9 items-center gap-2 px-2.5 py-1"
                   data-admin-mobile-core-item="true"
+                    data-dashboard-adaptive-row="true"
                 >
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-mono text-xs font-semibold">
@@ -1592,8 +1527,10 @@ export function AdminParticularTokensCard() {
 
             {filteredTokens.length ? (
               <div
-                className="flex shrink-0 items-center justify-center gap-1.5 border-t border-vetneb-line/65 pt-1.5 text-xs text-muted-foreground"
+                className="dashboard-pager flex shrink-0 items-center justify-center gap-1.5 overflow-hidden border-t border-vetneb-line/65 text-xs text-muted-foreground"
+                style={DASHBOARD_TOUCH_PAGER_RESERVATION}
                 data-admin-mobile-core-pager="true"
+                data-dashboard-adaptive-reserved-region="pager"
               >
                 <Button
                   type="button"
@@ -1649,7 +1586,11 @@ export function AdminParticularTokensCard() {
             </p>
           ) : null}
 
-          <div className="mt-2 hidden min-h-10 shrink-0 items-center justify-between gap-2 border-t border-vetneb-line/65 px-1 pt-2 text-xs text-muted-foreground md:mt-1 md:flex md:min-h-8 md:pt-1">
+          <div
+            data-dashboard-adaptive-reserved-region="pager"
+            className="mt-2 hidden shrink-0 items-center justify-between gap-2 overflow-hidden border-t border-vetneb-line/65 px-1 text-xs text-muted-foreground md:mt-1 md:flex"
+            style={DASHBOARD_PAGER_RESERVATION}
+          >
             <span>
               {filteredTokens.length
                 ? `${pagedTokens.rangeStart}–${pagedTokens.rangeEnd}`

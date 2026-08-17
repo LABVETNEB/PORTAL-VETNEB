@@ -30,7 +30,8 @@ import {
   buildAdminFailedLoginAlertsCsvUrl,
   getAdminFailedLoginAlerts,
 } from "@/lib/api";
-import { useAdaptiveItemsPerPage } from "@/hooks/useAdaptiveItemsPerPage";
+import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
+import { DASHBOARD_TOUCH_PAGER_RESERVATION } from "@/components/dashboard/DashboardPager";
 import { formatDateTime } from "@/lib/utils";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { LoadingState } from "@/components/dashboard/LoadingState";
@@ -54,20 +55,6 @@ const FAILED_LOGIN_LIMIT_CAP = 25;
 const FAILED_LOGIN_TABLE_HEADER_PX = 44;
 // Fallback item height used until a real row is measured.
 const FAILED_LOGIN_ROW_HEIGHT_FALLBACK_PX = 48;
-
-type Measurement = {
-  containerNode: HTMLElement | null;
-  rowHeightPx: number;
-  headerHeightPx: number;
-};
-
-function measurementsEqual(a: Measurement, b: Measurement) {
-  return (
-    a.containerNode === b.containerNode &&
-    a.rowHeightPx === b.rowHeightPx &&
-    a.headerHeightPx === b.headerHeightPx
-  );
-}
 
 function formatSurface(value: AdminFailedLoginAlertSurface) {
   if (value === "admin") return "Admin";
@@ -133,13 +120,6 @@ export function AdminFailedLoginAlertsReadOnlyCard({
     null,
   );
   const [mobileBodyNode, setMobileBodyNode] = useState<HTMLElement | null>(null);
-  const [desktopRowNode, setDesktopRowNode] = useState<HTMLElement | null>(null);
-  const [mobileRowNode, setMobileRowNode] = useState<HTMLElement | null>(null);
-  const [measurement, setMeasurement] = useState<Measurement>({
-    containerNode: null,
-    rowHeightPx: FAILED_LOGIN_ROW_HEIGHT_FALLBACK_PX,
-    headerHeightPx: 0,
-  });
 
   const latestRequestRef = useRef(0);
   const snapshotRef = useRef<AdminFailedLoginAlertsSnapshot | null>(null);
@@ -148,78 +128,27 @@ export function AdminFailedLoginAlertsReadOnlyCard({
     snapshotRef.current = snapshot;
   }, [snapshot]);
 
-  useLayoutEffect(() => {
-    const nodes = [
-      desktopBodyNode,
-      mobileBodyNode,
-      desktopRowNode,
-      mobileRowNode,
-    ].filter((node): node is HTMLElement => node !== null);
-    if (nodes.length === 0) {
-      return;
-    }
 
-    let frame: number | null = null;
-
-    const recompute = () => {
-      frame = null;
-
-      const mobileHeight = mobileBodyNode?.getBoundingClientRect().height ?? 0;
-      if (mobileHeight > 0 && mobileBodyNode) {
-        const rowHeight = mobileRowNode?.getBoundingClientRect().height ?? 0;
-        setMeasurement((previous) => {
-          const next: Measurement = {
-            containerNode: mobileBodyNode,
-            rowHeightPx:
-              rowHeight > 0 ? rowHeight : FAILED_LOGIN_ROW_HEIGHT_FALLBACK_PX,
-            headerHeightPx: 0,
-          };
-          return measurementsEqual(previous, next) ? previous : next;
-        });
-        return;
-      }
-
-      const desktopHeight = desktopBodyNode?.getBoundingClientRect().height ?? 0;
-      if (desktopHeight > 0 && desktopBodyNode) {
-        const rowHeight = desktopRowNode?.getBoundingClientRect().height ?? 0;
-        setMeasurement((previous) => {
-          const next: Measurement = {
-            containerNode: desktopBodyNode,
-            rowHeightPx:
-              rowHeight > 0 ? rowHeight : FAILED_LOGIN_ROW_HEIGHT_FALLBACK_PX,
-            headerHeightPx: FAILED_LOGIN_TABLE_HEADER_PX,
-          };
-          return measurementsEqual(previous, next) ? previous : next;
-        });
-      }
-    };
-
-    const scheduleRecompute = () => {
-      if (frame === null) {
-        frame = requestAnimationFrame(recompute);
-      }
-    };
-
-    const observer = new ResizeObserver(scheduleRecompute);
-    nodes.forEach((node) => observer.observe(node));
-    scheduleRecompute();
-
-    return () => {
-      observer.disconnect();
-      if (frame !== null) {
-        cancelAnimationFrame(frame);
-      }
-    };
-  }, [desktopBodyNode, mobileBodyNode, desktopRowNode, mobileRowNode]);
-
-  const { itemsPerPage: rowsPerPage } = useAdaptiveItemsPerPage({
-    containerNode: measurement.containerNode,
+  // One owner per canvas. The two presentations are mutually exclusive by
+  // media query, so exactly one reports `measured` — a function of the
+  // viewport alone, with no row content, page or history in it.
+  const mobileCapacity = useDashboardCanvasCapacity({
+    canvasNode: mobileBodyNode,
     fallbackItems: FAILED_LOGIN_FALLBACK_ROWS,
-    itemHeightPx: measurement.rowHeightPx,
-    headerHeightPx: measurement.headerHeightPx,
     minItems: 1,
     maxItems: FAILED_LOGIN_LIMIT_CAP,
   });
+  const desktopCapacity = useDashboardCanvasCapacity({
+    canvasNode: desktopBodyNode,
+    fallbackItems: FAILED_LOGIN_FALLBACK_ROWS,
+    minItems: 1,
+    maxItems: FAILED_LOGIN_LIMIT_CAP,
+  });
+  const rowsPerPage = mobileCapacity.measured
+    ? mobileCapacity.capacity
+    : desktopCapacity.measured
+      ? desktopCapacity.capacity
+      : FAILED_LOGIN_FALLBACK_ROWS;
 
   // Effective server page size: the measured rows, bounded by the re-fetch
   // cap. The hook already clamps to [1, FAILED_LOGIN_LIMIT_CAP].
@@ -433,7 +362,13 @@ export function AdminFailedLoginAlertsReadOnlyCard({
           </div>
         ) : null}
 
-        <div ref={setDesktopBodyNode} className="min-h-0 flex-1">
+        <div
+          ref={setDesktopBodyNode}
+          data-dashboard-adaptive-rows-canvas="true"
+              data-dashboard-row-pitch="compact"
+              data-dashboard-canvas-reserve="table-head-dense"
+          className="min-h-0 flex-1"
+        >
           <div className="dashboard-table-responsive">
             <Table>
               <TableHeader>
@@ -452,7 +387,6 @@ export function AdminFailedLoginAlertsReadOnlyCard({
                   snapshot.failedLoginAlerts.map((alert, index) => (
                     <TableRow
                       key={alert.id}
-                      ref={index === 0 ? setDesktopRowNode : undefined}
                     >
                       <TableCell className="whitespace-nowrap font-mono text-xs text-muted-foreground">
                         #{alert.id}
@@ -513,7 +447,11 @@ export function AdminFailedLoginAlertsReadOnlyCard({
           </div>
         </div>
 
-        <div className="dashboard-table-pagination shrink-0">
+        <div
+          data-dashboard-adaptive-reserved-region="pager"
+          className="dashboard-table-pagination shrink-0 overflow-hidden"
+          style={DASHBOARD_TOUCH_PAGER_RESERVATION}
+        >
           <div className="dashboard-table-pagination-controls">
             <Button
               type="button"
@@ -573,14 +511,16 @@ export function AdminFailedLoginAlertsReadOnlyCard({
 
         <div
           ref={setMobileBodyNode}
+          data-dashboard-adaptive-rows-canvas="true"
+              data-dashboard-row-pitch="regular"
           className="min-h-0 flex-1 divide-y divide-vetneb-line/60 overflow-hidden rounded-lg border border-vetneb-line/75"
         >
           {alerts.length ? (
             alerts.map((alert, index) => (
               <article
                 key={alert.id}
-                ref={index === 0 ? setMobileRowNode : undefined}
                 data-admin-mobile-status-item="true"
+                    data-dashboard-adaptive-row="true"
                 className="flex min-h-9 items-center gap-2 overflow-hidden px-2.5 py-0.5"
               >
                 <div className="min-w-0 flex-1">

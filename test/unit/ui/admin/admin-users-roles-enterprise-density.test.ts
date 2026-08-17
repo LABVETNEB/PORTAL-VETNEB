@@ -40,7 +40,7 @@ test("PR-7A uses viewport-safe adaptive server pagination with a nine-row fallba
   assert.ok(card.includes("const USERS_ROLES_SUPERSET_CAP = 36;"));
   assert.ok(card.includes("limit: effectiveLimit"));
   assert.equal(card.includes("limit: PAGE_SIZE"), false);
-  assert.ok(card.includes("useAdaptiveItemsPerPage"));
+  assert.ok(card.includes("useDashboardCanvasCapacity"));
   assert.ok(card.includes("offset"));
   assert.ok(card.includes("getAdminUsersRoles(query)"));
   assert.ok(card.includes("offset + snapshot.users.length < snapshot.total"));

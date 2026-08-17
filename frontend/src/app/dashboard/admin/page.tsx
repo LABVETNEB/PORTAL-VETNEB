@@ -725,7 +725,18 @@ export default async function AdminPage({
               id: "dry-run",
               label: "Dry-run",
               content: (
-                <section id="admin-maintenance">
+                // The tabpanel is a flex column, so a wrapper without the
+                // height chain is a `flex: 0 1 auto` item sized by its own
+                // content. That made the card, its CardContent and the adaptive
+                // rows canvas all resolve `flex-1` against an auto height, so
+                // the canvas measured the rows it was already rendering and
+                // capacity became self-referential: the page could only shrink,
+                // and `A -> B -> A` latched one row lower instead of returning.
+                // Same chain every other workspace slot declares.
+                <section
+                  id="admin-maintenance"
+                  className="flex min-h-0 flex-1 flex-col"
+                >
                   <AdminMaintenanceDryRunCard />
                 </section>
               ),

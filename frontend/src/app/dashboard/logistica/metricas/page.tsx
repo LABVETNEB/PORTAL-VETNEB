@@ -260,6 +260,7 @@ export default async function MetricasPage({
                     key={metric.routePlanId}
                     className="surface-soft space-y-3"
                     data-logistics-metric-block="true"
+                data-dashboard-adaptive-row="true"
                   >
                     <div className="flex min-w-0 max-w-full items-center justify-between gap-2 overflow-hidden">
                       <h3 className="min-w-0 max-w-full overflow-hidden text-sm font-semibold text-vetneb-ink [overflow-wrap:anywhere]">
@@ -325,6 +326,7 @@ export default async function MetricasPage({
           <nav
             aria-label="Paginación de métricas de ruta"
             data-dashboard-pager="true"
+            data-dashboard-adaptive-reserved-region="pager"
             className="dashboard-pager shrink-0 border-t border-vetneb-line/70"
           >
             <span data-dashboard-pager-prev="true" className="inline-flex">

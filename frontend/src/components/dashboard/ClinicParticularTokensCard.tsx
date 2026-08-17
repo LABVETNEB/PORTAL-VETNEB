@@ -1,9 +1,10 @@
 "use client";
 
-import { FormEvent, useEffect, useLayoutEffect, useState } from "react";
+import { FormEvent, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { Filter } from "lucide-react";
-import { useAdaptiveRowsPerPage } from "@/hooks/useAdaptiveRowsPerPage";
+import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
+import { DASHBOARD_PAGER_RESERVATION } from "@/components/dashboard/DashboardPager";
 import {
   dashboardFilterActionClassName,
   dashboardFilterControlClassName,
@@ -71,7 +72,6 @@ type ClinicParticularTokenFilterState = {
 const TOKENS_PAGE_SIZE = 4;
 
 /** Row height fallback (px) before the first real row/card can be measured. */
-const TOKENS_ROW_HEIGHT_FALLBACK_PX = 44;
 
 // C6 (docs/audit/final-global-vetneb-50-60-pr-roadmap.md §4.3): rowsPerPage is
 // measured adaptively (up to 50 on tall viewports) but the fetch used to stay
@@ -388,72 +388,18 @@ export function ClinicParticularTokensCard() {
   // once the node actually mounts; `useState` re-renders (and therefore
   // re-runs dependent effects) exactly when the node appears.
   const [panelBodyNode, setPanelBodyNode] = useState<HTMLDivElement | null>(null);
-  const [firstDesktopRowNode, setFirstDesktopRowNode] =
-    useState<HTMLTableRowElement | null>(null);
-  const [firstMobileRowNode, setFirstMobileRowNode] =
-    useState<HTMLDivElement | null>(null);
-  const [tableHeaderNode, setTableHeaderNode] =
-    useState<HTMLTableSectionElement | null>(null);
-  const [rowHeightPx, setRowHeightPx] = useState(TOKENS_ROW_HEIGHT_FALLBACK_PX);
-  const [tableHeaderHeightPx, setTableHeaderHeightPx] = useState(0);
 
-  // Desktop table rows and mobile cards render at different real heights
-  // (the mobile card can wrap tutor/patient text across multiple lines), so
-  // a single synthetic probe underestimates one of the two layouts. Measure
-  // the first row of each list directly instead: exactly one is visible at
-  // a time (the other's ancestor is `display: none` via the `md:` classes,
-  // which collapses it to a zero-height rect), so the max of the two is
-  // always the real height of whichever layout is currently on screen —
-  // without deciding by a hardcoded breakpoint.
-  useLayoutEffect(() => {
-    if (!firstDesktopRowNode && !firstMobileRowNode) {
-      return;
-    }
-
-    const measureRowHeight = () => {
-      const desktopHeight =
-        firstDesktopRowNode?.getBoundingClientRect().height ?? 0;
-      const mobileHeight =
-        firstMobileRowNode?.getBoundingClientRect().height ?? 0;
-      const height = Math.max(desktopHeight, mobileHeight);
-      if (height > 0) {
-        setRowHeightPx(height);
-      }
-    };
-
-    const observer = new ResizeObserver(measureRowHeight);
-    if (firstDesktopRowNode) {
-      observer.observe(firstDesktopRowNode);
-    }
-    if (firstMobileRowNode) {
-      observer.observe(firstMobileRowNode);
-    }
-    measureRowHeight();
-
-    return () => observer.disconnect();
-  }, [firstDesktopRowNode, firstMobileRowNode]);
-
-  useLayoutEffect(() => {
-    if (!tableHeaderNode) {
-      return;
-    }
-
-    const measureHeaderHeight = () => {
-      setTableHeaderHeightPx(tableHeaderNode.getBoundingClientRect().height);
-    };
-
-    const observer = new ResizeObserver(measureHeaderHeight);
-    observer.observe(tableHeaderNode);
-    measureHeaderHeight();
-
-    return () => observer.disconnect();
-  }, [tableHeaderNode]);
-
-  const { rowsPerPage } = useAdaptiveRowsPerPage({
-    containerNode: panelBodyNode,
-    fallbackRows: TOKENS_PAGE_SIZE,
-    rowHeightPx,
-    headerHeightPx: tableHeaderHeightPx,
+  // Desktop rows and mobile cards render at different heights, and the mobile
+  // card wraps according to the RECORDS on screen — which is why probing them
+  // made the page size depend on the active page (page 1 and page 2 measured
+  // different heights, and the second came back shorter at 360x800). Both
+  // grammars are now locked to their tier token, and the table head is reserved
+  // by the token CSS also locks it to, so neither the rows nor the head are
+  // measured and the two observers this card used to run are gone.
+  const { capacity: rowsPerPage } = useDashboardCanvasCapacity({
+    canvasNode: panelBodyNode,
+    fallbackItems: TOKENS_PAGE_SIZE,
+    minItems: 2,
   });
   const effectiveFetchLimit = resolveTokensFetchLimit(rowsPerPage);
 
@@ -949,6 +895,9 @@ export function ClinicParticularTokensCard() {
                 <ParticularTokensPanelBody
                   ref={setPanelBodyNode}
                   data-clinic-access-list-body="true"
+                  data-dashboard-adaptive-rows-canvas="true"
+            data-dashboard-row-pitch="regular"
+            data-dashboard-canvas-reserve="table-head"
                   className="relative"
                 >
                   {filteredTokens.length ? (
@@ -959,7 +908,6 @@ export function ClinicParticularTokensCard() {
                       >
                         <table className="w-full table-fixed text-[0.8125rem]">
                           <thead
-                            ref={setTableHeaderNode}
                             className="border-b border-vetneb-line/65 bg-vetneb-surface-muted/65 text-xs font-semibold uppercase text-muted-foreground"
                           >
                             <tr>
@@ -976,7 +924,6 @@ export function ClinicParticularTokensCard() {
                             {pagedTokens.pageItems.map((token, index) => (
                               <tr
                                 key={token.id}
-                                ref={index === 0 ? setFirstDesktopRowNode : undefined}
                                 data-clinic-access-table-row="true"
                                 className="hover:bg-vetneb-cyan/8"
                               >
@@ -1036,8 +983,8 @@ export function ClinicParticularTokensCard() {
                             <div
                               key={token.id}
                               id={`clinic-particular-token-${token.id}`}
-                              ref={index === 0 ? setFirstMobileRowNode : undefined}
                               data-clinic-access-mobile-row="true"
+                  data-dashboard-adaptive-row="true"
                               className="grid min-h-11 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 py-1.5"
                             >
                               <div className="min-w-0">
@@ -1089,7 +1036,10 @@ export function ClinicParticularTokensCard() {
                 </ParticularTokensPanelBody>
 
                 <ParticularTokensPanelFooter
+                  className="min-h-0 overflow-hidden py-0"
+                  style={DASHBOARD_PAGER_RESERVATION}
                   data-clinic-access-pagination-footer="true"
+                  data-dashboard-adaptive-reserved-region="pager"
                 >
                   <div
                     data-clinic-access-pagination-controls="true"

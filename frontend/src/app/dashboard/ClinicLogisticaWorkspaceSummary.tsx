@@ -1,9 +1,9 @@
 "use client";
 
-import { useLayoutEffect, useState } from "react";
+import { useState } from "react";
 import type { FieldVisit } from "@/types";
 import { Route as RouteIcon, ExternalLink } from "lucide-react";
-import { useAdaptiveRowsPerPage } from "@/hooks/useAdaptiveRowsPerPage";
+import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { DashboardPager } from "@/components/dashboard/DashboardPager";
@@ -21,7 +21,6 @@ type Props = {
 };
 
 const VISITS_PAGE_SIZE = 3;
-const VISITS_ROW_HEIGHT_FALLBACK_PX = 44;
 
 export function ClinicLogisticaWorkspaceSummary({
   recentVisits,
@@ -30,40 +29,21 @@ export function ClinicLogisticaWorkspaceSummary({
   const [selectedVisitId, setSelectedVisitId] = useState<number | null>(null);
   const [visitsListBodyNode, setVisitsListBodyNode] =
     useState<HTMLDivElement | null>(null);
-  const [firstRowNode, setFirstRowNode] = useState<HTMLButtonElement | null>(
-    null,
-  );
-  const [rowHeightPx, setRowHeightPx] = useState(VISITS_ROW_HEIGHT_FALLBACK_PX);
 
-  useLayoutEffect(() => {
-    if (!firstRowNode) {
-      return;
-    }
-
-    const measureRowHeight = () => {
-      const height = firstRowNode.getBoundingClientRect().height;
-      if (height > 0) {
-        setRowHeightPx(height);
-      }
-    };
-
-    const observer = new ResizeObserver(measureRowHeight);
-    observer.observe(firstRowNode);
-    measureRowHeight();
-
-    return () => observer.disconnect();
-  }, [firstRowNode]);
-
-  // Adaptive density: the visible row count derives from the measured list
+  // Adaptive density: the visible row count derives from the bounded list
   // canvas (390x844 fits fewer rows than 1440x900); the fixed page size is
-  // only the pre-measurement fallback.
-  const { rowsPerPage } = useAdaptiveRowsPerPage({
-    containerNode: visitsListBodyNode,
-    fallbackRows: VISITS_PAGE_SIZE,
-    rowHeightPx,
+  // only the pre-measurement fallback. The pitch is a CSS token, so probing the
+  // rendered rows for it — which made the page size depend on the slice, and
+  // the slice on the page size — is neither needed nor possible here.
+  const { capacity: rowsPerPage } = useDashboardCanvasCapacity({
+    canvasNode: visitsListBodyNode,
+    fallbackItems: VISITS_PAGE_SIZE,
+    minItems: 2,
   });
 
   const pagedVisits = usePagedRows(recentVisits, rowsPerPage);
+
+
   const selectedVisit =
     selectedVisitId === null
       ? null
@@ -106,14 +86,16 @@ export function ClinicLogisticaWorkspaceSummary({
           <div
             ref={setVisitsListBodyNode}
             data-clinic-logistics-list-body="true"
+            data-dashboard-adaptive-rows-canvas="true"
+            data-dashboard-row-pitch="regular"
             className="flex min-h-0 flex-1 flex-col divide-y divide-vetneb-line/60 overflow-hidden"
           >
-            {pagedVisits.pageItems.map((visit, index) => (
+            {pagedVisits.pageItems.map((visit) => (
               <button
                 key={visit.id}
                 type="button"
-                ref={index === 0 ? setFirstRowNode : undefined}
                 data-clinic-logistics-row="true"
+                data-dashboard-adaptive-row="true"
                 onClick={() => setSelectedVisitId(visit.id)}
                 aria-haspopup="dialog"
                 aria-label={`Ver detalle de la visita en ${
@@ -136,6 +118,7 @@ export function ClinicLogisticaWorkspaceSummary({
 
           <div
             data-clinic-logistics-pagination-footer="true"
+            data-dashboard-adaptive-reserved-region="pager"
             className="flex shrink-0 items-center justify-center border-t border-vetneb-line/65 px-3 text-xs text-muted-foreground"
           >
             <DashboardPager

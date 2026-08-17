@@ -9,6 +9,7 @@ const NEXT_ENV_PATH = "frontend/next-env.d.ts";
 const PLAYWRIGHT_CONFIG_PATH = "frontend/playwright.config.ts";
 const NEXT_ENV_HYGIENE_HELPER_PATH =
   "frontend/e2e/helpers/restore-next-env-hygiene.mjs";
+const COHORT_RUNNER_PATH = "frontend/e2e/scripts/run-cohort.mjs";
 const DEV_ROUTES_REFERENCE = "./.next/dev/types/routes.d.ts";
 const PRODUCTION_ROUTES_REFERENCE = "./.next/types/routes.d.ts";
 
@@ -49,6 +50,23 @@ test("Playwright has a next-env hygiene teardown", () => {
   assert.ok(
     helper.includes(PRODUCTION_ROUTES_REFERENCE),
     "next-env hygiene helper must restore the production route type reference",
+  );
+});
+
+test("the cohort runner restores next-env hygiene outside Playwright's budget", () => {
+  const runner = read(COHORT_RUNNER_PATH);
+
+  assert.ok(
+    runner.includes(
+      'import { restoreNextEnvHygiene } from "../helpers/restore-next-env-hygiene.mjs";',
+    ),
+    "the runner must own the same hygiene helper as the Playwright teardown",
+  );
+  assert.match(
+    runner,
+    /try\s*\{\s*return runPlaywright\(selection, extraArgs\);\s*\}\s*finally\s*\{[\s\S]*?await restoreNextEnvHygiene\(\);/,
+    "globalTeardown is billed against globalTimeout: a timed-out run skips it, " +
+      "so the restore must also run after the Playwright process exits",
   );
 });
 

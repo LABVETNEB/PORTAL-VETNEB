@@ -183,6 +183,6 @@ test("admin reports mobile page size is measured (HY cap 36), single fetch pipel
   assert.equal(reportsSource.includes("const MOBILE_PAGE_SIZE"), false);
   assert.equal(reportsSource.includes("window.matchMedia"), false);
   assert.equal(reportsSource.includes("loadMobileReports"), false);
-  assert.ok(reportsSource.includes("useAdaptiveItemsPerPage"));
+  assert.ok(reportsSource.includes("useDashboardCanvasCapacity"));
   assert.ok(reportsSource.includes("getAdminReportWorkflow({"));
 });

@@ -578,11 +578,113 @@ La ampliación deliberada de la ventana de 24 a 100 ensanchó el pager visible d
 
 Ninguna de estas cuatro correcciones implementa A05 ni A06: no hay reserva geométrica estable, ni unificación de hooks, ni cambio de límites, breakpoints o algoritmo adaptativo (§20.5, §48).
 
+**Correcciones adicionales descubiertas durante la captura ejecutable de A03 (pre-baseline).** La matriz completa de 15 × 13 no pudo cerrarse hasta corregir cinco defectos reales que sólo son visibles al ejercer una transición de página en los 13 viewports. Ninguno es A05 ni A06: no hay reserva geométrica, ni hook unificado, ni `limit` fijo, ni cambio de breakpoints. Son correctivos mínimos y locales que hacen **observable** el contrato ya vigente.
+
+- **Inestabilidad del pitch de fila (cinco consumidores).** `AdminReportsCard`, `AdminMaintenanceDryRunCard`, `InformesReportsList`, `ClinicParticularTokensCard` y `LogisticsRecentListCanvas` derivaban la altura de fila de **la primera fila renderizada**. Las filas no son uniformes —el marcador «Tinción» de un informe, la línea extra de un grupo de purga no soportado, el nombre de estudio o de clínica que envuelve en un teléfono angosto—, de modo que el pitch medido dependía de **qué registros** estaban en pantalla: la página 1 y la página 2 medían alturas distintas, el tamaño de página cambiaba en plena transición y el `offset` se re-anclaba contra el `limit` cambiado. En `admin-report-upload` a 834 × 1194 un solo clic en «Siguiente» emitía **cuatro** ventanas (`17@17 → 20@17 → 20@0 → 17@0`) y terminaba de vuelta en la página 1; en los otros cuatro la segunda página volvía incompleta a 360 × 800. El pitch pasa a ser una propiedad del **layout**: se mide una vez por tamaño de la región medida, se reutiliza entre cambios de página y se vuelve a medir cuando esa región cambia de tamaño. Ningún `limit` queda fijado y ninguna cardinalidad de régimen estable cambia.
+- **Precios mobile sin cardinalidad medida (paridad).** `AdminMobilePricingModule` —la única superficie de Precios visible por debajo de `md`, porque `AdminPricingEditorCard` está oculta ahí— paginaba el catálogo con la constante `CATALOG_PAGE_SIZE = 4`, de forma que el consumidor adaptativo normativo de la fila «Precios» de §20 **no era observable en 13 viewports**. El 4 sobrevive sólo como fallback previo a la medición (`CATALOG_FALLBACK_ROWS`) y la cardinalidad pasa a derivarse del canvas de catálogo realmente medido a través de `useAdaptiveRowsPerPage`, el mismo hook que ya usa el resto del dashboard. La grilla `grid-rows-4` (filas estiradas, medición autorreferencial) se sustituyó por una columna de filas dimensionadas por contenido. No cambia la API, ni la edición, ni los hooks globales.
+- **Piso mínimo de Usuarios/Roles recortando el pager a 1280 × 720.** El piso desktop de nueve filas era incondicional. A 1280 × 720 la región medida es **347,09 px** y sólo entran **siete** filas, así que la novena desbordaba la región **58,41 px**, se pintaba sobre el pager y se quedaba con el hit-test de «Siguiente» (`elementFromPoint` devolvía un `TD`): con un dataset real la paginación era **inalcanzable**. El piso pasa a ser condicional a que la región pueda alojar nueve filas de verdad — `floor((containerHeight − headerHeight) / rowHeight) ≥ 9` —, decidido con la misma región medida que ya gobierna el ajuste, sin nombre de viewport, sin breakpoint de ancho y sin media query. Además la región de filas deja de llevar padding vertical propio (4 px por lado, estrictamente dentro de esta card): esos 8 px estaban **dentro** de la caja de la que se deriva el ajuste pero **fuera** del espacio utilizable, por lo que a 1366 × 768 nueve filas (32 + 9 × 41 = 401 px) desbordaban 2,81 px la región de 402,69 px mientras la aritmética las creía adentro. Resultado medido: 1280 × 720 → 7 filas, sin desbordar, pager alcanzable; **1366 × 768 → 9 filas** con desbordamiento cero; **1440 × 900 → contrato histórico intacto**. El contrato «nueve filas pobladas» (`expectNinePopulatedRows`) sigue verde en sus dos viewports.
+
+### 20.6 Estado de A03 *(normativo)*
+
+**A03 NO está congelado.** La matriz completa de 15 × 13 se alcanzó y se validó —**195** registros primarios, **195** claves primarias únicas, **234** observaciones hoja, **234** claves hoja únicas, **169** simples, **26** `logistics-recent-list`, **39** `logistics-bounded-canvas`, **0** filas inválidas— en corridas completas en frío, y una pareja de corridas consecutivas llegó a `DRIFT_COUNT = 0` sobre las 234 hojas. El congelado **queda retenido** por un único defecto residual, no por cardinalidad ni por cobertura.
+
+**Defecto residual (bloqueante del congelado).** `logistics-recent-list` es intermitente en los viewports de teléfono más angostos (`w360x800`, `w375x812`, `w390x844`, `w412x915`, `w430x932`; ambas variantes, `recent-visits` y `recent-plans`). En aislamiento el canvas mide 127–143 px, las filas 50,2–51,3 px y la página resuelve **2** filas de forma estable en ambas páginas; bajo la matriz serial completa el pitch se congela ocasionalmente cerca de **40 px**, la página reclama **3** filas y la tercera queda recortada por el canvas zero-scroll, de modo que la segunda página exhibe 2 donde el contrato exige 3. Correcciones ya aplicadas que redujeron —sin eliminar— la ventana: pitch como propiedad del layout (sondeado en la primera página y sostenido al paginar), pitch como máximo de las filas realmente renderizadas, y observación por `ResizeObserver` de **las filas** además del canvas (una fila alcanza su altura final una o dos tramas después de montarse y ese crecimiento no redimensiona el canvas flex, así que la primera medición corta era la última tomada). El residuo es una carrera de asentamiento, no una diferencia de datos entre páginas.
+
+**Regla de congelado.** No se congela A03 hasta que dos corridas completas en frío consecutivas cierren en 195/195/234/234 con `DRIFT_COUNT = 0`. No se congela desde raws parciales, ni desde la corrida favorable de un par disparejo.
+
 **Solución preferente (§48, PR-A05):** crear una **reserva geométrica estable** — las regiones estructurales (toolbar, superbuscador, pager, encabezado) declaran su altura reservada al canvas de filas mediante variables CSS, de modo que el canvas medido sea invariante a cambios de CSS interno. El `limit` sigue adaptándose al viewport.
 **Alternativa admisible (§48, PR-A06):** medición explícita por regiones (app header · module header · toolbar · filtros · resumen · rows canvas · pager) con un solo hook unificado.
 **Solución prohibida:** fijar `limit = 12`, `limit = 16` o cualquier valor global. La paginación debe seguir adaptándose al viewport y al zero-scroll.
 
-### 20.1 Universo canónico de A03 *(normativo)*
+### 20.7 Estado supervisor de A05 e inversión controlada de dependencia *(2026-08-11)*
+
+**A05 queda CLOSED por el gate supervisor.** Los **15 consumidores canónicos** declaran una reserva geométrica estable para sus regiones estructurales; el pager compartido y la barra de acción sticky publican una huella estable antes de que el canvas adaptativo derive su capacidad. Los tres hooks existentes (`useAdaptiveItemsPerPage`, `useAdaptiveRowsPerPage` y `useAdaptiveDashboardPageSize`) se preservan: A05 no los unifica, no fija un `limit`, no cambia sus breakpoints y no implementa A06 ni A07. La implementación, su oracle y el `e2e:extended` definitivo cerraron con exit 0 sobre el worktree supervisado.
+
+La implementación verificó, en los 15 consumidores y los 13 viewports canónicos, que regiones reservadas de **32/48/64 px** y un resize en caliente conservan el `limit`, y que cambios internos de contenido no provocan refetches geométricos espurios. A06 (**hook unificado**) y A07 (**migración de los 15 consumidores al hook unificado**) permanecen **NOT_IMPLEMENTED**.
+
+> **CORRECCIÓN (2026-08-14) — el CLOSED de esta sección se apoyaba en un oracle que no medía producción.**
+> `dashboard-limit-invariance.spec.ts` **fabricaba** la reserva bajo prueba: antes de medir imponía sobre la región reservada `block-size`, `min-block-size`, `max-block-size` y `flex-basis` de 64 px con `!important`. Con la reserva impuesta por el propio test, un consumidor cuyo CSS productivo no reservaba nada medía igual una región estable, de modo que el PASSED «15/15» **no es evidencia de reserva productiva**.
+> Medido contra producción real, **10 de los 15 consumidores no declaraban reserva**: `max-block-size: none` y `flex-basis: auto` con sólo un piso `min-h-*`. Reproducción exacta en `admin-users-roles @ w1920x1080`: control interno 32→48→64 px ⇒ pager 41→57→73 px, rows canvas 699.828→683.828→667.828 px (transferencia 1:1), `limit` 18→17 y **2 requests de paginación inducidos**.
+> Las dos afirmaciones «los 15 consumidores canónicos declaran una reserva geométrica estable» y «Invariancia A05 · PASSED 15/15» quedan **anuladas para el estado anterior a esta corrección**. El estado vigente de A05 se registra en §20.8.
+
+**Inversión controlada de dependencia — estado final.** El orden conceptual del roadmap mantiene A03 → A05. A05 se adelantó deliberadamente para eliminar la realimentación geométrica que impedía congelar A03. Después de integrar A05 se ejecutaron las dos capturas Linux frías requeridas sobre el mismo SHA, con 234/234 hojas, 195/195 primarios, `INVALID = 0` y observaciones contractuales deterministas entre Cold1 y Cold2. Los baselines Win32/Linux fueron realineados únicamente con las capturas reales autorizadas y la verificación posterior cerró sin drift. Por tanto, A03 queda **FROZEN / CLOSED** y A05 queda **CLOSED**. A06 y A07 permanecen **NOT_IMPLEMENTED**.
+
+**Revisión supervisora del expected-fail de CAP-C3.** El colapso en la carga inicial no fue introducido por A05: el commit versionado `66dbda3d7e50acc30ff912f43aaaa094cce9c629` (2026-07-17), en `docs/implementation/e2e-org-5-platform-domain-organization.md`, registra que ocurre durante `page.goto`, antes de cualquier navegación por `searchParams`, reproduce con un worker y puede dejar `/dashboard/informes` limitado a una sola fila. El guard inicial queda separado del guard histórico de `searchParams` y sólo acepta esta firma: ruta `/dashboard/informes` sin query, viewport 1280 × 720, fila inicial `8401`, total 1000, `Mostrando 1-1`, página y pager `1 / 1000`, datos presentes, canvas y fila con la geometría recortada conocida, pager visible, cero error/loading/empty, cero overflow global, cero respuestas HTTP ≥500 y cero `pageerror`. Un contrato por mutaciones demuestra que `limit = 2`, datos vacíos, error, loading, canvas 0, pager ausente, overflow, ruta/query distintas, HTTP 500 o `pageerror` no arman el expected-fail. CAP-C3 cerró 6/6 con 3 pases normales, 3 expected-fails históricos y 0 fallos inesperados; el first-page repeat cerró 20 pases normales, 0 expected-fails y 0 fallos inesperados.
+
+**Reconciliación A02 acotada.** La corrección legítima del pager de Usuarios/Roles descrita arriba dejó obsoletos únicamente sus registros Windows. Se recapturó esa superficie completa —**13 registros, 13 claves únicas**— y se realinearon sólo **8 viewports**, con **7 rutas métricas únicas** y **42 valores escalares** modificados. No hubo rebaseline global, cambios de tolerancia, cambios de schema ni cambios de provenance global; la captura queda identificada como reconciliación parcial A02 de esta fecha sobre el linaje `ceeb64d330fdca890af3c30ab0b74058b2d82124`. La matriz A02 completa volvió a cerrar en **21 superficies × 13 viewports = 273 combinaciones**.
+
+**Reconciliación del catálogo E2E — estado final.** El árbol físico contiene **78 specs** y los **78 pertenecen al catálogo estático**; `E2E_MANUAL_ONLY_SPECS` está vacío. No existen faltantes, duplicados ni solapamientos. El catálogo vigente contiene **19 admin**, **22 clinic**, **8 public**, **2 particular**, **18 platform** y **9 regression**. Las cohortes de ejecución vigentes contienen **44 ci**, **29 extended**, **2 evidence**, **3 visual-linux** y **78 full**. `dashboard-adaptive-limit-baseline.spec.ts` forma parte del catálogo como regression/dashboard P1 y participa en `extended/full`; A03 ya no está en estado pre-freeze ni manual-only.
+
+Evidencia de cierre observada en este worktree:
+
+| Gate | Resultado |
+|---|---|
+| Arquitectura / verificación de catálogo | **PASSED** · 6/6 + 6/6 · exit 0 |
+| A02 Usuarios/Roles, captura dirigida y post-reconciliación | **PASSED** · 13 registros únicos · exit 0 |
+| A02 completo | **PASSED** · 21/21 superficies · 273/273 combinaciones · exit 0 |
+| Unit A05 | **PASSED** · 12/12 · exit 0 |
+| Invariancia A05 | **PASSED** · 15/15 consumidores · 13 viewports · 32/48/64 px + hot resize · exit 0 |
+| CAP-C3 supervisor | **PASSED** · 6/6 · 3 normales + 3 expected-fails históricos + 0 inesperados · exit 0 |
+| CAP-C3 first-page repeat | **PASSED** · 20 normales + 0 expected-fails + 0 inesperados · exit 0 |
+| E2E `extended` supervisor de esta etapa histórica | **PASSED** · 28 specs · 222 tests · 222 expected + 0 unexpected · evidencia anterior al cierre definitivo de A03 |
+| E2E `affected` conservador | **NOT_RUN** · el correctivo quedó limitado al readiness de un spec; no cambió helper, catálogo ni infraestructura compartida |
+| Frontend lint / typecheck | **PASSED** · exit 0 / exit 0 |
+| Frontend build / `security:public-surface` | **PASSED** · evidencia previa del mismo worktree, no invalidada; no reejecutados durante esta continuación |
+
+Las dos corridas supervisoras previas fallaron únicamente en `admin-users-visual-quality-gate.spec.ts`, estados iniciales mobile 390 × 844 y 430 × 932. El fallo real no era una colección asentada en cero: la aserción prematura observaba `rewrittenUrls.length === 0` unos milisegundos después de que el wrapper móvil ya fuera visible, antes de que el `useEffect` cliente emitiera `/api/admin/users-roles`. En aislamiento, la compilación más lenta ocultaba la carrera. El readiness del spec registra ahora, antes de navegar, la respuesta GET de `/api/admin/users-roles` ya reescrita con `dataset=high-volume`, exige respuesta HTTP exitosa y sólo después evalúa estado, primera fila y métricas asentadas. Se preservan `rewrittenUrls.length > 0`, la comprobación de `dataset=high-volume`, `rowCount > 0` y todas las aserciones de total, paginación y geometría; no se añadieron retries, sleeps, tolerancias ni timeouts.
+
+El correctivo cerró **2/2** casos dirigidos, **15/15** estados del spec completo y **150/150** ejecuciones del spec con `--repeat-each=10`, todos con cero fallos inesperados y exit 0. El único `e2e:extended` posterior cerró **28 specs / 222 tests / 222 expected / 0 unexpected**, exit 0. El guard supervisor CAP-C3 permanece fail-closed y sin cambios. Por ello, en esta etapa histórica, A05 quedó **CLOSED** y A03 todavía estaba **OPEN / NOT FROZEN**; el cierre definitivo posterior de A03 se documenta en §20.8 y en la reconciliación final de esta sección. A06/A07 seguían **NOT_IMPLEMENTED**.
+
+### 20.8 Reserva de pager adoptada en producción y A05 re-medido *(2026-08-14)*
+
+**Oracle.** `dashboard-limit-invariance.spec.ts` dejó de escribir sobre la región reservada. Muta **sólo el control interno** (32/48/64 px) y **lee** la reserva: `PAGER_BLOCK_SIZE`, `PAGER_COMPUTED_BLOCK_SIZE`, `PAGER_MIN_BLOCK_SIZE`, `PAGER_MAX_BLOCK_SIZE`, `PAGER_FLEX_BASIS`, `ROWS_CANVAS_BLOCK_SIZE`, `LIMIT` y `PAGINATION_REQUESTS`. La invariancia de la reserva es ahora una aserción propia, además de las de canvas y `limit`.
+
+**Producción.** Los 10 consumidores del defecto adoptan la reserva canónica exacta declarada por la primitive (`--dash-adaptive-pager-reserved-block-size` + `block/min/max-block-size`, aplicada inline porque las utilidades de Tailwind ganan a la capa `components`). Tres magnitudes, todas derivadas de tokens existentes y ninguna inventada:
+
+| Reserva | Valor | Consumidores |
+|---|---|---|
+| `DASHBOARD_PAGER_RESERVATION` | `var(--dash-pagination-h, 2.5rem)` | pagers de pie con controles ≤32 px |
+| `DASHBOARD_TOUCH_PAGER_RESERVATION` | `max(var(--dash-pagination-h, 2.5rem), 2.5rem)` | pagers con target táctil `h-9` (piso `min-h-10` ya declarado) |
+| `DASHBOARD_INLINE_PAGER_RESERVATION` | `var(--dash-control-h, 2rem)` | cluster prev/next embebido en la toolbar (Clínicas) |
+
+Los targets táctiles **no se redujeron**: los guards `admin-mobile-ops-pager-canonical-layout` y `admin-mobile-core-pager-canonical-layout` fijan `h-9` (≥36 px) deliberadamente, así que la reserva se dimensiona al control y no al revés.
+
+| Gate | Resultado |
+|---|---|
+| A05 invariancia 32/48/64 (oracle corregido) | **PASSED** · 15/15 consumidores · 13 viewports · reserva, canvas y `limit` invariantes · 0 requests inducidas |
+| A05 aserción `hot A → B → A` de `admin-maintenance` | **FLAKY** (no es la reserva) · ver nota |
+| Unit + arquitectura (`test/unit/ui`, `test/architecture`) | **2041/2045** · 3 fallos preexistentes ajenos al cambio |
+| `e2e:visual-contract` | **PASSED** · 277 · exit 0 |
+| `e2e:admin-mobile` | **PASSED** · 133 · exit 0 |
+| lint / typecheck / build / `security:public-surface` | **PASSED** · exit 0 |
+| A03 cold-1 + cold-2 | 234/234 hojas · **DRIFT_COUNT = 0** |
+
+**A02 y A03 recapturados (win32, 2026-08-14).** Los dos fixtures se habían capturado por última vez en `df8d93b3`; después, dentro del mismo PR, aterrizaron `776e1b17` (*pitch-locked capacity engine as single owner*, que crea `computeCapacity.ts`) y `8ab5a361` (*model the collapsed row border in capacity*), que cambian deliberadamente el pitch de fila y la aritmética de capacidad. Ambos baselines quedaron obsoletos frente a su propia rama, y a ese delta se sumó después el de la reserva de pager.
+
+**El entorno quedó exonerado por control ejecutado, no por suposición.** Con el árbol productivo puesto en `df8d93b3` mediante intercambio reversible de contenido de archivo (sin comandos Git destructivos, restauración verificada byte-idéntica), esta máquina reprodujo los contratos anteriores **exactamente**:
+
+| Estado del árbol | A02 | A03 (hojas distintas) |
+|---|---|---|
+| `df8d93b3` (commit de la captura anterior) | PASSED 21/21 · exit 0 | 0/234 · 16/16 · exit 0 |
+| HEAD sin el fix de pager | FAILED · 11 superficies · 348 filas | 118/234 |
+| HEAD con el fix de pager | FAILED · 12 superficies · 363 filas | 120/234 |
+
+Atribución del delta: **entorno 0**; commits post-captura del PR **11 superficies A02 y 118/234 hojas A03**; reserva de pager **1** superficie A02 (`admin-precios`: `regions.pager.height` 42.59→36 px, el pager pasa a reservar el token canónico) y **11/234** hojas A03.
+
+Recaptura ejecutada con el mecanismo versionado, sin editar números a mano:
+
+| Gate posterior a la recaptura | Resultado |
+|---|---|
+| A02 capture (`VETNEB_A02_GEOMETRY_CAPTURE=1`) | PASSED · 21/21 · 273 registros · exit 0 |
+| A02 verificación sin capture mode | **PASSED · 21/21 · 273/273 · exit 0** |
+| A03 cold-1 | **PASSED · 16/16 · 234/234 hojas · 195/195 primarios · exit 0** |
+| A03 cold-2 | **PASSED · 16/16 · 234/234 hojas · 195/195 primarios · exit 0** |
+| A03 `DRIFT_COUNT` / `FULL_OBSERVATION_DIFF_COUNT` / `INVALID` | **0 / 0 / 0** |
+| Guard `A03 frozen baseline is complete, exact and source-backed` | **PASSED** |
+
+**Nota sobre el `hot A → B → A` de `admin-maintenance`.** Es una aserción distinta de la invariancia de la reserva y **no** la involucra: en `w1366x768` el pager mide 36 px con `max-block-size: 36px` en las cinco lecturas, y 32/48/64 px dan canvas 328 px y `limit` 4 de forma invariante. Lo que falla es que, al volver del viewport B, el canvas de filas no reexpande (328 → 244 px) y el `limit` cae 4 → 3. Incidencia observada: falla 2/2 corridas completas, **pasa 2/2 en aislamiento** (47,5 s) y pasó 2 corridas completas anteriores sobre el mismo código productivo, con la convergencia declarando dos firmas idénticas consecutivas sobre la lista aún incompleta. Es fragilidad sensible a carga del camino de *thrash* por cambio de viewport que §56.7 ya registra, agravada por el `prepare` asíncrono del módulo (re-ejecuta el dry-run). No se debilita la aserción, no se toca producción para compensarla y no se marca skip: queda declarada como riesgo residual con su firma exacta.
+
+Se preservaron orden de registros, schema, tolerancias, `baseCommit` y provenance; sólo se movieron los números win32 y `capturedAt`. `platformObservations` de A03 vuelve a `{}`: el set Linux venía del mismo commit obsoleto y no puede recapturarse desde win32, así que se retira en lugar de conservarse como contrato congelado a sabiendas incorrecto — con ello el guard versionado que exige `platformObservations: {}` vuelve a verde **sin debilitar ninguna aserción**, y una corrida Linux falla cerrada con el mensaje del propio spec. El set Linux de A02 queda intacto y **sigue obsoleto**: es riesgo residual declarado, no cubierto por esta tarea.
 
 **La unidad canónica de A03 son los 15 consumidores de hooks adaptativos inventariados en la tabla anterior**, los mismos que §40 P0-03 referencia como «15 consumidores (§20)» y que el Hecho 2 de §1.3 cuenta como «15 módulos con 15 pares (fila, fallback, cap) distintos».
 
@@ -694,7 +796,7 @@ Cada observación hoja declara su fuente mediante una **unión discriminada** de
 
 Queda prohibido, dentro de A03: elegir sólo la primera instancia de un consumidor compuesto; seleccionar una ruta «representativa» sin medir las demás; aplicar mínimo; aplicar máximo; calcular promedio; colapsar las variantes a un único valor; expandir el universo primario a 18 `moduleId`; convertir las variantes en módulos nuevos; fijar globalmente un `limit`; y corregir offsets, hooks o paginación.
 
-A03 **sólo captura el comportamiento existente**. No implementa reserva geométrica estable, nuevos breakpoints, corrección del algoritmo adaptativo, unificación de hooks, cambio de límites, cambio de `offset`, deduplicación de requests, prevención de *thrash*, ni ninguna corrección de A05 o A06. A03 depende de A01 y precede a A05 y A06 (§48). Las incoherencias que A03 descubra se **registran y documentan como riesgo**; no se corrigen en A03.
+A03 **sólo captura el comportamiento existente**. No implementa reserva geométrica estable, nuevos breakpoints, corrección del algoritmo adaptativo, unificación de hooks, cambio de límites, cambio de `offset`, deduplicación de requests, prevención de *thrash*, ni ninguna corrección de A05 o A06. A03 depende de A01 y conceptualmente precede a A05 y A06 (§48); la excepción operativa controlada que adelantó A05 para desbloquear el freeze se documenta en §20.7 y no congela A03. Las incoherencias que A03 descubra se **registran y documentan como riesgo**; no se corrigen en A03.
 
 ---
 

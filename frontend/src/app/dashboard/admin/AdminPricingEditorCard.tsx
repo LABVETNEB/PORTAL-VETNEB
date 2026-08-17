@@ -22,7 +22,7 @@ import { Input } from "@/components/ui/input";
 import { ModuleTabs } from "@/components/dashboard/ModuleTabs";
 import { CompactPager } from "@/components/dashboard/CompactPager";
 import { usePagedRows } from "@/components/dashboard/usePagedRows";
-import { useAdaptiveItemsPerPage } from "@/hooks/useAdaptiveItemsPerPage";
+import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
 import { formatDateTime } from "@/lib/utils";
 import {
   BACKEND_CONNECTION_ERROR_MESSAGE,
@@ -52,8 +52,6 @@ import {
 const PRICING_FALLBACK_ITEMS = 1;
 const PRICING_MIN_ITEMS = 1;
 const PRICING_MAX_ITEMS = 6;
-const PRICING_FORM_GAP_PX = 12;
-const PRICING_FORM_HEIGHT_FALLBACK_PX = 220;
 
 const LOAD_ERROR_MESSAGE = "No se pudieron cargar los precios. Intente nuevamente.";
 const EMPTY_STATE_MESSAGE = "No hay precios configurados.";
@@ -223,108 +221,18 @@ function PricingCategoryItems({
   // save. Observing only the first form let a later, taller errored form
   // overflow the region and push the pager out of view (PR #1465 review P2).
   //
-  // A single ResizeObserver watches every currently-rendered form and the page
-  // size is derived from the MAXIMUM form height plus the flex gap. To avoid an
-  // oscillation (an error grows a form -> fewer forms fit -> the tall form
-  // unmounts -> the measured height shrinks -> more forms fit -> the error
-  // reappears -> ...), the observed max is monotonic *within an item set*: it
-  // only grows while the active category's items are unchanged, reserving the
-  // message-area budget. It resets to the conservative fallback only when the
-  // item set truly changes (category switch or catalog reload), never per render.
-  const categorySetKey = useMemo(
-    () => items.map((item) => item.id).join(","),
-    [items],
-  );
-
+  // The page size used to come from the MAXIMUM measured form height, which
+  // closed a genuine oscillation: an error grows a form -> fewer forms fit ->
+  // the tall form unmounts -> the measured height shrinks -> more forms fit ->
+  // the error reappears. That needed a monotonic-within-item-set reservation to
+  // damp it. With the footprint declared in CSS the oscillation cannot be
+  // expressed: no form height reaches the page size, so the damping, the
+  // per-form observer and the category-keyed reset all disappear with it.
   const [formsBodyNode, setFormsBodyNode] = useState<HTMLElement | null>(null);
-  const [reservedFormHeightPx, setReservedFormHeightPx] = useState(
-    PRICING_FORM_HEIGHT_FALLBACK_PX,
-  );
 
-  const formNodesRef = useRef<Set<HTMLElement>>(new Set());
-  const observerRef = useRef<ResizeObserver | null>(null);
-  const frameRef = useRef<number | null>(null);
-  const observedMaxRef = useRef(PRICING_FORM_HEIGHT_FALLBACK_PX);
-
-  const measureForms = useCallback(() => {
-    frameRef.current = null;
-
-    let currentMax = 0;
-    for (const node of formNodesRef.current) {
-      // Reconcile unmounted forms lazily so a single observer suffices.
-      if (!node.isConnected) {
-        observerRef.current?.unobserve(node);
-        formNodesRef.current.delete(node);
-        continue;
-      }
-      const height = node.getBoundingClientRect().height;
-      if (height > currentMax) {
-        currentMax = height;
-      }
-    }
-
-    if (currentMax <= 0) {
-      return;
-    }
-
-    // Monotonic within the current item set: reserve the tallest footprint seen.
-    const nextMax = Math.max(observedMaxRef.current, currentMax);
-    if (nextMax !== observedMaxRef.current) {
-      observedMaxRef.current = nextMax;
-      setReservedFormHeightPx(nextMax);
-    }
-  }, []);
-
-  const scheduleMeasure = useCallback(() => {
-    if (frameRef.current === null) {
-      frameRef.current = requestAnimationFrame(measureForms);
-    }
-  }, [measureForms]);
-
-  const registerFormNode = useCallback(
-    (node: HTMLElement | null) => {
-      if (!node) {
-        // Unmounts are reconciled lazily in measureForms via isConnected.
-        scheduleMeasure();
-        return;
-      }
-      formNodesRef.current.add(node);
-      observerRef.current?.observe(node);
-      scheduleMeasure();
-    },
-    [scheduleMeasure],
-  );
-
-  useEffect(() => {
-    const observer = new ResizeObserver(scheduleMeasure);
-    observerRef.current = observer;
-    for (const node of formNodesRef.current) {
-      observer.observe(node);
-    }
-    scheduleMeasure();
-
-    return () => {
-      observer.disconnect();
-      observerRef.current = null;
-      if (frameRef.current !== null) {
-        cancelAnimationFrame(frameRef.current);
-        frameRef.current = null;
-      }
-    };
-  }, [scheduleMeasure]);
-
-  // Reset the conservative max ONLY when the active category/item set changes.
-  useLayoutEffect(() => {
-    observedMaxRef.current = PRICING_FORM_HEIGHT_FALLBACK_PX;
-    setReservedFormHeightPx(PRICING_FORM_HEIGHT_FALLBACK_PX);
-    scheduleMeasure();
-  }, [categorySetKey, scheduleMeasure]);
-
-  const { itemsPerPage } = useAdaptiveItemsPerPage({
-    containerNode: formsBodyNode,
+  const { capacity: itemsPerPage } = useDashboardCanvasCapacity({
+    canvasNode: formsBodyNode,
     fallbackItems: PRICING_FALLBACK_ITEMS,
-    // Footprint of the tallest visible form (incl. its message area) plus gap.
-    itemHeightPx: reservedFormHeightPx + PRICING_FORM_GAP_PX,
     minItems: PRICING_MIN_ITEMS,
     maxItems: PRICING_MAX_ITEMS,
   });
@@ -335,6 +243,9 @@ function PricingCategoryItems({
     <div className="flex min-h-0 flex-1 flex-col gap-3">
       <div
         ref={setFormsBodyNode}
+        data-dashboard-adaptive-rows-canvas="true"
+        data-dashboard-row-pitch="form"
+        data-dashboard-row-gap="wide"
         className="flex min-h-0 flex-1 flex-col gap-3 content-start"
       >
         {paged.pageItems.map((item) => {
@@ -349,8 +260,8 @@ function PricingCategoryItems({
           return (
             <form
               key={item.id}
-              ref={registerFormNode}
               data-admin-pricing-item-form
+              data-dashboard-adaptive-row="true"
               className="rounded-lg border border-vetneb-line/75 bg-vetneb-surface-raised/76 p-3.5 shadow-[0_8px_22px_rgba(15,45,62,0.07)]"
               onSubmit={(event) => {
                 event.preventDefault();

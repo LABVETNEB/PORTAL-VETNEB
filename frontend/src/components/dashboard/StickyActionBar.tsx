@@ -1,23 +1,19 @@
 "use client";
 
-import { useLayoutEffect, useRef, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Button, type ButtonProps } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 /**
  * Height ledger contribution of this bar, consumed by the dashboard substrate
- * (`styles/dashboard/zero-scroll.css`). Below `md` the bar is a fixed overlay
- * and therefore leaves the flow: whatever sits at the bottom of the surface —
- * on the logistics hub, the second list's pager — would render underneath it
- * and stop receiving pointer events. The reserve is the bar's OWN measured
- * height, so it stays correct when the action count, the label wrapping or the
- * safe-area inset change. From `md` up the bar is sticky, already occupies
- * flow, and contributes zero.
- *
- * Both out-of-flow positions count: the clinic mobile shell re-anchors the bar
- * to `absolute` so it clears the role bottom nav (see zero-scroll.css).
+ * (`styles/dashboard/zero-scroll.css`). Below `md` the bar leaves normal flow,
+ * so its route declares this stable reserve before the first layout. Publishing
+ * an intrinsic measurement after mount made the rows canvas lose half the bar
+ * height during pagination (two stacked tracks), which is the A05 feedback
+ * loop. Safe-area remains part of the declarative reservation.
  */
-const STICKY_ACTION_HEIGHT_VAR = "--dash-sticky-action-h";
+export const STICKY_ACTION_RESERVED_BLOCK_SIZE =
+  "calc(5.5625rem + env(safe-area-inset-bottom, 0px))";
 
 export type StickyActionBarAction = {
   label: string;
@@ -44,41 +40,6 @@ export function StickyActionBar({
   visible = true,
   className,
 }: StickyActionBarProps) {
-  const barRef = useRef<HTMLElement | null>(null);
-
-  useLayoutEffect(() => {
-    const root = document.documentElement;
-    const node = barRef.current;
-
-    if (!node) {
-      root.style.removeProperty(STICKY_ACTION_HEIGHT_VAR);
-      return;
-    }
-
-    const publish = () => {
-      const position = window.getComputedStyle(node).position;
-      const isOverlay = position === "fixed" || position === "absolute";
-      root.style.setProperty(
-        STICKY_ACTION_HEIGHT_VAR,
-        isOverlay ? `${node.getBoundingClientRect().height}px` : "0px",
-      );
-    };
-
-    publish();
-
-    // The bar re-measures on its own resize (action wrap, safe area) and on
-    // viewport changes, which is also what flips it between fixed and sticky.
-    const observer = new ResizeObserver(publish);
-    observer.observe(node);
-    window.addEventListener("resize", publish);
-
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", publish);
-      root.style.removeProperty(STICKY_ACTION_HEIGHT_VAR);
-    };
-  }, [visible]);
-
   if (visible === false) {
     return null;
   }
@@ -89,7 +50,6 @@ export function StickyActionBar({
 
   return (
     <section
-      ref={barRef}
       aria-label={context ? `${context} del dashboard` : "Acciones del dashboard"}
       className={cn(
         "pointer-events-none fixed inset-x-0 bottom-0 z-50 border-t border-vetneb-line/80 bg-card/95 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 shadow-md backdrop-blur md:pointer-events-auto md:sticky md:top-[4.75rem] md:bottom-auto md:rounded-lg md:border md:px-4 md:py-3 md:shadow-sm",

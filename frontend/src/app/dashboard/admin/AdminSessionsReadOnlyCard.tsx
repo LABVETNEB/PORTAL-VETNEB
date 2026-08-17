@@ -21,7 +21,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getAdminSessions, revokeAdminSession } from "@/lib/api";
-import { useAdaptiveItemsPerPage } from "@/hooks/useAdaptiveItemsPerPage";
+import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
+import { DASHBOARD_PAGER_RESERVATION } from "@/components/dashboard/DashboardPager";
 import { formatDateTime } from "@/lib/utils";
 import type {
   AdminSessionStatus,
@@ -42,20 +43,6 @@ const SESSIONS_SUPERSET_CAP = 32;
 const SESSIONS_TABLE_HEADER_PX = 32;
 // Fallback item height used until a real row is measured.
 const SESSIONS_ROW_HEIGHT_FALLBACK_PX = 36;
-
-type Measurement = {
-  containerNode: HTMLElement | null;
-  rowHeightPx: number;
-  headerHeightPx: number;
-};
-
-function measurementsEqual(a: Measurement, b: Measurement) {
-  return (
-    a.containerNode === b.containerNode &&
-    a.rowHeightPx === b.rowHeightPx &&
-    a.headerHeightPx === b.headerHeightPx
-  );
-}
 
 function formatOptionalDate(value: string | null) {
   return value ? formatDateTime(value) : "—";
@@ -144,13 +131,6 @@ export function AdminSessionsReadOnlyCard() {
     null,
   );
   const [mobileBodyNode, setMobileBodyNode] = useState<HTMLElement | null>(null);
-  const [desktopRowNode, setDesktopRowNode] = useState<HTMLElement | null>(null);
-  const [mobileRowNode, setMobileRowNode] = useState<HTMLElement | null>(null);
-  const [measurement, setMeasurement] = useState<Measurement>({
-    containerNode: null,
-    rowHeightPx: SESSIONS_ROW_HEIGHT_FALLBACK_PX,
-    headerHeightPx: 0,
-  });
 
   const latestRequestRef = useRef(0);
   const snapshotRef = useRef<AdminSessionsSnapshot | null>(null);
@@ -159,78 +139,27 @@ export function AdminSessionsReadOnlyCard() {
     snapshotRef.current = snapshot;
   }, [snapshot]);
 
-  useLayoutEffect(() => {
-    const nodes = [
-      desktopBodyNode,
-      mobileBodyNode,
-      desktopRowNode,
-      mobileRowNode,
-    ].filter((node): node is HTMLElement => node !== null);
-    if (nodes.length === 0) {
-      return;
-    }
 
-    let frame: number | null = null;
-
-    const recompute = () => {
-      frame = null;
-
-      const mobileHeight = mobileBodyNode?.getBoundingClientRect().height ?? 0;
-      if (mobileHeight > 0 && mobileBodyNode) {
-        const rowHeight = mobileRowNode?.getBoundingClientRect().height ?? 0;
-        setMeasurement((previous) => {
-          const next: Measurement = {
-            containerNode: mobileBodyNode,
-            rowHeightPx:
-              rowHeight > 0 ? rowHeight : SESSIONS_ROW_HEIGHT_FALLBACK_PX,
-            headerHeightPx: 0,
-          };
-          return measurementsEqual(previous, next) ? previous : next;
-        });
-        return;
-      }
-
-      const desktopHeight = desktopBodyNode?.getBoundingClientRect().height ?? 0;
-      if (desktopHeight > 0 && desktopBodyNode) {
-        const rowHeight = desktopRowNode?.getBoundingClientRect().height ?? 0;
-        setMeasurement((previous) => {
-          const next: Measurement = {
-            containerNode: desktopBodyNode,
-            rowHeightPx:
-              rowHeight > 0 ? rowHeight : SESSIONS_ROW_HEIGHT_FALLBACK_PX,
-            headerHeightPx: SESSIONS_TABLE_HEADER_PX,
-          };
-          return measurementsEqual(previous, next) ? previous : next;
-        });
-      }
-    };
-
-    const scheduleRecompute = () => {
-      if (frame === null) {
-        frame = requestAnimationFrame(recompute);
-      }
-    };
-
-    const observer = new ResizeObserver(scheduleRecompute);
-    nodes.forEach((node) => observer.observe(node));
-    scheduleRecompute();
-
-    return () => {
-      observer.disconnect();
-      if (frame !== null) {
-        cancelAnimationFrame(frame);
-      }
-    };
-  }, [desktopBodyNode, mobileBodyNode, desktopRowNode, mobileRowNode]);
-
-  const { itemsPerPage: rowsPerPage } = useAdaptiveItemsPerPage({
-    containerNode: measurement.containerNode,
+  // One owner per canvas. The two presentations are mutually exclusive by
+  // media query, so exactly one reports `measured` — a function of the
+  // viewport alone, with no row content, page or history in it.
+  const mobileCapacity = useDashboardCanvasCapacity({
+    canvasNode: mobileBodyNode,
     fallbackItems: SESSIONS_FALLBACK_ROWS,
-    itemHeightPx: measurement.rowHeightPx,
-    headerHeightPx: measurement.headerHeightPx,
     minItems: 1,
     maxItems: SESSIONS_SUPERSET_CAP,
   });
+  const desktopCapacity = useDashboardCanvasCapacity({
+    canvasNode: desktopBodyNode,
+    fallbackItems: SESSIONS_FALLBACK_ROWS,
+    minItems: 1,
+    maxItems: SESSIONS_SUPERSET_CAP,
+  });
+  const rowsPerPage = mobileCapacity.measured
+    ? mobileCapacity.capacity
+    : desktopCapacity.measured
+      ? desktopCapacity.capacity
+      : SESSIONS_FALLBACK_ROWS;
 
   // Effective server page size: at least the measured rows, capped at the
   // superset ceiling. The hook already clamps to [1, SESSIONS_SUPERSET_CAP].
@@ -488,6 +417,9 @@ export function AdminSessionsReadOnlyCard() {
         <div
           ref={setDesktopBodyNode}
           data-admin-sesiones-list-body="true"
+          data-dashboard-adaptive-rows-canvas="true"
+              data-dashboard-row-pitch="compact"
+              data-dashboard-canvas-reserve="table-head-dense"
           className="min-h-0 flex-1 py-1"
         >
           {sessions.length ? (
@@ -523,7 +455,6 @@ export function AdminSessionsReadOnlyCard() {
                     return (
                       <TableRow
                         key={sessionKey}
-                        ref={index === 0 ? setDesktopRowNode : undefined}
                         data-admin-sesiones-row="true"
                       >
                         <TableCell>
@@ -600,7 +531,9 @@ export function AdminSessionsReadOnlyCard() {
 
         <footer
           data-admin-sesiones-pagination="true"
-          className="dashboard-table-pagination min-h-9 shrink-0 border-t border-vetneb-line/70 px-3 py-1 text-xs text-muted-foreground sm:px-4"
+          data-dashboard-adaptive-reserved-region="pager"
+          className="dashboard-table-pagination shrink-0 overflow-hidden border-t border-vetneb-line/70 px-3 text-xs text-muted-foreground sm:px-4"
+          style={DASHBOARD_PAGER_RESERVATION}
           aria-label="Paginación de sesiones"
         >
           <span aria-live="polite">
@@ -719,6 +652,8 @@ export function AdminSessionsReadOnlyCard() {
         <div
           ref={setMobileBodyNode}
           data-admin-sesiones-list-body="true"
+          data-dashboard-adaptive-rows-canvas="true"
+              data-dashboard-row-pitch="regular"
           className="min-h-0 flex-1 divide-y divide-vetneb-line/70 overflow-hidden"
         >
           {sessions.length ? (
@@ -732,8 +667,8 @@ export function AdminSessionsReadOnlyCard() {
               return (
                 <article
                   key={sessionKey}
-                  ref={index === 0 ? setMobileRowNode : undefined}
                   data-admin-mobile-ops-item="true"
+                  data-dashboard-adaptive-row="true"
                   data-admin-sesiones-row="true"
                   className="flex min-h-9 items-center gap-2 overflow-hidden px-2 py-0.5"
                 >

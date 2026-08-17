@@ -1,13 +1,25 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page, type Request } from "@playwright/test";
 
 const POPULATED_CLINIC_COOKIE = "e2e_populated_clinic_session";
 const REPORT_ROW_ID = /^report-(\d+)$/;
+const INFORMES_PATHNAME = "/dashboard/informes";
 
 type WorkspaceState = {
   rowIds: number[];
   text: string;
   paginationText: string | null;
   summary: Record<string, string>;
+  pathname: string;
+  search: string;
+  viewport: { width: number; height: number };
+  pagerVisible: boolean;
+  errorVisible: boolean;
+  emptyVisible: boolean;
+  loadingVisible: boolean;
+  rowsCanvasHeight: number;
+  firstRowHeight: number;
+  htmlOverflowY: number;
+  bodyOverflowY: number;
 };
 
 async function setPopulatedClinicSession(page: Page) {
@@ -23,9 +35,10 @@ async function setPopulatedClinicSession(page: Page) {
 async function readWorkspaceState(page: Page): Promise<WorkspaceState> {
   return page.evaluate((rowPatternSource) => {
     const rowPattern = new RegExp(rowPatternSource);
-    const reportRows = Array.from(
+    const reportRowElements = Array.from(
       document.querySelectorAll<HTMLElement>("#reports-master-list [id]"),
-    ).flatMap((element) => {
+    ).filter((element) => rowPattern.test(element.id));
+    const reportRows = reportRowElements.flatMap((element) => {
       const match = element.id.match(rowPattern);
 
       return match ? [Number(match[1])] : [];
@@ -44,12 +57,35 @@ async function readWorkspaceState(page: Page): Promise<WorkspaceState> {
         },
       ),
     );
+    const rowsCanvas = document.querySelector<HTMLElement>(
+      '[data-informes-rows-canvas="true"]',
+    );
+    const firstRow = reportRowElements[0] ?? null;
+    const pagerRect = pagination?.getBoundingClientRect();
+    const rowsCanvasRect = rowsCanvas?.getBoundingClientRect();
+    const firstRowRect = firstRow?.getBoundingClientRect();
+    const bodyText = document.body.innerText;
+    const html = document.documentElement;
+    const body = document.body;
 
     return {
       rowIds: reportRows,
-      text: document.body.innerText,
+      text: bodyText,
       paginationText: pagination?.innerText ?? null,
       summary,
+      pathname: window.location.pathname,
+      search: window.location.search,
+      viewport: { width: window.innerWidth, height: window.innerHeight },
+      pagerVisible: Boolean(pagerRect && pagerRect.width > 0 && pagerRect.height > 0),
+      errorVisible: document.querySelector('[role="alert"]') !== null,
+      emptyVisible: bodyText.includes("No hay informes disponibles."),
+      loadingVisible:
+        document.querySelector('[aria-busy="true"]') !== null ||
+        bodyText.includes("Cargando informes"),
+      rowsCanvasHeight: rowsCanvasRect?.height ?? 0,
+      firstRowHeight: firstRowRect?.height ?? 0,
+      htmlOverflowY: Math.max(0, html.scrollHeight - html.clientHeight),
+      bodyOverflowY: Math.max(0, body.scrollHeight - body.clientHeight),
     };
   }, REPORT_ROW_ID.source);
 }
@@ -60,283 +96,330 @@ async function expectWorkspaceReady(page: Page) {
   });
 }
 
-// The adaptive page size boots from a 1-row fallback request before the
-// measured page size lands, so the summary/pager can briefly disagree with
-// the rendered rows (e.g. "1 / 1000" while 6 rows are visible). Poll until
-// rows, summary and pager agree instead of reading a single racy snapshot.
-type ExpectedWorkspaceState = {
-  rowIds: number[];
-  total: string;
-  showing: string;
-  pageOf: string | null;
-  paginationContains?: string | null;
+// ─────────────────────────────────────────────────────────────────────────────
+// Transport
+//
+// The workspace paginates through a Next Server Action, NOT through the URL:
+// `getInformesPage` is POSTed to /dashboard/informes with a `next-action`
+// header and `[{ page, pageSize, query?, status?, studyType? }]` as its
+// argument list. The URL only ever carries the FILTER state, which is why the
+// filter assertions below still read searchParams while the pager ones never
+// do. A03 classifies this same module as `server-request` /
+// `next-server-action` / `page-pagesize`.
+//
+// The response is a Flight/RSC stream, so it is used as a synchronisation
+// signal only and never parsed. Independence comes from three separate
+// sources: the REQUEST payload (window size), the fixture's deterministic ID
+// order (window contents) and the DOM (what actually rendered).
+// ─────────────────────────────────────────────────────────────────────────────
+
+type InformesAction = {
+  page: number;
+  pageSize: number;
+  query: string | null;
+  status: string | null;
+  studyType: string | null;
 };
 
-function assertWorkspaceState(
-  state: WorkspaceState,
-  expected: ExpectedWorkspaceState,
-) {
-  expect(state.rowIds).toEqual(expected.rowIds);
-  expect(state.summary.Total).toBe(expected.total);
-  expect(state.summary.Mostrando).toBe(expected.showing);
-  if (expected.pageOf !== null) {
-    expect(state.summary.Página).toBe(expected.pageOf);
+function parseInformesAction(request: Request): InformesAction | null {
+  if (request.method() !== "POST") return null;
+  if (new URL(request.url()).pathname !== INFORMES_PATHNAME) return null;
+
+  const headers = request.headers();
+  if (!Object.keys(headers).some((name) => name.toLowerCase() === "next-action")) {
+    return null;
   }
-  if (expected.paginationContains) {
-    expect(state.paginationText).toContain(expected.paginationContains);
+
+  const body = request.postData();
+  if (!body) return null;
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    return null;
   }
+  if (!Array.isArray(parsed) || typeof parsed[0] !== "object" || parsed[0] === null) {
+    return null;
+  }
+
+  const args = parsed[0] as Record<string, unknown>;
+  if (!Number.isInteger(args.page) || (args.page as number) < 1) return null;
+  if (!Number.isInteger(args.pageSize) || (args.pageSize as number) < 1) return null;
+
+  const text = (value: unknown) => (typeof value === "string" ? value : null);
+
+  return {
+    page: args.page as number,
+    pageSize: args.pageSize as number,
+    query: text(args.query),
+    status: text(args.status),
+    studyType: text(args.studyType),
+  };
 }
 
-async function expectSettledWorkspace(
+/**
+ * Collects every adaptive window request. It is armed BEFORE the trigger that
+ * causes one — navigation, filter submit or pager click — so a window that
+ * lands early is observed rather than missed.
+ */
+function observeInformesActions(page: Page) {
+  const observed: InformesAction[] = [];
+  const onRequest = (request: Request) => {
+    const action = parseInformesAction(request);
+    if (action) observed.push(action);
+  };
+
+  page.on("request", onRequest);
+  page.once("close", () => page.off("request", onRequest));
+
+  return {
+    latest: () => observed.at(-1) ?? null,
+    /** Binds the wait to the exact request AND to its terminal network event. */
+    async awaitWindow(
+      trigger: () => Promise<void>,
+      matches: (action: InformesAction) => boolean,
+      label: string,
+    ): Promise<InformesAction> {
+      const requestPromise = page.waitForRequest((request) => {
+        const action = parseInformesAction(request);
+        return action !== null && matches(action);
+      });
+
+      await trigger();
+
+      const request = await requestPromise;
+      const response = await request.response();
+      expect(response, `${label}: server action response`).not.toBeNull();
+      await response!.finished();
+
+      const action = parseInformesAction(request);
+      expect(action, `${label}: server action payload`).not.toBeNull();
+      return action!;
+    },
+    dispose: () => page.off("request", onRequest),
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Dataset
+//
+// The ORDER of these ids is a fixture contract and stays literal. The size of
+// the window that slices them is NOT: it is whatever the adaptive engine
+// measured, read back from the request payload. Each sequence is a bounded
+// prefix, so every consumer asserts the prefix is long enough before slicing —
+// a page size that outgrows it must fail loudly, never silently pass.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Unfiltered fixture order: 1000 consecutive ids from 8401. */
+const ALL_IDS = Array.from({ length: 24 }, (_, index) => 8401 + index);
+const ALL_TOTAL = 1000;
+
+/** `status=delivered` order. */
+const DELIVERED_IDS = [8403, 8404, 8408, 8412, 8416, 8420];
+const DELIVERED_TOTAL = 251;
+
+/** `query=Paciente E2E` + `status=delivered` + `studyType=Necropsia` order. */
+const COMBINED_IDS = [
+  8420, 8440, 8460, 8480, 8500, 8520, 8540, 8560, 8580, 8600, 8620, 8640,
+];
+const COMBINED_TOTAL = 50;
+
+type ExpectedWindow = {
+  orderedIds: readonly number[];
+  total: number;
+  page: number;
+};
+
+function windowFor(expected: ExpectedWindow, pageSize: number, label: string) {
+  const offset = (expected.page - 1) * pageSize;
+  // A window is bounded by the page size AND by what is left in the result set,
+  // so the last (or only) page of a small filter legitimately renders fewer
+  // rows than the measured capacity.
+  const expectedCount = Math.max(0, Math.min(expected.total, offset + pageSize) - offset);
+  expect(
+    offset + expectedCount,
+    `${label}: known id prefix (${expected.orderedIds.length}) must cover page ${expected.page} at page size ${pageSize}`,
+  ).toBeLessThanOrEqual(expected.orderedIds.length);
+
+  const rowIds = expected.orderedIds.slice(offset, offset + expectedCount);
+  const totalPages = Math.max(1, Math.ceil(expected.total / pageSize));
+
+  return {
+    rowIds,
+    total: String(expected.total),
+    showing: expected.total === 0 ? "0" : `${offset + 1}-${offset + rowIds.length}`,
+    pageOf: `${expected.page} / ${totalPages}`,
+    paginationContains: `Página ${expected.page} de ${totalPages}`,
+  };
+}
+
+/**
+ * Polls until the rendered window, the summary and the pager all agree with the
+ * page size the runtime actually requested. The adaptive engine boots from a
+ * fallback window before the measured one lands, so a single snapshot can catch
+ * rows and summary disagreeing; the poll is semantic, not a sleep.
+ */
+async function settleWindow(
   page: Page,
-  expected: ExpectedWorkspaceState,
-): Promise<WorkspaceState> {
-  let settled: WorkspaceState | null = null;
+  actions: ReturnType<typeof observeInformesActions>,
+  expected: ExpectedWindow,
+  label: string,
+): Promise<{ state: WorkspaceState; pageSize: number }> {
+  let settled: { state: WorkspaceState; pageSize: number } | null = null;
 
   await expect(async () => {
+    const latest = actions.latest();
+    expect(latest, `${label}: adaptive window request observed`).not.toBeNull();
+    expect(latest!.page, `${label}: requested page`).toBe(expected.page);
+
+    const pageSize = latest!.pageSize;
+    const target = windowFor(expected, pageSize, label);
     const state = await readWorkspaceState(page);
 
-    assertWorkspaceState(state, expected);
-    settled = state;
-    // 20s budget: under multi-file contention the dev server compiles routes
-    // on demand and the fallback → measured page-size transition can take
-    // several seconds; the poll is semantic (state coherence), not a sleep.
+    expect(state.loadingVisible, `${label}: settled (not loading)`).toBe(false);
+    expect(state.rowIds, `${label}: rendered window`).toEqual(target.rowIds);
+    expect(state.summary.Total, `${label}: total`).toBe(target.total);
+    expect(state.summary.Mostrando, `${label}: shown range`).toBe(target.showing);
+    expect(state.summary.Página, `${label}: page indicator`).toBe(target.pageOf);
+    expect(state.paginationText, `${label}: pager`).toContain(
+      target.paginationContains,
+    );
+
+    settled = { state, pageSize };
+    // 20s budget: under multi-file contention the dev server compiles routes on
+    // demand and the fallback → measured window transition can take seconds.
   }).toPass({ timeout: 20_000 });
 
   return settled!;
 }
 
-// Signature of the known adaptive collapse (E2E-STAB-1 §8.1, family of
-// #1465): a searchParams navigation remounts the informes list and its
-// adaptive page size can stay frozen at the 1-row fallback request. The
-// frozen workspace is coherent with a page size of 1: exactly one row
-// renders, "Mostrando" is a single-index range ("1-1" after a filter submit
-// that resets to page 1, "N-N" when the frozen pager advanced) and the pager
-// reports "N / total" (total pages equals the total row count).
-function isOneRowCollapse(state: WorkspaceState): boolean {
-  const total = Number(state.summary.Total);
-  const showing = /^(\d+)-(\d+)$/.exec(state.summary.Mostrando ?? "");
-  const pageOf = /^(\d+) \/ (\d+)$/.exec(state.summary.Página ?? "");
-
-  return (
-    state.rowIds.length === 1 &&
-    showing !== null &&
-    showing[1] === showing[2] &&
-    pageOf !== null &&
-    pageOf[1] === showing[1] &&
-    Number.isFinite(total) &&
-    Number(pageOf[2]) === total
-  );
-}
-
-const ONE_ROW_COLLAPSE_GUARD =
-  "Known product defect: adaptive informes page size remained on the one-row fallback after searchParams navigation.";
-
-// Semantic probe for the defect: polls with the same settle budget as
-// expectSettledWorkspace and terminates only on one of two known outcomes —
-// (A) the expected settled state, or (B) the persistent one-row collapse
-// signature above (a transient 1-row fallback that later settles correctly
-// still resolves to A). Any other state exhausts the poll budget and
-// rethrows, so unknown breakage stays an unexpected, suite-blocking failure.
-async function settleOrDetectOneRowCollapse(
-  page: Page,
-  expected: ExpectedWorkspaceState,
-): Promise<{ collapsed: boolean; state: WorkspaceState }> {
-  try {
-    const state = await expectSettledWorkspace(page, expected);
-
-    return { collapsed: false, state };
-  } catch (error) {
-    const state = await readWorkspaceState(page);
-
-    if (isOneRowCollapse(state)) {
-      return { collapsed: true, state };
-    }
-    throw error;
-  }
-}
-
-// Hydration guard for the pager: the button can be painted before React
-// attaches its handler, silently losing the first click. The click is only
-// retried while the URL has not committed the expected page, so a slow but
-// successful click is never repeated (a repeat would advance an extra page).
-//
-// The pager is itself a searchParams navigation, so it can be the step that
-// triggers the known adaptive collapse: the frozen 1-row list never commits
-// the `page` param to the URL, and re-clicking would keep advancing the
-// frozen pager one row per retry. The retry therefore stops as soon as the
-// collapse signature is observed and reports it, instead of misreading the
-// defect as a lost click. The poll terminates only on URL commit (A) or the
-// documented signature (B); any other state exhausts the budget and stays an
-// unexpected, suite-blocking failure.
-async function advanceToNextPageOrDetectCollapse(
-  page: Page,
-  expectedPage: number,
-): Promise<{ collapsed: boolean; state: WorkspaceState | null }> {
-  let collapsedState: WorkspaceState | null = null;
-
-  await expect(async () => {
-    const committed =
-      (new URL(page.url()).searchParams.get("page") ?? "1") ===
-      String(expectedPage);
-
-    if (committed) {
-      return;
-    }
-
-    const state = await readWorkspaceState(page);
-
-    if (isOneRowCollapse(state)) {
-      collapsedState = state;
-      return;
-    }
-
-    await page.getByRole("button", { name: "Página siguiente" }).click();
-    await expect(page).toHaveURL(
-      (url) => (url.searchParams.get("page") ?? "1") === String(expectedPage),
-      { timeout: 2_000 },
-    );
-  }).toPass({ timeout: 15_000 });
-
-  return { collapsed: collapsedState !== null, state: collapsedState };
-}
-
-// Hydration guard for the filter form: submitting the same filter is
-// idempotent, so the click itself can be retried until the URL reflects the
-// requested filters.
-async function submitFilters(
-  page: Page,
-  matchesUrl: (url: URL) => boolean,
-) {
+/** Hydration guard: submitting the same filter is idempotent, so the click can
+ * be retried until the URL reflects the requested filters. Filters — unlike
+ * pagination — ARE a URL contract. */
+async function submitFilters(page: Page, matchesUrl: (url: URL) => boolean) {
   await expect(async () => {
     await page.getByRole("button", { name: "Filtrar" }).click();
     await expect(page).toHaveURL(matchesUrl, { timeout: 2_000 });
   }).toPass({ timeout: 15_000 });
 }
 
-// Settled first page at the default desktop viewport (measured page size 6).
-const SETTLED_FIRST_PAGE = {
-  rowIds: [8401, 8402, 8403, 8404, 8405, 8406],
-  total: "1000",
-  showing: "1-6",
-  pageOf: "1 / 167",
-  paginationContains: "Página 1 de 167",
-} as const;
+/** Advances one page through the Server Action, never through the URL. */
+async function advanceToNextPage(
+  page: Page,
+  actions: ReturnType<typeof observeInformesActions>,
+  currentPage: number,
+  pageSize: number,
+  label: string,
+): Promise<InformesAction> {
+  return actions.awaitWindow(
+    async () => {
+      const next = page.getByRole("button", { name: "Página siguiente" });
+      await expect(next, `${label}: next-page control`).toBeEnabled();
+      await next.click();
+    },
+    (action) => action.page === currentPage + 1 && action.pageSize === pageSize,
+    label,
+  );
+}
 
-// Interacting (pager/filters) before the adaptive page size finishes its
-// fallback → measured transition can freeze the request at the 1-row fallback
-// limit, so every test settles the first page before driving the workspace.
 async function openSettledWorkspace(page: Page) {
+  const actions = observeInformesActions(page);
+
   await setPopulatedClinicSession(page);
-  await page.goto("/dashboard/informes");
+  await page.goto(INFORMES_PATHNAME);
   await expectWorkspaceReady(page);
-  return expectSettledWorkspace(page, {
-    ...SETTLED_FIRST_PAGE,
-    rowIds: [...SETTLED_FIRST_PAGE.rowIds],
-  });
+
+  const settled = await settleWindow(
+    page,
+    actions,
+    { orderedIds: ALL_IDS, total: ALL_TOTAL, page: 1 },
+    "first page",
+  );
+
+  // Hard regression guard for the adaptive capacity collapse: with 1000 reports
+  // and a full-height desktop workspace the measured window must hold more than
+  // one row. A future regression to a single row FAILS here — it is never
+  // absorbed as an expected failure.
+  expect(
+    settled.pageSize,
+    "adaptive window must not collapse to a single row at 1280x720",
+  ).toBeGreaterThan(1);
+
+  return { actions, ...settled };
 }
 
 test.describe("clinic reports workspace 1000-report fixture (CAP-C3)", () => {
   test("first page renders a bounded slice and coherent 1000-report pagination", async ({
     page,
   }) => {
-    const state = await openSettledWorkspace(page);
+    const { state } = await openSettledWorkspace(page);
+
     expect(state.text).not.toContain("Paciente E2E 0999");
   });
 
-  // Known product defect (E2E-STAB-1 follow-up, family of #1465): a
-  // searchParams navigation (pager or filter submit) can freeze the adaptive
-  // page size at the 1-row fallback (see isOneRowCollapse).
-  //
-  // The four interaction tests below are NOT skipped — every callback runs on
-  // every execution. Three of them (page 2, status filter, combined filters)
-  // carry a CONDITIONAL expected-failure guard: after each searchParams
-  // navigation they poll until they observe either the correct settled state
-  // or the documented collapse signature. Only the signature arms `test.fail`
-  // before the explicit state assertion, so the documented defect registers
-  // as an expected failure while any unknown state remains an unexpected,
-  // suite-blocking failure. When the defect is fixed (or stops reproducing)
-  // the guard never arms and the contracts automatically pass as normal
-  // tests, revealing that this guard machinery can be removed. The query
-  // search test runs as a plain passing contract: its correct result is a
-  // single row ("Mostrando 1-1 / Página 1 de 1"), observationally identical
-  // to the collapse signature, so an expected-failure guard can never fire
-  // for it.
   test("pagination advances to a later page without rendering the full fixture", async ({
     page,
   }) => {
-    await openSettledWorkspace(page);
+    const { actions, pageSize } = await openSettledWorkspace(page);
 
-    const expectedPageTwo: ExpectedWorkspaceState = {
-      rowIds: [8407, 8408, 8409, 8410, 8411, 8412],
-      total: "1000",
-      showing: "7-12",
-      pageOf: "2 / 167",
-      paginationContains: "Página 2 de 167",
-    };
-    const advanced = await advanceToNextPageOrDetectCollapse(page, 2);
-
-    test.fail(advanced.collapsed, ONE_ROW_COLLAPSE_GUARD);
-    if (advanced.state) {
-      assertWorkspaceState(advanced.state, expectedPageTwo);
-    }
-
-    await expectWorkspaceReady(page);
-    const outcome = await settleOrDetectOneRowCollapse(page, expectedPageTwo);
-
-    test.fail(outcome.collapsed, ONE_ROW_COLLAPSE_GUARD);
-    assertWorkspaceState(outcome.state, expectedPageTwo);
+    await advanceToNextPage(page, actions, 1, pageSize, "page 2");
+    await settleWindow(
+      page,
+      actions,
+      { orderedIds: ALL_IDS, total: ALL_TOTAL, page: 2 },
+      "page 2",
+    );
   });
 
   test("status filter keeps limit/offset pagination semantics in the workspace", async ({
     page,
   }) => {
-    await openSettledWorkspace(page);
+    const { actions } = await openSettledWorkspace(page);
 
     await page.getByLabel("Filtrar por estado").selectOption("delivered");
-    await submitFilters(
-      page,
-      (url) => url.searchParams.get("status") === "delivered",
+    await actions.awaitWindow(
+      () =>
+        submitFilters(page, (url) => url.searchParams.get("status") === "delivered"),
+      (action) => action.page === 1 && action.status === "delivered",
+      "status filter",
     );
 
     await expectWorkspaceReady(page);
-    const expectedFilteredPage: ExpectedWorkspaceState = {
-      rowIds: [8403, 8404, 8408, 8412, 8416, 8420],
-      total: "251",
-      showing: "1-6",
-      pageOf: "1 / 42",
-      paginationContains: "Página 1 de 42",
-    };
-    const outcome = await settleOrDetectOneRowCollapse(
+    await settleWindow(
       page,
-      expectedFilteredPage,
+      actions,
+      { orderedIds: DELIVERED_IDS, total: DELIVERED_TOTAL, page: 1 },
+      "status filter",
     );
-
-    test.fail(outcome.collapsed, ONE_ROW_COLLAPSE_GUARD);
-    assertWorkspaceState(outcome.state, expectedFilteredPage);
   });
 
-  // Plain passing contract: the correct single-result state is
-  // observationally identical to the one-row collapse signature, so the
-  // conditional guard used by the sibling tests can never arm here.
+  // Plain passing contract: this filter legitimately yields a single result, so
+  // the anti-collapse guard above deliberately does not apply here — one row is
+  // the correct answer, not a collapsed window.
   test("query search narrows the workspace through the compact filter form", async ({
     page,
   }) => {
-    await openSettledWorkspace(page);
+    const { actions } = await openSettledWorkspace(page);
 
     await page.getByLabel("Buscar informes").fill("Paciente E2E 0100");
-    await submitFilters(
-      page,
-      (url) => url.searchParams.get("query") === "Paciente E2E 0100",
+    await actions.awaitWindow(
+      () =>
+        submitFilters(
+          page,
+          (url) => url.searchParams.get("query") === "Paciente E2E 0100",
+        ),
+      (action) => action.page === 1 && action.query === "Paciente E2E 0100",
+      "query search",
     );
 
     await expectWorkspaceReady(page);
-    await expectSettledWorkspace(page, {
-      rowIds: [8500],
-      total: "1",
-      showing: "1-1",
-      pageOf: "1 / 1",
-    });
+    await settleWindow(
+      page,
+      actions,
+      { orderedIds: [8500], total: 1, page: 1 },
+      "query search",
+    );
     // R-07 made the pager an always-visible fixture of the list; a single-page
     // result keeps it mounted showing "1 de 1".
     await expect(
@@ -347,59 +430,42 @@ test.describe("clinic reports workspace 1000-report fixture (CAP-C3)", () => {
   test("combined query, status and studyType filters keep totalPages coherent", async ({
     page,
   }) => {
-    await openSettledWorkspace(page);
+    const { actions } = await openSettledWorkspace(page);
 
     await page.getByLabel("Buscar informes").fill("Paciente E2E");
     await page.getByLabel("Filtrar por estado").selectOption("delivered");
     await page.getByLabel("Filtrar por tipo de estudio").fill("Necropsia");
-    await submitFilters(page, (url) => {
-      return (
-        url.searchParams.get("query") === "Paciente E2E" &&
-        url.searchParams.get("status") === "delivered" &&
-        url.searchParams.get("studyType") === "Necropsia"
-      );
-    });
+    await actions.awaitWindow(
+      () =>
+        submitFilters(page, (url) => {
+          return (
+            url.searchParams.get("query") === "Paciente E2E" &&
+            url.searchParams.get("status") === "delivered" &&
+            url.searchParams.get("studyType") === "Necropsia"
+          );
+        }),
+      (action) =>
+        action.page === 1 &&
+        action.query === "Paciente E2E" &&
+        action.status === "delivered" &&
+        action.studyType === "Necropsia",
+      "combined filters",
+    );
 
-    // The collapse can hit either searchParams navigation independently, so
-    // the signature probe runs after the filter submit and again after the
-    // page-2 advance: if the filtered first page survives but page 2
-    // collapses, the guard arms at the second checkpoint.
     await expectWorkspaceReady(page);
-    const expectedCombinedFirstPage: ExpectedWorkspaceState = {
-      rowIds: [8420, 8440, 8460, 8480, 8500, 8520],
-      total: "50",
-      showing: "1-6",
-      pageOf: "1 / 9",
-      paginationContains: "Página 1 de 9",
-    };
-    const filtered = await settleOrDetectOneRowCollapse(
+    const filtered = await settleWindow(
       page,
-      expectedCombinedFirstPage,
+      actions,
+      { orderedIds: COMBINED_IDS, total: COMBINED_TOTAL, page: 1 },
+      "combined filters",
     );
 
-    test.fail(filtered.collapsed, ONE_ROW_COLLAPSE_GUARD);
-    assertWorkspaceState(filtered.state, expectedCombinedFirstPage);
-
-    const expectedCombinedSecondPage: ExpectedWorkspaceState = {
-      rowIds: [8540, 8560, 8580, 8600, 8620, 8640],
-      total: "50",
-      showing: "7-12",
-      pageOf: "2 / 9",
-      paginationContains: "Página 2 de 9",
-    };
-    const advanced = await advanceToNextPageOrDetectCollapse(page, 2);
-
-    test.fail(advanced.collapsed, ONE_ROW_COLLAPSE_GUARD);
-    if (advanced.state) {
-      assertWorkspaceState(advanced.state, expectedCombinedSecondPage);
-    }
-
-    const paged = await settleOrDetectOneRowCollapse(
+    await advanceToNextPage(page, actions, 1, filtered.pageSize, "combined page 2");
+    await settleWindow(
       page,
-      expectedCombinedSecondPage,
+      actions,
+      { orderedIds: COMBINED_IDS, total: COMBINED_TOTAL, page: 2 },
+      "combined page 2",
     );
-
-    test.fail(paged.collapsed, ONE_ROW_COLLAPSE_GUARD);
-    assertWorkspaceState(paged.state, expectedCombinedSecondPage);
   });
 });

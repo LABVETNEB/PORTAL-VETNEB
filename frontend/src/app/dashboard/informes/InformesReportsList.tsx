@@ -13,18 +13,12 @@ import {
   StudyTimeline,
   type StudyTimelineStep,
 } from "@/components/dashboard/StudyTimeline";
-import { useAdaptiveItemsPerPage } from "@/hooks/useAdaptiveItemsPerPage";
+import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
 import { cn, getReportStatusLabel, getReportStatusVariant, formatDate } from "@/lib/utils";
 import type { Report, ReportStatus } from "@/types";
 import { getInformesPage } from "./informes.actions";
 import { INFORMES_FALLBACK_ROWS, INFORMES_LIMIT_CAP } from "./informes.constants";
 
-const INFORMES_ROW_HEIGHT_FALLBACK_PX = 88;
-
-type Measurement = {
-  containerNode: HTMLElement | null;
-  rowHeightPx: number;
-};
 
 type ReportDetailSection = "resumen" | "archivos" | "timeline";
 
@@ -37,8 +31,20 @@ const REPORT_DETAIL_SECTIONS: Array<{
   { id: "timeline", label: "Timeline" },
 ];
 
-function measurementsEqual(a: Measurement, b: Measurement) {
-  return a.containerNode === b.containerNode && a.rowHeightPx === b.rowHeightPx;
+function normalizeOffsetForLimit(
+  currentOffset: number,
+  limit: number,
+  total: number,
+) {
+  let nextOffset = Math.floor(currentOffset / limit) * limit;
+  if (total > 0) {
+    const lastValidOffset = Math.max(
+      0,
+      (Math.ceil(total / limit) - 1) * limit,
+    );
+    nextOffset = Math.min(nextOffset, lastValidOffset);
+  }
+  return Math.max(0, nextOffset);
 }
 
 function getReportTitle(report: Report) {
@@ -132,7 +138,10 @@ export function InformesReportsList({
 }: InformesReportsListProps) {
   const [reports, setReports] = useState<Report[]>(initialReports);
   const [totalCount, setTotalCount] = useState(initialTotal);
-  const [offset, setOffset] = useState((initialPage - 1) * initialPageSize);
+  const [requestWindow, setRequestWindow] = useState({
+    limit: initialPageSize,
+    offset: (initialPage - 1) * initialPageSize,
+  });
   const [loadError, setLoadError] = useState(initialLoadError);
   const [selectedReportId, setSelectedReportId] = useState<number | null>(
     initialSelectedReportId,
@@ -142,114 +151,58 @@ export function InformesReportsList({
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
 
   const [bodyNode, setBodyNode] = useState<HTMLElement | null>(null);
-  const [rowNode, setRowNode] = useState<HTMLElement | null>(null);
-  const [measurement, setMeasurement] = useState<Measurement>({
-    containerNode: null,
-    rowHeightPx: INFORMES_ROW_HEIGHT_FALLBACK_PX,
-  });
 
   const latestRequestRef = useRef(0);
-  const totalRef = useRef(initialTotal);
 
-  useEffect(() => {
-    totalRef.current = totalCount;
-  }, [totalCount]);
-
-  useLayoutEffect(() => {
-    if (!bodyNode) {
-      return;
-    }
-
-    let frame: number | null = null;
-
-    const recompute = () => {
-      frame = null;
-
-      const containerHeight = bodyNode.getBoundingClientRect().height;
-      if (containerHeight <= 0) {
-        return;
-      }
-
-      const rowHeight = rowNode?.getBoundingClientRect().height ?? 0;
-      setMeasurement((previous) => {
-        const next: Measurement = {
-          containerNode: bodyNode,
-          rowHeightPx: rowHeight > 0 ? rowHeight : INFORMES_ROW_HEIGHT_FALLBACK_PX,
-        };
-        return measurementsEqual(previous, next) ? previous : next;
-      });
-    };
-
-    const scheduleRecompute = () => {
-      if (frame === null) {
-        frame = requestAnimationFrame(recompute);
-      }
-    };
-
-    const observer = new ResizeObserver(scheduleRecompute);
-    observer.observe(bodyNode);
-    if (rowNode) {
-      observer.observe(rowNode);
-    }
-    recompute();
-
-    return () => {
-      observer.disconnect();
-      if (frame !== null) {
-        cancelAnimationFrame(frame);
-      }
-    };
-  }, [bodyNode, rowNode]);
-
-  const { itemsPerPage: rowsPerPage } = useAdaptiveItemsPerPage({
-    containerNode: measurement.containerNode,
+  // Informes rows are not uniform — a long study name wraps on a narrow phone —
+  // so probing "the first rendered row" made the pitch depend on which reports
+  // happened to be on screen: page 1 and page 2 measured different heights, the
+  // page size changed mid-transition and a single "Página siguiente" emitted two
+  // server actions (observed at 360x800 under a full serial matrix run). The
+  // pitch is a token now, so the wrap cannot reach the page size at all.
+  const { capacity: rowsPerPage } = useDashboardCanvasCapacity({
+    canvasNode: bodyNode,
     fallbackItems: INFORMES_FALLBACK_ROWS,
-    itemHeightPx: measurement.rowHeightPx,
     minItems: 1,
     maxItems: INFORMES_LIMIT_CAP,
   });
 
   const effectiveLimit = rowsPerPage;
 
+  useLayoutEffect(() => {
+    setRequestWindow((current) => {
+      if (current.limit === effectiveLimit) {
+        return current;
+      }
+
+      return {
+        limit: effectiveLimit,
+        offset: normalizeOffsetForLimit(
+          current.offset,
+          effectiveLimit,
+          totalCount,
+        ),
+      };
+    });
+  }, [effectiveLimit, totalCount]);
+
   const query = useMemo(
     () => ({
       query: filters.query || undefined,
       status: filters.status || undefined,
       studyType: filters.studyType || undefined,
-      pageSize: effectiveLimit,
-      offset,
+      pageSize: requestWindow.limit,
+      offset: requestWindow.offset,
     }),
-    [filters.query, filters.status, filters.studyType, effectiveLimit, offset],
+    [filters.query, filters.status, filters.studyType, requestWindow],
   );
-
-  const previousLimitRef = useRef(effectiveLimit);
-  useEffect(() => {
-    if (previousLimitRef.current === effectiveLimit) {
-      return;
-    }
-    previousLimitRef.current = effectiveLimit;
-
-    setOffset((currentOffset) => {
-      let nextOffset = Math.floor(currentOffset / effectiveLimit) * effectiveLimit;
-      const total = totalRef.current;
-      if (total > 0) {
-        const lastValidOffset = Math.max(
-          0,
-          (Math.ceil(total / effectiveLimit) - 1) * effectiveLimit,
-        );
-        nextOffset = Math.min(nextOffset, lastValidOffset);
-      }
-      nextOffset = Math.max(0, nextOffset);
-      return nextOffset === currentOffset ? currentOffset : nextOffset;
-    });
-  }, [effectiveLimit]);
 
   useEffect(() => {
     const requestId = latestRequestRef.current + 1;
     latestRequestRef.current = requestId;
 
     void (async () => {
-      const page = Math.floor(offset / query.pageSize) + 1;
+      const page = Math.floor(query.offset / query.pageSize) + 1;
       const result = await getInformesPage({
         query: query.query,
         status: query.status,
@@ -263,10 +216,14 @@ export function InformesReportsList({
       }
 
       setReports(result.reports);
+      setSelectedReportId((current) =>
+        current === null || result.reports.some((report) => report.id === current)
+          ? current
+          : (result.reports[0]?.id ?? null),
+      );
       setTotalCount(result.total);
       setLoadError(result.loadError);
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
   // The measured `effectiveLimit` can shrink faster than the corrective
@@ -280,9 +237,15 @@ export function InformesReportsList({
   );
 
   const reportsTotalPages = Math.max(1, Math.ceil(totalCount / effectiveLimit));
-  const page = Math.min(Math.floor(offset / effectiveLimit) + 1, reportsTotalPages);
-  const pageStart = totalCount > 0 ? offset + 1 : 0;
-  const pageEnd = Math.min(offset + visibleReports.length, totalCount);
+  const page = Math.min(
+    Math.floor(requestWindow.offset / effectiveLimit) + 1,
+    reportsTotalPages,
+  );
+  const pageStart = totalCount > 0 ? requestWindow.offset + 1 : 0;
+  const pageEnd = Math.min(
+    requestWindow.offset + visibleReports.length,
+    totalCount,
+  );
   const hasActiveFilters = Boolean(filters.query || filters.status || filters.studyType);
 
   const selectedReport =
@@ -295,11 +258,31 @@ export function InformesReportsList({
     : [];
 
   function goToPreviousPage() {
-    setOffset((current) => Math.max(0, current - effectiveLimit));
+    setRequestWindow((current) => {
+      const currentOffset = normalizeOffsetForLimit(
+        current.offset,
+        effectiveLimit,
+        totalCount,
+      );
+      return {
+        limit: effectiveLimit,
+        offset: Math.max(0, currentOffset - effectiveLimit),
+      };
+    });
   }
 
   function goToNextPage() {
-    setOffset((current) => current + effectiveLimit);
+    setRequestWindow((current) => {
+      const currentOffset = normalizeOffsetForLimit(
+        current.offset,
+        effectiveLimit,
+        totalCount,
+      );
+      return {
+        limit: effectiveLimit,
+        offset: currentOffset + effectiveLimit,
+      };
+    });
   }
 
   function selectReport(reportId: number) {
@@ -549,6 +532,7 @@ export function InformesReportsList({
           <section
             id="reports-master-list"
             aria-labelledby="reports-list-heading"
+            data-dashboard-adaptive-reservation="true"
             className="dashboard-master-panel flex min-h-0 flex-col overflow-hidden rounded-xl border border-vetneb-line/75 bg-card/82"
           >
             <div className="shrink-0 border-b border-vetneb-line/70 px-4 py-2.5">
@@ -563,14 +547,20 @@ export function InformesReportsList({
             <div
               ref={setBodyNode}
               data-informes-rows-canvas="true"
+              data-dashboard-adaptive-rows-canvas="true"
+              data-dashboard-row-pitch="card"
               className="flex min-h-0 flex-1 flex-col divide-y divide-vetneb-line/60 overflow-hidden"
             >
               {visibleReports.map((report, index) => {
                 const isSelected = selectedReport?.id === report.id;
 
                 return (
-                  <div key={report.id} className="min-w-0 shrink-0">
-                    <div ref={index === 0 ? setRowNode : undefined}>
+                  <div
+                    key={report.id}
+                    data-dashboard-adaptive-row="true"
+                    className="min-w-0 shrink-0"
+                  >
+                    <div>
                       <button
                         type="button"
                         id={`report-${report.id}`}
@@ -640,6 +630,7 @@ export function InformesReportsList({
             <nav
               aria-label="Paginación de informes"
               data-dashboard-pager="true"
+              data-dashboard-adaptive-reserved-region="pager"
               className="dashboard-pager shrink-0 border-t border-vetneb-line/70"
             >
               <span data-dashboard-pager-prev="true" className="inline-flex">

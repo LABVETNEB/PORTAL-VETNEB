@@ -1,10 +1,10 @@
 "use client";
 
-import { Children, useLayoutEffect, useState, type ReactNode } from "react";
+import { Children, useState, type ReactNode } from "react";
 
 import { DashboardPager } from "@/components/dashboard/DashboardPager";
 import { usePagedRows } from "@/components/dashboard/usePagedRows";
-import { useAdaptiveDashboardPageSize } from "@/hooks/useAdaptiveDashboardPageSize";
+import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
 
 export type LogisticsRecentListCanvasProps = {
   /** Accessible name for the pager landmark of this list. */
@@ -17,79 +17,55 @@ export type LogisticsRecentListCanvasProps = {
  * Bounded adaptive canvas for the logistics hub "recent" lists.
  *
  * The rows stay server-rendered (the hub is a server component); this client
- * layer only bounds them: it measures its own canvas, derives how many rows
- * fit, pages the server-rendered rows client-side and keeps a centered pager
- * visible so no row is ever clipped behind the mobile bottom nav.
+ * layer only bounds them: it derives how many rows fit from the canvas
+ * geometry, pages the server-rendered rows client-side and keeps a centered
+ * pager visible so no row is ever clipped behind the mobile bottom nav.
+ *
+ * Pilot of the pitch-locked architecture. What used to live here — a probe over
+ * every rendered row for the tallest one, a `MutationObserver` re-arming those
+ * probes on each page change, a calibrator caching one frozen pitch per
+ * geometry, and a `setPage` issued from the measurement effect — was all
+ * machinery for one problem: the pitch was read from the rows, so the rows
+ * decided the page size and the page size decided which rows were read. The
+ * pitch is now a CSS token (`--dash-row-pitch`, locked onto the rows in
+ * `zero-scroll.css`), which no dataset can move, so none of that machinery has
+ * anything left to do.
+ *
+ * `minItems: 1`: the floor of two was artificial. On the shortest phones the
+ * canvas is smaller than two rows, and a floor of two forced a row the canvas
+ * could not hold, which `overflow: hidden` then clipped.
  */
 export function LogisticsRecentListCanvas({
   pagerAriaLabel,
   children,
 }: LogisticsRecentListCanvasProps) {
   const items = Children.toArray(children);
-  const [rowHeightPx, setRowHeightPx] = useState(52);
 
-  // `minItems: 1`: the floor of two was an artificial one. On the shortest
-  // phones the measured canvas is smaller than two rows, so a floor of two
-  // forced a row the canvas could not hold and `overflow: hidden` clipped it —
-  // the cardinality stopped being the measured one. The hook stays the sole
-  // owner of it (`floor(usable / measuredRowHeight)` clamped); this only lets
-  // the natural result reach one row where one row is what fits. Same floor the
-  // other mobile lists of the dashboard already use.
-  const { containerRef, itemsPerPage } = useAdaptiveDashboardPageSize({
+  // State, not a ref: the capacity owner keys its single observer on this node,
+  // so it has to re-run when the node actually attaches.
+  const [canvasNode, setCanvasNode] = useState<HTMLElement | null>(null);
+
+  const { capacity } = useDashboardCanvasCapacity({
+    canvasNode,
     fallbackItems: 3,
-    rowHeightPx,
-    safetyBufferPx: 8,
     minItems: 1,
     maxItems: 12,
   });
 
-  useLayoutEffect(() => {
-    const node = containerRef.current;
-    if (!node) {
-      return;
-    }
-
-    let frame: number | null = null;
-
-    const measure = () => {
-      frame = null;
-      const row = node.querySelector(".dashboard-list-row");
-      const height = row?.getBoundingClientRect().height ?? 0;
-      if (height > 0) {
-        setRowHeightPx((previous) => (previous === height ? previous : height));
-      }
-    };
-
-    const scheduleMeasure = () => {
-      if (frame !== null) {
-        return;
-      }
-
-      frame = requestAnimationFrame(measure);
-    };
-
-    const observer = new ResizeObserver(scheduleMeasure);
-    observer.observe(node);
-    measure();
-
-    return () => {
-      observer.disconnect();
-      if (frame !== null) {
-        cancelAnimationFrame(frame);
-      }
-    };
-  }, [containerRef]);
-
-  const paged = usePagedRows(items, itemsPerPage);
+  const paged = usePagedRows(items, capacity);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+    <div
+      data-dashboard-adaptive-reservation="true"
+      className="flex min-h-0 flex-1 flex-col overflow-hidden"
+    >
       <div
-        ref={(node) => {
-          containerRef.current = node;
-        }}
+        ref={setCanvasNode}
         data-logistics-recent-list-canvas="true"
-        className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden"
+        data-dashboard-adaptive-rows-canvas="true"
+        data-dashboard-row-pitch="tall"
+        data-dashboard-row-gap="spaced"
+        className="flex min-h-0 flex-1 flex-col overflow-hidden"
       >
         {paged.pageItems}
       </div>

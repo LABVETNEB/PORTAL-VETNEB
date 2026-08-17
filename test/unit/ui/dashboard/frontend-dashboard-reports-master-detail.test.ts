@@ -98,6 +98,8 @@ test("dashboard informes composes profile-layout list, selected report detail, t
   assert.ok(listSource.includes("selectedReportId === null"));
   assert.ok(listSource.includes("? (reports[0] ?? null)"));
   assert.ok(listSource.includes(": (reports.find((report) => report.id === selectedReportId) ?? null)"));
+  assert.ok(listSource.includes("result.reports.some((report) => report.id === current)"));
+  assert.ok(listSource.includes(": (result.reports[0]?.id ?? null)"));
   assert.ok(listSource.includes('id="reports-master-list"'));
   assert.ok(listSource.includes('id="report-detail"'));
   assert.ok(listSource.includes("Línea de tiempo del estudio"));
@@ -147,8 +149,16 @@ test("dashboard informes server-side pagination controls and compact summary", (
 test("dashboard informes pagination is server-adaptive and does not use client-side array filtering", () => {
   const source = read(INFORMES_LIST_PATH);
 
-  assert.ok(source.includes("useAdaptiveItemsPerPage"));
+  assert.ok(source.includes("useDashboardCanvasCapacity"));
   assert.ok(source.includes("effectiveLimit = rowsPerPage"));
+  assert.ok(source.includes("function normalizeOffsetForLimit("));
+  assert.ok(source.includes("const [requestWindow, setRequestWindow] = useState({"));
+  assert.ok(source.includes("if (current.limit === effectiveLimit)"));
+  assert.ok(source.includes("pageSize: requestWindow.limit"));
+  assert.ok(source.includes("offset: requestWindow.offset"));
+  assert.ok(source.includes("Math.floor(query.offset / query.pageSize) + 1"));
+  assert.equal(source.includes("previousLimitRef"), false);
+  assert.equal(source.includes("setOffset("), false);
   assert.ok(source.includes("getInformesPage("));
   // Pagination itself must stay server-driven (page/pageSize/offset via
   // getInformesPage): no offset-based client slice may stand in for it.

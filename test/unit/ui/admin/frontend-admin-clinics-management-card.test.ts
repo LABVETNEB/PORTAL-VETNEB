@@ -177,10 +177,10 @@ test("admin clinics management card renders server-side pagination controls usin
 test("admin clinics management card derives cardinality from measurement, not matchMedia", () => {
   const source = read(ADMIN_CLINICS_CARD_PATH);
 
-  assert.ok(source.includes("useAdaptiveItemsPerPage"));
+  assert.ok(source.includes("useDashboardCanvasCapacity"));
   assert.ok(source.includes("effectiveLimit"));
   assert.ok(source.includes("CLINICS_SUPERSET_CAP = 36"));
-  assert.ok(source.includes("ResizeObserver"));
+  assert.ok(source.includes("canvasNode: desktopBodyNode,"));
   assert.ok(source.includes("latestRequestRef"));
   assert.equal(source.includes("matchMedia"), false);
   assert.equal(source.includes("MOBILE_PAGE_SIZE"), false);

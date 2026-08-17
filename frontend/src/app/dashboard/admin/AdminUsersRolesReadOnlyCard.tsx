@@ -22,7 +22,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { changeAdminClinicUserRole, getAdminUsersRoles } from "@/lib/api";
-import { useAdaptiveItemsPerPage } from "@/hooks/useAdaptiveItemsPerPage";
+import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
+import { DASHBOARD_PAGER_RESERVATION } from "@/components/dashboard/DashboardPager";
 import { formatDateTime } from "@/lib/utils";
 import type {
   AdminRoleUserRole,
@@ -46,20 +47,6 @@ const USERS_ROLES_TABLE_HEADER_PX = 32;
 // Fallback item height used until a real row is measured. Mobile rows use
 // `min-h-10`, so the pre-measurement limit must not overestimate capacity.
 const USERS_ROLES_ROW_HEIGHT_FALLBACK_PX = 40;
-
-type Measurement = {
-  containerNode: HTMLElement | null;
-  rowHeightPx: number;
-  headerHeightPx: number;
-};
-
-function measurementsEqual(a: Measurement, b: Measurement) {
-  return (
-    a.containerNode === b.containerNode &&
-    a.rowHeightPx === b.rowHeightPx &&
-    a.headerHeightPx === b.headerHeightPx
-  );
-}
 
 function formatUserType(value: AdminRoleUserType) {
   return value === "admin" ? "Admin" : "Clínica";
@@ -185,13 +172,6 @@ export function AdminUsersRolesReadOnlyCard() {
     null,
   );
   const [mobileBodyNode, setMobileBodyNode] = useState<HTMLElement | null>(null);
-  const [desktopRowNode, setDesktopRowNode] = useState<HTMLElement | null>(null);
-  const [mobileRowNode, setMobileRowNode] = useState<HTMLElement | null>(null);
-  const [measurement, setMeasurement] = useState<Measurement>({
-    containerNode: null,
-    rowHeightPx: USERS_ROLES_ROW_HEIGHT_FALLBACK_PX,
-    headerHeightPx: 0,
-  });
 
   const latestRequestRef = useRef(0);
   const snapshotRef = useRef<AdminUsersRolesSnapshot | null>(null);
@@ -200,87 +180,49 @@ export function AdminUsersRolesReadOnlyCard() {
     snapshotRef.current = snapshot;
   }, [snapshot]);
 
-  useLayoutEffect(() => {
-    const nodes = [
-      desktopBodyNode,
-      mobileBodyNode,
-      desktopRowNode,
-      mobileRowNode,
-    ].filter((node): node is HTMLElement => node !== null);
-    if (nodes.length === 0) {
-      return;
-    }
 
-    let frame: number | null = null;
-
-    const recompute = () => {
-      frame = null;
-
-      const mobileHeight = mobileBodyNode?.getBoundingClientRect().height ?? 0;
-      if (mobileHeight > 0 && mobileBodyNode) {
-        const rowHeight = mobileRowNode?.getBoundingClientRect().height ?? 0;
-        setMeasurement((previous) => {
-          const next: Measurement = {
-            containerNode: mobileBodyNode,
-            rowHeightPx:
-              rowHeight > 0 ? rowHeight : USERS_ROLES_ROW_HEIGHT_FALLBACK_PX,
-            headerHeightPx: 0,
-          };
-          return measurementsEqual(previous, next) ? previous : next;
-        });
-        return;
-      }
-
-      const desktopHeight = desktopBodyNode?.getBoundingClientRect().height ?? 0;
-      if (desktopHeight > 0 && desktopBodyNode) {
-        const rowHeight = desktopRowNode?.getBoundingClientRect().height ?? 0;
-        setMeasurement((previous) => {
-          const next: Measurement = {
-            containerNode: desktopBodyNode,
-            rowHeightPx:
-              rowHeight > 0 ? rowHeight : USERS_ROLES_ROW_HEIGHT_FALLBACK_PX,
-            headerHeightPx: USERS_ROLES_TABLE_HEADER_PX,
-          };
-          return measurementsEqual(previous, next) ? previous : next;
-        });
-      }
-    };
-
-    const scheduleRecompute = () => {
-      if (frame === null) {
-        frame = requestAnimationFrame(recompute);
-      }
-    };
-
-    const observer = new ResizeObserver(scheduleRecompute);
-    nodes.forEach((node) => observer.observe(node));
-    scheduleRecompute();
-
-    return () => {
-      observer.disconnect();
-      if (frame !== null) {
-        cancelAnimationFrame(frame);
-      }
-    };
-  }, [desktopBodyNode, mobileBodyNode, desktopRowNode, mobileRowNode]);
-
-  // The desktop table has two-line rows (~41px), so at the shortest supported
-  // desktop viewport (1366×768) exactly nine rows fit the measured container.
-  // A positive safety cushion would floor that to eight and break the
-  // established "nine populated rows" desktop contract, so the desktop context
-  // (detected by the discounted table header) keeps a floor of nine — matching
-  // the pre-adaptive fixed page size — while still adapting upward on taller
-  // viewports. The mobile list (no table header) keeps a floor of one so it can
-  // shrink freely on short phones.
-  const isDesktopMeasurement = measurement.headerHeightPx > 0;
-  const { itemsPerPage: rowsPerPage } = useAdaptiveItemsPerPage({
-    containerNode: measurement.containerNode,
+  // The desktop table has two-line rows (~41px). Nine of them are the
+  // established "nine populated rows" contract at 1440×900 / 1366×768, and that
+  // floor used to be unconditional — so at 1280×720, where the measured region
+  // is 347px and only seven rows fit, the ninth row overflowed the region by
+  // 58px, painted over the pager and swallowed the hit-test of "Siguiente":
+  // pagination was unreachable with a real dataset. The floor is now conditional
+  // on the region actually being able to host nine rows, so it is preserved
+  // exactly where the contract lives and yields where the pixels do not exist.
+  // No viewport name, width breakpoint or media query participates: the decision
+  // comes from the same measured region the fit itself uses.
+  //
+  // The gap is 0 on desktop because the measured region carries no padding of
+  // its own (see the rows region below), so its border box IS the usable box:
+  // subtracting a further cushion would floor 1366×768 to eight rows even
+  // though nine fit with clearance to spare. The mobile list keeps the hook
+  // default and a floor of one so it can shrink freely on short phones.
+  // SRV-2 desktop floor, resolved: it raised `minItems` to the nine-row App
+  // Shell page only when nine rows PHYSICALLY fit — and in that case the fit is
+  // already nine or more, so the clamp could never raise anything. With the
+  // desktop safety gap at 0 the two arithmetics were identical, which makes the
+  // floor provably equivalent to `minItems: 1`. Kept as 1 rather than restated,
+  // so no dead branch survives to be mistaken for a contract.
+  // One owner per canvas. The two presentations are mutually exclusive by
+  // media query, so exactly one reports `measured` — a function of the
+  // viewport alone, with no row content, page or history in it.
+  const mobileCapacity = useDashboardCanvasCapacity({
+    canvasNode: mobileBodyNode,
     fallbackItems: USERS_ROLES_FALLBACK_ROWS,
-    itemHeightPx: measurement.rowHeightPx,
-    headerHeightPx: measurement.headerHeightPx,
-    minItems: isDesktopMeasurement ? USERS_ROLES_FALLBACK_ROWS : 1,
+    minItems: 1,
     maxItems: USERS_ROLES_SUPERSET_CAP,
   });
+  const desktopCapacity = useDashboardCanvasCapacity({
+    canvasNode: desktopBodyNode,
+    fallbackItems: USERS_ROLES_FALLBACK_ROWS,
+    minItems: 1,
+    maxItems: USERS_ROLES_SUPERSET_CAP,
+  });
+  const rowsPerPage = mobileCapacity.measured
+    ? mobileCapacity.capacity
+    : desktopCapacity.measured
+      ? desktopCapacity.capacity
+      : USERS_ROLES_FALLBACK_ROWS;
 
   // Effective server page size: at least the measured rows, capped at the
   // superset ceiling. The hook already clamps to [1, USERS_ROLES_SUPERSET_CAP].
@@ -604,9 +546,20 @@ export function AdminUsersRolesReadOnlyCard() {
           </span>
         </div>
 
+        {/* Measured rows region. It carries no vertical padding of its own: the
+            4px it used to add on each side were inside the box the fit is
+            derived from but outside the space the table could use, so nine rows
+            (32 + 9×41 = 401px) overflowed the 402.69px region at 1366×768 by
+            2.81px while the math believed they fitted. Reclaiming those 8px —
+            strictly local to this card, no row content, header or shell
+            touched — is what lets the nine-row contract hold honestly there and
+            lets 1280×720 fall to its real capacity instead of clipping. */}
         <div
           ref={setDesktopBodyNode}
-          className="min-h-0 flex-1 py-2 md:py-1"
+          data-dashboard-adaptive-rows-canvas="true"
+              data-dashboard-row-pitch="compact"
+              data-dashboard-canvas-reserve="table-head-dense"
+          className="min-h-0 flex-1"
         >
           {users.length ? (
             <div className="dashboard-table-responsive dashboard-fitted-table px-3 sm:px-4">
@@ -634,7 +587,6 @@ export function AdminUsersRolesReadOnlyCard() {
                     return (
                       <TableRow
                         key={userKey}
-                        ref={index === 0 ? setDesktopRowNode : undefined}
                         className={wasChanged ? "bg-vetneb-teal/10" : undefined}
                       >
                         <TableCell>
@@ -704,7 +656,9 @@ export function AdminUsersRolesReadOnlyCard() {
         </div>
 
         <footer
-          className="dashboard-table-pagination min-h-10 shrink-0 border-t border-vetneb-line/70 px-3 py-1.5 text-xs text-muted-foreground sm:px-4 md:min-h-8 md:py-1"
+          data-dashboard-adaptive-reserved-region="pager"
+          className="dashboard-table-pagination shrink-0 overflow-hidden border-t border-vetneb-line/70 px-3 text-xs text-muted-foreground sm:px-4"
+          style={DASHBOARD_PAGER_RESERVATION}
           aria-label="Paginación de usuarios y roles"
         >
           <span aria-live="polite">
@@ -872,6 +826,8 @@ export function AdminUsersRolesReadOnlyCard() {
 
         <div
           ref={setMobileBodyNode}
+          data-dashboard-adaptive-rows-canvas="true"
+              data-dashboard-row-pitch="regular"
           className="min-h-0 flex-1 divide-y divide-vetneb-line/70 overflow-hidden"
         >
           {users.length ? (
@@ -882,8 +838,8 @@ export function AdminUsersRolesReadOnlyCard() {
               return (
                 <article
                   key={userKey}
-                  ref={index === 0 ? setMobileRowNode : undefined}
                   data-admin-mobile-ops-item="true"
+                  data-dashboard-adaptive-row="true"
                   className="flex min-h-10 items-center gap-2 overflow-hidden px-2 py-1"
                 >
                   <div className="min-w-0 flex-1">

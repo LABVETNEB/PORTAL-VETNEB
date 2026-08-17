@@ -147,6 +147,9 @@ export function AdminDashboardWorkspaceController({
   );
   const accessErrorStatus =
     browserAccessErrorStatus ?? initialAccessErrorStatus ?? null;
+  // Landing-only latch for the last-module restore below: consumed either by
+  // the restore itself or by the first URL module transition the controller
+  // observes (see the URL-sync effect).
   const hasRestoredLastModule = useRef(false);
   const previousUrlModule = useRef<AdminModule | null>(initialModule ?? null);
   const currentUrlModule = useRef<AdminModule | null>(initialModule ?? null);
@@ -177,6 +180,15 @@ export function AdminDashboardWorkspaceController({
     if (previousUrlModule.current !== nextModule) {
       clearAdminAccessError();
       previousUrlModule.current = nextModule;
+      // The last-module restore is a LANDING-only one-shot, so any observed URL
+      // module transition — hub tile push, deep link, browser Back/Forward —
+      // consumes it. It used to stay armed for the controller's whole life
+      // whenever the landing had nothing stored yet, so a browser Back to
+      // `/dashboard/admin` (which sets no manual-return flag) re-entered the
+      // restore, replaced the URL back into the module the visit had just
+      // persisted and remounted its workspace: the Back was undone and its
+      // history entry overwritten.
+      hasRestoredLastModule.current = true;
     }
 
     // A sync activation swaps the stage before its URL commit. Under load the

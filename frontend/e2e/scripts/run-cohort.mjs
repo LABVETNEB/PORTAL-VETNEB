@@ -4,6 +4,7 @@ import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { restoreNextEnvHygiene } from "../helpers/restore-next-env-hygiene.mjs";
 import {
   CURRENT_COHORTS,
   E2E_COHORT_SPECS,
@@ -215,7 +216,7 @@ function runPlaywright(selection, extraArgs) {
   return result.status ?? 1;
 }
 
-function main() {
+async function main() {
   const separatorIndex = process.argv.indexOf("--", 2);
   const args = separatorIndex >= 0 ? process.argv.slice(2, separatorIndex) : process.argv.slice(2, 3);
   const extraArgs = separatorIndex >= 0 ? process.argv.slice(separatorIndex + 1) : process.argv.slice(3);
@@ -264,10 +265,20 @@ function main() {
   }
 
   printSelection(cohort, selection);
-  return runPlaywright(selection, extraArgs);
+  try {
+    return runPlaywright(selection, extraArgs);
+  } finally {
+    // Playwright's own globalTeardown is billed against its globalTimeout: a
+    // run that exhausts the budget reports "Timed out waiting for the teardown"
+    // and never restores frontend/next-env.d.ts, which the dev server rewrote
+    // to the dev route types. The repository source-hygiene gate then fails on
+    // a file no commit touched. This restore runs after the Playwright process
+    // has exited, so it survives a timeout, a crash and a non-zero exit alike.
+    await restoreNextEnvHygiene();
+  }
 }
 
 const entryPath = process.argv[1];
 if (entryPath && import.meta.url === pathToFileURL(resolve(entryPath)).href) {
-  process.exitCode = main();
+  process.exitCode = await main();
 }
