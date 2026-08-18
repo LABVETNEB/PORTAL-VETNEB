@@ -1,12 +1,222 @@
 /* tokens.css — dashboard design tokens
- * Reserved composition slot for dashboard-scoped design tokens, imported
- * first by styles/dashboard/index.css so any tokens defined here are
- * available to every later module.
+ * Dashboard-scoped design tokens, imported first by styles/dashboard/index.css
+ * so every token defined here is available to every later module. The B03
+ * foundation block below declares the eight design-system scales; the
+ * row-pitch contract after it is the capacity owner and predates B03.
  *
  * Global design tokens (HSL palette, motion/easing, radii) live in
  * app/globals.css :root under @layer base. The dashboard runtime accent
  * tokens (--dash-accent-*) stay colocated with their consumers in
  * surfaces.css (premium grammar) to preserve that verbatim section. */
+
+/* dashboard-foundation-tokens:start
+ *
+ * B03 — dashboard design-system foundation.
+ *
+ * Eight scales (color, shape, elevation, state-layer, spacing, density,
+ * typography, motion) declared once, dashboard-scoped, and consumed by nobody
+ * yet. B03 DEFINES the foundation; B04 migrates the surfaces onto it. A token
+ * that already had a consumer would make that migration invisible, so
+ * `test/architecture/dashboard-foundation-tokens.test.ts` asserts the consumer
+ * count outside this block is zero.
+ *
+ * Theme classification is explicit, because "dark is covered" is exactly the
+ * claim the dashboard could not previously make: before B03 the whole
+ * `styles/dashboard` tree contained ZERO `data-theme` rules and inherited
+ * whatever globals.css happened to flip.
+ *
+ *   THEME_INVARIANT  One declaration; the value is the same in both themes by
+ *                    nature (a rem, a duration, a weight). Restating it under
+ *                    the dark scope would be noise, not coverage.
+ *   THEME_ADAPTIVE   One declaration whose value REFERENCES a global token that
+ *                    globals.css itself redefines under
+ *                    `:root[data-theme="dark-gray"]`. The dark value exists and
+ *                    is proven by resolving the reference; the contract checks
+ *                    that every referenced token is really redefined there, so
+ *                    a role whose dark value silently disappeared fails closed.
+ *   THEME_VARIANT    Two declarations, light and dark, with genuinely different
+ *                    values — the roles where inheriting the flipped palette
+ *                    gives the WRONG answer (a scrim built on `--vetneb-ink`
+ *                    turns WHITE in dark, because ink flips to 90% lightness)
+ *                    or an insufficient one (amber, which globals.css already
+ *                    overrides in dark for exactly that reason).
+ *
+ * Provenance: no value here was picked because it looked right. Each one is a
+ * global VETNEB token, a literal measured in dashboard CSS, or a derivation
+ * documented at its declaration.
+ *
+ * Unlayered, like the pitch contract below: these are foundation declarations
+ * that later dashboard modules read, and a layered token would lose to the
+ * unlayered overrides that already exist in this tree. */
+.dashboard-app-shell {
+  /* 1 — COLOR. Roles, not hues. Every entry is THEME_ADAPTIVE unless the dark
+     scope at the end of this block overrides it. */
+  --dash-color-canvas: hsl(var(--vetneb-surface));
+  --dash-color-surface: hsl(var(--card));
+  --dash-color-surface-raised: hsl(var(--vetneb-surface-raised));
+  --dash-color-surface-muted: hsl(var(--vetneb-surface-muted));
+  --dash-color-on-surface: hsl(var(--foreground));
+  --dash-color-on-surface-muted: hsl(var(--muted-foreground));
+  --dash-color-outline: hsl(var(--vetneb-line));
+  /* 0.42 is the hairline alpha already used three times in this tree; it holds
+     in dark because `--vetneb-line` itself drops from 80% to 30% lightness. */
+  --dash-color-outline-subtle: hsl(var(--vetneb-line) / 0.42);
+  --dash-color-primary: hsl(var(--primary));
+  --dash-color-on-primary: hsl(var(--primary-foreground));
+  --dash-color-accent: hsl(var(--vetneb-teal));
+  --dash-color-success: hsl(var(--vetneb-teal));
+  --dash-color-error: hsl(var(--destructive));
+  --dash-color-info: hsl(var(--vetneb-cyan));
+  --dash-color-focus-ring: var(--clinical-focus-ring);
+  /* THEME_VARIANT — overridden in the dark scope below.
+     field: the B05 target (tint moves to the field, container goes
+     transparent). Both alphas are literals measured in this tree: 0.72 reads
+     as a tint over a 96%-lightness canvas, 0.92 is what the same fill needs to
+     separate from a 12%-lightness one. */
+  --dash-color-field: hsl(var(--vetneb-surface-muted) / 0.72);
+  /* warning: NOT a bare `hsl(var(--vetneb-amber))`. The flipped amber
+     (38 84% 58%) is still too dim on the dark canvas, which is why globals.css
+     already ships a dark override at 38 88% 64% for amber text and the
+     critical KPI pill. The token adopts that decision instead of contradicting
+     it. */
+  --dash-color-warning: hsl(var(--vetneb-amber));
+  /* THEME_VARIANT. `--vetneb-ink` is a 15%-lightness ink in light and a
+     90%-lightness near-white in dark, so a scrim that inherited it would turn
+     the modal backdrop WHITE. This is the clearest case in the foundation for
+     declaring a dark value instead of inheriting one. */
+  --dash-color-overlay-scrim: hsl(var(--vetneb-ink) / 0.32);
+
+  /* 2 — SHAPE. THEME_INVARIANT. Monotonic, and derived from the radii this
+     tree actually uses rather than from a generic t-shirt scale: 0.5rem is
+     both the global `--radius` and the most repeated literal here; 0.6, 0.75
+     and 0.85 are the next three clusters; 0.45 and 1.1 are the observed
+     endpoints. `--radius` itself is untouched. */
+  --dash-shape-none: 0;
+  --dash-shape-xs: 0.45rem;
+  --dash-shape-sm: 0.5rem;
+  --dash-shape-md: 0.6rem;
+  --dash-shape-lg: 0.75rem;
+  --dash-shape-xl: 0.85rem;
+  --dash-shape-2xl: 1.1rem;
+  --dash-shape-full: 9999px;
+
+  /* 3 — ELEVATION. Semantic levels, not shadow recipes. `none` is declared so
+     B04 can state flatness positively — the roadmap retires the persistent
+     chrome's shadow, and "no box-shadow property" and "elevation: none" are
+     different claims in review. The three raised levels are THEME_ADAPTIVE via
+     the `--clinical-*` shadows, which globals.css already re-authors in dark
+     (alpha 0.055 -> 0.20, 0.08 -> 0.28, 0.10 -> 0.34). */
+  --dash-elevation-none: none;
+  --dash-elevation-raised: var(--clinical-shadow-sm);
+  --dash-elevation-menu: var(--clinical-shadow-md);
+  --dash-elevation-dialog: var(--clinical-shadow-lg);
+
+  /* 4 — STATE LAYER. Expressed as opacity so one overlay can serve every
+     state. THEME_VARIANT: the light anchors are measured here (a 0.06 navy
+     wash, 0.13/0.16 teal selection), and the dark values are a documented
+     x1.6 lift — conservative next to the x3.0-x3.6 the dark palette already
+     applies to its own shadows, and needed because an overlay reads weaker
+     against a 12%-lightness surface. */
+  --dash-state-hover-opacity: 0.06;
+  --dash-state-pressed-opacity: 0.10;
+  --dash-state-selected-opacity: 0.13;
+  --dash-state-focus-opacity: 0.16;
+  /* The tint the layer is painted in: brand-tinted DARKENING in light, neutral
+     LIGHTENING in dark. One inherited token cannot express that flip, because
+     the direction is a design decision, not a palette consequence. */
+  --dash-state-layer-color: hsl(var(--vetneb-navy));
+  /* THEME_INVARIANT: this one dims the element itself instead of painting a
+     layer over it, so it is theme-independent. 0.45 verbatim from
+     `.dashboard-disabled-state` in interactions.css. */
+  --dash-state-disabled-opacity: 0.45;
+
+  /* 5 — SPACING. THEME_INVARIANT. 8px rhythm with a 4px micro step and the
+     12px secondary the audit measured, bounded by the clamp ceilings already
+     in responsive.css (`--dash-gap` -> 1rem, `--dash-pad-x` -> 2rem). */
+  --dash-space-0: 0;
+  --dash-space-1: 0.25rem;
+  --dash-space-2: 0.5rem;
+  --dash-space-3: 0.75rem;
+  --dash-space-4: 1rem;
+  --dash-space-5: 1.5rem;
+  --dash-space-6: 2rem;
+
+  /* 6 — DENSITY. THEME_INVARIANT, and deliberately NARROW.
+     Row height is NOT here. `--dash-row-pitch*` in the contract below is the
+     single owner of how tall a row is, and the capacity engine reads those
+     tokens back at runtime; a second row-height token in this block would be a
+     competing owner even with nothing consuming it yet. Density here describes
+     CHROME — controls and their insets. The contract asserts that separation
+     by name, so the boundary cannot erode silently.
+     Bounds measured from responsive.css: `--dash-tab-h` spans 1.9-2.25rem and
+     `--dash-control-h` tops out at 2.5rem. */
+  --dash-density-control-compact: 1.9rem;
+  --dash-density-control-regular: 2.25rem;
+  --dash-density-control-comfortable: 2.5rem;
+  --dash-density-inset-compact: var(--dash-space-1);
+  --dash-density-inset-regular: var(--dash-space-2);
+  --dash-density-inset-comfortable: var(--dash-space-3);
+
+  /* 7 — TYPOGRAPHY. THEME_INVARIANT. Semantic roles over the existing Inter
+     stack: `--font-ui` is referenced, never redeclared, and no @font-face and
+     no font asset is introduced. Sizes, weights, leadings and tracking are the
+     literals already measured across this tree (weight 650 alone appears ten
+     times); body weight is 400 because dashboard CSS declares none and 400 is
+     what body copy inherits today. */
+  --dash-text-family: var(--font-ui);
+  --dash-text-label-size: 0.7rem;
+  --dash-text-label-weight: 650;
+  --dash-text-label-leading: 1.2;
+  --dash-text-label-tracking: 0.06em;
+  --dash-text-body-size: 0.8125rem;
+  --dash-text-body-weight: 400;
+  --dash-text-body-leading: 1.25;
+  --dash-text-body-strong-weight: 600;
+  --dash-text-section-size: 0.75rem;
+  --dash-text-section-weight: 650;
+  --dash-text-section-leading: 1.2;
+  --dash-text-section-tracking: 0.05em;
+  --dash-text-title-size: 1rem;
+  --dash-text-title-weight: 700;
+  --dash-text-title-leading: 1.15;
+  --dash-text-metric-size: 1.08rem;
+  --dash-text-metric-weight: 750;
+  --dash-text-metric-leading: 1;
+
+  /* 8 — MOTION. THEME_INVARIANT, and aliases rather than new durations: the
+     dashboard already animates on `--motion-fast|base|slow` and
+     `--ease-out-soft|in-out-soft`, so parallel durations would give the same
+     transition two sources of truth.
+     R11: NO token here may exist to animate a region's height. Animating
+     block-size feeds the ResizeObserver that derives capacity, which makes
+     `limit` oscillate and re-fetch. The contract enforces that absence by
+     name; existing `prefers-reduced-motion` handling stays where it is. */
+  --dash-motion-fast: var(--motion-fast);
+  --dash-motion-standard: var(--motion-base);
+  --dash-motion-slow: var(--motion-slow);
+  --dash-motion-ease-standard: var(--ease-out-soft);
+  --dash-motion-ease-emphasized: var(--ease-in-out-soft);
+}
+
+/* Dark scope. The selector matches the real theme mechanism verbatim: theme.ts
+   and public/theme-init.js both write `documentElement.dataset.theme`, and
+   globals.css already owns `:root[data-theme="dark-gray"]`. B03 introduces no
+   second theme mechanism — no `.dark`, no `prefers-color-scheme` owner, no
+   `data-dashboard-theme`.
+   Only THEME_VARIANT tokens appear here. Every other role is either invariant
+   or resolves through a global token that globals.css re-authors in this same
+   scope, so restating it would add a place to drift, not a value. */
+:root[data-theme="dark-gray"] .dashboard-app-shell {
+  --dash-color-field: hsl(var(--vetneb-surface-muted) / 0.92);
+  --dash-color-warning: hsl(38 88% 64%);
+  --dash-color-overlay-scrim: hsl(210 15% 4% / 0.62);
+  --dash-state-hover-opacity: 0.10;
+  --dash-state-pressed-opacity: 0.16;
+  --dash-state-selected-opacity: 0.20;
+  --dash-state-focus-opacity: 0.24;
+  --dash-state-layer-color: hsl(var(--vetneb-ink));
+}
+/* dashboard-foundation-tokens:end */
 
 /* dashboard-row-pitch-contract:start
  *
