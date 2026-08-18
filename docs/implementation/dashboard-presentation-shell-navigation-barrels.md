@@ -76,7 +76,7 @@ añade ninguna arista** al grafo y no crea ni agrava ciclo alguno.
 | `DashboardModuleHub` | `DashboardModuleHub`, `type DashboardModuleCard` |
 | `DashboardHubHero` | `DashboardHubHero`, `type DashboardHubHeroMetric`, `type DashboardHubHeroProps`, `type DashboardHubHeroStatusTone` |
 
-## 7. Re-exports de `presentation/navigation` (10 módulos · 17 símbolos)
+## 7. Re-exports de `presentation/navigation` (9 módulos · 16 símbolos)
 
 | Módulo legacy | Símbolos re-exportados |
 |---|---|
@@ -86,7 +86,6 @@ añade ninguna arista** al grafo y no crea ni agrava ciclo alguno.
 | `ClinicMobileBottomNav` | `ClinicMobileBottomNav` |
 | `AdminMobileHubLauncher` | `AdminMobileHubLauncher` |
 | `AdminMobileHubPager` | `AdminMobileHubPager` |
-| `AdminMobileKebabMenu` | `AdminMobileKebabMenu` |
 | `AdminMobileModuleMenu` | `AdminMobileModuleMenu` |
 | `DashboardPager` | `DashboardPager`, `type DashboardPagerProps`, `DASHBOARD_PAGER_RESERVATION`, `DASHBOARD_TOUCH_PAGER_RESERVATION`, `DASHBOARD_INLINE_PAGER_RESERVATION` |
 | `CompactPager` | `CompactPager`, `type CompactPagerProps` |
@@ -115,6 +114,51 @@ violación persista: aplica la regla genérica "ningún módulo re-exportado pue
 importar `@/lib/api`". Cuando ese import desaparezca, `DashboardTopbar` pasa a
 ser admisible sin editar el guard.
 
+## 8-bis. `AdminMobileKebabMenu` — excluido por frontera transitiva (review fix)
+
+Hallazgo **P2 de Codex** en la revisión de PR #1658, **confirmado como correcto**.
+
+La primera versión del guard afirmaba "ningún módulo reexportado alcanza la data
+layer" pero solo inspeccionaba el **target inmediato** de cada re-export. Un
+componente sancionado puede alcanzar `@/lib/api` **a través de otro componente
+local**, y en ese caso el guard reportaba la frontera como limpia mientras el
+export sancionado seguía cruzándola. Falso verde real, no hipotético:
+
+```text
+presentation/navigation
+  -> AdminMobileKebabMenu
+     -> DashboardLogoutControl      -> @/lib/api
+     -> DashboardNotificationsBell  -> @/lib/api
+```
+
+**Censo transitivo completo** ejecutado sobre los 15 roots sancionados antes de
+tocar ningún barrel (no se parcheó solo el ejemplo del review). Resolver
+estático con alias `@/`, specifiers relativos, extensiones `.ts`/`.tsx`, index
+modules y visited set; **0 specifiers locales sin resolver**, así que el censo no
+tiene saltos silenciosos:
+
+| Barrel | Roots | Veredicto |
+|---|---|---|
+| `shell` | `DashboardShellRouter`, `PrivateDashboardShell`, `DashboardModuleWorkspace`, `DashboardModuleHub`, `DashboardHubHero` | 5/5 **PASS** |
+| `navigation` | `DashboardHorizontalNav`, `DashboardModuleRail`, `AdminMobileBottomNav`, `ClinicMobileBottomNav`, `AdminMobileHubLauncher`, `AdminMobileHubPager`, `AdminMobileModuleMenu`, `DashboardPager`, `CompactPager` | 9/9 **PASS** |
+| `navigation` | `AdminMobileKebabMenu` | **FAIL** (cadenas arriba) |
+
+**Un solo root falla**, y solo ese se retira. No se sobre-excluyó por sospecha:
+toda exclusión exige una cadena concreta hasta la dependencia prohibida.
+
+**Decisión: retirar el re-export, no refactorizar el componente.** B01 no está
+autorizado a refactorizar componentes runtime/auth para hacerlos compatibles
+(§4 de AGENTS.md: sacar el logout es auth-adjacent, R2, PR separado). Se retira
+`AdminMobileKebabMenu` del barrel y de `REQUIRED_EXPORTS`, preservando cero
+cambio de runtime, cero migración de consumidores y cero cambio de auth/API.
+
+`AdminMobileKebabMenu` **no es un componente muerto y no pertenece a B02**: es un
+componente vivo con consumidores reales. Es una **exclusión de frontera B01**, no
+una eliminación. El archivo legacy no se toca, sus consumidores siguen
+importándolo por su path actual, y queda admisible automáticamente —sin editar
+el guard— en cuanto `DashboardLogoutControl` y `DashboardNotificationsBell`
+dejen de importar `@/lib/api`.
+
 ## 9. Sidebars muertos — excluidos (dominio B02)
 
 `AdminDashboardSidebar` y `ClinicDashboardSidebar` tienen **cero consumidores
@@ -139,17 +183,50 @@ del plan de pruebas de §56.1. Verifica:
 3. Todo re-export apunta a un target existente bajo `components/dashboard/`.
 4. Cada símbolo declarado está realmente exportado por su target.
 5. Ningún source físico bajo `presentation/**` importa `@/lib/api` ni `@/app`.
-6. Ningún **target legacy re-exportado** importa `@/lib/api` ni `@/app`.
+6. **Nada alcanzable desde los barrels** —a cualquier profundidad— llega a
+   `@/lib/api` ni a `@/app`.
 7. La valla B02: los sidebars no aparecen en `navigation/index.ts`.
 8. Los barrels son módulos de re-export puro, sin declaraciones locales.
 
+**Cierre transitivo (test 6).** El recorrido **arranca en el barrel**, no en la
+lista de targets, y sigue recursivamente cada arista de import/re-export
+*first-party* hasta agotar la clausura. Cubre por tanto los imports propios del
+barrel, cada target sancionado y todo lo que esos targets arrastran a cualquier
+profundidad. Consecuencias: un re-export añadido mañana entra solo al recorrido,
+y **un import local nuevo dentro de un componente ya sancionado también queda
+cubierto automáticamente**. Los specifiers bare (node_modules) no se siguen: la
+frontera gobierna arquitectura first-party.
+
+*Ciclos.* `visited: Set<string>` por recorrido; un ciclo local se absorbe sin
+colgar y sin fallar (control M3).
+
+*Aristas type-only.* Se recorren **todas** las aristas, incluidas las
+`import type`. Es la lectura deliberadamente más estricta: la regla es una
+frontera de dependencia de **arquitectura** sobre el grafo de módulos, y un
+`import type` sigue acoplando presentation a un módulo que posee un import de la
+capa de datos. Se verificó que no fabrica falsos positivos: recorrer con y sin
+aristas type-only produce **veredicto idéntico para los 15 roots actuales**
+(divergencia medida = 0), y los dos ciclos type-only preexistentes de
+`components/dashboard/` son ciclos, no rutas a la capa de datos, así que el
+visited set los absorbe.
+
+*Error accionable.* El fallo imprime la cadena completa, no "forbidden import
+somewhere":
+
+```text
+frontend/src/features/dashboard/presentation/navigation/index.ts
+     -> AdminMobileKebabMenu.tsx
+     -> DashboardNotificationsBell.tsx
+     -> @/lib/api
+```
+
 **Por qué no da falso verde.** Un barrel puede pasar un escaneo ingenuo de
 carpeta mientras re-exporta un componente legacy que sí llega a la capa de
-datos. Por eso el guard no se limita a recorrer `presentation/**`: **parsea los
-barrels, deriva los targets del propio source** y les aplica las mismas reglas.
-La lista de targets se descubre, nunca se declara como allowlist de escape, así
-que un re-export añadido en el futuro queda cubierto automáticamente. Los tests
-de conjunto vacío se protegen con aserciones anti-vacuas.
+datos, directamente o **a través de otro componente local**. Por eso el guard no
+se limita a recorrer `presentation/**` ni a mirar el target inmediato: **parsea
+los barrels, deriva los targets del propio source** y recorre su clausura
+completa. La lista de targets se descubre, nunca se declara como allowlist de
+escape. Los tests de conjunto vacío se protegen con aserciones anti-vacuas.
 
 **Falsos positivos evitados.** Los JSDoc de los 7 barrels contienen literalmente
 el texto `@/lib/api` al documentar la regla. Un `source.includes("@/lib/api")`
@@ -160,19 +237,25 @@ emparejamiento es exacto-o-subpath, de modo que `@/lib/api-error` no se barre po
 accidente. Sin dependencias de parser nuevas.
 
 **Verificación fail-closed.** El guard se validó por mutación sobre una copia
-aislada del árbol (fuera del repo, ningún archivo versionado tocado). Las 6
-mutaciones fueron detectadas y el baseline volvió a 8/8:
+aislada del árbol (fuera del repo, ningún archivo versionado tocado, sandbox
+eliminada al terminar). Los 6 controles del recorrido transitivo se comportaron
+como se exige y el baseline volvió a 8/8:
 
-| Mutación | Resultado |
-|---|---|
-| M1 · shell re-exporta `DashboardTopbar` (llega a `@/lib/api`) | FALLA (correcto) |
-| M2 · navigation re-exporta `AdminDashboardSidebar` | FALLA (correcto) |
-| M3 · shell omite `DashboardHubHeroStatusTone` | FALLA (correcto) |
-| M4 · navigation redeclara un literal de catálogo | FALLA (correcto) |
-| M5 · source de presentation importa `@/lib/api` | FALLA (correcto) |
-| M6 · escape relativo hacia `app/` | FALLA (correcto) |
+| Control | Esperado | Observado |
+|---|---|---|
+| M1 · root → componente local → `@/lib/api` (el falso verde de Codex) | FAIL | **FAIL** 7/1 — cadena `navigation/index.ts → AdminMobileKebabMenu → DashboardNotificationsBell → @/lib/api` |
+| M2 · profundidad 3: root → A → B → `@/lib/api` | FAIL | **FAIL** 7/1 — cadena de 8 saltos, desde `shell/index.ts` |
+| M3 · ciclo local limpio A ↔ B | PASS, sin colgar | **PASS** 8/0 en 168 ms |
+| M4 · escape relativo `../../app/layout` | FAIL | **FAIL** 7/1 |
+| M5 · alias `@/app/layout` | FAIL | **FAIL** 7/1 |
+| M6 · `@/lib/api-error` | PASS, sin falso positivo | **PASS** 8/0 |
+| baseline restaurado | PASS 8/8 | **PASS** 8/0 |
 
-M1 es exactamente el escenario de falso verde que el diseño debía impedir.
+M1 es exactamente el escenario que el diseño anterior no impedía. M2 demuestra
+que el recorrido no se detiene en el primer nivel: la cadena reportada atraviesa
+`shell → PrivateDashboardShell → DashboardShellRouter → AdminMobileBottomNav →
+AdminMobileModuleMenu → MutA → MutB → @/lib/api`. M3 prueba la terminación por
+visited set. M6 prueba el emparejamiento exacto-o-subpath.
 
 ## 11. Cero cambios de runtime
 
@@ -194,11 +277,16 @@ path de render, y los barrels no los importa nadie: ninguna cohorte de §7 aplic
 
 ## 13. Riesgos residuales
 
-1. `DashboardTopbar` sigue violando la frontera. Único hueco real; registrado por
-   el guard de forma auto-expirante. Cierre = PR separado (R2, auth-adjacent).
+1. Tres componentes vivos quedan fuera de la nueva superficie por alcanzar
+   `@/lib/api`: `DashboardTopbar` (directo) y `AdminMobileKebabMenu`
+   (transitivo, vía `DashboardLogoutControl` y `DashboardNotificationsBell`).
+   Los tres huecos comparten causa raíz —el logout/notificaciones acoplados a la
+   capa de datos dentro de `components/dashboard/`— y ninguno está congelado: el
+   guard aplica una regla genérica, nunca afirma que la violación persista.
+   Cierre = PR separado (R2, auth-adjacent).
 2. Los barrels quedan como superficie declarada que todavía nadie importa. Es el
    diseño previsto por §47.2/R14; el valor de B01 es el guard y habilitar B02+.
-3. `export` sobre 11 componentes `"use client"`: sin efecto hoy (nadie importa
+3. `export` sobre 10 componentes `"use client"`: sin efecto hoy (nadie importa
    los barrels), pero cuando un PR posterior migre el primer consumidor deberá
    vigilarse el arrastre del grafo client del barrel. El precedente PR-PRES-5 no
    cubre este caso: `StatusBadge` no es client component.
@@ -214,7 +302,14 @@ residual nulo".
 
 ## 15. Estado final
 
-B01 implementado localmente: 2 barrels poblados, 1 guard ejecutable (8/8), 1
-documento. Cero movimiento de runtime, cero migración de consumidores, cero
-cambios en los 15 componentes legacy. Pendiente de revisión y autorización git
-de Nico. **B02 no iniciado.**
+B01 implementado: 2 barrels poblados (5 + 9 módulos, 26 símbolos), 1 guard
+ejecutable con cierre transitivo (8/8), 1 documento. Cero movimiento de runtime,
+cero migración de consumidores, cero cambios en los componentes legacy, cero
+cambios de auth/API.
+
+Revisión de PR #1658: el hallazgo P2 de Codex sobre el alcance del guard fue
+confirmado y corregido en un commit adicional —recorrido transitivo de la
+clausura de imports y retirada del único root que fallaba
+(`AdminMobileKebabMenu`)—, sin refactorizar ningún componente runtime y sin
+salir de los 4 paths B01. Pendiente de autorización de merge de Nico.
+**B02 no iniciado.**

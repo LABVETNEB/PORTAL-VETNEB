@@ -14,11 +14,11 @@
  * barrel becomes the declared import surface while both grammars coexist.
  *
  * Boundary rule: presentation does not reach the data layer. Neither this
- * barrel nor any module it re-exports may import `@/lib/api` or the `app/`
- * layer — enforced by
+ * barrel, nor any module it re-exports, nor anything those modules import at
+ * any depth may reach `@/lib/api` or the `app/` layer — enforced by
  * `test/architecture/dashboard-presentation-import-boundaries.test.ts`, which
- * follows every re-export into its legacy target instead of only scanning this
- * folder.
+ * walks the whole first-party import closure instead of only scanning this
+ * folder or checking the immediate re-export target.
  *
  * `DashboardTopbar` is deliberately absent: it still imports `@/lib/api`
  * directly, so exposing it here would launder that violation through the

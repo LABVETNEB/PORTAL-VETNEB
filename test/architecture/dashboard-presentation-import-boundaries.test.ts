@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, relative, resolve, sep } from "node:path";
 
 // B01 (audit §49 / §54) — dashboard presentation import boundaries.
@@ -19,8 +19,22 @@ import { dirname, relative, resolve, sep } from "node:path";
 // dependency rules to every target it finds. A re-export added by a later PR is
 // checked automatically — the target list is discovered, never hardcoded as an
 // escape hatch.
+//
+// Transitive closure (review fix): checking only the immediate re-export target
+// was not enough. A sanctioned target can reach the data layer *through another
+// local component*, and a target-only check reports the boundary as clean while
+// the export still crosses it — a real false green, observed on
+// `AdminMobileKebabMenu -> DashboardLogoutControl -> @/lib/api`. The traversal
+// below therefore starts at the barrels and follows every local
+// import/re-export edge recursively until the closure is exhausted, so a
+// forbidden dependency is caught at any depth. A local import added tomorrow to
+// an already-sanctioned component is covered automatically.
 
 const SOURCE_ROOT = process.cwd();
+
+const SOURCE_ALIAS_PREFIX = "@/";
+const SOURCE_ALIAS_ROOT = "frontend/src";
+const MODULE_EXTENSIONS = [".ts", ".tsx"] as const;
 
 const PRESENTATION_ROOT = "frontend/src/features/dashboard/presentation";
 const SHELL_BARREL = `${PRESENTATION_ROOT}/shell/index.ts`;
@@ -61,7 +75,6 @@ const NAVIGATION_REQUIRED_EXPORTS: Record<string, readonly string[]> = {
   ClinicMobileBottomNav: ["ClinicMobileBottomNav"],
   AdminMobileHubLauncher: ["AdminMobileHubLauncher"],
   AdminMobileHubPager: ["AdminMobileHubPager"],
-  AdminMobileKebabMenu: ["AdminMobileKebabMenu"],
   AdminMobileModuleMenu: ["AdminMobileModuleMenu"],
   DashboardPager: [
     "DashboardPager",
@@ -205,6 +218,88 @@ function extractReexportTargets(barrelPath: string): string[] {
   return [...new Set(extractModuleSpecifiers(readSource(barrelPath)))];
 }
 
+// Minimal static resolver for the module styles this repo actually uses:
+// the `@/` alias (rooted at frontend/src, per frontend/tsconfig.json paths),
+// relative specifiers, the `.ts`/`.tsx` extensions and directory index modules.
+// Bare specifiers resolve into node_modules and are deliberately NOT followed:
+// the boundary governs first-party architecture, and walking dependencies would
+// be both meaningless here and unbounded. Returns undefined when the specifier
+// is not a resolvable first-party module.
+function resolveLocalModule(
+  specifier: string,
+  fromRelativeFile: string,
+): string | undefined {
+  let base: string;
+
+  if (specifier.startsWith(SOURCE_ALIAS_PREFIX)) {
+    base = `${SOURCE_ALIAS_ROOT}/${specifier.slice(SOURCE_ALIAS_PREFIX.length)}`;
+  } else if (specifier.startsWith(".")) {
+    base = relative(
+      SOURCE_ROOT,
+      resolve(dirname(resolve(SOURCE_ROOT, fromRelativeFile)), specifier),
+    )
+      .split(sep)
+      .join("/");
+  } else {
+    return undefined;
+  }
+
+  const candidates = [
+    base,
+    ...MODULE_EXTENSIONS.map((extension) => `${base}${extension}`),
+    ...MODULE_EXTENSIONS.map((extension) => `${base}/index${extension}`),
+  ];
+
+  return candidates.find((candidate) => {
+    const absolute = resolve(SOURCE_ROOT, candidate);
+    return existsSync(absolute) && statSync(absolute).isFile();
+  });
+}
+
+// Walks the first-party dependency closure of `entryPath` and returns the first
+// chain that reaches a forbidden dependency, or undefined when the closure is
+// clean.
+//
+// Every import/re-export edge is followed, type-only ones included. That is the
+// deliberately stricter reading: the rule is an *architecture* dependency
+// boundary over the module graph, and `import type` still couples presentation
+// to a module that owns a data-layer import. It was verified not to manufacture
+// false positives — traversing with and without type-only edges yields an
+// identical verdict for every current root, and the two pre-existing type-only
+// cycles inside components/dashboard/ are cycles, not data-layer paths, so the
+// visited set absorbs them.
+function findForbiddenChain(entryPath: string): string[] | undefined {
+  const visited = new Set<string>();
+  const stack: { file: string; chain: string[] }[] = [
+    { file: entryPath, chain: [entryPath] },
+  ];
+
+  while (stack.length > 0) {
+    const { file, chain } = stack.pop()!;
+    if (visited.has(file)) continue;
+    visited.add(file);
+
+    for (const specifier of extractModuleSpecifiers(readSource(file))) {
+      const forbidden = matchesForbidden(specifier);
+      if (forbidden) return [...chain, specifier];
+      if (resolvesIntoAppLayer(specifier, file)) return [...chain, specifier];
+
+      const next = resolveLocalModule(specifier, file);
+      if (next && !visited.has(next)) {
+        stack.push({ file: next, chain: [...chain, next] });
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function formatChain(chain: string[]): string {
+  return chain
+    .map((step) => step.replace(`${LEGACY_COMPONENT_ROOT}/`, ""))
+    .join("\n     -> ");
+}
+
 function legacyTargetPath(moduleName: string): string {
   return `${LEGACY_COMPONENT_ROOT}/${moduleName}.tsx`;
 }
@@ -313,23 +408,26 @@ test("B01 no presentation source imports the data layer or the app layer", () =>
   }
 });
 
-test("B01 no module re-exported through the presentation barrels reaches the data layer", () => {
-  const targets = new Set<string>();
-
+test("B01 nothing reachable from the presentation barrels reaches the data layer", () => {
   for (const barrel of [SHELL_BARREL, NAVIGATION_BARREL]) {
-    for (const specifier of extractReexportTargets(barrel)) {
-      if (!specifier.startsWith(LEGACY_ALIAS_PREFIX)) continue;
-      targets.add(legacyTargetPath(specifier.slice(LEGACY_ALIAS_PREFIX.length)));
-    }
-  }
+    const targets = extractReexportTargets(barrel);
 
-  assert.ok(
-    targets.size > 0,
-    "the presentation barrels must expose re-export targets; an empty set would pass vacuously",
-  );
+    assert.ok(
+      targets.length > 0,
+      `${barrel} must expose re-export targets; an empty closure would pass vacuously`,
+    );
 
-  for (const target of targets) {
-    assertNoForbiddenDependency(target, "sanctioned re-export target");
+    // Starting at the barrel itself, not at the target list, means the closure
+    // covers the barrel's own imports, every sanctioned target, and everything
+    // those targets pull in at any depth.
+    const chain = findForbiddenChain(barrel);
+    assert.equal(
+      chain,
+      undefined,
+      chain === undefined
+        ? ""
+        : `${barrel} reaches a forbidden dependency through its local import closure:\n     ${formatChain(chain)}\n   The dashboard presentation boundary forbids ${FORBIDDEN_DEPENDENCIES.join(" and ")}. Remove the re-export from the barrel, or remove the forbidden import from the chain.`,
+    );
   }
 });
 

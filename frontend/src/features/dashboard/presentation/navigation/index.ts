@@ -3,7 +3,7 @@
  *
  * Home for the module navigation surfaces: DashboardHorizontalNav,
  * DashboardModuleRail, Admin/ClinicMobileBottomNav, the AdminMobile hub
- * launcher / pager / menus / kebab and the pagers (audit §6). These consume the
+ * launcher / pager / module menu and the pagers (audit §6). These consume the
  * `config` catalog and the `application` navigation helpers rather than
  * re-declaring module literals.
  *
@@ -19,10 +19,17 @@
  * `@/features/dashboard/config` and `@/features/dashboard/application`.
  *
  * Boundary rule: presentation does not reach the data layer. Neither this
- * barrel nor any module it re-exports may import `@/lib/api` or the `app/`
- * layer — enforced by
+ * barrel, nor any module it re-exports, nor anything those modules import at
+ * any depth may reach `@/lib/api` or the `app/` layer — enforced by
  * `test/architecture/dashboard-presentation-import-boundaries.test.ts`, which
- * follows every re-export into its legacy target.
+ * walks the whole first-party import closure, not just the immediate target.
+ *
+ * `AdminMobileKebabMenu` is deliberately absent: it is a live component, but it
+ * composes `DashboardLogoutControl` and `DashboardNotificationsBell`, and both
+ * import `@/lib/api` directly, so re-exporting it would carry the data layer
+ * across the boundary transitively. It is excluded from the barrel, not
+ * removed, not modified and not migrated; it is admitted automatically once
+ * those two imports are gone.
  *
  * `AdminDashboardSidebar` and `ClinicDashboardSidebar` are deliberately absent:
  * they have no runtime consumers and their disposition belongs to B02. B01
@@ -43,7 +50,6 @@ export { AdminMobileBottomNav } from "@/components/dashboard/AdminMobileBottomNa
 export { ClinicMobileBottomNav } from "@/components/dashboard/ClinicMobileBottomNav";
 export { AdminMobileHubLauncher } from "@/components/dashboard/AdminMobileHubLauncher";
 export { AdminMobileHubPager } from "@/components/dashboard/AdminMobileHubPager";
-export { AdminMobileKebabMenu } from "@/components/dashboard/AdminMobileKebabMenu";
 export { AdminMobileModuleMenu } from "@/components/dashboard/AdminMobileModuleMenu";
 export {
   DASHBOARD_INLINE_PAGER_RESERVATION,
