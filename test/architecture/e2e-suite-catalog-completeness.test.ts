@@ -23,8 +23,8 @@ const TEST_FILE = fileURLToPath(import.meta.url);
 const REPO_ROOT = resolve(dirname(TEST_FILE), "..", "..");
 process.chdir(REPO_ROOT);
 
-const EXPECTED_WORKSPACE_SPEC_COUNT = 78;
-const EXPECTED_CATALOG_SPEC_COUNT = 78;
+const EXPECTED_WORKSPACE_SPEC_COUNT = 79;
+const EXPECTED_CATALOG_SPEC_COUNT = 79;
 const EXPECTED_MANUAL_ONLY_SPEC_COUNT = 0;
 const EXPECTED_DOMAIN_COUNTS = new Map([
   ["admin", 19],
@@ -32,7 +32,7 @@ const EXPECTED_DOMAIN_COUNTS = new Map([
   ["public", 8],
   ["particular", 2],
   ["platform", 18],
-  ["regression", 9],
+  ["regression", 10],
 ]);
 const EXPECTED_CURRENT_COUNTS = new Map([
   ["smoke", 9],
@@ -42,10 +42,10 @@ const EXPECTED_CURRENT_COUNTS = new Map([
 ]);
 const EXPECTED_EXECUTION_COUNTS = new Map<E2eExecutionCohort, number>([
   ["ci", 44],
-  ["extended", 29],
+  ["extended", 30],
   ["evidence", 2],
   ["visual-linux", 3],
-  ["full", 78],
+  ["full", 79],
   ["affected", 0],
 ]);
 const EXECUTION_PARTITION_COHORTS = [
@@ -314,11 +314,11 @@ test("catalog validation catches missing and duplicate entries in memory", async
 
   assert.throws(
     () => validateCatalog(missing, workspaceSpecs, E2E_MANUAL_ONLY_SPECS),
-    /78|classified/,
+    /79|classified/,
   );
   assert.throws(
     () => validateCatalog(duplicated, workspaceSpecs, E2E_MANUAL_ONLY_SPECS),
-    /78|unique/,
+    /79|unique/,
   );
 });
 

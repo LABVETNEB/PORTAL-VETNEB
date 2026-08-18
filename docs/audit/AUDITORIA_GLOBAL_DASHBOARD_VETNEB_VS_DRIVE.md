@@ -1012,6 +1012,137 @@ Alcance deliberadamente excluido: no se modificó DB, schema, endpoints, roles, 
 dependencias, `package.json`, `pnpm-lock.yaml`, `tsconfig*`, `next.config`, CI ni workflows; no se
 ejecutó ninguna operación R3.
 
+### 20.11 A08 cerrado: congelación canónica del contrato zero-scroll *(2026-08-17)*
+
+Registra el estado posterior a §20.9 y §20.10; **no** los revisa ni los reescribe. En sus puntos
+temporales, A08 no tenía contrato y esos registros eran correctos.
+
+**Qué observó la auditoría histórica.** §10 del `AGENTS.md` y §48 declaran zero-scroll como
+invariante medible del dashboard, y existían cuatro specs que lo comprobaban. Pero ninguno era el
+*freeze* de §48: cubrían subconjuntos distintos de rutas y viewports, tres de ellos contra la
+sesión degradada (`NEXT_PUBLIC_API_URL=""`), y ninguno medía las tres superficies
+(`documentElement`, `body`, `main.dashboard-main`) en los dos ejes a la vez. Una superficie o un
+viewport nuevo entraba sin quedar cubierto y nadie lo notaba.
+
+| Spec preexistente | Combinaciones | Estado de datos | Qué mide |
+|---|---|---|---|
+| `dashboard-internal-no-scroll-contract` | 4 rutas × 2 vp = 8 | degradado | `overflow-y` de `main` + eje vertical de las 3 superficies |
+| `dashboard-single-viewport-app-shell` | 9 rutas × 2 vp = 18 | degradado | ambos ejes de las 3 superficies; **no** `overflow-y` |
+| `dashboard-real-app-shell-no-scroll-contract` | 17 rutas × 2 vp = 34 | poblado parcial | ambos ejes + peor scroller interno; sólo 2 viewports desktop |
+| `dashboard-zero-scroll-mobile-boundary` | (3+1) rutas × 2 vp = 8 | poblado | deltas de `html`/`body` + frontera del bottom nav; **no** mide `main` |
+
+**Cardinalidad del censo, calculada — no estimada.** Las cuatro filas suman **68 ejecuciones
+brutas** (8 + 18 + 34 + 8). Esa suma **no** es la cobertura: los cuatro specs se solapan. Deduplicando
+por par *(ruta, viewport)* quedan **45 pares únicos** y **23 ejecuciones redundantes**, sobre
+**18 rutas distintas** y **4 viewports distintos**.
+
+| Magnitud | Valor |
+|---|---|
+| Ejecuciones brutas (8 + 18 + 34 + 8) | 68 |
+| Pares únicos *(ruta, viewport)* | **45** |
+| Ejecuciones redundantes | 23 |
+| Rutas distintas | 18 |
+| Viewports distintos | 4 → `1440x900`, `1366x768`, `390x844`, `360x740` |
+
+El dato decisivo está en la última fila: de esos 4 viewports, **`360x740` ni siquiera pertenece a la
+matriz canónica**, de modo que el zero-scroll preexistente tocaba **3 de los 13 viewports canónicos**
+y dejaba **10 sin ejercitar jamás** (`1920x1080`, `1600x900`, `1280x720`, `1024x768`, `834x1194`,
+`768x1024`, `430x932`, `412x915`, `375x812`, `360x800`).
+
+Los 45 pares se cuentan en **rutas**, no en las 21 superficies A02, y por eso **no** son comparables
+término a término con las 273 combinaciones de A08: varias rutas resuelven a la misma superficie
+(p. ej. `/dashboard` y `/dashboard?module=operaciones` son ambas `clinic-operaciones`). La magnitud
+que sí es directamente comparable, y la que justifica A08, es la cobertura de viewports canónicos:
+**3/13 antes, 13/13 ahora**.
+
+Ninguno constituye el freeze A08 y **ninguno se retira**: siguen siendo contratos válidos de sus
+propias propiedades (frontera inferior móvil, scroller interno, boundary del nav).
+
+**Qué queda congelado ahora.** `frontend/e2e/regression/dashboard-zero-scroll-baseline.spec.ts`
+(21 tests Playwright, **21/21 PASSED**, 273 combinaciones) convierte el invariante en contrato
+ejecutable sobre la matriz canónica completa:
+
+| Dimensión | Contrato ejecutable |
+|---|---|
+| Completitud | Las 21 superficies y los 13 viewports se **importan** de `frontend/e2e/helpers/dashboard-geometry-matrix.ts` (la matriz A02), no se recopian; `beforeAll` exige cardinalidad 21/13, ids y slugs únicos, y producto = 273 |
+| Ejecución | Cada test comprueba que midió 13 viewports **distintos**: un viewport que deje de ejecutarse no puede quedar en verde |
+| `documentElement` | `scrollHeight ≤ clientHeight + 2px` y `scrollWidth ≤ clientWidth + 2px` |
+| `body` | Idéntico, en ambos ejes |
+| `main.dashboard-main` | Existe; ambos ejes acotados; y `overflow-y` computado **no** es `auto` ni `scroll` |
+| Estado medido | Selector de readiness visible → `networkidle` → `assertSurfaceLoaded()` (gate semántico A02) → `waitForLayoutSettled()`; sólo entonces se mide |
+
+**Semántica deliberada: A08 congela el marco, no prohíbe el canvas.** §10 autoriza el scroll interno
+*contratado* (p. ej. el body de una tabla). A08 mide exclusivamente las tres superficies del App
+Shell y no recorre descendientes: un canvas acotado que scrollea internamente sigue siendo legal y
+conserva sus propios specs. Prohibir todo scroll interno habría convertido A08 en un contrato
+distinto del que declara §48.
+
+**Estado LOADED obligatorio.** A08 reutiliza los mocks herméticos de A02 (`installSurfaceMocks`) y
+su gate semántico (`assertSurfaceLoaded`), de modo que las cinco superficies que el fixture
+compartido responde con 404 se miden **cargadas** y no como tarjeta de error. Ningún dato real,
+ninguna credencial y ningún token: los stubs son sintéticos y de timestamps fijos, heredados de A02.
+
+**Resultado medido — el margen de tolerancia quedó sin consumir.** Las 273 combinaciones no sólo
+caen bajo los 2 px: caen en **0 px exactos** en los seis deltas, y `main.dashboard-main` computa
+`overflow-y: hidden` en las 273.
+
+| Métrica | Mín | Máx | Umbral |
+|---|---|---|---|
+| `documentElement` vertical / horizontal | 0 | **0** | 2 px |
+| `body` vertical / horizontal | 0 | **0** | 2 px |
+| `main.dashboard-main` vertical / horizontal | 0 | **0** | 2 px |
+| `main.dashboard-main` `overflow-y` | — | `hidden` (273/273) | ≠ `auto`, ≠ `scroll` |
+
+La tolerancia de 2 px es la misma que ya usaban los cuatro specs preexistentes; se conserva por
+coherencia y para redondeo sub-píxel, **no** se ensanchó para hacer pasar nada. Que el margen quede
+íntegro significa que cualquier desbordamiento real futuro, por pequeño que sea, será detectado.
+
+**Fail-closed demostrado por control de mutación, no afirmado.** Las cinco mutaciones se ejecutaron
+sobre **copias seguras** del spec y de la matriz en un directorio temporal fuera de `frontend/e2e/`,
+nunca sobre el archivo versionado, y el harness se eliminó al terminar:
+
+| Mutación | Resultado |
+|---|---|
+| M1 · overflow vertical real (`body { min-height: 200vh }`) | **FAIL** · 13/13 viewports · delta 720–1194 px en `documentElement` |
+| M2 · overflow horizontal real (`body::after` de 200vw) | **FAIL** · 13/13 viewports · delta 360–1920 px en `body` (y en `documentElement` hasta 768 px de ancho) |
+| M3 · `main.dashboard-main` con `overflow-y: auto` | **FAIL** · 13/13 viewports · scroll container operativo detectado |
+| M4 · se quita una superficie del censo usado por A08 | **FAIL** · `beforeAll` · *surface cardinality* 20 ≠ 21 |
+| M5 · se quita un viewport | **FAIL** · `beforeAll` · *viewport cardinality* 12 ≠ 13 |
+
+M4 y M5 son el punto clave: como el censo se **importa** de A02, borrar una superficie o un viewport
+de la matriz canónica no reduce silenciosamente la cobertura de A08 — la rompe. Es la lección de A07
+aplicada al zero-scroll: una segunda lista escrita a mano derivaría en verde.
+
+**Frontera con el resto del Programa A.** A02 congela la **geometría actual** (bounds, regiones,
+anclas). A03 congela **`limit`/`offset`**. A05–A07 congelan el **motor de capacidad**. A08 congela
+**zero-scroll global** y no mide ni un bound, ni un parámetro de paginación, ni una altura de
+región. Las cuatro dimensiones comparten matriz y no se solapan.
+
+**A08 = CLOSED.** El contrato 21 × 13 = 273 está probado localmente: 21/21 PASSED, 273/273
+combinaciones medidas en estado cargado, 0 violaciones, y las cinco mutaciones en FAIL.
+
+**Programa A completo.** Con A08 cerrado, A01–A08 quedan CLOSED. G4 de §58 («zero-scroll congelado»)
+tiene ahora contrato ejecutable, y B06/B08 pueden apoyarse en él. Esta tarea **no** inicia el
+Programa B.
+
+**Riesgos residuales.**
+
+1. El contrato se ejecuta en Chromium (único proyecto Playwright del repo). Un desbordamiento
+   específico de otro motor no quedaría cubierto; es el P0 de proceso ya registrado en la auditoría
+   visual total, no un gap nuevo de A08.
+2. Las 273 combinaciones viven en la cohorte `extended`, que no es required de `main`: corren en
+   `E2E Completeness` (`e2e:full`) y bajo `e2e:extended`, no en `validate-frontend`. Promoverlas a
+   `visual-contract` multiplicaría el tiempo del gate required y no lo pide el catálogo.
+3. A08 mide el marco; la operabilidad del contenido dentro del marco (acciones alcanzables,
+   solapamientos) sigue cubierta por sus specs propios, no por éste.
+
+Alcance deliberadamente excluido: no se modificó `frontend/src`, `server`, `shared`, CSS de runtime,
+auth, cookies, API, DB, schema, `package.json`, `pnpm-lock.yaml`, CI ni workflows. El diff es un
+spec nuevo, su registro en el catálogo E2E, la realineación in-PR de los dos guards de censo que ese
+registro rompe legítimamente, y este apartado documental. No se ejecutó ninguna operación R3.
+
+---
+
 ### 20.2 Consumidores compuestos y conteo de observaciones *(normativo)*
 
 Las filas 14 y 15 de §20 son **consumidores compuestos**: un único consumidor del hook con varias instancias o rutas reales, cada una con su propio contenedor medido y su propio contrato. El registro primario de cada combinación módulo/viewport contiene una **colección tipada de observaciones hoja**, una por variante. Está prohibido seleccionar arbitrariamente una única instancia o ruta y está prohibido agregar sus valores por mínimo, máximo, promedio o primer elemento (§20.5).
