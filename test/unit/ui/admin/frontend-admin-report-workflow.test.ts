@@ -5,8 +5,6 @@ import test from "node:test";
 
 const PAGE_PATH = "frontend/src/app/dashboard/admin/page.tsx";
 const TOPBAR_PATH = "frontend/src/components/dashboard/DashboardTopbar.tsx";
-const SIDEBAR_PATH =
-  "frontend/src/components/dashboard/AdminDashboardSidebar.tsx";
 const ADMIN_PARTICULAR_TOKENS_CARD_PATH =
   "frontend/src/app/dashboard/admin/AdminParticularTokensCard.tsx";
 const BELL_PATH =
@@ -50,15 +48,6 @@ test("dashboard admin elimina seguimiento redundante y quita carga de informes d
   assert.equal(card.includes("presetParticularToken={token}"), false);
   assert.ok(card.includes("Informe vinculado"));
   assert.ok(card.includes("<ReportFileActions"));
-});
-
-test("sidebar admin no muestra seguimiento de informes y conserva anclas operativas", () => {
-  const sidebar = read(SIDEBAR_PATH);
-
-  assert.equal(sidebar.includes('label: "Seguimiento de informes"'), false);
-  assert.equal(sidebar.includes("#admin-report-workflow"), false);
-  assert.ok(sidebar.includes('label: "Tokens particulares"'));
-  assert.ok(sidebar.includes('label: "Auditoría"'));
 });
 
 test("admin tokens card permite solicitar y resolver tinción especial por tracking case", () => {

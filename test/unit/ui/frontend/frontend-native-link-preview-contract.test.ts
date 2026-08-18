@@ -19,8 +19,6 @@ const PUBLIC_ROUTE_CONTROL_PATH =
   "frontend/src/components/public/PublicRouteControl.tsx";
 const RENDER_PRIMITIVES_PATH = "frontend/src/components/public/RenderPrimitives.tsx";
 const OFFLINE_ACTIONS_PATH = "frontend/src/components/pwa/OfflineActions.tsx";
-const DASHBOARD_SIDEBAR_PATH =
-  "frontend/src/components/dashboard/DashboardSidebarFrame.tsx";
 
 function read(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
@@ -302,7 +300,6 @@ test("navigation controls avoid anti-preview hacks", () => {
     FOOTER_PATH,
     HOME_PATH,
     OFFLINE_ACTIONS_PATH,
-    DASHBOARD_SIDEBAR_PATH,
   ];
 
   const forbiddenPatterns = [

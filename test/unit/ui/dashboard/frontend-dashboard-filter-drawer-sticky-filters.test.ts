@@ -7,9 +7,6 @@ import { isClean7aAllowedDependencyChange } from "../../../helpers/clean7a-depen
 import { isReportForeignAccessBackendFile } from "../../../helpers/report-foreign-access-scope.ts";
 import { dashboardScopeGuardApplies } from "../../../helpers/dashboard-scope-guard.ts";
 
-const FILTER_DRAWER_PATH = "frontend/src/components/dashboard/FilterDrawer.tsx";
-const STICKY_FILTER_BAR_PATH =
-  "frontend/src/components/dashboard/StickyFilterBar.tsx";
 const FILTER_BAR_PATH = "frontend/src/components/dashboard/FilterBar.tsx";
 const INFORMES_PAGE_PATH = "frontend/src/app/dashboard/informes/page.tsx";
 const DOC_PATH = "docs/audit/pr-vis-6-implementation.md";
@@ -46,88 +43,6 @@ function assertNoForbiddenSurfaceImports(source: string, context: string): void 
     }
   }
 }
-
-test("FilterDrawer exposes reusable client drawer contract without forbidden surfaces", () => {
-  const source = read(FILTER_DRAWER_PATH);
-
-  assert.ok(source.includes('"use client";'));
-  assert.ok(source.includes("export type FilterDrawerProps = {"));
-  assert.ok(source.includes("title: string;"));
-  assert.ok(source.includes("description?: string;"));
-  assert.ok(source.includes("triggerLabel?: string;"));
-  assert.ok(source.includes("activeCount?: number;"));
-  assert.ok(source.includes("children: ReactNode;"));
-  assert.ok(source.includes("footer?: ReactNode;"));
-  assert.ok(source.includes("className?: string;"));
-  assert.ok(source.includes("const panelRef = useRef<HTMLDivElement>(null);"));
-  assert.ok(source.includes("const activeCountLabel ="));
-  assert.ok(source.includes('activeCount === 0'));
-  assert.ok(source.includes('"Sin filtros activos"'));
-  assert.ok(source.includes('event.key === "Escape"'));
-  assert.ok(source.includes('aria-haspopup="dialog"'));
-  assert.ok(source.includes("aria-expanded={open}"));
-  assert.ok(source.includes("aria-label={`${triggerLabel}. ${activeCountLabel}`}"));
-  assert.ok(source.includes('role="dialog"'));
-  assert.ok(source.includes('aria-modal="true"'));
-  assert.ok(source.includes("aria-labelledby={titleId}"));
-  assert.ok(source.includes("ref={panelRef}"));
-  assert.ok(source.includes("tabIndex={-1}"));
-  assert.ok(source.includes('aria-label="Cerrar panel de filtros"'));
-  assert.ok(source.includes("dashboard-focus-trap-container"));
-  assert.ok(source.includes("activeCount > 0"));
-  assert.ok(source.includes("<span>{triggerLabel}</span>"));
-  assert.ok(source.includes('<span className="sr-only">{activeCountLabel}</span>'));
-  assert.ok(source.includes("<span>Cerrar</span>"));
-  assert.ok(source.includes("footer ?"));
-  assert.ok(source.includes("focus-visible:ring-2"));
-  assert.ok(source.includes("h-10 min-h-10 w-full"));
-  assert.ok(source.includes("h-10 min-h-10 shrink-0"));
-  assert.ok(source.includes("h-dvh w-full max-w-md"));
-  assertNoForbiddenSurfaceImports(source, "FilterDrawer");
-  assert.equal(source.includes('from "next/link"'), false);
-  assert.equal(source.includes("<Link"), false);
-  assert.equal(source.includes("<a"), false);
-  assert.equal(source.includes("fetch("), false);
-  assert.equal(source.includes("shadow-xl"), false);
-});
-
-test("StickyFilterBar renders sticky active-filter summary and action slots", () => {
-  const source = read(STICKY_FILTER_BAR_PATH);
-
-  assert.ok(source.includes("export type ActiveFilter = {"));
-  assert.ok(source.includes("label: string;"));
-  assert.ok(source.includes("value: string;"));
-  assert.ok(source.includes("export type StickyFilterBarProps = {"));
-  assert.ok(source.includes("ariaLabel?: string;"));
-  assert.ok(source.includes("activeFilters?: ActiveFilter[];"));
-  assert.ok(source.includes("actions?: ReactNode;"));
-  assert.ok(source.includes("drawer?: ReactNode;"));
-  assert.ok(source.includes("activeFilters = [],"));
-  assert.ok(source.includes('aria-label={ariaLabel ?? "Filtros del dashboard"}'));
-  assert.ok(source.includes('aria-label="Filtros activos"'));
-  assert.ok(source.includes('aria-live="polite"'));
-  assert.ok(source.includes('role="group"'));
-  assert.ok(source.includes('aria-label="Acciones de filtros"'));
-  assert.ok(source.includes('data-sticky-filter-bar="true"'));
-  assert.ok(source.includes("sticky top-3"));
-  assert.ok(source.includes("md:top-[8.75rem]"));
-  assert.ok(source.includes("activeFilters.length ?"));
-  assert.ok(source.includes("activeFilters.map((filter) =>"));
-  assert.ok(source.includes("<ul"));
-  assert.ok(source.includes("<li"));
-  assert.ok(source.includes("Sin filtros activos"));
-  assert.ok(source.includes("{drawer}"));
-  assert.ok(source.includes("{actions}"));
-  assert.ok(source.includes("focus-visible:ring-2"));
-  assert.ok(source.includes("[&_button]:min-h-10"));
-  assertNoForbiddenSurfaceImports(source, "StickyFilterBar");
-  assert.equal(source.includes('"use client"'), false);
-  assert.equal(source.includes('from "next/link"'), false);
-  assert.equal(source.includes("<Link"), false);
-  assert.equal(source.includes("<a"), false);
-  assert.equal(source.includes("fetch("), false);
-  assert.equal(source.includes("shadow-xl"), false);
-});
 
 test("dashboard informes uses compact inline filters without drawer sticky overlap", () => {
   const source = read(INFORMES_PAGE_PATH);

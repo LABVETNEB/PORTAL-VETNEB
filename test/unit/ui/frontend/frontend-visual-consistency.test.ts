@@ -10,12 +10,6 @@ const SERVICIOS_PAGE_PATH = "frontend/src/app/servicios/page.tsx";
 const HISTOPATOLOGIA_PAGE_PATH =
   "frontend/src/app/histopatologia-veterinaria/page.tsx";
 const LOGIN_CONTENT_PATH = "frontend/src/components/public/LoginContent.tsx";
-const DASHBOARD_SIDEBAR_FRAME_PATH =
-  "frontend/src/components/dashboard/DashboardSidebarFrame.tsx";
-const CLINIC_DASHBOARD_SIDEBAR_PATH =
-  "frontend/src/components/dashboard/ClinicDashboardSidebar.tsx";
-const ADMIN_DASHBOARD_SIDEBAR_PATH =
-  "frontend/src/components/dashboard/AdminDashboardSidebar.tsx";
 const DASHBOARD_TOPBAR_PATH = "frontend/src/components/dashboard/DashboardTopbar.tsx";
 const DASHBOARD_HOME_PATH = "frontend/src/app/dashboard/page.tsx";
 const DASHBOARD_CLINIC_COMMAND_CENTER_PATH =
@@ -336,77 +330,6 @@ test("login content keeps polished auth card layout and stable visual states", (
 
   assertInlineStylesAtMost(source, 0, "login content");
   assertNoClientFetchOrApiLiterals(source, "login content");
-});
-
-test("dashboard sidebar keeps shell consistency and responsive navigation classes", () => {
-  const source = read(DASHBOARD_SIDEBAR_FRAME_PATH);
-
-  assertContainsAll(
-    source,
-    [
-      '"use client";',
-      "export type DashboardNavItem = {",
-      'role="navigation"',
-      'aria-label="Navegación principal"',
-      'aria-label="Menú principal"',
-      "focus-visible:ring-2 focus-visible:ring-ring/85",
-      "item.children && isActive(item.href)",
-      "item.children.map((child) =>",
-    ],
-    "dashboard sidebar structure",
-  );
-
-  assertMatchesAll(
-    source,
-    [
-      /className="sticky top-0 flex h-dvh w-\[4\.5rem\] 2xl:w-60 shrink-0 flex-col overflow-y-auto bg-sidebar text-sidebar-foreground"/,
-      /className="flex items-center justify-center 2xl:justify-start 2xl:gap-3 border-b border-sidebar-border px-2 2xl:px-3 py-5"/,
-      /className="flex-1 space-y-1 px-2 py-4"/,
-      /"flex items-center justify-center 2xl:justify-start gap-3 rounded-md px-2 py-2 2xl:px-3 text-sm font-semibold dashboard-nav-interactive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring\/85 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"/,
-      /className="sr-only" aria-hidden="true"/,
-      /className="border-t border-sidebar-border px-2 py-4 sm:px-3"/,
-    ],
-    "dashboard sidebar classes",
-  );
-
-  assertInlineStylesAtMost(source, 0, "dashboard sidebar");
-  assertNoClientFetchOrApiLiterals(source, "dashboard sidebar");
-});
-
-test("clinic and admin sidebars keep visual parity with separated operational nav", () => {
-  const clinicSource = read(CLINIC_DASHBOARD_SIDEBAR_PATH);
-  const adminSource = read(ADMIN_DASHBOARD_SIDEBAR_PATH);
-
-  assertContainsAll(
-    clinicSource,
-    [
-      "DashboardSidebarFrame",
-      'dashboardLabel="Dashboard clínica"',
-      'label: "Dashboard"',
-      'label: "Informes"',
-      'label: "Logística"',
-      'label: "Perfil público"',
-      'label: "Tokens particulares"',
-    ],
-    "clinic dashboard sidebar contracts",
-  );
-
-  assertContainsAll(
-    adminSource,
-    [
-      "DashboardSidebarFrame",
-      'dashboardLabel="Administración"',
-      'label: "Administración"',
-      'label: "Subir informe"',
-      'label: "Estado"',
-      'label: "Sesiones"',
-      'label: "Tokens particulares"',
-      'label: "Roles clínica"',
-      'label: "Auditoría"',
-      'label: "Mantenimiento"',
-    ],
-    "admin dashboard sidebar contracts",
-  );
 });
 
 test("dashboard topbar keeps sticky hierarchy and compact responsive shell", () => {

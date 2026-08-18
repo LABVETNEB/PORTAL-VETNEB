@@ -13,10 +13,6 @@ import { readDashboardCssSource } from "../../../helpers/read-dashboard-css-sour
 
 const WORKSPACE_PATH =
   "frontend/src/components/dashboard/DashboardModuleWorkspace.tsx";
-const FILTER_DRAWER_PATH =
-  "frontend/src/components/dashboard/FilterDrawer.tsx";
-const SIDEBAR_FRAME_PATH =
-  "frontend/src/components/dashboard/DashboardSidebarFrame.tsx";
 const STICKY_ACTION_BAR_PATH =
   "frontend/src/components/dashboard/StickyActionBar.tsx";
 const DASHBOARD_SHELL_ROUTER_PATH =
@@ -236,80 +232,6 @@ test("PR-2 DashboardModuleWorkspace keeps focus-visible ring on Volver button", 
   assert.ok(
     source.includes("focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"),
     "DashboardModuleWorkspace Volver button must keep focus-visible ring",
-  );
-});
-
-// ── Component: FilterDrawer ───────────────────────────────────────────────────
-
-test("PR-2 FilterDrawer dialog panel uses dashboard-filter-panel class", () => {
-  const source = read(FILTER_DRAWER_PATH);
-  assert.ok(
-    source.includes("dashboard-filter-panel"),
-    "FilterDrawer dialog panel must use dashboard-filter-panel class",
-  );
-});
-
-test("PR-2 FilterDrawer dialog panel does not use shadow-lg", () => {
-  const source = read(FILTER_DRAWER_PATH);
-  assert.equal(
-    source.includes("shadow-lg"),
-    false,
-    "FilterDrawer dialog panel must not use shadow-lg; use dashboard-filter-panel instead",
-  );
-});
-
-test("PR-2 FilterDrawer keeps role=dialog and aria-modal for accessibility", () => {
-  const source = read(FILTER_DRAWER_PATH);
-  assert.ok(
-    source.includes('role="dialog"'),
-    "FilterDrawer must keep role=dialog",
-  );
-  assert.ok(
-    source.includes('aria-modal="true"'),
-    "FilterDrawer must keep aria-modal",
-  );
-});
-
-test("PR-2 FilterDrawer keeps data-filter-drawer-open attribute", () => {
-  const source = read(FILTER_DRAWER_PATH);
-  assert.ok(
-    source.includes('data-filter-drawer-open="true"'),
-    "FilterDrawer must keep data-filter-drawer-open attribute",
-  );
-});
-
-// ── Component: DashboardSidebarFrame ─────────────────────────────────────────
-
-test("PR-2 DashboardSidebarFrame nav items use dashboard-nav-interactive class", () => {
-  const source = read(SIDEBAR_FRAME_PATH);
-  assert.ok(
-    source.includes("dashboard-nav-interactive"),
-    "DashboardSidebarFrame nav items must use dashboard-nav-interactive class",
-  );
-});
-
-test("PR-2 DashboardSidebarFrame nav items do not use transition-colors", () => {
-  const source = read(SIDEBAR_FRAME_PATH);
-  assert.equal(
-    source.includes("transition-colors"),
-    false,
-    "DashboardSidebarFrame nav items must not use transition-colors; use dashboard-nav-interactive instead",
-  );
-});
-
-test("PR-2 DashboardSidebarFrame keeps focus-visible ring on nav items", () => {
-  const source = read(SIDEBAR_FRAME_PATH);
-  assert.ok(
-    source.includes("focus-visible:ring-2 focus-visible:ring-ring/85"),
-    "DashboardSidebarFrame nav items must keep focus-visible ring",
-  );
-});
-
-test("PR-2 DashboardSidebarFrame keeps aria-current for active nav item", () => {
-  const source = read(SIDEBAR_FRAME_PATH);
-  assert.ok(
-    source.includes('aria-current={isActive(item.href, item.exact) ? "page" : undefined}'),
-    "DashboardSidebarFrame must keep aria-current for active nav item",
   );
 });
 
