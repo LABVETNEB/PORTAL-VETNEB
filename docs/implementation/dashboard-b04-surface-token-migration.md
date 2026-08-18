@@ -449,46 +449,86 @@ Ninguna aserción se borró, se saltó ni se marcó como `todo`.
 
 `frontend/e2e/regression/visual/visual-regression-authenticated.spec.ts`
 
-```
+```text
 DUAL_PIXEL_SPEC        = IMPLEMENTED
-LINUX_SNAPSHOT_UPDATE  = BLOCKED
-LINUX_SNAPSHOT_VERIFY  = BLOCKED
+LINUX_SNAPSHOT_UPDATE  = PASSED
+LINUX_SNAPSHOT_VERIFY  = NOT_RUN
+R9_DUAL_VISUAL         = NOT_CLOSED
 ```
 
-- 2 rutas × 5 viewports × 2 temas = **20 baselines** esperados.
-- Los **10 nombres `normal` existentes se conservan** (`dashboard-320.png`,
-  `admin-dashboard-320.png`, …) para que el diff los muestre como *modificados*
-  —el delta visual intencional de B04— y no como 10 renombres más 10 altas. Sólo
-  el set oscuro lleva sufijo: `dashboard-dark-gray-320.png`, etc.
-- El tema se establece pre-paint y se assertea antes de capturar.
-- `test.skip` de plataforma **sin tocar**: los baselines siguen siendo canónicos
-  sólo para Chromium Linux. `maxDiffPixelRatio` **sin relajar** (0.001).
+La suite autenticada cubre 2 rutas × 5 viewports × 2 temas = **20 estados visuales canónicos**.
 
-### Motivo del bloqueo
+El workflow Linux manual se ejecutó sobre el checkpoint B04 exacto:
 
-```
-node -p "process.platform"  →  win32
-```
-
-El runner rechaza deliberadamente producir baselines fuera de Linux, y este
-entorno no dispone de un Linux canónico con el Chromium/Playwright del repo. Por
-tanto **no se generó, renombró ni copió ningún PNG**.
-
-```
-SNAPSHOT_PATHS_CREATED  = 0
-SNAPSHOT_PATHS_MODIFIED = 0
+```text
+RUN_ID           = 32187834353
+HEAD             = fdbfd46f49a4d1688848a8425da258ef3be782c9
+REF              = feat/dashboard-b04-surface-token-migration
+SUITE            = authenticated
+UPDATE_SNAPSHOTS = true
+UPLOAD_ARTIFACTS = true
+CONCLUSION       = success
 ```
 
-**Camino posterior autorizado (NO ejecutado — es GitHub write / R2):**
-`.github/workflows/visual-regression-manual.yml` con `suite=authenticated` y
-`update_snapshots=true`, para producir el artifact Linux. Requiere autorización
-específica de Nico.
+Artifact:
 
-**Consecuencia: B04 NO se publica.** El spec dual está modificado pero sus
-baselines Linux faltan.
+```text
+visual-regression-authenticated-snapshots-1
+```
+
+La ejecución Chromium Linux produjo correctamente:
+
+```text
+NORMAL    = 10
+DARK-GRAY = 10
+TOTAL     = 20
+```
+
+Después de integrar localmente los 20 PNG producidos por Linux, Git determinó:
+
+```text
+NORMAL:
+  3 MODIFIED
+  7 UNCHANGED / byte-identical to HEAD
+
+DARK-GRAY:
+  10 NEW
+
+TOTAL ESTADOS PRODUCIDOS = 20
+TOTAL PATHS CON DELTA GIT = 13
+```
+
+Los tres baselines normal modificados son:
+
+```text
+admin-dashboard-1024-chromium-linux.png
+admin-dashboard-1536-chromium-linux.png
+admin-dashboard-1920-chromium-linux.png
+```
+
+Los siete baselines normal byte-idénticos a HEAD son:
+
+```text
+dashboard-320-chromium-linux.png
+dashboard-768-chromium-linux.png
+dashboard-1024-chromium-linux.png
+dashboard-1536-chromium-linux.png
+dashboard-1920-chromium-linux.png
+admin-dashboard-320-chromium-linux.png
+admin-dashboard-768-chromium-linux.png
+```
+
+Los diez baselines `dark-gray` son nuevos.
+
+La diferencia entre 20 estados producidos y 13 paths con delta es correcta: Git no incluye en el diff los siete PNG cuyo contenido generado coincide byte a byte con el baseline ya versionado.
+
+`test.skip` de plataforma permanece intacto y `maxDiffPixelRatio` continúa en `0.001`.
+
+La actualización Linux queda **PASSED**.
+
+La verificación Linux final permanece **NOT_RUN** hasta versionar estos baselines y ejecutar la misma suite con `update_snapshots=false`.
 
 ---
-
 ## 15. Preservación verificada
 
 | Invariante | Estado |
