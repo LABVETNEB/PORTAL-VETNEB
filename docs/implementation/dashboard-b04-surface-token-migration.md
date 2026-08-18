@@ -452,8 +452,8 @@ Ninguna aserción se borró, se saltó ni se marcó como `todo`.
 ```text
 DUAL_PIXEL_SPEC        = IMPLEMENTED
 LINUX_SNAPSHOT_UPDATE  = PASSED
-LINUX_SNAPSHOT_VERIFY  = NOT_RUN
-R9_DUAL_VISUAL         = NOT_CLOSED
+LINUX_SNAPSHOT_VERIFY  = PASSED
+R9_DUAL_VISUAL         = PASSED
 ```
 
 La suite autenticada cubre 2 rutas × 5 viewports × 2 temas = **20 estados visuales canónicos**.
@@ -526,7 +526,7 @@ La diferencia entre 20 estados producidos y 13 paths con delta es correcta: Git 
 
 La actualización Linux queda **PASSED**.
 
-La verificación Linux final permanece **NOT_RUN** hasta versionar estos baselines y ejecutar la misma suite con `update_snapshots=false`.
+La verificación Linux final queda **PASSED**: `RUN_ID=32199226832`, `HEAD=5f17131c2335e5474d2c42d7bb085e6642ac52b5`, `update_snapshots=false`, `CONCLUSION=success`.
 
 ---
 ## 15. Preservación verificada
