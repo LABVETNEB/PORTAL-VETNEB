@@ -69,8 +69,41 @@ jobs:
       - name: Audit built public surface
         run: pnpm security:public-surface
 
+      - name: Install Playwright system dependencies
+        timeout-minutes: 5
+        run: pnpm --dir frontend exec playwright install-deps chromium
+
       - name: Install Playwright Chromium
-        run: pnpm --dir frontend exec playwright install --with-deps chromium
+        shell: bash
+        timeout-minutes: 8
+        run: |
+          set -euo pipefail
+
+          readonly max_attempts=2
+          readonly attempt_timeout_seconds=180
+          readonly retry_delay_seconds=10
+
+          for attempt in 1 2; do
+            echo "Playwright Chromium install attempt ${attempt}/${max_attempts}"
+
+            if timeout --signal=TERM --kill-after=15s \
+              "${attempt_timeout_seconds}s" \
+              pnpm --dir frontend exec playwright install chromium
+            then
+              echo "Playwright Chromium install succeeded on attempt ${attempt}."
+              exit 0
+            else
+              status=$?
+            fi
+
+            if [[ "$attempt" -eq "$max_attempts" ]]; then
+              echo "Playwright Chromium install failed after ${max_attempts} attempts (exit ${status})." >&2
+              exit "$status"
+            fi
+
+            echo "Playwright Chromium install attempt ${attempt} failed or timed out (exit ${status}); retrying in ${retry_delay_seconds}s." >&2
+            sleep "$retry_delay_seconds"
+          done
 
       - name: Run complete cataloged E2E suite
         # Bounded retries rerun complete callbacks; they never skip or relax assertions.
