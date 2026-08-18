@@ -85,7 +85,13 @@ const FOUNDATION_SCHEMA: Readonly<Record<string, CategorySchema>> =
         "--dash-color-outline": "ADAPTIVE",
         "--dash-color-outline-subtle": "ADAPTIVE",
         "--dash-color-primary": "ADAPTIVE",
-        "--dash-color-on-primary": "ADAPTIVE",
+        // globals.css declares --primary-foreground as the byte-identical
+        // "190 36% 97%" in both :root and :root[data-theme="dark-gray"], so
+        // the token's EFFECTIVE value never adapts — resolving it
+        // transitively (rather than checking that the direct reference merely
+        // appears under the dark selector) is what surfaces this: it is
+        // INVARIANT, not ADAPTIVE.
+        "--dash-color-on-primary": "INVARIANT",
         "--dash-color-accent": "ADAPTIVE",
         "--dash-color-success": "ADAPTIVE",
         "--dash-color-error": "ADAPTIVE",
@@ -291,19 +297,108 @@ function declarationsFor(selector: string): Map<string, string> {
 const LIGHT_DECLARATIONS = declarationsFor(LIGHT_SCOPE);
 const DARK_DECLARATIONS = declarationsFor(DARK_SCOPE);
 
-/** Global custom properties globals.css re-authors under the dark selector. */
-const DARK_REDEFINED_GLOBALS: ReadonlySet<string> = new Set(
-  parseDeclarations(
-    sliceBlock(
-      GLOBALS_CSS,
-      `:root[data-theme="${DARK_THEME_MODE}"] {`,
-      "}",
-    ),
-  ).map(([token]) => token),
-);
-
 function referencedTokens(value: string): string[] {
   return [...value.matchAll(/var\(\s*(--[a-z0-9-]+)/g)].map((match) => match[1]);
+}
+
+/**
+ * Every `selector { … }` rule in a stylesheet whose selector matches exactly.
+ * Collected as a list because globals.css opens `:root` more than once (the
+ * palette under `@layer base`, and a later unlayered `color-scheme` rule).
+ */
+function ruleBodies(source: string, selector: string): string[] {
+  const bodies: string[] = [];
+  for (const match of stripComments(source).matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    if (match[1].trim().replace(/\s+/g, " ") === selector) bodies.push(match[2]);
+  }
+  return bodies;
+}
+
+function declarationEnv(sources: readonly string[]): Map<string, string> {
+  const env = new Map<string, string>();
+  for (const body of sources) {
+    for (const [token, value] of parseDeclarations(body)) env.set(token, value);
+  }
+  return env;
+}
+
+const GLOBALS_LIGHT = ruleBodies(GLOBALS_CSS, ":root");
+const GLOBALS_DARK = ruleBodies(
+  GLOBALS_CSS,
+  `:root[data-theme="${DARK_THEME_MODE}"]`,
+);
+
+/**
+ * The two environments a dashboard token actually resolves in. Dark is the
+ * light environment with the dark overrides applied on top, which is precisely
+ * what the cascade does: `:root[data-theme="dark-gray"]` re-declares a subset
+ * and everything else keeps its light declaration.
+ */
+const LIGHT_ENV: ReadonlyMap<string, string> = declarationEnv([
+  ...GLOBALS_LIGHT,
+  ...[...LIGHT_DECLARATIONS].map(([token, value]) => `${token}: ${value};`),
+]);
+
+const DARK_ENV: ReadonlyMap<string, string> = declarationEnv([
+  ...GLOBALS_LIGHT,
+  ...GLOBALS_DARK,
+  ...[...LIGHT_DECLARATIONS].map(([token, value]) => `${token}: ${value};`),
+  ...[...DARK_DECLARATIONS].map(([token, value]) => `${token}: ${value};`),
+]);
+
+/**
+ * Structural fingerprint of a custom property's EFFECTIVE value in one
+ * environment, resolved through the whole `var()` chain.
+ *
+ * Comparing declarations directly is not enough, and this is the exact hole the
+ * first version of this contract had: `--dash-color-focus-ring` points at
+ * `--clinical-focus-ring`, which globals.css re-declares under the dark
+ * selector as the byte-identical `hsl(var(--ring) / 0.85)`. The theme change
+ * happens one level deeper, in `--ring`. A check that stopped at "the directly
+ * referenced token appears in the dark block" therefore reported the role as
+ * covered while deleting the dark `--ring` override would have handed the
+ * dashboard its LIGHT focus ring in dark mode with the guard still green.
+ *
+ * The fingerprint carries each level's raw declaration plus its children, so
+ * two environments differ if ANY node along the chain differs — no CSS value
+ * engine required, and no colour arithmetic to get wrong.
+ */
+function resolveThemeFingerprint(
+  token: string,
+  env: ReadonlyMap<string, string>,
+  stack: readonly string[] = [],
+): string {
+  if (stack.includes(token)) {
+    // Deterministic failure, not a stack overflow: a cycle has no effective
+    // value, so neither theme can be proven and the contract must say so.
+    throw new Error(
+      `custom property cycle: ${[...stack, token].join(" -> ")}`,
+    );
+  }
+
+  const declaration = env.get(token);
+  if (declaration === undefined) {
+    // An unresolvable reference is NOT an invariant value. Treating it as one
+    // is how a typo would silently downgrade a themed role to "same in both".
+    throw new Error(
+      `unresolved custom property "${token}"${
+        stack.length > 0 ? ` (via ${stack.join(" -> ")})` : ""
+      }`,
+    );
+  }
+
+  const children = referencedTokens(declaration).map((reference) =>
+    resolveThemeFingerprint(reference, env, [...stack, token]),
+  );
+
+  return `${token}{${declaration}}[${children.join(",")}]`;
+}
+
+function fingerprints(token: string): { light: string; dark: string } {
+  return {
+    light: resolveThemeFingerprint(token, LIGHT_ENV),
+    dark: resolveThemeFingerprint(token, DARK_ENV),
+  };
 }
 
 function collectFilesRecursive(repoRelativeDir: string, extensions: RegExp): string[] {
@@ -460,6 +555,16 @@ test("every THEME_VARIANT token is declared in both themes, with different value
       light,
       `"${token}" declares an identical value in both themes — classify it ADAPTIVE or INVARIANT instead`,
     );
+
+    // Two declarations that read differently could still resolve to the same
+    // EFFECTIVE value if their own references converge — the direct-value
+    // check above would miss that. Fingerprints prove they genuinely diverge.
+    const { light: lightFp, dark: darkFp } = fingerprints(token);
+    assert.notEqual(
+      darkFp,
+      lightFp,
+      `"${token}" has different raw declarations but they resolve to the same effective value in both themes`,
+    );
   }
 });
 
@@ -477,7 +582,7 @@ test("the dark scope contains THEME_VARIANT tokens and nothing else", () => {
   );
 });
 
-test("every THEME_ADAPTIVE token resolves to a value the dark theme rewrites", () => {
+test("every THEME_ADAPTIVE token's effective value genuinely changes in dark", () => {
   const adaptive = SCHEMA_ENTRIES.filter(([, themeClass]) => themeClass === "ADAPTIVE");
   assert.ok(adaptive.length > 0, "the adaptive class must be populated or removed");
 
@@ -490,15 +595,23 @@ test("every THEME_ADAPTIVE token resolves to a value the dark theme rewrites", (
       references.length > 0,
       `"${token}" is THEME_ADAPTIVE but references no token — it cannot adapt`,
     );
-    // The claim "dark is covered by reference" is only true while the
-    // referenced global is genuinely re-authored under the dark selector.
-    // This is the assertion that makes R9 fail closed.
-    for (const reference of references) {
-      assert.ok(
-        DARK_REDEFINED_GLOBALS.has(reference),
-        `"${token}" is THEME_ADAPTIVE but "${reference}" is not redefined under the dark selector in globals.css — the role would have no dark value`,
-      );
-    }
+
+    // Checking that the DIRECT reference is redeclared under the dark
+    // selector is not enough to prove the role adapts: --dash-color-focus-ring
+    // references --clinical-focus-ring, and globals.css restates that wrapper
+    // as the byte-identical `hsl(var(--ring) / 0.85)` in both themes — the
+    // real change is one level deeper, in --ring. Deleting the dark --ring
+    // override would leave the dashboard with its LIGHT focus ring in dark
+    // mode while a direct-reference check stayed green. Resolving the full
+    // chain into an EFFECTIVE-value fingerprint is what catches that: the
+    // fingerprint differs only if some node in the chain actually differs.
+    const { light: lightFp, dark: darkFp } = fingerprints(token);
+    assert.notEqual(
+      darkFp,
+      lightFp,
+      `"${token}" is THEME_ADAPTIVE but its effective value — resolved through the full var() chain — is identical in both themes. ` +
+        `Either a referenced global stopped adapting in dark, or this role never adapted and belongs in THEME_INVARIANT.`,
+    );
   }
 });
 
@@ -513,13 +626,78 @@ test("no THEME_INVARIANT token is theme-dependent in disguise", () => {
 
     const value = LIGHT_DECLARATIONS.get(token);
     assert.ok(value !== undefined, `"${token}" is missing from the foundation scope`);
-    for (const reference of referencedTokens(value)) {
-      assert.ok(
-        !DARK_REDEFINED_GLOBALS.has(reference),
-        `"${token}" is classified THEME_INVARIANT but resolves through "${reference}", which the dark theme rewrites — it is ADAPTIVE`,
-      );
-    }
+
+    // Symmetric with the ADAPTIVE check: an invariant is only honest if its
+    // effective value is identical, not merely if its direct reference
+    // happens not to appear in the dark block. A chain that adapts two levels
+    // down would pass a shallow check while genuinely changing under the
+    // hood — the same class of gap the ADAPTIVE fix closes, mirrored.
+    const { light: lightFp, dark: darkFp } = fingerprints(token);
+    assert.equal(
+      darkFp,
+      lightFp,
+      `"${token}" is classified THEME_INVARIANT but its effective value differs between themes somewhere in its var() chain — it is ADAPTIVE or VARIANT`,
+    );
   }
+});
+
+test("fingerprint resolution fails closed on a custom-property cycle", () => {
+  // Synthetic fixture: the real tree has no cycle, so this proves the
+  // resolver's OWN behavior rather than anything about tokens.css.
+  const cyclicEnv = new Map([
+    ["--a", "var(--b)"],
+    ["--b", "var(--a)"],
+  ]);
+
+  assert.throws(
+    () => resolveThemeFingerprint("--a", cyclicEnv),
+    /cycle: --a -> --b -> --a/,
+    "a custom-property cycle must fail with the cycle chain in the message, not hang or resolve",
+  );
+});
+
+test("fingerprint resolution fails closed on a dangling reference", () => {
+  const danglingEnv = new Map([["--a", "var(--missing-token)"]]);
+
+  assert.throws(
+    () => resolveThemeFingerprint("--a", danglingEnv),
+    /unresolved custom property "--missing-token"/,
+    "an unresolvable var() must fail rather than being treated as an invariant value",
+  );
+});
+
+test("fingerprint resolution proves a transitive chain the way --dash-color-focus-ring needs", () => {
+  // --a -> --b -> --c, with --c the only node that actually changes in dark.
+  // This is the shape of the real bug: a wrapper (--b) that is textually
+  // identical between themes while its own dependency (--c) adapts.
+  const lightEnv = new Map([
+    ["--a", "var(--b)"],
+    ["--b", "var(--c)"],
+    ["--c", "1px"],
+  ]);
+  const darkEnvAdapting = new Map([
+    ["--a", "var(--b)"],
+    ["--b", "var(--c)"],
+    ["--c", "2px"],
+  ]);
+
+  assert.notEqual(
+    resolveThemeFingerprint("--a", darkEnvAdapting),
+    resolveThemeFingerprint("--a", lightEnv),
+    "a two-level-deep change in --c must be visible through --a's fingerprint",
+  );
+
+  const darkEnvFlat = new Map([
+    ["--a", "var(--b)"],
+    ["--b", "var(--c)"],
+    ["--c", "1px"],
+  ]);
+
+  assert.equal(
+    resolveThemeFingerprint("--a", darkEnvFlat),
+    resolveThemeFingerprint("--a", lightEnv),
+    "an unchanged --c must leave --a's fingerprint unchanged too",
+  );
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

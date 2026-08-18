@@ -62,20 +62,58 @@ Se adoptan tres clases explícitas, y el contrato prueba cada una:
 
 | Clase | Declaraciones | Cómo se prueba el valor oscuro | N |
 |---|---|---|---|
-| `THEME_INVARIANT` | 1 | Debe **no** aparecer en el scope oscuro **y** no referenciar ningún token que el tema oscuro reescriba (si lo hiciera, estaría mal clasificado) | 47 |
-| `THEME_ADAPTIVE` | 1 | Se **resuelve la referencia**: cada token global citado debe estar realmente redefinido bajo `:root[data-theme="dark-gray"]` en `globals.css` | 18 |
-| `THEME_VARIANT` | 2 (claro + oscuro) | Ambas deben existir **y sus valores deben diferir** | 8 |
+| `THEME_INVARIANT` | 1 | Su **fingerprint efectivo** —resuelto de forma transitiva por todo el árbol `var()`— es idéntico en ambos ambientes, y no está restatado en el scope oscuro | 48 |
+| `THEME_ADAPTIVE` | 1 | Su **fingerprint efectivo** —resuelto de forma transitiva— difiere entre ambos ambientes | 17 |
+| `THEME_VARIANT` | 2 (claro + oscuro) | Ambas declaraciones existen, sus valores directos difieren, **y** sus fingerprints efectivos también difieren | 8 |
 
 `THEME_ADAPTIVE` es una desviación deliberada respecto de la instrucción literal
 («un token temático en light sin dark → FAIL») y se reporta como tal. Es más
 fuerte, no más débil: detecta el fallo real de R9 —un rol del dashboard sin
-valor oscuro definido— en lugar de contar líneas. Si `globals.css` dejara de
-reescribir `--card`, la duplicación textual seguiría en verde mientras el
-dashboard pierde su superficie oscura; esta comprobación falla.
+valor oscuro definido— en lugar de contar líneas.
 
-**Dark completeness: PASS.** 8 VARIANT con valores distintos + 18 ADAPTIVE con
-referencia resuelta + 47 INVARIANT justificados = 73 tokens, ninguno con tema
-indefinido.
+**Corrección post-review (Codex, PR #1660, thread `PRRT_kwDOR5qlsc6aIIdk`, P2).**
+La primera versión de este contrato probaba únicamente que la **referencia
+directa** del token apareciera redeclarada en el bloque oscuro de
+`globals.css` — no que el **valor efectivo** cambiara. Eso dejó un agujero real:
+
+```
+--dash-color-focus-ring → --clinical-focus-ring → --ring
+```
+
+`--clinical-focus-ring` se declara `hsl(var(--ring) / 0.85)` en AMBOS temas —
+textualmente idéntico—; la adaptación real ocurre un nivel más abajo, en
+`--ring` (182 72% 34% en claro, 181 60% 50% en oscuro). El contrato anterior
+veía que `--clinical-focus-ring` "aparecía en el bloque oscuro" y daba el rol
+por cubierto sin mirar más allá. Retirar el override oscuro de `--ring`
+habría dejado el dashboard con el focus ring de tema claro en modo oscuro
+mientras este contrato fail-closed seguía en verde.
+
+El contrato ahora resuelve cada token en una **huella estructural** por todo
+el árbol `var()` (`resolveThemeFingerprint`), en dos ambientes construidos
+explícitamente: `LIGHT_ENV` (paleta clara de `globals.css` + foundation claro)
+y `DARK_ENV` (paleta clara sobreescrita por la oscura de `globals.css` +
+foundation claro sobreescrito por el foundation oscuro — exactamente lo que
+hace la cascada real). ADAPTIVE exige que las huellas difieran; INVARIANT
+exige que sean idénticas; VARIANT exige ambas cosas además de que los valores
+directos difieran. La resolución falla cerrado ante un ciclo (`--a → --b →
+--a`, mensaje con la cadena completa) y ante una referencia sin resolver — un
+`var()` roto nunca se trata como invariante.
+
+**Reclasificación consecuente.** Al resolver de forma transitiva,
+`--dash-color-on-primary` (`hsl(var(--primary-foreground))`) resultó
+INVARIANT, no ADAPTIVE: `--primary-foreground` es `190 36% 97%`, textualmente
+idéntico en `globals.css` claro y oscuro. Es el mismo tipo de hallazgo que el
+review señaló, detectado por el propio endurecimiento del contrato. Por
+AGENTS.md §4 («los ajustes que un cambio in-scope rompe legítimamente… se
+realinean en el mismo PR, nunca se debilitan ni se marcan como skip»), se
+realinea aquí: 17 ADAPTIVE + 48 INVARIANT (antes 18 + 47). El total de 73
+tokens y las 8 VARIANT no cambian; `tokens.css` tampoco — es una
+reclasificación del esquema normativo en el contrato, no un cambio de CSS.
+
+**Dark completeness: PASS.** 8 VARIANT con fingerprint efectivo distinto + 17
+ADAPTIVE con fingerprint efectivo distinto + 48 INVARIANT con fingerprint
+efectivo idéntico = 73 tokens, ninguno con tema indefinido ni con una
+adaptación fantasma.
 
 ## 5. Las ocho escalas
 
@@ -84,7 +122,7 @@ Namespace `--dash-<categoría>-<rol>`. Los diez prefijos usados
 `-text-`, `-motion-`) se verificaron libres de colisión en `frontend/src`,
 `test/` y `docs/` antes de crearse.
 
-### 5.1 Color — 18 (15 ADAPTIVE, 3 VARIANT)
+### 5.1 Color — 18 (14 ADAPTIVE, 1 INVARIANT, 3 VARIANT)
 
 | Token | Claro | Oscuro | Provenance |
 |---|---|---|---|
@@ -97,12 +135,12 @@ Namespace `--dash-<categoría>-<rol>`. Los diez prefijos usados
 | `--dash-color-outline` | `hsl(var(--vetneb-line))` | ADAPTIVE | flip global |
 | `--dash-color-outline-subtle` | `hsl(var(--vetneb-line) / 0.42)` | ADAPTIVE | alpha 0.42 medida 3× en este árbol |
 | `--dash-color-primary` | `hsl(var(--primary))` | ADAPTIVE | flip global |
-| `--dash-color-on-primary` | `hsl(var(--primary-foreground))` | ADAPTIVE | flip global |
+| `--dash-color-on-primary` | `hsl(var(--primary-foreground))` | INVARIANT | `--primary-foreground` es `190 36% 97%`, textualmente idéntico en claro y oscuro — reclasificado desde ADAPTIVE tras la resolución transitiva |
 | `--dash-color-accent` | `hsl(var(--vetneb-teal))` | ADAPTIVE | flip global |
 | `--dash-color-success` | `hsl(var(--vetneb-teal))` | ADAPTIVE | teal = positivo clínico |
 | `--dash-color-error` | `hsl(var(--destructive))` | ADAPTIVE | flip global |
 | `--dash-color-info` | `hsl(var(--vetneb-cyan))` | ADAPTIVE | flip global |
-| `--dash-color-focus-ring` | `var(--clinical-focus-ring)` | ADAPTIVE | PR-VIS-3, redefinido en oscuro |
+| `--dash-color-focus-ring` | `var(--clinical-focus-ring)` | ADAPTIVE | PR-VIS-3; `--clinical-focus-ring` es idéntico en ambos temas, la adaptación real está un nivel más abajo en `--ring` — probado por resolución transitiva, ver §4 |
 | `--dash-color-field` | `hsl(var(--vetneb-surface-muted) / 0.72)` | `… / 0.92` | ambas alphas son literales medidos aquí; objetivo B05 |
 | `--dash-color-warning` | `hsl(var(--vetneb-amber))` | `hsl(38 88% 64%)` | el valor oscuro es **verbatim** el override que `globals.css` ya aplica al ámbar en oscuro |
 | `--dash-color-overlay-scrim` | `hsl(var(--vetneb-ink) / 0.32)` | `hsl(210 15% 4% / 0.62)` | `--vetneb-ink` pasa de 15% a 90% de luminosidad: heredarlo pintaría un scrim **blanco** |
@@ -226,7 +264,7 @@ normalizado a LF (136 líneas, 6015 B). El archivo completo conserva CRLF puro
 
 ## 8. Contrato ejecutable
 
-`test/architecture/dashboard-foundation-tokens.test.ts` — 16 tests, descubre los
+`test/architecture/dashboard-foundation-tokens.test.ts` — 19 tests, descubre los
 tokens desde el CSS real y compara contra un esquema normativo **en ambas
 direcciones** (un rol que falta falla; un extra no declarado también).
 
@@ -236,10 +274,13 @@ direcciones** (un rol que falta falla; un extra no declarado también).
 | T5 | El conjunto físico es exactamente el normativo; sin duplicados por scope |
 | — | Los prefijos de categoría particionan el namespace |
 | T10 | El scope oscuro coincide con el mecanismo real, derivado de `theme.ts`; sin segundo mecanismo de tema |
-| T3 | Cada VARIANT existe en ambos temas **con valores distintos** |
+| T3 | Cada VARIANT existe en ambos temas con valores directos distintos **y** fingerprint efectivo distinto |
 | — | El scope oscuro contiene exactamente los VARIANT y nada más |
-| — | Cada ADAPTIVE resuelve a un token que `globals.css` reescribe en oscuro |
-| T4 | Ningún INVARIANT está en el scope oscuro ni resuelve a un token que el oscuro reescriba |
+| — | Cada ADAPTIVE resuelve, por todo el árbol `var()`, a un **fingerprint efectivo** que difiere entre ambientes claro/oscuro (fix post-review, §4) |
+| T4 | Ningún INVARIANT está en el scope oscuro; su fingerprint efectivo es idéntico entre ambientes (simétrico al fix de ADAPTIVE) |
+| — | La resolución de fingerprint falla cerrado ante un ciclo de custom properties, con la cadena completa en el mensaje |
+| — | La resolución de fingerprint falla cerrado ante una referencia sin resolver, en vez de tratarla como invariante |
+| — | Fixture sintética de cadena de tres niveles: prueba que la resolución transitiva detecta un cambio dos niveles abajo y no detecta uno donde no lo hay |
 | T6 | Toda regla del foundation está scoped a `.dashboard-app-shell`; ningún token se declara fuera de `tokens.css` |
 | T8 | Cero consumidores en `frontend/src`; el foundation no referencia tokens de runtime |
 | T7 | El contrato de row-pitch sigue con literales px parseables y por detrás del foundation |
@@ -260,7 +301,10 @@ Sobre copia aislada en scratchpad; **el source trackeado nunca se muta**.
 | M5 | `--dash-row-pitch-regular: 44px` → `2.5rem` | FAIL | pitch parseable |
 | M6 | Segundo `--dash-row-pitch` fuera del bloque owner | FAIL | conjunto físico **y** owner único de capacidad |
 | M7 | Consumir `--dash-shape-md` desde `surfaces.css` | FAIL | cero consumidores |
+| M8 | Eliminar sólo el override oscuro de `--ring`, dejando intacto el de `--clinical-focus-ring` (idéntico en ambos temas) | FAIL | fingerprint efectivo de `--dash-color-focus-ring` — reproduce exactamente el falso verde de Codex |
 | — | Baseline restaurada | PASS | — |
+
+Además, sobre fixtures sintéticas dentro del propio archivo de test (no requieren copia aislada, porque no ejercitan `tokens.css` ni `globals.css` reales): un ciclo `--a → --b → --a` falla con la cadena completa en el mensaje; una referencia sin resolver falla explícitamente en vez de tratarse como invariante; y una cadena de tres niveles (`--a → --b → --c`) prueba que un cambio en `--c` es visible en la huella de `--a`, y que la ausencia de cambio dentro de esa misma cadena deja la huella de `--a` sin alterar.
 
 ## 10. Fuera de alcance
 
@@ -286,8 +330,9 @@ adoptó los tokens, el riesgo residual es **nulo** (§61 del roadmap).
 2. **Alphas oscuras derivadas.** Los cuatro valores de state-layer oscuros son
    una derivación ×1.6 documentada, no una medición. Se validarán
    perceptualmente cuando B04 los aplique, bajo regresión visual dual.
-3. **Desviación THEME_ADAPTIVE.** Documentada en §4; requiere confirmación de
-   Nico. Si se exige duplicación textual estricta, el cambio es mecánico: mover
-   los 18 ADAPTIVE al scope oscuro y relajar la aserción de «valores distintos».
+3. **Desviación THEME_ADAPTIVE.** Documentada en §4; aprobada por Nico junto
+   con el fix de resolución transitiva (corrige el P2 de Codex en PR #1660).
+   La resolución ya prueba el valor efectivo, no sólo la presencia textual de
+   la referencia directa.
 4. **Tamaño del foundation.** 73 tokens. Cada uno tiene provenance y rol para
    B04–B06, pero cualquiera que B04 no consuma debe retirarse, no heredarse.
