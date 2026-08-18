@@ -10,7 +10,6 @@ function read(relativePath: string): string {
   );
 }
 
-const SIDEBAR_PATH = "frontend/src/components/dashboard/AdminDashboardSidebar.tsx";
 const ADMIN_PAGE_PATH = "frontend/src/app/dashboard/admin/page.tsx";
 const ADMIN_CLINICS_CARD_PATH =
   "frontend/src/app/dashboard/admin/AdminClinicsManagementCard.tsx";
@@ -66,22 +65,12 @@ const SIDEBAR_SECTIONS = [
   },
 ] as const;
 
-test("admin dashboard sidebar sections keep visible anchors mapped", () => {
-  const sidebarSource = read(SIDEBAR_PATH);
+test("admin dashboard module sections keep visible anchors mapped", () => {
   const pageSource = read(ADMIN_PAGE_PATH);
   const clinicsCardSource = read(ADMIN_CLINICS_CARD_PATH);
   const auditCardSource = read(ADMIN_AUDIT_CARD_PATH);
 
   for (const section of SIDEBAR_SECTIONS) {
-    assert.ok(
-      sidebarSource.includes(`label: "${section.label}"`),
-      `sidebar must include ${section.label}`,
-    );
-    assert.ok(
-      sidebarSource.includes(section.href),
-      `sidebar must include href ${section.href}`,
-    );
-
     const isRenderedInPage = pageSource.includes(section.anchor);
     const isRenderedInClinicsCard =
       section.anchor === 'id="admin-clinics"' &&

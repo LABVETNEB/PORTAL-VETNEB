@@ -74,25 +74,3 @@ test("upload modal invariants: dialog overlay must support scroll on mobile view
     `${modalFile}: old non-scrollable overlay pattern must not be present`,
   );
 });
-
-test("sidebar invariants: dashboard sidebar must not lock to 100vh on mobile (iOS Safari)", () => {
-  const sidebarFile =
-    "frontend/src/components/dashboard/DashboardSidebarFrame.tsx";
-  const source = read(sidebarFile);
-
-  assertNotIncludes(
-    source,
-    "h-screen",
-    `${sidebarFile}: h-screen (100vh) clips on iOS Safari mobile — use h-dvh`,
-  );
-  assertIncludes(
-    source,
-    "h-dvh",
-    `${sidebarFile}: sidebar must use h-dvh for correct mobile viewport height`,
-  );
-  assertIncludes(
-    source,
-    "overflow-y-auto",
-    `${sidebarFile}: sidebar must remain overflow-y-auto`,
-  );
-});

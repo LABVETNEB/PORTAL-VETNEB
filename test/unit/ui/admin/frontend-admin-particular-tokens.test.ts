@@ -6,8 +6,6 @@ import test from "node:test";
 const ADMIN_CARD_PATH =
   "frontend/src/app/dashboard/admin/AdminParticularTokensCard.tsx";
 const ADMIN_PAGE_PATH = "frontend/src/app/dashboard/admin/page.tsx";
-const ADMIN_SIDEBAR_PATH =
-  "frontend/src/components/dashboard/AdminDashboardSidebar.tsx";
 const API_PATH = "frontend/src/lib/api.ts";
 const CLINIC_CARD_PATH =
   "frontend/src/components/dashboard/ClinicParticularTokensCard.tsx";
@@ -355,13 +353,10 @@ test("admin generated token block requires manual communication confirmation", (
 
 test("admin dashboard mounts token generator and exposes admin navigation anchor", () => {
   const page = read(ADMIN_PAGE_PATH);
-  const sidebar = read(ADMIN_SIDEBAR_PATH);
 
   assert.ok(page.includes('import { AdminParticularTokensCard } from "./AdminParticularTokensCard";'));
   assert.ok(page.includes('id="admin-particular-tokens"'));
   assert.ok(page.includes("<AdminParticularTokensCard />"));
-  assert.ok(sidebar.includes('label: "Tokens particulares"'));
-  assert.ok(sidebar.includes('`${ROUTES.dashboardAdmin}?module=admin-particular-tokens`'));
 });
 
 test("clinic token generator remains clinic-scoped and separate from admin generator", () => {

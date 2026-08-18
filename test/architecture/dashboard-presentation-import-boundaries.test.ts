@@ -86,9 +86,12 @@ const NAVIGATION_REQUIRED_EXPORTS: Record<string, readonly string[]> = {
   CompactPager: ["CompactPager", "CompactPagerProps"],
 };
 
-// FORBIDDEN_EXPORTS — a scope fence, not a permanent verdict. These components
-// have no runtime consumers and their disposition belongs to B02. B01 must not
-// hand them a public import surface it would immediately have to withdraw.
+// FORBIDDEN_EXPORTS — originally a B01 scope fence ("no runtime consumers,
+// disposition belongs to B02"); B02 settled it by deleting both components
+// (audit §14.3). The assertion is kept as defence in depth: it fails on a
+// re-export by name, independently of whether the module exists, so it holds
+// even if the physical files were somehow restored. The retirement itself is
+// contracted in test/architecture/dashboard-dead-component-retirement.test.ts.
 //
 // `DashboardTopbar` is intentionally NOT listed here. Its exclusion is a
 // *consequence* of the forbidden-dependency rule below (it imports `@/lib/api`),
@@ -433,7 +436,7 @@ test("B01 nothing reachable from the presentation barrels reaches the data layer
 
 // -- 4 - Scope fences -------------------------------------------------------
 
-test("B01 navigation barrel does not expose the B02 sidebar components", () => {
+test("B01 navigation barrel does not expose the sidebar components retired by B02", () => {
   const source = readSource(NAVIGATION_BARREL);
 
   for (const forbidden of NAVIGATION_FORBIDDEN_EXPORTS) {
@@ -444,7 +447,7 @@ test("B01 navigation barrel does not expose the B02 sidebar components", () => {
     assert.equal(
       pattern.test(source),
       false,
-      `${NAVIGATION_BARREL} must not re-export "${forbidden}": it has no runtime consumer and its disposition belongs to B02`,
+      `${NAVIGATION_BARREL} must not re-export "${forbidden}": it was retired by B02 (audit §14.3)`,
     );
   }
 });

@@ -6,8 +6,6 @@ import test from "node:test";
 const DASHBOARD_PAGE_PATH = "frontend/src/app/dashboard/page.tsx";
 const ADMIN_TOKENS_CARD_PATH =
   "frontend/src/app/dashboard/admin/AdminParticularTokensCard.tsx";
-const CLINIC_DASHBOARD_SIDEBAR_PATH =
-  "frontend/src/components/dashboard/ClinicDashboardSidebar.tsx";
 const CLINIC_TOKENS_CARD_PATH =
   "frontend/src/components/dashboard/ClinicParticularTokensCard.tsx";
 const CAPACITY_OWNER_PATH =
@@ -46,15 +44,12 @@ function assertOrdered(source: string, markers: string[]): void {
 
 test("clinic dashboard exists as a clinic-only dashboard and keeps admin out", () => {
   const source = read(DASHBOARD_PAGE_PATH);
-  const sidebarSource = read(CLINIC_DASHBOARD_SIDEBAR_PATH);
   const removedSessionScopeCopy = "Esta superficie usa solo sesión " + "clínica.";
 
   assert.ok(source.includes('title: "Dashboard Clínica — Portal VETNEB"'));
   assert.ok(source.includes('title="Dashboard Clínica"'));
   assert.ok(source.includes('import { ClinicParticularTokensCard } from "@/components/dashboard/ClinicParticularTokensCard";'));
   assert.ok(source.includes("<ClinicParticularTokensCard />"));
-  assert.ok(sidebarSource.includes('label: "Tokens particulares"'));
-  assert.ok(sidebarSource.includes('`${ROUTES.dashboard}?module=tokens`'));
   assert.equal(source.includes(removedSessionScopeCopy), false);
   assert.equal(source.includes('label: "Admin"'), false);
   assert.equal(source.includes("ROUTES.dashboardAdmin"), false);

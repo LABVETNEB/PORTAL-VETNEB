@@ -7,8 +7,6 @@ const PROFILE_CARD_PATH =
   "frontend/src/components/dashboard/ClinicPublicProfileCard.tsx";
 const API_PATH = "frontend/src/lib/api.ts";
 const DASHBOARD_PAGE_PATH = "frontend/src/app/dashboard/page.tsx";
-const CLINIC_DASHBOARD_SIDEBAR_PATH =
-  "frontend/src/components/dashboard/ClinicDashboardSidebar.tsx";
 
 function read(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
@@ -100,9 +98,8 @@ test("frontend api exposes clinic public profile helpers", () => {
   assert.ok(source.includes('"/api/clinic/profile/avatar"'));
 });
 
-test("clinic dashboard renders public profile before token generation and keeps sidebar navigation", () => {
+test("clinic dashboard renders public profile before token generation", () => {
   const source = read(DASHBOARD_PAGE_PATH);
-  const sidebarSource = read(CLINIC_DASHBOARD_SIDEBAR_PATH);
 
   assert.ok(source.includes("ClinicPublicProfileCard"));
   assert.ok(source.includes("<ClinicPublicProfileCard />"));
@@ -111,6 +108,4 @@ test("clinic dashboard renders public profile before token generation and keeps 
     source.indexOf("<ClinicPublicProfileCard />") <
       source.indexOf("<ClinicParticularTokensCard />"),
   );
-  assert.ok(sidebarSource.includes('label: "Perfil público"'));
-  assert.ok(sidebarSource.includes('`${ROUTES.dashboard}?module=perfil`'));
 });

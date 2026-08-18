@@ -31,9 +31,11 @@
  * removed, not modified and not migrated; it is admitted automatically once
  * those two imports are gone.
  *
- * `AdminDashboardSidebar` and `ClinicDashboardSidebar` are deliberately absent:
- * they have no runtime consumers and their disposition belongs to B02. B01
- * neither exposes nor removes them.
+ * `AdminDashboardSidebar` and `ClinicDashboardSidebar` are absent because B02
+ * retired them (audit §14.3): they had no runtime consumers, so the whole
+ * sidebar chain was deleted rather than re-exported. The barrel must never
+ * expose them again — enforced by
+ * `test/architecture/dashboard-dead-component-retirement.test.ts`.
  *
  * @see docs/implementation/dashboard-presentation-shell-navigation-barrels.md
  * @see docs/implementation/dashboard-presentation-boundaries.md

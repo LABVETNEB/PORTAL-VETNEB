@@ -15,9 +15,6 @@ const INFORMES_LIST_PATH =
 const LOGISTICA_PAGE_PATH = "frontend/src/app/dashboard/logistica/page.tsx";
 const STICKY_ACTION_BAR_PATH =
   "frontend/src/components/dashboard/StickyActionBar.tsx";
-const STICKY_FILTER_BAR_PATH =
-  "frontend/src/components/dashboard/StickyFilterBar.tsx";
-const FILTER_DRAWER_PATH = "frontend/src/components/dashboard/FilterDrawer.tsx";
 const ADMIN_SECTION_TABS_PATH =
   "frontend/src/app/dashboard/admin/AdminSectionTabs.tsx";
 const PUBLIC_SEO_SCOPE_EXCEPTION = "frontend/src/lib/seo.ts";
@@ -95,34 +92,6 @@ test("PR-9 StickyActionBar keeps mobile bottom safe-area action contract", () =>
   assert.equal(source.includes('from "next/link"'), false);
   assert.equal(source.includes("<Link"), false);
   assert.equal(source.includes("<a"), false);
-});
-
-test("PR-9 StickyFilterBar keeps sticky behavior and internal chip scrolling", () => {
-  const source = read(STICKY_FILTER_BAR_PATH);
-
-  assert.ok(source.includes("sticky top-3 z-40"));
-  assert.ok(source.includes("max-w-full min-w-0 overflow-hidden"));
-  assert.ok(source.includes("overflow-x-auto"));
-  assert.ok(source.includes("overscroll-x-contain"));
-  assert.ok(source.includes("max-w-[min(16rem,calc(100vw-4rem))]"));
-  assert.ok(source.includes("shrink-0"));
-  assert.ok(source.includes("Sin filtros activos"));
-  assert.equal(source.includes("w-screen"), false);
-  assertNoForbiddenSurfaceImports(source, "StickyFilterBar");
-});
-
-test("PR-9 FilterDrawer fits mobile viewport and keeps scrollable content", () => {
-  const source = read(FILTER_DRAWER_PATH);
-
-  assert.ok(source.includes("fixed inset-0 z-[70] overflow-hidden"));
-  assert.ok(source.includes("h-dvh w-full max-w-md max-h-dvh"));
-  assert.ok(source.includes("pb-[env(safe-area-inset-bottom)]"));
-  assert.ok(source.includes("min-h-0 flex-1 overscroll-contain overflow-y-auto"));
-  assert.ok(source.includes("pb-[calc(1rem+env(safe-area-inset-bottom))]"));
-  assert.ok(source.includes("focus-visible:ring-2"));
-  assert.ok(source.includes('aria-expanded={open}'));
-  assert.ok(source.includes('role="dialog"'));
-  assertNoForbiddenSurfaceImports(source, "FilterDrawer");
 });
 
 test("PR-9 AdminSectionTabs avoid horizontal page overflow", () => {

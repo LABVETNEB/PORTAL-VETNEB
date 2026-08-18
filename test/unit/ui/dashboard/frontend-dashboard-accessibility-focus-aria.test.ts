@@ -9,15 +9,10 @@ import { dashboardScopeGuardApplies } from "../../../helpers/dashboard-scope-gua
 
 const ADMIN_SECTION_TABS_PATH =
   "frontend/src/app/dashboard/admin/AdminSectionTabs.tsx";
-const FILTER_DRAWER_PATH = "frontend/src/components/dashboard/FilterDrawer.tsx";
-const STICKY_FILTER_BAR_PATH =
-  "frontend/src/components/dashboard/StickyFilterBar.tsx";
 const STICKY_ACTION_BAR_PATH =
   "frontend/src/components/dashboard/StickyActionBar.tsx";
 const STUDY_TIMELINE_PATH =
   "frontend/src/components/dashboard/StudyTimeline.tsx";
-const DASHBOARD_SIDEBAR_FRAME_PATH =
-  "frontend/src/components/dashboard/DashboardSidebarFrame.tsx";
 const DASHBOARD_TOPBAR_PATH =
   "frontend/src/components/dashboard/DashboardTopbar.tsx";
 const DASHBOARD_NOTIFICATIONS_BELL_PATH =
@@ -74,42 +69,15 @@ test("PR-8 AdminSectionTabs keeps full tab ARIA and keyboard focus contract", ()
   assert.equal(source.includes("<Link"), false);
 });
 
-test("PR-8 FilterDrawer announces trigger state count and keyboard dismiss", () => {
-  const source = read(FILTER_DRAWER_PATH);
-
-  assert.ok(source.includes('"use client";'));
-  assert.ok(source.includes("const panelRef = useRef<HTMLDivElement>(null);"));
-  assert.ok(source.includes("const activeCountLabel ="));
-  assert.ok(source.includes('aria-expanded={open}'));
-  assert.ok(source.includes('aria-haspopup="dialog"'));
-  assert.ok(source.includes("aria-label={`${triggerLabel}. ${activeCountLabel}`}"));
-  assert.ok(source.includes('<span className="sr-only">{activeCountLabel}</span>'));
-  assert.ok(source.includes('role="dialog"'));
-  assert.ok(source.includes('aria-labelledby={titleId}'));
-  assert.ok(source.includes("tabIndex={-1}"));
-  assert.ok(source.includes('event.key === "Escape"'));
-  assert.ok(source.includes('aria-label="Cerrar panel de filtros"'));
-  assert.ok(source.includes("focus-visible:ring-2"));
-  assertNoForbiddenSurfaceImports(source, "FilterDrawer");
-});
-
-test("PR-8 StickyFilterBar and StickyActionBar provide named regions and action groups", () => {
-  const filterBarSource = read(STICKY_FILTER_BAR_PATH);
+test("PR-8 StickyActionBar provides named regions and action groups", () => {
   const actionBarSource = read(STICKY_ACTION_BAR_PATH);
 
-  assert.ok(filterBarSource.includes("ariaLabel?: string;"));
-  assert.ok(filterBarSource.includes('aria-label={ariaLabel ?? "Filtros del dashboard"}'));
-  assert.ok(filterBarSource.includes('aria-label="Filtros activos"'));
-  assert.ok(filterBarSource.includes('aria-live="polite"'));
-  assert.ok(filterBarSource.includes('aria-label="Acciones de filtros"'));
-  assert.ok(filterBarSource.includes("Sin filtros activos"));
   assert.ok(actionBarSource.includes("<section"));
   assert.ok(actionBarSource.includes('aria-label={context ? `${context} del dashboard` : "Acciones del dashboard"}'));
   assert.ok(actionBarSource.includes('aria-label={context ? `Acciones: ${context}` : "Acciones rápidas"}'));
   assert.ok(actionBarSource.includes('aria-label="Acciones contextuales"'));
   assert.ok(actionBarSource.includes('type="button"'));
   assert.ok(actionBarSource.includes("focus-visible:ring-2"));
-  assertNoForbiddenSurfaceImports(filterBarSource, "StickyFilterBar");
   assertNoForbiddenSurfaceImports(actionBarSource, "StickyActionBar");
 });
 
@@ -125,17 +93,10 @@ test("PR-8 StudyTimeline expose named panels and textual states", () => {
   assertNoForbiddenSurfaceImports(timelineSource, "StudyTimeline");
 });
 
-test("PR-8 DashboardSidebarFrame Topbar and notification controls keep focus labels", () => {
-  const sidebarSource = read(DASHBOARD_SIDEBAR_FRAME_PATH);
+test("PR-8 Topbar and notification controls keep focus labels", () => {
   const topbarSource = read(DASHBOARD_TOPBAR_PATH);
   const bellSource = read(DASHBOARD_NOTIFICATIONS_BELL_PATH);
 
-  assert.ok(sidebarSource.includes('aria-label="Navegación principal"'));
-  assert.ok(sidebarSource.includes('aria-label="Menú principal"'));
-  assert.ok(sidebarSource.includes("aria-label={item.label}"));
-  assert.ok(sidebarSource.includes("aria-label={child.label}"));
-  assert.ok(sidebarSource.includes('aria-label="Volver al sitio público"'));
-  assert.ok(sidebarSource.includes("focus-visible:ring-2"));
   assert.ok(topbarSource.includes('aria-label="Barra superior del dashboard"'));
   assert.ok(topbarSource.includes('aria-labelledby="dashboard-topbar-title"'));
   assert.ok(topbarSource.includes('id="dashboard-topbar-title"'));
