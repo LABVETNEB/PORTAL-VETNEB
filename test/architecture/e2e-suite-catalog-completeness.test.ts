@@ -37,12 +37,12 @@ const EXPECTED_DOMAIN_COUNTS = new Map([
 const EXPECTED_CURRENT_COUNTS = new Map([
   ["smoke", 9],
   ["admin-mobile", 13],
-  ["visual-contract", 11],
+  ["visual-contract", 12],
   ["public-clinic", 11],
 ]);
 const EXPECTED_EXECUTION_COUNTS = new Map<E2eExecutionCohort, number>([
-  ["ci", 44],
-  ["extended", 30],
+  ["ci", 45],
+  ["extended", 29],
   ["evidence", 2],
   ["visual-linux", 3],
   ["full", 79],
@@ -260,7 +260,7 @@ function validateCatalog(
   }
 
   const currentUnion = unique([...currentMemberships.keys()]).sort();
-  assert.equal(currentUnion.length, 44);
+  assert.equal(currentUnion.length, 45);
   assert.deepEqual(E2E_COHORT_SPECS.ci, currentUnion, "ci must equal the current four-cohort union");
 
   for (const cohort of ["extended", "evidence", "visual-linux", "full"] as const) {
@@ -356,7 +356,7 @@ test("affected selection fails closed for empty or shared changes", async () => 
 
   const sharedSelection = runner.classifyAffectedPaths(["frontend/e2e/helpers/admin-mobile-contracts.ts"]);
   assert.equal(sharedSelection.fallback, true);
-  assert.equal(sharedSelection.specs.length, 44);
+  assert.equal(sharedSelection.specs.length, 45);
   assert.match(sharedSelection.reason, /shared E2E infrastructure/);
 });
 

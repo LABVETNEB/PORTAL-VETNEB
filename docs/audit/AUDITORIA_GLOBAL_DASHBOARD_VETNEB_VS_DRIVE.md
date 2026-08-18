@@ -1082,20 +1082,25 @@ su gate semántico (`assertSurfaceLoaded`), de modo que las cinco superficies qu
 compartido responde con 404 se miden **cargadas** y no como tarjeta de error. Ningún dato real,
 ninguna credencial y ningún token: los stubs son sintéticos y de timestamps fijos, heredados de A02.
 
-**Resultado medido — el margen de tolerancia quedó sin consumir.** Las 273 combinaciones no sólo
-caen bajo los 2 px: caen en **0 px exactos** en los seis deltas, y `main.dashboard-main` computa
-`overflow-y: hidden` en las 273.
+**Resultado medido, y umbral exacto.** Las 273 combinaciones dan **0 px exactos** en los seis
+deltas, y `main.dashboard-main` computa `overflow-y: hidden` en las 273.
 
-| Métrica | Mín | Máx | Umbral |
+| Métrica | Mín | Máx | Umbral contractual |
 |---|---|---|---|
-| `documentElement` vertical / horizontal | 0 | **0** | 2 px |
-| `body` vertical / horizontal | 0 | **0** | 2 px |
-| `main.dashboard-main` vertical / horizontal | 0 | **0** | 2 px |
+| `documentElement` vertical / horizontal | 0 | **0** | **0 px** |
+| `body` vertical / horizontal | 0 | **0** | **0 px** |
+| `main.dashboard-main` vertical / horizontal | 0 | **0** | **0 px** |
 | `main.dashboard-main` `overflow-y` | — | `hidden` (273/273) | ≠ `auto`, ≠ `scroll` |
 
-La tolerancia de 2 px es la misma que ya usaban los cuatro specs preexistentes; se conserva por
-coherencia y para redondeo sub-píxel, **no** se ensanchó para hacer pasar nada. Que el margen quede
-íntegro significa que cualquier desbordamiento real futuro, por pequeño que sea, será detectado.
+**A08 no acepta 2 px.** `AGENTS.md` §10 enuncia el invariante como
+`SCROLL_VERTICAL_DEL_DOCUMENTO = 0` y `SCROLL_HORIZONTAL_DEL_DOCUMENTO = 0`, de modo que el freeze
+congela **cero**, no «casi cero»: un delta de 1 px ya falla. Una tolerancia de 2 px habría dejado
+pasar hasta 2 px de scroll real y habría contradicho el propio contrato que A08 existe para fijar.
+
+Endurecer el gate **no requirió ningún cambio de runtime**: las 273 observaciones ya daban 0 px, así
+que el umbral se fijó exactamente en el valor que el App Shell ya sostiene. Los cuatro specs
+preexistentes de `frontend/e2e/platform/app-shell/` conservan su margen de 2 px; A08 es el freeze y
+no lo hereda.
 
 **Fail-closed demostrado por control de mutación, no afirmado.** Las cinco mutaciones se ejecutaron
 sobre **copias seguras** del spec y de la matriz en un directorio temporal fuera de `frontend/e2e/`,
@@ -1112,6 +1117,13 @@ nunca sobre el archivo versionado, y el harness se eliminó al terminar:
 M4 y M5 son el punto clave: como el censo se **importa** de A02, borrar una superficie o un viewport
 de la matriz canónica no reduce silenciosamente la cobertura de A08 — la rompe. Es la lección de A07
 aplicada al zero-scroll: una segunda lista escrita a mano derivaría en verde.
+
+**Enrutamiento de cohorte.** A08 se registra en el catálogo E2E con
+`currentCohorts = ["visual-contract"]` y partición de ejecución `ci` (`ci` + `full`), no en
+`extended`. Es lo que exige `AGENTS.md`: §7 mapea «zero-scroll desktop / contrato visual» a
+`e2e:visual-contract`, y §10 nombra esa cohorte como criterio de salida del contrato zero-scroll.
+Dejarlo en `extended` lo habría mantenido fuera de `validate-frontend`, es decir, fuera del gate
+required que bloquea el merge — un freeze que no bloquea no es un freeze.
 
 **Frontera con el resto del Programa A.** A02 congela la **geometría actual** (bounds, regiones,
 anclas). A03 congela **`limit`/`offset`**. A05–A07 congelan el **motor de capacidad**. A08 congela
@@ -1130,16 +1142,18 @@ Programa B.
 1. El contrato se ejecuta en Chromium (único proyecto Playwright del repo). Un desbordamiento
    específico de otro motor no quedaría cubierto; es el P0 de proceso ya registrado en la auditoría
    visual total, no un gap nuevo de A08.
-2. Las 273 combinaciones viven en la cohorte `extended`, que no es required de `main`: corren en
-   `E2E Completeness` (`e2e:full`) y bajo `e2e:extended`, no en `validate-frontend`. Promoverlas a
-   `visual-contract` multiplicaría el tiempo del gate required y no lo pide el catálogo.
+2. A08 corre en el gate required: al pertenecer a `visual-contract` sus 21 tests entran en
+   `e2e:ci` y por tanto en `validate-frontend`, encareciendo ese check. Es un coste aceptado a
+   cambio de que el freeze no pueda romperse sin bloquear el merge.
 3. A08 mide el marco; la operabilidad del contenido dentro del marco (acciones alcanzables,
    solapamientos) sigue cubierta por sus specs propios, no por éste.
 
 Alcance deliberadamente excluido: no se modificó `frontend/src`, `server`, `shared`, CSS de runtime,
 auth, cookies, API, DB, schema, `package.json`, `pnpm-lock.yaml`, CI ni workflows. El diff es un
 spec nuevo, su registro en el catálogo E2E, la realineación in-PR de los dos guards de censo que ese
-registro rompe legítimamente, y este apartado documental. No se ejecutó ninguna operación R3.
+registro rompe legítimamente, y este apartado documental. La edición y validación local de este
+alcance no requirieron operaciones R3; su publicación en PR #1656 se realizó posteriormente mediante
+la secuencia R3 manual autorizada.
 
 ---
 

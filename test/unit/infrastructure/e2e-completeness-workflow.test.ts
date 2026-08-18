@@ -193,7 +193,7 @@ test("coverage fails closed when the full route or any partition contribution is
   };
   const result = evaluateAutomaticCoverage(withoutFull);
 
-  assert.equal(result.missingSpecs.length, 35);
+  assert.equal(result.missingSpecs.length, 34);
   for (const cohort of ["extended", "evidence", "visual-linux"] as const) {
     assert.ok(
       E2E_COHORT_SPECS[cohort].every((spec) => result.missingSpecs.includes(spec)),

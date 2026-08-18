@@ -39,15 +39,20 @@ import {
 const APP_ORIGIN = "http://127.0.0.1:3000";
 
 /**
- * Sub-pixel rounding only. It is the same 2 px already used by every zero-scroll
- * contract in `frontend/e2e/platform/app-shell/`
- * (`dashboard-internal-no-scroll-contract`, `dashboard-single-viewport-app-shell`,
- * `dashboard-real-app-shell-no-scroll-contract`, `dashboard-zero-scroll-mobile-boundary`).
- * Real operational scroll is orders of magnitude larger, so this tolerance can
- * never hide one, and it must NOT be widened to absorb a failure: a delta above
- * it is a runtime defect to report, not a number to re-tune.
+ * EXACT contract, not a tolerance. `AGENTS.md` §10 states the invariant as
+ * `SCROLL_VERTICAL_DEL_DOCUMENTO = 0` / `SCROLL_HORIZONTAL_DEL_DOCUMENTO = 0`,
+ * so A08 freezes zero, not "almost zero": any delta of 1 px or more fails.
+ *
+ * This is measured, not aspirational — the 273 canonical combinations all
+ * report a delta of exactly 0 px on the six metrics, so the gate is enforced at
+ * the value the shell already holds and no runtime change was needed to reach
+ * it. The older zero-scroll specs in `frontend/e2e/platform/app-shell/` keep
+ * their 2 px allowance; A08 is the freeze and does not inherit it.
+ *
+ * It must NOT be raised to absorb a failure: a positive delta is a runtime
+ * defect to report, not a number to re-tune.
  */
-const TOLERANCE_PX = 2;
+const MAX_SCROLL_DELTA_PX = 0;
 
 type AxisMetrics = {
   readonly scrollHeight: number;
@@ -145,14 +150,14 @@ function collectViolations(metrics: ZeroScrollMetrics, label: string): string[] 
     const verticalDelta = element.axis.scrollHeight - element.axis.clientHeight;
     const horizontalDelta = element.axis.scrollWidth - element.axis.clientWidth;
 
-    if (verticalDelta > TOLERANCE_PX) {
+    if (verticalDelta > MAX_SCROLL_DELTA_PX) {
       violations.push(
-        `${label}: ${element.name} scrolls vertically (scrollHeight ${element.axis.scrollHeight} > clientHeight ${element.axis.clientHeight}, delta ${verticalDelta}px > ${TOLERANCE_PX}px)`,
+        `${label}: ${element.name} scrolls vertically (scrollHeight ${element.axis.scrollHeight} > clientHeight ${element.axis.clientHeight}, delta ${verticalDelta}px — the contract allows exactly ${MAX_SCROLL_DELTA_PX}px)`,
       );
     }
-    if (horizontalDelta > TOLERANCE_PX) {
+    if (horizontalDelta > MAX_SCROLL_DELTA_PX) {
       violations.push(
-        `${label}: ${element.name} scrolls horizontally (scrollWidth ${element.axis.scrollWidth} > clientWidth ${element.axis.clientWidth}, delta ${horizontalDelta}px > ${TOLERANCE_PX}px)`,
+        `${label}: ${element.name} scrolls horizontally (scrollWidth ${element.axis.scrollWidth} > clientWidth ${element.axis.clientWidth}, delta ${horizontalDelta}px — the contract allows exactly ${MAX_SCROLL_DELTA_PX}px)`,
       );
     }
   }
