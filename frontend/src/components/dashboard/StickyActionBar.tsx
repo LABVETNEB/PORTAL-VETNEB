@@ -52,7 +52,10 @@ export function StickyActionBar({
     <section
       aria-label={context ? `${context} del dashboard` : "Acciones del dashboard"}
       className={cn(
-        "pointer-events-none fixed inset-x-0 bottom-0 z-50 border-t border-vetneb-line/80 bg-card/95 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 shadow-md backdrop-blur md:pointer-events-auto md:sticky md:top-[4.75rem] md:bottom-auto md:rounded-lg md:border md:px-4 md:py-3 md:shadow-sm",
+        // B04: persistent action chrome — the elevation is retired on both the
+        // fixed mobile bar and the sticky desktop one; the border and the
+        // backdrop keep it separated from the content underneath.
+        "pointer-events-none fixed inset-x-0 bottom-0 z-50 border-t border-vetneb-line/80 bg-card/95 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur md:pointer-events-auto md:sticky md:top-[4.75rem] md:bottom-auto md:rounded-lg md:border md:px-4 md:py-3",
         className,
       )}
       data-sticky-action-bar="true"

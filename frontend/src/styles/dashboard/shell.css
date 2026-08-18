@@ -26,13 +26,13 @@
     min-width: 0;
     min-height: 0;
     gap: 0.85rem;
-    border-radius: 1.1rem;
+    border-radius: var(--dash-shape-2xl);
     border: 1px solid hsl(var(--vetneb-line) / 0.78);
     background:
       linear-gradient(150deg, hsl(var(--card) / 0.97), hsl(var(--vetneb-surface-raised) / 0.9) 60%, hsl(var(--vetneb-surface-muted) / 0.92));
-    box-shadow:
-      inset 0 1px 0 hsl(var(--card) / 0.92),
-      0 18px 48px rgba(15, 45, 62, 0.09);
+    /* B04 · STATIC_CONTENT_SURFACE. The hub launcher is content on the canvas,
+       not a raised card (audit §45.2). Padding and gap are untouched. */
+    box-shadow: var(--dash-elevation-none);
     padding: 1rem 1.05rem 1.1rem;
   }
 
@@ -62,22 +62,20 @@
     min-height: 0;
     overflow: hidden;
     gap: 0.3rem;
-    border-radius: 0.85rem;
+    border-radius: var(--dash-shape-xl);
     border: 1px solid hsl(var(--vetneb-line) / 0.8);
     background:
       linear-gradient(140deg, hsl(var(--card) / 0.98), hsl(var(--vetneb-surface-raised) / 0.94));
-    box-shadow:
-      inset 0 1px 0 hsl(var(--card) / 0.9),
-      0 10px 26px rgba(15, 45, 62, 0.07);
+    /* B04 · STATIC_CONTENT_SURFACE. */
+    box-shadow: var(--dash-elevation-none);
     padding: 0.6rem 0.8rem;
     text-align: left;
   }
 
+  /* Hover now reads through the border alone: the tile is flat in both states,
+     so a hover shadow would be the elevation B04 just retired. */
   .dashboard-cockpit-tile:hover {
     border-color: hsl(var(--vetneb-teal) / 0.45);
-    box-shadow:
-      inset 0 1px 0 hsl(var(--card) / 0.94),
-      0 16px 38px rgba(15, 45, 62, 0.12);
   }
 
   .dashboard-cockpit-tile-icon {
@@ -87,9 +85,12 @@
     flex-shrink: 0;
     align-items: center;
     justify-content: center;
-    border-radius: 0.6rem;
+    border-radius: var(--dash-shape-md);
     color: #fff;
     background: linear-gradient(135deg, hsl(var(--vetneb-navy)), hsl(var(--vetneb-teal) / 0.85));
+    /* DECORATIVE_NON_ELEVATION — an accent halo tinted by the icon's own
+       gradient, not a level in the elevation scale. Kept, like every other
+       `*-tile-icon` halo in this tree. */
     box-shadow: 0 6px 16px rgba(15, 45, 62, 0.22);
   }
 

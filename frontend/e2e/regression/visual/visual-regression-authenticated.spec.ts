@@ -1,5 +1,26 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import {
+  DARK_GRAY_THEME_MODE,
+  NORMAL_THEME_MODE,
+  THEME_STORAGE_KEY,
+  type ThemeMode,
+} from "../../../src/lib/theme";
+
+// R9 · from B04 the authenticated pixel baseline is DUAL. B03 obliged the
+// dashboard to carry tokens in both themes, and B04 is the first change that
+// repaints surfaces through them, so a Chromium-Linux baseline captured only in
+// `normal` would leave the dark half of that work unverified for good.
+//
+// The theme is written pre-paint, the way `public/theme-init.js` reads it, and
+// asserted on `<html>` before the screenshot: the baseline starts IN the theme
+// under test. Clicking the toggle would capture a surface mid-transition and
+// bake an animation frame into the reference image.
+//
+// Snapshot naming keeps the ten existing `normal` names unchanged so B04's diff
+// shows them as MODIFIED (the intended visual delta) rather than as ten renames
+// plus ten additions. Only the dark set carries a suffix.
+
 test.describe.configure({ mode: "serial" });
 test.setTimeout(90_000);
 test.skip(
@@ -53,6 +74,19 @@ const disableAnimations = `
     caret-color: transparent !important;
   }
 `;
+
+async function applyTheme(page: Page, theme: ThemeMode) {
+  await page.addInitScript(
+    ([key, mode]) => {
+      try {
+        window.localStorage.setItem(key, mode);
+      } catch {
+        /* localStorage unavailable: the post-load assertion reports it */
+      }
+    },
+    [THEME_STORAGE_KEY, theme] as const,
+  );
+}
 
 async function applySession(page: Page, surface: SessionSurface) {
   await page.context().addCookies([
@@ -131,6 +165,12 @@ async function waitForVisibleReadySelector(page: Page, route: RouteCase) {
     .toBe(true);
 }
 
+/** `normal` keeps the pre-B04 snapshot names; only dark carries a suffix. */
+const themeCases: ReadonlyArray<{ theme: ThemeMode; suffix: string }> = [
+  { theme: NORMAL_THEME_MODE, suffix: "" },
+  { theme: DARK_GRAY_THEME_MODE, suffix: `-${DARK_GRAY_THEME_MODE}` },
+];
+
 for (const viewport of viewports) {
   test.describe(`authenticated visual regression ${viewport.name}`, () => {
     test.use({
@@ -141,32 +181,41 @@ for (const viewport of viewports) {
     });
 
     for (const route of routes) {
-      test(`${route.name} baseline`, async ({ page }) => {
-        await applySession(page, route.session);
+      for (const { theme, suffix } of themeCases) {
+        test(`${route.name} ${theme} baseline`, async ({ page }) => {
+          await applyTheme(page, theme);
+          await applySession(page, route.session);
 
-        const response = await page.goto(route.path, {
-          timeout: 20_000,
-          waitUntil: "domcontentloaded",
+          const response = await page.goto(route.path, {
+            timeout: 20_000,
+            waitUntil: "domcontentloaded",
+          });
+
+          expect(
+            response?.ok(),
+            `${route.path} should return a successful response`,
+          ).toBeTruthy();
+
+          // Proves the baseline is the theme it claims to be, before capture.
+          await expect(
+            page.locator("html"),
+            `${route.path} should render in ${theme}`,
+          ).toHaveAttribute("data-theme", theme, { timeout: 10_000 });
+
+          await waitForVisibleReadySelector(page, route);
+          await waitForStableDashboard(page);
+
+          await expect(page).toHaveScreenshot(
+            `${route.name}${suffix}-${viewport.name}.png`,
+            {
+              animations: "disabled",
+              caret: "hide",
+              fullPage: false,
+              maxDiffPixelRatio: 0.001,
+            },
+          );
         });
-
-        expect(
-          response?.ok(),
-          `${route.path} should return a successful response`,
-        ).toBeTruthy();
-
-        await waitForVisibleReadySelector(page, route);
-        await waitForStableDashboard(page);
-
-        await expect(page).toHaveScreenshot(
-          `${route.name}-${viewport.name}.png`,
-          {
-            animations: "disabled",
-            caret: "hide",
-            fullPage: false,
-            maxDiffPixelRatio: 0.001,
-          },
-        );
-      });
+      }
     }
   });
 }
