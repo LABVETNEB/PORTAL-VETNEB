@@ -224,8 +224,13 @@ const CHROME_COMPONENTS = [
   },
   {
     path: FILTER_BAR_TSX,
+    // B05 removed the container fill (`bg-card/82`) as part of the surface
+    // inversion (roadmap §49/§54): the tint moved to each field via
+    // `--dash-color-field`, asserted by
+    // `test/architecture/dashboard-b05-surface-inversion.test.ts`. The pin
+    // here still exists to prove no shadow utility comes back on this anchor.
     chromeClassName:
-      '"grid grid-cols-1 items-end gap-3 rounded-xl border border-vetneb-line/75 bg-card/82 p-3"',
+      '"grid grid-cols-1 items-end gap-3 rounded-xl border border-vetneb-line/75 p-3"',
     why: "persistent filter toolbar (comfortable density)",
   },
   {
@@ -510,24 +515,40 @@ test("no migrated selector reintroduces a raw shadow next to its token", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// T7 · B05 has not started.
+// T7 · B05 field token consumption is confined to its canonical path.
+//
+// B05 started consuming `--dash-color-field` (roadmap §49/§54: "campo teñido,
+// contenedor transparente"). This test no longer asserts zero consumers — that
+// claim became false the moment B05 shipped, and a test that still made it
+// would be lying about the current state of the tree. What replaces it is the
+// same two-sided shape T8 already uses for the foundation as a whole: exactly
+// one file may consume the role, and every other file in the same census may
+// not. `test/architecture/dashboard-b05-surface-inversion.test.ts` owns the
+// full B05 manifest (the rule's declaration, its selectors, dual-theme
+// resolution); this test stays here because it walks the same B04 census this
+// file already collects.
 // ─────────────────────────────────────────────────────────────────────────────
 
-test("B04 leaves the B05 field token unconsumed", () => {
+const B05_FIELD_TOKEN_CANONICAL_PATH = SURFACES_CSS;
+
+test("the B05 field token has exactly one runtime consumer", () => {
   const sources = [
     ...collectFilesRecursive(DASHBOARD_CSS_DIR, /\.css$/),
     ...collectFilesRecursive(DASHBOARD_COMPONENTS_DIR, /\.(ts|tsx)$/),
     ...collectFilesRecursive(DASHBOARD_APP_DIR, /\.(ts|tsx)$/),
   ].filter((path) => path !== TOKENS_CSS_PATH);
 
-  assert.ok(sources.length > 0, "the B05 reservation census must find files");
+  assert.ok(sources.length > 0, "the B05 consumer census must find files");
 
-  for (const path of sources) {
-    assert.ok(
-      !/--dash-color-field(?![\w-])/.test(stripComments(readSource(path))),
-      `${path}: consumes the reserved field role. B04 tokenises the CURRENT surface relationship; moving the tint onto the field and making the container transparent is B05`,
-    );
-  }
+  const consumers = sources.filter((path) =>
+    /--dash-color-field(?![\w-])/.test(stripComments(readSource(path))),
+  );
+
+  assert.deepEqual(
+    consumers,
+    [B05_FIELD_TOKEN_CANONICAL_PATH],
+    `expected the sole runtime consumer of --dash-color-field to be ${B05_FIELD_TOKEN_CANONICAL_PATH}; found ${JSON.stringify(consumers)}. A second consumer duplicates the single source of truth for the field tint; zero consumers means the B05 inversion was reverted`,
+  );
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

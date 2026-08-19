@@ -15,14 +15,17 @@
  *
  * Eight scales (color, shape, elevation, state-layer, spacing, density,
  * typography, motion) declared once and dashboard-scoped. B03 DEFINED the
- * foundation; B04 MIGRATED the first surfaces onto it, so the consumer count
- * outside this block is no longer zero. What replaced that zero is a boundary,
- * not an allowance: `test/architecture/dashboard-foundation-tokens.test.ts`
- * asserts every consumer lives inside the authenticated dashboard scope, that
+ * foundation; B04 MIGRATED the first surfaces onto it, and B05 inverted the
+ * filter-field surface relationship, so the consumer count outside this
+ * block is no longer zero. What replaced that zero is a boundary, not an
+ * allowance: `test/architecture/dashboard-foundation-tokens.test.ts` asserts
+ * every consumer lives inside the authenticated dashboard scope, that
  * tokens.css remains the only place these tokens are DECLARED, and that
- * `--dash-color-field` — the B05 target — still has no consumer at all.
+ * `--dash-color-field` — the B05 target — is consumed from exactly one
+ * runtime path.
  * `test/architecture/dashboard-b04-surface-token-migration.test.ts` owns the
- * migration manifest itself.
+ * B04 migration manifest; `test/architecture/dashboard-b05-surface-inversion.test.ts`
+ * owns the B05 field-inversion manifest.
  *
  * Theme classification is explicit, because "dark is covered" is exactly the
  * claim the dashboard could not previously make: before B03 the whole
@@ -73,13 +76,15 @@
   --dash-color-info: hsl(var(--vetneb-cyan));
   --dash-color-focus-ring: var(--clinical-focus-ring);
   /* THEME_VARIANT — overridden in the dark scope below.
-     field: the B05 target (tint moves to the field, container goes
+     field: the B05 target (tint moved to the field, container went
      transparent). Both alphas are literals measured in this tree: 0.72 reads
      as a tint over a 96%-lightness canvas, 0.92 is what the same fill needs to
      separate from a 12%-lightness one.
-     RESERVED: B04 deliberately left this token unconsumed. Consuming it is what
-     starts B05, and both architecture contracts fail closed if it happens
-     before then. */
+     ACTIVE: B04 deliberately left this token unconsumed; B05 is what started
+     consuming it, from exactly one runtime path
+     (styles/dashboard/surfaces.css). Both architecture contracts fail closed
+     if a second path — or a path outside the authenticated dashboard —
+     consumes it instead. */
   --dash-color-field: hsl(var(--vetneb-surface-muted) / 0.72);
   /* warning: NOT a bare `hsl(var(--vetneb-amber))`. The flipped amber
      (38 84% 58%) is still too dim on the dark canvas, which is why globals.css

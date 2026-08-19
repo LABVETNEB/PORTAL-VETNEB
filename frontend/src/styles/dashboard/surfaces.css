@@ -654,3 +654,44 @@
   box-shadow: var(--dash-elevation-none);
 }
 /* dashboard-b04-persistent-chrome:end */
+
+/* dashboard-b05-field-inversion:start
+ *
+ * B05 — filter-field surface inversion (roadmap §49/§54: "campo teñido,
+ * contenedor transparente").
+ *
+ * Audit §9 principle 3 and §15.1 (P1-06): the surface relationship the 7
+ * super searchers shipped with was backwards — a tinted CONTAINER
+ * (`bg-card/82` in FilterBar.tsx, `bg-muted/15` on the S5 bands) holding
+ * near-white FIELDS (`bg-card/96` on Input/Select). Drive tints the FIELD and
+ * leaves the container transparent; this block is that inversion, scoped to
+ * the field only. The container fill is removed at its own source
+ * (FilterBar.tsx for S1/S2/S3/S6/S7, AdminUsersRolesReadOnlyCard.tsx for S5)
+ * — this block never touches a container's background.
+ *
+ * SCOPE: two anchor shapes cover all 7 super searchers.
+ *   - Shared `FilterBar` (S1, S2, S3, S6, S7): every `input`/`select`
+ *     descendant of `[data-dashboard-filter-bar="true"]` is a filter field.
+ *     Buttons (Aplicar/Limpiar/Actualizar) are neither tag, so they are
+ *     excluded by construction, not by an extra negation.
+ *   - Direct controls (S4, S5): no shared wrapper exists, so the field carries
+ *     its own `data-dashboard-filter-field="true"` anchor.
+ *
+ * `--dash-color-field` is the single token this rule consumes; it is the B05
+ * target `tokens.css` reserved since B03 and left unconsumed through B04.
+ * `background-color` only (not `background`), so no other layer of the
+ * existing `bg-card/96` / `.field-select` gradient, hairline shadow or border
+ * declared elsewhere on the same element is disturbed.
+ *
+ * UNLAYERED, same reasoning as the B04 block above: `bg-card/96` and
+ * `.field-select`'s `bg-card` both resolve in `@layer components`/`utilities`,
+ * which an unlayered rule outranks, so neither can silently win the field
+ * back. Scoped under `.dashboard-app-shell` so the foundation token resolves
+ * — declared there and nowhere else — and so the rule cannot reach a public
+ * surface. */
+.dashboard-app-shell [data-dashboard-filter-bar="true"] input,
+.dashboard-app-shell [data-dashboard-filter-bar="true"] select,
+.dashboard-app-shell [data-dashboard-filter-field="true"] {
+  background-color: var(--dash-color-field);
+}
+/* dashboard-b05-field-inversion:end */
