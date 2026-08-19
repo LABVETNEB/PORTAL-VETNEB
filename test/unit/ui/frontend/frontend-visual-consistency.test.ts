@@ -350,7 +350,12 @@ test("dashboard topbar keeps sticky hierarchy and compact responsive shell", () 
   assertMatchesAll(
     source,
     [
-      /className="sticky top-0 z-40 flex shrink-0 flex-col border-b border-vetneb-line\/80 bg-card\/90 shadow-sm backdrop-blur supports-\[backdrop-filter\]:bg-card\/78"/,
+      // B04 retired the topbar's elevation (gate G6: the persistent chrome
+      // paints no shadow). The contract keeps pinning the whole className so a
+      // silent restyle still fails; `shadow-sm` is gone from it because the
+      // band is now flat by contract, stated as `--dash-elevation-none` on
+      // `[data-dashboard-topbar-polish]` in styles/dashboard/surfaces.css.
+      /className="sticky top-0 z-40 flex shrink-0 flex-col border-b border-vetneb-line\/80 bg-card\/90 backdrop-blur supports-\[backdrop-filter\]:bg-card\/78"/,
       /className="truncate text-lg font-semibold leading-tight text-vetneb-ink sm:text-xl"/,
       /className="truncate text-xs text-muted-foreground sm:text-\[0\.8125rem\]"/,
       /className="ml-2 flex shrink-0 items-center gap-1.5 sm:ml-3 sm:gap-3"/,

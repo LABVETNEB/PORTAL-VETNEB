@@ -14,11 +14,15 @@
  * B03 — dashboard design-system foundation.
  *
  * Eight scales (color, shape, elevation, state-layer, spacing, density,
- * typography, motion) declared once, dashboard-scoped, and consumed by nobody
- * yet. B03 DEFINES the foundation; B04 migrates the surfaces onto it. A token
- * that already had a consumer would make that migration invisible, so
- * `test/architecture/dashboard-foundation-tokens.test.ts` asserts the consumer
- * count outside this block is zero.
+ * typography, motion) declared once and dashboard-scoped. B03 DEFINED the
+ * foundation; B04 MIGRATED the first surfaces onto it, so the consumer count
+ * outside this block is no longer zero. What replaced that zero is a boundary,
+ * not an allowance: `test/architecture/dashboard-foundation-tokens.test.ts`
+ * asserts every consumer lives inside the authenticated dashboard scope, that
+ * tokens.css remains the only place these tokens are DECLARED, and that
+ * `--dash-color-field` — the B05 target — still has no consumer at all.
+ * `test/architecture/dashboard-b04-surface-token-migration.test.ts` owns the
+ * migration manifest itself.
  *
  * Theme classification is explicit, because "dark is covered" is exactly the
  * claim the dashboard could not previously make: before B03 the whole
@@ -72,7 +76,10 @@
      field: the B05 target (tint moves to the field, container goes
      transparent). Both alphas are literals measured in this tree: 0.72 reads
      as a tint over a 96%-lightness canvas, 0.92 is what the same fill needs to
-     separate from a 12%-lightness one. */
+     separate from a 12%-lightness one.
+     RESERVED: B04 deliberately left this token unconsumed. Consuming it is what
+     starts B05, and both architecture contracts fail closed if it happens
+     before then. */
   --dash-color-field: hsl(var(--vetneb-surface-muted) / 0.72);
   /* warning: NOT a bare `hsl(var(--vetneb-amber))`. The flipped amber
      (38 84% 58%) is still too dim on the dark canvas, which is why globals.css
@@ -100,12 +107,15 @@
   --dash-shape-2xl: 1.1rem;
   --dash-shape-full: 9999px;
 
-  /* 3 — ELEVATION. Semantic levels, not shadow recipes. `none` is declared so
-     B04 can state flatness positively — the roadmap retires the persistent
-     chrome's shadow, and "no box-shadow property" and "elevation: none" are
-     different claims in review. The three raised levels are THEME_ADAPTIVE via
-     the `--clinical-*` shadows, which globals.css already re-authors in dark
-     (alpha 0.055 -> 0.20, 0.08 -> 0.28, 0.10 -> 0.34). */
+  /* 3 — ELEVATION. Semantic levels, not shadow recipes. `none` is what B04
+     consumed to state flatness positively — "no box-shadow property" and
+     "elevation: none" are different claims in review, and every persistent
+     chrome anchor now makes the second one. The three raised levels are
+     THEME_ADAPTIVE via the `--clinical-*` shadows, which globals.css already
+     re-authors in dark (alpha 0.055 -> 0.20, 0.08 -> 0.28, 0.10 -> 0.34).
+     `raised` stays UNUSED after B04 on purpose: audit §45.2 rules the elevated
+     card out of the dashboard, so a static content surface flattens rather than
+     adopting it. `menu` and `dialog` remain available to transient overlays. */
   --dash-elevation-none: none;
   --dash-elevation-raised: var(--clinical-shadow-sm);
   --dash-elevation-menu: var(--clinical-shadow-md);

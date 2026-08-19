@@ -622,6 +622,31 @@ const SHELL_SELECTORS = {
   main: "main.dashboard-main",
 } as const;
 
+/**
+ * B04 · the persistent chrome inventory, exported so the elevation gate reads
+ * the SAME anchors A02 measures instead of re-listing them.
+ *
+ * "Persistent chrome" is the set of bands that stay around the data across a
+ * module change: the shell frame, the topbar, the horizontal nav, the module
+ * rail, the two mobile bottom navs, the filter toolbar and the sticky action
+ * bar. `main.dashboard-main` is deliberately absent — it is the content region,
+ * not chrome — and so is every transient overlay, whose elevation is meaning.
+ *
+ * `label` is what a failure prints; `selector` is queried as-is.
+ */
+export const DASHBOARD_PERSISTENT_CHROME = [
+  { label: "topbar", selector: SHELL_SELECTORS.topbar },
+  { label: "horizontal-nav", selector: SHELL_SELECTORS.horizontalNav },
+  { label: "module-rail", selector: SHELL_SELECTORS.moduleRail },
+  { label: "bottom-nav", selector: SHELL_SELECTORS.bottomNav },
+  { label: "filter-bar", selector: "[data-dashboard-filter-bar]" },
+  { label: "sticky-action-bar", selector: "[data-sticky-action-bar]" },
+  { label: "module-tablist", selector: ".dashboard-module-tablist" },
+] as const;
+
+/** The shell frame paints its chrome through a pseudo-element. */
+export const DASHBOARD_SHELL_FRAME_SELECTOR = '[data-vetneb-app-shell="true"]';
+
 const REGION_SELECTORS = {
   moduleHeader: ".dashboard-workspace-header",
   metrics: "[data-dashboard-metric-strip]",

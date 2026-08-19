@@ -17,8 +17,14 @@ export type FilterFieldProps = LabelHTMLAttributes<HTMLLabelElement> & {
 };
 
 const filterBarDensityClassNames: Record<FilterBarDensity, string> = {
+  // B04: the comfortable bar is persistent toolbar chrome, so its elevation is
+  // retired here and stated as elevation-none on the
+  // `[data-dashboard-filter-bar]` anchor in styles/dashboard/surfaces.css. The
+  // surface RELATIONSHIP is untouched: the container keeps its tint and the
+  // field keeps its own. Inverting that is B05, and the foundation's reserved
+  // field role stays unconsumed until then.
   comfortable:
-    "grid grid-cols-1 items-end gap-3 rounded-xl border border-vetneb-line/75 bg-card/82 p-3 shadow-[var(--clinical-shadow-sm)]",
+    "grid grid-cols-1 items-end gap-3 rounded-xl border border-vetneb-line/75 bg-card/82 p-3",
   compact:
     "grid grid-cols-1 items-end gap-2 rounded-lg border border-vetneb-line/70 bg-muted/15 px-2 py-2 md:gap-1.5 md:py-1",
 };

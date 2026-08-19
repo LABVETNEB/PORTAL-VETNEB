@@ -79,7 +79,7 @@
     gap: 0.4rem;
     min-height: 2.25rem;
     white-space: nowrap;
-    border-radius: 0.5rem;
+    border-radius: var(--dash-shape-sm);
     padding: 0.35rem 0.85rem;
     font-size: 0.8rem;
     font-weight: 600;
@@ -88,8 +88,10 @@
 
   .dashboard-module-tab[aria-selected="true"] {
     background: hsl(var(--vetneb-navy));
-    color: hsl(var(--primary-foreground));
-    box-shadow: 0 8px 20px rgba(15, 45, 62, 0.18);
+    color: var(--dash-color-on-primary);
+    /* B04 · PERSISTENT_CHROME. The selected module tab is chrome that stays
+       around the data, so it states flatness instead of painting elevation. */
+    box-shadow: var(--dash-elevation-none);
   }
 
   .dashboard-module-tab[aria-selected="false"]:hover {
@@ -116,7 +118,7 @@
     margin-top: auto;
     border-top: 1px solid hsl(var(--vetneb-line) / 0.6);
     font-size: 0.78rem;
-    color: hsl(var(--muted-foreground));
+    color: var(--dash-color-on-surface-muted);
   }
 
   /* Bounded table wrapper: fixed layout, no overflow. Rows are limited by
@@ -141,7 +143,7 @@
     background:
       radial-gradient(circle at 18% 12%, hsl(var(--vetneb-teal) / 0.13), transparent 28rem),
       radial-gradient(circle at 84% 4%, hsl(var(--vetneb-cyan) / 0.12), transparent 24rem),
-      linear-gradient(140deg, hsl(var(--vetneb-surface-raised)) 0%, hsl(var(--vetneb-surface)) 48%, hsl(var(--vetneb-surface-muted)) 100%);
+      linear-gradient(140deg, var(--dash-color-surface-raised) 0%, var(--dash-color-canvas) 48%, var(--dash-color-surface-muted) 100%);
   }
 
   .dashboard-app-shell::before {
@@ -152,10 +154,14 @@
     pointer-events: none;
     border: 1px solid hsl(var(--vetneb-teal) / 0.22);
     border-radius: 1.25rem;
-    box-shadow:
-      inset 0 1px 0 hsl(var(--background) / 0.58),
-      0 0 0 1px hsl(var(--vetneb-navy) / 0.045),
-      0 18px 70px rgba(15, 45, 62, 0.1);
+    /* B04 · PERSISTENT_CHROME. The shell frame is the outermost persistent
+       chrome, so G6 retires its elevation: the 18px/70px drop plus the inset
+       highlight and the hairline ring that read as depth around it. The visible
+       frame is the `border` above — the property the app-shell visibility
+       contract asserts — so the frame survives while the depth does not.
+       `inset`, `z-index` and radius are untouched: B04 changes elevation,
+       never geometry. */
+    box-shadow: var(--dash-elevation-none);
   }
 
   .dashboard-app-shell::after {

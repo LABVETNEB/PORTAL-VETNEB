@@ -100,7 +100,7 @@ export function DashboardTopbar({
 
   return (
     <header
-      className="sticky top-0 z-40 flex shrink-0 flex-col border-b border-vetneb-line/80 bg-card/90 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/78"
+      className="sticky top-0 z-40 flex shrink-0 flex-col border-b border-vetneb-line/80 bg-card/90 backdrop-blur supports-[backdrop-filter]:bg-card/78"
       data-dashboard-topbar-polish="true"
       data-admin-mobile-app-bar={isAdmin ? "true" : undefined}
       aria-label="Barra superior del dashboard"

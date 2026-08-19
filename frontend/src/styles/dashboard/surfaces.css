@@ -13,7 +13,7 @@
     background:
       linear-gradient(90deg, hsl(var(--vetneb-navy) / 0.035) 1px, transparent 1px),
       linear-gradient(180deg, hsl(var(--vetneb-navy) / 0.026) 1px, transparent 1px),
-      linear-gradient(140deg, hsl(var(--vetneb-surface-raised)) 0%, hsl(var(--vetneb-surface)) 54%, hsl(var(--vetneb-surface-muted)) 100%);
+      linear-gradient(140deg, var(--dash-color-surface-raised) 0%, var(--dash-color-canvas) 54%, var(--dash-color-surface-muted) 100%);
     background-size: 88px 88px, 88px 88px, auto;
   }
 
@@ -22,14 +22,21 @@
     z-index: 1;
   }
 
+  /* B04 · PERSISTENT_CHROME. The topbar is the band the audit names first
+     (§9.1, P2-02): persistent chrome paints no shadow. The competing source —
+     the `shadow-sm` utility on the same <header> — is removed in
+     DashboardTopbar.tsx, so no cascade or responsive variant can restore it. */
   [data-dashboard-topbar-polish="true"] {
-    box-shadow: 0 10px 28px rgba(15, 45, 62, 0.07);
+    box-shadow: var(--dash-elevation-none);
   }
 
+  /* B04 · PERSISTENT_CHROME. The sidebar band has had no runtime consumer
+     since B02 retired it, but the anchor is still authored here: flattening it
+     now means the chrome cannot come back elevated if the anchor is reused. */
   [data-dashboard-sidebar-polish="true"] {
     position: relative;
     overflow: hidden;
-    box-shadow: 12px 0 38px rgba(8, 35, 50, 0.22);
+    box-shadow: var(--dash-elevation-none);
   }
 
   [data-dashboard-sidebar-polish="true"]::before {
@@ -605,3 +612,45 @@
   }
 }
 /* dashboard-premium-grammar:end */
+
+/* dashboard-b04-persistent-chrome:start
+ *
+ * B04 — persistent chrome elevation policy (gate G6).
+ *
+ * Audit §9.1 and §45.2: the persistent chrome paints no shadow, and elevation
+ * level 1 ("tarjeta elevada") is explicitly not for the dashboard. Elevation
+ * survives only where it carries meaning — transient overlays (menu, dialog,
+ * drawer) — and a focus ring is an indicator, never a level.
+ *
+ * PERSISTENT_CHROME is the set of bands that remain around the data across a
+ * module change. Four of them already declared a shadow and were flattened in
+ * place at their own anchor (the shell frame and the selected module tab in
+ * layout.css, the topbar and the sidebar band in surfaces.css). The anchors
+ * below never declared one: their shadow came from a Tailwind utility on the
+ * component, or from nowhere at all. Stating `--dash-elevation-none` here
+ * turns "happens to have no box-shadow" into "declares elevation none", which
+ * is the claim `test/architecture/dashboard-b04-surface-token-migration.test.ts`
+ * and the runtime gate can both read back.
+ *
+ * UNLAYERED on purpose. Tailwind utilities resolve in `@layer utilities`, which
+ * wins over `@layer components`; an unlayered rule wins over both, so a
+ * `shadow-*` utility reintroduced on one of these anchors cannot silently
+ * restore elevation. The utilities that were there have still been removed at
+ * the source (§16: both sources are closed, not one).
+ *
+ * Scoped under `.dashboard-app-shell` so the foundation tokens resolve — they
+ * are declared on that element and nowhere else — and so the rule cannot reach
+ * a public surface.
+ *
+ * NOT here, by classification: `.dashboard-filter-panel` (transient drawer),
+ * `.admin-mobile-kebab-menu` / `.admin-mobile-module-menu` (transient
+ * overlays), every `:focus-visible` ring, and the decorative icon halos. */
+.dashboard-app-shell [data-dashboard-horizontal-nav-shell="true"],
+.dashboard-app-shell [data-dashboard-module-rail],
+.dashboard-app-shell [data-dashboard-filter-bar="true"],
+.dashboard-app-shell [data-sticky-action-bar="true"],
+.dashboard-app-shell [data-admin-mobile-bottom-nav="true"],
+.dashboard-app-shell [data-clinic-mobile-bottom-nav="true"] {
+  box-shadow: var(--dash-elevation-none);
+}
+/* dashboard-b04-persistent-chrome:end */

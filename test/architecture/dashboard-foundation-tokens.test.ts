@@ -42,6 +42,39 @@ const FRONTEND_SRC = "frontend/src";
 const THEME_MODULE_PATH = "frontend/src/lib/theme.ts";
 const THEME_INIT_PATH = "frontend/public/theme-init.js";
 
+/**
+ * B04 consumer boundary.
+ *
+ * B03 shipped with "zero consumers outside tokens.css", which was true exactly
+ * once: it was the proof that B03 defined and did not migrate. B04 migrated the
+ * first surfaces, so that assertion had to be REPLACED, never deleted, skipped
+ * or relaxed to "there is some consumer" — either of those would drop the only
+ * guard that keeps a dashboard-scoped foundation from leaking onto the public
+ * surface, where none of these tokens is declared and every one of them would
+ * resolve to nothing.
+ *
+ * The replacement is a two-sided boundary:
+ *
+ *   1. Consumption is real   — at least one consumer exists (T8a), so a silent
+ *                              revert of B04 cannot pass as "still fine".
+ *   2. Consumption is penned — every consumer is under one of the prefixes
+ *                              below (T8b), all of which render inside
+ *                              `.dashboard-app-shell`, the only element where
+ *                              the foundation is declared.
+ *
+ * `--dash-color-field` is excluded from both and asserted separately (T8c): it
+ * is the B05 target and must stay at zero consumers until B05 inverts the
+ * surface relationship.
+ */
+const B04_CONSUMER_PREFIXES = [
+  "frontend/src/styles/dashboard/",
+  "frontend/src/components/dashboard/",
+  "frontend/src/app/dashboard/",
+] as const;
+
+/** Reserved for B05 (tint moves to the field, container goes transparent). */
+const B05_RESERVED_TOKENS = ["--dash-color-field"] as const;
+
 const FOUNDATION_START = "/* dashboard-foundation-tokens:start";
 const FOUNDATION_END = "dashboard-foundation-tokens:end */";
 const PITCH_START = "/* dashboard-row-pitch-contract:start";
@@ -735,23 +768,69 @@ test("no foundation token is declared outside tokens.css", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// T8 · B03 defines; B04 migrates. Nothing consumes the foundation yet.
+// T8 · B03 defined; B04 migrated. Consumption is real AND dashboard-scoped.
 // ─────────────────────────────────────────────────────────────────────────────
 
-test("the foundation has zero consumers outside its own declaration", () => {
+/** Every (path, token) pair outside tokens.css that references a foundation token. */
+function foundationConsumers(): Array<readonly [string, string]> {
   const sourceFiles = collectFilesRecursive(
     FRONTEND_SRC,
     /\.(css|ts|tsx)$/,
   ).filter((path) => path !== TOKENS_CSS_PATH);
 
+  const found: Array<readonly [string, string]> = [];
   for (const path of sourceFiles) {
     const source = stripComments(readSource(path));
     for (const token of SCHEMA_TOKENS) {
-      assert.ok(
-        !source.includes(token),
-        `${path}: consumes "${token}". B03 declares the foundation; migrating surfaces onto it is B04, and a consumer here makes that migration invisible in review`,
-      );
+      // Word boundary on the right so `--dash-color-surface` does not count as
+      // a consumer of itself when the file really uses
+      // `--dash-color-surface-muted`; each token is matched exactly.
+      if (new RegExp(`${token}(?![\w-])`).test(source)) {
+        found.push([path, token]);
+      }
     }
+  }
+  return found;
+}
+
+test("the foundation is genuinely consumed after B04", () => {
+  const consumers = foundationConsumers();
+
+  assert.ok(
+    consumers.length > 0,
+    "no source outside tokens.css references a foundation token. B04 migrated the dashboard surfaces onto this foundation; zero consumers means that migration was reverted, and this contract must not pass silently in that state",
+  );
+
+  // The migration is not one token used once: B04 covers colour, shape and
+  // elevation. Requiring more than one CATEGORY stops a single stray reference
+  // from satisfying the boundary.
+  const categories = new Set(
+    // "--dash-color-surface" splits to ["", "", "dash", "color", "surface"]:
+    // the leading "--" contributes two empty segments, so the category prefix
+    // is the first FOUR.
+    consumers.map(([, token]) => token.split("-").slice(0, 4).join("-")),
+  );
+  assert.ok(
+    categories.size >= 3,
+    `only ${categories.size} foundation categories are consumed (${[...categories].sort().join(", ")}); B04 migrates colour, shape and elevation at minimum`,
+  );
+});
+
+test("every foundation consumer stays inside the authenticated dashboard", () => {
+  for (const [path, token] of foundationConsumers()) {
+    assert.ok(
+      B04_CONSUMER_PREFIXES.some((prefix) => path.startsWith(prefix)),
+      `${path}: consumes "${token}" outside the dashboard scope. The foundation is declared only on \`.dashboard-app-shell\`, so this reference resolves to nothing wherever that ancestor is absent — public pages, login, and every non-dashboard route. Allowed roots: ${B04_CONSUMER_PREFIXES.join(", ")}`,
+    );
+  }
+});
+
+test("the B05 field token is still reserved after B04", () => {
+  for (const [path, token] of foundationConsumers()) {
+    assert.ok(
+      !B05_RESERVED_TOKENS.includes(token as (typeof B05_RESERVED_TOKENS)[number]),
+      `${path}: consumes "${token}", which B05 owns. B04 tokenises the CURRENT surface relationship; moving the tint onto the field and making the container transparent is B05, and starting it here would ship two roadmap steps under one rollback`,
+    );
   }
 });
 
