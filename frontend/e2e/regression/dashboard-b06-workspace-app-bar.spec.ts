@@ -7,7 +7,6 @@ import {
   type ThemeMode,
 } from "../../src/lib/theme";
 import {
-  assertSurfaceLoaded,
   clearDashboardModuleMemory,
   DASHBOARD_GEOMETRY_COMBINATION_COUNT,
   DASHBOARD_GEOMETRY_SESSION_COOKIE,
@@ -32,8 +31,15 @@ import {
 //   · it is a SINGLE row — every visible direct child fits inside its box;
 //   · full width, no radius, no elevation, one 1px bottom rule on the band;
 //   · it never overlaps `main.dashboard-main`;
-//   · the document does not scroll on either axis while it is on screen;
 //   · its height sits inside the declared band.
+//
+// BOUNDARY WITH A08. Document/body/main scroll is NOT asserted here. A08
+// (`dashboard-zero-scroll-baseline.spec.ts`) already freezes it over the SAME
+// 21 × 13 matrix, at an exact 0px contract, in the same `ci` cohort — so
+// re-asserting it would add no information and would force this spec to gate on
+// the fully loaded module data it does not measure. B06 owns the band; A08 owns
+// the frame. That split is also what keeps this spec inside the completeness
+// cohort's runtime budget (see the note on the theme block below).
 //
 // HEIGHT BAND — two regimes, both asserted, neither aspirational:
 //
@@ -55,6 +61,10 @@ import {
 // Dual theme is asserted on the two viewport classes B04 already uses, not on
 // all 13: the band is a geometry contract and geometry is theme-invariant, so
 // re-walking the matrix twice would buy no information and double the runtime.
+// Only `dark-gray` gets its own pass: the matrix above already runs every
+// surface in the default (`normal`) theme at those same two viewports, so a
+// second `normal` pass was a literal duplicate — 21 surfaces × 2 viewports of
+// re-measurement that could not disagree with the run that preceded it.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const APP_ORIGIN = "http://127.0.0.1:3000";
@@ -81,7 +91,11 @@ const MOBILE_APP_BAR_BAND_PX: Readonly<Record<"admin" | "clinic", readonly [numb
     clinic: [48, 54],
   };
 
-const THEMES: readonly ThemeMode[] = [NORMAL_THEME_MODE, DARK_GRAY_THEME_MODE];
+/**
+ * The matrix above runs under {@link NORMAL_THEME_MODE}; this block only has to
+ * prove the band survives the theme the matrix never sees.
+ */
+const THEMES: readonly ThemeMode[] = [DARK_GRAY_THEME_MODE];
 const THEME_VIEWPORT_SLUGS = ["w1366x768", "w390x844"] as const;
 
 type AppBarReading = {
@@ -96,8 +110,6 @@ type AppBarReading = {
   readonly bandBorderBottomWidth: string;
   readonly overflowingChildren: readonly string[];
   readonly mainTop: number | null;
-  readonly docVerticalDelta: number;
-  readonly docHorizontalDelta: number;
   readonly searchPresent: boolean;
 };
 
@@ -125,7 +137,6 @@ async function readAppBar(
       const node = bars[0] ?? null;
       const bandNode = document.querySelector<HTMLElement>(band);
       const main = document.querySelector<HTMLElement>("main.dashboard-main");
-      const html = document.documentElement;
 
       if (!node) {
         return {
@@ -140,8 +151,6 @@ async function readAppBar(
           bandBorderBottomWidth: "",
           overflowingChildren: [] as string[],
           mainTop: main ? main.getBoundingClientRect().top : null,
-          docVerticalDelta: html.scrollHeight - html.clientHeight,
-          docHorizontalDelta: html.scrollWidth - html.clientWidth,
           searchPresent: false,
         };
       }
@@ -187,8 +196,6 @@ async function readAppBar(
           : "absent",
         overflowingChildren,
         mainTop: main ? main.getBoundingClientRect().top : null,
-        docVerticalDelta: html.scrollHeight - html.clientHeight,
-        docHorizontalDelta: html.scrollWidth - html.clientWidth,
         searchPresent:
           node.querySelector('[data-workspace-app-bar-search-input="true"]') !== null,
       };
@@ -262,17 +269,6 @@ function collectViolations(
     );
   }
 
-  if (reading.docVerticalDelta > 0) {
-    violations.push(
-      `${label}: document scrolls vertically (delta ${reading.docVerticalDelta}px)`,
-    );
-  }
-  if (reading.docHorizontalDelta > 0) {
-    violations.push(
-      `${label}: document scrolls horizontally (delta ${reading.docHorizontalDelta}px)`,
-    );
-  }
-
   // The global module search is the workspace-regime affordance; below `md` the
   // mobile chrome owns navigation and the search is deliberately not mounted.
   if (viewportWidth >= WORKSPACE_REGIME_MIN_WIDTH_PX && !reading.searchPresent) {
@@ -321,13 +317,31 @@ test.describe("B06 · workspace app bar contract 21x13", () => {
         await page.setViewportSize({ width: viewport.width, height: viewport.height });
         await page.goto(surface.route);
 
+        // Readiness for THIS contract is the chrome, not the module payload: the
+        // band is server-rendered and its height is a function of the shell and
+        // the fonts, never of the collection below it. `waitForLayoutSettled`
+        // awaits `document.fonts.ready` plus two frames, which is exactly the
+        // condition a text-derived height needs. Gating on `networkidle` and on
+        // the loaded-state markers instead would wait for data this spec does
+        // not read — and A08 already measures every one of these surfaces in
+        // its fully loaded state.
         await expect(
-          page.locator(surface.readinessSelector).first(),
-          `${label}: readiness`,
+          page.locator(APP_BAR_SELECTOR).first(),
+          `${label}: app bar mounted`,
         ).toBeVisible({ timeout: 25_000 });
-        await page.waitForLoadState("networkidle", { timeout: 20_000 });
-        await assertSurfaceLoaded(page, surface, label);
         await waitForLayoutSettled(page);
+
+        // Self-verifying dedup: the theme block below drops the `normal` pass
+        // BECAUSE this matrix already runs it. Asserting it here once per
+        // surface is what turns that claim into a checked fact instead of a
+        // comment — if the default theme ever stops being `normal`, the theme
+        // coverage becomes incomplete and this fails.
+        if (viewport === DASHBOARD_GEOMETRY_VIEWPORTS[0]) {
+          await expect(
+            page.locator("html"),
+            `${label}: the matrix runs the default theme`,
+          ).toHaveAttribute("data-theme", NORMAL_THEME_MODE, { timeout: 10_000 });
+        }
 
         const reading = await readAppBar(page, APP_BAR_SELECTOR, APP_BAR_BAND_SELECTOR);
         failures.push(...collectViolations(reading, label, viewport.width, surface.role));
@@ -361,51 +375,67 @@ test.describe("B06 · workspace app bar in both themes", () => {
 
       const failures: string[] = [];
 
-      for (const surface of DASHBOARD_GEOMETRY_SURFACES) {
-        for (const slug of THEME_VIEWPORT_SLUGS) {
-          const viewport = DASHBOARD_GEOMETRY_VIEWPORTS.find((item) => item.slug === slug);
-          expect(viewport, `theme viewport ${slug} must exist in the canonical matrix`).
-            toBeTruthy();
-          if (!viewport) continue;
+      // One context PER ROLE, not per combination. The session cookie and the
+      // theme seed are the only per-context state, and the role owns both, so 42
+      // fresh contexts were 40 browser bootstraps that measured nothing extra.
+      // Mocks and viewport are per-surface/per-viewport and stay in the loop.
+      for (const role of ["admin", "clinic"] as const) {
+        const context = await browser.newContext({ reducedMotion: "reduce" });
 
-          const label = `${surface.id} @ ${slug} · ${theme}`;
-          const context = await browser.newContext({
-            viewport: { width: viewport.width, height: viewport.height },
-            reducedMotion: "reduce",
-          });
+        try {
+          const cookie = DASHBOARD_GEOMETRY_SESSION_COOKIE[role];
+          await context.addCookies([
+            { name: cookie.name, value: cookie.value, url: APP_ORIGIN },
+          ]);
 
-          try {
-            const cookie = DASHBOARD_GEOMETRY_SESSION_COOKIE[surface.role];
-            await context.addCookies([
-              { name: cookie.name, value: cookie.value, url: APP_ORIGIN },
-            ]);
+          const page = await context.newPage();
+          await suppressNextDevChrome(page);
+          await clearDashboardModuleMemory(page);
+          await installTheme(page, theme);
 
-            const page = await context.newPage();
-            await suppressNextDevChrome(page);
-            await clearDashboardModuleMemory(page);
-            await installTheme(page, theme);
+          for (const surface of DASHBOARD_GEOMETRY_SURFACES) {
+            if (surface.role !== role) continue;
             await installSurfaceMocks(page, surface);
 
-            await page.goto(surface.route);
-            await expect(
-              page.locator(surface.readinessSelector).first(),
-              `${label}: readiness`,
-            ).toBeVisible({ timeout: 25_000 });
-            await expect(
-              page.locator("html"),
-              `${label}: theme applied pre-paint`,
-            ).toHaveAttribute("data-theme", theme, { timeout: 10_000 });
-            await page.waitForLoadState("networkidle", { timeout: 20_000 });
-            await assertSurfaceLoaded(page, surface, label);
-            await waitForLayoutSettled(page);
+            for (const slug of THEME_VIEWPORT_SLUGS) {
+              const viewport = DASHBOARD_GEOMETRY_VIEWPORTS.find(
+                (item) => item.slug === slug,
+              );
+              expect(
+                viewport,
+                `theme viewport ${slug} must exist in the canonical matrix`,
+              ).toBeTruthy();
+              if (!viewport) continue;
 
-            const reading = await readAppBar(page, APP_BAR_SELECTOR, APP_BAR_BAND_SELECTOR);
-            failures.push(
-              ...collectViolations(reading, label, viewport.width, surface.role),
-            );
-          } finally {
-            await context.close();
+              const label = `${surface.id} @ ${slug} · ${theme}`;
+
+              await page.setViewportSize({
+                width: viewport.width,
+                height: viewport.height,
+              });
+              await page.goto(surface.route);
+              await expect(
+                page.locator(APP_BAR_SELECTOR).first(),
+                `${label}: app bar mounted`,
+              ).toBeVisible({ timeout: 25_000 });
+              await expect(
+                page.locator("html"),
+                `${label}: theme applied pre-paint`,
+              ).toHaveAttribute("data-theme", theme, { timeout: 10_000 });
+              await waitForLayoutSettled(page);
+
+              const reading = await readAppBar(
+                page,
+                APP_BAR_SELECTOR,
+                APP_BAR_BAND_SELECTOR,
+              );
+              failures.push(
+                ...collectViolations(reading, label, viewport.width, surface.role),
+              );
+            }
           }
+        } finally {
+          await context.close();
         }
       }
 

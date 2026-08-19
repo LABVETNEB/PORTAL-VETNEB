@@ -212,7 +212,7 @@ calculada y ambos slacks: byte-idénticos).
 | Contrato | Archivo |
 |---|---|
 | Estático B06 | `test/architecture/dashboard-b06-workspace-app-bar.test.ts` (12 casos) |
-| Runtime B06 | `frontend/e2e/regression/dashboard-b06-workspace-app-bar.spec.ts` (21×13 + 2 temas + 2 de búsqueda) |
+| Runtime B06 | `frontend/e2e/regression/dashboard-b06-workspace-app-bar.spec.ts` (21×13 + `dark-gray` sobre 2 clases de viewport + 2 de búsqueda) |
 | Censos realineados | `test/architecture/e2e-suite-catalog-completeness.test.ts`, `test/unit/infrastructure/e2e-completeness-workflow.test.ts` |
 | Pin de clases realineado | `test/unit/ui/frontend/frontend-visual-consistency.test.ts` |
 
@@ -245,6 +245,42 @@ diagnosticar, no una recaptura a aplicar.
 
 Ambas clasifican stage/commit/push/PR/merge de forma más restrictiva que el
 `AGENTS.md` post-#1664. Prevalece `AGENTS.md`. Su limpieza no pertenece a B06.
+
+## 11 bis. Presupuesto de la cohorte `full` (incidente CI de #1665)
+
+El job `E2E Completeness` (`e2e:full`) falló en el run `32308270147` por
+**globalTimeout**, no por una aserción: `Timed out waiting 1800s for the test
+suite to run`, `870 passed (30.0m)`, `66 did not run`. Las dos pruebas marcadas
+con ✘ (A08 `clinic-informes` 5.2s y `admin-tokens` 2.1s) fueron abortadas por ese
+corte, no fallaron.
+
+Suma real de tiempo de test del run: **59.1 min** sobre 872 pruebas. Reparto:
+`dashboard-limit-invariance` 15.97m, **B06 7.45m**, A03 7.28m, A02 6.67m. La
+cohorte ya venía rozando el techo antes de B06 (runs verdes de B05 en 29.7–31.1m
+y un run de B04 fallido en 31.4m, sin que B06 existiera), así que B06 convirtió
+un desbordamiento intermitente en determinista.
+
+Corrección aplicada dentro del scope B06, sin perder ninguna combinación:
+
+1. **Frontera con A08.** El spec dejó de re-aserir el scroll de
+   documento/body/main: A08 lo congela sobre la misma matriz 21×13 con contrato
+   exacto de 0px y en la misma cohorte. Al no medir ya el payload del módulo, el
+   spec deja de necesitar `networkidle` + `assertSurfaceLoaded` y espera lo que
+   la banda realmente depende: montaje del app bar + `document.fonts.ready` + 2
+   frames.
+2. **Pasada `normal` eliminada.** La matriz ya recorre las 21 superficies en el
+   tema por defecto, incluidos los dos viewports del bloque de temas; esa pasada
+   era un duplicado literal. Sólo queda `dark-gray`, y la matriz **aserta** que
+   su tema es `normal`, de modo que la deduplicación es un hecho verificado.
+3. **Un contexto por rol** en el bloque de temas, en vez de uno por combinación:
+   42 arranques de navegador → 2.
+
+Coste medido del spec: **7.5m → 4.1m** (−45%), con 24 pruebas en verde.
+
+Riesgo residual declarado: la cohorte `full` sigue sin holgura real. El arreglo
+duradero (ampliar el presupuesto del job de completeness o shardear la cohorte)
+es un cambio **ci-only**, fuera del scope de B06 y no autorizado en esta
+ejecución. `E2E Completeness` no es un required check (AGENTS.md §6).
 
 ## 12. Riesgo residual
 
