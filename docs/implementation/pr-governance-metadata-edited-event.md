@@ -147,15 +147,20 @@ el bloque `types:` (diff revisado arriba) y que
 
 ## Desbloqueo de PR #1662
 
-**No se puede desbloquear con este fix por sí solo.** GitHub ejecuta el
-workflow `pull_request` con la versión del archivo en la rama **base**
-(`main`), no la del head branch, precisamente para que una PR no pueda
-alterar su propia validación. Este fix debe fusionarse a `main` primero.
+**El fix permanente debe fusionarse a `main` para que futuras ediciones del
+body disparen automáticamente un nuevo `pull_request.edited`.** La activación
+del workflow depende de la definición aplicable al evento, pero el paso
+`actions/checkout` trabaja sobre el merge ref de la PR; por tanto, el código
+relativo ejecutado después del checkout —incluido
+`scripts/governance/pr-governance-validator.mjs`— puede provenir del contenido
+candidato de la propia PR. El trigger y el código ejecutado después del
+checkout son fronteras distintas y no deben presentarse como una única barrera
+de confianza.
 
-Una vez en `main`, el evento mínimo correcto sobre #1662 es
-`pull_request.reopened` — **ya incluido en el set default actual**, sin
-necesitar este fix. Cerrar y reabrir la PR basta. **No ejecutado por Claude**
-(R2/write de GitHub); ver `[MANUAL-NICO]` del informe de esta tarea.
+Para la PR #1662 actual, `pull_request.reopened` ya pertenece al set default
+del workflow anterior, por lo que cerrar/reabrir puede generar el evento nuevo
+sin depender técnicamente de este fix. Operativamente se cierra primero #1663
+para dejar resuelta la causa sistémica antes de reactivar #1662.
 
 ## Exclusiones
 
