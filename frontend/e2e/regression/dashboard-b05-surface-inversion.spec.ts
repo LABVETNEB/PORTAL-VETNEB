@@ -37,25 +37,47 @@ import {
 // SCOPE — 7 super searchers, not the 21-surface B04 matrix:
 //   SHARED (S1 admin-auditoria, S2 admin-tokens, S3 admin-informes,
 //           S6 clinic-informes, S7 clinic-tokens) render through the shared
-//           `FilterBar`; only the desktop ("compact" density) instance is
-//           tested. The "comfortable" density instance renders exclusively
-//           inside a Radix `Dialog.Portal`, which mounts at `document.body` —
-//           OUTSIDE `.dashboard-app-shell`, the only element that declares
-//           `--dash-color-field`. That gap predates B04 and B05 (the B04
-//           elevation rule has the exact same reach) and is out of scope to
-//           fix here: doing so would mean giving `ModuleDialog` a portal
-//           container ref, a change to a component shared far beyond the 7
-//           super searchers. It is recorded, not silently worked around.
+//           `FilterBar`. Four of the five (S1/S3/S6/S7) also render a
+//           "comfortable" density instance on mobile, opened from a
+//           `ModuleDialog`. That dialog's Radix portal used to mount at
+//           `document.body` — OUTSIDE `.dashboard-app-shell`, the only
+//           element that declares `--dash-color-field` — so the mobile field
+//           never received the tint (Codex review, PR #1662: "Apply the
+//           field token inside mobile filter portals"). The fix gives
+//           `ModuleDialog` an opt-in `dashboardScopedPortal` prop that
+//           mounts its portal under `[data-dashboard-portal-root="true"]`, a
+//           dedicated empty child `DashboardShellRouter` renders inside
+//           `.dashboard-app-shell`; only these four call sites set it, so
+//           the other 14 `ModuleDialog` usages in the app keep portalling to
+//           `document.body` unchanged. Reparenting into `.dashboard-app-shell`
+//           is what makes BOTH the existing CSS selector
+//           (`.dashboard-app-shell [data-dashboard-filter-bar="true"] input`)
+//           and the token's own inheritance reach the mobile instance — no
+//           CSS or token change was needed, only the DOM location. This gate
+//           opens that dialog for real and reads the SAME field/container it
+//           reads on desktop, at both viewport classes.
+//
+//           S2 (admin-tokens) is desktop-only BY DESIGN, not by omission:
+//           `AdminParticularTokensCard` never calls its `FilterBar` renderer
+//           with `mobile = true` anywhere — its mobile filter is a distinct,
+//           non-`FilterBar` single-input form that was never a B05 consumer
+//           in the first place, on desktop or mobile. There is no mobile
+//           `ModuleDialog`+`FilterBar` instance to open for S2; asserting one
+//           would be testing code that does not exist.
+//
 //   DIRECT (S4 admin-clinicas, S5 admin-usuarios) have no shared wrapper and
 //           real, simultaneously-mounted desktop/mobile markup (toggled by
 //           `hidden`/`md:hidden`, not by a portal), so both viewport classes
-//           are tested for real.
+//           are tested for real — unchanged from before this fix.
 //
 // S7 (clinic-tokens) is expected BLOCKED, not skipped silently: the hermetic
 // fixture server never implements `/api/particular-tokens`, so
 // `ClinicParticularTokensCard` never has `tokens.length > 0` and its
-// `FilterBar` never mounts. `test.skip(...)` below states that cause inline
-// per AGENTS §6 (BLOCKED must name why, never infer PASSED).
+// `FilterBar` never mounts, desktop or mobile. `test.skip(...)` below states
+// that cause inline per AGENTS §6 (BLOCKED must name why, never infer
+// PASSED). Static coverage that S7's mobile dialog carries the same
+// `dashboardScopedPortal` boundary as S1/S3/S6 lives in
+// `test/architecture/dashboard-b05-surface-inversion.test.ts`.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const APP_ORIGIN = "http://127.0.0.1:3000";
@@ -75,22 +97,49 @@ type B05Surface = {
   readonly id: string;
   readonly kind: SurfaceKind;
   readonly viewports: readonly ViewportClass[];
+  /**
+   * Accessible name of the mobile "Filtros" trigger that opens the
+   * `ModuleDialog` carrying the mobile `FilterBar` instance. Present only for
+   * SHARED surfaces that actually have one — S2 does not (see header note).
+   * Read at the `w390x844` viewport only; desktop never needs it.
+   */
+  readonly mobileFilterTriggerName?: string;
   readonly expectBlocked?: string;
 };
 
+const MOBILE_FILTER_TRIGGER_NAME = "Filtros";
+
 const B05_SURFACES: readonly B05Surface[] = [
-  { id: "admin-auditoria", kind: "SHARED", viewports: [VIEWPORT_CLASSES[0]] },
+  {
+    id: "admin-auditoria",
+    kind: "SHARED",
+    viewports: VIEWPORT_CLASSES,
+    mobileFilterTriggerName: MOBILE_FILTER_TRIGGER_NAME,
+  },
+  // S2: desktop-only. No mobile ModuleDialog+FilterBar instance exists to
+  // open — see the header note.
   { id: "admin-tokens", kind: "SHARED", viewports: [VIEWPORT_CLASSES[0]] },
-  { id: "admin-informes", kind: "SHARED", viewports: [VIEWPORT_CLASSES[0]] },
+  {
+    id: "admin-informes",
+    kind: "SHARED",
+    viewports: VIEWPORT_CLASSES,
+    mobileFilterTriggerName: MOBILE_FILTER_TRIGGER_NAME,
+  },
   { id: "admin-clinicas", kind: "DIRECT", viewports: VIEWPORT_CLASSES },
   { id: "admin-usuarios", kind: "DIRECT", viewports: VIEWPORT_CLASSES },
-  { id: "clinic-informes", kind: "SHARED", viewports: [VIEWPORT_CLASSES[0]] },
+  {
+    id: "clinic-informes",
+    kind: "SHARED",
+    viewports: VIEWPORT_CLASSES,
+    mobileFilterTriggerName: MOBILE_FILTER_TRIGGER_NAME,
+  },
   {
     id: "clinic-tokens",
     kind: "SHARED",
-    viewports: [VIEWPORT_CLASSES[0]],
+    viewports: VIEWPORT_CLASSES,
+    mobileFilterTriggerName: MOBILE_FILTER_TRIGGER_NAME,
     expectBlocked:
-      "the hermetic fixture server (admin-populated-api-server.mjs) implements no handler for /api/particular-tokens; ClinicParticularTokensCard only mounts its FilterBar when tokens.length > 0, so the field never renders under this fixture",
+      "the hermetic fixture server (admin-populated-api-server.mjs) implements no handler for /api/particular-tokens; ClinicParticularTokensCard only mounts its FilterBar when tokens.length > 0, so the field never renders under this fixture, desktop or mobile",
   },
 ];
 
@@ -253,6 +302,26 @@ test.describe("B05 · field tinted, container transparent, both themes", () => {
             await page.waitForLoadState("networkidle", { timeout: 20_000 });
             await assertSurfaceLoaded(page, geometrySurface, label);
             await waitForLayoutSettled(page);
+
+            if (viewport.slug === "w390x844" && b05Surface.mobileFilterTriggerName) {
+              const trigger = page
+                .getByRole("button", { name: b05Surface.mobileFilterTriggerName })
+                .first();
+              const mobileDialog = page
+                .locator('[data-module-dialog="true"][data-state="open"]')
+                .first();
+
+              // Hydration can race a dispatched click under CI contention
+              // (precedent: dashboard-global-masked-master-detail.spec.ts),
+              // so retry the click until the dialog is observably open rather
+              // than trusting a single click.
+              await expect(async () => {
+                if (!(await mobileDialog.isVisible())) {
+                  await trigger.click({ timeout: 2_000 });
+                }
+                await expect(mobileDialog).toBeVisible({ timeout: 2_000 });
+              }).toPass({ timeout: 15_000 });
+            }
 
             let reading: ColorReading | null = null;
             try {

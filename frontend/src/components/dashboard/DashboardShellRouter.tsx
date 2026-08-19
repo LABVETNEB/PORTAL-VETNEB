@@ -38,6 +38,14 @@ export function DashboardShellRouter({
       ) : (
         <ClinicMobileBottomNav />
       )}
+      {/* B05: dedicated, always-empty portal target so a `ModuleDialog` can
+          opt into mounting inside `.dashboard-app-shell` (see its
+          portal-scoping prop) instead of `document.body`, letting
+          dashboard-scoped CSS custom properties reach its portalled
+          content. A fixed-position dialog placed here still positions
+          against the viewport: nothing in this tree sets a transform, filter
+          or `contain` that would create a containing block. */}
+      <div data-dashboard-portal-root="true" />
     </div>
   );
 }

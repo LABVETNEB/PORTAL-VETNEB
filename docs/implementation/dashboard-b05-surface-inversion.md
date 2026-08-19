@@ -45,8 +45,9 @@
 | Geometría, row pitch, `limit`/`offset`, paginación | A05–A07 siguen siendo el owner; hash byte-idéntico |
 | Handlers, submit, query params, endpoints de los 7 superbuscadores | Contrato operativo del audit §17, congelado |
 | Bordes de los contenedores | «Contenedor transparente» se interpretó como fill removido, borde conservado — decisión autorizada explícitamente para esta implementación |
-| Portal de `ModuleDialog` (mobile de S1/S2/S3/S6/S7) | Ver §5 — condición preexistente, no introducida por B05 |
 | Ampliar el fixture E2E hermético para poblar tokens de clínica | Autorizado explícitamente NO hacerlo; S7 queda BLOCKED con causa documentada |
+| Convertir todos los `ModuleDialog` del repo a `dashboardScopedPortal` | Sólo los 4 call sites con dialog mobile+FilterBar compartido (S1/S3/S6/S7) lo activan; los otros 14 usos conservan `document.body` sin cambios (§5b) |
+| Añadir un mobile `ModuleDialog`+`FilterBar` a S2 | S2 nunca tuvo uno — su filtro mobile es un formulario de un solo campo, no derivado de `FilterBar`; fuera de alcance construir esa UI ahora |
 
 ---
 
@@ -107,24 +108,69 @@ que una regla sin capa gana.
 
 ---
 
-## 5. Frontera conocida — mobile de S1/S2/S3/S6/S7
+## 5. Mobile filter portal boundary — resuelto (P2, PR #1662 review thread)
 
-Las 5 superficies compartidas renderizan su versión «mobile» (densidad
+### 5a. Hallazgo original
+
+Codex identificó, sobre el commit `0e820061f5` de esta misma PR, que las
+superficies compartidas renderizan su versión «mobile» (densidad
 `comfortable`) dentro de `ModuleDialog`, que monta vía `Dialog.Portal` de
-Radix en `document.body` — **fuera** de `.dashboard-app-shell`, el único
-elemento donde `--dash-color-field` se declara. Esa instancia mobile no recibe
-el tinte del campo porque el custom property no resuelve ahí.
+Radix en `document.body` por defecto — **fuera** de `.dashboard-app-shell`,
+el único elemento donde `--dash-color-field` se declara. Esa instancia mobile
+no recibía el tinte del campo porque el custom property no resolvía ahí, y el
+gate runtime B05 original sólo medía la instancia desktop, ocultando la
+regresión (`P2 · Apply the field token inside mobile filter portals`).
 
-Esto **no es una regresión de B05**: la regla de elevación de B04
-(`[data-dashboard-filter-bar="true"] { box-shadow: ... }`) tiene exactamente
-la misma frontera y ya la tenía antes de este PR. Corregirlo requeriría pasar
-un `container` (ref anclado dentro de `.dashboard-app-shell`) a
-`Dialog.Portal`, un cambio a un componente compartido mucho más allá de los 7
-superbuscadores — fuera del alcance mínimo de B05. Se documenta, no se oculta
-ni se corrige de contrabando.
+Auditado archivo por archivo, el hallazgo aplica a **4 de las 5** superficies
+que en teoría comparten `FilterBar`, no a las 5: S1 (`AdminAuditFilterBar`),
+S3 (`AdminReportsCard`), S6 (`ClinicInformesWorkspaceSummary`) y S7
+(`ClinicParticularTokensCard`) genuinamente invocan
+`renderAdvancedFilterForm(true)` (o el equivalente) dentro de un
+`ModuleDialog`. **S2** (`AdminParticularTokensCard`) no: su función
+`renderAdvancedFilterForm(mobile = false)` nunca se llama con `mobile = true`
+en ningún punto del archivo — la rama «comfortable» es código muerto — y su
+filtro mobile real es un formulario de un solo campo (`Input` de clínica)
+fuera de cualquier `ModuleDialog`, que nunca fue un consumidor de B05 ni
+antes ni después de este fix.
 
-El gate runtime B05 (§7) sólo mide la instancia desktop («compact» density)
-de estas 5 superficies por esta razón, declarada explícitamente en el spec.
+### 5b. Fix
+
+`ModuleDialog.tsx` gana una prop opcional, `dashboardScopedPortal` (default
+`false`): cuando está activa, resuelve —vía `useLayoutEffect`, antes del
+primer paint— el nodo `[data-dashboard-portal-root="true"]` que
+`DashboardShellRouter.tsx` ahora renderiza como último hijo de
+`.dashboard-app-shell`, y lo pasa como `container` a `Dialog.Portal`. Cuando
+la prop está apagada (todo el resto de la app), `container` es `undefined` y
+Radix usa su propio default (`document.body`), sin cambio observable.
+
+Reparentar el DOM portalled dentro de `.dashboard-app-shell` es **la única
+corrección necesaria**: el selector CSS ya existente
+(`.dashboard-app-shell [data-dashboard-filter-bar="true"] input`) y la
+herencia del custom property son ambos conceptos de DOM real, no de árbol de
+React — al mover el nodo, ambos empiezan a resolver correctamente sin tocar
+`surfaces.css` ni `tokens.css`. Verificado: `--dash-color-field` sigue con un
+único consumidor runtime (§2), sin cambios.
+
+Activada explícitamente en los 4 call sites afectados
+(`dashboardScopedPortal` como prop booleana en el JSX del trigger); los
+otros 14 usos de `ModuleDialog` en el repo no la activan y siguen portando a
+`document.body` sin cambio de comportamiento.
+
+`position: fixed` de `Dialog.Overlay`/`Dialog.Content` sigue posicionando
+contra el viewport: ni `.dashboard-app-shell` ni `[data-vetneb-app-shell-frame]`
+declaran `transform`, `filter`, `will-change` ni `contain`, así que ningún
+ancestro nuevo crea un containing block para elementos `fixed`. El focus trap
+y el `aria-hidden` de hermanos que gestiona Radix operan sobre el DOM
+renderizado, no sobre `document.body` específicamente, así que el
+comportamiento de foco/teclado del diálogo es idéntico.
+
+### 5c. Estado
+
+El gate runtime B05 (§7) ahora abre el diálogo mobile real (clic en el
+trigger «Filtros», espera `[data-module-dialog="true"][data-state="open"]`)
+y lee el mismo campo/contenedor que en desktop, en ambos viewports, para
+S1/S3/S6 (S7 permanece BLOCKED por el fixture, ver §7). S2 se mantiene
+desktop-only **porque nunca tuvo instancia mobile**, no por exclusión.
 
 ---
 
@@ -144,7 +190,8 @@ el path correcto», que sigue bloqueando `components/ui/**` y
 
 ### 6.2 Contrato B05 nuevo
 
-`test/architecture/dashboard-b05-surface-inversion.test.ts` — 9 tests:
+`test/architecture/dashboard-b05-surface-inversion.test.ts` — 21 tests
+(9 originales + 7 del boundary de portal mobile + 5 de mutación):
 
 | Test | Qué prueba |
 |---|---|
@@ -157,6 +204,14 @@ el path correcto», que sigue bloqueando `components/ui/**` y
 | Regla cubre ambos anchors | shared (`input`/`select` descendientes) y directo (`[data-dashboard-filter-field]`) |
 | Regla scoped bajo `.dashboard-app-shell` | Cada selector del grupo empieza con ese prefijo |
 | Sin consumidor fuera de alcance | `components/ui/input.tsx`, `ui/select.tsx`, `app/globals.css` no contienen el token |
+| Portal-root anchor único dentro de `.dashboard-app-shell` | `DashboardShellRouter.tsx` |
+| `dashboardScopedPortal` opcional, default `false`, apunta al anchor exacto | `ModuleDialog.tsx` |
+| Exactamente 4 call sites lo activan, una vez cada uno | S1/S3/S6/S7 |
+| Ningún otro `ModuleDialog` del repo lo activa | Censo de los 18 usos totales |
+| S2 no lo activa — no tiene diálogo mobile con `FilterBar` | `renderAdvancedFilterForm(true)` nunca aparece en `AdminParticularTokensCard.tsx` |
+| Anchor/prop nunca alcanzan `components/public/`, `components/ui/` ni `globals.css` | Barrido recursivo de esos árboles |
+| El manifiesto E2E ya no restringe SHARED a sólo desktop | Grep del propio spec por el patrón anterior |
+| Mutación M1/M3/M3b/M4/M5 | Fail-closed sobre fixtures sintéticas, sin tocar archivos tracked |
 
 ### 6.3 Corrección P3 — regex de censo
 
@@ -179,9 +234,10 @@ Verificado con el propio test suite tras el fix (33/33 PASSED).
 |---|---|
 | Superficies | 7 (S1–S7), no las 21 del gate B04 |
 | Temas | `normal`, `dark-gray` |
-| Viewports | S1/S2/S3/S6/S7: sólo `1366x768` (§5). S4/S5: `1366x768` + `390x844` (markup real y simultáneo por breakpoint) |
+| Viewports | S1/S3/S6/S7: `1366x768` + `390x844` (mobile abre el diálogo real, §5c). S2: sólo `1366x768` (sin instancia mobile, §5a). S4/S5: `1366x768` + `390x844` (markup real y simultáneo por breakpoint, sin cambios) |
+| Apertura mobile | Clic en el trigger accesible «Filtros» (`getByRole("button")`, con retry por posible carrera de hidratación) → espera `[data-module-dialog="true"][data-state="open"]` visible antes de leer campo/contenedor |
 | Verificación | `getComputedStyle` real: contenedor con alpha 0, campo con alpha > 0, colores de campo distintos entre sí y entre temas — no una búsqueda de texto por `var(--dash-color-field)` |
-| S7 (clinic-tokens) | `test.skip` con causa explícita: el fixture hermético no implementa `/api/particular-tokens`; `ClinicParticularTokensCard` sólo monta su `FilterBar` con `tokens.length > 0` |
+| S7 (clinic-tokens) | `test.skip` con causa explícita: el fixture hermético no implementa `/api/particular-tokens`; `ClinicParticularTokensCard` sólo monta su `FilterBar` con `tokens.length > 0`, desktop o mobile |
 
 ---
 
@@ -191,33 +247,44 @@ Verificado con el propio test suite tras el fix (33/33 PASSED).
 |---|---|---|
 | `node --test test/architecture/dashboard-foundation-tokens.test.ts` | PASSED | 21/21 |
 | `node --test test/architecture/dashboard-b04-surface-token-migration.test.ts` | PASSED | 12/12 |
-| `node --test test/architecture/dashboard-b05-surface-inversion.test.ts` | PASSED | 9/9 |
-| `node --test test/architecture/e2e-suite-catalog-completeness.test.ts` (`e2e:verify-catalog`) | PASSED | 6/6, tras realinear 6 literales de cardinalidad (80→81, 46→47, dominio `regression` 11→12, cohorte `visual-contract` 13→14) |
-| 13 unit tests de las 7 superficies + primitivas de tokens | PASSED | 126/126 |
-
-Pendientes de esta respuesta: `pnpm --dir frontend lint`, `typecheck`,
-`build`, `security:public-surface`, `e2e:visual-contract` — ver informe final
-para estados canónicos.
+| `node --test test/architecture/dashboard-b05-surface-inversion.test.ts` | PASSED | 21/21 (9 originales + 7 boundary + 5 mutación) |
+| `node --test test/architecture/e2e-suite-catalog-completeness.test.ts` (`e2e:verify-catalog`) | PASSED | 6/6 |
+| Unit tests de las 7 superficies + ModuleDialog + DashboardShellRouter + primitivas de tokens | PASSED | 171/171 |
+| `pnpm --dir frontend lint` | PASSED | exit 0 |
+| `pnpm --dir frontend typecheck` | PASSED | exit 0 |
+| `pnpm --dir frontend build` | PASSED | exit 0 |
+| `pnpm security:public-surface` | PASSED | sin hallazgos nuevos |
+| `pnpm validate:local` | PASSED | 4249/4250, 1 skip preexistente no relacionado |
+| `pnpm --dir frontend e2e:visual-contract` | PASSED | 325 passed, 1 skipped (S7), 0 failed — incluye S1/S3/S6 abriendo el diálogo mobile real |
+| `pnpm --dir frontend e2e:admin-mobile` | PASSED | 133/133 |
+| `pnpm --dir frontend e2e:extended` | PASSED | 237/237 |
 
 ---
 
 ## 9. Rollback
 
-Directo: revertir el commit. `--dash-color-field` vuelve a 0 consumidores
-runtime, los dos guards B04 heredados vuelven a su forma «reservado», el
-manifest B05 se elimina junto con su spec y su entrada de catálogo. Ningún
-otro programa (B06+) depende de este cambio.
+Directo: revertir el/los commit(s). `--dash-color-field` vuelve a 0
+consumidores runtime, los dos guards B04 heredados vuelven a su forma
+«reservado», el manifest B05 se elimina junto con su spec y su entrada de
+catálogo. El fix del portal mobile (§5) revierte independientemente:
+`dashboardScopedPortal` vuelve a `false` en los 4 call sites (o se elimina la
+prop entera), `DashboardShellRouter` pierde el anchor, y las 4 superficies
+vuelven a portar a `document.body` sin tinte mobile — mismo estado que antes
+del fix, no un estado nuevo roto. Ningún otro programa (B06+) depende de
+este cambio.
 
 ---
 
 ## 10. Riesgos residuales
 
-- La instancia mobile de S1/S2/S3/S6/S7 (dentro de `ModuleDialog`) no recibe
-  el tinte del campo — condición preexistente de B04, documentada en §5, no
-  corregida por diseño (fuera de alcance).
-- S7 (clinic-tokens) queda sin cobertura runtime — BLOCKED documentado, no
-  inferido como PASSED. Cobertura estática completa vía `FilterBar`
-  compartido.
+- S7 (clinic-tokens) queda sin cobertura runtime, desktop y mobile —
+  BLOCKED documentado, no inferido como PASSED. Cobertura estática completa
+  vía `FilterBar` compartido y el mismo boundary `dashboardScopedPortal` que
+  S1/S3/S6 (§6.2).
+- S2 (admin-tokens) mobile sigue sin recibir el tinte B05 — pero porque
+  nunca tuvo una instancia `FilterBar`+`ModuleDialog` que consumirlo, no por
+  un boundary sin resolver. Su formulario mobile de un solo campo queda
+  fuera del contrato B05 tal como estaba definido antes de esta PR.
 - Los 20 baselines de regresión visual Linux
   (`visual-regression-authenticated.spec.ts`) no se regeneraron en esta
   ejecución (Windows local, `targetGate: manual`, plataforma Linux). Capturan
@@ -228,6 +295,6 @@ otro programa (B06+) depende de este cambio.
 
 ## 11. Estado
 
-Implementación local completa según plan de auditoría. Pendiente: gates
-generales (§8), revisión de diff, y las acciones `[MANUAL-NICO]` (stage,
-commit, push, PR).
+Implementación local completa, incluido el fix P2 del portal mobile (§5).
+Todos los gates seleccionados (§8) en PASSED. Pendiente: revisión final de
+diff y las acciones `[MANUAL-NICO]` (stage, commit, push).

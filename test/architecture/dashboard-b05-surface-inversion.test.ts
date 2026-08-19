@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { test } from "node:test";
 
@@ -89,6 +89,27 @@ function markedBlock(source: string, name: string): string {
   const lineStart = source.lastIndexOf("\n", startMarker) + 1;
   const blockEnd = source.indexOf("*/", endMarker) + 2;
   return source.slice(lineStart, blockEnd);
+}
+
+function collectFilesRecursive(
+  repoRelativeDir: string,
+  extensions: RegExp,
+): string[] {
+  const absoluteDir = resolve(REPO_ROOT, repoRelativeDir);
+  const found: string[] = [];
+
+  for (const entry of readdirSync(absoluteDir, { withFileTypes: true })) {
+    const entryRelative = `${repoRelativeDir}/${entry.name}`;
+    if (entry.isDirectory()) {
+      found.push(...collectFilesRecursive(entryRelative, extensions));
+      continue;
+    }
+    if (entry.isFile() && extensions.test(entry.name)) {
+      found.push(entryRelative);
+    }
+  }
+
+  return found;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -328,4 +349,273 @@ test("no component under components/ui or app/globals.css consumes the reserved 
       `${path}: consumes the B05 field token. That token only resolves under .dashboard-app-shell; referencing it from a globally-shared primitive or from globals.css breaks every non-dashboard consumer (public pages, login)`,
     );
   }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Mobile filter portal boundary (Codex P2, PR #1662: "Apply the field token
+// inside mobile filter portals").
+//
+// `ModuleDialog`'s Radix portal mounted at `document.body` by default —
+// outside `.dashboard-app-shell` — so the four mobile filter dialogs that
+// render a shared `FilterBar` (S1/S3/S6/S7) never received the field tint.
+// The fix is an opt-in `dashboardScopedPortal` prop that reparents the
+// portal under a dedicated anchor `DashboardShellRouter` renders INSIDE
+// `.dashboard-app-shell`; every other `ModuleDialog` keeps its default. No
+// CSS or token change was needed: reparenting into the existing DOM subtree
+// is what makes both the B05 selector and the token's own inheritance reach
+// the mobile field.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const MODULE_DIALOG_TSX = "frontend/src/components/dashboard/ModuleDialog.tsx";
+const DASHBOARD_SHELL_ROUTER_TSX =
+  "frontend/src/components/dashboard/DashboardShellRouter.tsx";
+const PORTAL_ROOT_ANCHOR = 'data-dashboard-portal-root="true"';
+const PORTAL_PROP = "dashboardScopedPortal";
+const FRONTEND_SRC = "frontend/src";
+
+/** The four call sites the P2 fix authorizes — no more, no fewer. */
+const DASHBOARD_SCOPED_PORTAL_CALL_SITES: ReadonlyArray<{
+  readonly path: string;
+  readonly why: string;
+}> = [
+  {
+    path: "frontend/src/app/dashboard/admin/AdminAuditFilterBar.tsx",
+    why: "S1 mobile filter dialog",
+  },
+  {
+    path: "frontend/src/app/dashboard/admin/AdminReportsCard.tsx",
+    why: "S3 mobile filter dialog",
+  },
+  {
+    path: "frontend/src/app/dashboard/ClinicInformesWorkspaceSummary.tsx",
+    why: "S6 mobile filter dialog",
+  },
+  {
+    path: "frontend/src/components/dashboard/ClinicParticularTokensCard.tsx",
+    why: "S7 mobile filter dialog",
+  },
+];
+
+test("DashboardShellRouter renders exactly one portal-root anchor inside .dashboard-app-shell", () => {
+  const source = readSource(DASHBOARD_SHELL_ROUTER_TSX);
+
+  const occurrences = source.split(PORTAL_ROOT_ANCHOR).length - 1;
+  assert.equal(
+    occurrences,
+    1,
+    `${DASHBOARD_SHELL_ROUTER_TSX}: expected exactly one ${PORTAL_ROOT_ANCHOR} anchor, found ${occurrences}`,
+  );
+
+  const shellOpen = source.indexOf('className="dashboard-app-shell');
+  const anchorIndex = source.indexOf(PORTAL_ROOT_ANCHOR);
+  const shellClose = source.lastIndexOf("</div>");
+  assert.ok(
+    shellOpen !== -1 && shellOpen < anchorIndex && anchorIndex < shellClose,
+    "the portal-root anchor must be textually between the dashboard-app-shell opening tag and its closing tag — i.e. a real DOM descendant, not a sibling",
+  );
+});
+
+test("ModuleDialog exposes an explicit, default-off dashboardScopedPortal prop targeting the exact anchor", () => {
+  const source = readSource(MODULE_DIALOG_TSX);
+
+  assert.ok(
+    new RegExp(`${PORTAL_PROP}\\?:\\s*boolean`).test(source),
+    `${MODULE_DIALOG_TSX} must declare an optional ${PORTAL_PROP}: boolean prop`,
+  );
+  assert.ok(
+    new RegExp(`${PORTAL_PROP}\\s*=\\s*false`).test(source),
+    `${MODULE_DIALOG_TSX} must default ${PORTAL_PROP} to false — every other ModuleDialog must keep portalling to document.body unchanged`,
+  );
+  assert.ok(
+    source.includes(PORTAL_ROOT_ANCHOR),
+    `${MODULE_DIALOG_TSX} must query the exact anchor DashboardShellRouter renders (${PORTAL_ROOT_ANCHOR}); a mismatched selector silently falls back to document.body`,
+  );
+  assert.ok(
+    /container=\{dashboardScopedPortal\s*\?\s*scopedPortalContainer\s*:\s*undefined\}/.test(
+      source,
+    ),
+    `${MODULE_DIALOG_TSX} must pass undefined (Radix's own document.body default) when dashboardScopedPortal is off, not null or a stale container`,
+  );
+});
+
+test("exactly the four B05 mobile filter dialogs opt into dashboardScopedPortal, once each", () => {
+  for (const entry of DASHBOARD_SCOPED_PORTAL_CALL_SITES) {
+    const occurrences =
+      readSource(entry.path).split(PORTAL_PROP).length - 1;
+    assert.equal(
+      occurrences,
+      1,
+      `${entry.path}: expected exactly one ${PORTAL_PROP} usage (${entry.why}), found ${occurrences}`,
+    );
+  }
+});
+
+test("no ModuleDialog outside the four authorized call sites opts into dashboardScopedPortal", () => {
+  const authorizedPaths = new Set(
+    DASHBOARD_SCOPED_PORTAL_CALL_SITES.map((entry) => entry.path),
+  );
+  const tsxFiles = collectFilesRecursive(FRONTEND_SRC, /\.tsx$/).filter(
+    (path) => path !== MODULE_DIALOG_TSX,
+  );
+
+  const unexpectedConsumers = tsxFiles.filter(
+    (path) => !authorizedPaths.has(path) && readSource(path).includes(PORTAL_PROP),
+  );
+
+  assert.deepEqual(
+    unexpectedConsumers,
+    [],
+    `unexpected dashboardScopedPortal usage outside the authorized 4 call sites: ${JSON.stringify(unexpectedConsumers)}. Every other ModuleDialog must keep portalling to document.body; converting one silently changes its portal target`,
+  );
+});
+
+test("S2 (admin-tokens) has no mobile FilterBar dialog and does not opt into dashboardScopedPortal", () => {
+  const path = "frontend/src/app/dashboard/admin/AdminParticularTokensCard.tsx";
+  const source = readSource(path);
+
+  assert.ok(
+    !source.includes(PORTAL_PROP),
+    `${path}: opts into ${PORTAL_PROP}, but S2's advanced FilterBar renderer is never invoked with mobile=true — there is no mobile dialog instance for this prop to fix`,
+  );
+  assert.ok(
+    !/renderAdvancedFilterForm\(\s*true\s*\)/.test(source),
+    `${path}: renderAdvancedFilterForm(true) appeared — S2 now has a mobile FilterBar dialog and needs dashboardScopedPortal too; realign this test and DASHBOARD_SCOPED_PORTAL_CALL_SITES rather than leaving it uncovered`,
+  );
+});
+
+test("the portal-root anchor and the dashboardScopedPortal prop never reach public or global scope", () => {
+  const OUT_OF_SCOPE_ROOTS = [
+    "frontend/src/components/public",
+    "frontend/src/components/ui",
+  ];
+  const OUT_OF_SCOPE_FILES = ["frontend/src/app/globals.css"];
+
+  const candidates = [
+    ...OUT_OF_SCOPE_ROOTS.flatMap((root) =>
+      collectFilesRecursive(root, /\.(tsx?|css)$/),
+    ),
+    ...OUT_OF_SCOPE_FILES,
+  ];
+
+  for (const path of candidates) {
+    const source = readSource(path);
+    assert.ok(
+      !source.includes(PORTAL_ROOT_ANCHOR) && !source.includes(PORTAL_PROP),
+      `${path}: references the B05 mobile-portal boundary (${PORTAL_ROOT_ANCHOR} or ${PORTAL_PROP}), which must stay confined to the authenticated dashboard`,
+    );
+  }
+});
+
+test("the B05 E2E manifest no longer deliberately restricts SHARED mobile-capable surfaces to desktop only", () => {
+  const specPath =
+    "frontend/e2e/regression/dashboard-b05-surface-inversion.spec.ts";
+  const source = readSource(specPath);
+
+  // Exactly S1/S3/S6/S7 wire a mobile trigger — one occurrence per surface.
+  const mobileTriggerWirings =
+    source.split("mobileFilterTriggerName: MOBILE_FILTER_TRIGGER_NAME").length - 1;
+  assert.equal(
+    mobileTriggerWirings,
+    4,
+    `${specPath}: expected exactly 4 SHARED surfaces (S1/S3/S6/S7) wired to open their mobile filter dialog, found ${mobileTriggerWirings}`,
+  );
+
+  // The pre-fix pattern that silently limited every SHARED surface to
+  // desktop must not reappear — this is the exact regression the P2 review
+  // caught (the E2E "manifest ... conceals this by assigning only the
+  // desktop viewport to every SHARED surface").
+  assert.ok(
+    !/viewports:\s*\[VIEWPORT_CLASSES\[0\]\],\s*mobileFilterTriggerName/.test(
+      source,
+    ),
+    `${specPath}: a SHARED surface with a mobile trigger must actually run at both viewports, not just VIEWPORT_CLASSES[0]`,
+  );
+
+  // The gate must open the real trigger and read computed style through it —
+  // asserting on `[data-module-dialog="true"][data-state="open"]` becoming
+  // visible is exercising the actual UI, not stubbing the portal internals.
+  assert.ok(
+    source.includes('[data-module-dialog="true"][data-state="open"]'),
+    `${specPath}: must open the real mobile filter dialog (via its trigger) before reading field/container colour, not assume it is already mounted`,
+  );
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Mutation control — proves the checks above are fail-closed, on small
+// synthetic fixtures. Never mutates a tracked file.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function assertPortalAnchorPresentOnce(shellRouterSource: string): void {
+  const occurrences = shellRouterSource.split(PORTAL_ROOT_ANCHOR).length - 1;
+  assert.equal(occurrences, 1, `expected exactly one ${PORTAL_ROOT_ANCHOR}`);
+}
+
+function assertFieldRuleUsesToken(cssRuleBody: string): void {
+  const declarations = cssRuleBody.match(/background-color\s*:([^;]*);/g) ?? [];
+  assert.equal(declarations.length, 1, "expected exactly one background-color");
+  assert.ok(
+    declarations[0].includes(`var(${FIELD_TOKEN})`),
+    `background-color must read var(${FIELD_TOKEN})`,
+  );
+}
+
+function assertSelectorsScopedToDashboard(selectorBlock: string): void {
+  const lines = selectorBlock
+    .split(",")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+  assert.ok(lines.length > 0, "no selectors to check");
+  for (const line of lines) {
+    assert.ok(
+      line.startsWith(".dashboard-app-shell "),
+      `selector escapes the dashboard scope: "${line}"`,
+    );
+  }
+}
+
+const BASELINE_SHELL_ROUTER = `<div className="dashboard-app-shell flex flex-col h-dvh">
+  <div data-vetneb-app-shell-frame="true">{children}</div>
+  <div ${PORTAL_ROOT_ANCHOR} />
+</div>`;
+
+const BASELINE_FIELD_RULE_BODY = `\n  background-color: var(${FIELD_TOKEN});\n`;
+
+const BASELINE_SELECTOR_BLOCK = `.dashboard-app-shell [data-dashboard-filter-bar="true"] input,\n.dashboard-app-shell [data-dashboard-filter-field="true"]`;
+
+test("M5 — the baseline fixtures satisfy every mutation-control assertion", () => {
+  assert.doesNotThrow(() => assertPortalAnchorPresentOnce(BASELINE_SHELL_ROUTER));
+  assert.doesNotThrow(() => assertFieldRuleUsesToken(BASELINE_FIELD_RULE_BODY));
+  assert.doesNotThrow(() => assertSelectorsScopedToDashboard(BASELINE_SELECTOR_BLOCK));
+});
+
+test("M1 — removing the portal-root anchor fails closed", () => {
+  const mutated = BASELINE_SHELL_ROUTER.replace(`\n  <div ${PORTAL_ROOT_ANCHOR} />`, "");
+  assert.throws(() => assertPortalAnchorPresentOnce(mutated), /expected exactly one/);
+});
+
+test("M3 — replacing var(--dash-color-field) with a literal fill fails closed", () => {
+  const mutated = BASELINE_FIELD_RULE_BODY.replace(
+    `var(${FIELD_TOKEN})`,
+    "hsl(210 20% 96% / 0.72)",
+  );
+  assert.throws(() => assertFieldRuleUsesToken(mutated), /must read var/);
+});
+
+test("M3b — replacing var(--dash-color-field) with bg-card fails closed", () => {
+  const mutated = BASELINE_FIELD_RULE_BODY.replace(
+    `background-color: var(${FIELD_TOKEN});`,
+    "background-color: hsl(var(--card));",
+  );
+  assert.throws(() => assertFieldRuleUsesToken(mutated), /must read var/);
+});
+
+test("M4 — widening a selector to a public/global scope fails closed", () => {
+  const mutated = BASELINE_SELECTOR_BLOCK.replace(
+    '.dashboard-app-shell [data-dashboard-filter-field="true"]',
+    ':root [data-dashboard-filter-field="true"]',
+  );
+  assert.throws(
+    () => assertSelectorsScopedToDashboard(mutated),
+    /escapes the dashboard scope/,
+  );
 });
