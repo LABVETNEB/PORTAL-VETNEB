@@ -125,3 +125,36 @@ export const CLINIC_MODULE_NAV_LABELS: readonly {
   { moduleId: "perfil", label: "Perfil", shortLabel: "Perfil" },
   { moduleId: "tokens", label: "Tokens", shortLabel: "Tokens" },
 ];
+
+/**
+ * Admin module navigation labels in canonical order (B06).
+ *
+ * The admin label table used to exist only as two private literals inside
+ * presentation components: `ADMIN_NAV_ITEMS` in `DashboardHorizontalNav` (full
+ * labels) and `ADMIN_MOBILE_TITLES` in `DashboardTopbar` (context titles). The
+ * B06 workspace app bar needs a searchable label for every admin module, and
+ * adding a THIRD private copy is exactly the H1 duplication this catalog
+ * exists to prevent — so the table is declared here, once, in
+ * `ADMIN_MODULE_IDS` order, and the app bar derives its search corpus from it.
+ *
+ * Mirrors {@link CLINIC_MODULE_NAV_LABELS} in shape so both roles feed the same
+ * search grammar. B06 does NOT migrate the two existing literals: retiring the
+ * horizontal nav is B08 and the mobile context title is B09, and rewriting them
+ * here would move chrome that later blocks own.
+ */
+export const ADMIN_MODULE_NAV_LABELS: readonly {
+  moduleId: AdminModule;
+  label: string;
+  shortLabel: string;
+}[] = [
+  { moduleId: "admin", label: "Resumen", shortLabel: "Resumen" },
+  { moduleId: "admin-report-upload", label: "Informes", shortLabel: "Informes" },
+  { moduleId: "admin-health", label: "Estado", shortLabel: "Estado" },
+  { moduleId: "admin-clinics", label: "Clínicas", shortLabel: "Clínicas" },
+  { moduleId: "admin-particular-tokens", label: "Tokens", shortLabel: "Tokens" },
+  { moduleId: "admin-pricing", label: "Precios", shortLabel: "Precios" },
+  { moduleId: "admin-sessions", label: "Sesiones", shortLabel: "Sesiones" },
+  { moduleId: "admin-users-roles", label: "Usuarios", shortLabel: "Usuarios" },
+  { moduleId: "audit-log", label: "Auditoría", shortLabel: "Auditoría" },
+  { moduleId: "admin-maintenance", label: "Mantenimiento", shortLabel: "Manten." },
+];

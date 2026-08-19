@@ -369,3 +369,29 @@
   --dash-row-gap: 12px;
 }
 /* dashboard-row-pitch-contract:end */
+
+/* dashboard-app-bar-geometry:start
+ *
+ * B06 - WorkspaceAppBar geometry ledger.
+ *
+ * ONE declaration of the app-bar height contract for the whole dashboard. The
+ * audit target is 56px with a +/-2px runtime band (audit 49/57, row B06); both
+ * halves live here so no surface can restate either number as a literal.
+ *
+ * BAND, not point. The bar is the first region of the shell height ledger
+ * (shell h-dvh -> app bar -> nav -> main -> module canvas -> rows canvas), so a
+ * pinned 56px would move `main` on every viewport and re-page the 15 adaptive
+ * consumers frozen by A03: the measured margin on `admin-clinics @1280x720` is
+ * 0.016px, i.e. one row of drift for any positive delta. Declaring the band as
+ * min/max block-size instead makes the contract enforceable in CSS while
+ * leaving the ledger byte-identical, which is what keeps A03 at zero drift.
+ *
+ * The bar is applied in styles/dashboard/layout.css. Mobile (<768px) keeps the
+ * sanctioned admin/clinic mobile app-bar tokens: raising them to this band is
+ * blocked by the same A03 freeze and belongs to the mobile chrome unification
+ * (B09). See docs/implementation/dashboard-b06-workspace-app-bar.md. */
+.dashboard-app-shell {
+  --dash-app-bar-h: 56px;
+  --dash-app-bar-band: 2px;
+}
+/* dashboard-app-bar-geometry:end */

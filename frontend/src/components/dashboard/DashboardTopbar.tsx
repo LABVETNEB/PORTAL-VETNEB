@@ -15,6 +15,7 @@ import { ROUTES } from "@/lib/routes";
 import { DashboardNotificationsBell } from "./DashboardNotificationsBell";
 import { DashboardHorizontalNav } from "./DashboardHorizontalNav";
 import { AdminMobileKebabMenu } from "./AdminMobileKebabMenu";
+import { WorkspaceAppBar } from "./WorkspaceAppBar";
 
 interface DashboardTopbarProps {
   title: string;
@@ -106,37 +107,37 @@ export function DashboardTopbar({
       aria-label="Barra superior del dashboard"
       aria-labelledby="dashboard-topbar-title"
     >
-      <div className="flex min-h-[2.75rem] min-w-0 items-center justify-between gap-2 px-3 py-1.5 sm:min-h-[2.5rem] sm:gap-3 sm:px-6">
-        <div className="min-w-0 flex-1">
-          <h1
-            id="dashboard-topbar-title"
-            className="truncate text-lg font-semibold leading-tight text-vetneb-ink sm:text-xl"
-          >
-            {title}
-          </h1>
-          {isAdmin ? (
-            <h1 className="admin-mobile-context-title md:hidden">
-              <Suspense fallback="Inicio">
-                <AdminMobileContextTitle />
-              </Suspense>
-            </h1>
-          ) : null}
-          {subtitle && (
-            <p
-              className="truncate text-xs text-muted-foreground sm:text-[0.8125rem]"
-              data-admin-mobile-topbar-subtitle={isAdmin ? "true" : undefined}
+      <WorkspaceAppBar
+        identity={
+          <div className="min-w-0 flex-1">
+            <h1
+              id="dashboard-topbar-title"
+              className="truncate text-lg font-semibold leading-tight text-vetneb-ink sm:text-xl"
             >
-              {subtitle}
-            </p>
-          )}
-        </div>
-
-        <div
-          className="ml-2 flex shrink-0 items-center gap-1.5 sm:ml-3 sm:gap-3"
-          data-dashboard-desktop-actions="true"
-        >
-          <ThemeModeToggle />
+              {title}
+            </h1>
+            {isAdmin ? (
+              <h1 className="admin-mobile-context-title md:hidden">
+                <Suspense fallback="Inicio">
+                  <AdminMobileContextTitle />
+                </Suspense>
+              </h1>
+            ) : null}
+            {subtitle && (
+              <p
+                className="truncate text-xs text-muted-foreground sm:text-[0.8125rem]"
+                data-admin-mobile-topbar-subtitle={isAdmin ? "true" : undefined}
+              >
+                {subtitle}
+              </p>
+            )}
+          </div>
+        }
+        actions={<ThemeModeToggle />}
+        notifications={
           <DashboardTopbarNotifications notifications={notifications} />
+        }
+        account={
           <PublicRouteControl
             href={ROUTES.login}
             variant="bare"
@@ -153,9 +154,9 @@ export function DashboardTopbar({
               </span>
             ) : null}
           </PublicRouteControl>
-        </div>
-        {isAdmin ? <AdminMobileKebabMenu /> : null}
-      </div>
+        }
+        overflow={isAdmin ? <AdminMobileKebabMenu /> : null}
+      />
 
       <DashboardHorizontalNav />
     </header>
