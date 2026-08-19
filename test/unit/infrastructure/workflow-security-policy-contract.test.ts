@@ -93,7 +93,7 @@ const canonicalWorkflowDigests = new Map<string, string>([
   [".github/workflows/backend-ci.yml", "ff7fca08d621e757c8aad6b71cbd4d6d48b8ebdff5113c5c29dd574102298a38"],
   [".github/workflows/e2e-completeness.yml", "a4fb65f47d4e7164b0517b9e38487391c5da5881479954f4effcf098a32b414d"],
   [".github/workflows/frontend-ci.yml", "4c062a444de53da74aa928906e828b4a6c94cc50433937c1ee99cff09cf76d8d"],
-  [".github/workflows/pr-governance.yml", "4e0bf177a8581c9dd655f1ca6aa1510a823cdd976c885c4ba50b41129e4157d7"],
+  [".github/workflows/pr-governance.yml", "8dc2bf50342db4e45c7bcb5eadbeeeae28b87ac7b766260b903253ca6ba13947"],
   [".github/workflows/qga-governance.yml", "88ed322d67eda6fbec0a7ed0fa106625a43263a4d6998d6eceb24aeee389b393"],
   [".github/workflows/visual-regression-manual.yml", "86784fe26f1f15e2ae6fb60ee8c26ef050f311bcebab72a2e1732739e035fee9"],
 ]);
