@@ -480,7 +480,7 @@ export function AdminUsersRolesReadOnlyCard() {
         </div>
 
         <div
-          className="flex min-h-12 shrink-0 items-end gap-2 border-b border-vetneb-line/70 bg-muted/15 px-3 py-2 sm:px-4 md:min-h-10 md:py-1"
+          className="flex min-h-12 shrink-0 items-end gap-2 border-b border-vetneb-line/70 px-3 py-2 sm:px-4 md:min-h-10 md:py-1"
           aria-label="Filtros de usuarios y roles"
         >
           <label className="grid min-w-0 flex-[2] gap-1 text-[11px] font-medium text-muted-foreground md:gap-0.5">
@@ -491,6 +491,7 @@ export function AdminUsersRolesReadOnlyCard() {
                 aria-hidden="true"
               />
               <Input
+                data-dashboard-filter-field="true"
                 className="h-8 pl-7 text-xs leading-none md:h-7"
                 placeholder="Buscar usuario o clínica"
                 value={searchQuery}
@@ -507,6 +508,7 @@ export function AdminUsersRolesReadOnlyCard() {
           <label className="grid min-w-0 flex-1 gap-1 text-[11px] font-medium text-muted-foreground sm:max-w-48 md:gap-0.5">
             Tipo usuario
             <select
+              data-dashboard-filter-field="true"
               className="field-select h-8 py-1 text-xs leading-none md:h-7"
               value={userType}
               disabled={disableUserActions}
@@ -525,6 +527,7 @@ export function AdminUsersRolesReadOnlyCard() {
           <label className="grid min-w-0 flex-1 gap-1 text-[11px] font-medium text-muted-foreground sm:max-w-48 md:gap-0.5">
             Rol
             <select
+              data-dashboard-filter-field="true"
               className="field-select h-8 py-1 text-xs leading-none md:h-7"
               value={role}
               disabled={disableUserActions}
@@ -763,7 +766,7 @@ export function AdminUsersRolesReadOnlyCard() {
           </Button>
         </header>
 
-        <div className="shrink-0 border-b border-vetneb-line/70 bg-muted/15 px-2 py-1">
+        <div className="shrink-0 border-b border-vetneb-line/70 px-2 py-1">
           <label className="grid min-w-0 gap-0.5 text-[10px] font-medium text-muted-foreground">
             Buscar
             <div className="relative">
@@ -772,6 +775,7 @@ export function AdminUsersRolesReadOnlyCard() {
                 aria-hidden="true"
               />
               <Input
+                data-dashboard-filter-field="true"
                 className="h-9 pl-7 text-xs leading-none"
                 placeholder="Buscar usuario o clínica"
                 value={searchQuery}
@@ -786,10 +790,11 @@ export function AdminUsersRolesReadOnlyCard() {
           </label>
         </div>
 
-        <div className="grid min-h-12 shrink-0 grid-cols-2 gap-2 overflow-hidden border-b border-vetneb-line/70 bg-muted/15 px-2 py-1">
+        <div className="grid min-h-12 shrink-0 grid-cols-2 gap-2 overflow-hidden border-b border-vetneb-line/70 px-2 py-1">
           <label className="grid min-w-0 gap-0.5 text-[10px] font-medium text-muted-foreground">
             Tipo
             <select
+              data-dashboard-filter-field="true"
               className="field-select h-9 items-center px-2 py-1 text-xs leading-none"
               value={userType}
               disabled={disableUserActions}
@@ -807,6 +812,7 @@ export function AdminUsersRolesReadOnlyCard() {
           <label className="grid min-w-0 gap-0.5 text-[10px] font-medium text-muted-foreground">
             Rol
             <select
+              data-dashboard-filter-field="true"
               className="field-select h-9 items-center px-2 py-1 text-xs leading-none"
               value={role}
               disabled={disableUserActions}

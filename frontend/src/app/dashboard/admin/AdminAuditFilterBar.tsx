@@ -145,6 +145,7 @@ export function AdminAuditFilterBar(props: AdminAuditFilterBarProps) {
         <ModuleDialog
           title="Filtrar auditoría"
           description="Los filtros se aplican sobre el registro completo."
+          dashboardScopedPortal
           trigger={
             <Button type="button" variant="outline" size="sm" className="h-10 min-h-10 gap-1.5 px-2.5 text-xs">
               <Filter className="h-3.5 w-3.5" aria-hidden="true" />

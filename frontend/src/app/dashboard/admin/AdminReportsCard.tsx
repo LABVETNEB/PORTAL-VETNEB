@@ -647,6 +647,7 @@ export function AdminReportsCard() {
             <div className="md:hidden">
               <ModuleDialog
                 title="Filtrar informes"
+                dashboardScopedPortal
                 trigger={
                   <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5 px-2 text-xs">
                     <Filter className="h-3.5 w-3.5" aria-hidden="true" />

@@ -541,6 +541,7 @@ export function AdminClinicsManagementCard() {
               aria-hidden="true"
             />
             <Input
+              data-dashboard-filter-field="true"
               className="h-8 pl-8 text-sm"
               placeholder="Buscar clínica por nombre, email o usuario..."
               value={searchQuery}
@@ -710,6 +711,7 @@ export function AdminClinicsManagementCard() {
               aria-hidden="true"
             />
             <Input
+              data-dashboard-filter-field="true"
               className="h-8 pl-8 text-sm"
               placeholder="Buscar clínica..."
               value={searchQuery}

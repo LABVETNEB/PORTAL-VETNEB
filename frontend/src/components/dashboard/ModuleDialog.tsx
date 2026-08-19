@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, type ReactNode } from "react";
+import { useId, useLayoutEffect, useState, type ReactNode } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,16 @@ export type ModuleDialogProps = {
   /** Prevents closing via overlay/escape while a mutation is in flight. */
   busy?: boolean;
   closeLabel?: string;
+  /**
+   * B05: mount the Radix portal under `[data-dashboard-portal-root="true"]`
+   * (a dedicated, always-empty child of `.dashboard-app-shell`) instead of
+   * `document.body`, so CSS custom properties declared on `.dashboard-app-shell`
+   * — `--dash-color-field` in particular — resolve inside this dialog's
+   * portalled content. Off by default: every other `ModuleDialog` keeps
+   * portalling to `document.body` unchanged. Only the shared mobile filter
+   * dialogs (S1/S2/S3/S6/S7) set this.
+   */
+  dashboardScopedPortal?: boolean;
 };
 
 /**
@@ -37,9 +47,30 @@ export function ModuleDialog({
   footer,
   busy = false,
   closeLabel = "Cerrar",
+  dashboardScopedPortal = false,
 }: ModuleDialogProps) {
   const titleId = useId();
   const descId = useId();
+
+  // Resolved before paint so the very first portalled frame already targets
+  // the dashboard shell — there is exactly one `[data-dashboard-portal-root]`
+  // per page, rendered unconditionally by `DashboardShellRouter` ahead of
+  // every dashboard route, so it already exists by the time any dialog can
+  // open. `null` here is not an error state: Radix's own `Portal` treats a
+  // falsy `container` as "use the default", so this only ever WIDENS where
+  // the portal can land, never narrows it to nothing.
+  const [scopedPortalContainer, setScopedPortalContainer] =
+    useState<HTMLElement | null>(null);
+
+  useLayoutEffect(() => {
+    if (!dashboardScopedPortal) {
+      setScopedPortalContainer(null);
+      return;
+    }
+    setScopedPortalContainer(
+      document.querySelector<HTMLElement>('[data-dashboard-portal-root="true"]'),
+    );
+  }, [dashboardScopedPortal]);
 
   return (
     <Dialog.Root
@@ -50,7 +81,9 @@ export function ModuleDialog({
       }}
     >
       {trigger ? <Dialog.Trigger asChild>{trigger}</Dialog.Trigger> : null}
-      <Dialog.Portal>
+      <Dialog.Portal
+        container={dashboardScopedPortal ? scopedPortalContainer : undefined}
+      >
         <Dialog.Overlay className="fixed inset-0 z-40 bg-vetneb-ink/30 backdrop-blur-[1px] duration-200 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
         <Dialog.Content
           aria-labelledby={titleId}

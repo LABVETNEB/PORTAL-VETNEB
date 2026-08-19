@@ -809,6 +809,7 @@ export function ClinicParticularTokensCard() {
                 onOpenChange={setIsFilterDialogOpen}
                 title="Filtrar tokens"
                 description="Los filtros se aplican sobre los tokens cargados en la workspace."
+                dashboardScopedPortal
                 trigger={
                   <Button
                     type="button"

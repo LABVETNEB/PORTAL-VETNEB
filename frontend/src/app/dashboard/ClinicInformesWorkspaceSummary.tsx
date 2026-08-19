@@ -327,6 +327,7 @@ export function ClinicInformesWorkspaceSummary({
             onOpenChange={setIsFilterDialogOpen}
             title="Filtrar informes"
             description="Los filtros se aplican sobre los informes recientes cargados en la workspace."
+            dashboardScopedPortal
             trigger={
               <Button
                 type="button"

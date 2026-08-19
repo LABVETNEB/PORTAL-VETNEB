@@ -63,8 +63,8 @@ const THEME_INIT_PATH = "frontend/public/theme-init.js";
  *                              the foundation is declared.
  *
  * `--dash-color-field` is excluded from both and asserted separately (T8c): it
- * is the B05 target and must stay at zero consumers until B05 inverts the
- * surface relationship.
+ * is the B05 target, and since B05 shipped its consumption is confined to
+ * exactly one canonical path rather than left at zero.
  */
 const B04_CONSUMER_PREFIXES = [
   "frontend/src/styles/dashboard/",
@@ -72,8 +72,16 @@ const B04_CONSUMER_PREFIXES = [
   "frontend/src/app/dashboard/",
 ] as const;
 
-/** Reserved for B05 (tint moves to the field, container goes transparent). */
-const B05_RESERVED_TOKENS = ["--dash-color-field"] as const;
+/**
+ * B05 (tint moves to the field, container goes transparent). The token is
+ * declared for both themes in tokens.css since B03; the single legal runtime
+ * consumer is the field-inversion rule B05 added in surfaces.css. Any other
+ * consumer — including inside the B04-allowed prefixes above — duplicates the
+ * single source of truth for the field tint.
+ */
+const B05_FIELD_TOKEN = "--dash-color-field";
+const B05_FIELD_TOKEN_CANONICAL_PATH =
+  "frontend/src/styles/dashboard/surfaces.css";
 
 const FOUNDATION_START = "/* dashboard-foundation-tokens:start";
 const FOUNDATION_END = "dashboard-foundation-tokens:end */";
@@ -784,8 +792,13 @@ function foundationConsumers(): Array<readonly [string, string]> {
     for (const token of SCHEMA_TOKENS) {
       // Word boundary on the right so `--dash-color-surface` does not count as
       // a consumer of itself when the file really uses
-      // `--dash-color-surface-muted`; each token is matched exactly.
-      if (new RegExp(`${token}(?![\w-])`).test(source)) {
+      // `--dash-color-surface-muted`; each token is matched exactly. The `\w`
+      // must be double-escaped (`\\w`) inside this template literal — a
+      // single backslash is not a recognised string escape and silently
+      // degrades to a literal `w`, which happens to still reject the
+      // `-muted` case (blocked by the `-` alternative) but is not the
+      // intended character class.
+      if (new RegExp(`${token}(?![\\w-])`).test(source)) {
         found.push([path, token]);
       }
     }
@@ -825,13 +838,16 @@ test("every foundation consumer stays inside the authenticated dashboard", () =>
   }
 });
 
-test("the B05 field token is still reserved after B04", () => {
-  for (const [path, token] of foundationConsumers()) {
-    assert.ok(
-      !B05_RESERVED_TOKENS.includes(token as (typeof B05_RESERVED_TOKENS)[number]),
-      `${path}: consumes "${token}", which B05 owns. B04 tokenises the CURRENT surface relationship; moving the tint onto the field and making the container transparent is B05, and starting it here would ship two roadmap steps under one rollback`,
-    );
-  }
+test("the B05 field token has exactly one runtime consumer", () => {
+  const fieldConsumerPaths = foundationConsumers()
+    .filter(([, token]) => token === B05_FIELD_TOKEN)
+    .map(([path]) => path);
+
+  assert.deepEqual(
+    fieldConsumerPaths,
+    [B05_FIELD_TOKEN_CANONICAL_PATH],
+    `expected the sole runtime consumer of "${B05_FIELD_TOKEN}" to be ${B05_FIELD_TOKEN_CANONICAL_PATH}; found ${JSON.stringify(fieldConsumerPaths)}. A second consumer duplicates the single source of truth for the field tint; zero consumers means the B05 surface inversion was reverted`,
+  );
 });
 
 test("foundation cross-references stay inside the foundation", () => {
