@@ -19,9 +19,10 @@ INSTRUCCIONES_DE_PLATAFORMA_O_SISTEMA
 ```
 
 Alcance de la precedencia: la lista resuelve **interpretación y autorización**, no levanta hard
-stops. Un pedido explícito y actual de Nico puede autorizar y delegar cualquier operación que §5
-clasifique como delegable, y puede especializar cualquier regla de este archivo; no puede volver
-ejecutable por el agente una operación NO-DELEGABLE (§5.5).
+stops. Un pedido explícito y actual de Nico puede autorizar y delegar únicamente las operaciones
+que §5.3 **enumera expresamente**, y puede especializar cualquier regla de este archivo; no puede
+volver ejecutable por el agente una operación NO-DELEGABLE (§5.5) ni una escritura Git/GitHub que
+§5.3 no enumere (cierre fail-closed de §5.3).
 
 Resolución de contradicciones: ante conflicto entre este archivo, un `AGENTS.md` anidado, código
 o configuración ejecutable y documentación, prevalece el nivel más alto de la lista y, **entre
@@ -138,12 +139,13 @@ local; "hacé commit y push de X" delega además esas escrituras para el scope n
 Estados de actor posibles para cualquier operación:
 
 ```text
-DELEGADA        = autorizada + pedida al agente actual + delegable según §5
+DELEGADA        = autorizada + pedida al agente actual + enumerada expresamente en §5.3
                   → el agente la ejecuta y la verifica por readback (§5.6)
 [MANUAL-NICO]   = operación que Nico no delegó al agente actual, o que esta política declara
                   manual por su naturaleza (§5.4) → el agente entrega el comando exacto y no
                   lo ejecuta
-NO-DELEGABLE    = hard stop (§5.5): el agente no la ejecuta nunca, tampoco con pedido explícito
+NO-DELEGABLE    = hard stop: el agente no la ejecuta nunca, tampoco con pedido explícito.
+                  Incluye las familias de §5.5 y toda escritura Git/GitHub que §5.3 no enumere
 ```
 
 Reglas de resolución, sin excepción:
@@ -225,6 +227,7 @@ git status [--short] [--untracked-files=all]   git diff [--stat|--check|--name-o
 git branch [-r] [--no-merged origin/main]      git log | git show | git rev-parse | git rev-list
 git branch --show-current                      git ls-files | git remote -v | git merge-base
 git stash list (listar, nunca manipular)       git worktree list
+git tag | git tag -l | git tag --list          (listado de tags; crear o borrar → §5.5)
 
 gh pr view | gh pr list | gh pr diff           gh run view | gh run list
 gh pr checks <n> (sin --watch)                 gh api GET (branch protection, review threads, …)
@@ -248,9 +251,10 @@ agente entrega el comando exacto y no lo ejecuta.
 ```text
 git add <paths exactos>                  gh pr create
 git commit -m <mensaje>                  gh pr edit
-git push | git push -u origin <branch>   gh pr update-branch          (§5.8)
-git push --delete origin <branch>        gh pr merge --squash         (§5.8)
-  (sólo bajo el guard de §5.9)           gh run rerun [--failed]
+git push | git push -u origin <branch>   gh pr update-branch                      (§5.8)
+git push --delete origin <branch>        gh pr merge <PR> --squash
+  (sólo bajo el guard de §5.9)             --match-head-commit <SHA>              (§5.8)
+                                         gh run rerun [--failed]
                                          resolución de review threads
 ```
 
@@ -258,9 +262,19 @@ Condiciones comunes a toda la clase: target concreto y nombrado; nunca `git add 
 (siempre paths exactos verificados antes contra `git status --short`); una escritura por vez con
 readback (§5.6); precondiciones verificadas por lectura, nunca inferidas.
 
-Cierre fail-closed de la clase: toda escritura Git/GitHub **no nombrada** en §5.3 y no listada en
-§5.5 es R2 y su default es [MANUAL-NICO]; sólo se ejecuta si Nico la delega nombrándola. Ninguna
-operación se vuelve delegable por analogía con otra.
+Cierre fail-closed de la clase: **la lista de arriba es exhaustiva**. Toda escritura Git/GitHub
+que no esté enumerada expresamente en §5.3 es **NO-DELEGABLE**, aunque no figure entre las
+familias de §5.5 y aunque Nico la nombre en el pedido. Nombrar el comando no lo vuelve delegable,
+y ninguna operación se vuelve delegable por analogía, por parecido de riesgo ni por ser "el
+equivalente" de otra ya enumerada. Quedan cerrados por este fallback, sin necesidad de estar
+listados en §5.5: `gh repo delete`, `gh repo archive|rename|transfer`, `gh issue delete`,
+`gh cache delete`, `gh ruleset` de escritura, y cualquier subcomando de `git` o `gh` que aparezca
+en una versión futura.
+
+La única forma de volver delegable una escritura no enumerada es **modificar antes esta política**:
+un cambio explícito de la enumeración de §5.3, en una tarea propia, con su propio PR y su propia
+revisión. Hasta que ese cambio esté fusionado, la operación es hard stop; el agente entrega el
+comando exacto para que Nico lo ejecute si decide hacerlo.
 
 ### 5.4. Manual por política — [MANUAL-NICO] aunque el pedido lo dirija al agente
 
@@ -283,7 +297,7 @@ git push --force | --force-with-lease       git reset (soft|mixed|hard)   git fi
 git rebase (incl. -i, --onto, --continue)   git clean -fd                 git reflog expire
 git merge (incl. --abort) | git cherry-pick git checkout -- . | git restore . | restore --staged
 git stash (save|push|pop|apply|drop|clear)  git branch -D | -d            git commit --amend
-git tag | git tag -d                        git worktree add|remove|prune
+git tag <tagname> | git tag -a|-f|-d        git worktree add|remove|prune
 
 gh pr merge --admin  |  cualquier bypass de required checks o de branch protection
 gh api con -X POST|PATCH|PUT|DELETE o mutación GraphQL, salvo las operaciones de §5.3
@@ -293,10 +307,14 @@ gh release | gh repo edit                   gh api .../protection | .../environm
 
 Motivo por familia: pérdida o reescritura de historial y de trabajo local no recuperable
 (`--force`, `reset`, `rebase`, `amend`, `filter-branch`, `reflog expire`, `stash`, `clean`,
-`checkout -- .`, `restore`); destrucción de referencias (`branch -D|-d`, `tag`, `worktree`);
-elusión de los controles de calidad y seguridad que el repositorio exige (`--admin`, bypass de
-checks); y mutación de configuración del repositorio o de secretos, que es R3 y pertenece a la
-consola de GitHub bajo control humano directo.
+`checkout -- .`, `restore`); creación o destrucción de referencias (`branch -D|-d`, mutación de
+`tag`, `worktree`); elusión de los controles de calidad y seguridad que el repositorio exige
+(`--admin`, bypass de checks); y mutación de configuración del repositorio o de secretos, que es
+R3 y pertenece a la consola de GitHub bajo control humano directo.
+
+Esta lista enumera las familias de mayor riesgo; **no es la frontera de lo prohibido**. La
+frontera la fija la enumeración cerrada de §5.3: toda escritura Git/GitHub ausente de §5.3 es
+NO-DELEGABLE aunque no aparezca aquí.
 
 `--admin` para eludir checks requeridos está prohibido siempre, también para Nico, según
 `docs/ops/CI_PR_CHECKS_RUNBOOK.md`.
@@ -318,7 +336,7 @@ gh pr edit          → releer body/título/estado efectivos
 gh pr update-branch → releer el headRefOid nuevo y la relación con la base
 gh run rerun        → releer attempt y status del run
 resolve thread      → releer isResolved
-gh pr merge         → releer state, merged, mergedAt y mergeCommit
+gh pr merge         → releer state, merged, mergedAt y mergeCommit (con --match-head-commit, §5.8)
 git push --delete   → verificar que el ref remoto ya no existe
 cambio de setting   → releer el setting efectivo
 ```
@@ -342,6 +360,9 @@ OPEN → HEAD_IDENTIFIED → BASE_RELATION_CHECKED → REVIEWS_CHECKED
 - Si la PR está detrás de su base, reportarlo antes de cualquier merge.
 - `state=CLOSED` sin `merged=true` **no** es un merge. Cerrar una PR nunca sustituye fusionarla.
 - Rama eliminada con la PR no fusionada = error operativo: detener escrituras y reportar.
+- Un merge rechazado por head cambiado (`--match-head-commit`, §5.8) devuelve la PR a
+  `HEAD_IDENTIFIED` → `REQUIRED_CHECKS_CHECKED`; no se reintenta automáticamente contra el head
+  nuevo.
 - Ante estado ambiguo o readback no concluyente: detener las escrituras.
 
 ### 5.8. Actualización de rama y merge
@@ -352,15 +373,33 @@ OPEN → HEAD_IDENTIFIED → BASE_RELATION_CHECKED → REVIEWS_CHECKED
 reportar que la PR está detrás y que Nico decide. Con delegación explícita: ejecutar
 `gh pr update-branch`, capturar el head SHA nuevo y revalidar los checks aplicables (§5.7).
 
-**Merge.** Sin delegación, el default es [MANUAL-NICO]. Con delegación explícita, el agente
-verifica primero, por lectura y sobre el head actual, las precondiciones de
+**Merge.** Sin delegación, el default es [MANUAL-NICO]. Con delegación explícita, el agente sigue
+esta secuencia sin saltear pasos:
+
+```text
+1. CAPTURAR_HEAD   leer headRefOid y fijarlo como <HEAD_SHA_VERIFICADO>
+2. VERIFICAR       evaluar las precondiciones contra ESE SHA, no contra "la PR" en abstracto
+3. MERGE_ATÓMICO   gh pr merge <PR> --squash --match-head-commit <HEAD_SHA_VERIFICADO>
+4. READBACK        releer state, merged, mergedAt y mergeCommit
+```
+
+Precondiciones del paso 2, leídas sobre `<HEAD_SHA_VERIFICADO>` y tomadas de
 `docs/ops/CI_PR_CHECKS_RUNBOOK.md`: los cuatro contextos required de §6 presentes y en `SUCCESS`;
 ningún check aplicable en `QUEUED`, `IN_PROGRESS`, `FAILURE`, `CANCELLED` o `TIMED_OUT`; heavy
 `skipped` sólo con detector `impact=false` y contexto final en `SUCCESS`; PR abierta, no draft y
-apuntando a su base esperada; head SHA verificado igual al que se va a fusionar; sin
-conversaciones sin resolver; sin bloqueo informado de branch protection. Método permitido: **squash
-merge** explícito y ninguno otro. Inmediatamente después, readback del PR (§5.6). `--admin` es
-NO-DELEGABLE.
+apuntando a su base esperada; sin conversaciones sin resolver; sin bloqueo informado de branch
+protection.
+
+`--match-head-commit` es **obligatorio**: sin él, entre el readback del paso 2 y la ejecución del
+paso 3 puede llegar un push nuevo y el merge fusionaría un head no revisado. La verificación del
+head tiene que ser atómica con el merge, no solamente previa.
+
+Si el merge falla porque el head cambió: **detenerse**. No reintentar contra el SHA nuevo, no
+relanzar el comando sin `--match-head-commit` y no ampliar la delegación por cuenta propia. Se
+vuelve a `HEAD_IDENTIFIED` → `REQUIRED_CHECKS_CHECKED` (§5.7), se revalida todo sobre el head nuevo
+y se reporta a Nico, que decide si la delegación sigue vigente para ese head.
+
+Método permitido: **squash merge** explícito y ninguno otro. `--admin` es NO-DELEGABLE.
 
 ### 5.9. Guard de eliminación de rama (fail-closed)
 
