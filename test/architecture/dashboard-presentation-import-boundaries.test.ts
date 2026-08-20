@@ -69,6 +69,12 @@ const SHELL_REQUIRED_EXPORTS: Record<string, readonly string[]> = {
 };
 
 const NAVIGATION_REQUIRED_EXPORTS: Record<string, readonly string[]> = {
+  // B07 primitives. They enter under the SAME closure rules as every legacy
+  // target — no exception, no path exclusion — which is the point: a primitive
+  // created inside the boundary must prove its purity exactly like one that was
+  // grandfathered into it.
+  NavigationDrawer: ["NavigationDrawer", "NavigationDrawerProps"],
+  NavigationRail: ["NavigationRail", "NavigationRailProps"],
   DashboardHorizontalNav: ["DashboardHorizontalNav", "DashboardNavSurface"],
   DashboardModuleRail: ["DashboardModuleRail", "CLINIC_MODULE_RAIL_ITEMS"],
   AdminMobileBottomNav: ["AdminMobileBottomNav"],

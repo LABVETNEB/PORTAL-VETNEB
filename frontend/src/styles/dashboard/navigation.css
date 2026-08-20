@@ -160,3 +160,158 @@
   }
 }
 /* dashboard-workspace-layout-polish:end */
+
+/* dashboard-b07-navigation-drawer-rail:start */
+/*
+  B07 - NavigationDrawer (256px) and NavigationRail (80px).
+
+  Applies the geometry ledger of tokens.css to the two lateral primitives. Every
+  number resolves through a token: this block restates none of them.
+
+  UNLAYERED on purpose, like the B06 app-bar block in layout.css. The primitives
+  are authored with the shared route control, which ships Tailwind utilities
+  (`focus-visible:outline-none`, `focus-visible:ring-*`); a rule inside
+  `@layer components` loses to `@layer utilities`, so a layered focus rule here
+  would be silently cancelled and the block would only LOOK accessible.
+
+  ONE VISIBLE PRIMITIVE AT A TIME. Both are hidden by default and revealed by
+  exactly one viewport range each - rail 768-1279, drawer >=1280 - so the two
+  can coexist in the DOM (which is how B08 will mount them) without ever
+  rendering two lateral navigations at once. Below 768px neither exists: that
+  range belongs to the mobile model B09 unifies.
+
+  NO SIZE ANIMATION (R11/A03): nothing here transitions an inline-size, a
+  block-size or a flex-basis. A size transition feeds the ResizeObserver behind
+  the adaptive capacity engine, which makes `limit` oscillate and re-fetch.
+*/
+.dashboard-app-shell .dashboard-navigation-drawer,
+.dashboard-app-shell .dashboard-navigation-rail {
+  display: none;
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  flex-direction: column;
+  block-size: 100%;
+  border-radius: var(--dash-shape-none);
+  border-inline-end: 1px solid var(--dash-color-outline-subtle);
+  box-shadow: var(--dash-elevation-none);
+  background-color: var(--dash-color-surface);
+}
+
+.dashboard-app-shell .dashboard-navigation-drawer {
+  min-inline-size: calc(var(--dash-nav-drawer-w) - var(--dash-nav-band));
+  max-inline-size: calc(var(--dash-nav-drawer-w) + var(--dash-nav-band));
+  gap: var(--dash-space-1);
+  padding: var(--dash-space-2);
+}
+
+.dashboard-app-shell .dashboard-navigation-rail {
+  min-inline-size: calc(var(--dash-nav-rail-w) - var(--dash-nav-band));
+  max-inline-size: calc(var(--dash-nav-rail-w) + var(--dash-nav-band));
+  gap: var(--dash-space-1);
+  padding-block: var(--dash-space-2);
+  padding-inline: 0;
+}
+
+/* Items stretch to the container's content box (column flex default), so their
+   width follows the band instead of being pinned a second time. */
+.dashboard-app-shell .dashboard-navigation-drawer-item,
+.dashboard-app-shell .dashboard-navigation-rail-item {
+  display: flex;
+  flex: 0 0 auto;
+  color: var(--dash-color-on-surface-muted);
+  font-family: var(--dash-text-family);
+  transition-property: background-color, color;
+  transition-duration: var(--dash-motion-fast);
+  transition-timing-function: var(--dash-motion-ease-standard);
+}
+
+.dashboard-app-shell .dashboard-navigation-drawer-item {
+  align-items: center;
+  gap: var(--dash-space-2);
+  min-block-size: var(--dash-nav-item-h);
+  max-block-size: var(--dash-nav-item-h);
+  padding-block: 0;
+  padding-inline: var(--dash-space-3);
+  border-radius: var(--dash-shape-full);
+  font-size: var(--dash-text-body-size);
+  font-weight: var(--dash-text-body-weight);
+}
+
+.dashboard-app-shell .dashboard-navigation-drawer-label {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-app-shell .dashboard-navigation-rail-item {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--dash-space-1);
+  min-block-size: var(--dash-nav-rail-item-h);
+  max-block-size: var(--dash-nav-rail-item-h);
+  padding-block: var(--dash-space-2);
+  padding-inline: 0;
+  border-radius: var(--dash-nav-rail-item-radius);
+}
+
+.dashboard-app-shell .dashboard-navigation-rail-label {
+  max-inline-size: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--dash-text-label-size);
+  font-weight: var(--dash-text-label-weight);
+  line-height: var(--dash-text-label-leading);
+}
+
+.dashboard-app-shell .dashboard-navigation-drawer-item:hover,
+.dashboard-app-shell .dashboard-navigation-rail-item:hover {
+  background-color: var(--dash-color-surface-raised);
+  color: var(--dash-color-on-surface);
+}
+
+.dashboard-app-shell .dashboard-navigation-item-active {
+  background-color: var(--dash-color-surface-muted);
+  color: var(--dash-color-primary);
+  font-weight: var(--dash-text-body-strong-weight);
+}
+
+/* FOCUS_INDICATOR. A real outline, not a suppressed one: the route control
+   ships `focus-visible:outline-none`, and this unlayered rule is what restores
+   a visible ring. Never replace it with `outline: none` plus a shadow. */
+.dashboard-app-shell .dashboard-navigation-drawer-item:focus-visible,
+.dashboard-app-shell .dashboard-navigation-rail-item:focus-visible {
+  outline: 2px solid var(--dash-color-focus-ring);
+  outline-offset: 2px;
+}
+
+@media (min-width: 768px) and (max-width: 1279.98px) {
+  .dashboard-app-shell .dashboard-navigation-rail {
+    display: flex;
+  }
+}
+
+@media (min-width: 1280px) {
+  .dashboard-app-shell .dashboard-navigation-drawer {
+    display: flex;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-app-shell .dashboard-navigation-drawer-item,
+  .dashboard-app-shell .dashboard-navigation-rail-item {
+    transition: none;
+  }
+}
+
+/* Forced colors replaces the state-layer background, so the active module
+   would become indistinguishable. Restate it as a border the OS preserves. */
+@media (forced-colors: active) {
+  .dashboard-app-shell .dashboard-navigation-item-active {
+    outline: 1px solid CanvasText;
+    outline-offset: -1px;
+  }
+}
+/* dashboard-b07-navigation-drawer-rail:end */

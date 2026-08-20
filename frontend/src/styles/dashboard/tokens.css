@@ -395,3 +395,43 @@
   --dash-app-bar-band: 2px;
 }
 /* dashboard-app-bar-geometry:end */
+
+/* dashboard-b07-navigation-geometry:start
+ *
+ * B07 - NavigationDrawer / NavigationRail geometry ledger.
+ *
+ * ONE declaration of the lateral navigation contract for the whole dashboard:
+ * drawer 256px, rail 80px, drawer item 40px, rail item 56px, all with the
+ * +/-1px runtime band the audit specifies (audit 46/49, row B07). Both halves
+ * of each contract live here so no component and no CSS module can restate
+ * either number as a literal.
+ *
+ * BAND, not point - same discipline as the B06 app bar. The drawer and the rail
+ * are INLINE regions rather than height regions, so they do not sit in the
+ * shell height ledger A03 froze; the band is what lets the container keep its
+ * intrinsic box while still being enforceable in CSS, and it keeps the two
+ * primitives measurable by the runtime contract B08 owns.
+ *
+ * The rail item radius is declared here because the B03 shape scale has no
+ * 16px step: it clusters at 0.85rem (13.6px) and 1.1rem (17.6px), and rounding
+ * the audit value to either would be a silent geometry change. The drawer item
+ * uses `--dash-shape-full` instead - a pill on a 40px row IS the specified
+ * 20px radius, expressed through the scale.
+ *
+ * NOT REUSED: `--dash-sidebar-rail` (4.5rem = 72px) and `--dash-sidebar-expanded`
+ * (15rem = 240px) in responsive.css are orphan tokens from the pre-audit
+ * sidebar that B02 retired. They encode the OLD geometry, so B07 declares its
+ * own; removing them is separate cleanup, not this scope.
+ *
+ * Applied in styles/dashboard/navigation.css. Below 768px neither primitive
+ * exists: the admin/clinic mobile navigation keeps its own model until B09.
+ * See docs/implementation/dashboard-b07-navigation-drawer-rail.md. */
+.dashboard-app-shell {
+  --dash-nav-drawer-w: 256px;
+  --dash-nav-rail-w: 80px;
+  --dash-nav-item-h: 40px;
+  --dash-nav-rail-item-h: 56px;
+  --dash-nav-rail-item-radius: 16px;
+  --dash-nav-band: 1px;
+}
+/* dashboard-b07-navigation-geometry:end */
