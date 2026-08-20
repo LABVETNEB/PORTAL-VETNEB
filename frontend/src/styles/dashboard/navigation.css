@@ -278,6 +278,19 @@
   font-weight: var(--dash-text-body-strong-weight);
 }
 
+/* ACTIVE_WINS_OVER_HOVER. The generic :hover rule above outranks the single
+   class of the active rule, so pointing at the selected module would repaint it
+   with the inactive state layer - and on the rail the label owns its own
+   font-weight, leaving nothing to tell it apart. Restate the active colours at
+   a specificity hover cannot beat; no !important, no new token. */
+.dashboard-app-shell
+  .dashboard-navigation-drawer-item.dashboard-navigation-item-active:hover,
+.dashboard-app-shell
+  .dashboard-navigation-rail-item.dashboard-navigation-item-active:hover {
+  background-color: var(--dash-color-surface-muted);
+  color: var(--dash-color-primary);
+}
+
 /* FOCUS_INDICATOR. A real outline, not a suppressed one: the route control
    ships `focus-visible:outline-none`, and this unlayered rule is what restores
    a visible ring. Never replace it with `outline: none` plus a shadow. */

@@ -716,6 +716,57 @@ test("B07 · the primitives ship no persisted expand/collapse state", () => {
   );
 });
 
+test("B07 · active navigation keeps its active colors while hovered", () => {
+  // Whitespace-agnostic: the CSS file is CRLF and prettier may wrap the selector
+  // list, so the contract is read off a flattened copy of the B07 block.
+  const flat = stripComments(sliceBlock(read(NAVIGATION_CSS), CSS_BLOCK_START, CSS_BLOCK_END))
+    .replace(/\s+/g, " ")
+    .trim();
+
+  for (const primitive of ["drawer", "rail"]) {
+    assert.ok(
+      flat.includes(
+        `.dashboard-navigation-${primitive}-item.dashboard-navigation-item-active:hover`,
+      ),
+      `the B07 block must declare an active :hover rule for the ${primitive}: the generic ".dashboard-navigation-${primitive}-item:hover" outranks the single-class active rule and would repaint the selected module with the inactive state layer`,
+    );
+  }
+
+  const ACTIVE_HOVER_SELECTOR =
+    ".dashboard-app-shell .dashboard-navigation-drawer-item.dashboard-navigation-item-active:hover, .dashboard-app-shell .dashboard-navigation-rail-item.dashboard-navigation-item-active:hover {";
+  const ruleStart = flat.indexOf(ACTIVE_HOVER_SELECTOR);
+
+  assert.notEqual(
+    ruleStart,
+    -1,
+    "drawer and rail must share one active-:hover rule that restates the active colors",
+  );
+
+  const declarations = flat.slice(
+    ruleStart + ACTIVE_HOVER_SELECTOR.length,
+    flat.indexOf("}", ruleStart),
+  );
+
+  assert.ok(
+    declarations.includes("background-color: var(--dash-color-surface-muted);"),
+    "the hovered active item must keep the active background token, not the hover one",
+  );
+  assert.ok(
+    declarations.includes("color: var(--dash-color-primary);"),
+    "the hovered active item must keep the active foreground token, not the hover one",
+  );
+  assert.equal(
+    declarations.includes("!important"),
+    false,
+    "the active-:hover rule wins by specificity, never by !important",
+  );
+
+  assert.ok(
+    flat.indexOf(".dashboard-navigation-drawer-item:hover") < ruleStart,
+    "the active-:hover rule must follow the generic :hover rule it overrides",
+  );
+});
+
 // ── T13 · No structural size transitions ─────────────────────────────────────
 
 test("B07 · nothing in the block animates a structural size", () => {
