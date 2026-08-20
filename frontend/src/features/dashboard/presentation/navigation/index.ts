@@ -31,6 +31,14 @@
  * removed, not modified and not migrated; it is admitted automatically once
  * those two imports are gone.
  *
+ * `NavigationDrawer` and `NavigationRail` are the B07 primitives. They are the
+ * first navigation surfaces here that are NOT legacy re-exports: they were
+ * created by B07, presentation-pure from the start, and no consumer renders
+ * them yet — mounting them and retiring `DashboardHorizontalNav` /
+ * `DashboardModuleRail` is B08. The ownership rule above still holds: their
+ * implementations live at `@/components/dashboard/*` like every other target,
+ * because this barrel is a boundary, not a home.
+ *
  * `AdminDashboardSidebar` and `ClinicDashboardSidebar` are absent because B02
  * retired them (audit §14.3): they had no runtime consumers, so the whole
  * sidebar chain was deleted rather than re-exported. The barrel must never
@@ -48,6 +56,14 @@ export {
   CLINIC_MODULE_RAIL_ITEMS,
   DashboardModuleRail,
 } from "@/components/dashboard/DashboardModuleRail";
+export {
+  NavigationDrawer,
+  type NavigationDrawerProps,
+} from "@/components/dashboard/NavigationDrawer";
+export {
+  NavigationRail,
+  type NavigationRailProps,
+} from "@/components/dashboard/NavigationRail";
 export { AdminMobileBottomNav } from "@/components/dashboard/AdminMobileBottomNav";
 export { ClinicMobileBottomNav } from "@/components/dashboard/ClinicMobileBottomNav";
 export { AdminMobileHubLauncher } from "@/components/dashboard/AdminMobileHubLauncher";
