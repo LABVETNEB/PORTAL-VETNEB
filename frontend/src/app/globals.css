@@ -323,7 +323,7 @@
   }
 
   .clinical-skeleton {
-    @apply bg-gradient-to-r from-vetneb-surface-muted/90 via-vetneb-surface-raised/95 to-vetneb-surface-muted/90;
+    @apply bg-linear-to-r from-vetneb-surface-muted/90 via-vetneb-surface-raised/95 to-vetneb-surface-muted/90;
     animation: clinical-skeleton-pulse 1800ms ease-in-out infinite;
   }
 
@@ -1158,14 +1158,11 @@
   html[data-particular-operational-viewport="true"]
     [data-particular-mobile-flat-card]
     p {
-    display: -webkit-box;
+    @apply line-clamp-1;
     min-width: 0;
     max-width: 100%;
-    overflow: hidden;
     white-space: normal;
     overflow-wrap: anywhere;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 1;
   }
 
   html[data-particular-operational-viewport="true"]
@@ -1278,14 +1275,11 @@
     html[data-particular-operational-viewport="true"]
       #particular-report
       p {
-      display: -webkit-box;
+      @apply line-clamp-1;
       min-width: 0;
       max-width: 100%;
-      overflow: hidden;
       white-space: normal;
       overflow-wrap: anywhere;
-      -webkit-box-orient: vertical;
-      -webkit-line-clamp: 1;
     }
 
     html[data-particular-operational-viewport="true"]
