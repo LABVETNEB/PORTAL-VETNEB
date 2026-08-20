@@ -260,7 +260,7 @@ test("completeness job preserves Linux baseline compatibility, build ordering an
   const stepNames = steps.map((step) => String(step.name ?? ""));
 
   assert.equal(workflowJob["runs-on"], "ubuntu-latest");
-  assert.equal(workflowJob["timeout-minutes"], 45);
+  assert.equal(workflowJob["timeout-minutes"], 55);
   assert.deepEqual(document.permissions, { contents: "read" });
   assert.equal(mapping(document.concurrency, "concurrency")["cancel-in-progress"], true);
   assert.ok(stepNames.indexOf("Build frontend") < stepNames.indexOf("Run complete cataloged E2E suite"));
@@ -275,6 +275,19 @@ test("completeness job preserves Linux baseline compatibility, build ordering an
     VETNEB_E2E_DISABLE_EXTERNAL_EMBEDS: "1",
   });
   assert.equal(runFull.run, "pnpm --dir frontend e2e:full -- --workers=2 --retries=2");
+  assert.deepEqual(
+    runFull.env,
+    { E2E_GLOBAL_TIMEOUT_MS: "2400000" },
+    "the full catalog exceeds Playwright's 30m default, so this step — and only this step — must carry the 40m budget",
+  );
+  const jobTimeoutMs = Number(workflowJob["timeout-minutes"]) * 60_000;
+  const playwrightBudgetMs = Number(mapping(runFull.env, "runFull.env").E2E_GLOBAL_TIMEOUT_MS);
+  assert.ok(
+    jobTimeoutMs - playwrightBudgetMs >= 15 * 60_000,
+    "the job cap must reserve at least 15m outside Playwright's own budget for checkout, install, " +
+      "build, browser install and — on timeout — diagnostics, teardown and hygiene; otherwise setup " +
+      "overhead can cancel the job before a healthy suite finishes",
+  );
   assert.equal(
     source.includes("VETNEB_E2E_PRODUCTION_RUNNER"),
     false,
