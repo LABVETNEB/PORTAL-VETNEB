@@ -250,6 +250,35 @@ ejecutar el callback y debe pasar sus assertions; no equivale a skip ni
 Ante fallo final sube `playwright-report` y `test-results`; luego verifica
 teardown, source hygiene y limpia esos outputs del checkout efímero.
 
+Presupuesto de runtime. El job tiene un tope duro de 45 minutos; dentro de
+él, el paso `Run complete cataloged E2E suite` declara
+`E2E_GLOBAL_TIMEOUT_MS: "2400000"` (40 minutos) para el `globalTimeout` de
+Playwright:
+
+```text
+job timeout-minutes            45m   (tope duro, sin cambios)
+globalTimeout de completeness  40m   (env del paso, sólo este workload)
+globalTimeout por defecto      30m   (frontend/playwright.config.ts, sin cambios)
+```
+
+El override vive en el paso, no en la configuración: toda otra cohorte —
+`e2e:ci` en Frontend CI y las corridas locales — conserva el guard de 30
+minutos. El motivo es capacidad del catálogo, no un defecto funcional: la
+suite completa pasó a necesitar ~31 minutos con `--workers=2`, de modo que 30
+minutos dejaron de detectar cuelgues y empezaron a truncar corridas sanas
+antes de llegar a los specs `visual-linux`. Los ~5 minutos restantes bajo el
+tope del job quedan para teardown, source hygiene y subida de diagnostics.
+`--workers=2`, `--retries=2`, el catálogo, las assertions y la cobertura no
+cambian; el fix no introduce skips ni retira specs.
+
+Rollback: retirar el bloque `env` del paso devuelve el workload al default de
+30 minutos. Hacerlo sólo cuando la cohorte demuestre headroom suficiente por
+medición, no por suposición.
+
+`E2E Completeness` no es uno de los cuatro contextos required de `main`, pero
+sí es un check aplicable: mientras esté en `FAILURE` el PR no está READY
+(AGENTS.md §5.8). "No required" no significa "ignorable en rojo".
+
 Un cambio E2E no está listo si `validate-frontend` pasa pero
 `e2e-full-completeness` falla. Para diagnosticar:
 
