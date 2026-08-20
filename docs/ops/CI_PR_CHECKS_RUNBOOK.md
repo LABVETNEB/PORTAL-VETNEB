@@ -250,6 +250,49 @@ ejecutar el callback y debe pasar sus assertions; no equivale a skip ni
 Ante fallo final sube `playwright-report` y `test-results`; luego verifica
 teardown, source hygiene y limpia esos outputs del checkout efímero.
 
+Presupuesto de runtime. El job tiene un tope duro de 55 minutos; dentro de
+él, el paso `Run complete cataloged E2E suite` declara
+`E2E_GLOBAL_TIMEOUT_MS: "2400000"` (40 minutos) para el `globalTimeout` de
+Playwright:
+
+```text
+job timeout-minutes            55m   (tope duro)
+globalTimeout de completeness  40m   (env del paso, sólo este workload)
+envelope exterior              15m   (job − Playwright; ver abajo)
+globalTimeout por defecto      30m   (frontend/playwright.config.ts, sin cambios)
+```
+
+El override vive en el paso, no en la configuración: toda otra cohorte —
+`e2e:ci` en Frontend CI y las corridas locales — conserva el guard de 30
+minutos. El motivo es capacidad del catálogo, no un defecto funcional: la
+suite completa pasó a necesitar ~31 minutos con `--workers=2`, de modo que 30
+minutos dejaron de detectar cuelgues y empezaron a truncar corridas sanas
+antes de llegar a los specs `visual-linux`.
+
+Los 15 minutos de envelope exterior **no son "limpieza después de
+Playwright"**: son presupuesto para todo el trabajo del job que Playwright no
+posee, antes y después del paso — checkout, install de dependencias, verify
+del catálogo, build del frontend, auditoría de superficie pública, instalación
+de dependencias/Chromium, y, si el paso agota su propio `globalTimeout`,
+subida de diagnostics, `Verify E2E teardown` y `Verify source hygiene`. Sin
+ese margen, un setup lento puede cancelar el job por el tope duro antes de que
+una corrida sana termine, aunque Playwright nunca haya llegado a su propio
+límite. Un guard relacional (`test/unit/infrastructure/e2e-completeness-workflow.test.ts`)
+exige `job timeout-minutes − E2E_GLOBAL_TIMEOUT_MS >= 15m`, así que revertir
+el job a 45 minutos o subir el budget de Playwright sin ampliar el job rompe
+el test.
+
+`--workers=2`, `--retries=2`, el catálogo, las assertions y la cobertura no
+cambian; el fix no introduce skips ni retira specs.
+
+Rollback: retirar el bloque `env` del paso y devolver `timeout-minutes` a 45
+recupera el estado previo a este fix. Hacerlo sólo cuando la cohorte
+demuestre headroom suficiente por medición, no por suposición.
+
+`E2E Completeness` no es uno de los cuatro contextos required de `main`, pero
+sí es un check aplicable: mientras esté en `FAILURE` el PR no está READY
+(AGENTS.md §5.8). "No required" no significa "ignorable en rojo".
+
 Un cambio E2E no está listo si `validate-frontend` pasa pero
 `e2e-full-completeness` falla. Para diagnosticar:
 

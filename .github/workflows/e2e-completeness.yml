@@ -35,7 +35,7 @@ jobs:
   e2e-full-completeness:
     name: e2e-full-completeness
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 55
 
     steps:
       - name: Checkout
@@ -108,6 +108,15 @@ jobs:
       - name: Run complete cataloged E2E suite
         # Bounded retries rerun complete callbacks; they never skip or relax assertions.
         run: pnpm --dir frontend e2e:full -- --workers=2 --retries=2
+        env:
+          # Budget for THIS workload only: the full catalog needs ~31m at --workers=2,
+          # so the 30m default stopped guarding against hangs and began truncating
+          # healthy runs. 40m restores headroom. The 55m job cap keeps a 15m outer
+          # envelope for everything Playwright doesn't own — checkout, install,
+          # catalog verify, build, public-surface audit, browser install, and (on
+          # timeout) diagnostics upload, teardown and hygiene — so a healthy suite
+          # can't be cancelled by setup overhead eating into the job's hard cap.
+          E2E_GLOBAL_TIMEOUT_MS: "2400000"
 
       - name: Upload Playwright diagnostics
         if: failure()
