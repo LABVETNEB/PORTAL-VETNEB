@@ -1431,7 +1431,7 @@
   }
 
   .public-hero-action-tile {
-    @apply rounded-xl border border-white/28 bg-white/[0.08] p-4 text-left shadow-sm transition-[background-color,border-color,box-shadow,transform] duration-150 hover:border-white/55 hover:bg-white/[0.14] hover:shadow-[0_18px_44px_rgba(5,28,42,0.18)];
+    @apply rounded-xl border border-white/28 bg-white/8 p-4 text-left shadow-sm transition-[background-color,border-color,box-shadow,transform] duration-150 hover:border-white/55 hover:bg-white/[0.14] hover:shadow-[0_18px_44px_rgba(5,28,42,0.18)];
   }
 
   .public-hero-action-tile-label {
@@ -1455,7 +1455,7 @@
   }
 
   .public-hero-search-dock {
-    @apply mt-8 max-w-3xl rounded-2xl border border-white/20 bg-white/[0.10] p-3 shadow-[0_18px_54px_rgba(5,28,42,0.20)] backdrop-blur;
+    @apply mt-8 max-w-3xl rounded-2xl border border-white/20 bg-white/10 p-3 shadow-[0_18px_54px_rgba(5,28,42,0.20)] backdrop-blur;
   }
 
   .public-hero-search-inner {
@@ -1467,7 +1467,7 @@
   }
 
   .public-hero-scope-item {
-    @apply rounded-full border border-white/24 bg-white/[0.08] px-3 py-1.5 text-xs font-semibold tracking-[0.08em] text-primary-foreground/86;
+    @apply rounded-full border border-white/24 bg-white/8 px-3 py-1.5 text-xs font-semibold tracking-[0.08em] text-primary-foreground/86;
   }
 
   .public-contact-method-grid {
@@ -1475,7 +1475,7 @@
   }
 
   .public-contact-method {
-    @apply rounded-xl border border-white/24 bg-white/[0.08] p-4 text-primary-foreground shadow-sm transition-[background-color,border-color,box-shadow] duration-150 hover:border-white/50 hover:bg-white/[0.14];
+    @apply rounded-xl border border-white/24 bg-white/8 p-4 text-primary-foreground shadow-sm transition-[background-color,border-color,box-shadow] duration-150 hover:border-white/50 hover:bg-white/[0.14];
   }
 
   .public-contact-method-title {
