@@ -11,6 +11,8 @@ const HISTOPATOLOGIA_PAGE_PATH =
   "frontend/src/app/histopatologia-veterinaria/page.tsx";
 const LOGIN_CONTENT_PATH = "frontend/src/components/public/LoginContent.tsx";
 const DASHBOARD_TOPBAR_PATH = "frontend/src/components/dashboard/DashboardTopbar.tsx";
+const WORKSPACE_APP_BAR_PATH =
+  "frontend/src/components/dashboard/WorkspaceAppBar.tsx";
 const DASHBOARD_HOME_PATH = "frontend/src/app/dashboard/page.tsx";
 const DASHBOARD_CLINIC_COMMAND_CENTER_PATH =
   "frontend/src/app/dashboard/ClinicCommandCenter.tsx";
@@ -358,13 +360,34 @@ test("dashboard topbar keeps sticky hierarchy and compact responsive shell", () 
       /className="sticky top-0 z-40 flex shrink-0 flex-col border-b border-vetneb-line\/80 bg-card\/90 backdrop-blur supports-\[backdrop-filter\]:bg-card\/78"/,
       /className="truncate text-lg font-semibold leading-tight text-vetneb-ink sm:text-xl"/,
       /className="truncate text-xs text-muted-foreground sm:text-\[0\.8125rem\]"/,
-      /className="ml-2 flex shrink-0 items-center gap-1.5 sm:ml-3 sm:gap-3"/,
     ],
     "dashboard topbar class contracts",
   );
 
   assertInlineStylesAtMost(source, 0, "dashboard topbar");
   assertNoClientFetchOrApiLiterals(source, "dashboard topbar");
+});
+
+test("workspace app bar keeps the pinned band and action-cluster class contracts", () => {
+  // B06 moved the app-bar ROW out of DashboardTopbar and into WorkspaceAppBar:
+  // the orchestrator now feeds identity/actions/notifications/account/overflow
+  // as slots. The action-cluster className pin therefore follows its owner
+  // instead of being dropped — same regex, new file — and the band's own row
+  // className is pinned here for the first time, so a silent restyle of the
+  // level-4 chrome still fails exactly as it did before the split.
+  const source = read(WORKSPACE_APP_BAR_PATH);
+
+  assertMatchesAll(
+    source,
+    [
+      /className="flex min-h-\[2\.75rem\] min-w-0 items-center justify-between gap-2 px-3 py-1\.5 sm:min-h-\[2\.5rem\] sm:gap-3 sm:px-6"/,
+      /className="ml-2 flex shrink-0 items-center gap-1.5 sm:ml-3 sm:gap-3"/,
+    ],
+    "workspace app bar class contracts",
+  );
+
+  assertInlineStylesAtMost(source, 0, "workspace app bar");
+  assertNoClientFetchOrApiLiterals(source, "workspace app bar");
 });
 
 test("dashboard home keeps visual dashboard states and card spacing conventions", () => {

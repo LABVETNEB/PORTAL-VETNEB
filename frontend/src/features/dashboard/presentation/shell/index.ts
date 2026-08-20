@@ -25,6 +25,14 @@
  * boundary. It is admitted automatically once that import is gone; B01 does not
  * modify it.
  *
+ * `WorkspaceAppBar` (B06) IS admitted: it is the presentation-pure half of that
+ * same chrome. It owns the app-bar band and the global module search and takes
+ * every data-layer affordance (logout, notifications, theme, overflow) as an
+ * already-rendered slot from `DashboardTopbar`, so its whole import closure
+ * stays clear of `@/lib/api` and `app/`. The implementation stays pinned at
+ * `@/components/dashboard/*` for the same reason as its siblings: moving the
+ * file would break the source-invariant guardrails that anchor the chrome.
+ *
  * @see docs/implementation/dashboard-presentation-shell-navigation-barrels.md
  * @see docs/implementation/dashboard-presentation-boundaries.md
  */
@@ -38,6 +46,10 @@ export {
   DashboardModuleHub,
   type DashboardModuleCard,
 } from "@/components/dashboard/DashboardModuleHub";
+export {
+  WorkspaceAppBar,
+  type WorkspaceAppBarProps,
+} from "@/components/dashboard/WorkspaceAppBar";
 export {
   DashboardHubHero,
   type DashboardHubHeroMetric,

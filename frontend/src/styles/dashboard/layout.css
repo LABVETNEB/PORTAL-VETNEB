@@ -200,3 +200,32 @@
   }
 }
 /* dashboard-app-shell-visibility-contract:end */
+
+/* dashboard-b06-workspace-app-bar:start */
+/*
+  B06 - WorkspaceAppBar band.
+
+  The bar is bounded by the canonical ledger of tokens.css and by nothing else:
+  no radius, no elevation, one row, full width. The bottom rule of the band is
+  the <header> border the chrome already paints (1px, outline role), so this
+  block never adds a second divider.
+
+  Unlayered on purpose, like the rest of the behaviour-capable dashboard
+  overrides: a layered rule would lose to the flattened utility classes the bar
+  is authored with.
+
+  Scope: >=768px, where this bar IS the workspace chrome. Below that the admin
+  and clinic mobile app bars own their own height tokens (mobile-admin.css /
+  mobile-clinic.css) and B09 owns their unification.
+*/
+@media (min-width: 768px) {
+  .dashboard-app-shell [data-workspace-app-bar="true"] {
+    box-sizing: border-box;
+    width: 100%;
+    min-block-size: calc(var(--dash-app-bar-h) - var(--dash-app-bar-band));
+    max-block-size: calc(var(--dash-app-bar-h) + var(--dash-app-bar-band));
+    border-radius: var(--dash-shape-none);
+    box-shadow: var(--dash-elevation-none);
+  }
+}
+/* dashboard-b06-workspace-app-bar:end */
