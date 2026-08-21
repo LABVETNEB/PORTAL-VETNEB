@@ -14,6 +14,15 @@ import { expect, test, type Page } from "@playwright/test";
 // This spec does not replace the historical contracts
 // (`dashboard-real-app-shell-no-scroll-contract`, `admin-users-workspace-5000`);
 // it pins the defect they cannot see, using the same hermetic fixtures.
+//
+// B08 UPDATE. The paragraph above describes the ORIGINAL defect and its
+// measurements at the time — it is history and stays as written. What changed:
+// B08 retired the horizontal nav, returning ~37px of vertical budget, so the
+// 1280x720 region now hosts nine rows. The 1280x720 case therefore no longer
+// asserts "fewer than nine"; it asserts the property that premise stood for —
+// the size is measured, and the pager stays reachable at it. The 1366x768 and
+// 1440x900 cases still pin the historical nine-row contract, unchanged, because
+// extra vertical budget cannot break a floor those viewports already cleared.
 
 const POPULATED_ADMIN_COOKIE = "e2e_populated_admin_session";
 const WORKSPACE = '[data-dashboard-module-workspace="admin-users-roles"]';
@@ -180,7 +189,7 @@ async function openWorkspace(page: Page) {
 }
 
 test.describe("Admin Usuarios/Roles · pager reachability across desktop heights", () => {
-  test("1280x720 adapts below the historical floor and keeps the pager clickable", async ({
+  test("1280x720 adapts to the available geometry and keeps the pager clickable", async ({
     page,
   }) => {
     const requests: URL[] = [];
@@ -190,10 +199,20 @@ test.describe("Admin Usuarios/Roles · pager reachability across desktop heights
     await openWorkspace(page);
 
     const first = await readGeometry(page);
-    expect(
-      first.renderedRows,
-      "1280x720: nine rows do not fit, so the page must be smaller",
-    ).toBeLessThan(HISTORICAL_DESKTOP_ROWS);
+    // This assertion used to read `renderedRows < 9`: at 1280x720 the region
+    // could not host the historical nine-row floor, so "smaller than nine" was
+    // a usable stand-in for "measured, not floored". B08 retired the horizontal
+    // nav and returned ~37px of vertical budget to the workspace, so nine rows
+    // now DO fit here and that stand-in stopped being true — without anything
+    // about the contract changing.
+    //
+    // The contract was never the number. It is: the page size is whatever the
+    // measured region can host, and the pager stays reachable at that size.
+    // Both halves are asserted below and neither pins a row count — `limit ===
+    // renderedRows` proves the card requested exactly what it rendered, and
+    // `expectNoPagerInvasion` proves the rows fit the region, clear the pager,
+    // and scroll nothing. Freezing a new number here would re-introduce exactly
+    // the coupling this spec exists to forbid.
     expect(first.renderedRows, "1280x720: the page must still render rows").toBeGreaterThan(0);
     expectNoPagerInvasion(first, "1280x720 page 1");
 

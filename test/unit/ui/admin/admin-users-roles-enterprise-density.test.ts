@@ -8,7 +8,12 @@ const CARD_PATH =
 const PAGE_PATH = "frontend/src/app/dashboard/admin/page.tsx";
 const CONTROLLER_PATH =
   "frontend/src/app/dashboard/admin/AdminDashboardWorkspaceController.tsx";
-const NAV_PATH = "frontend/src/components/dashboard/DashboardHorizontalNav.tsx";
+// B08 retired DashboardHorizontalNav. Reachability of an admin module is now
+// a property of the canonical catalog the lateral navigation derives from,
+// rather than of one component's private item list — a strictly stronger
+// anchor: it also fails if the module loses its glyph.
+const MODULE_CATALOG_PATH = "frontend/src/features/dashboard/config/dashboardModules.ts";
+const MODULE_ICONS_PATH = "frontend/src/components/dashboard/dashboardModuleIcons.ts";
 const API_PATH = "frontend/src/lib/api.ts";
 const GLOBALS_PATH = "frontend/src/app/globals.css";
 
@@ -22,14 +27,15 @@ function read(relativePath: string) {
 test("PR-7A preserves the real admin-users-roles navigation surface", () => {
   const page = read(PAGE_PATH);
   const controller = read(CONTROLLER_PATH);
-  const nav = read(NAV_PATH);
+  const catalog = read(MODULE_CATALOG_PATH);
 
   assert.ok(page.includes('id="admin-users-roles"'));
   assert.ok(page.includes('"admin-users-roles": usersRolesWorkspaceSlot'));
   assert.ok(page.includes("<AdminUsersRolesReadOnlyCard />"));
   assert.ok(controller.includes('"admin-users-roles": {'));
   assert.ok(controller.includes('title: "Usuarios y roles"'));
-  assert.ok(nav.includes("?module=admin-users-roles"));
+  assert.ok(catalog.includes('moduleId: "admin-users-roles"') &&
+      read(MODULE_ICONS_PATH).includes('"admin-users-roles":'));
 });
 
 test("PR-7A uses viewport-safe adaptive server pagination with a nine-row fallback", () => {

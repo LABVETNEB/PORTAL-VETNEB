@@ -385,11 +385,17 @@ async function expectNotClippedByAncestors(locator: Locator, label: string) {
 async function expectMobileChrome(page: Page, viewport: Viewport, label: string) {
   const appBar = page.locator('[data-admin-mobile-app-bar="true"]');
   const bottomNav = page.locator('[data-admin-mobile-bottom-nav="true"]');
-  const horizontalNav = page.locator('[data-dashboard-horizontal-nav-shell="true"]');
+  // B08: the retired horizontal nav must not exist at all, and neither lateral
+  // primitive may paint below 768px — that regime belongs to the mobile model.
+  const retiredHorizontalNav = page.locator('[data-dashboard-horizontal-nav-shell="true"]');
+  const lateralNav = page.locator(
+    "[data-dashboard-navigation-drawer], [data-dashboard-navigation-rail]",
+  );
 
   await expectInsideViewport(appBar, viewport, `${label}: app bar`);
   await expectInsideViewport(bottomNav, viewport, `${label}: bottom nav`);
-  await expect(horizontalNav, `${label}: desktop nav absent`).toBeHidden();
+  await expect(retiredHorizontalNav, `${label}: retired desktop nav absent`).toHaveCount(0);
+  await expect(lateralNav.first(), `${label}: lateral nav hidden on mobile`).toBeHidden();
 
   const navItems = bottomNav.locator('[data-admin-mobile-bottom-nav-item="true"]');
   await expect(navItems).toHaveCount(5);
@@ -602,8 +608,8 @@ test("Admin desktop final polish smoke at 1280x800", async ({ page }, testInfo) 
   await mockMissingPopulatedApis(page);
   await preparePage(page, DESKTOP_VIEWPORT, "/dashboard/admin");
 
-  const horizontalNav = page.locator('[data-dashboard-horizontal-nav-shell="true"]');
-  await expect(horizontalNav).toBeVisible({ timeout: 15_000 });
+  const lateralDrawer = page.locator('[data-dashboard-navigation-drawer]');
+  await expect(lateralDrawer).toBeVisible({ timeout: 15_000 });
   await expect(page.locator('[data-admin-mobile-bottom-nav="true"]')).toBeHidden();
   await expect(page.locator('[data-admin-mobile-hub-launcher="true"]')).toBeHidden();
   const desktopHub = page.locator('[data-dashboard-module-hub="true"]');
@@ -621,7 +627,7 @@ test("Admin desktop final polish smoke at 1280x800", async ({ page }, testInfo) 
       DESKTOP_VIEWPORT,
       `/dashboard/admin?module=${moduleScreen.moduleId}`,
     );
-    await expect(horizontalNav).toBeVisible({ timeout: 15_000 });
+    await expect(lateralDrawer).toBeVisible({ timeout: 15_000 });
     await expect(page.locator('[data-admin-mobile-bottom-nav="true"]')).toBeHidden();
     await expect(page.locator(moduleScreen.mobileRoot)).toBeHidden();
 

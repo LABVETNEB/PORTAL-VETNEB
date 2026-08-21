@@ -38,16 +38,23 @@ import {
  * two primitives is visible is a pure function of the viewport, decided in CSS,
  * so nothing here can desynchronise from the URL the controller reads.
  *
- * NOT MOUNTED YET. B07 creates the primitive; migrating the shell onto it and
- * retiring `DashboardHorizontalNav`/`DashboardModuleRail` is B08, and the
- * <768px model is B09. Mounting it now would render two navigation systems at
- * once and move `main`, re-paging the 15 adaptive consumers frozen by A03.
+ * MOUNTED BY B08 through `DashboardNavigationFrame`, the single mount site.
+ * B08 retired `DashboardHorizontalNav` outright and removed
+ * `DashboardModuleRail` from the >=768px regime; the rail survives below 768px
+ * only, where it is still the clinic module navigation until B09 unifies the
+ * mobile model.
+ *
+ * A NULL ADMIN MODULE IS LEGAL. `/dashboard/admin` without `?module=` is the
+ * hub: every module stays reachable and NO item carries `aria-current`.
+ * Defaulting the hub onto a module, or inventing an "Inicio" item, would be
+ * B13.
  *
  * @see docs/implementation/dashboard-b07-navigation-drawer-rail.md
+ * @see docs/implementation/dashboard-b08-navigation-migration.md
  */
 
 export type NavigationDrawerProps =
-  | { readonly surface: "admin"; readonly activeModule: AdminModule }
+  | { readonly surface: "admin"; readonly activeModule: AdminModule | null }
   | { readonly surface: "clinic"; readonly activeModule: ClinicModule };
 
 type NavigationDrawerItem = {

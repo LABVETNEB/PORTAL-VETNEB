@@ -29,12 +29,21 @@ async function setAdminSession(page: Page) {
   ]);
 }
 
-function clinicRail(page: Page) {
-  return page.locator('[data-dashboard-module-rail="true"]');
+// B08: at the default viewport the clinic module navigation is the lateral
+// drawer. The legacy rail keeps its own test below, in the <768px regime where
+// it is still the clinic module navigation (B09 owns its replacement).
+function clinicLateralNav(page: Page) {
+  return page.locator('[data-dashboard-navigation-drawer="clinic"]');
 }
 
-function clinicRailItem(page: Page, moduleId: ClinicModule) {
-  return page.locator(`[data-dashboard-module-rail-item="${moduleId}"]`);
+function clinicLateralNavItem(page: Page, moduleId: ClinicModule) {
+  return clinicLateralNav(page).locator(
+    `[data-dashboard-navigation-item="${moduleId}"]`,
+  );
+}
+
+function legacyClinicRail(page: Page) {
+  return page.locator('[data-dashboard-module-rail="true"]');
 }
 
 test.describe("dashboard interaction foundation — smoke (PR-1)", () => {
@@ -56,8 +65,11 @@ test.describe("dashboard interaction foundation — smoke (PR-1)", () => {
     await expect(
       page.locator('[data-dashboard-module-workspace="operaciones"]'),
     ).toBeVisible();
-    // The single shared module rail is present.
-    await expect(clinicRail(page)).toBeVisible();
+    // The lateral navigation is present, and the retired horizontal nav is not.
+    await expect(clinicLateralNav(page)).toBeVisible();
+    await expect(
+      page.locator("[data-dashboard-horizontal-nav-shell]"),
+    ).toHaveCount(0);
 
     // The removed Home/hub must NOT come back.
     await expect(page.locator('[data-dashboard-module-hub="true"]')).toHaveCount(0);
@@ -65,34 +77,48 @@ test.describe("dashboard interaction foundation — smoke (PR-1)", () => {
     await expect(page.getByText("Módulos clínicos")).toHaveCount(0);
   });
 
-  test("shared clinic rail exposes the active module and interactive pager controls", async ({
+  test("clinic lateral navigation exposes the active module and every other one", async ({
     page,
   }) => {
     await setClinicSession(page);
     await page.goto("/dashboard");
 
-    const rail = clinicRail(page);
-    await expect(rail).toBeVisible({ timeout: 8_000 });
+    await expect(clinicLateralNav(page)).toBeVisible({ timeout: 8_000 });
 
-    // Default module is operaciones and the rail marks it active.
-    await expect(clinicRailItem(page, "operaciones")).toHaveAttribute(
+    // Default module is operaciones and the lateral nav marks it active.
+    await expect(clinicLateralNavItem(page, "operaciones")).toHaveAttribute(
       "aria-current",
       "page",
     );
 
-    // Every module is reachable from the same shared rail.
+    // Every module is reachable from the same band, and only one is current.
     for (const moduleId of [
       "informes",
       "logistica",
       "perfil",
       "tokens",
     ] as ClinicModule[]) {
-      await expect(clinicRailItem(page, moduleId)).toBeVisible();
+      await expect(clinicLateralNavItem(page, moduleId)).toBeVisible();
     }
+    await expect(
+      clinicLateralNav(page).locator("[aria-current='page']"),
+    ).toHaveCount(1);
+  });
 
-    // Pager controls use the shared interactive styling token (PR-1 contract:
-    // the shared `dashboard-*-interactive` grammar, here `dashboard-nav-interactive`,
-    // replaces the removed hub-card / "Vista general" controls).
+  test("the legacy rail keeps its interactive pager grammar below 768px", async ({
+    page,
+  }) => {
+    // B08 removed the rail from >=768px and did not reproduce its prev/next
+    // pager. Below 768px the rail is still the clinic module navigation, so the
+    // PR-1 contract (the shared `dashboard-*-interactive` grammar, here
+    // `dashboard-nav-interactive`) is asserted in that regime.
+    await setClinicSession(page);
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.goto("/dashboard");
+
+    const rail = legacyClinicRail(page);
+    await expect(rail).toBeVisible({ timeout: 8_000 });
+
     const next = rail.locator('[data-dashboard-module-rail-next="true"]');
     await expect(next).toBeVisible();
     await expect(next).toHaveClass(/dashboard-nav-interactive/);
@@ -121,13 +147,13 @@ test.describe("dashboard interaction foundation — smoke (PR-1)", () => {
     await expect(
       page.locator('[data-dashboard-module-workspace="informes"]'),
     ).toBeVisible({ timeout: 12_000 });
-    await expect(clinicRailItem(page, "informes")).toHaveAttribute(
+    await expect(clinicLateralNavItem(page, "informes")).toHaveAttribute(
       "aria-current",
       "page",
     );
 
     // Switching via the shared rail changes the active workspace and the URL.
-    await clinicRailItem(page, "operaciones").click();
+    await clinicLateralNavItem(page, "operaciones").click();
     await expect(page).toHaveURL(/\/dashboard\?module=operaciones$/, {
       timeout: 5_000,
     });
@@ -149,7 +175,7 @@ test.describe("dashboard interaction foundation — smoke (PR-1)", () => {
     await expect(
       page.locator('[data-dashboard-module-workspace="operaciones"]'),
     ).toBeVisible({ timeout: 8_000 });
-    await expect(clinicRail(page)).toBeVisible();
+    await expect(clinicLateralNav(page)).toBeVisible();
     await expect(page.locator('[data-dashboard-module-hub="true"]')).toHaveCount(0);
   });
 

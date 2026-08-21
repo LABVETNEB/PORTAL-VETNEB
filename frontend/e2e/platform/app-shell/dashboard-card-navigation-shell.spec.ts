@@ -55,12 +55,24 @@ function hubCard(hub: ReturnType<Page["locator"]>, title: string) {
   return hub.locator(`button[aria-label^="${title}:"]`);
 }
 
-function clinicRail(page: Page) {
-  return page.locator('[data-dashboard-module-rail="true"]');
+// B08: at the default Playwright viewport (1280x720) the clinic module
+// navigation is the lateral DRAWER. The legacy rail no longer paints at
+// >=768px; it survives only below 768px, where it is still the clinic module
+// navigation on /dashboard and B09 owns its replacement. The pager block near
+// the end of this file exercises it in that regime, which is the only regime
+// where the prev/next affordance still exists.
+function clinicLateralNav(page: Page) {
+  return page.locator('[data-dashboard-navigation-drawer="clinic"]');
 }
 
-function clinicRailItem(page: Page, moduleId: ClinicModule): Locator {
-  return page.locator(`[data-dashboard-module-rail-item="${moduleId}"]`);
+function clinicLateralNavItem(page: Page, moduleId: ClinicModule): Locator {
+  return clinicLateralNav(page).locator(
+    `[data-dashboard-navigation-item="${moduleId}"]`,
+  );
+}
+
+function legacyClinicRail(page: Page) {
+  return page.locator('[data-dashboard-module-rail="true"]');
 }
 
 // ─── Scope guard ──────────────────────────────────────────────────────────────
@@ -90,7 +102,7 @@ test.describe("clinic dashboard — default workspace (no hub)", () => {
     await expect(
       page.locator('[data-dashboard-module-workspace="operaciones"]'),
     ).toBeVisible({ timeout: 8_000 });
-    await expect(clinicRail(page)).toBeVisible();
+    await expect(clinicLateralNav(page)).toBeVisible();
     // The legacy clinic cockpit/hub must be gone entirely.
     await expect(page.locator('[data-dashboard-module-hub="true"]')).toHaveCount(0);
     await expect(page.locator('[data-clinic-cockpit="true"]')).toHaveCount(0);
@@ -101,7 +113,7 @@ test.describe("clinic dashboard — default workspace (no hub)", () => {
     test(`the shared rail exposes the ${railLabel} module`, async ({ page }) => {
       await page.goto("/dashboard");
 
-      const item = clinicRailItem(page, moduleId);
+      const item = clinicLateralNavItem(page, moduleId);
       await expect(item).toBeVisible({ timeout: 8_000 });
       await expect(item).toContainText(new RegExp(railLabel, "i"));
     });
@@ -110,31 +122,28 @@ test.describe("clinic dashboard — default workspace (no hub)", () => {
   test("the rail marks the default operaciones module as active", async ({ page }) => {
     await page.goto("/dashboard");
 
-    await expect(clinicRail(page)).toBeVisible({ timeout: 8_000 });
-    await expect(clinicRailItem(page, "operaciones")).toHaveAttribute(
+    await expect(clinicLateralNav(page)).toBeVisible({ timeout: 8_000 });
+    await expect(clinicLateralNavItem(page, "operaciones")).toHaveAttribute(
       "aria-current",
       "page",
     );
   });
 
-  test("rail items and pager controls have accessible names", async ({ page }) => {
+  test("lateral navigation items have accessible names", async ({ page }) => {
+    // The drawer's accessible name IS its visible label (the compact rail is
+    // the one that needs an aria-label, because its visible text is the
+    // shortLabel). Asserting the visible label here is the stronger form: it
+    // fails if the name and the text ever disagree.
     await page.goto("/dashboard");
 
-    const rail = clinicRail(page);
-    await expect(rail).toBeVisible({ timeout: 8_000 });
+    await expect(clinicLateralNav(page)).toBeVisible({ timeout: 8_000 });
 
-    for (const { moduleId } of CLINIC_RAIL_MODULES) {
-      await expect(clinicRailItem(page, moduleId)).toHaveAttribute(
-        "aria-label",
-        /.+/,
-      );
+    for (const { moduleId, railLabel } of CLINIC_RAIL_MODULES) {
+      await expect(
+        clinicLateralNavItem(page, moduleId),
+        `${moduleId}: named by its visible label`,
+      ).toHaveText(new RegExp(railLabel, "i"));
     }
-    await expect(
-      rail.locator('[data-dashboard-module-rail-prev="true"]'),
-    ).toHaveAttribute("aria-label", /.+/);
-    await expect(
-      rail.locator('[data-dashboard-module-rail-next="true"]'),
-    ).toHaveAttribute("aria-label", /.+/);
   });
 });
 
@@ -155,7 +164,7 @@ test.describe("clinic dashboard — rail navigation", () => {
         page.locator('[data-dashboard-module-workspace="perfil"]'),
       ).toBeVisible({ timeout: 8_000 });
 
-      const item = clinicRailItem(page, moduleId);
+      const item = clinicLateralNavItem(page, moduleId);
       await expect(item).toBeVisible();
       await item.click();
 
@@ -166,7 +175,7 @@ test.describe("clinic dashboard — rail navigation", () => {
       await expect(
         page.locator(`[data-dashboard-module-workspace="${workspaceId}"]`),
       ).toBeVisible({ timeout: 12_000 });
-      await expect(clinicRailItem(page, workspaceId)).toHaveAttribute(
+      await expect(clinicLateralNavItem(page, workspaceId)).toHaveAttribute(
         "aria-current",
         "page",
       );
@@ -185,14 +194,18 @@ test.describe("clinic dashboard — rail navigation", () => {
     ).toHaveCount(0);
   });
 
-  test("the rail pager steps through modules and updates the URL", async ({
+  test("the legacy rail pager steps through modules and updates the URL (<768px)", async ({
     page,
   }) => {
+    // B08 removed the rail from >=768px and deliberately did NOT reproduce its
+    // prev/next pager in the lateral model. The pager contract is therefore
+    // asserted where the pager still lives: the mobile regime B09 owns.
+    await page.setViewportSize({ width: 375, height: 812 });
     await page.goto("/dashboard");
-    await expect(clinicRail(page)).toBeVisible({ timeout: 8_000 });
+    await expect(legacyClinicRail(page)).toBeVisible({ timeout: 8_000 });
 
     // operaciones → next → informes
-    await clinicRail(page)
+    await legacyClinicRail(page)
       .locator('[data-dashboard-module-rail-next="true"]')
       .click();
     await expect(page).toHaveURL(/\/dashboard\?module=informes$/, {
@@ -203,7 +216,7 @@ test.describe("clinic dashboard — rail navigation", () => {
     ).toBeVisible({ timeout: 5_000 });
 
     // informes → prev → operaciones
-    await clinicRail(page)
+    await legacyClinicRail(page)
       .locator('[data-dashboard-module-rail-prev="true"]')
       .click();
     await expect(page).toHaveURL(/\/dashboard\?module=operaciones$/, {
@@ -435,8 +448,8 @@ test.describe("dashboard shell — no global scroll", () => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto("/dashboard");
 
-    await expect(clinicRail(page)).toBeVisible({ timeout: 8_000 });
-    await clinicRailItem(page, "informes").click();
+    await expect(clinicLateralNav(page)).toBeVisible({ timeout: 8_000 });
+    await clinicLateralNavItem(page, "informes").click();
     await expect(
       page.locator('[data-dashboard-module-workspace="informes"]'),
     ).toBeVisible({ timeout: 5_000 });
@@ -491,7 +504,7 @@ test.describe("clinic dashboard — deep link direct navigation", () => {
     await expect(
       page.locator('[data-dashboard-module-workspace="informes"]'),
     ).toBeVisible({ timeout: 8_000 });
-    await expect(clinicRailItem(page, "informes")).toHaveAttribute(
+    await expect(clinicLateralNavItem(page, "informes")).toHaveAttribute(
       "aria-current",
       "page",
     );
@@ -623,55 +636,56 @@ test.describe("clinic module rail — primary navigation", () => {
     await setClinicSession(page);
   });
 
-  test("is the only clinic module navigation on the main dashboard (no top-tab bar)", async ({ page }) => {
+  test("is the only clinic module navigation on the main dashboard (>=768px)", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto("/dashboard");
 
-    const rail = clinicRail(page);
-    await expect(rail).toBeVisible({ timeout: 8_000 });
-    // The legacy horizontal tab bar is suppressed here — the rail is the single
-    // module pager shared across devices.
+    await expect(clinicLateralNav(page)).toBeVisible({ timeout: 8_000 });
+    // The retired horizontal tab bar must not exist at all, and the legacy rail
+    // must not paint in this regime: exactly one module navigation, and it is
+    // the lateral model.
     await expect(
       page.locator("[role='navigation'][aria-label='Navegación principal']"),
     ).toHaveCount(0);
+    await expect(page.locator("[data-dashboard-horizontal-nav-shell]")).toHaveCount(0);
+    await expect(legacyClinicRail(page)).toBeHidden();
   });
 
-  test("renders as a horizontal rail (not a vertical sidebar) at desktop", async ({ page }) => {
+  test("renders as a vertical lateral band beside main, not a horizontal strip", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto("/dashboard");
 
-    const rail = clinicRail(page);
-    await expect(rail).toBeVisible({ timeout: 8_000 });
+    const drawer = clinicLateralNav(page);
+    await expect(drawer).toBeVisible({ timeout: 8_000 });
 
-    const box = await rail.boundingBox();
+    const box = await drawer.boundingBox();
     expect(box).not.toBeNull();
-    expect(box!.width).toBeGreaterThan(box!.height);
-    expect(box!.width).toBeGreaterThan(400);
-    expect(box!.height).toBeLessThanOrEqual(96);
+    // The orientation flipped with the model: the band is now taller than it is
+    // wide, and its width is the drawer token (256 ±1), not a full-width strip.
+    expect(box!.height).toBeGreaterThan(box!.width);
+    expect(Math.abs(box!.width - 256)).toBeLessThanOrEqual(1);
+
+    // It takes inline size, never vertical budget: main starts to its right.
+    const mainBox = await page.locator("main.dashboard-main").boundingBox();
+    expect(mainBox).not.toBeNull();
+    expect(mainBox!.x).toBeGreaterThanOrEqual(box!.x + box!.width - 0.5);
   });
 
-  test("rail items have aria-label for accessibility", async ({ page }) => {
+  test("lateral navigation exposes every operational module exactly once", async ({ page }) => {
     await page.goto("/dashboard");
 
-    const rail = clinicRail(page);
-    await expect(rail).toBeVisible({ timeout: 8_000 });
+    await expect(clinicLateralNav(page)).toBeVisible({ timeout: 8_000 });
+    await expect(
+      clinicLateralNav(page).locator("[data-dashboard-navigation-item]"),
+    ).toHaveCount(CLINIC_RAIL_MODULES.length);
 
-    const railLinks = rail.locator("[data-dashboard-module-rail-item][aria-label]");
-    await expect(railLinks).toHaveCount(CLINIC_RAIL_MODULES.length);
-  });
-
-  test("rail exposes every operational module", async ({ page }) => {
-    await page.goto("/dashboard");
-
-    await expect(clinicRailItem(page, "informes")).toBeVisible({ timeout: 8_000 });
-    await expect(clinicRailItem(page, "logistica")).toBeVisible();
-    await expect(clinicRailItem(page, "perfil")).toBeVisible();
-    await expect(clinicRailItem(page, "tokens")).toBeVisible();
-    await expect(clinicRailItem(page, "operaciones")).toBeVisible();
+    for (const { moduleId } of CLINIC_RAIL_MODULES) {
+      await expect(clinicLateralNavItem(page, moduleId)).toBeVisible();
+    }
   });
 });
 
-test.describe("dashboard horizontal nav — admin module navigation", () => {
+test.describe("dashboard lateral nav — admin module navigation", () => {
   test.beforeEach(async ({ page }) => {
     await setAdminSession(page);
   });
@@ -679,12 +693,14 @@ test.describe("dashboard horizontal nav — admin module navigation", () => {
   test("clicking a nav module preserves ?module= and marks it active", async ({ page }) => {
     await page.goto("/dashboard/admin");
 
-    const nav = page.locator(
-      "[role='navigation'][aria-label='Navegación principal']",
-    );
+    // B08 retired the "Navegación principal" landmark with its component; the
+    // admin lateral drawer carries its own role-specific landmark name.
+    const nav = page.locator('[data-dashboard-navigation-drawer="admin"]');
     await expect(nav).toBeVisible({ timeout: 8_000 });
 
-    const clinicasItem = nav.getByRole("button", { name: "Clínicas" });
+    const clinicasItem = nav.locator(
+      '[data-dashboard-navigation-item="admin-clinics"]',
+    );
     await clinicasItem.click();
 
     await expect(page).toHaveURL(/module=admin-clinics/, { timeout: 5_000 });

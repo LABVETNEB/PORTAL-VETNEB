@@ -359,11 +359,17 @@ async function readDesktopMetricsOnce(page: Page): Promise<DesktopMetrics> {
         .find((text) => /^\d+ por página$/.test(text));
       const perPage = perPageLabel ? Number(perPageLabel.split(" ")[0]) : null;
 
+      // B08: the lateral navigation renders the admin module labels, and
+      // "Clínicas" is both a module label and a summary chip label. An
+      // unscoped document scan resolves to the nav item (whose parent is a
+      // route button with no <strong>), so the scan is bound to the
+      // workspace that owns these chips. Not a .first() — a real owner.
+      const workspaceRoot = document.querySelector(workspaceSelector);
       const summary: Record<string, string> = {};
       for (const summaryLabel of ["Total filtrado", "Admins", "Clínicas"]) {
-        const span = Array.from(document.querySelectorAll("span")).find(
-          (node) => node.textContent?.trim() === summaryLabel,
-        );
+        const span = Array.from(
+          (workspaceRoot ?? document).querySelectorAll("span"),
+        ).find((node) => node.textContent?.trim() === summaryLabel);
         const strong = span?.parentElement?.querySelector("strong");
         summary[summaryLabel] = strong?.textContent?.trim() ?? "";
       }

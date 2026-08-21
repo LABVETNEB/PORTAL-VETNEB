@@ -31,22 +31,24 @@ import {
  * navigation models at once - a tab track AND a prev/next pager with a
  * "Módulo N de 5" counter - so the same intent has two affordances that can
  * report different states. B07 ships the list and nothing else; the pager is
- * not reproduced here.
+ * not reproduced here, and B08 did not reproduce it when it mounted this rail.
  *
  * ACCESSIBLE NAME. The visible text is the compact `shortLabel` ("Manten."),
  * which is not a usable name on its own, so every control carries the full
  * `label` as `aria-label`; `title` is a sighted-user affordance on top of it,
  * never the name itself. The glyph is decorative (`aria-hidden`).
  *
- * PRESENTATION-PURE, STATELESS and NOT MOUNTED YET - same B07/G-1 boundary as
- * the drawer: B08 mounts both and retires the legacy navigation, B09 owns
- * <768px.
+ * PRESENTATION-PURE and STATELESS - same contract as the drawer, and mounted
+ * with it by `DashboardNavigationFrame` (B08). A null admin module is legal
+ * there too: it is the hub state, and it carries no `aria-current`. B09 still
+ * owns <768px, where neither primitive paints.
  *
  * @see docs/implementation/dashboard-b07-navigation-drawer-rail.md
+ * @see docs/implementation/dashboard-b08-navigation-migration.md
  */
 
 export type NavigationRailProps =
-  | { readonly surface: "admin"; readonly activeModule: AdminModule }
+  | { readonly surface: "admin"; readonly activeModule: AdminModule | null }
   | { readonly surface: "clinic"; readonly activeModule: ClinicModule };
 
 type NavigationRailItem = {

@@ -19,13 +19,19 @@ import { buildDashboardModuleHref } from "@/features/dashboard/application";
 import type { ClinicModule } from "./ClinicDashboardWorkspaceController";
 
 /**
- * Single, device-agnostic module navigation/pager for the clinic workspace.
+ * Clinic module navigation/pager for `/dashboard` BELOW 768px.
  *
- * This is the ONE canonical control used to move between every clinic module
- * (operaciones · informes · logística · perfil · tokens). It renders the same
- * markup and styling on Android/iOS/desktop — there is no separate desktop
- * top-tab bar or mobile bottom bar for the primary `/dashboard` surface, so
- * navigation can never drift into "different pagers per device".
+ * B08 removed this rail from the >=768px regime (`display: none` from 768px up,
+ * in the B08 block of `styles/dashboard/navigation.css`): there the lateral
+ * model owns navigation — `NavigationRail` at 768-1279px and `NavigationDrawer`
+ * from 1280px.
+ *
+ * IT IS NOT DEAD CODE, and B08 deliberately did not delete it.
+ * `ClinicMobileBottomNav` returns null on `/dashboard`, so below 768px this
+ * rail is the ONLY module navigation that surface has. Removing it before the
+ * mobile model has a replacement would leave the phone dashboard with no way to
+ * change module. That replacement — and this component's physical retirement —
+ * is B09's.
  *
  * Two integrated affordances, one grammar:
  *  - a horizontal rail of module tabs (active module is `aria-current`), and

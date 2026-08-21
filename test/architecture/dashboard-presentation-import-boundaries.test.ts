@@ -75,7 +75,18 @@ const NAVIGATION_REQUIRED_EXPORTS: Record<string, readonly string[]> = {
   // grandfathered into it.
   NavigationDrawer: ["NavigationDrawer", "NavigationDrawerProps"],
   NavigationRail: ["NavigationRail", "NavigationRailProps"],
-  DashboardHorizontalNav: ["DashboardHorizontalNav", "DashboardNavSurface"],
+  // B08 mount site. It enters under the same closure rules as every other
+  // target: it renders the two primitives and resolves the active module from
+  // the catalog parsers, so its import closure never reaches the data layer.
+  DashboardNavigationFrame: [
+    "DashboardNavigationFrame",
+    "DashboardNavigationFrameProps",
+  ],
+  // `DashboardHorizontalNav` was removed by B08, which retired it physically:
+  // it was a pure >=768px surface, so the lateral model replaces it outright.
+  // `DashboardModuleRail` stays: B08 removed it from >=768px only, and below
+  // that it is still the clinic module navigation on `/dashboard` (see
+  // ClinicMobileBottomNav's early return). B09 owns its final retirement.
   DashboardModuleRail: ["DashboardModuleRail", "CLINIC_MODULE_RAIL_ITEMS"],
   AdminMobileBottomNav: ["AdminMobileBottomNav"],
   ClinicMobileBottomNav: ["ClinicMobileBottomNav"],

@@ -34,11 +34,26 @@ const NAVIGATION_CSS = "frontend/src/styles/dashboard/navigation.css";
 const RESPONSIVE_CSS = "frontend/src/styles/dashboard/responsive.css";
 const FRONTEND_SRC = "frontend/src";
 
-/** Legacy navigation B08 retires; B07 must leave it standing. */
-const B08_FENCE = [
-  "frontend/src/components/dashboard/DashboardHorizontalNav.tsx",
-  "frontend/src/components/dashboard/DashboardModuleRail.tsx",
-];
+/**
+ * Legacy navigation, after B08 resolved it. The two retirements are NOT
+ * symmetric and this file no longer pretends they are:
+ *
+ *   `DashboardHorizontalNav` is GONE. It was a pure >=768px surface, so the
+ *   lateral model replaced it outright with no mobile consequence.
+ *
+ *   `DashboardModuleRail` SURVIVES below 768px. `ClinicMobileBottomNav`
+ *   returns null on `/dashboard`, so the rail is still the clinic module
+ *   navigation there; B08 removed it from >=768px only and B09 owns the
+ *   deletion.
+ */
+const RETIRED_BY_B08 =
+  "frontend/src/components/dashboard/DashboardHorizontalNav.tsx";
+const MOBILE_OWNED_UNTIL_B09 =
+  "frontend/src/components/dashboard/DashboardModuleRail.tsx";
+
+/** The single B08 mount site of the two primitives. */
+const NAVIGATION_FRAME_TSX =
+  "frontend/src/components/dashboard/DashboardNavigationFrame.tsx";
 
 /** Mobile navigation B09 unifies; B07 must not touch it. */
 const B09_FENCE = [
@@ -802,17 +817,24 @@ test("B07 · nothing in the block animates a structural size", () => {
 
 // ── T14-T16 · Scope fences: B08, B09 and B06 are untouched ───────────────────
 
-test("B07 · the legacy navigation B08 retires is still standing and still exported", () => {
+test("B07 · B08 resolved the legacy navigation asymmetrically", () => {
   const barrel = read(NAVIGATION_BARREL);
 
-  for (const path of B08_FENCE) {
-    assert.ok(
-      existsSync(resolve(REPO_ROOT, path)),
-      `${path} must survive B07: retiring it is B08 (audit §49, depends on B07 + A08). Removing it here would leave the shell with no mounted navigation`,
-    );
-  }
+  assert.equal(
+    existsSync(resolve(REPO_ROOT, RETIRED_BY_B08)),
+    false,
+    `${RETIRED_BY_B08} was retired physically by B08: it only ever rendered at >=768px, which is exactly the regime the drawer and the rail now own`,
+  );
+  assert.equal(
+    stripComments(barrel).includes("DashboardHorizontalNav"),
+    false,
+    "the barrel must not re-export a retired component",
+  );
 
-  assert.ok(barrel.includes('from "@/components/dashboard/DashboardHorizontalNav";'));
+  assert.ok(
+    existsSync(resolve(REPO_ROOT, MOBILE_OWNED_UNTIL_B09)),
+    `${MOBILE_OWNED_UNTIL_B09} must survive: below 768px it is still the clinic module navigation on /dashboard, and deleting it before B09 ships a replacement would strand that surface`,
+  );
   assert.ok(barrel.includes('from "@/components/dashboard/DashboardModuleRail";'));
 });
 
@@ -847,14 +869,32 @@ test("B07 · the B06 app bar keeps its own geometry ledger", () => {
   );
 });
 
-// ── T17 · The primitives are not mounted: B07 is a creation PR ───────────────
+// ── T17 · The primitives are mounted exactly once (B08 closed G-1) ───────────
 
-test("B07 · G-1 boundary: the primitives exist but no runtime surface mounts them", () => {
+test("B07 · the primitives have exactly one mount site, and it is the B08 frame", () => {
+  assert.ok(
+    existsSync(resolve(REPO_ROOT, NAVIGATION_FRAME_TSX)),
+    "B08 mounts the primitives through DashboardNavigationFrame",
+  );
+
+  const frame = stripComments(read(NAVIGATION_FRAME_TSX));
+  assert.equal(
+    [...frame.matchAll(/<NavigationDrawer[\s/>]/g)].length,
+    1,
+    "exactly one drawer mount site",
+  );
+  assert.equal(
+    [...frame.matchAll(/<NavigationRail[\s/>]/g)].length,
+    1,
+    "exactly one rail mount site",
+  );
+
+  // No OTHER surface may mount them: a second mount site would ship two lateral
+  // navigations at once and move `main` against the A03 freeze. The chrome and
+  // mobile surfaces below are the ones that could plausibly try.
   const consumers: string[] = [];
-
-  for (const path of [...B08_FENCE, ...B09_FENCE, APP_BAR_TSX]) {
-    const source = read(path);
-    if (/<NavigationDrawer[\s/>]|<NavigationRail[\s/>]/.test(source)) {
+  for (const path of [MOBILE_OWNED_UNTIL_B09, ...B09_FENCE, APP_BAR_TSX]) {
+    if (/<NavigationDrawer[\s/>]|<NavigationRail[\s/>]/.test(read(path))) {
       consumers.push(path);
     }
   }
@@ -862,6 +902,6 @@ test("B07 · G-1 boundary: the primitives exist but no runtime surface mounts th
   assert.deepEqual(
     consumers,
     [],
-    "B07 creates the primitives; MOUNTING them and retiring the legacy navigation is B08. Rendering them now would ship double navigation and move `main` against the A03 freeze",
+    "the primitives are mounted by the B08 frame and by nothing else",
   );
 });

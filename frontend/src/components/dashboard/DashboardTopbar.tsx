@@ -13,7 +13,6 @@ import { logout as logoutClinic, logoutAdmin } from "@/lib/api";
 import { clearDashboardLastModules } from "@/lib/dashboard-last-module";
 import { ROUTES } from "@/lib/routes";
 import { DashboardNotificationsBell } from "./DashboardNotificationsBell";
-import { DashboardHorizontalNav } from "./DashboardHorizontalNav";
 import { AdminMobileKebabMenu } from "./AdminMobileKebabMenu";
 import { WorkspaceAppBar } from "./WorkspaceAppBar";
 
@@ -157,8 +156,6 @@ export function DashboardTopbar({
         }
         overflow={isAdmin ? <AdminMobileKebabMenu /> : null}
       />
-
-      <DashboardHorizontalNav />
     </header>
   );
 }

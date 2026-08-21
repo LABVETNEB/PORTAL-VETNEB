@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";
+import { DashboardNavigationFrame } from "@/components/dashboard/DashboardNavigationFrame";
 import {
   ClinicDashboardWorkspaceController,
   DEFAULT_CLINIC_MODULE,
@@ -120,53 +121,55 @@ export default async function DashboardPage({
         subtitle="Portal operativo clínica"
         notifications="clinic"
       />
-      <main className="dashboard-main">
-        <Suspense>
-          <ClinicDashboardWorkspaceController
-            initialModule={initialModule}
-            workspaces={{
-              operaciones: (
-                <ClinicMobileModuleFrame moduleId="operaciones">
-                  <ClinicCommandCenter
-                    stats={stats}
-                    statsLoadError={statsLoadError}
-                    recentReports={recentReports.slice(0, 3)}
-                    recentVisits={recentVisits.slice(0, 3)}
-                    reportsLoadError={reportsLoadError}
-                    visitsLoadError={visitsLoadError}
-                  />
-                </ClinicMobileModuleFrame>
-              ),
-              informes: (
-                <ClinicMobileModuleFrame moduleId="informes">
-                  <ClinicInformesWorkspaceSummary
-                    recentReports={recentReports}
-                    reportsLoadError={reportsLoadError}
-                  />
-                </ClinicMobileModuleFrame>
-              ),
-              logistica: (
-                <ClinicMobileModuleFrame moduleId="logistica">
-                  <ClinicLogisticaWorkspaceSummary
-                    recentVisits={recentVisits}
-                    visitsLoadError={visitsLoadError}
-                  />
-                </ClinicMobileModuleFrame>
-              ),
-              perfil: (
-                <ClinicMobileModuleFrame moduleId="perfil">
-                  <ClinicPublicProfileCard />
-                </ClinicMobileModuleFrame>
-              ),
-              tokens: (
-                <ClinicMobileModuleFrame moduleId="tokens">
-                  <ClinicParticularTokensCard />
-                </ClinicMobileModuleFrame>
-              ),
-            }}
-          />
-        </Suspense>
-      </main>
+      <DashboardNavigationFrame surface="clinic">
+        <main className="dashboard-main">
+          <Suspense>
+            <ClinicDashboardWorkspaceController
+              initialModule={initialModule}
+              workspaces={{
+                operaciones: (
+                  <ClinicMobileModuleFrame moduleId="operaciones">
+                    <ClinicCommandCenter
+                      stats={stats}
+                      statsLoadError={statsLoadError}
+                      recentReports={recentReports.slice(0, 3)}
+                      recentVisits={recentVisits.slice(0, 3)}
+                      reportsLoadError={reportsLoadError}
+                      visitsLoadError={visitsLoadError}
+                    />
+                  </ClinicMobileModuleFrame>
+                ),
+                informes: (
+                  <ClinicMobileModuleFrame moduleId="informes">
+                    <ClinicInformesWorkspaceSummary
+                      recentReports={recentReports}
+                      reportsLoadError={reportsLoadError}
+                    />
+                  </ClinicMobileModuleFrame>
+                ),
+                logistica: (
+                  <ClinicMobileModuleFrame moduleId="logistica">
+                    <ClinicLogisticaWorkspaceSummary
+                      recentVisits={recentVisits}
+                      visitsLoadError={visitsLoadError}
+                    />
+                  </ClinicMobileModuleFrame>
+                ),
+                perfil: (
+                  <ClinicMobileModuleFrame moduleId="perfil">
+                    <ClinicPublicProfileCard />
+                  </ClinicMobileModuleFrame>
+                ),
+                tokens: (
+                  <ClinicMobileModuleFrame moduleId="tokens">
+                    <ClinicParticularTokensCard />
+                  </ClinicMobileModuleFrame>
+                ),
+              }}
+            />
+          </Suspense>
+        </main>
+      </DashboardNavigationFrame>
     </>
   );
 }

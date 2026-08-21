@@ -72,8 +72,10 @@ for (const capture of CAPTURES) {
     await page.setViewportSize({ width: capture.width, height: capture.height });
     await page.goto(capture.url, { waitUntil: "networkidle" });
 
-    // The unified workspace always renders the rail + an active module.
-    await page.waitForSelector('[data-dashboard-module-rail="true"]', {
+    // The unified workspace always renders the lateral navigation + an active
+    // module. B08 moved that band off the legacy rail at >=768px, and every
+    // capture below is a >=768px viewport.
+    await page.waitForSelector('[data-dashboard-navigation-drawer="clinic"]', {
       timeout: 15_000,
     });
     await page.waitForSelector("[data-dashboard-module-workspace]", {

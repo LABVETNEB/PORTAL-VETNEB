@@ -328,3 +328,50 @@
   }
 }
 /* dashboard-b07-navigation-drawer-rail:end */
+
+/* dashboard-b08-navigation-migration:start */
+/*
+  B08 - mounting the lateral model.
+
+  One row of the shell holds the navigation band and the workspace side by
+  side. The band is a REAL flex item, never a fixed/absolute overlay: `main`
+  keeps the remaining inline size and the whole block size, so the lateral
+  navigation costs width and never vertical budget.
+
+  UNLAYERED, like the B06 app-bar block in layout.css and the B07 block above:
+  `main.dashboard-main` is authored with Tailwind utilities that live in
+  `@layer utilities`, and a layered rule here would silently lose the cascade.
+
+  NO SIZE ANIMATION (R11/A03): nothing transitions an inline-size, a block-size
+  or a flex-basis. A size transition feeds the ResizeObserver behind the
+  adaptive capacity engine, which makes `limit` oscillate and re-fetch.
+
+  LEGACY_MODULE_RAIL_DESKTOP_RETIREMENT. `.dashboard-module-rail` leaves the
+  >=768px regime here, so from 768px up exactly one lateral model is visible:
+  the B07 rail (768-1279) or the B07 drawer (>=1280). Below 768px the legacy
+  rail stays live and untouched - `ClinicMobileBottomNav` returns null on
+  `/dashboard`, so it IS the clinic module navigation on phones. Deleting the
+  component is B09's, together with the mobile model it would have to replace.
+*/
+.dashboard-app-shell .dashboard-navigation-frame {
+  display: flex;
+  flex-direction: row;
+  min-inline-size: 0;
+  min-block-size: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+/* The workspace takes what the band leaves. `min-inline-size: 0` is what lets
+   a wide table shrink instead of pushing the document into horizontal
+   overflow; the flex-item default (`auto`) would floor it at its content. */
+.dashboard-app-shell .dashboard-navigation-frame > .dashboard-main {
+  min-inline-size: 0;
+}
+
+@media (min-width: 768px) {
+  .dashboard-app-shell .dashboard-module-rail {
+    display: none;
+  }
+}
+/* dashboard-b08-navigation-migration:end */

@@ -8,7 +8,12 @@ const CARD_PATH =
 const PAGE_PATH = "frontend/src/app/dashboard/admin/page.tsx";
 const CONTROLLER_PATH =
   "frontend/src/app/dashboard/admin/AdminDashboardWorkspaceController.tsx";
-const NAV_PATH = "frontend/src/components/dashboard/DashboardHorizontalNav.tsx";
+// B08 retired DashboardHorizontalNav. Reachability of an admin module is now
+// a property of the canonical catalog the lateral navigation derives from,
+// rather than of one component's private item list — a strictly stronger
+// anchor: it also fails if the module loses its glyph.
+const MODULE_CATALOG_PATH = "frontend/src/features/dashboard/config/dashboardModules.ts";
+const MODULE_ICONS_PATH = "frontend/src/components/dashboard/dashboardModuleIcons.ts";
 const API_PATH = "frontend/src/lib/api.ts";
 const GLOBALS_PATH = "frontend/src/app/globals.css";
 
@@ -22,14 +27,15 @@ function read(relativePath: string) {
 test("PR-7B preserves the real admin-sessions navigation surface", () => {
   const page = read(PAGE_PATH);
   const controller = read(CONTROLLER_PATH);
-  const nav = read(NAV_PATH);
+  const catalog = read(MODULE_CATALOG_PATH);
 
   assert.ok(page.includes('id="admin-sessions"'));
   assert.ok(page.includes('"admin-sessions": sessionsWorkspaceSlot'));
   assert.ok(page.includes("<AdminSessionsReadOnlyCard />"));
   assert.ok(controller.includes('"admin-sessions": {'));
   assert.ok(controller.includes('title: "Sesiones"'));
-  assert.ok(nav.includes("?module=admin-sessions"));
+  assert.ok(catalog.includes('moduleId: "admin-sessions"') &&
+      read(MODULE_ICONS_PATH).includes('"admin-sessions":'));
 });
 
 test("PR-7B uses viewport-safe server pagination with eight rows", () => {

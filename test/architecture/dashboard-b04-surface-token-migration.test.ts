@@ -265,6 +265,11 @@ const PERSISTENT_CHROME_ANCHORS = [
   '[data-dashboard-topbar-polish="true"]',
   '[data-dashboard-horizontal-nav-shell="true"]',
   "[data-dashboard-module-rail]",
+  // B08 lateral band: new persistent chrome, so it enters the same inventory.
+  // Addressed by class, which is how the B07 block authors its flatness
+  // (`--dash-elevation-none`).
+  ".dashboard-navigation-drawer",
+  ".dashboard-navigation-rail",
   '[data-dashboard-filter-bar="true"]',
   '[data-sticky-action-bar="true"]',
   '[data-admin-mobile-bottom-nav="true"]',

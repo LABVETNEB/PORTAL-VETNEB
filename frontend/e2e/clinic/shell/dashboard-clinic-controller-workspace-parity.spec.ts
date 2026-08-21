@@ -148,9 +148,9 @@ test.describe("clinic controller/workspace parity contract (PR-CL1)", () => {
   });
 
   // The clinic workspace has no "Vista general" back control anymore (module
-  // navigation is owned by the shared rail), so single-click module switching
-  // is exercised through the rail item itself.
-  test("clinic rail reaches the operational default in a single click", async ({
+  // navigation is owned by the lateral band since B08), so single-click module
+  // switching is exercised through the lateral navigation item itself.
+  test("clinic lateral nav reaches the operational default in a single click", async ({
     page,
   }) => {
     await setClinicSession(page);
@@ -158,13 +158,15 @@ test.describe("clinic controller/workspace parity contract (PR-CL1)", () => {
     await expectSingleClinicLayer(page, "tokens");
 
     await page
-      .locator(`[data-dashboard-module-rail-item="${DEFAULT_CLINIC_MODULE}"]`)
+      .locator(
+        `[data-dashboard-navigation-drawer="clinic"] [data-dashboard-navigation-item="${DEFAULT_CLINIC_MODULE}"]`,
+      )
       .click();
 
     await expectSingleClinicLayer(page, DEFAULT_CLINIC_MODULE);
   });
 
-  test("clinic stage persists when switching modules through the rail", async ({
+  test("clinic stage persists when switching modules through the lateral nav", async ({
     page,
   }) => {
     await setClinicSession(page);
@@ -177,7 +179,9 @@ test.describe("clinic controller/workspace parity contract (PR-CL1)", () => {
     });
 
     await page
-      .locator(`[data-dashboard-module-rail-item="${DEFAULT_CLINIC_MODULE}"]`)
+      .locator(
+        `[data-dashboard-navigation-drawer="clinic"] [data-dashboard-navigation-item="${DEFAULT_CLINIC_MODULE}"]`,
+      )
       .click();
 
     await expectSingleClinicLayer(page, DEFAULT_CLINIC_MODULE);
@@ -188,23 +192,23 @@ test.describe("clinic controller/workspace parity contract (PR-CL1)", () => {
     ).toBeVisible();
   });
 
-  // The horizontal top nav is suppressed on the clinic main dashboard; the
-  // module rail is the single clinic module navigation there, so aria-current
-  // is asserted on the rail item.
+  // B08 retired the horizontal top nav and moved clinic module navigation onto
+  // the lateral band, which owns >=768px (this spec's default viewport), so
+  // aria-current is asserted on the lateral item.
   for (const moduleId of CLINIC_MODULES) {
-    test(`clinic ${moduleId} keeps active rail item aria-current visible`, async ({
+    test(`clinic ${moduleId} keeps active lateral item aria-current visible`, async ({
       page,
     }) => {
       await setClinicSession(page);
       await page.goto(`/dashboard?module=${moduleId}`);
       await expectSingleClinicLayer(page, moduleId);
 
-      const rail = page.getByRole("navigation", {
-        name: "Navegación de módulos de clínica",
+      const lateralNav = page.getByRole("navigation", {
+        name: "Navegación lateral de clínica",
       });
-      await expect(rail).toBeVisible({ timeout: 8_000 });
+      await expect(lateralNav).toBeVisible({ timeout: 8_000 });
       await expect(
-        rail.locator(`[data-dashboard-module-rail-item="${moduleId}"]`),
+        lateralNav.locator(`[data-dashboard-navigation-item="${moduleId}"]`),
       ).toHaveAttribute("aria-current", "page");
     });
   }
