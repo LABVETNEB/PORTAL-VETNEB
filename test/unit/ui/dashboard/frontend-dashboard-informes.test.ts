@@ -254,8 +254,12 @@ test("dashboard informes server-adaptive viewport pagination contract (R-07)", (
   assert.equal(constantsSource.includes('"use client"'), false);
   assert.ok(constantsSource.includes("export const INFORMES_FALLBACK_ROWS = 6;"));
   assert.ok(constantsSource.includes("export const INFORMES_LIMIT_CAP = 24;"));
-  assert.ok(listSource.includes("const latestRequestRef = useRef(0);"));
-  assert.ok(listSource.includes("if (requestId !== latestRequestRef.current) {"));
+  assert.ok(listSource.includes("const desiredQueryRef = useRef<InformesPageQuery>(query);"));
+  assert.ok(listSource.includes("const satisfiedQueryKeyRef = useRef(queryKey);"));
+  assert.ok(listSource.includes("const requestInFlightRef = useRef(false);"));
+  assert.ok(listSource.includes("requestInFlightRef.current = true;"));
+  assert.ok(listSource.includes("nextQueryKey !== desiredQueryKeyRef.current"));
+  assert.equal(listSource.includes("latestRequestRef"), false);
   assert.equal(listSource.includes("matchMedia"), false);
 
   assert.ok(actionsSource.includes("export async function getInformesPage("));
