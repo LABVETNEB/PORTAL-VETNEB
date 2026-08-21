@@ -132,6 +132,71 @@ test("the lateral navigation navigates via PublicRouteControl and the shared gra
   }
 });
 
+test("the lateral primitives preserve distinct landmarks and complete accessible names", () => {
+  const drawer = read(DRAWER_PATH);
+  const rail = read(RAIL_PATH);
+
+  for (const [source, compact] of [
+    [drawer, false],
+    [rail, true],
+  ] as const) {
+    assert.ok(
+      source.includes(
+        compact
+          ? 'const ADMIN_LANDMARK = "Navegación lateral compacta de administración";'
+          : 'const ADMIN_LANDMARK = "Navegación lateral de administración";',
+      ),
+    );
+    assert.ok(
+      source.includes(
+        compact
+          ? 'const CLINIC_LANDMARK = "Navegación lateral compacta de clínica";'
+          : 'const CLINIC_LANDMARK = "Navegación lateral de clínica";',
+      ),
+    );
+    assert.ok(
+      source.includes("aria-label={isAdmin ? ADMIN_LANDMARK : CLINIC_LANDMARK}"),
+      "each visible navigation landmark needs a role- and primitive-specific name",
+    );
+    assert.ok(
+      source.includes('aria-hidden="true"'),
+      "module glyphs stay decorative",
+    );
+  }
+
+  assert.ok(
+    drawer.includes(
+      '<span className="dashboard-navigation-drawer-label">{item.label}</span>',
+    ),
+    "the drawer exposes the full visible label as the control name",
+  );
+  assert.ok(rail.includes("aria-label={item.label}"));
+  assert.ok(rail.includes("title={item.label}"));
+  assert.ok(
+    rail.includes(
+      '<span className="dashboard-navigation-rail-label">{item.shortLabel}</span>',
+    ),
+    "the compact rail keeps the short visible label while aria-label carries the full name",
+  );
+});
+
+test("the lateral primitives keep natural keyboard order without roving tabindex", () => {
+  for (const path of [DRAWER_PATH, RAIL_PATH]) {
+    const source = read(path);
+
+    assert.equal(
+      /tabIndex\s*=/.test(source),
+      false,
+      `${path} must keep the route controls in natural DOM tab order`,
+    );
+    assert.equal(
+      /onKeyDown\s*=/.test(source),
+      false,
+      `${path} must not replace the route control's native keyboard activation`,
+    );
+  }
+});
+
 test("the clinic surface still notifies the controller before route navigation", () => {
   for (const path of [DRAWER_PATH, RAIL_PATH]) {
     const source = read(path);

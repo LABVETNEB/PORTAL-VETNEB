@@ -169,7 +169,7 @@ test/unit/ui/dashboard/frontend-dashboard-horizontal-nav.test.ts
 **Modificados — runtime**
 
 ```text
-frontend/src/components/dashboard/DashboardTopbar.tsx          import + render del nav
+frontend/src/components/dashboard/DashboardTopbar.tsx          retiro de import + render del nav horizontal
 frontend/src/components/dashboard/NavigationDrawer.tsx         AdminModule | null + doc
 frontend/src/components/dashboard/NavigationRail.tsx           AdminModule | null + doc
 frontend/src/components/dashboard/DashboardModuleRail.tsx      sólo doc (régimen <768)
