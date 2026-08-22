@@ -537,6 +537,14 @@ export function ParticularesContent() {
     }
   }
 
+  // Metadata de longitud variable del informe: study_type varchar(100) +
+  // file_name varchar(255) (drizzle/schema.ts). Es el único texto del panel
+  // autenticado sin cota de diseño, así que la superficie operacional lo acota
+  // visualmente y expone el valor completo por `title`.
+  const reportMetaLabel = session?.report
+    ? `${session.report.studyType ?? "Estudio"} · ${session.report.fileName ?? "Archivo disponible"}`
+    : undefined;
+
   const nextStepCopy = session
     ? session.report
       ? "Use los botones de arriba para ver o descargar el informe vinculado a su caso."
@@ -953,7 +961,11 @@ export function ParticularesContent() {
                                 Disponible
                               </span>
                             </div>
-                            <p className="mt-1 min-w-0 max-w-full overflow-hidden text-sm text-muted-foreground [overflow-wrap:anywhere]">
+                            <p
+                              data-particulares-report-meta="true"
+                              title={reportMetaLabel}
+                              className="mt-1 min-w-0 max-w-full overflow-hidden text-sm text-muted-foreground [overflow-wrap:anywhere]"
+                            >
                               {session.report.studyType ?? "Estudio"} ·{" "}
                               {session.report.fileName ?? "Archivo disponible"}
                             </p>
@@ -1008,7 +1020,11 @@ export function ParticularesContent() {
                                 Disponible
                               </span>
                             </div>
-                            <p className="mt-1 min-w-0 max-w-full overflow-hidden text-sm text-muted-foreground [overflow-wrap:anywhere]">
+                            <p
+                              data-particulares-report-meta="true"
+                              title={reportMetaLabel}
+                              className="mt-1 min-w-0 max-w-full overflow-hidden text-sm text-muted-foreground [overflow-wrap:anywhere]"
+                            >
                               {session.report.studyType ?? "Estudio"} ·{" "}
                               {session.report.fileName ?? "Archivo disponible"}
                             </p>
@@ -1043,6 +1059,7 @@ export function ParticularesContent() {
                     </>
                   ) : (
                     <div
+                      id="particular-report"
                       data-particulares-report-state="pending"
                       className="clinical-alert-info flex items-start gap-3 p-4"
                     >

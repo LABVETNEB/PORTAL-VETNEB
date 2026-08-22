@@ -2,95 +2,250 @@ import { expect, test } from "@playwright/test";
 
 import {
   assertParticularNoScrollContract,
+  assertParticularOperationalViewportContract,
+  MAX_REPORT_FILE_NAME_LENGTH,
+  MAX_REPORT_STUDY_TYPE_LENGTH,
+  MOCK_PARTICULAR_REPORT_MAX_FILE_NAME,
+  MOCK_PARTICULAR_REPORT_MAX_FILE_NAME_TOKEN,
+  MOCK_PARTICULAR_REPORT_MAX_STUDY_TYPE,
   mockParticularAuthenticatedSession,
   readParticularDocumentNoScrollContract,
+  readParticularOperationalGeometry,
   setParticularSessionCookie,
+  type ParticularSessionFixtureState,
 } from "../../helpers/particular-session-contracts";
 
 const TOLERANCE = 2;
 
-const VIEWPORTS = [
-  { name: "360x740", width: 360, height: 740 },
-  { name: "390x844", width: 390, height: 844 },
-  { name: "1366x768", width: 1366, height: 768 },
+// El zoom del navegador reduce el viewport CSS y sube devicePixelRatio; el
+// layout responde exclusivamente al viewport CSS, así que la matriz usa el
+// viewport reducido como reproducción determinista del zoom (los porcentajes
+// están calculados sobre una superficie física de referencia de 1920x870).
+const ZOOM_MATRIX = [
+  { name: "zoom-100-1920x870", width: 1920, height: 870 },
+  { name: "zoom-125-1536x696", width: 1536, height: 696 },
+  { name: "zoom-150-1280x580", width: 1280, height: 580 },
+  { name: "zoom-200-960x435", width: 960, height: 435 },
+  { name: "desktop-1366x768", width: 1366, height: 768 },
+  { name: "mobile-390x844", width: 390, height: 844 },
+  { name: "mobile-360x740", width: 360, height: 740 },
 ] as const;
 
+// Fronteras medidas del fallo original: el recorte empezaba a 832px de alto y
+// el logout se perdía a partir de 815px. Quedan como test de regresión exacta.
+const HEIGHT_BOUNDARIES = [833, 832, 816, 815] as const;
+
+const STATES = [
+  { name: "report-available", fixture: "report-available" as const, hasReportActions: true },
+  { name: "report-pending", fixture: "report-pending" as const, hasReportActions: false },
+];
+
+async function openAuthenticatedParticulares(
+  page: import("@playwright/test").Page,
+  width: number,
+  height: number,
+  state: ParticularSessionFixtureState,
+) {
+  await page.setViewportSize({ width, height });
+  await setParticularSessionCookie(page);
+  await mockParticularAuthenticatedSession(page, state);
+
+  await page.goto("/particulares");
+
+  await expect(
+    page.locator('[data-particular-session-panel="true"]'),
+  ).toBeVisible({ timeout: 15_000 });
+  await expect(
+    page.locator('html[data-particular-operational-viewport="true"]'),
+  ).toHaveCount(1, { timeout: 10_000 });
+}
+
 test.describe("particular authenticated session — fixed-viewport no-scroll (R-18)", () => {
-  for (const viewport of VIEWPORTS) {
-    test(`authenticated /particulares fits the viewport at ${viewport.name}`, async ({
+  for (const state of STATES) {
+    for (const viewport of ZOOM_MATRIX) {
+      test(`${state.name} adapts at ${viewport.name}`, async ({ page }) => {
+        await openAuthenticatedParticulares(
+          page,
+          viewport.width,
+          viewport.height,
+          state.fixture,
+        );
+
+        const label = `${state.name} ${viewport.name}`;
+        const isMobile = viewport.width < 640;
+        const tracking = isMobile
+          ? page.locator('[data-particular-mobile-flat-card="tracking"]')
+          : page.locator("#particular-study-tracking");
+        const report = isMobile && state.hasReportActions
+          ? page.locator('[data-particular-mobile-flat-card="report"]')
+          : page.locator("#particular-report");
+
+        await expect(tracking, `${label}: tracking visible`).toBeVisible();
+        await expect(report, `${label}: report surface visible`).toBeVisible();
+
+        if (state.hasReportActions) {
+          await expect(
+            report.getByRole("button", { name: "Ver informe" }),
+            `${label}: primary action Ver informe`,
+          ).toBeVisible();
+          await expect(
+            report.getByRole("button", { name: "Descargar" }),
+            `${label}: primary action Descargar`,
+          ).toBeVisible();
+        } else {
+          await expect(
+            report,
+            `${label}: pending report keeps its explanation`,
+          ).toContainText("Sin informe vinculado todavía");
+        }
+
+        await expect(async () => {
+          const geometry = await readParticularOperationalGeometry(page);
+          assertParticularOperationalViewportContract(geometry, label);
+
+          const contract = await readParticularDocumentNoScrollContract(page);
+          assertParticularNoScrollContract(contract, label);
+          expect(
+            contract.html.scrollHeight,
+            `${label}: external vertical scroll delta`,
+          ).toBeLessThanOrEqual(contract.html.clientHeight + TOLERANCE);
+          expect(
+            contract.body.scrollHeight,
+            `${label}: body vertical scroll delta`,
+          ).toBeLessThanOrEqual(contract.body.clientHeight + TOLERANCE);
+        }).toPass({ timeout: 12_000 });
+      });
+    }
+
+    for (const height of HEIGHT_BOUNDARIES) {
+      test(`${state.name} holds the contract at 1536x${height}`, async ({ page }) => {
+        await openAuthenticatedParticulares(page, 1536, height, state.fixture);
+
+        await expect(async () => {
+          const geometry = await readParticularOperationalGeometry(page);
+          assertParticularOperationalViewportContract(
+            geometry,
+            `${state.name} 1536x${height}`,
+          );
+        }).toPass({ timeout: 12_000 });
+      });
+    }
+  }
+
+  // Metadata de informe en su longitud máxima válida de schema. Sin cota, la
+  // ficha crece dentro de una fila de grid acotada y empuja acciones y logout
+  // fuera del recorte por encima de 700px de alto, donde no hay banda de
+  // compactación ni scroll owner.
+  const MAX_METADATA_VIEWPORTS = [
+    { name: "mobile-390x844", width: 390, height: 844 },
+    { name: "desktop-1366x768", width: 1366, height: 768 },
+    { name: "zoom-125-1536x696", width: 1536, height: 696 },
+    { name: "zoom-150-1280x580", width: 1280, height: 580 },
+  ] as const;
+
+  test("schema limits stay pinned to the production varchar lengths", () => {
+    expect(MAX_REPORT_STUDY_TYPE_LENGTH, "reports.study_type varchar").toBe(100);
+    expect(MAX_REPORT_FILE_NAME_LENGTH, "reports.file_name varchar").toBe(255);
+    expect(MOCK_PARTICULAR_REPORT_MAX_STUDY_TYPE).toHaveLength(
+      MAX_REPORT_STUDY_TYPE_LENGTH,
+    );
+    expect(MOCK_PARTICULAR_REPORT_MAX_FILE_NAME).toHaveLength(
+      MAX_REPORT_FILE_NAME_LENGTH,
+    );
+    expect(MOCK_PARTICULAR_REPORT_MAX_FILE_NAME_TOKEN).toHaveLength(
+      MAX_REPORT_FILE_NAME_LENGTH,
+    );
+  });
+
+  for (const viewport of MAX_METADATA_VIEWPORTS) {
+    test(`max-length report metadata keeps actions and logout reachable at ${viewport.name}`, async ({
       page,
     }) => {
-      await page.setViewportSize({ width: viewport.width, height: viewport.height });
-      await setParticularSessionCookie(page);
-      await mockParticularAuthenticatedSession(page);
+      await openAuthenticatedParticulares(
+        page,
+        viewport.width,
+        viewport.height,
+        "report-max-metadata",
+      );
 
-      await page.goto("/particulares");
-
-      // Authenticated operational state ready.
-      await expect(
-        page.locator('[data-particular-session-panel="true"]'),
-      ).toBeVisible({ timeout: 15_000 });
-      await expect(
-        page.locator('html[data-particular-operational-viewport="true"]'),
-      ).toHaveCount(1, { timeout: 10_000 });
-
-      // Core operational content visible without scroll: tracking + report +
-      // primary actions.
+      const label = `max-metadata ${viewport.name}`;
       const isMobile = viewport.width < 640;
-      const tracking = isMobile
-        ? page.locator('[data-particular-mobile-flat-card="tracking"]')
-        : page.locator("#particular-study-tracking");
       const report = isMobile
         ? page.locator('[data-particular-mobile-flat-card="report"]')
         : page.locator("#particular-report");
 
-      await expect(tracking, `${viewport.name}: tracking visible`).toBeVisible();
-      await expect(report, `${viewport.name}: report visible`).toBeVisible();
       await expect(
         report.getByRole("button", { name: "Ver informe" }),
-        `${viewport.name}: primary action Ver informe`,
+        `${label}: Ver informe reachable`,
       ).toBeVisible();
       await expect(
         report.getByRole("button", { name: "Descargar" }),
-        `${viewport.name}: primary action Descargar`,
+        `${label}: Descargar reachable`,
+      ).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: "Cerrar sesión particular" }),
+        `${label}: logout reachable`,
       ).toBeVisible();
 
-      // Fixed-viewport contract: zero external scroll in both axes plus the
-      // pre-existing forbidden-overflow invariant.
       await expect(async () => {
-        const contract = await readParticularDocumentNoScrollContract(page);
-        assertParticularNoScrollContract(contract, `authenticated ${viewport.name}`);
-        expect(
-          contract.html.scrollHeight,
-          `${viewport.name}: external vertical scroll delta`,
-        ).toBeLessThanOrEqual(contract.html.clientHeight + TOLERANCE);
-        expect(
-          contract.body.scrollHeight,
-          `${viewport.name}: body vertical scroll delta`,
-        ).toBeLessThanOrEqual(contract.body.clientHeight + TOLERANCE);
-      }).toPass({ timeout: 12_000 });
+        const geometry = await readParticularOperationalGeometry(page);
+        assertParticularOperationalViewportContract(geometry, label);
 
-      // Operational content must not escape below the viewport (bottom escape
-      // delta = 0).
-      for (const [label, locator] of [
-        ["tracking", tracking],
-        ["report", report],
-      ] as const) {
-        const box = await locator.boundingBox();
-        expect(box, `${viewport.name}: ${label} box`).not.toBeNull();
         expect(
-          box!.y + box!.height,
-          `${viewport.name}: ${label} must not escape below the viewport`,
-        ).toBeLessThanOrEqual(viewport.height + TOLERANCE);
-      }
+          geometry.reportMetadata,
+          `${label}: report metadata surface must be declared`,
+        ).not.toBeNull();
+        expect(
+          geometry.reportMetadata?.accessibleValue,
+          `${label}: the full metadata value must stay readable`,
+        ).toContain(MOCK_PARTICULAR_REPORT_MAX_FILE_NAME);
+      }).toPass({ timeout: 12_000 });
     });
   }
 
-  test("logout restores the public marketing document flow", async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
-    await setParticularSessionCookie(page);
-    await mockParticularAuthenticatedSession(page);
+  test("max-length metadata without separators stays bounded at 390x844", async ({
+    page,
+  }) => {
+    await openAuthenticatedParticulares(page, 390, 844, "report-max-metadata-token");
 
+    await expect(async () => {
+      const geometry = await readParticularOperationalGeometry(page);
+      assertParticularOperationalViewportContract(
+        geometry,
+        "max-metadata-token 390x844",
+      );
+      expect(
+        geometry.reportMetadata?.accessibleValue,
+        "max-metadata-token: full value readable",
+      ).toContain(MOCK_PARTICULAR_REPORT_MAX_FILE_NAME_TOKEN);
+    }).toPass({ timeout: 12_000 });
+  });
+
+  test("insufficient height activates exactly one declared scroll owner", async ({
+    page,
+  }) => {
+    await openAuthenticatedParticulares(page, 390, 400, "report-available");
+
+    await expect(async () => {
+      const geometry = await readParticularOperationalGeometry(page);
+      assertParticularOperationalViewportContract(geometry, "390x400");
+
+      expect(
+        geometry.scrollOwners,
+        "390x400: the operational body must own the only scroll",
+      ).toHaveLength(1);
+      expect(
+        geometry.scrollOwners[0].scrollableY,
+        "390x400: the declared owner must actually have content to scroll",
+      ).toBeGreaterThan(0);
+      expect(
+        geometry.logoutVisibleWithoutScroll,
+        "390x400: this régime is reached by scrolling, not by clipping",
+      ).toBe(false);
+    }).toPass({ timeout: 12_000 });
+  });
+
+  test("logout restores the public marketing document flow", async ({ page }) => {
     await page.route("**/api/particular/auth/logout", async (route) => {
       await route.fulfill({
         status: 200,
@@ -99,10 +254,7 @@ test.describe("particular authenticated session — fixed-viewport no-scroll (R-
       });
     });
 
-    await page.goto("/particulares");
-    await expect(
-      page.locator('html[data-particular-operational-viewport="true"]'),
-    ).toHaveCount(1, { timeout: 15_000 });
+    await openAuthenticatedParticulares(page, 390, 844, "report-available");
 
     await page
       .getByRole("button", { name: "Cerrar sesión particular" })

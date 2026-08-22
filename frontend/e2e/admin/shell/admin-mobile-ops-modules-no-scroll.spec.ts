@@ -406,7 +406,16 @@ for (const moduleSpec of OPS_MODULES) {
     await mockOpsApis(page);
     await page.goto(`/dashboard/admin?module=${moduleSpec.moduleId}`);
 
-    await expect(page.locator('[data-dashboard-navigation-drawer]')).toBeVisible({
+    // El fallback de Suspense deja una segunda copia del drawer en staging
+    // (0x0 dentro de un ancestro display:none), asi que el atributo por si solo
+    // resuelve a dos nodos y viola strict mode. Se ancla al drawer admin
+    // efectivamente visible: cero visibles falla, dos visibles falla por
+    // strictness, y la copia de staging queda fuera sin relajar el contrato.
+    await expect(
+      page
+        .locator('[data-dashboard-navigation-drawer="admin"]')
+        .filter({ visible: true }),
+    ).toBeVisible({
       timeout: 15_000,
     });
     await expect(page.locator('[data-admin-mobile-bottom-nav="true"]')).toBeHidden();
