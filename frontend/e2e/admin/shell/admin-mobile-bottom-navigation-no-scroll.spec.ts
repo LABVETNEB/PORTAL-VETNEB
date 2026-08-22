@@ -180,7 +180,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
   });
 }
 
-test("Admin desktop preserves horizontal navigation and desktop actions", async ({
+test("Admin desktop preserves lateral navigation and desktop actions", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
@@ -188,7 +188,7 @@ test("Admin desktop preserves horizontal navigation and desktop actions", async 
   await page.goto("/dashboard/admin");
 
   await expect(
-    page.locator('[data-dashboard-horizontal-nav-shell="true"]'),
+    page.locator('[data-dashboard-navigation-drawer="admin"]'),
   ).toBeVisible({ timeout: 15_000 });
   await expect(page.locator('[data-admin-mobile-bottom-nav="true"]')).toBeHidden();
   await expect(page.locator('[data-theme-toggle="true"]')).toBeVisible();

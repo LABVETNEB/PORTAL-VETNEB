@@ -280,7 +280,7 @@ test("Admin mobile hub tiles are borderless with a larger icon and preserved til
   }
 });
 
-test("Admin desktop hub keeps the previous layout and has no mobile launcher", async ({
+test("Admin desktop hub keeps lateral navigation and has no mobile launcher", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
@@ -289,7 +289,7 @@ test("Admin desktop hub keeps the previous layout and has no mobile launcher", a
   await suppressNextDevIndicator(page);
 
   await expect(
-    page.locator('[data-dashboard-horizontal-nav-shell="true"]'),
+    page.locator('[data-dashboard-navigation-drawer="admin"]'),
   ).toBeVisible({ timeout: 15_000 });
   await expect(page.locator('[data-admin-mobile-bottom-nav="true"]')).toBeHidden();
   await expect(
