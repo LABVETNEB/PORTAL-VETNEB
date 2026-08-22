@@ -921,3 +921,167 @@ test.describe("B08 · lateral navigation in dark-gray", () => {
     expect(failures.join("\n"), `dark-gray band violations`).toBe("");
   });
 });
+
+// ── H · Short heights: every rail destination stays reachable ───────────────
+
+const ADMIN_HUB_SURFACE = REPRESENTATIVES.find(
+  (surface) => surface.shellType === "admin-hub",
+)!;
+
+/**
+ * The rail is the only band whose intrinsic block size can exceed the frame.
+ * Admin carries ten 56px items, so it asks for 612px (10 items + 9 gaps + the
+ * block padding) while the drawer's 40px items never come close. The probe
+ * ladder above only samples tall viewports, so it cannot see this: 1024x600 is
+ * a 1280x750 laptop at 125% zoom, lands inside the rail regime, and leaves the
+ * frame ~544px — less than the band asks for.
+ *
+ * `.dashboard-navigation-frame` is `overflow: hidden`, so an unadapted band is
+ * not merely tight: its last destinations are CLIPPED with no affordance, and
+ * focusing one scrolls the frame, which drags `main` out of place because the
+ * frame is the row that holds both. AGENTS.md §10 forbids exactly that pair —
+ * clipping content and hiding critical actions — and names adaptive density,
+ * not `overflow-y: auto`, as the sanctioned answer.
+ */
+const SHORT_RAIL_VIEWPORT = { width: 1024, height: 600 } as const;
+const ADMIN_RAIL_ITEM_COUNT = 10;
+
+test.describe("B08 · rail destinations at short heights", () => {
+  test("every admin destination stays visible and focusable without scrolling the frame", async ({
+    page,
+  }) => {
+    await prepareRole(page, "admin");
+    await page.setViewportSize(SHORT_RAIL_VIEWPORT);
+    await openSurface(page, ADMIN_HUB_SURFACE);
+
+    await expect(
+      page.locator(RAIL_SELECTOR),
+      "short height stays inside the rail regime",
+    ).toBeVisible();
+    await expect(
+      page.locator(DRAWER_SELECTOR),
+      "the drawer must not paint below 1280px",
+    ).toBeHidden();
+
+    const items = page.locator(`${RAIL_SELECTOR} [data-dashboard-navigation-item]`);
+    await expect(items, "every admin destination is mounted").toHaveCount(
+      ADMIN_RAIL_ITEM_COUNT,
+    );
+
+    const geometry = await page.evaluate(
+      ({ railSelector, frameSelector }) => {
+        const rail = document.querySelector(railSelector) as HTMLElement;
+        const frame = document.querySelector(frameSelector) as HTMLElement;
+        const railBox = rail.getBoundingClientRect();
+        const cells = Array.from(
+          rail.querySelectorAll<HTMLElement>("[data-dashboard-navigation-item]"),
+        );
+        const last = cells[cells.length - 1]!;
+        const lastBox = last.getBoundingClientRect();
+
+        return {
+          railTop: railBox.top,
+          railBottom: railBox.bottom,
+          railClientHeight: rail.clientHeight,
+          railScrollHeight: rail.scrollHeight,
+          frameScrollTop: frame.scrollTop,
+          lastLabel: last.getAttribute("aria-label"),
+          lastTop: lastBox.top,
+          lastBottom: lastBox.bottom,
+          viewportHeight: window.innerHeight,
+        };
+      },
+      { railSelector: RAIL_SELECTOR, frameSelector: FRAME_SELECTOR },
+    );
+
+    const where = `rail ${geometry.railClientHeight}px (content ${geometry.railScrollHeight}px), last "${geometry.lastLabel}" at ${geometry.lastTop.toFixed(1)}–${geometry.lastBottom.toFixed(1)}, rail ends ${geometry.railBottom.toFixed(1)}`;
+
+    // The band must fit its own box: an intrinsic height above the client box
+    // is content the frame is already clipping.
+    expect(
+      geometry.railScrollHeight,
+      `the rail overflows its own box — ${where}`,
+    ).toBeLessThanOrEqual(geometry.railClientHeight + BAND_TOLERANCE_PX);
+
+    // …and the last destination has to be inside it, not merely laid out.
+    expect(
+      geometry.lastBottom,
+      `the last destination is clipped — ${where}`,
+    ).toBeLessThanOrEqual(geometry.railBottom + BAND_TOLERANCE_PX);
+    expect(
+      geometry.lastBottom,
+      `the last destination falls outside the viewport — ${where}`,
+    ).toBeLessThanOrEqual(geometry.viewportHeight + BAND_TOLERANCE_PX);
+
+    // Keyboard reach: focusing the last destination must not scroll the frame,
+    // because the frame is the row that carries `main` too.
+    const lastItem = items.nth(ADMIN_RAIL_ITEM_COUNT - 1);
+    await lastItem.focus();
+
+    const afterFocus = await page.evaluate(
+      ({ frameSelector }) => {
+        const frame = document.querySelector(frameSelector) as HTMLElement;
+        const focused = document.activeElement as HTMLElement | null;
+        const box = focused?.getBoundingClientRect() ?? null;
+        return {
+          frameScrollTop: frame.scrollTop,
+          focusedModule: focused?.getAttribute("data-dashboard-navigation-item") ?? null,
+          focusedBottom: box ? box.bottom : null,
+          viewportHeight: window.innerHeight,
+        };
+      },
+      { frameSelector: FRAME_SELECTOR },
+    );
+
+    expect(
+      afterFocus.focusedModule,
+      "the last destination takes keyboard focus",
+    ).not.toBeNull();
+    expect(
+      afterFocus.frameScrollTop,
+      "focusing a destination scrolled the navigation frame and displaced main",
+    ).toBeLessThanOrEqual(BAND_TOLERANCE_PX);
+    expect(
+      afterFocus.focusedBottom,
+      "the focused destination sits outside the viewport",
+    ).toBeLessThanOrEqual(afterFocus.viewportHeight + BAND_TOLERANCE_PX);
+
+    // The compaction is the contract here, not an accident: the band trades the
+    // rail item height for the drawer's. That is why this block asserts the four
+    // frame invariants directly instead of reusing `collectViolations` - that
+    // helper polices the FULL-density ladder, where the rail item is 56px, and
+    // it is right to keep doing so for the seven tall probes.
+    const reading = await readBand(page);
+
+    expect(
+      reading.railItemHeights.length,
+      "every destination is still measured",
+    ).toBe(ADMIN_RAIL_ITEM_COUNT);
+    for (const height of reading.railItemHeights) {
+      expect(
+        Math.abs(height - DRAWER_ITEM_HEIGHT_PX),
+        `compact rail item height ${height}px != ${DRAWER_ITEM_HEIGHT_PX}px`,
+      ).toBeLessThanOrEqual(ITEM_TOLERANCE_PX);
+    }
+
+    // The band keeps costing inline size only, and its width band is untouched.
+    expect(
+      Math.abs((reading.railWidth ?? 0) - RAIL_WIDTH_PX),
+      `compact rail width ${reading.railWidth}px != ${RAIL_WIDTH_PX}px`,
+    ).toBeLessThanOrEqual(BAND_TOLERANCE_PX);
+    expect(reading.htmlScrollTop, "document scrolled (html)").toBe(0);
+    expect(reading.bodyScrollTop, "document scrolled (body)").toBe(0);
+    expect(
+      reading.htmlScrollWidth,
+      "horizontal overflow appeared",
+    ).toBeLessThanOrEqual(reading.htmlClientWidth + 1);
+    expect(
+      reading.mainScrollHeight,
+      "main became an operational scroll container",
+    ).toBeLessThanOrEqual(reading.mainClientHeight + 1);
+    expect(
+      reading.appBarBottom ?? 0,
+      "app bar overlaps main",
+    ).toBeLessThanOrEqual((reading.mainTop ?? 0) + 0.5);
+  });
+});
