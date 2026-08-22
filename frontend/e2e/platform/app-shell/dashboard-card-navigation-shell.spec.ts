@@ -448,8 +448,21 @@ test.describe("dashboard shell — no global scroll", () => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto("/dashboard");
 
+    // A bare `/dashboard` entry canonicalizes itself onto the operational
+    // default through a replace-only router commit. That commit is still in
+    // flight while the lateral band is already painted, so clicking on the
+    // band alone races it: the late replace supersedes the click and the
+    // workspace snaps back to operaciones. Wait for the canonical URL first,
+    // so the navigation under test is the only one in flight, and assert the
+    // URL it commits before reading the workspace.
+    await expect(page).toHaveURL(/\/dashboard\?module=operaciones$/, {
+      timeout: 8_000,
+    });
     await expect(clinicLateralNav(page)).toBeVisible({ timeout: 8_000 });
     await clinicLateralNavItem(page, "informes").click();
+    await expect(page).toHaveURL(/\/dashboard\?module=informes$/, {
+      timeout: 5_000,
+    });
     await expect(
       page.locator('[data-dashboard-module-workspace="informes"]'),
     ).toBeVisible({ timeout: 5_000 });
