@@ -116,7 +116,62 @@ export async function setParticularSessionCookie(page: Page) {
 // /api/particular/auth/me, then getParticularStudyTrackingCase -> GET
 // /api/particular/study-tracking/me) so the page renders its authenticated
 // state without a real backend.
-export type ParticularSessionFixtureState = "report-available" | "report-pending";
+// Metadata de informe en su longitud máxima válida: `reports.study_type` es
+// varchar(100) y `reports.file_name` varchar(255) (drizzle/schema.ts). Es el
+// único texto del panel autenticado cuya longitud no está acotada por diseño,
+// así que el contrato operacional tiene que sostenerse con el peor caso legal.
+// Valores sintéticos, con espacios y segmentos realistas para forzar wrapping.
+const padToLength = (segment: string, length: number) => {
+  let value = segment;
+  while (value.length < length) {
+    value += ` ${segment}`;
+  }
+  return value.slice(0, length);
+};
+
+export const MAX_REPORT_STUDY_TYPE_LENGTH = 100;
+export const MAX_REPORT_FILE_NAME_LENGTH = 255;
+
+export const MOCK_PARTICULAR_REPORT_MAX_STUDY_TYPE = padToLength(
+  "Histopatologia con inmunohistoquimica y tinciones especiales de control diagnostico",
+  MAX_REPORT_STUDY_TYPE_LENGTH,
+);
+
+export const MOCK_PARTICULAR_REPORT_MAX_FILE_NAME = padToLength(
+  "informe-histopatologico-completo-con-inmunohistoquimica-panel-extendido-y-revision-de-segunda-opinion",
+  MAX_REPORT_FILE_NAME_LENGTH,
+);
+
+// Variante sin separadores: ejercita el `[overflow-wrap:anywhere]` del contrato
+// con un único token de longitud máxima.
+const MAX_FILE_NAME_TOKEN_SUFFIX = "-informe-final-revisado.pdf";
+export const MOCK_PARTICULAR_REPORT_MAX_FILE_NAME_TOKEN = `${"a".repeat(
+  MAX_REPORT_FILE_NAME_LENGTH - MAX_FILE_NAME_TOKEN_SUFFIX.length,
+)}${MAX_FILE_NAME_TOKEN_SUFFIX}`;
+
+export const MOCK_PARTICULAR_SESSION_MAX_METADATA = {
+  ...MOCK_PARTICULAR_SESSION,
+  report: {
+    ...MOCK_PARTICULAR_SESSION.report,
+    studyType: MOCK_PARTICULAR_REPORT_MAX_STUDY_TYPE,
+    fileName: MOCK_PARTICULAR_REPORT_MAX_FILE_NAME,
+  },
+};
+
+export const MOCK_PARTICULAR_SESSION_MAX_METADATA_TOKEN = {
+  ...MOCK_PARTICULAR_SESSION,
+  report: {
+    ...MOCK_PARTICULAR_SESSION.report,
+    studyType: MOCK_PARTICULAR_REPORT_MAX_STUDY_TYPE,
+    fileName: MOCK_PARTICULAR_REPORT_MAX_FILE_NAME_TOKEN,
+  },
+};
+
+export type ParticularSessionFixtureState =
+  | "report-available"
+  | "report-pending"
+  | "report-max-metadata"
+  | "report-max-metadata-token";
 
 const PARTICULAR_SESSION_FIXTURES = {
   "report-available": {
@@ -126,6 +181,14 @@ const PARTICULAR_SESSION_FIXTURES = {
   "report-pending": {
     particular: MOCK_PARTICULAR_SESSION_PENDING,
     trackingCase: MOCK_PARTICULAR_TRACKING_RECEPTION,
+  },
+  "report-max-metadata": {
+    particular: MOCK_PARTICULAR_SESSION_MAX_METADATA,
+    trackingCase: MOCK_PARTICULAR_TRACKING_CASE,
+  },
+  "report-max-metadata-token": {
+    particular: MOCK_PARTICULAR_SESSION_MAX_METADATA_TOKEN,
+    trackingCase: MOCK_PARTICULAR_TRACKING_CASE,
   },
 } as const;
 
@@ -253,6 +316,13 @@ export async function readParticularDocumentNoScrollContract(
 // contra el recortador y contra el hit-test real del control.
 export const PARTICULAR_DECLARED_SCROLL_OWNER = "particular-operational-body";
 
+// Única superficie del panel con cota visual declarada: la metadata del informe
+// (study_type varchar(100) + file_name varchar(255)). Su recorte no es clipping
+// indebido siempre que el valor completo siga siendo accesible, y eso es lo que
+// el contrato afirma explícitamente más abajo.
+export const PARTICULAR_REPORT_METADATA_SELECTOR =
+  '[data-particulares-report-meta="true"]';
+
 export type ParticularOperationalGeometry = {
   viewport: { width: number; height: number; devicePixelRatio: number };
   marketingColumnDisplay: string;
@@ -266,6 +336,12 @@ export type ParticularOperationalGeometry = {
   }>;
   clippedSurfaces: Array<{ marker: string; lostPx: number }>;
   truncatedText: Array<{ marker: string; text: string; lostPx: number }>;
+  reportMetadata: {
+    present: boolean;
+    visuallyBounded: boolean;
+    accessibleValue: string | null;
+    renderedText: string;
+  } | null;
   logoutVisibleWithoutScroll: boolean;
   logoutReachable: boolean;
 };
@@ -273,7 +349,7 @@ export type ParticularOperationalGeometry = {
 export async function readParticularOperationalGeometry(
   page: Page,
 ): Promise<ParticularOperationalGeometry> {
-  return page.evaluate((ownerClass) => {
+  return page.evaluate(([ownerClass, metadataSelector]) => {
     const TOLERANCE = 1;
     const describe = (element: Element) => {
       const className =
@@ -300,6 +376,9 @@ export async function readParticularOperationalGeometry(
     for (const surface of surfaces) {
       const style = window.getComputedStyle(surface);
       const overflowing = surface.scrollHeight - surface.clientHeight;
+      // La cota declarada de la metadata se verifica aparte, por accesibilidad
+      // del valor completo; no cuenta como recorte indebido.
+      const isDeclaredBound = surface.matches(metadataSelector);
 
       if (
         ["auto", "scroll"].includes(style.overflowY) ||
@@ -315,6 +394,7 @@ export async function readParticularOperationalGeometry(
       }
 
       if (
+        !isDeclaredBound &&
         ["hidden", "clip"].includes(style.overflowY) &&
         overflowing > TOLERANCE
       ) {
@@ -323,8 +403,9 @@ export async function readParticularOperationalGeometry(
 
       const clamp = style.webkitLineClamp;
       if (
-        (clamp !== "" && clamp !== "none") ||
-        style.textOverflow === "ellipsis"
+        !isDeclaredBound &&
+        ((clamp !== "" && clamp !== "none") ||
+          style.textOverflow === "ellipsis")
       ) {
         const lost = Math.max(
           surface.scrollHeight - surface.clientHeight,
@@ -365,6 +446,22 @@ export async function readParticularOperationalGeometry(
       owner.scrollTop = previous;
     }
 
+    const metadataNodes = Array.from(
+      document.querySelectorAll<HTMLElement>(metadataSelector),
+    ).filter((node) => node.getBoundingClientRect().height > 0);
+    const metadata = metadataNodes[0] ?? null;
+    const reportMetadata =
+      metadata === null
+        ? null
+        : {
+            present: true,
+            visuallyBounded:
+              window.getComputedStyle(metadata).webkitLineClamp !== "none" ||
+              metadata.scrollHeight - metadata.clientHeight <= TOLERANCE,
+            accessibleValue: metadata.getAttribute("title"),
+            renderedText: (metadata.textContent ?? "").trim(),
+          };
+
     const marketing = document.querySelector<HTMLElement>(
       '[data-particulares-hero="true"] > .order-2',
     );
@@ -397,10 +494,11 @@ export async function readParticularOperationalGeometry(
       scrollOwners,
       clippedSurfaces,
       truncatedText,
+      reportMetadata,
       logoutVisibleWithoutScroll,
       logoutReachable,
     };
-  }, PARTICULAR_DECLARED_SCROLL_OWNER);
+  }, [PARTICULAR_DECLARED_SCROLL_OWNER, PARTICULAR_REPORT_METADATA_SELECTOR] as const);
 }
 
 export function assertParticularOperationalViewportContract(
@@ -446,6 +544,15 @@ export function assertParticularOperationalViewportContract(
       ? []
       : [PARTICULAR_DECLARED_SCROLL_OWNER],
   );
+
+  // La metadata del informe puede acotarse visualmente, pero nunca perder el
+  // valor: el texto completo tiene que quedar disponible de forma accesible.
+  if (geometry.reportMetadata !== null) {
+    expect(
+      geometry.reportMetadata.accessibleValue,
+      `${label}: bounded report metadata must expose its full value`,
+    ).toBe(geometry.reportMetadata.renderedText);
+  }
 
   // El último control operacional siempre se alcanza.
   expect(

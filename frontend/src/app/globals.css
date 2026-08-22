@@ -1427,6 +1427,25 @@
   }
 
   /*
+    Cota accesible de la metadata del informe. `study_type` es varchar(100) y
+    `file_name` varchar(255) (drizzle/schema.ts), asi que un valor valido puede
+    ocupar ocho lineas y hacer crecer la ficha dentro de una fila de grid ya
+    acotada: por encima de 700px de alto no hay banda de compactacion ni scroll
+    owner, y el crecimiento empuja acciones de informe y logout fuera del
+    recorte del stack. Esta es la unica superficie del panel con longitud
+    variable no acotada por diseño, asi que se acota siempre a dos lineas.
+
+    No hay perdida de informacion: el texto completo sigue en el DOM y en el
+    arbol de accesibilidad (line-clamp solo afecta el render visual) y ademas
+    se expone por `title` para lectura directa. Por debajo de 560px el regimen
+    C libera el clamp porque alli ya existe scroll declarado para alcanzarlo.
+  */
+  html[data-particular-operational-viewport="true"]
+    [data-particulares-report-meta="true"] {
+    @apply line-clamp-2;
+  }
+
+  /*
     Truncado como dispositivo de PRESION, no como constante. Antes el recorte a
     una linea se aplicaba a toda altura y perdia contenido operacional incluso
     donde sobraba espacio (p. ej. la etapa del estudio en 390x844, con ~200px

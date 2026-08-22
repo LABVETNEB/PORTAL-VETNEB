@@ -3,6 +3,11 @@ import { expect, test } from "@playwright/test";
 import {
   assertParticularNoScrollContract,
   assertParticularOperationalViewportContract,
+  MAX_REPORT_FILE_NAME_LENGTH,
+  MAX_REPORT_STUDY_TYPE_LENGTH,
+  MOCK_PARTICULAR_REPORT_MAX_FILE_NAME,
+  MOCK_PARTICULAR_REPORT_MAX_FILE_NAME_TOKEN,
+  MOCK_PARTICULAR_REPORT_MAX_STUDY_TYPE,
   mockParticularAuthenticatedSession,
   readParticularDocumentNoScrollContract,
   readParticularOperationalGeometry,
@@ -126,6 +131,95 @@ test.describe("particular authenticated session — fixed-viewport no-scroll (R-
       });
     }
   }
+
+  // Metadata de informe en su longitud máxima válida de schema. Sin cota, la
+  // ficha crece dentro de una fila de grid acotada y empuja acciones y logout
+  // fuera del recorte por encima de 700px de alto, donde no hay banda de
+  // compactación ni scroll owner.
+  const MAX_METADATA_VIEWPORTS = [
+    { name: "mobile-390x844", width: 390, height: 844 },
+    { name: "desktop-1366x768", width: 1366, height: 768 },
+    { name: "zoom-125-1536x696", width: 1536, height: 696 },
+    { name: "zoom-150-1280x580", width: 1280, height: 580 },
+  ] as const;
+
+  test("schema limits stay pinned to the production varchar lengths", () => {
+    expect(MAX_REPORT_STUDY_TYPE_LENGTH, "reports.study_type varchar").toBe(100);
+    expect(MAX_REPORT_FILE_NAME_LENGTH, "reports.file_name varchar").toBe(255);
+    expect(MOCK_PARTICULAR_REPORT_MAX_STUDY_TYPE).toHaveLength(
+      MAX_REPORT_STUDY_TYPE_LENGTH,
+    );
+    expect(MOCK_PARTICULAR_REPORT_MAX_FILE_NAME).toHaveLength(
+      MAX_REPORT_FILE_NAME_LENGTH,
+    );
+    expect(MOCK_PARTICULAR_REPORT_MAX_FILE_NAME_TOKEN).toHaveLength(
+      MAX_REPORT_FILE_NAME_LENGTH,
+    );
+  });
+
+  for (const viewport of MAX_METADATA_VIEWPORTS) {
+    test(`max-length report metadata keeps actions and logout reachable at ${viewport.name}`, async ({
+      page,
+    }) => {
+      await openAuthenticatedParticulares(
+        page,
+        viewport.width,
+        viewport.height,
+        "report-max-metadata",
+      );
+
+      const label = `max-metadata ${viewport.name}`;
+      const isMobile = viewport.width < 640;
+      const report = isMobile
+        ? page.locator('[data-particular-mobile-flat-card="report"]')
+        : page.locator("#particular-report");
+
+      await expect(
+        report.getByRole("button", { name: "Ver informe" }),
+        `${label}: Ver informe reachable`,
+      ).toBeVisible();
+      await expect(
+        report.getByRole("button", { name: "Descargar" }),
+        `${label}: Descargar reachable`,
+      ).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: "Cerrar sesión particular" }),
+        `${label}: logout reachable`,
+      ).toBeVisible();
+
+      await expect(async () => {
+        const geometry = await readParticularOperationalGeometry(page);
+        assertParticularOperationalViewportContract(geometry, label);
+
+        expect(
+          geometry.reportMetadata,
+          `${label}: report metadata surface must be declared`,
+        ).not.toBeNull();
+        expect(
+          geometry.reportMetadata?.accessibleValue,
+          `${label}: the full metadata value must stay readable`,
+        ).toContain(MOCK_PARTICULAR_REPORT_MAX_FILE_NAME);
+      }).toPass({ timeout: 12_000 });
+    });
+  }
+
+  test("max-length metadata without separators stays bounded at 390x844", async ({
+    page,
+  }) => {
+    await openAuthenticatedParticulares(page, 390, 844, "report-max-metadata-token");
+
+    await expect(async () => {
+      const geometry = await readParticularOperationalGeometry(page);
+      assertParticularOperationalViewportContract(
+        geometry,
+        "max-metadata-token 390x844",
+      );
+      expect(
+        geometry.reportMetadata?.accessibleValue,
+        "max-metadata-token: full value readable",
+      ).toContain(MOCK_PARTICULAR_REPORT_MAX_FILE_NAME_TOKEN);
+    }).toPass({ timeout: 12_000 });
+  });
 
   test("insufficient height activates exactly one declared scroll owner", async ({
     page,
