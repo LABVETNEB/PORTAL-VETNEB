@@ -61,8 +61,19 @@ function hubCard(hub: ReturnType<Page["locator"]>, title: string) {
 // navigation on /dashboard and B09 owns its replacement. The pager block near
 // the end of this file exercises it in that regime, which is the only regime
 // where the prev/next affordance still exists.
+// ANCHORED TO THE PAINTED BAND, DELIBERATELY. `DashboardNavigationFrame` mounts
+// the lateral navigation inside a Suspense boundary whose fallback renders the
+// SAME band, so while React is still swapping the resolved content in, the
+// document legitimately holds two copies of the drawer: the painted one inside
+// `[data-dashboard-navigation-frame]`, and the resolved one parked in React's
+// `<div hidden id="S:n">` staging container (0x0, `display:none`, outside the
+// accessibility tree). Only the painted band is the navigation under test.
+// This does NOT weaken the contract: the filter keeps every VISIBLE match, so a
+// product that ever paints two clinic drawers at once still fails here.
 function clinicLateralNav(page: Page) {
-  return page.locator('[data-dashboard-navigation-drawer="clinic"]');
+  return page
+    .locator('[data-dashboard-navigation-drawer="clinic"]')
+    .filter({ visible: true });
 }
 
 function clinicLateralNavItem(page: Page, moduleId: ClinicModule): Locator {
@@ -708,7 +719,11 @@ test.describe("dashboard lateral nav — admin module navigation", () => {
 
     // B08 retired the "Navegación principal" landmark with its component; the
     // admin lateral drawer carries its own role-specific landmark name.
-    const nav = page.locator('[data-dashboard-navigation-drawer="admin"]');
+    // Painted band only, for the same reason `clinicLateralNav` is filtered:
+    // the admin frame streams through the same Suspense boundary.
+    const nav = page
+      .locator('[data-dashboard-navigation-drawer="admin"]')
+      .filter({ visible: true });
     await expect(nav).toBeVisible({ timeout: 8_000 });
 
     const clinicasItem = nav.locator(
