@@ -79,6 +79,28 @@ export const MOCK_PARTICULAR_TRACKING_CASE = {
   updatedAt: "2026-06-19T12:00:00.000Z",
 };
 
+// Estado B del contrato de zoom: sesión activa SIN informe vinculado y estudio
+// en recepción. Es el estado que produjo el reporte real de producción y el que
+// el fixture `delivered` de arriba no ejercitaba: sin `report` no existen los
+// botones "Ver informe"/"Descargar", así que el último control operativo del
+// panel pasa a ser el logout.
+export const MOCK_PARTICULAR_SESSION_PENDING = {
+  ...MOCK_PARTICULAR_SESSION,
+  reportId: null,
+  hasLinkedReport: false,
+  report: null,
+};
+
+export const MOCK_PARTICULAR_TRACKING_RECEPTION = {
+  ...MOCK_PARTICULAR_TRACKING_CASE,
+  reportId: null,
+  currentStage: "reception" as const,
+  processingAt: null,
+  evaluationAt: null,
+  reportDevelopmentAt: null,
+  deliveredAt: null,
+};
+
 export async function setParticularSessionCookie(page: Page) {
   await page.context().addCookies([
     {
@@ -94,7 +116,25 @@ export async function setParticularSessionCookie(page: Page) {
 // /api/particular/auth/me, then getParticularStudyTrackingCase -> GET
 // /api/particular/study-tracking/me) so the page renders its authenticated
 // state without a real backend.
-export async function mockParticularAuthenticatedSession(page: Page) {
+export type ParticularSessionFixtureState = "report-available" | "report-pending";
+
+const PARTICULAR_SESSION_FIXTURES = {
+  "report-available": {
+    particular: MOCK_PARTICULAR_SESSION,
+    trackingCase: MOCK_PARTICULAR_TRACKING_CASE,
+  },
+  "report-pending": {
+    particular: MOCK_PARTICULAR_SESSION_PENDING,
+    trackingCase: MOCK_PARTICULAR_TRACKING_RECEPTION,
+  },
+} as const;
+
+export async function mockParticularAuthenticatedSession(
+  page: Page,
+  state: ParticularSessionFixtureState = "report-available",
+) {
+  const fixture = PARTICULAR_SESSION_FIXTURES[state];
+
   await page.route("**/api/particular/auth/me", async (route) => {
     if (route.request().method() !== "GET") {
       await route.continue();
@@ -105,7 +145,7 @@ export async function mockParticularAuthenticatedSession(page: Page) {
       contentType: "application/json",
       body: JSON.stringify({
         success: true,
-        particular: MOCK_PARTICULAR_SESSION,
+        particular: fixture.particular,
       }),
     });
   });
@@ -120,7 +160,7 @@ export async function mockParticularAuthenticatedSession(page: Page) {
       contentType: "application/json",
       body: JSON.stringify({
         success: true,
-        trackingCase: MOCK_PARTICULAR_TRACKING_CASE,
+        trackingCase: fixture.trackingCase,
       }),
     });
   });
@@ -162,6 +202,12 @@ export async function readParticularDocumentNoScrollContract(
       const style = window.getComputedStyle(element);
       const className =
         typeof element.className === "string" ? element.className : "";
+      // El único scroll owner contratado (régimen de altura insuficiente) no es
+      // un contenedor scrolleable "no declarado": está en el contrato y lo
+      // verifica assertParticularOperationalViewportContract.
+      if (element.classList.contains("particular-operational-body")) {
+        return [];
+      }
       return ["auto", "scroll"].includes(style.overflowX) ||
         ["auto", "scroll"].includes(style.overflowY)
         ? [
@@ -198,6 +244,222 @@ export async function readParticularDocumentNoScrollContract(
 // PR-PUX4). Full vertical viewport-fit (100dvh) for the *authenticated*
 // state is the explicit target of R-18, not R-17 — so this contract only
 // asserts what already holds today, per the R-17 test-only/no-fix scope.
+// ─── Contrato operacional autenticado (zoom / short-height) ────────────────
+//
+// El contrato anterior sólo medía el documento y el rect de dos tarjetas contra
+// el viewport. Eso no observa el fallo real: con `overflow: hidden` encadenado
+// desde `html` el documento nunca declara scroll y el contenido se pierde
+// recortado por un ancestro, no por escaparse del viewport. Este contrato mide
+// contra el recortador y contra el hit-test real del control.
+export const PARTICULAR_DECLARED_SCROLL_OWNER = "particular-operational-body";
+
+export type ParticularOperationalGeometry = {
+  viewport: { width: number; height: number; devicePixelRatio: number };
+  marketingColumnDisplay: string;
+  heroGridColumnCount: number;
+  documentScrollY: number;
+  documentScrollX: number;
+  scrollOwners: Array<{
+    marker: string;
+    overflowY: string;
+    scrollableY: number;
+  }>;
+  clippedSurfaces: Array<{ marker: string; lostPx: number }>;
+  truncatedText: Array<{ marker: string; text: string; lostPx: number }>;
+  logoutVisibleWithoutScroll: boolean;
+  logoutReachable: boolean;
+};
+
+export async function readParticularOperationalGeometry(
+  page: Page,
+): Promise<ParticularOperationalGeometry> {
+  return page.evaluate((ownerClass) => {
+    const TOLERANCE = 1;
+    const describe = (element: Element) => {
+      const className =
+        typeof element.className === "string" ? element.className : "";
+      return (
+        element.tagName.toLowerCase() +
+        (element.id ? `#${element.id}` : "") +
+        (className ? `.${className.trim().split(/\s+/).slice(0, 3).join(".")}` : "")
+      );
+    };
+
+    const panel = document.querySelector<HTMLElement>(
+      '[data-particular-session-panel="true"]',
+    );
+    if (panel === null) {
+      throw new Error("authenticated session panel not rendered");
+    }
+
+    const surfaces = [panel, ...Array.from(panel.querySelectorAll<HTMLElement>("*"))];
+    const scrollOwners: ParticularOperationalGeometry["scrollOwners"] = [];
+    const clippedSurfaces: ParticularOperationalGeometry["clippedSurfaces"] = [];
+    const truncatedText: ParticularOperationalGeometry["truncatedText"] = [];
+
+    for (const surface of surfaces) {
+      const style = window.getComputedStyle(surface);
+      const overflowing = surface.scrollHeight - surface.clientHeight;
+
+      if (
+        ["auto", "scroll"].includes(style.overflowY) ||
+        ["auto", "scroll"].includes(style.overflowX)
+      ) {
+        scrollOwners.push({
+          marker: surface.classList.contains(ownerClass)
+            ? ownerClass
+            : describe(surface),
+          overflowY: style.overflowY,
+          scrollableY: overflowing,
+        });
+      }
+
+      if (
+        ["hidden", "clip"].includes(style.overflowY) &&
+        overflowing > TOLERANCE
+      ) {
+        clippedSurfaces.push({ marker: describe(surface), lostPx: overflowing });
+      }
+
+      const clamp = style.webkitLineClamp;
+      if (
+        (clamp !== "" && clamp !== "none") ||
+        style.textOverflow === "ellipsis"
+      ) {
+        const lost = Math.max(
+          surface.scrollHeight - surface.clientHeight,
+          surface.scrollWidth - surface.clientWidth,
+        );
+        if (lost > TOLERANCE) {
+          truncatedText.push({
+            marker: describe(surface),
+            text: (surface.textContent ?? "").trim().slice(0, 60),
+            lostPx: lost,
+          });
+        }
+      }
+    }
+
+    const logout = document.querySelector<HTMLElement>(
+      '[data-particular-logout-action="true"]',
+    );
+    if (logout === null) {
+      throw new Error("logout control not rendered");
+    }
+    const hitsLogout = () => {
+      const rect = logout.getBoundingClientRect();
+      const hit = document.elementFromPoint(
+        rect.left + rect.width / 2,
+        rect.top + rect.height / 2,
+      );
+      return hit !== null && (hit === logout || logout.contains(hit));
+    };
+
+    const logoutVisibleWithoutScroll = hitsLogout();
+    let logoutReachable = logoutVisibleWithoutScroll;
+    const owner = document.querySelector<HTMLElement>(`.${ownerClass}`);
+    if (!logoutReachable && owner !== null && scrollOwners.length === 1) {
+      const previous = owner.scrollTop;
+      owner.scrollTop = owner.scrollHeight;
+      logoutReachable = hitsLogout();
+      owner.scrollTop = previous;
+    }
+
+    const marketing = document.querySelector<HTMLElement>(
+      '[data-particulares-hero="true"] > .order-2',
+    );
+    const heroGrid = document.querySelector<HTMLElement>(
+      '[data-particulares-hero="true"]',
+    );
+
+    return {
+      viewport: {
+        width: window.innerWidth,
+        height: window.innerHeight,
+        devicePixelRatio: window.devicePixelRatio,
+      },
+      marketingColumnDisplay:
+        marketing === null ? "absent" : window.getComputedStyle(marketing).display,
+      heroGridColumnCount:
+        heroGrid === null
+          ? 0
+          : window
+              .getComputedStyle(heroGrid)
+              .gridTemplateColumns.trim()
+              .split(/\s+/)
+              .filter((track) => track !== "" && track !== "none").length,
+      documentScrollY:
+        document.documentElement.scrollHeight -
+        document.documentElement.clientHeight,
+      documentScrollX:
+        document.documentElement.scrollWidth -
+        document.documentElement.clientWidth,
+      scrollOwners,
+      clippedSurfaces,
+      truncatedText,
+      logoutVisibleWithoutScroll,
+      logoutReachable,
+    };
+  }, PARTICULAR_DECLARED_SCROLL_OWNER);
+}
+
+export function assertParticularOperationalViewportContract(
+  geometry: ParticularOperationalGeometry,
+  label: string,
+) {
+  // El chrome de marketing sale del viewport operacional en toda banda de ancho.
+  expect(
+    geometry.marketingColumnDisplay,
+    `${label}: marketing column must leave the authenticated viewport`,
+  ).toBe("none");
+  expect(
+    geometry.heroGridColumnCount,
+    `${label}: authenticated hero must collapse to a single column`,
+  ).toBe(1);
+
+  // El documento nunca scrollea: el contrato fixed-viewport se mantiene.
+  expect(
+    geometry.documentScrollY,
+    `${label}: document vertical scroll`,
+  ).toBeLessThanOrEqual(PARTICULAR_NO_SCROLL_TOLERANCE);
+  expect(
+    geometry.documentScrollX,
+    `${label}: document horizontal scroll`,
+  ).toBeLessThanOrEqual(PARTICULAR_NO_SCROLL_TOLERANCE);
+
+  // Cero contenido perdido detrás de un `overflow: hidden` y cero texto cortado.
+  expect(
+    geometry.clippedSurfaces,
+    `${label}: surfaces clipping their own content`,
+  ).toEqual([]);
+  expect(
+    geometry.truncatedText,
+    `${label}: text truncated without room to render`,
+  ).toEqual([]);
+
+  // Como máximo un scroll owner, y sólo el declarado por contrato.
+  expect(
+    geometry.scrollOwners.map((owner) => owner.marker),
+    `${label}: only the declared scroll owner may scroll`,
+  ).toEqual(
+    geometry.scrollOwners.length === 0
+      ? []
+      : [PARTICULAR_DECLARED_SCROLL_OWNER],
+  );
+
+  // El último control operacional siempre se alcanza.
+  expect(
+    geometry.logoutReachable,
+    `${label}: logout must stay reachable`,
+  ).toBe(true);
+  if (geometry.scrollOwners.length === 0) {
+    expect(
+      geometry.logoutVisibleWithoutScroll,
+      `${label}: without a declared scroll owner logout must be visible as-is`,
+    ).toBe(true);
+  }
+}
+
 export function assertParticularNoScrollContract(
   contract: ParticularDocumentNoScrollContract,
   label: string,

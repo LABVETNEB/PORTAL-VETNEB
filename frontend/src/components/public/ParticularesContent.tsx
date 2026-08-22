@@ -1043,6 +1043,7 @@ export function ParticularesContent() {
                     </>
                   ) : (
                     <div
+                      id="particular-report"
                       data-particulares-report-state="pending"
                       className="clinical-alert-info flex items-start gap-3 p-4"
                     >

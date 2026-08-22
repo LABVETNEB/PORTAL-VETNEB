@@ -3,6 +3,11 @@
 
 @import "../styles/dashboard/index.css";
 
+/* Orden de cascada explicito: Tailwind v4 declara theme, base, components y
+   utilities dentro de su @import; esta sentencia agrega la capa del contrato
+   operacional Particular al final del orden, para que gane a las utilities. */
+@layer particular-operational;
+
 @font-face {
   font-family: "Inter";
   font-style: normal;
@@ -1006,6 +1011,69 @@
   }
   /* particular-mobile-flat-stack:end */
 
+  .public-copy {
+    line-height: 1.7;
+    overflow-wrap: break-word;
+    text-wrap: pretty;
+  }
+
+  .public-copy > p + p {
+    margin-top: 1lh;
+  }
+
+  .public-copy-tight {
+    line-height: 1.58;
+    overflow-wrap: break-word;
+    text-wrap: pretty;
+  }
+
+  .public-copy-tight > p + p {
+    margin-top: 0.75lh;
+  }
+
+  .public-copy-card {
+    line-height: 1.65;
+    overflow-wrap: break-word;
+    text-wrap: pretty;
+  }
+
+  .public-copy-card > p + p,
+  .public-copy-card > ul + p,
+  .public-copy-card > p + ul {
+    margin-top: 1lh;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      scroll-behavior: auto !important;
+      transition-duration: 0.01ms !important;
+    }
+
+    .render-card,
+    .premium-card,
+    [data-services-polished="true"] > [id],
+    .clinical-skeleton {
+      transition: none;
+      animation: none;
+    }
+
+  }
+}
+
+/*
+  Capa propia declarada DESPUES de utilities (ver la sentencia @layer del
+  encabezado). El contrato autenticado tiene que ganarle a las utilities de
+  Tailwind que la propia pagina publica declara (hidden/lg:block, py-16
+  md:py-20, lg:grid-cols-*, p-3/sm:p-4): con Tailwind v4 las capas son reales,
+  utilities va despues de components y por lo tanto una utility gana a
+  cualquier regla de components sin importar su especificidad. Por eso este
+  bloque no puede vivir en @layer components.
+*/
+@layer particular-operational {
   /* particular-authenticated-operational-viewport:start */
   /*
     Authenticated Particular session = fixed-viewport operational layout
@@ -1017,6 +1085,41 @@
     operational density. No overflow:auto/scroll is introduced anywhere —
     the layout must genuinely fit (forbidden-overflow e2e contract).
   */
+  /*
+    Densidad vertical adaptativa (mismo patron ya probado por
+    `.dashboard-app-shell` en styles/dashboard/responsive.css): el zoom del
+    navegador reduce el viewport CSS efectivo, asi que los tokens son fluidos
+    por `vh` y ademas bajan por tiers `@media (max-height)`. Sin esto el
+    contrato solo fijaba el viewport, nunca adaptaba la densidad.
+  */
+  html[data-particular-operational-viewport="true"] {
+    --particular-shell-pad-block: clamp(0.35rem, 1.2vh, 0.9rem);
+    --particular-header-pad-block: clamp(0.4rem, 0.25rem + 0.4vh, 0.7rem);
+    --particular-body-pad: clamp(0.45rem, 0.3rem + 0.5vh, 0.75rem);
+    --particular-stack-gap: clamp(0.4rem, 0.25rem + 0.5vh, 0.75rem);
+    --particular-card-pad: clamp(0.45rem, 0.3rem + 0.45vh, 0.8rem);
+    /* Piso tactil: nunca por debajo de 2.25rem (36px). */
+    --particular-control-h: 2.75rem;
+  }
+
+  @media (max-height: 860px) {
+    html[data-particular-operational-viewport="true"] {
+      --particular-control-h: 2.5rem;
+    }
+  }
+
+  @media (max-height: 680px) {
+    html[data-particular-operational-viewport="true"] {
+      --particular-control-h: 2.35rem;
+    }
+  }
+
+  @media (max-height: 560px) {
+    html[data-particular-operational-viewport="true"] {
+      --particular-control-h: 2.25rem;
+    }
+  }
+
   html[data-particular-operational-viewport="true"],
   html[data-particular-operational-viewport="true"] body {
     height: 100dvh;
@@ -1050,11 +1153,18 @@
     flex: 1 1 auto;
     min-height: 0;
     overflow: hidden;
-    padding-block: clamp(0.35rem, 1.2vh, 0.9rem);
+    padding-block: var(--particular-shell-pad-block);
   }
 
   html[data-particular-operational-viewport="true"] [data-particulares-hero="true"] {
     grid-template-columns: minmax(0, 1fr);
+    /*
+      Fila acotada al contenedor. Sin esto la fila implicita se dimensiona por
+      contenido: crecia por encima del alto disponible y el `overflow: hidden`
+      de este mismo grid recortaba el panel, con `max-height: 100%` del panel
+      resuelto contra el area de grid (ya crecida) y por lo tanto inerte.
+    */
+    grid-template-rows: minmax(0, 1fr);
     max-width: 46rem;
     height: 100%;
     min-height: 0;
@@ -1085,7 +1195,7 @@
     .particular-operational-header {
     flex-shrink: 0;
     min-height: 0;
-    padding: 0.55rem 0.75rem;
+    padding: var(--particular-header-pad-block) 0.75rem;
   }
 
   html[data-particular-operational-viewport="true"]
@@ -1120,7 +1230,7 @@
     .particular-operational-body {
     min-height: 0;
     overflow: hidden;
-    padding: 0.55rem 0.65rem;
+    padding: var(--particular-body-pad);
   }
 
   html[data-particular-operational-viewport="true"]
@@ -1137,7 +1247,7 @@
     min-height: 0;
     height: 100%;
     max-width: 100%;
-    gap: 0.5rem;
+    gap: var(--particular-stack-gap);
     overflow: hidden;
   }
 
@@ -1145,7 +1255,7 @@
     [data-particular-mobile-flat-card] {
     min-width: 0;
     max-width: 100%;
-    padding: 0.55rem 0.65rem;
+    padding: var(--particular-card-pad);
   }
 
   html[data-particular-operational-viewport="true"]
@@ -1158,7 +1268,6 @@
   html[data-particular-operational-viewport="true"]
     [data-particular-mobile-flat-card]
     p {
-    @apply line-clamp-1;
     min-width: 0;
     max-width: 100%;
     white-space: normal;
@@ -1192,7 +1301,7 @@
     [data-particulares-report-actions="true"]
     > * {
     min-width: 0;
-    min-height: 2.25rem;
+    min-height: var(--particular-control-h);
     padding-inline: 0.5rem;
     font-size: 0.75rem;
   }
@@ -1200,7 +1309,7 @@
   html[data-particular-operational-viewport="true"]
     [data-particular-logout-action="true"] {
     min-width: 0;
-    min-height: 2.25rem;
+    min-height: var(--particular-control-h);
     flex-shrink: 0;
     padding-block: 0.45rem;
     padding-inline: 0.7rem;
@@ -1221,7 +1330,29 @@
 
   html[data-particular-operational-viewport="true"] #particular-study-tracking,
   html[data-particular-operational-viewport="true"] #particular-report {
-    padding: 0.65rem 0.8rem;
+    padding: var(--particular-card-pad);
+  }
+
+  /*
+    Estado pending del informe: participa del contrato operacional (misma
+    superficie `#particular-report`, mismo padding y mismo acotado) pero es un
+    parrafo explicativo, no una ficha de datos. Conserva su lectura en fila
+    (icono + texto) y no se recorta a una linea: truncarlo perderia la
+    explicacion completa, que es el unico contenido que este estado aporta.
+  */
+  html[data-particular-operational-viewport="true"]
+    #particular-report[data-particulares-report-state="pending"] {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  html[data-particular-operational-viewport="true"]
+    #particular-report[data-particulares-report-state="pending"]
+    p {
+    display: block;
+    line-clamp: unset;
+    -webkit-line-clamp: unset;
+    overflow: visible;
   }
 
   html[data-particular-operational-viewport="true"]
@@ -1275,7 +1406,6 @@
     html[data-particular-operational-viewport="true"]
       #particular-report
       p {
-      @apply line-clamp-1;
       min-width: 0;
       max-width: 100%;
       white-space: normal;
@@ -1292,62 +1422,130 @@
       [data-particular-logout-action="true"] {
       grid-column: 1 / -1;
       justify-self: stretch;
-      min-height: 2.35rem;
+      min-height: var(--particular-control-h);
+    }
+  }
+
+  /*
+    Truncado como dispositivo de PRESION, no como constante. Antes el recorte a
+    una linea se aplicaba a toda altura y perdia contenido operacional incluso
+    donde sobraba espacio (p. ej. la etapa del estudio en 390x844, con ~200px
+    libres por debajo). Ahora solo actua en la banda de compactacion: por encima
+    de 700px de alto el texto se lee completo, y por debajo de 560px el regimen C
+    lo libera de nuevo porque ya existe scroll declarado para alcanzarlo.
+  */
+  @media (max-height: 700px) {
+    html[data-particular-operational-viewport="true"]
+      [data-particular-mobile-flat-card]
+      p,
+    html[data-particular-operational-viewport="true"]
+      #particular-study-tracking
+      p,
+    html[data-particular-operational-viewport="true"] #particular-report p {
+      @apply line-clamp-1;
+    }
+
+    html[data-particular-operational-viewport="true"]
+      #particular-report[data-particulares-report-state="pending"]
+      p {
+      @apply line-clamp-3;
+    }
+  }
+
+  /*
+    Regimen C — altura insuficiente. Por debajo de este piso la superficie
+    operacional ya no entra con densidad legible y targets tactiles usables, y
+    recortarla perderia controles esenciales (WCAG 2.1 SC 1.4.10). Se habilita
+    EXACTAMENTE UN scroll owner vertical declarado:
+    `.particular-operational-body`, el ancestro operacional comun mas pequenio
+    que contiene seguimiento, informe, acciones de informe y logout.
+
+    El shell sigue acotado (html/body/canvas/hero/panel mantienen su
+    `overflow: hidden`), asi que el documento nunca scrollea y el header
+    operacional queda fijo fuera del owner. Ningun otro contenedor gana
+    `overflow: auto|scroll`: las cajas internas se liberan a `visible` para que
+    el unico scroll posible sea el del owner.
+  */
+  @media (max-height: 560px) {
+    html[data-particular-operational-viewport="true"]
+      .particular-operational-body {
+      overflow-y: auto;
+      overflow-x: hidden;
+      overscroll-behavior: contain;
+      scrollbar-gutter: stable;
+    }
+
+    /*
+      El stack conserva su altura de contenido dentro del owner: como flex item
+      con `flex-shrink: 1` se encogia al alto disponible y su contenido quedaba
+      fuera sin que el owner tuviera nada que desplazar.
+    */
+    html[data-particular-operational-viewport="true"]
+      [data-particular-mobile-flat-stack="true"] {
+      height: auto;
+      min-height: 0;
+      flex-shrink: 0;
+      align-content: start;
+      overflow: visible;
+    }
+
+    html[data-particular-operational-viewport="true"]
+      [data-particular-mobile-flat-card],
+    html[data-particular-operational-viewport="true"] #particular-study-tracking,
+    html[data-particular-operational-viewport="true"] #particular-report {
+      min-height: 0;
+      overflow: visible;
+    }
+
+    /*
+      Con scroll declarado no hace falta truncar: el contenido se alcanza
+      desplazando, que es justamente lo que el recorte impedia.
+    */
+    html[data-particular-operational-viewport="true"]
+      [data-particular-mobile-flat-card] p,
+    html[data-particular-operational-viewport="true"]
+      #particular-study-tracking p,
+    html[data-particular-operational-viewport="true"] #particular-report p,
+    html[data-particular-operational-viewport="true"]
+      #particular-report[data-particulares-report-state="pending"]
+      p {
+      display: block;
+      line-clamp: unset;
+      -webkit-line-clamp: unset;
+      overflow: visible;
+    }
+
+    html[data-particular-operational-viewport="true"]
+      [data-particulares-report-actions="true"] {
+      margin-top: 0.5rem;
+    }
+  }
+
+  @media (max-height: 560px) and (min-width: 640px) {
+    html[data-particular-operational-viewport="true"]
+      [data-particular-mobile-flat-stack="true"] {
+      grid-template-rows: auto auto;
+    }
+
+    /*
+      Las fichas dejan de ser columnas flex: como flex column sus hijos tienen
+      `flex-shrink: 1` y se comprimen hasta recortarse dentro de la ficha en vez
+      de hacerla crecer. Como bloque fluyen a su altura natural y el scroll del
+      owner alcanza el contenido. Solo desde 640px: por debajo la ficha de
+      escritorio esta oculta por contrato (`hidden sm:block`) y forzar `display`
+      la duplicaria contra la ficha mobile.
+    */
+    html[data-particular-operational-viewport="true"] #particular-study-tracking,
+    html[data-particular-operational-viewport="true"] #particular-report {
+      display: block !important;
+    }
+
+    html[data-particular-operational-viewport="true"]
+      #particular-report[data-particulares-report-state="pending"] {
+      display: flex !important;
     }
   }
   /* particular-authenticated-operational-viewport:end */
-
-  .public-copy {
-    line-height: 1.7;
-    overflow-wrap: break-word;
-    text-wrap: pretty;
-  }
-
-  .public-copy > p + p {
-    margin-top: 1lh;
-  }
-
-  .public-copy-tight {
-    line-height: 1.58;
-    overflow-wrap: break-word;
-    text-wrap: pretty;
-  }
-
-  .public-copy-tight > p + p {
-    margin-top: 0.75lh;
-  }
-
-  .public-copy-card {
-    line-height: 1.65;
-    overflow-wrap: break-word;
-    text-wrap: pretty;
-  }
-
-  .public-copy-card > p + p,
-  .public-copy-card > ul + p,
-  .public-copy-card > p + ul {
-    margin-top: 1lh;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-      animation-duration: 0.01ms !important;
-      animation-iteration-count: 1 !important;
-      scroll-behavior: auto !important;
-      transition-duration: 0.01ms !important;
-    }
-
-    .render-card,
-    .premium-card,
-    [data-services-polished="true"] > [id],
-    .clinical-skeleton {
-      transition: none;
-      animation: none;
-    }
-
-  }
 }
 @keyframes clinical-skeleton-pulse {
   0%,
