@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";
+import { DashboardNavigationFrame } from "@/components/dashboard/DashboardNavigationFrame";
 import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";
 import { AdminCommandCenter } from "./AdminCommandCenter";
 import { AdminClinicsManagementCard } from "./AdminClinicsManagementCard";
@@ -754,42 +755,44 @@ export default async function AdminPage({
         subtitle="Auditoría, reportes y estado operacional"
         notifications="admin"
       />
-      <main className="dashboard-main">
-        <Suspense>
-          <AdminDashboardWorkspaceController
-            initialModule={initialModule}
-            initialAccessErrorStatus={initialAccessErrorStatus}
-            pageHeader={
-              <DashboardPageHeader
-                title="Administración"
-                description="Seleccione un módulo para acceder a sus funciones."
-                badge={
-                  <Badge variant={getSystemStatusVariant(systemStatus)}>
-                    {formatSystemStatus(systemStatus)}
-                  </Badge>
-                }
-              />
-            }
-            workspaces={{
-              admin: adminWorkspaceSlot,
-              "admin-report-upload": reportUploadWorkspaceSlot,
-              "admin-health": healthWorkspaceSlot,
-              "admin-clinics": clinicsWorkspaceSlot,
-              "admin-particular-tokens": tokensWorkspaceSlot,
-              "admin-pricing": pricingWorkspaceSlot,
-              "admin-sessions": sessionsWorkspaceSlot,
-              "admin-users-roles": usersRolesWorkspaceSlot,
-              "audit-log": auditLogWorkspaceSlot,
-              "admin-maintenance": maintenanceWorkspaceSlot,
-            }}
-            systemStatus={systemStatus}
-            systemStatusLabel={formatSystemStatus(systemStatus)}
-            systemStatusVariant={getSystemStatusVariant(systemStatus)}
-            auditEntriesCount={auditOverviewSnapshot.pagination.total}
-            eventTypesCount={eventTypesCount}
-          />
-        </Suspense>
-      </main>
+      <DashboardNavigationFrame surface="admin">
+        <main className="dashboard-main">
+          <Suspense>
+            <AdminDashboardWorkspaceController
+              initialModule={initialModule}
+              initialAccessErrorStatus={initialAccessErrorStatus}
+              pageHeader={
+                <DashboardPageHeader
+                  title="Administración"
+                  description="Seleccione un módulo para acceder a sus funciones."
+                  badge={
+                    <Badge variant={getSystemStatusVariant(systemStatus)}>
+                      {formatSystemStatus(systemStatus)}
+                    </Badge>
+                  }
+                />
+              }
+              workspaces={{
+                admin: adminWorkspaceSlot,
+                "admin-report-upload": reportUploadWorkspaceSlot,
+                "admin-health": healthWorkspaceSlot,
+                "admin-clinics": clinicsWorkspaceSlot,
+                "admin-particular-tokens": tokensWorkspaceSlot,
+                "admin-pricing": pricingWorkspaceSlot,
+                "admin-sessions": sessionsWorkspaceSlot,
+                "admin-users-roles": usersRolesWorkspaceSlot,
+                "audit-log": auditLogWorkspaceSlot,
+                "admin-maintenance": maintenanceWorkspaceSlot,
+              }}
+              systemStatus={systemStatus}
+              systemStatusLabel={formatSystemStatus(systemStatus)}
+              systemStatusVariant={getSystemStatusVariant(systemStatus)}
+              auditEntriesCount={auditOverviewSnapshot.pagination.total}
+              eventTypesCount={eventTypesCount}
+            />
+          </Suspense>
+        </main>
+      </DashboardNavigationFrame>
     </>
   );
 }

@@ -1,11 +1,11 @@
 /**
  * Dashboard · presentation/navigation (B01 re-export boundary).
  *
- * Home for the module navigation surfaces: DashboardHorizontalNav,
- * DashboardModuleRail, Admin/ClinicMobileBottomNav, the AdminMobile hub
- * launcher / pager / module menu and the pagers (audit §6). These consume the
- * `config` catalog and the `application` navigation helpers rather than
- * re-declaring module literals.
+ * Home for the module navigation surfaces: the B07 lateral primitives and the
+ * B08 frame that mounts them, DashboardModuleRail, Admin/ClinicMobileBottomNav,
+ * the AdminMobile hub launcher / pager / module menu and the pagers (audit §6).
+ * These consume the `config` catalog and the `application` navigation helpers
+ * rather than re-declaring module literals.
  *
  * B01 populates this barrel with **behaviour-preserving re-exports**: nothing is
  * moved, reimplemented or renamed, and no consumer is migrated. The
@@ -31,13 +31,25 @@
  * removed, not modified and not migrated; it is admitted automatically once
  * those two imports are gone.
  *
- * `NavigationDrawer` and `NavigationRail` are the B07 primitives. They are the
- * first navigation surfaces here that are NOT legacy re-exports: they were
- * created by B07, presentation-pure from the start, and no consumer renders
- * them yet — mounting them and retiring `DashboardHorizontalNav` /
- * `DashboardModuleRail` is B08. The ownership rule above still holds: their
- * implementations live at `@/components/dashboard/*` like every other target,
- * because this barrel is a boundary, not a home.
+ * `NavigationDrawer`, `NavigationRail` and `DashboardNavigationFrame` are the
+ * B07/B08 lateral model. They are the navigation surfaces here that are NOT
+ * legacy re-exports: created presentation-pure from the start, and mounted by
+ * B08 through the frame — the single mount site of the two primitives. The
+ * ownership rule above still holds: their implementations live at
+ * `@/components/dashboard/*` like every other target, because this barrel is a
+ * boundary, not a home.
+ *
+ * `DashboardHorizontalNav` is gone. B08 retired it physically: it was a pure
+ * >=768px surface (`md:block`, plus `display:none` under `max-width: 767px` in
+ * both mobile stylesheets), so the lateral model replaces it outright and no
+ * phone surface lost navigation with it.
+ *
+ * `DashboardModuleRail` survives on purpose. B08 removed it from the >=768px
+ * regime, where the drawer and the rail now own navigation, but it is still the
+ * clinic module navigation BELOW 768px: `ClinicMobileBottomNav` returns null on
+ * `/dashboard`, so deleting the component would leave that surface with no
+ * navigation at all. Its physical retirement belongs to B09, together with the
+ * mobile model that has to replace it.
  *
  * `AdminDashboardSidebar` and `ClinicDashboardSidebar` are absent because B02
  * retired them (audit §14.3): they had no runtime consumers, so the whole
@@ -48,10 +60,6 @@
  * @see docs/implementation/dashboard-presentation-shell-navigation-barrels.md
  * @see docs/implementation/dashboard-presentation-boundaries.md
  */
-export {
-  DashboardHorizontalNav,
-  type DashboardNavSurface,
-} from "@/components/dashboard/DashboardHorizontalNav";
 export {
   CLINIC_MODULE_RAIL_ITEMS,
   DashboardModuleRail,
@@ -64,6 +72,10 @@ export {
   NavigationRail,
   type NavigationRailProps,
 } from "@/components/dashboard/NavigationRail";
+export {
+  DashboardNavigationFrame,
+  type DashboardNavigationFrameProps,
+} from "@/components/dashboard/DashboardNavigationFrame";
 export { AdminMobileBottomNav } from "@/components/dashboard/AdminMobileBottomNav";
 export { ClinicMobileBottomNav } from "@/components/dashboard/ClinicMobileBottomNav";
 export { AdminMobileHubLauncher } from "@/components/dashboard/AdminMobileHubLauncher";

@@ -176,7 +176,7 @@ test("automatic workflow coverage is derived from catalog cohorts and equals ful
   assert.deepEqual(result.coveredSpecs, [...E2E_COHORT_SPECS.full].sort());
   assert.deepEqual(result.automaticRoutes.get(FRONTEND_WORKFLOW), ["ci"]);
   assert.deepEqual(result.automaticRoutes.get(COMPLETENESS_WORKFLOW), ["full"]);
-  assert.equal(E2E_SUITE_CATALOG.length, 82);
+  assert.equal(E2E_SUITE_CATALOG.length, 83);
 
   const partitionUnion = new Set(PARTITION_COHORTS.flatMap((cohort) => E2E_COHORT_SPECS[cohort]));
   assert.deepEqual([...partitionUnion].sort(), [...E2E_COHORT_SPECS.full].sort());

@@ -406,7 +406,7 @@ for (const moduleSpec of OPS_MODULES) {
     await mockOpsApis(page);
     await page.goto(`/dashboard/admin?module=${moduleSpec.moduleId}`);
 
-    await expect(page.locator('[data-dashboard-horizontal-nav-shell="true"]')).toBeVisible({
+    await expect(page.locator('[data-dashboard-navigation-drawer]')).toBeVisible({
       timeout: 15_000,
     });
     await expect(page.locator('[data-admin-mobile-bottom-nav="true"]')).toBeHidden();

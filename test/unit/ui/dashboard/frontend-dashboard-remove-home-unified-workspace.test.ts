@@ -9,8 +9,9 @@ const CONTROLLER_PATH =
 const RAIL_PATH = "frontend/src/components/dashboard/DashboardModuleRail.tsx";
 const WORKSPACE_PATH =
   "frontend/src/components/dashboard/DashboardModuleWorkspace.tsx";
-const HORIZONTAL_NAV_PATH =
-  "frontend/src/components/dashboard/DashboardHorizontalNav.tsx";
+// B08 retired DashboardHorizontalNav; the >=768px suppression it used to
+// declare is now a CSS fact about the legacy rail itself.
+const NAVIGATION_CSS_PATH = "frontend/src/styles/dashboard/navigation.css";
 const MOBILE_BOTTOM_NAV_PATH =
   "frontend/src/components/dashboard/ClinicMobileBottomNav.tsx";
 const CATALOG_PATH =
@@ -163,16 +164,23 @@ test("DashboardModuleRail is the single shared module navigation/pager", () => {
 // ── The two device-split navs are suppressed on /dashboard ───────────────────
 
 test("the split desktop-tab / mobile-bottom navs are suppressed on the main dashboard", () => {
-  const horizontal = read(HORIZONTAL_NAV_PATH);
   const bottom = read(MOBILE_BOTTOM_NAV_PATH);
+  const railCss = read(NAVIGATION_CSS_PATH);
 
-  // Desktop top-tab bar yields to the rail on the exact /dashboard path.
-  assert.ok(
-    horizontal.includes(
-      'resolveSurface(pathname) === "clinic" && pathname === ROUTES.dashboard',
-    ),
+  // The desktop top-tab bar is gone entirely: B08 retired
+  // `DashboardHorizontalNav`, so its clinic suppression clause has no subject
+  // left. The invariant it encoded — no second desktop navigation next to the
+  // rail on /dashboard — is now stronger, because the rail itself leaves that
+  // regime: from 768px up the lateral model is the only module navigation.
+  assert.match(
+    railCss,
+    /@media \(min-width: 768px\)[^@]*\.dashboard-module-rail[^{]*\{[^}]*display:\s*none/,
+    "the legacy rail must not paint at >=768px, where the drawer/rail own navigation",
   );
-  // Mobile bottom bar likewise yields to the rail on the exact /dashboard path.
+
+  // Mobile bottom bar still yields to the rail on the exact /dashboard path —
+  // which is precisely why B08 did NOT delete the rail: below 768px it is the
+  // only module navigation that surface has. Unifying the two is B09.
   assert.ok(bottom.includes("pathname === ROUTES.dashboard"));
   assert.ok(bottom.includes("return null;"));
 });

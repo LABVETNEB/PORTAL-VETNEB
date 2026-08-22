@@ -6,8 +6,12 @@ import test from "node:test";
 const TOKENS_CARD_PATH =
   "frontend/src/app/dashboard/admin/AdminParticularTokensCard.tsx";
 const ADMIN_PAGE_PATH = "frontend/src/app/dashboard/admin/page.tsx";
-const HORIZONTAL_NAV_PATH =
-  "frontend/src/components/dashboard/DashboardHorizontalNav.tsx";
+// B08 retired DashboardHorizontalNav. Reachability of an admin module is now
+// a property of the canonical catalog the lateral navigation derives from,
+// rather than of one component's private item list — a strictly stronger
+// anchor: it also fails if the module loses its glyph.
+const MODULE_CATALOG_PATH = "frontend/src/features/dashboard/config/dashboardModules.ts";
+const MODULE_ICONS_PATH = "frontend/src/components/dashboard/dashboardModuleIcons.ts";
 const GLOBALS_PATH = "frontend/src/app/globals.css";
 
 function read(relativePath: string): string {
@@ -149,7 +153,7 @@ test("admin token tracking is loaded on demand without a per-row Promise.all", (
 test("admin tokens preserves route integration and global no-scroll", () => {
   const card = read(TOKENS_CARD_PATH);
   const page = read(ADMIN_PAGE_PATH);
-  const nav = read(HORIZONTAL_NAV_PATH);
+  const catalog = read(MODULE_CATALOG_PATH);
   const globals = read(GLOBALS_PATH);
   const mainStart = globals.indexOf("  .dashboard-main {");
   const mainEnd = globals.indexOf("  }", mainStart);
@@ -158,7 +162,8 @@ test("admin tokens preserves route integration and global no-scroll", () => {
   assert.ok(page.includes('id="admin-particular-tokens"'));
   assert.ok(page.includes("<AdminParticularTokensCard />"));
   assert.ok(
-    nav.includes("?module=admin-particular-tokens"),
+    catalog.includes('moduleId: "admin-particular-tokens"') &&
+      read(MODULE_ICONS_PATH).includes('"admin-particular-tokens":'),
     "horizontal navigation must preserve the module query contract",
   );
   assert.ok(mainStart >= 0);

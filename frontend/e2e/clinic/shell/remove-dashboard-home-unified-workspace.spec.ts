@@ -39,12 +39,21 @@ async function setClinicSession(page: Page) {
   ]);
 }
 
-function rail(page: Page) {
-  return page.locator('[data-dashboard-module-rail="true"]');
+// B08: at the default viewport the clinic module navigation is the lateral
+// drawer. The legacy rail is asserted separately, in the <768px regime that is
+// still its own (B09 owns the replacement).
+function lateralNav(page: Page) {
+  return page.locator('[data-dashboard-navigation-drawer="clinic"]');
 }
 
-function railItem(page: Page, moduleId: ClinicModule) {
-  return page.locator(`[data-dashboard-module-rail-item="${moduleId}"]`);
+function lateralNavItem(page: Page, moduleId: ClinicModule) {
+  return lateralNav(page).locator(
+    `[data-dashboard-navigation-item="${moduleId}"]`,
+  );
+}
+
+function legacyRail(page: Page) {
+  return page.locator('[data-dashboard-module-rail="true"]');
 }
 
 test.beforeEach(async ({ page }) => {
@@ -72,8 +81,8 @@ test("/dashboard resolves to operaciones with the rail marking it active", async
   page,
 }) => {
   await page.goto("/dashboard");
-  await expect(rail(page)).toBeVisible({ timeout: 12_000 });
-  await expect(railItem(page, "operaciones")).toHaveAttribute(
+  await expect(lateralNav(page)).toBeVisible({ timeout: 12_000 });
+  await expect(lateralNavItem(page, "operaciones")).toHaveAttribute(
     "aria-current",
     "page",
   );
@@ -88,7 +97,7 @@ for (const moduleId of CLINIC_MODULES) {
     await expect(
       page.locator(`[data-dashboard-module-workspace="${moduleId}"]`),
     ).toBeVisible({ timeout: 12_000 });
-    await expect(railItem(page, moduleId)).toHaveAttribute(
+    await expect(lateralNavItem(page, moduleId)).toHaveAttribute(
       "aria-current",
       "page",
     );
@@ -96,13 +105,36 @@ for (const moduleId of CLINIC_MODULES) {
   });
 }
 
-// 4: the same navigation/pager appears identically for every module.
-test("the shared rail (with all 5 modules + pager) appears on every module", async ({
+// 4: the same navigation appears identically for every module. Two regimes,
+// because B08 split them: the lateral band owns >=768px and does NOT reproduce
+// the prev/next pager; the legacy rail keeps that pager below 768px.
+test("the lateral navigation (all 5 modules) appears on every module", async ({
   page,
 }) => {
   for (const moduleId of CLINIC_MODULES) {
     await page.goto(`/dashboard?module=${moduleId}`);
-    const nav = rail(page);
+    const nav = lateralNav(page);
+    await expect(nav).toBeVisible({ timeout: 12_000 });
+    await expect(nav).toHaveAttribute(
+      "aria-label",
+      "Navegación lateral de clínica",
+    );
+    for (const other of CLINIC_MODULES) {
+      await expect(lateralNavItem(page, other)).toHaveCount(1);
+    }
+    await expect(nav.locator("[aria-current='page']")).toHaveCount(1);
+    await expect(legacyRail(page)).toBeHidden();
+  }
+});
+
+test("the legacy rail (with all 5 modules + pager) appears on every module <768px", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+
+  for (const moduleId of CLINIC_MODULES) {
+    await page.goto(`/dashboard?module=${moduleId}`);
+    const nav = legacyRail(page);
     await expect(nav).toBeVisible({ timeout: 12_000 });
     await expect(nav).toHaveAttribute(
       "aria-label",
@@ -110,7 +142,9 @@ test("the shared rail (with all 5 modules + pager) appears on every module", asy
     );
     // Every module is reachable from the rail, on every module page.
     for (const other of CLINIC_MODULES) {
-      await expect(railItem(page, other)).toHaveCount(1);
+      await expect(
+        nav.locator(`[data-dashboard-module-rail-item="${other}"]`),
+      ).toHaveCount(1);
     }
     // The pager (prev/next) is part of the same single control.
     await expect(

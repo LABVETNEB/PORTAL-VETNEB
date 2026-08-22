@@ -229,8 +229,14 @@ function collectBrowserFailures(page: Page) {
 }
 
 async function expectActiveAdminNavigation(page: Page, label: string) {
+  // B08 retired `DashboardHorizontalNav` and with it the "Navegación principal"
+  // landmark, which the PUBLIC site header still owns — reusing that name here
+  // would now assert against the wrong nav. The admin lateral drawer carries a
+  // role-specific landmark name and owns this regime (both viewports of this
+  // spec are >=1280px). Its items are named by their visible label, so the
+  // lookup below is unchanged.
   const navigation = page.getByRole("navigation", {
-    name: "Navegación principal",
+    name: "Navegación lateral de administración",
   });
   await expect(
     navigation.getByRole("button", { name: label, exact: true }),

@@ -258,10 +258,26 @@ test("B06 · DashboardTopbar stays the orchestrator and feeds every slot", () =>
     "logout as logoutClinic",
     "clearDashboardLastModules",
     "<ThemeModeToggle />",
-    "<DashboardHorizontalNav />",
+    "<AdminMobileKebabMenu />",
   ]) {
     assert.ok(source.includes(kept), `orchestrator lost ${kept}`);
   }
+
+  // B08 retired `DashboardHorizontalNav` and moved module navigation out of the
+  // header entirely: the lateral band is mounted BESIDE `main`, not under the
+  // bar. The app bar therefore owns exactly one row, and this guard now pins
+  // that — a horizontal nav reappearing here would re-add a second band and
+  // spend the vertical budget A03 froze.
+  assert.equal(
+    source.includes("DashboardHorizontalNav"),
+    false,
+    "the retired horizontal nav must not come back into the app bar header",
+  );
+  assert.equal(
+    [...source.matchAll(/<WorkspaceAppBar/g)].length,
+    1,
+    "the header composes exactly one band",
+  );
 });
 
 // ── T4 · Geometry ledger ─────────────────────────────────────────────────────

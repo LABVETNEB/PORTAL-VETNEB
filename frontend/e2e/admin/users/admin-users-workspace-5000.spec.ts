@@ -87,7 +87,7 @@ async function openUsersRolesWorkspace(page: Page) {
 
 async function readWorkspaceState(page: Page): Promise<WorkspaceState> {
   return page.evaluate(
-    ({ tableName, paginationLabel }) => {
+    ({ tableName, paginationLabel, workspaceSelector }) => {
       const table = document.querySelector<HTMLTableElement>(
         `table[aria-label="${tableName}"]`,
       );
@@ -102,11 +102,17 @@ async function readWorkspaceState(page: Page): Promise<WorkspaceState> {
         .find((text) => /^\d+ por página$/.test(text));
       const perPage = perPageLabel ? Number(perPageLabel.split(" ")[0]) : null;
 
+      // B08: the lateral navigation renders the admin module labels, and
+      // "Clínicas" is both a module label and a summary chip label. An
+      // unscoped document scan resolves to the nav item (whose parent is a
+      // route button with no <strong>), so the scan is bound to the
+      // workspace that owns these chips. Not a .first() — a real owner.
+      const workspaceRoot = document.querySelector(workspaceSelector);
       const summary: Record<string, string> = {};
       for (const label of ["Total filtrado", "Admins", "Clínicas"]) {
-        const span = Array.from(document.querySelectorAll("span")).find(
-          (node) => node.textContent?.trim() === label,
-        );
+        const span = Array.from(
+          (workspaceRoot ?? document).querySelectorAll("span"),
+        ).find((node) => node.textContent?.trim() === label);
         const strong = span?.parentElement?.querySelector("strong");
         summary[label] = strong?.textContent?.trim() ?? "";
       }
@@ -132,7 +138,11 @@ async function readWorkspaceState(page: Page): Promise<WorkspaceState> {
         bodyText: document.body.innerText,
       };
     },
-    { tableName: USERS_TABLE_NAME, paginationLabel: DESKTOP_PAGINATION_LABEL },
+    {
+      tableName: USERS_TABLE_NAME,
+      paginationLabel: DESKTOP_PAGINATION_LABEL,
+      workspaceSelector: WORKSPACE_SELECTOR,
+    },
   );
 }
 

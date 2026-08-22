@@ -265,12 +265,23 @@ async function readScrollContract(page: Page): Promise<ScrollContract> {
     const html = document.documentElement;
     const body = document.body;
     const main = document.querySelector("main.dashboard-main") as HTMLElement | null;
-    // Primary dashboard navigation: the admin surface keeps the horizontal nav,
-    // while the clinic surface uses the single shared module rail. Either one
-    // satisfies the "primary navigation stays visible" contract.
-    const nav = document.querySelector(
-      '[aria-label="Navegación principal"], [data-dashboard-module-rail="true"]',
+    // Primary dashboard navigation. B08 unified it: from 768px up BOTH roles
+    // use the lateral model (drawer >=1280, rail 768-1279); below 768px the
+    // clinic main dashboard still uses the legacy module rail, which B09 owns.
+    // Any of them satisfies the "primary navigation stays visible" contract.
+    // Both lateral primitives are always mounted and CSS reveals exactly one,
+    // so the FIRST match in document order is the hidden twin half the time.
+    // Pick the visible one instead of the first one.
+    const navCandidates = Array.from(
+      document.querySelectorAll(
+        '[data-dashboard-navigation-drawer], [data-dashboard-navigation-rail], [data-dashboard-module-rail="true"]',
+      ),
     );
+    const nav =
+      navCandidates.find((candidate) => {
+        const rect = candidate.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+      }) ?? null;
     const topbar = document.querySelector('[aria-label="Barra superior del dashboard"]');
 
     const isVisible = (el: Element | null) => {

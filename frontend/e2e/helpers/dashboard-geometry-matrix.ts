@@ -616,8 +616,18 @@ export const DASHBOARD_GEOMETRY_CAPTURE_MODE: "off" | "capture" = "off";
 
 const SHELL_SELECTORS = {
   topbar: 'header[data-dashboard-topbar-polish="true"]',
+  // Retired by B08. The selector is kept so the A02 record SHAPE is stable and
+  // the horizontal nav's disappearance reads as a measured change rather than
+  // as a schema change; it now resolves to nothing at every viewport.
   horizontalNav: "[data-dashboard-horizontal-nav-shell]",
+  // B08 removed this from >=768px; below that it is still the clinic module
+  // navigation on `/dashboard` (B09 owns its replacement).
   moduleRail: "[data-dashboard-module-rail]",
+  // B08 lateral band. Both primitives are mounted at once and CSS reveals
+  // exactly one, so at most one of these is ever visible. Addressed by CLASS,
+  // which is how styles/dashboard/navigation.css authors their flatness.
+  navigationDrawer: ".dashboard-navigation-drawer",
+  navigationRail: ".dashboard-navigation-rail",
   bottomNav: "[data-admin-mobile-bottom-nav], [data-clinic-mobile-bottom-nav]",
   main: "main.dashboard-main",
 } as const;
@@ -638,6 +648,8 @@ export const DASHBOARD_PERSISTENT_CHROME = [
   { label: "topbar", selector: SHELL_SELECTORS.topbar },
   { label: "horizontal-nav", selector: SHELL_SELECTORS.horizontalNav },
   { label: "module-rail", selector: SHELL_SELECTORS.moduleRail },
+  { label: "navigation-drawer", selector: SHELL_SELECTORS.navigationDrawer },
+  { label: "navigation-rail", selector: SHELL_SELECTORS.navigationRail },
   { label: "bottom-nav", selector: SHELL_SELECTORS.bottomNav },
   { label: "filter-bar", selector: "[data-dashboard-filter-bar]" },
   { label: "sticky-action-bar", selector: "[data-sticky-action-bar]" },

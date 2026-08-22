@@ -245,15 +245,15 @@ function assertDashboardFrameFit(metrics: FrameFitMetrics, label: string) {
 }
 
 test.describe("dashboard workspace layout polish — smoke (PR-2)", () => {
-  test("clinic /dashboard opens the default operaciones workspace via the shared rail (no hub)", async ({
+  test("clinic /dashboard opens the default operaciones workspace via the lateral nav (no hub)", async ({
     page,
   }) => {
     await setClinicSession(page);
     await page.goto("/dashboard");
-    // No hub: the shared module rail and the default operaciones workspace load
-    // directly; the legacy module-hub markup must be absent.
+    // No hub: the lateral navigation (B08) and the default operaciones
+    // workspace load directly; the legacy module-hub markup must be absent.
     await expect(
-      page.locator('[data-dashboard-module-rail="true"]'),
+      page.locator('[data-dashboard-navigation-drawer="clinic"]'),
     ).toBeVisible({ timeout: 8_000 });
     await expect(
       page.locator('[data-dashboard-module-workspace="operaciones"]'),

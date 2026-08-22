@@ -386,8 +386,8 @@ for (const moduleSpec of MODULES) {
     await page.goto(`/dashboard/admin?module=${moduleSpec.moduleId}`);
 
     await expect(
-      page.locator('[data-dashboard-horizontal-nav-shell="true"]'),
-      `${moduleSpec.key} desktop: horizontal nav visible`,
+      page.locator('[data-dashboard-navigation-drawer="admin"]'),
+      `${moduleSpec.key} desktop: lateral nav visible`,
     ).toBeVisible({ timeout: 15_000 });
     await expect(
       page.locator('[data-admin-mobile-bottom-nav="true"]'),

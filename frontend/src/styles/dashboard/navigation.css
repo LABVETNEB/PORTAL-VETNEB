@@ -312,6 +312,44 @@
   }
 }
 
+/*
+  SHORT_HEIGHT_DENSITY. The rail is the only band whose intrinsic block size can
+  outgrow the frame: the admin catalog is ten destinations, so at
+  `--dash-nav-rail-item-h` it asks for more block size than a short viewport
+  leaves once the app bar is paid. `.dashboard-navigation-frame` is
+  `overflow: hidden`, so that surplus is not merely tight - it is CLIPPED. The
+  last destinations vanish with no affordance, and focusing one scrolls the
+  frame, which drags `main` with it because the frame is the row that carries
+  both.
+
+  AGENTS.md §10 names the answer and rules out the shortcut in the same
+  breath: adaptive density is permitted, an internal scroller as the primary
+  solution is not. So the band falls back to the drawer's item height and to its
+  glyph alone. Only the redundant visible `shortLabel` goes: every control
+  already carries the full label as `aria-label` and `title` (NavigationRail),
+  so the accessible name and the keyboard order are untouched.
+
+  THRESHOLD. `--dash-app-bar-h` (56px) plus the ten-item rail at
+  `--dash-nav-rail-item-h` (612px once its gaps and block padding are counted)
+  is 668px; 700px is that figure with headroom. It stays clear of every
+  canonical viewport that lands in the rail band - 768x1024, 834x1194,
+  1024x768, and the 1279x800 regime edge - so the frozen geometry and the
+  versioned baselines keep the full-density band.
+
+  NO SIZE ANIMATION (R11/A03) still holds: the swap lands at a breakpoint and
+  this rule animates nothing at all.
+*/
+@media (min-width: 768px) and (max-width: 1279.98px) and (max-height: 699.98px) {
+  .dashboard-app-shell .dashboard-navigation-rail-item {
+    min-block-size: var(--dash-nav-item-h);
+    max-block-size: var(--dash-nav-item-h);
+  }
+
+  .dashboard-app-shell .dashboard-navigation-rail-label {
+    display: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .dashboard-app-shell .dashboard-navigation-drawer-item,
   .dashboard-app-shell .dashboard-navigation-rail-item {
@@ -328,3 +366,50 @@
   }
 }
 /* dashboard-b07-navigation-drawer-rail:end */
+
+/* dashboard-b08-navigation-migration:start */
+/*
+  B08 - mounting the lateral model.
+
+  One row of the shell holds the navigation band and the workspace side by
+  side. The band is a REAL flex item, never a fixed/absolute overlay: `main`
+  keeps the remaining inline size and the whole block size, so the lateral
+  navigation costs width and never vertical budget.
+
+  UNLAYERED, like the B06 app-bar block in layout.css and the B07 block above:
+  `main.dashboard-main` is authored with Tailwind utilities that live in
+  `@layer utilities`, and a layered rule here would silently lose the cascade.
+
+  NO SIZE ANIMATION (R11/A03): nothing transitions an inline-size, a block-size
+  or a flex-basis. A size transition feeds the ResizeObserver behind the
+  adaptive capacity engine, which makes `limit` oscillate and re-fetch.
+
+  LEGACY_MODULE_RAIL_DESKTOP_RETIREMENT. `.dashboard-module-rail` leaves the
+  >=768px regime here, so from 768px up exactly one lateral model is visible:
+  the B07 rail (768-1279) or the B07 drawer (>=1280). Below 768px the legacy
+  rail stays live and untouched - `ClinicMobileBottomNav` returns null on
+  `/dashboard`, so it IS the clinic module navigation on phones. Deleting the
+  component is B09's, together with the mobile model it would have to replace.
+*/
+.dashboard-app-shell .dashboard-navigation-frame {
+  display: flex;
+  flex-direction: row;
+  min-inline-size: 0;
+  min-block-size: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+/* The workspace takes what the band leaves. `min-inline-size: 0` is what lets
+   a wide table shrink instead of pushing the document into horizontal
+   overflow; the flex-item default (`auto`) would floor it at its content. */
+.dashboard-app-shell .dashboard-navigation-frame > .dashboard-main {
+  min-inline-size: 0;
+}
+
+@media (min-width: 768px) {
+  .dashboard-app-shell .dashboard-module-rail {
+    display: none;
+  }
+}
+/* dashboard-b08-navigation-migration:end */

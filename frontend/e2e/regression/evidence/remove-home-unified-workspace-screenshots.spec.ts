@@ -66,14 +66,28 @@ const CAPTURES: Array<{
   },
 ];
 
+// B08 paints the clinic module navigation in three bands (the media queries in
+// `styles/dashboard/navigation.css`): the drawer from 1280px, the rail at
+// 768-1279px, and neither below 768px — where the legacy module rail is still
+// the only clinic navigation on `/dashboard` until B09 replaces it. Half of the
+// captures above are phone viewports, so a single desktop selector never
+// becomes visible for them.
+function clinicNavigationSelector(width: number): string {
+  if (width >= 1280) return '[data-dashboard-navigation-drawer="clinic"]';
+  if (width >= 768) return '[data-dashboard-navigation-rail="clinic"]';
+  return '[data-dashboard-module-rail="true"]';
+}
+
 for (const capture of CAPTURES) {
   test(`screenshot ${capture.file}`, async ({ page }, testInfo) => {
     await setClinicSession(page);
     await page.setViewportSize({ width: capture.width, height: capture.height });
     await page.goto(capture.url, { waitUntil: "networkidle" });
 
-    // The unified workspace always renders the rail + an active module.
-    await page.waitForSelector('[data-dashboard-module-rail="true"]', {
+    // The unified workspace always renders the clinic module navigation + an
+    // active module. B08 splits that band by viewport, so the readiness gate
+    // has to follow the same split (see clinicNavigationSelector).
+    await page.waitForSelector(clinicNavigationSelector(capture.width), {
       timeout: 15_000,
     });
     await page.waitForSelector("[data-dashboard-module-workspace]", {

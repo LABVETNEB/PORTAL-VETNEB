@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ErrorState } from "@/components/dashboard/ErrorState";
@@ -21,6 +21,14 @@ import { INFORMES_FALLBACK_ROWS, INFORMES_LIMIT_CAP } from "./informes.constants
 
 
 type ReportDetailSection = "resumen" | "archivos" | "timeline";
+
+type InformesPageQuery = {
+  query?: string;
+  status?: string;
+  studyType?: string;
+  pageSize: number;
+  offset: number;
+};
 
 const REPORT_DETAIL_SECTIONS: Array<{
   id: ReportDetailSection;
@@ -45,6 +53,16 @@ function normalizeOffsetForLimit(
     nextOffset = Math.min(nextOffset, lastValidOffset);
   }
   return Math.max(0, nextOffset);
+}
+
+function informesPageQueryKey(query: InformesPageQuery) {
+  return JSON.stringify([
+    query.query ?? null,
+    query.status ?? null,
+    query.studyType ?? null,
+    query.pageSize,
+    query.offset,
+  ]);
 }
 
 function getReportTitle(report: Report) {
@@ -152,8 +170,6 @@ export function InformesReportsList({
 
   const [bodyNode, setBodyNode] = useState<HTMLElement | null>(null);
 
-  const latestRequestRef = useRef(0);
-
   // Informes rows are not uniform — a long study name wraps on a narrow phone —
   // so probing "the first rendered row" made the pitch depend on which reports
   // happened to be on screen: page 1 and page 2 measured different heights, the
@@ -196,35 +212,74 @@ export function InformesReportsList({
     }),
     [filters.query, filters.status, filters.studyType, requestWindow],
   );
+  const queryKey = informesPageQueryKey(query);
+  const desiredQueryRef = useRef<InformesPageQuery>(query);
+  const desiredQueryKeyRef = useRef(queryKey);
+  const satisfiedQueryKeyRef = useRef(queryKey);
+  const requestInFlightRef = useRef(false);
+  const mountedRef = useRef(true);
 
-  useEffect(() => {
-    const requestId = latestRequestRef.current + 1;
-    latestRequestRef.current = requestId;
+  useLayoutEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
+  useLayoutEffect(() => {
+    desiredQueryRef.current = query;
+    desiredQueryKeyRef.current = queryKey;
+
+    if (
+      requestInFlightRef.current ||
+      satisfiedQueryKeyRef.current === queryKey
+    ) {
+      return;
+    }
+
+    requestInFlightRef.current = true;
     void (async () => {
-      const page = Math.floor(query.offset / query.pageSize) + 1;
-      const result = await getInformesPage({
-        query: query.query,
-        status: query.status,
-        studyType: query.studyType,
-        page,
-        pageSize: query.pageSize,
-      });
+      try {
+        while (mountedRef.current) {
+          const nextQuery = desiredQueryRef.current;
+          const nextQueryKey = desiredQueryKeyRef.current;
 
-      if (requestId !== latestRequestRef.current) {
-        return;
+          if (satisfiedQueryKeyRef.current === nextQueryKey) {
+            return;
+          }
+
+          const page = Math.floor(nextQuery.offset / nextQuery.pageSize) + 1;
+          const result = await getInformesPage({
+            query: nextQuery.query,
+            status: nextQuery.status,
+            studyType: nextQuery.studyType,
+            page,
+            pageSize: nextQuery.pageSize,
+          });
+
+          if (!mountedRef.current) {
+            return;
+          }
+
+          if (nextQueryKey !== desiredQueryKeyRef.current) {
+            continue;
+          }
+
+          satisfiedQueryKeyRef.current = nextQueryKey;
+          setReports(result.reports);
+          setSelectedReportId((current) =>
+            current === null || result.reports.some((report) => report.id === current)
+              ? current
+              : (result.reports[0]?.id ?? null),
+          );
+          setTotalCount(result.total);
+          setLoadError(result.loadError);
+        }
+      } finally {
+        requestInFlightRef.current = false;
       }
-
-      setReports(result.reports);
-      setSelectedReportId((current) =>
-        current === null || result.reports.some((report) => report.id === current)
-          ? current
-          : (result.reports[0]?.id ?? null),
-      );
-      setTotalCount(result.total);
-      setLoadError(result.loadError);
     })();
-  }, [query]);
+  }, [query, queryKey]);
 
   // The measured `effectiveLimit` can shrink faster than the corrective
   // server re-fetch resolves (network round trip). Capping the rendered
