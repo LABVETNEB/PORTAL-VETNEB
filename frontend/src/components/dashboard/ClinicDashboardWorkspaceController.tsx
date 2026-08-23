@@ -17,6 +17,12 @@ import {
   DEFAULT_CLINIC_MODULE,
   parseClinicModule,
 } from "@/features/dashboard/config";
+import {
+  applyClinicUrlCommit,
+  clinicModuleHref,
+  recordClinicNavigationIntent,
+  type ClinicNavigationState,
+} from "@/lib/dashboard/navigation/clinicNavigationState";
 import type { ClinicModule } from "@/features/dashboard/config";
 
 export type { ClinicModule };
@@ -71,47 +77,62 @@ export function ClinicDashboardWorkspaceController({
     initialModule ?? DEFAULT_CLINIC_MODULE,
   );
   const hasRestoredLastModule = useRef(false);
-  const currentUrlModule = useRef<ClinicModule>(
-    initialModule ?? DEFAULT_CLINIC_MODULE,
-  );
-  // Latest sync navigation intention (rail tab, pager step, nav signal, hub
-  // reset). The stage swaps the active module optimistically before the router
-  // commits the matching URL; this ref lets the URL-sync effect tell that
-  // commit apart from a stale, superseded one.
-  const pendingNavigationIntent = useRef<{ target: ClinicModule } | null>(null);
+  // Confirmed URL module + the latest sync navigation intention (nav signal,
+  // hub reset). The stage swaps the active module optimistically before the
+  // router commits the matching URL, so every commit has to be told apart from
+  // a stale, superseded one. The classification lives in a pure module because
+  // it is a race: it cannot be exercised through the router, only modelled.
+  const navigationState = useRef<ClinicNavigationState>({
+    confirmedUrlModule: initialModule ?? DEFAULT_CLINIC_MODULE,
+    pendingIntent: null,
+  });
   const [hasManuallyReturnedToHub, setHasManuallyReturnedToHub] =
     useState(false);
 
   const recordNavigationIntent = useCallback((target: ClinicModule) => {
-    pendingNavigationIntent.current =
-      currentUrlModule.current === target ? null : { target };
+    navigationState.current = recordClinicNavigationIntent(
+      navigationState.current,
+      target,
+    );
   }, []);
 
   useEffect(() => {
     // No module in the URL means the operational default — never a hub.
     const nextModule =
       parseClinicModule(searchParams.get("module")) ?? DEFAULT_CLINIC_MODULE;
-    currentUrlModule.current = nextModule;
 
     // A sync activation swaps the stage before its URL commit. Under load the
     // SUPERSEDED previous navigation can still commit after that optimistic
     // swap (the router action queue drains in dispatch order); applying it here
-    // would yank the workspace away mid-interaction. Consume the intent on the
-    // first commit that follows it: a mismatching commit is the stale
-    // navigation and must not override optimistic state; the matching commit
-    // re-converges URL and state. One-shot consumption keeps external
-    // navigations (Back/Forward, deep links) working — they are never skipped
-    // more than once, and only inside the sub-second optimistic window.
-    const intent = pendingNavigationIntent.current;
-    if (intent) {
-      if (nextModule !== intent.target) {
-        return;
-      }
-      pendingNavigationIntent.current = null;
+    // would yank the workspace away mid-interaction.
+    //
+    // Skipping that commit is only half the job. The URL would keep pointing at
+    // the module that LOST, and `DashboardMobileNav` derives its `aria-current`
+    // from `useSearchParams` — so url, bar and workspace would disagree with no
+    // event left to fix them. The stale commit is therefore RECONCILED: the
+    // winning intention's canonical url is re-asserted with `replace` (never
+    // `push`: superseding a navigation must not add a history entry). That
+    // replace produces a matching commit, which consumes the intent, so there
+    // is at most one per intention and no loop.
+    const outcome = applyClinicUrlCommit(navigationState.current, nextModule);
+    navigationState.current = outcome.state;
+
+    if (outcome.reconcileTo !== null) {
+      router.replace(
+        clinicModuleHref(
+          ROUTES.dashboard,
+          DEFAULT_CLINIC_MODULE,
+          outcome.reconcileTo,
+        ),
+        { scroll: false },
+      );
+      return;
     }
 
-    setActiveModule(nextModule);
-  }, [searchParams]);
+    if (outcome.activeModule !== null) {
+      setActiveModule(outcome.activeModule as ClinicModule);
+    }
+  }, [router, searchParams]);
 
   useEffect(
     () =>
