@@ -166,6 +166,18 @@ export function ClinicDashboardWorkspaceController({
   // resolves to a real module (there is no hub to force), stays replace-only to
   // avoid history pollution, and yields to an explicit URL module or a manual
   // return to the default.
+  //
+  // The restore is a NAVIGATION, so it obeys the same two rules as every other
+  // one. It used to bypass both. It hand-built `?module=${lastModule}`, which
+  // spells the DEFAULT module as `?module=operaciones` while the canonical url
+  // for it is the bare `/dashboard` — a second spelling of one surface, and the
+  // one `clinicModuleHref` exists to prevent. And it recorded no intent, so
+  // `applyClinicUrlCommit` classified its commit as EXTERNAL (deep link,
+  // Back/Forward) and obeyed it: a restore fired on mount could land AFTER an
+  // explicit tap and reopen the module the user had just navigated away from.
+  // Recording the intent first is what lets a later tap supersede the restore,
+  // and what makes the restore's own late commit reconcilable instead of
+  // authoritative.
   useEffect(() => {
     if (hasRestoredLastModule.current || hasManuallyReturnedToHub) return;
     if (searchParams.get("module")) return;
@@ -174,10 +186,21 @@ export function ClinicDashboardWorkspaceController({
     );
     if (!lastModule) return;
     hasRestoredLastModule.current = true;
-    router.replace(`${ROUTES.dashboard}?module=${lastModule}`, {
-      scroll: false,
-    });
-  }, [searchParams, hasManuallyReturnedToHub, router]);
+    // Restoring the DEFAULT module is not a navigation: `clinicModuleHref`
+    // spells it as the bare `/dashboard`, which is exactly the url a bare entry
+    // is already showing — the same condition `recordClinicNavigationIntent`
+    // calls a genuine no-op (nothing in flight AND the url already shows the
+    // target). Issuing the replace anyway put an unguarded navigation in flight
+    // during mount, and an intent recorded for a target that already matches
+    // the confirmed url cannot arm a guard, so that replace could land after
+    // the user's first tap and overwrite it with the url they had left.
+    if (lastModule === DEFAULT_CLINIC_MODULE) return;
+    recordNavigationIntent(lastModule);
+    router.replace(
+      clinicModuleHref(ROUTES.dashboard, DEFAULT_CLINIC_MODULE, lastModule),
+      { scroll: false },
+    );
+  }, [searchParams, hasManuallyReturnedToHub, recordNavigationIntent, router]);
 
   const meta = MODULE_META[activeModule];
 

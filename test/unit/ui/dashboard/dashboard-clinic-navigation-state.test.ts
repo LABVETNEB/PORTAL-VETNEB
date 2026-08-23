@@ -229,7 +229,10 @@ test("two fast module intents · A -> B", () => {
 });
 
 test("external navigation without a pending intent is obeyed", () => {
-  // Deep link, Back/Forward and the last-module restore all arrive here.
+  // Deep link and Back/Forward arrive here. The last-module restore no longer
+  // does: it records its intent first, which is exactly what stopped it from
+  // being classified — and obeyed — as an external navigation. See the restore
+  // section below.
   const state = initial();
   const commit = applyClinicUrlCommit(state, LOGISTICA);
 
@@ -248,4 +251,120 @@ test("the default module reconciles to the bare dashboard url", () => {
   );
   assert.equal(clinicModuleHref(BASE, OPERACIONES, INFORMES), "/dashboard?module=informes");
   assert.equal(clinicModuleHref(BASE, OPERACIONES, LOGISTICA), "/dashboard?module=logistica");
+});
+
+// ── The last-module restore (B09 · P2) ───────────────────────────────────────
+//
+// `ClinicDashboardWorkspaceController` resumes the last visited module on a
+// bare `/dashboard` entry. That restore is a navigation like any other, but it
+// used to be issued outside both rules of this module: it hand-built its url
+// and it recorded no intent.
+//
+// Recording no intent is the defect. The restore fires on MOUNT, so its
+// `replace` is in flight exactly while the shell becomes interactive and the
+// first tap can happen. If the tap's own commit lands first it consumes its
+// intent, leaving nothing pending — and the restore's late commit is then read
+// as an EXTERNAL navigation (deep link, Back/Forward) and obeyed, reopening the
+// module the user had just left. Same race as above, one navigation earlier.
+
+test("restore · PRE-FIX, an unrecorded restore is read as external and wins", () => {
+  let state = initial(OPERACIONES);
+
+  // The tap the user makes while the mount-time restore is still in flight.
+  state = recordClinicNavigationIntent(state, INFORMES);
+  const tap = applyClinicUrlCommit(state, INFORMES);
+  assert.equal(tap.activeModule, INFORMES, "the tap lands and consumes its intent");
+  assert.equal(tap.state.pendingIntent, null);
+
+  // PRE-FIX the restore contributed no intent, so its late commit arrives with
+  // nothing left to classify it as superseded.
+  const late = applyClinicUrlCommit(tap.state, OPERACIONES);
+  assert.equal(
+    late.activeModule,
+    OPERACIONES,
+    "PRE-FIX: the restore reopens the module the tap had just left",
+  );
+  assert.equal(late.reconcileTo, null, "PRE-FIX: and nothing re-asserts the tap's url");
+});
+
+// A · the restore arms its intent before the url it asks for can commit.
+test("restore · a non-default last module arms an intent before its url commits", () => {
+  const state = initial(OPERACIONES);
+  const restored = recordClinicNavigationIntent(state, INFORMES);
+
+  assert.deepEqual(
+    restored.pendingIntent,
+    { target: INFORMES },
+    "the restore is guarded from the moment it is issued, not once it lands",
+  );
+  assert.equal(
+    restored.confirmedUrlModule,
+    OPERACIONES,
+    "the url has not committed yet: the bare /dashboard entry still holds",
+  );
+  assert.equal(
+    clinicModuleHref(BASE, OPERACIONES, INFORMES),
+    "/dashboard?module=informes",
+    "and the url it asks for comes from the shared authority",
+  );
+});
+
+// B · restoring the default module resolves to the bare `/dashboard`.
+test("restore · the default module restores to /dashboard, never ?module=operaciones", () => {
+  const href = clinicModuleHref(BASE, OPERACIONES, OPERACIONES);
+
+  assert.equal(href, "/dashboard");
+  assert.equal(
+    href.includes("module="),
+    false,
+    "a second spelling of the default surface is what the hand-built url introduced",
+  );
+
+  // Restoring the default onto a bare entry asks for the url that is already
+  // showing, which is the one genuine no-op: nothing is in flight to guard.
+  const state = initial(OPERACIONES);
+  assert.equal(recordClinicNavigationIntent(state, OPERACIONES), state);
+});
+
+// C · an explicit tap supersedes a restore that has not landed.
+test("restore · an explicit tap supersedes a restore still in flight", () => {
+  let state = initial(OPERACIONES);
+
+  state = recordClinicNavigationIntent(state, INFORMES); // mount-time restore
+  state = recordClinicNavigationIntent(state, LOGISTICA); // the user taps
+
+  assert.deepEqual(
+    state.pendingIntent,
+    { target: LOGISTICA },
+    "the newest intention wins: a restore is not privileged over a tap",
+  );
+});
+
+// D + E · the restore's stale commit is reconciled, and the winning commit
+// consumes the intent without a second replace.
+test("restore · the restore's late commit is reconciled to the tap, then converges", () => {
+  let state = initial(OPERACIONES);
+  state = recordClinicNavigationIntent(state, INFORMES);
+  state = recordClinicNavigationIntent(state, LOGISTICA);
+
+  // D
+  const stale = applyClinicUrlCommit(state, INFORMES);
+  assert.equal(
+    stale.activeModule,
+    null,
+    "the workspace keeps the tapped module: the restore lost",
+  );
+  assert.equal(
+    stale.reconcileTo,
+    LOGISTICA,
+    "and the url is re-asserted so aria-current follows the tap, not the restore",
+  );
+  assert.deepEqual(stale.state.pendingIntent, { target: LOGISTICA });
+
+  // E
+  const settled = applyClinicUrlCommit(stale.state, LOGISTICA);
+  assert.equal(settled.activeModule, LOGISTICA);
+  assert.equal(settled.reconcileTo, null, "one replace per intention, and no loop");
+  assert.equal(settled.state.pendingIntent, null);
+  assert.equal(settled.state.confirmedUrlModule, LOGISTICA);
 });
