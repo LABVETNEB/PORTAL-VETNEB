@@ -159,6 +159,29 @@
     margin-block-start: var(--dash-rhythm);
   }
 
+  /* B09 · the clinic workspace owns its rhythm EXPLICITLY.
+
+     The rule above is a sibling-combinator ("owl") rule: it gives the rhythm to
+     every stage child from the second onwards. Admin still needs it — its hub
+     state renders [pageHeader, DashboardModuleHub] and that pair is exactly the
+     "hub page-header <-> content rhythm" named above.
+     The clinic stage, though, used to render [DashboardModuleRail, workspace],
+     so the workspace got its top rhythm only by being SECOND. The rail was
+     `display: none` from 768px up since B08, yet a sibling combinator is
+     structural: it matched anyway, so the workspace kept that margin at every
+     viewport while the element feeding it was invisible.
+     B09 retired the rail, the workspace became an only child, and the rhythm
+     silently disappeared across all 13 viewports — a spacing change nobody
+     asked for, produced by deleting something that painted nothing.
+     Declaring it on the workspace itself makes the contract independent of any
+     sibling, of child order, and of another component's `display`. Both rules
+     resolve to the same token, so a future stage sibling cannot double it. */
+  .dashboard-app-shell
+    [data-clinic-dashboard-stage="true"]
+    > [data-dashboard-module-workspace] {
+    margin-block-start: var(--dash-rhythm);
+  }
+
   .dashboard-app-shell [data-dashboard-module-stage="true"] {
     box-sizing: border-box;
     min-width: 0;
