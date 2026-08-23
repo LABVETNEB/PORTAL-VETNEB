@@ -608,7 +608,7 @@ export function resolveBaselineRecords(
  * a real capture from a platform that is not the developer's, and it must be
  * flipped back to "off" in the same PR that lands the captured records.
  */
-export const DASHBOARD_GEOMETRY_CAPTURE_MODE: "off" | "capture" = "off";
+export const DASHBOARD_GEOMETRY_CAPTURE_MODE: "off" | "capture" = "capture";
 
 // ── Selectors ────────────────────────────────────────────────────────────────
 // Every selector below already exists in the runtime. A02 adds no data-*

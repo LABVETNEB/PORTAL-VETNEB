@@ -65,8 +65,15 @@ const resolvedBaseline = resolveBaselineRecords(
 
 // Scoped to platforms that have NO baseline yet, so a platform already covered
 // keeps comparing normally and can never be silently downgraded to a capture.
-const ciCaptureRequested =
-  DASHBOARD_GEOMETRY_CAPTURE_MODE === "capture" && resolvedBaseline === null;
+//
+// TEMPORARY (B09 A02 Linux recapture): the `resolvedBaseline === null` scope is
+// suspended for ONE run. `platformRecords.linux` already exists but is stale
+// after B09, and the drift report only carries the metrics that exceeded
+// tolerance — 21 of the 48 fields in a record — so it cannot rebuild a real
+// capture. This must be restored, together with CAPTURE_MODE = "off", in the
+// same PR that lands the captured records. The fail-closed below is untouched:
+// a capture pass still ends red and can never turn a stale baseline green.
+const ciCaptureRequested = DASHBOARD_GEOMETRY_CAPTURE_MODE === "capture";
 const captureRequested = localCaptureRequested || ciCaptureRequested;
 
 const baselineIndex = new Map<string, DashboardGeometryRecord>(
