@@ -172,7 +172,7 @@ async function openClinicsFromHub(page: Page) {
 
 async function backToHub(page: Page) {
   await page
-    .locator('[data-admin-mobile-bottom-nav="true"]')
+    .locator('[data-dashboard-mobile-nav="admin"]')
     .getByRole("button", { name: "Inicio", exact: true })
     .click();
   const hub = page.locator('[data-admin-mobile-hub-launcher="true"]');

@@ -620,15 +620,18 @@ const SHELL_SELECTORS = {
   // the horizontal nav's disappearance reads as a measured change rather than
   // as a schema change; it now resolves to nothing at every viewport.
   horizontalNav: "[data-dashboard-horizontal-nav-shell]",
-  // B08 removed this from >=768px; below that it is still the clinic module
-  // navigation on `/dashboard` (B09 owns its replacement).
+  // Retired by B08 (>=768px) and then by B09 (physically). The selector is kept
+  // so the A02 record SHAPE is stable and the rail's disappearance reads as a
+  // measured change rather than a missing key.
   moduleRail: "[data-dashboard-module-rail]",
   // B08 lateral band. Both primitives are mounted at once and CSS reveals
   // exactly one, so at most one of these is ever visible. Addressed by CLASS,
   // which is how styles/dashboard/navigation.css authors their flatness.
   navigationDrawer: ".dashboard-navigation-drawer",
   navigationRail: ".dashboard-navigation-rail",
-  bottomNav: "[data-admin-mobile-bottom-nav], [data-clinic-mobile-bottom-nav]",
+  // B09 mobile model: one owner for both roles, so what used to be a union of
+  // two per-role selectors is a single attribute.
+  bottomNav: "[data-dashboard-mobile-nav]",
   main: "main.dashboard-main",
 } as const;
 

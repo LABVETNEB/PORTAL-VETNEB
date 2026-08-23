@@ -257,14 +257,17 @@ test("the navigation frame places the band beside main, never over it", () => {
 test("shell router no longer renders a vertical sidebar as primary navigation", () => {
   const source = read(SHELL_ROUTER_PATH);
 
-  assert.ok(source.includes('import { AdminMobileBottomNav } from "./AdminMobileBottomNav";'));
-  assert.ok(source.includes('import { ClinicMobileBottomNav } from "./ClinicMobileBottomNav";'));
+  // B09 collapsed the two per-role bottom navs into one owner, mounted here
+  // with the surface the shell already resolved. The mount site did not move:
+  // the bar is still a flow sibling of the frame, so the shell keeps
+  // subtracting its height from `main` instead of letting it cover content.
+  assert.ok(source.includes('import { DashboardMobileNav } from "./DashboardMobileNav";'));
+  assert.equal(source.includes("AdminMobileBottomNav"), false);
+  assert.equal(source.includes("ClinicMobileBottomNav"), false);
   assert.equal(source.includes("AdminDashboardSidebar"), false);
   assert.equal(source.includes("ClinicDashboardSidebar"), false);
   assert.equal(source.includes("<aside"), false);
   assert.ok(source.includes("flex flex-col h-dvh overflow-hidden"));
   assert.ok(source.includes("data-vetneb-app-shell-surface={surface}"));
-  assert.ok(source.includes("isAdminDashboard ? ("));
-  assert.ok(source.includes("<AdminMobileBottomNav />"));
-  assert.ok(source.includes("<ClinicMobileBottomNav />"));
+  assert.ok(source.includes("<DashboardMobileNav surface={surface} />"));
 });

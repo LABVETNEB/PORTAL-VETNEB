@@ -321,7 +321,7 @@ async function expectInsideMobileContentBand(
 
   const [appBarBox, bottomNavBox, elementBox] = await Promise.all([
     page.locator('[data-admin-mobile-app-bar="true"]').boundingBox(),
-    page.locator('[data-admin-mobile-bottom-nav="true"]').boundingBox(),
+    page.locator('[data-dashboard-mobile-nav="admin"]').boundingBox(),
     locator.boundingBox(),
   ]);
 
@@ -384,7 +384,7 @@ async function expectNotClippedByAncestors(locator: Locator, label: string) {
 
 async function expectMobileChrome(page: Page, viewport: Viewport, label: string) {
   const appBar = page.locator('[data-admin-mobile-app-bar="true"]');
-  const bottomNav = page.locator('[data-admin-mobile-bottom-nav="true"]');
+  const bottomNav = page.locator('[data-dashboard-mobile-nav="admin"]');
   // B08: the retired horizontal nav must not exist at all, and neither lateral
   // primitive may paint below 768px — that regime belongs to the mobile model.
   const retiredHorizontalNav = page.locator('[data-dashboard-horizontal-nav-shell="true"]');
@@ -397,7 +397,7 @@ async function expectMobileChrome(page: Page, viewport: Viewport, label: string)
   await expect(retiredHorizontalNav, `${label}: retired desktop nav absent`).toHaveCount(0);
   await expect(lateralNav.first(), `${label}: lateral nav hidden on mobile`).toBeHidden();
 
-  const navItems = bottomNav.locator('[data-admin-mobile-bottom-nav-item="true"]');
+  const navItems = bottomNav.locator('[data-dashboard-mobile-nav-item]');
   await expect(navItems).toHaveCount(5);
   for (let index = 0; index < 5; index += 1) {
     await expectInsideViewport(
@@ -531,15 +531,15 @@ for (const viewport of MOBILE_VIEWPORTS) {
     );
     await captureScreen(page, testInfo, viewport.name, "launcher-page-2");
 
-    const bottomNav = page.locator('[data-admin-mobile-bottom-nav="true"]');
+    const bottomNav = page.locator('[data-dashboard-mobile-nav="admin"]');
     await bottomNav.getByRole("button", { name: "Más", exact: true }).click();
-    const moduleMenu = page.locator('[data-admin-mobile-module-menu="true"]');
+    const moduleMenu = page.locator('[data-dashboard-mobile-nav-overflow="true"]');
     await expectInsideViewport(moduleMenu, viewport, `${viewport.name} Más menu`);
     assertSurfaceContract(
-      await readSurfaceContract(page, '[data-admin-mobile-module-menu="true"]'),
+      await readSurfaceContract(page, '[data-dashboard-mobile-nav-overflow="true"]'),
       `${viewport.name} Más menu`,
     );
-    const moduleLinks = moduleMenu.locator('[data-admin-mobile-module-link="true"]');
+    const moduleLinks = moduleMenu.locator('[data-dashboard-mobile-nav-overflow-link]');
     const moduleLinkCount = await moduleLinks.count();
     expect(moduleLinkCount).toBeGreaterThan(0);
     for (let index = 0; index < moduleLinkCount; index += 1) {
@@ -610,7 +610,7 @@ test("Admin desktop final polish smoke at 1280x800", async ({ page }, testInfo) 
 
   const lateralDrawer = page.locator('[data-dashboard-navigation-drawer]');
   await expect(lateralDrawer).toBeVisible({ timeout: 15_000 });
-  await expect(page.locator('[data-admin-mobile-bottom-nav="true"]')).toBeHidden();
+  await expect(page.locator('[data-dashboard-mobile-nav="admin"]')).toBeHidden();
   await expect(page.locator('[data-admin-mobile-hub-launcher="true"]')).toBeHidden();
   const desktopHub = page.locator('[data-dashboard-module-hub="true"]');
   await expect(desktopHub).toBeVisible();
@@ -628,7 +628,7 @@ test("Admin desktop final polish smoke at 1280x800", async ({ page }, testInfo) 
       `/dashboard/admin?module=${moduleScreen.moduleId}`,
     );
     await expect(lateralDrawer).toBeVisible({ timeout: 15_000 });
-    await expect(page.locator('[data-admin-mobile-bottom-nav="true"]')).toBeHidden();
+    await expect(page.locator('[data-dashboard-mobile-nav="admin"]')).toBeHidden();
     await expect(page.locator(moduleScreen.mobileRoot)).toBeHidden();
 
     const workspaceSelector = `[data-dashboard-module-workspace="${moduleScreen.moduleId}"]`;

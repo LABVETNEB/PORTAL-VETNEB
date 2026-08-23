@@ -126,7 +126,7 @@ async function readLayerContract(
       '[data-dashboard-topbar-polish="true"]',
     );
     const bottomNav = document.querySelector<HTMLElement>(
-      '[data-admin-mobile-bottom-nav="true"]',
+      '[data-dashboard-mobile-nav="admin"]',
     );
     const horizontalNav = document.querySelector<HTMLElement>(
       '[data-dashboard-horizontal-nav-shell="true"]',
@@ -298,7 +298,7 @@ async function openModule(
 
 async function backToHub(page: Page, viewportLabel: string) {
   await page
-    .locator('[data-admin-mobile-bottom-nav="true"]')
+    .locator('[data-dashboard-mobile-nav="admin"]')
     .getByRole("button", { name: "Inicio", exact: true })
     .click();
 
@@ -476,7 +476,7 @@ async function readHubPaintChain(page: Page) {
       '[data-admin-mobile-app-bar="true"]',
     );
     const bottomNav = document.querySelector<HTMLElement>(
-      '[data-admin-mobile-bottom-nav="true"]',
+      '[data-dashboard-mobile-nav="admin"]',
     );
 
     if (
@@ -537,7 +537,7 @@ for (const cell of PAINT_CHAIN_MATRIX) {
     // guards the bottom-nav/controller restore-last-module desync directly,
     // with no hard reload / localStorage workaround.
     await page
-      .locator('[data-admin-mobile-bottom-nav="true"]')
+      .locator('[data-dashboard-mobile-nav="admin"]')
       .getByRole("button", { name: "Inicio", exact: true })
       .click();
     await expect(hub).toBeVisible({ timeout: 15_000 });

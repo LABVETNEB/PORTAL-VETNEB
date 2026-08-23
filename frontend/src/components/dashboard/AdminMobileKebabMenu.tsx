@@ -8,6 +8,26 @@ import { ROUTES } from "@/lib/routes";
 import { DashboardLogoutControl } from "./DashboardLogoutControl";
 import { DashboardNotificationsBell } from "./DashboardNotificationsBell";
 
+/**
+ * Admin mobile ACTION overflow.
+ *
+ * B09 unified the mobile NAVIGATION model into `DashboardMobileNav`, and this
+ * menu deliberately stayed out of it. It carries actions, not destinations, and
+ * its import closure reaches `@/lib/api` through `DashboardLogoutControl` and
+ * `DashboardNotificationsBell` - folding it into the navigation owner would
+ * drag the data layer across the `presentation/navigation` boundary.
+ *
+ * It is also the ONLY carrier of theme, notifications, password, public site
+ * and logout on admin mobile: `mobile-admin.css` hides
+ * `[data-dashboard-desktop-actions]` below 768px, so retiring this menu would
+ * leave admin phones with no way to sign out.
+ *
+ * B09_TOUCH_POLICY = OPTION_A applies here: the trigger and the rows are raised
+ * to >=44x44 in `mobile-admin.css`. The two composed controls are sized
+ * LOCALLY - the theme toggle through its `className` prop, the bell through a
+ * rule scoped to `.admin-mobile-kebab-row` - because both are shared with
+ * surfaces outside B09's scope and must not be resized globally.
+ */
 export function AdminMobileKebabMenu() {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -44,7 +64,7 @@ export function AdminMobileKebabMenu() {
         >
           <div className="admin-mobile-kebab-row">
             <span>Apariencia</span>
-            <ThemeModeToggle className="h-9 w-9 bg-card" />
+            <ThemeModeToggle className="h-11 w-11 bg-card" />
           </div>
           <div className="admin-mobile-kebab-row">
             <span>Notificaciones</span>

@@ -643,14 +643,17 @@
  * a public surface.
  *
  * NOT here, by classification: `.dashboard-filter-panel` (transient drawer),
- * `.admin-mobile-kebab-menu` / `.admin-mobile-module-menu` (transient
- * overlays), every `:focus-visible` ring, and the decorative icon halos. */
+ * `.admin-mobile-kebab-menu` (transient overlay) and the B09 destination
+ * overflow it sits next to, every `:focus-visible` ring, and the decorative
+ * icon halos.
+ *
+ * B09: the module rail and the two per-role bottom navs were retired and
+ * replaced by one owner, so the three anchors they contributed collapse into
+ * `[data-dashboard-mobile-nav]`. */
 .dashboard-app-shell [data-dashboard-horizontal-nav-shell="true"],
-.dashboard-app-shell [data-dashboard-module-rail],
 .dashboard-app-shell [data-dashboard-filter-bar="true"],
 .dashboard-app-shell [data-sticky-action-bar="true"],
-.dashboard-app-shell [data-admin-mobile-bottom-nav="true"],
-.dashboard-app-shell [data-clinic-mobile-bottom-nav="true"] {
+.dashboard-app-shell [data-dashboard-mobile-nav] {
   box-shadow: var(--dash-elevation-none);
 }
 /* dashboard-b04-persistent-chrome:end */

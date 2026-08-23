@@ -1,11 +1,10 @@
 /**
  * Dashboard · presentation/navigation (B01 re-export boundary).
  *
- * Home for the module navigation surfaces: the B07 lateral primitives and the
- * B08 frame that mounts them, DashboardModuleRail, Admin/ClinicMobileBottomNav,
- * the AdminMobile hub launcher / pager / module menu and the pagers (audit §6).
- * These consume the `config` catalog and the `application` navigation helpers
- * rather than re-declaring module literals.
+ * Home for the module navigation surfaces: the B07 lateral primitives, the B08
+ * frame that mounts them, the B09 mobile model, the AdminMobile hub launcher /
+ * pager and the pagers (audit §6). These consume the `config` catalog and the
+ * `application` navigation helpers rather than re-declaring module literals.
  *
  * B01 populates this barrel with **behaviour-preserving re-exports**: nothing is
  * moved, reimplemented or renamed, and no consumer is migrated. The
@@ -44,12 +43,19 @@
  * both mobile stylesheets), so the lateral model replaces it outright and no
  * phone surface lost navigation with it.
  *
- * `DashboardModuleRail` survives on purpose. B08 removed it from the >=768px
- * regime, where the drawer and the rail now own navigation, but it is still the
- * clinic module navigation BELOW 768px: `ClinicMobileBottomNav` returns null on
- * `/dashboard`, so deleting the component would leave that surface with no
- * navigation at all. Its physical retirement belongs to B09, together with the
- * mobile model that has to replace it.
+ * `DashboardMobileNav` is the B09 mobile model and the single navigation owner
+ * below 768px on BOTH roles. It replaced four components at once:
+ * `AdminMobileBottomNav`, `AdminMobileModuleMenu`, `ClinicMobileBottomNav` and
+ * `DashboardModuleRail`, all four physically retired by B09. The rail was the
+ * one B08 had to keep alive - `ClinicMobileBottomNav` returned null on
+ * `/dashboard`, so the rail was that surface's only navigation; B09 removed the
+ * early return, so the bar now covers `/dashboard` too and
+ * `LEGACY_MODULE_RAIL_PHYSICAL_RETIREMENT` is closed.
+ *
+ * `AdminMobileKebabMenu` stays out of this barrel and out of that owner. It is
+ * the ACTION overflow (theme, notifications, password, public site, logout),
+ * not a navigation destination, and its import closure reaches `@/lib/api`
+ * through `DashboardLogoutControl` and `DashboardNotificationsBell`.
  *
  * `AdminDashboardSidebar` and `ClinicDashboardSidebar` are absent because B02
  * retired them (audit §14.3): they had no runtime consumers, so the whole
@@ -60,10 +66,6 @@
  * @see docs/implementation/dashboard-presentation-shell-navigation-barrels.md
  * @see docs/implementation/dashboard-presentation-boundaries.md
  */
-export {
-  CLINIC_MODULE_RAIL_ITEMS,
-  DashboardModuleRail,
-} from "@/components/dashboard/DashboardModuleRail";
 export {
   NavigationDrawer,
   type NavigationDrawerProps,
@@ -76,11 +78,13 @@ export {
   DashboardNavigationFrame,
   type DashboardNavigationFrameProps,
 } from "@/components/dashboard/DashboardNavigationFrame";
-export { AdminMobileBottomNav } from "@/components/dashboard/AdminMobileBottomNav";
-export { ClinicMobileBottomNav } from "@/components/dashboard/ClinicMobileBottomNav";
+export {
+  DashboardMobileNav,
+  type DashboardMobileNavProps,
+  type DashboardMobileNavSurface,
+} from "@/components/dashboard/DashboardMobileNav";
 export { AdminMobileHubLauncher } from "@/components/dashboard/AdminMobileHubLauncher";
 export { AdminMobileHubPager } from "@/components/dashboard/AdminMobileHubPager";
-export { AdminMobileModuleMenu } from "@/components/dashboard/AdminMobileModuleMenu";
 export {
   DASHBOARD_INLINE_PAGER_RESERVATION,
   DASHBOARD_PAGER_RESERVATION,

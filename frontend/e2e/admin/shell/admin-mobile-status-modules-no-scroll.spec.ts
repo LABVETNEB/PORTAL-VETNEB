@@ -143,7 +143,7 @@ async function expectInsideContentBand(
   await expect(locator, `${label}: visible`).toBeVisible();
   const [appBarBox, bottomNavBox, box] = await Promise.all([
     page.locator('[data-admin-mobile-app-bar="true"]').boundingBox(),
-    page.locator('[data-admin-mobile-bottom-nav="true"]').boundingBox(),
+    page.locator('[data-dashboard-mobile-nav="admin"]').boundingBox(),
     locator.boundingBox(),
   ]);
 
@@ -205,7 +205,7 @@ async function readContentGutters(
     );
     const chipRow = moduleRoot?.querySelector<HTMLElement>('[role="tablist"]');
     const bottomNav = document.querySelector<HTMLElement>(
-      '[data-admin-mobile-bottom-nav="true"]',
+      '[data-dashboard-mobile-nav="admin"]',
     );
     const appBar = document.querySelector<HTMLElement>(
       '[data-admin-mobile-app-bar="true"]',
@@ -268,7 +268,7 @@ for (const moduleSpec of STATUS_MODULES) {
           `${viewport.name} ${mode}: app bar`,
         ).toBeVisible({ timeout: 15_000 });
         await expect(
-          page.locator('[data-admin-mobile-bottom-nav="true"]'),
+          page.locator('[data-dashboard-mobile-nav="admin"]'),
           `${viewport.name} ${mode}: bottom nav`,
         ).toBeVisible();
         await expect(
@@ -386,7 +386,7 @@ for (const moduleSpec of STATUS_MODULES) {
         }
 
         await page
-          .locator('[data-admin-mobile-bottom-nav="true"]')
+          .locator('[data-dashboard-mobile-nav="admin"]')
           .getByRole("button", { name: "Inicio", exact: true })
           .click();
         await expect(
@@ -420,7 +420,7 @@ for (const moduleSpec of STATUS_MODULES) {
       `${moduleSpec.key} desktop: lateral nav visible`,
     ).toBeVisible({ timeout: 15_000 });
     await expect(
-      page.locator('[data-admin-mobile-bottom-nav="true"]'),
+      page.locator('[data-dashboard-mobile-nav="admin"]'),
       `${moduleSpec.key} desktop: bottom nav absent`,
     ).toBeHidden();
     await expect(

@@ -1,24 +1,29 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
+
+const REPO_ROOT = process.cwd();
 
 const PAGE_PATH = "frontend/src/app/dashboard/page.tsx";
 const CONTROLLER_PATH =
   "frontend/src/components/dashboard/ClinicDashboardWorkspaceController.tsx";
+/** Retired by B09 together with the two per-role bottom navs it outlived. */
 const RAIL_PATH = "frontend/src/components/dashboard/DashboardModuleRail.tsx";
 const WORKSPACE_PATH =
   "frontend/src/components/dashboard/DashboardModuleWorkspace.tsx";
-// B08 retired DashboardHorizontalNav; the >=768px suppression it used to
-// declare is now a CSS fact about the legacy rail itself.
+// B08 retired DashboardHorizontalNav and B09 the rail; the regime boundary they
+// used to declare is now one CSS fact about the single mobile owner.
 const NAVIGATION_CSS_PATH = "frontend/src/styles/dashboard/navigation.css";
-const MOBILE_BOTTOM_NAV_PATH =
-  "frontend/src/components/dashboard/ClinicMobileBottomNav.tsx";
+const MOBILE_NAV_PATH =
+  "frontend/src/components/dashboard/DashboardMobileNav.tsx";
+const SHELL_ROUTER_PATH =
+  "frontend/src/components/dashboard/DashboardShellRouter.tsx";
 const CATALOG_PATH =
   "frontend/src/features/dashboard/config/dashboardModules.ts";
 
 function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
+  return readFileSync(resolve(REPO_ROOT, relativePath), "utf8").replace(
     /\r\n/g,
     "\n",
   );
@@ -102,50 +107,44 @@ test("clinic deep links (?module=) still drive the active module", () => {
   }
 });
 
-// ── Single, shared navigation/pager across every module and device ───────────
+// ── One shared navigation owner across every module and device ───────────────
 
-test("DashboardModuleRail is the single shared module navigation/pager", () => {
-  const rail = read(RAIL_PATH);
+test("DashboardMobileNav is the single shared module navigation below 768px", () => {
+  const mobileNav = read(MOBILE_NAV_PATH);
   const controller = read(CONTROLLER_PATH);
 
-  // One rail, rendered once by the controller (module-agnostic → identical for
-  // every module and every device).
-  assert.ok(
-    controller.includes('import { DashboardModuleRail } from "./DashboardModuleRail";'),
-  );
-  assert.ok(controller.includes("<DashboardModuleRail activeModule={activeModule} />"));
+  // The stage carries NO navigation any more. `DashboardModuleRail` used to be
+  // rendered here and was the only thing on `/dashboard` that spent VERTICAL
+  // budget on navigation; B09 retired it and moved the owner to shell level.
+  assert.equal(controller.includes("DashboardModuleRail"), false);
+  assert.equal(existsSync(resolve(REPO_ROOT, RAIL_PATH)), false);
 
-  // Accessible landmark + pager grammar + deep-linkable controls.
-  assert.ok(rail.includes('"use client";'));
-  assert.ok(rail.includes('data-dashboard-module-rail="true"'));
-  assert.ok(rail.includes('data-dashboard-pager="module"'));
-  assert.ok(rail.includes('aria-label="Navegación de módulos de clínica"'));
-  assert.ok(rail.includes('aria-current={isActive ? "page" : undefined}'));
-  assert.ok(rail.includes("data-dashboard-module-rail-prev="));
-  assert.ok(rail.includes("data-dashboard-module-rail-next="));
+  // Accessible landmark + deep-linkable controls, one owner for both roles.
+  assert.ok(mobileNav.includes('"use client";'));
+  assert.ok(mobileNav.includes("data-dashboard-mobile-nav={surface}"));
+  assert.ok(mobileNav.includes('clinic: "Navegación móvil de clínica"'));
+  assert.ok(mobileNav.includes("aria-label={SURFACE_LANDMARK[surface]}"));
+  assert.ok(mobileNav.includes('aria-current={isActive ? "page" : undefined}'));
   assert.ok(
-    rail.includes(
+    mobileNav.includes(
       'import { PublicRouteControl } from "@/components/public/PublicRouteControl";',
     ),
   );
-  assert.ok(
-    rail.includes(
-      'import { requestClinicModuleActivate } from "@/lib/clinic-hub-reset";',
-    ),
-  );
-  assert.equal(/from "next\/link"/.test(rail), false);
-  assert.equal(/<a\s/.test(rail), false);
+  assert.ok(mobileNav.includes("requestClinicModuleActivate"));
+  assert.equal(/from "next\/link"/.test(mobileNav), false);
+  assert.equal(/<a\s/.test(mobileNav), false);
 
-  // Every clinic module is reachable from the single rail via ?module=. The
-  // rail derives its items (id/label/shortLabel/order) from the shared config
-  // catalog and keeps only its local icon map, so the module list is declared
-  // once and can never drift from the mobile bottom-nav.
-  assert.ok(
-    rail.includes(
-      'import { CLINIC_MODULE_NAV_LABELS } from "@/features/dashboard/config";',
-    ),
-  );
-  assert.ok(rail.includes("CLINIC_MODULE_NAV_LABELS.map("));
+  // The prev/next pager is NOT reproduced. It was a second grammar over the
+  // same ordered modules — two affordances that could report different states —
+  // and B07 already declined to carry it into the lateral model.
+  assert.equal(mobileNav.includes("data-dashboard-module-rail-prev"), false);
+  assert.equal(mobileNav.includes("data-dashboard-module-rail-next"), false);
+
+  // Every clinic module is reachable via ?module=. The owner derives its items
+  // (id/label/shortLabel/order) from the shared catalog and its glyphs from the
+  // shared icon owner, so no module list is declared twice.
+  assert.ok(mobileNav.includes("CLINIC_MODULE_NAV_LABELS"));
+  assert.ok(mobileNav.includes("buildDashboardModuleHref"));
   const catalog = read(CATALOG_PATH);
   for (const moduleId of [
     "operaciones",
@@ -161,28 +160,34 @@ test("DashboardModuleRail is the single shared module navigation/pager", () => {
   }
 });
 
-// ── The two device-split navs are suppressed on /dashboard ───────────────────
+// ── One navigation model per regime on /dashboard ────────────────────────────
 
-test("the split desktop-tab / mobile-bottom navs are suppressed on the main dashboard", () => {
-  const bottom = read(MOBILE_BOTTOM_NAV_PATH);
-  const railCss = read(NAVIGATION_CSS_PATH);
+test("exactly one navigation model claims each regime on the main dashboard", () => {
+  const navCss = read(NAVIGATION_CSS_PATH);
 
-  // The desktop top-tab bar is gone entirely: B08 retired
-  // `DashboardHorizontalNav`, so its clinic suppression clause has no subject
-  // left. The invariant it encoded — no second desktop navigation next to the
-  // rail on /dashboard — is now stronger, because the rail itself leaves that
-  // regime: from 768px up the lateral model is the only module navigation.
+  // The desktop top-tab bar is gone entirely (B08 retired
+  // `DashboardHorizontalNav`) and so is the rail (B09). What replaces both
+  // suppression clauses is a single regime boundary: the mobile owner must not
+  // paint from 768px up, where the lateral drawer/rail owns navigation.
   assert.match(
-    railCss,
-    /@media \(min-width: 768px\)[^@]*\.dashboard-module-rail[^{]*\{[^}]*display:\s*none/,
-    "the legacy rail must not paint at >=768px, where the drawer/rail own navigation",
+    navCss,
+    /@media \(min-width: 768px\)[^@]*\.dashboard-mobile-nav[^{]*\{[^}]*display:\s*none/,
+    "the mobile bar must not paint at >=768px, where the drawer/rail own navigation",
   );
 
-  // Mobile bottom bar still yields to the rail on the exact /dashboard path —
-  // which is precisely why B08 did NOT delete the rail: below 768px it is the
-  // only module navigation that surface has. Unifying the two is B09.
-  assert.ok(bottom.includes("pathname === ROUTES.dashboard"));
-  assert.ok(bottom.includes("return null;"));
+  // And the mirror: below 768px it is the owner, mounted at shell level as a
+  // real flex item so the shell subtracts its height from `main`.
+  assert.match(
+    navCss,
+    /@media \(max-width: 767px\)[\s\S]*\.dashboard-mobile-nav \{[^}]*position:\s*relative/,
+    "the mobile bar is a flow sibling of main, never a fixed overlay",
+  );
+
+  // The suppression that made `/dashboard` special is gone with the component
+  // that needed it: no source may reintroduce a path-conditional bottom nav.
+  const shellRouter = read(SHELL_ROUTER_PATH);
+  assert.ok(shellRouter.includes("<DashboardMobileNav surface={surface} />"));
+  assert.equal(shellRouter.includes("ROUTES.dashboard"), false);
 });
 
 // ── The module workspace no longer offers a "back to hub" control ────────────

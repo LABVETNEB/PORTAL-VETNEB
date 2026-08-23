@@ -40,9 +40,8 @@ import {
  *
  * MOUNTED BY B08 through `DashboardNavigationFrame`, the single mount site.
  * B08 retired `DashboardHorizontalNav` outright and removed
- * `DashboardModuleRail` from the >=768px regime; the rail survives below 768px
- * only, where it is still the clinic module navigation until B09 unifies the
- * mobile model.
+ * `DashboardModuleRail` from the >=768px regime; B09 then retired the rail
+ * itself, so below 768px the single owner is `DashboardMobileNav`.
  *
  * A NULL ADMIN MODULE IS LEGAL. `/dashboard/admin` without `?module=` is the
  * hub: every module stays reachable and NO item carries `aria-current`.

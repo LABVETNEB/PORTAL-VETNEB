@@ -139,7 +139,7 @@ async function openModuleFromMobileNavigation(page: Page, module: OpsModule) {
   await page.goto("/dashboard/admin");
   await suppressNextDevIndicator(page);
 
-  const bottomNav = page.locator('[data-admin-mobile-bottom-nav="true"]');
+  const bottomNav = page.locator('[data-dashboard-mobile-nav="admin"]');
   await expect(bottomNav).toBeVisible({ timeout: 15_000 });
 
   if (module.key === "audit") {
@@ -148,13 +148,13 @@ async function openModuleFromMobileNavigation(page: Page, module: OpsModule) {
     await bottomNav.getByRole("button", { name: "Sesiones", exact: true }).click();
   } else {
     await bottomNav.getByRole("button", { name: "Más", exact: true }).click();
-    const menu = page.locator('[data-admin-mobile-module-menu="true"]');
+    const menu = page.locator('[data-dashboard-mobile-nav-overflow="true"]');
     await expect(menu).toBeVisible();
     await menu
       .getByRole("button", { name: "Página siguiente de módulos", exact: true })
       .click();
     await menu
-      .locator('[data-admin-mobile-module-link="true"]')
+      .locator('[data-dashboard-mobile-nav-overflow-link]')
       .filter({ hasText: "Usuarios" })
       .click();
   }
@@ -301,7 +301,7 @@ for (const moduleSpec of OPS_MODULES) {
       await openModuleFromMobileNavigation(page, moduleSpec);
 
       await expect(page.locator('[data-admin-mobile-app-bar="true"]')).toBeVisible();
-      await expect(page.locator('[data-admin-mobile-bottom-nav="true"]')).toBeVisible();
+      await expect(page.locator('[data-dashboard-mobile-nav="admin"]')).toBeVisible();
       await expect(page.locator('[data-dashboard-horizontal-nav-shell="true"]')).toBeHidden();
 
       const moduleSelector = `[data-admin-mobile-ops-module="${moduleSpec.key}"]`;
@@ -389,7 +389,7 @@ for (const moduleSpec of OPS_MODULES) {
       );
 
       await page
-        .locator('[data-admin-mobile-bottom-nav="true"]')
+        .locator('[data-dashboard-mobile-nav="admin"]')
         .getByRole("button", { name: "Inicio", exact: true })
         .click();
       await expect(page.locator('[data-admin-mobile-hub-launcher="true"]')).toBeVisible({
@@ -418,7 +418,7 @@ for (const moduleSpec of OPS_MODULES) {
     ).toBeVisible({
       timeout: 15_000,
     });
-    await expect(page.locator('[data-admin-mobile-bottom-nav="true"]')).toBeHidden();
+    await expect(page.locator('[data-dashboard-mobile-nav="admin"]')).toBeHidden();
     await expect(
       page.locator(`[data-dashboard-module-workspace="${moduleSpec.moduleId}"]`),
     ).toBeVisible();

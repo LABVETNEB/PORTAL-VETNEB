@@ -120,10 +120,11 @@ test("clinic controller opens directly into a module workspace with the shared r
   assert.equal(source.includes('data-dashboard-module-hub'), false);
   assert.equal(source.includes('Módulos clínicos'), false);
 
-  // The single shared navigation/pager is the DashboardModuleRail, and the
-  // controller always resolves to a real module (operational default).
-  assert.ok(source.includes('import { DashboardModuleRail } from "./DashboardModuleRail";'));
-  assert.ok(source.includes('<DashboardModuleRail activeModule={activeModule} />'));
+  // B09: the stage holds no navigation at all. The single mobile owner
+  // (`DashboardMobileNav`) sits at shell level and the B07/B08 lateral band
+  // owns >=768px, so the controller only resolves the active module — always to
+  // a real one (operational default), because there is no hub.
+  assert.equal(source.includes("DashboardModuleRail"), false);
   // The operational default lives in the config catalog (single source of
   // truth); the controller imports and re-exports it for compatibility and
   // always resolves to it.

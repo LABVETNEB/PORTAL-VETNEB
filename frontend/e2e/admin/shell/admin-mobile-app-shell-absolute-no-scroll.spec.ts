@@ -79,8 +79,8 @@ async function readShellContract(page: Page): Promise<ShellContract> {
     const selectors = [
       '[data-admin-mobile-app-bar="true"]',
       '[data-admin-mobile-kebab-menu="true"]',
-      '[data-admin-mobile-bottom-nav="true"]',
-      '[data-admin-mobile-module-menu="true"]',
+      '[data-dashboard-mobile-nav="admin"]',
+      '[data-dashboard-mobile-nav-overflow="true"]',
     ];
     const forbiddenChromeOverflow = selectors.flatMap((selector) =>
       Array.from(document.querySelectorAll<HTMLElement>(selector)).flatMap((element) => {
@@ -130,7 +130,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
 
     const surface = page.locator('[data-vetneb-app-shell-surface="admin"]');
     const appBar = page.locator('[data-admin-mobile-app-bar="true"]');
-    const bottomNav = page.locator('[data-admin-mobile-bottom-nav="true"]');
+    const bottomNav = page.locator('[data-dashboard-mobile-nav="admin"]');
     const horizontalNav = page.locator(
       '[data-dashboard-horizontal-nav-shell="true"]',
     );
@@ -188,7 +188,7 @@ test(`Admin mobile app shell is absolute no-scroll at ${LANDSCAPE_DIAGNOSTIC_VIE
 
   const surface = page.locator('[data-vetneb-app-shell-surface="admin"]');
   const appBar = page.locator('[data-admin-mobile-app-bar="true"]');
-  const bottomNav = page.locator('[data-admin-mobile-bottom-nav="true"]');
+  const bottomNav = page.locator('[data-dashboard-mobile-nav="admin"]');
 
   await expect(surface).toBeVisible({ timeout: 15_000 });
   await expect(appBar).toBeVisible();

@@ -317,7 +317,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
     // 1 · The bar must clear the role bottom nav instead of hiding under it.
     const chrome = await page.evaluate((bar) => {
       const element = document.querySelector(bar)!;
-      const nav = document.querySelector(".clinic-mobile-bottom-nav");
+      const nav = document.querySelector(".dashboard-mobile-nav");
       const reservationRoot = document.querySelector<HTMLElement>(".dashboard-main")!;
       const reserveProbe = document.createElement("div");
       reserveProbe.style.cssText =

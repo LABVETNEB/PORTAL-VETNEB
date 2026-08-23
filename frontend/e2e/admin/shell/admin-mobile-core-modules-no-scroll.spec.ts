@@ -187,7 +187,7 @@ for (const moduleSpec of MODULES) {
         `${viewport.name}: app bar visible`,
       ).toBeVisible();
       await expect(
-        page.locator('[data-admin-mobile-bottom-nav="true"]'),
+        page.locator('[data-dashboard-mobile-nav="admin"]'),
         `${viewport.name}: bottom nav visible`,
       ).toBeVisible();
       await expect(
@@ -272,7 +272,7 @@ for (const moduleSpec of MODULES) {
       );
       assertDocumentNoScrollContract(page2Contract, `${viewport.name} ${moduleSpec.key} page 2`);
 
-      const bottomNav = page.locator('[data-admin-mobile-bottom-nav="true"]');
+      const bottomNav = page.locator('[data-dashboard-mobile-nav="admin"]');
       await bottomNav.getByRole("button", { name: "Inicio", exact: true }).click();
       await expect(
         page.locator('[data-admin-mobile-hub-launcher="true"]'),
@@ -292,7 +292,7 @@ test("Admin mobile core modules reachable from bottom nav and Más menu", async 
   await page.goto("/dashboard/admin");
   await suppressNextDevIndicator(page);
 
-  const bottomNav = page.locator('[data-admin-mobile-bottom-nav="true"]');
+  const bottomNav = page.locator('[data-dashboard-mobile-nav="admin"]');
   await expect(bottomNav).toBeVisible();
 
   await bottomNav.getByRole("button", { name: "Clínicas", exact: true }).click();
@@ -301,10 +301,10 @@ test("Admin mobile core modules reachable from bottom nav and Más menu", async 
   ).toBeVisible({ timeout: 15_000 });
 
   await bottomNav.getByRole("button", { name: "Más", exact: true }).click();
-  const moduleMenu = page.locator('[data-admin-mobile-module-menu="true"]');
+  const moduleMenu = page.locator('[data-dashboard-mobile-nav-overflow="true"]');
   await expect(moduleMenu).toBeVisible();
   await moduleMenu
-    .locator('[data-admin-mobile-module-link="true"]')
+    .locator('[data-dashboard-mobile-nav-overflow-link]')
     .filter({ hasText: "Informes" })
     .click();
   await expect(
@@ -314,7 +314,7 @@ test("Admin mobile core modules reachable from bottom nav and Más menu", async 
   await bottomNav.getByRole("button", { name: "Más", exact: true }).click();
   await expect(moduleMenu).toBeVisible();
   await moduleMenu
-    .locator('[data-admin-mobile-module-link="true"]')
+    .locator('[data-dashboard-mobile-nav-overflow-link]')
     .filter({ hasText: "Tokens" })
     .click();
   await expect(
@@ -362,7 +362,7 @@ test("Admin mobile reports pagination advances through measured pages with pager
 
   const [pagerBox, bottomNavBox] = await Promise.all([
     pager.boundingBox(),
-    page.locator('[data-admin-mobile-bottom-nav="true"]').boundingBox(),
+    page.locator('[data-dashboard-mobile-nav="admin"]').boundingBox(),
   ]);
   expect(pagerBox).not.toBeNull();
   expect(bottomNavBox).not.toBeNull();
@@ -390,7 +390,7 @@ for (const moduleSpec of MODULES) {
       `${moduleSpec.key} desktop: lateral nav visible`,
     ).toBeVisible({ timeout: 15_000 });
     await expect(
-      page.locator('[data-admin-mobile-bottom-nav="true"]'),
+      page.locator('[data-dashboard-mobile-nav="admin"]'),
       `${moduleSpec.key} desktop: bottom nav absent`,
     ).toBeHidden();
     await expect(

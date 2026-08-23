@@ -5,9 +5,8 @@ import {
   VETNEB_APP_SHELL_LABEL,
   VETNEB_APP_SHELL_RELEASE,
 } from "@/lib/app-shell-release";
-import { AdminMobileBottomNav } from "./AdminMobileBottomNav";
 import { BackForwardCacheGuard } from "./BackForwardCacheGuard";
-import { ClinicMobileBottomNav } from "./ClinicMobileBottomNav";
+import { DashboardMobileNav } from "./DashboardMobileNav";
 
 export function DashboardShellRouter({
   children,
@@ -33,11 +32,12 @@ export function DashboardShellRouter({
       >
         {children}
       </div>
-      {isAdminDashboard ? (
-        <AdminMobileBottomNav />
-      ) : (
-        <ClinicMobileBottomNav />
-      )}
+      {/* B09: one mobile navigation model for both roles, mounted here as a
+          real flex item so the shell subtracts its height from `main` instead
+          of letting it cover content. Below 768px it is the ONLY module
+          navigation on either surface; from 768px up the CSS hides it and the
+          B07/B08 lateral band owns navigation. */}
+      <DashboardMobileNav surface={surface} />
       {/* B05: dedicated, always-empty portal target so a `ModuleDialog` can
           opt into mounting inside `.dashboard-app-shell` (see its
           portal-scoping prop) instead of `document.body`, letting

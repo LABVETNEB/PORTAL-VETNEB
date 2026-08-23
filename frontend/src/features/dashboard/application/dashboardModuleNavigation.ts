@@ -4,7 +4,8 @@
  * Small, framework-light helpers for the `?module=` navigation grammar shared
  * by the clinic module surfaces. Before this, the query-key literal and the
  * URL→module normalization were copied across the shared module rail
- * (`DashboardModuleRail`) and the mobile bottom-nav (`ClinicMobileBottomNav`):
+ * (`DashboardModuleRail`) and the mobile bottom-nav (`ClinicMobileBottomNav`),
+ * both retired by B09 in favour of `DashboardMobileNav`:
  * each built its own `${ROUTES.dashboard}?module=${id}` href inline, and the
  * bottom-nav re-implemented module validation with a private id check instead
  * of the catalog's `parseClinicModule`.

@@ -82,8 +82,8 @@ function clinicLateralNavItem(page: Page, moduleId: ClinicModule): Locator {
   );
 }
 
-function legacyClinicRail(page: Page) {
-  return page.locator('[data-dashboard-module-rail="true"]');
+function clinicMobileNav(page: Page) {
+  return page.locator('[data-dashboard-mobile-nav="clinic"]');
 }
 
 // ─── Scope guard ──────────────────────────────────────────────────────────────
@@ -208,16 +208,18 @@ test.describe("clinic dashboard — rail navigation", () => {
   test("the legacy rail pager steps through modules and updates the URL (<768px)", async ({
     page,
   }) => {
-    // B08 removed the rail from >=768px and deliberately did NOT reproduce its
-    // prev/next pager in the lateral model. The pager contract is therefore
-    // asserted where the pager still lives: the mobile regime B09 owns.
+    // B08 removed the rail from >=768px without reproducing its prev/next
+    // pager, and B09 retired the rail with the pager. What survives is the
+    // contract the pager was a vehicle for: from the mobile owner, a click
+    // moves the module AND commits the canonical `?module=` URL.
     await page.setViewportSize({ width: 375, height: 812 });
     await page.goto("/dashboard");
-    await expect(legacyClinicRail(page)).toBeVisible({ timeout: 8_000 });
+    await expect(clinicMobileNav(page)).toBeVisible({ timeout: 8_000 });
+    await expect(page.locator("[data-dashboard-module-rail]")).toHaveCount(0);
 
-    // operaciones → next → informes
-    await legacyClinicRail(page)
-      .locator('[data-dashboard-module-rail-next="true"]')
+    // operaciones → informes
+    await clinicMobileNav(page)
+      .locator('[data-dashboard-mobile-nav-item="informes"]')
       .click();
     await expect(page).toHaveURL(/\/dashboard\?module=informes$/, {
       timeout: 5_000,
@@ -226,9 +228,9 @@ test.describe("clinic dashboard — rail navigation", () => {
       page.locator('[data-dashboard-module-workspace="informes"]'),
     ).toBeVisible({ timeout: 5_000 });
 
-    // informes → prev → operaciones
-    await legacyClinicRail(page)
-      .locator('[data-dashboard-module-rail-prev="true"]')
+    // informes → operaciones
+    await clinicMobileNav(page)
+      .locator('[data-dashboard-mobile-nav-item="operaciones"]')
       .click();
     await expect(page).toHaveURL(/\/dashboard\?module=operaciones$/, {
       timeout: 5_000,
@@ -665,14 +667,15 @@ test.describe("clinic module rail — primary navigation", () => {
     await page.goto("/dashboard");
 
     await expect(clinicLateralNav(page)).toBeVisible({ timeout: 8_000 });
-    // The retired horizontal tab bar must not exist at all, and the legacy rail
-    // must not paint in this regime: exactly one module navigation, and it is
-    // the lateral model.
+    // The retired horizontal tab bar and the retired module rail must not exist
+    // at all, and the mobile model must not paint in this regime: exactly one
+    // module navigation, and it is the lateral model.
     await expect(
       page.locator("[role='navigation'][aria-label='Navegación principal']"),
     ).toHaveCount(0);
     await expect(page.locator("[data-dashboard-horizontal-nav-shell]")).toHaveCount(0);
-    await expect(legacyClinicRail(page)).toBeHidden();
+    await expect(page.locator("[data-dashboard-module-rail]")).toHaveCount(0);
+    await expect(clinicMobileNav(page)).toBeHidden();
   });
 
   test("renders as a vertical lateral band beside main, not a horizontal strip", async ({ page }) => {

@@ -8,8 +8,13 @@ const MOBILE_VIEWPORTS = [
   { name: "iphone-pro-max-430x932", width: 430, height: 932 },
 ] as const;
 
+// B09 canonicalisation: the retired module menu declared its own label table
+// and had drifted — it said "Administración" for the `admin` module while the
+// canonical catalog, the drawer and the rail all say "Resumen". The overflow
+// now reads ADMIN_MODULE_NAV_LABELS, so the mobile label matches the desktop
+// one for the first time.
 const EXPECTED_MODULES = [
-  "Administración",
+  "Resumen",
   "Informes",
   "Estado",
   "Clínicas",
@@ -67,8 +72,8 @@ for (const viewport of MOBILE_VIEWPORTS) {
     await suppressNextDevIndicator(page);
     await expectModule(page, "admin-clinics");
 
-    const nav = page.locator('[data-admin-mobile-bottom-nav="true"]');
-    const destinations = nav.locator('[data-admin-mobile-bottom-nav-item="true"]');
+    const nav = page.locator('[data-dashboard-mobile-nav="admin"]');
+    const destinations = nav.locator('[data-dashboard-mobile-nav-item]');
 
     await expect(nav).toBeVisible();
     await expect(destinations).toHaveCount(5);
@@ -113,17 +118,17 @@ for (const viewport of MOBILE_VIEWPORTS) {
     await expectModule(page, "admin-sessions");
 
     await nav.getByRole("button", { name: "Más", exact: true }).click();
-    const moduleMenu = page.locator('[data-admin-mobile-module-menu="true"]');
+    const moduleMenu = page.locator('[data-dashboard-mobile-nav-overflow="true"]');
     await expect(moduleMenu).toBeVisible();
 
     const firstPageLabels = await moduleMenu
-      .locator('[data-admin-mobile-module-link="true"]')
+      .locator('[data-dashboard-mobile-nav-overflow-link]')
       .allTextContents();
     await moduleMenu
       .getByRole("button", { name: "Página siguiente de módulos", exact: true })
       .click();
     const secondPageLabels = await moduleMenu
-      .locator('[data-admin-mobile-module-link="true"]')
+      .locator('[data-dashboard-mobile-nav-overflow-link]')
       .allTextContents();
     const moduleLabels = [...firstPageLabels, ...secondPageLabels].map((label) =>
       label.trim(),
@@ -190,7 +195,7 @@ test("Admin desktop preserves lateral navigation and desktop actions", async ({
   await expect(
     page.locator('[data-dashboard-navigation-drawer="admin"]'),
   ).toBeVisible({ timeout: 15_000 });
-  await expect(page.locator('[data-admin-mobile-bottom-nav="true"]')).toBeHidden();
+  await expect(page.locator('[data-dashboard-mobile-nav="admin"]')).toBeHidden();
   await expect(page.locator('[data-theme-toggle="true"]')).toBeVisible();
   await expect(page.getByRole("button", { name: "Notificaciones" })).toBeVisible();
   await expect(

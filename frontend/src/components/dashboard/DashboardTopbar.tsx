@@ -12,6 +12,11 @@ import { ThemeModeToggle } from "@/components/theme/ThemeModeToggle";
 import { logout as logoutClinic, logoutAdmin } from "@/lib/api";
 import { clearDashboardLastModules } from "@/lib/dashboard-last-module";
 import { ROUTES } from "@/lib/routes";
+import {
+  ADMIN_MODULE_NAV_LABELS,
+  parseAdminModule,
+} from "@/features/dashboard/config";
+import { MODULE_QUERY_PARAM } from "@/features/dashboard/application";
 import { DashboardNotificationsBell } from "./DashboardNotificationsBell";
 import { AdminMobileKebabMenu } from "./AdminMobileKebabMenu";
 import { WorkspaceAppBar } from "./WorkspaceAppBar";
@@ -22,23 +27,28 @@ interface DashboardTopbarProps {
   notifications?: "admin" | "clinic" | "particular" | false;
 }
 
-const ADMIN_MOBILE_TITLES: Record<string, string> = {
-  admin: "Administración",
-  "admin-report-upload": "Informes",
-  "admin-health": "Estado",
-  "admin-clinics": "Clínicas",
-  "admin-particular-tokens": "Tokens",
-  "admin-pricing": "Precios",
-  "admin-sessions": "Sesiones",
-  "admin-users-roles": "Usuarios",
-  "audit-log": "Auditoría",
-  "admin-maintenance": "Mantenimiento",
-};
+/**
+ * B09 - the admin mobile context title is DERIVED, not declared.
+ *
+ * This used to be `ADMIN_MOBILE_TITLES`, a private ten-entry label table: the
+ * third copy of the admin catalog (audit H1), and the one that had already
+ * drifted - it said "Administración" for the `admin` module while the canonical
+ * catalog, the drawer and the rail all say "Resumen". Reading the labels from
+ * `ADMIN_MODULE_NAV_LABELS` retires the copy and the drift together.
+ *
+ * The raw `?module=` read is replaced by `parseAdminModule` for the same reason
+ * the mobile bar was: an alias (`?module=maintenance`) used to fall through to
+ * "Inicio" while the controller painted Mantenimiento, and an unknown value
+ * still has to resolve to the hub.
+ */
+const ADMIN_MOBILE_TITLE_BY_MODULE = new Map(
+  ADMIN_MODULE_NAV_LABELS.map((entry) => [entry.moduleId, entry.label]),
+);
 
 function AdminMobileContextTitle() {
   const searchParams = useSearchParams();
-  const moduleId = searchParams.get("module");
-  return <>{(moduleId && ADMIN_MOBILE_TITLES[moduleId]) || "Inicio"}</>;
+  const moduleId = parseAdminModule(searchParams.get(MODULE_QUERY_PARAM));
+  return <>{(moduleId && ADMIN_MOBILE_TITLE_BY_MODULE.get(moduleId)) || "Inicio"}</>;
 }
 
 function DashboardTopbarNotifications({

@@ -27,11 +27,11 @@ import {
  * `styles/dashboard/tokens.css` and applied in
  * `styles/dashboard/navigation.css` - never restated as a literal here.
  *
- * ONE GRAMMAR. The rail this replaces (`DashboardModuleRail`) carries two
- * navigation models at once - a tab track AND a prev/next pager with a
- * "Módulo N de 5" counter - so the same intent has two affordances that can
- * report different states. B07 ships the list and nothing else; the pager is
- * not reproduced here, and B08 did not reproduce it when it mounted this rail.
+ * ONE GRAMMAR. The rail this replaces (`DashboardModuleRail`, retired by B09)
+ * carried two navigation models at once - a tab track AND a prev/next pager
+ * with a "Módulo N de 5" counter - so the same intent had two affordances that
+ * could report different states. B07 ships the list and nothing else; the pager
+ * was not reproduced here, nor by B08, nor by the B09 mobile model.
  *
  * ACCESSIBLE NAME. The visible text is the compact `shortLabel` ("Manten."),
  * which is not a usable name on its own, so every control carries the full
@@ -40,8 +40,8 @@ import {
  *
  * PRESENTATION-PURE and STATELESS - same contract as the drawer, and mounted
  * with it by `DashboardNavigationFrame` (B08). A null admin module is legal
- * there too: it is the hub state, and it carries no `aria-current`. B09 still
- * owns <768px, where neither primitive paints.
+ * there too: it is the hub state, and it carries no `aria-current`. Below
+ * 768px neither primitive paints: that regime is `DashboardMobileNav`'s (B09).
  *
  * @see docs/implementation/dashboard-b07-navigation-drawer-rail.md
  * @see docs/implementation/dashboard-b08-navigation-migration.md

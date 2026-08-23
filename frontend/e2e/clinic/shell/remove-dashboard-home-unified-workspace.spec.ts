@@ -52,8 +52,8 @@ function lateralNavItem(page: Page, moduleId: ClinicModule) {
   );
 }
 
-function legacyRail(page: Page) {
-  return page.locator('[data-dashboard-module-rail="true"]');
+function mobileNav(page: Page) {
+  return page.locator('[data-dashboard-mobile-nav="clinic"]');
 }
 
 test.beforeEach(async ({ page }) => {
@@ -123,37 +123,38 @@ test("the lateral navigation (all 5 modules) appears on every module", async ({
       await expect(lateralNavItem(page, other)).toHaveCount(1);
     }
     await expect(nav.locator("[aria-current='page']")).toHaveCount(1);
-    await expect(legacyRail(page)).toBeHidden();
+    await expect(mobileNav(page)).toBeHidden();
+    await expect(page.locator("[data-dashboard-module-rail]")).toHaveCount(0);
   }
 });
 
-test("the legacy rail (with all 5 modules + pager) appears on every module <768px", async ({
+test("the mobile model (all 5 modules + Inicio) appears on every module <768px", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 375, height: 812 });
 
   for (const moduleId of CLINIC_MODULES) {
     await page.goto(`/dashboard?module=${moduleId}`);
-    const nav = legacyRail(page);
+    const nav = mobileNav(page);
     await expect(nav).toBeVisible({ timeout: 12_000 });
     await expect(nav).toHaveAttribute(
       "aria-label",
-      "Navegación de módulos de clínica",
+      "Navegación móvil de clínica",
     );
-    // Every module is reachable from the rail, on every module page.
+    // Every module is reachable from the single owner, on every module page.
     for (const other of CLINIC_MODULES) {
       await expect(
-        nav.locator(`[data-dashboard-module-rail-item="${other}"]`),
+        nav.locator(`[data-dashboard-mobile-nav-item="${other}"]`),
       ).toHaveCount(1);
     }
-    // The pager (prev/next) is part of the same single control.
+    // B09_CLINIC_HOME_ITEM = PRESERVE: Inicio stays, so six primary slots.
     await expect(
-      nav.locator('[data-dashboard-module-rail-prev="true"]'),
+      nav.locator('[data-dashboard-mobile-nav-item="home"]'),
     ).toHaveCount(1);
-    await expect(
-      nav.locator('[data-dashboard-module-rail-next="true"]'),
-    ).toHaveCount(1);
-    await expect(nav).toHaveAttribute("data-dashboard-pager", "module");
+    await expect(nav.locator("[data-dashboard-mobile-nav-item]")).toHaveCount(6);
+    // The prev/next pager the retired rail carried is NOT reproduced: it was a
+    // second grammar over the same ordered modules, not a destination.
+    await expect(page.locator('[data-dashboard-pager="module"]')).toHaveCount(0);
   }
 });
 

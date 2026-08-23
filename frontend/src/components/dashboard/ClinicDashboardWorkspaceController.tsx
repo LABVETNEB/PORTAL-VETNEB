@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { DashboardModuleRail } from "./DashboardModuleRail";
 import { DashboardModuleWorkspace } from "./DashboardModuleWorkspace";
 import { ROUTES } from "@/lib/routes";
 import {
@@ -167,7 +166,11 @@ export function ClinicDashboardWorkspaceController({
       data-clinic-dashboard-stage="true"
       className="flex min-h-0 flex-1 flex-col overflow-hidden dashboard-module-stage"
     >
-      <DashboardModuleRail activeModule={activeModule} />
+      {/* B09: no module navigation inside the stage. Below 768px the shared
+          `DashboardMobileNav` owns it at shell level; from 768px up the B07/B08
+          lateral band does. The rail that used to sit here carried both a tab
+          track and a prev/next pager over the same ordered modules, and it was
+          the last surface where navigation cost VERTICAL budget inside `main`. */}
       <DashboardModuleWorkspace
         key={activeModule}
         title={meta.title}
