@@ -96,11 +96,22 @@ export function ClinicDashboardWorkspaceController({
     );
   }, []);
 
-  useEffect(() => {
-    // No module in the URL means the operational default — never a hub.
-    const nextModule =
-      parseClinicModule(searchParams.get("module")) ?? DEFAULT_CLINIC_MODULE;
+  // No module in the URL means the operational default — never a hub.
+  //
+  // Derived OUTSIDE the effect, and as a plain string, because it is the
+  // effect's real dependency. `useSearchParams()` hands back a new object on
+  // every render, so depending on it made the effect run again on renders where
+  // the url had not moved at all — and a re-render is exactly what the sync
+  // activation below causes, through `setActiveModule`, while its `push` is
+  // still in flight. `applyClinicUrlCommit` cannot tell that phantom run apart
+  // from a superseded commit: both arrive as "a module that is not the intent",
+  // so it reconciled, and the reconciling `replace` cancelled the push it was
+  // supposed to be protecting. Keying on the module ITSELF means the effect
+  // observes url commits and nothing else.
+  const nextModule =
+    parseClinicModule(searchParams.get("module")) ?? DEFAULT_CLINIC_MODULE;
 
+  useEffect(() => {
     // A sync activation swaps the stage before its URL commit. Under load the
     // SUPERSEDED previous navigation can still commit after that optimistic
     // swap (the router action queue drains in dispatch order); applying it here
@@ -132,7 +143,7 @@ export function ClinicDashboardWorkspaceController({
     if (outcome.activeModule !== null) {
       setActiveModule(outcome.activeModule as ClinicModule);
     }
-  }, [router, searchParams]);
+  }, [router, nextModule]);
 
   useEffect(
     () =>
