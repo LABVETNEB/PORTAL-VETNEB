@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import type { CSSProperties } from "react";
 import { cookies } from "next/headers";
 import { BarChart3, MapPinned, Truck } from "lucide-react";
-import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";
-import { DashboardNavigationFrame } from "@/components/dashboard/DashboardNavigationFrame";
+import { ClinicDashboardShell } from "@/components/dashboard/ClinicDashboardShell";
 import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";
 import {
   StickyActionBar,
@@ -94,36 +93,29 @@ export default async function LogisticaPage() {
   ] satisfies StickyActionBarAction[];
 
   return (
-    <>
-      <DashboardTopbar
-        title="Logística"
-        subtitle="Visitas de campo y planes de ruta"
-        notifications="clinic"
+    <ClinicDashboardShell
+      title="Logística"
+      subtitle="Visitas de campo y planes de ruta"
+      module="logistica"
+      mainAdaptiveReservation
+      mainStyle={{
+        "--dash-sticky-action-h": STICKY_ACTION_RESERVED_BLOCK_SIZE,
+      } as CSSProperties}
+    >
+      <DashboardPageHeader
+        title="Hub de logística"
+        description="Estado operativo de visitas de campo, planes de ruta y métricas de cumplimiento."
       />
-      <DashboardNavigationFrame surface="clinic" module="logistica">
-        <main
-          className="dashboard-main"
-          data-dashboard-adaptive-reservation="true"
-          style={{
-            "--dash-sticky-action-h": STICKY_ACTION_RESERVED_BLOCK_SIZE,
-          } as CSSProperties}
-        >
-          <DashboardPageHeader
-            title="Hub de logística"
-            description="Estado operativo de visitas de campo, planes de ruta y métricas de cumplimiento."
-          />
-          <StickyActionBar
-            context="Acciones rápidas"
-            actions={logisticsQuickActions}
-          />
-          <LogisticsCommandCenter
-            fieldVisits={fieldVisits}
-            routePlans={routePlans}
-            fieldVisitsLoadError={fieldVisitsLoadError}
-            routePlansLoadError={routePlansLoadError}
-          />
-        </main>
-      </DashboardNavigationFrame>
-    </>
+      <StickyActionBar
+        context="Acciones rápidas"
+        actions={logisticsQuickActions}
+      />
+      <LogisticsCommandCenter
+        fieldVisits={fieldVisits}
+        routePlans={routePlans}
+        fieldVisitsLoadError={fieldVisitsLoadError}
+        routePlansLoadError={routePlansLoadError}
+      />
+    </ClinicDashboardShell>
   );
 }

@@ -34,7 +34,13 @@ test("dashboard home defines non-indexable clinic metadata and imports live depe
   assert.ok(source.includes('import { cookies } from "next/headers";'));
   assert.ok(source.includes('title: "Dashboard Clínica — Portal VETNEB"'));
   assert.ok(source.includes("robots: { index: false, follow: false },"));
-  assert.ok(source.includes('import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";'));
+  // B10: the shell chrome (topbar + navigation frame + main) has one owner for
+  // all six clinic routes, so the route imports the shell, not the topbar.
+  assert.ok(source.includes('import { ClinicDashboardShell } from "@/components/dashboard/ClinicDashboardShell";'));
+  assert.equal(
+    source.includes('import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";'),
+    false,
+  );
   // No home/hub: the clinic dashboard no longer imports the landing
   // DashboardPageHeader band; it opens straight into the workspace controller.
   assert.equal(
@@ -119,9 +125,11 @@ test("dashboard home reads stats reports and field visits through API helpers", 
 test("dashboard home opens the unified module workspace (no hub header/cards)", () => {
   const source = read(DASHBOARD_PAGE_PATH);
 
+  assert.ok(source.includes('<ClinicDashboardShell'));
   assert.ok(source.includes('title="Dashboard Clínica"'));
   assert.ok(source.includes('subtitle="Portal operativo clínica"'));
-  assert.ok(source.includes('notifications="clinic"'));
+  // B10: the clinic notification role is declared once, by the shared shell.
+  assert.equal(source.includes('notifications="clinic"'), false);
   // No home/hub: no landing page-header band and no "Módulos clínicos" grid.
   assert.equal(source.includes('<DashboardPageHeader'), false);
   assert.equal(source.includes('Módulos clínicos'), false);
@@ -150,7 +158,9 @@ test("dashboard home opens the unified module workspace (no hub header/cards)", 
 test("dashboard home page layout order: main before workspace controller before module slots", () => {
   const source = read(DASHBOARD_PAGE_PATH);
 
-  const mainIndex = source.indexOf('<main className="dashboard-main">');
+  // B10: `main` is owned by ClinicDashboardShell, so the route's ordering
+  // anchor is the shell mount — the element that now opens the main region.
+  const mainIndex = source.indexOf('<ClinicDashboardShell');
   const workspaceControllerIndex = source.indexOf('<ClinicDashboardWorkspaceController');
   const commandCenterIndex = source.indexOf('<ClinicCommandCenter');
   const clinicPublicIndex = source.indexOf('<ClinicPublicProfileCard />');

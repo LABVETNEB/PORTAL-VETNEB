@@ -28,7 +28,13 @@ test("dashboard informes defines non-indexable metadata and clinic read dependen
   assert.ok(source.includes('"@/lib/api"'));
   assert.ok(source.includes('title: "Informes — Portal VETNEB"'));
   assert.ok(source.includes("robots: { index: false, follow: false },"));
-  assert.ok(source.includes('import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";'));
+  // B10: the shell chrome (topbar + navigation frame + main) has one owner for
+  // all six clinic routes, so the route imports the shell, not the topbar.
+  assert.ok(source.includes('import { ClinicDashboardShell } from "@/components/dashboard/ClinicDashboardShell";'));
+  assert.equal(
+    source.includes('import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";'),
+    false,
+  );
   assert.ok(source.includes('import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";'));
   assert.ok(source.includes('import { StatusBadge } from "@/components/dashboard/StatusBadge";'));
   assert.equal(source.includes('} from "@/components/dashboard/StickyActionBar";'), false);
@@ -113,7 +119,9 @@ test("dashboard informes renders profile-layout clinic reports surface without t
 
   assert.ok(source.includes('title="Informes"'));
   assert.ok(source.includes('subtitle="Consulta de informes médicos veterinarios"'));
-  assert.ok(source.includes('notifications="clinic"'));
+  assert.ok(source.includes('<ClinicDashboardShell'));
+  // B10: the clinic notification role is declared once, by the shared shell.
+  assert.equal(source.includes('notifications="clinic"'), false);
   assert.ok(source.includes("<DashboardPageHeader"));
   assert.equal(source.includes("<StickyActionBar"), false);
   assert.ok(listSource.includes("Lista de informes"));
