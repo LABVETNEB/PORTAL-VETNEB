@@ -53,7 +53,14 @@ async function expectClinicMobileNav(
   label: string,
   activeModule: "operaciones" | "informes" | "logistica" | "perfil" | "tokens",
 ) {
-  const nav = page.locator('[data-dashboard-mobile-nav="clinic"]');
+  // `DashboardMobileNav` streams through a Suspense boundary whose fallback
+  // mounts a SECOND `DashboardMobileNavBar` carrying the same attributes, so
+  // the bare owner can resolve to two nodes while exactly one is painted.
+  // Filtering the OWNER keeps every slot/aria-current count below measuring the
+  // painted bar; zero visible bars still fail, two still fail on strictness.
+  const nav = page
+    .locator('[data-dashboard-mobile-nav="clinic"]')
+    .filter({ visible: true });
   await expect(nav, `${label}: clinic mobile navigation visible`).toBeVisible();
 
   for (const moduleId of [

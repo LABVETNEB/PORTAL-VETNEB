@@ -158,9 +158,9 @@ test.describe("clinic controller/workspace parity contract (PR-CL1)", () => {
     await expectSingleClinicLayer(page, "tokens");
 
     await page
-      .locator(
-        `[data-dashboard-navigation-drawer="clinic"] [data-dashboard-navigation-item="${DEFAULT_CLINIC_MODULE}"]`,
-      )
+      .locator('[data-dashboard-navigation-drawer="clinic"]')
+      .filter({ visible: true })
+      .locator(`[data-dashboard-navigation-item="${DEFAULT_CLINIC_MODULE}"]`)
       .click();
 
     await expectSingleClinicLayer(page, DEFAULT_CLINIC_MODULE);
@@ -179,9 +179,9 @@ test.describe("clinic controller/workspace parity contract (PR-CL1)", () => {
     });
 
     await page
-      .locator(
-        `[data-dashboard-navigation-drawer="clinic"] [data-dashboard-navigation-item="${DEFAULT_CLINIC_MODULE}"]`,
-      )
+      .locator('[data-dashboard-navigation-drawer="clinic"]')
+      .filter({ visible: true })
+      .locator(`[data-dashboard-navigation-item="${DEFAULT_CLINIC_MODULE}"]`)
       .click();
 
     await expectSingleClinicLayer(page, DEFAULT_CLINIC_MODULE);

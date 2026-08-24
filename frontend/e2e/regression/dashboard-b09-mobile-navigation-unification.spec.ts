@@ -65,6 +65,18 @@ const LATERAL = "[data-dashboard-navigation-drawer], [data-dashboard-navigation-
 const MAIN = "main.dashboard-main";
 const KEBAB_TRIGGER = ".admin-mobile-kebab-trigger";
 
+/**
+ * The PAINTED bar. `DashboardMobileNav` streams through a Suspense boundary
+ * whose fallback mounts a SECOND `DashboardMobileNavBar` carrying the same
+ * attributes, so a bare selector can resolve to two nodes while exactly one is
+ * visible. Filtering the OWNER does not relax anything: zero visible bars still
+ * fail, two visible bars still fail on strictness, and every slot / aria-current
+ * count below keeps measuring the bar the user actually sees.
+ */
+function paintedNav(page: Page, selector: string = NAV) {
+  return page.locator(selector).filter({ visible: true });
+}
+
 /** B09_TOUCH_POLICY = OPTION_A. */
 const TOUCH_MIN_PX = 44;
 const TOLERANCE_PX = 2;
@@ -288,7 +300,7 @@ async function expectPrimaryItems(
   expected: readonly string[],
   label: string,
 ) {
-  const nav = page.locator(navSelector);
+  const nav = paintedNav(page, navSelector);
   await expect(nav, `${label}: navigation visible`).toBeVisible();
   await expect(
     nav.locator(NAV_ITEM),
@@ -383,7 +395,9 @@ test.describe("B09 · admin destinations", () => {
     // Every module stays reachable. The retired menu paginated the WHOLE
     // catalog rather than "the rest", and the overflow keeps that: a user who
     // opens it sees the same list wherever they are.
-    await page.locator('[data-dashboard-mobile-nav-item="overflow"]').click();
+    await paintedNav(page)
+      .locator('[data-dashboard-mobile-nav-item="overflow"]')
+      .click();
     const overflow = page.locator(OVERFLOW);
     await expect(overflow).toBeVisible();
 
@@ -410,7 +424,7 @@ test.describe("B09 · admin destinations", () => {
     await page.keyboard.press("Escape");
     await expect(overflow).toHaveCount(0);
     await expect(
-      page.locator('[data-dashboard-mobile-nav-item="overflow"]'),
+      paintedNav(page).locator('[data-dashboard-mobile-nav-item="overflow"]'),
     ).toHaveAttribute("aria-expanded", "false");
   });
 
@@ -421,7 +435,9 @@ test.describe("B09 · admin destinations", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await gotoSurface(page, "admin", "/dashboard/admin?module=admin-clinics");
 
-    await page.locator('[data-dashboard-mobile-nav-item="overflow"]').click();
+    await paintedNav(page)
+      .locator('[data-dashboard-mobile-nav-item="overflow"]')
+      .click();
     await page
       .locator('[data-dashboard-mobile-nav-overflow-link="admin-health"]')
       .click();
@@ -435,9 +451,11 @@ test.describe("B09 · admin destinations", () => {
 
     // A module that is NOT on the bar reports through "Más" — and only then.
     await expect(
-      page.locator('[data-dashboard-mobile-nav-item="overflow"]'),
+      paintedNav(page).locator('[data-dashboard-mobile-nav-item="overflow"]'),
     ).toHaveAttribute("aria-current", "page");
-    await expect(page.locator(`${NAV_ADMIN} [aria-current='page']`)).toHaveCount(1);
+    await expect(
+      paintedNav(page, NAV_ADMIN).locator("[aria-current='page']"),
+    ).toHaveCount(1);
   });
 
   test("an unknown ?module= resolves to the hub, not to the overflow", async ({
@@ -452,7 +470,7 @@ test.describe("B09 · admin destinations", () => {
     // catalog makes both land on the hub.
     await gotoSurface(page, "admin", "/dashboard/admin?module=not-a-real-module");
 
-    const nav = page.locator(NAV_ADMIN);
+    const nav = paintedNav(page, NAV_ADMIN);
     await expect(nav).toBeVisible();
     await expect(
       nav.locator('[data-dashboard-mobile-nav-item="home"]'),
@@ -477,7 +495,7 @@ test.describe("B09 · admin destinations", () => {
       page.locator('[data-dashboard-module-workspace="admin-maintenance"]'),
     ).toBeVisible({ timeout: 20_000 });
     await expect(
-      page.locator('[data-dashboard-mobile-nav-item="overflow"]'),
+      paintedNav(page).locator('[data-dashboard-mobile-nav-item="overflow"]'),
       "an aliased module lives off the bar, so the overflow reports it",
     ).toHaveAttribute("aria-current", "page");
   });
@@ -515,8 +533,8 @@ test.describe("B09 · clinic destinations", () => {
     // clinic bottom nav returned null here and only the rail could change
     // module. The owner that replaced it has to do the same job.
     for (const moduleId of ["informes", "logistica", "perfil", "tokens"]) {
-      await page
-        .locator(`${NAV_CLINIC} [data-dashboard-mobile-nav-item="${moduleId}"]`)
+      await paintedNav(page, NAV_CLINIC)
+        .locator(`[data-dashboard-mobile-nav-item="${moduleId}"]`)
         .click();
       await expect(page).toHaveURL(
         new RegExp(`/dashboard\\?module=${moduleId}$`),
@@ -526,13 +544,13 @@ test.describe("B09 · clinic destinations", () => {
         page.locator(`[data-dashboard-module-workspace="${moduleId}"]`),
       ).toBeVisible({ timeout: 20_000 });
       await expect(
-        page.locator(
-          `${NAV_CLINIC} [data-dashboard-mobile-nav-item="${moduleId}"]`,
+        paintedNav(page, NAV_CLINIC).locator(
+          `[data-dashboard-mobile-nav-item="${moduleId}"]`,
         ),
       ).toHaveAttribute("aria-current", "page");
-      await expect(page.locator(`${NAV_CLINIC} [aria-current='page']`)).toHaveCount(
-        1,
-      );
+      await expect(
+        paintedNav(page, NAV_CLINIC).locator("[aria-current='page']"),
+      ).toHaveCount(1);
     }
   });
 
@@ -558,8 +576,8 @@ test.describe("B09 · clinic destinations", () => {
     ).toHaveCount(0);
 
     // And it can navigate back into the canonical `?module=` grammar.
-    await page
-      .locator(`${NAV_CLINIC} [data-dashboard-mobile-nav-item="tokens"]`)
+    await paintedNav(page, NAV_CLINIC)
+      .locator('[data-dashboard-mobile-nav-item="tokens"]')
       .click();
     await expect(page).toHaveURL(/\/dashboard\?module=tokens$/, {
       timeout: 15_000,
@@ -579,7 +597,7 @@ test.describe("B09 · deep links, history and hub reset", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await gotoSurface(page, "admin", "/dashboard/admin?module=admin-sessions");
 
-    const nav = page.locator(NAV_ADMIN);
+    const nav = paintedNav(page, NAV_ADMIN);
     await expect(
       nav.locator('[data-dashboard-mobile-nav-item="admin-sessions"]'),
     ).toHaveAttribute("aria-current", "page", { timeout: 15_000 });
@@ -618,8 +636,8 @@ test.describe("B09 · deep links, history and hub reset", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await gotoSurface(page, "admin", "/dashboard/admin?module=admin-clinics");
 
-    await page
-      .locator(`${NAV_ADMIN} [data-dashboard-mobile-nav-item="home"]`)
+    await paintedNav(page, NAV_ADMIN)
+      .locator('[data-dashboard-mobile-nav-item="home"]')
       .click();
 
     // The hub-reset signal is synchronous on purpose: the controller paints
@@ -629,7 +647,9 @@ test.describe("B09 · deep links, history and hub reset", () => {
       page.locator('[data-admin-mobile-hub-launcher="true"]'),
     ).toBeVisible({ timeout: 20_000 });
     await expect(
-      page.locator(`${NAV_ADMIN} [data-dashboard-mobile-nav-item="home"]`),
+      paintedNav(page, NAV_ADMIN).locator(
+        '[data-dashboard-mobile-nav-item="home"]',
+      ),
     ).toHaveAttribute("aria-current", "page");
   });
 
@@ -643,9 +663,13 @@ test.describe("B09 · deep links, history and hub reset", () => {
     await page.reload();
     await expect(page.locator(MAIN)).toBeVisible({ timeout: 25_000 });
     await expect(
-      page.locator(`${NAV_CLINIC} [data-dashboard-mobile-nav-item="perfil"]`),
+      paintedNav(page, NAV_CLINIC).locator(
+        '[data-dashboard-mobile-nav-item="perfil"]',
+      ),
     ).toHaveAttribute("aria-current", "page", { timeout: 20_000 });
-    await expect(page.locator(`${NAV_CLINIC} [aria-current='page']`)).toHaveCount(1);
+    await expect(
+      paintedNav(page, NAV_CLINIC).locator("[aria-current='page']"),
+    ).toHaveCount(1);
   });
 });
 
@@ -675,7 +699,9 @@ test.describe("B09 · touch targets and the action overflow", () => {
       }).toPass({ timeout: 20_000 });
 
       // Destination overflow open: links, pagination and the close control.
-      await page.locator('[data-dashboard-mobile-nav-item="overflow"]').click();
+      await paintedNav(page)
+        .locator('[data-dashboard-mobile-nav-item="overflow"]')
+        .click();
       await expect(page.locator(OVERFLOW)).toBeVisible();
       await expect(async () => {
         const reading = await readBand(page);

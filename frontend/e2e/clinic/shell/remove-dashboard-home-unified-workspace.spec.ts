@@ -42,8 +42,13 @@ async function setClinicSession(page: Page) {
 // B08: at the default viewport the clinic module navigation is the lateral
 // drawer. The legacy rail is asserted separately, in the <768px regime that is
 // still its own (B09 owns the replacement).
+// Painted band only: the B08 frame streams through a Suspense boundary whose
+// fallback mounts a second `LateralNavigation` with the same attribute. Two
+// visible drawers would still fail on strictness.
 function lateralNav(page: Page) {
-  return page.locator('[data-dashboard-navigation-drawer="clinic"]');
+  return page
+    .locator('[data-dashboard-navigation-drawer="clinic"]')
+    .filter({ visible: true });
 }
 
 function lateralNavItem(page: Page, moduleId: ClinicModule) {
@@ -52,8 +57,15 @@ function lateralNavItem(page: Page, moduleId: ClinicModule) {
   );
 }
 
+// UNFILTERED on purpose: the desktop test asserts this bar is hidden, and a
+// filtered locator would satisfy `toBeHidden()` by resolving to nothing.
 function mobileNav(page: Page) {
   return page.locator('[data-dashboard-mobile-nav="clinic"]');
+}
+
+/** The painted bar, for the <768px contracts that act on it. */
+function paintedMobileNav(page: Page) {
+  return mobileNav(page).filter({ visible: true });
 }
 
 test.beforeEach(async ({ page }) => {
@@ -135,7 +147,7 @@ test("the mobile model (all 5 modules + Inicio) appears on every module <768px",
 
   for (const moduleId of CLINIC_MODULES) {
     await page.goto(`/dashboard?module=${moduleId}`);
-    const nav = mobileNav(page);
+    const nav = paintedMobileNav(page);
     await expect(nav).toBeVisible({ timeout: 12_000 });
     await expect(nav).toHaveAttribute(
       "aria-label",

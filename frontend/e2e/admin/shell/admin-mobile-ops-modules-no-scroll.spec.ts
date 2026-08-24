@@ -139,7 +139,9 @@ async function openModuleFromMobileNavigation(page: Page, module: OpsModule) {
   await page.goto("/dashboard/admin");
   await suppressNextDevIndicator(page);
 
-  const bottomNav = page.locator('[data-dashboard-mobile-nav="admin"]');
+  const bottomNav = page
+    .locator('[data-dashboard-mobile-nav="admin"]')
+    .filter({ visible: true });
   await expect(bottomNav).toBeVisible({ timeout: 15_000 });
 
   if (module.key === "audit") {
@@ -301,7 +303,11 @@ for (const moduleSpec of OPS_MODULES) {
       await openModuleFromMobileNavigation(page, moduleSpec);
 
       await expect(page.locator('[data-admin-mobile-app-bar="true"]')).toBeVisible();
-      await expect(page.locator('[data-dashboard-mobile-nav="admin"]')).toBeVisible();
+      await expect(
+        page
+          .locator('[data-dashboard-mobile-nav="admin"]')
+          .filter({ visible: true }),
+      ).toBeVisible();
       await expect(page.locator('[data-dashboard-horizontal-nav-shell="true"]')).toBeHidden();
 
       const moduleSelector = `[data-admin-mobile-ops-module="${moduleSpec.key}"]`;
@@ -390,6 +396,7 @@ for (const moduleSpec of OPS_MODULES) {
 
       await page
         .locator('[data-dashboard-mobile-nav="admin"]')
+        .filter({ visible: true })
         .getByRole("button", { name: "Inicio", exact: true })
         .click();
       await expect(page.locator('[data-admin-mobile-hub-launcher="true"]')).toBeVisible({

@@ -562,10 +562,24 @@ async function prepareRole(
   }
 }
 
+/**
+ * The PAINTED band. `DashboardNavigationFrame` streams the url-derived
+ * navigation through a Suspense boundary whose fallback mounts a SECOND
+ * `LateralNavigation` with the same attributes, so a bare band selector can
+ * resolve to two nodes while exactly one is visible. Filtering the OWNER does
+ * not relax the contract: zero visible bands still fail, and two still fail on
+ * strictness.
+ */
+function paintedBand(page: Page, selector: string) {
+  return page.locator(selector).filter({ visible: true });
+}
+
 /** The item of the CURRENTLY VISIBLE band, so clicks never hit a hidden twin. */
 function bandItem(page: Page, moduleId: string, regime: Regime) {
   const band = regime === "drawer" ? DRAWER_SELECTOR : RAIL_SELECTOR;
-  return page.locator(`${band} [data-dashboard-navigation-item="${moduleId}"]`);
+  return paintedBand(page, band).locator(
+    `[data-dashboard-navigation-item="${moduleId}"]`,
+  );
 }
 
 async function expectActiveModule(
@@ -581,7 +595,7 @@ async function expectActiveModule(
 
   const band = regime === "drawer" ? DRAWER_SELECTOR : RAIL_SELECTOR;
   await expect(
-    page.locator(`${band} [aria-current='page']`),
+    paintedBand(page, band).locator("[aria-current='page']"),
     `${label}: exactly one module is current`,
   ).toHaveCount(1, { timeout: 15_000 });
 }
@@ -760,7 +774,9 @@ test.describe("B08 · admin module navigation", () => {
     // Every module still reachable from the hub, and the hub itself intact
     // (degrading it to an "Inicio" item is B13).
     await expect(
-      page.locator(`${DRAWER_SELECTOR} [data-dashboard-navigation-item]`),
+      paintedBand(page, DRAWER_SELECTOR).locator(
+        "[data-dashboard-navigation-item]",
+      ),
       "hub: the full admin module list stays reachable",
     ).toHaveCount(10);
     await expect(
@@ -970,7 +986,7 @@ test.describe("B08 · rail destinations at short heights", () => {
     await openSurface(page, ADMIN_HUB_SURFACE);
 
     await expect(
-      page.locator(RAIL_SELECTOR),
+      paintedBand(page, RAIL_SELECTOR),
       "short height stays inside the rail regime",
     ).toBeVisible();
     await expect(
@@ -978,7 +994,9 @@ test.describe("B08 · rail destinations at short heights", () => {
       "the drawer must not paint below 1280px",
     ).toBeHidden();
 
-    const items = page.locator(`${RAIL_SELECTOR} [data-dashboard-navigation-item]`);
+    const items = paintedBand(page, RAIL_SELECTOR).locator(
+      "[data-dashboard-navigation-item]",
+    );
     await expect(items, "every admin destination is mounted").toHaveCount(
       ADMIN_RAIL_ITEM_COUNT,
     );

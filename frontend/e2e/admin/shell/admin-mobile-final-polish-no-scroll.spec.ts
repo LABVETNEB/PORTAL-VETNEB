@@ -321,7 +321,10 @@ async function expectInsideMobileContentBand(
 
   const [appBarBox, bottomNavBox, elementBox] = await Promise.all([
     page.locator('[data-admin-mobile-app-bar="true"]').boundingBox(),
-    page.locator('[data-dashboard-mobile-nav="admin"]').boundingBox(),
+    page
+      .locator('[data-dashboard-mobile-nav="admin"]')
+      .filter({ visible: true })
+      .boundingBox(),
     locator.boundingBox(),
   ]);
 
@@ -384,7 +387,9 @@ async function expectNotClippedByAncestors(locator: Locator, label: string) {
 
 async function expectMobileChrome(page: Page, viewport: Viewport, label: string) {
   const appBar = page.locator('[data-admin-mobile-app-bar="true"]');
-  const bottomNav = page.locator('[data-dashboard-mobile-nav="admin"]');
+  const bottomNav = page
+    .locator('[data-dashboard-mobile-nav="admin"]')
+    .filter({ visible: true });
   // B08: the retired horizontal nav must not exist at all, and neither lateral
   // primitive may paint below 768px — that regime belongs to the mobile model.
   const retiredHorizontalNav = page.locator('[data-dashboard-horizontal-nav-shell="true"]');
@@ -531,7 +536,9 @@ for (const viewport of MOBILE_VIEWPORTS) {
     );
     await captureScreen(page, testInfo, viewport.name, "launcher-page-2");
 
-    const bottomNav = page.locator('[data-dashboard-mobile-nav="admin"]');
+    const bottomNav = page
+      .locator('[data-dashboard-mobile-nav="admin"]')
+      .filter({ visible: true });
     await bottomNav.getByRole("button", { name: "Más", exact: true }).click();
     const moduleMenu = page.locator('[data-dashboard-mobile-nav-overflow="true"]');
     await expectInsideViewport(moduleMenu, viewport, `${viewport.name} Más menu`);

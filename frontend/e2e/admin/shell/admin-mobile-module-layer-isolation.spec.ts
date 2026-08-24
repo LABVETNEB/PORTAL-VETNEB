@@ -299,6 +299,7 @@ async function openModule(
 async function backToHub(page: Page, viewportLabel: string) {
   await page
     .locator('[data-dashboard-mobile-nav="admin"]')
+    .filter({ visible: true })
     .getByRole("button", { name: "Inicio", exact: true })
     .click();
 
@@ -538,6 +539,7 @@ for (const cell of PAINT_CHAIN_MATRIX) {
     // with no hard reload / localStorage workaround.
     await page
       .locator('[data-dashboard-mobile-nav="admin"]')
+      .filter({ visible: true })
       .getByRole("button", { name: "Inicio", exact: true })
       .click();
     await expect(hub).toBeVisible({ timeout: 15_000 });

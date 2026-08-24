@@ -82,8 +82,19 @@ function clinicLateralNavItem(page: Page, moduleId: ClinicModule): Locator {
   );
 }
 
+// UNFILTERED on purpose: the desktop test asserts this bar is hidden, and a
+// filtered locator would satisfy `toBeHidden()` by resolving to nothing.
 function clinicMobileNav(page: Page) {
   return page.locator('[data-dashboard-mobile-nav="clinic"]');
+}
+
+/**
+ * The painted bar. `DashboardMobileNav` streams through the same Suspense
+ * boundary as the lateral band, and its fallback mounts a second
+ * `DashboardMobileNavBar` with the same attribute.
+ */
+function paintedClinicMobileNav(page: Page) {
+  return clinicMobileNav(page).filter({ visible: true });
 }
 
 // ─── Scope guard ──────────────────────────────────────────────────────────────
@@ -214,11 +225,11 @@ test.describe("clinic dashboard — rail navigation", () => {
     // moves the module AND commits the canonical `?module=` URL.
     await page.setViewportSize({ width: 375, height: 812 });
     await page.goto("/dashboard");
-    await expect(clinicMobileNav(page)).toBeVisible({ timeout: 8_000 });
+    await expect(paintedClinicMobileNav(page)).toBeVisible({ timeout: 8_000 });
     await expect(page.locator("[data-dashboard-module-rail]")).toHaveCount(0);
 
     // operaciones → informes
-    await clinicMobileNav(page)
+    await paintedClinicMobileNav(page)
       .locator('[data-dashboard-mobile-nav-item="informes"]')
       .click();
     await expect(page).toHaveURL(/\/dashboard\?module=informes$/, {
@@ -229,7 +240,7 @@ test.describe("clinic dashboard — rail navigation", () => {
     ).toBeVisible({ timeout: 5_000 });
 
     // informes → operaciones
-    await clinicMobileNav(page)
+    await paintedClinicMobileNav(page)
       .locator('[data-dashboard-mobile-nav-item="operaciones"]')
       .click();
     await expect(page).toHaveURL(/\/dashboard\?module=operaciones$/, {

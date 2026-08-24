@@ -187,7 +187,9 @@ for (const moduleSpec of MODULES) {
         `${viewport.name}: app bar visible`,
       ).toBeVisible();
       await expect(
-        page.locator('[data-dashboard-mobile-nav="admin"]'),
+        page
+          .locator('[data-dashboard-mobile-nav="admin"]')
+          .filter({ visible: true }),
         `${viewport.name}: bottom nav visible`,
       ).toBeVisible();
       await expect(
@@ -272,7 +274,9 @@ for (const moduleSpec of MODULES) {
       );
       assertDocumentNoScrollContract(page2Contract, `${viewport.name} ${moduleSpec.key} page 2`);
 
-      const bottomNav = page.locator('[data-dashboard-mobile-nav="admin"]');
+      const bottomNav = page
+        .locator('[data-dashboard-mobile-nav="admin"]')
+        .filter({ visible: true });
       await bottomNav.getByRole("button", { name: "Inicio", exact: true }).click();
       await expect(
         page.locator('[data-admin-mobile-hub-launcher="true"]'),
@@ -292,7 +296,9 @@ test("Admin mobile core modules reachable from bottom nav and Más menu", async 
   await page.goto("/dashboard/admin");
   await suppressNextDevIndicator(page);
 
-  const bottomNav = page.locator('[data-dashboard-mobile-nav="admin"]');
+  const bottomNav = page
+    .locator('[data-dashboard-mobile-nav="admin"]')
+    .filter({ visible: true });
   await expect(bottomNav).toBeVisible();
 
   await bottomNav.getByRole("button", { name: "Clínicas", exact: true }).click();
@@ -362,7 +368,10 @@ test("Admin mobile reports pagination advances through measured pages with pager
 
   const [pagerBox, bottomNavBox] = await Promise.all([
     pager.boundingBox(),
-    page.locator('[data-dashboard-mobile-nav="admin"]').boundingBox(),
+    page
+      .locator('[data-dashboard-mobile-nav="admin"]')
+      .filter({ visible: true })
+      .boundingBox(),
   ]);
   expect(pagerBox).not.toBeNull();
   expect(bottomNavBox).not.toBeNull();

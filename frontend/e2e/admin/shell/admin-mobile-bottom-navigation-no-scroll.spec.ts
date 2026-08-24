@@ -72,7 +72,9 @@ for (const viewport of MOBILE_VIEWPORTS) {
     await suppressNextDevIndicator(page);
     await expectModule(page, "admin-clinics");
 
-    const nav = page.locator('[data-dashboard-mobile-nav="admin"]');
+    const nav = page
+      .locator('[data-dashboard-mobile-nav="admin"]')
+      .filter({ visible: true });
     const destinations = nav.locator('[data-dashboard-mobile-nav-item]');
 
     await expect(nav).toBeVisible();

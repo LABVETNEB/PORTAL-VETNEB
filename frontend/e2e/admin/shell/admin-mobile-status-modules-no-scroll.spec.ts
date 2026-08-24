@@ -143,7 +143,10 @@ async function expectInsideContentBand(
   await expect(locator, `${label}: visible`).toBeVisible();
   const [appBarBox, bottomNavBox, box] = await Promise.all([
     page.locator('[data-admin-mobile-app-bar="true"]').boundingBox(),
-    page.locator('[data-dashboard-mobile-nav="admin"]').boundingBox(),
+    page
+      .locator('[data-dashboard-mobile-nav="admin"]')
+      .filter({ visible: true })
+      .boundingBox(),
     locator.boundingBox(),
   ]);
 
@@ -268,7 +271,9 @@ for (const moduleSpec of STATUS_MODULES) {
           `${viewport.name} ${mode}: app bar`,
         ).toBeVisible({ timeout: 15_000 });
         await expect(
-          page.locator('[data-dashboard-mobile-nav="admin"]'),
+          page
+            .locator('[data-dashboard-mobile-nav="admin"]')
+            .filter({ visible: true }),
           `${viewport.name} ${mode}: bottom nav`,
         ).toBeVisible();
         await expect(
@@ -387,6 +392,7 @@ for (const moduleSpec of STATUS_MODULES) {
 
         await page
           .locator('[data-dashboard-mobile-nav="admin"]')
+          .filter({ visible: true })
           .getByRole("button", { name: "Inicio", exact: true })
           .click();
         await expect(

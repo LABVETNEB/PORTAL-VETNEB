@@ -130,7 +130,9 @@ for (const viewport of MOBILE_VIEWPORTS) {
 
     const surface = page.locator('[data-vetneb-app-shell-surface="admin"]');
     const appBar = page.locator('[data-admin-mobile-app-bar="true"]');
-    const bottomNav = page.locator('[data-dashboard-mobile-nav="admin"]');
+    const bottomNav = page
+      .locator('[data-dashboard-mobile-nav="admin"]')
+      .filter({ visible: true });
     const horizontalNav = page.locator(
       '[data-dashboard-horizontal-nav-shell="true"]',
     );
@@ -188,7 +190,9 @@ test(`Admin mobile app shell is absolute no-scroll at ${LANDSCAPE_DIAGNOSTIC_VIE
 
   const surface = page.locator('[data-vetneb-app-shell-surface="admin"]');
   const appBar = page.locator('[data-admin-mobile-app-bar="true"]');
-  const bottomNav = page.locator('[data-dashboard-mobile-nav="admin"]');
+  const bottomNav = page
+    .locator('[data-dashboard-mobile-nav="admin"]')
+    .filter({ visible: true });
 
   await expect(surface).toBeVisible({ timeout: 15_000 });
   await expect(appBar).toBeVisible();

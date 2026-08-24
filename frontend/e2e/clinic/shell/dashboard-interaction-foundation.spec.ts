@@ -36,14 +36,27 @@ function clinicLateralNav(page: Page) {
   return page.locator('[data-dashboard-navigation-drawer="clinic"]');
 }
 
+// The PAINTED drawer. `DashboardNavigationFrame` streams the url-derived
+// navigation through a Suspense boundary whose fallback mounts a SECOND
+// `LateralNavigation` with the same attribute, so the bare owner can resolve to
+// two nodes while exactly one is visible. This does NOT relax the contract:
+// zero visible drawers still fail and two still fail on strictness.
+// `clinicLateralNav` stays UNFILTERED on purpose — the <768px test asserts the
+// drawer is hidden, and an empty locator would satisfy that for free.
+function paintedClinicLateralNav(page: Page) {
+  return clinicLateralNav(page).filter({ visible: true });
+}
+
 function clinicLateralNavItem(page: Page, moduleId: ClinicModule) {
-  return clinicLateralNav(page).locator(
+  return paintedClinicLateralNav(page).locator(
     `[data-dashboard-navigation-item="${moduleId}"]`,
   );
 }
 
 function clinicMobileNav(page: Page) {
-  return page.locator('[data-dashboard-mobile-nav="clinic"]');
+  return page
+    .locator('[data-dashboard-mobile-nav="clinic"]')
+    .filter({ visible: true });
 }
 
 test.describe("dashboard interaction foundation — smoke (PR-1)", () => {
@@ -66,7 +79,7 @@ test.describe("dashboard interaction foundation — smoke (PR-1)", () => {
       page.locator('[data-dashboard-module-workspace="operaciones"]'),
     ).toBeVisible();
     // The lateral navigation is present, and the retired horizontal nav is not.
-    await expect(clinicLateralNav(page)).toBeVisible();
+    await expect(paintedClinicLateralNav(page)).toBeVisible();
     await expect(
       page.locator("[data-dashboard-horizontal-nav-shell]"),
     ).toHaveCount(0);
@@ -83,7 +96,7 @@ test.describe("dashboard interaction foundation — smoke (PR-1)", () => {
     await setClinicSession(page);
     await page.goto("/dashboard");
 
-    await expect(clinicLateralNav(page)).toBeVisible({ timeout: 8_000 });
+    await expect(paintedClinicLateralNav(page)).toBeVisible({ timeout: 8_000 });
 
     // Default module is operaciones and the lateral nav marks it active.
     await expect(clinicLateralNavItem(page, "operaciones")).toHaveAttribute(
@@ -101,7 +114,7 @@ test.describe("dashboard interaction foundation — smoke (PR-1)", () => {
       await expect(clinicLateralNavItem(page, moduleId)).toBeVisible();
     }
     await expect(
-      clinicLateralNav(page).locator("[aria-current='page']"),
+      paintedClinicLateralNav(page).locator("[aria-current='page']"),
     ).toHaveCount(1);
   });
 
@@ -186,7 +199,7 @@ test.describe("dashboard interaction foundation — smoke (PR-1)", () => {
     await expect(
       page.locator('[data-dashboard-module-workspace="operaciones"]'),
     ).toBeVisible({ timeout: 8_000 });
-    await expect(clinicLateralNav(page)).toBeVisible();
+    await expect(paintedClinicLateralNav(page)).toBeVisible();
     await expect(page.locator('[data-dashboard-module-hub="true"]')).toHaveCount(0);
   });
 

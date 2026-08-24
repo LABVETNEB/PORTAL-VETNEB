@@ -120,6 +120,7 @@ async function expectModuleWorkspace(page: Page, moduleId: string) {
 async function backToHubViaBottomNav(page: Page) {
   await page
     .locator('[data-dashboard-mobile-nav="admin"]')
+    .filter({ visible: true })
     .getByRole("button", { name: "Inicio", exact: true })
     .click();
   await expect(
@@ -137,7 +138,9 @@ for (const viewport of MOBILE_VIEWPORTS) {
     await suppressNextDevIndicator(page);
 
     const appBar = page.locator('[data-admin-mobile-app-bar="true"]');
-    const bottomNav = page.locator('[data-dashboard-mobile-nav="admin"]');
+    const bottomNav = page
+      .locator('[data-dashboard-mobile-nav="admin"]')
+      .filter({ visible: true });
     const horizontalNav = page.locator(
       '[data-dashboard-horizontal-nav-shell="true"]',
     );
