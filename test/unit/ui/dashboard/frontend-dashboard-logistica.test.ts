@@ -20,7 +20,13 @@ test("dashboard logistica defines non-indexable metadata and dependencies", () =
   assert.ok(source.includes('} from "lucide-react";'));
   assert.ok(source.includes('title: "Logística — Portal VETNEB"'));
   assert.ok(source.includes("robots: { index: false, follow: false },"));
-  assert.ok(source.includes('import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";'));
+  // B10: the shell chrome (topbar + navigation frame + main) has one owner for
+  // all six clinic routes, so the route imports the shell, not the topbar.
+  assert.ok(source.includes('import { ClinicDashboardShell } from "@/components/dashboard/ClinicDashboardShell";'));
+  assert.equal(
+    source.includes('import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";'),
+    false,
+  );
   assert.ok(source.includes('import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";'));
   assert.ok(source.includes('import {'));
   assert.ok(source.includes('StickyActionBar'));
@@ -54,7 +60,9 @@ test("dashboard logistica reads field visits and route plans through API helpers
 test("dashboard logistica computes active visits and active route plans explicitly", () => {
   const source = read(LOGISTICA_PAGE_PATH);
 
-  assert.ok(source.includes('notifications="clinic"'));
+  assert.ok(source.includes('<ClinicDashboardShell'));
+  // B10: the clinic notification role is declared once, by the shared shell.
+  assert.equal(source.includes('notifications="clinic"'), false);
   assert.ok(source.includes("const activeVisits = fieldVisits.filter("));
   assert.ok(source.includes('v.status === "in_progress" || v.status === "scheduled"'));
   assert.ok(source.includes("const activePlans = routePlans.filter("));
@@ -63,11 +71,17 @@ test("dashboard logistica computes active visits and active route plans explicit
 
 test("dashboard logistica composes command center, sticky actions, and page header", () => {
   const source = read(LOGISTICA_PAGE_PATH);
-  // A05 (#1649) turned this `<main>` into a multi-line element (it now carries
-  // the adaptive reservation root and the sticky-action ledger var), so the
-  // slice anchors on the class attribute instead of a one-line open tag.
-  const mainStart = source.indexOf('className="dashboard-main"');
-  assert.ok(mainStart >= 0, "logistics hub must render the dashboard main region");
+  // A05 (#1649) put the adaptive reservation root and the sticky-action ledger
+  // var on this `<main>`; B10 (#B10) moved `<main>` itself into the shared
+  // `ClinicDashboardShell`, which the route configures through props. The slice
+  // therefore anchors on the shell mount — the element that opens the main
+  // region for this route.
+  const mainStart = source.indexOf('<ClinicDashboardShell');
+  assert.ok(mainStart >= 0, "logistics hub must mount the shared clinic shell");
+  assert.ok(
+    source.includes("mainAdaptiveReservation"),
+    "logistics hub keeps declaring main as the adaptive reservation root",
+  );
   const mainSource = source.slice(mainStart);
 
   assert.ok(source.includes("<DashboardPageHeader"));

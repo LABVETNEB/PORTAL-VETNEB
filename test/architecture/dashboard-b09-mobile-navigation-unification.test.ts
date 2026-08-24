@@ -619,14 +619,18 @@ test("B09 · the clinic full-route topology B10 owns is intact", () => {
 
   for (const path of fullRoutes) {
     const source = stripComments(read(path));
+    // B10 gave the six clinic routes ONE shell owner, so the topbar is no
+    // longer declared here. What B09 actually fenced off is untouched: these
+    // are real routes and must not become `?module=` state of the clinic
+    // controller.
     assert.ok(
-      source.includes("<DashboardTopbar"),
-      `${path} keeps its own shell: folding it into the /dashboard controller is B10`,
+      source.includes("<ClinicDashboardShell"),
+      `${path} reaches its chrome through the shared clinic shell (B10)`,
     );
     assert.equal(
       source.includes("ClinicDashboardWorkspaceController"),
       false,
-      `${path} must not be converted to the module controller: that is B10`,
+      `${path} must not be converted to the module controller: it is a real route, not a ?module= state`,
     );
     // B09 changed nothing about these routes: the bar reaches them because it
     // is mounted at shell level, which is where it already was.

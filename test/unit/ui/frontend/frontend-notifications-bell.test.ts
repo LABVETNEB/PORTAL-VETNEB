@@ -471,8 +471,14 @@ test("admin role wires notifications bell via DashboardTopbar", () => {
 });
 
 test("clinic and admin dashboards pass surface to topbar notifications prop", () => {
-  const clinicPage = readFileSync(
-    resolve(process.cwd(), "frontend/src/app/dashboard/page.tsx"),
+  // B10: the clinic notification role moved from the six clinic routes to
+  // their single shell owner, which is where it is now asserted. Admin still
+  // declares its own topbar, so its assertion is unchanged.
+  const clinicShell = readFileSync(
+    resolve(
+      process.cwd(),
+      "frontend/src/components/dashboard/ClinicDashboardShell.tsx",
+    ),
     "utf8",
   );
   const adminPage = readFileSync(
@@ -481,8 +487,12 @@ test("clinic and admin dashboards pass surface to topbar notifications prop", ()
   );
 
   assert.ok(
-    clinicPage.includes('notifications="clinic"'),
-    "clinic dashboard must pass notifications='clinic'",
+    clinicShell.includes("<DashboardTopbar"),
+    "the clinic shell must own the topbar for every clinic route",
+  );
+  assert.ok(
+    clinicShell.includes('notifications="clinic"'),
+    "clinic shell must pass notifications='clinic'",
   );
   assert.ok(
     adminPage.includes('notifications="admin"'),

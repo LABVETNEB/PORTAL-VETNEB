@@ -75,7 +75,15 @@ const MOUNT_SURFACES = [
   "frontend/src/app/dashboard/logistica/visitas/page.tsx",
 ];
 
-/** The five clinic full routes B10 unifies; B08 must leave their topology. */
+/**
+ * The six clinic surfaces. B10 gave them one shell owner, so they reach the
+ * B08 frame through `ClinicDashboardShell` instead of declaring it each.
+ */
+const B10_CLINIC_SURFACES = MOUNT_SURFACES.filter(
+  (path) => path !== "frontend/src/app/dashboard/admin/page.tsx",
+);
+
+/** The five clinic full routes; B08 had to leave their topology to B10. */
 const B10_FENCE = MOUNT_SURFACES.slice(2);
 
 /**
@@ -522,41 +530,95 @@ test("B08 · the B13 hub survives", () => {
 
 // ── T7 · Every surface that lost the horizontal nav mounts the frame ─────────
 
-test("B08 · all seven surfaces mount the navigation frame around main", () => {
-  for (const path of MOUNT_SURFACES) {
-    const source = stripComments(read(path));
+/**
+ * B10 moved the clinic half of this contract behind one owner.
+ *
+ * The invariant is unchanged and is still proven for all seven surfaces: the
+ * app bar sits ABOVE the frame and `main` lives INSIDE it. What changed is
+ * WHERE that is declared. Admin still declares its own triple; the six clinic
+ * routes declare it through `ClinicDashboardShell`, so the literals are
+ * asserted once, on the shell, plus a mount assertion per route. Asserting the
+ * old literals on the routes would now be asserting the duplication B10
+ * removed.
+ */
+const CLINIC_SHELL_TSX =
+  "frontend/src/components/dashboard/ClinicDashboardShell.tsx";
 
+function assertFrameWrapsMain(path: string, label: string): void {
+  const source = stripComments(read(path));
+
+  assert.ok(
+    source.includes("<DashboardNavigationFrame"),
+    `${label} lost the horizontal nav and must mount the B08 frame`,
+  );
+  assert.ok(
+    source.includes("</DashboardNavigationFrame>"),
+    `${label} must wrap its main region, not self-close the frame`,
+  );
+  assert.match(
+    source,
+    /<DashboardNavigationFrame[\s\S]*?<main[\s\S]*?<\/main>[\s\S]*?<\/DashboardNavigationFrame>/,
+    `${label}: main must live INSIDE the frame so the lateral navigation takes inline size, never vertical budget`,
+  );
+  assert.ok(
+    source.includes("<DashboardTopbar"),
+    `${label} keeps the B06 app bar above the frame, full width`,
+  );
+  assert.match(
+    source,
+    /<DashboardTopbar[\s\S]*?<DashboardNavigationFrame/,
+    `${label}: the app bar stays ABOVE the lateral band`,
+  );
+}
+
+test("B08 · all seven surfaces mount the navigation frame around main", () => {
+  // Admin declares the triple itself.
+  assertFrameWrapsMain(
+    "frontend/src/app/dashboard/admin/page.tsx",
+    "the admin shell",
+  );
+
+  // The six clinic surfaces declare it through the B10 shell, which carries
+  // the identical structural assertions exactly once.
+  assertFrameWrapsMain(CLINIC_SHELL_TSX, "the clinic shell");
+
+  for (const path of B10_CLINIC_SURFACES) {
+    const source = stripComments(read(path));
     assert.ok(
-      source.includes("<DashboardNavigationFrame"),
-      `${path} lost the horizontal nav and must mount the B08 frame`,
+      source.includes("<ClinicDashboardShell"),
+      `${path} lost the horizontal nav and must reach the B08 frame through the clinic shell`,
     );
     assert.ok(
-      source.includes("</DashboardNavigationFrame>"),
-      `${path} must wrap its main region, not self-close the frame`,
-    );
-    assert.match(
-      source,
-      /<DashboardNavigationFrame[\s\S]*?<main[\s\S]*?<\/main>[\s\S]*?<\/DashboardNavigationFrame>/,
-      `${path}: main must live INSIDE the frame so the lateral navigation takes inline size, never vertical budget`,
-    );
-    assert.ok(
-      source.includes("<DashboardTopbar"),
-      `${path} keeps the B06 app bar above the frame, full width`,
-    );
-    assert.match(
-      source,
-      /<DashboardTopbar[\s\S]*?<DashboardNavigationFrame/,
-      `${path}: the app bar stays ABOVE the lateral band`,
+      source.includes("</ClinicDashboardShell>"),
+      `${path} must wrap its content, not self-close the shell`,
     );
   }
+
+  // Every surface of the census is covered by exactly one of the two branches.
+  assert.equal(
+    B10_CLINIC_SURFACES.length + 1,
+    MOUNT_SURFACES.length,
+    "admin plus the six clinic surfaces must exhaust the mount census",
+  );
 });
 
 test("B08 · the active module mapping is declared per route, not guessed", () => {
-  const clinicShell = stripComments(read("frontend/src/app/dashboard/page.tsx"));
+  // The clinic shell is the one place that hands `surface="clinic"` to the
+  // frame; each route still declares WHICH module it presents (B10).
+  const clinicShell = stripComments(read(CLINIC_SHELL_TSX));
   assert.match(
     clinicShell,
-    /<DashboardNavigationFrame\s+surface="clinic"/,
-    "/dashboard is the clinic module shell",
+    /<DashboardNavigationFrame\s+surface="clinic"\s+module=\{module\}/,
+    "the clinic shell passes each route's declared module through to the frame",
+  );
+
+  const clinicModuleShell = stripComments(
+    read("frontend/src/app/dashboard/page.tsx"),
+  );
+  assert.equal(
+    /<ClinicDashboardShell[^>]*module=/.test(clinicModuleShell),
+    false,
+    "/dashboard is the clinic module shell: the frame reads ?module= from the URL",
   );
 
   const admin = stripComments(read("frontend/src/app/dashboard/admin/page.tsx"));
@@ -569,14 +631,14 @@ test("B08 · the active module mapping is declared per route, not guessed", () =
   const informes = stripComments(read("frontend/src/app/dashboard/informes/page.tsx"));
   assert.match(
     informes,
-    /<DashboardNavigationFrame\s+surface="clinic"\s+module="informes"/,
+    /module="informes"/,
     "/dashboard/informes presents Informes as the active module",
   );
 
   for (const path of B10_FENCE.slice(1)) {
     assert.match(
       stripComments(read(path)),
-      /<DashboardNavigationFrame\s+surface="clinic"\s+module="logistica"/,
+      /module="logistica"/,
       `${path} presents Logística as the active module`,
     );
   }
@@ -610,17 +672,23 @@ test("B08 · the mobile model B09 owns is intact", () => {
   }
 });
 
-test("B08 · the clinic full-route topology B10 owns is intact", () => {
+test("B08 · the clinic full routes keep their own route identity", () => {
+  // B10 released half of this fence: the five full routes now share the SHELL
+  // with `/dashboard`. It did NOT release the other half, which is the part
+  // that actually protects the routes — they must keep their own entry point
+  // and must not be folded into the clinic module CONTROLLER, because that
+  // would convert real routes into `?module=` state and break their deep
+  // links. That assertion is unchanged.
   for (const path of B10_FENCE) {
     const source = stripComments(read(path));
     assert.ok(
-      source.includes("<DashboardTopbar"),
-      `${path} keeps its own shell: folding it into the /dashboard controller is B10`,
+      source.includes("<ClinicDashboardShell"),
+      `${path} reaches the shell chrome through the shared clinic shell`,
     );
     assert.equal(
       source.includes("ClinicDashboardWorkspaceController"),
       false,
-      `${path} must not be converted to the module controller: that is B10`,
+      `${path} must not be converted to the module controller: it is a real route, not a ?module= state`,
     );
   }
 });

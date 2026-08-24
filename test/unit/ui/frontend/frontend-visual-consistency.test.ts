@@ -14,6 +14,9 @@ const DASHBOARD_TOPBAR_PATH = "frontend/src/components/dashboard/DashboardTopbar
 const WORKSPACE_APP_BAR_PATH =
   "frontend/src/components/dashboard/WorkspaceAppBar.tsx";
 const DASHBOARD_HOME_PATH = "frontend/src/app/dashboard/page.tsx";
+/** B10 · single owner of the clinic topbar + navigation frame + main region. */
+const CLINIC_DASHBOARD_SHELL_PATH =
+  "frontend/src/components/dashboard/ClinicDashboardShell.tsx";
 const DASHBOARD_CLINIC_COMMAND_CENTER_PATH =
   "frontend/src/app/dashboard/ClinicCommandCenter.tsx";
 const DASHBOARD_ADMIN_PATH = "frontend/src/app/dashboard/admin/page.tsx";
@@ -401,7 +404,10 @@ test("dashboard home keeps visual dashboard states and card spacing conventions"
   assertContainsAll(
     source,
     [
-      '<main className="dashboard-main">',
+      // B10: `main` belongs to the shared ClinicDashboardShell, which all six
+      // clinic routes mount instead of re-declaring the topbar/frame/main
+      // triple. The main region is still asserted — on its owner, below.
+      "<ClinicDashboardShell",
       // No home/hub: the clinic dashboard opens straight into the unified
       // module workspace controller (no landing DashboardPageHeader band).
       "<ClinicDashboardWorkspaceController",
@@ -410,6 +416,12 @@ test("dashboard home keeps visual dashboard states and card spacing conventions"
       "<ClinicParticularTokensCard />",
     ],
     "dashboard home shell",
+  );
+
+  assertContainsAll(
+    read(CLINIC_DASHBOARD_SHELL_PATH),
+    ['<main', 'className="dashboard-main"'],
+    "clinic dashboard shell main region",
   );
   assert.equal(
     source.includes("<DashboardPageHeader"),

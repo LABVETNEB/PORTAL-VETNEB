@@ -19,7 +19,13 @@ test("dashboard logistica visitas defines non-indexable metadata and dependencie
   assert.ok(source.includes('import { cookies } from "next/headers";'));
   assert.ok(source.includes('title: "Visitas de campo — Portal VETNEB"'));
   assert.ok(source.includes("robots: { index: false, follow: false },"));
-  assert.ok(source.includes('import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";'));
+  // B10: the shell chrome (topbar + navigation frame + main) has one owner for
+  // all six clinic routes, so the route imports the shell, not the topbar.
+  assert.ok(source.includes('import { ClinicDashboardShell } from "@/components/dashboard/ClinicDashboardShell";'));
+  assert.equal(
+    source.includes('import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";'),
+    false,
+  );
   assert.ok(source.includes('import { Badge } from "@/components/ui/badge";'));
   assert.ok(source.includes('import { getLogisticsFieldVisits } from "@/lib/api";'));
 });
@@ -76,7 +82,9 @@ test("dashboard logistica visitas renders topbar without technical source copy",
 
   assert.ok(source.includes('title="Visitas de campo"'));
   assert.ok(source.includes('subtitle="Seguimiento de visitas programadas y en curso"'));
-  assert.ok(source.includes('notifications="clinic"'));
+  assert.ok(source.includes('<ClinicDashboardShell'));
+  // B10: the clinic notification role is declared once, by the shared shell.
+  assert.equal(source.includes('notifications="clinic"'), false);
   assert.equal(source.includes(removedSourcePrefix), false);
   assert.equal(source.includes(removedFieldVisitsEndpoint), false);
 });
