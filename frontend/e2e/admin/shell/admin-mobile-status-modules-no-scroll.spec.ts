@@ -416,7 +416,9 @@ for (const moduleSpec of STATUS_MODULES) {
     await page.goto(`/dashboard/admin?module=${moduleSpec.moduleId}`);
 
     await expect(
-      page.locator('[data-dashboard-navigation-drawer="admin"]'),
+      page
+        .locator('[data-dashboard-navigation-drawer="admin"]')
+        .filter({ visible: true }),
       `${moduleSpec.key} desktop: lateral nav visible`,
     ).toBeVisible({ timeout: 15_000 });
     await expect(

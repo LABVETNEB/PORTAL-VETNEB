@@ -193,7 +193,9 @@ test("Admin desktop preserves lateral navigation and desktop actions", async ({
   await page.goto("/dashboard/admin");
 
   await expect(
-    page.locator('[data-dashboard-navigation-drawer="admin"]'),
+    page
+      .locator('[data-dashboard-navigation-drawer="admin"]')
+      .filter({ visible: true }),
   ).toBeVisible({ timeout: 15_000 });
   await expect(page.locator('[data-dashboard-mobile-nav="admin"]')).toBeHidden();
   await expect(page.locator('[data-theme-toggle="true"]')).toBeVisible();

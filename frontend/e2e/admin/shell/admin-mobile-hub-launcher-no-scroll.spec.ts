@@ -289,7 +289,9 @@ test("Admin desktop hub keeps lateral navigation and has no mobile launcher", as
   await suppressNextDevIndicator(page);
 
   await expect(
-    page.locator('[data-dashboard-navigation-drawer="admin"]'),
+    page
+      .locator('[data-dashboard-navigation-drawer="admin"]')
+      .filter({ visible: true }),
   ).toBeVisible({ timeout: 15_000 });
   await expect(page.locator('[data-dashboard-mobile-nav="admin"]')).toBeHidden();
   await expect(
