@@ -68,14 +68,13 @@ const CAPTURES: Array<{
 
 // B08 paints the clinic module navigation in three bands (the media queries in
 // `styles/dashboard/navigation.css`): the drawer from 1280px, the rail at
-// 768-1279px, and neither below 768px — where the legacy module rail is still
-// the only clinic navigation on `/dashboard` until B09 replaces it. Half of the
-// captures above are phone viewports, so a single desktop selector never
-// becomes visible for them.
+// 768-1279px, and neither below 768px — where `DashboardMobileNav` (B09) is the
+// clinic navigation. Half of the captures above are phone viewports, so a
+// single desktop selector never becomes visible for them.
 function clinicNavigationSelector(width: number): string {
   if (width >= 1280) return '[data-dashboard-navigation-drawer="clinic"]';
   if (width >= 768) return '[data-dashboard-navigation-rail="clinic"]';
-  return '[data-dashboard-module-rail="true"]';
+  return '[data-dashboard-mobile-nav="clinic"]';
 }
 
 for (const capture of CAPTURES) {

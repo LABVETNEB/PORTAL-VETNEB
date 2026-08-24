@@ -435,3 +435,31 @@
   --dash-nav-band: 1px;
 }
 /* dashboard-b07-navigation-geometry:end */
+
+/* dashboard-b09-mobile-navigation-geometry:start
+ *
+ * B09 - DashboardMobileNav geometry ledger.
+ *
+ * ONE BAND, TWO ROLES. Admin and clinic shipped two nearly-identical clamps
+ * (3.2rem vs 3.15rem floor, 0.46svh vs 0.45svh) for the same band. That 0.8px
+ * spread was drift, not a role difference, so B09 resolves it to a single
+ * token. The clamp is height-keyed exactly as the retired ones were: it holds
+ * its floor for every viewport the no-scroll matrix covers and only grows on
+ * viewports far taller than any phone.
+ *
+ * TOUCH FLOOR IS A CONTRACT, NOT AN ACCIDENT. `--dash-mobile-nav-touch-min` is
+ * the >=44x44 CSS px floor that B09 owes its own surfaces (decision
+ * B09_TOUCH_POLICY = OPTION_A). The two retired bars already cleared it by
+ * consequence - 51.2px of band divided by five or six stretched items - but
+ * nothing AUTHORED it, so a later density pass could have taken it away
+ * silently. It is now applied as `min-block-size`/`min-inline-size` on every
+ * control B09 owns, which is what the runtime contract measures.
+ *
+ * NOT A SECOND CATALOG: no id, label, order or `?module=` grammar here. */
+:root {
+  --dash-mobile-nav-h: clamp(3.2rem, 0.3rem + 0.46svh, 3.5rem);
+  --dash-mobile-nav-gap: clamp(0.12rem, 0.08rem + 0.1svw, 0.18rem);
+  --dash-mobile-nav-touch-min: 44px;
+  --dash-mobile-nav-glyph: 1.1rem;
+}
+/* dashboard-b09-mobile-navigation-geometry:end */

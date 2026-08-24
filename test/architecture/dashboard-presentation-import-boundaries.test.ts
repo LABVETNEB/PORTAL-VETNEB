@@ -82,17 +82,23 @@ const NAVIGATION_REQUIRED_EXPORTS: Record<string, readonly string[]> = {
     "DashboardNavigationFrame",
     "DashboardNavigationFrameProps",
   ],
-  // `DashboardHorizontalNav` was removed by B08, which retired it physically:
-  // it was a pure >=768px surface, so the lateral model replaces it outright.
-  // `DashboardModuleRail` stays: B08 removed it from >=768px only, and below
-  // that it is still the clinic module navigation on `/dashboard` (see
-  // ClinicMobileBottomNav's early return). B09 owns its final retirement.
-  DashboardModuleRail: ["DashboardModuleRail", "CLINIC_MODULE_RAIL_ITEMS"],
-  AdminMobileBottomNav: ["AdminMobileBottomNav"],
-  ClinicMobileBottomNav: ["ClinicMobileBottomNav"],
+  // B09 mobile model. It enters under the same closure rules as every other
+  // target, which is the point: it reaches the activation buses, the
+  // last-module store and the catalog, and none of those may drag `@/lib/api`
+  // in behind them. `AdminMobileKebabMenu` is still absent for exactly that
+  // reason — it is the ACTION overflow and its closure DOES reach the data
+  // layer, so B09 kept it outside this barrel instead of merging it in.
+  //
+  // `DashboardHorizontalNav` was removed by B08. `DashboardModuleRail`,
+  // `AdminMobileBottomNav`, `ClinicMobileBottomNav` and `AdminMobileModuleMenu`
+  // were removed by B09: one owner replaced all four.
+  DashboardMobileNav: [
+    "DashboardMobileNav",
+    "DashboardMobileNavProps",
+    "DashboardMobileNavSurface",
+  ],
   AdminMobileHubLauncher: ["AdminMobileHubLauncher"],
   AdminMobileHubPager: ["AdminMobileHubPager"],
-  AdminMobileModuleMenu: ["AdminMobileModuleMenu"],
   DashboardPager: [
     "DashboardPager",
     "DashboardPagerProps",

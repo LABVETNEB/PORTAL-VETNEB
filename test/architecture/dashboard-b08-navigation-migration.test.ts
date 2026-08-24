@@ -18,14 +18,19 @@ import { join, resolve } from "node:path";
 //     file changes no mobile behaviour.
 //
 //   LEGACY_MODULE_RAIL_DESKTOP_RETIREMENT   = REQUIRED
-//   LEGACY_MODULE_RAIL_PHYSICAL_RETIREMENT  = DEFERRED_TO_B09
-//     `DashboardModuleRail` is NOT a desktop-only surface. On `/dashboard`,
-//     `ClinicMobileBottomNav` returns null, so the rail IS the clinic module
-//     navigation below 768px — a fact pinned by executable contracts in the
-//     `public-clinic` cohort. Deleting it in B08 would leave `/dashboard` with
-//     no navigation on phones and would pull B09 forward. B08 therefore removes
-//     it from the >=768px regime only; B09 owns the mobile model and the final
-//     deletion.
+//   LEGACY_MODULE_RAIL_PHYSICAL_RETIREMENT  = CLOSED_BY_B09
+//     `DashboardModuleRail` was NOT a desktop-only surface. On `/dashboard`,
+//     `ClinicMobileBottomNav` returned null, so the rail WAS the clinic module
+//     navigation below 768px, and deleting it in B08 would have left that
+//     surface with no navigation on phones. B08 therefore removed it from the
+//     >=768px regime only and deferred the deletion.
+//
+//     B09 shipped `DashboardMobileNav`, removed that early return and deleted
+//     the rail. What this file still owns is the DESKTOP half: from 768px up
+//     exactly one lateral model paints. The mobile half moved to
+//     `dashboard-b09-mobile-navigation-unification.test.ts`, which is where the
+//     rail's absence is now asserted — this contract only records that B08's
+//     deferral is closed and must not re-assert the component's survival.
 //
 // Written fail-closed: every census asserts its own cardinality before
 // iterating, so a renamed path or an empty scan fails instead of passing
@@ -40,7 +45,9 @@ const RAIL_TSX = "frontend/src/components/dashboard/NavigationRail.tsx";
 const TOPBAR_TSX = "frontend/src/components/dashboard/DashboardTopbar.tsx";
 const CLINIC_CONTROLLER_TSX =
   "frontend/src/components/dashboard/ClinicDashboardWorkspaceController.tsx";
+/** Retired by B09 together with the two per-role bottom navs it outlived. */
 const MODULE_RAIL_TSX = "frontend/src/components/dashboard/DashboardModuleRail.tsx";
+const MOBILE_NAV_TSX = "frontend/src/components/dashboard/DashboardMobileNav.tsx";
 const HORIZONTAL_NAV_TSX =
   "frontend/src/components/dashboard/DashboardHorizontalNav.tsx";
 const NAVIGATION_BARREL =
@@ -71,11 +78,16 @@ const MOUNT_SURFACES = [
 /** The five clinic full routes B10 unifies; B08 must leave their topology. */
 const B10_FENCE = MOUNT_SURFACES.slice(2);
 
-/** Mobile navigation B09 unifies; B08 must not touch it. */
+/**
+ * The mobile model B08 fenced off and B09 then unified. Four of the six files
+ * B08 protected (`AdminMobileBottomNav`, `ClinicMobileBottomNav`,
+ * `AdminMobileModuleMenu` and the rail) were replaced by `DashboardMobileNav`;
+ * the kebab (ACTION overflow) and the two hub-launcher surfaces (B13's) stayed.
+ * The fence is kept — narrowed to what actually still exists — because B08's
+ * own postcondition is that IT did not touch this regime.
+ */
 const B09_FENCE = [
-  "frontend/src/components/dashboard/AdminMobileBottomNav.tsx",
-  "frontend/src/components/dashboard/ClinicMobileBottomNav.tsx",
-  "frontend/src/components/dashboard/AdminMobileModuleMenu.tsx",
+  MOBILE_NAV_TSX,
   "frontend/src/components/dashboard/AdminMobileKebabMenu.tsx",
   "frontend/src/components/dashboard/AdminMobileHubLauncher.tsx",
   "frontend/src/components/dashboard/AdminMobileHubPager.tsx",
@@ -150,7 +162,7 @@ function importTargets(source: string): string[] {
 test("B08 · path baseline is complete before anything is asserted", () => {
   assert.equal(MOUNT_SURFACES.length, 7, "seven surfaces depended on the desktop nav");
   assert.equal(B10_FENCE.length, 5, "five clinic full routes stay B10's");
-  assert.equal(B09_FENCE.length, 6, "six mobile surfaces stay B09's");
+  assert.equal(B09_FENCE.length, 4, "four mobile surfaces are B09's");
 
   for (const path of [
     FRAME_TSX,
@@ -158,7 +170,6 @@ test("B08 · path baseline is complete before anything is asserted", () => {
     RAIL_TSX,
     TOPBAR_TSX,
     CLINIC_CONTROLLER_TSX,
-    MODULE_RAIL_TSX,
     NAVIGATION_BARREL,
     MODULE_CATALOG,
     NAVIGATION_CSS,
@@ -224,13 +235,13 @@ test("B08 · the barrel stops exporting the horizontal nav and keeps the primiti
     assert.ok(barrel.includes(expected), `the barrel must export ${expected}`);
   }
 
-  // B09 fence: every mobile surface the barrel carried stays carried.
+  // B09 fence: the mobile surfaces the barrel carries stay carried. B09
+  // collapsed the two bottom navs and the module menu into one owner; the hub
+  // launcher and its pager are B13's and were untouched by both blocks.
   for (const mobileExport of [
-    "AdminMobileBottomNav",
-    "ClinicMobileBottomNav",
+    "DashboardMobileNav",
     "AdminMobileHubLauncher",
     "AdminMobileHubPager",
-    "AdminMobileModuleMenu",
   ]) {
     assert.ok(
       barrel.includes(mobileExport),
@@ -239,38 +250,46 @@ test("B08 · the barrel stops exporting the horizontal nav and keeps the primiti
   }
 });
 
-// ── T2 · LEGACY_MODULE_RAIL: desktop retirement, physical deferral ───────────
+// ── T2 · LEGACY_MODULE_RAIL: B08 deferred the deletion, B09 closed it ────────
 
-test("B08 · LEGACY_MODULE_RAIL_PHYSICAL_RETIREMENT is deferred to B09", () => {
-  assert.ok(
+test("B08 · LEGACY_MODULE_RAIL_PHYSICAL_RETIREMENT is closed by B09", () => {
+  assert.equal(
     existsSync(resolve(REPO_ROOT, MODULE_RAIL_TSX)),
-    `${MODULE_RAIL_TSX} must SURVIVE B08. ClinicMobileBottomNav returns null on /dashboard, so this rail is the clinic module navigation below 768px; deleting it here would leave the phone surface with no navigation and pull B09 forward`,
+    false,
+    `${MODULE_RAIL_TSX} is retired. B08 deferred the deletion because ClinicMobileBottomNav returned null on /dashboard, which made the rail that surface's only navigation below 768px; B09 removed the early return, shipped DashboardMobileNav and deleted the component. Restoring it would put two module navigations back on the same surface`,
   );
 
   const controller = stripComments(read(CLINIC_CONTROLLER_TSX));
-  assert.ok(
-    controller.includes("<DashboardModuleRail activeModule={activeModule} />"),
-    "the controller keeps rendering the rail: it is the <768px owner until B09",
+  assert.equal(
+    controller.includes("DashboardModuleRail"),
+    false,
+    "the clinic controller must not render module navigation inside the stage: below 768px DashboardMobileNav owns it at shell level, above 768px the lateral band does",
   );
-  assert.ok(
-    read(NAVIGATION_BARREL).includes(
-      'from "@/components/dashboard/DashboardModuleRail";',
-    ),
-    "the rail stays exported while it stays live below 768px",
+  assert.equal(
+    stripComments(read(NAVIGATION_BARREL)).includes("DashboardModuleRail"),
+    false,
+    "the barrel must not re-export a retired component",
   );
 });
 
-test("B08 · LEGACY_MODULE_RAIL_DESKTOP_RETIREMENT removes the rail from >=768px", () => {
-  const block = sliceBlock(read(NAVIGATION_CSS), CSS_BLOCK_START, CSS_BLOCK_END);
+test("B08 · LEGACY_MODULE_RAIL_DESKTOP_RETIREMENT survives as a >=768px invariant", () => {
+  // B08 achieved the desktop retirement with `display: none` on the rail from
+  // 768px up. B09 deleted the rail, so that rule went with it and the invariant
+  // is now carried by the ONE thing that can still break it: no source may
+  // reintroduce the selector, and the B09 block owns the mirror-image rule that
+  // keeps the MOBILE model out of the >=768px regime.
+  const css = read(NAVIGATION_CSS);
 
-  assert.ok(
-    block.includes("@media (min-width: 768px)"),
-    "the desktop retirement must be scoped to the >=768px regime",
+  assert.equal(
+    css.includes(".dashboard-module-rail {"),
+    false,
+    "the retired rail must not keep a rule in the navigation stylesheet",
   );
+
   assert.match(
-    block,
-    /@media \(min-width: 768px\)[^@]*\.dashboard-module-rail[^{]*\{[^}]*display:\s*none/,
-    "the legacy rail must resolve to display:none from 768px up, so exactly one lateral model is visible there",
+    css,
+    /@media \(min-width: 768px\)[^@]*\.dashboard-mobile-nav[^{]*\{[^}]*display:\s*none/,
+    "from 768px up exactly one navigation model may paint: the mobile bar must resolve to display:none there, leaving the B07 rail or drawer",
   );
 });
 
@@ -292,7 +311,7 @@ test("B08 · DashboardTopbar drops the horizontal nav and preserves its chrome",
     "ThemeModeToggle",
     "DashboardTopbarNotifications",
     "AdminMobileKebabMenu",
-    "ADMIN_MOBILE_TITLES",
+    "AdminMobileContextTitle",
     "<WorkspaceAppBar",
   ]) {
     assert.ok(
@@ -301,10 +320,20 @@ test("B08 · DashboardTopbar drops the horizontal nav and preserves its chrome",
     );
   }
 
+  // B08 pinned `ADMIN_MOBILE_TITLES` here — a private ten-entry label table —
+  // precisely because the mobile context title was B09's to own. B09 owns it
+  // now: the table is gone and the title is DERIVED from the canonical catalog,
+  // so what B08 still guards is that the title survived at all and that no
+  // fourth private copy of the admin labels came back with it.
   assert.equal(
-    [...executable.matchAll(/ADMIN_MOBILE_TITLES/g)].length >= 2,
-    true,
-    "the admin mobile context title stays owned by B09, declared and consumed here",
+    executable.includes("ADMIN_MOBILE_TITLES"),
+    false,
+    "the private admin label table is retired: B09 derives the title from ADMIN_MODULE_NAV_LABELS",
+  );
+  assert.ok(
+    executable.includes("ADMIN_MODULE_NAV_LABELS") &&
+      executable.includes("parseAdminModule"),
+    "the mobile context title must read the canonical catalog through the canonical parser",
   );
 });
 
@@ -559,24 +588,17 @@ test("B08 · the mobile model B09 owns is intact", () => {
   for (const path of B09_FENCE) {
     assert.ok(
       existsSync(resolve(REPO_ROOT, path)),
-      `${path} must survive B08: the <768px model belongs to B09`,
+      `${path} must exist: the <768px model belongs to B09`,
     );
   }
 
-  const clinicBottomNav = stripComments(
-    read("frontend/src/components/dashboard/ClinicMobileBottomNav.tsx"),
-  );
-  assert.ok(
-    clinicBottomNav.includes("if (pathname === ROUTES.dashboard) {"),
-    "the early return on /dashboard is the reason the module rail survives; unifying it is B09",
-  );
-
+  // The frame is the DESKTOP mount site and stays that way. Reaching into the
+  // mobile model from here would put two owners on one regime again — the exact
+  // defect B08 deferred and B09 closed.
   const frame = stripComments(read(FRAME_TSX));
   for (const mobileSurface of [
-    "AdminMobileBottomNav",
-    "ClinicMobileBottomNav",
+    "DashboardMobileNav",
     "AdminMobileKebabMenu",
-    "AdminMobileModuleMenu",
     "AdminMobileHubLauncher",
     "AdminMobileHubPager",
   ]) {

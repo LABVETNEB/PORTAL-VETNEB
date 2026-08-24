@@ -274,7 +274,7 @@ async function readScrollContract(page: Page): Promise<ScrollContract> {
     // Pick the visible one instead of the first one.
     const navCandidates = Array.from(
       document.querySelectorAll(
-        '[data-dashboard-navigation-drawer], [data-dashboard-navigation-rail], [data-dashboard-module-rail="true"]',
+        '[data-dashboard-navigation-drawer], [data-dashboard-navigation-rail], [data-dashboard-mobile-nav]',
       ),
     );
     const nav =

@@ -158,3 +158,26 @@ export const ADMIN_MODULE_NAV_LABELS: readonly {
   { moduleId: "audit-log", label: "Auditoría", shortLabel: "Auditoría" },
   { moduleId: "admin-maintenance", label: "Mantenimiento", shortLabel: "Manten." },
 ];
+
+/**
+ * Admin modules promoted to the PRIMARY slots of the mobile bottom navigation
+ * (B09), in the order they are painted after the "Inicio" entry.
+ *
+ * This is a product cut, not a derivation: the shipped mobile bar surfaces
+ * Clínicas / Auditoría / Sesiones, which is NOT the head of
+ * {@link ADMIN_MODULE_IDS}. Before B09 that cut lived as a private
+ * `FIXED_DESTINATIONS` literal inside `AdminMobileBottomNav` — with its own
+ * label and icon copies — so the bar could drift from the registry it serves.
+ * It is declared HERE, once, as data: the labels still come from
+ * {@link ADMIN_MODULE_NAV_LABELS} and the glyphs from `ADMIN_MODULE_ICONS`.
+ *
+ * Every module outside this cut stays reachable through the destination
+ * overflow, which lists the WHOLE catalog rather than the remainder.
+ *
+ * @see docs/implementation/dashboard-b09-mobile-navigation-unification.md
+ */
+export const ADMIN_MOBILE_PRIMARY_MODULE_IDS: readonly AdminModule[] = [
+  "admin-clinics",
+  "audit-log",
+  "admin-sessions",
+];

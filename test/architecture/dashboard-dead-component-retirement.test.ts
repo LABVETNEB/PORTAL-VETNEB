@@ -19,8 +19,9 @@ import { basename, extname, relative, resolve, sep } from "node:path";
 // from the first-party import graph, and absence from the presentation barrels.
 //
 // Scope fence: B02 retires the six dead components and nothing else.
-// DashboardHorizontalNav and DashboardModuleRail are live navigation and are
-// programmed for B08 (after B07 + A08); AdminMobileKebabMenu is live and merely
+// DashboardHorizontalNav (B08) and DashboardModuleRail (B09) were live
+// navigation when this guard was written and were retired by those blocks in
+// sequence; AdminMobileKebabMenu is live and merely
 // excluded from the B01 barrel. None of them are governed here.
 
 const SOURCE_ROOT = process.cwd();

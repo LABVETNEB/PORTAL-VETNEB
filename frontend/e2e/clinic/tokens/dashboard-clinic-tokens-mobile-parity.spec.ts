@@ -70,20 +70,28 @@ async function setClinicSession(page: Page) {
   ]);
 }
 
-// Unified navigation contract: every clinic module (mobile + desktop) uses the
-// single shared DashboardModuleRail — there is no separate clinic mobile bottom
-// bar and no legacy horizontal tab shell on the main dashboard.
-async function expectClinicModuleRail(
+// B09 unified navigation contract: every clinic module reaches every other one
+// from ONE owner. `/dashboard` used to be the exception — the clinic bottom nav
+// returned null there and `DashboardModuleRail` took over — so this surface had
+// a different navigation owner than the rest of the role. The bar covers it now
+// and the rail is retired, together with its prev/next pager: that pager was a
+// SECOND grammar over the same ordered modules, not a destination, so it is not
+// reproduced. What the rail actually delivered — the five modules, the deep
+// link and `aria-current` — is asserted here against the new owner.
+async function expectClinicMobileNav(
   page: Page,
   label: string,
   activeModule: "operaciones" | "informes" | "logistica" | "perfil" | "tokens",
 ) {
-  const rail = page.locator('[data-dashboard-module-rail="true"]');
-  await expect(rail, `${label}: module rail visible`).toBeVisible();
-  await expect(
-    page.locator('[data-dashboard-pager="module"]'),
-    `${label}: shared module pager present`,
-  ).toBeVisible();
+  // `DashboardMobileNav` streams through a Suspense boundary whose fallback
+  // mounts a SECOND `DashboardMobileNavBar` carrying the same attributes, so
+  // the bare owner can resolve to two nodes while exactly one is painted.
+  // Filtering the OWNER keeps every slot/aria-current count below measuring the
+  // painted bar; zero visible bars still fail, two still fail on strictness.
+  const nav = page
+    .locator('[data-dashboard-mobile-nav="clinic"]')
+    .filter({ visible: true });
+  await expect(nav, `${label}: clinic mobile navigation visible`).toBeVisible();
 
   for (const moduleId of [
     "operaciones",
@@ -93,33 +101,44 @@ async function expectClinicModuleRail(
     "tokens",
   ] as const) {
     await expect(
-      page.locator(`[data-dashboard-module-rail-item="${moduleId}"]`),
-      `${label}: rail exposes ${moduleId}`,
+      nav.locator(`[data-dashboard-mobile-nav-item="${moduleId}"]`),
+      `${label}: navigation exposes ${moduleId}`,
     ).toHaveCount(1);
   }
 
+  // B09_CLINIC_HOME_ITEM = PRESERVE: six primary slots, Inicio included.
   await expect(
-    page.locator(`[data-dashboard-module-rail-item="${activeModule}"]`),
+    nav.locator("[data-dashboard-mobile-nav-item]"),
+    `${label}: six clinic primary destinations`,
+  ).toHaveCount(6);
+  await expect(
+    nav.locator('[data-dashboard-mobile-nav-item="home"]'),
+    `${label}: Inicio preserved`,
+  ).toHaveCount(1);
+
+  await expect(
+    nav.locator(`[data-dashboard-mobile-nav-item="${activeModule}"]`),
     `${label}: active module ${activeModule} marked current`,
   ).toHaveAttribute("aria-current", "page");
-
   await expect(
-    rail.locator('[data-dashboard-module-rail-prev="true"]'),
-    `${label}: rail prev control present`,
-  ).toHaveCount(1);
-  await expect(
-    rail.locator('[data-dashboard-module-rail-next="true"]'),
-    `${label}: rail next control present`,
+    nav.locator("[aria-current='page']"),
+    `${label}: exactly one current destination`,
   ).toHaveCount(1);
 
-  // The removed device-specific navigations must not come back.
+  // Clinic has five modules and six slots, so it never grows an overflow.
   await expect(
-    page.locator('[data-clinic-mobile-bottom-nav="true"]'),
-    `${label}: legacy clinic bottom nav removed`,
+    nav.locator('[data-dashboard-mobile-nav-item="overflow"]'),
+    `${label}: clinic needs no destination overflow`,
+  ).toHaveCount(0);
+
+  // The retired owners must not come back next to it.
+  await expect(
+    page.locator("[data-dashboard-module-rail]"),
+    `${label}: retired module rail absent`,
   ).toHaveCount(0);
   await expect(
-    page.locator('[data-admin-mobile-bottom-nav="true"]'),
-    `${label}: admin bottom nav absent`,
+    page.locator('[data-dashboard-mobile-nav="admin"]'),
+    `${label}: admin mobile navigation absent`,
   ).toHaveCount(0);
 }
 
@@ -378,7 +397,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
     await expect(async () => {
       await expect(workspace).toBeVisible();
       await expect(card).toBeVisible();
-      await expectClinicModuleRail(page, viewport.name, "tokens");
+      await expectClinicMobileNav(page, viewport.name, "tokens");
       await expect(refreshButton).toBeVisible();
       await expect(refreshButton).toBeEnabled();
       await expect(createButton).toBeVisible();

@@ -253,7 +253,9 @@ test.describe("dashboard workspace layout polish — smoke (PR-2)", () => {
     // No hub: the lateral navigation (B08) and the default operaciones
     // workspace load directly; the legacy module-hub markup must be absent.
     await expect(
-      page.locator('[data-dashboard-navigation-drawer="clinic"]'),
+      page
+        .locator('[data-dashboard-navigation-drawer="clinic"]')
+        .filter({ visible: true }),
     ).toBeVisible({ timeout: 8_000 });
     await expect(
       page.locator('[data-dashboard-module-workspace="operaciones"]'),

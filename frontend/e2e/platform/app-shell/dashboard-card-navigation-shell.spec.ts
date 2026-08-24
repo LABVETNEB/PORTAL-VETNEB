@@ -82,8 +82,19 @@ function clinicLateralNavItem(page: Page, moduleId: ClinicModule): Locator {
   );
 }
 
-function legacyClinicRail(page: Page) {
-  return page.locator('[data-dashboard-module-rail="true"]');
+// UNFILTERED on purpose: the desktop test asserts this bar is hidden, and a
+// filtered locator would satisfy `toBeHidden()` by resolving to nothing.
+function clinicMobileNav(page: Page) {
+  return page.locator('[data-dashboard-mobile-nav="clinic"]');
+}
+
+/**
+ * The painted bar. `DashboardMobileNav` streams through the same Suspense
+ * boundary as the lateral band, and its fallback mounts a second
+ * `DashboardMobileNavBar` with the same attribute.
+ */
+function paintedClinicMobileNav(page: Page) {
+  return clinicMobileNav(page).filter({ visible: true });
 }
 
 // ─── Scope guard ──────────────────────────────────────────────────────────────
@@ -208,16 +219,18 @@ test.describe("clinic dashboard — rail navigation", () => {
   test("the legacy rail pager steps through modules and updates the URL (<768px)", async ({
     page,
   }) => {
-    // B08 removed the rail from >=768px and deliberately did NOT reproduce its
-    // prev/next pager in the lateral model. The pager contract is therefore
-    // asserted where the pager still lives: the mobile regime B09 owns.
+    // B08 removed the rail from >=768px without reproducing its prev/next
+    // pager, and B09 retired the rail with the pager. What survives is the
+    // contract the pager was a vehicle for: from the mobile owner, a click
+    // moves the module AND commits the canonical `?module=` URL.
     await page.setViewportSize({ width: 375, height: 812 });
     await page.goto("/dashboard");
-    await expect(legacyClinicRail(page)).toBeVisible({ timeout: 8_000 });
+    await expect(paintedClinicMobileNav(page)).toBeVisible({ timeout: 8_000 });
+    await expect(page.locator("[data-dashboard-module-rail]")).toHaveCount(0);
 
-    // operaciones → next → informes
-    await legacyClinicRail(page)
-      .locator('[data-dashboard-module-rail-next="true"]')
+    // operaciones → informes
+    await paintedClinicMobileNav(page)
+      .locator('[data-dashboard-mobile-nav-item="informes"]')
       .click();
     await expect(page).toHaveURL(/\/dashboard\?module=informes$/, {
       timeout: 5_000,
@@ -226,9 +239,9 @@ test.describe("clinic dashboard — rail navigation", () => {
       page.locator('[data-dashboard-module-workspace="informes"]'),
     ).toBeVisible({ timeout: 5_000 });
 
-    // informes → prev → operaciones
-    await legacyClinicRail(page)
-      .locator('[data-dashboard-module-rail-prev="true"]')
+    // informes → operaciones
+    await paintedClinicMobileNav(page)
+      .locator('[data-dashboard-mobile-nav-item="operaciones"]')
       .click();
     await expect(page).toHaveURL(/\/dashboard\?module=operaciones$/, {
       timeout: 5_000,
@@ -459,16 +472,15 @@ test.describe("dashboard shell — no global scroll", () => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto("/dashboard");
 
-    // A bare `/dashboard` entry canonicalizes itself onto the operational
-    // default through a replace-only router commit. That commit is still in
-    // flight while the lateral band is already painted, so clicking on the
-    // band alone races it: the late replace supersedes the click and the
-    // workspace snaps back to operaciones. Wait for the canonical URL first,
-    // so the navigation under test is the only one in flight, and assert the
-    // URL it commits before reading the workspace.
-    await expect(page).toHaveURL(/\/dashboard\?module=operaciones$/, {
-      timeout: 8_000,
-    });
+    // A bare `/dashboard` IS the canonical url of the operational default, so
+    // nothing rewrites it on entry and no mount-time navigation is in flight
+    // to race the click. This used to wait for a `?module=operaciones` commit
+    // first: the last-module restore hand-built that second spelling and
+    // issued it unguarded, so a click on the band could be superseded by the
+    // late replace and snap back to operaciones. The wait was a workaround for
+    // that race; with the restore recording its intent and deferring to the
+    // canonical url, the click below is the only navigation there is.
+    await expect(page).toHaveURL(/\/dashboard$/, { timeout: 8_000 });
     await expect(clinicLateralNav(page)).toBeVisible({ timeout: 8_000 });
     await clinicLateralNavItem(page, "informes").click();
     await expect(page).toHaveURL(/\/dashboard\?module=informes$/, {
@@ -665,14 +677,15 @@ test.describe("clinic module rail — primary navigation", () => {
     await page.goto("/dashboard");
 
     await expect(clinicLateralNav(page)).toBeVisible({ timeout: 8_000 });
-    // The retired horizontal tab bar must not exist at all, and the legacy rail
-    // must not paint in this regime: exactly one module navigation, and it is
-    // the lateral model.
+    // The retired horizontal tab bar and the retired module rail must not exist
+    // at all, and the mobile model must not paint in this regime: exactly one
+    // module navigation, and it is the lateral model.
     await expect(
       page.locator("[role='navigation'][aria-label='Navegación principal']"),
     ).toHaveCount(0);
     await expect(page.locator("[data-dashboard-horizontal-nav-shell]")).toHaveCount(0);
-    await expect(legacyClinicRail(page)).toBeHidden();
+    await expect(page.locator("[data-dashboard-module-rail]")).toHaveCount(0);
+    await expect(clinicMobileNav(page)).toBeHidden();
   });
 
   test("renders as a vertical lateral band beside main, not a horizontal strip", async ({ page }) => {

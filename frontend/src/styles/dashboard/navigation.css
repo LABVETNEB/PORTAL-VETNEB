@@ -26,81 +26,6 @@
     margin-bottom: 0;
   }
 
-  /* Unified clinic module navigation/pager — single control shared across every
-     module and every device (no split desktop-tabs / mobile-bottom-bar). */
-  .dashboard-module-rail {
-    display: flex;
-    min-width: 0;
-    flex: 0 0 auto;
-    align-items: center;
-    gap: 0.4rem;
-    padding-bottom: 0.5rem;
-    margin-bottom: 0.25rem;
-    border-bottom: 1px solid hsl(var(--vetneb-line) / 0.7);
-  }
-
-  .dashboard-module-rail-track {
-    display: flex;
-    min-width: 0;
-    flex: 1 1 auto;
-    align-items: center;
-    gap: 0.25rem;
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-    scroll-padding-inline: 0.5rem;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-  }
-
-  .dashboard-module-rail-track::-webkit-scrollbar {
-    display: none;
-  }
-
-  .dashboard-module-rail-tab {
-    display: inline-flex;
-    min-height: 2.5rem;
-    flex-shrink: 0;
-    align-items: center;
-    gap: 0.4rem;
-    white-space: nowrap;
-    border-radius: var(--dash-shape-sm);
-    border-bottom: 2px solid transparent;
-    padding: 0.3rem 0.6rem;
-    font-size: 0.8125rem;
-    font-weight: 600;
-    transition-property: background-color, color, box-shadow, border-color;
-    transition-duration: var(--motion-fast);
-    transition-timing-function: var(--ease-out-soft);
-  }
-
-  .dashboard-module-rail-tab-active {
-    border-bottom-color: var(--dash-color-accent);
-    background: hsl(var(--vetneb-navy) / 0.08);
-    color: hsl(var(--vetneb-navy));
-  }
-
-  /* B04 · FOCUS_INDICATOR, not elevation. The two rings are preserved exactly;
-     only the outer ring's colour adopts the surface role it already resolved
-     to. G6 retires depth from the persistent chrome and must never retire a
-     visible focus state. */
-  .dashboard-module-rail-tab:focus-visible {
-    outline: none;
-    box-shadow:
-      0 0 0 2px hsl(var(--ring) / 0.85),
-      0 0 0 4px var(--dash-color-surface);
-  }
-
-  @media (min-width: 640px) {
-    .dashboard-module-rail {
-      gap: 0.5rem;
-      padding-bottom: 0.4rem;
-    }
-
-    .dashboard-module-rail-tab {
-      min-height: 2rem;
-    }
-  }
-
   /* B04 · STATIC_CONTENT_SURFACE. Audit §45.2 rules out the "tarjeta elevada"
      level inside the dashboard, so the master panel reads as content on the
      canvas instead of a raised card. `min-height` is untouched. */
@@ -384,12 +309,11 @@
   or a flex-basis. A size transition feeds the ResizeObserver behind the
   adaptive capacity engine, which makes `limit` oscillate and re-fetch.
 
-  LEGACY_MODULE_RAIL_DESKTOP_RETIREMENT. `.dashboard-module-rail` leaves the
-  >=768px regime here, so from 768px up exactly one lateral model is visible:
-  the B07 rail (768-1279) or the B07 drawer (>=1280). Below 768px the legacy
-  rail stays live and untouched - `ClinicMobileBottomNav` returns null on
-  `/dashboard`, so it IS the clinic module navigation on phones. Deleting the
-  component is B09's, together with the mobile model it would have to replace.
+  LEGACY_MODULE_RAIL_DESKTOP_RETIREMENT was completed here by B08 with a
+  `display: none` from 768px up. B09 retired the rail PHYSICALLY, so that rule
+  is gone with the component it targeted: below 768px `DashboardMobileNav` now
+  owns navigation on both roles (see the B09 block at the end of this file),
+  and from 768px up the B07 rail (768-1279) or drawer (>=1280) still does.
 */
 .dashboard-app-shell .dashboard-navigation-frame {
   display: flex;
@@ -406,10 +330,280 @@
 .dashboard-app-shell .dashboard-navigation-frame > .dashboard-main {
   min-inline-size: 0;
 }
+/* dashboard-b08-navigation-migration:end */
 
-@media (min-width: 768px) {
-  .dashboard-app-shell .dashboard-module-rail {
-    display: none;
+/* dashboard-b09-mobile-navigation-unification:start */
+/*
+  B09 - the single mobile navigation model.
+
+  ONE GRAMMAR, TWO ROLES. This block replaces four: the admin bottom-nav rules
+  and the admin module-menu rules of `mobile-admin.css`, the clinic bottom-nav
+  rules of `mobile-clinic.css`, and the `.dashboard-module-rail` rules that used
+  to open this file. The roles differ ONLY in the label type scale, which each
+  shell already declares, so the parameterisation is a single custom property
+  bound under `[data-vetneb-app-shell-surface]` - never a forked rule.
+
+  UNLAYERED, like the B07 and B08 blocks above: `DashboardMobileNav` composes
+  Tailwind utilities that live in `@layer utilities`, and a layered rule here
+  would silently lose the cascade.
+
+  INLINE FLOW. The bar is `flex: 0 0 auto` inside the shell column, a sibling of
+  the frame that holds `main`, so the shell SUBTRACTS its height. `position:
+  relative` (never fixed) is what keeps that true; a fixed bar would leave `main`
+  at full height and cover its last row.
+
+  SAFE AREA. The inset is ADDED to the band and SUBTRACTED again as bottom
+  padding, so the touch row keeps its full height on a notched device instead of
+  being eaten by the home indicator.
+
+  TOUCH FLOOR. Every control B09 owns declares `--dash-mobile-nav-touch-min` on
+  both axes. The retired bars cleared 44px only as a CONSEQUENCE of dividing the
+  band by five or six stretched items; here it is authored, so the runtime
+  contract has something to measure and a later density pass cannot take it away
+  in silence.
+
+  NO SIZE ANIMATION (R11/A03): nothing here transitions an inline-size, a
+  block-size or a flex-basis. A size transition feeds the ResizeObserver behind
+  the adaptive capacity engine.
+*/
+@media (max-width: 767px) {
+  [data-vetneb-app-shell-surface="admin"] {
+    --dash-mobile-nav-label-size: var(--admin-mobile-type-2xs);
+  }
+
+  [data-vetneb-app-shell-surface="clinic"] {
+    --dash-mobile-nav-label-size: var(--clinic-mobile-type-2xs);
+  }
+
+  .dashboard-app-shell .dashboard-mobile-nav {
+    position: relative;
+    z-index: 65;
+    display: flex !important;
+    width: 100%;
+    height: calc(var(--dash-mobile-nav-h) + env(safe-area-inset-bottom));
+    min-height: 0;
+    flex: 0 0 auto;
+    align-items: stretch;
+    overflow: hidden;
+    padding-bottom: env(safe-area-inset-bottom);
+    border-top: 1px solid hsl(var(--vetneb-line));
+    background: hsl(var(--card));
+    box-shadow: var(--dash-elevation-none);
+    isolation: isolate;
+    overscroll-behavior: none;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    transform: none !important;
+  }
+
+  .dashboard-app-shell .dashboard-mobile-nav-item {
+    display: inline-flex;
+    min-width: 0;
+    min-block-size: var(--dash-mobile-nav-touch-min);
+    min-inline-size: var(--dash-mobile-nav-touch-min);
+    flex: 1 1 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--dash-mobile-nav-gap);
+    overflow: hidden;
+    padding: 0.24rem 0.05rem;
+    border-radius: 0;
+    background: hsl(var(--card));
+    color: hsl(var(--muted-foreground));
+    font-size: var(--dash-mobile-nav-label-size);
+    font-weight: 650;
+    line-height: 1;
+    white-space: nowrap;
+    touch-action: manipulation;
+  }
+
+  .dashboard-app-shell .dashboard-mobile-nav-item-active {
+    color: hsl(var(--vetneb-navy));
+    background: hsl(var(--vetneb-surface-muted));
+  }
+
+  .dashboard-app-shell .dashboard-mobile-nav-glyph {
+    width: var(--dash-mobile-nav-glyph);
+    height: var(--dash-mobile-nav-glyph);
+    flex-shrink: 0;
+  }
+
+  /* B04 - FOCUS_INDICATOR, not elevation. Inset so a ring on the first or last
+     item is never clipped by the band's own `overflow: hidden`. */
+  .dashboard-app-shell .dashboard-mobile-nav-item:focus-visible {
+    outline: none;
+    box-shadow:
+      inset 0 0 0 2px hsl(var(--ring) / 0.85),
+      inset 0 0 0 4px hsl(var(--card));
+  }
+
+  /* Destination overflow. Anchored above the bar, never over it: `bottom`
+     clears the band plus the safe-area inset, and `max-height` reserves the app
+     bar and the band so the sheet can never introduce a scroll of its own (it
+     is `overflow: hidden`, which is why it paginates instead). */
+  .dashboard-app-shell .dashboard-mobile-nav-overflow {
+    position: fixed;
+    right: 0.5rem;
+    bottom: calc(var(--dash-mobile-nav-h) + 0.75rem + env(safe-area-inset-bottom));
+    left: 0.5rem;
+    z-index: 70;
+    display: flex !important;
+    max-height: calc(
+      100svh - var(--dash-mobile-nav-h) - 5rem - env(safe-area-inset-top) -
+        env(safe-area-inset-bottom)
+    );
+    flex-direction: column;
+    gap: 0.5rem;
+    overflow: hidden;
+    padding: 0.5rem;
+    border: 1px solid hsl(var(--vetneb-line));
+    border-radius: 0.85rem;
+    background: hsl(var(--card));
+    box-shadow: 0 12px 30px rgba(15, 45, 62, 0.2);
+    isolation: isolate;
+    overscroll-behavior: none;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    transform: none !important;
+    /* The retired module menu inherited this from the
+       `[data-admin-mobile-module-menu]` entry of the globals.css no-callout
+       list. That selector no longer matches anything, and globals.css is
+       outside this scope, so the behaviour is restated on the owner instead of
+       being lost. */
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+  }
+
+  .dashboard-app-shell .dashboard-mobile-nav-overflow-grid {
+    display: grid;
+    min-width: 0;
+    min-height: 0;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+    overflow: hidden;
+  }
+
+  .dashboard-app-shell .dashboard-mobile-nav-overflow-link {
+    display: inline-flex;
+    min-width: 0;
+    min-block-size: var(--dash-mobile-nav-touch-min);
+    align-items: center;
+    gap: 0.45rem;
+    overflow: hidden;
+    padding: 0.45rem 0.55rem;
+    border: 1px solid hsl(var(--vetneb-line));
+    border-radius: 0.55rem;
+    background: hsl(var(--vetneb-surface-raised));
+    color: hsl(var(--foreground));
+    font-size: var(--admin-mobile-type-xs);
+    font-weight: 650;
+    touch-action: manipulation;
+  }
+
+  .dashboard-app-shell .dashboard-mobile-nav-page-button {
+    display: inline-flex;
+    min-inline-size: 4.5rem;
+    min-block-size: var(--dash-mobile-nav-touch-min);
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    padding: 0.35rem 0.55rem;
+    border: 1px solid hsl(var(--vetneb-line));
+    border-radius: 0.5rem;
+    background: hsl(var(--card));
+    color: hsl(var(--foreground));
+    font-size: var(--admin-mobile-type-xs);
+    font-weight: 650;
+    touch-action: manipulation;
+  }
+
+  .dashboard-app-shell .dashboard-mobile-nav-page-button:disabled {
+    opacity: 0.45;
+  }
+
+  .dashboard-app-shell .dashboard-mobile-nav-page-dot {
+    display: block;
+    width: 0.4rem;
+    height: 0.4rem;
+    overflow: hidden;
+    border-radius: 999px;
+    background: hsl(var(--vetneb-line));
+  }
+
+  .dashboard-app-shell .dashboard-mobile-nav-page-dot[aria-current="page"] {
+    background: hsl(var(--vetneb-teal));
+  }
+
+  .dashboard-app-shell .dashboard-mobile-nav-icon-button {
+    display: inline-flex;
+    inline-size: var(--dash-mobile-nav-touch-min);
+    block-size: var(--dash-mobile-nav-touch-min);
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border: 1px solid hsl(var(--vetneb-line));
+    border-radius: 0.5rem;
+    background: hsl(var(--card));
+    color: hsl(var(--foreground));
+    touch-action: manipulation;
+  }
+
+  .dashboard-app-shell
+    :is(
+      .dashboard-mobile-nav-overflow-link,
+      .dashboard-mobile-nav-page-button,
+      .dashboard-mobile-nav-icon-button
+    ):focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  .dashboard-app-shell
+    :is(
+      .dashboard-mobile-nav,
+      .dashboard-mobile-nav-item,
+      .dashboard-mobile-nav-overflow,
+      .dashboard-mobile-nav-overflow-grid,
+      .dashboard-mobile-nav-overflow-link,
+      .dashboard-mobile-nav-page-button
+    ) {
+    overflow-x: hidden;
+    overflow-y: hidden;
   }
 }
-/* dashboard-b08-navigation-migration:end */
+
+/* From 768px up the B07/B08 lateral band owns navigation, so the mobile model
+   must not paint at all. Declared as a hard hide rather than relying on a
+   utility class, so the regime boundary is authored in the same place as the
+   band it complements. */
+@media (min-width: 768px) {
+  .dashboard-app-shell .dashboard-mobile-nav-overflow,
+  .dashboard-app-shell .dashboard-mobile-nav {
+    display: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-app-shell .dashboard-mobile-nav,
+  .dashboard-app-shell .dashboard-mobile-nav-item,
+  .dashboard-app-shell .dashboard-mobile-nav-overflow,
+  .dashboard-app-shell .dashboard-mobile-nav-overflow-link,
+  .dashboard-app-shell .dashboard-mobile-nav-page-button {
+    transition: none;
+    animation: none;
+  }
+}
+
+/* Forced colors drops the state-layer background, so the active destination
+   would become indistinguishable. Restate it as a border the OS preserves. */
+@media (forced-colors: active) {
+  .dashboard-app-shell .dashboard-mobile-nav-item-active {
+    outline: 1px solid CanvasText;
+    outline-offset: -1px;
+  }
+}
+/* dashboard-b09-mobile-navigation-unification:end */

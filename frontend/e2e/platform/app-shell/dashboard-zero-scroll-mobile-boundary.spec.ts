@@ -77,7 +77,7 @@ test.describe("dashboard zero-scroll mobile lower boundary", () => {
         await expect(async () => {
           const boundary = await readBoundary(
             page,
-            '[data-clinic-mobile-bottom-nav="true"]',
+            '[data-dashboard-mobile-nav="clinic"]',
           );
 
           expect(
@@ -122,7 +122,7 @@ test.describe("dashboard zero-scroll mobile lower boundary", () => {
       await expect(async () => {
         const boundary = await readBoundary(
           page,
-          '[data-admin-mobile-bottom-nav="true"]',
+          '[data-dashboard-mobile-nav="admin"]',
         );
 
         expect(

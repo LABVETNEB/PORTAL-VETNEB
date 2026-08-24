@@ -182,30 +182,27 @@ const MANIFEST: readonly ManifestEntry[] = [
     why: "the admin mobile kebab menu",
   },
   {
-    path: MOBILE_ADMIN_CSS,
-    anchor:
-      '[data-vetneb-app-shell-surface="admin"] .admin-mobile-module-menu {',
+    // Was `.admin-mobile-module-menu` in mobile-admin.css. B09 folded the admin
+    // module menu into the destination overflow of the single mobile owner, so
+    // the transient overlay moved stylesheet with its component; its
+    // classification did not change.
+    path: NAVIGATION_CSS,
+    anchor: ".dashboard-app-shell .dashboard-mobile-nav-overflow {",
     role: "TRANSIENT_OVERLAY",
     expectedTokens: [],
     elevation: "retained",
-    why: "the admin mobile module menu",
+    why: "the mobile destination overflow",
   },
   // ── Focus indicators: never elevation, never removable ────────────────────
   {
+    // B09 retired the module rail and both per-role bottom navs; the focus
+    // state they each declared is now declared once, on the single owner.
     path: NAVIGATION_CSS,
-    anchor: ".dashboard-module-rail-tab:focus-visible {",
-    role: "FOCUS_INDICATOR",
-    expectedTokens: ["--dash-color-surface"],
-    elevation: "retained",
-    why: "the two-ring focus state on the module rail tabs",
-  },
-  {
-    path: MOBILE_CLINIC_CSS,
-    anchor: ".clinic-mobile-bottom-nav-item:focus-visible {",
+    anchor: ".dashboard-mobile-nav-item:focus-visible {",
     role: "FOCUS_INDICATOR",
     expectedTokens: [],
     elevation: "retained",
-    why: "the focus state on the clinic mobile bottom nav",
+    why: "the two-ring focus state on the mobile navigation items",
   },
 ];
 
@@ -264,7 +261,6 @@ const CHROME_COMPONENTS = [
 const PERSISTENT_CHROME_ANCHORS = [
   '[data-dashboard-topbar-polish="true"]',
   '[data-dashboard-horizontal-nav-shell="true"]',
-  "[data-dashboard-module-rail]",
   // B08 lateral band: new persistent chrome, so it enters the same inventory.
   // Addressed by class, which is how the B07 block authors its flatness
   // (`--dash-elevation-none`).
@@ -272,8 +268,9 @@ const PERSISTENT_CHROME_ANCHORS = [
   ".dashboard-navigation-rail",
   '[data-dashboard-filter-bar="true"]',
   '[data-sticky-action-bar="true"]',
-  '[data-admin-mobile-bottom-nav="true"]',
-  '[data-clinic-mobile-bottom-nav="true"]',
+  // B09 mobile band. One owner for both roles, so the two per-role anchors the
+  // retired bottom navs contributed collapse into this single one.
+  "[data-dashboard-mobile-nav]",
 ] as const;
 
 // ─────────────────────────────────────────────────────────────────────────────

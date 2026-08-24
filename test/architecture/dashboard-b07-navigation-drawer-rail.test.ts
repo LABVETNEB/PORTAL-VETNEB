@@ -41,26 +41,25 @@ const FRONTEND_SRC = "frontend/src";
  *   `DashboardHorizontalNav` is GONE. It was a pure >=768px surface, so the
  *   lateral model replaced it outright with no mobile consequence.
  *
- *   `DashboardModuleRail` SURVIVES below 768px. `ClinicMobileBottomNav`
- *   returns null on `/dashboard`, so the rail is still the clinic module
- *   navigation there; B08 removed it from >=768px only and B09 owns the
- *   deletion.
+ *   `DashboardModuleRail` survived B08 below 768px: `ClinicMobileBottomNav`
+ *   returned null on `/dashboard`, so the rail was still the clinic module
+ *   navigation there. B09 shipped `DashboardMobileNav`, removed that early
+ *   return and retired the rail, so the <768px owner is now a single component
+ *   and neither B07 primitive paints in that regime.
  */
 const RETIRED_BY_B08 =
   "frontend/src/components/dashboard/DashboardHorizontalNav.tsx";
-const MOBILE_OWNED_UNTIL_B09 =
+const RETIRED_BY_B09 =
   "frontend/src/components/dashboard/DashboardModuleRail.tsx";
+const MOBILE_OWNER =
+  "frontend/src/components/dashboard/DashboardMobileNav.tsx";
 
 /** The single B08 mount site of the two primitives. */
 const NAVIGATION_FRAME_TSX =
   "frontend/src/components/dashboard/DashboardNavigationFrame.tsx";
 
-/** Mobile navigation B09 unifies; B07 must not touch it. */
-const B09_FENCE = [
-  "frontend/src/components/dashboard/AdminMobileBottomNav.tsx",
-  "frontend/src/components/dashboard/ClinicMobileBottomNav.tsx",
-  "frontend/src/components/dashboard/AdminMobileModuleMenu.tsx",
-];
+/** Mobile navigation B09 unified; B07 must not touch it. */
+const B09_FENCE = [MOBILE_OWNER];
 
 const APP_BAR_TSX = "frontend/src/components/dashboard/WorkspaceAppBar.tsx";
 
@@ -831,18 +830,19 @@ test("B07 · B08 resolved the legacy navigation asymmetrically", () => {
     "the barrel must not re-export a retired component",
   );
 
-  assert.ok(
-    existsSync(resolve(REPO_ROOT, MOBILE_OWNED_UNTIL_B09)),
-    `${MOBILE_OWNED_UNTIL_B09} must survive: below 768px it is still the clinic module navigation on /dashboard, and deleting it before B09 ships a replacement would strand that surface`,
+  assert.equal(
+    existsSync(resolve(REPO_ROOT, RETIRED_BY_B09)),
+    false,
+    `${RETIRED_BY_B09} is retired: B09 replaced it with ${MOBILE_OWNER}, which owns the whole <768px regime on both roles`,
   );
-  assert.ok(barrel.includes('from "@/components/dashboard/DashboardModuleRail";'));
+  assert.ok(barrel.includes('from "@/components/dashboard/DashboardMobileNav";'));
 });
 
 test("B07 · the mobile navigation B09 unifies is untouched", () => {
   for (const path of B09_FENCE) {
     assert.ok(
       existsSync(resolve(REPO_ROOT, path)),
-      `${path} must survive B07: the <768px model belongs to B09`,
+      `${path} must exist: the <768px model belongs to B09`,
     );
   }
 });
@@ -893,7 +893,7 @@ test("B07 · the primitives have exactly one mount site, and it is the B08 frame
   // navigations at once and move `main` against the A03 freeze. The chrome and
   // mobile surfaces below are the ones that could plausibly try.
   const consumers: string[] = [];
-  for (const path of [MOBILE_OWNED_UNTIL_B09, ...B09_FENCE, APP_BAR_TSX]) {
+  for (const path of [...B09_FENCE, APP_BAR_TSX]) {
     if (/<NavigationDrawer[\s/>]|<NavigationRail[\s/>]/.test(read(path))) {
       consumers.push(path);
     }

@@ -26,7 +26,7 @@ const SHELL_ROUTES: ShellRouteCase[] = [
     label: "clinic operaciones (default)",
     surface: "clinic",
     path: "/dashboard",
-    ready: '[data-dashboard-module-rail="true"]',
+    ready: '[data-dashboard-mobile-nav="clinic"]',
   },
   {
     label: "clinic tokens",
@@ -95,13 +95,13 @@ type ShellNavContract = {
   horizontalNavVisible: boolean;
   adminBottomNavVisible: boolean;
   clinicBottomNavVisible: boolean;
-  clinicModuleRailVisible: boolean;
+  legacyModuleRailCount: number;
   clippedTopbarControls: ShellNavMetric[];
   undersizedShellControls: ShellNavMetric[];
+  undersizedNavControls: ShellNavMetric[];
   activeHorizontalNavItemVisible: boolean;
   activeAdminBottomNavItemVisible: boolean;
   activeClinicBottomNavItemVisible: boolean;
-  activeClinicModuleRailItemVisible: boolean;
 };
 
 async function readShellNavContract(page: Page): Promise<ShellNavContract> {
@@ -159,13 +159,10 @@ async function readShellNavContract(page: Page): Promise<ShellNavContract> {
       "[data-dashboard-horizontal-nav-shell='true']",
     );
     const adminBottomNav = document.querySelector(
-      "[data-admin-mobile-bottom-nav='true']",
+      "[data-dashboard-mobile-nav='admin']",
     );
     const clinicBottomNav = document.querySelector(
-      "[data-clinic-mobile-bottom-nav='true']",
-    );
-    const clinicModuleRail = document.querySelector(
-      "[data-dashboard-module-rail='true']",
+      "[data-dashboard-mobile-nav='clinic']",
     );
 
     const topbarControls = Array.from(
@@ -176,7 +173,7 @@ async function readShellNavContract(page: Page): Promise<ShellNavContract> {
 
     const shellControls = Array.from(
       document.querySelectorAll(
-        "header[aria-label='Barra superior del dashboard'] a, header[aria-label='Barra superior del dashboard'] button, [data-admin-mobile-bottom-nav='true'] button, [data-clinic-mobile-bottom-nav='true'] a, [data-clinic-mobile-bottom-nav='true'] button, [data-dashboard-module-rail='true'] a, [data-dashboard-module-rail='true'] button",
+        "header[aria-label='Barra superior del dashboard'] a, header[aria-label='Barra superior del dashboard'] button",
       ),
     ).filter(isVisible);
 
@@ -200,17 +197,30 @@ async function readShellNavContract(page: Page): Promise<ShellNavContract> {
       })
       .map(metricFor);
 
+    // B09_TOUCH_POLICY = OPTION_A. Everything the mobile navigation model owns
+    // carries a >=44x44 floor; the app-bar cluster above keeps the historical
+    // >=36px floor because those controls are shared with surfaces outside B09
+    // (see the residual note in the B09 implementation doc).
+    const undersizedNavControls = Array.from(
+      document.querySelectorAll(
+        "[data-dashboard-mobile-nav] a, [data-dashboard-mobile-nav] button, [data-dashboard-mobile-nav-overflow] a, [data-dashboard-mobile-nav-overflow] button, .admin-mobile-kebab-trigger",
+      ),
+    )
+      .filter(isVisible)
+      .filter((element) => {
+        const rect = (element as HTMLElement).getBoundingClientRect();
+        return rect.width < 44 || rect.height < 44;
+      })
+      .map(metricFor);
+
     const activeHorizontalNavItem = document.querySelector(
       "[data-dashboard-horizontal-nav-shell='true'] [aria-current='page']",
     );
     const activeAdminBottomNavItem = document.querySelector(
-      "[data-admin-mobile-bottom-nav='true'] [aria-current='page']",
+      "[data-dashboard-mobile-nav='admin'] [aria-current='page']",
     );
     const activeClinicBottomNavItem = document.querySelector(
-      "[data-clinic-mobile-bottom-nav='true'] [aria-current='page']",
-    );
-    const activeClinicModuleRailItem = document.querySelector(
-      "[data-dashboard-module-rail='true'] [aria-current='page']",
+      "[data-dashboard-mobile-nav='clinic'] [aria-current='page']",
     );
 
     let activeHorizontalNavItemVisible = false;
@@ -246,17 +256,6 @@ async function readShellNavContract(page: Page): Promise<ShellNavContract> {
         rect.bottom <= viewportHeight + tolerance;
     }
 
-    let activeClinicModuleRailItemVisible = false;
-    if (activeClinicModuleRailItem) {
-      const rect = (activeClinicModuleRailItem as HTMLElement).getBoundingClientRect();
-      activeClinicModuleRailItemVisible =
-        isVisible(activeClinicModuleRailItem) &&
-        rect.left >= -tolerance &&
-        rect.right <= viewportWidth + tolerance &&
-        rect.top >= -tolerance &&
-        rect.bottom <= viewportHeight + tolerance;
-    }
-
     return {
       htmlScrollWidth: html.scrollWidth,
       htmlClientWidth: html.clientWidth,
@@ -266,13 +265,15 @@ async function readShellNavContract(page: Page): Promise<ShellNavContract> {
       horizontalNavVisible: nav ? isVisible(nav) : false,
       adminBottomNavVisible: adminBottomNav ? isVisible(adminBottomNav) : false,
       clinicBottomNavVisible: clinicBottomNav ? isVisible(clinicBottomNav) : false,
-      clinicModuleRailVisible: clinicModuleRail ? isVisible(clinicModuleRail) : false,
+      legacyModuleRailCount: document.querySelectorAll(
+        "[data-dashboard-module-rail]",
+      ).length,
       clippedTopbarControls,
       undersizedShellControls,
+      undersizedNavControls,
       activeHorizontalNavItemVisible,
       activeAdminBottomNavItemVisible,
       activeClinicBottomNavItemVisible,
-      activeClinicModuleRailItemVisible,
     };
   }, TOLERANCE);
 }
@@ -296,9 +297,10 @@ function assertShellNavContract(
       `${label}: active admin bottom nav item visible`,
     ).toBe(true);
   } else {
-    // Unified navigation: the clinic main dashboard uses the single shared
-    // DashboardModuleRail on every device — no legacy horizontal tabs and no
-    // separate mobile bottom bar.
+    // B09: ONE mobile navigation model. `/dashboard` used to be the exception —
+    // the clinic bottom nav returned null there and the module rail took over —
+    // so the same surface had a different navigation owner than every other
+    // clinic route. The bar now covers it too and the rail is retired.
     expect(
       contract.horizontalNavVisible,
       `${label}: clinic horizontal nav hidden on mobile`,
@@ -306,17 +308,20 @@ function assertShellNavContract(
     expect(contract.adminBottomNavVisible, `${label}: admin bottom nav absent`).toBe(false);
     expect(
       contract.clinicBottomNavVisible,
-      `${label}: legacy clinic bottom nav absent (replaced by the module rail)`,
-    ).toBe(false);
-    expect(
-      contract.clinicModuleRailVisible,
-      `${label}: shared clinic module rail visible`,
+      `${label}: shared clinic mobile navigation visible`,
     ).toBe(true);
     expect(
-      contract.activeClinicModuleRailItemVisible,
-      `${label}: active clinic module rail item visible`,
+      contract.activeClinicBottomNavItemVisible,
+      `${label}: active clinic mobile navigation item visible`,
     ).toBe(true);
   }
+
+  // Exactly one owner below 768px, on both roles: the retired rail must not
+  // come back next to the bar.
+  expect(
+    contract.legacyModuleRailCount,
+    `${label}: the retired module rail must not exist`,
+  ).toBe(0);
 
   expect(
     contract.htmlScrollWidth,
@@ -335,9 +340,14 @@ function assertShellNavContract(
 
   expect(
     contract.undersizedShellControls,
-    `${label}: topbar/nav controls must keep mobile touch target >=36px`,
+    `${label}: app-bar controls must keep mobile touch target >=36px`,
   ).toEqual([]);
 
+  // B09_TOUCH_POLICY = OPTION_A: the floor B09 owes its own surfaces.
+  expect(
+    contract.undersizedNavControls,
+    `${label}: navigation and overflow controls must keep touch target >=44x44`,
+  ).toEqual([]);
 }
 
 for (const viewport of MOBILE_VIEWPORTS) {

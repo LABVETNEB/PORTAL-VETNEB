@@ -273,12 +273,35 @@ test("clinic controller persists/restores with the clinic key and replace-only r
   assert.ok(source.includes('if (searchParams.get("module")) return;'));
   assert.ok(source.includes("if (!lastModule) return;"));
 
+  // B09 · P2 — the restore is a navigation and goes through the two shared
+  // authorities, in this order: the intent is recorded BEFORE the url commit
+  // (so a later explicit tap supersedes it instead of losing to it), and the
+  // url comes from `clinicModuleHref` (so the DEFAULT module restores to the
+  // bare `/dashboard`, never to a second spelling of it).
+  //
+  // Restoring the default is not a navigation at all — a bare entry already
+  // shows that url — so it must not put a replace in flight during mount,
+  // where it could land after the user's first tap and undo it.
   assert.ok(
-    source.includes("router.replace(`${ROUTES.dashboard}?module=${lastModule}`"),
+    source.includes("if (lastModule === DEFAULT_CLINIC_MODULE) return;"),
+    "restoring the operational default must not issue a router commit",
+  );
+  assert.ok(
+    source.includes(
+      "recordNavigationIntent(lastModule);\n" +
+        "    router.replace(\n" +
+        "      clinicModuleHref(ROUTES.dashboard, DEFAULT_CLINIC_MODULE, lastModule),",
+    ),
   );
   assert.equal(
-    source.includes("router.push(`${ROUTES.dashboard}?module=${lastModule}`"),
+    source.includes("`${ROUTES.dashboard}?module=${lastModule}`"),
     false,
+    "the restore must not hand-build the url: that is what spelled the default module as ?module=operaciones",
+  );
+  assert.equal(
+    source.includes("router.push("),
+    false,
+    "restore stays replace-only: it must never add a history entry",
   );
   assert.ok(
     source.includes(

@@ -139,8 +139,25 @@ async function openModuleFromMobileNavigation(page: Page, module: OpsModule) {
   await page.goto("/dashboard/admin");
   await suppressNextDevIndicator(page);
 
-  const bottomNav = page.locator('[data-admin-mobile-bottom-nav="true"]');
+  const bottomNav = page
+    .locator('[data-dashboard-mobile-nav="admin"]')
+    .filter({ visible: true });
   await expect(bottomNav).toBeVisible({ timeout: 15_000 });
+
+  // The bar PAINTS before it is INTERACTIVE. `DashboardMobileNav` suspends on
+  // `useSearchParams`, and its fallback mounts a full bar whose destinations
+  // are wired to `noop`: a click landing in that window publishes no
+  // `requestAdminModuleActivate` signal, and the signal has no replay buffer,
+  // so the workspace never swaps optimistically and the flow degrades to the
+  // async router push alone — which the fallback teardown can cancel outright.
+  // Waiting on paint is therefore not enough. `PublicRouteControl` stamps the
+  // document from its mount effect, the same hydration gate theme-mode.spec.ts
+  // already relies on; gate the click on that instead of on visibility.
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-public-route-controls-hydrated",
+    "true",
+    { timeout: 15_000 },
+  );
 
   if (module.key === "audit") {
     await bottomNav.getByRole("button", { name: "Auditoría", exact: true }).click();
@@ -148,16 +165,26 @@ async function openModuleFromMobileNavigation(page: Page, module: OpsModule) {
     await bottomNav.getByRole("button", { name: "Sesiones", exact: true }).click();
   } else {
     await bottomNav.getByRole("button", { name: "Más", exact: true }).click();
-    const menu = page.locator('[data-admin-mobile-module-menu="true"]');
+    const menu = page.locator('[data-dashboard-mobile-nav-overflow="true"]');
     await expect(menu).toBeVisible();
     await menu
       .getByRole("button", { name: "Página siguiente de módulos", exact: true })
       .click();
     await menu
-      .locator('[data-admin-mobile-module-link="true"]')
+      .locator('[data-dashboard-mobile-nav-overflow-link]')
       .filter({ hasText: "Usuarios" })
       .click();
   }
+
+  // Assert the NAVIGATION result first. The controller mounts the workspace off
+  // `activeModule`, which converges on the module id reaching the URL, so the
+  // URL is the stable upstream contract: when it never arrives, the failure
+  // names the lost navigation instead of blaming the workspace that was never
+  // asked to mount.
+  await expect(page).toHaveURL(
+    new RegExp(`/dashboard/admin\\?module=${module.moduleId}$`),
+    { timeout: 15_000 },
+  );
 
   await expect(
     page.locator(`[data-dashboard-module-workspace="${module.moduleId}"]`),
@@ -301,7 +328,11 @@ for (const moduleSpec of OPS_MODULES) {
       await openModuleFromMobileNavigation(page, moduleSpec);
 
       await expect(page.locator('[data-admin-mobile-app-bar="true"]')).toBeVisible();
-      await expect(page.locator('[data-admin-mobile-bottom-nav="true"]')).toBeVisible();
+      await expect(
+        page
+          .locator('[data-dashboard-mobile-nav="admin"]')
+          .filter({ visible: true }),
+      ).toBeVisible();
       await expect(page.locator('[data-dashboard-horizontal-nav-shell="true"]')).toBeHidden();
 
       const moduleSelector = `[data-admin-mobile-ops-module="${moduleSpec.key}"]`;
@@ -389,7 +420,8 @@ for (const moduleSpec of OPS_MODULES) {
       );
 
       await page
-        .locator('[data-admin-mobile-bottom-nav="true"]')
+        .locator('[data-dashboard-mobile-nav="admin"]')
+        .filter({ visible: true })
         .getByRole("button", { name: "Inicio", exact: true })
         .click();
       await expect(page.locator('[data-admin-mobile-hub-launcher="true"]')).toBeVisible({
@@ -418,7 +450,14 @@ for (const moduleSpec of OPS_MODULES) {
     ).toBeVisible({
       timeout: 15_000,
     });
-    await expect(page.locator('[data-admin-mobile-bottom-nav="true"]')).toBeHidden();
+    // Zero PAINTED bars, for the same reason the core-modules spec spells out:
+    // the Suspense staging copy makes the bare selector resolve to two nodes
+    // and `toBeHidden()` violates strict mode before visibility is considered.
+    await expect(
+      page
+        .locator('[data-dashboard-mobile-nav="admin"]')
+        .filter({ visible: true }),
+    ).toHaveCount(0);
     await expect(
       page.locator(`[data-dashboard-module-workspace="${moduleSpec.moduleId}"]`),
     ).toBeVisible();

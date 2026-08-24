@@ -47,10 +47,12 @@
     );
   }
 
-  /* Mobile: the role bottom nav + safe area participate in the ledger. */
+  /* Mobile: the role bottom nav + safe area participate in the ledger. B09
+     unified the two per-role bottom-nav clamps into one token owned by
+     tokens.css, so both roles now feed this ledger from the same value. */
   @media (max-width: 767px) {
     .dashboard-app-shell {
-      --dash-bottom-nav-h: var(--admin-mobile-bottom-nav-h, 3.25rem);
+      --dash-bottom-nav-h: var(--dash-mobile-nav-h, 3.25rem);
     }
   }
 
@@ -114,7 +116,7 @@
 /* Mobile action bar: clear the role bottom nav, then reserve the height.
 
    Two independent defects lived here. (1) The bar is `fixed bottom-0 z-50`, so
-   it anchors to the VIEWPORT and lands under `.clinic-mobile-bottom-nav`
+   it anchors to the VIEWPORT and lands under `.dashboard-mobile-nav`
    (`z-65`), which swallowed the pointer events of the bar's own lowest action
    row. Re-anchoring it to `absolute` pins it to `main` — which the shell
    already sizes to exclude the bottom nav — so the bar clears the nav without

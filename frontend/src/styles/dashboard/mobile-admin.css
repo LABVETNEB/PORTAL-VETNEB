@@ -58,11 +58,15 @@
        clipping. Values only ever shrink the existing rem defaults or hold
        them steady — never grow chrome past today's footprint. */
     --admin-mobile-shell-gutter: clamp(0.4rem, 0.32rem + 0.5svw, 0.6rem);
-    --admin-mobile-appbar-h: clamp(2.75rem, 0.1rem + 0.41svh, 3rem);
+    /* B09_ADMIN_MOBILE_APPBAR_H = 48px. The clamp resolved to its 44px floor
+       on every phone the no-scroll matrix covers, and a >=44x44 kebab trigger
+       (B09_TOUCH_POLICY = OPTION_A) exactly filled that band, leaving its
+       border to overflow. 48px is the smallest band that seats the trigger with
+       real margin. It costs 4px of vertical budget on admin mobile: a TARGET
+       change of B09 for A02/A03, not a regression. */
+    --admin-mobile-appbar-h: 3rem;
     --admin-mobile-appbar-pad-x: clamp(0.6rem, 0.4rem + 0.6svw, 0.85rem);
     --admin-mobile-appbar-gap: clamp(0.4rem, 0.3rem + 0.4svw, 0.55rem);
-    --admin-mobile-bottom-nav-h: clamp(3.2rem, 0.3rem + 0.46svh, 3.5rem);
-    --admin-mobile-bottom-nav-gap: clamp(0.12rem, 0.08rem + 0.1svw, 0.18rem);
     --admin-mobile-tile-gap: clamp(0.4rem, 0.28rem + 0.5svw, 0.6rem);
     --admin-mobile-tile-pad: clamp(0.32rem, 0.2rem + 0.4svw, 0.5rem);
     --admin-mobile-tile-icon-size: clamp(2.05rem, 1.85rem + 0.6svw, 2.4rem);
@@ -74,11 +78,12 @@
     --admin-mobile-panel-pad: clamp(0.4rem, 0.3rem + 0.3svw, 0.55rem);
   }
 
-  /* Short-height step: the app-bar/bottom-nav tokens above already self-
-     compact via svh, but width-keyed gap/padding/icon tokens need an explicit
-     tier to free vertical room on short phones (e.g. 360x640) without
-     affecting any currently-covered height (>=740px stays on the base
-     values). Mirrors the desktop --dash-* max-height tier pattern. */
+  /* Short-height step: the chrome bands are fixed by contract (the app bar is
+     48px since B09, and the mobile navigation band is owned by tokens.css), but
+     width-keyed gap/padding/icon tokens need an explicit tier to free vertical
+     room on short phones (e.g. 360x640) without affecting any
+     currently-covered height (>=740px stays on the base values). Mirrors the
+     desktop --dash-* max-height tier pattern. */
   @media (max-height: 700px) {
     [data-vetneb-app-shell-surface="admin"] {
       --admin-mobile-shell-gutter: 0.34rem;
@@ -164,15 +169,14 @@
     isolation: isolate;
   }
 
-  [data-vetneb-app-shell-surface="admin"] .admin-mobile-kebab-trigger,
-  [data-vetneb-app-shell-surface="admin"] .admin-mobile-icon-button {
+  [data-vetneb-app-shell-surface="admin"] .admin-mobile-kebab-trigger {
     display: inline-flex;
-    /* Touch-target floor, not a density value — kept fixed like the other
-       accessibility minimums in this file (kebab-row/module-link/page-button
-       min-height) instead of shrinking under --admin-mobile-icon-btn-size,
-       which CI's dashboard-mobile-shell-nav-contract.spec.ts pins at >=36px. */
-    width: 2.25rem;
-    height: 2.25rem;
+    /* B09_TOUCH_POLICY = OPTION_A. This was 2.25rem (36px) with a comment
+       pinning it to the old >=36px runtime floor; B09 raises the floor it owns
+       to >=44x44 and takes the trigger with it. It is a touch minimum, not a
+       density value, so it never shrinks with the fluid tokens above. */
+    inline-size: var(--dash-mobile-nav-touch-min);
+    block-size: var(--dash-mobile-nav-touch-min);
     flex: 0 0 auto;
     align-items: center;
     justify-content: center;
@@ -185,10 +189,6 @@
   }
 
   [data-vetneb-app-shell-surface="admin"] .admin-mobile-kebab-trigger:focus-visible,
-  [data-vetneb-app-shell-surface="admin"] .admin-mobile-icon-button:focus-visible,
-  [data-vetneb-app-shell-surface="admin"] .admin-mobile-page-button:focus-visible,
-  [data-vetneb-app-shell-surface="admin"] .admin-mobile-module-link:focus-visible,
-  [data-vetneb-app-shell-surface="admin"] .admin-mobile-bottom-nav-item:focus-visible,
   [data-vetneb-app-shell-surface="admin"] .admin-mobile-kebab-action:focus-visible {
     outline: 2px solid hsl(var(--ring));
     outline-offset: 2px;
@@ -220,7 +220,8 @@
   [data-vetneb-app-shell-surface="admin"] .admin-mobile-kebab-action {
     display: flex;
     min-width: 0;
-    min-height: 2.5rem;
+    /* B09_TOUCH_POLICY = OPTION_A: was 2.5rem (40px). */
+    min-block-size: var(--dash-mobile-nav-touch-min);
     align-items: center;
     justify-content: space-between;
     gap: 0.75rem;
@@ -237,6 +238,21 @@
 
   [data-vetneb-app-shell-surface="admin"] .admin-mobile-kebab-action {
     justify-content: flex-start;
+  }
+
+  /* B09_TOUCH_POLICY = OPTION_A, applied LOCALLY. The notifications trigger is
+     `h-9 w-9` (36px) in `DashboardNotificationsBell`, which is shared with the
+     clinic dashboard and with desktop; B09 owns the control only where it sits
+     INSIDE this menu, so the floor is raised by context instead of by editing
+     the component. A DESCENDANT selector, not a child one: the bell renders its
+     trigger inside a `relative` wrapper, so `> button` misses it. The theme
+     toggle next to it takes the same floor through its `className` prop, which
+     the kebab already passes. */
+  [data-vetneb-app-shell-surface="admin"] .admin-mobile-kebab-row button,
+  [data-vetneb-app-shell-surface="admin"] .admin-mobile-kebab-row [data-theme-toggle="true"] {
+    inline-size: var(--dash-mobile-nav-touch-min);
+    block-size: var(--dash-mobile-nav-touch-min);
+    flex: 0 0 auto;
   }
 
   [data-vetneb-app-shell-surface="admin"] .admin-mobile-kebab-logout {
@@ -257,152 +273,8 @@
     display: none !important;
   }
 
-  [data-vetneb-app-shell-surface="admin"] .admin-mobile-bottom-nav {
-    position: relative;
-    z-index: 65;
-    display: flex !important;
-    width: 100%;
-    height: calc(var(--admin-mobile-bottom-nav-h) + env(safe-area-inset-bottom));
-    min-height: 0;
-    flex: 0 0 auto;
-    align-items: stretch;
-    overflow: hidden;
-    padding-bottom: env(safe-area-inset-bottom);
-    border-top: 1px solid hsl(var(--vetneb-line));
-    background: hsl(var(--card));
-    isolation: isolate;
-    overscroll-behavior: none;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-    transform: none !important;
-  }
-
-  [data-vetneb-app-shell-surface="admin"] .admin-mobile-bottom-nav-item {
-    display: inline-flex;
-    min-width: 0;
-    min-height: 0;
-    flex: 1 1 20%;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    gap: var(--admin-mobile-bottom-nav-gap);
-    overflow: hidden;
-    padding: 0.25rem 0.1rem;
-    border-radius: 0;
-    background: hsl(var(--card));
-    color: hsl(var(--muted-foreground));
-    font-size: var(--admin-mobile-type-2xs);
-    font-weight: 650;
-    line-height: 1;
-    white-space: nowrap;
-    touch-action: manipulation;
-  }
-
   [data-vetneb-app-shell-surface="admin"]
-    .admin-mobile-bottom-nav-item-active {
-    color: hsl(var(--vetneb-navy));
-    background: hsl(var(--vetneb-surface-muted));
-  }
-
-  [data-vetneb-app-shell-surface="admin"] .admin-mobile-module-menu {
-    position: fixed;
-    right: 0.5rem;
-    bottom: calc(4rem + env(safe-area-inset-bottom));
-    left: 0.5rem;
-    z-index: 70;
-    display: flex !important;
-    max-height: calc(
-      100svh - 7.75rem - env(safe-area-inset-top) -
-        env(safe-area-inset-bottom)
-    );
-    flex-direction: column;
-    gap: var(--admin-mobile-tile-gap);
-    overflow: hidden;
-    padding: var(--admin-mobile-tile-pad);
-    border: 1px solid hsl(var(--vetneb-line));
-    border-radius: 0.85rem;
-    background: hsl(var(--card));
-    box-shadow: 0 12px 30px rgba(15, 45, 62, 0.2);
-    isolation: isolate;
-    overscroll-behavior: none;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-    transform: none !important;
-  }
-
-  [data-vetneb-app-shell-surface="admin"] .admin-mobile-module-grid {
-    display: grid;
-    min-width: 0;
-    min-height: 0;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--admin-mobile-tile-gap);
-    overflow: hidden;
-  }
-
-  [data-vetneb-app-shell-surface="admin"] .admin-mobile-module-link {
-    display: inline-flex;
-    min-width: 0;
-    min-height: 2.6rem;
-    align-items: center;
-    gap: 0.45rem;
-    overflow: hidden;
-    padding: 0.45rem 0.55rem;
-    border: 1px solid hsl(var(--vetneb-line));
-    border-radius: 0.55rem;
-    background: hsl(var(--vetneb-surface-raised));
-    color: hsl(var(--foreground));
-    font-size: var(--admin-mobile-type-xs);
-    font-weight: 650;
-    touch-action: manipulation;
-  }
-
-  [data-vetneb-app-shell-surface="admin"] .admin-mobile-page-button {
-    display: inline-flex;
-    min-width: 4.5rem;
-    min-height: 2.25rem;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    padding: 0.35rem 0.55rem;
-    border: 1px solid hsl(var(--vetneb-line));
-    border-radius: 0.5rem;
-    background: hsl(var(--card));
-    color: hsl(var(--foreground));
-    font-size: var(--admin-mobile-type-xs);
-    font-weight: 650;
-    touch-action: manipulation;
-  }
-
-  [data-vetneb-app-shell-surface="admin"]
-    .admin-mobile-page-button:disabled {
-    opacity: 0.45;
-  }
-
-  [data-vetneb-app-shell-surface="admin"] .admin-mobile-page-dot {
-    display: block;
-    width: 0.4rem;
-    height: 0.4rem;
-    overflow: hidden;
-    border-radius: 999px;
-    background: hsl(var(--vetneb-line));
-  }
-
-  [data-vetneb-app-shell-surface="admin"]
-    .admin-mobile-page-dot[aria-current="page"] {
-    background: hsl(var(--vetneb-teal));
-  }
-
-  [data-vetneb-app-shell-surface="admin"]
-    :is(
-      .admin-mobile-kebab-trigger,
-      .admin-mobile-kebab-menu,
-      .admin-mobile-bottom-nav,
-      .admin-mobile-bottom-nav-item,
-      .admin-mobile-module-menu,
-      .admin-mobile-module-grid,
-      .admin-mobile-module-link,
-      .admin-mobile-page-button
-    ) {
+    :is(.admin-mobile-kebab-trigger, .admin-mobile-kebab-menu) {
     overflow-x: hidden;
     overflow-y: hidden;
   }

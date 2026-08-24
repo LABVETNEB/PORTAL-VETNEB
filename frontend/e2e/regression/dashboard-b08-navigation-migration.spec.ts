@@ -42,17 +42,17 @@ import {
 //     navigation with it.
 //
 //   LEGACY_MODULE_RAIL_DESKTOP_RETIREMENT = REQUIRED
-//   LEGACY_MODULE_RAIL_PHYSICAL_RETIREMENT = DEFERRED_TO_B09
-//     `[data-dashboard-module-rail]` must not be VISIBLE from 768px up, and
-//     must STILL be visible and operable on the clinic `/dashboard` below it:
-//     `ClinicMobileBottomNav` returns null there, so the rail is that surface's
-//     only module navigation until B09 replaces the mobile model. Asserting its
-//     absence below 768 would demand B09's work; asserting its presence above
-//     768 would mean B08 never happened. Both directions are checked.
+//   LEGACY_MODULE_RAIL_PHYSICAL_RETIREMENT = CLOSED_BY_B09
+//     B08 could only hide `[data-dashboard-module-rail]` from 768px up: below
+//     that it was the clinic `/dashboard` module navigation, because
+//     `ClinicMobileBottomNav` returned null there. B09 shipped
+//     `DashboardMobileNav`, removed that early return and deleted the rail, so
+//     the selector must now resolve to NOTHING at any viewport — the same
+//     assertion the horizontal nav already carries.
 //
 // REGIME LADDER (audit §49 / B07 §7):
 //
-//   <  768 px        legacy clinic rail (mobile model, B09) · both primitives hidden
+//   <  768 px        DashboardMobileNav (B09) · both primitives hidden
 //   768 – 1279 px    NavigationRail   80 ±1 px  · item 56 px
 //   >= 1280 px       NavigationDrawer 256 ±1 px · item 40 px
 //
@@ -73,6 +73,8 @@ const RAIL_SELECTOR = "[data-dashboard-navigation-rail]";
 const FRAME_SELECTOR = "[data-dashboard-navigation-frame]";
 const LEGACY_HORIZONTAL_NAV_SELECTOR = "[data-dashboard-horizontal-nav-shell]";
 const LEGACY_MODULE_RAIL_SELECTOR = "[data-dashboard-module-rail]";
+/** B09 mobile model: the single owner below 768px, on both roles. */
+const MOBILE_NAV_SELECTOR = "[data-dashboard-mobile-nav]";
 const APP_BAR_SELECTOR = '[data-workspace-app-bar="true"]';
 const MAIN_SELECTOR = "main.dashboard-main";
 
@@ -169,7 +171,8 @@ const THEME_PROBE_SLUGS = ["w1366x768", "w768x1024"] as const;
 type BandReading = {
   readonly drawerVisible: boolean;
   readonly railVisible: boolean;
-  readonly legacyRailVisible: boolean;
+  readonly legacyRailCount: number;
+  readonly mobileNavVisible: boolean;
   readonly legacyHorizontalNavCount: number;
   readonly drawerCount: number;
   readonly railCount: number;
@@ -214,7 +217,16 @@ async function installTheme(page: Page, theme: ThemeMode): Promise<void> {
 
 async function readBand(page: Page): Promise<BandReading> {
   return page.evaluate(
-    ({ drawerSel, railSel, frameSel, legacyNavSel, legacyRailSel, appBarSel, mainSel }) => {
+    ({
+      drawerSel,
+      railSel,
+      frameSel,
+      legacyNavSel,
+      legacyRailSel,
+      mobileNavSel,
+      appBarSel,
+      mainSel,
+    }) => {
       const isVisible = (element: Element | null): boolean => {
         if (!element) return false;
         const candidate = element as Element & {
@@ -229,7 +241,6 @@ async function readBand(page: Page): Promise<BandReading> {
 
       const drawer = document.querySelector<HTMLElement>(drawerSel);
       const rail = document.querySelector<HTMLElement>(railSel);
-      const legacyRail = document.querySelector<HTMLElement>(legacyRailSel);
       const main = document.querySelector<HTMLElement>(mainSel);
       const appBar = document.querySelector<HTMLElement>(appBarSel);
       const html = document.documentElement;
@@ -261,7 +272,10 @@ async function readBand(page: Page): Promise<BandReading> {
       return {
         drawerVisible,
         railVisible,
-        legacyRailVisible: isVisible(legacyRail),
+        legacyRailCount: document.querySelectorAll(legacyRailSel).length,
+        mobileNavVisible: isVisible(
+          document.querySelector<HTMLElement>(mobileNavSel),
+        ),
         legacyHorizontalNavCount: document.querySelectorAll(legacyNavSel).length,
         drawerCount: document.querySelectorAll(drawerSel).length,
         railCount: document.querySelectorAll(railSel).length,
@@ -299,6 +313,7 @@ async function readBand(page: Page): Promise<BandReading> {
       frameSel: FRAME_SELECTOR,
       legacyNavSel: LEGACY_HORIZONTAL_NAV_SELECTOR,
       legacyRailSel: LEGACY_MODULE_RAIL_SELECTOR,
+      mobileNavSel: MOBILE_NAV_SELECTOR,
       appBarSel: APP_BAR_SELECTOR,
       mainSel: MAIN_SELECTOR,
     },
@@ -309,7 +324,6 @@ function collectViolations(
   reading: BandReading,
   label: string,
   viewportWidth: number,
-  isClinicModuleShell: boolean,
 ): string[] {
   const violations: string[] = [];
   const regime = regimeFor(viewportWidth);
@@ -353,16 +367,22 @@ function collectViolations(
     );
   }
 
-  // ── LEGACY_MODULE_RAIL: desktop retirement, mobile survival ────────────────
-  if (regime === "mobile") {
-    if (isClinicModuleShell && !reading.legacyRailVisible) {
-      violations.push(
-        `${label}: the clinic module rail must stay visible <768px — ClinicMobileBottomNav returns null on /dashboard, so removing it strands this surface (B09 owns its replacement)`,
-      );
-    }
-  } else if (reading.legacyRailVisible) {
+  // ── LEGACY_MODULE_RAIL: B08 deferred the deletion, B09 closed it ───────────
+  if (reading.legacyRailCount !== 0) {
     violations.push(
-      `${label}: the legacy module rail must not paint at >=768px; the lateral model owns that regime`,
+      `${label}: the retired module rail is present (${reading.legacyRailCount} node(s)). B08 only hid it >=768px because it was the clinic /dashboard navigation on phones; B09 replaced that with DashboardMobileNav and deleted it`,
+    );
+  }
+
+  // Below 768px exactly one owner paints, and it is the B09 mobile model.
+  if (regime === "mobile" && !reading.mobileNavVisible) {
+    violations.push(
+      `${label}: no mobile navigation owner is visible below 768px`,
+    );
+  }
+  if (regime !== "mobile" && reading.mobileNavVisible) {
+    violations.push(
+      `${label}: the mobile navigation model must not paint at >=768px; the lateral model owns that regime`,
     );
   }
 
@@ -542,10 +562,24 @@ async function prepareRole(
   }
 }
 
+/**
+ * The PAINTED band. `DashboardNavigationFrame` streams the url-derived
+ * navigation through a Suspense boundary whose fallback mounts a SECOND
+ * `LateralNavigation` with the same attributes, so a bare band selector can
+ * resolve to two nodes while exactly one is visible. Filtering the OWNER does
+ * not relax the contract: zero visible bands still fail, and two still fail on
+ * strictness.
+ */
+function paintedBand(page: Page, selector: string) {
+  return page.locator(selector).filter({ visible: true });
+}
+
 /** The item of the CURRENTLY VISIBLE band, so clicks never hit a hidden twin. */
 function bandItem(page: Page, moduleId: string, regime: Regime) {
   const band = regime === "drawer" ? DRAWER_SELECTOR : RAIL_SELECTOR;
-  return page.locator(`${band} [data-dashboard-navigation-item="${moduleId}"]`);
+  return paintedBand(page, band).locator(
+    `[data-dashboard-navigation-item="${moduleId}"]`,
+  );
 }
 
 async function expectActiveModule(
@@ -561,7 +595,7 @@ async function expectActiveModule(
 
   const band = regime === "drawer" ? DRAWER_SELECTOR : RAIL_SELECTOR;
   await expect(
-    page.locator(`${band} [aria-current='page']`),
+    paintedBand(page, band).locator("[aria-current='page']"),
     `${label}: exactly one module is current`,
   ).toHaveCount(1, { timeout: 15_000 });
 }
@@ -604,7 +638,6 @@ test.describe("B08 · lateral navigation band across the regime ladder", () => {
 
       const measured: Array<Record<string, unknown>> = [];
       const failures: string[] = [];
-      const isClinicModuleShell = surface.id === CLINIC_MODULE_SURFACE.id;
 
       for (const viewport of VIEWPORT_PROBES) {
         const label = `${surface.id} @ ${viewport.slug}`;
@@ -621,7 +654,7 @@ test.describe("B08 · lateral navigation band across the regime ladder", () => {
 
         const reading = await readBand(page);
         failures.push(
-          ...collectViolations(reading, label, viewport.width, isClinicModuleShell),
+          ...collectViolations(reading, label, viewport.width),
         );
 
         measured.push({
@@ -630,7 +663,8 @@ test.describe("B08 · lateral navigation band across the regime ladder", () => {
           regime: regimeFor(viewport.width),
           drawerVisible: reading.drawerVisible,
           railVisible: reading.railVisible,
-          legacyRailVisible: reading.legacyRailVisible,
+          legacyRailCount: reading.legacyRailCount,
+          mobileNavVisible: reading.mobileNavVisible,
           drawerWidth: reading.drawerWidth,
           railWidth: reading.railWidth,
           appBarHeight: reading.appBarHeight,
@@ -719,8 +753,8 @@ test.describe("B08 · admin module navigation", () => {
       ).toHaveCount(0);
       await expect(
         page.locator(LEGACY_MODULE_RAIL_SELECTOR),
-        `${regime}: legacy module rail not painted`,
-      ).toBeHidden();
+        `${regime}: retired module rail absent`,
+      ).toHaveCount(0);
     });
   }
 
@@ -740,7 +774,9 @@ test.describe("B08 · admin module navigation", () => {
     // Every module still reachable from the hub, and the hub itself intact
     // (degrading it to an "Inicio" item is B13).
     await expect(
-      page.locator(`${DRAWER_SELECTOR} [data-dashboard-navigation-item]`),
+      paintedBand(page, DRAWER_SELECTOR).locator(
+        "[data-dashboard-navigation-item]",
+      ),
       "hub: the full admin module list stays reachable",
     ).toHaveCount(10);
     await expect(
@@ -905,12 +941,7 @@ test.describe("B08 · lateral navigation in dark-gray", () => {
 
           const reading = await readBand(page);
           failures.push(
-            ...collectViolations(
-              reading,
-              label,
-              viewport.width,
-              surface.id === CLINIC_MODULE_SURFACE.id,
-            ),
+            ...collectViolations(reading, label, viewport.width),
           );
         }
       } finally {
@@ -955,7 +986,7 @@ test.describe("B08 · rail destinations at short heights", () => {
     await openSurface(page, ADMIN_HUB_SURFACE);
 
     await expect(
-      page.locator(RAIL_SELECTOR),
+      paintedBand(page, RAIL_SELECTOR),
       "short height stays inside the rail regime",
     ).toBeVisible();
     await expect(
@@ -963,7 +994,9 @@ test.describe("B08 · rail destinations at short heights", () => {
       "the drawer must not paint below 1280px",
     ).toBeHidden();
 
-    const items = page.locator(`${RAIL_SELECTOR} [data-dashboard-navigation-item]`);
+    const items = paintedBand(page, RAIL_SELECTOR).locator(
+      "[data-dashboard-navigation-item]",
+    );
     await expect(items, "every admin destination is mounted").toHaveCount(
       ADMIN_RAIL_ITEM_COUNT,
     );

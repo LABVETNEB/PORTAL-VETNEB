@@ -36,14 +36,27 @@ function clinicLateralNav(page: Page) {
   return page.locator('[data-dashboard-navigation-drawer="clinic"]');
 }
 
+// The PAINTED drawer. `DashboardNavigationFrame` streams the url-derived
+// navigation through a Suspense boundary whose fallback mounts a SECOND
+// `LateralNavigation` with the same attribute, so the bare owner can resolve to
+// two nodes while exactly one is visible. This does NOT relax the contract:
+// zero visible drawers still fail and two still fail on strictness.
+// `clinicLateralNav` stays UNFILTERED on purpose — the <768px test asserts the
+// drawer is hidden, and an empty locator would satisfy that for free.
+function paintedClinicLateralNav(page: Page) {
+  return clinicLateralNav(page).filter({ visible: true });
+}
+
 function clinicLateralNavItem(page: Page, moduleId: ClinicModule) {
-  return clinicLateralNav(page).locator(
+  return paintedClinicLateralNav(page).locator(
     `[data-dashboard-navigation-item="${moduleId}"]`,
   );
 }
 
-function legacyClinicRail(page: Page) {
-  return page.locator('[data-dashboard-module-rail="true"]');
+function clinicMobileNav(page: Page) {
+  return page
+    .locator('[data-dashboard-mobile-nav="clinic"]')
+    .filter({ visible: true });
 }
 
 test.describe("dashboard interaction foundation — smoke (PR-1)", () => {
@@ -66,7 +79,7 @@ test.describe("dashboard interaction foundation — smoke (PR-1)", () => {
       page.locator('[data-dashboard-module-workspace="operaciones"]'),
     ).toBeVisible();
     // The lateral navigation is present, and the retired horizontal nav is not.
-    await expect(clinicLateralNav(page)).toBeVisible();
+    await expect(paintedClinicLateralNav(page)).toBeVisible();
     await expect(
       page.locator("[data-dashboard-horizontal-nav-shell]"),
     ).toHaveCount(0);
@@ -83,7 +96,7 @@ test.describe("dashboard interaction foundation — smoke (PR-1)", () => {
     await setClinicSession(page);
     await page.goto("/dashboard");
 
-    await expect(clinicLateralNav(page)).toBeVisible({ timeout: 8_000 });
+    await expect(paintedClinicLateralNav(page)).toBeVisible({ timeout: 8_000 });
 
     // Default module is operaciones and the lateral nav marks it active.
     await expect(clinicLateralNavItem(page, "operaciones")).toHaveAttribute(
@@ -101,30 +114,41 @@ test.describe("dashboard interaction foundation — smoke (PR-1)", () => {
       await expect(clinicLateralNavItem(page, moduleId)).toBeVisible();
     }
     await expect(
-      clinicLateralNav(page).locator("[aria-current='page']"),
+      paintedClinicLateralNav(page).locator("[aria-current='page']"),
     ).toHaveCount(1);
   });
 
-  test("the legacy rail keeps its interactive pager grammar below 768px", async ({
+  test("the mobile model owns clinic module navigation below 768px", async ({
     page,
   }) => {
-    // B08 removed the rail from >=768px and did not reproduce its prev/next
-    // pager. Below 768px the rail is still the clinic module navigation, so the
-    // PR-1 contract (the shared `dashboard-*-interactive` grammar, here
-    // `dashboard-nav-interactive`) is asserted in that regime.
+    // B08 removed the legacy rail from >=768px; B09 retired it and moved the
+    // <768px regime to `DashboardMobileNav`. The pager this test used to assert
+    // (`dashboard-nav-interactive` on rail prev/next) is NOT reproduced: it was
+    // a second grammar over the same ordered modules, and neither the B07
+    // primitives nor the two bottom navs it replaced ever carried it. What the
+    // regime actually owes is asserted instead — one navigation owner, every
+    // destination reachable, exactly one marked current.
     await setClinicSession(page);
     await page.setViewportSize({ width: 375, height: 812 });
     await page.goto("/dashboard");
 
-    const rail = legacyClinicRail(page);
-    await expect(rail).toBeVisible({ timeout: 8_000 });
+    const nav = clinicMobileNav(page);
+    await expect(nav).toBeVisible({ timeout: 8_000 });
+    await expect(page.locator("[data-dashboard-module-rail]")).toHaveCount(0);
+    await expect(clinicLateralNav(page)).toBeHidden();
 
-    const next = rail.locator('[data-dashboard-module-rail-next="true"]');
-    await expect(next).toBeVisible();
-    await expect(next).toHaveClass(/dashboard-nav-interactive/);
-    await expect(
-      rail.locator('[data-dashboard-module-rail-prev="true"]'),
-    ).toHaveClass(/dashboard-nav-interactive/);
+    for (const moduleId of [
+      "operaciones",
+      "informes",
+      "logistica",
+      "perfil",
+      "tokens",
+    ] as ClinicModule[]) {
+      await expect(
+        nav.locator(`[data-dashboard-mobile-nav-item="${moduleId}"]`),
+      ).toBeVisible();
+    }
+    await expect(nav.locator("[aria-current='page']")).toHaveCount(1);
   });
 
   test("clinic /dashboard?module=operaciones renders workspace", async ({
@@ -175,7 +199,7 @@ test.describe("dashboard interaction foundation — smoke (PR-1)", () => {
     await expect(
       page.locator('[data-dashboard-module-workspace="operaciones"]'),
     ).toBeVisible({ timeout: 8_000 });
-    await expect(clinicLateralNav(page)).toBeVisible();
+    await expect(paintedClinicLateralNav(page)).toBeVisible();
     await expect(page.locator('[data-dashboard-module-hub="true"]')).toHaveCount(0);
   });
 

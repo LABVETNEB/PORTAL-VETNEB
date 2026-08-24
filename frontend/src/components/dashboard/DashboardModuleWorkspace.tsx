@@ -9,7 +9,8 @@ type DashboardModuleWorkspaceProps = {
   moduleId: string;
   /**
    * Optional "back to overview" control. The clinic workspace omits it — module
-   * navigation is owned by the shared `DashboardModuleRail` and there is no hub
+   * navigation is owned by the shared `DashboardMobileNav` (<768px) or the B07/B08
+   * lateral band (>=768px), and there is no hub
    * to return to. Admin still provides it to fold back into its module hub.
    */
   onBack?: () => void;
