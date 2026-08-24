@@ -400,10 +400,18 @@ for (const moduleSpec of MODULES) {
         .filter({ visible: true }),
       `${moduleSpec.key} desktop: lateral nav visible`,
     ).toBeVisible({ timeout: 15_000 });
+    // `DashboardMobileNav` streams through a Suspense boundary whose fallback
+    // mounts a SECOND <nav> carrying the same attribute, so the bare selector
+    // resolves to two nodes and `toBeHidden()` dies on strict mode BEFORE
+    // visibility is ever considered. The desktop contract is "no PAINTED bar",
+    // not "at most one DOM node": assert zero VISIBLE bars, which still fails
+    // with one visible and with two, and excludes only the hidden staging copy.
     await expect(
-      page.locator('[data-dashboard-mobile-nav="admin"]'),
+      page
+        .locator('[data-dashboard-mobile-nav="admin"]')
+        .filter({ visible: true }),
       `${moduleSpec.key} desktop: bottom nav absent`,
-    ).toBeHidden();
+    ).toHaveCount(0);
     await expect(
       page.locator(`[data-admin-mobile-core-module="${moduleSpec.key}"]`),
       `${moduleSpec.key} desktop: mobile core module root absent`,
