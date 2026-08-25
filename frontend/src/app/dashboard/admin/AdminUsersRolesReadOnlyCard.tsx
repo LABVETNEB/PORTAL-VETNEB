@@ -32,6 +32,7 @@ import type {
   AdminUsersRolesSnapshot,
   ClinicUserRole,
 } from "@/types";
+import { AdminUserRoleDetailDialog } from "./AdminUserRoleDetailDialog";
 import { AdminMobileOpsPager } from "./AdminMobileOpsPager";
 
 // Server pagination is now sized by the measured rows container (Zero-Scroll
@@ -625,23 +626,42 @@ export function AdminUsersRolesReadOnlyCard() {
                           {formatDateTime(user.updatedAt)}
                         </TableCell>
                         <TableCell className="text-right">
-                          {user.userType === "clinic" ? (
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              className="h-7 px-2 text-xs"
-                              disabled={disableUserActions}
-                              aria-busy={isChanging ? true : undefined}
-                              onClick={() => void handleChangeClinicRole(user)}
-                            >
-                              {isChanging ? "Cambiando..." : "Cambiar rol"}
-                            </Button>
-                          ) : (
-                            <span className="text-[11px] text-muted-foreground">
-                              No editable
-                            </span>
-                          )}
+                          {/* PR-TRUNC. The detail trigger reuses the EXISTING
+                              action cell, so the table keeps its column count
+                              and its widths: no geometry moves and the
+                              pitch-locked capacity (A03) is untouched. The
+                              trigger is icon-only for the same reason, and
+                              carries the user name in its accessible name. */}
+                          <span className="flex items-center justify-end gap-1">
+                            {user.userType === "clinic" ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-7 px-2 text-xs"
+                                disabled={disableUserActions}
+                                aria-busy={isChanging ? true : undefined}
+                                onClick={() => void handleChangeClinicRole(user)}
+                              >
+                                {isChanging ? "Cambiando..." : "Cambiar rol"}
+                              </Button>
+                            ) : (
+                              <span className="text-[11px] text-muted-foreground">
+                                No editable
+                              </span>
+                            )}
+                            <AdminUserRoleDetailDialog
+                              user={user}
+                              userTypeLabel={formatUserType(user.userType)}
+                              roleLabel={formatRole(user.role)}
+                              clinicLabel={
+                                user.userType === "clinic"
+                                  ? user.clinicName || `Clínica #${user.clinicId}`
+                                  : "Administración VETNEB"
+                              }
+                              clinicMetadata={getClinicMetadata(user)}
+                            />
+                          </span>
                         </TableCell>
                       </TableRow>
                     );
@@ -876,6 +896,17 @@ export function AdminUsersRolesReadOnlyCard() {
                       No editable
                     </span>
                   )}
+                  <AdminUserRoleDetailDialog
+                    user={user}
+                    userTypeLabel={formatUserType(user.userType)}
+                    roleLabel={formatRole(user.role)}
+                    clinicLabel={
+                      user.userType === "clinic"
+                        ? user.clinicName || `Clínica #${user.clinicId}`
+                        : "Administración VETNEB"
+                    }
+                    clinicMetadata={getClinicMetadata(user)}
+                  />
                 </article>
               );
             })

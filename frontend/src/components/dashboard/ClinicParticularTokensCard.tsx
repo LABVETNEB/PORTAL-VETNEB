@@ -1545,65 +1545,71 @@ export function ClinicParticularTokensCard() {
             </div>
 
             <dl className="grid grid-cols-1 divide-y divide-vetneb-line/55 rounded-lg border border-vetneb-line/70 sm:grid-cols-2 sm:divide-x sm:divide-y-0">
-              <div className="space-y-1 p-2.5">
+              <div className="min-w-0 space-y-1 p-2.5">
                 <dt className="text-[0.6875rem] text-muted-foreground">
                   Paciente
                 </dt>
-                <dd className="font-medium text-vetneb-ink">
+                <dd className="dashboard-detail-value font-medium text-vetneb-ink">
                   {selectedToken.petName} · {selectedToken.tutorLastName}
                 </dd>
-                <dd className="text-muted-foreground">
+                <dd className="dashboard-detail-value text-muted-foreground">
                   {selectedToken.petSpecies} · {selectedToken.petBreed} ·{" "}
                   {selectedToken.petSex} · {selectedToken.petAge}
                 </dd>
               </div>
-              <div className="space-y-1 p-2.5">
+              <div className="min-w-0 space-y-1 p-2.5">
                 <dt className="text-[0.6875rem] text-muted-foreground">
                   Vínculo
                 </dt>
-                <dd className="font-medium text-vetneb-ink">
+                <dd className="dashboard-detail-value font-medium text-vetneb-ink">
                   Tutor: {selectedToken.tutorLastName}
                 </dd>
-                <dd className="text-muted-foreground">
+                <dd className="dashboard-detail-value text-muted-foreground">
                   Origen: {formatTokenSource(selectedToken)}
                 </dd>
               </div>
             </dl>
 
-            <dl className="grid grid-cols-2 gap-x-3 gap-y-2">
-              <div>
+            <dl className="grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-2">
+              <div className="min-w-0">
                 <dt className="text-[0.6875rem] text-muted-foreground">Muestra</dt>
-                <dd className="truncate text-vetneb-ink">
+                <dd className="dashboard-detail-value text-vetneb-ink">
                   {selectedToken.sampleLocation}
                 </dd>
               </div>
-              <div>
+              <div className="min-w-0">
                 <dt className="text-[0.6875rem] text-muted-foreground">Evolución</dt>
-                <dd className="truncate text-vetneb-ink">
+                <dd className="dashboard-detail-value text-vetneb-ink">
                   {selectedToken.sampleEvolution}
                 </dd>
               </div>
-              <div>
+              <div className="min-w-0">
                 <dt className="text-[0.6875rem] text-muted-foreground">
                   Extracción
                 </dt>
-                <dd>{formatDate(selectedToken.extractionDate)}</dd>
+                <dd className="dashboard-detail-value">
+                  {formatDate(selectedToken.extractionDate)}
+                </dd>
               </div>
-              <div>
+              <div className="min-w-0">
                 <dt className="text-[0.6875rem] text-muted-foreground">Envío</dt>
-                <dd>{formatDate(selectedToken.shippingDate)}</dd>
+                <dd className="dashboard-detail-value">
+                  {formatDate(selectedToken.shippingDate)}
+                </dd>
               </div>
-              <div>
+              <div className="min-w-0">
                 <dt className="text-[0.6875rem] text-muted-foreground">
                   Informe
                 </dt>
-                <dd>{selectedToken.reportId ? `#${selectedToken.reportId}` : "—"}</dd>
+                <dd className="dashboard-detail-value">
+                  {selectedToken.reportId ? `#${selectedToken.reportId}` : "—"}
+                </dd>
               </div>
-              <div>
+              <div className="min-w-0">
                 <dt className="text-[0.6875rem] text-muted-foreground">
                   Último acceso
                 </dt>
-                <dd>
+                <dd className="dashboard-detail-value">
                   {selectedToken.lastLoginAt
                     ? formatDate(selectedToken.lastLoginAt)
                     : "—"}
@@ -1612,11 +1618,11 @@ export function ClinicParticularTokensCard() {
             </dl>
 
             {selectedToken.detailsLesion ? (
-              <div className="rounded-lg border border-vetneb-line/65 px-2.5 py-2">
+              <div className="min-w-0 rounded-lg border border-vetneb-line/65 px-2.5 py-2">
                 <p className="text-[0.6875rem] text-muted-foreground">
                   Detalle de lesión
                 </p>
-                <p className="line-clamp-2 text-vetneb-ink">
+                <p className="dashboard-detail-value text-vetneb-ink">
                   {selectedToken.detailsLesion}
                 </p>
               </div>

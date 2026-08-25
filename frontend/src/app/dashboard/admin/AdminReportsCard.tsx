@@ -902,28 +902,28 @@ export function AdminReportsCard() {
           }
         >
           <div className="space-y-3 text-[0.8125rem]">
-            <div className="grid grid-cols-2 gap-x-3 gap-y-2 rounded-md border border-vetneb-line/70 px-3 py-2">
-              <div>
+            <div className="grid grid-cols-1 gap-x-3 gap-y-2 rounded-md border border-vetneb-line/70 px-3 py-2 sm:grid-cols-2">
+              <div className="min-w-0">
                 <p className="text-[0.6875rem] text-muted-foreground">Paciente</p>
-                <p className="truncate font-medium">
+                <p className="dashboard-detail-value font-medium">
                   {selectedReport.patientName || "Sin registrar"}
                 </p>
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-[0.6875rem] text-muted-foreground">Estudio</p>
-                <p className="truncate font-medium">{studyLabel(selectedReport.studyType)}</p>
+                <p className="dashboard-detail-value font-medium">{studyLabel(selectedReport.studyType)}</p>
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-[0.6875rem] text-muted-foreground">Carga</p>
-                <p>{formatDate(selectedReport.uploadDate ?? selectedReport.createdAt)}</p>
+                <p className="dashboard-detail-value">{formatDate(selectedReport.uploadDate ?? selectedReport.createdAt)}</p>
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-[0.6875rem] text-muted-foreground">Última actualización</p>
-                <p>{formatDate(selectedReport.workflowUpdatedAt)}</p>
+                <p className="dashboard-detail-value">{formatDate(selectedReport.workflowUpdatedAt)}</p>
               </div>
-              <div className="col-span-2 min-w-0">
+              <div className="min-w-0 sm:col-span-2">
                 <p className="text-[0.6875rem] text-muted-foreground">Archivo</p>
-                <p className="truncate">{selectedReport.fileName || "Sin archivo disponible"}</p>
+                <p className="dashboard-detail-value">{selectedReport.fileName || "Sin archivo disponible"}</p>
               </div>
             </div>
 

@@ -177,7 +177,8 @@ test("automatic workflow coverage is derived from catalog cohorts and equals ful
   assert.deepEqual(result.automaticRoutes.get(FRONTEND_WORKFLOW), ["ci"]);
   assert.deepEqual(result.automaticRoutes.get(COMPLETENESS_WORKFLOW), ["full"]);
   // +1: B10 clinic app-shell unification (regression/dashboard-shell).
-  assert.equal(E2E_SUITE_CATALOG.length, 86);
+  // +1: PR-TRUNC detail text integrity (platform/app-shell).
+  assert.equal(E2E_SUITE_CATALOG.length, 87);
 
   const partitionUnion = new Set(PARTITION_COHORTS.flatMap((cohort) => E2E_COHORT_SPECS[cohort]));
   assert.deepEqual([...partitionUnion].sort(), [...E2E_COHORT_SPECS.full].sort());

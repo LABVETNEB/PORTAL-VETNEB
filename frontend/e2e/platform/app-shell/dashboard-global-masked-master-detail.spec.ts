@@ -253,6 +253,22 @@ async function readScrollContract(page: Page): Promise<ScrollContract> {
 // follow-up render settles on the real value, so a naive read can catch that
 // transient instead of the converged count. Wait until the count stops
 // changing for a few consecutive polls before trusting it.
+/**
+ * Waits for a settled, NON-EMPTY adaptive row count.
+ *
+ * The "non-empty" half is not cosmetic. Zero is a perfectly stable count, so the
+ * previous version settled on the not-yet-rendered empty list whenever the rows
+ * needed more than ~200ms (three 50ms reads) to appear — and then returned 0 to
+ * a caller whose very next assertion is `toBeGreaterThan(0)`. On a quiet machine
+ * the rows win the race and it passes; under a full parallel cohort they do not,
+ * which is exactly how this surfaced. The mobile caller below never flaked
+ * because it already awaits `toBeVisible()` on the first row before settling;
+ * the desktop caller did not, and that asymmetry is the whole bug.
+ *
+ * Both callers require a positive count, so requiring it HERE only converts a
+ * silent bogus 0 into an honest wait — and, if the rows genuinely never arrive,
+ * into a timeout that names the surface instead of a confusing `0 > 0` failure.
+ */
 async function waitForSettledRowCount(
   locator: Locator,
   label: string,
@@ -268,6 +284,10 @@ async function waitForSettledRowCount(
       previousCount = currentCount;
       stableReads = 0;
     }
+    expect(
+      currentCount,
+      `${label}: rows must render before the count can settle (currently ${currentCount})`,
+    ).toBeGreaterThan(0);
     expect(
       stableReads,
       `${label}: adaptive row count must settle (currently ${currentCount})`,

@@ -166,16 +166,83 @@ test("migrated consumers observe at most the canvas, and never the rows", () => 
   }
 });
 
+// PR-TRUNC. The ban below means what its message says: a scroller must never be
+// an escape from a ROWS-CAPACITY bug. It used to be spelled as "no
+// `overflow-y-auto` anywhere in the file", which also caught regions that own
+// no rows, no capacity and no pager — and the informes DETAIL canvas is exactly
+// that. Its previous way of staying inside its bounded track was to TRUNCATE
+// every value in it and let `overflow: hidden` swallow the rest (measured: 156px
+// of a clinical record clipped at 1366x768, with normal data), which is the
+// defect PR-TRUNC exists to remove.
+//
+// So the exemption is granted to ONE explicitly anchored element, and it is paid
+// for twice: the anchor must not sit on the rows canvas (asserted below), and
+// the runtime contract in
+// frontend/e2e/clinic/reports/clinic-informes-zero-internal-scroll.spec.ts
+// asserts there is at most one of them and that its end is reachable.
+const SANCTIONED_SCROLL_OWNER_ANCHOR = 'data-informes-detail-scroll-owner="true"';
+const FORBIDDEN_SCROLLER =
+  /overflow-y-auto|overflow-y:\s*auto|overflow:\s*scroll|overflow-scroll/;
+
+/** Drops the opening tag of the sanctioned owner so the ban can run on the rest. */
+function stripSanctionedScrollOwner(source: string): string {
+  return source.replace(
+    new RegExp(`<[a-zA-Z]+\\s[^>]*${SANCTIONED_SCROLL_OWNER_ANCHOR}[^>]*>`, "g"),
+    "",
+  );
+}
+
 test("migrated consumers introduce no forbidden internal scroller", () => {
   for (const path of MIGRATED_CONSUMERS) {
     const source = readSource(path);
 
     assert.ok(
-      !/overflow-y-auto|overflow-y:\s*auto|overflow:\s*scroll|overflow-scroll/.test(
-        source,
-      ),
+      !FORBIDDEN_SCROLLER.test(stripSanctionedScrollOwner(source)),
       `${path}: an internal scroller is not an escape from a capacity bug`,
     );
+  }
+});
+
+test("the sanctioned detail scroll owner is never the rows canvas", () => {
+  const owners = MIGRATED_CONSUMERS.filter((path) =>
+    readSource(path).includes(SANCTIONED_SCROLL_OWNER_ANCHOR),
+  );
+
+  assert.equal(
+    owners.length,
+    1,
+    `exactly one migrated consumer may declare the sanctioned detail scroll owner, found ${owners.length}`,
+  );
+
+  for (const path of owners) {
+    const source = readSource(path);
+
+    // The exemption covers a DETAIL region. If the anchor ever lands on the
+    // element that also declares the rows canvas — or its pager reserve — the
+    // scroller IS papering over a capacity bug and the ban must bite again.
+    const openingTags = [
+      ...source.matchAll(
+        new RegExp(
+          `<[a-zA-Z]+\\s[^>]*${SANCTIONED_SCROLL_OWNER_ANCHOR}[^>]*>`,
+          "g",
+        ),
+      ),
+    ].map((match) => match[0]);
+
+    assert.ok(openingTags.length > 0, `${path}: sanctioned owner tag not found`);
+
+    for (const tag of openingTags) {
+      assert.equal(
+        tag.includes("data-dashboard-adaptive-rows-canvas"),
+        false,
+        `${path}: the rows canvas may never be the scroll owner`,
+      );
+      assert.equal(
+        tag.includes("data-dashboard-adaptive-reserved-region"),
+        false,
+        `${path}: a reserved region may never be the scroll owner`,
+      );
+    }
   }
 });
 

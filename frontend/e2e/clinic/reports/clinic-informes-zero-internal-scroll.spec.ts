@@ -24,8 +24,30 @@ type InternalScroller = {
   delta: number;
 };
 
+/**
+ * PR-TRUNC · the one sanctioned in-`main` scroll owner of this route.
+ *
+ * Until PR-TRUNC the detail canvas kept itself inside its bounded grid track by
+ * TRUNCATING every value in it — the report title, the clinic, the patient, the
+ * study type and the file name were all `truncate` — and the surplus that did
+ * not fit was swallowed by `overflow: hidden`. That is invisible to the census
+ * below, which only counts `auto|scroll` elements: a box that CLIPS 156px of a
+ * clinical record reads as "zero internal scrollers" exactly like a box that
+ * fits. The route was green while the record was unreadable, and the detail
+ * panel is the terminal surface for those fields — there is nothing deeper to
+ * open.
+ *
+ * The values now wrap and the surplus is scrolled inside this ONE owner instead
+ * of being destroyed. It is exempted here by its explicit anchor — never by its
+ * class list — and the exemption is paid for immediately: `assertDetailScrollOwner`
+ * asserts there is at most one, and that its end is actually reachable, so the
+ * exemption cannot become a new place for content to hide.
+ */
+const SANCTIONED_DETAIL_SCROLL_OWNER =
+  '[data-informes-detail-scroll-owner="true"]';
+
 async function readCoreInternalScrollers(page: Page): Promise<InternalScroller[]> {
-  return page.evaluate(() => {
+  return page.evaluate((sanctionedSelector) => {
     const root = document.querySelector<HTMLElement>("main.dashboard-main");
     if (!root) {
       return [];
@@ -34,8 +56,13 @@ async function readCoreInternalScrollers(page: Page): Promise<InternalScroller[]
     const candidates = [root, ...Array.from(root.querySelectorAll<HTMLElement>("*"))];
 
     return candidates.flatMap((element) => {
-      // Dialog bodies are the only sanctioned internal scroll containers and
-      // they are portaled outside main, so everything found here is core.
+      // Dialog bodies are portaled outside main, and the informes detail owner
+      // is the single sanctioned in-main scroller; everything else found here
+      // is core and forbidden.
+      if (element.matches(sanctionedSelector)) {
+        return [];
+      }
+
       const style = window.getComputedStyle(element);
       const scrollableY =
         ["auto", "scroll"].includes(style.overflowY) &&
@@ -60,7 +87,45 @@ async function readCoreInternalScrollers(page: Page): Promise<InternalScroller[]
         },
       ];
     });
-  });
+  }, SANCTIONED_DETAIL_SCROLL_OWNER);
+}
+
+/**
+ * The price of the exemption above: the sanctioned owner must be unique, and
+ * when it does overflow its end must be reachable. A scroller nobody can drive
+ * to the bottom is the same data loss the truncation was.
+ */
+async function assertDetailScrollOwner(page: Page, label: string) {
+  const owners = page.locator(SANCTIONED_DETAIL_SCROLL_OWNER);
+  const count = await owners.count();
+  expect(
+    count,
+    `${label}: exactly one sanctioned detail scroll owner (found ${count})`,
+  ).toBe(1);
+
+  const reachable = await page.evaluate(
+    ({ selector, tolerance }) => {
+      const owner = document.querySelector<HTMLElement>(selector);
+      if (!owner) return { present: false, overflowing: false, reachedEnd: false };
+      if (owner.scrollHeight - owner.clientHeight <= tolerance) {
+        return { present: true, overflowing: false, reachedEnd: true };
+      }
+      owner.scrollTop = owner.scrollHeight;
+      return {
+        present: true,
+        overflowing: true,
+        reachedEnd:
+          owner.scrollTop + owner.clientHeight >= owner.scrollHeight - tolerance,
+      };
+    },
+    { selector: SANCTIONED_DETAIL_SCROLL_OWNER, tolerance: TOLERANCE },
+  );
+
+  expect(reachable.present, `${label}: detail scroll owner present`).toBe(true);
+  expect(
+    reachable.reachedEnd,
+    `${label}: the end of the detail scroll owner must be reachable`,
+  ).toBe(true);
 }
 
 test.describe("clinic informes full route — zero internal core scroll", () => {
@@ -123,6 +188,8 @@ test.describe("clinic informes full route — zero internal core scroll", () => 
         await expect(
           page.locator('[data-informes-detail-action-dock="true"]'),
         ).toBeVisible();
+
+        await assertDetailScrollOwner(page, viewport.name);
       } else {
         // Mobile: compact selected summary + dialog-based detail.
         await expect(
@@ -158,6 +225,7 @@ test.describe("clinic informes full route — zero internal core scroll", () => 
       await detail.getByRole("tab", { name: section }).click();
       const scrollers = await readCoreInternalScrollers(page);
       expect(scrollers, `section ${section}: no core internal scroller`).toEqual([]);
+      await assertDetailScrollOwner(page, `section ${section}`);
       const external = await page.evaluate(
         () => document.documentElement.scrollHeight - document.documentElement.clientHeight,
       );

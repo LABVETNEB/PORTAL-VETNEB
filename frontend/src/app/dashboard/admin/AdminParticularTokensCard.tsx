@@ -1886,29 +1886,29 @@ export function AdminParticularTokensCard() {
                   <Badge variant={selectedToken.hasLinkedReport ? "default" : "outline"} className="h-5 px-1.5 text-[0.6875rem]">{selectedToken.hasLinkedReport ? "Informe vinculado" : "Sin informe"}</Badge>
                 </div>
                 <dl className="grid grid-cols-1 divide-y divide-vetneb-line/55 rounded-lg border border-vetneb-line/70 text-xs sm:grid-cols-2 sm:divide-x sm:divide-y-0">
-                  <div className="space-y-1 p-2.5">
+                  <div className="min-w-0 space-y-1 p-2.5">
                     <dt className="text-[0.6875rem] text-muted-foreground">Clínica / origen</dt>
-                    <dd className="font-medium">{formatTokenClinicLink(clinicOptions, selectedToken.clinicId)}</dd>
-                    <dd className="text-muted-foreground">{formatTokenSource(selectedToken)}</dd>
+                    <dd className="dashboard-detail-value font-medium">{formatTokenClinicLink(clinicOptions, selectedToken.clinicId)}</dd>
+                    <dd className="dashboard-detail-value text-muted-foreground">{formatTokenSource(selectedToken)}</dd>
                   </div>
-                  <div className="space-y-1 p-2.5">
+                  <div className="min-w-0 space-y-1 p-2.5">
                     <dt className="text-[0.6875rem] text-muted-foreground">Paciente / tutor</dt>
-                    <dd className="font-medium">{selectedToken.petName} · {selectedToken.tutorLastName}</dd>
-                    <dd className="text-muted-foreground">{selectedToken.petSpecies} · {selectedToken.petBreed} · {selectedToken.petSex} · {selectedToken.petAge}</dd>
+                    <dd className="dashboard-detail-value font-medium">{selectedToken.petName} · {selectedToken.tutorLastName}</dd>
+                    <dd className="dashboard-detail-value text-muted-foreground">{selectedToken.petSpecies} · {selectedToken.petBreed} · {selectedToken.petSex} · {selectedToken.petAge}</dd>
                   </div>
                 </dl>
-                <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
-                  <div><dt className="text-[0.6875rem] text-muted-foreground">Muestra</dt><dd className="truncate">{selectedToken.sampleLocation}</dd></div>
-                  <div><dt className="text-[0.6875rem] text-muted-foreground">Evolución</dt><dd className="truncate">{selectedToken.sampleEvolution}</dd></div>
-                  <div><dt className="text-[0.6875rem] text-muted-foreground">Extracción</dt><dd>{formatDate(selectedToken.extractionDate)}</dd></div>
-                  <div><dt className="text-[0.6875rem] text-muted-foreground">Envío</dt><dd>{formatDate(selectedToken.shippingDate)}</dd></div>
-                  <div><dt className="text-[0.6875rem] text-muted-foreground">Último acceso</dt><dd>{selectedToken.lastLoginAt ? formatDate(selectedToken.lastLoginAt) : "—"}</dd></div>
-                  <div><dt className="text-[0.6875rem] text-muted-foreground">Token seguro</dt><dd className="font-mono">Token ****{selectedToken.tokenLast4}</dd></div>
+                <dl className="grid grid-cols-1 gap-x-3 gap-y-2 text-xs sm:grid-cols-2">
+                  <div className="min-w-0"><dt className="text-[0.6875rem] text-muted-foreground">Muestra</dt><dd className="dashboard-detail-value">{selectedToken.sampleLocation}</dd></div>
+                  <div className="min-w-0"><dt className="text-[0.6875rem] text-muted-foreground">Evolución</dt><dd className="dashboard-detail-value">{selectedToken.sampleEvolution}</dd></div>
+                  <div className="min-w-0"><dt className="text-[0.6875rem] text-muted-foreground">Extracción</dt><dd className="dashboard-detail-value">{formatDate(selectedToken.extractionDate)}</dd></div>
+                  <div className="min-w-0"><dt className="text-[0.6875rem] text-muted-foreground">Envío</dt><dd className="dashboard-detail-value">{formatDate(selectedToken.shippingDate)}</dd></div>
+                  <div className="min-w-0"><dt className="text-[0.6875rem] text-muted-foreground">Último acceso</dt><dd className="dashboard-detail-value">{selectedToken.lastLoginAt ? formatDate(selectedToken.lastLoginAt) : "—"}</dd></div>
+                  <div className="min-w-0"><dt className="text-[0.6875rem] text-muted-foreground">Token seguro</dt><dd className="dashboard-detail-value font-mono">Token ****{selectedToken.tokenLast4}</dd></div>
                 </dl>
                 {selectedToken.detailsLesion ? (
-                  <div className="rounded-lg border border-vetneb-line/65 px-2.5 py-2 text-xs">
+                  <div className="min-w-0 rounded-lg border border-vetneb-line/65 px-2.5 py-2 text-xs">
                     <p className="text-[0.6875rem] text-muted-foreground">Detalle de lesión</p>
-                    <p className="line-clamp-2">{selectedToken.detailsLesion}</p>
+                    <p className="dashboard-detail-value">{selectedToken.detailsLesion}</p>
                   </div>
                 ) : null}
                 {selectedToken.hasLinkedReport && selectedToken.reportId ? (

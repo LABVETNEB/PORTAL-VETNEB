@@ -33,9 +33,17 @@ export type ModuleDialogProps = {
 
 /**
  * Compact, centered dialog for App Shell forms and confirmations. Content is
- * meant to be short or step-based; the panel is capped to the viewport and does
- * not introduce internal scroll on desktop (forms are split into steps/dialogs
- * rather than scrolled).
+ * meant to be short or step-based; the panel is capped to the viewport.
+ *
+ * Scroll ownership. The panel is `max-h-[88vh]` and `.clinical-modal` is
+ * `overflow-hidden`, so before PR-TRUNC any body taller than that remainder was
+ * CLIPPED with no way to reach the hidden part — the dialog is the terminal
+ * surface for a datum, so that clipping was silent data loss (measured on the
+ * admin/clinic token detail at 360x800: the panel reported scrollWidth 364 vs
+ * clientWidth 326). The body below is therefore the ONE local scroll owner of
+ * the dialog: it only scrolls when the content genuinely exceeds the cap, so
+ * short dialogs are byte-identical and no consumer gains a second scroller.
+ * Header and footer stay outside it and remain visible without scrolling.
  */
 export function ModuleDialog({
   open,
@@ -101,14 +109,14 @@ export function ModuleDialog({
             <div className="min-w-0">
               <Dialog.Title
                 id={titleId}
-                className="text-base font-semibold text-vetneb-ink"
+                className="break-words text-base font-semibold text-vetneb-ink"
               >
                 {title}
               </Dialog.Title>
               {description ? (
                 <Dialog.Description
                   id={descId}
-                  className="mt-0.5 text-xs text-muted-foreground"
+                  className="mt-0.5 break-words text-xs text-muted-foreground"
                 >
                   {description}
                 </Dialog.Description>
@@ -127,7 +135,12 @@ export function ModuleDialog({
             </Dialog.Close>
           </div>
 
-          <div className="min-h-0 flex-1 px-5 py-4">{children}</div>
+          <div
+            data-module-dialog-body="true"
+            className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4"
+          >
+            {children}
+          </div>
 
           {footer ? (
             <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-vetneb-line/70 px-5 py-3">
