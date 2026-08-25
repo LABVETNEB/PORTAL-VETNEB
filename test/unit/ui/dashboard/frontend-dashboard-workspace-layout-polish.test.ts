@@ -13,6 +13,8 @@ import { readDashboardCssSource } from "../../../helpers/read-dashboard-css-sour
 
 const WORKSPACE_PATH =
   "frontend/src/components/dashboard/DashboardModuleWorkspace.tsx";
+const WORKSPACE_HEADER_PATH =
+  "frontend/src/components/dashboard/WorkspaceHeader.tsx";
 const STICKY_ACTION_BAR_PATH =
   "frontend/src/components/dashboard/StickyActionBar.tsx";
 const DASHBOARD_SHELL_ROUTER_PATH =
@@ -113,12 +115,13 @@ test("PR-2 globals.css defines .dashboard-workspace-header without border separa
     polishSection.indexOf("}", headerIdx),
   );
   assert.ok(
-    headerRule.includes("border-bottom: 0;"),
+    headerRule.includes("border: 0;"),
     ".dashboard-workspace-header must not render a border-bottom separator",
   );
-  assert.ok(
-    headerRule.includes("padding-bottom: 0;"),
-    ".dashboard-workspace-header must not reserve padding-bottom",
+  assert.equal(
+    /padding-(?:block|bottom)\s*:/.test(headerRule),
+    false,
+    ".dashboard-workspace-header must reserve only inline padding",
   );
   assert.ok(
     headerRule.includes("margin-bottom: 0;"),
@@ -194,20 +197,20 @@ test("PR-2 DashboardModuleWorkspace applies dashboard-workspace-enter to section
   );
 });
 
-test("PR-2 DashboardModuleWorkspace header uses dashboard-workspace-header class", () => {
-  const source = read(WORKSPACE_PATH);
+test("PR-2 canonical WorkspaceHeader uses dashboard-workspace-header class", () => {
+  const source = read(WORKSPACE_HEADER_PATH);
   assert.ok(
     source.includes("dashboard-workspace-header"),
-    "DashboardModuleWorkspace header div must use dashboard-workspace-header class",
+    "WorkspaceHeader must keep the stable dashboard-workspace-header class",
   );
 });
 
-test("PR-2 DashboardModuleWorkspace does not use plain mb-4 on header div", () => {
-  const source = read(WORKSPACE_PATH);
+test("PR-2 canonical WorkspaceHeader does not use plain mb-4", () => {
+  const source = read(WORKSPACE_HEADER_PATH);
   assert.equal(
     source.includes('"mb-4 flex flex-col'),
     false,
-    "DashboardModuleWorkspace must not use plain mb-4 on header; use dashboard-workspace-header instead",
+    "WorkspaceHeader must use the dashboard-workspace-header geometry owner",
   );
 });
 

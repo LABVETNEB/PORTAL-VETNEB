@@ -436,6 +436,20 @@
 }
 /* dashboard-b07-navigation-geometry:end */
 
+/* dashboard-b11-workspace-header-geometry:start
+ *
+ * B11 - WorkspaceHeader geometry ledger. The primitive has one exact 40px
+ * target and a +/-2px runtime tolerance. The description remains available to
+ * assistive technology but does not participate in this height ledger. */
+.dashboard-app-shell {
+  --dash-workspace-header-h: 40px;
+  --dash-workspace-header-band: 2px;
+  --dash-workspace-header-title-size: 0.875rem;
+  --dash-workspace-header-title-weight: 600;
+  --dash-workspace-header-title-leading: 1.25rem;
+}
+/* dashboard-b11-workspace-header-geometry:end */
+
 /* dashboard-b09-mobile-navigation-geometry:start
  *
  * B09 - DashboardMobileNav geometry ledger.

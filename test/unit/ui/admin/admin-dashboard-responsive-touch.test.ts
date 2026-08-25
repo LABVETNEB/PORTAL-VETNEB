@@ -44,13 +44,19 @@ test("globals.css defines dashboard-table-responsive with overflow-x scroll", ()
   );
 });
 
-test("DashboardModuleWorkspace back button has min-h touch target", () => {
+test("DashboardModuleWorkspace back button fits B11 and stays absent from Admin mobile", () => {
   const source = read(
     "frontend/src/components/dashboard/DashboardModuleWorkspace.tsx",
   );
+  const css = readDashboardCssSource();
   assert.ok(
-    source.includes("min-h-[2.75rem]"),
-    "DashboardModuleWorkspace back button must declare min-h-[2.75rem] touch target",
+    source.includes("min-h-10"),
+    "the desktop back action must fit the canonical 40px WorkspaceHeader",
+  );
+  assert.match(
+    css,
+    /\[data-vetneb-app-shell-surface="admin"\][\s\S]*\[data-dashboard-module-workspace\][\s\S]*\.dashboard-workspace-header\s*\{\s*display:\s*none !important;/,
+    "Admin mobile must keep the B09 header reclaim instead of painting a sub-44px touch action",
   );
 });
 
