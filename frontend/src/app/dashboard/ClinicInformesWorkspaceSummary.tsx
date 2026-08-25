@@ -561,6 +561,7 @@ export function ClinicInformesWorkspaceSummary({
           }}
           title={`Informe #${selectedReport.id}`}
           description={selectedReport.patientName ?? "Sin nombre"}
+          scrollableBody
         >
           <div
             data-clinic-reports-detail-dialog="true"
@@ -571,7 +572,7 @@ export function ClinicInformesWorkspaceSummary({
                 <p className="text-[0.6875rem] text-muted-foreground">
                   Caso / Paciente
                 </p>
-                <p className="truncate text-sm font-semibold text-vetneb-ink">
+                <p className="dashboard-detail-value text-sm font-semibold text-vetneb-ink">
                   {selectedReport.patientName ?? "Sin nombre"}
                 </p>
               </div>
@@ -582,22 +583,26 @@ export function ClinicInformesWorkspaceSummary({
               />
             </div>
 
-            <dl className="grid grid-cols-2 gap-x-3 gap-y-2 rounded-lg border border-vetneb-line/70 px-3 py-2">
-              <div>
+            <dl className="grid grid-cols-1 gap-x-3 gap-y-2 rounded-lg border border-vetneb-line/70 px-3 py-2 sm:grid-cols-2">
+              <div className="min-w-0">
                 <dt className="text-[0.6875rem] text-muted-foreground">Estudio</dt>
-                <dd className="truncate font-medium">
+                <dd className="dashboard-detail-value font-medium">
                   {selectedReport.studyType ?? "Tipo sin registrar"}
                 </dd>
               </div>
-              <div>
+              <div className="min-w-0">
                 <dt className="text-[0.6875rem] text-muted-foreground">Fecha</dt>
-                <dd>{formatDate(selectedReport.uploadDate)}</dd>
+                <dd className="dashboard-detail-value">
+                  {formatDate(selectedReport.uploadDate)}
+                </dd>
               </div>
-              <div className="col-span-2 min-w-0">
+              <div className="min-w-0 sm:col-span-2">
                 <dt className="text-[0.6875rem] text-muted-foreground">
                   Archivo / Informe
                 </dt>
-                <dd className="truncate">{formatReportFile(selectedReport)}</dd>
+                <dd className="dashboard-detail-value">
+                  {formatReportFile(selectedReport)}
+                </dd>
               </div>
             </dl>
 

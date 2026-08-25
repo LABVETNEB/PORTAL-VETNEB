@@ -486,8 +486,14 @@ export default async function AdminPage({
             ? `${corsOrigins.length} origen(es) activo(s)`
             : "Sin orígenes configurados"}
         </p>
+        {/* PR-TRUNC. This is the terminal render of the active CORS origins —
+            the system-status INSPECTOR has no deeper surface — and `truncate`
+            showed only the first origin of the list. The sibling "Contacto
+            email" card already wraps `contactRecipients.join(", ")` with no
+            truncation in the same grid, so wrapping here is the consistent
+            behaviour, not a new risk. */}
         {corsOrigins.length > 0 ? (
-          <p className="mt-1 truncate text-xs text-muted-foreground">
+          <p className="dashboard-detail-value mt-1 text-xs text-muted-foreground">
             {corsOrigins.join(", ")}
           </p>
         ) : null}

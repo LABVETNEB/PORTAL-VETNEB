@@ -131,6 +131,7 @@ export const E2E_SUITE_CATALOG = [
   entry("e2e/platform/accessibility/dashboard-accessibility-keyboard.spec.ts", "platform", "accessibility", "dashboard keyboard accessibility", ["visual-contract"], ci),
   entry("e2e/platform/app-shell/dashboard-app-shell-visibility-contract.spec.ts", "platform", "app-shell", "app shell visibility", ["visual-contract"], ci),
   entry("e2e/platform/app-shell/dashboard-card-navigation-shell.spec.ts", "platform", "app-shell", "navigation and deep links", ["visual-contract"], ci),
+  entry("e2e/platform/app-shell/dashboard-detail-text-integrity.spec.ts", "platform", "app-shell", "detail text integrity", ["visual-contract"], ci, { criticality: "P1", fixture: "admin-populated-api-server", notes: "PR-TRUNC: DETAIL/DIALOG surfaces must render clinical values in full; long synthetic strings, admin + clinic." }),
   entry("e2e/platform/app-shell/dashboard-global-masked-master-detail.spec.ts", "platform", "app-shell", "masked master detail", ["visual-contract"], ci),
   entry("e2e/platform/app-shell/dashboard-internal-no-scroll-contract.spec.ts", "platform", "app-shell", "internal no-scroll", ["visual-contract"], ci),
   entry("e2e/platform/app-shell/dashboard-mobile-shell-nav-contract.spec.ts", "platform", "app-shell", "mobile shell navigation", ["visual-contract"], ci),

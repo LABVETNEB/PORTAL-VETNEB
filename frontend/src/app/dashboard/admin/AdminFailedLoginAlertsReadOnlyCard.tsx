@@ -40,6 +40,7 @@ import type {
   AdminFailedLoginAlertsSnapshot,
   AdminFailedLoginAlertSurface,
 } from "@/types";
+import { AdminFailedLoginDetailDialog } from "./AdminFailedLoginDetailDialog";
 import { AdminMobileOpsPager } from "./AdminMobileOpsPager";
 
 // Server pagination is now sized by the measured rows container (Zero-Scroll
@@ -380,6 +381,7 @@ export function AdminFailedLoginAlertsReadOnlyCard({
                   <TableHead>IP</TableHead>
                   <TableHead>User agent</TableHead>
                   <TableHead>Fecha</TableHead>
+                  <TableHead className="w-[4.5rem] text-right">Acción</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -407,17 +409,34 @@ export function AdminFailedLoginAlertsReadOnlyCard({
                       <TableCell className="text-xs text-muted-foreground">
                         {formatNullable(alert.ipAddress)}
                       </TableCell>
+                      {/* PR-TRUNC. The cell stays single-line: this table is a
+                          pitch-locked adaptive canvas (`row-pitch="compact"`,
+                          `td { block-size: var(--dash-row-pitch); overflow:
+                          hidden }`), so letting a ~130-character user agent
+                          wrap would trade a horizontal ellipsis for a VERTICAL
+                          clip and move the adaptive row capacity (A03). The
+                          truncation is legitimate ONLY because the "Ver" action
+                          below opens AdminFailedLoginDetailDialog, which renders
+                          the whole user agent — a real keyboard- and screen-
+                          reader-reachable surface, not a hover-only tooltip. */}
                       <TableCell className="max-w-xs truncate text-xs text-muted-foreground">
                         {formatNullable(alert.userAgent)}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">
                         {formatDateTime(alert.createdAt)}
                       </TableCell>
+                      <TableCell className="text-right">
+                        <AdminFailedLoginDetailDialog
+                          alert={alert}
+                          surfaceLabel={formatSurface(alert.surface)}
+                          reasonLabel={formatReason(alert.reason)}
+                        />
+                      </TableCell>
                     </TableRow>
                   ))
                 ) : isPending ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="p-3">
+                    <TableCell colSpan={8} className="p-3">
                       <LoadingState
                         variant="table"
                         compact
@@ -428,7 +447,7 @@ export function AdminFailedLoginAlertsReadOnlyCard({
                   </TableRow>
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={7} className="clinical-table-state">
+                    <TableCell colSpan={8} className="clinical-table-state">
                       {error ? (
                         "No se pudieron cargar los intentos fallidos."
                       ) : (
@@ -549,6 +568,13 @@ export function AdminFailedLoginAlertsReadOnlyCard({
                 </div>
                 <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
                   #{alert.id}
+                </span>
+                <span className="shrink-0">
+                  <AdminFailedLoginDetailDialog
+                    alert={alert}
+                    surfaceLabel={formatSurface(alert.surface)}
+                    reasonLabel={formatReason(alert.reason)}
+                  />
                 </span>
               </article>
             ))

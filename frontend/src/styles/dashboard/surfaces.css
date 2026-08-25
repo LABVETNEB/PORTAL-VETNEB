@@ -698,3 +698,41 @@
   background-color: var(--dash-color-field);
 }
 /* dashboard-b05-field-inversion:end */
+
+/* dashboard-detail-value-integrity:start */
+/*
+  PR-TRUNC · Terminal-surface text integrity.
+
+  A DETAIL / DIALOG / INSPECTOR is the LAST place a datum is rendered: there is
+  no deeper surface to open, so anything hidden there is hidden for good. The
+  audit measured that loss on the shipped dialogs — admin token detail at
+  360x800 showed "Muestra" with scrollWidth 528 against clientWidth 137 (26% of
+  the value readable) and clamped "Detalle de lesión" to 32px of a 96px text —
+  and the same shape repeated on the clinic token, admin report and clinic
+  report details at every one of the 13 canonical viewports.
+
+  This class is the single grammar those surfaces now use, so the guard in
+  test/architecture/dashboard-truncation-integrity.test.ts can census exactly
+  where full text is contractual instead of banning `truncate` repo-wide (a
+  collection row may still truncate legitimately — see §6 of the audit).
+
+  - `white-space: normal` undoes any inherited `nowrap`.
+  - `overflow-wrap: anywhere` is what actually rescues the unbroken values
+    (file names, opaque identifiers): unlike `break-word` it also lowers the
+    min-content contribution, so a grid/flex track can shrink to the container
+    instead of forcing horizontal overflow the panel would then clip.
+  - `min-width: 0` for the same reason on the element itself; the parent cell
+    carries it too where the value sits inside a grid item.
+  - No `overflow`, no `max-height`, no `-webkit-line-clamp`: nothing here may
+    hide a glyph. Height is absorbed by the dialog body's own scroll owner
+    (ModuleDialog) or the detail section canvas, never by clipping.
+*/
+@layer components {
+  .dashboard-detail-value {
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-overflow: clip;
+  }
+}
+/* dashboard-detail-value-integrity:end */

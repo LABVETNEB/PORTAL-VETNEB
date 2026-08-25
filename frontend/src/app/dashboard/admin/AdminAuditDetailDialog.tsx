@@ -14,6 +14,7 @@ export function AdminAuditDetailDialog({ row }: AdminAuditDetailDialogProps) {
     <ModuleDialog
       title={`Evento #${row.id}`}
       description={`${row.eventLabel} · ${row.date}`}
+      scrollableBody
       trigger={
         <Button
           type="button"
@@ -28,43 +29,43 @@ export function AdminAuditDetailDialog({ row }: AdminAuditDetailDialogProps) {
       }
     >
       <dl className="grid grid-cols-1 gap-x-4 gap-y-3 text-[13px] sm:grid-cols-2">
-        <div>
+        <div className="min-w-0">
           <dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             Código
           </dt>
-          <dd className="mt-0.5 break-words font-mono text-xs text-vetneb-ink">
+          <dd className="dashboard-detail-value mt-0.5 font-mono text-xs text-vetneb-ink">
             {row.eventCode}
           </dd>
         </div>
-        <div>
+        <div className="min-w-0">
           <dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             Fecha
           </dt>
-          <dd className="mt-0.5 text-vetneb-ink">{row.date}</dd>
+          <dd className="dashboard-detail-value mt-0.5 text-vetneb-ink">{row.date}</dd>
         </div>
-        <div>
+        <div className="min-w-0">
           <dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             Actor
           </dt>
-          <dd className="mt-0.5 text-vetneb-ink">{row.actor}</dd>
+          <dd className="dashboard-detail-value mt-0.5 text-vetneb-ink">{row.actor}</dd>
         </div>
-        <div>
+        <div className="min-w-0">
           <dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             Entidad
           </dt>
-          <dd className="mt-0.5 text-vetneb-ink">{row.entity}</dd>
+          <dd className="dashboard-detail-value mt-0.5 text-vetneb-ink">{row.entity}</dd>
         </div>
-        <div className="sm:col-span-2">
+        <div className="min-w-0 sm:col-span-2">
           <dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             Acción registrada
           </dt>
-          <dd className="mt-0.5 break-words text-vetneb-ink">{row.action}</dd>
+          <dd className="dashboard-detail-value mt-0.5 text-vetneb-ink">{row.action}</dd>
         </div>
-        <div className="rounded-lg border border-vetneb-line/70 bg-muted/25 px-3 py-2 sm:col-span-2">
+        <div className="min-w-0 rounded-lg border border-vetneb-line/70 bg-muted/25 px-3 py-2 sm:col-span-2">
           <dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             Detalle seguro
           </dt>
-          <dd className="mt-1 break-words text-xs leading-5 text-vetneb-ink/85">
+          <dd className="dashboard-detail-value mt-1 text-xs leading-5 text-vetneb-ink/85">
             {row.detail}
           </dd>
         </div>

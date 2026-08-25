@@ -346,8 +346,18 @@ export function InformesReportsList({
   }
 
   // Bounded detail canvas (desktop panel + mobile dialog body): compact
-  // header, segmented sections and a persistent action dock. No core
-  // scroller — every section fits its canvas; long values truncate.
+  // header, segmented sections and a persistent action dock.
+  //
+  // PR-TRUNC. This canvas used to keep every section inside its box by
+  // TRUNCATING the values — measured on the shipped build, the report title,
+  // the clinic, the patient, the study type and the file name were all
+  // `truncate`, so at 360x800 a long study type rendered ~15% of its
+  // characters and the rest was unreachable: the panel IS the terminal surface
+  // for those fields, there is nothing deeper to open. Values now wrap
+  // (`.dashboard-detail-value`) and the SECTION panel below owns the single
+  // local scroll owner, so extra height is scrolled inside the section instead
+  // of being clipped, and the header, the tablist and the action dock stay
+  // pinned and visible without scrolling.
   function renderReportDetailCanvas({
     actionDockSurface,
     exposeActionDock,
@@ -363,128 +373,144 @@ export function InformesReportsList({
 
     return (
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
-        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-vetneb-line/70 pb-3">
-          <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-              Detalle del informe
-            </p>
-            <h2
-              id="report-detail-heading"
-              className="mt-0.5 truncate text-base font-semibold text-vetneb-ink"
-            >
-              {getReportTitle(report)}
-            </h2>
-            <p className="truncate text-xs text-muted-foreground">
-              Clínica {report.clinicName ?? `#${report.clinicId}`}
-            </p>
-          </div>
-          <StatusBadge
-            status={report.status}
-            label={getReportStatusLabel(report.status)}
-          />
-        </div>
+        {/* The ONE local scroll owner of this detail. It wraps the header, the
+            tablist and the section body — everything that can grow once the
+            values wrap — while the action dock below stays OUTSIDE it and
+            therefore always visible without scrolling (AGENTS §10, "acciones
+            críticas visibles = 100%").
 
+            Measured need: at 1366x768 with a long report title and a long
+            clinic name the canvas reported scrollHeight 278 against
+            clientHeight 228, i.e. the bounded grid track clipped 50px of the
+            detail. Putting the owner only on the section body was not enough —
+            the header itself is what grew. */}
         <div
-          role="tablist"
-          aria-label="Secciones del detalle del informe"
-          data-informes-detail-sections="true"
-          className="dashboard-module-tablist shrink-0"
+          data-informes-detail-scroll-owner="true"
+          className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain"
         >
-          {REPORT_DETAIL_SECTIONS.map((section) => (
-            <button
-              key={section.id}
-              type="button"
-              role="tab"
-              aria-selected={detailSection === section.id}
-              data-informes-detail-section-tab={section.id}
-              onClick={() => setDetailSection(section.id)}
-              className="dashboard-module-tab focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85"
-            >
-              {section.label}
-            </button>
-          ))}
-        </div>
-
-        <div
-          className="flex min-h-0 flex-1 flex-col overflow-hidden"
-          data-informes-detail-section-panel={detailSection}
-        >
-          {detailSection === "resumen" ? (
-            <dl className="grid min-h-0 grid-cols-2 content-start gap-2 overflow-hidden xl:grid-cols-3">
-              <div className="surface-soft min-w-0">
-                <dt className="text-xs text-muted-foreground">Paciente</dt>
-                <dd className="mt-1 truncate font-semibold text-vetneb-ink">
-                  {report.patientName ?? "—"}
-                </dd>
-              </div>
-              <div className="surface-soft min-w-0">
-                <dt className="text-xs text-muted-foreground">Tipo de estudio</dt>
-                <dd className="mt-1 truncate font-semibold text-vetneb-ink">
-                  {report.studyType ?? "—"}
-                </dd>
-              </div>
-              <div className="surface-soft min-w-0">
-                <dt className="text-xs text-muted-foreground">Fecha</dt>
-                <dd className="mt-1 truncate font-semibold text-vetneb-ink">
-                  {formatDate(report.uploadDate)}
-                </dd>
-              </div>
-              <div className="surface-soft min-w-0">
-                <dt className="text-xs text-muted-foreground">Creado</dt>
-                <dd className="mt-1 truncate font-semibold text-vetneb-ink">
-                  {formatDate(report.createdAt)}
-                </dd>
-              </div>
-              <div className="surface-soft min-w-0">
-                <dt className="text-xs text-muted-foreground">Actualizado</dt>
-                <dd className="mt-1 truncate font-semibold text-vetneb-ink">
-                  {formatDate(report.updatedAt)}
-                </dd>
-              </div>
-              <div className="surface-soft min-w-0">
-                <dt className="text-xs text-muted-foreground">Estado</dt>
-                <dd className="mt-1 truncate font-semibold text-vetneb-ink">
-                  {getReportStatusLabel(report.status)}
-                </dd>
-              </div>
-            </dl>
-          ) : null}
-
-          {detailSection === "archivos" ? (
-            <div className="surface-soft min-w-0">
-              <p className="text-xs text-muted-foreground">Archivo / Informe</p>
-              <p className="mt-1 truncate font-semibold text-vetneb-ink">
-                {report.fileName ?? (report.hasFile ? "Disponible" : "—")}
+          <div className="flex shrink-0 items-start justify-between gap-3 border-b border-vetneb-line/70 pb-3">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                Detalle del informe
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {report.hasFile
-                  ? "El documento está disponible en el dock de acciones."
-                  : "El informe aún no tiene archivo vinculado."}
+              <h2
+                id="report-detail-heading"
+                className="dashboard-detail-value mt-0.5 text-base font-semibold text-vetneb-ink"
+              >
+                {getReportTitle(report)}
+              </h2>
+              <p className="dashboard-detail-value text-xs text-muted-foreground">
+                Clínica {report.clinicName ?? `#${report.clinicId}`}
               </p>
             </div>
-          ) : null}
+            <StatusBadge
+              status={report.status}
+              label={getReportStatusLabel(report.status)}
+            />
+          </div>
 
-          {detailSection === "timeline" ? (
-            <section
-              className="flex min-h-0 flex-col gap-2 overflow-hidden"
-              aria-labelledby="study-timeline-heading"
-            >
-              <div className="shrink-0">
-                <h3
-                  id="study-timeline-heading"
-                  className="text-sm font-semibold text-vetneb-ink"
-                >
-                  Línea de tiempo del estudio
-                </h3>
-                <p className="truncate text-xs text-muted-foreground">
-                  Pasos derivados del estado y fechas ya disponibles.
+          <div
+            role="tablist"
+            aria-label="Secciones del detalle del informe"
+            data-informes-detail-sections="true"
+            className="dashboard-module-tablist shrink-0"
+          >
+            {REPORT_DETAIL_SECTIONS.map((section) => (
+              <button
+                key={section.id}
+                type="button"
+                role="tab"
+                aria-selected={detailSection === section.id}
+                data-informes-detail-section-tab={section.id}
+                onClick={() => setDetailSection(section.id)}
+                className="dashboard-module-tab focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85"
+              >
+                {section.label}
+              </button>
+            ))}
+          </div>
+
+          <div
+            className="flex min-h-0 flex-1 flex-col"
+            data-informes-detail-section-panel={detailSection}
+          >
+            {detailSection === "resumen" ? (
+              <dl className="grid min-h-0 grid-cols-1 content-start gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                <div className="surface-soft min-w-0">
+                  <dt className="text-xs text-muted-foreground">Paciente</dt>
+                  <dd className="dashboard-detail-value mt-1 font-semibold text-vetneb-ink">
+                    {report.patientName ?? "—"}
+                  </dd>
+                </div>
+                <div className="surface-soft min-w-0">
+                  <dt className="text-xs text-muted-foreground">Tipo de estudio</dt>
+                  <dd className="dashboard-detail-value mt-1 font-semibold text-vetneb-ink">
+                    {report.studyType ?? "—"}
+                  </dd>
+                </div>
+                <div className="surface-soft min-w-0">
+                  <dt className="text-xs text-muted-foreground">Fecha</dt>
+                  <dd className="dashboard-detail-value mt-1 font-semibold text-vetneb-ink">
+                    {formatDate(report.uploadDate)}
+                  </dd>
+                </div>
+                <div className="surface-soft min-w-0">
+                  <dt className="text-xs text-muted-foreground">Creado</dt>
+                  <dd className="dashboard-detail-value mt-1 font-semibold text-vetneb-ink">
+                    {formatDate(report.createdAt)}
+                  </dd>
+                </div>
+                <div className="surface-soft min-w-0">
+                  <dt className="text-xs text-muted-foreground">Actualizado</dt>
+                  <dd className="dashboard-detail-value mt-1 font-semibold text-vetneb-ink">
+                    {formatDate(report.updatedAt)}
+                  </dd>
+                </div>
+                <div className="surface-soft min-w-0">
+                  <dt className="text-xs text-muted-foreground">Estado</dt>
+                  <dd className="dashboard-detail-value mt-1 font-semibold text-vetneb-ink">
+                    {getReportStatusLabel(report.status)}
+                  </dd>
+                </div>
+              </dl>
+            ) : null}
+
+            {detailSection === "archivos" ? (
+              <div className="surface-soft min-w-0">
+                <p className="text-xs text-muted-foreground">Archivo / Informe</p>
+                <p className="dashboard-detail-value mt-1 font-semibold text-vetneb-ink">
+                  {report.fileName ?? (report.hasFile ? "Disponible" : "—")}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {report.hasFile
+                    ? "El documento está disponible en el dock de acciones."
+                    : "El informe aún no tiene archivo vinculado."}
                 </p>
               </div>
-              <div className="min-h-0 flex-1 overflow-hidden">
-                <StudyTimeline steps={selectedReportTimelineSteps} />
-              </div>
-            </section>
-          ) : null}
+            ) : null}
+
+            {detailSection === "timeline" ? (
+              <section
+                className="flex min-h-0 flex-col gap-2 overflow-hidden"
+                aria-labelledby="study-timeline-heading"
+              >
+                <div className="shrink-0">
+                  <h3
+                    id="study-timeline-heading"
+                    className="text-sm font-semibold text-vetneb-ink"
+                  >
+                    Línea de tiempo del estudio
+                  </h3>
+                  <p className="dashboard-detail-value text-xs text-muted-foreground">
+                    Pasos derivados del estado y fechas ya disponibles.
+                  </p>
+                </div>
+                <div className="min-h-0 flex-1 overflow-hidden">
+                  <StudyTimeline steps={selectedReportTimelineSteps} />
+                </div>
+              </section>
+            ) : null}
+          </div>
         </div>
 
         <section
@@ -499,7 +525,7 @@ export function InformesReportsList({
           >
             Acciones
           </h3>
-          <p className="truncate text-xs text-muted-foreground">
+          <p className="dashboard-detail-value text-xs text-muted-foreground">
             Visualización y descarga del archivo disponible.
           </p>
           <div className="mt-2">
@@ -741,7 +767,7 @@ export function InformesReportsList({
             >
               <div
                 data-informes-detail-dialog="true"
-                className="flex min-h-0 flex-col overflow-hidden"
+                className="flex min-h-0 flex-1 flex-col overflow-hidden"
               >
                 {renderReportDetailCanvas({
                   actionDockSurface: "dialog",

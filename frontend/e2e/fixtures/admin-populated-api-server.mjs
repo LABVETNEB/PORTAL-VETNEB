@@ -1,5 +1,17 @@
 import { createServer } from "node:http";
 
+// PR-TRUNC · Deliberately long text dataset (additive, opt-in, test-only).
+// The truncation audit must observe what a LONG clinical value does to the
+// clinic report surfaces, and those two (/dashboard and /dashboard/informes)
+// are rendered by SERVER components: their payload never leaves the Next
+// process, so Playwright's `page.route` cannot substitute it. The gate is
+// `hasLongTextDataset` below, strictly conjunctive like the A03 one.
+import {
+  LONG_TEXT_CLINIC_REPORT,
+  LONG_TEXT_COOKIE_NAME,
+  LONG_TEXT_COOKIE_VALUE,
+} from "../helpers/long-text-dataset.mjs";
+
 const HOST = "127.0.0.1";
 const PORT = 3107;
 const POPULATED_ADMIN_SESSION = "e2e_populated_admin_session";
@@ -823,6 +835,50 @@ function hasA03AdaptiveDataset(request) {
 }
 
 /**
+ * PR-TRUNC opt-in gate. Conjunctive exactly like {@link hasA03AdaptiveDataset}:
+ * the auxiliary cookie ALONE never activates the long-text dataset.
+ */
+function hasLongTextDataset(request) {
+  if (!hasPopulatedClinicSession(request)) {
+    return false;
+  }
+
+  return (request.headers.cookie ?? "")
+    .split(";")
+    .map((cookie) => cookie.trim())
+    .includes(`${LONG_TEXT_COOKIE_NAME}=${LONG_TEXT_COOKIE_VALUE}`);
+}
+
+/**
+ * Rewrites the FIRST report of a page with the long synthetic values. Only the
+ * first item changes, so row count, pagination totals and every adaptive
+ * capacity the A03 baseline measures stay exactly as they are: this dataset
+ * makes text long, never longer lists.
+ */
+function withLongClinicReportText(page) {
+  if (!Array.isArray(page.reports) || page.reports.length === 0) {
+    return page;
+  }
+
+  const [first, ...rest] = page.reports;
+
+  return {
+    ...page,
+    reports: [
+      {
+        ...first,
+        patientName: LONG_TEXT_CLINIC_REPORT.patientName,
+        studyType: LONG_TEXT_CLINIC_REPORT.studyType,
+        clinicName: LONG_TEXT_CLINIC_REPORT.clinicName,
+        fileName: LONG_TEXT_CLINIC_REPORT.fileName,
+        hasFile: true,
+      },
+      ...rest,
+    ],
+  };
+}
+
+/**
  * Pagination semantics of the A03 datasets, mirroring what the real logistics
  * endpoints do (`server/routes/logistics-field-visits.fastify.ts`:
  * `parsePositiveInt(request.query.limit, 50, 100)`):
@@ -1029,7 +1085,12 @@ const server = createServer((request, response) => {
       url.searchParams.has("studyType")
         ? filterClinicReports(url)
         : CLINIC_REPORTS;
-    sendJson(response, 200, paginateClinicReports(reports, url));
+    const page = paginateClinicReports(reports, url);
+    sendJson(
+      response,
+      200,
+      hasLongTextDataset(request) ? withLongClinicReportText(page) : page,
+    );
     return;
   }
 
@@ -1037,10 +1098,13 @@ const server = createServer((request, response) => {
     hasPopulatedClinicSession(request) &&
     url.pathname === "/api/reports/search"
   ) {
+    const searchPage = paginateClinicReports(filterClinicReports(url), url);
     sendJson(
       response,
       200,
-      paginateClinicReports(filterClinicReports(url), url),
+      hasLongTextDataset(request)
+        ? withLongClinicReportText(searchPage)
+        : searchPage,
     );
     return;
   }
