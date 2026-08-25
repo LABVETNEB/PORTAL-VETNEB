@@ -1524,6 +1524,7 @@ export function ClinicParticularTokensCard() {
           }}
           title={`Token ****${selectedToken.tokenLast4}`}
           description={`${selectedToken.petName} · ${selectedToken.tutorLastName}`}
+          scrollableBody
         >
           <div
             data-clinic-access-detail-dialog="true"

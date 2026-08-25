@@ -14,6 +14,7 @@ export function AdminAuditDetailDialog({ row }: AdminAuditDetailDialogProps) {
     <ModuleDialog
       title={`Evento #${row.id}`}
       description={`${row.eventLabel} · ${row.date}`}
+      scrollableBody
       trigger={
         <Button
           type="button"

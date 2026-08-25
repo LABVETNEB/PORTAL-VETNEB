@@ -900,6 +900,7 @@ export function AdminReportsCard() {
           description={
             selectedReport.clinicName || `Clínica #${selectedReport.clinicId}`
           }
+          scrollableBody
         >
           <div className="space-y-3 text-[0.8125rem]">
             <div className="grid grid-cols-1 gap-x-3 gap-y-2 rounded-md border border-vetneb-line/70 px-3 py-2 sm:grid-cols-2">

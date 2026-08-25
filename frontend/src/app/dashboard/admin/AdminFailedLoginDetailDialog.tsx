@@ -46,6 +46,7 @@ export function AdminFailedLoginDetailDialog({
     <ModuleDialog
       title={`Intento fallido #${alert.id}`}
       description={`${surfaceLabel} · ${reasonLabel}`}
+      scrollableBody
       trigger={
         <Button
           type="button"

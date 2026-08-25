@@ -436,7 +436,7 @@ export function AdminFailedLoginAlertsReadOnlyCard({
                   ))
                 ) : isPending ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="p-3">
+                    <TableCell colSpan={8} className="p-3">
                       <LoadingState
                         variant="table"
                         compact
@@ -447,7 +447,7 @@ export function AdminFailedLoginAlertsReadOnlyCard({
                   </TableRow>
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={7} className="clinical-table-state">
+                    <TableCell colSpan={8} className="clinical-table-state">
                       {error ? (
                         "No se pudieron cargar los intentos fallidos."
                       ) : (

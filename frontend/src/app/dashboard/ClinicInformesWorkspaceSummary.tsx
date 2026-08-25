@@ -561,6 +561,7 @@ export function ClinicInformesWorkspaceSummary({
           }}
           title={`Informe #${selectedReport.id}`}
           description={selectedReport.patientName ?? "Sin nombre"}
+          scrollableBody
         >
           <div
             data-clinic-reports-detail-dialog="true"

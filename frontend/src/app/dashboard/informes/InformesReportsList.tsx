@@ -767,7 +767,7 @@ export function InformesReportsList({
             >
               <div
                 data-informes-detail-dialog="true"
-                className="flex min-h-0 flex-col overflow-hidden"
+                className="flex min-h-0 flex-1 flex-col overflow-hidden"
               >
                 {renderReportDetailCanvas({
                   actionDockSurface: "dialog",

@@ -20,6 +20,19 @@ export type ModuleDialogProps = {
   busy?: boolean;
   closeLabel?: string;
   /**
+   * PR-TRUNC follow-up. Opt-in local scroll owner for the body, scoped to
+   * this dialog instance only. Off by default: the panel stays the original
+   * compact/step-based contract (capped to the viewport, no internal
+   * scroller) so short forms and confirmations are byte-identical to before.
+   * Set only by long-form DETAIL/DIALOG/INSPECTOR consumers whose content can
+   * genuinely exceed `max-h-[88vh]` — the body becomes their single reachable
+   * scroll owner instead of letting `.clinical-modal`'s `overflow-hidden`
+   * clip it. A consumer that already owns its own internal scroll region
+   * (e.g. the informes master-detail canvas) must NOT set this: it would
+   * compete with that region instead of letting it size correctly.
+   */
+  scrollableBody?: boolean;
+  /**
    * B05: mount the Radix portal under `[data-dashboard-portal-root="true"]`
    * (a dedicated, always-empty child of `.dashboard-app-shell`) instead of
    * `document.body`, so CSS custom properties declared on `.dashboard-app-shell`
@@ -33,17 +46,22 @@ export type ModuleDialogProps = {
 
 /**
  * Compact, centered dialog for App Shell forms and confirmations. Content is
- * meant to be short or step-based; the panel is capped to the viewport.
+ * meant to be short or step-based; the panel is capped to the viewport and
+ * does not scroll internally by default.
  *
  * Scroll ownership. The panel is `max-h-[88vh]` and `.clinical-modal` is
- * `overflow-hidden`, so before PR-TRUNC any body taller than that remainder was
- * CLIPPED with no way to reach the hidden part — the dialog is the terminal
- * surface for a datum, so that clipping was silent data loss (measured on the
- * admin/clinic token detail at 360x800: the panel reported scrollWidth 364 vs
- * clientWidth 326). The body below is therefore the ONE local scroll owner of
- * the dialog: it only scrolls when the content genuinely exceeds the cap, so
- * short dialogs are byte-identical and no consumer gains a second scroller.
- * Header and footer stay outside it and remain visible without scrolling.
+ * `overflow-hidden`, so a body taller than that remainder is CLIPPED with no
+ * way to reach the hidden part unless something scrolls it — the dialog is
+ * the terminal surface for a datum, so that clipping is silent data loss
+ * (measured on the admin/clinic token detail at 360x800: the panel reported
+ * scrollWidth 364 vs clientWidth 326). A GLOBAL scroller on every instance
+ * would fix that but breaks the original compact/step-based contract for
+ * short forms and can bury a consumer's own critical actions or internal
+ * scroll region under a second, redundant one. So the body is a flex column
+ * (letting a consumer's child stretch to its full height when it needs to)
+ * and only becomes a scroll owner when `scrollableBody` opts in, per
+ * instance. Header and footer always stay outside it and remain visible
+ * without scrolling.
  */
 export function ModuleDialog({
   open,
@@ -56,6 +74,7 @@ export function ModuleDialog({
   busy = false,
   closeLabel = "Cerrar",
   dashboardScopedPortal = false,
+  scrollableBody = false,
 }: ModuleDialogProps) {
   const titleId = useId();
   const descId = useId();
@@ -137,7 +156,9 @@ export function ModuleDialog({
 
           <div
             data-module-dialog-body="true"
-            className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4"
+            className={`flex min-h-0 flex-1 flex-col px-5 py-4 ${
+              scrollableBody ? "overflow-y-auto overscroll-contain" : ""
+            }`}
           >
             {children}
           </div>

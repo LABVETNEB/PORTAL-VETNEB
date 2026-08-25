@@ -1861,6 +1861,7 @@ export function AdminParticularTokensCard() {
           busy={revokingTokenId === selectedToken.id || isSelectedTrackingUpdating}
           title={`Token ****${selectedToken.tokenLast4}`}
           description={formatTokenTitle(clinicOptions, selectedToken)}
+          scrollableBody
           footer={
             <Button type="button" variant="destructive" size="sm" disabled={revokingTokenId === selectedToken.id} onClick={() => void handleDeleteToken(selectedToken)}>
               {revokingTokenId === selectedToken.id ? "Eliminando…" : "Eliminar token"}

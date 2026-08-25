@@ -57,6 +57,7 @@ export function AdminUserRoleDetailDialog({
     <ModuleDialog
       title={`Usuario #${user.userId}`}
       description={`${userTypeLabel} · ${roleLabel}`}
+      scrollableBody
       trigger={
         <Button
           type="button"
