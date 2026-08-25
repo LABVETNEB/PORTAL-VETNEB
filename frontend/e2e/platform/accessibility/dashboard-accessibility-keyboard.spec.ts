@@ -323,8 +323,10 @@ test.describe("Admin module hub — keyboard & a11y (PR-8)", () => {
     await page.goto("/dashboard/admin?module=admin");
     const workspace = page.locator('[data-dashboard-module-workspace="admin"]');
     await expect(workspace).toBeVisible({ timeout: 8_000 });
-    const ariaLabel = await workspace.getAttribute("aria-label");
-    expect(ariaLabel).toBeTruthy();
-    expect((ariaLabel ?? "").length).toBeGreaterThan(0);
+    // B11: the canonical WorkspaceHeader owns the title, so the section takes
+    // its accessible name from `aria-labelledby` instead of a literal
+    // `aria-label`. Assert the computed name, which also proves the reference
+    // resolves to real text.
+    await expect(workspace).toHaveAccessibleName(/\S/);
   });
 });

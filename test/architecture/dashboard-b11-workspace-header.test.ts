@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
@@ -33,6 +32,13 @@ const EXPECTED_CONSUMERS = [
 
 function read(path: string): string {
   return readFileSync(resolve(REPO_ROOT, path), "utf8").replace(/\r\n/g, "\n");
+}
+
+/** Comments name neighbouring owners on purpose; fences read code only. */
+function stripComments(source: string): string {
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[^:])\/\/.*$/gm, "$1");
 }
 
 function sourceFiles(path: string): string[] {
@@ -140,14 +146,48 @@ test("B11 · description is programmatic and does not own permanent layout heigh
   assert.equal(header.includes("hidden"), false);
 });
 
-test("B11 · DashboardPageHeader, B10 shell and B09 mobile nav stay outside the diff", () => {
-  const changed = execFileSync("git", ["status", "--short", "--untracked-files=all"], {
-    encoding: "utf8",
-  });
+/**
+ * B09/B10/B15 fence, source-backed on purpose. A working-tree `git status` is
+ * empty in any clean CI checkout, so it cannot witness a committed scope
+ * violation — it only ever sees leftover local edits. These invariants are read
+ * from the checked-out commit itself and hold in CI and locally alike: B11 must
+ * not leak its primitive into the surfaces it does not own, and must not absorb
+ * them either.
+ */
+test("B11 · DashboardPageHeader, B10 shell and B09 mobile nav stay outside B11", () => {
+  const B11_SURFACES = [
+    "WorkspaceHeader",
+    "data-workspace-header",
+    "--dash-workspace-header-h",
+  ] as const;
+
+  // Directional fence 1: B11 does not reach into B09/B10 surfaces.
   for (const path of [PAGE_HEADER, CLINIC_SHELL, MOBILE_NAV]) {
-    assert.equal(changed.includes(path), false, `${path} is outside B11`);
+    assert.ok(existsSync(resolve(REPO_ROOT, path)), `${path} must still exist`);
+    const source = stripComments(read(path));
+    for (const surface of B11_SURFACES) {
+      assert.equal(
+        source.includes(surface),
+        false,
+        `${path} is outside B11: it must not reach into ${surface}`,
+      );
+    }
   }
-  assert.equal(changed.includes("WorkspaceScaffold"), false, "B15 is outside B11");
+
+  // Directional fence 2: B11 does not absorb them — each keeps its own owner.
+  for (const [path, owner] of [
+    [PAGE_HEADER, "export function DashboardPageHeader({"],
+    [CLINIC_SHELL, "export function ClinicDashboardShell({"],
+    [MOBILE_NAV, "export function DashboardMobileNav({"],
+  ] as const) {
+    assert.ok(read(path).includes(owner), `${path} must keep owning ${owner}`);
+  }
+
+  // B15 has not started: no source file names the scaffold.
+  const scaffoldOwners = sourceFiles("frontend/src").filter((path) =>
+    stripComments(read(path)).includes("WorkspaceScaffold"),
+  );
+  assert.deepEqual(scaffoldOwners, [], "B15 WorkspaceScaffold is outside B11");
 });
 
 test("B11 · runtime contract is catalogued with A02/A03/A08 ownership", () => {

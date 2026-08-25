@@ -23,8 +23,8 @@ Incluido:
 - Semántica `aria-labelledby` / `aria-describedby` con descripción `sr-only`.
 - Guard estático B11, spec E2E B11 y alta en el catálogo.
 - Realineación A02 dirigida a B11, sin absorber el catch-up histórico B09.
-- A03: 12 cambios Win32 atribuibles a B11 y cinco normalizaciones preexistentes
-  separadas; A08 validado sin baseline propio.
+- A03: 12 cambios Win32 atribuibles a B11. Las cinco hojas de drift preexistente
+  detectadas quedan FUERA de este PR; A08 validado sin baseline propio.
 
 No-alcance:
 
@@ -102,7 +102,7 @@ no una recaptura completa.
 ```text
 A03 = PASSED 16/16
 B11_WIN32_TARGETED_REALIGNMENT = 12 leafKey / 56 campos
-PREEXISTING_A03_DRIFT_NORMALIZATION = 5 leafKey / 29 campos · NOT_B11
+PREEXISTING_A03_DRIFT_DETECTED = 5 leafKey / 29 campos · NOT_B11 · NOT_IN_THIS_PR
 ```
 
 B11 causes targeted adaptive-capacity changes where recovered vertical budget crosses a row
@@ -112,9 +112,12 @@ descripción fuera del flujo permanente.
 
 Durante esa validación aparecieron cinco hojas / 29 campos de drift preexistente: tres
 `admin-particular-tokens` mobile, una `admin-pricing` mobile y una
-`logistics-bounded-canvas` full-route. Se normalizaron separadamente como prerequisite de
-cierre y no se atribuyen a B11. Linux no se derivó desde Win32. La corrida posterior determina
-el estado final: **PASSED 16/16**, `195/195` registros primarios y `234/234` hojas.
+`logistics-bounded-canvas` full-route. **No se absorben en este PR**: conservan sus valores
+de base. Las cinco viven estrictamente por debajo de 768px, donde el header de workspace es
+`display:none`, de modo que B11 no puede ser su causa; congelarlas aquí convertiría
+regresiones ajenas en resultados esperados y A03 dejaría de detectarlas. Quedan para una tarea
+de baseline propia. Linux no se derivó desde Win32. La corrida posterior determina el estado
+final: **PASSED 16/16**, `195/195` registros primarios y `234/234` hojas.
 
 ### A08 — zero scroll
 
@@ -140,7 +143,7 @@ y los deep links se preservan.
 | `B11_TARGETED_E2E` | **PASSED** · 4/4 |
 | A02 dirigido | **PASSED** · 15 superficies × 8 viewports · 120 registros |
 | A02 móvil | **UNCHANGED** · 75/75 registros B09 preservados desde HEAD |
-| A03 | **PASSED** · 16/16 · 195 primarios / 234 hojas · 12 B11 + 5 preexistentes normalizados |
+| A03 | **PASSED** · 16/16 · 195 primarios / 234 hojas · 12 B11; 5 preexistentes detectados y NO absorbidos |
 | A08 | **PASSED** · evidencia previa 21/21 · 273 combinaciones |
 | `pnpm --dir frontend lint` | **PASSED** · evidencia previa; no repetido por cleanup |
 | `pnpm --dir frontend typecheck` | **PASSED** · evidencia previa; no repetido por cleanup |
@@ -149,8 +152,8 @@ y los deep links se preservan.
 
 ## 7. Riesgos residuales
 
-1. A02 móvil conserva drift Win32 preexistente hasta una tarea de baseline independiente;
-   B11 no lo convierte en deuda propia.
+1. A02 móvil y las cinco hojas A03 conservan drift Win32 preexistente hasta una tarea de
+   baseline independiente; B11 no lo convierte en deuda propia ni lo congela como esperado.
 2. El régimen compacto del app bar superior para alturas cortas no pertenece a B11.
 3. B15 todavía debe consolidar el scaffold; B11 deliberadamente sólo fija el owner del header.
 
@@ -158,8 +161,7 @@ y los deep links se preservan.
 
 El rollback elimina `WorkspaceHeader`, restaura el markup inline en
 `DashboardModuleWorkspace`, revierte los tokens/reglas B11 y devuelve catálogo, guards, los
-120 registros A02 dirigidos y los 17 registros A03 (12 B11 + 5 preexistentes) a su estado
-anterior. A08 no cambia. No existe migración, estado persistido ni cambio de contrato
+120 registros A02 dirigidos y los 12 registros A03 de B11 a su estado anterior. A08 no cambia. No existe migración, estado persistido ni cambio de contrato
 HTTP. La reversión es enteramente frontend y de composición/estilo.
 
 ## 9. Estado local de entrega
