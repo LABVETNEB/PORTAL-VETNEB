@@ -22,9 +22,10 @@ Incluido:
 - Tokens y CSS de la banda de 40px.
 - Semántica `aria-labelledby` / `aria-describedby` con descripción `sr-only`.
 - Guard estático B11, spec E2E B11 y alta en el catálogo.
-- Realineación A02 dirigida a B11, sin absorber el catch-up histórico B09.
-- A03: 12 cambios Win32 atribuibles a B11. Las cinco hojas de drift preexistente
-  detectadas quedan FUERA de este PR; A08 validado sin baseline propio.
+- Realineación parcial A02 Linux basada exclusivamente en payloads reales del artifact
+  de E2E Completeness; los registros sin captura Linux continúan pendientes.
+- Realineación A03 Linux basada exclusivamente en las 234 observaciones reales del
+  artifact; A08 validado sin baseline propio.
 
 No-alcance:
 
@@ -68,9 +69,9 @@ cubren 15 módulos adaptativos: 10 admin (`admin`, `admin-report-upload`, `admin
 | Semántica | `section` enlazada a `h2` y descripción mediante ids estables de `useId` |
 | Descripción | permanece en el DOM como `sr-only`; sale del flujo visual permanente |
 
-La acción «Volver» usa una altura de 40px dentro del workspace desktop. En admin móvil,
-la cabecera de workspace continúa oculta por el contrato B09; la acción táctil visible no
-se achicó ni se duplicó.
+La acción «Volver» usa una altura de 40px dentro del workspace desktop. El `display:none`
+mobile aplica únicamente a ADMIN por el contrato B09; CLÍNICA conserva `WorkspaceHeader`
+en mobile.
 
 ## 4. Deep links y shell
 
@@ -84,40 +85,34 @@ transportes, endpoints, métodos ni payloads.
 ### A02 — geometría
 
 ```text
-A02_TARGETED_REALIGNMENT = PASSED
+A02_LINUX = 120 STALE / 56 REAL / 64 PENDING
 ```
 
-Se midieron únicamente las 15 superficies que consumen `DashboardModuleWorkspace`. La
-fixture realinea sus ocho viewports desktop/tablet: **120 registros**, todos con deltas
-confinados a `moduleHeader.height` y geometría descendiente de la banda de 40px.
+Las observaciones A02 anteriores eran Win32 local, no una captura cross-platform. El artifact
+Linux aporta únicamente los payloads reales de `admin-informes`, `admin-clinicas`,
+`admin-tokens`, `admin-sesiones`, `admin-usuarios`, `admin-auditoria` y `clinic-informes`:
+**56 registros desktop/tablet**. Solo esos registros se realinean en
+`platformRecords.linux`.
 
-Los 75 registros móviles de esas superficies permanecen byte-idénticos a HEAD. Así B11 no
-absorbe el drift histórico B09 observado en app bar, module rail y bottom navigation. También
-quedan intactos admin hub, las cinco rutas completas de clínica, el helper A02 y todo Linux.
-La metadata global `baseCommit` / `capturedAt` se preserva porque esto es un overlay dirigido,
-no una recaptura completa.
+Los otros **64 registros Linux** de ocho superficies verdes pero stale quedan sin modificar
+hasta contar con captura Linux real. No se derivaron desde Win32 ni desde mensajes de fallo.
+La metadata global `baseCommit` / `capturedAt` se preserva porque es un overlay parcial, no
+una recaptura completa.
 
 ### A03 — límites adaptativos
 
 ```text
-A03 = PASSED 16/16
-B11_WIN32_TARGETED_REALIGNMENT = 12 leafKey / 56 campos
-PREEXISTING_A03_DRIFT_DETECTED = 5 leafKey / 29 campos · NOT_B11 · NOT_IN_THIS_PR
+A03_LINUX = 234 OBSERVACIONES / 11 LEAVES / 33 CAMPOS
 ```
 
-B11 causes targeted adaptive-capacity changes where recovered vertical budget crosses a row
-threshold. La fixture Win32 realinea 12 hojas / 56 campos de consumidores
-`DashboardModuleWorkspace` directamente atribuibles a la banda canónica de 40px y a la
-descripción fuera del flujo permanente.
+Las observaciones A03 anteriores eran Win32 local, no una captura cross-platform. Se usaron
+las **234 observaciones Linux reales** del artifact para realinear exactamente **11 leaves** y
+sus tres campos de capacidad (`limit`, `offset`, `secondPageCount`): **33 campos**. Los demás
+leaves Linux, incluido `source`, quedan intactos; no hubo derivación desde Win32.
 
-Durante esa validación aparecieron cinco hojas / 29 campos de drift preexistente: tres
-`admin-particular-tokens` mobile, una `admin-pricing` mobile y una
-`logistics-bounded-canvas` full-route. **No se absorben en este PR**: conservan sus valores
-de base. Las cinco viven estrictamente por debajo de 768px, donde el header de workspace es
-`display:none`, de modo que B11 no puede ser su causa; congelarlas aquí convertiría
-regresiones ajenas en resultados esperados y A03 dejaría de detectarlas. Quedan para una tarea
-de baseline propia. Linux no se derivó desde Win32. La corrida posterior determina el estado
-final: **PASSED 16/16**, `195/195` registros primarios y `234/234` hojas.
+La reproducción dirigida Win32 de `clinic-logistica-summary::w430x932` midió
+`limit=15`, `offset=15` y `secondPageCount=15`; se conserva el cambio `14 -> 15`.
+Es una divergencia medida independientemente de Linux, no una copia entre plataformas.
 
 ### A08 — zero scroll
 
@@ -141,9 +136,10 @@ y los deep links se preservan.
 |---|---|
 | Guard estático B11 | **PASSED** · 7/7 |
 | `B11_TARGETED_E2E` | **PASSED** · 4/4 |
-| A02 dirigido | **PASSED** · 15 superficies × 8 viewports · 120 registros |
-| A02 móvil | **UNCHANGED** · 75/75 registros B09 preservados desde HEAD |
-| A03 | **PASSED** · 16/16 · 195 primarios / 234 hojas · 12 B11; 5 preexistentes detectados y NO absorbidos |
+| A02 Linux | **PENDING** · 56 registros reales aplicados / 64 registros Linux pendientes de captura real |
+| A03 Linux | **PENDING** · 234 observaciones reales · 11 leaves / 33 campos realineados |
+| A03 Win32 dirigido · `clinic-logistica-summary::w430x932` | **PASSED** · `limit/offset/secondPageCount = 15/15/15` · KEEP |
+| E2E Completeness | **FAILED** · run 32893612037; artifact 9581814891 aportó la evidencia Linux disponible |
 | A08 | **PASSED** · evidencia previa 21/21 · 273 combinaciones |
 | `pnpm --dir frontend lint` | **PASSED** · evidencia previa; no repetido por cleanup |
 | `pnpm --dir frontend typecheck` | **PASSED** · evidencia previa; no repetido por cleanup |
@@ -152,8 +148,8 @@ y los deep links se preservan.
 
 ## 7. Riesgos residuales
 
-1. A02 móvil y las cinco hojas A03 conservan drift Win32 preexistente hasta una tarea de
-   baseline independiente; B11 no lo convierte en deuda propia ni lo congela como esperado.
+1. Permanecen 64 registros A02 Linux sin captura real; B11 no está listo para merge mientras
+   ese gap exista.
 2. El régimen compacto del app bar superior para alturas cortas no pertenece a B11.
 3. B15 todavía debe consolidar el scaffold; B11 deliberadamente sólo fija el owner del header.
 
@@ -161,10 +157,11 @@ y los deep links se preservan.
 
 El rollback elimina `WorkspaceHeader`, restaura el markup inline en
 `DashboardModuleWorkspace`, revierte los tokens/reglas B11 y devuelve catálogo, guards, los
-120 registros A02 dirigidos y los 12 registros A03 de B11 a su estado anterior. A08 no cambia. No existe migración, estado persistido ni cambio de contrato
+56 registros A02 Linux y los 11 leaves A03 Linux a su estado anterior. A08 no cambia. No existe migración, estado persistido ni cambio de contrato
 HTTP. La reversión es enteramente frontend y de composición/estilo.
 
 ## 9. Estado local de entrega
 
 La entrega queda sobre `feat/dashboard-b11-workspace-header`, con HEAD base intacto, cambios
-B11 sin stage, staging vacío, cuatro stashes preservados y sin commit, push ni PR.
+B11 sin stage y sin commit, push ni escritura GitHub. La reproducción dirigida Win32 de
+`clinic-logistica-summary::w430x932` conservó `15` en los tres campos medidos.
