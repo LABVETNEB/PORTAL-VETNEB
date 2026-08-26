@@ -139,12 +139,53 @@ y los deep links se preservan.
 | A02 Linux | **PENDING** · 56 registros reales aplicados / 64 registros Linux pendientes de captura real |
 | A03 Linux | **PENDING** · 234 observaciones reales · 11 leaves / 33 campos realineados |
 | A03 Win32 dirigido · `clinic-logistica-summary::w430x932` | **PASSED** · `limit/offset/secondPageCount = 15/15/15` · KEEP |
-| E2E Completeness | **FAILED** · run 32893612037; artifact 9581814891 aportó la evidencia Linux disponible |
+| E2E Completeness | **FAILED** · run 32931837176 (HEAD `c7dae9bd`); 2 failed/2 flaky tras realinear los 2 primeros baselines seriales |
 | A08 | **PASSED** · evidencia previa 21/21 · 273 combinaciones |
 | `pnpm --dir frontend lint` | **PASSED** · evidencia previa; no repetido por cleanup |
 | `pnpm --dir frontend typecheck` | **PASSED** · evidencia previa; no repetido por cleanup |
 | `pnpm --dir frontend build` | **PASSED** · evidencia previa; no repetido por cleanup |
 | `pnpm security:public-surface` | **PASSED** · evidencia previa; no repetido por cleanup |
+
+### 6.1 Captura visual Chromium-Linux (`Visual Regression Manual`)
+
+`E2E Completeness` corre los specs `visual-regression-authenticated` y `visual-regression-stress`
+en serie: cada nombre stale corregido exponía el siguiente (run 32893612037 falló en
+`dashboard-320`/`stress-dashboard-320`; el commit `c7dae9bd` los realineó y el run 32931837176
+falló recién en `dashboard-dark-gray-320` y `stress-dashboard-768`, deterministas 3/3 con
+`maxDiffPixelRatio: 0.001` excedido 10x/30x). Para evitar seguir desbloqueando nombres de a uno,
+se disparó una captura Linux completa fuera de ese loop:
+
+- Workflow: `Visual Regression Manual` (`.github/workflows/visual-regression-manual.yml`),
+  `workflow_dispatch` sobre `feat/dashboard-b11-workspace-header`.
+- Run: `32981010974` · headSha `c7dae9bdb0949a74f36651f2b88dbded6d3ca843` · `ubuntu-latest` ·
+  `conclusion=SUCCESS`.
+- Inputs: `suite=all`, `update_snapshots=true`, `upload_artifacts=true`.
+- Artifact: `visual-regression-all-snapshots-1` (id `9611484240`), descargado a una carpeta
+  temporal fuera del repositorio para inventario y comparación SHA256/byte-for-byte contra el
+  árbol de trabajo — nunca ejecutado ni regenerado en Windows.
+
+De los 15 PNG de la familia `/dashboard` cubiertos por B11, **2 ya eran idénticos**
+(`dashboard-320`, `stress-dashboard-320`, realineados en `c7dae9bd`) y **13 difirieron** y se
+importaron desde el artifact, verificados byte-for-byte tras la copia:
+
+```text
+visual-regression-authenticated.spec.ts-snapshots/
+  dashboard-dark-gray-320  dashboard-768  dashboard-dark-gray-768
+  dashboard-1024  dashboard-dark-gray-1024
+  dashboard-1536  dashboard-dark-gray-1536
+  dashboard-1920  dashboard-dark-gray-1920
+visual-regression-stress.spec.ts-snapshots/
+  stress-dashboard-768  stress-dashboard-1024  stress-dashboard-1536  stress-dashboard-1920
+```
+
+Excluidos por scope aunque presentes en el artifact (`suite=all` corrió los 3 specs completos,
+la importación no): `public-*`, `login-*`, `admin-dashboard-*`, `admin-dashboard-dark-gray-*`,
+`stress-admin-dashboard-*` — ninguna de esas rutas cambia con B11.
+
+Esta captura realinea los baselines pixel; **no resuelve** los 64 registros A02 Linux
+pendientes de captura real (§6, fila A02 Linux), que siguen abiertos y bloquean el merge
+independientemente de este resultado. La validación real de `E2E Completeness` sobre el nuevo
+HEAD, una vez que Nico haga commit/push, queda pendiente de CI.
 
 ## 7. Riesgos residuales
 
