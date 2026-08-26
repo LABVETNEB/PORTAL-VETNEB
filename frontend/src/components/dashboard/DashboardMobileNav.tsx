@@ -293,6 +293,14 @@ function DashboardMobileNavOverflow({
 
 type MobileNavBarProps = {
   readonly surface: DashboardMobileNavSurface;
+  /**
+   * True for the real, URL-driven bar; false for the Suspense fallback
+   * painted below. Both instances can be mounted at once across a
+   * `useSearchParams()` suspend/resolve tick, so only the identified one may
+   * carry `data-dashboard-mobile-nav` — the selector every contract and test
+   * targets — or that attribute would resolve to two nodes.
+   */
+  readonly identify: boolean;
   readonly activeModule: string | null;
   readonly onActivate: (moduleId: string) => void;
   readonly onHome: () => void;
@@ -303,6 +311,7 @@ type MobileNavBarProps = {
 
 function DashboardMobileNavBar({
   surface,
+  identify,
   activeModule,
   onActivate,
   onHome,
@@ -328,7 +337,8 @@ function DashboardMobileNavBar({
       {children}
       <nav
         aria-label={SURFACE_LANDMARK[surface]}
-        data-dashboard-mobile-nav={surface}
+        aria-hidden={identify ? undefined : true}
+        data-dashboard-mobile-nav={identify ? surface : undefined}
         className="dashboard-mobile-nav"
       >
         <PublicRouteControl
@@ -466,6 +476,7 @@ function MobileNavWithUrl({ surface }: DashboardMobileNavProps) {
   return (
     <DashboardMobileNavBar
       surface={surface}
+      identify
       activeModule={activeModule}
       onActivate={activate}
       onHome={goHome}
@@ -486,12 +497,16 @@ function MobileNavWithUrl({ surface }: DashboardMobileNavProps) {
 export function DashboardMobileNav({ surface }: DashboardMobileNavProps) {
   // The fallback paints the SAME bar with the same slot count and the same
   // height, so a suspended tick can never move `main`: only the active
-  // highlight is deferred.
+  // highlight is deferred. It is never identified (`identify={false}`) and
+  // always `aria-hidden`, so even when both instances are mounted across the
+  // suspend/resolve tick, exactly one node ever carries
+  // `data-dashboard-mobile-nav` and exposes a landmark to assistive tech.
   return (
     <Suspense
       fallback={
         <DashboardMobileNavBar
           surface={surface}
+          identify={false}
           activeModule={null}
           onActivate={noop}
           onHome={noop}
