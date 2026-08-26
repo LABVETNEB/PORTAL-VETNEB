@@ -8,7 +8,10 @@
  * no-scroll height chain depends on `min-h-0`/`flex-1` and classes such as
  * `dashboard-module-stage`; preserve classes and DOM nesting when relocating.
  *
- * Empty on purpose: PR-PRES-2 only draws the architecture boundary (see
- * docs/implementation/dashboard-presentation-boundaries.md).
+ * B11 publishes WorkspaceHeader through this layout boundary while preserving
+ * its compatibility implementation under components/dashboard.
  */
-export {};
+export {
+  WorkspaceHeader,
+  type WorkspaceHeaderProps,
+} from "@/components/dashboard/WorkspaceHeader";

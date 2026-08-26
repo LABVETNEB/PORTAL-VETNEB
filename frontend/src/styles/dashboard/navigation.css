@@ -21,9 +21,28 @@
   }
 
   .dashboard-workspace-header {
-    border-bottom: 0;
-    padding-bottom: 0;
+    box-sizing: border-box;
+    inline-size: 100%;
+    block-size: var(--dash-workspace-header-h);
+    min-block-size: calc(
+      var(--dash-workspace-header-h) - var(--dash-workspace-header-band)
+    );
+    max-block-size: calc(
+      var(--dash-workspace-header-h) + var(--dash-workspace-header-band)
+    );
+    padding-inline: var(--dash-space-4);
+    border: 0;
+    border-radius: var(--dash-shape-none);
+    box-shadow: var(--dash-elevation-none);
     margin-bottom: 0;
+  }
+
+  .dashboard-workspace-header-title {
+    font-family: var(--dash-text-family);
+    font-size: var(--dash-workspace-header-title-size);
+    font-weight: var(--dash-workspace-header-title-weight);
+    line-height: var(--dash-workspace-header-title-leading);
+    color: var(--dash-color-on-surface);
   }
 
   /* B04 · STATIC_CONTENT_SURFACE. Audit §45.2 rules out the "tarjeta elevada"

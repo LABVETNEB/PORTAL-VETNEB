@@ -202,5 +202,10 @@ test("clinic module workspace exposes no hub back-button (rail owns navigation)"
   // The workspace only renders the back button when an onBack prop is provided
   // (admin still uses it); the prop is optional.
   assert.ok(workspace.includes("onBack?: () => void;"));
-  assert.ok(workspace.includes("{onBack ? ("));
+  // B11 moved the conditional into WorkspaceHeader's `leadingAction` slot, so
+  // the guard is the prop expression instead of a bare JSX child. The contract
+  // is unchanged: the back button exists only when `onBack` is provided.
+  assert.ok(workspace.includes("leadingAction={"));
+  assert.ok(workspace.includes("onBack ? ("));
+  assert.ok(workspace.includes(") : null"));
 });
