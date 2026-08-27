@@ -134,7 +134,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
   }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await setPopulatedAdminSession(page);
-    await page.goto("/dashboard/admin");
+    await page.goto("/dashboard/admin?hub=1");
     await suppressNextDevIndicator(page);
 
     const appBar = page.locator('[data-admin-mobile-app-bar="true"]');
@@ -248,7 +248,7 @@ test("Admin mobile hub tiles are borderless with a larger icon and preserved til
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await setPopulatedAdminSession(page);
-  await page.goto("/dashboard/admin");
+  await page.goto("/dashboard/admin?hub=1");
   await suppressNextDevIndicator(page);
 
   const launcher = page.locator('[data-admin-mobile-hub-launcher="true"]');
@@ -288,7 +288,7 @@ test("Admin desktop hub keeps lateral navigation and has no mobile launcher", as
 }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await setPopulatedAdminSession(page);
-  await page.goto("/dashboard/admin");
+  await page.goto("/dashboard/admin?hub=1");
   await suppressNextDevIndicator(page);
 
   await expect(

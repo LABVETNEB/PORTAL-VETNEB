@@ -495,7 +495,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
     test.setTimeout(120_000);
     await setPopulatedAdminSession(page);
     await mockMissingPopulatedApis(page);
-    await preparePage(page, viewport, "/dashboard/admin");
+    await preparePage(page, viewport, "/dashboard/admin?hub=1");
 
     const launcher = page.locator('[data-admin-mobile-hub-launcher="true"]');
     await expect(launcher).toBeVisible({ timeout: 15_000 });
@@ -613,7 +613,7 @@ test("Admin desktop final polish smoke at 1280x800", async ({ page }, testInfo) 
   test.setTimeout(120_000);
   await setPopulatedAdminSession(page);
   await mockMissingPopulatedApis(page);
-  await preparePage(page, DESKTOP_VIEWPORT, "/dashboard/admin");
+  await preparePage(page, DESKTOP_VIEWPORT, "/dashboard/admin?hub=1");
 
   const lateralDrawer = page.locator('[data-dashboard-navigation-drawer]');
   await expect(lateralDrawer).toBeVisible({ timeout: 15_000 });

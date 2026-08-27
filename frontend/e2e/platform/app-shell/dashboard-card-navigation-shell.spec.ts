@@ -260,14 +260,14 @@ test.describe("admin dashboard — module hub initial state", () => {
   });
 
   test("renders the module hub section on admin dashboard", async ({ page }) => {
-    await page.goto("/dashboard/admin");
+    await page.goto("/dashboard/admin?hub=1");
 
     const hub = page.locator('[data-dashboard-module-hub="true"]');
     await expect(hub).toBeVisible({ timeout: 8_000 });
   });
 
   test("initial state does not render admin workspace content", async ({ page }) => {
-    await page.goto("/dashboard/admin");
+    await page.goto("/dashboard/admin?hub=1");
 
     const hub = page.locator('[data-dashboard-module-hub="true"]');
     await expect(hub).toBeVisible({ timeout: 8_000 });
@@ -277,7 +277,7 @@ test.describe("admin dashboard — module hub initial state", () => {
   });
 
   test("admin hub renders at least 8 module cards", async ({ page }) => {
-    await page.goto("/dashboard/admin");
+    await page.goto("/dashboard/admin?hub=1");
 
     const hub = page.locator('[data-dashboard-module-hub="true"]');
     await expect(hub).toBeVisible({ timeout: 8_000 });
@@ -287,7 +287,7 @@ test.describe("admin dashboard — module hub initial state", () => {
   });
 
   test("admin hub renders Administración card", async ({ page }) => {
-    await page.goto("/dashboard/admin");
+    await page.goto("/dashboard/admin?hub=1");
 
     const hub = page.locator('[data-dashboard-module-hub="true"]');
     await expect(hub).toBeVisible({ timeout: 8_000 });
@@ -295,7 +295,7 @@ test.describe("admin dashboard — module hub initial state", () => {
   });
 
   test("admin hub renders Clínicas card", async ({ page }) => {
-    await page.goto("/dashboard/admin");
+    await page.goto("/dashboard/admin?hub=1");
 
     const hub = page.locator('[data-dashboard-module-hub="true"]');
     await expect(hub).toBeVisible({ timeout: 8_000 });
@@ -303,7 +303,7 @@ test.describe("admin dashboard — module hub initial state", () => {
   });
 
   test("admin hub renders Auditoría card", async ({ page }) => {
-    await page.goto("/dashboard/admin");
+    await page.goto("/dashboard/admin?hub=1");
 
     const hub = page.locator('[data-dashboard-module-hub="true"]');
     await expect(hub).toBeVisible({ timeout: 8_000 });
@@ -311,7 +311,7 @@ test.describe("admin dashboard — module hub initial state", () => {
   });
 
   test("admin hub renders Sesiones card", async ({ page }) => {
-    await page.goto("/dashboard/admin");
+    await page.goto("/dashboard/admin?hub=1");
 
     const hub = page.locator('[data-dashboard-module-hub="true"]');
     await expect(hub).toBeVisible({ timeout: 8_000 });
@@ -319,7 +319,7 @@ test.describe("admin dashboard — module hub initial state", () => {
   });
 
   test("admin hub renders Precios card", async ({ page }) => {
-    await page.goto("/dashboard/admin");
+    await page.goto("/dashboard/admin?hub=1");
 
     const hub = page.locator('[data-dashboard-module-hub="true"]');
     await expect(hub).toBeVisible({ timeout: 8_000 });
@@ -327,7 +327,7 @@ test.describe("admin dashboard — module hub initial state", () => {
   });
 
   test("admin hub cards have accessible names", async ({ page }) => {
-    await page.goto("/dashboard/admin");
+    await page.goto("/dashboard/admin?hub=1");
 
     const hub = page.locator('[data-dashboard-module-hub="true"]');
     await expect(hub).toBeVisible({ timeout: 8_000 });
@@ -350,7 +350,7 @@ test.describe("admin dashboard — workspace activation", () => {
   });
 
   test("clicking Administración card opens admin workspace", async ({ page }) => {
-    await page.goto("/dashboard/admin");
+    await page.goto("/dashboard/admin?hub=1");
 
     const hub = page.locator('[data-dashboard-module-hub="true"]');
     await expect(hub).toBeVisible({ timeout: 8_000 });
@@ -365,7 +365,7 @@ test.describe("admin dashboard — workspace activation", () => {
   });
 
   test("clicking Auditoría card opens audit-log workspace", async ({ page }) => {
-    await page.goto("/dashboard/admin");
+    await page.goto("/dashboard/admin?hub=1");
 
     const hub = page.locator('[data-dashboard-module-hub="true"]');
     await expect(hub).toBeVisible({ timeout: 8_000 });
@@ -380,7 +380,7 @@ test.describe("admin dashboard — workspace activation", () => {
   });
 
   test("admin workspace shows Vista general button", async ({ page }) => {
-    await page.goto("/dashboard/admin");
+    await page.goto("/dashboard/admin?hub=1");
 
     const hub = page.locator('[data-dashboard-module-hub="true"]');
     await expect(hub).toBeVisible({ timeout: 8_000 });
@@ -391,7 +391,7 @@ test.describe("admin dashboard — workspace activation", () => {
   });
 
   test("Vista general returns to admin hub", async ({ page }) => {
-    await page.goto("/dashboard/admin");
+    await page.goto("/dashboard/admin?hub=1");
 
     const hub = page.locator('[data-dashboard-module-hub="true"]');
     await expect(hub).toBeVisible({ timeout: 8_000 });
@@ -504,7 +504,7 @@ test.describe("admin shell — no global scroll", () => {
 
   test("body does not scroll on admin dashboard hub initial state", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
-    await page.goto("/dashboard/admin");
+    await page.goto("/dashboard/admin?hub=1");
 
     const hub = page.locator('[data-dashboard-module-hub="true"]');
     await expect(hub).toBeVisible({ timeout: 8_000 });
@@ -728,7 +728,7 @@ test.describe("dashboard lateral nav — admin module navigation", () => {
   });
 
   test("clicking a nav module preserves ?module= and marks it active", async ({ page }) => {
-    await page.goto("/dashboard/admin");
+    await page.goto("/dashboard/admin?hub=1");
 
     // B08 retired the "Navegación principal" landmark with its component; the
     // admin lateral drawer carries its own role-specific landmark name.
@@ -772,7 +772,7 @@ test.describe("admin dashboard — per-module workspace activation", () => {
 
   for (const { cardTitle, workspaceId } of adminModuleCards) {
     test(`clicking ${cardTitle} card opens ${workspaceId} workspace`, async ({ page }) => {
-      await page.goto("/dashboard/admin");
+      await page.goto("/dashboard/admin?hub=1");
       const hub = page.locator('[data-dashboard-module-hub="true"]');
       await expect(hub).toBeVisible({ timeout: 8_000 });
       const card = hubCard(hub, cardTitle);
@@ -786,7 +786,7 @@ test.describe("admin dashboard — per-module workspace activation", () => {
   }
 
   test("each admin workspace shows Vista general — Clínicas", async ({ page }) => {
-    await page.goto("/dashboard/admin");
+    await page.goto("/dashboard/admin?hub=1");
     const hub = page.locator('[data-dashboard-module-hub="true"]');
     await expect(hub).toBeVisible({ timeout: 8_000 });
     await hubCard(hub, "Clínicas").click();
@@ -797,7 +797,7 @@ test.describe("admin dashboard — per-module workspace activation", () => {
   });
 
   test("each admin workspace shows Vista general — Auditoría", async ({ page }) => {
-    await page.goto("/dashboard/admin");
+    await page.goto("/dashboard/admin?hub=1");
     const hub = page.locator('[data-dashboard-module-hub="true"]');
     await expect(hub).toBeVisible({ timeout: 8_000 });
     await hubCard(hub, "Auditoría").click();
@@ -808,7 +808,7 @@ test.describe("admin dashboard — per-module workspace activation", () => {
   });
 
   test("Vista general from Clínicas workspace returns to admin hub", async ({ page }) => {
-    await page.goto("/dashboard/admin");
+    await page.goto("/dashboard/admin?hub=1");
     const hub = page.locator('[data-dashboard-module-hub="true"]');
     await expect(hub).toBeVisible({ timeout: 8_000 });
     await hubCard(hub, "Clínicas").click();
@@ -831,7 +831,7 @@ test.describe("admin dashboard — workspace isolation", () => {
   });
 
   test("Clínicas workspace does not render audit-log content", async ({ page }) => {
-    await page.goto("/dashboard/admin");
+    await page.goto("/dashboard/admin?hub=1");
     const hub = page.locator('[data-dashboard-module-hub="true"]');
     await expect(hub).toBeVisible({ timeout: 8_000 });
     await hubCard(hub, "Clínicas").click();
@@ -842,7 +842,7 @@ test.describe("admin dashboard — workspace isolation", () => {
   });
 
   test("Auditoría workspace does not render pricing editor", async ({ page }) => {
-    await page.goto("/dashboard/admin");
+    await page.goto("/dashboard/admin?hub=1");
     const hub = page.locator('[data-dashboard-module-hub="true"]');
     await expect(hub).toBeVisible({ timeout: 8_000 });
     await hubCard(hub, "Auditoría").click();
@@ -853,7 +853,7 @@ test.describe("admin dashboard — workspace isolation", () => {
   });
 
   test("Sesiones workspace does not render clinics or audit content", async ({ page }) => {
-    await page.goto("/dashboard/admin");
+    await page.goto("/dashboard/admin?hub=1");
     const hub = page.locator('[data-dashboard-module-hub="true"]');
     await expect(hub).toBeVisible({ timeout: 8_000 });
     await hubCard(hub, "Sesiones").click();
