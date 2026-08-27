@@ -418,7 +418,10 @@ export function AdminUsersRolesReadOnlyCard() {
 
   return (
     <>
-      <Card className="dashboard-surface hidden min-h-0 flex-1 flex-col overflow-hidden shadow-none hover:shadow-none md:flex">
+      <Card
+        data-dashboard-b12-module-card="true"
+        className="dashboard-surface hidden min-h-0 flex-1 flex-col overflow-hidden shadow-none hover:shadow-none md:flex"
+      >
       <CardHeader className="flex min-h-12 shrink-0 flex-row items-center justify-between gap-3 space-y-0 border-b border-vetneb-line/70 px-3 py-2 sm:px-4 md:min-h-10 md:py-1.5">
         <div className="min-w-0">
           <CardTitle className="text-base">Usuarios y roles</CardTitle>
