@@ -5,15 +5,20 @@ import { requestClinicModuleActivate } from "@/lib/clinic-hub-reset";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import {
+  ADMIN_HOME_NAV_ITEM,
   ADMIN_MODULE_NAV_LABELS,
   CLINIC_MODULE_NAV_LABELS,
   type AdminModule,
   type ClinicModule,
 } from "@/features/dashboard/config";
-import { buildDashboardModuleHref } from "@/features/dashboard/application";
+import {
+  buildAdminHubHref,
+  buildDashboardModuleHref,
+} from "@/features/dashboard/application";
 import {
   ADMIN_MODULE_ICONS,
   CLINIC_MODULE_ICONS,
+  DASHBOARD_HOME_ICON,
   type DashboardModuleIcon,
 } from "./dashboardModuleIcons";
 
@@ -39,9 +44,9 @@ import {
  * never the name itself. The glyph is decorative (`aria-hidden`).
  *
  * PRESENTATION-PURE and STATELESS - same contract as the drawer, and mounted
- * with it by `DashboardNavigationFrame` (B08). A null admin module is legal
- * there too: it is the hub state, and it carries no `aria-current`. Below
- * 768px neither primitive paints: that regime is `DashboardMobileNav`'s (B09).
+ * with it by `DashboardNavigationFrame` (B08). B13 gives the null admin hub
+ * state an explicit Inicio item and `?hub=1` URL. Below 768px neither primitive
+ * paints: that regime is `DashboardMobileNav`'s (B09).
  *
  * @see docs/implementation/dashboard-b07-navigation-drawer-rail.md
  * @see docs/implementation/dashboard-b08-navigation-migration.md
@@ -93,6 +98,26 @@ export function NavigationRail({ surface, activeModule }: NavigationRailProps) {
       data-dashboard-navigation-rail={surface}
       className="dashboard-navigation-rail"
     >
+      {isAdmin ? (
+        <PublicRouteControl
+          href={buildAdminHubHref()}
+          prefetch={false}
+          variant="bare"
+          aria-label={ADMIN_HOME_NAV_ITEM.label}
+          aria-current={!activeModule ? "page" : undefined}
+          title={ADMIN_HOME_NAV_ITEM.label}
+          data-dashboard-navigation-item={ADMIN_HOME_NAV_ITEM.id}
+          className={cn(
+            "dashboard-navigation-rail-item",
+            !activeModule && "dashboard-navigation-item-active",
+          )}
+        >
+          <DASHBOARD_HOME_ICON className="h-5 w-5 shrink-0" aria-hidden="true" />
+          <span className="dashboard-navigation-rail-label">
+            {ADMIN_HOME_NAV_ITEM.shortLabel}
+          </span>
+        </PublicRouteControl>
+      ) : null}
       {items.map((item) => {
         const Icon = item.icon;
         const isActive = item.moduleId === activeModule;

@@ -232,14 +232,18 @@ test("admin controller persists/restores with the admin key and replace-only res
     source.includes("readDashboardLastModule(ADMIN_LAST_MODULE_STORAGE_KEY)"),
   );
 
-  // URL takes priority over storage; invalid stored value is ignored.
-  assert.ok(source.includes('if (searchParams.get("module")) return;'));
-  assert.ok(source.includes("if (!lastModule) return;"));
+  // Any URL module (including an invalid legacy value) and the explicit hub
+  // keep priority over storage. A bare entry falls back to the explicit
+  // operational default when storage is absent, stale, or unavailable.
+  assert.ok(
+    source.includes(
+      "if (searchParams.get(MODULE_QUERY_PARAM) || isAdminHubRequested(searchParams)) return;",
+    ),
+  );
+  assert.ok(source.includes("const landingModule = lastModule ?? DEFAULT_ADMIN_MODULE;"));
 
   // Restore uses replace, never push (no history pollution, no loop).
-  assert.ok(
-    source.includes("router.replace(`/dashboard/admin?module=${lastModule}`"),
-  );
+  assert.ok(source.includes("buildDashboardModuleHref(ROUTES.dashboardAdmin, landingModule)"));
   assert.equal(
     source.includes("router.push(`/dashboard/admin?module=${lastModule}`"),
     false,

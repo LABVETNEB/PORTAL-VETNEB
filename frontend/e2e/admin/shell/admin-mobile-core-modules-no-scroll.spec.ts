@@ -293,7 +293,7 @@ test("Admin mobile core modules reachable from bottom nav and Más menu", async 
   await mockAdminClinics(page);
   await mockAdminReportWorkflow(page);
   await mockAdminParticularTokens(page);
-  await page.goto("/dashboard/admin");
+  await page.goto("/dashboard/admin?hub=1");
   await suppressNextDevIndicator(page);
 
   const bottomNav = page

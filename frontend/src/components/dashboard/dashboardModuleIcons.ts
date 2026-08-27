@@ -3,6 +3,7 @@ import {
   Building2,
   ClipboardPlus,
   FileText,
+  Home,
   KeyRound,
   LayoutDashboard,
   ReceiptText,
@@ -47,6 +48,9 @@ import type {
 
 /** Glyph type for a dashboard module, so consumers never import lucide-react. */
 export type DashboardModuleIcon = LucideIcon;
+
+/** Shared glyph for the non-module Inicio destination introduced by B13. */
+export const DASHBOARD_HOME_ICON: DashboardModuleIcon = Home;
 
 export const ADMIN_MODULE_ICONS: Record<AdminModule, LucideIcon> = {
   admin: Settings2,

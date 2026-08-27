@@ -322,7 +322,7 @@ async function expectPrimaryItems(
 test.describe("B09 · one mobile navigation owner per regime", () => {
   const SURFACES: { role: Role; path: string; label: string }[] = [
     { role: "admin", path: "/dashboard/admin?module=admin-clinics", label: "admin module" },
-    { role: "admin", path: "/dashboard/admin", label: "admin hub" },
+    { role: "admin", path: "/dashboard/admin?hub=1", label: "admin hub" },
     // `/dashboard` is THE surface B08 could not touch: the clinic bottom nav
     // returned null here and the rail was the only navigation.
     { role: "clinic", path: "/dashboard?module=operaciones", label: "clinic module shell" },

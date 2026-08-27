@@ -124,6 +124,10 @@ test("the lateral navigation navigates via PublicRouteControl and the shared gra
       `${path} must build every href through the application layer`,
     );
     assert.ok(
+      source.includes("buildAdminHubHref()"),
+      `${path} must expose the explicit B13 admin hub destination`,
+    );
+    assert.ok(
       source.includes('aria-current={isActive ? "page" : undefined}'),
       `${path} must mark only the active module`,
     );

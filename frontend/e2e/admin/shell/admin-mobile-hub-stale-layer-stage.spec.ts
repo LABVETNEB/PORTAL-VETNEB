@@ -189,7 +189,7 @@ for (const cell of MATRIX) {
     await applyColorMode(page, cell.mode);
     await setPopulatedAdminSession(page);
 
-    await page.goto("/dashboard/admin");
+    await page.goto("/dashboard/admin?hub=1");
     await suppressNextDevIndicator(page);
 
     const hub = page.locator('[data-admin-mobile-hub-launcher="true"]');

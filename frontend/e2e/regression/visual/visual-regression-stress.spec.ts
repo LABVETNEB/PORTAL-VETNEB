@@ -26,7 +26,7 @@ const routes: RouteCase[] = [
   },
   {
     name: "stress-admin-dashboard",
-    path: "/dashboard/admin",
+    path: "/dashboard/admin?hub=1",
     session: "admin",
     ready: '[data-dashboard-module-hub="true"]',
     mobileReady: '[data-admin-mobile-hub-launcher="true"]',

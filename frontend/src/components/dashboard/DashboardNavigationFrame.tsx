@@ -46,10 +46,10 @@ import { NavigationRail } from "./NavigationRail";
  *  - the clinic full routes declare their module (`module="informes"`,
  *    `module="logistica"`), because `?module=` is not part of their grammar.
  *
- * ADMIN HUB IS A LEGAL STATE. `/dashboard/admin` without `?module=` resolves to
- * `null`: every module stays reachable and NO item carries `aria-current`.
- * Inventing an "Inicio" item, or defaulting the hub onto a module, would be
- * B13.
+ * ADMIN HUB IS A LEGAL STATE. `?hub=1` is the durable explicit hub URL and
+ * null is retained while an optimistic navigation settles. B13 gives that
+ * state an Inicio item instead of leaving the lateral landmark without a
+ * current destination.
  *
  * OWNERSHIP. This frame renders; it owns nothing. Module ids, order and labels
  * come from `features/dashboard/config`, the `?module=` key from

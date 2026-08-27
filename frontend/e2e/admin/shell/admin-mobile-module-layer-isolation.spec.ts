@@ -324,7 +324,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
     await setPopulatedAdminSession(page);
     await mockAdminSessions(page);
 
-    await page.goto("/dashboard/admin");
+    await page.goto("/dashboard/admin?hub=1");
     await suppressNextDevIndicator(page);
 
     const hub = page.locator('[data-admin-mobile-hub-launcher="true"]');
@@ -525,7 +525,7 @@ for (const cell of PAINT_CHAIN_MATRIX) {
     await setPopulatedAdminSession(page);
     await mockAdminSessions(page);
 
-    await page.goto("/dashboard/admin");
+    await page.goto("/dashboard/admin?hub=1");
     await suppressNextDevIndicator(page);
 
     const hub = page.locator('[data-admin-mobile-hub-launcher="true"]');

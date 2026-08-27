@@ -460,7 +460,7 @@ test.describe("B06 · global module search", () => {
       .addCookies([{ name: cookie.name, value: cookie.value, url: APP_ORIGIN }]);
 
     await page.setViewportSize({ width: 1366, height: 768 });
-    await page.goto("/dashboard/admin");
+    await page.goto("/dashboard/admin?hub=1");
 
     const input = page.locator('[data-workspace-app-bar-search-input="true"]');
     await expect(input, "search input mounts on the admin workspace").toBeVisible({
@@ -502,7 +502,7 @@ test.describe("B06 · global module search", () => {
       .addCookies([{ name: cookie.name, value: cookie.value, url: APP_ORIGIN }]);
 
     await page.setViewportSize({ width: 1366, height: 768 });
-    await page.goto("/dashboard/admin");
+    await page.goto("/dashboard/admin?hub=1");
 
     const input = page.locator('[data-workspace-app-bar-search-input="true"]');
     await expect(input).toBeVisible({ timeout: 25_000 });

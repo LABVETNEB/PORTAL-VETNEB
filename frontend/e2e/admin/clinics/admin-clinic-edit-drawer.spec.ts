@@ -151,7 +151,7 @@ test.describe("admin clinic edit drawer — component behavior", () => {
   });
 
   test("clinic list shows compact read-only rows with Edit button", async ({ page }) => {
-    await page.goto("/dashboard/admin");
+    await page.goto("/dashboard/admin?hub=1");
     await navigateToGestionTab(page);
     await waitForClinicList(page);
 
@@ -170,7 +170,7 @@ test.describe("admin clinic edit drawer — component behavior", () => {
   }) => {
     const syntheticPassword = "ClaveInicialSintetica42";
 
-    await page.goto("/dashboard/admin");
+    await page.goto("/dashboard/admin?hub=1");
     await navigateToGestionTab(page);
     await waitForClinicList(page);
 
@@ -203,7 +203,7 @@ test.describe("admin clinic edit drawer — component behavior", () => {
   });
 
   test("clicking Edit opens the drawer with clinic data", async ({ page }) => {
-    await page.goto("/dashboard/admin");
+    await page.goto("/dashboard/admin?hub=1");
     await navigateToGestionTab(page);
     await waitForClinicList(page);
 
@@ -230,7 +230,7 @@ test.describe("admin clinic edit drawer — component behavior", () => {
   }) => {
     const syntheticPassword = "ClaveReemplazoSintetica42";
 
-    await page.goto("/dashboard/admin");
+    await page.goto("/dashboard/admin?hub=1");
     await navigateToGestionTab(page);
     await waitForClinicList(page);
     await page
@@ -264,7 +264,7 @@ test.describe("admin clinic edit drawer — component behavior", () => {
   });
 
   test("drawer has accessible close button and title", async ({ page }) => {
-    await page.goto("/dashboard/admin");
+    await page.goto("/dashboard/admin?hub=1");
     await navigateToGestionTab(page);
     await waitForClinicList(page);
 
@@ -300,7 +300,7 @@ test.describe("admin clinic edit drawer — component behavior", () => {
       },
     );
 
-    await page.goto("/dashboard/admin");
+    await page.goto("/dashboard/admin?hub=1");
     await navigateToGestionTab(page);
     await waitForClinicList(page);
 
@@ -324,7 +324,7 @@ test.describe("admin clinic edit drawer — component behavior", () => {
   });
 
   test("Escape key closes the drawer when not saving", async ({ page }) => {
-    await page.goto("/dashboard/admin");
+    await page.goto("/dashboard/admin?hub=1");
     await navigateToGestionTab(page);
     await waitForClinicList(page);
 
@@ -357,7 +357,7 @@ test.describe("admin clinic edit drawer — component behavior", () => {
       },
     );
 
-    await page.goto("/dashboard/admin");
+    await page.goto("/dashboard/admin?hub=1");
     await navigateToGestionTab(page);
     await waitForClinicList(page);
 
@@ -396,7 +396,7 @@ test.describe("admin clinic edit drawer — component behavior", () => {
       },
     );
 
-    await page.goto("/dashboard/admin");
+    await page.goto("/dashboard/admin?hub=1");
     await navigateToGestionTab(page);
     await waitForClinicList(page);
 
@@ -418,7 +418,7 @@ test.describe("admin clinic edit drawer — component behavior", () => {
   test("opening drawer does not reset search query or pagination", async ({
     page,
   }) => {
-    await page.goto("/dashboard/admin");
+    await page.goto("/dashboard/admin?hub=1");
     await navigateToGestionTab(page);
     await waitForClinicList(page);
 
@@ -445,7 +445,7 @@ test.describe("admin clinic edit drawer — component behavior", () => {
   test("clinic with no user shows drawer without credentials section", async ({
     page,
   }) => {
-    await page.goto("/dashboard/admin");
+    await page.goto("/dashboard/admin?hub=1");
     await navigateToGestionTab(page);
     await waitForClinicList(page);
 
