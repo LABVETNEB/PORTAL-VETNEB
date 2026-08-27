@@ -296,6 +296,7 @@ export function AdminSessionsReadOnlyCard() {
       <Card
         data-admin-sesiones-card="true"
         data-admin-sesiones-page-size={effectiveLimit}
+        data-dashboard-b12-module-card="true"
         className="dashboard-surface hidden min-h-0 flex-1 flex-col overflow-hidden shadow-none hover:shadow-none md:flex"
       >
       <CardHeader className="flex min-h-11 shrink-0 flex-row items-center justify-between gap-3 space-y-0 border-b border-vetneb-line/70 px-3 py-1 sm:px-4">

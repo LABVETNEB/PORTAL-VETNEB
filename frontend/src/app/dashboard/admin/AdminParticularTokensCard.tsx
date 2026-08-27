@@ -1284,7 +1284,10 @@ export function AdminParticularTokensCard() {
   }
 
   return (
-    <Card className="dashboard-surface flex min-h-0 flex-1 flex-col overflow-hidden">
+    <Card
+      data-dashboard-b12-module-card="true"
+      className="dashboard-surface flex min-h-0 flex-1 flex-col overflow-hidden"
+    >
       <CardHeader className="hidden shrink-0 border-b border-vetneb-line/70 px-4 py-3 md:flex md:py-2">
         <div className="flex flex-col gap-2 md:gap-1 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">

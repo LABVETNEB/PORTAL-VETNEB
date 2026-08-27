@@ -369,7 +369,11 @@ export function AdminClinicsManagementCard() {
   }
 
   return (
-    <Card id="admin-clinics" className="dashboard-surface flex min-h-0 flex-1 flex-col">
+    <Card
+      id="admin-clinics"
+      data-dashboard-b12-module-card="true"
+      className="dashboard-surface flex min-h-0 flex-1 flex-col"
+    >
       <CardHeader className="shrink-0 flex flex-col gap-2 border-b border-vetneb-line/70 px-4 py-2 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0">
           <CardTitle className="text-[0.95rem] leading-tight">Clínicas</CardTitle>

@@ -699,6 +699,26 @@
 }
 /* dashboard-b05-field-inversion:end */
 
+/* dashboard-b12-module-card-removal:start
+ *
+ * B12 — module-card removal. The workspace keeps its DOM and flex geometry;
+ * only explicitly marked intermediate Card paint is neutralized. Nested data
+ * surfaces retain their own shared dashboard-surface grammar.
+ *
+ * UNLAYERED on purpose: Card and dashboard-surface can both contribute paint
+ * through shared component and utility rules. This dashboard-scoped override
+ * must win without changing the shared Card primitive.
+ */
+.dashboard-app-shell
+  [data-dashboard-module-workspace]
+  [data-dashboard-b12-module-card="true"] {
+  background: transparent;
+  border-color: transparent;
+  border-radius: 0;
+  box-shadow: none;
+}
+/* dashboard-b12-module-card-removal:end */
+
 /* dashboard-detail-value-integrity:start */
 /*
   PR-TRUNC · Terminal-surface text integrity.

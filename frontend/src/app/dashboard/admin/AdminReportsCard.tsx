@@ -583,7 +583,10 @@ export function AdminReportsCard() {
   }
 
   return (
-    <Card className="dashboard-surface flex min-h-0 flex-1 flex-col overflow-hidden shadow-none">
+    <Card
+      data-dashboard-b12-module-card="true"
+      className="dashboard-surface flex min-h-0 flex-1 flex-col overflow-hidden shadow-none"
+    >
       <CardHeader className="flex-row items-start justify-between gap-3 space-y-0 border-b border-vetneb-line/70 px-4 py-3 md:py-1">
         <div className="min-w-0">
           <CardTitle className="text-xl leading-tight md:text-base">Informes</CardTitle>
