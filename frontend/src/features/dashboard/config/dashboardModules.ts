@@ -43,6 +43,20 @@ export const ADMIN_MODULE_IDS = [
 export type AdminModule = (typeof ADMIN_MODULE_IDS)[number];
 
 /**
+ * Operational default for a bare admin dashboard landing. This is deliberately
+ * explicit rather than derived from `ADMIN_MODULE_IDS[0]`: catalog order is a
+ * navigation/hub concern and must not silently change the entry workspace.
+ */
+export const DEFAULT_ADMIN_MODULE: AdminModule = "admin";
+
+/** The non-module navigation destination that exposes the admin hub. */
+export const ADMIN_HOME_NAV_ITEM = {
+  id: "home",
+  label: "Inicio",
+  shortLabel: "Inicio",
+} as const;
+
+/**
  * Legacy `?module=` values still honoured as redirects to a canonical id. Kept
  * identical to the previous copies in the controller and the route.
  */

@@ -306,7 +306,7 @@ export const DASHBOARD_GEOMETRY_SURFACES = [
   {
     id: "admin-hub",
     role: "admin",
-    route: "/dashboard/admin",
+    route: "/dashboard/admin?hub=1",
     shellType: "admin-hub",
     readinessSelector: '[data-dashboard-hub-root="true"]',
     contentRootSelector: '[data-dashboard-hub-root="true"]',

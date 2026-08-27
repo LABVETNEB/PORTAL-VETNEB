@@ -482,7 +482,7 @@ test("B08 · no .tsx restates the geometry the tokens own", () => {
   }
 });
 
-// ── T6 · Admin hub: a null active module is legal, aria-current is not faked ─
+// ── T6 · Admin hub: a null active module is legal and Inicio owns current ────
 
 test("B08 · the admin surface supports a null active module", () => {
   const drawer = read(DRAWER_TSX);
@@ -505,6 +505,10 @@ test("B08 · the admin surface supports a null active module", () => {
     assert.ok(
       source.includes('aria-current={isActive ? "page" : undefined}'),
       `${path} must mark only the active module`,
+    );
+    assert.ok(
+      source.includes('aria-current={!activeModule ? "page" : undefined}'),
+      `${path} must mark Inicio current for the admin hub`,
     );
   }
 

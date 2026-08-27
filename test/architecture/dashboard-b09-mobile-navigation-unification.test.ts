@@ -680,7 +680,6 @@ test("B09 · every preserved behaviour has a carrier in the new owner", () => {
     "subscribeClinicModuleActivate",
     "subscribeClinicHubReset",
     "writeDashboardLastModule",
-    "ADMIN_LAST_MODULE_STORAGE_KEY",
     "CLINIC_LAST_MODULE_STORAGE_KEY",
     "aria-current",
     "aria-expanded",
@@ -692,6 +691,16 @@ test("B09 · every preserved behaviour has a carrier in the new owner", () => {
       `${behaviour} was carried by a retired component and must survive in the owner`,
     );
   }
+
+  assert.ok(
+    executable.includes("buildAdminHubHref"),
+    "B13 owns the durable explicit admin hub URL",
+  );
+  assert.equal(
+    executable.includes('writeDashboardLastModule(ADMIN_LAST_MODULE_STORAGE_KEY, "")'),
+    false,
+    "admin Inicio does not clear its durable last module",
+  );
 
   // B09_CLINIC_HOME_ITEM = PRESERVE. Clinic keeps Inicio next to its five
   // modules, so it renders six primary slots and never an overflow.

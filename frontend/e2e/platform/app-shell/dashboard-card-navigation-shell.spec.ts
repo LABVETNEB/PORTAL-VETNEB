@@ -598,7 +598,7 @@ test.describe("admin dashboard — deep link direct navigation", () => {
     await expect(
       page.locator('[data-dashboard-module-hub="true"]'),
     ).toBeVisible({ timeout: 5_000 });
-    await expect(page).toHaveURL(/\/dashboard\/admin$/, { timeout: 5_000 });
+    await expect(page).toHaveURL(/\/dashboard\/admin\?hub=1$/, { timeout: 5_000 });
   });
 
   test("invalid admin module query param falls back to admin hub", async ({ page }) => {
@@ -621,7 +621,7 @@ test.describe("admin dashboard — browser back/forward sync", () => {
   });
 
   test("browser back from admin workspace returns to admin hub", async ({ page }) => {
-    await page.goto("/dashboard/admin");
+    await page.goto("/dashboard/admin?hub=1");
 
     const hub = page.locator('[data-dashboard-module-hub="true"]');
     await expect(hub).toBeVisible({ timeout: 8_000 });
@@ -634,7 +634,7 @@ test.describe("admin dashboard — browser back/forward sync", () => {
 
     await page.goBack();
 
-    await expect(page).toHaveURL(/\/dashboard\/admin$/, { timeout: 5_000 });
+    await expect(page).toHaveURL(/\/dashboard\/admin\?hub=1$/, { timeout: 5_000 });
     await expect(hub).toBeVisible({ timeout: 5_000 });
     await expect(
       page.locator('[data-dashboard-module-workspace="admin-clinics"]'),
@@ -642,7 +642,7 @@ test.describe("admin dashboard — browser back/forward sync", () => {
   });
 
   test("browser forward after back restores admin workspace", async ({ page }) => {
-    await page.goto("/dashboard/admin");
+    await page.goto("/dashboard/admin?hub=1");
 
     const hub = page.locator('[data-dashboard-module-hub="true"]');
     await expect(hub).toBeVisible({ timeout: 8_000 });
@@ -654,7 +654,7 @@ test.describe("admin dashboard — browser back/forward sync", () => {
     await expect(page).toHaveURL(/module=admin-clinics/, { timeout: 5_000 });
 
     await page.goBack();
-    await expect(page).toHaveURL(/\/dashboard\/admin$/, { timeout: 5_000 });
+    await expect(page).toHaveURL(/\/dashboard\/admin\?hub=1$/, { timeout: 5_000 });
     await expect(hub).toBeVisible({ timeout: 5_000 });
 
     await page.goForward();

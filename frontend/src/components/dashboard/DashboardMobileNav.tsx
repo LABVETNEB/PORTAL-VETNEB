@@ -22,7 +22,6 @@ import {
   subscribeClinicModuleActivate,
 } from "@/lib/clinic-hub-reset";
 import {
-  ADMIN_LAST_MODULE_STORAGE_KEY,
   CLINIC_LAST_MODULE_STORAGE_KEY,
   writeDashboardLastModule,
 } from "@/lib/dashboard-last-module";
@@ -37,6 +36,7 @@ import {
 } from "@/features/dashboard/config";
 import {
   MODULE_QUERY_PARAM,
+  buildAdminHubHref,
   buildDashboardModuleHref,
 } from "@/features/dashboard/application";
 import {
@@ -342,7 +342,7 @@ function DashboardMobileNavBar({
         className="dashboard-mobile-nav"
       >
         <PublicRouteControl
-          href={basePath}
+          href={surface === "admin" ? buildAdminHubHref() : basePath}
           prefetch={false}
           variant="bare"
           aria-label="Inicio"
@@ -460,7 +460,6 @@ function MobileNavWithUrl({ surface }: DashboardMobileNavProps) {
     setActiveModule(null);
     setOverflowOpen(false);
     if (surface === "admin") {
-      writeDashboardLastModule(ADMIN_LAST_MODULE_STORAGE_KEY, "");
       // Force the workspace controller back to the hub even when the URL push
       // collapses into a same-URL no-op (in-flight module navigation not yet
       // committed).

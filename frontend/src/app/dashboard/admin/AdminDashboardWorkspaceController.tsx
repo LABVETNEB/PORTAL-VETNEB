@@ -42,8 +42,18 @@ import {
   subscribeAdminModuleActivate,
 } from "@/lib/admin-hub-reset";
 import type { AdminAccessErrorStatus } from "@/lib/api-error";
-import { parseAdminModule } from "@/features/dashboard/config";
+import { ROUTES } from "@/lib/routes";
+import {
+  DEFAULT_ADMIN_MODULE,
+  parseAdminModule,
+} from "@/features/dashboard/config";
 import type { AdminModule } from "@/features/dashboard/config";
+import {
+  MODULE_QUERY_PARAM,
+  buildAdminHubHref,
+  buildDashboardModuleHref,
+  isAdminHubRequested,
+} from "@/features/dashboard/application";
 import { AdminAccessErrorState } from "./AdminAccessErrorState";
 
 export type { AdminModule };
@@ -174,7 +184,7 @@ export function AdminDashboardWorkspaceController({
   }, []);
 
   useEffect(() => {
-    const nextModule = parseAdminModule(searchParams.get("module"));
+    const nextModule = parseAdminModule(searchParams.get(MODULE_QUERY_PARAM));
     currentUrlModule.current = nextModule;
 
     if (previousUrlModule.current !== nextModule) {
@@ -210,7 +220,7 @@ export function AdminDashboardWorkspaceController({
       pendingNavigationIntent.current = null;
     }
 
-    setActiveModule(parseAdminModule(searchParams.get("module")));
+    setActiveModule(parseAdminModule(searchParams.get(MODULE_QUERY_PARAM)));
   }, [searchParams]);
 
   useEffect(() => () => clearAdminAccessError(), []);
@@ -255,13 +265,16 @@ export function AdminDashboardWorkspaceController({
 
   useEffect(() => {
     if (hasRestoredLastModule.current || hasManuallyReturnedToHub) return;
-    if (searchParams.get("module")) return;
+    if (searchParams.get(MODULE_QUERY_PARAM) || isAdminHubRequested(searchParams)) return;
     const lastModule = parseAdminModule(
       readDashboardLastModule(ADMIN_LAST_MODULE_STORAGE_KEY),
     );
-    if (!lastModule) return;
+    const landingModule = lastModule ?? DEFAULT_ADMIN_MODULE;
     hasRestoredLastModule.current = true;
-    router.replace(`/dashboard/admin?module=${lastModule}`, { scroll: false });
+    router.replace(
+      buildDashboardModuleHref(ROUTES.dashboardAdmin, landingModule),
+      { scroll: false },
+    );
   }, [searchParams, hasManuallyReturnedToHub, router]);
 
   // React flushes discrete-event state synchronously, so promoting the module
@@ -279,7 +292,9 @@ export function AdminDashboardWorkspaceController({
     clearAdminAccessError();
     recordNavigationIntent(moduleId);
     setActiveModule(moduleId);
-    router.push(`/dashboard/admin?module=${moduleId}`, { scroll: false });
+    router.push(buildDashboardModuleHref(ROUTES.dashboardAdmin, moduleId), {
+      scroll: false,
+    });
   }, [pendingActivation, recordNavigationIntent, router]);
 
   const activateModule = useCallback((moduleId: AdminModule) => {
@@ -291,7 +306,7 @@ export function AdminDashboardWorkspaceController({
     recordNavigationIntent(null);
     setActiveModule(null);
     setHasManuallyReturnedToHub(true);
-    router.replace("/dashboard/admin", { scroll: false });
+    router.replace(buildAdminHubHref(), { scroll: false });
   }, [recordNavigationIntent, router]);
 
   const adminHero = (

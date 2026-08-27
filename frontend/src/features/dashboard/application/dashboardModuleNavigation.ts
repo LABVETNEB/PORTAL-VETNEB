@@ -31,9 +31,25 @@
  * @see docs/implementation/dashboard-presentation-boundaries.md
  */
 import { parseClinicModule, type ClinicModule } from "../config";
+import { ROUTES } from "@/lib/routes";
 
 /** Query-string key that selects the active dashboard module (`?module=`). */
 export const MODULE_QUERY_PARAM = "module";
+
+/** Explicit, durable admin-hub intent. The hub is not an admin module. */
+export const ADMIN_HUB_QUERY_PARAM = "hub";
+export const ADMIN_HUB_QUERY_VALUE = "1";
+
+export function isAdminHubRequested(
+  searchParams: Pick<URLSearchParams, "get">,
+): boolean {
+  return searchParams.get(ADMIN_HUB_QUERY_PARAM) === ADMIN_HUB_QUERY_VALUE;
+}
+
+/** Build the sole canonical URL for the explicit admin Inicio/hub destination. */
+export function buildAdminHubHref(): string {
+  return `${ROUTES.dashboardAdmin}?${ADMIN_HUB_QUERY_PARAM}=${ADMIN_HUB_QUERY_VALUE}`;
+}
 
 /**
  * Build a `?module=` href for a dashboard module on a given base route. Pure and

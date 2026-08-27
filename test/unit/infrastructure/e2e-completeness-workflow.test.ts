@@ -179,7 +179,8 @@ test("automatic workflow coverage is derived from catalog cohorts and equals ful
   // +1: B10 clinic app-shell unification (regression/dashboard-shell).
   // +1: PR-TRUNC detail text integrity (platform/app-shell).
   // +1: B11 canonical WorkspaceHeader (regression/dashboard).
-  assert.equal(E2E_SUITE_CATALOG.length, 88);
+  // +1: B12 module-card removal and B13 durable admin entry.
+  assert.equal(E2E_SUITE_CATALOG.length, 90);
 
   const partitionUnion = new Set(PARTITION_COHORTS.flatMap((cohort) => E2E_COHORT_SPECS[cohort]));
   assert.deepEqual([...partitionUnion].sort(), [...E2E_COHORT_SPECS.full].sort());
