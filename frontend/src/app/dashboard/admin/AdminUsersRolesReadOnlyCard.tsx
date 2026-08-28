@@ -446,15 +446,15 @@ export function AdminUsersRolesReadOnlyCard() {
           className="hidden min-w-0 flex-1 grid-cols-3 divide-x divide-vetneb-line/70 md:grid"
         >
           <div className="min-w-0 px-2 text-center">
-            <p className="truncate text-[10px] text-muted-foreground">Total filtrado</p>
+            <span className="truncate text-[10px] text-muted-foreground">Total filtrado</span>
             <strong className="text-sm font-semibold tabular-nums text-vetneb-ink">{snapshot?.total ?? "—"}</strong>
           </div>
           <div className="min-w-0 px-2 text-center">
-            <p className="truncate text-[10px] text-muted-foreground">Admins</p>
+            <span className="truncate text-[10px] text-muted-foreground">Admins</span>
             <strong className="text-sm font-semibold tabular-nums text-vetneb-ink">{snapshot?.totals.adminUsers ?? "—"}</strong>
           </div>
           <div className="min-w-0 px-2 text-center">
-            <p className="truncate text-[10px] text-muted-foreground">Clínicas</p>
+            <span className="truncate text-[10px] text-muted-foreground">Clínicas</span>
             <strong className="text-sm font-semibold tabular-nums text-vetneb-ink">{snapshot?.totals.clinicUsers ?? "—"}</strong>
           </div>
         </div>

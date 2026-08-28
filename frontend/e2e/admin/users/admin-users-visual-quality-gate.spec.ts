@@ -758,9 +758,19 @@ function mobilePagination(page: Page) {
 async function applyDesktopState(page: Page, state: StateName) {
   const filters = page.locator(`[aria-label="${DESKTOP_FILTERS_LABEL}"]`);
   if (state === "next-page") {
+    const firstPage = await waitForStableDesktopMetrics(page, HIGH_VOLUME_TOTAL);
+    const expectedFirstUsername = expectedUsernameAt(firstPage.perPage!);
     await desktopPagination(page)
       .getByRole("button", { name: "Siguiente" })
       .click();
+    await expect(
+      page
+        .getByRole("table", { name: USERS_TABLE_NAME })
+        .locator("tbody tr")
+        .first()
+        .locator("td p")
+        .first(),
+    ).toHaveText(expectedFirstUsername);
   } else if (state === "filter-admin") {
     await filters.getByLabel("Tipo usuario").selectOption("admin");
   } else if (state === "filter-clinic-owner") {
@@ -772,9 +782,18 @@ async function applyDesktopState(page: Page, state: StateName) {
 async function applyMobileState(page: Page, state: StateName) {
   const moduleRoot = page.locator(MOBILE_MODULE_SELECTOR);
   if (state === "next-page") {
+    const firstPage = await waitForStableMobileMetrics(page, HIGH_VOLUME_TOTAL);
+    const expectedFirstUsername = expectedUsernameAt(firstPage.usernames.length);
     await mobilePagination(page)
       .getByRole("button", { name: "Siguiente" })
       .click();
+    await expect(
+      moduleRoot
+        .locator('[data-admin-mobile-ops-item="true"]')
+        .first()
+        .locator("p")
+        .first(),
+    ).toHaveText(expectedFirstUsername);
   } else if (state === "filter-admin") {
     await moduleRoot.getByLabel("Tipo").selectOption("admin");
   } else if (state === "filter-clinic-owner") {
