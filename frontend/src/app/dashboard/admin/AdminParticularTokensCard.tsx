@@ -111,7 +111,7 @@ const CREATE_STEP_LABELS: Record<CreateStep, string> = {
 // batch was full. The initial window covers two complete pages at the largest
 // adaptive cardinality observed across the 13 canonical A02 viewports.
 const TOKENS_FALLBACK_ROWS = 9;
-const TOKENS_MAX_OBSERVED_ADAPTIVE_ROWS = 17;
+const TOKENS_MAX_OBSERVED_ADAPTIVE_ROWS = 18;
 const TOKENS_INITIAL_ADAPTIVE_WINDOW_SIZE =
   TOKENS_MAX_OBSERVED_ADAPTIVE_ROWS * 2;
 // Preserve the established adaptive clamp and explicit incremental batch.
