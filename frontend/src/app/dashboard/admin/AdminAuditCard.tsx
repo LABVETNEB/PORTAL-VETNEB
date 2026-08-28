@@ -240,14 +240,16 @@ export function AdminAuditCard({
             <strong className="text-sm font-semibold tabular-nums text-vetneb-ink">{globalTotal}</strong>
           </div>
           <div id="audit-role-changes" aria-label="Cambios de rol" className="min-w-0 px-2 text-center">
-            <p className="truncate text-[10px] text-muted-foreground">Roles</p>
+            <p className="truncate text-[10px] leading-3 text-muted-foreground">
+              Roles · <span data-admin-audit-latest="roles">Últ. {roleChanges.latestDate}</span>
+            </p>
             <strong className="text-sm font-semibold tabular-nums text-vetneb-ink">{roleChanges.total}</strong>
-            <span className="sr-only">Último: {roleChanges.latestDate}</span>
           </div>
           <div id="admin-notifications" aria-label="Notificaciones" className="min-w-0 px-2 text-center">
-            <p className="truncate text-[10px] text-muted-foreground">Avisos</p>
+            <p className="truncate text-[10px] leading-3 text-muted-foreground">
+              Avisos · <span data-admin-audit-latest="avisos">Últ. {notifications.latestDate}</span>
+            </p>
             <strong className="text-sm font-semibold tabular-nums text-vetneb-ink">{notifications.total}</strong>
-            <span className="sr-only">Última: {notifications.latestDate}</span>
           </div>
         </div>
         <span className="shrink-0 text-xs font-medium text-muted-foreground">

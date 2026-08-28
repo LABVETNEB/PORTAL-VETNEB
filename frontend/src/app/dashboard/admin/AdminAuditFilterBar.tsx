@@ -143,16 +143,24 @@ export function AdminAuditFilterBar(props: AdminAuditFilterBarProps) {
   return (
     <>
       <FilterForm {...props} />
-      <div className="flex shrink-0 items-center justify-between border-b border-vetneb-line/70 px-3 py-1.5 md:hidden">
-        <span
-          data-dashboard-b14-metrics={props.metrics ? "admin-audit" : undefined}
-          className="min-w-0 truncate text-xs text-muted-foreground"
-        >
-          {props.hasActiveFilters ? "Filtros activos" : "Todos los eventos"}
-          {props.metrics
-            ? ` · ${props.metrics.events} eventos · ${props.metrics.roleChanges} roles · ${props.metrics.notifications} avisos`
-            : null}
-        </span>
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-vetneb-line/70 px-3 py-1.5 md:hidden">
+        <div className="flex min-w-0 flex-1 items-baseline gap-1.5 text-xs text-muted-foreground">
+          <span className="min-w-0 truncate">
+            {props.hasActiveFilters ? "Filtros activos" : "Todos los eventos"}
+          </span>
+          {props.metrics ? (
+            <span
+              data-dashboard-b14-metrics="admin-audit"
+              className="flex shrink-0 items-baseline gap-1.5 whitespace-nowrap tabular-nums"
+            >
+              <span data-admin-audit-metric="eventos">{props.metrics.events} eventos</span>
+              <span aria-hidden="true">·</span>
+              <span data-admin-audit-metric="roles">{props.metrics.roleChanges} roles</span>
+              <span aria-hidden="true">·</span>
+              <span data-admin-audit-metric="avisos">{props.metrics.notifications} avisos</span>
+            </span>
+          ) : null}
+        </div>
         <ModuleDialog
           title="Filtrar auditoría"
           description="Los filtros se aplican sobre el registro completo."
