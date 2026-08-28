@@ -128,7 +128,7 @@ test("admin sessions card renders safe description filters and table columns", (
   assert.ok(source.includes("Expiradas"));
   assert.ok(source.includes("Tipo de sesión"));
   assert.ok(source.includes("Estado"));
-  assert.ok(source.includes("dashboard-filter-stats-grid"));
+  assert.ok(source.includes('data-dashboard-b14-metrics="admin-sessions"'));
   assert.ok(source.includes("Página"));
   assert.ok(source.includes(">Sesión</TableHead>"));
   assert.ok(source.includes(">Actor</TableHead>"));

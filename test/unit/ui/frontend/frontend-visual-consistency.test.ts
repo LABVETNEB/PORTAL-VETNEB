@@ -434,13 +434,13 @@ test("dashboard home keeps visual dashboard states and card spacing conventions"
     [
       '<ModuleSurface',
       '<ModuleTabs',
-      '<section className="surface-note-info w-full" aria-labelledby="dashboard-operational-priority">',
       "<StatsCards stats={stats} />",
       "recentReports.map((report) =>",
       "recentVisits.map((visit) =>",
     ],
     "clinic command center shell",
   );
+  assert.equal(commandCenterSource.includes("dashboard-operational-priority"), false);
 
   assertMatchesAll(
     combinedSource,

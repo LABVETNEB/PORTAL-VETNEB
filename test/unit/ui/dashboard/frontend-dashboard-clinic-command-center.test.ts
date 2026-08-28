@@ -77,21 +77,17 @@ test("ClinicCommandCenter imports types from @/types only (no server-only import
   assert.ok(source.includes('import type { Report, FieldVisit, DashboardStats } from "@/types";'));
 });
 
-// ── Operational summary section ──────────────────────────────────────────────
+// ── B14 metrics ownership ───────────────────────────────────────────────────
 
-test("ClinicCommandCenter renders operational priority section with KPI pills", () => {
+test("B14 · ClinicCommandCenter leaves metric ownership to the Metrics tab", () => {
   const source = read(CLINIC_COMMAND_CENTER_PATH);
 
-  assert.ok(source.includes("Estado operativo clínica"));
-  assert.ok(source.includes("Priorice informes pendientes y visitas activas"));
-  assert.ok(source.includes("dashboard-operational-priority"));
-  assert.ok(source.includes("Informes pendientes"));
-  assert.ok(source.includes("Visitas activas"));
-  assert.ok(source.includes("{stats?.pendingReports ?? \"—\"}"));
-  assert.ok(source.includes("{stats?.activeVisits ?? \"—\"}"));
-  assert.ok(source.includes("dashboard-kpi-pill"));
-  assert.ok(source.includes('data-tone="critical"'));
-  assert.ok(source.includes('data-tone="focus"'));
+  assert.equal(source.includes("dashboard-operational-priority"), false);
+  assert.equal(source.includes("dashboard-kpi-pill"), false);
+  assert.equal(source.includes("{stats?.pendingReports ?? \"—\"}"), false);
+  assert.equal(source.includes("{stats?.activeVisits ?? \"—\"}"), false);
+  assert.ok(source.indexOf('id: "metricas"') < source.indexOf("statsLoadError ?"));
+  assert.ok(source.indexOf("statsLoadError ?") < source.indexOf("<StatsCards stats={stats} />"));
 });
 
 // ── Metrics section ──────────────────────────────────────────────────────────
@@ -113,6 +109,7 @@ test("ClinicCommandCenter shows metrics error alert when statsLoadError is true"
   assert.ok(source.includes("statsLoadError ?"));
   assert.ok(source.includes("No se pudieron cargar las métricas operativas. Intente nuevamente."));
   assert.ok(source.includes('role="alert"'));
+  assert.ok(source.indexOf('id: "recientes"') > source.indexOf("statsLoadError ?"));
 });
 
 // ── Reports list ─────────────────────────────────────────────────────────────

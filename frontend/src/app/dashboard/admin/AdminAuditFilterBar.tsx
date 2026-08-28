@@ -33,6 +33,11 @@ type AdminAuditFilterBarProps = {
   eventOptions: FilterOption[];
   actorTypeOptions: FilterOption[];
   hasActiveFilters: boolean;
+  metrics?: {
+    events: number;
+    roleChanges: number;
+    notifications: number;
+  };
 };
 
 type FilterFormProps = AdminAuditFilterBarProps & {
@@ -139,8 +144,14 @@ export function AdminAuditFilterBar(props: AdminAuditFilterBarProps) {
     <>
       <FilterForm {...props} />
       <div className="flex shrink-0 items-center justify-between border-b border-vetneb-line/70 px-3 py-1.5 md:hidden">
-        <span className="text-xs text-muted-foreground">
+        <span
+          data-dashboard-b14-metrics={props.metrics ? "admin-audit" : undefined}
+          className="min-w-0 truncate text-xs text-muted-foreground"
+        >
           {props.hasActiveFilters ? "Filtros activos" : "Todos los eventos"}
+          {props.metrics
+            ? ` · ${props.metrics.events} eventos · ${props.metrics.roleChanges} roles · ${props.metrics.notifications} avisos`
+            : null}
         </span>
         <ModuleDialog
           title="Filtrar auditoría"

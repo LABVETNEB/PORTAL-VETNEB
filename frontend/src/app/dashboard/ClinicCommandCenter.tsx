@@ -89,53 +89,7 @@ export function ClinicCommandCenter({
       className="flex min-h-0 flex-1 flex-col"
       data-clinic-command-center="true"
     >
-      <ModuleSurface
-        ariaLabel="Centro de operaciones clínica"
-      toolbar={
-        <section className="surface-note-info w-full" aria-labelledby="dashboard-operational-priority">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="min-w-0 max-w-3xl">
-              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-vetneb-navy/80">
-                Estado operativo clínica
-              </p>
-              <p
-                id="dashboard-operational-priority"
-                className="mt-1 text-sm font-medium text-vetneb-navy"
-              >
-                Priorice informes pendientes y visitas activas para sostener continuidad diagnóstica.
-              </p>
-            </div>
-            <div className="grid grid-cols-2 gap-2 sm:min-w-[20rem]">
-              <div className="dashboard-kpi-pill" data-tone="critical">
-                <p className="text-[0.68rem] font-semibold uppercase tracking-wide">
-                  Informes pendientes
-                </p>
-                <p className="mt-1 text-lg font-bold leading-none">
-                  {stats?.pendingReports ?? "—"}
-                </p>
-              </div>
-              <div className="dashboard-kpi-pill" data-tone="focus">
-                <p className="text-[0.68rem] font-semibold uppercase tracking-wide">
-                  Visitas activas
-                </p>
-                <p className="mt-1 text-lg font-bold leading-none">
-                  {stats?.activeVisits ?? "—"}
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-      }
-    >
-      {statsLoadError ? (
-        <div
-          role="alert"
-          className="clinical-alert-warning flex shrink-0 flex-wrap items-center justify-between gap-2"
-        >
-          <span>No se pudieron cargar las métricas operativas. Intente nuevamente.</span>
-          <DashboardRefreshButton />
-        </div>
-      ) : null}
+      <ModuleSurface ariaLabel="Centro de operaciones clínica">
       <ModuleTabs
         ariaLabel="Secciones del centro operativo clínica"
         tabs={[
@@ -158,6 +112,15 @@ export function ClinicCommandCenter({
                     Vista rápida de informes, pendientes y actividad logística del día.
                   </p>
                 </div>
+                {statsLoadError ? (
+                  <div
+                    role="alert"
+                    className="clinical-alert-warning flex shrink-0 flex-wrap items-center justify-between gap-2"
+                  >
+                    <span>No se pudieron cargar las métricas operativas. Intente nuevamente.</span>
+                    <DashboardRefreshButton />
+                  </div>
+                ) : null}
                 <div className="min-h-0 flex-1">
                   <StatsCards stats={stats} />
                 </div>

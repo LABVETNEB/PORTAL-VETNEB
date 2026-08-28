@@ -441,6 +441,23 @@ export function AdminUsersRolesReadOnlyCard() {
               "Permisos administrativos y de clínica con cambios auditados."}
           </p>
         </div>
+        <div
+          data-dashboard-b14-metrics="admin-users-roles"
+          className="hidden min-w-0 flex-1 grid-cols-3 divide-x divide-vetneb-line/70 md:grid"
+        >
+          <div className="min-w-0 px-2 text-center">
+            <p className="truncate text-[10px] text-muted-foreground">Total filtrado</p>
+            <strong className="text-sm font-semibold tabular-nums text-vetneb-ink">{snapshot?.total ?? "—"}</strong>
+          </div>
+          <div className="min-w-0 px-2 text-center">
+            <p className="truncate text-[10px] text-muted-foreground">Admins</p>
+            <strong className="text-sm font-semibold tabular-nums text-vetneb-ink">{snapshot?.totals.adminUsers ?? "—"}</strong>
+          </div>
+          <div className="min-w-0 px-2 text-center">
+            <p className="truncate text-[10px] text-muted-foreground">Clínicas</p>
+            <strong className="text-sm font-semibold tabular-nums text-vetneb-ink">{snapshot?.totals.clinicUsers ?? "—"}</strong>
+          </div>
+        </div>
         <Button
           type="button"
           variant="outline"
@@ -456,33 +473,6 @@ export function AdminUsersRolesReadOnlyCard() {
       </CardHeader>
 
       <CardContent className="flex min-h-0 flex-1 flex-col p-0">
-        <div className="grid min-h-11 shrink-0 grid-cols-3 border-b border-vetneb-line/70 md:min-h-9">
-          <div className="flex items-center justify-between gap-2 px-3 py-1 sm:px-4 md:py-0.5">
-            <span className="truncate text-[11px] text-muted-foreground sm:text-xs">
-              Total filtrado
-            </span>
-            <strong className="text-xl font-semibold tabular-nums text-vetneb-ink md:text-lg">
-              {snapshot?.total ?? "—"}
-            </strong>
-          </div>
-          <div className="flex items-center justify-between gap-2 border-x border-vetneb-line/70 px-3 py-1 sm:px-4 md:py-0.5">
-            <span className="truncate text-[11px] text-muted-foreground sm:text-xs">
-              Admins
-            </span>
-            <strong className="text-xl font-semibold tabular-nums text-vetneb-ink md:text-lg">
-              {snapshot?.totals.adminUsers ?? "—"}
-            </strong>
-          </div>
-          <div className="flex items-center justify-between gap-2 px-3 py-1 sm:px-4 md:py-0.5">
-            <span className="truncate text-[11px] text-muted-foreground sm:text-xs">
-              Clínicas
-            </span>
-            <strong className="text-xl font-semibold tabular-nums text-vetneb-ink md:text-lg">
-              {snapshot?.totals.clinicUsers ?? "—"}
-            </strong>
-          </div>
-        </div>
-
         <div
           className="flex min-h-12 shrink-0 items-end gap-2 border-b border-vetneb-line/70 px-3 py-2 sm:px-4 md:min-h-10 md:py-1"
           aria-label="Filtros de usuarios y roles"

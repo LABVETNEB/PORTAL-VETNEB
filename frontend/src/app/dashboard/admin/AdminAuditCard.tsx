@@ -221,7 +221,7 @@ export function AdminAuditCard({
         data-dashboard-b12-module-card="true"
         className="dashboard-surface hidden min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-vetneb-line/80 bg-card md:flex"
       >
-      <header className="flex min-h-12 shrink-0 items-center justify-between gap-3 border-b border-vetneb-line/70 px-3 py-2 sm:px-4">
+      <header className="flex min-h-12 shrink-0 items-center gap-3 border-b border-vetneb-line/70 px-3 py-2 sm:px-4">
         <div className="min-w-0">
           <h2 id="admin-audit-register-title" className="text-base font-semibold text-vetneb-ink">
             Registro operativo
@@ -230,31 +230,30 @@ export function AdminAuditCard({
             Acción, actor, entidad y fecha con detalle controlado.
           </p>
         </div>
+        <div
+          data-dashboard-b14-metrics="admin-audit"
+          className="grid min-w-0 flex-1 grid-cols-3 divide-x divide-vetneb-line/70"
+          aria-label="Resumen de auditoría"
+        >
+          <div id="admin-event-summary" className="min-w-0 px-2 text-center">
+            <p className="truncate text-[10px] text-muted-foreground">Eventos</p>
+            <strong className="text-sm font-semibold tabular-nums text-vetneb-ink">{globalTotal}</strong>
+          </div>
+          <div id="audit-role-changes" aria-label="Cambios de rol" className="min-w-0 px-2 text-center">
+            <p className="truncate text-[10px] text-muted-foreground">Roles</p>
+            <strong className="text-sm font-semibold tabular-nums text-vetneb-ink">{roleChanges.total}</strong>
+            <span className="sr-only">Último: {roleChanges.latestDate}</span>
+          </div>
+          <div id="admin-notifications" aria-label="Notificaciones" className="min-w-0 px-2 text-center">
+            <p className="truncate text-[10px] text-muted-foreground">Avisos</p>
+            <strong className="text-sm font-semibold tabular-nums text-vetneb-ink">{notifications.total}</strong>
+            <span className="sr-only">Última: {notifications.latestDate}</span>
+          </div>
+        </div>
         <span className="shrink-0 text-xs font-medium text-muted-foreground">
           {totalCount} coincidencias
         </span>
       </header>
-
-      <div className="grid shrink-0 grid-cols-3 border-b border-vetneb-line/70">
-        <div id="admin-event-summary" className="flex min-h-11 items-center justify-between gap-2 px-2 py-1.5 sm:px-4">
-          <span className="text-[11px] text-muted-foreground sm:text-xs">Eventos</span>
-          <strong className="text-xl font-semibold tabular-nums text-vetneb-ink">{globalTotal}</strong>
-        </div>
-        <div id="audit-role-changes" aria-label="Cambios de rol" className="flex min-h-11 items-center justify-between gap-2 border-x border-vetneb-line/70 px-2 py-1.5 sm:px-4">
-          <div className="min-w-0">
-            <p className="truncate text-[11px] text-muted-foreground sm:text-xs">Roles</p>
-            <p className="hidden truncate text-[11px] text-muted-foreground sm:block">Último: {roleChanges.latestDate}</p>
-          </div>
-          <strong className="text-xl font-semibold tabular-nums text-vetneb-ink">{roleChanges.total}</strong>
-        </div>
-        <div id="admin-notifications" aria-label="Notificaciones" className="flex min-h-11 items-center justify-between gap-2 px-2 py-1.5 sm:px-4">
-          <div className="min-w-0">
-            <p className="truncate text-[11px] text-muted-foreground sm:text-xs">Avisos</p>
-            <p className="hidden truncate text-[11px] text-muted-foreground sm:block">Última: {notifications.latestDate}</p>
-          </div>
-          <strong className="text-xl font-semibold tabular-nums text-vetneb-ink">{notifications.total}</strong>
-        </div>
-      </div>
 
       <AdminAuditFilterBar
         values={filters}

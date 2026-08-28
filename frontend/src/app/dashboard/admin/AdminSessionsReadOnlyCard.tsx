@@ -313,6 +313,27 @@ export function AdminSessionsReadOnlyCard() {
               "Admin, clínica y particulares. Sin tokens ni hashes. Revocación auditada."}
           </p>
         </div>
+        <div
+          data-dashboard-b14-metrics="admin-sessions"
+          className="hidden min-w-0 flex-1 grid-cols-4 divide-x divide-vetneb-line/70 md:grid"
+        >
+          <div className="min-w-0 px-2 text-center">
+            <p className="truncate text-[10px] text-muted-foreground">Total filtrado</p>
+            <strong className="text-sm font-semibold tabular-nums text-vetneb-ink">{snapshot?.total ?? "—"}</strong>
+          </div>
+          <div className="min-w-0 px-2 text-center">
+            <p className="truncate text-[10px] text-muted-foreground" title="Activas visibles en la página actual">Activas</p>
+            <strong className="text-sm font-semibold tabular-nums text-vetneb-ink">{snapshot ? activeOnPage : "—"}</strong>
+          </div>
+          <div className="min-w-0 px-2 text-center">
+            <p className="truncate text-[10px] text-muted-foreground" title="Expiradas visibles en la página actual">Expiradas</p>
+            <strong className="text-sm font-semibold tabular-nums text-vetneb-ink">{snapshot ? expiredOnPage : "—"}</strong>
+          </div>
+          <div className="min-w-0 px-2 text-center">
+            <p className="truncate text-[10px] text-muted-foreground">Página</p>
+            <strong className="text-sm font-semibold tabular-nums text-vetneb-ink">{snapshot ? page : "—"}</strong>
+          </div>
+        </div>
         <Button
           type="button"
           variant="outline"
@@ -328,47 +349,6 @@ export function AdminSessionsReadOnlyCard() {
       </CardHeader>
 
       <CardContent className="flex min-h-0 flex-1 flex-col p-0">
-        <div className="dashboard-filter-stats-grid min-h-10 shrink-0 border-b border-vetneb-line/70">
-          <div className="flex items-center justify-between gap-2 px-1 py-1">
-            <span className="truncate text-[11px] text-muted-foreground sm:text-xs">
-              Total filtrado
-            </span>
-            <strong className="text-xl font-semibold tabular-nums text-vetneb-ink">
-              {snapshot?.total ?? "—"}
-            </strong>
-          </div>
-          <div className="flex items-center justify-between gap-2 px-1 py-1">
-            <span
-              className="truncate text-[11px] text-muted-foreground sm:text-xs"
-              title="Activas visibles en la página actual"
-            >
-              Activas
-            </span>
-            <strong className="text-xl font-semibold tabular-nums text-vetneb-ink">
-              {snapshot ? activeOnPage : "—"}
-            </strong>
-          </div>
-          <div className="flex items-center justify-between gap-2 px-1 py-1">
-            <span
-              className="truncate text-[11px] text-muted-foreground sm:text-xs"
-              title="Expiradas visibles en la página actual"
-            >
-              Expiradas
-            </span>
-            <strong className="text-xl font-semibold tabular-nums text-vetneb-ink">
-              {snapshot ? expiredOnPage : "—"}
-            </strong>
-          </div>
-          <div className="flex items-center justify-between gap-2 px-1 py-1">
-            <span className="truncate text-[11px] text-muted-foreground sm:text-xs">
-              Página
-            </span>
-            <strong className="text-xl font-semibold tabular-nums text-vetneb-ink">
-              {snapshot ? page : "—"}
-            </strong>
-          </div>
-        </div>
-
         <div
           className="flex min-h-11 shrink-0 items-end gap-2 border-b border-vetneb-line/70 bg-muted/15 px-3 py-1 sm:px-4"
           aria-label="Filtros de sesiones"

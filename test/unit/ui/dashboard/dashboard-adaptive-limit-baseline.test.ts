@@ -27,9 +27,12 @@ test("A03 frozen baseline is complete, exact and source-backed", () => {
   );
   const helper = readFileSync(resolve(process.cwd(), HELPER_PATH), "utf8");
   const spec = readFileSync(resolve(process.cwd(), SPEC_PATH), "utf8");
-  const observationBlock = fixture
-    .split("  observations: [\n", 2)[1]
-    ?.split("  ],\n  platformObservations:", 1)[0];
+  const observationsStart = fixture.indexOf("  observations: [\n");
+  const observationsEnd = fixture.indexOf("\n  ],", observationsStart);
+  const observationBlock =
+    observationsStart >= 0 && observationsEnd > observationsStart
+      ? fixture.slice(observationsStart + "  observations: [\n".length, observationsEnd)
+      : undefined;
   const platformBlock = fixture
     .split("  platformObservations: {\n", 2)[1]
     ?.split("\n  },\n};", 1)[0];
@@ -44,9 +47,12 @@ test("A03 frozen baseline is complete, exact and source-backed", () => {
   const platformKeys = [...platformBlock.matchAll(/^    ([a-z0-9_-]+): \[$/gm)].map(
     (match) => match[1],
   );
-  const linuxObservationBlock = platformBlock
-    .split("    linux: [\n", 2)[1]
-    ?.split("\n    ],", 1)[0];
+  const linuxStart = platformBlock.indexOf("    linux: [\n");
+  const linuxEnd = platformBlock.indexOf("\n],", linuxStart);
+  const linuxObservationBlock =
+    linuxStart >= 0 && linuxEnd > linuxStart
+      ? platformBlock.slice(linuxStart + "    linux: [\n".length, linuxEnd)
+      : undefined;
 
   assert.deepEqual(platformKeys, ["linux"]);
   assert.ok(linuxObservationBlock, "fixture must expose a literal Linux observations array");
@@ -73,6 +79,9 @@ test("A03 frozen baseline is complete, exact and source-backed", () => {
   assert.ok(
     spec.includes('const A03_PLATFORM_CAPTURE_MODE = "off" as "off" | "capture";'),
   );
+  assert.ok(spec.includes("const A03_TARGET_MODULES = process.env.A03_TARGET_MODULES;"));
+  assert.ok(spec.includes("function resolveSelectedModules()"));
+  assert.ok(spec.includes("A03_TARGET_MODULES contains unknown module ids"));
   assert.equal(observations.length, 234);
   assert.equal(new Set(observations.map((entry) => entry.leafKey)).size, 234);
   assert.equal(

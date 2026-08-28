@@ -94,16 +94,16 @@ test("PR-7 globals.css defines .dashboard-filter-stats-grid-5 variant", () => {
 
 // ── Stats grid class usage ───────────────────────────────────────────────────
 
-test("PR-7 AdminSessionsReadOnlyCard uses dashboard-filter-stats-grid for stats bar", () => {
+test("B14 AdminSessionsReadOnlyCard keeps metrics in its existing header", () => {
   const source = read(SESSIONS_CARD_PATH);
   assert.ok(
-    source.includes("dashboard-filter-stats-grid"),
-    "AdminSessionsReadOnlyCard must use dashboard-filter-stats-grid class for stats bar",
+    source.includes('data-dashboard-b14-metrics="admin-sessions"'),
+    "AdminSessionsReadOnlyCard must mark the integrated metric cluster",
   );
   assert.equal(
-    source.includes('className="grid grid-cols-1 gap-3 md:grid-cols-4"'),
+    source.includes("dashboard-filter-stats-grid"),
     false,
-    "AdminSessionsReadOnlyCard must not hardcode 4-col grid — use dashboard-filter-stats-grid",
+    "AdminSessionsReadOnlyCard must not retain a standalone stats bar",
   );
 });
 
@@ -120,16 +120,16 @@ test("PR-7 AdminFailedLoginAlertsReadOnlyCard uses dashboard-filter-stats-grid f
   );
 });
 
-test("PR-7A AdminUsersRolesReadOnlyCard uses a compact three-metric strip", () => {
+test("B14 AdminUsersRolesReadOnlyCard keeps metrics in its existing header", () => {
   const source = read(USERS_ROLES_CARD_PATH);
   assert.ok(
-    source.includes("grid min-h-11 shrink-0 grid-cols-3"),
-    "AdminUsersRolesReadOnlyCard must keep its metrics in one compact row",
+    source.includes('data-dashboard-b14-metrics="admin-users-roles"'),
+    "AdminUsersRolesReadOnlyCard must mark the integrated metric cluster",
   );
   assert.equal(
-    source.includes("dashboard-filter-stats-grid-5"),
+    source.includes("grid min-h-11 shrink-0 grid-cols-3"),
     false,
-    "AdminUsersRolesReadOnlyCard must not use the former stacked five-card grid",
+    "AdminUsersRolesReadOnlyCard must not retain the standalone metric strip",
   );
 });
 
