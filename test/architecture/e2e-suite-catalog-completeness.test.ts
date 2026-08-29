@@ -23,8 +23,8 @@ const TEST_FILE = fileURLToPath(import.meta.url);
 const REPO_ROOT = resolve(dirname(TEST_FILE), "..", "..");
 process.chdir(REPO_ROOT);
 
-const EXPECTED_WORKSPACE_SPEC_COUNT = 90;
-const EXPECTED_CATALOG_SPEC_COUNT = 90;
+const EXPECTED_WORKSPACE_SPEC_COUNT = 91;
+const EXPECTED_CATALOG_SPEC_COUNT = 91;
 const EXPECTED_MANUAL_ONLY_SPEC_COUNT = 0;
 const EXPECTED_DOMAIN_COUNTS = new Map([
   ["admin", 19],
@@ -38,22 +38,22 @@ const EXPECTED_DOMAIN_COUNTS = new Map([
   // ClinicDashboardShell contract.
   // +1: B11 canonical WorkspaceHeader, the runtime half of the shared
   // DashboardModuleWorkspace header contract.
-  ["regression", 19],
+  ["regression", 20],
 ]);
 const EXPECTED_CURRENT_COUNTS = new Map([
   ["smoke", 9],
-  ["admin-mobile", 13],
+  ["admin-mobile", 14],
   // +1: B10, routed to visual-contract like B08 and B09 (AGENTS.md §7).
   // +1: B11, routed to visual-contract like B08, B09 and B10 (AGENTS.md §7).
   ["visual-contract", 22],
   ["public-clinic", 12],
 ]);
 const EXPECTED_EXECUTION_COUNTS = new Map<E2eExecutionCohort, number>([
-  ["ci", 56],
+  ["ci", 57],
   ["extended", 29],
   ["evidence", 2],
   ["visual-linux", 3],
-  ["full", 90],
+  ["full", 91],
   ["affected", 0],
 ]);
 const EXECUTION_PARTITION_COHORTS = [
@@ -268,7 +268,7 @@ function validateCatalog(
   }
 
   const currentUnion = unique([...currentMemberships.keys()]).sort();
-  assert.equal(currentUnion.length, 56);
+  assert.equal(currentUnion.length, 57);
   assert.deepEqual(E2E_COHORT_SPECS.ci, currentUnion, "ci must equal the current four-cohort union");
 
   for (const cohort of ["extended", "evidence", "visual-linux", "full"] as const) {
@@ -322,11 +322,11 @@ test("catalog validation catches missing and duplicate entries in memory", async
 
   assert.throws(
     () => validateCatalog(missing, workspaceSpecs, E2E_MANUAL_ONLY_SPECS),
-    /89|classified/,
+    /90|classified/,
   );
   assert.throws(
     () => validateCatalog(duplicated, workspaceSpecs, E2E_MANUAL_ONLY_SPECS),
-    /90|unique/,
+    /91|unique/,
   );
 });
 
@@ -364,7 +364,7 @@ test("affected selection fails closed for empty or shared changes", async () => 
 
   const sharedSelection = runner.classifyAffectedPaths(["frontend/e2e/helpers/admin-mobile-contracts.ts"]);
   assert.equal(sharedSelection.fallback, true);
-  assert.equal(sharedSelection.specs.length, 56);
+  assert.equal(sharedSelection.specs.length, 57);
   assert.match(sharedSelection.reason, /shared E2E infrastructure/);
 });
 

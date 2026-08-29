@@ -111,7 +111,7 @@ const CREATE_STEP_LABELS: Record<CreateStep, string> = {
 // batch was full. The initial window covers two complete pages at the largest
 // adaptive cardinality observed across the 13 canonical A02 viewports.
 const TOKENS_FALLBACK_ROWS = 9;
-const TOKENS_MAX_OBSERVED_ADAPTIVE_ROWS = 17;
+const TOKENS_MAX_OBSERVED_ADAPTIVE_ROWS = 18;
 const TOKENS_INITIAL_ADAPTIVE_WINDOW_SIZE =
   TOKENS_MAX_OBSERVED_ADAPTIVE_ROWS * 2;
 // Preserve the established adaptive clamp and explicit incremental batch.
@@ -1296,17 +1296,6 @@ export function AdminParticularTokensCard() {
               Accesos sensibles, trazabilidad bajo demanda y acciones controladas.
             </p>
           </div>
-          <ParticularTokensMetricStrip
-            metrics={[
-              { label: "En página", value: visibleTokens.length },
-              { label: "Activos", value: activeTokensCount },
-              { label: "Con informe", value: linkedReportsCount },
-              { label: "Página", value: pagedTokens.page + 1 },
-            ]}
-            className="flex min-h-10 items-center rounded-lg md:min-h-8"
-            itemClassName="min-w-[4.5rem] px-3 py-1 text-center md:px-2 md:py-0.5"
-            valueClassName="text-xl leading-5 md:text-base md:leading-4"
-          />
         </div>
       </CardHeader>
 
@@ -1342,6 +1331,19 @@ export function AdminParticularTokensCard() {
               Generar token
             </Button>
           </div>
+
+          <ParticularTokensMetricStrip
+            data-dashboard-b14-metrics="admin-particular-tokens"
+            metrics={[
+              { label: "En página", value: visibleTokens.length },
+              { label: "Activos", value: activeTokensCount },
+              { label: "Con informe", value: linkedReportsCount },
+              { label: "Página", value: pagedTokens.page + 1 },
+            ]}
+            className="hidden min-h-8 items-center rounded-md border-0 bg-transparent md:flex"
+            itemClassName="min-w-[4.25rem] px-2 py-0.5 text-center"
+            valueClassName="text-base leading-4"
+          />
 
           <form
             className="flex w-full min-w-0 items-center gap-1 md:hidden"

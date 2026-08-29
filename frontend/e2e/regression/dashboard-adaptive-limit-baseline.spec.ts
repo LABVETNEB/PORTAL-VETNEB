@@ -36,6 +36,32 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const A03_PLATFORM_CAPTURE_MODE = "off" as "off" | "capture";
+const A03_TARGET_MODULES = process.env.A03_TARGET_MODULES;
+
+function resolveSelectedModules(): readonly A03ModuleId[] {
+  if (!A03_TARGET_MODULES) return A03_MODULE_IDS;
+
+  const requested = A03_TARGET_MODULES.split(",").map((moduleId) => moduleId.trim()).filter(Boolean);
+  if (requested.length === 0) {
+    throw new Error("A03_TARGET_MODULES must name at least one canonical A03 module");
+  }
+  if (new Set(requested).size !== requested.length) {
+    throw new Error("A03_TARGET_MODULES must not contain duplicate module ids");
+  }
+  const unknown = requested.filter((moduleId) => !A03_MODULE_IDS.includes(moduleId as A03ModuleId));
+  if (unknown.length > 0) {
+    throw new Error(`A03_TARGET_MODULES contains unknown module ids: ${unknown.join(", ")}`);
+  }
+  return A03_MODULE_IDS.filter((moduleId) => requested.includes(moduleId));
+}
+
+const SELECTED_A03_MODULE_IDS = resolveSelectedModules();
+const SELECTED_A03_LEAF_COUNT = SELECTED_A03_MODULE_IDS.reduce(
+  (total, moduleId) => total + Math.max(1, A03_OBSERVERS[moduleId].leaves.length) * DASHBOARD_GEOMETRY_VIEWPORTS.length,
+  0,
+);
+const SELECTED_A03_PRIMARY_COUNT = SELECTED_A03_MODULE_IDS.length * DASHBOARD_GEOMETRY_VIEWPORTS.length;
+const IS_TARGETED_REVALIDATION = SELECTED_A03_MODULE_IDS.length !== A03_MODULE_IDS.length;
 
 /** Shared, run-scoped sink. `test-results/` is cleared by Playwright at start. */
 function matrixDir(testInfo: TestInfo): string {
@@ -76,7 +102,7 @@ test.beforeAll(() => {
 });
 
 test.describe("A03 · adaptive limit/offset matrix 15x13", () => {
-  for (const moduleId of A03_MODULE_IDS) {
+  for (const moduleId of SELECTED_A03_MODULE_IDS) {
     const observer = A03_OBSERVERS[moduleId];
 
     test(`${moduleId} · ${observer.source}`, async ({ page }, testInfo) => {
@@ -114,7 +140,7 @@ test.describe("A03 · adaptive limit/offset matrix 15x13", () => {
     const directory = matrixDir(testInfo);
     const files = (await readdir(directory)).filter((name) => name.endsWith(".json"));
 
-    expect(files.length, "one observation file per module").toBe(A03_MODULE_IDS.length);
+    expect(files.length, "one observation file per selected module").toBe(SELECTED_A03_MODULE_IDS.length);
 
     const observations: A03Observation[] = [];
     for (const file of files) {
@@ -124,7 +150,15 @@ test.describe("A03 · adaptive limit/offset matrix 15x13", () => {
       observations.push(...parsed);
     }
 
-    assertMatrixIntegrity(observations);
+    if (IS_TARGETED_REVALIDATION) {
+      expect(observations.length, "targeted leaf observations").toBe(SELECTED_A03_LEAF_COUNT);
+      expect(
+        new Set(observations.map((observation) => primaryKey(observation.moduleId, observation.viewportSlug))).size,
+        "targeted primary records",
+      ).toBe(SELECTED_A03_PRIMARY_COUNT);
+    } else {
+      assertMatrixIntegrity(observations);
+    }
 
     const sorted = sortObservations(observations);
     const rendered = `${JSON.stringify(
@@ -160,13 +194,16 @@ test.describe("A03 · adaptive limit/offset matrix 15x13", () => {
       );
     }
 
-    assertMatchesBaseline(sorted, baseline.observations, baseline.provenance);
+    const selectedBaseline = IS_TARGETED_REVALIDATION
+      ? baseline.observations.filter((observation) => SELECTED_A03_MODULE_IDS.includes(observation.moduleId))
+      : baseline.observations;
+    assertMatchesBaseline(sorted, selectedBaseline, baseline.provenance);
 
     console.log(
-      `\n[A03 matrix] ${sorted.length}/${A03_LEAF_OBSERVATION_COUNT} leaves · ` +
+      `\n[A03 matrix] ${sorted.length}/${IS_TARGETED_REVALIDATION ? SELECTED_A03_LEAF_COUNT : A03_LEAF_OBSERVATION_COUNT} leaves · ` +
         `${
           new Set(sorted.map((o) => primaryKey(o.moduleId, o.viewportSlug))).size
-        }/${A03_PRIMARY_RECORD_COUNT} primary records\n` +
+        }/${IS_TARGETED_REVALIDATION ? SELECTED_A03_PRIMARY_COUNT : A03_PRIMARY_RECORD_COUNT} primary records\n` +
         `[A03 matrix] observations JSON: ${outputFile}\n`,
     );
   });

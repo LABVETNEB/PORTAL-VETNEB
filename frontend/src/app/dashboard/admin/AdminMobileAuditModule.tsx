@@ -66,26 +66,16 @@ export function AdminMobileAuditModule({
       aria-label="Registro operativo de auditoría"
       className="dashboard-surface flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-vetneb-line/80 bg-card md:hidden"
     >
-      <div className="grid min-h-9 shrink-0 grid-cols-3 border-b border-vetneb-line/70 text-[11px]">
-        <div className="flex items-center justify-between gap-1 px-2">
-          <span className="truncate text-muted-foreground">Eventos</span>
-          <strong className="tabular-nums text-vetneb-ink">{globalTotal}</strong>
-        </div>
-        <div className="flex items-center justify-between gap-1 border-x border-vetneb-line/70 px-2">
-          <span className="truncate text-muted-foreground">Roles</span>
-          <strong className="tabular-nums text-vetneb-ink">{roleChangesTotal}</strong>
-        </div>
-        <div className="flex items-center justify-between gap-1 px-2">
-          <span className="truncate text-muted-foreground">Avisos</span>
-          <strong className="tabular-nums text-vetneb-ink">{notificationsTotal}</strong>
-        </div>
-      </div>
-
       <AdminAuditFilterBar
         values={filters}
         eventOptions={eventOptions}
         actorTypeOptions={actorTypeOptions}
         hasActiveFilters={hasActiveFilters}
+        metrics={{
+          events: globalTotal,
+          roleChanges: roleChangesTotal,
+          notifications: notificationsTotal,
+        }}
       />
 
       <div
