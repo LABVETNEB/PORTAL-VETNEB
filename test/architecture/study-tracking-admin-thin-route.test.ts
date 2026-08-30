@@ -182,9 +182,20 @@ function handlerPropertyCalls(
   return calls.sort();
 }
 
+// Hashing raw bytes is CRLF-sensitive: a Windows checkout with
+// core.autocrlf converts this file's committed LF line endings to CRLF on
+// disk, producing a different digest than the LF bytes Linux CI checks out
+// from the same git blob. Normalizing to LF before hashing keeps the pin
+// meaningful (it still changes on a real content edit) without being an
+// artifact of which OS computed it.
 function digest(relativePath: string): string {
   return createHash("sha256")
-    .update(readFileSync(resolve(repoRoot, relativePath)))
+    .update(
+      readFileSync(resolve(repoRoot, relativePath), "utf8").replace(
+        /\r\n/g,
+        "\n",
+      ),
+    )
     .digest("hex");
 }
 
@@ -375,7 +386,7 @@ test("M32b composición admin selecciona sólo el barrel de infrastructure", () 
 test("M44 preserva rutas M32 y realinea sólo el specifier Particular Access", () => {
   assert.equal(
     digest(clinicRouteFile),
-    "95cacc008578974e9884f10bb1fa8edc750b34bbea18d3ead4f4f26eec95e105",
+    "9c5a2a407dfb22b2ccb2cb197bb10bc108fb5a246bfa906374f2de5c370a7669",
   );
   assert.equal(
     digest(particularRouteFile),

@@ -97,7 +97,7 @@ test(
   "createGracefulShutdown loguea SERVER_SHUTDOWN_FAILED sin datos crudos cuando el cierre falla",
   async () => {
     const databaseSecret =
-      "postgresql://runtime-user:runtime-password@private-db/portal";
+      "postgresql://runtime-user:runtime-password@db.example.com/portal";
     const { logger } = createMockLogger();
     const { handle } = createMockHandle({
       closeError: new Error(databaseSecret),
@@ -197,7 +197,7 @@ test(
     // test spies on console.error the same way test/integration/app/
     // fastify-app.test.ts already does for API_ERROR events.
     const databaseSecret =
-      "postgresql://runtime-user:runtime-password@private-db/portal";
+      "postgresql://runtime-user:runtime-password@db.example.com/portal";
     const expectedError = new Error(databaseSecret);
     const { logger } = createMockLogger();
     const { processApi, exitCodes } = createMockProcessApi();

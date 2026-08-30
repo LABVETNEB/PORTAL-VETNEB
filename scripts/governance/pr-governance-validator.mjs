@@ -106,11 +106,13 @@ const SECRET_PATTERNS = [
     pattern:
       /\b(?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis):\/\/[^:@\s/]+:([^@\s]+)@[^/\s]+/i,
     candidateGroup: 1,
+    credentialUrl: true,
   },
   {
     category: "SMTP credential URL",
     pattern: /\bsmtps?:\/\/[^:@\s/]+:([^@\s]+)@[^/\s]+/i,
     candidateGroup: 1,
+    credentialUrl: true,
   },
   {
     category: "explicit production secret assignment",
@@ -122,6 +124,67 @@ const SECRET_PATTERNS = [
 
 const PLACEHOLDER_RE =
   /(example|placeholder|dummy|fake|sample|changeme|change-me|your[_-]|xxx|xxxxx|<[^>]+>|\.\.\.|localhost|127\.0\.0\.1|example\.com)/i;
+// Credential-URL exemption policy (narrow by construction).
+//
+// A DSN is exempt only when its HOST proves the URL is not production, or
+// when its PASSWORD is itself a placeholder (the detector's historical rule,
+// preserved unchanged). The username is deliberately NOT consulted: a
+// placeholder-looking account name says nothing about whether the password
+// beside it is a real secret, so `dummyuser:<strong password>@real-host`
+// stays a finding.
+//
+// Host matching is structural — exact hostname or true domain suffix — never
+// a substring test. That distinction is the whole point: `db.examplehealth.com`
+// and `postgres.example-labs.net` merely contain the letters "example" and are
+// ordinary production-shaped hosts, so they must keep flagging.
+const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "0.0.0.0"]);
+
+// RFC 2606 §3 reserves these second-level domains for documentation and
+// examples; they can never be a real deployment target. `.invalid`/`.test`
+// are intentionally absent: the repository already uses `mail.internal.invalid`
+// as a *detected* SMTP fixture, and exempting that TLD would silently retire
+// an existing positive-detection contract.
+const RESERVED_DOCUMENTATION_DOMAINS = [
+  "example.com",
+  "example.net",
+  "example.org",
+];
+
+const CREDENTIAL_URL_RE =
+  /^([a-z0-9+.-]+):\/\/([^:@\s/]+):([^@\s]+)@(\[[^\]\s]+\]|[^/\s:]+)(?::(\d+))?/i;
+
+function parseCredentialUrl(matchedText) {
+  const parts = CREDENTIAL_URL_RE.exec(matchedText);
+  if (!parts) return null;
+
+  return {
+    scheme: parts[1],
+    username: parts[2],
+    password: parts[3],
+    host: parts[4].replace(/^\[|\]$/g, "").toLowerCase(),
+  };
+}
+
+function isNonProductionHost(host) {
+  if (LOOPBACK_HOSTS.has(host)) return true;
+
+  return RESERVED_DOCUMENTATION_DOMAINS.some(
+    (domain) => host === domain || host.endsWith(`.${domain}`),
+  );
+}
+
+/**
+ * True when a matched credential URL is provably a non-production fixture.
+ * Falls back to flagging whenever the URL cannot be parsed, so an unusual
+ * shape fails closed rather than silently escaping the scan.
+ */
+function credentialUrlIsExempt(matchedText, password) {
+  const parsed = parseCredentialUrl(matchedText);
+  if (!parsed) return false;
+
+  return isNonProductionHost(parsed.host) || PLACEHOLDER_RE.test(password);
+}
+
 const ARCHITECTURE_PLACEHOLDER_RE =
   /(placeholder|dummy|sample|changeme|change-me|your[_-]|xxx|xxxxx|<[^>]+>|\.\.\.|\bTODO\b|\bTBD\b|template)/i;
 const JWT_RE =
@@ -208,13 +271,24 @@ function jwtPayloadHasServiceRole(payloadSegment) {
 }
 
 export function detectSecretPattern(lineText) {
-  for (const { category, pattern, candidateGroup } of SECRET_PATTERNS) {
+  for (const { category, pattern, candidateGroup, credentialUrl } of SECRET_PATTERNS) {
     const match = pattern.exec(lineText);
     if (!match) continue;
-    if (
-      candidateGroup === null ||
-      !PLACEHOLDER_RE.test(match[candidateGroup])
-    ) {
+
+    if (candidateGroup === null) {
+      return category;
+    }
+
+    // URL-shaped patterns are decided structurally (host / password), because
+    // their placeholder signal usually lives in the host, which the password
+    // capture group never contains. Everything else keeps the original rule:
+    // the placeholder test applies to the captured secret value alone, so a
+    // placeholder word elsewhere on the line cannot suppress a real finding.
+    const exempt = credentialUrl
+      ? credentialUrlIsExempt(match[0], match[candidateGroup])
+      : PLACEHOLDER_RE.test(match[candidateGroup]);
+
+    if (!exempt) {
       return category;
     }
   }

@@ -241,6 +241,14 @@ test("negative proof: dependency-free content produces zero flagged specifiers",
 });
 
 // -- 4 - The decision to defer zod unification is registered -----------------
+//
+// This used to also assert against the roadmap document's own prose, but
+// docs/implementation/global-white-box-audit-remediation-roadmap.md is
+// intentionally never committed (its own metadata declares "sin commit"
+// pending approval), so that file does not exist on a clean CI checkout and
+// the assertion failed with ENOENT on every run. The durable, committed
+// record of the dependency-free contract this guard enforces is the header
+// below, not the roadmap.
 
 test("shared/session-cookie-names.ts documents the dependency-free contract that motivates this guard", () => {
   const source = readSource(`${SHARED_ROOT}/session-cookie-names.ts`);
@@ -249,21 +257,6 @@ test("shared/session-cookie-names.ts documents the dependency-free contract that
     source,
     /must stay dependency-free/,
     "shared/session-cookie-names.ts must document the dependency-free contract this guard enforces",
-  );
-});
-
-test("the roadmap records the WBR-16 decision to defer zod unification instead of forcing a migration", () => {
-  const roadmap = readSource(
-    "docs/implementation/global-white-box-audit-remediation-roadmap.md",
-  );
-
-  assert.match(
-    roadmap,
-    /WBR-16 . Guard de frontera zod para `shared\/\*\*`/,
-  );
-  assert.match(
-    roadmap,
-    /No se planifica unificar zod s\u00f3lo por uniformidad\./,
   );
 });
 
