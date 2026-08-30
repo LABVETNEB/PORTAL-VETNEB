@@ -45,6 +45,41 @@ test("verifyPassword contra hash legacy de longitud correcta pero contenido inco
   assert.deepEqual(result, { valid: false, needsRehash: false });
 });
 
+// Regression: `Buffer.from(x, "hex")` does not reject malformed input, it stops
+// at the first invalid byte pair. A stored record of `<valid digest><junk>`
+// therefore decoded to exactly the digest's own 32 bytes and authenticated,
+// accepting a credential the pre-WBR-15 string comparison had rejected. The
+// comparator now requires the canonical 64-character lowercase hex encoding
+// before decoding, so every one of these must fail closed.
+test("verifyPassword rechaza un hash legacy valido seguido de contenido no hexadecimal", async () => {
+  const validDigest = hashLegacyPassword("abc123");
+  const tamperedRecords = [
+    `${validDigest}zzzz`,
+    `${validDigest}!!`,
+    `${validDigest}gg`,
+    `${validDigest} `,
+    `${validDigest}00`,
+    validDigest.toUpperCase(),
+  ];
+
+  for (const storedHash of tamperedRecords) {
+    // eslint-disable-next-line no-await-in-loop
+    const result = await verifyPassword("abc123", storedHash);
+
+    assert.deepEqual(
+      result,
+      { valid: false, needsRehash: false },
+      `stored record of length ${storedHash.length} must not authenticate`,
+    );
+  }
+});
+
+test("verifyPassword sigue aceptando el hash legacy canonico exacto", async () => {
+  const result = await verifyPassword("abc123", hashLegacyPassword("abc123"));
+
+  assert.deepEqual(result, { valid: true, needsRehash: true });
+});
+
 test("verifyPassword con argon2 válido expone needsRehash true cuando argon2 lo indica", async () => {
   const originalVerify = argon2.verify;
   const originalNeedsRehash = argon2.needsRehash;
