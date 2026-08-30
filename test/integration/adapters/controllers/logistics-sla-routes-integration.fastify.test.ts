@@ -237,7 +237,7 @@ test("logistics SLA integration rejects invalid sessions before DB helpers", asy
     assert.equal(response.statusCode, 401);
     assert.deepEqual(JSON.parse(response.body), {
       success: false,
-      error: "Sesion invalida",
+      error: "Sesión inválida",
     });
 
     assert.deepEqual(policyCalls, []);
@@ -331,7 +331,7 @@ test("logistics SLA integration rejects expired sessions before DB helpers", asy
     assert.equal(response.statusCode, 401);
     assert.deepEqual(JSON.parse(response.body), {
       success: false,
-      error: "Sesion expirada",
+      error: "Sesión expirada",
     });
     assert.deepEqual(deletedSessionHashes, ["hash:expired-session-token"]);
     assert.deepEqual(policyCalls, []);
@@ -426,7 +426,7 @@ test("logistics SLA integration rejects missing session users before DB helpers"
     assert.equal(response.statusCode, 401);
     assert.deepEqual(JSON.parse(response.body), {
       success: false,
-      error: "Usuario de sesion no encontrado",
+      error: "Usuario de sesión no encontrado",
     });
     assert.deepEqual(deletedSessionHashes, ["hash:missing-user-session-token"]);
     assert.deepEqual(policyCalls, []);
@@ -886,4 +886,3 @@ test("logistics SLA integration rejects invalid filters before DB reads", async 
     await app.close();
   }
 });
-

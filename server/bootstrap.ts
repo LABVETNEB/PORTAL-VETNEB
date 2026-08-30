@@ -1,4 +1,6 @@
-﻿export type StartupCleanupSummary = {
+﻿import { logError, serializeError } from "./lib/logger.ts";
+
+export type StartupCleanupSummary = {
   deletedClinicSessions: number;
   deletedAdminSessions: number;
   deletedParticularSessions: number;
@@ -8,7 +10,11 @@ export type HttpServerHandle = {
   close: () => Promise<void>;
 };
 
-type LoggerLike = Pick<Console, "log" | "error">;
+// WBR-11 (VET-16): only informational startup announcements (log) go through
+// this injectable logger; infrastructure errors go through the canonical
+// structured logger (logError) so they're redacted the same way as every
+// other error in this codebase.
+type LoggerLike = Pick<Console, "log">;
 type ProcessLike = Pick<NodeJS.Process, "on" | "exit">;
 
 export type BootstrapHttpServerDeps = {
@@ -47,7 +53,7 @@ export function createGracefulShutdown(deps: {
       await deps.closeResources();
       exit(0);
     } catch (error) {
-      logger.error("Shutdown error:", error);
+      logError("SERVER_SHUTDOWN_FAILED", { errorName: serializeError(error).name });
       exit(1);
     }
   };
@@ -99,7 +105,7 @@ export async function bootstrapHttpServer(
 
     return handle;
   } catch (error) {
-    logger.error("Failed to start server:", error);
+    logError("SERVER_START_FAILED", { errorName: serializeError(error).name });
 
     try {
       await deps.closeResources();

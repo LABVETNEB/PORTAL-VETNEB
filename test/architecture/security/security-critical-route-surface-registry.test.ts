@@ -62,8 +62,9 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
         ],
       },
       {
+        // WBR-08c: migrated to the canonical clinic auth helper.
         path: "server/routes/auth.fastify.ts",
-        markers: ["cookies[ENV.cookieName]", "name: ENV.cookieName"],
+        markers: ["authenticateFastifyClinicUser", "name: ENV.cookieName"],
       },
       {
         path: "server/lib/fastify-admin-auth.ts",
@@ -125,8 +126,9 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
         ],
       },
       {
+        // WBR-08c: migrated to the canonical clinic auth helper.
         path: "server/routes/clinic-audit.fastify.ts",
-        markers: ["cookies[ENV.cookieName]", "name: ENV.cookieName"],
+        markers: ["authenticateFastifyClinicUser"],
       },
     ],
     guardrailTests: [

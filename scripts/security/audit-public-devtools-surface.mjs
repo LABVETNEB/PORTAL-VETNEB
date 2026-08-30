@@ -1,8 +1,19 @@
 #!/usr/bin/env node
 
-import { createReadStream, existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { extname, relative, resolve } from "node:path";
-import { StringDecoder } from "node:string_decoder";
+import {
+  EXPLICIT_BLOCKED_IDENTIFIERS,
+  STREAM_CHUNK_SIZE,
+  TEXT_EXTENSIONS,
+  readAllowlistedProcessEnvEntries,
+  readCanaryEntry,
+  readEnvEntries,
+  scanEnvValueLeaksInFile,
+  selectSensitiveEntries,
+  streamTextWindows,
+  validateEnvValueSourcesEvaluated,
+} from "./env-value-leak-detector.mjs";
 
 const ROOT = process.cwd();
 const JSON_OUTPUT = process.argv.includes("--json");
@@ -43,58 +54,13 @@ const SURFACE_TARGETS = [
   },
 ];
 
-const ENV_FILES = [".env", ".env.local", "frontend/.env.local"];
-
-const TEXT_EXTENSIONS = new Set([
-  ".ts",
-  ".tsx",
-  ".js",
-  ".jsx",
-  ".mjs",
-  ".cjs",
-  ".json",
-  ".html",
-  ".css",
-  ".txt",
-  ".svg",
-  ".xml",
-  ".map",
-  ".md",
-  ".yml",
-  ".yaml",
-  ".webmanifest",
-]);
-
 const FRONTEND_CODE_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"]);
 const OVERSIZED_FILE_BYTES = 6 * 1024 * 1024;
-const DEFAULT_STREAM_CHUNK_SIZE = 64 * 1024;
-const STREAM_CHUNK_SIZE = getPositiveInteger(
-  process.env.PUBLIC_SURFACE_STREAM_CHUNK_SIZE,
-  DEFAULT_STREAM_CHUNK_SIZE,
-);
 
-const EXPLICIT_BLOCKED_IDENTIFIERS = [
-  "SUPABASE_SERVICE_ROLE_KEY",
-  "SUPABASE_DB_URL",
-  "DATABASE_URL",
-  "POSTGRES",
-  "SMTP_PASS",
-  "SMTP_USER",
-  "GMAIL_API_REFRESH_TOKEN",
-  "GMAIL_API_CLIENT_SECRET",
-  "SESSION_SECRET",
-  "JWT_SECRET",
-  "ADMIN_COOKIE_NAME",
-  "PARTICULAR_COOKIE_NAME",
-  "SERVICE_ROLE",
-  "PRIVATE_KEY",
-  "ACCESS_TOKEN",
-  "REFRESH_TOKEN",
-  "PASSWORD",
-  "SECRET",
-  "TOKEN",
-];
-
+// EXPLICIT_BLOCKED_IDENTIFIERS, TEXT_EXTENSIONS and STREAM_CHUNK_SIZE now
+// live in ./env-value-leak-detector.mjs (VET-11 / WBR-05): the env-value
+// leak engine needs them importable from a test without running this
+// script's top-level audit as a side effect.
 const EXPLICIT_IDENTIFIER_REGEXES = EXPLICIT_BLOCKED_IDENTIFIERS.map((name) => ({
   name,
   regex: new RegExp(`\\b${escapeRegex(name)}\\b`, "i"),
@@ -139,8 +105,6 @@ const SENSITIVE_ATTRIBUTE_VALUE_REGEX =
   /(bearer\s+[a-z0-9._-]{10,}|token\s*[=:]|secret\s*[=:]|password\s*[=:]|api[_-]?key\s*[=:]|jwt\s*[=:]|cookie\s*[=:]|access[_-]?token|refresh[_-]?token|session[_-]?id)/i;
 const SENSITIVE_ATTRIBUTE_REF_NAME_REGEX =
   /(token|secret|password|session|cookie|apiKey|api_key|privateKey|jwt|accessToken|refreshToken|email|phone|dni)/i;
-const SENSITIVE_ENV_KEY_REGEX =
-  /(SUPABASE_SERVICE_ROLE_KEY|SUPABASE_DB_URL|DATABASE_URL|POSTGRES|SMTP_PASS|SMTP_USER|GMAIL_API_REFRESH_TOKEN|GMAIL_API_CLIENT_SECRET|SESSION_SECRET|JWT_SECRET|ADMIN_COOKIE_NAME|PARTICULAR_COOKIE_NAME|SERVICE_ROLE|PRIVATE_KEY|ACCESS_TOKEN|REFRESH_TOKEN|PASSWORD|SECRET|TOKEN|API_KEY)/i;
 
 const findings = [];
 const notes = [];
@@ -607,17 +571,34 @@ async function auditSensitiveIdentifiers() {
 }
 
 async function auditEnvValueLeaks() {
-  const envEntries = readEnvEntries();
-  if (envEntries.length === 0) {
-    notes.push("No .env, .env.local or frontend/.env.local file found for env-value leak matching.");
-    return;
+  // VET-11 / WBR-05: the file-based adapter is local-dev-only (CI never has
+  // a .env). The allowlisted-process.env adapter and the synthetic canary
+  // (see ./env-value-leak-detector.mjs) guarantee at least one real
+  // candidate is always evaluated, so this check can no longer degrade into
+  // a silent PASS just because no .env file exists.
+  const fileEntries = readEnvEntries();
+  const envEntries = [
+    ...fileEntries,
+    ...readAllowlistedProcessEnvEntries(),
+    readCanaryEntry(),
+  ];
+
+  if (fileEntries.length === 0) {
+    notes.push(
+      "No .env, .env.local or frontend/.env.local file found; evaluating env-value leak matching against the synthetic canary and any allowlisted process.env vars instead.",
+    );
   }
 
-  const sensitiveEntries = envEntries.filter(
-    (entry) => isSensitiveEnvKey(entry.key) && isSearchableSecretValue(entry.value),
-  );
+  const sensitiveEntries = selectSensitiveEntries(envEntries);
+  const notEvaluatedReason = validateEnvValueSourcesEvaluated(envEntries, sensitiveEntries);
 
-  if (sensitiveEntries.length === 0) {
+  if (notEvaluatedReason) {
+    addFinding({
+      rule: "env-value-leak-check-not-evaluated",
+      file: "scripts/security/audit-public-devtools-surface.mjs",
+      message: notEvaluatedReason,
+      publicExposure: true,
+    });
     return;
   }
 
@@ -644,6 +625,10 @@ async function auditEnvValueLeaks() {
       });
     }
   }
+
+  notes.push(
+    `Evaluated ${sensitiveEntries.length} sensitive env-value candidate(s) (including a synthetic canary) against ${publicFiles.length} public surface file(s).`,
+  );
 }
 
 async function scanSensitiveIdentifierMarkers(relativePath) {
@@ -688,137 +673,6 @@ async function scanSensitiveIdentifierMarkers(relativePath) {
   };
 }
 
-async function scanEnvValueLeaksInFile(relativePath, envEntries) {
-  if (envEntries.length === 0) {
-    return [];
-  }
-
-  const entriesByValue = new Map();
-  for (const entry of envEntries) {
-    if (!entriesByValue.has(entry.value)) {
-      entriesByValue.set(entry.value, []);
-    }
-    entriesByValue.get(entry.value).push(entry);
-  }
-
-  const pendingValues = new Set(entriesByValue.keys());
-  const leakedEntries = [];
-
-  let carryoverLength = 0;
-  for (const value of pendingValues) {
-    carryoverLength = Math.max(carryoverLength, Math.max(0, value.length - 1));
-  }
-
-  const scanned = await streamTextWindows(relativePath, carryoverLength, (window) => {
-    if (pendingValues.size === 0) {
-      return;
-    }
-
-    for (const value of [...pendingValues]) {
-      if (!window.includes(value)) {
-        continue;
-      }
-
-      leakedEntries.push(...(entriesByValue.get(value) ?? []));
-      pendingValues.delete(value);
-    }
-  });
-
-  if (!scanned) {
-    return [];
-  }
-
-  return leakedEntries;
-}
-
-function readEnvEntries() {
-  const entries = [];
-
-  for (const envFile of ENV_FILES) {
-    const absolutePath = resolve(ROOT, envFile);
-    if (!existsSync(absolutePath)) {
-      continue;
-    }
-
-    const content = readFileSync(absolutePath, "utf8").replace(/\r\n/g, "\n");
-    for (const line of content.split("\n")) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith("#")) {
-        continue;
-      }
-
-      const match = /^(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/.exec(trimmed);
-      if (!match) {
-        continue;
-      }
-
-      const key = match[1];
-      const rawValue = match[2];
-      const value = normalizeEnvValue(rawValue);
-      entries.push({ key, value, sourceFile: envFile });
-    }
-  }
-
-  return entries;
-}
-
-function isSensitiveEnvKey(key) {
-  if (key.startsWith("NEXT_PUBLIC_")) {
-    return false;
-  }
-  return SENSITIVE_ENV_KEY_REGEX.test(key);
-}
-
-function isSearchableSecretValue(value) {
-  if (!value) {
-    return false;
-  }
-
-  const trimmed = value.trim();
-  if (trimmed.length < 8) {
-    return false;
-  }
-
-  const lower = trimmed.toLowerCase();
-
-  if (
-    lower === "changeme" ||
-    lower === "change-me" ||
-    lower === "example" ||
-    lower === "test" ||
-    lower === "dummy"
-  ) {
-    return false;
-  }
-
-  if (lower.includes("localhost") || lower.includes("127.0.0.1")) {
-    return false;
-  }
-
-  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
-    return false;
-  }
-
-  return true;
-}
-
-function normalizeEnvValue(rawValue) {
-  const unquoted = rawValue.trim();
-  if (
-    (unquoted.startsWith('"') && unquoted.endsWith('"')) ||
-    (unquoted.startsWith("'") && unquoted.endsWith("'"))
-  ) {
-    return unquoted.slice(1, -1);
-  }
-
-  const hashIndex = unquoted.indexOf(" #");
-  if (hashIndex > -1) {
-    return unquoted.slice(0, hashIndex).trim();
-  }
-
-  return unquoted;
-}
-
 function collectDirectoryFiles(absoluteRoot) {
   const files = [];
 
@@ -836,65 +690,6 @@ function collectDirectoryFiles(absoluteRoot) {
 
   walk(absoluteRoot);
   return files;
-}
-
-async function streamTextWindows(relativePath, carryoverLength, onWindow) {
-  const absolutePath = resolve(ROOT, relativePath);
-  if (!existsSync(absolutePath)) {
-    return false;
-  }
-
-  const extension = extname(relativePath).toLowerCase();
-  if (extension && !TEXT_EXTENSIONS.has(extension)) {
-    return false;
-  }
-
-  const info = statSync(absolutePath);
-  if (!info.isFile()) {
-    return false;
-  }
-
-  const effectiveCarryoverLength = Math.max(0, carryoverLength);
-  const decoder = new StringDecoder("utf8");
-  let carryover = "";
-  let isBinary = false;
-
-  const stream = createReadStream(absolutePath, {
-    highWaterMark: STREAM_CHUNK_SIZE,
-  });
-
-  for await (const chunk of stream) {
-    if (chunk.includes(0)) {
-      isBinary = true;
-      break;
-    }
-
-    const chunkText = decoder.write(chunk).replace(/\r\n/g, "\n");
-    if (chunkText.length === 0 && carryover.length === 0) {
-      continue;
-    }
-
-    const window = carryover + chunkText;
-    if (window.length > 0) {
-      onWindow(window);
-    }
-
-    carryover = effectiveCarryoverLength > 0 ? window.slice(-effectiveCarryoverLength) : "";
-  }
-
-  if (isBinary) {
-    return false;
-  }
-
-  const tail = decoder.end().replace(/\r\n/g, "\n");
-  if (tail.length > 0) {
-    const window = carryover + tail;
-    if (window.length > 0) {
-      onWindow(window);
-    }
-  }
-
-  return true;
 }
 
 function readText(relativePath) {
@@ -968,14 +763,6 @@ function unique(values) {
 
 function escapeRegex(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function getPositiveInteger(rawValue, fallback) {
-  const parsed = Number.parseInt(String(rawValue ?? ""), 10);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return fallback;
-  }
-  return parsed;
 }
 
 function matchAll(regex, content) {

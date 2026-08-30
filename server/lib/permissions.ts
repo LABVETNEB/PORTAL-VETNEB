@@ -22,7 +22,6 @@ export function normalizeClinicUserRole(
 }
 
 export type ClinicPermissions = {
-  canUploadReports: boolean;
   canManageClinicUsers: boolean;
   canViewLogistics: boolean;
   canManageLogisticsFieldVisits: boolean;
@@ -35,7 +34,6 @@ export function getClinicPermissions(role: ClinicUserRole): ClinicPermissions {
   switch (role) {
     case "clinic_owner":
       return {
-        canUploadReports: false,
         canManageClinicUsers: true,
         canViewLogistics: true,
         canManageLogisticsFieldVisits: true,
@@ -46,7 +44,6 @@ export function getClinicPermissions(role: ClinicUserRole): ClinicPermissions {
     case "clinic_staff":
     default:
       return {
-        canUploadReports: false,
         canManageClinicUsers: false,
         canViewLogistics: true,
         canManageLogisticsFieldVisits: false,

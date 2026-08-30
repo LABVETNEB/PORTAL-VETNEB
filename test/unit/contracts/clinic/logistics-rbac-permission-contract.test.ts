@@ -69,7 +69,7 @@ test("logistics route modules enforce RBAC before unsafe mutations", () => {
 
     assertIncludes(source, 'from "../lib/permissions.ts"', routeFile.path);
     assertIncludes(source, "getClinicPermissions", routeFile.path);
-    assertIncludes(source, "normalizeClinicUserRole", routeFile.path);
+    assertIncludes(source, "fastify-clinic-auth.ts", routeFile.path);
     assertIncludes(source, "function enforceLogisticsPermission", routeFile.path);
     assertIncludes(source, "UNSAFE_METHODS", routeFile.path);
     assertIncludes(source, routeFile.managePermission, routeFile.path);

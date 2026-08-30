@@ -342,12 +342,19 @@ test("AdminDashboardWorkspaceController syncs module from URL with useSearchPara
   // The admin module list + alias-aware parse are the single source of truth in
   // the config catalog; the controller consumes the shared parse helper instead
   // of a locally re-declared ADMIN_MODULE_VALUES / parseModuleFromUrl.
-  assert.ok(
-    source.includes('import { parseAdminModule } from "@/features/dashboard/config";'),
+  assert.match(
+    source,
+    /import\s*\{[\s\S]*?parseAdminModule,[\s\S]*?\}\s*from\s*"@\/features\/dashboard\/config";/,
   );
-  assert.ok(source.includes('searchParams.get("module")'));
+  // The query param name is a single shared constant (MODULE_QUERY_PARAM),
+  // not a literal duplicated at each call site.
+  assert.match(
+    source,
+    /import\s*\{[\s\S]*?MODULE_QUERY_PARAM,[\s\S]*?\}\s*from\s*"@\/features\/dashboard\/application";/,
+  );
+  assert.ok(source.includes('searchParams.get(MODULE_QUERY_PARAM)'));
   assert.ok(
-    source.includes('setActiveModule(parseAdminModule(searchParams.get("module")));'),
+    source.includes('setActiveModule(parseAdminModule(searchParams.get(MODULE_QUERY_PARAM)));'),
   );
   assert.ok(source.includes('[searchParams]'));
   assert.ok(source.includes('from "next/navigation"'));

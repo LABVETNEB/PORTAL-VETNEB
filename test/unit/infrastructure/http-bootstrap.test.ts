@@ -94,6 +94,46 @@ test(
 );
 
 test(
+  "createGracefulShutdown loguea SERVER_SHUTDOWN_FAILED sin datos crudos cuando el cierre falla",
+  async () => {
+    const databaseSecret =
+      "postgresql://runtime-user:runtime-password@private-db/portal";
+    const { logger } = createMockLogger();
+    const { handle } = createMockHandle({
+      closeError: new Error(databaseSecret),
+    });
+    const exitCodes: number[] = [];
+    const consoleErrorCalls: string[] = [];
+    const originalConsoleError = console.error;
+    console.error = (...args: unknown[]) => {
+      consoleErrorCalls.push(args.map(String).join(" "));
+    };
+
+    const shutdown = createGracefulShutdown({
+      getHandle: () => handle,
+      closeResources: async () => undefined,
+      logger: logger as any,
+      exit: (code) => {
+        exitCodes.push(code);
+      },
+    });
+
+    try {
+      await shutdown("SIGINT");
+    } finally {
+      console.error = originalConsoleError;
+    }
+
+    assert.deepEqual(exitCodes, [1]);
+    assert.equal(consoleErrorCalls.length, 1);
+    assert.ok(consoleErrorCalls[0].includes('"event":"SERVER_SHUTDOWN_FAILED"'));
+    assert.ok(consoleErrorCalls[0].includes('"errorName":"Error"'));
+    assert.equal(consoleErrorCalls[0].includes(databaseSecret), false);
+    assert.equal(consoleErrorCalls[0].includes("Shutdown error"), false);
+  },
+);
+
+test(
   "bootstrapHttpServer ejecuta preflight startServer y registra senales",
   async () => {
     const { logger, logs, errors } = createMockLogger();
@@ -152,40 +192,59 @@ test(
 test(
   "bootstrapHttpServer cierra recursos y sale con codigo 1 cuando preflight falla",
   async () => {
-    const expectedError = new Error("db down");
-    const { logger, errors } = createMockLogger();
+    // WBR-11: infrastructure errors go through the canonical structured
+    // logger (logError), not the injectable console-like logger, so this
+    // test spies on console.error the same way test/integration/app/
+    // fastify-app.test.ts already does for API_ERROR events.
+    const databaseSecret =
+      "postgresql://runtime-user:runtime-password@private-db/portal";
+    const expectedError = new Error(databaseSecret);
+    const { logger } = createMockLogger();
     const { processApi, exitCodes } = createMockProcessApi();
+    const consoleErrorCalls: string[] = [];
+    const originalConsoleError = console.error;
+    console.error = (...args: unknown[]) => {
+      consoleErrorCalls.push(args.map(String).join(" "));
+    };
 
     let closeResourcesCalls = 0;
     let startServerCalls = 0;
 
-    await assert.rejects(
-      () =>
-        bootstrapHttpServer({
-          port: 3000,
-          preflight: async () => {
-            throw expectedError;
-          },
-          startServer: async (_port) => {
-            startServerCalls += 1;
+    try {
+      await assert.rejects(
+        () =>
+          bootstrapHttpServer({
+            port: 3000,
+            preflight: async () => {
+              throw expectedError;
+            },
+            startServer: async (_port) => {
+              startServerCalls += 1;
 
-            return {
-              address: "http://127.0.0.1:3000",
-              handle: createMockHandle().handle,
-            };
-          },
-          closeResources: async () => {
-            closeResourcesCalls += 1;
-          },
-          logger: logger as any,
-          processApi: processApi as any,
-        }),
-      expectedError,
-    );
+              return {
+                address: "http://127.0.0.1:3000",
+                handle: createMockHandle().handle,
+              };
+            },
+            closeResources: async () => {
+              closeResourcesCalls += 1;
+            },
+            logger: logger as any,
+            processApi: processApi as any,
+          }),
+        expectedError,
+      );
+    } finally {
+      console.error = originalConsoleError;
+    }
 
     assert.equal(startServerCalls, 0);
     assert.equal(closeResourcesCalls, 1);
     assert.deepEqual(exitCodes, [1]);
-    assert.deepEqual(errors[0], ["Failed to start server:", expectedError]);
+    assert.equal(consoleErrorCalls.length, 1);
+    assert.ok(consoleErrorCalls[0].includes('"event":"SERVER_START_FAILED"'));
+    assert.ok(consoleErrorCalls[0].includes('"errorName":"Error"'));
+    assert.equal(consoleErrorCalls[0].includes(databaseSecret), false);
+    assert.equal(consoleErrorCalls[0].includes("Failed to start server"), false);
   },
 );

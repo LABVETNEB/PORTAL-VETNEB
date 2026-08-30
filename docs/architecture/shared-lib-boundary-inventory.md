@@ -132,7 +132,7 @@ HEAD `f3e22a7`.
 dinámicos) [CONFIRMED, `git grep`]:**
 
 `env` 42 · `auth-security` 34 · `cors-headers` 30 · `runtime-timing` 21 ·
-`session-last-access` 17 · `fastify-admin-auth` 15 · `audit` 15 · `permissions` 14 ·
+`session-last-access` 17 · `fastify-admin-auth` 15 · `audit` 15 · `permissions` 13 ·
 `supabase` 8 · `rate-limit-store` 8 · `list-pagination` 8 · `http-types` 8 · `email` 5.
 
 > Metodología de fan-in **M01 (snapshot histórico, superada)**: se cuentan archivos de
@@ -235,7 +235,7 @@ nombre); fan-in = archivos de `server/` que lo importan. `Estado`: **mover** (a 
 | `lib/public-professionals-rate-limit.ts` (9) | Public Professionals | infra (wrapper) | — | Bajo | `features/public-professionals/infrastructure/` (store queda en lib) | M23 | movido; path legacy retirado en M24, store compartido intacto |
 | `lib/public-report-access-rate-limit.ts` (4) | Report Access | infra (wrapper) | — | Bajo | con Report Access | M34 | mover (con ruta) |
 | `lib/report-access-token-rate-limit.ts` (4) | Report Access | infra (wrapper) | — | Bajo | con Report Access | M34 | mover (con ruta) |
-| `lib/permissions.ts` (57) | Users/Roles (autorización) | **shared kernel** | 14 | Medio | permanece en `lib` (kernel documentado) | M42 (docs+guard) | permanecer/kernel |
+| `lib/permissions.ts` (57) | Users/Roles (autorización) | **shared kernel** | 13 | Medio | permanece en `lib` (kernel documentado) | M42 (docs+guard) | permanecer/kernel |
 | `lib/audit.ts` (261) | Audit | cross-cutting | 15 | Bajo/Medio | puerto por contexto al extraer cada feature | drena por features | drenar |
 | `lib/audit-log.ts` (462) | Audit | cross-cutting | 1 | Bajo/Medio | ídem | drena por features | drenar |
 | `lib/admin-audit.ts` (20) | Audit | cross-cutting (wrapper) | — | Bajo | ídem | drena | drenar |
@@ -344,7 +344,7 @@ rollback = revert independiente del PR (§8). "Tests anclados" remite a §7.
 | Reports | `db-report-workflow.ts` | infra | `features/reports/infrastructure/` | infrastructure | M37 | M36 | consistencia DB↔email (sin compensación nueva) | infra guard | sí | revert | Alto | MOVE |
 | Reports | `lib/supabase.ts` | infra (storage, 8 consumidores) | permanece; consumo por puerto storage | — | M37/M39 | — | `global-storage-report-safety` | — | por puerto | revert | Alto | KEEP (por puerto) |
 | Users/Roles | `db-admin-users-roles.ts` | infra | `features/users-roles/infrastructure/` | infrastructure | M43 | M42 | search contract | infra guard | sí | revert | Medio | MOVE |
-| Users/Roles | `lib/permissions.ts` | **shared kernel** (fan-in 14) | permanece en `lib` (documentado) | — | M42 | — | `logistics-rbac-permission-contract` y otros consumidores | guard de kernel (docs) | n/a | n/a | Alto si se mueve | KEEP |
+| Users/Roles | `lib/permissions.ts` | **shared kernel** (fan-in 13) | permanece en `lib` (documentado) | — | M42 | — | `logistics-rbac-permission-contract` y otros consumidores | guard de kernel (docs) | n/a | n/a | Alto si se mueve | KEEP |
 | Audit/cross-cutting | `lib/{audit,audit-log,admin-audit,clinic-audit,particular-audit}.ts`, `db-audit.ts` | cross-cutting | permanece; puerto por contexto al extraer | — | drena por features | — | contratos audit por-ruta; orden audit→respuesta | — | por puerto | revert | Medio | KEEP/DEFER |
 | Auth/security frozen | `auth.fastify`, `admin-auth.fastify`, `particular-auth.fastify`, `lib/{auth-security,fastify-admin-auth,login-rate-limit,session-last-access}.ts`, `db-admin-sessions.ts`, `db-admin-failed-login-alerts.ts`, `middlewares/{admin-auth,auth,particular-auth}.ts` | auth (3 realms) | — | — | — (fuera del programa) | diseño + sign-off | cookies, CSRF, rate limits por realm | 16 guards `architecture/security/*` | — | — | **Crítico** | FROZEN (C4) |
 | Shared infra residual | `lib/{env,logger,cors-headers,api-request-id,api-response-security,sensitive-response-cache,runtime-timing,http-runtime,rate-limit-store}.ts` | http/infra | `lib/{http,infra}` **sólo al final** | — | M46/M47 | todas las features cerradas | headers/CORS/observabilidad por-ruta | guards de frontera | shims documentados | revert | Alto si se adelanta | DEFER |

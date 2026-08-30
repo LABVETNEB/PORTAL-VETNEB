@@ -222,6 +222,110 @@ test("redactSensitiveText redacta secretos embebidos en strings", () => {
   );
 });
 
+// VET-03: PII de email (tutores, clinicas, profesionales, destinatarios SMTP)
+// no puede depender solo de la disciplina del call-site.
+test("redactLogValue redacta claves de email/recipient por igualdad exacta", () => {
+  const redacted = redactLogValue({
+    email: "test@example.com",
+    emails: ["one@example.com", "two@example.com"],
+    recipient: "test@example.com",
+    recipients: ["one@example.com", "two@example.com"],
+    recipientEmail: "test@example.com",
+    recipientEmails: ["one@example.com", "two@example.com"],
+  });
+
+  assert.deepEqual(redacted, {
+    email: "[REDACTED]",
+    emails: "[REDACTED]",
+    recipient: "[REDACTED]",
+    recipients: "[REDACTED]",
+    recipientEmail: "[REDACTED]",
+    recipientEmails: "[REDACTED]",
+  });
+
+  for (const key of [
+    "email",
+    "emails",
+    "recipient",
+    "recipients",
+    "recipientEmail",
+    "recipientEmails",
+  ]) {
+    assert.equal(isSensitiveLogKey(key), true, key);
+  }
+});
+
+test("redactLogValue no sobre-redacta metadata de email agregada o no reversible", () => {
+  const safeMetadata = {
+    recipientCount: 2,
+    messageId: "message-123",
+    transport: "smtp",
+    hasReplyTo: true,
+    hasClinicName: false,
+  };
+
+  assert.deepEqual(redactLogValue(safeMetadata), safeMetadata);
+
+  for (const key of [
+    "recipientCount",
+    "messageId",
+    "transport",
+    "hasReplyTo",
+    "hasClinicName",
+  ]) {
+    assert.equal(isSensitiveLogKey(key), false, key);
+  }
+});
+
+test("redactSensitiveText oculta direcciones de email incrustadas en texto libre", () => {
+  assert.equal(
+    redactSensitiveText("Delivery failed for test@example.com"),
+    "Delivery failed for [REDACTED]",
+  );
+  assert.equal(
+    redactSensitiveText("contact one@example.com or two@example.com"),
+    "contact [REDACTED] or [REDACTED]",
+  );
+  // negativo: texto ordinario que sólo menciona la palabra "email" no debe
+  // redactarse por completo.
+  assert.equal(
+    redactSensitiveText("email delivery completed"),
+    "email delivery completed",
+  );
+});
+
+test("redactLogValue protege emails anidados y dentro de arrays", () => {
+  const nested = redactLogValue({
+    payload: { contact: { email: "test@example.com" } },
+  });
+
+  assert.deepEqual(nested, {
+    payload: { contact: { email: "[REDACTED]" } },
+  });
+
+  const arrayOfObjects = redactLogValue({
+    contacts: [{ email: "a@b.com" }, { email: "c@d.com" }],
+  });
+
+  assert.deepEqual(arrayOfObjects, {
+    contacts: [{ email: "[REDACTED]" }, { email: "[REDACTED]" }],
+  });
+
+  // string suelta con forma de email dentro de un array bajo una clave NO
+  // sensible: la redaccion por valor debe alcanzarla igual.
+  const arrayOfStrings = redactLogValue({
+    notes: ["contact test@example.com for details", "no email here"],
+  });
+
+  assert.deepEqual(arrayOfStrings, {
+    notes: ["contact [REDACTED] for details", "no email here"],
+  });
+
+  assert.equal(JSON.stringify(nested).includes("example.com"), false);
+  assert.equal(JSON.stringify(arrayOfObjects).includes("a@b.com"), false);
+  assert.equal(JSON.stringify(arrayOfStrings).includes("test@example.com"), false);
+});
+
 test("serializeError elimina el mensaje libre completo, no sólo credenciales", () => {
   const error = new Error(
     [

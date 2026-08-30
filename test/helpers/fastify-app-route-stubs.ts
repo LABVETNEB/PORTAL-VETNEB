@@ -1,4 +1,5 @@
 import { ENV } from "../../server/lib/env.ts";
+import { createMemoryRateLimitStore } from "../../server/lib/rate-limit-store.ts";
 
 export function buildExpectedContactServiceSnapshot() {
   const explicitRecipients = Array.from(
@@ -509,6 +510,7 @@ export function buildStudyTrackingRouteStubs() {
 
 export function buildPublicReportAccessRouteStubs() {
   return {
+    publicReportAccessRateLimitStore: createMemoryRateLimitStore(),
     getReportAccessTokenWithReportByTokenHash: async () => null,
     recordReportAccessTokenAccess: async () => null,
     createSignedReportUrl: async (storagePath: string) => `signed-preview:${storagePath}`,

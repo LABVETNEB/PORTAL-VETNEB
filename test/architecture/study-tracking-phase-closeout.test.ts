@@ -22,7 +22,8 @@ const routes = {
 } as const;
 
 const routeHashes = new Map<string, string>([
-  [routes.clinic, "f417f341b488cf0fc15a7e932defcc28be4fdcb0ab13659aadaf4cae226382a8"],
+  // WBR-08c: migrated to the canonical clinic auth helper.
+  [routes.clinic, "95cacc008578974e9884f10bb1fa8edc750b34bbea18d3ead4f4f26eec95e105"],
   [routes.particular, "24c6fa65a94def117e8e155ef1d14672409ac42ed2452e62667763b79ce5cc72"],
   [routes.admin, "eb11f9b1508edd16d5ec3b7353dcfc29ca70963ee9427735eef40857bd0dac79"],
 ]);
@@ -305,7 +306,9 @@ test("todas las factories application públicas conservan consumidor y test", ()
 });
 
 test("los tres realms quedan separados con evidencia runtime", () => {
-  assert.ok(readSource(routes.clinic).includes("cookies[ENV.cookieName]"));
+  // WBR-08c: routes.clinic delegates cookie reading to the canonical
+  // clinic auth helper (mirrors routes.admin's authenticateFastifyAdmin).
+  assert.ok(readSource(routes.clinic).includes("authenticateFastifyClinicUser"));
   assert.ok(readSource(routes.particular).includes("cookies[ENV.particularCookieName]"));
   assert.ok(readSource(routes.admin).includes("authenticateFastifyAdmin"));
 

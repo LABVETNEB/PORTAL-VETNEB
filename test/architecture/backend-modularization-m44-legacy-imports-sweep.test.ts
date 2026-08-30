@@ -27,7 +27,6 @@ const guardFile =
   "test/architecture/backend-modularization-m44-legacy-imports-sweep.test.ts";
 
 const expectedMigratedConsumers = [
-  "server/middlewares/particular-auth.ts",
   "server/preflight.ts",
   "server/routes/admin-study-tracking.fastify.ts",
   "server/routes/auth.fastify.ts",
@@ -234,7 +233,7 @@ test("report-access-token permanece módulo real y no shim", () => {
   }
 });
 
-test("los ocho consumidores migrados apuntan al barrel Particular Access", () => {
+test("los siete consumidores migrados apuntan al barrel Particular Access", () => {
   const canonicalConsumers = walkTsFiles("server")
     .filter((file) =>
       executableImportTargets(file).includes(particularInfrastructureIndex),

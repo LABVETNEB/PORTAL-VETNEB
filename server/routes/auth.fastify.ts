@@ -25,8 +25,8 @@ import {
 import {
   createMemoryRateLimitStore,
   createPersistentRateLimitStore,
+  consumeRateLimitAttempt,
   getOrCreateRateLimitEntry,
-  incrementRateLimitEntry,
   type RateLimitEntry,
   type RateLimitStore,
 } from "../lib/rate-limit-store.ts";
@@ -39,6 +39,10 @@ import {
   createRuntimeTimer,
   type RuntimeTimer,
 } from "../lib/runtime-timing.ts";
+import {
+  authenticateFastifyClinicUser,
+  type FastifyAuthenticatedClinicUser,
+} from "../lib/fastify-clinic-auth.ts";
 
 type VerifyPasswordResult = {
   valid: boolean;
@@ -89,7 +93,6 @@ type AuthenticatedClinicUser = {
   authProId: string | null;
   role: ReturnType<typeof normalizeClinicUserRole>;
   permissions: ReturnType<typeof getClinicPermissions>;
-  canUploadReports: boolean;
   canManageClinicUsers: boolean;
   passwordHash?: string;
   sessionToken: string;
@@ -319,6 +322,7 @@ async function loadDefaultDeps(): Promise<NativeAuthDefaultDeps> {
             get: db.getLoginRateLimitEntry,
             set: db.setLoginRateLimitEntry,
             increment: db.incrementLoginRateLimitEntry,
+            consume: db.consumeLoginRateLimitAttempt,
             cleanupExpired: db.deleteExpiredLoginRateLimitEntries,
             delete: db.deleteLoginRateLimitEntry,
           },
@@ -356,53 +360,6 @@ function applyCorsHeaders(
     "access-control-expose-headers",
     LOGIN_RATE_LIMIT_EXPOSED_HEADERS,
   );
-}
-
-function parseCookies(cookieHeader: string | undefined) {
-  const result: Record<string, string> = {};
-
-  if (!cookieHeader) {
-    return result;
-  }
-
-  for (const part of cookieHeader.split(";")) {
-    const [rawName, ...rawValueParts] = part.split("=");
-
-    if (!rawName) {
-      continue;
-    }
-
-    const name = rawName.trim();
-
-    if (!name) {
-      continue;
-    }
-
-    const rawValue = rawValueParts.join("=").trim();
-
-    try {
-      result[name] = decodeURIComponent(rawValue);
-    } catch {
-      result[name] = rawValue;
-    }
-  }
-
-  return result;
-}
-
-function getSessionToken(request: FastifyRequest) {
-  const cookieHeader =
-    typeof request.headers.cookie === "string" ? request.headers.cookie : undefined;
-
-  const cookies = parseCookies(cookieHeader);
-  const raw = cookies[ENV.cookieName];
-
-  if (typeof raw !== "string") {
-    return undefined;
-  }
-
-  const trimmed = raw.trim();
-  return trimmed ? trimmed : undefined;
 }
 
 function serializeCookie(input: {
@@ -737,73 +694,15 @@ async function authenticateParticularCandidate(
   };
 }
 
-async function authenticateClinicUser(
-  request: FastifyRequest,
-  reply: FastifyReply,
-  deps: NativeAuthDeps,
-  now: () => number,
-): Promise<AuthenticatedClinicUser | null> {
-  const token = getSessionToken(request);
-
-  if (!token) {
-    reply.code(401).send({
-      success: false,
-      error: "No autenticado",
-    });
-    return null;
-  }
-
-  const tokenHash = deps.hashSessionToken(token);
-  const session = await deps.getActiveSessionByToken(tokenHash);
-
-  if (!session) {
-    reply.code(401).send({
-      success: false,
-      error: "Sesión inválida",
-    });
-    return null;
-  }
-
-  if (session.expiresAt && session.expiresAt.getTime() <= now()) {
-    await deps.deleteActiveSession(tokenHash);
-
-    reply.header("set-cookie", buildClearSessionCookie());
-    reply.code(401).send({
-      success: false,
-      error: "Sesión expirada",
-    });
-    return null;
-  }
-
-  const clinicUser = await deps.getClinicUserById(session.clinicUserId);
-
-  if (!clinicUser) {
-    await deps.deleteActiveSession(tokenHash);
-
-    reply.header("set-cookie", buildClearSessionCookie());
-    reply.code(401).send({
-      success: false,
-      error: "Usuario de sesión no encontrado",
-    });
-    return null;
-  }
-
-  await deps.updateSessionLastAccess(tokenHash);
-
-  const role = normalizeClinicUserRole(clinicUser.role, "clinic_staff");
-  const permissions = getClinicPermissions(role);
+function getAuthAuthorization(
+  auth: FastifyAuthenticatedClinicUser,
+): AuthenticatedClinicUser {
+  const permissions = getClinicPermissions(auth.role);
 
   return {
-    id: clinicUser.id,
-    clinicId: clinicUser.clinicId,
-    username: clinicUser.username,
-    authProId: clinicUser.authProId ?? null,
-    role,
+    ...auth,
     permissions,
-    canUploadReports: permissions.canUploadReports,
     canManageClinicUsers: permissions.canManageClinicUsers,
-    passwordHash: clinicUser.passwordHash,
-    sessionToken: token,
   };
 }
 
@@ -1009,17 +908,10 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
       });
 
       try {
-        const missingEntry = await getOrCreateRateLimitEntry(
+        const updatedMissingEntry = await consumeRateLimitAttempt(
           loginRateLimitStore,
           missingRateLimitKey,
-          loginRateLimitWindowMs,
-          currentTime,
-        );
-        const updatedMissingEntry = await incrementRateLimitEntry(
-          loginRateLimitStore,
-          missingRateLimitKey,
-          missingEntry,
-          currentTime,
+          { windowMs: loginRateLimitWindowMs, now: currentTime },
         );
 
         setLoginRateLimitHeaders(reply, {
@@ -1120,11 +1012,10 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
     }) => {
       if (canUseRateLimitStore) {
         try {
-          const updatedEntry = await incrementRateLimitEntry(
+          const updatedEntry = await consumeRateLimitAttempt(
             loginRateLimitStore,
             rateLimitKey,
-            failureEntry,
-            currentTime,
+            { windowMs: loginRateLimitWindowMs, now: currentTime },
           );
 
           failureEntry.count = updatedEntry.count;
@@ -1263,11 +1154,18 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
   });
 
   app.get("/me", async (request, reply) => {
-    const auth = await authenticateClinicUser(request, reply, deps, now);
+    const clinicAuth = await authenticateFastifyClinicUser(
+      request,
+      reply,
+      deps,
+      now,
+    );
 
-    if (!auth) {
+    if (!clinicAuth) {
       return reply;
     }
+
+    const auth = getAuthAuthorization(clinicAuth);
 
     return reply.code(200).send({
       success: true,
@@ -1292,11 +1190,18 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
       return reply;
     }
 
-    const auth = await authenticateClinicUser(request, reply, deps, now);
+    const clinicAuth = await authenticateFastifyClinicUser(
+      request,
+      reply,
+      deps,
+      now,
+    );
 
-    if (!auth) {
+    if (!clinicAuth) {
       return reply;
     }
+
+    const auth = getAuthAuthorization(clinicAuth);
 
     const currentTime = now();
     const rateLimitKey = buildLoginRateLimitKey({
@@ -1357,11 +1262,10 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
       }
 
       try {
-        const updatedEntry = await incrementRateLimitEntry(
+        const updatedEntry = await consumeRateLimitAttempt(
           loginRateLimitStore,
           rateLimitKey,
-          failureEntry,
-          currentTime,
+          { windowMs: loginRateLimitWindowMs, now: currentTime },
         );
 
         failureEntry.count = updatedEntry.count;
@@ -1489,11 +1393,18 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
       return reply;
     }
 
-    const auth = await authenticateClinicUser(request, reply, deps, now);
+    const clinicAuth = await authenticateFastifyClinicUser(
+      request,
+      reply,
+      deps,
+      now,
+    );
 
-    if (!auth) {
+    if (!clinicAuth) {
       return reply;
     }
+
+    const auth = getAuthAuthorization(clinicAuth);
 
     const tokenHash = deps.hashSessionToken(auth.sessionToken);
     await deps.deleteActiveSession(tokenHash);

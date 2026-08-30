@@ -254,7 +254,8 @@ test("report mutation audit happens after durable mutation and before success re
     reportsStatus,
     [
       "if (!enforceTrustedOrigin(request, reply, allowedOrigins)) {",
-      "const auth = await authenticateClinicUser(",
+      // WBR-08b: migrated to the canonical clinic auth helper.
+      "const clinicAuth = await authenticateFastifyClinicUser(",
       "const result = await composition.queries.transitionClinicReportStatus({",
       "await composition.writeAuditLog(createAuditRequestLike(request, auth), {",
       "event: AUDIT_EVENTS.REPORT_STATUS_CHANGED",

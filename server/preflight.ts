@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 
 import type { StartupCleanupSummary } from "./bootstrap.ts";
+import { logWarn, serializeError } from "./lib/logger.ts";
 
 const POOL_EXHAUSTED_PATTERNS = [
   "max clients reached",
@@ -14,27 +15,24 @@ export function isPoolExhaustedError(err: unknown): boolean {
   return POOL_EXHAUSTED_PATTERNS.some((pattern) => msg.includes(pattern));
 }
 
-type LoggerLike = Pick<Console, "warn">;
-
 /**
  * Ejecuta una función de limpieza de sesiones expiradas de forma resiliente.
  * Si la DB rechaza la conexión por pool exhausto (EMAXCONNSESSION),
- * loguea un warning y retorna 0 — no aborta el startup del servidor.
- * Cualquier otro error se relanza como crítico.
+ * loguea un warning estructurado y retorna 0 — no aborta el startup del
+ * servidor. Cualquier otro error se relanza como crítico.
  */
 export async function safeCleanupStep(
   fn: () => Promise<number>,
   label: string,
-  logger: LoggerLike = console,
 ): Promise<number> {
   try {
     return await fn();
   } catch (err) {
     if (isPoolExhaustedError(err)) {
-      const msg = err instanceof Error ? err.message : String(err);
-      logger.warn(
-        `[PREFLIGHT_CLEANUP_WARN] ${label}: pool exhausted, cleanup skipped (${msg.slice(0, 100)})`,
-      );
+      logWarn("PREFLIGHT_CLEANUP_WARN", {
+        label,
+        errorName: serializeError(err).name,
+      });
       return 0;
     }
 
@@ -42,9 +40,7 @@ export async function safeCleanupStep(
   }
 }
 
-export async function preflight(
-  deps: { logger?: LoggerLike } = {},
-): Promise<StartupCleanupSummary> {
+export async function preflight(): Promise<StartupCleanupSummary> {
   const [
     dbModule,
     particularModule,
@@ -55,8 +51,6 @@ export async function preflight(
     import("./lib/supabase.ts"),
   ]);
 
-  const logger = deps.logger ?? console;
-
   await dbModule.db.execute(sql`select 1`);
   await supabaseModule.ensureStorageBucketExists();
 
@@ -65,16 +59,11 @@ export async function preflight(
     deletedAdminSessions,
     deletedParticularSessions,
   ] = await Promise.all([
-    safeCleanupStep(dbModule.deleteExpiredSessions, "clinic_sessions", logger),
-    safeCleanupStep(
-      dbModule.deleteExpiredAdminSessions,
-      "admin_sessions",
-      logger,
-    ),
+    safeCleanupStep(dbModule.deleteExpiredSessions, "clinic_sessions"),
+    safeCleanupStep(dbModule.deleteExpiredAdminSessions, "admin_sessions"),
     safeCleanupStep(
       particularModule.deleteExpiredParticularSessions,
       "particular_sessions",
-      logger,
     ),
   ]);
 

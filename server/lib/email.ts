@@ -924,14 +924,14 @@ export async function sendParticularTokenEmail(input: {
 
   if (!delivery) {
     console.info("[EMAIL] particular_token skipped: smtp disabled", {
-      recipients,
+      recipientCount: recipients.length,
     });
 
     return { sent: false, reason: "smtp_disabled" as const };
   }
 
   console.info("[EMAIL] particular_token sent", {
-    recipients,
+    recipientCount: recipients.length,
     messageId: delivery.messageId,
     transport: delivery.transport,
   });
@@ -973,7 +973,7 @@ export async function sendSpecialStainRequiredEmail(input: {
   if (!delivery) {
     console.info("[EMAIL] special_stain_required skipped: smtp disabled", {
       trackingCaseId: input.trackingCaseId,
-      recipients,
+      recipientCount: recipients.length,
     });
 
     return { sent: false, reason: "smtp_disabled" as const };
@@ -981,7 +981,7 @@ export async function sendSpecialStainRequiredEmail(input: {
 
   const logPayload: Record<string, unknown> = {
     trackingCaseId: input.trackingCaseId,
-    recipients,
+    recipientCount: recipients.length,
     messageId: delivery.messageId,
   };
 

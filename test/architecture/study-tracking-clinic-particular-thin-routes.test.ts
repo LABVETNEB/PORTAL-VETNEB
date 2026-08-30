@@ -257,7 +257,7 @@ test("M44 preserva rutas M32 y realinea sólo el specifier Particular Access", (
     createHash("sha256")
       .update(readFileSync(resolve(repoRoot, clinicRoute)))
       .digest("hex"),
-    "f417f341b488cf0fc15a7e932defcc28be4fdcb0ab13659aadaf4cae226382a8",
+    "95cacc008578974e9884f10bb1fa8edc750b34bbea18d3ead4f4f26eec95e105",
   );
   assert.equal(
     createHash("sha256")

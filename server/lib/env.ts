@@ -37,10 +37,13 @@ function parseDatabaseMaxConnections(value: string | undefined): number {
   const parsed = Number(value);
 
   if (!Number.isFinite(parsed)) {
-    return 3;
+    return DB_MAX_CONNECTIONS_DEFAULT;
   }
 
-  return Math.min(Math.max(Math.trunc(parsed), 1), 10);
+  return Math.min(
+    Math.max(Math.trunc(parsed), DB_MAX_CONNECTIONS_FLOOR),
+    DB_MAX_CONNECTIONS_CEILING,
+  );
 }
 
 // URL pública canónica del portal para los links de email (token particular).
@@ -148,7 +151,9 @@ const port = rawEnv.PORT ?? 3000;
 const databaseUrl = rawEnv.SUPABASE_DB_URL ?? rawEnv.DATABASE_URL;
 if (!databaseUrl) {
   throw new Error("DATABASE_URL o SUPABASE_DB_URL es obligatorio");
-}const DB_MAX_CONNECTIONS_DEFAULT = 3;
+}
+
+const DB_MAX_CONNECTIONS_DEFAULT = 3;
 const DB_MAX_CONNECTIONS_FLOOR = 1;
 const DB_MAX_CONNECTIONS_CEILING = 10;
 const databaseMaxConnections = parseDatabaseMaxConnections(rawEnv.DATABASE_MAX_CONNECTIONS);

@@ -15,9 +15,8 @@ import {
   PUBLIC_REPORT_ACCESS_RATE_LIMIT_WINDOW_MS,
 } from "../lib/public-report-access-rate-limit.ts";
 import {
-  createMemoryRateLimitStore,
-  getOrCreateRateLimitEntry,
-  incrementRateLimitEntry,
+  createPersistentRateLimitStore,
+  consumeRateLimitAttempt,
   type RateLimitStore,
 } from "../lib/rate-limit-store.ts";
 import {
@@ -94,18 +93,25 @@ type NativePublicReportAccessDeps = Required<
   >
 >;
 
+type NativePublicReportAccessDefaultDeps = NativePublicReportAccessDeps & {
+  publicReportAccessRateLimitStore: RateLimitStore;
+};
+
 const REPORT_NOT_FOUND_RESPONSE = {
   success: false,
   error: "Informe no encontrado",
 } as const;
 
-let defaultDepsPromise: Promise<NativePublicReportAccessDeps> | undefined;
+let defaultDepsPromise:
+  | Promise<NativePublicReportAccessDefaultDeps>
+  | undefined;
 
-async function loadDefaultDeps(): Promise<NativePublicReportAccessDeps> {
+async function loadDefaultDeps(): Promise<NativePublicReportAccessDefaultDeps> {
   if (!defaultDepsPromise) {
     defaultDepsPromise = (async () => {
       const reportAccessRepository = await loadReportAccessRepository();
       const audit = await import("../lib/audit.ts");
+      const db = await import("../db.ts");
 
       return {
         getReportAccessTokenWithReportByTokenHash:
@@ -119,6 +125,14 @@ async function loadDefaultDeps(): Promise<NativePublicReportAccessDeps> {
           req: unknown,
           input: PublicReportAccessAuditInput,
         ) => Promise<void>,
+        publicReportAccessRateLimitStore: createPersistentRateLimitStore({
+          get: db.getLoginRateLimitEntry,
+          set: db.setLoginRateLimitEntry,
+          increment: db.incrementLoginRateLimitEntry,
+          consume: db.consumeLoginRateLimitAttempt,
+          cleanupExpired: db.deleteExpiredLoginRateLimitEntries,
+          delete: db.deleteLoginRateLimitEntry,
+        }),
       };
     })();
   }
@@ -180,7 +194,8 @@ export const publicReportAccessNativeRoutes: FastifyPluginAsync<
     !!options.createSignedReportUrl &&
     !!options.createSignedReportDownloadUrl &&
     !!options.hashSessionToken &&
-    !!options.writeAuditLog;
+    !!options.writeAuditLog &&
+    !!options.publicReportAccessRateLimitStore;
 
   const defaultDeps = hasAllInjectedDeps ? undefined : await loadDefaultDeps();
 
@@ -213,7 +228,8 @@ export const publicReportAccessNativeRoutes: FastifyPluginAsync<
     PUBLIC_REPORT_ACCESS_RATE_LIMIT_MAX_ATTEMPTS;
   const allowedOrigins = new Set(getAllowedOrigins());
   const publicReportAccessRateLimitStore =
-    options.publicReportAccessRateLimitStore ?? createMemoryRateLimitStore();
+    options.publicReportAccessRateLimitStore ??
+    defaultDeps!.publicReportAccessRateLimitStore;
 
   app.addHook("onRequest", async (request, reply) => {
     (request as PublicReportAccessFastifyRequest)[REQUEST_TIMER_KEY] =
@@ -260,14 +276,13 @@ export const publicReportAccessNativeRoutes: FastifyPluginAsync<
   }>("/:token", async (request, reply) => {
     const rateLimitKey = request.ip || "unknown";
     const currentTime = now();
-    const accessEntry = await getOrCreateRateLimitEntry(
+    const accessEntry = await consumeRateLimitAttempt(
       publicReportAccessRateLimitStore,
       rateLimitKey,
-      publicReportAccessRateLimitWindowMs,
-      currentTime,
+      { windowMs: publicReportAccessRateLimitWindowMs, now: currentTime },
     );
 
-    if (accessEntry.count >= publicReportAccessRateLimitMaxAttempts) {
+    if (accessEntry.count > publicReportAccessRateLimitMaxAttempts) {
       setRateLimitHeaders(reply, {
         max: publicReportAccessRateLimitMaxAttempts,
         windowMs: publicReportAccessRateLimitWindowMs,
@@ -281,15 +296,6 @@ export const publicReportAccessNativeRoutes: FastifyPluginAsync<
         error: PUBLIC_REPORT_ACCESS_RATE_LIMIT_ERROR_MESSAGE,
       });
     }
-
-    const updatedAccessEntry = await incrementRateLimitEntry(
-      publicReportAccessRateLimitStore,
-      rateLimitKey,
-      accessEntry,
-    );
-
-    accessEntry.count = updatedAccessEntry.count;
-    accessEntry.resetAt = updatedAccessEntry.resetAt;
 
     setRateLimitHeaders(reply, {
       max: publicReportAccessRateLimitMaxAttempts,

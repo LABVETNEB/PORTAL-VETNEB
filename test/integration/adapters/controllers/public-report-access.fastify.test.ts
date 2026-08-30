@@ -13,6 +13,9 @@ const { AUDIT_EVENTS } = await import("../../../../server/lib/audit.ts");
 const {
   PUBLIC_REPORT_ACCESS_RATE_LIMIT_ERROR_MESSAGE,
 } = await import("../../../../server/lib/public-report-access-rate-limit.ts");
+const { createMemoryRateLimitStore } = await import(
+  "../../../../server/lib/rate-limit-store.ts"
+);
 const {
   publicReportAccessNativeRoutes,
 } = await import("../../../../server/routes/public-report-access.fastify.ts");
@@ -68,6 +71,7 @@ async function createTestApp(overrides: Record<string, unknown> = {}) {
     ) => `signed-download:${storagePath}:${fileName ?? ""}`,
     hashSessionToken: (token: string) => `hash:${token}`,
     writeAuditLog: async () => {},
+    publicReportAccessRateLimitStore: createMemoryRateLimitStore(),
     ...overrides,
   });
 

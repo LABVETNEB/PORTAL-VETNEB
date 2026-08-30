@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import Fastify, { type FastifyServerOptions } from "fastify";
 
-import type { RateLimitStore } from "../../../../server/lib/rate-limit-store.ts";
+import {
+  createMemoryRateLimitStore,
+  type RateLimitStore,
+} from "../../../../server/lib/rate-limit-store.ts";
 
 type ContactEmailResult =
   | { sent: true; messageId: string }
@@ -46,7 +49,10 @@ async function createContactTestApp(
 
   const app = Fastify({ logger: false, ...fastifyOptions });
 
-  await app.register(contactNativeRoutes, options);
+  await app.register(contactNativeRoutes, {
+    contactRateLimitStore: createMemoryRateLimitStore(),
+    ...options,
+  });
 
   return app;
 }

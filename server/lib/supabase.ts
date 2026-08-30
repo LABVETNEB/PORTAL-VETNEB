@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { ENV } from "./env.ts";
 
@@ -32,10 +33,16 @@ function sanitizeFileName(fileName: string, fallback: string): string {
   return sanitized || fallback;
 }
 
+// WBR-14 (VET-14): the random component of a private storage path must come
+// from a CSPRNG, not from non-cryptographic pseudo-randomness, consistent
+// with the rest of the repo (server/lib/auth-security.ts already uses
+// crypto.randomBytes for session tokens). This does not change the path
+// shape (segments/hierarchy/prefix), only how the random segment is
+// generated.
 function buildReportStoragePath(clinicId: number, fileName: string): string {
   const safeName = sanitizeFileName(fileName, "report");
   const timestamp = Date.now();
-  const random = Math.random().toString(36).slice(2, 10);
+  const random = crypto.randomBytes(6).toString("hex");
 
   return `clinics/${clinicId}/${timestamp}-${random}-${safeName}`;
 }
@@ -43,7 +50,7 @@ function buildReportStoragePath(clinicId: number, fileName: string): string {
 function buildClinicAvatarStoragePath(clinicId: number, fileName: string): string {
   const safeName = sanitizeFileName(fileName, "avatar");
   const timestamp = Date.now();
-  const random = Math.random().toString(36).slice(2, 10);
+  const random = crypto.randomBytes(6).toString("hex");
 
   return `clinic-avatars/${clinicId}/${timestamp}-${random}-${safeName}`;
 }

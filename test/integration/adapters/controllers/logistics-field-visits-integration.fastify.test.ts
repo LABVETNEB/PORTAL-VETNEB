@@ -127,6 +127,26 @@ function patchInput(
   };
 }
 
+test("field visits rejects a request without a clinic session", async () => {
+  const { app, updateCalls } = await buildRuntimeApp();
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/logistics/field-visits",
+    });
+
+    assert.equal(response.statusCode, 401);
+    assert.deepEqual(JSON.parse(response.body), {
+      success: false,
+      error: "No autenticado",
+    });
+    assert.deepEqual(updateCalls, []);
+  } finally {
+    await app.close();
+  }
+});
+
 test("PATCH field visit actualiza status y usa el clinicId autenticado", async () => {
   const { app, updateCalls } = await buildRuntimeApp();
 

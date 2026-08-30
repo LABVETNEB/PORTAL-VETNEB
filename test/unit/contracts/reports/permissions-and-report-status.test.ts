@@ -1,5 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import {
   getClinicPermissions,
   isClinicUserRole,
@@ -11,6 +13,10 @@ import {
   isReportStatus,
   normalizeReportStatus,
 } from "../../../../server/features/reports/domain/index.ts";
+
+function read(relativePath: string): string {
+  return readFileSync(resolve(process.cwd(), relativePath), "utf8");
+}
 
 test("isClinicUserRole reconoce únicamente roles válidos", () => {
   assert.equal(isClinicUserRole("clinic_owner"), true);
@@ -27,8 +33,10 @@ test("normalizeClinicUserRole normaliza strings y aplica fallback", () => {
 });
 
 test("getClinicPermissions devuelve permisos consistentes por rol", () => {
+  // WBR-13 (VET-13): canUploadReports fue retirado del contrato. Subir
+  // informes es exclusivo de admin (POST /api/admin/reports/upload); ningun
+  // rol de clinica lo evaluaba nunca.
   assert.deepEqual(getClinicPermissions("clinic_owner"), {
-    canUploadReports: false,
     canManageClinicUsers: true,
     canViewLogistics: true,
     canManageLogisticsFieldVisits: true,
@@ -38,7 +46,6 @@ test("getClinicPermissions devuelve permisos consistentes por rol", () => {
   });
 
   assert.deepEqual(getClinicPermissions("clinic_staff"), {
-    canUploadReports: false,
     canManageClinicUsers: false,
     canViewLogistics: true,
     canManageLogisticsFieldVisits: false,
@@ -46,6 +53,38 @@ test("getClinicPermissions devuelve permisos consistentes por rol", () => {
     canManageLogisticsRouteEvents: false,
     canViewLogisticsSla: true,
   });
+});
+
+// WBR-13 (VET-13): canUploadReports era un dead capability contract (siempre
+// false para ambos roles, cero consumidores de autorizacion en server/**,
+// cero consumidores en frontend). Este guard evita que el campo, o su
+// propagacion hacia los 8 archivos que antes lo serializaban, reaparezca.
+test("canUploadReports no reaparece en el kernel de permisos ni en sus consumidores conocidos", () => {
+  const permissionsSource = read("server/lib/permissions.ts");
+
+  assert.doesNotMatch(
+    permissionsSource,
+    /canUploadReports/,
+    "server/lib/permissions.ts no debe reintroducir el campo retirado",
+  );
+
+  const formerConsumers = [
+    "server/routes/auth.fastify.ts",
+    "server/routes/clinic-audit.fastify.ts",
+    "server/routes/clinic-public-profile.fastify.ts",
+    "server/routes/particular-tokens.fastify.ts",
+    "server/routes/report-access-tokens.fastify.ts",
+    "server/routes/reports-status.fastify.ts",
+    "server/routes/study-tracking.fastify.ts",
+  ];
+
+  for (const file of formerConsumers) {
+    assert.doesNotMatch(
+      read(file),
+      /canUploadReports/,
+      `${file} no debe reintroducir canUploadReports`,
+    );
+  }
 });
 
 test("REPORT_STATUSES conserva el orden público esperado", () => {

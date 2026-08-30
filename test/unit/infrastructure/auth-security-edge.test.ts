@@ -15,6 +15,36 @@ test("hashLegacyPassword y hashSessionToken generan sha256 estable para string v
   assert.equal(hashSessionToken(""), expected);
 });
 
+// WBR-15 (VET-15, F1): verifyPassword's legacy branch now compares via
+// crypto.timingSafeEqual instead of `===`. A malformed/wrong-length/empty
+// stored hash must fail safely (valid: false) instead of throwing, since
+// timingSafeEqual itself throws on mismatched buffer lengths.
+test("verifyPassword contra hash legacy malformado falla seguro sin lanzar", async () => {
+  const malformedHashes = [
+    "",
+    "not-a-hash",
+    "abc123",
+    "a".repeat(63),
+    "a".repeat(65),
+    "zz".repeat(32),
+  ];
+
+  for (const storedHash of malformedHashes) {
+    // eslint-disable-next-line no-await-in-loop
+    const result = await verifyPassword("abc123", storedHash);
+
+    assert.deepEqual(result, { valid: false, needsRehash: false }, storedHash);
+  }
+});
+
+test("verifyPassword contra hash legacy de longitud correcta pero contenido incorrecto falla", async () => {
+  const wrongHash = hashLegacyPassword("otra-password-cualquiera");
+
+  const result = await verifyPassword("abc123", wrongHash);
+
+  assert.deepEqual(result, { valid: false, needsRehash: false });
+});
+
 test("verifyPassword con argon2 válido expone needsRehash true cuando argon2 lo indica", async () => {
   const originalVerify = argon2.verify;
   const originalNeedsRehash = argon2.needsRehash;

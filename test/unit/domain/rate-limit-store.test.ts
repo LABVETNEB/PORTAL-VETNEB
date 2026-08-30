@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   createMemoryRateLimitStore,
   createPersistentRateLimitStore,
+  consumeRateLimitAttempt,
   getOrCreateRateLimitEntry,
   hashRateLimitKey,
   incrementRateLimitEntry,
@@ -49,6 +50,28 @@ function createPersistentHarness(input?: {
           !existing || existing.resetAt.getTime() <= now.getTime()
             ? {
                 count,
+                resetAt,
+                createdAt: existing?.createdAt ?? now,
+                updatedAt: now,
+                metadata,
+              }
+            : {
+                ...existing,
+                metadata,
+                count: existing.count + 1,
+                updatedAt: now,
+              };
+
+        rows.set(keyHash, row);
+
+        return row;
+      },
+      consume: async ({ keyHash, resetAt, now, metadata }) => {
+        const existing = rows.get(keyHash);
+        const row =
+          !existing || existing.resetAt.getTime() <= now.getTime()
+            ? {
+                count: 1,
                 resetAt,
                 createdAt: existing?.createdAt ?? now,
                 updatedAt: now,
@@ -116,6 +139,36 @@ test("rate limit memory store resets expired entries", async () => {
   assert.deepEqual(reset, {
     count: 0,
     resetAt: 2011,
+  });
+});
+
+test("rate limit memory store evicts expired keys and preserves active keys", async () => {
+  const store = createMemoryRateLimitStore();
+  await store.set("expired:a", { count: 1, resetAt: 100 });
+  await store.set("expired:b", { count: 2, resetAt: 100 });
+  await store.set("active", { count: 3, resetAt: 101 });
+
+  await store.cleanupExpired?.(100);
+
+  assert.equal(await store.get("expired:a"), undefined);
+  assert.equal(await store.get("expired:b"), undefined);
+  assert.deepEqual(await store.get("active"), { count: 3, resetAt: 101 });
+});
+
+test("rate limit memory store keeps every concurrent increment", async () => {
+  const store = createMemoryRateLimitStore();
+  const entry = await getOrCreateRateLimitEntry(store, "ip:concurrent", 1000, 100);
+  const attempts = 100;
+
+  await Promise.all(
+    Array.from({ length: attempts }, () =>
+      incrementRateLimitEntry(store, "ip:concurrent", entry, 100),
+    ),
+  );
+
+  assert.deepEqual(await store.get("ip:concurrent"), {
+    count: attempts,
+    resetAt: 1100,
   });
 });
 
@@ -213,6 +266,26 @@ test("rate limit persistent store forwards metadata for hashed keys", async () =
           updatedAt: now,
           metadata,
         };
+        metadataHarness.rows.set(keyHash, row);
+        return row;
+      },
+      consume: async ({ keyHash, resetAt, now, metadata }) => {
+        const existing = metadataHarness.rows.get(keyHash);
+        const row =
+          !existing || existing.resetAt.getTime() <= now.getTime()
+            ? {
+                count: 1,
+                resetAt,
+                createdAt: existing?.createdAt ?? now,
+                updatedAt: now,
+                metadata,
+              }
+            : {
+                ...existing,
+                metadata,
+                count: existing.count + 1,
+                updatedAt: now,
+              };
         metadataHarness.rows.set(keyHash, row);
         return row;
       },
@@ -342,5 +415,92 @@ test("rate limit persistent store ignores expired cleanup failures", async () =>
   assert.deepEqual(updated, {
     count: 1,
     resetAt: 600,
+  });
+});
+
+test("legacy get set increment interleaving can lose an attempt during initialization", async () => {
+  const entries = new Map<string, { count: number; resetAt: number }>();
+  const legacyStore: RateLimitStore = {
+    get: async () => undefined,
+    set: async (key, entry) => {
+      entries.set(key, entry);
+    },
+  };
+  const key = "login:concurrent";
+  const first = await getOrCreateRateLimitEntry(legacyStore, key, 1000, 100);
+  const second = await getOrCreateRateLimitEntry(legacyStore, key, 1000, 100);
+
+  await incrementRateLimitEntry(legacyStore, key, first, 100);
+  await legacyStore.set(key, second);
+  await incrementRateLimitEntry(legacyStore, key, second, 100);
+
+  assert.equal(entries.get(key)?.count, 1);
+});
+
+test("persistent consume creates the first attempt atomically", async () => {
+  const { store } = createPersistentHarness({ now: () => 100 });
+  const entry = await consumeRateLimitAttempt(store, "login:first", {
+    windowMs: 1000,
+    now: 100,
+  });
+
+  assert.deepEqual(entry, { count: 1, resetAt: 1100 });
+});
+
+test("persistent consume preserves every concurrent attempt in the same window", async () => {
+  const { rows, store } = createPersistentHarness({ now: () => 100 });
+  const attempts = 20;
+  const entries = await Promise.all(
+    Array.from({ length: attempts }, () =>
+      consumeRateLimitAttempt(store, "login:concurrent", {
+        windowMs: 1000,
+        now: 100,
+      }),
+    ),
+  );
+
+  assert.equal(entries.at(-1)?.count, attempts);
+  assert.equal(rows.get(hashRateLimitKey("login:concurrent"))?.count, attempts);
+});
+
+test("persistent consume shares a counter across store instances", async () => {
+  const rows = new Map<string, PersistentHarnessRow>();
+  const first = createPersistentHarness({ rows, now: () => 100 });
+  const second = createPersistentHarness({ rows, now: () => 100 });
+
+  await consumeRateLimitAttempt(first.store, "login:shared", {
+    windowMs: 1000,
+    now: 100,
+  });
+  const entry = await consumeRateLimitAttempt(second.store, "login:shared", {
+    windowMs: 1000,
+    now: 100,
+  });
+
+  assert.deepEqual(entry, { count: 2, resetAt: 1100 });
+});
+
+test("persistent consume renews an expired window exactly once", async () => {
+  const { rows, store } = createPersistentHarness({ now: () => 100 });
+  await consumeRateLimitAttempt(store, "login:expired", {
+    windowMs: 1000,
+    now: 100,
+  });
+  const entries = await Promise.all(
+    Array.from({ length: 5 }, () =>
+      consumeRateLimitAttempt(store, "login:expired", {
+        windowMs: 1000,
+        now: 1100,
+      }),
+    ),
+  );
+
+  assert.equal(entries.at(-1)?.count, 5);
+  assert.deepEqual(rows.get(hashRateLimitKey("login:expired")), {
+    count: 5,
+    resetAt: new Date(2100),
+    createdAt: new Date(100),
+    updatedAt: new Date(1100),
+    metadata: undefined,
   });
 });

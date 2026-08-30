@@ -429,6 +429,10 @@ test("sendSpecialStainRequiredEmail normaliza destinatarios y omite envío si SM
   assert.equal(calls[0][0], "[EMAIL] special_stain_required skipped: smtp disabled");
   assert.deepEqual(calls[0][1], {
     trackingCaseId: 88,
-    recipients: ["test@example.com", "other@example.com"],
+    recipientCount: 2,
   });
+  // VET-03: la metadata operacional (recipientCount) sobrevive, pero ninguna
+  // dirección de email real llega al log.
+  assert.equal(JSON.stringify(calls).includes("test@example.com"), false);
+  assert.equal(JSON.stringify(calls).includes("other@example.com"), false);
 });

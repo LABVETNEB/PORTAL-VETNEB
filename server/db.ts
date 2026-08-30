@@ -337,6 +337,60 @@ export async function incrementLoginRateLimitEntry(input: {
   return result[0];
 }
 
+export async function consumeLoginRateLimitAttempt(input: {
+  keyHash: string;
+  resetAt: Date;
+  now: Date;
+  metadata?: {
+    surface: string;
+    identifierHash: string;
+    ipHash: string;
+    keyVersion: string;
+  };
+}) {
+  const result = await db
+    .insert(loginRateLimits)
+    .values({
+      keyHash: input.keyHash,
+      surface: input.metadata?.surface ?? null,
+      identifierHash: input.metadata?.identifierHash ?? null,
+      ipHash: input.metadata?.ipHash ?? null,
+      keyVersion: input.metadata?.keyVersion ?? null,
+      count: 1,
+      resetAt: input.resetAt,
+      createdAt: input.now,
+      updatedAt: input.now,
+    })
+    .onConflictDoUpdate({
+      target: loginRateLimits.keyHash,
+      set: {
+        surface: input.metadata?.surface ?? null,
+        identifierHash: input.metadata?.identifierHash ?? null,
+        ipHash: input.metadata?.ipHash ?? null,
+        keyVersion: input.metadata?.keyVersion ?? null,
+        count: sql<number>`
+          CASE
+            WHEN ${loginRateLimits.resetAt} <= ${input.now} THEN 1
+            ELSE ${loginRateLimits.count} + 1
+          END
+        `,
+        resetAt: sql<Date>`
+          CASE
+            WHEN ${loginRateLimits.resetAt} <= ${input.now} THEN ${input.resetAt}
+            ELSE ${loginRateLimits.resetAt}
+          END
+        `,
+        updatedAt: input.now,
+      },
+    })
+    .returning({
+      count: loginRateLimits.count,
+      resetAt: loginRateLimits.resetAt,
+    });
+
+  return result[0];
+}
+
 export async function deleteExpiredLoginRateLimitEntries(now: Date) {
   await db
     .delete(loginRateLimits)

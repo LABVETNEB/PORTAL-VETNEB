@@ -280,6 +280,7 @@ test("auth login rate limits keep persistent stores with memory fallback per aut
       "get: db.getLoginRateLimitEntry,",
       "set: db.setLoginRateLimitEntry,",
       "increment: db.incrementLoginRateLimitEntry,",
+      "consume: db.consumeLoginRateLimitAttempt,",
       "cleanupExpired: db.deleteExpiredLoginRateLimitEntries,",
       "delete: db.deleteLoginRateLimitEntry,",
     ]) {
@@ -307,8 +308,8 @@ test("auth login rate limits keep persistent stores with memory fallback per aut
     );
     assertContains(
       source,
-      "await incrementRateLimitEntry(",
-      `${file} login rate limit store increment`,
+      "await consumeRateLimitAttempt(",
+      `${file} atomic login rate limit consume`,
     );
     assertContains(
       source,
@@ -455,18 +456,17 @@ test("public report access rate limit cuts off before token hashing DB signing a
   );
   assertContains(
     source,
-    "options.publicReportAccessRateLimitStore ?? createMemoryRateLimitStore();",
-    "public report access memory fallback store",
+    "publicReportAccessRateLimitStore: createPersistentRateLimitStore({",
+    "public report access persistent default store",
   );
   assertContainsInOrder(
     source,
     [
-      "const accessEntry = await getOrCreateRateLimitEntry(",
-      "if (accessEntry.count >= publicReportAccessRateLimitMaxAttempts) {",
+      "const accessEntry = await consumeRateLimitAttempt(",
+      "if (accessEntry.count > publicReportAccessRateLimitMaxAttempts) {",
       "setRateLimitHeaders(reply, {",
       "return reply.code(429).send({",
       "error: PUBLIC_REPORT_ACCESS_RATE_LIMIT_ERROR_MESSAGE",
-      "const updatedAccessEntry = await incrementRateLimitEntry(",
       "const parsed = reportAccessTokenRawTokenSchema.safeParse(request.params.token);",
       "const result = await reportAccess.access(",
     ],
@@ -494,11 +494,42 @@ test("public report access rate limit cuts off before token hashing DB signing a
   );
 });
 
+test("contact rate limit defaults to the persistent store before sending email", () => {
+  const source = readSource("server/routes/contact.fastify.ts");
+
+  assertContains(
+    source,
+    "contactRateLimitStore?: RateLimitStore;",
+    "contact rate limit injectable store option",
+  );
+  assertContains(
+    source,
+    "contactRateLimitStore: createPersistentRateLimitStore({",
+    "contact persistent default store",
+  );
+  assertContainsInOrder(
+    source,
+    [
+      "const rateLimitEntry = await consumeRateLimitAttempt(",
+      "if (rateLimitEntry.count > contactRateLimitMaxAttempts) {",
+      "return reply.code(429).send({",
+      "result = await deps.sendContactMessageEmail({",
+    ],
+    "contact rate limit cut-off",
+  );
+  assertNotContains(
+    source,
+    "createMemoryRateLimitStore",
+    "contact rate limit production composition",
+  );
+});
+
 test("report access token mutation rate limits cut off before auth and writes", () => {
   for (const scenario of [
     {
       file: "server/routes/report-access-tokens.fastify.ts",
-      authMarker: "const auth = await authenticateClinicUser(request, reply, deps, now);",
+      // WBR-08b: migrated to the canonical clinic auth helper.
+      authMarker: "const clinicAuth = await authenticateFastifyClinicUser(request, reply, deps, now);",
       operationMarker: "const result = await reportAccess.createToken(",
     },
     {

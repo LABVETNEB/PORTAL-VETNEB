@@ -10,10 +10,9 @@ tokens particulares.
   infraestructura y a la composición canónica de Study Tracking.
 
 M33 introdujo `server/db-particular.ts` como compatibilidad temporal. M44
-retiró ese shim y realineó sus ocho consumidores externos al barrel canónico
+retiró ese shim y realineó sus siete consumidores externos al barrel canónico
 `server/features/particular-access/infrastructure/index.ts`:
 
-- `server/middlewares/particular-auth.ts`;
 - `server/preflight.ts`;
 - `server/routes/admin-study-tracking.fastify.ts`;
 - `server/routes/auth.fastify.ts`;

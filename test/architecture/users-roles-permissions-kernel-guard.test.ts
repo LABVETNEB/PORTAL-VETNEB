@@ -62,7 +62,12 @@ test("el fan-in productivo del kernel sigue siendo cross-context", () => {
     .filter((file) => read(file).includes("permissions.ts"))
     .sort();
 
-  assert.equal(consumers.length, 14);
+  // WBR-07 retired the dead server/middlewares/auth.ts (a permissions.ts
+  // consumer); WBR-08b centralized reports.fastify.ts's role normalization
+  // into server/lib/fastify-clinic-auth.ts, which is now the consumer in
+  // its place. Net: 14 - 2 (retired middleware + reports.fastify.ts) + 1
+  // (fastify-clinic-auth.ts) = 13.
+  assert.equal(consumers.length, 13);
   assert.ok(consumers.some((file) => file.includes("logistics-")));
   assert.ok(consumers.some((file) => file.includes("reports")));
   assert.ok(consumers.some((file) => file.includes("clinic")));

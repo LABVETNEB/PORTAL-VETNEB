@@ -53,11 +53,18 @@ test("reports clinic read-only no registra POST /upload nativo", () => {
 test("reports clinic read-only conserva permisos persistentes sin allowlist ENV legacy", () => {
   const nativeSource = readRouteSource("server/routes/reports.fastify.ts");
   const permissionsSource = readRouteSource("server/lib/permissions.ts");
+  // WBR-08b: role normalization moved into the canonical clinic auth helper.
+  const clinicAuthHelperSource = readRouteSource("server/lib/fastify-clinic-auth.ts");
 
   assert.match(
     nativeSource,
-    /const role = normalizeClinicUserRole\(clinicUser\.role, "clinic_staff"\);/s,
-    "La autenticacion de reports debe conservar normalizacion del role persistente",
+    /authenticateFastifyClinicUser/,
+    "La autenticacion de reports debe delegar en el helper canonico de clinic auth",
+  );
+  assert.match(
+    clinicAuthHelperSource,
+    /normalizeClinicUserRole\(clinicUser\.role, "clinic_staff"\)/s,
+    "El helper canonico debe conservar normalizacion del role persistente",
   );
 
   assert.match(
@@ -66,16 +73,25 @@ test("reports clinic read-only conserva permisos persistentes sin allowlist ENV 
     "Debe existir un resolver central de permisos por role persistente",
   );
 
-  assert.match(
+  // WBR-13 (VET-13): canUploadReports fue retirado del contrato (dead
+  // capability: siempre false, cero consumidores runtime). La subida de
+  // informes sigue siendo exclusiva de admin, sin permiso de clinica.
+  assert.doesNotMatch(
     permissionsSource,
-    /case "clinic_owner":[\s\S]*canUploadReports: false,[\s\S]*canManageClinicUsers: true,/s,
-    "clinic_owner debe conservar management sin permiso de upload",
+    /canUploadReports/,
+    "canUploadReports no debe reaparecer en el contrato de permisos de clinica",
   );
 
   assert.match(
     permissionsSource,
-    /case "clinic_staff":[\s\S]*canUploadReports: false,[\s\S]*canManageClinicUsers: false,/s,
-    "clinic_staff debe permanecer read-only sin upload ni management",
+    /case "clinic_owner":[\s\S]*canManageClinicUsers: true,/s,
+    "clinic_owner debe conservar management",
+  );
+
+  assert.match(
+    permissionsSource,
+    /case "clinic_staff":[\s\S]*canManageClinicUsers: false,/s,
+    "clinic_staff debe permanecer read-only sin management",
   );
 
   assert.doesNotMatch(

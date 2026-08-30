@@ -195,12 +195,12 @@ newline final no se cuenta.
 | Área | Archivos TypeScript | LOC |
 | --- | ---: | ---: |
 | `server/features` | 149 | 16.980 |
-| `server/routes` | 35 | 22.943 |
-| `server/lib` | 29 | 4.683 |
-| `server/middlewares` | 7 | 947 |
-| raíz/entrypoints `server/*.ts` | 9 | 2.371 |
+| `server/routes` | 35 | 21.154 |
+| `server/lib` | 30 | 5.056 |
+| `server/middlewares` | 3 | 429 |
+| raíz/entrypoints `server/*.ts` | 9 | 2.420 |
 | otros | 0 | 0 |
-| **Total `server`** | **229** | **47.924** |
+| **Total `server`** | **226** | **46.039** |
 
 El review P2 de M48 detectó que la primera metodología aplicaba una semántica
 equivalente a `source.split("\n").length`, que sumaba un segmento vacío por

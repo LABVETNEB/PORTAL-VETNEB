@@ -142,7 +142,7 @@ test("validation scripts keep production readiness gates explicit", () => {
     scripts: Record<string, string>;
   };
 
-  assert.equal(packageJson.scripts.test, "node --experimental-strip-types --experimental-specifier-resolution=node --test test/**/*.test.ts");
+  assert.equal(packageJson.scripts.test, "node --experimental-strip-types --experimental-specifier-resolution=node --test \"test/**/*.test.ts\"");
   assert.equal(packageJson.scripts.build.includes("esbuild server/index.ts"), true);
   assert.equal(packageJson.scripts.typecheck, "tsc --noEmit");
   assert.equal(packageJson.scripts["typecheck:test"], "tsc -p ./test/tsconfig.json --noEmit");

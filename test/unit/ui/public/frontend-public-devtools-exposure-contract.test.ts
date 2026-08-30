@@ -5,6 +5,11 @@ import { tmpdir } from "node:os";
 import { extname, resolve } from "node:path";
 import test from "node:test";
 
+import {
+  CANARY_ENV_VALUE_VAR,
+  DEFAULT_CANARY_SECRET_VALUE,
+} from "../../../../scripts/security/env-value-leak-detector.mjs";
+
 const FRONTEND_SRC_ROOT = "frontend/src";
 const FOOTER_PATH = "frontend/src/components/layout/Footer.tsx";
 const NEXT_STATIC_ROOT = "frontend/.next/static";
@@ -12,6 +17,9 @@ const NEXT_MAIN_CHUNK_PATH = "frontend/.next/static/chunks/main-app.js";
 const OVERSIZED_FILE_BYTES = 6 * 1024 * 1024 + 512;
 const STREAM_CHUNK_SIZE_FOR_TEST = 64;
 const AUDITOR_SCRIPT = resolve(process.cwd(), "scripts/security/audit-public-devtools-surface.mjs");
+
+// VET-11 / WBR-05: the env-value-leak sub-check must be exercised end to end
+// through the real script, not just its pure functions in isolation.
 
 type AuditResult = {
   ok: boolean;
@@ -291,5 +299,52 @@ test("sensitive marker split across chunks in oversized public bundle is detecte
       hit,
       `Expected split-chunk marker to be detected in oversized bundle: ${JSON.stringify(result)}`,
     );
+  });
+});
+
+test("env-value-leak check is effectively evaluated even with no .env files present (canary absent -> PASS)", () => {
+  withTempWorkspace((workspaceRoot) => {
+    createMinimalPublicWorkspace(workspaceRoot);
+
+    const result = runAuditor(workspaceRoot);
+
+    assert.equal(result.ok, true, `Expected PASS, got: ${JSON.stringify(result)}`);
+
+    const evaluatedNote = (result.notes ?? []).find(
+      (note) => note.startsWith("Evaluated") && note.includes("sensitive env-value candidate"),
+    );
+    assert.ok(
+      evaluatedNote,
+      `Expected an "Evaluated N sensitive env-value candidate(s)" note, got: ${JSON.stringify(result.notes)}`,
+    );
+
+    const notEvaluatedFinding = result.findings.find(
+      (finding) => finding.rule === "env-value-leak-check-not-evaluated",
+    );
+    assert.equal(notEvaluatedFinding, undefined);
+  });
+});
+
+test("env-value-leak check fails when the synthetic canary appears in the public bundle (canary present -> FAIL)", () => {
+  withTempWorkspace((workspaceRoot) => {
+    createMinimalPublicWorkspace(workspaceRoot);
+
+    writeFileSync(
+      resolve(workspaceRoot, "frontend/public/leaked.js"),
+      `var leaked = "${DEFAULT_CANARY_SECRET_VALUE}";`,
+      "utf8",
+    );
+
+    const result = runAuditor(workspaceRoot, {
+      [CANARY_ENV_VALUE_VAR]: DEFAULT_CANARY_SECRET_VALUE,
+    });
+
+    assert.equal(result.ok, false, `Expected FAIL, got: ${JSON.stringify(result)}`);
+
+    const leakFinding = result.findings.find(
+      (finding) => finding.rule === "env-sensitive-value-leak" && finding.file === "frontend/public/leaked.js",
+    );
+    assert.ok(leakFinding, `Expected env-sensitive-value-leak finding, got: ${JSON.stringify(result.findings)}`);
+    assert.equal(JSON.stringify(result).includes(DEFAULT_CANARY_SECRET_VALUE), false);
   });
 });

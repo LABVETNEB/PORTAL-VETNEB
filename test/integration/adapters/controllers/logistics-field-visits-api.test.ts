@@ -29,14 +29,12 @@ test("logistics field visit API exposes minimal clinic endpoints", () => {
   assert.match(routeSource, /app\.options\("\/:fieldVisitId", optionsHandler\)/);
 });
 
-test("logistics field visit API authenticates clinic users with existing session machinery", () => {
-  assert.match(routeSource, /getSessionToken\(request\)/);
-  assert.match(routeSource, /ENV\.cookieName/);
-  assert.match(routeSource, /deps\.hashSessionToken\(token\)/);
-  assert.match(routeSource, /deps\.getActiveSessionByToken\(tokenHash\)/);
-  assert.match(routeSource, /deps\.getClinicUserById\(session\.clinicUserId\)/);
-  assert.match(routeSource, /deps\.updateSessionLastAccess\(tokenHash\)/);
-  assert.match(routeSource, /buildClearSessionCookie\(\)/);
+test("logistics field visit API delegates clinic authentication to the canonical helper", () => {
+  assert.match(routeSource, /from "\.\.\/lib\/fastify-clinic-auth\.ts"/);
+  assert.match(routeSource, /authenticateFastifyClinicUser\(request, reply, deps, now\)/);
+  assert.match(routeSource, /getActiveSessionByToken\?:/);
+  assert.match(routeSource, /getClinicUserById\?:/);
+  assert.match(routeSource, /updateSessionLastAccess\?:/);
 });
 
 test("logistics field visit API keeps all reads and writes clinic scoped", () => {
@@ -157,8 +155,8 @@ test("logistics field visit API keeps time-window writes behind trusted-origin c
 });
 
 test("logistics field visit API enforces role-aware logistics field visit permissions", () => {
-  assert.match(routeSource, /type ClinicUserRole/);
-  assert.match(routeSource, /normalizeClinicUserRole\(clinicUser\.role, "clinic_staff"\)/);
+  assert.match(routeSource, /fastify-clinic-auth\.ts/);
+  assert.match(routeSource, /authenticateFastifyClinicUser/);
   assert.match(routeSource, /getClinicPermissions\(auth\.role\)\.canManageLogisticsFieldVisits/);
   assert.match(routeSource, /UNSAFE_METHODS\.has\(request\.method\.toUpperCase\(\)\)/);
   assert.match(routeSource, /Permisos insuficientes para logistica/);
@@ -256,7 +254,7 @@ test("M15 delegates the six remaining handlers to application use cases composed
   // La secuencia observable del PATCH permanece intacta.
   assert.match(
     routeSource,
-    /if \(!enforceTrustedOrigin\(request, reply, allowedOrigins\)\)[\s\S]*?authenticateClinicUser\(request, reply, deps, now\)[\s\S]*?canManageLogisticsFieldVisits[\s\S]*?parseEntityId\(request\.params\.fieldVisitId\)[\s\S]*?buildUpdateFieldVisitInput\(request\.body\)[\s\S]*?updateFieldVisit\(/,
+    /if \(!enforceTrustedOrigin\(request, reply, allowedOrigins\)\)[\s\S]*?authenticateFastifyClinicUser\(request, reply, deps, now\)[\s\S]*?canManageLogisticsFieldVisits[\s\S]*?parseEntityId\(request\.params\.fieldVisitId\)[\s\S]*?buildUpdateFieldVisitInput\(request\.body\)[\s\S]*?updateFieldVisit\(/,
   );
 });
 

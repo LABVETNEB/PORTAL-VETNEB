@@ -10,17 +10,18 @@ function readRouteSource(relativeRoutePath: string) {
 test("clinic-public-profile nativo valida origin antes de auth en mutaciones", () => {
   const source = readRouteSource("server/routes/clinic-public-profile.fastify.ts");
 
+  // WBR-08c: migrated to the canonical clinic auth helper.
   assert.match(
     source,
-    /app\.patch<[\s\S]*?>\(\s*"\/"[\s\S]*?enforceTrustedOrigin\(request, reply, allowedOrigins\)[\s\S]*?authenticateClinicUser\(request, reply, deps, now\)/s,
+    /app\.patch<[\s\S]*?>\(\s*"\/"[\s\S]*?enforceTrustedOrigin\(request, reply, allowedOrigins\)[\s\S]*?authenticateFastifyClinicUser\(/s,
   );
   assert.match(
     source,
-    /app\.post\(\s*"\/avatar"[\s\S]*?enforceTrustedOrigin\(request, reply, allowedOrigins\)[\s\S]*?authenticateClinicUser\(request, reply, deps, now\)/s,
+    /app\.post\(\s*"\/avatar"[\s\S]*?enforceTrustedOrigin\(request, reply, allowedOrigins\)[\s\S]*?authenticateFastifyClinicUser\(/s,
   );
   assert.match(
     source,
-    /app\.delete\(\s*"\/avatar"[\s\S]*?enforceTrustedOrigin\(request, reply, allowedOrigins\)[\s\S]*?authenticateClinicUser\(request, reply, deps, now\)/s,
+    /app\.delete\(\s*"\/avatar"[\s\S]*?enforceTrustedOrigin\(request, reply, allowedOrigins\)[\s\S]*?authenticateFastifyClinicUser\(/s,
   );
 });
 
@@ -35,8 +36,9 @@ test("reports clinic read-only no declara mutaciones y status valida origin ante
     /app\.(post|patch|delete)(?:<[\s\S]*?>)?\(/,
     "reports clinic debe quedar sin rutas mutantes",
   );
+  // WBR-08b: migrated to the canonical clinic auth helper.
   assert.match(
     reportsStatusSource,
-    /app\.patch<[\s\S]*?>\(\s*"\/:reportId\/status"[\s\S]*?enforceTrustedOrigin\(request, reply, allowedOrigins\)[\s\S]*?authenticateClinicUser/s,
+    /app\.patch<[\s\S]*?>\(\s*"\/:reportId\/status"[\s\S]*?enforceTrustedOrigin\(request, reply, allowedOrigins\)[\s\S]*?authenticateFastifyClinicUser/s,
   );
 });

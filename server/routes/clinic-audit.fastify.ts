@@ -1,6 +1,5 @@
 import type {
   FastifyPluginAsync,
-  FastifyReply,
   FastifyRequest,
 } from "fastify";
 
@@ -11,7 +10,6 @@ import {
   type AuditListFilters as AdminAuditListFilters,
   type AuditLogListItem,
 } from "../lib/clinic-audit.ts";
-import { ENV } from "../lib/env.ts";
 import { logRequestCompletion } from "../middlewares/request-logger.ts";
 import {
   createRuntimeTimer,
@@ -21,7 +19,10 @@ import {
   getClinicPermissions,
   normalizeClinicUserRole,
 } from "../lib/permissions.ts";
-import { shouldRefreshSessionLastAccess } from "../lib/session-last-access.ts";
+import {
+  authenticateFastifyClinicUser,
+  type FastifyAuthenticatedClinicUser,
+} from "../lib/fastify-clinic-auth.ts";
 
 type ClinicUserRecord = {
   id: number;
@@ -49,7 +50,6 @@ type AuthenticatedClinicUser = {
   authProId: string | null;
   role: ReturnType<typeof normalizeClinicUserRole>;
   permissions: ReturnType<typeof getClinicPermissions>;
-  canUploadReports: boolean;
   canManageClinicUsers: boolean;
   sessionToken: string;
 };
@@ -122,160 +122,15 @@ async function loadDefaultDeps(): Promise<NativeClinicAuditDeps> {
   return defaultDepsPromise!;
 }
 
-function parseCookies(cookieHeader: string | undefined) {
-  const result: Record<string, string> = {};
-
-  if (!cookieHeader) {
-    return result;
-  }
-
-  for (const part of cookieHeader.split(";")) {
-    const [rawName, ...rawValueParts] = part.split("=");
-
-    if (!rawName) {
-      continue;
-    }
-
-    const name = rawName.trim();
-
-    if (!name) {
-      continue;
-    }
-
-    const rawValue = rawValueParts.join("=").trim();
-
-    try {
-      result[name] = decodeURIComponent(rawValue);
-    } catch {
-      result[name] = rawValue;
-    }
-  }
-
-  return result;
-}
-
-function getSessionToken(request: FastifyRequest) {
-  const cookieHeader =
-    typeof request.headers.cookie === "string"
-      ? request.headers.cookie
-      : undefined;
-
-  const cookies = parseCookies(cookieHeader);
-  const raw = cookies[ENV.cookieName];
-
-  if (typeof raw !== "string") {
-    return undefined;
-  }
-
-  const trimmed = raw.trim();
-  return trimmed ? trimmed : undefined;
-}
-
-function serializeCookie(input: {
-  name: string;
-  value: string;
-  maxAgeSeconds?: number;
-  expires?: string;
-}) {
-  const parts = [
-    `${input.name}=${encodeURIComponent(input.value)}`,
-    "Path=/",
-    "HttpOnly",
-    `SameSite=${ENV.cookieSameSite}`,
-  ];
-
-  if (ENV.cookieSecure) {
-    parts.push("Secure");
-  }
-
-  if (typeof input.maxAgeSeconds === "number") {
-    parts.push(`Max-Age=${input.maxAgeSeconds}`);
-  }
-
-  if (input.expires) {
-    parts.push(`Expires=${input.expires}`);
-  }
-
-  return parts.join("; ");
-}
-
-function buildClearSessionCookie() {
-  return serializeCookie({
-    name: ENV.cookieName,
-    value: "",
-    maxAgeSeconds: 0,
-    expires: "Thu, 01 Jan 1970 00:00:00 GMT",
-  });
-}
-
-async function authenticateClinicUser(
-  request: FastifyRequest,
-  reply: FastifyReply,
-  deps: NativeClinicAuditDeps,
-  now: () => number,
-): Promise<AuthenticatedClinicUser | null> {
-  const token = getSessionToken(request);
-
-  if (!token) {
-    reply.code(401).send({
-      success: false,
-      error: "No autenticado",
-    });
-    return null;
-  }
-
-  const tokenHash = deps.hashSessionToken(token);
-  const session = await deps.getActiveSessionByToken(tokenHash);
-
-  if (!session) {
-    reply.code(401).send({
-      success: false,
-      error: "Sesión inválida",
-    });
-    return null;
-  }
-
-  if (session.expiresAt && session.expiresAt.getTime() <= now()) {
-    await deps.deleteActiveSession(tokenHash);
-
-    reply.header("set-cookie", buildClearSessionCookie());
-    reply.code(401).send({
-      success: false,
-      error: "Sesión expirada",
-    });
-    return null;
-  }
-
-  const clinicUser = await deps.getClinicUserById(session.clinicUserId);
-
-  if (!clinicUser) {
-    await deps.deleteActiveSession(tokenHash);
-
-    reply.header("set-cookie", buildClearSessionCookie());
-    reply.code(401).send({
-      success: false,
-      error: "Usuario de sesión no encontrado",
-    });
-    return null;
-  }
-
-  if (shouldRefreshSessionLastAccess(session.lastAccess ?? null, now())) {
-    await deps.updateSessionLastAccess(tokenHash);
-  }
-
-  const role = normalizeClinicUserRole(clinicUser.role, "clinic_staff");
-  const permissions = getClinicPermissions(role);
+function getClinicAuditAuthorization(
+  auth: FastifyAuthenticatedClinicUser,
+): AuthenticatedClinicUser {
+  const permissions = getClinicPermissions(auth.role);
 
   return {
-    id: clinicUser.id,
-    clinicId: clinicUser.clinicId,
-    username: clinicUser.username,
-    authProId: clinicUser.authProId ?? null,
-    role,
+    ...auth,
     permissions,
-    canUploadReports: permissions.canUploadReports,
     canManageClinicUsers: permissions.canManageClinicUsers,
-    sessionToken: token,
   };
 }
 
@@ -341,11 +196,18 @@ export const clinicAuditNativeRoutes: FastifyPluginAsync<
   app.get<{
     Querystring: Record<string, unknown>;
   }>("/export.csv", async (request, reply) => {
-    const auth = await authenticateClinicUser(request, reply, deps, now);
+    const clinicAuth = await authenticateFastifyClinicUser(
+      request,
+      reply,
+      deps,
+      now,
+    );
 
-    if (!auth) {
+    if (!clinicAuth) {
       return reply;
     }
+
+    const auth = getClinicAuditAuthorization(clinicAuth);
 
     const { filters, errors } = deps.buildClinicAuditListFilters(
       request.query ?? {},
@@ -389,11 +251,18 @@ export const clinicAuditNativeRoutes: FastifyPluginAsync<
   app.get<{
     Querystring: Record<string, unknown>;
   }>("/", async (request, reply) => {
-    const auth = await authenticateClinicUser(request, reply, deps, now);
+    const clinicAuth = await authenticateFastifyClinicUser(
+      request,
+      reply,
+      deps,
+      now,
+    );
 
-    if (!auth) {
+    if (!clinicAuth) {
       return reply;
     }
+
+    const auth = getClinicAuditAuthorization(clinicAuth);
 
     const { filters, errors } = deps.buildClinicAuditListFilters(
       request.query ?? {},
