@@ -488,7 +488,7 @@ export async function createFastifyApp(
   const getNativeHealthCheckResponse =
     options.getNativeHealthCheckResponse ??
     (async () =>
-      (await import("./lib/http-runtime.ts")).getHealthCheckResponse());
+      (await import("./lib/http-runtime.ts")).getCachedHealthCheckResponse());
 
   const getServiceInfoPayload =
     options.getServiceInfoPayload ??

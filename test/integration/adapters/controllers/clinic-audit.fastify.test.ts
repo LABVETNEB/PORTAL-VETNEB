@@ -375,3 +375,39 @@ test(
     }
   },
 );
+
+test(
+  "clinicAuditNativeRoutes elimina sesión cuando falta el usuario asociado",
+  async () => {
+    const deletedSessions: string[] = [];
+    const app = await createTestApp({
+      getClinicUserById: async () => null,
+      deleteActiveSession: async (tokenHash: string) => {
+        deletedSessions.push(tokenHash);
+      },
+      listAuditLog: async () => {
+        throw new Error("missing clinic user must not list audit log");
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/clinic/audit-log",
+        headers: {
+          cookie: `${ENV.cookieName}=session-token`,
+        },
+      });
+
+      assert.equal(response.statusCode, 401);
+      assert.deepEqual(JSON.parse(response.body), {
+        success: false,
+        error: "Usuario de sesión no encontrado",
+      });
+      assert.deepEqual(deletedSessions, ["hash:session-token"]);
+      assert.match(String(response.headers["set-cookie"] ?? ""), /Max-Age=0/);
+    } finally {
+      await app.close();
+    }
+  },
+);

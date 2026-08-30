@@ -36,7 +36,15 @@ export default [
       sourceType: "module",
       globals: globals.node,
     },
-    rules: asWarnings(eslint.configs.recommended.rules),
+    rules: {
+      ...asWarnings(eslint.configs.recommended.rules),
+      // WBR-04a (VET-10): promoted to error. Zero current violations across
+      // server/**, scripts/**, drizzle/**; both catch runtime-correctness
+      // bugs (TDZ/scope leaks across switch cases, TypeError on the
+      // short-circuited side of `?.`), not style.
+      "no-case-declarations": "error",
+      "no-unsafe-optional-chaining": "error",
+    },
   },
   {
     files: ["server/**/*.{ts,mts}", "scripts/**/*.{ts,mts}", "drizzle/**/*.{ts,mts}"],

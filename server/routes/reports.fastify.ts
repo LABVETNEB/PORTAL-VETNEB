@@ -5,7 +5,6 @@ import type {
 } from "fastify";
 
 import type { Report, ReportStatus } from "../../drizzle/schema.ts";
-import { ENV } from "../lib/env.ts";
 import {
   getAllowedOrigins,
   getAllowedOriginForCors,
@@ -22,13 +21,15 @@ import {
   parseReportStudyType,
 } from "../features/reports/domain/index.ts";
 import { createClinicReportsRouteComposition } from "../features/reports/composition/index.ts";
-import { normalizeClinicUserRole } from "../lib/permissions.ts";
+import {
+  authenticateFastifyClinicUser,
+  type FastifyClinicSessionRecord,
+} from "../lib/fastify-clinic-auth.ts";
 import { logRequestCompletion } from "../middlewares/request-logger.ts";
 import {
   createRuntimeTimer,
   type RuntimeTimer,
 } from "../lib/runtime-timing.ts";
-import { shouldRefreshSessionLastAccess } from "../lib/session-last-access.ts";
 
 type ClinicUserRecord = {
   id: number;
@@ -38,26 +39,11 @@ type ClinicUserRecord = {
   role: unknown;
 };
 
-type ActiveSessionRecord = {
-  clinicUserId: number;
-  expiresAt: Date | null;
-  lastAccess?: Date | null;
-};
-
-type AuthenticatedClinicUser = {
-  id: number;
-  clinicId: number;
-  username: string;
-  authProId: string | null;
-  role: ReturnType<typeof normalizeClinicUserRole>;
-  sessionToken: string;
-};
-
 export type ReportsNativeRoutesOptions = {
   deleteActiveSession?: (tokenHash: string) => Promise<void>;
   getActiveSessionByToken?: (
     tokenHash: string,
-  ) => Promise<ActiveSessionRecord | null>;
+  ) => Promise<FastifyClinicSessionRecord | null>;
   getClinicUserById?: (
     clinicUserId: number,
   ) => Promise<ClinicUserRecord | null>;
@@ -108,17 +94,6 @@ type ReportsFastifyRequest = FastifyRequest & {
   [REQUEST_TIMER_KEY]?: RuntimeTimer;
 };
 
-type NativeReportsDeps = Required<
-  Pick<
-    ReportsNativeRoutesOptions,
-    | "deleteActiveSession"
-    | "getActiveSessionByToken"
-    | "getClinicUserById"
-    | "updateSessionLastAccess"
-    | "hashSessionToken"
-  >
->;
-
 function applyCorsHeaders(
   request: FastifyRequest,
   reply: FastifyReply,
@@ -133,158 +108,6 @@ function applyCorsHeaders(
   reply.header("vary", "Origin");
   reply.header("access-control-allow-origin", allowedOrigin);
   reply.header("access-control-allow-credentials", "true");
-}
-
-function parseCookies(cookieHeader: string | undefined) {
-  const result: Record<string, string> = {};
-
-  if (!cookieHeader) {
-    return result;
-  }
-
-  for (const part of cookieHeader.split(";")) {
-    const [rawName, ...rawValueParts] = part.split("=");
-
-    if (!rawName) {
-      continue;
-    }
-
-    const name = rawName.trim();
-
-    if (!name) {
-      continue;
-    }
-
-    const rawValue = rawValueParts.join("=").trim();
-
-    try {
-      result[name] = decodeURIComponent(rawValue);
-    } catch {
-      result[name] = rawValue;
-    }
-  }
-
-  return result;
-}
-
-function getSessionToken(request: FastifyRequest) {
-  const cookieHeader =
-    typeof request.headers.cookie === "string"
-      ? request.headers.cookie
-      : undefined;
-
-  const cookies = parseCookies(cookieHeader);
-  const raw = cookies[ENV.cookieName];
-
-  if (typeof raw !== "string") {
-    return undefined;
-  }
-
-  const trimmed = raw.trim();
-  return trimmed ? trimmed : undefined;
-}
-
-function serializeCookie(input: {
-  name: string;
-  value: string;
-  maxAgeSeconds?: number;
-  expires?: string;
-}) {
-  const parts = [
-    `${input.name}=${encodeURIComponent(input.value)}`,
-    "Path=/",
-    "HttpOnly",
-    `SameSite=${ENV.cookieSameSite}`,
-  ];
-
-  if (ENV.cookieSecure) {
-    parts.push("Secure");
-  }
-
-  if (typeof input.maxAgeSeconds === "number") {
-    parts.push(`Max-Age=${input.maxAgeSeconds}`);
-  }
-
-  if (input.expires) {
-    parts.push(`Expires=${input.expires}`);
-  }
-
-  return parts.join("; ");
-}
-
-function buildClearSessionCookie() {
-  return serializeCookie({
-    name: ENV.cookieName,
-    value: "",
-    maxAgeSeconds: 0,
-    expires: "Thu, 01 Jan 1970 00:00:00 GMT",
-  });
-}
-
-async function authenticateClinicUser(
-  request: FastifyRequest,
-  reply: FastifyReply,
-  deps: NativeReportsDeps,
-  now: () => number,
-): Promise<AuthenticatedClinicUser | null> {
-  const token = getSessionToken(request);
-
-  if (!token) {
-    reply.code(401).send({
-      success: false,
-      error: "No autenticado",
-    });
-    return null;
-  }
-
-  const tokenHash = deps.hashSessionToken(token);
-  const session = await deps.getActiveSessionByToken(tokenHash);
-
-  if (!session) {
-    reply.code(401).send({
-      success: false,
-      error: "Sesión inválida",
-    });
-    return null;
-  }
-
-  if (session.expiresAt && session.expiresAt.getTime() <= now()) {
-    await deps.deleteActiveSession(tokenHash);
-
-    reply.header("set-cookie", buildClearSessionCookie());
-    reply.code(401).send({
-      success: false,
-      error: "Sesión expirada",
-    });
-    return null;
-  }
-
-  const clinicUser = await deps.getClinicUserById(session.clinicUserId);
-
-  if (!clinicUser) {
-    await deps.deleteActiveSession(tokenHash);
-
-    reply.header("set-cookie", buildClearSessionCookie());
-    reply.code(401).send({
-      success: false,
-      error: "Usuario de sesión no encontrado",
-    });
-    return null;
-  }
-
-  if (shouldRefreshSessionLastAccess(session.lastAccess ?? null, now())) {
-    await deps.updateSessionLastAccess(tokenHash);
-  }
-
-  const role = normalizeClinicUserRole(clinicUser.role, "clinic_staff");
-  return {
-    id: clinicUser.id,
-    clinicId: clinicUser.clinicId,
-    username: clinicUser.username,
-    authProId: clinicUser.authProId ?? null,
-    role,
-    sessionToken: token,
-  };
 }
 
 function validateStatusQuery(status: unknown, currentStatus: ReportStatus | undefined) {
@@ -362,7 +185,7 @@ export const reportsNativeRoutes: FastifyPluginAsync<ReportsNativeRoutesOptions>
       };
     }>("/", async (request, reply) => {
       const composition = await createClinicReportsRouteComposition(options);
-      const auth = await authenticateClinicUser(
+      const auth = await authenticateFastifyClinicUser(
         request,
         reply,
         composition.auth,
@@ -417,7 +240,7 @@ export const reportsNativeRoutes: FastifyPluginAsync<ReportsNativeRoutesOptions>
       };
     }>("/search", async (request, reply) => {
       const composition = await createClinicReportsRouteComposition(options);
-      const auth = await authenticateClinicUser(
+      const auth = await authenticateFastifyClinicUser(
         request,
         reply,
         composition.auth,
@@ -471,7 +294,7 @@ export const reportsNativeRoutes: FastifyPluginAsync<ReportsNativeRoutesOptions>
       };
     }>("/study-types", async (request, reply) => {
       const composition = await createClinicReportsRouteComposition(options);
-      const auth = await authenticateClinicUser(
+      const auth = await authenticateFastifyClinicUser(
         request,
         reply,
         composition.auth,
@@ -507,7 +330,7 @@ export const reportsNativeRoutes: FastifyPluginAsync<ReportsNativeRoutesOptions>
       };
     }>("/:reportId/history", async (request, reply) => {
       const composition = await createClinicReportsRouteComposition(options);
-      const auth = await authenticateClinicUser(
+      const auth = await authenticateFastifyClinicUser(
         request,
         reply,
         composition.auth,
@@ -554,7 +377,7 @@ export const reportsNativeRoutes: FastifyPluginAsync<ReportsNativeRoutesOptions>
       };
     }>("/:reportId/preview-url", async (request, reply) => {
       const composition = await createClinicReportsRouteComposition(options);
-      const auth = await authenticateClinicUser(
+      const auth = await authenticateFastifyClinicUser(
         request,
         reply,
         composition.auth,
@@ -598,7 +421,7 @@ export const reportsNativeRoutes: FastifyPluginAsync<ReportsNativeRoutesOptions>
       };
     }>("/:reportId/download-url", async (request, reply) => {
       const composition = await createClinicReportsRouteComposition(options);
-      const auth = await authenticateClinicUser(
+      const auth = await authenticateFastifyClinicUser(
         request,
         reply,
         composition.auth,
@@ -635,4 +458,4 @@ export const reportsNativeRoutes: FastifyPluginAsync<ReportsNativeRoutesOptions>
         downloadUrl: result.downloadUrl,
       });
     });
-  };
+};

@@ -30,13 +30,12 @@ test("logistics route events API exposes list, create, route-plan scoped, and po
   assert.match(routeSource, /app\.options\("\/route-plans\/:routePlanId", optionsHandler\)/);
 });
 
-test("logistics route events API authenticates clinic users with existing session machinery", () => {
-  assert.match(routeSource, /getSessionToken\(request\)/);
-  assert.match(routeSource, /ENV\.cookieName/);
-  assert.match(routeSource, /deps\.hashSessionToken\(token\)/);
-  assert.match(routeSource, /deps\.getActiveSessionByToken\(tokenHash\)/);
-  assert.match(routeSource, /deps\.getClinicUserById\(session\.clinicUserId\)/);
-  assert.match(routeSource, /deps\.updateSessionLastAccess\(tokenHash\)/);
+test("logistics route events API delegates clinic authentication to the canonical helper", () => {
+  assert.match(routeSource, /from "\.\.\/lib\/fastify-clinic-auth\.ts"/);
+  assert.match(routeSource, /authenticateFastifyClinicUser\(request, reply, deps, now\)/);
+  assert.match(routeSource, /getActiveSessionByToken\?:/);
+  assert.match(routeSource, /getClinicUserById\?:/);
+  assert.match(routeSource, /updateSessionLastAccess\?:/);
 });
 
 test("logistics route events API wires route event DB helpers through injectable deps", () => {
@@ -146,8 +145,8 @@ test("logistics route events API keeps event writes behind trusted-origin checks
 });
 
 test("logistics route events API enforces role-aware logistics route event permissions", () => {
-  assert.match(routeSource, /type ClinicUserRole/);
-  assert.match(routeSource, /normalizeClinicUserRole\(clinicUser\.role, "clinic_staff"\)/);
+  assert.match(routeSource, /fastify-clinic-auth\.ts/);
+  assert.match(routeSource, /authenticateFastifyClinicUser/);
   assert.match(routeSource, /getClinicPermissions\(auth\.role\)\.canManageLogisticsRouteEvents/);
   assert.match(routeSource, /UNSAFE_METHODS\.has\(request\.method\.toUpperCase\(\)\)/);
   assert.match(routeSource, /Permisos insuficientes para logistica/);
@@ -225,7 +224,7 @@ test("M10 keeps OPTIONS, audit ordering and HTTP responsibilities inside Fastify
 
   assert.match(
     routeSource,
-    /if \(!enforceTrustedOrigin\(request, reply, allowedOrigins\)\)[\s\S]*?authenticateClinicUser\(request, reply, deps, now\)[\s\S]*?canManageLogisticsRouteEvents[\s\S]*?buildCreateRouteEventInput\(request\.body, auth\.clinicId\)[\s\S]*?await createRouteEvent\(parsed\.input\)[\s\S]*?Plan de ruta o parada no encontrada[\s\S]*?await deps\.writeAuditLog\([\s\S]*?reply\.code\(201\)/,
+    /if \(!enforceTrustedOrigin\(request, reply, allowedOrigins\)\)[\s\S]*?authenticateFastifyClinicUser\(request, reply, deps, now\)[\s\S]*?canManageLogisticsRouteEvents[\s\S]*?buildCreateRouteEventInput\(request\.body, auth\.clinicId\)[\s\S]*?await createRouteEvent\(parsed\.input\)[\s\S]*?Plan de ruta o parada no encontrada[\s\S]*?await deps\.writeAuditLog\([\s\S]*?reply\.code\(201\)/,
   );
 
   assert.match(routeSource, /function serializeRouteEvent/);

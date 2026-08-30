@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import crypto from "node:crypto";
 
 process.env.SUPABASE_URL ??= "https://example.supabase.co";
 process.env.SUPABASE_ANON_KEY ??= "test-anon-key";
@@ -17,7 +18,7 @@ const {
 test("uploadReport sube archivo con path sanitizado y opciones esperadas", async () => {
   const originalFrom = supabase.storage.from;
   const originalDateNow = Date.now;
-  const originalMathRandom = Math.random;
+  const originalRandomBytes = crypto.randomBytes;
 
   let capturedBucket: string | null = null;
   let capturedPath: string | null = null;
@@ -25,7 +26,7 @@ test("uploadReport sube archivo con path sanitizado y opciones esperadas", async
   let capturedOptions: unknown = null;
 
   Date.now = () => 1710000000000;
-  Math.random = () => 0.123456789;
+  (crypto as any).randomBytes = () => Buffer.from("aabbccddeeff", "hex");
 
   (supabase.storage as any).from = (bucket: string) => {
     capturedBucket = bucket;
@@ -55,18 +56,18 @@ test("uploadReport sube archivo con path sanitizado y opciones esperadas", async
 
     assert.equal(
       result,
-      "clinics/7/1710000000000-4fzzzxjy-reporte_final.pdf",
+      "clinics/7/1710000000000-aabbccddeeff-reporte_final.pdf",
     );
   } finally {
     (supabase.storage as any).from = originalFrom;
     Date.now = originalDateNow;
-    Math.random = originalMathRandom;
+    crypto.randomBytes = originalRandomBytes;
   }
 
   assert.equal(capturedBucket, "reports");
   assert.equal(
     capturedPath,
-    "clinics/7/1710000000000-4fzzzxjy-reporte_final.pdf",
+    "clinics/7/1710000000000-aabbccddeeff-reporte_final.pdf",
   );
   assert.equal(capturedFile, file);
   assert.deepEqual(capturedOptions, {
@@ -78,12 +79,12 @@ test("uploadReport sube archivo con path sanitizado y opciones esperadas", async
 test("uploadReport usa nombre fallback cuando fileName viene vacío", async () => {
   const originalFrom = supabase.storage.from;
   const originalDateNow = Date.now;
-  const originalMathRandom = Math.random;
+  const originalRandomBytes = crypto.randomBytes;
 
   let capturedPath: string | null = null;
 
   Date.now = () => 1710000000001;
-  Math.random = () => 0.123456789;
+  (crypto as any).randomBytes = () => Buffer.from("aabbccddeeff", "hex");
 
   (supabase.storage as any).from = () => ({
     upload: async (path: string) => {
@@ -105,17 +106,17 @@ test("uploadReport usa nombre fallback cuando fileName viene vacío", async () =
 
     assert.equal(
       result,
-      "clinics/8/1710000000001-4fzzzxjy-report",
+      "clinics/8/1710000000001-aabbccddeeff-report",
     );
   } finally {
     (supabase.storage as any).from = originalFrom;
     Date.now = originalDateNow;
-    Math.random = originalMathRandom;
+    crypto.randomBytes = originalRandomBytes;
   }
 
   assert.equal(
     capturedPath,
-    "clinics/8/1710000000001-4fzzzxjy-report",
+    "clinics/8/1710000000001-aabbccddeeff-report",
   );
 });
 
@@ -147,7 +148,7 @@ test("uploadReport propaga error de upload cuando mimeType es válido", async ()
 test("uploadClinicAvatar sube avatar con path sanitizado y opciones esperadas", async () => {
   const originalFrom = supabase.storage.from;
   const originalDateNow = Date.now;
-  const originalMathRandom = Math.random;
+  const originalRandomBytes = crypto.randomBytes;
 
   let capturedBucket: string | null = null;
   let capturedPath: string | null = null;
@@ -155,7 +156,7 @@ test("uploadClinicAvatar sube avatar con path sanitizado y opciones esperadas", 
   let capturedOptions: unknown = null;
 
   Date.now = () => 1710000000002;
-  Math.random = () => 0.123456789;
+  (crypto as any).randomBytes = () => Buffer.from("aabbccddeeff", "hex");
 
   (supabase.storage as any).from = (bucket: string) => {
     capturedBucket = bucket;
@@ -185,18 +186,18 @@ test("uploadClinicAvatar sube avatar con path sanitizado y opciones esperadas", 
 
     assert.equal(
       result,
-      "clinic-avatars/12/1710000000002-4fzzzxjy-avatar_clinica.webp",
+      "clinic-avatars/12/1710000000002-aabbccddeeff-avatar_clinica.webp",
     );
   } finally {
     (supabase.storage as any).from = originalFrom;
     Date.now = originalDateNow;
-    Math.random = originalMathRandom;
+    crypto.randomBytes = originalRandomBytes;
   }
 
   assert.equal(capturedBucket, "reports");
   assert.equal(
     capturedPath,
-    "clinic-avatars/12/1710000000002-4fzzzxjy-avatar_clinica.webp",
+    "clinic-avatars/12/1710000000002-aabbccddeeff-avatar_clinica.webp",
   );
   assert.equal(capturedFile, file);
   assert.deepEqual(capturedOptions, {
@@ -208,12 +209,12 @@ test("uploadClinicAvatar sube avatar con path sanitizado y opciones esperadas", 
 test("uploadClinicAvatar usa nombre fallback cuando fileName viene vacío", async () => {
   const originalFrom = supabase.storage.from;
   const originalDateNow = Date.now;
-  const originalMathRandom = Math.random;
+  const originalRandomBytes = crypto.randomBytes;
 
   let capturedPath: string | null = null;
 
   Date.now = () => 1710000000003;
-  Math.random = () => 0.123456789;
+  (crypto as any).randomBytes = () => Buffer.from("aabbccddeeff", "hex");
 
   (supabase.storage as any).from = () => ({
     upload: async (path: string) => {
@@ -235,17 +236,17 @@ test("uploadClinicAvatar usa nombre fallback cuando fileName viene vacío", asyn
 
     assert.equal(
       result,
-      "clinic-avatars/15/1710000000003-4fzzzxjy-avatar",
+      "clinic-avatars/15/1710000000003-aabbccddeeff-avatar",
     );
   } finally {
     (supabase.storage as any).from = originalFrom;
     Date.now = originalDateNow;
-    Math.random = originalMathRandom;
+    crypto.randomBytes = originalRandomBytes;
   }
 
   assert.equal(
     capturedPath,
-    "clinic-avatars/15/1710000000003-4fzzzxjy-avatar",
+    "clinic-avatars/15/1710000000003-aabbccddeeff-avatar",
   );
 });
 
@@ -276,12 +277,12 @@ test("uploadClinicAvatar propaga error de upload cuando mimeType es válido", as
 test("uploadReport neutraliza path traversal y separadores de ruta en fileName", async () => {
   const originalFrom = supabase.storage.from;
   const originalDateNow = Date.now;
-  const originalMathRandom = Math.random;
+  const originalRandomBytes = crypto.randomBytes;
 
   let capturedPath: string | null = null;
 
   Date.now = () => 1710000000100;
-  Math.random = () => 0.123456789;
+  (crypto as any).randomBytes = () => Buffer.from("aabbccddeeff", "hex");
 
   (supabase.storage as any).from = () => ({
     upload: async (path: string) => {
@@ -303,7 +304,7 @@ test("uploadReport neutraliza path traversal y separadores de ruta en fileName",
 
     assert.equal(
       result,
-      "clinics/17/1710000000100-4fzzzxjy-Luna_final_1.pdf",
+      "clinics/17/1710000000100-aabbccddeeff-Luna_final_1.pdf",
     );
     assert.equal(capturedPath, result);
     assert.equal(result.split("/").length, 3);
@@ -315,19 +316,19 @@ test("uploadReport neutraliza path traversal y separadores de ruta en fileName",
   } finally {
     (supabase.storage as any).from = originalFrom;
     Date.now = originalDateNow;
-    Math.random = originalMathRandom;
+    crypto.randomBytes = originalRandomBytes;
   }
 });
 
 test("uploadClinicAvatar neutraliza path traversal y separadores de ruta en fileName", async () => {
   const originalFrom = supabase.storage.from;
   const originalDateNow = Date.now;
-  const originalMathRandom = Math.random;
+  const originalRandomBytes = crypto.randomBytes;
 
   let capturedPath: string | null = null;
 
   Date.now = () => 1710000000101;
-  Math.random = () => 0.123456789;
+  (crypto as any).randomBytes = () => Buffer.from("aabbccddeeff", "hex");
 
   (supabase.storage as any).from = () => ({
     upload: async (path: string) => {
@@ -349,7 +350,7 @@ test("uploadClinicAvatar neutraliza path traversal y separadores de ruta en file
 
     assert.equal(
       result,
-      "clinic-avatars/21/1710000000101-4fzzzxjy-avatar_final.png",
+      "clinic-avatars/21/1710000000101-aabbccddeeff-avatar_final.png",
     );
     assert.equal(capturedPath, result);
     assert.equal(result.split("/").length, 3);
@@ -361,6 +362,6 @@ test("uploadClinicAvatar neutraliza path traversal y separadores de ruta en file
   } finally {
     (supabase.storage as any).from = originalFrom;
     Date.now = originalDateNow;
-    Math.random = originalMathRandom;
+    crypto.randomBytes = originalRandomBytes;
   }
 });

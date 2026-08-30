@@ -25,11 +25,21 @@ const MAX_ARRAY_ITEMS = 50;
 const MAX_OBJECT_KEYS = 60;
 const MAX_STRING_LENGTH = 2048;
 
+// email/recipient* van como EXACT, no como fragmento: un fragmento "recipient"
+// redactaría también "recipientCount" (agregado no reversible, debe sobrevivir
+// sin cambios) y cualquier "*Id"/"*Total" derivado. El valor, no la mera
+// presencia de la palabra, es lo que hace sensible a estas claves.
 const SENSITIVE_KEY_EXACT = new Set([
   "pass",
   "dsn",
   "auth",
   "key",
+  "email",
+  "emails",
+  "recipient",
+  "recipients",
+  "recipientemail",
+  "recipientemails",
 ]);
 
 const SENSITIVE_KEY_FRAGMENTS = [
@@ -95,6 +105,10 @@ const SENSITIVE_QUERY_PARAM_PATTERN =
   /([?&](?:token|access_token|refresh_token|accessToken|refreshToken|reportAccessToken|signature|apikey|api_key)=)([^&#\s"']+)/gi;
 const SERIALIZED_COOKIE_PATTERN =
   /(^|[;,\s])([A-Za-z0-9_.-]*(?:session|token|auth|secret|password)[A-Za-z0-9_.-]*)=([^;,\s]+)/gi;
+// Deliberadamente conservador (no RFC 5322 completo): exige local-part +
+// "@" + dominio con punto + TLD de 2+ letras, para no capturar UUIDs, URLs
+// sin "@" ni identificadores tipo "usuario@host" sin TLD.
+const EMAIL_ADDRESS_PATTERN = /\b[\w.%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g;
 
 export function redactSensitiveText(value: string): string {
   const redacted = value
@@ -102,6 +116,7 @@ export function redactSensitiveText(value: string): string {
     .replace(CONNECTION_STRING_PATTERN, LOG_REDACTED_VALUE)
     .replace(JWT_PATTERN, LOG_REDACTED_VALUE)
     .replace(SUPABASE_SECRET_PATTERN, LOG_REDACTED_VALUE)
+    .replace(EMAIL_ADDRESS_PATTERN, LOG_REDACTED_VALUE)
     .replace(BEARER_PATTERN, (_match, scheme: string) =>
       `${scheme} ${LOG_REDACTED_VALUE}`,
     )

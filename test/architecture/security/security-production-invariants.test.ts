@@ -44,7 +44,6 @@ const blockNullCorsRouteFiles = [
 
 const clinicSessionCookieRouteFiles = [
   "server/routes/auth.fastify.ts",
-  "server/routes/clinic-audit.fastify.ts",
 ] as const;
 
 test("ENV mantiene cookies de sesión separadas y política productiva segura", () => {
@@ -105,11 +104,36 @@ test("rutas clinic-scoped que limpian sesión usan contrato central ENV", () => 
     assertNotContains(source, "process.env.COOKIE_SAME_SITE", file);
     assertNotContains(source, "process.env.COOKIE_SECURE", file);
   }
+
+  // WBR-08c: clinic-audit.fastify.ts delegates cookie clearing to the
+  // canonical clinic auth helper instead of a local serializeCookie.
+  const clinicAuthHelperFile = "server/lib/fastify-clinic-auth.ts";
+  const clinicAuthHelperSource = read(clinicAuthHelperFile);
+
+  assertContains(clinicAuthHelperSource, "function buildClearSessionCookie", clinicAuthHelperFile);
+  assertContains(clinicAuthHelperSource, '"Path=/"', clinicAuthHelperFile);
+  assertContains(clinicAuthHelperSource, '"HttpOnly"', clinicAuthHelperFile);
+  assertContains(clinicAuthHelperSource, "`SameSite=${ENV.cookieSameSite}`", clinicAuthHelperFile);
+  assertContains(clinicAuthHelperSource, "if (ENV.cookieSecure)", clinicAuthHelperFile);
+  assertContains(clinicAuthHelperSource, '"Secure"', clinicAuthHelperFile);
+  assertContains(
+    clinicAuthHelperSource,
+    "Expires=Thu, 01 Jan 1970 00:00:00 GMT",
+    clinicAuthHelperFile,
+  );
+  assertContains(
+    read("server/routes/clinic-audit.fastify.ts"),
+    "authenticateFastifyClinicUser",
+    "clinic-audit.fastify.ts",
+  );
 });
 
 test("cada dominio de sesión lee y escribe únicamente su cookie correspondiente", () => {
+  // WBR-08c: auth.fastify.ts delegates cookie reading (for /me,
+  // /change-password, /logout) to the canonical clinic auth helper; it
+  // still writes the clinic cookie directly on login.
   const clinicAuth = read("server/routes/auth.fastify.ts");
-  assertContains(clinicAuth, "cookies[ENV.cookieName]", "auth.fastify.ts");
+  assertContains(clinicAuth, "authenticateFastifyClinicUser", "auth.fastify.ts");
   assertContains(clinicAuth, "name: ENV.cookieName", "auth.fastify.ts");
   assertNotContains(
     clinicAuth,
@@ -122,26 +146,29 @@ test("cada dominio de sesión lee y escribe únicamente su cookie correspondient
     "auth.fastify.ts",
   );
 
+  // WBR-08c: clinic-audit.fastify.ts delegates cookie reading to the
+  // canonical clinic auth helper.
   const clinicAudit = read("server/routes/clinic-audit.fastify.ts");
+  const clinicAuthHelper = read("server/lib/fastify-clinic-auth.ts");
   assertContains(
     clinicAudit,
-    "cookies[ENV.cookieName]",
+    "authenticateFastifyClinicUser",
     "clinic-audit.fastify.ts",
   );
   assertContains(
-    clinicAudit,
-    "name: ENV.cookieName",
-    "clinic-audit.fastify.ts",
+    clinicAuthHelper,
+    "ENV.cookieName",
+    "fastify-clinic-auth.ts",
   );
   assertNotContains(
-    clinicAudit,
-    "cookies[ENV.adminCookieName]",
-    "clinic-audit.fastify.ts",
+    clinicAuthHelper,
+    "ENV.adminCookieName",
+    "fastify-clinic-auth.ts",
   );
   assertNotContains(
-    clinicAudit,
-    "cookies[ENV.particularCookieName]",
-    "clinic-audit.fastify.ts",
+    clinicAuthHelper,
+    "ENV.particularCookieName",
+    "fastify-clinic-auth.ts",
   );
   assertNotContains(
     clinicAudit,

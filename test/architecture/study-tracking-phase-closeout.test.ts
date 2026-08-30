@@ -22,7 +22,8 @@ const routes = {
 } as const;
 
 const routeHashes = new Map<string, string>([
-  [routes.clinic, "f417f341b488cf0fc15a7e932defcc28be4fdcb0ab13659aadaf4cae226382a8"],
+  // WBR-08c: migrated to the canonical clinic auth helper.
+  [routes.clinic, "9c5a2a407dfb22b2ccb2cb197bb10bc108fb5a246bfa906374f2de5c370a7669"],
   [routes.particular, "24c6fa65a94def117e8e155ef1d14672409ac42ed2452e62667763b79ce5cc72"],
   [routes.admin, "eb11f9b1508edd16d5ec3b7353dcfc29ca70963ee9427735eef40857bd0dac79"],
 ]);
@@ -142,9 +143,20 @@ function importTargets(relativePath: string): string[] {
   return targets;
 }
 
+// Hashing raw bytes is CRLF-sensitive: a Windows checkout with
+// core.autocrlf converts a committed file's LF line endings to CRLF on
+// disk, producing a different digest than the LF bytes Linux CI checks out
+// from the same git blob. Normalizing to LF before hashing keeps each pin
+// meaningful (it still changes on a real content edit) without being an
+// artifact of which OS computed it.
 function digest(relativePath: string): string {
   return createHash("sha256")
-    .update(readFileSync(resolve(repoRoot, relativePath)))
+    .update(
+      readFileSync(resolve(repoRoot, relativePath), "utf8").replace(
+        /\r\n/g,
+        "\n",
+      ),
+    )
     .digest("hex");
 }
 
@@ -305,7 +317,9 @@ test("todas las factories application públicas conservan consumidor y test", ()
 });
 
 test("los tres realms quedan separados con evidencia runtime", () => {
-  assert.ok(readSource(routes.clinic).includes("cookies[ENV.cookieName]"));
+  // WBR-08c: routes.clinic delegates cookie reading to the canonical
+  // clinic auth helper (mirrors routes.admin's authenticateFastifyAdmin).
+  assert.ok(readSource(routes.clinic).includes("authenticateFastifyClinicUser"));
   assert.ok(readSource(routes.particular).includes("cookies[ENV.particularCookieName]"));
   assert.ok(readSource(routes.admin).includes("authenticateFastifyAdmin"));
 

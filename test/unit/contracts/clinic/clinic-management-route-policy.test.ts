@@ -22,17 +22,18 @@ test("clinic-public-profile exige management permission nativa en mutaciones sen
   assert.match(source, /if \(auth\.canManageClinicUsers\) \{\s*return true;/s);
   assert.match(source, /error: "No autorizado para administrar recursos de la clinica"/);
 
+  // WBR-08c: migrated to the canonical clinic auth helper.
   assert.match(
     source,
-    /app\.patch<[\s\S]*?>\(\s*"\/"[\s\S]*?enforceTrustedOrigin\(request, reply, allowedOrigins\)[\s\S]*?authenticateClinicUser\(request, reply, deps, now\)[\s\S]*?requireClinicManagementPermission\(auth, reply\)/s,
+    /app\.patch<[\s\S]*?>\(\s*"\/"[\s\S]*?enforceTrustedOrigin\(request, reply, allowedOrigins\)[\s\S]*?authenticateFastifyClinicUser\([\s\S]*?requireClinicManagementPermission\(auth, reply\)/s,
   );
   assert.match(
     source,
-    /app\.post\(\s*"\/avatar"[\s\S]*?enforceTrustedOrigin\(request, reply, allowedOrigins\)[\s\S]*?authenticateClinicUser\(request, reply, deps, now\)[\s\S]*?requireClinicManagementPermission\(auth, reply\)/s,
+    /app\.post\(\s*"\/avatar"[\s\S]*?enforceTrustedOrigin\(request, reply, allowedOrigins\)[\s\S]*?authenticateFastifyClinicUser\([\s\S]*?requireClinicManagementPermission\(auth, reply\)/s,
   );
   assert.match(
     source,
-    /app\.delete\(\s*"\/avatar"[\s\S]*?enforceTrustedOrigin\(request, reply, allowedOrigins\)[\s\S]*?authenticateClinicUser\(request, reply, deps, now\)[\s\S]*?requireClinicManagementPermission\(auth, reply\)/s,
+    /app\.delete\(\s*"\/avatar"[\s\S]*?enforceTrustedOrigin\(request, reply, allowedOrigins\)[\s\S]*?authenticateFastifyClinicUser\([\s\S]*?requireClinicManagementPermission\(auth, reply\)/s,
   );
 });
 test("particular-tokens exige management permission nativa en create y report link", () => {

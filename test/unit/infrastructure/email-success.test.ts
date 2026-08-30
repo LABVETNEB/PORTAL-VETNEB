@@ -107,6 +107,13 @@ test("sendParticularTokenEmail envia token particular con payload minimo", async
   assert.ok(String(payload.html).includes("Gomez"));
   assert.ok(String(payload.html).includes("Luna"));
   assert.equal(JSON.stringify(infoCalls).includes("token-visible-una-sola-vez"), false);
+  // VET-03: el destinatario real (tutor del paciente) no debe llegar al log.
+  assert.equal(JSON.stringify(infoCalls).includes("tutor@example.com"), false);
+  assert.deepEqual(infoCalls[0][1], {
+    recipientCount: 1,
+    messageId: "particular-message-123",
+    transport: "smtp",
+  });
 });
 
 test("sendSpecialStainRequiredEmail envia correo con payload esperado cuando SMTP esta habilitado", async () => {
@@ -237,7 +244,10 @@ test("sendSpecialStainRequiredEmail envia correo con payload esperado cuando SMT
   assert.equal(infoCalls[0][0], "[EMAIL] special_stain_required sent");
   assert.deepEqual(infoCalls[0][1], {
     trackingCaseId: 55,
-    recipients: ["test@example.com", "other@example.com"],
+    recipientCount: 2,
     messageId: "message-123",
   });
+  // VET-03: ninguna dirección de email real llega al log.
+  assert.equal(JSON.stringify(infoCalls).includes("test@example.com"), false);
+  assert.equal(JSON.stringify(infoCalls).includes("other@example.com"), false);
 });

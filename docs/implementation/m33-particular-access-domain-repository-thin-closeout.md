@@ -147,7 +147,6 @@ Allowlist residual exacta, owner y retiro:
 | Consumidor | Owner | Retiro |
 | --- | --- | --- |
 | `server/preflight.ts` | Bootstrap | futuro milestone del consumidor |
-| `server/middlewares/particular-auth.ts` | Auth | futuro milestone Auth |
 | `server/routes/particular-auth.fastify.ts` | Auth | futuro milestone Auth |
 | `server/routes/auth.fastify.ts` | Auth | futuro milestone Auth |
 | `server/routes/particular-audit.fastify.ts` | Particular Audit | futuro milestone del consumidor |

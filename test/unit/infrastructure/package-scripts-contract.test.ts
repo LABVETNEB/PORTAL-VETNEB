@@ -41,7 +41,7 @@ test("root package keeps backend build validation and test scripts", () => {
   assert.equal(pkg.scripts["typecheck:test"], "tsc -p ./test/tsconfig.json --noEmit");
   assert.equal(
     pkg.scripts.test,
-    "node --experimental-strip-types --experimental-specifier-resolution=node --test test/**/*.test.ts",
+    "node --experimental-strip-types --experimental-specifier-resolution=node --test \"test/**/*.test.ts\"",
   );
   assert.equal(
     pkg.scripts["validate:local"],
@@ -52,7 +52,10 @@ test("root package keeps backend build validation and test scripts", () => {
 test("root package keeps database and smoke scripts", () => {
   const pkg = readPackage("package.json");
 
-  assert.equal(pkg.scripts["db:generate"], "drizzle-kit generate");
+  // WBR-09: db:generate is deliberately retired (VET-07, incomplete
+  // snapshot chain). See docs/architecture/migration-snapshot-integrity-adr.md
+  // and test/architecture/migration-snapshot-integrity.test.ts.
+  assert.equal(pkg.scripts["db:generate"], undefined);
   assert.equal(pkg.scripts["db:migrate"], "drizzle-kit migrate");
   assert.equal(pkg.scripts["smoke:test"], "node scripts/smoke/smoke-test.mjs");
   assert.equal(pkg.scripts["smoke:upload"], "node scripts/smoke/smoke-upload.mjs");

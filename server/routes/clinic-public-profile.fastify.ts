@@ -5,7 +5,6 @@ import type {
 } from "fastify";
 import multer from "multer";
 
-import { ENV } from "../lib/env.ts";
 import {
   enforceTrustedOrigin,
   getAllowedOrigins,
@@ -20,7 +19,10 @@ import {
   createRuntimeTimer,
   type RuntimeTimer,
 } from "../lib/runtime-timing.ts";
-import { shouldRefreshSessionLastAccess } from "../lib/session-last-access.ts";
+import {
+  authenticateFastifyClinicUser,
+  type FastifyAuthenticatedClinicUser,
+} from "../lib/fastify-clinic-auth.ts";
 import {
   CLINIC_PUBLIC_AVATAR_UNSUPPORTED_MIME_ERROR,
   MAX_CLINIC_PUBLIC_AVATAR_FILE_SIZE_BYTES,
@@ -88,7 +90,6 @@ type AuthenticatedClinicUser = {
   authProId: string | null;
   role: ReturnType<typeof normalizeClinicUserRole>;
   permissions: ReturnType<typeof getClinicPermissions>;
-  canUploadReports: boolean;
   canManageClinicUsers: boolean;
   sessionToken: string;
 };
@@ -204,160 +205,15 @@ function applyCorsHeaders(
   reply.header("access-control-allow-credentials", "true");
 }
 
-function parseCookies(cookieHeader: string | undefined) {
-  const result: Record<string, string> = {};
-
-  if (!cookieHeader) {
-    return result;
-  }
-
-  for (const part of cookieHeader.split(";")) {
-    const [rawName, ...rawValueParts] = part.split("=");
-
-    if (!rawName) {
-      continue;
-    }
-
-    const name = rawName.trim();
-
-    if (!name) {
-      continue;
-    }
-
-    const rawValue = rawValueParts.join("=").trim();
-
-    try {
-      result[name] = decodeURIComponent(rawValue);
-    } catch {
-      result[name] = rawValue;
-    }
-  }
-
-  return result;
-}
-
-function getSessionToken(request: FastifyRequest) {
-  const cookieHeader =
-    typeof request.headers.cookie === "string"
-      ? request.headers.cookie
-      : undefined;
-
-  const cookies = parseCookies(cookieHeader);
-  const raw = cookies[ENV.cookieName];
-
-  if (typeof raw !== "string") {
-    return undefined;
-  }
-
-  const trimmed = raw.trim();
-  return trimmed ? trimmed : undefined;
-}
-
-function serializeCookie(input: {
-  name: string;
-  value: string;
-  maxAgeSeconds?: number;
-  expires?: string;
-}) {
-  const parts = [
-    `${input.name}=${encodeURIComponent(input.value)}`,
-    "Path=/",
-    "HttpOnly",
-    `SameSite=${ENV.cookieSameSite}`,
-  ];
-
-  if (ENV.cookieSecure) {
-    parts.push("Secure");
-  }
-
-  if (typeof input.maxAgeSeconds === "number") {
-    parts.push(`Max-Age=${input.maxAgeSeconds}`);
-  }
-
-  if (input.expires) {
-    parts.push(`Expires=${input.expires}`);
-  }
-
-  return parts.join("; ");
-}
-
-function buildClearSessionCookie() {
-  return serializeCookie({
-    name: ENV.cookieName,
-    value: "",
-    maxAgeSeconds: 0,
-    expires: "Thu, 01 Jan 1970 00:00:00 GMT",
-  });
-}
-
-async function authenticateClinicUser(
-  request: FastifyRequest,
-  reply: FastifyReply,
-  deps: NativeClinicPublicProfileAuthDeps,
-  now: () => number,
-): Promise<AuthenticatedClinicUser | null> {
-  const token = getSessionToken(request);
-
-  if (!token) {
-    reply.code(401).send({
-      success: false,
-      error: "No autenticado",
-    });
-    return null;
-  }
-
-  const tokenHash = deps.hashSessionToken(token);
-  const session = await deps.getActiveSessionByToken(tokenHash);
-
-  if (!session) {
-    reply.code(401).send({
-      success: false,
-      error: "Sesión inválida",
-    });
-    return null;
-  }
-
-  if (session.expiresAt && session.expiresAt.getTime() <= now()) {
-    await deps.deleteActiveSession(tokenHash);
-
-    reply.header("set-cookie", buildClearSessionCookie());
-    reply.code(401).send({
-      success: false,
-      error: "Sesión expirada",
-    });
-    return null;
-  }
-
-  const clinicUser = await deps.getClinicUserById(session.clinicUserId);
-
-  if (!clinicUser) {
-    await deps.deleteActiveSession(tokenHash);
-
-    reply.header("set-cookie", buildClearSessionCookie());
-    reply.code(401).send({
-      success: false,
-      error: "Usuario de sesión no encontrado",
-    });
-    return null;
-  }
-
-  if (shouldRefreshSessionLastAccess(session.lastAccess ?? null, now())) {
-    await deps.updateSessionLastAccess(tokenHash);
-  }
-
-  const role = normalizeClinicUserRole(clinicUser.role, "clinic_staff");
-  const permissions = getClinicPermissions(role);
+function getClinicPublicProfileAuthorization(
+  auth: FastifyAuthenticatedClinicUser,
+): AuthenticatedClinicUser {
+  const permissions = getClinicPermissions(auth.role);
 
   return {
-    id: clinicUser.id,
-    clinicId: clinicUser.clinicId,
-    username: clinicUser.username,
-    authProId: clinicUser.authProId ?? null,
-    role,
+    ...auth,
     permissions,
-    canUploadReports: permissions.canUploadReports,
     canManageClinicUsers: permissions.canManageClinicUsers,
-    sessionToken: token,
   };
 }
 
@@ -563,11 +419,18 @@ export const clinicPublicProfileNativeRoutes: FastifyPluginAsync<
   app.options("/avatar", optionsHandler);
 
   app.get("/", async (request, reply) => {
-    const auth = await authenticateClinicUser(request, reply, deps, now);
+    const clinicAuth = await authenticateFastifyClinicUser(
+      request,
+      reply,
+      deps,
+      now,
+    );
 
-    if (!auth) {
+    if (!clinicAuth) {
       return reply;
     }
+
+    const auth = getClinicPublicProfileAuthorization(clinicAuth);
 
     const result = await getClinicPublicProfileQuery(
       auth.clinicId,
@@ -595,11 +458,18 @@ export const clinicPublicProfileNativeRoutes: FastifyPluginAsync<
       return reply;
     }
 
-    const auth = await authenticateClinicUser(request, reply, deps, now);
+    const clinicAuth = await authenticateFastifyClinicUser(
+      request,
+      reply,
+      deps,
+      now,
+    );
 
-    if (!auth) {
+    if (!clinicAuth) {
       return reply;
     }
+
+    const auth = getClinicPublicProfileAuthorization(clinicAuth);
 
     if (!requireClinicManagementPermission(auth, reply)) {
       return reply;
@@ -655,11 +525,18 @@ export const clinicPublicProfileNativeRoutes: FastifyPluginAsync<
       return reply;
     }
 
-    const auth = await authenticateClinicUser(request, reply, deps, now);
+    const clinicAuth = await authenticateFastifyClinicUser(
+      request,
+      reply,
+      deps,
+      now,
+    );
 
-    if (!auth) {
+    if (!clinicAuth) {
       return reply;
     }
+
+    const auth = getClinicPublicProfileAuthorization(clinicAuth);
 
     if (!requireClinicManagementPermission(auth, reply)) {
       return reply;
@@ -735,11 +612,18 @@ export const clinicPublicProfileNativeRoutes: FastifyPluginAsync<
       return reply;
     }
 
-    const auth = await authenticateClinicUser(request, reply, deps, now);
+    const clinicAuth = await authenticateFastifyClinicUser(
+      request,
+      reply,
+      deps,
+      now,
+    );
 
-    if (!auth) {
+    if (!clinicAuth) {
       return reply;
     }
+
+    const auth = getClinicPublicProfileAuthorization(clinicAuth);
 
     if (!requireClinicManagementPermission(auth, reply)) {
       return reply;

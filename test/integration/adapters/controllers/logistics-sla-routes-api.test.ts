@@ -226,7 +226,7 @@ test("logistics SLA API delegates overdue reads to the M06 application use case"
   );
 
   // 6–8. Auth, permisos y parsing preceden a la consulta overdue.
-  const authIndex = overdueHandlerSource.indexOf("await authenticateClinicUser(");
+  const authIndex = overdueHandlerSource.indexOf("await authenticateFastifyClinicUser(");
   const permissionIndex = overdueHandlerSource.indexOf("canViewLogisticsSla");
   const parseIndex = overdueHandlerSource.indexOf(
     "buildListOverdueSlaInstancesParams(",
@@ -315,8 +315,8 @@ test("logistics SLA API validates overdue route filters before DB reads", () => 
 });
 
 test("logistics SLA API enforces role-aware logistics SLA read permissions", () => {
-  assert.match(routeSource, /type ClinicUserRole/);
-  assert.match(routeSource, /normalizeClinicUserRole\(clinicUser\.role, "clinic_staff"\)/);
+  assert.match(routeSource, /fastify-clinic-auth\.ts/);
+  assert.match(routeSource, /authenticateFastifyClinicUser/);
   assert.match(routeSource, /getClinicPermissions\(auth\.role\)\.canViewLogisticsSla/);
   assert.match(routeSource, /Permisos insuficientes para logistica/);
 });

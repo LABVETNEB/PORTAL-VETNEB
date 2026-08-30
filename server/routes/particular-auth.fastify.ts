@@ -25,8 +25,8 @@ import {
 import {
   createMemoryRateLimitStore,
   createPersistentRateLimitStore,
+  consumeRateLimitAttempt,
   getOrCreateRateLimitEntry,
-  incrementRateLimitEntry,
   type RateLimitEntry,
   type RateLimitStore,
 } from "../lib/rate-limit-store.ts";
@@ -178,6 +178,7 @@ async function loadDefaultDeps(): Promise<NativeParticularAuthDefaultDeps> {
             get: db.getLoginRateLimitEntry,
             set: db.setLoginRateLimitEntry,
             increment: db.incrementLoginRateLimitEntry,
+            consume: db.consumeLoginRateLimitAttempt,
             cleanupExpired: db.deleteExpiredLoginRateLimitEntries,
             delete: db.deleteLoginRateLimitEntry,
           },
@@ -594,17 +595,10 @@ export const particularAuthNativeRoutes: FastifyPluginAsync<
       });
 
       try {
-        const missingEntry = await getOrCreateRateLimitEntry(
+        const updatedMissingEntry = await consumeRateLimitAttempt(
           loginRateLimitStore,
           missingRateLimitKey,
-          loginRateLimitWindowMs,
-          currentTime,
-        );
-        const updatedMissingEntry = await incrementRateLimitEntry(
-          loginRateLimitStore,
-          missingRateLimitKey,
-          missingEntry,
-          currentTime,
+          { windowMs: loginRateLimitWindowMs, now: currentTime },
         );
 
         setLoginRateLimitHeaders(reply, {
@@ -700,11 +694,10 @@ export const particularAuthNativeRoutes: FastifyPluginAsync<
     }) => {
       if (canUseRateLimitStore) {
         try {
-          const updatedEntry = await incrementRateLimitEntry(
+          const updatedEntry = await consumeRateLimitAttempt(
             loginRateLimitStore,
             rateLimitKey,
-            failureEntry,
-            currentTime,
+            { windowMs: loginRateLimitWindowMs, now: currentTime },
           );
 
           failureEntry.count = updatedEntry.count;

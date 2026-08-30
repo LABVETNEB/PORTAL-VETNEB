@@ -44,7 +44,6 @@ const expectedFeatureFiles = [
 ].sort();
 
 const expectedExternalParticularConsumers = [
-  "server/middlewares/particular-auth.ts",
   "server/preflight.ts",
   "server/routes/admin-study-tracking.fastify.ts",
   "server/routes/auth.fastify.ts",
@@ -322,7 +321,7 @@ test("Options y endpoints de ambas rutas permanecen completos", () => {
   }
 });
 
-test("M44 retira paths legacy y realinea los ocho consumidores externos", () => {
+test("M44 retira paths legacy y realinea los siete consumidores externos", () => {
   assert.equal(existsSync(resolve(repoRoot, legacyParticularPath)), false);
   assert.equal(existsSync(resolve(repoRoot, legacyStudyTrackingPath)), false);
 
@@ -366,11 +365,7 @@ test("M44 retira paths legacy y realinea los ocho consumidores externos", () => 
 test("Auth preserva contrato y Reports usa composition M41", () => {
   assert.equal(
     digest("server/routes/particular-auth.fastify.ts"),
-    "8aa9bdd2539bbbbbc40a98965c89144ba11c9b36018168664985d3bb686c9706",
-  );
-  assert.equal(
-    digest("server/middlewares/particular-auth.ts"),
-    "5004967d61238de6d5fc38582ca48e0da1468189e418d279a4cd9786126c4683",
+    "b6a65f600c6d958d51125e92e450debcfb814e3762ecbd1b4e9f95ca28ca925e",
   );
   const reports = readSource("server/routes/admin-reports.fastify.ts");
   assert.ok(reports.includes("createAdminReportsRouteComposition"));
@@ -383,7 +378,7 @@ test("README vigente M44 y closeout histórico M33 permanecen trazables", () => 
   for (const marker of [
     "server/db-particular.ts",
     "M44",
-    "ocho consumidores externos",
+    "siete consumidores externos",
     "M44 no reorganizó Auth",
   ]) {
     assert.ok(readme.includes(marker), `${featureDir}/README.md: ${marker}`);

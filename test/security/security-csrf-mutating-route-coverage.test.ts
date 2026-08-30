@@ -4,6 +4,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import Fastify from "fastify";
 
+import { createMemoryRateLimitStore } from "../../server/lib/rate-limit-store.ts";
+
 process.env.NODE_ENV ??= "development";
 process.env.SUPABASE_URL ??= "https://example.supabase.co";
 process.env.SUPABASE_ANON_KEY ??= "test-anon-key";
@@ -401,6 +403,7 @@ test("contact POST — origen bloqueado devuelve 403 antes de enviar email", asy
   const app = Fastify();
   await app.register(contactNativeRoutes as any, {
     prefix: "/api/contact",
+    contactRateLimitStore: createMemoryRateLimitStore(),
     sendContactMessageEmail: async () =>
       failUnexpectedCall("sendContactMessageEmail"),
   });
@@ -432,6 +435,7 @@ test("contact POST — origin permitido pasa CSRF (falla en validación de input
   const app = Fastify();
   await app.register(contactNativeRoutes as any, {
     prefix: "/api/contact",
+    contactRateLimitStore: createMemoryRateLimitStore(),
     sendContactMessageEmail: async () => ({
       success: false as const,
       error: "stub",
@@ -656,5 +660,4 @@ test("rutas de preview y download pasan por deps.createSignedReport* (no storage
     );
   }
 });
-
 

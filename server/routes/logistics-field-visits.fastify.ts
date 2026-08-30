@@ -8,7 +8,6 @@ import {
   FIELD_VISIT_SOURCE_TYPES,
   FIELD_VISIT_STATUSES,
   VISIT_LOCATION_GEO_QUALITIES,
-  type ClinicUserRole,
   type FieldVisitSourceType,
   type FieldVisitStatus,
   type VisitLocationGeoQuality,
@@ -37,44 +36,21 @@ import {
   getAllowedOrigins,
   getRequestOrigin,
 } from "../lib/cors-headers.ts";
-import { ENV } from "../lib/env.ts";
 import {
-  getClinicPermissions,
-  normalizeClinicUserRole,
-} from "../lib/permissions.ts";
-import { shouldRefreshSessionLastAccess } from "../lib/session-last-access.ts";
-
-type ActiveSessionRecord = {
-  clinicUserId: number;
-  expiresAt: Date | null;
-  lastAccess?: Date | null;
-};
-
-type ClinicUserRecord = {
-  id: number;
-  clinicId: number;
-  username: string;
-  authProId?: string | null;
-  role?: ClinicUserRole | null;
-};
-
-type AuthenticatedClinicUser = {
-  id: number;
-  clinicId: number;
-  username: string;
-  authProId: string | null;
-  role: ClinicUserRole;
-  sessionToken: string;
-};
+  authenticateFastifyClinicUser,
+  type FastifyClinicSessionRecord,
+  type FastifyClinicUserRecord,
+} from "../lib/fastify-clinic-auth.ts";
+import { getClinicPermissions } from "../lib/permissions.ts";
 
 export type LogisticsFieldVisitsNativeRoutesOptions = {
   deleteActiveSession?: (tokenHash: string) => Promise<void>;
   getActiveSessionByToken?: (
     tokenHash: string,
-  ) => Promise<ActiveSessionRecord | null | undefined>;
+  ) => Promise<FastifyClinicSessionRecord | null | undefined>;
   getClinicUserById?: (
     clinicUserId: number,
-  ) => Promise<ClinicUserRecord | null | undefined>;
+  ) => Promise<FastifyClinicUserRecord | null | undefined>;
   updateSessionLastAccess?: (tokenHash: string) => Promise<void>;
   hashSessionToken?: (token: string) => string;
   createFieldVisit?: (
@@ -197,157 +173,6 @@ function enforceLogisticsPermission(
   });
 
   return false;
-}
-
-function parseCookies(cookieHeader: string | undefined): Record<string, string> {
-  const result: Record<string, string> = {};
-
-  if (!cookieHeader) {
-    return result;
-  }
-
-  for (const part of cookieHeader.split(";")) {
-    const [rawName, ...rawValueParts] = part.split("=");
-
-    if (!rawName) {
-      continue;
-    }
-
-    const name = rawName.trim();
-
-    if (!name) {
-      continue;
-    }
-
-    const rawValue = rawValueParts.join("=").trim();
-
-    try {
-      result[name] = decodeURIComponent(rawValue);
-    } catch {
-      result[name] = rawValue;
-    }
-  }
-
-  return result;
-}
-
-function getSessionToken(request: FastifyRequest): string | undefined {
-  const cookieHeader =
-    typeof request.headers.cookie === "string"
-      ? request.headers.cookie
-      : undefined;
-
-  const cookies = parseCookies(cookieHeader);
-  const raw = cookies[ENV.cookieName];
-
-  if (typeof raw !== "string") {
-    return undefined;
-  }
-
-  const trimmed = raw.trim();
-  return trimmed ? trimmed : undefined;
-}
-
-function serializeCookie(input: {
-  name: string;
-  value: string;
-  maxAgeSeconds?: number;
-  expires?: string;
-}): string {
-  const parts = [
-    `${input.name}=${encodeURIComponent(input.value)}`,
-    "Path=/",
-    "HttpOnly",
-    `SameSite=${ENV.cookieSameSite}`,
-  ];
-
-  if (ENV.cookieSecure) {
-    parts.push("Secure");
-  }
-
-  if (typeof input.maxAgeSeconds === "number") {
-    parts.push(`Max-Age=${input.maxAgeSeconds}`);
-  }
-
-  if (input.expires) {
-    parts.push(`Expires=${input.expires}`);
-  }
-
-  return parts.join("; ");
-}
-
-function buildClearSessionCookie(): string {
-  return serializeCookie({
-    name: ENV.cookieName,
-    value: "",
-    maxAgeSeconds: 0,
-    expires: "Thu, 01 Jan 1970 00:00:00 GMT",
-  });
-}
-
-async function authenticateClinicUser(
-  request: FastifyRequest,
-  reply: FastifyReply,
-  deps: NativeLogisticsFieldVisitsDeps,
-  now: () => number,
-): Promise<AuthenticatedClinicUser | null> {
-  const token = getSessionToken(request);
-
-  if (!token) {
-    reply.code(401).send({
-      success: false,
-      error: "No autenticado",
-    });
-    return null;
-  }
-
-  const tokenHash = deps.hashSessionToken(token);
-  const session = await deps.getActiveSessionByToken(tokenHash);
-
-  if (!session) {
-    reply.code(401).send({
-      success: false,
-      error: "Sesion invalida",
-    });
-    return null;
-  }
-
-  if (session.expiresAt && session.expiresAt.getTime() <= now()) {
-    await deps.deleteActiveSession(tokenHash);
-
-    reply.header("set-cookie", buildClearSessionCookie());
-    reply.code(401).send({
-      success: false,
-      error: "Sesion expirada",
-    });
-    return null;
-  }
-
-  const clinicUser = await deps.getClinicUserById(session.clinicUserId);
-
-  if (!clinicUser) {
-    await deps.deleteActiveSession(tokenHash);
-
-    reply.header("set-cookie", buildClearSessionCookie());
-    reply.code(401).send({
-      success: false,
-      error: "Usuario de sesion no encontrado",
-    });
-    return null;
-  }
-
-  if (shouldRefreshSessionLastAccess(session.lastAccess ?? null, now())) {
-    await deps.updateSessionLastAccess(tokenHash);
-  }
-
-  return {
-    id: clinicUser.id,
-    clinicId: clinicUser.clinicId,
-    username: clinicUser.username,
-    authProId: clinicUser.authProId ?? null,
-    role: normalizeClinicUserRole(clinicUser.role, "clinic_staff"),
-    sessionToken: token,
-  };
 }
 
 function parsePositiveInt(
@@ -1052,7 +877,7 @@ export const logisticsFieldVisitsNativeRoutes: FastifyPluginAsync<
       offset?: unknown;
     };
   }>("/", async (request, reply) => {
-    const auth = await authenticateClinicUser(request, reply, deps, now);
+    const auth = await authenticateFastifyClinicUser(request, reply, deps, now);
 
     if (!auth) {
       return reply;
@@ -1121,7 +946,7 @@ export const logisticsFieldVisitsNativeRoutes: FastifyPluginAsync<
       return reply;
     }
 
-    const auth = await authenticateClinicUser(request, reply, deps, now);
+    const auth = await authenticateFastifyClinicUser(request, reply, deps, now);
 
     if (!auth) {
       return reply;
@@ -1172,7 +997,7 @@ export const logisticsFieldVisitsNativeRoutes: FastifyPluginAsync<
       return reply;
     }
 
-    const auth = await authenticateClinicUser(request, reply, deps, now);
+    const auth = await authenticateFastifyClinicUser(request, reply, deps, now);
 
     if (!auth) {
       return reply;
@@ -1231,7 +1056,7 @@ export const logisticsFieldVisitsNativeRoutes: FastifyPluginAsync<
       fieldVisitId: string;
     };
   }>("/:fieldVisitId/location", async (request, reply) => {
-    const auth = await authenticateClinicUser(request, reply, deps, now);
+    const auth = await authenticateFastifyClinicUser(request, reply, deps, now);
 
     if (!auth) {
       return reply;
@@ -1284,7 +1109,7 @@ export const logisticsFieldVisitsNativeRoutes: FastifyPluginAsync<
       return reply;
     }
 
-    const auth = await authenticateClinicUser(request, reply, deps, now);
+    const auth = await authenticateFastifyClinicUser(request, reply, deps, now);
 
     if (!auth) {
       return reply;
@@ -1346,7 +1171,7 @@ export const logisticsFieldVisitsNativeRoutes: FastifyPluginAsync<
       fieldVisitId: string;
     };
   }>("/:fieldVisitId/time-windows", async (request, reply) => {
-    const auth = await authenticateClinicUser(request, reply, deps, now);
+    const auth = await authenticateFastifyClinicUser(request, reply, deps, now);
 
     if (!auth) {
       return reply;
@@ -1395,7 +1220,7 @@ export const logisticsFieldVisitsNativeRoutes: FastifyPluginAsync<
       return reply;
     }
 
-    const auth = await authenticateClinicUser(request, reply, deps, now);
+    const auth = await authenticateFastifyClinicUser(request, reply, deps, now);
 
     if (!auth) {
       return reply;

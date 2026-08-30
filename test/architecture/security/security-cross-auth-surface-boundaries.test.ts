@@ -18,6 +18,23 @@ const clinicFiles = [
   "server/routes/study-tracking.fastify.ts",
 ] as const;
 
+// WBR-08c: clinic-audit and clinic-public-profile joined the Reports/
+// Logistics families in delegating cookie access to the canonical helper
+// (mirrors the admin family's fastify-admin-auth.ts split below).
+// WBR-08c: no clinic route surfaces implement clinic auth locally anymore.
+const clinicLocalAuthFiles: readonly string[] = [];
+
+const clinicDelegatedAuthFiles = [
+  "server/routes/report-access-tokens.fastify.ts",
+  "server/routes/reports-status.fastify.ts",
+  "server/routes/reports.fastify.ts",
+  "server/routes/clinic-audit.fastify.ts",
+  "server/routes/clinic-public-profile.fastify.ts",
+  "server/routes/study-tracking.fastify.ts",
+  "server/routes/particular-tokens.fastify.ts",
+  "server/routes/auth.fastify.ts",
+] as const;
+
 const adminFiles = [
   "server/routes/admin-auth.fastify.ts",
   "server/routes/admin-audit.fastify.ts",
@@ -72,10 +89,23 @@ function assertCookieBoundary(
 }
 
 test("clinic route surfaces accept only clinic session cookies", () => {
-  assertCookieBoundary(clinicFiles, CLINIC_COOKIE, [
+  assertCookieBoundary(clinicLocalAuthFiles, CLINIC_COOKIE, [
     ADMIN_COOKIE,
     PARTICULAR_COOKIE,
   ]);
+
+  const clinicAuthHelperSource = read("server/lib/fastify-clinic-auth.ts");
+  assertContains(clinicAuthHelperSource, "ENV.cookieName", "server/lib/fastify-clinic-auth.ts");
+  assertNotContains(clinicAuthHelperSource, "ENV.adminCookieName", "server/lib/fastify-clinic-auth.ts");
+  assertNotContains(clinicAuthHelperSource, "ENV.particularCookieName", "server/lib/fastify-clinic-auth.ts");
+
+  for (const file of clinicDelegatedAuthFiles) {
+    const source = read(file);
+
+    assertContains(source, "authenticateFastifyClinicUser", file);
+    assertNotContains(source, ADMIN_COOKIE, file);
+    assertNotContains(source, PARTICULAR_COOKIE, file);
+  }
 });
 
 test("admin route surfaces accept only admin session cookies", () => {

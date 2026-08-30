@@ -110,6 +110,26 @@ function createPersistentRateLimitStoreHarness(input?: {
 
         return row;
       },
+      consume: async ({ keyHash, resetAt, now }) => {
+        const existing = rows.get(keyHash);
+        const row =
+          !existing || existing.resetAt.getTime() <= now.getTime()
+            ? {
+                count: 1,
+                resetAt,
+                createdAt: existing?.createdAt ?? now,
+                updatedAt: now,
+              }
+            : {
+                ...existing,
+                count: existing.count + 1,
+                updatedAt: now,
+              };
+
+        rows.set(keyHash, row);
+
+        return row;
+      },
       cleanupExpired: async (now) => {
         for (const [keyHash, row] of rows) {
           if (row.resetAt.getTime() < now.getTime()) {

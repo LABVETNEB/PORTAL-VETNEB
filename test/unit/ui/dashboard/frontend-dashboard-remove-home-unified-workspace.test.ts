@@ -121,7 +121,12 @@ test("DashboardMobileNav is the single shared module navigation below 768px", ()
 
   // Accessible landmark + deep-linkable controls, one owner for both roles.
   assert.ok(mobileNav.includes('"use client";'));
-  assert.ok(mobileNav.includes("data-dashboard-mobile-nav={surface}"));
+  // The real bar and its Suspense fallback can both be mounted across a
+  // useSearchParams() resolve tick; only the `identify`d instance may carry
+  // the selector, or it would resolve to two nodes.
+  assert.ok(
+    mobileNav.includes("data-dashboard-mobile-nav={identify ? surface : undefined}"),
+  );
   assert.ok(mobileNav.includes('clinic: "Navegación móvil de clínica"'));
   assert.ok(mobileNav.includes("aria-label={SURFACE_LANDMARK[surface]}"));
   assert.ok(mobileNav.includes('aria-current={isActive ? "page" : undefined}'));

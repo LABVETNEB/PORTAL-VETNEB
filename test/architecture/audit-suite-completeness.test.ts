@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, globSync, readdirSync, readFileSync } from "node:fs";
 import { basename, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
@@ -137,8 +137,9 @@ const AUDIT_SUITE: readonly AuditSuiteEntry[] = [
         markers: ["authenticateFastifyAdmin", "buildAdminAuditListFilters"],
       },
       {
+        // WBR-08c: migrated to the canonical clinic auth helper.
         path: "server/routes/clinic-audit.fastify.ts",
-        markers: ["cookies[ENV.cookieName]", "buildClinicAuditListFilters"],
+        markers: ["authenticateFastifyClinicUser", "buildClinicAuditListFilters"],
       },
       {
         path: "server/routes/particular-audit.fastify.ts",
@@ -506,6 +507,41 @@ function listTestFilesRecursive(): string[] {
   return listFilesRecursive("test").filter((path) => path.endsWith(".test.ts"));
 }
 
+// VET-01/VET-06: `pnpm test` must discover the full canonical suite regardless
+// of which shell invokes it. An unquoted `test/**/*.test.ts` glob in
+// package.json gets pre-expanded by a POSIX shell without globstar (the
+// default on CI) before Node ever sees it, silently truncating discovery to
+// only the files one `**` segment can reach. Quoting the glob is what test:coverage
+// already does; this keeps `test` proven to the same standard by two
+// independent, filesystem-only checks (no shell, no bash, no untracked state):
+//   1. static parse: the glob must reach Node as one double-quoted token;
+//   2. cardinality: that exact token, resolved with Node's own glob (not the
+//      shell's), must match the same recursive walk this file already trusts
+//      elsewhere for the audit-named file census.
+function validateTestScriptDiscovery(
+  testScript: string,
+  canonicalTestFiles: readonly string[],
+): string[] {
+  const issues: string[] = [];
+  const quotedGlobMatch = testScript.match(/"(test\/\*\*\/\*\.test\.ts)"/);
+
+  if (!quotedGlobMatch) {
+    issues.push("test glob is not shell-protected");
+    return issues;
+  }
+
+  const discovered = globSync(quotedGlobMatch[1], { cwd: REPO_ROOT })
+    .map((path) => path.split(sep).join("/"))
+    .sort();
+  const canonical = [...canonicalTestFiles].sort();
+
+  if (JSON.stringify(discovered) !== JSON.stringify(canonical)) {
+    issues.push("test glob does not discover the full canonical test suite");
+  }
+
+  return issues;
+}
+
 // Resolve a legacy test-root path to its current canonical location, tolerating tests
 // already migrated into enterprise subdirectories (TEST-ARCH-13). Prefers the exact
 // path; falls back to a unique basename match under the same top-level directory.
@@ -647,6 +683,27 @@ test("audit suite keeps every audit route surface mounted in Fastify app", () =>
   ]) {
     assertContains(source, marker, "fastify audit route mounts");
   }
+});
+
+test("test script glob is shell-protected and discovers the full canonical test suite", () => {
+  const pkg = JSON.parse(
+    readFileSync(resolve(REPO_ROOT, "package.json"), "utf8"),
+  ) as { scripts?: Record<string, string> };
+
+  assert.deepEqual(
+    validateTestScriptDiscovery(pkg.scripts?.test ?? "", listTestFilesRecursive()),
+    [],
+  );
+});
+
+test("test script discovery guard rejects the shell-unsafe unquoted glob", () => {
+  const UNSAFE_TEST_SCRIPT =
+    "node --experimental-strip-types --experimental-specifier-resolution=node --test test/**/*.test.ts";
+
+  assert.deepEqual(
+    validateTestScriptDiscovery(UNSAFE_TEST_SCRIPT, listTestFilesRecursive()),
+    ["test glob is not shell-protected"],
+  );
 });
 
 test("audit suite completeness guardrail source stays ascii only", () => {

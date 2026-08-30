@@ -10,6 +10,29 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
+import { createRequire } from "node:module";
+
+const require = createRequire(import.meta.url);
+const { load: loadYaml } = require("js-yaml") as {
+  load: (source: string) => unknown;
+};
+
+type WorkflowStep = {
+  name?: string;
+  run?: string;
+  if?: unknown;
+  "continue-on-error"?: unknown;
+};
+
+type WorkflowJob = {
+  name?: string;
+  needs?: string | string[];
+  steps?: WorkflowStep[];
+};
+
+type Workflow = {
+  jobs: Record<string, WorkflowJob>;
+};
 
 const workflowPath = resolve(
   process.cwd(),
@@ -347,6 +370,7 @@ test("Backend CI ejecuta todos los gates obligatorios en orden", () => {
 
   assertOrdered(heavy, [
     "      - name: Install dependencies\n        run: pnpm install --frozen-lockfile",
+    "      - name: Lint backend\n        run: pnpm lint:backend",
     "      - name: Dependency security audit\n        run: |\n          pnpm audit --prod\n          pnpm audit",
     "      - name: Run database migrations\n        run: pnpm db:migrate",
     "      - name: Typecheck\n        run: pnpm typecheck",
@@ -395,4 +419,124 @@ test("Backend CI publica un check final siempre presente con propagación estric
   assertNotContains(finalCheck, '"$HEAVY_RESULT" == "failure"');
   assertNotContains(finalCheck, '"$HEAVY_RESULT" == "cancelled"');
   assertNotContains(finalCheck, "continue-on-error");
+});
+
+// WBR-04b (VET-10): structural (real YAML parse, not string matching) proof
+// that the lint step is inside the SAME job the required "validate-backend"
+// check aggregates, that it actually invokes lint:backend, and that nothing
+// makes it tolerate a failure or skip in a normal run.
+const HEAVY_JOB_ID = "validate-backend";
+const REQUIRED_CHECK_JOB_ID = "backend-check";
+const LINT_STEP_NAME = "Lint backend";
+const LINT_COMMAND = "pnpm lint:backend";
+
+function validateLintGate(workflow: Workflow): string[] {
+  const issues: string[] = [];
+  const heavyJob = workflow.jobs[HEAVY_JOB_ID];
+  const requiredCheckJob = workflow.jobs[REQUIRED_CHECK_JOB_ID];
+  const lintStep = heavyJob?.steps?.find(
+    (step) => step.name === LINT_STEP_NAME,
+  );
+
+  if (!lintStep) {
+    issues.push("lint step missing from the required heavy job");
+    return issues;
+  }
+
+  if (lintStep.run !== LINT_COMMAND) {
+    issues.push("lint step does not run lint:backend");
+  }
+  if ("continue-on-error" in lintStep) {
+    issues.push("lint step tolerates failure");
+  }
+  if ("if" in lintStep) {
+    issues.push("lint step is conditionally skipped");
+  }
+
+  const requiredNeeds = requiredCheckJob?.needs;
+  const needsHeavyJob = Array.isArray(requiredNeeds)
+    ? requiredNeeds.includes(HEAVY_JOB_ID)
+    : requiredNeeds === HEAVY_JOB_ID;
+
+  if (!needsHeavyJob) {
+    issues.push("required check job no longer depends on the heavy job");
+  }
+
+  return issues;
+}
+
+function mutateWorkflow(
+  workflow: Workflow,
+  apply: (candidate: Workflow) => void,
+): Workflow {
+  const candidate = structuredClone(workflow);
+  apply(candidate);
+  return candidate;
+}
+
+test("Backend CI lint step is a real, unconditional, blocking step inside the required heavy job", () => {
+  const workflow = loadYaml(readWorkflow()) as Workflow;
+
+  assert.deepEqual(validateLintGate(workflow), []);
+});
+
+test("Backend CI lint gate rejects removal, tolerance, wrong command, wrong job and conditional skip", () => {
+  const workflow = loadYaml(readWorkflow()) as Workflow;
+
+  assert.ok(
+    validateLintGate(
+      mutateWorkflow(workflow, (candidate) => {
+        const steps = candidate.jobs[HEAVY_JOB_ID].steps!;
+        candidate.jobs[HEAVY_JOB_ID].steps = steps.filter(
+          (step) => step.name !== LINT_STEP_NAME,
+        );
+      }),
+    ).includes("lint step missing from the required heavy job"),
+  );
+
+  assert.ok(
+    validateLintGate(
+      mutateWorkflow(workflow, (candidate) => {
+        const step = candidate.jobs[HEAVY_JOB_ID].steps!.find(
+          (item) => item.name === LINT_STEP_NAME,
+        )!;
+        step["continue-on-error"] = true;
+      }),
+    ).includes("lint step tolerates failure"),
+  );
+
+  assert.ok(
+    validateLintGate(
+      mutateWorkflow(workflow, (candidate) => {
+        const step = candidate.jobs[HEAVY_JOB_ID].steps!.find(
+          (item) => item.name === LINT_STEP_NAME,
+        )!;
+        step.run = "pnpm typecheck";
+      }),
+    ).includes("lint step does not run lint:backend"),
+  );
+
+  assert.ok(
+    validateLintGate(
+      mutateWorkflow(workflow, (candidate) => {
+        const heavySteps = candidate.jobs[HEAVY_JOB_ID].steps!;
+        const lintIndex = heavySteps.findIndex(
+          (item) => item.name === LINT_STEP_NAME,
+        );
+        const [moved] = heavySteps.splice(lintIndex, 1);
+        candidate.jobs["generate-sbom"].steps!.push(moved);
+      }),
+    ).includes("lint step missing from the required heavy job"),
+  );
+
+  assert.ok(
+    validateLintGate(
+      mutateWorkflow(workflow, (candidate) => {
+        const step = candidate.jobs[HEAVY_JOB_ID].steps!.find(
+          (item) => item.name === LINT_STEP_NAME,
+        )!;
+        step.if = "${{ false }}";
+      }),
+    ).includes("lint step is conditionally skipped"),
+  );
 });

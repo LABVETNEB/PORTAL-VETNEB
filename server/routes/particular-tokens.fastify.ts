@@ -5,7 +5,6 @@ import type {
 } from "fastify";
 
 import type { ParticularToken, Report, StudyTrackingCase } from "../../drizzle/schema.ts";
-import { ENV } from "../lib/env.ts";
 import {
   enforceTrustedOrigin,
   getAllowedOrigins,
@@ -31,8 +30,11 @@ import {
   createRuntimeTimer,
   type RuntimeTimer,
 } from "../lib/runtime-timing.ts";
-import { shouldRefreshSessionLastAccess } from "../lib/session-last-access.ts";
 import { getSafeEmailTransportErrorMetadata } from "../lib/email.ts";
+import {
+  authenticateFastifyClinicUser,
+  type FastifyAuthenticatedClinicUser,
+} from "../lib/fastify-clinic-auth.ts";
 import {
   createClinicParticularAccessOperations,
   type ParticularAccessIssue,
@@ -64,7 +66,6 @@ type AuthenticatedClinicUser = {
   authProId: string | null;
   role: ReturnType<typeof normalizeClinicUserRole>;
   permissions: ReturnType<typeof getClinicPermissions>;
-  canUploadReports: boolean;
   canManageClinicUsers: boolean;
   sessionToken: string;
 };
@@ -199,166 +200,21 @@ function applyCorsHeaders(
   reply.header("access-control-allow-credentials", "true");
 }
 
-function parseCookies(cookieHeader: string | undefined) {
-  const result: Record<string, string> = {};
-
-  if (!cookieHeader) {
-    return result;
-  }
-
-  for (const part of cookieHeader.split(";")) {
-    const [rawName, ...rawValueParts] = part.split("=");
-
-    if (!rawName) {
-      continue;
-    }
-
-    const name = rawName.trim();
-
-    if (!name) {
-      continue;
-    }
-
-    const rawValue = rawValueParts.join("=").trim();
-
-    try {
-      result[name] = decodeURIComponent(rawValue);
-    } catch {
-      result[name] = rawValue;
-    }
-  }
-
-  return result;
-}
-
-function getSessionToken(request: FastifyRequest) {
-  const cookieHeader =
-    typeof request.headers.cookie === "string"
-      ? request.headers.cookie
-      : undefined;
-
-  const cookies = parseCookies(cookieHeader);
-  const raw = cookies[ENV.cookieName];
-
-  if (typeof raw !== "string") {
-    return undefined;
-  }
-
-  const trimmed = raw.trim();
-  return trimmed ? trimmed : undefined;
-}
-
-function serializeCookie(input: {
-  name: string;
-  value: string;
-  maxAgeSeconds?: number;
-  expires?: string;
-}) {
-  const parts = [
-    `${input.name}=${encodeURIComponent(input.value)}`,
-    "Path=/",
-    "HttpOnly",
-    `SameSite=${ENV.cookieSameSite}`,
-  ];
-
-  if (ENV.cookieSecure) {
-    parts.push("Secure");
-  }
-
-  if (typeof input.maxAgeSeconds === "number") {
-    parts.push(`Max-Age=${input.maxAgeSeconds}`);
-  }
-
-  if (input.expires) {
-    parts.push(`Expires=${input.expires}`);
-  }
-
-  return parts.join("; ");
-}
-
-function buildClearSessionCookie() {
-  return serializeCookie({
-    name: ENV.cookieName,
-    value: "",
-    maxAgeSeconds: 0,
-    expires: "Thu, 01 Jan 1970 00:00:00 GMT",
-  });
-}
-
 function getSafeErrorName(error: unknown) {
   return error instanceof Error && error.name.trim()
     ? error.name
     : "unknown_error";
 }
 
-async function authenticateClinicUser(
-  request: FastifyRequest,
-  reply: FastifyReply,
-  deps: NativeParticularTokensDeps,
-  now: () => number,
-): Promise<AuthenticatedClinicUser | null> {
-  const token = getSessionToken(request);
-
-  if (!token) {
-    reply.code(401).send({
-      success: false,
-      error: "No autenticado",
-    });
-    return null;
-  }
-
-  const tokenHash = deps.hashSessionToken(token);
-  const session = await deps.getActiveSessionByToken(tokenHash);
-
-  if (!session) {
-    reply.code(401).send({
-      success: false,
-      error: "Sesión inválida",
-    });
-    return null;
-  }
-
-  if (session.expiresAt && session.expiresAt.getTime() <= now()) {
-    await deps.deleteActiveSession(tokenHash);
-
-    reply.header("set-cookie", buildClearSessionCookie());
-    reply.code(401).send({
-      success: false,
-      error: "Sesión expirada",
-    });
-    return null;
-  }
-
-  const clinicUser = await deps.getClinicUserById(session.clinicUserId);
-
-  if (!clinicUser) {
-    await deps.deleteActiveSession(tokenHash);
-
-    reply.header("set-cookie", buildClearSessionCookie());
-    reply.code(401).send({
-      success: false,
-      error: "Usuario de sesión no encontrado",
-    });
-    return null;
-  }
-
-  if (shouldRefreshSessionLastAccess(session.lastAccess ?? null, now())) {
-    await deps.updateSessionLastAccess(tokenHash);
-  }
-
-  const role = normalizeClinicUserRole(clinicUser.role, "clinic_staff");
-  const permissions = getClinicPermissions(role);
+function getParticularTokensAuthorization(
+  auth: FastifyAuthenticatedClinicUser,
+): AuthenticatedClinicUser {
+  const permissions = getClinicPermissions(auth.role);
 
   return {
-    id: clinicUser.id,
-    clinicId: clinicUser.clinicId,
-    username: clinicUser.username,
-    authProId: clinicUser.authProId ?? null,
-    role,
+    ...auth,
     permissions,
-    canUploadReports: permissions.canUploadReports,
     canManageClinicUsers: permissions.canManageClinicUsers,
-    sessionToken: token,
   };
 }
 
@@ -562,11 +418,18 @@ export const particularTokensNativeRoutes: FastifyPluginAsync<
       return reply;
     }
 
-    const auth = await authenticateClinicUser(request, reply, deps, now);
+    const clinicAuth = await authenticateFastifyClinicUser(
+      request,
+      reply,
+      deps,
+      now,
+    );
 
-    if (!auth) {
+    if (!clinicAuth) {
       return reply;
     }
+
+    const auth = getParticularTokensAuthorization(clinicAuth);
 
     if (!requireParticularTokenManagementPermission(auth, reply)) {
       return reply;
@@ -641,11 +504,18 @@ export const particularTokensNativeRoutes: FastifyPluginAsync<
       offset?: unknown;
     };
   }>("/", async (request, reply) => {
-    const auth = await authenticateClinicUser(request, reply, deps, now);
+    const clinicAuth = await authenticateFastifyClinicUser(
+      request,
+      reply,
+      deps,
+      now,
+    );
 
-    if (!auth) {
+    if (!clinicAuth) {
       return reply;
     }
+
+    const auth = getParticularTokensAuthorization(clinicAuth);
 
     const limit = parsePositiveInt(request.query.limit, 50, 100);
     const offset = parseOffset(request.query.offset, 0);
@@ -672,11 +542,18 @@ export const particularTokensNativeRoutes: FastifyPluginAsync<
       tokenId: string;
     };
   }>("/:tokenId", async (request, reply) => {
-    const auth = await authenticateClinicUser(request, reply, deps, now);
+    const clinicAuth = await authenticateFastifyClinicUser(
+      request,
+      reply,
+      deps,
+      now,
+    );
 
-    if (!auth) {
+    if (!clinicAuth) {
       return reply;
     }
+
+    const auth = getParticularTokensAuthorization(clinicAuth);
 
     const tokenId = parseEntityId(request.params.tokenId);
 
@@ -720,11 +597,18 @@ export const particularTokensNativeRoutes: FastifyPluginAsync<
       return reply;
     }
 
-    const auth = await authenticateClinicUser(request, reply, deps, now);
+    const clinicAuth = await authenticateFastifyClinicUser(
+      request,
+      reply,
+      deps,
+      now,
+    );
 
-    if (!auth) {
+    if (!clinicAuth) {
       return reply;
     }
+
+    const auth = getParticularTokensAuthorization(clinicAuth);
 
     if (!requireParticularTokenManagementPermission(auth, reply)) {
       return reply;

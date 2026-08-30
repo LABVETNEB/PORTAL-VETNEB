@@ -52,7 +52,13 @@ test("admin clinics management card lists clinics users and editable actions wit
   // Edit actions are delegated to the drawer component
   const drawerSource = read(ADMIN_CLINICS_DRAWER_PATH);
 
-  assert.ok(source.includes('<Card id="admin-clinics"'));
+  // B12 module-card removal added a marker attribute, which pushed the JSX
+  // attributes onto separate lines; the identity (id) and the B12 audit
+  // marker must both still be present on the same <Card>.
+  assert.match(
+    source,
+    /<Card\s+id="admin-clinics"\s+data-dashboard-b12-module-card="true"/,
+  );
   assert.ok(source.includes("<TableHead>Clínica</TableHead>"));
   assert.ok(source.includes("<TableHead>Contacto</TableHead>"));
   assert.ok(source.includes("<TableHead>Usuario</TableHead>"));

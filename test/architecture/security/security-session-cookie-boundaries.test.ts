@@ -49,7 +49,10 @@ const ADMIN_SESSION_FILES = [
 ] as const;
 
 const ADMIN_FASTIFY_AUTH_ADAPTER_FILE = "server/lib/fastify-admin-auth.ts";
-const ADMIN_AUTH_MIDDLEWARE_FILE = "server/middlewares/admin-auth.ts";
+
+// WBR-08c: clinic-audit.fastify.ts delegates cookie handling to this
+// canonical adapter instead of a local implementation (mirrors admin above).
+const CLINIC_FASTIFY_AUTH_ADAPTER_FILE = "server/lib/fastify-clinic-auth.ts";
 
 const PARTICULAR_SESSION_FILES = [
   "server/routes/particular-auth.fastify.ts",
@@ -178,43 +181,72 @@ test("env keeps session cookie names separated and production policy secure", ()
 
 test("session cookie serializers keep security attributes stable", () => {
   assertCookieSerializationContract([
-    ...CLINIC_SESSION_FILES,
+    ...CLINIC_SESSION_FILES.filter(
+      (file) =>
+        file !== "server/routes/clinic-audit.fastify.ts" &&
+        file !== "server/routes/study-tracking.fastify.ts",
+    ),
     ADMIN_FASTIFY_AUTH_ADAPTER_FILE,
     "server/routes/admin-auth.fastify.ts",
     ...PARTICULAR_SESSION_FILES,
   ]);
+
+  // WBR-08c: clinic-audit.fastify.ts delegates cookie serialization to the
+  // canonical clinic auth adapter, which builds its clear-cookie inline
+  // rather than through a shared serializeCookie(input) helper.
+  const clinicAdapterSource = readSource(CLINIC_FASTIFY_AUTH_ADAPTER_FILE);
+  assertContains(clinicAdapterSource, '"Path=/"', `${CLINIC_FASTIFY_AUTH_ADAPTER_FILE} cookie path`);
+  assertContains(clinicAdapterSource, '"HttpOnly"', `${CLINIC_FASTIFY_AUTH_ADAPTER_FILE} cookie httpOnly`);
+  assertContains(clinicAdapterSource, "`SameSite=${ENV.cookieSameSite}`", `${CLINIC_FASTIFY_AUTH_ADAPTER_FILE} cookie sameSite`);
+  assertContains(clinicAdapterSource, "if (ENV.cookieSecure)", `${CLINIC_FASTIFY_AUTH_ADAPTER_FILE} cookie secure gate`);
 });
 
 test("clinic admin and particular route surfaces read only their own cookie", () => {
   for (const file of CLINIC_SESSION_FILES) {
     const source = readSource(file);
 
-    assertContains(source, "cookies[ENV.cookieName]", `${file} cookie read`);
-    assertContains(source, "name: ENV.cookieName", `${file} cookie write or clear`);
-    assertNotContains(
-      source,
-      "cookies[ENV.adminCookieName]",
-      `${file} cross-cookie read boundary`,
-    );
-    assertNotContains(
-      source,
-      "cookies[ENV.particularCookieName]",
-      `${file} cross-cookie read boundary`,
-    );
+    // WBR-08c: all CLINIC_SESSION_FILES now delegate cookie reading to the
+    // canonical clinic auth adapter instead of reading cookies locally.
+    // auth.fastify.ts still writes the clinic (and, on unified login, the
+    // admin/particular) cookies directly, so its write-side check stays
+    // separate below.
+    assertContains(source, "authenticateFastifyClinicUser", `${file} clinic fastify auth adapter`);
+    assertNotContains(source, "cookies[ENV.adminCookieName]", `${file} cross-cookie read boundary`);
+    assertNotContains(source, "cookies[ENV.particularCookieName]", `${file} cross-cookie read boundary`);
 
-    if (file !== "server/routes/auth.fastify.ts") {
-      assertNotContains(
-        source,
-        "name: ENV.adminCookieName",
-        `${file} cross-cookie write boundary`,
-      );
-      assertNotContains(
-        source,
-        "name: ENV.particularCookieName",
-        `${file} cross-cookie write boundary`,
-      );
+    if (file === "server/routes/auth.fastify.ts") {
+      assertContains(source, "name: ENV.cookieName", `${file} cookie write`);
+      continue;
     }
+
+    assertNotContains(
+      source,
+      "name: ENV.adminCookieName",
+      `${file} cross-cookie write boundary`,
+    );
+    assertNotContains(
+      source,
+      "name: ENV.particularCookieName",
+      `${file} cross-cookie write boundary`,
+    );
   }
+
+  const clinicAdapterSourceForCookieCheck = readSource(CLINIC_FASTIFY_AUTH_ADAPTER_FILE);
+  assertContains(
+    clinicAdapterSourceForCookieCheck,
+    "ENV.cookieName",
+    `${CLINIC_FASTIFY_AUTH_ADAPTER_FILE} clinic cookie read`,
+  );
+  assertNotContains(
+    clinicAdapterSourceForCookieCheck,
+    "ENV.adminCookieName",
+    `${CLINIC_FASTIFY_AUTH_ADAPTER_FILE} cross-cookie boundary`,
+  );
+  assertNotContains(
+    clinicAdapterSourceForCookieCheck,
+    "ENV.particularCookieName",
+    `${CLINIC_FASTIFY_AUTH_ADAPTER_FILE} cross-cookie boundary`,
+  );
 
   const adminAdapterSource = readSource(ADMIN_FASTIFY_AUTH_ADAPTER_FILE);
 
@@ -268,23 +300,40 @@ test("clinic admin and particular route surfaces read only their own cookie", ()
 });
 
 test("session lookup hash delete and clear-cookie flows stay domain specific", () => {
+  // WBR-08c: every CLINIC_SESSION_FILES entry now delegates the full
+  // session lookup, hashing, expiration and clear-cookie flow (for /me,
+  // /change-password, /logout, and equivalents) to the canonical adapter.
+  const adapterSource = readSource(CLINIC_FASTIFY_AUTH_ADAPTER_FILE);
+
+  assertContains(adapterSource, "hashSessionToken(token)", `${CLINIC_FASTIFY_AUTH_ADAPTER_FILE} hashes clinic session token`);
+  assertContains(adapterSource, "getActiveSessionByToken", `${CLINIC_FASTIFY_AUTH_ADAPTER_FILE} clinic session lookup`);
+  assertContains(adapterSource, "deleteActiveSession", `${CLINIC_FASTIFY_AUTH_ADAPTER_FILE} clinic session delete`);
+  assertContains(adapterSource, "session.expiresAt", `${CLINIC_FASTIFY_AUTH_ADAPTER_FILE} clinic expiration check`);
+  assertContains(adapterSource, "buildClearSessionCookie", `${CLINIC_FASTIFY_AUTH_ADAPTER_FILE} clinic clear cookie builder`);
+  assertContains(
+    adapterSource,
+    'reply.header("set-cookie", buildClearSessionCookie())',
+    `${CLINIC_FASTIFY_AUTH_ADAPTER_FILE} clinic clear cookie header`,
+  );
+
   for (const file of CLINIC_SESSION_FILES) {
     const source = readSource(file);
 
-    assertContains(source, "hashSessionToken(token)", `${file} hashes clinic session token`);
-    assertContains(source, "getActiveSessionByToken", `${file} clinic session lookup`);
-    assertContains(source, "deleteActiveSession", `${file} clinic session delete`);
-    assertContains(source, "session.expiresAt", `${file} clinic expiration check`);
-    assertContains(source, "buildClearSessionCookie", `${file} clinic clear cookie builder`);
-    assertContains(source, 'reply.header("set-cookie", buildClearSessionCookie())', `${file} clinic clear cookie header`);
+    assertContains(source, "authenticateFastifyClinicUser", `${file} clinic fastify auth adapter`);
   }
+
+  // auth.fastify.ts also clears the clinic cookie directly on logout.
+  const authRoute = readSource("server/routes/auth.fastify.ts");
+  assertContains(authRoute, "hashSessionToken(auth.sessionToken)", "auth.fastify.ts hashes clinic session token on logout");
+  assertContains(authRoute, "deleteActiveSession", "auth.fastify.ts clinic session delete on logout");
+  assertContains(authRoute, "buildClearSessionCookie", "auth.fastify.ts clinic clear cookie builder");
+  assertContains(authRoute, 'reply.header("set-cookie", buildClearSessionCookie())', "auth.fastify.ts clinic clear cookie header");
 
   for (const file of ADMIN_SESSION_FILES) {
     const source = readSource(file);
 
     if (source.includes("authenticateFastifyAdmin")) {
       const adapterSource = readSource(ADMIN_FASTIFY_AUTH_ADAPTER_FILE);
-      const middlewareSource = readSource(ADMIN_AUTH_MIDDLEWARE_FILE);
 
       assertContains(source, "authenticateFastifyAdmin", `${file} admin fastify auth adapter`);
       assertContains(adapterSource, "getRequestAdminAuthContext", `${ADMIN_FASTIFY_AUTH_ADAPTER_FILE} request-scoped admin auth context`);
@@ -299,10 +348,6 @@ test("session lookup hash delete and clear-cookie flows stay domain specific", (
         'reply.header("set-cookie", buildClearAdminSessionCookie())',
         `${ADMIN_FASTIFY_AUTH_ADAPTER_FILE} admin clear cookie header`,
       );
-      assertContains(middlewareSource, "hashSessionToken(token)", `${ADMIN_AUTH_MIDDLEWARE_FILE} hashes admin session token`);
-      assertContains(middlewareSource, "getAdminSessionWithUser", `${ADMIN_AUTH_MIDDLEWARE_FILE} admin session lookup`);
-      assertContains(middlewareSource, "deleteAdminSession", `${ADMIN_AUTH_MIDDLEWARE_FILE} admin session delete`);
-      assertContains(middlewareSource, "session.expiresAt", `${ADMIN_AUTH_MIDDLEWARE_FILE} admin expiration check`);
       continue;
     }
 
@@ -348,23 +393,7 @@ test("login and logout routes set and clear only their own session cookie", () =
   assertContains(particularAuth, 'reply.header("set-cookie", buildClearParticularSessionCookie())', "particular logout clears cookie");
 });
 
-test("runtime middleware and fastify tests remain explicit for cookie contracts", () => {
-  const clinicMiddlewareTests = readSource("test/auth-middleware.test.ts");
-  const adminMiddlewareTests = readSource("test/admin-auth-middleware.test.ts");
-  const particularMiddlewareTests = readSource("test/particular-auth-middleware.test.ts");
-
-  for (const [context, source, cookieName] of [
-    ["clinic middleware", clinicMiddlewareTests, 'cookieName: "clinic_session"'],
-    ["admin middleware", adminMiddlewareTests, 'cookieName: "admin_session"'],
-    ["particular middleware", particularMiddlewareTests, 'cookieName: "particular_session"'],
-  ] as const) {
-    assertContains(source, cookieName, `${context} configured cookie name`);
-    assertContains(source, "res.clearedCookies.length, 1", `${context} clears one cookie`);
-    assertContains(source, "httpOnly: true", `${context} clear cookie httpOnly`);
-    assertContains(source, 'sameSite: "lax"', `${context} clear cookie sameSite`);
-    assertContains(source, "secure: false", `${context} clear cookie secure false in tests`);
-  }
-
+test("Fastify tests remain explicit for cookie contracts", () => {
   const clinicAuthTests = readSource("test/auth.fastify.test.ts");
   const adminAuthTests = readSource("test/admin-auth.fastify.test.ts");
   const particularAuthTests = readSource("test/particular-auth.fastify.test.ts");

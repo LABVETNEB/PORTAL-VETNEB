@@ -7,7 +7,6 @@ import type {
 import type { Report, ReportAccessToken } from "../../drizzle/schema.ts";
 import { createClinicReportAccessOperations } from "../features/report-access/application/index.ts";
 import { loadReportAccessRepository } from "../features/report-access/composition/report-access-route-composition.ts";
-import { ENV } from "../lib/env.ts";
 import {
   enforceTrustedOrigin,
   getAllowedOrigins,
@@ -37,44 +36,26 @@ import {
 } from "../features/report-access/index.ts";
 import {
   getClinicPermissions,
-  normalizeClinicUserRole,
 } from "../lib/permissions.ts";
+import {
+  authenticateFastifyClinicUser,
+  type FastifyAuthenticatedClinicUser,
+  type FastifyClinicSessionRecord,
+  type FastifyClinicUserRecord,
+} from "../lib/fastify-clinic-auth.ts";
 import { logRequestCompletion } from "../middlewares/request-logger.ts";
 import {
   createRuntimeTimer,
   type RuntimeTimer,
 } from "../lib/runtime-timing.ts";
-import { shouldRefreshSessionLastAccess } from "../lib/session-last-access.ts";
-
-type ClinicUserRecord = {
-  id: number;
-  clinicId: number;
-  username: string;
-  authProId?: string | null;
-  role: unknown;
-};
-
-type ActiveSessionRecord = {
-  clinicUserId: number;
-  expiresAt: Date | null;
-  lastAccess?: Date | null;
-};
-
 type VerifyPasswordResult = {
   valid: boolean;
   needsRehash: boolean;
 };
 
-type AuthenticatedClinicUser = {
-  id: number;
-  clinicId: number;
-  username: string;
-  authProId: string | null;
-  role: ReturnType<typeof normalizeClinicUserRole>;
+type AuthenticatedClinicUser = FastifyAuthenticatedClinicUser & {
   permissions: ReturnType<typeof getClinicPermissions>;
-  canUploadReports: boolean;
   canManageClinicUsers: boolean;
-  sessionToken: string;
 };
 
 type AuditWriteInput = {
@@ -98,10 +79,10 @@ export type ReportAccessTokensNativeRoutesOptions = {
   deleteActiveSession?: (tokenHash: string) => Promise<void>;
   getActiveSessionByToken?: (
     tokenHash: string,
-  ) => Promise<ActiveSessionRecord | null>;
+  ) => Promise<FastifyClinicSessionRecord | null>;
   getClinicUserById?: (
     clinicUserId: number,
-  ) => Promise<ClinicUserRecord | null>;
+  ) => Promise<FastifyClinicUserRecord | null>;
   updateSessionLastAccess?: (tokenHash: string) => Promise<void>;
   generateSessionToken?: () => string;
   hashPassword?: (password: string) => Promise<string>;
@@ -238,92 +219,6 @@ function applyCorsHeaders(
   );
 }
 
-function parseCookies(cookieHeader: string | undefined) {
-  const result: Record<string, string> = {};
-
-  if (!cookieHeader) {
-    return result;
-  }
-
-  for (const part of cookieHeader.split(";")) {
-    const [rawName, ...rawValueParts] = part.split("=");
-
-    if (!rawName) {
-      continue;
-    }
-
-    const name = rawName.trim();
-
-    if (!name) {
-      continue;
-    }
-
-    const rawValue = rawValueParts.join("=").trim();
-
-    try {
-      result[name] = decodeURIComponent(rawValue);
-    } catch {
-      result[name] = rawValue;
-    }
-  }
-
-  return result;
-}
-
-function getSessionToken(request: FastifyRequest) {
-  const cookieHeader =
-    typeof request.headers.cookie === "string"
-      ? request.headers.cookie
-      : undefined;
-
-  const cookies = parseCookies(cookieHeader);
-  const raw = cookies[ENV.cookieName];
-
-  if (typeof raw !== "string") {
-    return undefined;
-  }
-
-  const trimmed = raw.trim();
-  return trimmed ? trimmed : undefined;
-}
-
-function serializeCookie(input: {
-  name: string;
-  value: string;
-  maxAgeSeconds?: number;
-  expires?: string;
-}) {
-  const parts = [
-    `${input.name}=${encodeURIComponent(input.value)}`,
-    "Path=/",
-    "HttpOnly",
-    `SameSite=${ENV.cookieSameSite}`,
-  ];
-
-  if (ENV.cookieSecure) {
-    parts.push("Secure");
-  }
-
-  if (typeof input.maxAgeSeconds === "number") {
-    parts.push(`Max-Age=${input.maxAgeSeconds}`);
-  }
-
-  if (input.expires) {
-    parts.push(`Expires=${input.expires}`);
-  }
-
-  return parts.join("; ");
-}
-
-function buildClearSessionCookie() {
-  return serializeCookie({
-    name: ENV.cookieName,
-    value: "",
-    maxAgeSeconds: 0,
-    expires: "Thu, 01 Jan 1970 00:00:00 GMT",
-  });
-}
-
 function setMutationRateLimitHeaders(
   reply: FastifyReply,
   input: {
@@ -353,7 +248,7 @@ function createAuditRequestLike(
   request: FastifyRequest,
   auth?: Pick<
     AuthenticatedClinicUser,
-    "id" | "clinicId" | "username" | "role" | "canManageClinicUsers" | "canUploadReports"
+    "id" | "clinicId" | "username" | "role" | "canManageClinicUsers"
   >,
 ) {
   return {
@@ -368,80 +263,20 @@ function createAuditRequestLike(
           username: auth.username,
           role: auth.role,
           canManageClinicUsers: auth.canManageClinicUsers,
-          canUploadReports: auth.canUploadReports,
         }
       : undefined,
   };
 }
 
-async function authenticateClinicUser(
-  request: FastifyRequest,
-  reply: FastifyReply,
-  deps: NativeReportAccessTokensDeps,
-  now: () => number,
-): Promise<AuthenticatedClinicUser | null> {
-  const token = getSessionToken(request);
-
-  if (!token) {
-    reply.code(401).send({
-      success: false,
-      error: "No autenticado",
-    });
-    return null;
-  }
-
-  const tokenHash = deps.hashSessionToken(token);
-  const session = await deps.getActiveSessionByToken(tokenHash);
-
-  if (!session) {
-    reply.code(401).send({
-      success: false,
-      error: "Sesión inválida",
-    });
-    return null;
-  }
-
-  if (session.expiresAt && session.expiresAt.getTime() <= now()) {
-    await deps.deleteActiveSession(tokenHash);
-
-    reply.header("set-cookie", buildClearSessionCookie());
-    reply.code(401).send({
-      success: false,
-      error: "Sesión expirada",
-    });
-    return null;
-  }
-
-  const clinicUser = await deps.getClinicUserById(session.clinicUserId);
-
-  if (!clinicUser) {
-    await deps.deleteActiveSession(tokenHash);
-
-    reply.header("set-cookie", buildClearSessionCookie());
-    reply.code(401).send({
-      success: false,
-      error: "Usuario de sesión no encontrado",
-    });
-    return null;
-  }
-
-  if (shouldRefreshSessionLastAccess(session.lastAccess ?? null, now())) {
-    await deps.updateSessionLastAccess(tokenHash);
-  }
-
-  const role = normalizeClinicUserRole(clinicUser.role, "clinic_staff");
-  const permissions = getClinicPermissions(role);
+function getReportAccessTokenAuthorization(
+  auth: FastifyAuthenticatedClinicUser,
+): AuthenticatedClinicUser {
+  const permissions = getClinicPermissions(auth.role);
 
   return {
-    id: clinicUser.id,
-    clinicId: clinicUser.clinicId,
-    username: clinicUser.username,
-    authProId: clinicUser.authProId ?? null,
-    role,
+    ...auth,
     permissions,
-    canUploadReports: permissions.canUploadReports,
     canManageClinicUsers: permissions.canManageClinicUsers,
-    sessionToken: token,
   };
 }
 
@@ -647,11 +482,13 @@ export const reportAccessTokensNativeRoutes: FastifyPluginAsync<
       return reply;
     }
 
-    const auth = await authenticateClinicUser(request, reply, deps, now);
+    const clinicAuth = await authenticateFastifyClinicUser(request, reply, deps, now);
 
-    if (!auth) {
+    if (!clinicAuth) {
       return reply;
     }
+
+    const auth = getReportAccessTokenAuthorization(clinicAuth);
 
     if (!requireReportAccessTokenManagementPermission(auth, reply)) {
       return reply;
@@ -698,11 +535,13 @@ export const reportAccessTokensNativeRoutes: FastifyPluginAsync<
       offset?: unknown;
     };
   }>("/", async (request, reply) => {
-    const auth = await authenticateClinicUser(request, reply, deps, now);
+    const clinicAuth = await authenticateFastifyClinicUser(request, reply, deps, now);
 
-    if (!auth) {
+    if (!clinicAuth) {
       return reply;
     }
+
+    const auth = getReportAccessTokenAuthorization(clinicAuth);
 
     const reportId = parseEntityId(request.query.reportId);
     const limit = parsePositiveInt(request.query.limit, 50, 100);
@@ -734,11 +573,13 @@ export const reportAccessTokensNativeRoutes: FastifyPluginAsync<
       tokenId: string;
     };
   }>("/:tokenId", async (request, reply) => {
-    const auth = await authenticateClinicUser(request, reply, deps, now);
+    const clinicAuth = await authenticateFastifyClinicUser(request, reply, deps, now);
 
-    if (!auth) {
+    if (!clinicAuth) {
       return reply;
     }
+
+    const auth = getReportAccessTokenAuthorization(clinicAuth);
 
     const tokenId = parseEntityId(request.params.tokenId);
 
@@ -783,11 +624,13 @@ export const reportAccessTokensNativeRoutes: FastifyPluginAsync<
       return reply;
     }
 
-    const auth = await authenticateClinicUser(request, reply, deps, now);
+    const clinicAuth = await authenticateFastifyClinicUser(request, reply, deps, now);
 
-    if (!auth) {
+    if (!clinicAuth) {
       return reply;
     }
+
+    const auth = getReportAccessTokenAuthorization(clinicAuth);
 
     if (!requireReportAccessTokenManagementPermission(auth, reply)) {
       return reply;

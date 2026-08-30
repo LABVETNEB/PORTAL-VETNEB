@@ -180,13 +180,17 @@ test("audit export surfaces force auth scope rather than leaking cross-scope fil
   const adminAudit = readSource("server/routes/admin-audit.fastify.ts");
   const adminFastifyAuth = readSource("server/lib/fastify-admin-auth.ts");
   const clinicAudit = readSource("server/routes/clinic-audit.fastify.ts");
+  const clinicFastifyAuth = readSource("server/lib/fastify-clinic-auth.ts");
   const particularAudit = readSource("server/routes/particular-audit.fastify.ts");
 
   assertContains(adminAudit, "authenticateAdminUser", "admin audit auth gate");
   assertContains(adminFastifyAuth, "reply.code(401).send", "admin shared unauthenticated response");
   assertContains(adminAudit, "ADMIN_AUDIT_CSV_EXPORT_MAX_ROWS", "admin audit export bounded response");
 
-  assertContains(clinicAudit, "reply.code(401).send", "clinic audit unauthenticated response");
+  // WBR-08c: clinic-audit.fastify.ts delegates the unauthenticated response
+  // to the canonical clinic auth helper.
+  assertContains(clinicAudit, "authenticateFastifyClinicUser", "clinic audit auth gate");
+  assertContains(clinicFastifyAuth, "reply.code(401).send", "clinic shared unauthenticated response");
   assertContains(clinicAudit, "clinicId: auth.clinicId", "clinic audit forced clinic scope");
   assertContains(clinicAudit, "CLINIC_AUDIT_CSV_EXPORT_MAX_ROWS", "clinic audit export bounded response");
 

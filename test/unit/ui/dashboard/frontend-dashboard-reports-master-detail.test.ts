@@ -156,7 +156,10 @@ test("dashboard informes pagination is server-adaptive and does not use client-s
   assert.ok(source.includes("if (current.limit === effectiveLimit)"));
   assert.ok(source.includes("pageSize: requestWindow.limit"));
   assert.ok(source.includes("offset: requestWindow.offset"));
-  assert.ok(source.includes("Math.floor(query.offset / query.pageSize) + 1"));
+  // The request-loop's query variable was renamed (query -> nextQuery); the
+  // invariant that matters is that offset and pageSize come from the SAME
+  // query object, not the literal identifier.
+  assert.match(source, /Math\.floor\((\w+)\.offset \/ \1\.pageSize\) \+ 1/);
   assert.equal(source.includes("previousLimitRef"), false);
   assert.equal(source.includes("setOffset("), false);
   assert.ok(source.includes("getInformesPage("));

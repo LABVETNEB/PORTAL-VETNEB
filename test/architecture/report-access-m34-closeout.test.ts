@@ -208,13 +208,13 @@ test("orden de borde permanece anclado en rutas y negocio en application", () =>
     const auth = source.indexOf(
       route.includes("admin-")
         ? "authenticateAdminUser(request, reply"
-        : "authenticateClinicUser(request, reply",
+        : "authenticateFastifyClinicUser(request, reply",
     );
     assert.ok(trusted >= 0 && trusted < rate && rate < auth, route);
   }
   const publicRoute = read(routes[2]);
   assert.ok(
-    publicRoute.indexOf("getOrCreateRateLimitEntry(") <
+    publicRoute.indexOf("consumeRateLimitAttempt(") <
       publicRoute.indexOf("reportAccessTokenRawTokenSchema.safeParse("),
   );
   const publicApplication = read(

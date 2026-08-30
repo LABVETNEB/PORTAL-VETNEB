@@ -32,14 +32,13 @@ por el censo congelado.
 El censo TypeScript AST contempló imports estáticos ejecutables, reexports,
 `require()` e `import()`. La allowlist productiva quedó congelada en:
 
-1. `server/middlewares/particular-auth.ts`;
-2. `server/preflight.ts`;
-3. `server/routes/admin-study-tracking.fastify.ts`;
-4. `server/routes/auth.fastify.ts`;
-5. `server/routes/particular-audit.fastify.ts`;
-6. `server/routes/particular-auth.fastify.ts`;
-7. `server/routes/particular-study-tracking.fastify.ts`;
-8. `server/routes/study-tracking.fastify.ts`.
+1. `server/preflight.ts`;
+2. `server/routes/admin-study-tracking.fastify.ts`;
+3. `server/routes/auth.fastify.ts`;
+4. `server/routes/particular-audit.fastify.ts`;
+5. `server/routes/particular-auth.fastify.ts`;
+6. `server/routes/particular-study-tracking.fastify.ts`;
+7. `server/routes/study-tracking.fastify.ts`.
 
 ## 5. Falsos positivos descartados
 
@@ -102,7 +101,6 @@ productivos. Cada diff mostró una única sustitución de specifier.
 
 | Archivo | SHA-256 anterior | SHA-256 nuevo |
 | --- | --- | --- |
-| `server/middlewares/particular-auth.ts` | `fc551f73cc21beb99d35e97cc9abde62d10e98621185b8d829f5bbe9919dc17b` | `5004967d61238de6d5fc38582ca48e0da1468189e418d279a4cd9786126c4683` |
 | `server/routes/particular-auth.fastify.ts` | `5ed5bf6f6ec6edb72983cdcfca84b283b89a3db4ff3b408349b557aa9a0d1561` | `e94e5a2847f635f30a8edd81fa5270fd1501f727fc1b91e434677c3d101a0c86` |
 | `server/routes/study-tracking.fastify.ts` | `f2b8e5afbe0ded7fcb75ece389cfd476d8667c49f792a104f9ee3bb7379f7319` | `aeacf4866ffa9a70d1ee867cd652f49e35b5bb86709fa4b3003d95c178078ae7` |
 | `server/routes/particular-study-tracking.fastify.ts` | `ed7d3f4a949af488a9dab5a9a89ccc9e89d19399ddde7230a25a3189a32591fb` | `88d6cd63bb808fbb6d613aea60fcf9fae25c2681f8679c3acc3c3d3ad16501aa` |

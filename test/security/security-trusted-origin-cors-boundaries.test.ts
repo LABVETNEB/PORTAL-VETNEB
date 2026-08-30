@@ -4,6 +4,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import Fastify from "fastify";
 
+import { createMemoryRateLimitStore } from "../../server/lib/rate-limit-store.ts";
+
 process.env.NODE_ENV ??= "development";
 process.env.SUPABASE_URL ??= "https://example.supabase.co";
 process.env.SUPABASE_ANON_KEY ??= "test-anon-key";
@@ -149,6 +151,7 @@ async function createPublicReportAccessApp(overrides: Record<string, unknown>) {
 
   await app.register(publicReportAccessNativeRoutes as any, {
     prefix: "/api/public/report-access",
+    publicReportAccessRateLimitStore: createMemoryRateLimitStore(),
     getReportAccessTokenWithReportByTokenHash: async () => null,
     recordReportAccessTokenAccess: async () => null,
     createSignedReportUrl: async (storagePath: string) =>

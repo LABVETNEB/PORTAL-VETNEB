@@ -164,6 +164,26 @@ function jsonPostInput(
   };
 }
 
+test("route plans rejects a request without a clinic session", async () => {
+  const { app, generateCalls } = await buildRoutePlansRuntimeApp();
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/logistics/route-plans",
+    });
+
+    assert.equal(response.statusCode, 401);
+    assert.deepEqual(JSON.parse(response.body), {
+      success: false,
+      error: "No autenticado",
+    });
+    assert.deepEqual(generateCalls, []);
+  } finally {
+    await app.close();
+  }
+});
+
 test("logistics heuristic route plan endpoint returns persisted plan, stops, and planning metadata", async () => {
   const { app, generateCalls } = await buildRoutePlansRuntimeApp();
 

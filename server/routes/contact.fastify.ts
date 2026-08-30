@@ -20,9 +20,8 @@ import {
   getRequestOrigin,
 } from "../lib/cors-headers.ts";
 import {
-  createMemoryRateLimitStore,
-  getOrCreateRateLimitEntry,
-  incrementRateLimitEntry,
+  createPersistentRateLimitStore,
+  consumeRateLimitAttempt,
   type RateLimitStore,
 } from "../lib/rate-limit-store.ts";
 
@@ -62,6 +61,10 @@ type ContactNativeRouteDeps = Required<
   Pick<ContactNativeRoutesOptions, "sendContactMessageEmail">
 >;
 
+type ContactNativeRouteDefaultDeps = ContactNativeRouteDeps & {
+  contactRateLimitStore: RateLimitStore;
+};
+
 const contactSchema = z.object({
   name: z.string().trim().min(1).max(120),
   email: z.string().trim().email().max(255),
@@ -70,16 +73,25 @@ const contactSchema = z.object({
 });
 
 let defaultDepsPromise:
-  | Promise<ContactNativeRouteDeps>
+  | Promise<ContactNativeRouteDefaultDeps>
   | undefined;
 
-async function loadDefaultDeps(): Promise<ContactNativeRouteDeps> {
+async function loadDefaultDeps(): Promise<ContactNativeRouteDefaultDeps> {
   if (!defaultDepsPromise) {
     defaultDepsPromise = (async () => {
       const email = await import("../lib/email.ts");
+      const db = await import("../db.ts");
 
       return {
         sendContactMessageEmail: email.sendContactMessageEmail,
+        contactRateLimitStore: createPersistentRateLimitStore({
+          get: db.getLoginRateLimitEntry,
+          set: db.setLoginRateLimitEntry,
+          increment: db.incrementLoginRateLimitEntry,
+          consume: db.consumeLoginRateLimitAttempt,
+          cleanupExpired: db.deleteExpiredLoginRateLimitEntries,
+          delete: db.deleteLoginRateLimitEntry,
+        }),
       };
     })();
   }
@@ -89,14 +101,17 @@ async function loadDefaultDeps(): Promise<ContactNativeRouteDeps> {
 
 async function resolveDeps(
   options: ContactNativeRoutesOptions,
-): Promise<ContactNativeRouteDeps> {
-  const defaultDeps = options.sendContactMessageEmail
+): Promise<ContactNativeRouteDefaultDeps> {
+  const defaultDeps =
+    options.sendContactMessageEmail && options.contactRateLimitStore
     ? undefined
     : await loadDefaultDeps();
 
   return {
     sendContactMessageEmail:
       options.sendContactMessageEmail ?? defaultDeps!.sendContactMessageEmail,
+    contactRateLimitStore:
+      options.contactRateLimitStore ?? defaultDeps!.contactRateLimitStore,
   };
 }
 
@@ -254,14 +269,14 @@ function extractSafeContactEmailErrorDiagnostics(
 export const contactNativeRoutes: FastifyPluginAsync<
   ContactNativeRoutesOptions
 > = async (app, options) => {
+  const deps = await resolveDeps(options);
   const allowedOrigins = new Set(getAllowedOrigins());
   const now = options.now ?? (() => Date.now());
   const contactRateLimitWindowMs =
     options.contactRateLimitWindowMs ?? CONTACT_RATE_LIMIT_WINDOW_MS;
   const contactRateLimitMaxAttempts =
     options.contactRateLimitMaxAttempts ?? CONTACT_RATE_LIMIT_MAX_ATTEMPTS;
-  const contactRateLimitStore =
-    options.contactRateLimitStore ?? createMemoryRateLimitStore();
+  const contactRateLimitStore = deps.contactRateLimitStore;
 
   app.addHook("onRequest", async (request, reply) => {
     applyCorsHeaders(request, reply, allowedOrigins);
@@ -303,14 +318,13 @@ export const contactNativeRoutes: FastifyPluginAsync<
 
     const currentTime = now();
     const rateLimitKey = buildContactRateLimitKey(request.ip);
-    const rateLimitEntry = await getOrCreateRateLimitEntry(
+    const rateLimitEntry = await consumeRateLimitAttempt(
       contactRateLimitStore,
       rateLimitKey,
-      contactRateLimitWindowMs,
-      currentTime,
+      { windowMs: contactRateLimitWindowMs, now: currentTime },
     );
 
-    if (rateLimitEntry.count >= contactRateLimitMaxAttempts) {
+    if (rateLimitEntry.count > contactRateLimitMaxAttempts) {
       const retryAfterSeconds = setRateLimitHeaders(reply, {
         max: contactRateLimitMaxAttempts,
         windowMs: contactRateLimitWindowMs,
@@ -326,16 +340,6 @@ export const contactNativeRoutes: FastifyPluginAsync<
         error: CONTACT_RATE_LIMIT_ERROR_MESSAGE,
       });
     }
-
-    const updatedRateLimitEntry = await incrementRateLimitEntry(
-      contactRateLimitStore,
-      rateLimitKey,
-      rateLimitEntry,
-      currentTime,
-    );
-
-    rateLimitEntry.count = updatedRateLimitEntry.count;
-    rateLimitEntry.resetAt = updatedRateLimitEntry.resetAt;
 
     setRateLimitHeaders(reply, {
       max: contactRateLimitMaxAttempts,
@@ -356,8 +360,6 @@ export const contactNativeRoutes: FastifyPluginAsync<
     }
 
     const normalizedClinicName = normalizeOptionalText(parsed.data.clinicName);
-    const deps = await resolveDeps(options);
-
     let result: ContactEmailResult;
 
     try {

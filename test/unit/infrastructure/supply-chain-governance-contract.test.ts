@@ -414,8 +414,29 @@ test("generated SBOM is a deterministic CycloneDX document derived from the lock
 });
 
 test("generated SBOM omits non-reproducible and non-sanitized fields", () => {
-  const document = generateSbom({ rootDir: process.cwd(), sourceCommit: undefined });
-  const rendered = renderSbom(document);
+  // generateSbom's sourceCommit parameter defaults to process.env.GITHUB_SHA
+  // (needed so the real CLI invocation embeds commit traceability when it
+  // runs in CI), and a JS default parameter also applies when the caller
+  // passes the key with an explicit `undefined` value. On every GitHub
+  // Actions runner GITHUB_SHA is always a real 40-hex-char commit SHA, so
+  // without isolating it here this test's "no commit" scenario silently
+  // stopped existing in CI while still passing on a local machine that
+  // never has GITHUB_SHA set. Clearing it for the duration of this
+  // assertion makes the test exercise the same "no commit" branch on every
+  // platform, independent of ambient CI environment variables.
+  const originalGithubSha = process.env.GITHUB_SHA;
+  delete process.env.GITHUB_SHA;
+
+  let document;
+  let rendered;
+  try {
+    document = generateSbom({ rootDir: process.cwd(), sourceCommit: undefined });
+    rendered = renderSbom(document);
+  } finally {
+    if (originalGithubSha !== undefined) {
+      process.env.GITHUB_SHA = originalGithubSha;
+    }
+  }
 
   assert.equal(Object.hasOwn(document, "serialNumber"), false);
   assert.equal(Object.hasOwn(document.metadata, "timestamp"), false);

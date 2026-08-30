@@ -38,7 +38,7 @@ const SECURITY_BOUNDARY_SUITE: readonly SecurityBoundaryGuardrail[] = [
       },
       {
         path: "server/routes/report-access-tokens.fastify.ts",
-        markers: ["authenticateClinicUser", "createClinicReportAccessOperations"],
+        markers: ["authenticateFastifyClinicUser", "createClinicReportAccessOperations"],
       },
       {
         path: "server/features/report-access/application/admin-report-access-operations.ts",
@@ -201,8 +201,10 @@ const SECURITY_BOUNDARY_SUITE: readonly SecurityBoundaryGuardrail[] = [
         markers: ["cookies[ENV.adminCookieName]", "name: ENV.adminCookieName"],
       },
       {
+        // WBR-08c: reading the clinic cookie is now owned by
+        // fastify-clinic-auth.ts; auth.fastify.ts still writes it on login.
         path: "server/routes/auth.fastify.ts",
-        markers: ["cookies[ENV.cookieName]", "name: ENV.cookieName"],
+        markers: ["authenticateFastifyClinicUser", "name: ENV.cookieName"],
       },
       {
         path: "server/routes/admin-audit.fastify.ts",
@@ -272,8 +274,10 @@ const SECURITY_BOUNDARY_SUITE: readonly SecurityBoundaryGuardrail[] = [
     ],
     runtimeAnchors: [
       {
+        // WBR-08c: reading the clinic cookie is now owned by
+        // fastify-clinic-auth.ts; auth.fastify.ts still writes it on login.
         path: "server/routes/auth.fastify.ts",
-        markers: ["cookies[ENV.cookieName]"],
+        markers: ["authenticateFastifyClinicUser"],
       },
       {
         path: "server/lib/fastify-admin-auth.ts",

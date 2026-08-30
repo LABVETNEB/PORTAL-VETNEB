@@ -196,8 +196,15 @@ test("dashboard home clinic command center presentational props contain operatio
 
   assert.ok(source.includes("ModuleSurface"));
   assert.ok(source.includes("ModuleTabs"));
-  assert.ok(source.includes("Estado operativo clínica"));
-  assert.ok(source.includes("Priorice informes pendientes y visitas activas"));
+  // B14 relocated the permanent operational-priority banner (pending reports
+  // + active visits KPIs) out of a standing toolbar and into the existing
+  // "Estado" tab's attention panel; the same stats-derived messaging survives
+  // there instead of a static "Estado operativo clínica" heading.
+  assert.ok(source.includes('data-clinic-command-attention="true"'));
+  assert.ok(source.includes("Atención requerida"));
+  assert.ok(source.includes("informe(s) pendiente(s) de entrega."));
+  assert.ok(source.includes("visita(s) de campo activa(s) en curso."));
+  assert.ok(source.includes("Sin pendientes operativos detectados."));
   assert.ok(source.includes("<StatsCards stats={stats} />"));
   assert.ok(source.includes("Informes recientes"));
   assert.ok(source.includes("Visitas de campo"));

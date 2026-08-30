@@ -13,6 +13,11 @@ export type RateLimitStore = {
     entry: RateLimitEntry,
     now?: number,
   ) => RateLimitEntry | Promise<RateLimitEntry>;
+  consume?: (
+    key: string,
+    input: { windowMs: number; now: number },
+  ) => RateLimitEntry | Promise<RateLimitEntry>;
+  cleanupExpired?: (now: number) => void | Promise<void>;
   delete?: (key: string) => void | Promise<void>;
 };
 
@@ -46,6 +51,12 @@ export type PersistentRateLimitStoreAdapter = {
     now: Date;
     metadata?: PersistentRateLimitMetadata;
   }) => PersistentRateLimitRecord | Promise<PersistentRateLimitRecord>;
+  consume: (input: {
+    keyHash: string;
+    resetAt: Date;
+    now: Date;
+    metadata?: PersistentRateLimitMetadata;
+  }) => PersistentRateLimitRecord | Promise<PersistentRateLimitRecord>;
   cleanupExpired?: (now: Date) => void | Promise<void>;
   delete?: (keyHash: string) => void | Promise<void>;
 };
@@ -60,6 +71,14 @@ export type PersistentRateLimitStoreOptions = {
 export function createMemoryRateLimitStore(): RateLimitStore {
   const entries = new Map<string, RateLimitEntry>();
 
+  const cleanupExpired = (now: number) => {
+    for (const [key, entry] of entries) {
+      if (entry.resetAt <= now) {
+        entries.delete(key);
+      }
+    }
+  };
+
   return {
     get: (key) => entries.get(key),
     set: (key, entry) => {
@@ -68,6 +87,18 @@ export function createMemoryRateLimitStore(): RateLimitStore {
     delete: (key) => {
       entries.delete(key);
     },
+    increment: (key, entry) => {
+      const current = entries.get(key);
+      const updated = {
+        count: (current?.count ?? entry.count) + 1,
+        resetAt: current?.resetAt ?? entry.resetAt,
+      };
+
+      entries.set(key, updated);
+
+      return updated;
+    },
+    cleanupExpired,
   };
 }
 
@@ -145,6 +176,20 @@ export function createPersistentRateLimitStore(
         }),
       );
     },
+    consume: async (key, input) => {
+      const now = input.now;
+
+      await cleanupExpiredBestEffort(adapter, now);
+
+      return toRateLimitEntry(
+        await adapter.consume({
+          keyHash: hashRateLimitKey(key),
+          resetAt: toPersistentDate(now + input.windowMs),
+          now: toPersistentDate(now),
+          metadata: getMetadata(key),
+        }),
+      );
+    },
     delete: async (key) => {
       const now = getNow();
 
@@ -170,6 +215,10 @@ export async function getOrCreateRateLimitEntry(
   windowMs: number,
   now: number,
 ): Promise<RateLimitEntry> {
+  if (store.cleanupExpired) {
+    await store.cleanupExpired(now);
+  }
+
   const current = await store.get(key);
 
   if (!current || current.resetAt <= now) {
@@ -204,4 +253,23 @@ export async function incrementRateLimitEntry(
   await store.set(key, updated);
 
   return updated;
+}
+
+export async function consumeRateLimitAttempt(
+  store: RateLimitStore,
+  key: string,
+  input: { windowMs: number; now: number },
+): Promise<RateLimitEntry> {
+  if (store.consume) {
+    return store.consume(key, input);
+  }
+
+  const entry = await getOrCreateRateLimitEntry(
+    store,
+    key,
+    input.windowMs,
+    input.now,
+  );
+
+  return incrementRateLimitEntry(store, key, entry, input.now);
 }

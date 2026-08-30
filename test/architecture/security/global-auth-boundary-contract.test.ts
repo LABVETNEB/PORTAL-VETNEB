@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 
 type AuthSurface = {
@@ -32,21 +32,11 @@ const AUTH_SURFACES: readonly AuthSurface[] = [
     markers: ["authenticateFastifyAdmin"],
   },
   {
+    // WBR-08c: all clinic route surfaces now delegate to the canonical
+    // clinic auth helper (see "migrated clinic routes" below). No local
+    // clinic auth files remain.
     label: "clinic",
-    files: [
-      "server/routes/auth.fastify.ts",
-      "server/routes/clinic-audit.fastify.ts",
-      "server/routes/clinic-public-profile.fastify.ts",
-      "server/routes/logistics-field-visits.fastify.ts",
-      "server/routes/logistics-route-events.fastify.ts",
-      "server/routes/logistics-route-plans.fastify.ts",
-      "server/routes/logistics-sla.fastify.ts",
-      "server/routes/particular-tokens.fastify.ts",
-      "server/routes/report-access-tokens.fastify.ts",
-      "server/routes/reports.fastify.ts",
-      "server/routes/reports-status.fastify.ts",
-      "server/routes/study-tracking.fastify.ts",
-    ],
+    files: [],
     markers: ["authenticateClinicUser"],
   },
   {
@@ -65,6 +55,13 @@ const PUBLIC_ROUTE_FILES = [
   "server/routes/public-pricing.fastify.ts",
   "server/routes/public-professionals.fastify.ts",
   "server/routes/public-report-access.fastify.ts",
+] as const;
+
+const RETIRED_EXPRESS_AUTH_MIDDLEWARES = [
+  "server/middlewares/auth.ts",
+  "server/middlewares/admin-auth.ts",
+  "server/middlewares/particular-auth.ts",
+  "server/middlewares/clinic-permissions.ts",
 ] as const;
 
 function read(relativePath: string): string {
@@ -87,6 +84,50 @@ test("global auth boundary keeps route families behind expected authenticators",
         assertContains(source, marker, `${surface.label} ${file}`);
       }
     }
+  }
+});
+
+test("retired Express auth middleware cannot be restored as test-only coverage", () => {
+  for (const file of RETIRED_EXPRESS_AUTH_MIDDLEWARES) {
+    assert.equal(existsSync(resolve(process.cwd(), file)), false, file);
+  }
+
+  const clinicTests = read("test/integration/adapters/controllers/clinic-audit.fastify.test.ts");
+  const adminTests = read("test/integration/adapters/controllers/admin-auth.fastify.test.ts");
+  const particularTests = read("test/integration/adapters/controllers/particular-audit.fastify.test.ts");
+  const permissionTests = read("test/integration/adapters/controllers/clinic-public-profile.fastify.test.ts");
+  const clinicAuthRoute = read("server/routes/auth.fastify.ts");
+
+  assertContains(clinicTests, "Sesi\u00f3n expirada", "clinic Fastify session contract");
+  assertContains(adminTests, "adminAuthNativeRoutes expone /me", "admin Fastify session contract");
+  assertContains(particularTests, "Token particular inv\u00e1lido o inactivo", "particular Fastify session contract");
+  assertContains(permissionTests, "No autorizado para administrar recursos de la clinica", "clinic Fastify permission contract");
+  assertContains(clinicAuthRoute, "loginRateLimitStore?: RateLimitStore", "clinic Fastify rate-limit contract");
+  assertContains(clinicAuthRoute, "await consumeRateLimitAttempt(", "clinic Fastify atomic rate-limit contract");
+});
+
+test("migrated clinic routes consume the canonical clinic auth helper", () => {
+  const migratedClinicRoutes = [
+    "server/routes/logistics-field-visits.fastify.ts",
+    "server/routes/logistics-route-events.fastify.ts",
+    "server/routes/logistics-route-plans.fastify.ts",
+    "server/routes/logistics-sla.fastify.ts",
+    "server/routes/reports.fastify.ts",
+    "server/routes/reports-status.fastify.ts",
+    "server/routes/report-access-tokens.fastify.ts",
+    "server/routes/clinic-audit.fastify.ts",
+    "server/routes/clinic-public-profile.fastify.ts",
+    "server/routes/study-tracking.fastify.ts",
+    "server/routes/particular-tokens.fastify.ts",
+    "server/routes/auth.fastify.ts",
+  ];
+
+  for (const file of migratedClinicRoutes) {
+    const source = read(file);
+
+    assertContains(source, 'from "../lib/fastify-clinic-auth.ts"', file);
+    assertContains(source, "authenticateFastifyClinicUser", file);
+    assert.equal(source.includes("async function authenticateClinicUser"), false, file);
   }
 });
 
@@ -183,6 +224,34 @@ test("trusted-origin hook stays global and precedes registered route surfaces", 
   assertContains(fastifyApp, "applyApiRequestIdHeader", "fastify request id hook");
   assertContains(fastifyApp, "applyApiSecurityHeaders", "fastify security header hook");
   assertContains(fastifyApp, "applySensitiveApiNoStoreHeaders", "fastify no-store hook");
+});
+
+function walkRouteFiles(dir: string): string[] {
+  const files: string[] = [];
+
+  for (const entry of readdirSync(resolve(process.cwd(), dir), { withFileTypes: true })) {
+    const child = `${dir}/${entry.name}`;
+
+    if (entry.isDirectory()) {
+      files.push(...walkRouteFiles(child));
+    } else if (entry.isFile() && entry.name.endsWith(".ts")) {
+      files.push(child);
+    }
+  }
+
+  return files;
+}
+
+test("WBR-08c: no server/routes surface reintroduces a local clinic auth helper", () => {
+  const violations = walkRouteFiles("server/routes").filter((file) =>
+    /\bfunction\s+authenticateClinicUser\s*\(/.test(read(file)),
+  );
+
+  assert.deepEqual(
+    violations,
+    [],
+    "clinic auth must be centralized in server/lib/fastify-clinic-auth.ts",
+  );
 });
 
 test("global auth boundary guardrail source stays ascii only", () => {

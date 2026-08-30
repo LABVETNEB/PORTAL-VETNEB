@@ -126,11 +126,14 @@ test("admin audit mantiene superficie global y cookie admin exclusiva", () => {
 
 test("clinic audit mantiene superficie clinic-scoped y cookie clinic exclusiva", () => {
   const source = readSource("server/routes/clinic-audit.fastify.ts");
+  // WBR-08c: migrated to the canonical clinic auth helper, which owns the
+  // cookie reading and clinic-only cookie boundary.
+  const clinicAuthHelperSource = readSource("server/lib/fastify-clinic-auth.ts");
 
   assert.match(source, /export type ClinicAuditNativeRoutesOptions/);
-  assert.match(source, /getSessionToken\(request: FastifyRequest\)/);
-  assert.match(source, /cookies\[ENV\.cookieName\]/);
-  assert.match(source, /authenticateClinicUser\(request, reply, deps, now\)/);
+  assert.match(source, /authenticateFastifyClinicUser\(/);
+  assert.match(clinicAuthHelperSource, /getSessionToken\(request: FastifyRequest\)/);
+  assert.match(clinicAuthHelperSource, /ENV\.cookieName/);
   assert.match(source, /app\.get<[\s\S]*?>\("\/export\.csv"/);
   assert.match(source, /app\.get<[\s\S]*?>\("\/"/);
 

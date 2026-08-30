@@ -141,6 +141,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Lint backend
+        run: pnpm lint:backend
+
       - name: Dependency security audit
         run: |
           pnpm audit --prod

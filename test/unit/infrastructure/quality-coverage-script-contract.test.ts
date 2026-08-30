@@ -10,7 +10,7 @@ type PackageJson = {
 };
 
 const BASELINE_TEST =
-  "node --experimental-strip-types --experimental-specifier-resolution=node --test test/**/*.test.ts";
+  'node --experimental-strip-types --experimental-specifier-resolution=node --test "test/**/*.test.ts"';
 const COVERAGE_SCRIPT =
   'node --experimental-strip-types --experimental-specifier-resolution=node --experimental-test-coverage --test "test/**/*.test.ts"';
 const EXTERNAL_COVERAGE_PACKAGES = [

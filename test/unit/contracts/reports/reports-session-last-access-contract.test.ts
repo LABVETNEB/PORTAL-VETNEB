@@ -8,15 +8,23 @@ const routeSource = readFileSync(
   "utf8",
 );
 
+const adapterSource = readFileSync(
+  resolve(process.cwd(), "server", "lib", "fastify-clinic-auth.ts"),
+  "utf8",
+);
+
+// WBR-08b: migrated to the canonical clinic auth helper, which now owns the
+// session last-access refresh (mirrors the admin family's split above).
 test("reports route uses shared session last access helper", () => {
+  assert.match(routeSource, /authenticateFastifyClinicUser/);
   assert.match(
-    routeSource,
-    /import \{ shouldRefreshSessionLastAccess \} from "\.\.\/lib\/session-last-access\.ts";/,
+    adapterSource,
+    /import \{ shouldRefreshSessionLastAccess \} from "\.\/session-last-access\.ts";/,
   );
   assert.match(
-    routeSource,
+    adapterSource,
     /shouldRefreshSessionLastAccess\(session\.lastAccess \?\? null, now\(\)\)/,
   );
-  assert.doesNotMatch(routeSource, /SESSION_LAST_ACCESS_UPDATE_INTERVAL_MS/);
-  assert.doesNotMatch(routeSource, /function shouldRefreshSessionLastAccess/);
+  assert.doesNotMatch(adapterSource, /SESSION_LAST_ACCESS_UPDATE_INTERVAL_MS/);
+  assert.doesNotMatch(adapterSource, /function shouldRefreshSessionLastAccess/);
 });

@@ -63,7 +63,6 @@ const particularInfrastructureIndex =
 const reportsComposition =
   "server/features/reports/composition/report-route-composition.ts";
 const expectedExternalParticularConsumers = [
-  "server/middlewares/particular-auth.ts",
   "server/preflight.ts",
   "server/routes/admin-study-tracking.fastify.ts",
   "server/routes/auth.fastify.ts",
@@ -388,7 +387,7 @@ test("M35b prohíbe repositories legacy e imports ejecutables directos desde rut
   }
 });
 
-test("M44 retira el shim Particular y fija ocho consumidores canónicos", () => {
+test("M44 retira el shim Particular y fija siete consumidores canónicos", () => {
   assert.equal(existsSync(resolve(root, legacyParticularPath)), false);
 
   const legacyViolations = ["server", "test"].flatMap((scanRoot) =>

@@ -253,11 +253,21 @@ test("M32 routes no importan shim ni infrastructure y particular resuelve lazy p
 });
 
 test("M44 preserva rutas M32 y realinea sólo el specifier Particular Access", () => {
+  // Hashing raw bytes is CRLF-sensitive: a Windows checkout with
+  // core.autocrlf converts this file's committed LF line endings to CRLF on
+  // disk, producing a different digest than the LF bytes Linux CI checks out
+  // from the same git blob. Normalizing to LF before hashing keeps the pin
+  // meaningful without being an artifact of which OS computed it.
   assert.equal(
     createHash("sha256")
-      .update(readFileSync(resolve(repoRoot, clinicRoute)))
+      .update(
+        readFileSync(resolve(repoRoot, clinicRoute), "utf8").replace(
+          /\r\n/g,
+          "\n",
+        ),
+      )
       .digest("hex"),
-    "f417f341b488cf0fc15a7e932defcc28be4fdcb0ab13659aadaf4cae226382a8",
+    "9c5a2a407dfb22b2ccb2cb197bb10bc108fb5a246bfa906374f2de5c370a7669",
   );
   assert.equal(
     createHash("sha256")

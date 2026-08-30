@@ -202,6 +202,139 @@ test("allows placeholder credential assignments", () => {
   );
 });
 
+test("allows the loopback database URL used pervasively across the test suite", () => {
+  assert.equal(
+    detectSecretPattern(
+      'process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/postgres";',
+    ),
+    null,
+  );
+  assert.equal(
+    detectSecretPattern(
+      '"postgresql://postgres:postgres@localhost:5432/portal_vetneb_ci"',
+    ),
+    null,
+  );
+});
+
+// Production-shaped DSNs are assembled from fragments, never written as a
+// literal, for the same reason the Supabase/JWT/SMTP fixtures above are: this
+// file is itself scanned by the governance secret scan, and a literal
+// production-shaped credential on one source line would make the contract that
+// proves detection works trip the very detector it documents.
+function strongPassword(): string {
+  return ["Kp9", "mQ2", "vLx7"].join("$");
+}
+
+function credentialUrl(
+  scheme: string,
+  username: string,
+  password: string,
+  host: string,
+  path = "",
+): string {
+  return [scheme, "://", username, ":", password, "@", host, path].join("");
+}
+
+test("still detects a genuinely production-shaped database credential URL", () => {
+  const dsn = credentialUrl(
+    "postgresql",
+    "admin",
+    strongPassword(),
+    "db.prod.internal.corp:5432",
+    "/app",
+  );
+
+  assert.equal(detectSecretPattern(`const url = "${dsn}";`), "production credential URL");
+});
+
+test("allows a reserved documentation host exactly and as a domain suffix", () => {
+  assert.equal(
+    detectSecretPattern(
+      `"${credentialUrl("postgresql", "user", "placeholder", "example.com", "/db")}"`,
+    ),
+    null,
+  );
+  assert.equal(
+    detectSecretPattern(
+      `"${credentialUrl("postgresql", "runtime-user", "runtime-password", "db.example.com", "/portal")}";`,
+    ),
+    null,
+  );
+});
+
+// The credential-URL exemption is decided from the host and the password only,
+// by exact hostname or true domain suffix. These cases are the ones a
+// substring-based or whole-match placeholder test silently lets through: the
+// letters "example" inside an ordinary registrable domain, and placeholder-
+// looking usernames sitting next to a genuinely strong password. Each of them
+// regressed from "flag" to "allow" under a whole-match placeholder check, so
+// they are pinned here permanently.
+test("a placeholder-looking substring inside a real hostname does not exempt a credential", () => {
+  for (const host of ["db.examplehealth.com", "postgres.example-labs.net"]) {
+    assert.equal(
+      detectSecretPattern(
+        credentialUrl("postgresql", "svc_user", strongPassword(), host, "/prod"),
+      ),
+      "production credential URL",
+      host,
+    );
+  }
+});
+
+test("a placeholder-looking username never exempts a strong password on a real host", () => {
+  for (const username of ["dummyuser", "sampleuser", "fakeuser", "exampleadmin"]) {
+    assert.equal(
+      detectSecretPattern(
+        credentialUrl(
+          "mongodb+srv",
+          username,
+          strongPassword(),
+          "cluster0.prod.mongodb.net",
+          "/main",
+        ),
+      ),
+      "production credential URL",
+      username,
+    );
+  }
+});
+
+test("placeholder prose surrounding a real DSN does not suppress the finding", () => {
+  const dsn = credentialUrl("postgresql", "admin", strongPassword(), "db.prod.corp", "/app");
+
+  assert.equal(
+    detectSecretPattern(`example placeholder fixture: ${dsn}`),
+    "production credential URL",
+  );
+  assert.equal(detectSecretPattern(`${dsn} # sample fixture`), "production credential URL");
+});
+
+test("every supported database scheme still flags a production credential", () => {
+  const cases: readonly [string, string][] = [
+    ["postgresql", "db.prod.corp"],
+    ["mysql", "mysql.prod.internal"],
+    ["redis", "redis.prod.internal"],
+    ["mongodb+srv", "cluster0.prod.mongodb.net"],
+  ];
+
+  for (const [scheme, host] of cases) {
+    assert.equal(
+      detectSecretPattern(credentialUrl(scheme, "svc", strongPassword(), host, "/app")),
+      "production credential URL",
+      scheme,
+    );
+  }
+});
+
+test("an unparseable credential URL fails closed rather than being exempted", () => {
+  // A shape the structured parser cannot decompose must still be reported,
+  // so a malformed or hostile DSN cannot slip past the scan by being unusual.
+  const malformed = credentialUrl("postgresql", "user", strongPassword(), "[not a host]", "/db");
+
+  assert.equal(detectSecretPattern(malformed), "production credential URL");
+});
+
 test("allows low-diversity SMTP literals", () => {
   const repeatedValue = Array(16).fill("q").join("");
 

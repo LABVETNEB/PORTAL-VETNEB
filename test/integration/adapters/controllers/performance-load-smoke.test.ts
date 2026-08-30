@@ -237,6 +237,5 @@ test("public capacity budget guardrail covers bounded public surfaces", () => {
 
   assert.match(publicReportAccess, /publicReportAccessRateLimitStore\?: RateLimitStore/);
   assert.match(publicReportAccess, /PUBLIC_REPORT_ACCESS_RATE_LIMIT_MAX_ATTEMPTS/);
-  assert.match(publicReportAccess, /await getOrCreateRateLimitEntry\(/);
-  assert.match(publicReportAccess, /await incrementRateLimitEntry\(/);
+  assert.match(publicReportAccess, /await consumeRateLimitAttempt\(/);
 });
