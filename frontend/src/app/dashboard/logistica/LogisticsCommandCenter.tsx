@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { FieldVisit, RoutePlan } from "@/types";
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +22,7 @@ export type LogisticsCommandCenterProps = {
   routePlans: RoutePlan[];
   fieldVisitsLoadError: boolean;
   routePlansLoadError: boolean;
+  headerActions?: ReactNode;
 };
 
 export function LogisticsCommandCenter({
@@ -28,6 +30,7 @@ export function LogisticsCommandCenter({
   routePlans,
   fieldVisitsLoadError,
   routePlansLoadError,
+  headerActions,
 }: LogisticsCommandCenterProps) {
   const activeVisits = fieldVisits.filter(
     (v) => v.status === "in_progress" || v.status === "scheduled",
@@ -56,6 +59,7 @@ export function LogisticsCommandCenter({
           </h2>
           <p className="truncate text-[0.6875rem] text-muted-foreground">Visitas, rutas y métricas operativas.</p>
         </div>
+        {headerActions ? <div className="flex shrink-0 gap-1">{headerActions}</div> : null}
       </div>
       <section
         className="surface-note-info shrink-0"

@@ -60,7 +60,6 @@ const DRAWER_SELECTOR = "[data-dashboard-navigation-drawer]";
 const RAIL_SELECTOR = "[data-dashboard-navigation-rail]";
 const MOBILE_NAV_SELECTOR = "[data-dashboard-mobile-nav]";
 const MAIN_SELECTOR = "main.dashboard-main";
-const STICKY_ACTION_SELECTOR = '[data-sticky-action-bar="true"]';
 /**
  * A05 reservation root. The attribute has THREE owners in the tree —
  * `InformesReportsList` and `LogisticsRecentListCanvas` each mark their own
@@ -113,8 +112,8 @@ const FULL_ROUTE_EXPECTATIONS: Readonly<
   },
   "clinic-logistica-full": {
     activeModule: "logistica",
-    firstChild: "main.dashboard-main > div:first-child",
-    directChildren: 3,
+    firstChild: 'main.dashboard-main > [data-dashboard-module-stage="true"]',
+    directChildren: 1,
   },
   "clinic-log-metricas": {
     activeModule: "logistica",
@@ -327,7 +326,7 @@ test.describe("B10 · main owns one canonical module stage", () => {
   }
 });
 
-test("B10 · the logistics hub keeps its reservation root and sticky bar child", async ({
+test("B10 · the logistics hub keeps its reservation root without legacy sticky chrome", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
@@ -343,30 +342,10 @@ test("B10 · the logistics hub keeps its reservation root and sticky bar child",
   }, MAIN_SELECTOR);
   expect(reservationOnMain, "main itself is the reservation root").toBe("true");
 
-  // zero-scroll.css reads the bar with `:has(> …)`, so it remains a direct
-  // child of main while the canonical stage owns the content surface.
-  const barIsDirectChild = await page.evaluate(
-    ({ mainSelector, barSelector }) => {
-      const bar = document.querySelector(barSelector);
-      const main = document.querySelector(mainSelector);
-      return Boolean(bar && main && bar.parentElement === main);
-    },
-    { mainSelector: MAIN_SELECTOR, barSelector: STICKY_ACTION_SELECTOR },
-  );
-  expect(barIsDirectChild, "the sticky action bar is a direct child of main").toBe(
-    true,
-  );
-
-  // The ledger var the bar publishes still resolves on `main`.
-  const ledger = await page.evaluate((selector) => {
-    const main = document.querySelector(selector);
-    return main
-      ? getComputedStyle(main).getPropertyValue("--dash-sticky-action-h").trim()
-      : "";
-  }, MAIN_SELECTOR);
-  expect(ledger, "the sticky-action ledger var is published on main").not.toBe(
-    "",
-  );
+  await expect(
+    page.locator('[data-sticky-action-bar="true"]'),
+    "CMP-06 keeps logistics actions inside its module card",
+  ).toHaveCount(0);
 });
 
 test("B10 · only the logistics hub claims the reservation root", async ({
