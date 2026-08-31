@@ -103,11 +103,11 @@ test.describe("B11 · canonical WorkspaceHeader shared owner", () => {
         await expect(allHeaders, `${label}: one canonical owner in the DOM`).toHaveCount(1);
         await expect(page.locator(APP_SHELL_SELECTOR), `${label}: one app shell`).toHaveCount(1);
 
-        const isAdminMobile = surface.role === "admin" && viewport.width < 768;
-        if (isAdminMobile) {
+        const isMobile = viewport.width < 768;
+        if (isMobile) {
           await expect(
             allHeaders,
-            `${label}: preserved B09 admin-mobile header reclaim`,
+            `${label}: mobile app bar owns the contextual header`,
           ).toBeHidden();
         } else {
           const header = allHeaders;

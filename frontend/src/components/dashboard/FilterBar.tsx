@@ -31,7 +31,7 @@ const filterBarDensityClassNames: Record<FilterBarDensity, string> = {
   compact:
     "grid grid-cols-1 items-end gap-2 rounded-lg border border-vetneb-line/70 px-2 py-2 md:gap-1.5 md:py-1",
   "module-card":
-    "grid grid-cols-2 items-end gap-2 border-b border-vetneb-line/70 bg-muted/15 px-2 py-1",
+    "grid grid-cols-2 items-end gap-2 border-b border-vetneb-line/70 px-2 py-1",
 };
 
 const filterFieldDensityClassNames: Record<FilterBarDensity, string> = {

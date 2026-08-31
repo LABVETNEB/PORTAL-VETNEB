@@ -97,7 +97,9 @@ test.describe("adaptive rows per viewport (no fixed page size)", () => {
       name: "Paginación de visitas recientes",
     });
     await expect(pager).toBeVisible();
-    await expect(pager.getByText(/^Página \d+ de \d+$/)).toBeVisible();
+    await expect(pager.locator('[data-dashboard-pager-state="true"]')).toHaveText(
+      /^Pág\. \d+ \/ \d+$/,
+    );
 
     const rows = await page.locator('[data-clinic-logistics-row="true"]').count();
     expect(rows).toBeGreaterThan(0);

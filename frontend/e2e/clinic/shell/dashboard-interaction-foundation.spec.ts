@@ -141,13 +141,22 @@ test.describe("dashboard interaction foundation — smoke (PR-1)", () => {
       "operaciones",
       "informes",
       "logistica",
-      "perfil",
-      "tokens",
     ] as ClinicModule[]) {
       await expect(
         nav.locator(`[data-dashboard-mobile-nav-item="${moduleId}"]`),
       ).toBeVisible();
     }
+    const overflow = nav.locator('[data-dashboard-mobile-nav-item="overflow"]');
+    await expect(overflow).toBeVisible();
+    await overflow.click();
+    const overflowMenu = page.locator('[data-dashboard-mobile-nav-overflow="true"]');
+    await expect(overflowMenu).toBeVisible();
+    await expect(
+      overflowMenu.locator('[data-dashboard-mobile-nav-overflow-link="perfil"]'),
+    ).toBeVisible();
+    await expect(
+      overflowMenu.locator('[data-dashboard-mobile-nav-overflow-link="tokens"]'),
+    ).toBeVisible();
     await expect(nav.locator("[aria-current='page']")).toHaveCount(1);
   });
 

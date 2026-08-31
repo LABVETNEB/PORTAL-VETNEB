@@ -116,7 +116,7 @@ test.describe("B12 · module card removal", () => {
         await expect(page).toHaveURL(new RegExp(surface.route.replace("?", "\\?")));
 
         const header = workspace.locator(HEADER_SELECTOR);
-        if (!(surface.role === "admin" && viewport.width < 768)) {
+        if (viewport.width >= 768) {
           await expect(header).toBeVisible();
           const height = await header.evaluate((element) => element.getBoundingClientRect().height);
           expect(height).toBeGreaterThanOrEqual(38);

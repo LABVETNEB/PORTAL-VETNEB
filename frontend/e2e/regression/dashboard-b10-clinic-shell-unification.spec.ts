@@ -108,8 +108,8 @@ const FULL_ROUTE_EXPECTATIONS: Readonly<
 > = Object.freeze({
   "clinic-informes-full": {
     activeModule: "informes",
-    firstChild: "main.dashboard-main > div:first-child",
-    directChildren: 2,
+    firstChild: 'main.dashboard-main > [data-dashboard-module-stage="true"]',
+    directChildren: 1,
   },
   "clinic-logistica-full": {
     activeModule: "logistica",
@@ -118,18 +118,18 @@ const FULL_ROUTE_EXPECTATIONS: Readonly<
   },
   "clinic-log-metricas": {
     activeModule: "logistica",
-    firstChild: '[data-dashboard-metric-strip="true"]',
-    directChildren: 3,
+    firstChild: 'main.dashboard-main > [data-dashboard-module-stage="true"]',
+    directChildren: 1,
   },
   "clinic-log-rutas": {
     activeModule: "logistica",
-    firstChild: '[data-dashboard-metric-strip="true"]',
-    directChildren: 3,
+    firstChild: 'main.dashboard-main > [data-dashboard-module-stage="true"]',
+    directChildren: 1,
   },
   "clinic-log-visitas": {
     activeModule: "logistica",
-    firstChild: '[data-dashboard-metric-strip="true"]',
-    directChildren: 3,
+    firstChild: 'main.dashboard-main > [data-dashboard-module-stage="true"]',
+    directChildren: 1,
   },
 });
 
@@ -281,11 +281,11 @@ test.describe("B10 · one shell owner across the six clinic routes", () => {
   }
 });
 
-// ── main's direct-child structure survives the move ──────────────────────────
+// ── main's direct-child structure owns one canonical stage ───────────────────
 
-test.describe("B10 · main keeps its direct children", () => {
+test.describe("B10 · main owns one canonical module stage", () => {
   for (const route of CLINIC_ROUTES) {
-    test(`${route.label}: main's direct children are unchanged`, async ({
+    test(`${route.label}: main owns the canonical module stage`, async ({
       page,
     }) => {
       await page.setViewportSize({ width: 1920, height: 1080 });
@@ -299,8 +299,15 @@ test.describe("B10 · main keeps its direct children", () => {
 
       await expect(
         page.locator(route.firstChild).first(),
-        `${route.label}: first direct child of main`,
+        `${route.label}: canonical stage is the direct child of main`,
       ).toBeVisible();
+
+      await expect(
+        page.locator(
+          'main.dashboard-main > [data-dashboard-module-stage="true"] > [data-dashboard-module-workspace]',
+        ),
+        `${route.label}: canonical stage owns one workspace`,
+      ).toHaveCount(1);
 
       // The shell must not re-parent children behind a wrapper: `main` is the
       // element the rhythm owl and the sticky-action :has() rule read.
@@ -336,8 +343,8 @@ test("B10 · the logistics hub keeps its reservation root and sticky bar child",
   }, MAIN_SELECTOR);
   expect(reservationOnMain, "main itself is the reservation root").toBe("true");
 
-  // zero-scroll.css reads the bar with `:has(> …)`, so it must stay a DIRECT
-  // child of main.
+  // zero-scroll.css reads the bar with `:has(> …)`, so it remains a direct
+  // child of main while the canonical stage owns the content surface.
   const barIsDirectChild = await page.evaluate(
     ({ mainSelector, barSelector }) => {
       const bar = document.querySelector(barSelector);

@@ -1479,7 +1479,7 @@ export const A03_OBSERVERS: Readonly<Record<A03ModuleId, ModuleObserver>> = Obje
         readinessSelector: '[data-logistics-recent-list-canvas="true"]',
         convergenceSelector: '[data-logistics-recent-list-canvas="true"]',
         rowSelectors: [
-          '[data-logistics-recent-list-canvas="true"] >> nth=0 >> .dashboard-list-row',
+          '[data-logistics-recent-list-canvas="true"] >> nth=0 >> [data-logistics-recent-row="visita"]',
         ],
         pageLabelSelector:
           'nav[aria-label="Paginación de visitas recientes"] [data-dashboard-pager-state="true"]',
@@ -1493,7 +1493,7 @@ export const A03_OBSERVERS: Readonly<Record<A03ModuleId, ModuleObserver>> = Obje
         readinessSelector: '[data-logistics-recent-list-canvas="true"]',
         convergenceSelector: '[data-logistics-recent-list-canvas="true"]',
         rowSelectors: [
-          '[data-logistics-recent-list-canvas="true"] >> nth=1 >> .dashboard-list-row',
+          '[data-logistics-recent-list-canvas="true"] >> nth=1 >> [data-logistics-recent-row="ruta"]',
         ],
         pageLabelSelector:
           'nav[aria-label="Paginación de planes recientes"] [data-dashboard-pager-state="true"]',
