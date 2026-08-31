@@ -1820,30 +1820,36 @@ async function observeServerRequestLeaf(
   if (pageLabel) {
     await expect(pageLabel, `${label}: second page reached`).toHaveText(pageLabelPattern(2));
   }
-  await waitForAdaptiveConvergence(page, leaf.convergenceSelector, `${label} page 2`);
-  page.off("request", collect);
 
-  const capturedWindows = captured.map((request) => {
-    if (transport === "next-server-action") {
-      const payload = parseServerActionPayload(
-        request.body,
-        observer.payloadShape ?? "limit-offset",
-        label,
-      );
-      return { limit: payload.limit, offset: payload.offset };
-    }
+  const snapshotWindows = () =>
+    captured.map((request) => {
+      if (transport === "next-server-action") {
+        const payload = parseServerActionPayload(
+          request.body,
+          observer.payloadShape ?? "limit-offset",
+          label,
+        );
+        return { limit: payload.limit, offset: payload.offset };
+      }
 
-    const url = new URL(request.url);
-    return {
-      limit: Number(url.searchParams.get("limit")),
-      offset: Number(url.searchParams.get("offset")),
-    };
-  });
+      const url = new URL(request.url);
+      return {
+        limit: Number(url.searchParams.get("limit")),
+        offset: Number(url.searchParams.get("offset")),
+      };
+    });
 
-  expect(
-    captured.length,
-    `${label}: one transition must produce exactly one ${wantedMethod} ${pathname} request; observed ${JSON.stringify(capturedWindows)} (more than one is limit thrash — §20.3 records it, A03 never picks a convenient one)`,
-  ).toBe(1);
+  const assertExactlyOneTransitionRequest = () => {
+    expect(
+      captured.length,
+      `${label}: one transition must produce exactly one ${wantedMethod} ${pathname} request; observed ${JSON.stringify(snapshotWindows())} (more than one is limit thrash — §20.3 records it, A03 never picks a convenient one)`,
+    ).toBe(1);
+  };
+
+  // The window is read from the transition request BEFORE the DOM is examined,
+  // so `limit` is always the value the runtime asked for and never a value read
+  // back from whatever the page happens to be showing.
+  assertExactlyOneTransitionRequest();
 
   let limit: number;
   let offset: number;
@@ -1886,7 +1892,23 @@ async function observeServerRequestLeaf(
     ).toBeGreaterThan(0);
   }
 
+  // Geometric convergence proves the canvas stopped moving; it does NOT prove
+  // the requested dataset reached the DOM — a canvas still holding the previous
+  // window is perfectly stable. So the requested window is awaited web-first
+  // and only then is convergence demanded of the render that resulted. The
+  // request listener stays armed across both waits, so a second request emitted
+  // while the window materialises is still recorded as thrash.
   const secondPageRows = await resolveVisibleRows(page, leaf.rowSelectors, label);
+  await expect(
+    secondPageRows,
+    `${label}: second page window committed (rendered rows === requested limit ${limit})`,
+  ).toHaveCount(limit, { timeout: 30_000 });
+
+  await waitForAdaptiveConvergence(page, leaf.convergenceSelector, `${label} page 2`);
+  page.off("request", collect);
+
+  assertExactlyOneTransitionRequest();
+
   const secondPageCount = await secondPageRows.count();
   expect(
     secondPageCount,
