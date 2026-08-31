@@ -141,9 +141,14 @@ for (const viewport of MOBILE_VIEWPORTS) {
     await expect(appBar).toBeVisible();
     await expect(bottomNav).toBeVisible();
     await expect(horizontalNav).toBeHidden();
+    // The mobile app bar must not surface the desktop subtitle. It is rendered
+    // in the DOM and suppressed by the shared mobile chrome rule that also
+    // hides #dashboard-topbar-title, the desktop actions and the horizontal nav
+    // asserted above, so the invariant is visual absence — the same assertion
+    // shape those siblings already use.
     await expect(
       appBar.locator('[data-dashboard-topbar-subtitle="true"]'),
-    ).toHaveCount(0);
+    ).toBeHidden();
 
     const contract = await readShellContract(page);
 

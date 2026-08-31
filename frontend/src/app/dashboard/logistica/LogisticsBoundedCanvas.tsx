@@ -102,11 +102,16 @@ export function LogisticsBoundedCanvas({
     router,
   ]);
 
+  // Both regimes carry the same logical canvas id: it names the domain canvas
+  // (`visitas`, `rutas`, `metricas`), not the breakpoint that renders it. Every
+  // consumer resolves it visible-filtered, and the two panes are mutually
+  // exclusive (`md:hidden` / `hidden md:block`), so exactly one answers at any
+  // viewport.
   return (
     <>
       <div
         ref={setMobileNode}
-        data-dashboard-table-canvas={`${canvas}-mobile`}
+        data-dashboard-table-canvas={canvas}
         data-dashboard-adaptive-rows-canvas="true"
         data-dashboard-row-pitch="regular"
         className="h-full min-h-0 w-full min-w-0 md:hidden"

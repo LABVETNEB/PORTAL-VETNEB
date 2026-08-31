@@ -1514,7 +1514,12 @@ export const A03_OBSERVERS: Readonly<Record<A03ModuleId, ModuleObserver>> = Obje
       bounded(
         "bounded-metricas",
         "metricas",
-        '[data-dashboard-table-canvas="metricas"] [data-logistics-metric-block="true"]',
+        // Both regimes of the bounded canvas: the desktop pane keeps the 168px
+        // metric block, the mobile pane renders the canonical operational row
+        // (`data-logistics-metric-row`), exactly as the visitas/rutas leaves
+        // above already name their mobile row. Row resolution is visible-
+        // filtered, so exactly one regime answers at any viewport.
+        '[data-dashboard-table-canvas="metricas"] [data-logistics-metric-block="true"], [data-dashboard-table-canvas="metricas"] [data-logistics-metric-row="true"]',
       ),
     ],
   },
