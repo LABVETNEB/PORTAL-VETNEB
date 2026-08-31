@@ -25,7 +25,10 @@ const ROUTES = [
     path: "/dashboard/logistica/metricas",
     canvas: "metricas",
     pagerName: "Paginación de métricas de ruta",
-    mobileRow: '[data-logistics-metric-block="true"]',
+    // CMP-08: métricas gained its own mobile/desktop split — the canonical
+    // compact row is the visible mobile variant now; the "block" (168px)
+    // card at `data-logistics-metric-block` moved to the desktop-only pane.
+    mobileRow: '[data-logistics-metric-row="true"]',
   },
 ] as const;
 
@@ -56,6 +59,17 @@ async function readHorizontalScrollers(page: Page) {
 
       const style = window.getComputedStyle(element);
       if (style.display === "none") {
+        return [];
+      }
+
+      // CMP-08: `overflow-x: hidden` (the `truncate` signature — ellipsis +
+      // nowrap + hidden) clips its own excess content and cannot itself
+      // become a "horizontal scroller": nothing can scroll it, and hidden
+      // overflow never pushes an ancestor wider (the walk below still
+      // catches an ancestor that DOES grow). A canonical row packing an
+      // identity/secondary line beside a trailing action cluster is exactly
+      // where real fixture data now needs that ellipsis.
+      if (style.overflowX === "hidden") {
         return [];
       }
 
@@ -96,6 +110,12 @@ test.describe("logistics full routes — mobile rows without horizontal table sc
         if (route.canvas !== "metricas") {
           await expect(
             page.locator(`[data-dashboard-table-canvas="${route.canvas}"] table`),
+          ).toBeHidden();
+        } else {
+          // CMP-08: métricas' desktop-only "block" card must stay inactive
+          // on mobile now that it has its own canvas split.
+          await expect(
+            page.locator('[data-logistics-metric-block="true"]').first(),
           ).toBeHidden();
         }
 

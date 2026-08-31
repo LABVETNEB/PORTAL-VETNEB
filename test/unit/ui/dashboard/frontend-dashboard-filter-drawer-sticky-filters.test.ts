@@ -54,13 +54,15 @@ test("dashboard informes uses compact inline filters without drawer sticky overl
   assert.equal(source.includes('triggerLabel="Filtrar informes"'), false);
   assert.ok(source.includes("<FilterBar"));
   assert.ok(source.includes("<FilterField"));
-  assert.ok(source.includes("dashboardFilterControlClassName()"));
+  assert.ok(source.includes('density="module-card"'));
+  assert.ok(source.includes('dashboardFilterControlClassName("module-card")'));
   assert.ok(source.includes('method="get"'));
   assert.ok(source.includes('name="query"'));
   assert.ok(source.includes("defaultValue={query}"));
   assert.ok(source.includes('name="status"'));
   assert.ok(source.includes("defaultValue={status}"));
-  assert.ok(source.includes('<Button type="submit" size="sm" className={dashboardFilterActionClassName()}>'));
+  assert.ok(source.includes('dashboardFilterActionClassName("module-card")'));
+  assert.ok(source.includes('title="Filtros de informes"'));
   assert.ok(source.includes("Filtrar"));
   assert.ok(source.includes('href="/dashboard/informes"'));
   assert.ok(source.includes("Limpiar"));
@@ -86,13 +88,13 @@ test("dashboard informes uses compact inline filters without drawer sticky overl
 test("PR-VIS-6 FilterBar exposes shared dashboard filter field contract", () => {
   const source = read(FILTER_BAR_PATH);
 
-  assert.ok(source.includes('export type FilterBarDensity = "comfortable" | "compact";'));
+  assert.ok(source.includes('export type FilterBarDensity = "comfortable" | "compact" | "module-card";'));
   assert.ok(source.includes("export type FilterBarProps = FormHTMLAttributes<HTMLFormElement>"));
   assert.ok(source.includes("export type FilterFieldProps = LabelHTMLAttributes<HTMLLabelElement>"));
   assert.ok(source.includes('data-dashboard-filter-bar="true"'));
   assert.ok(source.includes("data-dashboard-filter-density={density}"));
   assert.ok(source.includes("dashboardFilterControlClassName("));
-  assert.ok(source.includes('density === "compact" ? "h-10 md:h-8" : "h-10"'));
+  assert.ok(source.includes('density === "module-card" ? "h-9" : "h-10"'));
   assert.ok(source.includes("dashboardFilterActionClassName("));
   assert.ok(source.includes("h-10 min-h-10"));
   assert.ok(source.includes("FilterField"));

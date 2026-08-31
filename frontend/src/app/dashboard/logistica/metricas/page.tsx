@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { ClinicDashboardShell } from "@/components/dashboard/ClinicDashboardShell";
+import { ClinicFullRouteModuleStage } from "@/components/dashboard/ClinicFullRouteModuleStage";
+import { ModuleCard } from "@/components/dashboard/ModuleCard";
+import { CanonicalOperationalRow } from "@/components/dashboard/CanonicalOperationalRow";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import {
-  Card,
   CardContent,
   CardHeader,
   CardTitle,
@@ -13,6 +15,9 @@ import { Badge } from "@/components/ui/badge";
 import { getRoutePlanMetrics, getRoutePlans } from "@/lib/api";
 import { redirectToLoginOnUnauthorized } from "@/lib/dashboard-server-auth";
 import { LogisticsBoundedCanvas } from "../LogisticsBoundedCanvas";
+import { ModuleMetricRun } from "@/components/dashboard/ModuleMetricRun";
+import { DASHBOARD_TOUCH_PAGER_RESERVATION } from "@/components/dashboard/DashboardPager";
+import { RoutePlanMetricDetailDialog } from "../RoutePlanMetricDetailDialog";
 
 export const metadata: Metadata = {
   title: "Métricas de logística — Portal VETNEB",
@@ -158,65 +163,8 @@ export default async function MetricasPage({
       subtitle="Cumplimiento, SLA y reportes operativos"
       module="logistica"
     >
-      <div
-        className="grid min-w-0 max-w-full grid-cols-2 gap-4 overflow-hidden md:grid-cols-4"
-        data-dashboard-metric-strip="true"
-      >
-        <Card className="dashboard-metric-card p-0">
-          <CardHeader className="min-w-0 max-w-full overflow-hidden pb-2">
-            <CardTitle className="min-w-0 max-w-full overflow-hidden text-sm font-medium text-muted-foreground [overflow-wrap:anywhere]">
-              Cumplimiento promedio
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="min-w-0 max-w-full overflow-hidden">
-            <p className="min-w-0 max-w-full overflow-hidden text-3xl font-bold text-vetneb-ink [overflow-wrap:anywhere]">
-              {avgCompliance}%
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="dashboard-metric-card p-0">
-          <CardHeader className="min-w-0 max-w-full overflow-hidden pb-2">
-            <CardTitle className="min-w-0 max-w-full overflow-hidden text-sm font-medium text-muted-foreground [overflow-wrap:anywhere]">
-              Paradas completadas
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="min-w-0 max-w-full overflow-hidden">
-            <p className="min-w-0 max-w-full overflow-hidden text-3xl font-bold text-vetneb-ink [overflow-wrap:anywhere]">
-              {completedStops}/{totalStops}
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="dashboard-metric-card p-0">
-          <CardHeader className="min-w-0 max-w-full overflow-hidden pb-2">
-            <CardTitle className="min-w-0 max-w-full overflow-hidden text-sm font-medium text-muted-foreground [overflow-wrap:anywhere]">
-              Duración promedio
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="min-w-0 max-w-full overflow-hidden">
-            <p className="min-w-0 max-w-full overflow-hidden text-3xl font-bold text-vetneb-ink [overflow-wrap:anywhere]">
-              {avgDuration !== null ? `${avgDuration} min` : "—"}
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="dashboard-metric-card p-0">
-          <CardHeader className="min-w-0 max-w-full overflow-hidden pb-2">
-            <CardTitle className="min-w-0 max-w-full overflow-hidden text-sm font-medium text-muted-foreground [overflow-wrap:anywhere]">
-              Planes analizados
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="min-w-0 max-w-full overflow-hidden">
-            <p className="min-w-0 max-w-full overflow-hidden text-3xl font-bold text-vetneb-ink [overflow-wrap:anywhere]">
-              {routeMetrics.length}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-      <p className="min-w-0 max-w-full overflow-hidden text-xs text-muted-foreground [overflow-wrap:anywhere]">
-        Métricas calculadas sobre la página visible (máximo {limit} planes),
-        no sobre el total general de rutas.
-      </p>
-
-      <Card className="dashboard-surface" data-dashboard-table-surface="true">
+      <ClinicFullRouteModuleStage moduleId="logistica-metricas">
+      <ModuleCard ariaLabel="Métricas por plan de ruta" dataAttributes={{ "data-dashboard-table-surface": "true" }}>
         <CardHeader className="shrink-0">
           <CardTitle className="text-base">Métricas por plan de ruta</CardTitle>
           <CardDescription data-dashboard-chrome-secondary="true">
@@ -229,7 +177,21 @@ export default async function MetricasPage({
             Mostrando {routeMetrics.length} métricas de ruta · página {currentPage}
             {canGoNext ? " · puede haber más planes de ruta disponibles" : ""}
           </p>
+          <p className="text-xs text-muted-foreground">Métricas calculadas sobre la página visible (máximo {limit} planes), no sobre el total general de rutas.</p>
         </CardHeader>
+        {/* CMP-11 (DIF-042/G-014): metrics band comes after surfaceHeader,
+            matching Admin's canonical appBar > surfaceHeader > metrics order. */}
+        <div className="flex shrink-0 items-baseline border-b border-vetneb-line/70 px-3 py-1.5 text-xs text-muted-foreground">
+          <ModuleMetricRun
+            surfaceId="clinic-logistica-metricas"
+            className="w-full min-w-0 overflow-hidden truncate"
+            metrics={[
+            { key: "cumplimiento", label: "Cumplimiento", value: `${avgCompliance}%` },
+            { key: "paradas", label: "Paradas completadas", value: `${completedStops}/${totalStops}` },
+            { key: "duracion", label: "Duración promedio", value: avgDuration === null ? "—" : `${avgDuration} min` },
+            { key: "planes", label: "Planes", value: routeMetrics.length },
+          ]} />
+        </div>
         <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <LogisticsBoundedCanvas
             canvas="metricas"
@@ -238,9 +200,59 @@ export default async function MetricasPage({
             currentLimit={limit}
             maxLimit={METRICAS_MAX_LIMIT}
             minLimit={1}
-            rowFallbackPx={168}
-          >
-          {routePlansLoadError ? (
+            mobileChildren={
+              routePlansLoadError ? (
+                <div role="alert" className="clinical-alert-warning">
+                  No se pudieron cargar los planes de ruta para métricas. Intente nuevamente.
+                </div>
+              ) : routeMetricsLoadError ? (
+                <div role="alert" className="clinical-alert-warning">
+                  No se pudieron cargar las métricas de ruta. Intente nuevamente.
+                </div>
+              ) : routeMetrics.length ? (
+                <div
+                  className="flex min-h-0 w-full min-w-0 flex-1 flex-col divide-y divide-vetneb-line/60 overflow-hidden"
+                  data-logistics-mobile-list="metricas"
+                >
+                  {routeMetrics.map((metric) => {
+                    const plan = routePlans.find(
+                      (routePlan) => routePlan.id === metric.routePlanId,
+                    );
+                    const planName = plan?.name ?? `Plan #${metric.routePlanId}`;
+                    return (
+                      <CanonicalOperationalRow
+                        key={metric.routePlanId}
+                        dataAttributes={{ "data-logistics-metric-row": "true" }}
+                        identity={planName}
+                        secondary={`${metric.completedStops}/${metric.totalStops} paradas · ${metric.skippedStops} omitidas · ${metric.noShowStops} sin presencia`}
+                        trailing={
+                          <>
+                            <Badge
+                              variant={
+                                metric.complianceRate >= 90
+                                  ? "default"
+                                  : metric.complianceRate >= 60
+                                    ? "secondary"
+                                    : "destructive"
+                              }
+                            >
+                              {metric.complianceRate}%
+                            </Badge>
+                            <RoutePlanMetricDetailDialog metric={metric} planName={planName} />
+                          </>
+                        }
+                      />
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="surface-empty">
+                  No hay métricas de ruta disponibles.
+                </div>
+              )
+            }
+            desktopChildren={
+          routePlansLoadError ? (
             <div role="alert" className="clinical-alert-warning">
               No se pudieron cargar los planes de ruta para métricas. Intente nuevamente.
             </div>
@@ -318,14 +330,16 @@ export default async function MetricasPage({
             <div className="surface-empty">
               No hay métricas de ruta disponibles.
             </div>
-          )}
-          </LogisticsBoundedCanvas>
+          )
+            }
+          />
         </CardContent>
         <nav
           aria-label="Paginación de métricas de ruta"
           data-dashboard-pager="true"
           data-dashboard-adaptive-reserved-region="pager"
-          className="dashboard-pager shrink-0 border-t border-vetneb-line/70"
+          className="dashboard-pager min-h-10 shrink-0 border-t border-vetneb-line/70"
+          style={DASHBOARD_TOUCH_PAGER_RESERVATION}
         >
           <span data-dashboard-pager-prev="true" className="inline-flex">
             <PublicRouteControl
@@ -353,7 +367,8 @@ export default async function MetricasPage({
             </PublicRouteControl>
           </span>
         </nav>
-      </Card>
+      </ModuleCard>
+      </ClinicFullRouteModuleStage>
     </ClinicDashboardShell>
   );
 }

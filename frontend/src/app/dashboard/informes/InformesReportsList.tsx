@@ -2,6 +2,8 @@
 
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 
+import { CanonicalOperationalRow } from "@/components/dashboard/CanonicalOperationalRow";
+import { DASHBOARD_TOUCH_PAGER_RESERVATION } from "@/components/dashboard/DashboardPager";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ErrorState } from "@/components/dashboard/ErrorState";
 import { ModuleDialog } from "@/components/dashboard/ModuleDialog";
@@ -14,7 +16,7 @@ import {
   type StudyTimelineStep,
 } from "@/components/dashboard/StudyTimeline";
 import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
-import { cn, getReportStatusLabel, getReportStatusVariant, formatDate } from "@/lib/utils";
+import { getReportStatusLabel, getReportStatusVariant, formatDate } from "@/lib/utils";
 import type { Report, ReportStatus } from "@/types";
 import { getInformesPage } from "./informes.actions";
 import { INFORMES_FALLBACK_ROWS, INFORMES_LIMIT_CAP } from "./informes.constants";
@@ -629,54 +631,31 @@ export function InformesReportsList({
               ref={setBodyNode}
               data-informes-rows-canvas="true"
               data-dashboard-adaptive-rows-canvas="true"
-              data-dashboard-row-pitch="card"
+              data-dashboard-row-pitch="regular"
               className="flex min-h-0 flex-1 flex-col divide-y divide-vetneb-line/60 overflow-hidden"
             >
               {visibleReports.map((report, index) => {
                 const isSelected = selectedReport?.id === report.id;
 
                 return (
-                  <div
+                  <CanonicalOperationalRow
                     key={report.id}
-                    data-dashboard-adaptive-row="true"
-                    className="min-w-0 shrink-0"
-                  >
-                    <div>
-                      <button
-                        type="button"
-                        id={`report-${report.id}`}
-                        onClick={() => selectReport(report.id)}
-                        aria-current={isSelected ? "true" : undefined}
-                        aria-label={
-                          isSelected
-                            ? `Informe seleccionado: ${getReportTitle(report)}`
-                            : `Seleccionar informe: ${getReportTitle(report)}`
-                        }
-                        className={cn(
-                          "block w-full px-4 py-3 text-left transition-colors hover:bg-vetneb-cyan/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-inset",
-                          isSelected && "bg-vetneb-cyan/12",
-                        )}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-                              Informe #{report.id}
-                            </p>
-                            <p className="mt-1 truncate text-sm font-semibold text-vetneb-ink">
-                              {report.patientName ?? "Paciente sin nombre"}
-                            </p>
-                            <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                              {report.studyType ?? "Tipo sin registrar"} ·{" "}
-                              {formatDate(report.uploadDate)}
-                            </p>
-                          </div>
-                          <Badge variant={getReportStatusVariant(report.status)} className="shrink-0">
-                            {getReportStatusLabel(report.status)}
-                          </Badge>
-                        </div>
-                      </button>
-                    </div>
-                  </div>
+                    identity={`#${report.id} · ${report.patientName ?? "Paciente sin nombre"}`}
+                    secondary={`${report.studyType ?? "Tipo sin registrar"} · ${formatDate(report.uploadDate)}`}
+                    trailing={
+                      <Badge variant={getReportStatusVariant(report.status)}>
+                        {getReportStatusLabel(report.status)}
+                      </Badge>
+                    }
+                    onActivate={() => selectReport(report.id)}
+                    isActive={isSelected}
+                    activateId={`report-${report.id}`}
+                    activateLabel={
+                      isSelected
+                        ? `Informe seleccionado: ${getReportTitle(report)}`
+                        : `Seleccionar informe: ${getReportTitle(report)}`
+                    }
+                  />
                 );
               })}
             </div>
@@ -712,8 +691,14 @@ export function InformesReportsList({
               aria-label="Paginación de informes"
               data-dashboard-pager="true"
               data-dashboard-adaptive-reserved-region="pager"
-              className="dashboard-pager shrink-0 border-t border-vetneb-line/70"
+              className="dashboard-pager min-h-10 shrink-0 border-t border-vetneb-line/70"
+              style={DASHBOARD_TOUCH_PAGER_RESERVATION}
             >
+              {totalCount > 0 ? (
+                <span className="sr-only" aria-live="polite">
+                  {pageStart}–{pageEnd} de {totalCount}
+                </span>
+              ) : null}
               <span data-dashboard-pager-prev="true" className="inline-flex">
                 <button
                   type="button"
@@ -727,7 +712,7 @@ export function InformesReportsList({
                 </button>
               </span>
               <span data-dashboard-pager-state="true" className="dashboard-pagination-context">
-                Página {page} de {reportsTotalPages}
+                Pág. {page} / {reportsTotalPages}
               </span>
               <span data-dashboard-pager-next="true" className="inline-flex">
                 <button

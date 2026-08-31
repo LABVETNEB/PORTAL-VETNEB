@@ -325,12 +325,12 @@ async function readWorstInternalVerticalScroll(
       }`;
     };
 
-    // VIS-MOBILE-001: `.dashboard-module-body` inside the clinic operaciones
-    // or perfil mobile modules is a deliberate, single, reachable scroll
-    // owner (their real content can exceed the flex-allocated body height at
-    // low-height mobile portrait). It is intentionally exempt from this
-    // "zero internal scroll" scan; every other element in `main` still must
-    // not introduce its own scroll container.
+    // CMP-10 (DIF-036): VIS-MOBILE-001's `.dashboard-module-body` scroll
+    // owner was retired (its overflow cause was already gone; the class no
+    // longer exists in the clinic mobile DOM). This exemption is now
+    // permanently vacuous — kept only so a future reintroduction of that
+    // class would still need to earn its way back through this scan
+    // deliberately, not by accident.
     const isSanctionedScrollOwner = (element: HTMLElement) =>
       element.classList.contains("dashboard-module-body") &&
       (element.closest('[data-clinic-mobile-module="operaciones"]') !== null ||

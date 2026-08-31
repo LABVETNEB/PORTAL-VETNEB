@@ -70,7 +70,8 @@ test("PR-VIS-7 wires primitives only into admin and clinic token cards", () => {
       'from "@/components/dashboard/ParticularTokensCardPrimitives";',
     ),
   );
-  assert.ok(clinic.includes("<ParticularTokensMetricStrip"));
+  assert.ok(clinic.includes('from "@/components/dashboard/ModuleMetricRun";'));
+  assert.ok(clinic.includes("<ModuleMetricRun"));
   assert.ok(clinic.includes("<ParticularTokensPanel"));
   assert.ok(clinic.includes("<ParticularTokensPanelHeader"));
   assert.ok(clinic.includes("<ParticularTokensPanelBody"));

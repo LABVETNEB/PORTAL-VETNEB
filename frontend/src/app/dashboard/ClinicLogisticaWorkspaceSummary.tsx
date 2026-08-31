@@ -9,7 +9,8 @@ import { EmptyState } from "@/components/dashboard/EmptyState";
 import { DashboardPager } from "@/components/dashboard/DashboardPager";
 import { DashboardRefreshButton } from "@/components/dashboard/DashboardRefreshButton";
 import { ModuleDialog } from "@/components/dashboard/ModuleDialog";
-import { ModuleSurface } from "@/components/dashboard/ModuleSurface";
+import { ModuleCard } from "@/components/dashboard/ModuleCard";
+import { ModuleMetricRun } from "@/components/dashboard/ModuleMetricRun";
 import { usePagedRows } from "@/components/dashboard/usePagedRows";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { ROUTES } from "@/lib/routes";
@@ -62,14 +63,22 @@ export function ClinicLogisticaWorkspaceSummary({
   );
 
   return (
-    <ModuleSurface
+    <ModuleCard
       ariaLabel="Visitas de campo recientes de la clínica"
-      toolbar={
-        <div className="flex w-full flex-wrap items-center justify-end gap-2">
-          {fullModuleLink}
-        </div>
-      }
+      dataAttributes={{ "data-clinic-mobile-module": "logistica" }}
     >
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-vetneb-line/70 p-1.5">
+        <ModuleMetricRun
+          surfaceId="clinic-logistica-workspace"
+          metrics={[
+            { key: "visitas", label: "Visitas", value: recentVisits.length },
+            { key: "activas", label: "Activas", value: recentVisits.filter((visit) => visit.status === "in_progress").length },
+            { key: "completadas", label: "Completadas", value: recentVisits.filter((visit) => visit.status === "done").length },
+          ]}
+        />
+        {fullModuleLink}
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-2">
       {visitsLoadError ? (
         <div
           role="alert"
@@ -116,12 +125,16 @@ export function ClinicLogisticaWorkspaceSummary({
             ))}
           </div>
 
+          {/* CMP-12: no border/reservation on this outer wrapper — DashboardPager
+              already carries both on its own nav (border-box makes the reserved
+              height inclusive of the border); duplicating either here would add
+              a pixel on top of the reservation or create a second matching hook. */}
           <div
             data-clinic-logistics-pagination-footer="true"
-            data-dashboard-adaptive-reserved-region="pager"
-            className="flex shrink-0 items-center justify-center border-t border-vetneb-line/65 px-3 text-xs text-muted-foreground"
+            className="flex shrink-0 items-center justify-center px-3 text-xs text-muted-foreground"
           >
             <DashboardPager
+              className="w-full border-t border-vetneb-line/65"
               aria-label="Paginación de visitas recientes"
               page={pagedVisits.page}
               pageCount={pagedVisits.pageCount}
@@ -135,6 +148,11 @@ export function ClinicLogisticaWorkspaceSummary({
                 setSelectedVisitId(null);
                 pagedVisits.goNext();
               }}
+              rangeLabel={
+                pagedVisits.total > 0
+                  ? `${pagedVisits.rangeStart}–${pagedVisits.rangeEnd} de ${pagedVisits.total}`
+                  : undefined
+              }
             />
           </div>
         </div>
@@ -207,6 +225,7 @@ export function ClinicLogisticaWorkspaceSummary({
           </div>
         </ModuleDialog>
       ) : null}
-    </ModuleSurface>
+      </div>
+    </ModuleCard>
   );
 }

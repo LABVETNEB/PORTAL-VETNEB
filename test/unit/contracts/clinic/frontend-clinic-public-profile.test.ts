@@ -23,7 +23,7 @@ test("clinic public profile card exists and is clinic scoped", () => {
   assert.ok(source.includes('"use client";'));
   assert.ok(source.includes("getClinicPublicProfile"));
   assert.ok(source.includes("updateClinicPublicProfile"));
-  assert.ok(source.includes('id="clinic-public-profile"'));
+  assert.ok(source.includes('id: "clinic-public-profile"'));
   // FASE 2B: the card no longer duplicates the module title/subtitle that
   // DashboardModuleWorkspace already renders once above it — it keeps the
   // aria-label instead.
@@ -72,14 +72,14 @@ test("clinic public profile card exposes required publication fields", () => {
 test("clinic public profile editor keeps mobile fields operable", () => {
   const source = read(PROFILE_CARD_PATH);
 
-  assert.ok(source.includes('data-clinic-profile-editor="true"'));
+  assert.ok(source.includes('"data-clinic-profile-editor": "true"'));
   assert.ok(source.includes('data-clinic-profile-fields="true"'));
   assert.ok(source.includes('data-clinic-profile-toolbar="true"'));
   assert.ok(source.includes('data-clinic-profile-footer="true"'));
-  assert.ok(source.includes("ModuleSurface"));
+  assert.ok(source.includes("ModuleCardSections"));
   assert.ok(source.includes('label: "Contacto"'));
   assert.ok(source.includes("h-12 w-12 sm:h-16 sm:w-16"));
-  assert.ok(source.includes("text-xl sm:text-2xl"));
+  assert.ok(source.includes('surfaceId="clinic-perfil"'));
   assert.ok(source.includes("min-h-0 flex-1 overflow-hidden"));
   assert.equal(source.includes("overflow-y-auto"), false);
 });

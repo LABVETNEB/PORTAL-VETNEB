@@ -181,7 +181,8 @@ test("automatic workflow coverage is derived from catalog cohorts and equals ful
   // +1: B11 canonical WorkspaceHeader (regression/dashboard).
   // +1: B12 module-card removal and B13 durable admin entry.
   // +1: B14 metrics-strip relocation (regression/dashboard).
-  assert.equal(E2E_SUITE_CATALOG.length, 91);
+  // +3: CMP-04 module-card, CMP-05 metric-run and CMP-06 full-route contracts.
+  assert.equal(E2E_SUITE_CATALOG.length, 95);
 
   const partitionUnion = new Set(PARTITION_COHORTS.flatMap((cohort) => E2E_COHORT_SPECS[cohort]));
   assert.deepEqual([...partitionUnion].sort(), [...E2E_COHORT_SPECS.full].sort());

@@ -115,7 +115,7 @@ test("LogisticsCommandCenter imports types from @/types only (no server-only imp
 
 // ── Operational priority section ─────────────────────────────────────────────
 
-test("LogisticsCommandCenter renders operational priority section with KPI pills", () => {
+test("LogisticsCommandCenter renders operational priority section with the shared metric run", () => {
   const source = read(COMMAND_CENTER_PATH);
 
   assert.ok(source.includes("Estado operativo logística"));
@@ -124,12 +124,11 @@ test("LogisticsCommandCenter renders operational priority section with KPI pills
   assert.ok(source.includes("Visitas activas"));
   assert.ok(source.includes("Planes activos"));
   assert.ok(source.includes("Total visitas"));
-  assert.ok(source.includes("dashboard-kpi-pill"));
-  assert.ok(source.includes('data-tone="focus"'));
-  assert.ok(source.includes('data-tone="critical"'));
-  assert.ok(source.includes("{activeVisits.length}"));
-  assert.ok(source.includes("{activePlans.length}"));
-  assert.ok(source.includes("{fieldVisits.length}"));
+  assert.ok(source.includes("<ModuleMetricRun"));
+  assert.ok(source.includes('surfaceId="clinic-logistica-full"'));
+  assert.ok(source.includes('value: activeVisits.length'));
+  assert.ok(source.includes('value: activePlans.length'));
+  assert.ok(source.includes('value: fieldVisits.length'));
 });
 
 test("LogisticsCommandCenter computes active visits and plans from props without fetch", () => {
@@ -150,8 +149,8 @@ test("LogisticsCommandCenter renders section heading with aria labelling", () =>
   assert.ok(source.includes('aria-labelledby="logistics-command-center-heading"'));
   assert.ok(source.includes("logistics-command-center-heading"));
   assert.ok(source.includes("Centro de logística"));
-  assert.ok(source.includes("dashboard-section-heading"));
-  assert.ok(source.includes("dashboard-section-description"));
+  assert.ok(source.includes("<ModuleCard"));
+  assert.ok(source.includes('ariaLabel="Centro de logística"'));
 });
 
 // ── Visits list ──────────────────────────────────────────────────────────────
@@ -174,7 +173,10 @@ test("LogisticsCommandCenter hands the full ordered visit collection to the boun
   assert.ok(source.includes("formatDate(visit.scheduledAt)"));
   assert.ok(source.includes("status={visit.status}"));
   assert.ok(source.includes('import { StatusBadge } from "@/components/dashboard/StatusBadge";'));
-  assert.ok(source.includes('className="dashboard-list-row"'));
+  // CMP-08: the visit row converged on the shared CanonicalOperationalRow
+  // primitive (canonical "regular" pitch); the bespoke `.dashboard-list-row`
+  // class was retired with it, identified now by its own data attribute.
+  assert.ok(source.includes('dataAttributes={{ "data-logistics-recent-row": "visita" }}'));
 });
 
 test("LogisticsCommandCenter shows visits error alert with role=alert", () => {
@@ -205,12 +207,13 @@ test("LogisticsCommandCenter hands the full ordered route plan collection to the
     "recentPlans must not be truncated before the adaptive canvas pages it",
   );
   assert.ok(source.includes("recentPlans.map((plan) =>"));
-  assert.ok(source.includes("{plan.name}"));
-  assert.ok(source.includes("{plan.completedStops}/{plan.totalStops} paradas"));
+  assert.ok(source.includes("identity={plan.name}"));
+  assert.ok(source.includes("${plan.completedStops}/${plan.totalStops} paradas"));
   assert.ok(source.includes("formatDate(plan.plannedDate)"));
   assert.ok(source.includes("getRoutePlanStatusVariant(plan.status)"));
   assert.ok(source.includes("getRoutePlanStatusLabel(plan.status)"));
-  assert.ok(source.includes('className="dashboard-list-row"'));
+  // CMP-08: same CanonicalOperationalRow convergence as the visits list.
+  assert.ok(source.includes('dataAttributes={{ "data-logistics-recent-row": "ruta" }}'));
 });
 
 test("LogisticsCommandCenter shows route plans error alert with role=alert", () => {
@@ -233,8 +236,8 @@ test("LogisticsCommandCenter uses two-column responsive grid for visits and plan
   const source = read(COMMAND_CENTER_PATH);
 
   assert.ok(source.includes("grid grid-cols-1 gap-6 lg:grid-cols-2"));
-  assert.ok(source.includes("dashboard-surface"));
-  assert.ok(source.includes("dashboard-list-row"));
+  assert.ok(source.includes("<ModuleCard"));
+  assert.ok(source.includes("<CanonicalOperationalRow"));
 });
 
 test("LogisticsCommandCenter does not use next/link or bare anchor tags", () => {
@@ -258,16 +261,14 @@ test("logistics page imports and uses LogisticsCommandCenter with full data prop
   assert.ok(source.includes("routePlansLoadError={routePlansLoadError}"));
 });
 
-test("logistics page uses DashboardPageHeader and StickyActionBar above LogisticsCommandCenter", () => {
+test("logistics page mounts the hub in the full-route module stage and passes its header actions", () => {
   const source = read(LOGISTICS_PAGE_PATH);
 
-  assert.ok(source.includes('<DashboardPageHeader'));
-  assert.ok(source.includes('title="Hub de logística"'));
-  assert.ok(source.includes('<StickyActionBar'));
-  assert.ok(source.includes('context="Acciones rápidas"'));
-  assert.ok(source.includes("href: ROUTES.dashboardLogisticaVisitas"));
-  assert.ok(source.includes("href: ROUTES.dashboardLogisticaRutas"));
-  assert.ok(source.includes("href: ROUTES.dashboardLogisticaMetricas"));
+  assert.ok(source.includes("<ClinicFullRouteModuleStage moduleId=\"logistica-full\""));
+  assert.ok(source.includes("headerActions={"));
+  assert.ok(source.includes("href={ROUTES.dashboardLogisticaVisitas}"));
+  assert.ok(source.includes("href={ROUTES.dashboardLogisticaRutas}"));
+  assert.ok(source.includes("href={ROUTES.dashboardLogisticaMetricas}"));
   assert.equal(source.includes('import Link from "next/link"'), false);
   assert.equal(source.includes('<a href='), false);
 });

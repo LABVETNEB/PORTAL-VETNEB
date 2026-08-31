@@ -194,8 +194,7 @@ test("dashboard home clinic command center receives all required data props", ()
 test("dashboard home clinic command center presentational props contain operational section strings", () => {
   const source = read(CLINIC_COMMAND_CENTER_PATH);
 
-  assert.ok(source.includes("ModuleSurface"));
-  assert.ok(source.includes("ModuleTabs"));
+  assert.ok(source.includes("ModuleCardSections"));
   // B14 relocated the permanent operational-priority banner (pending reports
   // + active visits KPIs) out of a standing toolbar and into the existing
   // "Estado" tab's attention panel; the same stats-derived messaging survives
@@ -205,7 +204,7 @@ test("dashboard home clinic command center presentational props contain operatio
   assert.ok(source.includes("informe(s) pendiente(s) de entrega."));
   assert.ok(source.includes("visita(s) de campo activa(s) en curso."));
   assert.ok(source.includes("Sin pendientes operativos detectados."));
-  assert.ok(source.includes("<StatsCards stats={stats} />"));
+  assert.ok(source.includes("<ModuleMetricRun"));
   assert.ok(source.includes("Informes recientes"));
   assert.ok(source.includes("Visitas de campo"));
   assert.ok(source.includes("reportsLoadError ?"));
@@ -221,7 +220,7 @@ test("clinic informes summary uses table/list row actions with controlled detail
   const source = read(CLINIC_INFORMES_SUMMARY_PATH);
 
   assert.ok(source.includes('"use client";'));
-  assert.ok(source.includes("ModuleSurface"));
+  assert.ok(source.includes("ModuleCard"));
   assert.ok(source.includes("useState"));
   assert.ok(source.includes('data-clinic-reports-table="true"'));
   assert.ok(source.includes('data-clinic-reports-mobile-list="true"'));
@@ -297,7 +296,7 @@ test("clinic logistica summary uses compact list with controlled detail dialog",
   const source = read(CLINIC_LOGISTICA_SUMMARY_PATH);
 
   assert.ok(source.includes('"use client";'));
-  assert.ok(source.includes("ModuleSurface"));
+  assert.ok(source.includes("ModuleCard"));
   assert.ok(source.includes("ModuleDialog"));
   assert.ok(source.includes("useState"));
   assert.ok(source.includes('data-clinic-logistics-list-panel="true"'));

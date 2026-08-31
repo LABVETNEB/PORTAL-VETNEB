@@ -44,43 +44,40 @@ async function expectClinicMobileNav(
     .filter({ visible: true });
   await expect(nav, `${label}: clinic mobile navigation visible`).toBeVisible();
 
-  for (const moduleId of [
-    "operaciones",
-    "informes",
-    "logistica",
-    "perfil",
-    "tokens",
-  ] as const) {
+  for (const moduleId of ["operaciones", "informes", "logistica"] as const) {
     await expect(
       nav.locator(`[data-dashboard-mobile-nav-item="${moduleId}"]`),
       `${label}: navigation exposes ${moduleId}`,
     ).toHaveCount(1);
   }
 
-  // B09_CLINIC_HOME_ITEM = PRESERVE: six primary slots, Inicio included.
+  // CMP-02: clinic mirrors Admin's five-slot bar: Inicio, three operational
+  // modules, then Más. Perfil and Tokens remain reachable through Más.
   await expect(
     nav.locator("[data-dashboard-mobile-nav-item]"),
-    `${label}: six clinic primary destinations`,
-  ).toHaveCount(6);
+    `${label}: five clinic primary destinations`,
+  ).toHaveCount(5);
   await expect(
     nav.locator('[data-dashboard-mobile-nav-item="home"]'),
     `${label}: Inicio preserved`,
   ).toHaveCount(1);
 
+  const currentDestination = ["perfil", "tokens"].includes(activeModule)
+    ? "overflow"
+    : activeModule;
   await expect(
-    nav.locator(`[data-dashboard-mobile-nav-item="${activeModule}"]`),
-    `${label}: active module ${activeModule} marked current`,
+    nav.locator(`[data-dashboard-mobile-nav-item="${currentDestination}"]`),
+    `${label}: active destination marked current`,
   ).toHaveAttribute("aria-current", "page");
   await expect(
     nav.locator("[aria-current='page']"),
     `${label}: exactly one current destination`,
   ).toHaveCount(1);
 
-  // Clinic has five modules and six slots, so it never grows an overflow.
   await expect(
     nav.locator('[data-dashboard-mobile-nav-item="overflow"]'),
-    `${label}: clinic needs no destination overflow`,
-  ).toHaveCount(0);
+    `${label}: clinic destination overflow available`,
+  ).toHaveCount(1);
 
   // The retired owners must not come back next to it.
   await expect(
@@ -141,11 +138,10 @@ async function expectNoProfileInternalScroll(page: Page, label: string) {
     const fields = document.querySelector<HTMLElement>(
       '[data-clinic-profile-fields="true"]',
     );
-    // VIS-MOBILE-001: `.dashboard-module-body` is the single sanctioned scroll
-    // owner for the perfil module on low-height mobile viewports (it makes
-    // otherwise-clipped tab content reachable). Any OTHER internal scroll
-    // container would mean a second, unintended scroll owner, which is still
-    // disallowed.
+    // CMP-10 (DIF-036): `.dashboard-module-body` no longer exists in the
+    // clinic mobile DOM — its scroll-owner grant was retired once CMP-05/
+    // CMP-07 removed the overflow it existed for. This exemption is now
+    // permanently vacuous; ANY internal scroll container here is disallowed.
     const scrollContainers = editor
       ? [editor, ...Array.from(editor.querySelectorAll<HTMLElement>("*"))].flatMap(
           (element) => {

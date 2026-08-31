@@ -94,12 +94,13 @@ test("dashboard logistica rutas renders topbar without technical source copy", (
 test("dashboard logistica rutas keeps status counters aligned to route plan statuses", () => {
   const source = read(RUTAS_PAGE_PATH);
 
-  assert.ok(source.includes('{ status: "draft", label: "Borradores" }'));
-  assert.ok(source.includes('{ status: "released", label: "Liberados" }'));
-  assert.ok(source.includes('{ status: "in_progress", label: "En curso" }'));
-  assert.ok(source.includes('{ status: "completed", label: "Completados" }'));
-  assert.ok(source.includes("const count = routePlans.filter((p) => p.status === status).length;"));
-  assert.ok(source.includes('className="dashboard-metric-card p-0"'));
+  assert.ok(source.includes("<ModuleMetricRun"));
+  assert.ok(source.includes('surfaceId="clinic-logistica-rutas"'));
+  assert.ok(source.includes('label: "Borradores", value: routePlans.filter((plan) => plan.status === "draft").length'));
+  assert.ok(source.includes('label: "Liberadas", value: routePlans.filter((plan) => plan.status === "released").length'));
+  assert.ok(source.includes('label: "En curso", value: routePlans.filter((plan) => plan.status === "in_progress").length'));
+  assert.ok(source.includes('label: "Completadas", value: routePlans.filter((plan) => plan.status === "completed").length'));
+  assert.equal(source.includes('className="dashboard-metric-card p-0"'), false);
 });
 
 test("dashboard logistica rutas renders table columns", () => {
@@ -140,7 +141,7 @@ test("dashboard logistica rutas distinguishes load failures from real empty stat
   assert.ok(source.includes("No se pudieron cargar los planes de ruta. Intente nuevamente."));
   assert.ok(source.includes("No hay planes de ruta disponibles."));
   assert.ok(source.includes("colSpan={6}"));
-  assert.ok(source.includes('className="dashboard-surface"'));
+  assert.ok(source.includes("<ModuleCard"));
   assert.ok(source.includes('className="clinical-table-state"'));
   assert.equal(source.includes("bg-gray-100"), false);
   assert.equal(source.includes("border-gray-100"), false);

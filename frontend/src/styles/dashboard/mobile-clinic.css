@@ -68,7 +68,12 @@
     overflow: hidden;
     overscroll-behavior: none;
     isolation: isolate;
-    --clinic-mobile-shell-gutter: clamp(0.45rem, 0.34rem + 0.45svw, 0.62rem);
+    /* CMP-02 — the shell gutter is a canonical chrome value, not a per-role one.
+       It used to be its own clamp (0.45–0.62rem) against Admin's (0.4–0.6rem),
+       which made `main`'s padding — and therefore every surface inside it —
+       0.28–0.56px narrower than Admin at the same viewport. It now points at the
+       single shared token so both roles inset identically. */
+    --clinic-mobile-shell-gutter: var(--dash-mobile-chrome-gutter);
     --clinic-mobile-type-2xs: clamp(0.56rem, 0.48rem + 0.22svw, 0.64rem);
   }
 
@@ -111,17 +116,12 @@
     overflow: hidden;
   }
 
-  [data-vetneb-app-shell-surface="clinic"] [data-dashboard-topbar-polish="true"] {
-    --tw-backdrop-blur: none !important;
-    background: hsl(var(--card)) !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-  }
-
-  [data-vetneb-app-shell-surface="clinic"]
-    [data-dashboard-horizontal-nav-shell="true"] {
-    display: none !important;
-  }
+  /* CMP-01 — the app-bar band, the desktop-identity suppression, the horizontal-nav
+     suppression, the module back button and the kebab are no longer declared per role:
+     `styles/dashboard/mobile-chrome.css` owns that contract for every surface. The
+     three rules that used to live here (topbar background/blur reset, horizontal-nav
+     hide, back-button hide) were byte-identical to the admin ones and are gone, not
+     duplicated. */
 
   [data-vetneb-app-shell-surface="clinic"] .dashboard-main {
     flex: 1 1 auto;
@@ -143,11 +143,6 @@
   [data-vetneb-app-shell-surface="clinic"] [data-dashboard-module-hub] {
     background: hsl(var(--card));
     isolation: isolate;
-  }
-
-  [data-vetneb-app-shell-surface="clinic"]
-    [data-dashboard-module-back-button="true"] {
-    display: none !important;
   }
 
   [data-vetneb-app-shell-surface="clinic"] .clinic-cockpit-hub {
@@ -175,27 +170,15 @@
     font-size: var(--clinic-mobile-type-2xs);
   }
 
-  /* VIS-MOBILE-001 — operaciones and perfil are the two modules whose real
-     mobile content (tabbed KPI/lists, profile tabs) can exceed
-     dashboard-module-body's flex-allocated height at low-height portrait
-     viewports (measured: scrollHeight ~557-570 vs clientHeight ~270-390).
-     Their descendants already render at natural size (overflow: visible), so
-     making this single node the scroll owner makes the overflow reachable
-     instead of clipped, without introducing a second scroll container. */
-  [data-vetneb-app-shell-surface="clinic"]
-    [data-clinic-mobile-module="operaciones"]
-    .dashboard-module-body,
-  [data-vetneb-app-shell-surface="clinic"]
-    [data-clinic-mobile-module="perfil"]
-    .dashboard-module-body {
-    overflow-y: auto;
-    overflow-x: hidden;
-    overscroll-behavior: contain;
-    -webkit-overflow-scrolling: touch;
-    padding-bottom: calc(
-      var(--clinic-mobile-shell-gutter) + env(safe-area-inset-bottom)
-    );
-  }
+  /* CMP-10 (DIF-036) — VIS-MOBILE-001's `.dashboard-module-body` scroll-owner
+     grant was retired: that class no longer exists anywhere in the clinic
+     mobile DOM (superseded by ModuleCard's own SECTION.dashboard-surface),
+     so the rule was dead, AND separately CMP-05 (472px -> 16px metrics) and
+     CMP-07 (unwrapped tabs) already removed the real overflow it existed
+     for — measured scrollHeight === clientHeight for both operaciones and
+     perfil at all 6 canonical viewports. Per AGENTS.md §10, removing a
+     scroll owner without first confirming its cause is gone would clip
+     content silently; that premise was verified before this rule left. */
 
   /* Perfil's tab-content wrapper no longer clips internally — the module
      body above is now the single scroll owner. */

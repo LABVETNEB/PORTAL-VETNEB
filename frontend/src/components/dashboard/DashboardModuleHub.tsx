@@ -31,8 +31,23 @@ export function DashboardModuleHub({
   hero,
   className,
 }: DashboardModuleHubProps) {
-  // Dense launchers (admin, 10 modules) drop the tile description so every tile
-  // fits the viewport height without scroll; sparse launchers (clinic) keep it.
+  // CMP-02 — two decisions used to ride one flag, and that coupling is the root
+  // cause of DIF-041 (RC-015):
+  //
+  //   (1) WHICH LAUNCHER RENDERS ON MOBILE. This is a layout-regime contract, not
+  //       a function of how many modules a role happens to own. It used to read
+  //       `cards.length > 6`, so Admin (10 cards) reached the mobile launcher and
+  //       Clínica (5 cards) silently fell through to the DESKTOP grammar on
+  //       phones. The mobile launcher is now unconditional; the stylesheet is what
+  //       reveals exactly one regime (`display:none` above 767px), which is how
+  //       every other band in this shell already works.
+  //
+  //   (2) WHETHER TILES SHOW A DESCRIPTION. This IS a density decision and stays
+  //       keyed on the card count: a 10-tile grid has no vertical headroom for
+  //       descriptions, a 5-tile one does.
+  //
+  // Admin is unaffected by construction: with 10 cards it already took every
+  // branch that is now unconditional.
   const isDenseLauncher = cards.length > 6;
   const showDescription = !isDenseLauncher;
 
@@ -44,23 +59,19 @@ export function DashboardModuleHub({
       {hero ? (
         <div
           data-dashboard-hub-hero-slot="true"
-          className={cn(
-            "dashboard-cockpit-rail",
-            isDenseLauncher && "admin-mobile-hub-hero-slot",
-          )}
+          className={cn("dashboard-cockpit-rail", "admin-mobile-hub-hero-slot")}
         >
           {hero}
         </div>
       ) : null}
-      {isDenseLauncher ? (
-        <AdminMobileHubLauncher heading={heading} cards={cards} />
-      ) : null}
+      <AdminMobileHubLauncher heading={heading} cards={cards} />
       <section
         aria-label={heading}
         data-dashboard-module-hub="true"
         className={cn(
           "dashboard-cockpit-launcher",
-          isDenseLauncher && "dashboard-cockpit-launcher-dense admin-mobile-hub-desktop-launcher",
+          "admin-mobile-hub-desktop-launcher",
+          isDenseLauncher && "dashboard-cockpit-launcher-dense",
         )}
       >
         <div className="flex items-baseline justify-between gap-3">

@@ -3,17 +3,23 @@ import { expect, test, type Page } from "@playwright/test";
 // ─────────────────────────────────────────────────────────────────────────────
 // VIS-MOBILE-001 — Clinic dashboard mobile low-height content access.
 //
-// Root cause: `.dashboard-module-body` (the ModuleSurface content region) was
-// `overflow: hidden` on clinic mobile, so Operaciones and Perfil — the two
-// modules without pagination/tabs bounding every card to the viewport — could
-// clip real content below the fold with no way to reach it (measured deficit
-// at 360×640: dashboard-module-body scrollHeight ≈559 vs clientHeight ≈271).
+// Original root cause: `.dashboard-module-body` (the ModuleSurface content
+// region) was `overflow: hidden` on clinic mobile, so Operaciones and Perfil —
+// the two modules without pagination/tabs bounding every card to the viewport
+// — could clip real content below the fold with no way to reach it (measured
+// deficit at 360×640: dashboard-module-body scrollHeight ≈559 vs clientHeight
+// ≈271). The original fix made `.dashboard-module-body` a scoped scroll owner.
 //
-// Fix: `.dashboard-module-body` becomes the single, reachable scroll owner for
-// ONLY these two modules on clinic mobile (`frontend/src/styles/dashboard/mobile-clinic.css`),
-// scoped by the existing `[data-clinic-mobile-module]` hook. Every other clinic
-// module (informes/logistica/tokens) and the whole admin dashboard keep their
-// prior no-scroll-owner behavior untouched.
+// CMP-10 (DIF-036): that scroll-owner grant was retired. Its premise no
+// longer holds — CMP-05 (472px → 16px metrics) and CMP-07 (unwrapped tabs)
+// already removed the real overflow it existed for, and `.dashboard-module-body`
+// itself no longer exists anywhere in the clinic DOM (superseded by
+// ModuleCard's own SECTION.dashboard-surface, a no-scroll fixed canvas
+// matching Admin's `overflow-y: hidden` grammar). Verified before removal:
+// scrollHeight === clientHeight for both modules at all 6 canonical
+// viewports. These tests now assert the CURRENT contract: no local scroll
+// owner, content fits the fixed canvas without clipping, last content is
+// reachable through ordinary layout — not through scrolling.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const TOLERANCE = 2;
@@ -85,36 +91,38 @@ test.describe("VIS-MOBILE-001 — operaciones content reachability", () => {
       page.locator('[data-dashboard-module-workspace="operaciones"]'),
     ).toBeVisible({ timeout: 15_000 });
 
-    const owner = await readScrollOwner(
+    // CMP-10: no scroll owner — the module surface fits its content without
+    // clipping, matching Admin's fixed-canvas grammar.
+    const canvas = await readScrollOwner(
       page,
-      '[data-clinic-mobile-module="operaciones"] .dashboard-module-body',
+      '[data-clinic-mobile-module="operaciones"]',
     );
-    expect(owner.found, "scroll owner present").toBe(true);
-    expect(owner.overflowY, "single controlled scroll owner").toBe("auto");
+    expect(canvas.found, "module surface present").toBe(true);
+    expect(canvas.overflowY, "module surface is not a scroll owner").not.toBe(
+      "auto",
+    );
     expect(
-      owner.reachedEnd,
-      `reached end (scrollHeight=${owner.scrollHeight}, clientHeight=${owner.clientHeight}, scrollTop=${owner.scrollTop})`,
-    ).toBe(true);
+      canvas.scrollHeight - canvas.clientHeight,
+      `content fits without clipping (scrollHeight=${canvas.scrollHeight}, clientHeight=${canvas.clientHeight})`,
+    ).toBeLessThanOrEqual(TOLERANCE);
 
     const hOverflow = await readHorizontalOverflow(page);
     expect(hOverflow.scrollWidth, "no horizontal overflow").toBeLessThanOrEqual(
       hOverflow.clientWidth + TOLERANCE,
     );
 
-    // No other element inside the module workspace introduces a second
-    // independent scroll container.
+    // No element inside the module workspace introduces a local scroll
+    // container.
     const secondaryScrollCount = await page.evaluate(() => {
       const workspace = document.querySelector(
         '[data-dashboard-module-workspace="operaciones"]',
       );
       if (!workspace) return -1;
       return Array.from(workspace.querySelectorAll<HTMLElement>("*")).filter(
-        (el) =>
-          !el.classList.contains("dashboard-module-body") &&
-          ["auto", "scroll"].includes(getComputedStyle(el).overflowY),
+        (el) => ["auto", "scroll"].includes(getComputedStyle(el).overflowY),
       ).length;
     });
-    expect(secondaryScrollCount, "no second scroll owner").toBe(0);
+    expect(secondaryScrollCount, "no local scroll owner").toBe(0);
   });
 
   test("390x844: stable, no regression (matches strict no-internal-scroll baseline when content fits taller viewport)", async ({
@@ -154,16 +162,20 @@ test.describe("VIS-MOBILE-001 — perfil content reachability", () => {
       page.locator('[data-dashboard-module-workspace="perfil"]'),
     ).toBeVisible({ timeout: 15_000 });
 
-    const owner = await readScrollOwner(
+    // CMP-10: no scroll owner — the module surface fits its content without
+    // clipping, matching Admin's fixed-canvas grammar.
+    const canvas = await readScrollOwner(
       page,
-      '[data-clinic-mobile-module="perfil"] .dashboard-module-body',
+      '[data-clinic-mobile-module="perfil"]',
     );
-    expect(owner.found, "scroll owner present").toBe(true);
-    expect(owner.overflowY, "single controlled scroll owner").toBe("auto");
+    expect(canvas.found, "module surface present").toBe(true);
+    expect(canvas.overflowY, "module surface is not a scroll owner").not.toBe(
+      "auto",
+    );
     expect(
-      owner.reachedEnd,
-      `reached end (scrollHeight=${owner.scrollHeight}, clientHeight=${owner.clientHeight}, scrollTop=${owner.scrollTop})`,
-    ).toBe(true);
+      canvas.scrollHeight - canvas.clientHeight,
+      `content fits without clipping (scrollHeight=${canvas.scrollHeight}, clientHeight=${canvas.clientHeight})`,
+    ).toBeLessThanOrEqual(TOLERANCE);
 
     // The profile tab-content wrapper no longer clips internally on its own.
     const fieldsOverflowY = await page.evaluate(() => {
@@ -188,12 +200,10 @@ test.describe("VIS-MOBILE-001 — perfil content reachability", () => {
       const editor = document.querySelector('[data-clinic-profile-editor="true"]');
       if (!editor) return -1;
       return Array.from(editor.querySelectorAll<HTMLElement>("*")).filter(
-        (el) =>
-          !el.classList.contains("dashboard-module-body") &&
-          ["auto", "scroll"].includes(getComputedStyle(el).overflowY),
+        (el) => ["auto", "scroll"].includes(getComputedStyle(el).overflowY),
       ).length;
     });
-    expect(secondaryScrollCount, "no second scroll owner").toBe(0);
+    expect(secondaryScrollCount, "no local scroll owner").toBe(0);
   });
 
   test("390x844: stable, no regression", async ({ page }) => {
@@ -233,8 +243,8 @@ test.describe("VIS-MOBILE-001 — desktop composition preserved", () => {
       const html = document.documentElement;
       const body = document.body;
       const main = document.querySelector("main.dashboard-main");
-      const moduleBody = document.querySelector(
-        '[data-clinic-mobile-module="operaciones"] .dashboard-module-body',
+      const moduleSurface = document.querySelector(
+        '[data-clinic-mobile-module="operaciones"]',
       );
       return {
         htmlScrollHeight: html.scrollHeight,
@@ -242,8 +252,8 @@ test.describe("VIS-MOBILE-001 — desktop composition preserved", () => {
         bodyScrollHeight: body.scrollHeight,
         bodyClientHeight: body.clientHeight,
         mainOverflowY: main ? getComputedStyle(main).overflowY : null,
-        moduleBodyOverflowY: moduleBody
-          ? getComputedStyle(moduleBody).overflowY
+        moduleSurfaceOverflowY: moduleSurface
+          ? getComputedStyle(moduleSurface).overflowY
           : null,
       };
     });
@@ -255,9 +265,10 @@ test.describe("VIS-MOBILE-001 — desktop composition preserved", () => {
       metrics.bodyClientHeight + TOLERANCE,
     );
     expect(metrics.mainOverflowY).not.toBe("auto");
-    // The VIS-MOBILE-001 scroll-owner CSS is mobile-only (max-width: 767px);
-    // desktop keeps the original bounded (overflow: hidden) module body.
-    expect(metrics.moduleBodyOverflowY, "desktop module body unaffected").toBe(
+    // CMP-10: the scroll-owner CSS this used to gate on is gone on both
+    // mobile and desktop — ModuleCard's own SECTION.dashboard-surface is the
+    // fixed, non-scrolling canvas on every viewport now.
+    expect(metrics.moduleSurfaceOverflowY, "module surface stays bounded").toBe(
       "hidden",
     );
 

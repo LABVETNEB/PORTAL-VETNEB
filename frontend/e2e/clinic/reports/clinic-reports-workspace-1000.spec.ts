@@ -250,7 +250,8 @@ function windowFor(expected: ExpectedWindow, pageSize: number, label: string) {
     total: String(expected.total),
     showing: expected.total === 0 ? "0" : `${offset + 1}-${offset + rowIds.length}`,
     pageOf: `${expected.page} / ${totalPages}`,
-    paginationContains: `Página ${expected.page} de ${totalPages}`,
+    // CMP-09: pager label wording aligned to Admin's "Pág. X / Y" (G-010).
+    paginationContains: `Pág. ${expected.page} / ${totalPages}`,
   };
 }
 
@@ -424,7 +425,7 @@ test.describe("clinic reports workspace 1000-report fixture (CAP-C3)", () => {
     // result keeps it mounted showing "1 de 1".
     await expect(
       page.locator('[aria-label="Paginación de informes"]'),
-    ).toContainText("Página 1 de 1");
+    ).toContainText("Pág. 1 / 1");
   });
 
   test("combined query, status and studyType filters keep totalPages coherent", async ({

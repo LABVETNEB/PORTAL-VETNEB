@@ -386,12 +386,13 @@
   the adaptive capacity engine.
 */
 @media (max-width: 767px) {
-  [data-vetneb-app-shell-surface="admin"] {
+  /* CMP-02 — one label size for one band. This used to fork by role
+     (`--admin-mobile-type-2xs` = 9.6px vs `--clinic-mobile-type-2xs` = 8.96px),
+     which is what the audit measured as DIF-007: the same shared bottom nav
+     rendering two different label scales. The bar is a single canonical
+     primitive, so its typography is declared once for every surface. */
+  [data-vetneb-app-shell-surface] {
     --dash-mobile-nav-label-size: var(--admin-mobile-type-2xs);
-  }
-
-  [data-vetneb-app-shell-surface="clinic"] {
-    --dash-mobile-nav-label-size: var(--clinic-mobile-type-2xs);
   }
 
   .dashboard-app-shell .dashboard-mobile-nav {

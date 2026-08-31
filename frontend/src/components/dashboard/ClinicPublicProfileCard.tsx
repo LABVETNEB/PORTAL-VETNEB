@@ -21,8 +21,8 @@ import {
   type ClinicPublicProfile,
   type ClinicPublicProfileUpdatePayload,
 } from "@/lib/api";
-import { ModuleSurface } from "@/components/dashboard/ModuleSurface";
-import { ModuleTabs } from "@/components/dashboard/ModuleTabs";
+import { ModuleCardSections } from "@/components/dashboard/ModuleCard";
+import { ModuleMetricRun } from "@/components/dashboard/ModuleMetricRun";
 import { PasswordChangePanel } from "@/components/dashboard/PasswordChangePanel";
 
 type ProfileFormState = {
@@ -461,67 +461,35 @@ export function ClinicPublicProfileCard() {
   const isWorking =
     isLoading || isSubmitting || isAvatarUploading || isAvatarDeleting;
 
-  const statusMessages = (
-    <>
-      {missingRequiredFields.length ? (
-        <div className="clinical-alert-warning px-3 py-2">
-          <p className="font-semibold">Campos obligatorios pendientes:</p>
-          <p>{missingRequiredFields.map(getFieldLabel).join(", ")}</p>
-        </div>
-      ) : null}
-
-      {missingRecommendedFields.length ? (
-        <div className="clinical-alert-info px-3 py-2">
-          <p className="font-semibold">Recomendados para mejorar calidad:</p>
-          <p>{missingRecommendedFields.map(getFieldLabel).join(", ")}</p>
-        </div>
-      ) : null}
-
-      {publicationErrors.length ? (
-        <div className="clinical-alert-error px-3 py-2">
-          {publicationErrors.map((error) => (
-            <p key={error}>{error}</p>
-          ))}
-        </div>
-      ) : null}
-    </>
-  );
+  // CMP-10 (DIF-034) — a single always-rendered header subtitle line replaces
+  // the three stacked in-flow alert blocks that used to push tab content
+  // down when they appeared. All three conditions still fully described —
+  // joined, in the same severity order the blocks used to render top to
+  // bottom — just collapsed into one persistent, never-shifting slot instead
+  // of geometry-changing siblings.
+  const completionSummaryParts: string[] = [];
+  if (missingRequiredFields.length) {
+    completionSummaryParts.push(
+      `Obligatorios pendientes: ${missingRequiredFields.map(getFieldLabel).join(", ")}`,
+    );
+  }
+  if (missingRecommendedFields.length) {
+    completionSummaryParts.push(
+      `Recomendados: ${missingRecommendedFields.map(getFieldLabel).join(", ")}`,
+    );
+  }
+  if (publicationErrors.length) {
+    completionSummaryParts.push(...publicationErrors);
+  }
+  const completionSummary = completionSummaryParts.length
+    ? completionSummaryParts.join(" · ")
+    : "Todos los campos de publicación están completos.";
 
   const statusTab = (
     <div
       data-clinic-profile-fields="true"
       className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden"
     >
-      <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-        <div className="surface-soft">
-          <p className="text-xs text-muted-foreground">Estado</p>
-          <Badge className="mt-2" variant={getPublicationVariant(profile)}>
-            {getPublicationLabel(profile)}
-          </Badge>
-        </div>
-        <div className="surface-soft">
-          <p className="text-xs text-muted-foreground">Calidad</p>
-          <p className="mt-1 text-xl sm:text-2xl font-bold text-vetneb-ink">
-            {publication ? publication.qualityScore : "—"}
-            <span className="text-sm font-medium text-muted-foreground">
-              /{publication?.minimumQualityScore ?? 75}
-            </span>
-          </p>
-        </div>
-        <div className="surface-soft">
-          <p className="text-xs text-muted-foreground">Campos obligatorios</p>
-          <p className="mt-1 text-sm font-semibold text-vetneb-ink">
-            {publication?.hasRequiredPublicFields ? "Completos" : "Pendientes"}
-          </p>
-        </div>
-        <div className="surface-soft">
-          <p className="text-xs text-muted-foreground">Banco público</p>
-          <p className="mt-1 text-sm font-semibold text-vetneb-ink">
-            {publication?.isSearchEligible ? "Visible" : "No visible"}
-          </p>
-        </div>
-      </div>
-
       <div className="clinical-muted-band rounded-lg px-3 py-2">
         <label htmlFor="clinic-profile-avatar" className="field-label">
           Avatar o logo
@@ -575,8 +543,6 @@ export function ClinicPublicProfileCard() {
           </div>
         </div>
       </div>
-
-      {statusMessages}
     </div>
   );
 
@@ -768,8 +734,6 @@ export function ClinicPublicProfileCard() {
           de especialidades.
         </span>
       </label>
-
-      {statusMessages}
     </div>
   );
 
@@ -784,18 +748,34 @@ export function ClinicPublicProfileCard() {
   const isPasswordTabActive = activeTabId === PASSWORD_TAB_ID;
 
   return (
-    <div
-      id="clinic-public-profile"
-      data-clinic-profile-editor="true"
-      className="flex min-h-0 flex-1 flex-col"
-    >
-      <ModuleSurface
-        ariaLabel="Perfil público de la clínica"
-        toolbar={
+    <ModuleCardSections
+      ariaLabel="Perfil público de la clínica"
+      cardDataAttributes={{
+        id: "clinic-public-profile",
+        "data-clinic-profile-editor": "true",
+      }}
+      cardAttribute="data-clinic-mobile-module"
+      cardAttributeValue="perfil"
+      chipAttribute="data-clinic-profile-chip"
+      panelAttribute="data-clinic-profile-panel"
+      activeId={activeTabId}
+      onActiveIdChange={setActiveTabId}
+      header={
+        <>
           <div
             data-clinic-profile-toolbar="true"
-            className="flex w-full flex-wrap items-center justify-end gap-2"
+            className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-vetneb-line/70 p-1.5"
           >
+            {/* CMP-05 formulas intentionally use the existing profile snapshot; no endpoint is added. */}
+            <ModuleMetricRun
+              surfaceId="clinic-perfil"
+              metrics={[
+                { key: "estado", label: "Estado", value: publication?.isSearchEligible ? "Visible" : "Oculto" },
+                { key: "completitud", label: "Completitud", value: publication ? `${publication.qualityScore}/${publication.minimumQualityScore}` : "—" },
+                { key: "pendientes", label: "Pendientes", value: missingRequiredFields.length + missingRecommendedFields.length },
+              ]}
+            />
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
             <Badge variant={getPublicationVariant(profile)}>
               {getPublicationLabel(profile)}
             </Badge>
@@ -809,40 +789,39 @@ export function ClinicPublicProfileCard() {
               >
                 {isSubmitting ? "Guardando..." : "Guardar perfil público"}
               </Button>
+              ) : null}
+            </div>
+          </div>
+          {/* CMP-10 (DIF-034) — always-rendered subtitle slot, mirroring
+              AdminSessionsReadOnlyCard's header subtitle: loading/error text
+              swaps in place of the default state, so the row never
+              appears/disappears and the tabs below it never shift. */}
+          <div
+            className={`flex min-h-8 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-vetneb-line/70 px-2.5 py-1.5 text-xs ${
+              profileLoadErrorMessage ? "text-destructive" : "text-muted-foreground"
+            }`}
+            role={profileLoadErrorMessage ? "alert" : isLoading ? "status" : undefined}
+          >
+            <span className="line-clamp-2">
+              {profileLoadErrorMessage ??
+                (isLoading ? "Cargando perfil público..." : completionSummary)}
+            </span>
+            {profileLoadErrorMessage ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 shrink-0 px-2.5 text-xs"
+                onClick={() => void loadProfile()}
+                disabled={isWorking}
+              >
+                Reintentar carga
+              </Button>
             ) : null}
           </div>
-        }
-      >
-        {isLoading ? (
-          <p className="clinical-alert-info shrink-0 px-3 py-2" role="status">
-            Cargando perfil público...
-          </p>
-        ) : null}
-
-        {profileLoadErrorMessage ? (
-          <div
-            className="clinical-alert-error flex shrink-0 flex-wrap items-center justify-between gap-2 px-2.5 py-1.5 text-xs"
-            role="alert"
-          >
-            <span>{profileLoadErrorMessage}</span>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8 px-2.5 text-xs"
-              onClick={() => void loadProfile()}
-              disabled={isWorking}
-            >
-              Reintentar carga
-            </Button>
-          </div>
-        ) : null}
-
-        <ModuleTabs
-          ariaLabel="Edición de perfil público"
-          defaultTabId="estado"
-          onTabChange={setActiveTabId}
-          tabs={[
+        </>
+      }
+      sections={[
             {
               id: "estado",
               label: "Estado",
@@ -871,9 +850,8 @@ export function ClinicPublicProfileCard() {
               ),
             },
           ]}
-        />
-
-        {!isPasswordTabActive ? (
+      footer={
+        !isPasswordTabActive ? (
           <div
             data-clinic-profile-footer="true"
             className="flex min-h-8 shrink-0 flex-wrap items-center gap-2 border-t border-vetneb-line/65 pt-2 text-xs"
@@ -896,8 +874,8 @@ export function ClinicPublicProfileCard() {
               </p>
             ) : null}
           </div>
-        ) : null}
-      </ModuleSurface>
-    </div>
+        ) : null
+      }
+    />
   );
 }

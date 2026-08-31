@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { ClinicDashboardShell } from "@/components/dashboard/ClinicDashboardShell";
+import { ClinicFullRouteModuleStage } from "@/components/dashboard/ClinicFullRouteModuleStage";
+import { ModuleCard } from "@/components/dashboard/ModuleCard";
+import { CanonicalOperationalRow } from "@/components/dashboard/CanonicalOperationalRow";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -11,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getRoutePlans } from "@/lib/api";
 import { redirectToLoginOnUnauthorized } from "@/lib/dashboard-server-auth";
 import {
@@ -20,6 +23,9 @@ import {
   formatDate,
 } from "@/lib/utils";
 import { LogisticsBoundedCanvas } from "../LogisticsBoundedCanvas";
+import { ModuleMetricRun } from "@/components/dashboard/ModuleMetricRun";
+import { DASHBOARD_TOUCH_PAGER_RESERVATION } from "@/components/dashboard/DashboardPager";
+import { RoutePlanDetailDialog } from "../RoutePlanDetailDialog";
 
 export const metadata: Metadata = {
   title: "Planes de ruta — Portal VETNEB",
@@ -114,34 +120,8 @@ export default async function RutasPage({
       subtitle="Planificación y gestión de rutas de entrega"
       module="logistica"
     >
-      <div
-        className="grid grid-cols-2 gap-3 md:grid-cols-4"
-        data-dashboard-metric-strip="true"
-      >
-        {(
-          [
-            { status: "draft", label: "Borradores" },
-            { status: "released", label: "Liberados" },
-            { status: "in_progress", label: "En curso" },
-            { status: "completed", label: "Completados" },
-          ] as const
-        ).map(({ status, label }) => {
-          const count = routePlans.filter((p) => p.status === status).length;
-          return (
-            <Card key={status} className="dashboard-metric-card p-0">
-              <CardContent className="pt-4">
-                <p className="text-2xl font-bold text-vetneb-ink">{count}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{label}</p>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-      <p className="text-xs text-muted-foreground">
-        Conteos calculados sobre la página visible, no sobre el total general de planes de ruta.
-      </p>
-
-      <Card className="dashboard-surface" data-dashboard-table-surface="true">
+      <ClinicFullRouteModuleStage moduleId="logistica-rutas">
+      <ModuleCard ariaLabel="Planes de ruta" dataAttributes={{ "data-dashboard-table-surface": "true" }}>
         <CardHeader className="shrink-0">
           <CardTitle className="text-base">
             Planes de ruta ({routePlans.length})
@@ -153,7 +133,18 @@ export default async function RutasPage({
             Mostrando {routePlans.length} planes de ruta · página {currentPage}
             {canGoNext ? " · puede haber más planes de ruta disponibles" : ""}
           </p>
+          <p className="text-xs text-muted-foreground">Conteos calculados sobre la página visible, no sobre el total general de planes de ruta.</p>
         </CardHeader>
+        {/* CMP-11 (DIF-042/G-014): metrics band comes after surfaceHeader,
+            matching Admin's canonical appBar > surfaceHeader > metrics order. */}
+        <div className="flex shrink-0 items-baseline border-b border-vetneb-line/70 px-3 py-1.5 text-xs text-muted-foreground">
+          <ModuleMetricRun surfaceId="clinic-logistica-rutas" className="w-full min-w-0 overflow-hidden truncate" metrics={[
+            { key: "borradores", label: "Borradores", value: routePlans.filter((plan) => plan.status === "draft").length },
+            { key: "liberadas", label: "Liberadas", value: routePlans.filter((plan) => plan.status === "released").length },
+            { key: "en-curso", label: "En curso", value: routePlans.filter((plan) => plan.status === "in_progress").length },
+            { key: "completadas", label: "Completadas", value: routePlans.filter((plan) => plan.status === "completed").length },
+          ]} />
+        </div>
         <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden p-0">
           <LogisticsBoundedCanvas
             canvas="rutas"
@@ -161,60 +152,49 @@ export default async function RutasPage({
             hasExplicitLimit={hasExplicitLimit}
             currentLimit={limit}
             maxLimit={RUTAS_MAX_LIMIT}
-          >
-            {/* Mobile row variant (<= md): no horizontal table scroll. */}
-            <div
-              className="flex min-h-0 flex-1 flex-col divide-y divide-vetneb-line/60 overflow-hidden md:hidden"
-              data-logistics-mobile-list="rutas"
-            >
-              {routePlansLoadError ? (
-                <p role="alert" className="clinical-alert-warning m-3">
-                  No se pudieron cargar los planes de ruta. Intente nuevamente.
-                </p>
-              ) : routePlans.length ? (
-                routePlans.map((plan) => {
-                  const progress =
-                    plan.totalStops > 0
-                      ? Math.round(
-                          (plan.completedStops / plan.totalStops) * 100,
-                        )
-                      : 0;
-                  return (
-                    <div
-                      key={plan.id}
-                      data-logistics-mobile-row="ruta"
-                      className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 py-2"
-                    >
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-vetneb-ink">
-                          {plan.name}
-                        </p>
-                        <p className="truncate text-xs text-muted-foreground">
-                          {formatDate(plan.plannedDate)} ·{" "}
-                          {plan.completedStops}/{plan.totalStops} paradas
-                        </p>
-                        <p className="truncate text-[0.6875rem] text-muted-foreground">
-                          Progreso: {progress}%
-                        </p>
-                      </div>
-                      <Badge
-                        variant={getRoutePlanStatusVariant(plan.status)}
-                        className="shrink-0"
-                      >
-                        {getRoutePlanStatusLabel(plan.status)}
-                      </Badge>
-                    </div>
-                  );
-                })
-              ) : (
-                <p className="clinical-table-state m-3">
-                  No hay planes de ruta disponibles.
-                </p>
-              )}
-            </div>
-
-            {/* Desktop table (>= md) with locked column geometry. */}
-            <div className="hidden min-h-0 flex-1 flex-col overflow-hidden md:flex">
+            mobileChildren={
+              <div
+                className="flex min-h-0 w-full min-w-0 flex-1 flex-col divide-y divide-vetneb-line/60 overflow-hidden"
+                data-logistics-mobile-list="rutas"
+              >
+                {routePlansLoadError ? (
+                  <p role="alert" className="clinical-alert-warning m-3">
+                    No se pudieron cargar los planes de ruta. Intente nuevamente.
+                  </p>
+                ) : routePlans.length ? (
+                  routePlans.map((plan) => {
+                    const progress =
+                      plan.totalStops > 0
+                        ? Math.round(
+                            (plan.completedStops / plan.totalStops) * 100,
+                          )
+                        : 0;
+                    return (
+                      <CanonicalOperationalRow
+                        key={plan.id}
+                        dataAttributes={{ "data-logistics-mobile-row": "ruta" }}
+                        identity={plan.name}
+                        secondary={`${formatDate(plan.plannedDate)} · ${plan.completedStops}/${plan.totalStops} paradas · ${progress}%`}
+                        trailing={
+                          <>
+                            <Badge variant={getRoutePlanStatusVariant(plan.status)}>
+                              {getRoutePlanStatusLabel(plan.status)}
+                            </Badge>
+                            <RoutePlanDetailDialog plan={plan} />
+                          </>
+                        }
+                      />
+                    );
+                  })
+                ) : (
+                  <p className="clinical-table-state m-3">
+                    No hay planes de ruta disponibles.
+                  </p>
+                )}
+              </div>
+            }
+            desktopChildren={
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
               <Table>
             <TableHeader>
               <TableRow>
@@ -296,14 +276,16 @@ export default async function RutasPage({
               )}
             </TableBody>
               </Table>
-            </div>
-          </LogisticsBoundedCanvas>
+              </div>
+            }
+          />
         </CardContent>
         <nav
           aria-label="Paginación de planes de ruta"
           data-dashboard-pager="true"
           data-dashboard-adaptive-reserved-region="pager"
-          className="dashboard-pager shrink-0 border-t border-vetneb-line/70"
+          className="dashboard-pager min-h-10 shrink-0 border-t border-vetneb-line/70"
+          style={DASHBOARD_TOUCH_PAGER_RESERVATION}
         >
           <span data-dashboard-pager-prev="true" className="inline-flex">
             <PublicRouteControl
@@ -331,7 +313,8 @@ export default async function RutasPage({
             </PublicRouteControl>
           </span>
         </nav>
-      </Card>
+      </ModuleCard>
+      </ClinicFullRouteModuleStage>
     </ClinicDashboardShell>
   );
 }

@@ -253,10 +253,12 @@ test("every migrated consumer keeps a pager reservation in flow", () => {
       continue;
     }
 
-    // A generic bounded wrapper renders `{children}` and does not own the
-    // pager; the surface that composes it does. That obligation is asserted
-    // separately below, against the composing pages, so it is not lost.
-    if (/\{\s*children\s*\}/.test(source)) {
+    // A generic bounded wrapper renders `{children}` (or, for a dual mobile/
+    // desktop canvas split like `LogisticsBoundedCanvas`, `{mobileChildren}`/
+    // `{desktopChildren}`) and does not own the pager; the surface that
+    // composes it does. That obligation is asserted separately below, against
+    // the composing pages, so it is not lost.
+    if (/\{\s*(mobile|desktop)?[Cc]hildren\s*\}/.test(source)) {
       continue;
     }
 

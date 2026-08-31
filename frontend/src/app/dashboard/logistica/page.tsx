@@ -1,14 +1,8 @@
 import type { Metadata } from "next";
-import type { CSSProperties } from "react";
 import { cookies } from "next/headers";
-import { BarChart3, MapPinned, Truck } from "lucide-react";
 import { ClinicDashboardShell } from "@/components/dashboard/ClinicDashboardShell";
-import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";
-import {
-  StickyActionBar,
-  STICKY_ACTION_RESERVED_BLOCK_SIZE,
-  type StickyActionBarAction,
-} from "@/components/dashboard/StickyActionBar";
+import { ClinicFullRouteModuleStage } from "@/components/dashboard/ClinicFullRouteModuleStage";
+import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { ROUTES } from "@/lib/routes";
 import {
   getLogisticsFieldVisits,
@@ -68,54 +62,28 @@ export default async function LogisticaPage() {
     (p) => p.status === "in_progress" || p.status === "released",
   );
 
-  const logisticsQuickActions = [
-    {
-      label: "Ver visitas",
-      href: ROUTES.dashboardLogisticaVisitas,
-      variant: "default",
-      icon: <Truck className="h-4 w-4" aria-hidden="true" />,
-      "aria-label": "Ir a visitas de campo",
-    },
-    {
-      label: "Ver rutas",
-      href: ROUTES.dashboardLogisticaRutas,
-      variant: "outline",
-      icon: <MapPinned className="h-4 w-4" aria-hidden="true" />,
-      "aria-label": "Ir a planes de ruta",
-    },
-    {
-      label: "Ver métricas",
-      href: ROUTES.dashboardLogisticaMetricas,
-      variant: "outline",
-      icon: <BarChart3 className="h-4 w-4" aria-hidden="true" />,
-      "aria-label": "Ir a métricas de logística",
-    },
-  ] satisfies StickyActionBarAction[];
-
   return (
     <ClinicDashboardShell
       title="Logística"
       subtitle="Visitas de campo y planes de ruta"
       module="logistica"
       mainAdaptiveReservation
-      mainStyle={{
-        "--dash-sticky-action-h": STICKY_ACTION_RESERVED_BLOCK_SIZE,
-      } as CSSProperties}
     >
-      <DashboardPageHeader
-        title="Hub de logística"
-        description="Estado operativo de visitas de campo, planes de ruta y métricas de cumplimiento."
-      />
-      <StickyActionBar
-        context="Acciones rápidas"
-        actions={logisticsQuickActions}
-      />
+      <ClinicFullRouteModuleStage moduleId="logistica-full">
       <LogisticsCommandCenter
         fieldVisits={fieldVisits}
         routePlans={routePlans}
         fieldVisitsLoadError={fieldVisitsLoadError}
         routePlansLoadError={routePlansLoadError}
+        headerActions={
+          <>
+            <PublicRouteControl href={ROUTES.dashboardLogisticaVisitas} variant="bare" className="dashboard-module-card-chip">Visitas</PublicRouteControl>
+            <PublicRouteControl href={ROUTES.dashboardLogisticaRutas} variant="bare" className="dashboard-module-card-chip">Rutas</PublicRouteControl>
+            <PublicRouteControl href={ROUTES.dashboardLogisticaMetricas} variant="bare" className="dashboard-module-card-chip">Métricas</PublicRouteControl>
+          </>
+        }
       />
+      </ClinicFullRouteModuleStage>
     </ClinicDashboardShell>
   );
 }

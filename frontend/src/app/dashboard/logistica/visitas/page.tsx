@@ -1,8 +1,12 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { ClinicDashboardShell } from "@/components/dashboard/ClinicDashboardShell";
+import { ClinicFullRouteModuleStage } from "@/components/dashboard/ClinicFullRouteModuleStage";
+import { ModuleCard } from "@/components/dashboard/ModuleCard";
+import { CanonicalOperationalRow } from "@/components/dashboard/CanonicalOperationalRow";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/dashboard/StatusBadge";
 import {
   Table,
   TableBody,
@@ -11,7 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getLogisticsFieldVisits } from "@/lib/api";
 import { redirectToLoginOnUnauthorized } from "@/lib/dashboard-server-auth";
 import {
@@ -20,6 +24,9 @@ import {
   formatDateTime,
 } from "@/lib/utils";
 import { LogisticsBoundedCanvas } from "../LogisticsBoundedCanvas";
+import { ModuleMetricRun } from "@/components/dashboard/ModuleMetricRun";
+import { DASHBOARD_TOUCH_PAGER_RESERVATION } from "@/components/dashboard/DashboardPager";
+import { FieldVisitDetailDialog } from "../FieldVisitDetailDialog";
 
 export const metadata: Metadata = {
   title: "Visitas de campo — Portal VETNEB",
@@ -114,34 +121,8 @@ export default async function VisitasPage({
       subtitle="Seguimiento de visitas programadas y en curso"
       module="logistica"
     >
-      <div
-        className="grid grid-cols-2 gap-3 md:grid-cols-4"
-        data-dashboard-metric-strip="true"
-      >
-        {(
-          [
-            { status: "pending", label: "Pendientes" },
-            { status: "scheduled", label: "Programadas" },
-            { status: "in_progress", label: "En curso" },
-            { status: "done", label: "Completadas" },
-          ] as const
-        ).map(({ status, label }) => {
-          const count = visits.filter((v) => v.status === status).length;
-          return (
-            <Card key={status} className="dashboard-metric-card p-0">
-              <CardContent className="pt-4">
-                <p className="text-2xl font-bold text-vetneb-ink">{count}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{label}</p>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-      <p className="text-xs text-muted-foreground">
-        Conteos calculados sobre la página visible, no sobre el total general de visitas.
-      </p>
-
-      <Card className="dashboard-surface" data-dashboard-table-surface="true">
+      <ClinicFullRouteModuleStage moduleId="logistica-visitas">
+      <ModuleCard ariaLabel="Visitas de campo" dataAttributes={{ "data-dashboard-table-surface": "true" }}>
         <CardHeader className="shrink-0">
           <CardTitle className="text-base">
             Visitas ({visits.length})
@@ -153,7 +134,18 @@ export default async function VisitasPage({
             Mostrando {visits.length} visitas · página {currentPage}
             {canGoNext ? " · puede haber más visitas disponibles" : ""}
           </p>
+          <p className="text-xs text-muted-foreground">Conteos calculados sobre la página visible, no sobre el total general de visitas.</p>
         </CardHeader>
+        {/* CMP-11 (DIF-042/G-014): metrics band comes after surfaceHeader,
+            matching Admin's canonical appBar > surfaceHeader > metrics order. */}
+        <div className="flex shrink-0 items-baseline border-b border-vetneb-line/70 px-3 py-1.5 text-xs text-muted-foreground">
+          <ModuleMetricRun surfaceId="clinic-logistica-visitas" className="w-full min-w-0 overflow-hidden truncate" metrics={[
+            { key: "pendientes", label: "Pendientes", value: visits.filter((visit) => visit.status === "pending").length },
+            { key: "programadas", label: "Programadas", value: visits.filter((visit) => visit.status === "scheduled").length },
+            { key: "en-curso", label: "En curso", value: visits.filter((visit) => visit.status === "in_progress").length },
+            { key: "completadas", label: "Completadas", value: visits.filter((visit) => visit.status === "done").length },
+          ]} />
+        </div>
         <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden p-0">
           <LogisticsBoundedCanvas
             canvas="visitas"
@@ -161,55 +153,39 @@ export default async function VisitasPage({
             hasExplicitLimit={hasExplicitLimit}
             currentLimit={limit}
             maxLimit={VISITAS_MAX_LIMIT}
-          >
-            {/* Mobile row variant (<= md): no horizontal table scroll. */}
-            <div
-              className="flex min-h-0 flex-1 flex-col divide-y divide-vetneb-line/60 overflow-hidden md:hidden"
-              data-logistics-mobile-list="visitas"
-            >
-              {visitsLoadError ? (
-                <p role="alert" className="clinical-alert-warning m-3">
-                  No se pudieron cargar las visitas de campo. Intente nuevamente.
-                </p>
-              ) : visits.length ? (
-                visits.map((visit) => (
-                  <div
-                    key={visit.id}
-                    data-logistics-mobile-row="visita"
-                    className="grid w-full min-w-0 max-w-full shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 overflow-hidden px-3 py-2"
-                  >
-                    <div className="min-w-0 max-w-full overflow-hidden">
-                      <p className="block min-w-0 max-w-full overflow-hidden text-sm font-semibold text-vetneb-ink [overflow-wrap:anywhere]">
-                        {visit.clinicName ?? `Clínica #${visit.clinicId}`}
-                      </p>
-                      <p className="block min-w-0 max-w-full overflow-hidden text-xs text-muted-foreground [overflow-wrap:anywhere]">
-                        {formatDateTime(visit.scheduledAt)}
-                        {" → "}
-                        {visit.completedAt
-                          ? formatDateTime(visit.completedAt)
-                          : "—"}
-                      </p>
-                      <p className="block min-w-0 max-w-full overflow-hidden text-[0.6875rem] leading-tight text-muted-foreground [overflow-wrap:anywhere]">
-                        {visit.address ?? "—"} · {visit.notes ?? "—"}
-                      </p>
-                    </div>
-                    <Badge
-                      variant={getFieldVisitStatusVariant(visit.status)}
-                      className="shrink-0"
-                    >
-                      {getFieldVisitStatusLabel(visit.status)}
-                    </Badge>
-                  </div>
-                ))
-              ) : (
-                <p className="clinical-table-state m-3">
-                  No hay visitas de campo disponibles.
-                </p>
-              )}
-            </div>
-
-            {/* Desktop table (>= md) with locked column geometry. */}
-            <div className="hidden min-h-0 flex-1 flex-col overflow-hidden md:flex">
+            mobileChildren={
+              <div
+                className="flex min-h-0 w-full min-w-0 flex-1 flex-col divide-y divide-vetneb-line/60 overflow-hidden"
+                data-logistics-mobile-list="visitas"
+              >
+                {visitsLoadError ? (
+                  <p role="alert" className="clinical-alert-warning m-3">
+                    No se pudieron cargar las visitas de campo. Intente nuevamente.
+                  </p>
+                ) : visits.length ? (
+                  visits.map((visit) => (
+                    <CanonicalOperationalRow
+                      key={visit.id}
+                      dataAttributes={{ "data-logistics-mobile-row": "visita" }}
+                      identity={visit.clinicName ?? `Clínica #${visit.clinicId}`}
+                      secondary={`${formatDateTime(visit.scheduledAt)} → ${visit.completedAt ? formatDateTime(visit.completedAt) : "—"}`}
+                      trailing={
+                        <>
+                          <StatusBadge status={visit.status} size="sm" />
+                          <FieldVisitDetailDialog visit={visit} />
+                        </>
+                      }
+                    />
+                  ))
+                ) : (
+                  <p className="clinical-table-state m-3">
+                    No hay visitas de campo disponibles.
+                  </p>
+                )}
+              </div>
+            }
+            desktopChildren={
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
               <Table>
             <TableHeader>
               <TableRow>
@@ -275,14 +251,16 @@ export default async function VisitasPage({
               )}
             </TableBody>
               </Table>
-            </div>
-          </LogisticsBoundedCanvas>
+              </div>
+            }
+          />
         </CardContent>
         <nav
           aria-label="Paginación de visitas"
           data-dashboard-pager="true"
           data-dashboard-adaptive-reserved-region="pager"
-          className="dashboard-pager shrink-0 border-t border-vetneb-line/70"
+          className="dashboard-pager min-h-10 shrink-0 border-t border-vetneb-line/70"
+          style={DASHBOARD_TOUCH_PAGER_RESERVATION}
         >
           <span data-dashboard-pager-prev="true" className="inline-flex">
             <PublicRouteControl
@@ -310,7 +288,8 @@ export default async function VisitasPage({
             </PublicRouteControl>
           </span>
         </nav>
-      </Card>
+      </ModuleCard>
+      </ClinicFullRouteModuleStage>
     </ClinicDashboardShell>
   );
 }

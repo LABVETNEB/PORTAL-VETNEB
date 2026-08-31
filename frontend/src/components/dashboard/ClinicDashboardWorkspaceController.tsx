@@ -23,6 +23,7 @@ import {
   recordClinicNavigationIntent,
   type ClinicNavigationState,
 } from "@/lib/dashboard/navigation/clinicNavigationState";
+import { isHubRequested } from "@/features/dashboard/application";
 import type { ClinicModule } from "@/features/dashboard/config";
 
 export type { ClinicModule };
@@ -39,6 +40,14 @@ type ClinicWorkspaceSlots = {
 type ClinicDashboardWorkspaceControllerProps = {
   initialModule?: ClinicModule | null;
   workspaces: ClinicWorkspaceSlots;
+  /**
+   * CMP-02 — the clinic Inicio/hub surface. It is a STATE of `/dashboard`
+   * (`?hub=1`), never a module, exactly as `?hub=1` is for admin. Rendered in
+   * place of the module workspace while the hub state is active.
+   */
+  hub: ReactNode;
+  /** Server-resolved hub state, so the first paint does not flash a module. */
+  initialHub?: boolean;
 };
 
 const MODULE_META: Record<
@@ -70,12 +79,29 @@ const MODULE_META: Record<
 export function ClinicDashboardWorkspaceController({
   initialModule,
   workspaces,
+  hub,
+  initialHub = false,
 }: ClinicDashboardWorkspaceControllerProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [activeModule, setActiveModule] = useState<ClinicModule>(
     initialModule ?? DEFAULT_CLINIC_MODULE,
   );
+
+  // CMP-02 — hub state, folded into the SAME optimistic model the modules use
+  // rather than bolted on beside it. A sync activation flips the override before
+  // the router commits; the override is dropped as soon as the URL moves, so the
+  // URL stays authoritative for deep links, Back/Forward and reload, and no
+  // second source of truth appears.
+  const hubInUrl = isHubRequested(searchParams);
+  const [hubOverride, setHubOverride] = useState<boolean | null>(
+    initialHub ? true : null,
+  );
+  const isHubActive = hubOverride ?? hubInUrl;
+
+  useEffect(() => {
+    setHubOverride(null);
+  }, [hubInUrl]);
   const hasRestoredLastModule = useRef(false);
   // Confirmed URL module + the latest sync navigation intention (nav signal,
   // hub reset). The stage swaps the active module optimistically before the
@@ -112,6 +138,12 @@ export function ClinicDashboardWorkspaceController({
     parseClinicModule(searchParams.get("module")) ?? DEFAULT_CLINIC_MODULE;
 
   useEffect(() => {
+    // CMP-02 — the hub carries no `?module=`, so `nextModule` resolves to the
+    // DEFAULT and this effect would reconcile the URL straight back to a module,
+    // ejecting the user from the hub on arrival. The hub is not a module commit;
+    // it is skipped here and owned by `isHubActive` above.
+    if (isHubActive) return;
+
     // A sync activation swaps the stage before its URL commit. Under load the
     // SUPERSEDED previous navigation can still commit after that optimistic
     // swap (the router action queue drains in dispatch order); applying it here
@@ -143,7 +175,7 @@ export function ClinicDashboardWorkspaceController({
     if (outcome.activeModule !== null) {
       setActiveModule(outcome.activeModule as ClinicModule);
     }
-  }, [router, nextModule]);
+  }, [router, nextModule, isHubActive]);
 
   useEffect(
     () =>
@@ -152,21 +184,25 @@ export function ClinicDashboardWorkspaceController({
         if (!parsed) return;
         recordNavigationIntent(parsed);
         setHasManuallyReturnedToHub(false);
+        // CMP-02 — leaving the hub is optimistic too, so the stage swaps on tap
+        // instead of waiting for the URL commit. Same two-commit model as modules.
+        setHubOverride(false);
         setActiveModule(parsed);
       }),
     [recordNavigationIntent],
   );
 
-  // Legacy hub-reset signals (e.g. the "Inicio" control on secondary surfaces)
-  // resolve to the operational default because the hub no longer exists.
+  // CMP-02 — "Inicio" now resolves to the REAL clinic hub. It used to fall back to
+  // the operational default because no hub existed, which is exactly the defect
+  // the audit recorded as DIF-041 (RC-015): a home slot that silently landed on
+  // Operaciones. The optimistic flip mirrors the module path.
   useEffect(
     () =>
       subscribeClinicHubReset(() => {
-        recordNavigationIntent(DEFAULT_CLINIC_MODULE);
-        setActiveModule(DEFAULT_CLINIC_MODULE);
+        setHubOverride(true);
         setHasManuallyReturnedToHub(true);
       }),
-    [recordNavigationIntent],
+    [],
   );
 
   useEffect(() => {
@@ -191,6 +227,11 @@ export function ClinicDashboardWorkspaceController({
   // authoritative.
   useEffect(() => {
     if (hasRestoredLastModule.current || hasManuallyReturnedToHub) return;
+    // CMP-02 — `/dashboard?hub=1` carries no `?module=`, so without this guard the
+    // last-module restore would fire on the hub and replace it with a workspace.
+    // That is the same class of defect the audit recorded for the bare-URL race:
+    // an unguarded replace landing after an explicit navigation.
+    if (isHubActive) return;
     if (searchParams.get("module")) return;
     const lastModule = parseClinicModule(
       readDashboardLastModule(CLINIC_LAST_MODULE_STORAGE_KEY),
@@ -211,7 +252,13 @@ export function ClinicDashboardWorkspaceController({
       clinicModuleHref(ROUTES.dashboard, DEFAULT_CLINIC_MODULE, lastModule),
       { scroll: false },
     );
-  }, [searchParams, hasManuallyReturnedToHub, recordNavigationIntent, router]);
+  }, [
+    searchParams,
+    hasManuallyReturnedToHub,
+    isHubActive,
+    recordNavigationIntent,
+    router,
+  ]);
 
   const meta = MODULE_META[activeModule];
 
@@ -226,14 +273,18 @@ export function ClinicDashboardWorkspaceController({
           lateral band does. The rail that used to sit here carried both a tab
           track and a prev/next pager over the same ordered modules, and it was
           the last surface where navigation cost VERTICAL budget inside `main`. */}
-      <DashboardModuleWorkspace
-        key={activeModule}
-        title={meta.title}
-        description={meta.description}
-        moduleId={activeModule}
-      >
-        {workspaces[activeModule]}
-      </DashboardModuleWorkspace>
+      {isHubActive ? (
+        hub
+      ) : (
+        <DashboardModuleWorkspace
+          key={activeModule}
+          title={meta.title}
+          description={meta.description}
+          moduleId={activeModule}
+        >
+          {workspaces[activeModule]}
+        </DashboardModuleWorkspace>
+      )}
     </div>
   );
 }

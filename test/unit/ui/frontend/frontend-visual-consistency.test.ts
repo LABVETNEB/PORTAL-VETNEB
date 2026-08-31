@@ -432,9 +432,8 @@ test("dashboard home keeps visual dashboard states and card spacing conventions"
   assertContainsAll(
     commandCenterSource,
     [
-      '<ModuleSurface',
-      '<ModuleTabs',
-      "<StatsCards stats={stats} />",
+      '<ModuleCardSections',
+      '<ModuleMetricRun',
       "recentReports.map((report) =>",
       "recentVisits.map((visit) =>",
     ],

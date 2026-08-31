@@ -17,8 +17,10 @@ import { Select } from "@/components/ui/select";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { DashboardRefreshButton } from "@/components/dashboard/DashboardRefreshButton";
+import { DASHBOARD_TOUCH_PAGER_RESERVATION } from "@/components/dashboard/DashboardPager";
 import { ModuleDialog } from "@/components/dashboard/ModuleDialog";
-import { ModuleSurface } from "@/components/dashboard/ModuleSurface";
+import { ModuleCard } from "@/components/dashboard/ModuleCard";
+import { ModuleMetricRun } from "@/components/dashboard/ModuleMetricRun";
 import { ReportFileActions } from "@/components/dashboard/ReportDownloadButton";
 import { usePagedRows } from "@/components/dashboard/usePagedRows";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
@@ -210,7 +212,7 @@ export function ClinicInformesWorkspaceSummary({
   );
 
   function renderAdvancedFilterForm(mobile = false) {
-    const density: FilterBarDensity = mobile ? "comfortable" : "compact";
+    const density: FilterBarDensity = mobile ? "module-card" : "compact";
     const controlClassName = dashboardFilterControlClassName(density);
     const buttonClassName = dashboardFilterActionClassName(density);
 
@@ -318,10 +320,20 @@ export function ClinicInformesWorkspaceSummary({
   }
 
   return (
-    <ModuleSurface
+    <ModuleCard
       ariaLabel="Informes recientes de la clínica"
-      toolbar={
-        <div className="flex w-full flex-wrap items-center justify-end gap-2">
+      dataAttributes={{ "data-clinic-mobile-module": "informes" }}
+    >
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-vetneb-line/70 p-1.5">
+          <ModuleMetricRun
+            surfaceId="clinic-informes-workspace"
+            metrics={[
+              { key: "total", label: "Total", value: filteredReports.length },
+              { key: "en-proceso", label: "En proceso", value: filteredReports.filter((report) => report.status === "processing").length },
+              { key: "disponibles", label: "Disponibles", value: filteredReports.filter((report) => report.status === "ready" || report.status === "delivered").length },
+            ]}
+          />
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
           <ModuleDialog
             open={isFilterDialogOpen}
             onOpenChange={setIsFilterDialogOpen}
@@ -344,9 +356,9 @@ export function ClinicInformesWorkspaceSummary({
           </ModuleDialog>
           {fullModuleLink}
         </div>
-      }
-    >
-      {!reportsLoadError ? renderAdvancedFilterForm() : null}
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-2">
+        {!reportsLoadError ? renderAdvancedFilterForm() : null}
 
       {reportsLoadError ? (
         <div
@@ -490,15 +502,26 @@ export function ClinicInformesWorkspaceSummary({
 
           <div
             data-clinic-reports-pagination-footer="true"
-            data-dashboard-adaptive-reserved-region="pager"
-            className="flex shrink-0 items-center justify-center border-t border-vetneb-line/65 px-3 text-xs text-muted-foreground"
+            className="flex shrink-0 items-center justify-center px-3 text-xs text-muted-foreground"
           >
+            {/* CMP-12: the border and the height reservation live on the SAME
+                element (matching Admin's AdminMobileOpsPager, and DashboardPager's
+                own component) — border-box makes the reserved height inclusive of
+                the border, so a border on a separate outer wrapper cannot add an
+                extra pixel on top of the reservation. */}
             <nav
               aria-label="Paginación de informes recientes"
               data-dashboard-pager="true"
+              data-dashboard-adaptive-reserved-region="pager"
               data-clinic-reports-pagination-controls="true"
-              className="dashboard-pager"
+              className="dashboard-pager min-h-10 w-full border-t border-vetneb-line/65"
+              style={DASHBOARD_TOUCH_PAGER_RESERVATION}
             >
+              {pagedReports.total > 0 ? (
+                <span className="sr-only" aria-live="polite">
+                  {pagedReports.rangeStart}–{pagedReports.rangeEnd} de {pagedReports.total}
+                </span>
+              ) : null}
               <span data-dashboard-pager-prev="true" className="inline-flex">
                 <Button
                   type="button"
@@ -521,7 +544,7 @@ export function ClinicInformesWorkspaceSummary({
                 data-clinic-reports-pagination-status="true"
                 className="min-w-16 text-center"
               >
-                Página {pagedReports.page + 1} de {pagedReports.pageCount}
+                Pág. {pagedReports.page + 1} / {pagedReports.pageCount}
               </span>
 
               <span data-dashboard-pager-next="true" className="inline-flex">
@@ -627,6 +650,7 @@ export function ClinicInformesWorkspaceSummary({
           </div>
         </ModuleDialog>
       ) : null}
-    </ModuleSurface>
+      </div>
+    </ModuleCard>
   );
 }

@@ -118,7 +118,8 @@ test("dashboard pages do not use mobile bottom spacers as layout compensation", 
   assert.ok(informesListSource.includes("Lista de informes"));
   assert.ok(informesListSource.includes("Detalle del informe"));
 
-  assert.ok(logisticaSource.includes("<StickyActionBar"), "logistica uses StickyActionBar");
+  assert.equal(logisticaSource.includes("<StickyActionBar"), false, "CMP-06 keeps logistics actions in-card");
+  assert.ok(logisticaSource.includes("headerActions={"), "logistica exposes its route actions in the module card");
   assert.equal(
     logisticaSource.includes('className="h-24 md:hidden" aria-hidden="true"'),
     false,
