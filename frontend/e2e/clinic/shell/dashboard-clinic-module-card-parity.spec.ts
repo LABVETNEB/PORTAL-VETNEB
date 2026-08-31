@@ -22,6 +22,72 @@ async function setClinicSession(page: Page) {
   ]);
 }
 
+type ChipTarget = {
+  id: string;
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+  unionWidth: number;
+  unionHeight: number;
+  overlapsChip: boolean;
+  reachable: boolean;
+  stripTapPoint: { x: number; y: number } | null;
+};
+
+type InteractionContract = {
+  visibleBandHeight: number;
+  targets: ChipTarget[];
+  targetsDoNotOverlap: boolean;
+};
+
+// Cross two REAL committed frames instead of sleeping an arbitrary amount: a
+// layout still being driven by ResizeObserver cannot produce two identical
+// geometric signatures across them, so an unsettled band keeps retrying rather
+// than being accepted.
+async function crossRenderedFrames(page: Page) {
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      }),
+  );
+}
+
+// Geometric signature quantised to 0.01px: absorbs meaningless float noise
+// while staying far finer than any real overlap, size or reachability change
+// the contract rejects.
+function geometrySignature(contract: InteractionContract) {
+  const q = (value: number) => value.toFixed(2);
+  return JSON.stringify({
+    band: q(contract.visibleBandHeight),
+    targetsDoNotOverlap: contract.targetsDoNotOverlap,
+    targets: contract.targets.map((target) => ({
+      id: target.id,
+      box: [q(target.left), q(target.top), q(target.right), q(target.bottom)],
+      size: [q(target.unionWidth), q(target.unionHeight)],
+      overlapsChip: target.overlapsChip,
+      reachable: target.reachable,
+      tap: target.stripTapPoint
+        ? [q(target.stripTapPoint.x), q(target.stripTapPoint.y)]
+        : null,
+    })),
+  });
+}
+
+// The CMP-07 interaction contract, unchanged in strictness. A settled geometry
+// that still overlaps the chip, drops below 44px, loses strip reachability or
+// overlaps an adjacent target must keep FAILING.
+function assertInteractionContract(contract: InteractionContract, moduleId: string) {
+  expect(contract.targetsDoNotOverlap, `${moduleId}: adjacent targets do not overlap`).toBe(true);
+  for (const target of contract.targets) {
+    expect(target.unionWidth, `${moduleId}/${target.id}: effective target width (chip + margin strips)`).toBeGreaterThanOrEqual(44 - 0.5);
+    expect(target.unionHeight, `${moduleId}/${target.id}: effective target height (chip + margin strips)`).toBeGreaterThanOrEqual(44 - 0.5);
+    expect(target.overlapsChip, `${moduleId}/${target.id}: margin strips must not overlap the visible chip's own box`).toBe(false);
+    expect(target.reachable, `${moduleId}/${target.id}: live corner hit-testing (chip corners -> chip, strip corners -> strip)`).toBe(true);
+  }
+}
+
 for (const viewport of VIEWPORTS) {
   for (const moduleId of MODULES) {
     test(`CMP-04/CMP-07 · ${moduleId} exposes one canonical module card at ${viewport.name}`, async ({
@@ -116,7 +182,13 @@ for (const viewport of VIEWPORTS) {
       // a click lands natively on the chip inside its own box, or on a
       // delegating strip in the margin. The contract below checks the UNION of
       // chip + strips per id, not one proxy element per id.
-      const interactionContract = await page.evaluate((ids) => {
+      //
+      // The measurement is side-effect free and re-runnable on purpose: a
+      // SINGLE evaluate() is a photograph that can land mid ResizeObserver
+      // transition under CI load and report a transient overlap the settled
+      // layout does not have. It is taken twice across a real committed frame
+      // below, and only an identical pair is accepted as settled geometry.
+      const measureInteractionContract = (): Promise<InteractionContract> => page.evaluate((ids) => {
         const tablist = document.querySelector<HTMLElement>(
           '[data-dashboard-module-workspace] [role="tablist"]',
         );
@@ -208,6 +280,25 @@ for (const viewport of VIEWPORTS) {
           ),
         };
       }, chipIds);
+
+      // Wait for the geometric POSTCONDITION (a settled layout), not for a
+      // fixed amount of time: measure, cross a committed frame, measure again,
+      // and only accept the pair when both satisfy the contract AND describe
+      // the same geometry. The second (stable) measurement is the one carried
+      // forward into the real clicks below.
+      let interactionContract!: InteractionContract;
+      await expect(async () => {
+        const firstPass = await measureInteractionContract();
+        assertInteractionContract(firstPass, moduleId);
+        await crossRenderedFrames(page);
+        const secondPass = await measureInteractionContract();
+        assertInteractionContract(secondPass, moduleId);
+        expect(
+          geometrySignature(secondPass),
+          `${moduleId}: chip target geometry must be stable across a committed frame`,
+        ).toBe(geometrySignature(firstPass));
+        interactionContract = secondPass;
+      }).toPass({ timeout: 15_000, intervals: [100, 100, 200, 300, 500] });
 
       expect(interactionContract.visibleBandHeight, `${moduleId}: chip-band height matches Admin at ${viewport.name}`).toBeCloseTo(
         adminBandHeight,
