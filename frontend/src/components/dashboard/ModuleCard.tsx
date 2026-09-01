@@ -186,10 +186,26 @@ export function ModuleCardChips({
 
     window.addEventListener("resize", syncProxyTargets);
     window.addEventListener("scroll", syncProxyTargets, true);
+    // The strips are viewport-fixed copies of a `getBoundingClientRect()`
+    // snapshot, so they desynchronise whenever the chip MOVES. ResizeObserver
+    // only reports size, and a transform moves without resizing anything:
+    // `dashboard-workspace-enter` (styles/dashboard/navigation.css) animates the
+    // module workspace `translateY(6px) -> 0` over `--motion-base`, so on every
+    // clinic module mount the whole band travels 6px upward while every
+    // re-sync trigger above stays silent. A sync landing inside that window
+    // froze the strips up to 6px BELOW the settled chip — the top strip then
+    // covering the chip's own edge, which is the exact interception CMP-07
+    // exists to forbid. Admin never showed it because mobile-admin.css kills
+    // that animation for its surface. Capture phase, like `scroll` above, so a
+    // stopped propagation cannot swallow the correction.
+    window.addEventListener("animationend", syncProxyTargets, true);
+    window.addEventListener("transitionend", syncProxyTargets, true);
     return () => {
       observer.disconnect();
       window.removeEventListener("resize", syncProxyTargets);
       window.removeEventListener("scroll", syncProxyTargets, true);
+      window.removeEventListener("animationend", syncProxyTargets, true);
+      window.removeEventListener("transitionend", syncProxyTargets, true);
     };
   }, [syncProxyTargets]);
 

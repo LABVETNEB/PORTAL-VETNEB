@@ -742,9 +742,20 @@ test.describe("dashboard lateral nav — admin module navigation", () => {
     const clinicasItem = nav.locator(
       '[data-dashboard-navigation-item="admin-clinics"]',
     );
-    await clinicasItem.click();
-
-    await expect(page).toHaveURL(/module=admin-clinics/, { timeout: 5_000 });
+    // The drawer item is server-rendered, so it is visible and fully actionable
+    // ~170ms BEFORE `PublicRouteControl` hydrates (measured: item visible at
+    // 34ms, `data-public-route-controls-hydrated` at 204ms). Until then it is a
+    // bare <button> with no onClick, and AGENTS.md §10 forbids the `<a>`/
+    // next/link fallback that would navigate without JS, so a click inside that
+    // window is silently swallowed and never replayed — the URL stays on
+    // `?hub=1` forever, which is exactly what CI observed. Waiting for paint is
+    // not waiting for interactivity: re-issue the real click, with the real URL
+    // assertion, until the control is actually live. A navigation that never
+    // happens still fails.
+    await expect(async () => {
+      await clinicasItem.click();
+      await expect(page).toHaveURL(/module=admin-clinics/, { timeout: 500 });
+    }).toPass({ intervals: [50, 100, 250], timeout: 10_000 });
     await expect(
       page.locator('[data-dashboard-module-workspace="admin-clinics"]'),
     ).toBeVisible({ timeout: 5_000 });
