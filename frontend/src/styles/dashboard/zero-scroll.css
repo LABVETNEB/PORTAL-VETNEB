@@ -255,11 +255,11 @@
   }
 
   /* Card chrome: the title stays, the desktop padding does not. */
-  [data-logistics-command-center="true"] .dashboard-surface > :first-child {
+  [data-logistics-command-center="true"] > .grid > section > :first-child {
     padding: 0.6rem 0.8rem 0.3rem;
   }
 
-  [data-logistics-command-center="true"] .dashboard-surface > :last-child {
+  [data-logistics-command-center="true"] > .grid > section > :last-child {
     padding: 0 0.8rem 0.5rem;
   }
 }

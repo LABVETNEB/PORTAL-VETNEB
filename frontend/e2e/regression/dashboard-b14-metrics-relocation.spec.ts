@@ -61,6 +61,9 @@ test.describe("B14 · metrics relocation", () => {
         );
         await expect(commandCenter.locator(".dashboard-kpi-pill")).toHaveCount(0);
         await expect(commandCenter.getByText("Métricas operativas")).toBeVisible();
+        const desktopStats = commandCenter.locator(".dashboard-metric-card:visible");
+        await expect(desktopStats, "desktop clinic metrics retain the detailed cards").toHaveCount(4);
+        await expect(desktopStats.getByText("Planes de ruta", { exact: true })).toBeVisible();
         continue;
       }
 
@@ -89,6 +92,21 @@ test.describe("B14 · metrics relocation", () => {
         }
       }
     }
+  });
+
+  test("mobile clinic keeps the compact metric run without desktop cards", async ({ page }) => {
+    const clinic = SURFACES.find((surface) => surface.id === "clinic-operaciones");
+    if (!clinic) throw new Error("clinic operations surface missing");
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await prepareSurface(page, clinic);
+    await openSurface(page, clinic);
+
+    const commandCenter = page.locator('[data-clinic-command-center="true"]');
+    await expect(commandCenter.locator(".dashboard-metric-card:visible")).toHaveCount(0);
+    await expect(
+      commandCenter.locator('[data-dashboard-b14-metrics="clinic-operaciones"]'),
+    ).toBeVisible();
   });
 
   test("mobile keeps audit metrics inside the existing filters toolbar", async ({ page }) => {

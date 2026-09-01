@@ -1,5 +1,6 @@
 import type { Report, FieldVisit, DashboardStats } from "@/types";
 import { ModuleMetricRun } from "@/components/dashboard/ModuleMetricRun";
+import { StatsCards } from "@/components/dashboard/StatsCards";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ModuleCardSections } from "@/components/dashboard/ModuleCard";
@@ -132,7 +133,9 @@ export function ClinicCommandCenter({
                     <DashboardRefreshButton />
                   </div>
                 ) : null}
-                <div className="min-h-0 flex-1" />
+                <div className="hidden min-h-0 flex-1 md:block">
+                  <StatsCards stats={stats} />
+                </div>
               </section>
             ),
           },

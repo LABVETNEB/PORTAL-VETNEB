@@ -49,9 +49,12 @@ export function LogisticsCommandCenter({
   return (
     <ModuleCard
       ariaLabel="Centro de logística"
-      dataAttributes={{ "data-logistics-command-center": "true" }}
     >
-      <div className="flex min-h-0 flex-1 flex-col gap-5" aria-labelledby="logistics-command-center-heading">
+      <div
+        className="flex min-h-0 flex-1 flex-col gap-5"
+        aria-labelledby="logistics-command-center-heading"
+        data-logistics-command-center="true"
+      >
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-vetneb-line/70 px-3 py-1.5">
         <div className="min-w-0">
           <h2 id="logistics-command-center-heading" className="truncate text-xs font-semibold text-vetneb-ink">
