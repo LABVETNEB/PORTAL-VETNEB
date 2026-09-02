@@ -35,7 +35,7 @@ jobs:
   e2e-full-completeness:
     name: e2e-full-completeness
     runs-on: ubuntu-latest
-    timeout-minutes: 55
+    timeout-minutes: 60
 
     steps:
       - name: Checkout
@@ -109,14 +109,17 @@ jobs:
         # Bounded retries rerun complete callbacks; they never skip or relax assertions.
         run: pnpm --dir frontend e2e:full -- --workers=2 --retries=2
         env:
-          # Budget for THIS workload only: the full catalog needs ~31m at --workers=2,
-          # so the 30m default stopped guarding against hangs and began truncating
-          # healthy runs. 40m restores headroom. The 55m job cap keeps a 15m outer
-          # envelope for everything Playwright doesn't own — checkout, install,
-          # catalog verify, build, public-surface audit, browser install, and (on
-          # timeout) diagnostics upload, teardown and hygiene — so a healthy suite
-          # can't be cancelled by setup overhead eating into the job's hard cap.
-          E2E_GLOBAL_TIMEOUT_MS: "2400000"
+          # Budget for THIS workload only. CMP grew the catalog from 91 to 95
+          # specs (~1118 to ~1301 tests); measured full runs at --workers=2 went
+          # from ~35.4m to ~41.2m projected, and the prior 40m budget was
+          # exhausted mid-suite (`Timed out waiting 2400s`) with zero failing
+          # tests. 45m restores headroom for THIS catalog size. The 60m job cap
+          # keeps a 15m outer envelope for everything Playwright doesn't own —
+          # checkout, install, catalog verify, build, public-surface audit,
+          # browser install, and (on timeout) diagnostics upload, teardown and
+          # hygiene — so a healthy suite can't be cancelled by setup overhead
+          # eating into the job's hard cap.
+          E2E_GLOBAL_TIMEOUT_MS: "2700000"
 
       - name: Upload Playwright diagnostics
         if: failure()

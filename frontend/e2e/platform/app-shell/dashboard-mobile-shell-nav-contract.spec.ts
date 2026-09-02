@@ -37,7 +37,13 @@ const SHELL_ROUTES: ShellRouteCase[] = [
   {
     label: "admin hub",
     surface: "admin",
-    path: "/dashboard/admin",
+    // CMP-02 canonical hub URL (buildHubHref("admin")): a bare "/dashboard/admin"
+    // is a transient landing that AdminDashboardWorkspaceController's restore
+    // effect immediately replaces with `?module=<lastModule|default>`, which
+    // unmounts the hub the assertion below is waiting on. `?hub=1` is the one
+    // URL isAdminHubRequested() exempts from that replace, so the hub actually
+    // stays mounted for the readiness check to observe.
+    path: "/dashboard/admin?hub=1",
     ready: '[data-dashboard-hub-root="true"]',
   },
   {
