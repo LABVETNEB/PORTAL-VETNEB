@@ -73,12 +73,6 @@ export function AdminAuditCard({
   const [mobileBodyNode, setMobileBodyNode] = useState<HTMLElement | null>(null);
 
   const latestRequestRef = useRef(0);
-  const totalRef = useRef(0);
-
-  useEffect(() => {
-    totalRef.current = totalCount;
-  }, [totalCount]);
-
 
   // Desktop keeps the nine-row page of the App Shell contract
   // (`expectNinePopulatedRows`, `dashboard-real-app-shell-no-scroll-contract.spec.ts`,
@@ -154,13 +148,13 @@ export function AdminAuditCard({
   // Recompute offset when the effective limit changes so the same first
   // record stays visible; clamp against the known total (PR-SRV-0 §6, rule 1
   // — audit-log exposes `total`, unlike Reports).
-  const previousLimitRef = useRef(effectiveLimit);
-  const limitChanged = previousLimitRef.current !== effectiveLimit;
+  const [reconciledLimit, setReconciledLimit] = useState(effectiveLimit);
+  const limitChanged = reconciledLimit !== effectiveLimit;
 
   let reconciledOffset = offset;
   if (limitChanged) {
     reconciledOffset = Math.floor(offset / effectiveLimit) * effectiveLimit;
-    const total = totalRef.current;
+    const total = totalCount;
     if (total > 0) {
       const lastValidOffset = Math.max(
         0,
@@ -179,11 +173,10 @@ export function AdminAuditCard({
       return;
     }
 
-    previousLimitRef.current = effectiveLimit;
-
     if (reconciledOffset !== offset) {
       setOffset(reconciledOffset);
     }
+    setReconciledLimit(effectiveLimit);
   }, [effectiveLimit, limitChanged, offset, reconciledOffset]);
 
   useEffect(() => {
