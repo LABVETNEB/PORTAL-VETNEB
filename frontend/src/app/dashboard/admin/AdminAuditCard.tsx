@@ -155,31 +155,45 @@ export function AdminAuditCard({
   // record stays visible; clamp against the known total (PR-SRV-0 §6, rule 1
   // — audit-log exposes `total`, unlike Reports).
   const previousLimitRef = useRef(effectiveLimit);
+  const limitChanged = previousLimitRef.current !== effectiveLimit;
+
+  let reconciledOffset = offset;
+  if (limitChanged) {
+    reconciledOffset = Math.floor(offset / effectiveLimit) * effectiveLimit;
+    const total = totalRef.current;
+    if (total > 0) {
+      const lastValidOffset = Math.max(
+        0,
+        (Math.ceil(total / effectiveLimit) - 1) * effectiveLimit,
+      );
+      reconciledOffset = Math.min(reconciledOffset, lastValidOffset);
+    }
+    reconciledOffset = Math.max(0, reconciledOffset);
+  }
+
+  const deferLoadForOffsetReconciliation =
+    limitChanged && reconciledOffset !== offset;
+
   useEffect(() => {
-    if (previousLimitRef.current === effectiveLimit) {
+    if (!limitChanged) {
       return;
     }
+
     previousLimitRef.current = effectiveLimit;
 
-    setOffset((currentOffset) => {
-      let nextOffset = Math.floor(currentOffset / effectiveLimit) * effectiveLimit;
-      const total = totalRef.current;
-      if (total > 0) {
-        const lastValidOffset = Math.max(
-          0,
-          (Math.ceil(total / effectiveLimit) - 1) * effectiveLimit,
-        );
-        nextOffset = Math.min(nextOffset, lastValidOffset);
-      }
-      nextOffset = Math.max(0, nextOffset);
-      return nextOffset === currentOffset ? currentOffset : nextOffset;
-    });
-  }, [effectiveLimit]);
+    if (reconciledOffset !== offset) {
+      setOffset(reconciledOffset);
+    }
+  }, [effectiveLimit, limitChanged, offset, reconciledOffset]);
 
   useEffect(() => {
+    if (deferLoadForOffsetReconciliation) {
+      return;
+    }
+
     loadAuditPage();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query]);
+  }, [query, deferLoadForOffsetReconciliation]);
 
   const pageCount = Math.max(1, Math.ceil(totalCount / effectiveLimit));
   const page = Math.min(Math.floor(offset / effectiveLimit) + 1, pageCount);
