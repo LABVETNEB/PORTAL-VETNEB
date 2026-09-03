@@ -194,13 +194,13 @@ newline final no se cuenta.
 
 | Área | Archivos TypeScript | LOC |
 | --- | ---: | ---: |
-| `server/features` | 149 | 16.980 |
+| `server/features` | 149 | 16.983 |
 | `server/routes` | 35 | 21.154 |
-| `server/lib` | 30 | 5.063 |
+| `server/lib` | 30 | 5.097 |
 | `server/middlewares` | 3 | 429 |
 | raíz/entrypoints `server/*.ts` | 9 | 2.420 |
 | otros | 0 | 0 |
-| **Total `server`** | **226** | **46.046** |
+| **Total `server`** | **226** | **46.083** |
 
 El review P2 de M48 detectó que la primera metodología aplicaba una semántica
 equivalente a `source.split("\n").length`, que sumaba un segmento vacío por
@@ -222,12 +222,12 @@ porque ésa es su topología proporcional documentada.
 | --- | ---: | ---: | --- | --- | --- | --- | --- |
 | Clinics | 10 | 2.638 | domain, infrastructure, servicios directos | sí | Users/Roles (2 refs) | Public Professionals (3) | M29 |
 | Logistics | 46 | 4.238 | domain, application, infrastructure | no requerido | ninguna | ninguna | M17 |
-| Particular Access | 12 | 1.088 | domain, application, infrastructure | sí | Reports (1) | Reports/ST (7) | M33/M35b |
+| Particular Access | 12 | 1.086 | domain, application, infrastructure | sí | Reports (1) | Reports/ST (7) | M33/M35b |
 | Pricing | 4 | 489 | infrastructure, servicios directos | no requerido | ninguna | ninguna | M20 |
 | Public Professionals | 8 | 1.150 | domain, infrastructure | sí | Clinics (3) | ninguna | M24 |
-| Report Access | 12 | 723 | domain, application, infrastructure, composition | sí | ninguna | Reports (1) | M34/M35b |
+| Report Access | 12 | 724 | domain, application, infrastructure, composition | sí | ninguna | Reports (1) | M34/M35b |
 | Reports | 27 | 3.076 | domain, application, infrastructure, composition | sí | Particular/Report Access (4) | Particular/ST (3) | M41 |
-| Study Tracking | 21 | 2.904 | domain, application, infrastructure | sí | Particular/Reports (6) | ninguna | M35 |
+| Study Tracking | 21 | 2.908 | domain, application, infrastructure | sí | Particular/Reports (6) | ninguna | M35 |
 | Users/Roles | 9 | 674 | domain, application, infrastructure, composition feature-level | no requerido | ninguna | Clinics (2) | M43 |
 
 Barrels públicos reales:

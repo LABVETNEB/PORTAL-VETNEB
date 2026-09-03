@@ -12,6 +12,7 @@ const NEXT_ENV_HYGIENE_HELPER_PATH =
 const COHORT_RUNNER_PATH = "frontend/e2e/scripts/run-cohort.mjs";
 const DEV_ROUTES_REFERENCE = "./.next/dev/types/routes.d.ts";
 const PRODUCTION_ROUTES_REFERENCE = "./.next/types/routes.d.ts";
+const DEV_ROOT_PARAMS_REFERENCE = "./.next/dev/types/root-params.d.ts";
 
 function read(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
@@ -32,6 +33,12 @@ test("frontend next-env.d.ts keeps the production route type reference", () => {
     false,
     "next-env.d.ts must not reference .next/dev/types/routes.d.ts",
   );
+  assert.equal(
+    source.includes(DEV_ROOT_PARAMS_REFERENCE),
+    false,
+    "next-env.d.ts must not reference .next/dev/types/root-params.d.ts: " +
+      "the Next.js >= 16.3 dev import is restored away, never committed",
+  );
 });
 
 test("Playwright has a next-env hygiene teardown", () => {
@@ -50,6 +57,10 @@ test("Playwright has a next-env hygiene teardown", () => {
   assert.ok(
     helper.includes(PRODUCTION_ROUTES_REFERENCE),
     "next-env hygiene helper must restore the production route type reference",
+  );
+  assert.ok(
+    helper.includes(DEV_ROOT_PARAMS_REFERENCE),
+    "next-env hygiene helper must detect the dev root-params import added by Next.js >= 16.3",
   );
 });
 
@@ -101,6 +112,106 @@ test("next-env hygiene helper normalizes a dev route reference", async () => {
         "",
       ].join("\n"),
     );
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+// Next.js 16.3 mutates next-env.d.ts with BOTH the dev route reference and a
+// brand-new dev root-params import. Restoring only the first left the file
+// dirty and the source-hygiene gate red on a file no commit touched.
+test("next-env hygiene helper restores a combined Next.js 16.3 mutation", async () => {
+  const helperUrl = pathToFileURL(
+    resolve(process.cwd(), NEXT_ENV_HYGIENE_HELPER_PATH),
+  ).href;
+  const helper = await import(helperUrl);
+  const tempDir = mkdtempSync(join(tmpdir(), "vetneb-next-env-"));
+  const tempNextEnvPath = join(tempDir, "next-env.d.ts");
+
+  const expected = [
+    '/// <reference types="next" />',
+    '/// <reference types="next/image-types/global" />',
+    `import "${PRODUCTION_ROUTES_REFERENCE}";`,
+    "",
+    "// NOTE: This file should not be edited",
+    "",
+  ].join("\n");
+
+  try {
+    writeFileSync(
+      tempNextEnvPath,
+      [
+        '/// <reference types="next" />',
+        '/// <reference types="next/image-types/global" />',
+        `import "${DEV_ROUTES_REFERENCE}";`,
+        `import "${DEV_ROOT_PARAMS_REFERENCE}";`,
+        "",
+        "// NOTE: This file should not be edited",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+
+    await helper.restoreNextEnvHygiene({ nextEnvPath: tempNextEnvPath });
+
+    const restored = readFileSync(tempNextEnvPath, "utf8");
+
+    assert.equal(
+      restored.includes(DEV_ROUTES_REFERENCE),
+      false,
+      "the dev route reference must not survive the restore",
+    );
+    assert.equal(
+      restored.includes(DEV_ROOT_PARAMS_REFERENCE),
+      false,
+      "the dev root-params import must not survive the restore",
+    );
+    assert.ok(
+      restored.includes(`import "${PRODUCTION_ROUTES_REFERENCE}";`),
+      "the canonical production route reference must remain",
+    );
+    assert.equal(
+      restored,
+      expected,
+      "the restore must remove the whole generated line, leaving no blank residue",
+    );
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("next-env hygiene restore is idempotent", async () => {
+  const helperUrl = pathToFileURL(
+    resolve(process.cwd(), NEXT_ENV_HYGIENE_HELPER_PATH),
+  ).href;
+  const helper = await import(helperUrl);
+
+  const mutated = [
+    '/// <reference types="next" />',
+    '/// <reference types="next/image-types/global" />',
+    `import "${DEV_ROUTES_REFERENCE}";`,
+    `import "${DEV_ROOT_PARAMS_REFERENCE}";`,
+    "",
+  ].join("\n");
+
+  const once = helper.restoreNextEnvSource(mutated);
+  const twice = helper.restoreNextEnvSource(once);
+
+  assert.equal(twice, once, "applying the restore twice must not change it further");
+
+  const tempDir = mkdtempSync(join(tmpdir(), "vetneb-next-env-"));
+  const tempNextEnvPath = join(tempDir, "next-env.d.ts");
+
+  try {
+    writeFileSync(tempNextEnvPath, mutated, "utf8");
+
+    await helper.restoreNextEnvHygiene({ nextEnvPath: tempNextEnvPath });
+    const afterFirst = readFileSync(tempNextEnvPath, "utf8");
+
+    await helper.restoreNextEnvHygiene({ nextEnvPath: tempNextEnvPath });
+    const afterSecond = readFileSync(tempNextEnvPath, "utf8");
+
+    assert.equal(afterSecond, afterFirst, "a second restore pass must be a no-op on disk");
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }

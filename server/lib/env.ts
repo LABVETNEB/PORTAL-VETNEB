@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { isIP } from "node:net";
 import { z } from "zod";
 
 import {
@@ -30,6 +31,29 @@ function parseDelimitedList(value: string | undefined): string[] {
     .split(/[;,]/g)
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+// TRUST_PROXY: Fastify 5.12.1 deshabilitó el modelo hop-count numérico por
+// seguridad (no puede validar el peer inmediato, permite que un cliente
+// directo falsifique X-Forwarded-* agregando hops). El contrato acepta sólo
+// IP/CIDR explícitos separados por coma; valores legacy numéricos o
+// booleanos se rechazan en el schema, nunca se reinterpretan en silencio.
+function isValidTrustProxyEntry(entry: string): boolean {
+  const cidrMatch = entry.match(/^(.+)\/(\d{1,3})$/);
+  if (cidrMatch) {
+    const [, address, prefixRaw] = cidrMatch;
+    const prefix = Number(prefixRaw);
+    const family = isIP(address);
+    if (family === 4) return prefix >= 0 && prefix <= 32;
+    if (family === 6) return prefix >= 0 && prefix <= 128;
+    return false;
+  }
+  return isIP(entry) !== 0;
+}
+
+export function isValidTrustProxyConfig(value: string): boolean {
+  const entries = value.split(",").map((entry) => entry.trim());
+  return entries.every((entry) => entry.length > 0 && isValidTrustProxyEntry(entry));
 }
 
 
@@ -102,7 +126,17 @@ const envSchema = z.object({
   ),
   CORS_ORIGIN: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   PUBLIC_SITE_URL: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
-  TRUST_PROXY: z.coerce.number().int().min(0).max(10).optional(),
+  TRUST_PROXY: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .min(1)
+      .refine(isValidTrustProxyConfig, {
+        message:
+          "TRUST_PROXY debe ser una lista de IP/CIDR separada por coma (ej. '203.0.113.10' o '203.0.113.0/24'); valores hop-count numéricos y booleanos ya no son válidos (Fastify 5.12.1 deshabilitó trust proxy numérico por seguridad)",
+      })
+      .optional(),
+  ),
   OWNER_OPEN_ID: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   LAB_UPLOAD_USERNAMES: z.preprocess(
     emptyToUndefined,
@@ -220,7 +254,7 @@ export const ENV = {
   ),
   corsOrigins,
   publicSiteUrl,
-  trustProxy: rawEnv.TRUST_PROXY ?? 1,
+  trustProxy: rawEnv.TRUST_PROXY ?? false,
   cookieSecure: nodeEnv === "production",
   cookieSameSite: (nodeEnv === "production" ? "none" : "lax") as
     | "none"

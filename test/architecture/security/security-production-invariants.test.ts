@@ -64,10 +64,10 @@ test("ENV mantiene cookies de sesión separadas y política productiva segura", 
 
   assertContains(
     source,
-    "TRUST_PROXY: z.coerce.number().int().min(0).max(10).optional()",
+    "export function isValidTrustProxyConfig(value: string): boolean {",
     file,
   );
-  assertContains(source, "trustProxy: rawEnv.TRUST_PROXY ?? 1", file);
+  assertContains(source, "trustProxy: rawEnv.TRUST_PROXY ?? false", file);
 });
 
 test("las rutas de auth serializan cookies HttpOnly, Path=/, SameSite y Secure condicional", () => {
