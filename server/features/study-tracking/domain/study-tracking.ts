@@ -30,7 +30,8 @@ const optionalTrimmedText = (max: number, label: string) =>
     .refine(
       (value) => typeof value === "undefined" || value.length <= max,
       `${label} no puede superar ${max} caracteres`,
-    );
+    )
+    .optional();
 
 const optionalDateSchema = z
   .union([z.null(), z.undefined(), z.coerce.date()])
@@ -40,7 +41,8 @@ const optionalDateSchema = z
     }
 
     return value;
-  });
+  })
+  .optional();
 
 const nullablePatchDateSchema = z
   .union([z.null(), z.undefined(), z.coerce.date()])
@@ -54,7 +56,8 @@ const nullablePatchDateSchema = z
     }
 
     return value;
-  });
+  })
+  .optional();
 
 const booleanishSchema = z
   .union([z.boolean(), z.string(), z.number(), z.undefined()])
@@ -92,7 +95,8 @@ const optionalPositiveEntitySchema = z
     }
 
     return value;
-  });
+  })
+  .optional();
 
 const createStudyTrackingSchemaBase = z.object({
   clinicId: z.coerce.number().int().positive("clinicId es obligatorio"),
@@ -167,12 +171,12 @@ export const clinicCreateStudyTrackingSchema = createStudyTrackingSchemaBase.omi
 }));
 
 export const updateStudyTrackingSchema = z.object({
-  reportId: z.union([z.coerce.number().int().positive(), z.null(), z.undefined()]),
-  particularTokenId: z.union([
-    z.coerce.number().int().positive(),
-    z.null(),
-    z.undefined(),
-  ]),
+  reportId: z
+    .union([z.coerce.number().int().positive(), z.null(), z.undefined()])
+    .optional(),
+  particularTokenId: z
+    .union([z.coerce.number().int().positive(), z.null(), z.undefined()])
+    .optional(),
   labReceivedAt: optionalDateSchema,
   receptionAt: optionalDateSchema,
   estimatedDeliveryAt: nullablePatchDateSchema,
@@ -196,7 +200,7 @@ export const updateStudyTrackingSchema = z.object({
   }).refine(
     (value) => value === null || typeof value === "undefined" || value.length <= 2000,
     "paymentUrl no puede superar 2000 caracteres",
-  ),
+  ).optional(),
   adminContactEmail: z.union([z.string(), z.null(), z.undefined()]).transform((value) => {
     if (value === null) {
       return null;
@@ -214,7 +218,7 @@ export const updateStudyTrackingSchema = z.object({
       typeof value === "undefined" ||
       (value.length <= 255 && z.string().email().safeParse(value).success),
     "adminContactEmail inválido",
-  ),
+  ).optional(),
   adminContactPhone: z.union([z.string(), z.null(), z.undefined()]).transform((value) => {
     if (value === null) {
       return null;
@@ -229,7 +233,7 @@ export const updateStudyTrackingSchema = z.object({
   }).refine(
     (value) => value === null || typeof value === "undefined" || value.length <= 50,
     "adminContactPhone no puede superar 50 caracteres",
-  ),
+  ).optional(),
   notes: z.union([z.string(), z.null(), z.undefined()]).transform((value) => {
     if (value === null) {
       return null;
@@ -244,7 +248,7 @@ export const updateStudyTrackingSchema = z.object({
   }).refine(
     (value) => value === null || typeof value === "undefined" || value.length <= 10000,
     "notes no puede superar 10000 caracteres",
-  ),
+  ).optional(),
 }).transform((value) => {
   const labReceivedAt = value.labReceivedAt ?? value.receptionAt;
 

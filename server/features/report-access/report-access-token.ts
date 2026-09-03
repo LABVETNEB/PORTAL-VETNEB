@@ -43,7 +43,8 @@ const optionalFutureDateSchema = z
   .refine(
     (value) => value == null || value.getTime() > Date.now(),
     "expiresAt debe ser una fecha futura",
-  );
+  )
+  .optional();
 
 export const reportAccessTokenRawTokenSchema = z
   .string()

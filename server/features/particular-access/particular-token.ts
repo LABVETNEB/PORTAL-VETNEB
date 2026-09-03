@@ -19,11 +19,9 @@ const optionalDetails = z
     return value.length > 0 ? value : undefined;
   });
 
-const reportIdSchema = z.union([
-  z.coerce.number().int().positive(),
-  z.null(),
-  z.undefined(),
-]);
+const reportIdSchema = z
+  .union([z.coerce.number().int().positive(), z.null(), z.undefined()])
+  .optional();
 
 export const particularTokenBaseSchema = z.object({
   recipientEmail: z
@@ -40,10 +38,10 @@ export const particularTokenBaseSchema = z.object({
   sampleLocation: requiredText(5000, "Muestra: zona de localización"),
   sampleEvolution: requiredText(5000, "Muestra: evolución"),
   extractionDate: z.coerce.date({
-    invalid_type_error: "Fecha de extracción inválida",
+    message: "Fecha de extracción inválida",
   }),
   shippingDate: z.coerce.date({
-    invalid_type_error: "Fecha de envío inválida",
+    message: "Fecha de envío inválida",
   }),
   detailsLesion: optionalDetails,
   reportId: reportIdSchema,
