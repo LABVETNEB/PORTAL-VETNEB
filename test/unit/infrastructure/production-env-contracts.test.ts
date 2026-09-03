@@ -28,11 +28,11 @@ test(".env.example contiene CORS_ORIGIN de producción como línea activa", () =
   );
 });
 
-test(".env.example contiene TRUST_PROXY=1 como línea activa", () => {
+test(".env.example contiene TRUST_PROXY=<RENDER_PROXY_IP_OR_CIDR> como línea activa", () => {
   const active = activeLines(readEnvExample(".env.example"));
   assert.ok(
-    active.some((l) => l === "TRUST_PROXY=1"),
-    "falta: TRUST_PROXY=1",
+    active.some((l) => l === "TRUST_PROXY=<RENDER_PROXY_IP_OR_CIDR>"),
+    "falta: TRUST_PROXY=<RENDER_PROXY_IP_OR_CIDR>",
   );
 });
 
@@ -116,21 +116,73 @@ test("frontend/.env.example no contiene staging onrender como valores activos", 
 });
 
 // TRUST_PROXY schema contract ──────────────────────────────────────────────────
-// Schema extraído de server/lib/env.ts — z.coerce.number().int().min(0).max(10)
+// Validador extraído de server/lib/env.ts — isValidTrustProxyConfig (IP/CIDR,
+// lista separada por coma; rechaza hop-count numérico legacy y booleanos).
 // Se prueba inline para evitar efectos secundarios del módulo (dotenv, DB URL).
 
-const trustProxySchema = z.coerce.number().int().min(0).max(10).optional();
+function isValidTrustProxyEntry(entry: string): boolean {
+  const cidrMatch = entry.match(/^(.+)\/(\d{1,3})$/);
+  if (cidrMatch) {
+    const [, address, prefixRaw] = cidrMatch;
+    const prefix = Number(prefixRaw);
+    if (/^(\d{1,3}\.){3}\d{1,3}$/.test(address)) {
+      return prefix >= 0 && prefix <= 32;
+    }
+    if (address.includes(":")) {
+      return prefix >= 0 && prefix <= 128;
+    }
+    return false;
+  }
+  if (/^(\d{1,3}\.){3}\d{1,3}$/.test(entry)) return true;
+  if (entry.includes(":")) return true;
+  return false;
+}
 
-test("TRUST_PROXY='1' parsea como número entero 1", () => {
+function isValidTrustProxyConfig(value: string): boolean {
+  const entries = value.split(",").map((entry) => entry.trim());
+  return entries.every((entry) => entry.length > 0 && isValidTrustProxyEntry(entry));
+}
+
+const trustProxySchema = z.string().min(1).refine(isValidTrustProxyConfig).optional();
+
+test("TRUST_PROXY='1' falla el schema (hop-count numérico legacy ya no es válido)", () => {
   const result = trustProxySchema.safeParse("1");
-  assert.ok(result.success, "TRUST_PROXY='1' debe parsear exitosamente");
-  assert.strictEqual(result.data, 1);
+  assert.ok(
+    !result.success,
+    "TRUST_PROXY='1' debe fallar — Fastify 5.12.1 deshabilitó trust proxy numérico",
+  );
 });
 
-test("TRUST_PROXY='true' falla el schema (z.coerce.number produce NaN)", () => {
+test("TRUST_PROXY='true' falla el schema", () => {
   const result = trustProxySchema.safeParse("true");
   assert.ok(
     !result.success,
     "TRUST_PROXY='true' debe fallar — este fue el bug de producción",
   );
+});
+
+test("TRUST_PROXY con un IP válido parsea exitosamente", () => {
+  const result = trustProxySchema.safeParse("203.0.113.10");
+  assert.ok(result.success, "TRUST_PROXY con IP válido debe parsear");
+});
+
+test("TRUST_PROXY con un CIDR válido parsea exitosamente", () => {
+  const result = trustProxySchema.safeParse("203.0.113.0/24");
+  assert.ok(result.success, "TRUST_PROXY con CIDR válido debe parsear");
+});
+
+test("TRUST_PROXY con lista de IP/CIDR separada por coma parsea exitosamente", () => {
+  const result = trustProxySchema.safeParse("203.0.113.10, 198.51.100.0/24");
+  assert.ok(result.success, "TRUST_PROXY con lista separada por coma debe parsear");
+});
+
+test("TRUST_PROXY con un valor inválido falla el schema", () => {
+  const result = trustProxySchema.safeParse("not-an-ip");
+  assert.ok(!result.success, "TRUST_PROXY inválido debe fallar");
+});
+
+test("TRUST_PROXY vacío queda undefined (fail-closed: no confía en ningún proxy)", () => {
+  const result = trustProxySchema.safeParse(undefined);
+  assert.ok(result.success, "TRUST_PROXY ausente debe ser válido (optional)");
+  assert.strictEqual(result.data, undefined);
 });

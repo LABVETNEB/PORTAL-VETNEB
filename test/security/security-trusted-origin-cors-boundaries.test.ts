@@ -498,8 +498,8 @@ test("CORS con credentials no usa wildcard y trust proxy queda gobernado por ENV
   const env = read("server/lib/env.ts");
   assertContains(
     env,
-    "TRUST_PROXY: z.coerce.number().int().min(0).max(10).optional()",
+    "export function isValidTrustProxyConfig(value: string): boolean {",
     "server/lib/env.ts",
   );
-  assertContains(env, "trustProxy: rawEnv.TRUST_PROXY ?? 1", "server/lib/env.ts");
+  assertContains(env, "trustProxy: rawEnv.TRUST_PROXY ?? false", "server/lib/env.ts");
 });
