@@ -58,7 +58,7 @@ test.describe("dashboard logout — server session invalidation", () => {
       });
     });
 
-    await page.goto("/dashboard/admin");
+    await page.goto("/dashboard/admin?hub=1");
     await expect(
       page.locator('[data-dashboard-module-hub="true"]'),
     ).toBeVisible({ timeout: 15_000 });

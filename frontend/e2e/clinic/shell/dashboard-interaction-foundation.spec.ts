@@ -214,9 +214,14 @@ test.describe("dashboard interaction foundation — smoke (PR-1)", () => {
 
   // ── Admin: still hub-based (unchanged product) ───────────────────────────────
 
-  test("admin /dashboard/admin loads module hub", async ({ page }) => {
+  // Bare /dashboard/admin is a landing, not the hub: AdminDashboardWorkspaceController's
+  // one-shot restore effect replaces it with ?module=<lastModule ?? DEFAULT_ADMIN_MODULE>
+  // unless the URL already carries module= or hub=1. ?hub=1 is the sole durable hub
+  // state (buildHubHref("admin") / isHubRequested), so it is the only entry this
+  // assertion can measure without racing that replace.
+  test("admin /dashboard/admin?hub=1 loads module hub", async ({ page }) => {
     await setAdminSession(page);
-    await page.goto("/dashboard/admin");
+    await page.goto("/dashboard/admin?hub=1");
     await expect(
       page.locator('[data-dashboard-module-hub="true"]'),
     ).toBeVisible({ timeout: 8_000 });

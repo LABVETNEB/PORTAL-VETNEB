@@ -279,7 +279,7 @@ test.describe("dashboard workspace layout polish — smoke (PR-2)", () => {
 
   test("admin /dashboard/admin loads module hub", async ({ page }) => {
     await setAdminSession(page);
-    await page.goto("/dashboard/admin");
+    await page.goto("/dashboard/admin?hub=1");
     await expect(
       page.locator('[data-dashboard-module-hub="true"]'),
     ).toBeVisible({ timeout: 8_000 });
