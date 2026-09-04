@@ -790,14 +790,18 @@ export function ClinicParticularTokensCard() {
           {/* CMP-10 (DIF-035) — always-rendered subtitle slot, mirroring
               AdminSessionsReadOnlyCard's header subtitle: the error/status
               text swaps in place of the default description, so the row
-              never appears/disappears and nothing below it shifts. */}
+              never appears/disappears and nothing below it shifts.
+              Below `md` only the error/status variants paint: the default
+              description band is suppressed there so the toolbar owns the top
+              of the card, matching the Admin mobile reference. Desktop keeps
+              the always-rendered slot (and its `line-clamp-2`) untouched. */}
           <p
             className={`shrink-0 line-clamp-2 border-b border-vetneb-line/70 px-3 py-1 text-xs ${
               errorMessage
                 ? "text-destructive"
                 : statusMessage
                   ? "text-vetneb-teal"
-                  : "text-muted-foreground"
+                  : "text-muted-foreground max-md:hidden"
             }`}
             role={errorMessage ? "alert" : undefined}
           >
@@ -805,9 +809,13 @@ export function ClinicParticularTokensCard() {
           </p>
           <div
             data-clinic-access-toolbar="true"
-            className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-vetneb-line/70 p-1.5"
+            className="flex shrink-0 items-center gap-1 border-b border-vetneb-line/70 p-1 md:flex-wrap md:justify-between md:gap-2 md:p-1.5"
           >
+            {/* Second half of the removed band: the metric run is desktop-only
+                below, the same `hidden md:*` grammar the mapped Admin reference
+                (AdminUsersRolesReadOnlyCard) already uses for its own metrics. */}
             <ModuleMetricRun
+              className="hidden md:flex"
               surfaceId="clinic-tokens"
               metrics={[
                 { key: "tokens", label: "Tokens", value: tokens.length },
@@ -816,7 +824,11 @@ export function ClinicParticularTokensCard() {
               ]}
             />
 
-            <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
+            {/* Mobile: the three controls share the freed band in one row, each
+                keeping its own control metrics (h-8 / px-2.5 / text-xs) and
+                growing proportionally to its natural width. Desktop keeps the
+                right-aligned wrapping group. */}
+            <div className="flex w-full min-w-0 items-center gap-1 md:w-auto md:flex-wrap md:justify-end md:gap-2">
               <ModuleDialog
                 open={isFilterDialogOpen}
                 onOpenChange={setIsFilterDialogOpen}
@@ -828,7 +840,7 @@ export function ClinicParticularTokensCard() {
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="h-8 gap-1.5 px-2.5 text-xs md:hidden"
+                    className="h-8 flex-auto gap-1.5 px-2.5 text-xs md:hidden"
                   >
                     <Filter className="h-3.5 w-3.5" aria-hidden="true" />
                     {hasActiveFilters ? "Filtros activos" : "Filtros"}
@@ -842,7 +854,7 @@ export function ClinicParticularTokensCard() {
                 type="button"
                 variant="outline"
                 size="sm"
-                className="h-8 px-2.5 text-xs"
+                className="h-8 flex-auto px-2.5 text-xs md:flex-initial"
                 onClick={() => void loadTokens(effectiveFetchLimit)}
                 disabled={isLoadingTokens}
               >
@@ -851,7 +863,7 @@ export function ClinicParticularTokensCard() {
               <Button
                 type="button"
                 size="sm"
-                className="h-8 px-2.5 text-xs"
+                className="h-8 flex-auto px-2.5 text-xs md:flex-initial"
                 onClick={() => setIsCreateDialogOpen(true)}
                 disabled={generatedToken !== null}
               >
@@ -897,7 +909,7 @@ export function ClinicParticularTokensCard() {
                   ref={setPanelBodyNode}
                   data-clinic-access-list-body="true"
                   data-dashboard-adaptive-rows-canvas="true"
-            data-dashboard-row-pitch="regular"
+            data-dashboard-row-pitch="card-below-md"
             data-dashboard-canvas-reserve="table-head"
                   className="relative"
                 >
@@ -1037,14 +1049,14 @@ export function ClinicParticularTokensCard() {
                 </ParticularTokensPanelBody>
 
                 <ParticularTokensPanelFooter
-                  className="min-h-0 overflow-hidden py-0"
+                  className="min-h-0 justify-center overflow-hidden py-0 md:justify-end"
                   style={DASHBOARD_PAGER_RESERVATION}
                   data-clinic-access-pagination-footer="true"
                   data-dashboard-adaptive-reserved-region="pager"
                 >
                   <div
                     data-clinic-access-pagination-controls="true"
-                    className="flex items-center justify-end gap-1.5"
+                    className="flex items-center justify-center gap-1.5 md:justify-end"
                   >
                     <Button
                       type="button"

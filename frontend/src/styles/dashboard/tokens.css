@@ -314,6 +314,25 @@
   --dash-row-pitch: var(--dash-row-pitch-table);
 }
 
+/* Collapsing grammar. A canvas that paints a `regular` table row above `md`
+   and a `card` row below it (heading plus detail lines) has TWO grammars, one
+   per viewport, and they are mutually exclusive by media query. Picking either
+   single tier is wrong for the other half: `regular` clips the card's detail
+   lines, `card` doubles the table's row height. This tier states both, so the
+   canvas keeps ONE declaration and the capacity owner keeps reading one
+   parseable px token off it — the same step-function-of-the-viewport form as
+   the `max-height` tiers above, still content-independent, still no per-module
+   exception. */
+.dashboard-app-shell [data-dashboard-row-pitch="card-below-md"] {
+  --dash-row-pitch: var(--dash-row-pitch-card);
+}
+
+@media (min-width: 768px) {
+  .dashboard-app-shell [data-dashboard-row-pitch="card-below-md"] {
+    --dash-row-pitch: var(--dash-row-pitch-regular);
+  }
+}
+
 .dashboard-app-shell [data-dashboard-row-pitch="tall"] {
   --dash-row-pitch: var(--dash-row-pitch-tall);
 }

@@ -63,9 +63,15 @@ const ELEVATION_NONE = "var(--dash-elevation-none)";
 // with comments stripped and whitespace normalised.
 const FOUNDATION_DECLARATION_HASH =
   "3f192d6d31f836f724b4b62e30f211594ee7e344e9f60a0e79113d0f2ac75828";
-// A05–A07 capacity contract. Byte-identical since B03; B04 touches no capacity.
+// A05–A07 capacity contract. B04 still touches no capacity: this hash is a
+// tripwire against a VISUAL migration editing the pitch, not a freeze against
+// the contract ever gaining a tier — `dashboard-capacity-single-owner` states
+// the opposite ("a tier added later must inherit the contract"). Re-frozen when
+// the `card-below-md` collapsing tier was added: one canvas that paints a
+// `regular` table row above `md` and a `card` row below it now declares both
+// through the single owner instead of picking one and clipping the other.
 const ROW_PITCH_RAW_HASH =
-  "f76d889cc2a19a10ac45abb7cb709ffaada744aca553c81e7010b3fd65044093";
+  "fd7a8b7c6f76cd4ae03191411755656009eeec6e0334f4566144e2672770a89d";
 
 type SurfaceRole =
   | "PERSISTENT_CHROME"

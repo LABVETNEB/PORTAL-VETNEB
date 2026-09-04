@@ -298,7 +298,13 @@ async function expectHorizontallyUnclipped(
   );
 }
 
-async function expectFooterBottomRightAligned(
+// The mobile pager is centred inside its footer (the Admin mobile grammar,
+// `dashboard-pager ... justify-center`); desktop keeps the right-aligned
+// footer, which this mobile-only spec never measures. Centring is asserted as
+// a two-sided bound on the residual between the controls' centre and the
+// panel's centre, so an off-by-one-side regression fails exactly the way the
+// previous right-edge bound did.
+async function expectFooterBottomCentered(
   footer: Locator,
   controls: Locator,
   panel: Locator,
@@ -320,13 +326,19 @@ async function expectFooterBottomRightAligned(
     `${label}: footer sits on panel bottom edge`,
   ).toBeLessThanOrEqual(TOLERANCE);
   expect(
-    panelBox!.x + panelBox!.width - (controlsBox!.x + controlsBox!.width),
-    `${label}: controls align to the right side of the footer`,
+    Math.abs(
+      controlsBox!.x + controlsBox!.width / 2 - (panelBox!.x + panelBox!.width / 2),
+    ),
+    `${label}: controls are centred inside the footer`,
+  ).toBeLessThanOrEqual(TOLERANCE);
+  expect(
+    controlsBox!.x - panelBox!.x,
+    `${label}: controls stay inside the footer's left edge`,
   ).toBeGreaterThanOrEqual(0);
   expect(
     panelBox!.x + panelBox!.width - (controlsBox!.x + controlsBox!.width),
-    `${label}: controls stay close to the right side of the footer`,
-  ).toBeLessThanOrEqual(18);
+    `${label}: controls stay inside the footer's right edge`,
+  ).toBeGreaterThanOrEqual(0);
 }
 
 // `useAdaptiveRowsPerPage` now actually reacts to the measured container
@@ -484,7 +496,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
       viewport.width,
       `${viewport.name}: Página siguiente`,
     );
-    await expectFooterBottomRightAligned(
+    await expectFooterBottomCentered(
       pager,
       pagerControls,
       listPanel,
