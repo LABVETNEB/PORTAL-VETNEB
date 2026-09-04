@@ -182,6 +182,23 @@
     margin-block-start: var(--dash-rhythm);
   }
 
+  /* CMP-03 (DIF-010) — but NOT below 768px.
+     The rhythm above exists to separate a page header from the content beneath
+     it. On mobile there is no page header: CMP-01/CMP-03 reclaimed the
+     in-workspace module header on both roles, so this margin spaced the
+     workspace from nothing and pushed the first content band to y=64.08 while
+     the Admin reference starts flush at y=55.06 — the last 9.02px of the
+     70-112px chrome excess the audit recorded as DIF-010.
+     Scoped by regime, not by role: if a mobile page header ever returns, this
+     is the single line that reinstates its rhythm. */
+  @media (max-width: 767px) {
+    .dashboard-app-shell
+      [data-clinic-dashboard-stage="true"]
+      > [data-dashboard-module-workspace] {
+      margin-block-start: 0;
+    }
+  }
+
   .dashboard-app-shell [data-dashboard-module-stage="true"] {
     box-sizing: border-box;
     min-width: 0;

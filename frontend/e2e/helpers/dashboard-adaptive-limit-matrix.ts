@@ -1479,7 +1479,7 @@ export const A03_OBSERVERS: Readonly<Record<A03ModuleId, ModuleObserver>> = Obje
         readinessSelector: '[data-logistics-recent-list-canvas="true"]',
         convergenceSelector: '[data-logistics-recent-list-canvas="true"]',
         rowSelectors: [
-          '[data-logistics-recent-list-canvas="true"] >> nth=0 >> .dashboard-list-row',
+          '[data-logistics-recent-list-canvas="true"] >> nth=0 >> [data-logistics-recent-row="visita"]',
         ],
         pageLabelSelector:
           'nav[aria-label="Paginación de visitas recientes"] [data-dashboard-pager-state="true"]',
@@ -1493,7 +1493,7 @@ export const A03_OBSERVERS: Readonly<Record<A03ModuleId, ModuleObserver>> = Obje
         readinessSelector: '[data-logistics-recent-list-canvas="true"]',
         convergenceSelector: '[data-logistics-recent-list-canvas="true"]',
         rowSelectors: [
-          '[data-logistics-recent-list-canvas="true"] >> nth=1 >> .dashboard-list-row',
+          '[data-logistics-recent-list-canvas="true"] >> nth=1 >> [data-logistics-recent-row="ruta"]',
         ],
         pageLabelSelector:
           'nav[aria-label="Paginación de planes recientes"] [data-dashboard-pager-state="true"]',
@@ -1514,7 +1514,12 @@ export const A03_OBSERVERS: Readonly<Record<A03ModuleId, ModuleObserver>> = Obje
       bounded(
         "bounded-metricas",
         "metricas",
-        '[data-dashboard-table-canvas="metricas"] [data-logistics-metric-block="true"]',
+        // Both regimes of the bounded canvas: the desktop pane keeps the 168px
+        // metric block, the mobile pane renders the canonical operational row
+        // (`data-logistics-metric-row`), exactly as the visitas/rutas leaves
+        // above already name their mobile row. Row resolution is visible-
+        // filtered, so exactly one regime answers at any viewport.
+        '[data-dashboard-table-canvas="metricas"] [data-logistics-metric-block="true"], [data-dashboard-table-canvas="metricas"] [data-logistics-metric-row="true"]',
       ),
     ],
   },
@@ -1815,30 +1820,36 @@ async function observeServerRequestLeaf(
   if (pageLabel) {
     await expect(pageLabel, `${label}: second page reached`).toHaveText(pageLabelPattern(2));
   }
-  await waitForAdaptiveConvergence(page, leaf.convergenceSelector, `${label} page 2`);
-  page.off("request", collect);
 
-  const capturedWindows = captured.map((request) => {
-    if (transport === "next-server-action") {
-      const payload = parseServerActionPayload(
-        request.body,
-        observer.payloadShape ?? "limit-offset",
-        label,
-      );
-      return { limit: payload.limit, offset: payload.offset };
-    }
+  const snapshotWindows = () =>
+    captured.map((request) => {
+      if (transport === "next-server-action") {
+        const payload = parseServerActionPayload(
+          request.body,
+          observer.payloadShape ?? "limit-offset",
+          label,
+        );
+        return { limit: payload.limit, offset: payload.offset };
+      }
 
-    const url = new URL(request.url);
-    return {
-      limit: Number(url.searchParams.get("limit")),
-      offset: Number(url.searchParams.get("offset")),
-    };
-  });
+      const url = new URL(request.url);
+      return {
+        limit: Number(url.searchParams.get("limit")),
+        offset: Number(url.searchParams.get("offset")),
+      };
+    });
 
-  expect(
-    captured.length,
-    `${label}: one transition must produce exactly one ${wantedMethod} ${pathname} request; observed ${JSON.stringify(capturedWindows)} (more than one is limit thrash — §20.3 records it, A03 never picks a convenient one)`,
-  ).toBe(1);
+  const assertExactlyOneTransitionRequest = () => {
+    expect(
+      captured.length,
+      `${label}: one transition must produce exactly one ${wantedMethod} ${pathname} request; observed ${JSON.stringify(snapshotWindows())} (more than one is limit thrash — §20.3 records it, A03 never picks a convenient one)`,
+    ).toBe(1);
+  };
+
+  // The window is read from the transition request BEFORE the DOM is examined,
+  // so `limit` is always the value the runtime asked for and never a value read
+  // back from whatever the page happens to be showing.
+  assertExactlyOneTransitionRequest();
 
   let limit: number;
   let offset: number;
@@ -1881,7 +1892,23 @@ async function observeServerRequestLeaf(
     ).toBeGreaterThan(0);
   }
 
+  // Geometric convergence proves the canvas stopped moving; it does NOT prove
+  // the requested dataset reached the DOM — a canvas still holding the previous
+  // window is perfectly stable. So the requested window is awaited web-first
+  // and only then is convergence demanded of the render that resulted. The
+  // request listener stays armed across both waits, so a second request emitted
+  // while the window materialises is still recorded as thrash.
   const secondPageRows = await resolveVisibleRows(page, leaf.rowSelectors, label);
+  await expect(
+    secondPageRows,
+    `${label}: second page window committed (rendered rows === requested limit ${limit})`,
+  ).toHaveCount(limit, { timeout: 30_000 });
+
+  await waitForAdaptiveConvergence(page, leaf.convergenceSelector, `${label} page 2`);
+  page.off("request", collect);
+
+  assertExactlyOneTransitionRequest();
+
   const secondPageCount = await secondPageRows.count();
   expect(
     secondPageCount,

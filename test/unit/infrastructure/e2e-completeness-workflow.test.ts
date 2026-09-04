@@ -181,7 +181,8 @@ test("automatic workflow coverage is derived from catalog cohorts and equals ful
   // +1: B11 canonical WorkspaceHeader (regression/dashboard).
   // +1: B12 module-card removal and B13 durable admin entry.
   // +1: B14 metrics-strip relocation (regression/dashboard).
-  assert.equal(E2E_SUITE_CATALOG.length, 91);
+  // +3: CMP-04 module-card, CMP-05 metric-run and CMP-06 full-route contracts.
+  assert.equal(E2E_SUITE_CATALOG.length, 95);
 
   const partitionUnion = new Set(PARTITION_COHORTS.flatMap((cohort) => E2E_COHORT_SPECS[cohort]));
   assert.deepEqual([...partitionUnion].sort(), [...E2E_COHORT_SPECS.full].sort());
@@ -265,7 +266,7 @@ test("completeness job preserves Linux baseline compatibility, build ordering an
   const stepNames = steps.map((step) => String(step.name ?? ""));
 
   assert.equal(workflowJob["runs-on"], "ubuntu-latest");
-  assert.equal(workflowJob["timeout-minutes"], 55);
+  assert.equal(workflowJob["timeout-minutes"], 60);
   assert.deepEqual(document.permissions, { contents: "read" });
   assert.equal(mapping(document.concurrency, "concurrency")["cancel-in-progress"], true);
   assert.ok(stepNames.indexOf("Build frontend") < stepNames.indexOf("Run complete cataloged E2E suite"));
@@ -282,8 +283,8 @@ test("completeness job preserves Linux baseline compatibility, build ordering an
   assert.equal(runFull.run, "pnpm --dir frontend e2e:full -- --workers=2 --retries=2");
   assert.deepEqual(
     runFull.env,
-    { E2E_GLOBAL_TIMEOUT_MS: "2400000" },
-    "the full catalog exceeds Playwright's 30m default, so this step — and only this step — must carry the 40m budget",
+    { E2E_GLOBAL_TIMEOUT_MS: "2700000" },
+    "the full catalog exceeds Playwright's 30m default, so this step — and only this step — must carry the 45m budget",
   );
   const jobTimeoutMs = Number(workflowJob["timeout-minutes"]) * 60_000;
   const playwrightBudgetMs = Number(mapping(runFull.env, "runFull.env").E2E_GLOBAL_TIMEOUT_MS);

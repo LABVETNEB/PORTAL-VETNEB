@@ -6,7 +6,7 @@ import {
   ClinicDashboardWorkspaceController,
   DEFAULT_CLINIC_MODULE,
 } from "@/components/dashboard/ClinicDashboardWorkspaceController";
-import { ClinicMobileModuleFrame } from "@/components/dashboard/ClinicMobileModuleFrame";
+import { ClinicModuleHub } from "@/components/dashboard/ClinicModuleHub";
 import { ClinicCommandCenter } from "./ClinicCommandCenter";
 import { ClinicParticularTokensCard } from "@/components/dashboard/ClinicParticularTokensCard";
 import { ClinicPublicProfileCard } from "@/components/dashboard/ClinicPublicProfileCard";
@@ -19,6 +19,7 @@ import {
 } from "@/lib/api";
 import { redirectToLoginOnUnauthorized } from "@/lib/dashboard-server-auth";
 import { parseClinicModule } from "@/features/dashboard/config";
+import { HUB_QUERY_VALUE } from "@/features/dashboard/application";
 
 export const metadata: Metadata = {
   title: "Dashboard Clínica — Portal VETNEB",
@@ -36,6 +37,7 @@ async function getDashboardRequestOptions(): Promise<RequestInit> {
 
 type PageSearchParams = {
   module?: string;
+  hub?: string;
 };
 
 // Hermetic data window handed to the client-side adaptive summaries. It bounds
@@ -52,10 +54,13 @@ export default async function DashboardPage({
   searchParams?: Promise<PageSearchParams>;
 }) {
   const resolvedSearchParams = (await searchParams) ?? {};
-  // No hub/home: an absent or invalid module resolves to the operational
-  // default so the server render already opens the operations workspace.
+  // An absent or invalid module resolves to the operational default so the server
+  // render already opens the operations workspace.
   const initialModule =
     parseClinicModule(resolvedSearchParams.module) ?? DEFAULT_CLINIC_MODULE;
+  // CMP-02 — the explicit Inicio/hub state, resolved server-side so the first
+  // paint never flashes a module before the client reads the URL (audit DIF-041).
+  const initialHub = resolvedSearchParams.hub === HUB_QUERY_VALUE;
 
   const requestOptions = await getDashboardRequestOptions();
   let stats: Awaited<ReturnType<typeof getDashboardStats>> | null = null;
@@ -121,45 +126,33 @@ export default async function DashboardPage({
       <Suspense>
         <ClinicDashboardWorkspaceController
           initialModule={initialModule}
+          initialHub={initialHub}
+          hub={<ClinicModuleHub />}
           workspaces={{
             operaciones: (
-              <ClinicMobileModuleFrame moduleId="operaciones">
-                <ClinicCommandCenter
-                  stats={stats}
-                  statsLoadError={statsLoadError}
-                  recentReports={recentReports.slice(0, 3)}
-                  recentVisits={recentVisits.slice(0, 3)}
-                  reportsLoadError={reportsLoadError}
-                  visitsLoadError={visitsLoadError}
-                />
-              </ClinicMobileModuleFrame>
+              <ClinicCommandCenter
+                stats={stats}
+                statsLoadError={statsLoadError}
+                recentReports={recentReports.slice(0, 3)}
+                recentVisits={recentVisits.slice(0, 3)}
+                reportsLoadError={reportsLoadError}
+                visitsLoadError={visitsLoadError}
+              />
             ),
             informes: (
-              <ClinicMobileModuleFrame moduleId="informes">
-                <ClinicInformesWorkspaceSummary
-                  recentReports={recentReports}
-                  reportsLoadError={reportsLoadError}
-                />
-              </ClinicMobileModuleFrame>
+              <ClinicInformesWorkspaceSummary
+                recentReports={recentReports}
+                reportsLoadError={reportsLoadError}
+              />
             ),
             logistica: (
-              <ClinicMobileModuleFrame moduleId="logistica">
-                <ClinicLogisticaWorkspaceSummary
-                  recentVisits={recentVisits}
-                  visitsLoadError={visitsLoadError}
-                />
-              </ClinicMobileModuleFrame>
+              <ClinicLogisticaWorkspaceSummary
+                recentVisits={recentVisits}
+                visitsLoadError={visitsLoadError}
+              />
             ),
-            perfil: (
-              <ClinicMobileModuleFrame moduleId="perfil">
-                <ClinicPublicProfileCard />
-              </ClinicMobileModuleFrame>
-            ),
-            tokens: (
-              <ClinicMobileModuleFrame moduleId="tokens">
-                <ClinicParticularTokensCard />
-              </ClinicMobileModuleFrame>
-            ),
+            perfil: <ClinicPublicProfileCard />,
+            tokens: <ClinicParticularTokensCard />,
           }}
         />
       </Suspense>

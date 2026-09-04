@@ -87,11 +87,11 @@ const ROUTE_MODULE: Readonly<Record<string, string | null>> = Object.freeze({
  */
 const ROUTE_FIRST_CHILD: Readonly<Record<string, string>> = Object.freeze({
   "frontend/src/app/dashboard/page.tsx": "<Suspense>",
-  "frontend/src/app/dashboard/informes/page.tsx": "<DashboardPageHeader",
-  "frontend/src/app/dashboard/logistica/page.tsx": "<DashboardPageHeader",
-  "frontend/src/app/dashboard/logistica/metricas/page.tsx": "<div",
-  "frontend/src/app/dashboard/logistica/rutas/page.tsx": "<div",
-  "frontend/src/app/dashboard/logistica/visitas/page.tsx": "<div",
+  "frontend/src/app/dashboard/informes/page.tsx": "<ClinicFullRouteModuleStage",
+  "frontend/src/app/dashboard/logistica/page.tsx": "<ClinicFullRouteModuleStage",
+  "frontend/src/app/dashboard/logistica/metricas/page.tsx": "<ClinicFullRouteModuleStage",
+  "frontend/src/app/dashboard/logistica/rutas/page.tsx": "<ClinicFullRouteModuleStage",
+  "frontend/src/app/dashboard/logistica/visitas/page.tsx": "<ClinicFullRouteModuleStage",
 });
 
 /** Chrome the shell must NOT absorb: B11 owns the header, B15 the scaffold. */
@@ -332,7 +332,7 @@ test("B10 · the shell is not a navigation owner (B09 fence)", () => {
   );
 });
 
-test("B10 · the header owners B11 and B15 inherit are untouched", () => {
+test("B10 · the legacy header primitives survive while CMP-06 owns its full-route stage", () => {
   for (const path of [PAGE_HEADER_TSX, MODULE_WORKSPACE_TSX]) {
     assert.ok(
       existsSync(resolve(REPO_ROOT, path)),
@@ -340,17 +340,14 @@ test("B10 · the header owners B11 and B15 inherit are untouched", () => {
     );
   }
 
-  // DashboardPageHeader keeps all three of its consumers: two clinic full
-  // routes plus the admin hub state.
-  const consumers = [
-    "frontend/src/app/dashboard/informes/page.tsx",
-    "frontend/src/app/dashboard/logistica/page.tsx",
-    ADMIN_ROUTE,
-  ];
-  for (const path of consumers) {
+  assert.ok(
+    stripComments(read(ADMIN_ROUTE)).includes("<DashboardPageHeader"),
+    "admin preserves its independent page-header owner",
+  );
+  for (const path of CLINIC_ROUTES.slice(1)) {
     assert.ok(
-      stripComments(read(path)).includes("<DashboardPageHeader"),
-      `${path} keeps its page header: retiring it is B11/B15`,
+      stripComments(read(path)).includes("<ClinicFullRouteModuleStage"),
+      `${path} fills the CMP-06 canonical full-route stage`,
     );
   }
 
@@ -483,7 +480,7 @@ test("B10 · each route keeps its first direct child of main", () => {
   }
 });
 
-test("B10 · logistica keeps its adaptive reservation and sticky-action ledger", () => {
+test("B10 · logistica keeps its adaptive reservation with in-card actions", () => {
   const logistica = stripComments(
     read("frontend/src/app/dashboard/logistica/page.tsx"),
   );
@@ -492,16 +489,8 @@ test("B10 · logistica keeps its adaptive reservation and sticky-action ledger",
     logistica.includes("mainAdaptiveReservation"),
     "the logistics hub keeps declaring main as the adaptive reservation root (A05)",
   );
-  assert.ok(
-    logistica.includes(
-      '"--dash-sticky-action-h": STICKY_ACTION_RESERVED_BLOCK_SIZE',
-    ),
-    "the sticky-action ledger var stays declared by the route that mounts the bar",
-  );
-  assert.ok(
-    logistica.includes("<StickyActionBar"),
-    "the sticky action bar stays a DIRECT child of main: zero-scroll.css reads it with :has(> …)",
-  );
+  assert.ok(logistica.includes("headerActions={"), "the route passes actions to the module card");
+  assert.equal(logistica.includes("<StickyActionBar"), false, "CMP-06 retires the out-of-flow action bar");
 
   const shell = stripComments(read(SHELL_TSX));
   assert.ok(

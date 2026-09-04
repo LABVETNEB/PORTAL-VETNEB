@@ -35,8 +35,8 @@ test("dashboard informes defines non-indexable metadata and clinic read dependen
     source.includes('import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";'),
     false,
   );
-  assert.ok(source.includes('import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";'));
-  assert.ok(source.includes('import { StatusBadge } from "@/components/dashboard/StatusBadge";'));
+  assert.ok(source.includes('import { ClinicFullRouteModuleStage } from "@/components/dashboard/ClinicFullRouteModuleStage";'));
+  assert.ok(source.includes('import { ModuleCard } from "@/components/dashboard/ModuleCard";'));
   assert.equal(source.includes('} from "@/components/dashboard/StickyActionBar";'), false);
   assert.ok(listSource.includes('} from "@/components/dashboard/StudyTimeline";'));
   assert.ok(listSource.includes('import { ReportFileActions } from "@/components/dashboard/ReportDownloadButton";'));
@@ -122,7 +122,9 @@ test("dashboard informes renders profile-layout clinic reports surface without t
   assert.ok(source.includes('<ClinicDashboardShell'));
   // B10: the clinic notification role is declared once, by the shared shell.
   assert.equal(source.includes('notifications="clinic"'), false);
-  assert.ok(source.includes("<DashboardPageHeader"));
+  assert.ok(source.includes('<ClinicFullRouteModuleStage moduleId="informes-full">'));
+  assert.ok(source.includes('<ModuleCard\n          ariaLabel="Informes disponibles"'));
+  assert.equal(source.includes("<DashboardPageHeader"), false);
   assert.equal(source.includes("<StickyActionBar"), false);
   assert.ok(listSource.includes("Lista de informes"));
   assert.ok(listSource.includes("Detalle del informe"));
@@ -149,8 +151,9 @@ test("dashboard informes renders compact inline filters and profile-layout list/
   assert.ok(source.includes('name="status"'));
   assert.ok(source.includes("defaultValue={status}"));
   assert.ok(source.includes('aria-label="Filtrar por estado"'));
-  assert.ok(source.includes('<FilterField label="Estado">'));
-  assert.ok(source.includes('<Button type="submit" size="sm" className={dashboardFilterActionClassName()}>'));
+  assert.ok(source.includes('<FilterField label="Estado" density="module-card">'));
+  assert.ok(source.includes('dashboardFilterActionClassName("module-card")'));
+  assert.ok(source.includes('title="Filtros de informes"'));
   assert.ok(source.includes("Filtrar"));
   assert.ok(source.includes('href="/dashboard/informes"'));
   assert.ok(source.includes("Limpiar"));
@@ -171,7 +174,7 @@ test("dashboard informes keeps list rendering badges dates and selected report a
   assert.ok(source.includes("formatDate(report.uploadDate)"));
   assert.ok(source.includes("getReportStatusVariant(report.status)"));
   assert.ok(source.includes("getReportStatusLabel(report.status)"));
-  assert.ok(source.includes("id={`report-${report.id}`}"));
+  assert.ok(source.includes("activateId={`report-${report.id}`}"));
   assert.ok(source.includes("<ReportFileActions"));
   assert.ok(source.includes("reportId={selectedReport.id}"));
   assert.ok(source.includes("hasFile={selectedReport.hasFile}"));
@@ -208,15 +211,14 @@ test("dashboard informes separates fetch failures from real empty report lists",
   assert.ok(listSource.includes("No hay informes disponibles."));
 });
 
-test("dashboard informes page includes back navigation to modules hub", () => {
+test("dashboard informes keeps module navigation in the shell, not a duplicate page header", () => {
   const source = read(INFORMES_PAGE_PATH);
 
-  assert.ok(source.includes("href={ROUTES.dashboard}"));
-  assert.ok(source.includes("Volver a m&oacute;dulos"));
-  assert.ok(!source.includes("module=informes"));
-  assert.ok(source.includes("Volver"));
-  assert.ok(source.includes('aria-label="Volver al dashboard"'));
-  assert.ok(source.includes('import { ROUTES } from "@/lib/routes";'));
+  assert.equal(source.includes("href={ROUTES.dashboard}"), false);
+  assert.equal(source.includes("Volver a m&oacute;dulos"), false);
+  assert.equal(source.includes("<DashboardPageHeader"), false);
+  assert.ok(source.includes('<ClinicDashboardShell'));
+  assert.ok(source.includes('module="informes"'));
 });
 
 test("dashboard informes filter form includes studyType input to preserve it on submit", () => {
@@ -250,7 +252,10 @@ test("dashboard informes server-adaptive viewport pagination contract (R-07)", (
   assert.ok(listSource.includes('"use client";'));
   assert.ok(listSource.includes("useDashboardCanvasCapacity"));
   assert.ok(listSource.includes("canvasNode: bodyNode,"));
-  assert.ok(listSource.includes('data-dashboard-row-pitch="card"'));
+  // CMP-08: the master-list row converged on the canonical "regular" (44px)
+  // pitch shared by every adaptive row surface — Admin's live row grammar,
+  // not the historical "card" (76px) height this contract used to pin.
+  assert.ok(listSource.includes('data-dashboard-row-pitch="regular"'));
   assert.equal(listSource.includes("cancelAnimationFrame("), false);
   assert.equal(listSource.includes("observer.disconnect();"), false);
   // The fallback/cap constants must live in a plain (non "use client")

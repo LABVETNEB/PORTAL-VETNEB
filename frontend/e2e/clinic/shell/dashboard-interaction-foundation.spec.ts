@@ -141,13 +141,22 @@ test.describe("dashboard interaction foundation — smoke (PR-1)", () => {
       "operaciones",
       "informes",
       "logistica",
-      "perfil",
-      "tokens",
     ] as ClinicModule[]) {
       await expect(
         nav.locator(`[data-dashboard-mobile-nav-item="${moduleId}"]`),
       ).toBeVisible();
     }
+    const overflow = nav.locator('[data-dashboard-mobile-nav-item="overflow"]');
+    await expect(overflow).toBeVisible();
+    await overflow.click();
+    const overflowMenu = page.locator('[data-dashboard-mobile-nav-overflow="true"]');
+    await expect(overflowMenu).toBeVisible();
+    await expect(
+      overflowMenu.locator('[data-dashboard-mobile-nav-overflow-link="perfil"]'),
+    ).toBeVisible();
+    await expect(
+      overflowMenu.locator('[data-dashboard-mobile-nav-overflow-link="tokens"]'),
+    ).toBeVisible();
     await expect(nav.locator("[aria-current='page']")).toHaveCount(1);
   });
 
@@ -205,9 +214,14 @@ test.describe("dashboard interaction foundation — smoke (PR-1)", () => {
 
   // ── Admin: still hub-based (unchanged product) ───────────────────────────────
 
-  test("admin /dashboard/admin loads module hub", async ({ page }) => {
+  // Bare /dashboard/admin is a landing, not the hub: AdminDashboardWorkspaceController's
+  // one-shot restore effect replaces it with ?module=<lastModule ?? DEFAULT_ADMIN_MODULE>
+  // unless the URL already carries module= or hub=1. ?hub=1 is the sole durable hub
+  // state (buildHubHref("admin") / isHubRequested), so it is the only entry this
+  // assertion can measure without racing that replace.
+  test("admin /dashboard/admin?hub=1 loads module hub", async ({ page }) => {
     await setAdminSession(page);
-    await page.goto("/dashboard/admin");
+    await page.goto("/dashboard/admin?hub=1");
     await expect(
       page.locator('[data-dashboard-module-hub="true"]'),
     ).toBeVisible({ timeout: 8_000 });

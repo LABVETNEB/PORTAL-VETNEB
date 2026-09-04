@@ -258,7 +258,11 @@ test("B06 · DashboardTopbar stays the orchestrator and feeds every slot", () =>
     "logout as logoutClinic",
     "clearDashboardLastModules",
     "<ThemeModeToggle />",
-    "<AdminMobileKebabMenu />",
+    // CMP-01: the app-bar overflow slot is now filled from the shared, role-
+    // parameterised owner so Clínica gets the same single 44x44 action instead of
+    // three inline sub-44 controls (audit DIF-005 / RC-002). The slot itself is
+    // unchanged — that is what this guard pins.
+    "<DashboardMobileKebabMenu surface=",
   ]) {
     assert.ok(source.includes(kept), `orchestrator lost ${kept}`);
   }

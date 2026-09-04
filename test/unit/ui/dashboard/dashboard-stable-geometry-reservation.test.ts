@@ -91,7 +91,7 @@ test("A05 declares a dashboard-scoped pager reservation without changing its tok
   }
 });
 
-test("A05 reserves the out-of-flow logistics action bar before first layout", () => {
+test("A05 retains the legacy action-bar constant while CMP-06 keeps logistics actions in-card", () => {
   const bar = read(STICKY_ACTION_BAR_PATH);
   const page = read(LOGISTICS_PAGE_PATH);
 
@@ -99,9 +99,8 @@ test("A05 reserves the out-of-flow logistics action bar before first layout", ()
   assert.ok(
     bar.includes("calc(5.5625rem + env(safe-area-inset-bottom, 0px))"),
   );
-  assert.ok(
-    page.includes('"--dash-sticky-action-h": STICKY_ACTION_RESERVED_BLOCK_SIZE'),
-  );
+  assert.ok(page.includes("headerActions={"));
+  assert.equal(page.includes("<StickyActionBar"), false);
   assert.ok(!bar.includes("ResizeObserver") && !bar.includes("useLayoutEffect"));
 });
 

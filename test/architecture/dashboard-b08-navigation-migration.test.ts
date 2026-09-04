@@ -318,8 +318,12 @@ test("B08 · DashboardTopbar drops the horizontal nav and preserves its chrome",
     "logoutAdmin",
     "ThemeModeToggle",
     "DashboardTopbarNotifications",
-    "AdminMobileKebabMenu",
-    "AdminMobileContextTitle",
+    // CMP-01: both the action overflow and the mobile context title moved to shared,
+    // role-parameterised owners so Clínica consumes the same primitives. B08's
+    // invariant is that the topbar still composes them — the names changed, the
+    // composition did not.
+    "DashboardMobileKebabMenu",
+    "ModuleContextTitle",
     "<WorkspaceAppBar",
   ]) {
     assert.ok(
@@ -338,9 +342,19 @@ test("B08 · DashboardTopbar drops the horizontal nav and preserves its chrome",
     false,
     "the private admin label table is retired: B09 derives the title from ADMIN_MODULE_NAV_LABELS",
   );
+  // CMP-01 moved the title into its own shared owner (both roles, one derivation).
+  // B08's invariant is unchanged and is now checked where the derivation lives.
+  const contextTitle = stripComments(
+    read("frontend/src/components/dashboard/ModuleContextTitle.tsx"),
+  );
+  assert.equal(
+    contextTitle.includes("ADMIN_MOBILE_TITLES"),
+    false,
+    "no fourth private copy of the admin labels came back with the extraction",
+  );
   assert.ok(
-    executable.includes("ADMIN_MODULE_NAV_LABELS") &&
-      executable.includes("parseAdminModule"),
+    contextTitle.includes("ADMIN_MODULE_NAV_LABELS") &&
+      contextTitle.includes("parseAdminModule"),
     "the mobile context title must read the canonical catalog through the canonical parser",
   );
 });
@@ -665,6 +679,10 @@ test("B08 · the mobile model B09 owns is intact", () => {
   for (const mobileSurface of [
     "DashboardMobileNav",
     "AdminMobileKebabMenu",
+    // CMP-01: the shared owner is equally forbidden here — the frame is the DESKTOP
+    // mount site, and reaching the mobile action overflow through its new name would
+    // reopen the same two-owners-per-regime defect.
+    "DashboardMobileKebabMenu",
     "AdminMobileHubLauncher",
     "AdminMobileHubPager",
   ]) {

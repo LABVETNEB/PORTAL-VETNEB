@@ -105,159 +105,13 @@
     overscroll-behavior: none;
   }
 
-  [data-vetneb-app-shell-surface="admin"]
-    [data-admin-mobile-app-bar="true"] {
-    position: relative;
-    top: auto;
-    z-index: 60;
-    flex: 0 0 auto;
-    min-height: 0 !important;
-    overflow: visible;
-    padding: 0 !important;
-    isolation: isolate;
-    background: hsl(var(--card)) !important;
-    background-image: none !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-    transform: none !important;
-  }
-
-  .dashboard-app-shell[data-vetneb-app-shell-surface="admin"]
-    [data-dashboard-topbar-polish="true"][data-admin-mobile-app-bar="true"] {
-    box-sizing: border-box;
-    height: calc(var(--admin-mobile-appbar-h) + env(safe-area-inset-top)) !important;
-    min-height: calc(var(--admin-mobile-appbar-h) + env(safe-area-inset-top)) !important;
-    max-height: calc(var(--admin-mobile-appbar-h) + env(safe-area-inset-top)) !important;
-    padding: 0 !important;
-  }
-
-  [data-vetneb-app-shell-surface="admin"]
-    [data-admin-mobile-app-bar="true"]
-    > div:first-child {
-    box-sizing: border-box;
-    height: calc(var(--admin-mobile-appbar-h) + env(safe-area-inset-top));
-    min-height: calc(var(--admin-mobile-appbar-h) + env(safe-area-inset-top));
-    padding: env(safe-area-inset-top) var(--admin-mobile-appbar-pad-x) 0;
-    gap: var(--admin-mobile-appbar-gap);
-  }
-
-  [data-vetneb-app-shell-surface="admin"] #dashboard-topbar-title,
-  [data-vetneb-app-shell-surface="admin"]
-    [data-admin-mobile-topbar-subtitle="true"],
-  [data-vetneb-app-shell-surface="admin"]
-    [data-dashboard-desktop-actions="true"],
-  [data-vetneb-app-shell-surface="admin"]
-    [data-dashboard-horizontal-nav-shell="true"] {
-    display: none !important;
-  }
-
-  [data-vetneb-app-shell-surface="admin"] .admin-mobile-context-title {
-    display: block !important;
-    overflow: hidden;
-    color: hsl(var(--vetneb-ink));
-    font-size: 1rem;
-    font-weight: 650;
-    line-height: 1.2;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  [data-vetneb-app-shell-surface="admin"] .admin-mobile-kebab-root {
-    position: relative;
-    display: block !important;
-    flex: 0 0 auto;
-    isolation: isolate;
-  }
-
-  [data-vetneb-app-shell-surface="admin"] .admin-mobile-kebab-trigger {
-    display: inline-flex;
-    /* B09_TOUCH_POLICY = OPTION_A. This was 2.25rem (36px) with a comment
-       pinning it to the old >=36px runtime floor; B09 raises the floor it owns
-       to >=44x44 and takes the trigger with it. It is a touch minimum, not a
-       density value, so it never shrinks with the fluid tokens above. */
-    inline-size: var(--dash-mobile-nav-touch-min);
-    block-size: var(--dash-mobile-nav-touch-min);
-    flex: 0 0 auto;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    border: 1px solid hsl(var(--vetneb-line));
-    border-radius: 0.5rem;
-    background: hsl(var(--card));
-    color: hsl(var(--foreground));
-    touch-action: manipulation;
-  }
-
-  [data-vetneb-app-shell-surface="admin"] .admin-mobile-kebab-trigger:focus-visible,
-  [data-vetneb-app-shell-surface="admin"] .admin-mobile-kebab-action:focus-visible {
-    outline: 2px solid hsl(var(--ring));
-    outline-offset: 2px;
-  }
-
-  [data-vetneb-app-shell-surface="admin"] .admin-mobile-kebab-menu {
-    position: absolute;
-    top: calc(100% + 0.35rem);
-    right: 0;
-    z-index: 75;
-    display: flex;
-    width: min(20rem, calc(100vw - 1.5rem));
-    max-height: calc(100svh - 4rem - env(safe-area-inset-bottom));
-    flex-direction: column;
-    gap: var(--admin-mobile-chip-gap);
-    overflow: hidden;
-    padding: var(--admin-mobile-shell-gutter);
-    border: 1px solid hsl(var(--vetneb-line));
-    border-radius: 0.75rem;
-    background: hsl(var(--card));
-    box-shadow: 0 12px 30px rgba(15, 45, 62, 0.18);
-    isolation: isolate;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-    transform: none !important;
-  }
-
-  [data-vetneb-app-shell-surface="admin"] .admin-mobile-kebab-row,
-  [data-vetneb-app-shell-surface="admin"] .admin-mobile-kebab-action {
-    display: flex;
-    min-width: 0;
-    /* B09_TOUCH_POLICY = OPTION_A: was 2.5rem (40px). */
-    min-block-size: var(--dash-mobile-nav-touch-min);
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    overflow: hidden;
-    padding: 0.25rem var(--admin-mobile-chip-pad-x);
-    border-radius: 0.45rem;
-    background: hsl(var(--card));
-    color: hsl(var(--foreground));
-    font-size: var(--admin-mobile-type-xs);
-    font-weight: 600;
-    text-align: left;
-    touch-action: manipulation;
-  }
-
-  [data-vetneb-app-shell-surface="admin"] .admin-mobile-kebab-action {
-    justify-content: flex-start;
-  }
-
-  /* B09_TOUCH_POLICY = OPTION_A, applied LOCALLY. The notifications trigger is
-     `h-9 w-9` (36px) in `DashboardNotificationsBell`, which is shared with the
-     clinic dashboard and with desktop; B09 owns the control only where it sits
-     INSIDE this menu, so the floor is raised by context instead of by editing
-     the component. A DESCENDANT selector, not a child one: the bell renders its
-     trigger inside a `relative` wrapper, so `> button` misses it. The theme
-     toggle next to it takes the same floor through its `className` prop, which
-     the kebab already passes. */
-  [data-vetneb-app-shell-surface="admin"] .admin-mobile-kebab-row button,
-  [data-vetneb-app-shell-surface="admin"] .admin-mobile-kebab-row [data-theme-toggle="true"] {
-    inline-size: var(--dash-mobile-nav-touch-min);
-    block-size: var(--dash-mobile-nav-touch-min);
-    flex: 0 0 auto;
-  }
-
-  [data-vetneb-app-shell-surface="admin"] .admin-mobile-kebab-logout {
-    color: hsl(var(--destructive));
-  }
+  /* CMP-01 — the app bar band, the desktop-identity suppression, the mobile context
+     title and the kebab moved VERBATIM to `styles/dashboard/mobile-chrome.css`, which
+     is imported before this file and keys them on `[data-vetneb-app-shell-surface]`
+     instead of on this surface alone. They are one shared implementation now; Admin's
+     computed values are unchanged (same declarations, same specificity). The legacy
+     `data-admin-mobile-app-bar` attribute and the `.admin-mobile-kebab-*` classes are
+     still emitted on Admin, additively, so the admin guards that anchor them hold. */
 
   [data-vetneb-app-shell-surface="admin"] .dashboard-main {
     flex: 1 1 auto;
@@ -268,187 +122,16 @@
     padding: var(--admin-mobile-shell-gutter);
   }
 
-  [data-vetneb-app-shell-surface="admin"]
-    [data-dashboard-module-back-button="true"] {
-    display: none !important;
-  }
-
-  [data-vetneb-app-shell-surface="admin"]
-    :is(.admin-mobile-kebab-trigger, .admin-mobile-kebab-menu) {
-    overflow-x: hidden;
-    overflow-y: hidden;
-  }
+  /* `[data-dashboard-module-back-button]` suppression and the kebab overflow clamp
+     also moved to `mobile-chrome.css` (CMP-01): both are shared mobile chrome. */
 }
 /* admin-mobile-app-shell:end */
 
 /* admin-mobile-hub-launcher:start */
-@media (min-width: 768px) {
-  [data-admin-mobile-hub-launcher="true"] {
-    display: none;
-  }
-}
-
-@media (max-width: 767px) {
-  [data-vetneb-app-shell-surface="admin"] .dashboard-cockpit {
-    display: flex;
-    flex-direction: column;
-    flex: 1 1 auto;
-    min-height: 0;
-  }
-
-  [data-vetneb-app-shell-surface="admin"] .admin-mobile-hub-hero-slot,
-  [data-vetneb-app-shell-surface="admin"] .admin-mobile-hub-desktop-launcher {
-    display: none !important;
-  }
-
-  [data-vetneb-app-shell-surface="admin"] [data-admin-mobile-hub-launcher="true"] {
-    display: flex;
-    flex-direction: column;
-    flex: 1 1 auto;
-    min-width: 0;
-    min-height: 0;
-    gap: var(--admin-mobile-tile-gap);
-    overflow: hidden;
-    isolation: isolate;
-    background: hsl(var(--card));
-  }
-
-  [data-vetneb-app-shell-surface="admin"] .admin-mobile-hub-launcher-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-template-rows: repeat(3, minmax(0, 1fr));
-    flex: 1 1 auto;
-    min-width: 0;
-    min-height: 0;
-    gap: var(--admin-mobile-tile-gap);
-    overflow: hidden;
-  }
-
-  [data-vetneb-app-shell-surface="admin"] .admin-mobile-hub-launcher-grid > li {
-    min-width: 0;
-    min-height: 0;
-    overflow: hidden;
-  }
-
-  [data-vetneb-app-shell-surface="admin"] .admin-mobile-hub-tile {
-    display: flex;
-    width: 100%;
-    height: 100%;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-width: 0;
-    min-height: 0;
-    gap: 0.3rem;
-    overflow: hidden;
-    border-radius: 0.85rem;
-    border: none;
-    background: hsl(var(--card));
-    padding: var(--admin-mobile-tile-pad);
-    text-align: center;
-    touch-action: manipulation;
-  }
-
-  [data-vetneb-app-shell-surface="admin"] .admin-mobile-hub-tile-icon {
-    display: inline-flex;
-    height: var(--admin-mobile-tile-icon-size);
-    width: var(--admin-mobile-tile-icon-size);
-    flex: 0 0 auto;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    border-radius: 0.6rem;
-    color: #fff;
-    background: linear-gradient(135deg, hsl(var(--vetneb-navy)), hsl(var(--vetneb-teal) / 0.85));
-  }
-
-  [data-vetneb-app-shell-surface="admin"] .admin-mobile-hub-tile-label {
-    display: -webkit-box;
-    width: 100%;
-    overflow: hidden;
-    color: hsl(var(--vetneb-ink));
-    font-size: var(--admin-mobile-type-xs);
-    font-weight: 650;
-    line-height: 1.15;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-  }
-
-  [data-vetneb-app-shell-surface="admin"] .admin-mobile-hub-pager {
-    display: flex;
-    flex: 0 0 auto;
-    min-width: 0;
-    min-height: 0;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-    overflow: hidden;
-  }
-
-  [data-vetneb-app-shell-surface="admin"] .admin-mobile-hub-pager-button {
-    display: inline-flex;
-    min-height: 2.1rem;
-    flex: 0 0 auto;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    padding: 0.3rem 0.65rem;
-    border: 1px solid hsl(var(--vetneb-line));
-    border-radius: 0.5rem;
-    background: hsl(var(--card));
-    color: hsl(var(--foreground));
-    font-size: var(--admin-mobile-type-xs);
-    font-weight: 650;
-    touch-action: manipulation;
-  }
-
-  [data-vetneb-app-shell-surface="admin"] .admin-mobile-hub-pager-button:disabled {
-    opacity: 0.45;
-  }
-
-  [data-vetneb-app-shell-surface="admin"] .admin-mobile-hub-pager-dots {
-    display: flex;
-    flex: 0 1 auto;
-    align-items: center;
-    justify-content: center;
-    gap: 0.3rem;
-    overflow: hidden;
-  }
-
-  [data-vetneb-app-shell-surface="admin"] .admin-mobile-hub-pager-dot {
-    display: block;
-    width: 0.4rem;
-    height: 0.4rem;
-    flex: 0 0 auto;
-    overflow: hidden;
-    border-radius: 999px;
-    background: hsl(var(--vetneb-line));
-  }
-
-  [data-vetneb-app-shell-surface="admin"] .admin-mobile-hub-pager-dot[aria-current="page"] {
-    background: hsl(var(--vetneb-teal));
-  }
-
-  [data-vetneb-app-shell-surface="admin"] .admin-mobile-hub-pager-status {
-    flex: 0 0 auto;
-    overflow: hidden;
-    white-space: nowrap;
-    color: hsl(var(--muted-foreground));
-    font-size: var(--admin-mobile-type-2xs);
-    font-weight: 600;
-  }
-
-  [data-vetneb-app-shell-surface="admin"]
-    :is(
-      .admin-mobile-hub-launcher-grid,
-      .admin-mobile-hub-tile,
-      .admin-mobile-hub-pager,
-      .admin-mobile-hub-pager-dots
-    ) {
-    overflow-x: hidden;
-    overflow-y: hidden;
-  }
-}
+/* CMP-02 — this block moved VERBATIM to `styles/dashboard/mobile-chrome.css`,
+   scoped to `[data-vetneb-app-shell-surface]` instead of to admin alone, so the
+   clinic hub renders the same launcher (audit DIF-041 / RC-015). Declarations,
+   class names and specificity are unchanged. */
 /* admin-mobile-hub-launcher:end */
 
 /* admin-mobile-ops-modules:start */
@@ -480,30 +163,12 @@
 /* admin-mobile-ops-modules:end */
 
 /* admin-mobile-module-header-reclaim:start */
-/* PR-B addendum — on Admin mobile the in-workspace module header (title +
-   description + a `border-bottom` divider + 1rem padding + 1rem margin, defined
-   on `.dashboard-workspace-header`) is redundant: the app bar already shows the
-   module context, the back button is hidden on mobile and the bottom nav drives
-   navigation. It only burned ~64px of critical height and left a divider/empty
-   band above the module controls/chips. Hide it on EVERY admin module and zero
-   the viewport top padding so content sits ~one gutter (≈8px) below the app bar.
-   Desktop (>=768px) keeps the header — there the back button + divider are the
-   real module chrome. Scoped to surface="admin"; Clínica uses another shell
-   surface and is untouched. */
-@media (max-width: 767px) {
-  [data-vetneb-app-shell-surface="admin"]
-    [data-dashboard-module-workspace]
-    .dashboard-workspace-header {
-    display: none !important;
-  }
-
-  [data-vetneb-app-shell-surface="admin"]
-    [data-dashboard-module-workspace]
-    [data-dashboard-module-viewport] {
-    min-height: 0;
-    padding-top: 0 !important;
-  }
-}
+/* CMP-01/CMP-03 — this block moved VERBATIM to `styles/dashboard/mobile-chrome.css`.
+   The audit proved (DIF-008/009/010, RC-003) that its comment was literally the cause
+   of the clinic divergence: it declared "Clínica uses another shell surface and is
+   untouched", so Clínica kept a 40px workspace header and a 16px viewport padding that
+   Admin had reclaimed. The declarations are unchanged and now key on
+   `[data-vetneb-app-shell-surface]`, so both roles reclaim the same ~56px. */
 /* admin-mobile-module-header-reclaim:end */
 
 /* admin-mobile-status-modules:start */
@@ -552,33 +217,15 @@
 /* admin-mobile-config-modules:end */
 
 /* admin-mobile-module-rhythm-fluid:start */
-/* PR-E — the chip tablist/chip/panel shell shared by every Admin mobile
-   STATUS and CONFIG module (Resumen, Estado del sistema, Precios,
-   Mantenimiento all render through AdminMobileStatusModule /
-   AdminMobileConfigModule) still used the fixed Tailwind paddings/gap/font
-   the components ship with (p-1.5/gap-1/px-2 py-1.5/text-[0.72rem]/p-2).
-   Override them here with the same fluid tokens as the rest of the shell so
-   "module rhythm" scales with viewport instead of staying pinned — higher
-   attribute-selector specificity wins over the components' utility classes
-   without editing the .tsx files. */
-@media (max-width: 767px) {
-  [data-vetneb-app-shell-surface="admin"] [data-admin-mobile-status-module] [role="tablist"],
-  [data-vetneb-app-shell-surface="admin"] [data-admin-mobile-config-module] [role="tablist"] {
-    gap: var(--admin-mobile-chip-gap);
-    padding: var(--admin-mobile-chip-pad-y);
-  }
-
-  [data-vetneb-app-shell-surface="admin"] [data-admin-mobile-status-chip],
-  [data-vetneb-app-shell-surface="admin"] [data-admin-mobile-config-chip] {
-    padding: var(--admin-mobile-chip-pad-y) var(--admin-mobile-chip-pad-x);
-    font-size: var(--admin-mobile-type-xs);
-  }
-
-  [data-vetneb-app-shell-surface="admin"] [data-admin-mobile-status-panel],
-  [data-vetneb-app-shell-surface="admin"] [data-admin-mobile-config-panel] {
-    padding: var(--admin-mobile-panel-pad);
-  }
-}
+/* CMP-07 (regression found during certification) - this PR-E block moved to
+   the shared 'dashboard-module-card-chip-rhythm' block in
+   'styles/dashboard/mobile-chrome.css'. It only ever reached Admin's chip band
+   (targeted the admin-only data-admin-mobile-status-chip/config-chip
+   attributes), so Clinica's identical ModuleCardChips rendered raw fixed-px
+   values instead of this fluid rhythm - a real ~1.5px chip-band height
+   divergence from Admin at wide viewports (412x915, 430x932). The shared block
+   targets the '.dashboard-module-card-chip*' classes every ModuleCard chip band
+   now carries, admin and clinic alike. Values are unchanged. */
 /* admin-mobile-module-rhythm-fluid:end */
 
 /* admin-mobile-real-device-layer-isolation:start */

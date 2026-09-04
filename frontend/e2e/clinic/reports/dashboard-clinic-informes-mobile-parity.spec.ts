@@ -1,5 +1,21 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+// ─────────────────────────────────────────────────────────────────────────────
+// CMP-12 (RC-017) — scope correction.
+//
+// This spec's name says "parity" but it measures Clinic against ITSELF: no
+// overflow, adaptive row capacity, nav structure, dialog content. That is a
+// real, valuable Clinic-domain behavior contract — it is kept in full below —
+// but it was never a parity contract and never opened an Admin session.
+//
+// Cross-role runtime parity (Admin measured against Clinic in the same test
+// run, across all 6 canonical viewports and all 10 clinic surfaces) is now
+// owned exclusively by `frontend/e2e/clinic/shell/clinic-mobile-admin-parity-
+// contract.spec.ts`. Duplicating that comparison here would violate "no
+// duplicar test infra" (CMP-12); this file's job is Clinic-domain behavior
+// only, not parity.
+// ─────────────────────────────────────────────────────────────────────────────
+
 const TOLERANCE = 2;
 const LONG_PATIENT_NAME =
   "Paciente con nombre clínico extraordinariamente extenso para validar el detalle mobile";
@@ -64,43 +80,39 @@ async function expectClinicMobileNav(
     .filter({ visible: true });
   await expect(nav, `${label}: clinic mobile navigation visible`).toBeVisible();
 
-  for (const moduleId of [
-    "operaciones",
-    "informes",
-    "logistica",
-    "perfil",
-    "tokens",
-  ] as const) {
+  for (const moduleId of ["operaciones", "informes", "logistica"] as const) {
     await expect(
       nav.locator(`[data-dashboard-mobile-nav-item="${moduleId}"]`),
       `${label}: navigation exposes ${moduleId}`,
     ).toHaveCount(1);
   }
 
-  // B09_CLINIC_HOME_ITEM = PRESERVE: six primary slots, Inicio included.
+  // CMP-02: the clinic bar uses the same five-slot primary cut as Admin.
   await expect(
     nav.locator("[data-dashboard-mobile-nav-item]"),
-    `${label}: six clinic primary destinations`,
-  ).toHaveCount(6);
+    `${label}: five clinic primary destinations`,
+  ).toHaveCount(5);
   await expect(
     nav.locator('[data-dashboard-mobile-nav-item="home"]'),
     `${label}: Inicio preserved`,
   ).toHaveCount(1);
 
+  const currentDestination = ["perfil", "tokens"].includes(activeModule)
+    ? "overflow"
+    : activeModule;
   await expect(
-    nav.locator(`[data-dashboard-mobile-nav-item="${activeModule}"]`),
-    `${label}: active module ${activeModule} marked current`,
+    nav.locator(`[data-dashboard-mobile-nav-item="${currentDestination}"]`),
+    `${label}: active destination marked current`,
   ).toHaveAttribute("aria-current", "page");
   await expect(
     nav.locator("[aria-current='page']"),
     `${label}: exactly one current destination`,
   ).toHaveCount(1);
 
-  // Clinic has five modules and six slots, so it never grows an overflow.
   await expect(
     nav.locator('[data-dashboard-mobile-nav-item="overflow"]'),
-    `${label}: clinic needs no destination overflow`,
-  ).toHaveCount(0);
+    `${label}: clinic destination overflow available`,
+  ).toHaveCount(1);
 
   // The retired owners must not come back next to it.
   await expect(

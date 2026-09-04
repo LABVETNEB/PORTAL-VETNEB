@@ -122,11 +122,13 @@ test("dashboard logistica metricas renders summary cards without technical sourc
   assert.ok(source.includes('<ClinicDashboardShell'));
   // B10: the clinic notification role is declared once, by the shared shell.
   assert.equal(source.includes('notifications="clinic"'), false);
-  assert.ok(source.includes("Cumplimiento promedio"));
+  assert.ok(source.includes("<ModuleMetricRun"));
+  assert.ok(source.includes('surfaceId="clinic-logistica-metricas"'));
+  assert.ok(source.includes('label: "Cumplimiento"'));
   assert.ok(source.includes("Paradas completadas"));
   assert.ok(source.includes("Duración promedio"));
-  assert.ok(source.includes("Planes analizados"));
-  assert.ok(source.includes('className="dashboard-metric-card p-0"'));
+  assert.ok(source.includes('label: "Planes"'));
+  assert.equal(source.includes('className="dashboard-metric-card p-0"'), false);
   assert.equal(source.includes(removedMetricsEndpoint), false);
 });
 
@@ -143,7 +145,7 @@ test("dashboard logistica metricas renders per-route metric detail", () => {
   assert.ok(source.includes("Omitidas"));
   assert.ok(source.includes("Sin presencia"));
   assert.ok(source.includes('className="surface-soft space-y-3"'));
-  assert.ok(source.includes('className="dashboard-surface"'));
+  assert.ok(source.includes("<ModuleCard"));
 });
 
 test("dashboard logistica metricas keeps compliance badge thresholds and progress accessibility", () => {

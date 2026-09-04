@@ -133,7 +133,7 @@ test.describe("clinic controller/workspace parity contract (PR-CL1)", () => {
 
   test("admin /dashboard/admin baseline still loads hub", async ({ page }) => {
     await setAdminSession(page);
-    await page.goto("/dashboard/admin");
+    await page.goto("/dashboard/admin?hub=1");
     await expect(
       page.locator('[data-dashboard-module-hub="true"]'),
     ).toBeVisible({ timeout: 8_000 });

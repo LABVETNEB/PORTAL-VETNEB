@@ -69,7 +69,7 @@ test("clinic particular tokens card exists and uses clinic helpers", () => {
   assert.ok(source.includes('"use client";'));
   assert.ok(source.includes("createClinicParticularToken"));
   assert.ok(source.includes("getClinicParticularTokens"));
-  assert.ok(source.includes('id="clinic-particular-tokens"'));
+  assert.ok(source.includes('id: "clinic-particular-tokens"'));
   assert.ok(source.includes("generatedToken"));
   assert.ok(source.includes("El token completo solo se muestra una vez."));
   assert.equal(source.includes("/api/admin/particular-tokens"), false);
@@ -88,7 +88,7 @@ test("clinic tokens uses table/list row actions with dialog detail and step dial
   assert.equal(source.includes("useAdaptiveItemsPerPage"), false);
   assert.equal(source.includes("useAdaptiveRowsPerPage"), false);
   assert.ok(source.includes("selectedTokenId"));
-  assert.ok(source.includes("ModuleSurface"));
+  assert.ok(source.includes("ModuleCard"));
   assert.ok(source.includes('data-clinic-access-table="true"'));
   assert.ok(source.includes('data-clinic-access-table-row="true"'));
   assert.ok(source.includes('data-clinic-access-mobile-list="true"'));

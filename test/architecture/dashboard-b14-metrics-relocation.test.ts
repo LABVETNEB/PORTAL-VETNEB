@@ -44,7 +44,7 @@ test("B14 · navigation census is exactly 10 admin + 5 clinic modules", () => {
 
 test("B14 · the five audited failures now integrate metrics into existing functional regions", () => {
   const cases = [
-    [CLINIC, "<StatsCards stats={stats} />", 'id: "metricas"'],
+    [CLINIC, "<ModuleMetricRun", 'id: "metricas"'],
     [TOKENS, 'data-dashboard-b14-metrics="admin-particular-tokens"', "CardHeader"],
     [SESSIONS, 'data-dashboard-b14-metrics="admin-sessions"', 'aria-label="Filtros de sesiones"'],
     [USERS, 'data-dashboard-b14-metrics="admin-users-roles"', 'aria-label="Filtros de usuarios y roles"'],

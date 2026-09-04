@@ -30,14 +30,15 @@ import { cn } from "@/lib/utils";
 import {
   ADMIN_MOBILE_PRIMARY_MODULE_IDS,
   ADMIN_MODULE_NAV_LABELS,
+  CLINIC_MOBILE_PRIMARY_MODULE_IDS,
   CLINIC_MODULE_NAV_LABELS,
   parseAdminModule,
   parseClinicModule,
 } from "@/features/dashboard/config";
 import {
   MODULE_QUERY_PARAM,
-  buildAdminHubHref,
   buildDashboardModuleHref,
+  buildHubHref,
 } from "@/features/dashboard/application";
 import {
   ADMIN_MODULE_ICONS,
@@ -129,22 +130,31 @@ function destinationsFor(
 }
 
 /**
- * Primary slots after "Inicio". Admin promotes a curated cut declared in the
- * catalog and sends the rest to the overflow; clinic has five modules, which
- * fit next to "Inicio" without one.
+ * Primary slots after "Inicio", declared per role in the catalog.
+ *
+ * CMP-02 — this used to short-circuit for clinic (`if (surface !== "admin")
+ * return all`), which is why the clinic bar carried six 65px slots and no
+ * overflow while Admin carried five of 78px (audit DIF-006/DIF-007, RC-015).
+ * Both roles read a curated cut from the same catalog now, so the bar can never
+ * again grow a slot just because a role gained a module.
  */
+const PRIMARY_MODULE_IDS: Record<
+  DashboardMobileNavSurface,
+  readonly string[]
+> = {
+  admin: ADMIN_MOBILE_PRIMARY_MODULE_IDS,
+  clinic: CLINIC_MOBILE_PRIMARY_MODULE_IDS,
+};
+
 function primaryDestinations(
   surface: DashboardMobileNavSurface,
   all: readonly MobileNavDestination[],
 ): readonly MobileNavDestination[] {
-  if (surface !== "admin") {
-    return all;
-  }
-  return ADMIN_MOBILE_PRIMARY_MODULE_IDS.map((moduleId) => {
+  return PRIMARY_MODULE_IDS[surface].map((moduleId) => {
     const destination = all.find((item) => item.moduleId === moduleId);
     if (!destination) {
       throw new Error(
-        `B09: ${moduleId} is promoted to the mobile bar but is not in the admin catalog`,
+        `B09: ${moduleId} is promoted to the mobile bar but is not in the ${surface} catalog`,
       );
     }
     return destination;
@@ -168,7 +178,17 @@ const OVERFLOW_PAGE_SIZE = 5;
 // Destination overflow
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * CMP-02 — the destination overflow is reachable from both roles now, so its
+ * landmark is declared per surface. The admin string is the shipped one, verbatim.
+ */
+const OVERFLOW_LANDMARK: Record<DashboardMobileNavSurface, string> = {
+  admin: "Todos los módulos de administración",
+  clinic: "Todos los módulos de la clínica",
+};
+
 type DashboardMobileNavOverflowProps = {
+  readonly surface: DashboardMobileNavSurface;
   readonly isOpen: boolean;
   readonly destinations: readonly MobileNavDestination[];
   readonly basePath: string;
@@ -177,6 +197,7 @@ type DashboardMobileNavOverflowProps = {
 };
 
 function DashboardMobileNavOverflow({
+  surface,
   isOpen,
   destinations,
   basePath,
@@ -204,12 +225,12 @@ function DashboardMobileNavOverflow({
 
   if (!isOpen) return null;
 
-  // Only admin ever reaches an overflow (clinic's five modules fit on the bar),
-  // so the shipped admin landmark name is preserved verbatim.
+  // CMP-02: both roles reach the overflow now, so the landmark names the role
+  // instead of hardcoding administration. The admin string is preserved verbatim.
   return (
     <section
       id={OVERFLOW_ID}
-      aria-label="Todos los módulos de administración"
+      aria-label={OVERFLOW_LANDMARK[surface]}
       data-dashboard-mobile-nav-overflow="true"
       className="dashboard-mobile-nav-overflow"
     >
@@ -342,7 +363,7 @@ function DashboardMobileNavBar({
         className="dashboard-mobile-nav"
       >
         <PublicRouteControl
-          href={surface === "admin" ? buildAdminHubHref() : basePath}
+          href={buildHubHref(surface)}
           prefetch={false}
           variant="bare"
           aria-label="Inicio"
@@ -483,6 +504,7 @@ function MobileNavWithUrl({ surface }: DashboardMobileNavProps) {
       onToggleOverflow={() => setOverflowOpen((current) => !current)}
     >
       <DashboardMobileNavOverflow
+        surface={surface}
         isOpen={overflowOpen}
         destinations={all}
         basePath={SURFACE_BASE_PATH[surface]}

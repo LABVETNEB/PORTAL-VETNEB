@@ -13,6 +13,7 @@ import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { ModuleMetricRun } from "@/components/dashboard/ModuleMetricRun";
 
 export type AdminAuditFilterValues = {
   event: string;
@@ -149,16 +150,15 @@ export function AdminAuditFilterBar(props: AdminAuditFilterBarProps) {
             {props.hasActiveFilters ? "Filtros activos" : "Todos los eventos"}
           </span>
           {props.metrics ? (
-            <span
-              data-dashboard-b14-metrics="admin-audit"
-              className="flex shrink-0 items-baseline gap-1.5 whitespace-nowrap tabular-nums"
-            >
-              <span data-admin-audit-metric="eventos">{props.metrics.events} eventos</span>
-              <span aria-hidden="true">·</span>
-              <span data-admin-audit-metric="roles">{props.metrics.roleChanges} roles</span>
-              <span aria-hidden="true">·</span>
-              <span data-admin-audit-metric="avisos">{props.metrics.notifications} avisos</span>
-            </span>
+            <ModuleMetricRun
+              surfaceId="admin-audit"
+              metricAttribute="data-admin-audit-metric"
+              metrics={[
+                { key: "eventos", value: props.metrics.events, label: "eventos" },
+                { key: "roles", value: props.metrics.roleChanges, label: "roles" },
+                { key: "avisos", value: props.metrics.notifications, label: "avisos" },
+              ]}
+            />
           ) : null}
         </div>
         <ModuleDialog

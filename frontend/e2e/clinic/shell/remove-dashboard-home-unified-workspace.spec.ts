@@ -140,7 +140,7 @@ test("the lateral navigation (all 5 modules) appears on every module", async ({
   }
 });
 
-test("the mobile model (all 5 modules + Inicio) appears on every module <768px", async ({
+test("the five-slot mobile model keeps the secondary modules reachable through overflow", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 375, height: 812 });
@@ -153,17 +153,27 @@ test("the mobile model (all 5 modules + Inicio) appears on every module <768px",
       "aria-label",
       "Navegación móvil de clínica",
     );
-    // Every module is reachable from the single owner, on every module page.
-    for (const other of CLINIC_MODULES) {
+    // The three operational modules occupy the primary slots; the remaining
+    // destinations stay reachable through the same owner's overflow.
+    for (const other of ["operaciones", "informes", "logistica"] as ClinicModule[]) {
       await expect(
         nav.locator(`[data-dashboard-mobile-nav-item="${other}"]`),
       ).toHaveCount(1);
     }
-    // B09_CLINIC_HOME_ITEM = PRESERVE: Inicio stays, so six primary slots.
     await expect(
       nav.locator('[data-dashboard-mobile-nav-item="home"]'),
     ).toHaveCount(1);
-    await expect(nav.locator("[data-dashboard-mobile-nav-item]")).toHaveCount(6);
+    const overflow = nav.locator('[data-dashboard-mobile-nav-item="overflow"]');
+    await expect(overflow).toHaveCount(1);
+    await expect(nav.locator("[data-dashboard-mobile-nav-item]")).toHaveCount(5);
+    await overflow.click();
+    const overflowMenu = page.locator('[data-dashboard-mobile-nav-overflow="true"]');
+    await expect(overflowMenu).toBeVisible();
+    for (const other of ["perfil", "tokens"] as ClinicModule[]) {
+      await expect(
+        overflowMenu.locator(`[data-dashboard-mobile-nav-overflow-link="${other}"]`),
+      ).toHaveCount(1);
+    }
     // The prev/next pager the retired rail carried is NOT reproduced: it was a
     // second grammar over the same ordered modules, not a destination.
     await expect(page.locator('[data-dashboard-pager="module"]')).toHaveCount(0);

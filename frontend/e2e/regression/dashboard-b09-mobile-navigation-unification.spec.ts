@@ -104,14 +104,32 @@ const ADMIN_PRIMARY_ITEMS = [
   "overflow",
 ] as const;
 
-/** B09_CLINIC_HOME_ITEM = PRESERVE: Inicio plus the five clinic modules. */
+/**
+ * CMP-02 (parity program) — the clinic bar no longer promotes every module.
+ * It used to (B09_CLINIC_HOME_ITEM = PRESERVE meant "keep Inicio AND all five
+ * modules, six slots, never an overflow"), which is exactly the DIF-006/DIF-007
+ * divergence the white-box audit measured against Admin's five 78px slots: the
+ * clinic bar carried six 65px slots instead. `CLINIC_MOBILE_PRIMARY_MODULE_IDS`
+ * now curates a cut — the three OPERATIONAL modules, mirroring Admin's own
+ * criterion — and sends the rest to the SAME destination overflow Admin uses.
+ * B09_CLINIC_HOME_ITEM = PRESERVE is still true: Inicio survives, now as the
+ * real hub (CMP-02) rather than an item that silently opened Operaciones.
+ */
 const CLINIC_PRIMARY_ITEMS = [
   "home",
   "operaciones",
   "informes",
   "logistica",
-  "perfil",
-  "tokens",
+  "overflow",
+] as const;
+
+/** The catalog's clinic order, mirrored. Never re-derived from the DOM. */
+const CLINIC_MODULE_LABELS = [
+  "Operaciones",
+  "Informes",
+  "Logística",
+  "Perfil",
+  "Tokens",
 ] as const;
 
 const PHONE_VIEWPORTS = [
@@ -502,24 +520,50 @@ test.describe("B09 · admin destinations", () => {
 });
 
 test.describe("B09 · clinic destinations", () => {
-  test("the bar preserves Inicio plus the five modules and needs no overflow", async ({
+  test("the bar ships the curated primary cut and reaches every module through the overflow", async ({
     page,
   }) => {
     test.setTimeout(90_000);
     await page.setViewportSize({ width: 360, height: 740 });
     await gotoSurface(page, "clinic", "/dashboard?module=operaciones");
 
-    // B09_CLINIC_HOME_ITEM = PRESERVE.
+    // B09_CLINIC_HOME_ITEM = PRESERVE — Inicio survives; CMP-02 curates the
+    // rest exactly like Admin does (five slots, the last one an overflow that
+    // reaches the whole catalog, not "the rest").
     await expectPrimaryItems(
       page,
       NAV_CLINIC,
       CLINIC_PRIMARY_ITEMS,
       "clinic 360x740",
     );
-    await expect(
-      page.locator('[data-dashboard-mobile-nav-item="overflow"]'),
-      "five modules and six slots: clinic never grows an overflow",
-    ).toHaveCount(0);
+
+    await paintedNav(page, NAV_CLINIC)
+      .locator('[data-dashboard-mobile-nav-item="overflow"]')
+      .click();
+    const overflow = page.locator(OVERFLOW);
+    await expect(overflow).toBeVisible();
+
+    const seen: string[] = [];
+    for (let guard = 0; guard < CLINIC_MODULE_LABELS.length; guard += 1) {
+      seen.push(
+        ...(await overflow.locator(OVERFLOW_LINK).allTextContents()).map((text) =>
+          text.trim(),
+        ),
+      );
+      const next = overflow.getByRole("button", {
+        name: "Página siguiente de módulos",
+        exact: true,
+      });
+      if (await next.isDisabled()) break;
+      await next.click();
+    }
+
+    expect(new Set(seen), "the overflow reaches the whole clinic catalog").toEqual(
+      new Set(CLINIC_MODULE_LABELS),
+    );
+
+    await page.keyboard.press("Escape");
+    await expect(overflow).toHaveCount(0);
   });
 
   test("every clinic module is reachable from /dashboard on a phone", async ({
@@ -531,8 +575,10 @@ test.describe("B09 · clinic destinations", () => {
 
     // This is the regression B08 explicitly refused to risk: before B09 the
     // clinic bottom nav returned null here and only the rail could change
-    // module. The owner that replaced it has to do the same job.
-    for (const moduleId of ["informes", "logistica", "perfil", "tokens"]) {
+    // module. The owner that replaced it has to do the same job — for BOTH the
+    // promoted modules (still direct bar slots after CMP-02) and the modules
+    // CMP-02 moved to the overflow.
+    for (const moduleId of ["informes", "logistica"]) {
       await paintedNav(page, NAV_CLINIC)
         .locator(`[data-dashboard-mobile-nav-item="${moduleId}"]`)
         .click();
@@ -552,6 +598,30 @@ test.describe("B09 · clinic destinations", () => {
         paintedNav(page, NAV_CLINIC).locator("[aria-current='page']"),
       ).toHaveCount(1);
     }
+
+    for (const moduleId of ["perfil", "tokens"]) {
+      await paintedNav(page, NAV_CLINIC)
+        .locator('[data-dashboard-mobile-nav-item="overflow"]')
+        .click();
+      await page
+        .locator(`[data-dashboard-mobile-nav-overflow-link="${moduleId}"]`)
+        .click();
+      await expect(page).toHaveURL(
+        new RegExp(`/dashboard\\?module=${moduleId}$`),
+        { timeout: 15_000 },
+      );
+      await expect(
+        page.locator(`[data-dashboard-module-workspace="${moduleId}"]`),
+      ).toBeVisible({ timeout: 20_000 });
+      // An overflowed destination reports current on the OVERFLOW slot itself,
+      // not on a bar slot it no longer occupies — mirrors the admin contract
+      // ("an overflow module opens and marks the overflow entry current").
+      await expect(
+        paintedNav(page, NAV_CLINIC).locator(
+          '[data-dashboard-mobile-nav-item="overflow"]',
+        ),
+      ).toHaveAttribute("aria-current", "page");
+    }
   });
 
   test("a clinic full route keeps its own shell and the same navigation owner", async ({
@@ -563,21 +633,37 @@ test.describe("B09 · clinic destinations", () => {
 
     // B10 fence: the full routes were NOT folded into the module controller.
     // They reach the bar because it is mounted at SHELL level, which is where
-    // it already was before B09.
+    // it already was before B09 — true independently of what CMP-06 later did
+    // to the CONTENT inside that stage.
     await expectPrimaryItems(
       page,
       NAV_CLINIC,
       CLINIC_PRIMARY_ITEMS,
       "clinic full route",
     );
+
+    // CMP-06 (parity program) — a full route DOES now render its own
+    // stage/workspace/viewport chain, structurally mirroring the module
+    // shell's, so Clínica full routes reach the same canonical geometry as
+    // Admin (audit DIF-014..019). That is a deliberate, separately certified
+    // change (dashboard-clinic-full-route-stage-parity.spec.ts, 30/30), not a
+    // regression of the B09 nav-ownership fence this test actually guards:
+    // exactly ONE stage exists (this route's own, per
+    // ClinicFullRouteModuleStage), never two — which would mean the bar
+    // dragged the client-side module controller's stage along with it.
     await expect(
       page.locator('[data-dashboard-module-stage="true"]'),
-      "the full route keeps its own shell, not the clinic module stage",
-    ).toHaveCount(0);
+      "a clinic full route renders exactly one stage — its own",
+    ).toHaveCount(1);
 
-    // And it can navigate back into the canonical `?module=` grammar.
+    // And it can navigate back into the canonical `?module=` grammar. "tokens"
+    // is one of the modules CMP-02 moved to the overflow, so it is reached the
+    // same way "every clinic module is reachable" reaches it above.
     await paintedNav(page, NAV_CLINIC)
-      .locator('[data-dashboard-mobile-nav-item="tokens"]')
+      .locator('[data-dashboard-mobile-nav-item="overflow"]')
+      .click();
+    await page
+      .locator('[data-dashboard-mobile-nav-overflow-link="tokens"]')
       .click();
     await expect(page).toHaveURL(/\/dashboard\?module=tokens$/, {
       timeout: 15_000,
@@ -662,9 +748,14 @@ test.describe("B09 · deep links, history and hub reset", () => {
 
     await page.reload();
     await expect(page.locator(MAIN)).toBeVisible({ timeout: 25_000 });
+    // CMP-02 (parity program) — "perfil" is one of the modules CMP-02 moved
+    // off the bar into the overflow (audit DIF-006/DIF-007). It has no direct
+    // `[data-dashboard-mobile-nav-item="perfil"]` slot any more; a deep link
+    // to it reports current on the OVERFLOW slot instead, exactly as an
+    // overflowed admin module does.
     await expect(
       paintedNav(page, NAV_CLINIC).locator(
-        '[data-dashboard-mobile-nav-item="perfil"]',
+        '[data-dashboard-mobile-nav-item="overflow"]',
       ),
     ).toHaveAttribute("aria-current", "page", { timeout: 20_000 });
     await expect(

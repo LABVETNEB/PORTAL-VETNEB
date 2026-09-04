@@ -1,5 +1,6 @@
+import type { ReactNode } from "react";
 import type { FieldVisit, RoutePlan } from "@/types";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
 import { EmptyState } from "@/components/dashboard/EmptyState";
@@ -10,12 +11,18 @@ import {
   formatDate,
 } from "@/lib/utils";
 import { LogisticsRecentListCanvas } from "./LogisticsRecentListCanvas";
+import { ModuleMetricRun } from "@/components/dashboard/ModuleMetricRun";
+import { ModuleCard } from "@/components/dashboard/ModuleCard";
+import { CanonicalOperationalRow } from "@/components/dashboard/CanonicalOperationalRow";
+import { FieldVisitDetailDialog } from "./FieldVisitDetailDialog";
+import { RoutePlanDetailDialog } from "./RoutePlanDetailDialog";
 
 export type LogisticsCommandCenterProps = {
   fieldVisits: FieldVisit[];
   routePlans: RoutePlan[];
   fieldVisitsLoadError: boolean;
   routePlansLoadError: boolean;
+  headerActions?: ReactNode;
 };
 
 export function LogisticsCommandCenter({
@@ -23,6 +30,7 @@ export function LogisticsCommandCenter({
   routePlans,
   fieldVisitsLoadError,
   routePlansLoadError,
+  headerActions,
 }: LogisticsCommandCenterProps) {
   const activeVisits = fieldVisits.filter(
     (v) => v.status === "in_progress" || v.status === "scheduled",
@@ -39,14 +47,23 @@ export function LogisticsCommandCenter({
   const recentPlans = routePlans;
 
   return (
-    <section
-      className="flex min-h-0 flex-1 flex-col gap-5"
-      aria-labelledby="logistics-command-center-heading"
-      // Scope hook for the mobile density block in styles/dashboard/zero-scroll.css:
-      // below `md` the informational chrome above the grid consumed the whole
-      // track and the two card canvases collapsed under one row height.
-      data-logistics-command-center="true"
+    <ModuleCard
+      ariaLabel="Centro de logística"
     >
+      <div
+        className="flex min-h-0 flex-1 flex-col gap-5"
+        aria-labelledby="logistics-command-center-heading"
+        data-logistics-command-center="true"
+      >
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-vetneb-line/70 px-3 py-1.5">
+        <div className="min-w-0">
+          <h2 id="logistics-command-center-heading" className="truncate text-xs font-semibold text-vetneb-ink">
+            Centro de logística
+          </h2>
+          <p className="truncate text-[0.6875rem] text-muted-foreground">Visitas, rutas y métricas operativas.</p>
+        </div>
+        {headerActions ? <div className="flex shrink-0 gap-1">{headerActions}</div> : null}
+      </div>
       <section
         className="surface-note-info shrink-0"
         aria-labelledby="logistics-operational-priority"
@@ -63,46 +80,17 @@ export function LogisticsCommandCenter({
               Priorice visitas activas y planes en curso para sostener continuidad operativa.
             </p>
           </div>
-          <div className="grid grid-cols-3 gap-2 sm:min-w-[24rem]">
-            <div className="dashboard-kpi-pill" data-tone="focus">
-              <p className="text-[0.68rem] font-semibold uppercase tracking-wide">
-                Visitas activas
-              </p>
-              <p className="mt-1 text-lg font-bold leading-none">
-                {activeVisits.length}
-              </p>
-            </div>
-            <div className="dashboard-kpi-pill" data-tone="critical">
-              <p className="text-[0.68rem] font-semibold uppercase tracking-wide">
-                Planes activos
-              </p>
-              <p className="mt-1 text-lg font-bold leading-none">
-                {activePlans.length}
-              </p>
-            </div>
-            <div className="dashboard-kpi-pill">
-              <p className="text-[0.68rem] font-semibold uppercase tracking-wide">
-                Total visitas
-              </p>
-              <p className="mt-1 text-lg font-bold leading-none">
-                {fieldVisits.length}
-              </p>
-            </div>
-          </div>
+          <ModuleMetricRun
+            surfaceId="clinic-logistica-full"
+            className="text-xs text-vetneb-navy"
+            metrics={[
+              { key: "visitas-activas", label: "Visitas activas", value: activeVisits.length },
+              { key: "planes-activos", label: "Planes activos", value: activePlans.length },
+              { key: "total-visitas", label: "Total visitas", value: fieldVisits.length },
+            ]}
+          />
         </div>
       </section>
-
-      <div className="shrink-0">
-        <h2
-          id="logistics-command-center-heading"
-          className="dashboard-section-heading"
-        >
-          Centro de logística
-        </h2>
-        <p className="dashboard-section-description">
-          Visitas de campo activas y planes de ruta en tiempo real.
-        </p>
-      </div>
 
       {/* `minmax(0,1fr)` instead of `auto-rows-fr` (`minmax(auto,1fr)`): inside a
           bounded no-scroll canvas the rows must be allowed to shrink below their
@@ -111,7 +99,7 @@ export function LogisticsCommandCenter({
           card and blocks its pointer events. Same grammar the other no-scroll
           grids already use (styles/dashboard/shell.css, surfaces.css). */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 min-h-0 flex-1 auto-rows-[minmax(0,1fr)]">
-        <Card className="dashboard-surface flex min-h-0 flex-col overflow-hidden">
+        <section className="flex min-h-0 flex-col overflow-hidden">
           <CardHeader className="flex shrink-0 flex-row items-start justify-between pb-3">
             <div>
               <CardTitle className="text-base">Visitas de campo</CardTitle>
@@ -131,22 +119,18 @@ export function LogisticsCommandCenter({
             ) : recentVisits.length ? (
               <LogisticsRecentListCanvas pagerAriaLabel="Paginación de visitas recientes">
                 {recentVisits.map((visit) => (
-                  <div key={visit.id} className="dashboard-list-row">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-vetneb-ink">
-                        {visit.clinicName ?? `Clínica #${visit.clinicId}`}
-                      </p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {visit.address ?? "Sin dirección"} ·{" "}
-                        {formatDate(visit.scheduledAt)}
-                      </p>
-                    </div>
-                    <StatusBadge
-                      status={visit.status}
-                      size="sm"
-                      className="ml-2 shrink-0"
-                    />
-                  </div>
+                  <CanonicalOperationalRow
+                    key={visit.id}
+                    dataAttributes={{ "data-logistics-recent-row": "visita" }}
+                    identity={visit.clinicName ?? `Clínica #${visit.clinicId}`}
+                    secondary={`${visit.address ?? "Sin dirección"} · ${formatDate(visit.scheduledAt)}`}
+                    trailing={
+                      <>
+                        <StatusBadge status={visit.status} size="sm" />
+                        <FieldVisitDetailDialog visit={visit} />
+                      </>
+                    }
+                  />
                 ))}
               </LogisticsRecentListCanvas>
             ) : (
@@ -157,9 +141,9 @@ export function LogisticsCommandCenter({
               />
             )}
           </CardContent>
-        </Card>
+        </section>
 
-        <Card className="dashboard-surface flex min-h-0 flex-col overflow-hidden">
+        <section className="flex min-h-0 flex-col overflow-hidden">
           <CardHeader className="flex shrink-0 flex-row items-start justify-between pb-3">
             <div>
               <CardTitle className="text-base">Planes de ruta</CardTitle>
@@ -186,23 +170,20 @@ export function LogisticsCommandCenter({
                         )
                       : 0;
                   return (
-                    <div key={plan.id} className="dashboard-list-row">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-vetneb-ink">
-                          {plan.name}
-                        </p>
-                        <p className="truncate text-xs text-muted-foreground">
-                          {plan.completedStops}/{plan.totalStops} paradas ·{" "}
-                          {progress}% · {formatDate(plan.plannedDate)}
-                        </p>
-                      </div>
-                      <Badge
-                        variant={getRoutePlanStatusVariant(plan.status)}
-                        className="ml-2 shrink-0"
-                      >
-                        {getRoutePlanStatusLabel(plan.status)}
-                      </Badge>
-                    </div>
+                    <CanonicalOperationalRow
+                      key={plan.id}
+                      dataAttributes={{ "data-logistics-recent-row": "ruta" }}
+                      identity={plan.name}
+                      secondary={`${plan.completedStops}/${plan.totalStops} paradas · ${progress}% · ${formatDate(plan.plannedDate)}`}
+                      trailing={
+                        <>
+                          <Badge variant={getRoutePlanStatusVariant(plan.status)}>
+                            {getRoutePlanStatusLabel(plan.status)}
+                          </Badge>
+                          <RoutePlanDetailDialog plan={plan} />
+                        </>
+                      }
+                    />
                   );
                 })}
               </LogisticsRecentListCanvas>
@@ -214,8 +195,9 @@ export function LogisticsCommandCenter({
               />
             )}
           </CardContent>
-        </Card>
+        </section>
       </div>
-    </section>
+      </div>
+    </ModuleCard>
   );
 }

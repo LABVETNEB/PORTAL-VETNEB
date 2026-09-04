@@ -40,7 +40,18 @@ const SHELL_ROUTER_TSX =
 const CLINIC_CONTROLLER_TSX =
   "frontend/src/components/dashboard/ClinicDashboardWorkspaceController.tsx";
 const TOPBAR_TSX = "frontend/src/components/dashboard/DashboardTopbar.tsx";
+/** CMP-01 — the ONE owner of the mobile context title, for both roles. */
+const CONTEXT_TITLE_TSX =
+  "frontend/src/components/dashboard/ModuleContextTitle.tsx";
 const KEBAB_TSX = "frontend/src/components/dashboard/AdminMobileKebabMenu.tsx";
+/**
+ * CMP-01 — the kebab body moved to a shared, role-parameterised owner so Clínica
+ * consumes the SAME action overflow instead of three inline sub-44px controls
+ * (audit DIF-005 / RC-002). `KEBAB_TSX` is now a pure delegate; the actions and the
+ * markup live here.
+ */
+const SHARED_KEBAB_TSX =
+  "frontend/src/components/dashboard/DashboardMobileKebabMenu.tsx";
 const NAVIGATION_BARREL =
   "frontend/src/features/dashboard/presentation/navigation/index.ts";
 const MODULE_CATALOG =
@@ -49,6 +60,8 @@ const ICON_OWNER = "frontend/src/components/dashboard/dashboardModuleIcons.ts";
 const NAVIGATION_CSS = "frontend/src/styles/dashboard/navigation.css";
 const TOKENS_CSS = "frontend/src/styles/dashboard/tokens.css";
 const MOBILE_ADMIN_CSS = "frontend/src/styles/dashboard/mobile-admin.css";
+/** CMP-01 — the ONE declaration site of the shared mobile chrome contract. */
+const MOBILE_CHROME_CSS = "frontend/src/styles/dashboard/mobile-chrome.css";
 const MOBILE_CLINIC_CSS = "frontend/src/styles/dashboard/mobile-clinic.css";
 const GLOBALS_CSS = "frontend/src/app/globals.css";
 
@@ -353,21 +366,38 @@ test("B09 · the primary-slot cut is catalog data, not a component literal", () 
   );
 });
 
-test("B09 · the admin mobile context title is derived, not declared", () => {
+test("B09 · the mobile context title is derived, not declared", () => {
+  // CMP-01 moved the title out of DashboardTopbar into a shared, role-parameterised
+  // owner so Clínica stops rendering the static product name (audit DIF-003 / RC-001).
+  // The B09 invariant is unchanged: the label is DERIVED from the canonical catalog
+  // and `?module=` goes through the canonical parser.
   const topbar = stripComments(read(TOPBAR_TSX));
+  const title = stripComments(read(CONTEXT_TITLE_TSX));
 
   assert.equal(
-    topbar.includes("ADMIN_MOBILE_TITLES"),
+    topbar.includes("ADMIN_MOBILE_TITLES") || title.includes("ADMIN_MOBILE_TITLES"),
     false,
     "the private ten-entry label table is retired",
   );
   assert.ok(
-    topbar.includes("ADMIN_MODULE_NAV_LABELS"),
-    "the title reads the canonical catalog",
+    topbar.includes("ModuleContextTitle"),
+    "the topbar delegates the mobile context title to the shared owner",
   );
   assert.ok(
-    topbar.includes("parseAdminModule(searchParams.get(MODULE_QUERY_PARAM))"),
+    title.includes("ADMIN_MODULE_NAV_LABELS"),
+    "the title reads the canonical admin catalog",
+  );
+  assert.ok(
+    title.includes("CLINIC_MODULE_NAV_LABELS"),
+    "the title reads the canonical clinic catalog: both roles, one owner",
+  );
+  assert.ok(
+    title.includes("parseAdminModule(rawModule)"),
     "the title resolves `?module=` through the canonical parser, so aliases and unknown values behave like everywhere else",
+  );
+  assert.ok(
+    title.includes("parseClinicModule(rawModule)"),
+    "the clinic branch uses the canonical clinic parser, not a raw read",
   );
 });
 
@@ -404,8 +434,25 @@ test("B09 · the action overflow is a separate owner and keeps every action", ()
     existsSync(resolve(REPO_ROOT, KEBAB_TSX)),
     "AdminMobileKebabMenu survives B09: it is the ONLY carrier of theme, notifications, password, public site and logout on admin mobile",
   );
+  assert.ok(
+    existsSync(resolve(REPO_ROOT, SHARED_KEBAB_TSX)),
+    "CMP-01: the shared action overflow owns the markup for both roles",
+  );
 
-  const kebab = read(KEBAB_TSX);
+  // CMP-01: the wrapper keeps its name for the guards and the barrel, but must
+  // hold ZERO local visual implementation — it delegates 100% to the shared owner.
+  const wrapper = stripComments(read(KEBAB_TSX));
+  assert.ok(
+    wrapper.includes("DashboardMobileKebabMenu"),
+    "AdminMobileKebabMenu must delegate to the shared action overflow",
+  );
+  assert.equal(
+    /className=|<section|<button/.test(wrapper),
+    false,
+    "AdminMobileKebabMenu must not re-declare markup: one implementation only",
+  );
+
+  const kebab = read(SHARED_KEBAB_TSX);
   for (const action of [
     "Apariencia",
     "Notificaciones",
@@ -414,6 +461,14 @@ test("B09 · the action overflow is a separate owner and keeps every action", ()
     "Cerrar sesión",
   ]) {
     assert.ok(kebab.includes(action), `${action} must survive B09`);
+  }
+
+  // CMP-01: both roles reach the same owner, so the action set can never diverge.
+  for (const surface of ['"admin"', '"clinic"']) {
+    assert.ok(
+      kebab.includes(surface),
+      `the shared action overflow must serve ${surface}`,
+    );
   }
 
   // It stays out of the navigation barrel because its closure reaches the data
@@ -430,9 +485,11 @@ test("B09 · the action overflow is a separate owner and keeps every action", ()
   );
 
   // The kebab is injected through the app bar's overflow slot, as B06 designed.
+  // CMP-01: the slot is now filled for BOTH roles from the one shared owner, so the
+  // ternary that used to hand Clínica `null` is gone (audit DIF-005 / RC-002).
   assert.ok(
     stripComments(read(TOPBAR_TSX)).includes(
-      "overflow={isAdmin ? <AdminMobileKebabMenu /> : null}",
+      'overflow={<DashboardMobileKebabMenu surface={isAdmin ? "admin" : "clinic"} />}',
     ),
     "the action overflow is injected as an app-bar slot, not mounted ad hoc",
   );
@@ -487,11 +544,21 @@ test("B09 · the mobile navigation grammar is authored once, in navigation.css",
     "the B09 block must not transition a structural size",
   );
 
-  // Roles differ by ONE custom property, never by a forked rule.
+  // CMP-02 — the roles no longer differ AT ALL here. B09 allowed exactly one
+  // parameterised property bound once per surface; the audit measured what that
+  // permission actually produced: 9.6px on admin against 8.96px on clinic for the
+  // same shared band (DIF-007). One band, one label size, declared once.
   assert.equal(
     [...block.matchAll(/--dash-mobile-nav-label-size:/g)].length,
-    2,
-    "exactly one parameterised property, bound once per surface",
+    1,
+    "the label size is declared exactly once for every surface",
+  );
+  assert.equal(
+    /\[data-vetneb-app-shell-surface="(admin|clinic)"\][^{]*\{[^}]*--dash-mobile-nav-label-size/.test(
+      block,
+    ),
+    false,
+    "the label size must not be forked by surface",
   );
 
   // The retired per-role blocks are gone from the mobile stylesheets.
@@ -533,34 +600,55 @@ test("B09 · geometry and the touch floor live in tokens.css", () => {
     );
   }
 
-  // The kebab surfaces take the same floor from the same token.
-  const kebabCss = read(MOBILE_ADMIN_CSS);
+  // The kebab surfaces take the same floor from the same token. CMP-01 moved the
+  // declarations to the SHARED mobile chrome layer so both roles inherit the floor
+  // from one place; the assertion follows the rule, it does not relax.
+  const kebabCss = read(MOBILE_CHROME_CSS);
   assert.match(
     kebabCss,
-    /\.admin-mobile-kebab-trigger \{[^}]*inline-size:\s*var\(--dash-mobile-nav-touch-min\)/,
+    /\.dashboard-mobile-kebab-trigger \{[^}]*inline-size:\s*var\(--dash-mobile-nav-touch-min\)/,
     "the kebab trigger takes the B09 floor (it was 36px)",
   );
   assert.match(
     kebabCss,
-    /\.admin-mobile-kebab-action \{[\s\S]{0,400}?min-block-size:\s*var\(--dash-mobile-nav-touch-min\)/,
+    /\.dashboard-mobile-kebab-action \{[\s\S]{0,400}?min-block-size:\s*var\(--dash-mobile-nav-touch-min\)/,
     "the kebab rows/actions take the B09 floor (they were 40px)",
+  );
+
+  // CMP-01: the moved declarations must NOT survive in the admin-only file, or the
+  // duplication the audit condemned would be back.
+  const adminCss = read(MOBILE_ADMIN_CSS);
+  assert.equal(
+    /\.admin-mobile-kebab-trigger \{/.test(adminCss),
+    false,
+    "the kebab must have exactly one declaration site, in the shared chrome layer",
   );
 });
 
-test("B09 · admin mobile app bar is 48px so the trigger seats with margin", () => {
-  const css = read(MOBILE_ADMIN_CSS);
+test("B09 · mobile app bar is 48px so the trigger seats with margin", () => {
+  // CMP-01: the band is authored once, for every dashboard surface. It used to be
+  // `--admin-mobile-appbar-h` scoped to admin, which is precisely why Clínica
+  // rendered a 52px content-derived bar (audit DIF-001 / RC-002).
+  const css = read(MOBILE_CHROME_CSS);
 
   // B09_ADMIN_MOBILE_APPBAR_H = 48px. The clamp resolved to its 44px floor on
   // every phone in the matrix, and a 44x44 trigger exactly filled it.
   assert.match(
     css,
-    /--admin-mobile-appbar-h:\s*3rem;/,
-    "the admin mobile app bar band is 48px",
+    /--dash-mobile-appbar-h:\s*3rem;/,
+    "the mobile app bar band is 48px",
   );
   assert.equal(
-    css.includes("--admin-mobile-appbar-h: clamp(2.75rem"),
+    css.includes("--dash-mobile-appbar-h: clamp(2.75rem"),
     false,
     "the 44px clamp is retired",
+  );
+
+  // The band must be keyed on the surface-neutral hook, not on a single role.
+  assert.match(
+    css,
+    /\[data-vetneb-app-shell-surface\]\s*\n?\s*\[data-dashboard-mobile-app-bar="true"\]/,
+    "the app bar band applies to every dashboard surface",
   );
 });
 
@@ -692,9 +780,13 @@ test("B09 · every preserved behaviour has a carrier in the new owner", () => {
     );
   }
 
+  // CMP-02 — the durable explicit hub URL is now built for BOTH roles from one
+  // parameterised helper, so the clinic "Inicio" slot stops resolving silently to
+  // the default module (audit DIF-041 / RC-015). B13's invariant is unchanged: the
+  // owner links Inicio to an explicit `?hub=1`, never to a bare route.
   assert.ok(
-    executable.includes("buildAdminHubHref"),
-    "B13 owns the durable explicit admin hub URL",
+    executable.includes("buildHubHref(surface)"),
+    "B13 owns the durable explicit hub URL, parameterised by surface",
   );
   assert.equal(
     executable.includes('writeDashboardLastModule(ADMIN_LAST_MODULE_STORAGE_KEY, "")'),
@@ -702,13 +794,32 @@ test("B09 · every preserved behaviour has a carrier in the new owner", () => {
     "admin Inicio does not clear its durable last module",
   );
 
-  // B09_CLINIC_HOME_ITEM = PRESERVE. Clinic keeps Inicio next to its five
-  // modules, so it renders six primary slots and never an overflow.
+  // B09_CLINIC_HOME_ITEM = PRESERVE — still true, and now it means something.
+  //
+  // CMP-02: the clinic short-circuit that promoted EVERY module is gone. It gave
+  // the clinic bar six 65px slots and no overflow while Admin ran five of 78px
+  // (audit DIF-006/DIF-007, RC-015). Both roles read a curated cut from the same
+  // catalog through one code path, so a role gaining a module can never again
+  // grow the bar.
+  assert.equal(
+    /if \(surface !== "admin"\)/.test(executable),
+    false,
+    "the clinic short-circuit that promoted every module must be retired",
+  );
   assert.match(
     executable,
-    /if \(surface !== "admin"\) \{\s*return all;/,
-    "clinic promotes every module to the bar: six slots, no overflow",
+    /PRIMARY_MODULE_IDS\s*:\s*Record<\s*DashboardMobileNavSurface/,
+    "primary slots are table-driven per surface, not forked by an if",
   );
+  for (const catalogCut of [
+    "ADMIN_MOBILE_PRIMARY_MODULE_IDS",
+    "CLINIC_MOBILE_PRIMARY_MODULE_IDS",
+  ]) {
+    assert.ok(
+      executable.includes(catalogCut),
+      `${catalogCut} must feed the bar from the canonical catalog`,
+    );
+  }
 
   // The rail's prev/next MODULE pager is NOT reproduced: it was a second
   // grammar over the same ordered modules, and B07 already declined to carry it

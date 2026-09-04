@@ -63,9 +63,9 @@ export function LogisticsRecentListCanvas({
         ref={setCanvasNode}
         data-logistics-recent-list-canvas="true"
         data-dashboard-adaptive-rows-canvas="true"
-        data-dashboard-row-pitch="tall"
+        data-dashboard-row-pitch="regular"
         data-dashboard-row-gap="spaced"
-        className="flex min-h-0 flex-1 flex-col overflow-hidden"
+        className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden"
       >
         {paged.pageItems}
       </div>
@@ -77,6 +77,11 @@ export function LogisticsRecentListCanvas({
         hasNext={paged.hasNext}
         onPrev={paged.goPrev}
         onNext={paged.goNext}
+        rangeLabel={
+          paged.total > 0
+            ? `${paged.rangeStart}–${paged.rangeEnd} de ${paged.total}`
+            : undefined
+        }
         className="shrink-0 border-t border-vetneb-line/60"
       />
     </div>

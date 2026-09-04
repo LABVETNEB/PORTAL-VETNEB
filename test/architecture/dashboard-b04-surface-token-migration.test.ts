@@ -44,6 +44,8 @@ const SURFACES_CSS = "frontend/src/styles/dashboard/surfaces.css";
 const NAVIGATION_CSS = "frontend/src/styles/dashboard/navigation.css";
 const SHELL_CSS = "frontend/src/styles/dashboard/shell.css";
 const MOBILE_ADMIN_CSS = "frontend/src/styles/dashboard/mobile-admin.css";
+/** CMP-01 — the ONE declaration site of the shared mobile chrome contract. */
+const MOBILE_CHROME_CSS = "frontend/src/styles/dashboard/mobile-chrome.css";
 const MOBILE_CLINIC_CSS = "frontend/src/styles/dashboard/mobile-clinic.css";
 
 const TOPBAR_TSX = "frontend/src/components/dashboard/DashboardTopbar.tsx";
@@ -174,12 +176,15 @@ const MANIFEST: readonly ManifestEntry[] = [
     why: "the lateral filter drawer: a directional shadow, not a chrome band",
   },
   {
-    path: MOBILE_ADMIN_CSS,
-    anchor: '[data-vetneb-app-shell-surface="admin"] .admin-mobile-kebab-menu {',
+    // CMP-01 extracted the mobile kebab into the SHARED chrome layer so Clínica
+    // consumes the same action overflow (audit DIF-005 / RC-002). The overlay moved
+    // stylesheet with its component; its classification did not change.
+    path: MOBILE_CHROME_CSS,
+    anchor: "[data-vetneb-app-shell-surface] .dashboard-mobile-kebab-menu {",
     role: "TRANSIENT_OVERLAY",
     expectedTokens: [],
     elevation: "retained",
-    why: "the admin mobile kebab menu",
+    why: "the shared mobile kebab menu",
   },
   {
     // Was `.admin-mobile-module-menu` in mobile-admin.css. B09 folded the admin

@@ -18,9 +18,10 @@ export type LogisticsBoundedCanvasProps = {
   currentLimit: number;
   minLimit?: number;
   maxLimit: number;
-  /** Pre-measurement row height estimate. */
-  rowFallbackPx?: number;
-  children: ReactNode;
+  /** `md:hidden` canonical-row rows (CMP-08: pitch "regular", 44px). */
+  mobileChildren: ReactNode;
+  /** `hidden md:flex|block` rows — unchanged from the pre-CMP-08 markup. */
+  desktopChildren: ReactNode;
 };
 
 /**
@@ -32,6 +33,14 @@ export type LogisticsBoundedCanvasProps = {
  * replaces the URL once with `offset=0&limit=<measured>` so the server
  * renders exactly the rows the viewport can show — no clipped rows, no
  * internal scroller, pager always visible.
+ *
+ * CMP-08: mobile and desktop are mutually exclusive by media query (same
+ * split as `AdminSessionsReadOnlyCard`/`AdminUsersRolesReadOnlyCard` —
+ * "one owner per canvas... exactly one reports `measured`"), so each gets its
+ * own canvas node and its own row pitch: mobile rows are the canonical
+ * "regular" (44px) row, desktop keeps its original "tall"/"block" pitch and
+ * markup untouched. `itemsPerPage` collapses whichever side is actually
+ * visible into the single URL `limit` both share.
  */
 export function LogisticsBoundedCanvas({
   canvas,
@@ -40,26 +49,34 @@ export function LogisticsBoundedCanvas({
   currentLimit,
   minLimit = 3,
   maxLimit,
-  rowFallbackPx = 56,
-  children,
+  mobileChildren,
+  desktopChildren,
 }: LogisticsBoundedCanvasProps) {
   const router = useRouter();
   const replacedRef = useRef(false);
-  const [canvasNode, setCanvasNode] = useState<HTMLElement | null>(null);
+  const [mobileNode, setMobileNode] = useState<HTMLElement | null>(null);
+  const [desktopNode, setDesktopNode] = useState<HTMLElement | null>(null);
 
-  // The three composite reserves this canvas used to subtract by hand — the
-  // measured `thead`, the first non-empty row and an 8px cushion — are all CSS
-  // now: the head is the reserve token it is itself locked to, and the row is
-  // the tier token. Probing them meant the URL `limit` was derived from whatever
-  // rows the server had already rendered, so the default page size depended on
-  // the page it was computed from.
-  const { capacity: itemsPerPage, measured } = useDashboardCanvasCapacity({
-    canvasNode,
+  const mobileCapacity = useDashboardCanvasCapacity({
+    canvasNode: mobileNode,
     fallbackItems: currentLimit,
     minItems: minLimit,
     maxItems: maxLimit,
     enabled: !hasExplicitLimit,
   });
+  const desktopCapacity = useDashboardCanvasCapacity({
+    canvasNode: desktopNode,
+    fallbackItems: currentLimit,
+    minItems: minLimit,
+    maxItems: maxLimit,
+    enabled: !hasExplicitLimit,
+  });
+  const measured = mobileCapacity.measured || desktopCapacity.measured;
+  const itemsPerPage = mobileCapacity.measured
+    ? mobileCapacity.capacity
+    : desktopCapacity.measured
+      ? desktopCapacity.capacity
+      : currentLimit;
 
   useEffect(() => {
     if (
@@ -85,16 +102,32 @@ export function LogisticsBoundedCanvas({
     router,
   ]);
 
+  // Both regimes carry the same logical canvas id: it names the domain canvas
+  // (`visitas`, `rutas`, `metricas`), not the breakpoint that renders it. Every
+  // consumer resolves it visible-filtered, and the two panes are mutually
+  // exclusive (`md:hidden` / `hidden md:block`), so exactly one answers at any
+  // viewport.
   return (
-    <div
-      ref={setCanvasNode}
-      data-dashboard-table-canvas={canvas}
-      data-dashboard-adaptive-rows-canvas="true"
-      data-dashboard-row-pitch={canvas === "metricas" ? "block" : "tall"}
-      {...(canvas === "metricas" ? {} : { "data-dashboard-canvas-reserve": "table-head" })}
-      className="h-full min-h-0"
-    >
-      {children}
-    </div>
+    <>
+      <div
+        ref={setMobileNode}
+        data-dashboard-table-canvas={canvas}
+        data-dashboard-adaptive-rows-canvas="true"
+        data-dashboard-row-pitch="regular"
+        className="h-full min-h-0 w-full min-w-0 md:hidden"
+      >
+        {mobileChildren}
+      </div>
+      <div
+        ref={setDesktopNode}
+        data-dashboard-table-canvas={canvas}
+        data-dashboard-adaptive-rows-canvas="true"
+        data-dashboard-row-pitch={canvas === "metricas" ? "block" : "tall"}
+        {...(canvas === "metricas" ? {} : { "data-dashboard-canvas-reserve": "table-head" })}
+        className="hidden h-full min-h-0 md:block"
+      >
+        {desktopChildren}
+      </div>
+    </>
   );
 }

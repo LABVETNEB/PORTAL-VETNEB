@@ -88,6 +88,14 @@ export type DashboardPagerProps = {
   prevControl?: ReactNode;
   stateControl?: ReactNode;
   nextControl?: ReactNode;
+  /**
+   * CMP-09 — accessible range/total announcement, mirroring Admin's
+   * `AdminMobileOpsPager` `rangeLabel` (e.g. "1–13 de 60"). Rendered
+   * `sr-only`, matching Admin: the visible label stays the compact
+   * "Pág. X / Y" in both. Omit when no total is known (the logistics full
+   * routes' backend does not expose one).
+   */
+  rangeLabel?: string;
 };
 
 const pagerButtonClassName =
@@ -106,6 +114,7 @@ export function DashboardPager({
   prevControl,
   stateControl,
   nextControl,
+  rangeLabel,
 }: DashboardPagerProps) {
   const safePageCount = Math.max(1, pageCount);
   const displayPage = Math.min(Math.max(1, page + 1), safePageCount);
@@ -117,9 +126,14 @@ export function DashboardPager({
       aria-label={ariaLabel}
       data-dashboard-pager="true"
       data-dashboard-adaptive-reserved-region="pager"
-      className={cn("dashboard-pager", className)}
-      style={DASHBOARD_PAGER_RESERVATION}
+      className={cn("dashboard-pager min-h-10", className)}
+      style={DASHBOARD_TOUCH_PAGER_RESERVATION}
     >
+      {rangeLabel ? (
+        <span className="sr-only" aria-live="polite">
+          {rangeLabel}
+        </span>
+      ) : null}
       <span data-dashboard-pager-prev="true" className="inline-flex">
         {prevControl ?? (
           <button
@@ -139,7 +153,7 @@ export function DashboardPager({
       >
         {stateControl ?? (
           <span className="dashboard-pagination-context">
-            Página {displayPage} de {safePageCount}
+            Pág. {displayPage} / {safePageCount}
           </span>
         )}
       </span>

@@ -2,22 +2,18 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 
 import { ClinicDashboardShell } from "@/components/dashboard/ClinicDashboardShell";
-import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";
+import { ClinicFullRouteModuleStage } from "@/components/dashboard/ClinicFullRouteModuleStage";
+import { ModuleDialog } from "@/components/dashboard/ModuleDialog";
+import { ModuleCard } from "@/components/dashboard/ModuleCard";
+import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import {
   dashboardFilterActionClassName,
   dashboardFilterControlClassName,
   FilterBar,
   FilterField,
 } from "@/components/dashboard/FilterBar";
-import { PublicRouteControl } from "@/components/public/PublicRouteControl";
-import { StatusBadge } from "@/components/dashboard/StatusBadge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import {
@@ -26,9 +22,8 @@ import {
   type PaginatedReports,
 } from "@/lib/api";
 import { redirectToLoginOnUnauthorized } from "@/lib/dashboard-server-auth";
-import { getReportStatusLabel } from "@/lib/utils";
-import { ROUTES } from "@/lib/routes";
 import { InformesReportsList } from "./InformesReportsList";
+import { ModuleMetricRun } from "@/components/dashboard/ModuleMetricRun";
 import { INFORMES_FALLBACK_ROWS } from "./informes.constants";
 
 export const metadata: Metadata = {
@@ -139,11 +134,7 @@ export default async function InformesPage({
   }
 
   const reports = pagedResult.reports;
-
-  const selectedReport =
-    selectedReportId === null
-      ? (reports[0] ?? null)
-      : (reports.find((report) => report.id === selectedReportId) ?? null);
+  const hasActiveFilters = Boolean(query || status || studyType);
 
   return (
     <ClinicDashboardShell
@@ -151,34 +142,11 @@ export default async function InformesPage({
       subtitle="Consulta de informes médicos veterinarios"
       module="informes"
     >
-      <DashboardPageHeader
-        title="Informes"
-        description="Consulta compacta de informes: lista operativa, selección directa y detalle separado sin superponer filtros."
-        badge={
-          selectedReport ? (
-            <StatusBadge
-              status={selectedReport.status}
-              label={getReportStatusLabel(selectedReport.status)}
-              size="sm"
-            />
-          ) : null
-        }
-        actions={
-          <PublicRouteControl
-            href={ROUTES.dashboard}
-            variant="bare"
-            aria-label="Volver al dashboard"
-            className="inline-flex h-9 items-center gap-2 rounded-md border border-input bg-card/95 px-3 text-sm font-semibold text-foreground shadow-sm transition-colors hover:border-vetneb-teal/45 hover:bg-accent/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
-          >
-            <span>Volver a m&oacute;dulos</span>
-          </PublicRouteControl>
-        }
-      />
-
-      <Card
-        data-informes-workspace="true"
-        className="dashboard-surface flex min-h-0 flex-1 flex-col overflow-hidden"
-      >
+      <ClinicFullRouteModuleStage moduleId="informes-full">
+        <ModuleCard
+          ariaLabel="Informes disponibles"
+          dataAttributes={{ "data-informes-workspace": "true" }}
+        >
         <CardHeader className="shrink-0 border-b border-vetneb-line/70">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
             <div className="min-w-0">
@@ -189,65 +157,143 @@ export default async function InformesPage({
               >
                 Seleccione un informe de la lista para abrir el detalle operativo.
               </p>
+              <ModuleMetricRun
+                surfaceId="clinic-informes-full"
+                className="mt-1 text-xs text-muted-foreground"
+                metrics={[
+                  { key: "total-resultados", label: "Total resultados", value: pagedResult.total },
+                  { key: "en-proceso", label: "En proceso", value: reports.filter((report) => report.status === "processing").length },
+                  { key: "disponibles", label: "Disponibles", value: reports.filter((report) => report.status === "ready" || report.status === "delivered").length },
+                ]}
+              />
             </div>
           </div>
         </CardHeader>
 
-        <CardContent className="flex min-h-0 flex-1 flex-col gap-4 pt-4">
+        <CardContent className="flex min-h-0 flex-1 flex-col gap-4 pb-1 pt-4">
           <FilterBar
             method="get"
             role="search"
             aria-label="Filtros compactos de informes"
-            className="shrink-0 grid-cols-2 lg:grid-cols-[1.4fr_0.8fr_1fr_auto]"
+            density="module-card"
+            className="shrink-0 lg:grid-cols-[1.4fr_0.8fr_1fr_auto]"
           >
             <FilterField label="Buscar">
               <Input
                 name="query"
                 defaultValue={query}
-                className={dashboardFilterControlClassName()}
+                className={dashboardFilterControlClassName("module-card")}
                 placeholder="Buscar por paciente o tipo de estudio..."
                 aria-label="Buscar informes"
               />
             </FilterField>
 
-            <FilterField label="Estado">
-              <Select
-                name="status"
-                defaultValue={status}
-                className={dashboardFilterControlClassName()}
-                aria-label="Filtrar por estado"
-              >
-                {statusOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </Select>
-            </FilterField>
+            <ModuleDialog
+              title="Filtros de informes"
+              description="Ajuste el estado y tipo de estudio sin ampliar la banda operativa."
+              trigger={
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={hasActiveFilters ? "default" : "outline"}
+                  className="h-9 justify-center px-2 text-xs"
+                >
+                  Más filtros
+                </Button>
+              }
+            >
+              <form method="get" className="grid gap-3">
+                <input type="hidden" name="query" defaultValue={query} />
+                <FilterField label="Estado" density="module-card">
+                  <Select
+                    name="status"
+                    defaultValue={status}
+                    className={dashboardFilterControlClassName("module-card")}
+                    aria-label="Filtrar por estado"
+                  >
+                    {statusOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </Select>
+                </FilterField>
 
-            <FilterField label="Tipo de estudio">
-              <Input
-                name="studyType"
-                defaultValue={studyType}
-                className={dashboardFilterControlClassName()}
-                placeholder="Filtrar por tipo de estudio..."
-                aria-label="Filtrar por tipo de estudio"
-              />
-            </FilterField>
+                <FilterField label="Tipo de estudio" density="module-card">
+                  <Input
+                    name="studyType"
+                    defaultValue={studyType}
+                    className={dashboardFilterControlClassName("module-card")}
+                    placeholder="Filtrar por tipo de estudio..."
+                    aria-label="Filtrar por tipo de estudio"
+                  />
+                </FilterField>
 
-            <div className="flex flex-wrap gap-2">
-              <Button type="submit" size="sm" className={dashboardFilterActionClassName()}>
-                Filtrar
-              </Button>
-              <PublicRouteControl
-                href="/dashboard/informes"
-                replace
-                variant="bare"
-                className={`${dashboardFilterActionClassName()} inline-flex items-center justify-center rounded-md border border-input bg-card/95 font-semibold text-foreground shadow-sm transition-colors hover:border-vetneb-teal/45 hover:bg-accent/70`}
-              >
-                Limpiar
-              </PublicRouteControl>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="submit"
+                    size="sm"
+                    className={dashboardFilterActionClassName("module-card")}
+                  >
+                    Filtrar
+                  </Button>
+                  <PublicRouteControl
+                    href="/dashboard/informes"
+                    replace
+                    variant="bare"
+                    className={`${dashboardFilterActionClassName("module-card")} inline-flex items-center justify-center rounded-md border border-input bg-card/95 font-semibold text-foreground shadow-sm transition-colors hover:border-vetneb-teal/45 hover:bg-accent/70`}
+                  >
+                    Limpiar
+                  </PublicRouteControl>
+                </div>
+              </form>
+            </ModuleDialog>
+
+            <div className="hidden lg:contents">
+              <FilterField label="Estado" density="module-card">
+                <Select
+                  name="status"
+                  defaultValue={status}
+                  className={dashboardFilterControlClassName("module-card")}
+                  aria-label="Filtrar por estado"
+                >
+                  {statusOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </Select>
+              </FilterField>
+
+              <FilterField label="Tipo de estudio" density="module-card">
+                <Input
+                  name="studyType"
+                  defaultValue={studyType}
+                  className={dashboardFilterControlClassName("module-card")}
+                  placeholder="Filtrar por tipo de estudio..."
+                  aria-label="Filtrar por tipo de estudio"
+                />
+              </FilterField>
+
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="submit"
+                  size="sm"
+                  className={dashboardFilterActionClassName("module-card")}
+                >
+                  Filtrar
+                </Button>
+                <PublicRouteControl
+                  href="/dashboard/informes"
+                  replace
+                  variant="bare"
+                  className={`${dashboardFilterActionClassName("module-card")} inline-flex items-center justify-center rounded-md border border-input bg-card/95 font-semibold text-foreground shadow-sm transition-colors hover:border-vetneb-teal/45 hover:bg-accent/70`}
+                >
+                  Limpiar
+                </PublicRouteControl>
+              </div>
             </div>
+
           </FilterBar>
 
           <InformesReportsList
@@ -260,7 +306,8 @@ export default async function InformesPage({
             initialSelectedReportId={selectedReportId}
           />
         </CardContent>
-      </Card>
+        </ModuleCard>
+      </ClinicFullRouteModuleStage>
     </ClinicDashboardShell>
   );
 }

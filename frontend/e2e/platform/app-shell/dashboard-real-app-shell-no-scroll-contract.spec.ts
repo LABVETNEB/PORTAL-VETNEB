@@ -63,7 +63,7 @@ const ROUTES: RouteCase[] = [
   {
     label: "admin hub",
     surface: "admin",
-    path: "/dashboard/admin",
+    path: "/dashboard/admin?hub=1",
     ready: '[data-dashboard-module-hub="true"]',
   },
   {

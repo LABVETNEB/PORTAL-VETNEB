@@ -273,7 +273,7 @@ test.describe("DashboardNotificationsBell — desktop panel role (PR-8)", () => 
 test.describe("Admin module hub — keyboard & a11y (PR-8)", () => {
   test.beforeEach(async ({ page }) => {
     await setAdminSession(page);
-    await page.goto("/dashboard/admin");
+    await page.goto("/dashboard/admin?hub=1");
     await expect(
       page.locator('[data-dashboard-module-hub="true"]'),
     ).toBeVisible({ timeout: 8_000 });

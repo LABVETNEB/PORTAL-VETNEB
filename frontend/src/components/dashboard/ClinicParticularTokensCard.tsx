@@ -18,10 +18,10 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ModuleDialog } from "@/components/dashboard/ModuleDialog";
-import { ModuleSurface } from "@/components/dashboard/ModuleSurface";
+import { ModuleCard } from "@/components/dashboard/ModuleCard";
+import { ModuleMetricRun } from "@/components/dashboard/ModuleMetricRun";
 import {
   ParticularTokensEmptyPanel,
-  ParticularTokensMetricStrip,
   ParticularTokensPanel,
   ParticularTokensPanelBody,
   ParticularTokensPanelFooter,
@@ -683,7 +683,7 @@ export function ClinicParticularTokensCard() {
   }
 
   function renderAdvancedFilterForm(mobile = false) {
-    const density: FilterBarDensity = mobile ? "comfortable" : "compact";
+    const density: FilterBarDensity = mobile ? "module-card" : "compact";
     const controlClassName = dashboardFilterControlClassName(density);
     const buttonClassName = dashboardFilterActionClassName(density);
 
@@ -780,27 +780,40 @@ export function ClinicParticularTokensCard() {
   }
 
   return (
-    <section
-      id="clinic-particular-tokens"
-      className="flex min-h-0 flex-1 flex-col overflow-hidden"
+    <ModuleCard
+      ariaLabel="Tokens particulares de la clínica"
+      dataAttributes={{
+        id: "clinic-particular-tokens",
+        "data-clinic-mobile-module": "tokens",
+      }}
     >
-      <ModuleSurface
-        ariaLabel="Tokens particulares de la clínica"
-        toolbar={
+          {/* CMP-10 (DIF-035) — always-rendered subtitle slot, mirroring
+              AdminSessionsReadOnlyCard's header subtitle: the error/status
+              text swaps in place of the default description, so the row
+              never appears/disappears and nothing below it shifts. */}
+          <p
+            className={`shrink-0 line-clamp-2 border-b border-vetneb-line/70 px-3 py-1 text-xs ${
+              errorMessage
+                ? "text-destructive"
+                : statusMessage
+                  ? "text-vetneb-teal"
+                  : "text-muted-foreground"
+            }`}
+            role={errorMessage ? "alert" : undefined}
+          >
+            {errorMessage ?? statusMessage ?? "Tokens particulares de la clínica."}
+          </p>
           <div
             data-clinic-access-toolbar="true"
-            className="flex w-full flex-wrap items-center justify-between gap-2"
+            className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-vetneb-line/70 p-1.5"
           >
-            <ParticularTokensMetricStrip
+            <ModuleMetricRun
+              surfaceId="clinic-tokens"
               metrics={[
-                { label: "Tokens", value: tokens.length },
-                { label: "Activos", value: activeTokensCount },
-                { label: "Informes", value: linkedReportsCount },
+                { key: "tokens", label: "Tokens", value: tokens.length },
+                { key: "activos", label: "Activos", value: activeTokensCount },
+                { key: "informes", label: "Informes", value: linkedReportsCount },
               ]}
-              className="grid grid-cols-3 rounded-md"
-              itemClassName="min-w-[4.25rem] px-2 py-1"
-              valueClassName="text-sm"
-              aria-label="Métricas de tokens particulares"
             />
 
             <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
@@ -846,20 +859,7 @@ export function ClinicParticularTokensCard() {
               </Button>
             </div>
           </div>
-        }
-      >
-        {errorMessage ? (
-          <p className="clinical-alert-error shrink-0 px-3 py-2" role="alert">
-            {errorMessage}
-          </p>
-        ) : null}
-
-        {statusMessage ? (
-          <p className="clinical-alert-success shrink-0 px-3 py-2">
-            {statusMessage}
-          </p>
-        ) : null}
-
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-2">
         {tokens.length ? renderAdvancedFilterForm() : null}
 
         <section
@@ -1103,7 +1103,7 @@ export function ClinicParticularTokensCard() {
             </ParticularTokensEmptyPanel>
           )}
         </section>
-      </ModuleSurface>
+      </div>
 
       <ModuleDialog
         open={isCreateDialogOpen}
@@ -1653,6 +1653,6 @@ export function ClinicParticularTokensCard() {
           </div>
         </ModuleDialog>
       ) : null}
-    </section>
+    </ModuleCard>
   );
 }

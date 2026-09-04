@@ -101,9 +101,15 @@ export const CLINIC_MODULE_IDS = [
 export type ClinicModule = (typeof CLINIC_MODULE_IDS)[number];
 
 /**
- * Operational default. The clinic dashboard has NO module hub/home: `/dashboard`
- * resolves straight into this workspace, and any legacy "back to overview"
- * intent (hub reset) also lands here instead of a landing screen.
+ * Operational default for a bare `/dashboard` landing, mirroring
+ * {@link DEFAULT_ADMIN_MODULE}: catalog order is a navigation concern and must
+ * not silently change the entry workspace.
+ *
+ * CMP-02 — this is no longer "clinic has no hub". `/dashboard?hub=1` is now the
+ * explicit, durable clinic Inicio/hub state, exactly as `?hub=1` is for admin.
+ * A bare `/dashboard` (no `?module=`, no `?hub=`) still resolves here, so deep
+ * links and the operational default are unchanged; only the "Inicio" destination
+ * of the mobile bar moved from this module to the real hub (audit DIF-041).
  */
 export const DEFAULT_CLINIC_MODULE: ClinicModule = "operaciones";
 
@@ -194,4 +200,24 @@ export const ADMIN_MOBILE_PRIMARY_MODULE_IDS: readonly AdminModule[] = [
   "admin-clinics",
   "audit-log",
   "admin-sessions",
+];
+
+/**
+ * CMP-02 — the clinic counterpart of {@link ADMIN_MOBILE_PRIMARY_MODULE_IDS}.
+ *
+ * The audit measured the clinic bar at SIX slots of 65px against Admin's five of
+ * 78px, with no destination overflow at all (DIF-006/DIF-007, RC-015): the bar
+ * promoted every clinic module because `primaryDestinations` returned the whole
+ * catalog for the role. Declaring the cut here puts both roles on one code path
+ * and restores the 78px slot and its 9.6px label.
+ *
+ * The cut is the three OPERATIONAL modules, mirroring Admin's own criterion
+ * (clinics / audit / sessions are operational; pricing, maintenance, health,
+ * tokens and users-roles ride the overflow). `perfil` and `tokens` stay fully
+ * reachable: the destination overflow lists the WHOLE catalog, not the remainder.
+ */
+export const CLINIC_MOBILE_PRIMARY_MODULE_IDS: readonly ClinicModule[] = [
+  "operaciones",
+  "informes",
+  "logistica",
 ];

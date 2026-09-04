@@ -497,6 +497,231 @@ test.describe("dashboard shell — no global scroll", () => {
   });
 });
 
+// ─── Pre-hydration navigation — causal regression ─────────────────────────────
+//
+// ARTIFICIALLY_WIDENED_HYDRATION_WINDOW: delaying every JS chunk keeps the SSR
+// nav painted, actionable-looking and genuinely un-hydrated for as long as the
+// test needs, without pretending to reproduce GitHub Actions' exact timing —
+// it proves the mechanism, not the runner. The window this widens is real: CI
+// observed `dashboard-card-navigation-shell.spec.ts` fail on this exact click
+// (`toHaveURL` timeout, URL stuck on `/dashboard`) with 0/12 local repro under
+// `next dev`/`next start` at normal speed, because on a fast machine the SSR
+// nav and its hydration commit land in the same frame. Widening the window is
+// what makes the race observable at all.
+test.describe("dashboard lateral nav — pre-hydration click", () => {
+  test.beforeEach(async ({ page }) => {
+    await setClinicSession(page);
+  });
+
+  test("a click before hydration still navigates, exactly once, via the native fallback", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+
+    // Delay every application JS chunk so the document paints from SSR markup
+    // while staying genuinely un-hydrated. theme-init.js is NOT under this
+    // route: it is a plain <script src> the browser fetches on its own, so the
+    // fallback it installs stays available throughout.
+    await page.route("**/_next/static/**/*.js", async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 4_000));
+      await route.continue();
+    });
+
+    // history.pushState/replaceState is exactly what router.push/replace call
+    // internally. If this spy ever fires, React handled the click — the one
+    // outcome the fallback must never share a click with.
+    await page.addInitScript(() => {
+      const w = window as unknown as { __pushStateCalls: number };
+      w.__pushStateCalls = 0;
+      const original = history.pushState.bind(history);
+      history.pushState = (...args) => {
+        w.__pushStateCalls += 1;
+        return original(...args);
+      };
+    });
+
+    // domcontentloaded, not "load": the delayed JS must not be awaited here,
+    // or this would simply wait out the window it exists to create.
+    await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
+
+    // A same-document marker only a full browser navigation can clear. It
+    // survives any client-side (SPA) URL change, so its absence afterward is
+    // itself proof that a real document navigation occurred.
+    await page.evaluate(() => {
+      (window as unknown as { __sameDocumentProbe: string }).__sameDocumentProbe =
+        "pre-navigation-document";
+    });
+
+    const nav = clinicLateralNav(page);
+    const target = clinicLateralNavItem(page, "informes");
+    await target.waitFor({ state: "visible", timeout: 8_000 });
+
+    // The exact condition under audit: visible, enabled, stable — and not yet
+    // hydrated. If this ever reads `true`, the window closed before the test
+    // could observe it, and the click below no longer probes the race.
+    const hydratedBeforeClick = await target.evaluate(
+      (el) => el.getAttribute("data-public-route-control-hydrated") === "true",
+    );
+    expect(
+      hydratedBeforeClick,
+      "the target must still be un-hydrated when clicked, or this is not testing the race",
+    ).toBe(false);
+
+    // One ordinary click. No force, no retry, no waitForTimeout.
+    await target.click();
+
+    await expect(page).toHaveURL(/\/dashboard\?module=informes$/, {
+      timeout: 5_000,
+    });
+
+    const sameDocumentProbeSurvived = await page
+      .evaluate(
+        () => (window as unknown as { __sameDocumentProbe?: string }).__sameDocumentProbe,
+      )
+      .catch(() => undefined);
+    expect(
+      sameDocumentProbeSurvived,
+      "the fallback must be a real document navigation, not a client-side URL change",
+    ).toBeUndefined();
+
+    const pushStateCalls = await page
+      .evaluate(
+        () => (window as unknown as { __pushStateCalls?: number }).__pushStateCalls,
+      )
+      .catch(() => undefined);
+    expect(
+      pushStateCalls ?? 0,
+      "router.push must never also run for the click the native fallback already handled",
+    ).toBe(0);
+
+    await expect(nav).toBeVisible({ timeout: 8_000 });
+  });
+
+  test("once hydrated, the same control navigates through the router — no native fallback, no double navigation", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+
+    await page.addInitScript(() => {
+      const w = window as unknown as { __pushStateCalls: number };
+      w.__pushStateCalls = 0;
+      const original = history.pushState.bind(history);
+      history.pushState = (...args) => {
+        w.__pushStateCalls += 1;
+        return original(...args);
+      };
+    });
+
+    await page.goto("/dashboard");
+
+    const target = clinicLateralNavItem(page, "informes");
+    await target.waitFor({ state: "visible", timeout: 8_000 });
+    await page.waitForFunction(
+      (el) => el?.getAttribute("data-public-route-control-hydrated") === "true",
+      await target.elementHandle(),
+      { timeout: 8_000 },
+    );
+
+    await page.evaluate(() => {
+      (window as unknown as { __sameDocumentProbe: string }).__sameDocumentProbe =
+        "pre-navigation-document";
+    });
+
+    await target.click();
+
+    await expect(page).toHaveURL(/\/dashboard\?module=informes$/, {
+      timeout: 5_000,
+    });
+    await expect(
+      page.locator('[data-dashboard-module-workspace="informes"]'),
+    ).toBeVisible({ timeout: 5_000 });
+    await expect(clinicLateralNavItem(page, "informes")).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+
+    // Same document the whole time: the SPA router handled this, not a
+    // full-page reload.
+    const sameDocumentProbeSurvived = await page.evaluate(
+      () => (window as unknown as { __sameDocumentProbe?: string }).__sameDocumentProbe,
+    );
+    expect(sameDocumentProbeSurvived).toBe("pre-navigation-document");
+
+    const pushStateCalls = await page.evaluate(
+      () => (window as unknown as { __pushStateCalls?: number }).__pushStateCalls,
+    );
+    expect(pushStateCalls).toBeGreaterThan(0);
+  });
+
+  // SAME_ORIGIN_FALLBACK_SAFETY: a pre-hydration click cannot be turned into
+  // an external navigation. `example.invalid` is the IANA-reserved domain
+  // that is guaranteed to never resolve (RFC 2606) — used here so a guard
+  // regression would surface as a hung/failed navigation attempt in this
+  // test, never as real traffic to a real host. The control is injected
+  // directly rather than routed through the app because no legitimate
+  // PublicRouteControl in this codebase is ever handed an attacker-influenced
+  // href; this isolates theme-init.js's own origin check from that fact.
+  test("a protocol-relative href on an un-hydrated control never navigates cross-origin", async ({
+    page,
+  }) => {
+    await page.route("**/_next/static/**/*.js", async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 4_000));
+      await route.continue();
+    });
+
+    const navigatedOrigins: string[] = [];
+    page.on("framenavigated", (frame) => {
+      if (frame === page.mainFrame()) {
+        try {
+          navigatedOrigins.push(new URL(frame.url()).origin);
+        } catch {
+          // ignore unparsable interim URLs (about:blank, etc.)
+        }
+      }
+    });
+
+    await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
+
+    const CROSS_ORIGIN_HREFS = [
+      "//example.invalid/escape",
+      "https://example.invalid/escape",
+      "http://example.invalid/escape",
+    ];
+
+    for (const [index, escapeHref] of CROSS_ORIGIN_HREFS.entries()) {
+      const testId = `security-probe-${index}`;
+      // Mirrors exactly the attribute contract PublicRouteControl emits for
+      // an eligible control — theme-init.js reads DOM attributes, not React
+      // state, so this is a faithful probe of its own guard in isolation.
+      await page.evaluate(
+        ({ id, href }) => {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.id = id;
+          button.textContent = "security probe";
+          button.setAttribute("data-public-route-control", "true");
+          button.setAttribute("data-public-route-href", href);
+          document.body.appendChild(button);
+        },
+        { id: testId, href: escapeHref },
+      );
+
+      const probe = page.locator(`#${testId}`);
+      await probe.click();
+
+      // The guard rejects before ever calling preventDefault/stopPropagation,
+      // so this click is a complete no-op: same URL, same document, and — the
+      // decisive check — no navigation attempt toward example.invalid at all.
+      await expect(page).toHaveURL(/\/dashboard$/);
+    }
+
+    expect(
+      navigatedOrigins.some((origin) => origin.includes("example.invalid")),
+      "no navigation toward the reserved cross-origin domain must ever be observed",
+    ).toBe(false);
+  });
+});
+
 test.describe("admin shell — no global scroll", () => {
   test.beforeEach(async ({ page }) => {
     await setAdminSession(page);
@@ -742,9 +967,20 @@ test.describe("dashboard lateral nav — admin module navigation", () => {
     const clinicasItem = nav.locator(
       '[data-dashboard-navigation-item="admin-clinics"]',
     );
-    await clinicasItem.click();
-
-    await expect(page).toHaveURL(/module=admin-clinics/, { timeout: 5_000 });
+    // The drawer item is server-rendered, so it is visible and fully actionable
+    // ~170ms BEFORE `PublicRouteControl` hydrates (measured: item visible at
+    // 34ms, `data-public-route-controls-hydrated` at 204ms). Until then it is a
+    // bare <button> with no onClick, and AGENTS.md §10 forbids the `<a>`/
+    // next/link fallback that would navigate without JS, so a click inside that
+    // window is silently swallowed and never replayed — the URL stays on
+    // `?hub=1` forever, which is exactly what CI observed. Waiting for paint is
+    // not waiting for interactivity: re-issue the real click, with the real URL
+    // assertion, until the control is actually live. A navigation that never
+    // happens still fails.
+    await expect(async () => {
+      await clinicasItem.click();
+      await expect(page).toHaveURL(/module=admin-clinics/, { timeout: 500 });
+    }).toPass({ intervals: [50, 100, 250], timeout: 10_000 });
     await expect(
       page.locator('[data-dashboard-module-workspace="admin-clinics"]'),
     ).toBeVisible({ timeout: 5_000 });

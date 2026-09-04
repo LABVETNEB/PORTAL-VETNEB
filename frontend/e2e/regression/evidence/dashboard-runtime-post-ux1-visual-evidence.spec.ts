@@ -255,7 +255,7 @@ async function collectMetrics(
 
       const main = document.querySelector<HTMLElement>("main.dashboard-main");
       const tablist = document.querySelector<HTMLElement>(
-        '[data-clinic-profile-editor="true"] .dashboard-module-tablist',
+        '[data-clinic-profile-editor="true"] .dashboard-module-card-chips',
       );
       const tabButtons = Array.from(
         document.querySelectorAll<HTMLElement>(
@@ -266,7 +266,7 @@ async function collectMetrics(
         tabButtons.map((button) => Math.round(button.getBoundingClientRect().y)),
       );
       const activePanel = document.querySelector<HTMLElement>(
-        `[data-module-tabpanel="${tabId}"]`,
+        `[data-clinic-profile-panel="${tabId}"]`,
       );
       const criticalControls =
         tabId === "cambiar-contrasena"
@@ -334,7 +334,7 @@ async function collectMetrics(
               bounds: null,
         },
         activePanel: {
-          id: activePanel?.getAttribute("data-module-tabpanel") ?? null,
+          id: activePanel?.getAttribute("data-clinic-profile-panel") ?? null,
           scrollHeight: activePanel?.scrollHeight ?? 0,
           clientHeight: activePanel?.clientHeight ?? 0,
           bounds: toBounds(activePanel),
@@ -406,7 +406,7 @@ test("clinic profile runtime visual evidence after UX1", async ({ page }, testIn
         .getByRole("tab", { name: profileTab.label, exact: true })
         .click();
       await expect(
-        editor.locator(`[data-module-tabpanel="${profileTab.id}"]`),
+        editor.locator(`[data-clinic-profile-panel="${profileTab.id}"]`),
       ).toBeVisible();
 
       if (profileTab.id === "cambiar-contrasena") {

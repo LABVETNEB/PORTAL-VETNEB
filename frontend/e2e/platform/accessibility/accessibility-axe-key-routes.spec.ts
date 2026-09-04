@@ -32,7 +32,7 @@ const routeCases: RouteCase[] = [
   },
   {
     label: "admin dashboard hub",
-    path: "/dashboard/admin",
+    path: "/dashboard/admin?hub=1",
     ready: '[data-dashboard-module-hub="true"]',
     mobileReady: '[data-admin-mobile-hub-launcher="true"]',
     session: "admin",

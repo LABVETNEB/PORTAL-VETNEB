@@ -1,9 +1,9 @@
 import type { Report, FieldVisit, DashboardStats } from "@/types";
+import { ModuleMetricRun } from "@/components/dashboard/ModuleMetricRun";
 import { StatsCards } from "@/components/dashboard/StatsCards";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
 import { EmptyState } from "@/components/dashboard/EmptyState";
-import { ModuleSurface } from "@/components/dashboard/ModuleSurface";
-import { ModuleTabs } from "@/components/dashboard/ModuleTabs";
+import { ModuleCardSections } from "@/components/dashboard/ModuleCard";
 import { DashboardRefreshButton } from "@/components/dashboard/DashboardRefreshButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ClipboardList, Route } from "lucide-react";
@@ -85,14 +85,26 @@ export function ClinicCommandCenter({
   const hasAnyError = statsLoadError || reportsLoadError || visitsLoadError;
 
   return (
-    <section
-      className="flex min-h-0 flex-1 flex-col"
-      data-clinic-command-center="true"
-    >
-      <ModuleSurface ariaLabel="Centro de operaciones clínica">
-      <ModuleTabs
-        ariaLabel="Secciones del centro operativo clínica"
-        tabs={[
+    <ModuleCardSections
+      ariaLabel="Centro de operaciones clínica"
+      cardDataAttributes={{ "data-clinic-mobile-module": "operaciones" }}
+      cardAttribute="data-clinic-command-center"
+      cardAttributeValue="true"
+      chipAttribute="data-clinic-command-center-chip"
+      panelAttribute="data-clinic-command-center-panel"
+      header={
+        <div className="flex shrink-0 items-center border-b border-vetneb-line/70 px-2 py-1.5 text-xs text-muted-foreground">
+          <ModuleMetricRun
+            surfaceId="clinic-operaciones"
+            metrics={[
+              { key: "informes", label: "Informes", value: stats?.totalReports ?? "—" },
+              { key: "pendientes", label: "Pendientes", value: stats?.pendingReports ?? "—" },
+              { key: "visitas-activas", label: "Visitas activas", value: stats?.activeVisits ?? "—" },
+            ]}
+          />
+        </div>
+      }
+        sections={[
           {
             id: "metricas",
             label: "Métricas",
@@ -121,7 +133,7 @@ export function ClinicCommandCenter({
                     <DashboardRefreshButton />
                   </div>
                 ) : null}
-                <div className="min-h-0 flex-1">
+                <div className="hidden min-h-0 flex-1 md:block">
                   <StatsCards stats={stats} />
                 </div>
               </section>
@@ -301,8 +313,6 @@ export function ClinicCommandCenter({
             ),
           },
         ]}
-      />
-    </ModuleSurface>
-    </section>
+    />
   );
 }

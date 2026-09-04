@@ -51,7 +51,7 @@ test("R-06 uses RF debounced viewport-adaptive pagination and existing filters",
   assert.ok(card.includes("canvasNode: desktopBodyNode,"));
   assert.ok(card.includes("getAdminAuditPage(query)"));
   assert.ok(card.includes("latestRequestRef"));
-  assert.ok(card.includes("previousLimitRef"));
+  assert.ok(card.includes("reconciledLimit"));
   assert.equal(card.includes("window.matchMedia"), false);
   assert.equal(card.includes("MOBILE_PAGE_SIZE"), false);
   assert.equal(card.includes("PublicRouteControl"), false);

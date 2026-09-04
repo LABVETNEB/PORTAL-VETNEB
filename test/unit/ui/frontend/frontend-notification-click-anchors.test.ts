@@ -28,11 +28,11 @@ test("notification click targets render stable clinic, particular, and admin anc
   const adminAuditCard = read(ADMIN_AUDIT_CARD_PATH);
 
   assert.ok(
-    informesList.includes("id={`report-${report.id}`}"),
+    informesList.includes("activateId={`report-${report.id}`}"),
     "clinic informes rows must expose report-{id} anchors",
   );
   assert.ok(
-    clinicTokensCard.includes('id="clinic-particular-tokens"'),
+    clinicTokensCard.includes('id: "clinic-particular-tokens"'),
     "clinic token section anchor must remain present",
   );
   assert.ok(

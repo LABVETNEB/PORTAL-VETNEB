@@ -36,19 +36,65 @@ import { ROUTES } from "@/lib/routes";
 /** Query-string key that selects the active dashboard module (`?module=`). */
 export const MODULE_QUERY_PARAM = "module";
 
-/** Explicit, durable admin-hub intent. The hub is not an admin module. */
-export const ADMIN_HUB_QUERY_PARAM = "hub";
-export const ADMIN_HUB_QUERY_VALUE = "1";
+/**
+ * Explicit, durable hub intent. The hub is a state of the role's dashboard route,
+ * never one of its modules.
+ *
+ * CMP-02 — the grammar is now declared ONCE for both roles. It used to be
+ * admin-only (`ADMIN_HUB_*`), which is why the clinic bottom nav's "Inicio" slot
+ * had nowhere to point and silently resolved to the default module instead of an
+ * entry surface (audit DIF-041 / RC-015). The `ADMIN_*` names below are retained
+ * as delegating aliases so the six existing call sites and their guards keep
+ * resolving; they add no second semantics.
+ */
+export const HUB_QUERY_PARAM = "hub";
+export const HUB_QUERY_VALUE = "1";
 
+/** @deprecated CMP-02 — use {@link HUB_QUERY_PARAM}; kept for existing call sites. */
+export const ADMIN_HUB_QUERY_PARAM = HUB_QUERY_PARAM;
+/** @deprecated CMP-02 — use {@link HUB_QUERY_VALUE}; kept for existing call sites. */
+export const ADMIN_HUB_QUERY_VALUE = HUB_QUERY_VALUE;
+
+/** The two dashboard surfaces that own a hub/Inicio destination. */
+export type DashboardHubSurface = "admin" | "clinic";
+
+const HUB_BASE_PATH: Record<DashboardHubSurface, string> = {
+  admin: ROUTES.dashboardAdmin,
+  clinic: ROUTES.dashboard,
+};
+
+/** Is the explicit hub/Inicio state requested? Role-agnostic by construction. */
+export function isHubRequested(
+  searchParams: Pick<URLSearchParams, "get">,
+): boolean {
+  return searchParams.get(HUB_QUERY_PARAM) === HUB_QUERY_VALUE;
+}
+
+/** Build the sole canonical URL for a role's explicit Inicio/hub destination. */
+export function buildHubHref(surface: DashboardHubSurface): string {
+  return `${HUB_BASE_PATH[surface]}?${HUB_QUERY_PARAM}=${HUB_QUERY_VALUE}`;
+}
+
+/** @deprecated CMP-02 — use {@link isHubRequested}. */
 export function isAdminHubRequested(
   searchParams: Pick<URLSearchParams, "get">,
 ): boolean {
-  return searchParams.get(ADMIN_HUB_QUERY_PARAM) === ADMIN_HUB_QUERY_VALUE;
+  return isHubRequested(searchParams);
 }
 
-/** Build the sole canonical URL for the explicit admin Inicio/hub destination. */
+/** @deprecated CMP-02 — use `buildHubHref("admin")`. */
 export function buildAdminHubHref(): string {
-  return `${ROUTES.dashboardAdmin}?${ADMIN_HUB_QUERY_PARAM}=${ADMIN_HUB_QUERY_VALUE}`;
+  return buildHubHref("admin");
+}
+
+/**
+ * Read the explicit hub intent from the live browser URL. Returns `false` on the
+ * server (no `window`). Client-only by contract, like
+ * {@link readClinicModuleFromLocation}.
+ */
+export function readHubRequestedFromLocation(): boolean {
+  if (typeof window === "undefined") return false;
+  return isHubRequested(new URLSearchParams(window.location.search));
 }
 
 /**

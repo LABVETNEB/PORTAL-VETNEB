@@ -87,20 +87,21 @@ test("B14 · ClinicCommandCenter leaves metric ownership to the Metrics tab", ()
   assert.equal(source.includes("{stats?.pendingReports ?? \"—\"}"), false);
   assert.equal(source.includes("{stats?.activeVisits ?? \"—\"}"), false);
   assert.ok(source.indexOf('id: "metricas"') < source.indexOf("statsLoadError ?"));
-  assert.ok(source.indexOf("statsLoadError ?") < source.indexOf("<StatsCards stats={stats} />"));
+  assert.ok(source.indexOf("statsLoadError ?") < source.indexOf('id: "recientes"'));
 });
 
 // ── Metrics section ──────────────────────────────────────────────────────────
 
-test("ClinicCommandCenter renders metrics section heading and StatsCards", () => {
+test("ClinicCommandCenter renders metrics section heading and keeps the shared metric run in its card header", () => {
   const source = read(CLINIC_COMMAND_CENTER_PATH);
 
   assert.ok(source.includes("Métricas operativas"));
   assert.ok(source.includes("dashboard-section-heading"));
   assert.ok(source.includes("dashboard-section-description"));
   assert.ok(source.includes("Vista rápida de informes, pendientes y actividad logística del día."));
-  assert.ok(source.includes("<StatsCards stats={stats} />"));
-  assert.ok(source.includes('import { StatsCards } from "@/components/dashboard/StatsCards";'));
+  assert.ok(source.includes("<ModuleMetricRun"));
+  assert.ok(source.includes('surfaceId="clinic-operaciones"'));
+  assert.ok(source.includes('import { ModuleMetricRun } from "@/components/dashboard/ModuleMetricRun";'));
 });
 
 test("ClinicCommandCenter shows metrics error alert when statsLoadError is true", () => {
@@ -173,8 +174,7 @@ test("ClinicCommandCenter shows visits load error alert", () => {
 test("ClinicCommandCenter uses two-column responsive grid for reports and visits", () => {
   const source = read(CLINIC_COMMAND_CENTER_PATH);
 
-  assert.ok(source.includes('import { ModuleSurface } from "@/components/dashboard/ModuleSurface";'));
-  assert.ok(source.includes('import { ModuleTabs } from "@/components/dashboard/ModuleTabs";'));
+  assert.ok(source.includes('import { ModuleCardSections } from "@/components/dashboard/ModuleCard";'));
   assert.ok(source.includes("grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-2"));
   assert.ok(source.includes("dashboard-surface"));
   assert.ok(source.includes("dashboard-list-row"));

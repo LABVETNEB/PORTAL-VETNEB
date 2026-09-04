@@ -17,7 +17,6 @@ test("dashboard logistica defines non-indexable metadata and dependencies", () =
 
   assert.ok(source.includes('import type { Metadata } from "next";'));
   assert.ok(source.includes('import { cookies } from "next/headers";'));
-  assert.ok(source.includes('} from "lucide-react";'));
   assert.ok(source.includes('title: "Logística — Portal VETNEB"'));
   assert.ok(source.includes("robots: { index: false, follow: false },"));
   // B10: the shell chrome (topbar + navigation frame + main) has one owner for
@@ -27,9 +26,8 @@ test("dashboard logistica defines non-indexable metadata and dependencies", () =
     source.includes('import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";'),
     false,
   );
-  assert.ok(source.includes('import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";'));
-  assert.ok(source.includes('import {'));
-  assert.ok(source.includes('StickyActionBar'));
+  assert.ok(source.includes('import { ClinicFullRouteModuleStage } from "@/components/dashboard/ClinicFullRouteModuleStage";'));
+  assert.ok(source.includes('import { PublicRouteControl } from "@/components/public/PublicRouteControl";'));
   assert.ok(source.includes('import { ROUTES } from "@/lib/routes";'));
   assert.ok(source.includes('import { LogisticsCommandCenter } from "./LogisticsCommandCenter";'));
 });
@@ -69,7 +67,7 @@ test("dashboard logistica computes active visits and active route plans explicit
   assert.ok(source.includes('p.status === "in_progress" || p.status === "released"'));
 });
 
-test("dashboard logistica composes command center, sticky actions, and page header", () => {
+test("dashboard logistica composes command center in the full-route module stage", () => {
   const source = read(LOGISTICA_PAGE_PATH);
   // A05 (#1649) put the adaptive reservation root and the sticky-action ledger
   // var on this `<main>`; B10 (#B10) moved `<main>` itself into the shared
@@ -84,22 +82,16 @@ test("dashboard logistica composes command center, sticky actions, and page head
   );
   const mainSource = source.slice(mainStart);
 
-  assert.ok(source.includes("<DashboardPageHeader"));
-  assert.ok(source.includes('title="Hub de logística"'));
-  assert.ok(source.includes("<StickyActionBar"));
-  assert.ok(source.includes('context="Acciones rápidas"'));
+  assert.ok(source.includes('<ClinicFullRouteModuleStage moduleId="logistica-full">'));
   assert.ok(source.includes("<LogisticsCommandCenter"));
-  assert.ok(source.includes("const logisticsQuickActions = ["));
-  assert.ok(source.includes('label: "Ver visitas"'));
-  assert.ok(source.includes("href: ROUTES.dashboardLogisticaVisitas"));
-  assert.ok(source.includes('label: "Ver rutas"'));
-  assert.ok(source.includes("href: ROUTES.dashboardLogisticaRutas"));
-  assert.ok(source.includes('label: "Ver métricas"'));
-  assert.ok(source.includes("href: ROUTES.dashboardLogisticaMetricas"));
+  assert.ok(source.includes("headerActions={"));
+  assert.ok(source.includes("<PublicRouteControl"));
+  assert.ok(source.includes("href={ROUTES.dashboardLogisticaVisitas}"));
+  assert.ok(source.includes("href={ROUTES.dashboardLogisticaRutas}"));
+  assert.ok(source.includes("href={ROUTES.dashboardLogisticaMetricas}"));
 
   const order = [
-    "<DashboardPageHeader",
-    "<StickyActionBar",
+    "<ClinicFullRouteModuleStage",
     "<LogisticsCommandCenter",
   ].map((marker) => mainSource.indexOf(marker));
 
@@ -110,7 +102,7 @@ test("dashboard logistica composes command center, sticky actions, and page head
   assert.deepEqual(
     order,
     [...order].sort((a, b) => a - b),
-    "logistics hub order must be: header, sticky bar, command center",
+    "logistics hub order must be: stage, command center",
   );
 });
 
@@ -138,11 +130,15 @@ test("dashboard logistica does not use next/link or bare anchor tags for navigat
   assert.equal(source.includes('<a href='), false);
 });
 
-test("dashboard logistica does not reference public routes, middleware or auth", () => {
+test("dashboard logistica permits the dashboard route control but no public surface, middleware or auth", () => {
   const source = read(LOGISTICA_PAGE_PATH);
 
-  assert.equal(source.includes('@/components/public/'), false);
-  assert.equal(source.includes('PublicRouteControl'), false);
+  assert.equal(
+    source.includes('@/components/public/') &&
+      !source.includes('"@/components/public/PublicRouteControl"'),
+    false,
+  );
+  assert.ok(source.includes('PublicRouteControl'));
   assert.equal(source.includes('from "next-auth"'), false);
   assert.equal(source.includes('middleware'), false);
 });

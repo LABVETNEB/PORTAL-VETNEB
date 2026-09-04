@@ -27,11 +27,26 @@ test("B13 · the admin entry grammar owns an explicit default and hub URL", () =
     "the bare admin landing has an explicit operational default",
   );
   assert.ok(config.includes('id: "home"'), "Inicio is declared by the catalog");
-  assert.ok(navigation.includes('ADMIN_HUB_QUERY_PARAM = "hub"'));
-  assert.ok(navigation.includes('ADMIN_HUB_QUERY_VALUE = "1"'));
+
+  // CMP-02 — the hub grammar is declared ONCE for both roles. The `?hub=1`
+  // literals and the admin-named helpers survive as delegating aliases, so B13's
+  // contract (an explicit, durable hub URL owned by the application layer) is
+  // unchanged; it is simply no longer admin-only, which is what let the clinic
+  // "Inicio" slot resolve to a module instead of an entry surface (DIF-041).
+  assert.ok(navigation.includes('HUB_QUERY_PARAM = "hub"'));
+  assert.ok(navigation.includes('HUB_QUERY_VALUE = "1"'));
+  assert.ok(navigation.includes("function isHubRequested"));
+  assert.ok(navigation.includes("function buildHubHref"));
+  assert.ok(navigation.includes("ROUTES.dashboardAdmin"));
+
+  // The admin-named aliases must keep resolving for the desktop call sites.
+  assert.ok(navigation.includes("ADMIN_HUB_QUERY_PARAM = HUB_QUERY_PARAM"));
+  assert.ok(navigation.includes("ADMIN_HUB_QUERY_VALUE = HUB_QUERY_VALUE"));
   assert.ok(navigation.includes("function isAdminHubRequested"));
   assert.ok(navigation.includes("function buildAdminHubHref"));
-  assert.ok(navigation.includes("ROUTES.dashboardAdmin"));
+
+  // Both roles must be addressable, or the grammar is admin-only again.
+  assert.ok(navigation.includes("ROUTES.dashboard,"), "the clinic hub base path is declared");
 });
 
 test("B13 · entry precedence preserves URL intent and restores the durable hub", () => {
@@ -64,10 +79,19 @@ test("B13 · entry precedence preserves URL intent and restores the durable hub"
 });
 
 test("B13 · every admin Inicio target is explicit and does not clear persistence", () => {
-  for (const path of [MOBILE_NAV, DRAWER, RAIL]) {
+  // CMP-02 — the drawer and the rail are DESKTOP admin surfaces and keep the
+  // admin-bound builder. The mobile bar serves both roles, so it links Inicio
+  // through the surface-parameterised builder; the invariant B13 owns — an
+  // explicit `?hub=1`, never a bare route — is unchanged for admin and now holds
+  // for clinic too (audit DIF-041 / RC-015).
+  for (const path of [DRAWER, RAIL]) {
     const source = read(path);
     assert.ok(source.includes("buildAdminHubHref()"), `${path} links Inicio to ?hub=1`);
   }
+  assert.ok(
+    read(MOBILE_NAV).includes("buildHubHref(surface)"),
+    `${MOBILE_NAV} links Inicio to ?hub=1 for whichever surface owns the bar`,
+  );
 
   const mobile = read(MOBILE_NAV);
   assert.equal(

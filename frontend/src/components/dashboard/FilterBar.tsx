@@ -3,7 +3,7 @@ import type { FormHTMLAttributes, LabelHTMLAttributes, ReactNode } from "react";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
-export type FilterBarDensity = "comfortable" | "compact";
+export type FilterBarDensity = "comfortable" | "compact" | "module-card";
 
 export type FilterBarProps = FormHTMLAttributes<HTMLFormElement> & {
   density?: FilterBarDensity;
@@ -30,17 +30,23 @@ const filterBarDensityClassNames: Record<FilterBarDensity, string> = {
     "grid grid-cols-1 items-end gap-3 rounded-xl border border-vetneb-line/75 p-3",
   compact:
     "grid grid-cols-1 items-end gap-2 rounded-lg border border-vetneb-line/70 px-2 py-2 md:gap-1.5 md:py-1",
+  "module-card":
+    "grid grid-cols-2 items-end gap-2 border-b border-vetneb-line/70 px-2 py-1",
 };
 
 const filterFieldDensityClassNames: Record<FilterBarDensity, string> = {
   comfortable: "gap-1.5",
   compact: "gap-1 md:gap-0.5",
+  "module-card": "gap-0.5",
 };
 
 export function dashboardFilterControlClassName(
   density: FilterBarDensity = "comfortable",
 ) {
-  return cn("text-xs", density === "compact" ? "h-10 md:h-8" : "h-10");
+  return cn(
+    "text-xs",
+    density === "compact" ? "h-10 md:h-8" : density === "module-card" ? "h-9" : "h-10",
+  );
 }
 
 export function dashboardFilterActionClassName(
@@ -50,6 +56,8 @@ export function dashboardFilterActionClassName(
     "text-xs",
     density === "compact"
       ? "h-10 min-h-10 px-2.5 md:h-8 md:min-h-8 md:px-2"
+      : density === "module-card"
+        ? "h-9 min-h-9 px-2"
       : "h-10 min-h-10 px-3",
   );
 }

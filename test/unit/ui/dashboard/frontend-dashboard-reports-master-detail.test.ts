@@ -87,7 +87,8 @@ test("dashboard informes composes profile-layout list, selected report detail, t
   const pageSource = read(INFORMES_PAGE_PATH);
   const listSource = read(INFORMES_LIST_PATH);
 
-  assert.ok(pageSource.includes("<DashboardPageHeader"));
+  assert.ok(pageSource.includes('<ClinicFullRouteModuleStage moduleId="informes-full">'));
+  assert.ok(pageSource.includes("<ModuleCard"));
   assert.equal(pageSource.includes("<StickyActionBar"), false);
   assert.equal(listSource.includes("<StickyActionBar"), false);
   assert.ok(listSource.includes("Lista de informes"));
@@ -137,7 +138,9 @@ test("dashboard informes server-side pagination controls and compact summary", (
   assert.ok(source.includes('aria-label="Paginación de informes"'));
   assert.ok(source.includes('aria-label="Página anterior"'));
   assert.ok(source.includes('aria-label="Página siguiente"'));
-  assert.ok(source.includes("Página {page} de {reportsTotalPages}"));
+  // CMP-09: pager label wording aligned to Admin's exact "Pág. X / Y" G-010
+  // format (was "Página X de Y").
+  assert.ok(source.includes("Pág. {page} / {reportsTotalPages}"));
   assert.ok(source.includes("{totalCount > 0 ? `${pageStart}-${pageEnd}` : \"0\"}"));
   assert.ok(constantsSource.includes("export const INFORMES_FALLBACK_ROWS = 6"));
   assert.ok(source.includes("goToPreviousPage"));

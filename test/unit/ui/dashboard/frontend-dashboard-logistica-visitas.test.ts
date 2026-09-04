@@ -92,12 +92,13 @@ test("dashboard logistica visitas renders topbar without technical source copy",
 test("dashboard logistica visitas keeps status counters aligned to field visit statuses", () => {
   const source = read(VISITAS_PAGE_PATH);
 
-  assert.ok(source.includes('{ status: "pending", label: "Pendientes" }'));
-  assert.ok(source.includes('{ status: "scheduled", label: "Programadas" }'));
-  assert.ok(source.includes('{ status: "in_progress", label: "En curso" }'));
-  assert.ok(source.includes('{ status: "done", label: "Completadas" }'));
-  assert.ok(source.includes("const count = visits.filter((v) => v.status === status).length;"));
-  assert.ok(source.includes('className="dashboard-metric-card p-0"'));
+  assert.ok(source.includes("<ModuleMetricRun"));
+  assert.ok(source.includes('surfaceId="clinic-logistica-visitas"'));
+  assert.ok(source.includes('label: "Pendientes", value: visits.filter((visit) => visit.status === "pending").length'));
+  assert.ok(source.includes('label: "Programadas", value: visits.filter((visit) => visit.status === "scheduled").length'));
+  assert.ok(source.includes('label: "En curso", value: visits.filter((visit) => visit.status === "in_progress").length'));
+  assert.ok(source.includes('label: "Completadas", value: visits.filter((visit) => visit.status === "done").length'));
+  assert.equal(source.includes('className="dashboard-metric-card p-0"'), false);
 });
 
 test("dashboard logistica visitas renders table columns", () => {
@@ -131,7 +132,7 @@ test("dashboard logistica visitas keeps empty state and avoids client-side fetch
 
   assert.ok(source.includes("No hay visitas de campo disponibles."));
   assert.ok(source.includes("colSpan={7}"));
-  assert.ok(source.includes('className="dashboard-surface"'));
+  assert.ok(source.includes("<ModuleCard"));
   assert.ok(source.includes('className="clinical-table-state"'));
   assert.equal(source.includes("border-gray-100"), false);
   assert.equal(source.includes("fetch("), false);

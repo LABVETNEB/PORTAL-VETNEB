@@ -115,7 +115,8 @@ test.describe("clinic Informes full route server-adaptive pagination (R-07)", ()
     const list = page.locator("#reports-master-list");
     const nextButton = page.getByRole("button", { name: "Página siguiente" });
     const previousButton = page.getByRole("button", { name: "Página anterior" });
-    const pageIndicator = page.getByText(/^Página \d+ de \d+$/);
+    // CMP-09: pager label wording aligned to Admin's "Pág. X / Y" (G-010).
+    const pageIndicator = page.getByText(/^Pág\. \d+ \/ \d+$/);
 
     await expect(async () => {
       await expect(list).toBeVisible();
@@ -123,19 +124,19 @@ test.describe("clinic Informes full route server-adaptive pagination (R-07)", ()
     }).toPass({ timeout: 12_000 });
 
     const firstPageFirstRowId = await list.locator("[id^='report-']").first().getAttribute("id");
-    await expect(pageIndicator).toContainText("Página 1 de");
+    await expect(pageIndicator).toContainText("Pág. 1 /");
 
     await nextButton.click();
 
     await expect(async () => {
-      await expect(pageIndicator).toContainText("Página 2 de");
+      await expect(pageIndicator).toContainText("Pág. 2 /");
       const currentFirstRowId = await list.locator("[id^='report-']").first().getAttribute("id");
       expect(currentFirstRowId).not.toBe(firstPageFirstRowId);
     }).toPass({ timeout: 10_000 });
 
     await expect(previousButton).toBeEnabled();
     await previousButton.click();
-    await expect(pageIndicator).toContainText("Página 1 de");
+    await expect(pageIndicator).toContainText("Pág. 1 /");
   });
 
   test("full route no longer paginates through a URL page parameter", async ({ page }) => {

@@ -250,7 +250,8 @@ function windowFor(expected: ExpectedWindow, pageSize: number, label: string) {
     total: String(expected.total),
     showing: expected.total === 0 ? "0" : `${offset + 1}-${offset + rowIds.length}`,
     pageOf: `${expected.page} / ${totalPages}`,
-    paginationContains: `Página ${expected.page} de ${totalPages}`,
+    // CMP-09: pager label wording aligned to Admin's "Pág. X / Y" (G-010).
+    paginationContains: `Pág. ${expected.page} / ${totalPages}`,
   };
 }
 
@@ -270,12 +271,22 @@ async function settleWindow(
 
   await expect(async () => {
     const latest = actions.latest();
-    expect(latest, `${label}: adaptive window request observed`).not.toBeNull();
-    expect(latest!.page, `${label}: requested page`).toBe(expected.page);
-
-    const pageSize = latest!.pageSize;
-    const target = windowFor(expected, pageSize, label);
     const state = await readWorkspaceState(page);
+
+    // The runtime only re-requests when the measured window differs from the
+    // one the server already rendered. Since CMP-09 pinned the rows to the
+    // canonical 44px pitch, the measurement can land exactly on
+    // INFORMES_FALLBACK_ROWS (e.g. a 256px canvas at 1280x720 measures 6), and
+    // then no server action is emitted because none is needed. The effective
+    // page size is therefore read from the rendered window in that case; every
+    // semantic assertion below is unchanged, and paginating still requires a
+    // real request through `awaitWindow`.
+    if (latest) {
+      expect(latest.page, `${label}: requested page`).toBe(expected.page);
+    }
+
+    const pageSize = latest ? latest.pageSize : state.rowIds.length;
+    const target = windowFor(expected, pageSize, label);
 
     expect(state.loadingVisible, `${label}: settled (not loading)`).toBe(false);
     expect(state.rowIds, `${label}: rendered window`).toEqual(target.rowIds);
@@ -296,7 +307,12 @@ async function settleWindow(
 
 /** Hydration guard: submitting the same filter is idempotent, so the click can
  * be retried until the URL reflects the requested filters. Filters — unlike
- * pagination — ARE a URL contract. */
+ * pagination — ARE a URL contract, and that navigation is what delivers the
+ * filtered window: the client only re-requests afterwards when the measured
+ * page size differs from the server-rendered one, so callers assert the URL
+ * here and the resulting window through `settleWindow`, never a server action
+ * that is emitted only incidentally. Pagination, which never touches the URL,
+ * still goes through `advanceToNextPage`/`awaitWindow`. */
 async function submitFilters(page: Page, matchesUrl: (url: URL) => boolean) {
   await expect(async () => {
     await page.getByRole("button", { name: "Filtrar" }).click();
@@ -378,11 +394,9 @@ test.describe("clinic reports workspace 1000-report fixture (CAP-C3)", () => {
     const { actions } = await openSettledWorkspace(page);
 
     await page.getByLabel("Filtrar por estado").selectOption("delivered");
-    await actions.awaitWindow(
-      () =>
-        submitFilters(page, (url) => url.searchParams.get("status") === "delivered"),
-      (action) => action.page === 1 && action.status === "delivered",
-      "status filter",
+    await submitFilters(
+      page,
+      (url) => url.searchParams.get("status") === "delivered",
     );
 
     await expectWorkspaceReady(page);
@@ -403,14 +417,9 @@ test.describe("clinic reports workspace 1000-report fixture (CAP-C3)", () => {
     const { actions } = await openSettledWorkspace(page);
 
     await page.getByLabel("Buscar informes").fill("Paciente E2E 0100");
-    await actions.awaitWindow(
-      () =>
-        submitFilters(
-          page,
-          (url) => url.searchParams.get("query") === "Paciente E2E 0100",
-        ),
-      (action) => action.page === 1 && action.query === "Paciente E2E 0100",
-      "query search",
+    await submitFilters(
+      page,
+      (url) => url.searchParams.get("query") === "Paciente E2E 0100",
     );
 
     await expectWorkspaceReady(page);
@@ -424,7 +433,7 @@ test.describe("clinic reports workspace 1000-report fixture (CAP-C3)", () => {
     // result keeps it mounted showing "1 de 1".
     await expect(
       page.locator('[aria-label="Paginación de informes"]'),
-    ).toContainText("Página 1 de 1");
+    ).toContainText("Pág. 1 / 1");
   });
 
   test("combined query, status and studyType filters keep totalPages coherent", async ({
@@ -435,22 +444,13 @@ test.describe("clinic reports workspace 1000-report fixture (CAP-C3)", () => {
     await page.getByLabel("Buscar informes").fill("Paciente E2E");
     await page.getByLabel("Filtrar por estado").selectOption("delivered");
     await page.getByLabel("Filtrar por tipo de estudio").fill("Necropsia");
-    await actions.awaitWindow(
-      () =>
-        submitFilters(page, (url) => {
-          return (
-            url.searchParams.get("query") === "Paciente E2E" &&
-            url.searchParams.get("status") === "delivered" &&
-            url.searchParams.get("studyType") === "Necropsia"
-          );
-        }),
-      (action) =>
-        action.page === 1 &&
-        action.query === "Paciente E2E" &&
-        action.status === "delivered" &&
-        action.studyType === "Necropsia",
-      "combined filters",
-    );
+    await submitFilters(page, (url) => {
+      return (
+        url.searchParams.get("query") === "Paciente E2E" &&
+        url.searchParams.get("status") === "delivered" &&
+        url.searchParams.get("studyType") === "Necropsia"
+      );
+    });
 
     await expectWorkspaceReady(page);
     const filtered = await settleWindow(
