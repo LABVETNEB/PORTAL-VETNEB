@@ -933,7 +933,7 @@ export function ClinicParticularTokensCard() {
                   data-clinic-access-list-body="true"
                   data-dashboard-adaptive-rows-canvas="true"
             data-dashboard-row-pitch="card-below-md"
-            data-dashboard-canvas-reserve="table-head"
+            data-dashboard-canvas-reserve="table-head-above-md"
                   className="relative"
                 >
                   {filteredTokens.length ? (

@@ -51,7 +51,17 @@ const MOBILE_RETIRED_TEXT = [
   "Lista paginada sin scroll interno.",
 ] as const;
 
-const MOCK_TOKENS = Array.from({ length: 6 }, (_, index) => {
+// A dataset of 6 never proves the reserve stayed retired: the highest real
+// adaptive capacity these four viewports reach (measured with the
+// `trackingLoadError` alert painting, exactly as this spec's own unmocked
+// study-tracking fetch always renders it) is 9, at iphone-pro-max-430x932.
+// With only 6 rows on offer, `nextButton` is disabled everywhere and
+// `expectListBandRecovered`'s `hasNextPage` branch — the one assertion that
+// actually re-detects a phantom reserve — never runs. Doubling that measured
+// ceiling guarantees a real next page at every viewport, including the one
+// with the most room, without hardcoding a pitch or gap literal.
+const MOCK_TOKENS_MAX_MEASURED_CAPACITY = 9;
+const MOCK_TOKENS = Array.from({ length: MOCK_TOKENS_MAX_MEASURED_CAPACITY * 2 }, (_, index) => {
   const id = index + 1;
 
   return {
@@ -478,7 +488,11 @@ async function expectToolbarRowContained(page: Page, label: string) {
  * strip behind, and they must do it without clipping themselves against the
  * pitch lock or riding over the pager.
  */
-async function expectListBandRecovered(page: Page, label: string) {
+async function expectListBandRecovered(
+  page: Page,
+  label: string,
+  options: { hasNextPage: boolean } = { hasNextPage: false },
+) {
   const band = await page.evaluate(() => {
     const toolbar = document.querySelector<HTMLElement>(
       '[data-clinic-access-toolbar="true"]',
@@ -552,10 +566,31 @@ async function expectListBandRecovered(page: Page, label: string) {
     `${label}: freed band must be taken by the list, not left empty`,
   ).toBeLessThanOrEqual(1 + TOLERANCE);
 
+  const remainingGap = band!.pagerTop - band!.lastRowBottom;
+
   expect(
-    band!.pagerTop - band!.lastRowBottom,
+    remainingGap,
     `${label}: the pager must not ride over the last row`,
   ).toBeGreaterThanOrEqual(-TOLERANCE);
+
+  // Structural upper bound: a real next page proves the canvas could still
+  // absorb another row, so a phantom reserve (or any regression that returns
+  // one) leaves a leftover gap that fits a full row advance. `realStride` is
+  // the row's own measured advance (top-to-top of two consecutive rows) —
+  // never a literal pitch/gap px, so this holds across every tier and
+  // viewport this spec runs.
+  if (options.hasNextPage && band!.rows.length >= 2) {
+    const advances = band!.rows
+      .slice(1)
+      .map((row, index) => row.top - band!.rows[index].top);
+    const realStride =
+      advances.reduce((sum, advance) => sum + advance, 0) / advances.length;
+
+    expect(
+      remainingGap,
+      `${label}: a next page exists, so leftover space below the last row must not fit another full row (phantom reserve)`,
+    ).toBeLessThan(realStride + TOLERANCE);
+  }
 
   for (const [index, row] of band!.rows.entries()) {
     expect(
@@ -774,7 +809,20 @@ for (const viewport of MOBILE_VIEWPORTS) {
     // real geometry (card containment, one line, no overflow, no overlap, no
     // per-control clipping) before the looser viewport-edge bounds below.
     await expectToolbarRowContained(page, `${viewport.name}: barra de acciones`);
-    await expectListBandRecovered(page, `${viewport.name}: lista de tokens`);
+
+    // The phantom-reserve regression this spec now checks for is only
+    // re-detectable when a next page genuinely exists: assert that
+    // precondition by name instead of letting it fail the upper-bound check
+    // silently or, worse, pass by never running it.
+    const hasNextPage = await nextButton.isEnabled();
+    expect(
+      hasNextPage,
+      `${viewport.name}: MOCK_TOKENS must outnumber the adaptive capacity so the phantom-reserve upper bound below actually runs`,
+    ).toBe(true);
+
+    await expectListBandRecovered(page, `${viewport.name}: lista de tokens`, {
+      hasNextPage,
+    });
 
     // Retired below `md` by media query, not by unmounting: the nodes stay in
     // the tree for desktop, so the contract is "must not PAINT". Filtering on
