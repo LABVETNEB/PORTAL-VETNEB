@@ -70,8 +70,11 @@ const FOUNDATION_DECLARATION_HASH =
 // the `card-below-md` collapsing tier was added: one canvas that paints a
 // `regular` table row above `md` and a `card` row below it now declares both
 // through the single owner instead of picking one and clipping the other.
+// Re-frozen again (FASE B) for the `table-head-above-md` reserve tier: a
+// canvas whose table head is `hidden md:block` reserves it only in the regime
+// where it actually paints, instead of charging a phantom row below `md`.
 const ROW_PITCH_RAW_HASH =
-  "fd7a8b7c6f76cd4ae03191411755656009eeec6e0334f4566144e2672770a89d";
+  "698d705ce29b89d14996eadeaa343ff01760ddacea68828d5db915fbd8262800";
 
 type SurfaceRole =
   | "PERSISTENT_CHROME"

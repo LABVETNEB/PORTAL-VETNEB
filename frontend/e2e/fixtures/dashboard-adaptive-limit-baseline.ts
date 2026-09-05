@@ -169,6 +169,39 @@ import {
 //         regression into an expected result. They need their own scoped
 //         change. The A03 contract stays exact: no tolerance, no
 //         cross-platform fallback, no leaf exempted.
+//
+// Tokens table-head phantom reserve retirement (FASE B), 2026-09-05.
+// scope = 3 leafKey / 18 fields, Win32 ONLY:
+//         clinic-particular-tokens::{w390x844, w412x915, w430x932}.
+//         limit/offset/firstRenderedFixtureIndex/secondPageFixtureIds/
+//         pageItemCount/secondPageCount moved; source and provenance did not.
+//
+// cause = the canvas declared `data-dashboard-canvas-reserve="table-head"`
+//         unconditionally, but its `<table>`/`<thead>` are `hidden md:block` —
+//         zero client rects below `md`. The reserve was a phantom row's worth
+//         of unused canvas on every phone viewport. Retiring it via the new
+//         `table-head-above-md` tier (reserve+gap apply only from `md` up)
+//         returns that space; every delta is exactly +1. Three of the six
+//         phone leaves (w360x800, w375x812, and w360x740 which A03 does not
+//         cover) do NOT move: the reclaimed space is smaller than one row
+//         advance at those exact heights, so it does not cross into another
+//         row. Both >=768px leaves (w768x1024, w834x1194) stay byte-identical
+//         because the reserve is still charged from `md` up, where the head
+//         actually paints.
+//
+// method = two independent cold Win32 Chromium captures on this head (`.next`
+//         removed before each, Playwright owning both servers), scoped to
+//         this module via A03_TARGET_MODULES=clinic-particular-tokens: the two
+//         13-leaf observation files are byte-identical, DRIFT_COUNT = 0/13.
+//
+// Linux = NOT updated. No CI capture of this change exists yet; the previous
+//         entries for these three leaves are Win32 values that happened to
+//         coincide with Linux under the prior (buggy) reserve — they are left
+//         untouched rather than assumed to still coincide under the new one.
+//         BLOCKED_LINUX_BASELINE_EVIDENCE: needs a real Linux capture from
+//         `E2E Completeness` on the head that carries this change, compared
+//         field-by-field the same way every prior realignment in this file
+//         was. Never derived, copied or extrapolated from Win32.
 export const DASHBOARD_ADAPTIVE_LIMIT_BASELINE: A03BaselineFile = {
   schema: A03_BASELINE_SCHEMA,
   baseCommit: A03_BASELINE_COMMIT,
@@ -336,9 +369,9 @@ export const DASHBOARD_ADAPTIVE_LIMIT_BASELINE: A03BaselineFile = {
     {"moduleId":"clinic-particular-tokens","viewportSlug":"w1920x1080","variantId":null,"leafKey":"clinic-particular-tokens::w1920x1080","source":"client-slice","limit":13,"offset":13,"firstRenderedFixtureIndex":13,"secondPageFixtureIds":["0013","0014","0015","0016","0017","0018","0019","0020","0021","0022","0023","0024","0025"],"pageItemCount":13,"secondPageCount":13,"provenance":"rendered rows after one next-page transition; position located in an independently read ordered dataset of 400 items"},
     {"moduleId":"clinic-particular-tokens","viewportSlug":"w360x800","variantId":null,"leafKey":"clinic-particular-tokens::w360x800","source":"client-slice","limit":7,"offset":7,"firstRenderedFixtureIndex":7,"secondPageFixtureIds":["0007","0008","0009","0010","0011","0012","0013"],"pageItemCount":7,"secondPageCount":7,"provenance":"rendered rows after one next-page transition; position located in an independently read ordered dataset of 400 items"},
     {"moduleId":"clinic-particular-tokens","viewportSlug":"w375x812","variantId":null,"leafKey":"clinic-particular-tokens::w375x812","source":"client-slice","limit":7,"offset":7,"firstRenderedFixtureIndex":7,"secondPageFixtureIds":["0007","0008","0009","0010","0011","0012","0013"],"pageItemCount":7,"secondPageCount":7,"provenance":"rendered rows after one next-page transition; position located in an independently read ordered dataset of 400 items"},
-    {"moduleId":"clinic-particular-tokens","viewportSlug":"w390x844","variantId":null,"leafKey":"clinic-particular-tokens::w390x844","source":"client-slice","limit":7,"offset":7,"firstRenderedFixtureIndex":7,"secondPageFixtureIds":["0007","0008","0009","0010","0011","0012","0013"],"pageItemCount":7,"secondPageCount":7,"provenance":"rendered rows after one next-page transition; position located in an independently read ordered dataset of 400 items"},
-    {"moduleId":"clinic-particular-tokens","viewportSlug":"w412x915","variantId":null,"leafKey":"clinic-particular-tokens::w412x915","source":"client-slice","limit":8,"offset":8,"firstRenderedFixtureIndex":8,"secondPageFixtureIds":["0008","0009","0010","0011","0012","0013","0014","0015"],"pageItemCount":8,"secondPageCount":8,"provenance":"rendered rows after one next-page transition; position located in an independently read ordered dataset of 400 items"},
-    {"moduleId":"clinic-particular-tokens","viewportSlug":"w430x932","variantId":null,"leafKey":"clinic-particular-tokens::w430x932","source":"client-slice","limit":8,"offset":8,"firstRenderedFixtureIndex":8,"secondPageFixtureIds":["0008","0009","0010","0011","0012","0013","0014","0015"],"pageItemCount":8,"secondPageCount":8,"provenance":"rendered rows after one next-page transition; position located in an independently read ordered dataset of 400 items"},
+    {"moduleId":"clinic-particular-tokens","viewportSlug":"w390x844","variantId":null,"leafKey":"clinic-particular-tokens::w390x844","source":"client-slice","limit":8,"offset":8,"firstRenderedFixtureIndex":8,"secondPageFixtureIds":["0008","0009","0010","0011","0012","0013","0014","0015"],"pageItemCount":8,"secondPageCount":8,"provenance":"rendered rows after one next-page transition; position located in an independently read ordered dataset of 400 items"},
+    {"moduleId":"clinic-particular-tokens","viewportSlug":"w412x915","variantId":null,"leafKey":"clinic-particular-tokens::w412x915","source":"client-slice","limit":9,"offset":9,"firstRenderedFixtureIndex":9,"secondPageFixtureIds":["0009","0010","0011","0012","0013","0014","0015","0016","0017"],"pageItemCount":9,"secondPageCount":9,"provenance":"rendered rows after one next-page transition; position located in an independently read ordered dataset of 400 items"},
+    {"moduleId":"clinic-particular-tokens","viewportSlug":"w430x932","variantId":null,"leafKey":"clinic-particular-tokens::w430x932","source":"client-slice","limit":9,"offset":9,"firstRenderedFixtureIndex":9,"secondPageFixtureIds":["0009","0010","0011","0012","0013","0014","0015","0016","0017"],"pageItemCount":9,"secondPageCount":9,"provenance":"rendered rows after one next-page transition; position located in an independently read ordered dataset of 400 items"},
     {"moduleId":"clinic-particular-tokens","viewportSlug":"w768x1024","variantId":null,"leafKey":"clinic-particular-tokens::w768x1024","source":"client-slice","limit":11,"offset":11,"firstRenderedFixtureIndex":11,"secondPageFixtureIds":["0011","0012","0013","0014","0015","0016","0017","0018","0019","0020","0021"],"pageItemCount":11,"secondPageCount":11,"provenance":"rendered rows after one next-page transition; position located in an independently read ordered dataset of 400 items"},
     {"moduleId":"clinic-particular-tokens","viewportSlug":"w834x1194","variantId":null,"leafKey":"clinic-particular-tokens::w834x1194","source":"client-slice","limit":15,"offset":15,"firstRenderedFixtureIndex":15,"secondPageFixtureIds":["0015","0016","0017","0018","0019","0020","0021","0022","0023","0024","0025","0026","0027","0028","0029"],"pageItemCount":15,"secondPageCount":15,"provenance":"rendered rows after one next-page transition; position located in an independently read ordered dataset of 400 items"},
     {"moduleId":"informes-reports-list","viewportSlug":"w1024x768","variantId":null,"leafKey":"informes-reports-list::w1024x768","source":"server-request","endpoint":"/dashboard/informes","method":"POST","transport":"next-server-action","limit":5,"offset":5,"secondPageCount":5,"provenance":"single POST /dashboard/informes server action (next-action header present) observed between the next-page click and the second-page render; page 2 proven by the second-page label"},

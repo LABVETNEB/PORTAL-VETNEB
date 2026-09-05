@@ -361,6 +361,24 @@
   --dash-canvas-reserved: var(--dash-table-head-h);
 }
 
+/* Collapsing reserve grammar, the same shape as `card-below-md` above: a
+   canvas whose table/head is `hidden md:block` reserves the head ONLY in the
+   regime where it actually paints. Below `md` the head contributes zero
+   rects and zero gap; reserving it there is not a rounding error, it is a
+   phantom row's worth of unused canvas. FASE B (2026-09), `clinic-particular-
+   tokens`. */
+.dashboard-app-shell [data-dashboard-canvas-reserve="table-head-above-md"] {
+  --dash-canvas-reserved: 0px;
+  --dash-row-gap: 0px;
+}
+
+@media (min-width: 768px) {
+  .dashboard-app-shell [data-dashboard-canvas-reserve="table-head-above-md"] {
+    --dash-canvas-reserved: var(--dash-table-head-h);
+    --dash-row-gap: 1px;
+  }
+}
+
 /* Row separation grammar. Orthogonal to the tier: a canvas whose rows read as
    separate cards declares a gap, and the capacity owner charges it once per
    extra row rather than once per row. */
