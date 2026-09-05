@@ -94,7 +94,17 @@ test.describe("B14 · metrics relocation", () => {
     }
   });
 
-  test("mobile clinic keeps the compact metric run without desktop cards", async ({ page }) => {
+  // B14 moved the clinic metric strip INTO the command center's header band,
+  // which is what this test used to assert: the compact run painting on a phone.
+  // The product contract changed — that band is redundant on mobile and its
+  // 29px were returned to the module — so the assertion is inverted rather than
+  // dropped: the run must not paint, the band must not survive as an empty
+  // strip, and the chip band must have taken the freed height. What B14 itself
+  // established and still holds is asserted unchanged below it: the phone never
+  // renders the desktop metric cards.
+  test("mobile clinic retires the metric band and returns its height to the tabs", async ({
+    page,
+  }) => {
     const clinic = SURFACES.find((surface) => surface.id === "clinic-operaciones");
     if (!clinic) throw new Error("clinic operations surface missing");
 
@@ -104,9 +114,48 @@ test.describe("B14 · metrics relocation", () => {
 
     const commandCenter = page.locator('[data-clinic-command-center="true"]');
     await expect(commandCenter.locator(".dashboard-metric-card:visible")).toHaveCount(0);
+
+    const metricRun = commandCenter.locator('[data-dashboard-b14-metrics="clinic-operaciones"]');
+    await expect(metricRun, "the run stays mounted for desktop").toHaveCount(1);
+    await expect(metricRun, "the run must not paint on a phone").toBeHidden();
+
+    const band = await metricRun.evaluate((element) => {
+      const px = (raw: string) => Number.parseFloat(raw) || 0;
+      const paints = (node: Element) => node.getClientRects().length > 0;
+      const host = element.parentElement;
+      const card = element.closest("section.dashboard-surface");
+      const cardStyle = card ? window.getComputedStyle(card) : null;
+      const firstPainted = card ? (Array.from(card.children).find(paints) ?? null) : null;
+
+      return {
+        runHeight: element.getBoundingClientRect().height,
+        runRects: element.getClientRects().length,
+        hostHeight: host ? host.getBoundingClientRect().height : -1,
+        hostRects: host ? host.getClientRects().length : -1,
+        firstPaintedRole: firstPainted ? firstPainted.getAttribute("role") : null,
+        firstPaintedOffset: firstPainted
+          ? firstPainted.getBoundingClientRect().top -
+            (card ? card.getBoundingClientRect().top : 0) -
+            (cardStyle ? px(cardStyle.borderBlockStartWidth) : 0)
+          : -1,
+      };
+    });
+
+    expect(band.runHeight, "the run must occupy no band").toBe(0);
+    expect(band.runRects, "the run must generate no box").toBe(0);
+    expect(band.hostRects, "the header band must not paint as an empty strip").toBe(0);
+    expect(band.hostHeight, "the header band must occupy no height").toBe(0);
+    expect(band.firstPaintedRole, "the chip band must be the card's first painted child").toBe(
+      "tablist",
+    );
+    expect(band.firstPaintedOffset, "the chip band must take the freed height").toBeLessThanOrEqual(
+      1,
+    );
+
     await expect(
-      commandCenter.locator('[data-dashboard-b14-metrics="clinic-operaciones"]'),
-    ).toBeVisible();
+      commandCenter.getByRole("tab", { name: "Métricas" }),
+      "metric ownership still belongs to the Métricas tab",
+    ).toHaveAttribute("aria-selected", "true");
   });
 
   test("mobile keeps audit metrics inside the existing filters toolbar", async ({ page }) => {

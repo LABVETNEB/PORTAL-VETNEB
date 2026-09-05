@@ -766,8 +766,14 @@ export function ClinicPublicProfileCard() {
             data-clinic-profile-toolbar="true"
             className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-vetneb-line/70 p-1.5"
           >
-            {/* CMP-05 formulas intentionally use the existing profile snapshot; no endpoint is added. */}
+            {/* CMP-05 formulas intentionally use the existing profile snapshot; no endpoint is added.
+                Desktop-only below: the toolbar stays because it carries the publication badge and
+                "Guardar perfil público", and retiring just the run returns the wrapped 16px line
+                plus the 8px flex row-gap to that action row. The CMP-10 subtitle slot underneath
+                ("Recomendados: …", loading, error + retry) is a SIBLING of this toolbar and is
+                deliberately untouched. */}
             <ModuleMetricRun
+              className="hidden md:flex"
               surfaceId="clinic-perfil"
               metrics={[
                 { key: "estado", label: "Estado", value: publication?.isSearchEligible ? "Visible" : "Oculto" },

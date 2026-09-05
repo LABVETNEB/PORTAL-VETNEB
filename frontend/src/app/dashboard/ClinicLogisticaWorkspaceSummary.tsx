@@ -68,7 +68,11 @@ export function ClinicLogisticaWorkspaceSummary({
       dataAttributes={{ "data-clinic-mobile-module": "logistica" }}
     >
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-vetneb-line/70 p-1.5">
+        {/* Desktop-only below: the host stays because it carries "Abrir módulo
+            completo", and retiring just the run returns the wrapped 16px line
+            plus the 8px flex row-gap to that action. */}
         <ModuleMetricRun
+          className="hidden md:flex"
           surfaceId="clinic-logistica-workspace"
           metrics={[
             { key: "visitas", label: "Visitas", value: recentVisits.length },

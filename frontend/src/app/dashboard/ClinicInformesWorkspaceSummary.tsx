@@ -325,7 +325,11 @@ export function ClinicInformesWorkspaceSummary({
       dataAttributes={{ "data-clinic-mobile-module": "informes" }}
     >
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-vetneb-line/70 p-1.5">
+          {/* Desktop-only below: the host stays because it carries Filtros and
+              "Abrir módulo completo", and retiring just the run returns the
+              wrapped 16px line plus the 8px flex row-gap to the action row. */}
           <ModuleMetricRun
+            className="hidden md:flex"
             surfaceId="clinic-informes-workspace"
             metrics={[
               { key: "total", label: "Total", value: filteredReports.length },
