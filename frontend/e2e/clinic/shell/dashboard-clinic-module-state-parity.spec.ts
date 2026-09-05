@@ -313,8 +313,12 @@ test.describe("clinic tokens module state parity (client-driven, CL-GAP-6)", () 
       card.getByText("No hay tokens particulares generados por esta clínica."),
     ).toBeVisible();
     await expect(card.getByText("Sin tokens particulares")).toBeVisible();
+    // MOBILE_VIEWPORT is 390px, below `md`, where the create control paints its
+    // short label (the long one is a `hidden md:inline` fragment excluded from
+    // the accessible name). `exact` is kept so the two labels stay distinct
+    // contracts rather than one substring accepting both.
     await expect(
-      card.getByRole("button", { name: "Generar token particular", exact: true }),
+      card.getByRole("button", { name: "Generar token", exact: true }),
     ).toBeEnabled();
 
     await expectNoHorizontalOverflow(page);

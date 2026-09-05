@@ -206,10 +206,6 @@ function toDateInputValue(value: string | null | undefined): string {
   return Number.isNaN(date.getTime()) ? "" : date.toISOString().slice(0, 10);
 }
 
-function isTokenFilterStateEmpty(filters: ClinicParticularTokenFilterState) {
-  return Object.values(filters).every((value) => !value.trim());
-}
-
 function getTokenVisibleDate(token: ClinicParticularTokenSummary): string {
   return token.lastLoginAt ?? token.createdAt;
 }
@@ -419,7 +415,6 @@ export function ClinicParticularTokensCard() {
   const linkedReportsCount = filteredTokens.filter((token) => token.hasLinkedReport).length;
   const createStepIndex = getCreateStepIndex(createStep);
   const isLastCreateStep = createStep === "sample";
-  const hasActiveFilters = !isTokenFilterStateEmpty(appliedFilters);
 
   async function loadTokens(limit: number) {
     setIsLoadingTokens(true);
@@ -790,14 +785,18 @@ export function ClinicParticularTokensCard() {
           {/* CMP-10 (DIF-035) — always-rendered subtitle slot, mirroring
               AdminSessionsReadOnlyCard's header subtitle: the error/status
               text swaps in place of the default description, so the row
-              never appears/disappears and nothing below it shifts. */}
+              never appears/disappears and nothing below it shifts.
+              Below `md` only the error/status variants paint: the default
+              description band is suppressed there so the toolbar owns the top
+              of the card, matching the Admin mobile reference. Desktop keeps
+              the always-rendered slot (and its `line-clamp-2`) untouched. */}
           <p
             className={`shrink-0 line-clamp-2 border-b border-vetneb-line/70 px-3 py-1 text-xs ${
               errorMessage
                 ? "text-destructive"
                 : statusMessage
                   ? "text-vetneb-teal"
-                  : "text-muted-foreground"
+                  : "text-muted-foreground max-md:hidden"
             }`}
             role={errorMessage ? "alert" : undefined}
           >
@@ -805,9 +804,13 @@ export function ClinicParticularTokensCard() {
           </p>
           <div
             data-clinic-access-toolbar="true"
-            className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-vetneb-line/70 p-1.5"
+            className="flex shrink-0 items-center gap-1 border-b border-vetneb-line/70 p-1 md:flex-wrap md:justify-between md:gap-2 md:p-1.5"
           >
+            {/* Second half of the removed band: the metric run is desktop-only
+                below, the same `hidden md:*` grammar the mapped Admin reference
+                (AdminUsersRolesReadOnlyCard) already uses for its own metrics. */}
             <ModuleMetricRun
+              className="hidden md:flex"
               surfaceId="clinic-tokens"
               metrics={[
                 { key: "tokens", label: "Tokens", value: tokens.length },
@@ -816,7 +819,11 @@ export function ClinicParticularTokensCard() {
               ]}
             />
 
-            <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
+            {/* Mobile: the three controls share the freed band in one row, each
+                keeping its own control metrics (h-8 / px-2.5 / text-xs) and
+                growing proportionally to its natural width. Desktop keeps the
+                right-aligned wrapping group. */}
+            <div className="flex w-full min-w-0 items-center gap-1 md:w-auto md:flex-wrap md:justify-end md:gap-2">
               <ModuleDialog
                 open={isFilterDialogOpen}
                 onOpenChange={setIsFilterDialogOpen}
@@ -828,10 +835,10 @@ export function ClinicParticularTokensCard() {
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="h-8 gap-1.5 px-2.5 text-xs md:hidden"
+                    className="h-8 flex-auto gap-1.5 px-2.5 text-xs md:hidden"
                   >
                     <Filter className="h-3.5 w-3.5" aria-hidden="true" />
-                    {hasActiveFilters ? "Filtros activos" : "Filtros"}
+                    Filtros
                   </Button>
                 }
               >
@@ -842,7 +849,7 @@ export function ClinicParticularTokensCard() {
                 type="button"
                 variant="outline"
                 size="sm"
-                className="h-8 px-2.5 text-xs"
+                className="h-8 flex-auto px-2.5 text-xs md:flex-initial"
                 onClick={() => void loadTokens(effectiveFetchLimit)}
                 disabled={isLoadingTokens}
               >
@@ -851,11 +858,17 @@ export function ClinicParticularTokensCard() {
               <Button
                 type="button"
                 size="sm"
-                className="h-8 px-2.5 text-xs"
+                className="h-8 flex-auto px-2.5 text-xs md:flex-initial"
                 onClick={() => setIsCreateDialogOpen(true)}
                 disabled={generatedToken !== null}
               >
-                Generar token particular
+                {/* One control, one handler, two labels. The mobile row needs
+                    the short literal to fit three controls on one line; desktop
+                    keeps the long one unchanged. The whole label is ONE flex
+                    item on purpose — `Button` is `inline-flex gap-2`, so a bare
+                    text node beside a span would become two items and open an
+                    8px gap that desktop does not have today. */}
+                <span>Generar token<span className="hidden md:inline"> particular</span></span>
               </Button>
             </div>
           </div>
@@ -871,7 +884,15 @@ export function ClinicParticularTokensCard() {
               <ParticularTokensPanel
                 data-clinic-access-list-panel="true"
               >
-                <ParticularTokensPanelHeader>
+                {/* The mapped Admin reference (AdminParticularTokensCard) mounts
+                    its mobile list with NO header band at all: the list is the
+                    first thing under the toolbar and the page indicator lives in
+                    the pager, not above the rows. Below `md` this header follows
+                    that reference — the title, the description and the `Pág. N`
+                    badge stop painting and the band itself collapses, so the
+                    freed vertical budget lands on the adaptive canvas instead of
+                    on an empty strip. Desktop is untouched. */}
+                <ParticularTokensPanelHeader className="max-md:hidden">
                   <div className="min-w-0">
                     <h3 className="text-sm font-semibold text-vetneb-ink">
                       Últimos tokens de la clínica
@@ -893,11 +914,25 @@ export function ClinicParticularTokensCard() {
                   </Badge>
                 </ParticularTokensPanelHeader>
 
+                {/* The alert is the one thing the retired band carried that may
+                    not go with it: an error state has to stay visible in both
+                    regimes. It gets its own `md:hidden` line so it costs a band
+                    only while it exists, instead of keeping the whole header
+                    mounted below `md` to host it. */}
+                {trackingLoadError ? (
+                  <p
+                    className="line-clamp-1 shrink-0 border-b border-vetneb-line/70 px-3 py-1 text-[0.68rem] text-amber-700 md:hidden"
+                    role="alert"
+                  >
+                    Seguimiento parcial: {trackingLoadError}
+                  </p>
+                ) : null}
+
                 <ParticularTokensPanelBody
                   ref={setPanelBodyNode}
                   data-clinic-access-list-body="true"
                   data-dashboard-adaptive-rows-canvas="true"
-            data-dashboard-row-pitch="regular"
+            data-dashboard-row-pitch="card-below-md"
             data-dashboard-canvas-reserve="table-head"
                   className="relative"
                 >
@@ -1037,14 +1072,14 @@ export function ClinicParticularTokensCard() {
                 </ParticularTokensPanelBody>
 
                 <ParticularTokensPanelFooter
-                  className="min-h-0 overflow-hidden py-0"
+                  className="min-h-0 justify-center overflow-hidden py-0 md:justify-end"
                   style={DASHBOARD_PAGER_RESERVATION}
                   data-clinic-access-pagination-footer="true"
                   data-dashboard-adaptive-reserved-region="pager"
                 >
                   <div
                     data-clinic-access-pagination-controls="true"
-                    className="flex items-center justify-end gap-1.5"
+                    className="flex items-center justify-center gap-1.5 md:justify-end"
                   >
                     <Button
                       type="button"

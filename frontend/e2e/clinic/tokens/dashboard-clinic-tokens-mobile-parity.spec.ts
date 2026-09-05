@@ -17,8 +17,38 @@ const TOLERANCE = 2;
 
 const MOBILE_VIEWPORTS = [
   { name: "android-small-360x740", width: 360, height: 740 },
+  { name: "android-small-360x800", width: 360, height: 800 },
   { name: "iphone-standard-390x844", width: 390, height: 844 },
   { name: "iphone-pro-max-430x932", width: 430, height: 932 },
+] as const;
+
+/**
+ * Literal labels of the three mobile toolbar controls. Frozen here because the
+ * row's geometry contract below is only meaningful against the exact strings
+ * that are painted: a longer label is what pushed the third control out of the
+ * card, so a silent relabel must fail this spec instead of quietly re-widening
+ * the row.
+ */
+const TOOLBAR_LABELS = {
+  filters: "Filtros",
+  refresh: "Actualizar",
+  create: "Generar token",
+} as const;
+
+/**
+ * Strings the mobile toolbar/list band must NOT paint any more. Each of these
+ * lives on a node that is retired wholesale below `md`, so "must not paint" is
+ * decidable per element. The retired half of the create button's label is NOT
+ * in this list: it is a `hidden md:inline` fragment INSIDE a button that stays
+ * visible, so no element-level visibility check can express it — the painted
+ * label is asserted instead by `expectToolbarRowContained`, which reads
+ * `innerText` and therefore sees only what the viewport actually renders.
+ */
+const MOBILE_RETIRED_TEXT = [
+  "Filtros activos",
+  "Últimos tokens de la clínica",
+  "Tokens particulares de la clínica.",
+  "Lista paginada sin scroll interno.",
 ] as const;
 
 const MOCK_TOKENS = Array.from({ length: 6 }, (_, index) => {
@@ -283,6 +313,274 @@ function assertNoGlobalOverflow(metrics: LayoutContract, label: string) {
   ).toEqual([]);
 }
 
+type BoxMetrics = {
+  readonly label: string;
+  readonly left: number;
+  readonly right: number;
+  readonly top: number;
+  readonly bottom: number;
+  readonly width: number;
+  readonly height: number;
+  readonly clientWidth: number;
+  readonly scrollWidth: number;
+};
+
+type ToolbarGeometry = {
+  readonly documentScrollWidth: number;
+  readonly documentClientWidth: number;
+  readonly container: BoxMetrics;
+  readonly toolbar: BoxMetrics;
+  readonly gapEffective: number;
+  readonly buttons: readonly BoxMetrics[];
+};
+
+/**
+ * Real geometry of the mobile action row, read off the DOM rather than inferred
+ * from a screenshot or from DOM order. `getBoundingClientRect` is the only thing
+ * that can prove the three controls are inside the card AND on one line: a
+ * control pushed out of the card still renders, still reports `toBeVisible`, and
+ * still sits in the right place in the markup.
+ */
+async function readToolbarGeometry(page: Page): Promise<ToolbarGeometry | null> {
+  return page.evaluate(() => {
+    const container = document.querySelector<HTMLElement>(
+      "#clinic-particular-tokens",
+    );
+    const toolbar = document.querySelector<HTMLElement>(
+      '[data-clinic-access-toolbar="true"]',
+    );
+    if (!container || !toolbar) return null;
+
+    const measure = (label: string, element: HTMLElement) => {
+      const rect = element.getBoundingClientRect();
+      return {
+        label,
+        left: rect.left,
+        right: rect.right,
+        top: rect.top,
+        bottom: rect.bottom,
+        width: rect.width,
+        height: rect.height,
+        clientWidth: element.clientWidth,
+        scrollWidth: element.scrollWidth,
+      };
+    };
+
+    // Painted controls only: the filter trigger is `md:hidden` and the metric
+    // run is `hidden md:flex`, so exactly one regime answers at any viewport.
+    const buttons = Array.from(
+      toolbar.querySelectorAll<HTMLElement>("button"),
+    ).filter((button) => button.getClientRects().length > 0);
+
+    return {
+      documentScrollWidth: document.documentElement.scrollWidth,
+      documentClientWidth: document.documentElement.clientWidth,
+      container: measure("container", container),
+      toolbar: measure("toolbar", toolbar),
+      gapEffective: Number.parseFloat(
+        window.getComputedStyle(toolbar).columnGap || "0",
+      ),
+      // `innerText`, never `textContent`: a control may carry a label fragment
+      // that only paints above `md`, and the contract here is about what this
+      // viewport actually renders.
+      buttons: buttons.map((button) =>
+        measure((button.innerText ?? "").trim(), button),
+      ),
+    };
+  });
+}
+
+/**
+ * The row contract of §9/§10: three controls, one line, fully inside the card,
+ * no overflow at any level and no overlap. Every bound is two-sided so a
+ * regression on either edge fails, and nothing here is satisfied by clipping.
+ */
+async function expectToolbarRowContained(page: Page, label: string) {
+  // `Actualizar` swaps to `Actualizando...` for the duration of a load, and the
+  // card can re-fetch after a resize. Settle on the idle label before measuring:
+  // the transient one is WIDER, so measuring it would be a stricter test of a
+  // state the contract is not written about.
+  await expect(async () => {
+    const settling = await readToolbarGeometry(page);
+    expect(
+      settling?.buttons.map((button) => button.label),
+      `${label}: the mobile row paints exactly the three canonical controls`,
+    ).toEqual([
+      TOOLBAR_LABELS.filters,
+      TOOLBAR_LABELS.refresh,
+      TOOLBAR_LABELS.create,
+    ]);
+  }).toPass({ timeout: 10_000 });
+
+  const geometry = await readToolbarGeometry(page);
+  expect(geometry, `${label}: toolbar geometry readable`).not.toBeNull();
+  const { container, toolbar, buttons } = geometry!;
+
+  // Evidence for the report; also names the failing viewport in CI output.
+  console.log(
+    `[clinic-tokens toolbar] ${label} ${JSON.stringify(geometry, null, 0)}`,
+  );
+
+  expect(
+    geometry!.documentScrollWidth,
+    `${label}: document horizontal overflow`,
+  ).toBeLessThanOrEqual(geometry!.documentClientWidth + TOLERANCE);
+  expect(
+    container.scrollWidth,
+    `${label}: card horizontal overflow`,
+  ).toBeLessThanOrEqual(container.clientWidth + TOLERANCE);
+  expect(
+    toolbar.scrollWidth,
+    `${label}: action row horizontal overflow`,
+  ).toBeLessThanOrEqual(toolbar.clientWidth + TOLERANCE);
+
+  for (const button of buttons) {
+    expect(
+      button.left,
+      `${label}: ${button.label} starts inside the card`,
+    ).toBeGreaterThanOrEqual(container.left - TOLERANCE);
+    expect(
+      button.right,
+      `${label}: ${button.label} ends inside the card`,
+    ).toBeLessThanOrEqual(container.right + TOLERANCE);
+    expect(
+      button.width,
+      `${label}: ${button.label} has a real width`,
+    ).toBeGreaterThan(0);
+    // Truncation check on the control itself: an ellipsised or clipped label
+    // overflows its own box even while the row as a whole fits.
+    expect(
+      button.scrollWidth,
+      `${label}: ${button.label} label is clipped inside its own box`,
+    ).toBeLessThanOrEqual(button.clientWidth + TOLERANCE);
+  }
+
+  // One line, proved by the boxes: every pair overlaps vertically and none
+  // overlaps horizontally.
+  for (let index = 1; index < buttons.length; index += 1) {
+    const previous = buttons[index - 1];
+    const current = buttons[index];
+    expect(
+      Math.min(previous.bottom, current.bottom) -
+        Math.max(previous.top, current.top),
+      `${label}: ${previous.label} and ${current.label} must share one row`,
+    ).toBeGreaterThan(0);
+    expect(
+      current.left - previous.right,
+      `${label}: ${previous.label} and ${current.label} must not overlap`,
+    ).toBeGreaterThanOrEqual(-TOLERANCE);
+  }
+}
+
+/**
+ * The vertical half of the same correction: with the list header retired below
+ * `md`, the rows must actually OCCUPY the freed band instead of leaving an empty
+ * strip behind, and they must do it without clipping themselves against the
+ * pitch lock or riding over the pager.
+ */
+async function expectListBandRecovered(page: Page, label: string) {
+  const band = await page.evaluate(() => {
+    const toolbar = document.querySelector<HTMLElement>(
+      '[data-clinic-access-toolbar="true"]',
+    );
+    const panel = document.querySelector<HTMLElement>(
+      '[data-clinic-access-list-panel="true"]',
+    );
+    const header = panel?.firstElementChild as HTMLElement | null;
+    const alert = panel?.querySelector<HTMLElement>(':scope > [role="alert"]');
+    const body = document.querySelector<HTMLElement>(
+      '[data-clinic-access-list-body="true"]',
+    );
+    const pager = document.querySelector<HTMLElement>(
+      '[data-clinic-access-pagination-footer="true"]',
+    );
+    const rows = Array.from(
+      document.querySelectorAll<HTMLElement>(
+        '[data-clinic-access-mobile-row="true"]',
+      ),
+    );
+    if (!panel || !toolbar || !body || !pager || rows.length === 0) return null;
+
+    return {
+      toolbarBottom: toolbar.getBoundingClientRect().bottom,
+      headerPaints: header ? header.getClientRects().length > 0 : false,
+      panelTop: panel.getBoundingClientRect().top,
+      alertHeight:
+        alert && alert.getClientRects().length > 0
+          ? alert.getBoundingClientRect().height
+          : 0,
+      bodyTop: body.getBoundingClientRect().top,
+      bodyHeight: body.getBoundingClientRect().height,
+      firstRowTop: rows[0].getBoundingClientRect().top,
+      lastRowBottom: rows[rows.length - 1].getBoundingClientRect().bottom,
+      pagerTop: pager.getBoundingClientRect().top,
+      rows: rows.map((row) => {
+        const rect = row.getBoundingClientRect();
+        const action = row.querySelector<HTMLElement>("button");
+        const actionRect = action?.getBoundingClientRect() ?? null;
+        return {
+          top: rect.top,
+          bottom: rect.bottom,
+          clientHeight: row.clientHeight,
+          scrollHeight: row.scrollHeight,
+          actionTop: actionRect?.top ?? null,
+          actionBottom: actionRect?.bottom ?? null,
+          actionLeft: actionRect?.left ?? null,
+          actionRight: actionRect?.right ?? null,
+          left: rect.left,
+          right: rect.right,
+        };
+      }),
+    };
+  });
+
+  expect(band, `${label}: list band readable`).not.toBeNull();
+  console.log(`[clinic-tokens list] ${label} ${JSON.stringify(band, null, 0)}`);
+
+  expect(
+    band!.headerPaints,
+    `${label}: the retired list header must not occupy a band`,
+  ).toBe(false);
+
+  // No residual empty strip where the header used to be: inside the panel, the
+  // only thing allowed between its top edge and the first row is a painted
+  // alert (plus the panel's own 1px border). The bound is expressed against the
+  // measured alert instead of a fixed number, so it stays exact whether or not
+  // the tracking alert is showing.
+  expect(
+    band!.bodyTop - band!.panelTop - band!.alertHeight,
+    `${label}: freed band must be taken by the list, not left empty`,
+  ).toBeLessThanOrEqual(1 + TOLERANCE);
+
+  expect(
+    band!.pagerTop - band!.lastRowBottom,
+    `${label}: the pager must not ride over the last row`,
+  ).toBeGreaterThanOrEqual(-TOLERANCE);
+
+  for (const [index, row] of band!.rows.entries()) {
+    expect(
+      row.scrollHeight,
+      `${label}: row ${index} content is clipped by the pitch lock`,
+    ).toBeLessThanOrEqual(row.clientHeight + TOLERANCE);
+    expect(
+      row.actionTop,
+      `${label}: row ${index} keeps its detail action`,
+    ).not.toBeNull();
+    expect(
+      row.actionTop!,
+      `${label}: row ${index} detail action escapes the row on top`,
+    ).toBeGreaterThanOrEqual(row.top - TOLERANCE);
+    expect(
+      row.actionBottom!,
+      `${label}: row ${index} detail action escapes the row at the bottom`,
+    ).toBeLessThanOrEqual(row.bottom + TOLERANCE);
+    expect(
+      row.actionRight!,
+      `${label}: row ${index} detail action escapes the row on the right`,
+    ).toBeLessThanOrEqual(row.right + TOLERANCE);
+  }
+}
+
 async function expectHorizontallyUnclipped(
   locator: Locator,
   viewportWidth: number,
@@ -298,7 +596,13 @@ async function expectHorizontallyUnclipped(
   );
 }
 
-async function expectFooterBottomRightAligned(
+// The mobile pager is centred inside its footer (the Admin mobile grammar,
+// `dashboard-pager ... justify-center`); desktop keeps the right-aligned
+// footer, which this mobile-only spec never measures. Centring is asserted as
+// a two-sided bound on the residual between the controls' centre and the
+// panel's centre, so an off-by-one-side regression fails exactly the way the
+// previous right-edge bound did.
+async function expectFooterBottomCentered(
   footer: Locator,
   controls: Locator,
   panel: Locator,
@@ -320,13 +624,19 @@ async function expectFooterBottomRightAligned(
     `${label}: footer sits on panel bottom edge`,
   ).toBeLessThanOrEqual(TOLERANCE);
   expect(
-    panelBox!.x + panelBox!.width - (controlsBox!.x + controlsBox!.width),
-    `${label}: controls align to the right side of the footer`,
+    Math.abs(
+      controlsBox!.x + controlsBox!.width / 2 - (panelBox!.x + panelBox!.width / 2),
+    ),
+    `${label}: controls are centred inside the footer`,
+  ).toBeLessThanOrEqual(TOLERANCE);
+  expect(
+    controlsBox!.x - panelBox!.x,
+    `${label}: controls stay inside the footer's left edge`,
   ).toBeGreaterThanOrEqual(0);
   expect(
     panelBox!.x + panelBox!.width - (controlsBox!.x + controlsBox!.width),
-    `${label}: controls stay close to the right side of the footer`,
-  ).toBeLessThanOrEqual(18);
+    `${label}: controls stay inside the footer's right edge`,
+  ).toBeGreaterThanOrEqual(0);
 }
 
 // `useAdaptiveRowsPerPage` now actually reacts to the measured container
@@ -377,12 +687,16 @@ for (const viewport of MOBILE_VIEWPORTS) {
       name: "Ver detalle",
       exact: true,
     });
+    const filtersButton = card.getByRole("button", {
+      name: TOOLBAR_LABELS.filters,
+      exact: true,
+    });
     const refreshButton = card.getByRole("button", {
-      name: "Actualizar",
+      name: TOOLBAR_LABELS.refresh,
       exact: true,
     });
     const createButton = card.getByRole("button", {
-      name: "Generar token particular",
+      name: TOOLBAR_LABELS.create,
       exact: true,
     });
     const pager = card.locator(
@@ -407,6 +721,8 @@ for (const viewport of MOBILE_VIEWPORTS) {
       await expect(workspace).toBeVisible();
       await expect(card).toBeVisible();
       await expectClinicMobileNav(page, viewport.name, "tokens");
+      await expect(filtersButton).toBeVisible();
+      await expect(filtersButton).toBeEnabled();
       await expect(refreshButton).toBeVisible();
       await expect(refreshButton).toBeEnabled();
       await expect(createButton).toBeVisible();
@@ -454,15 +770,44 @@ for (const viewport of MOBILE_VIEWPORTS) {
       await expect(nextButton).toBeDisabled();
     }
 
+    // The action row is the regression this spec exists to catch: assert its
+    // real geometry (card containment, one line, no overflow, no overlap, no
+    // per-control clipping) before the looser viewport-edge bounds below.
+    await expectToolbarRowContained(page, `${viewport.name}: barra de acciones`);
+    await expectListBandRecovered(page, `${viewport.name}: lista de tokens`);
+
+    // Retired below `md` by media query, not by unmounting: the nodes stay in
+    // the tree for desktop, so the contract is "must not PAINT". Filtering on
+    // visibility is what distinguishes that from "must not exist", and a node
+    // that starts painting again still fails here.
+    for (const retired of MOBILE_RETIRED_TEXT) {
+      await expect(
+        card.getByText(retired, { exact: true }).filter({ visible: true }),
+        `${viewport.name}: "${retired}" must not paint on mobile`,
+      ).toHaveCount(0);
+    }
+    // The retired header's page indicator ("Pág. N"). The pager's own
+    // "Página 1 / N" is a different string and must survive, so this is
+    // anchored on the badge's exact wording.
+    await expect(
+      card.getByText(/^Pág\.\s*\d+$/).filter({ visible: true }),
+      `${viewport.name}: the list header page badge must not paint on mobile`,
+    ).toHaveCount(0);
+
+    await expectHorizontallyUnclipped(
+      filtersButton,
+      viewport.width,
+      `${viewport.name}: ${TOOLBAR_LABELS.filters}`,
+    );
     await expectHorizontallyUnclipped(
       refreshButton,
       viewport.width,
-      `${viewport.name}: Actualizar`,
+      `${viewport.name}: ${TOOLBAR_LABELS.refresh}`,
     );
     await expectHorizontallyUnclipped(
       createButton,
       viewport.width,
-      `${viewport.name}: Generar token particular`,
+      `${viewport.name}: ${TOOLBAR_LABELS.create}`,
     );
     await expectHorizontallyUnclipped(
       pager,
@@ -484,7 +829,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
       viewport.width,
       `${viewport.name}: Página siguiente`,
     );
-    await expectFooterBottomRightAligned(
+    await expectFooterBottomCentered(
       pager,
       pagerControls,
       listPanel,
