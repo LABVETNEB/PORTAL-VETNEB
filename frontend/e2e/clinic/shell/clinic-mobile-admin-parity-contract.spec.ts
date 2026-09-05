@@ -99,6 +99,22 @@ function assertShellAndSurfaceParity(
 }
 
 /**
+ * The five clinic workspace surfaces whose metric run is desktop-only by
+ * product contract (`hidden md:flex`), so a phone must show none. Frozen as a
+ * roster rather than derived from a measurement: derived, it would absorb a
+ * regression on a sixth surface as "expected". The full routes CLN-006..010 are
+ * deliberately absent — they still paint their run and still compare normally.
+ * Their own grammar is covered by `dashboard-clinic-metric-run-parity.spec.ts`.
+ */
+const CLINIC_DESKTOP_ONLY_METRIC_SURFACES = new Set([
+  "CLN-001", // operaciones — band retired whole (the run was its only child)
+  "CLN-002", // informes workspace
+  "CLN-003", // logistica workspace
+  "CLN-004", // perfil
+  "CLN-005", // tokens (already desktop-only since PR #1690)
+]);
+
+/**
  * Capa C: ModuleMetricRun. Only asserted when BOTH sides actually expose a
  * mobile-visible metric run — some admin read-only cards (sessions, users-
  * roles) mount `[data-dashboard-b14-metrics]` desktop-only (`hidden md:grid`),
@@ -118,6 +134,26 @@ function assertMetricsParity(
   // grammar (display/gap/height) is already covered independently by
   // `dashboard-clinic-metric-run-parity.spec.ts` (CMP-05/09/11), so this is
   // a legitimate skip, not a silently dropped contract.
+  // The five clinic WORKSPACE surfaces retired their mobile metric band by
+  // product decision: the run stays mounted for desktop (`hidden md:flex`) and
+  // paints nothing below `md`, so its height went back to the module. Against a
+  // mapped Admin reference that DOES paint one (CLN-002/003 map to
+  // admin-auditoria), presence parity would now fail on a difference that is
+  // intended, so it is stated here instead of being inferred.
+  //
+  // This is an exception to the presence comparison ONLY, and it is asserted in
+  // the positive direction: the clinic side must show exactly ZERO runs. A run
+  // reappearing on any of these five phones fails here as loudly as a missing
+  // one used to. Every other layer of this contract — shell, surface, rows,
+  // pager, order, scroll — keeps comparing both roles unchanged.
+  if (CLINIC_DESKTOP_ONLY_METRIC_SURFACES.has(ctx.clinicSurfaceId)) {
+    expect(
+      clinic.metrics.count,
+      formatParityFailure({ ...ctx, region: "metrics", property: "count(desktop-only clinic surface)", adminValue: admin.metrics.count, clinicValue: clinic.metrics.count }),
+    ).toBe(0);
+    return false;
+  }
+
   if (admin.metrics.count === 0) {
     return false;
   }

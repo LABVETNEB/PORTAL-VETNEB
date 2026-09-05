@@ -93,8 +93,17 @@ export function ClinicCommandCenter({
       chipAttribute="data-clinic-command-center-chip"
       panelAttribute="data-clinic-command-center-panel"
       header={
-        <div className="flex shrink-0 items-center border-b border-vetneb-line/70 px-2 py-1.5 text-xs text-muted-foreground">
+        /* The run is this band's ONLY child, so retiring it alone below `md`
+           would leave the host painting its own `py-1.5` + `border-b` — a 13px
+           empty strip, measured on all six phone viewports. Both halves are
+           retired: the host leaves the flow so the chip band becomes the card's
+           first painted child, and the run keeps the same `hidden md:flex`
+           grammar the mapped Admin references use, so its OWN computed display
+           is `none` below `md` instead of merely inheriting an unpainted
+           ancestor. Desktop is untouched. */
+        <div className="flex shrink-0 items-center border-b border-vetneb-line/70 px-2 py-1.5 text-xs text-muted-foreground max-md:hidden">
           <ModuleMetricRun
+            className="hidden md:flex"
             surfaceId="clinic-operaciones"
             metrics={[
               { key: "informes", label: "Informes", value: stats?.totalReports ?? "—" },
