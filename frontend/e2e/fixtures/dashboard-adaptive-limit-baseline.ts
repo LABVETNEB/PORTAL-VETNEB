@@ -81,7 +81,7 @@ import {
 //
 // Clinic tokens mobile pitch realignment (PR #1690), 2026-09-04.
 // base = da668bda617043c720b8a12b55af7cdd4dc3576c
-// scope = 5 leafKey / 30 fields, WIN32 ONLY, all strictly below 768px:
+// scope = 5 leafKey / 30 fields per platform, all strictly below 768px:
 //         clinic-particular-tokens::{w430x932, w412x915, w390x844, w375x812,
 //         w360x800}. limit/offset/firstRenderedFixtureIndex/pageItemCount/
 //         secondPageCount/secondPageFixtureIds moved; source and provenance did
@@ -103,11 +103,24 @@ import {
 //          byte-for-byte: DRIFT_COUNT = 0. Untouched fields were preserved from
 //          the previous entry verbatim rather than re-serialised.
 //
-// Linux = UNTOUCHED. Not derived, not copied, not extrapolated from Win32. The
-//         five mobile Linux leaves of this module still describe the pre-fix
-//         capacity and will fail `E2E Completeness` until a real Linux capture
-//         from a published head replaces them
-//         (CLINIC_TOKENS_LINUX_BASELINE = BLOCKED_ENVIRONMENT_LOCAL).
+// Linux = REALIGNED from its own real capture, 2026-09-05 — the published head
+//         the previous entry was waiting for. Source: PR #1690 head
+//         0fb04e98a051419da8366ca9c4c0327d99f52900, `E2E Completeness` run
+//         33932177572 (run 202), artifact 9959520990
+//         (`e2e-completeness-playwright-1`), files
+//         `test-results/a03-matrix/clinic-particular-tokens.json` and the
+//         234-leaf `a03-matrix-observations.json` of that same run, platform
+//         chromium/linux. Method: the full 234-leaf Linux capture was compared
+//         field by field against this baseline; these five leaves are the ONLY
+//         divergences in the whole matrix, so nothing unrelated was absorbed.
+//         Cause is the same product fix described above, and the eight >=768px
+//         leaves stay byte-identical because `card-below-md` resolves to
+//         `--dash-row-pitch-regular` from `md` up. The Linux numbers coincide
+//         with the Win32 ones because both platforms measure the same pitch
+//         arithmetic on the same three-line card — NOT because either set was
+//         derived, copied or extrapolated from the other. The A03 contract is
+//         unchanged and still exact: no tolerance, no cross-platform fallback,
+//         no leaf exempted.
 export const DASHBOARD_ADAPTIVE_LIMIT_BASELINE: A03BaselineFile = {
   schema: A03_BASELINE_SCHEMA,
   baseCommit: A03_BASELINE_COMMIT,
@@ -545,11 +558,11 @@ export const DASHBOARD_ADAPTIVE_LIMIT_BASELINE: A03BaselineFile = {
       {"moduleId":"clinic-particular-tokens","viewportSlug":"w1024x768","variantId":null,"leafKey":"clinic-particular-tokens::w1024x768","source":"client-slice","limit":7,"offset":7,"firstRenderedFixtureIndex":7,"secondPageFixtureIds":["0007","0008","0009","0010","0011","0012","0013"],"pageItemCount":7,"secondPageCount":7,"provenance":"rendered rows after one next-page transition; position located in an independently read ordered dataset of 400 items"},
       {"moduleId":"clinic-particular-tokens","viewportSlug":"w834x1194","variantId":null,"leafKey":"clinic-particular-tokens::w834x1194","source":"client-slice","limit":15,"offset":15,"firstRenderedFixtureIndex":15,"secondPageFixtureIds":["0015","0016","0017","0018","0019","0020","0021","0022","0023","0024","0025","0026","0027","0028","0029"],"pageItemCount":15,"secondPageCount":15,"provenance":"rendered rows after one next-page transition; position located in an independently read ordered dataset of 400 items"},
       {"moduleId":"clinic-particular-tokens","viewportSlug":"w768x1024","variantId":null,"leafKey":"clinic-particular-tokens::w768x1024","source":"client-slice","limit":11,"offset":11,"firstRenderedFixtureIndex":11,"secondPageFixtureIds":["0011","0012","0013","0014","0015","0016","0017","0018","0019","0020","0021"],"pageItemCount":11,"secondPageCount":11,"provenance":"rendered rows after one next-page transition; position located in an independently read ordered dataset of 400 items"},
-      {"moduleId":"clinic-particular-tokens","viewportSlug":"w430x932","variantId":null,"leafKey":"clinic-particular-tokens::w430x932","source":"client-slice","limit":12,"offset":12,"firstRenderedFixtureIndex":12,"secondPageFixtureIds":["0012","0013","0014","0015","0016","0017","0018","0019","0020","0021","0022","0023"],"pageItemCount":12,"secondPageCount":12,"provenance":"rendered rows after one next-page transition; position located in an independently read ordered dataset of 400 items"},
-      {"moduleId":"clinic-particular-tokens","viewportSlug":"w412x915","variantId":null,"leafKey":"clinic-particular-tokens::w412x915","source":"client-slice","limit":12,"offset":12,"firstRenderedFixtureIndex":12,"secondPageFixtureIds":["0012","0013","0014","0015","0016","0017","0018","0019","0020","0021","0022","0023"],"pageItemCount":12,"secondPageCount":12,"provenance":"rendered rows after one next-page transition; position located in an independently read ordered dataset of 400 items"},
-      {"moduleId":"clinic-particular-tokens","viewportSlug":"w390x844","variantId":null,"leafKey":"clinic-particular-tokens::w390x844","source":"client-slice","limit":10,"offset":10,"firstRenderedFixtureIndex":10,"secondPageFixtureIds":["0010","0011","0012","0013","0014","0015","0016","0017","0018","0019"],"pageItemCount":10,"secondPageCount":10,"provenance":"rendered rows after one next-page transition; position located in an independently read ordered dataset of 400 items"},
-      {"moduleId":"clinic-particular-tokens","viewportSlug":"w375x812","variantId":null,"leafKey":"clinic-particular-tokens::w375x812","source":"client-slice","limit":9,"offset":9,"firstRenderedFixtureIndex":9,"secondPageFixtureIds":["0009","0010","0011","0012","0013","0014","0015","0016","0017"],"pageItemCount":9,"secondPageCount":9,"provenance":"rendered rows after one next-page transition; position located in an independently read ordered dataset of 400 items"},
-      {"moduleId":"clinic-particular-tokens","viewportSlug":"w360x800","variantId":null,"leafKey":"clinic-particular-tokens::w360x800","source":"client-slice","limit":8,"offset":8,"firstRenderedFixtureIndex":8,"secondPageFixtureIds":["0008","0009","0010","0011","0012","0013","0014","0015"],"pageItemCount":8,"secondPageCount":8,"provenance":"rendered rows after one next-page transition; position located in an independently read ordered dataset of 400 items"},
+      {"moduleId":"clinic-particular-tokens","viewportSlug":"w430x932","variantId":null,"leafKey":"clinic-particular-tokens::w430x932","source":"client-slice","limit":8,"offset":8,"firstRenderedFixtureIndex":8,"secondPageFixtureIds":["0008","0009","0010","0011","0012","0013","0014","0015"],"pageItemCount":8,"secondPageCount":8,"provenance":"rendered rows after one next-page transition; position located in an independently read ordered dataset of 400 items"},
+      {"moduleId":"clinic-particular-tokens","viewportSlug":"w412x915","variantId":null,"leafKey":"clinic-particular-tokens::w412x915","source":"client-slice","limit":8,"offset":8,"firstRenderedFixtureIndex":8,"secondPageFixtureIds":["0008","0009","0010","0011","0012","0013","0014","0015"],"pageItemCount":8,"secondPageCount":8,"provenance":"rendered rows after one next-page transition; position located in an independently read ordered dataset of 400 items"},
+      {"moduleId":"clinic-particular-tokens","viewportSlug":"w390x844","variantId":null,"leafKey":"clinic-particular-tokens::w390x844","source":"client-slice","limit":7,"offset":7,"firstRenderedFixtureIndex":7,"secondPageFixtureIds":["0007","0008","0009","0010","0011","0012","0013"],"pageItemCount":7,"secondPageCount":7,"provenance":"rendered rows after one next-page transition; position located in an independently read ordered dataset of 400 items"},
+      {"moduleId":"clinic-particular-tokens","viewportSlug":"w375x812","variantId":null,"leafKey":"clinic-particular-tokens::w375x812","source":"client-slice","limit":7,"offset":7,"firstRenderedFixtureIndex":7,"secondPageFixtureIds":["0007","0008","0009","0010","0011","0012","0013"],"pageItemCount":7,"secondPageCount":7,"provenance":"rendered rows after one next-page transition; position located in an independently read ordered dataset of 400 items"},
+      {"moduleId":"clinic-particular-tokens","viewportSlug":"w360x800","variantId":null,"leafKey":"clinic-particular-tokens::w360x800","source":"client-slice","limit":7,"offset":7,"firstRenderedFixtureIndex":7,"secondPageFixtureIds":["0007","0008","0009","0010","0011","0012","0013"],"pageItemCount":7,"secondPageCount":7,"provenance":"rendered rows after one next-page transition; position located in an independently read ordered dataset of 400 items"},
       {"moduleId":"logistics-recent-list","viewportSlug":"w1920x1080","variantId":"recent-visits","leafKey":"logistics-recent-list::w1920x1080::recent-visits","source":"client-slice","limit":12,"offset":12,"firstRenderedFixtureIndex":12,"secondPageFixtureIds":["Clinica Adaptativa E2E 010","Clinica Adaptativa E2E 011","Clinica Adaptativa E2E 012","Clinica Adaptativa E2E 013","Clinica Adaptativa E2E 014","Clinica Adaptativa E2E 015","Clinica Adaptativa E2E 016","Clinica Adaptativa E2E 017","Clinica Adaptativa E2E 018","Clinica Adaptativa E2E 019","Clinica Adaptativa E2E 020","Clinica Adaptativa E2E 021"],"pageItemCount":12,"secondPageCount":12,"provenance":"rendered rows after one next-page transition; position located in an independently read ordered dataset of 256 items"},
       {"moduleId":"logistics-recent-list","viewportSlug":"w1920x1080","variantId":"recent-plans","leafKey":"logistics-recent-list::w1920x1080::recent-plans","source":"client-slice","limit":12,"offset":12,"firstRenderedFixtureIndex":12,"secondPageFixtureIds":["Ruta Adaptativa E2E 010","Ruta Adaptativa E2E 011","Ruta Adaptativa E2E 012","Ruta Adaptativa E2E 013","Ruta Adaptativa E2E 014","Ruta Adaptativa E2E 015","Ruta Adaptativa E2E 016","Ruta Adaptativa E2E 017","Ruta Adaptativa E2E 018","Ruta Adaptativa E2E 019","Ruta Adaptativa E2E 020","Ruta Adaptativa E2E 021"],"pageItemCount":12,"secondPageCount":12,"provenance":"rendered rows after one next-page transition; position located in an independently read ordered dataset of 256 items"},
       {"moduleId":"logistics-recent-list","viewportSlug":"w1600x900","variantId":"recent-visits","leafKey":"logistics-recent-list::w1600x900::recent-visits","source":"client-slice","limit":10,"offset":10,"firstRenderedFixtureIndex":10,"secondPageFixtureIds":["Clinica Adaptativa E2E 008","Clinica Adaptativa E2E 009","Clinica Adaptativa E2E 010","Clinica Adaptativa E2E 011","Clinica Adaptativa E2E 012","Clinica Adaptativa E2E 013","Clinica Adaptativa E2E 014","Clinica Adaptativa E2E 015","Clinica Adaptativa E2E 016","Clinica Adaptativa E2E 017"],"pageItemCount":10,"secondPageCount":10,"provenance":"rendered rows after one next-page transition; position located in an independently read ordered dataset of 256 items"},
