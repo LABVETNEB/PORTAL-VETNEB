@@ -51,7 +51,17 @@ const MOBILE_RETIRED_TEXT = [
   "Lista paginada sin scroll interno.",
 ] as const;
 
-const MOCK_TOKENS = Array.from({ length: 6 }, (_, index) => {
+// A dataset of 6 never proves the reserve stayed retired: the highest real
+// adaptive capacity these four viewports reach (measured with the
+// `trackingLoadError` alert painting, exactly as this spec's own unmocked
+// study-tracking fetch always renders it) is 9, at iphone-pro-max-430x932.
+// With only 6 rows on offer, `nextButton` is disabled everywhere and
+// `expectListBandRecovered`'s `hasNextPage` branch — the one assertion that
+// actually re-detects a phantom reserve — never runs. Doubling that measured
+// ceiling guarantees a real next page at every viewport, including the one
+// with the most room, without hardcoding a pitch or gap literal.
+const MOCK_TOKENS_MAX_MEASURED_CAPACITY = 9;
+const MOCK_TOKENS = Array.from({ length: MOCK_TOKENS_MAX_MEASURED_CAPACITY * 2 }, (_, index) => {
   const id = index + 1;
 
   return {
@@ -799,8 +809,19 @@ for (const viewport of MOBILE_VIEWPORTS) {
     // real geometry (card containment, one line, no overflow, no overlap, no
     // per-control clipping) before the looser viewport-edge bounds below.
     await expectToolbarRowContained(page, `${viewport.name}: barra de acciones`);
+
+    // The phantom-reserve regression this spec now checks for is only
+    // re-detectable when a next page genuinely exists: assert that
+    // precondition by name instead of letting it fail the upper-bound check
+    // silently or, worse, pass by never running it.
+    const hasNextPage = await nextButton.isEnabled();
+    expect(
+      hasNextPage,
+      `${viewport.name}: MOCK_TOKENS must outnumber the adaptive capacity so the phantom-reserve upper bound below actually runs`,
+    ).toBe(true);
+
     await expectListBandRecovered(page, `${viewport.name}: lista de tokens`, {
-      hasNextPage: await nextButton.isEnabled(),
+      hasNextPage,
     });
 
     // Retired below `md` by media query, not by unmounting: the nodes stay in
