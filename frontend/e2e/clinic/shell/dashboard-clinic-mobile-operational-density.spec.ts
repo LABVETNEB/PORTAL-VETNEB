@@ -141,8 +141,14 @@ for (const viewport of VIEWPORTS) {
       const updateBox = await updateButton.boundingBox();
       expect(updateBox?.height ?? 0).toBeLessThanOrEqual(COMPACT_BUTTON_MAX_HEIGHT);
 
+      // This suite is mobile-only (360/375/390, all below `md`), where the
+      // create control paints its short label; the long one is a
+      // `hidden md:inline` fragment and is excluded from the accessible name
+      // here. `exact` on purpose: a substring match would also accept the
+      // desktop label and stop distinguishing the two contracts.
       const generateButton = workspace.getByRole("button", {
-        name: "Generar token particular",
+        name: "Generar token",
+        exact: true,
       });
       await expect(generateButton).toBeVisible();
       const generateBox = await generateButton.boundingBox();

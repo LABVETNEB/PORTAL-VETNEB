@@ -206,10 +206,6 @@ function toDateInputValue(value: string | null | undefined): string {
   return Number.isNaN(date.getTime()) ? "" : date.toISOString().slice(0, 10);
 }
 
-function isTokenFilterStateEmpty(filters: ClinicParticularTokenFilterState) {
-  return Object.values(filters).every((value) => !value.trim());
-}
-
 function getTokenVisibleDate(token: ClinicParticularTokenSummary): string {
   return token.lastLoginAt ?? token.createdAt;
 }
@@ -419,7 +415,6 @@ export function ClinicParticularTokensCard() {
   const linkedReportsCount = filteredTokens.filter((token) => token.hasLinkedReport).length;
   const createStepIndex = getCreateStepIndex(createStep);
   const isLastCreateStep = createStep === "sample";
-  const hasActiveFilters = !isTokenFilterStateEmpty(appliedFilters);
 
   async function loadTokens(limit: number) {
     setIsLoadingTokens(true);
@@ -843,7 +838,7 @@ export function ClinicParticularTokensCard() {
                     className="h-8 flex-auto gap-1.5 px-2.5 text-xs md:hidden"
                   >
                     <Filter className="h-3.5 w-3.5" aria-hidden="true" />
-                    {hasActiveFilters ? "Filtros activos" : "Filtros"}
+                    Filtros
                   </Button>
                 }
               >
@@ -867,7 +862,13 @@ export function ClinicParticularTokensCard() {
                 onClick={() => setIsCreateDialogOpen(true)}
                 disabled={generatedToken !== null}
               >
-                Generar token particular
+                {/* One control, one handler, two labels. The mobile row needs
+                    the short literal to fit three controls on one line; desktop
+                    keeps the long one unchanged. The whole label is ONE flex
+                    item on purpose — `Button` is `inline-flex gap-2`, so a bare
+                    text node beside a span would become two items and open an
+                    8px gap that desktop does not have today. */}
+                <span>Generar token<span className="hidden md:inline"> particular</span></span>
               </Button>
             </div>
           </div>
@@ -883,7 +884,15 @@ export function ClinicParticularTokensCard() {
               <ParticularTokensPanel
                 data-clinic-access-list-panel="true"
               >
-                <ParticularTokensPanelHeader>
+                {/* The mapped Admin reference (AdminParticularTokensCard) mounts
+                    its mobile list with NO header band at all: the list is the
+                    first thing under the toolbar and the page indicator lives in
+                    the pager, not above the rows. Below `md` this header follows
+                    that reference — the title, the description and the `Pág. N`
+                    badge stop painting and the band itself collapses, so the
+                    freed vertical budget lands on the adaptive canvas instead of
+                    on an empty strip. Desktop is untouched. */}
+                <ParticularTokensPanelHeader className="max-md:hidden">
                   <div className="min-w-0">
                     <h3 className="text-sm font-semibold text-vetneb-ink">
                       Últimos tokens de la clínica
@@ -904,6 +913,20 @@ export function ClinicParticularTokensCard() {
                     Pág. {pagedTokens.page + 1}
                   </Badge>
                 </ParticularTokensPanelHeader>
+
+                {/* The alert is the one thing the retired band carried that may
+                    not go with it: an error state has to stay visible in both
+                    regimes. It gets its own `md:hidden` line so it costs a band
+                    only while it exists, instead of keeping the whole header
+                    mounted below `md` to host it. */}
+                {trackingLoadError ? (
+                  <p
+                    className="line-clamp-1 shrink-0 border-b border-vetneb-line/70 px-3 py-1 text-[0.68rem] text-amber-700 md:hidden"
+                    role="alert"
+                  >
+                    Seguimiento parcial: {trackingLoadError}
+                  </p>
+                ) : null}
 
                 <ParticularTokensPanelBody
                   ref={setPanelBodyNode}

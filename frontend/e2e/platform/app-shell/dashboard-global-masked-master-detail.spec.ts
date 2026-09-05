@@ -376,8 +376,17 @@ for (const viewport of VIEWPORTS) {
       // contention a click can land before hydration attaches the handler and
       // silently open nothing. Retry until the click observably opened the
       // dialog instead of trusting a single dispatched click.
+      // The clinic Tokens toolbar carries ONE create control with two labels:
+      // the long one above `md`, the short one below it, so the mobile action
+      // row fits three controls on one line. This suite runs the same body at
+      // 1366px and at 390px, so the expectation is derived from the same `md`
+      // breakpoint the product uses. `exact` on purpose: a substring match on
+      // "Generar token" would also accept "Generar token particular" and stop
+      // distinguishing the two contracts.
+      const createLabel =
+        viewport.width < 768 ? "Generar token" : "Generar token particular";
       const generateButton = page
-        .getByRole("button", { name: "Generar token particular" })
+        .getByRole("button", { name: createLabel, exact: true })
         .first();
       const altaDialog = page.locator('[data-module-dialog="true"]').first();
       await expect(generateButton).toBeEnabled();
