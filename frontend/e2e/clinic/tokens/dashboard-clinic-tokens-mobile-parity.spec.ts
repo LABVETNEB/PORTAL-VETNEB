@@ -51,16 +51,21 @@ const MOBILE_RETIRED_TEXT = [
   "Lista paginada sin scroll interno.",
 ] as const;
 
-// A dataset of 6 never proves the reserve stayed retired: the highest real
-// adaptive capacity these four viewports reach (measured with the
-// `trackingLoadError` alert painting, exactly as this spec's own unmocked
-// study-tracking fetch always renders it) is 9, at iphone-pro-max-430x932.
-// With only 6 rows on offer, `nextButton` is disabled everywhere and
+// A dataset of 6 never proves the reserve stayed retired: with fewer rows on
+// offer than the canvas can hold, `nextButton` is disabled everywhere and
 // `expectListBandRecovered`'s `hasNextPage` branch — the one assertion that
-// actually re-detects a phantom reserve — never runs. Doubling that measured
+// actually re-detects a phantom reserve — never runs. Doubling the measured
 // ceiling guarantees a real next page at every viewport, including the one
 // with the most room, without hardcoding a pitch or gap literal.
-const MOCK_TOKENS_MAX_MEASURED_CAPACITY = 9;
+//
+// FASE E.1 raised that ceiling from 9 to 16. Two things moved it: the mobile
+// item became a ONE-LINE row (`regular`, 44px / 40px) instead of a three-line
+// card (`card-below-md`, 76px / 68px), and the list stopped issuing a
+// study-tracking request per row — so the `trackingLoadError` alert this
+// constant used to be measured WITH no longer paints here at all, and the band
+// it occupied is canvas again. 16 is the real capacity observed at
+// iphone-pro-max-430x932, the tallest of the four viewports below.
+const MOCK_TOKENS_MAX_MEASURED_CAPACITY = 16;
 const MOCK_TOKENS = Array.from({ length: MOCK_TOKENS_MAX_MEASURED_CAPACITY * 2 }, (_, index) => {
   const id = index + 1;
 
@@ -616,6 +621,81 @@ async function expectListBandRecovered(
   }
 }
 
+/**
+ * FASE E.1 — negative proof of the compact summary.
+ *
+ * The mobile item must carry EXACTLY the masked token, the patient name and
+ * the detail action. Estado, informe, fecha visible and etapa de seguimiento
+ * were not deleted from the product: they are read in "Ver detalle" and stay
+ * filterable through the mobile filter dialog. What must never come back is
+ * their permanent cost on every row of a bounded canvas.
+ *
+ * Scope is the ROW, never the page: "Activo", "Sin informe", "Evaluación" and
+ * a date are all legitimate inside the detail dialog and the filter dialog, so
+ * a page-wide ban would forbid the very surfaces this change moved them to.
+ * Each row is read through its own `innerText`, which is what the viewport
+ * actually paints — a line clipped by the pitch lock would still be in the DOM.
+ */
+async function expectCompactRowSummary(page: Page, label: string) {
+  const rows = await page.evaluate(() =>
+    Array.from(
+      document.querySelectorAll<HTMLElement>(
+        '[data-clinic-access-mobile-row="true"]',
+      ),
+    ).map((row) => {
+      const action = row.querySelector<HTMLElement>("button");
+      const summary = row.cloneNode(true) as HTMLElement;
+      summary.querySelectorAll("button").forEach((button) => button.remove());
+
+      return {
+        text: row.innerText.replace(/\s+/g, " ").trim(),
+        summaryText: (summary.innerText ?? "").replace(/\s+/g, " ").trim(),
+        actionText: (action?.innerText ?? "").trim(),
+        lineBoxes: Array.from(row.querySelectorAll<HTMLElement>("p")).length,
+      };
+    }),
+  );
+
+  expect(rows.length, `${label}: rows readable`).toBeGreaterThan(0);
+
+  // Retired from the SUMMARY only. Each entry is a literal the old three-line
+  // card painted, plus the shape of the visible date it carried.
+  const RETIRED_FROM_ROW: readonly (readonly [string, RegExp])[] = [
+    ["estado activo", /\bActivos?\b/],
+    ["estado inactivo", /\bInactivos?\b/],
+    ["informe vinculado", /\bInformes?\b/],
+    ["sin informe", /Sin informe/],
+    ["etapa recepción", /Recepci[oó]n de muestra/],
+    ["etapa procesamiento", /Procesamiento/],
+    ["etapa evaluación", /Evaluaci[oó]n/],
+    ["etapa desarrollo", /Desarrollo de informe/],
+    ["etapa publicado", /Informe disponible/],
+    ["fecha visible", /\d{2}\/\d{2}\/\d{4}/],
+  ];
+
+  for (const [index, row] of rows.entries()) {
+    expect(
+      row.summaryText,
+      `${label}: row ${index} summary must open with the masked token`,
+    ).toMatch(/^\*{4}\S{1,8} · \S/);
+    expect(
+      row.actionText,
+      `${label}: row ${index} must keep its detail action`,
+    ).toBe("Ver detalle");
+    expect(
+      row.lineBoxes,
+      `${label}: row ${index} summary must be ONE line box, not a card`,
+    ).toBe(1);
+
+    for (const [what, pattern] of RETIRED_FROM_ROW) {
+      expect(
+        pattern.test(row.text),
+        `${label}: row ${index} must not paint ${what} in the list summary (it belongs to "Ver detalle"); painted: "${row.text}"`,
+      ).toBe(false);
+    }
+  }
+}
+
 async function expectHorizontallyUnclipped(
   locator: Locator,
   viewportWidth: number,
@@ -824,6 +904,8 @@ for (const viewport of MOBILE_VIEWPORTS) {
       hasNextPage,
     });
 
+    await expectCompactRowSummary(page, `${viewport.name}: item compacto`);
+
     // Retired below `md` by media query, not by unmounting: the nodes stay in
     // the tree for desktop, so the contract is "must not PAINT". Filtering on
     // visibility is what distinguishes that from "must not exist", and a node
@@ -915,6 +997,28 @@ for (const viewport of MOBILE_VIEWPORTS) {
         detailDialog.getByText(
           /Paciente veterinario 2 .* Apellido compuesto del tutor 2/,
         ),
+      ).toBeVisible();
+
+      // FASE E.1 — the other half of `expectCompactRowSummary`. Everything the
+      // row stopped painting has to be READABLE here, or the summary did not
+      // move the information, it lost it. Token 2 of MOCK_TOKENS is active and
+      // carries a linked report and a `lastLoginAt`, so all four facts have a
+      // determinate rendering.
+      await expect(
+        detailDialog.getByText("Activo", { exact: true }),
+        `${viewport.name}: estado stays readable in the detail dialog`,
+      ).toBeVisible();
+      await expect(
+        detailDialog.getByText("Informe vinculado", { exact: true }),
+        `${viewport.name}: informe stays readable in the detail dialog`,
+      ).toBeVisible();
+      await expect(
+        detailDialog.getByText("Último acceso", { exact: true }),
+        `${viewport.name}: fecha stays readable in the detail dialog`,
+      ).toBeVisible();
+      await expect(
+        detailDialog.getByText("Seguimiento", { exact: true }),
+        `${viewport.name}: seguimiento stays readable in the detail dialog`,
       ).toBeVisible();
 
       const metrics = await readLayoutContract(page);

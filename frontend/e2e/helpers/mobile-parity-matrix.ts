@@ -116,7 +116,11 @@ export const CLINIC_PARITY_SURFACES: readonly ParitySurface[] = [
     route: "/dashboard?module=tokens",
     readiness: '[data-dashboard-module-workspace="tokens"]',
     adminReference: "admin-usuarios",
-    expectedRowPitch: null, // tokens mounts a card canvas that paints no row on a phone
+    // FASE E.1: the mobile item is a one-line row — masked token, patient name,
+    // "Ver detalle" — so this canvas declares the same `regular` grammar as its
+    // mapped Admin reference instead of the collapsing `card-below-md` tier it
+    // needed while the item was a three-line card.
+    expectedRowPitch: "regular",
   },
   {
     id: "CLN-006",
