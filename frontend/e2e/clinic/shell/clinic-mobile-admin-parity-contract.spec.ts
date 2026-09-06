@@ -8,6 +8,7 @@ import {
   measureSettledParityContract,
   setParitySession,
   type ParityContract,
+  type ParityRowPitch,
 } from "../../helpers/mobile-parity-matrix";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -170,19 +171,58 @@ function assertMetricsParity(
  * contenido"). Confirmed by direct measurement, not assumed: e.g. CLN-005
  * (tokens) genuinely renders zero rows against the current fixture data (a
  * real empty state, "Sin tokens particulares" — not a broken selector).
+ *
+ * Three separable obligations, in this order:
+ *
+ *   A. PRESENCE   both sides actually paint adaptive rows.
+ *   B. GRAMMAR    each role's canvas declares the pitch tier ITS OWN matrix
+ *                 entry contracts it to declare — Clinic against
+ *                 `ParitySurface.expectedRowPitch`, Admin against
+ *                 `AdminReferenceSurface.expectedRowPitch`.
+ *   C. CROSS-ROLE pitch equality and first-row height parity, asserted only
+ *                 when the two matrix entries declare the SAME grammar.
+ *
+ * C is gated on the DECLARATIONS, never on the measured values: two surfaces
+ * that both drifted to the same wrong tier still fail B, and an Admin
+ * reference that silently changed tier fails B rather than being read as a
+ * "difference" that excuses Clinic from C.
+ *
+ * The one intentional divergence today is CLN-003 (clinic Logística): its
+ * visit row is a real two-line grammar — clinic name over scheduled date —
+ * whose intrinsic height is the `tall` tier exactly, while its mapped Admin
+ * reference (`admin-auditoria`) is a one-line `regular` audit entry. Forcing
+ * those two to the same pitch is what clipped the date line off every row on
+ * every phone. Row pitch equality and row HEIGHT equality are the only two
+ * assertions that difference suspends, because they are the only two that are
+ * a direct consequence of the tier; presence, shell, surface, metrics, pager,
+ * order and no-scroll keep comparing both roles unchanged. The row's own
+ * physics (two real lines, content inside the row rect, no clipping, last row
+ * above the pager) is a separate contract and is owned by
+ * `dashboard-clinic-logistica-mobile-parity.spec.ts` — not restated here.
  */
 function assertRowsParity(
   admin: ParityContract,
   clinic: ParityContract,
   ctx: { clinicSurfaceId: string; adminReferenceId: string; viewportSlug: string },
+  grammar: { readonly clinic: ParityRowPitch; readonly admin: ParityRowPitch },
 ): boolean {
   if (admin.rows.adaptiveRowCount === 0 || clinic.rows.adaptiveRowCount === 0) {
     return false;
   }
-  expect(clinic.rows.pitch, formatParityFailure({ ...ctx, region: "rows", property: "pitch", adminValue: admin.rows.pitch, clinicValue: clinic.rows.pitch })).toBe(admin.rows.pitch);
-  expect(clinic.rows.pitch, `${ctx.clinicSurfaceId}: canonical 'regular' row pitch`).toBe("regular");
+
+  // ── A. presence ──────────────────────────────────────────────────────
   expect(clinic.rows.adaptiveRowCount, formatParityFailure({ ...ctx, region: "rows", property: "adaptiveRowCount>0", adminValue: admin.rows.adaptiveRowCount, clinicValue: clinic.rows.adaptiveRowCount })).toBeGreaterThan(0);
   expect(admin.rows.adaptiveRowCount).toBeGreaterThan(0);
+
+  // ── B. declared grammar, per role ────────────────────────────────────
+  expect(clinic.rows.pitch, formatParityFailure({ ...ctx, region: "rows", property: "pitch(declared clinic grammar)", adminValue: grammar.clinic, clinicValue: clinic.rows.pitch })).toBe(grammar.clinic);
+  expect(admin.rows.pitch, formatParityFailure({ ...ctx, region: "rows", property: "pitch(declared admin grammar)", adminValue: admin.rows.pitch, clinicValue: grammar.admin })).toBe(grammar.admin);
+
+  // ── C. cross-role, only across a shared declared grammar ─────────────
+  if (grammar.clinic !== grammar.admin) {
+    return true;
+  }
+  expect(clinic.rows.pitch, formatParityFailure({ ...ctx, region: "rows", property: "pitch", adminValue: admin.rows.pitch, clinicValue: clinic.rows.pitch })).toBe(admin.rows.pitch);
   expectBoundsWithinTolerance({ ...ctx, region: "rows", admin: admin.rows.firstRowBounds, clinic: clinic.rows.firstRowBounds, axis: "height" });
   return true;
 }
@@ -242,7 +282,10 @@ for (const surface of CLINIC_PARITY_SURFACES) {
 
         assertShellAndSurfaceParity(admin, clinic, ctx);
         assertMetricsParity(admin, clinic, ctx);
-        assertRowsParity(admin, clinic, ctx);
+        assertRowsParity(admin, clinic, ctx, {
+          clinic: surface.expectedRowPitch,
+          admin: adminReference.expectedRowPitch,
+        });
         assertPagerParity(admin, clinic, ctx);
         assertOrderParity(admin, clinic, ctx);
       } finally {

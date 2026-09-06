@@ -100,7 +100,12 @@ export function ClinicLogisticaWorkspaceSummary({
             ref={setVisitsListBodyNode}
             data-clinic-logistics-list-body="true"
             data-dashboard-adaptive-rows-canvas="true"
-            data-dashboard-row-pitch="regular"
+            // Two-line grammar: clinic name (14/20) over scheduled date
+            // (12/16) plus `py-2` — the row's natural height is 52px, exactly
+            // the `tall` tier. `regular` (44px, 40px short) locked the row
+            // below its own content and `overflow: hidden` clipped the date
+            // line: measured on all eight viewports, visibly cut at 360x740.
+            data-dashboard-row-pitch="tall"
             className="flex min-h-0 flex-1 flex-col divide-y divide-vetneb-line/60 overflow-hidden"
           >
             {pagedVisits.pageItems.map((visit) => (

@@ -38,6 +38,27 @@ export const PARITY_VIEWPORTS: readonly ParityViewport[] = [
   { slug: "w430x932", width: 430, height: 932 },
 ] as const;
 
+/**
+ * The row-pitch tier vocabulary of the token contract
+ * (`frontend/src/styles/dashboard/tokens.css`, `dashboard-row-pitch-contract`),
+ * plus `null` for a surface that mounts NO adaptive-row canvas on a phone.
+ *
+ * A pitch tier is a SEMANTIC declaration ("what shape is one row of this
+ * list"), not a pixel value: `regular` is a one-line list row, `tall` is a
+ * two-line one. The px each tier resolves to is the token's business and
+ * changes with the short-viewport regime; what a surface DECLARES does not.
+ */
+export type ParityRowPitch =
+  | "compact"
+  | "regular"
+  | "table"
+  | "tall"
+  | "card"
+  | "card-below-md"
+  | "block"
+  | "form"
+  | null;
+
 export type ParitySurface = {
   /** Stable id — CLN-001…010, matching the audit's own numbering. */
   readonly id: string;
@@ -49,6 +70,15 @@ export type ParitySurface = {
    * compared against. Not "same content" — same operational archetype.
    */
   readonly adminReference: string;
+  /**
+   * The row-pitch tier THIS surface's adaptive-row canvas is contracted to
+   * declare, or `null` when it mounts none on a phone. Measured, never
+   * assumed. This is the surface's own semantic grammar: it is asserted
+   * whenever the surface actually paints rows, and it is what decides whether
+   * a cross-role row-height comparison against the mapped Admin reference is
+   * meaningful at all (see `assertRowsParity` in the CMP-12 spec).
+   */
+  readonly expectedRowPitch: ParityRowPitch;
 };
 
 /** The 10 Clinic mobile surfaces — CMP-08…11's own census, not re-derived by hand elsewhere. */
@@ -58,66 +88,89 @@ export const CLINIC_PARITY_SURFACES: readonly ParitySurface[] = [
     route: "/dashboard?module=operaciones",
     readiness: '[data-dashboard-module-workspace="operaciones"]',
     adminReference: "admin-resumen",
+    expectedRowPitch: null, // operaciones mounts no adaptive-row canvas on a phone
   },
   {
     id: "CLN-002",
     route: "/dashboard?module=informes",
     readiness: '[data-dashboard-module-workspace="informes"]',
     adminReference: "admin-auditoria",
+    expectedRowPitch: "regular", // one-line report row
   },
   {
     id: "CLN-003",
     route: "/dashboard?module=logistica",
     readiness: '[data-dashboard-module-workspace="logistica"]',
     adminReference: "admin-auditoria",
+    expectedRowPitch: "tall", // two-line visit row: clinic name over scheduled date
   },
   {
     id: "CLN-004",
     route: "/dashboard?module=perfil",
     readiness: '[data-dashboard-module-workspace="perfil"]',
     adminReference: "admin-precios",
+    expectedRowPitch: null, // perfil is a form/tabs surface, no adaptive rows
   },
   {
     id: "CLN-005",
     route: "/dashboard?module=tokens",
     readiness: '[data-dashboard-module-workspace="tokens"]',
     adminReference: "admin-usuarios",
+    expectedRowPitch: null, // tokens mounts a card canvas that paints no row on a phone
   },
   {
     id: "CLN-006",
     route: "/dashboard/informes",
     readiness: '[data-dashboard-module-workspace="informes-full"]',
     adminReference: "admin-auditoria",
+    expectedRowPitch: "regular", // one-line report row
   },
   {
     id: "CLN-007",
     route: "/dashboard/logistica",
     readiness: '[data-dashboard-module-workspace="logistica-full"]',
     adminReference: "admin-auditoria",
+    expectedRowPitch: "regular", // one-line recent-visit row
   },
   {
     id: "CLN-008",
     route: "/dashboard/logistica/visitas",
     readiness: '[data-dashboard-module-workspace="logistica-visitas"]',
     adminReference: "admin-auditoria",
+    expectedRowPitch: "regular", // one-line visit row
   },
   {
     id: "CLN-009",
     route: "/dashboard/logistica/rutas",
     readiness: '[data-dashboard-module-workspace="logistica-rutas"]',
     adminReference: "admin-auditoria",
+    expectedRowPitch: "regular", // one-line route row
   },
   {
     id: "CLN-010",
     route: "/dashboard/logistica/metricas",
     readiness: '[data-dashboard-module-workspace="logistica-metricas"]',
     adminReference: "admin-auditoria",
+    expectedRowPitch: "regular", // one-line metric row
   },
 ] as const;
 
 export type AdminReferenceSurface = {
   readonly route: string;
   readonly readiness: string;
+  /**
+   * The row-pitch tier THIS Admin reference's adaptive-row canvas is
+   * contracted to declare, or `null` when it mounts none on a phone. Measured
+   * on every entry, including the two no Clinic surface currently maps to, so
+   * that a future mapping inherits a declared grammar instead of a guess.
+   *
+   * Declaring Admin's grammar here — rather than reading it off the live page
+   * and comparing Clinic to whatever came back — is what keeps the divergence
+   * exception honest: an Admin row that silently changed tier fails against
+   * ITS OWN declaration, and can never be mistaken for a "declared difference"
+   * that excuses Clinic from the cross-role comparison.
+   */
+  readonly expectedRowPitch: ParityRowPitch;
 };
 
 /**
@@ -132,26 +185,32 @@ export const ADMIN_REFERENCE_SURFACES: Readonly<Record<string, AdminReferenceSur
   "admin-resumen": {
     route: "/dashboard/admin?module=admin",
     readiness: '[data-dashboard-module-workspace="admin"]',
+    expectedRowPitch: null, // status module, no adaptive-row canvas on a phone
   },
   "admin-sesiones": {
     route: "/dashboard/admin?module=admin-sessions",
     readiness: '[data-dashboard-module-workspace="admin-sessions"]',
+    expectedRowPitch: "regular", // one-line session row
   },
   "admin-usuarios": {
     route: "/dashboard/admin?module=admin-users-roles",
     readiness: '[data-dashboard-module-workspace="admin-users-roles"]',
+    expectedRowPitch: "regular", // one-line user/role row
   },
   "admin-precios": {
     route: "/dashboard/admin?module=admin-pricing",
     readiness: '[data-dashboard-module-workspace="admin-pricing"]',
+    expectedRowPitch: null, // pricing editor is a form surface, no adaptive rows
   },
   "admin-clinicas": {
     route: "/dashboard/admin?module=admin-clinics",
     readiness: '[data-dashboard-module-workspace="admin-clinics"]',
+    expectedRowPitch: "regular", // one-line clinic row
   },
   "admin-auditoria": {
     route: "/dashboard/admin?module=audit-log",
     readiness: '[data-dashboard-module-workspace="audit-log"]',
+    expectedRowPitch: "regular", // one-line audit entry row
   },
 } as const;
 
