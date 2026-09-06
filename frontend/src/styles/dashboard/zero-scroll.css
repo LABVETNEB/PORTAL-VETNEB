@@ -376,6 +376,30 @@
   overflow: hidden;
 }
 
+/* A `tall` row is two lines of text by definition, and text does not shrink
+   with the viewport: 20px + 16px of line-height is 36px in BOTH regimes. What
+   the tier affords for the row's own block padding is the REST of the pitch,
+   minus the 1px `divide-y` separator, which is inside the border box the lock
+   sizes: 52 - 1 - 36 = 15px normal, 46 - 1 - 36 = 9px short. `py-2` (16px)
+   overruns the normal budget by exactly one pixel and the short one by seven,
+   which is what `overflow: hidden` was clipping off the second line. The
+   padding is therefore owned here, next to the lock that constrains it, and
+   set a pixel under each budget so the fit is exact rather than borderline.
+   Keyed on the GRAMMAR, never on a module: any future `tall` consumer inherits
+   the same fit. Font size, line-height and the >=44px touch target of the row
+   are untouched. */
+[data-dashboard-adaptive-rows-canvas="true"][data-dashboard-row-pitch="tall"]
+  [data-dashboard-adaptive-row="true"] {
+  padding-block: 7px;
+}
+
+@media (max-height: 760px) {
+  [data-dashboard-adaptive-rows-canvas="true"][data-dashboard-row-pitch="tall"]
+    [data-dashboard-adaptive-row="true"] {
+    padding-block: 4px;
+  }
+}
+
 /* Table rows cannot be clamped from above: `max-block-size` is undefined on
    table boxes and `block-size` acts as a MINIMUM, so a row always grows to fit
    its cells. Locking the row therefore has to go through the cell — and through

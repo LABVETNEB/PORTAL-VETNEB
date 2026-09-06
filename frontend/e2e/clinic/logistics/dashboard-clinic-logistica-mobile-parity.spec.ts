@@ -228,6 +228,103 @@ async function expectHorizontallyUnclipped(
   );
 }
 
+/**
+ * The vertical half of the same contract, and the regression this surface was
+ * missing: every visit row is a TWO-LINE grammar (clinic name over scheduled
+ * date) locked to `--dash-row-pitch` with `overflow: hidden`, so a pitch below
+ * the row's real content height clips the date line SILENTLY — no scrollbar, no
+ * overflow, nothing a horizontal or document-level assertion can see. Measured
+ * geometry is therefore the only contract that catches it: the date's own rect
+ * must close inside the row, and the row must not overflow its own content box.
+ */
+async function expectRowGeometryUnclipped(page: Page, label: string) {
+  const geometry = await page.evaluate(() => {
+    const canvas = document.querySelector<HTMLElement>(
+      '[data-clinic-logistics-list-body="true"]',
+    );
+    const pager = document.querySelector<HTMLElement>(
+      '[data-clinic-logistics-pagination-footer="true"]',
+    );
+    const rows = Array.from(
+      document.querySelectorAll<HTMLElement>('[data-clinic-logistics-row="true"]'),
+    );
+    if (!canvas || rows.length === 0) return null;
+
+    return {
+      canvasClientHeight: canvas.clientHeight,
+      canvasScrollHeight: canvas.scrollHeight,
+      pagerTop: pager?.getBoundingClientRect().top ?? null,
+      docScrollHeight: document.documentElement.scrollHeight,
+      docClientHeight: document.documentElement.clientHeight,
+      rows: rows.map((row) => {
+        const rect = row.getBoundingClientRect();
+        const lines = row.querySelectorAll<HTMLElement>("p");
+        const primary = lines[0]?.getBoundingClientRect() ?? null;
+        const secondary = lines[1]?.getBoundingClientRect() ?? null;
+        return {
+          top: rect.top,
+          bottom: rect.bottom,
+          clientHeight: row.clientHeight,
+          scrollHeight: row.scrollHeight,
+          lineCount: lines.length,
+          primaryTop: primary?.top ?? null,
+          secondaryBottom: secondary?.bottom ?? null,
+          secondaryText: lines[1]?.textContent?.trim() ?? null,
+        };
+      }),
+    };
+  });
+
+  expect(geometry, `${label}: list geometry readable`).not.toBeNull();
+  console.log(`[clinic-logistica rows] ${label} ${JSON.stringify(geometry)}`);
+
+  const twoLineRows = geometry!.rows.filter((row) => row.lineCount >= 2);
+  expect(
+    twoLineRows.length,
+    `${label}: the surface must actually render its two-line grammar`,
+  ).toBeGreaterThan(0);
+
+  for (const [index, row] of geometry!.rows.entries()) {
+    expect(
+      row.secondaryText,
+      `${label}: row ${index} must carry its scheduled-date line`,
+    ).not.toBeNull();
+    // The clipped line is the SECOND one: it is the first thing `overflow:
+    // hidden` removes when the pitch is shorter than the row's content.
+    expect(
+      row.secondaryBottom!,
+      `${label}: row ${index} scheduled date is clipped by the pitch lock`,
+    ).toBeLessThanOrEqual(row.bottom + TOLERANCE);
+    expect(
+      row.primaryTop!,
+      `${label}: row ${index} clinic name escapes the row on top`,
+    ).toBeGreaterThanOrEqual(row.top - TOLERANCE);
+    // Content box vs content: the row must not need more height than it was
+    // locked to, which is exactly what the pitch tier has to guarantee.
+    expect(
+      row.scrollHeight,
+      `${label}: row ${index} content overflows the pitch lock`,
+    ).toBeLessThanOrEqual(row.clientHeight + TOLERANCE);
+  }
+
+  const lastRow = geometry!.rows[geometry!.rows.length - 1];
+  if (geometry!.pagerTop !== null) {
+    expect(
+      lastRow.bottom,
+      `${label}: the last row must not ride over the pager`,
+    ).toBeLessThanOrEqual(geometry!.pagerTop + TOLERANCE);
+  }
+
+  expect(
+    geometry!.canvasScrollHeight,
+    `${label}: the adaptive canvas must not scroll`,
+  ).toBeLessThanOrEqual(geometry!.canvasClientHeight + TOLERANCE);
+  expect(
+    geometry!.docScrollHeight,
+    `${label}: this surface must not make the document scroll`,
+  ).toBeLessThanOrEqual(geometry!.docClientHeight + TOLERANCE);
+}
+
 for (const viewport of MOBILE_VIEWPORTS) {
   test(`clinic Logística populated mobile parity at ${viewport.name}`, async ({
     page,
@@ -283,6 +380,8 @@ for (const viewport of MOBILE_VIEWPORTS) {
         `${viewport.name}: visit row ${index + 1}`,
       );
     }
+
+    await expectRowGeometryUnclipped(page, `${viewport.name}: visitas`);
 
     await expect(async () => {
       const metrics = await readLayoutContract(page);
