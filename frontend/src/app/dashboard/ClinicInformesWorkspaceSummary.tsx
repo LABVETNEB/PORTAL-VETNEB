@@ -382,7 +382,7 @@ export function ClinicInformesWorkspaceSummary({
             data-clinic-reports-list-body="true"
             data-dashboard-adaptive-rows-canvas="true"
             data-dashboard-row-pitch="regular"
-            data-dashboard-canvas-reserve="table-head"
+            data-dashboard-canvas-reserve="table-head-above-md"
             className="flex min-h-0 flex-1 flex-col overflow-hidden"
           >
             {filteredReports.length ? (
