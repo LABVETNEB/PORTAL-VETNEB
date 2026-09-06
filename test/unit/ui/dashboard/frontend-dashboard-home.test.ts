@@ -264,7 +264,18 @@ test("clinic informes summary exposes advanced filters over visible report field
   assert.ok(source.includes("canvasNode: reportsListBodyNode,"));
   assert.ok(source.includes("fallbackItems: REPORTS_PAGE_SIZE,"));
   assert.equal(source.includes("rowHeightPx"), false);
-  assert.ok(source.includes('data-dashboard-canvas-reserve="table-head"'));
+  // FASE D: this canvas paints its <table>/<thead> only from `md` up, so it
+  // reserves the head only there. Both halves are asserted — the collapsing
+  // tier is present AND the unconditional one is gone. A substring check on
+  // "table-head" alone would keep accepting the phantom-reserve regression
+  // this migration retired, because it is a prefix of the new value.
+  assert.ok(
+    source.includes('data-dashboard-canvas-reserve="table-head-above-md"'),
+  );
+  assert.equal(
+    source.includes('data-dashboard-canvas-reserve="table-head"'),
+    false,
+  );
   assert.ok(source.includes("usePagedRows(filteredReports, rowsPerPage)"));
   assert.equal(source.includes("usePagedRows(filteredReports, REPORTS_PAGE_SIZE)"), false);
   assert.equal(source.includes("matchMedia"), false);
