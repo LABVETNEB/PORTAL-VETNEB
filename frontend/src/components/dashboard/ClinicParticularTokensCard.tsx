@@ -360,6 +360,13 @@ export function ClinicParticularTokensCard() {
   const [trackingCasesByTokenId, setTrackingCasesByTokenId] = useState<
     Record<number, ClinicStudyTrackingCaseSummary>
   >({});
+  const [trackingLoadedTokenIds, setTrackingLoadedTokenIds] = useState<
+    Record<number, boolean>
+  >({});
+  const [trackingLoadingTokenId, setTrackingLoadingTokenId] = useState<
+    number | null
+  >(null);
+  const [trackingRetryNonce, setTrackingRetryNonce] = useState(0);
   const [trackingLoadError, setTrackingLoadError] = useState<string | null>(null);
   const [generatedToken, setGeneratedToken] = useState<string | null>(null);
   const [generatedTokenRecipientEmail, setGeneratedTokenRecipientEmail] =
@@ -431,41 +438,17 @@ export function ClinicParticularTokensCard() {
           : null,
       );
 
-      if (nextTokens.length === 0) {
-        setTrackingCasesByTokenId({});
-        return;
-      }
-
-      try {
-        const trackingEntries = await Promise.all(
-          nextTokens.map(async (token) => {
-            const trackingSnapshot = await getClinicStudyTrackingCases({
-              particularTokenId: token.id,
-              limit: 1,
-              offset: 0,
-            });
-
-            return [token.id, trackingSnapshot.trackingCases[0] ?? null] as const;
-          }),
-        );
-
-        const nextTrackingByTokenId: Record<number, ClinicStudyTrackingCaseSummary> = {};
-
-        for (const [tokenId, trackingCase] of trackingEntries) {
-          if (trackingCase) {
-            nextTrackingByTokenId[tokenId] = trackingCase;
-          }
-        }
-
-        setTrackingCasesByTokenId(nextTrackingByTokenId);
-      } catch (error) {
-        setTrackingCasesByTokenId({});
-        setTrackingLoadError(
-          error instanceof Error
-            ? error.message
-            : "No se pudo cargar el seguimiento de los tokens listados.",
-        );
-      }
+      // FASE E.1: the mobile summary no longer paints the tracking stage, and
+      // the desktop row never did — the seguimiento is read exclusively in
+      // "Ver detalle". The list therefore stops paying for it: this used to
+      // issue ONE study-tracking request per listed token (up to
+      // TOKENS_FETCH_LIMIT_MAX = 36 per load, and the adaptive canvas only
+      // grew that number as capacity rose), to render a line that is gone.
+      // The cache is dropped with the tokens so a refresh re-reads the
+      // seguimiento of whatever the operator opens next, exactly like the
+      // mapped Admin reference (AdminParticularTokensCard) already does.
+      setTrackingCasesByTokenId({});
+      setTrackingLoadedTokenIds({});
     } catch (error) {
       setErrorMessage(
         error instanceof Error
@@ -473,10 +456,81 @@ export function ClinicParticularTokensCard() {
           : "No se pudieron cargar los tokens particulares.",
       );
       setTrackingCasesByTokenId({});
+      setTrackingLoadedTokenIds({});
     } finally {
       setIsLoadingTokens(false);
     }
   }
+
+  // No batch endpoint exists for tracking. Load exactly one case when the
+  // operator opens a token, cache it, and never issue one request per row.
+  useEffect(() => {
+    // The error is a property of the CURRENT SELECTION, not of the card. It is
+    // one shared string while its companion `trackingCasesByTokenId` is keyed
+    // by token, so it has to be invalidated the moment the selection changes —
+    // including the two transitions that issue no request and would otherwise
+    // skip the reset below: closing the dialog (`null`) and opening a token
+    // that is already cached. Without this, a failure on token A survives into
+    // the next dialog and B renders A's alert, and A's retry, beside B's own
+    // valid cached tracking.
+    //
+    // Clearing here closes no loop: `trackingLoadError` is not a dependency of
+    // this effect, and setting it to a value it already holds is a React
+    // bail-out, so the success path — which does re-run this effect through
+    // `trackingLoadedTokenIds` — costs no extra render and re-fetches nothing.
+    setTrackingLoadError(null);
+
+    if (
+      selectedTokenId === null ||
+      trackingLoadedTokenIds[selectedTokenId]
+    ) {
+      return;
+    }
+
+    const tokenId = selectedTokenId;
+    let cancelled = false;
+
+    async function loadSelectedTracking() {
+      setTrackingLoadingTokenId(tokenId);
+      setTrackingLoadError(null);
+
+      try {
+        const trackingSnapshot = await getClinicStudyTrackingCases({
+          particularTokenId: tokenId,
+          limit: 1,
+          offset: 0,
+        });
+        if (cancelled) return;
+
+        const trackingCase = trackingSnapshot.trackingCases[0] ?? null;
+
+        if (trackingCase) {
+          setTrackingCasesByTokenId((current) => ({
+            ...current,
+            [tokenId]: trackingCase,
+          }));
+        }
+
+        setTrackingLoadedTokenIds((current) => ({ ...current, [tokenId]: true }));
+      } catch (error) {
+        if (!cancelled) {
+          setTrackingLoadError(
+            error instanceof Error
+              ? error.message
+              : "No se pudo cargar el seguimiento del token seleccionado.",
+          );
+        }
+      } finally {
+        if (!cancelled) setTrackingLoadingTokenId(null);
+      }
+    }
+
+    void loadSelectedTracking();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedTokenId, trackingLoadedTokenIds, trackingRetryNonce]);
 
   // effectiveFetchLimit only changes when rowsPerPage crosses a multiplier/cap
   // boundary, so this effect reloads on mount and again whenever the adaptive
@@ -900,40 +954,36 @@ export function ClinicParticularTokensCard() {
                     <p className="dashboard-section-description line-clamp-1">
                       Lista paginada sin scroll interno.
                     </p>
-                    {trackingLoadError ? (
-                      <p
-                        className="line-clamp-1 text-[0.68rem] text-amber-700"
-                        role="alert"
-                      >
-                        Seguimiento parcial: {trackingLoadError}
-                      </p>
-                    ) : null}
                   </div>
                   <Badge variant="outline" className="shrink-0">
                     Pág. {pagedTokens.page + 1}
                   </Badge>
                 </ParticularTokensPanelHeader>
 
-                {/* The alert is the one thing the retired band carried that may
-                    not go with it: an error state has to stay visible in both
-                    regimes. It gets its own `md:hidden` line so it costs a band
-                    only while it exists, instead of keeping the whole header
-                    mounted below `md` to host it. */}
-                {trackingLoadError ? (
-                  <p
-                    className="line-clamp-1 shrink-0 border-b border-vetneb-line/70 px-3 py-1 text-[0.68rem] text-amber-700 md:hidden"
-                    role="alert"
-                  >
-                    Seguimiento parcial: {trackingLoadError}
-                  </p>
-                ) : null}
+                {/* FASE E.1: the tracking alert no longer belongs to the list.
+                    Seguimiento is fetched on demand when a token is opened, so
+                    a failure is a property of THAT dialog and is reported
+                    inside it — a band over the list would announce an error
+                    about data the list does not render, and would spend a row
+                    of adaptive canvas to do it. */}
 
+                {/* FASE E.1: the mobile item is a ONE-LINE row again — masked
+                    token, patient name and the detail action — so the two
+                    grammars this canvas paints (a `regular` table row above
+                    `md`, a one-line list row below it) are now the SAME tier,
+                    and the canvas declares it once. The collapsing
+                    `card-below-md` declaration described a card that carried
+                    three lines and no longer exists; keeping it would charge
+                    every phone 76px for a 44px row — a phantom row's worth of
+                    canvas for every 1.7 rows actually painted. The head
+                    reserve stays collapsing: the table head is still
+                    `hidden md:block`. */}
                 <ParticularTokensPanelBody
                   ref={setPanelBodyNode}
                   data-clinic-access-list-body="true"
                   data-dashboard-adaptive-rows-canvas="true"
-            data-dashboard-row-pitch="card-below-md"
-            data-dashboard-canvas-reserve="table-head-above-md"
+                  data-dashboard-row-pitch="regular"
+                  data-dashboard-canvas-reserve="table-head-above-md"
                   className="relative"
                 >
                   {filteredTokens.length ? (
@@ -1012,46 +1062,45 @@ export function ClinicParticularTokensCard() {
                         data-clinic-access-mobile-list="true"
                         className="flex min-h-0 shrink-0 flex-col divide-y divide-vetneb-line/60 overflow-hidden md:hidden"
                       >
-                        {pagedTokens.pageItems.map((token, index) => {
-                          const trackingCase = trackingCasesByTokenId[token.id];
+                        {/* FASE E.1 — the compact mobile item. The summary
+                            carries exactly three things: the masked token, the
+                            patient name and the action that opens the record.
+                            Estado, informe, fecha visible and etapa de
+                            seguimiento are NOT removed from the product: they
+                            are read in "Ver detalle", they stay filterable
+                            through the mobile filter dialog, and the domain and
+                            API payload are untouched. What they stopped being
+                            is a permanent 2-line tax on every row of a bounded
+                            canvas.
 
-                          return (
-                            <div
-                              key={token.id}
-                              id={`clinic-particular-token-${token.id}`}
-                              data-clinic-access-mobile-row="true"
-                  data-dashboard-adaptive-row="true"
-                              className="grid min-h-11 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 py-1.5"
+                            The layout is a two-column grid, not absolute
+                            positioning: the text column is `minmax(0,1fr)` so
+                            it can actually shrink and truncate, and the action
+                            column is intrinsic so the button can never be
+                            squeezed out of the viewport however long the
+                            patient name is. */}
+                        {pagedTokens.pageItems.map((token, index) => (
+                          <div
+                            key={token.id}
+                            id={`clinic-particular-token-${token.id}`}
+                            data-clinic-access-mobile-row="true"
+                            data-dashboard-adaptive-row="true"
+                            className="grid min-h-11 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 py-1.5"
+                          >
+                            <p className="min-w-0 truncate text-xs font-semibold text-vetneb-ink">
+                              ****{token.tokenLast4} · {token.petName}
+                            </p>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-7 shrink-0 px-2 text-xs"
+                              onClick={() => openTokenDetail(token.id)}
                             >
-                              <div className="min-w-0">
-                                <p className="truncate text-xs font-semibold text-vetneb-ink">
-                                  ****{token.tokenLast4} · {token.petName}
-                                </p>
-                                <p className="truncate text-[0.6875rem] text-muted-foreground">
-                                  {token.isActive ? "Activo" : "Inactivo"} ·{" "}
-                                  {token.hasLinkedReport ? "Informe" : "Sin informe"} ·{" "}
-                                  {token.lastLoginAt
-                                    ? formatDate(token.lastLoginAt)
-                                    : formatDate(token.createdAt)}
-                                </p>
-                                <p className="truncate text-[0.6875rem] text-muted-foreground">
-                                  {trackingCase
-                                    ? getTrackingStageLabel(trackingCase.currentStage)
-                                    : token.tutorLastName}
-                                </p>
-                              </div>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="h-7 px-2 text-xs"
-                                onClick={() => openTokenDetail(token.id)}
-                              >
-                                Ver detalle
-                              </Button>
-                            </div>
-                          );
-                        })}
+                              Ver detalle
+                            </Button>
+                          </div>
+                        ))}
                       </div>
                     </>
                   ) : (
@@ -1664,10 +1713,41 @@ export function ClinicParticularTokensCard() {
               </div>
             ) : null}
 
+            {/* Terminal surface for the seguimiento: the etapa left the list
+                row, so this is now the ONLY place it is read — and the only
+                place it is fetched. Loading, failure and "no case linked" are
+                three different facts and get three different renderings; the
+                failure keeps a retry so a transient error is not a dead end. */}
             <div className="rounded-lg border border-vetneb-line/65 px-2.5 py-2">
               <p className="text-[0.6875rem] text-muted-foreground">
                 Seguimiento
               </p>
+              {trackingLoadingTokenId === selectedToken.id ? (
+                <p className="mt-1 text-muted-foreground">
+                  Cargando seguimiento...
+                </p>
+              ) : null}
+              {trackingLoadError ? (
+                <div className="mt-1" role="alert">
+                  <p className="text-amber-700">{trackingLoadError}</p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="mt-1.5 h-7 px-2 text-xs"
+                    onClick={() => {
+                      setTrackingLoadedTokenIds((current) => {
+                        const next = { ...current };
+                        delete next[selectedToken.id];
+                        return next;
+                      });
+                      setTrackingRetryNonce((current) => current + 1);
+                    }}
+                  >
+                    Reintentar
+                  </Button>
+                </div>
+              ) : null}
               {selectedTrackingCase ? (
                 <>
                   <p className="mt-1 font-medium text-vetneb-ink">
@@ -1679,11 +1759,14 @@ export function ClinicParticularTokensCard() {
                       : "Sin alerta de tinción especial"}
                   </p>
                 </>
-              ) : (
+              ) : null}
+              {!selectedTrackingCase &&
+              !trackingLoadError &&
+              trackingLoadedTokenIds[selectedToken.id] ? (
                 <p className="mt-1 text-muted-foreground">
                   Sin seguimiento vinculado.
                 </p>
-              )}
+              ) : null}
             </div>
           </div>
         </ModuleDialog>

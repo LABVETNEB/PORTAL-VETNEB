@@ -515,3 +515,104 @@ test("clinic token card muestra seguimiento y alerta de tinción especial desde 
   assert.ok(card.includes("Alerta: Solicitud de tinción especial"));
   assert.ok(api.includes("export async function getClinicStudyTrackingCases("));
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FASE E.1 — the compact mobile item, pinned statically.
+//
+// The runtime counterpart lives in
+// `frontend/e2e/clinic/tokens/dashboard-clinic-tokens-mobile-parity.spec.ts`
+// (`expectCompactRowSummary`), which reads what the phone actually paints. This
+// guard is the cheap half: it fails the moment the JSX of the mobile list grows
+// a second datum back, without needing a browser.
+//
+// Scope is the MOBILE LIST REGION only. Every literal banned below is legitimate
+// — and asserted present — in the desktop table and in the detail dialog, so a
+// file-wide ban would forbid exactly the surfaces this change moved them to.
+// ─────────────────────────────────────────────────────────────────────────────
+test("FASE E.1 · the mobile token item carries only masked token, patient name and the detail action", () => {
+  const card = read(CLINIC_TOKENS_CARD_PATH);
+  const mobileList = sectionBetween(
+    card,
+    'data-clinic-access-mobile-list="true"',
+    'data-clinic-access-future-slots="true"',
+  );
+
+  // Kept.
+  assert.ok(
+    mobileList.includes("****{token.tokenLast4} · {token.petName}"),
+    "the mobile row must paint the masked token and the patient name on one line",
+  );
+  assert.ok(
+    mobileList.includes("Ver detalle"),
+    "the mobile row must keep its detail action",
+  );
+  assert.ok(
+    mobileList.includes("openTokenDetail(token.id)"),
+    "the detail action must keep opening the token detail dialog",
+  );
+  // Truncation, not wrapping: a wrapped name would change the row's height and
+  // therefore the pitch the capacity owner was given.
+  assert.ok(
+    mobileList.includes("truncate"),
+    "the patient name must truncate rather than wrap the row onto a second line",
+  );
+
+  // Retired from the summary.
+  for (const retired of [
+    '{token.isActive ? "Activo" : "Inactivo"}',
+    "token.hasLinkedReport ?",
+    "formatDate(token.lastLoginAt)",
+    "formatDate(token.createdAt)",
+    "getTrackingStageLabel(",
+    "trackingCasesByTokenId[token.id]",
+    "token.tutorLastName",
+  ]) {
+    assert.equal(
+      mobileList.includes(retired),
+      false,
+      `the mobile row must not render \`${retired}\`: it belongs to "Ver detalle", not to the list summary`,
+    );
+  }
+
+  // The same data is still rendered where it now belongs.
+  const desktopTable = sectionBetween(
+    card,
+    'data-clinic-access-table="true"',
+    'data-clinic-access-mobile-list="true"',
+  );
+  assert.ok(desktopTable.includes('{token.isActive ? "Activo" : "Inactivo"}'));
+  assert.ok(desktopTable.includes("token.hasLinkedReport"));
+  assert.ok(desktopTable.includes("formatDate(token.lastLoginAt)"));
+
+  const detailDialog = sectionBetween(
+    card,
+    'data-clinic-access-detail-dialog="true"',
+    "</ModuleDialog>",
+  );
+  assert.ok(detailDialog.includes('selectedToken.isActive ? "Activo" : "Inactivo"'));
+  assert.ok(detailDialog.includes("selectedToken.hasLinkedReport"));
+  assert.ok(detailDialog.includes("formatDate(selectedToken.lastLoginAt)"));
+  assert.ok(detailDialog.includes("getTrackingStageLabel(selectedTrackingCase.currentStage)"));
+});
+
+test("FASE E.1 · the tokens canvas declares one grammar and study-tracking is fetched on demand", () => {
+  const card = read(CLINIC_TOKENS_CARD_PATH);
+
+  // One grammar for both regimes: the mobile item is a one-line `regular` row,
+  // exactly like the desktop table row it collapses into.
+  assert.ok(card.includes('data-dashboard-row-pitch="regular"'));
+  assert.equal(card.includes('data-dashboard-row-pitch="card-below-md"'), false);
+  // The head reserve stays collapsing: the table head is still `hidden md:block`.
+  assert.ok(card.includes('data-dashboard-canvas-reserve="table-head-above-md"'));
+
+  // Capacity keeps its single owner; no module-local row count appears.
+  assert.ok(card.includes("useDashboardCanvasCapacity"));
+  assert.ok(card.includes("usePagedRows(filteredTokens, rowsPerPage)"));
+
+  // The list no longer pays for a datum it does not paint: the per-row
+  // study-tracking prefetch is gone and the case is loaded when the operator
+  // opens the detail dialog, one request at a time, cached by token id.
+  assert.equal(card.includes("nextTokens.map(async (token)"), false);
+  assert.ok(card.includes("trackingLoadedTokenIds"));
+  assert.ok(card.includes("}, [selectedTokenId, trackingLoadedTokenIds, trackingRetryNonce]);"));
+});
