@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { suppressNextDevIndicator } from "../../helpers/admin-mobile-contracts";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -226,6 +227,15 @@ test.describe("clinic dashboard — rail navigation", () => {
     await page.setViewportSize({ width: 375, height: 812 });
     await page.goto("/dashboard");
     await expect(paintedClinicMobileNav(page)).toBeVisible({ timeout: 8_000 });
+    // `next dev` paints its overlay portal over the bottom-LEFT corner, which
+    // is where the bar's FIRST destination sits on a phone. That slot used to
+    // be "Inicio", which this test never clicks; with the clinic Inicio retired
+    // (B09_CLINIC_HOME_ITEM = RETIRED) it is "Operaciones", which this test
+    // does click. The overlay does not exist under the production runner CI
+    // uses, so suppressing it removes a local-only interception without
+    // weakening anything the contract measures — same remedy, verbatim, as
+    // `dashboard-b09-mobile-navigation-unification.spec.ts`.
+    await suppressNextDevIndicator(page);
     await expect(page.locator("[data-dashboard-module-rail]")).toHaveCount(0);
 
     // operaciones → informes

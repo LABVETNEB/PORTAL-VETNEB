@@ -108,8 +108,12 @@ export type ClinicModule = (typeof CLINIC_MODULE_IDS)[number];
  * CMP-02 — this is no longer "clinic has no hub". `/dashboard?hub=1` is now the
  * explicit, durable clinic Inicio/hub state, exactly as `?hub=1` is for admin.
  * A bare `/dashboard` (no `?module=`, no `?hub=`) still resolves here, so deep
- * links and the operational default are unchanged; only the "Inicio" destination
- * of the mobile bar moved from this module to the real hub (audit DIF-041).
+ * links and the operational default are unchanged; the "Inicio" destination of
+ * the mobile bar first moved from this module to the real hub (audit DIF-041)
+ * and was then retired outright (B09_CLINIC_HOME_ITEM = RETIRED), because
+ * Clínica paints no home item on the lateral bands either. `?hub=1` and
+ * `ClinicModuleHub` are untouched and still render; no clinic surface links to
+ * them any more.
  */
 export const DEFAULT_CLINIC_MODULE: ClinicModule = "operaciones";
 

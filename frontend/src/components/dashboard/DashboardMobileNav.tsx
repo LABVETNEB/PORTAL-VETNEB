@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useSelectedLayoutSegment } from "next/navigation";
 import { Home, Menu, X } from "lucide-react";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import {
@@ -32,6 +32,7 @@ import {
   ADMIN_MODULE_NAV_LABELS,
   CLINIC_MOBILE_PRIMARY_MODULE_IDS,
   CLINIC_MODULE_NAV_LABELS,
+  DEFAULT_CLINIC_MODULE,
   parseAdminModule,
   parseClinicModule,
 } from "@/features/dashboard/config";
@@ -39,6 +40,7 @@ import {
   MODULE_QUERY_PARAM,
   buildDashboardModuleHref,
   buildHubHref,
+  isHubRequested,
 } from "@/features/dashboard/application";
 import {
   ADMIN_MODULE_ICONS,
@@ -88,6 +90,23 @@ import {
  * "Más" as `aria-current` while the controller painted the hub; parsing
  * through `parseAdminModule` converges both on the hub instead, and also makes
  * the alias table (`?module=maintenance`) light the right entry.
+ *
+ * ONE SLOT DIFFERS BY ROLE, AND ONLY ONE. B09_CLINIC_HOME_ITEM = RETIRED: the
+ * bar paints "Inicio" for ADMIN alone. The hub is admin's null module state,
+ * and Clínica never owned that destination anywhere else — `NavigationRail`
+ * and `NavigationDrawer` render the item for admin only, and
+ * `DashboardNavigationFrame` types the clinic active module as NON-NULLABLE.
+ * Dropping it here made the two regimes agree and gave Clínica four slots.
+ *
+ * That is why the clinic branch of the resolver ends in `DEFAULT_CLINIC_MODULE`
+ * and reads the layout segment first. Inicio was the entry that carried
+ * `aria-current` whenever `?module=` was absent, which is the case on the bare
+ * `/dashboard` AND on the five full routes; without both fallbacks the clinic
+ * bar would report ZERO current destinations exactly where it used to report
+ * the home slot. `/dashboard?hub=1` still renders `ClinicModuleHub` — it is a
+ * URL of the route, not an entry of this bar — but no surface links to it any
+ * more, so `requestClinicHubReset` below has no producer left; it is kept
+ * because the shared `onHome` path is admin's and the signal is contracted.
  *
  * @see docs/implementation/dashboard-b09-mobile-navigation-unification.md
  */
@@ -345,6 +364,17 @@ function DashboardMobileNavBar({
   const hasOverflow = primary.length < all.length;
   const basePath = SURFACE_BASE_PATH[surface];
 
+  // B09_CLINIC_HOME_ITEM = RETIRED. "Inicio" is an ADMIN destination: the hub
+  // is admin's null module state, and `NavigationRail`/`NavigationDrawer`
+  // already paint the item for that role only, with
+  // `DashboardNavigationFrame` typing the clinic active module as
+  // NON-NULLABLE. This bar was the last surface where the two roles
+  // disagreed, so Clínica goes from five slots to four and its remaining
+  // destinations get the width the Inicio slot was taking. The hub STATE
+  // (`/dashboard?hub=1`) is untouched: it is a URL of the route, not an entry
+  // of this bar.
+  const showsHome = surface === "admin";
+
   // "Más" reports current only while a module that is NOT on the bar is open —
   // never for an unknown `?module=`, which the parser already resolved to the
   // hub/home state.
@@ -362,22 +392,24 @@ function DashboardMobileNavBar({
         data-dashboard-mobile-nav={identify ? surface : undefined}
         className="dashboard-mobile-nav"
       >
-        <PublicRouteControl
-          href={buildHubHref(surface)}
-          prefetch={false}
-          variant="bare"
-          aria-label="Inicio"
-          aria-current={!activeModule ? "page" : undefined}
-          data-dashboard-mobile-nav-item="home"
-          onClick={onHome}
-          className={cn(
-            "dashboard-mobile-nav-item",
-            !activeModule && "dashboard-mobile-nav-item-active",
-          )}
-        >
-          <Home className="dashboard-mobile-nav-glyph" aria-hidden="true" />
-          <span>Inicio</span>
-        </PublicRouteControl>
+        {showsHome ? (
+          <PublicRouteControl
+            href={buildHubHref(surface)}
+            prefetch={false}
+            variant="bare"
+            aria-label="Inicio"
+            aria-current={!activeModule ? "page" : undefined}
+            data-dashboard-mobile-nav-item="home"
+            onClick={onHome}
+            className={cn(
+              "dashboard-mobile-nav-item",
+              !activeModule && "dashboard-mobile-nav-item-active",
+            )}
+          >
+            <Home className="dashboard-mobile-nav-glyph" aria-hidden="true" />
+            <span>Inicio</span>
+          </PublicRouteControl>
+        ) : null}
 
         {primary.map((destination) => {
           const Icon = destination.icon;
@@ -434,12 +466,44 @@ function DashboardMobileNavBar({
 function MobileNavWithUrl({ surface }: DashboardMobileNavProps) {
   const searchParams = useSearchParams();
   const urlModule = searchParams.get(MODULE_QUERY_PARAM);
+  // The five clinic FULL routes have no `?module=` in their grammar, so the
+  // segment below `/dashboard` is what declares their module — the same two
+  // grammars `DashboardNavigationFrame` resolves for the lateral band, which
+  // receives that module as a prop (`module="informes"`) because it is
+  // mounted by the route. This bar is mounted by the LAYOUT, above the page,
+  // so it reads the segment instead; the segment names ARE the clinic module
+  // ids, so the canonical parser validates them and no second route table
+  // appears. Admin is untouched: its module comes from `?module=` alone and
+  // its hub is the null state that "Inicio" reports.
+  const routeSegment = useSelectedLayoutSegment();
+  // `?hub=1` is a state of the ROOT route, never one of the clinic modules —
+  // the same explicit, durable intent `ClinicDashboardWorkspaceController`
+  // reads through this exact helper to decide whether it paints
+  // `ClinicModuleHub` instead of a workspace. But that controller only mounts
+  // on `app/dashboard/page.tsx`: the five full routes never read `hub` at all
+  // (their `SearchParams` types don't even declare it), so `?hub=1` tacked
+  // onto one of them changes nothing about the workspace they paint. This bar
+  // is mounted once at the shared layout, above every clinic route, so
+  // `useSearchParams()` still reports `?hub=1` there — treating that as hub
+  // unconditionally would null the selection while the full route keeps
+  // rendering its module, the exact desync a full route's own segment must
+  // prevent. A resolved `routeSegment` is proof a full route is painting, so
+  // it is checked FIRST: only the true root (no segment) can ever defer to
+  // the hub query.
+  const clinicHubRequested = isHubRequested(searchParams);
+  const routeModule = parseClinicModule(routeSegment);
   const parsed = useMemo(
     () =>
       surface === "admin"
         ? parseAdminModule(urlModule)
-        : parseClinicModule(urlModule),
-    [surface, urlModule],
+        : clinicHubRequested && routeModule === null
+          ? null
+          : // Clínica is never null outside the root hub: it has no home slot
+            // to hold `aria-current` when nothing else does, so it falls back
+            // to the operational default exactly as the route and the
+            // lateral frame already do.
+            routeModule ?? parseClinicModule(urlModule) ?? DEFAULT_CLINIC_MODULE,
+    [surface, urlModule, routeModule, clinicHubRequested],
   );
 
   const [activeModule, setActiveModule] = useState<string | null>(parsed);

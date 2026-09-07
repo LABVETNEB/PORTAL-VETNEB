@@ -242,6 +242,14 @@ export type ParityContract = {
   readonly bottomNav: {
     readonly bounds: ParityBounds | null;
     readonly itemCount: number;
+    /**
+     * Slots carrying the hub/home destination. Measured rather than assumed,
+     * because the ONE declared divergence between the two bars is exactly this
+     * item: the hub is admin's null module state and Clínica owns no home
+     * destination on any band (B09_CLINIC_HOME_ITEM = RETIRED). Reading it lets
+     * the contract pin WHICH slot differs instead of relaxing the count.
+     */
+    readonly homeItemCount: number;
   };
   readonly stage: { readonly count: number };
   readonly workspace: { readonly present: boolean };
@@ -324,6 +332,9 @@ export async function measureParityContract(page: Page, role: ParityRole): Promi
     const bottomNavItems = bottomNavEl
       ? allVisible(bottomNavEl, "[data-dashboard-mobile-nav-item]")
       : [];
+    const bottomNavHomeItems = bottomNavItems.filter(
+      (item) => item.getAttribute("data-dashboard-mobile-nav-item") === "home",
+    );
 
     const stageEls = allVisible(document, '[data-dashboard-module-stage="true"]');
     const workspaceEl = firstVisible(document, "[data-dashboard-module-workspace]");
@@ -369,6 +380,7 @@ export async function measureParityContract(page: Page, role: ParityRole): Promi
       bottomNav: {
         bounds: boundsOf(bottomNavEl),
         itemCount: bottomNavItems.length,
+        homeItemCount: bottomNavHomeItems.length,
       },
       stage: { count: stageEls.length },
       workspace: { present: workspaceEl !== null },

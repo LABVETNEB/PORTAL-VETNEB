@@ -755,6 +755,87 @@ test("B09 · the admin hub B13 owns is intact", () => {
   );
 });
 
+// ── T8b · B09_CLINIC_HOME_ITEM = RETIRED ─────────────────────────────────────
+
+test("B09 · the clinic bar carries no Inicio and always resolves a module", () => {
+  const executable = stripComments(read(MOBILE_NAV_TSX));
+
+  // B09_CLINIC_HOME_ITEM flipped from PRESERVE to RETIRED. Clínica has no
+  // "Inicio" destination on ANY band: `NavigationRail`/`NavigationDrawer`
+  // paint the item for admin only, and `DashboardNavigationFrame` types the
+  // clinic active module as NON-NULLABLE. The mobile bar was the last surface
+  // where the two roles disagreed, so the hub/home slot is now admin-only and
+  // the bar drops from five slots to four.
+  assert.match(
+    executable,
+    /const showsHome = surface === "admin";/,
+    "the hub/home destination is gated on the admin surface, not painted for both roles",
+  );
+  assert.match(
+    executable,
+    /\{showsHome \? \(/,
+    "the gate must wrap the home destination itself, not merely be declared",
+  );
+
+  // Zero current destinations is not an acceptable outcome of removing Inicio:
+  // the clinic bar must report the module the surface actually paints. The
+  // operational default is the SAME fallback `DashboardNavigationFrame` and
+  // `app/dashboard/page.tsx` already apply, never a literal restated here.
+  assert.ok(
+    executable.includes("DEFAULT_CLINIC_MODULE"),
+    "clinic resolves the operational default instead of a null/home state",
+  );
+
+  // The five clinic FULL routes carry no `?module=` at all, so `?module=`
+  // alone marked "Inicio" on them (the behaviour B10 pinned as a declared
+  // follow-up). Their layout segment IS the clinic module id, so the canonical
+  // parser resolves it with no second route table.
+  assert.ok(
+    executable.includes("useSelectedLayoutSegment"),
+    "the full routes resolve their module from the layout segment, as the lateral frame does",
+  );
+  assert.match(
+    executable,
+    /parseClinicModule\(routeSegment\)/,
+    "the segment goes through the canonical clinic parser, never a raw compare",
+  );
+
+  // ADMIN NEGATIVE CONTROL. The shared owner keeps the admin hub exactly as it
+  // shipped: the destination, its explicit `?hub=1` href and the sync reset.
+  assert.ok(
+    executable.includes('data-dashboard-mobile-nav-item="home"'),
+    "admin keeps the hub/home destination",
+  );
+  assert.ok(
+    executable.includes("buildHubHref(surface)"),
+    "admin Inicio still links the durable explicit hub URL",
+  );
+  assert.ok(
+    executable.includes("parseAdminModule(urlModule)"),
+    "admin still resolves its module from `?module=` alone: the hub is its null state",
+  );
+
+  // The catalog cut Admin ships is untouched: this is a clinic-only decision.
+  const catalog = read(MODULE_CATALOG);
+  assert.ok(
+    catalog.includes("export const ADMIN_HOME_NAV_ITEM = {"),
+    "the admin home nav item stays declared by the catalog",
+  );
+  const adminCutFrom = catalog.indexOf(
+    "export const ADMIN_MOBILE_PRIMARY_MODULE_IDS",
+  );
+  assert.ok(adminCutFrom !== -1, "the admin primary cut must stay declared");
+  const adminCut = catalog.slice(
+    adminCutFrom,
+    catalog.indexOf("];", adminCutFrom),
+  );
+  assert.equal(
+    [...adminCut.matchAll(/"[a-z-]+",/g)].length,
+    3,
+    "admin keeps exactly three promoted modules: five slots, unchanged",
+  );
+});
+
 // ── T9 · Behaviour the retired components carried ────────────────────────────
 
 test("B09 · every preserved behaviour has a carrier in the new owner", () => {
@@ -794,7 +875,8 @@ test("B09 · every preserved behaviour has a carrier in the new owner", () => {
     "admin Inicio does not clear its durable last module",
   );
 
-  // B09_CLINIC_HOME_ITEM = PRESERVE — still true, and now it means something.
+  // The clinic slot cut, independent of B09_CLINIC_HOME_ITEM (now RETIRED, see
+  // the T8b contract above): what this asserts is the CODE PATH, not the count.
   //
   // CMP-02: the clinic short-circuit that promoted EVERY module is gone. It gave
   // the clinic bar six 65px slots and no overflow while Admin ran five of 78px

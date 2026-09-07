@@ -23,8 +23,8 @@ import { suppressNextDevIndicator } from "../helpers/admin-mobile-contracts";
 //                            up it must be the lateral band and NOT this one.
 //                            The retired rail must not exist at any viewport.
 //   PRIMARY DESTINATIONS     admin ships Inicio + a curated cut + "Más"; clinic
-//                            ships Inicio + its five modules
-//                            (B09_CLINIC_HOME_ITEM = PRESERVE). A regression
+//                            ships the curated cut + "Más" and NO Inicio
+//                            (B09_CLINIC_HOME_ITEM = RETIRED). A regression
 //                            here is a lost destination, not a cosmetic diff.
 //   OVERFLOW REACHABILITY    every admin module outside the bar must still be
 //                            reachable. The retired menu paginated the WHOLE
@@ -61,6 +61,13 @@ const NAV_ITEM = "[data-dashboard-mobile-nav-item]";
 const OVERFLOW = '[data-dashboard-mobile-nav-overflow="true"]';
 const OVERFLOW_LINK = "[data-dashboard-mobile-nav-overflow-link]";
 const LEGACY_RAIL = "[data-dashboard-module-rail]";
+// The DESKTOP-only launcher `DashboardModuleHub` renders is hidden below
+// 768px (`admin-mobile-hub-desktop-launcher`); the PAINTED surface at phone
+// viewports is the unconditional mobile tile grid `AdminMobileHubLauncher`
+// mounts for every role, confirmed against
+// `admin-mobile-hub-launcher-no-scroll.spec.ts` (390x844 -> the launcher
+// selector below is visible and `data-dashboard-module-hub` is not).
+const CLINIC_HUB = '[data-admin-mobile-hub-launcher="true"]';
 const LATERAL = "[data-dashboard-navigation-drawer], [data-dashboard-navigation-rail]";
 const MAIN = "main.dashboard-main";
 const KEBAB_TRIGGER = ".admin-mobile-kebab-trigger";
@@ -105,18 +112,19 @@ const ADMIN_PRIMARY_ITEMS = [
 ] as const;
 
 /**
- * CMP-02 (parity program) — the clinic bar no longer promotes every module.
- * It used to (B09_CLINIC_HOME_ITEM = PRESERVE meant "keep Inicio AND all five
- * modules, six slots, never an overflow"), which is exactly the DIF-006/DIF-007
- * divergence the white-box audit measured against Admin's five 78px slots: the
- * clinic bar carried six 65px slots instead. `CLINIC_MOBILE_PRIMARY_MODULE_IDS`
- * now curates a cut — the three OPERATIONAL modules, mirroring Admin's own
- * criterion — and sends the rest to the SAME destination overflow Admin uses.
- * B09_CLINIC_HOME_ITEM = PRESERVE is still true: Inicio survives, now as the
- * real hub (CMP-02) rather than an item that silently opened Operaciones.
+ * B09_CLINIC_HOME_ITEM = RETIRED — the clinic bar ships FOUR slots.
+ *
+ * Two decisions produced this cut. CMP-02 stopped the bar from promoting every
+ * module (it used to carry six 65px slots and no overflow at all, the
+ * DIF-006/DIF-007 divergence the white-box audit measured against Admin's five
+ * 78px ones); `CLINIC_MOBILE_PRIMARY_MODULE_IDS` now curates the three
+ * OPERATIONAL modules and sends the rest to the SAME overflow Admin uses. The
+ * Inicio slot then went, because Clínica owns no "Inicio" destination on any
+ * other band either: `NavigationRail`/`NavigationDrawer` paint that item for
+ * admin only and `DashboardNavigationFrame` types the clinic active module as
+ * NON-NULLABLE. The mobile bar was the last surface where the two disagreed.
  */
 const CLINIC_PRIMARY_ITEMS = [
-  "home",
   "operaciones",
   "informes",
   "logistica",
@@ -310,6 +318,16 @@ function assertMobileRegime(reading: BandReading, label: string) {
     reading.undersized,
     `${label}: every control B09 owns must be >= ${TOUCH_MIN_PX}x${TOUCH_MIN_PX}`,
   ).toEqual([]);
+
+  // Exactly one destination reports current, on every surface the bar mounts
+  // on. Admin resolves the hub through "Inicio"; Clínica, which retired that
+  // slot (B09_CLINIC_HOME_ITEM = RETIRED), resolves the module its surface
+  // paints. Zero is the failure mode a removed slot introduces and two is the
+  // one an invented state introduces.
+  expect(
+    reading.currentCount,
+    `${label}: exactly one current destination`,
+  ).toBe(1);
 }
 
 async function expectPrimaryItems(
@@ -520,6 +538,151 @@ test.describe("B09 · admin destinations", () => {
 });
 
 test.describe("B09 · clinic destinations", () => {
+  test("the clinic bar ships no Inicio and marks the module the surface paints", async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    await page.setViewportSize({ width: 390, height: 844 });
+
+    // B09_CLINIC_HOME_ITEM = RETIRED. Removing a slot is only half a contract:
+    // Inicio was the entry that reported `aria-current` whenever `?module=` was
+    // absent, so a bar that simply loses it reports ZERO current destinations
+    // on the two surfaces that carry no `?module=` — the bare `/dashboard` and
+    // the five full routes. Both are asserted here against the module the
+    // surface ACTUALLY paints, never against a slot kept current to hold the
+    // count at one.
+    const SURFACES = [
+      {
+        label: "bare /dashboard",
+        path: "/dashboard",
+        current: "operaciones",
+        workspace: '[data-dashboard-module-workspace="operaciones"]',
+      },
+      {
+        label: "/dashboard?module=informes",
+        path: "/dashboard?module=informes",
+        current: "informes",
+        workspace: '[data-dashboard-module-workspace="informes"]',
+      },
+      {
+        label: "/dashboard/informes (full route)",
+        path: "/dashboard/informes",
+        current: "informes",
+        workspace: '[data-dashboard-module-workspace="informes-full"]',
+      },
+      {
+        label: "/dashboard/logistica (full route)",
+        path: "/dashboard/logistica",
+        current: "logistica",
+        workspace: '[data-dashboard-module-workspace="logistica-full"]',
+      },
+      {
+        label: "/dashboard/logistica/rutas (nested full route)",
+        path: "/dashboard/logistica/rutas",
+        current: "logistica",
+        workspace: '[data-dashboard-module-workspace="logistica-rutas"]',
+      },
+      {
+        label: "/dashboard/informes?hub=1 (full route, accidental hub query)",
+        path: "/dashboard/informes?hub=1",
+        current: "informes",
+        workspace: '[data-dashboard-module-workspace="informes-full"]',
+      },
+      {
+        label: "/dashboard/logistica?hub=1 (full route, accidental hub query)",
+        path: "/dashboard/logistica?hub=1",
+        current: "logistica",
+        workspace: '[data-dashboard-module-workspace="logistica-full"]',
+      },
+    ] as const;
+
+    for (const surface of SURFACES) {
+      await gotoSurface(page, "clinic", surface.path);
+      await expect(
+        page.locator(surface.workspace),
+        `${surface.label}: the surface paints its module`,
+      ).toBeVisible({ timeout: 25_000 });
+
+      const nav = paintedNav(page, NAV_CLINIC);
+      await expect(nav, `${surface.label}: clinic bar visible`).toBeVisible();
+      await expect(
+        nav.locator('[data-dashboard-mobile-nav-item="home"]'),
+        `${surface.label}: the clinic bar carries no Inicio`,
+      ).toHaveCount(0);
+      await expect(
+        nav.locator(NAV_ITEM),
+        `${surface.label}: four clinic primary destinations`,
+      ).toHaveCount(CLINIC_PRIMARY_ITEMS.length);
+      await expect(
+        nav.locator(
+          `[data-dashboard-mobile-nav-item="${surface.current}"]`,
+        ),
+        `${surface.label}: ${surface.current} is current`,
+      ).toHaveAttribute("aria-current", "page", { timeout: 20_000 });
+      await expect(
+        nav.locator("[aria-current='page']"),
+        `${surface.label}: exactly one current destination`,
+      ).toHaveCount(1);
+    }
+  });
+
+  // THE EXPLICIT CLINIC HUB IS NOT A DESTINATION OF THIS BAR.
+  //
+  // `?hub=1` is a state of the ROUTE, never one of its modules — the
+  // application layer declares that grammar once (`isHubRequested`) and
+  // `ClinicDashboardWorkspaceController` honours it by painting
+  // `ClinicModuleHub` INSTEAD of a workspace. Retiring "Inicio"
+  // (B09_CLINIC_HOME_ITEM = RETIRED) removed the only slot that reported that
+  // state, and the module fallback the four remaining slots need on the bare
+  // `/dashboard` and on the full routes must not reach this surface: marking
+  // "Operaciones" while the hub is painted is a WRONG current, not a preserved
+  // count. Zero is the correct reading — the hub owns no entry on this bar.
+  //
+  // No clinic surface links here any more, which is recorded as
+  // FOLLOWUP_CLINIC_HUB_UI_REACHABILITY and deliberately NOT closed by this
+  // change: the URL, the controller and the hub component are all untouched.
+  test("the explicit clinic hub marks no destination at all", async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await gotoSurface(page, "clinic", "/dashboard?hub=1");
+
+    // The premise: this URL really paints the hub, not a workspace. Without it
+    // a zero-current reading would prove nothing.
+    await expect(
+      page.locator(CLINIC_HUB),
+      "the explicit clinic hub paints",
+    ).toBeVisible({ timeout: 25_000 });
+    await expect(
+      page.locator("[data-dashboard-module-workspace]"),
+      "the hub replaces the workspace, it does not sit beside one",
+    ).toHaveCount(0);
+
+    const nav = paintedNav(page, NAV_CLINIC);
+    await expect(nav, "clinic bar visible on the hub").toBeVisible();
+    await expect(
+      nav.locator('[data-dashboard-mobile-nav-item="home"]'),
+      "the clinic bar carries no Inicio here either",
+    ).toHaveCount(0);
+    await expect(
+      nav.locator(NAV_ITEM),
+      "the four clinic destinations still ship on the hub",
+    ).toHaveCount(CLINIC_PRIMARY_ITEMS.length);
+    await expect(
+      nav.locator("[aria-current='page']"),
+      "no destination reports current while the hub is the painted surface",
+    ).toHaveCount(0);
+
+    // Durability, not a snapshot: nothing canonicalizes `?hub=1` away and the
+    // reading above is not a pre-hydration artefact.
+    await expect(page).toHaveURL(/\/dashboard\?hub=1$/);
+    await expect(
+      nav.locator("[aria-current='page']"),
+      "the zero-current reading survives the hub settling",
+    ).toHaveCount(0);
+  });
+
   test("the bar ships the curated primary cut and reaches every module through the overflow", async ({
     page,
   }) => {
@@ -527,9 +690,9 @@ test.describe("B09 · clinic destinations", () => {
     await page.setViewportSize({ width: 360, height: 740 });
     await gotoSurface(page, "clinic", "/dashboard?module=operaciones");
 
-    // B09_CLINIC_HOME_ITEM = PRESERVE — Inicio survives; CMP-02 curates the
-    // rest exactly like Admin does (five slots, the last one an overflow that
-    // reaches the whole catalog, not "the rest").
+    // B09_CLINIC_HOME_ITEM = RETIRED — four slots, the last one an overflow
+    // that reaches the whole catalog rather than "the rest", exactly as Admin's
+    // does. Only the Inicio slot differs between the roles now.
     await expectPrimaryItems(
       page,
       NAV_CLINIC,
