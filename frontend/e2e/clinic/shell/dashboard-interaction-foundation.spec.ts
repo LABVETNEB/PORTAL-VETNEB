@@ -137,26 +137,26 @@ test.describe("dashboard interaction foundation — smoke (PR-1)", () => {
     await expect(page.locator("[data-dashboard-module-rail]")).toHaveCount(0);
     await expect(clinicLateralNav(page)).toBeHidden();
 
+    // CLINIC_MOBILE_OVERFLOW = RETIRED — every clinic module is a direct slot,
+    // so "every destination reachable" is now readable off the bar itself
+    // instead of through a sheet that had to be opened first.
     for (const moduleId of [
       "operaciones",
       "informes",
       "logistica",
+      "tokens",
+      "perfil",
     ] as ClinicModule[]) {
       await expect(
         nav.locator(`[data-dashboard-mobile-nav-item="${moduleId}"]`),
       ).toBeVisible();
     }
-    const overflow = nav.locator('[data-dashboard-mobile-nav-item="overflow"]');
-    await expect(overflow).toBeVisible();
-    await overflow.click();
-    const overflowMenu = page.locator('[data-dashboard-mobile-nav-overflow="true"]');
-    await expect(overflowMenu).toBeVisible();
     await expect(
-      overflowMenu.locator('[data-dashboard-mobile-nav-overflow-link="perfil"]'),
-    ).toBeVisible();
+      nav.locator('[data-dashboard-mobile-nav-item="overflow"]'),
+    ).toHaveCount(0);
     await expect(
-      overflowMenu.locator('[data-dashboard-mobile-nav-overflow-link="tokens"]'),
-    ).toBeVisible();
+      page.locator('[data-dashboard-mobile-nav-overflow="true"]'),
+    ).toHaveCount(0);
     await expect(nav.locator("[aria-current='page']")).toHaveCount(1);
   });
 

@@ -213,15 +213,33 @@ export const ADMIN_MOBILE_PRIMARY_MODULE_IDS: readonly AdminModule[] = [
  * 78px, with no destination overflow at all (DIF-006/DIF-007, RC-015): the bar
  * promoted every clinic module because `primaryDestinations` returned the whole
  * catalog for the role. Declaring the cut here puts both roles on one code path
- * and restores the 78px slot and its 9.6px label.
+ * and stops a role from growing the bar just because it gained a module.
  *
- * The cut is the three OPERATIONAL modules, mirroring Admin's own criterion
- * (clinics / audit / sessions are operational; pricing, maintenance, health,
- * tokens and users-roles ride the overflow). `perfil` and `tokens` stay fully
- * reachable: the destination overflow lists the WHOLE catalog, not the remainder.
+ * CLINIC_MOBILE_OVERFLOW = RETIRED. The cut used to be the three OPERATIONAL
+ * modules, mirroring Admin's own criterion, with `perfil` and `tokens` reachable
+ * only through the destination overflow. It is now the WHOLE clinic catalog, in
+ * bar order: Clínica ships five modules and the band ships five slots, so every
+ * destination is one tap away and the role needs no "Más" entry at all.
+ *
+ * The bar order is NOT {@link CLINIC_MODULE_IDS}: this is a product cut exactly
+ * as Admin's is. `tokens` is promoted ahead of `perfil` so the account-shaped
+ * destination stays last, the position a phone user reaches with the thumb and
+ * the one both roles already spend on their least operational entry.
+ *
+ * CAPACITY. Five slots is what the band already carries for Admin (Inicio + a
+ * three-module cut + "Más"), so nothing about the geometry is new: the item is
+ * `flex: 1 1 0` over a `min-inline-size` of 44px, which floors the band at
+ * 5 x 44 = 220px and clears the narrowest supported phone by 100px.
+ *
+ * `hasOverflow` in `DashboardMobileNav` is DERIVED from this list against the
+ * catalog, so promoting the last module is what retires the trigger and its
+ * sheet. Nothing here disables an overflow that still exists; the overflow stops
+ * existing for the role. Admin is untouched and keeps both.
  */
 export const CLINIC_MOBILE_PRIMARY_MODULE_IDS: readonly ClinicModule[] = [
   "operaciones",
   "informes",
   "logistica",
+  "tokens",
+  "perfil",
 ];

@@ -250,6 +250,19 @@ export type ParityContract = {
      * the contract pin WHICH slot differs instead of relaxing the count.
      */
     readonly homeItemCount: number;
+    /**
+     * Slots carrying the DESTINATION overflow trigger ("Más"). Measured for the
+     * same reason `homeItemCount` is: it is the second — and last — declared
+     * divergence between the two bars, and reading it lets the contract pin
+     * WHICH slot differs instead of relaxing the count.
+     *
+     * CLINIC_MOBILE_OVERFLOW = RETIRED. The trigger exists only while a role's
+     * primary cut is shorter than its catalog: Admin cuts 3 of 10 and keeps it,
+     * Clínica promotes all 5 and loses it. Both bars still ship FIVE slots, so
+     * the total is once again an equality — Admin spends two of them on chrome
+     * (home + overflow), Clínica spends zero and gets five destinations.
+     */
+    readonly overflowItemCount: number;
   };
   readonly stage: { readonly count: number };
   readonly workspace: { readonly present: boolean };
@@ -335,6 +348,9 @@ export async function measureParityContract(page: Page, role: ParityRole): Promi
     const bottomNavHomeItems = bottomNavItems.filter(
       (item) => item.getAttribute("data-dashboard-mobile-nav-item") === "home",
     );
+    const bottomNavOverflowItems = bottomNavItems.filter(
+      (item) => item.getAttribute("data-dashboard-mobile-nav-item") === "overflow",
+    );
 
     const stageEls = allVisible(document, '[data-dashboard-module-stage="true"]');
     const workspaceEl = firstVisible(document, "[data-dashboard-module-workspace]");
@@ -381,6 +397,7 @@ export async function measureParityContract(page: Page, role: ParityRole): Promi
         bounds: boundsOf(bottomNavEl),
         itemCount: bottomNavItems.length,
         homeItemCount: bottomNavHomeItems.length,
+        overflowItemCount: bottomNavOverflowItems.length,
       },
       stage: { count: stageEls.length },
       workspace: { present: workspaceEl !== null },

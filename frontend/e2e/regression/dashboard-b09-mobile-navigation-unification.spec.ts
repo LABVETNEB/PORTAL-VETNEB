@@ -23,7 +23,7 @@ import { suppressNextDevIndicator } from "../helpers/admin-mobile-contracts";
 //                            up it must be the lateral band and NOT this one.
 //                            The retired rail must not exist at any viewport.
 //   PRIMARY DESTINATIONS     admin ships Inicio + a curated cut + "Más"; clinic
-//                            ships the curated cut + "Más" and NO Inicio
+//                            ships its WHOLE catalog and neither Inicio nor "Más"
 //                            (B09_CLINIC_HOME_ITEM = RETIRED). A regression
 //                            here is a lost destination, not a cosmetic diff.
 //   OVERFLOW REACHABILITY    every admin module outside the bar must still be
@@ -112,32 +112,51 @@ const ADMIN_PRIMARY_ITEMS = [
 ] as const;
 
 /**
- * B09_CLINIC_HOME_ITEM = RETIRED — the clinic bar ships FOUR slots.
+ * The clinic bar ships FIVE slots, and every one of them is a destination.
  *
- * Two decisions produced this cut. CMP-02 stopped the bar from promoting every
- * module (it used to carry six 65px slots and no overflow at all, the
- * DIF-006/DIF-007 divergence the white-box audit measured against Admin's five
- * 78px ones); `CLINIC_MOBILE_PRIMARY_MODULE_IDS` now curates the three
- * OPERATIONAL modules and sends the rest to the SAME overflow Admin uses. The
- * Inicio slot then went, because Clínica owns no "Inicio" destination on any
- * other band either: `NavigationRail`/`NavigationDrawer` paint that item for
+ * Three decisions produced this cut, in order. CMP-02 stopped the bar from
+ * promoting every module by short-circuit (it carried six 65px slots and no
+ * overflow at all, the DIF-006/DIF-007 divergence the white-box audit measured
+ * against Admin's five 78px ones) and curated the three OPERATIONAL modules,
+ * sending the rest to the SAME overflow Admin uses. B09_CLINIC_HOME_ITEM =
+ * RETIRED then dropped Inicio, because Clínica owns no "Inicio" destination on
+ * any other band either: `NavigationRail`/`NavigationDrawer` paint that item for
  * admin only and `DashboardNavigationFrame` types the clinic active module as
- * NON-NULLABLE. The mobile bar was the last surface where the two disagreed.
+ * NON-NULLABLE.
+ *
+ * CLINIC_MOBILE_OVERFLOW = RETIRED closes it: those two freed slots are exactly
+ * the two Clínica needs to promote `tokens` and `perfil`, so the role now
+ * declares its WHOLE catalog as the primary cut and the remainder that
+ * justified a sheet is empty. `hasDestinationOverflow` is derived from the cut
+ * against the catalog, so this retires the trigger and the sheet rather than
+ * hiding them — a sixth clinic module would bring both back on its own.
+ *
+ * The order is the bar's, not `CLINIC_MODULE_IDS`': `tokens` is promoted ahead
+ * of `perfil` so the account-shaped destination stays last, where both roles
+ * already spend their least operational slot.
  */
 const CLINIC_PRIMARY_ITEMS = [
   "operaciones",
   "informes",
   "logistica",
-  "overflow",
+  "tokens",
+  "perfil",
 ] as const;
 
-/** The catalog's clinic order, mirrored. Never re-derived from the DOM. */
-const CLINIC_MODULE_LABELS = [
-  "Operaciones",
-  "Informes",
-  "Logística",
-  "Perfil",
+/**
+ * The compact labels the bar paints, mirroring `CLINIC_MODULE_NAV_LABELS`'
+ * `shortLabel` column. Never re-derived from the DOM.
+ *
+ * The full labels are no longer listed here: they were the OVERFLOW SHEET's
+ * vocabulary (`aria-label` and link text), and Clínica no longer has a sheet.
+ * The bar's own text is the short form, so that is what the contract mirrors.
+ */
+const CLINIC_SHORT_LABELS = [
+  "Ops",
+  "Info",
+  "Log",
   "Tokens",
+  "Perfil",
 ] as const;
 
 const PHONE_VIEWPORTS = [
@@ -667,7 +686,7 @@ test.describe("B09 · clinic destinations", () => {
     ).toHaveCount(0);
     await expect(
       nav.locator(NAV_ITEM),
-      "the four clinic destinations still ship on the hub",
+      "the five clinic destinations still ship on the hub",
     ).toHaveCount(CLINIC_PRIMARY_ITEMS.length);
     await expect(
       nav.locator("[aria-current='page']"),
@@ -683,16 +702,16 @@ test.describe("B09 · clinic destinations", () => {
     ).toHaveCount(0);
   });
 
-  test("the bar ships the curated primary cut and reaches every module through the overflow", async ({
+  test("the bar promotes the whole catalog and ships no destination overflow", async ({
     page,
   }) => {
     test.setTimeout(90_000);
     await page.setViewportSize({ width: 360, height: 740 });
     await gotoSurface(page, "clinic", "/dashboard?module=operaciones");
 
-    // B09_CLINIC_HOME_ITEM = RETIRED — four slots, the last one an overflow
-    // that reaches the whole catalog rather than "the rest", exactly as Admin's
-    // does. Only the Inicio slot differs between the roles now.
+    // CLINIC_MOBILE_OVERFLOW = RETIRED — five slots, all destinations, in the
+    // bar's own order. What Admin reaches through a sheet, Clínica reaches in
+    // one tap, because its catalog is exactly the size of the band.
     await expectPrimaryItems(
       page,
       NAV_CLINIC,
@@ -700,33 +719,48 @@ test.describe("B09 · clinic destinations", () => {
       "clinic 360x740",
     );
 
-    await paintedNav(page, NAV_CLINIC)
-      .locator('[data-dashboard-mobile-nav-item="overflow"]')
-      .click();
-    const overflow = page.locator(OVERFLOW);
-    await expect(overflow).toBeVisible();
+    // The bar IS the whole catalog: no module is left for a sheet to carry.
+    // Read as a set from the DOM, so a promotion that dropped a module fails
+    // here rather than silently shrinking the bar.
+    const shortLabels = (
+      await paintedNav(page, NAV_CLINIC).locator(NAV_ITEM).allTextContents()
+    ).map((text) => text.trim());
+    expect(
+      new Set(shortLabels),
+      "every clinic module has its own slot on the bar",
+    ).toEqual(new Set(CLINIC_SHORT_LABELS));
 
-    const seen: string[] = [];
-    for (let guard = 0; guard < CLINIC_MODULE_LABELS.length; guard += 1) {
-      seen.push(
-        ...(await overflow.locator(OVERFLOW_LINK).allTextContents()).map((text) =>
-          text.trim(),
-        ),
-      );
-      const next = overflow.getByRole("button", {
-        name: "Página siguiente de módulos",
-        exact: true,
-      });
-      if (await next.isDisabled()) break;
-      await next.click();
-    }
-
-    expect(new Set(seen), "the overflow reaches the whole clinic catalog").toEqual(
-      new Set(CLINIC_MODULE_LABELS),
+    // The trigger is gone, and so is the sheet — not hidden, not disabled, not
+    // rendered closed. Nothing in the clinic tree can open a second copy of the
+    // catalog.
+    await expect(
+      paintedNav(page, NAV_CLINIC).locator(
+        '[data-dashboard-mobile-nav-item="overflow"]',
+      ),
+      "no overflow trigger on the clinic bar",
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: "Más", exact: true }),
+      'no "Más" control anywhere on the clinic surface',
+    ).toHaveCount(0);
+    await expect(page.locator(OVERFLOW), "no overflow sheet mounted").toHaveCount(
+      0,
     );
+    await expect(
+      page.locator(OVERFLOW_LINK),
+      "no overflow catalog links mounted",
+    ).toHaveCount(0);
 
+    // Escape is the sheet's dismissal key. With no sheet it must be inert —
+    // proof the retired listener did not survive as a stray global handler.
     await page.keyboard.press("Escape");
-    await expect(overflow).toHaveCount(0);
+    await expect(page.locator(OVERFLOW)).toHaveCount(0);
+    await expectPrimaryItems(
+      page,
+      NAV_CLINIC,
+      CLINIC_PRIMARY_ITEMS,
+      "clinic 360x740 after Escape",
+    );
   });
 
   test("every clinic module is reachable from /dashboard on a phone", async ({
@@ -738,10 +772,11 @@ test.describe("B09 · clinic destinations", () => {
 
     // This is the regression B08 explicitly refused to risk: before B09 the
     // clinic bottom nav returned null here and only the rail could change
-    // module. The owner that replaced it has to do the same job — for BOTH the
-    // promoted modules (still direct bar slots after CMP-02) and the modules
-    // CMP-02 moved to the overflow.
-    for (const moduleId of ["informes", "logistica"]) {
+    // module. The owner that replaced it has to do the same job — and after
+    // CLINIC_MOBILE_OVERFLOW = RETIRED it does it the SAME WAY for every
+    // module, so `perfil` and `tokens` are no longer a second code path through
+    // a sheet. One loop over the whole catalog is the contract now.
+    for (const moduleId of ["informes", "logistica", "tokens", "perfil"]) {
       await paintedNav(page, NAV_CLINIC)
         .locator(`[data-dashboard-mobile-nav-item="${moduleId}"]`)
         .click();
@@ -762,29 +797,22 @@ test.describe("B09 · clinic destinations", () => {
       ).toHaveCount(1);
     }
 
-    for (const moduleId of ["perfil", "tokens"]) {
-      await paintedNav(page, NAV_CLINIC)
-        .locator('[data-dashboard-mobile-nav-item="overflow"]')
-        .click();
-      await page
-        .locator(`[data-dashboard-mobile-nav-overflow-link="${moduleId}"]`)
-        .click();
-      await expect(page).toHaveURL(
-        new RegExp(`/dashboard\\?module=${moduleId}$`),
-        { timeout: 15_000 },
-      );
-      await expect(
-        page.locator(`[data-dashboard-module-workspace="${moduleId}"]`),
-      ).toBeVisible({ timeout: 20_000 });
-      // An overflowed destination reports current on the OVERFLOW slot itself,
-      // not on a bar slot it no longer occupies — mirrors the admin contract
-      // ("an overflow module opens and marks the overflow entry current").
-      await expect(
-        paintedNav(page, NAV_CLINIC).locator(
-          '[data-dashboard-mobile-nav-item="overflow"]',
-        ),
-      ).toHaveAttribute("aria-current", "page");
-    }
+    // Back to the module the bar landed on, so the loop above is a round trip
+    // through the catalog rather than a one-way drift out of it.
+    await paintedNav(page, NAV_CLINIC)
+      .locator('[data-dashboard-mobile-nav-item="operaciones"]')
+      .click();
+    await expect(page).toHaveURL(/\/dashboard\?module=operaciones$/, {
+      timeout: 15_000,
+    });
+    await expect(
+      paintedNav(page, NAV_CLINIC).locator(
+        '[data-dashboard-mobile-nav-item="operaciones"]',
+      ),
+    ).toHaveAttribute("aria-current", "page");
+    await expect(
+      paintedNav(page, NAV_CLINIC).locator("[aria-current='page']"),
+    ).toHaveCount(1);
   });
 
   test("a clinic full route keeps its own shell and the same navigation owner", async ({
@@ -820,18 +848,143 @@ test.describe("B09 · clinic destinations", () => {
     ).toHaveCount(1);
 
     // And it can navigate back into the canonical `?module=` grammar. "tokens"
-    // is one of the modules CMP-02 moved to the overflow, so it is reached the
-    // same way "every clinic module is reachable" reaches it above.
+    // used to live behind the overflow here; after CLINIC_MOBILE_OVERFLOW =
+    // RETIRED it is a direct slot, so a full route reaches it in ONE tap — the
+    // same tap "every clinic module is reachable" uses above.
     await paintedNav(page, NAV_CLINIC)
-      .locator('[data-dashboard-mobile-nav-item="overflow"]')
-      .click();
-    await page
-      .locator('[data-dashboard-mobile-nav-overflow-link="tokens"]')
+      .locator('[data-dashboard-mobile-nav-item="tokens"]')
       .click();
     await expect(page).toHaveURL(/\/dashboard\?module=tokens$/, {
       timeout: 15_000,
     });
   });
+
+  // ── Five slots have to FIT, not merely exist ───────────────────────────────
+  //
+  // Promoting `tokens` and `perfil` took Clínica from four slots to five, and a
+  // slot count is only a contract if the narrowest supported phone can carry
+  // it. This sweeps the band across every width the product supports, INCLUDING
+  // 320px — narrower than the 360px floor of the canonical phone matrix, and
+  // the width at which a five-column band fails first.
+  //
+  // Nothing here is a new tolerance: `assertMobileRegime` is the same reader
+  // the "one owner per regime" matrix uses, so the band is held to the identical
+  // contract (no document scroll on either axis, every control >= 44x44 MEASURED,
+  // the bar in flow with `main` ending at its top edge, exactly one current
+  // destination). The geometry that must hold it is `flex: 1 1 0` over a 44px
+  // `min-inline-size`, which floors the band at 5 x 44 = 220px.
+  for (const width of [320, 360, 375, 390, 412, 430] as const) {
+    test(`five clinic slots fit the band at ${width}px`, async ({ page }) => {
+      test.setTimeout(90_000);
+      await page.setViewportSize({ width, height: 740 });
+      await gotoSurface(page, "clinic", "/dashboard?module=operaciones");
+
+      await expect(async () => {
+        assertMobileRegime(await readBand(page), `clinic ${width}x740`);
+      }).toPass({ timeout: 20_000 });
+
+      await expectPrimaryItems(
+        page,
+        NAV_CLINIC,
+        CLINIC_PRIMARY_ITEMS,
+        `clinic ${width}x740`,
+      );
+
+      // The five slots partition the band: none may be clipped to nothing, none
+      // may spill past the viewport, and together they may not exceed it. Read
+      // from the DOM so a label that stops fitting shows up as a real geometry
+      // failure instead of a snapshot someone re-baselines.
+      const slots = await paintedNav(page, NAV_CLINIC)
+        .locator(NAV_ITEM)
+        .evaluateAll((items) =>
+          items.map((item) => {
+            const rect = item.getBoundingClientRect();
+            return {
+              id: item.getAttribute("data-dashboard-mobile-nav-item"),
+              left: Math.round(rect.left * 100) / 100,
+              right: Math.round(rect.right * 100) / 100,
+              width: Math.round(rect.width * 100) / 100,
+            };
+          }),
+        );
+
+      expect(slots.length, `clinic ${width}: five painted slots`).toBe(5);
+      for (const slot of slots) {
+        expect(
+          slot.width,
+          `clinic ${width}: ${slot.id} keeps the 44px touch floor`,
+        ).toBeGreaterThanOrEqual(TOUCH_MIN_PX - TOLERANCE_PX);
+        expect(
+          slot.left,
+          `clinic ${width}: ${slot.id} starts inside the viewport`,
+        ).toBeGreaterThanOrEqual(-TOLERANCE_PX);
+        expect(
+          slot.right,
+          `clinic ${width}: ${slot.id} ends inside the viewport`,
+        ).toBeLessThanOrEqual(width + TOLERANCE_PX);
+      }
+
+      // Distribution, not manual offsets: equal columns are what places Info and
+      // Log where the redesign wants them. Widest and narrowest slot agree to
+      // within a pixel, so a hardcoded nudge on any single entry fails here.
+      const widths = slots.map((slot) => slot.width);
+      expect(
+        Math.max(...widths) - Math.min(...widths),
+        `clinic ${width}: the band distributes evenly across five columns`,
+      ).toBeLessThanOrEqual(1 + TOLERANCE_PX);
+    });
+  }
+
+  test("every clinic slot is reachable by keyboard and named without its icon", async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+    await page.setViewportSize({ width: 360, height: 740 });
+    await gotoSurface(page, "clinic", "/dashboard?module=operaciones");
+    await expectPrimaryItems(page, NAV_CLINIC, CLINIC_PRIMARY_ITEMS, "clinic a11y");
+
+    // The two promoted destinations used to live inside a sheet that had to be
+    // opened first. On the bar they owe the same keyboard contract as the three
+    // that were already there, so Tab must reach ALL FIVE, in bar order.
+    const nav = paintedNav(page, NAV_CLINIC);
+    const reached: string[] = [];
+    for (let step = 0; step < 40 && reached.length < CLINIC_PRIMARY_ITEMS.length; step += 1) {
+      await page.keyboard.press("Tab");
+      const active = await page.evaluate(() => {
+        const element = document.activeElement;
+        return element ? element.getAttribute("data-dashboard-mobile-nav-item") : null;
+      });
+      if (active && !reached.includes(active)) reached.push(active);
+    }
+    expect(reached, "Tab reaches the five clinic destinations in bar order").toEqual([
+      ...CLINIC_PRIMARY_ITEMS,
+    ]);
+
+    // Focus is VISIBLE: the band declares an inset ring precisely because its
+    // own `overflow: hidden` would clip an outset one on the first or last slot.
+    const focusRing = await nav
+      .locator('[data-dashboard-mobile-nav-item="perfil"]')
+      .evaluate((item) => {
+        (item as HTMLElement).focus();
+        return getComputedStyle(item).boxShadow;
+      });
+    expect(focusRing, "the focused slot paints a ring").not.toBe("none");
+
+    // Not icon-only: every slot carries an accessible name AND visible text, so
+    // the glyph is never the sole carrier of meaning.
+    for (const moduleId of CLINIC_PRIMARY_ITEMS) {
+      const item = nav.locator(`[data-dashboard-mobile-nav-item="${moduleId}"]`);
+      await expect(item, `${moduleId}: accessible name`).not.toHaveAttribute(
+        "aria-label",
+        "",
+      );
+      expect(
+        ((await item.textContent()) ?? "").trim().length,
+        `${moduleId}: visible label beside the glyph`,
+      ).toBeGreaterThan(0);
+    }
+  });
+
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -911,14 +1064,15 @@ test.describe("B09 · deep links, history and hub reset", () => {
 
     await page.reload();
     await expect(page.locator(MAIN)).toBeVisible({ timeout: 25_000 });
-    // CMP-02 (parity program) — "perfil" is one of the modules CMP-02 moved
-    // off the bar into the overflow (audit DIF-006/DIF-007). It has no direct
-    // `[data-dashboard-mobile-nav-item="perfil"]` slot any more; a deep link
-    // to it reports current on the OVERFLOW slot instead, exactly as an
-    // overflowed admin module does.
+    // CLINIC_MOBILE_OVERFLOW = RETIRED — "perfil" is a direct slot again. CMP-02
+    // had moved it off the bar into the overflow (audit DIF-006/DIF-007), so a
+    // deep link to it used to report current on the OVERFLOW slot; the whole
+    // catalog is promoted now, so the deep link reports on "perfil" itself.
+    // This is the stronger reading: a slot reporting on its own module cannot
+    // be satisfied by an unrelated module that also happens to be off the bar.
     await expect(
       paintedNav(page, NAV_CLINIC).locator(
-        '[data-dashboard-mobile-nav-item="overflow"]',
+        '[data-dashboard-mobile-nav-item="perfil"]',
       ),
     ).toHaveAttribute("aria-current", "page", { timeout: 20_000 });
     await expect(
