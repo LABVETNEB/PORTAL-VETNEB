@@ -476,30 +476,34 @@ function MobileNavWithUrl({ surface }: DashboardMobileNavProps) {
   // appears. Admin is untouched: its module comes from `?module=` alone and
   // its hub is the null state that "Inicio" reports.
   const routeSegment = useSelectedLayoutSegment();
-  // `?hub=1` is a state of the ROUTE, never one of the clinic modules — the
-  // same explicit, durable intent `ClinicDashboardWorkspaceController` reads
-  // through this exact helper to decide whether it paints `ClinicModuleHub`
-  // instead of a workspace. Retiring "Inicio" removed the only slot that used
-  // to hold `aria-current` for that state, so the DEFAULT_CLINIC_MODULE
-  // fallback below — needed for the bare `/dashboard` and the five full
-  // routes, which carry no `?module=` — must not also catch the hub: it has
-  // no `?module=` either, and reusing the same fallback there would mark
-  // "Operaciones" current while the hub is what is actually painted.
+  // `?hub=1` is a state of the ROOT route, never one of the clinic modules —
+  // the same explicit, durable intent `ClinicDashboardWorkspaceController`
+  // reads through this exact helper to decide whether it paints
+  // `ClinicModuleHub` instead of a workspace. But that controller only mounts
+  // on `app/dashboard/page.tsx`: the five full routes never read `hub` at all
+  // (their `SearchParams` types don't even declare it), so `?hub=1` tacked
+  // onto one of them changes nothing about the workspace they paint. This bar
+  // is mounted once at the shared layout, above every clinic route, so
+  // `useSearchParams()` still reports `?hub=1` there — treating that as hub
+  // unconditionally would null the selection while the full route keeps
+  // rendering its module, the exact desync a full route's own segment must
+  // prevent. A resolved `routeSegment` is proof a full route is painting, so
+  // it is checked FIRST: only the true root (no segment) can ever defer to
+  // the hub query.
   const clinicHubRequested = isHubRequested(searchParams);
+  const routeModule = parseClinicModule(routeSegment);
   const parsed = useMemo(
     () =>
       surface === "admin"
         ? parseAdminModule(urlModule)
-        : clinicHubRequested
+        : clinicHubRequested && routeModule === null
           ? null
-          : // Clínica is never null outside the hub: it has no home slot to
-            // hold `aria-current` when nothing else does, so it falls back to
-            // the operational default exactly as the route and the lateral
-            // frame already do.
-            parseClinicModule(routeSegment) ??
-            parseClinicModule(urlModule) ??
-            DEFAULT_CLINIC_MODULE,
-    [surface, urlModule, routeSegment, clinicHubRequested],
+          : // Clínica is never null outside the root hub: it has no home slot
+            // to hold `aria-current` when nothing else does, so it falls back
+            // to the operational default exactly as the route and the
+            // lateral frame already do.
+            routeModule ?? parseClinicModule(urlModule) ?? DEFAULT_CLINIC_MODULE,
+    [surface, urlModule, routeModule, clinicHubRequested],
   );
 
   const [activeModule, setActiveModule] = useState<string | null>(parsed);

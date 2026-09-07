@@ -582,6 +582,18 @@ test.describe("B09 · clinic destinations", () => {
         current: "logistica",
         workspace: '[data-dashboard-module-workspace="logistica-rutas"]',
       },
+      {
+        label: "/dashboard/informes?hub=1 (full route, accidental hub query)",
+        path: "/dashboard/informes?hub=1",
+        current: "informes",
+        workspace: '[data-dashboard-module-workspace="informes-full"]',
+      },
+      {
+        label: "/dashboard/logistica?hub=1 (full route, accidental hub query)",
+        path: "/dashboard/logistica?hub=1",
+        current: "logistica",
+        workspace: '[data-dashboard-module-workspace="logistica-full"]',
+      },
     ] as const;
 
     for (const surface of SURFACES) {
