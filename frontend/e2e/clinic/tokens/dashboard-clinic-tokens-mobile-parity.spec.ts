@@ -1026,3 +1026,183 @@ for (const viewport of MOBILE_VIEWPORTS) {
     }).toPass({ timeout: 10_000 });
   });
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FASE E.2 — the tracking error belongs to the token that produced it.
+//
+// E.1 moved the study-tracking read off the list and onto the detail dialog:
+// one request when a token is opened, cached by id. `trackingLoadError`,
+// however, is a SINGLE shared string while its companion `trackingCasesByTokenId`
+// is keyed by token — and the only place it was cleared lived inside the fetch,
+// i.e. AFTER the effect's early return. So the two selection transitions that
+// issue no request (closing the dialog, and opening a token that is already
+// cached) left the previous token's error alive on screen.
+//
+// This is a STATE-OWNERSHIP contract, not a geometry one: it does not depend on
+// the breakpoint, the pitch or the measured capacity, so it is asserted once at
+// a single representative viewport instead of being repeated per phone. The
+// geometry contracts above keep their own six-viewport matrix.
+//
+// The request counter is part of the contract, not decoration: a fix that
+// "solved" the stale error by re-fetching the cached token would undo E.1's
+// whole point, so B's request count is pinned at exactly one across the reopen.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Token whose study-tracking call fails. */
+const TRACKING_FAILING_TOKEN_ID = 1;
+/** Token whose study-tracking call succeeds and is therefore cached. */
+const TRACKING_CACHED_TOKEN_ID = 2;
+/**
+ * Distinctive backend message for the failing token. `apiFetch` lifts
+ * `body.error` into the thrown `ApiResponseError`, and the dialog renders
+ * `error.message`, so this exact literal is what the failing token paints —
+ * which makes "did B inherit A's error?" decidable on the text itself.
+ */
+const TRACKING_FAILURE_MESSAGE = "E2E-STALE-TRACKING-A";
+/** Stage label the cached token must keep showing as its own tracking. */
+const TRACKING_CACHED_STAGE_LABEL = "Evaluación";
+
+test("clinic Tokens detail keeps a tracking error with the token that produced it", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await setClinicSession(page);
+  await mockClinicTokens(page);
+
+  const trackingRequestsByTokenId = new Map<number, number>();
+
+  await page.route(
+    (url) => url.pathname === "/api/study-tracking",
+    async (route) => {
+      const tokenId = Number(
+        new URL(route.request().url()).searchParams.get("particularTokenId"),
+      );
+      trackingRequestsByTokenId.set(
+        tokenId,
+        (trackingRequestsByTokenId.get(tokenId) ?? 0) + 1,
+      );
+
+      if (tokenId === TRACKING_FAILING_TOKEN_ID) {
+        await route.fulfill({
+          status: 500,
+          contentType: "application/json",
+          body: JSON.stringify({ error: TRACKING_FAILURE_MESSAGE }),
+        });
+        return;
+      }
+
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          success: true,
+          count: 1,
+          trackingCases: [
+            {
+              id: 900 + tokenId,
+              particularTokenId: tokenId,
+              reportId: null,
+              clinicId: 10,
+              petName: `Paciente veterinario ${tokenId} con nombre clínico extenso`,
+              tutorLastName: `Apellido compuesto del tutor ${tokenId} con contenido operativo extenso`,
+              currentStage: "evaluation",
+              specialStainRequired: false,
+              createdAt: "2026-06-03T00:00:00.000Z",
+              updatedAt: "2026-06-04T00:00:00.000Z",
+            },
+          ],
+          pagination: { limit: 1, offset: 0 },
+        }),
+      });
+    },
+  );
+
+  await page.goto("/dashboard?module=tokens");
+
+  const card = page.locator("#clinic-particular-tokens");
+  const detailDialog = page.locator('[data-clinic-access-detail-dialog="true"]');
+  const failureAlert = detailDialog.getByText(TRACKING_FAILURE_MESSAGE, {
+    exact: true,
+  });
+  const retryButton = detailDialog.getByRole("button", { name: "Reintentar" });
+  const cachedStage = detailDialog.getByText(TRACKING_CACHED_STAGE_LABEL, {
+    exact: true,
+  });
+
+  // Rows are addressed by their stable per-token id, never by position, so the
+  // adaptive page size cannot make this test pick a different record.
+  const openDetail = async (tokenId: number) => {
+    await card
+      .locator(`#clinic-particular-token-${tokenId}`)
+      .getByRole("button", { name: "Ver detalle", exact: true })
+      .click();
+    await expect(detailDialog).toBeVisible();
+  };
+  const closeDetail = async () => {
+    await page.keyboard.press("Escape");
+    await expect(detailDialog).toHaveCount(0);
+  };
+
+  await expect(
+    card.locator('[data-clinic-access-mobile-row="true"]').first(),
+  ).toBeVisible();
+
+  // 1-2. Open B. Its tracking succeeds and is cached.
+  await openDetail(TRACKING_CACHED_TOKEN_ID);
+  await expect(cachedStage, "B shows its own tracking stage").toBeVisible();
+  await expect(failureAlert, "B starts with no error").toHaveCount(0);
+  expect(
+    trackingRequestsByTokenId.get(TRACKING_CACHED_TOKEN_ID),
+    "B is fetched exactly once on first open",
+  ).toBe(1);
+
+  // 3. Close B.
+  await closeDetail();
+
+  // 4-6. Open A. Its tracking fails and A must surface its own error.
+  await openDetail(TRACKING_FAILING_TOKEN_ID);
+  await expect(failureAlert, "A surfaces its own tracking error").toBeVisible();
+  await expect(retryButton, "A offers a retry for its own failure").toBeVisible();
+  expect(
+    trackingRequestsByTokenId.get(TRACKING_FAILING_TOKEN_ID),
+    "A is fetched exactly once",
+  ).toBe(1);
+
+  // 7. Close A.
+  await closeDetail();
+
+  // 8-10. Reopen the CACHED token B. This is the regression: the effect takes
+  // its early return because B is cached, so nothing re-runs the fetch — and
+  // before the fix, nothing cleared A's error either.
+  await openDetail(TRACKING_CACHED_TOKEN_ID);
+  await expect(
+    cachedStage,
+    "B still shows its own cached tracking after reopening",
+  ).toBeVisible();
+  await expect(
+    failureAlert,
+    "B must not inherit the tracking error produced by A",
+  ).toHaveCount(0);
+  await expect(
+    retryButton,
+    "B must not inherit A's retry control",
+  ).toHaveCount(0);
+  expect(
+    trackingRequestsByTokenId.get(TRACKING_CACHED_TOKEN_ID),
+    "B stays cached: reopening it must not issue a second request",
+  ).toBe(1);
+
+  // The fix must not silence errors: a failing token that is reopened is still
+  // not cached, so it refetches and surfaces its failure and its retry again.
+  await closeDetail();
+  await openDetail(TRACKING_FAILING_TOKEN_ID);
+  await expect(
+    failureAlert,
+    "reopening A still surfaces its failure",
+  ).toBeVisible();
+  await expect(retryButton, "reopening A still offers a retry").toBeVisible();
+  expect(
+    trackingRequestsByTokenId.get(TRACKING_FAILING_TOKEN_ID),
+    "A is not cached by a failure, so reopening refetches it",
+  ).toBe(2);
+});

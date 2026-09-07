@@ -465,6 +465,21 @@ export function ClinicParticularTokensCard() {
   // No batch endpoint exists for tracking. Load exactly one case when the
   // operator opens a token, cache it, and never issue one request per row.
   useEffect(() => {
+    // The error is a property of the CURRENT SELECTION, not of the card. It is
+    // one shared string while its companion `trackingCasesByTokenId` is keyed
+    // by token, so it has to be invalidated the moment the selection changes —
+    // including the two transitions that issue no request and would otherwise
+    // skip the reset below: closing the dialog (`null`) and opening a token
+    // that is already cached. Without this, a failure on token A survives into
+    // the next dialog and B renders A's alert, and A's retry, beside B's own
+    // valid cached tracking.
+    //
+    // Clearing here closes no loop: `trackingLoadError` is not a dependency of
+    // this effect, and setting it to a value it already holds is a React
+    // bail-out, so the success path — which does re-run this effect through
+    // `trackingLoadedTokenIds` — costs no extra render and re-fetches nothing.
+    setTrackingLoadError(null);
+
     if (
       selectedTokenId === null ||
       trackingLoadedTokenIds[selectedTokenId]
