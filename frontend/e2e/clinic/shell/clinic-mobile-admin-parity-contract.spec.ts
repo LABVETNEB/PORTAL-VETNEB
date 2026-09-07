@@ -57,11 +57,39 @@ function assertShellAndSurfaceParity(
   ).toBe(admin.appBar.hasSubtitle);
 
   // ── bottomNav ────────────────────────────────────────────────────────
+  //
+  // PC-1 still holds where it is about the PRIMITIVE: one owner
+  // (`DashboardMobileNav`), one band, one grammar, one label scale, one touch
+  // floor. The band's height is asserted below with the same 0.5px tolerance
+  // as every other structural dimension, and it is unchanged.
+  //
+  // ONE DECLARED DIVERGENCE, MEASURED — NOT A RELAXED COUNT. Slot count is a
+  // set of DESTINATIONS, and the roles do not have the same ones: the hub is
+  // ADMIN's null module state, reached through "Inicio", and Clínica owns no
+  // home destination on any band — `NavigationRail`/`NavigationDrawer` paint
+  // that item for admin only and `DashboardNavigationFrame` types the clinic
+  // active module as NON-NULLABLE. Retiring it from this bar
+  // (B09_CLINIC_HOME_ITEM = RETIRED) is what finally made the three regimes
+  // agree; the parity contract has to record that, not forbid it.
+  //
+  // PC-7 forbids declaring parity by weakening an assertion, so the exception
+  // is pinned harder than the equality it replaces: the delta must be EXACTLY
+  // the home slot, admin must still carry it and Clínica must not. A clinic bar
+  // that lost any OTHER destination, or an admin bar that lost Inicio, fails
+  // here just as it did before.
   expectBoundsWithinTolerance({ ...ctx, region: "bottomNav", admin: admin.bottomNav.bounds, clinic: clinic.bottomNav.bounds, axis: "height" });
   expect(
+    admin.bottomNav.homeItemCount,
+    formatParityFailure({ ...ctx, region: "bottomNav", property: "homeItemCount(admin)", adminValue: admin.bottomNav.homeItemCount, clinicValue: clinic.bottomNav.homeItemCount }),
+  ).toBe(1);
+  expect(
+    clinic.bottomNav.homeItemCount,
+    formatParityFailure({ ...ctx, region: "bottomNav", property: "homeItemCount(clinic)", adminValue: admin.bottomNav.homeItemCount, clinicValue: clinic.bottomNav.homeItemCount }),
+  ).toBe(0);
+  expect(
     clinic.bottomNav.itemCount,
-    formatParityFailure({ ...ctx, region: "bottomNav", property: "itemCount", adminValue: admin.bottomNav.itemCount, clinicValue: clinic.bottomNav.itemCount }),
-  ).toBe(admin.bottomNav.itemCount);
+    formatParityFailure({ ...ctx, region: "bottomNav", property: "itemCount (admin minus the admin-only hub slot)", adminValue: admin.bottomNav.itemCount, clinicValue: clinic.bottomNav.itemCount }),
+  ).toBe(admin.bottomNav.itemCount - admin.bottomNav.homeItemCount);
 
   // ── stage / workspace / viewport hooks ──────────────────────────────
   expect(clinic.stage.count, formatParityFailure({ ...ctx, region: "stage", property: "count", adminValue: admin.stage.count, clinicValue: clinic.stage.count })).toBe(1);

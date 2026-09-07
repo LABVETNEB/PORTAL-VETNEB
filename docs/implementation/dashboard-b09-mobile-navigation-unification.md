@@ -30,6 +30,16 @@ B09_ADMIN_MOBILE_APPBAR_H = 48px       la banda pasa de 44 a 48 px
 B09_CLINIC_HOME_ITEM      = PRESERVE   clínica conserva Inicio + los 5 módulos (6 ranuras)
 ```
 
+`B09_CLINIC_HOME_ITEM` fue superado dos veces después de este bloque, que queda como
+registro de lo decidido en B09 y no se reescribe: CMP-02 curó el corte primario de
+clínica (6 ranuras → 5) y una decisión posterior retiró el propio ítem Inicio
+(`B09_CLINIC_HOME_ITEM = RETIRED`, 5 ranuras → 4). Inicio es una destinación de
+Administración: el hub es su estado de módulo nulo, y clínica tampoco lo pinta en las
+bandas laterales. El estado `/dashboard?hub=1` y `ClinicModuleHub` siguen existiendo;
+ninguna superficie de clínica enlaza a ellos. El contrato vigente vive en
+`test/architecture/dashboard-b09-mobile-navigation-unification.test.ts` y en
+`frontend/e2e/regression/dashboard-b09-mobile-navigation-unification.spec.ts`.
+
 ## 3. F0 — medición dirigida antes de editar
 
 La auditoría dejó la geometría **computada de los `clamp`, no medida**. F0 la midió en

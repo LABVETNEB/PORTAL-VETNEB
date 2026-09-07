@@ -45,10 +45,14 @@ import {
 // OWNER can break: the count of each band, main's child structure, and that
 // deep links, reload and Back/Forward still resolve.
 //
-// B09 FENCE. The mobile bar derives its active module from `?module=` alone,
-// so on the five full routes it marks "Inicio" below 768px. B10 PRESERVES that
-// behaviour deliberately and this spec pins it, so a later change to it is a
-// decision and not an accident.
+// B09 FENCE, NOW CLOSED. B10 shipped with the mobile bar deriving its active
+// module from `?module=` alone, so on the five full routes — which have no
+// `?module=` in their grammar — it marked "Inicio" below 768px. This spec
+// pinned that deliberately, so changing it would be a decision and not an
+// accident. The decision was taken: "Inicio" is an ADMIN destination and the
+// clinic bar retired it (B09_CLINIC_HOME_ITEM = RETIRED), so the bar now reads
+// the layout segment the way the lateral frame reads its `module` prop, and a
+// full route marks its own module on BOTH bands.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const APP_ORIGIN = "http://127.0.0.1:3000";
@@ -445,9 +449,9 @@ test.describe("B10 · the declared active module reaches the lateral band", () =
   }
 });
 
-// ── B09 fence: the mobile bar's behaviour is preserved, not corrected ────────
+// ── B09 fence: the declared follow-up, taken ─────────────────────────────────
 
-test("B10 · the mobile bar still marks Inicio on a full route (preserved B09 behaviour)", async ({
+test("B10 · a full route marks its OWN module on the mobile bar, not Inicio", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -457,14 +461,19 @@ test("B10 · the mobile bar still marks Inicio on a full route (preserved B09 be
   const bar = painted(page, MOBILE_NAV_SELECTOR);
   await expect(bar).toHaveCount(1);
 
-  // The bar derives its active module from `?module=` alone, and a full route
-  // carries none. B10 preserves this deliberately: the shell publishes its
-  // module to the lateral frame only. Changing it is a declared follow-up, so
-  // this assertion exists to make that change a decision rather than a
-  // side effect.
+  // B10 shipped with the bar deriving its module from `?module=` alone, and a
+  // full route carries none, so it marked "Inicio". That was pinned as a
+  // declared follow-up rather than a side effect. Taking it: the clinic bar
+  // has no Inicio at all now, and the segment below `/dashboard` — which IS
+  // the clinic module id — resolves the route, the same fact the shell hands
+  // the lateral frame as `module="informes"`. Both bands agree.
   await expect(
     bar.locator('[data-dashboard-mobile-nav-item="home"]'),
-    "the mobile bar marks Inicio on a full route",
+    "the clinic mobile bar carries no Inicio",
+  ).toHaveCount(0);
+  await expect(
+    bar.locator('[data-dashboard-mobile-nav-item="informes"]'),
+    "the full route marks its own module",
   ).toHaveAttribute("aria-current", "page", { timeout: 15_000 });
   await expect(
     bar.locator("[aria-current='page']"),

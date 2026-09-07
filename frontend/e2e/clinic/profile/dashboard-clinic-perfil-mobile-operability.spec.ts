@@ -51,16 +51,19 @@ async function expectClinicMobileNav(
     ).toHaveCount(1);
   }
 
-  // CMP-02: clinic mirrors Admin's five-slot bar: Inicio, three operational
-  // modules, then Más. Perfil and Tokens remain reachable through Más.
+  // B09_CLINIC_HOME_ITEM = RETIRED — four slots: the three operational
+  // modules CMP-02 curated, then Más. Perfil and Tokens stay reachable
+  // through Más. "Inicio" is an ADMIN destination: the hub is admin's null
+  // module state, and Clínica paints no home item on the lateral bands
+  // either, so the bar has none.
   await expect(
     nav.locator("[data-dashboard-mobile-nav-item]"),
-    `${label}: five clinic primary destinations`,
-  ).toHaveCount(5);
+    `${label}: four clinic primary destinations`,
+  ).toHaveCount(4);
   await expect(
     nav.locator('[data-dashboard-mobile-nav-item="home"]'),
-    `${label}: Inicio preserved`,
-  ).toHaveCount(1);
+    `${label}: no Inicio on the clinic bar`,
+  ).toHaveCount(0);
 
   const currentDestination = ["perfil", "tokens"].includes(activeModule)
     ? "overflow"

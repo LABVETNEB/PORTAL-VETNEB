@@ -269,6 +269,19 @@ REMOVE_HOME = FALSE
 El `home` clínico se convierte en un hub real, estructuralmente equivalente al de Admin.
 La opción (a) del análisis original — retirar el slot — queda **descartada**.
 
+> **SUPERSEDED por decisión posterior de Nico — `REMOVE_HOME = TRUE`.**
+> El bloque de arriba queda como registro de lo decidido en CMP-02 y no se reescribe. La
+> opción (a) — retirar el slot — fue finalmente tomada: `B09_CLINIC_HOME_ITEM = RETIRED`.
+> La barra móvil de Clínica pasa de 5 ranuras a 4 (`operaciones`, `informes`, `logistica`,
+> `overflow`) y no pinta `Inicio`. Razón: Inicio es una destinación de **Administración**
+> —el hub es su estado de módulo nulo— y Clínica tampoco lo pinta en las bandas laterales
+> (`NavigationRail`/`NavigationDrawer` lo renderizan sólo para admin y
+> `DashboardNavigationFrame` tipa el módulo activo clínico como **no nulable**). La barra
+> era la última superficie donde los dos roles discrepaban.
+> El estado `/dashboard?hub=1` y `ClinicModuleHub` **siguen existiendo y renderizando**:
+> no se eliminó nada, sólo dejó de haber una superficie clínica que enlace a ellos.
+> Admin queda intacto (5 ranuras, `Inicio` incluido).
+
 ### Implementation detail
 - El componente **ya es compartido**: el cambio es de configuración, no de primitivo.
   Elevar el límite de slots a una constante única `MOBILE_NAV_SLOTS = 5` aplicada a ambos
@@ -299,13 +312,18 @@ La rama admin del catálogo de destinos y el orden de sus 5 slots.
 
 ### Acceptance criteria
 ```text
-bottomNavItemCount   == 5
+bottomNavItemCount   == 5   (SUPERSEDED -> 4, ver la nota de la decisión bloqueada)
 bottomNavItem box    == 78 × 50.2 (±2px)
 bottomNav label      == 9.6px
 overflow             presente y paginable
 bottomNav height     == 51.19 (sin cambio)
 ADMIN_REGRESSION_GATE PASS
 ```
+
+Con `REMOVE_HOME = TRUE` la ranura mide `ancho_viewport / 4` (90 px a 360, 97.5 px a 390,
+107.5 px a 430) en vez de 78 px, con la misma altura de 50.19 px, la misma etiqueta de
+9.6 px y la misma banda de 51.19 px. `main` no cambia de altura en ningún viewport, de modo
+que el ledger de capacidad (A03) queda intacto.
 
 ### Runtime validation
 Las 10 superficies × 6 viewports, más la hoja de overflow abierta y paginada.
@@ -1228,7 +1246,9 @@ La gramática G-001…G-015 de §7 de la auditoría, medida en runtime, no trans
   - `rowPitch == "regular"` y filas con el hook adaptativo;
   - `pagerHeight == 40` y etiqueta con rango + total;
   - `appBarHeight == 48`, 1 acción, sin subtítulo;
-  - `bottomNavItemCount == 5`;
+  - `bottomNavItemCount`: `admin == 5`, `clinic == admin - 1`, con la diferencia acotada al
+    slot `home` (`homeItemCount`: admin `1`, clinic `0`) — la única divergencia declarada
+    del contrato, medida y no relajada (`REMOVE_HOME = TRUE`);
   - `pageScrollsY == false`, `pageScrollsX == false`, `localScrollers == 0`;
   - ausencia de overflow horizontal;
   - interacción: tab, pager y diálogo operados con readback.

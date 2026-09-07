@@ -140,7 +140,7 @@ test("the lateral navigation (all 5 modules) appears on every module", async ({
   }
 });
 
-test("the five-slot mobile model keeps the secondary modules reachable through overflow", async ({
+test("the four-slot mobile model keeps the secondary modules reachable through overflow", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 375, height: 812 });
@@ -160,12 +160,30 @@ test("the five-slot mobile model keeps the secondary modules reachable through o
         nav.locator(`[data-dashboard-mobile-nav-item="${other}"]`),
       ).toHaveCount(1);
     }
+    // B09_CLINIC_HOME_ITEM = RETIRED. This spec's whole subject is that the
+    // clinic dashboard has no home/hub surface, so a home slot on its only
+    // phone navigation was the last contradiction of that: "Inicio" is an
+    // admin destination and the clinic bar now ships four slots.
     await expect(
       nav.locator('[data-dashboard-mobile-nav-item="home"]'),
-    ).toHaveCount(1);
+    ).toHaveCount(0);
     const overflow = nav.locator('[data-dashboard-mobile-nav-item="overflow"]');
     await expect(overflow).toHaveCount(1);
-    await expect(nav.locator("[data-dashboard-mobile-nav-item]")).toHaveCount(5);
+    await expect(nav.locator("[data-dashboard-mobile-nav-item]")).toHaveCount(4);
+    // Losing the slot that used to hold `aria-current` must not leave the bar
+    // with nothing marked: a promoted module reports on its own slot, an
+    // overflowed one on "Más".
+    const currentDestination = ["perfil", "tokens"].includes(moduleId)
+      ? "overflow"
+      : moduleId;
+    await expect(
+      nav.locator(`[data-dashboard-mobile-nav-item="${currentDestination}"]`),
+      `${moduleId}: ${currentDestination} reports current`,
+    ).toHaveAttribute("aria-current", "page", { timeout: 15_000 });
+    await expect(
+      nav.locator("[aria-current='page']"),
+      `${moduleId}: exactly one current destination`,
+    ).toHaveCount(1);
     await overflow.click();
     const overflowMenu = page.locator('[data-dashboard-mobile-nav-overflow="true"]');
     await expect(overflowMenu).toBeVisible();
