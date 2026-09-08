@@ -122,7 +122,61 @@ test("clinic tokens uses table/list row actions with dialog detail and step dial
   assert.ok(source.includes("Anterior"));
   assert.ok(source.includes('title="Generar token particular"'));
   assert.ok(source.includes('title="Token generado"'));
-  assert.equal(source.includes("overflow-y-auto"), false);
+
+  // CTW-1. This used to be a file-wide `overflow-y-auto` ban. What that ban was
+  // protecting is the CARD surface: the tokens list is a zero-scroll region that
+  // paginates against measured capacity, so a scroller there would silently
+  // replace the adaptive paging this same test pins above. It was never a claim
+  // about the modals — the detail dialog in this very file already opts into
+  // `ModuleDialog`'s `scrollableBody`, i.e. a dialog owning its overflow is an
+  // authorized shape here, just expressed through a prop instead of a class.
+  //
+  // The create wizard now needs the same thing for a measured reason: its step
+  // fields wrapper carries `min-h-0`, so once the panel hits `max-h-[88vh]`
+  // flexbox shrinks it below its content and — with overflow visible — that
+  // content painted straight through the action row (320x720, step Paciente:
+  // last select ended at 586.2, action row started at 558.8). Owning the
+  // overflow is what makes those fields reachable instead of overlapped.
+  //
+  // So the ban is narrowed to the surface it was actually about, and paired
+  // with a count so the wizard's scroller cannot quietly become two.
+  assert.equal(
+    sectionBetween(source, "<ModuleCard", 'title="Generar token particular"').includes(
+      "overflow-y-auto",
+    ),
+    false,
+    "the tokens card/list surface must stay a zero-scroll, paginated region",
+  );
+  assert.equal(
+    source.match(/overflow-y-auto/g)?.length,
+    1,
+    "exactly one scroll owner in this file: the create wizard's step fields",
+  );
+  assert.ok(
+    source.includes(
+      'className="-mx-5 min-h-0 overflow-y-auto overscroll-contain px-5"',
+    ),
+    "the wizard's single scroll owner keeps its overscroll containment and padding compensation",
+  );
+
+  // The wizard action row is a deliberate two-tier composition, not a wrap
+  // artifact: a two-column grid below `md` (secondaries share a row, the
+  // primary takes a full-width row when there are two of them) restored to a
+  // single flex row from `md` up. The geometry itself is asserted in
+  // frontend/e2e/clinic/tokens/dashboard-clinic-tokens-mobile-parity.spec.ts.
+  assert.ok(source.includes('data-clinic-access-wizard-actions="true"'));
+  assert.ok(
+    source.includes(
+      'className="grid shrink-0 grid-cols-2 gap-2 border-t border-vetneb-line/70 pt-3 md:flex md:items-center md:justify-end"',
+    ),
+  );
+  assert.equal(
+    source.includes(
+      'className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-vetneb-line/70 pt-3"',
+    ),
+    false,
+    "the retired nested flex-wrap action row must not come back",
+  );
 });
 
 // The rows/items wrapper pair is gone: `useAdaptiveRowsPerPage` only renamed

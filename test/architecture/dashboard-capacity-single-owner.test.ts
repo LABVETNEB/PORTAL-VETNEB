@@ -180,15 +180,46 @@ test("migrated consumers observe at most the canvas, and never the rows", () => 
 // the runtime contract in
 // frontend/e2e/clinic/reports/clinic-informes-zero-internal-scroll.spec.ts
 // asserts there is at most one of them and that its end is reachable.
-const SANCTIONED_SCROLL_OWNER_ANCHOR = 'data-informes-detail-scroll-owner="true"';
+// CTW-1 widened this from a single anchor to a registry, without changing what
+// an exemption costs. The second entry is the clinic token wizard's step-field
+// region: a MODAL FORM inside `ModuleDialog`, which owns no rows, no capacity
+// and no pager — the same "not a rows-capacity region" category the paragraph
+// above already recognises. Its previous way of staying inside `max-h-[88vh]`
+// was the failure mode this ban exists to prevent, only worse than truncation:
+// the wrapper carries `min-h-0`, so flexbox shrank it below its content and the
+// fields painted THROUGH the action row (320x720, step Paciente: the last
+// select ended at 586.2, the action row started at 558.8) with nothing able to
+// scroll them back into reach.
+//
+// Every exemption is still paid for twice: the anchor may not sit on the rows
+// canvas or a reserved region (asserted below, per anchor), and each one names
+// the runtime contract that proves its end is reachable.
+const SANCTIONED_SCROLL_OWNERS = [
+  {
+    anchor: 'data-informes-detail-scroll-owner="true"',
+    runtimeContract:
+      "frontend/e2e/clinic/reports/clinic-informes-zero-internal-scroll.spec.ts",
+  },
+  {
+    anchor: 'data-clinic-access-wizard-scroll-owner="true"',
+    runtimeContract:
+      "frontend/e2e/clinic/tokens/dashboard-clinic-tokens-mobile-parity.spec.ts",
+  },
+] as const;
+
 const FORBIDDEN_SCROLLER =
   /overflow-y-auto|overflow-y:\s*auto|overflow:\s*scroll|overflow-scroll/;
 
-/** Drops the opening tag of the sanctioned owner so the ban can run on the rest. */
+function sanctionedOwnerTagRegex(anchor: string): RegExp {
+  return new RegExp(`<[a-zA-Z]+\\s[^>]*${anchor}[^>]*>`, "g");
+}
+
+/** Drops the opening tags of the sanctioned owners so the ban runs on the rest. */
 function stripSanctionedScrollOwner(source: string): string {
-  return source.replace(
-    new RegExp(`<[a-zA-Z]+\\s[^>]*${SANCTIONED_SCROLL_OWNER_ANCHOR}[^>]*>`, "g"),
-    "",
+  return SANCTIONED_SCROLL_OWNERS.reduce(
+    (stripped, owner) =>
+      stripped.replace(sanctionedOwnerTagRegex(owner.anchor), ""),
+    source,
   );
 }
 
@@ -203,30 +234,34 @@ test("migrated consumers introduce no forbidden internal scroller", () => {
   }
 });
 
-test("the sanctioned detail scroll owner is never the rows canvas", () => {
+for (const { anchor, runtimeContract } of SANCTIONED_SCROLL_OWNERS) {
+  test(`the sanctioned scroll owner ${anchor} is never the rows canvas`, () => {
   const owners = MIGRATED_CONSUMERS.filter((path) =>
-    readSource(path).includes(SANCTIONED_SCROLL_OWNER_ANCHOR),
+    readSource(path).includes(anchor),
   );
 
   assert.equal(
     owners.length,
     1,
-    `exactly one migrated consumer may declare the sanctioned detail scroll owner, found ${owners.length}`,
+    `exactly one migrated consumer may declare ${anchor}, found ${owners.length}`,
+  );
+
+  // An exemption whose runtime contract does not exist is an unpaid exemption:
+  // the ban is lifted here only because something else proves the region's end
+  // stays reachable at runtime.
+  assert.ok(
+    existsSync(resolve(process.cwd(), runtimeContract)),
+    `${anchor}: its runtime reachability contract ${runtimeContract} must exist`,
   );
 
   for (const path of owners) {
     const source = readSource(path);
 
-    // The exemption covers a DETAIL region. If the anchor ever lands on the
-    // element that also declares the rows canvas — or its pager reserve — the
-    // scroller IS papering over a capacity bug and the ban must bite again.
+    // The exemption covers a region that owns no rows. If the anchor ever lands
+    // on the element that also declares the rows canvas — or its pager reserve —
+    // the scroller IS papering over a capacity bug and the ban must bite again.
     const openingTags = [
-      ...source.matchAll(
-        new RegExp(
-          `<[a-zA-Z]+\\s[^>]*${SANCTIONED_SCROLL_OWNER_ANCHOR}[^>]*>`,
-          "g",
-        ),
-      ),
+      ...source.matchAll(sanctionedOwnerTagRegex(anchor)),
     ].map((match) => match[0]);
 
     assert.ok(openingTags.length > 0, `${path}: sanctioned owner tag not found`);
@@ -244,7 +279,8 @@ test("the sanctioned detail scroll owner is never the rows canvas", () => {
       );
     }
   }
-});
+  });
+}
 
 test("every migrated consumer keeps a pager reservation in flow", () => {
   for (const path of MIGRATED_CONSUMERS) {
