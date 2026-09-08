@@ -282,6 +282,22 @@ La opción (a) del análisis original — retirar el slot — queda **descartada
 > no se eliminó nada, sólo dejó de haber una superficie clínica que enlace a ellos.
 > Admin queda intacto (5 ranuras, `Inicio` incluido).
 
+> **SUPERSEDED por decisión posterior de Nico — `CLINIC_MOBILE_OVERFLOW = RETIRED`.**
+> Los dos bloques de arriba quedan como registro y no se reescriben. El corte primario
+> clínico deja de ser una curación: `CLINIC_MOBILE_PRIMARY_MODULE_IDS` pasa a declarar el
+> **catálogo completo** en orden de barra — `operaciones`, `informes`, `logistica`,
+> `tokens`, `perfil` — de modo que Clínica vuelve a 5 ranuras, **todas destinos**, sin
+> `Inicio` y sin «Más». `perfil` queda último y `tokens` penúltimo.
+> Razón: las dos ranuras que Admin gasta en chrome (`home` + `overflow`) son exactamente
+> las dos que Clínica necesitaba para promover `tokens` y `perfil`; con cinco módulos
+> contra una banda de cinco ranuras el **resto** que justificaba la hoja queda vacío.
+> `hasDestinationOverflow` se **deriva** del corte contra el catálogo, así que esto retira
+> el trigger y la hoja en lugar de ocultarlos: un sexto módulo clínico los devuelve solo.
+> Consecuencia sobre `aria-current`: cada módulo reporta en **su propia** ranura. «Más»
+> lo reclamaba por cuenta de `tokens`/`perfil`, correcto mientras estaban fuera de la
+> barra e imposible ahora que están en ella.
+> Admin queda intacto: corta 3 de 10, conserva `Inicio`, «Más» y la hoja paginada.
+
 ### Implementation detail
 - El componente **ya es compartido**: el cambio es de configuración, no de primitivo.
   Elevar el límite de slots a una constante única `MOBILE_NAV_SLOTS = 5` aplicada a ambos
@@ -312,10 +328,13 @@ La rama admin del catálogo de destinos y el orden de sus 5 slots.
 
 ### Acceptance criteria
 ```text
-bottomNavItemCount   == 5   (SUPERSEDED -> 4, ver la nota de la decisión bloqueada)
+bottomNavItemCount   == 5   (SUPERSEDED -> 4 -> 5, ver las notas de la decisión bloqueada:
+                             4 con `REMOVE_HOME = TRUE`, 5 de nuevo con
+                             `CLINIC_MOBILE_OVERFLOW = RETIRED`, esta vez 5 destinos reales)
 bottomNavItem box    == 78 × 50.2 (±2px)
 bottomNav label      == 9.6px
-overflow             presente y paginable
+overflow             presente y paginable   (SUPERSEDED -> ausente en Clínica; sigue
+                                            presente y paginable en Admin)
 bottomNav height     == 51.19 (sin cambio)
 ADMIN_REGRESSION_GATE PASS
 ```
@@ -1246,9 +1265,12 @@ La gramática G-001…G-015 de §7 de la auditoría, medida en runtime, no trans
   - `rowPitch == "regular"` y filas con el hook adaptativo;
   - `pagerHeight == 40` y etiqueta con rango + total;
   - `appBarHeight == 48`, 1 acción, sin subtítulo;
-  - `bottomNavItemCount`: `admin == 5`, `clinic == admin - 1`, con la diferencia acotada al
-    slot `home` (`homeItemCount`: admin `1`, clinic `0`) — la única divergencia declarada
-    del contrato, medida y no relajada (`REMOVE_HOME = TRUE`);
+  - `bottomNavItemCount`: `admin == 5`, `clinic == admin` — la igualdad del total se
+    recupera con `CLINIC_MOBILE_OVERFLOW = RETIRED` (era `admin - 1` mientras Clínica
+    corría cuatro ranuras). Las dos divergencias declaradas se **miden** y se fijan por rol,
+    no se relajan: `homeItemCount` (admin `1`, clinic `0`, `REMOVE_HOME = TRUE`) y
+    `overflowItemCount` (admin `1`, clinic `0`). De ahí se deriva el reparto, que también
+    se asserta: destinos directos `admin == 3`, `clinic == 5`;
   - `pageScrollsY == false`, `pageScrollsX == false`, `localScrollers == 0`;
   - ausencia de overflow horizontal;
   - interacción: tab, pager y diálogo operados con readback.

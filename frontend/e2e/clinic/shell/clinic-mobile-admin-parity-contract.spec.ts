@@ -63,20 +63,27 @@ function assertShellAndSurfaceParity(
   // floor. The band's height is asserted below with the same 0.5px tolerance
   // as every other structural dimension, and it is unchanged.
   //
-  // ONE DECLARED DIVERGENCE, MEASURED — NOT A RELAXED COUNT. Slot count is a
-  // set of DESTINATIONS, and the roles do not have the same ones: the hub is
-  // ADMIN's null module state, reached through "Inicio", and Clínica owns no
-  // home destination on any band — `NavigationRail`/`NavigationDrawer` paint
-  // that item for admin only and `DashboardNavigationFrame` types the clinic
-  // active module as NON-NULLABLE. Retiring it from this bar
-  // (B09_CLINIC_HOME_ITEM = RETIRED) is what finally made the three regimes
-  // agree; the parity contract has to record that, not forbid it.
+  // ONE BAND, ONE CAPACITY, TWO COMPOSITIONS — MEASURED, NOT RELAXED. Slot
+  // count is a set of DESTINATIONS plus the CHROME a role needs to reach the
+  // ones that do not fit, and the roles differ in both:
   //
-  // PC-7 forbids declaring parity by weakening an assertion, so the exception
-  // is pinned harder than the equality it replaces: the delta must be EXACTLY
-  // the home slot, admin must still carry it and Clínica must not. A clinic bar
-  // that lost any OTHER destination, or an admin bar that lost Inicio, fails
-  // here just as it did before.
+  //   admin    home 1 + overflow 1 + 3 destinations = 5
+  //   clínica  home 0 + overflow 0 + 5 destinations = 5
+  //
+  // The hub is ADMIN's null module state, reached through "Inicio", and Clínica
+  // owns no home destination on any band — `NavigationRail`/`NavigationDrawer`
+  // paint that item for admin only and `DashboardNavigationFrame` types the
+  // clinic active module as NON-NULLABLE (B09_CLINIC_HOME_ITEM = RETIRED). The
+  // overflow trigger exists only while a role's primary cut is SHORTER than its
+  // catalog: Admin cuts 3 of 10 and keeps "Más", Clínica promotes all 5 and
+  // loses it (CLINIC_MOBILE_OVERFLOW = RETIRED).
+  //
+  // PC-7 forbids declaring parity by weakening an assertion, and this is the
+  // opposite of a weakening: the TOTAL is an equality again — it was
+  // `admin - 1` while Clínica ran four slots — and each role's split is pinned
+  // exactly, so nothing is left free. A clinic bar that lost a destination
+  // fails on the total; one that grew a "Más" fails on `overflowItemCount`; an
+  // admin bar that lost Inicio or its overflow fails on its own counts.
   expectBoundsWithinTolerance({ ...ctx, region: "bottomNav", admin: admin.bottomNav.bounds, clinic: clinic.bottomNav.bounds, axis: "height" });
   expect(
     admin.bottomNav.homeItemCount,
@@ -87,9 +94,33 @@ function assertShellAndSurfaceParity(
     formatParityFailure({ ...ctx, region: "bottomNav", property: "homeItemCount(clinic)", adminValue: admin.bottomNav.homeItemCount, clinicValue: clinic.bottomNav.homeItemCount }),
   ).toBe(0);
   expect(
+    admin.bottomNav.overflowItemCount,
+    formatParityFailure({ ...ctx, region: "bottomNav", property: "overflowItemCount(admin)", adminValue: admin.bottomNav.overflowItemCount, clinicValue: clinic.bottomNav.overflowItemCount }),
+  ).toBe(1);
+  expect(
+    clinic.bottomNav.overflowItemCount,
+    formatParityFailure({ ...ctx, region: "bottomNav", property: "overflowItemCount(clinic)", adminValue: admin.bottomNav.overflowItemCount, clinicValue: clinic.bottomNav.overflowItemCount }),
+  ).toBe(0);
+  expect(
     clinic.bottomNav.itemCount,
-    formatParityFailure({ ...ctx, region: "bottomNav", property: "itemCount (admin minus the admin-only hub slot)", adminValue: admin.bottomNav.itemCount, clinicValue: clinic.bottomNav.itemCount }),
-  ).toBe(admin.bottomNav.itemCount - admin.bottomNav.homeItemCount);
+    formatParityFailure({ ...ctx, region: "bottomNav", property: "itemCount (one band, one capacity)", adminValue: admin.bottomNav.itemCount, clinicValue: clinic.bottomNav.itemCount }),
+  ).toBe(admin.bottomNav.itemCount);
+
+  // The destinations each role actually reaches in one tap, derived from the
+  // two counts above rather than restated as a literal: the split is the whole
+  // point of the divergence, so it gets its own failure message.
+  const adminDestinations =
+    admin.bottomNav.itemCount - admin.bottomNav.homeItemCount - admin.bottomNav.overflowItemCount;
+  const clinicDestinations =
+    clinic.bottomNav.itemCount - clinic.bottomNav.homeItemCount - clinic.bottomNav.overflowItemCount;
+  expect(
+    adminDestinations,
+    formatParityFailure({ ...ctx, region: "bottomNav", property: "directDestinations(admin)", adminValue: adminDestinations, clinicValue: clinicDestinations }),
+  ).toBe(3);
+  expect(
+    clinicDestinations,
+    formatParityFailure({ ...ctx, region: "bottomNav", property: "directDestinations(clinic)", adminValue: adminDestinations, clinicValue: clinicDestinations }),
+  ).toBe(5);
 
   // ── stage / workspace / viewport hooks ──────────────────────────────
   expect(clinic.stage.count, formatParityFailure({ ...ctx, region: "stage", property: "count", adminValue: admin.stage.count, clinicValue: clinic.stage.count })).toBe(1);

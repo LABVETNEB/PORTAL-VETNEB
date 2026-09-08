@@ -69,8 +69,9 @@ import {
  *
  * DESTINATIONS, NOT ACTIONS. The overflow this component owns is a DESTINATION
  * overflow: the same ordered catalog, behind a "Más" entry, when the role has
- * more modules than the bar has slots. The ACTION overflow (theme,
- * notifications, password, public site, logout) stays in
+ * more modules than the bar has slots — which is now ADMIN ALONE, see the slot
+ * contract below. The ACTION overflow (theme, notifications, password, public
+ * site, logout) stays in
  * `AdminMobileKebabMenu`, injected into the app bar by `DashboardTopbar`.
  * Merging them is not a simplification: that menu composes
  * `DashboardLogoutControl` and `DashboardNotificationsBell`, both of which
@@ -91,12 +92,30 @@ import {
  * through `parseAdminModule` converges both on the hub instead, and also makes
  * the alias table (`?module=maintenance`) light the right entry.
  *
- * ONE SLOT DIFFERS BY ROLE, AND ONLY ONE. B09_CLINIC_HOME_ITEM = RETIRED: the
- * bar paints "Inicio" for ADMIN alone. The hub is admin's null module state,
- * and Clínica never owned that destination anywhere else — `NavigationRail`
- * and `NavigationDrawer` render the item for admin only, and
- * `DashboardNavigationFrame` types the clinic active module as NON-NULLABLE.
- * Dropping it here made the two regimes agree and gave Clínica four slots.
+ * ONE BAND, FIVE SLOTS, TWO COMPOSITIONS. The band is one primitive with one
+ * capacity, and each role spends it differently:
+ *
+ *   admin    Inicio · Clínicas · Auditoría · Sesiones · Más   (2 chrome, 3 destinations)
+ *   clínica  Ops · Info · Log · Tokens · Perfil               (0 chrome, 5 destinations)
+ *
+ * B09_CLINIC_HOME_ITEM = RETIRED: the bar paints "Inicio" for ADMIN alone. The
+ * hub is admin's null module state, and Clínica never owned that destination
+ * anywhere else — `NavigationRail` and `NavigationDrawer` render the item for
+ * admin only, and `DashboardNavigationFrame` types the clinic active module as
+ * NON-NULLABLE.
+ *
+ * CLINIC_MOBILE_OVERFLOW = RETIRED: the two slots Admin spends on chrome are the
+ * two Clínica spends on `tokens` and `perfil`, which used to be reachable only
+ * by opening "Más". Clínica ships FIVE modules against a FIVE-slot band, so the
+ * remainder that justified a sheet is empty and `hasDestinationOverflow` reports
+ * false for the role — no trigger, no `aria-expanded`, no sheet in the tree.
+ * That is a capacity fact, not a role flag: give Clínica a sixth module and the
+ * overflow comes back on its own, for the same reason Admin has one.
+ *
+ * The consequence for `aria-current` is that Clínica now reports it on the real
+ * destination in every case. "Más" used to claim it on behalf of `tokens` and
+ * `perfil` — correct while they were off the bar, and impossible now that they
+ * are on it.
  *
  * That is why the clinic branch of the resolver ends in `DEFAULT_CLINIC_MODULE`
  * and reads the layout segment first. Inicio was the entry that carried
@@ -164,6 +183,27 @@ const PRIMARY_MODULE_IDS: Record<
   admin: ADMIN_MOBILE_PRIMARY_MODULE_IDS,
   clinic: CLINIC_MOBILE_PRIMARY_MODULE_IDS,
 };
+
+/**
+ * The bar carries a destination overflow only while the role's primary cut is
+ * SHORTER than its catalog — derived, never declared.
+ *
+ * CLINIC_MOBILE_OVERFLOW = RETIRED. Promoting the last clinic module into
+ * `CLINIC_MOBILE_PRIMARY_MODULE_IDS` is what retires "Más" for the role: there
+ * is no remainder left for a sheet to list, so the trigger, its `aria-expanded`
+ * state and the sheet itself all stop existing for Clínica instead of being
+ * hidden or disabled. Admin still cuts 3 of 10, so nothing about its bar moves.
+ *
+ * Reading it HERE rather than only inside the bar is what keeps the sheet out of
+ * the clinic tree entirely: the owner mounts `DashboardMobileNavOverflow` as a
+ * child, and a child that renders `null` is still a child.
+ */
+function hasDestinationOverflow(
+  surface: DashboardMobileNavSurface,
+  all: readonly MobileNavDestination[],
+): boolean {
+  return PRIMARY_MODULE_IDS[surface].length < all.length;
+}
 
 function primaryDestinations(
   surface: DashboardMobileNavSurface,
@@ -361,7 +401,7 @@ function DashboardMobileNavBar({
 }: MobileNavBarProps) {
   const all = useMemo(() => destinationsFor(surface), [surface]);
   const primary = useMemo(() => primaryDestinations(surface, all), [surface, all]);
-  const hasOverflow = primary.length < all.length;
+  const hasOverflow = hasDestinationOverflow(surface, all);
   const basePath = SURFACE_BASE_PATH[surface];
 
   // B09_CLINIC_HOME_ITEM = RETIRED. "Inicio" is an ADMIN destination: the hub
@@ -556,6 +596,7 @@ function MobileNavWithUrl({ surface }: DashboardMobileNavProps) {
   }, [surface]);
 
   const all = useMemo(() => destinationsFor(surface), [surface]);
+  const hasOverflow = hasDestinationOverflow(surface, all);
 
   return (
     <DashboardMobileNavBar
@@ -567,14 +608,16 @@ function MobileNavWithUrl({ surface }: DashboardMobileNavProps) {
       overflowOpen={overflowOpen}
       onToggleOverflow={() => setOverflowOpen((current) => !current)}
     >
-      <DashboardMobileNavOverflow
-        surface={surface}
-        isOpen={overflowOpen}
-        destinations={all}
-        basePath={SURFACE_BASE_PATH[surface]}
-        onClose={closeOverflow}
-        onNavigate={activate}
-      />
+      {hasOverflow ? (
+        <DashboardMobileNavOverflow
+          surface={surface}
+          isOpen={overflowOpen}
+          destinations={all}
+          basePath={SURFACE_BASE_PATH[surface]}
+          onClose={closeOverflow}
+          onNavigate={activate}
+        />
+      ) : null}
     </DashboardMobileNavBar>
   );
 }

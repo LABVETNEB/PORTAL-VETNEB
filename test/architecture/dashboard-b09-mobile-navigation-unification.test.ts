@@ -34,6 +34,9 @@ import { resolve } from "node:path";
 
 const REPO_ROOT = process.cwd();
 
+/** Start of a top-level closing brace, as it appears in formatted source. */
+const CLOSING_BRACE = "\n}";
+
 const MOBILE_NAV_TSX = "frontend/src/components/dashboard/DashboardMobileNav.tsx";
 const SHELL_ROUTER_TSX =
   "frontend/src/components/dashboard/DashboardShellRouter.tsx";
@@ -926,4 +929,109 @@ test("B09 · every preserved behaviour has a carrier in the new owner", () => {
     executable.includes('aria-label="Página siguiente de módulos"'),
     "the destination overflow keeps the pagination the retired module menu shipped",
   );
+});
+
+// ── T10 · CLINIC_MOBILE_OVERFLOW = RETIRED ───────────────────────────────────
+
+test("B09 · the clinic bar promotes its whole catalog and keeps no overflow", () => {
+  const catalog = read(MODULE_CATALOG);
+
+  // The cut is DATA, in bar order, and the order is a product decision: `tokens`
+  // is promoted ahead of `perfil` so the account-shaped destination stays last.
+  // Asserted as an ordered list rather than a set, because "Perfil is the last
+  // slot" is the part of the contract a set would not hold.
+  const cutFrom = catalog.indexOf(
+    "export const CLINIC_MOBILE_PRIMARY_MODULE_IDS",
+  );
+  assert.ok(cutFrom !== -1, "the clinic primary cut must stay declared");
+  const cut = catalog.slice(cutFrom, catalog.indexOf("];", cutFrom));
+  assert.deepEqual(
+    [...cut.matchAll(/"([a-z-]+)",/g)].map((match) => match[1]),
+    ["operaciones", "informes", "logistica", "tokens", "perfil"],
+    "the clinic bar ships five destinations, with tokens penultimate and perfil last",
+  );
+
+  // The cut IS the catalog: that identity — not a literal 5 — is what retires
+  // the overflow. Derived from the registry so a sixth clinic module fails here
+  // instead of silently falling off the bar with no way to reach it.
+  const idsFrom = catalog.indexOf("export const CLINIC_MODULE_IDS");
+  assert.ok(idsFrom !== -1, "the clinic registry must stay declared");
+  const ids = catalog.slice(idsFrom, catalog.indexOf("];", idsFrom));
+  const registry = [...ids.matchAll(/"([a-z-]+)",/g)].map((match) => match[1]);
+  assert.equal(registry.length, 5, "the clinic registry census must not be empty");
+  assert.deepEqual(
+    [...registry].sort(),
+    ["operaciones", "informes", "logistica", "tokens", "perfil"].sort(),
+    "every clinic module is promoted: the cut leaves no remainder for a sheet",
+  );
+
+  const executable = stripComments(read(MOBILE_NAV_TSX));
+
+  // DERIVED, NOT FLAGGED. The overflow exists while the cut is shorter than the
+  // catalog — for BOTH roles, through one expression. A `surface === "clinic"`
+  // test around the overflow would be the same short-circuit CMP-02 retired
+  // from `primaryDestinations`, rebuilt one level up.
+  assert.match(
+    executable,
+    /function hasDestinationOverflow\([\s\S]*?PRIMARY_MODULE_IDS\[surface\]\.length < all\.length/,
+    "the overflow is derived from the cut against the catalog, per surface, in one place",
+  );
+  assert.match(
+    executable,
+    /const hasOverflow = hasDestinationOverflow\(surface, all\);/,
+    "the bar reads the shared derivation instead of recomputing it",
+  );
+  // Scoped to the derivation itself: `surface !== "clinic"` is legitimate
+  // elsewhere in the owner (the clinic activation/hub-reset subscriptions are
+  // gated on it). What may not exist is a ROLE literal deciding the overflow.
+  const derivation = executable.slice(
+    executable.indexOf("function hasDestinationOverflow("),
+  );
+  const derivationBody = derivation.slice(0, derivation.indexOf(CLOSING_BRACE) + 2);
+  assert.ok(
+    derivationBody.length > 0,
+    "the overflow derivation must be readable as a unit",
+  );
+  for (const roleLiteral of ['"clinic"', '"admin"']) {
+    assert.equal(
+      derivationBody.includes(roleLiteral),
+      false,
+      `the overflow derivation must not name ${roleLiteral}: the capacity decides, not the role`,
+    );
+  }
+
+  // The SHEET, not just the trigger. `hasOverflow` already gates the "Más"
+  // button; gating the mount too is what keeps the sheet out of the clinic tree
+  // entirely, because a child that renders `null` is still a child.
+  assert.match(
+    executable,
+    /\{hasOverflow \? \(\s*<DashboardMobileNavOverflow/,
+    "the owner mounts the overflow sheet only for a surface that still has one",
+  );
+
+  // ADMIN NEGATIVE CONTROL. Admin cuts 3 of 10, so it keeps both chrome slots
+  // and every affordance the sheet carries. This change is clinic-only.
+  const adminCutFrom = catalog.indexOf(
+    "export const ADMIN_MOBILE_PRIMARY_MODULE_IDS",
+  );
+  assert.ok(adminCutFrom !== -1, "the admin primary cut must stay declared");
+  assert.equal(
+    [...catalog
+      .slice(adminCutFrom, catalog.indexOf("];", adminCutFrom))
+      .matchAll(/"[a-z-]+",/g)].length,
+    3,
+    "admin keeps exactly three promoted modules: five slots, unchanged",
+  );
+  for (const preserved of [
+    'data-dashboard-mobile-nav-item="overflow"',
+    'aria-label="Más"',
+    "aria-expanded={overflowOpen}",
+    "DashboardMobileNavOverflow",
+    'aria-label="Cerrar menú de módulos"',
+  ]) {
+    assert.ok(
+      executable.includes(preserved),
+      `${preserved} is admin's and must survive the clinic-only retirement`,
+    );
+  }
 });

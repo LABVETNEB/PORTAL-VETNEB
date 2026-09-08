@@ -94,8 +94,17 @@ seis superficies de clínica y el rail queda sin ningún régimen visible.
 768 – 1279 px   NavigationRail      80 ±1 px   (B07/B08, sin cambios)
 <  768 px       DashboardMobileNav             ← B09, único owner en ambos roles
                 · admin   Inicio · Clínicas · Auditoría · Sesiones · Más
-                · clínica Inicio · Operaciones · Informes · Logística · Perfil · Tokens
+                · clínica Ops · Info · Log · Tokens · Perfil
 ```
+
+> **Actualizado — `B09_CLINIC_HOME_ITEM = RETIRED` + `CLINIC_MOBILE_OVERFLOW = RETIRED`.**
+> La fila clínica de arriba es el estado vigente, no el que B09 envió. B09 la envió con
+> `Inicio` y seis destinos; CMP-02 la recortó a tres módulos operativos más «Más»;
+> `REMOVE_HOME = TRUE` retiró `Inicio`; y la promoción de `tokens`/`perfil` retiró «Más».
+> Hoy la banda tiene **una capacidad y dos composiciones**: Admin gasta 2 de sus 5 ranuras
+> en chrome (`home` + `overflow`) y 3 en destinos; Clínica gasta 0 en chrome y 5 en
+> destinos. Ver la nota `CLINIC_MOBILE_OVERFLOW = RETIRED` en
+> `docs/implementation/dashboard-clinic-mobile-admin-parity-roadmap.md` (CMP-02).
 
 **Admin — corte primario.** `ADMIN_MOBILE_PRIMARY_MODULE_IDS` es un dato nuevo del
 catálogo, **no** una derivación: el corte que se envía (`admin-clinics`, `audit-log`,
@@ -104,7 +113,11 @@ vivía como `FIXED_DESTINATIONS`, un literal privado con sus propias etiquetas e
 
 **Admin — overflow de destinos.** «Más» abre una hoja que pagina el catálogo **completo**
 (5 por página), igual que el menú retirado: quien la abre ve la misma lista esté donde
-esté. Clínica tiene 5 módulos y 6 ranuras, así que nunca genera overflow.
+esté. Clínica tiene 5 módulos y 5 ranuras, así que no genera overflow: `hasDestinationOverflow`
+compara el corte primario del rol contra su catálogo, de modo que la hoja **no existe** para
+Clínica (ni el trigger, ni el estado `aria-expanded`, ni la sección en el árbol) en vez de
+quedar oculta. Es un hecho de capacidad y no un flag de rol: un sexto módulo clínico la
+devolvería sola, por la misma razón por la que Admin la tiene.
 
 **Destinos ≠ acciones.** `AdminMobileKebabMenu` sigue siendo un owner separado. No es una
 decisión estética: compone `DashboardLogoutControl` y `DashboardNotificationsBell`, y

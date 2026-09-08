@@ -140,7 +140,7 @@ test("the lateral navigation (all 5 modules) appears on every module", async ({
   }
 });
 
-test("the four-slot mobile model keeps the secondary modules reachable through overflow", async ({
+test("the five-slot mobile model reaches every module directly, with no overflow", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 375, height: 812 });
@@ -153,9 +153,9 @@ test("the four-slot mobile model keeps the secondary modules reachable through o
       "aria-label",
       "Navegación móvil de clínica",
     );
-    // The three operational modules occupy the primary slots; the remaining
-    // destinations stay reachable through the same owner's overflow.
-    for (const other of ["operaciones", "informes", "logistica"] as ClinicModule[]) {
+    // CLINIC_MOBILE_OVERFLOW = RETIRED — the whole catalog occupies the primary
+    // slots, so no clinic destination is one sheet away from the bar.
+    for (const other of CLINIC_MODULES) {
       await expect(
         nav.locator(`[data-dashboard-mobile-nav-item="${other}"]`),
       ).toHaveCount(1);
@@ -163,35 +163,30 @@ test("the four-slot mobile model keeps the secondary modules reachable through o
     // B09_CLINIC_HOME_ITEM = RETIRED. This spec's whole subject is that the
     // clinic dashboard has no home/hub surface, so a home slot on its only
     // phone navigation was the last contradiction of that: "Inicio" is an
-    // admin destination and the clinic bar now ships four slots.
+    // admin destination and the clinic bar ships none.
     await expect(
       nav.locator('[data-dashboard-mobile-nav-item="home"]'),
     ).toHaveCount(0);
-    const overflow = nav.locator('[data-dashboard-mobile-nav-item="overflow"]');
-    await expect(overflow).toHaveCount(1);
-    await expect(nav.locator("[data-dashboard-mobile-nav-item]")).toHaveCount(4);
-    // Losing the slot that used to hold `aria-current` must not leave the bar
-    // with nothing marked: a promoted module reports on its own slot, an
-    // overflowed one on "Más".
-    const currentDestination = ["perfil", "tokens"].includes(moduleId)
-      ? "overflow"
-      : moduleId;
     await expect(
-      nav.locator(`[data-dashboard-mobile-nav-item="${currentDestination}"]`),
-      `${moduleId}: ${currentDestination} reports current`,
+      nav.locator('[data-dashboard-mobile-nav-item="overflow"]'),
+    ).toHaveCount(0);
+    await expect(nav.locator("[data-dashboard-mobile-nav-item]")).toHaveCount(5);
+    // Losing the slot that used to hold `aria-current` must not leave the bar
+    // with nothing marked, and no slot may report on another's behalf: every
+    // module is promoted, so every module reports on its OWN slot.
+    await expect(
+      nav.locator(`[data-dashboard-mobile-nav-item="${moduleId}"]`),
+      `${moduleId}: reports current on its own slot`,
     ).toHaveAttribute("aria-current", "page", { timeout: 15_000 });
     await expect(
       nav.locator("[aria-current='page']"),
       `${moduleId}: exactly one current destination`,
     ).toHaveCount(1);
-    await overflow.click();
-    const overflowMenu = page.locator('[data-dashboard-mobile-nav-overflow="true"]');
-    await expect(overflowMenu).toBeVisible();
-    for (const other of ["perfil", "tokens"] as ClinicModule[]) {
-      await expect(
-        overflowMenu.locator(`[data-dashboard-mobile-nav-overflow-link="${other}"]`),
-      ).toHaveCount(1);
-    }
+    // The sheet is gone from the tree, not merely unopened: nothing can reveal
+    // a second copy of the catalog.
+    await expect(
+      page.locator('[data-dashboard-mobile-nav-overflow="true"]'),
+    ).toHaveCount(0);
     // The prev/next pager the retired rail carried is NOT reproduced: it was a
     // second grammar over the same ordered modules, not a destination.
     await expect(page.locator('[data-dashboard-pager="module"]')).toHaveCount(0);

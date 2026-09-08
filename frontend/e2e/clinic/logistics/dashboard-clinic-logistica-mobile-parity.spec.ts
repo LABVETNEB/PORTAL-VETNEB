@@ -77,32 +77,39 @@ async function expectClinicMobileNav(
     .filter({ visible: true });
   await expect(nav, `${label}: clinic mobile navigation visible`).toBeVisible();
 
-  for (const moduleId of ["operaciones", "informes", "logistica"] as const) {
+  for (const moduleId of [
+    "operaciones",
+    "informes",
+    "logistica",
+    "tokens",
+    "perfil",
+  ] as const) {
     await expect(
       nav.locator(`[data-dashboard-mobile-nav-item="${moduleId}"]`),
       `${label}: navigation exposes ${moduleId}`,
     ).toHaveCount(1);
   }
 
-  // B09_CLINIC_HOME_ITEM = RETIRED — four slots: the three operational
-  // modules CMP-02 curated, then Más. Perfil and Tokens stay reachable
-  // through Más. "Inicio" is an ADMIN destination: the hub is admin's null
-  // module state, and Clínica paints no home item on the lateral bands
-  // either, so the bar has none.
+  // B09_CLINIC_HOME_ITEM = RETIRED + CLINIC_MOBILE_OVERFLOW = RETIRED — five
+  // slots, all of them real destinations. Clínica ships five modules against a
+  // five-slot band, so the whole catalog is promoted and there is no remainder
+  // for a "Más" sheet to list. "Inicio" is still an ADMIN destination: the hub
+  // is admin's null module state, and Clínica paints no home item on the
+  // lateral bands either, so the bar has none.
   await expect(
     nav.locator("[data-dashboard-mobile-nav-item]"),
-    `${label}: four clinic primary destinations`,
-  ).toHaveCount(4);
+    `${label}: five clinic primary destinations`,
+  ).toHaveCount(5);
   await expect(
     nav.locator('[data-dashboard-mobile-nav-item="home"]'),
     `${label}: no Inicio on the clinic bar`,
   ).toHaveCount(0);
 
-  const currentDestination = ["perfil", "tokens"].includes(activeModule)
-    ? "overflow"
-    : activeModule;
+  // Every module reports on its OWN slot now. "Más" used to claim `aria-current`
+  // on behalf of perfil/tokens — correct while they were off the bar, and
+  // impossible now that they are on it.
   await expect(
-    nav.locator(`[data-dashboard-mobile-nav-item="${currentDestination}"]`),
+    nav.locator(`[data-dashboard-mobile-nav-item="${activeModule}"]`),
     `${label}: active destination marked current`,
   ).toHaveAttribute("aria-current", "page");
   await expect(
@@ -112,8 +119,12 @@ async function expectClinicMobileNav(
 
   await expect(
     nav.locator('[data-dashboard-mobile-nav-item="overflow"]'),
-    `${label}: clinic destination overflow available`,
-  ).toHaveCount(1);
+    `${label}: no destination overflow trigger on the clinic bar`,
+  ).toHaveCount(0);
+  await expect(
+    page.locator('[data-dashboard-mobile-nav-overflow="true"]'),
+    `${label}: no destination overflow sheet in the clinic tree`,
+  ).toHaveCount(0);
 
   // The retired owners must not come back next to it.
   await expect(
