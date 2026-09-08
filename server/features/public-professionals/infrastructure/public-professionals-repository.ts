@@ -384,16 +384,16 @@ export async function searchPublicProfessionals(
 
   const localityBoost = localityIndex
     ? `CASE
-        WHEN immutable_unaccent(COALESCE(locality, '')) = immutable_unaccent($${localityIndex}) THEN 0.25
-        WHEN immutable_unaccent(COALESCE(locality, '')) LIKE '%' || immutable_unaccent($${localityIndex}) || '%' THEN 0.12
+        WHEN immutable_unaccent(COALESCE(locality, '')) ILIKE immutable_unaccent($${localityIndex}) THEN 0.25
+        WHEN immutable_unaccent(COALESCE(locality, '')) ILIKE '%' || immutable_unaccent($${localityIndex}) || '%' THEN 0.12
         ELSE 0
       END`
     : "0::real";
 
   const countryBoost = countryIndex
     ? `CASE
-        WHEN immutable_unaccent(COALESCE(country, '')) = immutable_unaccent($${countryIndex}) THEN 0.18
-        WHEN immutable_unaccent(COALESCE(country, '')) LIKE '%' || immutable_unaccent($${countryIndex}) || '%' THEN 0.08
+        WHEN immutable_unaccent(COALESCE(country, '')) ILIKE immutable_unaccent($${countryIndex}) THEN 0.18
+        WHEN immutable_unaccent(COALESCE(country, '')) ILIKE '%' || immutable_unaccent($${countryIndex}) || '%' THEN 0.08
         ELSE 0
       END`
     : "0::real";
