@@ -58,3 +58,25 @@ test("public professional detail lookup shares the recent histopathology gate", 
     "PROFESSIONAL_BANK_ELIGIBILITY_DRIZZLE_SQL,\n      ),",
   );
 });
+
+// `immutable_unaccent` (migración 0007) solo quita acentos: no baja a minúsculas.
+// La rama FTS y la trigram sí son insensibles a mayúsculas, así que la subcadena
+// es el único camino que puede resolver un fragmento parcial de palabra
+// ("clinic" → "Clínica"). Con LIKE ese camino exige que el usuario reproduzca la
+// capitalización guardada y el buscador devuelve cero para entradas normales.
+test("public professionals search matches substrings case-insensitively", () => {
+  const source = readDbPublicProfessionalsSource();
+
+  assertContains(
+    source,
+    "OR immutable_unaccent(search_text) ILIKE '%' || immutable_unaccent($${queryIndex}) || '%'",
+  );
+  assertContains(
+    source,
+    "OR immutable_unaccent(locality) ILIKE '%' || immutable_unaccent($${localityIndex}) || '%'",
+  );
+  assertContains(
+    source,
+    "OR immutable_unaccent(country) ILIKE '%' || immutable_unaccent($${countryIndex}) || '%'",
+  );
+});
