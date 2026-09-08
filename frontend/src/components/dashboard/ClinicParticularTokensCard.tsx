@@ -1218,7 +1218,27 @@ export function ClinicParticularTokensCard() {
             ))}
           </div>
 
-          <div className="min-h-0">
+          {/*
+            Single scroll owner for the wizard. This wrapper carries `min-h-0`,
+            which removes the automatic min-content floor every flex item gets,
+            so when the panel hits `max-h-[88vh]` flexbox is free to shrink it
+            BELOW its own content. With `overflow` left visible that content did
+            not disappear -- it painted straight through the action row below it
+            (measured at 320x720 on step Paciente: the last select ended at
+            586.2 while the action row started at 558.8, and no scrolling could
+            recover it because nothing here scrolled). Owning the overflow turns
+            that silent overlap into reachable content. It is scoped to this
+            wrapper, not to `ModuleDialog`: the dialog header, the step tabs,
+            the error alert and the action row are all siblings OUTSIDE it, so
+            they stay visible, and there is exactly one scroller in the panel.
+            `-mx-5 px-5` widens the clipping box to the body's padding edge and
+            re-adds the inset inside it, so focus rings are not clipped
+            horizontally while the fields keep their original alignment.
+          */}
+          <div
+            data-clinic-access-wizard-scroll-owner="true"
+            className="-mx-5 min-h-0 overflow-y-auto overscroll-contain px-5"
+          >
             {createStep === "contact" ? (
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <div>
@@ -1484,36 +1504,62 @@ export function ClinicParticularTokensCard() {
             </p>
           ) : null}
 
-          <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-vetneb-line/70 pt-3">
+          {/*
+            Deliberate two-tier action composition. The previous shape was an
+            outer `flex-wrap` row holding [Cancelar] plus an inner `flex-wrap`
+            group holding [Anterior][primary]: two independent wrap points, so
+            the rendered row count was a side effect of how wide the primary
+            label happened to be. At 360 the inner group alone measured 295.8px
+            against 286px of content width, which wrapped it once and then
+            wrapped again inside itself -- the three single-button rows in the
+            report. Below `md` the row is now an explicit two-column grid: the
+            secondary actions share row one and the primary takes a full-width
+            row of its own only when there are two secondaries to clear. That
+            is at most two rows by construction, at every width, for every step.
+            From `md` up the original single flex row is restored unchanged
+            (`mr-auto` reproduces the previous `justify-between` split, and
+            `col-span-2` is inert on a flex item).
+          */}
+          <div
+            data-clinic-access-wizard-actions="true"
+            className="grid shrink-0 grid-cols-2 gap-2 border-t border-vetneb-line/70 pt-3 md:flex md:items-center md:justify-end"
+          >
             <Button
               type="button"
               variant="outline"
+              className="md:mr-auto"
               onClick={() => handleCreateDialogOpenChange(false)}
               disabled={isSubmitting}
             >
               Cancelar
             </Button>
-            <div className="flex flex-wrap gap-2">
-              {createStepIndex > 0 ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={goToPreviousCreateStep}
-                  disabled={isSubmitting}
-                >
-                  Anterior
-                </Button>
-              ) : null}
-              {isLastCreateStep ? (
-                <Button type="submit" disabled={isSubmitting || generatedToken !== null}>
-                  {isSubmitting ? "Generando token..." : "Generar token particular"}
-                </Button>
-              ) : (
-                <Button type="submit" disabled={isSubmitting}>
-                  Siguiente
-                </Button>
-              )}
-            </div>
+            {createStepIndex > 0 ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={goToPreviousCreateStep}
+                disabled={isSubmitting}
+              >
+                Anterior
+              </Button>
+            ) : null}
+            {isLastCreateStep ? (
+              <Button
+                type="submit"
+                className={cn(createStepIndex > 0 && "col-span-2")}
+                disabled={isSubmitting || generatedToken !== null}
+              >
+                {isSubmitting ? "Generando token..." : "Generar token particular"}
+              </Button>
+            ) : (
+              <Button
+                type="submit"
+                className={cn(createStepIndex > 0 && "col-span-2")}
+                disabled={isSubmitting}
+              >
+                Siguiente
+              </Button>
+            )}
           </div>
         </form>
       </ModuleDialog>

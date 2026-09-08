@@ -1221,3 +1221,309 @@ test("clinic Tokens detail keeps a tracking error with the token that produced i
     "A is not cached by a failure, so reopening refetches it",
   ).toBe(2);
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CTW-1 — "Generar token particular" wizard, mobile action-row geometry.
+//
+// The wizard renders its own action row INSIDE the dialog body (it does not use
+// `ModuleDialog`'s `footer` slot), as two nested `flex-wrap` containers: an
+// outer `justify-between` row holding [Cancelar] and an inner group holding
+// [Anterior][primary]. Nothing bounds how many lines that pair produces, so the
+// row count was a side effect of label width instead of a decision:
+//
+//   step 3 @360x800 -> Cancelar / Anterior / "Generar token particular" = 3 rows
+//   step 2 @320x720 -> Cancelar / Anterior+Siguiente                    = 2 rows
+//
+// The 149px a three-row row occupies is taken from the same `max-h-[88vh]`
+// budget the fields live in. The step-fields wrapper is a shrinkable flex item
+// (`min-h-0`, no overflow) inside a body that is NOT a scroll owner, so once the
+// budget is exceeded flexbox compresses that wrapper and its grid paints THROUGH
+// the action row: measured at 320x720 step 3, "Detalle de lesión" spanned
+// 546.2-624.2 while the action row spanned 510.8-659.8.
+//
+// So this contract measures both halves, and is deliberately expressed as
+// geometry rather than class names: the row count is read off the distinct
+// button `top` coordinates, and reachability off the last control's rect
+// against the action row's rect. A future relabel that re-widens the primary
+// button fails here instead of silently re-wrapping.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const WIZARD_VIEWPORTS = [
+  { name: "narrow-320x720", width: 320, height: 720 },
+  { name: "android-small-360x800", width: 360, height: 800 },
+  { name: "iphone-standard-390x844", width: 390, height: 844 },
+  { name: "android-large-412x915", width: 412, height: 915 },
+] as const;
+
+/**
+ * Two is the whole point of the contract: one deliberate secondary row plus one
+ * primary row. It is NOT "however many the labels happen to need" — three is the
+ * exact shape of the reported defect.
+ */
+const MAX_WIZARD_ACTION_ROWS = 2;
+
+/** Minimum comfortable touch target; the fix must not buy rows with height. */
+const MIN_TOUCH_TARGET = 36;
+
+const WIZARD_STEPS = [
+  { tab: "1. Vínculo", label: "Vínculo" },
+  { tab: "2. Paciente", label: "Paciente" },
+  { tab: "3. Muestra", label: "Muestra" },
+] as const;
+
+type WizardGeometry = {
+  dialog: { top: number; bottom: number; left: number; right: number };
+  actionRow: { top: number; bottom: number; left: number; right: number } | null;
+  buttons: Array<{
+    label: string;
+    top: number;
+    bottom: number;
+    left: number;
+    right: number;
+    height: number;
+  }>;
+  distinctActionRows: number;
+  lastControlId: string | null;
+  documentScrollWidth: number;
+  documentClientWidth: number;
+  documentScrollHeight: number;
+  documentClientHeight: number;
+};
+
+async function readWizardGeometry(page: Page): Promise<WizardGeometry> {
+  return page.evaluate(() => {
+    const rect = (element: Element) => {
+      const box = element.getBoundingClientRect();
+      return {
+        top: box.top,
+        bottom: box.bottom,
+        left: box.left,
+        right: box.right,
+      };
+    };
+
+    const dialog = document.querySelector('[data-module-dialog="true"]');
+    if (!dialog) throw new Error("wizard dialog is not mounted");
+
+    const actionRow = dialog.querySelector(
+      '[data-clinic-access-wizard-actions="true"]',
+    );
+
+    const buttons = actionRow
+      ? Array.from(actionRow.querySelectorAll("button")).map((button) => ({
+          label: (button.textContent ?? "").trim(),
+          ...rect(button),
+          height: button.getBoundingClientRect().height,
+        }))
+      : [];
+
+    // A "row" is a distinct rendered baseline, so the count survives any future
+    // re-composition (grid, flex, wrap) instead of pinning one of them.
+    const distinctActionRows = new Set(
+      buttons.map((button) => Math.round(button.top)),
+    ).size;
+
+    const form = dialog.querySelector("form");
+    const controls = form
+      ? Array.from(form.querySelectorAll("input, textarea, select"))
+      : [];
+    const last = controls.length ? controls[controls.length - 1] : null;
+
+    return {
+      dialog: rect(dialog),
+      actionRow: actionRow ? rect(actionRow) : null,
+      buttons,
+      distinctActionRows,
+      lastControlId: last ? last.id : null,
+      documentScrollWidth: document.documentElement.scrollWidth,
+      documentClientWidth: document.documentElement.clientWidth,
+      documentScrollHeight: document.documentElement.scrollHeight,
+      documentClientHeight: document.documentElement.clientHeight,
+    };
+  });
+}
+
+/**
+ * Scrolls the wizard's own scroll owner (when it has one) until `selector` is as
+ * clear of the action row as the layout allows, then reports the resulting
+ * rects. A field that needs no scrolling passes on the first read; a field that
+ * no amount of scrolling can free still fails — which is the pre-fix state,
+ * where the compressed wrapper painted the field THROUGH the row.
+ */
+async function readFieldAgainstActions(page: Page, selector: string) {
+  return page.evaluate((fieldSelector) => {
+    const field = document.querySelector(fieldSelector);
+    const actionRow = document.querySelector(
+      '[data-clinic-access-wizard-actions="true"]',
+    );
+    if (!field || !actionRow) return null;
+
+    field.scrollIntoView({ block: "nearest" });
+
+    const fieldBox = field.getBoundingClientRect();
+    const actionBox = actionRow.getBoundingClientRect();
+
+    return {
+      fieldTop: fieldBox.top,
+      fieldBottom: fieldBox.bottom,
+      actionTop: actionBox.top,
+      actionBottom: actionBox.bottom,
+    };
+  }, selector);
+}
+
+for (const viewport of WIZARD_VIEWPORTS) {
+  test(`clinic token wizard mobile actions stay deliberate at ${viewport.name}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({
+      width: viewport.width,
+      height: viewport.height,
+    });
+    await setClinicSession(page);
+    await mockClinicTokens(page);
+
+    await page.goto("/dashboard?module=tokens");
+
+    const card = page.locator("#clinic-particular-tokens");
+    await expect(card).toBeVisible();
+
+    const dialog = page.locator('[data-module-dialog="true"]');
+
+    // `toPass` covers the hydration race: the SSR button is clickable before
+    // React attaches, so a single click can be dropped.
+    await expect(async () => {
+      await card
+        .getByRole("button", { name: TOOLBAR_LABELS.create, exact: true })
+        .click();
+      await expect(dialog).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 15_000 });
+
+    // All three steps are reachable from the panel itself.
+    for (const step of WIZARD_STEPS) {
+      await expect(
+        dialog.getByRole("button", { name: step.tab, exact: true }),
+        `${viewport.name}: step tab ${step.tab} is visible`,
+      ).toBeVisible();
+    }
+
+    for (const [index, step] of WIZARD_STEPS.entries()) {
+      const context = `${viewport.name} · ${step.label}`;
+
+      await dialog.getByRole("button", { name: step.tab, exact: true }).click();
+      await expect(
+        dialog.getByText(`Paso ${index + 1} de 3: ${step.label}`),
+        `${context}: step is active`,
+      ).toBeVisible();
+
+      const geometry = await readWizardGeometry(page);
+
+      expect(
+        geometry.actionRow,
+        `${context}: the wizard exposes an identifiable action row`,
+      ).not.toBeNull();
+      const actionRow = geometry.actionRow!;
+
+      // 1. The defect itself: the row must never degenerate into a stack of
+      //    single-button rows.
+      expect(
+        geometry.distinctActionRows,
+        `${context}: action rows must stay deliberate (buttons at ${JSON.stringify(
+          geometry.buttons.map((button) => ({
+            label: button.label,
+            top: Math.round(button.top),
+          })),
+        )})`,
+      ).toBeLessThanOrEqual(MAX_WIZARD_ACTION_ROWS);
+
+      // 2. Every action stays inside the panel and the viewport, and none was
+      //    shrunk under a usable touch target to buy that.
+      for (const button of geometry.buttons) {
+        expect(
+          button.top,
+          `${context}: "${button.label}" starts inside the dialog`,
+        ).toBeGreaterThanOrEqual(geometry.dialog.top - 1);
+        expect(
+          button.bottom,
+          `${context}: "${button.label}" ends inside the dialog`,
+        ).toBeLessThanOrEqual(geometry.dialog.bottom + 1);
+        expect(
+          button.bottom,
+          `${context}: "${button.label}" stays inside the viewport`,
+        ).toBeLessThanOrEqual(viewport.height + 1);
+        expect(
+          button.left,
+          `${context}: "${button.label}" stays inside the dialog on the left`,
+        ).toBeGreaterThanOrEqual(geometry.dialog.left - 1);
+        expect(
+          button.right,
+          `${context}: "${button.label}" stays inside the dialog on the right`,
+        ).toBeLessThanOrEqual(geometry.dialog.right + 1);
+        expect(
+          button.height,
+          `${context}: "${button.label}" keeps a usable touch target`,
+        ).toBeGreaterThanOrEqual(MIN_TOUCH_TARGET);
+      }
+
+      // 3. The panel itself stays inside the viewport.
+      expect(
+        actionRow.bottom,
+        `${context}: the action row ends inside the dialog`,
+      ).toBeLessThanOrEqual(geometry.dialog.bottom + 1);
+      expect(
+        geometry.dialog.bottom,
+        `${context}: the dialog ends inside the viewport`,
+      ).toBeLessThanOrEqual(viewport.height + 1);
+      expect(
+        geometry.dialog.top,
+        `${context}: the dialog starts inside the viewport`,
+      ).toBeGreaterThanOrEqual(-1);
+
+      // 4. The panel must not push the dashboard document into scrolling.
+      expect(
+        geometry.documentScrollWidth - geometry.documentClientWidth,
+        `${context}: no horizontal document overflow`,
+      ).toBeLessThanOrEqual(0);
+      expect(
+        geometry.documentScrollHeight - geometry.documentClientHeight,
+        `${context}: no vertical document scroll`,
+      ).toBeLessThanOrEqual(0);
+
+      // 5. Reachability. "Detalle de lesión" is the field the report showed
+      //    compromised, and it is the last control of the last step, so it is
+      //    asserted by name as well as through the generic last-control rule.
+      if (step.label === "Muestra") {
+        const lesion = await readFieldAgainstActions(
+          page,
+          "#clinic-token-details-lesion",
+        );
+        expect(
+          lesion,
+          `${context}: "Detalle de lesión" and the action row are both mounted`,
+        ).not.toBeNull();
+        expect(
+          lesion!.fieldBottom,
+          `${context}: "Detalle de lesión" must be fully clear of the action row`,
+        ).toBeLessThanOrEqual(lesion!.actionTop + 1);
+        expect(
+          lesion!.fieldTop,
+          `${context}: "Detalle de lesión" must start inside the dialog`,
+        ).toBeGreaterThanOrEqual(geometry.dialog.top - 1);
+      }
+
+      // The last rendered control of every step follows the same rule.
+      expect(
+        geometry.lastControlId,
+        `${context}: the step renders at least one identified control`,
+      ).not.toBeNull();
+      const settled = await readFieldAgainstActions(
+        page,
+        `#${geometry.lastControlId}`,
+      );
+      expect(
+        settled!.fieldBottom,
+        `${context}: last control #${geometry.lastControlId} must clear the action row`,
+      ).toBeLessThanOrEqual(settled!.actionTop + 1);
+    }
+  });
+}
