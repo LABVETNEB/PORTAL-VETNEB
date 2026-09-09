@@ -70,8 +70,68 @@ jobs:
         run: pnpm security:public-surface
 
       - name: Install Playwright system dependencies
+        shell: bash
         timeout-minutes: 5
-        run: pnpm --dir frontend exec playwright install-deps chromium
+        run: |
+          set -euo pipefail
+
+          readonly target_fragment='dl.google.com/linux/chrome-stable/deb'
+          readonly target_uri_pattern='(^|[[:space:]])https?://dl[.]google[.]com/linux/chrome-stable/deb/?([[:space:]]|$)'
+
+          has_active_target() {
+            sudo awk -v target_fragment="$target_fragment" '
+              index($0, target_fragment) && $0 !~ /^[[:space:]]*#/ { found = 1 }
+              END { exit(found ? 0 : 1) }
+            ' "$1"
+          }
+
+          shopt -s nullglob
+          source_files=(
+            /etc/apt/sources.list
+            /etc/apt/sources.list.d/*.list
+            /etc/apt/sources.list.d/*.sources
+          )
+
+          for source_file in "${source_files[@]}"; do
+            [[ -f "$source_file" ]] || continue
+            has_active_target "$source_file" || continue
+
+            if [[ "$source_file" == *.sources ]]; then
+              echo "Unsupported Deb822 APT source containing targeted URI: ${source_file}" >&2
+              exit 1
+            fi
+
+            rewritten_source="$(mktemp)"
+            if ! sudo awk \
+              -v target_fragment="$target_fragment" \
+              -v target_uri_pattern="$target_uri_pattern" '
+                index($0, target_fragment) && $0 !~ /^[[:space:]]*#/ {
+                  if ($0 !~ /^[[:space:]]*deb(-src)?[[:space:]]/ || $0 !~ target_uri_pattern) {
+                    print "Unsupported active APT source syntax containing targeted URI" > "/dev/stderr"
+                    failed = 1
+                    exit 1
+                  }
+                  print "# Disabled by VETNEB CI (targeted): " $0
+                  changed = 1
+                  next
+                }
+                { print }
+                END { if (!changed && !failed) exit 1 }
+              ' "$source_file" > "$rewritten_source"
+            then
+              rm -f "$rewritten_source"
+              exit 1
+            fi
+            sudo cp -- "$rewritten_source" "$source_file"
+            rm -f "$rewritten_source"
+
+            if has_active_target "$source_file"; then
+              echo "Targeted APT source remains active after rewrite: ${source_file}" >&2
+              exit 1
+            fi
+          done
+
+          pnpm --dir frontend exec playwright install-deps chromium
 
       - name: Install Playwright Chromium
         shell: bash
