@@ -24,6 +24,13 @@ function assertContains(source: string, expected: string): void {
   assert.ok(source.includes(expected), `expected source to contain: ${expected}`);
 }
 
+function assertNotContains(source: string, forbidden: string): void {
+  assert.ok(
+    !source.includes(forbidden),
+    `expected source not to contain: ${forbidden}`,
+  );
+}
+
 test("public professionals search requires recent histopathology activity", () => {
   const source = readDbPublicProfessionalsSource();
 
@@ -57,4 +64,56 @@ test("public professional detail lookup shares the recent histopathology gate", 
     source,
     "PROFESSIONAL_BANK_ELIGIBILITY_DRIZZLE_SQL,\n      ),",
   );
+});
+
+// `immutable_unaccent` (migración 0007) solo quita acentos: no baja a minúsculas.
+// La rama FTS y la trigram sí son insensibles a mayúsculas, así que la subcadena
+// es el único camino que puede resolver un fragmento parcial de palabra
+// ("clinic" → "Clínica"). Con LIKE ese camino exige que el usuario reproduzca la
+// capitalización guardada y el buscador devuelve cero para entradas normales.
+test("public professionals search matches substrings case-insensitively", () => {
+  const source = readDbPublicProfessionalsSource();
+
+  assertContains(
+    source,
+    "OR immutable_unaccent(search_text) ILIKE '%' || immutable_unaccent($${queryIndex}) || '%'",
+  );
+  assertContains(
+    source,
+    "OR immutable_unaccent(locality) ILIKE '%' || immutable_unaccent($${localityIndex}) || '%'",
+  );
+  assertContains(
+    source,
+    "OR immutable_unaccent(country) ILIKE '%' || immutable_unaccent($${countryIndex}) || '%'",
+  );
+});
+
+// El filtro decide pertenencia y el boost decide orden. Si divergen en
+// sensibilidad a mayúsculas, "bue" entra por ILIKE en el WHERE pero pierde el
+// boost de localidad, y "Buenos Aires" ordena distinto que "buenos aires":
+// mismo conjunto de resultados, ranking distinto según cómo escribió el usuario.
+test("public professionals location boosts share the case-insensitive semantics of the filters", () => {
+  const source = readDbPublicProfessionalsSource();
+
+  assertContains(
+    source,
+    "WHEN immutable_unaccent(COALESCE(locality, '')) ILIKE immutable_unaccent($${localityIndex}) THEN 0.25",
+  );
+  assertContains(
+    source,
+    "WHEN immutable_unaccent(COALESCE(locality, '')) ILIKE '%' || immutable_unaccent($${localityIndex}) || '%' THEN 0.12",
+  );
+  assertContains(
+    source,
+    "WHEN immutable_unaccent(COALESCE(country, '')) ILIKE immutable_unaccent($${countryIndex}) THEN 0.18",
+  );
+  assertContains(
+    source,
+    "WHEN immutable_unaccent(COALESCE(country, '')) ILIKE '%' || immutable_unaccent($${countryIndex}) || '%' THEN 0.08",
+  );
+
+  // "ILIKE" no contiene " LIKE" (la L va precedida de "I", no de un espacio),
+  // así que estas negativas no chocan con las ramas ya corregidas.
+  assertNotContains(source, " LIKE '%' || immutable_unaccent(");
+  assertNotContains(source, "')) = immutable_unaccent(");
 });
