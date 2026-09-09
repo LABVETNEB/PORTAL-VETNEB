@@ -678,7 +678,19 @@ export function AdminParticularTokensCard() {
     }
   }, [isLoadingMoreTokens, hasMoreFromServer, tokens.length]);
 
+  // React's development Strict Mode invokes a mount effect twice on the SAME
+  // instance (run -> cleanup -> run). `loadTokens` is stable, so the second
+  // invocation issued a byte-identical `offset=0` request: `latestRequestRef`
+  // discarded its response, but the request itself still reached the API and
+  // broke the single-initial-request contract. A per-instance latch keeps the
+  // initial load one-shot without touching any explicit reload path (refresh,
+  // retry, post-create), which call `loadTokens` directly; a genuine remount
+  // gets a fresh ref and loads normally.
+  const hasRequestedInitialTokensRef = useRef(false);
+
   useEffect(() => {
+    if (hasRequestedInitialTokensRef.current) return;
+    hasRequestedInitialTokensRef.current = true;
     void loadTokens();
   }, [loadTokens]);
 
