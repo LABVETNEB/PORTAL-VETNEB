@@ -169,6 +169,12 @@ function stepByName(workflowJob: Mapping, name: string): Mapping {
   return step;
 }
 
+function stepRun(step: Mapping, name: string): string {
+  const run = step.run;
+  assert.ok(typeof run === "string", `${name} must have a run command`);
+  return run;
+}
+
 test("automatic workflow coverage is derived from catalog cohorts and equals full", () => {
   const result = evaluateAutomaticCoverage(workflowSources());
 
@@ -301,8 +307,45 @@ test("completeness job preserves Linux baseline compatibility, build ordering an
   );
   assert.equal(stepByName(workflowJob, "Upload Playwright diagnostics").if, "failure()");
   assert.equal(stepByName(workflowJob, "Verify E2E teardown").if, "always()");
-  assert.equal(stepByName(workflowJob, "Verify source hygiene and clean generated artifacts").if, "always()");
+  const hygieneStep = stepByName(workflowJob, "Verify source hygiene and clean generated artifacts");
+  const hygieneCommand = stepRun(hygieneStep, "Verify source hygiene and clean generated artifacts");
+  assert.equal(hygieneStep.if, "always()");
+  assert.match(hygieneCommand, /git diff --exit-code -- frontend\/next-env\.d\.ts frontend\/e2e/);
+  assert.match(
+    hygieneCommand,
+    /git status --short --untracked-files=all -- frontend\/next-env\.d\.ts frontend\/e2e/,
+  );
+  assert.doesNotMatch(hygieneCommand, /\bgit show\b/);
   assert.equal(source.includes("continue-on-error"), false);
+});
+
+test("system dependency installation neutralizes only the Google Chrome APT source and remains fail-closed", () => {
+  const document = parseWorkflow(readWorkflow(COMPLETENESS_WORKFLOW));
+  const workflowJob = job(document, "e2e-full-completeness");
+  const installStep = stepByName(workflowJob, "Install Playwright system dependencies");
+  const command = stepRun(installStep, "Install Playwright system dependencies");
+  const installCommand = "pnpm --dir frontend exec playwright install-deps chromium";
+
+  assert.equal(installStep.shell, "bash");
+  assert.equal(installStep["timeout-minutes"], 5);
+  assert.match(command, /^set -euo pipefail$/m);
+  assert.equal(command.match(/pnpm --dir frontend exec playwright install-deps chromium/g)?.length, 1);
+  assert.equal(command.trimEnd().endsWith(installCommand), true);
+
+  assert.match(command, /readonly target_fragment='dl\.google\.com\/linux\/chrome-stable\/deb'/);
+  assert.match(
+    command,
+    /readonly target_uri_pattern='\(\^\|\[\[:space:\]\]\)https\?:\/\/dl\[\.\]google\[\.\]com\/linux\/chrome-stable\/deb\/\?\(\[\[:space:\]\]\|\$\)'/,
+  );
+  assert.match(command, /\/etc\/apt\/sources\.list\.d\/\*\.list/);
+  assert.match(command, /\/etc\/apt\/sources\.list\.d\/\*\.sources/);
+  assert.match(command, /print "# Disabled by VETNEB CI \(targeted\): " \$0/);
+  assert.match(command, /Unsupported active APT source syntax containing targeted URI/);
+  assert.match(command, /Unsupported Deb822 APT source containing targeted URI/);
+  assert.match(command, /Targeted APT source remains active after rewrite/);
+  assert.doesNotMatch(command, /(?:rm|mv)[^\n]*\/etc\/apt(?:\/sources\.list\.d)?(?:\s|$)/);
+  assert.doesNotMatch(command, /apt-get[^\n]*(?:\|\| true|--allow-unauthenticated)/);
+  assert.equal(Object.prototype.hasOwnProperty.call(installStep, "continue-on-error"), false);
 });
 
 test("completeness workflow passes the parser-backed workflow security policy", () => {
