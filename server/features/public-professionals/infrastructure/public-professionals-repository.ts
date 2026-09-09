@@ -334,7 +334,7 @@ export async function searchPublicProfessionals(
       OR immutable_unaccent(COALESCE(specialty_text, '')) % immutable_unaccent($${queryIndex})
       OR immutable_unaccent(COALESCE(locality, '')) % immutable_unaccent($${queryIndex})
       OR immutable_unaccent(COALESCE(country, '')) % immutable_unaccent($${queryIndex})
-      OR immutable_unaccent(search_text) LIKE '%' || immutable_unaccent($${queryIndex}) || '%'
+      OR immutable_unaccent(search_text) ILIKE '%' || immutable_unaccent($${queryIndex}) || '%'
     )`);
   }
 
@@ -344,7 +344,7 @@ export async function searchPublicProfessionals(
     conditions.push(`(
       locality IS NOT NULL AND (
         immutable_unaccent(locality) % immutable_unaccent($${localityIndex})
-        OR immutable_unaccent(locality) LIKE '%' || immutable_unaccent($${localityIndex}) || '%'
+        OR immutable_unaccent(locality) ILIKE '%' || immutable_unaccent($${localityIndex}) || '%'
       )
     )`);
   }
@@ -355,7 +355,7 @@ export async function searchPublicProfessionals(
     conditions.push(`(
       country IS NOT NULL AND (
         immutable_unaccent(country) % immutable_unaccent($${countryIndex})
-        OR immutable_unaccent(country) LIKE '%' || immutable_unaccent($${countryIndex}) || '%'
+        OR immutable_unaccent(country) ILIKE '%' || immutable_unaccent($${countryIndex}) || '%'
       )
     )`);
   }
@@ -384,16 +384,16 @@ export async function searchPublicProfessionals(
 
   const localityBoost = localityIndex
     ? `CASE
-        WHEN immutable_unaccent(COALESCE(locality, '')) = immutable_unaccent($${localityIndex}) THEN 0.25
-        WHEN immutable_unaccent(COALESCE(locality, '')) LIKE '%' || immutable_unaccent($${localityIndex}) || '%' THEN 0.12
+        WHEN immutable_unaccent(COALESCE(locality, '')) ILIKE immutable_unaccent($${localityIndex}) THEN 0.25
+        WHEN immutable_unaccent(COALESCE(locality, '')) ILIKE '%' || immutable_unaccent($${localityIndex}) || '%' THEN 0.12
         ELSE 0
       END`
     : "0::real";
 
   const countryBoost = countryIndex
     ? `CASE
-        WHEN immutable_unaccent(COALESCE(country, '')) = immutable_unaccent($${countryIndex}) THEN 0.18
-        WHEN immutable_unaccent(COALESCE(country, '')) LIKE '%' || immutable_unaccent($${countryIndex}) || '%' THEN 0.08
+        WHEN immutable_unaccent(COALESCE(country, '')) ILIKE immutable_unaccent($${countryIndex}) THEN 0.18
+        WHEN immutable_unaccent(COALESCE(country, '')) ILIKE '%' || immutable_unaccent($${countryIndex}) || '%' THEN 0.08
         ELSE 0
       END`
     : "0::real";
