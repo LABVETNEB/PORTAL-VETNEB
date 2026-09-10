@@ -349,7 +349,7 @@ Mayores: `dashboard-clinic-tokens-mobile-parity.spec.ts` (1.529), `dashboard-b09
 | **Probabilidad** | Ya ocurrió: 100 %. |
 | **Criticidad** | P0 operativo (no bloquea merges: `E2E Completeness` no es required, §6 AGENTS.md). |
 | **Blast radius** | A02, A03, A05, reachability de pagers admin y clínica, axe, visual-linux, evidence. |
-| **Solución recomendada** | `[PROPUESTO]` Extender el saneamiento al formato Deb822 (`.sources`), o eliminar el paso `install-deps` separado y usar `playwright install --with-deps chromium` como hace `frontend-ci.yml:140` (que **sí** pasó en el mismo commit y misma hora — run `34409140069`, paso 10 `success` en 21 s). |
+| **Solución recomendada** | `[PROPUESTO]` Extender el saneamiento al formato Deb822 (`.sources`) y mantener `playwright install-deps chromium`; `playwright install --with-deps chromium` no sustituye esta remediación porque también instala dependencias del sistema. |
 | **Riesgo de la solución** | Bajo, `ci-only`. |
 | **Criterio de cierre** | Dos runs consecutivos de `E2E Completeness` alcanzando el paso 11 (`Run complete cataloged E2E suite`). |
 
@@ -521,7 +521,7 @@ Contexto favorable: `getByTestId` = **0**; el repo usa atributos `data-*` contra
 - `[OBSERVADO]` **`frontend-ci.yml` push-paths incompleto:** el detector de PR incluye `shared/*` (línea 88) pero `on.push.paths` (líneas 7-13) no. Un push directo a `main` que toque sólo `shared/**` no dispara Frontend CI. Irrelevante bajo branch protection; es una inconsistencia entre dos declaraciones del mismo criterio.
 - `[OBSERVADO]` **`compare-visual-artifacts.mjs` (605 LOC) sin consumidor automático:** referenciado sólo por `frontend/package.json` (script `e2e:compare-visual-artifacts`) y por su propio contrato `test/architecture/visual-artifact-comparator-contract.test.ts`. `grep -rn "compare-visual-artifacts" .github/` → 0. Clasificación: `INTENTIONAL` (herramienta manual, coherente con la memoria de sesión sobre la rama `tooling/visual-determinism-comparator`), pero sin ruta operativa.
 - `[OBSERVADO]` **`verify-teardown.mjs` sólo comprueba puertos** (3000, 3107). No detecta procesos Chromium huérfanos ni ficheros residuales.
-- `[OBSERVADO]` `lab.vetneb@gmail.com` aparece asertado en `contacto-hydration.spec.ts:153` y `public-navigation-footer.spec.ts:64`. Es el correo institucional publicado en el sitio público — contenido de producto, **no una fuga**. Se registra por completitud del barrido de §9 AGENTS.md.
+- `[OBSERVADO]` `[EMAIL_INSTITUCIONAL_REDACTADO]` aparece asertado en `contacto-hydration.spec.ts:153` y `public-navigation-footer.spec.ts:64`. Es el correo institucional publicado en el sitio público — contenido de producto, **no una fuga**. Se registra por completitud del barrido de §9 AGENTS.md.
 
 ---
 
@@ -611,7 +611,7 @@ Aplicando `vetneb-security-production-invariants`:
 | Signed URLs / connection strings / paths privados de storage | **0** |
 | Cookies reales | **0** — todas `e2e_*` sintéticas |
 | Datos clínicos reales | **0** — pacientes `"Paciente E2E 0001"`, `"Mora"`, `"Simón"`; estudios genéricos |
-| Emails | 11× `@example.test`, 2× `@example.com`, 3× `@clinica.vet`, 1× `test@clinica.com` — todos sintéticos; 2× `lab.vetneb@gmail.com` = contacto institucional publicado |
+| Emails | 11× `@example.test`, 2× `@example.com`, 3× `@clinica.vet`, 1× `test@clinica.com` — todos sintéticos; 2× `[EMAIL_INSTITUCIONAL_REDACTADO]` = contacto institucional publicado |
 | Screenshots | 8 call sites, todos a `test-results/` o `testInfo.outputPath()`; `frontend/.gitignore:31-33` ignora `test-results/`, `playwright-report/`, `blob-report/` |
 | Artefactos en el árbol | `git status --short -uall` vacío |
 | Retención de artifacts CI | 14 días (`e2e-completeness.yml:133`, `visual-regression-manual.yml:122,131`) |
@@ -1103,23 +1103,25 @@ Este documento (`LIMPIEZA E2E`) es la fuente documental de estas fases. Cada fut
 - **Rollback:** revertir 1 archivo.
 - **Aceptación:** 2 runs consecutivos con el paso 11 ejecutado.
 
-### `E2E-GLOBAL-02` — Cerrar los falsos verdes de configuración *(config-only)*
+### `E2E-GLOBAL-02` — Cerrar los falsos verdes de configuración *(02A config-only → 02B ci-only)*
 
 - **Objetivo:** `forbidOnly`, `failOnFlakyTests`, `trace`, `screenshot`, upload de `test-results/`.
 - **Problema:** P0-3, P1-1, P1-3 / R-04, R-05, R-07.
-- **Scope:** `frontend/playwright.config.ts` + `.github/workflows/frontend-ci.yml`.
+- **PR 02A — config-only:** `frontend/playwright.config.ts` — `forbidOnly`, `failOnFlakyTests`, `trace`, `screenshot`.
+- **PR 02B — ci-only:** `.github/workflows/frontend-ci.yml` — upload de `test-results/` del gate required.
 - **No-scope:** specs, catálogo, fixture.
 - **Dependencias:** ninguna (paralelizable con 01).
 - **Riesgo:** bajo — `failOnFlakyTests: true` puede poner en rojo `E2E Completeness` por el flaky conocido; **es el resultado deseado** y debe anunciarse.
 - **Tests:** `frontend-playwright-production-runner.test.ts`, `frontend-ci-workflow.test.ts`.
 - **Aceptación:** un `.only` hace fallar `e2e:ci`; un fallo produce `trace.zip` en el artifact del gate required.
 
-### `E2E-GLOBAL-03` — Frontera de auth real *(test-only, el de mayor valor)*
+### `E2E-GLOBAL-03` — Frontera de auth simulada y señal 401/403 *(test-only, alto valor)*
 
 - **Objetivo:** el fixture modela sesión con estado y emite 401/403; 3 specs nuevos de frontera en `smoke`.
-- **Problema:** P0-1 / R-01.
+- **Problema:** P0-1 / R-01 — mitigación parcial; no cierra la frontera autoritativa.
 - **Scope:** `frontend/e2e/fixtures/admin-populated-api-server.mjs`, `frontend/e2e/platform/auth/**`, `catalog.ts`, guard de catálogo.
 - **No-scope:** `frontend/src/**`, `server/**`, arranque del backend real.
+- **Fase 03B obligatoria para cerrar P0-1/R-01:** smoke separado contra Fastify real + Postgres. Hasta entonces el riesgo de auth autoritativa permanece abierto.
 - **Dependencias:** 01 (para poder validar en `full`).
 - **Riesgo:** **medio-alto** — tocar el fixture es `SHARED_E2E_PREFIXES`; hay que verificar que las 23 specs consumidoras sigan recibiendo payloads idénticos. La técnica ya está probada en el repo: las variantes A03 y long-text son estrictamente conjuntivas por esa misma razón.
 - **Gates:** `e2e:ci`, `e2e:full`, `pnpm test`.
