@@ -1,15 +1,13 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import nextConfig from "../../../next.config";
-
 // Regression guard for the security blocker: after logout, Back + reload must
-// never re-render a private dashboard. The fix has two halves and this spec
-// pins both:
-//   1. "Cerrar sesión" must call the server logout endpoint (which clears the
-//      httpOnly session cookie) instead of merely navigating to /login.
-//   2. Private dashboard surfaces must not be publicly/back-forward cacheable.
-//      Next emits no-store for these dynamic routes in production; the proxy
-//      redirect carries no-store and next.config declares it for /dashboard.
+// never re-render a private dashboard. What this spec exercises:
+//   1. "Cerrar sesión" requests the role logout endpoint instead of merely
+//      navigating to /login. The endpoint is route-stubbed here, so server-side
+//      session invalidation is NOT verified; the test clears cookies itself.
+//   2. Rendered private dashboard documents are not publicly cacheable. The
+//      next.config no-store declaration for /dashboard is pinned in
+//      test/unit/infrastructure/frontend-next-config-private-cache-headers.test.ts.
 
 const POPULATED_ADMIN_SESSION = "e2e_populated_admin_session";
 const POPULATED_CLINIC_SESSION = "e2e_populated_clinic_session";
@@ -40,9 +38,9 @@ function desktopLogoutButton(page: Page) {
     .getByRole("button", { name: "Cerrar sesión", exact: true });
 }
 
-// ─── Logout invalidates the server session ────────────────────────────────────
+// ─── Logout requests the (stubbed) endpoint and leaves the private surface ────
 
-test.describe("dashboard logout — server session invalidation", () => {
+test.describe("dashboard logout — calls the stubbed logout endpoint and leaves the private surface", () => {
   test("admin logout calls the admin logout endpoint and leaves the private surface", async ({
     page,
   }) => {
@@ -124,19 +122,6 @@ test.describe("dashboard logout — server session invalidation", () => {
 // ─── Private surfaces are not cacheable ───────────────────────────────────────
 
 test.describe("dashboard cache headers — private surfaces", () => {
-  test("next.config declares no-store Cache-Control for /dashboard", async () => {
-    const headerRules = (await nextConfig.headers?.()) ?? [];
-    const dashboardRule = headerRules.find(
-      (rule) => rule.source === "/dashboard/:path*",
-    );
-    expect(dashboardRule, "private /dashboard header rule").toBeTruthy();
-
-    const cacheControl = dashboardRule!.headers.find(
-      (header) => header.key === "Cache-Control",
-    );
-    expect(cacheControl?.value ?? "").toContain("no-store");
-  });
-
   // The rendered dashboard document must never be publicly or shared-cacheable.
   // Next emits the full `private, no-cache, no-store, …` value for these dynamic
   // routes in production; the dev server emits `no-cache, must-revalidate`. Both
