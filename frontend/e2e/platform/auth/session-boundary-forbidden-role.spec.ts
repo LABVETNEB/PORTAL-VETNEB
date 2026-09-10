@@ -14,6 +14,13 @@ import { expect, test } from "@playwright/test";
 // expiration -> login redirect: both read the SAME BOUNDARY_SESSIONS table
 // (fixed expiresAt, no real clock) in admin-populated-api-server.mjs.
 //
+// PR #1710 review (P2): resolveBoundaryIdentity() used to resolve a cookie
+// VALUE against BOUNDARY_SESSIONS regardless of which cookie NAME carried
+// it, so app_session_id=e2e_boundary_admin_session resolved as role "admin".
+// The cookie name now binds an expected role (admin_session_id -> "admin",
+// app_session_id -> "clinic"); the cross-cookie-binding block below pins that
+// fix down.
+//
 // This does NOT exercise the Fastify backend (server/**) or Postgres — the
 // authoritative auth boundary stays open until E2E-GLOBAL-03B.
 
@@ -77,5 +84,49 @@ test.describe("E2E-GLOBAL-03 — simulated auth boundary: 401 absent/unrecognize
     expect(response.status()).toBe(200);
     const body = (await response.json()) as { ok: boolean; role: string };
     expect(body).toEqual({ ok: true, role: "admin" });
+  });
+});
+
+test.describe("E2E-GLOBAL-03 — cookie-name binding: a session value only authenticates under its own role's cookie", () => {
+  test("an admin session value sent as app_session_id is rejected with 401, not accepted as admin", async ({
+    request,
+  }) => {
+    const response = await request.get(BOUNDARY_URL, {
+      headers: { Cookie: `app_session_id=${BOUNDARY_ADMIN_SESSION}` },
+    });
+
+    expect(response.status()).toBe(401);
+    const body = (await response.json()) as { error: string };
+    expect(body.error).toMatch(/unauthorized/i);
+  });
+
+  test("a clinic session value sent as admin_session_id is rejected with 401, not accepted as admin", async ({
+    request,
+  }) => {
+    const response = await request.get(BOUNDARY_URL, {
+      headers: { Cookie: `admin_session_id=${BOUNDARY_CLINIC_SESSION}` },
+    });
+
+    expect(response.status()).toBe(401);
+    const body = (await response.json()) as { error: string };
+    expect(body.error).toMatch(/unauthorized/i);
+  });
+
+  test("an expired clinic session value sent as admin_session_id is rejected on the cookie-binding mismatch, before expiry is ever evaluated", async ({
+    request,
+  }) => {
+    const response = await request.get(BOUNDARY_URL, {
+      headers: {
+        Cookie: `admin_session_id=${BOUNDARY_EXPIRED_CLINIC_SESSION}`,
+      },
+    });
+
+    expect(response.status()).toBe(401);
+    const body = (await response.json()) as { error: string };
+    // The role-binding mismatch is checked first, so this must be the
+    // generic "unrecognized" message, never the "expired" one — proving the
+    // binding check runs before isBoundarySessionExpired() is ever reached.
+    expect(body.error).toMatch(/unauthorized/i);
+    expect(body.error).not.toMatch(/expired/i);
   });
 });

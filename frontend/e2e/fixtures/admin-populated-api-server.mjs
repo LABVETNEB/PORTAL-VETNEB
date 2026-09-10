@@ -881,18 +881,32 @@ function isBoundarySessionExpired(record) {
  * against the value -> { role, expiresAt } table above. Absent, unrecognized
  * and expired values are all unauthenticated (401); `expired` distinguishes
  * the third case for callers that want to assert on it specifically.
+ *
+ * The cookie NAME binds an expected role, not just the cookie VALUE: a
+ * BOUNDARY_SESSIONS value only authenticates when it arrives under the
+ * cookie name matching its own role (admin_session_id -> role "admin",
+ * app_session_id -> role "clinic"). Without this check, a value from one
+ * role's table entry sent under the other cookie name (e.g.
+ * app_session_id=e2e_boundary_admin_session) would resolve as that value's
+ * role regardless of which cookie carried it — a cross-cookie role mismatch
+ * that a real session store would never accept.
  */
 function resolveBoundaryIdentity(request) {
-  const value =
-    readCookieValue(request, "admin_session_id") ??
-    readCookieValue(request, "app_session_id");
+  const adminValue = readCookieValue(request, "admin_session_id");
+  const clinicValue = readCookieValue(request, "app_session_id");
 
-  if (!value) {
+  const candidate = adminValue
+    ? { value: adminValue, expectedRole: "admin" }
+    : clinicValue
+      ? { value: clinicValue, expectedRole: "clinic" }
+      : null;
+
+  if (!candidate) {
     return { authenticated: false, expired: false };
   }
 
-  const record = BOUNDARY_SESSIONS.get(value);
-  if (!record) {
+  const record = BOUNDARY_SESSIONS.get(candidate.value);
+  if (!record || record.role !== candidate.expectedRole) {
     return { authenticated: false, expired: false };
   }
 
