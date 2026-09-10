@@ -481,6 +481,26 @@ test("Frontend CI sube reporte de Playwright solo en fallo", () => {
   assertContains(source, "          if-no-files-found: ignore");
 });
 
+test("Frontend CI sube test-results del gate required solo en fallo (E2E-GLOBAL-02B)", () => {
+  const source = getJobBlock(readWorkflow(), "validate-frontend");
+
+  // LIMPIEZA E2E B-4 / P1-1: a required-gate failure must leave trace.zip and
+  // screenshots (frontend/playwright.config.ts, E2E-GLOBAL-02A) recoverable
+  // from the run, next to — never instead of — the existing report upload.
+  assertContains(
+    source,
+    "      - name: Upload Playwright test-results\n        if: failure()\n        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7\n        with:\n          name: frontend-playwright-test-results\n          path: frontend/test-results/\n          if-no-files-found: ignore",
+  );
+
+  assertOrdered(source, [
+    "      - name: Run frontend E2E layered tests\n        run: pnpm --dir frontend e2e:ci\n        env:\n          VETNEB_E2E_PRODUCTION_RUNNER: \"1\"",
+    "      - name: Upload Playwright report",
+    "      - name: Upload Playwright test-results",
+  ]);
+
+  assertNotContains(source, "continue-on-error");
+});
+
 test("Frontend CI publica un check final siempre presente con propagación estricta", () => {
   const finalCheck = getJobBlock(readWorkflow(), "frontend-check");
 
