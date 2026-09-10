@@ -817,6 +817,121 @@ function hasPopulatedClinicSession(request) {
     .includes(`app_session_id=${POPULATED_CLINIC_SESSION}`);
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// E2E-GLOBAL-03 · Simulated auth boundary (additive, test-only, opt-in).
+//
+// LIMPIEZA E2E P0-1/R-01: before this block, every cookie value other than the
+// two POPULATED_* literals above fell through to the SAME 404 ("E2E populated
+// session required"), so the fixture could not distinguish "no session" from
+// "invalid session" from "expired session" from "wrong role" — it never
+// emitted 401 or 403. BOUNDARY_SESSIONS below is the explicit
+// value -> { role, expiresAt } model LIMPIEZA E2E asks for, strictly for the
+// new boundary specs under frontend/e2e/platform/auth/. None of these cookie
+// values or the /api/e2e/session-boundary path are ever sent by an existing
+// catalog consumer, so every one of the 23 specs that declare
+// fixture: "admin-populated-api-server" keeps receiving byte-identical
+// responses. This still models the fixture's SIMULATED identity, not the
+// real Fastify session store (server/**), which this phase does not start;
+// closing the authoritative boundary is E2E-GLOBAL-03B.
+//
+// Expiry is evaluated against BOUNDARY_NOW, a fixed synthetic instant (not
+// Date.now()) so "expired" is a deterministic property of the fixed dataset
+// below, never a function of wall-clock time or how long a run takes.
+// expiresAt === null means "never expires"; otherwise it is compared once,
+// by simple ISO ordering, against BOUNDARY_NOW.
+// ─────────────────────────────────────────────────────────────────────────────
+const BOUNDARY_NOW = Date.parse("2026-06-18T12:00:00.000Z");
+const BOUNDARY_ADMIN_SESSION = "e2e_boundary_admin_session";
+const BOUNDARY_CLINIC_SESSION = "e2e_boundary_clinic_session";
+const BOUNDARY_EXPIRED_CLINIC_SESSION = "e2e_boundary_expired_clinic_session";
+
+const BOUNDARY_SESSIONS = new Map([
+  [BOUNDARY_ADMIN_SESSION, { role: "admin", expiresAt: null }],
+  [BOUNDARY_CLINIC_SESSION, { role: "clinic", expiresAt: null }],
+  [
+    BOUNDARY_EXPIRED_CLINIC_SESSION,
+    { role: "clinic", expiresAt: "2026-06-17T12:00:00.000Z" },
+  ],
+]);
+
+// Every path getDashboardStats() loads concurrently via Promise.all
+// (getReports, getLogisticsFieldVisits, getRoutePlans): all three must reject
+// with 401 so the boundary spec never races a 401 against an unrelated 404.
+const BOUNDARY_PROTECTED_CLINIC_PATHS = new Set([
+  "/api/reports",
+  "/api/logistics/field-visits",
+  "/api/logistics/route-plans",
+]);
+
+function readCookieValue(request, name) {
+  const match = (request.headers.cookie ?? "")
+    .split(";")
+    .map((cookie) => cookie.trim())
+    .find((cookie) => cookie.startsWith(`${name}=`));
+
+  return match ? match.slice(name.length + 1) : null;
+}
+
+function isBoundarySessionExpired(record) {
+  return record.expiresAt !== null && Date.parse(record.expiresAt) <= BOUNDARY_NOW;
+}
+
+/**
+ * Resolves the E2E-GLOBAL-03 boundary identity from either session cookie
+ * against the value -> { role, expiresAt } table above. Absent, unrecognized
+ * and expired values are all unauthenticated (401); `expired` distinguishes
+ * the third case for callers that want to assert on it specifically.
+ *
+ * The cookie NAME binds an expected role, not just the cookie VALUE: a
+ * BOUNDARY_SESSIONS value only authenticates when it arrives under the
+ * cookie name matching its own role (admin_session_id -> role "admin",
+ * app_session_id -> role "clinic"). Without this check, a value from one
+ * role's table entry sent under the other cookie name (e.g.
+ * app_session_id=e2e_boundary_admin_session) would resolve as that value's
+ * role regardless of which cookie carried it — a cross-cookie role mismatch
+ * that a real session store would never accept.
+ */
+function resolveBoundaryIdentity(request) {
+  const adminValue = readCookieValue(request, "admin_session_id");
+  const clinicValue = readCookieValue(request, "app_session_id");
+
+  const candidate = adminValue
+    ? { value: adminValue, expectedRole: "admin" }
+    : clinicValue
+      ? { value: clinicValue, expectedRole: "clinic" }
+      : null;
+
+  if (!candidate) {
+    return { authenticated: false, expired: false };
+  }
+
+  const record = BOUNDARY_SESSIONS.get(candidate.value);
+  if (!record || record.role !== candidate.expectedRole) {
+    return { authenticated: false, expired: false };
+  }
+
+  if (isBoundarySessionExpired(record)) {
+    return { authenticated: false, expired: true, role: record.role };
+  }
+
+  return { authenticated: true, expired: false, role: record.role };
+}
+
+/**
+ * Narrow, additive check used only to gate the real clinic data-loading paths
+ * (BOUNDARY_PROTECTED_CLINIC_PATHS): true only for the exact recognized-but-
+ * expired clinic session, derived from the same BOUNDARY_SESSIONS table.
+ */
+function hasExpiredClinicSession(request) {
+  const value = readCookieValue(request, "app_session_id");
+  if (!value) {
+    return false;
+  }
+
+  const record = BOUNDARY_SESSIONS.get(value);
+  return Boolean(record) && record.role === "clinic" && isBoundarySessionExpired(record);
+}
+
 /**
  * A03 opt-in gate. Deliberately conjunctive: the auxiliary cookie ALONE never
  * activates the dataset, so an unauthenticated or non-populated caller can
@@ -1075,6 +1190,49 @@ const server = createServer((request, response) => {
         displayVersion: "Portal VETNEB v2.1.0",
       }),
     );
+    return;
+  }
+
+  // E2E-GLOBAL-03 · dedicated, additive boundary probe. Mirrors no production
+  // endpoint — it exists only to prove the fixture CAN emit 401 (absent,
+  // unrecognized or expired session) and 403 (recognized, non-expired
+  // session, insufficient role) deterministically. See the BOUNDARY_* block
+  // above hasPopulatedClinicSession.
+  if (url.pathname === "/api/e2e/session-boundary") {
+    const identity = resolveBoundaryIdentity(request);
+
+    if (!identity.authenticated) {
+      sendJson(response, 401, {
+        error: identity.expired
+          ? "Unauthorized: session expired"
+          : "Unauthorized: missing or unrecognized session",
+      });
+      return;
+    }
+
+    if (identity.role !== "admin") {
+      sendJson(response, 403, {
+        error: "Forbidden: insufficient role",
+        role: identity.role,
+      });
+      return;
+    }
+
+    sendJson(response, 200, { ok: true, role: identity.role });
+    return;
+  }
+
+  // E2E-GLOBAL-03 · additive opt-in: only the exact recognized-but-expired
+  // BOUNDARY_EXPIRED_CLINIC_SESSION marker reaches this branch (derived from
+  // the same BOUNDARY_SESSIONS table as /api/e2e/session-boundary above), so
+  // every existing consumer's cookie values fall through unchanged to the
+  // checks below. This is LIMPIEZA E2E's case (c): a session that stops being
+  // valid mid-navigation, on the real paths the clinic dashboard loads.
+  if (
+    hasExpiredClinicSession(request) &&
+    BOUNDARY_PROTECTED_CLINIC_PATHS.has(url.pathname)
+  ) {
+    sendJson(response, 401, { error: "Unauthorized: session expired" });
     return;
   }
 
