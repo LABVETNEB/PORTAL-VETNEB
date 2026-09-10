@@ -9,8 +9,7 @@ import { expect, test, type Page } from "@playwright/test";
 // requires ADMIN_SESSION_COOKIE_NAME specifically, and a cookie carrying only
 // the clinic boundary does not satisfy it. Before this phase, no spec ever
 // sent a clinic session at /dashboard/admin — dashboard-auth-redirect.spec.ts
-// (catalog feature "private redirect and admin 404") only checks the
-// UNAUTHENTICATED case, not cross-role.
+// only checks the UNAUTHENTICATED case, not cross-role.
 //
 // This does NOT exercise the Fastify backend (server/**) or Postgres — the
 // authoritative auth boundary stays open until E2E-GLOBAL-03B.

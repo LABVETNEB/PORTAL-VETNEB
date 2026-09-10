@@ -13,10 +13,12 @@ import {
   E2E_MANUAL_ONLY_SPECS,
   E2E_SUITE_CATALOG,
   EXECUTION_COHORTS,
+  LAYERS,
   PLATFORMS,
   type E2eCatalogEntry,
   type E2eCurrentCohort,
   type E2eExecutionCohort,
+  type E2eLayer,
 } from "../../frontend/e2e/suites/catalog.ts";
 
 const TEST_FILE = fileURLToPath(import.meta.url);
@@ -44,6 +46,13 @@ const EXPECTED_DOMAIN_COUNTS = new Map([
   // +1: B11 canonical WorkspaceHeader, the runtime half of the shared
   // DashboardModuleWorkspace header contract.
   ["regression", 20],
+]);
+// E2E-GLOBAL-04: what each spec really traverses. No spec reaches Fastify or
+// Postgres today, so "integration" has no members; reclassifying any entry
+// must move these numbers explicitly.
+const EXPECTED_LAYER_COUNTS = new Map<E2eLayer, number>([
+  ["mocked", 37],
+  ["fixture", 61],
 ]);
 const EXPECTED_CURRENT_COUNTS = new Map([
   // +3: E2E-GLOBAL-03 simulated auth boundary specs, promoted straight to
@@ -240,11 +249,17 @@ function validateCatalog(
   const allowedPlatforms = new Set<string>(PLATFORMS);
   const allowedExecutionCohorts = new Set<string>(EXECUTION_COHORTS);
   const allowedCurrentCohorts = new Set<string>(CURRENT_COHORTS);
+  const allowedLayers = new Set<string>(LAYERS);
 
   for (const entry of entries) {
     assert.ok(allowedDomains.has(entry.domain), `${entry.path} has invalid domain`);
     assert.ok(entry.owner.trim(), `${entry.path} must have owner`);
     assert.ok(entry.feature.trim(), `${entry.path} must have feature`);
+    assert.ok(allowedLayers.has(entry.layer), `${entry.path} has invalid layer`);
+    assert.ok(
+      typeof entry.proves === "string" && entry.proves.trim(),
+      `${entry.path} must state what it proves`,
+    );
     assert.ok(allowedPlatforms.has(entry.platform), `${entry.path} has invalid platform`);
     for (const cohort of entry.currentCohorts) {
       assert.ok(allowedCurrentCohorts.has(cohort), `${entry.path} has invalid current cohort`);
@@ -255,6 +270,7 @@ function validateCatalog(
   }
 
   assertCountMap(countBy(entries.map((entry) => entry.domain)), EXPECTED_DOMAIN_COUNTS);
+  assertCountMap(countBy(entries.map((entry) => entry.layer)), EXPECTED_LAYER_COUNTS);
   assertExportedExecutionCohortsMatchCatalog(entries);
   assertExecutionCohortPartition(catalogPaths);
 
@@ -337,6 +353,22 @@ test("catalog validation catches missing and duplicate entries in memory", async
   assert.throws(
     () => validateCatalog(duplicated, workspaceSpecs, E2E_MANUAL_ONLY_SPECS),
     /98|unique/,
+  );
+});
+
+test("catalog validation rejects an unknown layer and an empty proves in memory", () => {
+  const workspaceSpecs = workspaceE2eSpecs();
+  const [first, ...rest] = E2E_SUITE_CATALOG;
+  const unknownLayer = [{ ...first, layer: "browser" as unknown as E2eLayer }, ...rest];
+  const emptyProves = [{ ...first, proves: "   " }, ...rest];
+
+  assert.throws(
+    () => validateCatalog(unknownLayer, workspaceSpecs, E2E_MANUAL_ONLY_SPECS),
+    /invalid layer/,
+  );
+  assert.throws(
+    () => validateCatalog(emptyProves, workspaceSpecs, E2E_MANUAL_ONLY_SPECS),
+    /must state what it proves/,
   );
 });
 
