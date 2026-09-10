@@ -489,7 +489,7 @@ test("Frontend CI sube test-results del gate required solo en fallo (E2E-GLOBAL-
   // from the run, next to — never instead of — the existing report upload.
   assertContains(
     source,
-    "      - name: Upload Playwright test-results\n        if: failure()\n        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7\n        with:\n          name: frontend-playwright-test-results\n          path: frontend/test-results/\n          if-no-files-found: ignore",
+    "      - name: Upload Playwright test-results\n        if: failure()\n        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7\n        with:\n          name: frontend-playwright-test-results-${{ github.run_attempt }}\n          path: frontend/test-results/\n          if-no-files-found: ignore",
   );
 
   assertOrdered(source, [
