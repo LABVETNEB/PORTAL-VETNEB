@@ -13,6 +13,7 @@ const COHORT_RUNNER_PATH = "frontend/e2e/scripts/run-cohort.mjs";
 const DEV_ROUTES_REFERENCE = "./.next/dev/types/routes.d.ts";
 const PRODUCTION_ROUTES_REFERENCE = "./.next/types/routes.d.ts";
 const DEV_ROOT_PARAMS_REFERENCE = "./.next/dev/types/root-params.d.ts";
+const PRODUCTION_ROOT_PARAMS_REFERENCE = "./.next/types/root-params.d.ts";
 
 function read(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
@@ -21,7 +22,7 @@ function read(relativePath: string): string {
   );
 }
 
-test("frontend next-env.d.ts keeps the production route type reference", () => {
+test("frontend next-env.d.ts keeps the production route and root-params type references", () => {
   const source = read(NEXT_ENV_PATH);
 
   assert.ok(
@@ -33,11 +34,15 @@ test("frontend next-env.d.ts keeps the production route type reference", () => {
     false,
     "next-env.d.ts must not reference .next/dev/types/routes.d.ts",
   );
+  assert.ok(
+    source.includes(PRODUCTION_ROOT_PARAMS_REFERENCE),
+    "next-env.d.ts must reference .next/types/root-params.d.ts",
+  );
   assert.equal(
     source.includes(DEV_ROOT_PARAMS_REFERENCE),
     false,
     "next-env.d.ts must not reference .next/dev/types/root-params.d.ts: " +
-      "the Next.js >= 16.3 dev import is restored away, never committed",
+      "the Next.js >= 16.3 dev import is restored to its production counterpart, never committed",
   );
 });
 
@@ -61,6 +66,10 @@ test("Playwright has a next-env hygiene teardown", () => {
   assert.ok(
     helper.includes(DEV_ROOT_PARAMS_REFERENCE),
     "next-env hygiene helper must detect the dev root-params import added by Next.js >= 16.3",
+  );
+  assert.ok(
+    helper.includes(PRODUCTION_ROOT_PARAMS_REFERENCE),
+    "next-env hygiene helper must restore the production root-params type reference",
   );
 });
 
@@ -118,8 +127,11 @@ test("next-env hygiene helper normalizes a dev route reference", async () => {
 });
 
 // Next.js 16.3 mutates next-env.d.ts with BOTH the dev route reference and a
-// brand-new dev root-params import. Restoring only the first left the file
-// dirty and the source-hygiene gate red on a file no commit touched.
+// dev root-params import. The tracked baseline carries the production form of
+// both (synced from `next build` codegen, see frontend/next-env.d.ts), so a
+// restore that drops the root-params line instead of rewriting it leaves the
+// file behind that baseline and the source-hygiene gate red on a file no
+// commit touched.
 test("next-env hygiene helper restores a combined Next.js 16.3 mutation", async () => {
   const helperUrl = pathToFileURL(
     resolve(process.cwd(), NEXT_ENV_HYGIENE_HELPER_PATH),
@@ -132,6 +144,7 @@ test("next-env hygiene helper restores a combined Next.js 16.3 mutation", async 
     '/// <reference types="next" />',
     '/// <reference types="next/image-types/global" />',
     `import "${PRODUCTION_ROUTES_REFERENCE}";`,
+    `import "${PRODUCTION_ROOT_PARAMS_REFERENCE}";`,
     "",
     "// NOTE: This file should not be edited",
     "",
@@ -170,10 +183,14 @@ test("next-env hygiene helper restores a combined Next.js 16.3 mutation", async 
       restored.includes(`import "${PRODUCTION_ROUTES_REFERENCE}";`),
       "the canonical production route reference must remain",
     );
+    assert.ok(
+      restored.includes(`import "${PRODUCTION_ROOT_PARAMS_REFERENCE}";`),
+      "the canonical production root-params reference must be restored, not dropped",
+    );
     assert.equal(
       restored,
       expected,
-      "the restore must remove the whole generated line, leaving no blank residue",
+      "the restore must rewrite both generated lines to their production counterparts, leaving no blank residue",
     );
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
