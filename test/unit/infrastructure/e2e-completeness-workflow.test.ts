@@ -315,3 +315,50 @@ test("completeness workflow passes the parser-backed workflow security policy", 
   assert.deepEqual(report.permissions.map((entry) => entry.permissions), [{ contents: "read" }]);
   assert.ok(report.externalActions.every((action) => /^[0-9a-f]{40}$/.test(action.ref)));
 });
+
+test("system dependency install sanitizes only Google Chrome APT sources and stays fail-closed", () => {
+  const source = readWorkflow(COMPLETENESS_WORKFLOW);
+  const document = parseWorkflow(source);
+  const workflowJob = job(document, "e2e-full-completeness");
+  const step = stepByName(workflowJob, "Install Playwright system dependencies");
+  const script = String(step.run);
+
+  assert.equal(step.shell, "bash");
+  assert.equal(step["timeout-minutes"], 5);
+  assert.ok(script.startsWith("set -euo pipefail\n"), "the step must abort on the first failing command");
+
+  // The remediated failure was an out-of-scope APT source, not a Playwright one:
+  // `install-deps` itself must survive verbatim. `install --with-deps` is not a
+  // substitute — it runs the same apt-get update and would hit the same source.
+  assert.match(script, /\n\s*pnpm --dir frontend exec playwright install-deps chromium\n?$/);
+  assert.equal(script.includes("--with-deps"), false);
+
+  // Both APT source formats the runner image can carry must be swept; the image
+  // ships the Deb822 `/etc/apt/sources.list.d/google-chrome.sources`, and a sweep
+  // that only understands one-line `deb` entries leaves the gate broken.
+  for (const glob of ["/etc/apt/sources.list.d/*.list", "/etc/apt/sources.list.d/*.sources"]) {
+    assert.ok(script.includes(glob), `the sweep must cover ${glob}`);
+  }
+  assert.ok(
+    script.includes('BEGIN { RS = ""; FS = "\\n" }'),
+    "Deb822 stanzas must be read record-wise with newline as the only field separator",
+  );
+  assert.ok(script.includes('print "Enabled: no"'), "a matched Deb822 stanza must be disabled, not deleted");
+  assert.equal(
+    /Unsupported Deb822/.test(script),
+    false,
+    "Deb822 sources must be handled, never rejected as unsupported",
+  );
+
+  // Targeted at Google Chrome and nothing else, so the Ubuntu archive that
+  // actually provides Chromium's libraries is never disabled.
+  assert.ok(script.includes("readonly target_fragment='dl.google.com/linux/chrome'"));
+  assert.equal(/(archive\.ubuntu\.com|ubuntu\.sources|rm -rf? \/etc\/apt)/.test(script), false);
+
+  // Fail-closed: a target that survives the rewrite stops the job.
+  assert.ok(script.includes("Targeted APT source remains active after rewrite"));
+  assert.match(script, /if has_active_target "\$source_file"; then\n\s+echo[^\n]*\n\s+exit 1\n/);
+  for (const escape of ["|| true", "continue-on-error", "set +e", "apt-get update || "]) {
+    assert.equal(script.includes(escape), false, `the step must not neutralize failures with: ${escape}`);
+  }
+});

@@ -70,8 +70,111 @@ jobs:
         run: pnpm security:public-surface
 
       - name: Install Playwright system dependencies
+        shell: bash
         timeout-minutes: 5
-        run: pnpm --dir frontend exec playwright install-deps chromium
+        run: |
+          set -euo pipefail
+
+          # `playwright install-deps` runs `apt-get update`, which fails closed on
+          # every configured source. The runner image ships Google Chrome's own
+          # repository — irrelevant to the system libraries Chromium needs — and that
+          # repository has published inconsistent indexes (`Hash Sum mismatch`, exit
+          # 100), taking the whole gate down with it. Neutralize only that source, in
+          # both APT source formats the image can use: the classic one-line `.list`
+          # and the Deb822 `.sources` format actually present on ubuntu-24.04 as
+          # /etc/apt/sources.list.d/google-chrome.sources. `install-deps` itself is
+          # unchanged and still fail-closed; absence of the source is not an error,
+          # a source that survives the rewrite is.
+          # Matches every Google Chrome channel the image may configure
+          # (chrome/deb, chrome-stable/deb, ...) and nothing else.
+          readonly target_fragment='dl.google.com/linux/chrome'
+
+          # In paragraph mode (RS="") each Deb822 stanza is one record; FS must be
+          # set to newline explicitly so each of its lines is exactly one field.
+          deb822_has_active_target() {
+            awk -v frag="$target_fragment" '
+              BEGIN { RS = ""; FS = "\n" }
+              index($0, frag) {
+                disabled = 0
+                for (i = 1; i <= NF; i++) {
+                  if ($i ~ /^[Ee]nabled[[:space:]]*:[[:space:]]*(no|false|0)[[:space:]]*$/) disabled = 1
+                }
+                if (!disabled) active = 1
+              }
+              END { exit(active ? 0 : 1) }
+            ' "$1"
+          }
+
+          list_has_active_target() {
+            awk -v frag="$target_fragment" '
+              index($0, frag) && $0 !~ /^[[:space:]]*#/ { active = 1 }
+              END { exit(active ? 0 : 1) }
+            ' "$1"
+          }
+
+          has_active_target() {
+            if [[ "$1" == *.sources ]]; then
+              deb822_has_active_target "$1"
+            else
+              list_has_active_target "$1"
+            fi
+          }
+
+          disable_deb822_target() {
+            awk -v frag="$target_fragment" '
+              BEGIN { RS = ""; FS = "\n" }
+              {
+                if (stanzas++) print ""
+                if (index($0, frag)) {
+                  for (i = 1; i <= NF; i++) {
+                    if ($i !~ /^[Ee]nabled[[:space:]]*:/) print $i
+                  }
+                  print "Enabled: no"
+                } else {
+                  print $0
+                }
+              }
+            ' "$1"
+          }
+
+          disable_list_target() {
+            awk -v frag="$target_fragment" '
+              index($0, frag) && $0 !~ /^[[:space:]]*#/ {
+                print "# Disabled by VETNEB CI (targeted): " $0
+                next
+              }
+              { print }
+            ' "$1"
+          }
+
+          shopt -s nullglob
+          source_files=(
+            /etc/apt/sources.list
+            /etc/apt/sources.list.d/*.list
+            /etc/apt/sources.list.d/*.sources
+          )
+
+          for source_file in "${source_files[@]}"; do
+            [[ -f "$source_file" ]] || continue
+            has_active_target "$source_file" || continue
+
+            echo "Neutralizing out-of-scope APT source: ${source_file}"
+            rewritten_source="$(mktemp)"
+            if [[ "$source_file" == *.sources ]]; then
+              disable_deb822_target "$source_file" > "$rewritten_source"
+            else
+              disable_list_target "$source_file" > "$rewritten_source"
+            fi
+            sudo cp -- "$rewritten_source" "$source_file"
+            rm -f -- "$rewritten_source"
+
+            if has_active_target "$source_file"; then
+              echo "Targeted APT source remains active after rewrite: ${source_file}" >&2
+              exit 1
+            fi
+          done
+
+          pnpm --dir frontend exec playwright install-deps chromium
 
       - name: Install Playwright Chromium
         shell: bash
