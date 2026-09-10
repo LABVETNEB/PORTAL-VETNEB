@@ -125,9 +125,107 @@ Digest canónico: `bd96be3b…3cecbe` → `fdac86cb…c8c569`.
   deliberadamente amplio (`dl.google.com/linux/chrome`) para cubrir todos los canales.
 - **R-R3 — aceptación pendiente.** `LIMPIEZA E2E` exige **2 runs consecutivos de `E2E Completeness`
   alcanzando el paso 11**. Esa evidencia sólo existe después del push, y no la produce esta
-  implementación local.
+  implementación local. (Cerrado parcialmente: el run `34423514098` sobre esta misma rama alcanzó
+  el paso 11 con SUCCESS, evidencia de la corrección de este documento; ver Addendum.)
+
+## Addendum — segunda causa raíz: `next-env.d.ts` post-E2E (mismo PR, misma rama)
+
+`E2E Completeness` corrido sobre esta rama (`fix/e2e-global-01-completeness`, PR #1707, HEAD
+`3a2901947035fbc5645900ffc16fc73f0d4401f4`, run `34423514098`) demostró la corrección de arriba:
+los pasos 9–11 (`Install Playwright system dependencies`, `Install Playwright Chromium`, `Run
+complete cataloged E2E suite`) terminaron en **SUCCESS**. El run quedó en rojo en el paso 14,
+**`Verify source hygiene and clean generated artifacts`**, con un dominio distinto y no relacionado
+con APT/Playwright.
+
+### Causa raíz
+
+`frontend/next-env.d.ts` canónico (tracked, sincronizado por PR #1703) contiene:
+
+```ts
+import "./.next/types/routes.d.ts";
+import "./.next/types/root-params.d.ts";
+```
+
+El catálogo `e2e:full` corre contra `next dev` (no `next start`; `AGENTS.md` documenta que el
+baseline Linux inmutable exige el indicador de desarrollo de Next.js). Al arrancar, Next.js 16.3.4
+reescribe `next-env.d.ts` con las referencias de modo desarrollo:
+
+```ts
+import "./.next/dev/types/routes.d.ts";
+import "./.next/dev/types/root-params.d.ts";
+```
+
+confirmado en vivo arrancando `next dev` localmente (ver Evidencia). El `globalTeardown` de
+Playwright (`frontend/e2e/helpers/restore-next-env-hygiene.mjs`) ya sabía normalizar la primera
+línea (`routes.d.ts`, swap dev→producción), pero la segunda (`root-params.d.ts`) tenía una regla
+**obsoleta**: un comentario decía *"It has no counterpart in the committed file, so it is dropped
+instead of rewritten"* — cierto **antes** de PR #1703, falso **después**: el archivo tracked ya
+tiene la forma de producción. El helper seguía **eliminando la línea entera** en vez de
+reescribirla, dejando el árbol de trabajo un import por debajo del baseline tracked. Ese delta es
+exactamente el que `git diff --exit-code -- frontend/next-env.d.ts` detectó en el paso 14.
+
+Causa vs. síntoma vs. efecto en CI:
+
+| | |
+|---|---|
+| **Causa** | Regla de restauración desactualizada en `restore-next-env-hygiene.mjs`: dropea en vez de reescribir el import dev de `root-params.d.ts` |
+| **Síntoma** | `frontend/next-env.d.ts` queda con una línea menos que el tracked tras `next dev` + teardown |
+| **Efecto en CI** | `git diff --exit-code -- frontend/next-env.d.ts frontend/e2e` falla → paso 14 en rojo → `E2E Completeness` no llega a SUCCESS pese a que el catálogo completo pasó |
+
+### Evidencia
+
+- Run `34423514098`, paso 14, log: diff exacto `-import "./.next/types/root-params.d.ts";` (única
+  línea removida), `git diff --exit-code` exit 1.
+- Reproducción en vivo (dos veces, independientes): `pnpm exec next dev` desde `frontend/` con
+  working tree limpio produjo, en ambas corridas,
+  `import "./.next/dev/types/routes.d.ts";` y `import "./.next/dev/types/root-params.d.ts";`
+  en `next-env.d.ts`, byte a byte reproducible.
+- Aplicar el helper **original** (pre-fix) sobre ese archivo mutado en vivo deja exactamente el
+  mismo diff que el paso 14 de CI: falta la línea `root-params.d.ts` de producción.
+- Aplicar el helper **corregido** sobre el mismo archivo mutado en vivo produce contenido
+  **idéntico byte a byte** al tracked (`git diff --exit-code -- frontend/next-env.d.ts` exit 0).
+- `frontend-ci.yml` no está expuesto a esta causa: su gate usa `VETNEB_E2E_PRODUCTION_RUNNER=1`
+  (`next start`, no `next dev`) y no tiene un paso de source hygiene equivalente.
+
+### Cambio implementado
+
+`frontend/e2e/helpers/restore-next-env-hygiene.mjs`: la referencia dev de `root-params.d.ts` se
+reescribe a su contraparte de producción con el mismo patrón `.split().join()` ya usado para
+`routes.d.ts`, en vez de eliminarse con una regex dedicada (`DEV_ROOT_PARAMS_IMPORT`, retirada
+por innecesaria). Comentario actualizado para reflejar el estado real post-PR #1703.
+
+Realineación in-PR del guard que ancla ese comportamiento (`AGENTS.md` §4): el test
+`test/unit/infrastructure/next-env-hygiene.test.ts` verificaba una fixture donde el resultado
+esperado **no** incluía ninguna referencia a `root-params.d.ts` — reflejo del estado pre-#1703.
+Se realineó para exigir la contraparte de producción, sin debilitar ninguna aserción existente
+(las que verifican ausencia de la forma dev siguen intactas y siguen pasando).
+
+### Hallazgo colateral fuera de scope (reportado, no corregido)
+
+Al ejecutar `next dev` en vivo para la reproducción, Next.js 16.3.4 generó dos archivos nuevos
+**untracked**: `frontend/AGENTS.md` y `frontend/CLAUDE.md` (feature de codegen "AI agent rules"
+de esa versión). El paso 14 actual está scopeado sólo a `frontend/next-env.d.ts` y `frontend/e2e`,
+por lo que esos dos archivos no afectan el gate hoy. Se deja registrado como riesgo latente
+(R-R4): si el scope del `git status` de higiene se ampliara alguna vez a `frontend/` completo, o
+si otro gate corre `next dev` sin ese path-scoping, esos dos archivos aparecerían como dirty
+untracked. No se actúa sobre esto por exceder el scope de `E2E-GLOBAL-01`.
+
+### Validaciones del addendum
+
+| Gate | Estado |
+|---|---|
+| Test dirigido `test/unit/infrastructure/next-env-hygiene.test.ts` | PASSED — 6/6 |
+| Mutación del guard contra el helper original (pre-fix) restaurado desde `git show HEAD` | PASSED — discrimina: 2/6 fallan con causa nombrada (`"the canonical production root-params reference must be restored, not dropped"`) |
+| Reproducción en vivo con `next dev` real (dos corridas independientes) + aplicación del helper corregido | PASSED — `git diff --exit-code -- frontend/next-env.d.ts` exit 0 |
+| `pnpm validate:local` | PASSED — 4502 pass / 1 skip preexistente / 0 fail; build OK |
+| `git diff --check` | PASSED |
+| Lógica exacta del paso 14 (`git diff --exit-code` + `git status --short --untracked-files=all`) sobre `frontend/next-env.d.ts` | PASSED |
 
 ## Estado final
 
-Corrección implementada y validada localmente. Aceptación definitiva pendiente de los 2 runs
-consecutivos exigidos por la fuente rectora. Ninguna fase posterior de `LIMPIEZA E2E` fue iniciada.
+Dos causas raíz independientes de `E2E-GLOBAL-01` corregidas en la misma rama/PR (#1707), sin
+crear ramas ni PRs adicionales: (1) saneamiento APT con soporte Deb822 y (2) restauración correcta
+de `next-env.d.ts` tras `next dev`. Aceptación definitiva de `LIMPIEZA E2E` sigue pendiente de
+**2 runs consecutivos de `E2E Completeness` alcanzando SUCCESS completo** (paso 14 incluido) sobre
+el head que incorpore este addendum — ese head aún no existe en remoto. Ninguna fase posterior de
+`LIMPIEZA E2E` fue iniciada.
