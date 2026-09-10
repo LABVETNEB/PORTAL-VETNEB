@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import "dotenv/config";
 import { eq } from "drizzle-orm";
 
 process.env.NODE_ENV ??= "development";
@@ -28,6 +29,7 @@ process.env.SUPABASE_DB_URL = databaseUrl;
 const { db, closeDbConnection, pgClient } = await import("../../../server/db.ts");
 const { createFastifyApp } = await import("../../../server/fastify-app.ts");
 const { hashPassword } = await import("../../../server/lib/auth-security.ts");
+const { ENV } = await import("../../../server/lib/env.ts");
 const {
   activeSessions,
   adminSessions,
@@ -46,6 +48,12 @@ function getCookiePair(response: { headers: Record<string, unknown> }) {
   const cookie = value.split(";", 1)[0];
   assert.ok(cookie, "Set-Cookie debe comenzar con name=value");
   return cookie;
+}
+
+function getCookieValue(cookie: string) {
+  const separator = cookie.indexOf("=");
+  assert.notEqual(separator, -1, "la cookie debe contener name=value");
+  return cookie.slice(separator + 1);
 }
 
 test("E2E-GLOBAL-03B: Fastify y PostgreSQL aplican la frontera autoritativa admin/clínica", async (t) => {
@@ -165,6 +173,15 @@ test("E2E-GLOBAL-03B: Fastify y PostgreSQL aplican la frontera autoritativa admi
     headers: { cookie: clinicCookie },
   });
   assert.equal(clinicAgainstAdmin.statusCode, 401);
+
+  const clinicTokenAgainstAdminStore = await app.inject({
+    method: "GET",
+    url: "/api/admin/auth/me",
+    headers: {
+      cookie: `${ENV.adminCookieName}=${getCookieValue(clinicCookie)}`,
+    },
+  });
+  assert.equal(clinicTokenAgainstAdminStore.statusCode, 401);
 
   const adminLogin = await app.inject({
     method: "POST",
