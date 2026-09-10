@@ -48,6 +48,12 @@ export default defineConfig({
   globalTeardown: "./e2e/helpers/restore-next-env-hygiene.mjs",
   timeout: 30_000,
   globalTimeout,
+  // A committed .only must never reduce the required gate to a single test:
+  // forbidOnly fails the run in CI when one slips through (LIMPIEZA E2E P0-3).
+  forbidOnly: isCi,
+  // A test that only passes on retry is not passing: failOnFlakyTests turns a
+  // masked flake into a failed run instead of a silent SUCCESS (LIMPIEZA E2E P1-3).
+  failOnFlakyTests: true,
   expect: {
     timeout: 5_000,
   },
@@ -55,7 +61,8 @@ export default defineConfig({
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
     baseURL: "http://127.0.0.1:3000",
-    trace: "on-first-retry",
+    trace: "retain-on-failure",
+    screenshot: "only-on-failure",
   },
   webServer: [
     {

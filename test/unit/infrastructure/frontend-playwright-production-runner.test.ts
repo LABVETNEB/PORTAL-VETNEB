@@ -13,6 +13,12 @@ type WebServerLike = {
 
 type PlaywrightConfigLike = {
   webServer?: WebServerLike | WebServerLike[];
+  forbidOnly?: boolean;
+  failOnFlakyTests?: boolean;
+  use?: {
+    trace?: string;
+    screenshot?: string;
+  };
 };
 
 let importSequence = 0;
@@ -217,6 +223,60 @@ test("Playwright selecciona dev local y next start solo en el runner productivo 
     assert.equal(server.reuseExistingServer, true);
     assert.equal(server.env?.VETNEB_E2E_ALLOW_LOCAL_API, undefined);
     assert.equal(server.env?.VETNEB_E2E_DISABLE_EXTERNAL_EMBEDS, undefined);
+  });
+});
+
+test("Playwright cierra los falsos verdes de configuración fail-closed (LIMPIEZA E2E P0-3, P1-1, P1-3)", async (t) => {
+  await t.test("CI forbids a committed .only from narrowing the required gate", async () => {
+    const config = await loadConfig({ ci: "true" });
+
+    assert.equal(
+      config.forbidOnly,
+      true,
+      "forbidOnly must be true under CI so a focused test fails the run instead of silently narrowing it",
+    );
+  });
+
+  await t.test("local runs keep forbidOnly off for day-to-day debugging", async () => {
+    const config = await loadConfig({});
+
+    assert.equal(
+      config.forbidOnly,
+      false,
+      "forbidOnly must stay off outside CI; committing a .only, not running one locally, is the P0-3 risk",
+    );
+  });
+
+  await t.test("a masked flake fails the run instead of reporting a silent SUCCESS", async () => {
+    const config = await loadConfig({ ci: "true" });
+
+    assert.equal(
+      config.failOnFlakyTests,
+      true,
+      "failOnFlakyTests must stay true so a test that only passes on retry fails the run (P1-3)",
+    );
+
+    const localConfig = await loadConfig({});
+    assert.equal(
+      localConfig.failOnFlakyTests,
+      true,
+      "failOnFlakyTests must not be conditioned on CI: masking must be explicit everywhere",
+    );
+  });
+
+  await t.test("a CI failure retains a trace and a screenshot for diagnosis", async () => {
+    const config = await loadConfig({ ci: "true" });
+
+    assert.equal(
+      config.use?.trace,
+      "retain-on-failure",
+      "trace must be retained on failure so the required gate leaves a trace.zip behind (B-4)",
+    );
+    assert.equal(
+      config.use?.screenshot,
+      "only-on-failure",
+      "screenshot must be captured only on failure so a red run leaves diagnostic evidence (P1-1)",
+    );
   });
 });
 
