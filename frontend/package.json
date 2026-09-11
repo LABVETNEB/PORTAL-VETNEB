@@ -24,6 +24,7 @@
     "e2e:visual-linux": "node e2e/scripts/run-cohort.mjs visual-linux",
     "e2e:affected": "node e2e/scripts/run-cohort.mjs affected",
     "e2e:compare-visual-artifacts": "node e2e/scripts/compare-visual-artifacts.mjs",
+    "e2e:visual-production-candidate": "node e2e/scripts/visual-production-candidate.mjs",
     "e2e:verify-catalog": "node --experimental-strip-types --experimental-specifier-resolution=node --test ../test/architecture/e2e-suite-catalog-completeness.test.ts"
   },
   "dependencies": {

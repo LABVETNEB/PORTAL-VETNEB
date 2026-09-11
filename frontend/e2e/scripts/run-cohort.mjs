@@ -169,7 +169,7 @@ function printSelection(cohort, selection) {
   for (const spec of selection.specs) console.log(`  ${spec}`);
 }
 
-function pnpmInvocation() {
+export function pnpmInvocation() {
   const npmExecPath = process.env.npm_execpath;
   if (npmExecPath && npmExecPath.toLowerCase().includes("pnpm")) {
     return {
