@@ -1,6 +1,6 @@
 name: Visual Regression Manual
 
-run-name: "Visual regression ${{ inputs.suite }} (update_snapshots=${{ inputs.update_snapshots }})"
+run-name: "Visual regression ${{ inputs.suite }} (runner=${{ inputs.runner }}, update_snapshots=${{ inputs.update_snapshots }})"
 
 on:
   workflow_dispatch:
@@ -15,8 +15,16 @@ on:
           - public
           - authenticated
           - stress
+      runner:
+        description: "dev: compare (or update) the canonical baselines under next dev. production-candidate: next build + next start into an isolated candidate compared against the canonical baselines; never updates them."
+        required: true
+        default: dev
+        type: choice
+        options:
+          - dev
+          - production-candidate
       update_snapshots:
-        description: "Update visual snapshots in the ephemeral CI workspace."
+        description: "Update visual snapshots in the ephemeral CI workspace (dev runner only)."
         required: true
         default: false
         type: boolean
@@ -37,7 +45,9 @@ jobs:
   visual-regression:
     name: visual-regression-${{ inputs.suite }}
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # The candidate caps Playwright at 20 minutes, leaving at least 25 minutes
+    # of job budget for setup, build, teardown, evidence and artifact upload.
+    timeout-minutes: 45
 
     env:
       CI: true
@@ -45,6 +55,12 @@ jobs:
       UPDATE_SNAPSHOTS: ${{ inputs.update_snapshots }}
 
     steps:
+      - name: Reject snapshot updates for the production candidate
+        if: ${{ inputs.runner == 'production-candidate' && inputs.update_snapshots }}
+        run: |
+          echo "::error::runner=production-candidate never updates snapshots; promoting a candidate to baseline is a separate reviewed step (E2E-GLOBAL-05B)."
+          exit 1
+
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -66,6 +82,7 @@ jobs:
         run: corepack pnpm --dir frontend exec playwright install --with-deps chromium
 
       - name: Run selected visual regression suite
+        if: ${{ inputs.runner == 'dev' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -110,6 +127,18 @@ jobs:
 
           "${cmd[@]}"
 
+      - name: Produce production visual candidate
+        if: ${{ inputs.runner == 'production-candidate' }}
+        shell: bash
+        env:
+          E2E_GLOBAL_TIMEOUT_MS: "1200000"
+        run: |
+          set -euo pipefail
+
+          corepack pnpm --dir frontend e2e:visual-production-candidate -- \
+            --suite "${VISUAL_SUITE}" \
+            --evidence-dir "${RUNNER_TEMP}/visual-production-candidate"
+
       - name: Upload Playwright artifacts
         if: ${{ always() && inputs.upload_artifacts }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -122,10 +151,19 @@ jobs:
           retention-days: 14
 
       - name: Upload snapshot PNGs
-        if: ${{ always() && inputs.upload_artifacts && (inputs.update_snapshots || failure()) }}
+        if: ${{ always() && inputs.upload_artifacts && inputs.runner == 'dev' && (inputs.update_snapshots || failure()) }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: visual-regression-${{ inputs.suite }}-snapshots-${{ github.run_attempt }}
           path: frontend/e2e/**/*.png
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload production visual candidate evidence
+        if: ${{ always() && inputs.upload_artifacts && inputs.runner == 'production-candidate' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: visual-regression-${{ inputs.suite }}-production-candidate-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/visual-production-candidate/
           if-no-files-found: ignore
           retention-days: 14

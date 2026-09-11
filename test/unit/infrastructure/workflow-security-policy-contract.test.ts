@@ -77,6 +77,7 @@ const pinnedActionReferences = new Map<string, readonly string[]>([
       "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
       "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
       "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
     ],
   ],
 ]);
@@ -96,7 +97,7 @@ const canonicalWorkflowDigests = new Map<string, string>([
   [".github/workflows/frontend-ci.yml", "5d08cc25e768082fe8a47c08648e23f8aabb7d1f8ce8aaee6448415fdbbfa986"],
   [".github/workflows/pr-governance.yml", "8dc2bf50342db4e45c7bcb5eadbeeeae28b87ac7b766260b903253ca6ba13947"],
   [".github/workflows/qga-governance.yml", "88ed322d67eda6fbec0a7ed0fa106625a43263a4d6998d6eceb24aeee389b393"],
-  [".github/workflows/visual-regression-manual.yml", "86784fe26f1f15e2ae6fb60ee8c26ef050f311bcebab72a2e1732739e035fee9"],
+  [".github/workflows/visual-regression-manual.yml", "3062dffc07d76ec64d33c720ed9c979e4c47c85e6c3ae3817b0c48a5eed49e0e"],
 ]);
 
 function readWorkflow(workflowPath: string): string {
