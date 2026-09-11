@@ -52,6 +52,8 @@ build -> next start -> Playwright -> directory outside the repository
 - No production application change, backend/DB/auth change, secret, or production setting is introduced.
 - Workflow SHA pinning and security policy remain intact and the path fails closed.
 - Evidence is outside the repository and teardown is mandatory.
+- Output containment resolves existing paths and the nearest existing ancestor physically, so symlinks or Windows junctions cannot redirect evidence back into the checkout.
+- The manual job has a 45-minute outer timeout; production-candidate limits Playwright to 20 minutes, preserving at least 25 minutes for setup, build, teardown, evidence, and upload.
 
 ## Consequences
 
@@ -60,6 +62,7 @@ build -> next start -> Playwright -> directory outside the repository
 - Development baselines and production candidates are safely separated.
 - The manual workflow has an explicit production-evidence path.
 - The existing exact comparator makes differences reproducible and auditable.
+- The manifest is a self-contained, sanitized evidence record: environment, surface, operational actor, UTC timestamp, commit, logical steps, outcome, relative artifact inventory, and residual risks.
 
 ### Trade-offs
 

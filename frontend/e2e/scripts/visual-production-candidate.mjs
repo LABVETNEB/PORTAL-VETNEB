@@ -11,8 +11,8 @@
 // candidate to baseline belongs to E2E-GLOBAL-05B and stays a reviewed step.
 
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
-import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, statSync, writeFileSync } from "node:fs";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { restoreNextEnvHygiene } from "../helpers/restore-next-env-hygiene.mjs";
@@ -68,6 +68,25 @@ export const EVIDENCE_LAYOUT = Object.freeze({
 const CANONICAL_E2E_ROOT = "frontend/e2e";
 const VERIFY_TEARDOWN = "e2e/helpers/verify-teardown.mjs";
 const BUILD_ID_CLOCK_SKEW_MS = 2_000;
+const EVIDENCE_STEPS = Object.freeze([
+  "validate platform",
+  "prepare isolated evidence",
+  "stage canonical baselines",
+  "verify ports",
+  "production build",
+  "Playwright under next start",
+  "restore next-env hygiene",
+  "verify teardown",
+  "verify canonical integrity",
+  "compare dev-vs-prod",
+  "write evidence",
+]);
+const RESIDUAL_RISKS = Object.freeze([
+  "production candidates are not canonical baselines",
+  "baseline promotion and reconciliation belong to E2E-GLOBAL-05B",
+  "pixel differences between development and production require review",
+  "suite=all alone is not promotion evidence until the planned canonical execution and review complete",
+]);
 
 export class UsageError extends Error {
   constructor(message) {
@@ -156,16 +175,37 @@ export function isInsideDirectory(parent, child) {
   return rel === "" || (rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
 }
 
+// `resolve()` is lexical. Resolve the nearest existing ancestor physically so
+// a symlink or Windows junction cannot redirect a seemingly external output
+// back into the checkout before any directory is created.
+export function resolvePhysicalPathForCreation(path) {
+  let cursor = resolve(path);
+  const missing = [];
+
+  while (!existsSync(cursor)) {
+    const parent = dirname(cursor);
+    if (parent === cursor) {
+      throw new CandidateError(`unable to find an existing ancestor for path: ${toPosix(path)}`);
+    }
+    missing.unshift(basename(cursor));
+    cursor = parent;
+  }
+
+  return resolve(realpathSync(cursor), ...missing);
+}
+
 export function assertOutsideRepository(path, repoRoot, label) {
   if (!path || !isAbsolute(path)) {
     throw new CandidateError(`${label} must be an absolute path, received: ${path || "(empty)"}`);
   }
-  if (isInsideDirectory(repoRoot, path)) {
+  const physicalPath = resolvePhysicalPathForCreation(path);
+  const physicalRepoRoot = realpathSync(repoRoot);
+  if (isInsideDirectory(physicalRepoRoot, physicalPath)) {
     throw new CandidateError(
-      `${label} must live outside the repository so candidates never mix with tracked baselines: ${toPosix(path)}`,
+      `${label} must live outside the repository so candidates never mix with tracked baselines: ${toPosix(physicalPath)}`,
     );
   }
-  return path;
+  return physicalPath;
 }
 
 // Used by the Playwright overlay config; throws unless the production runner is
@@ -277,6 +317,41 @@ function stageBaselines(state, layout, deps) {
     mkdirSync(dirname(target), { recursive: true });
     writeFileSync(target, bytes);
   }
+}
+
+function listEvidenceArtifacts(root, directory) {
+  const absoluteDirectory = join(root, directory);
+  if (!existsSync(absoluteDirectory)) return [];
+
+  const artifacts = [];
+  const visit = (current) => {
+    for (const entry of readdirSync(current, { withFileTypes: true }).sort((left, right) => left.name.localeCompare(right.name))) {
+      const absolutePath = join(current, entry.name);
+      const artifactPath = toPosix(relative(root, absolutePath));
+      if (entry.isDirectory()) visit(absolutePath);
+      else artifacts.push(artifactPath);
+    }
+  };
+  visit(absoluteDirectory);
+  return artifacts;
+}
+
+function createArtifactInventory(layout) {
+  return {
+    baselineDev: listEvidenceArtifacts(layout.root, EVIDENCE_LAYOUT.baseline),
+    candidateProd: listEvidenceArtifacts(layout.root, EVIDENCE_LAYOUT.candidate),
+    comparison: listEvidenceArtifacts(layout.root, EVIDENCE_LAYOUT.comparison),
+    playwright: listEvidenceArtifacts(layout.root, EVIDENCE_LAYOUT.playwright),
+    manifest: EVIDENCE_LAYOUT.manifest,
+  };
+}
+
+function resultForExitCode(exitCode) {
+  return {
+    status: exitCode === EXIT.PASS ? "passed" : exitCode === EXIT.CONTRACT_FAILED ? "different" : "failed",
+    exitCode,
+    approved: false,
+  };
 }
 
 // next build rewrites .next/BUILD_ID on every run; an older marker means the
@@ -394,6 +469,14 @@ export async function runProductionCandidate(options, deps = createDefaultDeps()
     task: "E2E-GLOBAL-05A",
     suite: options.suite,
     promotion: "not performed; replacing canonical baselines belongs to E2E-GLOBAL-05B",
+    evidence: {
+      environment: deps.evidenceContext.environment,
+      surface: "visual-regression-manual/production-candidate",
+      actor: deps.evidenceContext.actor,
+      timestampUtc: new Date(deps.now()).toISOString(),
+      steps: [...EVIDENCE_STEPS],
+      residualRisks: [...RESIDUAL_RISKS],
+    },
   };
   let layout = null;
 
@@ -407,7 +490,10 @@ export async function runProductionCandidate(options, deps = createDefaultDeps()
     deps.error(`[visual-candidate] ${record.error}`);
   }
 
+  record.evidence.result = resultForExitCode(record.exitCode);
+
   if (layout) {
+    record.evidence.artifactInventory = createArtifactInventory(layout);
     writeFileSync(join(layout.root, EVIDENCE_LAYOUT.manifest), `${JSON.stringify(record, null, 2)}\n`);
   }
   deps.log(`[visual-candidate] exit code ${record.exitCode}`);
@@ -439,6 +525,13 @@ export function createDefaultDeps() {
     cwd: process.cwd(),
     repoRoot: REPO_ROOT,
     now: () => Date.now(),
+    evidenceContext: {
+      environment:
+        process.env.GITHUB_ACTIONS === "true"
+          ? { execution: "github-actions", runner: `github-hosted-${(process.env.RUNNER_OS ?? "linux").toLowerCase()}` }
+          : { execution: "local", runner: process.platform },
+      actor: process.env.GITHUB_ACTIONS === "true" ? "github-actions-workflow" : "local-e2e-orchestrator",
+    },
     git: (args) =>
       execFileSync("git", args, { cwd: REPO_ROOT, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 }),
     runPnpm: (args, env) => spawnStatus(pnpm.executable, [...pnpm.prefixArgs, ...args], env),

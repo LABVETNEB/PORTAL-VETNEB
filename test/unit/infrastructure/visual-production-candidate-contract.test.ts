@@ -2,7 +2,7 @@ import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -25,6 +25,7 @@ interface Deps {
   cwd: string;
   repoRoot: string;
   now: () => number;
+  evidenceContext: { environment: Record<string, string>; actor: string };
   git: (args: string[]) => string;
   runPnpm: (args: string[], env: Env) => number;
   runNode: (args: string[]) => number;
@@ -195,7 +196,11 @@ async function runScenario(scenario: Scenario = {}) {
     platform: scenario.platform ?? "linux",
     cwd: caseRoot,
     repoRoot,
-    now: () => Date.now(),
+    now: () => Date.UTC(2026, 8, 11, 12, 34, 56),
+    evidenceContext: {
+      environment: { execution: "github-actions", runner: "github-hosted-linux" },
+      actor: "github-actions-workflow",
+    },
     git: (args) => {
       if (args[0] === "rev-parse") return `${HEAD}\n`;
       if (args[0] === "ls-files") return args.at(-1) === `${SNAPSHOT_DIR}/` ? tracked.map((path) => `${path}\0`).join("") : "";
@@ -364,6 +369,30 @@ test("build precedes next start, teardown and integrity precede comparison, and 
   assert.equal(run.manifest.runner.applicationServerCommand, "pnpm start --hostname 127.0.0.1");
   assert.equal(run.manifest.canonicalBaselines.length, BASELINE_NAMES.length);
   assert.match(run.manifest.promotion, /E2E-GLOBAL-05B/);
+  assert.deepEqual(run.manifest.evidence.environment, { execution: "github-actions", runner: "github-hosted-linux" });
+  assert.equal(run.manifest.evidence.surface, "visual-regression-manual/production-candidate");
+  assert.equal(run.manifest.evidence.actor, "github-actions-workflow");
+  assert.equal(run.manifest.evidence.timestampUtc, "2026-09-11T12:34:56.000Z");
+  assert.deepEqual(run.manifest.evidence.steps, [
+    "validate platform",
+    "prepare isolated evidence",
+    "stage canonical baselines",
+    "verify ports",
+    "production build",
+    "Playwright under next start",
+    "restore next-env hygiene",
+    "verify teardown",
+    "verify canonical integrity",
+    "compare dev-vs-prod",
+    "write evidence",
+  ]);
+  assert.deepEqual(run.manifest.evidence.result, { status: "passed", exitCode: EXIT.PASS, approved: false });
+  assert.deepEqual(run.manifest.evidence.artifactInventory.baselineDev, run.manifest.canonicalBaselines.map(({ path }: { path: string }) => path.replace(/^frontend\/e2e\//, "baseline-dev/")));
+  assert.equal(run.manifest.evidence.artifactInventory.manifest, "visual-production-candidate.json");
+  assert.ok(run.manifest.evidence.artifactInventory.comparison.includes("comparison/visual-artifact-comparison.json"));
+  assert.ok(run.manifest.evidence.residualRisks.every((risk: string) => /baseline|E2E-GLOBAL-05B|pixel|suite=all/.test(risk)));
+  assert.equal(JSON.stringify(run.manifest.evidence.artifactInventory).includes(run.evidenceDir), false);
+  assert.equal(/token|cookie|secret|authorization/i.test(JSON.stringify(run.manifest.evidence.artifactInventory)), false);
   assert.ok(run.canonicalUnchanged());
 });
 
@@ -401,6 +430,7 @@ test("dev-vs-prod differences are reported per file and fail the contract withou
   ]);
 
   for (const run of [pixel, dimensions, missing]) assert.ok(run.canonicalUnchanged());
+  assert.deepEqual(pixel.manifest.evidence.result, { status: "different", exitCode: EXIT.CONTRACT_FAILED, approved: false });
 });
 
 test("a failed or stale build never reaches Playwright", async () => {
@@ -453,6 +483,30 @@ test("busy ports, local baseline edits, unsafe evidence directories and non-Linu
   assert.equal(inside.exitCode, EXIT.INFRASTRUCTURE);
   assert.deepEqual(inside.kinds, []);
   assert.equal(existsSync(inside.evidenceDir), false, "nothing may be created inside the repository");
+
+  for (const evidenceDir of [
+    ({ caseRoot, repoRoot }: { caseRoot: string; repoRoot: string }) => {
+      const target = join(repoRoot, "symlink-target");
+      const outsideLooking = join(caseRoot, "outside-looking");
+      mkdirSync(target, { recursive: true });
+      symlinkSync(target, outsideLooking, process.platform === "win32" ? "junction" : "dir");
+      return outsideLooking;
+    },
+    ({ caseRoot, repoRoot }: { caseRoot: string; repoRoot: string }) => {
+      const target = join(repoRoot, "ancestor-symlink-target");
+      const outsideLooking = join(caseRoot, "outside-looking-ancestor");
+      mkdirSync(target, { recursive: true });
+      symlinkSync(target, outsideLooking, process.platform === "win32" ? "junction" : "dir");
+      return join(outsideLooking, "new", "evidence");
+    },
+  ]) {
+    const symlinked = await runScenario({ evidenceDir });
+    assert.equal(symlinked.exitCode, EXIT.INFRASTRUCTURE);
+    assert.deepEqual(symlinked.kinds, []);
+    assert.equal(existsSync(join(symlinked.repoRoot, "symlink-target", candidate.EVIDENCE_LAYOUT.baseline)), false);
+    assert.equal(existsSync(join(symlinked.repoRoot, "ancestor-symlink-target", "new")), false);
+    assert.ok(symlinked.canonicalUnchanged());
+  }
 
   const reused = await runScenario({
     evidenceDir: ({ caseRoot }) => {
@@ -595,6 +649,16 @@ test("visual-regression-manual keeps the dev route and adds an isolated, non-upd
   const candidateRun = stepNamed(steps, "Produce production visual candidate");
   const script = String(candidateRun.run);
   assert.equal(candidateRun.if, "${{ inputs.runner == 'production-candidate' }}");
+  const job = mapping(mapping(document.jobs, "jobs")["visual-regression"], "jobs.visual-regression");
+  const outerJobTimeoutMs = Number(job["timeout-minutes"]) * 60_000;
+  const candidateTimeoutMs = Number(mapping(candidateRun.env, "candidate environment").E2E_GLOBAL_TIMEOUT_MS);
+  const requiredHeadroomMs = 25 * 60_000;
+  assert.equal(outerJobTimeoutMs, 45 * 60_000);
+  assert.equal(candidateTimeoutMs, 20 * 60_000);
+  assert.ok(
+    outerJobTimeoutMs - candidateTimeoutMs >= requiredHeadroomMs,
+    `candidate requires ${requiredHeadroomMs}ms headroom after its ${candidateTimeoutMs}ms Playwright limit`,
+  );
   assert.ok(names.indexOf("Install Playwright Chromium") < names.indexOf(String(candidateRun.name)));
   assert.ok(script.startsWith("set -euo pipefail\n"));
   assert.ok(script.includes("corepack pnpm --dir frontend e2e:visual-production-candidate -- "));

@@ -59,7 +59,9 @@ teardown + integridad canónica ─▶ compare-visual-artifacts ─▶ <evidence
 
 - `frontend/e2e/scripts/visual-production-candidate.mjs` — orquestador. Resuelve la suite desde la
   cohorte `visual-linux` del catálogo, exige Linux (`validatePlatformCompatibility`), prepara un
-  directorio de evidencia **fuera del repositorio** y vacío, captura inventario tracked
+  directorio de evidencia **fuera del repositorio** y vacío, verificando físicamente el path y
+  su ancestro existente más cercano para rechazar symlinks/junctions que redirijan al checkout,
+  captura inventario tracked
   (`git ls-files`) + estado (`git status` de `frontend/e2e` + SHA-256), copia los baselines, verifica
   puertos libres, ejecuta `next build` con el mismo entorno de build que `Frontend CI`, exige un
   `.next/BUILD_ID` fresco, corre Playwright con `CI=true` + `VETNEB_E2E_PRODUCTION_RUNNER=1`,
@@ -72,7 +74,9 @@ teardown + integridad canónica ─▶ compare-visual-artifacts ─▶ <evidence
   `pnpm start --hostname 127.0.0.1`, si un proyecto sobreescribe la resolución de snapshots o si
   alguna salida cae dentro del repositorio. `updateSnapshots: "all"` sólo existe acoplado a esa
   redirección.
-- Workflow manual: input `runner` (`dev` por defecto | `production-candidate`). El primer paso aborta
+- Workflow manual: input `runner` (`dev` por defecto | `production-candidate`). El job tiene un
+  límite externo de 45 minutos; el candidato limita Playwright a 20 minutos, con 25 minutos de
+  margen para setup, build, teardown, acta y upload. El primer paso aborta
   `production-candidate` + `update_snapshots=true`; la ruta dev sólo corre con `runner=dev`; la
   subida de `frontend/e2e/**/*.png` queda restringida a dev; la evidencia del candidato se sube desde
   `${{ runner.temp }}`.
@@ -100,9 +104,11 @@ Alternativas descartadas:
 | `6` | Un baseline canónico o `frontend/e2e` cambió durante la corrida |
 | `7` | Servidores E2E siguen escuchando después de Playwright |
 
-Toda corrida con layout creado escribe `visual-production-candidate.json` (commit, suite, specs,
-`BUILD_ID`, runner, estados, SHA-256 de baselines, resumen de comparación, exit). La promoción del
-candidato a baseline queda registrada como **no realizada**.
+Toda corrida con layout creado escribe `visual-production-candidate.json` como acta autosuficiente:
+entorno, superficie, actor operacional, timestamp UTC, commit, pasos, resultado explícito,
+inventario sanitizado de rutas relativas de artefactos, riesgos residuales, `BUILD_ID`, runner,
+estados, SHA-256 de baselines, resumen de comparación y exit. La promoción del candidato a
+baseline queda registrada como **no realizada**.
 
 ## Archivos
 

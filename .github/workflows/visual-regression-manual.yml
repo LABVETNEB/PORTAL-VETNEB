@@ -45,7 +45,9 @@ jobs:
   visual-regression:
     name: visual-regression-${{ inputs.suite }}
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # The candidate caps Playwright at 20 minutes, leaving at least 25 minutes
+    # of job budget for setup, build, teardown, evidence and artifact upload.
+    timeout-minutes: 45
 
     env:
       CI: true
@@ -128,6 +130,8 @@ jobs:
       - name: Produce production visual candidate
         if: ${{ inputs.runner == 'production-candidate' }}
         shell: bash
+        env:
+          E2E_GLOBAL_TIMEOUT_MS: "1200000"
         run: |
           set -euo pipefail
 
