@@ -404,10 +404,14 @@ test.describe("A05 · stable geometry reservation limit invariance", () => {
         for (const leaf of observer.leaves) {
           const label = `${moduleId}::${viewport.slug}${leaf.variantId ? `::${leaf.variantId}` : ""}`;
           console.log(`[A05 invariance] → ${label}`);
-          const flight = trackPaginationFlight(page, observer);
 
           await page.setViewportSize({ width: viewport.width, height: viewport.height });
           await observeLeaf(page, observer, leaf, viewport.slug);
+          // Arm only once the measured document owns the page: a request the
+          // previous document fired before observeLeaf navigated is cancelled with
+          // it and, on Chromium >= 151, never reports requestfinished/requestfailed.
+          await page.waitForLoadState("networkidle");
+          const flight = trackPaginationFlight(page, observer);
           await visibleCanvas(page, leaf, label);
 
           const scenario32 = await applyScenario(page, leaf, 32, `${label}::32`, flight);
