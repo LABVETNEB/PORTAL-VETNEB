@@ -52,10 +52,19 @@ export default defineConfig({
     timeout: 5_000,
   },
   fullyParallel: true,
+  // LIMPIEZA E2E B-2 (E2E-GLOBAL-02A): a single leaked `.only` shrinks the
+  // required gate to a green no-gate, and a test that only passes on retry is
+  // not a pass. Local runs keep `.only` as a focusing tool; CI refuses it.
+  forbidOnly: isCi,
+  failOnFlakyTests: true,
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
     baseURL: "http://127.0.0.1:3000",
-    trace: "on-first-retry",
+    // LIMPIEZA E2E B-4 (E2E-GLOBAL-02A): the required gate runs with zero
+    // retries, so "on-first-retry" never produced diagnostics where merges are
+    // decided. Retain the real failure's evidence instead of adding retries.
+    trace: "retain-on-failure",
+    screenshot: "only-on-failure",
   },
   webServer: [
     {

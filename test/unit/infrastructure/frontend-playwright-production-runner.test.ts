@@ -12,6 +12,12 @@ type WebServerLike = {
 };
 
 type PlaywrightConfigLike = {
+  forbidOnly?: boolean;
+  failOnFlakyTests?: boolean;
+  use?: {
+    trace?: unknown;
+    screenshot?: unknown;
+  };
   webServer?: WebServerLike | WebServerLike[];
 };
 
@@ -218,6 +224,69 @@ test("Playwright selecciona dev local y next start solo en el runner productivo 
     assert.equal(server.env?.VETNEB_E2E_ALLOW_LOCAL_API, undefined);
     assert.equal(server.env?.VETNEB_E2E_DISABLE_EXTERNAL_EMBEDS, undefined);
   });
+});
+
+// LIMPIEZA E2E B-2/B-4 (E2E-GLOBAL-02A): the four options that decide whether a
+// green required gate is real. `forbidOnly` is CI-only so local runs keep
+// `.only` as a focusing tool; the other three hold in every context.
+test("Playwright cierra los falsos verdes de configuración del gate required", async (t) => {
+  await t.test("local runs keep .only usable as a focusing tool", async () => {
+    const config = await loadConfig({});
+
+    assert.equal(
+      config.forbidOnly,
+      false,
+      "forbidOnly must stay off locally so `.only` remains a development tool",
+    );
+  });
+
+  await t.test("CI refuses a leaked .only instead of shrinking the suite", async () => {
+    const config = await loadConfig({ ci: "true" });
+
+    assert.equal(
+      config.forbidOnly,
+      true,
+      "a leaked `.only` must fail the required gate, never reduce it to a green no-gate",
+    );
+  });
+
+  const everyContext: ReadonlyArray<
+    [string, { ci?: string; reuse?: string; productionRunner?: string }]
+  > = [
+    ["local", {}],
+    ["generic CI", { ci: "true" }],
+    [
+      "Frontend CI production runner",
+      { ci: "true", productionRunner: "1" },
+    ],
+  ];
+
+  for (const [label, input] of everyContext) {
+    await t.test(
+      `${label} fails on flaky and retains failure diagnostics without retries`,
+      async () => {
+        const config = await loadConfig(input);
+
+        assert.equal(
+          config.failOnFlakyTests,
+          true,
+          "a test that only passes on retry must not be reported as a pass",
+        );
+        // The required gate runs with zero retries, so "on-first-retry" would
+        // never produce a trace where merges are decided.
+        assert.equal(
+          config.use?.trace,
+          "retain-on-failure",
+          "a first failure must retain its trace without depending on a retry",
+        );
+        assert.equal(
+          config.use?.screenshot,
+          "only-on-failure",
+          "a failure must leave a screenshot, and a pass must not",
+        );
+      },
+    );
+  }
 });
 
 const FIXTURE_PATH = "frontend/e2e/fixtures/admin-populated-api-server.mjs";
