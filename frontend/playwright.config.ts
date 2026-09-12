@@ -60,10 +60,26 @@ export default defineConfig({
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
     baseURL: "http://127.0.0.1:3000",
-    // LIMPIEZA E2E B-4 (E2E-GLOBAL-02A): the required gate runs with zero
-    // retries, so "on-first-retry" never produced diagnostics where merges are
-    // decided. Retain the real failure's evidence instead of adding retries.
-    trace: "retain-on-failure",
+    // B-4 (E2E-GLOBAL-02A) is INTENTIONALLY NOT closed here. "retain-on-failure"
+    // (vs. today's "on-first-retry", inert under the required gate's zero
+    // retries) was audited on PR #1715: Playwright's trace format records
+    // Cookie/Set-Cookie headers and addCookies() call parameters verbatim
+    // (confirmed empirically against the pinned Playwright version), and 43 of
+    // the 64 e2e:ci-cohort specs seed real production cookie names
+    // (app_session_id/admin_session_id) via addCookies(). frontend-ci.yml
+    // already uploads frontend/test-results/ on failure, so a retained trace
+    // would ship session-cookie material as a PR-attached CI artifact —
+    // AGENTS.md §9 forbids cookies/session IDs in any artifact produced by the
+    // work, without a synthetic-value exception. No trace option can suppress
+    // just the cookie/header fields while keeping the rest, and no in-repo
+    // sanitizer exists. Closing B-4 needs a trace-sanitization step, which
+    // touches .github/workflows/frontend-ci.yml (R2) — out of E2E-GLOBAL-02A's
+    // config-only scope. Track as the E2E-GLOBAL-02A-trace follow-up.
+    trace: "on-first-retry",
+    // screenshot is NOT part of the blocked surface: it captures rendered
+    // pixels only, and no CI spec renders a cookie/session value on-screen
+    // (verified: no `document.cookie`/session-value render path exists in
+    // frontend/src or frontend/e2e). Safe to ship with B-2 today.
     screenshot: "only-on-failure",
   },
   webServer: [
