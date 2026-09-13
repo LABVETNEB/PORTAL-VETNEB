@@ -301,7 +301,24 @@ test("completeness job preserves Linux baseline compatibility, build ordering an
     false,
     "full must use next dev because the immutable Linux baselines include the Next.js development indicator",
   );
-  assert.equal(stepByName(workflowJob, "Upload Playwright diagnostics").if, "failure()");
+  // --retries=2 makes on-first-retry traces real here: diagnostics are uploaded
+  // only from the sanitized staging copy, and only when sanitization passed.
+  const sanitize = stepByName(workflowJob, "Sanitize Playwright diagnostics");
+  const upload = stepByName(workflowJob, "Upload Playwright diagnostics");
+  assert.equal(sanitize.id, "sanitize-playwright-artifacts");
+  assert.equal(sanitize.if, "failure()");
+  assert.equal(
+    sanitize.run,
+    'node scripts/security/playwright-artifact-sanitizer.mjs --output "${RUNNER_TEMP}/playwright-sanitized" --input frontend/playwright-report --input frontend/test-results',
+  );
+  assert.equal(upload.if, "failure() && steps.sanitize-playwright-artifacts.outcome == 'success'");
+  assert.equal(
+    mapping(upload.with, "upload.with").path,
+    "${{ runner.temp }}/playwright-sanitized/playwright-report/\n${{ runner.temp }}/playwright-sanitized/test-results/\n",
+  );
+  assert.ok(stepNames.indexOf("Run complete cataloged E2E suite") < stepNames.indexOf("Sanitize Playwright diagnostics"));
+  assert.ok(stepNames.indexOf("Sanitize Playwright diagnostics") < stepNames.indexOf("Upload Playwright diagnostics"));
+  assert.ok(stepNames.indexOf("Upload Playwright diagnostics") < stepNames.indexOf("Verify source hygiene and clean generated artifacts"));
   assert.equal(stepByName(workflowJob, "Verify E2E teardown").if, "always()");
   assert.equal(stepByName(workflowJob, "Verify source hygiene and clean generated artifacts").if, "always()");
   assert.equal(source.includes("continue-on-error"), false);

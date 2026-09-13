@@ -674,9 +674,21 @@ test("visual-regression-manual keeps the dev route and adds an isolated, non-upd
     "tracked snapshot PNGs must never be uploaded as production candidate evidence",
   );
 
+  // Candidate evidence embeds raw Playwright output (playwright/): it is uploaded
+  // only from the sanitized staging copy, and only when sanitization passed.
+  const sanitize = stepNamed(steps, "Sanitize Playwright artifacts");
+  assert.equal(sanitize.id, "sanitize-playwright-artifacts");
+  assert.equal(sanitize.if, "${{ always() && inputs.upload_artifacts }}");
+  assert.ok(String(sanitize.run).includes('--input "${RUNNER_TEMP}/visual-production-candidate"'));
+  assert.ok(names.indexOf(String(candidateRun.name)) < names.indexOf(String(sanitize.name)));
+
   const evidenceUpload = stepNamed(steps, "Upload production visual candidate evidence");
-  assert.equal(evidenceUpload.if, "${{ always() && inputs.upload_artifacts && inputs.runner == 'production-candidate' }}");
-  assert.equal(mapping(evidenceUpload.with, "with").path, "${{ runner.temp }}/visual-production-candidate/");
+  assert.equal(
+    evidenceUpload.if,
+    "${{ always() && inputs.upload_artifacts && inputs.runner == 'production-candidate' && steps.sanitize-playwright-artifacts.outcome == 'success' }}",
+  );
+  assert.equal(mapping(evidenceUpload.with, "with").path, "${{ runner.temp }}/playwright-sanitized/visual-production-candidate/");
+  assert.ok(names.indexOf(String(sanitize.name)) < names.indexOf(String(evidenceUpload.name)));
 
   assert.equal(source.includes("continue-on-error"), false);
   const report = evaluateWorkflowSecurity({ rootDir: REPO_ROOT, workflowPaths: [MANUAL_WORKFLOW] });

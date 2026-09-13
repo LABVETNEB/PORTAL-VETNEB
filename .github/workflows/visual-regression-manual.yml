@@ -139,14 +139,22 @@ jobs:
             --suite "${VISUAL_SUITE}" \
             --evidence-dir "${RUNNER_TEMP}/visual-production-candidate"
 
-      - name: Upload Playwright artifacts
+      # Raw Playwright output (including the candidate's playwright/ evidence) can
+      # hold cookies and auth headers; only the sanitized staging copy is uploaded.
+      - name: Sanitize Playwright artifacts
+        id: sanitize-playwright-artifacts
         if: ${{ always() && inputs.upload_artifacts }}
+        timeout-minutes: 5
+        run: node scripts/security/playwright-artifact-sanitizer.mjs --output "${RUNNER_TEMP}/playwright-sanitized" --input frontend/playwright-report --input frontend/test-results --input "${RUNNER_TEMP}/visual-production-candidate"
+
+      - name: Upload Playwright artifacts
+        if: ${{ always() && inputs.upload_artifacts && steps.sanitize-playwright-artifacts.outcome == 'success' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: visual-regression-${{ inputs.suite }}-playwright-${{ github.run_attempt }}
           path: |
-            frontend/playwright-report/
-            frontend/test-results/
+            ${{ runner.temp }}/playwright-sanitized/playwright-report/
+            ${{ runner.temp }}/playwright-sanitized/test-results/
           if-no-files-found: ignore
           retention-days: 14
 
@@ -160,10 +168,10 @@ jobs:
           retention-days: 14
 
       - name: Upload production visual candidate evidence
-        if: ${{ always() && inputs.upload_artifacts && inputs.runner == 'production-candidate' }}
+        if: ${{ always() && inputs.upload_artifacts && inputs.runner == 'production-candidate' && steps.sanitize-playwright-artifacts.outcome == 'success' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: visual-regression-${{ inputs.suite }}-production-candidate-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/visual-production-candidate/
+          path: ${{ runner.temp }}/playwright-sanitized/visual-production-candidate/
           if-no-files-found: ignore
           retention-days: 14

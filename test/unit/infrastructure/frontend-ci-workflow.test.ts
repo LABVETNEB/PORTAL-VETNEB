@@ -470,34 +470,47 @@ test("Frontend CI activa el runner productivo únicamente en el step e2e:ci (P1 
   );
 });
 
-test("Frontend CI sube reporte de Playwright solo en fallo", () => {
+const sanitizePlaywrightArtifactsStep =
+  "      - name: Sanitize Playwright failure artifacts\n        id: sanitize-playwright-artifacts\n        if: failure()\n        timeout-minutes: 5\n        run: node scripts/security/playwright-artifact-sanitizer.mjs --output \"${RUNNER_TEMP}/playwright-sanitized\" --input frontend/playwright-report --input frontend/test-results";
+
+test("Frontend CI sanitiza artefactos Playwright en fallo antes de cualquier upload (B-4)", () => {
   const source = getJobBlock(readWorkflow(), "validate-frontend");
 
-  assertContains(source, "      - name: Upload Playwright report");
-  assertContains(source, "        if: failure()");
-  assertContains(source, "        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7");
-  assertContains(source, "          name: frontend-playwright-report");
-  assertContains(source, "          path: frontend/playwright-report/");
-  assertContains(source, "          if-no-files-found: ignore");
-});
-
-test("Frontend CI sube test-results del gate required solo en fallo (E2E-GLOBAL-02B)", () => {
-  const source = getJobBlock(readWorkflow(), "validate-frontend");
-
-  // LIMPIEZA E2E B-4 / P1-1: a required-gate failure must leave trace.zip and
-  // screenshots (frontend/playwright.config.ts, E2E-GLOBAL-02A) recoverable
-  // from the run, next to — never instead of — the existing report upload.
-  assertContains(
-    source,
-    "      - name: Upload Playwright test-results\n        if: failure()\n        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7\n        with:\n          name: frontend-playwright-test-results-${{ github.run_attempt }}\n          path: frontend/test-results/\n          if-no-files-found: ignore",
-  );
-
+  // LIMPIEZA E2E B-4 prerequisite: raw Playwright output can carry cookies,
+  // auth headers and bodies (AGENTS.md §9). The sanitizer writes a separate
+  // staging tree and exits non-zero on any failure; it never replaces the E2E
+  // step's own failing status.
+  assertContains(source, sanitizePlaywrightArtifactsStep);
   assertOrdered(source, [
     "      - name: Run frontend E2E layered tests\n        run: pnpm --dir frontend e2e:ci\n        env:\n          VETNEB_E2E_PRODUCTION_RUNNER: \"1\"",
+    "      - name: Sanitize Playwright failure artifacts",
     "      - name: Upload Playwright report",
     "      - name: Upload Playwright test-results",
   ]);
+  assertNotContains(source, "continue-on-error");
+});
 
+test("Frontend CI sube reporte de Playwright sanitizado solo en fallo", () => {
+  const source = getJobBlock(readWorkflow(), "validate-frontend");
+
+  assertContains(
+    source,
+    "      - name: Upload Playwright report\n        if: failure() && steps.sanitize-playwright-artifacts.outcome == 'success'\n        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7\n        with:\n          name: frontend-playwright-report\n          path: ${{ runner.temp }}/playwright-sanitized/playwright-report/\n          if-no-files-found: ignore",
+  );
+  assertNotContains(source, "path: frontend/playwright-report/");
+});
+
+test("Frontend CI sube test-results sanitizados del gate required solo en fallo (E2E-GLOBAL-02B)", () => {
+  const source = getJobBlock(readWorkflow(), "validate-frontend");
+
+  // LIMPIEZA E2E B-4 / P1-1: a required-gate failure must leave diagnostics
+  // recoverable from the run, next to — never instead of — the report upload,
+  // and only as the sanitized copy.
+  assertContains(
+    source,
+    "      - name: Upload Playwright test-results\n        if: failure() && steps.sanitize-playwright-artifacts.outcome == 'success'\n        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7\n        with:\n          name: frontend-playwright-test-results-${{ github.run_attempt }}\n          path: ${{ runner.temp }}/playwright-sanitized/test-results/\n          if-no-files-found: ignore",
+  );
+  assertNotContains(source, "path: frontend/test-results/");
   assertNotContains(source, "continue-on-error");
 });
 
