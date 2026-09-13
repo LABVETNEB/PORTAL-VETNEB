@@ -12,6 +12,12 @@ type WebServerLike = {
 };
 
 type PlaywrightConfigLike = {
+  forbidOnly?: boolean;
+  failOnFlakyTests?: boolean;
+  use?: {
+    trace?: unknown;
+    screenshot?: unknown;
+  };
   webServer?: WebServerLike | WebServerLike[];
 };
 
@@ -218,6 +224,63 @@ test("Playwright selecciona dev local y next start solo en el runner productivo 
     assert.equal(server.env?.VETNEB_E2E_ALLOW_LOCAL_API, undefined);
     assert.equal(server.env?.VETNEB_E2E_DISABLE_EXTERNAL_EMBEDS, undefined);
   });
+});
+
+// LIMPIEZA E2E B-2 (E2E-GLOBAL-02A): forbidOnly is CI-only so local runs keep
+// `.only` as a focusing tool while CI refuses a leaked one outright.
+test("Playwright cierra el falso verde de un .only filtrado en el gate required", async (t) => {
+  await t.test("local runs keep .only usable as a focusing tool", async () => {
+    const config = await loadConfig({});
+
+    assert.equal(
+      config.forbidOnly,
+      false,
+      "forbidOnly must stay off locally so `.only` remains a development tool",
+    );
+  });
+
+  await t.test("CI refuses a leaked .only instead of shrinking the suite", async () => {
+    const config = await loadConfig({ ci: "true" });
+
+    assert.equal(
+      config.forbidOnly,
+      true,
+      "a leaked `.only` must fail the required gate, never reduce it to a green no-gate",
+    );
+  });
+});
+
+// LIMPIEZA E2E B-4 (E2E-GLOBAL-02A), partial: none of these three options
+// branch on CI/production-runner env, so one context fully covers them — a
+// per-context loop here would repeat the same assertion three times for zero
+// extra causal coverage (unlike forbidOnly above, which genuinely branches).
+test("Playwright falla en flaky y no expone cookies vía trace hasta el saneamiento R2", async () => {
+  const config = await loadConfig({});
+
+  assert.equal(
+    config.failOnFlakyTests,
+    true,
+    "a test that only passes on retry must not be reported as a pass",
+  );
+  assert.equal(
+    config.use?.screenshot,
+    "only-on-failure",
+    "a failure must leave a screenshot, and a pass must not",
+  );
+  // trace stays "on-first-retry" (inert under the required gate's zero
+  // retries) on purpose: PR #1715's audit found "retain-on-failure" makes
+  // Playwright record Cookie/Set-Cookie headers and addCookies() parameters
+  // verbatim into trace.zip, which frontend-ci.yml uploads as a PR-attached
+  // CI artifact on failure — 43 of the 64 e2e:ci specs seed real production
+  // cookie names via addCookies(). AGENTS.md §9 forbids cookies/session IDs
+  // in any artifact, synthetic values included. Do not flip this to
+  // "retain-on-failure" without a paired trace-sanitization mechanism
+  // (E2E-GLOBAL-02A-trace follow-up, R2: touches .github/workflows/**).
+  assert.equal(
+    config.use?.trace,
+    "on-first-retry",
+    "trace must not retain cookie-bearing traces until a sanitizer ships",
+  );
 });
 
 const FIXTURE_PATH = "frontend/e2e/fixtures/admin-populated-api-server.mjs";
