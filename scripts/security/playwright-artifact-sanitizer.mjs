@@ -105,32 +105,44 @@ const URL_HEADER_NAMES = new Set(["location", "origin", "referer"]);
 function isRedactedHeaderName(lowerCaseName) {
   return ALWAYS_REDACTED_HEADER_NAMES.includes(lowerCaseName) || SENSITIVE_NAME_RE.test(lowerCaseName) || !BENIGN_HEADER_NAMES.has(lowerCaseName);
 }
-const SENSITIVE_NAME_RE = /(auth|cookie|token|session|sess|sid|secret|passw|csrf|xsrf|api[-_]?key|jwt|signature|credential|otp)/i;
+const SENSITIVE_NAME_RE = /(auth|cookie|token|session|sess|sid|secret|passw|pwd|csrf|xsrf|api[-_]?key|jwt|signature|credential|otp|bearer)/i;
 const NAMED_KEY_RE = /^(?:(?:Control|Shift|Alt|Meta|ControlOrMeta)\+)*(?:[A-Z][A-Za-z0-9]+|F\d{1,2})$/;
 const VALUE_TITLE_RE = /^(Fill|Type|Press sequentially|Insert text) "[\s\S]*"$/;
 
-// Playwright-generated identifiers and file references: never user data, and
-// rewriting them would break the trace/report cross-references.
-export const STRUCTURAL_KEYS = new Set([
-  "_frameref",
-  "callId",
-  "contentType",
-  "contextId",
-  "fetchUid",
-  "file",
-  "fileId",
-  "outcome",
-  "pageId",
-  "pageref",
-  "parentId",
-  "path",
-  "projectName",
-  "sha1",
-  "startTime",
-  "status",
-  "stepId",
-  "testId",
-]);
+// Playwright-generated references are exempt from redaction per format context,
+// never by key name alone: a string is kept verbatim only when its key belongs to
+// the context, its value matches the generated format exactly, and it is not an
+// array element (report `tests[].path[]` holds describe titles, i.e. test text).
+const MIME_RE = /^(?:image\/(?:png|jpeg|webp|gif)|text\/(?:plain|markdown|html|csv)|application\/(?:json|zip|octet-stream|pdf)|video\/webm)(?:; ?charset=utf-8)?$/;
+const CALL_ID_RE = /^[A-Za-z][A-Za-z:]*@[0-9a-f]+$/;
+const GUID_REF_RE = /^(?:page|frame|context)@[0-9a-f]+$/;
+
+export const TRACE_REFERENCE_FORMATS = Object.freeze({
+  _frameref: GUID_REF_RE,
+  callId: CALL_ID_RE,
+  contentType: MIME_RE,
+  contextId: GUID_REF_RE,
+  file: /^(?:screencast\/[A-Za-z0-9@._-]+\.jpe?g|attachments\/[0-9a-f]{40})$/,
+  pageId: GUID_REF_RE,
+  pageref: GUID_REF_RE,
+  parentId: CALL_ID_RE,
+  sha1: /^[0-9a-f]{40}$/,
+  stepId: CALL_ID_RE,
+});
+
+export const REPORT_REFERENCE_FORMATS = Object.freeze({
+  contentType: MIME_RE,
+  fileId: /^[0-9a-f]{20}$/,
+  outcome: /^(?:skipped|expected|unexpected|flaky)$/,
+  path: /^data\/[0-9a-f]{40}\.[a-z0-9]{1,8}$/,
+  startTime: /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/,
+  status: /^(?:passed|failed|timedOut|skipped|interrupted)$/,
+  testId: /^[0-9a-f]{20}-[0-9a-f]{20}$/,
+});
+
+function isGeneratedReference(formats, key, value, inArray) {
+  return !inArray && Object.hasOwn(formats, key) && formats[key].test(value);
+}
 
 const SAFE_PARAM_KEYS = new Set([
   "button",
@@ -479,7 +491,7 @@ const CREDENTIAL_SCHEME_RE = /\b(Bearer|Basic|Digest|Token)(\s+)(?!\[REDACTED\])
 const QUERY_RE = /\?(?!\[REDACTED\])[^\s"'<>`#)\]]*=[^\s"'<>`#)\]]*/g;
 const FRAGMENT_RE = /#(?!\[REDACTED\])[^\s"'<>`)\]]*=[^\s"'<>`)\]]*/g;
 const SENSITIVE_PAIR_RE = /\b([A-Za-z0-9_.-]*(?:session|sess|sid|token|auth|csrf|xsrf|secret|passw|jwt|api[_-]?key)[A-Za-z0-9_.-]*)=(?!\[REDACTED\])([^;\s&"'<>,]+)/gi;
-const OPAQUE_TOKEN_RE = /\b(?=[A-Za-z0-9_-]*\d)(?=[A-Za-z0-9_-]*[A-Za-z])[A-Za-z0-9_-]{32,}\b/g;
+const OPAQUE_TOKEN_RE = /(^|[^A-Za-z0-9_-])(?=[A-Za-z0-9_-]*\d)(?=[A-Za-z0-9_-]*[A-Za-z])[A-Za-z0-9_-]{32,}(?![A-Za-z0-9_-])/g;
 
 export function createRedactor(harvestedValues) {
   const ordered = [...harvestedValues].sort((left, right) => right.length - left.length);
@@ -492,7 +504,7 @@ export function createRedactor(harvestedValues) {
       .replace(FRAGMENT_RE, `#${REDACTED}`)
       .replace(SENSITIVE_PAIR_RE, `$1=${REDACTED}`);
     for (const value of ordered) if (result.includes(value)) result = result.split(value).join(REDACTED);
-    return result.replace(OPAQUE_TOKEN_RE, REDACTED);
+    return result.replace(OPAQUE_TOKEN_RE, `$1${REDACTED}`);
   };
 }
 
@@ -509,11 +521,11 @@ export function redactUrl(value, redactText) {
   return redactText(base) + (parsed.search ? `?${REDACTED}` : "") + (parsed.hash ? `#${REDACTED}` : "");
 }
 
-// Final pass over every kept string: nothing leaves the sanitizer without
-// crossing the redactor, except Playwright-generated identifiers.
-function redactStrings(node, redactText, key = "") {
-  if (typeof node === "string") return STRUCTURAL_KEYS.has(key) ? node : redactText(node);
-  if (Array.isArray(node)) return node.map((item) => redactStrings(item, redactText, key));
+// Final pass over every kept trace string: nothing leaves the sanitizer without
+// crossing the redactor, except trace references matching their exact format.
+function redactStrings(node, redactText, key = "", inArray = false) {
+  if (typeof node === "string") return isGeneratedReference(TRACE_REFERENCE_FORMATS, key, node, inArray) ? node : redactText(node);
+  if (Array.isArray(node)) return node.map((item) => redactStrings(item, redactText, key, true));
   if (!isMapping(node)) return node;
   const out = {};
   for (const [childKey, value] of Object.entries(node)) {
@@ -858,7 +870,7 @@ export function sanitizeTraceZip(buffer, redactText) {
     } else if (TRACE_MEMBER_RE.test(name)) {
       const stacks = JSON.parse(data.toString("utf8"));
       if (!isMapping(stacks) || !Array.isArray(stacks.files) || !Array.isArray(stacks.stacks)) throw new Error("unexpected stacks shape");
-      const files = stacks.files.map((file) => (typeof file === "string" ? file : ""));
+      const files = stacks.files.map((file) => (typeof file === "string" ? redactText(file) : ""));
       const frames = stacks.stacks.filter((stack) => Array.isArray(stack) && Array.isArray(stack[1])).map(([id, list]) => [
         finiteNumber(id) ?? 0,
         list.filter(Array.isArray).map((frame) => frame.map((part) => (typeof part === "number" ? part : typeof part === "string" ? redactText(part) : null))),
@@ -911,7 +923,7 @@ export function sanitizeReportHtml(html, redactText) {
   if (!payload) throw new Error("report index.html does not embed exactly one report payload");
   const entries = readZip(payload.zip).map((entry) => {
     if (!/^[A-Za-z0-9._-]+\.json$/.test(entry.name)) throw new Error("unexpected report payload member");
-    const sanitized = redactStrings(sanitizeReportNode(JSON.parse(entry.data.toString("utf8")), redactText), redactText);
+    const sanitized = redactJsonDocument(sanitizeReportNode(JSON.parse(entry.data.toString("utf8")), redactText), redactText, REPORT_REFERENCE_FORMATS);
     return { name: entry.name, data: Buffer.from(JSON.stringify(sanitized)) };
   });
   const encoded = writeZip(entries).toString("base64");
@@ -920,11 +932,21 @@ export function sanitizeReportHtml(html, redactText) {
   return `${html.slice(0, start)}<template id="playwrightReportBase64">data:application/zip;base64,${encoded}</template>${html.slice(end)}`;
 }
 
-function redactJsonDocument(node, redactText, key = "") {
-  if (typeof node === "string") return SENSITIVE_NAME_RE.test(key) ? REDACTED : STRUCTURAL_KEYS.has(key) ? node : redactText(node);
-  if (Array.isArray(node)) return node.map((item) => redactJsonDocument(item, redactText, key));
+// Sensitivity is inherited: once a key matches SENSITIVE_NAME_RE, every string
+// below it (through objects and arrays, at any depth) is redacted, so
+// {"auth":{"value":"PlainPassword"}} cannot escape via a neutral leaf key.
+// Generic JSON documents get no reference exemptions at all.
+function redactJsonDocument(node, redactText, formats = {}, key = "", inArray = false, sensitiveAncestor = false) {
+  const sensitive = sensitiveAncestor || SENSITIVE_NAME_RE.test(key);
+  if (typeof node === "string") {
+    if (sensitive) return node.length === 0 ? node : REDACTED;
+    return isGeneratedReference(formats, key, node, inArray) ? node : redactText(node);
+  }
+  if (Array.isArray(node)) return node.map((item) => redactJsonDocument(item, redactText, formats, key, true, sensitive));
   if (!isMapping(node)) return node;
-  return Object.fromEntries(Object.entries(node).map(([childKey, value]) => [childKey, redactJsonDocument(value, redactText, childKey)]));
+  return Object.fromEntries(
+    Object.entries(node).map(([childKey, value]) => [childKey, redactJsonDocument(value, redactText, formats, childKey, false, sensitive)]),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -1053,7 +1075,13 @@ export function sanitizeArtifacts({ inputs, output, validate = validateSanitized
         const target = join(outputRoot, inputName, relativeFile);
         mkdirSync(dirname(target), { recursive: true });
         writeFileSync(target, result.data);
-        manifest.kept.push({ path: reportedPath, members: result.members, omittedMembers: result.omittedMembers });
+        // Staging metadata is informational: it crosses the same redactor instead
+        // of receiving its own exemption.
+        manifest.kept.push({
+          path: reportedPath,
+          members: result.members?.map((member) => redactText(member)),
+          omittedMembers: result.omittedMembers,
+        });
       }
     }
     writeFileSync(join(outputRoot, MANIFEST_FILE), `${JSON.stringify(manifest, null, 2)}\n`);
@@ -1095,13 +1123,54 @@ function checkText(text, context, violations) {
   }
 }
 
-function checkStrings(node, context, violations, key = "") {
+// Validator contracts are written independently of the sanitizer's tables on
+// purpose: a logic error in one side (e.g. an over-broad exemption) must not
+// be mirrored by the other and produce a false PASS.
+const VALIDATOR_TRACE_REFERENCES = {
+  _frameref: /^(?:page|frame|context)@[0-9a-f]+$/,
+  callId: /^[A-Za-z][A-Za-z:]*@[0-9a-f]+$/,
+  contentType: /^(?:image|text|application|video)\/[a-z0-9.+-]+(?:; ?charset=utf-8)?$/,
+  contextId: /^(?:page|frame|context)@[0-9a-f]+$/,
+  file: /^(?:screencast\/[A-Za-z0-9@._-]+\.jpe?g|attachments\/[0-9a-f]{40})$/,
+  pageId: /^(?:page|frame|context)@[0-9a-f]+$/,
+  pageref: /^(?:page|frame|context)@[0-9a-f]+$/,
+  parentId: /^[A-Za-z][A-Za-z:]*@[0-9a-f]+$/,
+  sha1: /^[0-9a-f]{40}$/,
+  stepId: /^[A-Za-z][A-Za-z:]*@[0-9a-f]+$/,
+};
+const VALIDATOR_REPORT_REFERENCES = {
+  contentType: /^(?:image|text|application|video)\/[a-z0-9.+-]+(?:; ?charset=utf-8)?$/,
+  fileId: /^[0-9a-f]{20}$/,
+  outcome: /^(?:skipped|expected|unexpected|flaky)$/,
+  path: /^data\/[0-9a-f]{40}\.[a-z0-9]{1,8}$/,
+  startTime: /^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/,
+  status: /^(?:passed|failed|timedOut|skipped|interrupted)$/,
+  testId: /^[0-9a-f]{20}-[0-9a-f]{20}$/,
+};
+const VALIDATOR_SENSITIVE_KEY_RE = new RegExp(
+  ["auth", "cookie", "token", "session", "sess", "sid", "secret", "passw", "pwd", "csrf", "xsrf", "api[-_]?key", "jwt", "signature", "credential", "otp", "bearer"].join("|"),
+  "i",
+);
+const VALIDATOR_OPAQUE_TOKEN_RE = /(?:^|[^A-Za-z0-9_-])(?=[A-Za-z0-9_-]*[0-9])(?=[A-Za-z0-9_-]*[A-Za-z])[A-Za-z0-9_-]{32,}(?![A-Za-z0-9_-])/;
+
+// options: { references: key→RegExp table (exempt only non-array strings with an
+// exact match), ancestry: enforce that every string below a sensitive key is
+// fully redacted }.
+function checkStrings(node, context, violations, options = {}, key = "", inArray = false, sensitiveAncestor = false) {
+  const references = options.references ?? {};
+  const sensitive = options.ancestry === true && (sensitiveAncestor || VALIDATOR_SENSITIVE_KEY_RE.test(key));
   if (typeof node === "string") {
-    if (!STRUCTURAL_KEYS.has(key)) checkText(node, context, violations);
+    if (sensitive && node !== REDACTED && node !== "") {
+      violations.push({ path: context.path, rule: "sensitive-ancestor-value" });
+      return;
+    }
+    if (!inArray && Object.hasOwn(references, key) && references[key].test(node)) return;
+    checkText(node, context, violations);
+    if (VALIDATOR_OPAQUE_TOKEN_RE.test(node)) violations.push({ path: context.path, rule: "opaque-token-value" });
   } else if (Array.isArray(node)) {
-    for (const item of node) checkStrings(item, context, violations, key);
+    for (const item of node) checkStrings(item, context, violations, options, key, true, sensitive);
   } else if (isMapping(node)) {
-    for (const [childKey, value] of Object.entries(node)) checkStrings(value, context, violations, childKey);
+    for (const [childKey, value] of Object.entries(node)) checkStrings(value, context, violations, options, childKey, false, sensitive);
   }
 }
 
@@ -1141,7 +1210,7 @@ function checkEvent(event, context, violations) {
       if (isMapping(side.content) && Object.keys(side.content).some((key) => key !== "size" && key !== "mimeType")) violations.push({ path: context.path, rule: "response-body-kept" });
     }
   }
-  checkStrings(event, context, violations);
+  checkStrings(event, context, violations, { references: VALIDATOR_TRACE_REFERENCES });
 }
 
 export function validateTraceZip(buffer, context) {
@@ -1159,7 +1228,7 @@ export function validateTraceZip(buffer, context) {
         for (const event of parseJsonl(entry.data.toString("utf8"))) checkEvent(event, memberContext, violations);
       } else if (TRACE_MEMBER_RE.test(entry.name)) {
         const stacks = JSON.parse(entry.data.toString("utf8"));
-        checkStrings(stacks.stacks, memberContext, violations);
+        checkStrings([stacks.files, stacks.stacks], memberContext, violations);
       } else if (SCREENCAST_MEMBER_RE.test(entry.name)) {
         if (!isJpeg(entry.data)) violations.push({ path: memberContext.path, rule: "screencast-not-jpeg" });
       } else if (ATTACHMENT_MEMBER_RE.test(entry.name)) {
@@ -1203,12 +1272,15 @@ export function validateSanitizedTree({ root, harvestedValues }) {
       } else if (extension === ".jpg" || extension === ".jpeg") {
         if (!isJpeg(data)) violations.push({ path, rule: "bad-magic" });
       } else if (extension === ".json") {
-        checkStrings(JSON.parse(decodeUtf8(data)), context, violations);
+        checkStrings(JSON.parse(decodeUtf8(data)), context, violations, { ancestry: true });
       } else if (TEXT_EXTENSIONS.has(extension)) {
         checkText(decodeUtf8(data), context, violations);
       } else if (basename(file.absolute) === "index.html" && reportRoots.has(dirname(file.absolute))) {
         for (const entry of readZip(extractReportPayload(data.toString("utf8")).zip)) {
-          checkStrings(JSON.parse(entry.data.toString("utf8")), { ...context, path: `${path}::${entry.name}` }, violations);
+          checkStrings(JSON.parse(entry.data.toString("utf8")), { ...context, path: `${path}::${entry.name}` }, violations, {
+            references: VALIDATOR_REPORT_REFERENCES,
+            ancestry: true,
+          });
         }
       } else {
         violations.push({ path, rule: "file-outside-report-viewer" });

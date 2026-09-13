@@ -38,7 +38,8 @@ export const MIN_HARVESTED_VALUE_LENGTH: number;
 export const MANIFEST_FILE: string;
 export const ALWAYS_REDACTED_HEADER_NAMES: readonly string[];
 export const BENIGN_HEADER_NAMES: ReadonlySet<string>;
-export const STRUCTURAL_KEYS: ReadonlySet<string>;
+export const TRACE_REFERENCE_FORMATS: Readonly<Record<string, RegExp>>;
+export const REPORT_REFERENCE_FORMATS: Readonly<Record<string, RegExp>>;
 export const KEPT_EVENT_TYPES: readonly string[];
 export const FORBIDDEN_PARAM_KEYS: readonly string[];
 

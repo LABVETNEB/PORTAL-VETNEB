@@ -68,6 +68,22 @@ const SECRET_CANARIES = [
 // material a failure screenshot already shows. Preserved for utility.
 const DIAGNOSTIC_CANARIES = ["ERROR", "RENDERED"].map(canary);
 
+// P1 review canaries (PR #1719). REPORT_PATH is opaque-shaped; the suite title
+// also embeds the harvested cookie value, which is not opaque-shaped. The
+// nested-JSON secrets are purely alphabetic so no fallback pattern can catch
+// them: only inherited sensitivity does.
+const REPORT_PATH_SECRET = "SYNTHETIC_REPORT_PATH_SECRET_92731";
+const NESTED_JSON_SECRETS = ["PlainPassword", "PlainNestedSecret", "DeepArraySecret"];
+const P1_SECRETS = [REPORT_PATH_SECRET, ...NESTED_JSON_SECRETS];
+const REPORT_PATH = [`tenant-${REPORT_PATH_SECRET}`, `suite-${"SYNTHETIC_COOKIE_CANARY"}`];
+const NESTED_JSON_ATTACHMENT = {
+  auth: { value: "PlainPassword" },
+  credentials: { nested: [{ value: "PlainNestedSecret" }] },
+  session: [[{ deeper: { value: "DeepArraySecret" } }]],
+  diagnostics: { value: "kept-diagnostic-value" },
+};
+const JSON_ATTACHMENT_SHA = "a94cbb43cf261024f91bbbbc09c68891c2c62ddf";
+
 const PNG = Buffer.from("89504e470d0a1a0a0000000d4948445200000001000000010806000000", "hex");
 const JPEG = Buffer.from("ffd8ffe000104a464946", "hex");
 const SHA_MD = "306b00f6950d56592dcd0e64cc6f8c3c8110c149";
@@ -188,7 +204,15 @@ function traceZip(): Buffer {
 
 function reportHtml(): string {
   const payload = writeZip([
-    { name: "report.json", data: Buffer.from(JSON.stringify({ files: [{ fileId: "c507d77a01594a0503d2", fileName: "example.spec.ts" }], stats: { total: 1, unexpected: 1 } })) },
+    {
+      name: "report.json",
+      data: Buffer.from(
+        JSON.stringify({
+          files: [{ fileId: "c507d77a01594a0503d2", fileName: "example.spec.ts", tests: [{ testId: "c507d77a01594a0503d2-2deda27a9e3a1c293b09", title: "example", path: REPORT_PATH, outcome: "unexpected" }] }],
+          stats: { total: 1, unexpected: 1 },
+        }),
+      ),
+    },
     {
       name: "c507d77a01594a0503d2.json",
       data: Buffer.from(
@@ -199,12 +223,15 @@ function reportHtml(): string {
             {
               testId: "c507d77a01594a0503d2-2deda27a9e3a1c293b09",
               title: "example",
+              path: REPORT_PATH,
+              outcome: "unexpected",
               results: [
                 {
                   status: "failed",
                   errors: [{ message: `Error: deliberate failure ${canary("ERROR")}` }],
                   attachments: [
                     { name: "trace", contentType: "application/zip", path: "data/5951147723dee5880a5a438a5f64cf1c15f2b8b9.zip" },
+                    { name: "credentials", contentType: "application/json", path: `data/${JSON_ATTACHMENT_SHA}.json` },
                     { name: "inline", contentType: "text/plain", body: canary("REPORT_BODY") },
                   ],
                   steps: [
@@ -244,6 +271,8 @@ function createRawFixture(root: string): { report: string; results: string } {
   writeFile(join(report, "data", "5951147723dee5880a5a438a5f64cf1c15f2b8b9.zip"), trace);
   writeFile(join(report, "data", `${SHA_MD}.md`), `deliberate failure ${canary("ERROR")}\nAuthorization: Bearer ${canary("AUTH")}\n`);
   writeFile(join(report, "data", `${SHA_PNG}.png`), PNG);
+  writeFile(join(report, "data", `${JSON_ATTACHMENT_SHA}.json`), JSON.stringify(NESTED_JSON_ATTACHMENT));
+  writeFile(join(testDir, "attachments", `credentials-${JSON_ATTACHMENT_SHA}.json`), JSON.stringify(NESTED_JSON_ATTACHMENT));
   writeFile(join(report, "trace", "index.html"), "<!doctype html><title>Playwright Trace Viewer</title>");
   writeFile(join(report, "trace", "sw.bundle.js"), "self.addEventListener('fetch', () => {});");
   return { report, results };
@@ -255,6 +284,7 @@ function scanCanaries(root: string): Set<string> {
   const found = new Set<string>();
   const record = (text: string) => {
     for (const hit of text.match(CANARY_RE) ?? []) found.add(hit);
+    for (const secret of P1_SECRETS) if (text.includes(secret)) found.add(secret);
   };
   const scanBuffer = (data: Buffer, name: string) => {
     record(data.toString("latin1"));
@@ -314,7 +344,7 @@ function parseEvents(data: Buffer): Mapping[] {
 test("raw synthetic Playwright output exposes every canary class (scanner is not vacuous)", () => {
   withFixture(({ root }) => {
     const found = scanCanaries(join(root, "raw"));
-    for (const expected of [...SECRET_CANARIES, ...DIAGNOSTIC_CANARIES]) {
+    for (const expected of [...SECRET_CANARIES, ...P1_SECRETS, ...DIAGNOSTIC_CANARIES]) {
       assert.ok(found.has(expected), `raw fixture must expose ${expected}`);
     }
     assert.ok(
@@ -333,7 +363,7 @@ test("sanitizer removes every secret canary while preserving diagnostic material
     assert.equal(treeDigest(join(root, "raw")), rawDigest, "raw inputs must be read-only");
 
     const found = scanCanaries(output);
-    for (const secret of SECRET_CANARIES) assert.equal(found.has(secret), false, `${secret} leaked into the sanitized staging tree`);
+    for (const secret of [...SECRET_CANARIES, ...P1_SECRETS]) assert.equal(found.has(secret), false, `${secret} leaked into the sanitized staging tree`);
     for (const diagnostic of DIAGNOSTIC_CANARIES) assert.ok(found.has(diagnostic), `${diagnostic} must stay available for diagnosis`);
 
     const omitted = result.manifest.omitted.map((entry) => entry.path).sort();
@@ -434,6 +464,170 @@ test("sanitized HTML report embeds a rebuilt payload without secret step titles 
     assert.ok(detail.includes(`Type \\"${REDACTED}\\"`));
     assert.ok(detail.includes("data/5951147723dee5880a5a438a5f64cf1c15f2b8b9.zip"), "attachment paths stay linked");
     assert.equal(detail.includes('"body"'), false, "inline attachment bodies are dropped");
+  });
+});
+
+function reportPayloadDocuments(reportIndex: string): Map<string, Mapping> {
+  const payload = extractReportPayload(readFileSync(reportIndex, "utf8"));
+  assert.ok(payload, "report must embed exactly one payload");
+  return new Map(readZip(payload.zip).map((entry) => [entry.name, JSON.parse(entry.data.toString("utf8")) as Mapping]));
+}
+
+function rewriteReportPayload(reportIndex: string, mutate: (documents: Map<string, Mapping>) => void): void {
+  const documents = reportPayloadDocuments(reportIndex);
+  mutate(documents);
+  const html = readFileSync(reportIndex, "utf8");
+  const zip = writeZip([...documents].map(([name, document]) => ({ name, data: Buffer.from(JSON.stringify(document)) })));
+  writeFileSync(
+    reportIndex,
+    html.replace(/<template id="playwrightReportBase64">[^<]*<\/template>/, `<template id="playwrightReportBase64">data:application/zip;base64,${zip.toString("base64")}</template>`),
+  );
+}
+
+// P1-1 (review thread PRRT_kwDOR5qlsc6h7CLS): report `tests[].path[]` carries
+// describe titles, i.e. test-controlled text, under the same key name as the
+// generated `attachments[].path` reference.
+test("P1-1 report tests[].path[] is redacted string by string while generated references survive", () => {
+  withFixture(({ root, report, results, output }) => {
+    const rawDocuments = reportPayloadDocuments(join(report, "index.html"));
+    assert.ok(JSON.stringify([...rawDocuments.values()]).includes(REPORT_PATH_SECRET), "raw report payload must contain the path canary");
+
+    const result = sanitizeArtifacts({ inputs: [report, results], output });
+    assert.deepEqual(result.violations, []);
+
+    const documents = reportPayloadDocuments(join(output, "playwright-report/index.html"));
+    const summary = documents.get("report.json")!;
+    const detail = documents.get("c507d77a01594a0503d2.json")!;
+    const summaryTest = ((summary.files as Mapping[])[0].tests as Mapping[])[0];
+    const detailTest = (detail.tests as Mapping[])[0];
+
+    for (const testEntry of [summaryTest, detailTest]) {
+      const path = testEntry.path as string[];
+      assert.equal(path.length, REPORT_PATH.length, "path keeps its structure");
+      // The opaque rule consumes the whole hyphenated run; the harvested value is
+      // replaced in place.
+      assert.deepEqual(path, ["[REDACTED]", "suite-[REDACTED]"]);
+      assert.equal(testEntry.testId, "c507d77a01594a0503d2-2deda27a9e3a1c293b09", "generated test id is preserved");
+      assert.equal(testEntry.outcome, "unexpected");
+    }
+    const attachments = ((detailTest.results as Mapping[])[0].attachments as Mapping[]).map((attachment) => attachment.path);
+    assert.deepEqual(attachments, ["data/5951147723dee5880a5a438a5f64cf1c15f2b8b9.zip", `data/${JSON_ATTACHMENT_SHA}.json`, undefined]);
+
+    const serialized = JSON.stringify([...documents.values()]);
+    for (const secret of [REPORT_PATH_SECRET, canary("COOKIE")]) assert.equal(serialized.includes(secret), false, `${secret} survived in the decoded report payload`);
+    assert.ok(existsSync(join(root, "raw")));
+  });
+});
+
+// P1-2 (review thread PRRT_kwDOR5qlsc6h7CLU): sensitivity of a JSON key must be
+// inherited by every descendant string, through objects and arrays.
+test("P1-2 nested JSON under a sensitive ancestor is redacted at any depth, structure and neutral values survive", () => {
+  withFixture(({ report, results, output }) => {
+    const rawAttachment = join(results, "example-spec-example-chromium", "attachments", `credentials-${JSON_ATTACHMENT_SHA}.json`);
+    for (const secret of NESTED_JSON_SECRETS) assert.ok(readFileSync(rawAttachment, "utf8").includes(secret), `raw attachment must contain ${secret}`);
+
+    const result = sanitizeArtifacts({ inputs: [report, results], output });
+    assert.deepEqual(result.violations, []);
+
+    const expected = {
+      auth: { value: REDACTED },
+      credentials: { nested: [{ value: REDACTED }] },
+      session: [[{ deeper: { value: REDACTED } }]],
+      diagnostics: { value: "kept-diagnostic-value" },
+    };
+    for (const sanitizedPath of [
+      `test-results/example-spec-example-chromium/attachments/credentials-${JSON_ATTACHMENT_SHA}.json`,
+      `playwright-report/data/${JSON_ATTACHMENT_SHA}.json`,
+    ]) {
+      const text = readFileSync(join(output, sanitizedPath), "utf8");
+      assert.deepEqual(JSON.parse(text), expected);
+      for (const secret of NESTED_JSON_SECRETS) assert.equal(text.includes(secret), false, `${secret} survived in ${sanitizedPath}`);
+    }
+  });
+});
+
+test("validator independently rejects an unsafe report path and unsafe nested JSON injected into staging", () => {
+  withFixture(({ report, results, output }) => {
+    assert.deepEqual(sanitizeArtifacts({ inputs: [report, results], output }).violations, []);
+    const reportIndex = join(output, "playwright-report/index.html");
+    const cleanIndex = readFileSync(reportIndex, "utf8");
+
+    // Harvested (non opaque) value in a suite title.
+    rewriteReportPayload(reportIndex, (documents) => {
+      ((documents.get("c507d77a01594a0503d2.json")!.tests as Mapping[])[0]).path = ["suite-SYNTHETIC_SECRET"];
+    });
+    const harvestedPathViolations = validateSanitizedTree({ root: output, harvestedValues: ["SYNTHETIC_SECRET"] });
+    assert.ok(
+      harvestedPathViolations.some((violation) => violation.path.endsWith("::c507d77a01594a0503d2.json") && violation.rule === "harvested-secret-value"),
+      JSON.stringify(harvestedPathViolations),
+    );
+
+    // Opaque-shaped value in a suite title, with nothing harvested at all.
+    writeFileSync(reportIndex, cleanIndex);
+    rewriteReportPayload(reportIndex, (documents) => {
+      ((documents.get("report.json")!.files as Mapping[])[0].tests as Mapping[])[0].path = [`tenant-${REPORT_PATH_SECRET}`];
+    });
+    const opaquePathViolations = validateSanitizedTree({ root: output, harvestedValues: [] });
+    assert.ok(opaquePathViolations.some((violation) => violation.path.endsWith("::report.json")), JSON.stringify(opaquePathViolations));
+
+    // A generated-reference key never exempts a non-matching value.
+    writeFileSync(reportIndex, cleanIndex);
+    rewriteReportPayload(reportIndex, (documents) => {
+      const attachment = (((documents.get("c507d77a01594a0503d2.json")!.tests as Mapping[])[0].results as Mapping[])[0].attachments as Mapping[])[0];
+      attachment.path = `data/${REPORT_PATH_SECRET}.zip`;
+    });
+    assert.ok(validateSanitizedTree({ root: output, harvestedValues: [] }).length > 0, "attachment path outside the data/<sha1> format must be checked");
+    writeFileSync(reportIndex, cleanIndex);
+    assert.deepEqual(validateSanitizedTree({ root: output, harvestedValues: [] }), []);
+
+    for (const unsafe of [
+      { auth: { value: "PlainPassword" } },
+      { credentials: { nested: [{ value: "PlainPassword" }] } },
+      { apiKey: [["PlainPassword"]] },
+      { csrf: { deep: { deeper: { value: "PlainPassword" } } } },
+    ]) {
+      const injected = join(output, "test-results", "injected.json");
+      writeFileSync(injected, JSON.stringify(unsafe));
+      const violations = validateSanitizedTree({ root: output, harvestedValues: [] });
+      assert.deepEqual(violations, [{ path: "test-results/injected.json", rule: "sensitive-ancestor-value" }], JSON.stringify(unsafe));
+      rmSync(injected);
+    }
+
+    rewriteReportPayload(reportIndex, (documents) => {
+      documents.get("report.json")!.metadata = { session: { value: "PlainPassword" } };
+    });
+    assert.ok(
+      validateSanitizedTree({ root: output, harvestedValues: [] }).some((violation) => violation.rule === "sensitive-ancestor-value"),
+      "report payload JSON also enforces inherited sensitivity",
+    );
+  });
+});
+
+test("canary matrix: every required secret class is present raw and absent after sanitization", () => {
+  withFixture(({ root, report, results, output }) => {
+    const matrix: Record<string, string> = {
+      "report.title": canary("FILL"),
+      "report.subtitle": canary("URL"),
+      "report.path[]": REPORT_PATH_SECRET,
+      "nested sensitive object": "PlainPassword",
+      "nested sensitive array": "DeepArraySecret",
+      "authorization header": canary("AUTH"),
+      cookie: canary("COOKIE"),
+      "set-cookie": canary("SETCOOKIE"),
+      "proxy-authorization": canary("PROXYAUTH"),
+      "x-api-key": canary("APIKEY"),
+      "query value": canary("URL"),
+      "fill/type parameters": canary("TYPE"),
+      "storage state": canary("STORAGE"),
+      "JSON attachment": "PlainNestedSecret",
+    };
+    const raw = scanCanaries(join(root, "raw"));
+    assert.deepEqual(sanitizeArtifacts({ inputs: [report, results], output }).violations, []);
+    const sanitized = scanCanaries(output);
+    for (const [label, secret] of Object.entries(matrix)) {
+      assert.ok(raw.has(secret), `RAW must contain ${label}`);
+      assert.equal(sanitized.has(secret), false, `SANITIZED must not contain ${label}`);
+    }
   });
 });
 
