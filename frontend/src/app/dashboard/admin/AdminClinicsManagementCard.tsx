@@ -313,11 +313,20 @@ export function AdminClinicsManagementCard() {
 
   // Search is server-side and debounced; a cardinality change (resize/zoom)
   // never touches the search state, so it never resets the offset here.
-  const isFirstSearchRender = useRef(true);
-
+  //
+  // Arms only when the live typed value actually differs from the already
+  // submitted one — a semantic comparison, not an effect-invocation counter.
+  // React Strict Mode (development only) runs a component's mount-time
+  // effects twice; a "ran once" ref/boolean is consumed by whichever
+  // invocation runs first and is indistinguishable from a real second run to
+  // the one that follows, so it arms a phantom timer on every mount that
+  // silently resets `offset` ~300ms later — racing a real page-2 navigation
+  // that happens within that window (same defect class fixed in
+  // AdminUsersRolesReadOnlyCard.tsx). Comparing values instead is immune by
+  // construction: both Strict Mode invocations of the same render see the
+  // identical (unchanged) pair and reach the identical (skip) decision.
   useEffect(() => {
-    if (isFirstSearchRender.current) {
-      isFirstSearchRender.current = false;
+    if (searchQuery.trim() === submittedSearch) {
       return;
     }
 
@@ -327,7 +336,7 @@ export function AdminClinicsManagementCard() {
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [searchQuery, submittedSearch]);
 
   // Recompute offset when the effective limit changes so the same first
   // record stays visible; clamp against the known total (PR-SRV-0 §6).

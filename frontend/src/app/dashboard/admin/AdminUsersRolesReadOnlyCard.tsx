@@ -231,12 +231,19 @@ export function AdminUsersRolesReadOnlyCard() {
 
   // 300ms debounce (matches the AdminClinicsManagementCard search pattern) so
   // a fast typist doesn't fire one request per keystroke against 5000 rows.
-  // Skips the mount run: firing on mount would reset offset to 0 shortly after
-  // load and race a page-2 navigation that happens within the debounce window.
-  const isFirstSearchRender = useRef(true);
+  //
+  // Arms only when the live typed value actually differs from the already
+  // committed one — a semantic comparison, not an effect-invocation counter.
+  // React Strict Mode (development only) runs a component's mount-time
+  // effects twice; a "ran once" ref/boolean is consumed by whichever
+  // invocation runs first and is indistinguishable from a real second run to
+  // the one that follows, so it arms a phantom timer on every mount that
+  // silently resets `offset` ~300ms later — racing a real page-2 navigation
+  // that happens within that window. Comparing values instead is immune by
+  // construction: both Strict Mode invocations of the same render see the
+  // identical (unchanged) pair and reach the identical (skip) decision.
   useEffect(() => {
-    if (isFirstSearchRender.current) {
-      isFirstSearchRender.current = false;
+    if (searchQuery.trim() === debouncedSearch) {
       return;
     }
 
@@ -246,7 +253,7 @@ export function AdminUsersRolesReadOnlyCard() {
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [searchQuery, debouncedSearch]);
 
   const query = useMemo(
     () => ({
