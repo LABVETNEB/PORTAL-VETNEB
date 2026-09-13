@@ -205,9 +205,22 @@ test("admin clinics management card resets to page 0 when search changes", () =>
   const source = read(ADMIN_CLINICS_CARD_PATH);
 
   // Debounced search effect resets offset to 0 before the query re-fetches.
-  assert.ok(source.includes("}, [searchQuery]);"));
+  assert.ok(source.includes("}, [searchQuery, submittedSearch]);"));
   assert.ok(source.includes("setOffset(0);"));
   assert.ok(source.includes("setSubmittedSearch(searchQuery.trim());"));
+});
+
+test("admin clinics management card's search debounce guard compares values, not effect-invocation count", () => {
+  const source = read(ADMIN_CLINICS_CARD_PATH);
+
+  // Regression guard: a "ran once" ref/boolean is consumed by whichever
+  // React Strict Mode mount invocation runs first, so a later invocation of
+  // the same render arms the debounce timer unconditionally — silently
+  // resetting `offset` ~300ms after every mount. The fix compares the live
+  // value against the already-submitted one instead, which both Strict Mode
+  // invocations evaluate identically.
+  assert.equal(source.includes("isFirstSearchRender"), false);
+  assert.ok(source.includes("if (searchQuery.trim() === submittedSearch) {"));
 });
 
 test("admin clinics management card does not double-filter rows client-side", () => {

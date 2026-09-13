@@ -731,6 +731,14 @@ test("clinic Tokens adaptive rows baseline changes density without internal scro
     '[data-clinic-access-table-row="true"]',
     '[data-clinic-access-mobile-row="true"]',
   ].join(",");
+  // The mocked /api/particular-tokens fetch is in flight right after
+  // navigation, so `waitForSettledVisibleCount` can settle on a stable
+  // pre-fetch zero (same race documented at the admin Auditoría pager case
+  // below). Waiting for the first row keeps the settle read causally after
+  // real data, never before it.
+  await expect(page.locator(rowSelector).first()).toBeVisible({
+    timeout: 15_000,
+  });
   const tallCount = await waitForSettledVisibleCount(
     page,
     rowSelector,
@@ -742,6 +750,9 @@ test("clinic Tokens adaptive rows baseline changes density without internal scro
   }).toPass({ timeout: 10_000 });
 
   await page.setViewportSize({ width: 1280, height: 700 });
+  await expect(page.locator(rowSelector).first()).toBeVisible({
+    timeout: 15_000,
+  });
   const compactCount = await waitForSettledVisibleCount(
     page,
     rowSelector,
