@@ -224,14 +224,22 @@ jobs:
           # eating into the job's hard cap.
           E2E_GLOBAL_TIMEOUT_MS: "2700000"
 
-      - name: Upload Playwright diagnostics
+      # --retries=2 makes trace: on-first-retry real here; raw traces carry cookies
+      # and auth headers, so only the sanitized staging copy may be uploaded.
+      - name: Sanitize Playwright diagnostics
+        id: sanitize-playwright-artifacts
         if: failure()
+        timeout-minutes: 5
+        run: node scripts/security/playwright-artifact-sanitizer.mjs --output "${RUNNER_TEMP}/playwright-sanitized" --input frontend/playwright-report --input frontend/test-results
+
+      - name: Upload Playwright diagnostics
+        if: failure() && steps.sanitize-playwright-artifacts.outcome == 'success'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: e2e-completeness-playwright-${{ github.run_attempt }}
           path: |
-            frontend/playwright-report/
-            frontend/test-results/
+            ${{ runner.temp }}/playwright-sanitized/playwright-report/
+            ${{ runner.temp }}/playwright-sanitized/test-results/
           if-no-files-found: ignore
           retention-days: 14
 

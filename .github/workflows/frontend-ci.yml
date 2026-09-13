@@ -144,20 +144,28 @@ jobs:
         env:
           VETNEB_E2E_PRODUCTION_RUNNER: "1"
 
-      - name: Upload Playwright report
+      # Raw Playwright output can hold cookies, auth headers and bodies; only the
+      # sanitized staging copy may be uploaded, and only if sanitization passed.
+      - name: Sanitize Playwright failure artifacts
+        id: sanitize-playwright-artifacts
         if: failure()
+        timeout-minutes: 5
+        run: node scripts/security/playwright-artifact-sanitizer.mjs --output "${RUNNER_TEMP}/playwright-sanitized" --input frontend/playwright-report --input frontend/test-results
+
+      - name: Upload Playwright report
+        if: failure() && steps.sanitize-playwright-artifacts.outcome == 'success'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: frontend-playwright-report
-          path: frontend/playwright-report/
+          path: ${{ runner.temp }}/playwright-sanitized/playwright-report/
           if-no-files-found: ignore
 
       - name: Upload Playwright test-results
-        if: failure()
+        if: failure() && steps.sanitize-playwright-artifacts.outcome == 'success'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: frontend-playwright-test-results-${{ github.run_attempt }}
-          path: frontend/test-results/
+          path: ${{ runner.temp }}/playwright-sanitized/test-results/
           if-no-files-found: ignore
 
   frontend-check:
