@@ -127,6 +127,21 @@ test("admin users roles card builds query and disables actions during mutations"
   assert.ok(source.includes("const disableUserActions = isPending || isMutatingRole;"));
 });
 
+test("admin users roles card's search debounce guard compares values, not effect-invocation count", () => {
+  const source = read(ADMIN_USERS_ROLES_CARD_PATH);
+
+  // Regression guard: a "ran once" ref/boolean is consumed by whichever
+  // React Strict Mode mount invocation runs first, so a later invocation of
+  // the same render arms the debounce timer unconditionally — silently
+  // resetting `offset` ~300ms after every mount and racing a real page-2
+  // navigation within that window. The fix compares the live value against
+  // the already-debounced one instead, which both Strict Mode invocations
+  // evaluate identically.
+  assert.equal(source.includes("isFirstSearchRender"), false);
+  assert.ok(source.includes("if (searchQuery.trim() === debouncedSearch) {"));
+  assert.ok(source.includes("}, [searchQuery, debouncedSearch]);"));
+});
+
 test("admin users roles card loads users roles and resets feedback", () => {
   const source = read(ADMIN_USERS_ROLES_CARD_PATH);
 
