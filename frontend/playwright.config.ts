@@ -60,12 +60,19 @@ export default defineConfig({
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
     baseURL: "http://127.0.0.1:3000",
-    // B-4 (E2E-GLOBAL-02B): the first failure keeps its trace even with the
-    // required gate's zero retries. Raw traces record Cookie/Set-Cookie headers
-    // and addCookies() parameters verbatim, so raw Playwright output is never a
-    // publishable artifact: every CI upload goes through the fail-closed
-    // sanitizer boundary added in PR #1719 (AGENTS.md §9).
-    trace: "retain-on-failure",
+    // B-4 (E2E-GLOBAL-02B): raw traces record Cookie/Set-Cookie headers and
+    // addCookies() parameters verbatim, so they only exist where every upload
+    // crosses the fail-closed sanitizer boundary of PR #1719 (AGENTS.md §9).
+    // - Local: off. No sanitizer runs there.
+    // - Production runner (required e2e:ci, zero retries): retain-on-failure,
+    //   so the first failure keeps its trace.
+    // - Other CI (e2e:full runs --retries=2): on-first-retry. Recording every
+    //   test pushed the full catalog past its 45m budget.
+    trace: !isCi
+      ? "off"
+      : isProductionRunner
+        ? "retain-on-failure"
+        : "on-first-retry",
     // screenshot is NOT part of the blocked surface: it captures rendered
     // pixels only, and no CI spec renders a cookie/session value on-screen
     // (verified: no `document.cookie`/session-value render path exists in
