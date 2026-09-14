@@ -239,6 +239,35 @@ confirmado en log. Resultado FAILED: no es evidencia de cierre.
 - `reports-workspace-1000`: no reproducido localmente bajo `next start` (20/20 con `--repeat-each=4`);
   mecanismo no demostrado → `INDEPENDENT_CAUSE` a investigar por separado.
 
+### Corrección in-PR (posterior al head `c98961a5`)
+
+Decisión: Nico ordenó corregir ambos síntomas dentro de esta PR; la clasificación `SEPARATE_PR_REQUIRED`
+de arriba queda como registro histórico. Ambos son ajustes que el cambio de runner expone (AGENTS.md §4).
+
+- Estado observado: `E2E Completeness`
+  [34801887232](https://github.com/LABVETNEB/PORTAL-VETNEB/actions/runs/34801887232) (job `103846036151`,
+  head `c98961a5`) repite el mismo conjunto: 1329 passed, 2 failed, 2 flaky, 1 skipped.
+- R-14 (3 viewports, una causa): `TEST_DEFECT`. El baseline A03 `logistics-bounded-canvas::bounded-metricas`
+  registra la misma primera página reemplazada (`limit=3` en 1440×900, `limit=2` en 1366×768, `limit=11` en
+  390×844); el spec asertaba el render previo con el default 12. Corrección: esperar la navegación
+  `offset=0&limit=<medido>` (misma señal que A03), asertar la leyenda con ese límite y derivar "Siguiente"
+  del page-full (`3 === limit`, el fixture sirve 3 planes para cualquier `limit`). No se hardcodea capacidad
+  ni se elimina ninguna aserción ni viewport.
+- `reports-workspace-1000`: `TEST_DEFECT`. Trace sanitizado del intento fallido: el POST de la Server Action
+  de la página 2 recibe `200` y termina en `net::ERR_ABORTED` sin cuerpo, mientras el DOM ya muestra la
+  ventana correcta (`7–12 de 1000`, ids 8407–8412). En `playwright-core@1.63.0`, `Response.finished()` sólo
+  resuelve con `requestfinished`; ante `requestfailed` espera hasta el timeout. Corrección: `awaitWindow` se
+  liga al primer evento terminal de esa request (`requestfinished` o `requestfailed`), registrado desde que
+  se arma el observador; la respuesta no nula y `settleWindow` siguen siendo obligatorios.
+- Producto, fixture, workflows, retries y timeouts globales: sin cambios.
+
+Validación local (Windows, build con el env de "Build frontend" del workflow, `CI=true`,
+`VETNEB_E2E_PRODUCTION_RUNNER=1` → `next start`):
+
+- Spec R-14 original (copia temporal fuera de `frontend/e2e`, retirada después): 3 failed / 2 passed, con
+  las mismas firmas que CI.
+- Specs corregidos: 10/10 PASSED y 150/150 PASSED con `--repeat-each=15 --retries=0`.
+
 ## Validaciones
 
 | Gate | Estado |
@@ -266,8 +295,10 @@ confirmado en log. Resultado FAILED: no es evidencia de cierre.
 - R-05B-5: `runner=dev` de `visual-regression-manual.yml` queda como diagnóstico no canónico: difiere
   por diseño de los baselines productivos (indicador dev) y su resultado rojo no es señal de regresión. La
   lista literal de specs sigue siendo deuda de `E2E-GLOBAL-10`.
-- R-05B-7: `E2E Completeness` no puede quedar verde en esta PR mientras R-14 (TEST_DEFECT independiente) no
-  se corrija en una PR separada; `failOnFlakyTests` convierte además cualquier flaky en fallo del run.
+- R-05B-7: R-14 y `reports-workspace-1000` se corrigen en esta PR (ver "Corrección in-PR"). El flaky de
+  `reports-workspace-1000` nunca se reprodujo localmente; su cierre depende de `E2E Completeness` en CI, donde
+  `failOnFlakyTests` convierte cualquier flaky en fallo del run. Queda sin explicar por qué el cliente aborta
+  el cuerpo de la respuesta de la Server Action; el resultado aplicado es correcto.
 - R-05B-6: los comentarios de `frontend/playwright.config.ts` y de
   `frontend-playwright-production-runner.test.ts` siguen describiendo a Frontend CI como único consumidor
   del flag (drift documental, config read-only en esta fase).
@@ -282,6 +313,6 @@ ausencia del flag, el workflow manual con default `dev` y los digests `9f86a595�
 ## Estado final
 
 Baselines productivos promovidos desde evidencia canónica `ubuntu-latest`, `e2e:full` configurado con
-production runner y workflow visual manual sin ruta de escritura dev. El cierre depende de que
-`E2E Completeness` quede PASSED sobre el head exacto de la PR, lo que requiere antes corregir R-14 en una PR
-separada.
+production runner y workflow visual manual sin ruta de escritura dev. R-14 y la sincronización de
+`reports-workspace-1000` están corregidos en la PR. El cierre depende de que `E2E Completeness` quede PASSED
+sobre el head exacto de la PR.
