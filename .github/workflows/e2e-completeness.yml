@@ -223,6 +223,9 @@ jobs:
           # hygiene — so a healthy suite can't be cancelled by setup overhead
           # eating into the job's hard cap.
           E2E_GLOBAL_TIMEOUT_MS: "2700000"
+          # E2E-GLOBAL-05B: serve the bundle built above with `next start`; the
+          # Chromium Linux baselines are production captures (no dev indicator).
+          VETNEB_E2E_PRODUCTION_RUNNER: "1"
 
       # --retries=2 makes trace: on-first-retry real here; raw traces carry cookies
       # and auth headers, so only the sanitized staging copy may be uploaded.
