@@ -4,22 +4,6 @@ on:
   pull_request:
     branches:
       - main
-    paths:
-      - '.github/workflows/e2e-completeness.yml'
-      - '.github/workflows/frontend-ci.yml'
-      - 'frontend/e2e/**'
-      - 'frontend/playwright.config.ts'
-      - 'frontend/package.json'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
-      - 'scripts/governance/**'
-      - 'test/architecture/e2e-suite-catalog-completeness.test.ts'
-      - 'test/unit/infrastructure/e2e-completeness-workflow.test.ts'
-      - 'test/unit/infrastructure/frontend-ci-workflow.test.ts'
-      - 'test/unit/infrastructure/frontend-playwright-production-runner.test.ts'
-      - 'test/unit/infrastructure/workflow-security-policy-contract.test.ts'
-      - 'test/unit/infrastructure/workflow-security-validator-contract.test.ts'
   workflow_dispatch:
   schedule:
     - cron: '17 3 * * 2'
