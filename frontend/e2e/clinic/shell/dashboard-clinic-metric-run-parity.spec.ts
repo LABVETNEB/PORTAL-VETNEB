@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { waitForLayoutSettled } from "../../helpers/dashboard-geometry-matrix";
 
 const VIEWPORTS = [
@@ -46,6 +46,72 @@ async function setClinicSession(page: Page) {
   ]);
 }
 
+/**
+ * Reads the metric-run paint/geometry contract once. Extracted so the caller
+ * below can take two consecutive readings — a single successful read only
+ * proves a valid frame existed, not that the geometry has settled.
+ */
+async function readMetricRunContract(metricRun: Locator) {
+  return metricRun.evaluate((element) => {
+    const style = window.getComputedStyle(element);
+    const px = (raw: string) => Number.parseFloat(raw) || 0;
+    const paints = (node: Element) => node.getClientRects().length > 0;
+
+    // The band the run lives in, and the card that band belongs to. Both are
+    // read structurally (parent / closest) rather than by a per-surface
+    // selector, so this contract cannot drift from the DOM it measures.
+    const host = element.parentElement;
+    const hostStyle = host ? window.getComputedStyle(host) : null;
+    const card = element.closest("section.dashboard-surface");
+    const cardStyle = card ? window.getComputedStyle(card) : null;
+
+    const hostPainted = host ? Array.from(host.children).filter(paints) : [];
+    const hostPaintedTop = hostPainted.length
+      ? Math.min(...hostPainted.map((child) => child.getBoundingClientRect().top))
+      : 0;
+    const hostPaintedBottom = hostPainted.length
+      ? Math.max(...hostPainted.map((child) => child.getBoundingClientRect().bottom))
+      : 0;
+    const cardFirstPainted = card ? (Array.from(card.children).find(paints) ?? null) : null;
+
+    return {
+      display: style.display,
+      columnGap: style.columnGap,
+      height: element.getBoundingClientRect().height,
+      rects: element.getClientRects().length,
+      backgroundColor: style.backgroundColor,
+      borderTopWidth: style.borderTopWidth,
+      borderTopLeftRadius: style.borderTopLeftRadius,
+      host: {
+        found: host !== null,
+        rects: host ? host.getClientRects().length : -1,
+        height: host ? host.getBoundingClientRect().height : -1,
+        paintedChildren: hostPainted.length,
+        // What the painted controls actually need: their own union plus the
+        // band's own padding and borders. Anything above this is reserved
+        // height with nothing in it, which is the defect being retired.
+        requiredHeight:
+          (hostPainted.length ? hostPaintedBottom - hostPaintedTop : 0) +
+          (hostStyle
+            ? px(hostStyle.paddingBlockStart) +
+              px(hostStyle.paddingBlockEnd) +
+              px(hostStyle.borderBlockStartWidth) +
+              px(hostStyle.borderBlockEndWidth)
+            : 0),
+      },
+      card: {
+        found: card !== null,
+        top: card ? card.getBoundingClientRect().top : -1,
+        borderTop: cardStyle ? px(cardStyle.borderBlockStartWidth) : 0,
+        firstPaintedIsHost: cardFirstPainted !== null && cardFirstPainted === host,
+        firstPaintedTop: cardFirstPainted ? cardFirstPainted.getBoundingClientRect().top : -1,
+      },
+      scrollsX: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+      scrollsY: document.documentElement.scrollHeight > document.documentElement.clientHeight,
+    };
+  });
+}
+
 for (const viewport of VIEWPORTS) {
   for (const [name, path, surfaceId, mobileMetricRun, hostBandRetiredBelowMd] of SURFACES) {
     const title = mobileMetricRun
@@ -68,65 +134,41 @@ for (const viewport of VIEWPORTS) {
       // `clinic-informes-zero-internal-scroll.spec.ts` already use for this.
       await waitForLayoutSettled(page);
 
+      // Held across attempts, so the second gate below compares this attempt's
+      // reading against the previous attempt's rather than against itself.
+      let previousAttempt: string | null = null;
+
       await expect(async () => {
-        const contract = await metricRun.evaluate((element) => {
-          const style = window.getComputedStyle(element);
-          const px = (raw: string) => Number.parseFloat(raw) || 0;
-          const paints = (node: Element) => node.getClientRects().length > 0;
+        // P2 stability gate: `toPass` accepts the FIRST successful callback, so
+        // a single read only proves a valid frame existed — not that the
+        // geometry settled. Several of these surfaces run a measure → derive →
+        // refetch → repaint pass after their first paint, and a transient
+        // mid-flight frame can satisfy every assertion below before the next
+        // repaint changes it. So nothing is trusted until three readings agree
+        // across two time scales: a pair taken across an observable frame
+        // boundary (fonts resolved, two committed frames) catches churn finer
+        // than the retry backoff can sample, and a third comparison against the
+        // PREVIOUS attempt spans that backoff — hundreds of milliseconds, wide
+        // enough to straddle a refetch that a two-frame window sits entirely
+        // inside. Three agreeing reads is the bar `measureSurfaceGeometry` and
+        // `measureSettledParityContract` hold a geometry baseline to. Either
+        // mismatch throws, so `toPass` retries the whole cycle.
+        const first = await readMetricRunContract(metricRun);
+        await waitForLayoutSettled(page);
+        const contract = await readMetricRunContract(metricRun);
+        const serialized = JSON.stringify(contract);
 
-          // The band the run lives in, and the card that band belongs to. Both are
-          // read structurally (parent / closest) rather than by a per-surface
-          // selector, so this contract cannot drift from the DOM it measures.
-          const host = element.parentElement;
-          const hostStyle = host ? window.getComputedStyle(host) : null;
-          const card = element.closest("section.dashboard-surface");
-          const cardStyle = card ? window.getComputedStyle(card) : null;
+        expect(
+          serialized,
+          `${name}: metric-run geometry must read stable across two consecutive frames`,
+        ).toBe(JSON.stringify(first));
 
-          const hostPainted = host ? Array.from(host.children).filter(paints) : [];
-          const hostPaintedTop = hostPainted.length
-            ? Math.min(...hostPainted.map((child) => child.getBoundingClientRect().top))
-            : 0;
-          const hostPaintedBottom = hostPainted.length
-            ? Math.max(...hostPainted.map((child) => child.getBoundingClientRect().bottom))
-            : 0;
-          const cardFirstPainted = card ? (Array.from(card.children).find(paints) ?? null) : null;
-
-          return {
-            display: style.display,
-            columnGap: style.columnGap,
-            height: element.getBoundingClientRect().height,
-            rects: element.getClientRects().length,
-            backgroundColor: style.backgroundColor,
-            borderTopWidth: style.borderTopWidth,
-            borderTopLeftRadius: style.borderTopLeftRadius,
-            host: {
-              found: host !== null,
-              rects: host ? host.getClientRects().length : -1,
-              height: host ? host.getBoundingClientRect().height : -1,
-              paintedChildren: hostPainted.length,
-              // What the painted controls actually need: their own union plus the
-              // band's own padding and borders. Anything above this is reserved
-              // height with nothing in it, which is the defect being retired.
-              requiredHeight:
-                (hostPainted.length ? hostPaintedBottom - hostPaintedTop : 0) +
-                (hostStyle
-                  ? px(hostStyle.paddingBlockStart) +
-                    px(hostStyle.paddingBlockEnd) +
-                    px(hostStyle.borderBlockStartWidth) +
-                    px(hostStyle.borderBlockEndWidth)
-                  : 0),
-            },
-            card: {
-              found: card !== null,
-              top: card ? card.getBoundingClientRect().top : -1,
-              borderTop: cardStyle ? px(cardStyle.borderBlockStartWidth) : 0,
-              firstPaintedIsHost: cardFirstPainted !== null && cardFirstPainted === host,
-              firstPaintedTop: cardFirstPainted ? cardFirstPainted.getBoundingClientRect().top : -1,
-            },
-            scrollsX: document.documentElement.scrollWidth > document.documentElement.clientWidth,
-            scrollsY: document.documentElement.scrollHeight > document.documentElement.clientHeight,
-          };
-        });
+        if (previousAttempt !== serialized) {
+          previousAttempt = serialized;
+          throw new Error(
+            `${name}: metric-run geometry must also hold across the retry backoff`,
+          );
+        }
 
         if (mobileMetricRun) {
           expect(contract.display, `${name}: inline flex grammar`).toBe("flex");
@@ -182,7 +224,7 @@ for (const viewport of VIEWPORTS) {
 
         expect(contract.scrollsX, `${name}: no page horizontal overflow`).toBe(false);
         expect(contract.scrollsY, `${name}: no page vertical overflow`).toBe(false);
-      }).toPass({ timeout: 10_000 });
+      }).toPass({ intervals: [200, 300, 500, 800, 1_000], timeout: 10_000 });
     });
   }
 }
