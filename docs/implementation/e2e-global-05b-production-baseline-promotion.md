@@ -20,15 +20,18 @@ del [E2E visual production candidate RFC](../architecture/e2e-visual-production-
 
 - A. Reemplazo byte-exacto de los 40 PNG `*-chromium-linux.png` por los candidatos productivos aprobados.
 - B. `e2e-completeness.yml`: el paso `e2e:full` ejecuta con `VETNEB_E2E_PRODUCTION_RUNNER=1` (`next start`).
+- C. `visual-regression-manual.yml`: default `runner=production-candidate` y rechazo de `update_snapshots`
+  para todo runner (ningún render dev puede volver a escribir los baselines canónicos).
 - Realineación de guards directamente afectados: `e2e-completeness-workflow.test.ts` (contrato invertido y
-  semántico) y digest canónico en `workflow-security-policy-contract.test.ts`.
+  semántico), `visual-production-candidate-contract.test.ts` (política de baselines canónicos) y digests
+  canónicos en `workflow-security-policy-contract.test.ts`.
 - Esta acta (§11/§17).
 
 ## Scope excluido
 
 - `frontend/src/**`, `server/**`, auth, cookies/sesión, DB, manifiestos, lockfile, dependencias.
 - `frontend/playwright.config.ts` (read-only: la selección `CI=true` + flag ya existía), specs, fixtures,
-  `frontend/e2e/suites/catalog.ts`, `e2e:ci`, `frontend-ci.yml`, `visual-regression-manual.yml`.
+  `frontend/e2e/suites/catalog.ts`, `e2e:ci`, `frontend-ci.yml`.
 - Timeouts, workers y retries de `e2e:full` (sin cambios).
 - `E2E-GLOBAL-06` en adelante.
 
@@ -174,20 +177,67 @@ promovido. Rutas bajo `frontend/e2e/regression/visual/visual-regression-<suite>.
 - Efecto colateral declarado: bajo production runner `trace` pasa de `on-first-retry` a `retain-on-failure`
   (config existente). Las subidas siguen detrás del sanitizer (`failure()`).
 
+## Workflow visual manual post-promoción
+
+Hallazgo de review (P2, PR #1721): con los baselines productivos, la ruta `runner=dev` (default) compara
+`next dev` contra capturas `next start` y falla de forma determinista. Además, `runner=dev` +
+`update_snapshots=true` escribía PNG dev y revertía semánticamente la promoción.
+
+| Aspecto | Antes | Después |
+|---|---|---|
+| Default de `runner` | `dev` | `production-candidate` |
+| `runner=dev` | Compara o actualiza baselines bajo `next dev` | Diagnóstico no canónico bajo `next dev`; nunca actualiza |
+| `update_snapshots=true` | Rechazado sólo con `production-candidate`; con `dev` ejecutaba `--update-snapshots` y subía PNG | Rechazado para todo runner en el primer paso (antes de checkout/install); construcción `--update-snapshots` eliminada |
+| `production-candidate` | Candidato aislado, compara, nunca actualiza | Sin cambios |
+| Subida `frontend/e2e/**/*.png` | `dev` con update o fallo | `dev` sólo con fallo |
+| Semántica canónica | Capturas dev | Capturas `next start` promovidas desde evidencia revisada |
+
+Contrato: `evaluateCanonicalBaselinePolicy` (`visual-production-candidate-contract.test.ts`) exige el default
+productivo, el rechazo universal y que ningún paso ni el env del job cablee una actualización. Mutaciones sobre
+el archivo real: default `dev` → FAIL; rechazo limitado a `production-candidate` (dev+update permitido) → FAIL;
+restaurado byte-idéntico → 16/16 PASS. Digest `visual-regression-manual.yml`: `0dd36c2a…ddffd13b1` →
+`1f4f5a80…197ca396`.
+
 ## Justificación mixed-scope
 
-A (baselines productivos) y B (runner productivo en `e2e:full`) no pueden activarse por separado sin dejar
-`E2E Completeness` deliberadamente rojo. A solo quita el indicador de los baselines y `e2e:full` bajo dev
-fallaría los 40 tests visuales (3 710 px > tolerancia). B solo sirve `next start` contra baselines con
-indicador y fallaría los mismos 40. Frontera de acoplamiento: la cohorte `visual-linux`, que sólo ejecuta
-`e2e:full`; `e2e:ci` no la contiene. Rollback único: revertir el commit completo (40 PNG + flag + guards).
+Los baselines canónicos productivos y los runners que los consumen deben cambiar atómicamente. A (baselines
+productivos) sin B (runner productivo en `e2e:full`) deja `e2e:full` bajo dev fallando los 40 tests visuales
+(3 710 px > tolerancia), y B sin A falla los mismos 40. Además, fusionar A sin C dejaría el workflow manual
+por defecto roto y capaz de reescribir los PNG con capturas dev, revirtiendo la promoción. Frontera de
+acoplamiento: la cohorte `visual-linux`, que ejecutan `e2e:full` y `visual-regression-manual`; `e2e:ci` no la
+contiene. Rollback único: revertir los commits de la PR (40 PNG + flag + workflow manual + guards).
 
 ## Presupuesto
 
 Baseline previo (dev, `E2E Completeness` 34783510988, head `59822cc2` de #1720): paso full
 `01:06:11Z → 01:49:04Z` (42 min 53 s), `1333 passed`, `1 skipped`, 0 failed, 0 flaky, `--workers=2 --retries=2`.
-El ahorro esperado (~30 → ~18,3 min para `ci` según roadmap) **no está demostrado**. Se mide con el
-`E2E Completeness` del head de la PR; ver sección de checks de la PR.
+El ahorro esperado (~30 → ~18,3 min para `ci` según roadmap) **no está demostrado**.
+
+Primera medición bajo production runner (`E2E Completeness`
+[34798933082](https://github.com/LABVETNEB/PORTAL-VETNEB/actions/runs/34798933082), job `103837468566`,
+head `98518d3f`): job `02:21:24Z → 02:51:08Z` (29 min 44 s), build 23 s, paso full `02:22:31Z → 02:50:56Z`
+(28 min 25 s), Playwright `28.4m`, 1334 tests: 1329 passed, 2 failed, 2 flaky, 1 skipped; `next start`
+confirmado en log. Resultado FAILED: no es evidencia de cierre.
+
+### Fallo de ese run (causa independiente)
+
+- Paso: `Run complete cataloged E2E suite`. Sanitizer, upload y teardown correctos; sin `globalTimeout`.
+- Los 40 tests visuales PASSED contra los baselines promovidos.
+- FAILED (3 intentos): `e2e/clinic/logistics/dashboard-logistica-metricas-full-route-adaptive.spec.ts:45`
+  (R-14) en `desktop-1440x900` (`:73`, `toBeDisabled` sobre "Página siguiente": recibido `enabled`, href
+  `offset=3&limit=3`) y `desktop-short-1366x768` (`:79`, texto "máximo 12 planes" no encontrado).
+- FLAKY: el mismo test en `mobile-390x844` (falló `:79`, pasó en retry #1) y
+  `clinic-reports-workspace-1000.spec.ts:377` (timeout 30 s en `response.finished()`, `:194`; pasó en retry #1).
+- Mecanismo R-14 (sonda local, mismo checkout): con la ruta sin `limit`, `LogisticsBoundedCanvas` reemplaza la
+  URL por la capacidad medida (`limit=3` en 1440×900, `limit=2` en 1366×768) **en ambos servidores**. Bajo
+  `next start` el reemplazo llega a ~124–195 ms; bajo `next dev`, a ~436–552 ms, después de las aserciones
+  instantáneas del spec sobre el estado SSR previo (limit 12). Reproducido local: `next start` 3 failed / 2
+  passed; `next dev` 5 passed.
+- Clasificación: `TEST_DEFECT` preexistente (el spec aserta un estado transitorio y ganaba una carrera sólo
+  por la lentitud de dev) → `INDEPENDENT_CAUSE`, `SEPARATE_PR_REQUIRED`. El producto se comporta igual en dev
+  y prod; no se modifica el spec, el producto ni la configuración de retries/timeouts en esta PR.
+- `reports-workspace-1000`: no reproducido localmente bajo `next start` (20/20 con `--repeat-each=4`);
+  mecanismo no demostrado → `INDEPENDENT_CAUSE` a investigar por separado.
 
 ## Validaciones
 
@@ -199,6 +249,8 @@ El ahorro esperado (~30 → ~18,3 min para `ci` según roadmap) **no está demos
 | Mutation proof del flag | PASSED: FAIL con mutación, PASS restaurado |
 | Guards dirigidos (completeness, candidate-contract, policy, validator-contract, frontend-ci, production-runner, sanitizer, catálogo) | PASSED: 123/123 |
 | `node scripts/governance/workflow-security-validator.mjs` | PASSED |
+| `visual-production-candidate-contract.test.ts` (política de baselines canónicos) | PASSED: 16/16 |
+| Mutaciones del workflow manual (default dev; dev+update) | PASSED: FAIL con cada mutación, PASS restaurado |
 | Otros gates | ver descripción de la PR |
 
 ## Riesgos residuales
@@ -211,9 +263,11 @@ El ahorro esperado (~30 → ~18,3 min para `ci` según roadmap) **no está demos
   puede exigir una nueva promoción desde un candidato canónico.
 - R-05B-4: el `retain-on-failure` bajo production runner graba trazas de todos los tests del full. El
   impacto en el presupuesto de 45 min se mide en CI.
-- R-05B-5: el camino `runner=dev` de `visual-regression-manual.yml` compara ahora contra baselines
-  productivos y fallará si se usa. Debe usarse `runner=production-candidate`. Gobierno pendiente de
-  `E2E-GLOBAL-10`.
+- R-05B-5: `runner=dev` de `visual-regression-manual.yml` queda como diagnóstico no canónico: difiere
+  por diseño de los baselines productivos (indicador dev) y su resultado rojo no es señal de regresión. La
+  lista literal de specs sigue siendo deuda de `E2E-GLOBAL-10`.
+- R-05B-7: `E2E Completeness` no puede quedar verde en esta PR mientras R-14 (TEST_DEFECT independiente) no
+  se corrija en una PR separada; `failOnFlakyTests` convierte además cualquier flaky en fallo del run.
 - R-05B-6: los comentarios de `frontend/playwright.config.ts` y de
   `frontend-playwright-production-runner.test.ts` siguen describiendo a Frontend CI como único consumidor
   del flag (drift documental, config read-only en esta fase).
@@ -222,10 +276,12 @@ El ahorro esperado (~30 → ~18,3 min para `ci` según roadmap) **no está demos
 
 ## Rollback
 
-Revertir el commit de esta PR restaura los 40 baselines dev, el `e2e:full` bajo `next dev`, el contrato de
-ausencia del flag y el digest `9f86a595…682021`.
+Revertir los commits de esta PR restaura los 40 baselines dev, el `e2e:full` bajo `next dev`, el contrato de
+ausencia del flag, el workflow manual con default `dev` y los digests `9f86a595…682021` y `0dd36c2a…ddffd13b1`.
 
 ## Estado final
 
-Baselines productivos promovidos desde evidencia canónica `ubuntu-latest` y `e2e:full` configurado con
-production runner. El cierre depende de que `E2E Completeness` quede PASSED sobre el head exacto de la PR.
+Baselines productivos promovidos desde evidencia canónica `ubuntu-latest`, `e2e:full` configurado con
+production runner y workflow visual manual sin ruta de escritura dev. El cierre depende de que
+`E2E Completeness` quede PASSED sobre el head exacto de la PR, lo que requiere antes corregir R-14 en una PR
+separada.
