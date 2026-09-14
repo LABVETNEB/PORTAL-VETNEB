@@ -134,25 +134,33 @@ for (const viewport of VIEWPORTS) {
       // `clinic-informes-zero-internal-scroll.spec.ts` already use for this.
       await waitForLayoutSettled(page);
 
-      // Held across attempts, so the second gate below compares this attempt's
-      // reading against the previous attempt's rather than against itself.
-      let previousAttempt: string | null = null;
+      // P2 follow-up: an outer-poll counter, held across `toPass` attempts. It
+      // mirrors `measureSurfaceGeometry` / `measureSettledParityContract`
+      // exactly — the same `requiredStableReads = 3` bar, the same reset
+      // semantics (a change zeroes the counter and starts a new baseline; the
+      // baseline read itself does not count as a stable read, only the reads
+      // that go on to match it do). A prior version compared only against the
+      // immediately preceding attempt, so a plateau that happened to survive
+      // exactly one retry (~200ms, the first backoff interval) could close the
+      // gate; a later refetch/repaint past that point would never be observed.
+      // Requiring 3 consecutive matching outer polls after any reset instead
+      // forces the poll to span at least the first three backoff intervals
+      // (>=1_000ms here) before it can exit, and a reset from ANY late change
+      // — however far into the backoff — restarts the same 3-read requirement
+      // from that point, so the gate can never close on the first matching
+      // retry regardless of when the last real change happens.
+      const REQUIRED_STABLE_OUTER_READS = 3;
+      let lastOuterReading: string | null = null;
+      let stableOuterReads = 0;
 
       await expect(async () => {
-        // P2 stability gate: `toPass` accepts the FIRST successful callback, so
-        // a single read only proves a valid frame existed — not that the
-        // geometry settled. Several of these surfaces run a measure → derive →
-        // refetch → repaint pass after their first paint, and a transient
-        // mid-flight frame can satisfy every assertion below before the next
-        // repaint changes it. So nothing is trusted until three readings agree
-        // across two time scales: a pair taken across an observable frame
-        // boundary (fonts resolved, two committed frames) catches churn finer
-        // than the retry backoff can sample, and a third comparison against the
-        // PREVIOUS attempt spans that backoff — hundreds of milliseconds, wide
-        // enough to straddle a refetch that a two-frame window sits entirely
-        // inside. Three agreeing reads is the bar `measureSurfaceGeometry` and
-        // `measureSettledParityContract` hold a geometry baseline to. Either
-        // mismatch throws, so `toPass` retries the whole cycle.
+        // Intra-attempt stability gate: `toPass` accepts the FIRST successful
+        // callback, so a single read only proves a valid frame existed — not
+        // that the geometry settled. Read the contract twice across an
+        // observable frame boundary (fonts resolved, two committed frames) and
+        // require an exact match before trusting either reading; a mismatch
+        // throws here, which also resets the outer-poll counter below via the
+        // same reset path (the thrown attempt never reaches it).
         const first = await readMetricRunContract(metricRun);
         await waitForLayoutSettled(page);
         const contract = await readMetricRunContract(metricRun);
@@ -163,10 +171,21 @@ for (const viewport of VIEWPORTS) {
           `${name}: metric-run geometry must read stable across two consecutive frames`,
         ).toBe(JSON.stringify(first));
 
-        if (previousAttempt !== serialized) {
-          previousAttempt = serialized;
+        // Outer-poll stability gate: require `REQUIRED_STABLE_OUTER_READS`
+        // consecutive matching outer polls — spanning real backoff time,
+        // never a sleep — before the assertions below are ever evaluated.
+        if (serialized === lastOuterReading) {
+          stableOuterReads += 1;
+        } else {
+          lastOuterReading = serialized;
+          stableOuterReads = 0;
+        }
+
+        if (stableOuterReads < REQUIRED_STABLE_OUTER_READS) {
           throw new Error(
-            `${name}: metric-run geometry must also hold across the retry backoff`,
+            `${name}: metric-run geometry must hold across ` +
+              `${REQUIRED_STABLE_OUTER_READS} consecutive outer polls ` +
+              `(currently ${stableOuterReads})`,
           );
         }
 
