@@ -1,6 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 
 const TOLERANCE = 2;
+const METRICAS_PATHNAME = "/dashboard/logistica/metricas";
+const FIXTURE_ROUTE_PLAN_COUNT = 3;
 
 const VIEWPORTS = [
   { name: "desktop-1440x900", width: 1440, height: 900 },
@@ -48,7 +50,26 @@ test.describe("clinic Logística Métricas full route adaptive contract (R-14)",
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
       await setPopulatedClinicSession(page);
 
-      await page.goto("/dashboard/logistica/metricas");
+      await page.goto(METRICAS_PATHNAME);
+
+      // Without a URL `limit` the server default (12) is only the pre-measurement
+      // render: LogisticsBoundedCanvas measures the canvas and replaces the URL
+      // ONCE with `offset=0&limit=<measured>`, and the server re-renders for it.
+      // That navigation is the convergence signal of this contract (same signal
+      // as the A03 `logistics-bounded-canvas` leaves); asserting before it lands
+      // reads the transient default instead of the page sized to the viewport.
+      await page.waitForURL(
+        (url) =>
+          url.pathname === METRICAS_PATHNAME &&
+          url.searchParams.get("offset") === "0" &&
+          url.searchParams.get("limit") !== null,
+        { timeout: 12_000 },
+      );
+      const measuredLimit = Number(new URL(page.url()).searchParams.get("limit"));
+      expect(
+        Number.isInteger(measuredLimit) && measuredLimit > 0,
+        `${viewport.name}: adaptive limit must be a positive integer (received ${measuredLimit})`,
+      ).toBe(true);
 
       const pager = page.getByRole("navigation", { name: "Paginación de métricas de ruta" });
       const previousButton = page.getByRole("button", { name: "Página anterior" });
@@ -56,31 +77,36 @@ test.describe("clinic Logística Métricas full route adaptive contract (R-14)",
       const pageIndicator = pager.locator(".dashboard-pagination-context");
       const metricCards = page.locator(".surface-soft");
 
+      // The caption names the limit the server actually rendered with, so it
+      // proves the measured page — not the default one — is on screen before
+      // any state shared by both renders is asserted.
+      await expect(
+        page.getByText(
+          `Métricas calculadas sobre la página visible (máximo ${measuredLimit} planes), no sobre el total general de rutas.`,
+        ),
+      ).toBeVisible();
+
       await expect(async () => {
         await expect(pager).toBeVisible();
         await expect(previousButton).toBeVisible();
         await expect(nextButton).toBeVisible();
 
         const cardCount = await metricCards.count();
-        expect(cardCount, `${viewport.name}: metrics fan-out`).toBe(3);
+        expect(cardCount, `${viewport.name}: metrics fan-out`).toBe(FIXTURE_ROUTE_PLAN_COUNT);
       }).toPass({ timeout: 12_000 });
 
-      // Fixture dataset (3 route plans) is far below the metrics default
-      // page-size limit (12), so this is the "everything fits on page 1"
-      // contract state: no previous page, and the page-full heuristic
-      // correctly reports no further page either.
+      // First page: no previous page. The fixture serves its 3 route plans for
+      // any limit/offset, so the page-full heuristic (`routePlans.length ===
+      // limit`) enables "Siguiente" exactly when the measured limit is 3.
       await expect(previousButton).toBeDisabled();
-      await expect(nextButton).toBeDisabled();
+      await expect(nextButton).toBeEnabled({
+        enabled: measuredLimit === FIXTURE_ROUTE_PLAN_COUNT,
+      });
       await expect(pageIndicator).toHaveText("Página 1");
-      await expect(
-        page.getByText(
-          "Métricas calculadas sobre la página visible (máximo 12 planes), no sobre el total general de rutas.",
-        ),
-      ).toBeVisible();
 
-      // Fan-out is bounded to exactly the visible-page route plans (one
+      // Fan-out is bounded to exactly the route plans served for the page (one
       // metric detail card per plan) — never more, never fewer.
-      await expect(metricCards).toHaveCount(3);
+      await expect(metricCards).toHaveCount(FIXTURE_ROUTE_PLAN_COUNT);
 
       await expect(async () => {
         const metrics = await readNoExternalScroll(page);

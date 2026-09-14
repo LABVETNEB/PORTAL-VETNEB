@@ -625,26 +625,56 @@ test("the overlay config serves next start and redirects every capture and outpu
 // Manual visual workflow.
 // ---------------------------------------------------------------------------
 
-test("visual-regression-manual keeps the dev route and adds an isolated, non-updating production-candidate route", () => {
+// E2E-GLOBAL-05B: canonical baselines are next start captures. Returns the
+// violations instead of asserting so policy mutations are provable.
+function evaluateCanonicalBaselinePolicy(source: string): string[] {
+  const failures: string[] = [];
+  const document = parseWorkflow(source);
+  const inputs = mapping(mapping(mapping(document.on, "on").workflow_dispatch, "workflow_dispatch").inputs, "inputs");
+  const runner = mapping(inputs.runner, "inputs.runner");
+  if (runner.default !== "production-candidate") {
+    failures.push(`runner must default to production-candidate, found ${String(runner.default)}`);
+  }
+
+  const steps = workflowSteps(document, "visual-regression");
+  const reject = steps[0];
+  if (
+    reject?.name !== "Reject canonical snapshot updates" ||
+    reject.if !== "${{ inputs.update_snapshots }}" ||
+    !/\n?exit 1\n?$/.test(String(reject.run))
+  ) {
+    failures.push("update_snapshots must be rejected for every runner before any checkout or install");
+  }
+
+  for (const [index, step] of steps.entries()) {
+    const text = `${String(step.run ?? "")}\n${JSON.stringify(step.env ?? {})}`;
+    if (index > 0 && /--update-snapshots|update-snapshots|UPDATE_SNAPSHOTS|inputs\.update_snapshots/.test(text)) {
+      failures.push(`step ${String(step.name)} must not wire a snapshot update`);
+    }
+  }
+  const job = mapping(mapping(document.jobs, "jobs")["visual-regression"], "jobs.visual-regression");
+  if (JSON.stringify(job.env ?? {}).includes("update_snapshots")) {
+    failures.push("the job environment must not carry update_snapshots");
+  }
+  return failures;
+}
+
+test("visual-regression-manual keeps canonical production baselines unwritable and defaults to production-candidate", () => {
   const source = readWorkflow(MANUAL_WORKFLOW);
   const document = parseWorkflow(source);
   const inputs = mapping(mapping(mapping(document.on, "on").workflow_dispatch, "workflow_dispatch").inputs, "inputs");
   const runner = mapping(inputs.runner, "inputs.runner");
 
+  assert.deepEqual(evaluateCanonicalBaselinePolicy(source), []);
   assert.equal(runner.type, "choice");
-  assert.equal(runner.default, "dev");
   assert.deepEqual(runner.options, ["dev", "production-candidate"]);
 
   const steps = workflowSteps(document, "visual-regression");
   const names = steps.map((step) => String(step.name));
 
-  const reject = stepNamed(steps, "Reject snapshot updates for the production candidate");
-  assert.equal(names.indexOf(String(reject.name)), 0, "the update rejection must run before any checkout or install");
-  assert.equal(reject.if, "${{ inputs.runner == 'production-candidate' && inputs.update_snapshots }}");
-  assert.match(String(reject.run), /\n?exit 1\n?$/);
-
   const devRun = stepNamed(steps, "Run selected visual regression suite");
   assert.equal(devRun.if, "${{ inputs.runner == 'dev' }}");
+  assert.equal(String(devRun.run).includes("--update-snapshots"), false);
 
   const candidateRun = stepNamed(steps, "Produce production visual candidate");
   const script = String(candidateRun.run);
@@ -669,8 +699,9 @@ test("visual-regression-manual keeps the dev route and adds an isolated, non-upd
   }
 
   const snapshotUpload = stepNamed(steps, "Upload snapshot PNGs");
-  assert.ok(
-    String(snapshotUpload.if).includes("inputs.runner == 'dev'"),
+  assert.equal(
+    snapshotUpload.if,
+    "${{ always() && inputs.upload_artifacts && inputs.runner == 'dev' && failure() }}",
     "tracked snapshot PNGs must never be uploaded as production candidate evidence",
   );
 
@@ -693,4 +724,35 @@ test("visual-regression-manual keeps the dev route and adds an isolated, non-upd
   assert.equal(source.includes("continue-on-error"), false);
   const report = evaluateWorkflowSecurity({ rootDir: REPO_ROOT, workflowPaths: [MANUAL_WORKFLOW] });
   assert.equal(report.passed, true, JSON.stringify(report.failures, null, 2));
+});
+
+test("canonical baseline policy fails closed when a dev render could reach the baselines again", () => {
+  const source = readWorkflow(MANUAL_WORKFLOW);
+  const defaultLine = "        default: production-candidate\n";
+  const rejectIf = "        if: ${{ inputs.update_snapshots }}\n";
+  const devCommand = '          cmd=(corepack pnpm --dir frontend exec playwright test "${specs[@]}" --project=chromium)\n';
+  for (const fragment of [defaultLine, rejectIf, devCommand]) {
+    assert.ok(source.includes(fragment), `fixture precondition: ${fragment.trim()}`);
+  }
+
+  const devDefault = evaluateCanonicalBaselinePolicy(source.replace(defaultLine, "        default: dev\n"));
+  assert.ok(devDefault.some((failure) => failure.includes("default to production-candidate")));
+
+  const devUpdateAllowed = evaluateCanonicalBaselinePolicy(
+    source.replace(rejectIf, "        if: ${{ inputs.runner == 'production-candidate' && inputs.update_snapshots }}\n"),
+  );
+  assert.ok(devUpdateAllowed.some((failure) => failure.includes("rejected for every runner")));
+
+  const devUpdateWired = evaluateCanonicalBaselinePolicy(
+    source.replace(
+      devCommand,
+      `${devCommand}          if [ "\${UPDATE_SNAPSHOTS}" = "true" ]; then\n            cmd+=(--update-snapshots)\n          fi\n`,
+    ),
+  );
+  assert.ok(devUpdateWired.some((failure) => failure.includes("must not wire a snapshot update")));
+
+  const updateEnv = evaluateCanonicalBaselinePolicy(
+    source.replace("      VISUAL_SUITE: ${{ inputs.suite }}\n", "      VISUAL_SUITE: ${{ inputs.suite }}\n      UPDATE_SNAPSHOTS: ${{ inputs.update_snapshots }}\n"),
+  );
+  assert.ok(updateEnv.some((failure) => failure.includes("job environment")));
 });
