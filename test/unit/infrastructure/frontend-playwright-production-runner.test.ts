@@ -250,11 +250,9 @@ test("Playwright cierra el falso verde de un .only filtrado en el gate required"
   });
 });
 
-// LIMPIEZA E2E B-4 (E2E-GLOBAL-02A), partial: none of these three options
-// branch on CI/production-runner env, so one context fully covers them — a
-// per-context loop here would repeat the same assertion three times for zero
-// extra causal coverage (unlike forbidOnly above, which genuinely branches).
-test("Playwright falla en flaky y no expone cookies vía trace hasta el saneamiento R2", async () => {
+// LIMPIEZA E2E B-4 (E2E-GLOBAL-02B): failOnFlakyTests and screenshot do not
+// branch on CI/production-runner env, so one context fully covers them.
+test("Playwright falla en flaky y deja screenshot de la falla", async () => {
   const config = await loadConfig({});
 
   assert.equal(
@@ -267,20 +265,47 @@ test("Playwright falla en flaky y no expone cookies vía trace hasta el saneamie
     "only-on-failure",
     "a failure must leave a screenshot, and a pass must not",
   );
-  // trace stays "on-first-retry" (inert under the required gate's zero
-  // retries) on purpose: PR #1715's audit found "retain-on-failure" makes
-  // Playwright record Cookie/Set-Cookie headers and addCookies() parameters
-  // verbatim into trace.zip, which frontend-ci.yml uploads as a PR-attached
-  // CI artifact on failure — 43 of the 64 e2e:ci specs seed real production
-  // cookie names via addCookies(). AGENTS.md §9 forbids cookies/session IDs
-  // in any artifact, synthetic values included. Do not flip this to
-  // "retain-on-failure" without a paired trace-sanitization mechanism
-  // (E2E-GLOBAL-02A-trace follow-up, R2: touches .github/workflows/**).
-  assert.equal(
-    config.use?.trace,
-    "on-first-retry",
-    "trace must not retain cookie-bearing traces until a sanitizer ships",
-  );
+});
+
+// trace does branch: raw traces carry cookie material verbatim, so they may
+// only be written where the fail-closed sanitizer of PR #1719 guards every
+// upload. The sanitizer and workflow contracts are pinned by their own tests.
+test("Playwright retiene traces sólo en CI saneado", async (t) => {
+  await t.test("local runs never write a raw trace", async () => {
+    const config = await loadConfig({});
+
+    assert.equal(
+      config.use?.trace,
+      "off",
+      "no sanitizer runs locally, so a local failure must not leave a raw trace.zip",
+    );
+  });
+
+  await t.test("the production runner flag outside CI still writes no trace", async () => {
+    const config = await loadConfig({ productionRunner: "1" });
+
+    assert.equal(config.use?.trace, "off");
+  });
+
+  await t.test("the required production runner retains the first failure's trace", async () => {
+    const config = await loadConfig({ ci: "true", productionRunner: "1" });
+
+    assert.equal(
+      config.use?.trace,
+      "retain-on-failure",
+      "e2e:ci runs with zero retries, so only retain-on-failure keeps first-failure diagnostics",
+    );
+  });
+
+  await t.test("other CI contexts trace only retries", async () => {
+    const config = await loadConfig({ ci: "true" });
+
+    assert.equal(
+      config.use?.trace,
+      "on-first-retry",
+      "recording every test of e2e:full (--retries=2) exhausts its budget; retries still leave a trace",
+    );
+  });
 });
 
 const FIXTURE_PATH = "frontend/e2e/fixtures/admin-populated-api-server.mjs";
