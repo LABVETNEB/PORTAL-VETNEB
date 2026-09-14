@@ -16,15 +16,15 @@ on:
           - authenticated
           - stress
       runner:
-        description: "dev: compare (or update) the canonical baselines under next dev. production-candidate: next build + next start into an isolated candidate compared against the canonical baselines; never updates them."
+        description: "production-candidate: next build + next start into an isolated candidate compared against the canonical production baselines; never updates them. dev: non-canonical next dev diagnostic; differs from the production baselines by design and never updates them."
         required: true
-        default: dev
+        default: production-candidate
         type: choice
         options:
           - dev
           - production-candidate
       update_snapshots:
-        description: "Update visual snapshots in the ephemeral CI workspace (dev runner only)."
+        description: "Always rejected: canonical baselines are next start captures promoted from reviewed production-candidate evidence (E2E-GLOBAL-05B)."
         required: true
         default: false
         type: boolean
@@ -52,13 +52,15 @@ jobs:
     env:
       CI: true
       VISUAL_SUITE: ${{ inputs.suite }}
-      UPDATE_SNAPSHOTS: ${{ inputs.update_snapshots }}
 
     steps:
-      - name: Reject snapshot updates for the production candidate
-        if: ${{ inputs.runner == 'production-candidate' && inputs.update_snapshots }}
+      # Canonical baselines are next start captures (E2E-GLOBAL-05B). No runner may
+      # write them: a dev render would silently reverse the promotion, and a
+      # production candidate becomes a baseline only through a reviewed PR.
+      - name: Reject canonical snapshot updates
+        if: ${{ inputs.update_snapshots }}
         run: |
-          echo "::error::runner=production-candidate never updates snapshots; promoting a candidate to baseline is a separate reviewed step (E2E-GLOBAL-05B)."
+          echo "::error::update_snapshots is not supported: canonical baselines are promoted byte-exact from reviewed production-candidate evidence (E2E-GLOBAL-05B)."
           exit 1
 
       - name: Checkout repository
@@ -81,6 +83,7 @@ jobs:
       - name: Install Playwright Chromium
         run: corepack pnpm --dir frontend exec playwright install --with-deps chromium
 
+      # Non-canonical diagnostic: next dev against the production baselines.
       - name: Run selected visual regression suite
         if: ${{ inputs.runner == 'dev' }}
         shell: bash
@@ -116,10 +119,6 @@ jobs:
           esac
 
           cmd=(corepack pnpm --dir frontend exec playwright test "${specs[@]}" --project=chromium)
-
-          if [ "${UPDATE_SNAPSHOTS}" = "true" ]; then
-            cmd+=(--update-snapshots)
-          fi
 
           printf 'Running:'
           printf ' %q' "${cmd[@]}"
@@ -159,7 +158,7 @@ jobs:
           retention-days: 14
 
       - name: Upload snapshot PNGs
-        if: ${{ always() && inputs.upload_artifacts && inputs.runner == 'dev' && (inputs.update_snapshots || failure()) }}
+        if: ${{ always() && inputs.upload_artifacts && inputs.runner == 'dev' && failure() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: visual-regression-${{ inputs.suite }}-snapshots-${{ github.run_attempt }}

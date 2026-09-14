@@ -165,13 +165,37 @@ function parseInformesAction(request: Request): InformesAction | null {
  */
 function observeInformesActions(page: Page) {
   const observed: InformesAction[] = [];
+  const terminated = new Set<Request>();
+  const terminalWaiters = new Map<Request, () => void>();
   const onRequest = (request: Request) => {
     const action = parseInformesAction(request);
     if (action) observed.push(action);
   };
+  // A Server Action response can end in `requestfailed` (net::ERR_ABORTED) after
+  // its headers arrived and its result was applied: observed under `next start`
+  // with the page-2 window fully rendered. `response.finished()` only settles on
+  // `requestfinished`, so both terminal events are recorded from the start and
+  // a wait can never miss one that fired before it was armed.
+  const onTerminal = (request: Request) => {
+    if (!parseInformesAction(request)) return;
+    terminated.add(request);
+    terminalWaiters.get(request)?.();
+  };
+  const dispose = () => {
+    page.off("request", onRequest);
+    page.off("requestfinished", onTerminal);
+    page.off("requestfailed", onTerminal);
+  };
 
   page.on("request", onRequest);
-  page.once("close", () => page.off("request", onRequest));
+  page.on("requestfinished", onTerminal);
+  page.on("requestfailed", onTerminal);
+  page.once("close", dispose);
+
+  const terminalEvent = (request: Request) =>
+    terminated.has(request)
+      ? Promise.resolve()
+      : new Promise<void>((resolve) => terminalWaiters.set(request, resolve));
 
   return {
     latest: () => observed.at(-1) ?? null,
@@ -191,13 +215,13 @@ function observeInformesActions(page: Page) {
       const request = await requestPromise;
       const response = await request.response();
       expect(response, `${label}: server action response`).not.toBeNull();
-      await response!.finished();
+      await terminalEvent(request);
 
       const action = parseInformesAction(request);
       expect(action, `${label}: server action payload`).not.toBeNull();
       return action!;
     },
-    dispose: () => page.off("request", onRequest),
+    dispose,
   };
 }
 

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 
 import {
   E2E_COHORT_SPECS,
@@ -169,6 +170,73 @@ function stepByName(workflowJob: Mapping, name: string): Mapping {
   return step;
 }
 
+const FULL_STEP = "Run complete cataloged E2E suite";
+const BUILD_STEP = "Build frontend";
+const PRODUCTION_APPLICATION_COMMAND = "pnpm start --hostname 127.0.0.1";
+let configImportSequence = 0;
+
+type ApplicationServer = { command?: string; url?: string; env?: Record<string, string> };
+
+// Resolves the application server playwright.config.ts selects for an env.
+// GitHub-hosted runners always export CI=true, so the step env is layered on it.
+async function applicationServerFor(stepEnv: Record<string, string>): Promise<ApplicationServer> {
+  const env: Record<string, string | undefined> = { CI: "true", ...stepEnv };
+  const names = ["CI", "E2E_REUSE_SERVER", "VETNEB_E2E_PRODUCTION_RUNNER"];
+  const previous = new Map(names.map((name) => [name, process.env[name]]));
+  for (const name of names) {
+    if (env[name] === undefined) delete process.env[name];
+    else process.env[name] = env[name];
+  }
+  try {
+    const configUrl = pathToFileURL(resolve(REPO_ROOT, "frontend/playwright.config.ts"));
+    configUrl.searchParams.set("completenessRunner", String(configImportSequence++));
+    const config = (await import(configUrl.href)).default as { webServer?: ApplicationServer | ApplicationServer[] };
+    const servers = Array.isArray(config.webServer) ? config.webServer : config.webServer ? [config.webServer] : [];
+    const server = servers.find((candidate) => candidate.url === "http://127.0.0.1:3000");
+    assert.ok(server, "playwright.config.ts must declare the application server on 127.0.0.1:3000");
+    return server;
+  } finally {
+    for (const [name, value] of previous) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  }
+}
+
+// E2E-GLOBAL-05B contract: e2e:full serves the bundle built earlier in the same
+// job through `next start`, because the Chromium Linux baselines are production
+// captures. Returns the violations instead of asserting so mutations are provable.
+async function evaluateFullProductionRunner(source: string): Promise<string[]> {
+  const failures: string[] = [];
+  const workflowJob = job(parseWorkflow(source), "e2e-full-completeness");
+  const steps = sequence(workflowJob.steps, "steps").map((value, index) => mapping(value, `steps[${index}]`));
+  const fullIndex = steps.findIndex((step) => step.name === FULL_STEP);
+  const buildIndex = steps.findIndex((step) => step.name === BUILD_STEP);
+  if (fullIndex === -1) return [`missing step ${FULL_STEP}`];
+
+  const buildStep = buildIndex === -1 ? null : steps[buildIndex];
+  if (!buildStep || buildIndex > fullIndex || buildStep.run !== "pnpm --dir frontend build") {
+    failures.push("the production bundle must be built by `pnpm --dir frontend build` before e2e:full");
+  }
+
+  const fullEnv = isMapping(steps[fullIndex].env) ? (steps[fullIndex].env as Record<string, string>) : {};
+  if (fullEnv.VETNEB_E2E_PRODUCTION_RUNNER !== "1") {
+    failures.push("e2e:full must set VETNEB_E2E_PRODUCTION_RUNNER=\"1\" on its own step");
+  }
+  if ((source.match(/VETNEB_E2E_PRODUCTION_RUNNER/g) ?? []).length !== 1) {
+    failures.push("VETNEB_E2E_PRODUCTION_RUNNER must be scoped to the e2e:full step only");
+  }
+
+  const server = await applicationServerFor(fullEnv);
+  if (server.command !== PRODUCTION_APPLICATION_COMMAND) {
+    failures.push(`e2e:full must run against next start, playwright.config.ts selected: ${server.command}`);
+  }
+  if (server.env?.VETNEB_E2E_ALLOW_LOCAL_API !== "1" || server.env?.VETNEB_E2E_DISABLE_EXTERNAL_EMBEDS !== "1") {
+    failures.push("next start must receive the production-runner hermeticity exceptions");
+  }
+  return failures;
+}
+
 test("automatic workflow coverage is derived from catalog cohorts and equals full", () => {
   const result = evaluateAutomaticCoverage(workflowSources());
 
@@ -285,8 +353,8 @@ test("completeness job preserves Linux baseline compatibility, build ordering an
   assert.equal(runFull.run, "pnpm --dir frontend e2e:full -- --workers=2 --retries=2");
   assert.deepEqual(
     runFull.env,
-    { E2E_GLOBAL_TIMEOUT_MS: "2700000" },
-    "the full catalog exceeds Playwright's 30m default, so this step — and only this step — must carry the 45m budget",
+    { E2E_GLOBAL_TIMEOUT_MS: "2700000", VETNEB_E2E_PRODUCTION_RUNNER: "1" },
+    "the full catalog exceeds Playwright's 30m default, so this step — and only this step — must carry the 45m budget and the production runner",
   );
   const jobTimeoutMs = Number(workflowJob["timeout-minutes"]) * 60_000;
   const playwrightBudgetMs = Number(mapping(runFull.env, "runFull.env").E2E_GLOBAL_TIMEOUT_MS);
@@ -295,11 +363,6 @@ test("completeness job preserves Linux baseline compatibility, build ordering an
     "the job cap must reserve at least 15m outside Playwright's own budget for checkout, install, " +
       "build, browser install and — on timeout — diagnostics, teardown and hygiene; otherwise setup " +
       "overhead can cancel the job before a healthy suite finishes",
-  );
-  assert.equal(
-    source.includes("VETNEB_E2E_PRODUCTION_RUNNER"),
-    false,
-    "full must use next dev because the immutable Linux baselines include the Next.js development indicator",
   );
   // --retries=2 makes on-first-retry traces real here: diagnostics are uploaded
   // only from the sanitized staging copy, and only when sanitization passed.
@@ -322,6 +385,34 @@ test("completeness job preserves Linux baseline compatibility, build ordering an
   assert.equal(stepByName(workflowJob, "Verify E2E teardown").if, "always()");
   assert.equal(stepByName(workflowJob, "Verify source hygiene and clean generated artifacts").if, "always()");
   assert.equal(source.includes("continue-on-error"), false);
+});
+
+test("e2e:full runs the built bundle under next start (E2E-GLOBAL-05B)", async () => {
+  assert.deepEqual(await evaluateFullProductionRunner(readWorkflow(COMPLETENESS_WORKFLOW)), []);
+});
+
+test("production runner contract fails closed on flag, scope and build mutations", async () => {
+  const source = readWorkflow(COMPLETENESS_WORKFLOW);
+  const flagLine = '          VETNEB_E2E_PRODUCTION_RUNNER: "1"\n';
+  assert.ok(source.includes(flagLine), "fixture precondition: flag line present");
+
+  const withoutFlag = await evaluateFullProductionRunner(source.replace(flagLine, ""));
+  assert.ok(withoutFlag.some((failure) => failure.includes('VETNEB_E2E_PRODUCTION_RUNNER="1"')));
+  assert.ok(withoutFlag.some((failure) => failure.includes("selected: pnpm dev --hostname 127.0.0.1")));
+
+  const wrongValue = await evaluateFullProductionRunner(source.replace(flagLine, flagLine.replace('"1"', '"true"')));
+  assert.ok(wrongValue.some((failure) => failure.includes("selected: pnpm dev --hostname 127.0.0.1")));
+
+  const buildEnvAnchor = '          VETNEB_E2E_DISABLE_EXTERNAL_EMBEDS: "1"\n';
+  const flagOnBuild = await evaluateFullProductionRunner(
+    source.replace(flagLine, "").replace(buildEnvAnchor, `${buildEnvAnchor}${flagLine}`),
+  );
+  assert.ok(flagOnBuild.some((failure) => failure.includes("on its own step")));
+
+  const withoutBuild = await evaluateFullProductionRunner(
+    source.replace("        run: pnpm --dir frontend build\n", "        run: pnpm --dir frontend lint\n"),
+  );
+  assert.ok(withoutBuild.some((failure) => failure.includes("built by `pnpm --dir frontend build`")));
 });
 
 test("completeness workflow passes the parser-backed workflow security policy", () => {
