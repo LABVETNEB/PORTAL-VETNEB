@@ -36,23 +36,9 @@ const PARTITION_COHORTS = [
   "evidence",
   "visual-linux",
 ] as const satisfies readonly E2eExecutionCohort[];
-const REQUIRED_PULL_REQUEST_PATHS = [
-  ".github/workflows/e2e-completeness.yml",
-  ".github/workflows/frontend-ci.yml",
-  "frontend/e2e/**",
-  "frontend/playwright.config.ts",
-  "frontend/package.json",
-  "package.json",
-  "pnpm-lock.yaml",
-  "pnpm-workspace.yaml",
-  "scripts/governance/**",
-  "test/architecture/e2e-suite-catalog-completeness.test.ts",
-  "test/unit/infrastructure/e2e-completeness-workflow.test.ts",
-  "test/unit/infrastructure/frontend-ci-workflow.test.ts",
-  "test/unit/infrastructure/frontend-playwright-production-runner.test.ts",
-  "test/unit/infrastructure/workflow-security-policy-contract.test.ts",
-  "test/unit/infrastructure/workflow-security-validator-contract.test.ts",
-] as const;
+// E2E-GLOBAL-06: every pull request against main runs `full`, so no P1 spec
+// outside `ci` depends on the weekly schedule. Any change filter reopens that gap.
+const FORBIDDEN_PULL_REQUEST_FILTERS = ["paths", "paths-ignore", "types"] as const;
 
 type Mapping = Record<string, unknown>;
 type WorkflowInput = Readonly<Record<string, string>>;
@@ -269,7 +255,8 @@ test("coverage fails closed when the full route or any partition contribution is
   };
   const result = evaluateAutomaticCoverage(withoutFull);
 
-  assert.equal(result.missingSpecs.length, 34);
+  // extended 27 (E2E-GLOBAL-06 moved two P1 specs to ci) + evidence 2 + visual-linux 3.
+  assert.equal(result.missingSpecs.length, 32);
   for (const cohort of ["extended", "evidence", "visual-linux"] as const) {
     assert.ok(
       E2E_COHORT_SPECS[cohort].every((spec) => result.missingSpecs.includes(spec)),
@@ -310,14 +297,21 @@ test("a cataloged spec without an automatic route is reported deterministically"
   assert.ok(result.missingSpecs.includes(fixtureSpec));
 });
 
-test("completeness workflow has focused durable triggers and no literal spec list", () => {
+test("completeness workflow runs on every pull request to main, keeps durable triggers and no literal spec list", () => {
   const source = readWorkflow(COMPLETENESS_WORKFLOW);
   const document = parseWorkflow(source);
   const events = mapping(document.on, "on");
   const pullRequest = mapping(events.pull_request, "on.pull_request");
 
   assert.deepEqual(mapping(pullRequest, "pull_request").branches, ["main"]);
-  assert.deepEqual(pullRequest.paths, [...REQUIRED_PULL_REQUEST_PATHS]);
+  for (const filter of FORBIDDEN_PULL_REQUEST_FILTERS) {
+    assert.equal(
+      Object.prototype.hasOwnProperty.call(pullRequest, filter),
+      false,
+      `on.pull_request must not declare ${filter}: E2E Completeness gates every PR against main`,
+    );
+  }
+  assert.deepEqual(Object.keys(pullRequest), ["branches"]);
   assert.equal(Object.prototype.hasOwnProperty.call(events, "workflow_dispatch"), true);
   assert.deepEqual(events.schedule, [{ cron: "17 3 * * 2" }]);
   assert.equal(

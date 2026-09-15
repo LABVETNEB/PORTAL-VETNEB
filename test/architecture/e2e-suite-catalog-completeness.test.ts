@@ -61,20 +61,34 @@ const EXPECTED_CURRENT_COUNTS = new Map([
   ["admin-mobile", 14],
   // +1: B10, routed to visual-contract like B08 and B09 (AGENTS.md §7).
   // +1: B11, routed to visual-contract like B08, B09 and B10 (AGENTS.md §7).
-  ["visual-contract", 22],
+  // +1: E2E-GLOBAL-06 P1 admin-users-roles-pager-reachability (desktop adaptive
+  // geometry contract, AGENTS.md §7), promoted from extended.
+  ["visual-contract", 23],
   // +1: CMP-12 cross-role runtime parity contract, routed public-clinic like
   // the other CMP-04..09 parity specs (AGENTS.md §7).
-  ["public-clinic", 16],
+  // +1: E2E-GLOBAL-06 P1 dashboard-logistica-mobile-action-bar-reachability,
+  // routed public-clinic like its logistics mobile parity sibling.
+  ["public-clinic", 17],
 ]);
 const EXPECTED_EXECUTION_COUNTS = new Map<E2eExecutionCohort, number>([
   // +3: E2E-GLOBAL-03 (smoke -> ci union grows with it).
-  ["ci", 64],
-  ["extended", 29],
+  // +2: E2E-GLOBAL-06 promotes the two cheap P1 specs out of extended.
+  ["ci", 66],
+  ["extended", 27],
   ["evidence", 2],
   ["visual-linux", 3],
   ["full", 98],
   ["affected", 0],
 ]);
+const E2E_GLOBAL_06_PROMOTED_P1_SPECS = [
+  "e2e/admin/users/admin-users-roles-pager-reachability.spec.ts",
+  "e2e/clinic/logistics/dashboard-logistica-mobile-action-bar-reachability.spec.ts",
+] as const;
+const E2E_FULL_ONLY_P1_SPECS = [
+  "e2e/regression/dashboard-adaptive-limit-baseline.spec.ts",
+  "e2e/regression/dashboard-geometry-baseline.spec.ts",
+  "e2e/regression/dashboard-limit-invariance.spec.ts",
+] as const;
 const EXECUTION_PARTITION_COHORTS = [
   "ci",
   "extended",
@@ -294,7 +308,7 @@ function validateCatalog(
   }
 
   const currentUnion = unique([...currentMemberships.keys()]).sort();
-  assert.equal(currentUnion.length, 64);
+  assert.equal(currentUnion.length, 66);
   assert.deepEqual(E2E_COHORT_SPECS.ci, currentUnion, "ci must equal the current four-cohort union");
 
   for (const cohort of ["extended", "evidence", "visual-linux", "full"] as const) {
@@ -307,6 +321,24 @@ function validateCatalog(
   assert.equal(logout.currentCohorts.includes("smoke"), true);
   assert.equal(logout.executionCohorts.includes("ci"), true);
   assert.equal(E2E_COHORT_SPECS.ci.includes(logout.path), true);
+
+  // E2E-GLOBAL-06 (LIMPIEZA E2E P1-5/R-08): the cheap P1 specs gate every PR via
+  // ci; only the costly A02/A03/A05 baselines stay outside it, covered by `full`
+  // in E2E Completeness on every pull request to main.
+  for (const path of E2E_GLOBAL_06_PROMOTED_P1_SPECS) {
+    const promoted = entries.find((entry) => entry.path === path);
+    assert.ok(promoted, `${path} must stay cataloged`);
+    assert.equal(promoted.criticality, "P1", `${path} must stay P1`);
+    assert.equal(promoted.targetGate, "current-ci", `${path} must target the current CI gate`);
+    assert.deepEqual(promoted.executionCohorts, ["ci", "full"], `${path} must run in ci`);
+  }
+  const p1OutsideCi = entries
+    .filter((entry) => entry.criticality === "P1" && !entry.executionCohorts.includes("ci"))
+    .map((entry) => entry.path);
+  assert.deepEqual(p1OutsideCi, [...E2E_FULL_ONLY_P1_SPECS], "P1 specs outside ci drifted");
+  for (const path of p1OutsideCi) {
+    assert.equal(E2E_COHORT_SPECS.full.includes(path), true, `${path} must stay in full`);
+  }
 }
 
 test("E2E suite catalog is complete, deterministic and fail-closed", async () => {
@@ -406,7 +438,7 @@ test("affected selection fails closed for empty or shared changes", async () => 
 
   const sharedSelection = runner.classifyAffectedPaths(["frontend/e2e/helpers/admin-mobile-contracts.ts"]);
   assert.equal(sharedSelection.fallback, true);
-  assert.equal(sharedSelection.specs.length, 64);
+  assert.equal(sharedSelection.specs.length, 66);
   assert.match(sharedSelection.reason, /shared E2E infrastructure/);
 });
 
