@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { setAdminSession } from "../../helpers/session";
 
 // CAP-A2 — real Admin Usuarios/Roles workspace against the CAP-A1 5000-user
 // fixture. The fixture keeps the 9-user LEGACY_USERS pool for requests without
@@ -7,7 +8,6 @@ import { expect, test, type Page } from "@playwright/test";
 // untouched: the real AdminUsersRolesReadOnlyCard keeps issuing its normal
 // limit/offset requests and only the wire URL gains the opt-in flag.
 
-const POPULATED_ADMIN_COOKIE = "e2e_populated_admin_session";
 const HIGH_VOLUME_TOTAL = 5000;
 const HIGH_VOLUME_ADMIN_TOTAL = 250;
 const HIGH_VOLUME_CLINIC_TOTAL = 4750;
@@ -41,16 +41,6 @@ function expectedUsernameAt(index: number): string {
   if (index < 9) return `usuario_clinica_${String(index).padStart(2, "0")}`;
   if (index < 258) return `admin_fixture_${String(index - 8).padStart(4, "0")}`;
   return `usuario_clinica_fixture_${String(index - 257).padStart(4, "0")}`;
-}
-
-async function setPopulatedAdminSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "admin_session_id",
-      value: POPULATED_ADMIN_COOKIE,
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
 }
 
 // Test-only opt-in: rewrite every browser GET to /api/admin/users-roles so it
@@ -177,7 +167,7 @@ test.describe("admin users-roles workspace 5000-user fixture (CAP-A2)", () => {
     // Pin the shortest supported desktop viewport used by the no-scroll
     // contract so the adaptive page size stays at its established floor.
     await page.setViewportSize({ width: 1366, height: 768 });
-    await setPopulatedAdminSession(page);
+    await setAdminSession(page, "populated");
   });
 
   test("first page renders a bounded slice with coherent 5000-user totals", async ({

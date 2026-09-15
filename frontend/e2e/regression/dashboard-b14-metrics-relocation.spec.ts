@@ -9,8 +9,8 @@ import {
   waitForLayoutSettled,
   type DashboardGeometrySurface,
 } from "../helpers/dashboard-geometry-matrix";
+import { addAppCookies } from "../helpers/session";
 
-const APP_ORIGIN = "http://127.0.0.1:3000";
 const SURFACE_IDS = [
   "clinic-operaciones",
   "admin-tokens",
@@ -28,8 +28,7 @@ async function prepareSurface(page: Page, surface: DashboardGeometrySurface) {
   await suppressNextDevChrome(page);
   await clearDashboardModuleMemory(page);
   await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
-  const cookie = DASHBOARD_GEOMETRY_SESSION_COOKIE[surface.role];
-  await page.context().addCookies([{ name: cookie.name, value: cookie.value, url: APP_ORIGIN }]);
+  await addAppCookies(page, [DASHBOARD_GEOMETRY_SESSION_COOKIE[surface.role]]);
   await installSurfaceMocks(page, surface);
 }
 

@@ -6,6 +6,7 @@ import {
   THEME_STORAGE_KEY,
   type ThemeMode,
 } from "../../../src/lib/theme";
+import { setSession } from "../../helpers/session";
 
 // R9 · from B04 the authenticated pixel baseline is DUAL. B03 obliged the
 // dashboard to carry tokens in both themes, and B04 is the first change that
@@ -89,16 +90,7 @@ async function applyTheme(page: Page, theme: ThemeMode) {
 }
 
 async function applySession(page: Page, surface: SessionSurface) {
-  await page.context().addCookies([
-    {
-      name: surface === "admin" ? "admin_session_id" : "app_session_id",
-      value:
-        surface === "admin"
-          ? "e2e_populated_admin_session"
-          : "e2e_populated_clinic_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
+  await setSession(page, surface, "populated");
 }
 
 async function waitForStableDashboard(page: Page) {

@@ -1,5 +1,6 @@
 import { writeFile } from "node:fs/promises";
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { setClinicSession } from "../../helpers/session";
 
 const TOLERANCE = 2;
 
@@ -95,16 +96,6 @@ type VisualMetrics = {
     insideViewport: boolean;
   }>;
 };
-
-async function setClinicSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "app_session_id",
-      value: "e2e_test_clinic_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
 
 async function mockClinicProfile(page: Page) {
   await page.route("**/api/clinic/profile**", async (route) => {
@@ -374,7 +365,7 @@ test("clinic profile runtime visual evidence after UX1", async ({ page }, testIn
       height: viewport.height,
     });
     await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
     await page.goto("/dashboard?module=perfil");
     await suppressDevChrome(page);
 

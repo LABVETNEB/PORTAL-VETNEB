@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { setClinicSession } from "../../helpers/session";
 
 const TOLERANCE = 2;
 
@@ -31,16 +32,6 @@ const ROUTES = [
     mobileRow: '[data-logistics-metric-row="true"]',
   },
 ] as const;
-
-async function setPopulatedClinicSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "app_session_id",
-      value: "e2e_populated_clinic_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
 
 async function readHorizontalScrollers(page: Page) {
   return page.evaluate(() => {
@@ -92,7 +83,7 @@ test.describe("logistics full routes — mobile rows without horizontal table sc
         page,
       }) => {
         await page.setViewportSize({ width: viewport.width, height: viewport.height });
-        await setPopulatedClinicSession(page);
+        await setClinicSession(page, "populated");
         await page.goto(route.path);
 
         const pager = page.getByRole("navigation", { name: route.pagerName });

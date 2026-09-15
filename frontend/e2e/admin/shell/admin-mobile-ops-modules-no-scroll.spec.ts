@@ -6,9 +6,9 @@ import {
   expectInsideViewport,
   fulfillJson,
   readModuleNoScrollContract,
-  setPopulatedAdminSession,
   suppressNextDevIndicator,
 } from "../../helpers/admin-mobile-contracts";
+import { setAdminSession } from "../../helpers/session";
 
 // PR-SRV-1: sessions is adaptive (measured cardinality, superset cap 32). The
 // fixture stays larger than any effective mobile limit so page 2 always exists.
@@ -323,7 +323,7 @@ for (const moduleSpec of OPS_MODULES) {
       page,
     }) => {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
-      await setPopulatedAdminSession(page);
+      await setAdminSession(page, "populated");
       await mockOpsApis(page);
       await openModuleFromMobileNavigation(page, moduleSpec);
 
@@ -434,7 +434,7 @@ for (const moduleSpec of OPS_MODULES) {
 for (const moduleSpec of OPS_MODULES) {
   test(`Admin desktop preserves ${moduleSpec.key} layout at 1280x800`, async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
-    await setPopulatedAdminSession(page);
+    await setAdminSession(page, "populated");
     await mockOpsApis(page);
     await page.goto(`/dashboard/admin?module=${moduleSpec.moduleId}`);
 
@@ -471,7 +471,7 @@ test("Admin mobile sessions Tipo/Estado selects render their full option text un
   page,
 }) => {
   await page.setViewportSize({ width: 360, height: 740 });
-  await setPopulatedAdminSession(page);
+  await setAdminSession(page, "populated");
   await mockOpsApis(page);
   await page.goto("/dashboard/admin?module=admin-sessions");
 

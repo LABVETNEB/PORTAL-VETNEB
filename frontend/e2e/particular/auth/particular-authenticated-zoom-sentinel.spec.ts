@@ -4,8 +4,8 @@ import {
   assertParticularOperationalViewportContract,
   mockParticularAuthenticatedSession,
   readParticularOperationalGeometry,
-  setParticularSessionCookie,
 } from "../../helpers/particular-session-contracts";
+import { setParticularSession } from "../../helpers/session";
 
 /*
   Sentinel de cohorte `ci`: el mínimo que reproduce el fallo original de
@@ -23,7 +23,7 @@ test.describe("particular authenticated zoom sentinel (CI)", () => {
     page,
   }) => {
     await page.setViewportSize({ width: 1536, height: 696 });
-    await setParticularSessionCookie(page);
+    await setParticularSession(page);
     await mockParticularAuthenticatedSession(page, "report-pending");
 
     await page.goto("/particulares");

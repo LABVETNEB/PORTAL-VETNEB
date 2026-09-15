@@ -5,9 +5,9 @@ import {
   assertModuleNoScrollContract,
   expectInsideViewport,
   readModuleNoScrollContract,
-  setPopulatedAdminSession,
   suppressNextDevIndicator,
 } from "../../helpers/admin-mobile-contracts";
+import { setAdminSession } from "../../helpers/session";
 
 // CAP-A3 — real Admin Usuarios/Roles mobile list (AdminMobileOpsPager)
 // against the CAP-A1 5000-user fixture. Mirrors admin-users-workspace-5000.spec.ts
@@ -301,7 +301,7 @@ async function stepMobilePage(
 
 test.describe("admin users-roles workspace 5000-user fixture mobile (CAP-A3)", () => {
   test.beforeEach(async ({ page }) => {
-    await setPopulatedAdminSession(page);
+    await setAdminSession(page, "populated");
   });
 
   test.describe("primary mobile viewport", () => {

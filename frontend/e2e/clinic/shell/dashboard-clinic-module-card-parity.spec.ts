@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { setTestAdminSession } from "../../helpers/admin-mobile-contracts";
+import { setAdminSession, setClinicSession } from "../../helpers/session";
 
 const VIEWPORTS = [
   { name: "360x740", width: 360, height: 740 },
@@ -11,16 +11,6 @@ const VIEWPORTS = [
 ] as const;
 
 const MODULES = ["operaciones", "informes", "logistica", "perfil", "tokens"] as const;
-
-async function setClinicSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "app_session_id",
-      value: "e2e_test_clinic_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
 
 type ChipTarget = {
   id: string;
@@ -94,7 +84,7 @@ for (const viewport of VIEWPORTS) {
       page,
     }) => {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
-      await setClinicSession(page);
+      await setClinicSession(page, "default");
       await page.goto(`/dashboard?module=${moduleId}`);
 
       const workspace = page.locator(`[data-dashboard-module-workspace="${moduleId}"]`);
@@ -155,7 +145,7 @@ for (const viewport of VIEWPORTS) {
         viewport: { width: viewport.width, height: viewport.height },
       });
       const adminPage = await adminContext.newPage();
-      await setTestAdminSession(adminPage);
+      await setAdminSession(adminPage, "default");
       await adminPage.goto("/dashboard/admin?module=admin");
       await adminPage
         .locator('[data-dashboard-module-workspace="admin"] [role="tablist"]')

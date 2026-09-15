@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
 import { DASHBOARD_GEOMETRY_VIEWPORTS } from "../../helpers/dashboard-geometry-matrix";
+import { setAdminSession } from "../../helpers/session";
 
 const TOLERANCE = 2;
 
@@ -39,16 +40,6 @@ const MOCK_TOKENS = Array.from({ length: 40 }, (_, index) => ({
   createdByClinicUserId: null,
   hasLinkedReport: index % 3 === 0,
 }));
-
-async function setAdminSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "admin_session_id",
-      value: "e2e_test_admin_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
 
 type AdminParticularTokensRequest = {
   limit: number;
@@ -267,7 +258,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
       height: viewport.height,
     });
 
-    await setAdminSession(page);
+    await setAdminSession(page, "default");
     await mockAdminParticularTokens(page);
     await mockAdminUsersRolesClinicCatalog(page);
 
@@ -415,7 +406,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
     page,
   }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
-    await setAdminSession(page);
+    await setAdminSession(page, "default");
     await mockAdminParticularTokens(page, MOCK_TOKENS);
     await page.goto("/dashboard/admin?module=admin-particular-tokens");
 
@@ -452,7 +443,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
     page,
   }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
-    await setAdminSession(page);
+    await setAdminSession(page, "default");
     await mockAdminParticularTokens(page, MOCK_TOKENS_SHORT);
     await page.goto("/dashboard/admin?module=admin-particular-tokens");
 
@@ -544,7 +535,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
     page,
   }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
-    await setAdminSession(page);
+    await setAdminSession(page, "default");
     await mockAdminParticularTokens(page, MOCK_TOKENS_SHORT);
     await mockAdminUsersRolesClinics(page);
     await page.goto("/dashboard/admin?module=admin-particular-tokens");
@@ -651,7 +642,7 @@ test("admin tokens initial window keeps two complete adaptive pages across the c
   const failures: string[] = [];
   const knownIds = new Set(ADAPTIVE_WINDOW_TOKENS.map((token) => token.petName));
 
-  await setAdminSession(page);
+  await setAdminSession(page, "default");
   await mockAdminParticularTokens(page, ADAPTIVE_WINDOW_TOKENS, (request) => {
     requests.push(request);
   });

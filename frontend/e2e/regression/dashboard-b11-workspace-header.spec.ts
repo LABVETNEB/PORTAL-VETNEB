@@ -10,13 +10,13 @@ import {
   waitForLayoutSettled,
   type DashboardGeometrySurface,
 } from "../helpers/dashboard-geometry-matrix";
+import { addAppCookies } from "../helpers/session";
 
 // B11 is the target-geometry bridge for A02, the height-ledger analysis for
 // A03, and a zero-scroll-preserving change under A08. The complete matrices
 // remain owned by those three contracts; this spec proves the B11 delta itself
 // on both shared DashboardModuleWorkspace consumers and both viewport classes.
 
-const APP_ORIGIN = "http://127.0.0.1:3000";
 const HEADER_SELECTOR = '[data-workspace-header="true"]';
 const DESCRIPTION_SELECTOR = '[data-workspace-header-description="true"]';
 const APP_SHELL_SELECTOR = '[data-vetneb-app-shell="true"]';
@@ -47,10 +47,7 @@ async function prepareSurface(page: Page, surface: DashboardGeometrySurface) {
   await clearDashboardModuleMemory(page);
   await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
 
-  const cookie = DASHBOARD_GEOMETRY_SESSION_COOKIE[surface.role];
-  await page.context().addCookies([
-    { name: cookie.name, value: cookie.value, url: APP_ORIGIN },
-  ]);
+  await addAppCookies(page, [DASHBOARD_GEOMETRY_SESSION_COOKIE[surface.role]]);
   await installSurfaceMocks(page, surface);
 }
 

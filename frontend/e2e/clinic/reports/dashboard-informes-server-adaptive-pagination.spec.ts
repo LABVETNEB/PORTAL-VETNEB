@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { setClinicSession } from "../../helpers/session";
 
 const TOLERANCE = 2;
 
@@ -7,16 +8,6 @@ const VIEWPORTS = [
   { name: "desktop-short-1366x768", width: 1366, height: 768 },
   { name: "mobile-390x844", width: 390, height: 844 },
 ] as const;
-
-async function setPopulatedClinicSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "app_session_id",
-      value: "e2e_populated_clinic_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
 
 async function readNoExternalScroll(page: Page) {
   return page.evaluate(() => {
@@ -37,7 +28,7 @@ test.describe("clinic Informes full route server-adaptive pagination (R-07)", ()
       page,
     }) => {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
-      await setPopulatedClinicSession(page);
+      await setClinicSession(page, "populated");
 
       await page.goto("/dashboard/informes");
 
@@ -108,7 +99,7 @@ test.describe("clinic Informes full route server-adaptive pagination (R-07)", ()
     page,
   }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
-    await setPopulatedClinicSession(page);
+    await setClinicSession(page, "populated");
 
     await page.goto("/dashboard/informes");
 
@@ -140,7 +131,7 @@ test.describe("clinic Informes full route server-adaptive pagination (R-07)", ()
   });
 
   test("full route no longer paginates through a URL page parameter", async ({ page }) => {
-    await setPopulatedClinicSession(page);
+    await setClinicSession(page, "populated");
     await page.goto("/dashboard/informes");
 
     const nextButton = page.getByRole("button", { name: "Página siguiente" });

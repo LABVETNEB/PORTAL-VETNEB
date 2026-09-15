@@ -2,6 +2,7 @@ import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { expect, test } from "@playwright/test";
 import type { Page, TestInfo } from "@playwright/test";
+import { setAdminSession } from "../../helpers/session";
 
 // PR — single persistent, opaque, isolated "module stage" for the admin
 // Hub<->module swap. Root cause of the residual mobile bleed-through: the Hub
@@ -29,16 +30,6 @@ const MATRIX = [
   { width: 390, height: 844, mode: "light" as const },
   { width: 430, height: 932, mode: "light" as const },
 ];
-
-async function setPopulatedAdminSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "admin_session_id",
-      value: "e2e_populated_admin_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
 
 async function suppressNextDevIndicator(page: Page) {
   await page.addStyleTag({
@@ -187,7 +178,7 @@ for (const cell of MATRIX) {
   }, testInfo: TestInfo) => {
     await page.setViewportSize({ width: cell.width, height: cell.height });
     await applyColorMode(page, cell.mode);
-    await setPopulatedAdminSession(page);
+    await setAdminSession(page, "populated");
 
     await page.goto("/dashboard/admin?hub=1");
     await suppressNextDevIndicator(page);

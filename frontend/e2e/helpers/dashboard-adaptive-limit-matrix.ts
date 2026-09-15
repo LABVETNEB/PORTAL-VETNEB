@@ -1,6 +1,7 @@
 import { expect, type Locator, type Page, type Route } from "@playwright/test";
 
 import { DASHBOARD_GEOMETRY_VIEWPORTS } from "./dashboard-geometry-matrix";
+import { addAppCookies, resolveAppOrigin, sessionCookie } from "./session";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // A03 · Adaptive limit/offset baseline support (15 consumers × 13 viewports =
@@ -16,7 +17,6 @@ import { DASHBOARD_GEOMETRY_VIEWPORTS } from "./dashboard-geometry-matrix";
 // and never redeclared. Nothing else is imported from A02, which stays CLOSED.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const APP_ORIGIN = "http://127.0.0.1:3000";
 const FIXTURE_API_ORIGIN = "http://127.0.0.1:3107";
 
 // ── Canonical registry (audit §20.1, literal — never derived) ────────────────
@@ -246,15 +246,9 @@ export type A03Observation =
 
 // ── Synthetic session cookies of the hermetic fixture API (port 3107) ────────
 
-export const A03_ADMIN_SESSION_COOKIE = Object.freeze({
-  name: "admin_session_id",
-  value: "e2e_populated_admin_session",
-});
+export const A03_ADMIN_SESSION_COOKIE = sessionCookie("admin", "populated");
 
-export const A03_CLINIC_SESSION_COOKIE = Object.freeze({
-  name: "app_session_id",
-  value: "e2e_populated_clinic_session",
-});
+export const A03_CLINIC_SESSION_COOKIE = sessionCookie("clinic", "populated");
 
 /**
  * Auxiliary opt-in cookie ALREADY shipped by the fixture server at the base
@@ -1581,9 +1575,7 @@ export async function prepareContext(page: Page, observer: ModuleObserver): Prom
   await suppressDevChrome(page);
   await clearDashboardModuleMemory(page);
   await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
-  await page.context().addCookies(
-    observer.cookies.map((cookie) => ({ ...cookie, url: APP_ORIGIN })),
-  );
+  await addAppCookies(page, observer.cookies);
   await installRequestRewrites(page, observer.rewrites ?? []);
   await installStubs(page, observer.stubs);
 }
@@ -1699,7 +1691,7 @@ async function observeUrlQueryLeaf(
   label: string,
   nextControl: Locator,
 ): Promise<UrlQueryObservation> {
-  const pathname = new URL(leaf.route, APP_ORIGIN).pathname;
+  const pathname = new URL(leaf.route, resolveAppOrigin()).pathname;
 
   // The bounded canvas replaces the URL ONCE with the measured page size.
   // Navigation completion is the convergence signal of this contract.

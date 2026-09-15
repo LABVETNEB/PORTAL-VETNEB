@@ -1,4 +1,5 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
+import { setAdminSession, setClinicSession } from "../../helpers/session";
 
 const VIEWPORTS = [
   { name: "360x740", width: 360, height: 740 },
@@ -46,18 +47,6 @@ type SurfaceContract = {
   readonly pageScrollsX: boolean;
   readonly pageScrollsY: boolean;
 };
-
-async function setClinicSession(page: Page) {
-  await page.context().addCookies([
-    { name: "app_session_id", value: "e2e_test_clinic_session", url: "http://127.0.0.1:3000" },
-  ]);
-}
-
-async function setAdminSession(page: Page) {
-  await page.context().addCookies([
-    { name: "admin_session_id", value: "e2e_test_admin_session", url: "http://127.0.0.1:3000" },
-  ]);
-}
 
 async function openClinicRoute(page: Page, route: string, moduleId: string) {
   await page.goto(route);
@@ -140,7 +129,7 @@ async function readAdminReference(browser: Browser, viewport: (typeof VIEWPORTS)
   const context = await browser.newContext({ viewport });
   const page = await context.newPage();
   try {
-    await setAdminSession(page);
+    await setAdminSession(page, "default");
     await page.goto("/dashboard/admin?module=admin-sessions");
     await expect(
       page.locator('[data-dashboard-module-workspace="admin-sessions"]'),
@@ -161,7 +150,7 @@ for (const viewport of VIEWPORTS) {
       const clinicPage = await clinicContext.newPage();
 
       try {
-        await setClinicSession(clinicPage);
+        await setClinicSession(clinicPage, "default");
         await openClinicRoute(clinicPage, fullRoute.route, fullRoute.id);
         const clinic = await readSurfaceContract(clinicPage, fullRoute.id);
 

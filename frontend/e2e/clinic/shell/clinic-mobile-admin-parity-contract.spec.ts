@@ -6,10 +6,10 @@ import {
   expectBoundsWithinTolerance,
   formatParityFailure,
   measureSettledParityContract,
-  setParitySession,
   type ParityContract,
   type ParityRowPitch,
 } from "../../helpers/mobile-parity-matrix";
+import { setSession } from "../../helpers/session";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CMP-12 — cross-role runtime parity contract (RC-017 closure).
@@ -26,7 +26,7 @@ async function measureSurface(
   route: string,
   readiness: string,
 ): Promise<ParityContract> {
-  await setParitySession(page, role);
+  await setSession(page, role, "populated");
   await page.goto(route);
   await expect(page.locator(readiness).first()).toBeVisible({ timeout: 15_000 });
   await page.waitForLoadState("networkidle").catch(() => {});

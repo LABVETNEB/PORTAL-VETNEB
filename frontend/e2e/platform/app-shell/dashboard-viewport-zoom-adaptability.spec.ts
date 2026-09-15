@@ -1,4 +1,5 @@
 ﻿import { expect, test } from "@playwright/test";
+import { setAdminSession, setSession } from "../../helpers/session";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Global Viewport-aware Adaptive App Shell contract for BOTH dashboards.
@@ -193,13 +194,7 @@ async function mockParticularLoggedOut(page: Page) {
 }
 
 async function applySession(page: Page, surface: Surface) {
-  await page.context().addCookies([
-    {
-      name: surface === "clinic" ? "app_session_id" : "admin_session_id",
-      value: surface === "clinic" ? "e2e_test_clinic_session" : "e2e_test_admin_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
+  await setSession(page, surface, "default");
 }
 
 type ScrollContract = {
@@ -1039,13 +1034,7 @@ for (const viewport of AUDIT_DESKTOP_VIEWPORTS) {
     page,
   }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
-    await page.context().addCookies([
-      {
-        name: "admin_session_id",
-        value: "e2e_populated_admin_session",
-        url: "http://127.0.0.1:3000",
-      },
-    ]);
+    await setAdminSession(page, "populated");
     await page.goto(AUDIT_MODULE_PATH);
     await expect(
       page.locator('[data-dashboard-module-workspace="audit-log"]'),

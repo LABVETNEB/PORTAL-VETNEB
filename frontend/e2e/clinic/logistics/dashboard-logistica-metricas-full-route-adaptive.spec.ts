@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { setClinicSession } from "../../helpers/session";
 
 const TOLERANCE = 2;
 const METRICAS_PATHNAME = "/dashboard/logistica/metricas";
@@ -19,16 +20,6 @@ const VIEWPORTS = [
 // via rendered content (exactly 1 metric detail card per page-visible route
 // plan) rather than via page.on("request").
 
-async function setPopulatedClinicSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "app_session_id",
-      value: "e2e_populated_clinic_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
-
 async function readNoExternalScroll(page: Page) {
   return page.evaluate(() => {
     const html = document.documentElement;
@@ -48,7 +39,7 @@ test.describe("clinic Logística Métricas full route adaptive contract (R-14)",
       page,
     }) => {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
-      await setPopulatedClinicSession(page);
+      await setClinicSession(page, "populated");
 
       await page.goto(METRICAS_PATHNAME);
 
@@ -132,7 +123,7 @@ test.describe("clinic Logística Métricas full route adaptive contract (R-14)",
 
   test("renders real aggregate metrics computed from the visible page only", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
-    await setPopulatedClinicSession(page);
+    await setClinicSession(page, "populated");
 
     await page.goto("/dashboard/logistica/metricas");
 
@@ -154,7 +145,7 @@ test.describe("clinic Logística Métricas full route adaptive contract (R-14)",
     page,
   }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
-    await setPopulatedClinicSession(page);
+    await setClinicSession(page, "populated");
 
     // The fixture serves exactly 3 route plans regardless of limit/offset,
     // so requesting `limit=3` forces the deterministic "page full" state

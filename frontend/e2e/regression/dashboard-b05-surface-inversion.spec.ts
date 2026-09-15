@@ -16,6 +16,7 @@ import {
   waitForLayoutSettled,
   type DashboardGeometrySurface,
 } from "../helpers/dashboard-geometry-matrix";
+import { addAppCookies } from "../helpers/session";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // B05 · filter-field surface inversion (roadmap §49/§54: "campo teñido,
@@ -79,8 +80,6 @@ import {
 // `dashboardScopedPortal` boundary as S1/S3/S6 lives in
 // `test/architecture/dashboard-b05-surface-inversion.test.ts`.
 // ─────────────────────────────────────────────────────────────────────────────
-
-const APP_ORIGIN = "http://127.0.0.1:3000";
 
 const THEMES: readonly ThemeMode[] = [NORMAL_THEME_MODE, DARK_GRAY_THEME_MODE];
 
@@ -276,10 +275,7 @@ test.describe("B05 · field tinted, container transparent, both themes", () => {
           });
 
           try {
-            const cookie = DASHBOARD_GEOMETRY_SESSION_COOKIE[geometrySurface.role];
-            await context.addCookies([
-              { name: cookie.name, value: cookie.value, url: APP_ORIGIN },
-            ]);
+            await addAppCookies(context, [DASHBOARD_GEOMETRY_SESSION_COOKIE[geometrySurface.role]]);
 
             const page = await context.newPage();
             await suppressNextDevChrome(page);

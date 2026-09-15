@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import { setClinicSession } from "../../helpers/session";
 
 // E2E-GLOBAL-03 — frontera de auth SIMULADA (proxy de navegación), NO
 // autoritativa.
@@ -14,23 +15,11 @@ import { expect, test, type Page } from "@playwright/test";
 // This does NOT exercise the Fastify backend (server/**) or Postgres — the
 // authoritative auth boundary stays open until E2E-GLOBAL-03B.
 
-const POPULATED_CLINIC_SESSION = "e2e_populated_clinic_session";
-
-async function setOnlyClinicSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "app_session_id",
-      value: POPULATED_CLINIC_SESSION,
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
-
 test.describe("E2E-GLOBAL-03 — cross-role boundary: clinic session cannot reach /dashboard/admin", () => {
   test("a clinic-only session is redirected to /login when it requests /dashboard/admin", async ({
     page,
   }) => {
-    await setOnlyClinicSession(page);
+    await setClinicSession(page, "populated");
 
     await page.goto("/dashboard/admin", { waitUntil: "domcontentloaded" });
 

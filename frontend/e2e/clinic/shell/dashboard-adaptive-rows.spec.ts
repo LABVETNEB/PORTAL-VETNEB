@@ -1,17 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
+import { setClinicSession } from "../../helpers/session";
 
 const MOBILE = { width: 390, height: 844 } as const;
 const DESKTOP = { width: 1440, height: 900 } as const;
-
-async function setPopulatedClinicSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "app_session_id",
-      value: "e2e_populated_clinic_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
 
 async function settleCount(page: Page, selector: string): Promise<number> {
   let count = 0;
@@ -30,7 +21,7 @@ test.describe("adaptive rows per viewport (no fixed page size)", () => {
   test("informes full route page size grows from 390x844 to 1440x900", async ({
     page,
   }) => {
-    await setPopulatedClinicSession(page);
+    await setClinicSession(page, "populated");
 
     await page.setViewportSize(MOBILE);
     await page.goto("/dashboard/informes");
@@ -64,7 +55,7 @@ test.describe("adaptive rows per viewport (no fixed page size)", () => {
   test("clinic informes workspace summary is not pinned to 3 rows at 1440x900", async ({
     page,
   }) => {
-    await setPopulatedClinicSession(page);
+    await setClinicSession(page, "populated");
     await page.setViewportSize(DESKTOP);
     await page.goto("/dashboard?module=informes");
 
@@ -85,7 +76,7 @@ test.describe("adaptive rows per viewport (no fixed page size)", () => {
   test("clinic logistica workspace summary paginates with adaptive rows and a pager", async ({
     page,
   }) => {
-    await setPopulatedClinicSession(page);
+    await setClinicSession(page, "populated");
     await page.setViewportSize(DESKTOP);
     await page.goto("/dashboard?module=logistica");
 

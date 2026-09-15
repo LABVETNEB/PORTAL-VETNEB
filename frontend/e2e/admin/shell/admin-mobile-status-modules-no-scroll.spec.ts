@@ -14,9 +14,9 @@ import {
   assertModuleNoScrollContract as assertNoScrollContract,
   fulfillJson,
   readModuleNoScrollContract as readNoScrollContract,
-  setPopulatedAdminSession,
   suppressNextDevIndicator,
 } from "../../helpers/admin-mobile-contracts";
+import { setAdminSession } from "../../helpers/session";
 
 // PR-B — Admin mobile STATUS modules (Administración/Resumen + Estado del
 // sistema). These two modules still rendered the desktop ModuleTabs/grids on
@@ -260,7 +260,7 @@ for (const moduleSpec of STATUS_MODULES) {
           height: viewport.height,
         });
         await applyColorMode(page, mode);
-        await setPopulatedAdminSession(page);
+        await setAdminSession(page, "populated");
         await mockStatusApis(page);
         await page.goto(`/dashboard/admin?module=${moduleSpec.moduleId}`);
         await suppressNextDevIndicator(page);
@@ -417,7 +417,7 @@ for (const moduleSpec of STATUS_MODULES) {
       width: DESKTOP_VIEWPORT.width,
       height: DESKTOP_VIEWPORT.height,
     });
-    await setPopulatedAdminSession(page);
+    await setAdminSession(page, "populated");
     await mockStatusApis(page);
     await page.goto(`/dashboard/admin?module=${moduleSpec.moduleId}`);
 
@@ -458,7 +458,7 @@ test("Admin mobile Alertas chip paginates failed-login alerts by measured fit", 
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await setPopulatedAdminSession(page);
+  await setAdminSession(page, "populated");
   await mockStatusApis(page);
   await page.goto("/dashboard/admin?module=admin");
   await suppressNextDevIndicator(page);

@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { suppressNextDevIndicator } from "../helpers/admin-mobile-contracts";
+import { setSession } from "../helpers/session";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // B09 · Mobile navigation unification — runtime contract.
@@ -51,8 +52,6 @@ import { suppressNextDevIndicator } from "../helpers/admin-mobile-contracts";
 // is narrower: the four invariants a bottom band can break on the surfaces it
 // actually mounts on.
 // ─────────────────────────────────────────────────────────────────────────────
-
-const APP_ORIGIN = "http://127.0.0.1:3000";
 
 const NAV = "[data-dashboard-mobile-nav]";
 const NAV_ADMIN = '[data-dashboard-mobile-nav="admin"]';
@@ -170,16 +169,7 @@ const BOUNDARY_VIEWPORT = { name: "768x1024", width: 768, height: 1024 } as cons
 type Role = "admin" | "clinic";
 
 async function prepareRole(page: Page, role: Role) {
-  await page.context().addCookies([
-    {
-      name: role === "admin" ? "admin_session_id" : "app_session_id",
-      value:
-        role === "admin"
-          ? "e2e_populated_admin_session"
-          : "e2e_populated_clinic_session",
-      url: APP_ORIGIN,
-    },
-  ]);
+  await setSession(page, role, "populated");
 }
 
 async function gotoSurface(page: Page, role: Role, path: string) {

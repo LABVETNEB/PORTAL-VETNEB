@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { setAdminSession } from "../../helpers/session";
 
 // A03 PASS 3 — regression for the desktop minimum-rows clipping of
 // Usuarios/Roles.
@@ -24,19 +25,8 @@ import { expect, test, type Page } from "@playwright/test";
 // 1440x900 cases still pin the historical nine-row contract, unchanged, because
 // extra vertical budget cannot break a floor those viewports already cleared.
 
-const POPULATED_ADMIN_COOKIE = "e2e_populated_admin_session";
 const WORKSPACE = '[data-dashboard-module-workspace="admin-users-roles"]';
 const HISTORICAL_DESKTOP_ROWS = 9;
-
-async function setPopulatedAdminSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "admin_session_id",
-      value: POPULATED_ADMIN_COOKIE,
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
 
 /**
  * Test-only opt-in, identical to CAP-A2: the wire URL gains
@@ -193,7 +183,7 @@ test.describe("Admin Usuarios/Roles · pager reachability across desktop heights
     page,
   }) => {
     const requests: URL[] = [];
-    await setPopulatedAdminSession(page);
+    await setAdminSession(page, "populated");
     await routeHighVolumeUsersRoles(page, requests);
     await page.setViewportSize({ width: 1280, height: 720 });
     await openWorkspace(page);
@@ -252,7 +242,7 @@ test.describe("Admin Usuarios/Roles · pager reachability across desktop heights
     test(`${viewport.slug} preserves the nine populated desktop rows`, async ({
       page,
     }) => {
-      await setPopulatedAdminSession(page);
+      await setAdminSession(page, "populated");
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
       await openWorkspace(page);
 

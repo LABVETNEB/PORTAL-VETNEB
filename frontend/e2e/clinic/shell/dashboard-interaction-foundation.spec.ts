@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { setAdminSession, setClinicSession } from "../../helpers/session";
 
 type Page = import("@playwright/test").Page;
 
@@ -8,26 +9,6 @@ type ClinicModule =
   | "logistica"
   | "perfil"
   | "tokens";
-
-async function setClinicSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "app_session_id",
-      value: "e2e_test_clinic_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
-
-async function setAdminSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "admin_session_id",
-      value: "e2e_test_admin_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
 
 // B08: at the default viewport the clinic module navigation is the lateral
 // drawer. The legacy rail keeps its own test below, in the <768px regime where
@@ -65,7 +46,7 @@ test.describe("dashboard interaction foundation — smoke (PR-1)", () => {
   test("clinic /dashboard loads the default operaciones workspace (no hub)", async ({
     page,
   }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
     await page.goto("/dashboard");
 
     // Operational stage + default module render directly.
@@ -93,7 +74,7 @@ test.describe("dashboard interaction foundation — smoke (PR-1)", () => {
   test("clinic lateral navigation exposes the active module and every other one", async ({
     page,
   }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
     await page.goto("/dashboard");
 
     await expect(paintedClinicLateralNav(page)).toBeVisible({ timeout: 8_000 });
@@ -128,7 +109,7 @@ test.describe("dashboard interaction foundation — smoke (PR-1)", () => {
     // primitives nor the two bottom navs it replaced ever carried it. What the
     // regime actually owes is asserted instead — one navigation owner, every
     // destination reachable, exactly one marked current.
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
     await page.setViewportSize({ width: 375, height: 812 });
     await page.goto("/dashboard");
 
@@ -163,7 +144,7 @@ test.describe("dashboard interaction foundation — smoke (PR-1)", () => {
   test("clinic /dashboard?module=operaciones renders workspace", async ({
     page,
   }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
     await page.goto("/dashboard?module=operaciones");
     await expect(
       page.locator('[data-dashboard-module-workspace="operaciones"]'),
@@ -173,7 +154,7 @@ test.describe("dashboard interaction foundation — smoke (PR-1)", () => {
   test("clinic module navigation: deep link + rail switch update the workspace", async ({
     page,
   }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
 
     // Deep link renders the informes workspace directly.
     await page.goto("/dashboard?module=informes");
@@ -202,7 +183,7 @@ test.describe("dashboard interaction foundation — smoke (PR-1)", () => {
     page,
   }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
     await page.goto("/dashboard");
 
     await expect(
@@ -220,7 +201,7 @@ test.describe("dashboard interaction foundation — smoke (PR-1)", () => {
   // state (buildHubHref("admin") / isHubRequested), so it is the only entry this
   // assertion can measure without racing that replace.
   test("admin /dashboard/admin?hub=1 loads module hub", async ({ page }) => {
-    await setAdminSession(page);
+    await setAdminSession(page, "default");
     await page.goto("/dashboard/admin?hub=1");
     await expect(
       page.locator('[data-dashboard-module-hub="true"]'),
@@ -230,7 +211,7 @@ test.describe("dashboard interaction foundation — smoke (PR-1)", () => {
   test("admin /dashboard/admin?module=admin-clinics renders workspace", async ({
     page,
   }) => {
-    await setAdminSession(page);
+    await setAdminSession(page, "default");
     await page.goto("/dashboard/admin?module=admin-clinics");
     await expect(
       page.locator('[data-dashboard-module-workspace="admin-clinics"]'),
@@ -243,7 +224,7 @@ test.describe("dashboard interaction foundation — smoke (PR-1)", () => {
     // The admin hub still uses the "Vista general" back control, so the original
     // PR-1 `dashboard-btn-interactive` contract is asserted there (the clinic
     // workspace no longer has it — the rail owns navigation).
-    await setAdminSession(page);
+    await setAdminSession(page, "default");
     await page.goto("/dashboard/admin?module=admin-clinics");
     const workspace = page.locator(
       '[data-dashboard-module-workspace="admin-clinics"]',

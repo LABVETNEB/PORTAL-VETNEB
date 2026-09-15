@@ -22,6 +22,7 @@ import {
   waitForLayoutSettled,
   type DashboardGeometryRecord,
 } from "../helpers/dashboard-geometry-matrix";
+import { addAppCookies } from "../helpers/session";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // A02 · Frozen geometry baseline of the 21 authenticated dashboard surfaces
@@ -34,8 +35,6 @@ import {
 // This is the CURRENT geometry, not the audit's §46 target geometry. It is not
 // the A08 zero-scroll contract, and it measures no pagination parameter (A03).
 // ─────────────────────────────────────────────────────────────────────────────
-
-const APP_ORIGIN = "http://127.0.0.1:3000";
 
 /**
  * Local opt-in capture pass. Writes one JSON per surface into `test-results/`
@@ -126,10 +125,7 @@ test.describe("A02 · dashboard geometry baseline 21x13", () => {
       await clearDashboardModuleMemory(page);
       await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
 
-      const cookie = DASHBOARD_GEOMETRY_SESSION_COOKIE[surface.role];
-      await page.context().addCookies([
-        { name: cookie.name, value: cookie.value, url: APP_ORIGIN },
-      ]);
+      await addAppCookies(page, [DASHBOARD_GEOMETRY_SESSION_COOKIE[surface.role]]);
       await installSurfaceMocks(page, surface);
 
       const captured: DashboardGeometryRecord[] = [];

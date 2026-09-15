@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { setAdminSession, setClinicSession } from "../../helpers/session";
 
 type Page = import("@playwright/test").Page;
 
@@ -19,26 +20,6 @@ const CLINIC_MODULES: ClinicModule[] = [
   "perfil",
   "tokens",
 ];
-
-async function setClinicSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "app_session_id",
-      value: "e2e_test_clinic_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
-
-async function setAdminSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "admin_session_id",
-      value: "e2e_test_admin_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
 
 async function expectMainNotScrollContainer(page: Page) {
   const metric = await page.evaluate(() => {
@@ -98,7 +79,7 @@ test.describe("clinic controller/workspace parity contract (PR-CL1)", () => {
   test("clinic /dashboard loads the operational default workspace (no hub)", async ({
     page,
   }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
     await page.goto("/dashboard");
     await expectSingleClinicLayer(page, DEFAULT_CLINIC_MODULE);
     await expect(page.locator('[data-clinic-cockpit="true"]')).toHaveCount(0);
@@ -108,7 +89,7 @@ test.describe("clinic controller/workspace parity contract (PR-CL1)", () => {
     test(`clinic /dashboard?module=${moduleId} loads workspace ${moduleId}`, async ({
       page,
     }) => {
-      await setClinicSession(page);
+      await setClinicSession(page, "default");
       await page.goto(`/dashboard?module=${moduleId}`);
       await expectSingleClinicLayer(page, moduleId);
     });
@@ -118,21 +99,21 @@ test.describe("clinic controller/workspace parity contract (PR-CL1)", () => {
   // standalone full routes must keep working as extended surfaces (linked
   // from the "Abrir módulo completo" CTAs inside each workspace summary).
   test("clinic /dashboard/informes full route still loads", async ({ page }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
     await page.goto("/dashboard/informes");
     await expect(page.locator("main")).toBeVisible({ timeout: 8_000 });
     await expect(page).toHaveURL(/\/dashboard\/informes/);
   });
 
   test("clinic /dashboard/logistica full route still loads", async ({ page }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
     await page.goto("/dashboard/logistica");
     await expect(page.locator("main")).toBeVisible({ timeout: 8_000 });
     await expect(page).toHaveURL(/\/dashboard\/logistica/);
   });
 
   test("admin /dashboard/admin baseline still loads hub", async ({ page }) => {
-    await setAdminSession(page);
+    await setAdminSession(page, "default");
     await page.goto("/dashboard/admin?hub=1");
     await expect(
       page.locator('[data-dashboard-module-hub="true"]'),
@@ -140,7 +121,7 @@ test.describe("clinic controller/workspace parity contract (PR-CL1)", () => {
   });
 
   test("admin baseline module still loads workspace", async ({ page }) => {
-    await setAdminSession(page);
+    await setAdminSession(page, "default");
     await page.goto("/dashboard/admin?module=admin-clinics");
     await expect(
       page.locator('[data-dashboard-module-workspace="admin-clinics"]'),
@@ -153,7 +134,7 @@ test.describe("clinic controller/workspace parity contract (PR-CL1)", () => {
   test("clinic lateral nav reaches the operational default in a single click", async ({
     page,
   }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
     await page.goto("/dashboard?module=tokens");
     await expectSingleClinicLayer(page, "tokens");
 
@@ -169,7 +150,7 @@ test.describe("clinic controller/workspace parity contract (PR-CL1)", () => {
   test("clinic stage persists when switching modules through the lateral nav", async ({
     page,
   }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
     await page.goto("/dashboard?module=tokens");
     await expectSingleClinicLayer(page, "tokens");
 
@@ -199,7 +180,7 @@ test.describe("clinic controller/workspace parity contract (PR-CL1)", () => {
     test(`clinic ${moduleId} keeps active lateral item aria-current visible`, async ({
       page,
     }) => {
-      await setClinicSession(page);
+      await setClinicSession(page, "default");
       await page.goto(`/dashboard?module=${moduleId}`);
       await expectSingleClinicLayer(page, moduleId);
 
@@ -217,7 +198,7 @@ test.describe("clinic controller/workspace parity contract (PR-CL1)", () => {
     test(`clinic ${moduleId} fits 390x844 without horizontal overflow or main scroll`, async ({
       page,
     }) => {
-      await setClinicSession(page);
+      await setClinicSession(page, "default");
       await page.setViewportSize(MOBILE_VIEWPORT);
       await page.goto(`/dashboard?module=${moduleId}`);
       await expect(
@@ -232,7 +213,7 @@ test.describe("clinic controller/workspace parity contract (PR-CL1)", () => {
   test("clinic default entry fits 390x844 without horizontal overflow or main scroll", async ({
     page,
   }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
     await page.setViewportSize(MOBILE_VIEWPORT);
     await page.goto("/dashboard");
     await expectSingleClinicLayer(page, DEFAULT_CLINIC_MODULE);
@@ -244,7 +225,7 @@ test.describe("clinic controller/workspace parity contract (PR-CL1)", () => {
 
 test.describe("clinic command center operational cockpit (PR-CL2)", () => {
   test("operaciones module renders the command center root", async ({ page }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
     await page.goto("/dashboard?module=operaciones");
     await expect(
       page.locator('[data-dashboard-module-workspace="operaciones"]'),
@@ -258,7 +239,7 @@ test.describe("clinic command center operational cockpit (PR-CL2)", () => {
   test("Estado tab exposes attention, activity and continuity blocks", async ({
     page,
   }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
     await page.goto("/dashboard?module=operaciones");
     await expect(
       page.locator('[data-dashboard-module-workspace="operaciones"]'),
@@ -281,7 +262,7 @@ test.describe("clinic command center operational cockpit (PR-CL2)", () => {
   test("Estado tab fits 390x844 without horizontal overflow or main scroll", async ({
     page,
   }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
     await page.setViewportSize(MOBILE_VIEWPORT);
     await page.goto("/dashboard?module=operaciones");
     await expect(

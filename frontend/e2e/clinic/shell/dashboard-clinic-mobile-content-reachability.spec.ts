@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { setClinicSession } from "../../helpers/session";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // VIS-MOBILE-001 — Clinic dashboard mobile low-height content access.
@@ -23,16 +24,6 @@ import { expect, test, type Page } from "@playwright/test";
 // ─────────────────────────────────────────────────────────────────────────────
 
 const TOLERANCE = 2;
-
-async function setPopulatedClinicSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "app_session_id",
-      value: "e2e_populated_clinic_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
 
 type ScrollOwnerMetrics = {
   found: boolean;
@@ -85,7 +76,7 @@ test.describe("VIS-MOBILE-001 — operaciones content reachability", () => {
     page,
   }) => {
     await page.setViewportSize({ width: 360, height: 640 });
-    await setPopulatedClinicSession(page);
+    await setClinicSession(page, "populated");
     await page.goto("/dashboard?module=operaciones");
     await expect(
       page.locator('[data-dashboard-module-workspace="operaciones"]'),
@@ -129,7 +120,7 @@ test.describe("VIS-MOBILE-001 — operaciones content reachability", () => {
     page,
   }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await setPopulatedClinicSession(page);
+    await setClinicSession(page, "populated");
     await page.goto("/dashboard?module=operaciones");
     await expect(
       page.locator('[data-dashboard-module-workspace="operaciones"]'),
@@ -156,7 +147,7 @@ test.describe("VIS-MOBILE-001 — perfil content reachability", () => {
     page,
   }) => {
     await page.setViewportSize({ width: 375, height: 667 });
-    await setPopulatedClinicSession(page);
+    await setClinicSession(page, "populated");
     await page.goto("/dashboard?module=perfil");
     await expect(
       page.locator('[data-dashboard-module-workspace="perfil"]'),
@@ -208,7 +199,7 @@ test.describe("VIS-MOBILE-001 — perfil content reachability", () => {
 
   test("390x844: stable, no regression", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await setPopulatedClinicSession(page);
+    await setClinicSession(page, "populated");
     await page.goto("/dashboard?module=perfil");
     await expect(
       page.locator('[data-dashboard-module-workspace="perfil"]'),
@@ -233,7 +224,7 @@ test.describe("VIS-MOBILE-001 — desktop composition preserved", () => {
     page,
   }) => {
     await page.setViewportSize({ width: 1366, height: 768 });
-    await setPopulatedClinicSession(page);
+    await setClinicSession(page, "populated");
     await page.goto("/dashboard?module=operaciones");
     await expect(
       page.locator('[data-dashboard-module-workspace="operaciones"]'),

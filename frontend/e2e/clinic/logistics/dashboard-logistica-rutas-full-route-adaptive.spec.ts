@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { setClinicSession } from "../../helpers/session";
 
 const TOLERANCE = 2;
 
@@ -7,16 +8,6 @@ const VIEWPORTS = [
   { name: "desktop-short-1366x768", width: 1366, height: 768 },
   { name: "mobile-390x844", width: 390, height: 844 },
 ] as const;
-
-async function setPopulatedClinicSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "app_session_id",
-      value: "e2e_populated_clinic_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
 
 async function readNoExternalScroll(page: Page) {
   return page.evaluate(() => {
@@ -37,7 +28,7 @@ test.describe("clinic Logística Rutas full route adaptive contract (R-13)", () 
       page,
     }) => {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
-      await setPopulatedClinicSession(page);
+      await setClinicSession(page, "populated");
 
       await page.goto("/dashboard/logistica/rutas");
 
@@ -95,7 +86,7 @@ test.describe("clinic Logística Rutas full route adaptive contract (R-13)", () 
     page,
   }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
-    await setPopulatedClinicSession(page);
+    await setClinicSession(page, "populated");
 
     // The fixture serves exactly 3 route plans regardless of limit/offset,
     // so requesting `limit=3` forces the deterministic "page full" state

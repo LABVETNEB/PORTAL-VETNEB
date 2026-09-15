@@ -15,11 +15,6 @@ import { expect, type Page } from "@playwright/test";
 // is added to `frontend/src/**` for this file to work.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const PARITY_SESSION_COOKIE = {
-  admin: { name: "admin_session_id", value: "e2e_populated_admin_session" },
-  clinic: { name: "app_session_id", value: "e2e_populated_clinic_session" },
-} as const;
-
 export type ParityRole = "admin" | "clinic";
 
 export type ParityViewport = {
@@ -217,11 +212,6 @@ export const ADMIN_REFERENCE_SURFACES: Readonly<Record<string, AdminReferenceSur
     expectedRowPitch: "regular", // one-line audit entry row
   },
 } as const;
-
-export async function setParitySession(page: Page, role: ParityRole): Promise<void> {
-  const cookie = PARITY_SESSION_COOKIE[role];
-  await page.context().addCookies([{ ...cookie, url: "http://127.0.0.1:3000" }]);
-}
 
 // ── Measurement schema ──────────────────────────────────────────────────────
 

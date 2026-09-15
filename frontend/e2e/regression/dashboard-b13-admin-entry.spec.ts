@@ -1,20 +1,14 @@
 import { expect, test, type Page } from "@playwright/test";
 import { suppressNextDevIndicator } from "../helpers/admin-mobile-contracts";
+import { setAdminSession } from "../helpers/session";
 
-const ORIGIN = "http://127.0.0.1:3000";
 const ADMIN_KEY = "vetneb:dashboard:last-module:admin";
 const DRAWER = '[data-dashboard-navigation-drawer="admin"]';
 const MOBILE = '[data-dashboard-mobile-nav="admin"]';
 const HUB = '[data-dashboard-hub-root="true"]';
 
 async function prepare(page: Page, lastModule: string | null = null) {
-  await page.context().addCookies([
-    {
-      name: "admin_session_id",
-      value: "e2e_populated_admin_session",
-      url: ORIGIN,
-    },
-  ]);
+  await setAdminSession(page, "populated");
   await page.addInitScript(
     ({ key, value }) => {
       try {

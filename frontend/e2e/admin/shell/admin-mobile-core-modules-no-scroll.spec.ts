@@ -6,9 +6,9 @@ import {
   expectInsideViewport,
   fulfillJson,
   readDocumentNoScrollContract,
-  setTestAdminSession,
   suppressNextDevIndicator,
 } from "../../helpers/admin-mobile-contracts";
+import { setAdminSession } from "../../helpers/session";
 
 // 40 clinics (R-02): guarantees a page 2 exists for any effectiveLimit <= 36
 // (HY superset cap), same margin used by Sessions/Users/Alerts.
@@ -165,7 +165,7 @@ for (const moduleSpec of MODULES) {
       page,
     }) => {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
-      await setTestAdminSession(page);
+      await setAdminSession(page, "default");
       await moduleSpec.mock(page);
       await page.goto(`/dashboard/admin?module=${moduleSpec.moduleId}`);
       await suppressNextDevIndicator(page);
@@ -289,7 +289,7 @@ for (const moduleSpec of MODULES) {
 test("Admin mobile core modules reachable from bottom nav and Más menu", async ({ page }) => {
   const viewport = ADMIN_MOBILE_VIEWPORTS[0];
   await page.setViewportSize({ width: viewport.width, height: viewport.height });
-  await setTestAdminSession(page);
+  await setAdminSession(page, "default");
   await mockAdminClinics(page);
   await mockAdminReportWorkflow(page);
   await mockAdminParticularTokens(page);
@@ -332,7 +332,7 @@ test("Admin mobile reports pagination advances through measured pages with pager
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await setTestAdminSession(page);
+  await setAdminSession(page, "default");
   await mockAdminReportWorkflow(page);
 
   await page.goto("/dashboard/admin?module=admin-report-upload");
@@ -390,7 +390,7 @@ test("Admin mobile reports pagination advances through measured pages with pager
 for (const moduleSpec of MODULES) {
   test(`Admin desktop preserves ${moduleSpec.key} layout at 1280x800`, async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
-    await setTestAdminSession(page);
+    await setAdminSession(page, "default");
     await moduleSpec.mock(page);
     await page.goto(`/dashboard/admin?module=${moduleSpec.moduleId}`);
 

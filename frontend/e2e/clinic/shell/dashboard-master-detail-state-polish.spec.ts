@@ -1,20 +1,9 @@
 import { expect, test } from "@playwright/test";
-
-type Page = import("@playwright/test").Page;
-
-async function setClinicSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "app_session_id",
-      value: "e2e_test_clinic_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
+import { setClinicSession } from "../../helpers/session";
 
 test.describe("dashboard reports profile-layout state polish — smoke", () => {
   test("informes: reports list panel renders", async ({ page }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
     await page.goto("/dashboard/informes");
     await expect(page.locator("#reports-master-list")).toBeVisible({
       timeout: 8_000,
@@ -25,7 +14,7 @@ test.describe("dashboard reports profile-layout state polish — smoke", () => {
   test("informes: detail is inline, not a standalone lateral panel", async ({
     page,
   }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
     await page.goto("/dashboard/informes");
     await expect(page.locator("#reports-master-list")).toBeVisible({
       timeout: 8_000,
@@ -37,7 +26,7 @@ test.describe("dashboard reports profile-layout state polish — smoke", () => {
   });
 
   test("informes: compact filter search region visible", async ({ page }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
     await page.goto("/dashboard/informes");
     await expect(
       page.getByRole("search", { name: "Filtros compactos de informes" }),
@@ -47,7 +36,7 @@ test.describe("dashboard reports profile-layout state polish — smoke", () => {
   test("informes: no table-based master-detail workspace is required", async ({
     page,
   }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
     await page.goto("/dashboard/informes");
     await expect(page.locator("#reports-master-list")).toBeVisible({
       timeout: 8_000,
@@ -56,7 +45,7 @@ test.describe("dashboard reports profile-layout state polish — smoke", () => {
   });
 
   test("informes: no horizontal overflow at 768px tablet", async ({ page }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
     await page.setViewportSize({ width: 768, height: 1024 });
     await page.goto("/dashboard/informes");
     await expect(page.locator("#reports-master-list")).toBeVisible({
@@ -71,7 +60,7 @@ test.describe("dashboard reports profile-layout state polish — smoke", () => {
   });
 
   test("informes: no horizontal overflow at 375px mobile", async ({ page }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
     await page.setViewportSize({ width: 375, height: 812 });
     await page.goto("/dashboard/informes");
     await expect(page.locator("main.dashboard-main")).toBeVisible({
