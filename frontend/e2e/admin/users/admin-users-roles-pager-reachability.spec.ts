@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { waitForAdaptiveConvergence } from "../../helpers/dashboard-adaptive-limit-matrix";
 import { setAdminSession } from "../../helpers/session";
 
 // A03 PASS 3 — regression for the desktop minimum-rows clipping of
@@ -136,10 +137,14 @@ const WORKSPACE_SETTLE_ATTEMPTS = 10;
  * unreachable on a card that was merely busy.
  *
  * The gate is the runtime's own in-flight marker (`aria-busy`, already emitted
- * by the card) plus a rendered cardinality that survives a network-idle
- * boundary unchanged. It is a condition, not a duration: no sleep participates
- * and no assertion is relaxed. The runtime behaviour of disabling the pager
- * during a refetch is correct and is left untouched.
+ * by the card) plus a rendered cardinality that survives a drained render
+ * cycle of the workspace unchanged. It is a condition, not a duration: no sleep
+ * participates and no assertion is relaxed. The runtime behaviour of disabling
+ * the pager during a refetch is correct and is left untouched.
+ *
+ * The boundary used to be `waitForLoadState("networkidle")`, which resolves at
+ * once for a document that already went idle — even with a request in flight —
+ * so every attempt after the first compared two back-to-back reads.
  */
 async function settleWorkspace(page: Page) {
   const busy = page.locator(`${WORKSPACE} [aria-busy="true"]`);
@@ -151,7 +156,7 @@ async function settleWorkspace(page: Page) {
       busy,
       "adaptive refetch must not be in flight before the geometry is read",
     ).toHaveCount(0, { timeout: 30_000 });
-    await page.waitForLoadState("networkidle");
+    await waitForAdaptiveConvergence(page, WORKSPACE, "admin-users-roles settle");
 
     if ((await busy.count()) > 0) {
       previous = -1;
@@ -165,7 +170,7 @@ async function settleWorkspace(page: Page) {
 
   throw new Error(
     `admin-users-roles never reached a settled page: ${WORKSPACE_SETTLE_ATTEMPTS} ` +
-      "network-idle boundaries never produced two identical rendered cardinalities " +
+      "drained render cycles never produced two identical rendered cardinalities " +
       "with no transition in flight",
   );
 }

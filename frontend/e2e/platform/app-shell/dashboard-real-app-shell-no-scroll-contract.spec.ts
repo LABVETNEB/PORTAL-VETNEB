@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { setAdminSession, setClinicSession } from "../../helpers/session";
 
 type Page = import("@playwright/test").Page;
+type Request = import("@playwright/test").Request;
 type Route = import("@playwright/test").Route;
 type TestInfo = import("@playwright/test").TestInfo;
 
@@ -151,9 +152,37 @@ function json(route: Route, body: unknown) {
   });
 }
 
+// Late page/console errors come from work the page still has pending: a request
+// that has not reached its terminal event, or the effects of the last commit.
+// The collectors are armed before navigation, so every request is observed;
+// the observation window closes once none is in flight and two frames have
+// committed after that, instead of after a fixed duration.
+function trackPendingWork(page: Page) {
+  const inFlight = new Set<Request>();
+
+  page.on("request", (request) => {
+    if (request.resourceType() !== "eventsource") inFlight.add(request);
+  });
+  page.on("requestfinished", (request) => inFlight.delete(request));
+  page.on("requestfailed", (request) => inFlight.delete(request));
+
+  return async function settle() {
+    await expect
+      .poll(() => inFlight.size, { message: "page requests still in flight" })
+      .toBe(0);
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) => {
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+        }),
+    );
+  };
+}
+
 function collectHydrationFailures(page: Page) {
   const pageErrors: string[] = [];
   const consoleErrors: string[] = [];
+  const settle = trackPendingWork(page);
 
   page.on("pageerror", (error) => {
     pageErrors.push(error.message);
@@ -167,7 +196,7 @@ function collectHydrationFailures(page: Page) {
 
   return {
     async assertClean() {
-      await page.waitForTimeout(500);
+      await settle();
 
       const hydrationConsoleErrors = consoleErrors.filter((message) =>
         /hydration|server rendered html|text content does not match/i.test(message),
@@ -182,6 +211,7 @@ function collectHydrationFailures(page: Page) {
 function collectBrowserFailures(page: Page) {
   const pageErrors: string[] = [];
   const consoleErrors: string[] = [];
+  const settle = trackPendingWork(page);
 
   page.on("pageerror", (error) => {
     pageErrors.push(error.message);
@@ -195,7 +225,7 @@ function collectBrowserFailures(page: Page) {
 
   return {
     async assertClean() {
-      await page.waitForTimeout(500);
+      await settle();
       const relevantConsoleErrors = consoleErrors.filter(
         (message) =>
           message !==

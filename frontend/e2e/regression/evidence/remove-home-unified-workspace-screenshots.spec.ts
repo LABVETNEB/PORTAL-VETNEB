@@ -1,4 +1,5 @@
 import { test } from "@playwright/test";
+import { waitForAdaptiveConvergence } from "../../helpers/dashboard-adaptive-limit-matrix";
 import { setClinicSession } from "../../helpers/session";
 
 // Evidence generator for the "remove dashboard home + unified module workspace"
@@ -81,8 +82,9 @@ for (const capture of CAPTURES) {
     await page.waitForSelector("[data-dashboard-module-workspace]", {
       timeout: 15_000,
     });
-    // Let adaptive density settle before the frame is captured.
-    await page.waitForTimeout(900);
+    // Let adaptive density settle before the frame is captured: the workspace
+    // must drain its ResizeObserver/rAF pipeline into identical renders.
+    await waitForAdaptiveConvergence(page, "[data-dashboard-module-workspace]", capture.file);
 
     await page.screenshot({
       path: testInfo.outputPath(capture.file),

@@ -422,9 +422,15 @@ test.describe("clinic perfil → perfil público module state parity (client-dri
     page,
   }) => {
     await setClinicSession(page, "default");
+    // The profile response is held until the loading copy has been observed,
+    // so the loading state is visible for exactly as long as the test needs it.
+    let releaseProfileResponse: () => void = () => {};
+    const profileResponseGate = new Promise<void>((resolve) => {
+      releaseProfileResponse = resolve;
+    });
     await page.route("**/api/clinic/profile**", async (route) => {
       if (route.request().method() !== "GET") return route.continue();
-      await new Promise((resolve) => setTimeout(resolve, 700));
+      await profileResponseGate;
       return fulfillJson(route, 200, { success: true, profile: BLANK_PROFILE });
     });
 
@@ -434,6 +440,7 @@ test.describe("clinic perfil → perfil público module state parity (client-dri
     await expect(editor).toBeVisible();
 
     await expect(editor.getByText("Cargando perfil público...")).toBeVisible();
+    releaseProfileResponse();
 
     // Since #1144 the publication label renders twice (header badge + Estado
     // tile), so pin to one match to avoid a strict-mode violation.

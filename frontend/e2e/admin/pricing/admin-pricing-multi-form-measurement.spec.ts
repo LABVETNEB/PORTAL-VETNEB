@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { waitForAdaptiveConvergence } from "../../helpers/dashboard-adaptive-limit-matrix";
 import { setAdminSession } from "../../helpers/session";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -15,6 +16,7 @@ import { setAdminSession } from "../../helpers/session";
 // ─────────────────────────────────────────────────────────────────────────────
 
 const TOLERANCE = 2;
+const PRICING_WORKSPACE = '[data-dashboard-module-workspace="admin-pricing"]';
 
 // A deliberately long, multi-line error so the failed form grows ~100px beyond
 // the others. At the chosen viewport this pushes the naive "measure only the
@@ -132,13 +134,9 @@ test.describe("admin pricing adaptive page size measures every visible form", ()
       timeout: 10_000,
     });
 
-    // Let the ResizeObserver/rAF settle the adaptive page size (two stable reads).
-    await expect(async () => {
-      const first = await forms.count();
-      await page.waitForTimeout(160);
-      const second = await forms.count();
-      expect(second, "form count settled").toBe(first);
-    }).toPass({ timeout: 10_000 });
+    // Let the ResizeObserver/rAF pipeline settle the adaptive page size the
+    // taller errored form triggers: drained, identical renders of the workspace.
+    await waitForAdaptiveConvergence(page, PRICING_WORKSPACE, "form count settled");
 
     const viewport = page.viewportSize()!;
 
@@ -195,6 +193,7 @@ test.describe("admin pricing adaptive page size measures every visible form", ()
       .filter({ hasText: LONG_ERROR_MESSAGE });
 
     const nextButton = page.locator('[data-dashboard-pager-next="true"]');
+    const pagerState = pager.locator('[data-dashboard-pager-state="true"]');
     for (let hop = 0; hop < 6; hop += 1) {
       if (await erroredForm.count()) {
         break;
@@ -202,8 +201,12 @@ test.describe("admin pricing adaptive page size measures every visible form", ()
       if (await nextButton.isDisabled()) {
         break;
       }
+      const stateBeforeHop = (await pagerState.textContent()) ?? "";
       await nextButton.click();
-      await page.waitForTimeout(120);
+      // The hop is complete when the pager commits the next page and the
+      // re-sliced forms have drained through the adaptive pipeline.
+      await expect(pagerState, `pager advanced on hop ${hop + 1}`).not.toHaveText(stateBeforeHop);
+      await waitForAdaptiveConvergence(page, PRICING_WORKSPACE, `pager hop ${hop + 1}`);
     }
 
     await expect(erroredForm, "errored form is reachable").toHaveCount(1);

@@ -359,8 +359,7 @@ for (const moduleSpec of STATUS_MODULES) {
               '[data-admin-mobile-status-item="true"], [data-admin-mobile-ops-pager="true"]',
             )
             .first()
-            .waitFor({ state: "visible", timeout: 10_000 })
-            .catch(() => {});
+            .waitFor({ state: "visible", timeout: 10_000 });
 
           await expectInsideContentBand(
             page,

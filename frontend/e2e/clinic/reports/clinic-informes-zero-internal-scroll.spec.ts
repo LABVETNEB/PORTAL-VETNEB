@@ -1,4 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
+import {
+  settleInformesRows,
+  trackInformesWindowRequests,
+} from "../../helpers/informes-adaptive-settle";
 import { setClinicSession } from "../../helpers/session";
 
 const TOLERANCE = 2;
@@ -126,6 +130,7 @@ test.describe("clinic informes full route — zero internal core scroll", () => 
     }) => {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
       await setClinicSession(page, "populated");
+      const windowRequests = trackInformesWindowRequests(page);
       await page.goto("/dashboard/informes");
 
       const list = page.locator("#reports-master-list");
@@ -138,12 +143,9 @@ test.describe("clinic informes full route — zero internal core scroll", () => 
         expect(await rows.count()).toBeGreaterThan(0);
       }).toPass({ timeout: 12_000 });
 
-      // Row-count settle (fallback -> measured page size), then assert.
-      await expect(async () => {
-        const first = await rows.count();
-        await page.waitForTimeout(150);
-        expect(await rows.count()).toBe(first);
-      }).toPass({ timeout: 10_000 });
+      // Row-count settle (fallback -> measured page size, refetched through a
+      // Server Action), then assert.
+      await settleInformesRows(page, windowRequests, viewport.name, 10_000);
 
       // 1. No external scroll.
       const external = await page.evaluate(() => ({
