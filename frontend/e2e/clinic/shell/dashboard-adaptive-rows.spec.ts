@@ -1,21 +1,12 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import {
+  settleInformesRows,
+  trackInformesWindowRequests,
+} from "../../helpers/informes-adaptive-settle";
 import { setClinicSession } from "../../helpers/session";
 
 const MOBILE = { width: 390, height: 844 } as const;
 const DESKTOP = { width: 1440, height: 900 } as const;
-
-async function settleCount(page: Page, selector: string): Promise<number> {
-  let count = 0;
-  await expect(async () => {
-    const first = await page.locator(selector).count();
-    expect(first).toBeGreaterThan(0);
-    await page.waitForTimeout(180);
-    const second = await page.locator(selector).count();
-    expect(second).toBe(first);
-    count = second;
-  }).toPass({ timeout: 15_000 });
-  return count;
-}
 
 test.describe("adaptive rows per viewport (no fixed page size)", () => {
   test("informes full route page size grows from 390x844 to 1440x900", async ({
@@ -24,9 +15,10 @@ test.describe("adaptive rows per viewport (no fixed page size)", () => {
     await setClinicSession(page, "populated");
 
     await page.setViewportSize(MOBILE);
+    const windowRequests = trackInformesWindowRequests(page);
     await page.goto("/dashboard/informes");
     await expect(page.locator("#reports-master-list")).toBeVisible({ timeout: 12_000 });
-    const mobileRows = await settleCount(page, "#reports-master-list [id^='report-']");
+    const mobileRows = await settleInformesRows(page, windowRequests, "informes 390x844", 15_000);
 
     await page.setViewportSize(DESKTOP);
     await expect(async () => {
@@ -44,9 +36,11 @@ test.describe("adaptive rows per viewport (no fixed page size)", () => {
     // row count grows. With the fixture's small dataset both viewports may
     // show every record; the invariant asserted here is that mobile never
     // shows MORE rows than desktop and that neither shows a hardcoded 3.
-    const desktopRows = await settleCount(
+    const desktopRows = await settleInformesRows(
       page,
-      "#reports-master-list [id^='report-']",
+      windowRequests,
+      "informes 1440x900",
+      15_000,
     );
     expect(desktopRows).toBeGreaterThanOrEqual(mobileRows);
     expect(mobileRows).toBeGreaterThan(0);

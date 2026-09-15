@@ -283,8 +283,7 @@ for (const moduleSpec of CONFIG_MODULES) {
           await panel
             .locator('[data-admin-mobile-config-item="true"], [data-admin-mobile-ops-pager="true"]')
             .first()
-            .waitFor({ state: "visible", timeout: 10_000 })
-            .catch(() => {});
+            .waitFor({ state: "visible", timeout: 10_000 });
 
           await expectInsideContentBand(page, panel, viewport, `${viewport.name} ${mode} ${moduleSpec.key} panel ${chipId}`);
           assertNoScrollContract(

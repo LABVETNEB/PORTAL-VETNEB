@@ -29,7 +29,7 @@ async function measureSurface(
   await setSession(page, role, "populated");
   await page.goto(route);
   await expect(page.locator(readiness).first()).toBeVisible({ timeout: 15_000 });
-  await page.waitForLoadState("networkidle").catch(() => {});
+  await page.waitForLoadState("networkidle");
   return measureSettledParityContract(page, role);
 }
 

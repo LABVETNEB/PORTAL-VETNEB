@@ -34,7 +34,20 @@ for (const dashboardPath of [
       0,
     );
 
-    await page.waitForTimeout(250);
+    // "Stable" is bound to the end of the client flow, not to a duration: the
+    // only client-side redirects /login owns run in LoginContent's mount
+    // effects, so wait for its client commit (the hydration ref marker of its
+    // own route control) and cross two frames so those effects have flushed.
+    await page
+      .locator('[data-auth-login-polish="true"] [data-public-route-control-hydrated="true"]')
+      .first()
+      .waitFor({ state: "attached" });
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) => {
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+        }),
+    );
     await expect(page).toHaveURL((url) => url.pathname === "/login");
     expect(pageErrors).toEqual([]);
   });

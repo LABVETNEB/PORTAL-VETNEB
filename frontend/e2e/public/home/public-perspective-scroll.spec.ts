@@ -89,7 +89,10 @@ for (const route of perspectiveRoutes) {
 
     for (const scrollY of [0, 600, 1600, 99999]) {
       await page.evaluate((y) => window.scrollTo(0, y), scrollY);
-      await page.waitForTimeout(120);
+      // The perspective runtime repaints from a scroll listener on the next
+      // animation frame; two committed frames cover the scroll event, that
+      // frame and its paint.
+      await waitForPerspectiveFrame(page);
 
       const horizontalOverflow = await page.evaluate(() => {
         const documentElement = document.documentElement;
@@ -199,14 +202,14 @@ test("home keeps several perspective sections readable after scrolling", async (
   await page.evaluate(() => {
     window.scrollTo(0, document.body.scrollHeight / 2);
   });
-  await page.waitForTimeout(200);
+  await waitForPerspectiveFrame(page);
 
   await expect(page.getByRole("heading", { name: "Recorrido de la muestra" })).toBeVisible();
 
   await page.evaluate(() => {
     window.scrollTo(0, document.body.scrollHeight);
   });
-  await page.waitForTimeout(200);
+  await waitForPerspectiveFrame(page);
 
   await expect(page.getByRole("contentinfo")).toBeVisible();
 });

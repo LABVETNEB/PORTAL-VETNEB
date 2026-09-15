@@ -490,7 +490,7 @@ test.describe("dashboard shell — no global scroll", () => {
 
 // ─── Pre-hydration navigation — causal regression ─────────────────────────────
 //
-// ARTIFICIALLY_WIDENED_HYDRATION_WINDOW: delaying every JS chunk keeps the SSR
+// ARTIFICIALLY_WIDENED_HYDRATION_WINDOW: holding every JS chunk keeps the SSR
 // nav painted, actionable-looking and genuinely un-hydrated for as long as the
 // test needs, without pretending to reproduce GitHub Actions' exact timing —
 // it proves the mechanism, not the runner. The window this widens is real: CI
@@ -500,6 +500,8 @@ test.describe("dashboard shell — no global scroll", () => {
 // nav and its hydration commit land in the same frame. Widening the window is
 // what makes the race observable at all.
 test.describe("dashboard lateral nav — pre-hydration click", () => {
+  const UNRELEASED_HYDRATION_GATE = new Promise<never>(() => {});
+
   test.beforeEach(async ({ page }) => {
     await setClinicSession(page, "default");
   });
@@ -509,14 +511,13 @@ test.describe("dashboard lateral nav — pre-hydration click", () => {
   }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
 
-    // Delay every application JS chunk so the document paints from SSR markup
+    // Hold every application JS chunk so the document paints from SSR markup
     // while staying genuinely un-hydrated. theme-init.js is NOT under this
     // route: it is a plain <script src> the browser fetches on its own, so the
-    // fallback it installs stays available throughout.
-    await page.route("**/_next/static/**/*.js", async (route) => {
-      await new Promise((resolve) => setTimeout(resolve, 4_000));
-      await route.continue();
-    });
+    // fallback it installs stays available throughout. The chunks are never
+    // released: the window closes with the test, not after a duration that a
+    // slow runner could outlive before the click.
+    await page.route("**/_next/static/**/*.js", () => UNRELEASED_HYDRATION_GATE);
 
     // history.pushState/replaceState is exactly what router.push/replace call
     // internally. If this spy ever fires, React handled the click — the one
@@ -531,7 +532,7 @@ test.describe("dashboard lateral nav — pre-hydration click", () => {
       };
     });
 
-    // domcontentloaded, not "load": the delayed JS must not be awaited here,
+    // domcontentloaded, not "load": the held JS must not be awaited here,
     // or this would simply wait out the window it exists to create.
     await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
 
@@ -564,22 +565,21 @@ test.describe("dashboard lateral nav — pre-hydration click", () => {
     await expect(page).toHaveURL(/\/dashboard\?module=informes$/, {
       timeout: 5_000,
     });
+    // The probes below read the document the fallback navigated to: wait for
+    // that document to be parsed instead of swallowing a read that raced it.
+    await page.waitForLoadState("domcontentloaded");
 
-    const sameDocumentProbeSurvived = await page
-      .evaluate(
-        () => (window as unknown as { __sameDocumentProbe?: string }).__sameDocumentProbe,
-      )
-      .catch(() => undefined);
+    const sameDocumentProbeSurvived = await page.evaluate(
+      () => (window as unknown as { __sameDocumentProbe?: string }).__sameDocumentProbe,
+    );
     expect(
       sameDocumentProbeSurvived,
       "the fallback must be a real document navigation, not a client-side URL change",
     ).toBeUndefined();
 
-    const pushStateCalls = await page
-      .evaluate(
-        () => (window as unknown as { __pushStateCalls?: number }).__pushStateCalls,
-      )
-      .catch(() => undefined);
+    const pushStateCalls = await page.evaluate(
+      () => (window as unknown as { __pushStateCalls?: number }).__pushStateCalls,
+    );
     expect(
       pushStateCalls ?? 0,
       "router.push must never also run for the click the native fallback already handled",
@@ -655,10 +655,7 @@ test.describe("dashboard lateral nav — pre-hydration click", () => {
   test("a protocol-relative href on an un-hydrated control never navigates cross-origin", async ({
     page,
   }) => {
-    await page.route("**/_next/static/**/*.js", async (route) => {
-      await new Promise((resolve) => setTimeout(resolve, 4_000));
-      await route.continue();
-    });
+    await page.route("**/_next/static/**/*.js", () => UNRELEASED_HYDRATION_GATE);
 
     const navigatedOrigins: string[] = [];
     page.on("framenavigated", (frame) => {

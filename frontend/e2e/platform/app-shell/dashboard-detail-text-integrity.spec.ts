@@ -8,6 +8,10 @@ import {
   LONG_TEXT_USER_AGENT,
   LONG_TEXT_USER_ROLE,
 } from "../../helpers/long-text-dataset.mjs";
+import {
+  settleInformesRows,
+  trackInformesWindowRequests,
+} from "../../helpers/informes-adaptive-settle";
 import { addAppCookies, setSession } from "../../helpers/session";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -614,6 +618,7 @@ test.describe("clinic informes master-detail panel keeps the whole record", () =
       await enableLongTextFixture(page);
 
       await page.setViewportSize({ width: vp.width, height: vp.height });
+      const windowRequests = trackInformesWindowRequests(page);
       await page.goto("/dashboard/informes");
 
       // Same settle contract the shipped informes specs use: the route is
@@ -625,11 +630,7 @@ test.describe("clinic informes master-detail panel keeps the whole record", () =
         await expect(list).toBeVisible();
         expect(await rows.count()).toBeGreaterThan(0);
       }).toPass({ timeout: 15_000 });
-      await expect(async () => {
-        const first = await rows.count();
-        await page.waitForTimeout(150);
-        expect(await rows.count()).toBe(first);
-      }).toPass({ timeout: 10_000 });
+      await settleInformesRows(page, windowRequests, `clinic informes @ ${vp.slug}`, 10_000);
 
       await rows.first().click();
 

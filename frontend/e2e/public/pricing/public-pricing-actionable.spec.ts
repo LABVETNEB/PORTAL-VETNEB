@@ -19,6 +19,13 @@ const MOCK_PRICING = {
   ],
 };
 
+// The catalog is fetched client-side and the skeleton is the loading state's
+// own marker: it leaves the DOM exactly when the pricing request has resolved
+// and React committed the loaded (or error) state.
+function waitForPricingLoaded(page: Page) {
+  return page.locator("[data-pricing-skeleton='true']").waitFor({ state: "detached" });
+}
+
 function mockPricing(page: Page) {
   return page.route("**/api/public/pricing**", (route) =>
     route.fulfill({
@@ -33,7 +40,6 @@ test.describe("precios — actionable pricing conversion layer (PR-11)", () => {
   test("renderiza h1 y CTA de contacto en el hero", async ({ page }) => {
     await mockPricing(page);
     await page.goto("/precios");
-    await page.waitForLoadState("networkidle");
 
     await expect(page.locator("h1#pricing-page-title")).toBeVisible();
     const heroCta = page.getByRole("button", { name: /consultar por un estudio/i });
@@ -44,7 +50,7 @@ test.describe("precios — actionable pricing conversion layer (PR-11)", () => {
   test("listado dinámico de categorías y estudios se muestra", async ({ page }) => {
     await mockPricing(page);
     await page.goto("/precios");
-    await page.waitForLoadState("networkidle");
+    await waitForPricingLoaded(page);
 
     await expect(page.getByText("CITOLOGÍAS")).toBeVisible();
     await expect(page.getByText("Citología básica de piel")).toBeVisible();
@@ -54,7 +60,7 @@ test.describe("precios — actionable pricing conversion layer (PR-11)", () => {
   test("ítems sin precio muestran etiqueta Consultar y CTA de coordinación", async ({ page }) => {
     await mockPricing(page);
     await page.goto("/precios");
-    await page.waitForLoadState("networkidle");
+    await waitForPricingLoaded(page);
 
     // "Consultar" pill label visible
     await expect(page.getByText("Consultar").first()).toBeVisible();
@@ -68,7 +74,7 @@ test.describe("precios — actionable pricing conversion layer (PR-11)", () => {
   test("cada categoría tiene CTA Consultar este estudio", async ({ page }) => {
     await mockPricing(page);
     await page.goto("/precios");
-    await page.waitForLoadState("networkidle");
+    await waitForPricingLoaded(page);
 
     const categoryCtaButtons = page.getByRole("button", { name: /consultar este estudio/i });
     const count = await categoryCtaButtons.count();
@@ -106,7 +112,7 @@ test.describe("precios — actionable pricing conversion layer (PR-11)", () => {
 
     releasePricingResponse();
     await navigationPromise;
-    await page.waitForLoadState("networkidle");
+    await waitForPricingLoaded(page);
   });
 
   test("estado de error muestra alerta visible", async ({ page }) => {
@@ -115,7 +121,7 @@ test.describe("precios — actionable pricing conversion layer (PR-11)", () => {
     );
 
     await page.goto("/precios");
-    await page.waitForLoadState("networkidle");
+    await waitForPricingLoaded(page);
 
     const errorAlert = page.locator('[role="alert"]').filter({ hasText: /no se pudieron cargar los precios/i });
     await expect(errorAlert).toBeVisible();
@@ -125,7 +131,7 @@ test.describe("precios — actionable pricing conversion layer (PR-11)", () => {
   test("todos los CTAs son accesibles y están habilitados", async ({ page }) => {
     await mockPricing(page);
     await page.goto("/precios");
-    await page.waitForLoadState("networkidle");
+    await waitForPricingLoaded(page);
 
     const allCtaButtons = page.getByRole("button", { name: /consultar|coordinar/i });
     const count = await allCtaButtons.count();
@@ -140,7 +146,7 @@ test.describe("precios — actionable pricing conversion layer (PR-11)", () => {
   test("leyenda de valor incluido está presente", async ({ page }) => {
     await mockPricing(page);
     await page.goto("/precios");
-    await page.waitForLoadState("networkidle");
+    await waitForPricingLoaded(page);
 
     await expect(page.getByText(/incluido en cada estudio/i)).toBeVisible();
     await expect(page.getByText(/informe diagnóstico digital/i)).toBeVisible();

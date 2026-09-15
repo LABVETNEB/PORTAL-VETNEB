@@ -92,10 +92,11 @@ for (const viewport of VIEWPORTS) {
       // Let the chip band's ResizeObserver-driven proxy sync (useLayoutEffect +
       // its first ResizeObserver callback) settle before measuring: on a cold
       // mobile viewport switch the observer's FIRST callback can land one frame
-      // after the tablist itself becomes visible.
-      await page.waitForLoadState("networkidle").catch(() => {});
-      await page.evaluate(() => document.fonts.ready).catch(() => {});
-      await page.waitForTimeout(150);
+      // after the tablist itself becomes visible. That is a font + frame event,
+      // so it is awaited as one; the chip geometry below is additionally gated
+      // on a pair of identical measurements across a committed frame.
+      await page.evaluate(() => document.fonts.ready.then(() => undefined));
+      await crossRenderedFrames(page);
 
       const card = workspace.locator(
         `section.dashboard-surface[data-clinic-mobile-module="${moduleId}"]`,
@@ -151,9 +152,8 @@ for (const viewport of VIEWPORTS) {
         .locator('[data-dashboard-module-workspace="admin"] [role="tablist"]')
         .first()
         .waitFor({ state: "visible", timeout: 12_000 });
-      await adminPage.waitForLoadState("networkidle").catch(() => {});
-      await adminPage.evaluate(() => document.fonts.ready).catch(() => {});
-      await adminPage.waitForTimeout(150);
+      await adminPage.evaluate(() => document.fonts.ready.then(() => undefined));
+      await crossRenderedFrames(adminPage);
       const adminBandHeight = await adminPage.evaluate(() => {
         const tablist = document.querySelector<HTMLElement>(
           '[data-dashboard-module-workspace] [role="tablist"]',

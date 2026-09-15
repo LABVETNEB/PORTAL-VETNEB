@@ -1,4 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
+import {
+  settleInformesRows,
+  trackInformesWindowRequests,
+} from "../../helpers/informes-adaptive-settle";
 import { setClinicSession } from "../../helpers/session";
 
 const TOLERANCE = 2;
@@ -30,6 +34,7 @@ test.describe("clinic Informes full route server-adaptive pagination (R-07)", ()
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
       await setClinicSession(page, "populated");
 
+      const windowRequests = trackInformesWindowRequests(page);
       await page.goto("/dashboard/informes");
 
       const list = page.locator("#reports-master-list");
@@ -48,16 +53,11 @@ test.describe("clinic Informes full route server-adaptive pagination (R-07)", ()
         expect(rowCount, `${viewport.name}: at least one row rendered`).toBeGreaterThan(0);
       }).toPass({ timeout: 12_000 });
 
-      // The measured rowsPerPage can still settle across a couple of
-      // ResizeObserver/rAF passes right after mount (fallback -> real row
-      // height), so wait for two consecutive stable reads before measuring
-      // geometry — same anti-flake pattern used on Admin Audit (R-06).
-      await expect(async () => {
-        const first = await rows.count();
-        await page.waitForTimeout(150);
-        const second = await rows.count();
-        expect(second, `${viewport.name}: row count settled`).toBe(first);
-      }).toPass({ timeout: 10_000 });
+      // The measured rowsPerPage settles across ResizeObserver/rAF passes right
+      // after mount (fallback -> measured limit) and a changed limit refetches
+      // through a Server Action, so wait for that settled state before
+      // measuring geometry.
+      await settleInformesRows(page, windowRequests, viewport.name, 10_000);
 
       await expect(async () => {
         const metrics = await readNoExternalScroll(page);
