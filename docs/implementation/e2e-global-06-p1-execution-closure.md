@@ -10,8 +10,9 @@ Aceptación: ningún spec P1 depende del schedule semanal.
 | Ítem | Valor |
 |---|---|
 | Rama base | `main` |
-| HEAD base | `bef259f8f54a2195010ef79ecf8d203a204fd8cc` (`test(e2e): promote production visual baselines (#1721)`) |
-| Rama de trabajo | `ci/e2e-global-06-p1-execution-closure` |
+| HEAD base de la implementación | `bef259f8f54a2195010ef79ecf8d203a204fd8cc` (`test(e2e): promote production visual baselines (#1721)`), padre de `d2343816` |
+| Base efectiva del PR | `2b39d15d52ce11eb9724cdbc25b9f3d696d606bc` (`test(e2e): require stable metric run geometry (#1724)`), integrada por el merge `8ad524f1` (`^1 = d2343816`, `^2 = 2b39d15d`) |
+| Rama de trabajo | `ci/e2e-global-06-p1-execution-closure-v2` (PR #1725; recrea #1722, cerrada sin merge sobre el mismo head) |
 | Clasificación | R1 (catálogo, guards, acta) + R2 (`.github/workflows/e2e-completeness.yml`) |
 | Scopes primarios detectados | `frontend` (`frontend/e2e/suites/catalog.ts`) + `workflows/CI` → excepción mixed-scope |
 
@@ -62,7 +63,28 @@ primario, igual que en 05B. Manda la clasificación ejecutable.
 A02/A03/A05 no se promueven a `ci`: la fuente rectora sólo promueve los 2 baratos. E2E Completeness no es
 required (AGENTS.md §6); su señal para A02/A03/A05 es visible en cada PR pero no bloquea el merge.
 
-## Validaciones
+## Actualización de base
+
+Entre `bef259f8` y `2b39d15d`, `main` sumó #1723 y #1724, que sólo tocan
+`frontend/e2e/clinic/shell/dashboard-clinic-metric-run-parity.spec.ts`. El merge `8ad524f1` no altera los
+archivos de este PR (`git diff d2343816 8ad524f1` sobre ellos: vacío) y trae ese spec idéntico a `main`
+(`git diff 2b39d15d 8ad524f1` = exactamente los 6 archivos de este PR). Catálogo, workflow y guards no
+cambian entre ambas bases.
+
+Revalidado sobre `8ad524f1`:
+
+| Gate | Estado |
+|---|---|
+| `pnpm --dir frontend e2e:verify-catalog` | PASSED (7/7) |
+| Tests infra dirigidos (mismo set que abajo) | PASSED (108/108) |
+| Censo P1 desde `E2E_SUITE_CATALOG` | 69 P1; 66 en `ci`; fuera de `ci` sólo A02/A03/A05, los 69 en `full` |
+| Prueba negativa del guard de trigger | `[branches]` → PASS; `paths`, `paths-ignore`, `types` o el workflow de `2b39d15d` → FAIL |
+| Digest de `e2e-completeness.yml` | `sha256` actual = `33343569…`; `2b39d15d` sin líneas 7–22 = archivo actual |
+| `pnpm --dir frontend lint` / `typecheck` | PASSED / PASSED |
+| `pnpm typecheck:test` | PASSED |
+| Playwright local | NOT_RUN (la tabla siguiente corresponde al árbol de `d2343816`) |
+
+## Validaciones (árbol de `d2343816`)
 
 | Gate | Estado |
 |---|---|
