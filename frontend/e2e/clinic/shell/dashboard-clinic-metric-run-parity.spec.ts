@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { waitForLayoutSettled } from "../../helpers/dashboard-geometry-matrix";
 
 const VIEWPORTS = [
@@ -46,6 +46,72 @@ async function setClinicSession(page: Page) {
   ]);
 }
 
+/**
+ * Reads the metric-run paint/geometry contract once. Extracted so the caller
+ * below can take two consecutive readings — a single successful read only
+ * proves a valid frame existed, not that the geometry has settled.
+ */
+async function readMetricRunContract(metricRun: Locator) {
+  return metricRun.evaluate((element) => {
+    const style = window.getComputedStyle(element);
+    const px = (raw: string) => Number.parseFloat(raw) || 0;
+    const paints = (node: Element) => node.getClientRects().length > 0;
+
+    // The band the run lives in, and the card that band belongs to. Both are
+    // read structurally (parent / closest) rather than by a per-surface
+    // selector, so this contract cannot drift from the DOM it measures.
+    const host = element.parentElement;
+    const hostStyle = host ? window.getComputedStyle(host) : null;
+    const card = element.closest("section.dashboard-surface");
+    const cardStyle = card ? window.getComputedStyle(card) : null;
+
+    const hostPainted = host ? Array.from(host.children).filter(paints) : [];
+    const hostPaintedTop = hostPainted.length
+      ? Math.min(...hostPainted.map((child) => child.getBoundingClientRect().top))
+      : 0;
+    const hostPaintedBottom = hostPainted.length
+      ? Math.max(...hostPainted.map((child) => child.getBoundingClientRect().bottom))
+      : 0;
+    const cardFirstPainted = card ? (Array.from(card.children).find(paints) ?? null) : null;
+
+    return {
+      display: style.display,
+      columnGap: style.columnGap,
+      height: element.getBoundingClientRect().height,
+      rects: element.getClientRects().length,
+      backgroundColor: style.backgroundColor,
+      borderTopWidth: style.borderTopWidth,
+      borderTopLeftRadius: style.borderTopLeftRadius,
+      host: {
+        found: host !== null,
+        rects: host ? host.getClientRects().length : -1,
+        height: host ? host.getBoundingClientRect().height : -1,
+        paintedChildren: hostPainted.length,
+        // What the painted controls actually need: their own union plus the
+        // band's own padding and borders. Anything above this is reserved
+        // height with nothing in it, which is the defect being retired.
+        requiredHeight:
+          (hostPainted.length ? hostPaintedBottom - hostPaintedTop : 0) +
+          (hostStyle
+            ? px(hostStyle.paddingBlockStart) +
+              px(hostStyle.paddingBlockEnd) +
+              px(hostStyle.borderBlockStartWidth) +
+              px(hostStyle.borderBlockEndWidth)
+            : 0),
+      },
+      card: {
+        found: card !== null,
+        top: card ? card.getBoundingClientRect().top : -1,
+        borderTop: cardStyle ? px(cardStyle.borderBlockStartWidth) : 0,
+        firstPaintedIsHost: cardFirstPainted !== null && cardFirstPainted === host,
+        firstPaintedTop: cardFirstPainted ? cardFirstPainted.getBoundingClientRect().top : -1,
+      },
+      scrollsX: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+      scrollsY: document.documentElement.scrollHeight > document.documentElement.clientHeight,
+    };
+  });
+}
+
 for (const viewport of VIEWPORTS) {
   for (const [name, path, surfaceId, mobileMetricRun, hostBandRetiredBelowMd] of SURFACES) {
     const title = mobileMetricRun
@@ -68,65 +134,60 @@ for (const viewport of VIEWPORTS) {
       // `clinic-informes-zero-internal-scroll.spec.ts` already use for this.
       await waitForLayoutSettled(page);
 
+      // P2 follow-up: an outer-poll counter, held across `toPass` attempts. It
+      // mirrors `measureSurfaceGeometry` / `measureSettledParityContract`
+      // exactly — the same `requiredStableReads = 3` bar, the same reset
+      // semantics (a change zeroes the counter and starts a new baseline; the
+      // baseline read itself does not count as a stable read, only the reads
+      // that go on to match it do). A prior version compared only against the
+      // immediately preceding attempt, so a plateau that happened to survive
+      // exactly one retry (~200ms, the first backoff interval) could close the
+      // gate; a later refetch/repaint past that point would never be observed.
+      // Requiring 3 consecutive matching outer polls after any reset instead
+      // forces the poll to span at least the first three backoff intervals
+      // (>=1_000ms here) before it can exit, and a reset from ANY late change
+      // — however far into the backoff — restarts the same 3-read requirement
+      // from that point, so the gate can never close on the first matching
+      // retry regardless of when the last real change happens.
+      const REQUIRED_STABLE_OUTER_READS = 3;
+      let lastOuterReading: string | null = null;
+      let stableOuterReads = 0;
+
       await expect(async () => {
-        const contract = await metricRun.evaluate((element) => {
-          const style = window.getComputedStyle(element);
-          const px = (raw: string) => Number.parseFloat(raw) || 0;
-          const paints = (node: Element) => node.getClientRects().length > 0;
+        // Intra-attempt stability gate: `toPass` accepts the FIRST successful
+        // callback, so a single read only proves a valid frame existed — not
+        // that the geometry settled. Read the contract twice across an
+        // observable frame boundary (fonts resolved, two committed frames) and
+        // require an exact match before trusting either reading; a mismatch
+        // throws here, which also resets the outer-poll counter below via the
+        // same reset path (the thrown attempt never reaches it).
+        const first = await readMetricRunContract(metricRun);
+        await waitForLayoutSettled(page);
+        const contract = await readMetricRunContract(metricRun);
+        const serialized = JSON.stringify(contract);
 
-          // The band the run lives in, and the card that band belongs to. Both are
-          // read structurally (parent / closest) rather than by a per-surface
-          // selector, so this contract cannot drift from the DOM it measures.
-          const host = element.parentElement;
-          const hostStyle = host ? window.getComputedStyle(host) : null;
-          const card = element.closest("section.dashboard-surface");
-          const cardStyle = card ? window.getComputedStyle(card) : null;
+        expect(
+          serialized,
+          `${name}: metric-run geometry must read stable across two consecutive frames`,
+        ).toBe(JSON.stringify(first));
 
-          const hostPainted = host ? Array.from(host.children).filter(paints) : [];
-          const hostPaintedTop = hostPainted.length
-            ? Math.min(...hostPainted.map((child) => child.getBoundingClientRect().top))
-            : 0;
-          const hostPaintedBottom = hostPainted.length
-            ? Math.max(...hostPainted.map((child) => child.getBoundingClientRect().bottom))
-            : 0;
-          const cardFirstPainted = card ? (Array.from(card.children).find(paints) ?? null) : null;
+        // Outer-poll stability gate: require `REQUIRED_STABLE_OUTER_READS`
+        // consecutive matching outer polls — spanning real backoff time,
+        // never a sleep — before the assertions below are ever evaluated.
+        if (serialized === lastOuterReading) {
+          stableOuterReads += 1;
+        } else {
+          lastOuterReading = serialized;
+          stableOuterReads = 0;
+        }
 
-          return {
-            display: style.display,
-            columnGap: style.columnGap,
-            height: element.getBoundingClientRect().height,
-            rects: element.getClientRects().length,
-            backgroundColor: style.backgroundColor,
-            borderTopWidth: style.borderTopWidth,
-            borderTopLeftRadius: style.borderTopLeftRadius,
-            host: {
-              found: host !== null,
-              rects: host ? host.getClientRects().length : -1,
-              height: host ? host.getBoundingClientRect().height : -1,
-              paintedChildren: hostPainted.length,
-              // What the painted controls actually need: their own union plus the
-              // band's own padding and borders. Anything above this is reserved
-              // height with nothing in it, which is the defect being retired.
-              requiredHeight:
-                (hostPainted.length ? hostPaintedBottom - hostPaintedTop : 0) +
-                (hostStyle
-                  ? px(hostStyle.paddingBlockStart) +
-                    px(hostStyle.paddingBlockEnd) +
-                    px(hostStyle.borderBlockStartWidth) +
-                    px(hostStyle.borderBlockEndWidth)
-                  : 0),
-            },
-            card: {
-              found: card !== null,
-              top: card ? card.getBoundingClientRect().top : -1,
-              borderTop: cardStyle ? px(cardStyle.borderBlockStartWidth) : 0,
-              firstPaintedIsHost: cardFirstPainted !== null && cardFirstPainted === host,
-              firstPaintedTop: cardFirstPainted ? cardFirstPainted.getBoundingClientRect().top : -1,
-            },
-            scrollsX: document.documentElement.scrollWidth > document.documentElement.clientWidth,
-            scrollsY: document.documentElement.scrollHeight > document.documentElement.clientHeight,
-          };
-        });
+        if (stableOuterReads < REQUIRED_STABLE_OUTER_READS) {
+          throw new Error(
+            `${name}: metric-run geometry must hold across ` +
+              `${REQUIRED_STABLE_OUTER_READS} consecutive outer polls ` +
+              `(currently ${stableOuterReads})`,
+          );
+        }
 
         if (mobileMetricRun) {
           expect(contract.display, `${name}: inline flex grammar`).toBe("flex");
@@ -182,7 +243,7 @@ for (const viewport of VIEWPORTS) {
 
         expect(contract.scrollsX, `${name}: no page horizontal overflow`).toBe(false);
         expect(contract.scrollsY, `${name}: no page vertical overflow`).toBe(false);
-      }).toPass({ timeout: 10_000 });
+      }).toPass({ intervals: [200, 300, 500, 800, 1_000], timeout: 10_000 });
     });
   }
 }
