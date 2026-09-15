@@ -25,8 +25,8 @@ const TEST_FILE = fileURLToPath(import.meta.url);
 const REPO_ROOT = resolve(dirname(TEST_FILE), "..", "..");
 process.chdir(REPO_ROOT);
 
-const EXPECTED_WORKSPACE_SPEC_COUNT = 98;
-const EXPECTED_CATALOG_SPEC_COUNT = 98;
+const EXPECTED_WORKSPACE_SPEC_COUNT = 99;
+const EXPECTED_CATALOG_SPEC_COUNT = 99;
 const EXPECTED_MANUAL_ONLY_SPEC_COUNT = 0;
 const EXPECTED_DOMAIN_COUNTS = new Map([
   ["admin", 19],
@@ -45,13 +45,15 @@ const EXPECTED_DOMAIN_COUNTS = new Map([
   // ClinicDashboardShell contract.
   // +1: B11 canonical WorkspaceHeader, the runtime half of the shared
   // DashboardModuleWorkspace header contract.
-  ["regression", 20],
+  // +1: E2E-GLOBAL-09 P2 follow-up, responsive cold-load sentinel
+  // (dashboard-responsive-cold-load-sentinel.spec.ts).
+  ["regression", 21],
 ]);
 // E2E-GLOBAL-04: what each spec really traverses. No spec reaches Fastify or
 // Postgres today, so "integration" has no members; reclassifying any entry
 // must move these numbers explicitly.
 const EXPECTED_LAYER_COUNTS = new Map<E2eLayer, number>([
-  ["mocked", 37],
+  ["mocked", 38],
   ["fixture", 61],
 ]);
 const EXPECTED_CURRENT_COUNTS = new Map([
@@ -63,7 +65,9 @@ const EXPECTED_CURRENT_COUNTS = new Map([
   // +1: B11, routed to visual-contract like B08, B09 and B10 (AGENTS.md §7).
   // +1: E2E-GLOBAL-06 P1 admin-users-roles-pager-reachability (desktop adaptive
   // geometry contract, AGENTS.md §7), promoted from extended.
-  ["visual-contract", 23],
+  // +1: E2E-GLOBAL-09 P2 follow-up, responsive cold-load sentinel, routed
+  // visual-contract like A08 (same zero-scroll/visual contract, AGENTS.md §7).
+  ["visual-contract", 24],
   // +1: CMP-12 cross-role runtime parity contract, routed public-clinic like
   // the other CMP-04..09 parity specs (AGENTS.md §7).
   // +1: E2E-GLOBAL-06 P1 dashboard-logistica-mobile-action-bar-reachability,
@@ -73,11 +77,12 @@ const EXPECTED_CURRENT_COUNTS = new Map([
 const EXPECTED_EXECUTION_COUNTS = new Map<E2eExecutionCohort, number>([
   // +3: E2E-GLOBAL-03 (smoke -> ci union grows with it).
   // +2: E2E-GLOBAL-06 promotes the two cheap P1 specs out of extended.
-  ["ci", 66],
+  // +1: E2E-GLOBAL-09 P2 follow-up, responsive cold-load sentinel.
+  ["ci", 67],
   ["extended", 27],
   ["evidence", 2],
   ["visual-linux", 3],
-  ["full", 98],
+  ["full", 99],
   ["affected", 0],
 ]);
 const E2E_GLOBAL_06_PROMOTED_P1_SPECS = [
@@ -308,7 +313,7 @@ function validateCatalog(
   }
 
   const currentUnion = unique([...currentMemberships.keys()]).sort();
-  assert.equal(currentUnion.length, 66);
+  assert.equal(currentUnion.length, 67);
   assert.deepEqual(E2E_COHORT_SPECS.ci, currentUnion, "ci must equal the current four-cohort union");
 
   for (const cohort of ["extended", "evidence", "visual-linux", "full"] as const) {
@@ -380,11 +385,11 @@ test("catalog validation catches missing and duplicate entries in memory", async
 
   assert.throws(
     () => validateCatalog(missing, workspaceSpecs, E2E_MANUAL_ONLY_SPECS),
-    /97|classified/,
+    /98|classified/,
   );
   assert.throws(
     () => validateCatalog(duplicated, workspaceSpecs, E2E_MANUAL_ONLY_SPECS),
-    /98|unique/,
+    /100|unique/,
   );
 });
 
@@ -438,7 +443,7 @@ test("affected selection fails closed for empty or shared changes", async () => 
 
   const sharedSelection = runner.classifyAffectedPaths(["frontend/e2e/helpers/admin-mobile-contracts.ts"]);
   assert.equal(sharedSelection.fallback, true);
-  assert.equal(sharedSelection.specs.length, 66);
+  assert.equal(sharedSelection.specs.length, 67);
   assert.match(sharedSelection.reason, /shared E2E infrastructure/);
 });
 

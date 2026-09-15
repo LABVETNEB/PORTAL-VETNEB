@@ -628,3 +628,143 @@ de 40 min. El próximo mayor costo in-scope (A05 a navegación-por-resize) queda
 implementado: es un cambio de alcance comparable al de A02/A08, con su propio mecanismo de transición
 caliente interno que reconciliar, fuera del mandato explícito de esta pasada.
 `FULL_RUNTIME_TARGET: PENDING_CI_EVIDENCE`. Git/GitHub (stage, commit, push, PR) queda a cargo de Nico.
+
+---
+
+## Tercera pasada — review P2 de Codex: cold-load coverage por clase responsive
+
+Sobre PR #1728 (`test/e2e-global-09-canonical-matrix-performance`), Codex revisó el head `51d487f9` y
+abrió el thread `PRRT_kwDOR5qlsc6iqhgC` (`frontend/e2e/regression/dashboard-geometry-baseline.spec.ts:142`,
+comentario `PRRC_kwDOR5qlsc7vklxu`, P2): la primera pasada mueve A02/A08 a una navegación por superficie
+que entra siempre en el viewport desktop (`entryViewport = 1920x1080`); tablet y móvil sólo se ejercen
+después vía resize. Eso demuestra equivalencia geométrica de TRANSICIÓN, pero un defecto exclusivo de la
+inicialización responsive — `matchMedia` inicial roto, listener de `"change"` intacto — podría pasar
+ambas baselines sin que ninguna corrida cargue la ruta directamente en móvil.
+
+### Auditoría de la brecha (no se asumió; se derivó del código)
+
+`git grep -rn "matchMedia\|isMobile\|useIsMobile" frontend/src` sobre el árbol completo del PR. Resultado:
+exactamente 3 superficies del censo de 21 leen `window.matchMedia` para decidir su rama responsive en
+JavaScript (el resto es CSS `@media`, que el motor de renderizado resuelve igual sin importar si el
+viewport llegó por `goto` o por `resize` — no hay estado que quede pegado):
+
+| Superficie | Componente | Hook `matchMedia` | Chip afectado | ¿A02/A08 lo mide por defecto? |
+|---|---|---|---|---|
+| `admin-precios` | `AdminMobilePricingModule` | inline en el propio componente | "Editar" (1º de 2, default) | Sí |
+| `admin-mantenimiento` | `AdminMobileMaintenanceModule` | `useIsMobileViewport()` compartido | "Esquema" (1º de 2, default) | Sí |
+| `admin-estado` | `AdminMobileHealthModule` | dentro de `AdminMobileSchemaSection`, anidado | "Esquema" (3º de 3, NO default, sólo se monta al abrir el chip) | No — ni frío ni caliente |
+
+Las tres implementan el mismo patrón: `useEffect` que crea el `MediaQueryList` a `(max-width: 767px)`,
+llama `syncViewport()` de forma síncrona para sembrar el estado y agrega el listener de `"change"` para
+toda transición posterior. Un resize que cruza 767px SIEMPRE dispara `"change"` (hay transición), así que
+el camino caliente de GLOBAL-09 ejercita ese listener correctamente. Una navegación FRÍA que ya nace
+dentro de la clase móvil nunca dispara `"change"` (no hay transición desde la cual dispararlo): depende
+por completo de la línea `syncViewport()` de montaje — la única línea que la matriz desktop-first de
+GLOBAL-09 ya no alcanza, porque la primera (y única) navegación de cada superficie aterriza siempre en
+desktop.
+
+`admin-precios` y `admin-mantenimiento` cuelgan el fetch de datos de su chip POR DEFECTO de ese estado
+(`AdminMobilePricingModule`: sección "Editar"; `AdminMobileMaintenanceModule`: sección "Esquema"), así que
+un `syncViewport()` de montaje roto deja ese panel vacío para siempre en una carga fría real — exactamente
+lo que el `loadedState.forbidden`/`anyVisible` que A02/A08 ya declaran para esas dos superficies existe
+para detectar. `admin-estado` tiene el mismo hook, pero sólo dentro de `AdminMobileSchemaSection`
+(3<sup>er</sup> chip, no default, montado sólo al hacer click) — A02/A08 miden el chip "Servicios", que el
+padre puebla sin gate de `matchMedia`. La brecha ahí es real pero A02/A08 nunca la alcanzan ni en frío ni
+en caliente, así que agregar un sentinel para `admin-estado` no cerraría nada que el camino de resize deje
+abierto (AGENTS.md §6: sin cobertura redundante). Clasificación por superficie:
+
+```text
+admin-precios         DIRECT_LOAD_COVERAGE_MISSING  (dentro de A02/A08; existía cobertura PARCIAL
+                                                       equivalente en admin-mobile-config-modules-no-scroll,
+                                                       que no comparte el comparador/tolerancias de A02/A08)
+admin-mantenimiento   DIRECT_LOAD_COVERAGE_MISSING  (idem, vía admin-mobile-config-modules-no-scroll)
+admin-estado          NOT_APPLICABLE (la brecha real vive en un chip que A02/A08 nunca miden)
+resto (18 superficies) DIRECT_LOAD_COVERAGE_EQUIVALENT (CSS pura; sin mecanismo de inicialización que
+                                                          diverja entre navegación fría y resize)
+```
+
+### Estrategia elegida
+
+Estrategia B (contrato directo separado), no A (cold sentinel dentro de A02/A08): archivo nuevo
+`frontend/e2e/regression/dashboard-responsive-cold-load-sentinel.spec.ts`, registrado en
+`frontend/e2e/suites/catalog.ts` (cohortes `visual-contract`/`ci`, igual que A08). No se tocó
+`dashboard-geometry-baseline.spec.ts`, `dashboard-zero-scroll-baseline.spec.ts` ni
+`dashboard-geometry-matrix.ts`: la optimización de GLOBAL-09 (causal settle, `trackDataRequests`,
+`resizeSurfaceViewport`, `measureSurfaceGeometry`) queda intacta, byte por byte.
+
+Por superficie afectada (`admin-precios`, `admin-mantenimiento`), UNA navegación fría que fija el viewport
+ANTES de `goto` en `w390x844` (representativo: los 5 anchos de teléfono comparten la misma rama
+`matchMedia`; A02/A08 ya re-verifican la geometría en píxeles de los 5 vía resize) y reutiliza, sin
+reescribirlas, dos primitivas que A02/A08 ya usan por combinación:
+
+1. `assertSurfaceLoaded` (de `dashboard-geometry-matrix.ts`) contra el `loadedState` YA declarado de la
+   superficie — la señal que realmente detecta un `syncViewport()` de montaje roto, porque el panel por
+   defecto se queda vacío.
+2. El contrato exacto de zero-scroll de A08 (0px, `main.dashboard-main` sin `overflow-y: auto|scroll`),
+   duplicado a propósito (no importado) para que este sentinel nunca pueda derivar en silencio del
+   contrato ya validado de A08 compartiendo un import mutable.
+
+Deliberadamente NO compara contra la baseline numérica congelada de A02: esa comparación es ortogonal a
+esta clase de defecto (un `syncViewport()` roto falla en `assertSurfaceLoaded`, antes de llegar a medir
+geometría) y hereda la deriva de altura de topbar en Windows (44→48px) que la sección "Salida idéntica
+BEFORE/AFTER" de este mismo documento ya registra como preexistente y ajena a GLOBAL-09 — es precisamente
+por qué A02 vive en `extended` y no en el `ci` requerido, mientras A08 sí. Reutilizar la baseline exacta
+de A02 aquí habría hecho flaky un gate requerido por un motivo ajeno a lo que el sentinel existe para
+probar (confirmado empíricamente: ver *Validación* abajo).
+
+### Prueba negativa
+
+Sonda temporal (nunca comiteada) en `AdminMobileMaintenanceModule.tsx`: se comentó la llamada
+`syncViewport();` previa a `mediaQuery.addEventListener("change", syncViewport)`, dejando sólo el
+listener — exactamente la clase de regresión que describe el review.
+
+| Corrida | Camino | Resultado |
+|---|---|---|
+| OLD | `dashboard-zero-scroll-baseline.spec.ts -g admin-mantenimiento` (A08, resize desde desktop) | **PASSED** — 1/1, la regresión es invisible: el resize cruza 767px y dispara `"change"` igual |
+| NEW | `dashboard-responsive-cold-load-sentinel.spec.ts -g admin-mantenimiento` | **FAILED** — timeout de 25s en `assertSurfaceLoaded` ("loaded marker": 0 visibles), porque `isMobileViewport` queda en `false` para siempre en una carga fría real |
+
+Revertida la sonda con una edición puntual; `git diff -- frontend/src/app/dashboard/admin/AdminMobileMaintenanceModule.tsx`
+vacío confirmado antes de continuar. El sentinel volvió a PASSED 2/2 inmediatamente después.
+
+### Coste
+
+| Métrica | Antes de este follow-up (GLOBAL-09 tal cual mergeable) | Con el sentinel P2 |
+|---|---:|---:|
+| Navegaciones A02 | 21 | 21 (sin cambios) |
+| Navegaciones A08 | 21 | 21 (sin cambios) |
+| Navegaciones cold-load nuevas | 0 | 2 (una por superficie afectada) |
+| Total matriz canónica + sentinel | 42 | 44 (+4,8 %) |
+| Trabajo del sentinel (local, `next dev`, 2 tests) | — | ~3,7 s (medido, `--repeat-each=3`: 1,5–2,7 s/test) |
+
+No vuelve a 21×13 navegaciones frías; el coste agregado es marginal frente al −92 % ya demostrado por
+GLOBAL-09 (546→42 navegaciones).
+
+### Validación
+
+| Gate | Estado | Evidencia |
+|---|---|---|
+| Sentinel dirigido (2/2) | PASSED | `npx playwright test dashboard-responsive-cold-load-sentinel.spec.ts` — 2 passed |
+| Sentinel `--repeat-each=3 --workers=1` | PASSED | 6/6, 0 flaky |
+| Prueba negativa (OLD pasa / NEW falla) | PASSED | ver tabla arriba; sonda revertida y verificada por `git diff` vacío |
+| A02/A08 sin cambios (no se tocaron los archivos de la primera pasada) | — | `git diff --name-only` no incluye `dashboard-geometry-baseline.spec.ts`, `dashboard-zero-scroll-baseline.spec.ts` ni `dashboard-geometry-matrix.ts`; el modelo de navegación de A02/A08 es idéntico al de la primera pasada, así que canonical/reverse/permuted no aplica a este follow-up |
+| `pnpm --dir frontend e2e:verify-catalog` | PASSED | 7/7 (censos de `test/architecture/e2e-suite-catalog-completeness.test.ts` realineados: 98→99 specs, `regression` 20→21, `mocked` 37→38, `visual-contract` 23→24, `ci`/`full` 66/98→67/99) |
+| `pnpm --dir frontend lint` | PASSED | exit 0 |
+| `pnpm --dir frontend typecheck` | PASSED | exit 0 |
+| `pnpm --dir frontend build` | PASSED | exit 0; `frontend/next-env.d.ts` vuelto a la ruta de producción, `git diff` vacío |
+| `pnpm security:public-surface` | PASSED | exit 0 (mismos 2 hallazgos `server-only` preexistentes) |
+| `pnpm typecheck:test` | PASSED | exit 0 (censos del test de completeness realineados) |
+| `node --test test/architecture/e2e-residual-determinism.test.ts` | PASSED | 2/2 (sin `waitForTimeout` nuevo; el guard no requirió cambios) |
+| `pnpm --dir frontend e2e:visual-contract` | PASSED | 520 passed + 1 skipped = 521 (519 del censo previo + los 2 tests nuevos del sentinel); 0 fallos |
+| `pnpm test` (root) | FAILED — PREEXISTING ENVIRONMENTAL CAUSE | 4.553 pass / 1 fail / 1 skipped; único fallo `e2e-global-03b-authoritative-auth-boundary.fastify.test.ts` (exige `DATABASE_URL`/`SUPABASE_DB_URL`, preexistente desde #1711); un segundo censo hardcodeado (`test/unit/infrastructure/e2e-completeness-workflow.test.ts:241`, `E2E_SUITE_CATALOG.length`) se detectó en esta corrida y se realineó 98→99 en el mismo commit |
+
+### No-alcance
+
+No se tocó `dashboard-geometry-baseline.spec.ts`, `dashboard-zero-scroll-baseline.spec.ts` ni
+`dashboard-geometry-matrix.ts`. No se agregó cobertura para `admin-estado` (brecha real pero fuera de lo
+que A02/A08 miden). No se comparó contra la baseline numérica de A02. No se tocó producto, backend, DB,
+`package.json`, lockfile ni workflows.
+
+### Rollback
+
+Revertir el commit de este follow-up: elimina el spec nuevo y su entrada de catálogo, y devuelve los
+censos de `e2e-suite-catalog-completeness.test.ts` a 98. Sin migraciones ni artefactos persistentes.
