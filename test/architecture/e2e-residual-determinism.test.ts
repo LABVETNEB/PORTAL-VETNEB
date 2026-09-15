@@ -58,10 +58,13 @@ const RULES: readonly Rule[] = [
   },
   {
     // A timer whose callback is a bare reference (`resolve`, `r`, `done`): the
-    // shape of a sleep. Method timers such as `socket.setTimeout(...)` and
-    // timers with an inline callback are not sleeps and are not matched.
+    // shape of a sleep. `window.`, `globalThis.` and `self.` are the same
+    // global timer under different qualifiers and are all covered explicitly;
+    // any OTHER dotted prefix (`socket.setTimeout(...)`) is an instance method,
+    // excluded by the leading negative lookbehind. Timers with an inline
+    // callback are not sleeps and are not matched either way.
     id: "timer-sleep",
-    pattern: /(?<![\w$.])(?:window\.)?setTimeout\s*\(\s*[A-Za-z_$][\w$]*\s*,/g,
+    pattern: /(?<![\w$.])(?:window\.|globalThis\.|self\.)?setTimeout\s*\(\s*[A-Za-z_$][\w$]*\s*,/g,
     allowed: { [VISUAL_AUTHENTICATED]: 1, [VISUAL_PUBLIC]: 1, [VISUAL_STRESS]: 1 },
   },
   {
@@ -135,6 +138,8 @@ test("the guard rejects each regression it exists to prevent, in memory", () => 
     ["wait-for-timeout", "await page.waitForTimeout(250);"],
     ["timer-sleep", "await new Promise((resolve) => setTimeout(resolve, 700));"],
     ["timer-sleep", "await page.evaluate(() => new Promise((r) => window.setTimeout(r, 100)));"],
+    ["timer-sleep", "await page.evaluate(() => new Promise((r) => globalThis.setTimeout(r, 100)));"],
+    ["timer-sleep", "await page.evaluate(() => new Promise((done) => self.setTimeout(done, 100)));"],
     ["silenced-wait", 'await page.waitForLoadState("networkidle").catch(() => {});'],
     ["silenced-wait", "await page.evaluate(() => document.fonts.ready).catch(() => undefined);"],
   ];
