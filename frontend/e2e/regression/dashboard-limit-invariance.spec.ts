@@ -4,8 +4,8 @@ import { DASHBOARD_GEOMETRY_VIEWPORTS } from "../helpers/dashboard-geometry-matr
 import {
   A03_MODULE_IDS,
   A03_OBSERVERS,
-  observeLeaf,
   prepareContext,
+  prepareLeafFirstPage,
   resolveVisibleRows,
   waitForAdaptiveConvergence,
   type LeafTarget,
@@ -406,10 +406,21 @@ test.describe("A05 · stable geometry reservation limit invariance", () => {
           console.log(`[A05 invariance] → ${label}`);
 
           await page.setViewportSize({ width: viewport.width, height: viewport.height });
-          await observeLeaf(page, observer, leaf, viewport.slug);
+          // E2E-GLOBAL-09: A05's own contract begins here, after page 1 is
+          // ready — it never reads A03's page-2 transition (observeLeaf), so
+          // it no longer pays for one. `prepareLeafFirstPage` proves page 1
+          // causally (readiness, leaf.prepare, adaptive convergence and, per
+          // source, the same page-1 confirmation A03 required) and stops.
+          // Capacity is a function of the canvas geometry, not of which page
+          // of data is loaded, and every fixture dataset here is sized far
+          // beyond any viewport's capacity — page 1 is exactly as full as
+          // page 2. Measured equivalent to the OLD full observeLeaf() call:
+          // docs/implementation/e2e-global-09-canonical-matrix-performance.md.
+          await prepareLeafFirstPage(page, observer, leaf, viewport.slug);
           // Arm only once the measured document owns the page: a request the
-          // previous document fired before observeLeaf navigated is cancelled with
-          // it and, on Chromium >= 151, never reports requestfinished/requestfailed.
+          // previous document fired before prepareLeafFirstPage navigated is
+          // cancelled with it and, on Chromium >= 151, never reports
+          // requestfinished/requestfailed.
           await page.waitForLoadState("networkidle");
           const flight = trackPaginationFlight(page, observer);
           await visibleCanvas(page, leaf, label);

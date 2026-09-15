@@ -10,7 +10,9 @@ import {
   DASHBOARD_GEOMETRY_VIEWPORT_COUNT,
   DASHBOARD_GEOMETRY_VIEWPORTS,
   installSurfaceMocks,
+  resizeSurfaceViewport,
   suppressNextDevChrome,
+  trackDataRequests,
   waitForLayoutSettled,
 } from "../helpers/dashboard-geometry-matrix";
 import { addAppCookies } from "../helpers/session";
@@ -31,6 +33,11 @@ import { addAppCookies } from "../helpers/session";
 // Completeness comes from the SAME canonical matrix as A02
 // (`../helpers/dashboard-geometry-matrix`) and never from a second hand-written
 // census: dropping a surface or a viewport there fails A08 in `beforeAll`.
+//
+// Each surface is navigated ONCE and walks the 13 viewports by resize, drained
+// by `resizeSurfaceViewport` (data traffic + render). E2E-GLOBAL-09 measured
+// the zero-scroll metrics of that transition as identical to a cold navigation
+// per viewport on all 273 combinations, in three viewport orders.
 //
 // Frontier: A02 freezes CURRENT geometry, A03 freezes limit/offset, A05–A07
 // freeze the capacity engine. A08 freezes zero-scroll and measures no bound, no
@@ -202,60 +209,75 @@ test.describe("A08 · dashboard zero-scroll canonical freeze 21x13", () => {
       const measured: ZeroScrollRecord[] = [];
       const failures: string[] = [];
 
-      for (const viewport of DASHBOARD_GEOMETRY_VIEWPORTS) {
-        const label = `${surface.id} @ ${viewport.slug}`;
+      const [entryViewport] = DASHBOARD_GEOMETRY_VIEWPORTS;
+      await page.setViewportSize({ width: entryViewport.width, height: entryViewport.height });
+      await page.goto(surface.route);
+      await expect(
+        page.locator(surface.readinessSelector).first(),
+        `${surface.id} @ ${entryViewport.slug}: readiness`,
+      ).toBeVisible({ timeout: 25_000 });
 
-        await page.setViewportSize({ width: viewport.width, height: viewport.height });
-        await page.goto(surface.route);
+      // Idle network is an ADDITIONAL condition on top of the readiness
+      // selector: modules that hydrate their collection client-side would
+      // otherwise be measured mid-fetch. It is the first idle of the only
+      // document this case loads; every later request is tracked by `flight`.
+      await page.waitForLoadState("networkidle", { timeout: 20_000 });
+      const flight = trackDataRequests(page);
 
-        await expect(
-          page.locator(surface.readinessSelector).first(),
-          `${label}: readiness`,
-        ).toBeVisible({ timeout: 25_000 });
+      try {
+        for (const viewport of DASHBOARD_GEOMETRY_VIEWPORTS) {
+          const label = `${surface.id} @ ${viewport.slug}`;
 
-        // Idle network is an ADDITIONAL condition on top of the readiness
-        // selector: modules that hydrate their collection client-side would
-        // otherwise be measured mid-fetch.
-        await page.waitForLoadState("networkidle", { timeout: 20_000 });
-
-        // Semantic loaded-state gate, shared with A02: a stubbed surface must
-        // show its representative record and no error/loading banner, so A08
-        // can never freeze the frame of a 404, an error or an accidental empty.
-        await assertSurfaceLoaded(page, surface, label);
-        await waitForLayoutSettled(page);
-
-        let lastMetrics = await readZeroScrollMetrics(page);
-
-        try {
-          // Polling absorbs the adaptive re-measure pass several modules run
-          // after first paint (measure viewport → derive capacity → repaint).
-          // It only ever converges on a settled frame: a real overflow does not
-          // disappear on its own, so it still fails.
-          await expect(async () => {
-            lastMetrics = await readZeroScrollMetrics(page);
-            expect(
-              collectViolations(lastMetrics, label).join("\n"),
-              `${label}: zero-scroll`,
-            ).toBe("");
-          }).toPass({ timeout: 15_000 });
-        } catch (error) {
-          const violations = collectViolations(lastMetrics, label);
-          failures.push(...violations);
-
-          // The poll can also fail for a reason the last snapshot does not
-          // explain (the evaluate threw, the page closed, a navigation raced).
-          // Recording it is mandatory: swallowing it would let an unexecuted
-          // combination report green.
-          if (violations.length === 0) {
-            failures.push(
-              `${label}: zero-scroll poll failed without a geometry violation — ${
-                error instanceof Error ? error.message : String(error)
-              }`,
-            );
+          if (viewport !== entryViewport) {
+            await resizeSurfaceViewport(page, surface, viewport, flight);
           }
-        }
 
-        measured.push(toRecord(surface.id, viewport.slug, lastMetrics));
+          await expect(
+            page.locator(surface.readinessSelector).first(),
+            `${label}: readiness`,
+          ).toBeVisible({ timeout: 25_000 });
+
+          // Semantic loaded-state gate, shared with A02: a stubbed surface must
+          // show its representative record and no error/loading banner, so A08
+          // can never freeze the frame of a 404, an error or an accidental empty.
+          await assertSurfaceLoaded(page, surface, label);
+          await waitForLayoutSettled(page);
+
+          let lastMetrics = await readZeroScrollMetrics(page);
+
+          try {
+            // Polling absorbs the adaptive re-measure pass several modules run
+            // after first paint (measure viewport → derive capacity → repaint).
+            // It only ever converges on a settled frame: a real overflow does not
+            // disappear on its own, so it still fails.
+            await expect(async () => {
+              lastMetrics = await readZeroScrollMetrics(page);
+              expect(
+                collectViolations(lastMetrics, label).join("\n"),
+                `${label}: zero-scroll`,
+              ).toBe("");
+            }).toPass({ timeout: 15_000 });
+          } catch (error) {
+            const violations = collectViolations(lastMetrics, label);
+            failures.push(...violations);
+
+            // The poll can also fail for a reason the last snapshot does not
+            // explain (the evaluate threw, the page closed, a navigation raced).
+            // Recording it is mandatory: swallowing it would let an unexecuted
+            // combination report green.
+            if (violations.length === 0) {
+              failures.push(
+                `${label}: zero-scroll poll failed without a geometry violation — ${
+                  error instanceof Error ? error.message : String(error)
+                }`,
+              );
+            }
+          }
+
+          measured.push(toRecord(surface.id, viewport.slug, lastMetrics));
+        }
+      } finally {
+        flight.dispose();
       }
 
       // Fail-closed on execution: a viewport that silently stops running can
