@@ -17,8 +17,10 @@ import {
   geometryKey,
   installSurfaceMocks,
   measureSurfaceGeometry,
+  resizeSurfaceViewport,
   resolveBaselineRecords,
   suppressNextDevChrome,
+  trackDataRequests,
   waitForLayoutSettled,
   type DashboardGeometryRecord,
 } from "../helpers/dashboard-geometry-matrix";
@@ -28,9 +30,13 @@ import { addAppCookies } from "../helpers/session";
 // A02 · Frozen geometry baseline of the 21 authenticated dashboard surfaces
 // across the 13 canonical viewports (273 combinations).
 //
-// One Playwright case per surface walks all 13 viewports, so the matrix costs
-// 21 browser contexts instead of 273. Every combination is compared against the
-// versioned baseline with explicit per-metric tolerances.
+// One Playwright case per surface walks all 13 viewports over ONE navigation:
+// the surface loads once and every further viewport is reached by resize, so
+// the matrix costs 21 browser contexts and 21 navigations instead of 273.
+// E2E-GLOBAL-09 measured that transition as equivalent to a cold navigation
+// per viewport (273/273 identical records in three viewport orders). Every
+// combination is compared against the versioned baseline with explicit
+// per-metric tolerances.
 //
 // This is the CURRENT geometry, not the audit's §46 target geometry. It is not
 // the A08 zero-scroll contract, and it measures no pagination parameter (A03).
@@ -131,42 +137,57 @@ test.describe("A02 · dashboard geometry baseline 21x13", () => {
       const captured: DashboardGeometryRecord[] = [];
       const failures: string[] = [];
 
-      for (const viewport of DASHBOARD_GEOMETRY_VIEWPORTS) {
-        const label = `${surface.id} @ ${viewport.slug}`;
+      const [entryViewport] = DASHBOARD_GEOMETRY_VIEWPORTS;
+      await page.setViewportSize({ width: entryViewport.width, height: entryViewport.height });
+      await page.goto(surface.route);
+      await expect(
+        page.locator(surface.readinessSelector).first(),
+        `${surface.id} @ ${entryViewport.slug}: readiness`,
+      ).toBeVisible({ timeout: 25_000 });
 
-        await page.setViewportSize({ width: viewport.width, height: viewport.height });
-        await page.goto(surface.route);
+      // Modules that hydrate their collection client-side finish fetching
+      // before the geometry can be frozen. This is the first idle of the only
+      // document this case loads, so it is a real signal; every later request is
+      // tracked causally by `flight` instead.
+      await page.waitForLoadState("networkidle", { timeout: 20_000 });
+      const flight = trackDataRequests(page);
 
-        await expect(
-          page.locator(surface.readinessSelector).first(),
-          `${label}: readiness`,
-        ).toBeVisible({ timeout: 25_000 });
+      try {
+        for (const viewport of DASHBOARD_GEOMETRY_VIEWPORTS) {
+          const label = `${surface.id} @ ${viewport.slug}`;
 
-        // Modules that hydrate their collection client-side finish fetching
-        // before the geometry can be frozen. Idle network is an ADDITIONAL
-        // condition on top of the readiness selector, never the only one.
-        await page.waitForLoadState("networkidle", { timeout: 20_000 });
+          if (viewport !== entryViewport) {
+            await resizeSurfaceViewport(page, surface, viewport, flight);
+          }
 
-        // Semantic loaded-state gate: the stubbed surfaces must show their
-        // representative record and no error/loading banner before measuring.
-        await assertSurfaceLoaded(page, surface, label);
-        await waitForLayoutSettled(page);
+          await expect(
+            page.locator(surface.readinessSelector).first(),
+            `${label}: readiness`,
+          ).toBeVisible({ timeout: 25_000 });
 
-        const record = await measureSurfaceGeometry(page, surface, viewport);
-        captured.push(record);
+          // Semantic loaded-state gate: the stubbed surfaces must show their
+          // representative record and no error/loading banner before measuring.
+          await assertSurfaceLoaded(page, surface, label);
+          await waitForLayoutSettled(page);
 
-        if (captureRequested) continue;
+          const record = await measureSurfaceGeometry(page, surface, viewport, flight);
+          captured.push(record);
 
-        const expectedRecord = baselineIndex.get(geometryKey(surface.id, viewport.slug));
-        if (!expectedRecord) {
-          failures.push(`${label}: missing baseline record`);
-          continue;
+          if (captureRequested) continue;
+
+          const expectedRecord = baselineIndex.get(geometryKey(surface.id, viewport.slug));
+          if (!expectedRecord) {
+            failures.push(`${label}: missing baseline record`);
+            continue;
+          }
+
+          const differences = compareGeometryRecords(expectedRecord, record);
+          if (differences.length > 0) {
+            failures.push(formatGeometryDifferences(differences));
+          }
         }
-
-        const differences = compareGeometryRecords(expectedRecord, record);
-        if (differences.length > 0) {
-          failures.push(formatGeometryDifferences(differences));
-        }
+      } finally {
+        flight.dispose();
       }
 
       expect(captured.length, `${surface.id}: measured viewports`).toBe(

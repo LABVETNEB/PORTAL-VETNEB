@@ -18,10 +18,12 @@ import { fileURLToPath } from "node:url";
 //
 // Deliberate exceptions, each pinned to its exact occurrence count so it cannot
 // grow (or be removed) silently:
-// - the canonical measurement helpers keep the inter-sample interval of their
-//   three-identical-reads stability loop; readiness is owned by their callers,
-//   and changing the sampling window changes the measurement itself, which is
-//   E2E-GLOBAL-09 (evidence of measurement equivalence);
+// - the CMP-12 parity helper keeps the inter-sample interval of its
+//   three-identical-reads stability loop. E2E-GLOBAL-09 measured its causal
+//   replacement as equivalent, but the helper is imported at node level by the
+//   parity census, which cannot resolve the relative import the shared causal
+//   primitives need. The A02 geometry helper retired its interval in
+//   E2E-GLOBAL-09 (drained render + data cycles) and must stay at zero;
 // - the Linux-only visual regression specs keep their best-effort idle and
 //   image-load caps; they only run on Linux Chromium, so their readiness can
 //   only change together with a Linux baseline run.
@@ -54,7 +56,7 @@ const RULES: readonly Rule[] = [
   {
     id: "wait-for-timeout",
     pattern: /\bwaitForTimeout\s*\(/g,
-    allowed: { [GEOMETRY_MATRIX]: 1, [PARITY_MATRIX]: 1 },
+    allowed: { [PARITY_MATRIX]: 1 },
   },
   {
     // A timer whose callback is a bare reference (`resolve`, `r`, `done`): the
@@ -171,10 +173,18 @@ test("the guard rejects each regression it exists to prevent, in memory", () => 
   );
 
   const grownException = new Map(baseline);
-  grownException.set(GEOMETRY_MATRIX, `${baseline.get(GEOMETRY_MATRIX)}\nawait page.waitForTimeout(80);\n`);
+  grownException.set(PARITY_MATRIX, `${baseline.get(PARITY_MATRIX)}\nawait page.waitForTimeout(80);\n`);
   assert.deepEqual(
-    findViolations(grownException).filter((violation) => violation.includes(GEOMETRY_MATRIX)),
-    [`wait-for-timeout ${GEOMETRY_MATRIX}: found 2, allowed 1`],
+    findViolations(grownException).filter((violation) => violation.includes(PARITY_MATRIX)),
+    [`wait-for-timeout ${PARITY_MATRIX}: found 2, allowed 1`],
     "an allowlisted helper cannot grow its exception silently",
+  );
+
+  const returnedException = new Map(baseline);
+  returnedException.set(GEOMETRY_MATRIX, `${baseline.get(GEOMETRY_MATRIX)}\nawait page.waitForTimeout(80);\n`);
+  assert.deepEqual(
+    findViolations(returnedException).filter((violation) => violation.includes(GEOMETRY_MATRIX)),
+    [`wait-for-timeout ${GEOMETRY_MATRIX}: found 1, allowed 0`],
+    "the retired A02 sampling interval cannot come back",
   );
 });

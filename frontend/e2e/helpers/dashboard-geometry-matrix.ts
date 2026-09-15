@@ -1,4 +1,4 @@
-import { expect, type Page, type Route } from "@playwright/test";
+import { expect, type Page, type Request, type Route } from "@playwright/test";
 
 import { sessionCookie } from "./session";
 
@@ -798,6 +798,272 @@ export async function waitForLayoutSettled(page: Page): Promise<void> {
   );
 }
 
+// ── Causal settlement (E2E-GLOBAL-09) ───────────────────────────────────────
+// One navigation per surface, then N viewports by resize. A resize re-runs the
+// adaptive engines in place (ResizeObserver → rAF → render → refetch → repaint),
+// so a reading is only trusted once BOTH halves of that pipeline are quiet: the
+// data traffic it started and the render it produced. Measured, not assumed:
+// reading after fonts + two frames froze the previous page's row canvas on
+// admin-clinicas and admin-sesiones (their refetch was still in flight), while
+// the drained cycle below matched a cold navigation on all 273 combinations in
+// canonical, reverse and permuted order. See
+// docs/implementation/e2e-global-09-canonical-matrix-performance.md.
+
+/** Data traffic observed on one page, bound to terminal request events. */
+export type DataRequestFlight = {
+  readonly started: () => number;
+  readonly settled: () => number;
+  readonly inFlight: () => number;
+  /** Resolves on the terminal event of every request currently in flight. */
+  readonly waitForIdle: (label: string) => Promise<void>;
+  readonly dispose: () => void;
+};
+
+const DATA_IDLE_TIMEOUT_MS = 30_000;
+
+/**
+ * Tracks fetch/xhr requests. Documents, scripts, styles and images are left out,
+ * so chunk traffic cannot starve the condition.
+ *
+ * Arm it only once the measured document owns the page (after its first
+ * network idle): a request the replaced document fired is cancelled with it and,
+ * on Chromium >= 151, never reports `requestfinished`/`requestfailed`.
+ */
+export function trackDataRequests(page: Page): DataRequestFlight {
+  let started = 0;
+  let settled = 0;
+  let disposed = false;
+  const pending = new Set<Request>();
+  const waiters = new Set<{
+    readonly resolve: () => void;
+    readonly reject: (error: Error) => void;
+    readonly deadline: ReturnType<typeof setTimeout>;
+  }>();
+
+  const describePending = () =>
+    JSON.stringify(
+      [...pending].map((request) => `${request.method()} ${new URL(request.url()).pathname}`),
+    );
+
+  const onRequest = (request: Request) => {
+    const resourceType = request.resourceType();
+    if (resourceType !== "fetch" && resourceType !== "xhr") return;
+    pending.add(request);
+    started += 1;
+  };
+
+  const onSettled = (request: Request) => {
+    if (!pending.delete(request)) return;
+    settled += 1;
+    if (pending.size > 0) return;
+    for (const waiter of waiters) {
+      clearTimeout(waiter.deadline);
+      waiter.resolve();
+    }
+    waiters.clear();
+  };
+
+  const dispose = () => {
+    if (disposed) return;
+    disposed = true;
+    page.off("request", onRequest);
+    page.off("requestfinished", onSettled);
+    page.off("requestfailed", onSettled);
+    page.off("close", dispose);
+    for (const waiter of waiters) {
+      clearTimeout(waiter.deadline);
+      waiter.reject(new Error("data request tracker disposed before becoming idle"));
+    }
+    waiters.clear();
+    pending.clear();
+  };
+
+  page.on("request", onRequest);
+  page.on("requestfinished", onSettled);
+  page.on("requestfailed", onSettled);
+  page.once("close", dispose);
+
+  return {
+    started: () => started,
+    settled: () => settled,
+    inFlight: () => pending.size,
+    waitForIdle: (label) => {
+      if (pending.size === 0) return Promise.resolve();
+      return new Promise<void>((resolve, reject) => {
+        const waiter = {
+          resolve,
+          reject,
+          deadline: setTimeout(() => {
+            waiters.delete(waiter);
+            reject(
+              new Error(
+                `${label}: ${pending.size} data request(s) still in flight after ${DATA_IDLE_TIMEOUT_MS}ms: ${describePending()}`,
+              ),
+            );
+          }, DATA_IDLE_TIMEOUT_MS),
+        };
+        waiters.add(waiter);
+      });
+    },
+    dispose,
+  };
+}
+
+/** Elements whose size change means the surface is still laying itself out. */
+export function surfaceMeasurementRoots(surface: DashboardGeometrySurface): readonly string[] {
+  return [
+    SHELL_SELECTORS.main,
+    surface.contentRootSelector,
+    '[data-dashboard-adaptive-rows-canvas="true"]',
+  ];
+}
+
+/**
+ * Resolves after `quietFrames` consecutive committed frames in which the
+ * document saw no DOM mutation, no size change on the observed roots and no
+ * running finite animation, with fonts ready. It observes the ABSENCE of pending
+ * render work; a document that never goes quiet throws instead of returning.
+ */
+export async function waitForRenderQuiescence(
+  page: Page,
+  label: string,
+  observedRoots: readonly string[],
+): Promise<void> {
+  await page.evaluate(
+    async ({ roots, quietFrames, frameBudget, context }) => {
+      await document.fonts.ready;
+
+      await new Promise<void>((resolve, reject) => {
+        let dirty = true;
+        let quiet = 0;
+        let frames = 0;
+        const markDirty = () => {
+          dirty = true;
+        };
+
+        const resizeObserver = new ResizeObserver(markDirty);
+        const observed = new Set<Element>([document.documentElement, document.body]);
+        for (const selector of roots) {
+          for (const element of Array.from(document.querySelectorAll(selector))) {
+            observed.add(element);
+          }
+        }
+        for (const element of observed) resizeObserver.observe(element);
+
+        const mutationObserver = new MutationObserver(markDirty);
+        mutationObserver.observe(document.documentElement, {
+          attributes: true,
+          childList: true,
+          characterData: true,
+          subtree: true,
+        });
+
+        // Infinite animations (spinners) never finish; a loading render is the
+        // loaded-state gate's job, not this one's.
+        const finiteAnimationRunning = () =>
+          document.getAnimations().some((animation) => {
+            if (animation.playState !== "running") return false;
+            const endTime = animation.effect?.getComputedTiming().endTime;
+            return typeof endTime === "number" && Number.isFinite(endTime);
+          });
+
+        const stop = () => {
+          resizeObserver.disconnect();
+          mutationObserver.disconnect();
+        };
+
+        const tick = () => {
+          frames += 1;
+          if (frames > frameBudget) {
+            stop();
+            reject(new Error(`${context}: render never went quiet within ${frameBudget} frames`));
+            return;
+          }
+          if (dirty || finiteAnimationRunning()) {
+            dirty = false;
+            quiet = 0;
+            requestAnimationFrame(tick);
+            return;
+          }
+          quiet += 1;
+          if (quiet >= quietFrames) {
+            stop();
+            resolve();
+            return;
+          }
+          requestAnimationFrame(tick);
+        };
+
+        requestAnimationFrame(tick);
+      });
+    },
+    { roots: [...observedRoots], quietFrames: 3, frameBudget: 600, context: label },
+  );
+}
+
+const SETTLE_ATTEMPTS = 8;
+
+/**
+ * A quiet render that crossed NO data-request boundary and left nothing in
+ * flight. A cycle during which a request started or settled is discarded and
+ * re-run: its render describes a response the runtime has already superseded.
+ */
+export async function settleRenderAndData(
+  page: Page,
+  flight: DataRequestFlight,
+  label: string,
+  observedRoots: readonly string[],
+): Promise<void> {
+  for (let attempt = 0; attempt < SETTLE_ATTEMPTS; attempt += 1) {
+    await flight.waitForIdle(label);
+    const startedBefore = flight.started();
+    const settledBefore = flight.settled();
+
+    await waitForRenderQuiescence(page, label, observedRoots);
+
+    if (
+      flight.started() === startedBefore &&
+      flight.settled() === settledBefore &&
+      flight.inFlight() === 0
+    ) {
+      return;
+    }
+  }
+
+  throw new Error(
+    `${label}: render and data never settled together in ${SETTLE_ATTEMPTS} drained cycles ` +
+      `(started=${flight.started()} settled=${flight.settled()})`,
+  );
+}
+
+/**
+ * Moves an already loaded surface to `viewport` in place and returns once the
+ * resize has been applied and fully drained. The caller still owns readiness
+ * and the loaded-state gate, exactly as after a navigation.
+ */
+export async function resizeSurfaceViewport(
+  page: Page,
+  surface: DashboardGeometrySurface,
+  viewport: DashboardGeometryViewport,
+  flight: DataRequestFlight,
+): Promise<void> {
+  const label = `${surface.id} @ ${viewport.slug}`;
+
+  await page.setViewportSize({ width: viewport.width, height: viewport.height });
+
+  const applied = await page.evaluate(() => ({
+    width: window.innerWidth,
+    height: window.innerHeight,
+  }));
+  if (applied.width !== viewport.width || applied.height !== viewport.height) {
+    throw new Error(
+      `${label}: resize not applied (window is ${applied.width}x${applied.height})`,
+    );
+  }
+
+  await settleRenderAndData(page, flight, `${label}: resize`, surfaceMeasurementRoots(surface));
+}
+
 type RawGeometry = Omit<DashboardGeometryRecord, "surfaceId" | "viewportSlug">;
 
 async function evaluateGeometry(
@@ -945,27 +1211,47 @@ async function evaluateGeometry(
 /**
  * Measures one combination once the geometry is quiescent.
  *
- * Readiness is owned by the caller (`toBeVisible` + idle network +
- * `waitForLayoutSettled`). This loop only absorbs the adaptive re-measure pass
- * that several modules run after their first paint (measure viewport → derive
- * row capacity → refetch → repaint): it requires three consecutive identical
- * reads, so a mid-flight loading state can never be frozen as the baseline.
+ * Readiness is owned by the caller (`toBeVisible` + first document idle or
+ * `resizeSurfaceViewport` + `waitForLayoutSettled`). This loop only absorbs the
+ * adaptive re-measure pass that several modules run after their first paint
+ * (measure viewport → derive row capacity → refetch → repaint): it requires
+ * three consecutive identical reads, each taken after a drained render cycle, so
+ * a mid-flight loading state can never be frozen as the baseline. A read whose
+ * cycle crossed a data-request boundary restarts the count from a settled state.
  */
 export async function measureSurfaceGeometry(
   page: Page,
   surface: DashboardGeometrySurface,
   viewport: DashboardGeometryViewport,
+  flight: DataRequestFlight,
 ): Promise<DashboardGeometryRecord> {
+  const label = `${surface.id} @ ${viewport.slug}`;
+  const roots = surfaceMeasurementRoots(surface);
   const requiredStableReads = 3;
+
+  await settleRenderAndData(page, flight, label, roots);
   let current = await evaluateGeometry(page, surface);
   let serialized = JSON.stringify(current);
   let stableReads = 0;
 
   for (let attempt = 0; attempt < 24 && stableReads < requiredStableReads; attempt += 1) {
-    await waitForLayoutSettled(page);
-    // Settle poll interval — secondary to the caller's selector/idle readiness.
-    await page.waitForTimeout(80);
+    const startedBefore = flight.started();
+    const settledBefore = flight.settled();
+    await waitForRenderQuiescence(page, label, roots);
     const next = await evaluateGeometry(page, surface);
+
+    if (
+      flight.started() !== startedBefore ||
+      flight.settled() !== settledBefore ||
+      flight.inFlight() > 0
+    ) {
+      await settleRenderAndData(page, flight, label, roots);
+      current = await evaluateGeometry(page, surface);
+      serialized = JSON.stringify(current);
+      stableReads = 0;
+      continue;
+    }
+
     const nextSerialized = JSON.stringify(next);
 
     if (nextSerialized === serialized) {

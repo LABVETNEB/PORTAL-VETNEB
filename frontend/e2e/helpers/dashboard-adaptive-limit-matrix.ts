@@ -1580,19 +1580,68 @@ export async function prepareContext(page: Page, observer: ModuleObserver): Prom
   await installStubs(page, observer.stubs);
 }
 
-export async function observeLeaf(
+/**
+ * The state `prepareLeafFirstPage` hands to its caller: exactly what each
+ * `observer.source` needs to either continue into A03's page-2 contract
+ * (`observeLeaf`) or stop here (A05, whose capacity read is a function of the
+ * geometry alone and needs no particular page loaded — see
+ * `prepareLeafFirstPage`'s own doc comment).
+ */
+export type PreparedLeafFirstPage =
+  | {
+      readonly source: "url-query";
+      readonly nextControl: Locator;
+      readonly pathname: string;
+      readonly firstPageUrl: URL;
+      readonly firstPageLimit: number;
+    }
+  | {
+      readonly source: "server-request";
+      readonly nextControl: Locator;
+      readonly pageLabel: Locator | null;
+      readonly firstPageCount: number;
+    }
+  | {
+      readonly source: "client-slice";
+      readonly nextControl: Locator;
+      readonly pageLabel: Locator;
+      readonly firstPageCount: number;
+    };
+
+/**
+ * Navigates a leaf to its route and proves PAGE 1 — and only page 1 — is
+ * ready: readiness, `leaf.prepare`, the first row visible, adaptive
+ * convergence and, per `observer.source`, the exact causal confirmation A03
+ * already required before it would ever attempt a page-2 transition:
+ *
+ * - `url-query`: the bounded canvas's OWN URL replace (`offset=0`, a measured
+ *   `limit`), re-converged, with the rendered row count proven to equal that
+ *   limit exactly.
+ * - `server-request` / `client-slice`: the page-1 label (when the leaf ships
+ *   one) plus — `client-slice` only — a network-idle wait and a second
+ *   convergence, because those consumers size their fetch from the measured
+ *   capacity and can still be mid-flight when the DOM first looks converged.
+ *   Both end with the rendered row count proven non-zero.
+ *
+ * None of this is a page-2 concern: E2E-GLOBAL-09 traced every remaining step
+ * of the OLD `observeLeaf` body (the click, the transition wait, the
+ * second-page assertions) to A03's own contract, never to what "page 1 ready"
+ * means, and confirmed it empirically (see
+ * docs/implementation/e2e-global-09-canonical-matrix-performance.md, part 2).
+ * A05 (`dashboard-limit-invariance.spec.ts`) calls this and stops: its
+ * capacity read is a function of the canvas geometry alone, not of which page
+ * of data happens to be loaded, and every dataset here is sized far beyond any
+ * viewport's capacity, so page 1 is exactly as full as page 2. `observeLeaf`
+ * (A03) calls this and continues into the page-2 transition its OWN contract
+ * requires.
+ */
+export async function prepareLeafFirstPage(
   page: Page,
   observer: ModuleObserver,
   leaf: LeafTarget,
   viewportSlug: string,
-): Promise<A03Observation> {
+): Promise<PreparedLeafFirstPage> {
   const label = leafKey(observer.moduleId, viewportSlug, leaf.variantId);
-  const identity = {
-    moduleId: observer.moduleId,
-    viewportSlug,
-    variantId: leaf.variantId,
-    leafKey: label,
-  };
 
   const initialResponsePromise = observer.initialResponse
     ? page.waitForResponse((response) => {
@@ -1631,20 +1680,53 @@ export async function observeLeaf(
   const convergenceIndex = leaf.scopeNth ?? 0;
   await waitForAdaptiveConvergence(page, leaf.convergenceSelector, label, convergenceIndex);
 
-  const pageLabel = leaf.pageLabelSelector
-    ? page.locator(`${leaf.pageLabelSelector} >> visible=true`).first()
-    : null;
   const nextControl = page.locator(`${leaf.nextSelector} >> visible=true`).first();
 
   if (observer.source === "url-query") {
-    return observeUrlQueryLeaf(page, leaf, identity, label, nextControl);
+    const pathname = new URL(leaf.route, resolveAppOrigin()).pathname;
+
+    // The bounded canvas replaces the URL ONCE with the measured page size.
+    // The URL replace — never an elapsed idle — is the causal signal that the
+    // client-side capacity measurement finished.
+    await page.waitForURL(
+      (url) =>
+        url.pathname === pathname &&
+        url.searchParams.get("offset") === "0" &&
+        url.searchParams.get("limit") !== null,
+      { timeout: 30_000 },
+    );
+    await waitForAdaptiveConvergence(page, leaf.convergenceSelector, label);
+
+    const firstPageUrl = new URL(page.url());
+    const firstPageLimit = Number(firstPageUrl.searchParams.get("limit"));
+    expect(
+      Number.isInteger(firstPageLimit) && firstPageLimit > 0,
+      `${label}: converged first page must expose a positive integer limit`,
+    ).toBe(true);
+
+    const firstPageRows = await resolveVisibleRows(page, leaf.rowSelectors, label);
+    expect(
+      await firstPageRows.count(),
+      `${label}: first page must be full before a second page can be observed`,
+    ).toBe(firstPageLimit);
+
+    return { source: "url-query", nextControl, pathname, firstPageUrl, firstPageLimit };
   }
+
+  const pageLabel = leaf.pageLabelSelector
+    ? page.locator(`${leaf.pageLabelSelector} >> visible=true`).first()
+    : null;
 
   if (pageLabel) {
     await expect(pageLabel, `${label}: page 1`).toHaveText(pageLabelPattern(1));
   }
 
   if (observer.source === "client-slice") {
+    // Client-sliced consumers size their fetch from the MEASURED capacity, so
+    // the DOM can look converged while that fetch is still in flight. This is
+    // the first — and, for this document, only — network-idle wait this
+    // primitive issues, so it is a real causal signal, not a second check
+    // against an idle state already reached (E2E-GLOBAL-08's finding).
     await page.waitForLoadState("networkidle");
     await waitForAdaptiveConvergence(page, leaf.convergenceSelector, label, convergenceIndex);
   }
@@ -1654,20 +1736,47 @@ export async function observeLeaf(
   expect(firstPageCount, `${label}: converged first page must render rows`).toBeGreaterThan(0);
 
   if (observer.source === "server-request") {
+    return { source: "server-request", nextControl, pageLabel, firstPageCount };
+  }
+
+  if (!pageLabel) {
+    throw new Error(
+      `${label}: a client-slice observer requires a pageLabelSelector — fail closed`,
+    );
+  }
+
+  return { source: "client-slice", nextControl, pageLabel, firstPageCount };
+}
+
+export async function observeLeaf(
+  page: Page,
+  observer: ModuleObserver,
+  leaf: LeafTarget,
+  viewportSlug: string,
+): Promise<A03Observation> {
+  const label = leafKey(observer.moduleId, viewportSlug, leaf.variantId);
+  const identity = {
+    moduleId: observer.moduleId,
+    viewportSlug,
+    variantId: leaf.variantId,
+    leafKey: label,
+  };
+
+  const prepared = await prepareLeafFirstPage(page, observer, leaf, viewportSlug);
+
+  if (prepared.source === "url-query") {
+    return observeUrlQueryLeaf(page, leaf, identity, label, prepared);
+  }
+
+  if (prepared.source === "server-request") {
     return observeServerRequestLeaf(
       page,
       observer,
       leaf,
       identity,
       label,
-      pageLabel,
-      nextControl,
-    );
-  }
-
-  if (!pageLabel) {
-    throw new Error(
-      `${label}: a client-slice observer requires a pageLabelSelector — fail closed`,
+      prepared.pageLabel,
+      prepared.nextControl,
     );
   }
 
@@ -1677,10 +1786,10 @@ export async function observeLeaf(
     leaf,
     identity,
     label,
-    pageLabel,
-    nextControl,
-    firstPageCount,
-    convergenceIndex,
+    prepared.pageLabel,
+    prepared.nextControl,
+    prepared.firstPageCount,
+    leaf.scopeNth ?? 0,
   );
 }
 
@@ -1689,33 +1798,9 @@ async function observeUrlQueryLeaf(
   leaf: LeafTarget,
   identity: ObservationIdentity,
   label: string,
-  nextControl: Locator,
+  prepared: Extract<PreparedLeafFirstPage, { source: "url-query" }>,
 ): Promise<UrlQueryObservation> {
-  const pathname = new URL(leaf.route, resolveAppOrigin()).pathname;
-
-  // The bounded canvas replaces the URL ONCE with the measured page size.
-  // Navigation completion is the convergence signal of this contract.
-  await page.waitForURL(
-    (url) =>
-      url.pathname === pathname &&
-      url.searchParams.get("offset") === "0" &&
-      url.searchParams.get("limit") !== null,
-    { timeout: 30_000 },
-  );
-  await waitForAdaptiveConvergence(page, leaf.convergenceSelector, label);
-
-  const firstPageUrl = new URL(page.url());
-  const firstPageLimit = Number(firstPageUrl.searchParams.get("limit"));
-  expect(
-    Number.isInteger(firstPageLimit) && firstPageLimit > 0,
-    `${label}: converged first page must expose a positive integer limit`,
-  ).toBe(true);
-
-  const firstPageRows = await resolveVisibleRows(page, leaf.rowSelectors, label);
-  expect(
-    await firstPageRows.count(),
-    `${label}: first page must be full before a second page can be observed`,
-  ).toBe(firstPageLimit);
+  const { pathname, firstPageUrl, nextControl } = prepared;
 
   await expect(nextControl, `${label}: next-page control`).toBeEnabled();
   await nextControl.click();
