@@ -1,4 +1,5 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
+import { setClinicSession } from "../../helpers/session";
 
 // PR-CL7 state parity. `operaciones`/`informes`/`logistica` get SSR data from
 // page.tsx, so their recovery action is a client `router.refresh()` button.
@@ -6,26 +7,6 @@ import { expect, test, type Page, type Route } from "@playwright/test";
 
 const TOLERANCE = 2;
 const MOBILE_VIEWPORT = { width: 390, height: 844 } as const;
-
-async function setClinicSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "app_session_id",
-      value: "e2e_test_clinic_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
-
-async function setPopulatedClinicSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "app_session_id",
-      value: "e2e_populated_clinic_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
 
 function fulfillJson(route: Route, status: number, body: unknown) {
   return route.fulfill({
@@ -118,7 +99,7 @@ test.describe("clinic operaciones/informes/logistica SSR module state parity (CL
   test("default session: operaciones surfaces stats/reports/visits load errors with retry controls", async ({
     page,
   }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
     await page.goto("/dashboard?module=operaciones");
 
     const commandCenter = page.locator('[data-clinic-command-center="true"]');
@@ -157,7 +138,7 @@ test.describe("clinic operaciones/informes/logistica SSR module state parity (CL
   test("default session: informes workspace shows the load error, not the empty state", async ({
     page,
   }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
     await page.goto("/dashboard?module=informes");
 
     await expect(
@@ -175,7 +156,7 @@ test.describe("clinic operaciones/informes/logistica SSR module state parity (CL
   test("default session: logistica workspace shows the load error, not the empty state", async ({
     page,
   }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
     await page.goto("/dashboard?module=logistica");
 
     await expect(
@@ -193,7 +174,7 @@ test.describe("clinic operaciones/informes/logistica SSR module state parity (CL
   test("populated session: stats resolve through route-plans and the operativo state is reachable", async ({
     page,
   }) => {
-    await setPopulatedClinicSession(page);
+    await setClinicSession(page, "populated");
     await page.goto("/dashboard?module=operaciones");
 
     const commandCenter = page.locator('[data-clinic-command-center="true"]');
@@ -227,7 +208,7 @@ test.describe("clinic operaciones/informes/logistica SSR module state parity (CL
   test("390x844: SSR load-error states for operaciones/informes/logistica still fit without overflow or main scroll", async ({
     page,
   }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
     await page.setViewportSize(MOBILE_VIEWPORT);
 
     for (const moduleId of ["operaciones", "informes", "logistica"] as const) {
@@ -247,7 +228,7 @@ test.describe("clinic tokens module state parity (client-driven, CL-GAP-6)", () 
   test("loading: Actualizar reflects the in-flight fetch before tokens resolve", async ({
     page,
   }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
 
     // Hold the response open until the test has asserted the loading state,
     // instead of racing a fixed delay against hydration timing.
@@ -291,7 +272,7 @@ test.describe("clinic tokens module state parity (client-driven, CL-GAP-6)", () 
   test("empty: zero tokens renders the shared EmptyState pattern", async ({
     page,
   }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
     await page.route(
       (url) => url.pathname === "/api/particular-tokens",
       (route) => {
@@ -328,7 +309,7 @@ test.describe("clinic tokens module state parity (client-driven, CL-GAP-6)", () 
   test("error: failed load surfaces an alert and Actualizar stays available", async ({
     page,
   }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
     await page.route(
       (url) => url.pathname === "/api/particular-tokens",
       (route) => {
@@ -353,7 +334,7 @@ test.describe("clinic tokens module state parity (client-driven, CL-GAP-6)", () 
   test("retry: a successful Actualizar after a failed load clears the stale error banner", async ({
     page,
   }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
     let tokensCallCount = 0;
 
     await page.route(
@@ -413,7 +394,7 @@ test.describe("clinic tokens module state parity (client-driven, CL-GAP-6)", () 
   test("retry: a second failed load after a first failure still surfaces the new error", async ({
     page,
   }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
 
     await page.route(
       (url) => url.pathname === "/api/particular-tokens",
@@ -440,7 +421,7 @@ test.describe("clinic perfil → perfil público module state parity (client-dri
   test("loading: profile load exposes explicit loading copy", async ({
     page,
   }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
     await page.route("**/api/clinic/profile**", async (route) => {
       if (route.request().method() !== "GET") return route.continue();
       await new Promise((resolve) => setTimeout(resolve, 700));
@@ -464,7 +445,7 @@ test.describe("clinic perfil → perfil público module state parity (client-dri
   test("error: failed profile load shows an alert with in-app retry control", async ({
     page,
   }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
     await page.route("**/api/clinic/profile**", (route) => {
       if (route.request().method() !== "GET") return route.continue();
       return fulfillJson(route, 500, { error: "No se pudo cargar el perfil." });
@@ -486,7 +467,7 @@ test.describe("clinic perfil → perfil público module state parity (client-dri
 
 test.describe("clinic perfil → cambiar contraseña module state parity (CL-GAP-6)", () => {
   test("validation error is local and needs no network mock", async ({ page }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
     await page.goto("/dashboard?module=perfil");
 
     await page.getByRole("tab", { name: "Cambiar contraseña", exact: true }).click();
@@ -506,7 +487,7 @@ test.describe("clinic perfil → cambiar contraseña module state parity (CL-GAP
   test("retry-by-resubmit leaves no stale error on a successful second attempt", async ({
     page,
   }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
     let passwordCallCount = 0;
 
     await page.route("**/api/auth/change-password", (route) => {

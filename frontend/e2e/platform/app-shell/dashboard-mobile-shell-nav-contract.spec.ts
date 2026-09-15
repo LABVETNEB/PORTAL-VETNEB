@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { setSession } from "../../helpers/session";
 
 type Page = import("@playwright/test").Page;
 
@@ -61,16 +62,7 @@ const SHELL_ROUTES: ShellRouteCase[] = [
 ];
 
 async function applySession(page: Page, surface: Surface) {
-  await page.context().addCookies([
-    {
-      name: surface === "clinic" ? "app_session_id" : "admin_session_id",
-      value:
-        surface === "clinic"
-          ? "e2e_test_clinic_session"
-          : "e2e_test_admin_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
+  await setSession(page, surface, "default");
 }
 
 async function gotoShellRoute(page: Page, route: ShellRouteCase) {

@@ -11,9 +11,9 @@ import {
   mockParticularAuthenticatedSession,
   readParticularDocumentNoScrollContract,
   readParticularOperationalGeometry,
-  setParticularSessionCookie,
   type ParticularSessionFixtureState,
 } from "../../helpers/particular-session-contracts";
+import { setParticularSession } from "../../helpers/session";
 
 const TOLERANCE = 2;
 
@@ -47,7 +47,7 @@ async function openAuthenticatedParticulares(
   state: ParticularSessionFixtureState,
 ) {
   await page.setViewportSize({ width, height });
-  await setParticularSessionCookie(page);
+  await setParticularSession(page);
   await mockParticularAuthenticatedSession(page, state);
 
   await page.goto("/particulares");

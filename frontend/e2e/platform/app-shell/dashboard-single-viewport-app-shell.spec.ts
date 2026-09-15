@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { setAdminSession, setClinicSession } from "../../helpers/session";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Single-viewport App Shell contract.
@@ -22,26 +23,6 @@ const VIEWPORTS = [
   { name: "1440x900", width: 1440, height: 900 },
   { name: "1366x768", width: 1366, height: 768 },
 ] as const;
-
-async function setClinicSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "app_session_id",
-      value: "e2e_test_clinic_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
-
-async function setAdminSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "admin_session_id",
-      value: "e2e_test_admin_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
 
 type Surface = "clinic" | "admin";
 
@@ -167,9 +148,9 @@ for (const viewport of VIEWPORTS) {
           height: viewport.height,
         });
         if (routeCase.surface === "clinic") {
-          await setClinicSession(page);
+          await setClinicSession(page, "default");
         } else {
-          await setAdminSession(page);
+          await setAdminSession(page, "default");
         }
 
         await page.goto(routeCase.path);

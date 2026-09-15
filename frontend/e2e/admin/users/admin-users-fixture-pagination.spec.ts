@@ -1,7 +1,8 @@
 import { expect, test, type APIRequestContext } from "@playwright/test";
+import { sessionCookieHeader } from "../../helpers/session";
 
 const API_BASE_URL = "http://127.0.0.1:3107";
-const POPULATED_ADMIN_COOKIE = "admin_session_id=e2e_populated_admin_session";
+const POPULATED_ADMIN_COOKIE = sessionCookieHeader("admin", "populated");
 
 type AdminUsersFixtureItem = {
   userType: "admin" | "clinic";

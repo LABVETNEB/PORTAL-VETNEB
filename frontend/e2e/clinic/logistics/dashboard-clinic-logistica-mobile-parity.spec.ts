@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { setClinicSession } from "../../helpers/session";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CMP-12 (RC-017) — scope correction.
@@ -43,16 +44,6 @@ type LayoutContract = {
   hasList: boolean;
   hasInlineScroll: boolean;
 };
-
-async function setClinicSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "app_session_id",
-      value: "e2e_populated_clinic_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
 
 // B09 unified navigation contract: every clinic module reaches every other one
 // from ONE owner. `/dashboard` used to be the exception — the clinic bottom nav
@@ -345,7 +336,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
     page,
   }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
-    await setClinicSession(page);
+    await setClinicSession(page, "populated");
 
     await page.goto("/dashboard?module=logistica");
 

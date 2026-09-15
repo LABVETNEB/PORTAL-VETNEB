@@ -1,26 +1,7 @@
 import { expect, test } from "@playwright/test";
+import { setAdminSession, setClinicSession } from "../../helpers/session";
 
 type Page = import("@playwright/test").Page;
-
-async function setClinicSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "app_session_id",
-      value: "e2e_test_clinic_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
-
-async function setAdminSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "admin_session_id",
-      value: "e2e_test_admin_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
 
 // ─── Mock helpers ─────────────────────────────────────────────────────────────
 
@@ -116,7 +97,7 @@ async function mockParticularTokensApi(page: Page) {
 
 test.describe("Informes compact filters — keyboard & a11y", () => {
   test.beforeEach(async ({ page }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
     await page.goto("/dashboard/informes");
     await expect(
       page.getByRole("search", { name: "Filtros compactos de informes" }),
@@ -149,7 +130,7 @@ test.describe("Informes compact filters — keyboard & a11y", () => {
 test.describe("Admin token workspace — upload removed from token list", () => {
   test.beforeEach(async ({ page }) => {
     await mockParticularTokensApi(page);
-    await setAdminSession(page);
+    await setAdminSession(page, "default");
     await page.goto("/dashboard/admin?module=admin-particular-tokens");
     await expect(page.locator("main.dashboard-main")).toBeVisible({
       timeout: 8_000,
@@ -179,7 +160,7 @@ test.describe("Admin token workspace — upload removed from token list", () => 
 
 test.describe("Informes — accessible profile-layout actions", () => {
   test.beforeEach(async ({ page }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
     await page.goto("/dashboard/informes");
     await expect(page.locator("#reports-master-list")).toBeVisible({
       timeout: 8_000,
@@ -218,7 +199,7 @@ test.describe("ReportFileActions — aria-busy (PR-8)", () => {
   test("selected report action buttons keep accessible labels when rendered", async ({
     page,
   }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
     await page.goto("/dashboard/informes");
     await expect(page.locator("#reports-master-list")).toBeVisible({
       timeout: 8_000,
@@ -243,7 +224,7 @@ test.describe("DashboardNotificationsBell — desktop panel role (PR-8)", () => 
   test("notifications desktop panel uses role=region (not dialog)", async ({
     page,
   }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto("/dashboard/informes");
     await expect(
@@ -272,7 +253,7 @@ test.describe("DashboardNotificationsBell — desktop panel role (PR-8)", () => 
 
 test.describe("Admin module hub — keyboard & a11y (PR-8)", () => {
   test.beforeEach(async ({ page }) => {
-    await setAdminSession(page);
+    await setAdminSession(page, "default");
     await page.goto("/dashboard/admin?hub=1");
     await expect(
       page.locator('[data-dashboard-module-hub="true"]'),

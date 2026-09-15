@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { setAdminSession, setClinicSession } from "../../helpers/session";
 
 type Page = import("@playwright/test").Page;
 type Route = import("@playwright/test").Route;
@@ -141,28 +142,6 @@ const ROUTES: RouteCase[] = [
     ready: '[data-dashboard-module-workspace="admin-report-upload"]',
   },
 ];
-
-async function setClinicSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "app_session_id",
-      value: "e2e_test_clinic_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
-
-async function setAdminSession(page: Page, populated = false) {
-  await page.context().addCookies([
-    {
-      name: "admin_session_id",
-      value: populated
-        ? "e2e_populated_admin_session"
-        : "e2e_test_admin_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
 
 function json(route: Route, body: unknown) {
   return route.fulfill({
@@ -675,9 +654,9 @@ for (const viewport of VIEWPORTS) {
         });
 
         if (routeCase.surface === "clinic") {
-          await setClinicSession(page);
+          await setClinicSession(page, "default");
         } else {
-          await setAdminSession(page, Boolean(routeCase.populatedAdminModule));
+          await setAdminSession(page, routeCase.populatedAdminModule ? "populated" : "default");
         }
 
         await mockBrowserApis(page);
@@ -713,7 +692,7 @@ for (const viewport of VIEWPORTS) {
         width: viewport.width,
         height: viewport.height,
       });
-      await setClinicSession(page);
+      await setClinicSession(page, "default");
       await mockBrowserApis(page);
 
       await page.goto("/dashboard?module=perfil");
@@ -742,7 +721,7 @@ test("admin audit mobile filter keeps keyboard interaction hydration-safe", asyn
   const hydrationFailures = collectHydrationFailures(page);
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await setAdminSession(page, true);
+  await setAdminSession(page, "populated");
   await mockBrowserApis(page);
   await page.goto("/dashboard/admin?module=audit-log");
 

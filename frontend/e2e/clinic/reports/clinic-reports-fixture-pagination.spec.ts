@@ -1,7 +1,8 @@
-import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+import { expect, test, type APIRequestContext } from "@playwright/test";
+import { sessionCookieHeader, setClinicSession } from "../../helpers/session";
 
 const API_BASE_URL = "http://127.0.0.1:3107";
-const POPULATED_CLINIC_COOKIE = "app_session_id=e2e_populated_clinic_session";
+const POPULATED_CLINIC_COOKIE = sessionCookieHeader("clinic", "populated");
 
 type ClinicReportFixtureItem = {
   id: number;
@@ -28,16 +29,6 @@ async function readClinicReportsFixture(
 
   expect(response.ok()).toBe(true);
   return (await response.json()) as ClinicReportsFixtureBody;
-}
-
-async function setPopulatedClinicSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "app_session_id",
-      value: "e2e_populated_clinic_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
 }
 
 test.describe("clinic reports populated fixture pagination (CAP-C2)", () => {
@@ -108,7 +99,7 @@ test.describe("clinic reports populated fixture pagination (CAP-C2)", () => {
   test("/dashboard clinic informes summary still receives only 3 recent reports", async ({
     page,
   }) => {
-    await setPopulatedClinicSession(page);
+    await setClinicSession(page, "populated");
     await page.goto("/dashboard?module=informes");
 
     const card = page

@@ -1,19 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
+import { setClinicSession } from "../../helpers/session";
 
 // The centered cluster may sit a few px off exact center when auxiliary
 // content (range labels) shares the row; the contract is "centered cluster,
 // not a right-aligned footer".
 const CENTER_TOLERANCE_PX = 40;
-
-async function setPopulatedClinicSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "app_session_id",
-      value: "e2e_populated_clinic_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
 
 type PagerGeometry = {
   pagerCenter: number;
@@ -104,7 +95,7 @@ test.describe("shared centered pager contract", () => {
   for (const surface of SURFACES) {
     test(`${surface.name} shows a visible centered pager cluster`, async ({ page }) => {
       await page.setViewportSize(surface.viewport);
-      await setPopulatedClinicSession(page);
+      await setClinicSession(page, "populated");
       await page.goto(surface.path);
 
       await expect(page.locator(surface.ready).first()).toBeVisible({

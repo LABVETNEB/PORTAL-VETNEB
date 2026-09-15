@@ -5,9 +5,9 @@ import {
   type TestInfo,
 } from "@playwright/test";
 import {
-  setPopulatedAdminSession,
   suppressNextDevIndicator,
 } from "../../helpers/admin-mobile-contracts";
+import { setAdminSession } from "../../helpers/session";
 
 // PR-CAP-QA1 — Visual Quality Gate for the real Admin Usuarios/Roles workspace
 // under the CAP-A1 5000-user fixture. Reproduces the viewport x state matrix of
@@ -980,7 +980,7 @@ test.describe("admin users-roles visual quality gate (PR-CAP-QA1)", () => {
     test(`quality gate: ${label}`, async ({ page }, testInfo) => {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
       await page.emulateMedia({ reducedMotion: "reduce" });
-      await setPopulatedAdminSession(page);
+      await setAdminSession(page, "populated");
 
       const rewrittenUrls: string[] = [];
       await routeHighVolumeUsersRoles(page, rewrittenUrls);

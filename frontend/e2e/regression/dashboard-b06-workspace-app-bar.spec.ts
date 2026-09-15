@@ -18,6 +18,7 @@ import {
   suppressNextDevChrome,
   waitForLayoutSettled,
 } from "../helpers/dashboard-geometry-matrix";
+import { addAppCookies } from "../helpers/session";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // B06 · WorkspaceAppBar runtime contract — 21 surfaces × 13 viewports (273).
@@ -66,8 +67,6 @@ import {
 // second `normal` pass was a literal duplicate — 21 surfaces × 2 viewports of
 // re-measurement that could not disagree with the run that preceded it.
 // ─────────────────────────────────────────────────────────────────────────────
-
-const APP_ORIGIN = "http://127.0.0.1:3000";
 
 const APP_BAR_SELECTOR = '[data-workspace-app-bar="true"]';
 const APP_BAR_BAND_SELECTOR = '[data-dashboard-topbar-polish="true"]';
@@ -302,10 +301,7 @@ test.describe("B06 · workspace app bar contract 21x13", () => {
       await clearDashboardModuleMemory(page);
       await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
 
-      const cookie = DASHBOARD_GEOMETRY_SESSION_COOKIE[surface.role];
-      await page
-        .context()
-        .addCookies([{ name: cookie.name, value: cookie.value, url: APP_ORIGIN }]);
+      await addAppCookies(page, [DASHBOARD_GEOMETRY_SESSION_COOKIE[surface.role]]);
       await installSurfaceMocks(page, surface);
 
       const measured: Array<Record<string, unknown>> = [];
@@ -383,10 +379,7 @@ test.describe("B06 · workspace app bar in both themes", () => {
         const context = await browser.newContext({ reducedMotion: "reduce" });
 
         try {
-          const cookie = DASHBOARD_GEOMETRY_SESSION_COOKIE[role];
-          await context.addCookies([
-            { name: cookie.name, value: cookie.value, url: APP_ORIGIN },
-          ]);
+          await addAppCookies(context, [DASHBOARD_GEOMETRY_SESSION_COOKIE[role]]);
 
           const page = await context.newPage();
           await suppressNextDevChrome(page);
@@ -454,10 +447,7 @@ test.describe("B06 · global module search", () => {
     await clearDashboardModuleMemory(page);
     await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
 
-    const cookie = DASHBOARD_GEOMETRY_SESSION_COOKIE.admin;
-    await page
-      .context()
-      .addCookies([{ name: cookie.name, value: cookie.value, url: APP_ORIGIN }]);
+    await addAppCookies(page, [DASHBOARD_GEOMETRY_SESSION_COOKIE.admin]);
 
     await page.setViewportSize({ width: 1366, height: 768 });
     await page.goto("/dashboard/admin?hub=1");
@@ -496,10 +486,7 @@ test.describe("B06 · global module search", () => {
     await clearDashboardModuleMemory(page);
     await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
 
-    const cookie = DASHBOARD_GEOMETRY_SESSION_COOKIE.admin;
-    await page
-      .context()
-      .addCookies([{ name: cookie.name, value: cookie.value, url: APP_ORIGIN }]);
+    await addAppCookies(page, [DASHBOARD_GEOMETRY_SESSION_COOKIE.admin]);
 
     await page.setViewportSize({ width: 1366, height: 768 });
     await page.goto("/dashboard/admin?hub=1");

@@ -1,5 +1,6 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Locator } from "@playwright/test";
 import { waitForLayoutSettled } from "../../helpers/dashboard-geometry-matrix";
+import { setClinicSession } from "../../helpers/session";
 
 const VIEWPORTS = [
   { name: "360x740", width: 360, height: 740 },
@@ -39,12 +40,6 @@ const SURFACES = [
   ["logistica-rutas", "/dashboard/logistica/rutas", "clinic-logistica-rutas", true, false],
   ["logistica-metricas", "/dashboard/logistica/metricas", "clinic-logistica-metricas", true, false],
 ] as const;
-
-async function setClinicSession(page: Page) {
-  await page.context().addCookies([
-    { name: "app_session_id", value: "e2e_test_clinic_session", url: "http://127.0.0.1:3000" },
-  ]);
-}
 
 /**
  * Reads the metric-run paint/geometry contract once. Extracted so the caller
@@ -120,7 +115,7 @@ for (const viewport of VIEWPORTS) {
 
     test(title, async ({ page }) => {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
-      await setClinicSession(page);
+      await setClinicSession(page, "default");
       await page.goto(path);
 
       const metricRun = page.locator(`[data-dashboard-b14-metrics="${surfaceId}"]`);

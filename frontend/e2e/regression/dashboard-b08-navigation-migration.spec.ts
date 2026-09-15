@@ -19,6 +19,7 @@ import {
   type DashboardGeometryShellType,
   type DashboardGeometrySurface,
 } from "../helpers/dashboard-geometry-matrix";
+import { addAppCookies } from "../helpers/session";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // B08 · Navigation migration runtime contract.
@@ -65,8 +66,6 @@ import {
 // be one full-width 56 ±2 px row that does not overlap `main`. Those four are
 // exactly the invariants a lateral band can break.
 // ─────────────────────────────────────────────────────────────────────────────
-
-const APP_ORIGIN = "http://127.0.0.1:3000";
 
 const DRAWER_SELECTOR = "[data-dashboard-navigation-drawer]";
 const RAIL_SELECTOR = "[data-dashboard-navigation-rail]";
@@ -530,10 +529,7 @@ async function prepare(
   await clearDashboardModuleMemory(page);
   await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
 
-  const cookie = DASHBOARD_GEOMETRY_SESSION_COOKIE[surface.role];
-  await page
-    .context()
-    .addCookies([{ name: cookie.name, value: cookie.value, url: APP_ORIGIN }]);
+  await addAppCookies(page, [DASHBOARD_GEOMETRY_SESSION_COOKIE[surface.role]]);
   await installSurfaceMocks(page, surface);
 }
 
@@ -551,10 +547,7 @@ async function prepareRole(
   await clearDashboardModuleMemory(page);
   await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
 
-  const cookie = DASHBOARD_GEOMETRY_SESSION_COOKIE[role];
-  await page
-    .context()
-    .addCookies([{ name: cookie.name, value: cookie.value, url: APP_ORIGIN }]);
+  await addAppCookies(page, [DASHBOARD_GEOMETRY_SESSION_COOKIE[role]]);
 
   for (const surface of DASHBOARD_GEOMETRY_SURFACES) {
     if (surface.role !== role) continue;
@@ -915,10 +908,7 @@ test.describe("B08 · lateral navigation in dark-gray", () => {
       const context = await browser.newContext({ reducedMotion: "reduce" });
 
       try {
-        const cookie = DASHBOARD_GEOMETRY_SESSION_COOKIE[role];
-        await context.addCookies([
-          { name: cookie.name, value: cookie.value, url: APP_ORIGIN },
-        ]);
+        await addAppCookies(context, [DASHBOARD_GEOMETRY_SESSION_COOKIE[role]]);
 
         const page = await context.newPage();
         await suppressNextDevChrome(page);

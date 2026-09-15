@@ -14,9 +14,9 @@ import {
   assertModuleNoScrollContract as assertNoScrollContract,
   fulfillJson,
   readModuleNoScrollContract as readNoScrollContract,
-  setPopulatedAdminSession,
   suppressNextDevIndicator,
 } from "../../helpers/admin-mobile-contracts";
+import { setAdminSession } from "../../helpers/session";
 
 // PR-C — Admin mobile CONFIG modules (Precios + Mantenimiento). These rendered
 // the desktop editor card / ModuleTabs on mobile; with populated data they
@@ -216,7 +216,7 @@ for (const moduleSpec of CONFIG_MODULES) {
         test.setTimeout(60_000);
         await page.setViewportSize({ width: viewport.width, height: viewport.height });
         await applyColorMode(page, mode);
-        await setPopulatedAdminSession(page);
+        await setAdminSession(page, "populated");
         await mockConfigApis(page);
         await page.goto(`/dashboard/admin?module=${moduleSpec.moduleId}`);
         await suppressNextDevIndicator(page);
@@ -321,7 +321,7 @@ for (const moduleSpec of CONFIG_MODULES) {
 for (const moduleSpec of CONFIG_MODULES) {
   test(`Admin desktop preserves ${moduleSpec.key} layout at 1280x800`, async ({ page }) => {
     await page.setViewportSize({ width: DESKTOP_VIEWPORT.width, height: DESKTOP_VIEWPORT.height });
-    await setPopulatedAdminSession(page);
+    await setAdminSession(page, "populated");
     await mockConfigApis(page);
     await page.goto(`/dashboard/admin?module=${moduleSpec.moduleId}`);
 

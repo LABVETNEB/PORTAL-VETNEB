@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { setClinicSession } from "../../helpers/session";
 
 // Behavioural contract for "remove dashboard home + unified module workspace":
 // the clinic dashboard has NO home/hub of modules; `/dashboard` opens the
@@ -28,16 +29,6 @@ const MANDATORY_VIEWPORTS = [
   { name: "laptop-1366x768", width: 1366, height: 768 },
   { name: "desktop-1440x900", width: 1440, height: 900 },
 ] as const;
-
-async function setClinicSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "app_session_id",
-      value: "e2e_test_clinic_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
 
 // B08: at the default viewport the clinic module navigation is the lateral
 // drawer. The legacy rail is asserted separately, in the <768px regime that is
@@ -69,7 +60,7 @@ function paintedMobileNav(page: Page) {
 }
 
 test.beforeEach(async ({ page }) => {
-  await setClinicSession(page);
+  await setClinicSession(page, "default");
 });
 
 // 1 + 5 + default: no home/hub/tile grid, no "Módulos clínicos".

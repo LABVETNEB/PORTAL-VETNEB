@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { setAdminSession } from "../../helpers/session";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PR #1465 review P2 — Admin Pricing adaptive page size must measure EVERY
@@ -41,16 +42,6 @@ const PRICING_SNAPSHOT = {
     },
   ],
 };
-
-async function setAdminSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "admin_session_id",
-      value: "e2e_test_admin_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
 
 async function mockPricing(page: Page) {
   await page.route("**/api/admin/pricing**", async (route) => {
@@ -110,7 +101,7 @@ test.describe("admin pricing adaptive page size measures every visible form", ()
     // errored one stays visible), whereas measuring only the short first form
     // would render three and clip the last one below the region.
     await page.setViewportSize({ width: 1440, height: 1240 });
-    await setAdminSession(page);
+    await setAdminSession(page, "default");
     await mockPricing(page);
 
     await page.goto("/dashboard/admin?module=admin-pricing");

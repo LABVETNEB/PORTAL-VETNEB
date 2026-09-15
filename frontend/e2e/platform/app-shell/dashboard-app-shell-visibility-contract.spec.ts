@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { setAdminSession, setClinicSession } from "../../helpers/session";
 
 type Page = import("@playwright/test").Page;
 
@@ -9,26 +10,6 @@ const VIEWPORTS = [
   { name: "1366x650", width: 1366, height: 650 },
   { name: "1280x650", width: 1280, height: 650 },
 ] as const;
-
-async function setClinicSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "app_session_id",
-      value: "e2e_test_clinic_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
-
-async function setAdminSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "admin_session_id",
-      value: "e2e_test_admin_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
 
 async function mockBrowserApis(page: Page) {
   await page.route("**/api/clinic/profile**", async (route) => {
@@ -225,7 +206,7 @@ for (const viewport of VIEWPORTS) {
         height: viewport.height,
       });
 
-      await setClinicSession(page);
+      await setClinicSession(page, "default");
       await mockBrowserApis(page);
       await page.goto("/dashboard?module=operaciones");
 
@@ -242,7 +223,7 @@ for (const viewport of VIEWPORTS) {
         height: viewport.height,
       });
 
-      await setAdminSession(page);
+      await setAdminSession(page, "default");
       await mockBrowserApis(page);
       await page.goto("/dashboard/admin?module=admin-clinics");
 

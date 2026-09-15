@@ -18,6 +18,7 @@ import {
   suppressNextDevChrome,
   waitForLayoutSettled,
 } from "../helpers/dashboard-geometry-matrix";
+import { addAppCookies } from "../helpers/session";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // B04 · persistent-chrome elevation gate (audit gate G6), both themes.
@@ -50,8 +51,6 @@ import {
 // never touches focus rings: a chrome band that is not focused computes no ring,
 // and one that is focused must keep it.
 // ─────────────────────────────────────────────────────────────────────────────
-
-const APP_ORIGIN = "http://127.0.0.1:3000";
 
 const THEMES: readonly ThemeMode[] = [NORMAL_THEME_MODE, DARK_GRAY_THEME_MODE];
 
@@ -240,10 +239,7 @@ test.describe("B04 · persistent chrome paints no elevation (G6), light + dark",
           });
 
           try {
-            const cookie = DASHBOARD_GEOMETRY_SESSION_COOKIE[surface.role];
-            await context.addCookies([
-              { name: cookie.name, value: cookie.value, url: APP_ORIGIN },
-            ]);
+            await addAppCookies(context, [DASHBOARD_GEOMETRY_SESSION_COOKIE[surface.role]]);
 
             const page = await context.newPage();
             await suppressNextDevChrome(page);

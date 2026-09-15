@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { setClinicSession } from "../../helpers/session";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CMP-12 (RC-017) — scope correction.
@@ -117,16 +118,6 @@ type LayoutContract = {
   hasMain: boolean;
   hasList: boolean;
 };
-
-async function setClinicSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "app_session_id",
-      value: "e2e_test_clinic_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
 
 // B09 unified navigation contract: every clinic module reaches every other one
 // from ONE owner. `/dashboard` used to be the exception — the clinic bottom nav
@@ -802,7 +793,7 @@ async function waitForSettledRowCount(
 for (const viewport of MOBILE_VIEWPORTS) {
   test(`clinic Tokens mobile parity at ${viewport.name}`, async ({ page }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
     await mockClinicTokens(page);
 
     await page.goto("/dashboard?module=tokens");
@@ -1081,7 +1072,7 @@ test("clinic Tokens detail keeps a tracking error with the token that produced i
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await setClinicSession(page);
+  await setClinicSession(page, "default");
   await mockClinicTokens(page);
 
   const trackingRequestsByTokenId = new Map<number, number>();
@@ -1380,7 +1371,7 @@ for (const viewport of WIZARD_VIEWPORTS) {
       width: viewport.width,
       height: viewport.height,
     });
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
     await mockClinicTokens(page);
 
     await page.goto("/dashboard?module=tokens");

@@ -1,13 +1,9 @@
 import { expect, type Page } from "@playwright/test";
 
-// Mirrors the admin/clinic e2e session-cookie pattern (see admin-mobile-contracts.ts):
-// the cookie name matches the backend default (server/lib/env.ts: PARTICULAR_COOKIE_NAME
-// falls back to "particular_session_id"). The cookie value itself is never validated by
-// the mock server-side, since the /api/particular/auth/* calls are intercepted directly
-// via page.route() below — the cookie only documents the real transport contract
-// (apiFetch uses credentials: "include", no localStorage).
-export const PARTICULAR_SESSION_COOKIE_NAME = "particular_session_id";
-export const PARTICULAR_SESSION_COOKIE_VALUE = "e2e_test_particular_session";
+// The particular session cookie itself is set by setParticularSession()
+// (helpers/session.ts, E2E-GLOBAL-07). The /api/particular/auth/* calls are
+// intercepted directly via page.route() below, so the cookie value is never
+// validated server-side.
 
 export const PARTICULAR_MOBILE_VIEWPORT = {
   name: "iphone-standard-390x844",
@@ -100,16 +96,6 @@ export const MOCK_PARTICULAR_TRACKING_RECEPTION = {
   reportDevelopmentAt: null,
   deliveredAt: null,
 };
-
-export async function setParticularSessionCookie(page: Page) {
-  await page.context().addCookies([
-    {
-      name: PARTICULAR_SESSION_COOKIE_NAME,
-      value: PARTICULAR_SESSION_COOKIE_VALUE,
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
 
 // Token-gated session fixture: intercepts the two client-side reads
 // ParticularesContent issues on mount (getParticularSession -> GET

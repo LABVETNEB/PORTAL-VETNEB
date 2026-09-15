@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { setClinicSession } from "../../helpers/session";
 
 const TOLERANCE = 2;
 
@@ -7,16 +8,6 @@ const VIEWPORTS = [
   { name: "desktop-short-1366x768", width: 1366, height: 768 },
   { name: "mobile-390x844", width: 390, height: 844 },
 ] as const;
-
-async function setPopulatedClinicSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "app_session_id",
-      value: "e2e_populated_clinic_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
 
 type InternalScroller = {
   tag: string;
@@ -134,7 +125,7 @@ test.describe("clinic informes full route — zero internal core scroll", () => 
       page,
     }) => {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
-      await setPopulatedClinicSession(page);
+      await setClinicSession(page, "populated");
       await page.goto("/dashboard/informes");
 
       const list = page.locator("#reports-master-list");
@@ -215,7 +206,7 @@ test.describe("clinic informes full route — zero internal core scroll", () => 
 
   test("detail segmented sections switch without introducing scroll", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
-    await setPopulatedClinicSession(page);
+    await setClinicSession(page, "populated");
     await page.goto("/dashboard/informes");
 
     const detail = page.locator("#report-detail");

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { setAdminSession, setClinicSession } from "../../helpers/session";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PR-A — Internal no-scroll contract for the dashboard App Shell.
@@ -70,26 +71,6 @@ const SHELLS: ShellCase[] = [
     ready: '[data-dashboard-hub-root="true"]',
   },
 ];
-
-async function setClinicSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "app_session_id",
-      value: "e2e_test_clinic_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
-
-async function setAdminSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "admin_session_id",
-      value: "e2e_test_admin_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
 
 type ScrollContract = {
   htmlScrollHeight: number;
@@ -172,9 +153,9 @@ for (const viewport of VIEWPORTS) {
         });
 
         if (shell.surface === "clinic") {
-          await setClinicSession(page);
+          await setClinicSession(page, "default");
         } else {
-          await setAdminSession(page);
+          await setAdminSession(page, "default");
         }
 
         await page.goto(shell.path);

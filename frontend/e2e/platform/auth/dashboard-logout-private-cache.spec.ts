@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { setAdminSession, setClinicSession } from "../../helpers/session";
 
 // Regression guard for the security blocker: after logout, Back + reload must
 // never re-render a private dashboard. What this spec exercises:
@@ -8,29 +9,6 @@ import { expect, test, type Page } from "@playwright/test";
 //   2. Rendered private dashboard documents are not publicly cacheable. The
 //      next.config no-store declaration for /dashboard is pinned in
 //      test/unit/infrastructure/frontend-next-config-private-cache-headers.test.ts.
-
-const POPULATED_ADMIN_SESSION = "e2e_populated_admin_session";
-const POPULATED_CLINIC_SESSION = "e2e_populated_clinic_session";
-
-async function setAdminSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "admin_session_id",
-      value: POPULATED_ADMIN_SESSION,
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
-
-async function setClinicSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "app_session_id",
-      value: POPULATED_CLINIC_SESSION,
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
 
 function desktopLogoutButton(page: Page) {
   return page
@@ -44,7 +22,7 @@ test.describe("dashboard logout — calls the stubbed logout endpoint and leaves
   test("admin logout calls the admin logout endpoint and leaves the private surface", async ({
     page,
   }) => {
-    await setAdminSession(page);
+    await setAdminSession(page, "populated");
 
     let adminLogoutCalled = false;
     await page.route("**/api/admin/auth/logout", async (route) => {
@@ -80,7 +58,7 @@ test.describe("dashboard logout — calls the stubbed logout endpoint and leaves
   test("clinic logout calls the clinic logout endpoint and leaves the private surface", async ({
     page,
   }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "populated");
 
     let clinicLogoutCalled = false;
     await page.route("**/api/auth/logout", async (route) => {
@@ -130,7 +108,7 @@ test.describe("dashboard cache headers — private surfaces", () => {
   test("authenticated admin dashboard response is not publicly cacheable", async ({
     page,
   }) => {
-    await setAdminSession(page);
+    await setAdminSession(page, "populated");
 
     const response = await page.goto("/dashboard/admin");
     expect(response, "navigation response").not.toBeNull();
@@ -143,7 +121,7 @@ test.describe("dashboard cache headers — private surfaces", () => {
   test("authenticated clinic dashboard response is not publicly cacheable", async ({
     page,
   }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "populated");
 
     const response = await page.goto("/dashboard");
     expect(response, "navigation response").not.toBeNull();

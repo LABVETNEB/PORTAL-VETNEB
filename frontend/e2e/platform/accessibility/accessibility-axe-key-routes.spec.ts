@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
+import { setSession } from "../../helpers/session";
 
 type SessionSurface = "admin" | "clinic";
 
@@ -49,16 +50,7 @@ async function applySession(page: Page, surface: SessionSurface | undefined) {
     return;
   }
 
-  await page.context().addCookies([
-    {
-      name: surface === "admin" ? "admin_session_id" : "app_session_id",
-      value:
-        surface === "admin"
-          ? "e2e_populated_admin_session"
-          : "e2e_populated_clinic_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
+  await setSession(page, surface, "populated");
 }
 
 function formatViolations(

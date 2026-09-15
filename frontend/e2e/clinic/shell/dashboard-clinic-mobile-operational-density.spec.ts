@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import { setClinicSession } from "../../helpers/session";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FASE 2B — Clinic dashboard mobile compaction / operational density.
@@ -21,23 +22,13 @@ const VIEWPORTS = [
 
 const COMPACT_BUTTON_MAX_HEIGHT = 34;
 
-async function setPopulatedClinicSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "app_session_id",
-      value: "e2e_populated_clinic_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
-
 for (const viewport of VIEWPORTS) {
   test.describe(`clinic mobile operational density — ${viewport.name}`, () => {
     test("informes: redundant header removed, filter/link CTAs compact", async ({
       page,
     }) => {
       await page.setViewportSize(viewport);
-      await setPopulatedClinicSession(page);
+      await setClinicSession(page, "populated");
       await page.goto("/dashboard?module=informes");
       const workspace = page.locator(
         '[data-dashboard-module-workspace="informes"]',
@@ -63,7 +54,7 @@ for (const viewport of VIEWPORTS) {
       page,
     }) => {
       await page.setViewportSize(viewport);
-      await setPopulatedClinicSession(page);
+      await setClinicSession(page, "populated");
       await page.goto("/dashboard?module=logistica");
       const workspace = page.locator(
         '[data-dashboard-module-workspace="logistica"]',
@@ -89,7 +80,7 @@ for (const viewport of VIEWPORTS) {
       page,
     }) => {
       await page.setViewportSize(viewport);
-      await setPopulatedClinicSession(page);
+      await setClinicSession(page, "populated");
       await page.goto("/dashboard?module=perfil");
       const workspace = page.locator(
         '[data-dashboard-module-workspace="perfil"]',
@@ -118,7 +109,7 @@ for (const viewport of VIEWPORTS) {
       page,
     }) => {
       await page.setViewportSize(viewport);
-      await setPopulatedClinicSession(page);
+      await setClinicSession(page, "populated");
       await page.goto("/dashboard?module=tokens");
       const workspace = page.locator(
         '[data-dashboard-module-workspace="tokens"]',
@@ -161,7 +152,7 @@ for (const viewport of VIEWPORTS) {
       page,
     }) => {
       await page.setViewportSize(viewport);
-      await setPopulatedClinicSession(page);
+      await setClinicSession(page, "populated");
 
       for (const moduleId of ["informes", "logistica", "perfil", "tokens"]) {
         await page.goto(`/dashboard?module=${moduleId}`);
@@ -186,7 +177,7 @@ test.describe("clinic mobile shell — anti-selection and anti-zoom", () => {
     page,
   }) => {
     await page.setViewportSize({ width: 360, height: 640 });
-    await setPopulatedClinicSession(page);
+    await setClinicSession(page, "populated");
     await page.goto("/dashboard?module=operaciones");
     await expect(
       page.locator('[data-dashboard-module-workspace="operaciones"]'),
@@ -213,7 +204,7 @@ test.describe("clinic mobile shell — anti-selection and anti-zoom", () => {
     page,
   }) => {
     await page.setViewportSize({ width: 360, height: 640 });
-    await setPopulatedClinicSession(page);
+    await setClinicSession(page, "populated");
     await page.goto("/dashboard?module=operaciones");
     await expect(
       page.locator('[data-dashboard-module-workspace="operaciones"]'),
@@ -263,7 +254,7 @@ test.describe("clinic mobile shell — anti-selection and anti-zoom", () => {
 
   test("perfil form inputs stay selectable and editable", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 });
-    await setPopulatedClinicSession(page);
+    await setClinicSession(page, "populated");
     await page.goto("/dashboard?module=perfil");
     await expect(
       page.locator('[data-dashboard-module-workspace="perfil"]'),
@@ -286,7 +277,7 @@ test.describe("clinic mobile shell — anti-selection and anti-zoom", () => {
     page,
   }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
-    await setPopulatedClinicSession(page);
+    await setClinicSession(page, "populated");
     await page.goto("/dashboard?module=operaciones");
     await expect(
       page.locator('[data-dashboard-module-workspace="operaciones"]'),

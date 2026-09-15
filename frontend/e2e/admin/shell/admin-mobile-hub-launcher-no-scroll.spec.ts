@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { setAdminSession } from "../../helpers/session";
 
 const TOLERANCE = 1;
 
@@ -9,16 +10,6 @@ const MOBILE_VIEWPORTS = [
   { name: "android-large-412x915", width: 412, height: 915 },
   { name: "iphone-pro-max-430x932", width: 430, height: 932 },
 ] as const;
-
-async function setPopulatedAdminSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "admin_session_id",
-      value: "e2e_populated_admin_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
 
 async function suppressNextDevIndicator(page: Page) {
   await page.addStyleTag({
@@ -133,7 +124,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
     page,
   }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
-    await setPopulatedAdminSession(page);
+    await setAdminSession(page, "populated");
     await page.goto("/dashboard/admin?hub=1");
     await suppressNextDevIndicator(page);
 
@@ -247,7 +238,7 @@ test("Admin mobile hub tiles are borderless with a larger icon and preserved til
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await setPopulatedAdminSession(page);
+  await setAdminSession(page, "populated");
   await page.goto("/dashboard/admin?hub=1");
   await suppressNextDevIndicator(page);
 
@@ -287,7 +278,7 @@ test("Admin desktop hub keeps lateral navigation and has no mobile launcher", as
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
-  await setPopulatedAdminSession(page);
+  await setAdminSession(page, "populated");
   await page.goto("/dashboard/admin?hub=1");
   await suppressNextDevIndicator(page);
 

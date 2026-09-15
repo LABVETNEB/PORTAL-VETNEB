@@ -1,6 +1,6 @@
 import { expect, test, type Page, type Request } from "@playwright/test";
+import { setClinicSession } from "../../helpers/session";
 
-const POPULATED_CLINIC_COOKIE = "e2e_populated_clinic_session";
 const REPORT_ROW_ID = /^report-(\d+)$/;
 const INFORMES_PATHNAME = "/dashboard/informes";
 
@@ -21,16 +21,6 @@ type WorkspaceState = {
   htmlOverflowY: number;
   bodyOverflowY: number;
 };
-
-async function setPopulatedClinicSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "app_session_id",
-      value: POPULATED_CLINIC_COOKIE,
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
 
 async function readWorkspaceState(page: Page): Promise<WorkspaceState> {
   return page.evaluate((rowPatternSource) => {
@@ -366,7 +356,7 @@ async function advanceToNextPage(
 async function openSettledWorkspace(page: Page) {
   const actions = observeInformesActions(page);
 
-  await setPopulatedClinicSession(page);
+  await setClinicSession(page, "populated");
   await page.goto(INFORMES_PATHNAME);
   await expectWorkspaceReady(page);
 

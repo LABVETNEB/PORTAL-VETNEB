@@ -6,8 +6,8 @@ import {
   assertParticularNoScrollContract,
   mockParticularAuthenticatedSession,
   readParticularDocumentNoScrollContract,
-  setParticularSessionCookie,
 } from "../../helpers/particular-session-contracts";
+import { setParticularSession } from "../../helpers/session";
 
 // R-17: first e2e fixture for an authenticated/token-gated Particular
 // session. Covers /particulares in its authenticated state (previously only
@@ -16,7 +16,7 @@ import {
 test.describe("particular authenticated session fixture (R-17)", () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize(PARTICULAR_MOBILE_VIEWPORT);
-    await setParticularSessionCookie(page);
+    await setParticularSession(page);
     await mockParticularAuthenticatedSession(page);
   });
 

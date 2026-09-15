@@ -1,4 +1,5 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
+import { setSession } from "../../helpers/session";
 
 test.describe.configure({ mode: "serial" });
 test.setTimeout(90_000);
@@ -254,16 +255,7 @@ const users = Array.from({ length: 14 }, (_, index) =>
 );
 
 async function applySession(page: Page, surface: SessionSurface) {
-  await page.context().addCookies([
-    {
-      name: surface === "admin" ? "admin_session_id" : "app_session_id",
-      value:
-        surface === "admin"
-          ? "e2e_populated_admin_session"
-          : "e2e_populated_clinic_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
+  await setSession(page, surface, "populated");
 }
 
 async function fulfillJson(route: Route, body: unknown) {

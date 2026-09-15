@@ -2,6 +2,7 @@ import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { expect, test } from "@playwright/test";
 import type { Page, TestInfo } from "@playwright/test";
+import { setAdminSession } from "../../helpers/session";
 
 const TOLERANCE = 2;
 const VERTICAL_TOLERANCE = 5;
@@ -24,16 +25,6 @@ const MOCK_SESSIONS = [
     status: "active",
   },
 ] as const;
-
-async function setPopulatedAdminSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "admin_session_id",
-      value: "e2e_populated_admin_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
 
 async function suppressNextDevIndicator(page: Page) {
   await page.addStyleTag({
@@ -321,7 +312,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
       width: viewport.width,
       height: viewport.height,
     });
-    await setPopulatedAdminSession(page);
+    await setAdminSession(page, "populated");
     await mockAdminSessions(page);
 
     await page.goto("/dashboard/admin?hub=1");
@@ -522,7 +513,7 @@ for (const cell of PAINT_CHAIN_MATRIX) {
   }, testInfo: TestInfo) => {
     await page.setViewportSize({ width: cell.width, height: cell.height });
     await applyColorMode(page, cell.mode);
-    await setPopulatedAdminSession(page);
+    await setAdminSession(page, "populated");
     await mockAdminSessions(page);
 
     await page.goto("/dashboard/admin?hub=1");

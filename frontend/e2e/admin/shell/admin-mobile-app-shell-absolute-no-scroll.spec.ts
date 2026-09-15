@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { setAdminSession } from "../../helpers/session";
 
 const TOLERANCE = 1;
 
@@ -15,16 +16,6 @@ const LANDSCAPE_DIAGNOSTIC_VIEWPORT = {
   width: 740,
   height: 360,
 } as const;
-
-async function setPopulatedAdminSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "admin_session_id",
-      value: "e2e_populated_admin_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
 
 function readCssAlpha(color: string) {
   const normalized = color.trim().toLowerCase();
@@ -125,7 +116,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
     page,
   }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
-    await setPopulatedAdminSession(page);
+    await setAdminSession(page, "populated");
     await page.goto("/dashboard/admin");
 
     const surface = page.locator('[data-vetneb-app-shell-surface="admin"]');
@@ -190,7 +181,7 @@ test(`Admin mobile app shell is absolute no-scroll at ${LANDSCAPE_DIAGNOSTIC_VIE
     width: LANDSCAPE_DIAGNOSTIC_VIEWPORT.width,
     height: LANDSCAPE_DIAGNOSTIC_VIEWPORT.height,
   });
-  await setPopulatedAdminSession(page);
+  await setAdminSession(page, "populated");
   await page.goto("/dashboard/admin");
 
   const surface = page.locator('[data-vetneb-app-shell-surface="admin"]');

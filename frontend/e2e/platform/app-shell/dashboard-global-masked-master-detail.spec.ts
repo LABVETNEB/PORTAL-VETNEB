@@ -1,4 +1,5 @@
 import { expect, test, type Locator } from "@playwright/test";
+import { setAdminSession, setClinicSession } from "../../helpers/session";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Global inline/masked Master-Detail / no-scroll contract for BOTH dashboards.
@@ -185,31 +186,11 @@ async function mockClinicTokens(page: Page) {
   );
 }
 
-async function setClinicSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "app_session_id",
-      value: "e2e_test_clinic_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
-
-async function setAdminSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "admin_session_id",
-      value: "e2e_test_admin_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
-
 async function applySession(page: Page, surface: Surface) {
   if (surface === "clinic") {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
   } else {
-    await setAdminSession(page);
+    await setAdminSession(page, "default");
   }
 }
 
@@ -364,7 +345,7 @@ for (const viewport of VIEWPORTS) {
         width: viewport.width,
         height: viewport.height,
       });
-      await setClinicSession(page);
+      await setClinicSession(page, "default");
       await mockClinicTokens(page);
 
       await page.goto("/dashboard?module=tokens");
@@ -422,7 +403,7 @@ test("clinic Tokens desktop limits the list and opens detail dialog without shel
   page,
 }) => {
   await page.setViewportSize({ width: 1366, height: 768 });
-  await setClinicSession(page);
+  await setClinicSession(page, "default");
   await mockClinicTokens(page);
 
   await page.goto("/dashboard?module=tokens");
@@ -474,7 +455,7 @@ test("clinic Tokens mobile keeps the list and opens the selected detail dialog",
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await setClinicSession(page);
+  await setClinicSession(page, "default");
   await mockClinicTokens(page);
 
   await page.goto("/dashboard?module=tokens");

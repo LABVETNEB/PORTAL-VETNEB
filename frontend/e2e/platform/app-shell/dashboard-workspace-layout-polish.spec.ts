@@ -1,28 +1,9 @@
 import { expect, test } from "@playwright/test";
+import { setAdminSession, setClinicSession } from "../../helpers/session";
 
 type Page = import("@playwright/test").Page;
 
 const TOLERANCE = 2;
-
-async function setClinicSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "app_session_id",
-      value: "e2e_test_clinic_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
-
-async function setAdminSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "admin_session_id",
-      value: "e2e_test_admin_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
 
 type Surface = "clinic" | "admin";
 
@@ -103,9 +84,9 @@ type FrameFitMetrics = {
 
 async function applySession(page: Page, surface: Surface) {
   if (surface === "clinic") {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
   } else {
-    await setAdminSession(page);
+    await setAdminSession(page, "default");
   }
 }
 
@@ -248,7 +229,7 @@ test.describe("dashboard workspace layout polish — smoke (PR-2)", () => {
   test("clinic /dashboard opens the default operaciones workspace via the lateral nav (no hub)", async ({
     page,
   }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
     await page.goto("/dashboard");
     // No hub: the lateral navigation (B08) and the default operaciones
     // workspace load directly; the legacy module-hub markup must be absent.
@@ -268,7 +249,7 @@ test.describe("dashboard workspace layout polish — smoke (PR-2)", () => {
   test("clinic /dashboard?module=operaciones renders workspace with enter class", async ({
     page,
   }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
     await page.goto("/dashboard?module=operaciones");
     const workspace = page.locator(
       '[data-dashboard-module-workspace="operaciones"]',
@@ -278,7 +259,7 @@ test.describe("dashboard workspace layout polish — smoke (PR-2)", () => {
   });
 
   test("admin /dashboard/admin loads module hub", async ({ page }) => {
-    await setAdminSession(page);
+    await setAdminSession(page, "default");
     await page.goto("/dashboard/admin?hub=1");
     await expect(
       page.locator('[data-dashboard-module-hub="true"]'),
@@ -288,7 +269,7 @@ test.describe("dashboard workspace layout polish — smoke (PR-2)", () => {
   test("admin /dashboard/admin?module=admin-clinics renders workspace with enter class", async ({
     page,
   }) => {
-    await setAdminSession(page);
+    await setAdminSession(page, "default");
     await page.goto("/dashboard/admin?module=admin-clinics");
     const workspace = page.locator(
       '[data-dashboard-module-workspace="admin-clinics"]',
@@ -298,7 +279,7 @@ test.describe("dashboard workspace layout polish — smoke (PR-2)", () => {
   });
 
   test("/dashboard/informes layout loads", async ({ page }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
     await page.goto("/dashboard/informes");
     await expect(page.locator("main.dashboard-main")).toBeVisible({
       timeout: 8_000,
@@ -317,7 +298,7 @@ test.describe("dashboard workspace layout polish — smoke (PR-2)", () => {
     // The clinic workspace no longer exposes a "Vista general" control — module
     // navigation is owned by the shared rail. The admin hub still uses the back
     // button, so the PR-1 interaction contract is asserted there.
-    await setAdminSession(page);
+    await setAdminSession(page, "default");
     await page.goto("/dashboard/admin?module=admin-clinics");
     const workspace = page.locator(
       '[data-dashboard-module-workspace="admin-clinics"]',
@@ -331,7 +312,7 @@ test.describe("dashboard workspace layout polish — smoke (PR-2)", () => {
   test("clinic workspace no longer exposes a Vista general control (rail owns nav)", async ({
     page,
   }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
     await page.goto("/dashboard?module=operaciones");
     const workspace = page.locator(
       '[data-dashboard-module-workspace="operaciones"]',
@@ -346,7 +327,7 @@ test.describe("dashboard workspace layout polish — smoke (PR-2)", () => {
     page,
   }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
     await page.goto("/dashboard?module=operaciones");
     const workspace = page.locator(
       '[data-dashboard-module-workspace="operaciones"]',
@@ -358,7 +339,7 @@ test.describe("dashboard workspace layout polish — smoke (PR-2)", () => {
   test("no global scroll: shell keeps h-dvh overflow-hidden layout", async ({
     page,
   }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
     await page.goto("/dashboard");
     await expect(
       page.locator('[data-dashboard-module-workspace="operaciones"]'),

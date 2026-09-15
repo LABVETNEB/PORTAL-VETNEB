@@ -10,6 +10,7 @@ import {
   suppressNextDevChrome,
   waitForLayoutSettled,
 } from "../helpers/dashboard-geometry-matrix";
+import { addAppCookies } from "../helpers/session";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // B10 · Clinic app-shell unification runtime contract.
@@ -54,8 +55,6 @@ import {
 // the layout segment the way the lateral frame reads its `module` prop, and a
 // full route marks its own module on BOTH bands.
 // ─────────────────────────────────────────────────────────────────────────────
-
-const APP_ORIGIN = "http://127.0.0.1:3000";
 
 const APP_BAR_SELECTOR = '[data-workspace-app-bar="true"]';
 const TOPBAR_SELECTOR = 'header[data-dashboard-topbar-polish="true"]';
@@ -189,10 +188,7 @@ async function prepareClinic(page: Page): Promise<void> {
   await clearDashboardModuleMemory(page);
   await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
 
-  const cookie = DASHBOARD_GEOMETRY_SESSION_COOKIE.clinic;
-  await page
-    .context()
-    .addCookies([{ name: cookie.name, value: cookie.value, url: APP_ORIGIN }]);
+  await addAppCookies(page, [DASHBOARD_GEOMETRY_SESSION_COOKIE.clinic]);
 
   // Stub every clinic surface: this spec navigates between them, and a module
   // whose endpoint the shared fixture answers 404 for would render an error

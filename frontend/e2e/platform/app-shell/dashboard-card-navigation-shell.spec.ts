@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { suppressNextDevIndicator } from "../../helpers/admin-mobile-contracts";
+import { setAdminSession, setClinicSession } from "../../helpers/session";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -27,26 +28,6 @@ const CLINIC_RAIL_MODULES: Array<{
   { moduleId: "perfil", railLabel: "Perfil", workspaceId: "perfil" },
   { moduleId: "tokens", railLabel: "Tokens", workspaceId: "tokens" },
 ];
-
-async function setClinicSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "app_session_id",
-      value: "e2e_test_clinic_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
-
-async function setAdminSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "admin_session_id",
-      value: "e2e_test_admin_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
 
 // ─── Admin card locator helper: matches only the card whose TITLE is `title` ──
 // Uses CSS attribute selector ^= (starts-with) so "Auditoría:" matches only
@@ -114,7 +95,7 @@ test.describe("dashboard card navigation shell — scope guard", () => {
 
 test.describe("clinic dashboard — default workspace (no hub)", () => {
   test.beforeEach(async ({ page }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
   });
 
   test("opens the default operaciones workspace directly (no module hub)", async ({
@@ -174,7 +155,7 @@ test.describe("clinic dashboard — default workspace (no hub)", () => {
 
 test.describe("clinic dashboard — rail navigation", () => {
   test.beforeEach(async ({ page }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
   });
 
   for (const { moduleId, workspaceId } of CLINIC_RAIL_MODULES) {
@@ -266,7 +247,7 @@ test.describe("clinic dashboard — rail navigation", () => {
 
 test.describe("admin dashboard — module hub initial state", () => {
   test.beforeEach(async ({ page }) => {
-    await setAdminSession(page);
+    await setAdminSession(page, "default");
   });
 
   test("renders the module hub section on admin dashboard", async ({ page }) => {
@@ -356,7 +337,7 @@ test.describe("admin dashboard — module hub initial state", () => {
 
 test.describe("admin dashboard — workspace activation", () => {
   test.beforeEach(async ({ page }) => {
-    await setAdminSession(page);
+    await setAdminSession(page, "default");
   });
 
   test("clicking Administración card opens admin workspace", async ({ page }) => {
@@ -424,7 +405,7 @@ test.describe("admin dashboard — workspace activation", () => {
 
 test.describe("dashboard shell — no global scroll", () => {
   test.beforeEach(async ({ page }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
   });
 
   test("clinic dashboard shell uses h-dvh overflow-hidden container", async ({ page }) => {
@@ -520,7 +501,7 @@ test.describe("dashboard shell — no global scroll", () => {
 // what makes the race observable at all.
 test.describe("dashboard lateral nav — pre-hydration click", () => {
   test.beforeEach(async ({ page }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
   });
 
   test("a click before hydration still navigates, exactly once, via the native fallback", async ({
@@ -734,7 +715,7 @@ test.describe("dashboard lateral nav — pre-hydration click", () => {
 
 test.describe("admin shell — no global scroll", () => {
   test.beforeEach(async ({ page }) => {
-    await setAdminSession(page);
+    await setAdminSession(page, "default");
   });
 
   test("body does not scroll on admin dashboard hub initial state", async ({ page }) => {
@@ -755,7 +736,7 @@ test.describe("admin shell — no global scroll", () => {
 
 test.describe("clinic dashboard — deep link direct navigation", () => {
   test.beforeEach(async ({ page }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
   });
 
   test("/dashboard?module=operaciones opens Centro de operaciones workspace directly", async ({ page }) => {
@@ -796,7 +777,7 @@ test.describe("clinic dashboard — deep link direct navigation", () => {
 
 test.describe("admin dashboard — deep link direct navigation", () => {
   test.beforeEach(async ({ page }) => {
-    await setAdminSession(page);
+    await setAdminSession(page, "default");
   });
 
   test("/dashboard/admin?module=admin-clinics opens Clínicas workspace directly", async ({ page }) => {
@@ -852,7 +833,7 @@ test.describe("admin dashboard — deep link direct navigation", () => {
 
 test.describe("admin dashboard — browser back/forward sync", () => {
   test.beforeEach(async ({ page }) => {
-    await setAdminSession(page);
+    await setAdminSession(page, "default");
   });
 
   test("browser back from admin workspace returns to admin hub", async ({ page }) => {
@@ -904,7 +885,7 @@ test.describe("admin dashboard — browser back/forward sync", () => {
 
 test.describe("clinic module rail — primary navigation", () => {
   test.beforeEach(async ({ page }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
   });
 
   test("is the only clinic module navigation on the main dashboard (>=768px)", async ({ page }) => {
@@ -959,7 +940,7 @@ test.describe("clinic module rail — primary navigation", () => {
 
 test.describe("dashboard lateral nav — admin module navigation", () => {
   test.beforeEach(async ({ page }) => {
-    await setAdminSession(page);
+    await setAdminSession(page, "default");
   });
 
   test("clicking a nav module preserves ?module= and marks it active", async ({ page }) => {
@@ -1002,7 +983,7 @@ test.describe("dashboard lateral nav — admin module navigation", () => {
 
 test.describe("admin dashboard — per-module workspace activation", () => {
   test.beforeEach(async ({ page }) => {
-    await setAdminSession(page);
+    await setAdminSession(page, "default");
   });
 
   const adminModuleCards: Array<{ cardTitle: string; workspaceId: string }> = [
@@ -1073,7 +1054,7 @@ test.describe("admin dashboard — per-module workspace activation", () => {
 
 test.describe("admin dashboard — workspace isolation", () => {
   test.beforeEach(async ({ page }) => {
-    await setAdminSession(page);
+    await setAdminSession(page, "default");
   });
 
   test("Clínicas workspace does not render audit-log content", async ({ page }) => {
@@ -1115,7 +1096,7 @@ test.describe("admin dashboard — workspace isolation", () => {
 
 test.describe("clinic dashboard — workspace isolation", () => {
   test.beforeEach(async ({ page }) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
   });
 
   test("Informes workspace does not render Logística content", async ({ page }) => {

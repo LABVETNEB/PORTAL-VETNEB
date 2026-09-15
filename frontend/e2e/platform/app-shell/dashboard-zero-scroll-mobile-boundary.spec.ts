@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { setAdminSession, setClinicSession } from "../../helpers/session";
 
 const TOLERANCE = 2;
 
@@ -12,26 +13,6 @@ const CLINIC_ROUTES = [
   { path: "/dashboard?module=informes", ready: '[data-dashboard-module-workspace="informes"]' },
   { path: "/dashboard?module=logistica", ready: '[data-dashboard-module-workspace="logistica"]' },
 ] as const;
-
-async function setPopulatedClinicSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "app_session_id",
-      value: "e2e_populated_clinic_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
-
-async function setPopulatedAdminSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "admin_session_id",
-      value: "e2e_populated_admin_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
 
 async function readBoundary(page: Page, bottomNavSelector: string) {
   return page.evaluate((navSelector) => {
@@ -69,7 +50,7 @@ test.describe("dashboard zero-scroll mobile lower boundary", () => {
         page,
       }) => {
         await page.setViewportSize({ width: viewport.width, height: viewport.height });
-        await setPopulatedClinicSession(page);
+        await setClinicSession(page, "populated");
         await page.goto(route.path);
 
         await expect(page.locator(route.ready).first()).toBeVisible({ timeout: 12_000 });
@@ -112,7 +93,7 @@ test.describe("dashboard zero-scroll mobile lower boundary", () => {
       page,
     }) => {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
-      await setPopulatedAdminSession(page);
+      await setAdminSession(page, "populated");
       await page.goto("/dashboard/admin");
 
       await expect(

@@ -1,5 +1,7 @@
 import { expect, type Page, type Route } from "@playwright/test";
 
+import { sessionCookie } from "./session";
+
 // ─────────────────────────────────────────────────────────────────────────────
 // A02 · Dashboard geometry baseline support (21 surfaces × 13 viewports = 273).
 //
@@ -73,8 +75,8 @@ export type DashboardGeometrySurface = {
 export const DASHBOARD_GEOMETRY_SESSION_COOKIE: Readonly<
   Record<DashboardGeometryRole, { readonly name: string; readonly value: string }>
 > = Object.freeze({
-  admin: { name: "admin_session_id", value: "e2e_populated_admin_session" },
-  clinic: { name: "app_session_id", value: "e2e_populated_clinic_session" },
+  admin: sessionCookie("admin", "populated"),
+  clinic: sessionCookie("clinic", "populated"),
 });
 
 // ── Hermetic surface stubs ───────────────────────────────────────────────────

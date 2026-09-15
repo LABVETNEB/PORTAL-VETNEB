@@ -8,6 +8,7 @@ import {
   LONG_TEXT_USER_AGENT,
   LONG_TEXT_USER_ROLE,
 } from "../../helpers/long-text-dataset.mjs";
+import { addAppCookies, setSession } from "../../helpers/session";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PR-TRUNC — Terminal-surface text integrity (admin + clinic).
@@ -52,28 +53,8 @@ const VIEWPORTS = [
   { slug: "w360x800", width: 360, height: 800 },
 ] as const;
 
-const ORIGIN = "http://127.0.0.1:3000";
-
-async function setSession(page: Page, role: "admin" | "clinic") {
-  await page.context().addCookies([
-    role === "admin"
-      ? {
-          name: "admin_session_id",
-          value: "e2e_populated_admin_session",
-          url: ORIGIN,
-        }
-      : {
-          name: "app_session_id",
-          value: "e2e_populated_clinic_session",
-          url: ORIGIN,
-        },
-  ]);
-}
-
 async function enableLongTextFixture(page: Page) {
-  await page.context().addCookies([
-    { name: LONG_TEXT_COOKIE_NAME, value: LONG_TEXT_COOKIE_VALUE, url: ORIGIN },
-  ]);
+  await addAppCookies(page, [{ name: LONG_TEXT_COOKIE_NAME, value: LONG_TEXT_COOKIE_VALUE }]);
 }
 
 type Offender = {
@@ -269,7 +250,7 @@ async function openFirstDetail(page: Page) {
 test.describe("admin particular tokens detail keeps every clinical value", () => {
   for (const vp of VIEWPORTS) {
     test(`full text and no hidden glyphs at ${vp.slug}`, async ({ page }) => {
-      await setSession(page, "admin");
+      await setSession(page, "admin", "populated");
       await page.route("**/api/admin/particular-tokens**", async (route) => {
         await route.fulfill({
           json: {
@@ -336,7 +317,7 @@ test.describe("admin particular tokens detail keeps every clinical value", () =>
 test.describe("admin report detail keeps patient, study and file name", () => {
   for (const vp of VIEWPORTS) {
     test(`full text and no hidden glyphs at ${vp.slug}`, async ({ page }) => {
-      await setSession(page, "admin");
+      await setSession(page, "admin", "populated");
       await page.route("**/api/admin/report-workflow**", async (route) => {
         await route.fulfill({
           json: {
@@ -395,7 +376,7 @@ test.describe("admin report detail keeps patient, study and file name", () => {
 test.describe("admin failed login detail discloses the whole user agent", () => {
   for (const vp of VIEWPORTS) {
     test(`full text and no hidden glyphs at ${vp.slug}`, async ({ page }) => {
-      await setSession(page, "admin");
+      await setSession(page, "admin", "populated");
       await page.route("**/api/admin/failed-login-alerts**", async (route) => {
         await route.fulfill({
           json: {
@@ -463,7 +444,7 @@ test.describe("admin failed login detail discloses the whole user agent", () => 
 test.describe("admin users and roles detail discloses user and clinic", () => {
   for (const vp of VIEWPORTS) {
     test(`full text and no hidden glyphs at ${vp.slug}`, async ({ page }) => {
-      await setSession(page, "admin");
+      await setSession(page, "admin", "populated");
       await page.route("**/api/admin/users-roles**", async (route) => {
         await route.fulfill({
           json: {
@@ -528,7 +509,7 @@ test.describe("admin users and roles detail discloses user and clinic", () => {
 test.describe("clinic particular tokens detail keeps sample, evolution and lesion", () => {
   for (const vp of VIEWPORTS) {
     test(`full text and no hidden glyphs at ${vp.slug}`, async ({ page }) => {
-      await setSession(page, "clinic");
+      await setSession(page, "clinic", "populated");
       await page.route("**/api/particular-tokens**", async (route) => {
         await route.fulfill({
           json: {
@@ -594,7 +575,7 @@ test.describe("clinic particular tokens detail keeps sample, evolution and lesio
 test.describe("clinic informes summary detail keeps patient, study and file", () => {
   for (const vp of VIEWPORTS) {
     test(`full text and no hidden glyphs at ${vp.slug}`, async ({ page }) => {
-      await setSession(page, "clinic");
+      await setSession(page, "clinic", "populated");
       await enableLongTextFixture(page);
 
       await page.setViewportSize({ width: vp.width, height: vp.height });
@@ -629,7 +610,7 @@ test.describe("clinic informes summary detail keeps patient, study and file", ()
 test.describe("clinic informes master-detail panel keeps the whole record", () => {
   for (const vp of VIEWPORTS) {
     test(`full text and no hidden glyphs at ${vp.slug}`, async ({ page }) => {
-      await setSession(page, "clinic");
+      await setSession(page, "clinic", "populated");
       await enableLongTextFixture(page);
 
       await page.setViewportSize({ width: vp.width, height: vp.height });

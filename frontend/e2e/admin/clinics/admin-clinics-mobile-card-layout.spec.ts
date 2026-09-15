@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
+import { setAdminSession } from "../../helpers/session";
 
 const TOLERANCE = 2;
 
@@ -31,16 +32,6 @@ const MOCK_CLINICS = Array.from({ length: 40 }, (_, index) => {
     ],
   };
 });
-
-async function setAdminSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "admin_session_id",
-      value: "e2e_test_admin_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
 
 async function mockAdminClinics(page: Page) {
   await page.route("**/api/admin/clinics**", async (route) => {
@@ -247,7 +238,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
       height: viewport.height,
     });
 
-    await setAdminSession(page);
+    await setAdminSession(page, "default");
     await mockAdminClinics(page);
 
     await page.goto("/dashboard/admin?module=admin-clinics");
@@ -288,7 +279,7 @@ test("admin clinics mobile pagination advances through adaptive pages", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await setAdminSession(page);
+  await setAdminSession(page, "default");
   await mockAdminClinics(page);
 
   await page.goto("/dashboard/admin?module=admin-clinics");

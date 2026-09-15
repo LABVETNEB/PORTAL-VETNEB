@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { setAdminSession } from "../helpers/session";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // A01 · Dashboard operational contract — S1 (Auditoría) runtime regression.
@@ -14,7 +15,6 @@ import { expect, test } from "@playwright/test";
 // `test/unit/ui/dashboard/dashboard-operational-contract-baseline.test.ts`.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const APP_ORIGIN = "http://127.0.0.1:3000";
 const AUDIT_MODULE_URL = "/dashboard/admin?module=audit-log";
 const DESKTOP_VIEWPORT = { width: 1440, height: 900 };
 
@@ -28,16 +28,6 @@ const FILTER_INPUT = {
 
 type Page = import("@playwright/test").Page;
 type Locator = import("@playwright/test").Locator;
-
-async function setAdminSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "admin_session_id",
-      value: "e2e_test_admin_session",
-      url: APP_ORIGIN,
-    },
-  ]);
-}
 
 /**
  * The audit filter bar is rendered twice (inline desktop form + mobile dialog
@@ -58,7 +48,7 @@ test.describe("A01 · S1 audit filters operational contract", () => {
   test("S1 filters live in the URL across submit, Back, Forward, reload and Limpiar", async ({
     page,
   }) => {
-    await setAdminSession(page);
+    await setAdminSession(page, "default");
     await page.goto(AUDIT_MODULE_URL);
 
     await expect(page.locator('[data-dashboard-module-workspace="audit-log"]')).toBeVisible();

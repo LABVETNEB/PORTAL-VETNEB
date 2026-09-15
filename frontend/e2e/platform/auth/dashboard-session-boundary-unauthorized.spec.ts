@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { SESSION_COOKIE_NAMES, addAppCookies } from "../../helpers/session";
 
 // E2E-GLOBAL-03 — frontera de auth SIMULADA (fixture), NO autoritativa.
 //
@@ -30,12 +31,8 @@ const PROTECTED_CLINIC_PATHS = [
 ] as const;
 
 async function setExpiredClinicSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "app_session_id",
-      value: BOUNDARY_EXPIRED_CLINIC_SESSION,
-      url: "http://127.0.0.1:3000",
-    },
+  await addAppCookies(page, [
+    { name: SESSION_COOKIE_NAMES.clinic, value: BOUNDARY_EXPIRED_CLINIC_SESSION },
   ]);
 }
 

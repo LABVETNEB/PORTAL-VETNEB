@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { setAdminSession } from "../../helpers/session";
 
 const TOLERANCE = 1;
 
@@ -25,16 +26,6 @@ const EXPECTED_MODULES = [
   "Auditoría",
   "Mantenimiento",
 ] as const;
-
-async function setPopulatedAdminSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "admin_session_id",
-      value: "e2e_populated_admin_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
 
 async function suppressNextDevIndicator(page: Page) {
   await page.addStyleTag({
@@ -67,7 +58,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
     page,
   }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
-    await setPopulatedAdminSession(page);
+    await setAdminSession(page, "populated");
     await page.goto("/dashboard/admin?module=admin-clinics");
     await suppressNextDevIndicator(page);
     await expectModule(page, "admin-clinics");
@@ -191,7 +182,7 @@ test("Admin desktop preserves lateral navigation and desktop actions", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
-  await setPopulatedAdminSession(page);
+  await setAdminSession(page, "populated");
   await page.goto("/dashboard/admin");
 
   await expect(

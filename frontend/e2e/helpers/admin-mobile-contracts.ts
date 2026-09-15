@@ -10,27 +10,6 @@ export const ADMIN_MOBILE_VIEWPORTS = [
 
 export type AdminMobileViewport = (typeof ADMIN_MOBILE_VIEWPORTS)[number];
 
-export async function setAdminSessionCookie(
-  page: Page,
-  value: string = "e2e_test_admin_session",
-) {
-  await page.context().addCookies([
-    {
-      name: "admin_session_id",
-      value,
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
-
-export function setTestAdminSession(page: Page) {
-  return setAdminSessionCookie(page, "e2e_test_admin_session");
-}
-
-export function setPopulatedAdminSession(page: Page) {
-  return setAdminSessionCookie(page, "e2e_populated_admin_session");
-}
-
 export async function suppressNextDevIndicator(page: Page) {
   await page.addStyleTag({
     content: "nextjs-portal { display: none !important; }",

@@ -1,22 +1,11 @@
 import { test } from "@playwright/test";
+import { setClinicSession } from "../../helpers/session";
 
 // Evidence generator for the "remove dashboard home + unified module workspace"
 // change. Each capture runs in its own isolated context (fresh storage) so a
 // bare `/dashboard` always resolves to the operational default (operaciones)
 // without the last-module restore interfering. Evidence is written to the
 // Playwright-managed test output dir so the tracked tree stays clean.
-
-type Page = import("@playwright/test").Page;
-
-async function setClinicSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "app_session_id",
-      value: "e2e_test_clinic_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
 
 const CAPTURES: Array<{
   url: string;
@@ -79,7 +68,7 @@ function clinicNavigationSelector(width: number): string {
 
 for (const capture of CAPTURES) {
   test(`screenshot ${capture.file}`, async ({ page }, testInfo) => {
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
     await page.setViewportSize({ width: capture.width, height: capture.height });
     await page.goto(capture.url, { waitUntil: "networkidle" });
 

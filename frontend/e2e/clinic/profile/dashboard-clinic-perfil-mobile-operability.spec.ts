@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { setClinicSession } from "../../helpers/session";
 
 type Locator = import("@playwright/test").Locator;
 type Page = import("@playwright/test").Page;
@@ -10,16 +11,6 @@ const VIEWPORTS = [
   { name: "390x844", width: 390, height: 844 },
   { name: "430x932", width: 430, height: 932 },
 ] as const;
-
-async function setClinicSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "app_session_id",
-      value: "e2e_test_clinic_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
 
 // B09 unified navigation contract: every clinic module reaches every other one
 // from ONE owner. `/dashboard` used to be the exception — the clinic bottom nav
@@ -274,7 +265,7 @@ for (const viewport of VIEWPORTS) {
       width: viewport.width,
       height: viewport.height,
     });
-    await setClinicSession(page);
+    await setClinicSession(page, "default");
     await mockClinicProfile(page);
 
     await page.goto("/dashboard?module=perfil");

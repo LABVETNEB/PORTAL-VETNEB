@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { addAppCookies, sessionCookie } from "../../helpers/session";
 
 // CMP-06 retired the extra StickyActionBar from this full route. Its three
 // destinations now belong to the single ModuleCard header, so the operational
@@ -34,9 +35,9 @@ type CanvasGeometry = {
 };
 
 async function setClinicSession(page: Page) {
-  await page.context().addCookies([
-    { name: "app_session_id", value: "e2e_populated_clinic_session", url: "http://127.0.0.1:3000" },
-    { name: "e2e_a03_adaptive_pagination", value: "1", url: "http://127.0.0.1:3000" },
+  await addAppCookies(page, [
+    sessionCookie("clinic", "populated"),
+    { name: "e2e_a03_adaptive_pagination", value: "1" },
   ]);
 }
 

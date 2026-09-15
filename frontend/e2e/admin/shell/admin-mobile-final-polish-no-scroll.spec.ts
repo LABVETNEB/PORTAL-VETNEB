@@ -11,9 +11,9 @@ import {
 import {
   ADMIN_MOBILE_TOLERANCE as TOLERANCE,
   fulfillJson,
-  setPopulatedAdminSession,
   suppressNextDevIndicator,
 } from "../../helpers/admin-mobile-contracts";
+import { setAdminSession } from "../../helpers/session";
 
 const MOBILE_VIEWPORTS = [
   { name: "android-small-360x740", width: 360, height: 740 },
@@ -493,7 +493,7 @@ async function auditModuleItems(
 for (const viewport of MOBILE_VIEWPORTS) {
   test(`Admin mobile final polish closeout at ${viewport.name}`, async ({ page }, testInfo) => {
     test.setTimeout(120_000);
-    await setPopulatedAdminSession(page);
+    await setAdminSession(page, "populated");
     await mockMissingPopulatedApis(page);
     await preparePage(page, viewport, "/dashboard/admin?hub=1");
 
@@ -611,7 +611,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
 
 test("Admin desktop final polish smoke at 1280x800", async ({ page }, testInfo) => {
   test.setTimeout(120_000);
-  await setPopulatedAdminSession(page);
+  await setAdminSession(page, "populated");
   await mockMissingPopulatedApis(page);
   await preparePage(page, DESKTOP_VIEWPORT, "/dashboard/admin?hub=1");
 
