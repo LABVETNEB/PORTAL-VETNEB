@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { addAppCookies, sessionCookie } from "../../helpers/session";
+import { MAX_DOCUMENT_SCROLL_DELTA_PX } from "../../helpers/zero-scroll-contract";
 
 // CMP-06 retired the extra StickyActionBar from this full route. Its three
 // destinations now belong to the single ModuleCard header, so the operational
@@ -160,8 +161,12 @@ async function expectNoScrollOrOverflow(page: Page, label: string) {
       ).filter((canvas) => ["auto", "scroll"].includes(getComputedStyle(canvas).overflowY)).length,
     };
   });
-  expect(geometry.horizontal, `${label}: document horizontal overflow`).toBeLessThanOrEqual(1);
-  expect(geometry.vertical, `${label}: document vertical scroll`).toBeLessThanOrEqual(1);
+  expect(geometry.horizontal, `${label}: document horizontal overflow`).toBeLessThanOrEqual(
+    MAX_DOCUMENT_SCROLL_DELTA_PX,
+  );
+  expect(geometry.vertical, `${label}: document vertical scroll`).toBeLessThanOrEqual(
+    MAX_DOCUMENT_SCROLL_DELTA_PX,
+  );
   expect(geometry.scrollableCanvases, `${label}: no list canvas becomes a scroller`).toBe(0);
 }
 

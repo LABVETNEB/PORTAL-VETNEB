@@ -350,7 +350,7 @@ test.describe("dashboard workspace layout polish — smoke (PR-2)", () => {
         document.documentElement.scrollHeight -
         document.documentElement.clientHeight,
     );
-    expect(overflow).toBeLessThanOrEqual(5);
+    expect(overflow).toBeLessThanOrEqual(MAX_DOCUMENT_SCROLL_DELTA_PX);
   });
 });
 

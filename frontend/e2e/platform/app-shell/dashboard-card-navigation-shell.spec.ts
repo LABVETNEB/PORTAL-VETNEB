@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { suppressNextDevIndicator } from "../../helpers/admin-mobile-contracts";
 import { setAdminSession, setClinicSession } from "../../helpers/session";
+import { MAX_DOCUMENT_SCROLL_DELTA_PX } from "../../helpers/zero-scroll-contract";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -456,7 +457,7 @@ test.describe("dashboard shell — no global scroll", () => {
     const bodyScrollHeight = await page.evaluate(() => document.body.scrollHeight);
     const viewportHeight = await page.evaluate(() => window.innerHeight);
 
-    expect(bodyScrollHeight).toBeLessThanOrEqual(viewportHeight + 5);
+    expect(bodyScrollHeight).toBeLessThanOrEqual(viewportHeight + MAX_DOCUMENT_SCROLL_DELTA_PX);
   });
 
   test("body does not scroll after navigating the rail to another module", async ({ page }) => {
@@ -484,7 +485,7 @@ test.describe("dashboard shell — no global scroll", () => {
     const bodyScrollHeight = await page.evaluate(() => document.body.scrollHeight);
     const viewportHeight = await page.evaluate(() => window.innerHeight);
 
-    expect(bodyScrollHeight).toBeLessThanOrEqual(viewportHeight + 5);
+    expect(bodyScrollHeight).toBeLessThanOrEqual(viewportHeight + MAX_DOCUMENT_SCROLL_DELTA_PX);
   });
 });
 
@@ -725,7 +726,7 @@ test.describe("admin shell — no global scroll", () => {
     const bodyScrollHeight = await page.evaluate(() => document.body.scrollHeight);
     const viewportHeight = await page.evaluate(() => window.innerHeight);
 
-    expect(bodyScrollHeight).toBeLessThanOrEqual(viewportHeight + 5);
+    expect(bodyScrollHeight).toBeLessThanOrEqual(viewportHeight + MAX_DOCUMENT_SCROLL_DELTA_PX);
   });
 });
 

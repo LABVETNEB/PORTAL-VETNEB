@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { setClinicSession } from "../../helpers/session";
+import { MAX_DOCUMENT_SCROLL_DELTA_PX } from "../../helpers/zero-scroll-contract";
 
 // Behavioural contract for "remove dashboard home + unified module workspace":
 // the clinic dashboard has NO home/hub of modules; `/dashboard` opens the
@@ -213,8 +214,12 @@ for (const viewport of MANDATORY_VIEWPORTS) {
           ),
         };
       });
-      expect(overflow.vertical, `${viewport.name}: external vertical scroll`).toBeLessThanOrEqual(2);
-      expect(overflow.horizontal, `${viewport.name}: horizontal scroll`).toBeLessThanOrEqual(2);
+      expect(overflow.vertical, `${viewport.name}: external vertical scroll`).toBeLessThanOrEqual(
+        MAX_DOCUMENT_SCROLL_DELTA_PX,
+      );
+      expect(overflow.horizontal, `${viewport.name}: horizontal scroll`).toBeLessThanOrEqual(
+        MAX_DOCUMENT_SCROLL_DELTA_PX,
+      );
     }).toPass({ timeout: 10_000 });
   });
 }

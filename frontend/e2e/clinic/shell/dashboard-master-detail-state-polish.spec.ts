@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { setClinicSession } from "../../helpers/session";
+import { MAX_DOCUMENT_SCROLL_DELTA_PX } from "../../helpers/zero-scroll-contract";
 
 test.describe("dashboard reports profile-layout state polish — smoke", () => {
   test("informes: reports list panel renders", async ({ page }) => {
@@ -56,7 +57,7 @@ test.describe("dashboard reports profile-layout state polish — smoke", () => {
         document.documentElement.scrollWidth -
         document.documentElement.clientWidth,
     );
-    expect(overflow).toBeLessThanOrEqual(2);
+    expect(overflow).toBeLessThanOrEqual(MAX_DOCUMENT_SCROLL_DELTA_PX);
   });
 
   test("informes: no horizontal overflow at 375px mobile", async ({ page }) => {
@@ -71,6 +72,6 @@ test.describe("dashboard reports profile-layout state polish — smoke", () => {
         document.documentElement.scrollWidth -
         document.documentElement.clientWidth,
     );
-    expect(overflow).toBeLessThanOrEqual(2);
+    expect(overflow).toBeLessThanOrEqual(MAX_DOCUMENT_SCROLL_DELTA_PX);
   });
 });
