@@ -282,7 +282,7 @@ async function installStressApiMocks(page: Page) {
     }
 
     if (url.pathname === "/api/logistics/field-visits") {
-      await fulfillJson(route, { visits: visits.slice(offset, offset + limit) });
+      await fulfillJson(route, { fieldVisits: visits.slice(offset, offset + limit) });
       return;
     }
 

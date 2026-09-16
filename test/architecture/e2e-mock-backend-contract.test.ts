@@ -50,7 +50,6 @@ const SAMPLE_ORIGIN = "http://127.0.0.1:3000";
 
 type DivergenceClass =
   | "SYNTHETIC_FIXTURE_ROUTE"
-  | "PRODUCT_CONTRACT_DEFECT"
   | "FIXTURE_ONLY_FIELD"
   | "FIXTURE_ONLY_INPUT"
   | "TEST_OPT_IN_INPUT";
@@ -59,7 +58,6 @@ type Divergence = { readonly classification: DivergenceClass; readonly reason: s
 
 const DIVERGENCE_CLASSES: ReadonlySet<string> = new Set<DivergenceClass>([
   "SYNTHETIC_FIXTURE_ROUTE",
-  "PRODUCT_CONTRACT_DEFECT",
   "FIXTURE_ONLY_FIELD",
   "FIXTURE_ONLY_INPUT",
   "TEST_OPT_IN_INPUT",
@@ -78,10 +76,6 @@ const DECLARED_DIVERGENCES: Readonly<Record<string, Divergence>> = {
   "route ANY /api/e2e/session-boundary": {
     classification: "SYNTHETIC_FIXTURE_ROUTE",
     reason: "E2E-GLOBAL-03 probe proving the fixture can emit 401/403; the authoritative boundary is E2E-GLOBAL-03B against Fastify.",
-  },
-  "response-key ANY /api/logistics/field-visits visits": {
-    classification: "PRODUCT_CONTRACT_DEFECT",
-    reason: "frontend/src/lib/api.ts getLogisticsFieldVisits reads `visits`, Fastify sends `fieldVisits`; the fixture mirrors the frontend, so E2E renders visits the real backend never delivers under that key. Fix is frontend-only, then realign the fixture.",
   },
   "response-key ANY /api/reports limit": { classification: "FIXTURE_ONLY_FIELD", reason: REPORTS_TOP_LEVEL_WINDOW },
   "response-key ANY /api/reports offset": { classification: "FIXTURE_ONLY_FIELD", reason: REPORTS_TOP_LEVEL_WINDOW },

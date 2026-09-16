@@ -1275,7 +1275,7 @@ const server = createServer((request, response) => {
     url.pathname === "/api/logistics/field-visits"
   ) {
     sendJson(response, 200, {
-      visits: sliceA03Dataset(url, A03_FIELD_VISITS, 50, 100),
+      fieldVisits: sliceA03Dataset(url, A03_FIELD_VISITS, 50, 100),
     });
     return;
   }
@@ -1294,7 +1294,7 @@ const server = createServer((request, response) => {
     hasPopulatedClinicSession(request) &&
     url.pathname === "/api/logistics/field-visits"
   ) {
-    sendJson(response, 200, { visits: CLINIC_FIELD_VISITS });
+    sendJson(response, 200, { fieldVisits: CLINIC_FIELD_VISITS });
     return;
   }
 
