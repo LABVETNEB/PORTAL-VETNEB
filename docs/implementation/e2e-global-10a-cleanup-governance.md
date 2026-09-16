@@ -168,6 +168,78 @@ que describe el allowance viejo.
 *Scoping:* la reproducción exacta del choque de nombre `metric`, probando que sólo el uso ligado al
 documento es violación.
 
+### Follow-up: PR #1729 Codex P2 — "Reject named thresholds in direct comparisons"
+
+**Hallazgo.** El detector reconocía `+ IDENTIFICADOR` (slack nombrado sumado) pero el bloque de
+comparación directa sólo aceptaba literales numéricos. Una tolerancia nombrada en una comparación
+**sin `+`** escapaba entera:
+
+```ts
+const TOLERANCE = 1;
+root.scrollHeight - root.clientHeight > TOLERANCE;   // no detectado antes del fix
+```
+
+Es la misma tolerancia que `+ TOLERANCE`, sólo que expresada con `>` en vez de `+`. Codex citó el
+sitio real: `admin-users-roles-pager-reachability.spec.ts` ya usaba exactamente esta forma con el
+carrier `documentAllowancePx` — el propio mecanismo que esta fase introdujo para cruzar el régimen a
+`page.evaluate` quedaba, en ese punto exacto, sin demostrar.
+
+**Cierre — extensión de la categoría semántica, no un regex para "TOLERANCE".** Se añadieron dos
+formas de amenaza nombrada al detector, ambas resueltas por la misma función `isRegimeReference`
+que ya gobernaba `+ IDENTIFICADOR`:
+
+1. **Comparación directa con identificador** (`> TOLERANCE`, `<= ALLOWANCE`…): nuevo regex
+   `comparisonIdentifier`, con lookahead negativo `(?!\s*[.(])` para que una expresión miembro
+   (`> root.clientHeight`) — que no es una tolerancia sino una comparación estructural entre dos
+   métricas vivas — nunca se capture como candidato.
+2. **Argumento de matcher call** (`.toBeLessThanOrEqual(ALLOWANCE)`): el regex de matcher se
+   reescribió para capturar el argumento completo y clasificarlo — numérico (camino existente),
+   átomo bare no numérico (nuevo: exige prueba), o expresión compuesta (`metric + OWNER`, `999 + 2`:
+   explícitamente **no** reclasificada aquí, porque `plusIdentifier`/`plusLiteral` ya la cubren
+   escaneando la línea completa; reclasificarla de nuevo como átomo opaco rompía la forma canónica
+   — se detectó y corrigió en la propia validación de este follow-up, antes de tocar el corpus).
+
+**Dos hallazgos reales al correr el detector extendido contra el corpus** (no se asumió que sólo
+existieran los sitios ya conocidos):
+
+- **`admin-users-roles-pager-reachability.spec.ts:108`** — el propio carrier `documentAllowancePx`
+  dejaba de reconocerse. Causa: la firma de tipo `{ documentAllowancePx: number }` calza con la
+  misma forma `identificador:` que una ligadura de valor real, y `regimeNames` exige que **todas**
+  las ligaduras de un nombre sean el régimen — la anotación de tipo (ligada a la palabra "number",
+  no al régimen) vetaba la ligadura de valor real del sitio de llamada. Corregido excluyendo del
+  censo de bindings los RHS que son exactamente una palabra clave de tipo primitivo de TypeScript
+  (`number`, `string`, `boolean`…), en vez de contarlos como una ligadura no-régimen.
+- **6 sitios en 4 specs públicos** (`public-clinics-b2b-operations`, `public-report-preview` ×3,
+  `public-service-bento-specimen-journey` ×2) — `expect(bodyWidth).toBeLessThanOrEqual(viewportWidth)`,
+  con `viewportWidth` ligado a `window.innerWidth`. No es una tolerancia diseñada: es la otra
+  métrica viva de una comparación estructural (la misma categoría que `root.scrollHeight >
+  root.clientHeight`), sólo que a través de una ligadura en vez de inline. AGENTS.md/la tarea que
+  ordenó este follow-up nombra explícitamente `viewportHeight` como caso que **no** debe convertirse
+  en falso positivo. Cierre: nueva clasificación `isLiveMetric` — un nombre ligado, en **todas** sus
+  apariciones del archivo, a una lectura `window.`/`document.` (nunca a un literal) queda exento,
+  con el mismo criterio fail-closed que `regimeNames` (una única ligadura a un literal en cualquier
+  parte del archivo retira la exención).
+
+Ninguno de los 7 sitios requirió tocar producto ni ampliar tolerancias; los dos primeros eran falsos
+negativos del propio guard (RHS de tipo, carrier no reconocido) y los seis restantes resultaron ser
+comparaciones estructurales ya correctas, no bypasses.
+
+**Negative proofs añadidos** (11 en total en el test de "fails closed", antes 8): comparación directa
+con `TOLERANCE` nombrado; matcher call con `ALLOWANCE` nombrado a través de un binding; un carrier
+con anotación de tipo demostrado como aceptado (proof de aceptación); y un nombre "live metric"
+re-ligado a un literal en otra parte del archivo, que debe seguir detectándose (fail-closed sobre la
+propia exención nueva). *Aceptación* ganó 4 proofs: carrier usado en comparación directa (no sólo
+`+`); dos métricas de documento comparadas sin resta ni slack; forma canónica como argumento bare de
+matcher; carrier con anotación de tipo; y la exención de métrica viva.
+
+**Validación de este follow-up:** `node --test test/architecture/e2e-zero-scroll-regime.test.ts`
+PASSED 6/6 (con los 19 proofs, viejos y nuevos, en verde); `pnpm typecheck:test` PASSED; corpus
+completo de `frontend/e2e/**` limpio (0 violaciones tras las dos correcciones del detector, sin
+tocar ningún spec); `pnpm validate:local` FAILED sólo por 03B ambiental (4.563 pass / 1 fail / 1
+skip, idéntico al baseline de la mitad anterior); `pnpm build` (backend, aparte) PASSED. No se
+ejecutaron cohortes E2E pesadas para este follow-up: sólo cambia el guard y su documentación, y
+AGENTS.md §6 no las selecciona por impacto para un cambio así.
+
 ## R-13 — Detección por ancla en B04
 
 **Problema (audit P2-3).** B04 acumulaba observaciones globalmente y sólo afirmaba
@@ -354,9 +426,17 @@ corridas. No introducido por R-12 y no corregido acá (sería frontend/src o una
    forzado (1 de 2 corridas de `extended`).
 5. **A02/A03** conservan su drift win32 preexistente; este PR no lo modifica ni lo recaptura.
 6. **`e2e:visual-linux`** no es verificable en Windows por diseño.
-7. El detector del guard es sintáctico, no un type-checker: cubre las cuatro formas medidas en el
-   corpus y las pruebas negativas las fijan, pero una forma futura genuinamente nueva exigiría
-   extenderlo otra vez.
+7. El detector del guard es sintáctico, no un type-checker: cubre las seis formas medidas en el
+   corpus (cuatro de la convergencia original + comparación directa y matcher call con
+   identificador nombrado, cerradas por el follow-up de PR #1729 Codex P2) y las 19 pruebas
+   negativas/positivas las fijan, pero una forma futura genuinamente nueva exigiría extenderlo otra
+   vez — como ya ocurrió una vez.
+8. La exención `isLiveMetric` (un nombre ligado exclusivamente a `window.`/`document.` en todo el
+   archivo cuenta como métrica viva, no como tolerancia) es, como toda regla de este guard,
+   heurística de texto: reconoce `const x = window.innerWidth` pero no rastrea valores a través de
+   llamadas a función arbitrarias. Consistente con el resto del diseño del archivo, que ya acepta
+   ese nivel de imprecisión en otros puntos (p. ej. `isDocument` tampoco seguía valores a través de
+   funciones antes de este follow-up).
 
 ## Rollback
 
@@ -368,9 +448,11 @@ corridas. No introducido por R-12 y no corregido acá (sería frontend/src o una
 
 ## Estado final
 
-R-12 **cerrado**: los 15 sitios del corpus usan el régimen exacto, el guard falla cerrado contra
-las cuatro formas sintácticas y sus pruebas negativas y de aceptación lo fijan. R-13, R-14 (mitad
-test-only) y R-16 cerrados. Catálogo de 98 specs, particionado por las 4 cohortes sin solapamiento.
-Gate required `e2e:ci` verde con 1.029 tests. `extended` devuelve el fingerprint preexistente
-exacto. Working tree sin artefactos `playwright-report/`, `test-results/` ni `next-env.d.ts`
-alterado.
+R-12 **cerrado**, incluido el follow-up de PR #1729 (Codex P2 "Reject named thresholds in direct
+comparisons"): los sitios del corpus usan el régimen exacto, el guard falla cerrado contra las seis
+formas sintácticas medidas (las cuatro originales más comparación directa y matcher call con
+identificador nombrado) y 19 pruebas negativas/positivas lo fijan por comportamiento. R-13, R-14
+(mitad test-only) y R-16 cerrados. Catálogo de 98 specs, particionado por las 4 cohortes sin
+solapamiento. Gate required `e2e:ci` verde con 1.029 tests. `extended` devuelve el fingerprint
+preexistente exacto. Working tree sin artefactos `playwright-report/`, `test-results/` ni
+`next-env.d.ts` alterado.
