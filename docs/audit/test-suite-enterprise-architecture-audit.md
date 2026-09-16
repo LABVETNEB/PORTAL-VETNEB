@@ -1,5 +1,29 @@
 # VETNEB Test Suite Enterprise Architecture Audit
 
+## Estado documental (E2E-GLOBAL-10B, 2026-09-16)
+
+| Campo | Valor |
+| --- | --- |
+| Document owner | Governance / Docs owner |
+| Domain | Arquitectura de la suite de tests (backend y E2E) |
+| Lifecycle status | SUPERSEDED |
+| Authoritative source role | Evidencia histórica y antecedente del programa TEST-ARCH; sin autoridad normativa |
+| Effective date | 2026-09-16 |
+| Last verified date | 2026-09-16 |
+| Review cadence | Ninguna; sólo ante una reclasificación a `HISTORICAL` |
+| Supersedes | Ninguno |
+| Superseded by | E2E: [LIMPIEZA E2E](./LIMPIEZA%20E2E.md), [catálogo E2E](../../frontend/e2e/suites/catalog.ts) y [CI PR Checks Runbook](../ops/CI_PR_CHECKS_RUNBOOK.md). Arquitectura de tests: [PR-TEST-ARCHITECTURE-CONSOLIDATION Audit](./pr-test-architecture-consolidation-audit.md), [test/README.md](../../test/README.md) y [convención de organización](../implementation/test-suite-enterprise-organization-convention.md) |
+| Related controls or gaps | `LIMPIEZA E2E` §19 y R-18 |
+| Evidence or approval reference | [Acta E2E-GLOBAL-10B](../implementation/e2e-global-10b-documentation-closeout.md) |
+
+Todo lo que sigue a este bloque es el snapshot original del 2026-07-06 (base `8e0e1ed`) y no se
+reescribió. Sus cifras E2E (70 specs; `e2e:smoke` 7, `e2e:admin-mobile` 13,
+`e2e:visual-contract` 11 y `e2e:public-clinic` 11 como listas literales de `playwright test`)
+están obsoletas: hoy los scripts delegan en `run-cohort.mjs` y el catálogo fija 12 / 14 / 24 / 17
+specs (`c25f4e06`). Las actas TEST-ARCH-* que lo citan siguen siendo evidencia de su fase.
+
+---
+
 > Auditoría documental de la suite de tests de Portal VETNEB y propuesta de una
 > arquitectura de testing incremental (Clean Architecture / Hexagonal / Enterprise
 > Testing). **No mueve archivos, no toca runtime, no modifica tests.** Es un

@@ -9,12 +9,12 @@
 | Lifecycle status | ACTIVE |
 | Authoritative source role | Índice operativo de auditorías activas |
 | Effective date | 2026-07-28 |
-| Last verified date | 2026-08-04 |
+| Last verified date | 2026-09-16 |
 | Review cadence | Mensual y ante nuevas auditorías rectoras |
 | Supersedes | Ninguno |
 | Superseded by | Ninguno |
 | Related controls or gaps | `ERM-CTRL-004`; `ERM-CTRL-005` |
-| Evidence or approval reference | Árbol documental verificado para `PR-AUDIT-ENTERPRISE-DOCS`; PR #1591 y closeout sanitizado de `PR-SEC-REPO-SETTINGS`; PR #1593 y closeout del bloque 03; PR #1601, canarias #1602/#1603 y PR correctiva #1605 del bloque 04; required checks efectivos, hardening de Actions y canarias #1616/#1618 del bloque 05; PR #1620, head de closeout completado `2d9eda213d2a913786d2497ae18f345011d5eec7` y full run `30567587561` / job `90955867044` del bloque 06; PR #1635 y reclasificación de `AUDITORIA_GLOBAL_DASHBOARD_VETNEB_VS_DRIVE.md` a `ACTIVE` |
+| Evidence or approval reference | Árbol documental verificado para `PR-AUDIT-ENTERPRISE-DOCS`; PR #1591 y closeout sanitizado de `PR-SEC-REPO-SETTINGS`; PR #1593 y closeout del bloque 03; PR #1601, canarias #1602/#1603 y PR correctiva #1605 del bloque 04; required checks efectivos, hardening de Actions y canarias #1616/#1618 del bloque 05; PR #1620, head de closeout completado `2d9eda213d2a913786d2497ae18f345011d5eec7` y full run `30567587561` / job `90955867044` del bloque 06; PR #1635 y reclasificación de `AUDITORIA_GLOBAL_DASHBOARD_VETNEB_VS_DRIVE.md` a `ACTIVE`; E2E-GLOBAL-10B (2026-09-16): alta de `LIMPIEZA E2E.md`, cifras del slot 06 marcadas como históricas y dos auditorías E2E marcadas `SUPERSEDED` ([acta](../implementation/e2e-global-10b-documentation-closeout.md)) |
 
 ## Criterio de vigencia
 
@@ -49,8 +49,8 @@ Los documentos históricos previos dentro de `docs/audit/` se conservan como ant
 | [pr-sec-secret-patterns-audit.md](./pr-sec-secret-patterns-audit.md) | Implementación técnica #1593, matriz completa de canarias #1594–#1599 y closeout de secret patterns más Architecture Decision. | `ACTIVE`; `PR-SEC-SECRET-PATTERNS CLOSED` |
 | [pr-ci-always-run-gates-audit.md](./pr-ci-always-run-gates-audit.md) | Implementación técnica #1601, matrices de canarias #1602/#1603, corrección de rango #1605, validación stale-base y closeout de contextos CI always-run. | `ACTIVE`; `PR-CI-ALWAYS-RUN-GATES CLOSED` |
 | [pr-ci-required-checks-audit.md](./pr-ci-required-checks-audit.md) | Required checks efectivos con app ID, hardening de GitHub Actions, canarias #1616/#1618, clasificación diagnóstica de #1617 y closeout del bloque 05. | `ACTIVE`; `PR-CI-REQUIRED-CHECKS CLOSED` |
-| [pr-e2e-ci-completeness-audit.md](./pr-e2e-ci-completeness-audit.md) | Workflow automático de completitud, contratos positivos/negativos y evidencia del slot 06. | `ACTIVE`; `PR-E2E-CI-COMPLETENESS CLOSED` |
-| [pr-e2e-ci-completeness-rfc.md](./pr-e2e-ci-completeness-rfc.md) | Decisión arquitectónica del gate rápido de 43 specs más gate completo no-required de 72 specs. | `ACCEPTED` |
+| [pr-e2e-ci-completeness-audit.md](./pr-e2e-ci-completeness-audit.md) | Workflow automático de completitud, contratos positivos/negativos y evidencia del slot 06. Sus cifras (43/72 specs, `e2e:full` bajo `next dev`) son del 2026-07-30; el estado operativo vigente está en [CI_PR_CHECKS_RUNBOOK.md](../ops/CI_PR_CHECKS_RUNBOOK.md). | `ACTIVE` como closeout; `PR-E2E-CI-COMPLETENESS CLOSED` |
+| [pr-e2e-ci-completeness-rfc.md](./pr-e2e-ci-completeness-rfc.md) | Decisión arquitectónica de separar un gate rápido required de un gate completo no-required. Los tamaños que cita (43 y 72 specs) son de su fecha. | `ACCEPTED` |
 | [pr-test-architecture-consolidation-audit.md](./pr-test-architecture-consolidation-audit.md) | Censo exacto source-coupled, soporte canónico, walker recursivo y evidencia local positiva/negativa del slot 07. | `ACTIVE`; validación remota vive en la PR |
 | [pr-test-architecture-consolidation-source-coupled-inventory.md](./pr-test-architecture-consolidation-source-coupled-inventory.md) | Anexo exhaustivo path por path de los 370 tests source-coupled observados en el baseline del slot 07. | `ACTIVE`; anexo del closeout |
 | [pr-quality-coverage-baseline-audit.md](./pr-quality-coverage-baseline-audit.md) | Script separado de cobertura nativa, contrato positivo/negativo y baseline real del slot 08. | `ACTIVE`; `PR-QUALITY-COVERAGE-BASELINE IMPLEMENTED_LOCALLY` |
@@ -65,6 +65,7 @@ Los documentos históricos previos dentro de `docs/audit/` se conservan como ant
 | [total-software-engineering-audit.md](./total-software-engineering-audit.md) | Rector de ingeniería dura: backend, DB, seguridad, CI, testing, observabilidad y PRs ENG/SEC/OBS/LINT/COV. Mantiene conteo ENG 26. | Vigente |
 | [total-engineering-roadmap.md](./total-engineering-roadmap.md) | Orquestador de secuencia, dependencias, fases, gates y trazabilidad VIS + ENG. | Vigente |
 | [design-system-contract.md](./design-system-contract.md) | Contrato operativo docs-only de gobernanza del design system para PR-VIS-0 / Fase 0 / VIS-P1-001. No es auditoría nueva. | Vigente |
+| [LIMPIEZA E2E.md](./LIMPIEZA%20E2E.md) | Auditoría global de caja blanca del subsistema E2E (baseline `2683f39a`) y programa de saneamiento E2E-GLOBAL-01…10. Las fases están ejecutadas; el Anexo B registra el cierre por riesgo y la deuda residual abierta. | `ACTIVE` |
 | [AUDITORIA_GLOBAL_DASHBOARD_VETNEB_VS_DRIVE.md](./AUDITORIA_GLOBAL_DASHBOARD_VETNEB_VS_DRIVE.md) | Única fuente de implementación del rediseño Drive-like del dashboard autenticado: inventario, geometría, hallazgos P0–P4 (61) y roadmap Programa A/B/C (50 PR + 5 correctivos). Complementos permitidos: Ninguno. | `ACTIVE` |
 
 ## Snapshots enterprise aprobados
@@ -86,6 +87,13 @@ no declaran obsoletas las auditorías Wave 0 vigentes ni reemplazan las fuentes 
 | 2 | [vetneb-enterprise-engineering-readiness-audit.md](./vetneb-enterprise-engineering-readiness-audit.md) | Auditoría de preparación enterprise de ingeniería, calidad, testing, mantenibilidad y trazabilidad. | Vigente |
 | 3 | [vetneb-extreme-multinational-enterprise-readiness-audit.md](./vetneb-extreme-multinational-enterprise-readiness-audit.md) | Evaluación extrema de preparación multinacional, resiliencia, seguridad, operación y escalabilidad. | Vigente |
 | 4 | [vetneb-supreme-system-level-alignment-plan.md](./vetneb-supreme-system-level-alignment-plan.md) | Plan de alineación sistémica superior para convertir las auditorías en ejecución ordenada por prioridad. | Vigente |
+
+## Auditorías E2E superseded
+
+`e2e-enterprise-organization-audit.md` y `test-suite-enterprise-architecture-audit.md` están
+`SUPERSEDED` desde el 2026-09-16 (E2E-GLOBAL-10B) y no forman parte del índice vigente. Sus
+sucesores y el motivo se registran en
+[HISTORICAL_DOCUMENTATION.md](../HISTORICAL_DOCUMENTATION.md#auditorías-e2e-superseded).
 
 ## Regla de mantenimiento
 

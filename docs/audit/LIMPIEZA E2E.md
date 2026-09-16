@@ -13,6 +13,29 @@
 | Implementación | No realizada por esta auditoría |
 | Fuente | Auditoría global E2E completada inmediatamente antes de crear este documento |
 
+### Metadata de lifecycle
+
+| Campo | Valor |
+|---|---|
+| Document owner | CI owner / Frontend owner (suite E2E) |
+| Domain | Subsistema E2E: Playwright, catálogo, cohortes, fixtures y workflows E2E |
+| Lifecycle status | ACTIVE |
+| Authoritative source role | Fuente rectora del programa `LIMPIEZA E2E` (diagnóstico, riesgos y roadmap). No es el mapa operativo de CI: eso es [CI_PR_CHECKS_RUNBOOK.md](../ops/CI_PR_CHECKS_RUNBOOK.md) |
+| Effective date | 2026-09-09 |
+| Last verified date | 2026-09-16 |
+| Review cadence | Ante cada fase del programa y ante cambios de catálogo, workflows E2E o fixture |
+| Supersedes | Diagnóstico E2E de `e2e-enterprise-organization-audit.md` y de `test-suite-enterprise-architecture-audit.md` (ambos `SUPERSEDED`, ver §19) |
+| Superseded by | Ninguno |
+| Related controls or gaps | `ERM-CTRL-013`; R-01…R-20 de §22 |
+| Evidence or approval reference | PR #1705 (alta); fases E2E-GLOBAL-01…10 (#1707…#1730); cierre documental E2E-GLOBAL-10B ([acta](../implementation/e2e-global-10b-documentation-closeout.md)) |
+
+> **Vigencia de las cifras (2026-09-16).** Todo §§1–28 y el Anexo A describen el baseline
+> `2683f39a` (95 specs / 1.322 tests, `ci` 61, `e2e:full` bajo `next dev`) y se conservan sin
+> reescribir. El estado posterior a las fases GLOBAL-01…10 (98 specs / 1.326 tests, `ci` 67,
+> `e2e:full` bajo `next start` en cada PR), la matriz de cierre por riesgo y la deuda residual
+> abierta están en el [Anexo B](#anexo-b--estado-de-ejecución-del-programa-e2e-global-10b-2026-09-16).
+> El programa **sigue `ACTIVE`**: no está cerrado.
+
 ---
 
 ## 0. Naturaleza de `LIMPIEZA E2E`
@@ -1295,5 +1318,137 @@ Cerradas 1, 2 y 4 —y 3 si el scope lo exige— la afirmación **"si un E2E fal
 | Implementación derivada | **ninguna ejecutada** |
 | Naturaleza de este documento | fuente rectora de la campaña `LIMPIEZA E2E`; no autoriza por sí mismo ninguna operación R2/R3 |
 | Autorización requerida para cada fase | explícita y por fase, conforme a AGENTS.md §3.2 |
+
+El Anexo A es el estado al momento de la auditoría. Lo ejecutado después se registra en el Anexo B.
+
+---
+
+## Anexo B — Estado de ejecución del programa (E2E-GLOBAL-10B, 2026-09-16)
+
+Registrado por E2E-GLOBAL-10B ([acta](../implementation/e2e-global-10b-documentation-closeout.md)) sobre
+`main@c25f4e0613b3f133efc46a7df08aa78e03006323`. Evidencia: código, catálogo, workflows y
+configuración GitHub releídos ese día; runs de CI citados por id. Un PR fusionado no se cuenta
+como cierre si su criterio de aceptación no está demostrado.
+
+### B.1 Veredicto
+
+**`LIMPIEZA E2E` permanece `ACTIVE`.** Las fases E2E-GLOBAL-01…10 del roadmap (§24) están
+ejecutadas y los cuatro bloqueantes B-1…B-4 (§25) están cerrados. El programa no se cierra por
+cuatro motivos:
+
+1. **R-02 (P0)**, la deriva fixture↔backend, no tiene fase asignada ni guard.
+2. **El objetivo cuantificado de E2E-GLOBAL-09** (`full` por debajo de 40 min de trabajo) no se
+   alcanzó: el trabajo medido es de 48,5 min.
+3. **R-15, R-19, R-20 y P1-7** siguen abiertos sin fase.
+4. **Las brechas de cobertura de §6.2/§21** siguen abiertas sin fase.
+
+### B.2 Cifras: baseline vs estado actual
+
+| Métrica | Baseline `2683f39a` (§§2–16) | `c25f4e06` (2026-09-16) | Fuente actual |
+|---|---:|---:|---|
+| Specs (tracked = disco = catálogo = descubiertos) | 95 | 98 | `catalog.ts`, `git ls-files`, `playwright test --list` |
+| Tests descubiertos | 1.322 | 1.326 | `playwright test --list --reporter=json` |
+| `ci` (specs / tests) | 61 / 1.007 | 67 / 1.030 | catálogo; Frontend CI `35099449451` (1.029 passed + 1 skipped) |
+| `extended` | 29 / 264 | 27 / 255 | catálogo |
+| `evidence` | 2 / 11 | 1 / 1 | catálogo |
+| `visual-linux` | 3 / 40 | 3 / 40 | catálogo |
+| Current: `smoke` / `admin-mobile` / `visual-contract` / `public-clinic` | 9 / 14 / 22 / 16 | 12 / 14 / 24 / 17 | catálogo (particionan `ci`) |
+| P1 fuera de `ci` | 5 (sin ruta en PRs de `frontend/src`) | 3: A02, A03, A05 (corren en cada PR) | catálogo; `e2e-completeness.yml` |
+| Runner de `e2e:full` | `next dev` | `next build` + `next start` | `e2e-completeness.yml` (`VETNEB_E2E_PRODUCTION_RUNNER=1`) |
+| Disparo de `E2E Completeness` | PRs filtrados por paths + cron semanal | todo PR a `main` + dispatch + cron semanal | `e2e-completeness.yml` |
+| `e2e:full`: wall / trabajo agregado | 32,7 / 64,6 min | 24,6 / 48,5 min | run `35104076249` |
+| Resultado de `e2e:full` | 1.320 passed · 1 flaky · 1 skipped | 1.325 passed · 1 skipped · 0 flaky | run `35104076249` |
+| `e2e:ci` wall | 571 s | 12,7 min (6 specs y 23 tests más) | run `35099449451` |
+| Baselines PNG | 40, capturas `next dev` | 40, capturas `next start` | E2E-GLOBAL-05B |
+| `forbidOnly` / `failOnFlakyTests` | `false` / no declarado | CI / `true` | `playwright.config.ts` |
+| Trazas en el gate required | ninguna | `retain-on-failure` + sanitizer | `playwright.config.ts`; `playwright-artifact-sanitizer.mjs` |
+| `addCookies` / origen `127.0.0.1:3000` hardcodeado | 92 / 88 | 1 (`helpers/session.ts`) / 3 excepciones declaradas | `git grep` en `frontend/e2e` |
+| `waitForTimeout` / `networkidle` (líneas) | 17 / 39 | 1 (intervalo de muestreo CMP-12) / 25 | `git grep`; guard `e2e-residual-determinism` |
+| Capa declarada (`layer`) | inexistente | 38 `mocked` · 60 `fixture` · 0 `integration` | catálogo |
+
+### B.3 Fases
+
+| Fase | PR / commit | Evidencia de aceptación | Estado |
+|---|---|---|---|
+| E2E-GLOBAL-01 | #1707 / `e983049e` | Criterio: 2 runs consecutivos con la suite ejecutada. Todos los runs de `E2E Completeness` desde `34435968062` pasan el paso de dependencias; los 8 runs fallidos posteriores fallaron en `Run complete cataloged E2E suite`, nunca en la instalación | CLOSED |
+| E2E-GLOBAL-02A | #1715 / `1fc76c08` | `forbidOnly: isCi`, `failOnFlakyTests: true`, `screenshot: only-on-failure`; `.only` probado con arnés aislado | CLOSED |
+| E2E-GLOBAL-02B | #1709 / `a3a9c739`, #1719 / `ff5009a3`, #1720 / `4bf75a55` | `test-results` subido en el gate required; sanitizer fail-closed; `trace: retain-on-failure` con prueba negativa y prueba causal de `trace.zip` (arnés local). Todavía no se observó un fallo real del gate required con artifact | CLOSED |
+| E2E-GLOBAL-03 | #1710 / `9035ebe4` | 3 specs de frontera simulada en `smoke`; mutation drill: al desactivar la validación, 8/10 tests fallan | CLOSED |
+| E2E-GLOBAL-03B | #1711 / `d6fef898` | `e2e-global-03b-authoritative-auth-boundary.fastify.test.ts` contra Fastify + Postgres en `validate-backend`: ✔ en Backend CI `35109809582` (4.566/4.566). Localmente sin DB queda BLOCKED por entorno, no es deuda | CLOSED |
+| E2E-GLOBAL-04 | #1712 / `e5b9bd98` | describe de logout renombrado; `feature` de `dashboard-auth-redirect` corregida; test de `nextConfig.headers()` movido a `test/unit/infrastructure/frontend-next-config-private-cache-headers.test.ts`; `layer` + `proves` en las 98 entradas | CLOSED |
+| E2E-GLOBAL-05A | #1713 / `05657c68` | Workflow de candidato productivo aislado | CLOSED |
+| E2E-GLOBAL-05B | #1721 / `bef259f8` | 40 baselines promovidos desde `next start`; `e2e:full` bajo `next start` (log `[WebServer] $ next start`); workflow visual sin ruta de escritura. La proyección "`ci` dentro de `full` ~18,3 min" no es comparable 1:1: hoy mide 23,3 min con 6 specs más | CLOSED |
+| E2E-GLOBAL-06 | #1725 / `886f19ee` | 2 P1 promovidos a `ci`; `pull_request` sin filtro de paths (guard lo prohíbe); run `34927077181` en `SUCCESS` sobre el head | CLOSED |
+| E2E-GLOBAL-07 | #1726 / `221b70ba` | `helpers/session.ts` más guard `e2e-session-origin-source-of-truth` con conteos exactos | CLOSED |
+| E2E-GLOBAL-08 | #1727 / `b1855b5c` | Sitios nombrados en §9 P2-6 y §11 corregidos; excepciones residuales (1 `waitForTimeout`, 2 `.catch` visuales, 3 timers de imagen) declaradas y congeladas por guard | CLOSED (con excepciones declaradas) |
+| E2E-GLOBAL-09 | #1728 / `f94cc863` | A02/A08 pasan de 546 a 44 navegaciones con equivalencia demostrada. Objetivo "<40 min de trabajo en `full`": **no cumplido**, 48,5 min en run `35104076249`. A05 (13,6 min) quedó identificado y sin implementar | PARTIAL |
+| E2E-GLOBAL-10A | #1729 / `52314191` | R-12, R-13, R-14 (mitad test) y R-16 cerrados; `E2E Completeness` `35095928402` en `SUCCESS` sobre el head final | CLOSED |
+| R-14 CI | #1730 / `c25f4e06` | El runner `dev` del workflow visual resuelve specs desde el catálogo; guard de 5 tests; run `35104076249` en `SUCCESS`. El runner `dev` todavía no se despachó en Ubuntu ([MANUAL-NICO]) | CLOSED |
+| E2E-GLOBAL-10B | este cambio | Runbook, SoT, índices y los dos audits de §19 reconciliados; metadata de este documento | CLOSED al fusionar (R-18) |
+
+### B.4 Bloqueantes (§25)
+
+| ID | Estado | Evidencia |
+|---|---|---|
+| B-1 | CLOSED | E2E-GLOBAL-01 |
+| B-2 | CLOSED | E2E-GLOBAL-02A |
+| B-3 | CLOSED | E2E-GLOBAL-03 (simulada) + 03B (Fastify + Postgres en CI) |
+| B-4 | CLOSED | E2E-GLOBAL-02B (#1709, #1719, #1720) |
+
+### B.5 Matriz de riesgos (§22)
+
+| ID | Prio | Fase | Estado | Evidencia actual |
+|---|:-:|---|---|---|
+| R-01 | P0 | 03 + 03B | CLOSED | Specs de frontera en `smoke` y smoke autoritativo en `validate-backend` |
+| R-02 | P0 | **ninguna** | **OPEN** | Ningún guard compara las rutas o payloads de `admin-populated-api-server.mjs` con el contrato de Fastify. Los únicos tests que leen el fixture son textuales (`frontend-playwright-production-runner`) o de sesión (`e2e-session-origin-source-of-truth`). 03B cubre sólo la frontera de auth |
+| R-03 | P0 | 01 | CLOSED | Paso de dependencias estable en todos los runs posteriores |
+| R-04 | P0 | 02A | CLOSED | `forbidOnly: isCi` |
+| R-05 | P1 | 02B | CLOSED | `retain-on-failure` + `screenshot` + upload sanitizado de `test-results` |
+| R-06 | P1 | 05B | CLOSED | `e2e:full` bajo `next start`; baselines productivos |
+| R-07 | P1 | 02A | CLOSED | `failOnFlakyTests: true`; el run `35060350621` falló por `2 flaky` |
+| R-08 | P1 | 06 | CLOSED | Sin filtro de paths; P1 fuera de `ci` = A02/A03/A05, ejecutados en cada PR |
+| R-09 | P1 | 05B | CLOSED | Los 40 PNG se comparan bajo `next start` en cada PR (`visual-linux` ⊂ `full`); `update_snapshots` rechazado siempre |
+| R-10 | P1 | 04 | CLOSED | Describe y `proves` declaran que la invalidación de sesión no se verifica y que `no-store` no se asierta |
+| R-11 | P2 | 07 + 04 | CLOSED (aceptado y declarado) | Los perfiles `default`/`populated` son semánticamente distintos (acta 07) y cada `proves` declara si la sesión es sintética o poblada |
+| R-12 | P2 | 10A | CLOSED | `zero-scroll-contract.ts` (0 px) + guard semántico |
+| R-13 | P2 | 10A | CLOSED | Mínimo por ancla y por ancho en B04 |
+| R-14 | P2 | 10A + #1730 | CLOSED | Workflow sin specs literales; guard de reconciliación |
+| R-15 | P2 | 09 (no abordado) | **OPEN** | CMP-04/05/06/12 siguen separados; GLOBAL-09 dejó CMP-12 sin cambios y 10A lo excluyó |
+| R-16 | P2 | 10A | CLOSED | Spec sin aserciones eliminado |
+| R-17 | P2 | 07 | CLOSED | `addCookies` en un solo sitio |
+| R-18 | P2 | 10B | CLOSED al fusionar este cambio | Runbook, SoT, índices y audits reconciliados con el HEAD `c25f4e06` |
+| R-19 | P3 | **ninguna** | **OPEN** | `PAGER_BLOCK_SIZE=43.188` reaparece en la misma hoja (`admin-failed-login-alerts::w360x800::hot-b`) en el run `35104076249`: es recurrente, no transitorio. Pasa dentro de tolerancia y no está clasificado |
+| R-20 | P3 | **ninguna** | **OPEN** | `frontend-heavy-validation` sigue con `timeout-minutes: 20` frente a un `globalTimeout` de 30 min (heavy observado: 14,5 min) |
+
+### B.6 Hallazgos de §§7–10 sin ID de riesgo
+
+| Hallazgo | Estado | Nota |
+|---|---|---|
+| P1-7 (spec visual público sin skip de plataforma) | OPEN | El catálogo lo sigue declarando. Lo mitigan el preflight exit 5 de `run-cohort.mjs` y el preflight Linux del workflow |
+| P1-4, tercera parte (`no-store` real bajo `next start`) | OPEN (opcional en la auditoría) | Declarado en `proves`; hoy se asierta `no-cache` y "no public" |
+| P2-7 (selectores posicionales) | OPEN | Observacional, sin recomendación ni fase |
+| §10: `on.push.paths` de Frontend CI sin `shared/**` | OPEN | Divergencia con el detector de PR |
+| §10: `verify-teardown.mjs` sólo verifica puertos | OPEN | — |
+| §10: `compare-visual-artifacts.mjs` sin consumidor | CLOSED | Lo consume `visual-production-candidate.mjs` (05A) |
+| §6.2/§21: landings SEO ×4, `/profesionales/[clinicId]`, `/offline` y PWA | OPEN | 0 `goto()` en `frontend/e2e` al 2026-09-16 |
+| §23: guard "ninguna ruta declarada a la vez en `page.route` y en el fixture" | OPEN | No implementado; va ligado a R-02 |
+
+### B.7 Residuales y próximos scopes mínimos
+
+| Residual | Criterio que falta | Scope mínimo propuesto |
+|---|---|---|
+| R-02 + guard de doble declaración (§23) | Un guard que falle si una ruta o payload del fixture diverge del contrato de Fastify, o si una ruta se declara en ambos mecanismos de mock | `E2E-GLOBAL-11`, test-only (`test/architecture/**`) |
+| Objetivo de E2E-GLOBAL-09 | `full` < 40 min de trabajo, medido en CI | test-only: A05 a navegación por resize (acta 09 §H), o una decisión explícita de Nico de re-basar el objetivo |
+| R-15 | Decidir si CMP-04/05/06 aportan resolución frente a CMP-12, con evidencia | test-only |
+| P1-7 | Skip de plataforma simétrico en `visual-regression-public.spec.ts` | test-only (spec + nota del catálogo) |
+| R-19 | Clasificar el 43,188 px recurrente (causa y determinismo) | test-only diagnóstico |
+| R-20 y push paths de Frontend CI | Presupuesto coherente y filtro alineado con el detector | ci-only (R2) |
+| Cobertura §6.2/§21 | Specs para las rutas sin `goto()` | test-only, por dominio |
+| Drift de comentarios: `playwright.config.ts` (líneas 13–17 y 69–70) y `e2e-completeness.yml` (línea 214) todavía describen a Frontend CI como único production runner y a `e2e:full` con `on-first-retry` | Comentarios alineados con 05B | config-only + ci-only |
+| Drift documental fuera del scope nominal de 10B: fila `ERM-CTRL-013` del control register (43/72 specs, triggers "focused"), `docs/qa/README.md` (layering como "vigente") y `test/README.md:153` (`frontend-ci` "non-required") | Alineación con el runbook | docs-only (control register con su owner) + test-docs |
+
+El documento vuelve a evaluarse para `CLOSED` cuando R-02 y el objetivo de E2E-GLOBAL-09 estén
+cerrados, y el resto de los residuales esté cerrado o aceptado explícitamente como DEFER (§26)
+con owner.
 
 **Fin del documento.**
