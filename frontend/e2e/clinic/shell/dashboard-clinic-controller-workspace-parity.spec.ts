@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { setAdminSession, setClinicSession } from "../../helpers/session";
+import { MAX_DOCUMENT_SCROLL_DELTA_PX } from "../../helpers/zero-scroll-contract";
 
 type Page = import("@playwright/test").Page;
 
@@ -46,8 +47,8 @@ async function expectNoHorizontalOverflow(page: Page) {
     bodyClientWidth: document.body.clientWidth,
   }));
 
-  expect(metric.htmlScrollWidth).toBeLessThanOrEqual(metric.htmlClientWidth + TOLERANCE);
-  expect(metric.bodyScrollWidth).toBeLessThanOrEqual(metric.bodyClientWidth + TOLERANCE);
+  expect(metric.htmlScrollWidth).toBeLessThanOrEqual(metric.htmlClientWidth + MAX_DOCUMENT_SCROLL_DELTA_PX);
+  expect(metric.bodyScrollWidth).toBeLessThanOrEqual(metric.bodyClientWidth + MAX_DOCUMENT_SCROLL_DELTA_PX);
 }
 
 async function expectClinicStage(page: Page) {

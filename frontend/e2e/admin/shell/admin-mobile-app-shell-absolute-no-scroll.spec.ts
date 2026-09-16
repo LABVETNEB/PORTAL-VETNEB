@@ -1,7 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { setAdminSession } from "../../helpers/session";
-
-const TOLERANCE = 1;
+import { MAX_DOCUMENT_SCROLL_DELTA_PX } from "../../helpers/zero-scroll-contract";
 
 const MOBILE_VIEWPORTS = [
   { name: "android-short-360x640", width: 360, height: 640 },
@@ -144,16 +143,16 @@ for (const viewport of MOBILE_VIEWPORTS) {
     const contract = await readShellContract(page);
 
     expect(contract.html.scrollHeight).toBeLessThanOrEqual(
-      contract.html.clientHeight + TOLERANCE,
+      contract.html.clientHeight + MAX_DOCUMENT_SCROLL_DELTA_PX,
     );
     expect(contract.body.scrollHeight).toBeLessThanOrEqual(
-      contract.body.clientHeight + TOLERANCE,
+      contract.body.clientHeight + MAX_DOCUMENT_SCROLL_DELTA_PX,
     );
     expect(contract.html.scrollWidth).toBeLessThanOrEqual(
-      contract.html.clientWidth + TOLERANCE,
+      contract.html.clientWidth + MAX_DOCUMENT_SCROLL_DELTA_PX,
     );
     expect(contract.body.scrollWidth).toBeLessThanOrEqual(
-      contract.body.clientWidth + TOLERANCE,
+      contract.body.clientWidth + MAX_DOCUMENT_SCROLL_DELTA_PX,
     );
     expect(["auto", "scroll"]).not.toContain(contract.shellOverflowX);
     expect(["auto", "scroll"]).not.toContain(contract.shellOverflowY);
@@ -197,16 +196,16 @@ test(`Admin mobile app shell is absolute no-scroll at ${LANDSCAPE_DIAGNOSTIC_VIE
   const contract = await readShellContract(page);
 
   expect(contract.html.scrollHeight).toBeLessThanOrEqual(
-    contract.html.clientHeight + TOLERANCE,
+    contract.html.clientHeight + MAX_DOCUMENT_SCROLL_DELTA_PX,
   );
   expect(contract.body.scrollHeight).toBeLessThanOrEqual(
-    contract.body.clientHeight + TOLERANCE,
+    contract.body.clientHeight + MAX_DOCUMENT_SCROLL_DELTA_PX,
   );
   expect(contract.html.scrollWidth).toBeLessThanOrEqual(
-    contract.html.clientWidth + TOLERANCE,
+    contract.html.clientWidth + MAX_DOCUMENT_SCROLL_DELTA_PX,
   );
   expect(contract.body.scrollWidth).toBeLessThanOrEqual(
-    contract.body.clientWidth + TOLERANCE,
+    contract.body.clientWidth + MAX_DOCUMENT_SCROLL_DELTA_PX,
   );
   expect(["auto", "scroll"]).not.toContain(contract.shellOverflowX);
   expect(["auto", "scroll"]).not.toContain(contract.shellOverflowY);

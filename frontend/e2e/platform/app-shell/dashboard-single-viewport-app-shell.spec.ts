@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { setAdminSession, setClinicSession } from "../../helpers/session";
+import { MAX_DOCUMENT_SCROLL_DELTA_PX } from "../../helpers/zero-scroll-contract";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Single-viewport App Shell contract.
@@ -16,8 +17,6 @@ import { setAdminSession, setClinicSession } from "../../helpers/session";
 // ─────────────────────────────────────────────────────────────────────────────
 
 type Page = import("@playwright/test").Page;
-
-const TOLERANCE = 2;
 
 const VIEWPORTS = [
   { name: "1440x900", width: 1440, height: 900 },
@@ -166,16 +165,16 @@ for (const viewport of VIEWPORTS) {
           expect(
             m.docScrollH,
             "documentElement vertical scroll",
-          ).toBeLessThanOrEqual(m.docClientH + TOLERANCE);
+          ).toBeLessThanOrEqual(m.docClientH + MAX_DOCUMENT_SCROLL_DELTA_PX);
           expect(
             m.docScrollW,
             "documentElement horizontal scroll",
-          ).toBeLessThanOrEqual(m.docClientW + TOLERANCE);
+          ).toBeLessThanOrEqual(m.docClientW + MAX_DOCUMENT_SCROLL_DELTA_PX);
           expect(m.bodyScrollH, "body vertical scroll").toBeLessThanOrEqual(
-            m.bodyClientH + TOLERANCE,
+            m.bodyClientH + MAX_DOCUMENT_SCROLL_DELTA_PX,
           );
           expect(m.bodyScrollW, "body horizontal scroll").toBeLessThanOrEqual(
-            m.bodyClientW + TOLERANCE,
+            m.bodyClientW + MAX_DOCUMENT_SCROLL_DELTA_PX,
           );
 
           // The main dashboard container is overflow:hidden (not a scroll
@@ -184,11 +183,11 @@ for (const viewport of VIEWPORTS) {
           expect(
             m.mainScrollH,
             "dashboard-main vertical scroll",
-          ).toBeLessThanOrEqual(m.mainClientH + TOLERANCE);
+          ).toBeLessThanOrEqual(m.mainClientH + MAX_DOCUMENT_SCROLL_DELTA_PX);
           expect(
             m.mainScrollW,
             "dashboard-main horizontal scroll",
-          ).toBeLessThanOrEqual(m.mainClientW + TOLERANCE);
+          ).toBeLessThanOrEqual(m.mainClientW + MAX_DOCUMENT_SCROLL_DELTA_PX);
         }).toPass({ timeout: 10_000 });
       });
     }

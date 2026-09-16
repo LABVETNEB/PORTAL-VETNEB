@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { setAdminSession, setClinicSession } from "../../helpers/session";
+import { MAX_DOCUMENT_SCROLL_DELTA_PX } from "../../helpers/zero-scroll-contract";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PR-A — Internal no-scroll contract for the dashboard App Shell.
@@ -27,9 +28,6 @@ import { setAdminSession, setClinicSession } from "../../helpers/session";
 // ─────────────────────────────────────────────────────────────────────────────
 
 type Page = import("@playwright/test").Page;
-
-// Small tolerance for sub-pixel rounding only. Real scroll is far larger.
-const TOLERANCE = 2;
 
 const VIEWPORTS = [
   { name: "desktop-1366x768", width: 1366, height: 768 },
@@ -130,15 +128,15 @@ function assertNoInternalScroll(metrics: ScrollContract, label: string) {
   expect(
     metrics.mainScrollHeight,
     `${label}: main scrolled (${metrics.mainScrollHeight} > ${metrics.mainClientHeight})`,
-  ).toBeLessThanOrEqual(metrics.mainClientHeight + TOLERANCE);
+  ).toBeLessThanOrEqual(metrics.mainClientHeight + MAX_DOCUMENT_SCROLL_DELTA_PX);
   expect(
     metrics.bodyScrollHeight,
     `${label}: body scrolled (${metrics.bodyScrollHeight} > ${metrics.bodyClientHeight})`,
-  ).toBeLessThanOrEqual(metrics.bodyClientHeight + TOLERANCE);
+  ).toBeLessThanOrEqual(metrics.bodyClientHeight + MAX_DOCUMENT_SCROLL_DELTA_PX);
   expect(
     metrics.htmlScrollHeight,
     `${label}: documentElement scrolled (${metrics.htmlScrollHeight} > ${metrics.htmlClientHeight})`,
-  ).toBeLessThanOrEqual(metrics.htmlClientHeight + TOLERANCE);
+  ).toBeLessThanOrEqual(metrics.htmlClientHeight + MAX_DOCUMENT_SCROLL_DELTA_PX);
 }
 
 for (const viewport of VIEWPORTS) {

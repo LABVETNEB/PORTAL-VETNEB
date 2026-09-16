@@ -4,7 +4,13 @@ import {
   trackInformesWindowRequests,
 } from "../../helpers/informes-adaptive-settle";
 import { setClinicSession } from "../../helpers/session";
+import { MAX_DOCUMENT_SCROLL_DELTA_PX } from "../../helpers/zero-scroll-contract";
 
+/**
+ * Sub-pixel allowance for BOX geometry (detail panel and pager rects) and for
+ * the sanctioned internal scroll owner. The external DOCUMENT deltas assert
+ * MAX_DOCUMENT_SCROLL_DELTA_PX instead (E2E-GLOBAL-10, R-12).
+ */
 const TOLERANCE = 2;
 
 const VIEWPORTS = [
@@ -152,8 +158,12 @@ test.describe("clinic informes full route — zero internal core scroll", () => 
         vertical: document.documentElement.scrollHeight - document.documentElement.clientHeight,
         horizontal: document.documentElement.scrollWidth - document.documentElement.clientWidth,
       }));
-      expect(external.vertical, `${viewport.name}: external vertical`).toBeLessThanOrEqual(TOLERANCE);
-      expect(external.horizontal, `${viewport.name}: external horizontal`).toBeLessThanOrEqual(TOLERANCE);
+      expect(external.vertical, `${viewport.name}: external vertical`).toBeLessThanOrEqual(
+        MAX_DOCUMENT_SCROLL_DELTA_PX,
+      );
+      expect(external.horizontal, `${viewport.name}: external horizontal`).toBeLessThanOrEqual(
+        MAX_DOCUMENT_SCROLL_DELTA_PX,
+      );
 
       // 2. Zero core internal scrollers (the legacy +1981px inline scroller).
       const scrollers = await readCoreInternalScrollers(page);
@@ -222,7 +232,9 @@ test.describe("clinic informes full route — zero internal core scroll", () => 
       const external = await page.evaluate(
         () => document.documentElement.scrollHeight - document.documentElement.clientHeight,
       );
-      expect(external, `section ${section}: no external scroll`).toBeLessThanOrEqual(TOLERANCE);
+      expect(external, `section ${section}: no external scroll`).toBeLessThanOrEqual(
+        MAX_DOCUMENT_SCROLL_DELTA_PX,
+      );
     }
 
     await expect(detail.getByText("Línea de tiempo del estudio")).toHaveCount(0);

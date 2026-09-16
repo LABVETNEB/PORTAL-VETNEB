@@ -664,6 +664,83 @@ export const DASHBOARD_PERSISTENT_CHROME = [
 /** The shell frame paints its chrome through a pseudo-element. */
 export const DASHBOARD_SHELL_FRAME_SELECTOR = '[data-vetneb-app-shell="true"]';
 
+/**
+ * The shell frame reads through `::before`, which no element query reaches, so
+ * B04 appends it under this label instead of through the anchor list above.
+ */
+export const DASHBOARD_SHELL_FRAME_ANCHOR = "shell-frame::before";
+
+/**
+ * B04 · what each anchor is EXPECTED to resolve to, so "this band stopped
+ * rendering" stops reading like "this band is flat".
+ *
+ * LIMPIEZA E2E P2-3 / R-13: B04 accumulated its observations globally and
+ * asserted only `measured.length > 0`, which the shell frame satisfies on its
+ * own. Two anchors are deliberately retired and resolve to nothing on every
+ * viewport, so a blanket "every anchor must be observed" would be a false
+ * failure — and the retention is itself deliberate (§26 of the audit: keep the
+ * anchors so the A02 record SHAPE stays stable, and add per-anchor detection).
+ *
+ * The classes below are derived from the product, not invented:
+ *
+ *   * `always-mounted`   — no rule hides it at any width.
+ *   * `drawer-band`      — `styles/dashboard/navigation.css`: `display: flex`
+ *                          from 1280px.
+ *   * `rail-band`        — the same file: 768px to 1279.98px.
+ *   * `mobile-band`      — the same file: up to 767px, hidden hard from 768px.
+ *   * `module-conditional`— mounted by the module under test and by its data,
+ *                          so no single state can require it.
+ *   * `retired`          — removed from the product by B08/B09; kept here on
+ *                          purpose and exempt from any minimum.
+ */
+export type DashboardChromeAnchorClass =
+  | "always-mounted"
+  | "drawer-band"
+  | "rail-band"
+  | "mobile-band"
+  | "module-conditional"
+  | "retired";
+
+export const DASHBOARD_CHROME_ANCHOR_CLASSES: Readonly<
+  Record<string, DashboardChromeAnchorClass>
+> = Object.freeze({
+  [DASHBOARD_SHELL_FRAME_ANCHOR]: "always-mounted",
+  topbar: "always-mounted",
+  "horizontal-nav": "retired",
+  "module-rail": "retired",
+  "navigation-drawer": "drawer-band",
+  "navigation-rail": "rail-band",
+  "bottom-nav": "mobile-band",
+  "filter-bar": "module-conditional",
+  "sticky-action-bar": "module-conditional",
+  "module-tablist": "module-conditional",
+});
+
+/** The exact band boundaries authored in `styles/dashboard/navigation.css`. */
+const DRAWER_BAND_MIN_WIDTH = 1280;
+const LATERAL_BAND_MIN_WIDTH = 768;
+
+/**
+ * The anchors that MUST be observed at a given viewport width: the always-mounted
+ * chrome plus the one lateral/mobile band that owns navigation there. Exactly one
+ * band owner is painted at any width, so requiring all three would be wrong and
+ * requiring none would be the gap R-13 names.
+ *
+ * `module-conditional` anchors are absent on purpose — requiring a filter bar on
+ * a surface that has no filters would be an invented cardinality — and `retired`
+ * anchors are absent because staying at zero is their contract.
+ */
+export function requiredChromeAnchorsAt(viewportWidth: number): readonly string[] {
+  const bandOwner =
+    viewportWidth >= DRAWER_BAND_MIN_WIDTH
+      ? "navigation-drawer"
+      : viewportWidth >= LATERAL_BAND_MIN_WIDTH
+        ? "navigation-rail"
+        : "bottom-nav";
+
+  return [DASHBOARD_SHELL_FRAME_ANCHOR, "topbar", bandOwner];
+}
+
 const REGION_SELECTORS = {
   moduleHeader: ".dashboard-workspace-header",
   metrics: "[data-dashboard-metric-strip]",

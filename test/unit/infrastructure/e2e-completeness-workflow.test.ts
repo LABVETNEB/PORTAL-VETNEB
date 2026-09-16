@@ -240,7 +240,9 @@ test("automatic workflow coverage is derived from catalog cohorts and equals ful
   // LIMPIEZA E2E P0-1/R-01/B-3.
   // +1: E2E-GLOBAL-09 P2 follow-up, responsive cold-load sentinel
   // (regression/dashboard-responsive-cold-load-sentinel.spec.ts).
-  assert.equal(E2E_SUITE_CATALOG.length, 99);
+  // -1: E2E-GLOBAL-10 removed the assertion-free evidence generator
+  // (regression/evidence/remove-home-unified-workspace-screenshots.spec.ts, R-16).
+  assert.equal(E2E_SUITE_CATALOG.length, 98);
 
   const partitionUnion = new Set(PARTITION_COHORTS.flatMap((cohort) => E2E_COHORT_SPECS[cohort]));
   assert.deepEqual([...partitionUnion].sort(), [...E2E_COHORT_SPECS.full].sort());
@@ -257,8 +259,9 @@ test("coverage fails closed when the full route or any partition contribution is
   };
   const result = evaluateAutomaticCoverage(withoutFull);
 
-  // extended 27 (E2E-GLOBAL-06 moved two P1 specs to ci) + evidence 2 + visual-linux 3.
-  assert.equal(result.missingSpecs.length, 32);
+  // extended 27 (E2E-GLOBAL-06 moved two P1 specs to ci) + evidence 1
+  // (E2E-GLOBAL-10 removed the assertion-free generator) + visual-linux 3.
+  assert.equal(result.missingSpecs.length, 31);
   for (const cohort of ["extended", "evidence", "visual-linux"] as const) {
     assert.ok(
       E2E_COHORT_SPECS[cohort].every((spec) => result.missingSpecs.includes(spec)),

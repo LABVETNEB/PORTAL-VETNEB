@@ -1,5 +1,13 @@
 import { expect, type Locator, type Page, type Route } from "@playwright/test";
 
+import { MAX_DOCUMENT_SCROLL_DELTA_PX } from "./zero-scroll-contract";
+
+/**
+ * Sub-pixel allowance for BOX geometry (rect edges against the viewport, the
+ * app bar and the bottom nav) and for the MODULE root, an internal container.
+ * The document chain does not use it: E2E-GLOBAL-10 converged html/body onto
+ * MAX_DOCUMENT_SCROLL_DELTA_PX (LIMPIEZA E2E P2-2 / R-12).
+ */
 export const ADMIN_MOBILE_TOLERANCE = 2;
 
 export const ADMIN_MOBILE_VIEWPORTS = [
@@ -105,16 +113,16 @@ export function assertDocumentNoScrollContract(
   label: string,
 ) {
   expect(contract.html.scrollHeight, `${label}: html vertical overflow`).toBeLessThanOrEqual(
-    contract.html.clientHeight + ADMIN_MOBILE_TOLERANCE,
+    contract.html.clientHeight + MAX_DOCUMENT_SCROLL_DELTA_PX,
   );
   expect(contract.body.scrollHeight, `${label}: body vertical overflow`).toBeLessThanOrEqual(
-    contract.body.clientHeight + ADMIN_MOBILE_TOLERANCE,
+    contract.body.clientHeight + MAX_DOCUMENT_SCROLL_DELTA_PX,
   );
   expect(contract.html.scrollWidth, `${label}: html horizontal overflow`).toBeLessThanOrEqual(
-    contract.html.clientWidth + ADMIN_MOBILE_TOLERANCE,
+    contract.html.clientWidth + MAX_DOCUMENT_SCROLL_DELTA_PX,
   );
   expect(contract.body.scrollWidth, `${label}: body horizontal overflow`).toBeLessThanOrEqual(
-    contract.body.clientWidth + ADMIN_MOBILE_TOLERANCE,
+    contract.body.clientWidth + MAX_DOCUMENT_SCROLL_DELTA_PX,
   );
   expect(contract.forbiddenOverflow, `${label}: forbidden overflow auto/scroll`).toEqual([]);
 }
@@ -193,19 +201,23 @@ export function assertModuleNoScrollContract(
   contract: ModuleNoScrollContract,
   label: string,
 ) {
+  // html/body are the converged document régime; the module root is an
+  // internal container A08 does not measure and keeps its own allowance.
   for (const [surface, metrics] of Object.entries({
     html: contract.html,
     body: contract.body,
     module: contract.module,
   })) {
+    const allowancePx =
+      surface === "module" ? ADMIN_MOBILE_TOLERANCE : MAX_DOCUMENT_SCROLL_DELTA_PX;
     expect(
       metrics.scrollHeight,
       `${label}: ${surface} vertical clipping/overflow`,
-    ).toBeLessThanOrEqual(metrics.clientHeight + ADMIN_MOBILE_TOLERANCE);
+    ).toBeLessThanOrEqual(metrics.clientHeight + allowancePx);
     expect(
       metrics.scrollWidth,
       `${label}: ${surface} horizontal clipping/overflow`,
-    ).toBeLessThanOrEqual(metrics.clientWidth + ADMIN_MOBILE_TOLERANCE);
+    ).toBeLessThanOrEqual(metrics.clientWidth + allowancePx);
   }
 
   expect(contract.forbiddenOverflow, `${label}: overflow auto/scroll`).toEqual([]);

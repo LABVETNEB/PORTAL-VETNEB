@@ -1,5 +1,6 @@
 ﻿import { expect, test } from "@playwright/test";
 import { setAdminSession, setSession } from "../../helpers/session";
+import { MAX_DOCUMENT_SCROLL_DELTA_PX } from "../../helpers/zero-scroll-contract";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Global Viewport-aware Adaptive App Shell contract for BOTH dashboards.
@@ -460,7 +461,7 @@ function assertTokensRegionContract(
   expect(
     metrics.bodyScrollHeight,
     `${label}: tokens body must not clip hidden overflow`,
-  ).toBeLessThanOrEqual(metrics.bodyClientHeight + TOLERANCE);
+  ).toBeLessThanOrEqual(metrics.bodyClientHeight + MAX_DOCUMENT_SCROLL_DELTA_PX);
   expect(
     ["auto", "scroll"],
     `${label}: tokens body must not expose vertical scroll`,
@@ -567,11 +568,11 @@ function assertPublicParticularContract(
   expect(
     metrics.htmlScrollWidth,
     `${label}: documentElement horizontal overflow`,
-  ).toBeLessThanOrEqual(metrics.htmlClientWidth + TOLERANCE);
+  ).toBeLessThanOrEqual(metrics.htmlClientWidth + MAX_DOCUMENT_SCROLL_DELTA_PX);
   expect(
     metrics.bodyScrollWidth,
     `${label}: body horizontal overflow`,
-  ).toBeLessThanOrEqual(metrics.bodyClientWidth + TOLERANCE);
+  ).toBeLessThanOrEqual(metrics.bodyClientWidth + MAX_DOCUMENT_SCROLL_DELTA_PX);
   expect(metrics.primaryPresent, `${label}: token gate panel present`).toBe(true);
   expect(metrics.tokenInputPresent, `${label}: token input present`).toBe(true);
   expect(metrics.submitPresent, `${label}: submit action present`).toBe(true);
@@ -611,11 +612,11 @@ function assertAdaptiveNoScroll(
   expect(
     metrics.bodyScrollHeight,
     `${label}: body scrolled (${metrics.bodyScrollHeight} > ${metrics.bodyClientHeight})`,
-  ).toBeLessThanOrEqual(metrics.bodyClientHeight + TOLERANCE);
+  ).toBeLessThanOrEqual(metrics.bodyClientHeight + MAX_DOCUMENT_SCROLL_DELTA_PX);
   expect(
     metrics.htmlScrollHeight,
     `${label}: documentElement scrolled (${metrics.htmlScrollHeight} > ${metrics.htmlClientHeight})`,
-  ).toBeLessThanOrEqual(metrics.htmlClientHeight + TOLERANCE);
+  ).toBeLessThanOrEqual(metrics.htmlClientHeight + MAX_DOCUMENT_SCROLL_DELTA_PX);
 
   // Critical chrome must stay visible (no collapse) on desktop widths.
   if (width >= 1024) {

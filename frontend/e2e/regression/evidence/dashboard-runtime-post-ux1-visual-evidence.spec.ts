@@ -1,6 +1,7 @@
 import { writeFile } from "node:fs/promises";
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 import { setClinicSession } from "../../helpers/session";
+import { MAX_DOCUMENT_SCROLL_DELTA_PX } from "../../helpers/zero-scroll-contract";
 
 const TOLERANCE = 2;
 
@@ -172,16 +173,16 @@ function expectBoundsInsideViewport(
 
 function expectNoGlobalScroll(metrics: VisualMetrics, label: string) {
   expect(metrics.html.scrollWidth, `${label}: html horizontal scroll`).toBeLessThanOrEqual(
-    metrics.html.clientWidth + TOLERANCE,
+    metrics.html.clientWidth + MAX_DOCUMENT_SCROLL_DELTA_PX,
   );
   expect(metrics.body.scrollWidth, `${label}: body horizontal scroll`).toBeLessThanOrEqual(
-    metrics.body.clientWidth + TOLERANCE,
+    metrics.body.clientWidth + MAX_DOCUMENT_SCROLL_DELTA_PX,
   );
   expect(metrics.html.scrollHeight, `${label}: html vertical scroll`).toBeLessThanOrEqual(
-    metrics.html.clientHeight + TOLERANCE,
+    metrics.html.clientHeight + MAX_DOCUMENT_SCROLL_DELTA_PX,
   );
   expect(metrics.body.scrollHeight, `${label}: body vertical scroll`).toBeLessThanOrEqual(
-    metrics.body.clientHeight + TOLERANCE,
+    metrics.body.clientHeight + MAX_DOCUMENT_SCROLL_DELTA_PX,
   );
   expect(metrics.main, `${label}: dashboard main`).not.toBeNull();
   expect(metrics.main!.scrollHeight, `${label}: main vertical scroll`).toBeLessThanOrEqual(

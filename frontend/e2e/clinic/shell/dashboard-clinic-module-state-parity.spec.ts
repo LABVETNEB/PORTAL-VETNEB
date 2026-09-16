@@ -1,5 +1,6 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
 import { setClinicSession } from "../../helpers/session";
+import { MAX_DOCUMENT_SCROLL_DELTA_PX } from "../../helpers/zero-scroll-contract";
 
 // PR-CL7 state parity. `operaciones`/`informes`/`logistica` get SSR data from
 // page.tsx, so their recovery action is a client `router.refresh()` button.
@@ -41,8 +42,8 @@ async function expectNoHorizontalOverflow(page: Page) {
     bodyClientWidth: document.body.clientWidth,
   }));
 
-  expect(metric.htmlScrollWidth).toBeLessThanOrEqual(metric.htmlClientWidth + TOLERANCE);
-  expect(metric.bodyScrollWidth).toBeLessThanOrEqual(metric.bodyClientWidth + TOLERANCE);
+  expect(metric.htmlScrollWidth).toBeLessThanOrEqual(metric.htmlClientWidth + MAX_DOCUMENT_SCROLL_DELTA_PX);
+  expect(metric.bodyScrollWidth).toBeLessThanOrEqual(metric.bodyClientWidth + MAX_DOCUMENT_SCROLL_DELTA_PX);
 }
 
 const RETRY_TOKEN = {

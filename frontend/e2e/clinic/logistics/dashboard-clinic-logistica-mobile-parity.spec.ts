@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { setClinicSession } from "../../helpers/session";
+import { MAX_DOCUMENT_SCROLL_DELTA_PX } from "../../helpers/zero-scroll-contract";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CMP-12 (RC-017) — scope correction.
@@ -180,19 +181,19 @@ function assertNoGlobalOverflow(metrics: LayoutContract, label: string) {
   expect(
     metrics.htmlScrollWidth,
     `${label}: documentElement horizontal overflow`,
-  ).toBeLessThanOrEqual(metrics.htmlClientWidth + TOLERANCE);
+  ).toBeLessThanOrEqual(metrics.htmlClientWidth + MAX_DOCUMENT_SCROLL_DELTA_PX);
   expect(
     metrics.bodyScrollWidth,
     `${label}: body horizontal overflow`,
-  ).toBeLessThanOrEqual(metrics.bodyClientWidth + TOLERANCE);
+  ).toBeLessThanOrEqual(metrics.bodyClientWidth + MAX_DOCUMENT_SCROLL_DELTA_PX);
   expect(
     metrics.htmlScrollHeight,
     `${label}: documentElement global scroll`,
-  ).toBeLessThanOrEqual(metrics.htmlClientHeight + TOLERANCE);
+  ).toBeLessThanOrEqual(metrics.htmlClientHeight + MAX_DOCUMENT_SCROLL_DELTA_PX);
   expect(
     metrics.bodyScrollHeight,
     `${label}: body global scroll`,
-  ).toBeLessThanOrEqual(metrics.bodyClientHeight + TOLERANCE);
+  ).toBeLessThanOrEqual(metrics.bodyClientHeight + MAX_DOCUMENT_SCROLL_DELTA_PX);
   expect(metrics.mainScrollHeight, `${label}: dashboard shell scroll`).toBeLessThanOrEqual(
     metrics.mainClientHeight + TOLERANCE,
   );
@@ -328,7 +329,7 @@ async function expectRowGeometryUnclipped(page: Page, label: string) {
   expect(
     geometry!.docScrollHeight,
     `${label}: this surface must not make the document scroll`,
-  ).toBeLessThanOrEqual(geometry!.docClientHeight + TOLERANCE);
+  ).toBeLessThanOrEqual(geometry!.docClientHeight + MAX_DOCUMENT_SCROLL_DELTA_PX);
 }
 
 for (const viewport of MOBILE_VIEWPORTS) {

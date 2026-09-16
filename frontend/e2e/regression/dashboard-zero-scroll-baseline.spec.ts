@@ -16,6 +16,7 @@ import {
   waitForLayoutSettled,
 } from "../helpers/dashboard-geometry-matrix";
 import { addAppCookies } from "../helpers/session";
+import { MAX_DOCUMENT_SCROLL_DELTA_PX } from "../helpers/zero-scroll-contract";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // A08 · Zero-scroll canonical freeze — 21 surfaces × 13 viewports (273).
@@ -45,20 +46,14 @@ import { addAppCookies } from "../helpers/session";
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * EXACT contract, not a tolerance. `AGENTS.md` §10 states the invariant as
- * `SCROLL_VERTICAL_DEL_DOCUMENTO = 0` / `SCROLL_HORIZONTAL_DEL_DOCUMENTO = 0`,
- * so A08 freezes zero, not "almost zero": any delta of 1 px or more fails.
+ * A08 no longer owns this number. E2E-GLOBAL-10 (LIMPIEZA E2E P2-2 / R-12)
+ * converged the document zero-scroll régime onto a single owner, so the shell
+ * contracts that assert the same metrics assert the same value; the rationale
+ * for the exact 0 lives there.
  *
- * This is measured, not aspirational — the 273 canonical combinations all
- * report a delta of exactly 0 px on the six metrics, so the gate is enforced at
- * the value the shell already holds and no runtime change was needed to reach
- * it. The older zero-scroll specs in `frontend/e2e/platform/app-shell/` keep
- * their 2 px allowance; A08 is the freeze and does not inherit it.
- *
- * It must NOT be raised to absorb a failure: a positive delta is a runtime
- * defect to report, not a number to re-tune.
+ * @see ../helpers/zero-scroll-contract
  */
-const MAX_SCROLL_DELTA_PX = 0;
+const MAX_SCROLL_DELTA_PX = MAX_DOCUMENT_SCROLL_DELTA_PX;
 
 type AxisMetrics = {
   readonly scrollHeight: number;

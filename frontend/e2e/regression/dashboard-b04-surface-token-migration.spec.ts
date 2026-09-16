@@ -9,12 +9,15 @@ import {
 import {
   assertSurfaceLoaded,
   clearDashboardModuleMemory,
+  DASHBOARD_CHROME_ANCHOR_CLASSES,
   DASHBOARD_GEOMETRY_SESSION_COOKIE,
   DASHBOARD_GEOMETRY_SURFACE_COUNT,
   DASHBOARD_GEOMETRY_SURFACES,
   DASHBOARD_PERSISTENT_CHROME,
+  DASHBOARD_SHELL_FRAME_ANCHOR,
   DASHBOARD_SHELL_FRAME_SELECTOR,
   installSurfaceMocks,
+  requiredChromeAnchorsAt,
   suppressNextDevChrome,
   waitForLayoutSettled,
 } from "../helpers/dashboard-geometry-matrix";
@@ -40,9 +43,11 @@ import { addAppCookies } from "../helpers/session";
 //     one cannot drift into policing different inventories.
 //   * Both themes (R9: from B04 the dashboard is dual-theme or it is unproven).
 //   * Two viewport classes, laptop and phone, because the chrome differs between
-//     them: the horizontal nav is `md:block`, the bottom navs are mobile-only,
-//     and the sticky action bar is `fixed` below `md` and `sticky` above it. One
-//     viewport class would leave half the chrome unobserved.
+//     them: `styles/dashboard/navigation.css` paints the lateral drawer from
+//     1280px and the mobile bottom nav up to 767px, and the sticky action bar is
+//     `fixed` below `md` and `sticky` above it. One viewport class would leave
+//     half the chrome unobserved — which is why the per-anchor minimum added in
+//     E2E-GLOBAL-10 is resolved per width (`requiredChromeAnchorsAt`).
 //
 // 21 surfaces x 2 themes x 2 viewport classes = 84 contractual states.
 //
@@ -142,9 +147,10 @@ async function readChrome(
   page: Page,
   anchors: readonly { readonly label: string; readonly selector: string }[],
   frameSelector: string,
+  frameAnchor: string,
 ): Promise<Array<Omit<ChromeObservation, "surfaceId" | "theme" | "viewportSlug">>> {
   return page.evaluate(
-    ({ anchors: probes, frameSelector: frame }) => {
+    ({ anchors: probes, frameSelector: frame, frameAnchor: frameLabel }) => {
       const isVisible = (element: Element) => {
         const rect = element.getBoundingClientRect();
         const style = window.getComputedStyle(element);
@@ -181,7 +187,7 @@ async function readChrome(
       const shell = document.querySelector(frame);
       if (shell) {
         observations.push({
-          anchor: "shell-frame::before",
+          anchor: frameLabel,
           selector: `${frame}::before`,
           boxShadow: window.getComputedStyle(shell, "::before").boxShadow,
         });
@@ -195,6 +201,7 @@ async function readChrome(
         selector: anchor.selector,
       })),
       frameSelector,
+      frameAnchor,
     },
   ) as Promise<
     Array<Omit<ChromeObservation, "surfaceId" | "theme" | "viewportSlug">>
@@ -211,6 +218,33 @@ test.beforeAll(() => {
   ).toBe(DASHBOARD_GEOMETRY_SURFACE_COUNT);
   expect(DASHBOARD_PERSISTENT_CHROME.length, "chrome anchors").toBeGreaterThan(0);
   expect(EXPECTED_STATE_COUNT, "contractual states").toBe(84);
+
+  // R-13: every anchor must carry a class, or a new band could be added to the
+  // inventory and silently inherit no minimum at all.
+  for (const probe of DASHBOARD_PERSISTENT_CHROME) {
+    expect(
+      DASHBOARD_CHROME_ANCHOR_CLASSES[probe.label],
+      `${probe.label}: anchor must be classified`,
+    ).toBeDefined();
+  }
+  expect(
+    DASHBOARD_CHROME_ANCHOR_CLASSES[DASHBOARD_SHELL_FRAME_ANCHOR],
+    "the shell frame anchor must be classified",
+  ).toBe("always-mounted");
+
+  // Each viewport class must require the frame, the topbar and exactly one
+  // navigation band owner — derived from navigation.css, not chosen here.
+  for (const viewport of VIEWPORT_CLASSES) {
+    const required = requiredChromeAnchorsAt(viewport.width);
+    expect(required, `${viewport.slug}: required anchors`).toHaveLength(3);
+    expect(new Set(required).size, `${viewport.slug}: required anchors unique`).toBe(3);
+    for (const anchor of required) {
+      expect(
+        DASHBOARD_CHROME_ANCHOR_CLASSES[anchor],
+        `${viewport.slug}: ${anchor} must not be required while retired`,
+      ).not.toBe("retired");
+    }
+  }
 });
 
 test.describe("B04 · persistent chrome paints no elevation (G6), light + dark", () => {
@@ -269,14 +303,26 @@ test.describe("B04 · persistent chrome paints no elevation (G6), light + dark",
               page,
               DASHBOARD_PERSISTENT_CHROME,
               DASHBOARD_SHELL_FRAME_SELECTOR,
+              DASHBOARD_SHELL_FRAME_ANCHOR,
             );
 
-            // Every surface renders at least the shell frame; zero anchors means
-            // the probe missed the tree, not that the chrome is flat.
+            // R-13 · PER-ANCHOR detection. The old global `measured.length > 0`
+            // was satisfied by the shell frame alone, so a band that stopped
+            // rendering left this gate green while measuring less. Each state
+            // now proves the anchors that MUST paint at its width really did,
+            // and names the missing one when they did not.
+            //
+            // Retired anchors (horizontal-nav, module-rail) and module-conditional
+            // ones are never required: staying at zero is their contract, and the
+            // audit keeps them so the A02 record shape stays stable.
+            const observedAnchors = new Set(measured.map((observation) => observation.anchor));
+            const missingAnchors = requiredChromeAnchorsAt(viewport.width).filter(
+              (anchor) => !observedAnchors.has(anchor),
+            );
             expect(
-              measured.length,
-              `${label}: persistent chrome anchors observed`,
-            ).toBeGreaterThan(0);
+              missingAnchors,
+              `${label}: required persistent chrome anchors did not render`,
+            ).toEqual([]);
 
             for (const observation of measured) {
               const elevated = readsAsElevation(observation.boxShadow);
@@ -308,6 +354,13 @@ test.describe("B04 · persistent chrome paints no elevation (G6), light + dark",
         THEMES.length * VIEWPORT_CLASSES.length,
       );
 
+      const observationsByAnchor = Object.fromEntries(
+        Object.keys(DASHBOARD_CHROME_ANCHOR_CLASSES).map((anchor) => [
+          anchor,
+          observations.filter((observation) => observation.anchor === anchor).length,
+        ]),
+      );
+
       await testInfo.attach(`b04-chrome-elevation-${surface.id}.json`, {
         contentType: "application/json",
         body: JSON.stringify(
@@ -316,6 +369,8 @@ test.describe("B04 · persistent chrome paints no elevation (G6), light + dark",
             themes: THEMES,
             viewports: VIEWPORT_CLASSES.map((viewport) => viewport.slug),
             statesMeasured,
+            anchorClasses: DASHBOARD_CHROME_ANCHOR_CLASSES,
+            observationsByAnchor,
             observations,
           },
           null,

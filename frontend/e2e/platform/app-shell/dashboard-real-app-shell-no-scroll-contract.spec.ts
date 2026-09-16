@@ -1,12 +1,21 @@
 import { expect, test } from "@playwright/test";
 import { setAdminSession, setClinicSession } from "../../helpers/session";
+import { MAX_DOCUMENT_SCROLL_DELTA_PX } from "../../helpers/zero-scroll-contract";
 
 type Page = import("@playwright/test").Page;
 type Request = import("@playwright/test").Request;
 type Route = import("@playwright/test").Route;
 type TestInfo = import("@playwright/test").TestInfo;
 
-const TOLERANCE = 2;
+/**
+ * Allowance for the INTERNAL containers only (workspace, module viewport,
+ * module surface, worst internal scroller). E2E-GLOBAL-10 converged the
+ * document chain — documentElement, body and main — onto the exact
+ * MAX_DOCUMENT_SCROLL_DELTA_PX régime (R-12); `AGENTS.md` §10 tracks internal
+ * scroll as a separate invariant and no canonical matrix has frozen those
+ * deltas at 0 px yet, so they keep this allowance until one does.
+ */
+const INTERNAL_TOLERANCE = 2;
 
 const VIEWPORTS = [
   { name: "1440x900", width: 1440, height: 900 },
@@ -507,20 +516,20 @@ async function expectPageNoOverflow(
   await expect(async () => {
     const metrics = await measure(page);
     const hasOverflow =
-      metrics.documentElement.overflowY > TOLERANCE ||
-      metrics.documentElement.overflowX > TOLERANCE ||
-      metrics.body.overflowY > TOLERANCE ||
-      metrics.body.overflowX > TOLERANCE ||
-      metrics.main.overflowY > TOLERANCE ||
-      metrics.main.overflowX > TOLERANCE ||
-      metrics.workspace.overflowY > TOLERANCE ||
-      metrics.workspace.overflowX > TOLERANCE ||
-      metrics.viewport.overflowY > TOLERANCE ||
-      metrics.viewport.overflowX > TOLERANCE ||
-      metrics.surface.overflowY > TOLERANCE ||
-      metrics.surface.overflowX > TOLERANCE ||
-      metrics.worstInternalScroll.overflowY > TOLERANCE ||
-      metrics.worstInternalScroll.overflowX > TOLERANCE;
+      metrics.documentElement.overflowY > MAX_DOCUMENT_SCROLL_DELTA_PX ||
+      metrics.documentElement.overflowX > MAX_DOCUMENT_SCROLL_DELTA_PX ||
+      metrics.body.overflowY > MAX_DOCUMENT_SCROLL_DELTA_PX ||
+      metrics.body.overflowX > MAX_DOCUMENT_SCROLL_DELTA_PX ||
+      metrics.main.overflowY > MAX_DOCUMENT_SCROLL_DELTA_PX ||
+      metrics.main.overflowX > MAX_DOCUMENT_SCROLL_DELTA_PX ||
+      metrics.workspace.overflowY > INTERNAL_TOLERANCE ||
+      metrics.workspace.overflowX > INTERNAL_TOLERANCE ||
+      metrics.viewport.overflowY > INTERNAL_TOLERANCE ||
+      metrics.viewport.overflowX > INTERNAL_TOLERANCE ||
+      metrics.surface.overflowY > INTERNAL_TOLERANCE ||
+      metrics.surface.overflowX > INTERNAL_TOLERANCE ||
+      metrics.worstInternalScroll.overflowY > INTERNAL_TOLERANCE ||
+      metrics.worstInternalScroll.overflowX > INTERNAL_TOLERANCE;
 
     if (hasOverflow) {
       await testInfo.attach(`overflow-${label}`, {
@@ -529,20 +538,20 @@ async function expectPageNoOverflow(
       });
     }
 
-    expectNoOverflow(metrics.documentElement, true);
-    expectNoOverflow(metrics.body, true);
-    expectNoOverflow(metrics.main, true);
-    expectNoOverflow(metrics.workspace, true);
-    expectNoOverflow(metrics.viewport, requireModuleContainers);
-    expectNoOverflow(metrics.surface, requireModuleContainers);
+    expectNoOverflow(metrics.documentElement, true, MAX_DOCUMENT_SCROLL_DELTA_PX);
+    expectNoOverflow(metrics.body, true, MAX_DOCUMENT_SCROLL_DELTA_PX);
+    expectNoOverflow(metrics.main, true, MAX_DOCUMENT_SCROLL_DELTA_PX);
+    expectNoOverflow(metrics.workspace, true, INTERNAL_TOLERANCE);
+    expectNoOverflow(metrics.viewport, requireModuleContainers, INTERNAL_TOLERANCE);
+    expectNoOverflow(metrics.surface, requireModuleContainers, INTERNAL_TOLERANCE);
     expect(
       metrics.worstInternalScroll.overflowY,
       `internal vertical scroll on ${metrics.worstInternalScroll.selector ?? "none"}`,
-    ).toBeLessThanOrEqual(TOLERANCE);
+    ).toBeLessThanOrEqual(INTERNAL_TOLERANCE);
     expect(
       metrics.worstInternalScroll.overflowX,
       `internal horizontal scroll on ${metrics.worstInternalScroll.selector ?? "none"}`,
-    ).toBeLessThanOrEqual(TOLERANCE);
+    ).toBeLessThanOrEqual(INTERNAL_TOLERANCE);
   }).toPass({ timeout: 10_000 });
 }
 
@@ -651,7 +660,7 @@ async function measure(page: Page): Promise<Metrics> {
   });
 }
 
-function expectNoOverflow(metric: ElementMetric, requirePresent: boolean) {
+function expectNoOverflow(metric: ElementMetric, requirePresent: boolean, allowancePx: number) {
   if (requirePresent) {
     expect(metric.present, `${metric.selector} present`).toBe(true);
   }
@@ -661,11 +670,11 @@ function expectNoOverflow(metric: ElementMetric, requirePresent: boolean) {
   expect(
     metric.scrollHeight,
     `${metric.selector} vertical scroll`,
-  ).toBeLessThanOrEqual(metric.clientHeight + TOLERANCE);
+  ).toBeLessThanOrEqual(metric.clientHeight + allowancePx);
   expect(
     metric.scrollWidth,
     `${metric.selector} horizontal scroll`,
-  ).toBeLessThanOrEqual(metric.clientWidth + TOLERANCE);
+  ).toBeLessThanOrEqual(metric.clientWidth + allowancePx);
 }
 
 for (const viewport of VIEWPORTS) {

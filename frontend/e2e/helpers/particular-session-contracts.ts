@@ -1,4 +1,5 @@
 import { expect, type Page } from "@playwright/test";
+import { MAX_DOCUMENT_SCROLL_DELTA_PX } from "./zero-scroll-contract";
 
 // The particular session cookie itself is set by setParticularSession()
 // (helpers/session.ts, E2E-GLOBAL-07). The /api/particular/auth/* calls are
@@ -11,6 +12,11 @@ export const PARTICULAR_MOBILE_VIEWPORT = {
   height: 844,
 } as const;
 
+/**
+ * Retained for the internal-surface readings only. The DOCUMENT contract below
+ * asserts MAX_DOCUMENT_SCROLL_DELTA_PX: E2E-GLOBAL-10 converged the zero-scroll
+ * régime onto one owner (LIMPIEZA E2E P2-2 / R-12).
+ */
 export const PARTICULAR_NO_SCROLL_TOLERANCE = 1;
 
 export const MOCK_PARTICULAR_SESSION = {
@@ -505,11 +511,11 @@ export function assertParticularOperationalViewportContract(
   expect(
     geometry.documentScrollY,
     `${label}: document vertical scroll`,
-  ).toBeLessThanOrEqual(PARTICULAR_NO_SCROLL_TOLERANCE);
+  ).toBeLessThanOrEqual(MAX_DOCUMENT_SCROLL_DELTA_PX);
   expect(
     geometry.documentScrollX,
     `${label}: document horizontal scroll`,
-  ).toBeLessThanOrEqual(PARTICULAR_NO_SCROLL_TOLERANCE);
+  ).toBeLessThanOrEqual(MAX_DOCUMENT_SCROLL_DELTA_PX);
 
   // Cero contenido perdido detrás de un `overflow: hidden` y cero texto cortado.
   expect(
@@ -560,11 +566,11 @@ export function assertParticularNoScrollContract(
   expect(
     contract.html.scrollWidth,
     `${label}: html horizontal overflow`,
-  ).toBeLessThanOrEqual(contract.html.clientWidth + PARTICULAR_NO_SCROLL_TOLERANCE);
+  ).toBeLessThanOrEqual(contract.html.clientWidth + MAX_DOCUMENT_SCROLL_DELTA_PX);
   expect(
     contract.body.scrollWidth,
     `${label}: body horizontal overflow`,
-  ).toBeLessThanOrEqual(contract.body.clientWidth + PARTICULAR_NO_SCROLL_TOLERANCE);
+  ).toBeLessThanOrEqual(contract.body.clientWidth + MAX_DOCUMENT_SCROLL_DELTA_PX);
   expect(
     contract.forbiddenOverflow,
     `${label}: forbidden overflow auto/scroll`,

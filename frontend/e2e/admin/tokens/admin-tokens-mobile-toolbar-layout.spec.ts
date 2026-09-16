@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
+import { MAX_DOCUMENT_SCROLL_DELTA_PX } from "../../helpers/zero-scroll-contract";
 
 import { DASHBOARD_GEOMETRY_VIEWPORTS } from "../../helpers/dashboard-geometry-matrix";
 import { setAdminSession } from "../../helpers/session";
@@ -318,11 +319,11 @@ for (const viewport of MOBILE_VIEWPORTS) {
     expect(
       verticalOverflow.htmlScrollHeight,
       `${viewport.name}: documentElement vertical overflow`,
-    ).toBeLessThanOrEqual(verticalOverflow.htmlClientHeight + TOLERANCE);
+    ).toBeLessThanOrEqual(verticalOverflow.htmlClientHeight + MAX_DOCUMENT_SCROLL_DELTA_PX);
     expect(
       verticalOverflow.bodyScrollHeight,
       `${viewport.name}: body vertical overflow`,
-    ).toBeLessThanOrEqual(verticalOverflow.bodyClientHeight + TOLERANCE);
+    ).toBeLessThanOrEqual(verticalOverflow.bodyClientHeight + MAX_DOCUMENT_SCROLL_DELTA_PX);
 
     const forbiddenOverflow = await page.evaluate((selector) => {
       const root = document.querySelector(selector);
@@ -369,11 +370,11 @@ for (const viewport of MOBILE_VIEWPORTS) {
     expect(
       overflow.htmlScrollWidth,
       `${viewport.name}: documentElement horizontal overflow`,
-    ).toBeLessThanOrEqual(overflow.htmlClientWidth + TOLERANCE);
+    ).toBeLessThanOrEqual(overflow.htmlClientWidth + MAX_DOCUMENT_SCROLL_DELTA_PX);
     expect(
       overflow.bodyScrollWidth,
       `${viewport.name}: body horizontal overflow`,
-    ).toBeLessThanOrEqual(overflow.bodyClientWidth + TOLERANCE);
+    ).toBeLessThanOrEqual(overflow.bodyClientWidth + MAX_DOCUMENT_SCROLL_DELTA_PX);
 
     const updateMetrics = await updateButton.evaluate((button) => {
       const rect = button.getBoundingClientRect();
@@ -619,7 +620,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
     expect(
       overflow.htmlScrollWidth,
       `${viewport.name}: dialog causes horizontal page overflow`,
-    ).toBeLessThanOrEqual(overflow.htmlClientWidth + TOLERANCE);
+    ).toBeLessThanOrEqual(overflow.htmlClientWidth + MAX_DOCUMENT_SCROLL_DELTA_PX);
   });
 }
 
