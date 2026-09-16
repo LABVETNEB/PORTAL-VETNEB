@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
-import { listSourceFiles } from "../helpers/tracked-source-files.ts";
+import { listTrackedSourceFiles } from "../helpers/tracked-source-files.ts";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // E2E-GLOBAL-11 (LIMPIEZA E2E R-02 + §23) — fixture ↔ Fastify contract.
@@ -41,10 +41,10 @@ const FASTIFY_APP = "server/fastify-app.ts";
 const FIXTURE = "frontend/e2e/fixtures/admin-populated-api-server.mjs";
 const E2E_ROOT = "frontend/e2e";
 const SOURCE_EXTENSIONS = [".ts", ".mts", ".cts", ".js", ".mjs", ".cjs"];
+const PROBE_SPEC = "frontend/e2e/admin/audit/e2e-global-11-probe.spec.ts";
 const HTTP_VERBS = new Set(["get", "post", "put", "patch", "delete", "head", "options"]);
 const UNSUPPORTED_REGISTRATIONS = new Set(["route", "all"]);
 const SAMPLE_ORIGIN = "http://127.0.0.1:3000";
-const SAMPLE_PARAM = "1";
 
 // ── Declared divergences ─────────────────────────────────────────────────────
 
@@ -255,9 +255,7 @@ function createWorkspace(overrides: Overrides = {}): Workspace {
       return override ?? normalizeNewlines(readFileSync(resolve(REPO_ROOT, path), "utf8"));
     },
     e2eFiles() {
-      const onDisk = listSourceFiles(resolve(REPO_ROOT, E2E_ROOT), { extensions: SOURCE_EXTENSIONS }).map(
-        (path) => `${E2E_ROOT}/${path}`,
-      );
+      const onDisk = listTrackedSourceFiles(E2E_ROOT);
       const extra = Object.keys(overrides).filter((path) => path.startsWith(`${E2E_ROOT}/`));
       return [...new Set([...onDisk, ...extra])].sort();
     },
@@ -601,7 +599,8 @@ type BackendRoute = {
 type BackendContract = {
   readonly successStatuses: ReadonlySet<number>;
   readonly openSuccessStatus: boolean;
-  readonly responseKeys: ReadonlySet<string>;
+  readonly responseKeysByStatus: ReadonlyMap<number, ReadonlySet<string>>;
+  readonly openResponseKeys: ReadonlySet<string>;
   readonly queryKeys: ReadonlySet<string> | undefined;
 };
 
@@ -720,7 +719,8 @@ function backendContract(ws: Workspace, route: BackendRoute): BackendContract {
   assert.ok(handler, `${where(route.call)}: route without a handler`);
 
   const successStatuses = new Set<number>();
-  const keys = new Set<string>();
+  const responseKeysByStatus = new Map<number, Set<string>>();
+  const openResponseKeys = new Set<string>();
   let openSuccessStatus = false;
   let payloads = 0;
 
@@ -742,11 +742,17 @@ function backendContract(ws: Workspace, route: BackendRoute): BackendContract {
 
     if (statuses === "open") {
       openSuccessStatus = true;
+      responseKeys(ws.checker, node.arguments[0]).forEach((key) => openResponseKeys.add(key));
     } else {
-      statuses.filter(isSuccess).forEach((status) => successStatuses.add(status));
+      const keys = responseKeys(ws.checker, node.arguments[0]);
+      statuses.filter(isSuccess).forEach((status) => {
+        successStatuses.add(status);
+        const allowed = responseKeysByStatus.get(status) ?? new Set<string>();
+        keys.forEach((key) => allowed.add(key));
+        responseKeysByStatus.set(status, allowed);
+      });
     }
 
-    responseKeys(ws.checker, node.arguments[0]).forEach((key) => keys.add(key));
     payloads += 1;
   });
 
@@ -755,7 +761,8 @@ function backendContract(ws: Workspace, route: BackendRoute): BackendContract {
   return {
     successStatuses,
     openSuccessStatus,
-    responseKeys: keys,
+    responseKeysByStatus,
+    openResponseKeys,
     queryKeys: declaredQueryKeys(ws.checker, route.call),
   };
 }
@@ -1080,9 +1087,14 @@ function reconcile(ws: Workspace): Map<string, string> {
         violations.set(`status ${key} ${status}`, `${match.file} answers ${[...contract.successStatuses].join(", ")}`);
       }
 
+      const allowedKeys = contract.responseKeysByStatus.get(status) ??
+        (contract.openSuccessStatus ? contract.openResponseKeys : undefined);
+      if (!allowedKeys) {
+        continue;
+      }
       for (const responseKey of responseKeys(ws.checker, body)) {
-        if (!contract.responseKeys.has(responseKey)) {
-          violations.set(`response-key ${key} ${responseKey}`, `absent from ${match.file} 2xx payloads`);
+        if (!allowedKeys?.has(responseKey)) {
+          violations.set(`response-key ${key} ${responseKey}`, `absent from ${match.file} ${status} payload`);
         }
       }
     }
@@ -1117,7 +1129,7 @@ type Flow = { readonly outcomes: Set<Outcome>; readonly fallsThrough: boolean };
 
 type RouteContext = { readonly ws: Workspace; readonly file: string; readonly sourceFile: ts.SourceFile };
 
-type RouteDeclaration = { readonly file: string; mayFulfill(sample: Sample): boolean };
+type RouteDeclaration = { readonly file: string; mayFulfill(route: FixtureRoute): boolean };
 
 const UNKNOWN: Value = { kind: "unknown" };
 
@@ -1631,6 +1643,53 @@ function matcherMatches(ctx: RouteContext, matcher: ts.Expression, env: Env, sam
   return globMatches(value.value, sample.href, node);
 }
 
+function templateMatchesPath(template: string, pathname: string): boolean {
+  const expected = template.split("/").filter(Boolean);
+  const actual = pathname.replace(/\/+$/, "").split("/").filter(Boolean);
+  return expected.length === actual.length && expected.every((segment, index) => segment === ":param" || segment === actual[index]);
+}
+
+function pathnameLiterals(value: string): string[] {
+  return value.match(/\/[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_-]+)*/g) ?? [];
+}
+
+function matcherSamples(
+  ctx: RouteContext,
+  matcher: ts.Expression,
+  env: Env,
+  template: string,
+  method: string,
+): Sample[] {
+  const pathnames = new Set<string>();
+  const add = (pathname: string) => {
+    if (templateMatchesPath(template, pathname)) {
+      pathnames.add(pathname);
+    }
+  };
+  const resolved = evaluate(ctx, matcher, env, {
+    method,
+    pathname: template.replaceAll(":param", "1"),
+    href: `${SAMPLE_ORIGIN}${template.replaceAll(":param", "1")}`,
+  });
+
+  if (resolved.kind === "string") {
+    pathnameLiterals(resolved.value).forEach(add);
+  }
+
+  visit(matcher, (node) => {
+    const literal = ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node) ? node.text : undefined;
+    if (literal !== undefined) {
+      pathnameLiterals(literal).forEach(add);
+    }
+  });
+
+  for (const witness of ["1", "x"]) {
+    add(template.replaceAll(":param", witness));
+  }
+
+  return [...pathnames].map((pathname) => ({ method, pathname, href: `${SAMPLE_ORIGIN}${pathname}` }));
+}
+
 function loopBindings(call: ts.CallExpression): Map<string, Set<string>> {
   const declared = new Set<string>();
 
@@ -1735,11 +1794,14 @@ function routeDeclarations(ws: Workspace, file: string): RouteDeclaration[] {
 
     declarations.push({
       file,
-      mayFulfill: (sample) =>
+      mayFulfill: (route) =>
         environments.some(
           (env) =>
-            matcherMatches(ctx, matcher, env, sample) &&
-            handlerOutcomes(ctx, handler, env, sample).has("FULFILL"),
+            matcherSamples(ctx, matcher, env, route.template, route.method === "ANY" ? "GET" : route.method).some(
+              (sample) =>
+                matcherMatches(ctx, matcher, env, sample) &&
+                handlerOutcomes(ctx, handler, env, sample).has("FULFILL"),
+            ),
         ),
     });
   });
@@ -1752,14 +1814,8 @@ function doubleDeclarations(ws: Workspace): Map<string, string[]> {
   const overlaps = new Map<string, string[]>();
 
   for (const route of censusFixture(ws)) {
-    const pathname = route.template.replaceAll(":param", SAMPLE_PARAM);
-    const sample: Sample = {
-      method: route.method === "ANY" ? "GET" : route.method,
-      pathname,
-      href: `${SAMPLE_ORIGIN}${pathname}`,
-    };
     const files = [
-      ...new Set(declarations.filter((declaration) => declaration.mayFulfill(sample)).map((d) => d.file)),
+      ...new Set(declarations.filter((declaration) => declaration.mayFulfill(route)).map((d) => d.file)),
     ].sort();
 
     if (files.length > 0) {
@@ -1841,10 +1897,17 @@ test("E2E-GLOBAL-11: no fixture route gains a fulfilling page.route outside the 
   assert.deepEqual(diff, { unexpected: [], stale: [] }, report(diff));
 });
 
+test("E2E-GLOBAL-11: the normal E2E census is tracked-only and overrides remain explicit", () => {
+  assert.deepEqual(pristine().e2eFiles(), listTrackedSourceFiles(E2E_ROOT));
+
+  const overridden = createWorkspace({ [PROBE_SPEC]: 'export const probe = true;\n' }).e2eFiles();
+  assert.ok(overridden.includes(PROBE_SPEC));
+  assert.deepEqual(overridden.filter((path) => path !== PROBE_SPEC), listTrackedSourceFiles(E2E_ROOT));
+});
+
 // ── Mutation proofs (in memory: no tracked file is written or restored) ──────
 
 const APP_VERSION_ROUTE = "server/routes/app-version.fastify.ts";
-const PROBE_SPEC = "frontend/e2e/admin/audit/e2e-global-11-probe.spec.ts";
 
 function fixtureWith(from: string, to: string): Workspace {
   return createWorkspace({ [FIXTURE]: mutate(pristine().read(FIXTURE), from, to) });
@@ -1909,6 +1972,15 @@ test("E2E-GLOBAL-11 mutation 4: a fixture route fulfilled by page.route fails; p
   assert.deepEqual(
     probe('  await page.route("**/api/admin/audit-log**", (route) => route.fulfill({ json: { success: true } }));'),
     { unexpected: [pair("GET /api/admin/audit-log")], stale: [] },
+  );
+
+  assert.deepEqual(
+    probe('  await page.route("**/api/logistics/route-plans/8601/metrics", (route) => route.fulfill({ json: {} }));'),
+    { unexpected: [pair("ANY /api/logistics/route-plans/:param/metrics")], stale: [] },
+  );
+  assert.deepEqual(
+    probe('  await page.route("**/api/logistics/route-plans/8601/history", (route) => route.fulfill({ json: {} }));'),
+    { unexpected: [], stale: [] },
   );
 
   assert.deepEqual(
@@ -2025,7 +2097,30 @@ test("E2E-GLOBAL-11 mutation 6: payload, status and query drift fail", () => {
   );
 });
 
-test("E2E-GLOBAL-11 mutation 7: unrecognized dispatch, matchers and registrations fail closed", () => {
+test("E2E-GLOBAL-11 mutation 7: Fastify status and payload keys stay correlated", () => {
+  const ws = createWorkspace({
+    [APP_VERSION_ROUTE]: [
+      'import type { FastifyPluginAsync } from "fastify";',
+      "export const appVersionNativeRoutes: FastifyPluginAsync = async (app) => {",
+      '  app.get("/", async (_request, reply) => {',
+      "    if (Math.random() > 0.5) return reply.code(201).send({ id: \"created\" });",
+      "    return reply.code(200).send({ items: [] });",
+      "  });",
+      "};",
+    ].join("\n"),
+  });
+  const route = censusBackend(ws).find((candidate) => routeKey(candidate) === "GET /api/app-version");
+  assert.ok(route);
+  const contract = backendContract(ws, route);
+
+  assert.deepEqual([...contract.responseKeysByStatus.get(200) ?? []], ["items"]);
+  assert.deepEqual([...contract.responseKeysByStatus.get(201) ?? []], ["id"]);
+  assert.equal(contract.responseKeysByStatus.get(200)?.has("id"), false, "fixture 200 { id } must fail");
+  assert.equal(contract.responseKeysByStatus.get(200)?.has("items"), true, "fixture 200 { items } must pass");
+  assert.equal(contract.responseKeysByStatus.get(201)?.has("id"), true, "fixture 201 { id } must pass");
+});
+
+test("E2E-GLOBAL-11 mutation 8: unrecognized dispatch, matchers and registrations fail closed", () => {
   assert.throws(
     () =>
       censusFixture(

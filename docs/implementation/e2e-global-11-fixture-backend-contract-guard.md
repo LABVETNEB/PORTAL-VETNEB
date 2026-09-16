@@ -130,7 +130,7 @@ el nombre de cualquier `.test.ts` fuera de ese dominio. Por eso el archivo se ll
 | Contrato por ruta Fastify | genérico `Querystring` y tipo del body de cada `send` 2xx | `TypeChecker` sobre un `Program` con la `tsconfig.json` raíz |
 | Rutas del fixture | ramas `if` que despachan por `url.pathname` | AST + `TypeChecker` (`allowJs`) |
 | `page.route` | archivos de `frontend/e2e` | AST + intérprete estático de tres valores |
-| Recorrido de `frontend/e2e` | `listSourceFiles` (`test/helpers/tracked-source-files.ts`) | walker canónico del repo (E2E-STAB-006) |
+| Recorrido de `frontend/e2e` | `listTrackedSourceFiles` (`test/helpers/tracked-source-files.ts`) + overrides explícitos | inventario canónico `git ls-files` (E2E-STAB-006) |
 
 No hay ninguna lista manual de endpoints. Las dos únicas listas del guard son ledgers de
 excepciones y se verifican en ambos sentidos.
@@ -150,9 +150,10 @@ excepciones y se verifican en ambos sentidos.
    reconciliado como `GET`. Si no existe, la violación es `route <método> <template>`.
 4. Si existe, se comparan tres dimensiones:
    - **status 2xx**: cada status 2xx del fixture tiene que estar entre los literales 2xx del
-     handler. Si Fastify usa un status no literal (`health.statusCode`), la dimensión queda abierta.
-   - **claves top-level del body 2xx**: las del fixture ⊆ la unión de las de Fastify. El checker
-     resuelve primero; si el JS infiere `any`, una resolución estructural acotada sigue
+     handler. Si Fastify usa un status no literal (`health.statusCode`), su payload queda separado
+     de los contratos de status literal.
+   - **claves top-level del body 2xx**: las del fixture se comparan contra el payload de su mismo
+     status. El checker resuelve primero; si el JS infiere `any`, una resolución estructural acotada sigue
      ternarios, spreads, `const` y funciones locales con parámetros ligados.
    - **query**: las claves que lee el fixture, directamente o en funciones locales llamadas desde la
      rama, ⊆ las claves del `Querystring` declarado. Si Fastify no declara un tipo cerrado (p. ej. el
@@ -171,8 +172,10 @@ excepciones y se verifican en ambos sentidos.
    - `obj.prop` de una variable de bucle o parámetro: se liga a cada objeto literal del archivo que
      tenga todas las propiedades que la llamada usa sobre esa variable (tipado estructural).
    Si nada de eso resuelve el matcher, el guard falla.
-2. Para cada ruta del fixture se arma una request de muestra: `GET`, template con `:param` → `1`,
-   origen `http://127.0.0.1:3000`. El intérprete evalúa el matcher y ejecuta el handler con lógica
+2. Para cada ruta del fixture se derivan witnesses de los pathname literales del matcher y de las
+   clases de segmento parametrizado; un pathname literal intersecta el template cuando sus segmentos
+   fijos coinciden y cada `:param` admite cualquier segmento concreto. El intérprete evalúa el matcher
+   y ejecuta el handler con lógica
    de tres valores. Modela `route.request().method()`, `request.url()`, `new URL(…)`, `.pathname`,
    `===`/`!==`, `&&`/`||`/`!`, `startsWith`/`endsWith`/`includes`, `regex.test`, `if`/`else`,
    `return` y los helpers locales o importados que reciben `route`. Una condición desconocida
@@ -208,6 +211,7 @@ archivos E2E virtuales entran al censo. **Ningún archivo tracked se escribe ni 
 | 3a | `/api/admin/report-workflow` → `…-workflows` | `route GET /api/admin/report-workflows` — PASS |
 | 3b | Regex `\/metrics$` → `\/metric$` | `route ANY /api/logistics/route-plans/:param/metric` — PASS |
 | 4a | Spec virtual con `page.route("**/api/admin/audit-log**", fulfill)` | par nuevo exacto — PASS |
+| 4a-param | `page.route("**/api/logistics/route-plans/8601/metrics", fulfill)` | detecta `:param/metrics`; `…/8601/history` no coincide — PASS |
 | 4b | Stub en bucle (`stub.urlPattern` + guard de método/pathname) | par nuevo sobre `/api/admin/system/health` — PASS |
 | 4c | Catch-all `**/api/**` con helper local que hace fulfill | 13 pares (todas las rutas `/api` del fixture) — PASS |
 | 4d | Mismo glob con `route.continue()` | sin pares (control negativo) — PASS |
@@ -220,9 +224,10 @@ archivos E2E virtuales entran al censo. **Ningún archivo tracked se escribe ni 
 | 6a | `routePlans` → `plans` | `response-key ANY /api/logistics/route-plans plans` — PASS |
 | 6b | audit-log 200 → 201 | `status GET /api/admin/audit-log 201` — PASS |
 | 6c | `searchParams.get("clinicId")` → `"clinic"` | `query-key GET /api/admin/particular-tokens clinic` — PASS |
-| 7a | Despacho `url.pathname.startsWith(…)` | throw "unrecognized request dispatch" — PASS |
-| 7b | Matcher de `page.route` no resoluble | throw "unresolvable page.route matcher" — PASS |
-| 7c | `app.all()` en un plugin | throw "app.all() is not censused" — PASS |
+| 7a | Fastify 200 `{ items }` y 201 `{ id }` | 200 `{ id }` falla; 200 `{ items }` y 201 `{ id }` pasan — PASS |
+| 8a | Despacho `url.pathname.startsWith(…)` | throw "unrecognized request dispatch" — PASS |
+| 8b | Matcher de `page.route` no resoluble | throw "unresolvable page.route matcher" — PASS |
+| 8c | `app.all()` en un plugin | throw "app.all() is not censused" — PASS |
 
 ## Resultados
 
@@ -246,7 +251,7 @@ El catch-all de `visual-regression-stress` declara payloads para rutas que consu
 
 | Gate | Estado | Detalle |
 |---|---|---|
-| `node --test test/architecture/e2e-mock-backend-contract.test.ts` | PASSED | 10/10 (3 sobre el árbol real + 7 mutation proofs), ~5,6 s aislado |
+| `node --test test/architecture/e2e-mock-backend-contract.test.ts` | PASSED | 12/12 (4 sobre el árbol real + 8 mutation proofs), ~6,3 s aislado |
 | Guards acoplados (`public-professionals-fixture-naming-consistency-invariants`, `test-support-layout-contract`, `tracked-source-inventory`) | PASSED | tras el renombrado del guard |
 | `pnpm validate:local` → `typecheck` | PASSED | |
 | `pnpm validate:local` → `typecheck:test` | PASSED | |
@@ -270,7 +275,7 @@ el Anexo B. Además R-02 no se cierra en esta fase. La próxima consolidación d
 | Sin listas manuales duplicadas evitables | ✔ (sólo ledgers de excepciones, verificados en ambos sentidos) |
 | Detecta drift de método y de path | ✔ (mutaciones 1–3) |
 | Detecta doble declaración fixture + `page.route` | ✔ (mutación 4) |
-| Mutation proofs negativos | ✔ (7 pruebas, 21 casos) |
+| Mutation proofs negativos | ✔ (8 pruebas) |
 | Determinista y sin servicios externos | ✔ |
 | Sin cambios de backend/producto | ✔ |
 | Scope test-only | ✔ |
