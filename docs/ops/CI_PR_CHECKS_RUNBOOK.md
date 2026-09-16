@@ -569,9 +569,8 @@ No usar `git reset --hard` como procedimiento normal de sincronización o cleanu
 
 Eliminar una rama remota solamente después de verificar:
 
-- PR fusionada (`merged=true`, `mergedAt` y `mergeCommit` presentes) y rama igual a su
-  `headRefName`, o PR canaria cerrada sin merge por decisión explícita de Nico. Un agente sólo
-  elimina ramas de PRs fusionadas (AGENTS.md §5.9);
+- PR fusionada (`merged=true`, estado `closed/merged`, `mergedAt` y `mergeCommit` presentes) y
+  rama igual exactamente a su `headRefName` (AGENTS.md §5.9);
 - head SHA exacto;
 - ausencia de commits exclusivos que deban preservarse;
 - working tree local limpio;
