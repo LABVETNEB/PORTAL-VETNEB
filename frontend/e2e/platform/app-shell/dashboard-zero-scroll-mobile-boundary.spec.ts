@@ -1,7 +1,14 @@
 import { expect, test, type Page } from "@playwright/test";
 import { setAdminSession, setClinicSession } from "../../helpers/session";
+import { MAX_DOCUMENT_SCROLL_DELTA_PX } from "../../helpers/zero-scroll-contract";
 
-const TOLERANCE = 2;
+/**
+ * Sub-pixel allowance for the RECT comparisons below only (a fractional
+ * `getBoundingClientRect().bottom` against an integer viewport/nav bound).
+ * The document scroll deltas do NOT use it: E2E-GLOBAL-10 converged those onto
+ * MAX_DOCUMENT_SCROLL_DELTA_PX (R-12).
+ */
+const RECT_TOLERANCE = 2;
 
 const MOBILE_VIEWPORTS = [
   { name: "360x740", width: 360, height: 740 },
@@ -64,15 +71,15 @@ test.describe("dashboard zero-scroll mobile lower boundary", () => {
           expect(
             boundary.externalScrollDelta,
             `${route.path} ${viewport.name}: external scroll delta`,
-          ).toBeLessThanOrEqual(TOLERANCE);
+          ).toBeLessThanOrEqual(MAX_DOCUMENT_SCROLL_DELTA_PX);
           expect(
             boundary.bodyScrollDelta,
             `${route.path} ${viewport.name}: body scroll delta`,
-          ).toBeLessThanOrEqual(TOLERANCE);
+          ).toBeLessThanOrEqual(MAX_DOCUMENT_SCROLL_DELTA_PX);
           expect(
             boundary.horizontalScrollDelta,
             `${route.path} ${viewport.name}: horizontal scroll delta`,
-          ).toBeLessThanOrEqual(TOLERANCE);
+          ).toBeLessThanOrEqual(MAX_DOCUMENT_SCROLL_DELTA_PX);
           expect(boundary.mainBottom, "main rect resolved").not.toBeNull();
 
           // Lower boundary: the bottom nav top when it is mounted (secondary
@@ -84,7 +91,7 @@ test.describe("dashboard zero-scroll mobile lower boundary", () => {
           expect(
             boundary.mainBottom!,
             `${route.path} ${viewport.name}: main must not escape below its lower boundary`,
-          ).toBeLessThanOrEqual(lowerBoundary + TOLERANCE);
+          ).toBeLessThanOrEqual(lowerBoundary + RECT_TOLERANCE);
         }).toPass({ timeout: 12_000 });
       });
     }
@@ -109,11 +116,11 @@ test.describe("dashboard zero-scroll mobile lower boundary", () => {
         expect(
           boundary.externalScrollDelta,
           `admin ${viewport.name}: external scroll delta`,
-        ).toBeLessThanOrEqual(TOLERANCE);
+        ).toBeLessThanOrEqual(MAX_DOCUMENT_SCROLL_DELTA_PX);
         expect(
           boundary.horizontalScrollDelta,
           `admin ${viewport.name}: horizontal scroll delta`,
-        ).toBeLessThanOrEqual(TOLERANCE);
+        ).toBeLessThanOrEqual(MAX_DOCUMENT_SCROLL_DELTA_PX);
         expect(
           boundary.navVisible,
           `admin ${viewport.name}: admin bottom nav visible`,
@@ -121,7 +128,7 @@ test.describe("dashboard zero-scroll mobile lower boundary", () => {
         expect(
           boundary.mainBottom!,
           `admin ${viewport.name}: main must not escape below the bottom nav`,
-        ).toBeLessThanOrEqual(boundary.navTop! + TOLERANCE);
+        ).toBeLessThanOrEqual(boundary.navTop! + RECT_TOLERANCE);
       }).toPass({ timeout: 12_000 });
     });
   }

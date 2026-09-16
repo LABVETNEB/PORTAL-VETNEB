@@ -1,5 +1,7 @@
 import { expect, type Page } from "@playwright/test";
 
+import { MAX_DOCUMENT_SCROLL_DELTA_PX } from "./zero-scroll-contract";
+
 // ─────────────────────────────────────────────────────────────────────────────
 // CMP-12 — cross-role runtime parity matrix.
 //
@@ -287,7 +289,11 @@ export type ParityContract = {
  * SAME function measures Admin and Clinic alike.
  */
 export async function measureParityContract(page: Page, role: ParityRole): Promise<ParityContract> {
-  return page.evaluate((currentRole) => {
+  // `documentAllowancePx` crosses as an argument because a page function
+  // cannot close over a module import. Both roles are measured by this same
+  // function, so the régime tightens Admin and Clinic symmetrically and CMP-12
+  // parity cannot skew (E2E-GLOBAL-10 / R-12).
+  return page.evaluate(({ currentRole, documentAllowancePx }) => {
     const round = (value: number) => Math.round(value * 100) / 100;
 
     const isVisible = (element: Element): boolean => {
@@ -410,12 +416,16 @@ export async function measureParityContract(page: Page, role: ParityRole): Promi
         stateText: pagerStateText,
       },
       scroll: {
-        pageScrollsX: document.documentElement.scrollWidth > document.documentElement.clientWidth + 2,
-        pageScrollsY: document.documentElement.scrollHeight > document.documentElement.clientHeight + 2,
+        pageScrollsX:
+          document.documentElement.scrollWidth >
+          document.documentElement.clientWidth + documentAllowancePx,
+        pageScrollsY:
+          document.documentElement.scrollHeight >
+          document.documentElement.clientHeight + documentAllowancePx,
         localScrollerCount: localScrollers.length,
       },
     };
-  }, role);
+  }, { currentRole: role, documentAllowancePx: MAX_DOCUMENT_SCROLL_DELTA_PX });
 }
 
 /** Waits for fonts + two committed frames — no timeout-based readiness. */

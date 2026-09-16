@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { setClinicSession } from "../../helpers/session";
+import { MAX_DOCUMENT_SCROLL_DELTA_PX } from "../../helpers/zero-scroll-contract";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // VIS-MOBILE-001 — Clinic dashboard mobile low-height content access.
@@ -250,10 +251,10 @@ test.describe("VIS-MOBILE-001 — desktop composition preserved", () => {
     });
 
     expect(metrics.htmlScrollHeight).toBeLessThanOrEqual(
-      metrics.htmlClientHeight + TOLERANCE,
+      metrics.htmlClientHeight + MAX_DOCUMENT_SCROLL_DELTA_PX,
     );
     expect(metrics.bodyScrollHeight).toBeLessThanOrEqual(
-      metrics.bodyClientHeight + TOLERANCE,
+      metrics.bodyClientHeight + MAX_DOCUMENT_SCROLL_DELTA_PX,
     );
     expect(metrics.mainOverflowY).not.toBe("auto");
     // CMP-10: the scroll-owner CSS this used to gate on is gone on both

@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import { setAdminSession } from "../../helpers/session";
+import { MAX_DOCUMENT_SCROLL_DELTA_PX } from "../../helpers/zero-scroll-contract";
 
 const TOLERANCE = 2;
 
@@ -211,12 +212,12 @@ function assertMobileClinicsContract(
   expect(
     contract.htmlScrollWidth,
     `${label}: documentElement horizontal overflow`,
-  ).toBeLessThanOrEqual(contract.htmlClientWidth + TOLERANCE);
+  ).toBeLessThanOrEqual(contract.htmlClientWidth + MAX_DOCUMENT_SCROLL_DELTA_PX);
 
   expect(
     contract.bodyScrollWidth,
     `${label}: body horizontal overflow`,
-  ).toBeLessThanOrEqual(contract.bodyClientWidth + TOLERANCE);
+  ).toBeLessThanOrEqual(contract.bodyClientWidth + MAX_DOCUMENT_SCROLL_DELTA_PX);
 
   expect(
     contract.clippedActions,

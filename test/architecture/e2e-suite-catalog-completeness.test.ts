@@ -25,8 +25,8 @@ const TEST_FILE = fileURLToPath(import.meta.url);
 const REPO_ROOT = resolve(dirname(TEST_FILE), "..", "..");
 process.chdir(REPO_ROOT);
 
-const EXPECTED_WORKSPACE_SPEC_COUNT = 99;
-const EXPECTED_CATALOG_SPEC_COUNT = 99;
+const EXPECTED_WORKSPACE_SPEC_COUNT = 98;
+const EXPECTED_CATALOG_SPEC_COUNT = 98;
 const EXPECTED_MANUAL_ONLY_SPEC_COUNT = 0;
 const EXPECTED_DOMAIN_COUNTS = new Map([
   ["admin", 19],
@@ -47,14 +47,18 @@ const EXPECTED_DOMAIN_COUNTS = new Map([
   // DashboardModuleWorkspace header contract.
   // +1: E2E-GLOBAL-09 P2 follow-up, responsive cold-load sentinel
   // (dashboard-responsive-cold-load-sentinel.spec.ts).
-  ["regression", 21],
+  // -1: E2E-GLOBAL-10 removed regression/evidence/remove-home-unified-workspace-
+  // screenshots.spec.ts (LIMPIEZA E2E P2-4/R-16): 10 tests, zero assertions,
+  // writing screenshots into the output dir the runner wipes on every start.
+  ["regression", 20],
 ]);
 // E2E-GLOBAL-04: what each spec really traverses. No spec reaches Fastify or
 // Postgres today, so "integration" has no members; reclassifying any entry
 // must move these numbers explicitly.
 const EXPECTED_LAYER_COUNTS = new Map<E2eLayer, number>([
   ["mocked", 38],
-  ["fixture", 61],
+  // -1: E2E-GLOBAL-10 removed the assertion-free evidence generator (R-16).
+  ["fixture", 60],
 ]);
 const EXPECTED_CURRENT_COUNTS = new Map([
   // +3: E2E-GLOBAL-03 simulated auth boundary specs, promoted straight to
@@ -80,9 +84,12 @@ const EXPECTED_EXECUTION_COUNTS = new Map<E2eExecutionCohort, number>([
   // +1: E2E-GLOBAL-09 P2 follow-up, responsive cold-load sentinel.
   ["ci", 67],
   ["extended", 27],
-  ["evidence", 2],
+  // -1: E2E-GLOBAL-10 (R-16). `evidence` keeps the generator that does assert
+  // layout (dashboard-runtime-post-ux1-visual-evidence) and loses the one that
+  // asserted nothing.
+  ["evidence", 1],
   ["visual-linux", 3],
-  ["full", 99],
+  ["full", 98],
   ["affected", 0],
 ]);
 const E2E_GLOBAL_06_PROMOTED_P1_SPECS = [
@@ -385,11 +392,11 @@ test("catalog validation catches missing and duplicate entries in memory", async
 
   assert.throws(
     () => validateCatalog(missing, workspaceSpecs, E2E_MANUAL_ONLY_SPECS),
-    /98|classified/,
+    /97|classified/,
   );
   assert.throws(
     () => validateCatalog(duplicated, workspaceSpecs, E2E_MANUAL_ONLY_SPECS),
-    /100|unique/,
+    /99|unique/,
   );
 });
 

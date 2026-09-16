@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { MAX_DOCUMENT_SCROLL_DELTA_PX } from "../../helpers/zero-scroll-contract";
 
 import {
   LONG_TEXT_CLINIC_REPORT,
@@ -170,11 +171,11 @@ function assertNoDocumentScroll(metrics: DetailMetrics, label: string) {
   expect(
     metrics.docScrollW,
     `${label}: document horizontal scroll must stay at zero`,
-  ).toBeLessThanOrEqual(metrics.docClientW + TOLERANCE);
+  ).toBeLessThanOrEqual(metrics.docClientW + MAX_DOCUMENT_SCROLL_DELTA_PX);
   expect(
     metrics.docScrollH,
     `${label}: document vertical scroll must stay at zero`,
-  ).toBeLessThanOrEqual(metrics.docClientH + TOLERANCE);
+  ).toBeLessThanOrEqual(metrics.docClientH + MAX_DOCUMENT_SCROLL_DELTA_PX);
 }
 
 /**

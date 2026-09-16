@@ -11,6 +11,7 @@ import {
   waitForLayoutSettled,
 } from "../helpers/dashboard-geometry-matrix";
 import { addAppCookies } from "../helpers/session";
+import { MAX_DOCUMENT_SCROLL_DELTA_PX } from "../helpers/zero-scroll-contract";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Responsive cold-load sentinel — closes the E2E-GLOBAL-09 P2 gap.
@@ -111,12 +112,13 @@ if (!sentinelViewport) {
 }
 
 // ── A08's exact zero-scroll contract, reused verbatim ──────────────────────
-// Duplicated (not imported) from dashboard-zero-scroll-baseline.spec.ts on
-// purpose: this sentinel must never be able to silently drift from A08's
-// already-validated contract by sharing a mutable import, and the duplicated
-// surface is ~30 lines.
+// The MEASUREMENT shape below stays duplicated (not imported) from
+// dashboard-zero-scroll-baseline.spec.ts on purpose: this sentinel must never
+// drift from A08's already-validated readings by sharing a mutable helper, and
+// the duplicated surface is ~30 lines. The THRESHOLD is not duplicated —
+// E2E-GLOBAL-10 gave the zero-scroll régime one owner (R-12).
 
-const MAX_SCROLL_DELTA_PX = 0;
+const MAX_SCROLL_DELTA_PX = MAX_DOCUMENT_SCROLL_DELTA_PX;
 
 type AxisMetrics = {
   readonly scrollHeight: number;

@@ -1,14 +1,50 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { registerHooks } from "node:module";
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 
 import {
   CLINIC_MODULE_IDS,
 } from "../../frontend/src/features/dashboard/config/dashboardModules.ts";
 import { ROUTES, DASHBOARD_ROUTES } from "../../frontend/src/lib/routes.ts";
-import {
-  ADMIN_REFERENCE_SURFACES,
-  CLINIC_PARITY_SURFACES,
+import type {
+  AdminReferenceSurface,
+  ParitySurface,
 } from "../../frontend/e2e/helpers/mobile-parity-matrix.ts";
+
+const REPO_ROOT = resolve(import.meta.dirname, "../..");
+const PARITY_MATRIX_URL = pathToFileURL(
+  resolve(REPO_ROOT, "frontend/e2e/helpers/mobile-parity-matrix.ts"),
+).href;
+const REGIME_SPECIFIER = "./zero-scroll-contract";
+
+// E2E-GLOBAL-10 / R-12: the parity matrix imports the zero-scroll régime owner
+// without an extension — the idiom every `frontend/e2e` helper uses and the one
+// the type-stripping loader cannot resolve. The fallback is limited to that
+// exact parent/specifier pair, so this process installs no general module
+// resolver (same shape as frontend-next-config-private-cache-headers.test.ts).
+registerHooks({
+  resolve(specifier, context, nextResolve) {
+    try {
+      return nextResolve(specifier, context);
+    } catch (error) {
+      if (context.parentURL !== PARITY_MATRIX_URL || specifier !== REGIME_SPECIFIER) {
+        throw error;
+      }
+      return nextResolve(`${specifier}.ts`, context);
+    }
+  },
+});
+
+// Dynamic so the hook above is installed before the matrix is resolved; the
+// types stay static because `import type` is erased and never resolved.
+const { ADMIN_REFERENCE_SURFACES, CLINIC_PARITY_SURFACES } = (await import(
+  PARITY_MATRIX_URL
+)) as {
+  ADMIN_REFERENCE_SURFACES: Readonly<Record<string, AdminReferenceSurface>>;
+  CLINIC_PARITY_SURFACES: readonly ParitySurface[];
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CMP-12 (RC-017) — census guard.

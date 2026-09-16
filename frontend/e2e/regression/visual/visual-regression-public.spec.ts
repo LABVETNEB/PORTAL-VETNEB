@@ -38,7 +38,6 @@ const disableAnimations = `
 `;
 
 async function waitForStablePublicPage(page: Page) {
-  await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addStyleTag({ content: disableAnimations });
   await page.waitForFunction(() => document.fonts.status === "loaded");
   await page.evaluate(
@@ -83,6 +82,9 @@ for (const viewport of viewports) {
 
     for (const route of routes) {
       test(`${route.name} baseline`, async ({ page }) => {
+        // Before navigation: PublicScrollReveal reads prefers-reduced-motion once
+        // at mount, and a hydration that wins the race arms GSAP at y:16.
+        await page.emulateMedia({ reducedMotion: "reduce" });
         const response = await page.goto(route.path, {
           timeout: 15_000,
           waitUntil: "commit",

@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { waitForAdaptiveConvergence } from "../../helpers/dashboard-adaptive-limit-matrix";
 import { setAdminSession } from "../../helpers/session";
+import { MAX_DOCUMENT_SCROLL_DELTA_PX } from "../../helpers/zero-scroll-contract";
 
 // A03 PASS 3 — regression for the desktop minimum-rows clipping of
 // Usuarios/Roles.
@@ -63,45 +64,52 @@ type Geometry = {
 };
 
 async function readGeometry(page: Page): Promise<Geometry> {
-  return page.evaluate((workspace: string) => {
-    const scope = document.querySelector(workspace);
-    if (!scope) throw new Error("admin-users-roles workspace is not mounted");
+  // The régime constant crosses into the browser as an argument: a page
+  // function cannot close over a module import (E2E-GLOBAL-10 / R-12).
+  return page.evaluate(
+    ({ workspace, documentAllowancePx }: { workspace: string; documentAllowancePx: number }) => {
+      const scope = document.querySelector(workspace);
+      if (!scope) throw new Error("admin-users-roles workspace is not mounted");
 
-    const table = scope.querySelector("table");
-    const container =
-      table?.closest("div.dashboard-table-responsive")?.parentElement ?? null;
-    if (!container) throw new Error("measured rows region is not mounted");
+      const table = scope.querySelector("table");
+      const container =
+        table?.closest("div.dashboard-table-responsive")?.parentElement ?? null;
+      if (!container) throw new Error("measured rows region is not mounted");
 
-    const rows = Array.from(scope.querySelectorAll("tbody tr"));
-    const next = Array.from(scope.querySelectorAll("button")).find(
-      (button) => button.textContent?.trim() === "Siguiente",
-    );
-    if (!next) throw new Error('"Siguiente" control is not mounted');
+      const rows = Array.from(scope.querySelectorAll("tbody tr"));
+      const next = Array.from(scope.querySelectorAll("button")).find(
+        (button) => button.textContent?.trim() === "Siguiente",
+      );
+      if (!next) throw new Error('"Siguiente" control is not mounted');
 
-    const pager = next.getBoundingClientRect();
-    const hit = document.elementFromPoint(
-      pager.x + pager.width / 2,
-      pager.y + pager.height / 2,
-    );
-    const last = rows[rows.length - 1]?.getBoundingClientRect() ?? null;
-    const root = document.documentElement;
+      const pager = next.getBoundingClientRect();
+      const hit = document.elementFromPoint(
+        pager.x + pager.width / 2,
+        pager.y + pager.height / 2,
+      );
+      const last = rows[rows.length - 1]?.getBoundingClientRect() ?? null;
+      const root = document.documentElement;
 
-    return {
-      renderedRows: rows.length,
-      containerBottom: container.getBoundingClientRect().bottom,
-      lastRowBottom: last ? last.bottom : 0,
-      pagerTop: pager.top,
-      nextEnabled: !next.disabled,
-      nextHitIsOwn: hit === next || next.contains(hit as Node),
-      // A disabled "Siguiente" carries `pointer-events: none`, so the hit-test
-      // legitimately falls through to the pager container. What must never
-      // happen — the defect this spec pins — is the hit landing inside the
-      // table, i.e. a row painted over the pager.
-      nextOccludedByTable: Boolean(hit && table && table.contains(hit as Node)),
-      regionScrolls: container.scrollHeight - container.clientHeight > 1,
-      documentScrolls: root.scrollHeight - root.clientHeight > 1,
-    };
-  }, WORKSPACE);
+      return {
+        renderedRows: rows.length,
+        containerBottom: container.getBoundingClientRect().bottom,
+        lastRowBottom: last ? last.bottom : 0,
+        pagerTop: pager.top,
+        nextEnabled: !next.disabled,
+        nextHitIsOwn: hit === next || next.contains(hit as Node),
+        // A disabled "Siguiente" carries `pointer-events: none`, so the hit-test
+        // legitimately falls through to the pager container. What must never
+        // happen — the defect this spec pins — is the hit landing inside the
+        // table, i.e. a row painted over the pager.
+        nextOccludedByTable: Boolean(hit && table && table.contains(hit as Node)),
+        // The rows region is an internal container and keeps its own 1 px
+        // allowance; the document is the régime and tolerates nothing.
+        regionScrolls: container.scrollHeight - container.clientHeight > 1,
+        documentScrolls: root.scrollHeight - root.clientHeight > documentAllowancePx,
+      };
+    },
+    { workspace: WORKSPACE, documentAllowancePx: MAX_DOCUMENT_SCROLL_DELTA_PX },
+  );
 }
 
 function expectNoPagerInvasion(geometry: Geometry, label: string) {

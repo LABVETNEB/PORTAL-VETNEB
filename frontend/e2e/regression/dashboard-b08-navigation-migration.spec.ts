@@ -20,6 +20,7 @@ import {
   type DashboardGeometrySurface,
 } from "../helpers/dashboard-geometry-matrix";
 import { addAppCookies } from "../helpers/session";
+import { MAX_DOCUMENT_SCROLL_DELTA_PX } from "../helpers/zero-scroll-contract";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // B08 · Navigation migration runtime contract.
@@ -459,7 +460,7 @@ function collectViolations(
       `${label}: main became an operational scroll container (${reading.mainScrollHeight} > ${reading.mainClientHeight})`,
     );
   }
-  if (reading.htmlScrollWidth > reading.htmlClientWidth + 1) {
+  if (reading.htmlScrollWidth > reading.htmlClientWidth + MAX_DOCUMENT_SCROLL_DELTA_PX) {
     violations.push(
       `${label}: horizontal overflow (${reading.htmlScrollWidth} > ${reading.htmlClientWidth}), contract is 0`,
     );
@@ -1099,7 +1100,7 @@ test.describe("B08 · rail destinations at short heights", () => {
     expect(
       reading.htmlScrollWidth,
       "horizontal overflow appeared",
-    ).toBeLessThanOrEqual(reading.htmlClientWidth + 1);
+    ).toBeLessThanOrEqual(reading.htmlClientWidth + MAX_DOCUMENT_SCROLL_DELTA_PX);
     expect(
       reading.mainScrollHeight,
       "main became an operational scroll container",

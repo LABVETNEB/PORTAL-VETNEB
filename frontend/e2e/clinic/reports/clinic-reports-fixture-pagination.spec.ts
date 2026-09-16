@@ -96,7 +96,7 @@ test.describe("clinic reports populated fixture pagination (CAP-C2)", () => {
     }
   });
 
-  test("/dashboard clinic informes summary still receives only 3 recent reports", async ({
+  test("/dashboard clinic informes summary pages the 100-report server window, never the 1000-report dataset", async ({
     page,
   }) => {
     await setClinicSession(page, "populated");
@@ -106,8 +106,20 @@ test.describe("clinic reports populated fixture pagination (CAP-C2)", () => {
       .locator('[data-dashboard-module-workspace="informes"]')
       .locator('[aria-label="Informes recientes de la clínica"]');
     await expect(card).toBeVisible({ timeout: 8_000 });
-    await expect(
-      card.locator('[data-clinic-reports-mobile-row="true"]'),
-    ).toHaveCount(3);
+
+    // Rows per page are owned by the measured canvas capacity (3 is only the
+    // pre-measurement fallback), so rows and pager are read in one snapshot.
+    const page1 = await card.evaluate((node) => ({
+      rows: node.querySelectorAll('[data-clinic-reports-mobile-row="true"]')
+        .length,
+      status:
+        node
+          .querySelector('[data-clinic-reports-pagination-status="true"]')
+          ?.textContent?.replace(/\s+/g, " ")
+          .trim() ?? null,
+    }));
+
+    expect(page1.rows).toBeGreaterThan(0);
+    expect(page1.status).toBe(`Pág. 1 / ${Math.ceil(100 / page1.rows)}`);
   });
 });

@@ -4,6 +4,7 @@ import {
   trackInformesWindowRequests,
 } from "../../helpers/informes-adaptive-settle";
 import { setClinicSession } from "../../helpers/session";
+import { MAX_DOCUMENT_SCROLL_DELTA_PX } from "../../helpers/zero-scroll-contract";
 
 const TOLERANCE = 2;
 
@@ -64,11 +65,11 @@ test.describe("clinic Informes full route server-adaptive pagination (R-07)", ()
         expect(
           metrics.htmlScrollHeight,
           `${viewport.name}: documentElement must not scroll globally`,
-        ).toBeLessThanOrEqual(metrics.htmlClientHeight + TOLERANCE);
+        ).toBeLessThanOrEqual(metrics.htmlClientHeight + MAX_DOCUMENT_SCROLL_DELTA_PX);
         expect(
           metrics.bodyScrollHeight,
           `${viewport.name}: body must not scroll globally`,
-        ).toBeLessThanOrEqual(metrics.bodyClientHeight + TOLERANCE);
+        ).toBeLessThanOrEqual(metrics.bodyClientHeight + MAX_DOCUMENT_SCROLL_DELTA_PX);
       }).toPass({ timeout: 10_000 });
 
       const pagerBox = await pager.boundingBox();

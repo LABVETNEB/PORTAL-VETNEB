@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { setAdminSession, setClinicSession } from "../../helpers/session";
+import { MAX_DOCUMENT_SCROLL_DELTA_PX } from "../../helpers/zero-scroll-contract";
 
 type Page = import("@playwright/test").Page;
 
@@ -167,11 +168,11 @@ function assertDashboardFrameFit(metrics: FrameFitMetrics, label: string) {
   expect(
     metrics.htmlScrollWidth,
     `${label}: documentElement horizontal overflow`,
-  ).toBeLessThanOrEqual(metrics.htmlClientWidth + TOLERANCE);
+  ).toBeLessThanOrEqual(metrics.htmlClientWidth + MAX_DOCUMENT_SCROLL_DELTA_PX);
   expect(
     metrics.bodyScrollWidth,
     `${label}: body horizontal overflow`,
-  ).toBeLessThanOrEqual(metrics.bodyClientWidth + TOLERANCE);
+  ).toBeLessThanOrEqual(metrics.bodyClientWidth + MAX_DOCUMENT_SCROLL_DELTA_PX);
   expect(
     metrics.mainScrollWidth,
     `${label}: main horizontal overflow`,
@@ -349,7 +350,7 @@ test.describe("dashboard workspace layout polish — smoke (PR-2)", () => {
         document.documentElement.scrollHeight -
         document.documentElement.clientHeight,
     );
-    expect(overflow).toBeLessThanOrEqual(5);
+    expect(overflow).toBeLessThanOrEqual(MAX_DOCUMENT_SCROLL_DELTA_PX);
   });
 });
 

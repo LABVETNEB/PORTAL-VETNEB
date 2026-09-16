@@ -1,6 +1,8 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { setAdminSession } from "../../helpers/session";
+import { MAX_DOCUMENT_SCROLL_DELTA_PX } from "../../helpers/zero-scroll-contract";
 
+/** Sub-pixel allowance for BOX geometry only (rect edges, icon vs badge). */
 const TOLERANCE = 1;
 
 const MOBILE_VIEWPORTS = [
@@ -147,16 +149,16 @@ for (const viewport of MOBILE_VIEWPORTS) {
     // No-scroll contract: html/body never exceed the viewport.
     const contract = await readNoScrollContract(page);
     expect(contract.html.scrollHeight).toBeLessThanOrEqual(
-      contract.html.clientHeight + TOLERANCE,
+      contract.html.clientHeight + MAX_DOCUMENT_SCROLL_DELTA_PX,
     );
     expect(contract.body.scrollHeight).toBeLessThanOrEqual(
-      contract.body.clientHeight + TOLERANCE,
+      contract.body.clientHeight + MAX_DOCUMENT_SCROLL_DELTA_PX,
     );
     expect(contract.html.scrollWidth).toBeLessThanOrEqual(
-      contract.html.clientWidth + TOLERANCE,
+      contract.html.clientWidth + MAX_DOCUMENT_SCROLL_DELTA_PX,
     );
     expect(contract.body.scrollWidth).toBeLessThanOrEqual(
-      contract.body.clientWidth + TOLERANCE,
+      contract.body.clientWidth + MAX_DOCUMENT_SCROLL_DELTA_PX,
     );
     expect(["auto", "scroll"]).not.toContain(contract.shellOverflowX);
     expect(["auto", "scroll"]).not.toContain(contract.shellOverflowY);
@@ -198,10 +200,10 @@ for (const viewport of MOBILE_VIEWPORTS) {
 
     const contractAfterPaging = await readNoScrollContract(page);
     expect(contractAfterPaging.html.scrollHeight).toBeLessThanOrEqual(
-      contractAfterPaging.html.clientHeight + TOLERANCE,
+      contractAfterPaging.html.clientHeight + MAX_DOCUMENT_SCROLL_DELTA_PX,
     );
     expect(contractAfterPaging.body.scrollHeight).toBeLessThanOrEqual(
-      contractAfterPaging.body.clientHeight + TOLERANCE,
+      contractAfterPaging.body.clientHeight + MAX_DOCUMENT_SCROLL_DELTA_PX,
     );
 
     // All 10 modules must be reachable across the two pages.

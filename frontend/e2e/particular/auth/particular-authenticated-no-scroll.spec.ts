@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { MAX_DOCUMENT_SCROLL_DELTA_PX } from "../../helpers/zero-scroll-contract";
 
 import {
   assertParticularNoScrollContract,
@@ -14,8 +15,6 @@ import {
   type ParticularSessionFixtureState,
 } from "../../helpers/particular-session-contracts";
 import { setParticularSession } from "../../helpers/session";
-
-const TOLERANCE = 2;
 
 // El zoom del navegador reduce el viewport CSS y sube devicePixelRatio; el
 // layout responde exclusivamente al viewport CSS, así que la matriz usa el
@@ -108,11 +107,11 @@ test.describe("particular authenticated session — fixed-viewport no-scroll (R-
           expect(
             contract.html.scrollHeight,
             `${label}: external vertical scroll delta`,
-          ).toBeLessThanOrEqual(contract.html.clientHeight + TOLERANCE);
+          ).toBeLessThanOrEqual(contract.html.clientHeight + MAX_DOCUMENT_SCROLL_DELTA_PX);
           expect(
             contract.body.scrollHeight,
             `${label}: body vertical scroll delta`,
-          ).toBeLessThanOrEqual(contract.body.clientHeight + TOLERANCE);
+          ).toBeLessThanOrEqual(contract.body.clientHeight + MAX_DOCUMENT_SCROLL_DELTA_PX);
         }).toPass({ timeout: 12_000 });
       });
     }

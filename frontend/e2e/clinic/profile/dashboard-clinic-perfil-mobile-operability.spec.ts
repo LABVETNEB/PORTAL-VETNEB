@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { setClinicSession } from "../../helpers/session";
+import { MAX_DOCUMENT_SCROLL_DELTA_PX } from "../../helpers/zero-scroll-contract";
 
 type Locator = import("@playwright/test").Locator;
 type Page = import("@playwright/test").Page;
@@ -237,19 +238,19 @@ async function expectNoGlobalDashboardScroll(page: Page, label: string) {
   expect(
     shellMetrics.html.scrollWidth,
     `${label}: html horizontal scroll`,
-  ).toBeLessThanOrEqual(shellMetrics.html.clientWidth + TOLERANCE);
+  ).toBeLessThanOrEqual(shellMetrics.html.clientWidth + MAX_DOCUMENT_SCROLL_DELTA_PX);
   expect(
     shellMetrics.body.scrollWidth,
     `${label}: body horizontal scroll`,
-  ).toBeLessThanOrEqual(shellMetrics.body.clientWidth + TOLERANCE);
+  ).toBeLessThanOrEqual(shellMetrics.body.clientWidth + MAX_DOCUMENT_SCROLL_DELTA_PX);
   expect(
     shellMetrics.html.scrollHeight,
     `${label}: html vertical scroll`,
-  ).toBeLessThanOrEqual(shellMetrics.html.clientHeight + TOLERANCE);
+  ).toBeLessThanOrEqual(shellMetrics.html.clientHeight + MAX_DOCUMENT_SCROLL_DELTA_PX);
   expect(
     shellMetrics.body.scrollHeight,
     `${label}: body vertical scroll`,
-  ).toBeLessThanOrEqual(shellMetrics.body.clientHeight + TOLERANCE);
+  ).toBeLessThanOrEqual(shellMetrics.body.clientHeight + MAX_DOCUMENT_SCROLL_DELTA_PX);
   expect(shellMetrics.main, `${label}: dashboard main`).not.toBeNull();
   expect(
     shellMetrics.main!.scrollHeight,

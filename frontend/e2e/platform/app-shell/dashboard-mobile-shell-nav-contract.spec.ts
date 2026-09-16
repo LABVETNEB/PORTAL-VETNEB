@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { setSession } from "../../helpers/session";
+import { MAX_DOCUMENT_SCROLL_DELTA_PX } from "../../helpers/zero-scroll-contract";
 
 type Page = import("@playwright/test").Page;
 
@@ -324,12 +325,12 @@ function assertShellNavContract(
   expect(
     contract.htmlScrollWidth,
     `${label}: documentElement horizontal overflow`,
-  ).toBeLessThanOrEqual(contract.htmlClientWidth + TOLERANCE);
+  ).toBeLessThanOrEqual(contract.htmlClientWidth + MAX_DOCUMENT_SCROLL_DELTA_PX);
 
   expect(
     contract.bodyScrollWidth,
     `${label}: body horizontal overflow`,
-  ).toBeLessThanOrEqual(contract.bodyClientWidth + TOLERANCE);
+  ).toBeLessThanOrEqual(contract.bodyClientWidth + MAX_DOCUMENT_SCROLL_DELTA_PX);
 
   expect(
     contract.clippedTopbarControls,

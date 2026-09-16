@@ -1,5 +1,6 @@
 import { expect, test, type Locator } from "@playwright/test";
 import { setAdminSession, setClinicSession } from "../../helpers/session";
+import { MAX_DOCUMENT_SCROLL_DELTA_PX } from "../../helpers/zero-scroll-contract";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Global inline/masked Master-Detail / no-scroll contract for BOTH dashboards.
@@ -297,11 +298,11 @@ function assertNoInternalScroll(metrics: ScrollContract, label: string) {
   expect(
     metrics.bodyScrollHeight,
     `${label}: body scrolled (${metrics.bodyScrollHeight} > ${metrics.bodyClientHeight})`,
-  ).toBeLessThanOrEqual(metrics.bodyClientHeight + TOLERANCE);
+  ).toBeLessThanOrEqual(metrics.bodyClientHeight + MAX_DOCUMENT_SCROLL_DELTA_PX);
   expect(
     metrics.htmlScrollHeight,
     `${label}: documentElement scrolled (${metrics.htmlScrollHeight} > ${metrics.htmlClientHeight})`,
-  ).toBeLessThanOrEqual(metrics.htmlClientHeight + TOLERANCE);
+  ).toBeLessThanOrEqual(metrics.htmlClientHeight + MAX_DOCUMENT_SCROLL_DELTA_PX);
 }
 
 for (const viewport of VIEWPORTS) {
