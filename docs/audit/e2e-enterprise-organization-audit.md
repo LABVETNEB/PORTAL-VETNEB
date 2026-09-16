@@ -1,5 +1,29 @@
 # E2E-ORG-A — Auditoría empresarial de organización de la suite Playwright
 
+## Estado documental (E2E-GLOBAL-10B, 2026-09-16)
+
+| Campo | Valor |
+| --- | --- |
+| Document owner | Governance / Docs owner |
+| Domain | Organización de la suite E2E (Playwright) |
+| Lifecycle status | SUPERSEDED |
+| Authoritative source role | Evidencia histórica; sin autoridad normativa |
+| Effective date | 2026-09-16 |
+| Last verified date | 2026-09-16 |
+| Review cadence | Ninguna; sólo ante una reclasificación a `HISTORICAL` |
+| Supersedes | Ninguno |
+| Superseded by | [LIMPIEZA E2E](./LIMPIEZA%20E2E.md) para el diagnóstico E2E; [catálogo E2E](../../frontend/e2e/suites/catalog.ts) y [CI PR Checks Runbook](../ops/CI_PR_CHECKS_RUNBOOK.md) para el estado operativo |
+| Related controls or gaps | `LIMPIEZA E2E` §19 y R-18 |
+| Evidence or approval reference | [Acta E2E-GLOBAL-10B](../implementation/e2e-global-10b-documentation-closeout.md) |
+
+Todo lo que sigue a este bloque es el snapshot original y no se reescribió. Sus cifras (72 specs /
+785 tests en raíz plana, CI de 42 specs por listas manuales, 4 invocaciones bajo `next dev`) son
+de su fecha, y su plan E2E-ORG-1…6/CI ya está ejecutado (#1470 y siguientes). No usar este
+documento como inventario ni como instrucción. Al 2026-09-16 (`c25f4e06`) el catálogo tiene 98
+specs en 6 dominios, `ci` = 67 y `full` = 98, cada cohorte en una única invocación.
+
+---
+
 > Documento de auditoría **docs-only**. No mueve specs, no edita helpers, fixtures,
 > scripts, `frontend/package.json`, `frontend/playwright.config.ts`, CI, backend, API,
 > auth, DB ni dependencias. Inventaría el estado real de `frontend/e2e/**` en el HEAD

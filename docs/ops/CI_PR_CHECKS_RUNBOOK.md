@@ -6,13 +6,13 @@
 | Domain | CI/CD and Pull Request Governance |
 | Lifecycle status | ACTIVE |
 | Authoritative source role | Mapa operativo de checks efectivos y criterios antes de merge |
-| Effective date | 2026-07-28 |
-| Last verified date | 2026-07-30 |
-| Review cadence | Mensual y ante cambios de workflows, jobs o branch protection |
-| Supersedes | Versión que documentaba dos required checks globales y clasificaba los gates funcionales como no required |
+| Effective date | 2026-09-16 |
+| Last verified date | 2026-09-16 |
+| Review cadence | Mensual y ante cambios de workflows, jobs, catálogo E2E o branch protection |
+| Supersedes | Versión que documentaba dos required checks globales y clasificaba los gates funcionales como no required; versión del 2026-07-30 que describía `e2e:ci` con 43 specs, `e2e:full` con 72 specs bajo `next dev` y un presupuesto de 55/40 minutos |
 | Superseded by | Ninguno |
-| Related controls or gaps | `ERM-CTRL-013`; `ERM-CTRL-014`; `ERM-CTRL-015`; `ERM-CI-001`; `ERM-CI-002` |
-| Evidence or approval reference | PR #1601 y canarias #1602/#1603; PR #1605 y su validación stale-base; canarias #1616 y #1618 del bloque 05; workflows locales, branch protection de `main` y Actions permissions verificadas en modo read-only el 2026-07-30 |
+| Related controls or gaps | `ERM-CTRL-013`; `ERM-CTRL-014`; `ERM-CTRL-015`; `ERM-CI-001`; `ERM-CI-002`; `LIMPIEZA E2E` R-18 |
+| Evidence or approval reference | PR #1601 y canarias #1602/#1603; PR #1605 y su validación stale-base; canarias #1616 y #1618 del bloque 05; reconciliación E2E-GLOBAL-10B ([acta](../implementation/e2e-global-10b-documentation-closeout.md)): workflows y catálogo en `c25f4e0613b3f133efc46a7df08aa78e03006323`, branch protection de `main` y Actions permissions releídas en modo read-only el 2026-09-16 |
 
 ## Objetivo
 
@@ -31,14 +31,19 @@ Documentar cómo verificar los checks de GitHub Actions en pull requests de Port
 | `qga-workflow-security` | Required global | Todos los PR hacia `main` | Sí | `SUCCESS` antes de merge |
 | `validate-backend` | Required funcional; contexto always-run | Todos los PR hacia `main`; heavy condicional por impacto | Sí | `SUCCESS` en todos los PR hacia `main` |
 | `validate-frontend` | Required funcional; contexto always-run | Todos los PR hacia `main`; heavy condicional por impacto | Sí | `SUCCESS` en todos los PR hacia `main` |
+| `e2e-full-completeness` (`E2E Completeness`) | No required; aplicable | Todos los PR hacia `main`, sin filtro de paths (incluidos los docs-only) | No | `SUCCESS` antes de merge: un `FAILURE` deja el PR fuera de READY |
+| `generate-sbom` (`Backend CI`) | Evidencia supply-chain; no required | Todos los eventos de `Backend CI` | No | `SUCCESS`; ningún contexto required lo observa |
+| `visual-regression-<suite>` (`Visual Regression Manual`) | Diagnóstico manual | Sólo `workflow_dispatch` | No | No aparece en PRs |
 | Supabase Preview | Integración externa | Paths administrados por la integración | No | `SUCCESS` cuando aplica; `SKIPPED` legítimo cuando no aplica |
 
 La presencia de un workflow o job en el árbol no lo vuelve required. La fuente efectiva para esa
-clasificación es branch protection de `main`, verificada el 2026-07-30 con exactamente estos
-cuatro contextos y sus app IDs:
+clasificación es branch protection de `main`, releída en modo read-only el 2026-09-16 (sin cambios
+respecto de la verificación del 2026-07-30) con exactamente estos cuatro contextos y sus app IDs:
 
 ```text
 strict: true
+required_conversation_resolution: true
+required_approving_review_count: 0
 
 validate-pr-governance   app_id 15368
 qga-workflow-security    app_id 4291335
@@ -46,13 +51,17 @@ validate-backend         app_id 15368
 validate-frontend        app_id 15368
 ```
 
+Con cero approvals requeridos, un PR con los cuatro contextos en `SUCCESS` que sigue `BLOCKED`
+suele tener un review thread sin resolver: diagnosticarlo por `reviewThreads` con
+`isResolved == false`.
+
 La evidencia durable del bloque 05, incluidas la canaria positiva #1616 y la canaria negativa
 #1618, se conserva en
 [PR-CI-REQUIRED-CHECKS Audit](../audit/pr-ci-required-checks-audit.md).
 
 ## GitHub Actions repository policy
 
-Política efectiva del repositorio verificada el 2026-07-30:
+Política efectiva del repositorio, verificada el 2026-07-30 y releída sin cambios el 2026-09-16:
 
 ```text
 allowed_actions: selected
@@ -167,19 +176,31 @@ absoluta por nombre: la instancia que branch protection evalúa es la del evento
 Un heavy ejecutado por `push` en una rama `test/**` no contradice un heavy `skipped` en la ruta
 `pull_request` del mismo head.
 
-`backend-heavy-validation` ejecuta:
+`backend-heavy-validation` (`timeout-minutes: 15`) ejecuta:
 
 1. instalación con lockfile congelado;
-2. auditoría de dependencias;
-3. migraciones sobre Postgres efímero;
-4. `pnpm typecheck`;
-5. `pnpm typecheck:test`;
-6. `pnpm test`;
-7. `pnpm build`.
+2. `pnpm lint:backend`;
+3. auditoría de dependencias (`pnpm audit --prod` y `pnpm audit`);
+4. migraciones sobre Postgres efímero (`postgres:16`, base `portal_vetneb_ci`);
+5. `pnpm typecheck`;
+6. `pnpm typecheck:test`;
+7. `pnpm test`;
+8. `pnpm build`.
 
 El contexto final `validate-backend` usa `if: always()` y falla de forma cerrada si el detector
 no termina en `success`, si el heavy no refleja el impacto detectado o si aparece cualquier
 combinación de estados inesperada. Postgres existe únicamente dentro del heavy.
+
+`pnpm test` incluye los guards que gobiernan la infraestructura E2E (completitud del catálogo,
+contratos de workflows, régimen zero-scroll, fuente única de sesión) y el smoke autoritativo
+`test/integration/app/e2e-global-03b-authoritative-auth-boundary.fastify.test.ts` contra Fastify y
+el Postgres del heavy. Ese test falla cerrado sin `DATABASE_URL`/`SUPABASE_DB_URL` apuntando a
+`portal_vetneb_ci` local: una corrida local sin DB lo reporta como fallo ambiental (BLOCKED por DB
+ausente), no como regresión. En CI corre y pasa: Backend CI `35109809582` sobre `c25f4e06`,
+4.566/4.566 tests.
+
+El job `generate-sbom` corre en cada evento de `Backend CI`, sube el SBOM CycloneDX como artifact y
+no bloquea el merge: ningún contexto required depende de él.
 
 ## Frontend CI
 
@@ -188,10 +209,12 @@ Frontend CI se crea en todos los pull requests hacia `main`. El detector
 pull request, cambian:
 
 - `frontend/**`;
+- `shared/**`;
 - `pnpm-lock.yaml`;
 - `pnpm-workspace.yaml`;
 - `package.json`;
-- `.github/workflows/frontend-ci.yml`.
+- `.github/workflows/frontend-ci.yml`;
+- `.github/workflows/e2e-completeness.yml`.
 
 Comportamiento:
 
@@ -207,100 +230,182 @@ con impacto frontend:
   validate-frontend: refleja el resultado del heavy
 ```
 
-En push hacia `main`, el workflow conserva los filtros de paths listados y el heavy se ejecuta
-cuando el workflow es disparado.
+En push hacia `main` el workflow se dispara por filtro de paths y el heavy se ejecuta siempre que
+el workflow corre. Ese filtro enumera los paths del detector salvo `shared/**`: un push a `main`
+que sólo toque `shared/**` no dispara Frontend CI. Bajo branch protection todo cambio llega por
+PR, donde el detector sí lo cubre (divergencia registrada en `LIMPIEZA E2E` §10, P3).
 
-`frontend-heavy-validation` ejecuta:
+`frontend-heavy-validation` (`timeout-minutes: 20`) ejecuta:
 
 1. instalación con lockfile congelado;
 2. lint frontend;
 3. typecheck frontend;
-4. build frontend;
+4. build frontend con el fixture API local (`NEXT_PUBLIC_API_URL=http://127.0.0.1:3107`);
 5. auditoría de superficie pública;
-6. suites E2E estratificadas;
-7. artifact Playwright solo ante failure.
+6. `playwright install --with-deps chromium`;
+7. `pnpm --dir frontend e2e:ci` con `VETNEB_E2E_PRODUCTION_RUNNER=1`, que sirve el bundle recién
+   construido con `next start` en una sola invocación Playwright (ver
+   [Catálogo y cohortes E2E](#catálogo-y-cohortes-e2e));
+8. sólo ante failure: sanitizer de artefactos y, únicamente si el sanitizer termina en `success`,
+   subida del `playwright-report` y de `test-results` sanitizados.
+
+Referencia observada: push a `main` `52314191` (Frontend CI `35099449451`), cohorte `ci` con 67
+specs y 1.030 tests, 1.029 passed y 1 skipped, 12,7 min de Playwright y 14,5 min de job heavy.
 
 El contexto final `validate-frontend` usa `if: always()` y aplica la misma propagación
 fail-closed. Playwright y su artifact de failure existen únicamente dentro del heavy.
 
+## Catálogo y cohortes E2E
+
+La única fuente de pertenencia de specs a cohortes es
+[`frontend/e2e/suites/catalog.ts`](../../frontend/e2e/suites/catalog.ts). Los scripts `e2e:*` de
+[`frontend/package.json`](../../frontend/package.json) delegan en
+`frontend/e2e/scripts/run-cohort.mjs`, que lee el catálogo y falla cerrado con exit 2 (cohorte
+inválida), 3 (selección vacía), 4 (spec catalogado inexistente) o 5 (`visual-linux` fuera de
+Linux). `test/architecture/e2e-suite-catalog-completeness.test.ts` (`pnpm test`, dentro de
+`validate-backend`, y `pnpm --dir frontend e2e:verify-catalog`) fija los conteos y las
+particiones. Si cambia el catálogo, ese guard se realinea en el mismo PR; este runbook no es la
+fuente de los números.
+
+Inventario recalculado en `c25f4e0613b3f133efc46a7df08aa78e03006323` (2026-09-16), desde el
+catálogo y `playwright test --list --reporter=json`:
+
+| Cohorte | Specs | Tests | Dónde corre |
+| --- | ---: | ---: | --- |
+| `smoke` | 12 | 61 | subconjunto de `ci` |
+| `admin-mobile` | 14 | 136 | subconjunto de `ci` |
+| `visual-contract` | 24 | 521 | subconjunto de `ci` |
+| `public-clinic` | 17 | 312 | subconjunto de `ci` |
+| `ci` | 67 | 1.030 | `Frontend CI` (required, vía `validate-frontend`) y `e2e:full` |
+| `extended` | 27 | 255 | sólo `e2e:full` |
+| `evidence` | 1 | 1 | sólo `e2e:full` |
+| `visual-linux` | 3 | 40 | `e2e:full` y `Visual Regression Manual`; sólo Linux |
+| `full` | 98 | 1.326 | `E2E Completeness` |
+| `affected` | dinámico | — | local; cae a `ci` ante cualquier path compartido o no mapeado |
+
+Invariantes verificadas:
+
+- las cuatro cohortes current particionan `ci` sin solapamiento (12 + 14 + 24 + 17 = 67);
+- `full == ci ∪ extended ∪ evidence ∪ visual-linux`, también sin solapamiento
+  (67 + 27 + 1 + 3 = 98);
+- 98 specs tracked = 98 en disco = 98 entradas de catálogo = 98 archivos descubiertos por
+  Playwright; `E2E_MANUAL_ONLY_SPECS` está vacío;
+- 70 specs `P1`; los únicos `P1` fuera de `ci` son A02 (`dashboard-geometry-baseline`), A03
+  (`dashboard-adaptive-limit-baseline`) y A05 (`dashboard-limit-invariance`), y los tres corren
+  en `E2E Completeness` en cada PR;
+- 40 baselines PNG `*-chromium-linux`, promovidos desde capturas `next start`
+  (`E2E-GLOBAL-05B`).
+
+Configuración Playwright (`frontend/playwright.config.ts`): un proyecto `chromium`, `retries: 0`
+(`e2e:full` lo sobrescribe con `--retries=2`), `workers` sin fijar (2 observados en
+`ubuntu-latest`), `fullyParallel`, `timeout` 30 s, `expect.timeout` 5 s, `globalTimeout` 30 min
+(override `E2E_GLOBAL_TIMEOUT_MS`), `forbidOnly` y `failOnFlakyTests` activos en CI,
+`screenshot: only-on-failure` y `trace` `retain-on-failure` bajo el production runner (`off` en
+local). El servidor de aplicación es `next start` sólo cuando `CI=true` y
+`VETNEB_E2E_PRODUCTION_RUNNER=1`; en cualquier otro contexto es `next dev`. Ningún E2E arranca
+Fastify ni Postgres: el backend es el fixture hermético `127.0.0.1:3107`.
+
 ## E2E Completeness
 
-El workflow no-required `E2E Completeness` complementa, sin reemplazar,
-`validate-frontend`. Se ejecuta automáticamente en PRs que cambian la suite,
-catálogo, runner, configuración o contratos relacionados; también admite
-`workflow_dispatch` y un schedule semanal.
+El workflow no-required `E2E Completeness` complementa, sin reemplazar, `validate-frontend`.
 
 ```text
-Frontend CI:
-  Ubuntu → e2e:ci → 43 specs → una invocación Playwright
+Triggers:
+  pull_request → main    sin filtro de paths (E2E-GLOBAL-06): corre en todo PR, docs-only incluido
+  workflow_dispatch
+  schedule '17 3 * * 2'  semanal, sobre main
+  (sin trigger push: un merge a main no lo dispara)
 
-E2E Completeness:
-  Ubuntu → e2e:full → 72 specs → una invocación Playwright
+Frontend CI (required):
+  Ubuntu → next build → next start → e2e:ci   → 67 specs / 1.030 tests → una invocación Playwright
+
+E2E Completeness (no required):
+  Ubuntu → next build → next start → e2e:full → 98 specs / 1.326 tests → una invocación Playwright
   full == ci ∪ extended ∪ evidence ∪ visual-linux
 ```
 
-La ruta completa construye primero el frontend con el fixture local, audita la
-superficie pública e instala Chromium. Ejecuta `e2e:full` con `next dev` porque
-los baselines Linux versionados fueron creados con ese runner e incluyen su
-indicador visual. La validación contra el bundle de producción permanece en
-`Frontend CI` (`e2e:ci`, 43 specs). La suite completa usa dos workers y hasta
-dos retries acotados dentro de la misma invocación. Cada retry vuelve a
-ejecutar el callback y debe pasar sus assertions; no equivale a skip ni
-`continue-on-error`. Los baselines `visual-linux` se ejecutan solo en Ubuntu.
-Ante fallo final sube `playwright-report` y `test-results`; luego verifica
-teardown, source hygiene y limpia esos outputs del checkout efímero.
+El job `e2e-full-completeness` (`ubuntu-latest`, `timeout-minutes: 60`, concurrencia por ref con
+`cancel-in-progress`) ejecuta:
 
-Presupuesto de runtime. El job tiene un tope duro de 55 minutos; dentro de
-él, el paso `Run complete cataloged E2E suite` declara
-`E2E_GLOBAL_TIMEOUT_MS: "2400000"` (40 minutos) para el `globalTimeout` de
-Playwright:
+1. instalación con lockfile congelado;
+2. `pnpm --dir frontend e2e:verify-catalog`;
+3. build del frontend con el mismo env de fixture que `Frontend CI`;
+4. auditoría de superficie pública;
+5. dependencias de sistema de Playwright, neutralizando antes sólo la fuente APT de Google Chrome
+   en formato `.list` y Deb822 (`E2E-GLOBAL-01`);
+6. instalación de Chromium, con hasta dos intentos de 180 s;
+7. `pnpm --dir frontend e2e:full -- --workers=2 --retries=2` con
+   `VETNEB_E2E_PRODUCTION_RUNNER=1` (`next start`, `E2E-GLOBAL-05B`) y
+   `E2E_GLOBAL_TIMEOUT_MS=2700000`;
+8. sólo ante failure: sanitizer y subida de `playwright-report` y `test-results` sanitizados
+   (retención 14 días);
+9. siempre: `e2e:verify-teardown` y verificación de higiene, que borra los outputs y exige
+   `frontend/next-env.d.ts` y `frontend/e2e` sin cambios ni untracked.
+
+Cada retry vuelve a ejecutar el callback y debe pasar sus assertions; no equivale a skip ni a
+`continue-on-error`. Con `failOnFlakyTests: true`, un test que sólo pasa en retry marca el run como
+`FAILURE`: los retries no enmascaran flakes. Ejemplo: el run `35060350621` (head intermedio
+`052bb54b` de #1729) terminó `FAILURE` con `2 flaky / 1323 passed / 1 skipped`.
+
+Presupuesto de runtime:
 
 ```text
-job timeout-minutes            55m   (tope duro)
-globalTimeout de completeness  40m   (env del paso, sólo este workload)
-envelope exterior              15m   (job − Playwright; ver abajo)
-globalTimeout por defecto      30m   (frontend/playwright.config.ts, sin cambios)
+job timeout-minutes            60m   (tope duro)
+E2E_GLOBAL_TIMEOUT_MS          45m   (env del paso full, sólo este workload)
+envelope exterior              15m   (job − Playwright)
+globalTimeout por defecto      30m   (frontend/playwright.config.ts; e2e:ci y corridas locales)
 ```
 
-El override vive en el paso, no en la configuración: toda otra cohorte —
-`e2e:ci` en Frontend CI y las corridas locales — conserva el guard de 30
-minutos. El motivo es capacidad del catálogo, no un defecto funcional: la
-suite completa pasó a necesitar ~31 minutos con `--workers=2`, de modo que 30
-minutos dejaron de detectar cuelgues y empezaron a truncar corridas sanas
-antes de llegar a los specs `visual-linux`.
+El envelope de 15 minutos cubre todo lo que Playwright no posee: checkout, install, verify del
+catálogo, build, auditoría pública, dependencias y Chromium y, si el paso agota su
+`globalTimeout`, subida de diagnostics, teardown e higiene.
+`test/unit/infrastructure/e2e-completeness-workflow.test.ts` fija `timeout-minutes: 60` y exige
+`job − E2E_GLOBAL_TIMEOUT_MS >= 15m`; también exige el build previo y el flag del production
+runner sólo en el paso full, y prohíbe `paths`, `paths-ignore` y `types` en `pull_request`.
 
-Los 15 minutos de envelope exterior **no son "limpieza después de
-Playwright"**: son presupuesto para todo el trabajo del job que Playwright no
-posee, antes y después del paso — checkout, install de dependencias, verify
-del catálogo, build del frontend, auditoría de superficie pública, instalación
-de dependencias/Chromium, y, si el paso agota su propio `globalTimeout`,
-subida de diagnostics, `Verify E2E teardown` y `Verify source hygiene`. Sin
-ese margen, un setup lento puede cancelar el job por el tope duro antes de que
-una corrida sana termine, aunque Playwright nunca haya llegado a su propio
-límite. Un guard relacional (`test/unit/infrastructure/e2e-completeness-workflow.test.ts`)
-exige `job timeout-minutes − E2E_GLOBAL_TIMEOUT_MS >= 15m`, así que revertir
-el job a 45 minutos o subir el budget de Playwright sin ampliar el job rompe
-el test.
+Referencia observada: run `35104076249` (head `4dcb07d5` de #1730), `[e2e] specs: 98`,
+`next start --hostname 127.0.0.1`, `Running 1326 tests using 2 workers`,
+`1325 passed / 1 skipped (24.6m)`, 48,5 min de trabajo agregado y job de 26 min. El skip es el
+declarado de B05 S7 `clinic-tokens`. El schedule sobre `main` del 2026-09-15 (`34948699577`,
+`886f19ee`) también terminó en `SUCCESS`.
 
-`--workers=2`, `--retries=2`, el catálogo, las assertions y la cobertura no
-cambian; el fix no introduce skips ni retira specs.
+`E2E Completeness` no es uno de los cuatro contextos required de `main`, pero sí es un check
+aplicable: mientras esté en `FAILURE` el PR no está READY (AGENTS.md §5.8). "No required" no
+significa "ignorable en rojo". Un cambio no está listo si `validate-frontend` pasa pero
+`e2e-full-completeness` falla.
 
-Rollback: retirar el bloque `env` del paso y devolver `timeout-minutes` a 45
-recupera el estado previo a este fix. Hacerlo sólo cuando la cohorte
-demuestre headroom suficiente por medición, no por suposición.
+Para diagnosticar:
 
-`E2E Completeness` no es uno de los cuatro contextos required de `main`, pero
-sí es un check aplicable: mientras esté en `FAILURE` el PR no está READY
-(AGENTS.md §5.8). "No required" no significa "ignorable en rojo".
+1. confirmar en el log `[e2e] cohort: full`, `[e2e] specs: <N>` con `N` igual al tamaño de
+   `full` en el catálogo del head (98 en `c25f4e06`), `[WebServer] $ next start` y
+   `Running <T> tests`;
+2. separar `failed` de `flaky`: ambos ponen el run en rojo;
+3. descargar artifacts sólo si el job falló; sólo existen en su versión sanitizada;
+4. no actualizar snapshots para esconder diferencias (ver
+   [Visual Regression Manual](#visual-regression-manual));
+5. corregir en la misma rama y volver a observar el mismo workflow sobre el head nuevo.
 
-Un cambio E2E no está listo si `validate-frontend` pasa pero
-`e2e-full-completeness` falla. Para diagnosticar:
+## Visual Regression Manual
 
-1. confirmar en logs `[e2e] cohort: full` y `[e2e] specs: 72`;
-2. confirmar descubrimiento de 72 archivos;
-3. descargar artifacts solo si el job falló;
-4. no actualizar snapshots para esconder diferencias;
-5. corregir en la misma rama y volver a observar el mismo workflow.
+`visual-regression-manual.yml` sólo se dispara por `workflow_dispatch`. Lanzarlo es
+**[MANUAL-NICO]**: `gh workflow run` es NO-DELEGABLE (AGENTS.md §5.5). No aparece en PRs y no
+es un gate.
+
+- `runner=production-candidate` (default): `next build` más `next start` en un candidato aislado
+  que se compara contra los baselines canónicos, con un `globalTimeout` de 20 minutos dentro de un
+  job de 45. Nunca actualiza baselines.
+- `runner=dev`: diagnóstico no canónico bajo `next dev`. Difiere por diseño de los baselines
+  productivos (indicador de desarrollo), así que su rojo no es señal de regresión.
+- `update_snapshots=true` se rechaza siempre en el primer paso. Un baseline canónico sólo cambia
+  por copia byte-exacta de un candidato productivo revisado, en un PR con acta (`E2E-GLOBAL-05B`).
+- Los specs se resuelven desde la cohorte `visual-linux` del catálogo con `selectSuiteSpecs()`,
+  el mismo resolver para ambos runners (`E2E-GLOBAL-10` R-14, #1730). El workflow no nombra
+  ningún spec; `test/unit/infrastructure/visual-regression-workflow-catalog.test.ts` lo
+  garantiza.
+
+La comparación automática de los 40 baselines no depende de este workflow: `visual-linux` forma
+parte de `e2e:full`, que la ejecuta bajo `next start` en cada PR dentro de `E2E Completeness`. En
+Windows, `e2e:visual-linux` queda BLOCKED por diseño (exit 5): los baselines son Chromium-Linux.
 
 ## Rango de comparación del pull request
 
@@ -337,6 +442,8 @@ Cuando todo el diff del rango efectivo merge-base → head queda bajo `docs/**` 
   `skipped`;
 - ese contrato se cumple también cuando la rama precede a cambios no documentales de `main`,
   porque esos cambios quedan fuera del rango efectivo;
+- `E2E Completeness` también corre, porque no tiene filtro de paths: su resultado sigue siendo un
+  check aplicable aunque el diff sea documental;
 - Supabase Preview puede estar ausente o `SKIPPED` si la integración no aplica;
 - cualquier check presente que falle sigue siendo bloqueante: docs-only no convierte un fallo en
   skip legítimo.
@@ -383,11 +490,14 @@ Se puede considerar el merge solamente cuando:
 - los cuatro contextos required están presentes y en `SUCCESS`:
   `validate-pr-governance`, `qga-workflow-security`, `validate-backend` y `validate-frontend`;
 - no hay checks aplicables en `QUEUED` o `IN_PROGRESS`;
-- no hay checks aplicables en `FAILURE`, `CANCELLED` o `TIMED_OUT`;
+- no hay checks aplicables en `FAILURE`, `CANCELLED` o `TIMED_OUT`, incluido
+  `e2e-full-completeness`;
 - los heavies `skipped` corresponden a detector `impact=false` con contexto final `SUCCESS`;
 - Supabase Preview puede estar `SKIPPED` cuando no aplica;
 - el PR sigue abierto, no es draft y apunta a `main`;
-- el head SHA verificado coincide con el SHA que se va a fusionar;
+- no hay review threads sin resolver;
+- el head SHA verificado coincide con el SHA que se va a fusionar, y todos los checks anteriores
+  corresponden a ese head: un check de un head previo no es evidencia;
 - el diff y el scope siguen siendo los revisados.
 
 ## Estado bloqueante
@@ -410,19 +520,27 @@ No mergear si ocurre cualquiera de estos casos:
 
 ## Merge seguro
 
-Usar squash merge explícito y fijar el head SHA cuando se automatiza mediante API o conector.
+Usar squash merge explícito y fijar el head SHA verificado con `--match-head-commit`, como exige
+AGENTS.md §5.8. Así, un push que llegue entre la verificación y el merge hace fallar el merge en
+lugar de fusionar un head no revisado.
 
-Acción **[MANUAL-NICO]**, desde la raíz del repositorio:
+Acción **[MANUAL-NICO]** salvo delegación explícita (AGENTS.md §5.3), desde la raíz del
+repositorio:
 
 ```powershell
 $prNumber = <NUMERO_REAL_DEL_PR>
+$headSha = <HEAD_SHA_VERIFICADO>
 
 gh pr merge $prNumber `
   --repo LABVETNEB/PORTAL-VETNEB `
-  --squash
+  --squash `
+  --match-head-commit $headSha
 ```
 
-No usar `--admin`. Ninguna urgencia documental autoriza eludir checks requeridos.
+Si el merge falla porque el head cambió, no reintentar contra el SHA nuevo: revalidar los checks
+de ese head. No usar `--admin`. Ninguna urgencia documental autoriza eludir checks requeridos.
+Tampoco acoplar `--delete-branch` al merge: la eliminación de la rama remota es un paso aparte,
+posterior al readback del merge (AGENTS.md §5.9).
 
 ## Sincronización posterior al merge
 
@@ -451,7 +569,9 @@ No usar `git reset --hard` como procedimiento normal de sincronización o cleanu
 
 Eliminar una rama remota solamente después de verificar:
 
-- PR fusionada o cerrada según el objetivo;
+- PR fusionada (`merged=true`, `mergedAt` y `mergeCommit` presentes) y rama igual a su
+  `headRefName`, o PR canaria cerrada sin merge por decisión explícita de Nico. Un agente sólo
+  elimina ramas de PRs fusionadas (AGENTS.md §5.9);
 - head SHA exacto;
 - ausencia de commits exclusivos que deban preservarse;
 - working tree local limpio;
@@ -491,6 +611,8 @@ gh pr view $prNumber `
 - No usar `--admin` para eludir gates.
 - No usar `git reset --hard` como cleanup estándar.
 - Mantener este runbook alineado con los nombres reales de workflows, jobs, triggers y branch protection.
+- Leer los conteos E2E del catálogo y del log del run. Toda cifra de este runbook indica el HEAD en
+  que se recalculó; una cifra sin fecha ni HEAD no es evidencia.
 
 ## Evidencia relacionada
 
@@ -503,3 +625,11 @@ gh pr view $prNumber `
 - [PR-CI-REQUIRED-CHECKS closeout audit](../audit/pr-ci-required-checks-audit.md)
 - [Branch Protection Governance implementation closeout](../implementation/branch-protection-governance-closeout.md)
 - [Review Governance](../review-governance.md)
+- [Frontend CI workflow](../../.github/workflows/frontend-ci.yml)
+- [E2E Completeness workflow](../../.github/workflows/e2e-completeness.yml)
+- [Visual Regression Manual workflow](../../.github/workflows/visual-regression-manual.yml)
+- [Catálogo E2E](../../frontend/e2e/suites/catalog.ts)
+- [LIMPIEZA E2E](../audit/LIMPIEZA%20E2E.md), programa de saneamiento E2E
+- [E2E-GLOBAL-10B — cierre documental](../implementation/e2e-global-10b-documentation-closeout.md)
+- [PR-E2E-CI-COMPLETENESS Audit](../audit/pr-e2e-ci-completeness-audit.md), evidencia histórica del
+  slot 06 (43/72 specs y `e2e:full` bajo `next dev`, estado del 2026-07-30)

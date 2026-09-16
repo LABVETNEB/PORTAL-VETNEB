@@ -9,12 +9,12 @@ Clasificación vigente de documentación histórica, secundaria y superseded del
 | Lifecycle status | ACTIVE |
 | Authoritative source role | Clasificación operativa de documentación histórica, secundaria y superseded |
 | Effective date | 2026-07-28 |
-| Last verified date | 2026-07-28 |
+| Last verified date | 2026-09-16 |
 | Review cadence | Mensual y ante movimientos o reclasificaciones documentales |
 | Supersedes | Clasificación por patrones ambiguos de documentos sueltos en `docs/` |
 | Superseded by | Ninguno |
 | Related controls or gaps | `ERM-CTRL-004`; `ERM-CTRL-005`; `ERM-DOC-001`; `ERM-DOC-002` |
-| Evidence or approval reference | Inventario rastreado de Markdown suelto verificado para `PR-AUDIT-ENTERPRISE-DOCS` |
+| Evidence or approval reference | Inventario rastreado de Markdown suelto verificado para `PR-AUDIT-ENTERPRISE-DOCS`; supersession de dos auditorías E2E por E2E-GLOBAL-10B (2026-09-16, [acta](./implementation/e2e-global-10b-documentation-closeout.md)) |
 
 ## Propósito
 
@@ -112,6 +112,23 @@ Fuentes históricas o superseded:
 - `docs/implementation/IMPLEMENTACION-PR-7-dashboard-tables-cards-consistency-polish.md`
 - `docs/implementation/IMPLEMENTACION-PR-8-dashboard-accessibility-keyboard-hardening.md`
 - `docs/implementation/IMPLEMENTACION-PR-9-dashboard-final-premium-qa-cleanup.md`
+
+## Auditorías E2E superseded
+
+Transición `ACTIVE` (de hecho: ninguno declaraba metadata ni figuraba en el índice vigente, pero
+fases posteriores los citaban como fuente) → `SUPERSEDED`, registrada el 2026-09-16 por
+E2E-GLOBAL-10B. El motivo es la reconciliación de `docs/audit/LIMPIEZA E2E.md` §19, que los
+clasifica como `SUPERSEDED` contra el estado medido. Owner: Governance / Docs owner. No se
+mueven, no se borran y su contenido original no se reescribe: cada uno recibió sólo un bloque de
+estado documental al inicio.
+
+| Documento | Lifecycle | Qué quedó obsoleto | Superseded by |
+| --- | --- | --- | --- |
+| `docs/audit/e2e-enterprise-organization-audit.md` | `SUPERSEDED` | Inventario de 72 specs / 785 tests en raíz plana, CI de 42 specs por listas manuales y 4 invocaciones con `next dev`. Su plan E2E-ORG-1…6/CI está ejecutado (catálogo, dominios físicos, invocación única) | `docs/audit/LIMPIEZA E2E.md` (diagnóstico E2E) y, para el estado operativo, `frontend/e2e/suites/catalog.ts` más `docs/ops/CI_PR_CHECKS_RUNBOOK.md` |
+| `docs/audit/test-suite-enterprise-architecture-audit.md` | `SUPERSEDED` | Snapshot del 2026-07-06: 70 specs, cohortes por listas literales en `frontend/package.json` y taxonomía de tests previa a la migración TEST-ARCH | Para E2E: `docs/audit/LIMPIEZA E2E.md`, el catálogo y el runbook. Para la arquitectura de tests: `docs/audit/pr-test-architecture-consolidation-audit.md`, `test/README.md` y `docs/implementation/test-suite-enterprise-organization-convention.md` |
+
+Las actas E2E-ORG-* y TEST-ARCH-* que los citan como fuente siguen siendo evidencia histórica de
+su propia fase.
 
 ## Documentos Markdown sueltos en `docs/`
 
