@@ -106,9 +106,6 @@ const DECLARED_DIVERGENCES: Readonly<Record<string, Divergence>> = {
 // architecture (client-component fetches reach the fixture through the Next
 // rewrite, and page.route cannot see server-component fetches); the set may
 // only shrink, and removing it is a separate test-only scope.
-const ADAPTIVE_LIMIT_MATRIX = "frontend/e2e/helpers/dashboard-adaptive-limit-matrix.ts";
-const ADMIN_MOBILE_CORE = "frontend/e2e/admin/shell/admin-mobile-core-modules-no-scroll.spec.ts";
-const ADMIN_TOKENS_TOOLBAR = "frontend/e2e/admin/tokens/admin-tokens-mobile-toolbar-layout.spec.ts";
 const VISUAL_STRESS = "frontend/e2e/regression/visual/visual-regression-stress.spec.ts";
 
 const LEGACY_DOUBLE_DECLARATIONS: Readonly<Record<string, readonly string[]>> = {
@@ -118,11 +115,11 @@ const LEGACY_DOUBLE_DECLARATIONS: Readonly<Record<string, readonly string[]>> = 
   "ANY /api/reports": [VISUAL_STRESS],
   "ANY /api/reports/search": [VISUAL_STRESS],
   "GET /api/admin/audit-log": [VISUAL_STRESS],
-  "GET /api/admin/particular-tokens": [ADMIN_TOKENS_TOOLBAR, VISUAL_STRESS],
+  "GET /api/admin/particular-tokens": [VISUAL_STRESS],
   "GET /api/admin/report-workflow": [VISUAL_STRESS],
   "GET /api/admin/study-tracking/notifications": [VISUAL_STRESS],
   "GET /api/admin/system/health": [VISUAL_STRESS],
-  "GET /api/admin/users-roles": [ADMIN_TOKENS_TOOLBAR, VISUAL_STRESS],
+  "GET /api/admin/users-roles": [VISUAL_STRESS],
 };
 
 // ── Workspace (real tree + in-memory overrides) ──────────────────────────────

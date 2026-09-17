@@ -3,7 +3,7 @@ import type { Page } from "@playwright/test";
 import { MAX_DOCUMENT_SCROLL_DELTA_PX } from "../../helpers/zero-scroll-contract";
 
 import { DASHBOARD_GEOMETRY_VIEWPORTS } from "../../helpers/dashboard-geometry-matrix";
-import { setAdminSession } from "../../helpers/session";
+import { addAppCookies, sessionCookie } from "../../helpers/session";
 
 const TOLERANCE = 2;
 
@@ -13,89 +13,73 @@ const MOBILE_VIEWPORTS = [
   { name: "iphone-pro-max-430x932", width: 430, height: 932 },
 ] as const;
 
-// The page size is measured instead of fixed, so the fixture must have enough
-// rows to fill the tallest measured page and still leave a populated page 2.
-const MOCK_TOKENS = Array.from({ length: 40 }, (_, index) => ({
-  id: 9101 + index,
-  clinicId: 12 + index,
-  reportId: index % 3 === 0 ? 7301 + index : null,
-  tokenLast4: String(4201 + index),
-  tutorLastName: ["Gómez", "Pérez", "Luna"][index % 3],
-  petName: ["Mora", "Simón", "Lola", "Bruno", "Kira", "Toby", "Nina", "Rocco", "Uma"][
-    index % 9
-  ],
-  petAge: `${2 + index} años`,
-  petBreed: index % 2 === 0 ? "Mestizo" : "Labrador",
-  petSex: index % 2 === 0 ? "female" : "male",
-  petSpecies: index % 2 === 0 ? "canine" : "feline",
-  sampleLocation: "Piel",
-  sampleEvolution: `${3 + index} semanas`,
-  detailsLesion: "Lesión nodular para evaluación anatomopatológica.",
-  extractionDate: "2026-06-10T10:00:00.000Z",
-  shippingDate: "2026-06-11T10:00:00.000Z",
-  isActive: index !== 7,
-  lastLoginAt: index % 2 === 0 ? "2026-06-17T16:20:00.000Z" : null,
-  createdAt: "2026-06-12T09:15:00.000Z",
-  updatedAt: "2026-06-17T16:20:00.000Z",
-  createdByAdminId: 41,
-  createdByClinicUserId: null,
-  hasLinkedReport: index % 3 === 0,
-}));
+const A03_ADMIN_TOKEN_COUNT = 40;
+const ADAPTIVE_TOKEN_PET_NAMES = Array.from(
+  { length: A03_ADMIN_TOKEN_COUNT },
+  (_, index) => `A03PET${String(index).padStart(4, "0")}`,
+);
+const ADMIN_TOKENS_SHORT_DATASET_COOKIE = Object.freeze({
+  name: "e2e_admin_tokens_dataset",
+  value: "short",
+});
+const ADMIN_TOKENS_TOOLBAR_DATASET_COOKIE = Object.freeze({
+  name: "e2e_admin_tokens_dataset",
+  value: "toolbar-adaptive",
+});
+const ADMIN_TOKENS_CLINIC_CATALOG = "admin-tokens-clinics";
 
 type AdminParticularTokensRequest = {
   limit: number;
   offset: number;
 };
 
-async function mockAdminParticularTokens(
+async function useAdminTokensFixtureDataset(
   page: Page,
-  sourceTokens = MOCK_TOKENS,
-  onRequest?: (request: AdminParticularTokensRequest) => void,
+  dataset: "adaptive" | "short",
 ) {
-  await page.route("**/api/admin/particular-tokens**", async (route) => {
-    const request = route.request();
-    const url = new URL(request.url());
+  await addAppCookies(page, [
+    sessionCookie("admin", "populated"),
+    dataset === "adaptive"
+      ? ADMIN_TOKENS_TOOLBAR_DATASET_COOKIE
+      : ADMIN_TOKENS_SHORT_DATASET_COOKIE,
+  ]);
+}
 
+async function routeAdminTokensClinicCatalog(page: Page) {
+  await page.route(
+    (url) => url.pathname === "/api/admin/users-roles",
+    async (route) => {
+      if (route.request().method() !== "GET") {
+        await route.continue();
+        return;
+      }
+
+      const rewritten = new URL(route.request().url());
+      rewritten.searchParams.set("dataset", ADMIN_TOKENS_CLINIC_CATALOG);
+      await route.continue({ url: rewritten.toString() });
+    },
+  );
+}
+
+function observeAdminParticularTokenRequests(
+  page: Page,
+  requests: AdminParticularTokensRequest[],
+) {
+  page.on("request", (request) => {
+    const url = new URL(request.url());
     if (
       request.method() !== "GET" ||
       url.pathname !== "/api/admin/particular-tokens"
     ) {
-      await route.fallback();
       return;
     }
 
-    const limit = Number(url.searchParams.get("limit") ?? "9");
-    const offset = Number(url.searchParams.get("offset") ?? "0");
-    onRequest?.({ limit, offset });
-    const clinicIdParam = url.searchParams.get("clinicId");
-    const clinicId = clinicIdParam ? Number(clinicIdParam) : null;
-    const filteredTokens = clinicId
-      ? sourceTokens.filter((token) => token.clinicId === clinicId)
-      : sourceTokens;
-    const particularTokens = filteredTokens.slice(offset, offset + limit);
-
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        success: true,
-        count: particularTokens.length,
-        particularTokens,
-        pagination: { limit, offset },
-        filters: { clinicId },
-      }),
+    requests.push({
+      limit: Number(url.searchParams.get("limit") ?? "9"),
+      offset: Number(url.searchParams.get("offset") ?? "0"),
     });
   });
 }
-
-const ADAPTIVE_WINDOW_TOKENS = Array.from({ length: 80 }, (_, index) => ({
-  ...MOCK_TOKENS[index % MOCK_TOKENS.length],
-  id: 20_000 + index,
-  clinicId: 12,
-  reportId: index % 3 === 0 ? 30_000 + index : null,
-  tokenLast4: String(5000 + index),
-  petName: `A03PET${String(index).padStart(4, "0")}`,
-}));
 
 async function waitForStableAdaptiveTokenIds(page: Page): Promise<string[]> {
   return page.evaluate(async () => {
@@ -147,42 +131,6 @@ async function waitForStableAdaptiveTokenIds(page: Page): Promise<string[]> {
     }
 
     throw new Error("admin token adaptive page did not converge within 120 frames");
-  });
-}
-
-const MOCK_TOKENS_SHORT = MOCK_TOKENS.slice(0, 6);
-
-async function mockAdminUsersRolesClinicCatalog(page: Page) {
-  await page.route("**/api/admin/users-roles**", async (route) => {
-    if (route.request().method() !== "GET") {
-      await route.fallback();
-      return;
-    }
-
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        success: true,
-        users: [
-          {
-            userType: "clinic",
-            userId: 601,
-            username: "clinica.doce",
-            role: "clinic_owner",
-            clinicId: 12,
-            clinicName: "Clínica Doce",
-            clinicLocality: "Buenos Aires",
-            createdAt: "2026-05-01T10:00:00.000Z",
-            updatedAt: "2026-05-01T10:00:00.000Z",
-          },
-        ],
-        total: 1,
-        limit: 100,
-        offset: 0,
-        totals: { adminUsers: 0, clinicUsers: 1 },
-      }),
-    });
   });
 }
 
@@ -259,9 +207,8 @@ for (const viewport of MOBILE_VIEWPORTS) {
       height: viewport.height,
     });
 
-    await setAdminSession(page, "default");
-    await mockAdminParticularTokens(page);
-    await mockAdminUsersRolesClinicCatalog(page);
+    await useAdminTokensFixtureDataset(page, "adaptive");
+    await routeAdminTokensClinicCatalog(page);
 
     await page.goto("/dashboard/admin?module=admin-particular-tokens");
 
@@ -407,8 +354,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
     page,
   }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
-    await setAdminSession(page, "default");
-    await mockAdminParticularTokens(page, MOCK_TOKENS);
+    await useAdminTokensFixtureDataset(page, "adaptive");
     await page.goto("/dashboard/admin?module=admin-particular-tokens");
 
     const workspace = page.locator(
@@ -419,8 +365,8 @@ for (const viewport of MOBILE_VIEWPORTS) {
     const items = page.locator(
       '[data-admin-mobile-core-module="tokens"] [data-admin-mobile-core-item="true"]',
     );
-    // MOCK_TOKENS guarantees the first page is entirely full for every measured
-    // mobile cardinality; wait for the settle before reading it.
+    // The adaptive fixture dataset guarantees the first page is entirely full
+    // for every measured mobile cardinality; wait before reading it.
     let settledCount: number | null = null;
     await expect(async () => {
       const current = await items.count();
@@ -444,8 +390,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
     page,
   }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
-    await setAdminSession(page, "default");
-    await mockAdminParticularTokens(page, MOCK_TOKENS_SHORT);
+    await useAdminTokensFixtureDataset(page, "short");
     await page.goto("/dashboard/admin?module=admin-particular-tokens");
 
     const workspace = page.locator(
@@ -497,48 +442,13 @@ for (const viewport of MOBILE_VIEWPORTS) {
   });
 }
 
-async function mockAdminUsersRolesClinics(page: Page) {
-  await page.route("**/api/admin/users-roles**", async (route) => {
-    if (route.request().method() !== "GET") {
-      await route.fallback();
-      return;
-    }
-
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        success: true,
-        users: [
-          {
-            userType: "clinic",
-            userId: 501,
-            username: "clinica.norte",
-            role: "clinic_owner",
-            clinicId: 77,
-            clinicName: "Clínica Norte",
-            clinicLocality: "Rosario",
-            createdAt: "2026-05-01T10:00:00.000Z",
-            updatedAt: "2026-05-01T10:00:00.000Z",
-          },
-        ],
-        total: 1,
-        limit: 100,
-        offset: 0,
-        totals: { adminUsers: 0, clinicUsers: 1 },
-      }),
-    });
-  });
-}
-
 for (const viewport of MOBILE_VIEWPORTS) {
   test(`admin tokens create dialog uses linked-clinic search and short copy — ${viewport.name}`, async ({
     page,
   }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
-    await setAdminSession(page, "default");
-    await mockAdminParticularTokens(page, MOCK_TOKENS_SHORT);
-    await mockAdminUsersRolesClinics(page);
+    await useAdminTokensFixtureDataset(page, "short");
+    await routeAdminTokensClinicCatalog(page);
     await page.goto("/dashboard/admin?module=admin-particular-tokens");
 
     const workspace = page.locator(
@@ -641,13 +551,11 @@ test("admin tokens initial window keeps two complete adaptive pages across the c
     lastSecondId: string;
   }> = [];
   const failures: string[] = [];
-  const knownIds = new Set(ADAPTIVE_WINDOW_TOKENS.map((token) => token.petName));
+  const knownIds = new Set(ADAPTIVE_TOKEN_PET_NAMES);
 
-  await setAdminSession(page, "default");
-  await mockAdminParticularTokens(page, ADAPTIVE_WINDOW_TOKENS, (request) => {
-    requests.push(request);
-  });
-  await mockAdminUsersRolesClinicCatalog(page);
+  await useAdminTokensFixtureDataset(page, "adaptive");
+  observeAdminParticularTokenRequests(page, requests);
+  await routeAdminTokensClinicCatalog(page);
 
   const check = (condition: boolean, message: string) => {
     if (!condition) failures.push(message);
@@ -670,9 +578,7 @@ test("admin tokens initial window keeps two complete adaptive pages across the c
     const limit = firstIds.length;
     const initialRequests = requests.filter((request) => request.offset === 0);
     const initialWindow = initialRequests[0]?.limit ?? 0;
-    const expectedFirstIds = ADAPTIVE_WINDOW_TOKENS.slice(0, limit).map(
-      (token) => token.petName,
-    );
+    const expectedFirstIds = ADAPTIVE_TOKEN_PET_NAMES.slice(0, limit);
 
     check(
       Number.isInteger(limit) && limit > 0,
@@ -704,12 +610,8 @@ test("admin tokens initial window keeps two complete adaptive pages across the c
     }
 
     const secondIds = await waitForStableAdaptiveTokenIds(page);
-    const expectedSecondIds = ADAPTIVE_WINDOW_TOKENS.slice(limit, limit * 2).map(
-      (token) => token.petName,
-    );
-    const offset = ADAPTIVE_WINDOW_TOKENS.findIndex(
-      (token) => token.petName === secondIds[0],
-    );
+    const expectedSecondIds = ADAPTIVE_TOKEN_PET_NAMES.slice(limit, limit * 2);
+    const offset = ADAPTIVE_TOKEN_PET_NAMES.indexOf(secondIds[0]);
     const combinedIds = [...firstIds, ...secondIds];
     const uniqueIds = new Set(combinedIds);
 
