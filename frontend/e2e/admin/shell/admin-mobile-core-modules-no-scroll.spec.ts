@@ -8,7 +8,12 @@ import {
   readDocumentNoScrollContract,
   suppressNextDevIndicator,
 } from "../../helpers/admin-mobile-contracts";
-import { setAdminSession } from "../../helpers/session";
+import { A03_ADAPTIVE_DATASET_COOKIE } from "../../helpers/dashboard-adaptive-limit-matrix";
+import {
+  addAppCookies,
+  sessionCookie,
+  setAdminSession,
+} from "../../helpers/session";
 
 // 40 clinics (R-02): guarantees a page 2 exists for any effectiveLimit <= 36
 // (HY superset cap), same margin used by Sessions/Users/Alerts.
@@ -32,56 +37,6 @@ const MOCK_CLINICS = Array.from({ length: 40 }, (_, index) => {
   };
 });
 
-const REPORT_STAGES = ["sample_received", "processing", "delivered"] as const;
-// R-03: reports pages are now measured (HY cap 36) instead of a fixed 10, so
-// the fixture must have enough rows to fill the tallest measured page and still
-// leave a populated page 2 (same reasoning as the R-02 clinics bump 13 → 40).
-const MOCK_REPORTS = Array.from({ length: 40 }, (_, index) => {
-  const id = 7400 + index;
-  return {
-    id,
-    clinicId: 20 + index,
-    clinicName: `Clínica Informe ${index + 1}`,
-    patientName: `Paciente ${index + 1}`,
-    studyType: "histopatologia",
-    workflowStage: REPORT_STAGES[index % REPORT_STAGES.length],
-    specialStainRequested: index % 4 === 0,
-    fileName: index % 2 === 0 ? `informe-${id}.pdf` : null,
-    uploadDate: "2026-06-10T10:00:00.000Z",
-    createdAt: "2026-06-09T10:00:00.000Z",
-    workflowUpdatedAt: "2026-06-11T10:00:00.000Z",
-  };
-});
-
-// R-05: tokens pages are now measured (OF cap 30) instead of a fixed mobile
-// limit of 10, so the fixture must have enough rows to fill the tallest
-// measured page and still leave a populated page 2 (same reasoning as the
-// R-02 clinics bump 13 → 40 and R-03 reports bump 13 → 40).
-const MOCK_TOKENS = Array.from({ length: 40 }, (_, index) => ({
-  id: 9300 + index,
-  clinicId: 30 + index,
-  reportId: index % 3 === 0 ? 7400 + index : null,
-  tokenLast4: String(5100 + index),
-  tutorLastName: ["Gómez", "Pérez", "Luna"][index % 3],
-  petName: ["Mora", "Simón", "Lola", "Bruno", "Kira", "Toby", "Nina", "Rocco", "Uma"][index % 9],
-  petAge: `${2 + index} años`,
-  petBreed: index % 2 === 0 ? "Mestizo" : "Labrador",
-  petSex: index % 2 === 0 ? "Hembra" : "Macho",
-  petSpecies: index % 2 === 0 ? "Caninos" : "Felinos",
-  sampleLocation: "Piel",
-  sampleEvolution: `${3 + index} semanas`,
-  detailsLesion: "Lesión nodular para evaluación anatomopatológica.",
-  extractionDate: "2026-06-10T10:00:00.000Z",
-  shippingDate: "2026-06-11T10:00:00.000Z",
-  isActive: index !== 7,
-  lastLoginAt: index % 2 === 0 ? "2026-06-17T16:20:00.000Z" : null,
-  createdAt: "2026-06-12T09:15:00.000Z",
-  updatedAt: "2026-06-17T16:20:00.000Z",
-  createdByAdminId: 41,
-  createdByClinicUserId: null,
-  hasLinkedReport: index % 3 === 0,
-}));
-
 async function mockAdminClinics(page: Page) {
   await page.route("**/api/admin/clinics**", async (route) => {
     if (route.request().method() !== "GET") {
@@ -102,49 +57,10 @@ async function mockAdminClinics(page: Page) {
   });
 }
 
-async function mockAdminReportWorkflow(page: Page) {
-  await page.route("**/api/admin/report-workflow**", async (route) => {
-    if (route.request().method() !== "GET") {
-      await route.fallback();
-      return;
-    }
-    const url = new URL(route.request().url());
-    const limit = Number(url.searchParams.get("limit") ?? "9");
-    const offset = Number(url.searchParams.get("offset") ?? "0");
-    const reports = MOCK_REPORTS.slice(offset, offset + limit);
-    await fulfillJson(route, {
-      success: true,
-      reports,
-      pagination: { limit, offset, hasMore: offset + limit < MOCK_REPORTS.length },
-    });
-  });
-}
-
-async function mockAdminParticularTokens(page: Page) {
-  await page.route("**/api/admin/particular-tokens**", async (route) => {
-    const request = route.request();
-    const url = new URL(request.url());
-    if (request.method() !== "GET" || url.pathname !== "/api/admin/particular-tokens") {
-      await route.fallback();
-      return;
-    }
-    const limit = Number(url.searchParams.get("limit") ?? "9");
-    const offset = Number(url.searchParams.get("offset") ?? "0");
-    const particularTokens = MOCK_TOKENS.slice(offset, offset + limit);
-    await fulfillJson(route, {
-      success: true,
-      count: particularTokens.length,
-      particularTokens,
-      pagination: { limit, offset },
-      filters: { clinicId: null },
-    });
-  });
-}
-
 type ModuleSpec = {
   key: "clinics" | "reports" | "tokens";
   moduleId: string;
-  mock: (page: Page) => Promise<void>;
+  mock?: (page: Page) => Promise<void>;
   // Viewport-safe page-size ceiling for this module's mobile list; differs per module.
   maxItemsPerPage: number;
 };
@@ -153,11 +69,24 @@ const MODULES: ModuleSpec[] = [
   // Clinics: R-02 raised the ceiling to the HY superset cap (36); the real
   // guarantee is per-item viewport fit, not a fixed page size.
   { key: "clinics", moduleId: "admin-clinics", mock: mockAdminClinics, maxItemsPerPage: 36 },
-  { key: "reports", moduleId: "admin-report-upload", mock: mockAdminReportWorkflow, maxItemsPerPage: 36 },
+  { key: "reports", moduleId: "admin-report-upload", maxItemsPerPage: 36 },
   // R-05 raised the ceiling to the OF superset cap (30); the real guarantee
   // is per-item viewport fit, not a fixed page size.
-  { key: "tokens", moduleId: "admin-particular-tokens", mock: mockAdminParticularTokens, maxItemsPerPage: 30 },
+  { key: "tokens", moduleId: "admin-particular-tokens", maxItemsPerPage: 30 },
 ];
+
+async function prepareModuleDataset(page: Page, moduleSpec: ModuleSpec) {
+  if (moduleSpec.mock) {
+    await setAdminSession(page, "default");
+    await moduleSpec.mock(page);
+    return;
+  }
+
+  await addAppCookies(page, [
+    sessionCookie("admin", "populated"),
+    A03_ADAPTIVE_DATASET_COOKIE,
+  ]);
+}
 
 for (const moduleSpec of MODULES) {
   for (const viewport of ADMIN_MOBILE_VIEWPORTS) {
@@ -165,8 +94,7 @@ for (const moduleSpec of MODULES) {
       page,
     }) => {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
-      await setAdminSession(page, "default");
-      await moduleSpec.mock(page);
+      await prepareModuleDataset(page, moduleSpec);
       await page.goto(`/dashboard/admin?module=${moduleSpec.moduleId}`);
       await suppressNextDevIndicator(page);
 
@@ -289,10 +217,11 @@ for (const moduleSpec of MODULES) {
 test("Admin mobile core modules reachable from bottom nav and Más menu", async ({ page }) => {
   const viewport = ADMIN_MOBILE_VIEWPORTS[0];
   await page.setViewportSize({ width: viewport.width, height: viewport.height });
-  await setAdminSession(page, "default");
+  await addAppCookies(page, [
+    sessionCookie("admin", "populated"),
+    A03_ADAPTIVE_DATASET_COOKIE,
+  ]);
   await mockAdminClinics(page);
-  await mockAdminReportWorkflow(page);
-  await mockAdminParticularTokens(page);
   await page.goto("/dashboard/admin?hub=1");
   await suppressNextDevIndicator(page);
 
@@ -332,8 +261,10 @@ test("Admin mobile reports pagination advances through measured pages with pager
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await setAdminSession(page, "default");
-  await mockAdminReportWorkflow(page);
+  await addAppCookies(page, [
+    sessionCookie("admin", "populated"),
+    A03_ADAPTIVE_DATASET_COOKIE,
+  ]);
 
   await page.goto("/dashboard/admin?module=admin-report-upload");
   await expect(
@@ -390,8 +321,7 @@ test("Admin mobile reports pagination advances through measured pages with pager
 for (const moduleSpec of MODULES) {
   test(`Admin desktop preserves ${moduleSpec.key} layout at 1280x800`, async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
-    await setAdminSession(page, "default");
-    await moduleSpec.mock(page);
+    await prepareModuleDataset(page, moduleSpec);
     await page.goto(`/dashboard/admin?module=${moduleSpec.moduleId}`);
 
     await expect(
