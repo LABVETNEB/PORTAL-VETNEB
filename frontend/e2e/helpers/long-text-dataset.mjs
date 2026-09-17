@@ -7,7 +7,8 @@
 //   1. `frontend/e2e/fixtures/admin-populated-api-server.mjs`, which serves
 //      them to the SERVER-rendered clinic report surfaces (/dashboard and
 //      /dashboard/informes) — Playwright's `page.route` cannot reach those,
-//      because their fetch never leaves the Next process.
+//      because their fetch never leaves the Next process — and to the admin
+//      particular-tokens, report-workflow and users-roles lists.
 //   2. `frontend/e2e/platform/app-shell/dashboard-detail-text-integrity.spec.ts`,
 //      which asserts the FULL string is present in the DOM.
 //
@@ -19,7 +20,7 @@
 // them is a real patient, tutor, clinic, email or document (AGENTS §9).
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Auxiliary opt-in cookie. Conjunctive with a populated clinic session. */
+/** Auxiliary opt-in cookie. Conjunctive with the populated session of the route's role. */
 export const LONG_TEXT_COOKIE_NAME = "e2e_long_text_overflow";
 export const LONG_TEXT_COOKIE_VALUE = "1";
 
@@ -52,7 +53,7 @@ export const LONG_TEXT_USER_ROLE = Object.freeze({
     "Centro Veterinario Integral de Diagnostico y Seguimiento Los Arrayanes Sede Norte",
 });
 
-/** Client-fetched surfaces (admin tokens, admin reports, clinic tokens). */
+/** Particular token detail (admin tokens via the fixture, clinic tokens via page.route). */
 export const LONG_TEXT_TOKEN = Object.freeze({
   petName:
     "Maximiliano Bartolome de la Concepcion Rodriguez Etchegaray Villalobos Jauregui",

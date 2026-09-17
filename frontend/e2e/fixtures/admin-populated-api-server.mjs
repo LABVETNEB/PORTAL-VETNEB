@@ -4,12 +4,17 @@ import { createServer } from "node:http";
 // The truncation audit must observe what a LONG clinical value does to the
 // clinic report surfaces, and those two (/dashboard and /dashboard/informes)
 // are rendered by SERVER components: their payload never leaves the Next
-// process, so Playwright's `page.route` cannot substitute it. The gate is
-// `hasLongTextDataset` below, strictly conjunctive like the A03 one.
+// process, so Playwright's `page.route` cannot substitute it. The admin
+// particular-tokens, report-workflow and users-roles lists take the same
+// values from here too, so this file is their only payload owner (LIMPIEZA E2E
+// R-02 §23). The gates are `hasLongTextDataset` and `hasAdminLongTextDataset`
+// below, strictly conjunctive like the A03 one.
 import {
   LONG_TEXT_CLINIC_REPORT,
   LONG_TEXT_COOKIE_NAME,
   LONG_TEXT_COOKIE_VALUE,
+  LONG_TEXT_TOKEN,
+  LONG_TEXT_USER_ROLE,
 } from "../helpers/long-text-dataset.mjs";
 
 const HOST = "127.0.0.1";
@@ -949,19 +954,42 @@ function hasA03AdaptiveDataset(request) {
     .includes(`${A03_ADAPTIVE_COOKIE_NAME}=${A03_ADAPTIVE_COOKIE_VALUE}`);
 }
 
-/**
- * PR-TRUNC opt-in gate. Conjunctive exactly like {@link hasA03AdaptiveDataset}:
- * the auxiliary cookie ALONE never activates the long-text dataset.
- */
-function hasLongTextDataset(request) {
-  if (!hasPopulatedClinicSession(request)) {
-    return false;
-  }
-
+function hasLongTextCookie(request) {
   return (request.headers.cookie ?? "")
     .split(";")
     .map((cookie) => cookie.trim())
     .includes(`${LONG_TEXT_COOKIE_NAME}=${LONG_TEXT_COOKIE_VALUE}`);
+}
+
+/**
+ * PR-TRUNC opt-in gates. Conjunctive exactly like {@link hasA03AdaptiveDataset}:
+ * the auxiliary cookie ALONE never activates the long-text dataset; each gate
+ * also requires the populated session of the role that owns its routes.
+ */
+function hasLongTextDataset(request) {
+  return hasPopulatedClinicSession(request) && hasLongTextCookie(request);
+}
+
+function hasAdminLongTextDataset(request) {
+  return hasPopulatedAdminSession(request) && hasLongTextCookie(request);
+}
+
+/**
+ * Admin counterpart of {@link withLongClinicReportText}: under the admin gate,
+ * the FIRST record of a page matching `isTarget` takes the long synthetic
+ * values and keeps every other field. Without the gate the page is returned
+ * untouched, so the default payload stays byte-identical.
+ */
+function withAdminLongText(request, records, longText, isTarget = () => true) {
+  const target = hasAdminLongTextDataset(request) ? records.findIndex(isTarget) : -1;
+
+  if (target === -1) {
+    return records;
+  }
+
+  return records.map((record, index) =>
+    index === target ? { ...record, ...longText } : record,
+  );
 }
 
 /**
@@ -1117,7 +1145,11 @@ function handlePopulatedRequest(request, response, url) {
     const filteredTokens = clinicId
       ? TOKENS.filter((token) => token.clinicId === clinicId)
       : TOKENS;
-    const particularTokens = filteredTokens.slice(offset, offset + limit);
+    const particularTokens = withAdminLongText(
+      request,
+      filteredTokens.slice(offset, offset + limit),
+      LONG_TEXT_TOKEN,
+    );
 
     sendJson(response, 200, {
       success: true,
@@ -1134,7 +1166,11 @@ function handlePopulatedRequest(request, response, url) {
     const offset = Number(url.searchParams.get("offset") ?? 0);
     sendJson(response, 200, {
       success: true,
-      reports: REPORTS.slice(offset, offset + limit),
+      reports: withAdminLongText(
+        request,
+        REPORTS.slice(offset, offset + limit),
+        LONG_TEXT_CLINIC_REPORT,
+      ),
       pagination: { limit, offset, hasMore: offset + limit < REPORTS.length },
     });
     return;
@@ -1148,7 +1184,14 @@ function handlePopulatedRequest(request, response, url) {
 
     sendJson(response, 200, {
       success: true,
-      users: filteredUsers.slice(offset, offset + limit),
+      // Admin users carry no clinic, so the long clinic user is the page's
+      // first clinic user.
+      users: withAdminLongText(
+        request,
+        filteredUsers.slice(offset, offset + limit),
+        LONG_TEXT_USER_ROLE,
+        (user) => user.userType === "clinic",
+      ),
       total,
       totalPages,
       limit,
