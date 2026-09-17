@@ -25,35 +25,6 @@ const MOCK_SESSIONS = Array.from({ length: 40 }, (_, index) => ({
   status: index % 4 === 0 ? ("expired" as const) : ("active" as const),
 }));
 
-// PR-SRV-2: users is adaptive (measured cardinality, superset cap 36). The
-// fixture stays larger than any effective mobile limit so page 2 always exists.
-const MOCK_USERS = Array.from({ length: 40 }, (_, index) => {
-  if (index === 0) {
-    return {
-      userType: "admin" as const,
-      userId: 41,
-      username: "admin_operaciones",
-      role: "admin" as const,
-      clinicId: null,
-      clinicName: null,
-      createdAt: "2026-01-10T10:00:00.000Z",
-      updatedAt: "2026-06-18T12:00:00.000Z",
-    };
-  }
-
-  return {
-    userType: "clinic" as const,
-    userId: 9100 + index,
-    username: `usuario_clinica_${index}`,
-    role: index % 2 === 0 ? ("clinic_owner" as const) : ("clinic_staff" as const),
-    clinicId: 120 + index,
-    clinicName: `Clínica Operativa ${index}`,
-    clinicLocality: "Buenos Aires",
-    createdAt: "2026-02-10T10:00:00.000Z",
-    updatedAt: "2026-06-18T12:00:00.000Z",
-  };
-});
-
 type OpsModule = {
   key: "audit" | "sessions" | "users";
   moduleId: "audit-log" | "admin-sessions" | "admin-users-roles";
@@ -122,16 +93,8 @@ async function mockOpsApis(page: Page) {
       return;
     }
 
-    const limit = Number(url.searchParams.get("limit") ?? "9");
-    const offset = Number(url.searchParams.get("offset") ?? "0");
-    await fulfillJson(route, {
-      success: true,
-      users: MOCK_USERS.slice(offset, offset + limit),
-      total: MOCK_USERS.length,
-      limit,
-      offset,
-      totals: { adminUsers: 1, clinicUsers: 39 },
-    });
+    url.searchParams.set("dataset", "high-volume");
+    await route.continue({ url: url.toString() });
   });
 }
 
