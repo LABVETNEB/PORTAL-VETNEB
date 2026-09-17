@@ -265,9 +265,6 @@ export const A03_ADAPTIVE_DATASET_COOKIE = Object.freeze({
 
 const FIXED_CREATED_AT = "2026-06-12T09:15:00.000Z";
 const FIXED_UPDATED_AT = "2026-06-17T16:20:00.000Z";
-const FIXED_EXTRACTION_AT = "2026-06-10T10:00:00.000Z";
-const FIXED_SHIPPING_AT = "2026-06-11T10:00:00.000Z";
-const FIXED_UPLOAD_AT = "2026-06-15T12:00:00.000Z";
 const FIXED_LAST_ACCESS = "2026-06-17T18:45:00.000Z";
 const FIXED_EXPIRES_AT = "2026-07-17T18:45:00.000Z";
 
@@ -276,19 +273,11 @@ export const A03_DEEP_DATASET_SIZE = 400;
 
 const pad4 = (value: number) => String(value).padStart(4, "0");
 
-const A03_REPORT_STAGES = [
-  "sample_received",
-  "processing",
-  "evaluation",
-  "report_development",
-  "delivered",
-] as const;
-
 /**
- * Ordered synthetic tokens. `tokenLast4` is the zero-padded ordinal, so the
- * rendered `****NNNN` IS the ordered fixture identifier.
+ * Ordered synthetic clinic tokens. The admin route now gets its A03 payload
+ * from the shared fixture and reads its independent ordered ids from there.
  */
-export const A03_TOKENS = Array.from({ length: A03_DEEP_DATASET_SIZE }, (_, index) => ({
+export const A03_CLINIC_TOKENS = Array.from({ length: A03_DEEP_DATASET_SIZE }, (_, index) => ({
   id: 90_000 + index,
   clinicId: 12 + (index % 20),
   reportId: index % 3 === 0 ? 70_000 + index : null,
@@ -302,8 +291,8 @@ export const A03_TOKENS = Array.from({ length: A03_DEEP_DATASET_SIZE }, (_, inde
   sampleLocation: "Piel",
   sampleEvolution: `${3 + (index % 8)} semanas`,
   detailsLesion: "Lesión nodular sintética para observación adaptativa.",
-  extractionDate: FIXED_EXTRACTION_AT,
-  shippingDate: FIXED_SHIPPING_AT,
+  extractionDate: "2026-06-10T10:00:00.000Z",
+  shippingDate: "2026-06-11T10:00:00.000Z",
   isActive: index % 7 !== 0,
   lastLoginAt: index % 2 === 0 ? FIXED_UPDATED_AT : null,
   createdAt: FIXED_CREATED_AT,
@@ -312,24 +301,6 @@ export const A03_TOKENS = Array.from({ length: A03_DEEP_DATASET_SIZE }, (_, inde
   createdByClinicUserId: null,
   hasLinkedReport: index % 3 === 0,
 }));
-
-export const A03_REPORT_WORKFLOW = Array.from(
-  { length: A03_DEEP_DATASET_SIZE },
-  (_, index) => ({
-    id: 71_000 + index,
-    clinicId: 12 + (index % 20),
-    clinicName: `Clinica A03 ${pad4(index)}`,
-    patientName: `Paciente A03 ${pad4(index)}`,
-    fileName: `informe-a03-${pad4(index)}.pdf`,
-    studyType: index % 2 === 0 ? "histopatologia" : "citologia",
-    uploadDate: FIXED_UPLOAD_AT,
-    createdAt: FIXED_CREATED_AT,
-    workflowStage: A03_REPORT_STAGES[index % A03_REPORT_STAGES.length],
-    specialStainRequested: index % 11 === 0,
-    specialStainAt: index % 11 === 0 ? FIXED_UPDATED_AT : null,
-    workflowUpdatedAt: FIXED_UPDATED_AT,
-  }),
-);
 
 export const A03_CLINICS = Array.from({ length: A03_DEEP_DATASET_SIZE }, (_, index) => {
   const clinicId = 60_000 + index;
@@ -452,30 +423,13 @@ type StubDefinition = {
   readonly body: (url: URL) => unknown;
 };
 
-const STUB_TOKENS: StubDefinition = {
-  urlPattern: "**/api/admin/particular-tokens**",
-  pathname: "/api/admin/particular-tokens",
-  method: "GET",
-  body: (url) => {
-    const { limit, offset } = readWindow(url, A03_TOKENS.length, 9);
-    const particularTokens = A03_TOKENS.slice(offset, offset + limit);
-    return {
-      success: true,
-      count: particularTokens.length,
-      particularTokens,
-      pagination: { limit, offset },
-      filters: { clinicId: null },
-    };
-  },
-};
-
 const STUB_CLINIC_TOKENS: StubDefinition = {
   urlPattern: "**/api/particular-tokens**",
   pathname: "/api/particular-tokens",
   method: "GET",
   body: (url) => {
-    const { limit, offset } = readWindow(url, A03_TOKENS.length, 9);
-    const particularTokens = A03_TOKENS.slice(offset, offset + limit);
+    const { limit, offset } = readWindow(url, A03_CLINIC_TOKENS.length, 9);
+    const particularTokens = A03_CLINIC_TOKENS.slice(offset, offset + limit);
     return {
       success: true,
       count: particularTokens.length,
@@ -492,21 +446,6 @@ const STUB_STUDY_TRACKING: StubDefinition = {
   body: (url) => {
     const { limit, offset } = readWindow(url, 0, 20);
     return { success: true, count: 0, trackingCases: [], pagination: { limit, offset } };
-  },
-};
-
-const STUB_REPORT_WORKFLOW: StubDefinition = {
-  urlPattern: "**/api/admin/report-workflow**",
-  pathname: "/api/admin/report-workflow",
-  method: "GET",
-  body: (url) => {
-    const total = A03_REPORT_WORKFLOW.length;
-    const { limit, offset } = readWindow(url, total, 9);
-    return {
-      success: true,
-      reports: A03_REPORT_WORKFLOW.slice(offset, offset + limit),
-      pagination: { limit, offset, hasMore: offset + limit < total },
-    };
   },
 };
 
@@ -992,6 +931,15 @@ const clinicReportIds: OrderedIdsProvider = async (page) => {
   return reports.map((report) => String(report.id));
 };
 
+const adminTokenIds: OrderedIdsProvider = async (page) => {
+  const payload = await fixtureJson(
+    page,
+    "/api/admin/particular-tokens?limit=100&offset=0",
+  );
+  const tokens = (payload.particularTokens ?? []) as { tokenLast4: string }[];
+  return tokens.map((token) => token.tokenLast4);
+};
+
 const fieldVisitClinicNames: OrderedIdsProvider = async (page) => {
   const payload = await fixtureJson(page, "/api/logistics/field-visits");
   const fieldVisits = (payload.fieldVisits ?? []) as {
@@ -1176,8 +1124,8 @@ export const A03_OBSERVERS: Readonly<Record<A03ModuleId, ModuleObserver>> = Obje
     source: "server-request",
     transport: "http",
     requestPathname: "/api/admin/report-workflow",
-    cookies: [A03_ADMIN_SESSION_COOKIE],
-    stubs: [STUB_REPORT_WORKFLOW],
+    cookies: [A03_ADMIN_SESSION_COOKIE, A03_ADAPTIVE_DATASET_COOKIE],
+    stubs: [],
     leaves: [
       {
         variantId: null,
@@ -1196,10 +1144,10 @@ export const A03_OBSERVERS: Readonly<Record<A03ModuleId, ModuleObserver>> = Obje
   "admin-particular-tokens": {
     moduleId: "admin-particular-tokens",
     source: "client-slice",
-    cookies: [A03_ADMIN_SESSION_COOKIE],
-    stubs: [STUB_TOKENS],
+    cookies: [A03_ADMIN_SESSION_COOKIE, A03_ADAPTIVE_DATASET_COOKIE],
+    stubs: [],
     rowIdentity: { kind: "text", pattern: /\*{4}(\d{4})/ },
-    orderedIds: staticIds(A03_TOKENS.map((token) => token.tokenLast4)),
+    orderedIds: adminTokenIds,
     leaves: [
       {
         variantId: null,
@@ -1446,7 +1394,7 @@ export const A03_OBSERVERS: Readonly<Record<A03ModuleId, ModuleObserver>> = Obje
     cookies: [A03_CLINIC_SESSION_COOKIE],
     stubs: [STUB_CLINIC_TOKENS, STUB_STUDY_TRACKING],
     rowIdentity: { kind: "text", pattern: /\*{4}(\d{4})/ },
-    orderedIds: staticIds(A03_TOKENS.map((token) => token.tokenLast4)),
+    orderedIds: staticIds(A03_CLINIC_TOKENS.map((token) => token.tokenLast4)),
     leaves: [
       {
         variantId: null,

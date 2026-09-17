@@ -33,14 +33,15 @@ const POPULATED_CLINIC_SESSION = "e2e_populated_clinic_session";
 // process, never the browser.
 //
 // This opt-in branch is the only way to make that observation point reachable
-// without touching `frontend/src/**`. It requires BOTH a populated clinic
-// session AND the auxiliary cookie below, so every existing consumer — A01,
-// A02 and the whole current suite — keeps receiving byte-identical historical
-// payloads. Presence of the auxiliary cookie alone never activates it.
+// without touching `frontend/src/**`. Each route requires BOTH its populated
+// role session AND the auxiliary cookie below, so every existing consumer keeps
+// receiving byte-identical historical payloads. Presence of the auxiliary
+// cookie alone never activates it.
 // ─────────────────────────────────────────────────────────────────────────────
 const A03_ADAPTIVE_COOKIE_NAME = "e2e_a03_adaptive_pagination";
 const A03_ADAPTIVE_COOKIE_VALUE = "1";
 const A03_DATASET_SIZE = 256;
+const A03_ADMIN_DATASET_SIZE = 40;
 
 const CLINIC_REPORT_STATUSES = [
   "uploaded",
@@ -356,6 +357,63 @@ const A03_ROUTE_METRICS_BY_PLAN_ID = Object.fromEntries(
         averageDurationMinutes: 30 + (plan.id % 30),
       },
     ];
+  }),
+);
+
+const A03_ADMIN_REPORT_STAGES = [
+  "sample_received",
+  "processing",
+  "delivered",
+];
+
+const A03_ADMIN_REPORTS = Array.from(
+  { length: A03_ADMIN_DATASET_SIZE },
+  (_, index) => {
+    const id = 7400 + index;
+    return {
+      id,
+      clinicId: 20 + index,
+      clinicName: `Clínica Informe ${index + 1}`,
+      patientName: `Paciente ${index + 1}`,
+      studyType: "histopatologia",
+      workflowStage:
+        A03_ADMIN_REPORT_STAGES[index % A03_ADMIN_REPORT_STAGES.length],
+      specialStainRequested: index % 4 === 0,
+      fileName: index % 2 === 0 ? `informe-${id}.pdf` : null,
+      uploadDate: "2026-06-10T10:00:00.000Z",
+      createdAt: "2026-06-09T10:00:00.000Z",
+      workflowUpdatedAt: "2026-06-11T10:00:00.000Z",
+    };
+  },
+);
+
+const A03_ADMIN_TOKENS = Array.from(
+  { length: A03_ADMIN_DATASET_SIZE },
+  (_, index) => ({
+    id: 9300 + index,
+    clinicId: 30 + index,
+    reportId: index % 3 === 0 ? 7400 + index : null,
+    tokenLast4: String(5100 + index),
+    tutorLastName: ["Gómez", "Pérez", "Luna"][index % 3],
+    petName: ["Mora", "Simón", "Lola", "Bruno", "Kira", "Toby", "Nina", "Rocco", "Uma"][
+      index % 9
+    ],
+    petAge: `${2 + index} años`,
+    petBreed: index % 2 === 0 ? "Mestizo" : "Labrador",
+    petSex: index % 2 === 0 ? "Hembra" : "Macho",
+    petSpecies: index % 2 === 0 ? "Caninos" : "Felinos",
+    sampleLocation: "Piel",
+    sampleEvolution: `${3 + index} semanas`,
+    detailsLesion: "Lesión nodular para evaluación anatomopatológica.",
+    extractionDate: "2026-06-10T10:00:00.000Z",
+    shippingDate: "2026-06-11T10:00:00.000Z",
+    isActive: index !== 7,
+    lastLoginAt: index % 2 === 0 ? "2026-06-17T16:20:00.000Z" : null,
+    createdAt: "2026-06-12T09:15:00.000Z",
+    updatedAt: "2026-06-17T16:20:00.000Z",
+    createdByAdminId: 41,
+    createdByClinicUserId: null,
+    hasLinkedReport: index % 3 === 0,
   }),
 );
 
@@ -954,6 +1012,16 @@ function hasA03AdaptiveDataset(request) {
     .includes(`${A03_ADAPTIVE_COOKIE_NAME}=${A03_ADAPTIVE_COOKIE_VALUE}`);
 }
 
+function hasA03AdaptiveAdminDataset(request) {
+  return (
+    hasPopulatedAdminSession(request) &&
+    (request.headers.cookie ?? "")
+      .split(";")
+      .map((cookie) => cookie.trim())
+      .includes(`${A03_ADAPTIVE_COOKIE_NAME}=${A03_ADAPTIVE_COOKIE_VALUE}`)
+  );
+}
+
 function hasLongTextCookie(request) {
   return (request.headers.cookie ?? "")
     .split(";")
@@ -1142,9 +1210,12 @@ function handlePopulatedRequest(request, response, url) {
     const offset = Number(url.searchParams.get("offset") ?? 0);
     const clinicIdValue = url.searchParams.get("clinicId");
     const clinicId = clinicIdValue ? Number(clinicIdValue) : null;
-    const filteredTokens = clinicId
-      ? TOKENS.filter((token) => token.clinicId === clinicId)
+    const tokenDataset = hasA03AdaptiveAdminDataset(request)
+      ? A03_ADMIN_TOKENS
       : TOKENS;
+    const filteredTokens = clinicId
+      ? tokenDataset.filter((token) => token.clinicId === clinicId)
+      : tokenDataset;
     const particularTokens = withAdminLongText(
       request,
       filteredTokens.slice(offset, offset + limit),
@@ -1164,14 +1235,21 @@ function handlePopulatedRequest(request, response, url) {
   if (url.pathname === "/api/admin/report-workflow") {
     const limit = Number(url.searchParams.get("limit") ?? 9);
     const offset = Number(url.searchParams.get("offset") ?? 0);
+    const reportDataset = hasA03AdaptiveAdminDataset(request)
+      ? A03_ADMIN_REPORTS
+      : REPORTS;
     sendJson(response, 200, {
       success: true,
       reports: withAdminLongText(
         request,
-        REPORTS.slice(offset, offset + limit),
+        reportDataset.slice(offset, offset + limit),
         LONG_TEXT_CLINIC_REPORT,
       ),
-      pagination: { limit, offset, hasMore: offset + limit < REPORTS.length },
+      pagination: {
+        limit,
+        offset,
+        hasMore: offset + limit < reportDataset.length,
+      },
     });
     return;
   }
