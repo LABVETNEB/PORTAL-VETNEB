@@ -1,98 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { setAdminSession, setClinicSession } from "../../helpers/session";
 
-type Page = import("@playwright/test").Page;
-
-// ─── Mock helpers ─────────────────────────────────────────────────────────────
-
-const MOCK_E2E_TOKEN = {
-  id: 9001,
-  clinicId: 42,
-  reportId: null,
-  tokenLast4: "E2ET",
-  tutorLastName: "Apellido E2E",
-  petName: "Paciente E2E",
-  petAge: "2 años",
-  petBreed: "Mestizo",
-  petSex: "Macho",
-  petSpecies: "Caninos",
-  sampleLocation: "Cuello",
-  sampleEvolution: "Normal",
-  detailsLesion: null,
-  extractionDate: "2024-01-01T00:00:00.000Z",
-  shippingDate: "2024-01-01T00:00:00.000Z",
-  isActive: true,
-  lastLoginAt: null,
-  createdAt: "2024-01-01T00:00:00.000Z",
-  updatedAt: "2024-01-01T00:00:00.000Z",
-  createdByAdminId: 1,
-  createdByClinicUserId: null,
-  hasLinkedReport: false,
-};
-
-async function mockParticularTokensApi(page: Page) {
-  await page.route(
-    (url) => url.pathname === "/api/admin/particular-tokens",
-    async (route) => {
-      if (route.request().method() === "GET") {
-        await route.fulfill({
-          status: 200,
-          contentType: "application/json",
-          body: JSON.stringify({
-            success: true,
-            count: 1,
-            particularTokens: [MOCK_E2E_TOKEN],
-            pagination: { limit: 10, offset: 0 },
-            filters: { clinicId: null },
-          }),
-        });
-      } else {
-        await route.continue();
-      }
-    },
-  );
-
-  await page.route(
-    (url) => url.pathname === "/api/admin/study-tracking",
-    async (route) => {
-      if (route.request().method() === "GET") {
-        await route.fulfill({
-          status: 200,
-          contentType: "application/json",
-          body: JSON.stringify({
-            success: true,
-            count: 0,
-            trackingCases: [],
-            pagination: { limit: 1, offset: 0 },
-            filters: {},
-          }),
-        });
-      } else {
-        await route.continue();
-      }
-    },
-  );
-
-  await page.route(
-    (url) => url.pathname === "/api/admin/users-roles",
-    async (route) => {
-      if (route.request().method() === "GET") {
-        await route.fulfill({
-          status: 200,
-          contentType: "application/json",
-          body: JSON.stringify({
-            success: true,
-            users: [],
-            total: 0,
-          }),
-        });
-      } else {
-        await route.continue();
-      }
-    },
-  );
-}
-
 // ─── FilterDrawer ─────────────────────────────────────────────────────────────
 
 test.describe("Informes compact filters — keyboard & a11y", () => {
@@ -129,8 +37,7 @@ test.describe("Informes compact filters — keyboard & a11y", () => {
 
 test.describe("Admin token workspace — upload removed from token list", () => {
   test.beforeEach(async ({ page }) => {
-    await mockParticularTokensApi(page);
-    await setAdminSession(page, "default");
+    await setAdminSession(page, "populated");
     await page.goto("/dashboard/admin?module=admin-particular-tokens");
     await expect(page.locator("main.dashboard-main")).toBeVisible({
       timeout: 8_000,

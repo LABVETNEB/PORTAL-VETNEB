@@ -106,10 +106,8 @@ const DECLARED_DIVERGENCES: Readonly<Record<string, Divergence>> = {
 // architecture (client-component fetches reach the fixture through the Next
 // rewrite, and page.route cannot see server-component fetches); the set may
 // only shrink, and removing it is a separate test-only scope.
-const ACCESSIBILITY_KEYBOARD = "frontend/e2e/platform/accessibility/dashboard-accessibility-keyboard.spec.ts";
 const ADAPTIVE_LIMIT_MATRIX = "frontend/e2e/helpers/dashboard-adaptive-limit-matrix.ts";
 const ADMIN_MOBILE_CORE = "frontend/e2e/admin/shell/admin-mobile-core-modules-no-scroll.spec.ts";
-const ADMIN_MOBILE_OPS = "frontend/e2e/admin/shell/admin-mobile-ops-modules-no-scroll.spec.ts";
 const ADMIN_TOKENS_TOOLBAR = "frontend/e2e/admin/tokens/admin-tokens-mobile-toolbar-layout.spec.ts";
 const DETAIL_TEXT_INTEGRITY = "frontend/e2e/platform/app-shell/dashboard-detail-text-integrity.spec.ts";
 const VISUAL_STRESS = "frontend/e2e/regression/visual/visual-regression-stress.spec.ts";
@@ -125,7 +123,6 @@ const LEGACY_DOUBLE_DECLARATIONS: Readonly<Record<string, readonly string[]>> = 
     ADMIN_MOBILE_CORE,
     ADMIN_TOKENS_TOOLBAR,
     ADAPTIVE_LIMIT_MATRIX,
-    ACCESSIBILITY_KEYBOARD,
     DETAIL_TEXT_INTEGRITY,
     VISUAL_STRESS,
   ],
@@ -133,9 +130,7 @@ const LEGACY_DOUBLE_DECLARATIONS: Readonly<Record<string, readonly string[]>> = 
   "GET /api/admin/study-tracking/notifications": [VISUAL_STRESS],
   "GET /api/admin/system/health": [VISUAL_STRESS],
   "GET /api/admin/users-roles": [
-    ADMIN_MOBILE_OPS,
     ADMIN_TOKENS_TOOLBAR,
-    ACCESSIBILITY_KEYBOARD,
     DETAIL_TEXT_INTEGRITY,
     VISUAL_STRESS,
   ],
