@@ -109,7 +109,6 @@ const DECLARED_DIVERGENCES: Readonly<Record<string, Divergence>> = {
 const ADAPTIVE_LIMIT_MATRIX = "frontend/e2e/helpers/dashboard-adaptive-limit-matrix.ts";
 const ADMIN_MOBILE_CORE = "frontend/e2e/admin/shell/admin-mobile-core-modules-no-scroll.spec.ts";
 const ADMIN_TOKENS_TOOLBAR = "frontend/e2e/admin/tokens/admin-tokens-mobile-toolbar-layout.spec.ts";
-const DETAIL_TEXT_INTEGRITY = "frontend/e2e/platform/app-shell/dashboard-detail-text-integrity.spec.ts";
 const VISUAL_STRESS = "frontend/e2e/regression/visual/visual-regression-stress.spec.ts";
 
 const LEGACY_DOUBLE_DECLARATIONS: Readonly<Record<string, readonly string[]>> = {
@@ -119,21 +118,11 @@ const LEGACY_DOUBLE_DECLARATIONS: Readonly<Record<string, readonly string[]>> = 
   "ANY /api/reports": [VISUAL_STRESS],
   "ANY /api/reports/search": [VISUAL_STRESS],
   "GET /api/admin/audit-log": [VISUAL_STRESS],
-  "GET /api/admin/particular-tokens": [
-    ADMIN_MOBILE_CORE,
-    ADMIN_TOKENS_TOOLBAR,
-    ADAPTIVE_LIMIT_MATRIX,
-    DETAIL_TEXT_INTEGRITY,
-    VISUAL_STRESS,
-  ],
-  "GET /api/admin/report-workflow": [ADMIN_MOBILE_CORE, ADAPTIVE_LIMIT_MATRIX, DETAIL_TEXT_INTEGRITY, VISUAL_STRESS],
+  "GET /api/admin/particular-tokens": [ADMIN_MOBILE_CORE, ADMIN_TOKENS_TOOLBAR, ADAPTIVE_LIMIT_MATRIX, VISUAL_STRESS],
+  "GET /api/admin/report-workflow": [ADMIN_MOBILE_CORE, ADAPTIVE_LIMIT_MATRIX, VISUAL_STRESS],
   "GET /api/admin/study-tracking/notifications": [VISUAL_STRESS],
   "GET /api/admin/system/health": [VISUAL_STRESS],
-  "GET /api/admin/users-roles": [
-    ADMIN_TOKENS_TOOLBAR,
-    DETAIL_TEXT_INTEGRITY,
-    VISUAL_STRESS,
-  ],
+  "GET /api/admin/users-roles": [ADMIN_TOKENS_TOOLBAR, VISUAL_STRESS],
 };
 
 // ── Workspace (real tree + in-memory overrides) ──────────────────────────────

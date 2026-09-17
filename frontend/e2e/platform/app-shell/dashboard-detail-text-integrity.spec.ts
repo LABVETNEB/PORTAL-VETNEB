@@ -41,10 +41,11 @@ import { addAppCookies, setSession } from "../../helpers/session";
 //      does not push the shell (A08 stays at zero).
 //
 // The long values are synthetic (AGENTS §9): no real patient, tutor, clinic,
-// email or document. Client-fetched surfaces get them through `page.route`; the
-// SERVER-rendered clinic report surfaces get them through the fixture's
+// email or document. The surfaces the shared fixture serves (clinic reports and
+// the admin tokens, report workflow and users lists) get them through its
 // conjunctive `e2e_long_text_overflow` opt-in, which leaves every other
-// consumer's payload byte-identical.
+// consumer's payload byte-identical; the two it does not serve (admin failed
+// logins, clinic tokens) get them through `page.route`.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const TOLERANCE = 2;
@@ -256,42 +257,7 @@ test.describe("admin particular tokens detail keeps every clinical value", () =>
   for (const vp of VIEWPORTS) {
     test(`full text and no hidden glyphs at ${vp.slug}`, async ({ page }) => {
       await setSession(page, "admin", "populated");
-      await page.route("**/api/admin/particular-tokens**", async (route) => {
-        await route.fulfill({
-          json: {
-            success: true,
-            count: 1,
-            particularTokens: [
-              {
-                id: 9101,
-                clinicId: 12,
-                reportId: null,
-                tokenLast4: "4201",
-                tutorLastName: "Gomez",
-                petName: LONG_TEXT_TOKEN.petName,
-                petAge: "3 anos",
-                petBreed: LONG_TEXT_TOKEN.petBreed,
-                petSex: "female",
-                petSpecies: "canine",
-                sampleLocation: LONG_TEXT_TOKEN.sampleLocation,
-                sampleEvolution: LONG_TEXT_TOKEN.sampleEvolution,
-                detailsLesion: LONG_TEXT_TOKEN.detailsLesion,
-                extractionDate: "2026-06-10T10:00:00.000Z",
-                shippingDate: "2026-06-11T10:00:00.000Z",
-                isActive: true,
-                lastLoginAt: null,
-                createdAt: "2026-06-12T09:15:00.000Z",
-                updatedAt: "2026-06-17T16:20:00.000Z",
-                createdByAdminId: 41,
-                createdByClinicUserId: null,
-                hasLinkedReport: false,
-              },
-            ],
-            pagination: { limit: 50, offset: 0 },
-            filters: { clinicId: null },
-          },
-        });
-      });
+      await enableLongTextFixture(page);
 
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/dashboard/admin?module=admin-particular-tokens");
@@ -323,30 +289,7 @@ test.describe("admin report detail keeps patient, study and file name", () => {
   for (const vp of VIEWPORTS) {
     test(`full text and no hidden glyphs at ${vp.slug}`, async ({ page }) => {
       await setSession(page, "admin", "populated");
-      await page.route("**/api/admin/report-workflow**", async (route) => {
-        await route.fulfill({
-          json: {
-            success: true,
-            reports: [
-              {
-                id: 7301,
-                clinicId: 12,
-                clinicName: LONG_TEXT_CLINIC_REPORT.clinicName,
-                patientName: LONG_TEXT_CLINIC_REPORT.patientName,
-                fileName: LONG_TEXT_CLINIC_REPORT.fileName,
-                studyType: LONG_TEXT_CLINIC_REPORT.studyType,
-                uploadDate: "2026-06-17T12:00:00.000Z",
-                createdAt: "2026-06-08T09:00:00.000Z",
-                workflowStage: "processing",
-                specialStainRequested: false,
-                specialStainAt: null,
-                workflowUpdatedAt: "2026-06-18T11:00:00.000Z",
-              },
-            ],
-            pagination: { limit: 50, offset: 0, hasMore: false },
-          },
-        });
-      });
+      await enableLongTextFixture(page);
 
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/dashboard/admin?module=admin-report-upload");
@@ -445,37 +388,14 @@ test.describe("admin failed login detail discloses the whole user agent", () => 
 // Same shape as the failed-login case: the ROW legitimately truncates the user
 // name and the clinic name (pitch-locked table), and the DIALOG is the half of
 // the contract that has to render them whole. `title` was rejected as the
-// mechanism, so this drives the real trigger with the keyboard.
+// mechanism, so this drives the real trigger with the keyboard. The fixture
+// page opens with an admin user (no clinic), so the trigger is the one named
+// after the long clinic user, not the first one.
 test.describe("admin users and roles detail discloses user and clinic", () => {
   for (const vp of VIEWPORTS) {
     test(`full text and no hidden glyphs at ${vp.slug}`, async ({ page }) => {
       await setSession(page, "admin", "populated");
-      await page.route("**/api/admin/users-roles**", async (route) => {
-        await route.fulfill({
-          json: {
-            success: true,
-            users: [
-              {
-                userType: "clinic",
-                userId: 4101,
-                username: LONG_TEXT_USER_ROLE.username,
-                role: "clinic_admin",
-                clinicId: 77,
-                clinicName: LONG_TEXT_USER_ROLE.clinicName,
-                clinicLocality: "Ciudad Autonoma de Buenos Aires",
-                createdAt: "2026-01-05T09:00:00.000Z",
-                updatedAt: "2026-02-10T15:30:00.000Z",
-              },
-            ],
-            total: 1,
-            totalPages: 1,
-            limit: 25,
-            offset: 0,
-            totals: { admin: 0, clinic: 1 },
-            checkedBy: { adminUserId: 41, username: "admin_operaciones" },
-          },
-        });
-      });
+      await enableLongTextFixture(page);
 
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/dashboard/admin?module=admin-users-roles");
@@ -483,7 +403,10 @@ test.describe("admin users and roles detail discloses user and clinic", () => {
       // The card mounts a desktop table AND a mobile list; only one is visible
       // per viewport, so the locator must filter by visibility, never by order.
       const trigger = page
-        .getByRole("button", { name: /Ver detalle del usuario/i })
+        .getByRole("button", {
+          name: `Ver detalle del usuario ${LONG_TEXT_USER_ROLE.username}`,
+          exact: true,
+        })
         .locator("visible=true")
         .first();
       await trigger.waitFor({ state: "visible" });
