@@ -1444,11 +1444,11 @@ export async function getLogisticsFieldVisits(
     }
 
     const qs = query.toString();
-    const res = await apiFetch<{ visits: FieldVisit[] }>(
+    const res = await apiFetch<{ fieldVisits: FieldVisit[] }>(
       qs ? `${path}?${qs}` : path,
       options,
     );
-    return res.visits ?? [];
+    return res.fieldVisits ?? [];
   } catch (error) {
     warnApiFallback("getLogisticsFieldVisits", error);
     if (readOptions.throwOnError) {

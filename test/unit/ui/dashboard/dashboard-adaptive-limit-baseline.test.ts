@@ -20,6 +20,20 @@ const FIXTURE_PATH =
 const HELPER_PATH = "frontend/e2e/helpers/dashboard-adaptive-limit-matrix.ts";
 const SPEC_PATH = "frontend/e2e/regression/dashboard-adaptive-limit-baseline.spec.ts";
 
+test("A03 field visit ordered IDs use the fieldVisits response contract", () => {
+  const helper = readFileSync(resolve(process.cwd(), HELPER_PATH), "utf8");
+  const providerStart = helper.indexOf("const fieldVisitClinicNames:");
+  const providerEnd = helper.indexOf("\n};", providerStart);
+
+  assert.notEqual(providerStart, -1, "fieldVisitClinicNames provider must exist");
+  assert.notEqual(providerEnd, -1, "fieldVisitClinicNames provider must be complete");
+
+  const provider = helper.slice(providerStart, providerEnd + "\n};".length);
+  assert.ok(provider.includes('fixtureJson(page, "/api/logistics/field-visits")'));
+  assert.ok(provider.includes("payload.fieldVisits ?? []"));
+  assert.equal(provider.includes("payload.visits"), false);
+});
+
 test("A03 frozen baseline is complete, exact and source-backed", () => {
   const fixture = readFileSync(resolve(process.cwd(), FIXTURE_PATH), "utf8").replace(
     /\r\n/g,

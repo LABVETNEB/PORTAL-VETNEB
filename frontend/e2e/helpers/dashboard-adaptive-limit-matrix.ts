@@ -994,8 +994,11 @@ const clinicReportIds: OrderedIdsProvider = async (page) => {
 
 const fieldVisitClinicNames: OrderedIdsProvider = async (page) => {
   const payload = await fixtureJson(page, "/api/logistics/field-visits");
-  const visits = (payload.visits ?? []) as { clinicName: string | null; clinicId: number }[];
-  return visits.map((visit) => visit.clinicName ?? `Clínica #${visit.clinicId}`);
+  const fieldVisits = (payload.fieldVisits ?? []) as {
+    clinicName: string | null;
+    clinicId: number;
+  }[];
+  return fieldVisits.map((visit) => visit.clinicName ?? `Clínica #${visit.clinicId}`);
 };
 
 const routePlanNames: OrderedIdsProvider = async (page) => {

@@ -22,6 +22,15 @@ function assertNotIncludes(
   );
 }
 
+function exportedFunction(source: string, name: string): string {
+  const marker = `export async function ${name}(`;
+  const start = source.indexOf(marker);
+  assert.notEqual(start, -1, `frontend API client missing ${marker}`);
+
+  const nextExport = source.indexOf("\nexport async function ", start + marker.length);
+  return source.slice(start, nextExport === -1 ? undefined : nextExport);
+}
+
 const logisticsOverviewPage =
   "frontend/src/app/dashboard/logistica/page.tsx";
 const logisticsVisitsPage =
@@ -151,4 +160,21 @@ test("frontend logistics API wrappers accept request options for server-side rea
     frontendApiClient,
   );
   assertIncludes(source, '"/api/logistics/route-plans"', frontendApiClient);
+});
+
+test("getLogisticsFieldVisits reads the Fastify fieldVisits response key", () => {
+  const source = read(frontendApiClient);
+  const wrapper = exportedFunction(source, "getLogisticsFieldVisits");
+
+  assertIncludes(
+    wrapper,
+    "apiFetch<{ fieldVisits: FieldVisit[] }>",
+    "getLogisticsFieldVisits",
+  );
+  assertIncludes(
+    wrapper,
+    "return res.fieldVisits ?? [];",
+    "getLogisticsFieldVisits",
+  );
+  assertNotIncludes(wrapper, "res.visits", "getLogisticsFieldVisits");
 });
