@@ -40,6 +40,9 @@ const POPULATED_CLINIC_SESSION = "e2e_populated_clinic_session";
 // ─────────────────────────────────────────────────────────────────────────────
 const A03_ADAPTIVE_COOKIE_NAME = "e2e_a03_adaptive_pagination";
 const A03_ADAPTIVE_COOKIE_VALUE = "1";
+const ADMIN_TOKENS_DATASET_COOKIE_NAME = "e2e_admin_tokens_dataset";
+const ADMIN_TOKENS_SHORT_DATASET_COOKIE_VALUE = "short";
+const ADMIN_TOKENS_TOOLBAR_DATASET_COOKIE_VALUE = "toolbar-adaptive";
 const A03_DATASET_SIZE = 256;
 const A03_ADMIN_DATASET_SIZE = 40;
 
@@ -614,6 +617,40 @@ const TOKENS = Array.from({ length: 9 }, (_, index) => ({
   hasLinkedReport: index % 3 === 0,
 }));
 
+const SHORT_ADMIN_TOKENS = TOKENS.slice(0, 6);
+const ADMIN_TOKENS_TOOLBAR_TOKENS = A03_ADMIN_TOKENS.map((token, index) => ({
+  ...token,
+  clinicId: index === 0 ? 12 : token.clinicId,
+  petName: `A03PET${String(index).padStart(4, "0")}`,
+}));
+
+const ADMIN_TOKENS_CLINIC_USERS = [
+  {
+    userType: "clinic",
+    userId: 601,
+    username: "clinica.doce",
+    role: "clinic_owner",
+    status: "active",
+    clinicId: 12,
+    clinicName: "Clínica Doce",
+    clinicLocality: "Buenos Aires",
+    createdAt: "2026-05-01T10:00:00.000Z",
+    updatedAt: "2026-05-01T10:00:00.000Z",
+  },
+  {
+    userType: "clinic",
+    userId: 501,
+    username: "clinica.norte",
+    role: "clinic_owner",
+    status: "active",
+    clinicId: 77,
+    clinicName: "Clínica Norte",
+    clinicLocality: "Rosario",
+    createdAt: "2026-05-01T10:00:00.000Z",
+    updatedAt: "2026-05-01T10:00:00.000Z",
+  },
+];
+
 const REPORT_STAGES = [
   "sample_received",
   "processing",
@@ -758,6 +795,13 @@ function isHighVolumeAdminUsersRequest(url) {
   return url.searchParams.get("dataset") === "high-volume";
 }
 
+function adminUsersPool(url) {
+  const dataset = url.searchParams.get("dataset");
+  if (isHighVolumeAdminUsersRequest(url)) return USERS;
+  if (dataset === "admin-tokens-clinics") return ADMIN_TOKENS_CLINIC_USERS;
+  return LEGACY_USERS;
+}
+
 function filterAdminUsers(url) {
   const query = (
     url.searchParams.get("query") ??
@@ -769,7 +813,7 @@ function filterAdminUsers(url) {
   const userType = url.searchParams.get("userType")?.trim() ?? "";
   const role = url.searchParams.get("role")?.trim() ?? "";
   const status = url.searchParams.get("status")?.trim() ?? "";
-  const pool = isHighVolumeAdminUsersRequest(url) ? USERS : LEGACY_USERS;
+  const pool = adminUsersPool(url);
 
   return pool.filter((user) => {
     const matchesQuery =
@@ -1022,6 +1066,22 @@ function hasA03AdaptiveAdminDataset(request) {
   );
 }
 
+function hasShortAdminTokensDataset(request) {
+  return (
+    hasPopulatedAdminSession(request) &&
+    readCookieValue(request, ADMIN_TOKENS_DATASET_COOKIE_NAME) ===
+      ADMIN_TOKENS_SHORT_DATASET_COOKIE_VALUE
+  );
+}
+
+function hasToolbarAdminTokensDataset(request) {
+  return (
+    hasPopulatedAdminSession(request) &&
+    readCookieValue(request, ADMIN_TOKENS_DATASET_COOKIE_NAME) ===
+      ADMIN_TOKENS_TOOLBAR_DATASET_COOKIE_VALUE
+  );
+}
+
 function hasLongTextCookie(request) {
   return (request.headers.cookie ?? "")
     .split(";")
@@ -1210,9 +1270,13 @@ function handlePopulatedRequest(request, response, url) {
     const offset = Number(url.searchParams.get("offset") ?? 0);
     const clinicIdValue = url.searchParams.get("clinicId");
     const clinicId = clinicIdValue ? Number(clinicIdValue) : null;
-    const tokenDataset = hasA03AdaptiveAdminDataset(request)
-      ? A03_ADMIN_TOKENS
-      : TOKENS;
+    const tokenDataset = hasShortAdminTokensDataset(request)
+      ? SHORT_ADMIN_TOKENS
+      : hasToolbarAdminTokensDataset(request)
+        ? ADMIN_TOKENS_TOOLBAR_TOKENS
+        : hasA03AdaptiveAdminDataset(request)
+          ? A03_ADMIN_TOKENS
+          : TOKENS;
     const filteredTokens = clinicId
       ? tokenDataset.filter((token) => token.clinicId === clinicId)
       : tokenDataset;
