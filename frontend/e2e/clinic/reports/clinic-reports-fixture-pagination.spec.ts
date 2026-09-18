@@ -15,8 +15,7 @@ type ClinicReportsFixtureBody = {
   reports: ClinicReportFixtureItem[];
   total: number;
   totalPages: number;
-  limit: number;
-  offset: number;
+  pagination: { limit: number; offset: number };
 };
 
 async function readClinicReportsFixture(
@@ -42,29 +41,26 @@ test.describe("clinic reports populated fixture pagination (CAP-C2)", () => {
 
     expect(body.total).toBe(1000);
     expect(body.totalPages).toBe(334);
-    expect(body.limit).toBe(3);
-    expect(body.offset).toBe(0);
+    expect(body.pagination).toEqual({ limit: 3, offset: 0 });
     expect(body.reports).toHaveLength(3);
     expect(body.reports.map((report) => report.id)).toEqual([8401, 8402, 8403]);
   });
 
-  test("/api/reports honors status, studyType, limit and offset", async ({
+  test("/api/reports honors status, limit and offset", async ({
     request,
   }) => {
     const body = await readClinicReportsFixture(
       request,
-      "/api/reports?status=delivered&studyType=Necropsia&limit=3&offset=3",
+      "/api/reports?status=delivered&limit=3&offset=3",
     );
 
-    expect(body.total).toBe(50);
-    expect(body.totalPages).toBe(17);
-    expect(body.limit).toBe(3);
-    expect(body.offset).toBe(3);
+    expect(body.total).toBe(251);
+    expect(body.totalPages).toBe(84);
+    expect(body.pagination).toEqual({ limit: 3, offset: 3 });
     expect(body.reports).toHaveLength(3);
-    expect(body.reports[0].id).toBe(8480);
+    expect(body.reports[0].id).toBe(8412);
     for (const report of body.reports) {
       expect(report.status).toBe("delivered");
-      expect(report.studyType).toBe("Necropsia");
     }
   });
 
@@ -85,8 +81,7 @@ test.describe("clinic reports populated fixture pagination (CAP-C2)", () => {
 
     expect(body.total).toBe(50);
     expect(body.totalPages).toBe(13);
-    expect(body.limit).toBe(4);
-    expect(body.offset).toBe(4);
+    expect(body.pagination).toEqual({ limit: 4, offset: 4 });
     expect(body.reports).toHaveLength(4);
     expect(body.reports[0].id).toBe(8500);
     for (const report of body.reports) {

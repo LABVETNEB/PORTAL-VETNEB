@@ -63,11 +63,6 @@ const DIVERGENCE_CLASSES: ReadonlySet<string> = new Set<DivergenceClass>([
   "TEST_OPT_IN_INPUT",
 ]);
 
-const REPORTS_TOP_LEVEL_WINDOW =
-  "Fastify nests limit/offset under `pagination`; no frontend reader uses the top-level copy.";
-const REPORTS_SEARCH_ONLY_FILTER =
-  "The shared fixture filter honours a /search parameter that GET /api/reports does not declare; the app never sends it there.";
-
 const DECLARED_DIVERGENCES: Readonly<Record<string, Divergence>> = {
   "route ANY /__e2e/health": {
     classification: "SYNTHETIC_FIXTURE_ROUTE",
@@ -77,27 +72,9 @@ const DECLARED_DIVERGENCES: Readonly<Record<string, Divergence>> = {
     classification: "SYNTHETIC_FIXTURE_ROUTE",
     reason: "E2E-GLOBAL-03 probe proving the fixture can emit 401/403; the authoritative boundary is E2E-GLOBAL-03B against Fastify.",
   },
-  "response-key ANY /api/reports limit": { classification: "FIXTURE_ONLY_FIELD", reason: REPORTS_TOP_LEVEL_WINDOW },
-  "response-key ANY /api/reports offset": { classification: "FIXTURE_ONLY_FIELD", reason: REPORTS_TOP_LEVEL_WINDOW },
-  "response-key ANY /api/reports/search limit": { classification: "FIXTURE_ONLY_FIELD", reason: REPORTS_TOP_LEVEL_WINDOW },
-  "response-key ANY /api/reports/search offset": { classification: "FIXTURE_ONLY_FIELD", reason: REPORTS_TOP_LEVEL_WINDOW },
-  "response-key GET /api/admin/users-roles totalPages": {
-    classification: "FIXTURE_ONLY_FIELD",
-    reason: "Absent from the Fastify snapshot and from AdminUsersRolesSnapshot; no frontend reader.",
-  },
-  "query-key ANY /api/reports query": { classification: "FIXTURE_ONLY_INPUT", reason: REPORTS_SEARCH_ONLY_FILTER },
-  "query-key ANY /api/reports studyType": { classification: "FIXTURE_ONLY_INPUT", reason: REPORTS_SEARCH_ONLY_FILTER },
   "query-key GET /api/admin/users-roles dataset": {
     classification: "TEST_OPT_IN_INPUT",
     reason: "CAP-A1 high-volume dataset selector, added to the wire URL only by E2E request rewrites.",
-  },
-  "query-key GET /api/admin/users-roles query": {
-    classification: "FIXTURE_ONLY_INPUT",
-    reason: "Fixture alias of `search`; Fastify does not declare it and getAdminUsersRoles never sends it.",
-  },
-  "query-key GET /api/admin/users-roles status": {
-    classification: "FIXTURE_ONLY_INPUT",
-    reason: "Fixture-only filter; Fastify does not declare it and getAdminUsersRoles never sends it.",
   },
 };
 
@@ -1998,8 +1975,16 @@ test("E2E-GLOBAL-11 mutation 4: a fixture route fulfilled by page.route fails; p
 
 test("E2E-GLOBAL-11 mutation 5: stale or invalid ledger entries fail", () => {
   assert.deepEqual(
-    divergenceDiff(reconcile(fixtureWith("      total,\n      totalPages,\n", "      total,\n")), DECLARED_DIVERGENCES),
-    { unexpected: [], stale: ["response-key GET /api/admin/users-roles totalPages"] },
+    divergenceDiff(
+      reconcile(
+        fixtureWith(
+          'if (url.pathname === "/__e2e/health") {\n    sendJson(response, 200, { ok: true });\n    return;\n  }\n\n',
+          "",
+        ),
+      ),
+      DECLARED_DIVERGENCES,
+    ),
+    { unexpected: [], stale: ["route ANY /__e2e/health"] },
   );
 
   const reason = "Synthetic entry used only by the ledger mutation proof.";
