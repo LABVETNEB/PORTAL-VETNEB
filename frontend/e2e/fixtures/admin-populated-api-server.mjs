@@ -807,16 +807,9 @@ function adminUsersPool(url) {
 }
 
 function filterAdminUsers(url) {
-  const query = (
-    url.searchParams.get("query") ??
-    url.searchParams.get("search") ??
-    ""
-  )
-    .trim()
-    .toLowerCase();
+  const query = (url.searchParams.get("search") ?? "").trim().toLowerCase();
   const userType = url.searchParams.get("userType")?.trim() ?? "";
   const role = url.searchParams.get("role")?.trim() ?? "";
-  const status = url.searchParams.get("status")?.trim() ?? "";
   const pool = adminUsersPool(url);
 
   return pool.filter((user) => {
@@ -831,9 +824,7 @@ function filterAdminUsers(url) {
       includesAdminUserText(user.clinicLocality, query);
     const matchesUserType = !userType || user.userType === userType;
     const matchesRole = !role || user.role === role;
-    const matchesStatus = !status || user.status === status;
-
-    return matchesQuery && matchesUserType && matchesRole && matchesStatus;
+    return matchesQuery && matchesUserType && matchesRole;
   });
 }
 
@@ -883,8 +874,7 @@ function paginateClinicReports(reports, url) {
     reports: reports.slice(offset, offset + limit),
     total,
     totalPages,
-    limit,
-    offset,
+    pagination: { limit, offset },
   };
 }
 
@@ -892,13 +882,18 @@ function includesClinicReportText(value, query) {
   return String(value ?? "").toLowerCase().includes(query);
 }
 
+function filterClinicReportsByStatus(url) {
+  const status = url.searchParams.get("status")?.trim() ?? "";
+
+  return CLINIC_REPORTS.filter((report) => !status || report.status === status);
+}
+
 function filterClinicReports(url) {
   const query = url.searchParams.get("query")?.trim().toLowerCase() ?? "";
-  const status = url.searchParams.get("status")?.trim() ?? "";
   const studyType =
     url.searchParams.get("studyType")?.trim().toLowerCase() ?? "";
 
-  return CLINIC_REPORTS.filter((report) => {
+  return filterClinicReportsByStatus(url).filter((report) => {
     const matchesQuery =
       !query ||
       includesClinicReportText(report.id, query) ||
@@ -906,11 +901,10 @@ function filterClinicReports(url) {
       includesClinicReportText(report.studyType, query) ||
       includesClinicReportText(report.status, query) ||
       includesClinicReportText(report.clinicName, query);
-    const matchesStatus = !status || report.status === status;
     const matchesStudyType =
       !studyType || includesClinicReportText(report.studyType, studyType);
 
-    return matchesQuery && matchesStatus && matchesStudyType;
+    return matchesQuery && matchesStudyType;
   });
 }
 
@@ -1352,7 +1346,6 @@ function handlePopulatedRequest(request, response, url) {
         (user) => user.userType === "clinic",
       ),
       total,
-      totalPages,
       limit,
       offset,
       totals: countAdminUsersByType(filteredUsers),
@@ -1439,12 +1432,9 @@ const server = createServer((request, response) => {
   }
 
   if (hasPopulatedClinicSession(request) && url.pathname === "/api/reports") {
-    const reports =
-      url.searchParams.has("query") ||
-      url.searchParams.has("status") ||
-      url.searchParams.has("studyType")
-        ? filterClinicReports(url)
-        : CLINIC_REPORTS;
+    const reports = url.searchParams.has("status")
+      ? filterClinicReportsByStatus(url)
+      : CLINIC_REPORTS;
     const page = paginateClinicReports(reports, url);
     sendJson(
       response,

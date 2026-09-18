@@ -16,7 +16,6 @@ type AdminUsersFixtureBody = {
   success: true;
   users: AdminUsersFixtureItem[];
   total: number;
-  totalPages: number;
   limit: number;
   offset: number;
   totals: {
@@ -47,7 +46,6 @@ test.describe("admin users populated fixture pagination (CAP-A1)", () => {
     );
 
     expect(body.total).toBe(5000);
-    expect(body.totalPages).toBe(500);
     expect(body.limit).toBe(10);
     expect(body.offset).toBe(0);
     expect(body.users).toHaveLength(10);
@@ -72,7 +70,6 @@ test.describe("admin users populated fixture pagination (CAP-A1)", () => {
     );
 
     expect(firstPage.limit).toBe(100);
-    expect(firstPage.totalPages).toBe(50);
     expect(firstPage.users).toHaveLength(100);
     expect(secondPage.limit).toBe(100);
     expect(secondPage.offset).toBe(100);
@@ -89,7 +86,6 @@ test.describe("admin users populated fixture pagination (CAP-A1)", () => {
     );
 
     expect(body.total).toBe(2375);
-    expect(body.totalPages).toBe(340);
     expect(body.limit).toBe(7);
     expect(body.offset).toBe(7);
     expect(body.users).toHaveLength(7);
@@ -99,36 +95,16 @@ test.describe("admin users populated fixture pagination (CAP-A1)", () => {
     }
   });
 
-  test("/api/admin/users-roles honors query/search and status filters", async ({
+  test("/api/admin/users-roles honors the production search filter", async ({
     request,
   }) => {
-    const queryBody = await readAdminUsersFixture(
-      request,
-      "/api/admin/users-roles?dataset=high-volume&query=usuario_clinica_fixture_0100&limit=5&offset=0",
-    );
     const searchBody = await readAdminUsersFixture(
       request,
       "/api/admin/users-roles?dataset=high-volume&search=Cl%C3%ADnica%20Fixture%200100&limit=5&offset=0",
     );
-    const statusBody = await readAdminUsersFixture(
-      request,
-      "/api/admin/users-roles?dataset=high-volume&status=locked&limit=6&offset=0",
-    );
-
-    expect(queryBody.total).toBe(1);
-    expect(queryBody.totalPages).toBe(1);
-    expect(queryBody.users).toHaveLength(1);
-    expect(queryBody.users[0].username).toBe("usuario_clinica_fixture_0100");
 
     expect(searchBody.total).toBe(1);
     expect(searchBody.users).toHaveLength(1);
     expect(searchBody.users[0].username).toBe("usuario_clinica_fixture_0100");
-
-    expect(statusBody.total).toBeGreaterThan(0);
-    expect(statusBody.totalPages).toBe(Math.ceil(statusBody.total / 6));
-    expect(statusBody.users).toHaveLength(6);
-    for (const user of statusBody.users) {
-      expect(user.status).toBe("locked");
-    }
   });
 });
