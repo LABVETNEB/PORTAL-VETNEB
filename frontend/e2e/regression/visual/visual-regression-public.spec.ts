@@ -2,6 +2,11 @@ import { expect, test, type Page } from "@playwright/test";
 
 test.describe.configure({ mode: "serial" });
 test.setTimeout(60_000);
+test.skip(
+  ({ browserName }) =>
+    browserName !== "chromium" || process.platform !== "linux",
+  "Public visual baselines are versioned only for Chromium Linux.",
+);
 
 const routes = [
   {
