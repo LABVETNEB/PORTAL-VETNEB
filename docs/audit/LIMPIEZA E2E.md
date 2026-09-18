@@ -463,11 +463,11 @@ El input `update_snapshots` (líneas 18-22) añade `--update-snapshots` (línea 
 
 Además, `[OBSERVADO]` **el workflow mantiene una lista manual paralela al catálogo**: `visual-regression-manual.yml:80-99` hardcodea las 3 rutas de spec. El catálogo declara `visual-linux` = esas mismas 3, pero **nada reconcilia ambas**; `test/unit/infrastructure/workflow-security-policy-contract.test.ts:98` sólo fija el digest SHA-256 del archivo. Un cuarto spec visual añadido al catálogo **no se ejecutaría** en ese workflow y ningún guard lo detectaría.
 
-### P1-7 · `[OBSERVADO]` Asimetría en el guard de plataforma de los specs visuales
+### P1-7 · `[CLOSED]` Guard de plataforma simétrico en los specs visuales
 
-`visual-regression-authenticated.spec.ts:26-29` y `visual-regression-stress.spec.ts:5-8` declaran `test.skip(({browserName}) => browserName !== "chromium" || process.platform !== "linux", …)`.
+`visual-regression-public.spec.ts` aplica el mismo `test.skip(({browserName}) => browserName !== "chromium" || process.platform !== "linux", …)` que `visual-regression-authenticated.spec.ts` y `visual-regression-stress.spec.ts`.
 
-`visual-regression-public.spec.ts` **no tiene ningún `test.skip` de plataforma** — el catálogo lo reconoce literalmente (*"public spec has no platform skip"*). Su única protección es el preflight de `run-cohort.mjs:246-257` (exit 5). Invocar `playwright test e2e/regression/visual/visual-regression-public.spec.ts` directamente en Windows **falla** con 10 baselines ausentes en lugar de saltarse, produciendo un rojo que no es una regresión.
+El catálogo conserva `platform: "linux"` y `visualLinux`; el preflight independiente de `run-cohort.mjs` se mantiene para las ejecuciones por cohorte.
 
 ---
 
@@ -686,7 +686,7 @@ Aplicando `vetneb-security-production-invariants`:
 
 1. `[OBSERVADO]` **Los baselines son artefactos de `next dev`.** `docs/ops/CI_PR_CHECKS_RUNBOOK.md:242-246` lo dice explícitamente e incluye el indicador visual de dev. `docs/audit/pr-vis-9-observatory.md:170` lo registra como riesgo R4 aceptado. Consecuencia: **la regresión visual no aporta ninguna evidencia sobre el bundle que reciben los usuarios**, y arrastra a todo `e2e:full` al modo dev (P1-2).
 2. `[OBSERVADO]` **Windows no puede correr ninguno.** Los 40 baselines son `-chromium-linux`; `snapshotPathTemplate` no está configurado, así que en win32 Playwright buscaría `-chromium-win32`. El preflight (`run-cohort.mjs:246-257`, exit 5) es correcto y concordante con la memoria de sesión (`visual-linux` BLOCKED en win32). Efecto real: **la mitad de los agentes/desarrolladores no puede validar visual localmente en absoluto**.
-3. P1-6 (fuera de gate) y P1-7 (asimetría de skip), arriba.
+3. P1-6 (fuera de gate), arriba.
 
 `[OBSERVADO]` **Sobre diferencias geométricas Windows/Linux:** no se detectó ningún baseline geométrico (A02/A03/A05) con dependencia de plataforma — `platform: "linux"` sólo lo declaran los 3 specs visuales (`by platform: {any: 92, linux: 3}`). A02/A03/A05 son `any` y corren en ambas. La memoria de sesión registra drift win32 en A03 dentro del cohorte extendido; `[NO CONFIRMADO]` si persiste en el HEAD actual — no se ejecutó localmente para no incumplir §8 sin necesidad.
 
@@ -1001,7 +1001,7 @@ Tests individuales más caros (todos en `extended`): A05 `logistics-*` **174,0 s
 | 91 | regression/evidence/dashboard-runtime-post-ux1-visual-evidence | regression | evidence | runtime visual evidence | 1 | — | evidence | P2 | — | 5 |
 | 92 | regression/evidence/remove-home-unified-workspace-screenshots | regression | evidence | screenshots (**0 assertions**) | 10 | — | evidence | P2 | — | 21 |
 | 93 | regression/visual/visual-regression-authenticated | regression | visual | dual-theme pixel baseline | 20 | — | visual-linux | P2 | — | 30 |
-| 94 | regression/visual/visual-regression-public | regression | visual | public pixel baseline (sin skip⚠) | 10 | — | visual-linux | P2 | — | 11 |
+| 94 | regression/visual/visual-regression-public | regression | visual | public pixel baseline | 10 | — | visual-linux | P2 | — | 11 |
 | 95 | regression/visual/visual-regression-stress | regression | visual | stress pixel baseline | 10 | — | visual-linux | P2 | — | 14 |
 
 **Ningún spec quedó sin clasificar.** 95 filas = 95 archivos = 95 entradas de catálogo.
@@ -1339,7 +1339,7 @@ cuatro motivos:
 1. **R-02 (P0)**, la deriva fixture↔backend, no tiene fase asignada ni guard.
 2. **El objetivo cuantificado de E2E-GLOBAL-09** (`full` por debajo de 40 min de trabajo) no se
    alcanzó: el trabajo medido es de 48,5 min.
-3. **R-15, R-20 y P1-7** siguen abiertos sin fase.
+3. **R-15 y R-20** siguen abiertos sin fase.
 4. **Las brechas de cobertura de §6.2/§21** siguen abiertas sin fase.
 
 ### B.2 Cifras: baseline vs estado actual
@@ -1424,7 +1424,7 @@ cuatro motivos:
 
 | Hallazgo | Estado | Nota |
 |---|---|---|
-| P1-7 (spec visual público sin skip de plataforma) | OPEN | El catálogo lo sigue declarando. Lo mitigan el preflight exit 5 de `run-cohort.mjs` y el preflight Linux del workflow |
+| P1-7 (guard de plataforma del spec visual público) | CLOSED | Aplica el mismo skip Chromium/Linux que authenticated/stress; el catálogo sigue Linux-only y `run-cohort.mjs` conserva su preflight independiente |
 | P1-4, tercera parte (`no-store` real bajo `next start`) | OPEN (opcional en la auditoría) | Declarado en `proves`; hoy se asierta `no-cache` y "no public" |
 | P2-7 (selectores posicionales) | OPEN | Observacional, sin recomendación ni fase |
 | §10: `on.push.paths` de Frontend CI sin `shared/**` | OPEN | Divergencia con el detector de PR |
@@ -1440,7 +1440,6 @@ cuatro motivos:
 | R-02 + guard de doble declaración (§23) | Un guard que falle si una ruta o payload del fixture diverge del contrato de Fastify, o si una ruta se declara en ambos mecanismos de mock | `E2E-GLOBAL-11`, test-only (`test/architecture/**`) |
 | Objetivo de E2E-GLOBAL-09 | `full` < 40 min de trabajo, medido en CI | test-only: A05 a navegación por resize (acta 09 §H), o una decisión explícita de Nico de re-basar el objetivo |
 | R-15 | Decidir si CMP-04/05/06 aportan resolución frente a CMP-12, con evidencia | test-only |
-| P1-7 | Skip de plataforma simétrico en `visual-regression-public.spec.ts` | test-only (spec + nota del catálogo) |
 | R-20 y push paths de Frontend CI | Presupuesto coherente y filtro alineado con el detector | ci-only (R2) |
 | Cobertura §6.2/§21 | Specs para las rutas sin `goto()` | test-only, por dominio |
 | Drift de comentarios: `playwright.config.ts` (líneas 13–17 y 69–70) y `e2e-completeness.yml` (línea 214) todavía describen a Frontend CI como único production runner y a `e2e:full` con `on-first-retry` | Comentarios alineados con 05B | config-only + ci-only |
