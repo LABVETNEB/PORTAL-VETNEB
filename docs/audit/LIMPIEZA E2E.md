@@ -1339,7 +1339,7 @@ cuatro motivos:
 1. **R-02 (P0)**, la deriva fixture↔backend, no tiene fase asignada ni guard.
 2. **El objetivo cuantificado de E2E-GLOBAL-09** (`full` por debajo de 40 min de trabajo) no se
    alcanzó: el trabajo medido es de 48,5 min.
-3. **R-15, R-20 y P1-7** siguen abiertos sin fase.
+3. **R-15 y R-20** siguen abiertos sin fase.
 4. **Las brechas de cobertura de §6.2/§21** siguen abiertas sin fase.
 
 ### B.2 Cifras: baseline vs estado actual
@@ -1424,7 +1424,7 @@ cuatro motivos:
 
 | Hallazgo | Estado | Nota |
 |---|---|---|
-| P1-7 (spec visual público sin skip de plataforma) | OPEN | El catálogo lo sigue declarando. Lo mitigan el preflight exit 5 de `run-cohort.mjs` y el preflight Linux del workflow |
+| P1-7 (guard de plataforma del spec visual público) | CLOSED | #1745 añadió el guard interno Chromium/Linux; el catálogo conserva `platform: "linux"` y `run-cohort.mjs` conserva su preflight independiente |
 | P1-4, tercera parte (`no-store` real bajo `next start`) | OPEN (opcional en la auditoría) | Declarado en `proves`; hoy se asierta `no-cache` y "no public" |
 | P2-7 (selectores posicionales) | OPEN | Observacional, sin recomendación ni fase |
 | §10: `on.push.paths` de Frontend CI sin `shared/**` | OPEN | Divergencia con el detector de PR |
@@ -1440,7 +1440,6 @@ cuatro motivos:
 | R-02 + guard de doble declaración (§23) | Un guard que falle si una ruta o payload del fixture diverge del contrato de Fastify, o si una ruta se declara en ambos mecanismos de mock | `E2E-GLOBAL-11`, test-only (`test/architecture/**`) |
 | Objetivo de E2E-GLOBAL-09 | `full` < 40 min de trabajo, medido en CI | test-only: A05 a navegación por resize (acta 09 §H), o una decisión explícita de Nico de re-basar el objetivo |
 | R-15 | Decidir si CMP-04/05/06 aportan resolución frente a CMP-12, con evidencia | test-only |
-| P1-7 | Skip de plataforma simétrico en `visual-regression-public.spec.ts` | test-only (spec + nota del catálogo) |
 | R-20 y push paths de Frontend CI | Presupuesto coherente y filtro alineado con el detector | ci-only (R2) |
 | Cobertura §6.2/§21 | Specs para las rutas sin `goto()` | test-only, por dominio |
 | Drift de comentarios: `playwright.config.ts` (líneas 13–17 y 69–70) y `e2e-completeness.yml` (línea 214) todavía describen a Frontend CI como único production runner y a `e2e:full` con `on-first-retry` | Comentarios alineados con 05B | config-only + ci-only |
