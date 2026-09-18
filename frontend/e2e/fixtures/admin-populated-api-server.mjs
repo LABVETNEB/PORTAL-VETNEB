@@ -16,6 +16,18 @@ import {
   LONG_TEXT_TOKEN,
   LONG_TEXT_USER_ROLE,
 } from "../helpers/long-text-dataset.mjs";
+import {
+  VISUAL_STRESS_AUDIT_EVENTS,
+  VISUAL_STRESS_COOKIE_NAME,
+  VISUAL_STRESS_COOKIE_VALUE,
+  VISUAL_STRESS_FIELD_VISITS,
+  VISUAL_STRESS_PARTICULAR_TOKENS,
+  VISUAL_STRESS_REPORTS,
+  VISUAL_STRESS_ROUTE_PLANS,
+  VISUAL_STRESS_SYSTEM_HEALTH,
+  VISUAL_STRESS_USERS,
+  visualStressRouteMetrics,
+} from "./visual-stress-dataset.mjs";
 
 const HOST = "127.0.0.1";
 const PORT = 3107;
@@ -1102,6 +1114,47 @@ function hasAdminLongTextDataset(request) {
   return hasPopulatedAdminSession(request) && hasLongTextCookie(request);
 }
 
+function hasVisualStressCookie(request) {
+  return (
+    readCookieValue(request, VISUAL_STRESS_COOKIE_NAME) ===
+    VISUAL_STRESS_COOKIE_VALUE
+  );
+}
+
+function hasClinicVisualStressDataset(request) {
+  return hasPopulatedClinicSession(request) && hasVisualStressCookie(request);
+}
+
+function hasAdminVisualStressDataset(request) {
+  return hasPopulatedAdminSession(request) && hasVisualStressCookie(request);
+}
+
+function readVisualStressWindow(url, defaultLimit) {
+  const limit = Number(url.searchParams.get("limit") ?? defaultLimit);
+  const offset = Number(url.searchParams.get("offset") ?? 0);
+  return { limit, offset };
+}
+
+function visualStressAuditSnapshot(url) {
+  const { limit, offset } = readVisualStressWindow(url, 20);
+  const event = url.searchParams.get("event");
+  const filteredItems = event
+    ? VISUAL_STRESS_AUDIT_EVENTS.filter((entry) => entry.event === event)
+    : VISUAL_STRESS_AUDIT_EVENTS;
+
+  return {
+    success: true,
+    count: Math.min(filteredItems.length, limit),
+    items: filteredItems.slice(offset, offset + limit),
+    pagination: {
+      limit,
+      offset,
+      total: event ? Math.max(filteredItems.length, 7) : 128_640,
+    },
+    filters: event ? { event } : {},
+  };
+}
+
 /**
  * Admin counterpart of {@link withLongClinicReportText}: under the admin gate,
  * the FIRST record of a page matching `isTarget` takes the long synthetic
@@ -1213,6 +1266,11 @@ function handlePopulatedRequest(request, response, url) {
   }
 
   if (url.pathname === "/api/admin/audit-log") {
+    if (hasAdminVisualStressDataset(request)) {
+      sendJson(response, 200, visualStressAuditSnapshot(url));
+      return;
+    }
+
     sendJson(response, 200, auditSnapshot(url));
     return;
   }
@@ -1222,14 +1280,21 @@ function handlePopulatedRequest(request, response, url) {
     const offset = Number(url.searchParams.get("offset") ?? 0);
     sendJson(response, 200, {
       success: true,
-      count: 0,
+      count: hasAdminVisualStressDataset(request) ? 6 : 0,
       notifications: [],
-      pagination: { limit, offset },
+      pagination: hasAdminVisualStressDataset(request)
+        ? { limit, offset, total: 6 }
+        : { limit, offset },
     });
     return;
   }
 
   if (url.pathname === "/api/admin/system/health") {
+    if (hasAdminVisualStressDataset(request)) {
+      sendJson(response, 200, VISUAL_STRESS_SYSTEM_HEALTH);
+      return;
+    }
+
     sendJson(response, 200, {
       success: true,
       status: "ok",
@@ -1266,6 +1331,26 @@ function handlePopulatedRequest(request, response, url) {
   }
 
   if (url.pathname === "/api/admin/particular-tokens") {
+    if (hasAdminVisualStressDataset(request)) {
+      const { limit, offset } = readVisualStressWindow(url, 20);
+      const particularTokens = VISUAL_STRESS_PARTICULAR_TOKENS.slice(
+        offset,
+        offset + limit,
+      );
+      sendJson(response, 200, {
+        success: true,
+        count: Math.min(VISUAL_STRESS_PARTICULAR_TOKENS.length, limit),
+        particularTokens,
+        pagination: {
+          limit,
+          offset,
+          total: VISUAL_STRESS_PARTICULAR_TOKENS.length,
+        },
+        filters: { clinicId: null },
+      });
+      return;
+    }
+
     const limit = Number(url.searchParams.get("limit") ?? 9);
     const offset = Number(url.searchParams.get("offset") ?? 0);
     const clinicIdValue = url.searchParams.get("clinicId");
@@ -1297,6 +1382,20 @@ function handlePopulatedRequest(request, response, url) {
   }
 
   if (url.pathname === "/api/admin/report-workflow") {
+    if (hasAdminVisualStressDataset(request)) {
+      const { limit, offset } = readVisualStressWindow(url, 20);
+      sendJson(response, 200, {
+        success: true,
+        reports: VISUAL_STRESS_REPORTS.slice(offset, offset + limit),
+        pagination: {
+          limit,
+          offset,
+          hasMore: offset + limit < VISUAL_STRESS_REPORTS.length,
+        },
+      });
+      return;
+    }
+
     const limit = Number(url.searchParams.get("limit") ?? 9);
     const offset = Number(url.searchParams.get("offset") ?? 0);
     const reportDataset = hasA03AdaptiveAdminDataset(request)
@@ -1319,6 +1418,20 @@ function handlePopulatedRequest(request, response, url) {
   }
 
   if (url.pathname === "/api/admin/users-roles") {
+    if (hasAdminVisualStressDataset(request)) {
+      const { limit, offset } = readVisualStressWindow(url, 20);
+      sendJson(response, 200, {
+        success: true,
+        users: VISUAL_STRESS_USERS.slice(offset, offset + limit),
+        total: VISUAL_STRESS_USERS.length,
+        limit,
+        offset,
+        totals: { adminUsers: 28, clinicUsers: 4_912 },
+        checkedBy: { adminUserId: 41, username: "admin_visual_stress" },
+      });
+      return;
+    }
+
     const filteredUsers = filterAdminUsers(url);
     const total = filteredUsers.length;
     const { limit, offset } = readAdminUsersPagination(url, total);
@@ -1422,6 +1535,20 @@ const server = createServer((request, response) => {
   }
 
   if (hasPopulatedClinicSession(request) && url.pathname === "/api/reports") {
+    if (hasClinicVisualStressDataset(request)) {
+      const { limit, offset } = readVisualStressWindow(url, 20);
+      sendJson(response, 200, {
+        reports: VISUAL_STRESS_REPORTS.slice(offset, offset + limit),
+        pagination: {
+          limit,
+          offset,
+          total: VISUAL_STRESS_REPORTS.length,
+          hasMore: offset + limit < VISUAL_STRESS_REPORTS.length,
+        },
+      });
+      return;
+    }
+
     const reports =
       url.searchParams.has("query") ||
       url.searchParams.has("status") ||
@@ -1441,6 +1568,20 @@ const server = createServer((request, response) => {
     hasPopulatedClinicSession(request) &&
     url.pathname === "/api/reports/search"
   ) {
+    if (hasClinicVisualStressDataset(request)) {
+      const { limit, offset } = readVisualStressWindow(url, 20);
+      sendJson(response, 200, {
+        reports: VISUAL_STRESS_REPORTS.slice(offset, offset + limit),
+        pagination: {
+          limit,
+          offset,
+          total: VISUAL_STRESS_REPORTS.length,
+          hasMore: offset + limit < VISUAL_STRESS_REPORTS.length,
+        },
+      });
+      return;
+    }
+
     const searchPage = paginateClinicReports(filterClinicReports(url), url);
     sendJson(
       response,
@@ -1455,6 +1596,27 @@ const server = createServer((request, response) => {
   // A03 branches are evaluated first and are strictly narrower than the
   // historical ones (they additionally require the auxiliary cookie), so a
   // request without it falls through to the untouched historical payload.
+  if (
+    hasClinicVisualStressDataset(request) &&
+    url.pathname === "/api/logistics/field-visits"
+  ) {
+    const { limit, offset } = readVisualStressWindow(url, 20);
+    sendJson(response, 200, {
+      fieldVisits: VISUAL_STRESS_FIELD_VISITS.slice(offset, offset + limit),
+    });
+    return;
+  }
+
+  if (
+    hasClinicVisualStressDataset(request) &&
+    url.pathname === "/api/logistics/route-plans"
+  ) {
+    const { limit, offset } = readVisualStressWindow(url, 20);
+    const plans = VISUAL_STRESS_ROUTE_PLANS.slice(offset, offset + limit);
+    sendJson(response, 200, { routePlans: plans });
+    return;
+  }
+
   if (
     hasA03AdaptiveDataset(request) &&
     url.pathname === "/api/logistics/field-visits"
@@ -1496,6 +1658,11 @@ const server = createServer((request, response) => {
   );
   if (hasPopulatedClinicSession(request) && routePlanMetricsMatch) {
     const planId = Number(routePlanMetricsMatch[1]);
+    if (hasClinicVisualStressDataset(request)) {
+      sendJson(response, 200, { metrics: visualStressRouteMetrics(planId) });
+      return;
+    }
+
     const metrics = hasA03AdaptiveDataset(request)
       ? A03_ROUTE_METRICS_BY_PLAN_ID[planId]
       : CLINIC_ROUTE_METRICS_BY_PLAN_ID[planId];

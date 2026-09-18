@@ -56,13 +56,13 @@ const EXPECTED_DOMAIN_COUNTS = new Map([
 // Postgres today, so "integration" has no members; reclassifying any entry
 // must move these numbers explicitly.
 const EXPECTED_LAYER_COUNTS = new Map<E2eLayer, number>([
-  ["mocked", 36],
+  ["mocked", 35],
   // -1: E2E-GLOBAL-10 removed the assertion-free evidence generator (R-16);
   // +1 fixture / -1 mocked: §23 remediation moved dashboard keyboard a11y
   // off browser response stubs and onto the shared populated fixture.
   // +1 fixture / -1 mocked: R-02 remediation moved the admin tokens toolbar
   // off particular-tokens/users-roles response stubs and onto that fixture.
-  ["fixture", 62],
+  ["fixture", 63],
 ]);
 const EXPECTED_CURRENT_COUNTS = new Map([
   // +3: E2E-GLOBAL-03 simulated auth boundary specs, promoted straight to
