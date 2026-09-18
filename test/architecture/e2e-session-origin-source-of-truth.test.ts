@@ -60,8 +60,6 @@ const RULES: readonly Rule[] = [
     id: "hardcoded-app-origin",
     pattern: /\b(?:127\.0\.0\.1|localhost):3000\b/g,
     allowed: {
-      // Canonical /api/admin/system-health stress payload rendered by the baseline.
-      "frontend/e2e/fixtures/visual-stress-dataset.mjs": 1,
       // Production-candidate runner config: the application server URL itself.
       "frontend/e2e/scripts/visual-production-candidate.config.mjs": 1,
     },
