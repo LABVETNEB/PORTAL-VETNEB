@@ -1323,24 +1323,27 @@ El Anexo A es el estado al momento de la auditoría. Lo ejecutado después se re
 
 ---
 
-## Anexo B — Estado de ejecución del programa (E2E-GLOBAL-10B, 2026-09-16)
+## Anexo B — Estado de ejecución del programa (E2E-GLOBAL-10B + E2E-GLOBAL-11, actualizado 2026-09-18)
 
 Registrado por E2E-GLOBAL-10B ([acta](../implementation/e2e-global-10b-documentation-closeout.md)) sobre
 `main@c25f4e0613b3f133efc46a7df08aa78e03006323`. Evidencia: código, catálogo, workflows y
 configuración GitHub releídos ese día; runs de CI citados por id. Un PR fusionado no se cuenta
 como cierre si su criterio de aceptación no está demostrado.
 
+Actualización E2E-GLOBAL-11 (2026-09-18): el árbol actual y el guard arquitectónico dirigido
+confirman el cierre de R-02 y §23. La evidencia original de 10B se conserva abajo; la reconciliación
+posterior se registra en B.3, B.5 y B.6.
+
 ### B.1 Veredicto
 
 **`LIMPIEZA E2E` permanece `ACTIVE`.** Las fases E2E-GLOBAL-01…10 del roadmap (§24) están
 ejecutadas y los cuatro bloqueantes B-1…B-4 (§25) están cerrados. El programa no se cierra por
-cuatro motivos:
+tres motivos:
 
-1. **R-02 (P0)**, la deriva fixture↔backend, no tiene fase asignada ni guard.
-2. **El objetivo cuantificado de E2E-GLOBAL-09** (`full` por debajo de 40 min de trabajo) no se
+1. **El objetivo cuantificado de E2E-GLOBAL-09** (`full` por debajo de 40 min de trabajo) no se
    alcanzó: el trabajo medido es de 48,5 min.
-3. **R-15 y R-20** siguen abiertos sin fase.
-4. **Las brechas de cobertura de §6.2/§21** siguen abiertas sin fase.
+2. **R-15 y R-20** siguen abiertos sin fase.
+3. **Las brechas de cobertura de §6.2/§21** siguen abiertas sin fase.
 
 ### B.2 Cifras: baseline vs estado actual
 
@@ -1385,6 +1388,7 @@ cuatro motivos:
 | E2E-GLOBAL-10A | #1729 / `52314191` | R-12, R-13, R-14 (mitad test) y R-16 cerrados; `E2E Completeness` `35095928402` en `SUCCESS` sobre el head final | CLOSED |
 | R-14 CI | #1730 / `c25f4e06` | El runner `dev` del workflow visual resuelve specs desde el catálogo; guard de 5 tests; run `35104076249` en `SUCCESS`. El runner `dev` todavía no se despachó en Ubuntu ([MANUAL-NICO]) | CLOSED |
 | E2E-GLOBAL-10B | este cambio | Runbook, SoT, índices y los dos audits de §19 reconciliados; metadata de este documento | CLOSED al fusionar (R-18) |
+| E2E-GLOBAL-11 | #1732 / `5d7c1d3c`, #1733 / `bef0f35a`, #1737 y #1739–#1742, #1743 / `91a70c7d` | #1732 introdujo el guard y dejó R-02 PARTIAL; #1733 corrigió `fieldVisits`; los cambios posteriores eliminaron ownership duplicado; #1743 convergió el ledger. Árbol actual: 3 divergencias intencionales, `stale=0`, `unexpected=0`, `LEGACY_DOUBLE_DECLARATIONS = {}` y guard dirigido 12/12 PASS (2026-09-18) | CLOSED |
 
 ### B.4 Bloqueantes (§25)
 
@@ -1400,7 +1404,7 @@ cuatro motivos:
 | ID | Prio | Fase | Estado | Evidencia actual |
 |---|:-:|---|---|---|
 | R-01 | P0 | 03 + 03B | CLOSED | Specs de frontera en `smoke` y smoke autoritativo en `validate-backend` |
-| R-02 | P0 | **ninguna** | **OPEN** | Ningún guard compara las rutas o payloads de `admin-populated-api-server.mjs` con el contrato de Fastify. Los únicos tests que leen el fixture son textuales (`frontend-playwright-production-runner`) o de sesión (`e2e-session-origin-source-of-truth`). 03B cubre sólo la frontera de auth |
+| R-02 | P0 | E2E-GLOBAL-11 | **CLOSED** | Guard `e2e-mock-backend-contract` reconcilia fixture ↔ Fastify de forma fail-closed; quedan sólo 3 excepciones intencionales, sin divergencias `stale`/`unexpected` ni doble ownership. #1743 converge el estado final |
 | R-03 | P0 | 01 | CLOSED | Paso de dependencias estable en todos los runs posteriores |
 | R-04 | P0 | 02A | CLOSED | `forbidOnly: isCi` |
 | R-05 | P1 | 02B | CLOSED | `retain-on-failure` + `screenshot` + upload sanitizado de `test-results` |
@@ -1431,13 +1435,12 @@ cuatro motivos:
 | §10: `verify-teardown.mjs` sólo verifica puertos | OPEN | — |
 | §10: `compare-visual-artifacts.mjs` sin consumidor | CLOSED | Lo consume `visual-production-candidate.mjs` (05A) |
 | §6.2/§21: landings SEO ×4, `/profesionales/[clinicId]`, `/offline` y PWA | OPEN | 0 `goto()` en `frontend/e2e` al 2026-09-16 |
-| §23: guard "ninguna ruta declarada a la vez en `page.route` y en el fixture" | OPEN | No implementado; va ligado a R-02 |
+| §23: guard "ninguna ruta declarada a la vez en `page.route` y en el fixture" | CLOSED | `LEGACY_DOUBLE_DECLARATIONS = {}` y el guard dirigido pasan; cualquier nuevo handler `page.route`/`context.route` que pueda `fulfill`/`abort` una ruta del fixture falla el censo |
 
 ### B.7 Residuales y próximos scopes mínimos
 
 | Residual | Criterio que falta | Scope mínimo propuesto |
 |---|---|---|
-| R-02 + guard de doble declaración (§23) | Un guard que falle si una ruta o payload del fixture diverge del contrato de Fastify, o si una ruta se declara en ambos mecanismos de mock | `E2E-GLOBAL-11`, test-only (`test/architecture/**`) |
 | Objetivo de E2E-GLOBAL-09 | `full` < 40 min de trabajo, medido en CI | test-only: A05 a navegación por resize (acta 09 §H), o una decisión explícita de Nico de re-basar el objetivo |
 | R-15 | Decidir si CMP-04/05/06 aportan resolución frente a CMP-12, con evidencia | test-only |
 | R-20 y push paths de Frontend CI | Presupuesto coherente y filtro alineado con el detector | ci-only (R2) |
@@ -1445,8 +1448,7 @@ cuatro motivos:
 | Drift de comentarios: `playwright.config.ts` (líneas 13–17 y 69–70) y `e2e-completeness.yml` (línea 214) todavía describen a Frontend CI como único production runner y a `e2e:full` con `on-first-retry` | Comentarios alineados con 05B | config-only + ci-only |
 | Drift documental fuera del scope nominal de 10B: fila `ERM-CTRL-013` del control register (43/72 specs, triggers "focused"), `docs/qa/README.md` (layering como "vigente") y `test/README.md:153` (`frontend-ci` "non-required") | Alineación con el runbook | docs-only (control register con su owner) + test-docs |
 
-El documento vuelve a evaluarse para `CLOSED` cuando R-02 y el objetivo de E2E-GLOBAL-09 estén
-cerrados, y el resto de los residuales esté cerrado o aceptado explícitamente como DEFER (§26)
-con owner.
+El documento vuelve a evaluarse para `CLOSED` cuando el objetivo de E2E-GLOBAL-09 esté resuelto y
+el resto de los residuales esté cerrado o aceptado explícitamente como DEFER (§26) con owner.
 
 **Fin del documento.**
