@@ -463,11 +463,11 @@ El input `update_snapshots` (líneas 18-22) añade `--update-snapshots` (línea 
 
 Además, `[OBSERVADO]` **el workflow mantiene una lista manual paralela al catálogo**: `visual-regression-manual.yml:80-99` hardcodea las 3 rutas de spec. El catálogo declara `visual-linux` = esas mismas 3, pero **nada reconcilia ambas**; `test/unit/infrastructure/workflow-security-policy-contract.test.ts:98` sólo fija el digest SHA-256 del archivo. Un cuarto spec visual añadido al catálogo **no se ejecutaría** en ese workflow y ningún guard lo detectaría.
 
-### P1-7 · `[CLOSED]` Guard de plataforma simétrico en los specs visuales
+### P1-7 · `[OBSERVADO]` Asimetría en el guard de plataforma de los specs visuales
 
-PR #1745, fusionado en `main@245090c671d169aed74639612a1d816f14de23e1`, añadió a `visual-regression-public.spec.ts` el mismo guard interno Chromium/Linux que ya usaban authenticated y stress. El catálogo mantiene `platform: "linux"`; `run-cohort.mjs:246-257` conserva su preflight independiente.
+`visual-regression-authenticated.spec.ts:26-29` y `visual-regression-stress.spec.ts:5-8` declaran `test.skip(({browserName}) => browserName !== "chromium" || process.platform !== "linux", …)`.
 
-La ejecución directa del spec público en Windows ahora se salta correctamente, en vez de buscar los 10 baselines `-chromium-win32`. Evidencia histórica de #1745: direct public visual Windows, 10 skipped; `e2e:verify-catalog`, 7/7 PASSED; reconciliación workflow/catálogo visual, 5/5 PASSED; CI, SUCCESS.
+`visual-regression-public.spec.ts` **no tiene ningún `test.skip` de plataforma** — el catálogo lo reconoce literalmente (*"public spec has no platform skip"*). Su única protección es el preflight de `run-cohort.mjs:246-257` (exit 5). Invocar `playwright test e2e/regression/visual/visual-regression-public.spec.ts` directamente en Windows **falla** con 10 baselines ausentes en lugar de saltarse, produciendo un rojo que no es una regresión.
 
 ---
 
@@ -686,7 +686,7 @@ Aplicando `vetneb-security-production-invariants`:
 
 1. `[OBSERVADO]` **Los baselines son artefactos de `next dev`.** `docs/ops/CI_PR_CHECKS_RUNBOOK.md:242-246` lo dice explícitamente e incluye el indicador visual de dev. `docs/audit/pr-vis-9-observatory.md:170` lo registra como riesgo R4 aceptado. Consecuencia: **la regresión visual no aporta ninguna evidencia sobre el bundle que reciben los usuarios**, y arrastra a todo `e2e:full` al modo dev (P1-2).
 2. `[OBSERVADO]` **Windows no puede correr ninguno.** Los 40 baselines son `-chromium-linux`; `snapshotPathTemplate` no está configurado, así que en win32 Playwright buscaría `-chromium-win32`. El preflight (`run-cohort.mjs:246-257`, exit 5) es correcto y concordante con la memoria de sesión (`visual-linux` BLOCKED en win32). Efecto real: **la mitad de los agentes/desarrolladores no puede validar visual localmente en absoluto**.
-3. P1-6 (fuera de gate); P1-7 (guard de plataforma) queda CLOSED arriba.
+3. P1-6 (fuera de gate) y P1-7 (asimetría de skip), arriba.
 
 `[OBSERVADO]` **Sobre diferencias geométricas Windows/Linux:** no se detectó ningún baseline geométrico (A02/A03/A05) con dependencia de plataforma — `platform: "linux"` sólo lo declaran los 3 specs visuales (`by platform: {any: 92, linux: 3}`). A02/A03/A05 son `any` y corren en ambas. La memoria de sesión registra drift win32 en A03 dentro del cohorte extendido; `[NO CONFIRMADO]` si persiste en el HEAD actual — no se ejecutó localmente para no incumplir §8 sin necesidad.
 
