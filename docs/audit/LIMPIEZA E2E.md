@@ -1417,7 +1417,7 @@ cuatro motivos:
 | R-16 | P2 | 10A | CLOSED | Spec sin aserciones eliminado |
 | R-17 | P2 | 07 | CLOSED | `addCookies` en un solo sitio |
 | R-18 | P2 | 10B | CLOSED al fusionar este cambio | Runbook, SoT, índices y audits reconciliados con el HEAD `c25f4e06` |
-| R-19 | P3 | **ninguna** | **OPEN** | `PAGER_BLOCK_SIZE=43.188` reaparece en la misma hoja (`admin-failed-login-alerts::w360x800::hot-b`) en el run `35104076249`: es recurrente, no transitorio. Pasa dentro de tolerancia y no está clasificado |
+| R-19 | P3 | **ninguna** | **CLOSED** | `EXPECTED_RESPONSIVE_TOKEN_SUBPIXEL_QUANTIZATION`: `w360x800::hot-b` envuelve a `w1920x1080`; `clamp(2.25rem, 4vh, 2.75rem)` declara 43,2 px (1080 × 0,04), Chromium usa 43,1875 px y A05 redondea a 43,188. Es recurrente y determinista; no viola la invariancia 32/48/64 ni A→B→A, y no requiere cambio de producto, tolerancia ni trabajo de performance. |
 | R-20 | P3 | **ninguna** | **OPEN** | `frontend-heavy-validation` sigue con `timeout-minutes: 20` frente a un `globalTimeout` de 30 min (heavy observado: 14,5 min) |
 
 ### B.6 Hallazgos de §§7–10 sin ID de riesgo
