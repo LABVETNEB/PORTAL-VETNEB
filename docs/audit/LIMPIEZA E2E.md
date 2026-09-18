@@ -1339,7 +1339,7 @@ cuatro motivos:
 1. **R-02 (P0)**, la deriva fixture↔backend, no tiene fase asignada ni guard.
 2. **El objetivo cuantificado de E2E-GLOBAL-09** (`full` por debajo de 40 min de trabajo) no se
    alcanzó: el trabajo medido es de 48,5 min.
-3. **R-15, R-19, R-20 y P1-7** siguen abiertos sin fase.
+3. **R-15, R-20 y P1-7** siguen abiertos sin fase.
 4. **Las brechas de cobertura de §6.2/§21** siguen abiertas sin fase.
 
 ### B.2 Cifras: baseline vs estado actual
@@ -1417,7 +1417,7 @@ cuatro motivos:
 | R-16 | P2 | 10A | CLOSED | Spec sin aserciones eliminado |
 | R-17 | P2 | 07 | CLOSED | `addCookies` en un solo sitio |
 | R-18 | P2 | 10B | CLOSED al fusionar este cambio | Runbook, SoT, índices y audits reconciliados con el HEAD `c25f4e06` |
-| R-19 | P3 | **ninguna** | **OPEN** | `PAGER_BLOCK_SIZE=43.188` reaparece en la misma hoja (`admin-failed-login-alerts::w360x800::hot-b`) en el run `35104076249`: es recurrente, no transitorio. Pasa dentro de tolerancia y no está clasificado |
+| R-19 | P3 | **ninguna** | **CLOSED** | `EXPECTED_RESPONSIVE_TOKEN_SUBPIXEL_QUANTIZATION`: `w360x800::hot-b` envuelve a `w1920x1080`; `clamp(2.25rem, 4vh, 2.75rem)` declara 43,2 px (1080 × 0,04), Chromium usa 43,1875 px y A05 redondea a 43,188. Es recurrente y determinista; no viola la invariancia 32/48/64 ni A→B→A, y no requiere cambio de producto, tolerancia ni trabajo de performance. |
 | R-20 | P3 | **ninguna** | **OPEN** | `frontend-heavy-validation` sigue con `timeout-minutes: 20` frente a un `globalTimeout` de 30 min (heavy observado: 14,5 min) |
 
 ### B.6 Hallazgos de §§7–10 sin ID de riesgo
@@ -1441,7 +1441,6 @@ cuatro motivos:
 | Objetivo de E2E-GLOBAL-09 | `full` < 40 min de trabajo, medido en CI | test-only: A05 a navegación por resize (acta 09 §H), o una decisión explícita de Nico de re-basar el objetivo |
 | R-15 | Decidir si CMP-04/05/06 aportan resolución frente a CMP-12, con evidencia | test-only |
 | P1-7 | Skip de plataforma simétrico en `visual-regression-public.spec.ts` | test-only (spec + nota del catálogo) |
-| R-19 | Clasificar el 43,188 px recurrente (causa y determinismo) | test-only diagnóstico |
 | R-20 y push paths de Frontend CI | Presupuesto coherente y filtro alineado con el detector | ci-only (R2) |
 | Cobertura §6.2/§21 | Specs para las rutas sin `goto()` | test-only, por dominio |
 | Drift de comentarios: `playwright.config.ts` (líneas 13–17 y 69–70) y `e2e-completeness.yml` (línea 214) todavía describen a Frontend CI como único production runner y a `e2e:full` con `on-first-retry` | Comentarios alineados con 05B | config-only + ci-only |
