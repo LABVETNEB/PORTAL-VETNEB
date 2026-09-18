@@ -5,6 +5,12 @@ atacado: **R-02** (P0, deriva fixture↔backend sin guard) y el contrato de §23
 a la vez en `page.route` y en el fixture". Cambio test-only: un guard arquitectónico nuevo más este
 documento. Sin cambios en producto, backend, fixture, specs, catálogo ni workflows.
 
+> **Estado posterior (2026-09-18): `CLOSED`.** El cuerpo siguiente conserva la fotografía de la
+> fase inicial de #1732, cuando R-02 permanecía `PARTIAL`. #1733 corrigió `fieldVisits`; las fases
+> posteriores consolidaron el ownership del fixture; y #1743 llevó el ledger a las tres
+> divergencias intencionales actuales. `LEGACY_DOUBLE_DECLARATIONS = {}` y el guard actual pasa:
+> R-02 y §23 quedan `CLOSED`.
+
 ## Estado base
 
 | Ítem | Valor |
