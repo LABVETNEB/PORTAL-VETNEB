@@ -60,8 +60,6 @@ const RULES: readonly Rule[] = [
     id: "hardcoded-app-origin",
     pattern: /\b(?:127\.0\.0\.1|localhost):3000\b/g,
     allowed: {
-      // Mocked /api/admin/system-health payload rendered by the stress baseline.
-      "frontend/e2e/regression/visual/visual-regression-stress.spec.ts": 1,
       // Production-candidate runner config: the application server URL itself.
       "frontend/e2e/scripts/visual-production-candidate.config.mjs": 1,
     },

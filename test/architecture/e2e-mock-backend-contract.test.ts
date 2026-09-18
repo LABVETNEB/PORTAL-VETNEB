@@ -101,26 +101,10 @@ const DECLARED_DIVERGENCES: Readonly<Record<string, Divergence>> = {
   },
 };
 
-// §23 debt frozen by E2E-GLOBAL-11: routes the shared fixture serves that are
-// also fulfilled by page.route in these files. They are NOT justified by the
-// architecture (client-component fetches reach the fixture through the Next
-// rewrite, and page.route cannot see server-component fetches); the set may
-// only shrink, and removing it is a separate test-only scope.
-const VISUAL_STRESS = "frontend/e2e/regression/visual/visual-regression-stress.spec.ts";
-
-const LEGACY_DOUBLE_DECLARATIONS: Readonly<Record<string, readonly string[]>> = {
-  "ANY /api/logistics/field-visits": [VISUAL_STRESS],
-  "ANY /api/logistics/route-plans": [VISUAL_STRESS],
-  "ANY /api/logistics/route-plans/:param/metrics": [VISUAL_STRESS],
-  "ANY /api/reports": [VISUAL_STRESS],
-  "ANY /api/reports/search": [VISUAL_STRESS],
-  "GET /api/admin/audit-log": [VISUAL_STRESS],
-  "GET /api/admin/particular-tokens": [VISUAL_STRESS],
-  "GET /api/admin/report-workflow": [VISUAL_STRESS],
-  "GET /api/admin/study-tracking/notifications": [VISUAL_STRESS],
-  "GET /api/admin/system/health": [VISUAL_STRESS],
-  "GET /api/admin/users-roles": [VISUAL_STRESS],
-};
+// §23 is closed: any fixture route fulfilled by page.route is now unexpected.
+// Keep the empty ledger as an explicit fail-closed boundary; mutation 5 proves
+// that adding a declaration without a live overlap is rejected as stale.
+const LEGACY_DOUBLE_DECLARATIONS: Readonly<Record<string, readonly string[]>> = {};
 
 // ── Workspace (real tree + in-memory overrides) ──────────────────────────────
 
@@ -2013,18 +1997,6 @@ test("E2E-GLOBAL-11 mutation 4: a fixture route fulfilled by page.route fails; p
 });
 
 test("E2E-GLOBAL-11 mutation 5: stale or invalid ledger entries fail", () => {
-  const neutralized = overlapDiff(
-    doubleDeclarations(
-      createWorkspace({
-        [VISUAL_STRESS]: mutate(pristine().read(VISUAL_STRESS), 'page.route("**/api/**"', 'page.route("**/api-off/**"'),
-      }),
-    ),
-    LEGACY_DOUBLE_DECLARATIONS,
-  );
-  assert.equal(neutralized.unexpected.length, 0);
-  assert.equal(neutralized.stale.length, 11);
-  assert.ok(neutralized.stale.every((entry) => entry.endsWith(`<- ${VISUAL_STRESS}`)));
-
   assert.deepEqual(
     divergenceDiff(reconcile(fixtureWith("      total,\n      totalPages,\n", "      total,\n")), DECLARED_DIVERGENCES),
     { unexpected: [], stale: ["response-key GET /api/admin/users-roles totalPages"] },
@@ -2041,9 +2013,9 @@ test("E2E-GLOBAL-11 mutation 5: stale or invalid ledger entries fail", () => {
   assert.deepEqual(
     overlapDiff(doubleDeclarations(pristine()), {
       ...LEGACY_DOUBLE_DECLARATIONS,
-      "GET /api/admin/never-served": [VISUAL_STRESS],
+      "GET /api/admin/never-served": [PROBE_SPEC],
     }).stale,
-    [`GET /api/admin/never-served <- ${VISUAL_STRESS}`],
+    [`GET /api/admin/never-served <- ${PROBE_SPEC}`],
   );
   assert.deepEqual(
     invalidDivergences({

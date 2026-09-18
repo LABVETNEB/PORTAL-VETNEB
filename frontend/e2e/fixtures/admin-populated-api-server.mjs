@@ -16,6 +16,10 @@ import {
   LONG_TEXT_TOKEN,
   LONG_TEXT_USER_ROLE,
 } from "../helpers/long-text-dataset.mjs";
+import {
+  VISUAL_STRESS_COOKIE_NAME,
+  VISUAL_STRESS_COOKIE_VALUE,
+} from "./visual-stress-dataset.mjs";
 
 const HOST = "127.0.0.1";
 const PORT = 3107;
@@ -1102,6 +1106,17 @@ function hasAdminLongTextDataset(request) {
   return hasPopulatedAdminSession(request) && hasLongTextCookie(request);
 }
 
+function hasVisualStressCookie(request) {
+  return (
+    readCookieValue(request, VISUAL_STRESS_COOKIE_NAME) ===
+    VISUAL_STRESS_COOKIE_VALUE
+  );
+}
+
+function hasAdminVisualStressDataset(request) {
+  return hasPopulatedAdminSession(request) && hasVisualStressCookie(request);
+}
+
 /**
  * Admin counterpart of {@link withLongClinicReportText}: under the admin gate,
  * the FIRST record of a page matching `isTarget` takes the long synthetic
@@ -1222,9 +1237,11 @@ function handlePopulatedRequest(request, response, url) {
     const offset = Number(url.searchParams.get("offset") ?? 0);
     sendJson(response, 200, {
       success: true,
-      count: 0,
+      count: hasAdminVisualStressDataset(request) ? 6 : 0,
       notifications: [],
-      pagination: { limit, offset },
+      pagination: hasAdminVisualStressDataset(request)
+        ? { limit, offset, total: 6 }
+        : { limit, offset },
     });
     return;
   }
