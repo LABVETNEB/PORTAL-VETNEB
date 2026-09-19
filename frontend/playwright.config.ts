@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import { resolveWindowsWebServerLifecycle } from "./e2e/helpers/windows-webserver-lifecycle.mjs";
 
 // Server ownership: Playwright is the single orchestrator of both processes
 // (fixture API on 3107 and the Next.js application on 3000) and owns readiness
@@ -20,6 +21,17 @@ const isProductionRunner =
 const applicationServerCommand = isProductionRunner
   ? "pnpm start --hostname 127.0.0.1"
   : "pnpm dev --hostname 127.0.0.1";
+const windowsWebServerLifecycle = resolveWindowsWebServerLifecycle();
+if (windowsWebServerLifecycle) {
+  process.env.VETNEB_E2E_WEBSERVER_OWNER_FILE = windowsWebServerLifecycle.ownerFile;
+  process.env.VETNEB_E2E_WEBSERVER_OWNER_TOKEN = windowsWebServerLifecycle.ownerToken;
+}
+const fixtureServerCommand = windowsWebServerLifecycle
+  ? "node e2e/helpers/playwright-webserver-launcher.mjs fixture"
+  : "node e2e/fixtures/admin-populated-api-server.mjs";
+const configuredApplicationServerCommand = windowsWebServerLifecycle
+  ? "node e2e/helpers/playwright-webserver-launcher.mjs application"
+  : applicationServerCommand;
 
 // Server-only, non-NEXT_PUBLIC_ flags that unlock the two production-only
 // exceptions e2e:ci needs to run hermetically against the real `next start`
@@ -28,6 +40,7 @@ const applicationServerCommand = isProductionRunner
 // Production-runner-only by construction — no other CI context runs `next start`.
 const applicationServerEnv: Record<string, string> = {
   NEXT_PUBLIC_API_URL: "http://127.0.0.1:3107",
+  ...(windowsWebServerLifecycle?.env ?? {}),
   ...(isProductionRunner
     ? {
         VETNEB_E2E_ALLOW_LOCAL_API: "1",
@@ -45,7 +58,7 @@ const globalTimeout = Number(process.env.E2E_GLOBAL_TIMEOUT_MS) || 30 * 60_000;
 
 export default defineConfig({
   testDir: "./e2e",
-  globalTeardown: "./e2e/helpers/restore-next-env-hygiene.mjs",
+  globalTeardown: "./e2e/helpers/teardown-e2e-lifecycle.mjs",
   timeout: 30_000,
   globalTimeout,
   expect: {
@@ -81,13 +94,14 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: "node e2e/fixtures/admin-populated-api-server.mjs",
+      command: fixtureServerCommand,
+      env: windowsWebServerLifecycle?.env,
       url: "http://127.0.0.1:3107/__e2e/health",
       reuseExistingServer,
       timeout: 30_000,
     },
     {
-      command: applicationServerCommand,
+      command: configuredApplicationServerCommand,
       env: applicationServerEnv,
       url: "http://127.0.0.1:3000",
       reuseExistingServer,

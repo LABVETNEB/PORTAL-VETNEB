@@ -9,6 +9,8 @@ const NEXT_ENV_PATH = "frontend/next-env.d.ts";
 const PLAYWRIGHT_CONFIG_PATH = "frontend/playwright.config.ts";
 const NEXT_ENV_HYGIENE_HELPER_PATH =
   "frontend/e2e/helpers/restore-next-env-hygiene.mjs";
+const E2E_LIFECYCLE_TEARDOWN_PATH =
+  "frontend/e2e/helpers/teardown-e2e-lifecycle.mjs";
 const COHORT_RUNNER_PATH = "frontend/e2e/scripts/run-cohort.mjs";
 const DEV_ROUTES_REFERENCE = "./.next/dev/types/routes.d.ts";
 const PRODUCTION_ROUTES_REFERENCE = "./.next/types/routes.d.ts";
@@ -49,11 +51,17 @@ test("frontend next-env.d.ts keeps the production route and root-params type ref
 test("Playwright has a next-env hygiene teardown", () => {
   const config = read(PLAYWRIGHT_CONFIG_PATH);
   const helper = read(NEXT_ENV_HYGIENE_HELPER_PATH);
+  const lifecycleTeardown = read(E2E_LIFECYCLE_TEARDOWN_PATH);
 
   assert.match(
     config,
-    /globalTeardown:\s*"\.\/e2e\/helpers\/restore-next-env-hygiene\.mjs"/,
+    /globalTeardown:\s*"\.\/e2e\/helpers\/teardown-e2e-lifecycle\.mjs"/,
     "Playwright must restore next-env.d.ts after E2E runs",
+  );
+  assert.match(
+    lifecycleTeardown,
+    /import \{ restoreNextEnvHygiene \} from "\.\/restore-next-env-hygiene\.mjs"/,
+    "the E2E lifecycle teardown must preserve next-env hygiene",
   );
   assert.ok(
     helper.includes(DEV_ROUTES_REFERENCE),
@@ -84,9 +92,14 @@ test("the cohort runner restores next-env hygiene outside Playwright's budget", 
   );
   assert.match(
     runner,
-    /try\s*\{\s*return runPlaywright\(selection, extraArgs\);\s*\}\s*finally\s*\{[\s\S]*?await restoreNextEnvHygiene\(\);/,
+    /try\s*\{\s*return runPlaywright\(selection, extraArgs, \{ lifecycle: windowsWebServerLifecycle \}\);\s*\}\s*finally\s*\{[\s\S]*?await finalizePlaywrightLifecycle\(\{ lifecycle: windowsWebServerLifecycle \}\);/,
     "globalTeardown is billed against globalTimeout: a timed-out run skips it, " +
-      "so the restore must also run after the Playwright process exits",
+      "so the lifecycle fallback must also run after the Playwright process exits",
+  );
+  assert.match(
+    runner,
+    /restore = restoreNextEnvHygiene/,
+    "the lifecycle fallback must keep restoring next-env hygiene outside Playwright's budget",
   );
 });
 

@@ -540,7 +540,7 @@ function loadCandidateConfig(overrides: Env) {
     "  testDir: config.testDir, globalTeardown: config.globalTeardown, outputDir: config.outputDir,",
     "  reporter: config.reporter, snapshotPathTemplate: config.snapshotPathTemplate,",
     "  screenshotPathTemplate: config.expect.toHaveScreenshot.pathTemplate, updateSnapshots: config.updateSnapshots,",
-    "  webServer: config.webServer.map((server) => ({ command: server.command, cwd: server.cwd, reuse: server.reuseExistingServer })),",
+    "  webServer: config.webServer.map((server) => ({ command: server.command, cwd: server.cwd, reuse: server.reuseExistingServer, url: server.url })),",
     "  appEnv: app.env, projects: config.projects.map((project) => project.name),",
     "}));",
   ].join("\n");
@@ -600,13 +600,18 @@ test("the overlay config serves next start and redirects every capture and outpu
     snapshotPathTemplate: string;
     screenshotPathTemplate: string;
     updateSnapshots: string;
-    webServer: Array<{ command: string; cwd: string; reuse: boolean }>;
+    webServer: Array<{ command: string; cwd: string; reuse: boolean; url: string }>;
     appEnv: Env;
     projects: string[];
   };
   const expectedTemplate = `${candidateDir.split(sep).join("/")}/{testFileDir}/{testFileName}-snapshots/{arg}{-projectName}{-snapshotSuffix}{ext}`;
 
-  assert.equal(config.webServer.find((server) => server.command.startsWith("pnpm "))?.command, "pnpm start --hostname 127.0.0.1");
+  const applicationServer = config.webServer.find((server) => server.url === "http://127.0.0.1:3000");
+  assert.ok(
+    applicationServer?.command === "pnpm start --hostname 127.0.0.1" ||
+      applicationServer?.command === "node e2e/helpers/playwright-webserver-launcher.mjs application",
+    "the production runner must keep serving next start, directly on Linux or through the Windows ownership launcher",
+  );
   assert.ok(config.webServer.every((server) => server.reuse === false && server.cwd === FRONTEND_ROOT));
   assert.equal(config.appEnv.VETNEB_E2E_ALLOW_LOCAL_API, "1");
   assert.equal(config.appEnv.VETNEB_E2E_DISABLE_EXTERNAL_EMBEDS, "1");
@@ -615,7 +620,7 @@ test("the overlay config serves next start and redirects every capture and outpu
   assert.equal(/\{(snapshotDir|testDir)\}/.test(config.snapshotPathTemplate), false);
   assert.equal(config.updateSnapshots, "all");
   assert.equal(config.testDir, resolve(FRONTEND_ROOT, "e2e"));
-  assert.equal(config.globalTeardown, resolve(FRONTEND_ROOT, "e2e/helpers/restore-next-env-hygiene.mjs"));
+  assert.equal(config.globalTeardown, resolve(FRONTEND_ROOT, "e2e/helpers/teardown-e2e-lifecycle.mjs"));
   assert.equal(config.outputDir, join(playwrightDir, "test-results"));
   assert.equal(config.reporter.find((entry) => entry[0] === "html")?.[1]?.outputFolder, join(playwrightDir, "playwright-report"));
   assert.deepEqual(config.projects, ["chromium"]);
