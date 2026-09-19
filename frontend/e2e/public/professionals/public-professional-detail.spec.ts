@@ -4,6 +4,8 @@ const CLINIC_ID = 123;
 const DETAIL_PATH = `/profesionales/${CLINIC_ID}`;
 const INVALID_DETAIL_PATH = "/profesionales/no-valido";
 const DETAIL_API_PATH = `/api/public/professionals/${CLINIC_ID}`;
+const APP_VERSION_API_PATH = "/api/app-version";
+const ALLOWED_API_PATHS = new Set([DETAIL_API_PATH, APP_VERSION_API_PATH]);
 const DETAIL_TITLE = "Perfil profesional veterinario | Portal VETNEB";
 const ERROR_COPY = "No se pudo cargar el perfil profesional solicitado.";
 
@@ -43,15 +45,20 @@ function trackApiRequests(page: Page) {
     }
   });
 
-  const pathnames = () => requests.map((request) => new URL(request.url()).pathname);
+  const pathnameOf = (request: Request) => new URL(request.url()).pathname;
 
   return {
-    detailRequests: () =>
-      requests.filter((request) => new URL(request.url()).pathname === DETAIL_API_PATH),
-    apiPathnames: pathnames,
-    // Allow-only boundary: the detail endpoint is the single API the page may
-    // call, so any other /api/ pathname (private, public or new) fails.
-    unexpectedApiPathnames: () => pathnames().filter((pathname) => pathname !== DETAIL_API_PATH),
+    detailRequests: () => requests.filter((request) => pathnameOf(request) === DETAIL_API_PATH),
+    professionalApiPathnames: () =>
+      requests
+        .map(pathnameOf)
+        .filter((pathname) => pathname.startsWith("/api/public/professionals")),
+    // Allow only GETs to the professional detail endpoint plus the public
+    // production AppVersionGate request; every other /api/ call fails closed.
+    unexpectedApiCalls: () =>
+      requests
+        .filter((request) => !ALLOWED_API_PATHS.has(pathnameOf(request)) || request.method() !== "GET")
+        .map((request) => `${request.method()} ${pathnameOf(request)}`),
   };
 }
 
@@ -153,7 +160,7 @@ test.describe("profesionales/[clinicId] — public professional detail", () => {
     await expect(back).toHaveAttribute("data-public-route-href", "/profesionales");
 
     expectDetailFetches(api.detailRequests());
-    expect(api.unexpectedApiPathnames()).toEqual([]);
+    expect(api.unexpectedApiCalls()).toEqual([]);
   });
 
   test("renders the public error state when the detail endpoint fails", async ({ page }) => {
@@ -177,7 +184,7 @@ test.describe("profesionales/[clinicId] — public professional detail", () => {
     await expect(page.getByRole("article")).toHaveCount(0);
 
     expectDetailFetches(api.detailRequests());
-    expect(api.unexpectedApiPathnames()).toEqual([]);
+    expect(api.unexpectedApiCalls()).toEqual([]);
   });
 
   test("an invalid clinicId fails locally without requesting the professional API", async ({ page }) => {
@@ -192,6 +199,7 @@ test.describe("profesionales/[clinicId] — public professional detail", () => {
     await expect(page.getByText(ERROR_COPY)).toBeVisible();
     await expectDetailMetadata(page, INVALID_DETAIL_PATH);
 
-    expect(api.apiPathnames()).toEqual([]);
+    expect(api.professionalApiPathnames()).toEqual([]);
+    expect(api.unexpectedApiCalls()).toEqual([]);
   });
 });
