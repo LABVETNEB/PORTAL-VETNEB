@@ -99,9 +99,10 @@ for (const landing of seoLandings) {
 
     const canonical = page.locator('link[rel="canonical"]');
     await expect(canonical).toHaveCount(1);
-    expect(new URL((await canonical.getAttribute("href"))!).pathname).toBe(
-      landing.path,
-    );
+    const canonicalHref = await canonical.getAttribute("href");
+    expect(canonicalHref).not.toBeNull();
+    const canonicalUrl = new URL(canonicalHref!);
+    expect(canonicalUrl.pathname).toBe(landing.path);
 
     const jsonLdDocuments = await page
       .locator('script[type="application/ld+json"]')
@@ -112,7 +113,7 @@ for (const landing of seoLandings) {
       (node) =>
         isServiceNode(node) &&
         typeof node.url === "string" &&
-        new URL(node.url).pathname === landing.path,
+        new URL(node.url).href === canonicalUrl.href,
     );
     expect(
       matchingServices,
