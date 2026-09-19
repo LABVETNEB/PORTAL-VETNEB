@@ -6,6 +6,18 @@ superficie → 13 mediciones por resize**, y el intervalo de muestreo de 80 ms d
 frontera causal (render drenado + tráfico de datos). Sin cambios de producto, fixture, catálogo,
 baselines ni tolerancias.
 
+> **Estado posterior (2026-09-19): `CLOSED` por re-baseline explícito de Nico.** El cuerpo siguiente
+> conserva la fotografía de #1728, incluido `FULL_RUNTIME_TARGET: PENDING_CI_EVIDENCE` y A05 a
+> navegación-por-resize como "próximo candidato". Un feasibility gate posterior sobre
+> `main@f56e9bc5` (production runner local, `--workers=2 --retries=0 --trace=off`, mismo build)
+> prototipó ese candidato: 234 → 18 navegaciones frías, 15/15 tests y 1.170/1.170 observaciones, pero
+> **165 valores contractuales de `LIMIT` cambiaron** (las 3 leaves `url-query` de
+> `logistics-bounded-canvas`, cuyo límite se fija en la URL durante la carga fría y no se recalcula por
+> resize) y el ahorro medido fue de 622,3 → 513,9 s de trabajo (**−1,81 min**, 17,4 %). Veredicto:
+> `SEMANTICALLY_INVALID`; A05 navegación-por-resize queda **`REJECTED`**. Nico decidió no perseguir
+> `<40 min` a costa del contrato: ese objetivo se conserva como dato histórico y deja de ser criterio de
+> cierre. Estado vigente en el Anexo B de `LIMPIEZA E2E`.
+
 ## Estado base
 
 | Ítem | Valor |

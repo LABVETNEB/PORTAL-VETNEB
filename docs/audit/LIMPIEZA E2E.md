@@ -1323,7 +1323,7 @@ El Anexo A es el estado al momento de la auditoría. Lo ejecutado después se re
 
 ---
 
-## Anexo B — Estado de ejecución del programa (E2E-GLOBAL-10B + E2E-GLOBAL-11, actualizado 2026-09-18)
+## Anexo B — Estado de ejecución del programa (E2E-GLOBAL-10B + E2E-GLOBAL-11 + cierre de E2E-GLOBAL-09 y R-15, actualizado 2026-09-19)
 
 Registrado por E2E-GLOBAL-10B ([acta](../implementation/e2e-global-10b-documentation-closeout.md)) sobre
 `main@c25f4e0613b3f133efc46a7df08aa78e03006323`. Evidencia: código, catálogo, workflows y
@@ -1334,16 +1334,56 @@ Actualización E2E-GLOBAL-11 (2026-09-18): el árbol actual y el guard arquitect
 confirman el cierre de R-02 y §23. La evidencia original de 10B se conserva abajo; la reconciliación
 posterior se registra en B.3, B.5 y B.6.
 
+Actualización E2E-GLOBAL-09 (2026-09-19, `main@f56e9bc5cc41b75ce9754a17afcfad134b7bb501`): un
+feasibility gate midió el único candidato restante (A05 a navegación-por-resize) contra el A05 real,
+con production runner local, el mismo build, `--workers=2 --retries=0 --trace=off`:
+
+| Métrica | A05 actual | Candidato | Delta |
+|---|---:|---:|---:|
+| Navegaciones frías | 234 | 18 | −216 |
+| Tests / observaciones | 15 / 1.170 | 15 / 1.170 | 0 |
+| Trabajo | 622,3 s (10,37 min) | 513,9 s (8,56 min) | −108,4 s (−1,81 min, 17,4 %) |
+| Wall | 347 s | 287 s | −60 s |
+| Keys faltantes / sobrantes / valores cambiados | — | 0 / 0 / **165** | — |
+
+Las 165 divergencias son `LIMIT` en las 3 leaves `url-query` de `logistics-bounded-canvas`: su límite
+se fija en la URL durante la carga fría y no se recalcula por resize, así que la navegación fría por
+viewport es parte material de ese contrato. Veredicto: `SEMANTICALLY_INVALID`; aun ignorándolo, 1,81 min
+no acerca `full` a 40 min. **Decisión explícita de Nico:** A05 navegación-por-resize `REJECTED` y
+objetivo re-basado (`REBASE_TARGET`). El `<40 min` se conserva como dato histórico de §24 y deja de ser
+criterio de cierre; el runtime actual validado es el baseline operativo. Todo cambio de performance
+futuro exige equivalencia contractual completa, evidencia medida, ahorro material y ninguna pérdida de
+cobertura, cardinalidad, viewports, assertions ni fidelidad. No se fija un nuevo SLA numérico a partir de
+una muestra.
+
+Actualización R-15 (2026-09-19, `main@f56e9bc5cc41b75ce9754a17afcfad134b7bb501`): auditoría de
+resolución de fallo, sólo lectura, sobre los cuatro specs, `mobile-parity-matrix.ts` y
+`helpers/session.ts`. Pregunta evaluada: si una regresión real aparece, ¿CMP-04/05/06 la detectan cuando
+CMP-12 no, con una condición más fuerte, o protegen un contrato que CMP-12 omite? Respuesta: sí, los
+tres.
+
+| Spec | Tests / coste en `full` (run `35455734397`, mismo tree) | Señal que CMP-12 no sustituye | Clasificación |
+|---|---|---|---|
+| CMP-04 `dashboard-clinic-module-card-parity` | 30 / 0,45 min | `ModuleCard` con valores absolutos (border 1px, radius 8px, fondo canónico, overflow hidden); chips: altura de banda, objetivo efectivo ≥44×44, margin strips sin solape, hit-testing con `elementFromPoint`, delegación por tap en strip y click nativo de Playwright. CMP-12 no mide estilos de tarjeta ni chips | `RETAIN_UNIQUE_SIGNAL` |
+| CMP-05 `dashboard-clinic-metric-run-parity` | 60 / 1,57 min | Gramática canónica de la métrica (display, gap, altura, fondo, borde, radio, presencia) y contrato de retiro desktop-only (banda retirada, sin altura reservada). CMP-12 no compara cuando `admin.metrics.count === 0` ni en las superficies clínicas desktop-only, y delega explícitamente la gramática a CMP-05 | `RETAIN_UNIQUE_SIGNAL` |
+| CMP-06 `dashboard-clinic-full-route-stage-parity` | 30 / 0,52 min | Geometría de stage, workspace y viewport (x/y/width/height/bottomGap), tarjeta como hijo directo, display, min-height, overflow y presencia de header/body/footer. CMP-12 sólo verifica presencia de hooks y parte de la cota de la tarjeta | `RETAIN_UNIQUE_SIGNAL` |
+
+CMP-12 (60 tests, 2,47 min) sigue siendo el contrato global complementario. Es predominantemente
+relativo (runtime Clínica vs runtime Admin), por lo que una regresión compartida por ambos roles puede
+mantener verde la igualdad; las aserciones absolutas de CMP-04 y CMP-05 cierran parte de ese riesgo de
+falso verde simétrico. Además, CMP-04/05/06 corren con la sesión `default` y CMP-12 con `populated`:
+son estados runtime distintos y la señal es complementaria, no duplicada. Decisión: conservar los tres
+specs sin cambios; no se requiere implementación.
+
 ### B.1 Veredicto
 
 **`LIMPIEZA E2E` permanece `ACTIVE`.** Las fases E2E-GLOBAL-01…10 del roadmap (§24) están
-ejecutadas y los cuatro bloqueantes B-1…B-4 (§25) están cerrados. El programa no se cierra por
-tres motivos:
+ejecutadas, el objetivo de E2E-GLOBAL-09 quedó resuelto por re-baseline explícito, R-15 quedó cerrado
+por evidencia y los cuatro bloqueantes B-1…B-4 (§25) están cerrados. El programa no se cierra por dos
+motivos:
 
-1. **El objetivo cuantificado de E2E-GLOBAL-09** (`full` por debajo de 40 min de trabajo) no se
-   alcanzó: el trabajo medido es de 48,5 min.
-2. **R-15 y R-20** siguen abiertos sin fase.
-3. **Las brechas de cobertura de §6.2/§21** siguen abiertas sin fase.
+1. **R-20** (con los push paths de Frontend CI) sigue abierto sin fase.
+2. **Las brechas de cobertura de §6.2/§21 y los demás residuales de B.7** siguen abiertos.
 
 ### B.2 Cifras: baseline vs estado actual
 
@@ -1384,7 +1424,7 @@ tres motivos:
 | E2E-GLOBAL-06 | #1725 / `886f19ee` | 2 P1 promovidos a `ci`; `pull_request` sin filtro de paths (guard lo prohíbe); run `34927077181` en `SUCCESS` sobre el head | CLOSED |
 | E2E-GLOBAL-07 | #1726 / `221b70ba` | `helpers/session.ts` más guard `e2e-session-origin-source-of-truth` con conteos exactos | CLOSED |
 | E2E-GLOBAL-08 | #1727 / `b1855b5c` | Sitios nombrados en §9 P2-6 y §11 corregidos; excepciones residuales (1 `waitForTimeout`, 2 `.catch` visuales, 3 timers de imagen) declaradas y congeladas por guard | CLOSED (con excepciones declaradas) |
-| E2E-GLOBAL-09 | #1728 / `f94cc863` | A02/A08 pasan de 546 a 44 navegaciones con equivalencia demostrada. Objetivo "<40 min de trabajo en `full`": **no cumplido**, 48,5 min en run `35104076249`. A05 (13,6 min) quedó identificado y sin implementar | PARTIAL |
+| E2E-GLOBAL-09 | #1728 / `f94cc863` + feasibility gate A05 (2026-09-19) | #1728: A02/A08 pasan de 546 a 44 navegaciones con equivalencia demostrada, sin pérdida semántica. Objetivo histórico "<40 min de trabajo en `full`" no alcanzado (48,5 min en run `35104076249`). El feasibility gate posterior demostró que A05 navegación-por-resize es `SEMANTICALLY_INVALID` (165 `LIMIT` cambiados) y ahorra 1,81 min medidos: `REJECTED`. `<40 min` retirado como criterio de cierre por decisión explícita de Nico | CLOSED (re-baseline explícito de Nico) |
 | E2E-GLOBAL-10A | #1729 / `52314191` | R-12, R-13, R-14 (mitad test) y R-16 cerrados; `E2E Completeness` `35095928402` en `SUCCESS` sobre el head final | CLOSED |
 | R-14 CI | #1730 / `c25f4e06` | El runner `dev` del workflow visual resuelve specs desde el catálogo; guard de 5 tests; run `35104076249` en `SUCCESS`. El runner `dev` todavía no se despachó en Ubuntu ([MANUAL-NICO]) | CLOSED |
 | E2E-GLOBAL-10B | este cambio | Runbook, SoT, índices y los dos audits de §19 reconciliados; metadata de este documento | CLOSED al fusionar (R-18) |
@@ -1417,7 +1457,7 @@ tres motivos:
 | R-12 | P2 | 10A | CLOSED | `zero-scroll-contract.ts` (0 px) + guard semántico |
 | R-13 | P2 | 10A | CLOSED | Mínimo por ancla y por ancho en B04 |
 | R-14 | P2 | 10A + #1730 | CLOSED | Workflow sin specs literales; guard de reconciliación |
-| R-15 | P2 | 09 (no abordado) | **OPEN** | CMP-04/05/06/12 siguen separados; GLOBAL-09 dejó CMP-12 sin cambios y 10A lo excluyó |
+| R-15 | P2 | Cierre documental 2026-09-19 | **CLOSED** | CMP-04/05/06 conservados: cada spec posee señal de regresión que CMP-12 no sustituye (ver "Actualización R-15"). No se requieren cambios de tests |
 | R-16 | P2 | 10A | CLOSED | Spec sin aserciones eliminado |
 | R-17 | P2 | 07 | CLOSED | `addCookies` en un solo sitio |
 | R-18 | P2 | 10B | CLOSED al fusionar este cambio | Runbook, SoT, índices y audits reconciliados con el HEAD `c25f4e06` |
@@ -1441,14 +1481,14 @@ tres motivos:
 
 | Residual | Criterio que falta | Scope mínimo propuesto |
 |---|---|---|
-| Objetivo de E2E-GLOBAL-09 | `full` < 40 min de trabajo, medido en CI | test-only: A05 a navegación por resize (acta 09 §H), o una decisión explícita de Nico de re-basar el objetivo |
-| R-15 | Decidir si CMP-04/05/06 aportan resolución frente a CMP-12, con evidencia | test-only |
 | R-20 y push paths de Frontend CI | Presupuesto coherente y filtro alineado con el detector | ci-only (R2) |
 | Cobertura §6.2/§21 | Specs para las rutas sin `goto()` | test-only, por dominio |
 | Drift de comentarios: `playwright.config.ts` (líneas 13–17 y 69–70) y `e2e-completeness.yml` (línea 214) todavía describen a Frontend CI como único production runner y a `e2e:full` con `on-first-retry` | Comentarios alineados con 05B | config-only + ci-only |
 | Drift documental fuera del scope nominal de 10B: fila `ERM-CTRL-013` del control register (43/72 specs, triggers "focused"), `docs/qa/README.md` (layering como "vigente") y `test/README.md:153` (`frontend-ci` "non-required") | Alineación con el runbook | docs-only (control register con su owner) + test-docs |
 
-El documento vuelve a evaluarse para `CLOSED` cuando el objetivo de E2E-GLOBAL-09 esté resuelto y
-el resto de los residuales esté cerrado o aceptado explícitamente como DEFER (§26) con owner.
+El objetivo de E2E-GLOBAL-09 está resuelto por re-baseline explícito (B.3) y R-15 está cerrado por
+evidencia (B.5). El documento vuelve a
+evaluarse para `CLOSED` cuando los residuales de esta tabla estén cerrados o aceptados explícitamente
+como DEFER (§26) con owner.
 
 **Fin del documento.**
