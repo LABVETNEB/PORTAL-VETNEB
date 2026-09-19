@@ -42,6 +42,85 @@ for (const route of routes) {
   });
 }
 
+const seoLandings = [
+  {
+    path: "/citologia-veterinaria",
+    heading: "Citología veterinaria",
+    title:
+      "Citología Veterinaria | Servicio Citológico y Citopatológico Veterinario | Portal VETNEB",
+  },
+  {
+    path: "/histopatologia-veterinaria",
+    heading: "Histopatología veterinaria",
+    title:
+      "Histopatología Veterinaria | Servicio Histopatológico Veterinario | Portal VETNEB",
+  },
+  {
+    path: "/informes-veterinarios",
+    heading: "Informes veterinarios",
+    title:
+      "Informes Veterinarios | Resultados Veterinarios Online | Portal VETNEB",
+  },
+  {
+    path: "/laboratorio-patologico-veterinario",
+    heading: "Laboratorio patológico veterinario",
+    title:
+      "Laboratorio Patológico Veterinario | Anatomía Patológica Veterinaria | Portal VETNEB",
+  },
+];
+
+type JsonLdNode = Record<string, unknown>;
+
+function collectJsonLdNodes(documents: unknown[]): JsonLdNode[] {
+  return documents.flatMap((document) => {
+    const roots = Array.isArray(document) ? document : [document];
+    return roots.flatMap((root) => {
+      if (!root || typeof root !== "object") return [];
+      const graph = (root as JsonLdNode)["@graph"];
+      return [root as JsonLdNode, ...(Array.isArray(graph) ? graph : [])];
+    });
+  });
+}
+
+function isServiceNode(node: JsonLdNode): boolean {
+  const type = node["@type"];
+  return Array.isArray(type) ? type.includes("Service") : type === "Service";
+}
+
+for (const landing of seoLandings) {
+  test(`renders SEO identity for ${landing.path}`, async ({ page }) => {
+    const response = await page.goto(landing.path);
+
+    expect(response?.ok(), `${landing.path} should return a successful response`).toBeTruthy();
+    await expect(
+      page.getByRole("heading", { level: 1, name: landing.heading, exact: true }),
+    ).toBeVisible();
+    await expect(page).toHaveTitle(landing.title);
+
+    const canonical = page.locator('link[rel="canonical"]');
+    await expect(canonical).toHaveCount(1);
+    expect(new URL((await canonical.getAttribute("href"))!).pathname).toBe(
+      landing.path,
+    );
+
+    const jsonLdDocuments = await page
+      .locator('script[type="application/ld+json"]')
+      .evaluateAll((scripts) =>
+        scripts.map((script) => JSON.parse(script.textContent ?? "null")),
+      );
+    const matchingServices = collectJsonLdNodes(jsonLdDocuments).filter(
+      (node) =>
+        isServiceNode(node) &&
+        typeof node.url === "string" &&
+        new URL(node.url).pathname === landing.path,
+    );
+    expect(
+      matchingServices,
+      `${landing.path} should publish one Service JSON-LD node for its canonical`,
+    ).toHaveLength(1);
+  });
+}
+
 test.describe("particulares hero action hierarchy (PR-PUX1)", () => {
   test("renders hero, primary action and next-step zone", async ({ page }) => {
     await page.goto("/particulares");
