@@ -6,6 +6,11 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { restoreNextEnvHygiene } from "../helpers/restore-next-env-hygiene.mjs";
 import {
+  cleanupOwnedWindowsWebServers,
+  resolveWindowsWebServerLifecycle,
+  withWindowsWebServerLifecycle,
+} from "../helpers/windows-webserver-lifecycle.mjs";
+import {
   CURRENT_COHORTS,
   E2E_COHORT_SPECS,
   E2E_CURRENT_COHORT_SPECS,
@@ -194,11 +199,16 @@ export function pnpmInvocation() {
   };
 }
 
-function runPlaywright(selection, extraArgs) {
-  const pnpm = pnpmInvocation();
+export function runPlaywright(selection, extraArgs, {
+  lifecycle = null,
+  environment = process.env,
+  pnpm = pnpmInvocation(),
+  spawn = spawnSync,
+} = {}) {
   const args = [...pnpm.prefixArgs, "exec", "playwright", "test", ...selection.specs, ...extraArgs];
-  const result = spawnSync(pnpm.executable, args, {
+  const result = spawn(pnpm.executable, args, {
     cwd: FRONTEND_ROOT,
+    env: withWindowsWebServerLifecycle(environment, lifecycle),
     stdio: "inherit",
     shell: false,
   });
@@ -214,6 +224,25 @@ function runPlaywright(selection, extraArgs) {
   }
 
   return result.status ?? 1;
+}
+
+export async function finalizePlaywrightLifecycle({
+  lifecycle,
+  platform = process.platform,
+  cleanup = cleanupOwnedWindowsWebServers,
+  restore = restoreNextEnvHygiene,
+} = {}) {
+  try {
+    if (lifecycle) {
+      cleanup({
+        platform,
+        ownerFile: lifecycle.ownerFile,
+        ownerToken: lifecycle.ownerToken,
+      });
+    }
+  } finally {
+    await restore();
+  }
 }
 
 async function main() {
@@ -265,16 +294,15 @@ async function main() {
   }
 
   printSelection(cohort, selection);
+  const windowsWebServerLifecycle = resolveWindowsWebServerLifecycle();
   try {
-    return runPlaywright(selection, extraArgs);
+    return runPlaywright(selection, extraArgs, { lifecycle: windowsWebServerLifecycle });
   } finally {
-    // Playwright's own globalTeardown is billed against its globalTimeout: a
-    // run that exhausts the budget reports "Timed out waiting for the teardown"
-    // and never restores frontend/next-env.d.ts, which the dev server rewrote
-    // to the dev route types. The repository source-hygiene gate then fails on
-    // a file no commit touched. This restore runs after the Playwright process
-    // has exited, so it survives a timeout, a crash and a non-zero exit alike.
-    await restoreNextEnvHygiene();
+    // Playwright's own globalTeardown is billed against its globalTimeout. On a
+    // timeout, this outer fallback closes only the PIDs registered by this run
+    // and still restores frontend/next-env.d.ts. Each operation is idempotent:
+    // the normal globalTeardown may already have completed either one.
+    await finalizePlaywrightLifecycle({ lifecycle: windowsWebServerLifecycle });
   }
 }
 

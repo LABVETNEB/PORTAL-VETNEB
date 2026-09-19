@@ -92,9 +92,14 @@ test("the cohort runner restores next-env hygiene outside Playwright's budget", 
   );
   assert.match(
     runner,
-    /try\s*\{\s*return runPlaywright\(selection, extraArgs\);\s*\}\s*finally\s*\{[\s\S]*?await restoreNextEnvHygiene\(\);/,
+    /try\s*\{\s*return runPlaywright\(selection, extraArgs, \{ lifecycle: windowsWebServerLifecycle \}\);\s*\}\s*finally\s*\{[\s\S]*?await finalizePlaywrightLifecycle\(\{ lifecycle: windowsWebServerLifecycle \}\);/,
     "globalTeardown is billed against globalTimeout: a timed-out run skips it, " +
-      "so the restore must also run after the Playwright process exits",
+      "so the lifecycle fallback must also run after the Playwright process exits",
+  );
+  assert.match(
+    runner,
+    /restore = restoreNextEnvHygiene/,
+    "the lifecycle fallback must keep restoring next-env hygiene outside Playwright's budget",
   );
 });
 

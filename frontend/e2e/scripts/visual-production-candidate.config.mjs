@@ -23,7 +23,12 @@ const { candidateDir, playwrightDir } = resolveCandidateEnvironment(process.env)
 
 const webServers = Array.isArray(baseConfig.webServer) ? baseConfig.webServer : [baseConfig.webServer];
 const applicationServer = webServers.find((server) => server?.url === APPLICATION_URL);
-if (applicationServer?.command !== PRODUCTION_APPLICATION_COMMAND) {
+const isProductionApplication =
+  applicationServer?.command === PRODUCTION_APPLICATION_COMMAND ||
+  (applicationServer?.command === "node e2e/helpers/playwright-webserver-launcher.mjs application" &&
+    applicationServer.env?.VETNEB_E2E_ALLOW_LOCAL_API === "1" &&
+    applicationServer.env?.VETNEB_E2E_DISABLE_EXTERNAL_EMBEDS === "1");
+if (!isProductionApplication) {
   throw new Error(
     `production visual candidate requires the base config to serve "${PRODUCTION_APPLICATION_COMMAND}", ` +
       `received: ${applicationServer?.command ?? "(no application server)"}`,

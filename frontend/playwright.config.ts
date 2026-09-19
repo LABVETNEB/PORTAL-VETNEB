@@ -1,5 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
-import { createWindowsWebServerLifecycle } from "./e2e/helpers/windows-webserver-lifecycle.mjs";
+import { resolveWindowsWebServerLifecycle } from "./e2e/helpers/windows-webserver-lifecycle.mjs";
 
 // Server ownership: Playwright is the single orchestrator of both processes
 // (fixture API on 3107 and the Next.js application on 3000) and owns readiness
@@ -21,7 +21,7 @@ const isProductionRunner =
 const applicationServerCommand = isProductionRunner
   ? "pnpm start --hostname 127.0.0.1"
   : "pnpm dev --hostname 127.0.0.1";
-const windowsWebServerLifecycle = createWindowsWebServerLifecycle();
+const windowsWebServerLifecycle = resolveWindowsWebServerLifecycle();
 if (windowsWebServerLifecycle) {
   process.env.VETNEB_E2E_WEBSERVER_OWNER_FILE = windowsWebServerLifecycle.ownerFile;
   process.env.VETNEB_E2E_WEBSERVER_OWNER_TOKEN = windowsWebServerLifecycle.ownerToken;

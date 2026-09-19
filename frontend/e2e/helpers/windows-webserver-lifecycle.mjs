@@ -22,6 +22,36 @@ export function createWindowsWebServerLifecycle(platform = process.platform) {
   };
 }
 
+export function resolveWindowsWebServerLifecycle({
+  platform = process.platform,
+  environment = process.env,
+  createLifecycle = createWindowsWebServerLifecycle,
+} = {}) {
+  if (platform !== "win32") return null;
+
+  const ownerFile = environment.VETNEB_E2E_WEBSERVER_OWNER_FILE;
+  const ownerToken = environment.VETNEB_E2E_WEBSERVER_OWNER_TOKEN;
+  if (ownerFile || ownerToken) {
+    if (!ownerFile || !ownerToken) {
+      throw new Error("Windows webServer ownership metadata must include both file and token.");
+    }
+    return {
+      ownerFile,
+      ownerToken,
+      env: {
+        VETNEB_E2E_WEBSERVER_OWNER_FILE: ownerFile,
+        VETNEB_E2E_WEBSERVER_OWNER_TOKEN: ownerToken,
+      },
+    };
+  }
+
+  return createLifecycle(platform);
+}
+
+export function withWindowsWebServerLifecycle(environment, lifecycle) {
+  return lifecycle ? { ...environment, ...lifecycle.env } : { ...environment };
+}
+
 function readOwnership(ownerFile) {
   if (!existsSync(ownerFile)) return null;
   return JSON.parse(readFileSync(ownerFile, "utf8"));
@@ -73,11 +103,26 @@ export function ownedWebServerProcesses({ ownerFile, ownerToken }) {
   return (ownership.processes ?? []).filter(isOwnedProcess);
 }
 
+export function isAlreadyExitedTaskkillError(error) {
+  const output = [error?.message, error?.stdout, error?.stderr]
+    .filter(Boolean)
+    .map(String)
+    .join("\n");
+  return /not found|does not exist|no se encontr/i.test(output);
+}
+
 export function killWindowsProcessTree(pid, execFile = execFileSync) {
-  execFile("taskkill", ["/PID", String(pid), "/T", "/F"], {
-    stdio: "ignore",
-    windowsHide: true,
-  });
+  try {
+    execFile("taskkill", ["/PID", String(pid), "/T", "/F"], {
+      encoding: "utf8",
+      stdio: "pipe",
+      windowsHide: true,
+    });
+    return true;
+  } catch (error) {
+    if (isAlreadyExitedTaskkillError(error)) return false;
+    throw error;
+  }
 }
 
 export function cleanupOwnedWindowsWebServers({
