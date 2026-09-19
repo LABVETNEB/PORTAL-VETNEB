@@ -242,7 +242,8 @@ test("automatic workflow coverage is derived from catalog cohorts and equals ful
   // (regression/dashboard-responsive-cold-load-sentinel.spec.ts).
   // -1: E2E-GLOBAL-10 removed the assertion-free evidence generator
   // (regression/evidence/remove-home-unified-workspace-screenshots.spec.ts, R-16).
-  assert.equal(E2E_SUITE_CATALOG.length, 98);
+  // +1: public professional dynamic detail E2E.
+  assert.equal(E2E_SUITE_CATALOG.length, 99);
 
   const partitionUnion = new Set(PARTITION_COHORTS.flatMap((cohort) => E2E_COHORT_SPECS[cohort]));
   assert.deepEqual([...partitionUnion].sort(), [...E2E_COHORT_SPECS.full].sort());
