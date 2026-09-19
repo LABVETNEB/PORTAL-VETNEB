@@ -14,15 +14,6 @@ const isProductionRunner =
   process.env.CI === "true" && process.env.VETNEB_E2E_PRODUCTION_RUNNER === "1";
 const MAX_DETAIL_FETCHES = isProductionRunner ? 1 : 2;
 
-const PRIVATE_API_PREFIXES = [
-  "/api/admin/",
-  "/api/clinic/",
-  "/api/auth/",
-  "/api/reports",
-  "/api/logistics/",
-  "/api/particular/",
-];
-
 const professionalDetail = {
   success: true,
   professional: {
@@ -57,12 +48,10 @@ function trackApiRequests(page: Page) {
   return {
     detailRequests: () =>
       requests.filter((request) => new URL(request.url()).pathname === DETAIL_API_PATH),
-    professionalApiPathnames: () =>
-      pathnames().filter((pathname) => pathname.startsWith("/api/public/professionals")),
-    privateApiPathnames: () =>
-      pathnames().filter((pathname) =>
-        PRIVATE_API_PREFIXES.some((prefix) => pathname.startsWith(prefix)),
-      ),
+    apiPathnames: pathnames,
+    // Allow-only boundary: the detail endpoint is the single API the page may
+    // call, so any other /api/ pathname (private, public or new) fails.
+    unexpectedApiPathnames: () => pathnames().filter((pathname) => pathname !== DETAIL_API_PATH),
   };
 }
 
@@ -107,7 +96,7 @@ test.describe("profesionales/[clinicId] — public professional detail", () => {
   test("renders the stubbed public profile with metadata and contact fields", async ({ page }) => {
     const api = trackApiRequests(page);
     const openedTargets = await recordExternalOpens(page);
-    await page.route(`**${DETAIL_API_PATH}`, (route) =>
+    await page.route("**/api/public/professionals/123", (route) =>
       route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -164,12 +153,12 @@ test.describe("profesionales/[clinicId] — public professional detail", () => {
     await expect(back).toHaveAttribute("data-public-route-href", "/profesionales");
 
     expectDetailFetches(api.detailRequests());
-    expect(api.privateApiPathnames()).toEqual([]);
+    expect(api.unexpectedApiPathnames()).toEqual([]);
   });
 
   test("renders the public error state when the detail endpoint fails", async ({ page }) => {
     const api = trackApiRequests(page);
-    await page.route(`**${DETAIL_API_PATH}`, (route) =>
+    await page.route("**/api/public/professionals/123", (route) =>
       route.fulfill({
         status: 404,
         contentType: "application/json",
@@ -188,7 +177,7 @@ test.describe("profesionales/[clinicId] — public professional detail", () => {
     await expect(page.getByRole("article")).toHaveCount(0);
 
     expectDetailFetches(api.detailRequests());
-    expect(api.privateApiPathnames()).toEqual([]);
+    expect(api.unexpectedApiPathnames()).toEqual([]);
   });
 
   test("an invalid clinicId fails locally without requesting the professional API", async ({ page }) => {
@@ -203,7 +192,6 @@ test.describe("profesionales/[clinicId] — public professional detail", () => {
     await expect(page.getByText(ERROR_COPY)).toBeVisible();
     await expectDetailMetadata(page, INVALID_DETAIL_PATH);
 
-    expect(api.professionalApiPathnames()).toEqual([]);
-    expect(api.privateApiPathnames()).toEqual([]);
+    expect(api.apiPathnames()).toEqual([]);
   });
 });
