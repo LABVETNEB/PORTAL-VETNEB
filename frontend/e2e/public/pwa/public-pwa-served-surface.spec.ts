@@ -40,10 +40,39 @@ test.describe("offline public page", () => {
     await expect(page.locator('section[aria-labelledby="offline-heading"]')).toBeVisible();
 
     const retry = page.getByRole("button", { name: /reintentar/i });
+    const home = page.getByRole("button", { name: /volver al inicio/i });
+
     await expect(retry).toBeVisible();
     await expect(retry).toBeEnabled();
+    await expect(home).toBeVisible();
 
-    await expect(page.getByRole("button", { name: /volver al inicio/i })).toBeVisible();
+    // Both controls live in the same OfflineActions client commit, so the ref
+    // marker the route control sets when React adopts its own node is also the
+    // point where the retry handler is attached. Gating on it is what keeps the
+    // clicks below from being swallowed pre-hydration.
+    await expect(home).toHaveAttribute("data-public-route-control-hydrated", "true");
+
+    // Retry calls window.location.reload(), so the proof it is wired is a new
+    // document navigation to /offline, not the URL: the URL is already /offline
+    // and would still match if the click did nothing.
+    const retryNavigation = page.waitForResponse(
+      (candidate) =>
+        candidate.request().isNavigationRequest() &&
+        new URL(candidate.url()).pathname === OFFLINE_PATH,
+    );
+
+    await retry.click();
+
+    const retryResponse = await retryNavigation;
+    expect(retryResponse.ok(), "the retry control must reload /offline").toBeTruthy();
+    await expect(heading).toBeVisible();
+
+    // The home control pushes through the router, which is a soft navigation:
+    // no document response to await, so the settled pathname is the signal.
+    await expect(home).toBeEnabled();
+    await expect(home).toHaveAttribute("data-public-route-control-hydrated", "true");
+    await home.click();
+    await expect(page).toHaveURL((url) => url.pathname === "/");
   });
 
   test("is excluded from search indexing", async ({ page }) => {
