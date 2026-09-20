@@ -231,11 +231,14 @@ con impacto frontend:
 ```
 
 En push hacia `main` el workflow se dispara por filtro de paths y el heavy se ejecuta siempre que
-el workflow corre. Ese filtro enumera los paths del detector salvo `shared/**`: un push a `main`
-que sólo toque `shared/**` no dispara Frontend CI. Bajo branch protection todo cambio llega por
-PR, donde el detector sí lo cubre (divergencia registrada en `LIMPIEZA E2E` §10, P3).
+el workflow corre. `on.push.paths` incluye `shared/**` y enumera exactamente los mismos paths que
+el detector de PR: las dos declaraciones del criterio cubren el mismo dominio cross-runtime, y un
+push a `main` que sólo toque `shared/**` dispara Frontend CI. `pull_request` sigue sin filtro de
+paths ni `paths-ignore`: para PRs el detector es el único mecanismo de impacto.
+`test/unit/infrastructure/frontend-ci-workflow.test.ts` compara ambas listas tras normalizar la
+notación (`frontend/**` de GitHub ↔ `frontend/*` del `case` de bash).
 
-`frontend-heavy-validation` (`timeout-minutes: 20`) ejecuta:
+`frontend-heavy-validation` (`timeout-minutes: 45`) ejecuta:
 
 1. instalación con lockfile congelado;
 2. lint frontend;
@@ -248,6 +251,22 @@ PR, donde el detector sí lo cubre (divergencia registrada en `LIMPIEZA E2E` §1
    [Catálogo y cohortes E2E](#catálogo-y-cohortes-e2e));
 8. sólo ante failure: sanitizer de artefactos y, únicamente si el sanitizer termina en `success`,
    subida del `playwright-report` y de `test-results` sanitizados.
+
+Presupuesto de runtime:
+
+```text
+job timeout-minutes            45m   (tope duro)
+globalTimeout de Playwright    30m   (default de frontend/playwright.config.ts; e2e:ci no lo sobreescribe)
+envelope exterior              15m   (job − Playwright)
+```
+
+Frontend CI **no** define `E2E_GLOBAL_TIMEOUT_MS`: `e2e:ci` corre con el default de 30 min del
+config. Los 45 min son un tope duro, no un objetivo de runtime ni un SLA; el envelope de 15 min
+cubre lo que Playwright no posee —checkout, install, lint, typecheck, build, auditoría de
+superficie pública, instalación de Chromium y, ante fallo, sanitizer, subida de diagnostics y
+cierre del job— para que sea Playwright quien agote primero su propio presupuesto en vez de que
+GitHub cancele el job antes. `test/unit/infrastructure/frontend-ci-workflow.test.ts` fija el 45,
+lee el default del config y exige `job − globalTimeout >= 15m`.
 
 Referencia observada: push a `main` `52314191` (Frontend CI `35099449451`), cohorte `ci` con 67
 specs y 1.030 tests, 1.029 passed y 1 skipped, 12,7 min de Playwright y 14,5 min de job heavy.
