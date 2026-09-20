@@ -20,6 +20,7 @@ const workflowPath = resolve(
 
 const frontendPathFilters = [
   "      - 'frontend/**'",
+  "      - 'shared/**'",
   "      - 'pnpm-lock.yaml'",
   "      - 'pnpm-workspace.yaml'",
   "      - 'package.json'",
@@ -355,19 +356,44 @@ test("Frontend CI pide heavy cuando el PR sólo cambia el contrato cross-runtime
   assert.equal(shouldRunFrontend(["server/routes/example.fastify.ts"]), false);
 });
 
-test("Frontend CI distingue push path filters del detector de impacto de PR", () => {
-  // Only the pull_request impact detector gained shared/*. The push filters are a
-  // separate mechanism and were deliberately left untouched in this change.
-  const pushTriggerBlock = readWorkflow().split("pull_request:")[0];
+test("Frontend CI alinea los push path filters con el detector de impacto de PR", () => {
+  // Las dos declaraciones del criterio cubren el mismo dominio. Antes divergían:
+  // el detector de PR ya enrutaba shared/* pero el filtro de push no, así que un
+  // push a main que sólo tocara shared/** no disparaba el workflow. push usa
+  // globs de GitHub (`frontend/**`) y el detector patrones `case` de bash
+  // (`frontend/*`); la equivalencia se compara tras normalizar esa notación.
+  const source = readWorkflow();
+  const push = getEventBlock(source, "push");
+  const detector = getJobBlock(source, "detect-frontend-impact");
 
+  const pushPaths = push
+    .split("\n")
+    .filter((line) => line.startsWith("      - '"))
+    .map((line) => line.trim().slice(2).replaceAll("'", ""));
+
+  const detectorCase = detector.match(
+    /\n {14}([^\n)]+)\)\n {16}should_run=true\n/,
+  );
   assert.ok(
-    !pushTriggerBlock.includes("'shared/**'"),
-    "push paths no deben ampliarse en este cambio",
+    detectorCase,
+    "detect-frontend-impact debe declarar un patrón case de rutas",
   );
-  assertContains(
-    getJobBlock(readWorkflow(), "detect-frontend-impact"),
-    "shared/*|",
+  const detectorPaths = detectorCase[1].split("|");
+
+  assert.deepEqual(
+    pushPaths.map((pathPattern) => pathPattern.replace(/\/\*\*$/, "/*")),
+    detectorPaths,
+    "push.paths y el detector de impacto de PR deben cubrir exactamente el mismo dominio",
   );
+
+  // El contrato cross-runtime queda declarado en ambos disparadores, no sólo en
+  // el detector: shared/** se compila en el proxy Next y en el bundle backend.
+  assert.ok(pushPaths.includes("shared/**"));
+  assert.ok(detectorPaths.includes("shared/*"));
+
+  // La semántica de pull_request no cambia: sin filtro de paths, el detector es
+  // el único mecanismo de impacto para PRs.
+  assertNotContains(getEventBlock(source, "pull_request"), "paths:");
 });
 
 test("Frontend CI condiciona el job pesado al output del detector", () => {
@@ -385,7 +411,7 @@ test("Frontend CI define toolchain y cache de pnpm esperados", () => {
   const source = readWorkflow();
   const heavy = getJobBlock(source, "validate-frontend");
 
-  assertContains(heavy, "timeout-minutes: 20");
+  assertContains(heavy, "timeout-minutes: 45");
   assertContains(source, "uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7");
   assertContains(source, "uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9");
   assertContains(source, "uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7");
@@ -399,6 +425,48 @@ test("Frontend CI define toolchain y cache de pnpm esperados", () => {
   assertContains(source, "cache: pnpm");
   assertContains(source, "cache-dependency-path: pnpm-lock.yaml");
   assertContains(source, "run: pnpm install --frozen-lockfile");
+});
+
+test("Frontend CI reserva un envelope exterior sobre el globalTimeout de Playwright (R-20)", () => {
+  const source = readWorkflow();
+  const heavy = getJobBlock(source, "validate-frontend");
+
+  // R-20: con `timeout-minutes: 20` GitHub podía cancelar el job antes de que
+  // Playwright agotara su propio globalTimeout de 30 min, volviéndolo config
+  // muerta. El contrato vigente es 45m de job − 30m de Playwright = 15m de
+  // envelope exterior para checkout, install, lint, typecheck, build, auditoría
+  // de superficie pública, Chromium y, ante fallo, sanitizer y diagnostics.
+  // El 45 no es un objetivo de runtime (heavy observado ≈14,5 min): es el tope duro.
+  const jobTimeout = heavy.match(/\n {4}timeout-minutes: (\d+)\n/);
+  assert.ok(
+    jobTimeout,
+    "frontend-heavy-validation debe declarar timeout-minutes a nivel de job",
+  );
+  const jobTimeoutMs = Number(jobTimeout[1]) * 60_000;
+
+  const playwrightConfig = readFileSync(
+    resolve(process.cwd(), "frontend", "playwright.config.ts"),
+    "utf8",
+  ).replace(/\r\n/g, "\n");
+  const playwrightDefault = playwrightConfig.match(
+    /const globalTimeout =[^;]*\|\|\s*(\d+) \* 60_000;/,
+  );
+  assert.ok(
+    playwrightDefault,
+    "playwright.config.ts debe declarar el globalTimeout por defecto en minutos",
+  );
+  const playwrightBudgetMs = Number(playwrightDefault[1]) * 60_000;
+
+  assert.equal(jobTimeoutMs, 45 * 60_000);
+  assert.equal(playwrightBudgetMs, 30 * 60_000);
+  assert.ok(
+    jobTimeoutMs - playwrightBudgetMs >= 15 * 60_000,
+    "el job debe reservar al menos 15m fuera del presupuesto de Playwright; si no, " +
+      "GitHub cancela el job antes de que Playwright pueda agotar su globalTimeout",
+  );
+
+  // Frontend CI no sobreescribe el presupuesto: e2e:ci usa el default del config.
+  assertNotContains(source, "E2E_GLOBAL_TIMEOUT_MS");
 });
 
 test("Frontend CI ejecuta gates obligatorios en orden", () => {
