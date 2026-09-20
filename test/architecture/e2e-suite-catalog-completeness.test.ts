@@ -25,8 +25,8 @@ const TEST_FILE = fileURLToPath(import.meta.url);
 const REPO_ROOT = resolve(dirname(TEST_FILE), "..", "..");
 process.chdir(REPO_ROOT);
 
-const EXPECTED_WORKSPACE_SPEC_COUNT = 99;
-const EXPECTED_CATALOG_SPEC_COUNT = 99;
+const EXPECTED_WORKSPACE_SPEC_COUNT = 100;
+const EXPECTED_CATALOG_SPEC_COUNT = 100;
 const EXPECTED_MANUAL_ONLY_SPEC_COUNT = 0;
 const EXPECTED_DOMAIN_COUNTS = new Map([
   ["admin", 19],
@@ -34,7 +34,9 @@ const EXPECTED_DOMAIN_COUNTS = new Map([
   // (clinic-mobile-admin-parity-contract.spec.ts, RC-017 closure).
   ["clinic", 26],
   // +1: public professional dynamic detail E2E (public-professional-detail.spec.ts).
-  ["public", 9],
+  // +1: served PWA surface E2E (public-pwa-served-surface.spec.ts), the
+  // HTTP/browser half of the LIMPIEZA E2E §6.2 PWA residual.
+  ["public", 10],
   ["particular", 3],
   // +1: PR-TRUNC detail text integrity (platform/app-shell), routed to
   // visual-contract like the other app-shell contracts (AGENTS.md §7).
@@ -64,7 +66,9 @@ const EXPECTED_LAYER_COUNTS = new Map<E2eLayer, number>([
   // off browser response stubs and onto the shared populated fixture.
   // +1 fixture / -1 mocked: R-02 remediation moved the admin tokens toolbar
   // off particular-tokens/users-roles response stubs and onto that fixture.
-  ["fixture", 63],
+  // +1: served PWA surface E2E. It fabricates nothing: /offline, the manifest
+  // and sw.js are served by the real Next.js app under test.
+  ["fixture", 64],
 ]);
 const EXPECTED_CURRENT_COUNTS = new Map([
   // +3: E2E-GLOBAL-03 simulated auth boundary specs, promoted straight to
@@ -83,21 +87,24 @@ const EXPECTED_CURRENT_COUNTS = new Map([
   // +1: E2E-GLOBAL-06 P1 dashboard-logistica-mobile-action-bar-reachability,
   // routed public-clinic like its logistics mobile parity sibling.
   // +1: public professional dynamic detail E2E, routed public-clinic (AGENTS.md §7).
-  ["public-clinic", 18],
+  // +1: served PWA surface E2E, routed public-clinic like the other public
+  // contract specs (AGENTS.md §7).
+  ["public-clinic", 19],
 ]);
 const EXPECTED_EXECUTION_COUNTS = new Map<E2eExecutionCohort, number>([
   // +3: E2E-GLOBAL-03 (smoke -> ci union grows with it).
   // +2: E2E-GLOBAL-06 promotes the two cheap P1 specs out of extended.
   // +1: E2E-GLOBAL-09 P2 follow-up, responsive cold-load sentinel.
   // +1: public professional dynamic detail E2E (public-clinic -> ci union).
-  ["ci", 68],
+  // +1: served PWA surface E2E (public-clinic -> ci union).
+  ["ci", 69],
   ["extended", 27],
   // -1: E2E-GLOBAL-10 (R-16). `evidence` keeps the generator that does assert
   // layout (dashboard-runtime-post-ux1-visual-evidence) and loses the one that
   // asserted nothing.
   ["evidence", 1],
   ["visual-linux", 3],
-  ["full", 99],
+  ["full", 100],
   ["affected", 0],
 ]);
 const E2E_GLOBAL_06_PROMOTED_P1_SPECS = [
@@ -328,7 +335,7 @@ function validateCatalog(
   }
 
   const currentUnion = unique([...currentMemberships.keys()]).sort();
-  assert.equal(currentUnion.length, 68);
+  assert.equal(currentUnion.length, 69);
   assert.deepEqual(E2E_COHORT_SPECS.ci, currentUnion, "ci must equal the current four-cohort union");
 
   for (const cohort of ["extended", "evidence", "visual-linux", "full"] as const) {
@@ -400,11 +407,11 @@ test("catalog validation catches missing and duplicate entries in memory", async
 
   assert.throws(
     () => validateCatalog(missing, workspaceSpecs, E2E_MANUAL_ONLY_SPECS),
-    /98|classified/,
+    /99|classified/,
   );
   assert.throws(
     () => validateCatalog(duplicated, workspaceSpecs, E2E_MANUAL_ONLY_SPECS),
-    /100|unique/,
+    /101|unique/,
   );
 });
 
@@ -458,7 +465,7 @@ test("affected selection fails closed for empty or shared changes", async () => 
 
   const sharedSelection = runner.classifyAffectedPaths(["frontend/e2e/helpers/admin-mobile-contracts.ts"]);
   assert.equal(sharedSelection.fallback, true);
-  assert.equal(sharedSelection.specs.length, 68);
+  assert.equal(sharedSelection.specs.length, 69);
   assert.match(sharedSelection.reason, /shared E2E infrastructure/);
 });
 
