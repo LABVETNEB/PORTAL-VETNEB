@@ -12,10 +12,12 @@ const reuseExistingServer =
   !isCi && process.env.E2E_REUSE_SERVER === "1";
 
 // P1 (PR #1495): CI=true alone is not a safe signal for "a production bundle
-// exists". Other workflows (e.g. visual-regression-manual.yml) run Playwright
-// with CI=true but never `pnpm --dir frontend build`, so `next start` would
-// fail there. Only Frontend CI's e2e:ci step sets this explicitly, right
-// after building. Every other CI=true context keeps using `next dev`.
+// exists". A context serves `next start` only when it built the bundle first
+// and opted in with this flag: Frontend CI (e2e:ci), E2E Completeness
+// (e2e:full) and visual-regression-manual.yml's production-candidate runner,
+// which sets both through e2e/scripts/visual-production-candidate.mjs. A
+// CI=true context without that opt-in — today that workflow's `dev` runner —
+// never runs `pnpm --dir frontend build`, so it keeps using `next dev`.
 const isProductionRunner =
   isCi && process.env.VETNEB_E2E_PRODUCTION_RUNNER === "1";
 const applicationServerCommand = isProductionRunner
@@ -34,10 +36,11 @@ const configuredApplicationServerCommand = windowsWebServerLifecycle
   : applicationServerCommand;
 
 // Server-only, non-NEXT_PUBLIC_ flags that unlock the two production-only
-// exceptions e2e:ci needs to run hermetically against the real `next start`
-// bundle: the local-fixture API origin (frontend/src/lib/api.ts) and the
-// external Google Maps embed kill switch (frontend/src/components/layout/Footer.tsx).
-// Production-runner-only by construction — no other CI context runs `next start`.
+// exceptions the production runner needs to run hermetically against the real
+// `next start` bundle: the local-fixture API origin (frontend/src/lib/api.ts)
+// and the external Google Maps embed kill switch (frontend/src/components/layout/Footer.tsx).
+// Gated on isProductionRunner by construction, so they reach only the contexts
+// that built that bundle and never a `next dev` run.
 const applicationServerEnv: Record<string, string> = {
   NEXT_PUBLIC_API_URL: "http://127.0.0.1:3107",
   ...(windowsWebServerLifecycle?.env ?? {}),
@@ -77,10 +80,12 @@ export default defineConfig({
     // addCookies() parameters verbatim, so they only exist where every upload
     // crosses the fail-closed sanitizer boundary of PR #1719 (AGENTS.md §9).
     // - Local: off. No sanitizer runs there.
-    // - Production runner (required e2e:ci, zero retries): retain-on-failure,
-    //   so the first failure keeps its trace.
-    // - Other CI (e2e:full runs --retries=2): on-first-retry. Recording every
-    //   test pushed the full catalog past its 45m budget.
+    // - Production runner (e2e:ci and e2e:full alike): retain-on-failure, so
+    //   the first failure keeps its trace. isProductionRunner decides this
+    //   branch on its own, so E2E Completeness passing --retries=2 does not
+    //   move e2e:full to on-first-retry — and retain-on-failure already avoids
+    //   the per-test recording that pushed the full catalog past its budget.
+    // - Other CI (CI=true without the production-runner opt-in): on-first-retry.
     trace: !isCi
       ? "off"
       : isProductionRunner
