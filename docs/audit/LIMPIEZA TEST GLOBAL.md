@@ -148,8 +148,9 @@ como parte del baseline, y ninguna aceptación de fase puede depender de él.
 ### 3.5 Ejecución local de referencia
 
 Medida sobre §3.1 (win32, Node v24.14.1). Clase: `HISTORICAL_EXECUTION_EVIDENCE`
-para el wall time; `CURRENT_REVERIFICATION` para la descomposición de fallos,
-que se volvió a ejecutar por archivo sobre §3.2 y dio idéntico resultado (A.5b).
+para los tiempos observados (§24); `CURRENT_REVERIFICATION` para la
+descomposición de fallos, que se volvió a ejecutar por archivo sobre §3.2 y dio
+idéntico resultado (A.5b).
 
 ```text
 pnpm test   → tests 4590 | pass 4580 | fail 9 | skipped 1 | wall 26,4 s
@@ -1161,19 +1162,28 @@ TESTS_REDUNDANTES_CONFIRMADOS = 0
 
 ## 24. Performance de la suite
 
+**Procedencia de las cifras de esta sección — dos conjuntos distintos, cada uno
+con una sola clasificación** (A.0). No se mezclan ni se reutilizan bajo la misma
+regla:
+
+| Conjunto | Qué incluye | Clase | Regla de reutilización |
+|---|---|---|---|
+| **Tiempos observados** | `26.422 ms` y `298,7 ms` (corrida original); `146.129 ms` y `1.864 ms` (re-ejecución en la misma máquina) | `HISTORICAL_EXECUTION_EVIDENCE` | Son evidencia de que una corrida ocurrió, **no** cifras estables. Dependen del host y del momento. Ninguna aceptación de fase puede compararse contra ellas |
+| **Pareto y ranking derivados** | 50 % → 33 entradas · 80 % → 130 entradas · tabla de entradas más caras · tiempo agregado 133,6 s | `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` | Salen de procesar la salida TAP con un script **no versionado**. Toda decisión que dependa de ellas las recomputa primero (`TEST-GLOBAL-01B`) |
+
 ```text
-wall time           26,4 s        (4.590 entradas)
-tiempo agregado    133,6 s        (paralelismo por proceso/archivo)
+wall time           26,4 s        (4.590 entradas)   → HISTORICAL_EXECUTION_EVIDENCE
+tiempo agregado    133,6 s        (derivado)         → AUDIT_DERIVED_NOT_YET_REPRODUCIBLE
 ```
 
-Pareto:
+Pareto (derivado, `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE`):
 
 ```text
 50 % del tiempo agregado  →   33 entradas   (0,7 %)
 80 % del tiempo agregado  →  130 entradas   (2,8 %)
 ```
 
-Entradas más caras (ms):
+Entradas más caras (ms) — ranking derivado, misma clase que el Pareto:
 
 | ms | Entrada |
 |---:|---|
@@ -1346,7 +1356,7 @@ Bloqueantes para iniciar el programa   =   NINGUNO
 | CI verde sobre el baseline | Verificado (`Backend CI` = success @ `ee8e7425`) |
 | `LIMPIEZA E2E` cerrado | Verificado (CLOSED, last verified 2026-09-21) |
 | Autorización R2 para lint | **Requerida** para `TEST-GLOBAL-05B` (`eslint.config.mjs`). No bloquea `05A`, que es R1 |
-| Autorización R2/R3 para CI | **Requerida** para `TEST-GLOBAL-12B` (workflow de coverage). Su default es **no ejecutarse**; `12A` es docs-only y no la necesita |
+| Autorización R2 para CI | **Requerida** para `TEST-GLOBAL-12B` (workflow de coverage, ci-only). Su default es **no ejecutarse**; `12A` es docs-only y no la necesita |
 | Autorización R2 para producto | **Requerida** para `TEST-GLOBAL-10A` (inyección en email/storage/`ENV`) y `TEST-GLOBAL-10C` (registro de plugins Fastify). No bloquea `10B` ni `10D`, que son test-only |
 | DB para gates locales | `pnpm validate:local` queda BLOCKED sin DB desde #1711; reportar como ambiental |
 
@@ -1425,22 +1435,63 @@ nombra siempre la precondición ausente. **`BLOCKED` no es `PASSED`** y no puede
 usarse para cerrar un criterio de aceptación: sólo para declarar honestamente
 que un gate no pudo ejecutarse.
 
-**Precondición de DB — regla transversal.** Desde #1711 la suite contiene un
-archivo que exige una DB aislada (§10.2, grupo B). Mientras esa DB no exista en
-el entorno de ejecución:
+**Precondición de DB y falsos rojos de launcher — regla transversal.**
+
+La suite tiene **dos** fuentes de fallo no atribuibles al cambio en curso, con
+causas **independientes** que nunca se agregan ni se confunden (§10.2):
 
 ```text
-pnpm test          → 1 FAILED esperado y nominado (grupo B); el gate se reporta
-                     BLOCKED con la precondición "DB aislada portal_vetneb_ci
-                     ausente", nunca PASSED y nunca FAILED silencioso
-pnpm validate:local→ BLOCKED con la misma precondición
+GRUPO A · launcher win32   8 FAILED · PLATFORM_VARIANCE · lo corrige TEST-GLOBAL-03
+GRUPO B · DB aislada       1 FAILED · ENVIRONMENT_DEPENDENT · precondición de entorno
 ```
 
+El estado esperado depende de **si `03` ya está fusionada** y de **si la DB
+existe**. Los tres estados posibles son:
+
+```text
+┌─ PRE-03  (TEST-GLOBAL-03 no fusionada; DB ausente) ────────────────────────┐
+│  launcher       = 8 FAILED conocidos y nominados  (grupo A, preexistentes) │
+│  DB             = 1 FAILED por precondición ausente (grupo B)              │
+│  total observado= 9 FAILED   ← el baseline de §3.5                         │
+│  gate pnpm test = BLOCKED, declarando el desglose "launcher 8 / DB 1"      │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌─ POST-03  (03 fusionada; DB ausente) ──────────────────────────────────────┐
+│  launcher       = 0                                                        │
+│  DB             = 1 FAILED (grupo B)                                        │
+│  gate pnpm test = BLOCKED por la precondición "DB aislada portal_vetneb_ci  │
+│                   ausente", declarando "launcher 0 / DB 1"                  │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌─ POST-03  (03 fusionada; DB disponible) ───────────────────────────────────┐
+│  launcher       = 0                                                        │
+│  DB             = 0                                                        │
+│  gate pnpm test = PASSED                                                    │
+└────────────────────────────────────────────────────────────────────────────┘
+```
+
+Reglas derivadas, vinculantes:
+
+- **Los 8 fallos del grupo A son `FAILED`, no `BLOCKED`.** Son rojos reales de un
+  guard que asserta un literal de plataforma; `BLOCKED` describe un gate que no
+  pudo ejecutarse, y estos se ejecutan y fallan. Reclasificarlos como `BLOCKED`
+  ocultaría un defecto corregible detrás de una precondición ambiental ajena.
+- **El fallo del grupo B es una precondición ausente**, no un defecto del código.
+  Mientras la DB no exista, el gate agregado `pnpm test` se reporta `BLOCKED`
+  nombrando la precondición, **nunca `PASSED`** y nunca un `FAILED` silencioso.
+- Toda fase que se ejecute **antes** de `03` (`01B`, `02`, y `05A` si se
+  adelanta) declara su estado contra el bloque PRE-03: su criterio es **0 fallos
+  atribuibles a la fase**, sobre una línea base de 9 fallos preexistentes
+  nominados. Declarar «1 fallo esperado» en ese estado sería falso.
+- Toda fase posterior a `03` declara contra POST-03 y su línea base es 1 (DB
+  ausente) o 0 (DB disponible).
+
 **Ninguna fase puede escribir «`pnpm test` verde» como criterio de aceptación.**
-La forma admitida es: *«0 fallos atribuibles a esta fase; el fallo
-DB-dependiente del grupo B se conserva sin modificar y se reporta BLOCKED con su
-precondición nombrada»*. Prohibido, en toda fase: suministrar credenciales,
-leer `.env`, montar una DB, o convertir ese fallo en `skip` o en `PASSED`.
+La forma admitida es: *«0 fallos atribuibles a esta fase; los fallos
+preexistentes del estado vigente (PRE-03 o POST-03) se conservan sin modificar,
+nominados y con su gate agregado reportado `BLOCKED` con la precondición
+nombrada»*. Prohibido, en toda fase: suministrar credenciales, leer `.env`,
+montar una DB, o convertir cualquiera de esos fallos en `skip` o en `PASSED`.
 
 ### 31.1 Tabla maestra de fases
 
@@ -1463,7 +1514,7 @@ leer `.env`, montar una DB, o convertir ese fallo en `skip` o en `PASSED`.
 | `TEST-GLOBAL-10D` | Retiro de `as any` en el registro de rutas y criterio para `req`/`res`/`reply` | test-only | R1 | — | 10C |
 | `TEST-GLOBAL-11` | Consolidación de registries y censos congelados (incluido el de `01B`) | test-only | R1 | — | 05A, 01B |
 | `TEST-GLOBAL-12A` | Publicación documental del baseline de coverage con su salvedad | docs-only | R1 | — | 04, 08 |
-| `TEST-GLOBAL-12B` | Incorporación de `test:coverage` a CI como diagnóstico no bloqueante | ci-only | **R2/R3** | **Nico, explícita** | 12A |
+| `TEST-GLOBAL-12B` | Incorporación de `test:coverage` a CI como diagnóstico no bloqueante | ci-only | **R2** | **Nico, explícita** | 12A |
 | `TEST-GLOBAL-13` | Gobernanza, documentación y certificación de cierre | docs-only | R1 | — | todas |
 
 ```text
@@ -1473,10 +1524,12 @@ PRs            > 19   (04 entrega 1 PR por contrato; 07/08, 1 por subdominio;
                        05A y 10B, por lotes)
 ```
 
-`12B` se marca **R2/R3** porque su clasificación depende de la acción concreta:
-editar un workflow es R2; si esa edición tocara variables o entornos
-productivos sería R3 (`AGENTS.md` §3.1). La ficha de `12B` lo resuelve por
-acción y su default es **no ejecutarla**.
+`12B` es **R2**, categoría única. Editar un archivo de workflow es R2
+(`AGENTS.md` §3.1); todo lo que la elevaría a R3 —variables productivas,
+secretos, environments, branch protection, settings de required checks— está
+declarado **fuera de scope** en su ficha, con una regla de parada explícita: si
+apareciera esa necesidad, la fase se detiene y se abre una tarea nueva con su
+propia autorización. Su default sigue siendo **no ejecutarla**.
 
 ### TEST-GLOBAL-01 — Alta del programa e instrumentación (dos PRs: 01A → 01B)
 
@@ -1514,8 +1567,8 @@ orden 01A → 01B es recomendado; no hay acoplamiento de código entre ellos.
 - **No-scope**: cualquier archivo de `docs/**` (incluido este documento: registrar el resultado en A.0 es un PR docs-only posterior, §1); ninguna corrección de un test existente; `server/**`, `frontend/**`, `.github/**`.
 - **Riesgo**: R1. **Autorización**: no requiere.
 - **Dependencias**: `01A`.
-- **Aceptación**: (1) el censo se reproduce desde el árbol ejecutando el tooling versionado; (2) cada cifra `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` de A.0 queda reproducida por el tooling **o** reclasificada con la diferencia numérica declarada en el propio contrato de censo — no se admite dejarla sin resolver ni promoverla sin evidencia; (3) el contrato cumple la regla de fuente única de §31.2; (4) 0 fallos atribuibles a esta fase, con el fallo DB-dependiente del grupo B conservado y reportado BLOCKED (§31.0); los 8 fallos de launcher del grupo A son preexistentes y los corrige `03`.
-- **Gates**: `pnpm test` dirigido al nuevo contrato → `PASSED`. `pnpm test` completo → `BLOCKED` mientras falte la DB aislada, con el desglose «launcher = 8 preexistentes; DB-dependiente = 1». `pnpm typecheck:test` → `PASSED`.
+- **Aceptación**: (1) el censo se reproduce desde el árbol ejecutando el tooling versionado; (2) cada cifra `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` de A.0 queda reproducida por el tooling **o** reclasificada con la diferencia numérica declarada en el propio contrato de censo — no se admite dejarla sin resolver ni promoverla sin evidencia; (3) el contrato cumple la regla de fuente única de §31.2; (4) **0 fallos atribuibles a esta fase** sobre el estado **PRE-03** de §31.0: 8 fallos de launcher (grupo A) y 1 de DB (grupo B) preexistentes y nominados, ninguno modificado por esta fase.
+- **Gates**: `pnpm test` dirigido al nuevo contrato → `PASSED`. `pnpm test` completo → `BLOCKED`, declarando el desglose PRE-03 «launcher = 8 preexistentes (FAILED, los corrige `03`); DB-dependiente = 1 (precondición ausente)». `pnpm typecheck:test` → `PASSED`.
 - **Rollback**: revertir el commit. No toca runtime productivo; el tooling y el contrato desaparecen juntos y ninguna otra fase depende todavía de ellos.
 - **Output**: tooling de censo versionado + un contrato de arquitectura que lo ejerce.
 - **Coste**: medio. **Paralelizable**: no (habilita al resto, junto con `01A`).
@@ -1553,7 +1606,7 @@ programa que existe para consolidar censos.
 - **Riesgo**: R1. **Autorización**: no requiere.
 - **Dependencias**: `01`.
 - **Aceptación**: (1) 0 paths stale en `requiredTestEvidence`; (2) los 18 contratos dereferencian su evidencia; (3) **prueba negativa obligatoria dentro del propio PR**: un path inventado o una evidencia inválida introducida en el registro **pone la suite en rojo**, y el PR incluye el test que lo demuestra. Una prueba puramente positiva —«todos los paths existen»— **no satisface** este criterio: sin la prueba negativa el guard vuelve a ser fail-open y la fase no se acepta. Un registro documental de la corrección tampoco la sustituye.
-- **Gates**: `pnpm test` dirigido a `test/architecture/security/**` → `PASSED`. `pnpm test` completo → `BLOCKED` por la precondición de DB (§31.0).
+- **Gates**: `pnpm test` dirigido a `test/architecture/security/**` → `PASSED`. `pnpm test` completo → `BLOCKED`, declarando el desglose **PRE-03** de §31.0 («launcher = 8 preexistentes; DB = 1»), ya que `02` puede fusionarse antes que `03`.
 - **Rollback**: revertir el commit. Sólo afecta a `test/**`; el registro vuelve a su estado circular anterior, que es el estado documentado en §9.1 — se reabre `TG-R01`/`TG-R02`, no se pierde nada más.
 - **Output**: registro IDOR ejecutable + guard fail-closed sobre su propia evidencia.
 - **Coste**: medio. **Paralelizable**: sí, con `03`.
@@ -1568,19 +1621,21 @@ programa que existe para consolidar censos.
 
 ### TEST-GLOBAL-03 — P1: falso rojo win32
 
+- **Objetivo**: devolverle señal al gate local, haciendo que el guard del launcher valide el contrato real en ambas plataformas en vez de anclar un literal de una sola.
 - **Problema**: `TG-R04`. 8 rojos permanentes por el launcher (grupo A de §10.2) anulan `validate:local` en el entorno del owner. El noveno FAILED (`e2e-global-03b-authoritative-auth-boundary`, grupo B) es una precondición de DB ausente y **no** pertenece a esta fase.
-- **Evidencia**: §10.2.
+- **Evidencia**: §10.2, A.5b.
+- **Tipo de scope**: test-only.
 - **Scope**: hacer que el guard resuelva el comando **a través del launcher**, de modo que valide el contrato real ("e2e:full corre sobre `next start`") en ambas plataformas, en vez de anclar un literal. Sólo los dos archivos del grupo A.
 - **No-scope**: cambiar el launcher; debilitar o skipear el guard; marcar `test.skip` por plataforma; **tocar `e2e-global-03b-authoritative-auth-boundary`**, suministrar una DB, credenciales o `DATABASE_URL`, o convertir su fallo en skip/PASSED.
-- **Aceptación** (separada por causa):
-  - *Launcher*: los 8 fallos del grupo A pasan a 0 en win32 y siguen en 0 en CI; una mutación que quite el runner productivo sigue rompiendo el guard.
-  - *DB*: el archivo del grupo B no cambia. Sin DB local aislada (`portal_vetneb_ci`) su fallo se conserva y se reporta con el estado canónico de `AGENTS.md` §6: el gate `pnpm test` completo **no** se reporta PASSED sino BLOCKED, con la precondición nombrada (DB aislada ausente) y con el desglose "launcher = 0; DB-dependiente = 1". Con la DB disponible debe pasar sin modificaciones.
-  - *Global*: `pnpm test` = 0 fail requiere ambas condiciones (launcher corregido **y** DB presente). Esta fase sólo es responsable de la primera.
+- **Aceptación** (separada por causa, según los tres estados de §31.0):
+  - *Launcher*: los 8 fallos del grupo A pasan de **FAILED a 0** en win32 y siguen en 0 en CI; una mutación que quite el runner productivo sigue rompiendo el guard (prueba negativa obligatoria en el PR).
+  - *DB*: el archivo del grupo B **no cambia**. Sin DB local aislada (`portal_vetneb_ci`) su fallo se conserva y el gate `pnpm test` completo se reporta `BLOCKED` con la precondición nombrada y el desglose POST-03 «launcher = 0; DB = 1». Con la DB disponible debe pasar sin modificaciones.
+  - *Global*: `pnpm test` = 0 fail requiere **ambas** condiciones (launcher corregido **y** DB presente). Esta fase sólo es responsable de la primera; el tránsito que produce es PRE-03 → POST-03 de §31.0.
 - **Riesgo**: R1 (toca sólo `test/**`). Si exigiera tocar `frontend/e2e/helpers/**`, se replantea como R2 y se pide autorización.
 - **Autorización**: no requiere, salvo el caso R2 anterior.
 - **Dependencias**: `01`.
 - **Paths permitidos**: `test/unit/infrastructure/e2e-completeness-workflow.test.ts` y `test/unit/infrastructure/frontend-playwright-production-runner.test.ts`, y ningún otro.
-- **Gates**: los dos archivos del grupo A → `PASSED` en win32 y en CI. `pnpm test` completo → `BLOCKED` con el desglose «launcher = 0; DB-dependiente = 1».
+- **Gates**: los dos archivos del grupo A → `PASSED` en win32 y en CI. `pnpm test` completo → `BLOCKED` con el desglose POST-03 «launcher = 0; DB = 1» (§31.0), o `PASSED` si la DB está disponible.
 - **Rollback**: revertir el commit. Sólo afecta a dos archivos de `test/**`; el gate local vuelve a su estado de ruido conocido (8 rojos) y `TG-R04` se reabre.
 - **Output**: gate local capaz de distinguir un rojo real de la variancia de plataforma.
 - **Coste**: medio. **Paralelizable**: sí.
@@ -1595,9 +1650,23 @@ programa que existe para consolidar censos.
 - **Scope**: propagar el harness en memoria ya probado a: tenant isolation, auth/sesiones, permisos/roles, redacción de logs, disclosure, rate limiting. Cada guard incorpora al menos una mutación que debe ponerlo en rojo.
 - **No-scope**: debilitar cualquier contrato; introducir Stryker o mutation testing por herramienta externa; tocar `server/**`; producir evidencia de staging.
 - **Riesgo**: R1. **Autorización**: no requiere. **Dependencias**: `02`.
+- **Aceptación**: se evalúa en dos niveles —por PR y agregada de fase— definidos a continuación.
 - **Aceptación — por PR (unidad)**: cada PR de `04` se acepta **de forma independiente**, sin esperar a los demás, cuando su único contrato cumple: (1) el guard incorpora al menos una mutación explícita en el propio test; (2) esa mutación pone el guard en rojo y el test lo demuestra; (3) el contrato pasa de `NO_NEGATIVE_PROOF` o `MUTATION_CANDIDATE` a `MUTATION_PROOF_PRESENT` en la matriz de §17; (4) ninguna assertion previa se retira ni se debilita; (5) gates dirigidos en `PASSED`.
-- **Aceptación — agregada (fase)**: `04` se declara cerrada cuando **los diez contratos de la matriz de §17** tienen estado `MUTATION_PROOF_PRESENT` o un `accepted defer` con owner y fecha. El cierre agregado es condición de `12A`, no de cada PR.
-- **Gates por PR**: `pnpm test` dirigido al archivo del contrato → `PASSED`.
+- **Aceptación — agregada (fase)**: `04` se declara cerrada cuando **los ocho contratos de la matriz de §17** tienen estado `MUTATION_PROOF_PRESENT` o un `accepted defer` con owner y fecha. El cierre agregado es condición de `12A`, no de cada PR. Los ocho, nominados para que el criterio sea evaluable sin ambigüedad:
+
+```text
+1. Cross-tenant IDOR          5. Sesión / cookies
+2. Cross-realm rate limit     6. Enumeración de tokens
+3. CSRF                       7. Redacción de logs
+4. Trusted origin / CORS      8. `no-store` privado
+```
+
+De los ocho, los que **hoy** carecen de prueba negativa suficiente y por tanto
+definen el trabajo real de `04` son: Cross-tenant IDOR (`AUSENTE`), Redacción de
+logs (`AUSENTE`), `no-store` privado (`PARCIAL`) y la mitad de configuración de
+Sesión / cookies (`AUSENTE` en `env.ts`). Los otros cuatro ya están en
+`NEGATIVE_FIXTURE_PRESENT` y `04` sólo verifica que no se degraden.
+- **Gates**: por PR, `pnpm test` dirigido al archivo del contrato → `PASSED`; `pnpm test` completo → `BLOCKED` declarando el desglose del estado vigente de §31.0.
 - **Rollback**: por PR, revertir ese commit. Como cada PR toca un contrato distinto, el rollback de uno no afecta a los demás; el contrato revertido vuelve a su clase previa en §17.
 - **Output**: prueba negativa ejecutable por contrato de seguridad.
 - **Coste**: alto. **Paralelizable**: sí, por contrato.
@@ -1623,8 +1692,8 @@ autorización de Nico. Cada uno tiene su propio rollback. Toda dependencia «de
 - **Scope**: extender `test/helpers/tracked-source-files.ts` a lector canónico (normalización CRLF única, cache por proceso, fallo explícito si falta el path); migrar **por lotes** los lectores ad hoc.
 - **No-scope**: `eslint.config.mjs` y cualquier configuración (eso es `05B`); reformateo; cambio de reglas de `server/**`; migrar todos los lectores en un solo PR; alterar el oracle de ningún test —la migración cambia **cómo se lee**, nunca **qué se asserta**.
 - **Riesgo**: R1. **Autorización**: no requiere. **Dependencias**: `01`.
-- **Aceptación**: (1) el lector canónico falla de forma explícita ante un path ausente, con prueba negativa en el PR; (2) cada lote migrado conserva el mismo conjunto de assertions y el mismo resultado que antes de migrar; (3) el número de archivos con lector propio disminuye en la cantidad declarada por el lote; (4) **0 fallos atribuibles al lote**, con el fallo DB-dependiente del grupo B conservado y reportado BLOCKED con su precondición nombrada (§31.0); (5) el wall time de la suite no empeora respecto de la medición del lote anterior.
-- **Gates**: `pnpm test` dirigido a los archivos del lote → `PASSED`. `pnpm typecheck:test` → `PASSED`. `pnpm test` completo → `BLOCKED` mientras falte la DB aislada.
+- **Aceptación**: (1) el lector canónico falla de forma explícita ante un path ausente, con prueba negativa en el PR; (2) cada lote migrado conserva el mismo conjunto de assertions y el mismo resultado que antes de migrar; (3) el número de archivos con lector propio disminuye en la cantidad declarada por el lote; (4) **0 fallos atribuibles al lote**, sobre el estado vigente de §31.0 —PRE-03 si `03` aún no fusionó, POST-03 si ya lo hizo— con los fallos preexistentes conservados y nominados; (5) el wall time de la suite no empeora respecto de la medición del lote anterior.
+- **Gates**: `pnpm test` dirigido a los archivos del lote → `PASSED`. `pnpm typecheck:test` → `PASSED`. `pnpm test` completo → `BLOCKED`, declarando el desglose del estado vigente (§31.0).
 - **Rollback**: por lote, revertir ese commit. Los lotes son independientes entre sí y el helper conserva compatibilidad hacia atrás mientras queden lectores sin migrar; no hay estado intermedio inconsistente.
 - **Output**: lector canónico único + lectores ad hoc migrados por lotes.
 - **Coste**: alto. **Paralelizable**: sí, los lotes entre sí.
@@ -1638,7 +1707,8 @@ autorización de Nico. Cada uno tiene su propio rollback. Toda dependencia «de
 - **Paths permitidos**: `eslint.config.mjs`, y `package.json` **sólo** si el alta exige un script nuevo — en cuyo caso se declara en el PR como parte del mismo scope de configuración.
 - **Scope**: añadir `test/**` a `lintableFiles` con un conjunto **mínimo** de reglas (equivalente a `no-only-tests`, promesas flotantes, `no-unused-vars`) **sin autofix masivo**, y publicar el baseline resultante.
 - **No-scope**: cualquier archivo bajo `test/**` (corregir lo que el lint reporte es trabajo posterior, no de este PR); cambio de reglas de `server/**`; autofix; workflows de `.github/**`.
-- **Riesgo**: **R2** — toca configuración ejecutable. **Autorización: explícita de Nico, obligatoria antes de empezar** (`AGENTS.md` §3.1).
+- **Riesgo**: **R2** — toca configuración ejecutable.
+- **Autorización**: **explícita de Nico, obligatoria antes de empezar** (`AGENTS.md` §3.1).
 - **Dependencias**: `05A` fusionado. Activar el lint antes de unificar los lectores multiplicaría los hallazgos sobre código que `05A` va a reescribir.
 - **Aceptación**: (1) baseline de lint de `test/**` publicado con su conteo de errores y de warnings, **sin autofix y sin corregir hallazgos en este PR**; (2) el lint de `server/**`, `scripts/**` y `drizzle/**` no cambia de resultado; (3) `pnpm lint:backend` se ejecuta y su estado se reporta canónicamente; (4) si el volumen de hallazgos hiciera inviable dejar el gate en bloqueante, el PR lo declara y propone el modo no bloqueante — no se silencian reglas para forzar un verde.
 - **Gates**: `pnpm lint:backend` → `PASSED` o `FAILED` con el baseline publicado. `pnpm test` completo → `NOT_RUN` (config de lint; no altera la suite).
@@ -1738,7 +1808,7 @@ Reglas adicionales, vinculantes:
 - **Riesgo**: R1. **Autorización**: no requiere. **Dependencias**: `06` para `07`; `07` para `08`.
 - **Scope por PR**: un subdominio, una causa, un rollback. Todo `RETIRE` y todo `RELOCATE` cumple **las ocho condiciones de la prueba de equivalencia de §31.6**, demostradas dentro del propio PR.
 - **No-scope**: tocar `frontend/src/**`; crear specs E2E nuevos sin pasar por el catálogo y sus censos; reabrir `LIMPIEZA E2E`; retirar cualquier guard de seguridad.
-- **Aceptación**: (1) todas las decisiones del subdominio, tal como `06` las adjudicó, ejecutadas o revertidas a `KEEP` con motivo; (2) **ningún contrato pierde cobertura demostrable** — se verifica contra §31.6 condiciones 1–6; (3) substring ratio **de la subcarpeta remediada** < 20 %, entendido como consecuencia de fortalecer oracles y no como objetivo que autorice retiros (§30); (4) censos de catálogo realineados en el mismo PR; (5) 0 fallos atribuibles al PR, con el fallo DB-dependiente del grupo B reportado BLOCKED (§31.0); (6) cero artefactos `playwright-report/`, `test-results/` y `frontend/next-env.d.ts` sin alterar (`AGENTS.md` §7, §13).
+- **Aceptación**: (1) todas las decisiones del subdominio, tal como `06` las adjudicó, ejecutadas o revertidas a `KEEP` con motivo; (2) **ningún contrato pierde cobertura demostrable** — se verifica contra §31.6 condiciones 1–6; (3) substring ratio **de la subcarpeta remediada** < 20 %, entendido como consecuencia de fortalecer oracles y no como objetivo que autorice retiros (§30); (4) censos de catálogo realineados en el mismo PR; (5) 0 fallos atribuibles al PR, sobre el estado **POST-03** de §31.0 (`03` es dependencia transitiva vía `01`→`03`; si excepcionalmente no hubiera fusionado, se declara contra PRE-03); (6) cero artefactos `playwright-report/`, `test-results/` y `frontend/next-env.d.ts` sin alterar (`AGENTS.md` §7, §13).
 - **Gates**: `pnpm test` dirigido a la subcarpeta → `PASSED`. Cohorte E2E mínima que contenga el spec receptor, cuando hubo `RELOCATE` → `PASSED` (§7 de `AGENTS.md`: la cohorte más pequeña que lo contenga, **nunca `e2e:full`** salvo que no exista alternativa).
 - **Rollback**: por PR, revertir ese commit restaura los tests del subdominio y su realineación de censos juntos. Riesgo de rollback a vigilar: si un `RELOCATE` ya fusionó su spec receptor E2E, revertir el PR del estático **no** retira el receptor — queda cobertura duplicada, que es el lado seguro del error y se resuelve en `13`.
 - **Output**: `unit/ui` con oracles alineados a la capa correcta.
@@ -1792,7 +1862,8 @@ incompleta, no licencia para debilitar el test.
 - **Evidencia**: §12.3, §15, §26. Verificado sobre §3.2: `ENV.smtp as any` 140, `ENV.gmailApi as any` 121, `supabase.storage as any` 63, `ENV as any` 43, `nodemailer as any` 36, `globalThis as any` 22.
 - **Tipo de scope**: backend-only. **Paths permitidos**: `server/**`.
 - **No-scope**: `test/**` salvo la realineación que el cambio **rompa** legítimamente (`AGENTS.md` §4); el registro de plugins Fastify (eso es `10C`); cualquier cambio de comportamiento observable.
-- **Riesgo**: **R2**. **Autorización: explícita de Nico, obligatoria antes de empezar.**
+- **Riesgo**: **R2**.
+- **Autorización**: **explícita de Nico, obligatoria antes de empezar.**
 - **Dependencias**: `09` (su salida define qué costuras faltan realmente).
 - **Aceptación**: (1) email, storage y `ENV` accesibles por inyección; (2) **comportamiento productivo idéntico**, demostrado por los tests de integración existentes en `PASSED` sin modificarlos; (3) ningún endpoint, header, status ni contrato HTTP alterado; (4) ningún invariante de `AGENTS.md` §9 tocado.
 - **Gates**: `pnpm validate:local` → `PASSED`, o `BLOCKED` nombrando la DB ausente (§31.0). `pnpm security:public-surface` → `PASSED` si se tocó superficie pública.
@@ -1807,8 +1878,9 @@ incompleta, no licencia para debilitar el test.
 - **No-scope**: `server/**`; retirar un cast cuya costura no exista; sustituir un cast por otro escape de tipos (`as unknown as`, `@ts-expect-error`).
 - **Riesgo**: R1. **Autorización**: no requiere. **Dependencias**: `10A` fusionado.
 - **Aceptación**: (1) `as any` sobre `ENV`, email y storage = 0, **o** la lista nominal de los que sobreviven con el motivo de cada uno; (2) los tests de email y storage no parchean `globalThis`; (3) ninguna assertion retirada ni debilitada —cambia cómo se construye el doble, no qué se asserta—; (4) `pnpm typecheck:test` en `PASSED` sin escapes nuevos.
-- **Gates**: `pnpm test` dirigido a los archivos migrados → `PASSED`. `pnpm typecheck:test` → `PASSED`.
+- **Gates**: `pnpm test` dirigido a los archivos migrados → `PASSED`. `pnpm typecheck:test` → `PASSED`. `pnpm test` completo → `BLOCKED` declarando el desglose POST-03 de §31.0.
 - **Rollback**: revertir el commit. Los casts vuelven; la costura de `10A` permanece y no queda nada inconsistente.
+- **Output**: tests de email, storage y `ENV` construidos sobre puertos inyectados, sin parches de `globalThis`; y la lista nominal de los casts que sobreviven con su motivo.
 - **Coste**: medio.
 
 #### 10C — Costura tipada en el registro de plugins Fastify (backend-only, R2)
@@ -1818,21 +1890,27 @@ incompleta, no licencia para debilitar el test.
 - **Evidencia**: §12.3, §15. Verificado sobre §3.2: `clinicAuthNativeRoutes as any` = **9**; casts de `req`/`res`/`reply` = 47.
 - **Tipo de scope**: backend-only. **Paths permitidos**: `server/**`.
 - **No-scope**: `test/**` salvo realineación forzada; email/storage/`ENV` (eso es `10A`); cualquier cambio de comportamiento de ruta.
-- **Riesgo**: **R2**. **Autorización: explícita de Nico, obligatoria antes de empezar.**
+- **Riesgo**: **R2**.
+- **Autorización**: **explícita de Nico, obligatoria antes de empezar.**
 - **Dependencias**: `10A` fusionado (comparten el patrón de puertos y conviene no abrir dos refactors de inyección a la vez).
 - **Aceptación**: (1) las opciones de plugin de las rutas quedan tipadas de forma que omitir una dependencia requerida **falle en compilación**, demostrado con un caso negativo; (2) comportamiento de ruta idéntico, con los 62 archivos de integración de §15 en `PASSED` sin modificarlos; (3) ningún invariante de `AGENTS.md` §9 tocado.
 - **Gates**: `pnpm validate:local` → `PASSED` o `BLOCKED` por DB. `pnpm typecheck` y `pnpm typecheck:test` → `PASSED`.
 - **Rollback**: como `10A`, no basta revertir el commit si `10D` ya fusionó: el orden es `10D` primero, `10C` después. El PR lo declara.
+- **Output**: opciones de plugin tipadas, de modo que omitir una dependencia requerida falle en compilación; más el caso negativo que lo demuestra.
 - **Coste**: alto.
 
 #### 10D — Retiro de `as any` en rutas y criterio para `req`/`res`/`reply` (test-only)
 
 - **Objetivo**: cerrar el eje «costuras de inyección de rutas» de §30.
 - **Tipo de scope**: test-only. **Paths permitidos**: `test/**`.
-- **Riesgo**: R1. **Dependencias**: `10C` fusionado.
+- **No-scope**: `server/**`; retirar un cast cuya costura tipada no exista todavía; sustituir un cast por otro escape de tipos (`as unknown as`, `@ts-expect-error`); modificar el comportamiento o las assertions de los 62 archivos de integración de §15.
+- **Riesgo**: R1.
+- **Autorización**: no requiere.
+- **Dependencias**: `10C` fusionado.
 - **Aceptación**: (1) `clinicAuthNativeRoutes as any` y equivalentes de registro de plugin = 0; (2) **criterio declarado y escrito** para los 47 casts de `req`/`res`/`reply`: cuáles se retiran, cuáles se conservan y por qué —conservarlos con motivo es una salida válida, ya que tipar un objeto de request parcial no siempre aporta señal—; (3) ninguna assertion retirada ni debilitada.
-- **Gates**: `pnpm test` dirigido a `test/integration/**` → `PASSED`. `pnpm typecheck:test` → `PASSED`.
+- **Gates**: `pnpm test` dirigido a `test/integration/**` → `PASSED`. `pnpm typecheck:test` → `PASSED`. `pnpm test` completo → `BLOCKED` declarando el desglose POST-03 de §31.0.
 - **Rollback**: revertir el commit; los casts vuelven y la costura de `10C` permanece.
+- **Output**: registro de plugins sin `as any`; y el criterio escrito para los 47 casts de `req`/`res`/`reply`, con la decisión tomada para cada grupo. Cierra el eje «costuras de inyección de rutas» de §30.
 - **Coste**: medio.
 
 ### TEST-GLOBAL-11 — Registries y censos congelados
@@ -1845,7 +1923,7 @@ incompleta, no licencia para debilitar el test.
 - **Scope**: (a) eliminar la triple declaración de `M48` —derivar la tabla markdown del censo, o derivar el censo de una única fuente—; (b) revisar las **498 assertions de censo congelado en 134 archivos** (§20, cifra corregida en esta revisión) distinguiendo `FROZEN_CENSUS` deliberado de `LEGACY_LIST`; (c) **auditar el censo introducido por `TEST-GLOBAL-01B`** contra la regla de fuente única de §31.2, para que el instrumento creado al inicio del programa no quede fuera de la consolidación que el programa existe para hacer (`TG-A08`).
 - **No-scope**: retirar guards fail-closed; relajar `M48`; convertir un censo en warning para evitar mantenerlo.
 - **Aceptación**: (1) cada censo congelado superviviente tiene fuente única declarada y motivo escrito en el propio test; (2) `M48` deja de exigir edición en tres lugares; (3) todo `LEGACY_LIST` identificado queda retirado o convertido en derivación; (4) el censo de `01B` queda clasificado y conforme a §31.2; (5) ningún guard pierde poder de detección —se verifica con §31.6 condiciones 4, 5 y 6.
-- **Gates**: `pnpm test` dirigido a `test/architecture/**` → `PASSED`. `pnpm test` completo → `BLOCKED` por DB (§31.0).
+- **Gates**: `pnpm test` dirigido a `test/architecture/**` → `PASSED`. `pnpm test` completo → `BLOCKED`, declarando el desglose del estado vigente de §31.0.
 - **Rollback**: revertir el commit; los censos vuelven a su forma triple. Sin estado intermedio: la derivación y el literal no coexisten.
 - **Output**: censos con fuente única y motivo.
 - **Coste**: medio. **Paralelizable**: sí, con `09`.
@@ -1876,27 +1954,55 @@ contratos estáticos, lectura que la evidencia no respalda.
 
 #### 12A — Publicación documental del baseline (docs-only)
 
-- **Objetivo**: publicar el baseline de coverage con su salvedad metodológica, sin tocar CI.
-- **Tipo de scope**: docs-only. **Paths permitidos**: `docs/**`.
-- **Scope**: ejecutar `pnpm test:coverage` (R0) y publicar **la tabla por archivo**, no sólo la fila agregada, junto con la salvedad de §21.1 escrita de forma explícita.
+- **Objetivo**: publicar el baseline canónico de coverage con su salvedad metodológica, sin tocar CI.
+- **Tipo de scope**: docs-only.
+- **Paths permitidos**: `docs/**`.
+- **Scope**: ejecutar `pnpm test:coverage` y publicar **la tabla por archivo**, no sólo la fila agregada, junto con la salvedad de §21.1 escrita de forma explícita.
 - **No-scope**: thresholds; mutation testing indiscriminado o por herramienta externa; `.github/**`; `package.json`; `test/**`.
-- **Riesgo**: R1. **Autorización**: no requiere. **Dependencias**: `04` cerrada en agregado y `08` fusionada.
-- **Aceptación**: (1) baseline publicado con tabla por archivo y el SHA sobre el que se midió; (2) la salvedad metodológica aparece junto al número, no en una nota al pie; (3) el documento declara explícitamente que el baseline **no** evalúa los guards estáticos.
-- **Gates**: `pnpm test:coverage` → `PASSED` o `BLOCKED` por DB (§31.0), con el estado declarado junto al baseline. `git diff --check` → `PASSED`.
-- **Rollback**: revertir el commit. Sin impacto en runtime ni en CI.
+- **Riesgo**: R1.
+- **Autorización**: no requiere.
+- **Dependencias**: `04` cerrada en agregado y `08` fusionada.
+
+**Condición de publicabilidad — un baseline canónico exige una corrida completa.**
+`pnpm test:coverage` ejecuta la suite entera; si algún archivo falla o no llega a
+ejecutarse, los módulos que ese archivo habría importado **no** quedan
+instrumentados y el porcentaje resultante subestima la cobertura real. Un número
+así no describe el sistema: describe una corrida rota. Por eso:
+
+```text
+pnpm test:coverage = PASSED   → la corrida es completa
+                              → el baseline es CANÓNICO y publicable
+                              → 12A puede cerrar y habilitar §36 criterio 10
+
+pnpm test:coverage = BLOCKED  → la corrida es incompleta (DB ausente, §31.0)
+   o FAILED                   → NO se publica baseline canónico
+                              → 12A PERMANECE ABIERTA
+                              → se registra, si aporta, una MEDICIÓN DIAGNÓSTICA
+                                NO CANÓNICA, marcada como tal, con el estado del
+                                gate y el motivo; esa medición NO cierra 12A,
+                                NO satisface §36 y NO se cita como baseline
+```
+
+- **Aceptación**: (1) `pnpm test:coverage` en `PASSED` —requisito previo, no negociable: sin él la fase no cierra—; (2) baseline publicado con tabla por archivo y el SHA sobre el que se midió; (3) la salvedad metodológica aparece junto al número, no en una nota al pie; (4) el documento declara explícitamente que el baseline **no** evalúa los guards estáticos. Si (1) no se cumple, la salida legítima de la fase es **`accepted defer` con owner y fecha**, nombrando la precondición ausente; `13` la registra como tal y §36 criterio 10 se cierra por esa vía, no por un baseline incompleto.
+- **Gates**: `pnpm test:coverage` → `PASSED` (canónico) · `BLOCKED` con precondición nombrada (§31.0) → fase abierta o `accepted defer`. `git diff --check` → `PASSED`.
+- **Rollback**: revertir el commit. Sin impacto en runtime ni en CI; el baseline publicado desaparece y `12A` vuelve a abierta.
+- **Output**: baseline canónico de coverage publicado en `docs/**` con su salvedad metodológica; o un `accepted defer` con la precondición nombrada.
 - **Coste**: bajo-medio.
 
-#### 12B — Coverage en CI como diagnóstico no bloqueante (ci-only, R2/R3)
+#### 12B — Coverage en CI como diagnóstico no bloqueante (ci-only, R2)
 
-- **Objetivo**: decidir e implementar, si Nico lo autoriza, la ejecución de `test:coverage` en CI como señal diagnóstica.
-- **Tipo de scope**: ci-only. **Paths permitidos**: `.github/workflows/**`.
-- **Riesgo por acción**: editar un workflow es **R2**; si la edición tocara variables, entornos o secretos productivos sería **R3** (`AGENTS.md` §3.1, §3.3). La ficha del PR clasifica cada acción.
-- **Autorización: explícita de Nico, obligatoria. El default de esta subfase es NO EJECUTARLA:** §25.1 concluye que la topología de CI es correcta y no requiere cambios, y añadir un job tiene coste de tiempo y de mantenimiento sin cerrar ningún riesgo P0/P1.
-- **Dependencias**: `12A` fusionada.
-- **No-scope**: convertir coverage en gate bloqueante; thresholds; required checks; tocar los cuatro contextos required de `AGENTS.md` §6.
-- **Aceptación**: (1) el job es **estrictamente no bloqueante** y no se añade a los contextos required; (2) los cuatro required de `AGENTS.md` §6 conservan su definición exacta; (3) el tiempo añadido al pipeline se mide y se declara; (4) `qga-workflow-security` en `PASSED`.
+- **Objetivo**: decidir e implementar, si Nico lo autoriza, la ejecución de `test:coverage` en CI como señal diagnóstica no bloqueante.
+- **Tipo de scope**: ci-only.
+- **Paths permitidos**: `.github/workflows/**`, y ningún otro.
+- **No-scope**: variables productivas; secretos; environments; branch protection; configuración de required checks; deploy; staging; producción; convertir coverage en gate bloqueante; thresholds; los cuatro contextos required de `AGENTS.md` §6; **cualquier operación R3**.
+- **Riesgo**: **R2**. Categoría única. Editar un archivo de workflow dentro de los paths permitidos es R2 según `AGENTS.md` §3.1. Todo lo que elevaría la acción a R3 —variables productivas, secretos, environments, branch protection, settings de required checks— está **fuera de scope** por la línea anterior, de modo que la fase no puede alcanzar R3 sin salirse de su propia definición.
+- **Regla de parada**: si durante `12B` apareciera la necesidad de tocar cualquiera de los elementos del no-scope, la ejecución **se detiene**. No se amplía el scope, no se reclasifica la fase y no se ejecuta la acción R3: se reporta como hard stop y se abre una tarea nueva con su propia autorización (`AGENTS.md` §3.2, §5.5).
+- **Autorización**: **explícita de Nico, obligatoria antes de empezar.** El default de esta subfase es **no ejecutarla**: §25.1 concluye que la topología de CI es correcta y no requiere cambios, y añadir un job tiene coste de tiempo y de mantenimiento sin cerrar ningún riesgo P0/P1.
+- **Dependencias**: `12A` cerrada con baseline canónico publicado. Incorporar a CI una métrica cuyo baseline no es canónico no tendría con qué compararse.
+- **Aceptación**: (1) el job es **estrictamente no bloqueante** y no se añade a los contextos required; (2) los cuatro required de `AGENTS.md` §6 conservan su definición exacta; (3) el tiempo añadido al pipeline se mide y se declara; (4) `qga-workflow-security` en `PASSED`; (5) el diff se limita a `.github/workflows/**`.
 - **Gates**: `qga-workflow-security` → `PASSED`. Los cuatro contextos required → `PASSED`.
-- **Rollback**: revertir el commit retira el job. Riesgo a vigilar: si el job llegara a figurar como required en la configuración efectiva de GitHub, revertir el workflow dejaría un check required que nunca reporta y **bloquearía todos los merges**; por eso la aceptación (1) y (2) son innegociables y el rollback exige verificar antes la configuración efectiva de branch protection, que es R3 y pertenece a Nico.
+- **Rollback**: revertir el commit retira el job. Riesgo a vigilar: si el job llegara a figurar como required en la configuración efectiva de GitHub, revertir el workflow dejaría un check required que nunca reporta y **bloquearía todos los merges**. Por eso la aceptación (1) y (2) son innegociables. Verificar o modificar branch protection es R3, está fuera de scope y pertenece a Nico: si el rollback lo exigiera, se aplica la regla de parada.
+- **Output**: job de coverage no bloqueante en CI, con su tiempo añadido medido y declarado; o la fase registrada como `accepted defer` si Nico no la autoriza.
 - **Coste**: medio.
 
 ### TEST-GLOBAL-13 — Gobernanza y cierre
@@ -2042,7 +2148,7 @@ tiene exactamente un scope primario, una causa y un rollback.
 | 10D | test-only | Retiro de `as any` de rutas + criterio `req`/`res`/`reply` | R1 | No |
 | 11 | test-only | Registries y censos congelados (incluido el de `01B`) | R1 | No |
 | 12A | docs-only | Baseline de coverage con salvedad metodológica | R1 | No |
-| 12B | ci-only | `test:coverage` en CI, no bloqueante — **default: no ejecutar** | **R2/R3** | **Sí** |
+| 12B | ci-only | `test:coverage` en CI, no bloqueante — **default: no ejecutar** | **R2** | **Sí** |
 | 13 | docs-only | Certificación de cierre | R1 | No |
 
 Matriz de aceptación transversal — toda fase debe cumplir:
@@ -2088,13 +2194,13 @@ que exista un `accepted defer` explícito con owner y fecha.
 | 1 | Los 2 **P0** (`TG-R01`, `TG-R02`) cerrados **con prueba negativa en el propio PR** | `02` |
 | 2 | Los 4 **P1** (`TG-R03`, `TG-R04`, `TG-R05`, `TG-R06`) cerrados o con `accepted defer` con owner y fecha | `03`, `04`, `06`, `07`, `08` |
 | 3 | El pool de candidatos adjudicado al 100 % (`KEEP` es un cierre válido) | `06` |
-| 4 | Ningún contrato crítico de §17 permanece en `NO_NEGATIVE_PROOF` | `04` |
+| 4 | Ninguno de los **ocho** contratos de la matriz de §17 permanece en `NO_NEGATIVE_PROOF` | `04` |
 | 5 | **Launcher**: 0 fallos de launcher en win32 y en CI | `03` |
 | 6 | **DB**: con la precondición satisfecha, `pnpm test` alcanza 0 fail; sin ella, permanece **sólo** el fallo `ENVIRONMENT_DEPENDENT` del grupo B, reportado `BLOCKED` con la precondición nombrada. Un `BLOCKED` aquí es un cierre válido **únicamente** porque el criterio está redactado para admitirlo de forma explícita y nominal | `03` |
 | 7 | `test/**` con baseline de lint publicado, **o** `05B` registrada como `accepted defer` si Nico no autorizó el R2 | `05B` |
 | 8 | Censos de §6 recomputados por el tooling versionado y declarados como cifras de cierre; el censo de `01B` auditado bajo §31.2 | `01B`, `11`, `13` |
 | 9 | Costuras de inyección resueltas o con criterio declarado: infraestructura y rutas | `10A`–`10D` |
-| 10 | Baseline de coverage publicado con su salvedad metodológica; `12B` ejecutada o `accepted defer` | `12A`, `12B` |
+| 10 | Baseline de coverage **canónico** publicado con su salvedad metodológica, es decir con `pnpm test:coverage` en `PASSED` (§31, ficha `12A`); **o** `12A` registrada como `accepted defer` con la precondición ausente nombrada. Un baseline procedente de una corrida `BLOCKED` o `FAILED` **no** cierra este criterio. `12B` ejecutada o `accepted defer` | `12A`, `12B` |
 | 11 | **Ningún guard de seguridad fue debilitado en todo el programa** | transversal, auditado en `13` |
 | 12 | Residuales de §35 con owner y motivo; ledger de §37 cerrado | `13` |
 | 13 | Este documento marcado `CLOSED` con su Anexo de cierre | `13` |
@@ -2136,13 +2242,28 @@ Este ledger es **trazabilidad histórica**, no backlog: un `TG-Axx` con estado
 | `TG-A12` | P3 | §10.1 citaba el test del falso verde con el nombre truncado y sugería que tenía 3 assertions | Nombre exacto, ubicación (línea 36), constante de path y conteo real: **11 assertions, las 11 `.includes()`**, de las que se citan 3. El hallazgo técnico se conserva intacto y verificado | `CORRECTED_IN_THIS_REVISION` |
 | `TG-A13` | P3 | §20 declaraba 426 assertions de censo congelado en 116 archivos, cifra obtenida con un censo line-scoped incapaz de ver las assertions formateadas en varias líneas | Recomputado leyendo el archivo completo: **498 en 134 archivos** (426 + 72). §20, §27 y `TG-R13` corregidos; la cifra operativa de `11` es la nueva | `CORRECTED_IN_THIS_REVISION` |
 
+### 37.2 Segunda ronda de revisión — seis P2 de ejecutabilidad
+
+Una revisión automatizada sobre el head `6fe015da` abrió seis hallazgos P2
+sobre la **ejecutabilidad** del roadmap corregido. Los seis se verificaron
+contra el árbol y resultaron válidos; los seis están corregidos.
+
+| ID | Sev. | Problema detectado | Corrección aplicada | Estado |
+|---|---|---|---|---|
+| `TG-A15` | P2 | `12A` podía publicar un baseline canónico y cerrar §36 con `pnpm test:coverage` en `BLOCKED`. Una corrida incompleta no instrumenta los módulos que los archivos fallidos habrían importado, de modo que el porcentaje **subestima** la cobertura real y tergiversa el sistema | La ficha de `12A` condiciona la publicación a `PASSED`: con `BLOCKED` o `FAILED` no hay baseline canónico, la fase **permanece abierta** y sólo puede registrarse una medición diagnóstica **no canónica**, explícitamente marcada, que no cierra la fase ni satisface §36. §36 criterio 10 alineado; salida alternativa = `accepted defer` con la precondición nombrada | `CORRECTED_IN_THIS_REVISION` |
+| `TG-A16` | P2 | La aceptación agregada de `04` exigía «los diez contratos de la matriz de §17», pero la matriz tiene **ocho** filas: el criterio era inevaluable porque nadie podía saber qué dos contratos adicionales debía cerrar | Recontadas las filas de §17: son **8**. Corregido a «los ocho contratos», **nominados uno a uno** en la ficha de `04`, con la distinción entre los cuatro que ya están en `NEGATIVE_FIXTURE_PRESENT` y los cuatro que definen el trabajo real. §36 criterio 4 alineado. No se inventó ningún contrato | `CORRECTED_IN_THIS_REVISION` |
+| `TG-A17` | P2 | §31.0 declaraba obligatorios trece campos por ficha, pero varias fichas estaban incompletas, lo que volvía formalmente no ejecutables las fases de las que depende `13` | Auditadas las **19 subfases**. Completadas: `03` (Objetivo, Tipo de scope), `10B`/`10C`/`10D`/`12A`/`12B` (Output), `10D` (No-scope, Autorización). Normalizadas al formato canónico `**Campo**:` las variantes que impedían la verificación mecánica (`04` Aceptación/Gates; `05B`, `10A`, `10C`, `12B` Autorización y Riesgo). Resultado: **19/19 fichas completas**, verificable por script. §31.0 no se relajó | `CORRECTED_IN_THIS_REVISION` |
+| `TG-A18` | P2 | La regla transversal de DB afirmaba «1 FAILED esperado» sin condicionarlo a que `03` estuviera fusionada, contradiciendo el baseline de nueve fallos de §3.5 con el que se ejecutan `01B` y `02`, y arrastrando los 8 rojos de launcher hacia `BLOCKED` | §31.0 reescrita con **tres estados explícitos**: PRE-03 (launcher 8 `FAILED` + DB 1 = 9 observados), POST-03 con DB ausente (launcher 0 + DB 1) y POST-03 con DB disponible (`PASSED`). Se declara que los 8 del grupo A son **`FAILED`, no `BLOCKED`**, porque se ejecutan y fallan. Separación causal launcher ≠ DB preservada. Fichas de `01B`, `02`, `03`, `04`, `05A`, `07`/`08`, `10B`, `10D` y `11` alineadas al estado que les corresponde | `CORRECTED_IN_THIS_REVISION` |
+| `TG-A19` | P2 | `12B` llevaba riesgo `R2/R3` inmediatamente después de que §31.0 prohibiera las categorías compuestas, dejando ambigua la autorización | `12B` queda en **R2**, categoría única. Todo lo que la elevaría a R3 —variables productivas, secretos, environments, branch protection, settings de required checks, deploy, staging, producción— pasa a **no-scope explícito**, con una **regla de parada**: si apareciera esa necesidad, la fase se detiene y se abre tarea nueva con autorización propia. Actualizados §29, §31.1, la ficha, §34 y el veredicto. **0 categorías compuestas en todo el documento** | `CORRECTED_IN_THIS_REVISION` |
+| `TG-A14` | P2 | A.0 clasificaba el mismo dato de §24 dos veces con categorías incompatibles: `HISTORICAL_EXECUTION_EVIDENCE` en una fila y `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` en otra, de modo que ninguna fase podía saber qué regla de reutilización aplicar | Separados en **dos conjuntos con nombre distinto y una sola clase cada uno**: *tiempos observados* (26.422 / 298,7 / 146.129 / 1.864 ms) = `HISTORICAL_EXECUTION_EVIDENCE`; *Pareto y ranking derivados* (50 %→33, 80 %→130, tabla de entradas caras, agregado 133,6 s) = `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE`, por depender de procesamiento TAP no versionado. Fila duplicada eliminada; §24 declara la procedencia en línea | `CORRECTED_IN_THIS_REVISION` |
+
 ### 37.1 Defectos auditados y **no** corregidos, por decisión
 
 | Observación | Decisión |
 |---|---|
 | §6.2 y §6.3 están clasificados `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` en A.0, pero varias de sus filas reprodujeron exactamente en la reverificación | **No se promueven** a categoría reproducible en bloque. Se marcan `CURRENT_REVERIFICATION` sólo las filas efectivamente reejecutadas. Promover el resto sin comando documentado violaría la regla de §0 |
 | Las cifras de §7.2, §7.3, §8.2, §9.3 y §23 siguen dependiendo de los scratchpads de A.4 | **Se conservan como `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE`.** No se recrean los scripts: versionarlos es trabajo de `01B`, y hacerlo aquí habría convertido un cambio docs-only en test-only |
-| El wall time de §24 varía por host (26,4 s vs 146,1 s en la misma máquina, A.5) | **Se conserva con la advertencia existente.** Ninguna aceptación de fase depende de un tiempo absoluto |
+| El wall time de §24 varía por host (26,4 s vs 146,1 s en la misma máquina, A.5) | **Se conserva con la advertencia existente**, y en esta revisión se separa de las cifras derivadas: tiempos observados = `HISTORICAL_EXECUTION_EVIDENCE`, Pareto y ranking = `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` (`TG-A14`). Ninguna aceptación de fase depende de un tiempo absoluto |
 
 ---
 
@@ -2205,7 +2326,8 @@ repositorio. A.0 dice, cifra por cifra, cuál lo es y cuál no.
 | Importadores del resto de doubles y soporte compartido | §6.4, §12.1 | `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` | — |
 | Los dos paths canónicos de integración ausentes del árbol | §18, §33 | `CURRENT_REVERIFICATION` | A.3c |
 | Nombre, ubicación y 11 assertions del test del falso verde | §10.1, B.2 | `CURRENT_REVERIFICATION` | A.3c |
-| Wall time de la suite y Pareto de entradas caras | §24 | `HISTORICAL_EXECUTION_EVIDENCE` | A.5 |
+| **Tiempos observados** de ejecución: 26.422 ms y 298,7 ms (corrida original), 146.129 ms y 1.864 ms (re-ejecución en la misma máquina) | §24, §3.5, §9.1 | `HISTORICAL_EXECUTION_EVIDENCE` | A.5 |
+| **Pareto y ranking de entradas caras** (50 % en 33 entradas, 80 % en 130, tabla de entradas más costosas, tiempo agregado 133,6 s) | §24 | `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` | Derivado de procesar la salida TAP con un script no versionado |
 | Backend CI = success @ `ee8e7425` y @ `38fe1dfe` | §3, §29 | `CURRENT_REVERIFICATION` | A.6 |
 | `as any` 659 / 64 archivos y sus contextos principales (excepto `req`/`res`/`reply` y `clinicAuthNativeRoutes`, no re-verificados) | §12.3 | `REPRODUCIBLE_WITH_DOCUMENTED_COMMAND` | A.3, A.3b |
 | `Date` 22, timers 7, aleatorio 4, hooks 4 | §13 | `REPRODUCIBLE_WITH_DOCUMENTED_COMMAND` | A.3b |
@@ -2215,7 +2337,6 @@ repositorio. A.0 dice, cifra por cifra, cuál lo es y cuál no.
 | **498** assertions de censo congelado en **134** archivos (cifra vigente; 426/116 es el subconjunto line-scoped) | §20 | `CURRENT_REVERIFICATION` | A.3c |
 | 75 registries literales | §20 | `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` | — |
 | Subcarpetas de `unit`, integración, guards, destinos de lectura, status HTTP, ownership, nombres duplicados | §14–§16, §19, §22, §23 | `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` | A.4 (`ownership.mjs` para §23) |
-| Wall time 26,4 s, Pareto y entradas más caras | §24 | `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` | Depende del host (ver A.5) |
 | `test:coverage` ausente de todo workflow | §21, §25 | `REPRODUCIBLE_WITH_DOCUMENTED_COMMAND` | A.3b |
 | `test/**` fuera de `lintableFiles` | §25.2 | `MANUAL_CLASSIFICATION` | `eslint.config.mjs` |
 | Proyección de coste | §27 | `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` | Extrapolación de cifras derivadas |
