@@ -145,15 +145,15 @@ _Generated from `scripts/governance/quality-gate-impact-policy.mjs`. Do not edit
 
 | Suite ID | Purpose | Gate | Package scope | Commands | Representative paths | Requirement |
 | --- | --- | --- | --- | --- | --- | --- |
-| `backend-build` | Backend production bundle check. | `backend-ci` (conditional, non-required) | `root` | `pnpm build` | `server/**`<br>`package.json` | `mandatory` |
-| `backend-test-typecheck` | TypeScript contract for the Node test suite. | `backend-ci` (conditional, non-required) | `root` | `pnpm typecheck:test` | `test/**/*.test.ts`<br>`test/tsconfig.json` | `mandatory` |
-| `backend-tests` | Recursive Node test suite for backend, architecture, security, contracts and static frontend source contracts. | `backend-ci` (conditional, non-required) | `root` | `pnpm test` | `test/**/*.test.ts` | `mandatory` |
-| `backend-typecheck` | TypeScript contract for backend runtime and shared test-facing types. | `backend-ci` (conditional, non-required) | `root` | `pnpm typecheck` | `server/**`<br>`test/**/*.test.ts`<br>`tsconfig.json` | `mandatory` |
-| `frontend-build` | Next.js production build contract. | `frontend-ci` (conditional, non-required) | `frontend` | `pnpm --dir frontend build` | `frontend/**`<br>`frontend/package.json` | `conditional` |
-| `frontend-e2e-ci` | Single catalog-backed Playwright invocation for the complete frontend CI browser gate. | `frontend-ci` (conditional, non-required) | `frontend` | `pnpm --dir frontend e2e:ci` | `frontend/e2e/**`<br>`frontend/src/**` | `conditional` |
-| `frontend-lint` | ESLint contract for the Next.js frontend workspace. | `frontend-ci` (conditional, non-required) | `frontend` | `pnpm --dir frontend lint` | `frontend/**` | `conditional` |
-| `frontend-typecheck` | TypeScript contract for the Next.js frontend workspace. | `frontend-ci` (conditional, non-required) | `frontend` | `pnpm --dir frontend typecheck` | `frontend/**` | `conditional` |
-| `public-surface-audit` | Audit of the built public surface for unintended devtools exposure. | `frontend-ci` (conditional, non-required) | `root` | `pnpm security:public-surface` | `frontend/**`<br>`scripts/security/**` | `conditional` |
+| `backend-build` | Backend production bundle check. | `backend-ci` (required context, heavy validation conditional by impact) | `root` | `pnpm build` | `server/**`<br>`package.json` | `mandatory` |
+| `backend-test-typecheck` | TypeScript contract for the Node test suite. | `backend-ci` (required context, heavy validation conditional by impact) | `root` | `pnpm typecheck:test` | `test/**/*.test.ts`<br>`test/tsconfig.json` | `mandatory` |
+| `backend-tests` | Recursive Node test suite for backend, architecture, security, contracts and static frontend source contracts. | `backend-ci` (required context, heavy validation conditional by impact) | `root` | `pnpm test` | `test/**/*.test.ts` | `mandatory` |
+| `backend-typecheck` | TypeScript contract for backend runtime and shared test-facing types. | `backend-ci` (required context, heavy validation conditional by impact) | `root` | `pnpm typecheck` | `server/**`<br>`test/**/*.test.ts`<br>`tsconfig.json` | `mandatory` |
+| `frontend-build` | Next.js production build contract. | `frontend-ci` (required context, heavy validation conditional by impact) | `frontend` | `pnpm --dir frontend build` | `frontend/**`<br>`frontend/package.json` | `conditional` |
+| `frontend-e2e-ci` | Single catalog-backed Playwright invocation for the complete frontend CI browser gate. | `frontend-ci` (required context, heavy validation conditional by impact) | `frontend` | `pnpm --dir frontend e2e:ci` | `frontend/e2e/**`<br>`frontend/src/**` | `conditional` |
+| `frontend-lint` | ESLint contract for the Next.js frontend workspace. | `frontend-ci` (required context, heavy validation conditional by impact) | `frontend` | `pnpm --dir frontend lint` | `frontend/**` | `conditional` |
+| `frontend-typecheck` | TypeScript contract for the Next.js frontend workspace. | `frontend-ci` (required context, heavy validation conditional by impact) | `frontend` | `pnpm --dir frontend typecheck` | `frontend/**` | `conditional` |
+| `public-surface-audit` | Audit of the built public surface for unintended devtools exposure. | `frontend-ci` (required context, heavy validation conditional by impact) | `root` | `pnpm security:public-surface` | `frontend/**`<br>`scripts/security/**` | `conditional` |
 <!-- quality-gate-taxonomy:end -->
 
 ---

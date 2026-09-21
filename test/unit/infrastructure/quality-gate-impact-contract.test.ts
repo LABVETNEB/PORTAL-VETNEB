@@ -614,3 +614,64 @@ test("test README taxonomy normalizes trailing spaces inside the generated block
 
   assert.deepEqual(result.failures, []);
 });
+
+test("backend and frontend gates model required branch-protection contexts", () => {
+  // STAGE_C: branch protection requires validate-pr-governance, qga-workflow-security,
+  // validate-backend and validate-frontend. The policy previously declared the backend and
+  // frontend gates `required: false` with execution "conditional, non-required", conflating
+  // two different things: the heavy job is conditional by impact, but the final context is
+  // always present and blocks the merge. A non-required context would let a red gate ship.
+  const requiredMergeContexts = new Map([
+    ["pr-governance", "validate-pr-governance"],
+    ["backend-ci", "validate-backend"],
+    ["frontend-ci", "validate-frontend"],
+  ]);
+
+  for (const [gateId, check] of requiredMergeContexts) {
+    const gate = QUALITY_GATES.find((candidate) => candidate.id === gateId);
+    assert.ok(gate, `${gateId} must exist`);
+    assert.equal(gate.check, check, `${gateId} check name`);
+    assert.equal(gate.required, true, `${gateId} is a required merge context`);
+    assert.doesNotMatch(
+      gate.execution,
+      /non-required/,
+      `${gateId} execution must not claim non-required`,
+    );
+    assert.doesNotMatch(
+      gate.responsibility,
+      /not the required merge context/,
+      `${gateId} responsibility must not deny the required context`,
+    );
+  }
+
+  // The wrapper/heavy distinction stays explicit for the two gates that have a heavy job.
+  for (const gateId of ["backend-ci", "frontend-ci"]) {
+    const gate = QUALITY_GATES.find((candidate) => candidate.id === gateId);
+    assert.match(gate!.execution, /required context/, `${gateId} execution declares the context`);
+    assert.match(gate!.execution, /conditional by impact/, `${gateId} execution declares the heavy job`);
+    assert.match(gate!.responsibility, /conditional by impact/, `${gateId} responsibility`);
+  }
+});
+
+test("quality gates are the impact-routing codomain, not the required-context register", () => {
+  // STAGE_C: qga-workflow-security is a required merge context and is deliberately absent
+  // here. QUALITY_GATES is the closed set of routing targets for IMPACT_RULES, not a register
+  // of required contexts: it contains manual-review, which is no check at all, and every
+  // member is referenced by at least one rule. QGA runs unconditionally on every PR through
+  // its own executable policy (workflow-security-policy.mjs) with no detector and no taxonomy
+  // suite, so routing it by changed path would assert something false.
+  const routedGateIds = [...new Set(IMPACT_RULES.flatMap((rule) => rule.gates))].sort();
+  const declaredGateIds = QUALITY_GATES.map((gate) => gate.id).sort();
+
+  assert.deepEqual(declaredGateIds, routedGateIds);
+  assert.equal(
+    QUALITY_GATES.some((gate) => gate.check === "qga-workflow-security"),
+    false,
+    "workflow security is governed outside impact routing",
+  );
+
+  const manualReview = QUALITY_GATES.find((gate) => gate.id === "manual-review");
+  assert.ok(manualReview);
+  assert.equal(manualReview.check, null);
+  assert.equal(manualReview.required, false);
+});
