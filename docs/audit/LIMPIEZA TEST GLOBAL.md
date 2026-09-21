@@ -9,8 +9,9 @@
 | Repositorio | PORTAL-VETNEB |
 | Alcance | `test/**` (562 specs ejecutables). `frontend/e2e/**` sólo como frontera |
 | Estado | ACTIVE |
-| Propósito | Fuente rectora del programa de saneamiento `TEST-GLOBAL-*` |
+| Propósito | Fuente rectora **autosuficiente** del programa de saneamiento `TEST-GLOBAL-*` |
 | Implementación | NOT_STARTED — esta auditoría no implementa ninguna fase |
+| Revisión | R2 — diagnóstico original + reauditoría de gobernanza aplicada (§37) |
 
 ### Metadata de lifecycle
 
@@ -21,23 +22,34 @@
 | Lifecycle status | ACTIVE |
 | Authoritative source role | Diagnóstico y roadmap del programa `TEST-GLOBAL-*`. No es el mapa operativo de CI (ese es [CI_PR_CHECKS_RUNBOOK.md](../ops/CI_PR_CHECKS_RUNBOOK.md)) ni la norma de organización física (esa es [test-suite-enterprise-organization-convention.md](../implementation/test-suite-enterprise-organization-convention.md)) |
 | Effective date | 2026-09-21 |
-| Last verified date | 2026-09-21 |
+| Last verified date | 2026-09-21 (reauditoría de gobernanza y reverificación de censos) |
 | Review cadence | Por fase `TEST-GLOBAL-*` cerrada |
 | Supersedes | Ninguno. Reclasifica cifras de `TDR-002` y de `pr-test-architecture-consolidation-audit.md` como históricas (§33) |
 | Superseded by | Ninguno |
 | Related controls or gaps | `TDR-002`; `ERM-CTRL-011`; `ERM-CTRL-012`; `ERM-CTRL-025`; `ERM-QLT-001` |
-| Evidence or approval reference | Auditoría R0 ejecutada sobre `main@ee8e7425f911b4b49848957bff52242aa95158e2` el 2026-09-21 |
+| Evidence or approval reference | Auditoría técnica R0 sobre `main@ee8e7425f911b4b49848957bff52242aa95158e2`; reauditoría de gobernanza R0 y reverificación de censos sobre `main@38fe1dfe12423454b3c48f1b139a5775e4b9d388` (§3, §37) |
+| Autosuficiencia | Este documento **no depende de ningún prompt, encargo ni conversación externa**. Toda definición normativa que necesita una fase está transcrita aquí (§31.0, §31.6) |
 
-> **Vigencia y reproducibilidad de las cifras.** Todas las cifras de este
-> documento se midieron sobre `main@ee8e7425` el 2026-09-21. **No todas son
+> **Vigencia y reproducibilidad de las cifras.** El diagnóstico técnico se midió
+> sobre `main@ee8e7425` el 2026-09-21; una reauditoría de gobernanza posterior
+> reverificó los censos sobre `main@38fe1dfe` (§3). **No todas las cifras son
 > reproducibles hoy desde el repositorio:** el [Anexo A](#anexo-a--censos-y-su-reproducibilidad)
-> (A.0) clasifica cada cifra central como `REPRODUCIBLE_FROM_REPO`,
-> `REPRODUCIBLE_WITH_DOCUMENTED_COMMAND`, `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE`
-> o `MANUAL_CLASSIFICATION`. En particular, la clasificación heurística de §7 y
-> los censos de ownership y de paths stale provienen de scripts de scratchpad
-> **no versionados** (A.4). Ninguna cifra proviene de auditorías anteriores. Las cifras de `TDR-002`
-> (367/514) y de la consolidación de 2026-07-30 (517 archivos / 4.019 tests /
+> (A.0) clasifica cada cifra central en una de seis categorías —
+> `REPRODUCIBLE_FROM_REPO`, `REPRODUCIBLE_WITH_DOCUMENTED_COMMAND`,
+> `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE`, `MANUAL_CLASSIFICATION`,
+> `HISTORICAL_EXECUTION_EVIDENCE` y `CURRENT_REVERIFICATION`. En particular, la
+> clasificación heurística de §7 y los censos de ownership y de paths stale
+> provienen de scripts de scratchpad **no versionados** (A.4) y siguen siendo
+> `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` hasta `TEST-GLOBAL-01B`. Ninguna cifra
+> proviene de auditorías anteriores. Las cifras de `TDR-002` (367/514) y de la
+> consolidación de 2026-07-30 (517 archivos / 4.019 tests /
 > `ACCIDENTAL_COUPLING = 0`) son **históricas** y se tratan en §33.
+>
+> **Regla innegociable de reproducibilidad.** Una cifra
+> `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` no se cita nunca como hecho confirmado.
+> Toda decisión que dependa de ella la recomputa primero. Ninguna revisión de
+> este documento puede promover una cifra a una categoría reproducible sin
+> adjuntar el comando que la reprodujo y su salida.
 
 ---
 
@@ -70,21 +82,74 @@ Frontera con `LIMPIEZA E2E` (CLOSED, verificado 2026-09-21): `frontend/e2e/**`
 queda **fuera** del objeto de limpieza. Se consulta sólo para detectar
 duplicación y huecos de frontera. Este programa **no reabre** `LIMPIEZA E2E`.
 
-## 3. Baseline reproducible
+## 3. Baselines
+
+Este documento distingue **tres** baselines y nunca los mezcla. Confundirlos es
+la causa habitual de citar evidencia histórica como si fuera estado actual.
+
+```text
+technical_measurement_baseline   el SHA sobre el que se midió el diagnóstico técnico
+governance_reaudit_baseline      el SHA sobre el que se reverificaron censos y gobernanza
+current_revision_baseline         el SHA vigente cuando se lee o se ejecuta una fase
+```
+
+### 3.1 `technical_measurement_baseline` — diagnóstico original
 
 ```text
 branch                main
 HEAD                  ee8e7425f911b4b49848957bff52242aa95158e2
 HEAD -1               docs(e2e): close cleanup program (#1758)   2026-09-21 15:36:24 -0300
 working tree          limpio (diff vacío)
-untracked             frontend/AGENTS.md, frontend/CLAUDE.md  (generados por `next dev`,
-                      no tracked, no contractuales — preservados, no tocados)
-stashes               5 preservados (stash@{0}…stash@{4})
 AGENTS.md tracked     sólo la raíz. No existen AGENTS.md anidados tracked.
 CI en el baseline     Backend CI = success @ ee8e7425 (ubuntu-latest)
 ```
 
-Ejecución local de referencia (win32, Node v24.14.1):
+Todas las cifras de §§6–27 se midieron sobre este SHA.
+
+### 3.2 `governance_reaudit_baseline` — reverificación
+
+```text
+branch                main
+HEAD                  38fe1dfe12423454b3c48f1b139a5775e4b9d388
+HEAD == origin/main   sí, sin divergencia
+log -1                docs(test): add global test cleanup audit (#1759)
+diff ee8e7425..HEAD   1 archivo: docs/audit/LIMPIEZA TEST GLOBAL.md (+1711 líneas)
+working tree          limpio; 0 stashes
+AGENTS.md tracked     sólo la raíz (git ls-files '*AGENTS.md')
+CI                    Backend CI = success @ ee8e7425 y @ 38fe1dfe
+```
+
+Como el único cambio entre ambos SHAs es **este mismo documento**, ninguna cifra
+técnica quedó invalidada. Eso no se infiere: los censos `REPRODUCIBLE_*` se
+**volvieron a ejecutar** sobre `38fe1dfe` y devolvieron los mismos valores
+(A.0 los marca `CURRENT_REVERIFICATION`; comandos en A.1–A.3c).
+
+### 3.3 `current_revision_baseline` — obligación de quien ejecute una fase
+
+Cada fase `TEST-GLOBAL-*` **captura su propio baseline** antes de empezar
+(`AGENTS.md` §2) y lo compara con §3.2. Si el árbol avanzó, la fase:
+
+1. recomputa las cifras `REPRODUCIBLE_*` que su aceptación use (A.1–A.3c);
+2. trata como no vigente cualquier cifra `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE`;
+3. declara en su PR el SHA sobre el que midió.
+
+**Prohibido** usar §3.1 o §3.2 como si fueran el estado del árbol en el momento
+de ejecutar una fase. Los checks son evidencia únicamente del SHA que los
+produjo (`AGENTS.md` §5.7).
+
+### 3.4 Estado ambiental — no es evidencia técnica
+
+El árbol de trabajo (archivos untracked, stashes, worktrees) es **estado
+ambiental de la máquina del operador**, no evidencia del repositorio: cambia
+entre sesiones sin que cambie ningún contrato. Este documento no lo registra
+como parte del baseline, y ninguna aceptación de fase puede depender de él.
+`AGENTS.md` §3.3 obliga a preservarlo, no a documentarlo aquí.
+
+### 3.5 Ejecución local de referencia
+
+Medida sobre §3.1 (win32, Node v24.14.1). Clase: `HISTORICAL_EXECUTION_EVIDENCE`
+para el wall time; `CURRENT_REVERIFICATION` para la descomposición de fallos,
+que se volvió a ejecutar por archivo sobre §3.2 y dio idéntico resultado (A.5b).
 
 ```text
 pnpm test   → tests 4590 | pass 4580 | fail 9 | skipped 1 | wall 26,4 s
@@ -135,6 +200,19 @@ verde                ≠   protegido
 
 Declaración explícita: **no se cargó ninguna skill que no figure como "Cargada: SÍ"**.
 La auditoría se sostiene en evidencia ejecutable, no en la skill.
+
+### 5.1 Skills de la reauditoría de gobernanza (§37)
+
+| Skill | Disponible | Cargada | Uso concreto |
+|---|---|---|---|
+| `vetneb-briefing-planificacion-diseno-desarrollo-pruebas` | SÍ | **SÍ** | Normalización de §31/§32/§34/§36: fichas de fase, splits obligatorios, DAG, aceptación y rollback. Origen de las correcciones `TG-A01`, `TG-A02`, `TG-A03`, `TG-A04`, `TG-A07`, `TG-A08` |
+| `vetneb-staff-senior-full-stack-engineer` | SÍ | **SÍ** | Fronteras `test/**` ↔ backend ↔ config ↔ CI; separación test debt / `PRODUCT_TESTABILITY_DEBT`; splits de `05`, `10` y `12`; propiedad de las costuras de inyección. Origen de `TG-A02`, `TG-A05`, `TG-A06`, `TG-A08`, `TG-A10` |
+| `vetneb-security-production-invariants` | SÍ | **SÍ** | Preservación del significado de `TG-R01`, `TG-R02` y `TG-R05`; separación entre contrato estático, prueba negativa y evidencia runtime/staging; verificación de que ninguna corrección rebaja un control de seguridad |
+| `vetneb-production-web-optimization-engineer` | SÍ | NO | No cargada: §24 sigue vigente (la performance de la suite no es el problema) y no apareció evidencia nueva que obligara a revisarlo |
+| `senior-large-scale-codebase-analysis-vetneb` | **NOT_AVAILABLE** | — | No existe en el registro de skills de la sesión. No se sustituyó ni se inventó. Los censos se recomputaron con PowerShell + Git (A.3c) |
+
+No se cargaron skills de E2E, PWA, dashboard, rutas, comunicaciones, release ni
+optimización visual: la revisión fue exclusivamente documental y de gobernanza.
 
 ## 6. Inventario físico
 
@@ -195,7 +273,7 @@ test/**  :  server/**          =  3,40 : 1
 test total : producción total  =  2,02 : 1
 ```
 
-Este ratio es el dato central de mantenibilidad (§27, §37).
+Este ratio es el dato central de mantenibilidad (§27, §30).
 
 ### 6.4 Soporte compartido
 
@@ -215,8 +293,16 @@ Este ratio es el dato central de mantenibilidad (§27, §37).
 | `test/fixtures/report-access.ts` | 1 | 2 |
 
 **12 archivos de soporte compartido para 562 specs.** El helper canónico de
-censo (`tracked-source-files.ts`) tiene **9 importadores** mientras **410
+censo (`tracked-source-files.ts`) tiene **8 importadores** mientras **410
 archivos** leen el filesystem por su cuenta (§13.1).
+
+Precisión sobre esos 8 (recomputado sobre §3.2, A.3c; la revisión anterior de
+este documento decía 9): los 8 **importan** el helper, no sólo lo mencionan.
+Dos de ellos —`test/architecture/tracked-source-inventory.test.ts` y
+`test/architecture/test-support-layout-contract.test.ts`— son además **guards
+del propio helper**, de modo que su uso es a la vez consumo y verificación. La
+distinción importa para `TEST-GLOBAL-05A`: la meta no es "subir de 8", es que el
+lector canónico sea la única vía de lectura de source de la suite.
 
 ## 7. Source coupling — auditoría profunda
 
@@ -443,8 +529,14 @@ paths dentro de **estructuras de datos que nadie dereferencia**.
 
 ### 10.1 Falso verde demostrado
 
-`test/unit/ui/dashboard/frontend-dashboard-empty-states.test.ts`, test
-*"clinic command center distinguishes recent list load failures from empty states"*:
+Archivo: `test/unit/ui/dashboard/frontend-dashboard-empty-states.test.ts`.
+Test exacto (línea 36):
+*"dashboard overview clinic command center distinguishes recent list load failures from empty states"*.
+
+Datos verificados sobre §3.2: el archivo tiene 4 tests y 43 assertions; **este
+test tiene 11 assertions y las 11 son `.includes()`**. Las tres que se citan
+abajo son el subconjunto que demuestra la mutación escapante; las otras ocho
+tampoco la detectan.
 
 ```ts
 assert.ok(source.includes("statsLoadError ?"));
@@ -452,7 +544,10 @@ assert.ok(source.includes('role="alert"'));
 assert.ok(source.includes("No se pudieron cargar las métricas operativas. Intente nuevamente."));
 ```
 
-Fuente real (`ClinicCommandCenter.tsx:136`):
+El `source` proviene de
+`const CLINIC_COMMAND_CENTER_PATH = "frontend/src/app/dashboard/ClinicCommandCenter.tsx";`.
+
+Fuente real (`frontend/src/app/dashboard/ClinicCommandCenter.tsx:136`):
 
 ```tsx
 {statsLoadError ? (<div role="alert" …>…</div>) : null}
@@ -460,12 +555,16 @@ Fuente real (`ClinicCommandCenter.tsx:136`):
 
 **Mutación que escapa**: invertir la condición a `{!statsLoadError ? …}`.
 `.includes("statsLoadError ?")` sigue siendo verdadero porque
-`"!statsLoadError ?"` **contiene** `"statsLoadError ?"`. El resultado sería
-mostrar la alerta de error exactamente cuando **no** hay error, y los tres
-asserts pasan. Las tres assertions además son independientes: nada ata el
-mensaje al elemento `role="alert"` ni a la condición.
+`"!statsLoadError ?"` **contiene** `"statsLoadError ?"` (verificado sobre §3.2:
+`('!statsLoadError ?').Contains('statsLoadError ?')` → `True`). El resultado
+sería mostrar la alerta de error exactamente cuando **no** hay error, y **las 11
+assertions del test siguen pasando**. Las assertions además son independientes
+entre sí: nada ata el mensaje al elemento `role="alert"` ni a la condición.
 
-`FALSE_GREEN` confirmado, con mutación concreta identificada.
+`FALSE_GREEN` confirmado, con mutación concreta identificada. La mutación está
+**razonada y verificada por contención de substring, no ejecutada** contra el
+árbol: ejecutarla exigiría modificar `frontend/src/**`, lo que esta auditoría no
+hace. Convertirla en prueba negativa ejecutable es trabajo de `TEST-GLOBAL-07`.
 
 ### 10.2 Los 9 FAILED locales: 8 falsos rojos win32 + 1 precondición de DB
 
@@ -670,8 +769,9 @@ Los parches de singletons **sí** se restauran, y en `try/finally`
 | `function listFiles(` / `collectSourceFiles(` | 4 |
 | **Archivos con lector propio** | **283** |
 
-Frente a **9 importadores** del helper canónico `tracked-source-files.ts`.
-`DUPLICATE_SOURCE_OF_TRUTH` de la operación más repetida de la suite.
+Frente a **8 importadores** del helper canónico `tracked-source-files.ts`
+(§6.4; recomputado sobre §3.2). `DUPLICATE_SOURCE_OF_TRUTH` de la operación más
+repetida de la suite.
 
 Consecuencia medible: 295 archivos normalizan CRLF a mano
 (`.replace(/\r\n/g, "\n")`) y **36 archivos que leen filesystem no lo hacen**.
@@ -746,7 +846,22 @@ automática del contrato de puertos.
 96 archivos, subsistema propio. 93 de 96 leen filesystem — **correcto por
 diseño**: el árbol es el objeto del contrato.
 
-Evaluación contra el estándar enterprise de §19 del prompt:
+**Estándar de guard enterprise (definición normativa, transcrita aquí para que
+este documento sea autosuficiente).** Un guard de arquitectura es
+enterprise-grade cuando cumple las cuatro propiedades siguientes:
+
+```text
+NEW_VIOLATION    → FAIL    una violación nueva, introducida por un archivo que
+                           el guard no conocía, lo pone en rojo (auto-discovery)
+STALE_EXCEPTION  → FAIL    una excepción, allowlist o entrada de registry que ya
+                           no corresponde a nada real lo pone en rojo
+UNSUPPORTED_SYNTAX → FAIL  una grafía que el guard no sabe analizar lo pone en
+                           rojo, en vez de pasar en silencio (fail-closed)
+KNOWN_ALLOWED_CASE → PASS  un caso legítimo y declarado no produce falso rojo
+```
+
+Las tres primeras son fail-closed: ante duda, rojo. La cuarta impide que el
+guard sea ruido. Evaluación de los 96 guards contra ese estándar:
 
 | Propiedad | Estado |
 |---|---|
@@ -798,8 +913,14 @@ Matiz de justicia: CI **sí** levanta un servicio `postgres:16` y ejecuta
 es prueba de que el **schema resultante** sea el esperado (constraints, índices,
 FKs, tipos) ni de que los **repositorios** funcionen contra él.
 
-Concuerda con §21: la carpeta `test/integration/adapters/repositories/` está
-**documentada como canónica y vacía**.
+Concuerda con §33: `test/README.md` documenta como canónicos dos paths —
+`test/integration/adapters/repositories/` y `test/integration/external-services/`—
+que **no existen en el árbol**. Verificado sobre §3.2: 0 archivos tracked y el
+directorio ausente en el working tree para ambos. La redacción precisa es
+**"paths canónicos documentados pero ausentes del árbol"**, no "carpetas
+vacías": la diferencia importa porque un directorio vacío no sobrevive a `git`,
+de modo que `TEST-GLOBAL-09` no encuentra una carpeta que poblar sino un path
+que crear o que retirar de la documentación.
 
 Esta auditoría es R0: no se ejecutó ni se diseñó ningún cambio de DB
 (`AGENTS.md` §§14–15).
@@ -818,12 +939,24 @@ Lo que leen, por volumen de referencias:
 | `frontend/src/lib/api.ts` | 38 |
 | `frontend/src/app/globals.css` | 14 |
 
-Aplicando la frontera del prompt:
+**Frontera de capa entre `test/**` y `frontend/e2e/**` (definición normativa,
+transcrita aquí para que este documento sea autosuficiente).** La capa correcta
+de un test frontend se decide por la **naturaleza del contrato**, no por su
+coste ni por la carpeta donde ya vive:
 
 ```text
 SOURCE / CONFIG CONTRACT   → test/**          (next/link=0, CSP, metadata, SEO, manifest)
 REAL BROWSER CONTRACT      → frontend/e2e/**  (render, interacción, estados, geometría)
 ```
+
+Criterio de decisión: si el contrato puede violarse **sin que cambie el texto
+del source** (porque depende de render, de layout, de foco, de orden de eventos
+o de estado en tiempo de ejecución), es contrato de navegador y su oracle vive
+en `frontend/e2e/**`. Si la violación exige necesariamente cambiar el source o
+una configuración, es contrato estático y su oracle vive en `test/**`.
+
+Aplicar esta frontera **no autoriza a mover nada automáticamente** ni a reabrir
+`LIMPIEZA E2E`: cualquier traslado sigue el procedimiento `RELOCATE` de §31.6.
 
 - **Legítimos y a preservar**: `frontend-native-link-preview-contract` (§7.5),
   `frontend-csp-*` (7 archivos), `frontend-next-config-security-headers`,
@@ -842,8 +975,26 @@ catálogo (`frontend/e2e/suites/catalog.ts`), no asumirla.
 
 | Tipo | Métrica |
 |---|---:|
-| Assertions de conteo congelado (`.length, <n>`) | **426** en **116 archivos** |
+| Assertions de conteo congelado (`.length, <n>`) — misma línea | **426** en **116 archivos** |
+| ídem, incluyendo las formateadas en varias líneas | **498** en **134 archivos** |
 | Registries literales (`const X = [ … ]` en el test) | 75 archivos |
+
+**Corrección de esta revisión (`TG-A13`).** La cifra 426/116 es correcta pero
+**parcial**: procede de un censo line-scoped (`grep -oE`), que por construcción
+no puede ver una assertion escrita así:
+
+```ts
+assert.equal(
+  registry.length,
+  42,
+);
+```
+
+Recomputado sobre §3.2 con un censo que lee el archivo completo (A.3c), hay
+**72 assertions adicionales** de esa forma: 426 + 72 = **498**, en 134 archivos.
+La cifra operativa de `TEST-GLOBAL-11` es **498 / 134**, no 426 / 116. El coste
+de edición colateral que describe §27 es, por tanto, un 17 % mayor de lo que
+indicaba la medición original.
 
 Clasificación:
 
@@ -999,9 +1150,10 @@ un símbolo en `frontend/src/lib/api.ts` puede romper 45 archivos de test, ningu
 de los cuales es dueño del contrato. Ésta es la respuesta a "¿qué bloquea
 refactors válidos?".
 
-Ningún test se marca hoy como redundante confirmado: exigir la prueba de §15 del
-prompt (mismo contrato, misma mutación detectada, señal preservada tras eliminar
-uno) requiere la adjudicación de `TEST-GLOBAL-06`.
+Ningún test se marca hoy como redundante confirmado: exigir la prueba de
+equivalencia de §31.6 (mismo contrato con owner verificable, misma clase de
+mutación detectada, negative proof y fail-closed preservados tras eliminar uno)
+requiere la adjudicación de `TEST-GLOBAL-06`.
 
 ```text
 TESTS_REDUNDANTES_CONFIRMADOS = 0
@@ -1032,8 +1184,8 @@ Entradas más caras (ms):
 | 2.744 | sensitive marker split across chunks in oversized public bundle |
 | ~1.500–2.400 | familia `M44`/`M45`/`M46`/`M35`/`M41` (censos de árbol completos) |
 
-**Conclusión explícita y contraria a la hipótesis inicial del encargo: la
-performance de la suite NO es un problema.** 4.530 tests en 26,4 s es un
+**Conclusión explícita, y contraria a la hipótesis con la que se abrió esta
+auditoría: la performance de la suite NO es un problema.** 4.530 tests en 26,4 s es un
 resultado excelente. El coste se concentra en guards que re-recorren el árbol
 completo de forma independiente (consecuencia de §13.1), y su optimización
 natural es un subproducto del helper canónico, no una fase propia.
@@ -1042,7 +1194,7 @@ Clasificación de optimizaciones candidatas:
 
 | Optimización | Clase |
 |---|---|
-| Lector canónico con cache por proceso | `SAFE_EQUIVALENT` (subproducto de `TEST-GLOBAL-05`) |
+| Lector canónico con cache por proceso | `SAFE_EQUIVALENT` (subproducto de `TEST-GLOBAL-05A`) |
 | Unificar censos de árbol M44–M48 | `REQUIRES_EQUIVALENCE_PROOF` |
 | Reducir escaneos de bundle público | `SEMANTIC_RISK` — son guards de seguridad |
 | Paralelismo o sharding adicional | `NOT_WORTH_IT` a 26 s |
@@ -1128,8 +1280,8 @@ Extrapolación al escenario "el proyecto duplica su tamaño", manteniendo el rat
 | Wall time | 26,4 s | ~55 s (sigue siendo irrelevante) |
 
 El cuello de botella proyectado **no es tiempo de ejecución** sino **coste de
-edición**: con 50 archivos de producción ya a ≥ 11 guards y 426 censos
-congelados, duplicar el tamaño duplica el número de ediciones colaterales que
+edición**: con 50 archivos de producción ya a ≥ 11 guards y 498 assertions de
+censo congelado, duplicar el tamaño duplica el número de ediciones colaterales que
 exige cada PR. El riesgo a escala es de **fricción de refactor y erosión de la
 confianza en el rojo**, no de performance.
 
@@ -1145,21 +1297,42 @@ confianza en el rojo**, no de performance.
 | `TG-R06` | `ACCIDENTAL_COUPLING` | **P1** | 137 archivos / 1.042 tests candidatos, 89 % en `unit/ui/**` | §7.3 |
 | `TG-R07` | `MOCK_DRIFT` | **P2** | 659 `as any` en la costura test↔runtime; el tipado no detecta cambio de contrato de puertos | §12.3 |
 | `TG-R08` | `PERFORMANCE_DEBT` (gobernanza) | **P2** | `test/**` (156.700 LOC) sin ninguna regla de lint | §25.2 |
-| `TG-R09` | `DUPLICATE_SOURCE_OF_TRUTH` | **P2** | 283 lectores de source ad hoc vs 9 importadores del helper canónico | §13.1 |
-| `TG-R10` | `COVERAGE_GAP` | **P2** | 0 tests de repositorio y 0 de servicio externo; ambas carpetas documentadas y vacías | §18, §21 |
+| `TG-R09` | `DUPLICATE_SOURCE_OF_TRUTH` | **P2** | 283 lectores de source ad hoc vs **8** importadores del helper canónico | §6.4, §13.1 |
+| `TG-R10` | `COVERAGE_GAP` | **P2** | 0 tests de repositorio y 0 de servicio externo; los dos paths canónicos están documentados en `test/README.md` pero **ausentes del árbol** | §18, §33 |
 | `TG-R11` | `OVER_SPECIFICATION` | **P2** | Difusión de ownership: 50 archivos de producción con ≥11 guards; `api.ts` con 45 | §23 |
 | `TG-R12` | `FIXTURE_DRIFT` | **P2** | `fastify-app-route-stubs.ts` (762 LOC, 2 consumidores) y `dashboard-operational-contract.ts` (552 LOC, 1) sobre-especializados | §12.1 |
-| `TG-R13` | `STALE_GUARD` (coste) | **P3** | 426 censos congelados; `M48` con triple fuente de verdad | §20 |
-| `TG-R14` | `DOCUMENTATION_DRIFT` | **P3** | Árbol canónico documenta 2 carpetas vacías y omite `unit/application`, `unit/clinics`, `unit/pricing` | §21 |
+| `TG-R13` | `STALE_GUARD` (coste) | **P3** | **498** assertions de censo congelado en **134** archivos (426/116 en el censo line-scoped original, §20); `M48` con triple fuente de verdad | §20 |
+| `TG-R14` | `DOCUMENTATION_DRIFT` | **P3** | El árbol canónico de `test/README.md` documenta 2 paths ausentes del árbol y omite `unit/application`, `unit/clinics`, `unit/pricing` | §18, §33 |
 | `TG-R15` | `NONDETERMINISM` | **P3** | 8 de 11 archivos mutan `process.env` sin restaurar (acotado a intra-archivo por aislamiento de proceso) | §13.2 |
 | `TG-R16` | `WEAK_ASSERTION` | **P3** | Inconsistencia de normalización CRLF: 295 normalizan, 36 lectores no | §13.1 |
 
 ```text
-P0 = 2      P1 = 4      P2 = 6      P3 = 4
+TECHNICAL_P0 = 2      TECHNICAL_P1 = 4      TECHNICAL_P2 = 6      TECHNICAL_P3 = 4
 ```
 
 Severidades deliberadamente no infladas: `TG-R01`/`TG-R02` son P0 porque afectan
 un **control de seguridad presentado como verificado**; nada más se eleva a P0.
+
+### 28.1 Dos registros de hallazgos que no se suman
+
+Este documento mantiene **dos series separadas** y nunca las agrega en un mismo
+conteo:
+
+```text
+TG-Rxx   riesgo TÉCNICO del subsistema de tests.
+         Se cierra implementando una fase TEST-GLOBAL-*.
+         Estado actual: 2 P0 · 4 P1 · 6 P2 · 4 P3  — TODOS ABIERTOS.
+
+TG-Axx   hallazgo de CALIDAD de esta auditoría y de su roadmap.
+         Se cierra corrigiendo ESTE documento.
+         Estado actual: 13 hallazgos, todos CORRECTED_IN_THIS_REVISION (§37).
+```
+
+Un `TG-Axx` corregido **no** incrementa el conteo técnico ni lo reduce: son
+planos distintos. Que la gobernanza del roadmap esté corregida no cierra ningún
+riesgo técnico; que un riesgo técnico siga abierto no invalida la corrección de
+gobernanza. El único punto de contacto es que `TG-A13` corrigió una **cifra**
+citada por `TG-R13` (426/116 → 498/134) sin cambiar su severidad P3.
 
 ## 29. Bloqueantes
 
@@ -1172,26 +1345,42 @@ Bloqueantes para iniciar el programa   =   NINGUNO
 | Baseline reproducible | Capturado (§3) |
 | CI verde sobre el baseline | Verificado (`Backend CI` = success @ `ee8e7425`) |
 | `LIMPIEZA E2E` cerrado | Verificado (CLOSED, last verified 2026-09-21) |
-| Autorización R2 para lint/CI/deps | **Requerida** para `TEST-GLOBAL-05` (config de ESLint) y `TEST-GLOBAL-12` |
-| Autorización R2 para producto | **Requerida** para `TEST-GLOBAL-10` (inyección de dependencias en email/storage) |
+| Autorización R2 para lint | **Requerida** para `TEST-GLOBAL-05B` (`eslint.config.mjs`). No bloquea `05A`, que es R1 |
+| Autorización R2/R3 para CI | **Requerida** para `TEST-GLOBAL-12B` (workflow de coverage). Su default es **no ejecutarse**; `12A` es docs-only y no la necesita |
+| Autorización R2 para producto | **Requerida** para `TEST-GLOBAL-10A` (inyección en email/storage/`ENV`) y `TEST-GLOBAL-10C` (registro de plugins Fastify). No bloquea `10B` ni `10D`, que son test-only |
 | DB para gates locales | `pnpm validate:local` queda BLOCKED sin DB desde #1711; reportar como ambiental |
 
 ## 30. Estado objetivo
 
-| Eje | Objetivo medible |
-|---|---|
-| Arquitectura | 100 % de specs clasificados; `test/*.test.ts` = 0; capa inferida == carpeta; helper de lectura canónico único |
-| Confiabilidad | 0 falsos rojos de launcher tolerados en win32; `validate:local` capaz de PASSED en el entorno del owner **cuando su precondición de DB está satisfecha**, y BLOCKED con esa precondición nombrada cuando no lo está |
-| Source coupling | 137 candidatos adjudicados a 100 %; guards legítimos preservados sin excepción; acoplamiento accidental corregido o registrado con owner y motivo |
-| Assertions | 0 contratos críticos con oracle sólo-presencia; substring ratio global < 20 % |
-| Seguridad | Prueba negativa en tenant isolation, auth, permisos, redacción y rate limit; 0 registries stale no dereferenciados |
-| Mocks | 0 `as any` en costuras de inyección de rutas; ownership declarado por double |
-| Performance | Mantener wall time < 60 s; ninguna optimización con pérdida semántica |
-| Gobernanza | `test/**` bajo lint; coverage baseline publicado con su salvedad metodológica (§21) |
+**Regla de trazabilidad (`TG-A06`): toda métrica de cierre mapea a exactamente
+una fase dueña.** Un objetivo sin fase dueña es un objetivo que nadie ejecuta y
+que bloquearía el cierre para siempre; por eso la columna "Fase dueña" es
+obligatoria y §36 sólo puede exigir objetivos que la tengan.
+
+| Eje | Objetivo medible | Fase dueña |
+|---|---|---|
+| Arquitectura | 100 % de specs clasificados; `test/*.test.ts` = 0; capa inferida == carpeta; helper de lectura canónico único | `01B`, `05A`, `06` |
+| Confiabilidad | 0 falsos rojos de launcher tolerados en win32; `validate:local` capaz de PASSED en el entorno del owner **cuando su precondición de DB está satisfecha**, y BLOCKED con esa precondición nombrada cuando no lo está | `03` |
+| Source coupling | 137 candidatos adjudicados a 100 %; guards legítimos preservados sin excepción; acoplamiento accidental corregido o registrado con owner y motivo | `06`, `07`, `08` |
+| Assertions | 0 contratos críticos con oracle sólo-presencia; substring ratio < 20 % **en las carpetas remediadas por `07`/`08`** | `04`, `07`, `08` |
+| Seguridad | Prueba negativa en tenant isolation, auth, permisos, redacción y rate limit; 0 registries stale no dereferenciados | `02`, `04` |
+| Mocks — costuras de infraestructura | 0 `as any` sobre `ENV`, email y storage; ownership declarado por double | `10A` → `10B` |
+| Mocks — costuras de inyección de rutas | 0 `as any` en el registro de plugins Fastify (`clinicAuthNativeRoutes as any` = 9 sobre §3.2) y criterio declarado para los casts de `req`/`res`/`reply` (47) | `10C` → `10D` |
+| Performance | Mantener wall time < 60 s; ninguna optimización con pérdida semántica | subproducto de `05A`; sin fase propia (§24) |
+| Gobernanza | `test/**` bajo lint; coverage baseline publicado con su salvedad metodológica (§21) | `05B`, `12A`, `12B` |
+
+Nota sobre el eje "Assertions": el objetivo original decía *substring ratio
+global < 20 %*. Esta revisión lo acota a las carpetas efectivamente remediadas
+porque el ratio global depende de los 137 candidatos adjudicados, y `06` puede
+resolver legítimamente muchos de ellos como `KEEP` (§31.6): exigir un ratio
+global sería exigir retirar guards legítimos para mover un número. El objetivo
+sustantivo —ningún contrato crítico con oracle sólo-presencia— se conserva
+intacto y es el que §36 audita.
 
 ## 31. Roadmap `TEST-GLOBAL-*`
 
-La secuencia propuesta en el encargo se **modificó según la evidencia**:
+La secuencia inicialmente prevista se **modificó según la evidencia recogida en
+§§6–29**:
 
 - se **elimina** la fase autónoma de performance (§24: no hay problema);
 - se **adelanta** la seguridad al inicio (P0 real);
@@ -1199,22 +1388,95 @@ La secuencia propuesta en el encargo se **modificó según la evidencia**:
 - se **divide** la remediación de `unit/ui` en adjudicación + dos olas;
 - se **añade** una fase de testability de producto (R2, fuera de test-only).
 
-| Fase | Título | Scope primario | Riesgo | Depende de |
-|---|---|---|---|---|
-| `TEST-GLOBAL-01A` | Alta documental del programa (`TDR-002`, `docs/audit/README.md`) | docs-only | R1 | — |
-| `TEST-GLOBAL-01B` | Instrumentación del censo (contrato de censo y tooling versionado) | test-only | R1 | 01A |
-| `TEST-GLOBAL-02` | **P0** — De-circularizar el registro IDOR y sanear evidencia stale | test-only | R1 | 01 |
-| `TEST-GLOBAL-03` | **P1** — Falso rojo win32 del launcher: restaurar el gate local | test-only | R1 | 01 |
-| `TEST-GLOBAL-04` | **P1** — Prueba negativa para guards de seguridad | test-only | R1 | 02 |
-| `TEST-GLOBAL-05` | Lector canónico de source + lint de `test/**` | test-only + config-only | **R2** | 01 |
-| `TEST-GLOBAL-06` | Adjudicación de los 137 candidatos (sin modificar tests) | docs-only | R0/R1 | 01, 05 |
-| `TEST-GLOBAL-07` | Remediación `unit/ui` ola 1 — dashboard | test-only | R1 | 06 |
-| `TEST-GLOBAL-08` | Remediación `unit/ui` ola 2 — admin, public, frontend | test-only | R1 | 07 |
-| `TEST-GLOBAL-09` | Capa de integración de repositorios y servicios externos | test-only | R1 | 05 |
-| `TEST-GLOBAL-10` | Testability de producto: inyección en email/storage/ENV | **backend-only** | **R2** | 09 |
-| `TEST-GLOBAL-11` | Consolidación de registries y censos congelados | test-only | R1 | 05 |
-| `TEST-GLOBAL-12` | Baseline de coverage semántico y mutation strength | config-only + docs | **R2** | 04, 08 |
-| `TEST-GLOBAL-13` | Gobernanza, documentación y certificación de cierre | docs-only | R1 | todas |
+### 31.0 Convenciones normativas del roadmap
+
+Estas reglas son vinculantes para toda fase y subfase. Derivan de `AGENTS.md`
+y no lo relajan en ningún punto.
+
+**Ficha obligatoria.** Ninguna fase es ejecutable sin los trece campos:
+
+```text
+ID · Objetivo · Tipo de scope · Paths permitidos · No-scope · Riesgo
+Autorización · Dependencias · Aceptación · Gates · Rollback · Output · Coste
+```
+
+**Vocabulario de riesgo.** Sólo `R0`, `R1`, `R2` o `R3`, tal como los define
+`AGENTS.md` §3.1. **Prohibido** escribir `R0/R1` o cualquier categoría
+compuesta: si una fase contiene acciones de riesgo distinto, se declara el
+riesgo **máximo** de la fase y se enumera por acción cuál es cuál.
+
+**Un scope por entrega.** `AGENTS.md` §4 obliga a entregar por separado
+docs-only, test-only, config-only, scripts-only, backend-only, frontend-only y
+ci-only. Una fase que abarque dos scopes primarios se **divide en subfases**
+con sufijo (`05A`/`05B`), cada una con ficha completa propia. La excepción
+mixed-scope existe, pero exige enumerar cada scope, justificar por qué los
+dominios no pueden entregarse por separado, y declarar la frontera de
+acoplamiento y la de rollback. **En este roadmap no se invoca en ninguna fase.**
+
+**Rollback obligatorio y específico.** Toda subfase declara su rollback. Para
+cambios sin efecto en runtime productivo, «revertir el commit» es suficiente y
+se declara así. Para cualquier cambio con impacto estructural o productivo
+(`10A`, `10C`, `12B`), «revertir el commit» **no** es un rollback válido por sí
+solo: la ficha declara qué queda en estado intermedio y cómo se restablece.
+
+**Estados canónicos.** Los gates se reportan exclusivamente como `PASSED`,
+`FAILED`, `NOT_RUN`, `NOT_AVAILABLE` o `BLOCKED` (`AGENTS.md` §6). `BLOCKED`
+nombra siempre la precondición ausente. **`BLOCKED` no es `PASSED`** y no puede
+usarse para cerrar un criterio de aceptación: sólo para declarar honestamente
+que un gate no pudo ejecutarse.
+
+**Precondición de DB — regla transversal.** Desde #1711 la suite contiene un
+archivo que exige una DB aislada (§10.2, grupo B). Mientras esa DB no exista en
+el entorno de ejecución:
+
+```text
+pnpm test          → 1 FAILED esperado y nominado (grupo B); el gate se reporta
+                     BLOCKED con la precondición "DB aislada portal_vetneb_ci
+                     ausente", nunca PASSED y nunca FAILED silencioso
+pnpm validate:local→ BLOCKED con la misma precondición
+```
+
+**Ninguna fase puede escribir «`pnpm test` verde» como criterio de aceptación.**
+La forma admitida es: *«0 fallos atribuibles a esta fase; el fallo
+DB-dependiente del grupo B se conserva sin modificar y se reporta BLOCKED con su
+precondición nombrada»*. Prohibido, en toda fase: suministrar credenciales,
+leer `.env`, montar una DB, o convertir ese fallo en `skip` o en `PASSED`.
+
+### 31.1 Tabla maestra de fases
+
+| Fase | Título | Scope primario | Riesgo | Autorización | Depende de |
+|---|---|---|---|---|---|
+| `TEST-GLOBAL-01A` | Alta documental del programa (`TDR-002`, `docs/audit/README.md`) | docs-only | R1 | — | — |
+| `TEST-GLOBAL-01B` | Instrumentación del censo (contrato de censo y tooling versionado) | test-only | R1 | — | 01A |
+| `TEST-GLOBAL-02` | **P0** — De-circularizar el registro IDOR y sanear evidencia stale | test-only | R1 | — | 01 |
+| `TEST-GLOBAL-03` | **P1** — Falso rojo win32 del launcher: restaurar el gate local | test-only | R1 | — | 01 |
+| `TEST-GLOBAL-04` | **P1** — Prueba negativa para guards de seguridad (1 PR por contrato) | test-only | R1 | — | 02 |
+| `TEST-GLOBAL-05A` | Lector canónico de source y migración de lectores ad hoc | test-only | R1 | — | 01 |
+| `TEST-GLOBAL-05B` | Alta de `test/**` en `lintableFiles` y baseline de lint | config-only | **R2** | **Nico, explícita** | 05A |
+| `TEST-GLOBAL-06` | Adjudicación de los 137 candidatos (sin modificar tests) | docs-only | R1 | — | 01, 05A |
+| `TEST-GLOBAL-07` | Remediación `unit/ui` ola 1 — dashboard | test-only | R1 | — | 06 |
+| `TEST-GLOBAL-08` | Remediación `unit/ui` ola 2 — admin, public, frontend | test-only | R1 | — | 07 |
+| `TEST-GLOBAL-09` | Integración de repositorios y servicios externos, o declaración de bloqueo | test-only | R1 | — | 05A |
+| `TEST-GLOBAL-10A` | Costura de testabilidad en email/storage/`ENV` (puertos inyectables) | **backend-only** | **R2** | **Nico, explícita** | 09 |
+| `TEST-GLOBAL-10B` | Realineación de tests y retiro de `as any` de infraestructura | test-only | R1 | — | 10A |
+| `TEST-GLOBAL-10C` | Costura tipada en el registro de plugins Fastify | **backend-only** | **R2** | **Nico, explícita** | 10A |
+| `TEST-GLOBAL-10D` | Retiro de `as any` en el registro de rutas y criterio para `req`/`res`/`reply` | test-only | R1 | — | 10C |
+| `TEST-GLOBAL-11` | Consolidación de registries y censos congelados (incluido el de `01B`) | test-only | R1 | — | 05A, 01B |
+| `TEST-GLOBAL-12A` | Publicación documental del baseline de coverage con su salvedad | docs-only | R1 | — | 04, 08 |
+| `TEST-GLOBAL-12B` | Incorporación de `test:coverage` a CI como diagnóstico no bloqueante | ci-only | **R2/R3** | **Nico, explícita** | 12A |
+| `TEST-GLOBAL-13` | Gobernanza, documentación y certificación de cierre | docs-only | R1 | — | todas |
+
+```text
+FASES LÓGICAS  = 13   (TEST-GLOBAL-01 … 13)
+SUBFASES       = 19   (por los splits de 01, 05, 10 y 12)
+PRs            > 19   (04 entrega 1 PR por contrato; 07/08, 1 por subdominio;
+                       05A y 10B, por lotes)
+```
+
+`12B` se marca **R2/R3** porque su clasificación depende de la acción concreta:
+editar un workflow es R2; si esa edición tocara variables o entornos
+productivos sería R3 (`AGENTS.md` §3.1). La ficha de `12B` lo resuelve por
+acción y su default es **no ejecutarla**.
 
 ### TEST-GLOBAL-01 — Alta del programa e instrumentación (dos PRs: 01A → 01B)
 
@@ -1227,33 +1489,82 @@ orden 01A → 01B es recomendado; no hay acoplamiento de código entre ellos.
 
 #### 01A — Alta documental (docs-only)
 
+- **Objetivo**: poner el programa en el registro documental del repositorio y reclasificar las cifras de julio como históricas.
 - **Problema**: `TDR-002` cita cifras de julio; el programa no figura en `docs/audit/README.md`.
-- **Evidencia**: §6, §33.
-- **Scope**: actualización de `TDR-002` reclasificando sus cifras como históricas (§33); fila del programa en `docs/audit/README.md`. Sólo `docs/**`.
-- **No-scope**: cualquier archivo bajo `test/**`, `server/**`, `frontend/**`, `scripts/**` o `.github/**`; ninguna corrección de test.
-- **Aceptación**: `TDR-002` reclasificado; fila presente; diff limitado a `docs/**`; `git diff --check` en `PASSED`.
-- **Rollback**: revertir el commit; no toca runtime ni tests.
+- **Evidencia**: §6, §33. Verificado sobre §3.2: `TDR-002` vive en `docs/governance/technical-debt-register.md` y conserva «367 de 514 … 134 usos de `readdirSync` en 64 tests»; `docs/audit/README.md` no contiene ninguna fila de este programa.
+- **Tipo de scope**: docs-only.
+- **Paths permitidos**: `docs/governance/technical-debt-register.md`, `docs/audit/README.md`.
+- **No-scope**: cualquier archivo bajo `test/**`, `server/**`, `frontend/**`, `scripts/**`, `drizzle/**` o `.github/**`; ninguna corrección de test; **este mismo documento** (modificarlo es un PR docs-only propio, §1).
+- **Riesgo**: R1. **Autorización**: no requiere.
+- **Dependencias**: ninguna. Es la entrada del programa.
+- **Aceptación**: (1) `TDR-002` reclasificado como histórico con la cifra vigente (410/562) citada y el enlace a este documento; (2) fila del programa presente en `docs/audit/README.md` con el mismo formato que la fila de `LIMPIEZA E2E`; (3) `git diff --name-only` contiene exclusivamente los dos paths permitidos.
+- **Gates**: `git diff --check` → `PASSED`. `pnpm test` → `NOT_RUN` (docs-only; `AGENTS.md` §6 matriz por dominio).
+- **Rollback**: revertir el commit. No toca runtime, tests ni configuración; el rollback es completo y sin estado intermedio.
+- **Output**: dos archivos de documentación actualizados.
 - **Coste**: bajo. **Paralelizable**: no con `01B` por orden recomendado.
 
 #### 01B — Instrumentación del censo (test-only)
 
+- **Objetivo**: convertir las cifras heurísticas de la auditoría en censos recomputables desde el árbol.
 - **Problema**: no existe censo versionado ni clasificación por spec; las cifras `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` de A.0 dependen de scripts de scratchpad que no están en el repo (A.4).
 - **Evidencia**: §6, A.0, A.4.
-- **Scope**: un contrato de censo en `test/architecture/` que congele las cifras de §6 clasificadas `REPRODUCIBLE_*` en A.0 y falle si divergen materialmente; versionar bajo `test/**` la clasificación heurística de A.4 (`classify`, `coupling`, `ownership`, `stale-paths`). Si se decidiera ubicar ese tooling bajo `scripts/`, sería scripts-only y exige un PR propio, no este.
+- **Tipo de scope**: test-only.
+- **Paths permitidos**: `test/architecture/**` (contrato de censo), `test/helpers/**` (tooling de clasificación como módulos `.ts` no-spec).
+- **Scope**: un contrato de censo en `test/architecture/` que verifique las cifras de §6 clasificadas `REPRODUCIBLE_*` en A.0 y falle si divergen materialmente; versionar bajo `test/**` la clasificación heurística de A.4 (`classify`, `coupling`, `ownership`, `stale-paths`). Si se decidiera ubicar ese tooling bajo `scripts/`, sería scripts-only y exige un PR propio, no este.
 - **No-scope**: cualquier archivo de `docs/**` (incluido este documento: registrar el resultado en A.0 es un PR docs-only posterior, §1); ninguna corrección de un test existente; `server/**`, `frontend/**`, `.github/**`.
-- **Aceptación**: el censo se reproduce desde el árbol; cada cifra `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` de A.0 pasa a reproducirse con el tooling versionado o queda registrada con la diferencia declarada; `pnpm test` sin regresión respecto del baseline de §3 (los 9 FAILED de §10.2 son preexistentes y ajenos a esta fase).
-- **Rollback**: revertir el commit; no toca runtime.
+- **Riesgo**: R1. **Autorización**: no requiere.
+- **Dependencias**: `01A`.
+- **Aceptación**: (1) el censo se reproduce desde el árbol ejecutando el tooling versionado; (2) cada cifra `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` de A.0 queda reproducida por el tooling **o** reclasificada con la diferencia numérica declarada en el propio contrato de censo — no se admite dejarla sin resolver ni promoverla sin evidencia; (3) el contrato cumple la regla de fuente única de §31.2; (4) 0 fallos atribuibles a esta fase, con el fallo DB-dependiente del grupo B conservado y reportado BLOCKED (§31.0); los 8 fallos de launcher del grupo A son preexistentes y los corrige `03`.
+- **Gates**: `pnpm test` dirigido al nuevo contrato → `PASSED`. `pnpm test` completo → `BLOCKED` mientras falte la DB aislada, con el desglose «launcher = 8 preexistentes; DB-dependiente = 1». `pnpm typecheck:test` → `PASSED`.
+- **Rollback**: revertir el commit. No toca runtime productivo; el tooling y el contrato desaparecen juntos y ninguna otra fase depende todavía de ellos.
+- **Output**: tooling de censo versionado + un contrato de arquitectura que lo ejerce.
 - **Coste**: medio. **Paralelizable**: no (habilita al resto, junto con `01A`).
+
+##### 31.2 Regla de fuente única para el censo de `01B` (`TG-A08`)
+
+`01B` introduce un censo nuevo. Sin una regla explícita, reproduciría el mismo
+patrón `FROZEN_CENSUS` + `DUPLICATE_SOURCE_OF_TRUTH` que `TG-R13` denuncia y que
+`TEST-GLOBAL-11` debe sanear. El contrato de censo de `01B` **debe** declarar, en
+el propio archivo, esta separación:
+
+| Elemento | Dónde vive | Regla |
+|---|---|---|
+| **Fuente de verdad** | el árbol de trabajo (`git ls-files` + lectura) | Única. Ninguna cifra se declara a mano |
+| **Cálculo** | el tooling versionado de `01B` | Determinista y sin red; misma salida para el mismo SHA |
+| **Guard** | el contrato en `test/architecture/` | Compara cálculo contra **umbral o invariante**, no contra un literal exacto, salvo en las cifras que deban ser exactas por contrato |
+| **Congelable** | sólo las cifras cuyo cambio deba forzar revisión humana (p. ej. `test/*.test.ts` = 0, `.only(` = 0) | Se congelan con motivo escrito en el propio test |
+| **No congelable** | volúmenes que crecen por trabajo legítimo (número de specs, LOC, assertions) | Se verifican por **tendencia o rango**, nunca por igualdad exacta |
+| **Actualización** | el PR que cambia el árbol realinea el censo en el mismo PR (`AGENTS.md` §4) | Nunca se debilita ni se marca skip |
+| **Revisión** | `TEST-GLOBAL-11` | Obligatoria: `11` audita este censo junto con los 498 preexistentes |
+
+Ese último punto es vinculante: **el censo introducido por `01B` entra
+explícitamente en el scope de `TEST-GLOBAL-11`**, de modo que no escape al
+programa que existe para consolidar censos.
 
 ### TEST-GLOBAL-02 — P0: de-circularizar el registro IDOR
 
+- **Objetivo**: que el registro cross-tenant IDOR deje de asertar sobre su propio literal y pase a verificar producción, y que un registro roto rompa la suite.
 - **Problema**: `TG-R01` + `TG-R02`.
-- **Evidencia**: §9.1, §9.2.
+- **Evidencia**: §9.1, §9.2. Verificado sobre §3.2: 18 contratos, `readSource()` sólo en `CTIDOR-016`/`017`/`018`, 11 paths de `requiredTestEvidence` inexistentes, 9 tests en el archivo.
+- **Tipo de scope**: test-only.
+- **Paths permitidos**: `test/architecture/security/**`, y los specs de `test/security/**` o `test/integration/**` que deban recibir el ledger reubicado.
 - **Scope**: (a) realinear las 11 rutas stale a sus paths reales; (b) añadir un test que **dereferencie todas** las `requiredTestEvidence` y falle si alguna no existe (cierra el fail-open); (c) extender `readSource()` a los 15 contratos que hoy no verifican nada; (d) renombrar/reubicar lo que sea ledger de evidencia pendiente para que no se lea como contrato ejecutable.
-- **No-scope**: `server/**`; no se debilita ninguna assertion existente; no se ejecuta evidencia de staging (R3).
-- **Aceptación**: 0 paths stale; un path inventado en el registro **rompe** la suite (prueba negativa obligatoria en el PR).
-- **Riesgo**: R1. **Rollback**: revertir el commit.
-- **Coste**: medio. **Paralelizable**: sí, con 03.
+- **No-scope**: `server/**`; no se debilita ninguna assertion existente; no se ejecuta evidencia de staging ni de producción (R3, `AGENTS.md` §17); no se retira ningún contrato del registro.
+- **Riesgo**: R1. **Autorización**: no requiere.
+- **Dependencias**: `01`.
+- **Aceptación**: (1) 0 paths stale en `requiredTestEvidence`; (2) los 18 contratos dereferencian su evidencia; (3) **prueba negativa obligatoria dentro del propio PR**: un path inventado o una evidencia inválida introducida en el registro **pone la suite en rojo**, y el PR incluye el test que lo demuestra. Una prueba puramente positiva —«todos los paths existen»— **no satisface** este criterio: sin la prueba negativa el guard vuelve a ser fail-open y la fase no se acepta. Un registro documental de la corrección tampoco la sustituye.
+- **Gates**: `pnpm test` dirigido a `test/architecture/security/**` → `PASSED`. `pnpm test` completo → `BLOCKED` por la precondición de DB (§31.0).
+- **Rollback**: revertir el commit. Sólo afecta a `test/**`; el registro vuelve a su estado circular anterior, que es el estado documentado en §9.1 — se reabre `TG-R01`/`TG-R02`, no se pierde nada más.
+- **Output**: registro IDOR ejecutable + guard fail-closed sobre su propia evidencia.
+- **Coste**: medio. **Paralelizable**: sí, con `03`.
+
+> **Frontera que `02` no cruza.** Cerrar el oracle circular **no** produce
+> evidencia de aislamiento tenant en runtime. `02` demuestra que el registro
+> verifica algo real; la prueba de que clínica A no accede a datos de clínica B
+> en un entorno desplegado es evidencia de staging, es R3, se rige por
+> `AGENTS.md` §17 y permanece como residual explícito (§35). Confundir ambas
+> cosas volvería a presentar como verificado un control que no lo está — que es
+> exactamente el defecto que `TG-R01` denuncia.
 
 ### TEST-GLOBAL-03 — P1: falso rojo win32
 
@@ -1266,95 +1577,404 @@ orden 01A → 01B es recomendado; no hay acoplamiento de código entre ellos.
   - *DB*: el archivo del grupo B no cambia. Sin DB local aislada (`portal_vetneb_ci`) su fallo se conserva y se reporta con el estado canónico de `AGENTS.md` §6: el gate `pnpm test` completo **no** se reporta PASSED sino BLOCKED, con la precondición nombrada (DB aislada ausente) y con el desglose "launcher = 0; DB-dependiente = 1". Con la DB disponible debe pasar sin modificaciones.
   - *Global*: `pnpm test` = 0 fail requiere ambas condiciones (launcher corregido **y** DB presente). Esta fase sólo es responsable de la primera.
 - **Riesgo**: R1 (toca sólo `test/**`). Si exigiera tocar `frontend/e2e/helpers/**`, se replantea como R2 y se pide autorización.
+- **Autorización**: no requiere, salvo el caso R2 anterior.
+- **Dependencias**: `01`.
+- **Paths permitidos**: `test/unit/infrastructure/e2e-completeness-workflow.test.ts` y `test/unit/infrastructure/frontend-playwright-production-runner.test.ts`, y ningún otro.
+- **Gates**: los dos archivos del grupo A → `PASSED` en win32 y en CI. `pnpm test` completo → `BLOCKED` con el desglose «launcher = 0; DB-dependiente = 1».
+- **Rollback**: revertir el commit. Sólo afecta a dos archivos de `test/**`; el gate local vuelve a su estado de ruido conocido (8 rojos) y `TG-R04` se reabre.
+- **Output**: gate local capaz de distinguir un rojo real de la variancia de plataforma.
 - **Coste**: medio. **Paralelizable**: sí.
 
 ### TEST-GLOBAL-04 — P1: prueba negativa para seguridad
 
-- **Problema**: `TG-R05`. 0 de 9 harness de mutación en `architecture/security/**`.
+- **Objetivo**: que cada contrato de seguridad estático demuestre, con una mutación concreta, que detecta la regresión que dice proteger.
+- **Problema**: `TG-R05`. 0 de 9 harness de mutación en `architecture/security/**` (verificado sobre §3.2).
 - **Evidencia**: §11, §17.
+- **Tipo de scope**: test-only. **Un PR por contrato.**
+- **Paths permitidos**: `test/architecture/security/**`, `test/security/**`.
 - **Scope**: propagar el harness en memoria ya probado a: tenant isolation, auth/sesiones, permisos/roles, redacción de logs, disclosure, rate limiting. Cada guard incorpora al menos una mutación que debe ponerlo en rojo.
-- **No-scope**: debilitar cualquier contrato; introducir Stryker; tocar `server/**`.
-- **Aceptación**: cada contrato crítico de §17 pasa de `NO_NEGATIVE_PROOF`/`MUTATION_CANDIDATE` a `MUTATION_PROOF_PRESENT`, con la mutación explícita en el test.
-- **Coste**: alto. **Paralelizable**: por contrato.
+- **No-scope**: debilitar cualquier contrato; introducir Stryker o mutation testing por herramienta externa; tocar `server/**`; producir evidencia de staging.
+- **Riesgo**: R1. **Autorización**: no requiere. **Dependencias**: `02`.
+- **Aceptación — por PR (unidad)**: cada PR de `04` se acepta **de forma independiente**, sin esperar a los demás, cuando su único contrato cumple: (1) el guard incorpora al menos una mutación explícita en el propio test; (2) esa mutación pone el guard en rojo y el test lo demuestra; (3) el contrato pasa de `NO_NEGATIVE_PROOF` o `MUTATION_CANDIDATE` a `MUTATION_PROOF_PRESENT` en la matriz de §17; (4) ninguna assertion previa se retira ni se debilita; (5) gates dirigidos en `PASSED`.
+- **Aceptación — agregada (fase)**: `04` se declara cerrada cuando **los diez contratos de la matriz de §17** tienen estado `MUTATION_PROOF_PRESENT` o un `accepted defer` con owner y fecha. El cierre agregado es condición de `12A`, no de cada PR.
+- **Gates por PR**: `pnpm test` dirigido al archivo del contrato → `PASSED`.
+- **Rollback**: por PR, revertir ese commit. Como cada PR toca un contrato distinto, el rollback de uno no afecta a los demás; el contrato revertido vuelve a su clase previa en §17.
+- **Output**: prueba negativa ejecutable por contrato de seguridad.
+- **Coste**: alto. **Paralelizable**: sí, por contrato.
 
-### TEST-GLOBAL-05 — Lector canónico + lint de `test/**`
+### TEST-GLOBAL-05 — Lector canónico y lint de `test/**` (dos PRs: 05A → 05B)
 
-- **Problema**: `TG-R09` + `TG-R08` + `TG-R16`.
-- **Evidencia**: §13.1, §25.2.
-- **Scope**: extender `test/helpers/tracked-source-files.ts` a lector canónico (normalización CRLF única, cache por proceso, fallo si falta el path); migrar por lotes los 283 lectores ad hoc; añadir `test/**` a `lintableFiles` con un conjunto mínimo (`no-only-tests` equivalente, promesas flotantes, `no-unused-vars`) **sin autofix masivo**.
-- **No-scope**: reformateo; cambio de reglas de `server/**`; migrar los 283 en un solo PR.
-- **Riesgo**: **R2** — toca `eslint.config.mjs`. Requiere autorización explícita.
-- **Aceptación**: baseline de lint de `test/**` publicado (errores y warnings) sin autofix; wall time no empeora; `pnpm test` verde.
-- **Coste**: alto. **Paralelizable**: los lotes de migración, sí.
+`TEST-GLOBAL-05` es **una fase lógica entregada en dos subfases de scope
+distinto**. La versión anterior de este documento la describía como un bloque
+único «test-only + config-only», lo que incumple `AGENTS.md` §4 sin invocar la
+excepción mixed-scope. Los dos dominios **sí** pueden entregarse por separado:
+el lector canónico es trabajo dentro de `test/**` y no necesita ESLint; el alta
+de `test/**` en `lintableFiles` toca `eslint.config.mjs`, es R2 y necesita
+autorización de Nico. Cada uno tiene su propio rollback. Toda dependencia «de
+`05`» en §31.1 y §32 significa **`05A` fusionado**, salvo donde se indique `05B`.
+
+#### 05A — Lector canónico de source (test-only)
+
+- **Objetivo**: que la operación más repetida de la suite —leer un archivo de source— tenga una sola implementación correcta.
+- **Problema**: `TG-R09` + `TG-R16`. 281 archivos con lector propio frente a 8 importadores del helper canónico; normalización CRLF inconsistente.
+- **Evidencia**: §6.4, §13.1.
+- **Tipo de scope**: test-only.
+- **Paths permitidos**: `test/helpers/tracked-source-files.ts` y los archivos de `test/**` migrados en cada lote.
+- **Scope**: extender `test/helpers/tracked-source-files.ts` a lector canónico (normalización CRLF única, cache por proceso, fallo explícito si falta el path); migrar **por lotes** los lectores ad hoc.
+- **No-scope**: `eslint.config.mjs` y cualquier configuración (eso es `05B`); reformateo; cambio de reglas de `server/**`; migrar todos los lectores en un solo PR; alterar el oracle de ningún test —la migración cambia **cómo se lee**, nunca **qué se asserta**.
+- **Riesgo**: R1. **Autorización**: no requiere. **Dependencias**: `01`.
+- **Aceptación**: (1) el lector canónico falla de forma explícita ante un path ausente, con prueba negativa en el PR; (2) cada lote migrado conserva el mismo conjunto de assertions y el mismo resultado que antes de migrar; (3) el número de archivos con lector propio disminuye en la cantidad declarada por el lote; (4) **0 fallos atribuibles al lote**, con el fallo DB-dependiente del grupo B conservado y reportado BLOCKED con su precondición nombrada (§31.0); (5) el wall time de la suite no empeora respecto de la medición del lote anterior.
+- **Gates**: `pnpm test` dirigido a los archivos del lote → `PASSED`. `pnpm typecheck:test` → `PASSED`. `pnpm test` completo → `BLOCKED` mientras falte la DB aislada.
+- **Rollback**: por lote, revertir ese commit. Los lotes son independientes entre sí y el helper conserva compatibilidad hacia atrás mientras queden lectores sin migrar; no hay estado intermedio inconsistente.
+- **Output**: lector canónico único + lectores ad hoc migrados por lotes.
+- **Coste**: alto. **Paralelizable**: sí, los lotes entre sí.
+
+#### 05B — Alta de `test/**` en lint (config-only, R2)
+
+- **Objetivo**: que el mayor cuerpo de código TypeScript del repositorio deje de estar sin análisis estático.
+- **Problema**: `TG-R08`. `eslint.config.mjs` define `lintableFiles` como `server/**`, `scripts/**` y `drizzle/**`; `test/**` (156.887 LOC) queda fuera.
+- **Evidencia**: §25.2. Verificado sobre §3.2 en `eslint.config.mjs:15-18`.
+- **Tipo de scope**: config-only.
+- **Paths permitidos**: `eslint.config.mjs`, y `package.json` **sólo** si el alta exige un script nuevo — en cuyo caso se declara en el PR como parte del mismo scope de configuración.
+- **Scope**: añadir `test/**` a `lintableFiles` con un conjunto **mínimo** de reglas (equivalente a `no-only-tests`, promesas flotantes, `no-unused-vars`) **sin autofix masivo**, y publicar el baseline resultante.
+- **No-scope**: cualquier archivo bajo `test/**` (corregir lo que el lint reporte es trabajo posterior, no de este PR); cambio de reglas de `server/**`; autofix; workflows de `.github/**`.
+- **Riesgo**: **R2** — toca configuración ejecutable. **Autorización: explícita de Nico, obligatoria antes de empezar** (`AGENTS.md` §3.1).
+- **Dependencias**: `05A` fusionado. Activar el lint antes de unificar los lectores multiplicaría los hallazgos sobre código que `05A` va a reescribir.
+- **Aceptación**: (1) baseline de lint de `test/**` publicado con su conteo de errores y de warnings, **sin autofix y sin corregir hallazgos en este PR**; (2) el lint de `server/**`, `scripts/**` y `drizzle/**` no cambia de resultado; (3) `pnpm lint:backend` se ejecuta y su estado se reporta canónicamente; (4) si el volumen de hallazgos hiciera inviable dejar el gate en bloqueante, el PR lo declara y propone el modo no bloqueante — no se silencian reglas para forzar un verde.
+- **Gates**: `pnpm lint:backend` → `PASSED` o `FAILED` con el baseline publicado. `pnpm test` completo → `NOT_RUN` (config de lint; no altera la suite).
+- **Rollback**: revertir el commit restaura `lintableFiles` a sus tres entradas previas. El rollback es completo: ningún archivo de `test/**` fue modificado por esta subfase, de modo que no queda código a medio corregir.
+- **Output**: `test/**` bajo análisis estático + baseline publicado.
+- **Coste**: medio. **Paralelizable**: no.
 
 ### TEST-GLOBAL-06 — Adjudicación de los 137 candidatos
 
+- **Objetivo**: convertir un pool de candidatos heurísticos en decisiones adjudicadas con evidencia, sin tocar un solo test.
 - **Problema**: `TG-R06`. El pool es candidato, no deuda confirmada (§7.4).
-- **Scope**: **docs-only**. Clasificar cada uno de los 137 en `LEGITIMATE_GUARD` / `LEGITIMATE_STATIC_CONTRACT` / `MIXED` / `ACCIDENTAL_COUPLING` con: contrato protegido, mutación que detecta, mutación que escapa, capa correcta, y si existe cobertura E2E equivalente **verificada contra el catálogo**.
-- **No-scope**: modificar, mover o borrar un solo test.
-- **Aceptación**: 137/137 adjudicados con owner y decisión `KEEP` / `STRENGTHEN` / `RELOCATE` / `RETIRE`. Sin evidencia → `KEEP`.
+- **Evidencia**: §7.3, §7.4, §19.
+- **Tipo de scope**: docs-only.
+- **Paths permitidos**: `docs/audit/**` (el registro de adjudicación).
+- **Riesgo**: **R1** — escribe documentación. El análisis que la sustenta es R0 (lectura), pero la entrega es una escritura local, y la fase se clasifica por su riesgo máximo (§31.0). *La versión anterior de este documento decía `R0/R1`, que no es una categoría canónica de `AGENTS.md` §3.1.*
+- **Autorización**: no requiere. **Dependencias**: `01` (el pool debe recomputarse con el tooling de `01B` antes de adjudicar: las cifras de §7.3 son `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE`) y `05A`.
+- **Scope**: clasificar cada candidato del pool recomputado en `LEGITIMATE_GUARD` / `LEGITIMATE_STATIC_CONTRACT` / `MIXED` / `ACCIDENTAL_COUPLING`, con: contrato protegido, mutación que detecta, mutación que escapa, capa correcta según la frontera de §19, y si existe cobertura E2E equivalente **verificada contra `frontend/e2e/suites/catalog.ts`**, no supuesta.
+- **No-scope**: modificar, mover o borrar un solo test; crear specs E2E; reabrir `LIMPIEZA E2E`.
+- **Aceptación**: (1) 100 % del pool adjudicado —137 si el recómputo lo confirma, o la cifra recomputada con la diferencia declarada—; (2) cada candidato con owner y decisión `KEEP` / `STRENGTHEN` / `RELOCATE` / `RETIRE`; (3) **cada decisión distinta de `KEEP` lleva su evidencia**; (4) regla fail-closed: **sin evidencia suficiente → `KEEP`**. Nunca `RETIRE` por defecto, nunca `RETIRE` por sospecha, nunca `RETIRE` para mover una métrica.
+- **Gates**: `git diff --check` → `PASSED`. `pnpm test` → `NOT_RUN` (docs-only).
+- **Rollback**: revertir el commit. No toca `test/**`; ninguna decisión se ejecuta en esta fase.
+- **Output**: registro de adjudicación que gobierna `07` y `08`.
 - **Coste**: alto. **Paralelizable**: por subcarpeta.
+
+#### 31.6 Prueba de equivalencia — requisito normativo de `RETIRE` y `RELOCATE`
+
+Esta definición es **normativa y autosuficiente**. La revisión anterior de este
+documento remitía a «§15 del encargo», un texto externo al repositorio: un
+agente que sólo tuviera `AGENTS.md` y este archivo no podía ejecutar `07`/`08`.
+Queda transcrita aquí y no se delega en ninguna fuente externa.
+
+**Retirar un test es la operación más peligrosa del programa.** Un `RETIRE` mal
+adjudicado no produce un fallo visible: produce la desaparición silenciosa de
+una señal. Por eso la carga de la prueba recae siempre sobre quien retira.
+
+Antes de retirar un test, el PR debe demostrar **las ocho condiciones**:
+
+```text
+1. OWNER DEL CONTRATO
+   El contrato que el test protege sigue teniendo un owner verificable:
+   otro test, un guard, o un spec E2E identificado por path. "Lo cubre el
+   sistema" no es un owner.
+
+2. OBSERVACIÓN EQUIVALENTE
+   Existe otra prueba que observa el MISMO comportamiento o invariante.
+   Cubrir "algo parecido" o "la misma zona del código" no es equivalencia.
+
+3. MISMA CLASE DE MUTACIÓN
+   Esa prueba detecta la misma clase de mutación o de fallo que el test que
+   se retira. Se declara la mutación concreta y se demuestra que la prueba
+   receptora se pone en rojo ante ella.
+
+4. NEGATIVE PROOF PRESERVADA
+   Si el test retirado aportaba prueba negativa (assertion de ausencia, de
+   rechazo, de no-disclosure), la receptora la conserva. Retirar el único
+   negative proof de un contrato está PROHIBIDO, sea cual sea el resto.
+
+5. FAIL-CLOSED PRESERVADO
+   Ningún guard fail-closed se convierte en fail-open. En particular, no se
+   retira el auto-discovery de un walker dejando en su lugar una allowlist.
+
+6. NINGÚN P0/P1 SIN SEÑAL
+   Ningún riesgo P0 o P1 de §28 queda sin señal ejecutable como consecuencia
+   del retiro. Se verifica contra la matriz de §17 y la tabla de §28.
+
+7. RECEPTOR E2E REAL (sólo para RELOCATE)
+   Cuando la decisión es RELOCATE hacia `frontend/e2e/**`, el spec receptor
+   debe EXISTIR, estar en el catálogo (`frontend/e2e/suites/catalog.ts`) y
+   estar VERDE antes de retirar el estático. La cobertura E2E no se presume
+   nunca: "E2E lo cubrirá" no es evidencia. El orden es siempre
+   receptor-verde → retiro, jamás al revés.
+
+8. FALLBACK FAIL-CLOSED
+   Si cualquiera de las siete condiciones anteriores no puede demostrarse,
+   el resultado es KEEP. La duda se resuelve conservando el test.
+```
+
+Reglas adicionales, vinculantes:
+
+- Las ocho condiciones se demuestran **en el propio PR** que retira, no en un
+  documento posterior ni en un comentario.
+- `STRENGTHEN` y `KEEP` no requieren esta prueba; `RETIRE` y `RELOCATE` sí.
+- `RELOCATE` **no reabre `LIMPIEZA E2E`**: el programa E2E está CLOSED y aquí es
+  sólo frontera contractual. Crear un spec receptor obliga a realinear los
+  censos del catálogo **en el mismo PR** (`AGENTS.md` §4).
+- Ningún `RETIRE` puede justificarse por reducir LOC, número de tests,
+  substring ratio ni wall time. §2 declara que este programa no es una campaña
+  de reducción, y §30 acota el objetivo de ratio precisamente para que no
+  presione hacia retiros indebidos.
 
 ### TEST-GLOBAL-07 / 08 — Remediación `unit/ui`
 
-- **07**: `unit/ui/dashboard` (28 candidatos). **08**: `unit/ui/admin` + `public` + `frontend` (94).
-- **Scope por PR**: un subdominio, una causa, un rollback. Cada test `RETIRE` exige la prueba de §15 del encargo. Cada `RELOCATE` exige el spec E2E receptor **existiendo y verde** antes de retirar el estático.
-- **No-scope**: tocar `frontend/src/**`; crear specs E2E nuevos sin pasar por el catálogo y sus censos.
-- **Aceptación**: substring ratio de la carpeta < 20 %; ningún contrato pierde cobertura demostrable; censos de catálogo realineados en el mismo PR.
-- **Coste**: muy alto. **Paralelizable**: no entre sí (comparten censos).
+- **Objetivo**: ejecutar las decisiones adjudicadas por `06` en `unit/ui`, sin perder ninguna señal.
+- **07**: `unit/ui/dashboard` (28 candidatos). **08**: `unit/ui/admin` + `public` + `frontend` (94). Cifras del pool heurístico; `06` las recomputa antes de ejecutar.
+- **Tipo de scope**: test-only, **un PR por subdominio**.
+- **Paths permitidos**: la subcarpeta de `test/unit/ui/**` del PR, y `frontend/e2e/suites/catalog.ts` **sólo** para realinear censos cuando un `RELOCATE` lo exija.
+- **Riesgo**: R1. **Autorización**: no requiere. **Dependencias**: `06` para `07`; `07` para `08`.
+- **Scope por PR**: un subdominio, una causa, un rollback. Todo `RETIRE` y todo `RELOCATE` cumple **las ocho condiciones de la prueba de equivalencia de §31.6**, demostradas dentro del propio PR.
+- **No-scope**: tocar `frontend/src/**`; crear specs E2E nuevos sin pasar por el catálogo y sus censos; reabrir `LIMPIEZA E2E`; retirar cualquier guard de seguridad.
+- **Aceptación**: (1) todas las decisiones del subdominio, tal como `06` las adjudicó, ejecutadas o revertidas a `KEEP` con motivo; (2) **ningún contrato pierde cobertura demostrable** — se verifica contra §31.6 condiciones 1–6; (3) substring ratio **de la subcarpeta remediada** < 20 %, entendido como consecuencia de fortalecer oracles y no como objetivo que autorice retiros (§30); (4) censos de catálogo realineados en el mismo PR; (5) 0 fallos atribuibles al PR, con el fallo DB-dependiente del grupo B reportado BLOCKED (§31.0); (6) cero artefactos `playwright-report/`, `test-results/` y `frontend/next-env.d.ts` sin alterar (`AGENTS.md` §7, §13).
+- **Gates**: `pnpm test` dirigido a la subcarpeta → `PASSED`. Cohorte E2E mínima que contenga el spec receptor, cuando hubo `RELOCATE` → `PASSED` (§7 de `AGENTS.md`: la cohorte más pequeña que lo contenga, **nunca `e2e:full`** salvo que no exista alternativa).
+- **Rollback**: por PR, revertir ese commit restaura los tests del subdominio y su realineación de censos juntos. Riesgo de rollback a vigilar: si un `RELOCATE` ya fusionó su spec receptor E2E, revertir el PR del estático **no** retira el receptor — queda cobertura duplicada, que es el lado seguro del error y se resuelve en `13`.
+- **Output**: `unit/ui` con oracles alineados a la capa correcta.
+- **Coste**: muy alto. **Paralelizable**: no entre sí (comparten censos de catálogo).
 
 ### TEST-GLOBAL-09 — Repositorios y servicios externos
 
-- **Problema**: `TG-R10`. Dos carpetas canónicas documentadas y vacías; 0 SQL ejecutado.
-- **Scope**: poblar `test/integration/adapters/repositories/` y `test/integration/external-services/` con la costura que exista hoy. Si no existe costura, el resultado de la fase es **declarar el bloqueo** y derivar a `TEST-GLOBAL-10`.
-- **No-scope**: ejecutar migraciones contra DB real (R3, `AGENTS.md` §14); crear una DB de test sin autorización.
-- **Aceptación**: cobertura de repositorio con fake verificable, o registro explícito de que la testability lo impide.
-- **Coste**: medio-alto.
+- **Objetivo**: cubrir repositorios y servicios externos **si el producto ya ofrece una costura testeable**, y declarar el bloqueo con evidencia si no la ofrece.
+- **Problema**: `TG-R10`. Dos paths canónicos documentados en `test/README.md` pero **ausentes del árbol** (§18); 0 SQL ejecutado contra una base real.
+- **Evidencia**: §18, §26, §33.
+- **Tipo de scope**: test-only.
+- **Paths permitidos**: `test/integration/adapters/repositories/**`, `test/integration/external-services/**` (ambos a crear), y `test/README.md` **sólo** si la fase concluye que el árbol canónico debe corregirse — en cuyo caso esa corrección se entrega como PR docs-only aparte.
+- **Riesgo**: R1. **Autorización**: no requiere. **Dependencias**: `05A`.
+- **Scope**: poblar los dos paths con la costura que exista hoy. **Si no existe costura, el resultado legítimo y esperado de la fase es declarar el bloqueo** con la evidencia de qué falta, y derivar a `TEST-GLOBAL-10A`.
+- **No-scope**: ejecutar migraciones o SQL contra una DB real (R3, `AGENTS.md` §14); crear una DB de test sin autorización; **fabricar la costura ausente con mocks o casts más débiles** — eso convertiría deuda de producto en deuda de test y está prohibido (§26); tocar `server/**`.
+- **Aceptación**: exactamente **una** de estas dos salidas, ambas válidas: (a) cobertura de repositorio y de servicio externo con fake verificable, sin `as any` nuevos y sin parchear `globalThis`; **o** (b) **declaración de bloqueo** que nombre, por cada costura ausente, el módulo concreto, por qué no es inyectable hoy y qué exigiría `10A`. Una salida (b) bien fundamentada **cierra la fase**: no es un fallo, es el hallazgo.
+- **Gates**: `pnpm test` dirigido a los nuevos paths → `PASSED` en la salida (a); `NOT_RUN` en la salida (b), porque no hay test que ejecutar.
+- **Rollback**: revertir el commit. En la salida (b) no hay nada que revertir salvo documentación de bloqueo.
+- **Output**: cobertura de repositorio, o un bloqueo documentado que define el scope de `10A`.
+- **Coste**: medio-alto. **Paralelizable**: sí, con `11`.
 
-### TEST-GLOBAL-10 — Testability de producto
+### TEST-GLOBAL-10 — Testability de producto (cuatro PRs: 10A → 10B, 10C → 10D)
 
-- **Problema**: `TG-R07` + §26. **backend-only, R2.**
-- **Scope**: inyectar dependencias en email (SMTP/Gmail), storage (Supabase) y `ENV`, replicando el patrón de puertos ya exitoso en las rutas; retirar los `as any` correspondientes.
-- **No-scope**: mezclar con cambios de test más allá de la realineación obligatoria; tocar rutas.
-- **Aceptación**: `as any` en costuras de inyección = 0; comportamiento productivo idéntico; tests de email/storage sin parchear `globalThis`.
-- **Riesgo**: **R2** — requiere autorización explícita de Nico antes de empezar.
+`TG-R07` y §26 describen **deuda de producto, no de test**: los 659 `as any` de
+la costura test↔runtime existen porque email, storage y `ENV` son singletons de
+módulo, al contrario que las rutas, que sí declaran puertos. Corregir eso es
+trabajo de producción (R2). Retirar los casts que quedan innecesarios es trabajo
+de `test/**` (R1).
+
+La versión anterior de este documento declaraba `10` como `backend-only` pero su
+aceptación (`as any` = 0) obligaba a editar `test/**`, mientras su no-scope
+restringía esos mismos cambios: la ficha se contradecía. **Se divide en dos
+pares secuenciales**, cada uno con costura primero y realineación después:
+
+```text
+10A (backend-only, R2)  crea la costura en email/storage/ENV
+  └─ 10B (test-only, R1)  retira los casts que esa costura volvió innecesarios
+10C (backend-only, R2)  crea la costura tipada en el registro de plugins Fastify
+  └─ 10D (test-only, R1)  retira los casts de rutas y fija criterio para req/res/reply
+```
+
+**Regla vinculante del par**: una subfase `*B`/`*D` **no** puede retirar un cast
+cuya costura no exista todavía, y una subfase `*A`/`*C` **no** puede cambiar
+comportamiento productivo. Si al ejecutar `10B` un cast sigue siendo necesario,
+se conserva y se declara por qué: eso es evidencia de que `10A` quedó
+incompleta, no licencia para debilitar el test.
+
+#### 10A — Costura de testabilidad en email, storage y `ENV` (backend-only, R2)
+
+- **Objetivo**: que email, storage y `ENV` se inyecten como puertos, igual que ya hacen las rutas.
+- **Evidencia**: §12.3, §15, §26. Verificado sobre §3.2: `ENV.smtp as any` 140, `ENV.gmailApi as any` 121, `supabase.storage as any` 63, `ENV as any` 43, `nodemailer as any` 36, `globalThis as any` 22.
+- **Tipo de scope**: backend-only. **Paths permitidos**: `server/**`.
+- **No-scope**: `test/**` salvo la realineación que el cambio **rompa** legítimamente (`AGENTS.md` §4); el registro de plugins Fastify (eso es `10C`); cualquier cambio de comportamiento observable.
+- **Riesgo**: **R2**. **Autorización: explícita de Nico, obligatoria antes de empezar.**
+- **Dependencias**: `09` (su salida define qué costuras faltan realmente).
+- **Aceptación**: (1) email, storage y `ENV` accesibles por inyección; (2) **comportamiento productivo idéntico**, demostrado por los tests de integración existentes en `PASSED` sin modificarlos; (3) ningún endpoint, header, status ni contrato HTTP alterado; (4) ningún invariante de `AGENTS.md` §9 tocado.
+- **Gates**: `pnpm validate:local` → `PASSED`, o `BLOCKED` nombrando la DB ausente (§31.0). `pnpm security:public-surface` → `PASSED` si se tocó superficie pública.
+- **Rollback**: **no basta con revertir el commit.** Esta subfase cambia código productivo desplegable. El PR declara: qué módulos cambian de forma de construcción, si algún consumidor queda con dos formas de acceso durante la transición, y en qué orden se revierte para no dejar un módulo pidiendo una dependencia que ya nadie inyecta. Si `10B` ya fusionó, revertir `10A` **rompe** los tests realineados: el rollback correcto es `10B` primero y `10A` después, y el PR de `10A` lo dice explícitamente.
+- **Output**: costura de inyección en infraestructura.
 - **Coste**: alto.
+
+#### 10B — Retiro de `as any` de infraestructura (test-only)
+
+- **Objetivo**: retirar los casts que `10A` volvió innecesarios.
+- **Tipo de scope**: test-only. **Paths permitidos**: `test/**`.
+- **No-scope**: `server/**`; retirar un cast cuya costura no exista; sustituir un cast por otro escape de tipos (`as unknown as`, `@ts-expect-error`).
+- **Riesgo**: R1. **Autorización**: no requiere. **Dependencias**: `10A` fusionado.
+- **Aceptación**: (1) `as any` sobre `ENV`, email y storage = 0, **o** la lista nominal de los que sobreviven con el motivo de cada uno; (2) los tests de email y storage no parchean `globalThis`; (3) ninguna assertion retirada ni debilitada —cambia cómo se construye el doble, no qué se asserta—; (4) `pnpm typecheck:test` en `PASSED` sin escapes nuevos.
+- **Gates**: `pnpm test` dirigido a los archivos migrados → `PASSED`. `pnpm typecheck:test` → `PASSED`.
+- **Rollback**: revertir el commit. Los casts vuelven; la costura de `10A` permanece y no queda nada inconsistente.
+- **Coste**: medio.
+
+#### 10C — Costura tipada en el registro de plugins Fastify (backend-only, R2)
+
+- **Objetivo**: dar dueño al objetivo de §30 «0 `as any` en costuras de inyección de rutas», que hasta esta revisión **no tenía fase asignada** (`TG-A06`).
+- **Problema**: §15 documenta que el `as any` del registro anula la única verificación automática del contrato de puertos: si una ruta añade una dependencia requerida, `app.register(clinicAuthNativeRoutes as any, {…})` no da error de compilación y la ruta recibe `undefined`.
+- **Evidencia**: §12.3, §15. Verificado sobre §3.2: `clinicAuthNativeRoutes as any` = **9**; casts de `req`/`res`/`reply` = 47.
+- **Tipo de scope**: backend-only. **Paths permitidos**: `server/**`.
+- **No-scope**: `test/**` salvo realineación forzada; email/storage/`ENV` (eso es `10A`); cualquier cambio de comportamiento de ruta.
+- **Riesgo**: **R2**. **Autorización: explícita de Nico, obligatoria antes de empezar.**
+- **Dependencias**: `10A` fusionado (comparten el patrón de puertos y conviene no abrir dos refactors de inyección a la vez).
+- **Aceptación**: (1) las opciones de plugin de las rutas quedan tipadas de forma que omitir una dependencia requerida **falle en compilación**, demostrado con un caso negativo; (2) comportamiento de ruta idéntico, con los 62 archivos de integración de §15 en `PASSED` sin modificarlos; (3) ningún invariante de `AGENTS.md` §9 tocado.
+- **Gates**: `pnpm validate:local` → `PASSED` o `BLOCKED` por DB. `pnpm typecheck` y `pnpm typecheck:test` → `PASSED`.
+- **Rollback**: como `10A`, no basta revertir el commit si `10D` ya fusionó: el orden es `10D` primero, `10C` después. El PR lo declara.
+- **Coste**: alto.
+
+#### 10D — Retiro de `as any` en rutas y criterio para `req`/`res`/`reply` (test-only)
+
+- **Objetivo**: cerrar el eje «costuras de inyección de rutas» de §30.
+- **Tipo de scope**: test-only. **Paths permitidos**: `test/**`.
+- **Riesgo**: R1. **Dependencias**: `10C` fusionado.
+- **Aceptación**: (1) `clinicAuthNativeRoutes as any` y equivalentes de registro de plugin = 0; (2) **criterio declarado y escrito** para los 47 casts de `req`/`res`/`reply`: cuáles se retiran, cuáles se conservan y por qué —conservarlos con motivo es una salida válida, ya que tipar un objeto de request parcial no siempre aporta señal—; (3) ninguna assertion retirada ni debilitada.
+- **Gates**: `pnpm test` dirigido a `test/integration/**` → `PASSED`. `pnpm typecheck:test` → `PASSED`.
+- **Rollback**: revertir el commit; los casts vuelven y la costura de `10C` permanece.
+- **Coste**: medio.
 
 ### TEST-GLOBAL-11 — Registries y censos congelados
 
+- **Objetivo**: que cada censo congelado proteja un contrato real desde una sola fuente de verdad, y que ninguno sobreviva por inercia.
 - **Problema**: `TG-R13` + `TG-R11`.
-- **Scope**: eliminar la triple declaración de `M48` (derivar la tabla markdown del censo, o derivar el censo de una única fuente); revisar los 426 censos congelados distinguiendo `FROZEN_CENSUS` deliberado de `LEGACY_LIST`.
-- **No-scope**: retirar guards fail-closed; relajar `M48`.
-- **Aceptación**: cada censo congelado tiene fuente única declarada y motivo documentado.
-- **Coste**: medio.
+- **Evidencia**: §20, §23.
+- **Tipo de scope**: test-only. **Paths permitidos**: `test/**`.
+- **Riesgo**: R1. **Autorización**: no requiere. **Dependencias**: `05A` y **`01B`** (ver abajo).
+- **Scope**: (a) eliminar la triple declaración de `M48` —derivar la tabla markdown del censo, o derivar el censo de una única fuente—; (b) revisar las **498 assertions de censo congelado en 134 archivos** (§20, cifra corregida en esta revisión) distinguiendo `FROZEN_CENSUS` deliberado de `LEGACY_LIST`; (c) **auditar el censo introducido por `TEST-GLOBAL-01B`** contra la regla de fuente única de §31.2, para que el instrumento creado al inicio del programa no quede fuera de la consolidación que el programa existe para hacer (`TG-A08`).
+- **No-scope**: retirar guards fail-closed; relajar `M48`; convertir un censo en warning para evitar mantenerlo.
+- **Aceptación**: (1) cada censo congelado superviviente tiene fuente única declarada y motivo escrito en el propio test; (2) `M48` deja de exigir edición en tres lugares; (3) todo `LEGACY_LIST` identificado queda retirado o convertido en derivación; (4) el censo de `01B` queda clasificado y conforme a §31.2; (5) ningún guard pierde poder de detección —se verifica con §31.6 condiciones 4, 5 y 6.
+- **Gates**: `pnpm test` dirigido a `test/architecture/**` → `PASSED`. `pnpm test` completo → `BLOCKED` por DB (§31.0).
+- **Rollback**: revertir el commit; los censos vuelven a su forma triple. Sin estado intermedio: la derivación y el literal no coexisten.
+- **Output**: censos con fuente única y motivo.
+- **Coste**: medio. **Paralelizable**: sí, con `09`.
 
-### TEST-GLOBAL-12 — Coverage semántico y mutation strength
+### TEST-GLOBAL-12 — Coverage semántico y mutation strength (dos PRs: 12A → 12B)
 
-- **Scope**: publicar baseline de `test:coverage` **con la salvedad metodológica de §21**: el baseline es *line/branch execution coverage* de los módulos que la suite ejecuta; se publica la tabla por archivo (no sólo la fila agregada) y se declara que los guards estáticos no dejan señal de coverage sobre el source que leen. La protección de esos contratos se evalúa por oracle y por *mutation sensitivity* (§11), no por este número. Decidir si se incorpora a CI como diagnóstico no bloqueante.
-- **No-scope**: thresholds; mutation testing indiscriminado.
-- **Riesgo**: **R2** si toca workflows.
+La versión anterior declaraba `12` como «config-only + docs» en una sola
+entrega, bajo una columna titulada «scope único». `AGENTS.md` §4 obliga a
+separarlos y no se invoca la excepción mixed-scope: publicar un baseline es
+documentación y no necesita tocar CI; incorporarlo a CI es configuración
+ejecutable, es R2 y necesita autorización. Se dividen.
+
+**Conclusión técnica que ambas subfases deben preservar intacta** (§21.1): leer
+un archivo con `readFileSync` lo trata como **datos**, no lo ejecuta ni lo
+instrumenta, y por tanto **no genera señal de coverage sobre él**. Los cuatro
+ejes no se confunden nunca:
+
+```text
+source-as-data              qué archivos vigila un guard estático
+runtime coverage            qué líneas y ramas ejecutó la suite
+semantic assertion strength si la assertion detectaría un cambio real
+mutation strength           si una mutación concreta pone el guard en rojo
+```
+
+El número de coverage **no mide** los guards estáticos, ni a favor ni en contra.
+Publicarlo sin esa salvedad induciría a leerlo como medida de protección de los
+contratos estáticos, lectura que la evidencia no respalda.
+
+#### 12A — Publicación documental del baseline (docs-only)
+
+- **Objetivo**: publicar el baseline de coverage con su salvedad metodológica, sin tocar CI.
+- **Tipo de scope**: docs-only. **Paths permitidos**: `docs/**`.
+- **Scope**: ejecutar `pnpm test:coverage` (R0) y publicar **la tabla por archivo**, no sólo la fila agregada, junto con la salvedad de §21.1 escrita de forma explícita.
+- **No-scope**: thresholds; mutation testing indiscriminado o por herramienta externa; `.github/**`; `package.json`; `test/**`.
+- **Riesgo**: R1. **Autorización**: no requiere. **Dependencias**: `04` cerrada en agregado y `08` fusionada.
+- **Aceptación**: (1) baseline publicado con tabla por archivo y el SHA sobre el que se midió; (2) la salvedad metodológica aparece junto al número, no en una nota al pie; (3) el documento declara explícitamente que el baseline **no** evalúa los guards estáticos.
+- **Gates**: `pnpm test:coverage` → `PASSED` o `BLOCKED` por DB (§31.0), con el estado declarado junto al baseline. `git diff --check` → `PASSED`.
+- **Rollback**: revertir el commit. Sin impacto en runtime ni en CI.
+- **Coste**: bajo-medio.
+
+#### 12B — Coverage en CI como diagnóstico no bloqueante (ci-only, R2/R3)
+
+- **Objetivo**: decidir e implementar, si Nico lo autoriza, la ejecución de `test:coverage` en CI como señal diagnóstica.
+- **Tipo de scope**: ci-only. **Paths permitidos**: `.github/workflows/**`.
+- **Riesgo por acción**: editar un workflow es **R2**; si la edición tocara variables, entornos o secretos productivos sería **R3** (`AGENTS.md` §3.1, §3.3). La ficha del PR clasifica cada acción.
+- **Autorización: explícita de Nico, obligatoria. El default de esta subfase es NO EJECUTARLA:** §25.1 concluye que la topología de CI es correcta y no requiere cambios, y añadir un job tiene coste de tiempo y de mantenimiento sin cerrar ningún riesgo P0/P1.
+- **Dependencias**: `12A` fusionada.
+- **No-scope**: convertir coverage en gate bloqueante; thresholds; required checks; tocar los cuatro contextos required de `AGENTS.md` §6.
+- **Aceptación**: (1) el job es **estrictamente no bloqueante** y no se añade a los contextos required; (2) los cuatro required de `AGENTS.md` §6 conservan su definición exacta; (3) el tiempo añadido al pipeline se mide y se declara; (4) `qga-workflow-security` en `PASSED`.
+- **Gates**: `qga-workflow-security` → `PASSED`. Los cuatro contextos required → `PASSED`.
+- **Rollback**: revertir el commit retira el job. Riesgo a vigilar: si el job llegara a figurar como required en la configuración efectiva de GitHub, revertir el workflow dejaría un check required que nunca reporta y **bloquearía todos los merges**; por eso la aceptación (1) y (2) son innegociables y el rollback exige verificar antes la configuración efectiva de branch protection, que es R3 y pertenece a Nico.
 - **Coste**: medio.
 
 ### TEST-GLOBAL-13 — Gobernanza y cierre
 
-- **Scope**: actualizar `TDR-002`, `test/README.md` (§21 drift), la convención de organización y este documento a `CLOSED`; certificación final con censo recomputado.
-- **Aceptación**: matriz de §34 completa; residuales con owner.
+- **Objetivo**: certificar el cierre del programa con censo recomputado y residuales con owner.
+- **Tipo de scope**: docs-only. **Paths permitidos**: `docs/**`, `test/README.md`.
+- **Scope**: actualizar `TDR-002`, `test/README.md` (corrigiendo el árbol canónico: los dos paths ausentes de §18 y las tres subcarpetas omitidas, `TG-R14`), la convención de organización y este documento a `CLOSED`; certificación final con el censo recomputado por el tooling de `01B`.
+- **No-scope**: `test/**` salvo su `README.md`; cualquier corrección de test —si al cerrar aparece una, es una fase nueva, no un añadido a `13`.
+- **Riesgo**: R1. **Autorización**: no requiere.
+- **Dependencias**: **todas** las subfases ejecutables, por las ramas del DAG de §32. `13` no puede declararse antes que `03`, `10D` ni `11`, aunque ninguna de las tres alimente a `12`.
+- **Aceptación**: los nueve criterios de §36, cada uno con su evidencia y su estado canónico; matriz de §34 completa; residuales de §35 con owner y motivo; ledger de §37 cerrado.
+- **Gates**: `git diff --check` → `PASSED`. Censo recomputado → `PASSED`.
+- **Rollback**: revertir el commit devuelve el documento a `ACTIVE`. Ningún artefacto ejecutable depende de este PR.
+- **Output**: programa certificado como `CLOSED` o con sus `accepted defer` declarados.
+- **Coste**: medio.
 
 ## 32. Dependencias entre fases
 
+El DAG siguiente es la **única** fuente de verdad de precedencia. §31.1, §34 y
+§36 se leen contra él; si alguna difiere, manda este grafo y la diferencia se
+corrige. La versión anterior dejaba `03`, `10` y `11` como hojas terminales
+mientras §31 afirmaba que `13` dependía de todas: esa contradicción está
+resuelta (`TG-A07`).
+
 ```text
-01 ──┬──► 02 ──► 04 ──────────────┐
-     ├──► 03                      ├──► 12 ──► 13
-     └──► 05 ──┬──► 06 ──► 07 ──► 08 ──┘
-               ├──► 09 ──► 10
-               └──► 11
+01A ──► 01B ──┬──► 02 ──► 04 ─────────────────────────────┐
+              │                                           │
+              ├──► 03 ─────────────────────────────────┐  │
+              │                                        │  │
+              ├──► 11 ◄─────────────────┐              │  │
+              │                         │              │  │
+              └──► 05A ──┬──► 05B       │              │  │
+                         │              │              │  │
+                         ├──────────────┘  (11 ← 05A y 11 ← 01B)
+                         │
+                         ├──► 06 ──► 07 ──► 08 ──┬──► 12A ──► 12B ──┐
+                         │                       │                  │
+                         └──► 09 ──► 10A ──┬──► 10B ──┐              │
+                                           │          │              │
+                                           └──► 10C ──► 10D ──┐      │
+                                                              │      │
+                                    03 ──────────────────┐    │      │
+                                    05B ─────────────────┤    │      │
+                                    11 ──────────────────┤    │      │
+                                                         ▼    ▼      ▼
+                                                        ── 13 (cierre) ──
 ```
 
-Aquí `01` = `01A` → `01B` (dos PRs de una misma fase lógica, §31): una flecha
-desde `01` exige ambos PRs fusionados.
+Relaciones, en forma de lista inequívoca:
 
-Paralelizables sin conflicto: `02 ∥ 03`, `09 ∥ 11`.
-Serializadas obligatoriamente: `06 → 07 → 08` (comparten censos de catálogo).
+```text
+01A → 01B
+01B → 02 · 03 · 05A · 11
+02  → 04
+05A → 05B · 06 · 09 · 11
+06  → 07 → 08
+09  → 10A
+10A → 10B · 10C
+10C → 10D
+04 + 08 → 12A → 12B
+03 · 04 · 05B · 07 · 08 · 10B · 10D · 11 · 12A · 12B → 13
+```
+
+- `11` tiene **dos** predecesores: `05A` (lector canónico) y `01B` (su censo
+  entra en el scope de `11`, §31.2). No es una dependencia artificial: sin `01B`
+  fusionada, `11` auditaría un censo que todavía no existe.
+- `12B` es la única subfase cuyo default es **no ejecutarse**; si Nico no la
+  autoriza, `13` depende de `12A` y registra `12B` como `accepted defer`.
+- `13` depende de **todas** las subfases ejecutables, no sólo de la rama de
+  `12`. `03`, `05B`, `10D` y `11` alimentan el cierre directamente.
+
+**Paralelizables sin conflicto**: `02 ∥ 03`, `09 ∥ 11`, `10B ∥ 10C`,
+y los lotes internos de `05A` entre sí, y los PRs de `04` entre sí.
+
+**Serializadas obligatoriamente**: `01A → 01B` (alta antes que instrumentación);
+`06 → 07 → 08` (comparten censos de catálogo); `05A → 05B` (no activar lint
+sobre código que `05A` va a reescribir); `10A → 10B` y `10C → 10D` (no retirar
+un cast cuya costura no existe).
 
 ## 33. Auditoría de auditorías anteriores
 
@@ -1367,8 +1987,8 @@ Serializadas obligatoriamente: `06 → 07 → 08` (comparten censos de catálogo
 | `pr-test-architecture-consolidation-audit.md` | 517 archivos / 4.019 tests | **HISTORICAL** | Baseline de 2026-07-30 |
 | ídem | `ACCIDENTAL_COUPLING confirmado = 0` | **NEEDS_REVALIDATION** | Ver nota metodológica abajo |
 | ídem | `LEGITIMATE_GUARD` 332 / `MIXED` 38 | **HISTORICAL** | Criterio distinto del de §7.3 |
-| ídem | Helper canónico `listSourceFiles` | **CURRENT** | Existe y funciona; adopción baja (9 importadores) |
-| `test/README.md` | Árbol canónico con `integration/adapters/repositories` y `integration/external-services` | **STALE** | Ambas vacías (§21) |
+| ídem | Helper canónico `listSourceFiles` | **CURRENT** | Existe y funciona; adopción baja (**8** importadores, recomputado sobre §3.2) |
+| `test/README.md` | Árbol canónico con `integration/adapters/repositories` y `integration/external-services` | **STALE** | Ambos paths **ausentes del árbol**: 0 archivos tracked y directorio inexistente (§18) |
 | `test/README.md` | `test/*.test.ts` = 0 | **CURRENT** | Verificado |
 | `docs/audit/LIMPIEZA E2E.md` | `CLOSED`, last verified 2026-09-21 | **CURRENT** | No se reabre |
 
@@ -1394,37 +2014,52 @@ reabre** aquel programa.
 Regla de `AGENTS.md` §4 aplicada: un scope primario, una causa, un rollback.
 
 ```text
-FASES LÓGICAS = 13  (TEST-GLOBAL-01 … 13)
-PRs           > 13  (mínimo 15: 13 fases + el split de 01 + el split de 05;
-                     más un PR por contrato en 04 y por subdominio en 07/08)
+FASES LÓGICAS = 13   (TEST-GLOBAL-01 … 13)
+SUBFASES      = 19   (splits de 01, 05, 10 y 12)
+PRs           ≥ 19   (04 entrega 1 PR por contrato; 07/08, 1 por subdominio;
+                      05A y 10B, por lotes)
 ```
 
-| Fase | Tipo de PR | Scope único | ¿R2? |
-|---|---|---|---|
-| 01A | docs-only | Alta documental (`TDR-002`, `docs/audit/README.md`) | No |
-| 01B | test-only | Contrato de censo y tooling versionado | No |
-| 02 | test-only | Registro IDOR | No |
-| 03 | test-only | Guard de plataforma | No |
-| 04 | test-only | Prueba negativa (1 PR por contrato) | No |
-| 05 | test-only **+** config-only → **split obligatorio en 2 PRs** | Helper / ESLint | **Sí** (ESLint) |
-| 06 | docs-only | Adjudicación | No |
-| 07, 08 | test-only | 1 PR por subdominio | No |
-| 09 | test-only | Integración | No |
-| 10 | backend-only | Inyección de dependencias | **Sí** |
-| 11 | test-only | Registries | No |
-| 12 | config-only + docs | Coverage | **Sí** si toca workflows |
-| 13 | docs-only | Cierre | No |
+**Ninguna subfase de este roadmap invoca la excepción mixed-scope.** Cada fila
+tiene exactamente un scope primario, una causa y un rollback.
+
+| Subfase | Tipo de PR (scope único) | Objeto | Riesgo | ¿Autorización de Nico? |
+|---|---|---|---|---|
+| 01A | docs-only | Alta documental (`TDR-002`, `docs/audit/README.md`) | R1 | No |
+| 01B | test-only | Contrato de censo y tooling versionado | R1 | No |
+| 02 | test-only | Registro IDOR + prueba negativa | R1 | No |
+| 03 | test-only | Guard de plataforma (launcher win32) | R1 | No |
+| 04 | test-only | Prueba negativa de seguridad — **1 PR por contrato** | R1 | No |
+| 05A | test-only | Lector canónico y migración por lotes | R1 | No |
+| 05B | config-only | `eslint.config.mjs`: alta de `test/**` | **R2** | **Sí** |
+| 06 | docs-only | Adjudicación de candidatos | R1 | No |
+| 07 | test-only | Remediación `unit/ui/dashboard` — 1 PR por subdominio | R1 | No |
+| 08 | test-only | Remediación `unit/ui` admin/public/frontend — 1 PR por subdominio | R1 | No |
+| 09 | test-only | Integración de repositorios, o declaración de bloqueo | R1 | No |
+| 10A | backend-only | Costura de inyección en email/storage/`ENV` | **R2** | **Sí** |
+| 10B | test-only | Retiro de `as any` de infraestructura | R1 | No |
+| 10C | backend-only | Costura tipada del registro de plugins Fastify | **R2** | **Sí** |
+| 10D | test-only | Retiro de `as any` de rutas + criterio `req`/`res`/`reply` | R1 | No |
+| 11 | test-only | Registries y censos congelados (incluido el de `01B`) | R1 | No |
+| 12A | docs-only | Baseline de coverage con salvedad metodológica | R1 | No |
+| 12B | ci-only | `test:coverage` en CI, no bloqueante — **default: no ejecutar** | **R2/R3** | **Sí** |
+| 13 | docs-only | Certificación de cierre | R1 | No |
 
 Matriz de aceptación transversal — toda fase debe cumplir:
 
 | Criterio | Verificación |
 |---|---|
-| `pnpm test` sin regresión | Conteo pass ≥ baseline de la fase |
-| `pnpm validate:local` | PASSED o BLOCKED con precondición nombrada (DB) |
-| Ningún guard debilitado | Diff revisado; 0 `skip`, 0 assertion retirada sin prueba de equivalencia |
+| Baseline propio declarado | El PR nombra el SHA sobre el que midió (§3.3) |
+| `pnpm test` sin regresión | Conteo pass ≥ baseline de la fase; 0 fallos atribuibles al PR |
+| Precondición de DB | `BLOCKED` con la precondición nombrada; **nunca** `PASSED`, nunca `skip`, nunca credenciales inventadas (§31.0) |
+| `pnpm validate:local` | `PASSED`, o `BLOCKED` con precondición nombrada (DB) |
+| Ningún guard debilitado | Diff revisado; 0 `skip`, 0 assertion retirada sin la prueba de equivalencia de §31.6 |
+| Ningún control de seguridad rebajado | Los contratos de §17 conservan o mejoran su clase; 0 `fail-closed` convertido en `fail-open` |
 | Censos realineados en el mismo PR | `AGENTS.md` §4 |
-| Cero artefactos | `playwright-report/`, `test-results/`, `next-env.d.ts` |
-| Prueba negativa del propio cambio | Cuando la fase añade o modifica un guard |
+| Cero artefactos | `playwright-report/`, `test-results/`, `frontend/next-env.d.ts` sin alterar |
+| Prueba negativa del propio cambio | Obligatoria cuando la fase añade o modifica un guard |
+| Scope único verificado | `git diff --name-only` contenido en los paths permitidos de la ficha |
+| Rollback declarado | El PR enuncia su rollback y, si hay estado intermedio, el orden de reversión |
 
 ## 35. Residuales explícitos
 
@@ -1443,24 +2078,93 @@ Matriz de aceptación transversal — toda fase debe cumplir:
 
 `LIMPIEZA TEST GLOBAL` pasa a `CLOSED` cuando, con evidencia reproducible:
 
-1. Los 2 P0 están cerrados con prueba negativa en el propio PR.
-2. Los 4 P1 están cerrados o tienen `accepted defer` con owner y fecha.
-3. Los 137 candidatos están adjudicados 100 % (`KEEP` es un cierre válido).
-4. Ningún contrato crítico de §17 permanece en `NO_NEGATIVE_PROOF`.
-5. `pnpm test` alcanza 0 fail en win32 y en CI con la precondición de DB satisfecha; sin ella, sólo permanece el fallo de DB (`ENVIRONMENT_DEPENDENT`), reportado BLOCKED con esa precondición y con 0 fallos de launcher.
-6. `test/**` tiene baseline de lint publicado.
-7. Los censos de §6 se recomputan y se declaran como cifras de cierre.
-8. Ningún guard de seguridad fue debilitado en todo el programa.
-9. Este documento se marca `CLOSED` con su Anexo de cierre.
+Cada criterio nombra la subfase que lo cierra, de modo que ninguno pueda quedar
+sin dueño (§30). **`BLOCKED` no cierra ningún criterio**: sólo declara
+honestamente que un gate no pudo ejecutarse, y el criterio sigue abierto salvo
+que exista un `accepted defer` explícito con owner y fecha.
+
+| # | Criterio de cierre | Cierra |
+|---|---|---|
+| 1 | Los 2 **P0** (`TG-R01`, `TG-R02`) cerrados **con prueba negativa en el propio PR** | `02` |
+| 2 | Los 4 **P1** (`TG-R03`, `TG-R04`, `TG-R05`, `TG-R06`) cerrados o con `accepted defer` con owner y fecha | `03`, `04`, `06`, `07`, `08` |
+| 3 | El pool de candidatos adjudicado al 100 % (`KEEP` es un cierre válido) | `06` |
+| 4 | Ningún contrato crítico de §17 permanece en `NO_NEGATIVE_PROOF` | `04` |
+| 5 | **Launcher**: 0 fallos de launcher en win32 y en CI | `03` |
+| 6 | **DB**: con la precondición satisfecha, `pnpm test` alcanza 0 fail; sin ella, permanece **sólo** el fallo `ENVIRONMENT_DEPENDENT` del grupo B, reportado `BLOCKED` con la precondición nombrada. Un `BLOCKED` aquí es un cierre válido **únicamente** porque el criterio está redactado para admitirlo de forma explícita y nominal | `03` |
+| 7 | `test/**` con baseline de lint publicado, **o** `05B` registrada como `accepted defer` si Nico no autorizó el R2 | `05B` |
+| 8 | Censos de §6 recomputados por el tooling versionado y declarados como cifras de cierre; el censo de `01B` auditado bajo §31.2 | `01B`, `11`, `13` |
+| 9 | Costuras de inyección resueltas o con criterio declarado: infraestructura y rutas | `10A`–`10D` |
+| 10 | Baseline de coverage publicado con su salvedad metodológica; `12B` ejecutada o `accepted defer` | `12A`, `12B` |
+| 11 | **Ningún guard de seguridad fue debilitado en todo el programa** | transversal, auditado en `13` |
+| 12 | Residuales de §35 con owner y motivo; ledger de §37 cerrado | `13` |
+| 13 | Este documento marcado `CLOSED` con su Anexo de cierre | `13` |
+
+**Criterios que el cierre NO puede exigir**, por estar fuera del programa: la
+evidencia runtime cross-tenant en staging (R3, §35), los tests contra DB real
+(R3, §35) y el mutation testing por herramienta externa (descartado en §11.2).
+Exigirlos haría el cierre inalcanzable por diseño.
+
+## 37. Reauditoría de gobernanza — correction ledger
+
+Una segunda auditoría independiente, ejecutada en R0 sobre `main@38fe1dfe`
+(§3.2), reverificó el diagnóstico técnico y auditó este documento **como
+instrumento de gobierno** de decenas de PRs. Resultado:
+
+- **El diagnóstico técnico se sostiene.** Todas las cifras `REPRODUCIBLE_*`
+  reprodujeron exactamente; los 2 P0 y los 4 P1 se confirmaron por lectura
+  directa y por ejecución dirigida. Ningún `TG-Rxx` se retiró ni se rebajó.
+- **La gobernanza del roadmap tenía trece defectos**, listados abajo. Todos
+  están corregidos en esta revisión.
+
+Este ledger es **trazabilidad histórica**, no backlog: un `TG-Axx` con estado
+`CORRECTED_IN_THIS_REVISION` está cerrado y no cuenta como hallazgo abierto
+(§28.1).
+
+| ID | Sev. | Problema detectado | Corrección aplicada | Estado |
+|---|---|---|---|---|
+| `TG-A01` | P1 | `TEST-GLOBAL-05` exigía «`pnpm test` verde», inalcanzable mientras falte la DB aislada que `03` expresamente no provee | §31.0 fija la regla transversal de precondición de DB y **prohíbe** esa formulación en toda fase; la aceptación de `05A` separa launcher, DB y suite global y admite `BLOCKED` con precondición nominal | `CORRECTED_IN_THIS_REVISION` |
+| `TG-A02` | P1 | Mixed-scope sin split ni justificación: `05` («test-only + config-only») y `12` («config-only + docs»), esta última bajo una columna titulada «scope único» | Split en `05A`/`05B` y `12A`/`12B`, cada subfase con ficha completa de trece campos. §31.0 declara que **ninguna** subfase invoca la excepción mixed-scope; §34 lo refleja | `CORRECTED_IN_THIS_REVISION` |
+| `TG-A03` | P1 | La aceptación de `RETIRE` en `07`/`08` remitía a «§15 del encargo», un texto no versionado; también §16, §19 y A.2 citaban «el prompt» | §31.6 transcribe la prueba de equivalencia completa (8 condiciones, fail-closed). §16 y §19 transcriben el estándar de guard y la frontera de capa. A.2 y §24 reformulados. **Cero referencias normativas externas** | `CORRECTED_IN_THIS_REVISION` |
+| `TG-A04` | P1 | 10 de 13 fases no declaraban rollback, pese a `AGENTS.md` §4 | Las 19 subfases declaran rollback. §31.0 exige rollback específico —no la fórmula genérica— cuando hay impacto estructural; `10A`, `10C` y `12B` declaran además el orden de reversión y el estado intermedio | `CORRECTED_IN_THIS_REVISION` |
+| `TG-A05` | P2 | `10` se declaraba `backend-only` pero su aceptación (`as any` = 0) obligaba a editar `test/**`, que su propio no-scope restringía | Split en pares costura→realineación: `10A`→`10B` y `10C`→`10D`, con la regla de que una subfase `*B`/`*D` no retira un cast cuya costura no exista | `CORRECTED_IN_THIS_REVISION` |
+| `TG-A06` | P2 | §30 fijaba «0 `as any` en costuras de inyección de **rutas**», pero `10` excluía rutas de su scope: el objetivo no tenía fase dueña y el programa podía cerrarse incumpliéndolo | `10C`/`10D` asumen las costuras de rutas (9 `clinicAuthNativeRoutes as any` + criterio para 47 casts de `req`/`res`/`reply`). §30 añade columna «Fase dueña» **obligatoria** para toda métrica de cierre | `CORRECTED_IN_THIS_REVISION` |
+| `TG-A07` | P2 | El DAG de §32 dejaba `03`, `10` y `11` como hojas terminales, mientras §31 afirmaba que `13` dependía de todas; §36 exigía los 4 P1 cerrados, y `03` es un P1 | §32 reconstruido como DAG único con lista de relaciones explícita; `13` depende de las diez subfases terminales. §36 nombra la subfase que cierra cada criterio | `CORRECTED_IN_THIS_REVISION` |
+| `TG-A08` | P2 | `01B` creaba un censo nuevo, reproduciendo el patrón `FROZEN_CENSUS`/`DUPLICATE_SOURCE_OF_TRUTH` que `11` existe para sanear, sin que ninguna fase lo revisitara | §31.2 fija la regla de fuente única del censo de `01B` (qué es cálculo, qué es guard, qué es congelable y qué no). `11` incorpora ese censo a su scope y añade `01B` a sus dependencias en §32 | `CORRECTED_IN_THIS_REVISION` |
+| `TG-A09` | P3 | §6.4, §13.1 y §33 declaraban **9 importadores** del helper canónico | Recomputado sobre §3.2: son **8**, y los 8 importan realmente (no son menciones). Se añade la precisión de que 2 de ellos son además guards del propio helper | `CORRECTED_IN_THIS_REVISION` |
+| `TG-A10` | P3 | §18 describía `integration/adapters/repositories/` y `integration/external-services/` como «carpetas documentadas y vacías» | Verificado: 0 archivos tracked **y directorio inexistente**. Redacción corregida a «paths canónicos documentados pero ausentes del árbol» en §18, §28 (`TG-R10`, `TG-R14`) y §33; `09` ajustada en consecuencia | `CORRECTED_IN_THIS_REVISION` |
+| `TG-A11` | P3 | Todo el Anexo A asumía Git Bash (`xargs`, `awk`, `grep`), mientras `AGENTS.md` §1 fija Windows + PowerShell como entorno del proyecto | A.3c añade la **variante PowerShell canónica verificada**: 40 de 41 cifras reproducen idénticas, y la única divergencia está explicada y corregida (`TG-A13`). Los comandos Git Bash se conservan marcados como históricos | `CORRECTED_IN_THIS_REVISION` |
+| `TG-A12` | P3 | §10.1 citaba el test del falso verde con el nombre truncado y sugería que tenía 3 assertions | Nombre exacto, ubicación (línea 36), constante de path y conteo real: **11 assertions, las 11 `.includes()`**, de las que se citan 3. El hallazgo técnico se conserva intacto y verificado | `CORRECTED_IN_THIS_REVISION` |
+| `TG-A13` | P3 | §20 declaraba 426 assertions de censo congelado en 116 archivos, cifra obtenida con un censo line-scoped incapaz de ver las assertions formateadas en varias líneas | Recomputado leyendo el archivo completo: **498 en 134 archivos** (426 + 72). §20, §27 y `TG-R13` corregidos; la cifra operativa de `11` es la nueva | `CORRECTED_IN_THIS_REVISION` |
+
+### 37.1 Defectos auditados y **no** corregidos, por decisión
+
+| Observación | Decisión |
+|---|---|
+| §6.2 y §6.3 están clasificados `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` en A.0, pero varias de sus filas reprodujeron exactamente en la reverificación | **No se promueven** a categoría reproducible en bloque. Se marcan `CURRENT_REVERIFICATION` sólo las filas efectivamente reejecutadas. Promover el resto sin comando documentado violaría la regla de §0 |
+| Las cifras de §7.2, §7.3, §8.2, §9.3 y §23 siguen dependiendo de los scratchpads de A.4 | **Se conservan como `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE`.** No se recrean los scripts: versionarlos es trabajo de `01B`, y hacerlo aquí habría convertido un cambio docs-only en test-only |
+| El wall time de §24 varía por host (26,4 s vs 146,1 s en la misma máquina, A.5) | **Se conserva con la advertencia existente.** Ninguna aceptación de fase depende de un tiempo absoluto |
 
 ---
 
 ## Anexo A — Censos y su reproducibilidad
 
-Cifras medidas sobre `main@ee8e7425`, 2026-09-21, desde la raíz del repo. La PR
-que introduce esta auditoría sólo cambia este archivo, así que los comandos de
-este anexo dan las mismas cifras sobre `main@ee8e7425` y sobre el head de la PR.
-Los comandos de shell asumen Git Bash (`xargs`, `awk`, `grep -E`).
+Cifras medidas sobre `main@ee8e7425` (§3.1) el 2026-09-21 y reverificadas sobre
+`main@38fe1dfe` (§3.2), desde la raíz del repo.
+
+**Entorno canónico de reproducción (`TG-A11`).** `AGENTS.md` §1 fija el entorno
+del proyecto como **Windows + PowerShell**, con PNPM como gestor. Por tanto:
+
+```text
+CANÓNICO    PowerShell 7+ · Node.js · Git · pnpm      → A.1, A.3c, A.5, A.6
+HISTÓRICO   Git Bash (xargs, awk, grep -E)            → A.2, A.3, A.3b
+PROHIBIDO   Python · rg · WSL                          — ninguna cifra depende de ellos
+```
+
+Los comandos Git Bash de A.2, A.3 y A.3b **se conservan** porque son la
+evidencia con la que se produjeron las cifras originales y retirarlos destruiría
+trazabilidad. Su equivalente PowerShell verificado está en **A.3c**, que es el
+mecanismo canónico para toda fase futura. Donde ambas formas divergen, A.3c lo
+declara y explica la causa: no se eligió la cifra más conveniente.
 
 Este anexo **no** afirma que todo lo medido sea reproducible desde el
 repositorio. A.0 dice, cifra por cifra, cuál lo es y cuál no.
@@ -1473,10 +2177,12 @@ repositorio. A.0 dice, cifra por cifra, cuál lo es y cuál no.
 | `REPRODUCIBLE_WITH_DOCUMENTED_COMMAND` | La cifra sale de un comando documentado en A.1–A.3b que **se volvió a ejecutar al corregir esta auditoría y devolvió exactamente la cifra del documento** |
 | `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` | La cifra proviene de un script de scratchpad no versionado (A.4) o de un cálculo que no se volvió a ejecutar con un comando documentado. Hoy **no** puede recomputarse desde el repo con lo escrito aquí |
 | `MANUAL_CLASSIFICATION` | El dato o veredicto proviene de lectura de código; se reproduce leyendo los archivos citados, no ejecutando un comando |
+| `HISTORICAL_EXECUTION_EVIDENCE` | Resultado de una ejecución concreta en un host concreto. Es evidencia de que algo ocurrió, **no** una cifra estable: depende de la máquina, del momento o del entorno, y re-ejecutar puede dar otro valor legítimamente (p. ej. los tiempos de §24) |
+| `CURRENT_REVERIFICATION` | La cifra se volvió a ejecutar sobre `main@38fe1dfe` (§3.2) durante la reauditoría de gobernanza (§37) y devolvió el valor que aquí figura. Es el grado más alto de confianza de este documento |
 
 | Cifra central | Sección | Categoría | Referencia |
 |---|---|---|---|
-| 576 archivos, 562 specs, 4.530 `test(`, 156.887 LOC de `test/**` | §6.1 | `REPRODUCIBLE_WITH_DOCUMENTED_COMMAND` | A.1 |
+| 576 archivos, 562 specs, 4.530 `test(`, 156.887 LOC de `test/**` | §6.1 | `CURRENT_REVERIFICATION` | A.1, A.3c |
 | `.only(` = 0, `describe(` = 0, `mock.*` = 0 | §6.1, §12.2 | `REPRODUCIBLE_WITH_DOCUMENTED_COMMAND` | A.3b |
 | 4.590 entradas, 4.580 pass, 1 skipped | §3, §6.1 | `REPRODUCIBLE_FROM_REPO` | `pnpm test` (A.5) |
 | 9 FAILED = 8 launcher win32 + 1 DB, por archivo | §3, §10.2 | `REPRODUCIBLE_FROM_REPO` (depende de plataforma y de DB) | A.5, A.5b |
@@ -1495,14 +2201,19 @@ repositorio. A.0 dice, cifra por cifra, cuál lo es y cuál no.
 | Falso verde `statsLoadError ?` (mutación razonada, **no ejecutada**) | §10.1 | `MANUAL_CLASSIFICATION` | Anexo B.2 |
 | 9 harness de mutación, 130 tests fail-closed, conteos de `rejects`/`throws`/`doesNotMatch` | §11 | `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` | — |
 | Clasificación de contratos críticos y matriz de seguridad | §11.1, §17 | `MANUAL_CLASSIFICATION` | — |
-| Importadores de doubles y soporte compartido | §6.4, §12.1 | `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` | — |
+| **8** importadores del helper canónico `tracked-source-files.ts` | §6.4, §13.1 | `CURRENT_REVERIFICATION` | A.3c |
+| Importadores del resto de doubles y soporte compartido | §6.4, §12.1 | `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` | — |
+| Los dos paths canónicos de integración ausentes del árbol | §18, §33 | `CURRENT_REVERIFICATION` | A.3c |
+| Nombre, ubicación y 11 assertions del test del falso verde | §10.1, B.2 | `CURRENT_REVERIFICATION` | A.3c |
+| Wall time de la suite y Pareto de entradas caras | §24 | `HISTORICAL_EXECUTION_EVIDENCE` | A.5 |
+| Backend CI = success @ `ee8e7425` y @ `38fe1dfe` | §3, §29 | `CURRENT_REVERIFICATION` | A.6 |
 | `as any` 659 / 64 archivos y sus contextos principales (excepto `req`/`res`/`reply` y `clinicAuthNativeRoutes`, no re-verificados) | §12.3 | `REPRODUCIBLE_WITH_DOCUMENTED_COMMAND` | A.3, A.3b |
 | `Date` 22, timers 7, aleatorio 4, hooks 4 | §13 | `REPRODUCIBLE_WITH_DOCUMENTED_COMMAND` | A.3b |
 | Mutación de `process.env` (11 archivos, 8 sin restaurar) | §13, §13.2 | `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` | Un `grep` simple da 9 archivos |
 | Lectores propios por definición: `read(` 216, `readSource(` 65, `collectFiles(` 4, `listFiles`/`collectSourceFiles` 4 | §13.1 | `REPRODUCIBLE_WITH_DOCUMENTED_COMMAND` | A.3b |
 | 283 archivos con lector propio; `walk(` 18; normalización CRLF 295 / 36 | §13.1 | `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` | Un `grep` simple da 281, 17 y 279 archivos con `\r\n` |
-| 426 assertions de conteo congelado | §20 | `REPRODUCIBLE_WITH_DOCUMENTED_COMMAND` | A.3 |
-| 116 archivos con conteo congelado, 75 registries literales | §20 | `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` | — |
+| **498** assertions de censo congelado en **134** archivos (cifra vigente; 426/116 es el subconjunto line-scoped) | §20 | `CURRENT_REVERIFICATION` | A.3c |
+| 75 registries literales | §20 | `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` | — |
 | Subcarpetas de `unit`, integración, guards, destinos de lectura, status HTTP, ownership, nombres duplicados | §14–§16, §19, §22, §23 | `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` | A.4 (`ownership.mjs` para §23) |
 | Wall time 26,4 s, Pareto y entradas más caras | §24 | `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` | Depende del host (ver A.5) |
 | `test:coverage` ausente de todo workflow | §21, §25 | `REPRODUCIBLE_WITH_DOCUMENTED_COMMAND` | A.3b |
@@ -1513,7 +2224,7 @@ repositorio. A.0 dice, cifra por cifra, cuál lo es y cuál no.
 Una cifra `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` **no queda invalidada** por esa
 categoría: significa que hoy nadie puede recomputarla sin el scratchpad
 original. Toda decisión que dependa de ella (p. ej. el pool de 137 candidatos de
-`TEST-GLOBAL-06` o los 283 lectores de `TEST-GLOBAL-05`) debe recomputarla
+`TEST-GLOBAL-06` o los 283 lectores de `TEST-GLOBAL-05A`) debe recomputarla
 primero. La reproducibilidad durable de estas cifras es criterio de aceptación
 de `TEST-GLOBAL-01B` (§31), no de este documento docs-only.
 
@@ -1535,14 +2246,15 @@ git ls-files 'test/**/*.test.ts' | xargs grep -lE "from ['\"]node:fs" | wc -l   
 git ls-files 'test/**/*.test.ts' | xargs grep -lE "readdirSync" | wc -l           # 82
 ```
 
-*Limitación*: presencia de `node:fs` **no** implica deuda (§36 del encargo).
+*Limitación*: presencia de `node:fs` **no** implica deuda. La clasificación se
+hace por poder del oracle, no por la señal física (§4, §7.3).
 
 ### A.3 Assertions
 
 ```bash
 git ls-files 'test/**/*.test.ts' | xargs grep -oE "assert\.ok\([A-Za-z0-9_.]*\.includes\(" | wc -l   # 6262
 git ls-files 'test/**/*.test.ts' | xargs grep -oE "assert\.equal\([A-Za-z0-9_.]*\.includes\(" | wc -l # 1522
-git ls-files 'test/**/*.test.ts' | xargs grep -oE "\.length,\s*[0-9]+" | wc -l                        # 426
+git ls-files 'test/**/*.test.ts' | xargs grep -oE "\.length,\s*[0-9]+" | wc -l                        # 426 — PARCIAL, ver A.3c
 git ls-files 'test/**/*.ts'      | xargs grep -oE " as any" | wc -l                                   # 659
 ```
 
@@ -1613,6 +2325,142 @@ grep -rn 'test:coverage' .github/workflows | wc -l                              
 en `public-professionals-fixture-assertions-quality-invariants.test.ts`, no por
 una llamada real. Las 11 formas de assertion listadas en §8 suman 20.615; los 8
 restantes son `assert.notDeepEqual(` (7) y `assert.doesNotReject(` (1).
+
+### A.3c Variante PowerShell canónica — verificada (`TG-A11`)
+
+Equivalente de A.1–A.3b en el entorno que `AGENTS.md` §1 declara canónico.
+**Ejecutado sobre `main@38fe1dfe` (§3.2): 40 de las 41 cifras reprodujeron
+exactamente el valor documentado; la única divergencia está explicada abajo y
+corrigió la cifra del documento, no al revés.**
+
+Las tres funciones auxiliares importan, porque la traducción ingenua produce
+cifras distintas:
+
+```powershell
+# Guardar como scripts/… NO: este bloque es documentación, no tooling versionado.
+# Versionarlo es criterio de aceptación de TEST-GLOBAL-01B.
+
+function Specs { git ls-files 'test/**/*.test.ts' }
+
+# Cuenta ARCHIVOS que contienen el patrón  (equivale a: grep -l | wc -l)
+function CountFilesMatching([string[]]$files, [string]$pattern) {
+  ($files | Where-Object { (Get-Content -LiteralPath $_ -Raw) -match $pattern }).Count
+}
+
+# Cuenta OCURRENCIAS, varias por línea  (equivale a: grep -oE | wc -l)
+function CountOccurrences([string[]]$files, [string]$pattern) {
+  $t = 0
+  foreach ($f in $files) { $t += ([regex]::Matches((Get-Content -LiteralPath $f -Raw), $pattern)).Count }
+  $t
+}
+
+# Cuenta LÍNEAS que matchean  (equivale a: grep -cE sumado por archivo)
+function CountMatchingLines([string[]]$files, [string]$pattern) {
+  $t = 0
+  foreach ($f in $files) { $t += (@(Get-Content -LiteralPath $f) | Where-Object { $_ -match $pattern }).Count }
+  $t
+}
+
+# LOC: cuenta saltos de línea, como wc -l
+function SumLoc([string[]]$files) {
+  $t = 0
+  foreach ($f in $files) {
+    $raw = Get-Content -LiteralPath $f -Raw
+    if ($null -ne $raw) { $t += ([regex]::Matches($raw, "`n")).Count }
+  }
+  $t
+}
+
+$S = @(Specs); $all = @(git ls-files 'test/**'); $allTs = @(git ls-files 'test/**/*.ts')
+
+$all.Count                                                   # 576
+$S.Count                                                     # 562
+CountMatchingLines $S '^\s*test\('                           # 4530
+SumLoc $all                                                  # 156887
+CountFilesMatching $S "from ['`"]node:fs"                    # 410
+CountFilesMatching $S 'readFileSync'                         # 406
+CountFilesMatching $S 'existsSync'                           # 104
+CountFilesMatching $S 'readdirSync'                          # 82
+CountFilesMatching $S 'node:child_process'                   # 25
+CountFilesMatching $S 'statSync'                             # 20
+CountFilesMatching $S 'js-yaml'                              # 8
+CountFilesMatching $S 'createRequire|node:module'            # 8
+CountOccurrences   $S 'assert\.[A-Za-z]+\('                  # 20623
+CountOccurrences   $S 'assert\.ok\([A-Za-z0-9_.]*\.includes\('    # 6262
+CountOccurrences   $S 'assert\.equal\([A-Za-z0-9_.]*\.includes\(' # 1522
+CountFilesMatching $S '\.only\('                             # 0
+CountMatchingLines $S '^\s*describe\('                       # 0
+CountFilesMatching $S 'mock\.(fn|method|module|timers)'      # 0
+CountFilesMatching $S 'function read\('                      # 216
+CountFilesMatching $S 'function readSource\('                # 65
+CountFilesMatching $S 'function collectFiles\('              # 4
+CountFilesMatching $S 'function (listFiles|collectSourceFiles)\('  # 4
+CountFilesMatching $S 'Date\.now\(\)|new Date\(\)'           # 22
+CountFilesMatching $S 'setTimeout|setInterval|mock\.timers'  # 7
+CountFilesMatching $S 'Math\.random|randomUUID|randomBytes'  # 4
+CountFilesMatching $S '\b(before|beforeEach|after|afterEach)\('    # 4
+CountOccurrences   $allTs ' as any'                          # 659
+CountFilesMatching $allTs ' as any'                          # 64 archivos
+CountOccurrences   $allTs 'as unknown as'                    # 4
+CountOccurrences   $allTs 'ENV\.smtp as any'                 # 140
+CountOccurrences   $allTs 'ENV\.gmailApi as any'             # 121
+CountOccurrences   $allTs 'supabase\.storage as any'         # 63
+CountOccurrences   $allTs '\bENV as any'                     # 43
+CountOccurrences   $allTs 'nodemailer as any'                # 36
+CountOccurrences   $allTs 'globalThis as any'                # 22
+CountOccurrences   $allTs 'clinicAuthNativeRoutes as any'    # 9   (§30, fase 10C)
+
+$srv = @(git ls-files 'server/**'       | Where-Object { $_ -match '\.(ts|tsx|js|mjs)$' })
+$fe  = @(git ls-files 'frontend/src/**' | Where-Object { $_ -match '\.(ts|tsx|js|mjs)$' })
+$srv.Count; SumLoc $srv                                      # 226 / 46081
+$fe.Count;  SumLoc $fe                                       # 200 / 43276
+```
+
+Helper canónico, paths de integración y test del falso verde:
+
+```powershell
+# §6.4 / §13.1 — importadores del helper canónico
+@(git ls-files 'test/**/*.ts' |
+  Where-Object { (Get-Content -LiteralPath $_ -Raw) -match 'tracked-source-files' }).Count   # 8
+
+# §18 — paths canónicos documentados pero ausentes del árbol
+@(git ls-files 'test/integration/adapters/repositories/**').Count   # 0
+@(git ls-files 'test/integration/external-services/**').Count       # 0
+Test-Path 'test/integration/adapters/repositories'                  # False
+Test-Path 'test/integration/external-services'                      # False
+
+# §10.1 / B.2 — el test del falso verde y su mutación
+$g = 'test/unit/ui/dashboard/frontend-dashboard-empty-states.test.ts'
+([regex]::Matches((Get-Content -LiteralPath $g -Raw), 'assert\.[A-Za-z]+\(')).Count   # 43 en el archivo
+('!statsLoadError ?').Contains('statsLoadError ?')                                     # True
+```
+
+#### Divergencia única y su resolución
+
+```powershell
+# §20 — assertions de censo congelado, a DOS alcances distintos
+$line = 0; $raw = 0
+foreach ($f in $S) {
+  $c = Get-Content -LiteralPath $f -Raw
+  $raw  += ([regex]::Matches($c, '\.length,\s*[0-9]+')).Count          # 498
+  foreach ($ln in @(Get-Content -LiteralPath $f)) {
+    $line += ([regex]::Matches($ln, '\.length,[ \t]*[0-9]+')).Count    # 426
+  }
+}
+```
+
+El comando histórico de A.3 (`grep -oE "\.length,\s*[0-9]+"`) es **line-scoped**:
+no puede ver una assertion escrita en varias líneas. .NET aplicado al archivo
+completo sí, porque su `\s` incluye el salto de línea. La diferencia son
+exactamente **72** assertions formateadas en varias líneas (426 + 72 = 498).
+
+**Resolución**: la cifra correcta es **498 en 134 archivos**, y así queda en §20,
+§27 y `TG-R13`. No se ajustó el comando para preservar el 426: se corrigió la
+cifra. Registrado como `TG-A13` en §37.
+
+*Nota de portabilidad*: `Measure-Object -Line` **no** sirve para contar LOC —
+omite las líneas vacías y da un valor distinto de `wc -l`. Por eso `SumLoc`
+cuenta saltos de línea sobre el contenido crudo.
 
 ### A.4 Clasificación por capa y acoplamiento
 
@@ -1685,7 +2533,7 @@ gh run list --branch main --limit 6 \
 | # | Archivo | Clase | Prueba |
 |---|---|---|---|
 | B.1 | `test/architecture/security/security-cross-tenant-idor-contract.test.ts` | `CIRCULAR_ORACLE` | Asserta un literal declarado en el propio test; 15/18 contratos no dereferencian evidencia; 11 paths inexistentes |
-| B.2 | `test/unit/ui/dashboard/frontend-dashboard-empty-states.test.ts` | `FALSE_GREEN` | `.includes("statsLoadError ?")` también matchea `"!statsLoadError ?"`: invertir la condición pasa los 3 asserts |
+| B.2 | `test/unit/ui/dashboard/frontend-dashboard-empty-states.test.ts`, test de la línea 36 *"dashboard overview clinic command center distinguishes recent list load failures from empty states"* | `FALSE_GREEN` | `.includes("statsLoadError ?")` también matchea `"!statsLoadError ?"`: invertir la condición deja pasar **las 11 assertions** del test, todas `.includes()`. Mutación razonada y verificada por contención de substring; **no ejecutada** contra `frontend/src/**` |
 | B.3 | `test/unit/ui/frontend/frontend-report-actions.test.ts` | `OVER_SPECIFICATION` | Asserta el texto exacto de imports incluido el orden de named imports; un reorden no-op lo rompe |
 | B.4 | `test/unit/ui/frontend/frontend-native-link-preview-contract.test.ts` | `MIXED` | Guard fail-closed excelente (`ANCHOR_HITS=0` por walker) **y** assertions de copy en el mismo archivo |
 | B.5 | `test/unit/infrastructure/auth-security-rehash-policy.test.ts` | `MIXED` (falso positivo del clasificador) | Incluye assertion negativa real que prueba ausencia de la variante insegura |
@@ -1699,13 +2547,30 @@ gh run list --branch main --limit 6 \
 
 ```text
 LIMPIEZA TEST GLOBAL
-STATUS: ACTIVE
-AUDIT: COMPLETE
-IMPLEMENTATION: NOT_STARTED
-P0: 2
-P1: 4
-P2: 6
-P3: 4
-ROADMAP: TEST-GLOBAL-01 … TEST-GLOBAL-13  (13 fases lógicas; PRs > 13)
-NEXT: TEST-GLOBAL-01A (docs-only), luego TEST-GLOBAL-01B (test-only)
+STATUS:               ACTIVE
+PRIMARY_AUDIT:        COMPLETE        (diagnóstico técnico, §§6-29)
+GOVERNANCE_REAUDIT:   COMPLETE        (§37, 13 hallazgos TG-A)
+ROADMAP_GOVERNANCE:   CORRECTED       (13/13 TG-A en CORRECTED_IN_THIS_REVISION)
+IMPLEMENTATION:       NOT_STARTED     (ninguna fase TEST-GLOBAL-* ejecutada)
+
+TECHNICAL_P0: 2       TG-R01 · TG-R02                       — ABIERTOS
+TECHNICAL_P1: 4       TG-R03 · TG-R04 · TG-R05 · TG-R06     — ABIERTOS
+TECHNICAL_P2: 6       TG-R07 … TG-R12                       — ABIERTOS
+TECHNICAL_P3: 4       TG-R13 … TG-R16                       — ABIERTOS
+
+ROADMAP:  13 fases lógicas · 19 subfases · PRs >= 19
+R2 FUTUROS (autorización explícita de Nico):  05B · 10A · 10C · 12B
+NEXT:     TEST-GLOBAL-01A (docs-only), luego TEST-GLOBAL-01B (test-only)
 ```
+
+Los conteos `TECHNICAL_*` son riesgos **técnicos abiertos** y no se alteran por
+la reauditoría de gobernanza: corregir el roadmap no cierra ningún riesgo del
+subsistema de tests. Las dos series se explican en §28.1. La única intersección
+es `TG-A13`, que corrigió una cifra citada por `TG-R13` sin cambiar su
+severidad.
+
+Un agente que reciba este repositorio puede ejecutar el programa leyendo
+únicamente `AGENTS.md` y este archivo: §31.0 fija las convenciones, §31.1 la
+tabla maestra, §31.2 la regla de censo, §31.6 la prueba de equivalencia, §32 el
+DAG, §34 los splits y §36 el cierre. **No necesita ningún prompt, encargo ni
+conversación externa.**
