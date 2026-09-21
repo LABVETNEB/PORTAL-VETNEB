@@ -80,11 +80,11 @@ export default defineConfig({
     // addCookies() parameters verbatim, so they only exist where every upload
     // crosses the fail-closed sanitizer boundary of PR #1719 (AGENTS.md §9).
     // - Local: off. No sanitizer runs there.
-    // - Production runner (e2e:ci and e2e:full alike): retain-on-failure, so
-    //   the first failure keeps its trace. isProductionRunner decides this
-    //   branch on its own, so E2E Completeness passing --retries=2 does not
-    //   move e2e:full to on-first-retry — and retain-on-failure already avoids
-    //   the per-test recording that pushed the full catalog past its budget.
+    // - Production runner (e2e:ci and e2e:full alike): retain-on-failure.
+    //   isProductionRunner selects this branch independently of retries, so
+    //   E2E Completeness stays on retain-on-failure even with --retries=2.
+    //   Playwright records a trace for every run and keeps it only for runs
+    //   that fail, so the raw traces that survive still need the sanitizer.
     // - Other CI (CI=true without the production-runner opt-in): on-first-retry.
     trace: !isCi
       ? "off"
