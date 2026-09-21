@@ -131,10 +131,12 @@ test("Playwright selecciona dev local y next start solo en el runner productivo 
     );
   });
 
-  // P1 (PR #1495): CI=true alone is not enough — other workflows (e.g.
-  // visual-regression-manual.yml) run Playwright with CI=true but never run
-  // `pnpm --dir frontend build`, so `next start` would fail there. Only
-  // Frontend CI's e2e:ci step sets VETNEB_E2E_PRODUCTION_RUNNER=1.
+  // P1 (PR #1495): CI=true alone is not enough to select `next start`. A CI
+  // context opts in with VETNEB_E2E_PRODUCTION_RUNNER=1 only after producing
+  // the production bundle (Frontend CI's e2e:ci, E2E Completeness' e2e:full
+  // and visual-regression-manual.yml's production-candidate runner); generic
+  // CI without that opt-in — that workflow's `dev` runner — stays on
+  // `pnpm dev`.
   await t.test("generic CI (no production runner flag) still uses pnpm dev", async () => {
     const server = applicationServer(
       await loadConfig({
@@ -303,7 +305,7 @@ test("Playwright retiene traces sólo en CI saneado", async (t) => {
     assert.equal(
       config.use?.trace,
       "on-first-retry",
-      "recording every test of e2e:full (--retries=2) exhausts its budget; retries still leave a trace",
+      "generic CI without the production-runner opt-in must use on-first-retry tracing",
     );
   });
 });

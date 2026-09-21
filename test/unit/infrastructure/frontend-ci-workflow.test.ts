@@ -522,9 +522,10 @@ test("Frontend CI activa el runner productivo únicamente en el step e2e:ci (P1 
   const source = readWorkflow();
   const heavy = getJobBlock(source, "validate-frontend");
 
-  // Other workflows (e.g. visual-regression-manual.yml) run Playwright with
-  // CI=true but never `pnpm --dir frontend build`; VETNEB_E2E_PRODUCTION_RUNNER
-  // must stay scoped to this single step, never promoted to job/workflow env.
+  // Within frontend-ci.yml the production-runner flag stays scoped to the
+  // e2e:ci step and must never be promoted to job/workflow env. Other
+  // workflows opt into the production runner independently, after building
+  // their own bundle.
   const occurrences = source.match(/VETNEB_E2E_PRODUCTION_RUNNER/g);
   assert.equal(
     occurrences?.length,
