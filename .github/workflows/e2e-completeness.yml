@@ -211,8 +211,9 @@ jobs:
           # Chromium Linux baselines are production captures (no dev indicator).
           VETNEB_E2E_PRODUCTION_RUNNER: "1"
 
-      # --retries=2 makes trace: on-first-retry real here; raw traces carry cookies
-      # and auth headers, so only the sanitized staging copy may be uploaded.
+      # The production runner uses trace: retain-on-failure even with --retries=2;
+      # raw traces that survive carry cookies and auth headers, so only the
+      # sanitized staging copy may be uploaded.
       - name: Sanitize Playwright diagnostics
         id: sanitize-playwright-artifacts
         if: failure()
