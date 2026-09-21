@@ -28,9 +28,14 @@
 | Related controls or gaps | `TDR-002`; `ERM-CTRL-011`; `ERM-CTRL-012`; `ERM-CTRL-025`; `ERM-QLT-001` |
 | Evidence or approval reference | Auditoría R0 ejecutada sobre `main@ee8e7425f911b4b49848957bff52242aa95158e2` el 2026-09-21 |
 
-> **Vigencia de las cifras.** Todas las cifras de este documento se midieron sobre
-> `main@ee8e7425` el 2026-09-21 con los comandos del [Anexo A](#anexo-a--censos-reproducibles).
-> Ninguna cifra proviene de auditorías anteriores. Las cifras de `TDR-002`
+> **Vigencia y reproducibilidad de las cifras.** Todas las cifras de este
+> documento se midieron sobre `main@ee8e7425` el 2026-09-21. **No todas son
+> reproducibles hoy desde el repositorio:** el [Anexo A](#anexo-a--censos-y-su-reproducibilidad)
+> (A.0) clasifica cada cifra central como `REPRODUCIBLE_FROM_REPO`,
+> `REPRODUCIBLE_WITH_DOCUMENTED_COMMAND`, `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE`
+> o `MANUAL_CLASSIFICATION`. En particular, la clasificación heurística de §7 y
+> los censos de ownership y de paths stale provienen de scripts de scratchpad
+> **no versionados** (A.4). Ninguna cifra proviene de auditorías anteriores. Las cifras de `TDR-002`
 > (367/514) y de la consolidación de 2026-07-30 (517 archivos / 4.019 tests /
 > `ACCIDENTAL_COUPLING = 0`) son **históricas** y se tratan en §33.
 
@@ -39,8 +44,12 @@
 ## 1. Metadata y lifecycle
 
 Ver encabezado. El programa se nombra `LIMPIEZA TEST GLOBAL` y sus fases
-`TEST-GLOBAL-01 … TEST-GLOBAL-13`. El documento es rector: cualquier fase que
-altere el diagnóstico actualiza este archivo en el mismo PR.
+`TEST-GLOBAL-01 … TEST-GLOBAL-13`: **13 fases lógicas, más de 13 PRs** (§34),
+porque `AGENTS.md` §4 obliga a entregar por separado docs-only, test-only,
+config-only y backend-only, y algunas fases se dividen en varios PRs (p. ej.
+`01A`/`01B`). El documento es rector: cualquier fase que altere el diagnóstico
+lo registra en este archivo mediante un PR **docs-only propio**, posterior al
+PR de la fase; nunca dentro de un PR test-only, config-only o backend-only.
 
 ## 2. Naturaleza del programa
 
@@ -81,8 +90,11 @@ Ejecución local de referencia (win32, Node v24.14.1):
 pnpm test   → tests 4590 | pass 4580 | fail 9 | skipped 1 | wall 26,4 s
 ```
 
-Los 9 FAILED son **variancia de plataforma**, no regresión: Backend CI está en
-`success` sobre el mismo SHA. Se analizan en §14 y §29.
+Los 9 FAILED **no son una sola clase** y ninguno es una regresión de código:
+Backend CI está en `success` sobre el mismo SHA. Se descomponen en **8**
+falsos rojos por variancia Win32 del launcher de Playwright y **1** fallo por
+precondición de DB ausente (`DATABASE_URL` / `SUPABASE_DB_URL`). Se analizan en
+§10.2 y §29.
 
 ## 4. Metodología
 
@@ -119,7 +131,7 @@ verde                ≠   protegido
 | `vetneb-security-production-invariants` | SÍ | NO | No cargada. Los invariantes de §23 se derivaron de `AGENTS.md` §9 y de la lectura directa de `test/architecture/security/**` y `test/security/**` |
 | `vetneb-bugs-errores-optimizacion-rutas` | SÍ | NO | Condicional; no aplicó: la auditoría no entró en diagnóstico de rutas ni de errores HTTP productivos |
 | `vetneb-lanzamiento-mantenimiento` | SÍ | NO | Condicional; no aplicó en R0. Relevante para `TEST-GLOBAL-12/13` |
-| `senior-large-scale-codebase-analysis-vetneb` | **NOT_AVAILABLE** | — | Verificado contra el registro de skills de la sesión. El censo masivo se realizó con `git ls-files`, `grep`, y tres scripts Node ad hoc reproducibles (Anexo A) |
+| `senior-large-scale-codebase-analysis-vetneb` | **NOT_AVAILABLE** | — | Verificado contra el registro de skills de la sesión. El censo masivo se realizó con `git ls-files`, `grep`, y cuatro scripts Node ad hoc de scratchpad **no versionados** (Anexo A.4) |
 
 Declaración explícita: **no se cargó ninguna skill que no figure como "Cargada: SÍ"**.
 La auditoría se sostiene en evidencia ejecutable, no en la skill.
@@ -455,22 +467,43 @@ mensaje al elemento `role="alert"` ni a la condición.
 
 `FALSE_GREEN` confirmado, con mutación concreta identificada.
 
-### 10.2 Falso rojo confirmado — 9 tests en win32
+### 10.2 Los 9 FAILED locales: 8 falsos rojos win32 + 1 precondición de DB
+
+Los 9 fallos de `pnpm test` en win32 se descomponen por archivo (recomputado con
+el comando de A.5 y por archivo, ver A.5b). **No comparten causa.**
+
+**Grupo A — 8 falsos rojos por variancia Win32 del launcher** (`PLATFORM_VARIANCE` → `FALSE_RED`)
 
 | | |
 |---|---|
-| Archivos | `test/unit/infrastructure/e2e-completeness-workflow.test.ts`, `test/unit/infrastructure/frontend-playwright-production-runner.test.ts`, `test/integration/app/e2e-global-03b-authoritative-auth-boundary.fastify.test.ts` |
-| Causa | El guard resuelve el `webServer` real importando `frontend/playwright.config.ts`, que delega en `e2e/helpers/playwright-webserver-launcher.mjs`. El launcher resuelve distinto en win32 |
-| Síntoma | `selected: node e2e/helpers/playwright-webserver-launcher.mjs application` en vez de `next start` |
-| Evidencia | Backend CI = `success` @ `ee8e7425` (ubuntu). Local win32 = 9 FAILED |
+| Archivos | `test/unit/infrastructure/e2e-completeness-workflow.test.ts` (2), `test/unit/infrastructure/frontend-playwright-production-runner.test.ts` (6: 5 subtests + su test padre) |
+| Causa | El guard resuelve el `webServer` real importando `frontend/playwright.config.ts`. En win32, `resolveWindowsWebServerLifecycle()` devuelve un valor y la config sustituye el comando por `node e2e/helpers/playwright-webserver-launcher.mjs application`; en Linux conserva `pnpm start` / `pnpm dev` |
+| Síntoma | `actual: 'node e2e/helpers/playwright-webserver-launcher.mjs application'` frente a `expected: 'pnpm dev --hostname 127.0.0.1'` (o `'pnpm start --hostname 127.0.0.1'`) |
+| Evidencia | Backend CI = `success` @ `ee8e7425` (ubuntu). Local win32 = 8 FAILED en estos dos archivos |
 | Clase | `PLATFORM_VARIANCE` → `FALSE_RED` |
 
+**Grupo B — 1 fallo por precondición de DB ausente** (`ENVIRONMENT_DEPENDENT`, **no** es variancia de plataforma)
+
+| | |
+|---|---|
+| Archivo | `test/integration/app/e2e-global-03b-authoritative-auth-boundary.fastify.test.ts` (1, fallo a nivel de archivo) |
+| Causa | Antes de importar nada del servidor ni del launcher, el archivo exige `SUPABASE_DB_URL` o `DATABASE_URL` con host `localhost`/`127.0.0.1` y base `portal_vetneb_ci`; si no, lanza `Error` en la línea 21 |
+| Síntoma | `Error: E2E-GLOBAL-03B requiere DATABASE_URL o SUPABASE_DB_URL para la DB aislada portal_vetneb_ci` |
+| Evidencia | La condición no depende de la plataforma (no hay rama por `process.platform` en el archivo); en CI hay servicio Postgres (§18) y Backend CI = `success` |
+| Clase | `ENVIRONMENT_DEPENDENT` — precondición ausente, no `FALSE_RED` |
+
+```text
+9 FAILED  =  8 (PLATFORM_VARIANCE, launcher, win32)  +  1 (ENVIRONMENT_DEPENDENT, DB)
+```
+
 Impacto real: `AGENTS.md` §1 fija el entorno del proyecto como **Windows +
-PowerShell**, y §6 exige `pnpm validate:local` como gate. Con 9 rojos
-permanentes, `pnpm validate:local` **nunca** puede reportar PASSED en la máquina
-del owner. Un gate que siempre falla deja de ser señal: entrena a ignorar el
-rojo y oculta regresiones reales detrás del ruido conocido. Por eso es P1 y no
-P3, aunque CI esté verde.
+PowerShell**, y §6 exige `pnpm validate:local` como gate. Con los 8 rojos del
+launcher, `pnpm validate:local` **nunca** puede reportar PASSED en la máquina
+del owner; corregirlos **no basta** por sí solo, porque el fallo de DB persiste
+mientras no exista la DB aislada y, sin ella, el gate se reporta BLOCKED con la
+precondición nombrada (§29), no PASSED. Un gate que siempre falla deja de ser
+señal: entrena a ignorar el rojo y oculta regresiones reales detrás del ruido
+conocido. Por eso el grupo A es P1 y no P3, aunque CI esté verde.
 
 ## 11. Mutation strength / negative proof
 
@@ -614,7 +647,7 @@ Los parches de singletons **sí** se restauran, y en `try/finally`
 | `node:child_process` | 25 |
 | Mutación de `process.env` | 11 |
 | `setTimeout` / `setInterval` / `mock.timers` | 7 |
-| `Math.random` / `randomUUID` | 4 |
+| `Math.random` / `randomUUID` / `randomBytes` | 4 |
 | `before` / `beforeEach` / `after` / `afterEach` | 4 |
 
 | Clase | Valoración |
@@ -622,9 +655,9 @@ Los parches de singletons **sí** se restauran, y en `try/finally`
 | `DETERMINISTIC` | Mayoría de la suite. Superficie de no-determinismo notablemente pequeña para 4.530 tests |
 | `CONTROLLED_NONDETERMINISM` | Parches de `globalThis.fetch` y singletons, restaurados en `finally` (§12.4) |
 | `ORDER_DEPENDENT` | 8 de 11 archivos que mutan `process.env` no restauran. **Contenido a intra-archivo** (§13.2) |
-| `PLATFORM_DEPENDENT` | 9 tests (§10.2) + 1 skip condicional por symlink en Windows |
+| `PLATFORM_DEPENDENT` | 8 tests (§10.2, grupo A) + 1 skip condicional por symlink en Windows |
 | `UNCONTROLLED_NONDETERMINISM` | **No identificado** |
-| `ENVIRONMENT_DEPENDENT` | `pnpm test` local requiere DB desde #1711 para `validate:local`; en CI hay servicio Postgres |
+| `ENVIRONMENT_DEPENDENT` | `pnpm test` local requiere DB desde #1711 para `validate:local`; en CI hay servicio Postgres. Incluye el fallo de `e2e-global-03b-authoritative-auth-boundary` (§10.2, grupo B) |
 
 ### 13.1 Duplicación de lectores de source
 
@@ -844,15 +877,54 @@ Evaluación por eje, más allá del porcentaje de líneas:
 
 | Eje | Estado |
 |---|---|
-| `LINE_COVERED` | Medible on-demand, no publicado ni versionado |
-| `BRANCH_COVERED` | No medido |
-| `SEMANTICALLY_COVERED` | **Sobre-estimado**: 1.042 tests del pool candidato ejecutan `readFileSync` sobre producción, no producción |
+| `LINE_COVERED` | Medible on-demand con `pnpm test:coverage`; no publicado ni versionado. Mide **ejecución** de módulos instrumentados, no lectura |
+| `BRANCH_COVERED` | Reportado por el mismo comando (columna `branch %`); no publicado ni versionado |
+| `SEMANTICALLY_COVERED` | **No medido por coverage.** Los tests que sólo leen source como datos no dejan señal de ejecución sobre ese source (ver abajo); su protección semántica debe juzgarse por el oracle (§7.3, §8.2), no por este eje |
 | `MUTATION_SENSITIVE` | 9 archivos (§11) |
 
-Advertencia metodológica que el programa debe respetar: un coverage report sobre
-esta suite **atribuiría cobertura al acto de leer el archivo**, no a ejecutarlo.
-Los 1.264 tests de §8.2 no ejecutan una sola línea de `frontend/src/**`. Publicar
-un porcentaje sin esa salvedad produciría una métrica activamente engañosa.
+#### 21.1 Qué se observó (y qué no)
+
+El coverage nativo de Node reporta los módulos instrumentados que el proceso de
+test **ejecuta**. Leer un archivo con `readFileSync` lo trata como datos: no lo
+ejecuta ni lo instrumenta, y por tanto no genera señal de coverage sobre él. Se
+verificó por ejecución (R0, `main@ee8e7425`, win32, Node v24.14.1):
+
+```bash
+node --experimental-strip-types --experimental-specifier-resolution=node \
+     --experimental-test-coverage --test \
+     test/unit/ui/dashboard/frontend-dashboard-empty-states.test.ts
+# tests pass; la tabla de archivos queda VACÍA y sólo aparece la fila
+# "all files | 100.00 | 100.00 | 100.00" sin ningún archivo listado
+```
+
+- El spec que asserta sobre `ClinicCommandCenter.tsx` **no** produce fila alguna
+  para ese `.tsx`. No hay cobertura atribuida al acto de leerlo.
+- Corrida completa (`pnpm test:coverage`, con 9 FAILED preexistentes, §3): la
+  tabla lista 226 archivos; de `frontend/src/**` sólo aparecen módulos `.ts`
+  importados y ejecutados por otros tests (p. ej. `src/lib/routes.ts`,
+  `src/lib/security/csp-policy.ts`) y **ninguna fila `.tsx`**.
+- Por tanto el problema **no** es una inflación de coverage causada por
+  `readFileSync`, sino la **ausencia de señal**: un contrato estático basado
+  exclusivamente en leer source como datos puede no dejar señal ejecutable de
+  coverage sobre ese source.
+
+Cuatro ejes que no deben confundirse:
+
+| Eje | Qué responde | Lo aporta |
+|---|---|---|
+| Line/branch execution coverage | ¿Qué líneas y ramas de módulos importados ejecutó algún test? | `pnpm test:coverage` |
+| Static source contract coverage | ¿Qué archivos de source vigila un guard estático? | El propio guard (walkers, registries); no lo mide coverage |
+| Semantic protection | ¿La assertion detectaría un cambio real de comportamiento? | El oracle (§7.3, §8.2) |
+| Mutation sensitivity | ¿Una mutación concreta pone el guard en rojo? | Harness de mutación (§11) |
+
+Advertencia metodológica que el programa debe respetar: la fila agregada de un
+coverage report sobre esta suite describe sólo el código que la suite ejecuta.
+No dice nada sobre los guards estáticos, ni a favor ni en contra: un guard que
+lee `frontend/src/**` no suma ni resta a ese porcentaje. Este documento **no**
+afirma que el baseline de coverage "mida" guards estáticos, ni que el
+porcentaje esté inflado por ellos. Publicarlo sin esta salvedad induciría a
+interpretar el número como medida de protección de los contratos estáticos, que
+es una lectura que la evidencia no respalda.
 
 ## 22. Error-path coverage
 
@@ -1068,7 +1140,7 @@ confianza en el rojo**, no de performance.
 | `TG-R01` | `CIRCULAR_ORACLE` + `FALSE_GREEN` | **P0** | Contrato cross-tenant IDOR probado contra un literal del propio test; 15/18 contratos no tocan producción | §9.1 |
 | `TG-R02` | `STALE_GUARD` + `FAIL_OPEN_GUARD` | **P0** | 11 rutas de `requiredTestEvidence` inexistentes y no dereferenciadas: nada detecta la rotura | §9.2 |
 | `TG-R03` | `FALSE_GREEN` + `WEAK_ASSERTION` | **P1** | 1.264 tests (157 archivos) con ≥80 % substring y sin runtime; mutación escapante demostrada | §8.2, §10.1 |
-| `TG-R04` | `PLATFORM_VARIANCE` + `FALSE_RED` | **P1** | 9 tests rojos permanentes en win32; `validate:local` nunca PASSED en el entorno del owner | §10.2 |
+| `TG-R04` | `PLATFORM_VARIANCE` + `FALSE_RED` | **P1** | 8 tests rojos permanentes en win32 por el launcher de Playwright; `validate:local` nunca PASSED en el entorno del owner. Un noveno FAILED es una precondición de DB ausente (`ENVIRONMENT_DEPENDENT`), fuera de este riesgo | §10.2 |
 | `TG-R05` | `COVERAGE_GAP` | **P1** | Contratos de seguridad estáticos sin prueba negativa: 0 de 9 harness de mutación en `architecture/security/**` | §11 |
 | `TG-R06` | `ACCIDENTAL_COUPLING` | **P1** | 137 archivos / 1.042 tests candidatos, 89 % en `unit/ui/**` | §7.3 |
 | `TG-R07` | `MOCK_DRIFT` | **P2** | 659 `as any` en la costura test↔runtime; el tipado no detecta cambio de contrato de puertos | §12.3 |
@@ -1109,7 +1181,7 @@ Bloqueantes para iniciar el programa   =   NINGUNO
 | Eje | Objetivo medible |
 |---|---|
 | Arquitectura | 100 % de specs clasificados; `test/*.test.ts` = 0; capa inferida == carpeta; helper de lectura canónico único |
-| Confiabilidad | 0 falsos rojos tolerados en win32; `validate:local` capaz de PASSED en el entorno del owner |
+| Confiabilidad | 0 falsos rojos de launcher tolerados en win32; `validate:local` capaz de PASSED en el entorno del owner **cuando su precondición de DB está satisfecha**, y BLOCKED con esa precondición nombrada cuando no lo está |
 | Source coupling | 137 candidatos adjudicados a 100 %; guards legítimos preservados sin excepción; acoplamiento accidental corregido o registrado con owner y motivo |
 | Assertions | 0 contratos críticos con oracle sólo-presencia; substring ratio global < 20 % |
 | Seguridad | Prueba negativa en tenant isolation, auth, permisos, redacción y rate limit; 0 registries stale no dereferenciados |
@@ -1123,15 +1195,16 @@ La secuencia propuesta en el encargo se **modificó según la evidencia**:
 
 - se **elimina** la fase autónoma de performance (§24: no hay problema);
 - se **adelanta** la seguridad al inicio (P0 real);
-- se **añade** una fase de falso rojo win32 (bloquea el gate local);
+- se **añade** una fase de falso rojo win32 del launcher (8 de los 9 FAILED locales; bloquea el gate local);
 - se **divide** la remediación de `unit/ui` en adjudicación + dos olas;
 - se **añade** una fase de testability de producto (R2, fuera de test-only).
 
 | Fase | Título | Scope primario | Riesgo | Depende de |
 |---|---|---|---|---|
-| `TEST-GLOBAL-01` | Alta del programa e instrumentación del censo | docs-only + test-only | R1 | — |
+| `TEST-GLOBAL-01A` | Alta documental del programa (`TDR-002`, `docs/audit/README.md`) | docs-only | R1 | — |
+| `TEST-GLOBAL-01B` | Instrumentación del censo (contrato de censo y tooling versionado) | test-only | R1 | 01A |
 | `TEST-GLOBAL-02` | **P0** — De-circularizar el registro IDOR y sanear evidencia stale | test-only | R1 | 01 |
-| `TEST-GLOBAL-03` | **P1** — Falso rojo win32: restaurar el gate local | test-only | R1 | 01 |
+| `TEST-GLOBAL-03` | **P1** — Falso rojo win32 del launcher: restaurar el gate local | test-only | R1 | 01 |
 | `TEST-GLOBAL-04` | **P1** — Prueba negativa para guards de seguridad | test-only | R1 | 02 |
 | `TEST-GLOBAL-05` | Lector canónico de source + lint de `test/**` | test-only + config-only | **R2** | 01 |
 | `TEST-GLOBAL-06` | Adjudicación de los 137 candidatos (sin modificar tests) | docs-only | R0/R1 | 01, 05 |
@@ -1143,15 +1216,34 @@ La secuencia propuesta en el encargo se **modificó según la evidencia**:
 | `TEST-GLOBAL-12` | Baseline de coverage semántico y mutation strength | config-only + docs | **R2** | 04, 08 |
 | `TEST-GLOBAL-13` | Gobernanza, documentación y certificación de cierre | docs-only | R1 | todas |
 
-### TEST-GLOBAL-01 — Alta del programa e instrumentación
+### TEST-GLOBAL-01 — Alta del programa e instrumentación (dos PRs: 01A → 01B)
 
-- **Problema**: no existe censo versionado ni clasificación por spec; `TDR-002` cita cifras de julio.
+`TEST-GLOBAL-01` es **una fase lógica entregada en dos PRs**, porque mezclar
+documentación y un test nuevo en un mismo PR incumple `AGENTS.md` §4 (docs-only y
+test-only se entregan separados) y no se invoca la excepción mixed-scope: los dos
+dominios sí pueden entregarse por separado y cada uno tiene su propio rollback.
+Toda dependencia "de `01`" (§31, §32) significa **ambos PRs fusionados**. El
+orden 01A → 01B es recomendado; no hay acoplamiento de código entre ellos.
+
+#### 01A — Alta documental (docs-only)
+
+- **Problema**: `TDR-002` cita cifras de julio; el programa no figura en `docs/audit/README.md`.
 - **Evidencia**: §6, §33.
-- **Scope**: este documento; un contrato de censo en `test/architecture/` que congele las cifras de §6 y falle si divergen materialmente; actualización de `TDR-002` reclasificando sus cifras como históricas; fila en `docs/audit/README.md`.
-- **No-scope**: ninguna corrección de test.
-- **Aceptación**: el censo se reproduce desde el árbol; `pnpm test` verde.
+- **Scope**: actualización de `TDR-002` reclasificando sus cifras como históricas (§33); fila del programa en `docs/audit/README.md`. Sólo `docs/**`.
+- **No-scope**: cualquier archivo bajo `test/**`, `server/**`, `frontend/**`, `scripts/**` o `.github/**`; ninguna corrección de test.
+- **Aceptación**: `TDR-002` reclasificado; fila presente; diff limitado a `docs/**`; `git diff --check` en `PASSED`.
+- **Rollback**: revertir el commit; no toca runtime ni tests.
+- **Coste**: bajo. **Paralelizable**: no con `01B` por orden recomendado.
+
+#### 01B — Instrumentación del censo (test-only)
+
+- **Problema**: no existe censo versionado ni clasificación por spec; las cifras `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` de A.0 dependen de scripts de scratchpad que no están en el repo (A.4).
+- **Evidencia**: §6, A.0, A.4.
+- **Scope**: un contrato de censo en `test/architecture/` que congele las cifras de §6 clasificadas `REPRODUCIBLE_*` en A.0 y falle si divergen materialmente; versionar bajo `test/**` la clasificación heurística de A.4 (`classify`, `coupling`, `ownership`, `stale-paths`). Si se decidiera ubicar ese tooling bajo `scripts/`, sería scripts-only y exige un PR propio, no este.
+- **No-scope**: cualquier archivo de `docs/**` (incluido este documento: registrar el resultado en A.0 es un PR docs-only posterior, §1); ninguna corrección de un test existente; `server/**`, `frontend/**`, `.github/**`.
+- **Aceptación**: el censo se reproduce desde el árbol; cada cifra `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` de A.0 pasa a reproducirse con el tooling versionado o queda registrada con la diferencia declarada; `pnpm test` sin regresión respecto del baseline de §3 (los 9 FAILED de §10.2 son preexistentes y ajenos a esta fase).
 - **Rollback**: revertir el commit; no toca runtime.
-- **Coste**: bajo. **Paralelizable**: no (habilita al resto).
+- **Coste**: medio. **Paralelizable**: no (habilita al resto, junto con `01A`).
 
 ### TEST-GLOBAL-02 — P0: de-circularizar el registro IDOR
 
@@ -1165,11 +1257,14 @@ La secuencia propuesta en el encargo se **modificó según la evidencia**:
 
 ### TEST-GLOBAL-03 — P1: falso rojo win32
 
-- **Problema**: `TG-R04`. 9 rojos permanentes anulan `validate:local` en el entorno del owner.
+- **Problema**: `TG-R04`. 8 rojos permanentes por el launcher (grupo A de §10.2) anulan `validate:local` en el entorno del owner. El noveno FAILED (`e2e-global-03b-authoritative-auth-boundary`, grupo B) es una precondición de DB ausente y **no** pertenece a esta fase.
 - **Evidencia**: §10.2.
-- **Scope**: hacer que el guard resuelva el comando **a través del launcher**, de modo que valide el contrato real ("e2e:full corre sobre `next start`") en ambas plataformas, en vez de anclar un literal.
-- **No-scope**: cambiar el launcher; debilitar o skipear el guard; marcar `test.skip` por plataforma.
-- **Aceptación**: `pnpm test` en win32 = 0 fail; Backend CI sigue verde; una mutación que quite el runner productivo sigue rompiendo el guard.
+- **Scope**: hacer que el guard resuelva el comando **a través del launcher**, de modo que valide el contrato real ("e2e:full corre sobre `next start`") en ambas plataformas, en vez de anclar un literal. Sólo los dos archivos del grupo A.
+- **No-scope**: cambiar el launcher; debilitar o skipear el guard; marcar `test.skip` por plataforma; **tocar `e2e-global-03b-authoritative-auth-boundary`**, suministrar una DB, credenciales o `DATABASE_URL`, o convertir su fallo en skip/PASSED.
+- **Aceptación** (separada por causa):
+  - *Launcher*: los 8 fallos del grupo A pasan a 0 en win32 y siguen en 0 en CI; una mutación que quite el runner productivo sigue rompiendo el guard.
+  - *DB*: el archivo del grupo B no cambia. Sin DB local aislada (`portal_vetneb_ci`) su fallo se conserva y se reporta con el estado canónico de `AGENTS.md` §6: el gate `pnpm test` completo **no** se reporta PASSED sino BLOCKED, con la precondición nombrada (DB aislada ausente) y con el desglose "launcher = 0; DB-dependiente = 1". Con la DB disponible debe pasar sin modificaciones.
+  - *Global*: `pnpm test` = 0 fail requiere ambas condiciones (launcher corregido **y** DB presente). Esta fase sólo es responsable de la primera.
 - **Riesgo**: R1 (toca sólo `test/**`). Si exigiera tocar `frontend/e2e/helpers/**`, se replantea como R2 y se pide autorización.
 - **Coste**: medio. **Paralelizable**: sí.
 
@@ -1235,7 +1330,7 @@ La secuencia propuesta en el encargo se **modificó según la evidencia**:
 
 ### TEST-GLOBAL-12 — Coverage semántico y mutation strength
 
-- **Scope**: publicar baseline de `test:coverage` **con la salvedad metodológica de §21**; decidir si se incorpora a CI como diagnóstico no bloqueante.
+- **Scope**: publicar baseline de `test:coverage` **con la salvedad metodológica de §21**: el baseline es *line/branch execution coverage* de los módulos que la suite ejecuta; se publica la tabla por archivo (no sólo la fila agregada) y se declara que los guards estáticos no dejan señal de coverage sobre el source que leen. La protección de esos contratos se evalúa por oracle y por *mutation sensitivity* (§11), no por este número. Decidir si se incorpora a CI como diagnóstico no bloqueante.
 - **No-scope**: thresholds; mutation testing indiscriminado.
 - **Riesgo**: **R2** si toca workflows.
 - **Coste**: medio.
@@ -1255,6 +1350,9 @@ La secuencia propuesta en el encargo se **modificó según la evidencia**:
                └──► 11
 ```
 
+Aquí `01` = `01A` → `01B` (dos PRs de una misma fase lógica, §31): una flecha
+desde `01` exige ambos PRs fusionados.
+
 Paralelizables sin conflicto: `02 ∥ 03`, `09 ∥ 11`.
 Serializadas obligatoriamente: `06 → 07 → 08` (comparten censos de catálogo).
 
@@ -1262,10 +1360,10 @@ Serializadas obligatoriamente: `06 → 07 → 08` (comparten censos de catálogo
 
 | Documento | Dato | Clase | Fundamento |
 |---|---|---|---|
-| `TDR-002` | 367/514 tests con `readFileSync`; 134 usos de `readdirSync` en 64 tests | **STALE** | Hoy: 410/562 y 82 archivos con `readdirSync`. Recensar en `TEST-GLOBAL-01` |
+| `TDR-002` | 367/514 tests con `readFileSync`; 134 usos de `readdirSync` en 64 tests | **STALE** | Hoy: 410/562 y 82 archivos con `readdirSync`. Reclasificar en `TEST-GLOBAL-01A` (docs-only) |
 | `TDR-002` | `Status: OPEN`, severity HIGH | **CURRENT** | Confirmado y agravado por §7.3 |
 | `TDR-003` | Backend lint baseline, `RESOLVED` | **CURRENT** | Verificado en `package.json` y `eslint.config.mjs`. **No cubre `test/**`** (§25.2) |
-| `TDR-004` | Coverage baseline, `RESOLVED` | **NEEDS_REVALIDATION** | `test:coverage` existe pero no corre en CI; y sobre esta suite el número sería engañoso (§21) |
+| `TDR-004` | Coverage baseline, `RESOLVED` | **NEEDS_REVALIDATION** | `test:coverage` existe pero no corre en CI; y el número agregado sólo describe el código ejecutado, no la protección de los guards estáticos (§21) |
 | `pr-test-architecture-consolidation-audit.md` | 517 archivos / 4.019 tests | **HISTORICAL** | Baseline de 2026-07-30 |
 | ídem | `ACCIDENTAL_COUPLING confirmado = 0` | **NEEDS_REVALIDATION** | Ver nota metodológica abajo |
 | ídem | `LEGITIMATE_GUARD` 332 / `MIXED` 38 | **HISTORICAL** | Criterio distinto del de §7.3 |
@@ -1295,9 +1393,16 @@ reabre** aquel programa.
 
 Regla de `AGENTS.md` §4 aplicada: un scope primario, una causa, un rollback.
 
+```text
+FASES LÓGICAS = 13  (TEST-GLOBAL-01 … 13)
+PRs           > 13  (mínimo 15: 13 fases + el split de 01 + el split de 05;
+                     más un PR por contrato en 04 y por subdominio en 07/08)
+```
+
 | Fase | Tipo de PR | Scope único | ¿R2? |
 |---|---|---|---|
-| 01 | docs-only + test-only | Censo y alta | No |
+| 01A | docs-only | Alta documental (`TDR-002`, `docs/audit/README.md`) | No |
+| 01B | test-only | Contrato de censo y tooling versionado | No |
 | 02 | test-only | Registro IDOR | No |
 | 03 | test-only | Guard de plataforma | No |
 | 04 | test-only | Prueba negativa (1 PR por contrato) | No |
@@ -1331,7 +1436,7 @@ Matriz de aceptación transversal — toda fase debe cumplir:
 | Thresholds de coverage | Fuera de scope; `TDR-004` lo mantiene como decisión separada |
 | Runner de componentes React | No se propone. Cambiaría la arquitectura de test del frontend; exige auditoría propia |
 | `frontend/e2e/**` | `LIMPIEZA E2E` CLOSED. No se reabre |
-| Fila de este documento en `docs/audit/README.md` | Fuera del scope documental autorizado para esta auditoría; pendiente en `TEST-GLOBAL-01` |
+| Fila de este documento en `docs/audit/README.md` | Fuera del scope documental autorizado para esta auditoría; pendiente en `TEST-GLOBAL-01A` |
 | Migración monorepo | `AGENTS.md` §18; política futura, no autorizada |
 
 ## 36. Criterio de cierre del programa
@@ -1342,7 +1447,7 @@ Matriz de aceptación transversal — toda fase debe cumplir:
 2. Los 4 P1 están cerrados o tienen `accepted defer` con owner y fecha.
 3. Los 137 candidatos están adjudicados 100 % (`KEEP` es un cierre válido).
 4. Ningún contrato crítico de §17 permanece en `NO_NEGATIVE_PROOF`.
-5. `pnpm test` puede alcanzar 0 fail en win32 y en CI.
+5. `pnpm test` alcanza 0 fail en win32 y en CI con la precondición de DB satisfecha; sin ella, sólo permanece el fallo de DB (`ENVIRONMENT_DEPENDENT`), reportado BLOCKED con esa precondición y con 0 fallos de launcher.
 6. `test/**` tiene baseline de lint publicado.
 7. Los censos de §6 se recomputan y se declaran como cifras de cierre.
 8. Ningún guard de seguridad fue debilitado en todo el programa.
@@ -1350,9 +1455,67 @@ Matriz de aceptación transversal — toda fase debe cumplir:
 
 ---
 
-## Anexo A — Censos reproducibles
+## Anexo A — Censos y su reproducibilidad
 
-Todos ejecutados sobre `main@ee8e7425`, 2026-09-21, desde la raíz del repo.
+Cifras medidas sobre `main@ee8e7425`, 2026-09-21, desde la raíz del repo. La PR
+que introduce esta auditoría sólo cambia este archivo, así que los comandos de
+este anexo dan las mismas cifras sobre `main@ee8e7425` y sobre el head de la PR.
+Los comandos de shell asumen Git Bash (`xargs`, `awk`, `grep -E`).
+
+Este anexo **no** afirma que todo lo medido sea reproducible desde el
+repositorio. A.0 dice, cifra por cifra, cuál lo es y cuál no.
+
+### A.0 Clasificación de reproducibilidad
+
+| Categoría | Significado |
+|---|---|
+| `REPRODUCIBLE_FROM_REPO` | La cifra sale de un script o comando que ya existe en el repositorio (`package.json`), sin pasos adicionales |
+| `REPRODUCIBLE_WITH_DOCUMENTED_COMMAND` | La cifra sale de un comando documentado en A.1–A.3b que **se volvió a ejecutar al corregir esta auditoría y devolvió exactamente la cifra del documento** |
+| `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` | La cifra proviene de un script de scratchpad no versionado (A.4) o de un cálculo que no se volvió a ejecutar con un comando documentado. Hoy **no** puede recomputarse desde el repo con lo escrito aquí |
+| `MANUAL_CLASSIFICATION` | El dato o veredicto proviene de lectura de código; se reproduce leyendo los archivos citados, no ejecutando un comando |
+
+| Cifra central | Sección | Categoría | Referencia |
+|---|---|---|---|
+| 576 archivos, 562 specs, 4.530 `test(`, 156.887 LOC de `test/**` | §6.1 | `REPRODUCIBLE_WITH_DOCUMENTED_COMMAND` | A.1 |
+| `.only(` = 0, `describe(` = 0, `mock.*` = 0 | §6.1, §12.2 | `REPRODUCIBLE_WITH_DOCUMENTED_COMMAND` | A.3b |
+| 4.590 entradas, 4.580 pass, 1 skipped | §3, §6.1 | `REPRODUCIBLE_FROM_REPO` | `pnpm test` (A.5) |
+| 9 FAILED = 8 launcher win32 + 1 DB, por archivo | §3, §10.2 | `REPRODUCIBLE_FROM_REPO` (depende de plataforma y de DB) | A.5, A.5b |
+| 134 tests de `architecture/security` | §9.1, §17 | `REPRODUCIBLE_FROM_REPO` | A.5 |
+| Tabla de coverage vacía para el spec citado; 226 archivos en la corrida completa | §21.1 | `REPRODUCIBLE_FROM_REPO` | Comando de §21.1 y `pnpm test:coverage` |
+| Producción: `server/**` 226 / 46.081, `frontend/src/**` 200 / 43.276 | §6.3 | `REPRODUCIBLE_WITH_DOCUMENTED_COMMAND` | A.3b |
+| Resto de §6.2, §6.3 y §6.4 (carpetas, `e2e`, `shared`/`drizzle`/`scripts`, ratios, soporte compartido e importadores) | §6.2–§6.4 | `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` | — |
+| Censo bruto: `node:fs` 410, `readFileSync` 406, `existsSync` 104, `readdirSync` 82, `child_process` 25, `statSync` 20, `js-yaml` 8, `createRequire` 8 | §7.1 | `REPRODUCIBLE_WITH_DOCUMENTED_COMMAND` | A.2, A.3b |
+| Buckets fs × runtime, clasificación por oracle (137 / 1.042 …), concentración por carpeta | §7.2, §7.3 | `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` | A.4 (`classify.mjs`, `coupling.mjs`) |
+| Calibración: falsos positivos del clasificador y 3 casos confirmados | §7.4, Anexo B | `MANUAL_CLASSIFICATION` | Anexo B |
+| Assertions por forma, total 20.623, substring 6.262 / 1.522 | §8, §8.2 | `REPRODUCIBLE_WITH_DOCUMENTED_COMMAND` | A.3, A.3b |
+| 157 archivos / 1.264 tests con ≥ 80 % substring y sin runtime; 0 archivos sin `assert.*`; 21 con wrappers | §8.1, §8.2 | `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` | A.4 |
+| Oracle circular: 18 contratos, 3 con `readSource()`, 15 sin verificación | §9.1 | `MANUAL_CLASSIFICATION` | Anexo B.1 |
+| 11 paths stale de `requiredTestEvidence` | §9.2 | `REPRODUCIBLE_WITH_DOCUMENTED_COMMAND` | A.3b |
+| 3.229 referencias / 732 paths únicos / 109 inexistentes | §9.3 | `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` | A.4 (`stale-paths.mjs`) |
+| Falso verde `statsLoadError ?` (mutación razonada, **no ejecutada**) | §10.1 | `MANUAL_CLASSIFICATION` | Anexo B.2 |
+| 9 harness de mutación, 130 tests fail-closed, conteos de `rejects`/`throws`/`doesNotMatch` | §11 | `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` | — |
+| Clasificación de contratos críticos y matriz de seguridad | §11.1, §17 | `MANUAL_CLASSIFICATION` | — |
+| Importadores de doubles y soporte compartido | §6.4, §12.1 | `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` | — |
+| `as any` 659 / 64 archivos y sus contextos principales (excepto `req`/`res`/`reply` y `clinicAuthNativeRoutes`, no re-verificados) | §12.3 | `REPRODUCIBLE_WITH_DOCUMENTED_COMMAND` | A.3, A.3b |
+| `Date` 22, timers 7, aleatorio 4, hooks 4 | §13 | `REPRODUCIBLE_WITH_DOCUMENTED_COMMAND` | A.3b |
+| Mutación de `process.env` (11 archivos, 8 sin restaurar) | §13, §13.2 | `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` | Un `grep` simple da 9 archivos |
+| Lectores propios por definición: `read(` 216, `readSource(` 65, `collectFiles(` 4, `listFiles`/`collectSourceFiles` 4 | §13.1 | `REPRODUCIBLE_WITH_DOCUMENTED_COMMAND` | A.3b |
+| 283 archivos con lector propio; `walk(` 18; normalización CRLF 295 / 36 | §13.1 | `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` | Un `grep` simple da 281, 17 y 279 archivos con `\r\n` |
+| 426 assertions de conteo congelado | §20 | `REPRODUCIBLE_WITH_DOCUMENTED_COMMAND` | A.3 |
+| 116 archivos con conteo congelado, 75 registries literales | §20 | `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` | — |
+| Subcarpetas de `unit`, integración, guards, destinos de lectura, status HTTP, ownership, nombres duplicados | §14–§16, §19, §22, §23 | `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` | A.4 (`ownership.mjs` para §23) |
+| Wall time 26,4 s, Pareto y entradas más caras | §24 | `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` | Depende del host (ver A.5) |
+| `test:coverage` ausente de todo workflow | §21, §25 | `REPRODUCIBLE_WITH_DOCUMENTED_COMMAND` | A.3b |
+| `test/**` fuera de `lintableFiles` | §25.2 | `MANUAL_CLASSIFICATION` | `eslint.config.mjs` |
+| Proyección de coste | §27 | `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` | Extrapolación de cifras derivadas |
+| Estado de CI sobre el baseline | §3, §29 | `REPRODUCIBLE_WITH_DOCUMENTED_COMMAND` (dependiente del momento) | A.6 |
+
+Una cifra `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` **no queda invalidada** por esa
+categoría: significa que hoy nadie puede recomputarla sin el scratchpad
+original. Toda decisión que dependa de ella (p. ej. el pool de 137 candidatos de
+`TEST-GLOBAL-06` o los 283 lectores de `TEST-GLOBAL-05`) debe recomputarla
+primero. La reproducibilidad durable de estas cifras es criterio de aceptación
+de `TEST-GLOBAL-01B` (§31), no de este documento docs-only.
 
 ### A.1 Inventario
 
@@ -1383,15 +1546,92 @@ git ls-files 'test/**/*.test.ts' | xargs grep -oE "\.length,\s*[0-9]+" | wc -l  
 git ls-files 'test/**/*.ts'      | xargs grep -oE " as any" | wc -l                                   # 659
 ```
 
+### A.3b Comandos adicionales verificados
+
+Cada comando se volvió a ejecutar al corregir esta auditoría y devolvió la cifra
+indicada.
+
+```bash
+S() { git ls-files 'test/**/*.test.ts'; }
+
+# Assertions (§8): total y desglose por forma
+S | xargs grep -oE 'assert\.[A-Za-z]+\(' | wc -l                                  # 20623
+S | xargs grep -ohE 'assert\.[A-Za-z]+\(' | sort | uniq -c | sort -rn             # 8629 ok, 7960 equal, …
+
+# Ausencias (§6.1, §12.2): los tres devuelven 0
+S | xargs grep -lE '\.only\(' | wc -l                                             # 0
+S | xargs grep -lE '^\s*describe\(' | wc -l                                       # 0
+S | xargs grep -lE 'mock\.(fn|method|module|timers)' | wc -l                      # 0
+
+# Señales de source coupling (§7.1), archivos
+S | xargs grep -lE 'readFileSync' | wc -l                                         # 406
+S | xargs grep -lE 'existsSync' | wc -l                                           # 104
+S | xargs grep -lE 'statSync' | wc -l                                             # 20
+S | xargs grep -lE 'node:child_process' | wc -l                                   # 25
+S | xargs grep -lE 'js-yaml' | wc -l                                              # 8
+S | xargs grep -lE 'createRequire|node:module' | wc -l                            # 8
+
+# Lectores propios (§13.1), archivos con la definición
+S | xargs grep -lE 'function read\(' | wc -l                                      # 216
+S | xargs grep -lE 'function readSource\(' | wc -l                                # 65
+S | xargs grep -lE 'function collectFiles\(' | wc -l                              # 4
+S | xargs grep -lE 'function (listFiles|collectSourceFiles)\(' | wc -l           # 4
+
+# Determinismo (§13), archivos
+S | xargs grep -lE 'Date\.now\(\)|new Date\(\)' | wc -l                           # 22
+S | xargs grep -lE 'setTimeout|setInterval|mock\.timers' | wc -l                  # 7
+S | xargs grep -lE 'Math\.random|randomUUID|randomBytes' | wc -l                  # 4
+S | xargs grep -lE '\b(before|beforeEach|after|afterEach)\(' | wc -l              # 4
+
+# Escapes de tipos (§12.3), sobre git ls-files 'test/**/*.ts'
+git ls-files 'test/**/*.ts' | xargs grep -lE ' as any' | wc -l                    # 64 archivos
+git ls-files 'test/**/*.ts' | xargs grep -oE 'as unknown as' | wc -l              # 4
+git ls-files 'test/**/*.ts' | xargs grep -oE 'ENV\.smtp as any' | wc -l          # 140
+git ls-files 'test/**/*.ts' | xargs grep -oE 'ENV\.gmailApi as any' | wc -l      # 121
+git ls-files 'test/**/*.ts' | xargs grep -oE 'supabase\.storage as any' | wc -l  # 63
+git ls-files 'test/**/*.ts' | xargs grep -oE '\bENV as any' | wc -l              # 43
+git ls-files 'test/**/*.ts' | xargs grep -oE 'nodemailer as any' | wc -l         # 36
+git ls-files 'test/**/*.ts' | xargs grep -oE 'globalThis as any' | wc -l         # 22
+
+# Volumen de producción (§6.3): archivos y LOC
+git ls-files 'server/**' | grep -E '\.(ts|tsx|js|mjs)$' | wc -l                  # 226
+git ls-files 'server/**' | grep -E '\.(ts|tsx|js|mjs)$' | xargs wc -l | grep -E 'total$' | awk '{s+=$1} END {print s}'   # 46081
+git ls-files 'frontend/src/**' | grep -E '\.(ts|tsx|js|mjs)$' | wc -l            # 200
+git ls-files 'frontend/src/**' | grep -E '\.(ts|tsx|js|mjs)$' | xargs wc -l | grep -E 'total$' | awk '{s+=$1} END {print s}'   # 43276
+
+# Evidencia stale del registro IDOR (§9.2): paths raíz inexistentes
+grep -oE '"test/[A-Za-z0-9._-]+\.test\.ts"' \
+  test/architecture/security/security-cross-tenant-idor-contract.test.ts \
+  | tr -d '"' | sort -u \
+  | while read -r p; do git ls-files --error-unmatch "$p" >/dev/null 2>&1 || echo "MISSING $p"; done | wc -l   # 11
+
+# test:coverage ausente de CI (§21, §25)
+grep -rn 'test:coverage' .github/workflows | wc -l                                # 0
+```
+
+*Limitaciones*: `describe(` sin ancla de línea devuelve 1 por un string literal
+en `public-professionals-fixture-assertions-quality-invariants.test.ts`, no por
+una llamada real. Las 11 formas de assertion listadas en §8 suman 20.615; los 8
+restantes son `assert.notDeepEqual(` (7) y `assert.doesNotReject(` (1).
+
 ### A.4 Clasificación por capa y acoplamiento
 
-Scripts Node reproducibles usados por esta auditoría (criterio documentado en
-§7.3; se recomienda versionarlos en `TEST-GLOBAL-01`):
+Cuatro scripts Node de scratchpad produjeron las cifras clasificadas
+`AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` en A.0 (criterio documentado en §7.3).
+**No están versionados**: no existe ningún archivo con esos nombres en el árbol
+tracked ni en el árbol de trabajo. Esta auditoría no los recrea ni los inventa.
 
 - `classify.mjs` — capa inferida por comportamiento, señales de determinismo, densidad de assertions.
 - `coupling.mjs` — clasificación de acoplamiento por poder del oracle.
 - `ownership.mjs` — difusión de ownership (guards por archivo de producción).
 - `stale-paths.mjs` — referencias a paths inexistentes.
+
+Hasta que exista una implementación versionada, las cifras que dependen de ellos
+(§7.2, §7.3, §8.2, §9.3, §23) son **hallazgos de la auditoría, no censos
+recomputables**. Versionarlos y verificar que reproducen (o reclasifican con la
+diferencia declarada) esas cifras es criterio de aceptación de
+`TEST-GLOBAL-01B` (§31); no se hace en esta PR porque introduciría `test/**` o
+`scripts/**` en un cambio docs-only.
 
 *Limitación declarada*: son heurísticos. Tasa de falso positivo medida por
 lectura manual sobre los 15 candidatos fuera de `unit/ui` (§7.4). Sus salidas
@@ -1409,6 +1649,26 @@ node --experimental-strip-types --experimental-specifier-resolution=node \
 node --experimental-strip-types --experimental-specifier-resolution=node \
      --test "test/architecture/security/*.test.ts"
 # tests 134 | pass 134 | duration_ms 298.7
+```
+
+Notas: (1) `tests`, `pass` y `skipped` se reprodujeron idénticos al corregir esta
+auditoría; `fail` = 9 depende de plataforma y de DB (§10.2). (2) `duration_ms`
+**depende del host**: la corrida original midió 26.422 ms y 298,7 ms; una
+re-ejecución posterior en la misma máquina midió 146.129 ms y 1.864 ms. Ninguna
+cifra de tiempo (§24) debe leerse como valor estable.
+
+### A.5b Descomposición de los 9 FAILED (§10.2)
+
+```bash
+for f in test/unit/infrastructure/e2e-completeness-workflow.test.ts \
+         test/unit/infrastructure/frontend-playwright-production-runner.test.ts \
+         test/integration/app/e2e-global-03b-authoritative-auth-boundary.fastify.test.ts; do
+  node --experimental-strip-types --experimental-specifier-resolution=node \
+       --test --test-reporter=tap "$f" | grep -E '^# (tests|fail)'
+done
+# e2e-completeness-workflow             tests 9  | fail 2   (grupo A)
+# frontend-playwright-production-runner tests 16 | fail 6   (grupo A)
+# e2e-global-03b-authoritative-auth-…   tests 1  | fail 1   (grupo B, DB)
 ```
 
 ### A.6 CI
@@ -1446,6 +1706,6 @@ P0: 2
 P1: 4
 P2: 6
 P3: 4
-ROADMAP: TEST-GLOBAL-01 … TEST-GLOBAL-13
-NEXT: TEST-GLOBAL-01
+ROADMAP: TEST-GLOBAL-01 … TEST-GLOBAL-13  (13 fases lógicas; PRs > 13)
+NEXT: TEST-GLOBAL-01A (docs-only), luego TEST-GLOBAL-01B (test-only)
 ```
