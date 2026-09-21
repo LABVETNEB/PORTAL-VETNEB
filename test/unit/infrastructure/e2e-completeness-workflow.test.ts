@@ -365,8 +365,9 @@ test("completeness job preserves Linux baseline compatibility, build ordering an
       "build, browser install and — on timeout — diagnostics, teardown and hygiene; otherwise setup " +
       "overhead can cancel the job before a healthy suite finishes",
   );
-  // --retries=2 makes on-first-retry traces real here: diagnostics are uploaded
-  // only from the sanitized staging copy, and only when sanitization passed.
+  // The production runner keeps trace: retain-on-failure even with --retries=2;
+  // diagnostics are uploaded only from the sanitized staging copy, and only
+  // when sanitization passed.
   const sanitize = stepByName(workflowJob, "Sanitize Playwright diagnostics");
   const upload = stepByName(workflowJob, "Upload Playwright diagnostics");
   assert.equal(sanitize.id, "sanitize-playwright-artifacts");
