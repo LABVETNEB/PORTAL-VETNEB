@@ -7,12 +7,12 @@
 | Lifecycle status | ACTIVE |
 | Authoritative source role | Mapa operativo de checks efectivos y criterios antes de merge |
 | Effective date | 2026-09-16 |
-| Last verified date | 2026-09-16 |
+| Last verified date | 2026-09-21 |
 | Review cadence | Mensual y ante cambios de workflows, jobs, catálogo E2E o branch protection |
 | Supersedes | Versión que documentaba dos required checks globales y clasificaba los gates funcionales como no required; versión del 2026-07-30 que describía `e2e:ci` con 43 specs, `e2e:full` con 72 specs bajo `next dev` y un presupuesto de 55/40 minutos |
 | Superseded by | Ninguno |
 | Related controls or gaps | `ERM-CTRL-013`; `ERM-CTRL-014`; `ERM-CTRL-015`; `ERM-CI-001`; `ERM-CI-002`; `LIMPIEZA E2E` R-18 |
-| Evidence or approval reference | PR #1601 y canarias #1602/#1603; PR #1605 y su validación stale-base; canarias #1616 y #1618 del bloque 05; reconciliación E2E-GLOBAL-10B ([acta](../implementation/e2e-global-10b-documentation-closeout.md)): workflows y catálogo en `c25f4e0613b3f133efc46a7df08aa78e03006323`, branch protection de `main` y Actions permissions releídas en modo read-only el 2026-09-16 |
+| Evidence or approval reference | PR #1601 y canarias #1602/#1603; PR #1605 y su validación stale-base; canarias #1616 y #1618 del bloque 05; reconciliación E2E-GLOBAL-10B ([acta](../implementation/e2e-global-10b-documentation-closeout.md)): workflows y catálogo en `c25f4e0613b3f133efc46a7df08aa78e03006323`, branch protection de `main` y Actions permissions releídas en modo read-only el 2026-09-16; cierre post-programa `LIMPIEZA E2E` #1749…#1757 y recenso E2E recalculado desde el catálogo y `playwright test --list` sobre `main@226588e39e30579a7f7935c7eeba59ae8d204403` el 2026-09-21 |
 
 ## Objetivo
 
@@ -268,8 +268,11 @@ cierre del job— para que sea Playwright quien agote primero su propio presupue
 GitHub cancele el job antes. `test/unit/infrastructure/frontend-ci-workflow.test.ts` fija el 45,
 lee el default del config y exige `job − globalTimeout >= 15m`.
 
-Referencia observada: push a `main` `52314191` (Frontend CI `35099449451`), cohorte `ci` con 67
-specs y 1.030 tests, 1.029 passed y 1 skipped, 12,7 min de Playwright y 14,5 min de job heavy.
+Referencia observada (**evidencia histórica del head que la produjo**, no inventario vigente):
+push a `main` `52314191` (Frontend CI `35099449451`), cohorte `ci` con 67 specs y 1.030 tests,
+1.029 passed y 1 skipped, 12,7 min de Playwright y 14,5 min de job heavy. El inventario vigente de
+`ci` es 69 specs / 1.041 tests (ver [Catálogo y cohortes E2E](#catálogo-y-cohortes-e2e)); ese run
+es anterior a #1750 y #1753, que agregaron dos specs a la cohorte.
 
 El contexto final `validate-frontend` usa `if: always()` y aplica la misma propagación
 fail-closed. Playwright y su artifact de failure existen únicamente dentro del heavy.
@@ -286,30 +289,35 @@ Linux). `test/architecture/e2e-suite-catalog-completeness.test.ts` (`pnpm test`,
 particiones. Si cambia el catálogo, ese guard se realinea en el mismo PR; este runbook no es la
 fuente de los números.
 
-Inventario recalculado en `c25f4e0613b3f133efc46a7df08aa78e03006323` (2026-09-16), desde el
-catálogo y `playwright test --list --reporter=json`:
+Inventario recalculado en `226588e39e30579a7f7935c7eeba59ae8d204403` (2026-09-21), desde el
+catálogo y `playwright test --list`:
 
 | Cohorte | Specs | Tests | Dónde corre |
 | --- | ---: | ---: | --- |
-| `smoke` | 12 | 61 | subconjunto de `ci` |
+| `smoke` | 12 | 65 | subconjunto de `ci` |
 | `admin-mobile` | 14 | 136 | subconjunto de `ci` |
 | `visual-contract` | 24 | 521 | subconjunto de `ci` |
-| `public-clinic` | 17 | 312 | subconjunto de `ci` |
-| `ci` | 67 | 1.030 | `Frontend CI` (required, vía `validate-frontend`) y `e2e:full` |
+| `public-clinic` | 19 | 319 | subconjunto de `ci` |
+| `ci` | 69 | 1.041 | `Frontend CI` (required, vía `validate-frontend`) y `e2e:full` |
 | `extended` | 27 | 255 | sólo `e2e:full` |
 | `evidence` | 1 | 1 | sólo `e2e:full` |
 | `visual-linux` | 3 | 40 | `e2e:full` y `Visual Regression Manual`; sólo Linux |
-| `full` | 98 | 1.326 | `E2E Completeness` |
+| `full` | 100 | 1.337 | `E2E Completeness` |
 | `affected` | dinámico | — | local; cae a `ci` ante cualquier path compartido o no mapeado |
+
+El inventario anterior (2026-09-16, `c25f4e06`: `ci` 67 / 1.030 y `full` 98 / 1.326) queda como
+cifra histórica de ese head. La diferencia son los dos specs públicos que agregaron #1750
+(`public-professional-detail`) y #1753 (`public-pwa-served-surface`), ambos enrutados a `ci`.
 
 Invariantes verificadas:
 
-- las cuatro cohortes current particionan `ci` sin solapamiento (12 + 14 + 24 + 17 = 67);
+- las cuatro cohortes current particionan `ci` sin solapamiento (12 + 14 + 24 + 19 = 69), y sus
+  tests también (65 + 136 + 521 + 319 = 1.041);
 - `full == ci ∪ extended ∪ evidence ∪ visual-linux`, también sin solapamiento
-  (67 + 27 + 1 + 3 = 98);
-- 98 specs tracked = 98 en disco = 98 entradas de catálogo = 98 archivos descubiertos por
+  (69 + 27 + 1 + 3 = 100; 1.041 + 255 + 1 + 40 = 1.337);
+- 100 specs tracked = 100 en disco = 100 entradas de catálogo = 100 archivos descubiertos por
   Playwright; `E2E_MANUAL_ONLY_SPECS` está vacío;
-- 70 specs `P1`; los únicos `P1` fuera de `ci` son A02 (`dashboard-geometry-baseline`), A03
+- 72 specs `P1`; los únicos `P1` fuera de `ci` son A02 (`dashboard-geometry-baseline`), A03
   (`dashboard-adaptive-limit-baseline`) y A05 (`dashboard-limit-invariance`), y los tres corren
   en `E2E Completeness` en cada PR;
 - 40 baselines PNG `*-chromium-linux`, promovidos desde capturas `next start`
@@ -336,10 +344,10 @@ Triggers:
   (sin trigger push: un merge a main no lo dispara)
 
 Frontend CI (required):
-  Ubuntu → next build → next start → e2e:ci   → 67 specs / 1.030 tests → una invocación Playwright
+  Ubuntu → next build → next start → e2e:ci   → 69 specs / 1.041 tests → una invocación Playwright
 
 E2E Completeness (no required):
-  Ubuntu → next build → next start → e2e:full → 98 specs / 1.326 tests → una invocación Playwright
+  Ubuntu → next build → next start → e2e:full → 100 specs / 1.337 tests → una invocación Playwright
   full == ci ∪ extended ∪ evidence ∪ visual-linux
 ```
 
@@ -382,11 +390,13 @@ catálogo, build, auditoría pública, dependencias y Chromium y, si el paso ago
 `job − E2E_GLOBAL_TIMEOUT_MS >= 15m`; también exige el build previo y el flag del production
 runner sólo en el paso full, y prohíbe `paths`, `paths-ignore` y `types` en `pull_request`.
 
-Referencia observada: run `35104076249` (head `4dcb07d5` de #1730), `[e2e] specs: 98`,
+Referencia observada (**evidencia histórica del head que la produjo**, no inventario vigente):
+run `35104076249` (head `4dcb07d5` de #1730), `[e2e] specs: 98`,
 `next start --hostname 127.0.0.1`, `Running 1326 tests using 2 workers`,
 `1325 passed / 1 skipped (24.6m)`, 48,5 min de trabajo agregado y job de 26 min. El skip es el
 declarado de B05 S7 `clinic-tokens`. El schedule sobre `main` del 2026-09-15 (`34948699577`,
-`886f19ee`) también terminó en `SUCCESS`.
+`886f19ee`) también terminó en `SUCCESS`. El tamaño vigente de `full` es 100 specs / 1.337 tests;
+los tiempos de arriba no se re-midieron sobre `226588e3`.
 
 `E2E Completeness` no es uno de los cuatro contextos required de `main`, pero sí es un check
 aplicable: mientras esté en `FAILURE` el PR no está READY (AGENTS.md §5.8). "No required" no
@@ -396,7 +406,7 @@ significa "ignorable en rojo". Un cambio no está listo si `validate-frontend` p
 Para diagnosticar:
 
 1. confirmar en el log `[e2e] cohort: full`, `[e2e] specs: <N>` con `N` igual al tamaño de
-   `full` en el catálogo del head (98 en `c25f4e06`), `[WebServer] $ next start` y
+   `full` en el catálogo del head (100 en `226588e3`), `[WebServer] $ next start` y
    `Running <T> tests`;
 2. separar `failed` de `flaky`: ambos ponen el run en rojo;
 3. descargar artifacts sólo si el job falló; sólo existen en su versión sanitizada;
@@ -647,7 +657,9 @@ gh pr view $prNumber `
 - [E2E Completeness workflow](../../.github/workflows/e2e-completeness.yml)
 - [Visual Regression Manual workflow](../../.github/workflows/visual-regression-manual.yml)
 - [Catálogo E2E](../../frontend/e2e/suites/catalog.ts)
-- [LIMPIEZA E2E](../audit/LIMPIEZA%20E2E.md), programa de saneamiento E2E
+- [LIMPIEZA E2E](../audit/LIMPIEZA%20E2E.md), programa de saneamiento E2E, `CLOSED` desde el
+  2026-09-21: se conserva como evidencia y closeout. El estado operativo E2E vigente lo fija este
+  runbook junto con el catálogo y los workflows, no ese documento
 - [E2E-GLOBAL-10B — cierre documental](../implementation/e2e-global-10b-documentation-closeout.md)
 - [PR-E2E-CI-COMPLETENESS Audit](../audit/pr-e2e-ci-completeness-audit.md), evidencia histórica del
   slot 06 (43/72 specs y `e2e:full` bajo `next dev`, estado del 2026-07-30)

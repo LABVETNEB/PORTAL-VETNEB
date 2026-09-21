@@ -8,7 +8,7 @@
 | Tipo | Auditoría técnica global de caja blanca del subsistema E2E |
 | Repositorio | PORTAL-VETNEB |
 | Alcance | E2E global del repositorio |
-| Estado | ACTIVE |
+| Estado | CLOSED |
 | Propósito | Fuente rectora para saneamiento, estabilización y evolución de la infraestructura E2E |
 | Implementación | No realizada por esta auditoría |
 | Fuente | Auditoría global E2E completada inmediatamente antes de crear este documento |
@@ -19,22 +19,25 @@
 |---|---|
 | Document owner | CI owner / Frontend owner (suite E2E) |
 | Domain | Subsistema E2E: Playwright, catálogo, cohortes, fixtures y workflows E2E |
-| Lifecycle status | ACTIVE |
-| Authoritative source role | Fuente rectora del programa `LIMPIEZA E2E` (diagnóstico, riesgos y roadmap). No es el mapa operativo de CI: eso es [CI_PR_CHECKS_RUNBOOK.md](../ops/CI_PR_CHECKS_RUNBOOK.md) |
+| Lifecycle status | CLOSED |
+| Authoritative source role | Evidencia de cierre del programa `LIMPIEZA E2E` (diagnóstico, riesgos y roadmap ejecutados). No es el mapa operativo de CI: eso es [CI_PR_CHECKS_RUNBOOK.md](../ops/CI_PR_CHECKS_RUNBOOK.md), y el estado operativo vigente se lee ahí, en el catálogo y en los workflows |
 | Effective date | 2026-09-09 |
-| Last verified date | 2026-09-16 |
-| Review cadence | Ante cada fase del programa y ante cambios de catálogo, workflows E2E o fixture |
+| Last verified date | 2026-09-21 |
+| Review cadence | Ninguna: documento cerrado. Un cambio futuro de catálogo, workflows E2E o fixture se refleja en el runbook y en el catálogo, no reabriendo este programa |
 | Supersedes | Diagnóstico E2E de `e2e-enterprise-organization-audit.md` y de `test-suite-enterprise-architecture-audit.md` (ambos `SUPERSEDED`, ver §19) |
 | Superseded by | Ninguno |
 | Related controls or gaps | `ERM-CTRL-013`; R-01…R-20 de §22 |
-| Evidence or approval reference | PR #1705 (alta); fases E2E-GLOBAL-01…10 (#1707…#1730); cierre documental E2E-GLOBAL-10B ([acta](../implementation/e2e-global-10b-documentation-closeout.md)) |
+| Evidence or approval reference | PR #1705 (alta); fases E2E-GLOBAL-01…10 (#1707…#1730); cierre documental E2E-GLOBAL-10B ([acta](../implementation/e2e-global-10b-documentation-closeout.md)); E2E-GLOBAL-11 (#1732…#1743); cierre post-programa #1749…#1757 sobre `main@226588e39e30579a7f7935c7eeba59ae8d204403` (ver [B.7](#b7-matriz-final-de-cierre)) |
 
-> **Vigencia de las cifras (2026-09-16).** Todo §§1–28 y el Anexo A describen el baseline
+> **Vigencia de las cifras.** Todo §§1–28 y el Anexo A describen el baseline
 > `2683f39a` (95 specs / 1.322 tests, `ci` 61, `e2e:full` bajo `next dev`) y se conservan sin
-> reescribir. El estado posterior a las fases GLOBAL-01…10 (98 specs / 1.326 tests, `ci` 67,
-> `e2e:full` bajo `next start` en cada PR), la matriz de cierre por riesgo y la deuda residual
-> abierta están en el [Anexo B](#anexo-b--estado-de-ejecución-del-programa-e2e-global-10b-2026-09-16).
-> El programa **sigue `ACTIVE`**: no está cerrado.
+> reescribir: son **cifras históricas**, no el estado actual. El recenso vigente al cierre
+> (2026-09-21, `main@226588e3`: 100 specs / 1.337 tests, `ci` 69 / 1.041, `e2e:full` bajo
+> `next start` en cada PR) está en el [Anexo B](#anexo-b--estado-de-ejecución-y-cierre-del-programa).
+> El programa está **`CLOSED`**; el estado operativo vigente de cohortes, runners y conteos se lee
+> en [CI_PR_CHECKS_RUNBOOK.md](../ops/CI_PR_CHECKS_RUNBOOK.md), en
+> [`frontend/e2e/suites/catalog.ts`](../../frontend/e2e/suites/catalog.ts) y en los workflows
+> ejecutables, no reconstruyendo backlog desde este documento cerrado.
 
 ---
 
@@ -1323,12 +1326,19 @@ El Anexo A es el estado al momento de la auditoría. Lo ejecutado después se re
 
 ---
 
-## Anexo B — Estado de ejecución del programa (E2E-GLOBAL-10B + E2E-GLOBAL-11 + cierre de E2E-GLOBAL-09 y R-15, actualizado 2026-09-19)
+## Anexo B — Estado de ejecución y cierre del programa
 
 Registrado por E2E-GLOBAL-10B ([acta](../implementation/e2e-global-10b-documentation-closeout.md)) sobre
 `main@c25f4e0613b3f133efc46a7df08aa78e03006323`. Evidencia: código, catálogo, workflows y
 configuración GitHub releídos ese día; runs de CI citados por id. Un PR fusionado no se cuenta
 como cierre si su criterio de aceptación no está demostrado.
+
+**Cierre del programa (2026-09-21, `main@226588e39e30579a7f7935c7eeba59ae8d204403`).** Los
+residuales que B.7 mantenía abiertos quedaron cerrados o aceptados explícitamente como DEFER con
+owner por los PRs #1749…#1757. El recenso de B.2 se recalculó desde el catálogo y
+`playwright test --list` en ese HEAD. La matriz final está en [B.7](#b7-matriz-final-de-cierre);
+con ella, **`LIMPIEZA E2E` queda `CLOSED` al fusionarse este cambio documental final**, sin
+requerir otro PR posterior.
 
 Actualización E2E-GLOBAL-11 (2026-09-18): el árbol actual y el guard arquitectónico dirigido
 confirman el cierre de R-02 y §23. La evidencia original de 10B se conserva abajo; la reconciliación
@@ -1377,37 +1387,61 @@ specs sin cambios; no se requiere implementación.
 
 ### B.1 Veredicto
 
-**`LIMPIEZA E2E` permanece `ACTIVE`.** Las fases E2E-GLOBAL-01…10 del roadmap (§24) están
-ejecutadas, el objetivo de E2E-GLOBAL-09 quedó resuelto por re-baseline explícito, R-15 quedó cerrado
-por evidencia y los cuatro bloqueantes B-1…B-4 (§25) están cerrados. El programa no se cierra por dos
-motivos:
+**`LIMPIEZA E2E` queda `CLOSED` al fusionarse este cambio documental final.** Las fases
+E2E-GLOBAL-01…10 del roadmap (§24) están ejecutadas, el objetivo de E2E-GLOBAL-09 quedó resuelto por
+re-baseline explícito, R-15 quedó cerrado por evidencia, E2E-GLOBAL-11 cerró R-02 y §23, y los cuatro
+bloqueantes B-1…B-4 (§25) están cerrados. Los dos motivos que en 2026-09-19 impedían el cierre ya no
+existen:
 
-1. **R-20** (con los push paths de Frontend CI) sigue abierto sin fase.
-2. **Las brechas de cobertura de §6.2/§21 y los demás residuales de B.7** siguen abiertos.
+1. **R-20 y los push paths de Frontend CI**: cerrados por #1752 (`7c8cd41d`). El presupuesto del
+   heavy es coherente (`timeout-minutes: 45` frente a un `globalTimeout` de 30 min) y
+   `on.push.paths` incluye `shared/**`, alineado con el detector de PR (B.5, B.6).
+2. **Las brechas de cobertura de §6.2/§21**: cerradas por #1749 (landings SEO ×4), #1750
+   (`/profesionales/[clinicId]`) y #1753 (superficie PWA servida: `/offline`,
+   `/manifest.webmanifest`, `/sw.js`). La única parte no cubierta —el ciclo de vida productivo del
+   service worker— es un **DEFER aceptado con owner**, no un residual abierto (B.6).
 
-### B.2 Cifras: baseline vs estado actual
+Los residuales restantes de la B.7 original quedaron cerrados por #1754…#1757 (drift de comentarios y
+drift documental de gobernanza). Los hallazgos observacionales y opcionales que el documento conserva
+(P1-4 tercera parte, P2-7 y `verify-teardown.mjs`) están clasificados como **no bloqueantes**: no son
+residuales del programa y no reabren su scope.
 
-| Métrica | Baseline `2683f39a` (§§2–16) | `c25f4e06` (2026-09-16) | Fuente actual |
-|---|---:|---:|---|
-| Specs (tracked = disco = catálogo = descubiertos) | 95 | 98 | `catalog.ts`, `git ls-files`, `playwright test --list` |
-| Tests descubiertos | 1.322 | 1.326 | `playwright test --list --reporter=json` |
-| `ci` (specs / tests) | 61 / 1.007 | 67 / 1.030 | catálogo; Frontend CI `35099449451` (1.029 passed + 1 skipped) |
-| `extended` | 29 / 264 | 27 / 255 | catálogo |
-| `evidence` | 2 / 11 | 1 / 1 | catálogo |
-| `visual-linux` | 3 / 40 | 3 / 40 | catálogo |
-| Current: `smoke` / `admin-mobile` / `visual-contract` / `public-clinic` | 9 / 14 / 22 / 16 | 12 / 14 / 24 / 17 | catálogo (particionan `ci`) |
-| P1 fuera de `ci` | 5 (sin ruta en PRs de `frontend/src`) | 3: A02, A03, A05 (corren en cada PR) | catálogo; `e2e-completeness.yml` |
-| Runner de `e2e:full` | `next dev` | `next build` + `next start` | `e2e-completeness.yml` (`VETNEB_E2E_PRODUCTION_RUNNER=1`) |
-| Disparo de `E2E Completeness` | PRs filtrados por paths + cron semanal | todo PR a `main` + dispatch + cron semanal | `e2e-completeness.yml` |
-| `e2e:full`: wall / trabajo agregado | 32,7 / 64,6 min | 24,6 / 48,5 min | run `35104076249` |
-| Resultado de `e2e:full` | 1.320 passed · 1 flaky · 1 skipped | 1.325 passed · 1 skipped · 0 flaky | run `35104076249` |
-| `e2e:ci` wall | 571 s | 12,7 min (6 specs y 23 tests más) | run `35099449451` |
-| Baselines PNG | 40, capturas `next dev` | 40, capturas `next start` | E2E-GLOBAL-05B |
-| `forbidOnly` / `failOnFlakyTests` | `false` / no declarado | CI / `true` | `playwright.config.ts` |
-| Trazas en el gate required | ninguna | `retain-on-failure` + sanitizer | `playwright.config.ts`; `playwright-artifact-sanitizer.mjs` |
-| `addCookies` / origen `127.0.0.1:3000` hardcodeado | 92 / 88 | 1 (`helpers/session.ts`) / 3 excepciones declaradas | `git grep` en `frontend/e2e` |
-| `waitForTimeout` / `networkidle` (líneas) | 17 / 39 | 1 (intervalo de muestreo CMP-12) / 25 | `git grep`; guard `e2e-residual-determinism` |
-| Capa declarada (`layer`) | inexistente | 38 `mocked` · 60 `fixture` · 0 `integration` | catálogo |
+### B.2 Cifras: baseline histórico vs recenso de cierre
+
+Las dos primeras columnas son **cifras históricas** del head que las produjo y no se reescriben. La
+columna `226588e3` es el **recenso actual**, recalculado el 2026-09-21 desde el catálogo,
+`git ls-files` y `playwright test --list` sobre `main@226588e3`.
+
+| Métrica | Histórico: baseline `2683f39a` (§§2–16) | Histórico: `c25f4e06` (2026-09-16) | Actual: `226588e3` (2026-09-21) | Fuente del valor actual |
+|---|---:|---:|---:|---|
+| Specs (tracked = disco = catálogo = descubiertos) | 95 | 98 | **100** | `catalog.ts`, `git ls-files`, `playwright test --list` |
+| Tests descubiertos | 1.322 | 1.326 | **1.337** | `playwright test --list` |
+| `ci` (specs / tests) | 61 / 1.007 | 67 / 1.030 | **69 / 1.041** | catálogo; `playwright test --list` |
+| `extended` | 29 / 264 | 27 / 255 | 27 / 255 | catálogo; `playwright test --list` |
+| `evidence` | 2 / 11 | 1 / 1 | 1 / 1 | catálogo; `playwright test --list` |
+| `visual-linux` | 3 / 40 | 3 / 40 | 3 / 40 | catálogo; `playwright test --list` |
+| Current: `smoke` / `admin-mobile` / `visual-contract` / `public-clinic` | 9 / 14 / 22 / 16 | 12 / 14 / 24 / 17 | **12 / 14 / 24 / 19** | catálogo (particionan `ci`: 12 + 14 + 24 + 19 = 69) |
+| Tests por cohorte current | — | — | 65 / 136 / 521 / 319 | `playwright test --list` (65 + 136 + 521 + 319 = 1.041) |
+| Specs `P1` | — | 70 | **72** | catálogo |
+| P1 fuera de `ci` | 5 (sin ruta en PRs de `frontend/src`) | 3: A02, A03, A05 (corren en cada PR) | 3: A02, A03, A05 (sin cambio) | catálogo; `e2e-completeness.yml` |
+| Runner de `e2e:ci` | `next dev` | `next build` + `next start` | `next build` + `next start` | `frontend-ci.yml` (`VETNEB_E2E_PRODUCTION_RUNNER=1`) |
+| Runner de `e2e:full` | `next dev` | `next build` + `next start` | `next build` + `next start` | `e2e-completeness.yml` (`VETNEB_E2E_PRODUCTION_RUNNER=1`) |
+| Disparo de `E2E Completeness` | PRs filtrados por paths + cron semanal | todo PR a `main` + dispatch + cron semanal | todo PR a `main` + dispatch + cron semanal | `e2e-completeness.yml` |
+| Presupuesto Frontend CI (job / Playwright) | — | 20 min / 30 min (incoherente, R-20) | **45 min / 30 min** | `frontend-ci.yml`; `playwright.config.ts` |
+| Presupuesto `E2E Completeness` (job / Playwright) | — | 60 min / 45 min | 60 min / 45 min | `e2e-completeness.yml` (`E2E_GLOBAL_TIMEOUT_MS=2700000`) |
+| `e2e:full`: wall / trabajo agregado | 32,7 / 64,6 min | 24,6 / 48,5 min | no re-medido en `226588e3` | último dato medido: run `35104076249` |
+| Resultado de `e2e:full` | 1.320 passed · 1 flaky · 1 skipped | 1.325 passed · 1 skipped · 0 flaky | no re-medido en `226588e3` | último dato medido: run `35104076249` |
+| `e2e:ci` wall | 571 s | 12,7 min | no re-medido en `226588e3` | último dato medido: run `35099449451` |
+| Baselines PNG | 40, capturas `next dev` | 40, capturas `next start` | 40, capturas `next start` | `git ls-files "*-chromium-linux.png"` |
+| `forbidOnly` / `failOnFlakyTests` | `false` / no declarado | CI / `true` | CI / `true` | `playwright.config.ts` |
+| Trazas en el gate required | ninguna | `retain-on-failure` + sanitizer | `retain-on-failure` + sanitizer | `playwright.config.ts`; `playwright-artifact-sanitizer.mjs` |
+| `addCookies` / origen `127.0.0.1:3000` hardcodeado | 92 / 88 | 1 (`helpers/session.ts`) / 3 excepciones | 1 (`helpers/session.ts`) / **2 excepciones** declaradas | guard `e2e-session-origin-source-of-truth` |
+| `waitForTimeout` / `networkidle` | 17 / 39 | 1 (intervalo de muestreo CMP-12) / 25 | 1 (intervalo de muestreo CMP-12) / 25 | guard `e2e-residual-determinism`; `git grep` |
+| Capa declarada (`layer`) | inexistente | 38 `mocked` · 60 `fixture` · 0 `integration` | **36 `mocked` · 64 `fixture` · 0 `integration`** | catálogo |
+
+Las cifras de wall y trabajo agregado **no** se re-midieron en `226588e3`: este cierre es
+docs-only y no ejecutó Playwright. Se conservan con el id del run que las produjo, y por eso
+quedan marcadas como último dato medido y no como estado actual.
 
 ### B.3 Fases
 
@@ -1429,6 +1463,23 @@ motivos:
 | R-14 CI | #1730 / `c25f4e06` | El runner `dev` del workflow visual resuelve specs desde el catálogo; guard de 5 tests; run `35104076249` en `SUCCESS`. El runner `dev` todavía no se despachó en Ubuntu ([MANUAL-NICO]) | CLOSED |
 | E2E-GLOBAL-10B | este cambio | Runbook, SoT, índices y los dos audits de §19 reconciliados; metadata de este documento | CLOSED al fusionar (R-18) |
 | E2E-GLOBAL-11 | #1732 / `5d7c1d3c`, #1733 / `bef0f35a`, #1737 y #1739–#1742, #1743 / `91a70c7d` | #1732 introdujo el guard y dejó R-02 PARTIAL; #1733 corrigió `fieldVisits`; los cambios posteriores eliminaron ownership duplicado; #1743 convergió el ledger. Árbol actual: 3 divergencias intencionales, `stale=0`, `unexpected=0`, `LEGACY_DOUBLE_DECLARATIONS = {}` y guard dirigido 12/12 PASS (2026-09-18) | CLOSED |
+
+**Cierre post-programa (STAGE_A…STAGE_D, 2026-09-19 → 2026-09-21).** Cerrado el roadmap §24, los
+residuales nominales de B.7 se ejecutaron como PRs de scope único, cada uno con una causa y un
+rollback:
+
+| Stage / fase | PR / commit | Evidencia de aceptación | Estado |
+|---|---|---|---|
+| STAGE_A · cobertura pública §6.2/§21 — landings SEO ×4 | #1749 / `b22e41ff` | Las cuatro landings de diagnóstico resuelven con su H1, título efectivo, canonical de su propio path y nodo `Service` JSON-LD coincidente, dentro de `public-routes.spec.ts` (cohorte `smoke` ⊂ `ci`) | CLOSED |
+| STAGE_A · cobertura pública §6.2/§21 — `/profesionales/[clinicId]` | #1750 / `f56e9bc5` | `public-professional-detail.spec.ts`, dominio `public`, capa `mocked`, P1, cohorte `ci` | CLOSED |
+| STAGE_A · cierre de E2E-GLOBAL-09 y R-15 | #1751 / `480215c4` | Re-baseline explícito del objetivo de performance y conservación de CMP-04/05/06 por señal única, registrados en este Anexo | CLOSED |
+| STAGE_A · R-20 + push paths compartidos de Frontend CI | #1752 / `7c8cd41d` | `frontend-heavy-validation` pasa a `timeout-minutes: 45` frente al `globalTimeout` de 30 min (envelope ≥ 15 min, fijado por `frontend-ci-workflow.test.ts`), y `on.push.paths` incorpora `shared/**`, alineado con el detector de PR | CLOSED |
+| STAGE_A · cobertura pública §6.2/§21 — superficie PWA servida | #1753 / `1c513d0e` | `public-pwa-served-surface.spec.ts`: `/offline` usable y `noindex/nofollow`, `/manifest.webmanifest` 200 con `start_url`, `scope`, `display` e íconos, `/sw.js` 200 con `no-cache, no-store, must-revalidate` y `Service-Worker-Allowed: /`. El ciclo de vida productivo del service worker queda fuera por diseño (ver B.6) | CLOSED |
+| STAGE_B1 · drift de comentarios en `playwright.config.ts` | #1754 / `2d0638d5` | Comentarios del runner alineados con 05B: el production runner ya no se describe como exclusivo de Frontend CI | CLOSED |
+| STAGE_B2 · drift de comentarios en `e2e-completeness.yml` | #1755 / `299d00d3` | Comentario de trazas alineado con `retain-on-failure` bajo `--retries=2` ([acta](../implementation/e2e-stage-b2-completeness-trace-comment-realignment.md)) | CLOSED |
+| STAGE_B3 · drift de comentarios test-only | #1756 / `c28cf830` | Diagnóstico de trazas del runner realineado en los contratos de test | CLOSED |
+| STAGE_C · contextos required de quality gate | #1757 / `226588e3` | `quality-gate-impact-policy.mjs` declara `backend-ci.required = true` y `frontend-ci.required = true`, ambos con `execution: "required context, heavy validation conditional by impact"`; el bloque generado de `test/README.md` refleja la misma semántica. Decisión sobre `qga-workflow-security`: `QGA_POLICY_CHANGE = NO_CHANGE_REQUIRED` — QGA es un control always-run externo al enrutamiento por impacto y no consume la policy, por lo que **no** se agregó a `QUALITY_GATES` ([acta](../implementation/e2e-stage-c-quality-gate-required-context-alignment.md)) | CLOSED |
+| STAGE_D · cierre documental del programa | este cambio | Metadata, Anexo B, control register, SoT, runbook y `docs/qa/README.md` reconciliados contra el recenso de `226588e3`; `LIMPIEZA E2E` pasa a `CLOSED` | CLOSED al fusionar |
 
 ### B.4 Bloqueantes (§25)
 
@@ -1462,33 +1513,63 @@ motivos:
 | R-17 | P2 | 07 | CLOSED | `addCookies` en un solo sitio |
 | R-18 | P2 | 10B | CLOSED al fusionar este cambio | Runbook, SoT, índices y audits reconciliados con el HEAD `c25f4e06` |
 | R-19 | P3 | **ninguna** | **CLOSED** | `EXPECTED_RESPONSIVE_TOKEN_SUBPIXEL_QUANTIZATION`: `w360x800::hot-b` envuelve a `w1920x1080`; `clamp(2.25rem, 4vh, 2.75rem)` declara 43,2 px (1080 × 0,04), Chromium usa 43,1875 px y A05 redondea a 43,188. Es recurrente y determinista; no viola la invariancia 32/48/64 ni A→B→A, y no requiere cambio de producto, tolerancia ni trabajo de performance. |
-| R-20 | P3 | **ninguna** | **OPEN** | `frontend-heavy-validation` sigue con `timeout-minutes: 20` frente a un `globalTimeout` de 30 min (heavy observado: 14,5 min) |
+| R-20 | P3 | STAGE_A (#1752) | **CLOSED** | `frontend-heavy-validation` pasa a `timeout-minutes: 45` frente al `globalTimeout` de 30 min de `playwright.config.ts`, con envelope exterior de 15 min; `frontend-ci-workflow.test.ts` fija el 45, lee el default del config y exige `job − globalTimeout >= 15m`. En el mismo PR, `on.push.paths` de Frontend CI incorpora `shared/**` y queda alineado con el detector de impacto de PR |
 
 ### B.6 Hallazgos de §§7–10 sin ID de riesgo
 
-| Hallazgo | Estado | Nota |
+Los hallazgos se separan en dos clases que no deben confundirse: **residuales del programa**, que
+debían cerrarse o aceptarse como DEFER para poder cerrar `LIMPIEZA E2E`, y hallazgos
+**no bloqueantes** (observacionales u opcionales ya en la auditoría original), que se conservan
+documentados y **no** son deuda abierta del programa ni scope futuro obligatorio.
+
+| Hallazgo | Clase | Estado | Nota |
+|---|---|---|---|
+| P1-7 (guard de plataforma del spec visual público) | Residual | CLOSED | #1745 añadió el guard interno Chromium/Linux; el catálogo conserva `platform: "linux"` y `run-cohort.mjs` conserva su preflight independiente |
+| §10: `on.push.paths` de Frontend CI sin `shared/**` | Residual | **CLOSED** (#1752 / `7c8cd41d`) | `on.push.paths` incluye `shared/**`; `frontend-ci-workflow.test.ts` compara la lista del workflow con la del detector tras normalizar la notación |
+| §6.2/§21: landings SEO ×4 | Residual | **CLOSED** (#1749 / `b22e41ff`) | Cubiertas en `public-routes.spec.ts`: H1, título efectivo, canonical propio y nodo `Service` JSON-LD coincidente |
+| §6.2/§21: `/profesionales/[clinicId]` | Residual | **CLOSED** (#1750 / `f56e9bc5`) | `public-professional-detail.spec.ts`, cohorte `ci` |
+| §6.2/§21: `/offline`, `manifest` y `sw.js` servidos | Residual | **CLOSED** (#1753 / `1c513d0e`) | `public-pwa-served-surface.spec.ts` verifica la mitad HTTP/browser de la superficie PWA |
+| §6.2/§21: ciclo de vida productivo del service worker | Residual | **ACCEPTED_DEFER** — owner: **Frontend / QA owner** | `PwaServiceWorkerRegistrar` es https-only y el harness Playwright canónico sirve la app sobre HTTP plano, de modo que `register`, `install`, `activate`, precache y el fallback de navegación offline no se ejercitan. **No se introdujo TLS, reverse proxy, certificados, cambio de `baseURL` ni bypass del guard HTTPS sólo para satisfacer la auditoría.** El DEFER está declarado en el `proves` y las `notes` de la entrada de catálogo, no sólo aquí. Es una aceptación explícita, no un fallo |
+| §10: `compare-visual-artifacts.mjs` sin consumidor | Residual | CLOSED | Lo consume `visual-production-candidate.mjs` (05A) |
+| §23: guard "ninguna ruta declarada a la vez en `page.route` y en el fixture" | Residual | CLOSED | `LEGACY_DOUBLE_DECLARATIONS = {}` y el guard dirigido pasan; cualquier nuevo handler `page.route`/`context.route` que pueda `fulfill`/`abort` una ruta del fixture falla el censo |
+| P1-4, tercera parte (`no-store` real bajo `next start`) | **No bloqueante** | OPTIONAL_NON_BLOCKING | Ya era opcional en la auditoría original. Declarado en `proves`: hoy se asierta `no-cache` y "no public". No genera trabajo obligatorio ni criterio de cierre |
+| P2-7 (selectores posicionales) | **No bloqueante** | OBSERVATIONAL_NON_BLOCKING | Observacional, sin recomendación ni fase. Se conserva como observación, no como recomendación obligatoria |
+| §10: `verify-teardown.mjs` sólo verifica puertos | **No bloqueante** | OBSERVATIONAL_NON_BLOCKING | Observación sobre el alcance del verificador de teardown. No es requisito de cierre |
+
+### B.7 Matriz final de cierre
+
+Todos los residuales que esta tabla registraba como abiertos quedaron cerrados o aceptados
+explícitamente como DEFER con owner. Esta es su resolución final; **no es un backlog**.
+
+| Residual | Estado final | Evidencia |
 |---|---|---|
-| P1-7 (guard de plataforma del spec visual público) | CLOSED | #1745 añadió el guard interno Chromium/Linux; el catálogo conserva `platform: "linux"` y `run-cohort.mjs` conserva su preflight independiente |
-| P1-4, tercera parte (`no-store` real bajo `next start`) | OPEN (opcional en la auditoría) | Declarado en `proves`; hoy se asierta `no-cache` y "no public" |
-| P2-7 (selectores posicionales) | OPEN | Observacional, sin recomendación ni fase |
-| §10: `on.push.paths` de Frontend CI sin `shared/**` | OPEN | Divergencia con el detector de PR |
-| §10: `verify-teardown.mjs` sólo verifica puertos | OPEN | — |
-| §10: `compare-visual-artifacts.mjs` sin consumidor | CLOSED | Lo consume `visual-production-candidate.mjs` (05A) |
-| §6.2/§21: landings SEO ×4, `/profesionales/[clinicId]`, `/offline` y PWA | OPEN | 0 `goto()` en `frontend/e2e` al 2026-09-16 |
-| §23: guard "ninguna ruta declarada a la vez en `page.route` y en el fixture" | CLOSED | `LEGACY_DOUBLE_DECLARATIONS = {}` y el guard dirigido pasan; cualquier nuevo handler `page.route`/`context.route` que pueda `fulfill`/`abort` una ruta del fixture falla el censo |
+| R-20 / push paths de Frontend CI | **CLOSED** | #1752 / `7c8cd41d`: `timeout-minutes: 45` con envelope ≥ 15 min y `shared/**` en `on.push.paths` |
+| Cobertura §6.2/§21 — landings SEO ×4 | **CLOSED** | #1749 / `b22e41ff` |
+| Cobertura §6.2/§21 — `/profesionales/[clinicId]` | **CLOSED** | #1750 / `f56e9bc5` |
+| Cobertura §6.2/§21 — superficie PWA servida (`/offline`, `manifest`, `sw.js`) | **CLOSED** | #1753 / `1c513d0e` |
+| Cobertura §6.2/§21 — ciclo de vida productivo del service worker | **ACCEPTED_DEFER** — owner: **Frontend / QA owner** | Registrador https-only frente a un harness HTTP; no se introdujo TLS, proxy, certificados, cambio de `baseURL` ni bypass del guard HTTPS para satisfacer la auditoría. Declarado en el catálogo y en B.6 |
+| Drift de comentarios (`playwright.config.ts`, `e2e-completeness.yml`, contratos test-only) | **CLOSED** | #1754 / `2d0638d5`; #1755 / `299d00d3`; #1756 / `c28cf830` |
+| Drift documental de gobernanza (`ERM-CTRL-013`/`ERM-CTRL-014`, `docs/qa/README.md`, SoT, runbook) | **CLOSED** | #1757 / `226588e3` (contextos required) y este cambio STAGE_D (reconciliación documental) |
 
-### B.7 Residuales y próximos scopes mínimos
+Los hallazgos **no bloqueantes** de B.6 —P1-4 tercera parte (`OPTIONAL_NON_BLOCKING`), P2-7 y
+`verify-teardown.mjs` (`OBSERVATIONAL_NON_BLOCKING`)— **no** reaparecen aquí como próximo scope
+mínimo. Se conservan documentados como observaciones de la auditoría original:
+`NON_BLOCKING ≠ residual abierto del programa`.
 
-| Residual | Criterio que falta | Scope mínimo propuesto |
-|---|---|---|
-| R-20 y push paths de Frontend CI | Presupuesto coherente y filtro alineado con el detector | ci-only (R2) |
-| Cobertura §6.2/§21 | Specs para las rutas sin `goto()` | test-only, por dominio |
-| Drift de comentarios: `playwright.config.ts` (líneas 13–17 y 69–70) y `e2e-completeness.yml` (línea 214) todavía describen a Frontend CI como único production runner y a `e2e:full` con `on-first-retry` | Comentarios alineados con 05B | config-only + ci-only |
-| Drift documental fuera del scope nominal de 10B: fila `ERM-CTRL-013` del control register (43/72 specs, triggers "focused"), `docs/qa/README.md` (layering como "vigente") y `test/README.md:153` (`frontend-ci` "non-required") | Alineación con el runbook | docs-only (control register con su owner) + test-docs |
+### B.8 Estado final
 
-El objetivo de E2E-GLOBAL-09 está resuelto por re-baseline explícito (B.3) y R-15 está cerrado por
-evidencia (B.5). El documento vuelve a
-evaluarse para `CLOSED` cuando los residuales de esta tabla estén cerrados o aceptados explícitamente
-como DEFER (§26) con owner.
+El objetivo de E2E-GLOBAL-09 quedó resuelto por re-baseline explícito (B.3) y R-15 por evidencia
+(B.5). Con la matriz de B.7 resuelta, **`LIMPIEZA E2E` queda `CLOSED` al fusionarse este cambio
+documental final**, sin requerir otro PR documental posterior.
+
+A partir de ese merge:
+
+- este documento se conserva como **evidencia y closeout** del programa, no como fuente operativa;
+- el estado operativo vigente de cohortes, runners, conteos y triggers se lee en
+  [CI_PR_CHECKS_RUNBOOK.md](../ops/CI_PR_CHECKS_RUNBOOK.md), en
+  [`frontend/e2e/suites/catalog.ts`](../../frontend/e2e/suites/catalog.ts) y en los workflows
+  ejecutables, que prevalecen sobre cualquier cifra de este archivo;
+- **no se reconstruye backlog nuevo desde este documento cerrado**: un hallazgo E2E futuro abre su
+  propio trabajo, no reabre este programa.
 
 **Fin del documento.**
