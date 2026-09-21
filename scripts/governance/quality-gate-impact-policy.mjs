@@ -52,8 +52,8 @@ export const QUALITY_GATES = deepFreeze([
     name: "Backend CI",
     workflow: "Backend CI",
     check: "validate-backend",
-    execution: "conditional, non-required",
-    required: false,
+    execution: "required context, heavy validation conditional by impact",
+    required: true,
     owner: "Backend owner",
     commands: [
       packageCommand({
@@ -82,15 +82,15 @@ export const QUALITY_GATES = deepFreeze([
       }),
     ],
     responsibility:
-      "Conditional backend validation for runtime, schema, script and test changes. This workflow is observable but is not the required merge context.",
+      "Required branch-protection context for backend runtime, schema, script and test changes. The context is always present and the heavy validation job is conditional by impact; the context stays SUCCESS when the heavy job is legitimately skipped.",
   },
   {
     id: "frontend-ci",
     name: "Frontend CI",
     workflow: "Frontend CI",
     check: "validate-frontend",
-    execution: "conditional, non-required",
-    required: false,
+    execution: "required context, heavy validation conditional by impact",
+    required: true,
     owner: "Frontend / QA owner",
     commands: [
       packageCommand({
@@ -125,7 +125,7 @@ export const QUALITY_GATES = deepFreeze([
       }),
     ],
     responsibility:
-      "Conditional frontend validation for UI, public-surface, build and Playwright layers. This workflow is observable but is not the required merge context.",
+      "Required branch-protection context for UI, public-surface, build and Playwright layers. The context is always present and the heavy validation job is conditional by impact; the context stays SUCCESS when the heavy job is legitimately skipped.",
   },
   {
     id: "manual-review",
