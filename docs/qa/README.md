@@ -14,8 +14,8 @@ Es una base docs-only. No modifica tests, fixtures, helpers, package scripts, Pl
 | --- | --- |
 | `docs/SOURCES_OF_TRUTH.md` | Mapa vigente de fuentes por dominio |
 | `docs/governance/pr-readiness-review-checklist.md` | Checklist de PR readiness y validación |
-| `docs/audit/e2e-ci-layering-strategy-audit.md` | Estrategia vigente de layering E2E |
-| `docs/ops/CI_PR_CHECKS_RUNBOOK.md` | Runbook de checks de PR |
+| `docs/audit/e2e-ci-layering-strategy-audit.md` | Estrategia de layering E2E previa a PR-CI-3; **vigente histórico parcial**, no estado operativo |
+| `docs/ops/CI_PR_CHECKS_RUNBOOK.md` | Runbook de checks de PR y **estado operativo vigente** de cohortes, runners y conteos E2E (con `frontend/e2e/suites/catalog.ts` y los workflows como fuentes ejecutables) |
 | `package.json` | Scripts backend/root vigentes |
 | `frontend/package.json` | Scripts frontend/E2E vigentes |
 
