@@ -33,7 +33,10 @@ function commandFor(serverKind) {
 
   if (serverKind === "application") {
     const nextBin = require.resolve("next/dist/bin/next");
-    const nextCommand = process.env.VETNEB_E2E_PRODUCTION_RUNNER === "1" ? "start" : "dev";
+    // Mirrors isProductionRunner in playwright.config.ts: the flag alone never selects next start.
+    const isProductionRunner =
+      process.env.CI === "true" && process.env.VETNEB_E2E_PRODUCTION_RUNNER === "1";
+    const nextCommand = isProductionRunner ? "start" : "dev";
     return {
       executable: process.execPath,
       args: [nextBin, nextCommand, "--hostname", "127.0.0.1"],
