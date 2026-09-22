@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve, posix } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import ts from "typescript";
 import { listTrackedFiles } from "../../helpers/tracked-source-files.ts";
 
 const REPO_ROOT = resolve(fileURLToPath(new URL("../../../", import.meta.url)));
@@ -1143,6 +1144,9 @@ type EvidenceViolationCode =
   | "CLAIM_ISOLATION_NOT_ASSERTED"
   | "CLAIM_BEHAVIOR_NOT_EVIDENCED"
   | "CONTRACT_WITHOUT_EXECUTABLE_SURFACE_CLAIM"
+  | "COMPOSITION_SURFACE_NOT_IMPORTED"
+  | "COMPOSITION_SURFACE_NOT_REGISTERED"
+  | "COMPOSITION_SURFACE_NOT_EXERCISED"
   | "STATUS_DIVERGENCE_UNDECLARED"
   | "STATUS_DIVERGENCE_MISMATCH"
   | "STATUS_DIVERGENCE_STALE"
@@ -1167,9 +1171,22 @@ type TestBlock = {
   body: string;
 };
 
+type RouteRegistration = {
+  symbol: string;
+  prefix: string | null;
+};
+
+type EvidenceSource = {
+  // Source with every comment blanked in place: literals, offsets and newlines are kept.
+  code: string;
+  // Resolved relative module -> value bindings it introduces (type-only imports excluded).
+  imports: ReadonlyMap<string, ReadonlySet<string>>;
+  registrations: readonly RouteRegistration[];
+};
+
 const TEST_DECLARATION = /^test(?:\.([A-Za-z]+))?\(\s*(["'`])((?:\\.|(?!\2)[\s\S])*?)\2/gm;
 const ASSERTION_STATEMENT = /\bassert(?:\.[A-Za-z]+|[A-Z][A-Za-z]*)\s*\([\s\S]*?\);/g;
-const MODULE_SPECIFIER = /(?:\bfrom\s*|\bimport\s*\(\s*)["']([^"']+)["']/g;
+const ROUTE_PREFIX_TERMINATORS = ["/", '"', "'", "`", "?"] as const;
 const REPO_PATH_SHAPE = /\b(?:server|frontend|shared|drizzle|scripts|test|docs)\/[A-Za-z0-9._\-/]+/;
 
 function decodeLiteral(raw: string): string {
@@ -1203,25 +1220,140 @@ function parseTestBlocks(source: string): TestBlock[] {
   });
 }
 
-function importedModules(evidencePath: string, source: string): Set<string> {
-  const modules = new Set<string>();
+function routePrefix(options: ts.Expression | undefined): string | null {
+  if (!options || !ts.isObjectLiteralExpression(options)) {
+    return null;
+  }
 
-  for (const match of source.matchAll(MODULE_SPECIFIER)) {
-    const specifier = match[1] ?? "";
-
-    if (specifier.startsWith(".")) {
-      modules.add(posix.normalize(posix.join(posix.dirname(evidencePath), specifier)));
+  for (const property of options.properties) {
+    if (
+      ts.isPropertyAssignment(property) &&
+      (ts.isIdentifier(property.name) || ts.isStringLiteral(property.name)) &&
+      property.name.text === "prefix" &&
+      ts.isStringLiteralLike(property.initializer)
+    ) {
+      return property.initializer.text;
     }
   }
 
-  return modules;
+  return null;
+}
+
+// Fail-closed: input the TypeScript parser reports as malformed is not evidence.
+function parseEvidenceSource(path: string, text: string): EvidenceSource {
+  const sourceFile = ts.createSourceFile(path, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  const { parseDiagnostics } = sourceFile as unknown as {
+    parseDiagnostics?: readonly ts.Diagnostic[];
+  };
+
+  if (!Array.isArray(parseDiagnostics) || parseDiagnostics.length > 0) {
+    throw new Error(`${path} is not interpretable TypeScript`);
+  }
+
+  const code = text.split("");
+  const imports = new Map<string, Set<string>>();
+  const registrations: RouteRegistration[] = [];
+  const addImport = (specifier: ts.Expression | undefined, bindings: readonly string[]) => {
+    if (!specifier || !ts.isStringLiteralLike(specifier) || !specifier.text.startsWith(".")) {
+      return;
+    }
+
+    const resolved = posix.normalize(posix.join(posix.dirname(path), specifier.text));
+    const known = imports.get(resolved) ?? new Set<string>();
+    bindings.forEach((binding) => known.add(binding));
+    imports.set(resolved, known);
+  };
+
+  const visit = (node: ts.Node): void => {
+    if (node.kind >= ts.SyntaxKind.FirstJSDocNode && node.kind <= ts.SyntaxKind.LastJSDocNode) {
+      return;
+    }
+
+    if (ts.isImportDeclaration(node) && !node.importClause?.isTypeOnly) {
+      const clause = node.importClause;
+      const named = clause?.namedBindings;
+      const bindings = [
+        ...(clause?.name ? [clause.name.text] : []),
+        ...(named && ts.isNamespaceImport(named) ? [named.name.text] : []),
+        ...(named && ts.isNamedImports(named)
+          ? named.elements.filter((element) => !element.isTypeOnly).map((element) => element.name.text)
+          : []),
+      ];
+      addImport(node.moduleSpecifier, bindings);
+    } else if (ts.isCallExpression(node)) {
+      const [first, second] = node.arguments;
+
+      if (node.expression.kind === ts.SyntaxKind.ImportKeyword) {
+        addImport(first, []);
+      } else if (
+        ts.isPropertyAccessExpression(node.expression) &&
+        node.expression.name.text === "register" &&
+        first !== undefined &&
+        ts.isIdentifier(first)
+      ) {
+        registrations.push({ symbol: first.text, prefix: routePrefix(second) });
+      }
+    }
+
+    const children = node.getChildren(sourceFile);
+
+    if (children.length > 0) {
+      children.forEach(visit);
+      return;
+    }
+
+    // Leading trivia of a token is only whitespace and comments.
+    for (let index = node.pos; index < node.getStart(sourceFile); index += 1) {
+      if (code[index] !== "\n" && code[index] !== "\r") {
+        code[index] = " ";
+      }
+    }
+  };
+
+  visit(sourceFile);
+
+  return { code: code.join(""), imports, registrations };
+}
+
+function compositionGap(
+  protectedSurface: string,
+  claims: readonly ExecutableClaim[],
+  root: EvidenceSource | null,
+): EvidenceViolationCode | null {
+  if (root === null) {
+    return "EVIDENCE_UNREADABLE";
+  }
+
+  const bindings = root.imports.get(protectedSurface);
+
+  if (!bindings || bindings.size === 0) {
+    return "COMPOSITION_SURFACE_NOT_IMPORTED";
+  }
+
+  const registered = root.registrations.filter((registration) => bindings.has(registration.symbol));
+
+  if (registered.length === 0) {
+    return "COMPOSITION_SURFACE_NOT_REGISTERED";
+  }
+
+  const exercised = registered.some(
+    ({ prefix }) =>
+      prefix !== null &&
+      claims.some((claim) =>
+        ROUTE_PREFIX_TERMINATORS.some((terminator) =>
+          claim.operation.includes(`${prefix}${terminator}`),
+        ),
+      ),
+  );
+
+  return exercised ? null : "COMPOSITION_SURFACE_NOT_EXERCISED";
 }
 
 function verifyClaim(
   contractId: string,
   claim: EvidenceClaim,
   corpus: EvidenceCorpus,
-  sources: Map<string, string | null>,
+  sources: Map<string, EvidenceSource | null>,
   violations: EvidenceViolation[],
 ): boolean {
   const before = violations.length;
@@ -1229,7 +1361,7 @@ function verifyClaim(
     violations.push({ contractId, code, detail: `${claim.path} :: ${detail}` });
   const source = sources.get(claim.path);
 
-  if (typeof source !== "string") {
+  if (!source) {
     return false;
   }
 
@@ -1238,17 +1370,17 @@ function verifyClaim(
   }
 
   if (claim.kind === "EXECUTABLE_TEST_EVIDENCE") {
-    if (!importedModules(claim.path, source).has(claim.surface)) {
+    if (!source.imports.has(claim.surface)) {
       report("CLAIM_SURFACE_NOT_IMPORTED", claim.surface);
     }
   } else if (
-    !source.includes(`"${claim.surface}"`) &&
-    !source.includes(`'${claim.surface}'`)
+    !source.code.includes(`"${claim.surface}"`) &&
+    !source.code.includes(`'${claim.surface}'`)
   ) {
     report("CLAIM_SURFACE_NOT_REFERENCED", claim.surface);
   }
 
-  const matches = parseTestBlocks(source).filter((block) => block.title === claim.test);
+  const matches = parseTestBlocks(source.code).filter((block) => block.title === claim.test);
 
   if (matches.length === 0) {
     report("CLAIM_TEST_MISSING", claim.test);
@@ -1320,7 +1452,18 @@ function verifyIdorEvidence(
   corpus: EvidenceCorpus,
 ): EvidenceViolation[] {
   const violations: EvidenceViolation[] = [];
-  const sources = new Map<string, string | null>();
+  const sources = new Map<string, EvidenceSource | null>();
+  const load = (path: string): EvidenceSource | null => {
+    if (!sources.has(path)) {
+      try {
+        sources.set(path, parseEvidenceSource(path, corpus.read(path)));
+      } catch {
+        sources.set(path, null);
+      }
+    }
+
+    return sources.get(path) ?? null;
+  };
   const contractIds = new Set(contracts.map((contract) => contract.id));
 
   for (const id of Object.keys(claimsByContract)) {
@@ -1388,15 +1531,7 @@ function verifyIdorEvidence(
         continue;
       }
 
-      if (!sources.has(path)) {
-        try {
-          sources.set(path, corpus.read(path));
-        } catch {
-          sources.set(path, null);
-        }
-      }
-
-      if (sources.get(path) === null) {
+      if (load(path) === null) {
         report("EVIDENCE_UNREADABLE", path);
         continue;
       }
@@ -1421,13 +1556,22 @@ function verifyIdorEvidence(
       }
     }
 
-    if (
-      !executable.some(
-        (claim) =>
-          claim.surface === contract.protectedSurface || claim.surface === COMPOSITION_ROOT,
-      )
-    ) {
-      report("CONTRACT_WITHOUT_EXECUTABLE_SURFACE_CLAIM", contract.protectedSurface);
+    // A composition-root claim only covers a surface the root imports, registers
+    // and mounts at a prefix the claim's request actually targets.
+    if (!executable.some((claim) => claim.surface === contract.protectedSurface)) {
+      const composed = executable.filter((claim) => claim.surface === COMPOSITION_ROOT);
+      const gap =
+        composed.length === 0
+          ? null
+          : compositionGap(contract.protectedSurface, composed, load(COMPOSITION_ROOT));
+
+      if (gap !== null) {
+        report(gap, `${COMPOSITION_ROOT} -> ${contract.protectedSurface}`);
+      }
+
+      if (composed.length === 0 || gap !== null) {
+        report("CONTRACT_WITHOUT_EXECUTABLE_SURFACE_CLAIM", contract.protectedSurface);
+      }
     }
 
     const observed = [...new Set(executable.map((claim) => claim.behavior))].sort();
@@ -1519,6 +1663,10 @@ function readSource(relativePath: string): string {
   return readFileSync(resolve(REPO_ROOT, relativePath), "utf8")
     .replace(/^\uFEFF/, "")
     .replace(/\r\n/g, "\n");
+}
+
+function readEvidenceCode(relativePath: string): string {
+  return parseEvidenceSource(relativePath, readSource(relativePath)).code;
 }
 
 function uniqueValues(values: readonly string[]): string[] {
@@ -1666,13 +1814,13 @@ test("Clinics contract links executable GET PATCH POST and DELETE tenant evidenc
     "test/unit/clinics/clinic-public-profile-command-service.test.ts",
   ]);
 
-  const integration = readSource(
+  const integration = readEvidenceCode(
     "test/integration/adapters/controllers/clinic-public-profile.fastify.test.ts",
   );
-  const queryService = readSource(
+  const queryService = readEvidenceCode(
     "test/unit/clinics/clinic-public-profile-query-service.test.ts",
   );
-  const commandService = readSource(
+  const commandService = readEvidenceCode(
     "test/unit/clinics/clinic-public-profile-command-service.test.ts",
   );
 
@@ -1717,11 +1865,11 @@ test("Study Tracking contract links executable tenant and cross-realm evidence",
     "test/unit/application/study-tracking/particular-study-tracking-operations.test.ts",
   ]);
 
-  const clinicIntegration = readSource(contract.requiredTestEvidence[0]);
-  const particularIntegration = readSource(contract.requiredTestEvidence[1]);
-  const adminIntegration = readSource(contract.requiredTestEvidence[2]);
-  const clinicOperations = readSource(contract.requiredTestEvidence[3]);
-  const particularOperations = readSource(contract.requiredTestEvidence[4]);
+  const clinicIntegration = readEvidenceCode(contract.requiredTestEvidence[0]);
+  const particularIntegration = readEvidenceCode(contract.requiredTestEvidence[1]);
+  const adminIntegration = readEvidenceCode(contract.requiredTestEvidence[2]);
+  const clinicOperations = readEvidenceCode(contract.requiredTestEvidence[3]);
+  const particularOperations = readEvidenceCode(contract.requiredTestEvidence[4]);
 
   for (const marker of [
     "responde 404 gen\u00e9rico en PATCH /notifications/:notificationId/read cross-clinic",
@@ -1773,7 +1921,7 @@ test("Token Access contract links joint non-enumeration and hostile-selector evi
     "pending_runtime_staging_evidence",
   );
 
-  const jointEvidence = readSource(contract.requiredTestEvidence[0]);
+  const jointEvidence = readEvidenceCode(contract.requiredTestEvidence[0]);
   for (const marker of [
     "Particular Access unifica missing y foreign, ignora selectores hostiles y redacta secretos",
     "Particular Access unifica report foreign y missing y redacta fallos repository",
@@ -2076,4 +2224,300 @@ test("negative proof: materially invalid evidence fails the evidence guard", () 
     productionReadinessStatus: "passed" as unknown as "pending_runtime_staging_evidence",
   });
   assert.deepEqual(verify(tree, promoted), ["PENDING_RUNTIME_AS_PATH", "READINESS_PROMOTED"]);
+});
+
+test("evidence parser blanks comments only and fails closed on malformed input", () => {
+  const source = [
+    'const url = "https://example.test/*kept-string*/"; // dropped-line',
+    "const pattern = /\\/\\/kept-regex\\/\\*/g;",
+    'const text = `kept-template // ${"/* kept-nested */"} tail`; /* dropped-block */',
+    "/** dropped-doc */",
+    'import { live, type Shape } from "./live.ts";',
+    '// import { gone } from "./gone-line.ts";',
+    'const lazy = import("./lazy.ts");',
+    '/* const gone = import("./gone-block.ts"); */',
+    'import type { OnlyType } from "./types-only.ts";',
+    "/*",
+    'test("commented declaration", () => {});',
+    "*/",
+    "",
+  ].join("\n");
+  const parsed = parseEvidenceSource("test/security/sample.test.ts", source);
+
+  assert.equal(parsed.code.length, source.length);
+  assert.deepEqual(
+    [...parsed.code.matchAll(/\n/g)].map((match) => match.index),
+    [...source.matchAll(/\n/g)].map((match) => match.index),
+  );
+
+  for (const kept of [
+    '"https://example.test/*kept-string*/"',
+    "/\\/\\/kept-regex\\/\\*/g",
+    '`kept-template // ${"/* kept-nested */"} tail`',
+  ]) {
+    assert.equal(parsed.code.indexOf(kept), source.indexOf(kept), kept);
+  }
+
+  for (const dropped of ["dropped-", "gone", "commented declaration"]) {
+    assert.equal(parsed.code.includes(dropped), false, dropped);
+  }
+
+  assert.deepEqual(
+    [...parsed.imports].map(([module, bindings]) => [module, [...bindings]]),
+    [
+      ["test/security/live.ts", ["live"]],
+      ["test/security/lazy.ts", []],
+    ],
+  );
+  assert.deepEqual(parseTestBlocks(parsed.code), []);
+  assert.deepEqual(parseEvidenceSource("test/security/sample.test.ts", source), parsed);
+
+  for (const malformed of [
+    'const value = "unterminated;\n',
+    "/* unterminated comment\n",
+    "const template = `unterminated ${value}\n",
+    'test("open", () => {\n',
+  ]) {
+    assert.throws(() => parseEvidenceSource("test/security/broken.test.ts", malformed));
+  }
+
+  const unparseable = verifyIdorEvidence(
+    CROSS_TENANT_IDOR_CONTRACTS,
+    CTIDOR_EVIDENCE_CLAIMS,
+    DECLARED_STATUS_DIVERGENCES,
+    withMutations(createTreeCorpus(), {
+      sources: { [IT.clinicAudit]: (text) => `${text}\n/* unterminated` },
+    }),
+  );
+  assert.equal(
+    unparseable.some(
+      (violation) => violation.code === "EVIDENCE_UNREADABLE" && violation.detail === IT.clinicAudit,
+    ),
+    true,
+  );
+});
+
+test("negative proof: commented-out code is not executable evidence", () => {
+  const tree = createTreeCorpus();
+  const verify = (sources: Readonly<Record<string, (source: string) => string>>) =>
+    violationCodes(
+      verifyIdorEvidence(
+        CROSS_TENANT_IDOR_CONTRACTS,
+        CTIDOR_EVIDENCE_CLAIMS,
+        DECLARED_STATUS_DIVERGENCES,
+        withMutations(tree, { sources }),
+      ),
+    );
+  const isolationAssertion = "assert.equal(foreignUpdateCalls, 0);";
+
+  for (const commented of [`// ${isolationAssertion}`, `/* ${isolationAssertion} */`]) {
+    assert.deepEqual(
+      verify({
+        [IT.reportsStatus]: (source) => replaceOnce(source, isolationAssertion, commented),
+      }),
+      [
+        "CLAIM_ISOLATION_NOT_ASSERTED",
+        "CONTRACT_WITHOUT_EXECUTABLE_SURFACE_CLAIM",
+        "STATUS_DIVERGENCE_UNDECLARED",
+      ],
+      commented,
+    );
+  }
+
+  const clinicOperations =
+    "test/unit/application/study-tracking/clinic-study-tracking-operations.test.ts";
+  assert.deepEqual(
+    verify({
+      [clinicOperations]: (source) =>
+        replaceOnce(
+          source,
+          "await operations.acknowledgeClinicStudyTrackingNotification({",
+          "// operations.acknowledgeClinicStudyTrackingNotification(\n    await operations.getClinicStudyTrackingCase({",
+        ),
+    }),
+    ["CLAIM_NOT_EXERCISED"],
+  );
+
+  const operationsImport =
+    'import { createClinicStudyTrackingOperations } from "../../../../server/features/study-tracking/application/index.ts";';
+  assert.deepEqual(
+    verify({
+      [clinicOperations]: (source) => replaceOnce(source, operationsImport, `// ${operationsImport}`),
+    }),
+    ["CLAIM_SURFACE_NOT_IMPORTED"],
+  );
+
+  const tokenAccess = "test/security/token-access-enumeration-disclosure-regression.test.ts";
+  const rootImport = 'const { createFastifyApp } = await import("../../server/fastify-app.ts");';
+  for (const commented of [`// ${rootImport}`, `/* ${rootImport} */`]) {
+    assert.deepEqual(
+      verify({ [tokenAccess]: (source) => replaceOnce(source, rootImport, commented) }),
+      [
+        "CLAIM_SURFACE_NOT_IMPORTED",
+        "CONTRACT_WITHOUT_EXECUTABLE_SURFACE_CLAIM",
+        "STATUS_DIVERGENCE_UNDECLARED",
+      ],
+      commented,
+    );
+  }
+
+  assert.deepEqual(
+    verify({
+      [IT.reports]: (source) =>
+        replaceOnce(
+          source,
+          '"/api/reports?clinicId=5"',
+          '"/api/reports" /* "/api/reports?clinicId=5" */',
+        ),
+    }),
+    ["CLAIM_ANCHOR_MISSING", "STATUS_DIVERGENCE_MISMATCH"],
+  );
+
+  assert.deepEqual(
+    verify({
+      [GUARD.ownership]: (source) =>
+        replaceOnce(
+          source,
+          'readSource("server/routes/reports.fastify.ts")',
+          'readSource("server/routes/reports-status.fastify.ts") // readSource("server/routes/reports.fastify.ts")',
+        ),
+    }),
+    ["CLAIM_ANCHOR_MISSING", "CLAIM_SURFACE_NOT_REFERENCED"],
+  );
+
+  const particularTokensTitle =
+    "particularTokensNativeRoutes unifica informe ajeno e inexistente al vincular";
+  assert.deepEqual(
+    verify({
+      [IT.particularTokens]: (source) =>
+        `${source}\n// test("${particularTokensTitle}", () => {});\n/*\ntest("${particularTokensTitle}", () => {});\n*/\n`,
+    }),
+    [],
+  );
+
+  const particularAuthTitle =
+    "particularAuthNativeRoutes unifica informe ajeno e inexistente como 404 seguro";
+  assert.deepEqual(
+    verify({
+      [IT.particularAuth]: (source) =>
+        `${replaceOnce(source, particularAuthTitle, "renamed")}\n// test("${particularAuthTitle}", () => {});\n`,
+    }),
+    [
+      "CLAIM_TEST_MISSING",
+      "CONTRACT_WITHOUT_EXECUTABLE_SURFACE_CLAIM",
+      "STATUS_DIVERGENCE_UNDECLARED",
+    ],
+  );
+});
+
+test("CTIDOR-018 composition-root claims are bound to the imported and registered protected surface", () => {
+  const root = parseEvidenceSource(COMPOSITION_ROOT, readSource(COMPOSITION_ROOT));
+  const contract = contractById("CTIDOR-018");
+
+  assert.equal(contract.protectedSurface, ROUTE.publicReportAccess);
+  assert.deepEqual(
+    (CTIDOR_EVIDENCE_CLAIMS["CTIDOR-018"] ?? []).map((claim) => claim.surface),
+    [COMPOSITION_ROOT, COMPOSITION_ROOT],
+  );
+  assert.deepEqual([...(root.imports.get(ROUTE.publicReportAccess) ?? [])], [
+    "publicReportAccessNativeRoutes",
+  ]);
+  assert.deepEqual(
+    root.registrations.filter(({ symbol }) => symbol === "publicReportAccessNativeRoutes"),
+    [{ symbol: "publicReportAccessNativeRoutes", prefix: "/api/public/report-access" }],
+  );
+});
+
+test("negative proof: a composition-root claim does not cover an unlinked protected surface", () => {
+  const tree = createTreeCorpus();
+  const verify = (
+    contracts: readonly CrossTenantIdorContract[],
+    corpus: EvidenceCorpus = tree,
+  ) => {
+    const violations = verifyIdorEvidence(
+      contracts,
+      CTIDOR_EVIDENCE_CLAIMS,
+      DECLARED_STATUS_DIVERGENCES,
+      corpus,
+    );
+    assert.deepEqual(
+      [...new Set(violations.map((violation) => violation.contractId))],
+      violations.length === 0 ? [] : ["CTIDOR-018"],
+    );
+    return violationCodes(violations);
+  };
+  const retarget = (protectedSurface: string) =>
+    verify(replaceContract("CTIDOR-018", { protectedSurface }));
+
+  assert.deepEqual(retarget("server/features/study-tracking/application/index.ts"), [
+    "COMPOSITION_SURFACE_NOT_IMPORTED",
+    "CONTRACT_WITHOUT_EXECUTABLE_SURFACE_CLAIM",
+  ]);
+  assert.deepEqual(retarget("server/lib/env.ts"), [
+    "COMPOSITION_SURFACE_NOT_REGISTERED",
+    "CONTRACT_WITHOUT_EXECUTABLE_SURFACE_CLAIM",
+  ]);
+  assert.deepEqual(retarget(ROUTE.clinicAudit), [
+    "COMPOSITION_SURFACE_NOT_EXERCISED",
+    "CONTRACT_WITHOUT_EXECUTABLE_SURFACE_CLAIM",
+  ]);
+
+  const mutateRoot = (mutate: (source: string) => string) =>
+    verify(
+      CROSS_TENANT_IDOR_CONTRACTS,
+      withMutations(tree, { sources: { [COMPOSITION_ROOT]: mutate } }),
+    );
+  const surfaceImport = [
+    "import {",
+    "  publicReportAccessNativeRoutes,",
+    "  type PublicReportAccessNativeRoutesOptions,",
+    '} from "./routes/public-report-access.fastify.ts";',
+  ].join("\n");
+  const registration = [
+    "  await app.register(publicReportAccessNativeRoutes, {",
+    '    prefix: "/api/public/report-access",',
+    "    ...(options.publicReportAccessRoutes ?? {}),",
+    "  });",
+  ].join("\n");
+
+  for (const replacement of [
+    "",
+    `/*\n${surfaceImport}\n*/`,
+    surfaceImport.replace(/^/gm, "// "),
+  ]) {
+    assert.deepEqual(
+      mutateRoot((source) => replaceOnce(source, surfaceImport, replacement)),
+      ["COMPOSITION_SURFACE_NOT_IMPORTED", "CONTRACT_WITHOUT_EXECUTABLE_SURFACE_CLAIM"],
+      replacement,
+    );
+  }
+
+  for (const replacement of [
+    "",
+    `  /*\n${registration}\n  */`,
+    registration.replace(/^/gm, "// "),
+    registration.replace("publicReportAccessNativeRoutes", "publicPricingNativeRoutes"),
+  ]) {
+    assert.deepEqual(
+      mutateRoot((source) => replaceOnce(source, registration, replacement)),
+      ["COMPOSITION_SURFACE_NOT_REGISTERED", "CONTRACT_WITHOUT_EXECUTABLE_SURFACE_CLAIM"],
+      replacement,
+    );
+  }
+
+  assert.deepEqual(
+    mutateRoot((source) =>
+      replaceOnce(
+        source,
+        registration,
+        registration.replace('"/api/public/report-access"', '"/api/public/report-access-v2"'),
+      ),
+    ),
+    ["COMPOSITION_SURFACE_NOT_EXERCISED", "CONTRACT_WITHOUT_EXECUTABLE_SURFACE_CLAIM"],
+  );
+
+  assert.deepEqual(
+    mutateRoot((source) => `${source}\n/* unterminated`),
+    ["CONTRACT_WITHOUT_EXECUTABLE_SURFACE_CLAIM", "EVIDENCE_UNREADABLE"],
+  );
 });
