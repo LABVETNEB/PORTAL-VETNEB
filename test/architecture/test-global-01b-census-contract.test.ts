@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import test from "node:test";
 import {
   type CensusCorpus,
@@ -38,6 +39,7 @@ import {
   guardViolation,
   ledgerViolations,
 } from "../helpers/census/ledger.ts";
+import { analyzeTapOutput } from "../helpers/census/tap-performance.ts";
 
 /**
  * TEST-GLOBAL-01B — contrato de censo.
@@ -494,22 +496,24 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     section: "§12.1",
     metric: "consumidores de mocks/public-professionals-route.ts",
     historical: 9,
+    baseline: 5,
     compute: () => supportConsumers("test/mocks/public-professionals-route.ts"),
-    resolution: "REPRODUCED",
+    resolution: "RECLASSIFIED",
     guard: BAND,
     motive:
-      "Consumo de dobles compartidos: sube o baja con la remediación, no es invariante.",
+      "El corrector del finding P2 sobre `supportConsumerCensus` (§23) cuenta imports reales (import/require resueltos por path), no menciones textuales del nombre del módulo. La cifra histórica de 9 incluía coincidencias de substring; los 5 consumidores reales son los que realmente importan el módulo (verificado por lectura manual de `git grep -nE 'from [\"\\']\\.\\./mocks/public-professionals-route'`).",
   },
   {
     row: "A0-12-DOUBLES",
     section: "§12.1",
     metric: "consumidores de factories/public-professionals.ts",
     historical: 9,
+    baseline: 5,
     compute: () => supportConsumers("test/factories/public-professionals.ts"),
-    resolution: "REPRODUCED",
+    resolution: "RECLASSIFIED",
     guard: BAND,
     motive:
-      "Consumo de dobles compartidos: sube o baja con la remediación, no es invariante.",
+      "Misma causa que mocks/public-professionals-route.ts: el corrector cuenta imports reales, no menciones textuales. La cifra histórica de 9 se apoyaba en substring; los 5 consumidores reales importan el módulo de verdad (verificado por lectura manual de `git grep -nE 'from [\"\\']\\.\\./factories/public-professionals'`).",
   },
   {
     row: "A0-12-DOUBLES",
@@ -1288,9 +1292,11 @@ const EXECUTION_DERIVED_METRICS: readonly {
     section: "§24",
     metric:
       "Pareto y ranking de entradas caras (50 % en 33, 80 % en 130, 133,6 s agregados)",
-    command: "pnpm test (reporter TAP) + procesamiento de la salida",
+    command:
+      'node --experimental-strip-types --experimental-specifier-resolution=node --test --test-reporter=tap "test/**/*.test.ts" > run.tap' +
+      " · luego analyzeTapOutput(readFileSync('run.tap', 'utf8')) de test/helpers/census/tap-performance.ts",
     reason:
-      "Se deriva de la duración por entrada de una corrida concreta. Ninguna lectura del árbol puede producirla: queda RECLASIFICADA de AUDIT_DERIVED_NOT_YET_REPRODUCIBLE a EXECUTION_DERIVED, y toda decisión que dependa de ella exige una corrida propia, no este censo.",
+      "Se deriva de la duración por entrada de una corrida concreta, host y momento dependientes (HISTORICAL_EXECUTION_EVIDENCE, §24). Ninguna lectura del árbol puede producir un wall time: por eso queda EXECUTION_DERIVED, no REPRODUCIBLE_FROM_REPO. Lo que sí se versiona es el PROCESADOR (test/helpers/census/tap-performance.ts, criterio de aceptación de 01B, TG-A08): parseTapEntries/paretoAnalysis recomputan duración por entrada, ranking y umbrales 50 %/80 % de cualquier captura TAP real, con prueba positiva y negativa en el contrato de censo (§31.2). Una corrida distinta puede legítimamente devolver 33/130/133,6 s u otro valor sin que eso invalide el procesador: el dato cambia con el host, el procedimiento no.",
   },
   {
     row: "A0-27-PROJECTION",
@@ -1518,6 +1524,57 @@ test("censo 01B: las clasificaciones particionan la suite sin pérdida", () => {
     ownership.totals.referencedProductionFiles,
     "la distribución de ownership cubre todos los archivos referenciados",
   );
+});
+
+test("censo 01B: A0-24-PARETO tiene una ruta de recomputación real, no sólo declarada", () => {
+  // El finding de Codex sobre este contrato exigía más que texto conceptual
+  // ("... + procesamiento de la salida"): la recomputación tiene que ser un
+  // comando ejecutable de verdad. Esta prueba lo ejecuta: corre una porción
+  // pequeña y estable de la suite con `--test-reporter=tap` y pasa la salida
+  // real al procesador versionado. No se congelan cifras de tiempo (§24,
+  // §31.2): sólo se verifica que la ruta completa — correr con TAP, parsear,
+  // rankear, calcular Pareto — funciona sobre una corrida de verdad.
+  let tap: string;
+  // `NODE_TEST_CONTEXT` marks THIS process as a node:test child; inheriting
+  // it would make the spawned run detect a (harmless) nested invocation and
+  // skip actually running, producing empty TAP output.
+  const childEnv = { ...process.env };
+
+  delete childEnv.NODE_TEST_CONTEXT;
+
+  try {
+    tap = execFileSync(
+      process.execPath,
+      [
+        "--experimental-strip-types",
+        "--experimental-specifier-resolution=node",
+        "--test",
+        "--test-reporter=tap",
+        "test/unit/pricing/*.test.ts",
+      ],
+      { encoding: "utf8", maxBuffer: 64 * 1024 * 1024, env: childEnv },
+    );
+  } catch (error) {
+    tap = (error as { stdout?: string }).stdout ?? "";
+  }
+
+  assert.ok(tap.length > 0, "la corrida real de TAP no puede estar vacía");
+
+  const result = analyzeTapOutput(tap);
+
+  assert.ok(result.entries.length > 0);
+  assert.ok(result.totalDurationMs > 0);
+  assert.ok(result.entriesFor50Percent >= 1);
+  assert.ok(result.entriesFor50Percent <= result.entries.length);
+  assert.ok(result.entriesFor80Percent >= result.entriesFor50Percent);
+  assert.ok(result.entriesFor80Percent <= result.entries.length);
+
+  // Ranking realmente ordenado por duración descendente.
+  for (let index = 1; index < result.entries.length; index += 1) {
+    assert.ok(
+      result.entries[index - 1]!.durationMs >= result.entries[index]!.durationMs,
+    );
+  }
 });
 
 test("censo 01B: los hallazgos cualitativos del rector siguen vigentes", () => {

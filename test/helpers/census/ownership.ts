@@ -1,6 +1,8 @@
 import {
   type CensusCorpus,
   filesUnder,
+  importSpecifiers,
+  resolveRelativeSpecifier,
   specFiles,
   testSupportFiles,
 } from "./corpus.ts";
@@ -160,7 +162,36 @@ export function ownershipCensus(corpus: CensusCorpus): OwnershipCensus {
   };
 }
 
-/** §6.4 / §12.1: which specs import each shared support module. */
+/**
+ * Repo-relative paths `file` actually imports through a real `import`/
+ * `require` statement, resolved against its own location. A string that only
+ * *mentions* a module name — a path literal passed to a helper, a code
+ * comment, a fixture — never appears here, unlike a plain substring search.
+ * This repo's own convention (`allowImportingTsExtensions`) always spells the
+ * `.ts` extension in a specifier; the fallback below only covers a specifier
+ * that omits it, so the census stays correct if that convention ever loosens.
+ */
+function resolvedImportTargets(
+  corpus: CensusCorpus,
+  file: string,
+): ReadonlySet<string> {
+  const targets = new Set<string>();
+
+  for (const specifier of importSpecifiers(corpus.read(file))) {
+    const resolved = resolveRelativeSpecifier(file, specifier);
+
+    if (resolved === null) {
+      continue;
+    }
+
+    targets.add(resolved);
+    targets.add(/\.[a-z]+$/i.test(resolved) ? resolved : `${resolved}.ts`);
+  }
+
+  return targets;
+}
+
+/** §6.4 / §12.1: which specs actually import each shared support module. */
 export function supportConsumerCensus(
   corpus: CensusCorpus,
 ): readonly SupportConsumers[] {
@@ -170,12 +201,16 @@ export function supportConsumerCensus(
   const testTree = filesUnder(corpus, "test").filter((file) =>
     file.endsWith(".ts"),
   );
+  const importTargetsByFile = new Map<string, ReadonlySet<string>>(
+    testTree.map((file) => [file, resolvedImportTargets(corpus, file)]),
+  );
 
   return supportModules
     .map((supportFile) => {
-      const moduleName = supportFile.replace(/^test\//, "").replace(/\.ts$/, "");
       const consumers = testTree.filter(
-        (file) => file !== supportFile && corpus.read(file).includes(moduleName),
+        (file) =>
+          file !== supportFile &&
+          importTargetsByFile.get(file)?.has(supportFile) === true,
       );
 
       return {

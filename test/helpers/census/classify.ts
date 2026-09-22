@@ -2,6 +2,7 @@ import {
   type CensusCorpus,
   countLines,
   filesUnder,
+  resolveRelativeSpecifier,
   sourceFilesUnder,
   specFiles,
 } from "./corpus.ts";
@@ -99,39 +100,12 @@ export type CensusClassification = {
   };
 };
 
-function resolveImportSpecifier(from: string, specifier: string): string | null {
-  if (!specifier.startsWith(".")) {
-    return null;
-  }
-
-  const segments = from.split("/").slice(0, -1);
-
-  for (const segment of specifier.split("/")) {
-    if (segment === "." || segment === "") {
-      continue;
-    }
-
-    if (segment === "..") {
-      if (segments.length === 0) {
-        return null;
-      }
-
-      segments.pop();
-      continue;
-    }
-
-    segments.push(segment);
-  }
-
-  return segments.join("/");
-}
-
 function collectProductionImports(path: string, source: string): string[] {
   const resolved = new Set<string>();
 
   for (const pattern of [STATIC_IMPORT]) {
     for (const match of source.matchAll(pattern)) {
-      const target = resolveImportSpecifier(path, match[1] ?? "");
+      const target = resolveRelativeSpecifier(path, match[1] ?? "");
 
       if (
         target !== null &&
@@ -147,7 +121,7 @@ function collectProductionImports(path: string, source: string): string[] {
 
 function hasProductionDynamicImport(path: string, source: string): boolean {
   for (const match of source.matchAll(DYNAMIC_IMPORT)) {
-    const target = resolveImportSpecifier(path, match[1] ?? "");
+    const target = resolveRelativeSpecifier(path, match[1] ?? "");
 
     if (
       target !== null &&

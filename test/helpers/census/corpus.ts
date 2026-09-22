@@ -63,6 +63,73 @@ function sortedUnique(paths: readonly string[]): readonly string[] {
   return [...new Set(paths.map((path) => normalizePath(path)))].sort();
 }
 
+/**
+ * Resolves a relative import specifier written inside `fromPath` to a
+ * repo-relative path. Returns `null` for a non-relative specifier (a package
+ * import), so a caller never mistakes a bare package name for a repo path.
+ * Shared by every census module that needs to tell a real import apart from
+ * a string that merely mentions a module name (§13.1, §23).
+ */
+export function resolveRelativeSpecifier(
+  fromPath: string,
+  specifier: string,
+): string | null {
+  if (!specifier.startsWith(".")) {
+    return null;
+  }
+
+  const segments = normalizePath(fromPath).split("/").slice(0, -1);
+
+  for (const segment of specifier.split("/")) {
+    if (segment === "." || segment === "") {
+      continue;
+    }
+
+    if (segment === "..") {
+      if (segments.length === 0) {
+        return null;
+      }
+
+      segments.pop();
+      continue;
+    }
+
+    segments.push(segment);
+  }
+
+  return segments.join("/");
+}
+
+const IMPORT_SPECIFIER = new RegExp(
+  [
+    '\\bfrom\\s+["\'`]([^"\'`]+)["\'`]', // import ... from "spec"
+    '\\brequire\\s*\\(\\s*["\'`]([^"\'`]+)["\'`]\\s*\\)', // require("spec")
+    '\\bimport\\s*\\(\\s*["\'`]([^"\'`]+)["\'`]\\s*\\)', // import("spec")
+    '\\bimport\\s+["\'`]([^"\'`]+)["\'`]', // import "spec" (side-effect)
+  ].join("|"),
+  "g",
+);
+
+/**
+ * Every module specifier a file imports through a real `import`/`require`
+ * statement (static, side-effect, dynamic or CommonJS). A string that merely
+ * names a module — a path literal passed to a helper, a comment, test data —
+ * never matches this pattern, unlike a plain substring search.
+ */
+export function importSpecifiers(source: string): readonly string[] {
+  if (typeof source !== "string") {
+    throw new TypeError("import specifier extraction requires a string");
+  }
+
+  const specifiers: string[] = [];
+
+  for (const match of source.matchAll(IMPORT_SPECIFIER)) {
+    specifiers.push(match[1] ?? match[2] ?? match[3] ?? match[4] ?? "");
+  }
+
+  return specifiers;
+}
+
 /** Corpus backed by the git-tracked tree. Files are read lazily and cached. */
 export function createTrackedCorpus(): CensusCorpus {
   const files = sortedUnique(listTrackedFiles());

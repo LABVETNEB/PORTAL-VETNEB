@@ -43,12 +43,6 @@ export type StalePathCensus = {
   };
 };
 
-function looksLikeFile(path: string): boolean {
-  const last = path.split("/").pop() ?? "";
-
-  return /\.[A-Za-z0-9]+$/.test(last);
-}
-
 /** Census of every literal repo path referenced from `test/**`. */
 export function stalePathCensus(corpus: CensusCorpus): StalePathCensus {
   const tracked = new Set(corpus.files);
@@ -88,14 +82,15 @@ export function stalePathCensus(corpus: CensusCorpus): StalePathCensus {
     }
   }
 
+  // Precedence matters: an extensionless tracked file (e.g. `.github/CODEOWNERS`)
+  // must be resolved as a tracked file first. Falling back to "does it look
+  // like a file" before checking the tracked set misclassifies it as missing.
   const references: PathReference[] = [...byPath.entries()]
     .map(([path, entry]) => ({
       path,
       referencedBy: [...entry.referencedBy].sort(),
       occurrences: entry.occurrences,
-      exists: looksLikeFile(path)
-        ? tracked.has(path)
-        : trackedDirectories.has(path),
+      exists: tracked.has(path) || trackedDirectories.has(path),
     }))
     .sort((left, right) => left.path.localeCompare(right.path));
 

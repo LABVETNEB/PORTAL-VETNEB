@@ -61,6 +61,17 @@ export function evaluateEntry(entry: CensusEntry): LedgerReport {
     );
   }
 
+  if (
+    entry.baseline !== undefined &&
+    (!Number.isFinite(entry.baseline) ||
+      !Number.isInteger(entry.baseline) ||
+      entry.baseline < 0)
+  ) {
+    throw new Error(
+      `census baseline must be a finite non-negative integer: ${entry.metric}`,
+    );
+  }
+
   const anchor = entry.baseline ?? entry.historical;
 
   return {
@@ -91,6 +102,14 @@ export function declarationViolation(entry: CensusEntry): string | null {
   if (entry.resolution === "RECLASSIFIED") {
     if (typeof entry.baseline !== "number") {
       return `${entry.metric}: una reclasificación declara el valor que produce el tooling`;
+    }
+
+    if (
+      !Number.isFinite(entry.baseline) ||
+      !Number.isInteger(entry.baseline) ||
+      entry.baseline < 0
+    ) {
+      return `${entry.metric}: el baseline de una reclasificación debe ser un entero finito no negativo`;
     }
 
     if (entry.baseline === entry.historical) {
