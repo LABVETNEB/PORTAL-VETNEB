@@ -881,10 +881,12 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     section: "§11",
     metric: "specs con assert.throws(",
     historical: 22,
+    baseline: 29,
     compute: () => filesMatching(corpus, specs, /assert\.throws\(/).length,
-    resolution: "REPRODUCED",
+    resolution: "RECLASSIFIED",
     guard: BAND,
-    motive: "Volumen de prueba negativa, no congelable.",
+    motive:
+      "Volumen de prueba negativa, no congelable. El árbol previo a 04/no-store producía 28, el borde superior de 22 ± 6; el contrato no-store (04) añade la prueba fail-closed de su helper de mutación con assert.throws( y el árbol vigente produce 29. Crecimiento intencional, re-anclado sin ampliar la tolerancia ni cambiar el detector.",
   },
   {
     row: "A0-11-MUTATION",
