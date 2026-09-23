@@ -145,6 +145,251 @@ function assertCookieSerializationContract(files: readonly string[]) {
   }
 }
 
+// TEST-GLOBAL-04: expected policy fixed by this contract, never parsed from env.ts.
+const EXPECTED_SESSION_COOKIE_ENV_POLICY = {
+  production: { cookieSecure: true, cookieSameSite: "none" },
+  development: { cookieSecure: false, cookieSameSite: "lax" },
+  test: { cookieSecure: false, cookieSameSite: "lax" },
+} as const;
+
+type SessionCookieNodeEnv = keyof typeof EXPECTED_SESSION_COOKIE_ENV_POLICY;
+type SessionCookieEnvKey = keyof (typeof EXPECTED_SESSION_COOKIE_ENV_POLICY)[SessionCookieNodeEnv];
+
+const SESSION_COOKIE_NODE_ENVS = Object.keys(
+  EXPECTED_SESSION_COOKIE_ENV_POLICY,
+) as SessionCookieNodeEnv[];
+const SESSION_COOKIE_ENV_KEYS: readonly SessionCookieEnvKey[] = ["cookieSecure", "cookieSameSite"];
+
+type PolicyValue = string | boolean;
+type PolicyNode =
+  | { kind: "literal"; value: PolicyValue }
+  | { kind: "nodeEnv" }
+  | { kind: "compare"; negated: boolean; left: PolicyNode; right: PolicyNode }
+  | { kind: "ternary"; test: PolicyNode; whenTrue: PolicyNode; whenFalse: PolicyNode };
+
+function tokenizePolicyExpression(expression: string): string[] | undefined {
+  const pattern = /\s*(===|!==|"[^"\\]*"|[A-Za-z_$][\w$]*|[?:()|])/y;
+  const tokens: string[] = [];
+  let index = 0;
+
+  while (index < expression.length) {
+    pattern.lastIndex = index;
+    const match = pattern.exec(expression);
+    if (!match) {
+      return expression.slice(index).trim() === "" ? tokens : undefined;
+    }
+    tokens.push(match[1]);
+    index = pattern.lastIndex;
+  }
+
+  return tokens;
+}
+
+// Closed grammar: nodeEnv, string/boolean literals, === / !==, ternary, parens and a
+// trailing type-only cast to a string-literal union. Anything else is not evaluable.
+function parsePolicyExpression(expression: string): PolicyNode | undefined {
+  const tokens = tokenizePolicyExpression(expression);
+  if (!tokens) {
+    return undefined;
+  }
+
+  let position = 0;
+  const peek = () => tokens[position];
+  const take = (expected?: string): string => {
+    const token = tokens[position];
+    if (token === undefined || (expected !== undefined && token !== expected)) {
+      throw new Error(`unexpected token at ${position}`);
+    }
+    position += 1;
+    return token;
+  };
+
+  const parsePrimary = (): PolicyNode => {
+    const token = take();
+    if (token === "(") {
+      const inner = parseTernary();
+      take(")");
+      return inner;
+    }
+    if (token === "nodeEnv") {
+      return { kind: "nodeEnv" };
+    }
+    if (token === "true" || token === "false") {
+      return { kind: "literal", value: token === "true" };
+    }
+    if (token.startsWith('"')) {
+      return { kind: "literal", value: token.slice(1, -1) };
+    }
+    throw new Error(`unsupported token: ${token}`);
+  };
+
+  const parseComparison = (): PolicyNode => {
+    const left = parsePrimary();
+    const operator = peek();
+    if (operator === "===" || operator === "!==") {
+      take();
+      return { kind: "compare", negated: operator === "!==", left, right: parsePrimary() };
+    }
+    return left;
+  };
+
+  const parseTernary = (): PolicyNode => {
+    const condition = parseComparison();
+    if (peek() !== "?") {
+      return condition;
+    }
+    take("?");
+    const whenTrue = parseTernary();
+    take(":");
+    return { kind: "ternary", test: condition, whenTrue, whenFalse: parseTernary() };
+  };
+
+  try {
+    const root = parseTernary();
+    if (peek() === "as") {
+      take("as");
+      if (peek() === "|") {
+        take("|");
+      }
+      for (;;) {
+        if (!take().startsWith('"')) {
+          throw new Error("type cast must be a string-literal union");
+        }
+        if (peek() !== "|") {
+          break;
+        }
+        take("|");
+      }
+    }
+    return position === tokens.length ? root : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function evaluatePolicyNode(node: PolicyNode, nodeEnv: SessionCookieNodeEnv): PolicyValue {
+  switch (node.kind) {
+    case "literal":
+      return node.value;
+    case "nodeEnv":
+      return nodeEnv;
+    case "compare": {
+      const equal = evaluatePolicyNode(node.left, nodeEnv) === evaluatePolicyNode(node.right, nodeEnv);
+      return node.negated ? !equal : equal;
+    }
+    case "ternary": {
+      const condition = evaluatePolicyNode(node.test, nodeEnv);
+      if (typeof condition !== "boolean") {
+        throw new Error("ternary condition must be boolean");
+      }
+      return evaluatePolicyNode(condition ? node.whenTrue : node.whenFalse, nodeEnv);
+    }
+  }
+}
+
+function extractEnvPropertyExpression(envBody: string, key: string): string | undefined {
+  const marker = `\n  ${key}:`;
+  const first = envBody.indexOf(marker);
+  if (first === -1 || envBody.indexOf(marker, first + marker.length) !== -1) {
+    return undefined;
+  }
+
+  const rest = envBody.slice(first + marker.length);
+  const next = rest.search(/\n  (?:[A-Za-z_$][\w$]*\s*[:,]|\.\.\.)/);
+  const segment = (next === -1 ? rest : rest.slice(0, next)).trim();
+
+  return segment.endsWith(",") ? segment.slice(0, -1) : undefined;
+}
+
+function evaluateSessionCookieEnvironmentPolicy(rawSource: string): string[] {
+  const source = rawSource.replace(/\r\n/g, "\n");
+  const violations: string[] = [];
+
+  const nodeEnvSchema = source.match(/\n  NODE_ENV: z\.enum\(\[([^\]]*)\]\)\.optional\(\),\n/);
+  const schemaItems = nodeEnvSchema?.[1].split(",").map((item) => item.trim());
+  if (!schemaItems || schemaItems.some((item) => !/^"[a-z]+"$/.test(item))) {
+    violations.push("env NODE_ENV schema is not evaluable");
+  } else if (
+    JSON.stringify(schemaItems.map((item) => item.slice(1, -1)).sort()) !==
+    JSON.stringify([...SESSION_COOKIE_NODE_ENVS].sort())
+  ) {
+    violations.push(`env NODE_ENV schema must accept exactly ${[...SESSION_COOKIE_NODE_ENVS].sort().join(", ")}`);
+  }
+
+  const nodeEnvDeclarations = source.match(/^[ \t]*(?:const|let|var)\s+nodeEnv\b.*$/gm) ?? [];
+  if (nodeEnvDeclarations.length !== 1) {
+    violations.push("env nodeEnv declaration is not evaluable");
+  } else if (
+    nodeEnvDeclarations[0].trim().replace(/\s+/g, " ") !== 'const nodeEnv = rawEnv.NODE_ENV ?? "development";'
+  ) {
+    violations.push("env nodeEnv must derive from rawEnv.NODE_ENV with a development default");
+  }
+
+  const envOpen = "\nexport const ENV = {";
+  const envStart = source.indexOf(envOpen);
+  const envEnd = envStart === -1 ? -1 : source.indexOf("\n} as const;", envStart);
+  const envBody =
+    envStart !== -1 && source.indexOf(envOpen, envStart + envOpen.length) === -1 && envEnd !== -1
+      ? source.slice(envStart + envOpen.length, envEnd)
+      : undefined;
+
+  if (envBody === undefined) {
+    violations.push("env ENV object literal is not evaluable");
+  } else if (envBody.includes("\n  ...")) {
+    violations.push("env ENV object must not spread runtime overrides");
+  }
+
+  for (const key of SESSION_COOKIE_ENV_KEYS) {
+    const mentions = (source.match(new RegExp(`\\b${key}\\b`, "g")) ?? []).length;
+    if (mentions !== 1) {
+      violations.push(`env.ts must mention ${key} exactly once, found ${mentions}`);
+    }
+
+    const expression = envBody === undefined ? undefined : extractEnvPropertyExpression(envBody, key);
+    const node = expression === undefined ? undefined : parsePolicyExpression(expression);
+    if (!node) {
+      violations.push(`env ENV.${key} expression is not evaluable`);
+      continue;
+    }
+
+    for (const nodeEnv of SESSION_COOKIE_NODE_ENVS) {
+      let actual: PolicyValue;
+      try {
+        actual = evaluatePolicyNode(node, nodeEnv);
+      } catch {
+        violations.push(`env ENV.${key} expression is not evaluable`);
+        break;
+      }
+
+      const expected = EXPECTED_SESSION_COOKIE_ENV_POLICY[nodeEnv][key];
+      if (actual !== expected) {
+        violations.push(
+          `env ENV.${key} must be ${JSON.stringify(expected)} when NODE_ENV=${nodeEnv}, got ${JSON.stringify(actual)}`,
+        );
+      }
+    }
+  }
+
+  return violations;
+}
+
+function replaceOnce(source: string, target: string, replacement: string): string {
+  const first = source.indexOf(target);
+
+  assert.notEqual(first, -1, `mutation target must exist in source: ${target}`);
+  assert.equal(
+    source.indexOf(target, first + target.length),
+    -1,
+    `mutation target must be unique in source: ${target}`,
+  );
+
+  return source.slice(0, first) + replacement + source.slice(first + target.length);
+}
+
+function readEnvSource(): string {
+  return readSource("server/lib/env.ts").replace(/\r\n/g, "\n");
+}
+
 test("session cookie boundary matrix documents separated auth domains", () => {
   assert.deepEqual(SESSION_COOKIE_BOUNDARIES, {
     clinic: {
@@ -177,6 +422,199 @@ test("env keeps session cookie names separated and production policy secure", ()
   assertContains(envSource, "particularCookieName: resolveParticularSessionCookieName(", "particular cookie env");
   assertContains(envSource, 'cookieSecure: nodeEnv === "production"', "cookie secure env");
   assertContains(envSource, 'cookieSameSite: (nodeEnv === "production" ? "none" : "lax")', "cookie sameSite env");
+  assert.deepEqual(evaluateSessionCookieEnvironmentPolicy(envSource), []);
+});
+
+test("env session cookie policy evaluator is semantic, not textual", () => {
+  const envSource = readEnvSource();
+
+  assert.deepEqual(evaluateSessionCookieEnvironmentPolicy(envSource), []);
+  assert.deepEqual(
+    evaluateSessionCookieEnvironmentPolicy(
+      replaceOnce(envSource, 'cookieSecure: nodeEnv === "production",', 'cookieSecure: "production" === nodeEnv,'),
+    ),
+    [],
+  );
+  assert.deepEqual(
+    evaluateSessionCookieEnvironmentPolicy(
+      replaceOnce(envSource, '(nodeEnv === "production" ? "none" : "lax")', '(nodeEnv !== "production" ? "lax" : "none")'),
+    ),
+    [],
+  );
+});
+
+test("env session cookie policy mutations turn the evaluator red", () => {
+  const envSource = readEnvSource();
+  const secureLine = 'cookieSecure: nodeEnv === "production",';
+  const sameSiteTernary = '(nodeEnv === "production" ? "none" : "lax")';
+  const mutations = [
+    {
+      name: "secure disabled",
+      target: secureLine,
+      replacement: "cookieSecure: false,",
+      expected: ['env ENV.cookieSecure must be true when NODE_ENV=production, got false'],
+    },
+    {
+      name: "secure inverted",
+      target: secureLine,
+      replacement: 'cookieSecure: nodeEnv !== "production",',
+      expected: [
+        "env ENV.cookieSecure must be true when NODE_ENV=production, got false",
+        "env ENV.cookieSecure must be false when NODE_ENV=development, got true",
+        "env ENV.cookieSecure must be false when NODE_ENV=test, got true",
+      ],
+    },
+    {
+      name: "secure gated on a misspelled environment",
+      target: secureLine,
+      replacement: 'cookieSecure: nodeEnv === "prod",',
+      expected: ["env ENV.cookieSecure must be true when NODE_ENV=production, got false"],
+    },
+    {
+      name: "sameSite lax in production",
+      target: sameSiteTernary,
+      replacement: '(nodeEnv === "production" ? "lax" : "lax")',
+      expected: ['env ENV.cookieSameSite must be "none" when NODE_ENV=production, got "lax"'],
+    },
+    {
+      name: "sameSite strict in production",
+      target: sameSiteTernary,
+      replacement: '(nodeEnv === "production" ? "strict" : "lax")',
+      expected: ['env ENV.cookieSameSite must be "none" when NODE_ENV=production, got "strict"'],
+    },
+    {
+      name: "sameSite none outside production",
+      target: sameSiteTernary,
+      replacement: '(nodeEnv === "production" ? "none" : "none")',
+      expected: [
+        'env ENV.cookieSameSite must be "lax" when NODE_ENV=development, got "none"',
+        'env ENV.cookieSameSite must be "lax" when NODE_ENV=test, got "none"',
+      ],
+    },
+    {
+      name: "sameSite strict outside production",
+      target: sameSiteTernary,
+      replacement: '(nodeEnv === "production" ? "none" : "strict")',
+      expected: [
+        'env ENV.cookieSameSite must be "lax" when NODE_ENV=development, got "strict"',
+        'env ENV.cookieSameSite must be "lax" when NODE_ENV=test, got "strict"',
+      ],
+    },
+    {
+      name: "nodeEnv disconnected from NODE_ENV",
+      target: 'const nodeEnv = rawEnv.NODE_ENV ?? "development";',
+      replacement: 'const nodeEnv = "development";',
+      expected: ["env nodeEnv must derive from rawEnv.NODE_ENV with a development default"],
+    },
+    {
+      name: "production removed from NODE_ENV schema",
+      target: 'NODE_ENV: z.enum(["development", "test", "production"])',
+      replacement: 'NODE_ENV: z.enum(["development", "test"])',
+      expected: ["env NODE_ENV schema must accept exactly development, production, test"],
+    },
+    {
+      name: "secure overridden after ENV",
+      target: "\n} as const;\n",
+      replacement: "\n} as const;\n\nObject.assign(ENV, { cookieSecure: false });\n",
+      expected: ["env.ts must mention cookieSecure exactly once, found 2"],
+    },
+    {
+      name: "correct secure text kept in a comment",
+      target: secureLine,
+      replacement: `// ${secureLine}\n  cookieSecure: false,`,
+      expected: [
+        "env.ts must mention cookieSecure exactly once, found 2",
+        "env ENV.cookieSecure must be true when NODE_ENV=production, got false",
+      ],
+    },
+    {
+      name: "duplicate sameSite key inside ENV",
+      target: '  ownerOpenId: rawEnv.OWNER_OPEN_ID ?? "",',
+      replacement: '  cookieSameSite: "strict" as const,\n  ownerOpenId: rawEnv.OWNER_OPEN_ID ?? "",',
+      expected: [
+        "env.ts must mention cookieSameSite exactly once, found 2",
+        "env ENV.cookieSameSite expression is not evaluable",
+      ],
+    },
+    {
+      name: "runtime spread inside ENV",
+      target: '  ownerOpenId: rawEnv.OWNER_OPEN_ID ?? "",',
+      replacement: '  ...runtimeOverrides,\n  ownerOpenId: rawEnv.OWNER_OPEN_ID ?? "",',
+      expected: ["env ENV object must not spread runtime overrides"],
+    },
+  ] as const;
+
+  for (const mutation of mutations) {
+    const mutated = replaceOnce(envSource, mutation.target, mutation.replacement);
+
+    assert.notEqual(mutated, envSource, `${mutation.name} must change the source`);
+    assert.deepEqual(
+      evaluateSessionCookieEnvironmentPolicy(mutated),
+      [...mutation.expected],
+      `mutation must be detected: ${mutation.name}`,
+    );
+  }
+
+  // The legacy substring markers stay green on these regressions; only the evaluator catches them.
+  for (const name of ["secure overridden after ENV", "correct secure text kept in a comment"]) {
+    const mutation = mutations.find((candidate) => candidate.name === name);
+    assert.ok(mutation, `mutation not found: ${name}`);
+    const mutated = replaceOnce(envSource, mutation.target, mutation.replacement);
+    assert.equal(mutated.includes('cookieSecure: nodeEnv === "production"'), true, name);
+    assert.notDeepEqual(evaluateSessionCookieEnvironmentPolicy(mutated), [], name);
+  }
+});
+
+test("env session cookie policy evaluator fails closed on unevaluable structure", () => {
+  const envSource = readEnvSource();
+
+  assert.deepEqual(
+    evaluateSessionCookieEnvironmentPolicy(
+      replaceOnce(envSource, 'cookieSecure: nodeEnv === "production",', "cookieSecure: resolveCookieSecure(nodeEnv),"),
+    ),
+    ["env ENV.cookieSecure expression is not evaluable"],
+  );
+  assert.deepEqual(
+    evaluateSessionCookieEnvironmentPolicy(
+      replaceOnce(envSource, 'cookieSecure: nodeEnv === "production",', 'cookieSecure: nodeEnv === "production" || isPreview,'),
+    ),
+    ["env ENV.cookieSecure expression is not evaluable"],
+  );
+  assert.deepEqual(
+    evaluateSessionCookieEnvironmentPolicy(
+      replaceOnce(envSource, '(nodeEnv === "production" ? "none" : "lax")', '(nodeEnv ? "none" : "lax")'),
+    ),
+    ["env ENV.cookieSameSite expression is not evaluable"],
+  );
+  assert.deepEqual(
+    evaluateSessionCookieEnvironmentPolicy(
+      replaceOnce(envSource, "export const ENV = {", "export const ENV = Object.freeze({"),
+    ),
+    [
+      "env ENV object literal is not evaluable",
+      "env ENV.cookieSecure expression is not evaluable",
+      "env ENV.cookieSameSite expression is not evaluable",
+    ],
+  );
+  assert.deepEqual(evaluateSessionCookieEnvironmentPolicy(""), [
+    "env NODE_ENV schema is not evaluable",
+    "env nodeEnv declaration is not evaluable",
+    "env ENV object literal is not evaluable",
+    "env.ts must mention cookieSecure exactly once, found 0",
+    "env ENV.cookieSecure expression is not evaluable",
+    "env.ts must mention cookieSameSite exactly once, found 0",
+    "env ENV.cookieSameSite expression is not evaluable",
+  ]);
+
+  assert.throws(() => readSource("server/lib/env.absent.ts"), /source not found/);
+  assert.throws(
+    () => replaceOnce(envSource, "cookieSecure: insecureOverride,", ""),
+    /mutation target must exist in source/,
+  );
+  assert.throws(
+    () => replaceOnce(envSource, 'nodeEnv === "production"', "false"),
+    /mutation target must be unique in source/,
+  );
 });
 
 test("session cookie serializers keep security attributes stable", () => {
