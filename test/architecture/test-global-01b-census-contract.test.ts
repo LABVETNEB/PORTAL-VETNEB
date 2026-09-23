@@ -858,13 +858,13 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     section: "§11",
     metric: "specs con harness de mutación en memoria",
     historical: 9,
-    baseline: 11,
+    baseline: 15,
     compute: () =>
       classification.specs.filter((spec) => spec.hasMutationHarness).length,
     resolution: "RECLASSIFIED",
     guard: BAND,
     motive:
-      "La detección versionada es textual (mutación de una variable de source por `.replace(`) y alcanza 2 archivos que el recuento manual de §11 no listaba. Es una cota superior honesta: el criterio de §11 —mutar, evaluar y exigir rojo— sólo se confirma por lectura.",
+      "La detección versionada es textual (mutación de una variable de source por `.replace(`) y alcanza 2 archivos que el recuento manual de §11 no listaba: el histórico 9 pasó a 11 al reclasificar. Es una cota superior honesta: el criterio de §11 —mutar, evaluar y exigir rojo— sólo se confirma por lectura. Desde 01B el programa añadió harnesses reales: IDOR (02, #1763), runner Playwright (03, #1765), redacción de logs (04, #1766) y configuración de cookies de sesión en env.ts (04); el árbol vigente produce 15. Crecimiento intencional, re-anclado sin ampliar la tolerancia ni excluir ningún spec del detector.",
   },
   {
     row: "A0-11-MUTATION",
