@@ -4,6 +4,8 @@ import { createRequire } from "node:module";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { runInNewContext } from "node:vm";
+import ts from "typescript";
 
 import {
   E2E_COHORT_SPECS,
@@ -158,14 +160,76 @@ function stepByName(workflowJob: Mapping, name: string): Mapping {
 
 const FULL_STEP = "Run complete cataloged E2E suite";
 const BUILD_STEP = "Build frontend";
-const PRODUCTION_APPLICATION_COMMAND = "pnpm start --hostname 127.0.0.1";
+const PRODUCTION_APPLICATION_COMMAND = "next start --hostname 127.0.0.1";
+const LAUNCHER_PATH = "e2e/helpers/playwright-webserver-launcher.mjs";
+const NODE_EXECUTABLE = "<node>";
+const NEXT_BIN = "<next-bin>";
 let configImportSequence = 0;
 
 type ApplicationServer = { command?: string; url?: string; env?: Record<string, string> };
+type RunnerEnv = Record<string, string | undefined>;
+
+function readLauncher(): string {
+  return readFileSync(resolve(REPO_ROOT, "frontend", LAUNCHER_PATH), "utf8").replace(/\r\n/g, "\n");
+}
+
+// TEST-GLOBAL-03: the contract is the EFFECTIVE command. win32 configures the
+// launcher, so its real commandFor() is extracted and evaluated side-effect free
+// (same harness as frontend-playwright-production-runner.test.ts); any drift in
+// the argv → commandFor(kind) → spawn wiring fails closed.
+function runLauncher(source: string, kind: string, env: RunnerEnv): string {
+  const file = ts.createSourceFile(LAUNCHER_PATH, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+  const declarations = file.statements.filter(
+    (statement): statement is ts.FunctionDeclaration =>
+      ts.isFunctionDeclaration(statement) && statement.name?.text === "commandFor",
+  );
+  const statements = file.statements.map((statement) => statement.getText(file).replace(/\s+/g, " "));
+  const wiring = [
+    "const [kind] = process.argv.slice(2);",
+    "const command = commandFor(kind);",
+    "const child = spawn(command.executable, command.args, {",
+  ];
+  if (declarations.length !== 1 || !wiring.every((required) => statements.some((s) => s.startsWith(required)))) {
+    throw new Error("launcher format not recognized");
+  }
+
+  const spawned = runInNewContext(
+    `${declarations[0].getText(file)}\ncommandFor(kind);`,
+    {
+      kind,
+      process: { env: { ...env }, execPath: NODE_EXECUTABLE },
+      require: {
+        resolve: (id: string) => {
+          if (id !== "next/dist/bin/next") throw new Error(`launcher resolved an unexpected module: ${id}`);
+          return NEXT_BIN;
+        },
+      },
+    },
+    { timeout: 1_000 },
+  ) as { executable?: unknown; args?: unknown };
+  const args = spawned?.args;
+  if (spawned?.executable !== NODE_EXECUTABLE || !Array.isArray(args) || args[0] !== NEXT_BIN) {
+    throw new Error(`launcher spawn not recognized: ${JSON.stringify(spawned)}`);
+  }
+  return ["next", ...args.slice(1)].join(" ");
+}
+
+function effectiveApplicationCommand(configured: string | undefined, env: RunnerEnv, launcherSource: string): string {
+  const [program, target, ...rest] = (configured ?? "").split(" ");
+  if (program === "pnpm") {
+    const scripts = JSON.parse(readFileSync(resolve(REPO_ROOT, "frontend/package.json"), "utf8")).scripts ?? {};
+    if (typeof scripts[target] !== "string") throw new Error(`unknown frontend script in webServer command: ${configured}`);
+    return [scripts[target], ...rest].join(" ");
+  }
+  if (program === "node" && target === LAUNCHER_PATH && rest.length === 1) return runLauncher(launcherSource, rest[0], env);
+  throw new Error(`unrecognized application webServer command: ${configured}`);
+}
 
 // Resolves the application server playwright.config.ts selects for an env.
 // GitHub-hosted runners always export CI=true, so the step env is layered on it.
-async function applicationServerFor(stepEnv: Record<string, string>): Promise<ApplicationServer> {
+async function applicationServerFor(
+  stepEnv: Record<string, string>,
+): Promise<{ server: ApplicationServer; env: RunnerEnv }> {
   const env: Record<string, string | undefined> = { CI: "true", ...stepEnv };
   const names = ["CI", "E2E_REUSE_SERVER", "VETNEB_E2E_PRODUCTION_RUNNER"];
   const previous = new Map(names.map((name) => [name, process.env[name]]));
@@ -180,7 +244,7 @@ async function applicationServerFor(stepEnv: Record<string, string>): Promise<Ap
     const servers = Array.isArray(config.webServer) ? config.webServer : config.webServer ? [config.webServer] : [];
     const server = servers.find((candidate) => candidate.url === "http://127.0.0.1:3000");
     assert.ok(server, "playwright.config.ts must declare the application server on 127.0.0.1:3000");
-    return server;
+    return { server, env: { ...env, ...server.env } };
   } finally {
     for (const [name, value] of previous) {
       if (value === undefined) delete process.env[name];
@@ -192,7 +256,7 @@ async function applicationServerFor(stepEnv: Record<string, string>): Promise<Ap
 // E2E-GLOBAL-05B contract: e2e:full serves the bundle built earlier in the same
 // job through `next start`, because the Chromium Linux baselines are production
 // captures. Returns the violations instead of asserting so mutations are provable.
-async function evaluateFullProductionRunner(source: string): Promise<string[]> {
+async function evaluateFullProductionRunner(source: string, launcherSource = readLauncher()): Promise<string[]> {
   const failures: string[] = [];
   const workflowJob = job(parseWorkflow(source), "e2e-full-completeness");
   const steps = sequence(workflowJob.steps, "steps").map((value, index) => mapping(value, `steps[${index}]`));
@@ -213,9 +277,14 @@ async function evaluateFullProductionRunner(source: string): Promise<string[]> {
     failures.push("VETNEB_E2E_PRODUCTION_RUNNER must be scoped to the e2e:full step only");
   }
 
-  const server = await applicationServerFor(fullEnv);
-  if (server.command !== PRODUCTION_APPLICATION_COMMAND) {
-    failures.push(`e2e:full must run against next start, playwright.config.ts selected: ${server.command}`);
+  const { server, env } = await applicationServerFor(fullEnv);
+  const selected = effectiveApplicationCommand(server.command, env, launcherSource);
+  if (selected !== PRODUCTION_APPLICATION_COMMAND) {
+    failures.push(`e2e:full must run against next start, playwright.config.ts selected: ${selected}`);
+  }
+  const launched = runLauncher(launcherSource, "application", env);
+  if (launched !== PRODUCTION_APPLICATION_COMMAND) {
+    failures.push(`the Win32 launcher must run e2e:full against next start, it resolved: ${launched}`);
   }
   if (server.env?.VETNEB_E2E_ALLOW_LOCAL_API !== "1" || server.env?.VETNEB_E2E_DISABLE_EXTERNAL_EMBEDS !== "1") {
     failures.push("next start must receive the production-runner hermeticity exceptions");
@@ -400,10 +469,24 @@ test("production runner contract fails closed on flag, scope and build mutations
 
   const withoutFlag = await evaluateFullProductionRunner(source.replace(flagLine, ""));
   assert.ok(withoutFlag.some((failure) => failure.includes('VETNEB_E2E_PRODUCTION_RUNNER="1"')));
-  assert.ok(withoutFlag.some((failure) => failure.includes("selected: pnpm dev --hostname 127.0.0.1")));
+  assert.ok(withoutFlag.some((failure) => failure.includes("selected: next dev --hostname 127.0.0.1")));
+  assert.ok(withoutFlag.some((failure) => failure.includes("it resolved: next dev --hostname 127.0.0.1")));
 
   const wrongValue = await evaluateFullProductionRunner(source.replace(flagLine, flagLine.replace('"1"', '"true"')));
-  assert.ok(wrongValue.some((failure) => failure.includes("selected: pnpm dev --hostname 127.0.0.1")));
+  assert.ok(wrongValue.some((failure) => failure.includes("selected: next dev --hostname 127.0.0.1")));
+
+  const launcherSource = readLauncher();
+  const startSelection = 'isProductionRunner ? "start" : "dev"';
+  assert.ok(launcherSource.includes(startSelection), "fixture precondition: launcher start selection present");
+  const launcherWithoutStart = await evaluateFullProductionRunner(
+    source,
+    launcherSource.replace(startSelection, 'isProductionRunner ? "dev" : "dev"'),
+  );
+  assert.ok(launcherWithoutStart.some((failure) => failure.includes("it resolved: next dev --hostname 127.0.0.1")));
+  await assert.rejects(
+    evaluateFullProductionRunner(source, launcherSource.replace("function commandFor(", "function resolveCommand(")),
+    /launcher format not recognized/,
+  );
 
   const buildEnvAnchor = '          VETNEB_E2E_DISABLE_EXTERNAL_EMBEDS: "1"\n';
   const flagOnBuild = await evaluateFullProductionRunner(
