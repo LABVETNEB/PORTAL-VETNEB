@@ -120,6 +120,21 @@ const EXPECTED_NO_STORE_CLASSIFICATION: readonly (readonly [string, boolean])[] 
   ["", false],
 ];
 
+const API_PREFIX = "/api/";
+const PUBLIC_API_PREFIX = "/api/public/";
+
+// Toda URL cae en exactamente una clase: startsWith("/api/public/") implica startsWith("/api/").
+const EXPECTED_NO_STORE_POLICY: readonly {
+  scope: string;
+  api: boolean;
+  publicApi: boolean;
+  expected: boolean;
+}[] = [
+  { scope: "private /api/* URLs", api: true, publicApi: false, expected: true },
+  { scope: "/api/public/* URLs", api: true, publicApi: true, expected: false },
+  { scope: "non-/api/ URLs", api: false, publicApi: false, expected: false },
+];
+
 const HELPER_FILE = "server/lib/http/sensitive-response-cache.ts";
 const FASTIFY_APP_FILE = "server/fastify-app.ts";
 
@@ -276,17 +291,44 @@ function parsePathPredicate(expression: string, param: string): PathPredicate | 
   }
 }
 
-function evaluatePathPredicate(node: PathPredicate, url: string): boolean {
+function evaluatePathPredicate(node: PathPredicate, holds: (prefix: string) => boolean): boolean {
   switch (node.kind) {
     case "startsWith":
-      return url.startsWith(node.prefix);
+      return holds(node.prefix);
     case "not":
-      return !evaluatePathPredicate(node.operand, url);
+      return !evaluatePathPredicate(node.operand, holds);
     case "and":
-      return evaluatePathPredicate(node.left, url) && evaluatePathPredicate(node.right, url);
+      return evaluatePathPredicate(node.left, holds) && evaluatePathPredicate(node.right, holds);
     case "or":
-      return evaluatePathPredicate(node.left, url) || evaluatePathPredicate(node.right, url);
+      return evaluatePathPredicate(node.left, holds) || evaluatePathPredicate(node.right, holds);
   }
+}
+
+function collectPathPrefixes(node: PathPredicate): string[] {
+  switch (node.kind) {
+    case "startsWith":
+      return [node.prefix];
+    case "not":
+      return collectPathPrefixes(node.operand);
+    case "and":
+    case "or":
+      return [...collectPathPrefixes(node.left), ...collectPathPrefixes(node.right)];
+  }
+}
+
+function parseSensitiveApiClassifier(rawSource: string): PathPredicate | undefined {
+  const source = stripComments(rawSource.replace(/\r\n/g, "\n"));
+  const classifier =
+    source === undefined
+      ? undefined
+      : extractTopLevelFunction(
+          source,
+          "shouldApplySensitiveApiNoStore",
+          /^export function shouldApplySensitiveApiNoStore\((\w+): string\): boolean \{$/m,
+        );
+  const returned = classifier && /^return (.+);$/.exec(classifier.body.replace(/\s+/g, " ").trim());
+
+  return classifier && returned ? parsePathPredicate(returned[1], classifier.params[0]) : undefined;
 }
 
 function evaluateSensitiveResponseCacheHelper(rawSource: string): string[] {
@@ -308,18 +350,33 @@ function evaluateSensitiveResponseCacheHelper(rawSource: string): string[] {
     );
   }
 
-  const classifier = extractTopLevelFunction(
-    source,
-    "shouldApplySensitiveApiNoStore",
-    /^export function shouldApplySensitiveApiNoStore\((\w+): string\): boolean \{$/m,
-  );
-  const returned = classifier && /^return (.+);$/.exec(classifier.body.replace(/\s+/g, " ").trim());
-  const predicate = classifier && returned ? parsePathPredicate(returned[1], classifier.params[0]) : undefined;
+  const predicate = parseSensitiveApiClassifier(source);
   if (!predicate) {
     violations.push("helper shouldApplySensitiveApiNoStore is not evaluable");
   } else {
+    // Prueba de politica completa: con solo los dos limites generales como atomos,
+    // la tabla de verdad sobre las tres clases de URL cubre toda URL posible.
+    const unexpectedPrefixes = [...new Set(collectPathPrefixes(predicate))]
+      .filter((prefix) => prefix !== API_PREFIX && prefix !== PUBLIC_API_PREFIX)
+      .sort();
+    for (const prefix of unexpectedPrefixes) {
+      violations.push(
+        `helper shouldApplySensitiveApiNoStore uses prefix ${JSON.stringify(prefix)} outside the /api/ minus /api/public/ policy`,
+      );
+    }
+    if (unexpectedPrefixes.length === 0) {
+      for (const { scope, api, publicApi, expected } of EXPECTED_NO_STORE_POLICY) {
+        const actual = evaluatePathPredicate(predicate, (prefix) =>
+          prefix === API_PREFIX ? api : publicApi,
+        );
+        if (actual !== expected) {
+          violations.push(`helper shouldApplySensitiveApiNoStore must be ${expected} for ${scope}, got ${actual}`);
+        }
+      }
+    }
+
     for (const [url, expected] of EXPECTED_NO_STORE_CLASSIFICATION) {
-      const actual = evaluatePathPredicate(predicate, url);
+      const actual = evaluatePathPredicate(predicate, (prefix) => url.startsWith(prefix));
       if (actual !== expected) {
         violations.push(
           `helper shouldApplySensitiveApiNoStore(${JSON.stringify(url)}) must be ${expected}, got ${actual}`,
@@ -409,6 +466,14 @@ function splitTopLevelStatements(body: string): string[] | undefined {
       depth += 1;
     } else if (")]}".includes(char)) {
       depth -= 1;
+      if (
+        char === "}" &&
+        depth === 0 &&
+        /^\s*(?:(?:if|else|for|while|do|switch|try|catch|finally)\b|\{)/.test(body.slice(start, index))
+      ) {
+        statements.push(compactCode(body.slice(start, index + 1)));
+        start = index + 1;
+      }
     } else if (char === ";" && depth === 0) {
       statements.push(compactCode(body.slice(start, index)));
       start = index + 1;
@@ -469,14 +534,46 @@ function evaluateFastifyNoStoreWiring(rawSource: string): string[] {
   const callIndex = statements.indexOf(
     compactCode(`applySensitiveApiNoStoreHeaders(${callback[1]}, ${callback[2]})`),
   );
-  const returnIndex = statements.findIndex((statement) => /^return\b/.test(statement));
-  if (callIndex === -1 || (returnIndex !== -1 && returnIndex < callIndex)) {
+  if (callIndex === -1) {
     violations.push(
       "fastify-app onSend must call applySensitiveApiNoStoreHeaders(request, reply) as a top-level statement before returning",
+    );
+    return violations;
+  }
+
+  // Fail-closed: cualquier sentencia previa puede saltear el helper (salida anticipada)
+  // o anularlo (un Cache-Control previo hace que hasHeader lo omita).
+  const preceding = statements.slice(0, callIndex);
+  if (preceding.some((statement) => /\b(?:return|throw)\b/.test(blankStringLiterals(statement)))) {
+    violations.push(
+      "fastify-app onSend has an early exit (return/throw) before applySensitiveApiNoStoreHeaders(request, reply)",
+    );
+  } else if (preceding.length > 0) {
+    violations.push(
+      "fastify-app onSend must run applySensitiveApiNoStoreHeaders(request, reply) before any other statement",
     );
   }
 
   return violations;
+}
+
+function blankStringLiterals(code: string): string {
+  let output = "";
+  let index = 0;
+
+  while (index < code.length) {
+    const char = code[index];
+    const close = char === '"' || char === "'" || char === "`" ? findStringEnd(code, index) : -1;
+    if (close === -1) {
+      output += char;
+      index += 1;
+    } else {
+      output += `${char}${char}`;
+      index = close + 1;
+    }
+  }
+
+  return output;
 }
 
 function replaceOnce(source: string, target: string, replacement: string): string {
@@ -505,8 +602,51 @@ test("evaluator no-store: el source real cumple la politica fija del contrato", 
   assert.deepEqual(evaluateFastifyNoStoreWiring(readNormalizedSource(FASTIFY_APP_FILE)), []);
 });
 
+test("evaluator no-store: prefijos registrados en fastify-app respetan la politica (complemento)", () => {
+  const registered = [
+    ...(stripComments(readNormalizedSource(FASTIFY_APP_FILE)) ?? "").matchAll(/\bprefix: "(\/[^"]*)"/g),
+  ].map((match) => match[1]);
+  const predicate = parseSensitiveApiClassifier(readNormalizedSource(HELPER_FILE));
+
+  assert.ok(predicate, "real classifier must be evaluable");
+  assert.ok(registered.includes("/api/logistics/route-plans"), "registered private logistics prefix");
+  assert.ok(registered.some((prefix) => prefix.startsWith(PUBLIC_API_PREFIX)), "registered public prefix");
+
+  for (const prefix of registered) {
+    const expected = prefix.startsWith(API_PREFIX) && !prefix.startsWith(PUBLIC_API_PREFIX);
+
+    assert.equal(shouldApplySensitiveApiNoStore(prefix), expected, prefix);
+    assert.equal(evaluatePathPredicate(predicate, (candidate) => prefix.startsWith(candidate)), expected, prefix);
+  }
+});
+
 test("evaluator no-store es semantico, no textual", () => {
   const helperSource = readNormalizedSource(HELPER_FILE);
+  const fastifySource = readNormalizedSource(FASTIFY_APP_FILE);
+  const hookCall = "      applySensitiveApiNoStoreHeaders(request, reply);\n";
+
+  assert.deepEqual(
+    evaluateSensitiveResponseCacheHelper(
+      replaceOnce(
+        helperSource,
+        'url.startsWith("/api/") && !url.startsWith("/api/public/")',
+        '!(url.startsWith("/api/public/") || !url.startsWith("/api/"))',
+      ),
+    ),
+    [],
+  );
+  assert.deepEqual(
+    evaluateFastifyNoStoreWiring(
+      replaceOnce(fastifySource, hookCall, `      // if (request.url.startsWith("/api/")) return payload;\n${hookCall}`),
+    ),
+    [],
+  );
+  assert.deepEqual(
+    evaluateFastifyNoStoreWiring(
+      replaceOnce(fastifySource, hookCall, `      reply.log.debug("return payload");\n${hookCall}`),
+    ),
+    ["fastify-app onSend must run applySensitiveApiNoStoreHeaders(request, reply) before any other statement"],
+  );
 
   assert.deepEqual(
     evaluateSensitiveResponseCacheHelper(
@@ -544,6 +684,7 @@ test("mutaciones del helper no-store ponen el evaluator en rojo", () => {
       target: 'url.startsWith("/api/") &&',
       replacement: 'url.startsWith("/api/admin/") &&',
       expected: [
+        'helper shouldApplySensitiveApiNoStore uses prefix "/api/admin/" outside the /api/ minus /api/public/ policy',
         'helper shouldApplySensitiveApiNoStore("/api/reports") must be true, got false',
         'helper shouldApplySensitiveApiNoStore("/api/auth/change-password") must be true, got false',
         'helper shouldApplySensitiveApiNoStore("/api/app-version") must be true, got false',
@@ -554,6 +695,7 @@ test("mutaciones del helper no-store ponen el evaluator en rojo", () => {
       target: ' && !url.startsWith("/api/public/")',
       replacement: "",
       expected: [
+        "helper shouldApplySensitiveApiNoStore must be false for /api/public/* URLs, got true",
         'helper shouldApplySensitiveApiNoStore("/api/public/pricing") must be false, got true',
         'helper shouldApplySensitiveApiNoStore("/api/public/professionals/search") must be false, got true',
       ],
@@ -596,6 +738,54 @@ test("mutaciones del helper no-store ponen el evaluator en rojo", () => {
   }
 });
 
+test("clasificador estrecho que preserva los ejemplos del oracle queda en rojo", () => {
+  const helperSource = readNormalizedSource(HELPER_FILE);
+  const policy = 'url.startsWith("/api/") && !url.startsWith("/api/public/")';
+  const mutations = [
+    {
+      name: "union de subprefijos conocidos",
+      replacement:
+        'url.startsWith("/api/reports") ||\n    url.startsWith("/api/admin/") ||\n    url.startsWith("/api/auth/") ||\n    url.startsWith("/api/app-version")',
+      expected: [
+        'helper shouldApplySensitiveApiNoStore uses prefix "/api/admin/" outside the /api/ minus /api/public/ policy',
+        'helper shouldApplySensitiveApiNoStore uses prefix "/api/app-version" outside the /api/ minus /api/public/ policy',
+        'helper shouldApplySensitiveApiNoStore uses prefix "/api/auth/" outside the /api/ minus /api/public/ policy',
+        'helper shouldApplySensitiveApiNoStore uses prefix "/api/reports" outside the /api/ minus /api/public/ policy',
+      ],
+    },
+    {
+      name: "exclusion parcial de una familia privada",
+      replacement: `${policy} && !url.startsWith("/api/logistics/")`,
+      expected: [
+        'helper shouldApplySensitiveApiNoStore uses prefix "/api/logistics/" outside the /api/ minus /api/public/ policy',
+      ],
+    },
+  ] as const;
+
+  for (const mutation of mutations) {
+    const mutated = replaceOnce(helperSource, policy, mutation.replacement);
+    const predicate = parseSensitiveApiClassifier(mutated);
+
+    assert.ok(predicate, `${mutation.name} must stay parseable`);
+    // La matriz de ejemplos sola no alcanzaba: todos siguen coincidiendo.
+    for (const [url, expected] of EXPECTED_NO_STORE_CLASSIFICATION) {
+      assert.equal(evaluatePathPredicate(predicate, (prefix) => url.startsWith(prefix)), expected, url);
+    }
+    assert.equal(
+      evaluatePathPredicate(predicate, (prefix) => "/api/logistics/route-plans".startsWith(prefix)),
+      false,
+      `${mutation.name} leaves a registered private route cacheable`,
+    );
+    assert.deepEqual(
+      evaluateSensitiveResponseCacheHelper(mutated),
+      [...mutation.expected],
+      `mutation must be detected: ${mutation.name}`,
+    );
+  }
+
+  assert.equal(shouldApplySensitiveApiNoStore("/api/logistics/route-plans"), true);
+});
+
 test("mutaciones del cableado onSend de fastify-app ponen el evaluator en rojo", () => {
   const fastifySource = readNormalizedSource(FASTIFY_APP_FILE);
   const hookCall = "      applySensitiveApiNoStoreHeaders(request, reply);\n";
@@ -615,7 +805,31 @@ test("mutaciones del cableado onSend de fastify-app ponen el evaluator en rojo",
       target: `${hookCall}\n${hookReturn}`,
       replacement: `${hookReturn}${hookCall}`,
       expected: [
-        "fastify-app onSend must call applySensitiveApiNoStoreHeaders(request, reply) as a top-level statement before returning",
+        "fastify-app onSend has an early exit (return/throw) before applySensitiveApiNoStoreHeaders(request, reply)",
+      ],
+    },
+    {
+      name: "return condicional sin llaves antes del helper",
+      target: hookCall,
+      replacement: `      if (request.url.startsWith("/api/")) return payload;\n\n${hookCall}`,
+      expected: [
+        "fastify-app onSend has an early exit (return/throw) before applySensitiveApiNoStoreHeaders(request, reply)",
+      ],
+    },
+    {
+      name: "return condicional en bloque antes del helper",
+      target: hookCall,
+      replacement: `      if (request.url.startsWith("/api/")) {\n        return payload;\n      }\n\n${hookCall}`,
+      expected: [
+        "fastify-app onSend has an early exit (return/throw) before applySensitiveApiNoStoreHeaders(request, reply)",
+      ],
+    },
+    {
+      name: "Cache-Control publico fijado antes del helper",
+      target: hookCall,
+      replacement: `      reply.header("cache-control", "public, max-age=600");\n\n${hookCall}`,
+      expected: [
+        "fastify-app onSend must run applySensitiveApiNoStoreHeaders(request, reply) before any other statement",
       ],
     },
     {
