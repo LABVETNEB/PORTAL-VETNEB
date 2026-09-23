@@ -106,6 +106,41 @@ const STRUCTURED_LOGGER_KEY_MATRIX = [
   "connectionstring",
 ] as const;
 
+// Taxonomia completa de claves que isSensitiveLogKey debe redactar, fijada en
+// el test (no derivada del source) para que su perdida sea una violacion.
+const STRUCTURED_LOGGER_SENSITIVE_KEY_FRAGMENTS = [
+  ...STRUCTURED_LOGGER_KEY_MATRIX,
+  "passphrase",
+  "credential",
+  "privatekey",
+  "bearer",
+] as const;
+
+const STRUCTURED_LOGGER_SENSITIVE_KEY_EXACT = [
+  "pass",
+  "dsn",
+  "auth",
+  "key",
+  "email",
+  "emails",
+  "recipient",
+  "recipients",
+  "recipientemail",
+  "recipientemails",
+] as const;
+
+const SENSITIVE_KEY_FRAGMENTS_LITERAL = {
+  start: "const SENSITIVE_KEY_FRAGMENTS = [",
+  end: "];",
+  label: "SENSITIVE_KEY_FRAGMENTS",
+} as const;
+
+const SENSITIVE_KEY_EXACT_LITERAL = {
+  start: "const SENSITIVE_KEY_EXACT = new Set([",
+  end: "]);",
+  label: "SENSITIVE_KEY_EXACT",
+} as const;
+
 const STRUCTURED_LOGGER_TEXT_REDACTION_PATTERNS = [
   "SIGNED_URL_PATTERN",
   "CONNECTION_STRING_PATTERN",
@@ -131,6 +166,41 @@ function sliceBetween(source: string, start: string, end: string): string | null
   const endIndex = source.indexOf(end, startIndex + start.length);
 
   return endIndex === -1 ? null : source.slice(startIndex + start.length, endIndex);
+}
+
+type StringLiteralBoundary = { start: string; end: string; label: string };
+
+// Lee los items de un literal real (array o Set) linea por linea. Cualquier
+// linea que no sea un item `"clave",` o un comentario lo vuelve no evaluable.
+function readStringLiteralItems(
+  source: string,
+  literal: StringLiteralBoundary,
+): Set<string> | null {
+  const body = sliceBetween(source, literal.start, literal.end);
+
+  if (body === null) {
+    return null;
+  }
+
+  const items = new Set<string>();
+
+  for (const line of body.split("\n")) {
+    const trimmed = line.trim();
+
+    if (trimmed === "" || trimmed.startsWith("//")) {
+      continue;
+    }
+
+    const match = /^"([a-z0-9]+)",?$/.exec(trimmed);
+
+    if (match === null) {
+      return null;
+    }
+
+    items.add(match[1]);
+  }
+
+  return items.size === 0 ? null : items;
 }
 
 // Pure evaluator over the logger source: returns violations instead of
@@ -179,15 +249,45 @@ function evaluateStructuredLoggerRedaction(rawSource: string): string[] {
     "structured logger redaction value",
   );
 
-  const fragmentsLiteral = sliceBetween(logger, "const SENSITIVE_KEY_FRAGMENTS = [", "];");
+  for (const [literal, required] of [
+    [SENSITIVE_KEY_FRAGMENTS_LITERAL, STRUCTURED_LOGGER_SENSITIVE_KEY_FRAGMENTS],
+    [SENSITIVE_KEY_EXACT_LITERAL, STRUCTURED_LOGGER_SENSITIVE_KEY_EXACT],
+  ] as const) {
+    const items = readStringLiteralItems(logger, literal);
 
-  if (fragmentsLiteral === null) {
-    violations.push("structured logger SENSITIVE_KEY_FRAGMENTS literal is not evaluable");
-  } else {
-    for (const fragment of STRUCTURED_LOGGER_KEY_MATRIX) {
-      if (!fragmentsLiteral.includes(`"${fragment}"`)) {
-        violations.push(`structured logger SENSITIVE_KEY_FRAGMENTS must contain: "${fragment}"`);
+    if (items === null) {
+      violations.push(`structured logger ${literal.label} literal is not evaluable`);
+      continue;
+    }
+
+    for (const key of required) {
+      if (!items.has(key)) {
+        violations.push(`structured logger ${literal.label} must contain: "${key}"`);
       }
+    }
+  }
+
+  const sensitiveKeyPredicate = sliceBetween(
+    logger,
+    "export function isSensitiveLogKey(key: string): boolean {",
+    "\n}\n",
+  );
+
+  if (sensitiveKeyPredicate === null) {
+    violations.push("structured logger isSensitiveLogKey body is not evaluable");
+  } else {
+    const compactPredicate = sensitiveKeyPredicate.replace(/\s+/g, "");
+
+    if (!compactPredicate.includes("if(SENSITIVE_KEY_EXACT.has(normalizedKey)){returntrue;}")) {
+      violations.push("structured logger isSensitiveLogKey must match SENSITIVE_KEY_EXACT");
+    }
+
+    if (
+      !compactPredicate.includes(
+        "returnSENSITIVE_KEY_FRAGMENTS.some((fragment)=>normalizedKey.includes(fragment),);",
+      )
+    ) {
+      violations.push("structured logger isSensitiveLogKey must match SENSITIVE_KEY_FRAGMENTS");
     }
   }
 
@@ -241,6 +341,26 @@ function replaceOnce(source: string, target: string, replacement: string): strin
   );
 
   return source.slice(0, first) + replacement + source.slice(first + target.length);
+}
+
+// Retira un item solo dentro del literal real: una aparicion del mismo string
+// fuera del literal (p. ej. en un comentario) no puede absorber la mutacion.
+function removeLiteralItem(
+  source: string,
+  literal: StringLiteralBoundary,
+  item: string,
+): string {
+  const body = sliceBetween(source, literal.start, literal.end);
+
+  assert.notEqual(body, null, `mutation literal must be evaluable: ${literal.label}`);
+
+  const mutatedBody = replaceOnce(body as string, `\n  "${item}",`, "");
+
+  return replaceOnce(
+    source,
+    `${literal.start}${body}${literal.end}`,
+    `${literal.start}${mutatedBody}${literal.end}`,
+  );
 }
 
 test("sensitive log redaction matrix documents protected boundaries", () => {
@@ -446,6 +566,50 @@ test("structured logger redaction evaluator fails closed on real redaction regre
     );
   }
 
+  for (const [literal, keys] of [
+    [SENSITIVE_KEY_FRAGMENTS_LITERAL, STRUCTURED_LOGGER_SENSITIVE_KEY_FRAGMENTS],
+    [SENSITIVE_KEY_EXACT_LITERAL, STRUCTURED_LOGGER_SENSITIVE_KEY_EXACT],
+  ] as const) {
+    for (const key of keys) {
+      const expected = [`structured logger ${literal.label} must contain: "${key}"`];
+
+      if ((STRUCTURED_LOGGER_KEY_MATRIX as readonly string[]).includes(key)) {
+        expected.unshift(`structured logger key matrix must contain: "${key}"`);
+      }
+
+      assert.deepEqual(
+        evaluateStructuredLoggerRedaction(removeLiteralItem(logger, literal, key)),
+        expected,
+        `mutation must be detected: "${key}" removed from ${literal.label}`,
+      );
+    }
+  }
+
+  for (const mutation of [
+    {
+      target: "  if (SENSITIVE_KEY_EXACT.has(normalizedKey)) {\n    return true;\n  }\n",
+      expected: "structured logger isSensitiveLogKey must match SENSITIVE_KEY_EXACT",
+    },
+    {
+      target: "  return SENSITIVE_KEY_FRAGMENTS.some((fragment) =>\n    normalizedKey.includes(fragment),\n  );\n",
+      expected: "structured logger isSensitiveLogKey must match SENSITIVE_KEY_FRAGMENTS",
+    },
+  ] as const) {
+    assert.deepEqual(
+      evaluateStructuredLoggerRedaction(replaceOnce(logger, mutation.target, "")),
+      [mutation.expected],
+      `mutation must be detected: ${mutation.expected}`,
+    );
+  }
+
+  assert.deepEqual(
+    evaluateStructuredLoggerRedaction(replaceOnce(logger, '\n  "dsn",\n', "\n  ...DYNAMIC_KEYS,\n")),
+    ["structured logger SENSITIVE_KEY_EXACT literal is not evaluable"],
+  );
+  assert.throws(
+    () => removeLiteralItem(logger, SENSITIVE_KEY_EXACT_LITERAL, "absentkey"),
+    /mutation target must exist in source/,
+  );
   assert.throws(() => readSource("server/lib/logger.absent.ts"), /ENOENT/);
   assert.throws(
     () => replaceOnce(logger, "result[key] = rawSecretValue;", ""),
@@ -455,6 +619,8 @@ test("structured logger redaction evaluator fails closed on real redaction regre
     evaluateStructuredLoggerRedaction("").filter((violation) => violation.endsWith("is not evaluable")),
     [
       "structured logger SENSITIVE_KEY_FRAGMENTS literal is not evaluable",
+      "structured logger SENSITIVE_KEY_EXACT literal is not evaluable",
+      "structured logger isSensitiveLogKey body is not evaluable",
       "structured logger sensitive-key branch is not evaluable",
       "structured logger string case is not evaluable",
       "structured logger redactSensitiveText body is not evaluable",
