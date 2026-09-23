@@ -75,20 +75,172 @@ function assertNotContains(source: string, marker: string, context: string) {
   assert.equal(source.includes(marker), false, `${context} must not contain: ${marker}`);
 }
 
-function assertNoDirectSecretLogging(source: string, context: string) {
-  const dangerousLogPatterns = [
-    /console\.(log|error|warn|info)\([^)]*password/i,
-    /console\.(log|error|warn|info)\([^)]*tokenHash/i,
-    /console\.(log|error|warn|info)\([^)]*sessionToken/i,
-    /console\.(log|error|warn|info)\([^)]*rawToken/i,
-    /console\.(log|error|warn|info)\([^)]*authorization/i,
-    /console\.(log|error|warn|info)\([^)]*cookie/i,
-    /console\.(log|error|warn|info)\([^)]*signedUrl/i,
-  ];
+const DANGEROUS_LOG_PATTERNS = [
+  /console\.(log|error|warn|info)\([^)]*password/i,
+  /console\.(log|error|warn|info)\([^)]*tokenHash/i,
+  /console\.(log|error|warn|info)\([^)]*sessionToken/i,
+  /console\.(log|error|warn|info)\([^)]*rawToken/i,
+  /console\.(log|error|warn|info)\([^)]*authorization/i,
+  /console\.(log|error|warn|info)\([^)]*cookie/i,
+  /console\.(log|error|warn|info)\([^)]*signedUrl/i,
+] as const;
 
-  for (const pattern of dangerousLogPatterns) {
+function assertNoDirectSecretLogging(source: string, context: string) {
+  for (const pattern of DANGEROUS_LOG_PATTERNS) {
     assert.doesNotMatch(source, pattern, `${context} must not log sensitive data with ${pattern}`);
   }
+}
+
+const STRUCTURED_LOGGER_KEY_MATRIX = [
+  "authorization",
+  "cookie",
+  "password",
+  "secret",
+  "servicerole",
+  "apikey",
+  "token",
+  "session",
+  "signedurl",
+  "storagepath",
+  "databaseurl",
+  "connectionstring",
+] as const;
+
+const STRUCTURED_LOGGER_TEXT_REDACTION_PATTERNS = [
+  "SIGNED_URL_PATTERN",
+  "CONNECTION_STRING_PATTERN",
+  "JWT_PATTERN",
+  "SUPABASE_SECRET_PATTERN",
+  "EMAIL_ADDRESS_PATTERN",
+  "BEARER_PATTERN",
+  "SENSITIVE_QUERY_PARAM_PATTERN",
+  "SERIALIZED_COOKIE_PATTERN",
+] as const;
+
+function normalizeWhitespace(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function sliceBetween(source: string, start: string, end: string): string | null {
+  const startIndex = source.indexOf(start);
+
+  if (startIndex === -1 || source.indexOf(start, startIndex + 1) !== -1) {
+    return null;
+  }
+
+  const endIndex = source.indexOf(end, startIndex + start.length);
+
+  return endIndex === -1 ? null : source.slice(startIndex + start.length, endIndex);
+}
+
+// Pure evaluator over the logger source: returns violations instead of
+// asserting, so in-memory mutations of the real source are provable.
+function evaluateStructuredLoggerRedaction(rawSource: string): string[] {
+  const logger = rawSource.replace(/\r\n/g, "\n");
+  const violations: string[] = [];
+  const requireMarker = (marker: string, context: string) => {
+    if (!logger.includes(marker)) violations.push(`${context} must contain: ${marker}`);
+  };
+  const forbidMarker = (marker: string, context: string) => {
+    if (logger.includes(marker)) violations.push(`${context} must not contain: ${marker}`);
+  };
+
+  for (const marker of [
+    "export function redactLogValue",
+    "export function redactSensitiveText",
+    "export function serializeError",
+    "export function isSensitiveLogKey",
+    "isSafeRequestId",
+    "[REDACTED]",
+  ]) {
+    requireMarker(marker, "structured logger redaction boundary");
+  }
+
+  for (const fragment of STRUCTURED_LOGGER_KEY_MATRIX) {
+    requireMarker(`"${fragment}"`, "structured logger key matrix");
+  }
+
+  forbidMarker("error.stack", "structured logger stack export");
+
+  for (const pattern of DANGEROUS_LOG_PATTERNS) {
+    if (pattern.test(logger)) {
+      violations.push(`structured logger must not log sensitive data with ${pattern}`);
+    }
+  }
+
+  // El mensaje libre de un error nunca se exporta: una regex de credenciales no
+  // puede demostrar que no contiene datos clinicos, SQL o PII.
+  forbidMarker("error.message", "structured logger free-form message");
+  requireMarker("messageSanitized: LOG_REDACTED_VALUE", "structured logger closed error envelope");
+  requireMarker("UnknownError", "structured logger non-Error envelope");
+
+  requireMarker(
+    'export const LOG_REDACTED_VALUE = "[REDACTED]";',
+    "structured logger redaction value",
+  );
+
+  const fragmentsLiteral = sliceBetween(logger, "const SENSITIVE_KEY_FRAGMENTS = [", "];");
+
+  if (fragmentsLiteral === null) {
+    violations.push("structured logger SENSITIVE_KEY_FRAGMENTS literal is not evaluable");
+  } else {
+    for (const fragment of STRUCTURED_LOGGER_KEY_MATRIX) {
+      if (!fragmentsLiteral.includes(`"${fragment}"`)) {
+        violations.push(`structured logger SENSITIVE_KEY_FRAGMENTS must contain: "${fragment}"`);
+      }
+    }
+  }
+
+  const sensitiveKeyBranch = sliceBetween(logger, "if (isSensitiveLogKey(key)) {", "}");
+
+  if (sensitiveKeyBranch === null) {
+    violations.push("structured logger sensitive-key branch is not evaluable");
+  } else if (
+    normalizeWhitespace(sensitiveKeyBranch) !== "result[key] = LOG_REDACTED_VALUE; continue;"
+  ) {
+    violations.push("structured logger sensitive-key branch must replace the value with LOG_REDACTED_VALUE");
+  }
+
+  const stringCase = sliceBetween(logger, 'case "string":', ";");
+
+  if (stringCase === null) {
+    violations.push("structured logger string case is not evaluable");
+  } else if (normalizeWhitespace(stringCase) !== "return redactSensitiveText(value)") {
+    violations.push("structured logger string values must pass through redactSensitiveText");
+  }
+
+  const textRedactionBody = sliceBetween(
+    logger,
+    "export function redactSensitiveText(value: string): string {",
+    "\n}\n",
+  );
+
+  if (textRedactionBody === null) {
+    violations.push("structured logger redactSensitiveText body is not evaluable");
+  } else {
+    const compactBody = textRedactionBody.replace(/\s+/g, "");
+
+    for (const pattern of STRUCTURED_LOGGER_TEXT_REDACTION_PATTERNS) {
+      if (!compactBody.includes(`.replace(${pattern},`)) {
+        violations.push(`structured logger redactSensitiveText must apply ${pattern}`);
+      }
+    }
+  }
+
+  return violations;
+}
+
+function replaceOnce(source: string, target: string, replacement: string): string {
+  const first = source.indexOf(target);
+
+  assert.notEqual(first, -1, `mutation target must exist in source: ${target}`);
+  assert.equal(
+    source.indexOf(target, first + target.length),
+    -1,
+    `mutation target must be unique in source: ${target}`,
+  );
+
+  return source.slice(0, first) + replacement + source.slice(first + target.length);
 }
 
 test("sensitive log redaction matrix documents protected boundaries", () => {
@@ -209,46 +361,11 @@ test("request logger keeps token and query redaction centralized", () => {
 test("structured logger centraliza la redaccion y es el unico boundary de console migrado", () => {
   const logger = readSource("server/lib/logger.ts");
 
-  for (const marker of [
-    "export function redactLogValue",
-    "export function redactSensitiveText",
-    "export function serializeError",
-    "export function isSensitiveLogKey",
-    "isSafeRequestId",
-    "[REDACTED]",
-  ]) {
-    assertContains(logger, marker, "structured logger redaction boundary");
-  }
-
-  for (const fragment of [
-    "authorization",
-    "cookie",
-    "password",
-    "secret",
-    "servicerole",
-    "apikey",
-    "token",
-    "session",
-    "signedurl",
-    "storagepath",
-    "databaseurl",
-    "connectionstring",
-  ]) {
-    assertContains(logger, `"${fragment}"`, "structured logger key matrix");
-  }
-
-  assertNotContains(logger, "error.stack", "structured logger stack export");
+  // Marcadores, matriz de claves, ausencia de error.stack/error.message y el
+  // envelope cerrado viven en el evaluator puro, junto con la estructura real
+  // de redaccion (rama de clave sensible, case string, cadena de patrones).
+  assert.deepEqual(evaluateStructuredLoggerRedaction(logger), []);
   assertNoDirectSecretLogging(logger, "structured logger");
-
-  // El mensaje libre de un error nunca se exporta: una regex de credenciales no
-  // puede demostrar que no contiene datos clinicos, SQL o PII.
-  assertNotContains(logger, "error.message", "structured logger free-form message");
-  assertContains(
-    logger,
-    "messageSanitized: LOG_REDACTED_VALUE",
-    "structured logger closed error envelope",
-  );
-  assertContains(logger, "UnknownError", "structured logger non-Error envelope");
 
   // Las rutas migradas emiten via logInfo/logError, no via console directo.
   for (const file of [
@@ -274,6 +391,75 @@ test("structured logger centraliza la redaccion y es el unico boundary de consol
     assertNotContains(source, "error.message", `${file} free-form error message`);
     assertNotContains(source, "messageSanitized", `${file} error message export`);
   }
+});
+
+test("structured logger redaction evaluator fails closed on real redaction regressions", () => {
+  const logger = readSource("server/lib/logger.ts");
+
+  assert.deepEqual(evaluateStructuredLoggerRedaction(logger), []);
+
+  const mutations = [
+    {
+      name: "sensitive key value logged in clear",
+      target: "        result[key] = LOG_REDACTED_VALUE;\n",
+      replacement: "        result[key] = entryValue;\n",
+      expected: [
+        "structured logger sensitive-key branch must replace the value with LOG_REDACTED_VALUE",
+      ],
+    },
+    {
+      name: "string values bypass text sanitization",
+      target: 'case "string":\n      return redactSensitiveText(value);',
+      replacement: 'case "string":\n      return value;',
+      expected: ["structured logger string values must pass through redactSensitiveText"],
+    },
+    {
+      name: "JWT redaction removed from free text",
+      target: "    .replace(JWT_PATTERN, LOG_REDACTED_VALUE)\n",
+      replacement: "",
+      expected: ["structured logger redactSensitiveText must apply JWT_PATTERN"],
+    },
+    {
+      name: "token dropped from the sensitive key fragments",
+      target: '  "token",\n  "session",\n',
+      replacement: '  "session",\n',
+      expected: [
+        'structured logger key matrix must contain: "token"',
+        'structured logger SENSITIVE_KEY_FRAGMENTS must contain: "token"',
+      ],
+    },
+    {
+      name: "serializeError exports the free-form error message",
+      target: ': "Error",\n    messageSanitized: LOG_REDACTED_VALUE,',
+      replacement: ': "Error",\n    messageSanitized: error.message,',
+      expected: ["structured logger free-form message must not contain: error.message"],
+    },
+  ] as const;
+
+  for (const mutation of mutations) {
+    const mutated = replaceOnce(logger, mutation.target, mutation.replacement);
+
+    assert.deepEqual(
+      evaluateStructuredLoggerRedaction(mutated),
+      [...mutation.expected],
+      `mutation must be detected: ${mutation.name}`,
+    );
+  }
+
+  assert.throws(() => readSource("server/lib/logger.absent.ts"), /ENOENT/);
+  assert.throws(
+    () => replaceOnce(logger, "result[key] = rawSecretValue;", ""),
+    /mutation target must exist in source/,
+  );
+  assert.deepEqual(
+    evaluateStructuredLoggerRedaction("").filter((violation) => violation.endsWith("is not evaluable")),
+    [
+      "structured logger SENSITIVE_KEY_FRAGMENTS literal is not evaluable",
+      "structured logger sensitive-key branch is not evaluable",
+      "structured logger string case is not evaluable",
+      "structured logger redactSensitiveText body is not evaluable",
+    ],
+  );
 });
 
 test("las metricas finalizan cada request exactamente una vez", () => {
