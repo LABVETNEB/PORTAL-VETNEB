@@ -664,6 +664,25 @@ cierto aunque esa línea esté en una rama muerta, aunque una asignación poster
 la sobrescriba, o aunque esté comentada. Y es **falso** si alguien refactoriza a
 `cookieSecure: isProd` sin cambiar comportamiento. Falla en las dos direcciones.
 
+> **Nota post-remediación — `TEST-GLOBAL-04`, verificada sobre `main@247a497c`
+> (2026-09-23).** La tabla anterior es la fotografía de §3.1 y se conserva sin
+> editar. Estado vigente de las filas que cambiaron:
+>
+> - **Tenant isolation / IDOR** → `MUTATION_PROOF_PRESENT` (#1763): el registro
+>   dereferencia su evidencia y lleva negative proof ejecutable (path inventado,
+>   evidencia materialmente inválida y código comentado ponen el guard en rojo).
+> - **Redacción de logs sensibles** → `MUTATION_PROOF_PRESENT` (#1766): evaluador
+>   sobre `server/lib/logger.ts` con mutaciones en memoria que lo ponen en rojo.
+> - **Invariantes productivas de seguridad** → **sólo** el contrato
+>   `Secure`/`SameSite` de `server/lib/env.ts` pasa a `MUTATION_PROOF_PRESENT`
+>   (#1767, `security-session-cookie-boundaries.test.ts`), incluidas las dos
+>   mutaciones del ejemplo anterior (asignación posterior y línea comentada) que
+>   el substring deja en verde. `security-production-invariants.test.ts` no
+>   cambió y conserva `NO_NEGATIVE_PROOF` para el resto de sus invariantes.
+>
+> `Ownership de recursos` y `Cut-off de validación` siguen en
+> `MUTATION_CANDIDATE`: no forman parte de los ocho contratos de `04` (§17).
+
 ### 11.2 Estrategia posterior
 
 `TEST-GLOBAL-12` **no** introduce Stryker ni mutation testing indiscriminado.
@@ -884,18 +903,27 @@ Dos poblaciones con calidad opuesta:
 | `test/security/**` | 10 | 67 | `app.inject()` real, 68 invocaciones | **Sólida.** Deny/allow con status reales |
 | `test/architecture/security/**` | 17 | 134 | 16 de 17 con `rt=0`; 299 ms totales | **Débil.** Presencia de substring, sin prueba negativa |
 
+La tabla de poblaciones es la medición de §3.1. La matriz por contrato es la
+matriz viva de `TEST-GLOBAL-04`: la columna «Negative proof (§3.1)» conserva la
+clasificación original y «Estado vigente» registra el estado verificado sobre
+`main@247a497c` (2026-09-23).
+
 Matriz por contrato:
 
-| Threat | Boundary | Expected deny | Negative proof | Source of truth |
-|---|---|---|---|---|
-| Cross-tenant IDOR | `clinicId` scoping | 403/404 sin disclosure | **AUSENTE** (§9.1) | Literal en el propio test |
-| Cross-realm rate limit | Realm admin/clinic/particular | 429 aislado | PRESENTE | `app.inject()` |
-| CSRF | Rutas mutantes | Rechazo sin token | PRESENTE | `app.inject()` |
-| Trusted origin / CORS | Origin allowlist | Sin `ACAO` | PRESENTE | `app.inject()` |
-| Sesión / cookies | `admin_session_id` / `app_session_id` | 401 | PRESENTE (comportamiento) + AUSENTE (config en `env.ts`) | Mixto |
-| Enumeración de tokens | Selector hostil | Sin disclosure | PRESENTE | `app.inject()` |
-| Redacción de logs | Logger | Sin secretos | AUSENTE | Substring |
-| `no-store` privado | Headers | `no-store` | PARCIAL | `backend-api-no-store-cache-contract.test.ts` (fs=1, inject=0) |
+| Threat | Boundary | Expected deny | Negative proof (§3.1) | Estado vigente | Source of truth |
+|---|---|---|---|---|---|
+| Cross-tenant IDOR | `clinicId` scoping | 403/404 sin disclosure | **AUSENTE** (§9.1) | `MUTATION_PROOF_PRESENT` (#1763) | `security-cross-tenant-idor-contract.test.ts`: registro que dereferencia evidencia trackeada + negative proof en memoria |
+| Cross-realm rate limit | Realm admin/clinic/particular | 429 aislado | PRESENTE | `NEGATIVE_FIXTURE_PRESENT` (sin cambios) | `app.inject()` — `security-rate-limit-cross-realm-isolation.test.ts` |
+| CSRF | Rutas mutantes | Rechazo sin token | PRESENTE | `NEGATIVE_FIXTURE_PRESENT` (sin cambios) | `app.inject()` — `security-csrf-mutating-route-coverage.test.ts` |
+| Trusted origin / CORS | Origin allowlist | Sin `ACAO` | PRESENTE | `NEGATIVE_FIXTURE_PRESENT` (sin cambios) | `app.inject()` — `security-trusted-origin-cors-boundaries.test.ts` |
+| Sesión / cookies | `admin_session_id` / `app_session_id` | 401 | PRESENTE (comportamiento) + AUSENTE (config en `env.ts`) | `NEGATIVE_FIXTURE_PRESENT` (comportamiento, sin cambios) + `MUTATION_PROOF_PRESENT` (config `Secure`/`SameSite` en `env.ts`, #1767) | `app.inject()` — `auth-session-boundaries.test.ts` + evaluador sobre `server/lib/env.ts` — `security-session-cookie-boundaries.test.ts` |
+| Enumeración de tokens | Selector hostil | Sin disclosure | PRESENTE | `NEGATIVE_FIXTURE_PRESENT` (sin cambios) | `app.inject()` — `token-access-enumeration-disclosure-regression.test.ts` |
+| Redacción de logs | Logger | Sin secretos | AUSENTE | `MUTATION_PROOF_PRESENT` (#1766) | Evaluador sobre `server/lib/logger.ts` — `security-sensitive-log-redaction-boundaries.test.ts` |
+| `no-store` privado | Headers | `no-store` | PARCIAL | `MUTATION_PROOF_PRESENT` (#1768) | Evaluador sobre `server/lib/http/sensitive-response-cache.ts` y el cableado `onSend` de `server/fastify-app.ts` — `backend-api-no-store-cache-contract.test.ts` |
+
+«Sin cambios» significa que el archivo de test es idéntico al de §3.2
+(`git diff 38fe1dfe 247a497c` vacío sobre esos paths). Ninguna fila de la matriz
+es evidencia runtime de staging (§35).
 
 Regla innegociable del programa: **ninguna fase debilita un contrato de
 seguridad**. Las fases sobre esta área sólo **añaden** prueba negativa.
@@ -1652,7 +1680,7 @@ programa que existe para consolidar censos.
 - **Riesgo**: R1. **Autorización**: no requiere. **Dependencias**: `02`.
 - **Aceptación**: se evalúa en dos niveles —por PR y agregada de fase— definidos a continuación.
 - **Aceptación — por PR (unidad)**: cada PR de `04` se acepta **de forma independiente**, sin esperar a los demás, cuando su único contrato cumple: (1) el guard incorpora al menos una mutación explícita en el propio test; (2) esa mutación pone el guard en rojo y el test lo demuestra; (3) el contrato pasa de `NO_NEGATIVE_PROOF` o `MUTATION_CANDIDATE` a `MUTATION_PROOF_PRESENT` en la matriz de §17; (4) ninguna assertion previa se retira ni se debilita; (5) gates dirigidos en `PASSED`.
-- **Aceptación — agregada (fase)**: `04` se declara cerrada cuando **los ocho contratos de la matriz de §17** tienen estado `MUTATION_PROOF_PRESENT` o un `accepted defer` con owner y fecha. El cierre agregado es condición de `12A`, no de cada PR. Los ocho, nominados para que el criterio sea evaluable sin ambigüedad:
+- **Aceptación — agregada (fase)**: `04` se declara cerrada cuando **los ocho contratos de la matriz de §17** cumplen, según su clase en §3.1: (a) los clasificados `AUSENTE` o `PARCIAL` —incluida la mitad de configuración de Sesión / cookies— alcanzan `MUTATION_PROOF_PRESENT` o un `accepted defer` con owner y fecha; (b) los que ya estaban en `NEGATIVE_FIXTURE_PRESENT` conservan esa clase sin degradación. La clase (b) no exige harness de mutación ni se reetiqueta como `MUTATION_PROOF_PRESENT` sin él. El cierre agregado es condición de `12A`, no de cada PR. Los ocho, nominados para que el criterio sea evaluable sin ambigüedad:
 
 ```text
 1. Cross-tenant IDOR          5. Sesión / cookies
@@ -1661,11 +1689,29 @@ programa que existe para consolidar censos.
 4. Trusted origin / CORS      8. `no-store` privado
 ```
 
-De los ocho, los que **hoy** carecen de prueba negativa suficiente y por tanto
-definen el trabajo real de `04` son: Cross-tenant IDOR (`AUSENTE`), Redacción de
-logs (`AUSENTE`), `no-store` privado (`PARCIAL`) y la mitad de configuración de
-Sesión / cookies (`AUSENTE` en `env.ts`). Los otros cuatro ya están en
-`NEGATIVE_FIXTURE_PRESENT` y `04` sólo verifica que no se degraden.
+Al alta del programa (§3.1), los que carecían de prueba negativa suficiente y
+por tanto definían el trabajo real de `04` eran: Cross-tenant IDOR (`AUSENTE`),
+Redacción de logs (`AUSENTE`), `no-store` privado (`PARCIAL`) y la mitad de
+configuración de Sesión / cookies (`AUSENTE` en `env.ts`). Los otros cuatro ya
+estaban en `NEGATIVE_FIXTURE_PRESENT` y `04` sólo verifica que no se degraden.
+
+**Cierre verificado sobre `main@247a497c` (2026-09-23)** — detalle en §17:
+
+```text
+Cross-tenant IDOR          MUTATION_PROOF_PRESENT   #1763  bbce3261  (PR de 02)
+Redacción de logs          MUTATION_PROOF_PRESENT   #1766  fc1c6361
+Sesión / cookies (config)  MUTATION_PROOF_PRESENT   #1767  8905197b
+no-store privado           MUTATION_PROOF_PRESENT   #1768  247a497c
+Rate limit · CSRF · CORS · Enumeración · Sesión (comportamiento)
+                           NEGATIVE_FIXTURE_PRESENT sin degradación (tests sin cambios)
+Backend CI en main         success en los cuatro merge commits
+ACEPTACIÓN AGREGADA        CUMPLIDA — 0 accepted defer
+```
+
+El cierre no produce evidencia runtime de staging (§35; el registro IDOR
+conserva `pending_runtime_staging_evidence`) ni cubre los contratos de §11.1
+ajenos a los ocho (`Ownership de recursos`, `Cut-off de validación` y el resto
+de `security-production-invariants.test.ts`).
 - **Gates**: por PR, `pnpm test` dirigido al archivo del contrato → `PASSED`; `pnpm test` completo → `BLOCKED` declarando el desglose del estado vigente de §31.0.
 - **Rollback**: por PR, revertir ese commit. Como cada PR toca un contrato distinto, el rollback de uno no afecta a los demás; el contrato revertido vuelve a su clase previa en §17.
 - **Output**: prueba negativa ejecutable por contrato de seguridad.
