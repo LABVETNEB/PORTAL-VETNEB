@@ -105,3 +105,612 @@ test("no-store sensible no introduce dependencia de frontend o UI", () => {
   assert.equal(combined.includes(".tsx"), false);
   assert.equal(combined.includes("components"), false);
 });
+
+// Politica fija del contrato: nunca se deriva del source productivo.
+const EXPECTED_SENSITIVE_API_CACHE_CONTROL = "no-store";
+
+const EXPECTED_NO_STORE_CLASSIFICATION: readonly (readonly [string, boolean])[] = [
+  ["/api/reports", true],
+  ["/api/admin/auth/me", true],
+  ["/api/auth/change-password", true],
+  ["/api/app-version", true],
+  ["/api/public/pricing", false],
+  ["/api/public/professionals/search", false],
+  ["/dashboard/admin", false],
+  ["", false],
+];
+
+const HELPER_FILE = "server/lib/http/sensitive-response-cache.ts";
+const FASTIFY_APP_FILE = "server/fastify-app.ts";
+
+function findStringEnd(source: string, open: number): number {
+  const quote = source[open];
+  let index = open + 1;
+
+  while (index < source.length && source[index] !== quote) {
+    index += source[index] === "\\" ? 2 : 1;
+  }
+
+  return index < source.length ? index : -1;
+}
+
+function stripComments(source: string): string | undefined {
+  let output = "";
+  let index = 0;
+
+  while (index < source.length) {
+    const char = source[index];
+    const next = source[index + 1];
+
+    if (char === '"' || char === "'" || char === "`") {
+      const close = findStringEnd(source, index);
+      if (close === -1) {
+        return undefined;
+      }
+      output += source.slice(index, close + 1);
+      index = close + 1;
+    } else if (char === "/" && next === "/") {
+      const lineEnd = source.indexOf("\n", index);
+      index = lineEnd === -1 ? source.length : lineEnd;
+    } else if (char === "/" && next === "*") {
+      const close = source.indexOf("*/", index + 2);
+      if (close === -1) {
+        return undefined;
+      }
+      output += "\n".repeat(source.slice(index, close).split("\n").length - 1);
+      index = close + 2;
+    } else {
+      output += char;
+      index += 1;
+    }
+  }
+
+  return output;
+}
+
+function compactCode(code: string): string {
+  return code
+    .replace(/\s+/g, " ")
+    .replace(/\s*([(),;{}])\s*/g, "$1")
+    .replace(/"cache-control"/gi, '"cache-control"')
+    .trim();
+}
+
+function extractTopLevelFunction(
+  source: string,
+  name: string,
+  signature: RegExp,
+): { params: string[]; body: string } | undefined {
+  if ((source.match(new RegExp(`\\bfunction ${name}\\b`, "g")) ?? []).length !== 1) {
+    return undefined;
+  }
+
+  const match = signature.exec(source);
+  if (!match) {
+    return undefined;
+  }
+
+  const start = match.index + match[0].length;
+  const end = source.indexOf("\n}", start);
+
+  return end === -1 ? undefined : { params: match.slice(1), body: source.slice(start, end) };
+}
+
+type PathPredicate =
+  | { kind: "startsWith"; prefix: string }
+  | { kind: "not"; operand: PathPredicate }
+  | { kind: "and" | "or"; left: PathPredicate; right: PathPredicate };
+
+// Gramatica cerrada: <param>.startsWith("<literal>"), !, &&, || y parentesis.
+// Cualquier otra forma no es evaluable.
+function parsePathPredicate(expression: string, param: string): PathPredicate | undefined {
+  const tokens: string[] = [];
+  const pattern = /\s*(&&|\|\||!|\(|\)|"[^"\\]*"|[A-Za-z_$][\w$]*\.startsWith)/y;
+  let index = 0;
+
+  while (index < expression.length) {
+    pattern.lastIndex = index;
+    const match = pattern.exec(expression);
+    if (!match) {
+      return undefined;
+    }
+    tokens.push(match[1]);
+    index = pattern.lastIndex;
+  }
+
+  let position = 0;
+  const take = (expected?: string): string => {
+    const token = tokens[position];
+    if (token === undefined || (expected !== undefined && token !== expected)) {
+      throw new Error(`unexpected token at ${position}`);
+    }
+    position += 1;
+    return token;
+  };
+
+  const parseUnary = (): PathPredicate => {
+    const token = take();
+    if (token === "!") {
+      return { kind: "not", operand: parseUnary() };
+    }
+    if (token === "(") {
+      const inner = parseOr();
+      take(")");
+      return inner;
+    }
+    if (token === `${param}.startsWith`) {
+      take("(");
+      const literal = take();
+      if (!literal.startsWith('"')) {
+        throw new Error("prefix must be a string literal");
+      }
+      take(")");
+      return { kind: "startsWith", prefix: literal.slice(1, -1) };
+    }
+    throw new Error(`unsupported token: ${token}`);
+  };
+
+  const parseAnd = (): PathPredicate => {
+    let left = parseUnary();
+    while (tokens[position] === "&&") {
+      take();
+      left = { kind: "and", left, right: parseUnary() };
+    }
+    return left;
+  };
+
+  const parseOr = (): PathPredicate => {
+    let left = parseAnd();
+    while (tokens[position] === "||") {
+      take();
+      left = { kind: "or", left, right: parseAnd() };
+    }
+    return left;
+  };
+
+  try {
+    const root = parseOr();
+    return position === tokens.length ? root : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function evaluatePathPredicate(node: PathPredicate, url: string): boolean {
+  switch (node.kind) {
+    case "startsWith":
+      return url.startsWith(node.prefix);
+    case "not":
+      return !evaluatePathPredicate(node.operand, url);
+    case "and":
+      return evaluatePathPredicate(node.left, url) && evaluatePathPredicate(node.right, url);
+    case "or":
+      return evaluatePathPredicate(node.left, url) || evaluatePathPredicate(node.right, url);
+  }
+}
+
+function evaluateSensitiveResponseCacheHelper(rawSource: string): string[] {
+  const source = stripComments(rawSource.replace(/\r\n/g, "\n"));
+  if (source === undefined) {
+    return ["helper source is not evaluable"];
+  }
+
+  const violations: string[] = [];
+
+  const constants = [...source.matchAll(/^export const SENSITIVE_API_CACHE_CONTROL = (.*);$/gm)];
+  const constantValue =
+    constants.length === 1 ? /^"([^"\\]*)"$/.exec(constants[0][1].trim())?.[1] : undefined;
+  if (constantValue === undefined) {
+    violations.push("helper SENSITIVE_API_CACHE_CONTROL declaration is not evaluable");
+  } else if (constantValue !== EXPECTED_SENSITIVE_API_CACHE_CONTROL) {
+    violations.push(
+      `helper SENSITIVE_API_CACHE_CONTROL must be "${EXPECTED_SENSITIVE_API_CACHE_CONTROL}", got ${JSON.stringify(constantValue)}`,
+    );
+  }
+
+  const classifier = extractTopLevelFunction(
+    source,
+    "shouldApplySensitiveApiNoStore",
+    /^export function shouldApplySensitiveApiNoStore\((\w+): string\): boolean \{$/m,
+  );
+  const returned = classifier && /^return (.+);$/.exec(classifier.body.replace(/\s+/g, " ").trim());
+  const predicate = classifier && returned ? parsePathPredicate(returned[1], classifier.params[0]) : undefined;
+  if (!predicate) {
+    violations.push("helper shouldApplySensitiveApiNoStore is not evaluable");
+  } else {
+    for (const [url, expected] of EXPECTED_NO_STORE_CLASSIFICATION) {
+      const actual = evaluatePathPredicate(predicate, url);
+      if (actual !== expected) {
+        violations.push(
+          `helper shouldApplySensitiveApiNoStore(${JSON.stringify(url)}) must be ${expected}, got ${actual}`,
+        );
+      }
+    }
+  }
+
+  const apply = extractTopLevelFunction(
+    source,
+    "applySensitiveApiNoStoreHeaders",
+    /^export function applySensitiveApiNoStoreHeaders\(\s*(\w+): FastifyRequest,\s*(\w+): FastifyReply,?\s*\) \{$/m,
+  );
+  const branch = apply && /^if \((.*)\) \{(.*)\}$/.exec(apply.body.replace(/\s+/g, " ").trim());
+  if (!apply || !branch) {
+    violations.push("helper applySensitiveApiNoStoreHeaders is not evaluable");
+    return violations;
+  }
+
+  const [request, reply] = apply.params;
+  const gate = compactCode(`shouldApplySensitiveApiNoStore(${request}.url ?? "")`);
+  const preserveExplicit = compactCode(`!${reply}.hasHeader("cache-control")`);
+  const clauses = branch[1].split("&&").map(compactCode);
+
+  if (!clauses.includes(gate)) {
+    violations.push(
+      "helper applySensitiveApiNoStoreHeaders must gate on shouldApplySensitiveApiNoStore(request.url)",
+    );
+  }
+  if (!clauses.includes(preserveExplicit)) {
+    violations.push(
+      "helper applySensitiveApiNoStoreHeaders must not overwrite an explicit Cache-Control header",
+    );
+  }
+  for (const clause of clauses) {
+    if (clause !== gate && clause !== preserveExplicit) {
+      violations.push(`helper applySensitiveApiNoStoreHeaders condition has an unexpected clause: ${clause}`);
+    }
+  }
+  if (compactCode(branch[2]) !== compactCode(`${reply}.header("cache-control", SENSITIVE_API_CACHE_CONTROL);`)) {
+    violations.push(
+      "helper applySensitiveApiNoStoreHeaders must set cache-control to SENSITIVE_API_CACHE_CONTROL",
+    );
+  }
+
+  return violations;
+}
+
+function readBalancedBlock(source: string, open: number): string | undefined {
+  let depth = 0;
+
+  for (let index = open; index < source.length; index += 1) {
+    const char = source[index];
+    if (char === '"' || char === "'" || char === "`") {
+      const close = findStringEnd(source, index);
+      if (close === -1) {
+        return undefined;
+      }
+      index = close;
+    } else if (char === "{") {
+      depth += 1;
+    } else if (char === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        return source.slice(open + 1, index);
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function splitTopLevelStatements(body: string): string[] | undefined {
+  const statements: string[] = [];
+  let depth = 0;
+  let start = 0;
+
+  for (let index = 0; index < body.length; index += 1) {
+    const char = body[index];
+    if (char === '"' || char === "'" || char === "`") {
+      const close = findStringEnd(body, index);
+      if (close === -1) {
+        return undefined;
+      }
+      index = close;
+    } else if ("([{".includes(char)) {
+      depth += 1;
+    } else if (")]}".includes(char)) {
+      depth -= 1;
+    } else if (char === ";" && depth === 0) {
+      statements.push(compactCode(body.slice(start, index)));
+      start = index + 1;
+    }
+  }
+
+  statements.push(compactCode(body.slice(start)));
+  return depth === 0 ? statements.filter(Boolean) : undefined;
+}
+
+function evaluateFastifyNoStoreWiring(rawSource: string): string[] {
+  const source = stripComments(rawSource.replace(/\r\n/g, "\n"));
+  if (source === undefined) {
+    return ["fastify-app source is not evaluable"];
+  }
+
+  const violations: string[] = [];
+
+  const imports = [
+    ...source.matchAll(/^import \{([^}]*)\} from "\.\/lib\/http\/sensitive-response-cache\.ts";$/gm),
+  ];
+  if (
+    imports.length !== 1 ||
+    !imports[0][1].split(",").map((item) => item.trim()).includes("applySensitiveApiNoStoreHeaders")
+  ) {
+    violations.push(
+      "fastify-app must import applySensitiveApiNoStoreHeaders from ./lib/http/sensitive-response-cache.ts",
+    );
+  }
+
+  const mentions = (source.match(/\bapplySensitiveApiNoStoreHeaders\b/g) ?? []).length;
+  if (mentions !== 2) {
+    violations.push(
+      `fastify-app must reference applySensitiveApiNoStoreHeaders exactly twice (import + onSend call), found ${mentions}`,
+    );
+  }
+
+  const hooks = [...source.matchAll(/\bapp\.addHook\(\s*"onSend"\s*,/g)];
+  if (hooks.length !== 1) {
+    violations.push(`fastify-app must register exactly one onSend hook, found ${hooks.length}`);
+    return violations;
+  }
+
+  const callbackStart = (hooks[0].index ?? 0) + hooks[0][0].length;
+  const callback =
+    /^\s*(?:async\s*)?\(\s*(\w+)(?:\s*:\s*\w+)?\s*,\s*(\w+)(?:\s*:\s*\w+)?\s*,\s*\w+(?:\s*:\s*\w+)?\s*\)\s*=>\s*\{/.exec(
+      source.slice(callbackStart),
+    );
+  const body = callback
+    ? readBalancedBlock(source, callbackStart + callback[0].length - 1)
+    : undefined;
+  const statements = body === undefined ? undefined : splitTopLevelStatements(body);
+  if (!callback || !statements) {
+    violations.push("fastify-app onSend callback is not evaluable");
+    return violations;
+  }
+
+  const callIndex = statements.indexOf(
+    compactCode(`applySensitiveApiNoStoreHeaders(${callback[1]}, ${callback[2]})`),
+  );
+  const returnIndex = statements.findIndex((statement) => /^return\b/.test(statement));
+  if (callIndex === -1 || (returnIndex !== -1 && returnIndex < callIndex)) {
+    violations.push(
+      "fastify-app onSend must call applySensitiveApiNoStoreHeaders(request, reply) as a top-level statement before returning",
+    );
+  }
+
+  return violations;
+}
+
+function replaceOnce(source: string, target: string, replacement: string): string {
+  const first = source.indexOf(target);
+
+  assert.notEqual(first, -1, `mutation target must exist in source: ${target}`);
+  assert.equal(
+    source.indexOf(target, first + target.length),
+    -1,
+    `mutation target must be unique in source: ${target}`,
+  );
+
+  return source.slice(0, first) + replacement + source.slice(first + target.length);
+}
+
+function readNormalizedSource(relativePath: string): string {
+  return readSource(relativePath).replace(/\r\n/g, "\n");
+}
+
+test("evaluator no-store: el source real cumple la politica fija del contrato", () => {
+  for (const [url, expected] of EXPECTED_NO_STORE_CLASSIFICATION) {
+    assert.equal(shouldApplySensitiveApiNoStore(url), expected, url);
+  }
+
+  assert.deepEqual(evaluateSensitiveResponseCacheHelper(readNormalizedSource(HELPER_FILE)), []);
+  assert.deepEqual(evaluateFastifyNoStoreWiring(readNormalizedSource(FASTIFY_APP_FILE)), []);
+});
+
+test("evaluator no-store es semantico, no textual", () => {
+  const helperSource = readNormalizedSource(HELPER_FILE);
+
+  assert.deepEqual(
+    evaluateSensitiveResponseCacheHelper(
+      replaceOnce(
+        helperSource,
+        'url.startsWith("/api/") && !url.startsWith("/api/public/")',
+        '!url.startsWith("/api/public/") && (url.startsWith("/api/"))',
+      ),
+    ),
+    [],
+  );
+  assert.deepEqual(
+    evaluateSensitiveResponseCacheHelper(
+      replaceOnce(
+        helperSource,
+        'shouldApplySensitiveApiNoStore(request.url ?? "") &&\n    !reply.hasHeader("cache-control")',
+        '!reply.hasHeader("Cache-Control") &&\n    shouldApplySensitiveApiNoStore(request.url ?? "")',
+      ),
+    ),
+    [],
+  );
+});
+
+test("mutaciones del helper no-store ponen el evaluator en rojo", () => {
+  const helperSource = readNormalizedSource(HELPER_FILE);
+  const mutations = [
+    {
+      name: "header debilitado a no-cache",
+      target: 'export const SENSITIVE_API_CACHE_CONTROL = "no-store";',
+      replacement: 'export const SENSITIVE_API_CACHE_CONTROL = "no-cache";',
+      expected: ['helper SENSITIVE_API_CACHE_CONTROL must be "no-store", got "no-cache"'],
+    },
+    {
+      name: "rutas privadas reducidas a /api/admin/",
+      target: 'url.startsWith("/api/") &&',
+      replacement: 'url.startsWith("/api/admin/") &&',
+      expected: [
+        'helper shouldApplySensitiveApiNoStore("/api/reports") must be true, got false',
+        'helper shouldApplySensitiveApiNoStore("/api/auth/change-password") must be true, got false',
+        'helper shouldApplySensitiveApiNoStore("/api/app-version") must be true, got false',
+      ],
+    },
+    {
+      name: "exclusion de /api/public/ eliminada",
+      target: ' && !url.startsWith("/api/public/")',
+      replacement: "",
+      expected: [
+        'helper shouldApplySensitiveApiNoStore("/api/public/pricing") must be false, got true',
+        'helper shouldApplySensitiveApiNoStore("/api/public/professionals/search") must be false, got true',
+      ],
+    },
+    {
+      name: "clasificador privado salteado en la aplicacion",
+      target: 'shouldApplySensitiveApiNoStore(request.url ?? "") &&\n    ',
+      replacement: "",
+      expected: [
+        "helper applySensitiveApiNoStoreHeaders must gate on shouldApplySensitiveApiNoStore(request.url)",
+      ],
+    },
+    {
+      name: "Cache-Control explicito sobreescrito",
+      target: ' &&\n    !reply.hasHeader("cache-control")',
+      replacement: "",
+      expected: [
+        "helper applySensitiveApiNoStoreHeaders must not overwrite an explicit Cache-Control header",
+      ],
+    },
+    {
+      name: "header aplicado sin la constante no-store",
+      target: 'reply.header("cache-control", SENSITIVE_API_CACHE_CONTROL);',
+      replacement: 'reply.header("cache-control", "private");',
+      expected: [
+        "helper applySensitiveApiNoStoreHeaders must set cache-control to SENSITIVE_API_CACHE_CONTROL",
+      ],
+    },
+  ] as const;
+
+  for (const mutation of mutations) {
+    const mutated = replaceOnce(helperSource, mutation.target, mutation.replacement);
+
+    assert.notEqual(mutated, helperSource, `${mutation.name} must change the source`);
+    assert.deepEqual(
+      evaluateSensitiveResponseCacheHelper(mutated),
+      [...mutation.expected],
+      `mutation must be detected: ${mutation.name}`,
+    );
+  }
+});
+
+test("mutaciones del cableado onSend de fastify-app ponen el evaluator en rojo", () => {
+  const fastifySource = readNormalizedSource(FASTIFY_APP_FILE);
+  const hookCall = "      applySensitiveApiNoStoreHeaders(request, reply);\n";
+  const hookReturn = "      return addApiErrorRequestIdToJsonPayload(request, reply, payload);\n";
+  const mutations = [
+    {
+      name: "llamada eliminada con el texto conservado en un comentario",
+      target: hookCall,
+      replacement: "      // applySensitiveApiNoStoreHeaders(request, reply);\n",
+      expected: [
+        "fastify-app must reference applySensitiveApiNoStoreHeaders exactly twice (import + onSend call), found 1",
+        "fastify-app onSend must call applySensitiveApiNoStoreHeaders(request, reply) as a top-level statement before returning",
+      ],
+    },
+    {
+      name: "llamada movida despues del return",
+      target: `${hookCall}\n${hookReturn}`,
+      replacement: `${hookReturn}${hookCall}`,
+      expected: [
+        "fastify-app onSend must call applySensitiveApiNoStoreHeaders(request, reply) as a top-level statement before returning",
+      ],
+    },
+    {
+      name: "helper sombreado por un no-op local",
+      target: '  app.addHook(\n    "onSend",',
+      replacement:
+        '  const applySensitiveApiNoStoreHeaders = (..._args: unknown[]) => undefined;\n\n  app.addHook(\n    "onSend",',
+      expected: [
+        "fastify-app must reference applySensitiveApiNoStoreHeaders exactly twice (import + onSend call), found 3",
+      ],
+    },
+    {
+      name: "segundo onSend sobreescribe cache-control",
+      target: '  app.addHook("onResponse", async (request, reply) => {',
+      replacement:
+        '  app.addHook("onSend", async (_request, reply, payload) => {\n    reply.header("cache-control", "public, max-age=600");\n    return payload;\n  });\n\n  app.addHook("onResponse", async (request, reply) => {',
+      expected: ["fastify-app must register exactly one onSend hook, found 2"],
+    },
+  ] as const;
+
+  for (const mutation of mutations) {
+    const mutated = replaceOnce(fastifySource, mutation.target, mutation.replacement);
+
+    assert.notEqual(mutated, fastifySource, `${mutation.name} must change the source`);
+    assert.deepEqual(
+      evaluateFastifyNoStoreWiring(mutated),
+      [...mutation.expected],
+      `mutation must be detected: ${mutation.name}`,
+    );
+    // Los marcadores por substring previos siguen en verde; solo el evaluator detecta la regresion.
+    assert.equal(mutated.includes('app.addHook(\n    "onSend"'), true, mutation.name);
+    assert.equal(mutated.includes("applySensitiveApiNoStoreHeaders(request, reply)"), true, mutation.name);
+  }
+});
+
+test("evaluator no-store falla cerrado ante estructura no evaluable (fail-closed)", () => {
+  const helperSource = readNormalizedSource(HELPER_FILE);
+  const fastifySource = readNormalizedSource(FASTIFY_APP_FILE);
+
+  assert.deepEqual(evaluateSensitiveResponseCacheHelper(""), [
+    "helper SENSITIVE_API_CACHE_CONTROL declaration is not evaluable",
+    "helper shouldApplySensitiveApiNoStore is not evaluable",
+    "helper applySensitiveApiNoStoreHeaders is not evaluable",
+  ]);
+  assert.deepEqual(evaluateSensitiveResponseCacheHelper(`${helperSource}\n/* sin cierre`), [
+    "helper source is not evaluable",
+  ]);
+  assert.deepEqual(
+    evaluateSensitiveResponseCacheHelper(
+      replaceOnce(helperSource, '= "no-store";', "= resolveSensitiveCacheControl();"),
+    ),
+    ["helper SENSITIVE_API_CACHE_CONTROL declaration is not evaluable"],
+  );
+  assert.deepEqual(
+    evaluateSensitiveResponseCacheHelper(
+      replaceOnce(
+        helperSource,
+        'url.startsWith("/api/") && !url.startsWith("/api/public/")',
+        "PRIVATE_API_PREFIXES.some((prefix) => url.startsWith(prefix))",
+      ),
+    ),
+    ["helper shouldApplySensitiveApiNoStore is not evaluable"],
+  );
+  assert.deepEqual(
+    evaluateSensitiveResponseCacheHelper(
+      `${helperSource}\nexport function shouldApplySensitiveApiNoStore(url: string): boolean {\n  return true;\n}\n`,
+    ),
+    ["helper shouldApplySensitiveApiNoStore is not evaluable"],
+  );
+
+  assert.deepEqual(evaluateFastifyNoStoreWiring(""), [
+    "fastify-app must import applySensitiveApiNoStoreHeaders from ./lib/http/sensitive-response-cache.ts",
+    "fastify-app must reference applySensitiveApiNoStoreHeaders exactly twice (import + onSend call), found 0",
+    "fastify-app must register exactly one onSend hook, found 0",
+  ]);
+  assert.deepEqual(
+    evaluateFastifyNoStoreWiring(
+      replaceOnce(
+        fastifySource,
+        "    async (request: FastifyRequest, reply: FastifyReply, payload) => {\n      applySensitiveApiNoStoreHeaders(request, reply);\n\n      return addApiErrorRequestIdToJsonPayload(request, reply, payload);\n    },",
+        "    sensitiveNoStoreOnSend,",
+      ),
+    ),
+    [
+      "fastify-app must reference applySensitiveApiNoStoreHeaders exactly twice (import + onSend call), found 1",
+      "fastify-app onSend callback is not evaluable",
+    ],
+  );
+
+  assert.throws(
+    () => replaceOnce(helperSource, "reply.removeHeader(", ""),
+    /mutation target must exist in source/,
+  );
+  assert.throws(
+    () => replaceOnce(helperSource, "url.startsWith(", ""),
+    /mutation target must be unique in source/,
+  );
+});
