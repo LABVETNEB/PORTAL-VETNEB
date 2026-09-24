@@ -96,6 +96,110 @@ function assertMatches(source: string, pattern: RegExp, context: string) {
   assert.match(source, pattern, `${context} must match ${pattern}`);
 }
 
+const CLINIC_STUDY_TRACKING_OPERATIONS =
+  "server/features/study-tracking/application/clinic-study-tracking-operations.ts";
+const CLINIC_CREATE_CASE_SIGNATURE = "async createClinicStudyTrackingCase(";
+const CLINIC_TOKEN_REJECTION = '"particular_token_wrong_clinic"';
+const LEGACY_CLINIC_TOKEN_MARKER = "particularToken.clinicId !== input.actor.clinicId";
+
+function compactEarlyReturn(condition: string, status: string): string {
+  const earlyReturn = `return\\{status:"${status}",?\\};?`;
+  return `if\\(${condition}\\)(?:\\{${earlyReturn}\\}|${earlyReturn})`;
+}
+
+// Whitespace-free shape of the token branch: lookup, not-found and wrong-clinic rejection, contiguous.
+const CLINIC_TOKEN_OWNERSHIP_GUARD = new RegExp(
+  [
+    'if\\(typeofinput\\.data\\.particularTokenId==="number"\\)\\{',
+    "constparticularToken=awaitdeps\\.referenceRepository\\.getParticularTokenById\\(input\\.data\\.particularTokenId,?\\);",
+    compactEarlyReturn("!particularToken", "particular_token_not_found"),
+    compactEarlyReturn(
+      "(?:particularToken\\.clinicId!==input\\.actor\\.clinicId|input\\.actor\\.clinicId!==particularToken\\.clinicId)",
+      "particular_token_wrong_clinic",
+    ),
+    "\\}",
+  ].join(""),
+  "g",
+);
+
+const PERSISTENT_WRITE_CALL = /\.\s*(?:create|update|insert|delete|mark)\w*\s*\(/;
+
+function extractMethodBody(source: string, signature: string): string | undefined {
+  const start = source.indexOf(signature);
+  if (start === -1 || source.indexOf(signature, start + signature.length) !== -1) {
+    return undefined;
+  }
+
+  const open = source.indexOf("{", start + signature.length);
+  if (open === -1) {
+    return undefined;
+  }
+
+  let depth = 0;
+  for (let index = open; index < source.length; index += 1) {
+    if (source[index] === "{") {
+      depth += 1;
+    } else if (source[index] === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        return source.slice(open + 1, index);
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function evaluateClinicStudyTrackingTokenOwnership(rawSource: string): string[] {
+  const raw = rawSource.replace(/^﻿/, "").replace(/\r\n/g, "\n");
+  const code = raw.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/\/\/[^\n]*/g, " ");
+  const rawBody = extractMethodBody(raw, CLINIC_CREATE_CASE_SIGNATURE);
+  const body = extractMethodBody(code, CLINIC_CREATE_CASE_SIGNATURE);
+
+  if (rawBody === undefined || body === undefined) {
+    return ["clinic study tracking createClinicStudyTrackingCase is not evaluable"];
+  }
+
+  const violations: string[] = [];
+  const guards = body.replace(/\s+/g, "").match(CLINIC_TOKEN_OWNERSHIP_GUARD)?.length ?? 0;
+  if (guards !== 1) {
+    violations.push(`clinic study tracking particular token ownership guard must appear exactly once, found ${guards}`);
+  }
+
+  const rejections = body.split(CLINIC_TOKEN_REJECTION).length - 1;
+  if (rejections !== 1) {
+    violations.push(`clinic study tracking wrong-clinic rejection must appear exactly once, found ${rejections}`);
+  }
+
+  // Ordering runs on the raw body so a write hidden behind comment-like text still counts.
+  const lastRejection = rawBody.lastIndexOf(CLINIC_TOKEN_REJECTION);
+  const firstWrite = rawBody.search(PERSISTENT_WRITE_CALL);
+  if (firstWrite === -1) {
+    violations.push("clinic study tracking writes are not evaluable");
+  } else if (lastRejection !== -1 && firstWrite < lastRejection) {
+    violations.push("clinic study tracking must reject a foreign particular token before any write");
+  }
+
+  return violations;
+}
+
+function replaceOnce(source: string, target: string, replacement: string): string {
+  const first = source.indexOf(target);
+
+  assert.notEqual(first, -1, `mutation target must exist in source: ${target}`);
+  assert.equal(
+    source.indexOf(target, first + target.length),
+    -1,
+    `mutation target must be unique in source: ${target}`,
+  );
+
+  return source.slice(0, first) + replacement + source.slice(first + target.length);
+}
+
+function readClinicStudyTrackingSource(): string {
+  return readSource(CLINIC_STUDY_TRACKING_OPERATIONS).replace(/^﻿/, "").replace(/\r\n/g, "\n");
+}
+
 test("resource ownership matrix documents protected owner keys", () => {
   assert.deepEqual(RESOURCE_OWNERSHIP_BOUNDARIES, {
     report: {
@@ -182,12 +286,160 @@ test("clinic-owned resources reject cross-clinic reports tokens and tracking cas
 
   assertContains(studyTrackingApplication, "getClinicScopedReportById", "clinic study tracking report ownership");
   assertContains(studyTrackingApplication, "particularToken.clinicId !== input.actor.clinicId", "clinic study tracking token ownership");
+  assert.deepEqual(evaluateClinicStudyTrackingTokenOwnership(studyTrackingApplication), []);
   assertMatches(
     studyTrackingApplication,
     /getClinicScopedStudyTrackingCase\(\s*input\.trackingCaseId,\s*input\.clinicId/s,
     "clinic study tracking case ownership",
   );
   assertContains(studyTracking, "clinicId: auth.clinicId", "clinic study tracking list ownership");
+});
+
+const CLINIC_TOKEN_GUARD_BLOCK = [
+  "        if (particularToken.clinicId !== input.actor.clinicId) {",
+  '          return { status: "particular_token_wrong_clinic" };',
+  "        }",
+].join("\n");
+
+test("clinic study tracking token ownership evaluator accepts equivalent refactors", () => {
+  const source = readClinicStudyTrackingSource();
+
+  assert.deepEqual(evaluateClinicStudyTrackingTokenOwnership(source), []);
+  assert.deepEqual(
+    evaluateClinicStudyTrackingTokenOwnership(
+      replaceOnce(source, LEGACY_CLINIC_TOKEN_MARKER, "input.actor.clinicId !== particularToken.clinicId"),
+    ),
+    [],
+  );
+  assert.deepEqual(
+    evaluateClinicStudyTrackingTokenOwnership(
+      replaceOnce(
+        source,
+        CLINIC_TOKEN_GUARD_BLOCK,
+        '        if (particularToken.clinicId !== input.actor.clinicId) return { status: "particular_token_wrong_clinic" };',
+      ),
+    ),
+    [],
+  );
+  assert.deepEqual(
+    evaluateClinicStudyTrackingTokenOwnership(
+      replaceOnce(
+        source,
+        `        if (${LEGACY_CLINIC_TOKEN_MARKER}) {`,
+        [
+          "        // A token owned by another clinic must never be bound to this case.",
+          "        if (",
+          "          particularToken.clinicId !==",
+          "          input.actor.clinicId",
+          "        ) {",
+        ].join("\n"),
+      ),
+    ),
+    [],
+  );
+});
+
+test("clinic study tracking token ownership mutations turn the evaluator red", () => {
+  const source = readClinicStudyTrackingSource();
+  const guardMissing = "clinic study tracking particular token ownership guard must appear exactly once, found 0";
+  const rejectionMissing = "clinic study tracking wrong-clinic rejection must appear exactly once, found 0";
+  const tokenBranch = '      if (typeof input.data.particularTokenId === "number") {';
+  const mutations = [
+    {
+      name: "ownership comparison inverted",
+      target: LEGACY_CLINIC_TOKEN_MARKER,
+      replacement: "particularToken.clinicId === input.actor.clinicId",
+      expected: [guardMissing],
+      legacyMarkerKept: false,
+    },
+    {
+      name: "wrong-clinic rejection removed",
+      target: '          return { status: "particular_token_wrong_clinic" };\n',
+      replacement: "",
+      expected: [guardMissing, rejectionMissing],
+      legacyMarkerKept: true,
+    },
+    {
+      name: "ownership guard neutralized by a dead branch",
+      target: `if (${LEGACY_CLINIC_TOKEN_MARKER}) {`,
+      replacement: `if (false && ${LEGACY_CLINIC_TOKEN_MARKER}) {`,
+      expected: [guardMissing],
+      legacyMarkerKept: true,
+    },
+    {
+      name: "ownership guard kept only as a comment",
+      target: CLINIC_TOKEN_GUARD_BLOCK,
+      replacement: CLINIC_TOKEN_GUARD_BLOCK.split("\n").map((line) => `        // ${line.trim()}`).join("\n"),
+      expected: [guardMissing, rejectionMissing],
+      legacyMarkerKept: true,
+    },
+    {
+      name: "foreign token relinked before the ownership guard",
+      target: tokenBranch,
+      replacement: [
+        '      if (typeof input.data.particularTokenId === "number" && typeof input.data.reportId === "number") {',
+        "        await deps.referenceRepository.updateParticularTokenReport(",
+        "          input.data.particularTokenId,",
+        "          input.data.reportId,",
+        "        );",
+        "      }",
+        "",
+        tokenBranch,
+      ].join("\n"),
+      expected: ["clinic study tracking must reject a foreign particular token before any write"],
+      legacyMarkerKept: true,
+    },
+  ] as const;
+
+  for (const mutation of mutations) {
+    const mutated = replaceOnce(source, mutation.target, mutation.replacement);
+
+    assert.notEqual(mutated, source, `${mutation.name} must change the source`);
+    assert.deepEqual(
+      evaluateClinicStudyTrackingTokenOwnership(mutated),
+      [...mutation.expected],
+      `mutation must be detected: ${mutation.name}`,
+    );
+    // Legacy substring marker alone stays green on these regressions; only the evaluator catches them.
+    assert.equal(mutated.includes(LEGACY_CLINIC_TOKEN_MARKER), mutation.legacyMarkerKept, mutation.name);
+  }
+});
+
+test("clinic study tracking token ownership evaluator fails closed on unevaluable structure", () => {
+  const source = readClinicStudyTrackingSource();
+  const notEvaluable = ["clinic study tracking createClinicStudyTrackingCase is not evaluable"];
+
+  assert.deepEqual(evaluateClinicStudyTrackingTokenOwnership(""), notEvaluable);
+  assert.deepEqual(
+    evaluateClinicStudyTrackingTokenOwnership(
+      `${source}\nconst shadow = { async createClinicStudyTrackingCase() { return null; } };\n`,
+    ),
+    notEvaluable,
+  );
+  assert.deepEqual(
+    evaluateClinicStudyTrackingTokenOwnership(
+      source.slice(0, source.indexOf("const delivery = applyEstimatedDeliveryRules(")),
+    ),
+    notEvaluable,
+  );
+  assert.deepEqual(
+    evaluateClinicStudyTrackingTokenOwnership(
+      replaceOnce(source, CLINIC_TOKEN_GUARD_BLOCK, `${CLINIC_TOKEN_GUARD_BLOCK}\n${CLINIC_TOKEN_GUARD_BLOCK}`),
+    ),
+    [
+      "clinic study tracking particular token ownership guard must appear exactly once, found 0",
+      "clinic study tracking wrong-clinic rejection must appear exactly once, found 2",
+    ],
+  );
+
+  assert.throws(
+    () => replaceOnce(source, "particularToken.tenantId !== input.actor.clinicId", ""),
+    /mutation target must exist in source/,
+  );
+  assert.throws(
+    () => replaceOnce(source, "input.actor.clinicId", "input.data.clinicId"),
+    /mutation target must be unique in source/,
+  );
 });
 
 test("admin-owned linking validates target clinic before binding resources", () => {
