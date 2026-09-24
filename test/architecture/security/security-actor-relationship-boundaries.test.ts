@@ -125,30 +125,50 @@ function compactWithOffsets(text: string): { compact: string; offsets: number[] 
   return { compact, offsets };
 }
 
+function blankStringLiterals(text: string): string {
+  return text.replace(STRING_LITERAL, (literal) =>
+    `${literal[0]}${" ".repeat(literal.length - 2)}${literal[literal.length - 1]}`,
+  );
+}
+
+const TERMINAL_STATEMENT = /^(return|throw)(?![\w$])/;
+
 // Only plain blocks are accepted as ancestors; any other header (if, else, loop, try, function) is not
-// provably reachable and fails closed.
+// provably reachable and fails closed. A return/throw started in the target's block or in an enclosing
+// block ends that flow; one inside a child block (if, loop, closure) only ends the child.
 function findUnreachableContext(body: string, target: number, allowedPrefix: RegExp): string | undefined {
   if (target < 0) {
     return "unresolved offset";
   }
 
-  const skeleton = body.replace(STRING_LITERAL, (literal) =>
-    `${literal[0]}${" ".repeat(literal.length - 2)}${literal[literal.length - 1]}`,
-  );
+  const skeleton = blankStringLiterals(body);
   const headers: string[] = [];
+  const terminals: Array<string | undefined> = [undefined];
   let statementStart = 0;
+
+  const markTerminal = (statement: string) => {
+    const terminal = TERMINAL_STATEMENT.exec(statement.trim())?.[1];
+    if (terminal !== undefined) {
+      terminals[terminals.length - 1] ??= terminal;
+    }
+  };
 
   for (let index = 0; index < target; index += 1) {
     const char = skeleton[index];
     if (char === "{") {
-      headers.push(skeleton.slice(statementStart, index).replace(/\s+/g, ""));
+      const header = skeleton.slice(statementStart, index);
+      markTerminal(header);
+      headers.push(header.replace(/\s+/g, ""));
+      terminals.push(undefined);
       statementStart = index + 1;
     } else if (char === "}") {
       if (headers.pop() === undefined) {
         return "unbalanced block";
       }
+      terminals.pop();
       statementStart = index + 1;
     } else if (char === ";") {
+      markTerminal(skeleton.slice(statementStart, index));
       statementStart = index + 1;
     }
   }
@@ -159,7 +179,12 @@ function findUnreachableContext(body: string, target: number, allowedPrefix: Reg
   }
 
   const deadHeader = headers.find((header) => header !== "");
-  return deadHeader === undefined ? undefined : `enclosing ${deadHeader}`;
+  if (deadHeader !== undefined) {
+    return `enclosing ${deadHeader}`;
+  }
+
+  const terminal = terminals.find((statement) => statement !== undefined);
+  return terminal === undefined ? undefined : `preceding ${terminal}`;
 }
 
 function findBlockRange(source: string, signature: string): { open: number; close: number } | undefined {
@@ -365,6 +390,15 @@ function evaluateParticularScopedHandler(code: string, spec: ParticularScopedOpe
   const actorAssignments = countMatches(body, /\bparticular\s*(?:\.\s*tokenId\s*)?=(?!=)/g);
   if (actorAssignments !== 1) {
     violations.push(`${context} particular actor must be bound once from authenticateParticularUser, found ${actorAssignments} assignments`);
+  }
+
+  // Allowlist, not a write blacklist: binding, null guard and the protected scope read. Any other
+  // reference (Object.assign, Reflect.set, aliasing, compound writes) can taint particular.tokenId.
+  if (authentications.length === 1) {
+    const actorReferences = countMatches(blankStringLiterals(body), /\bparticular\b/g);
+    if (actorReferences !== 3) {
+      violations.push(`${context} authenticated particular actor must be referenced only by its guard and protected scope, found ${actorReferences} references`);
+    }
   }
 
   const calls = [...body.matchAll(new RegExp(`\\boperations\\s*\\.\\s*${spec.operation}\\s*\\(`, "g"))];
@@ -601,6 +635,7 @@ const ME = "particular study tracking GET /me";
 const LIST = "particular study tracking GET /notifications";
 const ACK = "particular study tracking PATCH /notifications/:notificationId/read";
 const READ_ALL = "particular study tracking PATCH /notifications/read-all";
+const ACTOR_REFERENCES = "authenticated particular actor must be referenced only by its guard and protected scope, found";
 const [ME_HANDLER, LIST_HANDLER, , READ_ALL_HANDLER] = PARTICULAR_SCOPED_OPERATIONS.map(
   (spec) => spec.handlerSignature,
 );
@@ -702,6 +737,18 @@ test("particular actor scope evaluator accepts the real source and equivalent re
       ),
     ],
     ["protected call inside a plain block", replaceOnce(source, READ_ALL_STATEMENT, `    {\n${READ_ALL_STATEMENT}    }\n`)],
+    [
+      "additional conditional early return before the protected call",
+      replaceOnce(
+        source,
+        READ_ALL_STATEMENT,
+        `    if (!allowedOrigins.size) {\n      return reply.code(503).send({ success: false });\n    }\n\n${READ_ALL_STATEMENT}`,
+      ),
+    ],
+    [
+      "single-line conditional throw before the protected call",
+      replaceOnce(source, READ_ALL_STATEMENT, `    if (!allowedOrigins.size) throw new Error("synthetic origin gap");\n${READ_ALL_STATEMENT}`),
+    ],
     ["CRLF line endings", source.replace(/\n/g, "\r\n")],
   ];
 
@@ -724,6 +771,7 @@ test("client-controlled particular scope turns the evaluator red while legacy ma
           "listParticularStudyTrackingNotifications({\n        particularTokenId: Number(request.query.particularTokenId),",
         ),
       expected: [
+        `${LIST} ${ACTOR_REFERENCES} 2 references`,
         `${LIST} scope must derive from particular.tokenId, found Number(request.query.particularTokenId)`,
         `${LIST} scope must not read client-controlled request input`,
       ],
@@ -734,6 +782,7 @@ test("client-controlled particular scope turns the evaluator red while legacy ma
       apply: (source) =>
         replaceOnce(source, ACK_SCOPE, "        notificationId,\n        particularTokenId: request.body.particularTokenId,"),
       expected: [
+        `${ACK} ${ACTOR_REFERENCES} 2 references`,
         `${ACK} scope must derive from particular.tokenId, found request.body.particularTokenId`,
         `${ACK} scope must not read client-controlled request input`,
       ],
@@ -748,6 +797,7 @@ test("client-controlled particular scope turns the evaluator red while legacy ma
           'acknowledgeAllParticularStudyTrackingNotifications(\n        Number(request.headers["x-particular-token-id"]),\n      );',
         ),
       expected: [
+        `${READ_ALL} ${ACTOR_REFERENCES} 2 references`,
         `${READ_ALL} scope must derive from particular.tokenId, found Number(request.headers["x-particular-token-id"])`,
         `${READ_ALL} scope must not read client-controlled request input`,
       ],
@@ -762,6 +812,7 @@ test("client-controlled particular scope turns the evaluator red while legacy ma
           "getParticularStudyTrackingForToken(\n      Number(request.query.particularTokenId),\n    );",
         ),
       expected: [
+        `${ME} ${ACTOR_REFERENCES} 2 references`,
         `${ME} scope must derive from particular.tokenId, found Number(request.query.particularTokenId)`,
         `${ME} scope must not read client-controlled request input`,
       ],
@@ -775,9 +826,32 @@ test("client-controlled particular scope turns the evaluator red while legacy ma
           LIST_QUERY_PARSING,
           `    particular.tokenId = Number(request.query.particularTokenId);\n${LIST_QUERY_PARSING}`,
         ),
-      expected: [`${LIST} particular actor must be bound once from authenticateParticularUser, found 2 assignments`],
+      expected: [
+        `${LIST} particular actor must be bound once from authenticateParticularUser, found 2 assignments`,
+        `${LIST} ${ACTOR_REFERENCES} 4 references`,
+      ],
       legacyGreen: true,
     },
+    ...[
+      [
+        "authenticated actor mutated via Object.assign",
+        '    Object.assign(particular, {\n      tokenId: Number(request.headers["x-particular-token-id"] ?? particular.tokenId),\n    });\n',
+        5,
+      ],
+      ["authenticated actor mutated via Reflect.set", '    Reflect.set(particular, "tokenId", Number(request.query.particularTokenId));\n', 4],
+      [
+        "authenticated actor mutated via Object.defineProperty",
+        '    Object.defineProperty(particular, "tokenId", { value: Number(request.query.particularTokenId) });\n',
+        4,
+      ],
+      ["authenticated actor mutated through an alias", "    const actor = particular;\n    actor.tokenId = Number(request.query.particularTokenId);\n", 4],
+      ["authenticated actor mutated by compound assignment", "    particular.tokenId += Number(request.query.offset ?? 0);\n", 4],
+    ].map(([name, injected, references]): ActorScopeMutation => ({
+      name: String(name),
+      apply: (source) => replaceOnce(source, LIST_QUERY_PARSING, `${injected}${LIST_QUERY_PARSING}`),
+      expected: [`${LIST} ${ACTOR_REFERENCES} ${references} references`],
+      legacyGreen: true,
+    })),
     {
       name: "actor built from query string instead of the session",
       apply: (source) => replaceOnceInHandler(source, READ_ALL_HANDLER, HANDLER_AUTHENTICATION, REQUEST_ACTOR),
@@ -864,6 +938,7 @@ test("decorative actor scope, ambiguous calls and comment-only boundaries turn t
           "listParticularStudyTrackingNotifications({\n        // particularTokenId: particular.tokenId,\n        particularTokenId: Number(request.query.particularTokenId),",
         ),
       expected: [
+        `${LIST} ${ACTOR_REFERENCES} 2 references`,
         `${LIST} scope must derive from particular.tokenId, found Number(request.query.particularTokenId)`,
         `${LIST} scope must not read client-controlled request input`,
       ],
@@ -893,6 +968,7 @@ test("decorative actor scope, ambiguous calls and comment-only boundaries turn t
       expected: [
         `${READ_ALL} acknowledgeAllParticularStudyTrackingNotifications must be referenced exactly once in the route module, found 2`,
         `${READ_ALL} must use operations only through its runtime and protected call, found 3 references`,
+        `${READ_ALL} ${ACTOR_REFERENCES} 4 references`,
         `${READ_ALL} protected acknowledgeAllParticularStudyTrackingNotifications call must appear exactly once, found 2`,
       ],
       legacyGreen: true,
@@ -908,6 +984,7 @@ test("decorative actor scope, ambiguous calls and comment-only boundaries turn t
       expected: [
         `${ME} getParticularStudyTrackingForToken must be referenced exactly once in the route module, found 2`,
         `${LIST} must use operations only through its runtime and protected call, found 3 references`,
+        `${LIST} ${ACTOR_REFERENCES} 4 references`,
       ],
       legacyGreen: true,
     },
@@ -949,6 +1026,7 @@ test("decorative actor scope, ambiguous calls and comment-only boundaries turn t
         "particular study tracking must reach scoped persistence only through operations, found 1 direct port calls",
         `${READ_ALL} acknowledgeAllParticularStudyTrackingNotifications must be referenced exactly once in the route module, found 0`,
         `${READ_ALL} must use operations only through its runtime and protected call, found 1 references`,
+        `${READ_ALL} ${ACTOR_REFERENCES} 2 references`,
         `${READ_ALL} protected acknowledgeAllParticularStudyTrackingNotifications call must appear exactly once, found 0`,
       ],
       legacyGreen: true,
@@ -992,6 +1070,58 @@ test("particular actor scope in unreachable control flow turns the evaluator red
       apply: (source) =>
         replaceOnce(source, READ_ALL_STATEMENT, READ_ALL_STATEMENT.replace("const result =", "const result = false &&")),
       expected: [`${unreachableCall} statement prefix constresult=false&&await`],
+      legacyGreen: true,
+    },
+    {
+      name: "unconditional return before the protected call",
+      apply: (source) => replaceOnce(source, READ_ALL_STATEMENT, `    return reply;\n\n${READ_ALL_STATEMENT}`),
+      expected: [`${unreachableCall} preceding return`],
+      legacyGreen: true,
+    },
+    {
+      name: "unconditional throw before the protected call",
+      apply: (source) =>
+        replaceOnce(source, READ_ALL_STATEMENT, `    throw new Error("synthetic unreachable");\n\n${READ_ALL_STATEMENT}`),
+      expected: [`${unreachableCall} preceding throw`],
+      legacyGreen: true,
+    },
+    {
+      name: "unconditional return with a response body before the protected call",
+      apply: (source) =>
+        replaceOnce(
+          source,
+          READ_ALL_STATEMENT,
+          `    return reply.code(200).send({ success: true, updatedCount: 0 });\n\n${READ_ALL_STATEMENT}`,
+        ),
+      expected: [`${unreachableCall} preceding return`],
+      legacyGreen: true,
+    },
+    {
+      name: "unconditional return in an enclosing plain block",
+      apply: (source) => replaceOnce(source, READ_ALL_STATEMENT, `    return reply;\n    {\n${READ_ALL_STATEMENT}    }\n`),
+      expected: [`${unreachableCall} preceding return`],
+      legacyGreen: true,
+    },
+    {
+      name: "unconditional return right after the real conditional guard",
+      apply: (source) =>
+        replaceOnceInHandler(source, ME_HANDLER, HANDLER_AUTHENTICATION, `${HANDLER_AUTHENTICATION}    return reply;\n`),
+      expected: [`${ME} protected getParticularStudyTrackingForToken call must be reachable, found preceding return`],
+      legacyGreen: true,
+    },
+    {
+      name: "unconditional throw before authentication",
+      apply: (source) =>
+        replaceOnceInHandler(
+          source,
+          LIST_HANDLER,
+          HANDLER_AUTHENTICATION,
+          `    throw new Error("synthetic unreachable");\n${HANDLER_AUTHENTICATION}`,
+        ),
+      expected: [
+        `${LIST} particular actor authentication must be reachable, found preceding throw`,
+        `${LIST} protected listParticularStudyTrackingNotifications call must be reachable, found preceding throw`,
+      ],
       legacyGreen: true,
     },
     {
