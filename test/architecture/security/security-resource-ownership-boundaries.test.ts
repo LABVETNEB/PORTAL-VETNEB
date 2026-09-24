@@ -122,7 +122,62 @@ const CLINIC_TOKEN_OWNERSHIP_GUARD = new RegExp(
   "g",
 );
 
-const PERSISTENT_WRITE_CALL = /\.\s*(?:create|update|insert|delete|mark)\w*\s*\(/;
+// Writes are classified by port, not by method prefix: deps.createDate() or reference reads are not writes.
+const PERSISTENT_WRITE_CALL = new RegExp(
+  [
+    "\\b(?:commands|sideEffects)\\s*\\.\\s*\\w+\\s*\\(",
+    "\\bdeps\\s*\\.\\s*(?:commandRepository|notification|audit)\\s*\\.\\s*\\w+\\s*\\(",
+    "\\bdeps\\s*\\.\\s*referenceRepository\\s*\\.\\s*updateParticularTokenReport\\s*\\(",
+    "\\bnotifySpecialStainByEmail\\s*\\(",
+  ].join("|"),
+);
+
+const STRING_LITERAL = /"(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|`(?:\\.|[^`\\])*`/g;
+
+function compactWithOffsets(text: string): { compact: string; offsets: number[] } {
+  let compact = "";
+  const offsets: number[] = [];
+  for (let index = 0; index < text.length; index += 1) {
+    if (!/\s/.test(text[index])) {
+      compact += text[index];
+      offsets.push(index);
+    }
+  }
+  return { compact, offsets };
+}
+
+// Only plain blocks are accepted as ancestors; any other header (if, else, loop, try, function) is not
+// provably reachable and fails closed.
+function findUnreachableContext(body: string, target: number): string | undefined {
+  const skeleton = body.replace(STRING_LITERAL, (literal) =>
+    `${literal[0]}${" ".repeat(literal.length - 2)}${literal[literal.length - 1]}`,
+  );
+  const headers: string[] = [];
+  let statementStart = 0;
+
+  for (let index = 0; index < target; index += 1) {
+    const char = skeleton[index];
+    if (char === "{") {
+      headers.push(skeleton.slice(statementStart, index).replace(/\s+/g, ""));
+      statementStart = index + 1;
+    } else if (char === "}") {
+      if (headers.pop() === undefined) {
+        return "unbalanced block";
+      }
+      statementStart = index + 1;
+    } else if (char === ";") {
+      statementStart = index + 1;
+    }
+  }
+
+  const prefix = skeleton.slice(statementStart, target).replace(/\s+/g, "");
+  if (prefix !== "") {
+    return `statement prefix ${prefix}`;
+  }
+
+  const deadHeader = headers.find((header) => header !== "");
+  return deadHeader === undefined ? undefined : `enclosing ${deadHeader}`;
+}
 
 function extractMethodBody(source: string, signature: string): string | undefined {
   const start = source.indexOf(signature);
@@ -161,9 +216,15 @@ function evaluateClinicStudyTrackingTokenOwnership(rawSource: string): string[] 
   }
 
   const violations: string[] = [];
-  const guards = body.replace(/\s+/g, "").match(CLINIC_TOKEN_OWNERSHIP_GUARD)?.length ?? 0;
-  if (guards !== 1) {
-    violations.push(`clinic study tracking particular token ownership guard must appear exactly once, found ${guards}`);
+  const { compact, offsets } = compactWithOffsets(body);
+  const guards = [...compact.matchAll(CLINIC_TOKEN_OWNERSHIP_GUARD)];
+  if (guards.length !== 1) {
+    violations.push(`clinic study tracking particular token ownership guard must appear exactly once, found ${guards.length}`);
+  } else {
+    const unreachable = findUnreachableContext(body, offsets[guards[0].index ?? -1] ?? -1);
+    if (unreachable !== undefined) {
+      violations.push(`clinic study tracking particular token ownership guard must be reachable, found ${unreachable}`);
+    }
   }
 
   const rejections = body.split(CLINIC_TOKEN_REJECTION).length - 1;
@@ -300,6 +361,16 @@ const CLINIC_TOKEN_GUARD_BLOCK = [
   '          return { status: "particular_token_wrong_clinic" };',
   "        }",
 ].join("\n");
+const CLINIC_TOKEN_BRANCH_OPEN = '      if (typeof input.data.particularTokenId === "number") {';
+const CLINIC_TOKEN_BRANCH_CLOSE = `${CLINIC_TOKEN_GUARD_BLOCK}\n      }\n`;
+
+function wrapClinicTokenBranch(source: string, open: string, close: string): string {
+  return replaceOnce(
+    replaceOnce(source, CLINIC_TOKEN_BRANCH_OPEN, `${open}\n${CLINIC_TOKEN_BRANCH_OPEN}`),
+    CLINIC_TOKEN_BRANCH_CLOSE,
+    `${CLINIC_TOKEN_BRANCH_CLOSE}${close}\n`,
+  );
+}
 
 test("clinic study tracking token ownership evaluator accepts equivalent refactors", () => {
   const source = readClinicStudyTrackingSource();
@@ -336,6 +407,84 @@ test("clinic study tracking token ownership evaluator accepts equivalent refacto
       ),
     ),
     [],
+  );
+  assert.deepEqual(
+    evaluateClinicStudyTrackingTokenOwnership(wrapClinicTokenBranch(source, "      {", "      }")),
+    [],
+  );
+  assert.deepEqual(
+    evaluateClinicStudyTrackingTokenOwnership(
+      replaceOnce(
+        source,
+        CLINIC_TOKEN_BRANCH_OPEN,
+        `      const requestedAt = deps.createDate();\n      void requestedAt;\n\n${CLINIC_TOKEN_BRANCH_OPEN}`,
+      ),
+    ),
+    [],
+  );
+});
+
+test("clinic study tracking write detection is port-based, not prefix-based", () => {
+  const source = readClinicStudyTrackingSource();
+  const writes = [
+    "commands.createStudyTrackingCase(",
+    "deps.referenceRepository.updateParticularTokenReport(",
+    "commands.createStudyTrackingNotification(",
+    "commands.updateStudyTrackingCase(",
+    "sideEffects.writeAuditLog(",
+    "notifySpecialStainByEmail(",
+  ];
+  const nonWrites = [
+    "deps.createDate(",
+    "deps.referenceRepository.getClinicById(",
+    "deps.referenceRepository.getClinicScopedReportById(",
+    "deps.referenceRepository.getParticularTokenById(",
+  ];
+
+  for (const marker of [...writes, ...nonWrites]) {
+    assert.equal(source.includes(marker), true, `real source must contain ${marker}`);
+  }
+  for (const marker of writes) {
+    assert.match(marker, PERSISTENT_WRITE_CALL, `${marker} must be classified as a write`);
+  }
+  for (const marker of nonWrites) {
+    assert.doesNotMatch(marker, PERSISTENT_WRITE_CALL, `${marker} must not be classified as a write`);
+  }
+});
+
+test("clinic study tracking token ownership guard nested in unreachable control flow turns the evaluator red", () => {
+  const source = readClinicStudyTrackingSource();
+  const unreachable = "clinic study tracking particular token ownership guard must be reachable, found";
+  const wrappers = [
+    { name: "if (false) block", open: "      if (false) {", close: "      }", expected: `${unreachable} enclosing if(false)` },
+    { name: "while (false) block", open: "      while (false) {", close: "      }", expected: `${unreachable} enclosing while(false)` },
+    {
+      name: "else branch of an always-true condition",
+      open: "      if (true) {\n      } else {",
+      close: "      }",
+      expected: `${unreachable} enclosing else`,
+    },
+    {
+      name: "never-invoked closure",
+      open: "      const skipped = async () => {",
+      close: "      };",
+      expected: `${unreachable} enclosing constskipped=async()=>`,
+    },
+    { name: "try block is not provably reachable", open: "      try {", close: "      } finally {\n      }", expected: `${unreachable} enclosing try` },
+  ] as const;
+
+  for (const wrapper of wrappers) {
+    const mutated = wrapClinicTokenBranch(source, wrapper.open, wrapper.close);
+
+    assert.equal(mutated.includes(CLINIC_TOKEN_GUARD_BLOCK), true, wrapper.name);
+    assert.deepEqual(evaluateClinicStudyTrackingTokenOwnership(mutated), [wrapper.expected], wrapper.name);
+  }
+
+  assert.deepEqual(
+    evaluateClinicStudyTrackingTokenOwnership(
+      replaceOnce(source, CLINIC_TOKEN_BRANCH_OPEN, `      if (false) ${CLINIC_TOKEN_BRANCH_OPEN.trim()}`),
+    ),
+    [`${unreachable} statement prefix if(false)`],
   );
 });
 
