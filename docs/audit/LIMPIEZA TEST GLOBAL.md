@@ -10,7 +10,7 @@
 | Alcance | `test/**` (562 specs ejecutables). `frontend/e2e/**` sólo como frontera |
 | Estado | ACTIVE |
 | Propósito | Fuente rectora **autosuficiente** del programa de saneamiento `TEST-GLOBAL-*` |
-| Implementación | NOT_STARTED — esta auditoría no implementa ninguna fase |
+| Implementación | IN_PROGRESS — estado por fase en el [Veredicto](#veredicto) (verificado sobre `main@247a497c`). Esta auditoría no implementa ninguna fase |
 | Revisión | R2 — diagnóstico original + reauditoría de gobernanza aplicada (§37) |
 
 ### Metadata de lifecycle
@@ -664,12 +664,41 @@ cierto aunque esa línea esté en una rama muerta, aunque una asignación poster
 la sobrescriba, o aunque esté comentada. Y es **falso** si alguien refactoriza a
 `cookieSecure: isProd` sin cambiar comportamiento. Falla en las dos direcciones.
 
+> **Nota post-remediación — `TEST-GLOBAL-04`, verificada sobre `main@247a497c`
+> (2026-09-23).** La tabla anterior es la fotografía de §3.1 y se conserva sin
+> editar. Estado vigente de las filas que cambiaron:
+>
+> - **Tenant isolation / IDOR** → `MUTATION_PROOF_PRESENT` (#1763): el registro
+>   dereferencia su evidencia y lleva negative proof ejecutable (path inventado,
+>   evidencia materialmente inválida y código comentado ponen el guard en rojo).
+> - **Redacción de logs sensibles** → `MUTATION_PROOF_PRESENT` (#1766): evaluador
+>   sobre `server/lib/logger.ts` con mutaciones en memoria que lo ponen en rojo.
+> - **Invariantes productivas de seguridad** → **sólo** el contrato
+>   `Secure`/`SameSite` de `server/lib/env.ts` pasa a `MUTATION_PROOF_PRESENT`
+>   (#1767, `security-session-cookie-boundaries.test.ts`), incluidas las dos
+>   mutaciones del ejemplo anterior (asignación posterior y línea comentada) que
+>   el substring deja en verde. `security-production-invariants.test.ts` no
+>   cambió y conserva `NO_NEGATIVE_PROOF` para el resto de sus invariantes.
+>
+> `Ownership de recursos` y `Cut-off de validación` siguen en
+> `MUTATION_CANDIDATE`. No son filas de la matriz de §17, pero el primero
+> pertenece al dominio *tenant isolation* del Scope de `04` y figura como
+> pendiente en su dimensión B; el segundo queda fuera de los seis dominios y
+> sin adjudicar (ficha de `TEST-GLOBAL-04`).
+
 ### 11.2 Estrategia posterior
 
 `TEST-GLOBAL-12` **no** introduce Stryker ni mutation testing indiscriminado.
 Propaga el harness en memoria que ya existe y funciona (9 archivos), en este
 orden: (1) tenant isolation/IDOR, (2) auth y sesiones, (3) permisos y roles,
 (4) redacción y disclosure, (5) rate limiting, (6) registries de governance.
+
+> **Nota de ownership (2026-09-23).** Las fichas ejecutables de `12` no
+> contienen esta propagación: `12A` excluye `test/**` y el mutation testing de su
+> scope, y `12B` es ci-only. Los puntos (1)–(5) están transcritos en el Scope de
+> `TEST-GLOBAL-04`, que es su dueño ejecutable, y lo que sigue pendiente figura
+> allí (dimensión B). El punto (6) no tiene ninguna ficha que lo asigne. Esta
+> nota no lo reasigna.
 
 ## 12. Fixtures, factories, mocks y helpers
 
@@ -884,18 +913,34 @@ Dos poblaciones con calidad opuesta:
 | `test/security/**` | 10 | 67 | `app.inject()` real, 68 invocaciones | **Sólida.** Deny/allow con status reales |
 | `test/architecture/security/**` | 17 | 134 | 16 de 17 con `rt=0`; 299 ms totales | **Débil.** Presencia de substring, sin prueba negativa |
 
+La tabla de poblaciones es la medición de §3.1. La matriz por contrato es la
+matriz viva de `TEST-GLOBAL-04`: la columna «Negative proof (§3.1)» conserva la
+clasificación original y «Estado vigente» registra el estado verificado sobre
+`main@247a497c` (2026-09-23).
+
 Matriz por contrato:
 
-| Threat | Boundary | Expected deny | Negative proof | Source of truth |
-|---|---|---|---|---|
-| Cross-tenant IDOR | `clinicId` scoping | 403/404 sin disclosure | **AUSENTE** (§9.1) | Literal en el propio test |
-| Cross-realm rate limit | Realm admin/clinic/particular | 429 aislado | PRESENTE | `app.inject()` |
-| CSRF | Rutas mutantes | Rechazo sin token | PRESENTE | `app.inject()` |
-| Trusted origin / CORS | Origin allowlist | Sin `ACAO` | PRESENTE | `app.inject()` |
-| Sesión / cookies | `admin_session_id` / `app_session_id` | 401 | PRESENTE (comportamiento) + AUSENTE (config en `env.ts`) | Mixto |
-| Enumeración de tokens | Selector hostil | Sin disclosure | PRESENTE | `app.inject()` |
-| Redacción de logs | Logger | Sin secretos | AUSENTE | Substring |
-| `no-store` privado | Headers | `no-store` | PARCIAL | `backend-api-no-store-cache-contract.test.ts` (fs=1, inject=0) |
+| Threat | Boundary | Expected deny | Negative proof (§3.1) | Estado vigente | Source of truth |
+|---|---|---|---|---|---|
+| Cross-tenant IDOR | `clinicId` scoping | 403/404 sin disclosure | **AUSENTE** (§9.1) | `MUTATION_PROOF_PRESENT` (#1763) | `security-cross-tenant-idor-contract.test.ts`: registro que dereferencia evidencia trackeada + negative proof en memoria |
+| Cross-realm rate limit | Realm admin/clinic/particular | 429 aislado | PRESENTE | `NEGATIVE_FIXTURE_PRESENT` (sin cambios) | `app.inject()` — `security-rate-limit-cross-realm-isolation.test.ts` |
+| CSRF | Rutas mutantes | Rechazo sin token | PRESENTE | `NEGATIVE_FIXTURE_PRESENT` (sin cambios) | `app.inject()` — `security-csrf-mutating-route-coverage.test.ts` |
+| Trusted origin / CORS | Origin allowlist | Sin `ACAO` | PRESENTE | `NEGATIVE_FIXTURE_PRESENT` (sin cambios) | `app.inject()` — `security-trusted-origin-cors-boundaries.test.ts` |
+| Sesión / cookies | `admin_session_id` / `app_session_id` | 401 | PRESENTE (comportamiento) + AUSENTE (config en `env.ts`) | `NEGATIVE_FIXTURE_PRESENT` (comportamiento, sin cambios) + `MUTATION_PROOF_PRESENT` (config `Secure`/`SameSite` en `env.ts`, #1767) | `app.inject()` — `auth-session-boundaries.test.ts` + evaluador sobre `server/lib/env.ts` — `security-session-cookie-boundaries.test.ts` |
+| Enumeración de tokens | Selector hostil | Sin disclosure | PRESENTE | `NEGATIVE_FIXTURE_PRESENT` (sin cambios) | `app.inject()` — `token-access-enumeration-disclosure-regression.test.ts` |
+| Redacción de logs | Logger | Sin secretos | AUSENTE | `MUTATION_PROOF_PRESENT` (#1766) | Evaluador sobre `server/lib/logger.ts` — `security-sensitive-log-redaction-boundaries.test.ts` |
+| `no-store` privado | Headers | `no-store` | PARCIAL | `MUTATION_PROOF_PRESENT` (#1768) | Evaluador sobre `server/lib/http/sensitive-response-cache.ts` y el cableado `onSend` de `server/fastify-app.ts` — `backend-api-no-store-cache-contract.test.ts` |
+
+«Sin cambios» significa que el archivo de test es idéntico al de §3.2
+(`git diff 38fe1dfe 247a497c` vacío sobre esos paths). Ninguna fila de la matriz
+es evidencia runtime de staging (§35).
+
+**Esta matriz es sólo la dimensión A de `TEST-GLOBAL-04`.** Tenerla completa
+no cierra `04` si quedan guards estáticos de su Scope sin mutation proof
+(dimensión B, en la ficha). Una prueba runtime `NEGATIVE_FIXTURE_PRESENT` no
+reemplaza el mutation proof de un guard estático distinto. Por ejemplo,
+`security-rate-limit-cross-realm-isolation.test.ts` no prueba la fuerza de
+detección de `security-rate-limit-isolation-boundaries.test.ts`.
 
 Regla innegociable del programa: **ninguna fase debilita un contrato de
 seguridad**. Las fases sobre esta área sólo **añaden** prueba negativa.
@@ -1331,7 +1376,8 @@ conteo:
 ```text
 TG-Rxx   riesgo TÉCNICO del subsistema de tests.
          Se cierra implementando una fase TEST-GLOBAL-*.
-         Estado actual: 2 P0 · 4 P1 · 6 P2 · 4 P3  — TODOS ABIERTOS.
+         Inventario (§28): 2 P0 · 4 P1 · 6 P2 · 4 P3. Estado vigente por
+         riesgo: Veredicto.
 
 TG-Axx   hallazgo de CALIDAD de esta auditoría y de su roadmap.
          Se cierra corrigiendo ESTE documento.
@@ -1651,8 +1697,12 @@ programa que existe para consolidar censos.
 - **No-scope**: debilitar cualquier contrato; introducir Stryker o mutation testing por herramienta externa; tocar `server/**`; producir evidencia de staging.
 - **Riesgo**: R1. **Autorización**: no requiere. **Dependencias**: `02`.
 - **Aceptación**: se evalúa en dos niveles —por PR y agregada de fase— definidos a continuación.
-- **Aceptación — por PR (unidad)**: cada PR de `04` se acepta **de forma independiente**, sin esperar a los demás, cuando su único contrato cumple: (1) el guard incorpora al menos una mutación explícita en el propio test; (2) esa mutación pone el guard en rojo y el test lo demuestra; (3) el contrato pasa de `NO_NEGATIVE_PROOF` o `MUTATION_CANDIDATE` a `MUTATION_PROOF_PRESENT` en la matriz de §17; (4) ninguna assertion previa se retira ni se debilita; (5) gates dirigidos en `PASSED`.
-- **Aceptación — agregada (fase)**: `04` se declara cerrada cuando **los ocho contratos de la matriz de §17** tienen estado `MUTATION_PROOF_PRESENT` o un `accepted defer` con owner y fecha. El cierre agregado es condición de `12A`, no de cada PR. Los ocho, nominados para que el criterio sea evaluable sin ambigüedad:
+- **Aceptación — por PR (unidad)**: cada PR de `04` se acepta **de forma independiente**, sin esperar a los demás, cuando su único contrato cumple: (1) el guard incorpora al menos una mutación explícita en el propio test; (2) esa mutación pone el guard en rojo y el test lo demuestra; (3) el contrato pasa de `NO_NEGATIVE_PROOF` o `MUTATION_CANDIDATE` a `MUTATION_PROOF_PRESENT` en la matriz de §17 o, si es un guard de la dimensión B, en el inventario de esta ficha; (4) ninguna assertion previa se retira ni se debilita; (5) gates dirigidos en `PASSED`.
+- **Aceptación — agregada (fase)**: `04` se declara cerrada sólo cuando se cumplen **las dos dimensiones**. Ninguna reemplaza a la otra. El cierre agregado es condición de `12A`, no de cada PR.
+  - *Dimensión A — los ocho contratos de la matriz de §17*, según su clase en §3.1: (a) los que eran `AUSENTE` o `PARCIAL`, incluida la mitad de configuración de Sesión / cookies, llegan a `MUTATION_PROOF_PRESENT` o a un `accepted defer` con owner y fecha; (b) los que ya estaban en `NEGATIVE_FIXTURE_PRESENT` conservan esa clase sin degradarse. La clase (b) no exige harness de mutación, y un contrato sin harness no se reetiqueta `MUTATION_PROOF_PRESENT`.
+  - *Dimensión B — guards estáticos del Scope*: cada guard de `test/architecture/security/**` que pertenece a uno de los seis dominios del Scope incorpora al menos una mutación explícita que lo pone en rojo, o tiene un `accepted defer` con owner y fecha. La dimensión A no cubre esta: un fixture runtime no prueba la fuerza de detección de un guard estático distinto. El inventario está más abajo, en «Progreso verificado».
+
+  Los ocho de la dimensión A, nominados para que el criterio sea evaluable sin ambigüedad:
 
 ```text
 1. Cross-tenant IDOR          5. Sesión / cookies
@@ -1661,11 +1711,69 @@ programa que existe para consolidar censos.
 4. Trusted origin / CORS      8. `no-store` privado
 ```
 
-De los ocho, los que **hoy** carecen de prueba negativa suficiente y por tanto
-definen el trabajo real de `04` son: Cross-tenant IDOR (`AUSENTE`), Redacción de
-logs (`AUSENTE`), `no-store` privado (`PARCIAL`) y la mitad de configuración de
-Sesión / cookies (`AUSENTE` en `env.ts`). Los otros cuatro ya están en
-`NEGATIVE_FIXTURE_PRESENT` y `04` sólo verifica que no se degraden.
+Al alta del programa (§3.1), los que carecían de prueba negativa suficiente y
+por tanto definían el trabajo real de `04` eran: Cross-tenant IDOR (`AUSENTE`),
+Redacción de logs (`AUSENTE`), `no-store` privado (`PARCIAL`) y la mitad de
+configuración de Sesión / cookies (`AUSENTE` en `env.ts`). Los otros cuatro ya
+estaban en `NEGATIVE_FIXTURE_PRESENT` y `04` sólo verifica que no se degraden.
+
+**Progreso verificado sobre `main@247a497c` (2026-09-23). Estado: `IN_PROGRESS`.**
+
+Dimensión A. Detalle en §17:
+
+```text
+Cross-tenant IDOR          MUTATION_PROOF_PRESENT   #1763  bbce3261  (PR de 02)
+Redacción de logs          MUTATION_PROOF_PRESENT   #1766  fc1c6361
+Sesión / cookies (config)  MUTATION_PROOF_PRESENT   #1767  8905197b
+no-store privado           MUTATION_PROOF_PRESENT   #1768  247a497c
+Rate limit · CSRF · CORS · Enumeración · Sesión (comportamiento)
+                           NEGATIVE_FIXTURE_PRESENT sin degradación (tests sin cambios)
+Backend CI en main         success en los cuatro merge commits
+DIMENSIÓN A                CUMPLIDA — 0 accepted defer
+```
+
+Dimensión B. `test/architecture/security/**` tiene 17 archivos (`git ls-files`).
+Sólo 3 tienen una mutación explícita en memoria, es decir, contienen
+`replaceOnce(`. La asignación de cada guard a un dominio es
+`MANUAL_CLASSIFICATION` y se hizo leyendo sus tests:
+
+```text
+Dominio del Scope   Guard (test/architecture/security/)            Estado
+tenant isolation    security-cross-tenant-idor-contract            MUTATION_PROOF_PRESENT  #1763
+tenant isolation    security-resource-ownership-boundaries         PENDIENTE
+tenant isolation    security-actor-relationship-boundaries         PENDIENTE
+auth / sesiones     security-session-cookie-boundaries             MUTATION_PROOF_PRESENT  #1767 (config env.ts)
+auth / sesiones     global-auth-boundary-contract                  PENDIENTE
+auth / sesiones     security-cross-auth-surface-boundaries         PENDIENTE
+auth / sesiones     security-access-lifecycle-boundaries           PENDIENTE
+auth / sesiones     security-production-invariants                 PENDIENTE (archivo mixto)
+permisos / roles    security-mutation-permission-surface           PENDIENTE
+redacción de logs   security-sensitive-log-redaction-boundaries    MUTATION_PROOF_PRESENT  #1766
+disclosure          security-response-disclosure-boundaries        PENDIENTE
+rate limiting       security-rate-limit-isolation-boundaries       PENDIENTE
+DIMENSIÓN B         3 de 12 guards del Scope con mutation proof · 9 PENDIENTES · 0 accepted defer
+```
+
+Hay cinco guards que no pertenecen a ninguno de los seis dominios y quedan
+**sin adjudicar**: `security-validation-cutoff-boundaries`,
+`security-write-attribution-boundaries` y tres registries de governance
+(`security-boundary-suite-completeness`,
+`security-critical-route-surface-registry` y
+`security-docs-matrix-drift-guard`). El Objetivo de `04` habla de *cada*
+contrato de seguridad estático. Por eso, antes de cerrar `04`, esos cinco
+necesitan una adjudicación explícita en un PR docs-only propio: mutation proof
+en `04`, reasignación o `accepted defer` con owner y fecha. Esta revisión no los
+adjudica.
+
+```text
+TEST-GLOBAL-04   IN_PROGRESS — dimensión A cumplida; dimensión B con 9 pendientes
+TG-R05           ABIERTO (parcial) — 3 de 17 guards de architecture/security/** con mutación explícita
+12A              sigue bloqueada: exige 04 cerrada en agregado (§32)
+```
+
+Ninguna de las dos dimensiones produce evidencia runtime de staging (§35). El
+registro IDOR mantiene `pending_runtime_staging_evidence`.
+
 - **Gates**: por PR, `pnpm test` dirigido al archivo del contrato → `PASSED`; `pnpm test` completo → `BLOCKED` declarando el desglose del estado vigente de §31.0.
 - **Rollback**: por PR, revertir ese commit. Como cada PR toca un contrato distinto, el rollback de uno no afecta a los demás; el contrato revertido vuelve a su clase previa en §17.
 - **Output**: prueba negativa ejecutable por contrato de seguridad.
@@ -2177,7 +2285,7 @@ Matriz de aceptación transversal — toda fase debe cumplir:
 | Thresholds de coverage | Fuera de scope; `TDR-004` lo mantiene como decisión separada |
 | Runner de componentes React | No se propone. Cambiaría la arquitectura de test del frontend; exige auditoría propia |
 | `frontend/e2e/**` | `LIMPIEZA E2E` CLOSED. No se reabre |
-| Fila de este documento en `docs/audit/README.md` | Fuera del scope documental autorizado para esta auditoría; pendiente en `TEST-GLOBAL-01A` |
+| Fila de este documento en `docs/audit/README.md` | Resuelto por `TEST-GLOBAL-01A` (#1761): la fila existe con estado `ACTIVE` |
 | Migración monorepo | `AGENTS.md` §18; política futura, no autorizada |
 
 ## 36. Criterio de cierre del programa
@@ -2672,21 +2780,37 @@ STATUS:               ACTIVE
 PRIMARY_AUDIT:        COMPLETE        (diagnóstico técnico, §§6-29)
 GOVERNANCE_REAUDIT:   COMPLETE        (§37, 13 hallazgos TG-A)
 ROADMAP_GOVERNANCE:   CORRECTED       (13/13 TG-A en CORRECTED_IN_THIS_REVISION)
-IMPLEMENTATION:       NOT_STARTED     (ninguna fase TEST-GLOBAL-* ejecutada)
+IMPLEMENTATION:       IN_PROGRESS     (verificado sobre main@247a497c, 2026-09-23)
 
-TECHNICAL_P0: 2       TG-R01 · TG-R02                       — ABIERTOS
-TECHNICAL_P1: 4       TG-R03 · TG-R04 · TG-R05 · TG-R06     — ABIERTOS
+COMPLETED:    01A #1761 · 01B #1762 · 02 #1763 · 03 #1765 (sobre el fix de launcher #1764)
+IN_PROGRESS:  04  dimensión A cumplida (#1763 #1766 #1767 #1768); dimensión B: 9 guards PENDIENTES
+PENDING:      05A · 05B · 06 · 07 · 08 · 09 · 10A · 10B · 10C · 10D · 11 · 12A · 12B · 13
+              (12A sigue bloqueada por el DAG: exige 04 cerrada en agregado y 08)
+
+TECHNICAL_P0: 2       TG-R01 · TG-R02                       — CERRADOS (02, #1763)
+TECHNICAL_P1: 4       TG-R04                                — CERRADO  (03, #1765)
+                      TG-R05                                — ABIERTO, parcial (04, dimensión B)
+                      TG-R03 · TG-R06                       — ABIERTOS (06, 07, 08)
 TECHNICAL_P2: 6       TG-R07 … TG-R12                       — ABIERTOS
 TECHNICAL_P3: 4       TG-R13 … TG-R16                       — ABIERTOS
+OPEN ACTUAL:  13 de 16
 
 ROADMAP:  13 fases lógicas · 19 subfases · PRs >= 19
 R2 FUTUROS (autorización explícita de Nico):  05B · 10A · 10C · 12B
-NEXT:     TEST-GLOBAL-01A (docs-only), luego TEST-GLOBAL-01B (test-only)
+NEXT:     TEST-GLOBAL-04 dimensión B: mutation proof de los 9 guards pendientes,
+          en el orden de dominios de §11.2 (tenant isolation → auth/sesiones →
+          permisos/roles → disclosure → rate limiting). Son paralelizables (§32).
+          Además, adjudicar los 5 guards que quedan fuera de los seis dominios.
 ```
 
-Los conteos `TECHNICAL_*` son riesgos **técnicos abiertos** y no se alteran por
-la reauditoría de gobernanza: corregir el roadmap no cierra ningún riesgo del
-subsistema de tests. Las dos series se explican en §28.1. La única intersección
+Los conteos `TECHNICAL_*` repiten el **inventario total** de §28 y no cambian.
+El estado de cada riesgo está en la misma línea. Un riesgo se marca `CERRADO`
+sólo si su fase dueña está fusionada con la evidencia que pide su ficha:
+`TG-R01`/`TG-R02` por `02` (18 contratos dereferenciados, 0 paths stale,
+negative proof en el PR) y `TG-R04` por `03` (fallos de launcher = 0 declarados
+en #1765). Estas evidencias vienen de los PRs y de Backend CI `success` en sus
+merge commits; este PR docs-only no las volvió a ejecutar. La reauditoría de
+gobernanza no cierra ningún riesgo técnico. Las dos series se explican en §28.1. La única intersección
 es `TG-A13`, que corrigió una cifra citada por `TG-R13` sin cambiar su
 severidad.
 
