@@ -83,6 +83,74 @@ function assertNotContains(source: string, marker: string, context: string) {
   assert.equal(source.includes(marker), false, `${context} must not contain: ${marker}`);
 }
 
+const PUBLIC_REPORT_ACCESS_FILE = "server/routes/public-report-access.fastify.ts";
+const HIDDEN_REPORT_RESPONSE = "return reply.code(404).send(REPORT_NOT_FOUND_RESPONSE);";
+const MALFORMED_TOKEN_BRANCH = /if\s*\(\s*!parsed\.success\s*\)\s*\{/g;
+const NOT_FOUND_TOKEN_BRANCH = /if\s*\(\s*result\.kind\s*===\s*"not_found"\s*\)\s*\{/g;
+
+function countOccurrences(source: string, target: string): number {
+  return source.split(target).length - 1;
+}
+
+function replaceExactlyOnce(source: string, target: string, replacement: string): string {
+  assert.ok(source.includes(target), `mutation target must exist: ${target}`);
+  assert.equal(countOccurrences(source, target), 1, `mutation target must appear exactly once: ${target}`);
+  return source.replace(target, () => replacement);
+}
+
+// Returns the normalized body of the single braced branch matching `header`, or
+// undefined when the branch is absent, duplicated or its braces are unbalanced.
+function extractSingleBranchBody(source: string, header: RegExp): string | undefined {
+  const matches = [...source.matchAll(header)];
+  const match = matches[0];
+  if (matches.length !== 1 || match?.index === undefined) {
+    return undefined;
+  }
+
+  const bodyStart = match.index + match[0].length;
+  let depth = 1;
+  for (let index = bodyStart; index < source.length; index += 1) {
+    if (source[index] === "{") {
+      depth += 1;
+    } else if (source[index] === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        return source.slice(bodyStart, index).trim().split(/\s+/).join(" ");
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function evaluatePublicReportAccessDisclosureSource(source: string, context: string): string[] {
+  const violations: string[] = [];
+  const branches = [
+    {
+      header: MALFORMED_TOKEN_BRANCH,
+      guard: "!parsed.success",
+      violation: "malformed public report token must remain hidden as 404",
+    },
+    {
+      header: NOT_FOUND_TOKEN_BRANCH,
+      guard: 'result.kind === "not_found"',
+      violation: "unknown or unusable public report token must remain hidden as 404",
+    },
+  ];
+
+  for (const branch of branches) {
+    const body =
+      countOccurrences(source, branch.guard) === 1
+        ? extractSingleBranchBody(source, branch.header)
+        : undefined;
+    if (body !== HIDDEN_REPORT_RESPONSE) {
+      violations.push(`${context}: ${branch.violation}`);
+    }
+  }
+
+  return violations;
+}
+
 test("response disclosure matrix documents stable public error semantics", () => {
   assert.deepEqual(RESPONSE_DISCLOSURE_BOUNDARIES, {
     unauthenticated: {
@@ -128,6 +196,84 @@ test("public report access unifies unusable tokens as 404 and preserves 409 and 
 
   assertContains(publicReportAccess, "PUBLIC_REPORT_ACCESS_RATE_LIMIT_ERROR_MESSAGE", "public report access rate limit response");
   assertContains(publicReportAccess, "reply.code(429).send", "public report access rate limit status");
+
+  assert.deepEqual(
+    evaluatePublicReportAccessDisclosureSource(publicReportAccess, PUBLIC_REPORT_ACCESS_FILE),
+    [],
+  );
+});
+
+test("mutation proof: malformed public token cannot disclose token shape with 400", () => {
+  const source = readSource(PUBLIC_REPORT_ACCESS_FILE).split("\r\n").join("\n");
+  assert.deepEqual(evaluatePublicReportAccessDisclosureSource(source, PUBLIC_REPORT_ACCESS_FILE), []);
+
+  const mutated = replaceExactlyOnce(
+    source,
+    ["if (!parsed.success) {", `      ${HIDDEN_REPORT_RESPONSE}`, "    }"].join("\n"),
+    ["if (!parsed.success) {", "      return reply.code(400).send(REPORT_NOT_FOUND_RESPONSE);", "    }"].join("\n"),
+  );
+  assert.notEqual(mutated, source);
+
+  // Legacy file-wide markers stay green on the degraded source: the 404 of the
+  // not_found branch still satisfies "reply.code(404).send".
+  assertContains(mutated, "reportAccessTokenRawTokenSchema.safeParse", "public token shape validation");
+  assertContains(mutated, "REPORT_NOT_FOUND_RESPONSE", "public generic not found response");
+  assertContains(mutated, "reply.code(404).send", "public unknown token response");
+  assertNotContains(mutated, "reply.code(410).send", "public token lifecycle must not reveal prior existence");
+  assertContains(mutated, "reply.code(409).send", "public unavailable report response");
+  assertContains(mutated, "reply.code(429).send", "public report access rate limit status");
+  assert.equal(countOccurrences(mutated, "reply.code(404).send(REPORT_NOT_FOUND_RESPONSE)"), 1);
+  assert.equal(extractSingleBranchBody(mutated, NOT_FOUND_TOKEN_BRANCH), HIDDEN_REPORT_RESPONSE);
+
+  assert.deepEqual(evaluatePublicReportAccessDisclosureSource(mutated, PUBLIC_REPORT_ACCESS_FILE), [
+    `${PUBLIC_REPORT_ACCESS_FILE}: malformed public report token must remain hidden as 404`,
+  ]);
+});
+
+test("public report access disclosure evaluator fails closed on missing duplicated or reshaped branches", () => {
+  const source = readSource(PUBLIC_REPORT_ACCESS_FILE).split("\r\n").join("\n");
+  const malformedViolation = `${PUBLIC_REPORT_ACCESS_FILE}: malformed public report token must remain hidden as 404`;
+  const notFoundViolation = `${PUBLIC_REPORT_ACCESS_FILE}: unknown or unusable public report token must remain hidden as 404`;
+
+  const cases = [
+    {
+      name: "malformed branch removed",
+      mutated: replaceExactlyOnce(source, "if (!parsed.success) {", "if (parsed.success === false) {"),
+      expected: [malformedViolation],
+    },
+    {
+      name: "malformed branch duplicated",
+      mutated: replaceExactlyOnce(
+        source,
+        "const result = await reportAccess.access(",
+        "if (!parsed.success) {\n      return reply.code(400).send(REPORT_NOT_FOUND_RESPONSE);\n    }\n\n    const result = await reportAccess.access(",
+      ),
+      expected: [malformedViolation],
+    },
+    {
+      name: "not_found branch discloses a distinct body",
+      mutated: replaceExactlyOnce(
+        source,
+        `if (result.kind === "not_found") {\n      ${HIDDEN_REPORT_RESPONSE}`,
+        `if (result.kind === "not_found") {\n      return reply.code(404).send({ success: false, error: "Token inexistente" });`,
+      ),
+      expected: [notFoundViolation],
+    },
+    {
+      name: "not_found branch reshaped without braces",
+      mutated: replaceExactlyOnce(
+        source,
+        `if (result.kind === "not_found") {\n      ${HIDDEN_REPORT_RESPONSE}\n    }`,
+        `if (result.kind === "not_found") ${HIDDEN_REPORT_RESPONSE}`,
+      ),
+      expected: [notFoundViolation],
+    },
+  ];
+
+  for (const { name, mutated, expected } of cases) {
+    assert.notEqual(mutated, source, name);
+    assert.deepEqual(evaluatePublicReportAccessDisclosureSource(mutated, PUBLIC_REPORT_ACCESS_FILE), expected, name);
+  }
 });
 
 test("clinic report and token surfaces do not disclose cross-scope resources as readable data", () => {
