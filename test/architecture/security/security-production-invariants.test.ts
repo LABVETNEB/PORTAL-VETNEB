@@ -508,6 +508,21 @@ function extractFastifyOptionsBlock(source: string): string | null {
   return null;
 }
 
+function hasTopLevelSpreadAfter(optionsBlock: string, member: string): boolean {
+  const tail = optionsBlock.slice(optionsBlock.indexOf(member) + member.length, -1);
+  let depth = 0;
+  for (const line of tail.split("\n")) {
+    if (isCommentLine(line)) continue;
+    for (let index = 0; index < line.length; index += 1) {
+      const char = line[index];
+      if ("([{".includes(char)) depth += 1;
+      else if (")]}".includes(char)) depth -= 1;
+      else if (depth === 0 && line.startsWith("...", index)) return true;
+    }
+  }
+  return false;
+}
+
 function evaluateFastifyTrustProxySource(source: string, context: string): string[] {
   const optionsBlock =
     countOccurrences(source, FASTIFY_OPTIONS_OPENER) === 1 ? extractFastifyOptionsBlock(source) : null;
@@ -523,6 +538,10 @@ function evaluateFastifyTrustProxySource(source: string, context: string): strin
 
   if (!TRUST_PROXY_DIRECT_DELEGATION.test(blockTrustProxyLines[0])) {
     return [`${context}: Fastify trustProxy must delegate directly to ENV.trustProxy`];
+  }
+
+  if (hasTopLevelSpreadAfter(optionsBlock, blockTrustProxyLines[0])) {
+    return [`${context}: Fastify trustProxy must not be overrideable by a later spread`];
   }
 
   return [];
@@ -561,6 +580,42 @@ test("mutation proof: fail-open Fastify trustProxy override is rejected", () => 
   assert.equal(mutated.includes("trustProxy: false"), false, "legacy literal-false ban stays green");
   assert.deepEqual(evaluateFastifyTrustProxySource(mutated, file), [
     `${file}: Fastify trustProxy must delegate directly to ENV.trustProxy`,
+  ]);
+});
+
+test("mutation proof: later spread overriding Fastify trustProxy is rejected", () => {
+  const file = "server/fastify-app.ts";
+  const real = read(file);
+  const spreadOverride = '...({ ["trust" + "Proxy"]: true }),';
+
+  assert.deepEqual(evaluateFastifyTrustProxySource(real, file), []);
+  assert.equal(({ trustProxy: false, ...({ ["trust" + "Proxy"]: true }) }).trustProxy, true);
+
+  const mutated = replaceExactlyOnce(
+    real,
+    "trustProxy: ENV.trustProxy,",
+    `trustProxy: ENV.trustProxy,\n    ${spreadOverride}`,
+  );
+
+  assert.notEqual(mutated, real);
+  assert.equal(countOccurrences(mutated, "trustProxy: ENV.trustProxy,"), 1);
+  assert.equal(countOccurrences(mutated, spreadOverride), 1);
+
+  const optionsBlock = extractFastifyOptionsBlock(mutated);
+  assert.ok(optionsBlock !== null);
+  const blockTrustProxyLines = codeLinesMatching(optionsBlock, /\btrustProxy\b/);
+  assert.equal(countOccurrences(mutated, FASTIFY_OPTIONS_OPENER), 1, "legacy single-construction check stays green");
+  assert.equal(blockTrustProxyLines.length, 1, "legacy block occurrence check stays green");
+  assert.equal(codeLinesMatching(mutated, /\btrustProxy\s*:/).length, 1, "legacy file occurrence check stays green");
+  assert.equal(
+    TRUST_PROXY_DIRECT_DELEGATION.test(blockTrustProxyLines[0]),
+    true,
+    "legacy direct-delegation check stays green",
+  );
+  assert.equal(optionsBlock.includes(spreadOverride), true);
+
+  assert.deepEqual(evaluateFastifyTrustProxySource(mutated, file), [
+    `${file}: Fastify trustProxy must not be overrideable by a later spread`,
   ]);
 });
 
