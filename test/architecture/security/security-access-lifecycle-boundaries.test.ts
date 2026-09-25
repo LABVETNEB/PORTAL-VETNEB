@@ -82,6 +82,55 @@ function assertMatches(source: string, pattern: RegExp, context: string) {
   assert.match(source, pattern, `${context} must match ${pattern}`);
 }
 
+const PARTICULAR_LIFECYCLE_FILES = [
+  "server/routes/particular-auth.fastify.ts",
+  "server/routes/particular-audit.fastify.ts",
+  "server/routes/particular-study-tracking.fastify.ts",
+] as const;
+
+const PARTICULAR_LIFECYCLE_MARKERS = [
+  ["deleteParticularSession", "expired session cleanup"],
+  ["updateParticularSessionLastAccess", "last access update"],
+  ["session.particularTokenId", "session token lookup"],
+  ["particularToken.isActive", "inactive token block"],
+] as const;
+
+const ACTIVE_TOKEN_FLAG = "particularToken.isActive";
+const SINGLE_NEGATION_INACTIVE_GUARD = /if\s*\(\s*!\s*particularToken\s*\|\|\s*!\s*particularToken\.isActive\s*\)/g;
+
+function countOccurrences(source: string, needle: string): number {
+  return source.split(needle).length - 1;
+}
+
+function countInactiveTokenGuards(source: string): { activeFlagRefs: number; validGuards: number } {
+  return {
+    activeFlagRefs: countOccurrences(source, ACTIVE_TOKEN_FLAG),
+    validGuards: [...source.matchAll(SINGLE_NEGATION_INACTIVE_GUARD)].length,
+  };
+}
+
+function evaluateParticularLifecycleSource(source: string, context: string): string[] {
+  const violations: string[] = [];
+
+  for (const [marker, invariant] of PARTICULAR_LIFECYCLE_MARKERS) {
+    if (!source.includes(marker)) {
+      violations.push(`${context}: ${invariant} must contain ${marker}`);
+    }
+  }
+
+  const { activeFlagRefs, validGuards } = countInactiveTokenGuards(source);
+  if (validGuards === 0 || validGuards !== activeFlagRefs) {
+    violations.push(`${context}: inactive particular token guard must reject !particularToken.isActive`);
+  }
+
+  return violations;
+}
+
+function replaceExactlyOnce(source: string, target: string, replacement: string): string {
+  assert.equal(countOccurrences(source, target), 1, `mutation target must appear exactly once: ${target}`);
+  return source.replace(target, () => replacement);
+}
+
 test("access lifecycle matrix documents public token revoke session and rate-limit states", () => {
   assert.deepEqual(ACCESS_LIFECYCLE_BOUNDARIES, {
     publicReportAccessToken: {
@@ -144,23 +193,79 @@ test("report access token revocation records lifecycle actor and audit event", (
 });
 
 test("particular surfaces expire sessions and block inactive tokens before scoped reads", () => {
-  const particularAuth = readSource("server/routes/particular-auth.fastify.ts");
+  for (const file of PARTICULAR_LIFECYCLE_FILES) {
+    assert.deepEqual(evaluateParticularLifecycleSource(readSource(file), file), []);
+  }
+
   const particularAudit = readSource("server/routes/particular-audit.fastify.ts");
   const particularStudyTracking = readSource("server/routes/particular-study-tracking.fastify.ts");
 
-  for (const [context, source] of [
-    ["particular auth", particularAuth],
-    ["particular audit", particularAudit],
-    ["particular study tracking", particularStudyTracking],
-  ] as const) {
-    assertContains(source, "deleteParticularSession", `${context} expired session cleanup`);
-    assertContains(source, "updateParticularSessionLastAccess", `${context} last access update`);
-    assertContains(source, "session.particularTokenId", `${context} session token lookup`);
-    assertContains(source, "particularToken.isActive", `${context} inactive token block`);
-  }
-
   assertContains(particularAudit, "particularTokenId: particular.tokenId", "particular audit scoped read");
   assertContains(particularStudyTracking, "particularTokenId: particular.tokenId", "particular study tracking scoped read");
+});
+
+test("mutation proof: inverted particular inactive-token guard is rejected", () => {
+  const file = "server/routes/particular-audit.fastify.ts";
+  const real = readSource(file);
+
+  assert.deepEqual(evaluateParticularLifecycleSource(real, file), []);
+
+  const mutated = replaceExactlyOnce(
+    real,
+    "if (!particularToken || !particularToken.isActive) {",
+    "if (!particularToken || particularToken.isActive) {",
+  );
+
+  assert.notEqual(mutated, real);
+  for (const [marker] of PARTICULAR_LIFECYCLE_MARKERS) {
+    assert.ok(mutated.includes(marker), `mutated source keeps legacy marker ${marker}`);
+  }
+  assert.equal(
+    PARTICULAR_LIFECYCLE_MARKERS.every(([marker]) => mutated.includes(marker)),
+    true,
+    "legacy presence-only marker check stays green on the inverted guard",
+  );
+  assert.deepEqual(evaluateParticularLifecycleSource(mutated, file), [
+    `${file}: inactive particular token guard must reject !particularToken.isActive`,
+  ]);
+});
+
+test("mutation proof: double-negated particular inactive-token guard is rejected", () => {
+  const file = "server/routes/particular-auth.fastify.ts";
+  const real = readSource(file);
+  const sessionGuard = "if (!particularToken || !particularToken.isActive) {\n    await deps.deleteParticularSession(tokenHash);";
+  const loginGuard = "if (!particularToken || !particularToken.isActive) {\n      await markFailure({";
+
+  assert.deepEqual(evaluateParticularLifecycleSource(real, file), []);
+  assert.deepEqual(countInactiveTokenGuards(real), { activeFlagRefs: 2, validGuards: 2 });
+  assert.equal(countOccurrences(real, loginGuard), 1);
+
+  const mutated = replaceExactlyOnce(
+    real,
+    sessionGuard,
+    "if (!particularToken || !!particularToken.isActive) {\n    await deps.deleteParticularSession(tokenHash);",
+  );
+
+  assert.notEqual(mutated, real);
+  assert.equal(countOccurrences(mutated, "!!particularToken.isActive"), 1);
+  assert.equal(countOccurrences(mutated, sessionGuard), 0);
+  assert.equal(countOccurrences(mutated, loginGuard), 1);
+  assert.deepEqual(countInactiveTokenGuards(mutated), { activeFlagRefs: 2, validGuards: 1 });
+  for (const [marker] of PARTICULAR_LIFECYCLE_MARKERS) {
+    assert.ok(mutated.includes(marker), `mutated source keeps legacy marker ${marker}`);
+  }
+
+  const legacyRejection = /if\s*\(\s*!\s*particularToken\s*\|\|\s*!\s*particularToken\.isActive\s*\)/;
+  const legacyNonNegated = /(?<![\w.]|!\s*)particularToken\.isActive/;
+  assert.equal(
+    legacyRejection.test(mutated) && !legacyNonNegated.test(mutated),
+    true,
+    "legacy at-least-one-guard polarity check stays green on the double-negated guard",
+  );
+
+  assert.deepEqual(evaluateParticularLifecycleSource(mutated, file), [
+    `${file}: inactive particular token guard must reject !particularToken.isActive`,
+  ]);
 });
 
 test("runtime lifecycle tests remain explicit for public report access", () => {
