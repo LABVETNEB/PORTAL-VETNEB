@@ -95,8 +95,19 @@ const PARTICULAR_LIFECYCLE_MARKERS = [
   ["particularToken.isActive", "inactive token block"],
 ] as const;
 
-const INACTIVE_TOKEN_REJECTION = /if\s*\(\s*!\s*particularToken\s*\|\|\s*!\s*particularToken\.isActive\s*\)/;
-const NON_NEGATED_ACTIVE_FLAG = /(?<![\w.]|!\s*)particularToken\.isActive/;
+const ACTIVE_TOKEN_FLAG = "particularToken.isActive";
+const SINGLE_NEGATION_INACTIVE_GUARD = /if\s*\(\s*!\s*particularToken\s*\|\|\s*!\s*particularToken\.isActive\s*\)/g;
+
+function countOccurrences(source: string, needle: string): number {
+  return source.split(needle).length - 1;
+}
+
+function countInactiveTokenGuards(source: string): { activeFlagRefs: number; validGuards: number } {
+  return {
+    activeFlagRefs: countOccurrences(source, ACTIVE_TOKEN_FLAG),
+    validGuards: [...source.matchAll(SINGLE_NEGATION_INACTIVE_GUARD)].length,
+  };
+}
 
 function evaluateParticularLifecycleSource(source: string, context: string): string[] {
   const violations: string[] = [];
@@ -107,15 +118,12 @@ function evaluateParticularLifecycleSource(source: string, context: string): str
     }
   }
 
-  if (!INACTIVE_TOKEN_REJECTION.test(source) || NON_NEGATED_ACTIVE_FLAG.test(source)) {
+  const { activeFlagRefs, validGuards } = countInactiveTokenGuards(source);
+  if (validGuards === 0 || validGuards !== activeFlagRefs) {
     violations.push(`${context}: inactive particular token guard must reject !particularToken.isActive`);
   }
 
   return violations;
-}
-
-function countOccurrences(source: string, needle: string): number {
-  return source.split(needle).length - 1;
 }
 
 function replaceExactlyOnce(source: string, target: string, replacement: string): string {
@@ -217,6 +225,44 @@ test("mutation proof: inverted particular inactive-token guard is rejected", () 
     true,
     "legacy presence-only marker check stays green on the inverted guard",
   );
+  assert.deepEqual(evaluateParticularLifecycleSource(mutated, file), [
+    `${file}: inactive particular token guard must reject !particularToken.isActive`,
+  ]);
+});
+
+test("mutation proof: double-negated particular inactive-token guard is rejected", () => {
+  const file = "server/routes/particular-auth.fastify.ts";
+  const real = readSource(file);
+  const sessionGuard = "if (!particularToken || !particularToken.isActive) {\n    await deps.deleteParticularSession(tokenHash);";
+  const loginGuard = "if (!particularToken || !particularToken.isActive) {\n      await markFailure({";
+
+  assert.deepEqual(evaluateParticularLifecycleSource(real, file), []);
+  assert.deepEqual(countInactiveTokenGuards(real), { activeFlagRefs: 2, validGuards: 2 });
+  assert.equal(countOccurrences(real, loginGuard), 1);
+
+  const mutated = replaceExactlyOnce(
+    real,
+    sessionGuard,
+    "if (!particularToken || !!particularToken.isActive) {\n    await deps.deleteParticularSession(tokenHash);",
+  );
+
+  assert.notEqual(mutated, real);
+  assert.equal(countOccurrences(mutated, "!!particularToken.isActive"), 1);
+  assert.equal(countOccurrences(mutated, sessionGuard), 0);
+  assert.equal(countOccurrences(mutated, loginGuard), 1);
+  assert.deepEqual(countInactiveTokenGuards(mutated), { activeFlagRefs: 2, validGuards: 1 });
+  for (const [marker] of PARTICULAR_LIFECYCLE_MARKERS) {
+    assert.ok(mutated.includes(marker), `mutated source keeps legacy marker ${marker}`);
+  }
+
+  const legacyRejection = /if\s*\(\s*!\s*particularToken\s*\|\|\s*!\s*particularToken\.isActive\s*\)/;
+  const legacyNonNegated = /(?<![\w.]|!\s*)particularToken\.isActive/;
+  assert.equal(
+    legacyRejection.test(mutated) && !legacyNonNegated.test(mutated),
+    true,
+    "legacy at-least-one-guard polarity check stays green on the double-negated guard",
+  );
+
   assert.deepEqual(evaluateParticularLifecycleSource(mutated, file), [
     `${file}: inactive particular token guard must reject !particularToken.isActive`,
   ]);
