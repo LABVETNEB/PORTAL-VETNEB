@@ -478,6 +478,61 @@ test("origin/CORS bloquea métodos inseguros con Origin no permitido y no usa wi
   );
 });
 
+const FASTIFY_OPTIONS_OPENER = "Fastify({";
+const TRUST_PROXY_DIRECT_DELEGATION = /^\s*trustProxy:\s*ENV\.trustProxy,?\s*$/;
+
+function countOccurrences(source: string, target: string): number {
+  return source.split(target).length - 1;
+}
+
+function isCommentLine(line: string): boolean {
+  const trimmed = line.trim();
+  return trimmed.startsWith("//") || trimmed.startsWith("/*") || trimmed.startsWith("*");
+}
+
+function codeLinesMatching(source: string, pattern: RegExp): string[] {
+  return source.split("\n").filter((line) => !isCommentLine(line) && pattern.test(line));
+}
+
+function extractFastifyOptionsBlock(source: string): string | null {
+  const start = source.indexOf(FASTIFY_OPTIONS_OPENER);
+  if (start === -1) return null;
+
+  const open = start + FASTIFY_OPTIONS_OPENER.length - 1;
+  let depth = 0;
+  for (let index = open; index < source.length; index += 1) {
+    if (source[index] === "{") depth += 1;
+    if (source[index] === "}") depth -= 1;
+    if (depth === 0) return source.slice(open, index + 1);
+  }
+  return null;
+}
+
+function evaluateFastifyTrustProxySource(source: string, context: string): string[] {
+  const optionsBlock =
+    countOccurrences(source, FASTIFY_OPTIONS_OPENER) === 1 ? extractFastifyOptionsBlock(source) : null;
+  if (optionsBlock === null) {
+    return [`${context}: Fastify options must be constructed exactly once`];
+  }
+
+  const blockTrustProxyLines = codeLinesMatching(optionsBlock, /\btrustProxy\b/);
+  const fileTrustProxyProperties = codeLinesMatching(source, /\btrustProxy\s*:/);
+  if (blockTrustProxyLines.length !== 1 || fileTrustProxyProperties.length !== 1) {
+    return [`${context}: Fastify trustProxy must be declared exactly once`];
+  }
+
+  if (!TRUST_PROXY_DIRECT_DELEGATION.test(blockTrustProxyLines[0])) {
+    return [`${context}: Fastify trustProxy must delegate directly to ENV.trustProxy`];
+  }
+
+  return [];
+}
+
+function replaceExactlyOnce(source: string, target: string, replacement: string): string {
+  assert.equal(countOccurrences(source, target), 1, `mutation target must appear exactly once: ${target}`);
+  return source.replace(target, () => replacement);
+}
+
 test("Fastify usa trust proxy configurado por ENV y no hardcodea proxies productivos", () => {
   const file = "server/fastify-app.ts";
   const source = read(file);
@@ -485,6 +540,28 @@ test("Fastify usa trust proxy configurado por ENV y no hardcodea proxies product
   assertContains(source, "trustProxy: ENV.trustProxy", file);
   assertNotContains(source, "trustProxy: true", file);
   assertNotContains(source, "trustProxy: false", file);
+  assert.deepEqual(evaluateFastifyTrustProxySource(source, file), []);
+});
+
+test("mutation proof: fail-open Fastify trustProxy override is rejected", () => {
+  const file = "server/fastify-app.ts";
+  const real = read(file);
+
+  assert.deepEqual(evaluateFastifyTrustProxySource(real, file), []);
+
+  const mutated = replaceExactlyOnce(
+    real,
+    "trustProxy: ENV.trustProxy,",
+    "trustProxy: ENV.trustProxy || true,",
+  );
+
+  assert.notEqual(mutated, real);
+  assert.equal(mutated.includes("trustProxy: ENV.trustProxy"), true, "legacy positive marker stays green");
+  assert.equal(mutated.includes("trustProxy: true"), false, "legacy literal-true ban stays green");
+  assert.equal(mutated.includes("trustProxy: false"), false, "legacy literal-false ban stays green");
+  assert.deepEqual(evaluateFastifyTrustProxySource(mutated, file), [
+    `${file}: Fastify trustProxy must delegate directly to ENV.trustProxy`,
+  ]);
 });
 
 test("errores internos se loguean, pero la respuesta 500 no expone detalles", () => {
