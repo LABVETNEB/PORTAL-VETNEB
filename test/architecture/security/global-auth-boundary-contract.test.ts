@@ -262,8 +262,11 @@ const SCHEMA_HEALTH_AUTH_DELEGATION = "return authenticateFastifyAdmin(request,r
 const SCHEMA_HEALTH_AUTH_CALL = "const admin=await authenticateAdminUser(request,reply,deps,now);";
 const SCHEMA_HEALTH_NULL_GUARD = /if\(!admin\)(?:\{return reply;\}|return reply;)/g;
 const SCHEMA_HEALTH_PROTECTED_CALL = "deps.getSchemaHealthSnapshot()";
+const SCHEMA_HEALTH_PROTECTED_INVOCATION = /getSchemaHealthSnapshot[!?.]*\(/g;
 const SCHEMA_HEALTH_PROTECTED_BEFORE_AUTH =
   `${SCHEMA_HEALTH_CONTEXT}: protected operation ${SCHEMA_HEALTH_PROTECTED_CALL} starts before admin authentication completes`;
+const SCHEMA_HEALTH_PROTECTED_MODULE_WIDE =
+  `${SCHEMA_HEALTH_ROUTE_FILE}: expected exactly one protected getSchemaHealthSnapshot invocation module-wide`;
 
 function normalizeForAuthOrder(source: string): string {
   return source
@@ -315,6 +318,10 @@ function evaluateSchemaHealthAuthOrder(source: string): string[] {
     violations.push(
       `${SCHEMA_HEALTH_ROUTE_FILE}: authenticateAdminUser must be defined once and delegate to authenticateFastifyAdmin`,
     );
+  }
+
+  if ([...normalized.matchAll(SCHEMA_HEALTH_PROTECTED_INVOCATION)].length !== 1) {
+    violations.push(SCHEMA_HEALTH_PROTECTED_MODULE_WIDE);
   }
 
   if (countOccurrences(normalized, SCHEMA_HEALTH_HANDLER_HEADER) !== 1) {
@@ -397,6 +404,36 @@ function mutateSchemaHealthSnapshotBeforeAdminAuth(source: string): string {
   );
 }
 
+function mutateSchemaHealthSnapshotInsideAuthHelper(source: string): string {
+  const delegation = "  return authenticateFastifyAdmin(request, reply, {";
+
+  return replaceExactlyOnce(
+    source,
+    delegation,
+    `  await deps.getSchemaHealthSnapshot();\n${delegation}`,
+  );
+}
+
+function mutateSchemaHealthSnapshotUnauthenticatedRoute(source: string): string {
+  const optionsRegistration = '  app.options("/", optionsHandler);';
+
+  return replaceExactlyOnce(
+    source,
+    optionsRegistration,
+    `${optionsRegistration}\n\n  app.get("/raw", async () => deps.getSchemaHealthSnapshot());`,
+  );
+}
+
+function assertMutationKeepsHandlerAnchors(mutated: string): void {
+  const normalizedMutated = normalizeForAuthOrder(mutated);
+
+  assert.equal(countOccurrences(normalizedMutated, SCHEMA_HEALTH_HANDLER_HEADER), 1);
+  assert.equal(countOccurrences(normalizedMutated, SCHEMA_HEALTH_AUTH_CALL), 1);
+  assert.equal([...normalizedMutated.matchAll(SCHEMA_HEALTH_NULL_GUARD)].length, 1);
+  assert.equal(countOccurrences(normalizedMutated, SCHEMA_HEALTH_PROTECTED_CALL), 2);
+  assert.equal(legacyAdminMarkerCheck(mutated), true);
+}
+
 function legacyAdminMarkerCheck(source: string): boolean {
   return source.includes("authenticateFastifyAdmin");
 }
@@ -421,6 +458,24 @@ test("mutation proof: schema-health operation started before admin auth is rejec
     "legacy authenticateFastifyAdmin marker check stays green on the mutated source (false-green)",
   );
   assert.deepEqual(evaluateSchemaHealthAuthOrder(mutated), [SCHEMA_HEALTH_PROTECTED_BEFORE_AUTH]);
+});
+
+test("mutation proof: schema-health operation inside the admin auth helper is rejected", () => {
+  const real = read(SCHEMA_HEALTH_ROUTE_FILE);
+  const mutated = mutateSchemaHealthSnapshotInsideAuthHelper(real);
+
+  assert.notEqual(mutated, real);
+  assertMutationKeepsHandlerAnchors(mutated);
+  assert.deepEqual(evaluateSchemaHealthAuthOrder(mutated), [SCHEMA_HEALTH_PROTECTED_MODULE_WIDE]);
+});
+
+test("mutation proof: schema-health operation on a second unauthenticated route is rejected", () => {
+  const real = read(SCHEMA_HEALTH_ROUTE_FILE);
+  const mutated = mutateSchemaHealthSnapshotUnauthenticatedRoute(real);
+
+  assert.notEqual(mutated, real);
+  assertMutationKeepsHandlerAnchors(mutated);
+  assert.deepEqual(evaluateSchemaHealthAuthOrder(mutated), [SCHEMA_HEALTH_PROTECTED_MODULE_WIDE]);
 });
 
 test("schema-health auth order evaluator fails closed when the handler is not evaluable", () => {
