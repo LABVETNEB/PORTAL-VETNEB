@@ -181,16 +181,23 @@ function routeStartRegex(route: Pick<SensitiveMutationRoute, "method" | "path">)
   );
 }
 
-function extractRouteBlock(route: SensitiveMutationRoute): string {
-  const source = readSource(route.file);
+function findRouteBlocks(route: SensitiveMutationRoute, source: string): string[] {
   const routeStarts = [
     ...source.matchAll(/\bapp\.(?:get|post|patch|delete|options)(?:<|\()/g),
   ].map((match) => match.index);
-  const block = routeStarts
+
+  return routeStarts
     .map((start, index) =>
       source.slice(start, routeStarts[index + 1] ?? source.length),
     )
-    .find((candidate) => routeStartRegex(route).test(candidate));
+    .filter((candidate) => routeStartRegex(route).test(candidate));
+}
+
+function extractRouteBlockFromSource(
+  route: SensitiveMutationRoute,
+  source: string,
+): string {
+  const [block] = findRouteBlocks(route, source);
 
   assert.notEqual(
     block,
@@ -199,6 +206,161 @@ function extractRouteBlock(route: SensitiveMutationRoute): string {
   );
 
   return block!;
+}
+
+function extractRouteBlock(route: SensitiveMutationRoute): string {
+  return extractRouteBlockFromSource(route, readSource(route.file));
+}
+
+function skipQuoted(source: string, start: number): number {
+  const quote = source[start];
+
+  for (let index = start + 1; index < source.length; index += 1) {
+    if (source[index] === "\\") {
+      index += 1;
+    } else if (source[index] === quote) {
+      return index + 1;
+    } else if (source[index] === "\n") {
+      break;
+    }
+  }
+
+  assert.fail(`string literal sin cerrar en offset ${start}`);
+}
+
+// Length-preserving: comment text becomes spaces (newlines kept) so offsets and order survive.
+// Strings and template literals are skipped so `//` inside them is not taken as a comment.
+// Regex literals are not modelled; unbalanced state fails closed.
+function maskComments(source: string): string {
+  const output = source.split("");
+  const braces: ("block" | "interpolation")[] = [];
+  let inTemplate = false;
+  let index = 0;
+
+  const mask = (from: number, to: number) => {
+    for (let position = from; position < to; position += 1) {
+      if (output[position] !== "\n") {
+        output[position] = " ";
+      }
+    }
+  };
+
+  while (index < source.length) {
+    const char = source[index];
+    const next = source[index + 1];
+
+    if (inTemplate) {
+      if (char === "\\") {
+        index += 2;
+      } else if (char === "`") {
+        inTemplate = false;
+        index += 1;
+      } else if (char === "$" && next === "{") {
+        braces.push("interpolation");
+        inTemplate = false;
+        index += 2;
+      } else {
+        index += 1;
+      }
+      continue;
+    }
+
+    if (char === "/" && next === "/") {
+      const lineEnd = source.indexOf("\n", index);
+      const stop = lineEnd === -1 ? source.length : lineEnd;
+      mask(index, stop);
+      index = stop;
+    } else if (char === "/" && next === "*") {
+      const commentEnd = source.indexOf("*/", index + 2);
+      assert.notEqual(commentEnd, -1, `block comment sin cerrar en offset ${index}`);
+      mask(index, commentEnd + 2);
+      index = commentEnd + 2;
+    } else if (char === '"' || char === "'") {
+      index = skipQuoted(source, index);
+    } else if (char === "`") {
+      inTemplate = true;
+      index += 1;
+    } else {
+      if (char === "{") {
+        braces.push("block");
+      } else if (char === "}") {
+        inTemplate = braces.pop() === "interpolation";
+      }
+      index += 1;
+    }
+  }
+
+  assert.equal(inTemplate, false, "template literal sin cerrar");
+  assert.equal(braces.length, 0, "llaves desbalanceadas fuera de strings y comentarios");
+
+  return output.join("");
+}
+
+function findCallIndex(code: string, marker: string): number {
+  return code.search(
+    new RegExp(`(?<![\\w$])(?<!function\\s+)${escapeRegex(marker)}\\s*\\(`),
+  );
+}
+
+function evaluateSensitiveMutationRouteSource(
+  route: SensitiveMutationRoute,
+  source: string,
+): string[] {
+  const context = `${route.file} ${route.method.toUpperCase()} ${route.path}`;
+  const blocks = findRouteBlocks(route, maskComments(source));
+
+  if (blocks.length !== 1) {
+    return [`${context}: debe declarar exactamente un route block (encontrados: ${blocks.length})`];
+  }
+
+  const [block] = blocks;
+  const checkpoints = [
+    { kind: "origin", marker: "enforceTrustedOrigin" },
+    { kind: "auth", marker: route.authGuard },
+    ...(route.permissionGuard
+      ? [{ kind: "permission", marker: route.permissionGuard }]
+      : []),
+  ];
+  const violations: string[] = [];
+  const executed: { kind: string; marker: string; index: number }[] = [];
+
+  for (const checkpoint of checkpoints) {
+    const index = findCallIndex(block, checkpoint.marker);
+
+    if (index === -1) {
+      violations.push(`${context}: debe ejecutar ${checkpoint.kind} checkpoint ${checkpoint.marker}`);
+    } else {
+      executed.push({ ...checkpoint, index });
+    }
+  }
+
+  for (const protectedCall of route.protectedCalls) {
+    const callIndex = findCallIndex(block, protectedCall);
+
+    if (callIndex === -1) {
+      violations.push(`${context}: debe contener operación protegida ${protectedCall}`);
+      continue;
+    }
+
+    for (const checkpoint of executed) {
+      if (checkpoint.index > callIndex) {
+        violations.push(
+          `${context}: debe ejecutar ${checkpoint.kind} checkpoint ${checkpoint.marker} antes de ${protectedCall}`,
+        );
+      }
+    }
+  }
+
+  return violations;
+}
+
+function countOccurrences(source: string, target: string): number {
+  return source.split(target).length - 1;
+}
+
+function replaceExactlyOnce(source: string, target: string, replacement: string): string {
+  assert.equal(countOccurrences(source, target), 1, `mutation target must appear exactly once: ${target}`);
+  return source.replace(target, () => replacement);
 }
 
 function assertContains(haystack: string, needle: string, context: string): void {
@@ -287,7 +449,60 @@ test("rutas mutantes sensibles validan origin, sesión y permiso antes de operar
         assertBefore(block, route.permissionGuard, protectedCall, context);
       }
     }
+
+    assert.deepEqual(
+      evaluateSensitiveMutationRouteSource(route, readSource(route.file)),
+      [],
+      context,
+    );
   }
+});
+
+test("mutation proof: commented permission marker cannot satisfy mutation guard", () => {
+  const candidates = SENSITIVE_MUTATION_ROUTES.filter(
+    (entry) =>
+      entry.file === "server/routes/reports-status.fastify.ts" &&
+      entry.method === "patch" &&
+      entry.path === "/:reportId/status",
+  );
+  assert.equal(candidates.length, 1);
+  const [route] = candidates;
+  const permissionGuard = route.permissionGuard!;
+  const context = `${route.file} ${route.method.toUpperCase()} ${route.path}`;
+
+  assert.equal(permissionGuard, "requireReportStatusWritePermission");
+  assert.deepEqual(route.protectedCalls, [
+    "composition.queries.transitionClinicReportStatus",
+    "composition.writeAuditLog",
+  ]);
+
+  const real = readSource(route.file);
+  assert.deepEqual(evaluateSensitiveMutationRouteSource(route, real), []);
+
+  const permissionCheckpoint = [
+    "    if (!requireReportStatusWritePermission(auth, reply)) {",
+    "      return reply;",
+    "    }",
+  ].join("\n");
+  const mutated = replaceExactlyOnce(
+    real,
+    permissionCheckpoint,
+    "    // requireReportStatusWritePermission(auth, reply);",
+  );
+  assert.notEqual(mutated, real);
+
+  const mutatedBlock = extractRouteBlockFromSource(route, mutated);
+  assert.equal(mutatedBlock.includes("if (!requireReportStatusWritePermission("), false);
+
+  // Legacy oracle stays green: the marker survives only inside the comment.
+  assertContains(mutatedBlock, permissionGuard, context);
+  for (const protectedCall of route.protectedCalls) {
+    assertBefore(mutatedBlock, permissionGuard, protectedCall, context);
+  }
+
+  assert.deepEqual(evaluateSensitiveMutationRouteSource(route, mutated), [
+    `${context}: debe ejecutar permission checkpoint requireReportStatusWritePermission`,
+  ]);
 });
 
 test("permission helpers devuelven 403 estable antes de mutaciones sensibles", () => {
