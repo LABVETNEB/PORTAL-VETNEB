@@ -712,10 +712,12 @@ orden: (1) tenant isolation/IDOR, (2) auth y sesiones, (3) permisos y roles,
 > de `04` asigna a `TEST-GLOBAL-11` los tres registries de governance de
 > `test/architecture/security/**` (`security-boundary-suite-completeness`,
 > `security-critical-route-surface-registry`,
-> `security-docs-matrix-drift-guard`). `11` los gobierna bajo su regla de fuente
-> única y fail-closed, **no** propagándoles el harness de mutación. El punto (6)
-> como propagación de harness a registries sigue sin ficha; esta actualización
-> no la crea.
+> `security-docs-matrix-drift-guard`). Para esos tres, el punto (6) queda con
+> dueño ejecutable: `11` los consolida con su regla de fuente única y les da un
+> mutation proof en memoria **del inventario** (aceptación 7 de su ficha), como
+> parte de la obligación de `TG-R05`. Para los registries de governance fuera
+> de `architecture/security/**`, que no están en el alcance de `TG-R05`, el
+> punto (6) sigue sin ficha; esta actualización no la crea.
 
 ## 12. Fixtures, factories, mocks y helpers
 
@@ -1437,6 +1439,7 @@ obligatoria y §36 sólo puede exigir objetivos que la tengan.
 | Source coupling | 137 candidatos adjudicados a 100 %; guards legítimos preservados sin excepción; acoplamiento accidental corregido o registrado con owner y motivo | `06`, `07`, `08` |
 | Assertions | 0 contratos críticos con oracle sólo-presencia; substring ratio < 20 % **en las carpetas remediadas por `07`/`08`** | `04`, `07`, `08` |
 | Seguridad | Prueba negativa en tenant isolation, auth, permisos, redacción y rate limit; 0 registries stale no dereferenciados | `02`, `04` |
+| Seguridad — meta-guards de `architecture/security/**` | Los 3 meta-guards reasignados desde `04` con mutation proof de inventario, y la lista de guardrails de seguridad derivada de una única fuente canónica (parte de `TG-R05`) | `11` |
 | Mocks — costuras de infraestructura | 0 `as any` sobre `ENV`, email y storage; ownership declarado por double | `10A` → `10B` |
 | Mocks — costuras de inyección de rutas | 0 `as any` en el registro de plugins Fastify (`clinicAuthNativeRoutes as any` = 9 sobre §3.2) y criterio declarado para los casts de `req`/`res`/`reply` (47) | `10C` → `10D` |
 | Performance | Mantener wall time < 60 s; ninguna optimización con pérdida semántica | subproducto de `05A`; sin fase propia (§24) |
@@ -1575,7 +1578,7 @@ montar una DB, o convertir cualquiera de esos fallos en `skip` o en `PASSED`.
 | `TEST-GLOBAL-10B` | Realineación de tests y retiro de `as any` de infraestructura | test-only | R1 | — | 10A |
 | `TEST-GLOBAL-10C` | Costura tipada en el registro de plugins Fastify | **backend-only** | **R2** | **Nico, explícita** | 10A |
 | `TEST-GLOBAL-10D` | Retiro de `as any` en el registro de rutas y criterio para `req`/`res`/`reply` | test-only | R1 | — | 10C |
-| `TEST-GLOBAL-11` | Consolidación de registries y censos congelados (incluidos el de `01B` y los tres meta-guards de seguridad reasignados desde `04`) | test-only | R1 | — | 05A, 01B |
+| `TEST-GLOBAL-11` | Consolidación de registries y censos congelados (incluidos el de `01B` y los tres meta-guards de seguridad reasignados desde `04`: fuente canónica única y mutation proof de inventario, parte de `TG-R05`) | test-only | R1 | — | 05A, 01B |
 | `TEST-GLOBAL-12A` | Publicación documental del baseline de coverage con su salvedad | docs-only | R1 | — | 04, 08 |
 | `TEST-GLOBAL-12B` | Incorporación de `test:coverage` a CI como diagnóstico no bloqueante | ci-only | **R2** | **Nico, explícita** | 12A |
 | `TEST-GLOBAL-13` | Gobernanza, documentación y certificación de cierre | docs-only | R1 | — | todas |
@@ -1715,7 +1718,7 @@ programa que existe para consolidar censos.
 - **Riesgo**: R1. **Autorización**: no requiere. **Dependencias**: `02`.
 - **Aceptación**: se evalúa en dos niveles —por PR y agregada de fase— definidos a continuación.
 - **Aceptación — por PR (unidad)**: cada PR de `04` se acepta **de forma independiente**, sin esperar a los demás, cuando su único contrato cumple: (1) el guard incorpora al menos una mutación explícita en el propio test; (2) esa mutación pone el guard en rojo y el test lo demuestra; (3) el contrato pasa de `NO_NEGATIVE_PROOF` o `MUTATION_CANDIDATE` a `MUTATION_PROOF_PRESENT` en la matriz de §17 o, si es un guard de la dimensión B, en el inventario de esta ficha; (4) ninguna assertion previa se retira ni se debilita; (5) gates dirigidos en `PASSED`.
-- **Aceptación — agregada (fase)**: `04` se declara cerrada sólo cuando se cumplen **las dos dimensiones**. Ninguna reemplaza a la otra. El cierre agregado es condición de `12A`, no de cada PR.
+- **Aceptación — agregada (fase)**: `04` se declara cerrada sólo cuando se cumplen **las dos dimensiones**. Ninguna reemplaza a la otra. El cierre agregado es condición de `12A`, no de cada PR. El cierre agregado de `04` **no** cierra por sí solo `TG-R05`: su cierre exige además la aceptación (7) de `TEST-GLOBAL-11` (ver «Frontera `04` ↔ `11`»).
   - *Dimensión A — los ocho contratos de la matriz de §17*, según su clase en §3.1: (a) los que eran `AUSENTE` o `PARCIAL`, incluida la mitad de configuración de Sesión / cookies, llegan a `MUTATION_PROOF_PRESENT` o a un `accepted defer` con owner y fecha; (b) los que ya estaban en `NEGATIVE_FIXTURE_PRESENT` conservan esa clase sin degradarse. La clase (b) no exige harness de mutación, y un contrato sin harness no se reetiqueta `MUTATION_PROOF_PRESENT`.
   - *Dimensión B — guards estáticos del Scope*: cada guard de `test/architecture/security/**` que pertenece a uno de los seis dominios del Scope incorpora al menos una mutación explícita que lo pone en rojo, o tiene un `accepted defer` con owner y fecha. La dimensión A no cubre esta: un fixture runtime no prueba la fuerza de detección de un guard estático distinto. El inventario está más abajo, en «Progreso verificado». Desde la adjudicación de 2026-09-25, la dimensión B comprende los 12 guards originales **más** los dos contratos semánticos adjudicados a `04` (`security-validation-cutoff-boundaries`, `security-write-attribution-boundaries`); para estos dos la adjudicación fija mutation proof, no `accepted defer`, y cambiar esa salida exige un PR docs-only de readjudicación propio.
 
@@ -1752,20 +1755,45 @@ Criterio de adjudicación, por el modo de fallo primario del guard:
 - **`11`** — el guard protege la **coherencia de un inventario** (registry de
   guardrails, anchors, paths, markers, documentación) y su fallo primario es
   drift de registry o de fuente de verdad, no una mutación behavioral de un
-  endpoint. Su prueba es la regla de fuente única y fail-closed de `11`.
+  endpoint. Su prueba es un mutation proof en memoria **del inventario que
+  gobierna** —entrada de registry con path inventado o stale, archivo de guard
+  no registrado, marker o anchor retirado— que pone el guard en rojo, sobre un
+  registry consolidado con la regla de fuente única de `11`.
+
+La frontera separa **qué se muta**, no si se exige prueba negativa: source
+productivo en `04`, inventario en `11`. Los 17 guards de
+`architecture/security/**` necesitan su prueba negativa.
+
+**`TG-R05` conserva su significado original** (§28: contratos de seguridad
+estáticos de `architecture/security/**` sin prueba negativa; §11.2 incluye los
+registries de governance en el punto 6). La reasignación **no** lo estrecha ni lo
+rebaselinea. La reparte sin solapamiento, con un solo owner por guard:
+
+```text
+TG-R05 — obligación: 17/17 guards de architecture/security/** con MUTATION_PROOF_PRESENT
+  04   14 guards   12 originales de la dimensión B + validation-cutoff + write-attribution
+  11    3 guards   boundary-suite-completeness · critical-route-surface-registry ·
+                   docs-matrix-drift-guard
+TG-R05 CERRADO  ⇔  04 cerrada en agregado  Y  11 cumple su aceptación (7)
+```
 
 Invariantes de la reasignación, vinculantes:
 
 - Reasignar ownership **no** rebaja ningún control. Los guards reasignados siguen
   ejecutándose en `pnpm test` sin cambios: 0 `skip`, 0 assertion retirada, 0
   debilitamiento. Retirarlos o relajarlos sigue sujeto a §31.6.
-- Un guard reasignado a `11` **no** se reetiqueta `MUTATION_PROOF_PRESENT` ni
-  cuenta como mutation proof de ningún contrato de `04`.
-- Los guards reasignados no bloquean el cierre agregado de `04` ni el de
-  `TG-R05`, que cierra con él.
+- La reasignación, por sí sola, **no** reetiqueta ningún guard
+  `MUTATION_PROOF_PRESENT`. Un meta-guard llega a esa clase sólo con el mutation
+  proof de inventario que exige la aceptación (7) de `11`, y nunca cuenta como
+  mutation proof de un contrato de `04`.
+- Los tres meta-guards **no** bloquean el cierre agregado de `04`, que cierra
+  sólo lo que posee. **Sí** bloquean el cierre de `TG-R05`: cerrar `04` no cierra
+  `TG-R05` mientras `11` no haya cumplido su aceptación (7).
 - Si un PR de `04` renombra un test anclado por un meta-guard (`testAnchors`,
-  `markers`), lo realinea en el mismo PR (`AGENTS.md` §4); la realineación no
-  transfiere ownership.
+  `markers`), lo realinea en el mismo PR (`AGENTS.md` §4), dondequiera que viva
+  el anchor. Eso incluye el módulo de fuente canónica de `11` en
+  `test/helpers/**` si ya existe, aunque esté fuera de los Paths permitidos de
+  `04`. La realineación no transfiere ownership.
 
 **Progreso verificado sobre `main@3146fc0c` (2026-09-25). Estado: `IN_PROGRESS`.**
 
@@ -1815,9 +1843,9 @@ archivo sobre `main@3146fc0c` (`MANUAL_CLASSIFICATION`):
 |---|---|---|---|
 | `security-validation-cutoff-boundaries` | `TEST-GLOBAL-04` / `MUTATION_PROOF_PENDING` | `04` (dimensión B) | Protege semántica concreta: token, params, body, upload multipart y filtros de auditoría deben cortar con 404/400 **antes** de hash, lookup, write, signing o audit. 13 tests; oracle de presencia y orden (`assertContainsInOrder` por `indexOf`) sobre el source de las rutas y de la capa de aplicación; sin helper de mutación. Mutación que escapa (razonada, no ejecutada): comentar el `if (!parsed.success) {` y su `return reply.code(…)` deja ambos substrings en el mismo orden, y el guard sigue en verde |
 | `security-write-attribution-boundaries` | `TEST-GLOBAL-04` / `MUTATION_PROOF_PENDING` | `04` (dimensión B) | Protege semántica concreta: atribución del actor en writes persistentes y en audit metadata para admin, clinic, particular y token público. 6 tests; oracle de presencia pura (`assertContains` / `assertMatches`), 0 assertions negativas, sin helper de mutación. Referencia tests runtime existentes, pero eso no demuestra la fuerza de detección de este guard estático (dimensión B). Mutación que escapa (razonada, no ejecutada): persistir `createdByAdminUserId: null` conservando el literal `createdByAdminUserId: actor.id` en un comentario |
-| `security-boundary-suite-completeness` | `REASSIGNED_TO_TEST_GLOBAL_11` | `11` | Meta-registry de completitud: `SECURITY_BOUNDARY_SUITE` (12 guardrails, orden canónico congelado por `deepEqual`), walker que exige que todo `security-*-boundaries.test.ts` bajo `test/` esté registrado, runtime anchors por marker y markers de tests downstream. Su fallo primario es drift entre registry, paths y markers, no una mutación behavioral de un endpoint |
-| `security-critical-route-surface-registry` | `REASSIGNED_TO_TEST_GLOBAL_11` | `11` | Registry de superficies críticas: `CRITICAL_ROUTE_SURFACE_REGISTRY` (6 superficies, slugs congelados), runtime files y guardrail tests por marker, más una segunda lista literal de 21 guardrails obligatorios en el mismo archivo. Incluye superficies no de seguridad (storage, búsqueda pública, gates de CI y `package.json`). Sin auto-discovery. Pertenece al eje registries / censos / fuente única |
-| `security-docs-matrix-drift-guard` | `REASSIGNED_TO_TEST_GLOBAL_11` | `11` | Anti-drift entre documentación, endpoints y registries: exige 6 docs de `docs/security/**` y `docs/ops/**` con sus markers, 20 endpoints en `ENDPOINT_PERMISSION_MATRIX.md` y 9 guardrail tests existentes y referenciados por la documentación. Es un guard documental y de registry, no un oracle behavioral de runtime |
+| `security-boundary-suite-completeness` | `REASSIGNED_TO_TEST_GLOBAL_11` / `MUTATION_PROOF_PENDING` | `11` | Meta-registry de completitud: `SECURITY_BOUNDARY_SUITE` (12 guardrails, orden canónico congelado por `deepEqual`), walker que exige que todo `security-*-boundaries.test.ts` bajo `test/` esté registrado, runtime anchors por marker y markers de tests downstream. Su fallo primario es drift entre registry, paths y markers, no una mutación behavioral de un endpoint |
+| `security-critical-route-surface-registry` | `REASSIGNED_TO_TEST_GLOBAL_11` / `MUTATION_PROOF_PENDING` | `11` | Registry de superficies críticas: `CRITICAL_ROUTE_SURFACE_REGISTRY` (6 superficies, slugs congelados), runtime files y guardrail tests por marker, más una segunda lista literal de 21 guardrails obligatorios en el mismo archivo. Incluye superficies no de seguridad (storage, búsqueda pública, gates de CI y `package.json`). Sin auto-discovery. Pertenece al eje registries / censos / fuente única |
+| `security-docs-matrix-drift-guard` | `REASSIGNED_TO_TEST_GLOBAL_11` / `MUTATION_PROOF_PENDING` | `11` | Anti-drift entre documentación, endpoints y registries: exige 6 docs de `docs/security/**` y `docs/ops/**` con sus markers, 20 endpoints en `ENDPOINT_PERMISSION_MATRIX.md` y 9 guardrail tests existentes y referenciados por la documentación. Es un guard documental y de registry, no un oracle behavioral de runtime |
 
 Ninguno de los cinco recibe `accepted defer`. La lista de guardrails de
 seguridad se declara hoy, como mínimo, en `SECURITY_BOUNDARY_SUITE`, en las dos
@@ -1826,14 +1854,21 @@ listas de `security-critical-route-surface-registry` y en
 `DUPLICATE_SOURCE_OF_TRUTH` de §20 y la razón material por la que los tres
 pertenecen a `11`.
 
+Las dos tablas anteriores forman juntas el **inventario completo de `TG-R05`**:
+17 guards, cada uno con exactamente un owner. Un meta-guard pasa a
+`MUTATION_PROOF_PRESENT` en este inventario sólo cuando `11` cumple su aceptación
+(7), y se registra en el PR docs-only posterior a esa fase (§1).
+
 ```text
 TEST-GLOBAL-04   IN_PROGRESS — dimensión A cumplida; dimensión B: 12/12 originales
                  MUTATION_PROOF_PRESENT + 2 adjudicados MUTATION_PROOF_PENDING
                  (security-validation-cutoff-boundaries,
                   security-write-attribution-boundaries)
-REASIGNADOS      3 meta-guards → TEST-GLOBAL-11 (no bloquean el cierre de 04)
+REASIGNADOS      3 meta-guards → TEST-GLOBAL-11, MUTATION_PROOF_PENDING
+                 (no bloquean el cierre de 04; sí el de TG-R05)
 TG-R05           ABIERTO (parcial) — 12 de 17 guards de architecture/security/** con
-                 mutation proof; cierra con 04 en agregado, al fusionar los 2 pendientes
+                 mutation proof. Pendientes: 2 de 04 + 3 de 11. Cierra sólo cuando
+                 04 cierra en agregado Y 11 cumple su aceptación (7)
 12A              sigue bloqueada: exige 04 cerrada en agregado y 08 (§32)
 ```
 
@@ -2092,17 +2127,24 @@ incompleta, no licencia para debilitar el test.
 
 ### TEST-GLOBAL-11 — Registries y censos congelados
 
-- **Objetivo**: que cada censo congelado proteja un contrato real desde una sola fuente de verdad, y que ninguno sobreviva por inercia.
-- **Problema**: `TG-R13` + `TG-R11`; más la gobernanza de los tres meta-guards de seguridad reasignados desde `04` (adjudicación de 2026-09-25).
+- **Objetivo**: que cada censo congelado proteja un contrato real desde una sola fuente de verdad, y que ninguno sobreviva por inercia. Para los registries de guardrails de seguridad: una única fuente canónica de la que deriva toda otra representación, y prueba negativa de su inventario.
+- **Problema**: `TG-R13` + `TG-R11`; y la parte de `TG-R05` que corresponde a los tres meta-guards de seguridad reasignados desde `04` (adjudicación de 2026-09-25; ficha de `04`, «Frontera `04` ↔ `11`»).
 - **Evidencia**: §20, §23; ficha de `TEST-GLOBAL-04`, «Frontera `04` ↔ `11`» y tabla de adjudicación.
 - **Tipo de scope**: test-only. **Paths permitidos**: `test/**`.
 - **Riesgo**: R1. **Autorización**: no requiere. **Dependencias**: `05A` y **`01B`** (ver abajo).
-- **Scope**: (a) eliminar la triple declaración de `M48` —derivar la tabla markdown del censo, o derivar el censo de una única fuente—; (b) revisar las **498 assertions de censo congelado en 134 archivos** (§20, cifra corregida en esta revisión) distinguiendo `FROZEN_CENSUS` deliberado de `LEGACY_LIST`; (c) **auditar el censo introducido por `TEST-GLOBAL-01B`** contra la regla de fuente única de §31.2, para que el instrumento creado al inicio del programa no quede fuera de la consolidación que el programa existe para hacer (`TG-A08`); (d) **auditar los tres meta-guards de seguridad reasignados desde `04`**: `test/architecture/security/security-boundary-suite-completeness.test.ts`, `test/architecture/security/security-critical-route-surface-registry.test.ts` y `test/architecture/security/security-docs-matrix-drift-guard.test.ts`. La auditoría aplica la regla de `11`: fuente única, sin duplicación ni inercia, fail-closed, y owner y motivo explícitos. Incluye la lista de guardrails de seguridad que hoy se declara en varios lugares (ficha de `04`).
-- **No-scope**: retirar guards fail-closed; relajar `M48`; convertir un censo en warning para evitar mantenerlo; mutation proof de contratos semánticos de seguridad (eso es `04`); sustituir el walker de auto-discovery de `security-boundary-suite-completeness` por una allowlist; `docs/**` (si la fuente única de un meta-guard exigiera cambiar la documentación que ancla, eso es un PR docs-only aparte).
-- **Aceptación**: (1) cada censo congelado superviviente tiene fuente única declarada y motivo escrito en el propio test; (2) `M48` deja de exigir edición en tres lugares; (3) todo `LEGACY_LIST` identificado queda retirado o convertido en derivación; (4) el censo de `01B` queda clasificado y conforme a §31.2; (5) ningún guard pierde poder de detección —se verifica con §31.6 condiciones 4, 5 y 6; (6) cada uno de los tres meta-guards de (d) queda clasificado con la taxonomía de §20. Declara en el propio test su fuente única, owner y motivo, y conserva sus propiedades fail-closed de §16 (`NEW_VIOLATION`, `STALE_EXCEPTION`). La lista de guardrails de seguridad deja de declararse de forma independiente en varios lugares: queda una fuente única y el resto deriva de ella, o cada duplicado que sobreviva lleva su motivo escrito.
+- **Scope**: (a) eliminar la triple declaración de `M48` —derivar la tabla markdown del censo, o derivar el censo de una única fuente—; (b) revisar las **498 assertions de censo congelado en 134 archivos** (§20, cifra corregida en esta revisión) distinguiendo `FROZEN_CENSUS` deliberado de `LEGACY_LIST`; (c) **auditar el censo introducido por `TEST-GLOBAL-01B`** contra la regla de fuente única de §31.2, para que el instrumento creado al inicio del programa no quede fuera de la consolidación que el programa existe para hacer (`TG-A08`); (d) **auditar los tres meta-guards de seguridad reasignados desde `04`**: `test/architecture/security/security-boundary-suite-completeness.test.ts`, `test/architecture/security/security-critical-route-surface-registry.test.ts` y `test/architecture/security/security-docs-matrix-drift-guard.test.ts`. La auditoría aplica la regla de `11`: fuente única, sin duplicación ni inercia, fail-closed, y owner y motivo explícitos. Incluye consolidar en **una única fuente canónica** la lista de guardrails que hoy se declara de forma independiente en cuatro lugares: `SECURITY_BOUNDARY_SUITE`, los `guardrailTests` de `CRITICAL_ROUTE_SURFACE_REGISTRY`, la lista literal de guardrails obligatorios del mismo archivo y `REQUIRED_GUARDRAIL_TESTS` (ficha de `04`). (e) Dar a cada uno de los tres meta-guards un **mutation proof en memoria de su inventario**, que es la parte de `TG-R05` que posee `11`.
+- **Fuente canónica y derivaciones de (d)** (definición normativa):
+  - *Fuente canónica*: un único registro de guardrails, en un módulo no-spec de `test/helpers/**`. Los specs de esta familia no exportan símbolos, y dos de los meta-guards lo verifican. Cada archivo de test referenciado por cualquiera de los tres meta-guards aparece ahí una sola vez, identificado por su path: guardrails, tests runtime exigidos como anchor y guards requeridos. Incluye los que no son de seguridad y hoy lista `security-critical-route-surface-registry` (storage, búsqueda pública, gates de CI).
+  - *Datos compartidos*: todo dato que hoy se repite entre vistas vive una sola vez en la fuente canónica. Eso incluye el path de un test y sus anchors de test, y también un runtime anchor —path de producción más markers— que usan dos o más vistas; hoy, por ejemplo, las rutas admin con `authenticateFastifyAdmin` se repiten en tres lugares (dos entradas de `SECURITY_BOUNDARY_SUITE` y una superficie de `CRITICAL_ROUTE_SURFACE_REGISTRY`).
+  - *Derivaciones*: las listas de los tres meta-guards se **calculan** desde la fuente canónica al ejecutar el test, por filtro o proyección. La pertenencia de un guardrail a una vista (p. ej. el subconjunto que la documentación de seguridad debe referenciar) es un **atributo de su entrada canónica**, nunca otra lista. Los datos propios de una sola vista, como los runtime files de una superficie, pueden vivir en esa vista, indexados por el path canónico, pero no pueden añadir ni quitar guardrails.
+  - *Motivo escrito*: documenta por qué existe una vista derivada, su owner y el contrato que protege. **No** autoriza ninguna lista manual independiente.
+  - *Snapshot congelado*: una assertion que compara una derivación contra un valor congelado (p. ej. el orden canónico de slugs) no es una fuente. Es un censo congelado, se rige por (1) y por §31.2 (sólo si su cambio debe forzar revisión humana, con motivo) y nunca se usa como entrada de otro check.
+  - *Documentación*: la derivación conserva exactamente el subconjunto que hoy se exige a `docs/**`, de modo que `11` no necesita tocar documentación para cerrar. Ampliar ese subconjunto exige un PR docs-only previo y no es condición del cierre de `11`.
+- **No-scope**: retirar guards fail-closed; relajar `M48`; convertir un censo en warning para evitar mantenerlo; mutation proof de contratos semánticos de seguridad (eso es `04`); sustituir el walker de auto-discovery de `security-boundary-suite-completeness` por una allowlist; conservar una lista manual independiente de guardrails justificándola con un motivo escrito; `docs/**` (si la fuente única de un meta-guard exigiera cambiar la documentación que ancla, eso es un PR docs-only aparte).
+- **Aceptación**: (1) cada censo congelado superviviente tiene fuente única declarada y motivo escrito en el propio test; (2) `M48` deja de exigir edición en tres lugares; (3) todo `LEGACY_LIST` identificado queda retirado o convertido en derivación; (4) el censo de `01B` queda clasificado y conforme a §31.2; (5) ningún guard pierde poder de detección —se verifica con §31.6 condiciones 4, 5 y 6; (6) **fuente única de guardrails**: cada uno de los tres meta-guards de (d) queda clasificado con la taxonomía de §20, con owner y motivo escritos en el propio test, y conserva cada propiedad fail-closed de §16 que declara hoy: `STALE_EXCEPTION` los tres, y `NEW_VIOLATION` el walker de `security-boundary-suite-completeness`. Existe exactamente una fuente canónica, según la definición anterior. **Ninguno de los tres meta-guards contiene una lista literal de paths de test**, y ningún runtime anchor se declara en más de una vista: toda lista es una derivación calculada. Una duplicación independiente que sobreviva, aunque tenga motivo escrito, hace que (6) **no** se cumpla; (7) **mutation proof de inventario (`TG-R05`)**: cada uno de los tres meta-guards incorpora, en el propio test, mutaciones explícitas en memoria de su inventario que lo ponen en rojo. Como mínimo, una por cada propiedad fail-closed que declara: `STALE_EXCEPTION` en los tres (entrada canónica con path inventado, o marker o anchor retirado) y `NEW_VIOLATION` donde hay auto-discovery (archivo `security-*-boundaries.test.ts` no registrado). Con eso, los tres pasan a `MUTATION_PROOF_PRESENT` en el inventario de `TG-R05` de la ficha de `04`. Esta ficha no ofrece `accepted defer` para (7); cambiar esa salida exige un PR docs-only de readjudicación propio.
 - **Gates**: `pnpm test` dirigido a `test/architecture/**` → `PASSED`. `pnpm test` completo → `BLOCKED`, declarando el desglose del estado vigente de §31.0.
-- **Rollback**: revertir el commit; los censos vuelven a su forma triple. Sin estado intermedio: la derivación y el literal no coexisten.
-- **Output**: censos con fuente única y motivo; y los tres meta-guards de seguridad clasificados, con owner, motivo y fuente única declarados.
+- **Rollback**: revertir el commit; los censos vuelven a su forma triple. Sin estado intermedio: la derivación y el literal no coexisten. Revertir el PR que cumple (7) devuelve los tres meta-guards a `MUTATION_PROOF_PENDING` y reabre la parte de `TG-R05` que posee `11`.
+- **Output**: censos con fuente única y motivo. Además, un registro canónico único de guardrails del que derivan los tres meta-guards de seguridad, cada uno clasificado, con owner y motivo, y con mutation proof de inventario; esto cierra la parte de `TG-R05` que posee `11`.
 - **Coste**: medio. **Paralelizable**: sí, con `09`.
 
 ### TEST-GLOBAL-12 — Coverage semántico y mutation strength (dos PRs: 12A → 12B)
@@ -2323,7 +2365,7 @@ tiene exactamente un scope primario, una causa y un rollback.
 | 10B | test-only | Retiro de `as any` de infraestructura | R1 | No |
 | 10C | backend-only | Costura tipada del registro de plugins Fastify | **R2** | **Sí** |
 | 10D | test-only | Retiro de `as any` de rutas + criterio `req`/`res`/`reply` | R1 | No |
-| 11 | test-only | Registries y censos congelados (incluidos el de `01B` y los tres meta-guards de seguridad reasignados desde `04`) | R1 | No |
+| 11 | test-only | Registries y censos congelados (incluidos el de `01B` y los tres meta-guards de seguridad reasignados desde `04`: fuente canónica única y mutation proof de inventario, parte de `TG-R05`) | R1 | No |
 | 12A | docs-only | Baseline de coverage con salvedad metodológica | R1 | No |
 | 12B | ci-only | `test:coverage` en CI, no bloqueante — **default: no ejecutar** | **R2** | **Sí** |
 | 13 | docs-only | Certificación de cierre | R1 | No |
@@ -2369,7 +2411,7 @@ que exista un `accepted defer` explícito con owner y fecha.
 | # | Criterio de cierre | Cierra |
 |---|---|---|
 | 1 | Los 2 **P0** (`TG-R01`, `TG-R02`) cerrados **con prueba negativa en el propio PR** | `02` |
-| 2 | Los 4 **P1** (`TG-R03`, `TG-R04`, `TG-R05`, `TG-R06`) cerrados o con `accepted defer` con owner y fecha | `03`, `04`, `06`, `07`, `08` |
+| 2 | Los 4 **P1** (`TG-R03`, `TG-R04`, `TG-R05`, `TG-R06`) cerrados o con `accepted defer` con owner y fecha. El cierre de `TG-R05` exige los 17 guards de `architecture/security/**` con `MUTATION_PROOF_PRESENT`: 14 por `04` y 3 por `11` (ficha de `04`, «Frontera `04` ↔ `11`»). Para los cinco guards adjudicados el 2026-09-25, un `accepted defer` sólo es admisible mediante un PR docs-only de readjudicación propio (fichas de `04` y `11`) | `03`, `04`, `06`, `07`, `08`, `11` |
 | 3 | El pool de candidatos adjudicado al 100 % (`KEEP` es un cierre válido) | `06` |
 | 4 | Ninguno de los **ocho** contratos de la matriz de §17 permanece en `NO_NEGATIVE_PROOF` | `04` |
 | 5 | **Launcher**: 0 fallos de launcher en win32 y en CI | `03` |
@@ -2855,12 +2897,14 @@ COMPLETED:    01A #1761 · 01B #1762 · 02 #1763 · 03 #1765 (sobre el fix de la
 IN_PROGRESS:  04  dimensión A cumplida (#1763 #1766 #1767 #1768); dimensión B: 12/12 originales
               con mutation proof (#1763 #1766 #1767 #1773–#1781); 2 adjudicados PENDIENTES
               (validation-cutoff, write-attribution); 3 meta-guards reasignados a 11
+              (MUTATION_PROOF_PENDING bajo 11; no bloquean 04, sí TG-R05)
 PENDING:      05A · 05B · 06 · 07 · 08 · 09 · 10A · 10B · 10C · 10D · 11 · 12A · 12B · 13
               (12A sigue bloqueada por el DAG: exige 04 cerrada en agregado y 08)
 
 TECHNICAL_P0: 2       TG-R01 · TG-R02                       — CERRADOS (02, #1763)
 TECHNICAL_P1: 4       TG-R04                                — CERRADO  (03, #1765)
-                      TG-R05                                — ABIERTO, parcial (04, dimensión B: 2 pendientes)
+                      TG-R05                                — ABIERTO, parcial: 12/17 (04: 2 pendientes;
+                                                              11: 3 meta-guards pendientes)
                       TG-R03 · TG-R06                       — ABIERTOS (06, 07, 08)
 TECHNICAL_P2: 6       TG-R07 … TG-R12                       — ABIERTOS
 TECHNICAL_P3: 4       TG-R13 … TG-R16                       — ABIERTOS
@@ -2872,6 +2916,7 @@ NEXT:     TEST-GLOBAL-04 dimensión B: mutation proof de
           security-validation-cutoff-boundaries y de
           security-write-attribution-boundaries, un PR test-only cada uno;
           son paralelizables (§32). Con ambos fusionados, 04 cierra en agregado.
+          TG-R05 sigue ABIERTO hasta que 11 cumpla su aceptación (7).
 ```
 
 Los conteos `TECHNICAL_*` repiten el **inventario total** de §28 y no cambian.
@@ -2879,7 +2924,9 @@ El estado de cada riesgo está en la misma línea. Un riesgo se marca `CERRADO`
 sólo si su fase dueña está fusionada con la evidencia que pide su ficha:
 `TG-R01`/`TG-R02` por `02` (18 contratos dereferenciados, 0 paths stale,
 negative proof en el PR) y `TG-R04` por `03` (fallos de launcher = 0 declarados
-en #1765). Estas evidencias vienen de los PRs y de Backend CI `success` en sus
+en #1765). `TG-R05` tiene dos fases dueñas con partes disjuntas (`04`: 14
+guards; `11`: 3 meta-guards) y sólo se marca `CERRADO` cuando ambas partes
+están cumplidas. Estas evidencias vienen de los PRs y de Backend CI `success` en sus
 merge commits; este PR docs-only no las volvió a ejecutar. La reauditoría de
 gobernanza no cierra ningún riesgo técnico. Las dos series se explican en §28.1. La única intersección
 es `TG-A13`, que corrigió una cifra citada por `TG-R13` sin cambiar su
