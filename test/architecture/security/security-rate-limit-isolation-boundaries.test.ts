@@ -135,6 +135,187 @@ function assertRateLimitHeaders(source: string, context: string): void {
   }
 }
 
+const REPORT_ACCESS_TOKEN_MUTATION_ROUTES = [
+  {
+    file: "server/routes/report-access-tokens.fastify.ts",
+    // WBR-08b: migrated to the canonical clinic auth helper.
+    authMarker: "const clinicAuth = await authenticateFastifyClinicUser(request, reply, deps, now);",
+    operationMarker: "const result = await reportAccess.createToken(",
+  },
+  {
+    file: "server/routes/admin-report-access-tokens.fastify.ts",
+    authMarker: "const admin = await authenticateAdminUser(request, reply, deps, now);",
+    operationMarker: "const result = await reportAccess.createToken(",
+  },
+] as const;
+
+const EXPECTED_TOKEN_MUTATION_HANDLERS = ['post "/"', 'patch "/:tokenId/revoke"'] as const;
+const MUTATION_LIMITER_GATE =
+  "if (!(await applyMutationRateLimit(request, reply))) { return reply; }";
+const MUTATING_ROUTE_REGISTRATION = /app\.(post|put|patch|delete)\b/g;
+const HANDLER_HEAD = /^\s*\(\s*"([^"]+)"\s*,\s*async\s*\(\s*request\s*,\s*reply\s*\)\s*=>\s*\{/;
+
+function countOccurrences(haystack: string, needle: string): number {
+  return haystack.split(needle).length - 1;
+}
+
+function replaceExactlyOnce(source: string, target: string, replacement: string): string {
+  assert.ok(source.includes(target), `mutation target must exist: ${target}`);
+  assert.equal(countOccurrences(source, target), 1, `mutation target must appear exactly once: ${target}`);
+  return source.replace(target, () => replacement);
+}
+
+// Balanced-brace scan starting right after an opening brace; undefined when unbalanced.
+function readBlock(source: string, bodyStart: number): string | undefined {
+  let depth = 1;
+  for (let index = bodyStart; index < source.length; index += 1) {
+    if (source[index] === "{") {
+      depth += 1;
+    } else if (source[index] === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        return source.slice(bodyStart, index);
+      }
+    }
+  }
+  return undefined;
+}
+
+// Resolves `app.<method>[<{...}>]("path", async (request, reply) => { body })`.
+function locateHandler(rest: string): { path: string; body: string } | undefined {
+  let cursor = 0;
+  const genericOpen = rest.match(/^\s*<\s*\{/);
+  if (genericOpen) {
+    const generic = readBlock(rest, genericOpen[0].length);
+    const genericClose =
+      generic === undefined
+        ? null
+        : rest.slice(genericOpen[0].length + generic.length + 1).match(/^\s*>/);
+    if (generic === undefined || !genericClose) {
+      return undefined;
+    }
+    cursor = genericOpen[0].length + generic.length + 1 + genericClose[0].length;
+  }
+
+  const head = rest.slice(cursor).match(HANDLER_HEAD);
+  const body = head ? readBlock(rest, cursor + head[0].length) : undefined;
+  return head && body !== undefined ? { path: head[1], body } : undefined;
+}
+
+// Every mutating handler must gate on its own mutation rate limit before auth: a
+// limiter call in a sibling handler never satisfies another handler.
+function evaluateReportAccessTokenMutationRateLimitSource(
+  source: string,
+  context: string,
+  authMarker: string,
+): string[] {
+  const violations: string[] = [];
+  const seen: string[] = [];
+
+  for (const registration of source.matchAll(MUTATING_ROUTE_REGISTRATION)) {
+    const method = registration[1];
+    const located =
+      registration.index === undefined
+        ? undefined
+        : locateHandler(source.slice(registration.index + registration[0].length));
+
+    if (!located) {
+      violations.push(`${context}: app.${method} handler structure is ambiguous`);
+      continue;
+    }
+
+    const handler = `${method} "${located.path}"`;
+    seen.push(handler);
+    const normalized = located.body.trim().split(/\s+/).join(" ");
+    const gateIndex = normalized.indexOf(MUTATION_LIMITER_GATE);
+    const authIndex = normalized.indexOf(authMarker.split(/\s+/).join(" "));
+
+    if (
+      countOccurrences(normalized, MUTATION_LIMITER_GATE) !== 1 ||
+      authIndex === -1 ||
+      gateIndex > authIndex
+    ) {
+      violations.push(`${context}: ${handler} must apply the mutation rate limit before auth`);
+    }
+  }
+
+  if (JSON.stringify([...seen].sort()) !== JSON.stringify([...EXPECTED_TOKEN_MUTATION_HANDLERS].sort())) {
+    violations.push(
+      `${context}: mutating handlers must be exactly ${EXPECTED_TOKEN_MUTATION_HANDLERS.join(", ")}`,
+    );
+  }
+
+  return violations;
+}
+
+function assertLegacyTokenMutationRateLimitMarkers(
+  source: string,
+  scenario: (typeof REPORT_ACCESS_TOKEN_MUTATION_ROUTES)[number],
+): void {
+  assertContains(
+    source,
+    'from "../lib/report-access-token-rate-limit.ts"',
+    `${scenario.file} mutation rate limit import`,
+  );
+  assertContains(
+    source,
+    "mutationRateLimitStore?: RateLimitStore;",
+    `${scenario.file} injectable mutation store option`,
+  );
+  assertContains(
+    source,
+    "options.mutationRateLimitStore ?? createMemoryRateLimitStore();",
+    `${scenario.file} memory fallback mutation store`,
+  );
+  assertContains(
+    source,
+    "const applyMutationRateLimit = async (",
+    `${scenario.file} mutation limiter function`,
+  );
+  assertContainsInOrder(
+    source,
+    [
+      "if (entry.count >= mutationRateLimitMaxAttempts) {",
+      "setMutationRateLimitHeaders(reply, {",
+      "reply.code(429).send({",
+      "error: REPORT_ACCESS_TOKEN_MUTATION_RATE_LIMIT_ERROR_MESSAGE",
+      "return null;",
+      "const updatedEntry = await incrementRateLimitEntry(",
+    ],
+    `${scenario.file} mutation limiter cut-off`,
+  );
+  assertContainsInOrder(
+    source,
+    [
+      "if (!(await applyMutationRateLimit(request, reply))) {",
+      "return reply;",
+      scenario.authMarker,
+    ],
+    `${scenario.file} mutation limiter before auth`,
+  );
+  assertContainsInOrder(
+    source,
+    [
+      "if (!(await applyMutationRateLimit(request, reply))) {",
+      scenario.authMarker,
+      scenario.operationMarker,
+    ],
+    `${scenario.file} mutation limiter before audit`,
+  );
+  assertRateLimitHeaders(source, `${scenario.file} mutation headers`);
+
+  assertNotContains(
+    source,
+    "PUBLIC_REPORT_ACCESS_RATE_LIMIT",
+    `${scenario.file} must not share public access limiter`,
+  );
+  assertNotContains(
+    source,
+    "PUBLIC_PROFESSIONAL",
+    `${scenario.file} must not share public professionals limiter`,
+  );
+}
+
 test("rate limit isolation matrix documents the protected contract", () => {
   assert.deepEqual(RATE_LIMIT_ISOLATION_BOUNDARIES, {
     authLogin: [
@@ -525,82 +706,127 @@ test("contact rate limit defaults to the persistent store before sending email",
 });
 
 test("report access token mutation rate limits cut off before auth and writes", () => {
-  for (const scenario of [
-    {
-      file: "server/routes/report-access-tokens.fastify.ts",
-      // WBR-08b: migrated to the canonical clinic auth helper.
-      authMarker: "const clinicAuth = await authenticateFastifyClinicUser(request, reply, deps, now);",
-      operationMarker: "const result = await reportAccess.createToken(",
-    },
-    {
-      file: "server/routes/admin-report-access-tokens.fastify.ts",
-      authMarker: "const admin = await authenticateAdminUser(request, reply, deps, now);",
-      operationMarker: "const result = await reportAccess.createToken(",
-    },
-  ] as const) {
+  for (const scenario of REPORT_ACCESS_TOKEN_MUTATION_ROUTES) {
     const source = readSource(scenario.file);
 
-    assertContains(
-      source,
-      'from "../lib/report-access-token-rate-limit.ts"',
-      `${scenario.file} mutation rate limit import`,
+    assertLegacyTokenMutationRateLimitMarkers(source, scenario);
+    assert.deepEqual(
+      evaluateReportAccessTokenMutationRateLimitSource(source, scenario.file, scenario.authMarker),
+      [],
     );
-    assertContains(
-      source,
-      "mutationRateLimitStore?: RateLimitStore;",
-      `${scenario.file} injectable mutation store option`,
-    );
-    assertContains(
-      source,
-      "options.mutationRateLimitStore ?? createMemoryRateLimitStore();",
-      `${scenario.file} memory fallback mutation store`,
-    );
-    assertContains(
-      source,
-      "const applyMutationRateLimit = async (",
-      `${scenario.file} mutation limiter function`,
-    );
-    assertContainsInOrder(
-      source,
-      [
-        "if (entry.count >= mutationRateLimitMaxAttempts) {",
-        "setMutationRateLimitHeaders(reply, {",
-        "reply.code(429).send({",
-        "error: REPORT_ACCESS_TOKEN_MUTATION_RATE_LIMIT_ERROR_MESSAGE",
-        "return null;",
-        "const updatedEntry = await incrementRateLimitEntry(",
-      ],
-      `${scenario.file} mutation limiter cut-off`,
-    );
-    assertContainsInOrder(
-      source,
-      [
-        "if (!(await applyMutationRateLimit(request, reply))) {",
-        "return reply;",
-        scenario.authMarker,
-      ],
-      `${scenario.file} mutation limiter before auth`,
-    );
-    assertContainsInOrder(
-      source,
-      [
-        "if (!(await applyMutationRateLimit(request, reply))) {",
-        scenario.authMarker,
-        scenario.operationMarker,
-      ],
-      `${scenario.file} mutation limiter before audit`,
-    );
-    assertRateLimitHeaders(source, `${scenario.file} mutation headers`);
+  }
+});
 
-    assertNotContains(
-      source,
-      "PUBLIC_REPORT_ACCESS_RATE_LIMIT",
-      `${scenario.file} must not share public access limiter`,
+test("mutation proof: token revoke cannot bypass the mutation rate limit via the create handler gate", () => {
+  for (const scenario of REPORT_ACCESS_TOKEN_MUTATION_ROUTES) {
+    const source = readSource(scenario.file);
+    assert.deepEqual(
+      evaluateReportAccessTokenMutationRateLimitSource(source, scenario.file, scenario.authMarker),
+      [],
     );
-    assertNotContains(
+
+    const revokeHead = [
+      '}>("/:tokenId/revoke", async (request, reply) => {',
+      "    if (!enforceTrustedOrigin(request, reply, allowedOrigins)) {",
+      "      return reply;",
+      "    }",
+      "",
+    ];
+    const mutated = replaceExactlyOnce(
       source,
-      "PUBLIC_PROFESSIONAL",
-      `${scenario.file} must not share public professionals limiter`,
+      [
+        ...revokeHead,
+        "    if (!(await applyMutationRateLimit(request, reply))) {",
+        "      return reply;",
+        "    }",
+        "",
+      ].join("\n"),
+      revokeHead.join("\n"),
+    );
+    assert.notEqual(mutated, source);
+    assert.equal(
+      countOccurrences(mutated, "if (!(await applyMutationRateLimit(request, reply))) {"),
+      1,
+      `${scenario.file}: only the create handler keeps the limiter`,
+    );
+
+    // The file-wide ordered markers are satisfied by the create handler alone.
+    assertLegacyTokenMutationRateLimitMarkers(mutated, scenario);
+
+    assert.deepEqual(
+      evaluateReportAccessTokenMutationRateLimitSource(mutated, scenario.file, scenario.authMarker),
+      [`${scenario.file}: patch "/:tokenId/revoke" must apply the mutation rate limit before auth`],
+    );
+  }
+});
+
+test("token mutation rate limit evaluator fails closed on reordered duplicated or unregistered handlers", () => {
+  const scenario = REPORT_ACCESS_TOKEN_MUTATION_ROUTES[0];
+  const source = readSource(scenario.file);
+  const gate = [
+    "    if (!(await applyMutationRateLimit(request, reply))) {",
+    "      return reply;",
+    "    }",
+    "",
+    "",
+  ].join("\n");
+  const revokeAuth = `${gate}    ${scenario.authMarker}\n\n    if (!clinicAuth) {\n      return reply;\n    }\n\n    const auth = getReportAccessTokenAuthorization(clinicAuth);\n\n    if (!requireReportAccessTokenManagementPermission(auth, reply)) {\n      return reply;\n    }\n\n    const tokenId = parseEntityId(`;
+  const revokeViolation = `${scenario.file}: patch "/:tokenId/revoke" must apply the mutation rate limit before auth`;
+
+  const cases = [
+    {
+      name: "revoke limiter moved after auth",
+      mutated: replaceExactlyOnce(
+        source,
+        revokeAuth,
+        revokeAuth.replace(gate, "").replace("    const tokenId = parseEntityId(", `${gate}    const tokenId = parseEntityId(`),
+      ),
+      expected: [revokeViolation],
+    },
+    {
+      name: "revoke limiter duplicated",
+      mutated: replaceExactlyOnce(source, revokeAuth, `${gate}${revokeAuth}`),
+      expected: [revokeViolation],
+    },
+    {
+      name: "revoke handler registered outside the recognized shape",
+      mutated: replaceExactlyOnce(source, "app.patch<{", "app.route<{"),
+      expected: [
+        `${scenario.file}: mutating handlers must be exactly ${EXPECTED_TOKEN_MUTATION_HANDLERS.join(", ")}`,
+      ],
+    },
+    {
+      name: "revoke handler written with unrecognized syntax",
+      mutated: replaceExactlyOnce(
+        source,
+        '}>("/:tokenId/revoke", async (request, reply) => {',
+        '}>("/:tokenId/revoke", async function (request, reply) {',
+      ),
+      expected: [
+        `${scenario.file}: app.patch handler structure is ambiguous`,
+        `${scenario.file}: mutating handlers must be exactly ${EXPECTED_TOKEN_MUTATION_HANDLERS.join(", ")}`,
+      ],
+    },
+    {
+      name: "extra mutating handler without limiter",
+      mutated: replaceExactlyOnce(
+        source,
+        "  app.patch<{",
+        '  app.delete("/:tokenId", async (request, reply) => {\n    return reply.code(204).send();\n  });\n\n  app.patch<{',
+      ),
+      expected: [
+        `${scenario.file}: delete "/:tokenId" must apply the mutation rate limit before auth`,
+        `${scenario.file}: mutating handlers must be exactly ${EXPECTED_TOKEN_MUTATION_HANDLERS.join(", ")}`,
+      ],
+    },
+  ];
+
+  for (const { name, mutated, expected } of cases) {
+    assert.notEqual(mutated, source, name);
+    assert.deepEqual(
+      evaluateReportAccessTokenMutationRateLimitSource(mutated, scenario.file, scenario.authMarker),
+      expected,
+      name,
     );
   }
 });
