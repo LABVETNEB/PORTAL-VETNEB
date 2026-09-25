@@ -72,21 +72,51 @@ function assertNotContains(source: string, marker: string, context: string): voi
   assert.ok(!source.includes(marker), `${context}: forbidden marker ${marker}`);
 }
 
+function evaluateCookieBoundarySource(
+  source: string,
+  requiredCookie: string,
+  forbiddenCookies: readonly string[],
+  context: string,
+): string[] {
+  const violations: string[] = [];
+
+  if (!source.includes(requiredCookie)) {
+    violations.push(`${context}: missing marker ${requiredCookie}`);
+  }
+
+  for (const forbiddenCookie of forbiddenCookies) {
+    if (source.includes(forbiddenCookie)) {
+      violations.push(`${context}: forbidden marker ${forbiddenCookie}`);
+    }
+  }
+
+  return violations;
+}
+
 function assertCookieBoundary(
   files: readonly string[],
   requiredCookie: string,
   forbiddenCookies: readonly string[],
 ): void {
   for (const file of files) {
-    const source = read(file);
-
-    assertContains(source, requiredCookie, file);
-
-    for (const forbiddenCookie of forbiddenCookies) {
-      assertNotContains(source, forbiddenCookie, file);
-    }
+    assert.deepEqual(
+      evaluateCookieBoundarySource(read(file), requiredCookie, forbiddenCookies, file),
+      [],
+    );
   }
 }
+
+function countOccurrences(source: string, needle: string): number {
+  return source.split(needle).length - 1;
+}
+
+function replaceExactlyOnce(source: string, target: string, replacement: string): string {
+  assert.equal(countOccurrences(source, target), 1, `mutation target must appear exactly once: ${target}`);
+  return source.replace(target, () => replacement);
+}
+
+const ADMIN_AUTH_HELPER_FILE = "server/lib/fastify-admin-auth.ts";
+const ADMIN_FORBIDDEN_COOKIES = [CLINIC_COOKIE, PARTICULAR_COOKIE] as const;
 
 test("clinic route surfaces accept only clinic session cookies", () => {
   assertCookieBoundary(clinicLocalAuthFiles, CLINIC_COOKIE, [
@@ -109,10 +139,7 @@ test("clinic route surfaces accept only clinic session cookies", () => {
 });
 
 test("admin route surfaces accept only admin session cookies", () => {
-  assertCookieBoundary(["server/lib/fastify-admin-auth.ts"], ADMIN_COOKIE, [
-    CLINIC_COOKIE,
-    PARTICULAR_COOKIE,
-  ]);
+  assertCookieBoundary([ADMIN_AUTH_HELPER_FILE], ADMIN_COOKIE, ADMIN_FORBIDDEN_COOKIES);
 
   for (const file of adminFiles) {
     const source = read(file);
@@ -121,6 +148,30 @@ test("admin route surfaces accept only admin session cookies", () => {
     assertNotContains(source, CLINIC_COOKIE, file);
     assertNotContains(source, PARTICULAR_COOKIE, file);
   }
+});
+
+test("mutation proof: admin auth helper accepting the clinic cookie as fallback is rejected", () => {
+  const real = read(ADMIN_AUTH_HELPER_FILE);
+
+  assert.deepEqual(
+    evaluateCookieBoundarySource(real, ADMIN_COOKIE, ADMIN_FORBIDDEN_COOKIES, ADMIN_AUTH_HELPER_FILE),
+    [],
+  );
+
+  const mutated = replaceExactlyOnce(
+    real,
+    `const raw = ${ADMIN_COOKIE};`,
+    `const raw = ${ADMIN_COOKIE} ?? ${CLINIC_COOKIE};`,
+  );
+
+  assert.notEqual(mutated, real);
+  assert.equal(countOccurrences(mutated, ADMIN_COOKIE), countOccurrences(real, ADMIN_COOKIE));
+  assert.equal(countOccurrences(mutated, CLINIC_COOKIE), 1);
+  assert.equal(countOccurrences(mutated, PARTICULAR_COOKIE), 0);
+  assert.deepEqual(
+    evaluateCookieBoundarySource(mutated, ADMIN_COOKIE, ADMIN_FORBIDDEN_COOKIES, ADMIN_AUTH_HELPER_FILE),
+    [`${ADMIN_AUTH_HELPER_FILE}: forbidden marker ${CLINIC_COOKIE}`],
+  );
 });
 
 test("particular route surfaces accept only particular session cookies", () => {
