@@ -181,16 +181,38 @@ function routeStartRegex(route: Pick<SensitiveMutationRoute, "method" | "path">)
   );
 }
 
-function extractRouteBlock(route: SensitiveMutationRoute): string {
-  const source = readSource(route.file);
+// Route starts are taken from `code` (a length-preserving masked copy when given) so commented-out
+// declarations do not split blocks; the path literal is matched on the raw source at the same offsets.
+function findRouteBlockRanges(
+  route: SensitiveMutationRoute,
+  source: string,
+  code: string = source,
+): [number, number][] {
   const routeStarts = [
-    ...source.matchAll(/\bapp\.(?:get|post|patch|delete|options)(?:<|\()/g),
+    ...code.matchAll(/\bapp\.(?:get|post|patch|delete|options)(?:<|\()/g),
   ].map((match) => match.index);
-  const block = routeStarts
-    .map((start, index) =>
-      source.slice(start, routeStarts[index + 1] ?? source.length),
-    )
-    .find((candidate) => routeStartRegex(route).test(candidate));
+
+  return routeStarts
+    .map((start, index): [number, number] => [
+      start,
+      routeStarts[index + 1] ?? source.length,
+    ])
+    .filter(
+      ([start, end]) => source.slice(start, end).search(routeStartRegex(route)) === 0,
+    );
+}
+
+function findRouteBlocks(route: SensitiveMutationRoute, source: string): string[] {
+  return findRouteBlockRanges(route, source).map(([start, end]) =>
+    source.slice(start, end),
+  );
+}
+
+function extractRouteBlockFromSource(
+  route: SensitiveMutationRoute,
+  source: string,
+): string {
+  const [block] = findRouteBlocks(route, source);
 
   assert.notEqual(
     block,
@@ -199,6 +221,187 @@ function extractRouteBlock(route: SensitiveMutationRoute): string {
   );
 
   return block!;
+}
+
+function extractRouteBlock(route: SensitiveMutationRoute): string {
+  return extractRouteBlockFromSource(route, readSource(route.file));
+}
+
+function skipQuoted(source: string, start: number): number {
+  const quote = source[start];
+
+  for (let index = start + 1; index < source.length; index += 1) {
+    if (source[index] === "\\") {
+      index += 1;
+    } else if (source[index] === quote) {
+      return index + 1;
+    } else if (source[index] === "\n") {
+      break;
+    }
+  }
+
+  assert.fail(`string literal sin cerrar en offset ${start}`);
+}
+
+// Length-preserving: comments, quoted strings and whole template literals (interpolations included)
+// become spaces with newlines kept, so only executable code can satisfy a checkpoint and offsets
+// stay comparable with the raw source. Interpolation braces are still tracked to find each
+// template's end. Regex literals are not modelled; unbalanced state fails closed.
+function maskNonCode(source: string): string {
+  const output = source.split("");
+  const braces: ("block" | "interpolation")[] = [];
+  let inTemplate = false;
+  let index = 0;
+
+  const mask = (from: number, to: number) => {
+    for (let position = from; position < to && position < output.length; position += 1) {
+      if (output[position] !== "\n") {
+        output[position] = " ";
+      }
+    }
+  };
+
+  while (index < source.length) {
+    const start = index;
+    const char = source[index];
+    const next = source[index + 1];
+
+    if (inTemplate) {
+      if (char === "\\") {
+        index += 2;
+      } else if (char === "`") {
+        inTemplate = false;
+        index += 1;
+      } else if (char === "$" && next === "{") {
+        braces.push("interpolation");
+        inTemplate = false;
+        index += 2;
+      } else {
+        index += 1;
+      }
+      mask(start, index);
+      continue;
+    }
+
+    if (char === "/" && next === "/") {
+      const lineEnd = source.indexOf("\n", index);
+      index = lineEnd === -1 ? source.length : lineEnd;
+    } else if (char === "/" && next === "*") {
+      const commentEnd = source.indexOf("*/", index + 2);
+      assert.notEqual(commentEnd, -1, `block comment sin cerrar en offset ${index}`);
+      index = commentEnd + 2;
+    } else if (char === '"' || char === "'") {
+      index = skipQuoted(source, index);
+    } else if (char === "`") {
+      inTemplate = true;
+      index += 1;
+    } else {
+      if (char === "{") {
+        braces.push("block");
+      } else if (char === "}") {
+        inTemplate = braces.pop() === "interpolation";
+      }
+      index += 1;
+
+      if (!inTemplate && !braces.includes("interpolation")) {
+        continue;
+      }
+    }
+
+    mask(start, index);
+  }
+
+  assert.equal(inTemplate, false, "template literal sin cerrar");
+  assert.equal(braces.length, 0, "llaves desbalanceadas fuera de strings y comentarios");
+
+  return output.join("");
+}
+
+function findCallIndex(code: string, marker: string): number {
+  return code.search(
+    new RegExp(`(?<![\\w$])(?<!function\\s+)${escapeRegex(marker)}\\s*\\(`),
+  );
+}
+
+// A permission helper only sends 403 and returns false; the handler keeps running unless the
+// caller stops it, so the contract is `if (!helper(...)) { return reply; }` and nothing weaker.
+function findRejectingPermissionGateIndex(code: string, marker: string): number {
+  return code.search(
+    new RegExp(
+      `(?<![\\w$])if\\s*\\(\\s*!\\s*${escapeRegex(marker)}\\s*\\([^()]*\\)\\s*\\)\\s*\\{\\s*return\\s+reply\\s*;\\s*\\}`,
+    ),
+  );
+}
+
+function evaluateSensitiveMutationRouteSource(
+  route: SensitiveMutationRoute,
+  source: string,
+): string[] {
+  const context = `${route.file} ${route.method.toUpperCase()} ${route.path}`;
+  const code = maskNonCode(source);
+  const ranges = findRouteBlockRanges(route, source, code);
+
+  if (ranges.length !== 1) {
+    return [`${context}: debe declarar exactamente un route block (encontrados: ${ranges.length})`];
+  }
+
+  const block = code.slice(...ranges[0]);
+  const violations: string[] = [];
+  const executed: { kind: string; marker: string; index: number }[] = [];
+
+  for (const checkpoint of [
+    { kind: "origin", marker: "enforceTrustedOrigin" },
+    { kind: "auth", marker: route.authGuard },
+  ]) {
+    const index = findCallIndex(block, checkpoint.marker);
+
+    if (index === -1) {
+      violations.push(`${context}: debe ejecutar ${checkpoint.kind} checkpoint ${checkpoint.marker}`);
+    } else {
+      executed.push({ ...checkpoint, index });
+    }
+  }
+
+  if (route.permissionGuard) {
+    const marker = route.permissionGuard;
+    const index = findRejectingPermissionGateIndex(block, marker);
+
+    if (index !== -1) {
+      executed.push({ kind: "permission", marker, index });
+    } else if (findCallIndex(block, marker) === -1) {
+      violations.push(`${context}: debe ejecutar permission checkpoint ${marker}`);
+    } else {
+      violations.push(`${context}: debe rechazar permission checkpoint ${marker} con return reply`);
+    }
+  }
+
+  for (const protectedCall of route.protectedCalls) {
+    const callIndex = findCallIndex(block, protectedCall);
+
+    if (callIndex === -1) {
+      violations.push(`${context}: debe contener operación protegida ${protectedCall}`);
+      continue;
+    }
+
+    for (const checkpoint of executed) {
+      if (checkpoint.index > callIndex) {
+        violations.push(
+          `${context}: debe ejecutar ${checkpoint.kind} checkpoint ${checkpoint.marker} antes de ${protectedCall}`,
+        );
+      }
+    }
+  }
+
+  return violations;
+}
+
+function countOccurrences(source: string, target: string): number {
+  return source.split(target).length - 1;
+}
+
+function replaceExactlyOnce(source: string, target: string, replacement: string): string {
+  assert.equal(countOccurrences(source, target), 1, `mutation target must appear exactly once: ${target}`);
+  return source.replace(target, () => replacement);
 }
 
 function assertContains(haystack: string, needle: string, context: string): void {
@@ -287,6 +490,156 @@ test("rutas mutantes sensibles validan origin, sesión y permiso antes de operar
         assertBefore(block, route.permissionGuard, protectedCall, context);
       }
     }
+
+    assert.deepEqual(
+      evaluateSensitiveMutationRouteSource(route, readSource(route.file)),
+      [],
+      context,
+    );
+  }
+});
+
+function mutateReportStatusPermissionGate(replacement: string) {
+  const candidates = SENSITIVE_MUTATION_ROUTES.filter(
+    (entry) =>
+      entry.file === "server/routes/reports-status.fastify.ts" &&
+      entry.method === "patch" &&
+      entry.path === "/:reportId/status",
+  );
+  assert.equal(candidates.length, 1);
+  const [route] = candidates;
+  const permissionGuard = route.permissionGuard!;
+  const context = `${route.file} ${route.method.toUpperCase()} ${route.path}`;
+
+  assert.equal(permissionGuard, "requireReportStatusWritePermission");
+  assert.deepEqual(route.protectedCalls, [
+    "composition.queries.transitionClinicReportStatus",
+    "composition.writeAuditLog",
+  ]);
+
+  const real = readSource(route.file);
+  assert.deepEqual(evaluateSensitiveMutationRouteSource(route, real), []);
+
+  const permissionCheckpoint = [
+    "    if (!requireReportStatusWritePermission(auth, reply)) {",
+    "      return reply;",
+    "    }",
+  ].join("\n");
+  const mutated = replaceExactlyOnce(real, permissionCheckpoint, replacement);
+  assert.notEqual(mutated, real);
+
+  const mutatedBlock = extractRouteBlockFromSource(route, mutated);
+  assert.equal(mutatedBlock.includes("if (!requireReportStatusWritePermission("), false);
+
+  const mutatedCodeRanges = findRouteBlockRanges(route, mutated, maskNonCode(mutated));
+  assert.equal(mutatedCodeRanges.length, 1);
+  const mutatedCode = maskNonCode(mutated).slice(...mutatedCodeRanges[0]);
+  assert.equal(findRejectingPermissionGateIndex(mutatedCode, permissionGuard), -1);
+
+  return { route, permissionGuard, context, mutated, mutatedBlock, mutatedCode };
+}
+
+test("mutation proof: commented permission marker cannot satisfy mutation guard", () => {
+  const { route, permissionGuard, context, mutated, mutatedBlock } =
+    mutateReportStatusPermissionGate(
+      "    // requireReportStatusWritePermission(auth, reply);",
+    );
+
+  // Legacy oracle stays green: the marker survives only inside the comment.
+  assertContains(mutatedBlock, permissionGuard, context);
+  for (const protectedCall of route.protectedCalls) {
+    assertBefore(mutatedBlock, permissionGuard, protectedCall, context);
+  }
+
+  assert.deepEqual(evaluateSensitiveMutationRouteSource(route, mutated), [
+    `${context}: debe ejecutar permission checkpoint requireReportStatusWritePermission`,
+  ]);
+});
+
+test("mutation proof: bare permission call cannot satisfy mutation guard", () => {
+  const { route, permissionGuard, context, mutated, mutatedCode } =
+    mutateReportStatusPermissionGate(
+      "    requireReportStatusWritePermission(auth, reply);",
+    );
+
+  // A call-position oracle stays green: the helper still runs before every protected call,
+  // but its false result no longer stops the handler.
+  const permissionCallIndex = findCallIndex(mutatedCode, permissionGuard);
+  assert.notEqual(permissionCallIndex, -1);
+  for (const protectedCall of route.protectedCalls) {
+    assert.ok(permissionCallIndex < findCallIndex(mutatedCode, protectedCall), protectedCall);
+  }
+
+  assert.deepEqual(evaluateSensitiveMutationRouteSource(route, mutated), [
+    `${context}: debe rechazar permission checkpoint requireReportStatusWritePermission con return reply`,
+  ]);
+});
+
+test("mutation proof: permission marker inside string cannot satisfy mutation guard", () => {
+  const { route, permissionGuard, context, mutated, mutatedBlock, mutatedCode } =
+    mutateReportStatusPermissionGate(
+      '    void "requireReportStatusWritePermission(auth, reply)";',
+    );
+
+  // The raw block has no comments, so comment-only masking leaves it unchanged and a call
+  // oracle over that text takes the string for an executed checkpoint.
+  assert.equal(/\/\/|\/\*/.test(mutatedBlock), false);
+  const permissionCallIndex = findCallIndex(mutatedBlock, permissionGuard);
+  assert.notEqual(permissionCallIndex, -1);
+  for (const protectedCall of route.protectedCalls) {
+    assertBefore(mutatedBlock, `${permissionGuard}(`, protectedCall, context);
+    assert.ok(permissionCallIndex < findCallIndex(mutatedBlock, protectedCall), protectedCall);
+  }
+
+  assert.equal(findCallIndex(mutatedCode, permissionGuard), -1);
+  assert.deepEqual(evaluateSensitiveMutationRouteSource(route, mutated), [
+    `${context}: debe ejecutar permission checkpoint requireReportStatusWritePermission`,
+  ]);
+});
+
+test("checkpoint scanner no certifica literales, comentarios ni gates sin return reply", () => {
+  const marker = "requirePermission";
+  const call = "requirePermission(auth, reply)";
+
+  assert.notEqual(
+    findRejectingPermissionGateIndex(
+      maskNonCode(`if (!${call}) {\n  return reply;\n}`),
+      marker,
+    ),
+    -1,
+  );
+
+  for (const literal of [
+    `'${call}'`,
+    `"${call}"`,
+    `\`${call}\``,
+    `\`\${${call}}\``,
+    `\`\${ { ok: ${call} }.ok }\``,
+  ]) {
+    const snippet = `const note = ${literal};\n`;
+    const masked = maskNonCode(snippet);
+
+    assert.equal(masked.length, snippet.length, literal);
+    assert.equal(findCallIndex(masked, marker), -1, literal);
+  }
+
+  assert.equal(maskNonCode("`a\nb`"), "  \n  ");
+
+  for (const rejected of [
+    `${call};`,
+    `const ok = ${call};`,
+    `if (${call}) {\n  return reply;\n}`,
+    `if (!${call}) {\n}`,
+    `if (!${call}) {\n  reply.code(403);\n}`,
+    `// if (!${call}) { return reply; }`,
+    `/* if (!${call}) { return reply; } */`,
+    `"if (!${call}) { return reply; }";`,
+  ]) {
+    assert.equal(findRejectingPermissionGateIndex(maskNonCode(rejected), marker), -1, rejected);
+  }
+
+  for (const unterminated of ['const a = "x;', "const a = `x;", "/* x", "const a = `${x;"]) {
+    assert.throws(() => maskNonCode(unterminated), unterminated);
   }
 });
 
