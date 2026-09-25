@@ -3,6 +3,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { basename, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import ts from "typescript";
 
 const REPO_ROOT = resolve(fileURLToPath(new URL("../../../", import.meta.url)));
 
@@ -202,13 +203,45 @@ function locateHandler(rest: string): { path: string; body: string } | undefined
   return head && body !== undefined ? { path: head[1], body } : undefined;
 }
 
+// Blanks every comment the TypeScript parser reports as trivia (offsets and newlines kept),
+// so non-executable text never satisfies the gate; undefined when the source does not parse.
+function executableSource(source: string, fileName: string): string | undefined {
+  const { diagnostics = [] } = ts.transpileModule(source, { fileName, reportDiagnostics: true });
+  if (diagnostics.length > 0) {
+    return undefined;
+  }
+
+  const file = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  const chars = source.split("");
+  const visit = (node: ts.Node): void => {
+    for (const range of [
+      ...(ts.getTrailingCommentRanges(source, node.pos) ?? []),
+      ...(ts.getLeadingCommentRanges(source, node.pos) ?? []),
+    ]) {
+      for (let index = range.pos; index < range.end; index += 1) {
+        if (chars[index] !== "\n" && chars[index] !== "\r") {
+          chars[index] = " ";
+        }
+      }
+    }
+    node.getChildren(file).forEach(visit);
+  };
+  visit(file);
+  return chars.join("");
+}
+
 // Every mutating handler must gate on its own mutation rate limit before auth: a
 // limiter call in a sibling handler never satisfies another handler.
 function evaluateReportAccessTokenMutationRateLimitSource(
-  source: string,
+  rawSource: string,
   context: string,
   authMarker: string,
 ): string[] {
+  const source = executableSource(rawSource, context);
+  if (source === undefined) {
+    return [`${context}: source must parse as TypeScript before evaluation`];
+  }
+
   const violations: string[] = [];
   const seen: string[] = [];
 
@@ -760,6 +793,40 @@ test("mutation proof: token revoke cannot bypass the mutation rate limit via the
   }
 });
 
+test("mutation proof: commented-out revoke limiter text cannot satisfy the executable gate", () => {
+  const revokeHead =
+    '}>("/:tokenId/revoke", async (request, reply) => {\n    if (!enforceTrustedOrigin(request, reply, allowedOrigins)) {\n      return reply;\n    }\n\n';
+  const gate = "    if (!(await applyMutationRateLimit(request, reply))) {\n      return reply;\n    }\n";
+  // Own-line, same-line and block comments are distinct trivia ranges; the raw-text matcher
+  // accepted all of them.
+  const commentedGates = {
+    "line comment": `${revokeHead}    // ${MUTATION_LIMITER_GATE}\n`,
+    "trailing comment": `${revokeHead.slice(0, -2)} // ${MUTATION_LIMITER_GATE}\n\n`,
+    "block comment": `${revokeHead}    /*\n${gate}    */\n`,
+  };
+
+  for (const scenario of REPORT_ACCESS_TOKEN_MUTATION_ROUTES) {
+    const source = readSource(scenario.file);
+
+    for (const [kind, commented] of Object.entries(commentedGates)) {
+      const mutated = replaceExactlyOnce(source, `${revokeHead}${gate}`, commented);
+      const context = `${scenario.file} ${kind}`;
+
+      assert.equal(
+        countOccurrences(mutated.split(/\s+/).join(" "), MUTATION_LIMITER_GATE),
+        2,
+        `${context}: gate text survives in the create handler and the comment`,
+      );
+      assertLegacyTokenMutationRateLimitMarkers(mutated, scenario);
+      assert.deepEqual(
+        evaluateReportAccessTokenMutationRateLimitSource(mutated, scenario.file, scenario.authMarker),
+        [`${scenario.file}: patch "/:tokenId/revoke" must apply the mutation rate limit before auth`],
+        context,
+      );
+    }
+  }
+});
+
 test("token mutation rate limit evaluator fails closed on reordered duplicated or unregistered handlers", () => {
   const scenario = REPORT_ACCESS_TOKEN_MUTATION_ROUTES[0];
   const source = readSource(scenario.file);
@@ -818,6 +885,11 @@ test("token mutation rate limit evaluator fails closed on reordered duplicated o
         `${scenario.file}: delete "/:tokenId" must apply the mutation rate limit before auth`,
         `${scenario.file}: mutating handlers must be exactly ${EXPECTED_TOKEN_MUTATION_HANDLERS.join(", ")}`,
       ],
+    },
+    {
+      name: "unterminated comment hides the revoke handler",
+      mutated: replaceExactlyOnce(source, "  app.patch<{", "  /* app.patch<{"),
+      expected: [`${scenario.file}: source must parse as TypeScript before evaluation`],
     },
   ];
 
