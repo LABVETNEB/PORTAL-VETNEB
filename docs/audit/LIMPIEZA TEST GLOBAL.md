@@ -10,7 +10,7 @@
 | Alcance | `test/**` (562 specs ejecutables). `frontend/e2e/**` sólo como frontera |
 | Estado | ACTIVE |
 | Propósito | Fuente rectora **autosuficiente** del programa de saneamiento `TEST-GLOBAL-*` |
-| Implementación | IN_PROGRESS — estado por fase en el [Veredicto](#veredicto) (verificado sobre `main@247a497c`). Esta auditoría no implementa ninguna fase |
+| Implementación | IN_PROGRESS — estado por fase en el [Veredicto](#veredicto) (verificado sobre `main@3146fc0c`). Esta auditoría no implementa ninguna fase |
 | Revisión | R2 — diagnóstico original + reauditoría de gobernanza aplicada (§37) |
 
 ### Metadata de lifecycle
@@ -685,6 +685,14 @@ la sobrescriba, o aunque esté comentada. Y es **falso** si alguien refactoriza 
 > pertenece al dominio *tenant isolation* del Scope de `04` y figura como
 > pendiente en su dimensión B; el segundo queda fuera de los seis dominios y
 > sin adjudicar (ficha de `TEST-GLOBAL-04`).
+>
+> **Actualización — verificada sobre `main@3146fc0c` (2026-09-25).**
+> `Ownership de recursos` → `MUTATION_PROOF_PRESENT` (#1773). `Cut-off de
+> validación` queda **adjudicado a `TEST-GLOBAL-04`** y sigue en
+> `MUTATION_CANDIDATE` hasta su PR de mutation proof (adjudicación en la ficha
+> de `04`). `security-production-invariants.test.ts` recibió su propio mutation
+> proof en #1778; la fila «Invariantes productivas» de la tabla anterior se
+> conserva como fotografía de §3.1.
 
 ### 11.2 Estrategia posterior
 
@@ -699,6 +707,15 @@ orden: (1) tenant isolation/IDOR, (2) auth y sesiones, (3) permisos y roles,
 > `TEST-GLOBAL-04`, que es su dueño ejecutable, y lo que sigue pendiente figura
 > allí (dimensión B). El punto (6) no tiene ninguna ficha que lo asigne. Esta
 > nota no lo reasigna.
+>
+> **Actualización (2026-09-25, `main@3146fc0c`).** La adjudicación de la ficha
+> de `04` asigna a `TEST-GLOBAL-11` los tres registries de governance de
+> `test/architecture/security/**` (`security-boundary-suite-completeness`,
+> `security-critical-route-surface-registry`,
+> `security-docs-matrix-drift-guard`). `11` los gobierna bajo su regla de fuente
+> única y fail-closed, **no** propagándoles el harness de mutación. El punto (6)
+> como propagación de harness a registries sigue sin ficha; esta actualización
+> no la crea.
 
 ## 12. Fixtures, factories, mocks y helpers
 
@@ -1558,7 +1575,7 @@ montar una DB, o convertir cualquiera de esos fallos en `skip` o en `PASSED`.
 | `TEST-GLOBAL-10B` | Realineación de tests y retiro de `as any` de infraestructura | test-only | R1 | — | 10A |
 | `TEST-GLOBAL-10C` | Costura tipada en el registro de plugins Fastify | **backend-only** | **R2** | **Nico, explícita** | 10A |
 | `TEST-GLOBAL-10D` | Retiro de `as any` en el registro de rutas y criterio para `req`/`res`/`reply` | test-only | R1 | — | 10C |
-| `TEST-GLOBAL-11` | Consolidación de registries y censos congelados (incluido el de `01B`) | test-only | R1 | — | 05A, 01B |
+| `TEST-GLOBAL-11` | Consolidación de registries y censos congelados (incluidos el de `01B` y los tres meta-guards de seguridad reasignados desde `04`) | test-only | R1 | — | 05A, 01B |
 | `TEST-GLOBAL-12A` | Publicación documental del baseline de coverage con su salvedad | docs-only | R1 | — | 04, 08 |
 | `TEST-GLOBAL-12B` | Incorporación de `test:coverage` a CI como diagnóstico no bloqueante | ci-only | **R2** | **Nico, explícita** | 12A |
 | `TEST-GLOBAL-13` | Gobernanza, documentación y certificación de cierre | docs-only | R1 | — | todas |
@@ -1693,14 +1710,14 @@ programa que existe para consolidar censos.
 - **Evidencia**: §11, §17.
 - **Tipo de scope**: test-only. **Un PR por contrato.**
 - **Paths permitidos**: `test/architecture/security/**`, `test/security/**`.
-- **Scope**: propagar el harness en memoria ya probado a: tenant isolation, auth/sesiones, permisos/roles, redacción de logs, disclosure, rate limiting. Cada guard incorpora al menos una mutación que debe ponerlo en rojo.
+- **Scope**: propagar el harness en memoria ya probado a: tenant isolation, auth/sesiones, permisos/roles, redacción de logs, disclosure, rate limiting. Cada guard incorpora al menos una mutación que debe ponerlo en rojo. Por la adjudicación de 2026-09-25 (ver «Frontera `04` ↔ `11`»), el Scope incluye además dos contratos semánticos fuera de esos seis dominios: cut-off de validación y atribución de writes.
 - **No-scope**: debilitar cualquier contrato; introducir Stryker o mutation testing por herramienta externa; tocar `server/**`; producir evidencia de staging.
 - **Riesgo**: R1. **Autorización**: no requiere. **Dependencias**: `02`.
 - **Aceptación**: se evalúa en dos niveles —por PR y agregada de fase— definidos a continuación.
 - **Aceptación — por PR (unidad)**: cada PR de `04` se acepta **de forma independiente**, sin esperar a los demás, cuando su único contrato cumple: (1) el guard incorpora al menos una mutación explícita en el propio test; (2) esa mutación pone el guard en rojo y el test lo demuestra; (3) el contrato pasa de `NO_NEGATIVE_PROOF` o `MUTATION_CANDIDATE` a `MUTATION_PROOF_PRESENT` en la matriz de §17 o, si es un guard de la dimensión B, en el inventario de esta ficha; (4) ninguna assertion previa se retira ni se debilita; (5) gates dirigidos en `PASSED`.
 - **Aceptación — agregada (fase)**: `04` se declara cerrada sólo cuando se cumplen **las dos dimensiones**. Ninguna reemplaza a la otra. El cierre agregado es condición de `12A`, no de cada PR.
   - *Dimensión A — los ocho contratos de la matriz de §17*, según su clase en §3.1: (a) los que eran `AUSENTE` o `PARCIAL`, incluida la mitad de configuración de Sesión / cookies, llegan a `MUTATION_PROOF_PRESENT` o a un `accepted defer` con owner y fecha; (b) los que ya estaban en `NEGATIVE_FIXTURE_PRESENT` conservan esa clase sin degradarse. La clase (b) no exige harness de mutación, y un contrato sin harness no se reetiqueta `MUTATION_PROOF_PRESENT`.
-  - *Dimensión B — guards estáticos del Scope*: cada guard de `test/architecture/security/**` que pertenece a uno de los seis dominios del Scope incorpora al menos una mutación explícita que lo pone en rojo, o tiene un `accepted defer` con owner y fecha. La dimensión A no cubre esta: un fixture runtime no prueba la fuerza de detección de un guard estático distinto. El inventario está más abajo, en «Progreso verificado».
+  - *Dimensión B — guards estáticos del Scope*: cada guard de `test/architecture/security/**` que pertenece a uno de los seis dominios del Scope incorpora al menos una mutación explícita que lo pone en rojo, o tiene un `accepted defer` con owner y fecha. La dimensión A no cubre esta: un fixture runtime no prueba la fuerza de detección de un guard estático distinto. El inventario está más abajo, en «Progreso verificado». Desde la adjudicación de 2026-09-25, la dimensión B comprende los 12 guards originales **más** los dos contratos semánticos adjudicados a `04` (`security-validation-cutoff-boundaries`, `security-write-attribution-boundaries`); para estos dos la adjudicación fija mutation proof, no `accepted defer`, y cambiar esa salida exige un PR docs-only de readjudicación propio.
 
   Los ocho de la dimensión A, nominados para que el criterio sea evaluable sin ambigüedad:
 
@@ -1717,7 +1734,40 @@ Redacción de logs (`AUSENTE`), `no-store` privado (`PARCIAL`) y la mitad de
 configuración de Sesión / cookies (`AUSENTE` en `env.ts`). Los otros cuatro ya
 estaban en `NEGATIVE_FIXTURE_PRESENT` y `04` sólo verifica que no se degraden.
 
-**Progreso verificado sobre `main@247a497c` (2026-09-23). Estado: `IN_PROGRESS`.**
+**Frontera `04` ↔ `11` (adjudicación de 2026-09-25, sobre `main@3146fc0c`).**
+El Objetivo de `04` se conserva literal. Esta frontera fija cómo se lee
+«contrato de seguridad estático» frente al eje que gobierna `11`:
+
+```text
+04 = mutation strength de contratos semánticos de seguridad.
+11 = gobernanza de registries, censos y fuentes de verdad.
+```
+
+Criterio de adjudicación, por el modo de fallo primario del guard:
+
+- **`04`** — el guard protege un comportamiento concreto de producción (scoping,
+  cut-off, atribución, sesión, disclosure, rate limit) y la regresión que debe
+  detectar es una **mutación del source productivo**. Su prueba es un mutation
+  proof en memoria que pone el guard en rojo.
+- **`11`** — el guard protege la **coherencia de un inventario** (registry de
+  guardrails, anchors, paths, markers, documentación) y su fallo primario es
+  drift de registry o de fuente de verdad, no una mutación behavioral de un
+  endpoint. Su prueba es la regla de fuente única y fail-closed de `11`.
+
+Invariantes de la reasignación, vinculantes:
+
+- Reasignar ownership **no** rebaja ningún control. Los guards reasignados siguen
+  ejecutándose en `pnpm test` sin cambios: 0 `skip`, 0 assertion retirada, 0
+  debilitamiento. Retirarlos o relajarlos sigue sujeto a §31.6.
+- Un guard reasignado a `11` **no** se reetiqueta `MUTATION_PROOF_PRESENT` ni
+  cuenta como mutation proof de ningún contrato de `04`.
+- Los guards reasignados no bloquean el cierre agregado de `04` ni el de
+  `TG-R05`, que cierra con él.
+- Si un PR de `04` renombra un test anclado por un meta-guard (`testAnchors`,
+  `markers`), lo realinea en el mismo PR (`AGENTS.md` §4); la realineación no
+  transfiere ownership.
+
+**Progreso verificado sobre `main@3146fc0c` (2026-09-25). Estado: `IN_PROGRESS`.**
 
 Dimensión A. Detalle en §17:
 
@@ -1733,43 +1783,62 @@ DIMENSIÓN A                CUMPLIDA — 0 accepted defer
 ```
 
 Dimensión B. `test/architecture/security/**` tiene 17 archivos (`git ls-files`).
-Sólo 3 tienen una mutación explícita en memoria, es decir, contienen
-`replaceOnce(`. La asignación de cada guard a un dominio es
-`MANUAL_CLASSIFICATION` y se hizo leyendo sus tests:
+Los 12 guards originales del Scope tienen mutation proof fusionado, cada uno en
+su PR test-only, con Backend CI `success` en cada merge commit. Los 12 contienen
+un helper de mutación en memoria (`replaceOnce(` o `replaceExactlyOnce(`) y
+ningún otro archivo del directorio lo contiene. La asignación de cada guard a
+un dominio es `MANUAL_CLASSIFICATION` y se hizo leyendo sus tests:
 
 ```text
-Dominio del Scope   Guard (test/architecture/security/)            Estado
-tenant isolation    security-cross-tenant-idor-contract            MUTATION_PROOF_PRESENT  #1763
-tenant isolation    security-resource-ownership-boundaries         PENDIENTE
-tenant isolation    security-actor-relationship-boundaries         PENDIENTE
-auth / sesiones     security-session-cookie-boundaries             MUTATION_PROOF_PRESENT  #1767 (config env.ts)
-auth / sesiones     global-auth-boundary-contract                  PENDIENTE
-auth / sesiones     security-cross-auth-surface-boundaries         PENDIENTE
-auth / sesiones     security-access-lifecycle-boundaries           PENDIENTE
-auth / sesiones     security-production-invariants                 PENDIENTE (archivo mixto)
-permisos / roles    security-mutation-permission-surface           PENDIENTE
-redacción de logs   security-sensitive-log-redaction-boundaries    MUTATION_PROOF_PRESENT  #1766
-disclosure          security-response-disclosure-boundaries        PENDIENTE
-rate limiting       security-rate-limit-isolation-boundaries       PENDIENTE
-DIMENSIÓN B         3 de 12 guards del Scope con mutation proof · 9 PENDIENTES · 0 accepted defer
+Dominio del Scope   Guard (test/architecture/security/)            Estado                  PR     Merge
+tenant isolation    security-cross-tenant-idor-contract            MUTATION_PROOF_PRESENT  #1763  bbce3261
+tenant isolation    security-resource-ownership-boundaries         MUTATION_PROOF_PRESENT  #1773  fa030951
+tenant isolation    security-actor-relationship-boundaries         MUTATION_PROOF_PRESENT  #1774  215a507d
+auth / sesiones     security-session-cookie-boundaries             MUTATION_PROOF_PRESENT  #1767  8905197b  (config env.ts)
+auth / sesiones     global-auth-boundary-contract                  MUTATION_PROOF_PRESENT  #1775  cf088f3e
+auth / sesiones     security-cross-auth-surface-boundaries         MUTATION_PROOF_PRESENT  #1776  d4664b5b
+auth / sesiones     security-access-lifecycle-boundaries           MUTATION_PROOF_PRESENT  #1777  8a24ef19
+auth / sesiones     security-production-invariants                 MUTATION_PROOF_PRESENT  #1778  8dcc2c65
+permisos / roles    security-mutation-permission-surface           MUTATION_PROOF_PRESENT  #1779  ff57d132
+redacción de logs   security-sensitive-log-redaction-boundaries    MUTATION_PROOF_PRESENT  #1766  fc1c6361
+disclosure          security-response-disclosure-boundaries        MUTATION_PROOF_PRESENT  #1780  e0008933
+rate limiting       security-rate-limit-isolation-boundaries       MUTATION_PROOF_PRESENT  #1781  3146fc0c
+DIMENSIÓN B (12 originales)  12/12 MUTATION_PROOF_PRESENT · 0 accepted defer
 ```
 
-Hay cinco guards que no pertenecen a ninguno de los seis dominios y quedan
-**sin adjudicar**: `security-validation-cutoff-boundaries`,
-`security-write-attribution-boundaries` y tres registries de governance
-(`security-boundary-suite-completeness`,
-`security-critical-route-surface-registry` y
-`security-docs-matrix-drift-guard`). El Objetivo de `04` habla de *cada*
-contrato de seguridad estático. Por eso, antes de cerrar `04`, esos cinco
-necesitan una adjudicación explícita en un PR docs-only propio: mutation proof
-en `04`, reasignación o `accepted defer` con owner y fecha. Esta revisión no los
-adjudica.
+La revisión anterior (#1769, sobre `main@247a497c`) dejó cinco guards fuera de
+los seis dominios **sin adjudicar** y exigió adjudicarlos en un PR docs-only
+propio antes de cerrar `04`. Adjudicación, verificada por lectura de cada
+archivo sobre `main@3146fc0c` (`MANUAL_CLASSIFICATION`):
+
+| Guard (`test/architecture/security/`) | Adjudicación | Owner | Evidencia |
+|---|---|---|---|
+| `security-validation-cutoff-boundaries` | `TEST-GLOBAL-04` / `MUTATION_PROOF_PENDING` | `04` (dimensión B) | Protege semántica concreta: token, params, body, upload multipart y filtros de auditoría deben cortar con 404/400 **antes** de hash, lookup, write, signing o audit. 13 tests; oracle de presencia y orden (`assertContainsInOrder` por `indexOf`) sobre el source de las rutas y de la capa de aplicación; sin helper de mutación. Mutación que escapa (razonada, no ejecutada): comentar el `if (!parsed.success) {` y su `return reply.code(…)` deja ambos substrings en el mismo orden, y el guard sigue en verde |
+| `security-write-attribution-boundaries` | `TEST-GLOBAL-04` / `MUTATION_PROOF_PENDING` | `04` (dimensión B) | Protege semántica concreta: atribución del actor en writes persistentes y en audit metadata para admin, clinic, particular y token público. 6 tests; oracle de presencia pura (`assertContains` / `assertMatches`), 0 assertions negativas, sin helper de mutación. Referencia tests runtime existentes, pero eso no demuestra la fuerza de detección de este guard estático (dimensión B). Mutación que escapa (razonada, no ejecutada): persistir `createdByAdminUserId: null` conservando el literal `createdByAdminUserId: actor.id` en un comentario |
+| `security-boundary-suite-completeness` | `REASSIGNED_TO_TEST_GLOBAL_11` | `11` | Meta-registry de completitud: `SECURITY_BOUNDARY_SUITE` (12 guardrails, orden canónico congelado por `deepEqual`), walker que exige que todo `security-*-boundaries.test.ts` bajo `test/` esté registrado, runtime anchors por marker y markers de tests downstream. Su fallo primario es drift entre registry, paths y markers, no una mutación behavioral de un endpoint |
+| `security-critical-route-surface-registry` | `REASSIGNED_TO_TEST_GLOBAL_11` | `11` | Registry de superficies críticas: `CRITICAL_ROUTE_SURFACE_REGISTRY` (6 superficies, slugs congelados), runtime files y guardrail tests por marker, más una segunda lista literal de 21 guardrails obligatorios en el mismo archivo. Incluye superficies no de seguridad (storage, búsqueda pública, gates de CI y `package.json`). Sin auto-discovery. Pertenece al eje registries / censos / fuente única |
+| `security-docs-matrix-drift-guard` | `REASSIGNED_TO_TEST_GLOBAL_11` | `11` | Anti-drift entre documentación, endpoints y registries: exige 6 docs de `docs/security/**` y `docs/ops/**` con sus markers, 20 endpoints en `ENDPOINT_PERMISSION_MATRIX.md` y 9 guardrail tests existentes y referenciados por la documentación. Es un guard documental y de registry, no un oracle behavioral de runtime |
+
+Ninguno de los cinco recibe `accepted defer`. La lista de guardrails de
+seguridad se declara hoy, como mínimo, en `SECURITY_BOUNDARY_SUITE`, en las dos
+listas de `security-critical-route-surface-registry` y en
+`REQUIRED_GUARDRAIL_TESTS` de `security-docs-matrix-drift-guard`. Es la firma
+`DUPLICATE_SOURCE_OF_TRUTH` de §20 y la razón material por la que los tres
+pertenecen a `11`.
 
 ```text
-TEST-GLOBAL-04   IN_PROGRESS — dimensión A cumplida; dimensión B con 9 pendientes
-TG-R05           ABIERTO (parcial) — 3 de 17 guards de architecture/security/** con mutación explícita
-12A              sigue bloqueada: exige 04 cerrada en agregado (§32)
+TEST-GLOBAL-04   IN_PROGRESS — dimensión A cumplida; dimensión B: 12/12 originales
+                 MUTATION_PROOF_PRESENT + 2 adjudicados MUTATION_PROOF_PENDING
+                 (security-validation-cutoff-boundaries,
+                  security-write-attribution-boundaries)
+REASIGNADOS      3 meta-guards → TEST-GLOBAL-11 (no bloquean el cierre de 04)
+TG-R05           ABIERTO (parcial) — 12 de 17 guards de architecture/security/** con
+                 mutation proof; cierra con 04 en agregado, al fusionar los 2 pendientes
+12A              sigue bloqueada: exige 04 cerrada en agregado y 08 (§32)
 ```
+
+Cada uno de los dos pendientes se entrega en su propio PR test-only posterior,
+con la aceptación por PR de esta ficha. Esta adjudicación no los inicia.
 
 Ninguna de las dos dimensiones produce evidencia runtime de staging (§35). El
 registro IDOR mantiene `pending_runtime_staging_evidence`.
@@ -2024,16 +2093,16 @@ incompleta, no licencia para debilitar el test.
 ### TEST-GLOBAL-11 — Registries y censos congelados
 
 - **Objetivo**: que cada censo congelado proteja un contrato real desde una sola fuente de verdad, y que ninguno sobreviva por inercia.
-- **Problema**: `TG-R13` + `TG-R11`.
-- **Evidencia**: §20, §23.
+- **Problema**: `TG-R13` + `TG-R11`; más la gobernanza de los tres meta-guards de seguridad reasignados desde `04` (adjudicación de 2026-09-25).
+- **Evidencia**: §20, §23; ficha de `TEST-GLOBAL-04`, «Frontera `04` ↔ `11`» y tabla de adjudicación.
 - **Tipo de scope**: test-only. **Paths permitidos**: `test/**`.
 - **Riesgo**: R1. **Autorización**: no requiere. **Dependencias**: `05A` y **`01B`** (ver abajo).
-- **Scope**: (a) eliminar la triple declaración de `M48` —derivar la tabla markdown del censo, o derivar el censo de una única fuente—; (b) revisar las **498 assertions de censo congelado en 134 archivos** (§20, cifra corregida en esta revisión) distinguiendo `FROZEN_CENSUS` deliberado de `LEGACY_LIST`; (c) **auditar el censo introducido por `TEST-GLOBAL-01B`** contra la regla de fuente única de §31.2, para que el instrumento creado al inicio del programa no quede fuera de la consolidación que el programa existe para hacer (`TG-A08`).
-- **No-scope**: retirar guards fail-closed; relajar `M48`; convertir un censo en warning para evitar mantenerlo.
-- **Aceptación**: (1) cada censo congelado superviviente tiene fuente única declarada y motivo escrito en el propio test; (2) `M48` deja de exigir edición en tres lugares; (3) todo `LEGACY_LIST` identificado queda retirado o convertido en derivación; (4) el censo de `01B` queda clasificado y conforme a §31.2; (5) ningún guard pierde poder de detección —se verifica con §31.6 condiciones 4, 5 y 6.
+- **Scope**: (a) eliminar la triple declaración de `M48` —derivar la tabla markdown del censo, o derivar el censo de una única fuente—; (b) revisar las **498 assertions de censo congelado en 134 archivos** (§20, cifra corregida en esta revisión) distinguiendo `FROZEN_CENSUS` deliberado de `LEGACY_LIST`; (c) **auditar el censo introducido por `TEST-GLOBAL-01B`** contra la regla de fuente única de §31.2, para que el instrumento creado al inicio del programa no quede fuera de la consolidación que el programa existe para hacer (`TG-A08`); (d) **auditar los tres meta-guards de seguridad reasignados desde `04`**: `test/architecture/security/security-boundary-suite-completeness.test.ts`, `test/architecture/security/security-critical-route-surface-registry.test.ts` y `test/architecture/security/security-docs-matrix-drift-guard.test.ts`. La auditoría aplica la regla de `11`: fuente única, sin duplicación ni inercia, fail-closed, y owner y motivo explícitos. Incluye la lista de guardrails de seguridad que hoy se declara en varios lugares (ficha de `04`).
+- **No-scope**: retirar guards fail-closed; relajar `M48`; convertir un censo en warning para evitar mantenerlo; mutation proof de contratos semánticos de seguridad (eso es `04`); sustituir el walker de auto-discovery de `security-boundary-suite-completeness` por una allowlist; `docs/**` (si la fuente única de un meta-guard exigiera cambiar la documentación que ancla, eso es un PR docs-only aparte).
+- **Aceptación**: (1) cada censo congelado superviviente tiene fuente única declarada y motivo escrito en el propio test; (2) `M48` deja de exigir edición en tres lugares; (3) todo `LEGACY_LIST` identificado queda retirado o convertido en derivación; (4) el censo de `01B` queda clasificado y conforme a §31.2; (5) ningún guard pierde poder de detección —se verifica con §31.6 condiciones 4, 5 y 6; (6) cada uno de los tres meta-guards de (d) queda clasificado con la taxonomía de §20. Declara en el propio test su fuente única, owner y motivo, y conserva sus propiedades fail-closed de §16 (`NEW_VIOLATION`, `STALE_EXCEPTION`). La lista de guardrails de seguridad deja de declararse de forma independiente en varios lugares: queda una fuente única y el resto deriva de ella, o cada duplicado que sobreviva lleva su motivo escrito.
 - **Gates**: `pnpm test` dirigido a `test/architecture/**` → `PASSED`. `pnpm test` completo → `BLOCKED`, declarando el desglose del estado vigente de §31.0.
 - **Rollback**: revertir el commit; los censos vuelven a su forma triple. Sin estado intermedio: la derivación y el literal no coexisten.
-- **Output**: censos con fuente única y motivo.
+- **Output**: censos con fuente única y motivo; y los tres meta-guards de seguridad clasificados, con owner, motivo y fuente única declarados.
 - **Coste**: medio. **Paralelizable**: sí, con `09`.
 
 ### TEST-GLOBAL-12 — Coverage semántico y mutation strength (dos PRs: 12A → 12B)
@@ -2243,7 +2312,7 @@ tiene exactamente un scope primario, una causa y un rollback.
 | 01B | test-only | Contrato de censo y tooling versionado | R1 | No |
 | 02 | test-only | Registro IDOR + prueba negativa | R1 | No |
 | 03 | test-only | Guard de plataforma (launcher win32) | R1 | No |
-| 04 | test-only | Prueba negativa de seguridad — **1 PR por contrato** | R1 | No |
+| 04 | test-only | Prueba negativa de contratos semánticos de seguridad — **1 PR por contrato** | R1 | No |
 | 05A | test-only | Lector canónico y migración por lotes | R1 | No |
 | 05B | config-only | `eslint.config.mjs`: alta de `test/**` | **R2** | **Sí** |
 | 06 | docs-only | Adjudicación de candidatos | R1 | No |
@@ -2254,7 +2323,7 @@ tiene exactamente un scope primario, una causa y un rollback.
 | 10B | test-only | Retiro de `as any` de infraestructura | R1 | No |
 | 10C | backend-only | Costura tipada del registro de plugins Fastify | **R2** | **Sí** |
 | 10D | test-only | Retiro de `as any` de rutas + criterio `req`/`res`/`reply` | R1 | No |
-| 11 | test-only | Registries y censos congelados (incluido el de `01B`) | R1 | No |
+| 11 | test-only | Registries y censos congelados (incluidos el de `01B` y los tres meta-guards de seguridad reasignados desde `04`) | R1 | No |
 | 12A | docs-only | Baseline de coverage con salvedad metodológica | R1 | No |
 | 12B | ci-only | `test:coverage` en CI, no bloqueante — **default: no ejecutar** | **R2** | **Sí** |
 | 13 | docs-only | Certificación de cierre | R1 | No |
@@ -2780,16 +2849,18 @@ STATUS:               ACTIVE
 PRIMARY_AUDIT:        COMPLETE        (diagnóstico técnico, §§6-29)
 GOVERNANCE_REAUDIT:   COMPLETE        (§37, 13 hallazgos TG-A)
 ROADMAP_GOVERNANCE:   CORRECTED       (13/13 TG-A en CORRECTED_IN_THIS_REVISION)
-IMPLEMENTATION:       IN_PROGRESS     (verificado sobre main@247a497c, 2026-09-23)
+IMPLEMENTATION:       IN_PROGRESS     (verificado sobre main@3146fc0c, 2026-09-25)
 
 COMPLETED:    01A #1761 · 01B #1762 · 02 #1763 · 03 #1765 (sobre el fix de launcher #1764)
-IN_PROGRESS:  04  dimensión A cumplida (#1763 #1766 #1767 #1768); dimensión B: 9 guards PENDIENTES
+IN_PROGRESS:  04  dimensión A cumplida (#1763 #1766 #1767 #1768); dimensión B: 12/12 originales
+              con mutation proof (#1763 #1766 #1767 #1773–#1781); 2 adjudicados PENDIENTES
+              (validation-cutoff, write-attribution); 3 meta-guards reasignados a 11
 PENDING:      05A · 05B · 06 · 07 · 08 · 09 · 10A · 10B · 10C · 10D · 11 · 12A · 12B · 13
               (12A sigue bloqueada por el DAG: exige 04 cerrada en agregado y 08)
 
 TECHNICAL_P0: 2       TG-R01 · TG-R02                       — CERRADOS (02, #1763)
 TECHNICAL_P1: 4       TG-R04                                — CERRADO  (03, #1765)
-                      TG-R05                                — ABIERTO, parcial (04, dimensión B)
+                      TG-R05                                — ABIERTO, parcial (04, dimensión B: 2 pendientes)
                       TG-R03 · TG-R06                       — ABIERTOS (06, 07, 08)
 TECHNICAL_P2: 6       TG-R07 … TG-R12                       — ABIERTOS
 TECHNICAL_P3: 4       TG-R13 … TG-R16                       — ABIERTOS
@@ -2797,10 +2868,10 @@ OPEN ACTUAL:  13 de 16
 
 ROADMAP:  13 fases lógicas · 19 subfases · PRs >= 19
 R2 FUTUROS (autorización explícita de Nico):  05B · 10A · 10C · 12B
-NEXT:     TEST-GLOBAL-04 dimensión B: mutation proof de los 9 guards pendientes,
-          en el orden de dominios de §11.2 (tenant isolation → auth/sesiones →
-          permisos/roles → disclosure → rate limiting). Son paralelizables (§32).
-          Además, adjudicar los 5 guards que quedan fuera de los seis dominios.
+NEXT:     TEST-GLOBAL-04 dimensión B: mutation proof de
+          security-validation-cutoff-boundaries y de
+          security-write-attribution-boundaries, un PR test-only cada uno;
+          son paralelizables (§32). Con ambos fusionados, 04 cierra en agregado.
 ```
 
 Los conteos `TECHNICAL_*` repiten el **inventario total** de §28 y no cambian.
