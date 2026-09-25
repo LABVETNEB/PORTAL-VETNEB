@@ -765,14 +765,15 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     section: "§8.1",
     metric: "specs con densidad < 1 assert/test",
     historical: 21,
+    baseline: 14,
     compute: () =>
       classification.specs.filter(
         (spec) => spec.tests > 0 && spec.assertions / spec.tests < 1,
       ).length,
-    resolution: "REPRODUCED",
+    resolution: "RECLASSIFIED",
     guard: BAND,
     motive:
-      "Los 21 usan wrappers de assertion y sí asertan (§8.1): no son deuda y su número puede variar.",
+      "Los 21 históricos usan wrappers de assertion y sí asertan (§8.1): no son deuda y su número puede variar. Las mutation proofs de TEST-GLOBAL-04 agregan assertions reales y sacan specs del bucket: main previo a response-disclosure producía 16; response-disclosure (#1780) lo lleva 16 -> 15 y rate-limit-isolation 15 -> 14. La caída deriva de assertions reales, no de wrappers: se re-ancla el baseline a 14 sin cambiar GROWTH_TOLERANCE, sin excluir ningún spec y sin debilitar el detector.",
   },
   {
     row: "A0-08-SUBSTRING",
