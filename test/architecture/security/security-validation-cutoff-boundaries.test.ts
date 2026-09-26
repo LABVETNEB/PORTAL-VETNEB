@@ -3,6 +3,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { basename, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import ts from "typescript";
 
 const REPO_ROOT = resolve(fileURLToPath(new URL("../../../", import.meta.url)));
 
@@ -138,6 +139,381 @@ function extractFunctionBlock(
 
   return source.slice(start, end + 3);
 }
+
+const PUBLIC_REPORT_ACCESS_FILE = "server/routes/public-report-access.fastify.ts";
+const PUBLIC_REPORT_ACCESS_ROUTE_CUTOFF_MARKERS = [
+  "const parsed = reportAccessTokenRawTokenSchema.safeParse(request.params.token);",
+  "if (!parsed.success) {",
+  "return reply.code(404).send(REPORT_NOT_FOUND_RESPONSE);",
+  "const result = await reportAccess.access(",
+] as const;
+
+function assertLegacyPublicReportAccessRouteCutoff(source: string): void {
+  assertContainsInOrder(
+    source,
+    PUBLIC_REPORT_ACCESS_ROUTE_CUTOFF_MARKERS,
+    "public report access token route validation cut-off",
+  );
+}
+
+type RouteValidationCutoff = {
+  file: string;
+  method: "get" | "post" | "patch";
+  path: string;
+  validation: string;
+  guard: string;
+  status: 400 | 404;
+  operations: readonly string[];
+};
+
+// Executable cut-offs protected by this guard. `validation` is the comment-free canonical
+// declaration, `guard` the canonical branch condition and `operations` the sensitive
+// callees that must only run once the branch has rejected invalid input.
+const ROUTE_VALIDATION_CUTOFFS: readonly RouteValidationCutoff[] = [
+  {
+    file: PUBLIC_REPORT_ACCESS_FILE,
+    method: "get",
+    path: "/:token",
+    validation: "const parsed = reportAccessTokenRawTokenSchema.safeParse(request.params.token);",
+    guard: "!parsed.success",
+    status: 404,
+    operations: ["reportAccess.access"],
+  },
+  {
+    file: "server/routes/reports-status.fastify.ts",
+    method: "patch",
+    path: "/:reportId/status",
+    validation: "const reportId = parseReportId(request.params.reportId);",
+    guard: 'typeof reportId !== "number"',
+    status: 400,
+    operations: ["composition.queries.transitionClinicReportStatus", "composition.writeAuditLog"],
+  },
+  {
+    file: "server/routes/reports-status.fastify.ts",
+    method: "patch",
+    path: "/:reportId/status",
+    validation: "const nextStatus = parseReportStatus(request.body?.status);",
+    guard: "!nextStatus",
+    status: 400,
+    operations: ["composition.queries.transitionClinicReportStatus", "composition.writeAuditLog"],
+  },
+  {
+    file: "server/routes/report-access-tokens.fastify.ts",
+    method: "post",
+    path: "/",
+    validation: "const parsed = clinicCreateReportAccessTokenSchema.safeParse(request.body);",
+    guard: "!parsed.success",
+    status: 400,
+    operations: ["reportAccess.createToken"],
+  },
+  {
+    file: "server/routes/report-access-tokens.fastify.ts",
+    method: "patch",
+    path: "/:tokenId/revoke",
+    validation: "const tokenId = parseEntityId(request.params.tokenId);",
+    guard: 'typeof tokenId !== "number"',
+    status: 400,
+    operations: ["reportAccess.revokeToken"],
+  },
+  {
+    file: "server/routes/admin-reports.fastify.ts",
+    method: "post",
+    path: "/upload",
+    validation: "const clinicId = parseReportId(body.clinicId);",
+    guard: 'typeof clinicId !== "number"',
+    status: 400,
+    operations: ["composition.service.uploadAdminReport"],
+  },
+  {
+    file: "server/routes/study-tracking.fastify.ts",
+    method: "post",
+    path: "/",
+    validation: "const parsed = clinicCreateStudyTrackingSchema.safeParse(request.body);",
+    guard: "!parsed.success",
+    status: 400,
+    operations: ["clinicOperations.createClinicStudyTrackingCase"],
+  },
+  {
+    file: "server/routes/admin-study-tracking.fastify.ts",
+    method: "post",
+    path: "/",
+    validation: "const parsed = adminCreateStudyTrackingSchema.safeParse(request.body ?? {});",
+    guard: "!parsed.success",
+    status: 400,
+    operations: ["adminOperations.createAdminStudyTrackingCase"],
+  },
+  {
+    file: "server/routes/admin-study-tracking.fastify.ts",
+    method: "patch",
+    path: "/:trackingCaseId",
+    validation: "const parsed = updateStudyTrackingSchema.safeParse(body);",
+    guard: "!parsed.success",
+    status: 400,
+    operations: ["adminOperations.updateAdminStudyTrackingCase"],
+  },
+  {
+    file: "server/routes/logistics-route-plans.fastify.ts",
+    method: "post",
+    path: "/heuristic",
+    validation: "const parsed = buildGenerateHeuristicRoutePlanInput(request.body, auth.clinicId, auth.id);",
+    guard: "!parsed.input",
+    status: 400,
+    operations: ["generateHeuristicRoutePlan"],
+  },
+  ...[
+    {
+      file: "server/routes/admin-audit.fastify.ts",
+      validation: "const { filters, errors } = deps.buildAdminAuditListFilters(request.query ?? {});",
+      list: "deps.listAuditLog",
+      csv: "deps.buildAdminAuditCsv",
+    },
+    {
+      file: "server/routes/clinic-audit.fastify.ts",
+      validation:
+        "const { filters, errors } = deps.buildClinicAuditListFilters(request.query ?? {}, auth.clinicId);",
+      list: "deps.listAuditLog",
+      csv: "deps.buildAdminAuditCsv",
+    },
+    {
+      file: "server/routes/particular-audit.fastify.ts",
+      validation: "const { filters, errors } = deps.buildParticularAuditListFilters(request.query ?? {});",
+      list: "deps.listParticularAuditLog",
+      csv: "deps.buildAuditCsv",
+    },
+  ].flatMap(({ file, validation, list, csv }): RouteValidationCutoff[] => [
+    { file, method: "get", path: "/", validation, guard: "errors.length > 0", status: 400, operations: [list] },
+    {
+      file,
+      method: "get",
+      path: "/export.csv",
+      validation,
+      guard: "errors.length > 0",
+      status: 400,
+      operations: [list, csv],
+    },
+  ]),
+];
+
+function countOccurrences(source: string, target: string): number {
+  return source.split(target).length - 1;
+}
+
+function replaceExactlyOnce(source: string, target: string, replacement: string): string {
+  assert.ok(source.includes(target), `mutation target must exist: ${target}`);
+  assert.equal(countOccurrences(source, target), 1, `mutation target must appear exactly once: ${target}`);
+  return source.replace(target, () => replacement);
+}
+
+const CANONICAL_PRINTER = ts.createPrinter({ removeComments: true });
+
+// AST text without comments or layout: comments, strings and templates are never
+// mistaken for the statements they merely spell out.
+function canonical(node: ts.Node, file: ts.SourceFile): string {
+  return CANONICAL_PRINTER.printNode(ts.EmitHint.Unspecified, node, file).replace(/\s+/g, " ").trim();
+}
+
+function parseRouteSource(source: string, fileName: string): ts.SourceFile | undefined {
+  const { diagnostics = [] } = ts.transpileModule(source, { fileName, reportDiagnostics: true });
+  return diagnostics.length > 0
+    ? undefined
+    : ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+}
+
+function descendants<T extends ts.Node>(root: ts.Node, match: (node: ts.Node) => node is T): T[] {
+  const found: T[] = [];
+  const visit = (node: ts.Node): void => {
+    if (match(node)) {
+      found.push(node);
+    }
+    ts.forEachChild(node, visit);
+  };
+  ts.forEachChild(root, visit);
+  return found;
+}
+
+function routeCutoffLabel(cutoff: RouteValidationCutoff): string {
+  return `${cutoff.file} ${cutoff.method.toUpperCase()} ${cutoff.path} if (${cutoff.guard})`;
+}
+
+// `app.<method>("<path>", handler)` registrations; sibling handlers never count.
+function routeHandlers(file: ts.SourceFile, cutoff: RouteValidationCutoff): ts.CallExpression[] {
+  return descendants(file, ts.isCallExpression).filter((call) => {
+    const [path] = call.arguments;
+    return (
+      ts.isPropertyAccessExpression(call.expression) &&
+      ts.isIdentifier(call.expression.expression) &&
+      call.expression.expression.text === "app" &&
+      call.expression.name.text === cutoff.method &&
+      path !== undefined &&
+      ts.isStringLiteral(path) &&
+      path.text === cutoff.path
+    );
+  });
+}
+
+function isRejection(statement: ts.Statement, status: number, file: ts.SourceFile): boolean {
+  const expression = ts.isReturnStatement(statement) ? statement.expression : undefined;
+  if (!expression || !ts.isCallExpression(expression) || !ts.isPropertyAccessExpression(expression.expression)) {
+    return false;
+  }
+  const send = expression.expression;
+  return (
+    send.name.text === "send" &&
+    ts.isCallExpression(send.expression) &&
+    canonical(send.expression, file) === `reply.code(${status})`
+  );
+}
+
+// The single top-level branch that rejects invalid input, or the reason it cannot be
+// trusted: missing, duplicated, nested, reordered, neutralized, non-terminating, or
+// preceded by a sensitive operation.
+function locateRouteCutoff(
+  file: ts.SourceFile,
+  cutoff: RouteValidationCutoff,
+): { cutoff: ts.IfStatement } | { violation: string } {
+  const label = routeCutoffLabel(cutoff);
+  const registrations = routeHandlers(file, cutoff);
+  const handler = registrations.length === 1 ? registrations[0].arguments.at(-1) : undefined;
+  if (
+    handler === undefined ||
+    !(ts.isArrowFunction(handler) || ts.isFunctionExpression(handler)) ||
+    !ts.isBlock(handler.body)
+  ) {
+    return { violation: `${label}: route handler must be registered exactly once with a block body` };
+  }
+
+  const body = handler.body;
+  const validations = descendants(body, ts.isVariableStatement).filter(
+    (statement) => canonical(statement, file) === cutoff.validation,
+  );
+  const validationIndex =
+    validations.length === 1 && validations[0].parent === body ? body.statements.indexOf(validations[0]) : -1;
+  if (validationIndex === -1) {
+    return { violation: `${label}: validation must be declared exactly once at handler top level` };
+  }
+
+  const branches = descendants(body, ts.isIfStatement).filter(
+    (statement) => canonical(statement.expression, file) === cutoff.guard,
+  );
+  const branch = branches.length === 1 && branches[0].parent === body ? branches[0] : undefined;
+  const branchIndex = branch ? body.statements.indexOf(branch) : -1;
+  if (!branch || branchIndex <= validationIndex) {
+    return { violation: `${label}: cut-off must be a single top-level branch after validation` };
+  }
+
+  const thenStatements = ts.isBlock(branch.thenStatement) ? [...branch.thenStatement.statements] : [branch.thenStatement];
+  const last = thenStatements.at(-1);
+  if (
+    last === undefined ||
+    thenStatements.filter(ts.isReturnStatement).length !== 1 ||
+    !isRejection(last, cutoff.status, file)
+  ) {
+    return { violation: `${label}: cut-off branch must end in return reply.code(${cutoff.status}).send(...)` };
+  }
+
+  for (const operation of cutoff.operations) {
+    const calls = descendants(body, ts.isCallExpression).filter(
+      (call) => canonical(call.expression, file) === operation,
+    );
+    if (calls.length === 0) {
+      return { violation: `${label}: ${operation} must be present in the handler` };
+    }
+    for (const call of calls) {
+      // A call wrapped in a nested function may run earlier than its position (hoisting).
+      let topLevel: ts.Node = call;
+      let wrapped = false;
+      while (topLevel.parent !== undefined && topLevel.parent !== body) {
+        topLevel = topLevel.parent;
+        wrapped ||= ts.isFunctionLike(topLevel);
+      }
+      if (wrapped || body.statements.indexOf(topLevel as ts.Statement) <= branchIndex) {
+        return { violation: `${label}: ${operation} must only run after the cut-off` };
+      }
+    }
+  }
+
+  const bindings = new Set(
+    validations[0].declarationList.declarations.flatMap((declaration) =>
+      ts.isIdentifier(declaration.name)
+        ? [declaration.name.text]
+        : descendants(declaration.name, ts.isIdentifier).map((identifier) => identifier.text),
+    ),
+  );
+  const touched = body.statements
+    .slice(validationIndex + 1, branchIndex)
+    .some((statement) => descendants(statement, ts.isIdentifier).some((identifier) => bindings.has(identifier.text)));
+  if (touched) {
+    return { violation: `${label}: validation result must not be touched before the cut-off` };
+  }
+
+  return { cutoff: branch };
+}
+
+function evaluateRouteValidationCutoffs(
+  source: string,
+  fileName: string,
+  cutoffs: readonly RouteValidationCutoff[],
+): string[] {
+  const file = parseRouteSource(source, fileName);
+  if (file === undefined) {
+    return [`${fileName}: source must parse as TypeScript before evaluation`];
+  }
+
+  return cutoffs.flatMap((cutoff) => {
+    const located = locateRouteCutoff(file, cutoff);
+    return "violation" in located ? [located.violation] : [];
+  });
+}
+
+function routeCutoffsFor(fileName: string): RouteValidationCutoff[] {
+  return ROUTE_VALIDATION_CUTOFFS.filter((cutoff) => cutoff.file === fileName);
+}
+
+const POSITIVE_ID_HELPERS = [
+  { file: "server/features/report-access/report-access-token.ts", name: "parseEntityId" },
+  { file: "server/features/particular-access/particular-token.ts", name: "parseEntityId" },
+  { file: "server/features/study-tracking/domain/study-tracking.ts", name: "parseEntityId" },
+  { file: "server/features/reports/domain/reports.ts", name: "parseReportId" },
+] as const;
+
+function positiveIdBody(local: string): string {
+  return `{ const ${local} = Number(value); return Number.isInteger(${local}) && ${local} > 0 ? ${local} : undefined; }`;
+}
+
+// Route cut-offs test `typeof id !== "number"`, so the helper itself must turn NaN,
+// zero, negatives and fractions into undefined with executable code.
+function evaluatePositiveIdHelperSource(source: string, fileName: string, name: string): string[] {
+  const file = parseRouteSource(source, fileName);
+  if (file === undefined) {
+    return [`${fileName}: source must parse as TypeScript before evaluation`];
+  }
+
+  const helpers = descendants(file, ts.isFunctionDeclaration).filter((declaration) => declaration.name?.text === name);
+  const body = helpers.length === 1 && helpers[0].parent === file ? helpers[0].body : undefined;
+  return body !== undefined && ["parsed", "reportId"].some((local) => canonical(body, file) === positiveIdBody(local))
+    ? []
+    : [`${fileName}: ${name} must return only positive integers and undefined otherwise`];
+}
+
+function assertLegacyParseEntityId(source: string, file: string): void {
+  const parseEntityId = extractFunctionBlock(
+    source,
+    "export function parseEntityId(value: unknown): number | undefined {",
+    `${file} parseEntityId`,
+  );
+
+  assertContains(
+    parseEntityId,
+    "return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;",
+    `${file} positive id only`,
+  );
+  assertNotContains(
+    parseEntityId,
+    "return fallback",
+    `${file} parseEntityId must not fallback for sensitive ids`,
+  );
+}
+
 test("validation cut-off matrix documents the protected contract", () => {
   assert.deepEqual(VALIDATION_CUTOFF_BOUNDARIES, {
     publicRawTokens: [
@@ -164,21 +540,12 @@ test("validation cut-off matrix documents the protected contract", () => {
 });
 
 test("public report access validates raw token before hash db signing and audit", () => {
-  const source = readSource("server/routes/public-report-access.fastify.ts");
+  const source = readSource(PUBLIC_REPORT_ACCESS_FILE);
   const application = readSource(
     "server/features/report-access/application/public-report-access-operations.ts",
   );
 
-  assertContainsInOrder(
-    source,
-    [
-      "const parsed = reportAccessTokenRawTokenSchema.safeParse(request.params.token);",
-      "if (!parsed.success) {",
-      "return reply.code(404).send(REPORT_NOT_FOUND_RESPONSE);",
-      "const result = await reportAccess.access(",
-    ],
-    "public report access token route validation cut-off",
-  );
+  assertLegacyPublicReportAccessRouteCutoff(source);
   assertContainsInOrder(
     application,
     [
@@ -514,29 +881,283 @@ test("audit list and export filters return 400 before listing or exporting data"
     );
   }
 });
+
+test("route validation cut-offs are executable branches that return before sensitive operations", () => {
+  const labels = ROUTE_VALIDATION_CUTOFFS.map(routeCutoffLabel);
+  assert.deepEqual(labels, [...new Set(labels)], "route cut-offs must be registered once");
+
+  for (const fileName of new Set(ROUTE_VALIDATION_CUTOFFS.map((cutoff) => cutoff.file))) {
+    assert.deepEqual(
+      evaluateRouteValidationCutoffs(readSource(fileName), fileName, routeCutoffsFor(fileName)),
+      [],
+      fileName,
+    );
+  }
+});
+
+const PUBLIC_TOKEN_CUTOFF_BRANCH = [
+  "    if (!parsed.success) {",
+  "      return reply.code(404).send(REPORT_NOT_FOUND_RESPONSE);",
+  "    }",
+].join("\n");
+const PUBLIC_TOKEN_CUTOFF_LABEL = routeCutoffLabel(ROUTE_VALIDATION_CUTOFFS[0]);
+const PUBLIC_TOKEN_MISSING_CUTOFF = `${PUBLIC_TOKEN_CUTOFF_LABEL}: cut-off must be a single top-level branch after validation`;
+
+function evaluatePublicReportAccessCutoff(source: string): string[] {
+  return evaluateRouteValidationCutoffs(source, PUBLIC_REPORT_ACCESS_FILE, routeCutoffsFor(PUBLIC_REPORT_ACCESS_FILE));
+}
+
+test("mutation proof: commented-out public token cut-off keeps every legacy marker but fails the executable evaluator", () => {
+  const source = readSource(PUBLIC_REPORT_ACCESS_FILE);
+  assert.equal(ROUTE_VALIDATION_CUTOFFS[0].file, PUBLIC_REPORT_ACCESS_FILE);
+  assert.deepEqual(evaluatePublicReportAccessCutoff(source), []);
+
+  const commented = {
+    "line comments": PUBLIC_TOKEN_CUTOFF_BRANCH.split("\n")
+      .map((line) => `    // ${line.trimStart()}`)
+      .join("\n"),
+    "block comment": `    /*\n${PUBLIC_TOKEN_CUTOFF_BRANCH}\n    */`,
+  };
+
+  for (const [kind, replacement] of Object.entries(commented)) {
+    // In memory only: invalid tokens now reach reportAccess.access (hash, lookup, signing, audit).
+    const mutated = replaceExactlyOnce(source, PUBLIC_TOKEN_CUTOFF_BRANCH, replacement);
+    assert.notEqual(mutated, source, kind);
+
+    // Every legacy substring survives inside the comment, in the same order.
+    for (const marker of PUBLIC_REPORT_ACCESS_ROUTE_CUTOFF_MARKERS) {
+      assert.equal(countOccurrences(mutated, marker), countOccurrences(source, marker), `${kind}: ${marker}`);
+    }
+    assertLegacyPublicReportAccessRouteCutoff(mutated);
+
+    assert.deepEqual(evaluatePublicReportAccessCutoff(mutated), [PUBLIC_TOKEN_MISSING_CUTOFF], kind);
+  }
+
+  assert.equal(readSource(PUBLIC_REPORT_ACCESS_FILE), source, "production source is never written");
+});
+
+test("route cut-off evaluator rejects non-executable or displaced cut-offs that legacy markers accept", () => {
+  const source = readSource(PUBLIC_REPORT_ACCESS_FILE);
+  const declaration = PUBLIC_REPORT_ACCESS_ROUTE_CUTOFF_MARKERS[0];
+  const getHead = "  app.get<{\n    Params: {\n      token: string;\n    };\n  }>(\"/:token\", async (request, reply) => {";
+  const sibling = [
+    '  app.get("/:token/preview", async (request, reply) => {',
+    `    ${declaration}`,
+    "",
+    PUBLIC_TOKEN_CUTOFF_BRANCH,
+    "",
+    "    return reply.code(204).send();",
+    "  });",
+    "",
+    getHead,
+  ].join("\n");
+
+  const cases = [
+    {
+      name: "cut-off kept only inside a string literal",
+      mutated: replaceExactlyOnce(
+        source,
+        PUBLIC_TOKEN_CUTOFF_BRANCH,
+        `    const disabledCutoff = "${PUBLIC_TOKEN_CUTOFF_BRANCH.trim().split(/\s+/).join(" ")}";`,
+      ),
+      expected: PUBLIC_TOKEN_MISSING_CUTOFF,
+    },
+    {
+      name: "cut-off kept only inside a template literal",
+      mutated: replaceExactlyOnce(
+        source,
+        PUBLIC_TOKEN_CUTOFF_BRANCH,
+        `    const disabledCutoff = \`\n${PUBLIC_TOKEN_CUTOFF_BRANCH}\n    \`;`,
+      ),
+      expected: PUBLIC_TOKEN_MISSING_CUTOFF,
+    },
+    {
+      name: "only the return is commented out",
+      mutated: replaceExactlyOnce(
+        source,
+        PUBLIC_TOKEN_CUTOFF_BRANCH,
+        PUBLIC_TOKEN_CUTOFF_BRANCH.replace("      return reply", "      // return reply"),
+      ),
+      expected: `${PUBLIC_TOKEN_CUTOFF_LABEL}: cut-off branch must end in return reply.code(404).send(...)`,
+    },
+    {
+      name: "cut-off nested under an unrelated condition",
+      mutated: replaceExactlyOnce(
+        source,
+        PUBLIC_TOKEN_CUTOFF_BRANCH,
+        PUBLIC_TOKEN_CUTOFF_BRANCH.replace("    if (!parsed.success) {", '    if (request.params.token === "") if (!parsed.success) {'),
+      ),
+      expected: PUBLIC_TOKEN_MISSING_CUTOFF,
+    },
+    {
+      name: "cut-off moved into a sibling handler",
+      mutated: replaceExactlyOnce(replaceExactlyOnce(source, `${PUBLIC_TOKEN_CUTOFF_BRANCH}\n\n`, ""), getHead, sibling),
+      expected: PUBLIC_TOKEN_MISSING_CUTOFF,
+    },
+    {
+      name: "validation executed but its result ignored while the declaration survives in a comment",
+      mutated: replaceExactlyOnce(
+        source,
+        declaration,
+        [
+          "reportAccessTokenRawTokenSchema.safeParse(request.params.token);",
+          `    const parsed = { success: true as const, data: request.params.token }; // ${declaration}`,
+        ].join("\n"),
+      ),
+      expected: `${PUBLIC_TOKEN_CUTOFF_LABEL}: validation must be declared exactly once at handler top level`,
+    },
+    {
+      name: "validation result neutralized before the cut-off",
+      mutated: replaceExactlyOnce(
+        source,
+        `${declaration}\n\n${PUBLIC_TOKEN_CUTOFF_BRANCH}`,
+        `${declaration}\n    Object.assign(parsed, { success: true });\n\n${PUBLIC_TOKEN_CUTOFF_BRANCH}`,
+      ),
+      expected: `${PUBLIC_TOKEN_CUTOFF_LABEL}: validation result must not be touched before the cut-off`,
+    },
+    {
+      name: "sensitive operation invoked before the cut-off",
+      mutated: replaceExactlyOnce(
+        source,
+        PUBLIC_TOKEN_CUTOFF_BRANCH,
+        `    await reportAccess.access(request.params.token, currentTime, request);\n\n${PUBLIC_TOKEN_CUTOFF_BRANCH}`,
+      ),
+      expected: `${PUBLIC_TOKEN_CUTOFF_LABEL}: reportAccess.access must only run after the cut-off`,
+    },
+    {
+      name: "sensitive operation hoisted from a function declared after the cut-off",
+      mutated: replaceExactlyOnce(
+        source,
+        PUBLIC_TOKEN_CUTOFF_BRANCH,
+        [
+          "    await accessBeforeValidation();",
+          "",
+          PUBLIC_TOKEN_CUTOFF_BRANCH,
+          "",
+          "    async function accessBeforeValidation() {",
+          "      return reportAccess.access(request.params.token, currentTime, request);",
+          "    }",
+        ].join("\n"),
+      ),
+      expected: `${PUBLIC_TOKEN_CUTOFF_LABEL}: reportAccess.access must only run after the cut-off`,
+    },
+  ];
+
+  for (const { name, mutated, expected } of cases) {
+    assert.notEqual(mutated, source, name);
+    assertLegacyPublicReportAccessRouteCutoff(mutated);
+    assert.deepEqual(evaluatePublicReportAccessCutoff(mutated), [expected], name);
+  }
+});
+
+test("route cut-off evaluator fails closed on reordered non-terminating duplicated or unparsable handlers", () => {
+  const source = readSource(PUBLIC_REPORT_ACCESS_FILE);
+  const access = "    const result = await reportAccess.access(\n      parsed.data,\n      currentTime,\n      request,\n    );";
+
+  const cases = [
+    {
+      name: "cut-off reordered after the sensitive operation",
+      mutated: replaceExactlyOnce(
+        source,
+        `${PUBLIC_TOKEN_CUTOFF_BRANCH}\n\n${access}`,
+        `${access}\n\n${PUBLIC_TOKEN_CUTOFF_BRANCH}`,
+      ),
+      expected: [`${PUBLIC_TOKEN_CUTOFF_LABEL}: reportAccess.access must only run after the cut-off`],
+    },
+    {
+      name: "return replaced by a call that does not stop the handler",
+      mutated: replaceExactlyOnce(
+        source,
+        PUBLIC_TOKEN_CUTOFF_BRANCH,
+        PUBLIC_TOKEN_CUTOFF_BRANCH.replace("      return reply", "      reply"),
+      ),
+      expected: [`${PUBLIC_TOKEN_CUTOFF_LABEL}: cut-off branch must end in return reply.code(404).send(...)`],
+    },
+    {
+      name: "branch returns a success status instead of the rejection",
+      mutated: replaceExactlyOnce(
+        source,
+        PUBLIC_TOKEN_CUTOFF_BRANCH,
+        PUBLIC_TOKEN_CUTOFF_BRANCH.replace("reply.code(404)", "reply.code(200)"),
+      ),
+      expected: [`${PUBLIC_TOKEN_CUTOFF_LABEL}: cut-off branch must end in return reply.code(404).send(...)`],
+    },
+    {
+      name: "cut-off branch duplicated",
+      mutated: replaceExactlyOnce(
+        source,
+        PUBLIC_TOKEN_CUTOFF_BRANCH,
+        `${PUBLIC_TOKEN_CUTOFF_BRANCH}\n\n${PUBLIC_TOKEN_CUTOFF_BRANCH}`,
+      ),
+      expected: [PUBLIC_TOKEN_MISSING_CUTOFF],
+    },
+    {
+      name: "route handler registered twice",
+      mutated: replaceExactlyOnce(source, 'app.options("/:token"', 'app.get("/:token"'),
+      expected: [`${PUBLIC_TOKEN_CUTOFF_LABEL}: route handler must be registered exactly once with a block body`],
+    },
+    {
+      name: "unterminated comment hides the rest of the handler",
+      mutated: replaceExactlyOnce(source, access, `    /*\n${access}`),
+      expected: [`${PUBLIC_REPORT_ACCESS_FILE}: source must parse as TypeScript before evaluation`],
+    },
+    {
+      name: "unbalanced braces around the cut-off",
+      mutated: replaceExactlyOnce(source, PUBLIC_TOKEN_CUTOFF_BRANCH, PUBLIC_TOKEN_CUTOFF_BRANCH.replace(/\n {4}\}$/, "")),
+      expected: [`${PUBLIC_REPORT_ACCESS_FILE}: source must parse as TypeScript before evaluation`],
+    },
+    {
+      name: "known allowed: braceless branch that still returns the rejection",
+      mutated: replaceExactlyOnce(
+        source,
+        PUBLIC_TOKEN_CUTOFF_BRANCH,
+        "    if (!parsed.success) return reply.code(404).send(REPORT_NOT_FOUND_RESPONSE);",
+      ),
+      expected: [],
+    },
+  ];
+
+  for (const { name, mutated, expected } of cases) {
+    assert.notEqual(mutated, source, name);
+    assert.deepEqual(evaluatePublicReportAccessCutoff(mutated), expected, name);
+  }
+
+  assert.throws(
+    () => replaceExactlyOnce(source, "return reply.code(404).send(REPORT_NOT_FOUND_RESPONSE);", ""),
+    /mutation target must appear exactly once/,
+  );
+});
+
+test("every registered route cut-off is load-bearing when commented out in place", () => {
+  for (const cutoff of ROUTE_VALIDATION_CUTOFFS) {
+    const label = routeCutoffLabel(cutoff);
+    const source = readSource(cutoff.file);
+    const file = parseRouteSource(source, cutoff.file);
+    assert.ok(file, `${label}: source must parse`);
+
+    const located = locateRouteCutoff(file, cutoff);
+    assert.ok("cutoff" in located, label);
+    const start = located.cutoff.getStart(file);
+    const original = source.slice(start, located.cutoff.end);
+    const mutated = `${source.slice(0, start)}${original
+      .split("\n")
+      .map((line) => `// ${line}`)
+      .join("\n")}${source.slice(located.cutoff.end)}`;
+
+    assert.ok(mutated.includes(original.split("\n")[0]), `${label}: branch header text survives`);
+    assert.deepEqual(
+      evaluateRouteValidationCutoffs(mutated, cutoff.file, [cutoff]),
+      [`${label}: cut-off must be a single top-level branch after validation`],
+    );
+  }
+});
 test("numeric id helpers reject invalid identifiers instead of defaulting sensitive ids", () => {
   for (const file of [
     "server/features/report-access/report-access-token.ts",
     "server/features/particular-access/particular-token.ts",
     "server/features/study-tracking/domain/study-tracking.ts",
   ] as const) {
-    const source = readSource(file);
-    const parseEntityId = extractFunctionBlock(
-      source,
-      "export function parseEntityId(value: unknown): number | undefined {",
-      `${file} parseEntityId`,
-    );
-
-    assertContains(
-      parseEntityId,
-      "return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;",
-      `${file} positive id only`,
-    );
-    assertNotContains(
-      parseEntityId,
-      "return fallback",
-      `${file} parseEntityId must not fallback for sensitive ids`,
-    );
+    assertLegacyParseEntityId(readSource(file), file);
   }
 
   const reports = readSource("server/features/reports/domain/reports.ts");
@@ -556,6 +1177,33 @@ test("numeric id helpers reject invalid identifiers instead of defaulting sensit
     "return fallback",
     "reports parseReportId must not fallback for sensitive ids",
   );
+
+  for (const { file, name } of POSITIVE_ID_HELPERS) {
+    assert.deepEqual(evaluatePositiveIdHelperSource(readSource(file), file, name), [], file);
+  }
+});
+
+test("mutation proof: commented-out positive id check keeps legacy markers but fails the helper evaluator", () => {
+  const { file, name } = POSITIVE_ID_HELPERS[0];
+  const source = readSource(file);
+  const check = "return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;";
+  const violation = `${file}: ${name} must return only positive integers and undefined otherwise`;
+  assert.deepEqual(evaluatePositiveIdHelperSource(source, file, name), []);
+
+  const cases = {
+    // NaN from Number("abc") is typeof "number" and passes every route cut-off.
+    "check commented out behind a raw return": replaceExactlyOnce(source, check, `return parsed; // ${check}`),
+    "check kept only in a string": replaceExactlyOnce(source, check, `return parsed || "${check}";`),
+    "helper duplicated with a permissive variant": `${source}\nfunction ${name}(value: unknown): number | undefined {\n  return Number(value);\n}\n`,
+  };
+
+  for (const [kind, mutated] of Object.entries(cases)) {
+    assert.notEqual(mutated, source, kind);
+    assertLegacyParseEntityId(mutated, file);
+    assert.deepEqual(evaluatePositiveIdHelperSource(mutated, file, name), [violation], kind);
+  }
+
+  assert.equal(readSource(file), source, "production source is never written");
 });
 
 test("runtime validation tests remain explicit for cut-off behavior", () => {
