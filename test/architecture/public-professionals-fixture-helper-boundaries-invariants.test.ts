@@ -1,19 +1,12 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
-import { listTrackedSourceFiles } from "../helpers/tracked-source-files.ts";
+import {
+  listTrackedSourceFiles,
+  readSourceFile as readSource,
+} from "../helpers/tracked-source-files.ts";
 
-const REPO_ROOT = resolve(import.meta.dirname, "../..");
 const FACTORY_PATH = "test/factories/public-professionals.ts";
 const MOCK_PATH = "test/mocks/public-professionals-route.ts";
-
-function readSource(relativePath: string): string {
-  return readFileSync(resolve(REPO_ROOT, relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 test("public professionals support mantiene APIs canónicas separadas", () => {
   const factorySource = readSource(FACTORY_PATH);

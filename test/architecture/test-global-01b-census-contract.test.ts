@@ -961,13 +961,13 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     section: "§13.1",
     metric: "specs con lector propio",
     historical: 283,
-    baseline: 281,
+    baseline: 279,
     compute: () =>
       classification.specs.filter((spec) => spec.definesOwnReader).length,
     resolution: "RECLASSIFIED",
-    guard: BAND,
+    guard: NON_INCREASING,
     motive:
-      "A.0 ya declara que un grep simple devuelve 281; el tooling reproduce exactamente esa cifra auditable, no la derivada del scratchpad. Diferencia declarada: 2 archivos.",
+      "A.0 ya declara que un grep simple devuelve 281; el tooling reproduce exactamente esa cifra auditable, no la derivada del scratchpad. Diferencia declarada: 2 archivos. TEST-GLOBAL-05A: es deuda (TG-R09), no volumen, y pasa de banda a NON_INCREASING: la banda de 25 % dejaba crecer 70 lectores ad hoc en verde y ponía en rojo una migración legítima de más de 71. El lote 1 de 05A migra al lector canónico los specs public-professionals-fixture file-scope y helper-boundaries: 281 -> 279, re-anclado al valor vigente. Una reducción posterior no exige editar esta fila.",
   },
   {
     row: "A0-13-READERS",
@@ -977,37 +977,37 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     baseline: 17,
     compute: () => ownReaderFiles("walk"),
     resolution: "RECLASSIFIED",
-    guard: BAND,
+    guard: NON_INCREASING,
     motive:
-      "Mismo caso: A.0 declara que el grep simple devuelve 17. El tooling reproduce la cifra auditable.",
+      "Mismo caso: A.0 declara que el grep simple devuelve 17. El tooling reproduce la cifra auditable. TEST-GLOBAL-05A: walker ad hoc = deuda (TG-R09), NON_INCREASING; puede bajar sin editar la fila y no puede crecer.",
   },
   {
     row: "A0-13-READERS",
     section: "§13.1",
     metric: "specs que normalizan CRLF a mano",
     historical: 295,
-    baseline: 279,
+    baseline: 284,
     compute: () =>
       classification.specs.filter((spec) => spec.normalizesCrlf).length,
     resolution: "RECLASSIFIED",
-    guard: BAND,
+    guard: NON_INCREASING,
     motive:
-      "Mismo caso: A.0 declara que el grep simple devuelve 279. El tooling reproduce la cifra auditable.",
+      "Mismo caso: A.0 declara que el grep simple devuelve 279. El tooling reproduce la cifra auditable. TEST-GLOBAL-05A: normalizar CRLF a mano duplica el lector canónico (TG-R16) y pasa a NON_INCREASING. Bajo la banda la cifra subió de 279 a 285 entre 01B y main@ed6bf532 sin poner el censo en rojo: esa regresión se declara aquí y desde este ancla no puede crecer. Lote 1 de 05A: 285 -> 284, porque helper-boundaries deja de normalizar a mano y lee por el lector canónico.",
   },
   {
     row: "A0-13-READERS",
     section: "§13.1",
     metric: "specs que leen filesystem sin normalizar CRLF",
     historical: 36,
-    baseline: 136,
+    baseline: 130,
     compute: () =>
       classification.specs.filter(
-        (spec) => spec.readsFilesystem && !spec.normalizesCrlf,
+        (spec) => spec.readsFilesystemWithoutCrlfNormalization,
       ).length,
     resolution: "RECLASSIFIED",
-    guard: BAND,
+    guard: NON_INCREASING,
     motive:
-      "El tooling define 'lee filesystem' como importar node:fs (la señal de §7.1, 410 archivos); el scratchpad usaba un subconjunto no declarado. Con la definición escrita, la cifra vigente es mayor y recomputable.",
+      "El tooling define 'lee filesystem' como importar node:fs (la señal de §7.1, 410 archivos); el scratchpad usaba un subconjunto no declarado. Con la definición escrita, la cifra vigente es mayor y recomputable. TEST-GLOBAL-05A: la señal la calcula el tooling sobre la lectura DIRECTA por node:fs; lo leído por el lector canónico ya sale normalizado y no es deuda, pero un spec que conserve una lectura directa sin normalizar sigue contando. NON_INCREASING. Vigente previo 131 (la banda ocultaba la deriva desde 136); lote 1 de 05A: 131 -> 130, porque file-scope leía sin normalizar.",
   },
   {
     row: "A0-13-READERS",
@@ -1016,18 +1016,21 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     historical: 216,
     compute: () => ownReaderFiles("read"),
     resolution: "REPRODUCED",
-    guard: BAND,
-    motive: "05A debe reducirlo migrando al lector canónico.",
+    guard: NON_INCREASING,
+    motive:
+      "05A debe reducirlo migrando al lector canónico: NON_INCREASING, puede bajar sin editar la fila y no puede crecer.",
   },
   {
     row: "A0-13-READERS",
     section: "§13.1",
     metric: "specs que definen su propio lector readSource",
     historical: 65,
+    baseline: 63,
     compute: () => ownReaderFiles("readSource"),
-    resolution: "REPRODUCED",
-    guard: BAND,
-    motive: "05A debe reducirlo migrando al lector canónico.",
+    resolution: "RECLASSIFIED",
+    guard: NON_INCREASING,
+    motive:
+      "Reproducía el histórico 65. El lote 1 de TEST-GLOBAL-05A migra al lector canónico los dos specs public-professionals-fixture que definían readSource: 65 -> 63, re-anclado al valor vigente sin cambiar el detector. NON_INCREASING: la deuda de lectores ad hoc no puede crecer y su reducción no exige editar la fila.",
   },
   // ── §20 censos congelados ─────────────────────────────────────────────────
   {
@@ -1607,4 +1610,44 @@ test("censo 01B: los hallazgos cualitativos del rector siguen vigentes", () => {
   // §8.2: el umbral de dominancia de substring está declarado y es efectivo.
   assert.equal(SUBSTRING_DOMINANCE, 0.8);
   assert.ok(coupling.substringDominatedPool.files.length > 0);
+});
+
+test("censo 05A: la deuda de lectores ad hoc rompe al crecer y admite reducirse", () => {
+  const readerDebt = CENSUS_LEDGER.filter(
+    (entry) => entry.row === "A0-13-READERS",
+  );
+
+  assert.ok(
+    readerDebt.length >= 6,
+    "A0-13-READERS conserva sus seis cifras de deuda de lectores",
+  );
+
+  for (const entry of readerDebt) {
+    assert.equal(
+      entry.guard.kind,
+      "NON_INCREASING",
+      `${entry.metric}: la deuda de lectores es de no-regresión, no una banda`,
+    );
+
+    const { anchor } = evaluateEntry(entry);
+    const worse = { ...entry, compute: () => anchor + 1 };
+    const better = { ...entry, compute: () => Math.max(anchor - 1, 0) };
+    const migrated = { ...entry, compute: () => 0 };
+
+    assert.match(
+      guardViolation(worse, evaluateEntry(worse)) ?? "",
+      /supera la cota de no-regresión/,
+      `${entry.metric}: un lector ad hoc más debe poner el censo en rojo`,
+    );
+    assert.equal(
+      guardViolation(better, evaluateEntry(better)),
+      null,
+      `${entry.metric}: migrar un lector al canónico no puede poner el censo en rojo`,
+    );
+    assert.equal(
+      guardViolation(migrated, evaluateEntry(migrated)),
+      null,
+      `${entry.metric}: la migración completa no puede poner el censo en rojo`,
+    );
+  }
 });

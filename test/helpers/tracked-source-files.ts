@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, readdirSync } from "node:fs";
-import { dirname, relative, resolve } from "node:path";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 /**
@@ -58,6 +58,113 @@ export function listTrackedSourceFiles(directory = "."): string[] {
       SOURCE_FILE_PATTERN.test(file) &&
       existsSync(resolve(REPO_ROOT, file)),
   );
+}
+
+/** CRLF → LF. The only line-ending normalization of the suite (TG-R16). */
+export function normalizeLineEndings(text: string): string {
+  if (typeof text !== "string") {
+    throw new TypeError("line-ending normalization requires a string");
+  }
+
+  return text.replace(/\r\n/g, "\n");
+}
+
+function toRepoRelativePath(path: string): string {
+  if (typeof path !== "string" || path.trim() === "") {
+    throw new TypeError("source path must be a non-empty repo-relative string");
+  }
+
+  const normalized = path.replace(/\\/g, "/");
+
+  if (isAbsolute(normalized) || /^[A-Za-z]:/.test(normalized)) {
+    throw new Error(`source path must be repo-relative, not absolute: ${path}`);
+  }
+
+  if (
+    normalized
+      .split("/")
+      .some((segment) => segment === "" || segment === "." || segment === "..")
+  ) {
+    throw new Error(`source path must be a normalized repo-relative path: ${path}`);
+  }
+
+  return normalized;
+}
+
+export type SourceReaderDependencies = {
+  /** Repo-relative tracked paths with forward slashes; evaluated on first read. */
+  readonly trackedFiles: () => Iterable<string>;
+  /** Raw UTF-8 contents of a repo-relative path. */
+  readonly readFile: (repoRelativePath: string) => string;
+};
+
+/**
+ * Canonical source reader (TEST-GLOBAL-05A). Accepts a repo-relative path
+ * (backslashes normalized), refuses anything that is not a git-tracked file,
+ * reads UTF-8, normalizes CRLF exactly once and memoizes the result for the
+ * lifetime of the reader. Every failure is an explicit error: a path is never
+ * degraded into an empty string.
+ */
+export function createSourceReader(
+  dependencies: SourceReaderDependencies,
+): (repoRelativePath: string) => string {
+  const cache = new Map<string, string>();
+  let tracked: ReadonlySet<string> | null = null;
+
+  return (repoRelativePath: string): string => {
+    const path = toRepoRelativePath(repoRelativePath);
+    const cached = cache.get(path);
+
+    if (cached !== undefined) {
+      return cached;
+    }
+
+    tracked ??= new Set(dependencies.trackedFiles());
+
+    if (!tracked.has(path)) {
+      throw new Error(`source path is not a git-tracked file: ${path}`);
+    }
+
+    let raw: string;
+
+    try {
+      raw = dependencies.readFile(path);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException | null)?.code === "ENOENT") {
+        throw new Error(
+          `tracked source file is missing from the working tree: ${path}`,
+          { cause: error },
+        );
+      }
+
+      throw error;
+    }
+
+    if (typeof raw !== "string") {
+      throw new TypeError(`source reader must yield a string: ${path}`);
+    }
+
+    const text = normalizeLineEndings(raw);
+
+    cache.set(path, text);
+
+    return text;
+  };
+}
+
+const readTrackedSource = createSourceReader({
+  trackedFiles: listTrackedFiles,
+  readFile: (path) => readFileSync(resolve(REPO_ROOT, path), "utf8"),
+});
+
+/**
+ * Text of a git-tracked repo file, CRLF-normalized and cached per process.
+ * The single implementation of "read a source file" for the suite. Contents
+ * are a per-process snapshot: a test that rewrites a tracked file must not
+ * read it back through this reader.
+ */
+export function readSourceFile(repoRelativePath: string): string {
+  return readTrackedSource(repoRelativePath);
 }
 
 export type SourceFileWalkOptions = {

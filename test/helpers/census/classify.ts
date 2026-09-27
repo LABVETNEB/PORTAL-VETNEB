@@ -1,3 +1,4 @@
+import ts from "typescript";
 import {
   type CensusCorpus,
   countLines,
@@ -32,6 +33,14 @@ const PRODUCTION_ROOTS = [
   "scripts",
 ] as const;
 
+/**
+ * The canonical source reader (TEST-GLOBAL-05A). A spec that reads source
+ * through it still reads the filesystem: migrating off `node:fs` changes how
+ * the tree is read, never whether it is read.
+ */
+export const CANONICAL_SOURCE_READER_MODULE = "test/helpers/tracked-source-files.ts";
+export const CANONICAL_SOURCE_READER = "readSourceFile";
+
 const STATIC_IMPORT = /(?:^|\n)\s*import\s[^;]*?from\s*["']([^"']+)["']/g;
 const DYNAMIC_IMPORT = /\bimport\(\s*[`"']([^`"']+)[`"']/g;
 const ASSERTION_WRAPPER =
@@ -62,7 +71,14 @@ export type SpecClassification = {
   readonly substringAssertions: number;
   readonly substringRatio: number;
   readonly hasAssertionWrapper: boolean;
+  /** Imports `node:fs`: the physical signal of §7.1. */
+  readonly readsFilesystemDirectly: boolean;
+  /** Calls the canonical source reader, which reads and normalizes CRLF. */
+  readonly readsCanonicalSource: boolean;
+  /** Reads the tree by either route. */
   readonly readsFilesystem: boolean;
+  /** Reads through `node:fs` without normalizing CRLF by hand (§13.1). */
+  readonly readsFilesystemWithoutCrlfNormalization: boolean;
   readonly executesRuntime: boolean;
   readonly usesDynamicImport: boolean;
   readonly usesHttpInjection: boolean;
@@ -117,6 +133,216 @@ function collectProductionImports(path: string, source: string): string[] {
   }
 
   return [...resolved].sort();
+}
+
+function isCanonicalReaderModule(path: string, specifier: string): boolean {
+  const target = resolveRelativeSpecifier(path, specifier);
+
+  return (
+    target !== null &&
+    target.replace(/\.ts$/, "") ===
+      CANONICAL_SOURCE_READER_MODULE.replace(/\.ts$/, "")
+  );
+}
+
+function bindingNames(name: ts.BindingName): string[] {
+  if (ts.isIdentifier(name)) {
+    return [name.text];
+  }
+
+  return name.elements.flatMap((element) =>
+    ts.isOmittedExpression(element) ? [] : bindingNames(element.name),
+  );
+}
+
+/** Names a scope-creating node declares for its own body. */
+function namesDeclaredBy(scope: ts.Node): string[] {
+  const names: string[] = [];
+
+  if (ts.isFunctionLike(scope)) {
+    for (const parameter of scope.parameters) {
+      names.push(...bindingNames(parameter.name));
+    }
+  }
+
+  if (
+    (ts.isFunctionExpression(scope) || ts.isClassExpression(scope)) &&
+    scope.name
+  ) {
+    names.push(scope.name.text);
+  }
+
+  if (ts.isCatchClause(scope) && scope.variableDeclaration) {
+    names.push(...bindingNames(scope.variableDeclaration.name));
+  }
+
+  if (
+    (ts.isForStatement(scope) ||
+      ts.isForInStatement(scope) ||
+      ts.isForOfStatement(scope)) &&
+    scope.initializer &&
+    ts.isVariableDeclarationList(scope.initializer)
+  ) {
+    for (const declaration of scope.initializer.declarations) {
+      names.push(...bindingNames(declaration.name));
+    }
+  }
+
+  if (
+    ts.isBlock(scope) ||
+    ts.isModuleBlock(scope) ||
+    ts.isCaseClause(scope) ||
+    ts.isDefaultClause(scope)
+  ) {
+    for (const statement of scope.statements) {
+      if (ts.isVariableStatement(statement)) {
+        for (const declaration of statement.declarationList.declarations) {
+          names.push(...bindingNames(declaration.name));
+        }
+      } else if (
+        (ts.isFunctionDeclaration(statement) ||
+          ts.isClassDeclaration(statement) ||
+          ts.isEnumDeclaration(statement)) &&
+        statement.name
+      ) {
+        names.push(statement.name.text);
+      }
+    }
+  }
+
+  return names;
+}
+
+/** An identifier that reads a value binding: not a key, label or declared name. */
+function isValueReference(node: ts.Identifier): boolean {
+  const parent = node.parent as ts.Node & {
+    name?: ts.Node;
+    propertyName?: ts.Node;
+    label?: ts.Node;
+  };
+
+  if (ts.isShorthandPropertyAssignment(parent)) {
+    return true;
+  }
+
+  return (
+    parent.name !== node &&
+    parent.propertyName !== node &&
+    parent.label !== node &&
+    !ts.isExportSpecifier(parent)
+  );
+}
+
+function isShadowed(node: ts.Identifier): boolean {
+  for (
+    let scope: ts.Node = node.parent;
+    !ts.isSourceFile(scope);
+    scope = scope.parent
+  ) {
+    if (namesDeclaredBy(scope).includes(node.text)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function readsThroughNamespace(node: ts.Identifier): boolean {
+  const parent = node.parent;
+
+  if (ts.isPropertyAccessExpression(parent) && parent.expression === node) {
+    return parent.name.text === CANONICAL_SOURCE_READER;
+  }
+
+  return (
+    ts.isElementAccessExpression(parent) &&
+    parent.expression === node &&
+    ts.isStringLiteralLike(parent.argumentExpression) &&
+    parent.argumentExpression.text === CANONICAL_SOURCE_READER
+  );
+}
+
+/**
+ * Whether the spec imports the canonical reader from its real module (named,
+ * aliased, default+named or namespace form) and executes that binding: a call,
+ * a callback reference or a template interpolation. Decided on the TypeScript
+ * syntax tree, never on raw text: strings, template text, comments, regex
+ * literals, type positions, keys, a shadowed name, a type-only import, a
+ * same-named export of another module or an unused import do not count.
+ */
+export function importsCanonicalSourceReader(
+  path: string,
+  source: string,
+): boolean {
+  if (!source.includes(CANONICAL_SOURCE_READER)) {
+    return false;
+  }
+
+  const file = ts.createSourceFile(
+    path,
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  );
+  const locals = new Set<string>();
+  const namespaces = new Set<string>();
+
+  for (const statement of file.statements) {
+    if (
+      !ts.isImportDeclaration(statement) ||
+      !ts.isStringLiteral(statement.moduleSpecifier) ||
+      !statement.importClause ||
+      statement.importClause.isTypeOnly ||
+      !isCanonicalReaderModule(path, statement.moduleSpecifier.text)
+    ) {
+      continue;
+    }
+
+    const bindings = statement.importClause.namedBindings;
+
+    if (bindings && ts.isNamespaceImport(bindings)) {
+      namespaces.add(bindings.name.text);
+    } else if (bindings) {
+      for (const element of bindings.elements) {
+        if (
+          !element.isTypeOnly &&
+          (element.propertyName ?? element.name).text === CANONICAL_SOURCE_READER
+        ) {
+          locals.add(element.name.text);
+        }
+      }
+    }
+  }
+
+  if (locals.size === 0 && namespaces.size === 0) {
+    return false;
+  }
+
+  let used = false;
+
+  const visit = (node: ts.Node): void => {
+    if (used || ts.isImportDeclaration(node) || ts.isTypeNode(node)) {
+      return;
+    }
+
+    if (
+      ts.isIdentifier(node) &&
+      (locals.has(node.text) ||
+        (namespaces.has(node.text) && readsThroughNamespace(node))) &&
+      isValueReference(node) &&
+      !isShadowed(node)
+    ) {
+      used = true;
+      return;
+    }
+
+    ts.forEachChild(node, visit);
+  };
+
+  visit(file);
+
+  return used;
 }
 
 function hasProductionDynamicImport(path: string, source: string): boolean {
@@ -285,7 +511,10 @@ export function classifySpec(
     [...source.matchAll(SUBSTRING_OK)].length +
     [...source.matchAll(SUBSTRING_EQUAL)].length;
   const productionImports = collectProductionImports(path, source);
-  const readsFilesystem = FILESYSTEM_IMPORT.test(source);
+  const readsFilesystemDirectly = FILESYSTEM_IMPORT.test(source);
+  const readsCanonicalSource = importsCanonicalSourceReader(path, source);
+  const readsFilesystem = readsFilesystemDirectly || readsCanonicalSource;
+  const normalizesCrlf = /\\r\\n/.test(source);
   const executesRuntime = productionImports.length > 0;
   const usesDynamicImport = hasProductionDynamicImport(path, source);
   const usesHttpInjection = /\.inject\(/.test(source);
@@ -306,7 +535,11 @@ export function classifySpec(
     substringAssertions,
     substringRatio: assertions === 0 ? 0 : substringAssertions / assertions,
     hasAssertionWrapper: ASSERTION_WRAPPER.test(source),
+    readsFilesystemDirectly,
+    readsCanonicalSource,
     readsFilesystem,
+    readsFilesystemWithoutCrlfNormalization:
+      readsFilesystemDirectly && !normalizesCrlf,
     executesRuntime,
     usesDynamicImport,
     usesHttpInjection,
@@ -322,7 +555,7 @@ export function classifySpec(
     productionImports,
     definesOwnReader: ownReaderForms.length > 0,
     ownReaderForms,
-    normalizesCrlf: /\\r\\n/.test(source),
+    normalizesCrlf,
     hasMutationHarness: /(?:source|contents|text|raw|original)[A-Za-z]*\.replace\(/.test(
       source,
     ),

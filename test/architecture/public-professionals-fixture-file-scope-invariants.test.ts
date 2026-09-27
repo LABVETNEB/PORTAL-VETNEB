@@ -1,18 +1,14 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
-import { listTrackedSourceFiles } from "../helpers/tracked-source-files.ts";
+import {
+  listTrackedSourceFiles,
+  readSourceFile as readSource,
+} from "../helpers/tracked-source-files.ts";
 
-const REPO_ROOT = resolve(import.meta.dirname, "../..");
 const CANONICAL_SUPPORT_PATHS = [
   "test/factories/public-professionals.ts",
   "test/mocks/public-professionals-route.ts",
 ] as const;
-
-function readSource(relativePath: string): string {
-  return readFileSync(resolve(REPO_ROOT, relativePath), "utf8");
-}
 
 function definesSupportSymbol(source: string, symbol: string): boolean {
   const escapedSymbol = symbol.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
