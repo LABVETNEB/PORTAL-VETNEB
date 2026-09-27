@@ -11,7 +11,12 @@ import {
   normalizePath,
   specFiles,
 } from "../helpers/census/corpus.ts";
-import { classifySpec, classifyCorpus, inventory } from "../helpers/census/classify.ts";
+import {
+  classifySpec,
+  classifyCorpus,
+  importsCanonicalSourceReader,
+  inventory,
+} from "../helpers/census/classify.ts";
 import { couplingCensus } from "../helpers/census/coupling.ts";
 import {
   ownershipCensus,
@@ -63,6 +68,25 @@ const MOCK_CALL = ["mock", ".fn("].join("");
 const FS_IMPORT = ['import { readFileSync } from "node', ':fs";'].join("");
 const DIR_IMPORT = ['import { read', 'dirSync } from "node', ':fs";'].join("");
 const DIR_CALL = ["read", "dirSync"].join("");
+const TRACKED_LISTER = ["listTracked", "SourceFiles"].join("");
+const TRACKED_FILES_LISTER = ["listTracked", "Files"].join("");
+const READER_MODULE = ["..", "helpers", "tracked-source-files.ts"].join("/");
+
+/** Relative specifier of the canonical reader as written from `specPath`. */
+function readerModuleFrom(specPath: string): string {
+  const depth = specPath.split("/").length - 2;
+
+  return [...Array<string>(depth).fill(".."), "helpers", "tracked-source-files.ts"].join("/");
+}
+
+const OTHER_READER_MODULE = ["..", "helpers", "other-reader.ts"].join("/");
+const OWN_READER_DEFINITION = ["function ", "readSource(path: string): string {"].join("");
+const MANUAL_CRLF = ["/", "\\", "r", "\\", "n", "/g"].join("");
+
+/** `import <clause> from "<specifier>";`, composed so this file never holds one. */
+function importStatement(clause: string, specifier: string): string {
+  return ["import ", clause, ' from "', specifier, '";'].join("");
+}
 
 /**
  * Compone un path sintético con forma de repo a partir de segmentos
@@ -752,6 +776,159 @@ test("01B fail-closed: el procesador TAP rechaza input inválido de forma explí
       ]),
     /aggregate duration/,
   );
+});
+
+const WALKER_GUARD_BODY = [
+  'test("ningún archivo reintroduce el símbolo prohibido", () => {',
+  `  const offenders = ${TRACKED_LISTER}("test").filter((file) =>`,
+  '    readSource(file).includes("forbidden"),',
+  "  );",
+  "  assert.deepEqual(offenders, []);",
+  "});",
+].join("\n");
+
+test("01B fail-closed: migrar de node:fs al lector canónico no altera la clasificación física", () => {
+  const corpus = createInMemoryCorpus({
+    [WALKER_SPEC_PATH]: syntheticSpec(
+      [
+        FS_IMPORT,
+        importStatement(`{ ${TRACKED_LISTER} }`, READER_MODULE),
+        "",
+        OWN_READER_DEFINITION,
+        `  return readFileSync(path, "utf8").replace(${MANUAL_CRLF}, "\\n");`,
+        "}",
+        "",
+        WALKER_GUARD_BODY,
+      ].join("\n"),
+    ),
+    [OWNERSHIP_SPEC_PATH]: syntheticSpec(
+      [
+        importStatement(
+          `{ ${TRACKED_LISTER}, readSourceFile as readSource }`,
+          READER_MODULE,
+        ),
+        "",
+        WALKER_GUARD_BODY,
+      ].join("\n"),
+    ),
+  });
+  const direct = classifySpec(corpus, WALKER_SPEC_PATH);
+  const canonical = classifySpec(corpus, OWNERSHIP_SPEC_PATH);
+  const oracle = new Map(
+    couplingCensus(corpus).specs.map((spec) => [spec.path, spec.oracleClass]),
+  );
+
+  assert.equal(direct.readsFilesystemDirectly, true);
+  assert.equal(direct.definesOwnReader, true);
+  assert.equal(canonical.readsFilesystemDirectly, false);
+  assert.equal(canonical.readsCanonicalSource, true);
+  assert.equal(canonical.definesOwnReader, false);
+
+  for (const spec of [direct, canonical]) {
+    assert.equal(spec.readsFilesystem, true, spec.path);
+    assert.equal(spec.bucket, "FILESYSTEM_ONLY", spec.path);
+    assert.equal(spec.behaviouralLayer, "STATIC_SOURCE_CONTRACT", spec.path);
+    assert.equal(oracle.get(spec.path), "LEGITIMATE_GUARD", spec.path);
+  }
+});
+
+test("01B fail-closed: sólo un uso real del lector canónico cuenta como lectura", () => {
+  const call = "\nconst value = readSourceFile(target);\n";
+  const counted = [
+    importStatement("{ readSourceFile }", READER_MODULE) + call,
+    importStatement("{ readSourceFile as load }", READER_MODULE) +
+      "\nconst value = load(target);\n",
+    importStatement("helpers, { readSourceFile }", READER_MODULE) + call,
+    importStatement("* as sources", READER_MODULE) +
+      "\nconst value = sources.readSourceFile(target);\n",
+    importStatement("{ readSourceFile }", READER_MODULE.replace(/\.ts$/, "")) +
+      call,
+    importStatement(`{ ${TRACKED_LISTER}, readSourceFile }`, READER_MODULE) +
+      `\nconst texts = ${TRACKED_LISTER}().map(readSourceFile);\n`,
+  ];
+  const ignored = [
+    importStatement("type { readSourceFile }", READER_MODULE) + call,
+    importStatement("{ type readSourceFile }", READER_MODULE) + call,
+    importStatement("{ readSourceFile }", OTHER_READER_MODULE) + call,
+    importStatement("{ readSourceFile }", READER_MODULE) + "\nconst value = 1;\n",
+    importStatement("* as sources", READER_MODULE) +
+      `\nconst value = sources.${TRACKED_FILES_LISTER}();\n`,
+    `const label = "readSourceFile";${call}`,
+    importStatement("{ readSourceFileExtra }", READER_MODULE) +
+      "\nconst value = readSourceFileExtra(target);\n",
+  ];
+
+  for (const source of counted) {
+    assert.equal(
+      importsCanonicalSourceReader(WALKER_SPEC_PATH, source),
+      true,
+      source,
+    );
+  }
+
+  for (const source of ignored) {
+    assert.equal(
+      importsCanonicalSourceReader(WALKER_SPEC_PATH, source),
+      false,
+      source,
+    );
+  }
+
+  // El specifier se resuelve desde el spec: la misma cadena escrita a otra
+  // profundidad apunta a otro módulo y no cuenta.
+  assert.equal(importsCanonicalSourceReader(PANEL_SPEC_PATH, counted[0]!), false);
+  assert.equal(
+    importsCanonicalSourceReader(
+      PANEL_SPEC_PATH,
+      importStatement("{ readSourceFile }", readerModuleFrom(PANEL_SPEC_PATH)) +
+        call,
+    ),
+    true,
+  );
+});
+
+test("01B fail-closed: la lectura canónica no cuenta como lectura sin normalizar CRLF, una directa residual sí", () => {
+  const canonicalImport = (specPath: string) =>
+    importStatement("{ readSourceFile }", readerModuleFrom(specPath));
+  const readCall = 'const source = readSourceFile("x");';
+  const corpus = createInMemoryCorpus({
+    [WALKER_SPEC_PATH]: syntheticSpec(
+      [canonicalImport(WALKER_SPEC_PATH), readCall].join("\n"),
+    ),
+    [PANEL_SPEC_PATH]: syntheticSpec(
+      [
+        FS_IMPORT,
+        canonicalImport(PANEL_SPEC_PATH),
+        readCall,
+        'const legacy = readFileSync("y", "utf8");',
+      ].join("\n"),
+    ),
+    [OPAQUE_SPEC_PATH]: syntheticSpec(
+      [
+        FS_IMPORT,
+        `const legacy = readFileSync("y", "utf8").replace(${MANUAL_CRLF}, "\\n");`,
+      ].join("\n"),
+    ),
+    [PRICING_SPEC_PATH]: syntheticSpec(
+      [FS_IMPORT, 'const legacy = readFileSync("y", "utf8");'].join("\n"),
+    ),
+  });
+  const byPath = new Map(
+    classifyCorpus(corpus).specs.map((spec) => [spec.path, spec]),
+  );
+  const unnormalized = (path: string) =>
+    byPath.get(path)?.readsFilesystemWithoutCrlfNormalization;
+
+  // Lector canónico: lee el árbol, normalizado; no es normalización a mano.
+  assert.equal(byPath.get(WALKER_SPEC_PATH)?.readsFilesystem, true);
+  assert.equal(byPath.get(WALKER_SPEC_PATH)?.normalizesCrlf, false);
+  assert.equal(unnormalized(WALKER_SPEC_PATH), false);
+
+  // Una lectura directa residual sin normalizar sigue siendo deuda visible.
+  assert.equal(unnormalized(PANEL_SPEC_PATH), true);
+  assert.equal(byPath.get(OPAQUE_SPEC_PATH)?.normalizesCrlf, true);
+  assert.equal(unnormalized(OPAQUE_SPEC_PATH), false);
+  assert.equal(unnormalized(PRICING_SPEC_PATH), true);
 });
 
 test("01B fail-closed: el censo es determinista sobre el mismo corpus", () => {

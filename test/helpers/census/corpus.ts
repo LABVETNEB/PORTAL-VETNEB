@@ -1,6 +1,8 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-import { listTrackedFiles } from "../tracked-source-files.ts";
+import {
+  listTrackedFiles,
+  normalizeLineEndings,
+  readSourceFile,
+} from "../tracked-source-files.ts";
 
 /**
  * Census corpus (TEST-GLOBAL-01B).
@@ -15,8 +17,6 @@ import { listTrackedFiles } from "../tracked-source-files.ts";
  * exercises the same census functions against synthetic in-memory corpora, so
  * detection power is proven instead of assumed.
  */
-
-const REPO_ROOT = resolve(import.meta.dirname, "../../..");
 
 export type CensusCorpus = {
   /** Repo-relative paths, forward slashes, sorted, deduplicated. */
@@ -130,11 +130,13 @@ export function importSpecifiers(source: string): readonly string[] {
   return specifiers;
 }
 
-/** Corpus backed by the git-tracked tree. Files are read lazily and cached. */
+/**
+ * Corpus backed by the git-tracked tree. Files are read lazily through the
+ * canonical source reader, which owns CRLF normalization and the cache.
+ */
 export function createTrackedCorpus(): CensusCorpus {
   const files = sortedUnique(listTrackedFiles());
   const known = new Set(files);
-  const cache = new Map<string, string>();
 
   return {
     files,
@@ -145,20 +147,7 @@ export function createTrackedCorpus(): CensusCorpus {
         throw new Error(`file is not part of the census corpus: ${normalized}`);
       }
 
-      const cached = cache.get(normalized);
-
-      if (cached !== undefined) {
-        return cached;
-      }
-
-      const text = readFileSync(resolve(REPO_ROOT, normalized), "utf8").replace(
-        /\r\n/g,
-        "\n",
-      );
-
-      cache.set(normalized, text);
-
-      return text;
+      return readSourceFile(normalized);
     },
   };
 }
@@ -178,7 +167,7 @@ export function createInMemoryCorpus(
       throw new TypeError(`corpus entry ${path} must hold string contents`);
     }
 
-    contents.set(normalizePath(path), text.replace(/\r\n/g, "\n"));
+    contents.set(normalizePath(path), normalizeLineEndings(text));
   }
 
   return {

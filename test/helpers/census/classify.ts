@@ -32,7 +32,17 @@ const PRODUCTION_ROOTS = [
   "scripts",
 ] as const;
 
+/**
+ * The canonical source reader (TEST-GLOBAL-05A). A spec that reads source
+ * through it still reads the filesystem: migrating off `node:fs` changes how
+ * the tree is read, never whether it is read.
+ */
+export const CANONICAL_SOURCE_READER_MODULE = "test/helpers/tracked-source-files.ts";
+export const CANONICAL_SOURCE_READER = "readSourceFile";
+
 const STATIC_IMPORT = /(?:^|\n)\s*import\s[^;]*?from\s*["']([^"']+)["']/g;
+const IMPORT_CLAUSE =
+  /\bimport\s+(type\s+)?((?:[A-Za-z_$][\w$]*\s*,\s*)?(?:\{[^}]*\}|\*\s*as\s+[A-Za-z_$][\w$]*))\s*from\s*["']([^"']+)["']\s*;?/g;
 const DYNAMIC_IMPORT = /\bimport\(\s*[`"']([^`"']+)[`"']/g;
 const ASSERTION_WRAPPER =
   /function\s+(assert[A-Z][A-Za-z0-9_]*|expect[A-Z][A-Za-z0-9_]*)\s*\(/;
@@ -62,7 +72,14 @@ export type SpecClassification = {
   readonly substringAssertions: number;
   readonly substringRatio: number;
   readonly hasAssertionWrapper: boolean;
+  /** Imports `node:fs`: the physical signal of §7.1. */
+  readonly readsFilesystemDirectly: boolean;
+  /** Calls the canonical source reader, which reads and normalizes CRLF. */
+  readonly readsCanonicalSource: boolean;
+  /** Reads the tree by either route. */
   readonly readsFilesystem: boolean;
+  /** Reads through `node:fs` without normalizing CRLF by hand (§13.1). */
+  readonly readsFilesystemWithoutCrlfNormalization: boolean;
   readonly executesRuntime: boolean;
   readonly usesDynamicImport: boolean;
   readonly usesHttpInjection: boolean;
@@ -117,6 +134,67 @@ function collectProductionImports(path: string, source: string): string[] {
   }
 
   return [...resolved].sort();
+}
+
+function identifierPattern(name: string): string {
+  return `(?<![\\w$])${name.replace(/\$/g, "\\$")}(?![\\w$])`;
+}
+
+/**
+ * Whether the spec imports the canonical reader from its real module (named,
+ * aliased, default+named or namespace form) and actually uses that binding.
+ * A type-only import, a same-named export of another module, a mention in a
+ * string or an import whose binding is never used does not count.
+ */
+export function importsCanonicalSourceReader(
+  path: string,
+  source: string,
+): boolean {
+  for (const match of source.matchAll(IMPORT_CLAUSE)) {
+    const target = resolveRelativeSpecifier(path, match[3] ?? "");
+
+    if (
+      match[1] !== undefined ||
+      target === null ||
+      target.replace(/\.ts$/, "") !==
+        CANONICAL_SOURCE_READER_MODULE.replace(/\.ts$/, "")
+    ) {
+      continue;
+    }
+
+    const clause = match[2] ?? "";
+    const rest = source.replace(match[0], "");
+    const namespace = /\*\s*as\s+([A-Za-z_$][\w$]*)/.exec(clause)?.[1];
+
+    if (namespace !== undefined) {
+      if (
+        new RegExp(
+          `${identifierPattern(namespace)}\\s*\\.\\s*${identifierPattern(CANONICAL_SOURCE_READER)}`,
+        ).test(rest)
+      ) {
+        return true;
+      }
+
+      continue;
+    }
+
+    for (const specifier of (/\{([^}]*)\}/.exec(clause)?.[1] ?? "").split(",")) {
+      const [imported, local] = specifier
+        .trim()
+        .split(/\s+as\s+/)
+        .map((name) => name.trim());
+
+      if (imported !== CANONICAL_SOURCE_READER) {
+        continue;
+      }
+
+      if (new RegExp(identifierPattern(local ?? imported)).test(rest)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
 }
 
 function hasProductionDynamicImport(path: string, source: string): boolean {
@@ -285,7 +363,10 @@ export function classifySpec(
     [...source.matchAll(SUBSTRING_OK)].length +
     [...source.matchAll(SUBSTRING_EQUAL)].length;
   const productionImports = collectProductionImports(path, source);
-  const readsFilesystem = FILESYSTEM_IMPORT.test(source);
+  const readsFilesystemDirectly = FILESYSTEM_IMPORT.test(source);
+  const readsCanonicalSource = importsCanonicalSourceReader(path, source);
+  const readsFilesystem = readsFilesystemDirectly || readsCanonicalSource;
+  const normalizesCrlf = /\\r\\n/.test(source);
   const executesRuntime = productionImports.length > 0;
   const usesDynamicImport = hasProductionDynamicImport(path, source);
   const usesHttpInjection = /\.inject\(/.test(source);
@@ -306,7 +387,11 @@ export function classifySpec(
     substringAssertions,
     substringRatio: assertions === 0 ? 0 : substringAssertions / assertions,
     hasAssertionWrapper: ASSERTION_WRAPPER.test(source),
+    readsFilesystemDirectly,
+    readsCanonicalSource,
     readsFilesystem,
+    readsFilesystemWithoutCrlfNormalization:
+      readsFilesystemDirectly && !normalizesCrlf,
     executesRuntime,
     usesDynamicImport,
     usesHttpInjection,
@@ -322,7 +407,7 @@ export function classifySpec(
     productionImports,
     definesOwnReader: ownReaderForms.length > 0,
     ownReaderForms,
-    normalizesCrlf: /\\r\\n/.test(source),
+    normalizesCrlf,
     hasMutationHarness: /(?:source|contents|text|raw|original)[A-Za-z]*\.replace\(/.test(
       source,
     ),
