@@ -87,6 +87,7 @@ const BAND: CensusGuard = {
 };
 const FROZEN: CensusGuard = { kind: "FROZEN_EXACT" };
 const NON_INCREASING: CensusGuard = { kind: "NON_INCREASING" };
+const NON_DECREASING: CensusGuard = { kind: "NON_DECREASING" };
 
 function folderFiles(folder: string): number {
   return (
@@ -476,9 +477,9 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     historical: 8,
     compute: () => supportConsumers("test/helpers/tracked-source-files.ts"),
     resolution: "REPRODUCED",
-    guard: BAND,
+    guard: NON_DECREASING,
     motive:
-      "TEST-GLOBAL-05A debe subirlo; congelarlo penalizaría el objetivo del programa.",
+      "TEST-GLOBAL-05A debe subirlo; congelarlo penalizaría el objetivo del programa. Es una métrica de adopción del lector canónico, no un volumen: la banda simétrica 8 ± 2 ponía en rojo cada lote de 05A que superara 10 importadores y dejaba caer a 6 en verde. NON_DECREASING protege el piso histórico 8 sin techo: el crecimiento no exige re-anclar ni editar esta fila. TEST-GLOBAL-11 revisa este censo (§31.2).",
   },
   {
     row: "A0-06-SUPPORT",
@@ -1612,7 +1613,7 @@ test("censo 01B: los hallazgos cualitativos del rector siguen vigentes", () => {
   assert.ok(coupling.substringDominatedPool.files.length > 0);
 });
 
-test("censo 05A: la deuda de lectores ad hoc rompe al crecer y admite reducirse", () => {
+test("censo 05A: la deuda de lectores ad hoc rompe al crecer y la adopción del lector canónico al caer", () => {
   const readerDebt = CENSUS_LEDGER.filter(
     (entry) => entry.row === "A0-13-READERS",
   );
@@ -1650,4 +1651,52 @@ test("censo 05A: la deuda de lectores ad hoc rompe al crecer y admite reducirse"
       `${entry.metric}: la migración completa no puede poner el censo en rojo`,
     );
   }
+
+  // Espejo: la adopción del lector canónico es un piso sin techo, no una banda.
+  const adoption = CENSUS_LEDGER.filter(
+    (entry) =>
+      entry.row === "A0-06-SUPPORT" &&
+      entry.metric === "importadores de helpers/tracked-source-files.ts",
+  );
+
+  assert.deepEqual(
+    adoption.map((candidate) => candidate.section),
+    ["§6.4"],
+    "la métrica de adopción aparece una sola vez",
+  );
+
+  const [adoptionEntry] = adoption as [CensusEntry];
+  const { anchor, current } = evaluateEntry(adoptionEntry);
+
+  assert.equal(adoptionEntry.guard.kind, "NON_DECREASING");
+  assert.equal(adoptionEntry.resolution, "REPRODUCED");
+  assert.equal(
+    adoptionEntry.baseline,
+    undefined,
+    "la adopción no se re-ancla en un baseline",
+  );
+  assert.equal(anchor, 8, "el piso es el histórico de §6.4");
+  assert.equal(
+    guardViolation(adoptionEntry, evaluateEntry(adoptionEntry)),
+    null,
+    `vigente ${current}: la adopción real no puede poner el censo en rojo`,
+  );
+
+  for (const grown of [8, 10, 12]) {
+    const at = { ...adoptionEntry, compute: () => grown };
+
+    assert.equal(
+      guardViolation(at, evaluateEntry(at)),
+      null,
+      `${grown} importadores: adoptar el lector canónico no puede poner el censo en rojo`,
+    );
+  }
+
+  const regressed = { ...adoptionEntry, compute: () => anchor - 1 };
+
+  assert.match(
+    guardViolation(regressed, evaluateEntry(regressed)) ?? "",
+    /7 cae por debajo del piso de no-decrecimiento 8/,
+    "perder adopción bajo el histórico debe poner el censo en rojo",
+  );
 });

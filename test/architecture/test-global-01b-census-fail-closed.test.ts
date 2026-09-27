@@ -326,7 +326,7 @@ test("01B fail-closed: un invariante congelable violado pone el censo en rojo", 
   assert.equal(ledgerViolations([frozenEntry]).length, 1);
 });
 
-test("01B fail-closed: una cota de no-regresión superada pone el censo en rojo", () => {
+test("01B fail-closed: una cota de no-regresión superada o un piso de no-decrecimiento perforado pone el censo en rojo", () => {
   const entry: CensusEntry = {
     row: "A0-09-PATHS",
     section: "§9.2",
@@ -350,6 +350,48 @@ test("01B fail-closed: una cota de no-regresión superada pone el censo en rojo"
     ),
     null,
   );
+
+  // Espejo para métricas de adopción: piso en el ancla, sin techo.
+  const adoption: CensusEntry = {
+    row: "A0-06-SUPPORT",
+    section: "§6.4",
+    metric: "importadores de un helper canónico",
+    historical: 8,
+    compute: () => 8,
+    resolution: "REPRODUCED",
+    guard: { kind: "NON_DECREASING" },
+    motive:
+      "Métrica de adopción: crecer es el objetivo, caer bajo el ancla es regresión.",
+  };
+  const at = (current: number): CensusEntry => ({
+    ...adoption,
+    compute: () => current,
+  });
+
+  assert.equal(declarationViolation(adoption), null);
+
+  for (const current of [8, 10, 12, 100]) {
+    assert.equal(
+      guardViolation(at(current), evaluateEntry(at(current))),
+      null,
+      `vigente ${current} sobre ancla 8 no puede poner el censo en rojo`,
+    );
+  }
+
+  for (const current of [7, 0]) {
+    const violation = guardViolation(at(current), evaluateEntry(at(current)));
+
+    assert.match(
+      violation ?? "",
+      new RegExp(
+        `^importadores de un helper canónico: ${current} cae por debajo del piso de no-decrecimiento 8$`,
+      ),
+      `vigente ${current} bajo ancla 8 debe poner el censo en rojo`,
+    );
+    assert.deepEqual(ledgerViolations([at(current)]), [violation]);
+  }
+
+  assert.deepEqual(ledgerViolations([at(12)]), []);
 });
 
 test("01B fail-closed: una cifra fuera de banda pone el censo en rojo", () => {
@@ -463,6 +505,34 @@ test("01B fail-closed: una declaración inconsistente pone el censo en rojo", ()
     declarationViolation({ ...admissible, motive: "porque sí" }) ?? "",
     /motivo por escrito/,
   );
+
+  // Piso de no-decrecimiento con tolerancia: una banda disfrazada.
+  assert.match(
+    declarationViolation({
+      ...admissible,
+      guard: {
+        kind: "NON_DECREASING",
+        tolerance: 0.25,
+      } as unknown as CensusEntry["guard"],
+    }) ?? "",
+    /no-decrecimiento no admite tolerancia/,
+  );
+
+  // Clase de guard desconocida: fail-closed en declaración y en guard.
+  const unknown: CensusEntry = {
+    ...admissible,
+    metric: "cifra con guard desconocido",
+    guard: { kind: "AT_LEAST_SOMETHING" } as unknown as CensusEntry["guard"],
+  };
+
+  assert.match(declarationViolation(unknown) ?? "", /clase de guard desconocida/);
+  assert.match(
+    guardViolation(unknown, evaluateEntry(unknown)) ?? "",
+    /clase de guard desconocida/,
+  );
+  assert.deepEqual(ledgerViolations([unknown]), [
+    "cifra con guard desconocido: clase de guard desconocida",
+  ]);
 });
 
 test("01B fail-closed: un libro mayor vacío o un cálculo roto no pasan", () => {
