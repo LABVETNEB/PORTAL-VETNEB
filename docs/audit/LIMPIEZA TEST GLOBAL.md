@@ -10,7 +10,7 @@
 | Alcance | `test/**` (562 specs ejecutables). `frontend/e2e/**` sólo como frontera |
 | Estado | ACTIVE |
 | Propósito | Fuente rectora **autosuficiente** del programa de saneamiento `TEST-GLOBAL-*` |
-| Implementación | IN_PROGRESS — estado por fase en el [Veredicto](#veredicto) (verificado sobre `main@3146fc0c`). Esta auditoría no implementa ninguna fase |
+| Implementación | IN_PROGRESS — estado por fase en el [Veredicto](#veredicto) (verificado sobre `main@6c751512`). Esta auditoría no implementa ninguna fase |
 | Revisión | R2 — diagnóstico original + reauditoría de gobernanza aplicada (§37) |
 
 ### Metadata de lifecycle
@@ -22,12 +22,12 @@
 | Lifecycle status | ACTIVE |
 | Authoritative source role | Diagnóstico y roadmap del programa `TEST-GLOBAL-*`. No es el mapa operativo de CI (ese es [CI_PR_CHECKS_RUNBOOK.md](../ops/CI_PR_CHECKS_RUNBOOK.md)) ni la norma de organización física (esa es [test-suite-enterprise-organization-convention.md](../implementation/test-suite-enterprise-organization-convention.md)) |
 | Effective date | 2026-09-21 |
-| Last verified date | 2026-09-21 (reauditoría de gobernanza y reverificación de censos) |
+| Last verified date | 2026-09-27 (cierre documental de `TEST-GLOBAL-04` verificado sobre `main@6c751512`) |
 | Review cadence | Por fase `TEST-GLOBAL-*` cerrada |
 | Supersedes | Ninguno. Reclasifica cifras de `TDR-002` y de `pr-test-architecture-consolidation-audit.md` como históricas (§33) |
 | Superseded by | Ninguno |
 | Related controls or gaps | `TDR-002`; `ERM-CTRL-011`; `ERM-CTRL-012`; `ERM-CTRL-025`; `ERM-QLT-001` |
-| Evidence or approval reference | Auditoría técnica R0 sobre `main@ee8e7425f911b4b49848957bff52242aa95158e2`; reauditoría de gobernanza R0 y reverificación de censos sobre `main@38fe1dfe12423454b3c48f1b139a5775e4b9d388` (§3, §37) |
+| Evidence or approval reference | Auditoría técnica R0 sobre `main@ee8e7425f911b4b49848957bff52242aa95158e2`; reauditoría de gobernanza R0 y reverificación de censos sobre `main@38fe1dfe12423454b3c48f1b139a5775e4b9d388` (§3, §37); cierre agregado de `TEST-GLOBAL-04` verificado sobre `main@6c7515124ec359ce1067a4ebb94691ed7fc213d9`, con #1783 y #1784 fusionadas |
 | Autosuficiencia | Este documento **no depende de ningún prompt, encargo ni conversación externa**. Toda definición normativa que necesita una fase está transcrita aquí (§31.0, §31.6) |
 
 > **Vigencia y reproducibilidad de las cifras.** El diagnóstico técnico se midió
@@ -693,6 +693,13 @@ la sobrescriba, o aunque esté comentada. Y es **falso** si alguien refactoriza 
 > de `04`). `security-production-invariants.test.ts` recibió su propio mutation
 > proof en #1778; la fila «Invariantes productivas» de la tabla anterior se
 > conserva como fotografía de §3.1.
+>
+> **Actualización — verificada sobre `main@6c751512` (2026-09-27).** `Cut-off
+> de validación` → `MUTATION_PROOF_PRESENT` (#1783, merge `8f01561c`). El otro
+> contrato adjudicado a `04`, atribución de writes
+> (`security-write-attribution-boundaries.test.ts`, sin fila en la tabla
+> anterior), → `MUTATION_PROOF_PRESENT` (#1784, merge `6c751512`). Con ambos,
+> `TEST-GLOBAL-04` queda `CLOSED` (ficha de `04`).
 
 ### 11.2 Estrategia posterior
 
@@ -718,6 +725,12 @@ orden: (1) tenant isolation/IDOR, (2) auth y sesiones, (3) permisos y roles,
 > parte de la obligación de `TG-R05`. Para los registries de governance fuera
 > de `architecture/security/**`, que no están en el alcance de `TG-R05`, el
 > punto (6) sigue sin ficha; esta actualización no la crea.
+>
+> **Actualización (2026-09-27, `main@6c751512`).** Los puntos (1)–(5) ya no
+> tienen pendientes: `TEST-GLOBAL-04` está `CLOSED` con 14/14 guards de su
+> dimensión B en `MUTATION_PROOF_PRESENT`. El punto (6), para los tres
+> registries de `architecture/security/**`, sigue `MUTATION_PROOF_PENDING` bajo
+> `TEST-GLOBAL-11`.
 
 ## 12. Fixtures, factories, mocks y helpers
 
@@ -1795,7 +1808,10 @@ Invariantes de la reasignación, vinculantes:
   `test/helpers/**` si ya existe, aunque esté fuera de los Paths permitidos de
   `04`. La realineación no transfiere ownership.
 
-**Progreso verificado sobre `main@3146fc0c` (2026-09-25). Estado: `IN_PROGRESS`.**
+**Progreso verificado sobre `main@6c751512` (2026-09-27). Estado: `CLOSED`.**
+Las dos dimensiones están cumplidas, con 0 `accepted defer` y 0 pendientes
+propiedad de `04`. La revisión anterior de este bloque se verificó sobre
+`main@3146fc0c` (2026-09-25), con estado `IN_PROGRESS`.
 
 Dimensión A. Detalle en §17:
 
@@ -1810,11 +1826,17 @@ Backend CI en main         success en los cuatro merge commits
 DIMENSIÓN A                CUMPLIDA — 0 accepted defer
 ```
 
+Los archivos de test de la dimensión A no cambiaron entre `247a497c` y
+`6c751512` (`git diff --stat` vacío sobre `test/security/**` y sobre los cuatro
+guards de la tabla), de modo que ningún contrato se degradó después de cumplirse.
+
 Dimensión B. `test/architecture/security/**` tiene 17 archivos (`git ls-files`).
 Los 12 guards originales del Scope tienen mutation proof fusionado, cada uno en
-su PR test-only, con Backend CI `success` en cada merge commit. Los 12 contienen
-un helper de mutación en memoria (`replaceOnce(` o `replaceExactlyOnce(`) y
-ningún otro archivo del directorio lo contiene. La asignación de cada guard a
+su PR test-only, con Backend CI `success` en cada merge commit. Sobre
+`main@6c751512`, 14 archivos del directorio contienen un helper de mutación en
+memoria (`replaceOnce(` o `replaceExactlyOnce(`): los 12 originales y los dos
+adjudicados a `04`. Los tres que no lo contienen son exactamente los
+meta-guards reasignados a `11`. La asignación de cada guard a
 un dominio es `MANUAL_CLASSIFICATION` y se hizo leyendo sus tests:
 
 ```text
@@ -1841,8 +1863,8 @@ archivo sobre `main@3146fc0c` (`MANUAL_CLASSIFICATION`):
 
 | Guard (`test/architecture/security/`) | Adjudicación | Owner | Evidencia |
 |---|---|---|---|
-| `security-validation-cutoff-boundaries` | `TEST-GLOBAL-04` / `MUTATION_PROOF_PENDING` | `04` (dimensión B) | Protege semántica concreta: token, params, body, upload multipart y filtros de auditoría deben cortar con 404/400 **antes** de hash, lookup, write, signing o audit. 13 tests; oracle de presencia y orden (`assertContainsInOrder` por `indexOf`) sobre el source de las rutas y de la capa de aplicación; sin helper de mutación. Mutación que escapa (razonada, no ejecutada): comentar el `if (!parsed.success) {` y su `return reply.code(…)` deja ambos substrings en el mismo orden, y el guard sigue en verde |
-| `security-write-attribution-boundaries` | `TEST-GLOBAL-04` / `MUTATION_PROOF_PENDING` | `04` (dimensión B) | Protege semántica concreta: atribución del actor en writes persistentes y en audit metadata para admin, clinic, particular y token público. 6 tests; oracle de presencia pura (`assertContains` / `assertMatches`), 0 assertions negativas, sin helper de mutación. Referencia tests runtime existentes, pero eso no demuestra la fuerza de detección de este guard estático (dimensión B). Mutación que escapa (razonada, no ejecutada): persistir `createdByAdminUserId: null` conservando el literal `createdByAdminUserId: actor.id` en un comentario |
+| `security-validation-cutoff-boundaries` | `TEST-GLOBAL-04` / `MUTATION_PROOF_PRESENT` (#1783, `8f01561c`) | `04` (dimensión B) | Protege semántica concreta: token, params, body, upload multipart y filtros de auditoría deben cortar con 404/400 **antes** de hash, lookup, write, signing o audit. 13 tests; oracle de presencia y orden (`assertContainsInOrder` por `indexOf`) sobre el source de las rutas y de la capa de aplicación; sin helper de mutación. Mutación que escapa (razonada, no ejecutada): comentar el `if (!parsed.success) {` y su `return reply.code(…)` deja ambos substrings en el mismo orden, y el guard sigue en verde |
+| `security-write-attribution-boundaries` | `TEST-GLOBAL-04` / `MUTATION_PROOF_PRESENT` (#1784, `6c751512`) | `04` (dimensión B) | Protege semántica concreta: atribución del actor en writes persistentes y en audit metadata para admin, clinic, particular y token público. 6 tests; oracle de presencia pura (`assertContains` / `assertMatches`), 0 assertions negativas, sin helper de mutación. Referencia tests runtime existentes, pero eso no demuestra la fuerza de detección de este guard estático (dimensión B). Mutación que escapa (razonada, no ejecutada): persistir `createdByAdminUserId: null` conservando el literal `createdByAdminUserId: actor.id` en un comentario |
 | `security-boundary-suite-completeness` | `REASSIGNED_TO_TEST_GLOBAL_11` / `MUTATION_PROOF_PENDING` | `11` | Meta-registry de completitud: `SECURITY_BOUNDARY_SUITE` (12 guardrails, orden canónico congelado por `deepEqual`), walker que exige que todo `security-*-boundaries.test.ts` bajo `test/` esté registrado, runtime anchors por marker y markers de tests downstream. Su fallo primario es drift entre registry, paths y markers, no una mutación behavioral de un endpoint |
 | `security-critical-route-surface-registry` | `REASSIGNED_TO_TEST_GLOBAL_11` / `MUTATION_PROOF_PENDING` | `11` | Registry de superficies críticas: `CRITICAL_ROUTE_SURFACE_REGISTRY` (6 superficies, slugs congelados), runtime files y guardrail tests por marker, más una segunda lista literal de 21 guardrails obligatorios en el mismo archivo. Incluye superficies no de seguridad (storage, búsqueda pública, gates de CI y `package.json`). Sin auto-discovery. Pertenece al eje registries / censos / fuente única |
 | `security-docs-matrix-drift-guard` | `REASSIGNED_TO_TEST_GLOBAL_11` / `MUTATION_PROOF_PENDING` | `11` | Anti-drift entre documentación, endpoints y registries: exige 6 docs de `docs/security/**` y `docs/ops/**` con sus markers, 20 endpoints en `ENDPOINT_PERMISSION_MATRIX.md` y 9 guardrail tests existentes y referenciados por la documentación. Es un guard documental y de registry, no un oracle behavioral de runtime |
@@ -1854,26 +1876,50 @@ listas de `security-critical-route-surface-registry` y en
 `DUPLICATE_SOURCE_OF_TRUTH` de §20 y la razón material por la que los tres
 pertenecen a `11`.
 
+La columna «Evidencia» describe cada archivo al adjudicarlo (`main@3146fc0c`).
+La columna «Adjudicación» registra el estado vigente sobre `main@6c751512`. Los
+dos contratos adjudicados a `04` recibieron su mutation proof en un PR test-only
+cada uno. Ambos PRs figuran `merged = true` en la API y tienen Backend CI
+`success` en su merge commit. Su diff se limita a `test/**`, sin archivos de
+producción, y conserva todos los tests previos por nombre:
+
+```text
+Contrato adjudicado  Guard (test/architecture/security/)          Estado                  PR     Merge     Tests
+cut-off validación   security-validation-cutoff-boundaries        MUTATION_PROOF_PRESENT  #1783  8f01561c  13 → 26
+atribución writes    security-write-attribution-boundaries        MUTATION_PROOF_PRESENT  #1784  6c751512   6 → 19
+DIMENSIÓN B (2 adjudicados)  2/2 MUTATION_PROOF_PRESENT · 0 accepted defer
+DIMENSIÓN B (total)          12/12 originales + 2/2 adjudicados = 14/14 MUTATION_PROOF_PRESENT
+                             0 accepted defer
+```
+
+#1783 tocó además `test/architecture/test-global-01b-census-contract.test.ts`.
+Re-ancló el baseline del censo de harnesses de mutación de 20 a 26 sin ampliar
+la tolerancia (realineación in-scope, `AGENTS.md` §4).
+
 Las dos tablas anteriores forman juntas el **inventario completo de `TG-R05`**:
 17 guards, cada uno con exactamente un owner. Un meta-guard pasa a
 `MUTATION_PROOF_PRESENT` en este inventario sólo cuando `11` cumple su aceptación
 (7), y se registra en el PR docs-only posterior a esa fase (§1).
 
 ```text
-TEST-GLOBAL-04   IN_PROGRESS — dimensión A cumplida; dimensión B: 12/12 originales
-                 MUTATION_PROOF_PRESENT + 2 adjudicados MUTATION_PROOF_PENDING
-                 (security-validation-cutoff-boundaries,
-                  security-write-attribution-boundaries)
+TEST-GLOBAL-04   CLOSED — dimensión A cumplida (0 accepted defer); dimensión B
+                 14/14 MUTATION_PROOF_PRESENT: 12/12 originales + 2/2 adjudicados
+                 (security-validation-cutoff-boundaries #1783,
+                  security-write-attribution-boundaries #1784); 0 accepted defer;
+                 0 pendientes propiedad de 04
 REASIGNADOS      3 meta-guards → TEST-GLOBAL-11, MUTATION_PROOF_PENDING
-                 (no bloquean el cierre de 04; sí el de TG-R05)
-TG-R05           ABIERTO (parcial) — 12 de 17 guards de architecture/security/** con
-                 mutation proof. Pendientes: 2 de 04 + 3 de 11. Cierra sólo cuando
-                 04 cierra en agregado Y 11 cumple su aceptación (7)
-12A              sigue bloqueada: exige 04 cerrada en agregado y 08 (§32)
+                 (no bloqueaban el cierre de 04; sí bloquean el de TG-R05)
+TG-R05           ABIERTO (parcial) — 14 de 17 guards de architecture/security/** con
+                 mutation proof. 04: 14/14 cumplidos. 11: 0/3, pendientes de mutation
+                 proof de inventario. Primera condición de cierre satisfecha (04 cerrada
+                 en agregado); falta la segunda (11 cumple su aceptación (7))
+12A              sigue bloqueada (§32): su dependencia 04 está satisfecha; 08 sigue
+                 pendiente
 ```
 
-Cada uno de los dos pendientes se entrega en su propio PR test-only posterior,
-con la aceptación por PR de esta ficha. Esta adjudicación no los inicia.
+Los dos contratos adjudicados se entregaron cada uno en su propio PR test-only
+(#1783, #1784), con la aceptación por PR de esta ficha. Este cierre documental
+no inicia ninguna otra fase.
 
 Ninguna de las dos dimensiones produce evidencia runtime de staging (§35). El
 registro IDOR mantiene `pending_runtime_staging_evidence`.
@@ -2891,20 +2937,22 @@ STATUS:               ACTIVE
 PRIMARY_AUDIT:        COMPLETE        (diagnóstico técnico, §§6-29)
 GOVERNANCE_REAUDIT:   COMPLETE        (§37, 13 hallazgos TG-A)
 ROADMAP_GOVERNANCE:   CORRECTED       (13/13 TG-A en CORRECTED_IN_THIS_REVISION)
-IMPLEMENTATION:       IN_PROGRESS     (verificado sobre main@3146fc0c, 2026-09-25)
+IMPLEMENTATION:       IN_PROGRESS     (verificado sobre main@6c751512, 2026-09-27)
 
 COMPLETED:    01A #1761 · 01B #1762 · 02 #1763 · 03 #1765 (sobre el fix de launcher #1764)
-IN_PROGRESS:  04  dimensión A cumplida (#1763 #1766 #1767 #1768); dimensión B: 12/12 originales
-              con mutation proof (#1763 #1766 #1767 #1773–#1781); 2 adjudicados PENDIENTES
-              (validation-cutoff, write-attribution); 3 meta-guards reasignados a 11
-              (MUTATION_PROOF_PENDING bajo 11; no bloquean 04, sí TG-R05)
+              04  CLOSED: dimensión A cumplida (#1763 #1766 #1767 #1768); dimensión B
+                  14/14 MUTATION_PROOF_PRESENT: 12 originales (#1763 #1766 #1767
+                  #1773–#1781) + validation-cutoff (#1783) + write-attribution (#1784);
+                  0 accepted defer; 0 pendientes propiedad de 04
+IN_PROGRESS:  ninguna
 PENDING:      05A · 05B · 06 · 07 · 08 · 09 · 10A · 10B · 10C · 10D · 11 · 12A · 12B · 13
-              (12A sigue bloqueada por el DAG: exige 04 cerrada en agregado y 08)
+              (11 posee los 3 meta-guards de TG-R05, MUTATION_PROOF_PENDING;
+               12A sigue bloqueada por el DAG: 04 satisfecha, 08 pendiente)
 
 TECHNICAL_P0: 2       TG-R01 · TG-R02                       — CERRADOS (02, #1763)
 TECHNICAL_P1: 4       TG-R04                                — CERRADO  (03, #1765)
-                      TG-R05                                — ABIERTO, parcial: 12/17 (04: 2 pendientes;
-                                                              11: 3 meta-guards pendientes)
+                      TG-R05                                — ABIERTO, parcial: 14/17 (04: 14/14 cumplidos;
+                                                              11: 0/3, pendientes los 3 meta-guards)
                       TG-R03 · TG-R06                       — ABIERTOS (06, 07, 08)
 TECHNICAL_P2: 6       TG-R07 … TG-R12                       — ABIERTOS
 TECHNICAL_P3: 4       TG-R13 … TG-R16                       — ABIERTOS
@@ -2912,11 +2960,10 @@ OPEN ACTUAL:  13 de 16
 
 ROADMAP:  13 fases lógicas · 19 subfases · PRs >= 19
 R2 FUTUROS (autorización explícita de Nico):  05B · 10A · 10C · 12B
-NEXT:     TEST-GLOBAL-04 dimensión B: mutation proof de
-          security-validation-cutoff-boundaries y de
-          security-write-attribution-boundaries, un PR test-only cada uno;
-          son paralelizables (§32). Con ambos fusionados, 04 cierra en agregado.
-          TG-R05 sigue ABIERTO hasta que 11 cumpla su aceptación (7).
+NEXT:     TEST-GLOBAL-05A (lector canónico de source, test-only, R1). Es la única
+          subfase pendiente con todas sus dependencias satisfechas (§32: 01).
+          De ella dependen 05B, 06, 09 y 11, así que desbloquea la ruta al
+          cierre de TG-R05. Registrarla como NEXT no la inicia.
 ```
 
 Los conteos `TECHNICAL_*` repiten el **inventario total** de §28 y no cambian.
@@ -2926,7 +2973,8 @@ sólo si su fase dueña está fusionada con la evidencia que pide su ficha:
 negative proof en el PR) y `TG-R04` por `03` (fallos de launcher = 0 declarados
 en #1765). `TG-R05` tiene dos fases dueñas con partes disjuntas (`04`: 14
 guards; `11`: 3 meta-guards) y sólo se marca `CERRADO` cuando ambas partes
-están cumplidas. Estas evidencias vienen de los PRs y de Backend CI `success` en sus
+están cumplidas. Sobre `main@6c751512` está cumplida la parte de `04` (14/14,
+cerrada con #1783 y #1784) y falta la de `11` (0/3). Estas evidencias vienen de los PRs y de Backend CI `success` en sus
 merge commits; este PR docs-only no las volvió a ejecutar. La reauditoría de
 gobernanza no cierra ningún riesgo técnico. Las dos series se explican en §28.1. La única intersección
 es `TG-A13`, que corrigió una cifra citada por `TG-R13` sin cambiar su
