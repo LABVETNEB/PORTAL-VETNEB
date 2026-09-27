@@ -376,8 +376,28 @@ const VIOLATION_KINDS = [
   "route-principal",
   "route-helper",
   "route-import",
+  "route-port",
+  "route-write",
+  "route-wiring",
+  "route-container",
+  "route-spread",
+  "write-census",
 ] as const;
 type ViolationKind = (typeof VIOLATION_KINDS)[number];
+
+// Completeness mechanisms of the oracle. Each can be switched off only by the meta-tests
+// that prove it is load-bearing; the guard itself always runs all of them.
+const EVALUATOR_CHECKS = [
+  "write-census",
+  "port-wiring",
+  "container-use",
+  "spread-identity",
+  "import-ledger",
+  "application-census",
+] as const;
+type EvaluatorCheck = (typeof EVALUATOR_CHECKS)[number];
+type DisabledChecks = ReadonlySet<EvaluatorCheck>;
+const ALL_CHECKS: DisabledChecks = new Set();
 
 function violation(kind: ViolationKind, label: string, message: string): string {
   return `[${kind}] ${label}: ${message}`;
@@ -431,6 +451,13 @@ function createRecorder() {
     },
     named(name: string): RecordedCall[] {
       return calls.filter((call) => call.name === name);
+    },
+    counts(): UnknownRecord {
+      const counts: Record<string, number> = {};
+      for (const call of calls) {
+        counts[call.name] = (counts[call.name] ?? 0) + 1;
+      }
+      return sorted(counts);
     },
   };
 }
@@ -914,6 +941,9 @@ function studyTrackingAudits(channel: "admin" | "clinic"): ExpectedAudit[] {
 type ApplicationScenario = {
   readonly label: string;
   readonly file: string;
+  // Exact calls of every recording port (writes, audit, actor builder): a write the
+  // scenario does not expect is unregistered even when every expected one is correct.
+  readonly recorded: Readonly<Record<string, number>>;
   readonly run: (source: string, recorder: Recorder, violations: string[]) => Promise<void>;
 };
 
@@ -921,6 +951,7 @@ const APPLICATION_SCENARIOS: readonly ApplicationScenario[] = [
   {
     label: "admin report access token create",
     file: ADMIN_REPORT_ACCESS_APPLICATION,
+    recorded: { createReportAccessToken: 1, writeAuditLog: 1 },
     async run(source, recorder, violations) {
       const factory = loadModule(source, this.file, { "../domain/index.ts": REPORT_ACCESS_DOMAIN_DOUBLE }, "createAdminReportAccessOperations");
       await operationsFrom(factory, reportAccessPorts(recorder)).createToken(
@@ -952,6 +983,7 @@ const APPLICATION_SCENARIOS: readonly ApplicationScenario[] = [
   {
     label: "admin report access token revoke",
     file: ADMIN_REPORT_ACCESS_APPLICATION,
+    recorded: { revokeReportAccessToken: 1, writeAuditLog: 1 },
     async run(source, recorder, violations) {
       const factory = loadModule(source, this.file, { "../domain/index.ts": REPORT_ACCESS_DOMAIN_DOUBLE }, "createAdminReportAccessOperations");
       await operationsFrom(factory, reportAccessPorts(recorder)).revokeToken(REPORT_ACCESS_TOKEN_ID, { ...ADMIN_PRINCIPAL }, AUDIT_REQUEST);
@@ -977,6 +1009,7 @@ const APPLICATION_SCENARIOS: readonly ApplicationScenario[] = [
   {
     label: "clinic report access token create",
     file: CLINIC_REPORT_ACCESS_APPLICATION,
+    recorded: { createReportAccessToken: 1, writeAuditLog: 1 },
     async run(source, recorder, violations) {
       const factory = loadModule(source, this.file, {}, "createClinicReportAccessOperations");
       await operationsFrom(factory, reportAccessPorts(recorder)).createToken(
@@ -1008,6 +1041,7 @@ const APPLICATION_SCENARIOS: readonly ApplicationScenario[] = [
   {
     label: "clinic report access token revoke",
     file: CLINIC_REPORT_ACCESS_APPLICATION,
+    recorded: { revokeReportAccessToken: 1, writeAuditLog: 1 },
     async run(source, recorder, violations) {
       const factory = loadModule(source, this.file, {}, "createClinicReportAccessOperations");
       await operationsFrom(factory, reportAccessPorts(recorder)).revokeToken(
@@ -1037,6 +1071,7 @@ const APPLICATION_SCENARIOS: readonly ApplicationScenario[] = [
   {
     label: "admin particular token create",
     file: ADMIN_PARTICULAR_APPLICATION,
+    recorded: { createParticularToken: 1, ensureTrackingForToken: 1, createStudyTrackingNotification: 1 },
     async run(source, recorder, violations) {
       const factory = loadModule(source, this.file, particularAccessImports(recorder), "createAdminParticularAccessOperations");
       await operationsFrom(factory, particularAccessPorts(recorder, "admin")).createToken(
@@ -1074,13 +1109,16 @@ const APPLICATION_SCENARIOS: readonly ApplicationScenario[] = [
     // the case they create is attributed to the admin performing the request.
     label: "admin particular token tracking backfill",
     file: ADMIN_PARTICULAR_APPLICATION,
+    recorded: { ensureTrackingForToken: 3, updateParticularTokenReport: 1 },
     async run(source, recorder, violations) {
       const factory = loadModule(source, this.file, particularAccessImports(recorder), "createAdminParticularAccessOperations");
       const operations = operationsFrom(factory, {
         ...particularAccessPorts(recorder, "admin"),
         listParticularTokens: async () => [particularTokenRecord("admin")],
         getParticularTokenById: async (id: unknown) => (id === PARTICULAR_TOKEN_ID ? particularTokenRecord("admin") : null),
-        updateParticularTokenReport: async (id: unknown) => (id === PARTICULAR_TOKEN_ID ? particularTokenRecord("admin") : null),
+        updateParticularTokenReport: recorder.port("updateParticularTokenReport", async (id: unknown) =>
+          id === PARTICULAR_TOKEN_ID ? particularTokenRecord("admin") : null,
+        ),
       });
       await operations.listTokens({ limit: 10, offset: 0, adminId: ADMIN_ID });
       await operations.getToken(PARTICULAR_TOKEN_ID, ADMIN_ID);
@@ -1097,6 +1135,7 @@ const APPLICATION_SCENARIOS: readonly ApplicationScenario[] = [
   {
     label: "admin particular token email failure cleanup",
     file: ADMIN_PARTICULAR_APPLICATION,
+    recorded: { createParticularToken: 2, revokeParticularToken: 2 },
     async run(source, recorder, violations) {
       const factory = loadModule(source, this.file, particularAccessImports(recorder), "createAdminParticularAccessOperations");
       const operations = operationsFrom(factory, failingEmailPorts(recorder, "admin"));
@@ -1108,6 +1147,7 @@ const APPLICATION_SCENARIOS: readonly ApplicationScenario[] = [
   {
     label: "clinic particular token email failure cleanup",
     file: CLINIC_PARTICULAR_APPLICATION,
+    recorded: { createParticularToken: 2, revokeParticularToken: 2 },
     async run(source, recorder, violations) {
       const factory = loadModule(source, this.file, particularAccessImports(recorder), "createClinicParticularAccessOperations");
       const operations = operationsFrom(factory, failingEmailPorts(recorder, "clinic"));
@@ -1120,6 +1160,7 @@ const APPLICATION_SCENARIOS: readonly ApplicationScenario[] = [
   {
     label: "clinic particular token create",
     file: CLINIC_PARTICULAR_APPLICATION,
+    recorded: { createParticularToken: 1, ensureTrackingForToken: 1 },
     async run(source, recorder, violations) {
       const factory = loadModule(source, this.file, particularAccessImports(recorder), "createClinicParticularAccessOperations");
       await operationsFrom(factory, particularAccessPorts(recorder, "clinic")).createToken(
@@ -1147,6 +1188,7 @@ const APPLICATION_SCENARIOS: readonly ApplicationScenario[] = [
   {
     label: "admin study tracking create",
     file: ADMIN_STUDY_TRACKING_APPLICATION,
+    recorded: { createStudyTrackingCase: 1, createStudyTrackingNotification: 1, updateParticularTokenReport: 1, updateStudyTrackingCase: 1, writeAuditLog: 2 },
     async run(source, recorder, violations) {
       const factory = loadModule(source, this.file, studyTrackingImports(), "createAdminStudyTrackingOperations");
       await operationsFrom(factory, studyTrackingPorts(recorder)).createAdminStudyTrackingCase({
@@ -1182,6 +1224,7 @@ const APPLICATION_SCENARIOS: readonly ApplicationScenario[] = [
     // context plus the channel metadata of the case audit and of every notification.
     label: "admin study tracking update",
     file: ADMIN_STUDY_TRACKING_APPLICATION,
+    recorded: { createStudyTrackingNotification: 3, updateParticularTokenReport: 1, updateStudyTrackingCase: 2, writeAuditLog: 4 },
     async run(source, recorder, violations) {
       const factory = loadModule(source, this.file, studyTrackingImports(), "createAdminStudyTrackingOperations");
       await operationsFrom(factory, studyTrackingPorts(recorder)).updateAdminStudyTrackingCase({
@@ -1215,6 +1258,7 @@ const APPLICATION_SCENARIOS: readonly ApplicationScenario[] = [
   {
     label: "clinic study tracking create",
     file: CLINIC_STUDY_TRACKING_APPLICATION,
+    recorded: { createStudyTrackingCase: 1, createStudyTrackingNotification: 1, updateParticularTokenReport: 1, updateStudyTrackingCase: 1, writeAuditLog: 2 },
     async run(source, recorder, violations) {
       const factory = loadModule(source, this.file, studyTrackingImports(), "createClinicStudyTrackingOperations");
       await operationsFrom(factory, studyTrackingPorts(recorder)).createClinicStudyTrackingCase({
@@ -1247,6 +1291,7 @@ const APPLICATION_SCENARIOS: readonly ApplicationScenario[] = [
   {
     label: "public report access",
     file: PUBLIC_REPORT_ACCESS_APPLICATION,
+    recorded: { recordReportAccessTokenAccess: 1, buildPublicActor: 1, writeAuditLog: 1 },
     async run(source, recorder, violations) {
       const factory = loadModule(source, this.file, { "../domain/index.ts": REPORT_ACCESS_DOMAIN_DOUBLE }, "createPublicReportAccessOperations");
       const publicActor = (tokenId: unknown) => ({ type: "public_report_access_token", reportAccessTokenId: tokenId });
@@ -1435,27 +1480,135 @@ async function evaluateAuditSink(source: string): Promise<string[]> {
   return violations;
 }
 
-// ── Route call sites ───────────────────────────────────────────────────────
+// ── Route write surface ────────────────────────────────────────────────────
+// A route reaches persistence only through its plugin options, the modules its loader
+// imports and its static imports. Every port of the options contract is classified; every
+// call into a port or an operations object is censused against the declared sites; every
+// use of a dependency container, operations receiver or loaded module is positional; every
+// spread is declared with its exact expression; and the runtime import surface is exact.
+// A write the registry does not declare cannot be reached without tripping one of these.
+
+type PortClass = "write" | "audit" | "session" | "read" | "effect" | "config";
+type SinkClass = Exclude<PortClass, "config">;
+
+// Derived from each port's production wiring (repository, audit, session or pure module).
+const PORT_CLASSES: Readonly<Record<string, PortClass>> = {
+  createActiveSession: "session",
+  deleteActiveSession: "session",
+  deleteAdminSession: "session",
+  deleteParticularSession: "session",
+  updateAdminSessionLastAccess: "session",
+  updateParticularSessionLastAccess: "session",
+  updateSessionLastAccess: "session",
+  createParticularToken: "write",
+  createReportAccessToken: "write",
+  createStudyTrackingCase: "write",
+  createStudyTrackingNotification: "write",
+  deleteParticularToken: "write",
+  markAllStudyTrackingNotificationsRead: "write",
+  markAllStudyTrackingNotificationsReadScoped: "write",
+  markStudyTrackingNotificationRead: "write",
+  markStudyTrackingNotificationReadScoped: "write",
+  recordReportAccessTokenAccess: "write",
+  revokeParticularToken: "write",
+  revokeReportAccessToken: "write",
+  updateParticularTokenReport: "write",
+  updateReportStatus: "write",
+  updateStudyTrackingCase: "write",
+  writeAuditLog: "audit",
+  getActiveSessionByToken: "read",
+  getAdminSessionByToken: "read",
+  getAdminUserById: "read",
+  getClinicById: "read",
+  getClinicScopedParticularToken: "read",
+  getClinicScopedReportAccessToken: "read",
+  getClinicScopedReportById: "read",
+  getClinicScopedStudyTrackingCase: "read",
+  getClinicUserById: "read",
+  getParticularSessionByToken: "read",
+  getParticularStudyTrackingCase: "read",
+  getParticularTokenById: "read",
+  getReportAccessTokenById: "read",
+  getReportAccessTokenWithReportByTokenHash: "read",
+  getReportById: "read",
+  getStudyTrackingCaseById: "read",
+  getStudyTrackingCaseByReportId: "read",
+  listParticularAuditLog: "read",
+  listParticularTokens: "read",
+  listReportAccessTokens: "read",
+  listStudyTrackingCases: "read",
+  listStudyTrackingNotifications: "read",
+  buildAuditCsv: "effect",
+  buildParticularAuditCsvFilename: "effect",
+  buildParticularAuditListFilters: "effect",
+  createSignedReportDownloadUrl: "effect",
+  createSignedReportUrl: "effect",
+  generateSessionToken: "effect",
+  hashPassword: "effect",
+  hashSessionToken: "effect",
+  sendParticularTokenEmail: "effect",
+  sendSpecialStainRequiredEmail: "effect",
+  verifyPassword: "effect",
+  createDate: "config",
+  mutationRateLimitMaxAttempts: "config",
+  mutationRateLimitStore: "config",
+  mutationRateLimitWindowMs: "config",
+  now: "config",
+  publicReportAccessRateLimitMaxAttempts: "config",
+  publicReportAccessRateLimitStore: "config",
+  publicReportAccessRateLimitWindowMs: "config",
+};
 
 type ArgumentShape =
   | string
   | {
       readonly fields: Readonly<Record<string, ArgumentShape>>;
-      readonly allowLeadingSpread?: true;
+      // Leading spreads by exact expression and order. Absent: the object must not spread.
+      readonly spreads?: readonly string[];
       readonly exact?: true;
     };
 
-type RouteCallSite = {
+type RouteComposition = {
   readonly callee: string;
   readonly args: readonly (ArgumentShape | null)[];
   readonly count?: number;
 };
 
+type RouteCallSite = RouteComposition & {
+  readonly sink: SinkClass | "operation-write" | "operation-read";
+  // Calls made before any principal exists: authenticators and dependency wiring.
+  readonly principal?: false;
+};
+
+type SpreadClass = "composition" | "write-argument" | "wiring" | "executed-helper" | "not-security-relevant";
+
+type RouteSpread = {
+  readonly expression: string;
+  readonly context: string;
+  readonly class: SpreadClass;
+  readonly count?: number;
+};
+
 type RouteSurface = {
   readonly file: string;
+  readonly optionsType: string;
   readonly principals: Readonly<Record<string, string>>;
   readonly calls: readonly RouteCallSite[];
-  readonly compositions?: readonly RouteCallSite[];
+  readonly compositions?: readonly RouteComposition[];
+  // Identifiers that hold the port set: plugin options, loaded defaults, wired deps, caches.
+  readonly containers: readonly string[];
+  // Identifiers bound to a composition result; they may only be the root of a declared call.
+  readonly receivers: readonly string[];
+  // Functions whose result is a container and must bind to one.
+  readonly containerFactories: readonly string[];
+  // Destructuring source that binds containers and receivers per request.
+  readonly runtime?: string;
+  // Ports wired through something other than a pass-through (reads, effects, config only).
+  readonly customWiring?: readonly string[];
+  readonly spreads: readonly RouteSpread[];
+  readonly runtimeImports: Readonly<Record<string, readonly string[]>>;
+  readonly dynamicImports: readonly string[];
+  readonly loaderCalls: readonly string[];
   readonly imports?: Readonly<Record<string, string>>;
   readonly auditRequestLike?: "admin" | "clinic";
   readonly authorization?: string;
@@ -1480,10 +1633,63 @@ const PARTICULAR_COMPOSITION: ArgumentShape = {
     },
     now: "now",
   },
-  allowLeadingSpread: true,
+  spreads: ["deps"],
+  exact: true,
+};
+// The request body reaches the application only as validated data; the actor never
+// travels in it.
+const PARTICULAR_TOKEN_DATA_ARGUMENT: ArgumentShape = {
+  fields: {
+    reportId: 'typeof parsed.data.reportId === "number" ? parsed.data.reportId : null',
+    detailsLesion: "parsed.data.detailsLesion ?? null",
+  },
+  spreads: ["parsed.data"],
   exact: true,
 };
 const AUDIT_PORT_COMPOSITION: ArgumentShape = { fields: { writeAuditLog: "nativeDeps.writeAuditLog" }, exact: true };
+const SPECIAL_STAIN_NOTIFICATION_COMPOSITION: ArgumentShape = {
+  fields: { sendSpecialStainRequiredEmail: "nativeDeps.sendSpecialStainRequiredEmail" },
+  exact: true,
+};
+// Free globals the routes use; none performs I/O besides console logging, so a global
+// persistence channel such as fetch is an unregistered runtime binding.
+const ROUTE_GLOBALS = ["Date", "Error", "Math", "Set", "String", "console", "decodeURIComponent", "encodeURIComponent", "undefined"];
+// Imported helpers that legitimately receive route ports: the session authenticators.
+const PORT_CONSUMERS = ["authenticateFastifyAdmin", "authenticateFastifyClinicUser"];
+const LOADER_CONTAINERS = ["options", "defaultDeps", "deps", "defaultDepsPromise"] as const;
+const CACHED_LOADER = ["loadDefaultDeps"] as const;
+const CORS_IMPORTS = ["enforceTrustedOrigin", "getAllowedOriginForCors", "getAllowedOrigins", "getRequestOrigin"];
+const REQUIRED_CORS_IMPORTS = ["enforceTrustedOriginRequired as enforceTrustedOrigin", "getAllowedOriginForCors", "getAllowedOrigins", "getRequestOrigin"];
+const COMMON_IMPORTS = {
+  "../middlewares/request-logger.ts": ["logRequestCompletion"],
+  "../lib/runtime-timing.ts": ["createRuntimeTimer"],
+};
+const REPORT_ACCESS_RATE_LIMIT_IMPORTS = {
+  "../lib/report-access-token-rate-limit.ts": [
+    "REPORT_ACCESS_TOKEN_MUTATION_RATE_LIMIT_ERROR_MESSAGE",
+    "REPORT_ACCESS_TOKEN_MUTATION_RATE_LIMIT_MAX_ATTEMPTS",
+    "REPORT_ACCESS_TOKEN_MUTATION_RATE_LIMIT_WINDOW_MS",
+  ],
+  "../lib/rate-limit-store.ts": ["createMemoryRateLimitStore", "getOrCreateRateLimitEntry", "incrementRateLimitEntry"],
+};
+const REPORT_ACCESS_DYNAMIC_IMPORTS = ["../db.ts", "../features/reports/composition/index.ts", "../lib/audit.ts", "../lib/auth-security.ts"];
+const STUDY_TRACKING_DYNAMIC_IMPORTS = [
+  "../db.ts",
+  "../features/particular-access/infrastructure/index.ts",
+  "../features/reports/composition/index.ts",
+  "../features/study-tracking/study-tracking-route-composition.ts",
+  "../lib/audit.ts",
+  "../lib/auth-security.ts",
+  "../lib/email.ts",
+];
+const PARTICULAR_AUTHENTICATOR_SITES: readonly RouteCallSite[] = [
+  { callee: "deps.hashSessionToken", sink: "effect", args: [null], principal: false },
+  { callee: "deps.getParticularSessionByToken", sink: "read", args: [null], principal: false },
+  { callee: "deps.deleteParticularSession", sink: "session", args: [null], count: 2, principal: false },
+  { callee: "deps.getParticularTokenById", sink: "read", args: ["session.particularTokenId"], principal: false },
+  { callee: "deps.updateParticularSessionLastAccess", sink: "session", args: [null], principal: false },
+];
+const CLINIC_REPORT_FALLBACK_SITE: RouteCallSite = { callee: "options.getReportById!", sink: "read", args: ["reportId"], principal: false };
 
 function clinicPrincipals(authorization: string, deps: string): Readonly<Record<string, string>> {
   return {
@@ -1492,54 +1698,203 @@ function clinicPrincipals(authorization: string, deps: string): Readonly<Record<
   };
 }
 
+function authorizationSpread(authorization: string): RouteSpread {
+  return { expression: "auth", context: `return in ${authorization}`, class: "executed-helper" };
+}
+
 const ROUTE_SURFACES: readonly RouteSurface[] = [
   {
     file: ADMIN_REPORT_ACCESS_ROUTE,
+    optionsType: "AdminReportAccessTokensNativeRoutesOptions",
     principals: ADMIN_PRINCIPALS,
     auditRequestLike: "admin",
     calls: [
-      { callee: "reportAccess.createToken", args: [null, "admin", "createAuditRequestLike(request, admin)"] },
-      { callee: "reportAccess.revokeToken", args: ["tokenId", "admin", "createAuditRequestLike(request, admin)"] },
+      { callee: "reportAccess.createToken", sink: "operation-write", args: [null, "admin", "createAuditRequestLike(request, admin)"] },
+      { callee: "reportAccess.revokeToken", sink: "operation-write", args: ["tokenId", "admin", "createAuditRequestLike(request, admin)"] },
+      { callee: "reportAccess.listTokens", sink: "operation-read", args: [null] },
+      { callee: "reportAccess.getToken", sink: "operation-read", args: ["tokenId"] },
     ],
     compositions: [{ callee: "createAdminReportAccessOperations", args: ["deps"] }],
+    containers: LOADER_CONTAINERS,
+    receivers: ["reportAccess"],
+    containerFactories: CACHED_LOADER,
+    spreads: [],
+    runtimeImports: {
+      ...COMMON_IMPORTS,
+      ...REPORT_ACCESS_RATE_LIMIT_IMPORTS,
+      "../features/report-access/application/index.ts": ["createAdminReportAccessOperations"],
+      "../features/report-access/composition/report-access-route-composition.ts": ["loadReportAccessRepository"],
+      "../features/report-access/index.ts": [
+        "adminCreateReportAccessTokenSchema",
+        "buildPublicReportAccessPath",
+        "buildValidationError",
+        "parseEntityId",
+        "parseOffset",
+        "parsePositiveInt",
+        "serializeReportAccessToken",
+        "serializeReportAccessTokenDetail",
+      ],
+      "../lib/cors-headers.ts": CORS_IMPORTS,
+      "../lib/env.ts": ["ENV"],
+      "../lib/fastify-admin-auth.ts": ["authenticateFastifyAdmin"],
+    },
+    dynamicImports: REPORT_ACCESS_DYNAMIC_IMPORTS,
+    loaderCalls: ["loadReportAccessRepository"],
   },
   {
     file: CLINIC_REPORT_ACCESS_ROUTE,
+    optionsType: "ReportAccessTokensNativeRoutesOptions",
     principals: clinicPrincipals("getReportAccessTokenAuthorization", "deps"),
     auditRequestLike: "clinic",
     authorization: "getReportAccessTokenAuthorization",
     calls: [
-      { callee: "reportAccess.createToken", args: [null, CLINIC_ACTOR_ARGUMENT, "createAuditRequestLike(request, auth)"] },
-      { callee: "reportAccess.revokeToken", args: ["tokenId", CLINIC_ACTOR_ARGUMENT, "createAuditRequestLike(request, auth)"] },
+      { callee: "reportAccess.createToken", sink: "operation-write", args: [null, CLINIC_ACTOR_ARGUMENT, "createAuditRequestLike(request, auth)"] },
+      { callee: "reportAccess.revokeToken", sink: "operation-write", args: ["tokenId", CLINIC_ACTOR_ARGUMENT, "createAuditRequestLike(request, auth)"] },
+      { callee: "reportAccess.listTokens", sink: "operation-read", args: ["auth.clinicId", null, null, null] },
+      { callee: "reportAccess.getToken", sink: "operation-read", args: ["tokenId", "auth.clinicId"] },
+      CLINIC_REPORT_FALLBACK_SITE,
     ],
     compositions: [{ callee: "createClinicReportAccessOperations", args: ["deps"] }],
+    containers: LOADER_CONTAINERS,
+    receivers: ["reportAccess"],
+    containerFactories: CACHED_LOADER,
+    customWiring: ["getClinicScopedReportById"],
+    spreads: [authorizationSpread("getReportAccessTokenAuthorization")],
+    runtimeImports: {
+      ...COMMON_IMPORTS,
+      ...REPORT_ACCESS_RATE_LIMIT_IMPORTS,
+      "../features/report-access/application/index.ts": ["createClinicReportAccessOperations"],
+      "../features/report-access/composition/report-access-route-composition.ts": ["loadReportAccessRepository"],
+      "../features/report-access/index.ts": [
+        "buildPublicReportAccessPath",
+        "buildValidationError",
+        "clinicCreateReportAccessTokenSchema",
+        "parseEntityId",
+        "parseOffset",
+        "parsePositiveInt",
+        "serializeReportAccessToken",
+        "serializeReportAccessTokenDetail",
+      ],
+      "../lib/cors-headers.ts": CORS_IMPORTS,
+      "../lib/fastify-clinic-auth.ts": ["authenticateFastifyClinicUser"],
+      "../lib/permissions.ts": ["getClinicPermissions"],
+    },
+    dynamicImports: REPORT_ACCESS_DYNAMIC_IMPORTS,
+    loaderCalls: ["loadReportAccessRepository"],
   },
   {
     file: ADMIN_PARTICULAR_ROUTE,
+    optionsType: "AdminParticularTokensNativeRoutesOptions",
     principals: ADMIN_PRINCIPALS,
-    calls: [{ callee: "adminOperations.createToken", args: [null, "admin.id"] }],
+    calls: [
+      { callee: "adminOperations.createToken", sink: "operation-write", args: [PARTICULAR_TOKEN_DATA_ARGUMENT, "admin.id"] },
+      // Listing, detail and relinking backfill a tracking case attributed to the admin.
+      { callee: "adminOperations.listTokens", sink: "operation-write", args: [{ fields: { clinicId: "clinicId", limit: "limit", offset: "offset", adminId: "admin.id" }, exact: true }] },
+      { callee: "adminOperations.getToken", sink: "operation-write", args: ["tokenId", "admin.id"] },
+      { callee: "adminOperations.updateTokenReport", sink: "operation-write", args: ["tokenId", "parsed.data.reportId", "admin.id"] },
+      // Deleting persists no actor column.
+      { callee: "adminOperations.deleteToken", sink: "operation-write", args: ["tokenId"], count: 2 },
+    ],
     compositions: [{ callee: "createAdminParticularAccessOperations", args: [PARTICULAR_COMPOSITION] }],
+    containers: LOADER_CONTAINERS,
+    receivers: ["adminOperations"],
+    containerFactories: CACHED_LOADER,
+    spreads: [
+      { expression: "deps", context: "createAdminParticularAccessOperations()", class: "composition" },
+      { expression: "parsed.data", context: "adminOperations.createToken()", class: "write-argument" },
+      { expression: "getSafeEmailTransportErrorMetadata(result.error)", context: "console.error()", class: "not-security-relevant" },
+    ],
+    runtimeImports: {
+      ...COMMON_IMPORTS,
+      "../features/particular-access/application/index.ts": ["createAdminParticularAccessOperations"],
+      "../features/particular-access/index.ts": [
+        "adminCreateParticularTokenSchema",
+        "buildValidationError",
+        "parseEntityId",
+        "parseOffset",
+        "parsePositiveInt",
+        "serializeParticularToken",
+        "serializeParticularTokenDetail",
+        "updateParticularTokenReportSchema",
+      ],
+      "../features/particular-access/particular-access-route-composition.ts": ["loadAdminParticularAccessRouteDeps"],
+      "../lib/cors-headers.ts": CORS_IMPORTS,
+      "../lib/email.ts": ["getSafeEmailTransportErrorMetadata"],
+      "../lib/env.ts": ["ENV"],
+      "../lib/fastify-admin-auth.ts": ["authenticateFastifyAdmin"],
+    },
+    dynamicImports: [],
+    loaderCalls: ["loadAdminParticularAccessRouteDeps"],
   },
   {
     file: CLINIC_PARTICULAR_ROUTE,
+    optionsType: "ParticularTokensNativeRoutesOptions",
     principals: clinicPrincipals("getParticularTokensAuthorization", "deps"),
     authorization: "getParticularTokensAuthorization",
-    calls: [{ callee: "clinicOperations.createToken", args: [null, CLINIC_ACTOR_ARGUMENT] }],
+    calls: [
+      { callee: "clinicOperations.createToken", sink: "operation-write", args: [PARTICULAR_TOKEN_DATA_ARGUMENT, CLINIC_ACTOR_ARGUMENT] },
+      { callee: "clinicOperations.listTokens", sink: "operation-read", args: ["auth.clinicId", "limit", "offset"] },
+      { callee: "clinicOperations.getToken", sink: "operation-read", args: ["tokenId", "auth.clinicId"] },
+      // Relinking persists no actor column; the clinic scope comes from the principal.
+      { callee: "clinicOperations.updateTokenReport", sink: "operation-write", args: ["tokenId", "parsed.data.reportId", "auth.clinicId"] },
+      CLINIC_REPORT_FALLBACK_SITE,
+    ],
     compositions: [{ callee: "createClinicParticularAccessOperations", args: [PARTICULAR_COMPOSITION] }],
+    containers: LOADER_CONTAINERS,
+    receivers: ["clinicOperations"],
+    containerFactories: CACHED_LOADER,
+    customWiring: ["getClinicScopedReportById"],
+    spreads: [
+      authorizationSpread("getParticularTokensAuthorization"),
+      { expression: "deps", context: "createClinicParticularAccessOperations()", class: "composition" },
+      { expression: "parsed.data", context: "clinicOperations.createToken()", class: "write-argument" },
+      { expression: "getSafeEmailTransportErrorMetadata(result.error)", context: "console.error()", class: "not-security-relevant" },
+    ],
+    runtimeImports: {
+      ...COMMON_IMPORTS,
+      "../features/particular-access/application/index.ts": ["createClinicParticularAccessOperations"],
+      "../features/particular-access/index.ts": [
+        "buildValidationError",
+        "clinicCreateParticularTokenSchema",
+        "parseEntityId",
+        "parseOffset",
+        "parsePositiveInt",
+        "serializeParticularToken",
+        "serializeParticularTokenDetail",
+        "updateParticularTokenReportSchema",
+      ],
+      "../features/particular-access/particular-access-route-composition.ts": ["loadClinicParticularAccessRouteDeps"],
+      "../lib/cors-headers.ts": CORS_IMPORTS,
+      "../lib/email.ts": ["getSafeEmailTransportErrorMetadata"],
+      "../lib/fastify-clinic-auth.ts": ["authenticateFastifyClinicUser"],
+      "../lib/permissions.ts": ["getClinicPermissions", "normalizeClinicUserRole"],
+    },
+    dynamicImports: [],
+    loaderCalls: ["loadClinicParticularAccessRouteDeps"],
   },
   {
     file: ADMIN_STUDY_TRACKING_ROUTE,
+    optionsType: "AdminStudyTrackingNativeRoutesOptions",
     principals: ADMIN_PRINCIPALS,
     auditRequestLike: "admin",
     calls: [
       {
         callee: "adminOperations.createAdminStudyTrackingCase",
+        sink: "operation-write",
         args: [{ fields: { actor: { fields: { adminId: "admin.id" } }, auditRequest: "createAuditRequestLike(request, admin)" } }],
       },
       {
         callee: "adminOperations.updateAdminStudyTrackingCase",
+        sink: "operation-write",
         args: [{ fields: { auditRequest: "createAuditRequestLike(request, admin)" } }],
       },
+      // Acknowledgements persist no actor column; the notification handlers authenticate
+      // into authenticatedAdmin and pass no actor.
+      { callee: "adminOperations.acknowledgeAdminStudyTrackingNotification", sink: "operation-write", args: ["notificationId"], principal: false },
+      { callee: "adminOperations.acknowledgeAllAdminStudyTrackingNotifications", sink: "operation-write", args: [null] },
+      { callee: "adminOperations.listAdminStudyTrackingNotifications", sink: "operation-read", args: [null], principal: false },
+      { callee: "adminOperations.listAdminStudyTrackingCases", sink: "operation-read", args: [null] },
+      { callee: "adminOperations.resolveAdminStudyTrackingCase", sink: "operation-read", args: [null], count: 2 },
     ],
     compositions: [
       {
@@ -1547,90 +1902,473 @@ const ROUTE_SURFACES: readonly RouteSurface[] = [
         args: [
           {
             fields: {
+              queryRepository: {
+                fields: {
+                  getClinicScopedStudyTrackingCase: "nativeDeps.getClinicScopedStudyTrackingCase",
+                  getStudyTrackingCaseById: "nativeDeps.getStudyTrackingCaseById",
+                  listStudyTrackingCases: "nativeDeps.listStudyTrackingCases",
+                  listStudyTrackingNotifications: "nativeDeps.listStudyTrackingNotifications",
+                },
+                exact: true,
+              },
               commandRepository: {
                 fields: {
                   createStudyTrackingCase: "nativeDeps.createStudyTrackingCase",
                   updateStudyTrackingCase: "nativeDeps.updateStudyTrackingCase",
                   createStudyTrackingNotification: "nativeDeps.createStudyTrackingNotification",
+                  markStudyTrackingNotificationRead: "nativeDeps.markStudyTrackingNotificationRead",
+                  markAllStudyTrackingNotificationsRead: "nativeDeps.markAllStudyTrackingNotificationsRead",
                 },
+                exact: true,
               },
+              referenceRepository: {
+                fields: {
+                  getClinicById: "nativeDeps.getClinicById",
+                  getReportById: "nativeDeps.getReportById",
+                  getParticularTokenById: "nativeDeps.getParticularTokenById",
+                  updateParticularTokenReport: "nativeDeps.updateParticularTokenReport",
+                },
+                exact: true,
+              },
+              notification: SPECIAL_STAIN_NOTIFICATION_COMPOSITION,
               audit: AUDIT_PORT_COMPOSITION,
+              auditEvents: {
+                fields: {
+                  caseCreated: "AUDIT_EVENTS.STUDY_TRACKING_CASE_CREATED",
+                  caseUpdated: "AUDIT_EVENTS.STUDY_TRACKING_CASE_UPDATED",
+                  notificationCreated: "AUDIT_EVENTS.STUDY_TRACKING_NOTIFICATION_CREATED",
+                },
+                exact: true,
+              },
+              createDate: "createDate",
             },
+            exact: true,
           },
         ],
       },
     ],
+    containers: ["options", "defaultDeps", "nativeDeps", "deps"],
+    receivers: ["adminOperations"],
+    containerFactories: CACHED_LOADER,
+    spreads: [],
+    runtimeImports: {
+      ...COMMON_IMPORTS,
+      "../features/study-tracking/application/index.ts": ["createAdminStudyTrackingOperations"],
+      "../features/study-tracking/domain/index.ts": [
+        "adminCreateStudyTrackingSchema",
+        "buildValidationError",
+        "parseBooleanQuery",
+        "parseEntityId",
+        "parseOffset",
+        "parsePositiveInt",
+        "serializeStudyTrackingCase",
+        "serializeStudyTrackingNotification",
+        "updateStudyTrackingSchema",
+      ],
+      "../lib/audit.ts": ["AUDIT_EVENTS"],
+      "../lib/cors-headers.ts": CORS_IMPORTS,
+      "../lib/env.ts": ["ENV"],
+      "../lib/fastify-admin-auth.ts": ["authenticateFastifyAdmin"],
+    },
+    dynamicImports: STUDY_TRACKING_DYNAMIC_IMPORTS,
+    loaderCalls: ["loadAdminStudyTrackingPersistence"],
   },
   {
     file: CLINIC_STUDY_TRACKING_ROUTE,
+    optionsType: "StudyTrackingNativeRoutesOptions",
     principals: clinicPrincipals("getStudyTrackingAuthorization", "nativeDeps"),
     auditRequestLike: "clinic",
     authorization: "getStudyTrackingAuthorization",
     calls: [
       {
         callee: "clinicOperations.createClinicStudyTrackingCase",
+        sink: "operation-write",
         args: [{ fields: { actor: CLINIC_ACTOR_ARGUMENT, auditRequest: "createAuditRequestLike(request, auth)" } }],
       },
+      // Acknowledgements persist no actor column; the clinic scope comes from the principal.
+      {
+        callee: "clinicOperations.acknowledgeClinicStudyTrackingNotification",
+        sink: "operation-write",
+        args: [{ fields: { notificationId: "notificationId", clinicId: "auth.clinicId" }, exact: true }],
+      },
+      { callee: "clinicOperations.acknowledgeAllClinicStudyTrackingNotifications", sink: "operation-write", args: ["auth.clinicId"] },
+      { callee: "clinicOperations.listClinicStudyTrackingNotifications", sink: "operation-read", args: [null] },
+      { callee: "clinicOperations.listClinicStudyTrackingCases", sink: "operation-read", args: [null] },
+      { callee: "clinicOperations.getClinicStudyTrackingCase", sink: "operation-read", args: [null] },
+      CLINIC_REPORT_FALLBACK_SITE,
     ],
     compositions: [
       {
         callee: "createClinicStudyTrackingOperations",
-        args: [{ fields: { commandRepository: "nativeDeps", audit: AUDIT_PORT_COMPOSITION } }],
+        args: [
+          {
+            fields: {
+              queryRepository: "nativeDeps",
+              commandRepository: "nativeDeps",
+              referenceRepository: "nativeDeps",
+              notification: SPECIAL_STAIN_NOTIFICATION_COMPOSITION,
+              audit: AUDIT_PORT_COMPOSITION,
+              auditEvents: {
+                fields: {
+                  caseCreated: "AUDIT_EVENTS.STUDY_TRACKING_CASE_CREATED",
+                  notificationCreated: "AUDIT_EVENTS.STUDY_TRACKING_NOTIFICATION_CREATED",
+                },
+                exact: true,
+              },
+              createDate: "createDate",
+            },
+            exact: true,
+          },
+        ],
       },
     ],
+    containers: ["options", "defaultDeps", "nativeDeps"],
+    receivers: ["clinicOperations"],
+    containerFactories: CACHED_LOADER,
+    customWiring: ["getClinicScopedReportById"],
+    spreads: [
+      { expression: "persistence", context: "return in loadDefaultDeps", class: "wiring" },
+      authorizationSpread("getStudyTrackingAuthorization"),
+    ],
+    runtimeImports: {
+      ...COMMON_IMPORTS,
+      "../features/study-tracking/application/index.ts": ["createClinicStudyTrackingOperations"],
+      "../features/study-tracking/domain/index.ts": [
+        "buildValidationError",
+        "clinicCreateStudyTrackingSchema",
+        "parseBooleanQuery",
+        "parseEntityId",
+        "parseOffset",
+        "parsePositiveInt",
+        "serializeStudyTrackingCase",
+        "serializeStudyTrackingNotification",
+      ],
+      "../lib/audit.ts": ["AUDIT_EVENTS"],
+      "../lib/cors-headers.ts": REQUIRED_CORS_IMPORTS,
+      "../lib/fastify-clinic-auth.ts": ["authenticateFastifyClinicUser"],
+      "../lib/permissions.ts": ["getClinicPermissions", "normalizeClinicUserRole"],
+    },
+    dynamicImports: STUDY_TRACKING_DYNAMIC_IMPORTS,
+    loaderCalls: ["loadClinicStudyTrackingPersistence"],
   },
   {
     file: REPORTS_STATUS_ROUTE,
+    optionsType: "ReportsStatusNativeRoutesOptions",
     principals: clinicPrincipals("getReportsStatusAuthorization", "composition.auth"),
     auditRequestLike: "clinic",
     authorization: "getReportsStatusAuthorization",
     calls: [
       {
         callee: "composition.queries.transitionClinicReportStatus",
+        sink: "operation-write",
         args: [{ fields: { clinicId: "auth.clinicId", changedByClinicUserId: "auth.id", changedByAdminUserId: "null" } }],
       },
-      { callee: "composition.writeAuditLog", args: ["createAuditRequestLike(request, auth)", { fields: {} }] },
+      { callee: "composition.writeAuditLog", sink: "audit", args: ["createAuditRequestLike(request, auth)", { fields: {} }] },
     ],
+    compositions: [{ callee: "createClinicReportStatusRouteComposition", args: ["options"] }],
+    containers: ["options"],
+    receivers: ["composition"],
+    containerFactories: [],
+    spreads: [authorizationSpread("getReportsStatusAuthorization")],
+    runtimeImports: {
+      ...COMMON_IMPORTS,
+      "../features/reports/composition/index.ts": ["createClinicReportStatusRouteComposition"],
+      "../features/reports/domain/index.ts": ["REPORT_STATUSES", "normalizeOptionalNote", "parseReportId", "parseReportStatus"],
+      "../lib/audit.ts": ["AUDIT_EVENTS"],
+      "../lib/cors-headers.ts": CORS_IMPORTS,
+      "../lib/fastify-clinic-auth.ts": ["authenticateFastifyClinicUser"],
+      "../lib/permissions.ts": ["getClinicPermissions"],
+    },
+    dynamicImports: [],
+    loaderCalls: [],
   },
   {
     file: PARTICULAR_AUDIT_ROUTE,
-    principals: PARTICULAR_PRINCIPALS,
-    particularAuthenticator: true,
-    calls: [{ callee: "deps.listParticularAuditLog", args: [null, "particular.tokenId"], count: 2 }],
-  },
-  {
-    file: PARTICULAR_STUDY_TRACKING_ROUTE,
+    optionsType: "ParticularAuditNativeRoutesOptions",
     principals: PARTICULAR_PRINCIPALS,
     particularAuthenticator: true,
     calls: [
-      { callee: "operations.getParticularStudyTrackingForToken", args: ["particular.tokenId"] },
+      { callee: "deps.listParticularAuditLog", sink: "read", args: [null, "particular.tokenId"], count: 2 },
+      { callee: "deps.buildParticularAuditListFilters", sink: "effect", args: [null], count: 2 },
+      { callee: "deps.buildAuditCsv", sink: "effect", args: [null] },
+      { callee: "deps.buildParticularAuditCsvFilename", sink: "effect", args: [] },
+      ...PARTICULAR_AUTHENTICATOR_SITES,
+    ],
+    containers: LOADER_CONTAINERS,
+    receivers: [],
+    containerFactories: CACHED_LOADER,
+    customWiring: ["buildParticularAuditListFilters", "buildAuditCsv", "buildParticularAuditCsvFilename"],
+    spreads: [{ expression: "filters", context: "const exportFilters", class: "not-security-relevant" }],
+    runtimeImports: {
+      ...COMMON_IMPORTS,
+      "../lib/env.ts": ["ENV"],
+      "../lib/particular-audit.ts": [
+        "buildAuditCsv as defaultBuildAuditCsv",
+        "buildParticularAuditCsvFilename as defaultBuildParticularAuditCsvFilename",
+        "buildParticularAuditListFilters as defaultBuildParticularAuditListFilters",
+      ],
+      "../lib/session-last-access.ts": ["shouldRefreshSessionLastAccess"],
+    },
+    dynamicImports: ["../db-audit.ts", "../features/particular-access/infrastructure/index.ts", "../lib/auth-security.ts"],
+    loaderCalls: [],
+  },
+  {
+    file: PARTICULAR_STUDY_TRACKING_ROUTE,
+    optionsType: "ParticularStudyTrackingNativeRoutesOptions",
+    principals: PARTICULAR_PRINCIPALS,
+    particularAuthenticator: true,
+    calls: [
+      { callee: "operations.getParticularStudyTrackingForToken", sink: "operation-read", args: ["particular.tokenId"] },
       {
         callee: "operations.listParticularStudyTrackingNotifications",
+        sink: "operation-read",
         args: [{ fields: { particularTokenId: "particular.tokenId" } }],
       },
       {
         callee: "operations.acknowledgeParticularStudyTrackingNotification",
+        sink: "operation-write",
         args: [{ fields: { particularTokenId: "particular.tokenId" } }],
       },
-      { callee: "operations.acknowledgeAllParticularStudyTrackingNotifications", args: ["particular.tokenId"] },
+      { callee: "operations.acknowledgeAllParticularStudyTrackingNotifications", sink: "operation-write", args: ["particular.tokenId"] },
+      ...PARTICULAR_AUTHENTICATOR_SITES,
     ],
+    compositions: [
+      {
+        callee: "createParticularStudyTrackingOperations",
+        args: [{ fields: { queryRepository: "nativeDeps", commandRepository: "nativeDeps" }, exact: true }],
+      },
+    ],
+    containers: ["options", "defaultDeps", "nativeDeps", "deps", "runtimePromise"],
+    receivers: ["operations"],
+    containerFactories: ["loadDefaultDeps", "resolveParticularStudyTrackingRuntime", "createParticularStudyTrackingRuntimeResolver", "resolveRuntime"],
+    runtime: "await resolveRuntime()",
+    spreads: [{ expression: "persistence", context: "return in loadDefaultDeps", class: "wiring" }],
+    runtimeImports: {
+      ...COMMON_IMPORTS,
+      "../features/study-tracking/application/index.ts": ["createParticularStudyTrackingOperations"],
+      "../features/study-tracking/domain/index.ts": [
+        "parseBooleanQuery",
+        "parseEntityId",
+        "parseOffset",
+        "parsePositiveInt",
+        "serializeStudyTrackingCase",
+        "serializeStudyTrackingNotification",
+      ],
+      "../lib/cors-headers.ts": REQUIRED_CORS_IMPORTS,
+      "../lib/env.ts": ["ENV"],
+      "../lib/session-last-access.ts": ["shouldRefreshSessionLastAccess"],
+    },
+    dynamicImports: [
+      "../features/particular-access/infrastructure/index.ts",
+      "../features/study-tracking/study-tracking-route-composition.ts",
+      "../lib/auth-security.ts",
+    ],
+    loaderCalls: ["loadParticularStudyTrackingPersistence"],
   },
   {
     file: PUBLIC_REPORT_ACCESS_ROUTE,
+    optionsType: "PublicReportAccessNativeRoutesOptions",
     principals: {},
-    calls: [],
+    calls: [{ callee: "reportAccess.access", sink: "operation-write", args: ["parsed.data", "currentTime", "request"] }],
     compositions: [
       {
         callee: "createPublicReportAccessOperations",
-        args: [{ fields: { buildPublicActor: "buildPublicReportAccessTokenActor" }, allowLeadingSpread: true, exact: true }],
+        args: [{ fields: { buildPublicActor: "buildPublicReportAccessTokenActor" }, spreads: ["deps"], exact: true }],
       },
     ],
+    containers: LOADER_CONTAINERS,
+    receivers: ["reportAccess"],
+    containerFactories: CACHED_LOADER,
+    customWiring: ["createSignedReportUrl", "createSignedReportDownloadUrl", "hashSessionToken"],
+    spreads: [{ expression: "deps", context: "createPublicReportAccessOperations()", class: "composition" }],
+    runtimeImports: {
+      ...COMMON_IMPORTS,
+      "../features/report-access/application/index.ts": ["createPublicReportAccessOperations"],
+      "../features/report-access/composition/report-access-route-composition.ts": ["loadReportAccessRepository"],
+      "../features/report-access/index.ts": ["reportAccessTokenRawTokenSchema", "serializePublicReportAccess"],
+      "../lib/audit.ts": ["buildPublicReportAccessTokenActor"],
+      "../lib/auth-security.ts": ["hashSessionToken as defaultHashSessionToken"],
+      "../lib/cors-headers.ts": ["getAllowedOriginForCors", "getAllowedOrigins"],
+      "../lib/env.ts": ["ENV"],
+      "../lib/public-report-access-rate-limit.ts": [
+        "PUBLIC_REPORT_ACCESS_RATE_LIMIT_ERROR_MESSAGE",
+        "PUBLIC_REPORT_ACCESS_RATE_LIMIT_MAX_ATTEMPTS",
+        "PUBLIC_REPORT_ACCESS_RATE_LIMIT_WINDOW_MS",
+      ],
+      "../lib/rate-limit-store.ts": ["consumeRateLimitAttempt", "createPersistentRateLimitStore"],
+      "../lib/supabase.ts": [
+        "createSignedReportDownloadUrl as defaultCreateSignedReportDownloadUrl",
+        "createSignedReportUrl as defaultCreateSignedReportUrl",
+      ],
+    },
+    dynamicImports: ["../db.ts", "../lib/audit.ts"],
+    loaderCalls: ["createPersistentRateLimitStore", "loadReportAccessRepository"],
     imports: { buildPublicReportAccessTokenActor: "../lib/audit.ts" },
   },
 ];
 
 function propertyName(name: ts.PropertyName): string | undefined {
   return ts.isIdentifier(name) || ts.isStringLiteral(name) ? name.text : undefined;
+}
+
+// Wrappers that only re-type an expression.
+function isRetyping(node: ts.Node): node is ts.ParenthesizedExpression | ts.NonNullExpression | ts.AsExpression | ts.SatisfiesExpression | ts.TypeAssertion {
+  return ts.isParenthesizedExpression(node) || ts.isNonNullExpression(node) || ts.isAsExpression(node) || ts.isSatisfiesExpression(node) || ts.isTypeAssertionExpression(node);
+}
+
+function unwrap(expression: ts.Expression): ts.Expression {
+  let current = expression;
+  while (isRetyping(current)) {
+    current = current.expression;
+  }
+  return current;
+}
+
+function outermost(expression: ts.Expression): ts.Expression {
+  let current = expression;
+  while (isRetyping(current.parent) && current.parent.expression === current) {
+    current = current.parent;
+  }
+  return current;
+}
+
+function literalText(expression: ts.Expression): string | undefined {
+  return ts.isStringLiteral(expression) || ts.isNoSubstitutionTemplateLiteral(expression) ? expression.text : undefined;
+}
+
+function accessedName(node: ts.Node): string | undefined {
+  if (ts.isPropertyAccessExpression(node)) {
+    return node.name.text;
+  }
+  return ts.isElementAccessExpression(node) ? literalText(node.argumentExpression) : undefined;
+}
+
+function calleeOf(expression: ts.Expression): ts.CallExpression | undefined {
+  const outer = outermost(expression);
+  return ts.isCallExpression(outer.parent) && outer.parent.expression === outer ? outer.parent : undefined;
+}
+
+function inTypePosition(node: ts.Node): boolean {
+  for (let current = node.parent; current !== undefined && !ts.isSourceFile(current); current = current.parent) {
+    if (ts.isTypeNode(current)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function isValueReference(identifier: ts.Identifier): boolean {
+  const parent = identifier.parent;
+  if (inTypePosition(identifier) || isBindingName(identifier)) {
+    return false;
+  }
+  if ((ts.isPropertyAccessExpression(parent) || ts.isQualifiedName(parent)) && (ts.isPropertyAccessExpression(parent) ? parent.name : parent.right) === identifier) {
+    return false;
+  }
+  if (
+    (ts.isPropertyAssignment(parent) || ts.isMethodDeclaration(parent) || ts.isPropertyDeclaration(parent) || ts.isPropertySignature(parent) || ts.isGetAccessorDeclaration(parent) || ts.isSetAccessorDeclaration(parent)) &&
+    parent.name === identifier
+  ) {
+    return false;
+  }
+  if (ts.isBindingElement(parent) && parent.propertyName === identifier) {
+    return false;
+  }
+  return !(ts.isImportSpecifier(parent) || ts.isExportSpecifier(parent) || ts.isTypeAliasDeclaration(parent) || ts.isTypeParameterDeclaration(parent) || ts.isLabeledStatement(parent) || ts.isBreakOrContinueStatement(parent));
+}
+
+function isWithin(node: ts.Node, ancestor: ts.Node): boolean {
+  for (let current: ts.Node | undefined = node; current !== undefined; current = current.parent) {
+    if (current === ancestor) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function moduleFunction(file: ts.SourceFile, name: string): ts.FunctionDeclaration | undefined {
+  const matches = file.statements.filter((statement): statement is ts.FunctionDeclaration => ts.isFunctionDeclaration(statement) && statement.name?.text === name);
+  return matches.length === 1 ? matches[0] : undefined;
+}
+
+function moduleFunctionNames(file: ts.SourceFile): Set<string> {
+  return new Set(file.statements.flatMap((statement) => (ts.isFunctionDeclaration(statement) && statement.name ? [statement.name.text] : [])));
+}
+
+function importedNames(file: ts.SourceFile): Set<string> {
+  return new Set(
+    descendants(file, (node): node is ts.Identifier => ts.isIdentifier(node) && isBindingName(node) && (ts.isImportSpecifier(node.parent) || ts.isImportClause(node.parent) || ts.isNamespaceImport(node.parent))).map(
+      (identifier) => identifier.text,
+    ),
+  );
+}
+
+// Name of the nearest named function around `node`: a declaration or a const bound to one.
+function enclosingName(node: ts.Node): string {
+  for (let current = node.parent; current !== undefined; current = current.parent) {
+    if (ts.isFunctionDeclaration(current) && current.name) {
+      return current.name.text;
+    }
+    if ((ts.isArrowFunction(current) || ts.isFunctionExpression(current)) && ts.isVariableDeclaration(current.parent) && ts.isIdentifier(current.parent.name)) {
+      return current.parent.name.text;
+    }
+  }
+  return "<module>";
+}
+
+function withinFunctions(node: ts.Node, file: ts.SourceFile, names: readonly string[]): boolean {
+  return names.some((name) => {
+    const declaration = moduleFunction(file, name);
+    return declaration !== undefined && isWithin(node, declaration);
+  });
+}
+
+function spreadContext(spread: ts.SpreadAssignment | ts.SpreadElement): string {
+  if (ts.isCallExpression(spread.parent)) {
+    return `${canonicalText(spread.parent.expression)}()`;
+  }
+  let current: ts.Node = spread.parent;
+  while (ts.isObjectLiteralExpression(current.parent) || ts.isArrayLiteralExpression(current.parent) || ts.isPropertyAssignment(current.parent) || ts.isSpreadAssignment(current.parent) || isRetyping(current.parent)) {
+    current = current.parent;
+  }
+  const parent = current.parent;
+  if (ts.isCallExpression(parent)) {
+    return `${canonicalText(parent.expression)}()`;
+  }
+  if (ts.isReturnStatement(parent) || ts.isArrowFunction(parent)) {
+    return `return in ${enclosingName(parent)}`;
+  }
+  if (ts.isVariableDeclaration(parent)) {
+    return `const ${canonicalText(parent.name)}`;
+  }
+  return ts.SyntaxKind[parent.kind];
+}
+
+function canonicalText(node: ts.Node): string {
+  return canonical(node, node.getSourceFile());
+}
+
+// A spread of a plain binding resolves, in its own function, to exactly one const: the
+// wired dependency object for identifiers, the validated request data for member reads.
+function spreadBindingProblem(expression: ts.Expression): string | undefined {
+  const root = ts.isIdentifier(expression) ? expression : ts.isPropertyAccessExpression(expression) && ts.isIdentifier(expression.expression) ? expression.expression : undefined;
+  if (root === undefined) {
+    return "must be a plain binding, not a literal, call, conditional or nested spread";
+  }
+  const scope = enclosingFunction(expression) ?? expression.getSourceFile();
+  const declarations = bindingDeclarations(scope, root.text);
+  const declaration = declarations[0];
+  if (
+    declarations.length !== 1 ||
+    !ts.isVariableDeclaration(declaration) ||
+    (declaration.parent.flags & ts.NodeFlags.Const) === 0 ||
+    (enclosingFunction(declaration) ?? declaration.getSourceFile()) !== scope ||
+    declaration.initializer === undefined ||
+    (ts.isIdentifier(expression) && !ts.isObjectLiteralExpression(unwrap(declaration.initializer)))
+  ) {
+    return `must resolve to a single const ${root.text} ${ts.isIdentifier(expression) ? "wired as an object literal " : ""}in its own scope`;
+  }
+  return undefined;
 }
 
 function checkArgument(
@@ -1640,6 +2378,7 @@ function checkArgument(
   file: ts.SourceFile,
   label: string,
   violations: string[],
+  disabled: DisabledChecks,
 ): void {
   if (typeof shape === "string") {
     const actual = canonical(expression, file);
@@ -1655,10 +2394,12 @@ function checkArgument(
   const fields = new Map<string, ts.Expression>();
   let lastSpread = -1;
   const positions = new Map<string, number>();
+  const spreads: ts.SpreadAssignment[] = [];
   expression.properties.forEach((property, index) => {
     if (ts.isSpreadAssignment(property)) {
       lastSpread = index;
-      if (!shape.allowLeadingSpread) {
+      spreads.push(property);
+      if (shape.spreads === undefined) {
         violations.push(violation("route-argument", label, `${where} must not spread ${canonical(property.expression, file)}`));
       }
       return;
@@ -1678,6 +2419,24 @@ function checkArgument(
     fields.set(name, value);
     positions.set(name, index);
   });
+  // The spread contract names which expression may expand here, in which order, before
+  // every explicit field; a boolean "some spread" would admit any wrapper.
+  const expectedSpreads = shape.spreads ?? [];
+  if (shape.spreads !== undefined && !disabled.has("spread-identity")) {
+    const actual = spreads.map((spread) => canonical(spread.expression, file));
+    if (!isDeepStrictEqual(actual, expectedSpreads)) {
+      violations.push(violation("route-spread", label, `${where} must spread exactly ${json(expectedSpreads)} (got ${json(actual)})`));
+    }
+    spreads.forEach((spread, index) => {
+      if (expression.properties.indexOf(spread) !== index) {
+        violations.push(violation("route-spread", label, `${where} spread ${canonical(spread.expression, file)} must lead the object`));
+      }
+      const problem = spreadBindingProblem(spread.expression);
+      if (problem !== undefined) {
+        violations.push(violation("route-spread", label, `${where} spread ${canonical(spread.expression, file)} ${problem}`));
+      }
+    });
+  }
   for (const [name, fieldShape] of Object.entries(shape.fields)) {
     const value = fields.get(name);
     if (value === undefined) {
@@ -1687,7 +2446,7 @@ function checkArgument(
     if ((positions.get(name) ?? -1) < lastSpread) {
       violations.push(violation("route-argument", label, `${where}.${name} must not be overridden by a later spread`));
     }
-    checkArgument(value, fieldShape, `${where}.${name}`, file, label, violations);
+    checkArgument(value, fieldShape, `${where}.${name}`, file, label, violations, disabled);
   }
   for (const name of fields.keys()) {
     if (!Object.hasOwn(shape.fields, name) && (shape.exact || ROUTE_ATTRIBUTION_KEY.test(name))) {
@@ -1713,7 +2472,7 @@ function isAssignmentOperator(kind: ts.SyntaxKind): boolean {
 
 function rootIdentifier(expression: ts.Expression): string | undefined {
   let current = expression;
-  while (ts.isPropertyAccessExpression(current) || ts.isElementAccessExpression(current) || ts.isParenthesizedExpression(current) || ts.isNonNullExpression(current)) {
+  while (ts.isPropertyAccessExpression(current) || ts.isElementAccessExpression(current) || isRetyping(current)) {
     current = current.expression;
   }
   return ts.isIdentifier(current) ? current.text : undefined;
@@ -1751,7 +2510,14 @@ function checkPrincipals(handler: ts.Node, surface: RouteSurface, file: ts.Sourc
   }
 }
 
-function checkCallSites(file: ts.SourceFile, surface: RouteSurface, sites: readonly RouteCallSite[], withPrincipal: boolean, violations: string[]): void {
+function checkCallSites(
+  file: ts.SourceFile,
+  surface: RouteSurface,
+  sites: readonly (RouteComposition | RouteCallSite)[],
+  kind: "call" | "composition",
+  violations: string[],
+  disabled: DisabledChecks,
+): void {
   const calls = descendants(file, ts.isCallExpression);
   for (const site of sites) {
     const label = `${surface.file} ${site.callee}`;
@@ -1768,15 +2534,511 @@ function checkCallSites(file: ts.SourceFile, surface: RouteSurface, sites: reado
       }
       site.args.forEach((shape, index) => {
         if (shape !== null) {
-          checkArgument(call.arguments[index], shape, `argument ${index + 1}`, file, label, violations);
+          checkArgument(call.arguments[index], shape, `argument ${index + 1}`, file, label, violations, disabled);
         }
       });
-      if (withPrincipal) {
+      if (kind === "call" && (site as RouteCallSite).principal !== false) {
         // A write outside any handler is judged against the whole module, where the
         // principal is never bound exactly once, so it fails closed.
         checkPrincipals(enclosingFunction(call) ?? file, surface, file, label, violations);
       }
+      if (kind === "composition" && !disabled.has("container-use")) {
+        // The operations object is bound once, to a declared receiver, and nowhere else.
+        let holder: ts.Node = outermost(call);
+        while (ts.isAwaitExpression(holder.parent)) {
+          holder = outermost(holder.parent);
+        }
+        const binding = ts.isVariableDeclaration(holder.parent) || ts.isPropertyAssignment(holder.parent) ? holder.parent.name : undefined;
+        if (binding === undefined || !ts.isIdentifier(binding) || !surface.receivers.includes(binding.text)) {
+          violations.push(violation("route-container", label, `must be bound to a declared operations receiver ${json(surface.receivers)}`));
+        }
+      }
     }
+  }
+}
+
+type PortContract = ReadonlyMap<string, ts.TypeNode | undefined>;
+
+// The plugin options type is the injectable port contract of the route.
+function portContract(file: ts.SourceFile, surface: RouteSurface): PortContract | string {
+  const aliases = file.statements.filter((statement): statement is ts.TypeAliasDeclaration => ts.isTypeAliasDeclaration(statement) && statement.name.text === surface.optionsType);
+  const plugins = descendants(file, ts.isVariableDeclaration).filter(
+    (declaration) =>
+      declaration.type !== undefined &&
+      ts.isTypeReferenceNode(declaration.type) &&
+      canonical(declaration.type.typeName, file) === "FastifyPluginAsync" &&
+      declaration.type.typeArguments?.length === 1 &&
+      canonical(declaration.type.typeArguments[0], file) === surface.optionsType,
+  );
+  if (aliases.length !== 1 || !ts.isTypeLiteralNode(aliases[0].type) || plugins.length !== 1) {
+    return `the plugin must be declared once as FastifyPluginAsync<${surface.optionsType}> over a type literal`;
+  }
+  const contract = new Map<string, ts.TypeNode | undefined>();
+  for (const member of aliases[0].type.members) {
+    const name = member.name === undefined ? undefined : propertyName(member.name);
+    if (name === undefined || !ts.isPropertySignature(member)) {
+      return `${surface.optionsType} must only declare named properties`;
+    }
+    contract.set(name, member.type);
+  }
+  return contract;
+}
+
+function isPromiseFunction(type: ts.TypeNode | undefined): boolean {
+  return type !== undefined && ts.isFunctionTypeNode(type) && ts.isTypeReferenceNode(type.type) && canonical(type.type.typeName, type.getSourceFile()) === "Promise";
+}
+
+function sinkLabel(sink: SinkClass | "operation"): string {
+  return {
+    write: "persistence write",
+    audit: "audit write",
+    session: "session write",
+    read: "port read",
+    effect: "port effect",
+    operation: "operation call",
+  }[sink];
+}
+
+// Every port is classified, and every call into a port or an operations receiver is a
+// declared site: DISCOVERED_WRITE_SINKS == DECLARED_WRITE_SINKS.
+function checkWriteCensus(file: ts.SourceFile, surface: RouteSurface, contract: PortContract, violations: string[]): void {
+  for (const [name, type] of contract) {
+    const portClass = PORT_CLASSES[name];
+    if (portClass === undefined) {
+      violations.push(violation("route-port", `${surface.file} ${name}`, `unclassified port of ${surface.optionsType}`));
+    } else if (portClass === "config" && isPromiseFunction(type)) {
+      violations.push(violation("route-port", `${surface.file} ${name}`, "returns a Promise and cannot be classified config"));
+    } else if (portClass !== "config" && (type === undefined || !ts.isFunctionTypeNode(type))) {
+      violations.push(violation("route-port", `${surface.file} ${name}`, `is not a function and cannot be classified ${portClass}`));
+    }
+  }
+  for (const name of surface.customWiring ?? []) {
+    if (!contract.has(name) || !["read", "effect"].includes(PORT_CLASSES[name] ?? "")) {
+      violations.push(violation("route-port", `${surface.file} ${name}`, "custom wiring is only allowed for read or effect ports of the contract"));
+    }
+  }
+  const ports = new Set([...contract.keys()].filter((name) => PORT_CLASSES[name] !== undefined && PORT_CLASSES[name] !== "config"));
+  const declared = new Map(surface.calls.map((site) => [site.callee, site]));
+  for (const site of surface.calls) {
+    const name = site.callee.replace(/!$/, "").split(".").at(-1) ?? "";
+    if (ports.has(name) && site.sink !== PORT_CLASSES[name]) {
+      violations.push(violation("route-port", `${surface.file} ${site.callee}`, `is declared ${site.sink} but ${name} is a ${PORT_CLASSES[name]} port`));
+    }
+  }
+  const unregistered = new Set<string>();
+  for (const call of descendants(file, ts.isCallExpression)) {
+    const callee = unwrap(call.expression);
+    const name = accessedName(callee);
+    const root = rootIdentifier(callee);
+    const sink = name !== undefined && ports.has(name) ? (PORT_CLASSES[name] as SinkClass) : root !== undefined && surface.receivers.includes(root) ? "operation" : undefined;
+    const key = canonical(call.expression, file);
+    if (sink !== undefined && !declared.has(key) && !unregistered.has(key)) {
+      unregistered.add(key);
+      violations.push(violation("route-write", surface.file, `unregistered ${sinkLabel(sink)}: ${key}`));
+    }
+  }
+  // A port read without calling it is an alias unless it is the port's own wiring.
+  for (const access of descendants(file, (node): node is ts.PropertyAccessExpression | ts.ElementAccessExpression => ts.isPropertyAccessExpression(node) || ts.isElementAccessExpression(node))) {
+    const name = accessedName(access);
+    if (name === undefined || !ports.has(name) || inTypePosition(access) || calleeOf(access) !== undefined) {
+      continue;
+    }
+    const outer = outermost(access);
+    if (ts.isPrefixUnaryExpression(outer.parent) && outer.parent.operator === ts.SyntaxKind.ExclamationToken) {
+      continue;
+    }
+    const wiring: string[] = [];
+    for (let current: ts.Node = access; current.parent !== undefined; current = current.parent) {
+      const parent = current.parent;
+      if ((ts.isPropertyAssignment(parent) || ts.isVariableDeclaration(parent)) && parent.initializer === current) {
+        wiring.push(parent.name.getText(file));
+      }
+    }
+    const custom = wiring.some((key) => (surface.customWiring ?? []).includes(key)) && ["read", "effect"].includes(PORT_CLASSES[name] ?? "");
+    if (!wiring.includes(name) && !custom) {
+      violations.push(violation("route-write", `${surface.file} ${name}`, `unregistered reference to ${PORT_CLASSES[name]} port ${name}: ${canonical(outer.parent, file)}`));
+    }
+  }
+}
+
+function inDeclaredComposition(node: ts.Node, surface: RouteSurface, file: ts.SourceFile): boolean {
+  const callees = new Set((surface.compositions ?? []).map((site) => site.callee));
+  for (let current: ts.Node = node; current.parent !== undefined; current = current.parent) {
+    if (ts.isCallExpression(current.parent) && current.parent.arguments.includes(current as ts.Expression)) {
+      return callees.has(canonical(current.parent.expression, file));
+    }
+  }
+  return false;
+}
+
+function objectHolder(literal: ts.ObjectLiteralExpression): ts.Node {
+  let current: ts.Node = literal;
+  while (ts.isPropertyAssignment(current.parent) || ts.isObjectLiteralExpression(current.parent) || isRetyping(current.parent)) {
+    current = current.parent;
+  }
+  return current;
+}
+
+function isPortConsumer(callee: ts.Expression, surface: RouteSurface, file: ts.SourceFile, imports: Set<string>): boolean {
+  const target = unwrap(callee);
+  if (!ts.isIdentifier(target)) {
+    return false;
+  }
+  const composition = (surface.compositions ?? []).some((site) => site.callee === target.text);
+  return moduleFunctionNames(file).has(target.text) || (imports.has(target.text) && (PORT_CONSUMERS.includes(target.text) || composition));
+}
+
+// Objects that may carry ports: the wired containers, what a loader or container factory
+// returns, and the port bags handed to the session authenticators.
+function isWiringObject(literal: ts.ObjectLiteralExpression, surface: RouteSurface, file: ts.SourceFile, imports: Set<string>): boolean {
+  const holder = objectHolder(literal);
+  const parent = holder.parent;
+  if (ts.isVariableDeclaration(parent) && ts.isIdentifier(parent.name)) {
+    return surface.containers.includes(parent.name.text);
+  }
+  if (ts.isReturnStatement(parent) || (ts.isArrowFunction(parent) && parent.body === holder)) {
+    return withinFunctions(parent, file, surface.containerFactories);
+  }
+  if (ts.isCallExpression(parent) && parent.arguments.includes(holder as ts.Expression)) {
+    const callee = unwrap(parent.expression);
+    return ts.isIdentifier(callee) && imports.has(callee.text) && PORT_CONSUMERS.includes(callee.text);
+  }
+  return false;
+}
+
+function isPassThrough(value: ts.Expression, name: string): boolean {
+  const plain = (expression: ts.Expression): boolean => {
+    const inner = unwrap(expression);
+    return ts.isPropertyAccessExpression(inner) && ts.isIdentifier(unwrap(inner.expression)) && inner.name.text === name;
+  };
+  const inner = unwrap(value);
+  return plain(inner) || (ts.isBinaryExpression(inner) && inner.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken && plain(inner.left) && plain(inner.right));
+}
+
+// A port reaches the application exactly as the loader or the injector produced it.
+function checkPortWiring(file: ts.SourceFile, surface: RouteSurface, contract: PortContract, violations: string[]): void {
+  const ports = new Set([...contract.keys()].filter((name) => PORT_CLASSES[name] !== undefined && PORT_CLASSES[name] !== "config"));
+  const imports = importedNames(file);
+  for (const identifier of descendants(file, ts.isIdentifier)) {
+    const parent = identifier.parent;
+    const binds = isBindingName(identifier) || ((ts.isBindingElement(parent) || ts.isImportSpecifier(parent)) && parent.propertyName === identifier);
+    // A custom-wired read or effect port may import its default implementation under an alias.
+    const defaultImplementation = ts.isImportSpecifier(parent) && parent.propertyName === identifier && (surface.customWiring ?? []).includes(identifier.text);
+    if (binds && ports.has(identifier.text) && !inTypePosition(identifier) && !defaultImplementation) {
+      violations.push(violation("route-wiring", `${surface.file} ${identifier.text}`, `must not bind port ${identifier.text} outside the dependency wiring (${ts.SyntaxKind[parent.kind]})`));
+    }
+  }
+  for (const literal of descendants(file, ts.isObjectLiteralExpression)) {
+    if (inDeclaredComposition(literal, surface, file)) {
+      continue;
+    }
+    for (const property of literal.properties) {
+      if (property.name !== undefined && ts.isComputedPropertyName(property.name) && literalText(property.name.expression) === undefined) {
+        violations.push(violation("route-wiring", surface.file, `object keys must be static (got ${canonical(property.name, file)})`));
+        continue;
+      }
+      const name =
+        property.name === undefined ? undefined : ts.isComputedPropertyName(property.name) ? literalText(property.name.expression) : propertyName(property.name);
+      if (name === undefined || !ports.has(name)) {
+        continue;
+      }
+      if (!ts.isPropertyAssignment(property)) {
+        violations.push(violation("route-wiring", `${surface.file} ${name}`, "port must be wired as a plain property"));
+      } else if (!isWiringObject(literal, surface, file, imports)) {
+        violations.push(violation("route-wiring", `${surface.file} ${name}`, `port must not be re-keyed outside the dependency wiring (${canonical(property.initializer, file)})`));
+      } else if (!(surface.customWiring ?? []).includes(name) && !isPassThrough(property.initializer, name)) {
+        violations.push(violation("route-wiring", `${surface.file} ${name}`, `port must be wired as a pass-through (got ${canonical(property.initializer, file)})`));
+      }
+    }
+  }
+}
+
+// Bindings produced inside the loader from dynamic imports or declared loader calls.
+function loadedModules(file: ts.SourceFile, surface: RouteSurface): Set<string> {
+  const loader = moduleFunction(file, "loadDefaultDeps");
+  const names = new Set<string>();
+  if (loader === undefined) {
+    return names;
+  }
+  for (const declaration of descendants(loader, ts.isVariableDeclaration)) {
+    let initializer = declaration.initializer === undefined ? undefined : unwrap(declaration.initializer);
+    if (initializer !== undefined && ts.isAwaitExpression(initializer)) {
+      initializer = unwrap(initializer.expression);
+    }
+    const loaded =
+      initializer !== undefined &&
+      ts.isCallExpression(initializer) &&
+      (initializer.expression.kind === ts.SyntaxKind.ImportKeyword || surface.loaderCalls.includes(canonical(initializer.expression, file)));
+    if (loaded) {
+      for (const identifier of descendants(declaration.name, ts.isIdentifier).concat(ts.isIdentifier(declaration.name) ? [declaration.name] : [])) {
+        if (isBindingName(identifier)) {
+          names.add(identifier.text);
+        }
+      }
+    }
+  }
+  return names;
+}
+
+function isContainerFactoryResult(call: ts.CallExpression, surface: RouteSurface, file: ts.SourceFile): boolean {
+  let holder: ts.Node = outermost(call);
+  while (ts.isAwaitExpression(holder.parent) || ts.isConditionalExpression(holder.parent) || isRetyping(holder.parent)) {
+    holder = holder.parent;
+  }
+  const parent = holder.parent;
+  const allowed = [...surface.containers, ...surface.containerFactories];
+  if (ts.isVariableDeclaration(parent) && ts.isIdentifier(parent.name)) {
+    return allowed.includes(parent.name.text);
+  }
+  if (ts.isVariableDeclaration(parent) && ts.isObjectBindingPattern(parent.name)) {
+    return parent.name.elements.every((element) => ts.isIdentifier(element.name) && [...surface.containers, ...surface.receivers].includes(element.name.text));
+  }
+  if (ts.isBinaryExpression(parent) && isAssignmentOperator(parent.operatorToken.kind) && parent.right === holder) {
+    return ts.isIdentifier(parent.left) && surface.containers.includes(parent.left.text);
+  }
+  return ts.isReturnStatement(parent) && withinFunctions(parent, file, surface.containerFactories);
+}
+
+// Dependency containers, operations receivers and loaded modules are only used in the
+// positions the wiring needs; any other use could hand a port to an unmodelled caller.
+function checkContainerUse(file: ts.SourceFile, surface: RouteSurface, contract: PortContract, violations: string[]): void {
+  const imports = importedNames(file);
+  const loaded = loadedModules(file, surface);
+  const cachedContainer = (name: string): boolean =>
+    descendants(file, ts.isVariableDeclaration).some((declaration) => ts.isIdentifier(declaration.name) && declaration.name.text === name && (declaration.parent.flags & ts.NodeFlags.Let) !== 0);
+  const loaderResult = (expression: ts.Expression): boolean => {
+    const call = unwrap(expression);
+    if (!ts.isCallExpression(call)) {
+      return false;
+    }
+    const callee = unwrap(call.expression);
+    return ts.isArrowFunction(callee) || ts.isFunctionExpression(callee) || [...surface.loaderCalls, ...surface.containerFactories].includes(canonical(call.expression, file));
+  };
+  for (const identifier of descendants(file, ts.isIdentifier)) {
+    if (!isValueReference(identifier)) {
+      continue;
+    }
+    const name = identifier.text;
+    const outer = outermost(identifier);
+    const parent = outer.parent;
+    const report = (problem: string): void => {
+      violations.push(violation("route-container", `${surface.file} ${name}`, `${problem}: ${canonical(parent, file)}`));
+    };
+    if (surface.containers.includes(name)) {
+      if (ts.isPropertyAccessExpression(parent) && parent.expression === outer) {
+        if (!contract.has(parent.name.text)) {
+          report(`reads ${parent.name.text}, which is not a port of ${surface.optionsType}`);
+        }
+      } else if (ts.isElementAccessExpression(parent) && parent.expression === outer) {
+        const key = literalText(parent.argumentExpression);
+        if (key === undefined || !contract.has(key)) {
+          report("reflective access to a dependency container");
+        }
+      } else if (ts.isCallExpression(parent) && parent.arguments.includes(outer)) {
+        if (!isPortConsumer(parent.expression, surface, file, imports)) {
+          report("passes a dependency container to an unmodelled callee");
+        }
+      } else if (ts.isVariableDeclaration(parent) && parent.initializer === outer) {
+        if (!ts.isIdentifier(parent.name) || !surface.containers.includes(parent.name.text)) {
+          report("aliases a dependency container");
+        }
+      } else if (ts.isPropertyAssignment(parent) || ts.isShorthandPropertyAssignment(parent)) {
+        const literal = parent.parent;
+        const key = propertyName(parent.name) ?? "";
+        const returned = ts.isReturnStatement(objectHolder(literal).parent) && withinFunctions(literal, file, surface.containerFactories);
+        if (!inDeclaredComposition(literal, surface, file) && !(returned && surface.containers.includes(key))) {
+          report("stores a dependency container in an unmodelled object");
+        }
+      } else if (ts.isSpreadAssignment(parent) || ts.isSpreadElement(parent)) {
+        // Judged by the spread census.
+      } else if (ts.isPrefixUnaryExpression(parent) && parent.operator === ts.SyntaxKind.ExclamationToken) {
+        // Presence test only.
+      } else if (ts.isBinaryExpression(parent) && isAssignmentOperator(parent.operatorToken.kind) && parent.left === outer) {
+        if (!cachedContainer(name) || !loaderResult(parent.right)) {
+          report("reassigns a dependency container");
+        }
+      } else if (ts.isReturnStatement(parent)) {
+        if (!withinFunctions(parent, file, surface.containerFactories)) {
+          report("returns a dependency container from an unmodelled function");
+        }
+      } else {
+        report("unmodelled use of a dependency container");
+      }
+    } else if (surface.receivers.includes(name)) {
+      let chain: ts.Expression = outer;
+      while ((ts.isPropertyAccessExpression(chain.parent) || isRetyping(chain.parent)) && chain.parent.expression === chain) {
+        chain = chain.parent;
+      }
+      const principal = Object.entries(surface.principals).some(([binding, initializer]) =>
+        descendants(file, ts.isVariableDeclaration).some(
+          (declaration) =>
+            ts.isIdentifier(declaration.name) &&
+            declaration.name.text === binding &&
+            declaration.initializer !== undefined &&
+            canonical(declaration.initializer, file) === initializer &&
+            isWithin(identifier, declaration.initializer),
+        ),
+      );
+      if (calleeOf(chain) === undefined && !principal) {
+        report("uses an operations receiver outside a declared call");
+      }
+    } else if (loaded.has(name)) {
+      const member = (ts.isPropertyAccessExpression(parent) || ts.isElementAccessExpression(parent)) && parent.expression === outer;
+      if (member && ts.isElementAccessExpression(parent) && literalText(parent.argumentExpression) === undefined) {
+        report("reflective access to a loaded module");
+      } else if (!member && calleeOf(outer) === undefined && !ts.isSpreadAssignment(parent)) {
+        report("unmodelled use of a loaded module");
+      }
+    }
+  }
+  for (const identifier of descendants(file, ts.isIdentifier)) {
+    if (!isBindingName(identifier) || !surface.receivers.includes(identifier.text) || ts.isImportSpecifier(identifier.parent)) {
+      continue;
+    }
+    const declaration = identifier.parent;
+    const fromRuntime =
+      ts.isBindingElement(declaration) &&
+      ts.isVariableDeclaration(declaration.parent.parent) &&
+      declaration.parent.parent.initializer !== undefined &&
+      canonical(declaration.parent.parent.initializer, file) === surface.runtime;
+    let initializer = ts.isVariableDeclaration(declaration) && declaration.initializer !== undefined ? unwrap(declaration.initializer) : undefined;
+    if (initializer !== undefined && ts.isAwaitExpression(initializer)) {
+      initializer = unwrap(initializer.expression);
+    }
+    const fromComposition =
+      initializer !== undefined && ts.isCallExpression(initializer) && (surface.compositions ?? []).some((site) => site.callee === canonical(initializer.expression, file));
+    if (!fromRuntime && !fromComposition) {
+      violations.push(violation("route-container", `${surface.file} ${identifier.text}`, `operations receiver must be bound by a declared composition or ${surface.runtime ?? "no runtime"}`));
+    }
+  }
+  for (const call of descendants(file, ts.isCallExpression)) {
+    if (surface.containerFactories.includes(canonical(call.expression, file)) && !isContainerFactoryResult(call, surface, file)) {
+      violations.push(violation("route-container", `${surface.file} ${canonical(call.expression, file)}`, "result must bind to a dependency container"));
+    }
+  }
+}
+
+// Every spread of the route is declared with its exact expression and context; the ones
+// that can carry ports are validated where they are used.
+function checkSpreadCensus(file: ts.SourceFile, surface: RouteSurface, violations: string[]): void {
+  const discovered = new Map<string, number>();
+  for (const spread of descendants(file, (node): node is ts.SpreadAssignment | ts.SpreadElement => ts.isSpreadAssignment(node) || ts.isSpreadElement(node))) {
+    const key = `${canonical(spread.expression, file)} @ ${spreadContext(spread)}`;
+    discovered.set(key, (discovered.get(key) ?? 0) + 1);
+    const declared = surface.spreads.find((entry) => `${entry.expression} @ ${entry.context}` === key);
+    if (declared?.class === "wiring") {
+      const loader = moduleFunction(file, "loadDefaultDeps");
+      const declarations = loader === undefined || !ts.isIdentifier(spread.expression) ? [] : bindingDeclarations(loader, spread.expression.text);
+      const declaration = declarations[0];
+      let initializer = declaration !== undefined && ts.isVariableDeclaration(declaration) && declaration.initializer ? unwrap(declaration.initializer) : undefined;
+      if (initializer !== undefined && ts.isAwaitExpression(initializer)) {
+        initializer = unwrap(initializer.expression);
+      }
+      if (declarations.length !== 1 || initializer === undefined || !ts.isCallExpression(initializer) || !surface.loaderCalls.includes(canonical(initializer.expression, file))) {
+        violations.push(violation("route-spread", `${surface.file} ${key}`, "wiring spread must be a single loader binding from a declared loader call"));
+      }
+    }
+  }
+  const expected = new Map<string, number>();
+  for (const entry of surface.spreads) {
+    const key = `${entry.expression} @ ${entry.context}`;
+    expected.set(key, (expected.get(key) ?? 0) + (entry.count ?? 1));
+    const callee = entry.context.endsWith("()") ? entry.context.slice(0, -2) : undefined;
+    const site = surface.calls.find((candidate) => candidate.callee === callee);
+    const consistent =
+      entry.class === "composition"
+        ? (surface.compositions ?? []).some((composition) => composition.callee === callee)
+        : entry.class === "write-argument"
+          ? site !== undefined && ["operation-write", "write", "audit"].includes(site.sink)
+          : entry.class === "wiring"
+            ? entry.context === "return in loadDefaultDeps"
+            : entry.class === "executed-helper"
+              ? surface.authorization !== undefined && entry.context === `return in ${surface.authorization}`
+              : callee === undefined || (site === undefined && !(surface.compositions ?? []).some((composition) => composition.callee === callee));
+    if (!consistent) {
+      violations.push(violation("route-spread", `${surface.file} ${key}`, `cannot be classified ${entry.class} in this context`));
+    }
+  }
+  for (const key of new Set([...discovered.keys(), ...expected.keys()])) {
+    if ((discovered.get(key) ?? 0) !== (expected.get(key) ?? 0)) {
+      violations.push(violation("route-spread", `${surface.file} ${key}`, `${expected.has(key) ? "declared" : "unmodelled"} spread: expected ${expected.get(key) ?? 0}, got ${discovered.get(key) ?? 0}`));
+    }
+  }
+}
+
+function sortedMultiset(values: readonly string[]): string[] {
+  return [...values].sort();
+}
+
+// The runtime import surface is exact, dynamic imports live only in the loader, and the
+// loader calls nothing but the declared loaders.
+function checkImportLedger(file: ts.SourceFile, surface: RouteSurface, violations: string[]): void {
+  const actual: Record<string, string[]> = {};
+  for (const statement of file.statements) {
+    if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) {
+      continue;
+    }
+    const clause = statement.importClause;
+    const names: string[] = [];
+    if (clause === undefined) {
+      names.push("(side effect)");
+    } else if (!clause.isTypeOnly) {
+      if (clause.name) {
+        names.push(`default as ${clause.name.text}`);
+      }
+      const bindings = clause.namedBindings;
+      if (bindings !== undefined && ts.isNamespaceImport(bindings)) {
+        names.push(`* as ${bindings.name.text}`);
+      } else if (bindings !== undefined) {
+        for (const element of bindings.elements) {
+          if (!element.isTypeOnly) {
+            names.push(element.propertyName ? `${element.propertyName.text} as ${element.name.text}` : element.name.text);
+          }
+        }
+      }
+    }
+    if (names.length > 0) {
+      actual[statement.moduleSpecifier.text] = sortedMultiset([...(actual[statement.moduleSpecifier.text] ?? []), ...names]);
+    }
+  }
+  for (const specifier of new Set([...Object.keys(actual), ...Object.keys(surface.runtimeImports)])) {
+    const expected = sortedMultiset(surface.runtimeImports[specifier] ?? []);
+    const found = actual[specifier] ?? [];
+    if (!isDeepStrictEqual(found, expected)) {
+      violations.push(violation("route-import", `${surface.file} ${specifier}`, `runtime imports must be ${json(expected)} (got ${json(found)})`));
+    }
+  }
+  const bound = new Set(descendants(file, ts.isIdentifier).filter(isBindingName).map((identifier) => identifier.text));
+  const globals = new Set<string>();
+  for (const identifier of descendants(file, ts.isIdentifier)) {
+    if (isValueReference(identifier) && !bound.has(identifier.text) && !ROUTE_GLOBALS.includes(identifier.text) && !globals.has(identifier.text)) {
+      globals.add(identifier.text);
+      violations.push(violation("route-import", `${surface.file} ${identifier.text}`, "unregistered global runtime binding"));
+    }
+  }
+  const loader = moduleFunction(file, "loadDefaultDeps");
+  const dynamic: string[] = [];
+  const loaderCalls: string[] = [];
+  for (const call of descendants(file, ts.isCallExpression)) {
+    const inLoader = loader !== undefined && isWithin(call, loader);
+    if (call.expression.kind === ts.SyntaxKind.ImportKeyword) {
+      const specifier = call.arguments.length === 1 ? literalText(call.arguments[0]) : undefined;
+      dynamic.push(specifier ?? canonical(call, file));
+      if (!inLoader || specifier === undefined) {
+        violations.push(violation("route-import", `${surface.file} ${canonical(call, file)}`, "dynamic imports must be literal and live in loadDefaultDeps"));
+      }
+    } else if (inLoader) {
+      const callee = unwrap(call.expression);
+      if (!ts.isArrowFunction(callee) && !ts.isFunctionExpression(callee)) {
+        loaderCalls.push(canonical(call.expression, file));
+      }
+    }
+  }
+  if (!isDeepStrictEqual(sortedMultiset(dynamic), sortedMultiset(surface.dynamicImports))) {
+    violations.push(violation("route-import", surface.file, `dynamic imports must be ${json(sortedMultiset(surface.dynamicImports))} (got ${json(sortedMultiset(dynamic))})`));
+  }
+  if (!isDeepStrictEqual(sortedMultiset(loaderCalls), sortedMultiset(surface.loaderCalls))) {
+    violations.push(violation("route-import", `${surface.file} loadDefaultDeps`, `loader calls must be ${json(sortedMultiset(surface.loaderCalls))} (got ${json(sortedMultiset(loaderCalls))})`));
   }
 }
 
@@ -1876,28 +3138,59 @@ function checkImports(file: ts.SourceFile, surface: RouteSurface, violations: st
   }
 }
 
-async function evaluateRouteSurface(surface: RouteSurface, source: string): Promise<string[]> {
+async function evaluateRouteSurface(surface: RouteSurface, source: string, disabled: DisabledChecks): Promise<string[]> {
   const file = parseSource(source, surface.file);
   if (file === undefined) {
     return [violation("parse", surface.file, "source must parse as TypeScript before evaluation")];
   }
   const violations: string[] = [];
-  checkCallSites(file, surface, surface.calls, true, violations);
-  checkCallSites(file, surface, surface.compositions ?? [], false, violations);
+  checkCallSites(file, surface, surface.calls, "call", violations, disabled);
+  checkCallSites(file, surface, surface.compositions ?? [], "composition", violations, disabled);
   checkImports(file, surface, violations);
   await checkRouteHelpers(file, surface, violations);
+  const contract = portContract(file, surface);
+  if (typeof contract === "string") {
+    if (!disabled.has("write-census")) {
+      violations.push(violation("route-port", surface.file, contract));
+    }
+    return violations;
+  }
+  if (!disabled.has("write-census")) {
+    checkWriteCensus(file, surface, contract, violations);
+  }
+  if (!disabled.has("port-wiring")) {
+    checkPortWiring(file, surface, contract, violations);
+  }
+  if (!disabled.has("container-use")) {
+    checkContainerUse(file, surface, contract, violations);
+  }
+  if (!disabled.has("spread-identity")) {
+    checkSpreadCensus(file, surface, violations);
+  }
+  if (!disabled.has("import-ledger")) {
+    checkImportLedger(file, surface, violations);
+  }
   return violations;
 }
 
 // ── Evaluator ──────────────────────────────────────────────────────────────
 
-async function evaluateApplicationScenario(scenario: ApplicationScenario, source: string): Promise<string[]> {
+async function evaluateApplicationScenario(scenario: ApplicationScenario, source: string, disabled: DisabledChecks): Promise<string[]> {
   const violations: string[] = [];
   const recorder = createRecorder();
   try {
     await scenario.run(source, recorder, violations);
   } catch (error) {
     violations.push(asViolation(scenario.label, error));
+  }
+  if (!disabled.has("application-census")) {
+    const counts = recorder.counts();
+    for (const name of [...new Set([...Object.keys(counts), ...Object.keys(scenario.recorded)])].sort()) {
+      const expected = scenario.recorded[name] ?? 0;
+      if (counts[name] !== expected && !(expected === 0 && counts[name] === undefined)) {
+        violations.push(violation("write-census", scenario.label, `${expected === 0 ? "unregistered" : "miscounted"} application write ${name}: expected ${expected} call(s), got ${json(counts[name] ?? 0)}`));
+      }
+    }
   }
   return violations;
 }
@@ -1910,13 +3203,13 @@ const EVALUATED_FILES = [
   ]),
 ];
 
-async function evaluateFile(file: string, source: string): Promise<string[]> {
+async function evaluateFile(file: string, source: string, disabled: DisabledChecks): Promise<string[]> {
   const violations: string[] = [];
   for (const scenario of APPLICATION_SCENARIOS.filter((candidate) => candidate.file === file)) {
-    violations.push(...(await evaluateApplicationScenario(scenario, source)));
+    violations.push(...(await evaluateApplicationScenario(scenario, source, disabled)));
   }
   for (const surface of ROUTE_SURFACES.filter((candidate) => candidate.file === file)) {
-    violations.push(...(await evaluateRouteSurface(surface, source)));
+    violations.push(...(await evaluateRouteSurface(surface, source, disabled)));
   }
   if (file === AUDIT_SOURCE) {
     violations.push(...(await evaluateAuditSink(source)));
@@ -1937,16 +3230,20 @@ function realSource(file: string): string {
 }
 
 // Every file is evaluated against its own source; untouched files reuse the verdict on
-// the real tree, so a mutation proof is always judged by the complete oracle.
-async function evaluateWriteAttribution(overrides: Readonly<Record<string, string>> = {}): Promise<string[]> {
+// the real tree, so a mutation proof is always judged by the complete oracle. Only the
+// meta-tests pass `disabled`, to show that each completeness mechanism is load-bearing.
+async function evaluateWriteAttribution(
+  overrides: Readonly<Record<string, string>> = {},
+  disabled: DisabledChecks = ALL_CHECKS,
+): Promise<string[]> {
   const violations: string[] = [];
   for (const file of EVALUATED_FILES) {
     if (Object.hasOwn(overrides, file)) {
-      violations.push(...(await evaluateFile(file, overrides[file])));
+      violations.push(...(await evaluateFile(file, overrides[file], disabled)));
     } else {
       let verdict = REAL_VIOLATIONS.get(file);
       if (verdict === undefined) {
-        verdict = evaluateFile(file, realSource(file));
+        verdict = evaluateFile(file, realSource(file), ALL_CHECKS);
         REAL_VIOLATIONS.set(file, verdict);
       }
       violations.push(...(await verdict));
@@ -2487,6 +3784,267 @@ const ATTACK_MATRIX: readonly AttackCase[] = [
     edits: [["    audit: {\n      writeAuditLog: nativeDeps.writeAuditLog,", "    audit: {\n      writeAuditLog: (request: unknown, input: Record<string, unknown>) => nativeDeps.writeAuditLog(request, { ...input, actor: undefined } as never),"]],
     expected: ["[route-argument] server/routes/admin-study-tracking.fastify.ts createAdminStudyTrackingOperations: argument 1.audit.writeAuditLog must be nativeDeps.writeAuditLog"],
   },
+  {
+    attack: "unregistered write after the declared operation call",
+    file: CLINIC_REPORT_ACCESS_ROUTE,
+    edits: [[
+      "      { clinicId: auth.clinicId, clinicUserId: auth.id },\n      createAuditRequestLike(request, auth),\n    );\n\n    if (result.kind === \"report_not_found\")",
+      "      { clinicId: auth.clinicId, clinicUserId: auth.id },\n      createAuditRequestLike(request, auth),\n    );\n    await deps.revokeReportAccessToken({ id: tokenIdOf(result), revokedByClinicUserId: null, revokedByAdminUserId: null });\n\n    if (result.kind === \"report_not_found\")",
+    ]],
+    expected: ["[route-write] server/routes/report-access-tokens.fastify.ts: unregistered persistence write: deps.revokeReportAccessToken"],
+  },
+  {
+    attack: "unregistered write in a sibling read handler",
+    file: ADMIN_REPORT_ACCESS_ROUTE,
+    edits: [[
+      "    const result = await reportAccess.getToken(tokenId);",
+      "    if (tokenId > 0) {\n      await deps.revokeReportAccessToken({ id: tokenId, revokedByClinicUserId: null, revokedByAdminUserId: null });\n    }\n    const result = await reportAccess.getToken(tokenId);",
+    ]],
+    expected: ["[route-write] server/routes/admin-report-access-tokens.fastify.ts: unregistered persistence write: deps.revokeReportAccessToken"],
+  },
+  {
+    attack: "direct nativeDeps write beside the declared operation",
+    file: ADMIN_STUDY_TRACKING_ROUTE,
+    edits: [[
+      "    const result = await adminOperations.createAdminStudyTrackingCase({",
+      "    await nativeDeps.createStudyTrackingCase({ clinicId: 1, reportId: null, createdByAdminId: null, createdByClinicUserId: null } as never);\n    const result = await adminOperations.createAdminStudyTrackingCase({",
+    ]],
+    expected: ["[route-write] server/routes/admin-study-tracking.fastify.ts: unregistered persistence write: nativeDeps.createStudyTrackingCase"],
+  },
+  {
+    attack: "extra audit write through the port",
+    file: ADMIN_REPORT_ACCESS_ROUTE,
+    edits: [[
+      "    const result = await reportAccess.getToken(tokenId);",
+      "    await deps.writeAuditLog(createAuditRequestLike(request), { event: \"report_access_token.viewed\" });\n    const result = await reportAccess.getToken(tokenId);",
+    ]],
+    expected: ["[route-write] server/routes/admin-report-access-tokens.fastify.ts: unregistered audit write: deps.writeAuditLog"],
+  },
+  {
+    attack: "duplicated audit write through the composition",
+    file: REPORTS_STATUS_ROUTE,
+    edits: [[
+      "    await composition.writeAuditLog(createAuditRequestLike(request, auth), {",
+      "    await composition.writeAuditLog(createAuditRequestLike(request), { event: \"report.status_changed\" });\n    await composition.writeAuditLog(createAuditRequestLike(request, auth), {",
+    ]],
+    expected: ["[route-call] server/routes/reports-status.fastify.ts composition.writeAuditLog: must be called exactly 1 time(s) (got 2)"],
+  },
+  {
+    attack: "write port aliased before the call",
+    file: ADMIN_REPORT_ACCESS_ROUTE,
+    edits: [[
+      "    const result = await reportAccess.getToken(tokenId);",
+      "    const persist = deps.revokeReportAccessToken;\n    await persist({ id: tokenId, revokedByClinicUserId: null, revokedByAdminUserId: null });\n    const result = await reportAccess.getToken(tokenId);",
+    ]],
+    expected: ["[route-write] server/routes/admin-report-access-tokens.fastify.ts revokeReportAccessToken: unregistered reference to write port revokeReportAccessToken"],
+  },
+  {
+    attack: "write port destructured under another name",
+    file: ADMIN_REPORT_ACCESS_ROUTE,
+    edits: [[
+      "    const result = await reportAccess.getToken(tokenId);",
+      "    const { revokeReportAccessToken: persist } = deps;\n    await persist({ id: tokenId, revokedByClinicUserId: null, revokedByAdminUserId: null });\n    const result = await reportAccess.getToken(tokenId);",
+    ]],
+    expected: [
+      "[route-wiring] server/routes/admin-report-access-tokens.fastify.ts revokeReportAccessToken: must not bind port revokeReportAccessToken outside the dependency wiring",
+      "[route-container] server/routes/admin-report-access-tokens.fastify.ts deps: aliases a dependency container",
+    ],
+  },
+  {
+    attack: "write port called through a literal element access",
+    file: ADMIN_REPORT_ACCESS_ROUTE,
+    edits: [[
+      "    const result = await reportAccess.getToken(tokenId);",
+      "    await deps[\"revokeReportAccessToken\"]({ id: tokenId, revokedByClinicUserId: null, revokedByAdminUserId: null });\n    const result = await reportAccess.getToken(tokenId);",
+    ]],
+    expected: ["[route-write] server/routes/admin-report-access-tokens.fastify.ts: unregistered persistence write: deps[\"revokeReportAccessToken\"]"],
+  },
+  {
+    attack: "write port called through a comma expression",
+    file: ADMIN_REPORT_ACCESS_ROUTE,
+    edits: [[
+      "    const result = await reportAccess.getToken(tokenId);",
+      "    await (0, deps.revokeReportAccessToken)({ id: tokenId, revokedByClinicUserId: null, revokedByAdminUserId: null });\n    const result = await reportAccess.getToken(tokenId);",
+    ]],
+    expected: ["[route-write] server/routes/admin-report-access-tokens.fastify.ts revokeReportAccessToken: unregistered reference to write port revokeReportAccessToken"],
+  },
+  {
+    attack: "admin particular detail backfills tracking without the admin",
+    file: ADMIN_PARTICULAR_ROUTE,
+    edits: [["adminOperations.getToken(tokenId, admin.id)", "adminOperations.getToken(tokenId, null as never)"]],
+    expected: ["[route-argument] server/routes/admin-particular-tokens.fastify.ts adminOperations.getToken: argument 2 must be admin.id (got null as never)"],
+  },
+  {
+    attack: "admin particular relink backfills tracking without the admin",
+    file: ADMIN_PARTICULAR_ROUTE,
+    edits: [["      parsed.data.reportId,\n      admin.id,\n", "      parsed.data.reportId,\n      0,\n"]],
+    expected: ["[route-argument] server/routes/admin-particular-tokens.fastify.ts adminOperations.updateTokenReport: argument 3 must be admin.id (got 0)"],
+  },
+  {
+    attack: "new handler with an unregistered write",
+    file: ADMIN_REPORT_ACCESS_ROUTE,
+    edits: [[
+      "        : null,\n    });\n  });\n};",
+      "        : null,\n    });\n  });\n\n  app.post(\"/forge\", async () =>\n    deps.createReportAccessToken({ clinicId: 1, reportId: 1, tokenHash: \"forged\", tokenLast4: \"0000\", expiresAt: null, createdByClinicUserId: null, createdByAdminUserId: null, revokedByClinicUserId: null, revokedByAdminUserId: null }),\n  );\n};",
+    ]],
+    expected: ["[route-write] server/routes/admin-report-access-tokens.fastify.ts: unregistered persistence write: deps.createReportAccessToken"],
+  },
+  {
+    attack: "new HTTP method reusing a declared write operation",
+    file: ADMIN_REPORT_ACCESS_ROUTE,
+    edits: [[
+      "        : null,\n    });\n  });\n};",
+      "        : null,\n    });\n  });\n\n  app.put(\"/:tokenId\", async (request) =>\n    reportAccess.revokeToken(Number(request.params), { id: 0, username: \"forged\" }, createAuditRequestLike(request)),\n  );\n};",
+    ]],
+    expected: ["[route-call] server/routes/admin-report-access-tokens.fastify.ts reportAccess.revokeToken: must be called exactly 1 time(s) (got 2)"],
+  },
+  {
+    attack: "decoy composition beside a malicious live composition",
+    file: ADMIN_PARTICULAR_ROUTE,
+    edits: [[
+      "  const adminOperations = createAdminParticularAccessOperations({\n    ...deps,\n",
+      "  const forgedOperations = createAdminParticularAccessOperations({ ...deps, createParticularToken: async () => ({}) } as never);\n  void forgedOperations;\n  const adminOperations = createAdminParticularAccessOperations({\n    ...deps,\n",
+    ]],
+    expected: ["[route-call] server/routes/admin-particular-tokens.fastify.ts createAdminParticularAccessOperations: must be called exactly 1 time(s) (got 2)"],
+  },
+  {
+    attack: "operations receiver aliased out of the census",
+    file: ADMIN_PARTICULAR_ROUTE,
+    edits: [["adminOperations.getToken(tokenId, admin.id)", "adminOperations.getToken(tokenId, admin.id);\n    const operationsAlias = adminOperations;\n    void operationsAlias"]],
+    expected: ["[route-container] server/routes/admin-particular-tokens.fastify.ts adminOperations: uses an operations receiver outside a declared call"],
+  },
+  {
+    attack: "dynamic import inside a handler",
+    file: ADMIN_REPORT_ACCESS_ROUTE,
+    edits: [[
+      "    const result = await reportAccess.getToken(tokenId);",
+      "    const repository = await import(\"../features/report-access/infrastructure/index.ts\");\n    void repository;\n    const result = await reportAccess.getToken(tokenId);",
+    ]],
+    expected: ["[route-import] server/routes/admin-report-access-tokens.fastify.ts import(\"../features/report-access/infrastructure/index.ts\"): dynamic imports must be literal and live in loadDefaultDeps"],
+  },
+  {
+    attack: "loader invokes the audit port while wiring",
+    file: ADMIN_REPORT_ACCESS_ROUTE,
+    edits: [[
+      "      const audit = await import(\"../lib/audit.ts\");\n",
+      "      const audit = await import(\"../lib/audit.ts\");\n      await audit.writeAuditLog({}, { event: \"forged\" });\n",
+    ]],
+    expected: [
+      "[route-import] server/routes/admin-report-access-tokens.fastify.ts loadDefaultDeps: loader calls must be",
+      "[route-write] server/routes/admin-report-access-tokens.fastify.ts: unregistered audit write: audit.writeAuditLog",
+    ],
+  },
+  {
+    attack: "loader wiring wraps the persistence port",
+    file: ADMIN_REPORT_ACCESS_ROUTE,
+    edits: [[
+      "        createReportAccessToken:\n          reportAccessRepository.createReportAccessToken,",
+      "        createReportAccessToken: (input: Record<string, unknown>) =>\n          reportAccessRepository.createReportAccessToken({ ...input, createdByAdminUserId: null } as never),",
+    ]],
+    expected: ["[route-wiring] server/routes/admin-report-access-tokens.fastify.ts createReportAccessToken: port must be wired as a pass-through"],
+  },
+  {
+    attack: "persistence port re-keyed outside the wiring",
+    file: ADMIN_REPORT_ACCESS_ROUTE,
+    edits: [[
+      "    const result = await reportAccess.getToken(tokenId);",
+      "    const leaked = { createReportAccessToken: deps.createReportAccessToken };\n    void leaked;\n    const result = await reportAccess.getToken(tokenId);",
+    ]],
+    expected: ["[route-wiring] server/routes/admin-report-access-tokens.fastify.ts createReportAccessToken: port must not be re-keyed outside the dependency wiring"],
+  },
+  {
+    attack: "persistence port wired under a computed key",
+    file: ADMIN_REPORT_ACCESS_ROUTE,
+    edits: [[
+      "    createReportAccessToken:\n      options.createReportAccessToken ?? defaultDeps!.createReportAccessToken,",
+      "    createReportAccessToken:\n      options.createReportAccessToken ?? defaultDeps!.createReportAccessToken,\n    [\"createReport\" + \"AccessToken\"]: async () => undefined,",
+    ]],
+    expected: ["[route-wiring] server/routes/admin-report-access-tokens.fastify.ts: object keys must be static"],
+  },
+  {
+    attack: "composition spreads the raw plugin options",
+    file: ADMIN_PARTICULAR_ROUTE,
+    edits: [["  const adminOperations = createAdminParticularAccessOperations({\n    ...deps,\n", "  const adminOperations = createAdminParticularAccessOperations({\n    ...options,\n"]],
+    expected: ['[route-spread] server/routes/admin-particular-tokens.fastify.ts createAdminParticularAccessOperations: argument 1 must spread exactly ["deps"] (got ["options"])'],
+  },
+  {
+    attack: "composition spreads a nested wrapper of deps",
+    file: ADMIN_PARTICULAR_ROUTE,
+    edits: [["  const adminOperations = createAdminParticularAccessOperations({\n    ...deps,\n", "  const adminOperations = createAdminParticularAccessOperations({\n    ...{ ...deps },\n"]],
+    expected: ['[route-spread] server/routes/admin-particular-tokens.fastify.ts createAdminParticularAccessOperations: argument 1 must spread exactly ["deps"] (got ["{ ...deps }"])'],
+  },
+  {
+    attack: "composition spreads a function-returned port set",
+    file: ADMIN_PARTICULAR_ROUTE,
+    edits: [["  const adminOperations = createAdminParticularAccessOperations({\n    ...deps,\n", "  const adminOperations = createAdminParticularAccessOperations({\n    ...structuredClone(deps),\n"]],
+    expected: [
+      "argument 1 spread structuredClone(deps) must be a plain binding",
+      "[route-container] server/routes/admin-particular-tokens.fastify.ts deps: passes a dependency container to an unmodelled callee",
+    ],
+  },
+  {
+    attack: "composition spreads a conditional port set",
+    file: ADMIN_PARTICULAR_ROUTE,
+    edits: [["  const adminOperations = createAdminParticularAccessOperations({\n    ...deps,\n", "  const adminOperations = createAdminParticularAccessOperations({\n    ...(options.now ? deps : options),\n"]],
+    expected: ['must spread exactly ["deps"] (got ["(options.now ? deps : options)"])'],
+  },
+  {
+    attack: "composition spread substitutes the audit port",
+    file: PUBLIC_REPORT_ACCESS_ROUTE,
+    edits: [[
+      "  const reportAccess = createPublicReportAccessOperations({\n    ...deps,\n",
+      "  const reportAccess = createPublicReportAccessOperations({\n    ...{ ...deps, writeAuditLog: async () => undefined },\n",
+    ]],
+    expected: ['[route-spread] server/routes/public-report-access.fastify.ts createPublicReportAccessOperations: argument 1 must spread exactly ["deps"]'],
+  },
+  {
+    attack: "composition spread follows an explicit field",
+    file: PUBLIC_REPORT_ACCESS_ROUTE,
+    edits: [[
+      "  const reportAccess = createPublicReportAccessOperations({\n    ...deps,\n    buildPublicActor: buildPublicReportAccessTokenActor,\n",
+      "  const reportAccess = createPublicReportAccessOperations({\n    buildPublicActor: buildPublicReportAccessTokenActor,\n    ...deps,\n",
+    ]],
+    expected: ["argument 1.buildPublicActor must not be overridden by a later spread", "argument 1 spread deps must lead the object"],
+  },
+  {
+    attack: "loader wiring spreads an unmodelled module",
+    file: CLINIC_STUDY_TRACKING_ROUTE,
+    edits: [["    ...persistence,\n", "    ...(await import(\"../features/study-tracking/infrastructure/index.ts\")),\n"]],
+    expected: ["[route-spread] server/routes/study-tracking.fastify.ts persistence @ return in loadDefaultDeps: declared spread: expected 1, got 0"],
+  },
+  {
+    attack: "write argument spreads the raw request body",
+    file: CLINIC_PARTICULAR_ROUTE,
+    edits: [["        ...parsed.data,\n", "        ...parsed.data,\n        ...(request.body as object),\n"]],
+    expected: ['[route-spread] server/routes/particular-tokens.fastify.ts clinicOperations.createToken: argument 1 must spread exactly ["parsed.data"]'],
+  },
+  {
+    attack: "options contract grows an unclassified port",
+    file: ADMIN_REPORT_ACCESS_ROUTE,
+    edits: [[
+      "  writeAuditLog?: (req: unknown, input: AuditWriteInput) => Promise<void>;\n  mutationRateLimitWindowMs?: number;",
+      "  writeAuditLog?: (req: unknown, input: AuditWriteInput) => Promise<void>;\n  purgeReportAccessTokens?: (clinicId: number) => Promise<void>;\n  mutationRateLimitWindowMs?: number;",
+    ]],
+    expected: ["[route-port] server/routes/admin-report-access-tokens.fastify.ts purgeReportAccessTokens: unclassified port of AdminReportAccessTokensNativeRoutesOptions"],
+  },
+  {
+    attack: "global fetch writes through the persistence REST endpoint",
+    file: ADMIN_REPORT_ACCESS_ROUTE,
+    edits: [[
+      "    const result = await reportAccess.getToken(tokenId);",
+      "    await fetch(`${ENV.supabaseUrl}/rest/v1/report_access_tokens`, { method: \"POST\", body: \"{}\" });\n    const result = await reportAccess.getToken(tokenId);",
+    ]],
+    expected: ["[route-import] server/routes/admin-report-access-tokens.fastify.ts fetch: unregistered global runtime binding"],
+  },
+  {
+    attack: "application creates a token and revokes it without attribution",
+    file: ADMIN_REPORT_ACCESS_APPLICATION,
+    edits: [[
+      "      await deps.writeAuditLog(auditRequest, {\n        event: \"report_access_token.created\",",
+      "      await deps.revokeReportAccessToken({ id: token.id, revokedByClinicUserId: null, revokedByAdminUserId: null });\n      await deps.writeAuditLog(auditRequest, {\n        event: \"report_access_token.created\",",
+    ]],
+    expected: ["[write-census] admin report access token create: unregistered application write revokeReportAccessToken: expected 0 call(s), got 1"],
+  },
 ];
 
 test("write attribution evaluator rejects the attack matrix that legacy markers accept", async () => {
@@ -2557,11 +4115,149 @@ test("write attribution evaluator fails closed on unparsable duplicated or unres
   }
 });
 
+// Review finding 4112295107: a persistence write the route makes directly, next to the
+// declared operation call, must be censused even though every declared call stays correct.
+const UNREGISTERED_ROUTE_WRITE: Edit = [
+  "    const result = await reportAccess.createToken(\n      {\n        clinicId: parsed.data.clinicId,",
+  "    await deps.createReportAccessToken({\n      clinicId: parsed.data.clinicId,\n      reportId: parsed.data.reportId,\n      tokenHash: \"forged-hash\",\n      tokenLast4: \"0000\",\n      expiresAt: null,\n      createdByClinicUserId: null,\n      createdByAdminUserId: null,\n      revokedByClinicUserId: null,\n      revokedByAdminUserId: null,\n    });\n    const result = await reportAccess.createToken(\n      {\n        clinicId: parsed.data.clinicId,",
+];
+const UNREGISTERED_ROUTE_WRITE_VIOLATION =
+  "[route-write] server/routes/admin-report-access-tokens.fastify.ts: unregistered persistence write: deps.createReportAccessToken";
+
+// Review finding 4112295109: a spread may only expand the exact wired binding; a nested
+// object that re-wraps the persistence port must fail while studyTracking and now stay put.
+const MALICIOUS_COMPOSITION_SPREAD: Edit = [
+  "  const clinicOperations = createClinicParticularAccessOperations({\n    ...deps,\n",
+  "  const clinicOperations = createClinicParticularAccessOperations({\n    ...{\n      ...deps,\n      createParticularToken: async (payload: Record<string, unknown>) =>\n        deps.createParticularToken({\n          ...payload,\n          createdByClinicUserId: null,\n        } as never),\n    },\n",
+];
+const MALICIOUS_COMPOSITION_SPREAD_VIOLATION =
+  '[route-spread] server/routes/particular-tokens.fastify.ts createClinicParticularAccessOperations: argument 1 must spread exactly ["deps"]';
+
+const PRE_FIX_EVALUATOR: DisabledChecks = new Set(EVALUATOR_CHECKS);
+
+test("mutation proof: an unregistered route-level persistence write is censused although the declared calls stay correct", async () => {
+  const overrides = mutate(ADMIN_REPORT_ACCESS_ROUTE, UNREGISTERED_ROUTE_WRITE);
+  assert.equal(legacyAccepts(overrides), true, "the legacy presence oracle must stay green on the mutated source");
+  assert.deepEqual(await evaluateWriteAttribution(overrides, PRE_FIX_EVALUATOR), [], "the evaluator without the write census accepts the extra write");
+  const violations = await evaluateWriteAttribution(overrides);
+  assert.ok(violations.includes(UNREGISTERED_ROUTE_WRITE_VIOLATION), `expected ${UNREGISTERED_ROUTE_WRITE_VIOLATION}, got ${json(violations)}`);
+  assert.deepEqual(
+    violations.filter((entry) => /reportAccess\.createToken|createAdminReportAccessOperations/.test(entry)),
+    [],
+    "the declared operation call and composition must keep passing: only the census rejects the write",
+  );
+});
+
+test("mutation proof: a nested spread that re-wraps the persistence port fails the spread contract", async () => {
+  const overrides = mutate(CLINIC_PARTICULAR_ROUTE, MALICIOUS_COMPOSITION_SPREAD);
+  assert.equal(legacyAccepts(overrides), true, "the legacy presence oracle must stay green on the mutated source");
+  assert.deepEqual(await evaluateWriteAttribution(overrides, PRE_FIX_EVALUATOR), [], "the boolean spread allowance accepts the wrapper");
+  const violations = await evaluateWriteAttribution(overrides);
+  assert.ok(violations.some((entry) => entry.startsWith(MALICIOUS_COMPOSITION_SPREAD_VIOLATION)), `expected ${MALICIOUS_COMPOSITION_SPREAD_VIOLATION}, got ${json(violations)}`);
+  assert.deepEqual(
+    violations.filter((entry) => /argument 1\.(studyTracking|now)/.test(entry)),
+    [],
+    "the explicit studyTracking and now fields stay correct: only the spread carries the wrapper",
+  );
+});
+
+// Each completeness mechanism is removed on its own; the attack it owns must then pass the
+// whole oracle, or the mechanism would be dead weight.
+const LOAD_BEARING_ATTACKS: Readonly<Record<EvaluatorCheck, readonly AttackCase[]>> = {
+  "write-census": [{ attack: "direct unregistered persistence write", file: ADMIN_REPORT_ACCESS_ROUTE, edits: [UNREGISTERED_ROUTE_WRITE], expected: [UNREGISTERED_ROUTE_WRITE_VIOLATION] }],
+  "port-wiring": [
+    {
+      attack: "dependency wiring wraps the persistence port",
+      file: ADMIN_REPORT_ACCESS_ROUTE,
+      edits: [[
+        "    createReportAccessToken:\n      options.createReportAccessToken ?? defaultDeps!.createReportAccessToken,",
+        "    createReportAccessToken: async (input) => {\n      input.createdByAdminUserId = null;\n      return (options.createReportAccessToken ?? defaultDeps!.createReportAccessToken)(input);\n    },",
+      ]],
+      expected: ["[route-wiring] server/routes/admin-report-access-tokens.fastify.ts createReportAccessToken: port must be wired as a pass-through"],
+    },
+  ],
+  "container-use": [
+    {
+      attack: "dependency container reached through a dynamic key",
+      file: ADMIN_REPORT_ACCESS_ROUTE,
+      edits: [[
+        "    const result = await reportAccess.getToken(tokenId);",
+        "    const ports: Record<string, (input: unknown) => Promise<unknown>> = deps;\n    await ports[\"revokeReport\" + \"AccessToken\"]({ id: tokenId, revokedByClinicUserId: null, revokedByAdminUserId: null });\n    const result = await reportAccess.getToken(tokenId);",
+      ]],
+      expected: ["[route-container] server/routes/admin-report-access-tokens.fastify.ts deps: aliases a dependency container"],
+    },
+  ],
+  "spread-identity": [
+    {
+      attack: "composition spreads a nested wrapper of deps",
+      file: ADMIN_PARTICULAR_ROUTE,
+      edits: [["  const adminOperations = createAdminParticularAccessOperations({\n    ...deps,\n", "  const adminOperations = createAdminParticularAccessOperations({\n    ...{ ...deps },\n"]],
+      expected: ['[route-spread] server/routes/admin-particular-tokens.fastify.ts createAdminParticularAccessOperations: argument 1 must spread exactly ["deps"] (got ["{ ...deps }"])'],
+    },
+    {
+      attack: "composition spreads the raw plugin options",
+      file: ADMIN_PARTICULAR_ROUTE,
+      edits: [["  const adminOperations = createAdminParticularAccessOperations({\n    ...deps,\n", "  const adminOperations = createAdminParticularAccessOperations({\n    ...options,\n"]],
+      expected: ['[route-spread] server/routes/admin-particular-tokens.fastify.ts createAdminParticularAccessOperations: argument 1 must spread exactly ["deps"] (got ["options"])'],
+    },
+  ],
+  "import-ledger": [
+    {
+      attack: "unregistered static import writes directly",
+      file: ADMIN_REPORT_ACCESS_ROUTE,
+      edits: [
+        ["import { ENV } from \"../lib/env.ts\";", "import { ENV } from \"../lib/env.ts\";\nimport { createAuditLog } from \"../db.ts\";"],
+        ["    const result = await reportAccess.getToken(tokenId);", "    await createAuditLog({ event: \"forged\" } as never);\n    const result = await reportAccess.getToken(tokenId);"],
+      ],
+      expected: ['[route-import] server/routes/admin-report-access-tokens.fastify.ts ../db.ts: runtime imports must be [] (got ["createAuditLog"])'],
+    },
+  ],
+  "application-census": [
+    {
+      attack: "application creates a token and revokes it without attribution",
+      file: ADMIN_REPORT_ACCESS_APPLICATION,
+      edits: [[
+        "      await deps.writeAuditLog(auditRequest, {\n        event: \"report_access_token.created\",",
+        "      await deps.revokeReportAccessToken({ id: token.id, revokedByClinicUserId: null, revokedByAdminUserId: null });\n      await deps.writeAuditLog(auditRequest, {\n        event: \"report_access_token.created\",",
+      ]],
+      expected: ["[write-census] admin report access token create: unregistered application write revokeReportAccessToken: expected 0 call(s), got 1"],
+    },
+  ],
+};
+
+test("meta-mutation: removing any completeness mechanism lets the attack it owns through", async () => {
+  for (const check of EVALUATOR_CHECKS) {
+    for (const attackCase of LOAD_BEARING_ATTACKS[check]) {
+      const overrides = mutate(attackCase.file, ...attackCase.edits);
+      await assertMutationEscapesLegacyButFails(overrides, attackCase.expected, `${check}: ${attackCase.attack}`);
+      assert.deepEqual(
+        await evaluateWriteAttribution(overrides, new Set([check])),
+        [],
+        `${check}: without the mechanism the attack "${attackCase.attack}" must pass, proving no other check covers it`,
+      );
+    }
+  }
+});
+
+test("port classification covers exactly the options contracts of the route surfaces", () => {
+  const members = new Set<string>();
+  for (const surface of ROUTE_SURFACES) {
+    const file = parseSource(realSource(surface.file), surface.file);
+    assert.ok(file, `${surface.file} must parse`);
+    const contract = portContract(file, surface);
+    assert.notEqual(typeof contract, "string", `${surface.file}: ${String(contract)}`);
+    for (const name of (contract as PortContract).keys()) {
+      members.add(name);
+    }
+  }
+  assert.deepEqual(Object.keys(PORT_CLASSES).sort(), [...members].sort());
+});
+
 // Every check family of the oracle is tripped by at least one mutation of the two
 // matrices; a family without that evidence would be unproven logic.
 test("every write attribution violation kind is proven by a mutation", async () => {
   const produced = new Set<string>();
-  for (const attackCase of [...ATTACK_MATRIX, ...FAIL_CLOSED_MATRIX]) {
+  for (const attackCase of [...ATTACK_MATRIX, ...FAIL_CLOSED_MATRIX, ...Object.values(LOAD_BEARING_ATTACKS).flat()]) {
     for (const kind of kindsOf(await evaluateWriteAttribution(mutate(attackCase.file, ...attackCase.edits)))) {
       produced.add(kind);
     }
