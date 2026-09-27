@@ -4,11 +4,12 @@ import {
   mkdirSync,
   mkdtempSync,
   readdirSync,
+  rmdirSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { basename, join, relative, resolve, sep } from "node:path";
 import {
   createSourceReader,
   listSourceFiles,
@@ -236,19 +237,107 @@ test("lector canónico lee el archivo tracked real con barra o backslash", () =>
   assert.equal(readSourceFile(HELPER_PATH.split("/").join("\\")), contents);
 });
 
-test("lector canónico rechaza un archivo presente pero no trackeado", () => {
-  const probeDirectory = resolve(process.cwd(), ".claude/worktrees/__reader-probe__");
+const REPO_ROOT = resolve(import.meta.dirname, "../..");
+const UNTRACKED_PROBE_NAME = "untracked-probe.txt";
 
-  mkdirSync(probeDirectory, { recursive: true });
-  writeFileSync(resolve(probeDirectory, "untracked-probe.ts"), "export {};\n", "utf8");
+type UntrackedProbe = {
+  readonly directory: string;
+  readonly repoRelativeFile: string;
+  readonly cleanup: () => void;
+};
+
+/**
+ * One untracked file inside the repo, in a directory that `mkdtempSync`
+ * creates fresh on every call (it never hands back an existing path). Cleanup
+ * unlinks exactly that file and removes the directory non-recursively, so
+ * anything the probe did not create makes cleanup fail instead of deleting it.
+ */
+function createUntrackedProbe(): UntrackedProbe {
+  const directory = mkdtempSync(resolve(REPO_ROOT, ".vetneb-reader-probe-"));
+  const file = resolve(directory, UNTRACKED_PROBE_NAME);
 
   try {
+    writeFileSync(file, "probe\n", { encoding: "utf8", flag: "wx" });
+  } catch (error) {
+    rmdirSync(directory);
+    throw error;
+  }
+
+  return {
+    directory,
+    repoRelativeFile: relative(REPO_ROOT, file).split(sep).join("/"),
+    cleanup: () => {
+      rmSync(file);
+      rmdirSync(directory);
+    },
+  };
+}
+
+test("lector canónico rechaza un archivo presente pero no trackeado con un probe aislado que no borra contenido ajeno", () => {
+  const probe = createUntrackedProbe();
+  const sibling = createUntrackedProbe();
+  const foreignFile = resolve(sibling.directory, "foreign-work.txt");
+
+  try {
+    // Rechazo: el archivo existe en disco pero no pertenece al inventario tracked.
+    assert.deepEqual(
+      readdirSync(probe.directory),
+      [UNTRACKED_PROBE_NAME],
+      "el probe existe en disco antes de leerlo",
+    );
+    assert.equal(
+      listTrackedFiles().includes(probe.repoRelativeFile),
+      false,
+      "el probe no está tracked",
+    );
     assert.throws(
-      () => readSourceFile(".claude/worktrees/__reader-probe__/untracked-probe.ts"),
+      () => readSourceFile(probe.repoRelativeFile),
       /not a git-tracked file/,
     );
+
+    // Aislamiento: cada creación usa un directorio propio, fuera de .claude/.
+    assert.notEqual(
+      probe.directory,
+      sibling.directory,
+      "dos probes nunca comparten directorio",
+    );
+    for (const created of [probe, sibling]) {
+      assert.equal(
+        created.repoRelativeFile.startsWith(".claude/"),
+        false,
+        created.repoRelativeFile,
+      );
+    }
+
+    // Cleanup no recursivo: contenido ajeno lo hace fallar y sobrevive intacto.
+    writeFileSync(foreignFile, "work\n", { encoding: "utf8", flag: "wx" });
+    assert.throws(
+      () => sibling.cleanup(),
+      (error: NodeJS.ErrnoException) =>
+        error.code === "ENOTEMPTY" || error.code === "EEXIST",
+      "el cleanup no puede eliminar un directorio con contenido ajeno",
+    );
+    assert.deepEqual(
+      readdirSync(sibling.directory),
+      ["foreign-work.txt"],
+      "el cleanup quitó sólo su propio archivo",
+    );
   } finally {
-    rmSync(probeDirectory, { recursive: true, force: true });
+    try {
+      rmSync(foreignFile, { force: true });
+      rmSync(resolve(sibling.directory, UNTRACKED_PROBE_NAME), { force: true });
+      rmdirSync(sibling.directory);
+    } finally {
+      probe.cleanup();
+    }
+  }
+
+  for (const created of [probe, sibling]) {
+    assert.equal(
+      readdirSync(REPO_ROOT).includes(basename(created.directory)),
+      false,
+      `${created.repoRelativeFile} no deja artefactos`,
+    );
   }
 });
 

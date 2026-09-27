@@ -833,50 +833,173 @@ test("01B fail-closed: migrar de node:fs al lector canónico no altera la clasif
 });
 
 test("01B fail-closed: sólo un uso real del lector canónico cuenta como lectura", () => {
+  const named = importStatement("{ readSourceFile }", READER_MODULE);
+  const namespace = importStatement("* as sources", READER_MODULE);
   const call = "\nconst value = readSourceFile(target);\n";
-  const counted = [
-    importStatement("{ readSourceFile }", READER_MODULE) + call,
-    importStatement("{ readSourceFile as load }", READER_MODULE) +
-      "\nconst value = load(target);\n",
-    importStatement("helpers, { readSourceFile }", READER_MODULE) + call,
-    importStatement("* as sources", READER_MODULE) +
-      "\nconst value = sources.readSourceFile(target);\n",
-    importStatement("{ readSourceFile }", READER_MODULE.replace(/\.ts$/, "")) +
-      call,
-    importStatement(`{ ${TRACKED_LISTER}, readSourceFile }`, READER_MODULE) +
-      `\nconst texts = ${TRACKED_LISTER}().map(readSourceFile);\n`,
-  ];
-  const ignored = [
-    importStatement("type { readSourceFile }", READER_MODULE) + call,
-    importStatement("{ type readSourceFile }", READER_MODULE) + call,
-    importStatement("{ readSourceFile }", OTHER_READER_MODULE) + call,
-    importStatement("{ readSourceFile }", READER_MODULE) + "\nconst value = 1;\n",
-    importStatement("* as sources", READER_MODULE) +
-      `\nconst value = sources.${TRACKED_FILES_LISTER}();\n`,
-    `const label = "readSourceFile";${call}`,
-    importStatement("{ readSourceFileExtra }", READER_MODULE) +
-      "\nconst value = readSourceFileExtra(target);\n",
-  ];
-
-  for (const source of counted) {
-    assert.equal(
-      importsCanonicalSourceReader(WALKER_SPEC_PATH, source),
+  const unused = (tail: string) => `${named}\n${tail}\n`;
+  // [caso, ¿cuenta como lectura?, source]. El uso se decide sobre el árbol
+  // sintáctico: una aparición textual del identificador nunca basta.
+  const cases: readonly (readonly [string, boolean, string])[] = [
+    ["named import + llamada real", true, named + call],
+    [
+      "alias + llamada real",
       true,
-      source,
-    );
-  }
+      importStatement("{ readSourceFile as load }", READER_MODULE) +
+        "\nconst value = load(target);\n",
+    ],
+    [
+      "namespace + llamada por propiedad",
+      true,
+      `${namespace}\nconst value = sources.readSourceFile(target);\n`,
+    ],
+    [
+      "namespace + acceso por elemento",
+      true,
+      `${namespace}\nconst value = sources["readSourceFile"](target);\n`,
+    ],
+    [
+      "callback real",
+      true,
+      importStatement(`{ ${TRACKED_LISTER}, readSourceFile }`, READER_MODULE) +
+        `\nconst texts = ${TRACKED_LISTER}().map(readSourceFile);\n`,
+    ],
+    [
+      "default + named con el named usado",
+      true,
+      importStatement("helpers, { readSourceFile }", READER_MODULE) + call,
+    ],
+    [
+      "specifier sin extensión",
+      true,
+      importStatement("{ readSourceFile }", READER_MODULE.replace(/\.ts$/, "")) +
+        call,
+    ],
+    [
+      "import multilínea entre varios imports",
+      true,
+      `${importStatement("{ other }", OTHER_READER_MODULE)}\n${importStatement(
+        "{\n  readSourceFile,\n}",
+        READER_MODULE,
+      )}${call}`,
+    ],
+    [
+      "interpolación ejecutable en template",
+      true,
+      unused("const value = `a ${readSourceFile(\"x\")} b`;"),
+    ],
+    ["shorthand que pasa la referencia", true, unused("const value = { readSourceFile };")],
+    ["named import sin uso", false, unused("const value = 1;")],
+    ["sólo dentro de string", false, unused('const label = "readSourceFile";')],
+    [
+      "sólo dentro de string con escapes",
+      false,
+      unused('const label = "say \\"readSourceFile(target)\\" twice";'),
+    ],
+    ["sólo en comentario //", false, unused("// readSourceFile(target)")],
+    ["sólo en comentario final", false, unused("const value = 1; // readSourceFile(target)")],
+    [
+      "sólo en comentario /* */ multilínea",
+      false,
+      unused("/*\n  readSourceFile(target)\n*/\nconst value = 1;"),
+    ],
+    ["sólo en texto de template", false, unused("const label = `readSourceFile(target)`;")],
+    [
+      "sólo en regex literal",
+      false,
+      unused("const value = /readSourceFile\\(target\\)/.test(target);"),
+    ],
+    [
+      "sólo dentro de un fixture textual",
+      false,
+      unused(`const fixture = ${JSON.stringify(named + call)};`),
+    ],
+    [
+      "sólo en mensaje de assertion",
+      false,
+      unused(["assert", '.ok(true, "readSourceFile(target) no se llamó");'].join("")),
+    ],
+    [
+      "sólo en posición de tipo",
+      false,
+      unused("type Reader = typeof readSourceFile;"),
+    ],
+    [
+      "propiedad homónima de otro objeto",
+      false,
+      unused("const value = other.readSourceFile(target);"),
+    ],
+    ["clave homónima de objeto", false, unused("const value = { readSourceFile: 1 };")],
+    [
+      "binding sombreado por un parámetro",
+      false,
+      unused(
+        "function shadowed(readSourceFile: (p: string) => string) {\n  return readSourceFile(target);\n}",
+      ),
+    ],
+    [
+      "binding sombreado en un bloque",
+      false,
+      unused("{\n  const readSourceFile = (p: string) => p;\n  readSourceFile(target);\n}"),
+    ],
+    [
+      "binding sombreado por destructuring",
+      false,
+      unused(
+        "const run = ({ readSourceFile }: Record<string, () => void>) => readSourceFile();",
+      ),
+    ],
+    [
+      "namespace sombreado",
+      false,
+      `${namespace}\nfunction shadowed(sources: any) {\n  return sources.readSourceFile(target);\n}\n`,
+    ],
+    [
+      "namespace mencionado sólo en string",
+      false,
+      `${namespace}\nconst label = "sources.readSourceFile";\n`,
+    ],
+    [
+      "namespace con otra propiedad",
+      false,
+      `${namespace}\nconst value = sources.${TRACKED_FILES_LISTER}();\n`,
+    ],
+    ["import type", false, importStatement("type { readSourceFile }", READER_MODULE) + call],
+    [
+      "specifier inline type",
+      false,
+      importStatement("{ type readSourceFile }", READER_MODULE) + call,
+    ],
+    [
+      "homónimo de otro módulo",
+      false,
+      importStatement("{ readSourceFile }", OTHER_READER_MODULE) + call,
+    ],
+    [
+      "import default, no el named",
+      false,
+      importStatement("readSourceFile", READER_MODULE) + call,
+    ],
+    [
+      "identificador parecido",
+      false,
+      importStatement("{ readSourceFileExtra }", READER_MODULE) +
+        "\nconst value = readSourceFileExtra(target);\n",
+    ],
+    ["import sólo en comentario", false, `// ${named}${call}`],
+    ["llamada sin import", false, `const label = "readSourceFile";${call}`],
+  ];
 
-  for (const source of ignored) {
+  for (const [label, expected, source] of cases) {
     assert.equal(
       importsCanonicalSourceReader(WALKER_SPEC_PATH, source),
-      false,
-      source,
+      expected,
+      `${label}:\n${source}`,
     );
   }
 
   // El specifier se resuelve desde el spec: la misma cadena escrita a otra
   // profundidad apunta a otro módulo y no cuenta.
-  assert.equal(importsCanonicalSourceReader(PANEL_SPEC_PATH, counted[0]!), false);
+  assert.equal(importsCanonicalSourceReader(PANEL_SPEC_PATH, named + call), false);
   assert.equal(
     importsCanonicalSourceReader(
       PANEL_SPEC_PATH,
