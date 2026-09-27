@@ -22,12 +22,12 @@
 | Lifecycle status | ACTIVE |
 | Authoritative source role | Diagnóstico y roadmap del programa `TEST-GLOBAL-*`. No es el mapa operativo de CI (ese es [CI_PR_CHECKS_RUNBOOK.md](../ops/CI_PR_CHECKS_RUNBOOK.md)) ni la norma de organización física (esa es [test-suite-enterprise-organization-convention.md](../implementation/test-suite-enterprise-organization-convention.md)) |
 | Effective date | 2026-09-21 |
-| Last verified date | 2026-09-21 (reauditoría de gobernanza y reverificación de censos) |
+| Last verified date | 2026-09-27 (cierre documental de `TEST-GLOBAL-04` verificado sobre `main@6c751512`) |
 | Review cadence | Por fase `TEST-GLOBAL-*` cerrada |
 | Supersedes | Ninguno. Reclasifica cifras de `TDR-002` y de `pr-test-architecture-consolidation-audit.md` como históricas (§33) |
 | Superseded by | Ninguno |
 | Related controls or gaps | `TDR-002`; `ERM-CTRL-011`; `ERM-CTRL-012`; `ERM-CTRL-025`; `ERM-QLT-001` |
-| Evidence or approval reference | Auditoría técnica R0 sobre `main@ee8e7425f911b4b49848957bff52242aa95158e2`; reauditoría de gobernanza R0 y reverificación de censos sobre `main@38fe1dfe12423454b3c48f1b139a5775e4b9d388` (§3, §37) |
+| Evidence or approval reference | Auditoría técnica R0 sobre `main@ee8e7425f911b4b49848957bff52242aa95158e2`; reauditoría de gobernanza R0 y reverificación de censos sobre `main@38fe1dfe12423454b3c48f1b139a5775e4b9d388` (§3, §37); cierre agregado de `TEST-GLOBAL-04` verificado sobre `main@6c7515124ec359ce1067a4ebb94691ed7fc213d9`, con #1783 y #1784 fusionadas |
 | Autosuficiencia | Este documento **no depende de ningún prompt, encargo ni conversación externa**. Toda definición normativa que necesita una fase está transcrita aquí (§31.0, §31.6) |
 
 > **Vigencia y reproducibilidad de las cifras.** El diagnóstico técnico se midió
