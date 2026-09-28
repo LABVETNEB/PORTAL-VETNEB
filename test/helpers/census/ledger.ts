@@ -10,6 +10,7 @@
 export type CensusGuard =
   | { readonly kind: "FROZEN_EXACT" }
   | { readonly kind: "NON_INCREASING" }
+  | { readonly kind: "NON_DECREASING" }
   | { readonly kind: "TOLERANCE_BAND"; readonly tolerance: number };
 
 export type CensusResolution = "REPRODUCED" | "RECLASSIFIED";
@@ -139,6 +140,12 @@ export function declarationViolation(entry: CensusEntry): string | null {
     return null;
   }
 
+  if (entry.guard.kind === "NON_DECREASING") {
+    return "tolerance" in entry.guard
+      ? `${entry.metric}: una cota de no-decrecimiento no admite tolerancia; su piso es el ancla`
+      : null;
+  }
+
   if (entry.guard.kind === "TOLERANCE_BAND") {
     return entry.guard.tolerance > 0 &&
       entry.guard.tolerance <= MAXIMUM_TOLERANCE
@@ -164,6 +171,12 @@ export function guardViolation(
     return report.current <= report.anchor
       ? null
       : `${entry.metric}: ${report.current} supera la cota de no-regresión ${report.anchor}`;
+  }
+
+  if (entry.guard.kind === "NON_DECREASING") {
+    return report.current >= report.anchor
+      ? null
+      : `${entry.metric}: ${report.current} cae por debajo del piso de no-decrecimiento ${report.anchor}`;
   }
 
   if (entry.guard.kind === "TOLERANCE_BAND") {
