@@ -475,12 +475,12 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     section: "§6.4",
     metric: "importadores de helpers/tracked-source-files.ts",
     historical: 8,
-    baseline: 12,
+    baseline: 14,
     compute: () => supportConsumers("test/helpers/tracked-source-files.ts"),
     resolution: "RECLASSIFIED",
     guard: NON_DECREASING,
     motive:
-      "TEST-GLOBAL-05A debe subirlo; congelarlo penalizaría el objetivo del programa. Es una métrica de adopción del lector canónico, no un volumen: la banda simétrica 8 ± 2 ponía en rojo cada lote de 05A que superara 10 importadores y dejaba caer a 6 en verde. NON_DECREASING, sin techo: crecer sigue permitido. El histórico 8 es el snapshot de §6.4; el baseline 12 es el piso POST lote 2 de 05A (audit-separated-surfaces y audit-study-tracking-gaps migrados), de modo que revertir cualquier migración ya completada y bajar de 12 rompe el guard. AGENTS.md §4: el censo que el lote rompe causalmente se realinea en el mismo PR sin debilitarlo. TEST-GLOBAL-11 revisa este censo (§31.2).",
+      "TEST-GLOBAL-05A debe subirlo; congelarlo penalizaría el objetivo del programa. Es una métrica de adopción del lector canónico, no un volumen: la banda simétrica 8 ± 2 ponía en rojo cada lote de 05A que superara 10 importadores y dejaba caer a 6 en verde. NON_DECREASING, sin techo: crecer sigue permitido. El histórico 8 es el snapshot de §6.4; el baseline es el piso POST del último lote de 05A: 12 tras el lote 2 (audit-separated-surfaces y audit-study-tracking-gaps) y 14 tras el lote 3 (public-professionals-fixture adoption y assertions-quality), de modo que revertir cualquier migración ya completada y bajar de 14 rompe el guard. AGENTS.md §4: el censo que el lote rompe causalmente se realinea en el mismo PR sin debilitarlo. TEST-GLOBAL-11 revisa este censo (§31.2).",
   },
   {
     row: "A0-06-SUPPORT",
@@ -963,13 +963,13 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     section: "§13.1",
     metric: "specs con lector propio",
     historical: 283,
-    baseline: 277,
+    baseline: 275,
     compute: () =>
       classification.specs.filter((spec) => spec.definesOwnReader).length,
     resolution: "RECLASSIFIED",
     guard: NON_INCREASING,
     motive:
-      "A.0 ya declara que un grep simple devuelve 281; el tooling reproduce exactamente esa cifra auditable, no la derivada del scratchpad. Diferencia declarada: 2 archivos. TEST-GLOBAL-05A: es deuda (TG-R09), no volumen, y pasa de banda a NON_INCREASING: la banda de 25 % dejaba crecer 70 lectores ad hoc en verde y ponía en rojo una migración legítima de más de 71. El lote 1 de 05A migra al lector canónico los specs public-professionals-fixture file-scope y helper-boundaries: 281 -> 279, re-anclado al valor vigente. Lote 2: audit-separated-surfaces y audit-study-tracking-gaps, 279 -> 277, re-anclado al valor POST para que revertir una migración completada rompa el guard.",
+      "A.0 ya declara que un grep simple devuelve 281; el tooling reproduce exactamente esa cifra auditable, no la derivada del scratchpad. Diferencia declarada: 2 archivos. TEST-GLOBAL-05A: es deuda (TG-R09), no volumen, y pasa de banda a NON_INCREASING: la banda de 25 % dejaba crecer 70 lectores ad hoc en verde y ponía en rojo una migración legítima de más de 71. El lote 1 de 05A migra al lector canónico los specs public-professionals-fixture file-scope y helper-boundaries: 281 -> 279, re-anclado al valor vigente. Lote 2: audit-separated-surfaces y audit-study-tracking-gaps, 279 -> 277, re-anclado al valor POST para que revertir una migración completada rompa el guard. Lote 3: public-professionals-fixture adoption y assertions-quality, 277 -> 275, re-anclado al valor POST.",
   },
   {
     row: "A0-13-READERS",
@@ -988,13 +988,13 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     section: "§13.1",
     metric: "specs que normalizan CRLF a mano",
     historical: 295,
-    baseline: 282,
+    baseline: 280,
     compute: () =>
       classification.specs.filter((spec) => spec.normalizesCrlf).length,
     resolution: "RECLASSIFIED",
     guard: NON_INCREASING,
     motive:
-      "Mismo caso: A.0 declara que el grep simple devuelve 279. El tooling reproduce la cifra auditable. TEST-GLOBAL-05A: normalizar CRLF a mano duplica el lector canónico (TG-R16) y pasa a NON_INCREASING. Bajo la banda la cifra subió de 279 a 285 entre 01B y main@ed6bf532 sin poner el censo en rojo: esa regresión se declara aquí y desde este ancla no puede crecer. Lote 1 de 05A: 285 -> 284, porque helper-boundaries deja de normalizar a mano y lee por el lector canónico. Lote 2: 284 -> 282, los dos specs audit migrados dejan de normalizar a mano; re-anclado al valor POST.",
+      "Mismo caso: A.0 declara que el grep simple devuelve 279. El tooling reproduce la cifra auditable. TEST-GLOBAL-05A: normalizar CRLF a mano duplica el lector canónico (TG-R16) y pasa a NON_INCREASING. Bajo la banda la cifra subió de 279 a 285 entre 01B y main@ed6bf532 sin poner el censo en rojo: esa regresión se declara aquí y desde este ancla no puede crecer. Lote 1 de 05A: 285 -> 284, porque helper-boundaries deja de normalizar a mano y lee por el lector canónico. Lote 2: 284 -> 282, los dos specs audit migrados dejan de normalizar a mano; re-anclado al valor POST. Lote 3: 282 -> 280, los specs public-professionals-fixture adoption y assertions-quality dejan de normalizar a mano; re-anclado al valor POST.",
   },
   {
     row: "A0-13-READERS",
@@ -1027,12 +1027,12 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     section: "§13.1",
     metric: "specs que definen su propio lector readSource",
     historical: 65,
-    baseline: 61,
+    baseline: 59,
     compute: () => ownReaderFiles("readSource"),
     resolution: "RECLASSIFIED",
     guard: NON_INCREASING,
     motive:
-      "Reproducía el histórico 65. El lote 1 de TEST-GLOBAL-05A migra al lector canónico los dos specs public-professionals-fixture que definían readSource: 65 -> 63, re-anclado al valor vigente sin cambiar el detector. Lote 2: audit-separated-surfaces y audit-study-tracking-gaps, 63 -> 61, re-anclado al valor POST. NON_INCREASING: la deuda de lectores ad hoc no puede crecer y su reducción no exige editar la fila.",
+      "Reproducía el histórico 65. El lote 1 de TEST-GLOBAL-05A migra al lector canónico los dos specs public-professionals-fixture que definían readSource: 65 -> 63, re-anclado al valor vigente sin cambiar el detector. Lote 2: audit-separated-surfaces y audit-study-tracking-gaps, 63 -> 61, re-anclado al valor POST. Lote 3: public-professionals-fixture adoption y assertions-quality, 61 -> 59, re-anclado al valor POST. NON_INCREASING: la deuda de lectores ad hoc no puede crecer y su reducción no exige editar la fila.",
   },
   // ── §20 censos congelados ─────────────────────────────────────────────────
   {
@@ -1672,16 +1672,16 @@ test("censo 05A: la deuda de lectores ad hoc rompe al crecer y la adopción del 
   assert.equal(adoptionEntry.guard.kind, "NON_DECREASING");
   assert.equal(adoptionEntry.resolution, "RECLASSIFIED");
   assert.equal(adoptionEntry.historical, 8, "el histórico de §6.4 se conserva");
-  assert.equal(adoptionEntry.baseline, 12, "piso versionado POST lote 2");
-  assert.equal(anchor, 12, "el piso es el checkpoint POST lote 2, no el histórico");
-  assert.equal(current, 12, "la adopción vigente es la del checkpoint POST lote 2");
+  assert.equal(adoptionEntry.baseline, 14, "piso versionado POST lote 3");
+  assert.equal(anchor, 14, "el piso es el checkpoint POST lote 3, no el histórico");
+  assert.equal(current, 14, "la adopción vigente es la del checkpoint POST lote 3");
   assert.equal(
     guardViolation(adoptionEntry, evaluateEntry(adoptionEntry)),
     null,
     `vigente ${current}: la adopción real no puede poner el censo en rojo`,
   );
 
-  for (const grown of [12, 13, 100]) {
+  for (const grown of [14, 15, 100]) {
     const at = { ...adoptionEntry, compute: () => grown };
 
     assert.equal(
@@ -1691,12 +1691,12 @@ test("censo 05A: la deuda de lectores ad hoc rompe al crecer y la adopción del 
     );
   }
 
-  for (const regressedTo of [11, 10, 8]) {
+  for (const regressedTo of [13, 12, 8]) {
     const regressed = { ...adoptionEntry, compute: () => regressedTo };
 
     assert.match(
       guardViolation(regressed, evaluateEntry(regressed)) ?? "",
-      new RegExp(`: ${regressedTo} cae por debajo del piso de no-decrecimiento 12$`),
+      new RegExp(`: ${regressedTo} cae por debajo del piso de no-decrecimiento 14$`),
       `${regressedTo} importadores: revertir una migración completada debe poner el censo en rojo`,
     );
   }

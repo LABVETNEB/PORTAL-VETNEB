@@ -1,7 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { readSourceFile as readSource } from "../helpers/tracked-source-files.ts";
 
 const FIXTURE_ASSERTION_FILES = [
   "test/architecture/public-professionals-fixtures-invariants.test.ts",
@@ -14,13 +13,6 @@ const STRUCTURAL_FIXTURE_FILES = [
   "test/architecture/public-professionals-fixtures-invariants.test.ts",
   "test/architecture/public-professionals-fixture-isolation-invariants.test.ts",
 ];
-
-function readSource(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 function countOccurrences(source: string, token: string): number {
   return source.split(token).length - 1;
