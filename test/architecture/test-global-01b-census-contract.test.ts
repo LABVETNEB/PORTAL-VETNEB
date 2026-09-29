@@ -191,11 +191,12 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     section: "§6.1",
     metric: "archivos de soporte bajo test/**",
     historical: 14,
+    baseline: 22,
     compute: () => volumes.supportFiles,
-    resolution: "REPRODUCED",
+    resolution: "RECLASSIFIED",
     guard: { kind: "TOLERANCE_BAND", tolerance: 0.5 },
     motive:
-      "01B añade los módulos de censo versionados bajo test/helpers/census: la banda del 50 % absorbe esa alta y sigue siendo umbral, no pase libre.",
+      "01B añade los módulos de censo versionados bajo test/helpers/census: la banda del 50 % absorbe esa alta y sigue siendo umbral, no pase libre. Re-anclaje 14 -> 22: main@36ef743aabf0863100cd35a19a4e86e055bf8e68 producia 21 archivos de soporte (tope exacto de la banda 14 +- 7) y TEST-GLOBAL-07 anade test/unit/ui/dashboard/dashboard-source-oracle.ts, el oracle semantico que comparten los 16 specs de U(07/dashboard) en lugar de copiarlo en cada uno, lo que lleva el valor a 22. Crecimiento intencional dentro de TEST-GLOBAL-07: se re-ancla el baseline a 22 sin ampliar la tolerancia y sin excluir ningun archivo del inventario.",
   },
   {
     row: "A0-06-VOLUME",
