@@ -58,12 +58,18 @@ const TEST_PROBE_FILE = "test/unit/infrastructure/backend-lint-baseline-contract
 const SERVER_PROBE_FILE = "server/index.ts";
 const FRONTEND_PROBE_FILE = "frontend/src/lib/api.ts";
 const ONLY_RULE = "no-restricted-syntax";
+const ALIASED_ONLY_RULE = "node-test-guards/no-aliased-only";
 const FLOATING_RULE = "@typescript-eslint/no-floating-promises";
 const UNUSED_RULE = "@typescript-eslint/no-unused-vars";
 const TEST_RUNNER = "/^(test|it|describe|suite)$/";
+const COMPUTED_ONLY_SELECTORS = [
+  `CallExpression[callee.property.value='only'][callee.object.name=${TEST_RUNNER}]`,
+  `CallExpression[callee.property.value='only'][callee.object.property.name=${TEST_RUNNER}]`,
+];
 const ONLY_SELECTORS = [
   `CallExpression[callee.property.name='only'][callee.object.name=${TEST_RUNNER}]`,
   `CallExpression[callee.property.name='only'][callee.object.property.name=${TEST_RUNNER}]`,
+  ...COMPUTED_ONLY_SELECTORS,
   `CallExpression[callee.name=${TEST_RUNNER}] > ObjectExpression > Property[key.name='only'][value.value=true]`,
   `CallExpression[callee.property.name=${TEST_RUNNER}] > ObjectExpression > Property[key.name='only'][value.value=true]`,
   `CallExpression[callee.name=${TEST_RUNNER}] > ObjectExpression > Property[key.value='only'][value.value=true]`,
@@ -71,7 +77,7 @@ const ONLY_SELECTORS = [
 ];
 const FLOATING_SUBTEST_SELECTORS = [
   `ExpressionStatement > CallExpression[callee.type='MemberExpression'][callee.property.name=${TEST_RUNNER}]`,
-  `ExpressionStatement > UnaryExpression[operator='void'] > CallExpression[callee.type='MemberExpression'][callee.property.name=${TEST_RUNNER}]`,
+  `UnaryExpression[operator='void'] > CallExpression[callee.type='MemberExpression'][callee.property.name=${TEST_RUNNER}]`,
 ];
 const NODE_TEST_SAFE_CALLS = [
   { from: "package", package: "node:test", name: ["test", "it", "describe", "suite"] },
@@ -255,6 +261,8 @@ async function validateTestLintConfig(blocks: readonly Linter.Config[]): Promise
       issues.push("floating safe calls changed");
     }
     if (severityOf(testRules[ONLY_RULE]) !== "error") issues.push(".only guard is not error");
+    if (severityOf(testRules[ALIASED_ONLY_RULE]) !== "error") issues.push("aliased .only guard is not error");
+    if (optionsOf(testRules[ALIASED_ONLY_RULE]).length !== 0) issues.push("aliased .only guard options changed");
     const selectors = optionsOf(testRules[ONLY_RULE]).map((option) => (option as { selector?: string }).selector);
     for (const selector of ONLY_SELECTORS) {
       if (!selectors.includes(selector)) issues.push(".only selector missing");
@@ -509,6 +517,16 @@ test("backend lint contract rejects unsafe in-memory mutations", async () => {
     );
     rules[ONLY_RULE] = ["error", ...kept] as Linter.RuleEntry;
   }, [".only selector missing"]);
+  await assertConfigMutationRejected(blocks, "computed .only selector dropped", (candidate) => {
+    const rules = testBlockOf(candidate).rules!;
+    const kept = optionsOf(rules[ONLY_RULE]).filter(
+      (option) => (option as { selector?: string }).selector !== COMPUTED_ONLY_SELECTORS[0],
+    );
+    rules[ONLY_RULE] = ["error", ...kept] as Linter.RuleEntry;
+  }, [".only selector missing"]);
+  await assertConfigMutationRejected(blocks, "aliased .only guard error -> off", (candidate) => {
+    testBlockOf(candidate).rules![ALIASED_ONLY_RULE] = "off";
+  }, ["aliased .only guard is not error"]);
   await assertConfigMutationRejected(blocks, "floating subtest selector dropped", (candidate) => {
     const rules = testBlockOf(candidate).rules!;
     const kept = optionsOf(rules[ONLY_RULE]).filter(
@@ -632,6 +650,7 @@ test("TEST-GLOBAL-05B test lint block is separate, type-aware and enforces its t
 const ONLY = "only";
 const QUOTED_ONLY = `"${ONLY}"`;
 const COMPUTED_QUOTED_ONLY = `[${QUOTED_ONLY}]`;
+const CHECK = "check";
 const REJECTS = "rejects";
 const PROBE_HEADER =
   'import assert from "node:assert/strict";\nimport test, { describe, it, suite } from "node:test";\n';
@@ -642,17 +661,28 @@ const RULE_PROBES: readonly (readonly [string, string, readonly string[]])[] = [
   ["it .only", `it.${ONLY}("a", () => {});\n`, [FLOATING_RULE, ONLY_RULE]],
   ["describe .only", `describe.${ONLY}("a", () => {});\n`, [FLOATING_RULE, ONLY_RULE]],
   ["suite .only", `suite.${ONLY}("a", () => {});\n`, [FLOATING_RULE, ONLY_RULE]],
+  ["computed test .only", `test("a", async () => { await test[${QUOTED_ONLY}]("b", () => {}); });\n`, [ONLY_RULE]],
+  ["computed subtest .only", `test("a", async (t) => { await t.test[${QUOTED_ONLY}]("b", () => {}); });\n`, [ONLY_RULE]],
   ["{ only: true } option", 'test("a", { only: true }, () => {});\n', [ONLY_RULE]],
   ["{ \"only\": true } option", `test("a", { ${QUOTED_ONLY}: true }, () => {});\n`, [ONLY_RULE]],
   ["{ [\"only\"]: true } option", `test("a", { ${COMPUTED_QUOTED_ONLY}: true }, () => {});\n`, [ONLY_RULE]],
   ["subtest .only", `test("a", async (t) => { await t.test.${ONLY}("b", () => {}); });\n`, [ONLY_RULE]],
   ["subtest { only: true } option", 'test("a", async (t) => { await t.test("b", { only: true }, () => {}); });\n', [ONLY_RULE]],
   ["subtest { \"only\": true } option", `test("a", async (t) => { await t.test("b", { ${QUOTED_ONLY}: true }, () => {}); });\n`, [ONLY_RULE]],
+  ["aliased { only: true } option", `import { test as ${CHECK} } from "node:test";\n${CHECK}("a", { only: true }, () => {});\n`, [ALIASED_ONLY_RULE]],
+  ["aliased { \"only\": true } option", `import { test as ${CHECK} } from "node:test";\n${CHECK}("a", { ${QUOTED_ONLY}: true }, () => {});\n`, [ALIASED_ONLY_RULE]],
+  ["aliased { [\"only\"]: true } option", `import { test as ${CHECK} } from "node:test";\n${CHECK}("a", { ${COMPUTED_QUOTED_ONLY}: true }, () => {});\n`, [ALIASED_ONLY_RULE]],
+  ["default-import aliased { only: true } option", `import ${CHECK} from "node:test";\n${CHECK}("a", { only: true }, () => {});\n`, [ALIASED_ONLY_RULE]],
   ["unrelated only() member", `const q = { ${ONLY}: (x: number) => x };\nassert.equal(q.${ONLY}(1), 1);\n`, []],
   ["{ only: false } option", 'test("a", { only: false }, () => {});\n', []],
   ["{ \"only\": false } option", `test("a", { ${QUOTED_ONLY}: false }, () => {});\n`, []],
+  ["aliased { only: false } option", `import { test as ${CHECK} } from "node:test";\n${CHECK}("a", { only: false }, () => {});\n`, []],
+  ["shadowed aliased name", `import { test as ${CHECK} } from "node:test";\ntest("a", () => { const ${CHECK} = (_name: string, _options: unknown, callback: () => void) => callback(); ${CHECK}("b", { only: true }, () => {}); });\n`, [UNUSED_RULE]],
   ["floating subtest", 'test("a", async (t) => { t.test("b", () => {}); });\n', [ONLY_RULE]],
   ["void floating subtest", 'test("a", async (t) => { void t.test("b", () => {}); });\n', [ONLY_RULE]],
+  ["returned void floating subtest", 'test("a", async (t) => { return void t.test("b", () => {}); });\n', [ONLY_RULE]],
+  ["const void floating subtest", 'test("a", async (t) => { const result = void t.test("b", () => {}); assert.equal(result, undefined); });\n', [ONLY_RULE]],
+  ["assigned void floating subtest", 'test("a", async (t) => { let result: undefined; result = void t.test("b", () => {}); assert.equal(result, undefined); });\n', [ONLY_RULE]],
   ["awaited subtest", 'test("a", async (t) => { await t.test("b", () => {}); });\n', []],
   ["returned subtest", 'test("a", (t) => t.test("b", () => {}));\n', []],
   ["regex test() as an argument", 'test("a", () => { assert.ok(/x/.test("x")); });\n', []],
