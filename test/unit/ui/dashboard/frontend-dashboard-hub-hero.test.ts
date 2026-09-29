@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import ts from "typescript";
 import { readSourceFile, readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const HERO_PATH = "frontend/src/components/dashboard/DashboardHubHero.tsx";
@@ -11,6 +12,180 @@ const ADMIN_CONTROLLER_PATH =
 const ADMIN_PAGE_PATH = "frontend/src/app/dashboard/admin/page.tsx";
 const CATALOG_PATH =
   "frontend/src/features/dashboard/config/dashboardModules.ts";
+const CONFIG_BARREL_PATH = "frontend/src/features/dashboard/config/index.ts";
+
+function parseTsx(source: string, fileName: string): ts.SourceFile {
+  const file = ts.createSourceFile(
+    fileName,
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  );
+  const diagnostics: unknown = Reflect.get(file, "parseDiagnostics");
+
+  if (!Array.isArray(diagnostics) || diagnostics.length > 0) {
+    throw new Error(`${fileName} does not parse`);
+  }
+
+  return file;
+}
+
+function descendants<T extends ts.Node>(
+  root: ts.Node,
+  match: (node: ts.Node) => node is T,
+): T[] {
+  const found: T[] = [];
+  const visit = (node: ts.Node): void => {
+    if (match(node)) found.push(node);
+    ts.forEachChild(node, visit);
+  };
+
+  visit(root);
+  return found;
+}
+
+function unwrap(expression: ts.Expression): ts.Expression {
+  let current = expression;
+
+  while (
+    ts.isParenthesizedExpression(current) ||
+    ts.isAsExpression(current) ||
+    ts.isNonNullExpression(current) ||
+    ts.isSatisfiesExpression(current) ||
+    ts.isTypeAssertionExpression(current)
+  ) {
+    current = current.expression;
+  }
+
+  return current;
+}
+
+const EVALUATION_GLOBALS = new Set(["undefined", "Array", "Boolean"]);
+
+// Runs a side-effect-free source expression with exactly the given bindings; a
+// free name the test did not bind fails instead of resolving to a global.
+function evaluate(expression: ts.Expression, scope: Readonly<Record<string, unknown>>): unknown {
+  const names = Object.keys(scope);
+  const declared = new Set(
+    descendants(expression, ts.isParameter).flatMap((parameter) =>
+      descendants(parameter.name, ts.isIdentifier).map((identifier) => identifier.text),
+    ),
+  );
+  const unbound = descendants(expression, ts.isIdentifier).filter((identifier) => {
+    const parent = identifier.parent;
+
+    if (
+      (ts.isPropertyAccessExpression(parent) || ts.isPropertyAssignment(parent)) &&
+      parent.name === identifier
+    ) {
+      return false;
+    }
+
+    for (let node: ts.Node = identifier; node !== expression; node = node.parent) {
+      if (ts.isTypeNode(node)) return false;
+    }
+
+    const name = identifier.text;
+    return !declared.has(name) && !EVALUATION_GLOBALS.has(name) && !names.includes(name);
+  });
+
+  if (unbound.length > 0) {
+    throw new Error(`unbound in ${expression.getText()}: ${unbound.map((id) => id.text).join(", ")}`);
+  }
+
+  const { outputText } = ts.transpileModule(`(${expression.getText()});`, {
+    compilerOptions: { target: ts.ScriptTarget.ES2022 },
+  });
+  const run = new Function(...names, `return ${outputText}`) as (...values: unknown[]) => unknown;
+
+  return run(...names.map((name) => scope[name]));
+}
+
+// TEST-GLOBAL-07 (G06-D06): the workspace state is initialised by executing its
+// initializer — no `initialModule` resolves to the catalog default, a given one
+// is kept. `initialModule ?? DEFAULT_CLINIC_MODULE` stays in the source when
+// the result is overridden (C.15.1 M-D16).
+function initialWorkspace(source: string, catalog: string, barrel: string) {
+  const file = parseTsx(source, CLINIC_CONTROLLER_PATH);
+  const declarations = descendants(file, ts.isVariableDeclaration);
+  const states = declarations.filter(
+    (declaration) =>
+      ts.isArrayBindingPattern(declaration.name) &&
+      declaration.name.elements.map((element) => element.getText()).join(",") ===
+        "activeModule,setActiveModule",
+  );
+  const call =
+    states.length === 1 && states[0].initializer ? unwrap(states[0].initializer) : undefined;
+  const importsDefault = file.statements.some(
+    (statement) =>
+      ts.isImportDeclaration(statement) &&
+      ts.isStringLiteral(statement.moduleSpecifier) &&
+      statement.moduleSpecifier.text === "@/features/dashboard/config" &&
+      statement.importClause?.namedBindings !== undefined &&
+      ts.isNamedImports(statement.importClause.namedBindings) &&
+      statement.importClause.namedBindings.elements.some(
+        (element) => element.name.text === "DEFAULT_CLINIC_MODULE" && !element.propertyName,
+      ),
+  );
+  const shadowed = declarations.some(
+    (declaration) => declaration.name.getText() === "DEFAULT_CLINIC_MODULE",
+  );
+  // The import resolves through the config barrel: it must forward the catalog
+  // binding, neither declaring its own nor forwarding another module's.
+  const barrelFile = parseTsx(barrel, CONFIG_BARREL_PATH);
+  const forwardsCatalog = barrelFile.statements.some(
+    (statement) =>
+      ts.isExportDeclaration(statement) &&
+      statement.moduleSpecifier !== undefined &&
+      ts.isStringLiteral(statement.moduleSpecifier) &&
+      statement.moduleSpecifier.text === "./dashboardModules" &&
+      (statement.exportClause === undefined ||
+        (ts.isNamedExports(statement.exportClause) &&
+          statement.exportClause.elements.some(
+            (element) => element.name.text === "DEFAULT_CLINIC_MODULE" && !element.propertyName,
+          ))),
+  );
+  const barrelOverrides =
+    descendants(barrelFile, ts.isVariableDeclaration).some(
+      (declaration) => declaration.name.getText() === "DEFAULT_CLINIC_MODULE",
+    ) ||
+    descendants(barrelFile, ts.isExportSpecifier).some(
+      (specifier) =>
+        specifier.name.text === "DEFAULT_CLINIC_MODULE" &&
+        !(
+          ts.isExportDeclaration(specifier.parent.parent) &&
+          specifier.parent.parent.moduleSpecifier !== undefined &&
+          ts.isStringLiteral(specifier.parent.parent.moduleSpecifier) &&
+          specifier.parent.parent.moduleSpecifier.text === "./dashboardModules"
+        ),
+    );
+  const [catalogDefault] = descendants(parseTsx(catalog, CATALOG_PATH), ts.isVariableDeclaration)
+    .filter((declaration) => declaration.name.getText() === "DEFAULT_CLINIC_MODULE")
+    .map((declaration) => (declaration.initializer ? unwrap(declaration.initializer) : undefined));
+  const defaultModule =
+    catalogDefault && ts.isStringLiteral(catalogDefault) ? catalogDefault.text : undefined;
+
+  if (
+    !call ||
+    !ts.isCallExpression(call) ||
+    call.expression.getText() !== "useState" ||
+    call.arguments.length !== 1
+  ) {
+    return "activeModule is not a single useState(initial)";
+  }
+
+  const [initializer] = call.arguments;
+
+  return {
+    defaultFromCatalog: importsDefault && !shadowed && forwardsCatalog && !barrelOverrides,
+    catalogDefault: defaultModule ?? "not a literal",
+    resolved: [undefined, null, "informes", "logistica"].map((initialModule) => {
+      const initial = evaluate(initializer, { initialModule, DEFAULT_CLINIC_MODULE: defaultModule });
+      return typeof initial === "function" ? initial() : initial;
+    }),
+  };
+}
 
 // ── Hero component: presentational and accessible ────────────────────────────
 
@@ -130,6 +305,25 @@ test("clinic controller opens directly into a module workspace with the shared r
     ),
   );
   assert.ok(source.includes('initialModule ?? DEFAULT_CLINIC_MODULE'));
+
+  const catalog = read(CATALOG_PATH);
+  const barrel = read(CONFIG_BARREL_PATH);
+  const opensDefault = {
+    defaultFromCatalog: true,
+    catalogDefault: "operaciones",
+    resolved: ["operaciones", "operaciones", "informes", "logistica"],
+  };
+  assert.deepEqual(initialWorkspace(source, catalog, barrel), opensDefault);
+
+  const overridden = source.replace(
+    "initialModule ?? DEFAULT_CLINIC_MODULE,",
+    () => '(initialModule ?? DEFAULT_CLINIC_MODULE) && ("informes" as ClinicModule),',
+  );
+  assert.notEqual(overridden, source);
+  assert.deepEqual(initialWorkspace(overridden, catalog, barrel), {
+    ...opensDefault,
+    resolved: ["informes", "informes", "informes", "informes"],
+  });
 
   // The operational stage wrapper contract is preserved.
   assert.ok(source.includes('data-dashboard-module-stage="true"'));

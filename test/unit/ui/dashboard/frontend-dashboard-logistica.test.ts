@@ -1,8 +1,152 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import ts from "typescript";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const LOGISTICA_PAGE_PATH = "frontend/src/app/dashboard/logistica/page.tsx";
+const ACTIVE = { activeVisits: ["scheduled", "in_progress"], activePlans: ["released", "in_progress"] };
+
+function parseTsx(source: string, fileName: string): ts.SourceFile {
+  const file = ts.createSourceFile(
+    fileName,
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  );
+  const diagnostics: unknown = Reflect.get(file, "parseDiagnostics");
+
+  if (!Array.isArray(diagnostics) || diagnostics.length > 0) {
+    throw new Error(`${fileName} does not parse`);
+  }
+
+  return file;
+}
+
+function descendants<T extends ts.Node>(
+  root: ts.Node,
+  match: (node: ts.Node) => node is T,
+): T[] {
+  const found: T[] = [];
+  const visit = (node: ts.Node): void => {
+    if (match(node)) found.push(node);
+    ts.forEachChild(node, visit);
+  };
+
+  visit(root);
+  return found;
+}
+
+function unwrap(expression: ts.Expression): ts.Expression {
+  let current = expression;
+
+  while (
+    ts.isParenthesizedExpression(current) ||
+    ts.isAsExpression(current) ||
+    ts.isNonNullExpression(current) ||
+    ts.isSatisfiesExpression(current) ||
+    ts.isTypeAssertionExpression(current)
+  ) {
+    current = current.expression;
+  }
+
+  return current;
+}
+
+const EVALUATION_GLOBALS = new Set(["undefined", "Array", "Boolean"]);
+
+// Runs a side-effect-free source expression with exactly the given bindings; a
+// free name the test did not bind fails instead of resolving to a global.
+function evaluate(expression: ts.Expression, scope: Readonly<Record<string, unknown>>): unknown {
+  const names = Object.keys(scope);
+  const declared = new Set(
+    descendants(expression, ts.isParameter).flatMap((parameter) =>
+      descendants(parameter.name, ts.isIdentifier).map((identifier) => identifier.text),
+    ),
+  );
+  const unbound = descendants(expression, ts.isIdentifier).filter((identifier) => {
+    const parent = identifier.parent;
+
+    if (
+      (ts.isPropertyAccessExpression(parent) || ts.isPropertyAssignment(parent)) &&
+      parent.name === identifier
+    ) {
+      return false;
+    }
+
+    for (let node: ts.Node = identifier; node !== expression; node = node.parent) {
+      if (ts.isTypeNode(node)) return false;
+    }
+
+    const name = identifier.text;
+    return !declared.has(name) && !EVALUATION_GLOBALS.has(name) && !names.includes(name);
+  });
+
+  if (unbound.length > 0) {
+    throw new Error(`unbound in ${expression.getText()}: ${unbound.map((id) => id.text).join(", ")}`);
+  }
+
+  const { outputText } = ts.transpileModule(`(${expression.getText()});`, {
+    compilerOptions: { target: ts.ScriptTarget.ES2022 },
+  });
+  const run = new Function(...names, `return ${outputText}`) as (...values: unknown[]) => unknown;
+
+  return run(...names.map((name) => scope[name]));
+}
+
+const TYPES_PATH = "frontend/src/types/index.ts";
+
+function literalTuple(name: string): string[] {
+  const [declaration] = descendants(
+    parseTsx(read(TYPES_PATH), TYPES_PATH),
+    ts.isVariableDeclaration,
+  ).filter((candidate) => candidate.name.getText() === name);
+  const tuple = declaration?.initializer ? unwrap(declaration.initializer) : undefined;
+
+  if (!tuple || !ts.isArrayLiteralExpression(tuple)) {
+    throw new Error(`${name}: not a literal tuple`);
+  }
+
+  return tuple.elements.map((element) => {
+    if (!ts.isStringLiteral(element)) throw new Error(`${name}: non-literal status`);
+    return element.text;
+  });
+}
+
+// Runs the `filter` predicate that defines each "active" collection over every
+// status its type admits.
+function activeStatuses(source: string, fileName: string) {
+  const declarations = descendants(parseTsx(source, fileName), ts.isVariableDeclaration);
+  const filtered = (variable: string, collection: string, statuses: readonly string[]) => {
+    const matches = declarations.filter((declaration) => declaration.name.getText() === variable);
+    const call =
+      matches.length === 1 && matches[0].initializer ? unwrap(matches[0].initializer) : undefined;
+
+    if (
+      !call ||
+      !ts.isCallExpression(call) ||
+      call.expression.getText() !== `${collection}.filter` ||
+      call.arguments.length !== 1
+    ) {
+      return `${variable}: not a single ${collection}.filter(predicate)`;
+    }
+
+    const predicate = evaluate(call.arguments[0], {});
+
+    return typeof predicate === "function"
+      ? statuses.filter((status) => Boolean(predicate({ status })))
+      : `${variable}: predicate is not callable`;
+  };
+
+  return {
+    activeVisits: filtered("activeVisits", "fieldVisits", literalTuple("FIELD_VISIT_STATUSES")),
+    activePlans: filtered("activePlans", "routePlans", literalTuple("ROUTE_PLAN_STATUSES")),
+  };
+}
+
+// TEST-GLOBAL-07 (G06-D11): the predicates are executed, not read. The literal
+// `v.status === "in_progress" || v.status === "scheduled"` survives a
+// short-circuit prepended to the arrow (C.15.1 M-D09).
 
 test("dashboard logistica defines non-indexable metadata and dependencies", () => {
   const source = read(LOGISTICA_PAGE_PATH);
@@ -57,6 +201,17 @@ test("dashboard logistica computes active visits and active route plans explicit
   assert.ok(source.includes('v.status === "in_progress" || v.status === "scheduled"'));
   assert.ok(source.includes("const activePlans = routePlans.filter("));
   assert.ok(source.includes('p.status === "in_progress" || p.status === "released"'));
+  assert.deepEqual(activeStatuses(source, LOGISTICA_PAGE_PATH), ACTIVE);
+
+  const shortCircuited = source.replace(
+    '(v) => v.status === "in_progress"',
+    () => '(v) => false && v.status === "in_progress"',
+  );
+  assert.notEqual(shortCircuited, source);
+  assert.deepEqual(activeStatuses(shortCircuited, LOGISTICA_PAGE_PATH), {
+    ...ACTIVE,
+    activeVisits: ["scheduled"],
+  });
 });
 
 test("dashboard logistica composes command center in the full-route module stage", () => {

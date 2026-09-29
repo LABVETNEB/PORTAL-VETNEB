@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import ts from "typescript";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const DASHBOARD_PAGE_PATH = "frontend/src/app/dashboard/page.tsx";
@@ -8,6 +9,298 @@ const CLINIC_INFORMES_SUMMARY_PATH =
   "frontend/src/app/dashboard/ClinicInformesWorkspaceSummary.tsx";
 const CLINIC_LOGISTICA_SUMMARY_PATH =
   "frontend/src/app/dashboard/ClinicLogisticaWorkspaceSummary.tsx";
+const HOME_LOAD_FLAGS = [
+  ["statsLoadError", "getDashboardStats"],
+  ["reportsLoadError", "getReports"],
+  ["visitsLoadError", "getLogisticsFieldVisits"],
+] as const;
+const HOME_FLAG_CONSUMERS = [
+  ["ClinicCommandCenter", "statsLoadError"],
+  ["ClinicCommandCenter", "reportsLoadError"],
+  ["ClinicCommandCenter", "visitsLoadError"],
+  ["ClinicInformesWorkspaceSummary", "reportsLoadError"],
+  ["ClinicLogisticaWorkspaceSummary", "visitsLoadError"],
+] as const;
+
+function parseTsx(source: string, fileName: string): ts.SourceFile {
+  const file = ts.createSourceFile(
+    fileName,
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  );
+  const diagnostics: unknown = Reflect.get(file, "parseDiagnostics");
+
+  if (!Array.isArray(diagnostics) || diagnostics.length > 0) {
+    throw new Error(`${fileName} does not parse`);
+  }
+
+  return file;
+}
+
+function descendants<T extends ts.Node>(
+  root: ts.Node,
+  match: (node: ts.Node) => node is T,
+): T[] {
+  const found: T[] = [];
+  const visit = (node: ts.Node): void => {
+    if (match(node)) found.push(node);
+    ts.forEachChild(node, visit);
+  };
+
+  visit(root);
+  return found;
+}
+
+function unwrap(expression: ts.Expression): ts.Expression {
+  let current = expression;
+
+  while (
+    ts.isParenthesizedExpression(current) ||
+    ts.isAsExpression(current) ||
+    ts.isNonNullExpression(current) ||
+    ts.isSatisfiesExpression(current) ||
+    ts.isTypeAssertionExpression(current)
+  ) {
+    current = current.expression;
+  }
+
+  return current;
+}
+
+type SourceFunction = ts.FunctionDeclaration & { readonly body: ts.Block };
+
+function exportedFunction(file: ts.SourceFile, name: string): SourceFunction {
+  const matches = file.statements.filter(
+    (statement): statement is SourceFunction =>
+      ts.isFunctionDeclaration(statement) &&
+      statement.name?.text === name &&
+      statement.body !== undefined &&
+      (ts.getCombinedModifierFlags(statement) & ts.ModifierFlags.Export) !== 0,
+  );
+
+  if (matches.length !== 1) {
+    throw new Error(`${name}: expected one exported declaration, found ${matches.length}`);
+  }
+
+  return matches[0];
+}
+
+type JsxNode = ts.JsxElement | ts.JsxSelfClosingElement;
+
+type AttributeValue =
+  | { readonly kind: "absent" | "unknown" | "shorthand" }
+  | { readonly kind: "value"; readonly expression: ts.Expression };
+
+// JSX semantics: a later attribute or spread overrides an earlier one; a spread
+// the oracle cannot read makes the value unknown instead of silently absent.
+function effectiveAttribute(element: JsxNode, name: string): AttributeValue {
+  const opening = ts.isJsxElement(element) ? element.openingElement : element;
+  let value: AttributeValue = { kind: "absent" };
+
+  for (const attribute of opening.attributes.properties) {
+    if (ts.isJsxAttribute(attribute)) {
+      if (attribute.name.getText() !== name) continue;
+
+      const initializer = attribute.initializer;
+      value = !initializer
+        ? { kind: "shorthand" }
+        : ts.isStringLiteral(initializer)
+          ? { kind: "value", expression: initializer }
+          : ts.isJsxExpression(initializer) && initializer.expression
+            ? { kind: "value", expression: initializer.expression }
+            : { kind: "unknown" };
+      continue;
+    }
+
+    const spread = unwrap(attribute.expression);
+
+    if (!ts.isObjectLiteralExpression(spread)) {
+      value = { kind: "unknown" };
+      continue;
+    }
+
+    for (const property of spread.properties) {
+      const key =
+        !ts.isSpreadAssignment(property) &&
+        (ts.isIdentifier(property.name) || ts.isStringLiteral(property.name))
+          ? property.name.text
+          : undefined;
+
+      if (key === undefined) {
+        value = { kind: "unknown" };
+      } else if (key === name) {
+        value = ts.isPropertyAssignment(property)
+          ? { kind: "value", expression: property.initializer }
+          : ts.isShorthandPropertyAssignment(property)
+            ? { kind: "value", expression: property.name }
+            : { kind: "unknown" };
+      }
+    }
+  }
+
+  return value;
+}
+
+function writesTo(node: ts.Node, name: string): boolean {
+  if (ts.isBinaryExpression(node)) {
+    const left = unwrap(node.left);
+
+    return (
+      node.operatorToken.kind >= ts.SyntaxKind.FirstAssignment &&
+      node.operatorToken.kind <= ts.SyntaxKind.LastAssignment &&
+      ts.isIdentifier(left) &&
+      left.text === name
+    );
+  }
+
+  return (
+    (ts.isPrefixUnaryExpression(node) || ts.isPostfixUnaryExpression(node)) &&
+    (node.operator === ts.SyntaxKind.PlusPlusToken ||
+      node.operator === ts.SyntaxKind.MinusMinusToken) &&
+    ts.isIdentifier(node.operand) &&
+    node.operand.text === name
+  );
+}
+
+function callsTo(root: ts.Node, callee: string): ts.CallExpression[] {
+  return descendants(root, ts.isCallExpression).filter(
+    (call) => ts.isIdentifier(call.expression) && call.expression.text === callee,
+  );
+}
+
+// Only blocks, the try block, `await Promise.all([...])` and immediately
+// invoked async functions may sit between the page body and the guarded fetch.
+function unconditionallyReached(node: ts.Node, body: ts.Block): boolean {
+  let child = node;
+
+  for (let parent = node.parent; child !== body; child = parent, parent = parent.parent) {
+    if (!parent || ts.isSourceFile(parent)) return false;
+
+    if (ts.isArrowFunction(parent) || ts.isFunctionExpression(parent)) {
+      const call = ts.isParenthesizedExpression(parent.parent) ? parent.parent.parent : parent.parent;
+      if (!ts.isCallExpression(call) || unwrap(call.expression) !== parent) return false;
+    } else if (ts.isCallExpression(parent)) {
+      const invoked = unwrap(parent.expression);
+      const iife =
+        (ts.isArrowFunction(invoked) || ts.isFunctionExpression(invoked)) &&
+        child === parent.expression;
+      const fanOut =
+        parent.expression.getText() === "Promise.all" && parent.arguments.some((arg) => arg === child);
+      if (!iife && !fanOut) return false;
+    } else if (!(
+      ts.isBlock(parent) ||
+      (ts.isTryStatement(parent) && parent.tryBlock === child) ||
+      ts.isParenthesizedExpression(parent) ||
+      ts.isArrayLiteralExpression(parent) ||
+      ts.isAwaitExpression(parent) ||
+      ts.isExpressionStatement(parent)
+    )) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+// The load-error flag starts false, has exactly one write, and that write is an
+// unconditional `flag = true` of the catch guarding the page's only calls to
+// its fetchers, which the page always executes.
+function failureFlagViolations(
+  source: string,
+  fileName: string,
+  page: string,
+  fetchers: readonly string[],
+  flag: string,
+): string[] {
+  const file = parseTsx(source, fileName);
+  const body = exportedFunction(file, page).body;
+  const violations: string[] = [];
+  const declarations = descendants(file, ts.isVariableDeclaration).filter(
+    (declaration) => ts.isIdentifier(declaration.name) && declaration.name.text === flag,
+  );
+  const [declaration] = declarations;
+
+  if (
+    declarations.length !== 1 ||
+    declaration.initializer?.kind !== ts.SyntaxKind.FalseKeyword ||
+    (declaration.parent.flags & ts.NodeFlags.Let) === 0 ||
+    declaration.parent.parent.parent !== body
+  ) {
+    violations.push(`${flag}: expected a single \`let ${flag} = false\` in ${page}`);
+  }
+
+  const writes = descendants(file, (node): node is ts.Expression => writesTo(node, flag));
+  const [write] = writes;
+
+  if (writes.length !== 1 || !ts.isBinaryExpression(write)) {
+    violations.push(`${flag}: expected exactly one write, found ${writes.length}`);
+    return violations;
+  }
+
+  if (unwrap(write.right).kind !== ts.SyntaxKind.TrueKeyword) {
+    violations.push(`${flag}: its write does not set true`);
+  }
+
+  const statement = write.parent;
+  const block = statement.parent;
+
+  if (!ts.isExpressionStatement(statement) || !ts.isBlock(block) || !ts.isCatchClause(block.parent)) {
+    violations.push(`${flag} = true is not an unconditional statement of a catch block`);
+    return violations;
+  }
+
+  const preceding = block.statements.slice(0, block.statements.indexOf(statement));
+  if (preceding.some((earlier) => !ts.isExpressionStatement(earlier))) {
+    violations.push(`${flag}: the catch block can leave before flagging`);
+  }
+
+  const guarded = block.parent.parent;
+  for (const fetcher of fetchers) {
+    if (callsTo(guarded.tryBlock, fetcher).length !== 1 || callsTo(body, fetcher).length !== 1) {
+      violations.push(`${flag}: ${fetcher} is not called once, inside the try it guards`);
+    }
+  }
+
+  if (!unconditionallyReached(guarded, body)) {
+    violations.push(`${flag}: ${page} does not always run the guarded fetch`);
+  }
+
+  return violations;
+}
+
+function jsxElements(root: ts.Node): JsxNode[] {
+  return descendants(
+    root,
+    (node): node is JsxNode => ts.isJsxElement(node) || ts.isJsxSelfClosingElement(node),
+  );
+}
+
+function tagName(element: JsxNode): string {
+  return (ts.isJsxElement(element) ? element.openingElement : element).tagName.getText();
+}
+
+// TEST-GLOBAL-07 (G06-D05): each load flag is raised by the catch of its own
+// fetch and reaches its consumer. The literal `statsLoadError = true;` stays
+// present under `if (false)` (C.15.1 M-D04), so presence proves nothing.
+function homeLoadFlags(source: string) {
+  const elements = jsxElements(parseTsx(source, DASHBOARD_PAGE_PATH));
+
+  return {
+    violations: HOME_LOAD_FLAGS.flatMap(([flag, fetcher]) =>
+      failureFlagViolations(source, DASHBOARD_PAGE_PATH, "DashboardPage", [fetcher], flag),
+    ),
+    wiring: HOME_FLAG_CONSUMERS.map(([tag, flag]) => {
+      const consumers = elements.filter((element) => tagName(element) === tag);
+      const value = consumers.length === 1 ? effectiveAttribute(consumers[0], flag) : undefined;
+
+      return value?.kind === "value"
+        ? `${tag}.${flag}=${unwrap(value.expression).getText()}`
+        : `${tag}.${flag} unwired`;
+    }),
+  };
+}
 
 function sectionBetween(source: string, start: string, end: string): string {
   const startIndex = source.indexOf(start);
@@ -112,6 +405,16 @@ test("dashboard home reads stats reports and field visits through API helpers", 
   // non-normative surface for §20 rows 11 and 12: its 3-row slices stay.
   assert.ok(source.includes("recentReports={recentReports.slice(0, 3)}"));
   assert.ok(source.includes("recentVisits={recentVisits.slice(0, 3)}"));
+
+  const wired = HOME_FLAG_CONSUMERS.map(([tag, flag]) => `${tag}.${flag}=${flag}`);
+  assert.deepEqual(homeLoadFlags(source), { violations: [], wiring: wired });
+
+  const neverRaised = source.replace("statsLoadError = true;", () => "if (false)\nstatsLoadError = true;");
+  assert.notEqual(neverRaised, source);
+  assert.deepEqual(homeLoadFlags(neverRaised), {
+    violations: ["statsLoadError = true is not an unconditional statement of a catch block"],
+    wiring: wired,
+  });
 });
 
 test("dashboard home opens the unified module workspace (no hub header/cards)", () => {
