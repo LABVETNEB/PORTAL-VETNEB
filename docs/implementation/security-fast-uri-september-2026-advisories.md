@@ -83,13 +83,15 @@
 - `test/architecture/toolchain-contract.test.ts` — `PASSED`; 8/8.
 - Guards relacionados (supply chain, backend CI workflow, quality gate
   impact, PR single scope, clean, Fastify app) — `PASSED`; 153/153.
-- `pnpm validate:local` — `BLOCKED`: `typecheck` y `typecheck:test`
-  `PASSED`; `pnpm test` corre 4703 tests (4701 aprobados, 1 omitido
-  preexistente) y sólo falla
-  `test/integration/app/e2e-global-03b-authoritative-auth-boundary.fastify.test.ts`,
-  que requiere `DATABASE_URL` o `SUPABASE_DB_URL` para la DB aislada
-  `portal_vetneb_ci`; el `build` encadenado queda `NOT_RUN`.
-- `pnpm build` (ejecutado aparte) — `PASSED`.
+- `pnpm validate:local` — `BLOCKED`:
+  - `typecheck` — `PASSED`.
+  - `typecheck:test` — `PASSED`.
+  - `test` — `BLOCKED`: corre 4703 tests (4701 aprobados, 1 omitido
+    preexistente) y sólo falla
+    `test/integration/app/e2e-global-03b-authoritative-auth-boundary.fastify.test.ts`,
+    que requiere `DATABASE_URL` o `SUPABASE_DB_URL` para la DB aislada
+    `portal_vetneb_ci`.
+  - `build` dentro del gate — `NOT_RUN`.
 - Gates frontend — `NOT_RUN`: `fast-uri` no pertenece al grafo del
   workspace `frontend`.
 - `git diff --check` — `PASSED`.
