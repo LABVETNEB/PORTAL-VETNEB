@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const CARD_PATH =
   "frontend/src/app/dashboard/admin/AdminSessionsReadOnlyCard.tsx";
@@ -16,13 +15,6 @@ const MODULE_CATALOG_PATH = "frontend/src/features/dashboard/config/dashboardMod
 const MODULE_ICONS_PATH = "frontend/src/components/dashboard/dashboardModuleIcons.ts";
 const API_PATH = "frontend/src/lib/api.ts";
 const GLOBALS_PATH = "frontend/src/app/globals.css";
-
-function read(relativePath: string) {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 test("PR-7B preserves the real admin-sessions navigation surface", () => {
   const page = read(PAGE_PATH);

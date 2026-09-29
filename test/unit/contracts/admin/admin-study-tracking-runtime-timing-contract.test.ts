@@ -1,12 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { readSourceFile } from "../../../helpers/tracked-source-files.ts";
 
-const routeSource = readFileSync(
-  resolve(process.cwd(), "server", "routes", "admin-study-tracking.fastify.ts"),
-  "utf8",
-);
+const routeSource = readSourceFile("server/routes/admin-study-tracking.fastify.ts");
 
 test("admin study tracking request logging uses shared runtime timing helper", () => {
   assert.match(routeSource, /createRuntimeTimer/);

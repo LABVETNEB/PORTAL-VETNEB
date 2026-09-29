@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync } from "node:fs";
-import { dirname, join, relative, resolve, sep } from "node:path";
+import { dirname, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { listSourceFiles, readSourceFile } from "../helpers/tracked-source-files.ts";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // E2E-GLOBAL-08 (LIMPIEZA E2E P2-6) — residual determinism.
@@ -81,21 +81,17 @@ function toRepoPath(absolutePath: string): string {
 }
 
 function listE2eSources(): Map<string, string> {
+  const e2eRoot = resolve(REPO_ROOT, E2E_ROOT);
   const sources = new Map<string, string>();
 
-  function visit(directory: string): void {
-    for (const item of readdirSync(directory, { withFileTypes: true })) {
-      const absolutePath = join(directory, item.name);
-      if (item.isDirectory()) {
-        if (!EXCLUDED_DIRECTORIES.has(item.name)) visit(absolutePath);
-        continue;
-      }
-      if (!item.isFile() || !SOURCE_EXTENSIONS.some((ext) => item.name.endsWith(ext))) continue;
-      sources.set(toRepoPath(absolutePath), readFileSync(absolutePath, "utf8"));
-    }
+  for (const file of listSourceFiles(e2eRoot, {
+    extensions: SOURCE_EXTENSIONS,
+    excludedDirectories: [...EXCLUDED_DIRECTORIES],
+  })) {
+    const repoPath = toRepoPath(resolve(e2eRoot, file));
+    sources.set(repoPath, readSourceFile(repoPath));
   }
 
-  visit(resolve(REPO_ROOT, E2E_ROOT));
   return new Map([...sources].sort(([a], [b]) => a.localeCompare(b)));
 }
 

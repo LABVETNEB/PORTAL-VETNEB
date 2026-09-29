@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync } from "node:fs";
+import { relative, resolve } from "node:path";
+import { readSourceFile } from "../../../helpers/tracked-source-files.ts";
 
 const migrationPath = resolve(
   process.cwd(),
@@ -19,7 +20,7 @@ const journalPath = resolve(
 const schemaPath = resolve(process.cwd(), "drizzle", "schema.ts");
 
 function readText(path: string) {
-  return readFileSync(path, "utf8");
+  return readSourceFile(relative(process.cwd(), path));
 }
 
 test("login_failed_attempts migration exists with table and indexes", () => {

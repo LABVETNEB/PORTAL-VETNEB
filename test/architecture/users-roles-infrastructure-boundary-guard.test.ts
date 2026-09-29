@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read, listSourceFiles } from "../helpers/tracked-source-files.ts";
 
 const root = process.cwd();
 const featureDir = "server/features/users-roles";
@@ -16,20 +17,8 @@ const legacyFile = "server/db-admin-users-roles.ts";
 const portFile =
   `${featureDir}/application/ports/admin-users-roles-repository.ts`;
 
-function read(path: string) {
-  return readFileSync(resolve(root, path), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
-
 function walk(path: string): string[] {
-  return readdirSync(resolve(root, path), { withFileTypes: true })
-    .flatMap((entry) => {
-      const child = `${path}/${entry.name}`;
-      return entry.isDirectory() ? walk(child) : [child];
-    })
-    .sort();
+  return listSourceFiles(resolve(root, path)).map((file) => `${path}/${file}`);
 }
 
 function importSpecifiers(source: string) {

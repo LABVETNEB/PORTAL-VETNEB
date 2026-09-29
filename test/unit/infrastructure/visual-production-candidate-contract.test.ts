@@ -9,6 +9,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { E2E_COHORT_SPECS } from "../../../frontend/e2e/suites/catalog.ts";
 import { evaluateWorkflowSecurity } from "../../../scripts/governance/workflow-security-validator.mjs";
+import { readSourceFile as readWorkflow, readSourceFile } from "../../helpers/tracked-source-files.ts";
 
 // E2E-GLOBAL-05A contract: the production visual candidate is built, served by
 // `next start` through playwright.config.ts's own production runner, captured
@@ -117,10 +118,6 @@ function png(width: number, height: number, red: number): Buffer {
 function mapping(value: unknown, label: string): Mapping {
   assert.ok(value !== null && typeof value === "object" && !Array.isArray(value), `${label} must be a mapping`);
   return value as Mapping;
-}
-
-function readWorkflow(path: string): string {
-  return readFileSync(resolve(REPO_ROOT, path), "utf8").replace(/\r\n/g, "\n");
 }
 
 function parseWorkflow(source: string): Mapping {
@@ -266,7 +263,7 @@ test("importing the candidate orchestrator does not execute its CLI", () => {
 });
 
 test("frontend exposes the candidate as an explicit script and leaves e2e:full untouched", () => {
-  const scripts = (JSON.parse(readFileSync(resolve(FRONTEND_ROOT, "package.json"), "utf8")) as { scripts: Env }).scripts;
+  const scripts = (JSON.parse(readSourceFile("frontend/package.json")) as { scripts: Env }).scripts;
 
   assert.equal(scripts["e2e:visual-production-candidate"], "node e2e/scripts/visual-production-candidate.mjs");
   assert.equal(scripts["e2e:full"], "node e2e/scripts/run-cohort.mjs full");

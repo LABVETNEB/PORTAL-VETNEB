@@ -1,6 +1,4 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
 
 import {
@@ -8,6 +6,7 @@ import {
   buildClinicPublicProfileResponse,
   evaluateClinicPublicProfilePublication,
 } from "../../../../server/features/public-professionals/infrastructure/public-professionals-mapping.ts";
+import { readSourceFile } from "../../../helpers/tracked-source-files.ts";
 
 const clinic = {
   id: 37,
@@ -28,13 +27,7 @@ function evaluate(
 }
 
 test("disclosure fija el umbral exacto 74/75 y score 75 elegible", () => {
-  const source = readFileSync(
-    resolve(
-      process.cwd(),
-      "server/features/public-professionals/infrastructure/public-professionals-mapping.ts",
-    ),
-    "utf8",
-  );
+  const source = readSourceFile("server/features/public-professionals/infrastructure/public-professionals-mapping.ts");
 
   assert.equal(MIN_PUBLIC_PROFILE_QUALITY_SCORE, 75);
   assert.match(

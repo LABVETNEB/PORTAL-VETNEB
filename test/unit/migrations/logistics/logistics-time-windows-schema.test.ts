@@ -1,7 +1,5 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { timeWindows } from "../../../../drizzle/schema.ts";
 import {
   DEFAULT_TIME_WINDOW_TIMEZONE,
@@ -10,6 +8,7 @@ import {
   isValidTimeWindowRange,
   normalizeTimeWindowTimezone,
 } from "../../../../server/features/logistics/domain/index.ts";
+import { readSourceFile } from "../../../helpers/tracked-source-files.ts";
 
 test("logistics schema exports time windows table", () => {
   assert.equal(typeof timeWindows, "object");
@@ -86,15 +85,7 @@ test("normalizeTimeWindowTimezone caps timezone length", () => {
 });
 
 test("logistics time windows migration creates validation and indexes", () => {
-  const migration = readFileSync(
-    resolve(
-      process.cwd(),
-      "drizzle",
-      "migrations",
-      "0018_logistics_time_windows.sql",
-    ),
-    "utf8",
-  );
+  const migration = readSourceFile("drizzle/migrations/0018_logistics_time_windows.sql");
 
   assert.match(migration, /CREATE TABLE IF NOT EXISTS "time_windows"/);
   assert.match(migration, /"field_visit_id" integer NOT NULL/);
@@ -111,16 +102,7 @@ test("logistics time windows migration creates validation and indexes", () => {
 });
 
 test("logistics time windows migration is registered in drizzle journal", () => {
-  const journal = readFileSync(
-    resolve(
-      process.cwd(),
-      "drizzle",
-      "migrations",
-      "meta",
-      "_journal.json",
-    ),
-    "utf8",
-  );
+  const journal = readSourceFile("drizzle/migrations/meta/_journal.json");
 
   const parsed = JSON.parse(journal) as {
     entries?: Array<{ idx?: number; tag?: string }>;

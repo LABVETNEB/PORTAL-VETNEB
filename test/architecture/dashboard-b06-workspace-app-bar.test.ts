@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
+import { readSourceFile as read } from "../helpers/tracked-source-files.ts";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // B06 · WorkspaceAppBar static contract.
@@ -53,10 +54,6 @@ const TOKEN_BLOCK_END = "dashboard-app-bar-geometry:end */";
 
 /** Layers the app bar must never reach, directly or transitively. */
 const FORBIDDEN_PRESENTATION_IMPORTS = ["@/lib/api", "@/app/", "@/app"] as const;
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(REPO_ROOT, relativePath), "utf8").replace(/\r\n/g, "\n");
-}
 
 /**
  * Executable source only. Every "must NOT contain" assertion below runs against

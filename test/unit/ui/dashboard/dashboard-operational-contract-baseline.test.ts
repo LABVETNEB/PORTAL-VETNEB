@@ -1,8 +1,5 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 
 import {
   ADMIN_MODULE_IDS,
@@ -20,6 +17,7 @@ import {
   SUPER_SEARCH_TOTAL,
   SUPER_SEARCH_WITHOUT_FILTER_BAR,
 } from "../../../fixtures/dashboard-operational-contract.ts";
+import { readSourceFile as readSource } from "../../../helpers/tracked-source-files.ts";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // A01 · Dashboard operational contract baseline.
@@ -29,23 +27,6 @@ import {
 // executable source, and every divergence with the global audit is asserted as
 // explicit drift instead of being normalized away.
 // ─────────────────────────────────────────────────────────────────────────────
-
-const TEST_FILE = fileURLToPath(import.meta.url);
-const REPO_ROOT = resolve(dirname(TEST_FILE), "..", "..", "..", "..");
-
-const sourceCache = new Map<string, string>();
-
-/** Repo source with CRLF normalized so markers match on Windows and Linux. */
-function readSource(repoRelativePath: string): string {
-  const cached = sourceCache.get(repoRelativePath);
-  if (cached !== undefined) return cached;
-
-  const absolutePath = resolve(REPO_ROOT, repoRelativePath);
-  assert.ok(existsSync(absolutePath), `missing source file: ${repoRelativePath}`);
-  const source = readFileSync(absolutePath, "utf8").replace(/\r\n/g, "\n");
-  sourceCache.set(repoRelativePath, source);
-  return source;
-}
 
 test("dashboard module inventory is 15 modules: 10 admin + 5 clinic", () => {
   assert.equal(DASHBOARD_MODULE_CONTRACTS.length, DASHBOARD_MODULE_TOTAL);

@@ -1,10 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { dirname, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
-import { listTrackedSourceFiles } from "../helpers/tracked-source-files.ts";
+import { listTrackedSourceFiles, readSourceFile } from "../helpers/tracked-source-files.ts";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // E2E-GLOBAL-11 (LIMPIEZA E2E R-02 + §23) — fixture ↔ Fastify contract.
@@ -93,10 +93,6 @@ type Workspace = {
 };
 
 type Overrides = Readonly<Record<string, string>>;
-
-function normalizeNewlines(text: string): string {
-  return text.replace(/\r\n/g, "\n");
-}
 
 function toRepoPath(absolutePath: string): string {
   return relative(REPO_ROOT, absolutePath).split(sep).join("/");
@@ -188,7 +184,7 @@ function createWorkspace(overrides: Overrides = {}): Workspace {
   return {
     read(path) {
       const override = overrides[path];
-      return override ?? normalizeNewlines(readFileSync(resolve(REPO_ROOT, path), "utf8"));
+      return override ?? readSourceFile(path);
     },
     e2eFiles() {
       const onDisk = listTrackedSourceFiles(E2E_ROOT);

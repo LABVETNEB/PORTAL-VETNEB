@@ -1,7 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { readSourceFile } from "../helpers/tracked-source-files.ts";
 
 type PackageJson = {
   packageManager?: string;
@@ -32,10 +31,7 @@ const SECURITY_OVERRIDE_LINES = [
 ] as const;
 
 function readTextFile(...segments: string[]): string {
-  return readFileSync(resolve(process.cwd(), ...segments), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
+  return readSourceFile(segments.join("/"));
 }
 
 function readPackageJson(): PackageJson {

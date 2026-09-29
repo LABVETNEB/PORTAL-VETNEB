@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync } from "node:fs";
+import { readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile } from "../helpers/tracked-source-files.ts";
 
 const repoRoot = process.cwd();
 const migrationsDir = "drizzle/migrations";
@@ -21,7 +22,7 @@ const adrPath = "docs/architecture/migration-snapshot-integrity-adr.md";
 const MIGRATION_POLICY = "MANUAL_MIGRATION_POLICY";
 
 function readJson(relativePath: string): unknown {
-  return JSON.parse(readFileSync(resolve(repoRoot, relativePath), "utf8"));
+  return JSON.parse(readSourceFile(relativePath));
 }
 
 function listSqlStems(dir: string): string[] {
@@ -161,7 +162,7 @@ test("WBR-09: db:generate is retired and db:migrate is preserved", () => {
 });
 
 test("canonical migration policy is documented", () => {
-  const adr = readFileSync(resolve(repoRoot, adrPath), "utf8");
+  const adr = readSourceFile(adrPath);
 
   assert.match(adr, new RegExp(MIGRATION_POLICY));
   assert.match(adr, /db:generate`? is retired/i);
@@ -220,10 +221,7 @@ test("negative proof: mutated inputs are correctly rejected by the pure validato
 });
 
 test("migration snapshot integrity guardrail source stays ascii only", () => {
-  const source = readFileSync(
-    resolve(repoRoot, "test/architecture/migration-snapshot-integrity.test.ts"),
-    "utf8",
-  );
+  const source = readSourceFile("test/architecture/migration-snapshot-integrity.test.ts");
 
   for (let index = 0; index < source.length; index += 1) {
     assert.equal(

@@ -7,9 +7,6 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { dirname, resolve } from "node:path";
 
 import {
   buildCspReportingEndpointConfig,
@@ -17,11 +14,9 @@ import {
   CSP_REPORT_TO_GROUP,
   CSP_REPORT_URI_PATH,
 } from "../../../../frontend/src/lib/security/csp-policy.ts";
+import { readSourceFile } from "../../../helpers/tracked-source-files.ts";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const NEXT_CONFIG_PATH = resolve(__dirname, "../../../../frontend/next.config.ts");
-const NEXT_CONFIG_SOURCE = readFileSync(NEXT_CONFIG_PATH, "utf8");
+const NEXT_CONFIG_SOURCE = readSourceFile("frontend/next.config.ts");
 const BASELINE_CSP = buildReportOnlyCsp({ reportUri: CSP_REPORT_URI_PATH });
 
 test("next.config.ts consumes buildReportOnlyCsp() as the CSP source of truth", () => {

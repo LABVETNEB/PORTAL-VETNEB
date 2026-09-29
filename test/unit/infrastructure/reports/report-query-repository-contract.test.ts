@@ -1,15 +1,10 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile } from "../../../helpers/tracked-source-files.ts";
 
-const root = process.cwd();
 const repositoryPath =
   "server/features/reports/infrastructure/report-query-repository.ts";
-const source = readFileSync(resolve(root, repositoryPath), "utf8").replace(
-  /\r\n/g,
-  "\n",
-);
+const source = readSourceFile(repositoryPath);
 
 test("M40 repository es owner unico de las ocho queries", () => {
   for (const marker of [

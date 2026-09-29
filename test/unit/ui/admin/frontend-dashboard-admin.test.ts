@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile, readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const ADMIN_PAGE_PATH = "frontend/src/app/dashboard/admin/page.tsx";
 const ADMIN_COMMAND_CENTER_PATH =
@@ -16,13 +15,6 @@ const ADMIN_AUDIT_SHARED_PATH =
   "frontend/src/app/dashboard/admin/admin-audit-shared.ts";
 const CATALOG_PATH =
   "frontend/src/features/dashboard/config/dashboardModules.ts";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 test("dashboard admin defines non-indexable metadata and admin dependencies", () => {
   const source = read(ADMIN_PAGE_PATH);
@@ -332,10 +324,7 @@ test("dashboard admin distinguishes audit log load failures from empty states", 
 });
 
 test("AdminDashboardWorkspaceController syncs module from URL with useSearchParams and useEffect", () => {
-  const source = readFileSync(
-    resolve(process.cwd(), "frontend/src/app/dashboard/admin/AdminDashboardWorkspaceController.tsx"),
-    "utf8",
-  ).replace(/\r\n/g, "\n");
+  const source = readSourceFile("frontend/src/app/dashboard/admin/AdminDashboardWorkspaceController.tsx");
 
   assert.ok(source.includes('useSearchParams'));
   assert.ok(source.includes('useEffect'));

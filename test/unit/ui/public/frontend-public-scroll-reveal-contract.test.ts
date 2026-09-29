@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const COMPONENT_PATH = "frontend/src/components/public/PublicScrollReveal.tsx";
 const FRONTEND_PACKAGE_PATH = "frontend/package.json";
@@ -53,13 +54,6 @@ const PUBLIC_FILES_WITHOUT_GSAP_IMPORT = [
   "frontend/src/components/public/ParticularesContent.tsx",
   "frontend/src/components/public/ProfesionalesSearchContent.tsx",
 ];
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 test("public scroll reveal infrastructure file exists", () => {
   assert.equal(existsSync(resolve(process.cwd(), COMPONENT_PATH)), true);

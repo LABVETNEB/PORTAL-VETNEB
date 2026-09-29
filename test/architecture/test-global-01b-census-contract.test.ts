@@ -475,12 +475,12 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     section: "§6.4",
     metric: "importadores de helpers/tracked-source-files.ts",
     historical: 8,
-    baseline: 14,
+    baseline: 409,
     compute: () => supportConsumers("test/helpers/tracked-source-files.ts"),
     resolution: "RECLASSIFIED",
     guard: NON_DECREASING,
     motive:
-      "TEST-GLOBAL-05A debe subirlo; congelarlo penalizaría el objetivo del programa. Es una métrica de adopción del lector canónico, no un volumen: la banda simétrica 8 ± 2 ponía en rojo cada lote de 05A que superara 10 importadores y dejaba caer a 6 en verde. NON_DECREASING, sin techo: crecer sigue permitido. El histórico 8 es el snapshot de §6.4; el baseline es el piso POST del último lote de 05A: 12 tras el lote 2 (audit-separated-surfaces y audit-study-tracking-gaps) y 14 tras el lote 3 (public-professionals-fixture adoption y assertions-quality), de modo que revertir cualquier migración ya completada y bajar de 14 rompe el guard. AGENTS.md §4: el censo que el lote rompe causalmente se realinea en el mismo PR sin debilitarlo. TEST-GLOBAL-11 revisa este censo (§31.2).",
+      "TEST-GLOBAL-05A debe subirlo; congelarlo penalizaría el objetivo del programa. Es una métrica de adopción del lector canónico, no un volumen: la banda simétrica 8 ± 2 ponía en rojo cada lote de 05A que superara 10 importadores y dejaba caer a 6 en verde. NON_DECREASING, sin techo: crecer sigue permitido. El histórico 8 es el snapshot de §6.4; el baseline es el piso POST del último lote de 05A: 12 tras el lote 2 (audit-separated-surfaces y audit-study-tracking-gaps), 14 tras el lote 3 (public-professionals-fixture adoption y assertions-quality) y 409 tras el cierre consolidado 05A (14 -> 409: lectores simples, lectores especializados, walkers, soporte compartido y el contrato de inventario de logistics migrados al lector canónico en un único PR), de modo que revertir cualquier migración ya completada y bajar de 409 rompe el guard. AGENTS.md §4: el censo que el lote rompe causalmente se realinea en el mismo PR sin debilitarlo. TEST-GLOBAL-11 revisa este censo (§31.2).",
   },
   {
     row: "A0-06-SUPPORT",
@@ -556,21 +556,24 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     section: "§7.1",
     metric: "specs que importan node:fs",
     historical: 410,
+    baseline: 123,
     compute: () => coupling.rawSignals["node:fs"] ?? -1,
-    resolution: "REPRODUCED",
+    resolution: "RECLASSIFIED",
     guard: BAND,
     motive:
-      "TEST-GLOBAL-05A debe reducirlo migrando al lector canónico: banda, no igualdad.",
+      "TEST-GLOBAL-05A debe reducirlo migrando al lector canónico: banda, no igualdad. Cierre consolidado 05A: 405 -> 123 sobre main@4e5491ec (el histórico 410 es el snapshot de §7.1). Los 123 restantes importan node:fs por E/S que no es lectura de source (existencia, stat, listados de un solo nivel, fixtures temporales, bytes crudos hasheados) o por el contrato hermético declarado de un spec; se re-ancla la banda al valor POST sin ampliar GROWTH_TOLERANCE ni cambiar el detector.",
   },
   {
     row: "A0-07-RAW",
     section: "§7.1",
     metric: "specs con readdirSync",
     historical: 82,
+    baseline: 18,
     compute: () => coupling.rawSignals.readdirSync ?? -1,
-    resolution: "REPRODUCED",
+    resolution: "RECLASSIFIED",
     guard: BAND,
-    motive: "Señal física, objetivo de reducción de 05A.",
+    motive:
+      "Señal física, objetivo de reducción de 05A. Cierre consolidado 05A: 83 -> 18 sobre main@4e5491ec, porque los walkers recursivos delegan en listSourceFiles del helper canónico; los 18 restantes son listados de un solo nivel, estructura de directorios o árboles temporales. Se re-ancla la banda al valor POST sin ampliar GROWTH_TOLERANCE ni cambiar el detector.",
   },
   {
     row: "A0-07-RAW",
@@ -963,45 +966,45 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     section: "§13.1",
     metric: "specs con lector propio",
     historical: 283,
-    baseline: 275,
+    baseline: 40,
     compute: () =>
       classification.specs.filter((spec) => spec.definesOwnReader).length,
     resolution: "RECLASSIFIED",
     guard: NON_INCREASING,
     motive:
-      "A.0 ya declara que un grep simple devuelve 281; el tooling reproduce exactamente esa cifra auditable, no la derivada del scratchpad. Diferencia declarada: 2 archivos. TEST-GLOBAL-05A: es deuda (TG-R09), no volumen, y pasa de banda a NON_INCREASING: la banda de 25 % dejaba crecer 70 lectores ad hoc en verde y ponía en rojo una migración legítima de más de 71. El lote 1 de 05A migra al lector canónico los specs public-professionals-fixture file-scope y helper-boundaries: 281 -> 279, re-anclado al valor vigente. Lote 2: audit-separated-surfaces y audit-study-tracking-gaps, 279 -> 277, re-anclado al valor POST para que revertir una migración completada rompa el guard. Lote 3: public-professionals-fixture adoption y assertions-quality, 277 -> 275, re-anclado al valor POST.",
+      "A.0 ya declara que un grep simple devuelve 281; el tooling reproduce exactamente esa cifra auditable, no la derivada del scratchpad. Diferencia declarada: 2 archivos. TEST-GLOBAL-05A: es deuda (TG-R09), no volumen, y pasa de banda a NON_INCREASING: la banda de 25 % dejaba crecer 70 lectores ad hoc en verde y ponía en rojo una migración legítima de más de 71. El lote 1 de 05A migra al lector canónico los specs public-professionals-fixture file-scope y helper-boundaries: 281 -> 279, re-anclado al valor vigente. Lote 2: audit-separated-surfaces y audit-study-tracking-gaps, 279 -> 277, re-anclado al valor POST para que revertir una migración completada rompa el guard. Lote 3: public-professionals-fixture adoption y assertions-quality, 277 -> 275, re-anclado al valor POST. Cierre consolidado 05A: 275 -> 40, re-anclado al valor POST; los 40 restantes definen adaptadores con nombre legado que delegan en readSourceFile/listSourceFiles (quita de BOM, resolución por basename, walkers con filtros propios) y siguen contando porque el detector es por nombre.",
   },
   {
     row: "A0-13-READERS",
     section: "§13.1",
     metric: "specs que definen su propio walker de árbol",
     historical: 18,
-    baseline: 17,
+    baseline: 10,
     compute: () => ownReaderFiles("walk"),
     resolution: "RECLASSIFIED",
     guard: NON_INCREASING,
     motive:
-      "Mismo caso: A.0 declara que el grep simple devuelve 17. El tooling reproduce la cifra auditable. TEST-GLOBAL-05A: walker ad hoc = deuda (TG-R09), NON_INCREASING; puede bajar sin editar la fila y no puede crecer.",
+      "Mismo caso: A.0 declara que el grep simple devuelve 17. El tooling reproduce la cifra auditable. TEST-GLOBAL-05A: walker ad hoc = deuda (TG-R09), NON_INCREASING; puede bajar sin editar la fila y no puede crecer. Cierre consolidado 05A: 17 -> 10, re-anclado al valor POST; los 10 restantes son adaptadores llamados walk que delegan la recursión en listSourceFiles.",
   },
   {
     row: "A0-13-READERS",
     section: "§13.1",
     metric: "specs que normalizan CRLF a mano",
     historical: 295,
-    baseline: 280,
+    baseline: 16,
     compute: () =>
       classification.specs.filter((spec) => spec.normalizesCrlf).length,
     resolution: "RECLASSIFIED",
     guard: NON_INCREASING,
     motive:
-      "Mismo caso: A.0 declara que el grep simple devuelve 279. El tooling reproduce la cifra auditable. TEST-GLOBAL-05A: normalizar CRLF a mano duplica el lector canónico (TG-R16) y pasa a NON_INCREASING. Bajo la banda la cifra subió de 279 a 285 entre 01B y main@ed6bf532 sin poner el censo en rojo: esa regresión se declara aquí y desde este ancla no puede crecer. Lote 1 de 05A: 285 -> 284, porque helper-boundaries deja de normalizar a mano y lee por el lector canónico. Lote 2: 284 -> 282, los dos specs audit migrados dejan de normalizar a mano; re-anclado al valor POST. Lote 3: 282 -> 280, los specs public-professionals-fixture adoption y assertions-quality dejan de normalizar a mano; re-anclado al valor POST.",
+      "Mismo caso: A.0 declara que el grep simple devuelve 279. El tooling reproduce la cifra auditable. TEST-GLOBAL-05A: normalizar CRLF a mano duplica el lector canónico (TG-R16) y pasa a NON_INCREASING. Bajo la banda la cifra subió de 279 a 285 entre 01B y main@ed6bf532 sin poner el censo en rojo: esa regresión se declara aquí y desde este ancla no puede crecer. Lote 1 de 05A: 285 -> 284, porque helper-boundaries deja de normalizar a mano y lee por el lector canónico. Lote 2: 284 -> 282, los dos specs audit migrados dejan de normalizar a mano; re-anclado al valor POST. Lote 3: 282 -> 280, los specs public-professionals-fixture adoption y assertions-quality dejan de normalizar a mano; re-anclado al valor POST. Cierre consolidado 05A: 280 -> 16, re-anclado al valor POST; los 16 restantes escriben CRLF como dato (multipart, MIME, fixtures de mutación) o normalizan la entrada de un evaluador, no una lectura de source.",
   },
   {
     row: "A0-13-READERS",
     section: "§13.1",
     metric: "specs que leen filesystem sin normalizar CRLF",
     historical: 36,
-    baseline: 130,
+    baseline: 117,
     compute: () =>
       classification.specs.filter(
         (spec) => spec.readsFilesystemWithoutCrlfNormalization,
@@ -1009,7 +1012,7 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     resolution: "RECLASSIFIED",
     guard: NON_INCREASING,
     motive:
-      "El tooling define 'lee filesystem' como importar node:fs (la señal de §7.1, 410 archivos); el scratchpad usaba un subconjunto no declarado. Con la definición escrita, la cifra vigente es mayor y recomputable. TEST-GLOBAL-05A: la señal la calcula el tooling sobre la lectura DIRECTA por node:fs; lo leído por el lector canónico ya sale normalizado y no es deuda, pero un spec que conserve una lectura directa sin normalizar sigue contando. NON_INCREASING. Vigente previo 131 (la banda ocultaba la deriva desde 136); lote 1 de 05A: 131 -> 130, porque file-scope leía sin normalizar.",
+      "El tooling define 'lee filesystem' como importar node:fs (la señal de §7.1, 410 archivos); el scratchpad usaba un subconjunto no declarado. Con la definición escrita, la cifra vigente es mayor y recomputable. TEST-GLOBAL-05A: la señal la calcula el tooling sobre la lectura DIRECTA por node:fs; lo leído por el lector canónico ya sale normalizado y no es deuda, pero un spec que conserve una lectura directa sin normalizar sigue contando. NON_INCREASING. Vigente previo 131 (la banda ocultaba la deriva desde 136); lote 1 de 05A: 131 -> 130, porque file-scope leía sin normalizar. Cierre consolidado 05A: 130 -> 117, re-anclado al valor POST.",
   },
   {
     row: "A0-13-READERS",
@@ -1027,12 +1030,12 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     section: "§13.1",
     metric: "specs que definen su propio lector readSource",
     historical: 65,
-    baseline: 59,
+    baseline: 20,
     compute: () => ownReaderFiles("readSource"),
     resolution: "RECLASSIFIED",
     guard: NON_INCREASING,
     motive:
-      "Reproducía el histórico 65. El lote 1 de TEST-GLOBAL-05A migra al lector canónico los dos specs public-professionals-fixture que definían readSource: 65 -> 63, re-anclado al valor vigente sin cambiar el detector. Lote 2: audit-separated-surfaces y audit-study-tracking-gaps, 63 -> 61, re-anclado al valor POST. Lote 3: public-professionals-fixture adoption y assertions-quality, 61 -> 59, re-anclado al valor POST. NON_INCREASING: la deuda de lectores ad hoc no puede crecer y su reducción no exige editar la fila.",
+      "Reproducía el histórico 65. El lote 1 de TEST-GLOBAL-05A migra al lector canónico los dos specs public-professionals-fixture que definían readSource: 65 -> 63, re-anclado al valor vigente sin cambiar el detector. Lote 2: audit-separated-surfaces y audit-study-tracking-gaps, 63 -> 61, re-anclado al valor POST. Lote 3: public-professionals-fixture adoption y assertions-quality, 61 -> 59, re-anclado al valor POST. Cierre consolidado 05A: 59 -> 20, re-anclado al valor POST. NON_INCREASING: la deuda de lectores ad hoc no puede crecer y su reducción no exige editar la fila.",
   },
   // ── §20 censos congelados ─────────────────────────────────────────────────
   {
@@ -1653,6 +1656,40 @@ test("censo 05A: la deuda de lectores ad hoc rompe al crecer y la adopción del 
     );
   }
 
+  // Checkpoint PRE del cierre consolidado 05A (main@4e5491ec, POST lote 3): cada
+  // fila re-anclada vale hoy exactamente su baseline POST y volver a la cifra PRE
+  // la pone en rojo, de modo que revertir cualquier migración ya completada rompe.
+  const preConsolidatedClosure = new Map<string, number>([
+    ["specs con lector propio", 275],
+    ["specs que definen su propio walker de árbol", 17],
+    ["specs que normalizan CRLF a mano", 280],
+    ["specs que leen filesystem sin normalizar CRLF", 130],
+    ["specs que definen su propio lector readSource", 59],
+  ]);
+
+  assert.deepEqual(
+    readerDebt
+      .filter((entry) => entry.baseline !== undefined)
+      .map((entry) => entry.metric)
+      .sort(),
+    [...preConsolidatedClosure.keys()].sort(),
+    "toda fila de deuda re-anclada declara su checkpoint PRE del cierre consolidado 05A",
+  );
+
+  for (const entry of readerDebt.filter((candidate) => candidate.baseline !== undefined)) {
+    const { anchor, current } = evaluateEntry(entry);
+    const pre = preConsolidatedClosure.get(entry.metric) as number;
+    const reverted = { ...entry, compute: () => pre };
+
+    assert.equal(current, anchor, `${entry.metric}: el baseline es el valor POST exacto`);
+    assert.ok(pre > anchor, `${entry.metric}: el cierre consolidado reduce la deuda`);
+    assert.match(
+      guardViolation(reverted, evaluateEntry(reverted)) ?? "",
+      new RegExp(`: ${pre} supera la cota de no-regresión ${anchor}$`),
+      `${entry.metric}: volver al checkpoint PRE debe poner el censo en rojo`,
+    );
+  }
+
   // Espejo: la adopción del lector canónico es un piso sin techo, no una banda.
   const adoption = CENSUS_LEDGER.filter(
     (entry) =>
@@ -1672,16 +1709,16 @@ test("censo 05A: la deuda de lectores ad hoc rompe al crecer y la adopción del 
   assert.equal(adoptionEntry.guard.kind, "NON_DECREASING");
   assert.equal(adoptionEntry.resolution, "RECLASSIFIED");
   assert.equal(adoptionEntry.historical, 8, "el histórico de §6.4 se conserva");
-  assert.equal(adoptionEntry.baseline, 14, "piso versionado POST lote 3");
-  assert.equal(anchor, 14, "el piso es el checkpoint POST lote 3, no el histórico");
-  assert.equal(current, 14, "la adopción vigente es la del checkpoint POST lote 3");
+  assert.equal(adoptionEntry.baseline, 409, "piso versionado POST cierre consolidado 05A");
+  assert.equal(anchor, 409, "el piso es el checkpoint POST del cierre consolidado 05A, no el histórico");
+  assert.equal(current, 409, "la adopción vigente es la del checkpoint POST del cierre consolidado 05A");
   assert.equal(
     guardViolation(adoptionEntry, evaluateEntry(adoptionEntry)),
     null,
     `vigente ${current}: la adopción real no puede poner el censo en rojo`,
   );
 
-  for (const grown of [14, 15, 100]) {
+  for (const grown of [409, 410, 1000]) {
     const at = { ...adoptionEntry, compute: () => grown };
 
     assert.equal(
@@ -1691,12 +1728,13 @@ test("censo 05A: la deuda de lectores ad hoc rompe al crecer y la adopción del 
     );
   }
 
-  for (const regressedTo of [13, 12, 8]) {
+  // 408 = POST - 1; 14 = checkpoint PRE (POST lote 3); 8 = histórico de §6.4.
+  for (const regressedTo of [408, 14, 8]) {
     const regressed = { ...adoptionEntry, compute: () => regressedTo };
 
     assert.match(
       guardViolation(regressed, evaluateEntry(regressed)) ?? "",
-      new RegExp(`: ${regressedTo} cae por debajo del piso de no-decrecimiento 14$`),
+      new RegExp(`: ${regressedTo} cae por debajo del piso de no-decrecimiento 409$`),
       `${regressedTo} importadores: revertir una migración completada debe poner el censo en rojo`,
     );
   }

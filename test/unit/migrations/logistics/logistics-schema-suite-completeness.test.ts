@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
-import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import * as schema from "../../../../drizzle/schema.ts";
+import { listSourceFiles, readSourceFile } from "../../../helpers/tracked-source-files.ts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -62,20 +62,7 @@ const expectedTableExports = [
 const expectedMigrationPrefixes = ["0017", "0018", "0019", "0020", "0021"] as const;
 
 async function walkFiles(dir: string): Promise<string[]> {
-  const entries = await readdir(dir, { withFileTypes: true });
-  const files = await Promise.all(
-    entries.map(async (entry) => {
-      const entryPath = path.join(dir, entry.name);
-
-      if (entry.isDirectory()) {
-        return walkFiles(entryPath);
-      }
-
-      return [entryPath];
-    }),
-  );
-
-  return files.flat();
+  return listSourceFiles(dir).map((file) => path.join(dir, file));
 }
 
 function assertSourceIncludes(source: string, needle: string): void {
@@ -189,7 +176,7 @@ test("logistics enum literal suites remain complete", () => {
 });
 
 test("logistics schema declarations remain present in source", async () => {
-  const source = await readFile(schemaPath, "utf8");
+  const source = readSourceFile(path.relative(repoRoot, schemaPath));
 
   for (const typeName of expectedTypeExports) {
     assertSourceIncludes(source, `export type ${typeName}`);
@@ -226,7 +213,7 @@ test("logistics migrations 0017 through 0021 remain present and cover the schema
   });
 
   const migrationSources = await Promise.all(
-    logisticsMigrationFiles.map((fileName) => readFile(fileName, "utf8")),
+    logisticsMigrationFiles.map((fileName) => readSourceFile(path.relative(repoRoot, fileName))),
   );
 
   const combinedMigrationSource = migrationSources.join("\n");
@@ -242,7 +229,7 @@ test("pre-existing native logistics schema tests remain in the suite", async () 
     .filter((fileName) => path.normalize(fileName) !== currentTestFile);
 
   const testSources = await Promise.all(
-    testFiles.map((fileName) => readFile(fileName, "utf8")),
+    testFiles.map((fileName) => readSourceFile(path.relative(repoRoot, fileName))),
   );
 
   const combinedTestSource = testSources.join("\n");

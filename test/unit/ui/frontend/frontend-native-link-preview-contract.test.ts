@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read, listSourceFiles } from "../../../helpers/tracked-source-files.ts";
 
 const FRONTEND_SRC_ROOT = "frontend/src";
 const FRONTEND_APP_ROOT = "frontend/src/app";
@@ -20,37 +20,10 @@ const PUBLIC_ROUTE_CONTROL_PATH =
 const RENDER_PRIMITIVES_PATH = "frontend/src/components/public/RenderPrimitives.tsx";
 const OFFLINE_ACTIONS_PATH = "frontend/src/components/pwa/OfflineActions.tsx";
 
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
-
 function collectFiles(relativeRoot: string, extensions: string[]): string[] {
-  const absoluteRoot = resolve(process.cwd(), relativeRoot);
-  const files: string[] = [];
-  const rootPrefix = resolve(process.cwd(), "").replace(/\\/g, "/") + "/";
-
-  function walk(currentPath: string) {
-    for (const entry of readdirSync(currentPath)) {
-      const fullPath = `${currentPath}/${entry}`;
-      const info = statSync(fullPath);
-
-      if (info.isDirectory()) {
-        walk(fullPath);
-        continue;
-      }
-
-      if (extensions.some((extension) => entry.endsWith(extension))) {
-        files.push(fullPath.replace(rootPrefix, ""));
-      }
-    }
-  }
-
-  walk(absoluteRoot.replace(/\\/g, "/"));
-
-  return files;
+  return listSourceFiles(resolve(process.cwd(), relativeRoot), { extensions }).map(
+    (file) => `${relativeRoot}/${file}`,
+  );
 }
 
 const appAndComponentFiles = [

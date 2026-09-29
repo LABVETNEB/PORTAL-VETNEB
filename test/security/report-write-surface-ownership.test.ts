@@ -1,8 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync } from "node:fs";
+import { readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import Fastify from "fastify";
+import { readSourceFile as readSource } from "../helpers/tracked-source-files.ts";
 
 process.env.NODE_ENV ??= "development";
 process.env.SUPABASE_URL ??= "https://example.supabase.co";
@@ -15,13 +16,6 @@ const { ENV } = await import("../../server/lib/env.ts");
 const {
   adminReportsNativeRoutes,
 } = await import("../../server/routes/admin-reports.fastify.ts");
-
-function readSource(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 function routeFiles(): string[] {
   return readdirSync(resolve(process.cwd(), "server/routes"))

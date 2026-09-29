@@ -1,9 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 
 import {
   DEFAULT_SBOM_OUTPUT_PATH,
@@ -19,6 +19,7 @@ import {
   renderSbom,
   splitPackageKey,
 } from "../../../scripts/supply-chain/generate-sbom.mjs";
+import { readSourceFile as read } from "../../helpers/tracked-source-files.ts";
 
 const require = createRequire(import.meta.url);
 const { CORE_SCHEMA, load } = require("js-yaml") as {
@@ -133,10 +134,6 @@ function manifest(name: unknown, version: unknown): string {
 
 const VALID_ROOT_MANIFEST = manifest("fixture-backend", "2.1.0");
 const VALID_FRONTEND_MANIFEST = manifest("fixture-frontend", "1.0.0");
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(/\r\n/g, "\n");
-}
 
 function parseYaml<T>(relativePath: string): T {
   return load(read(relativePath), {

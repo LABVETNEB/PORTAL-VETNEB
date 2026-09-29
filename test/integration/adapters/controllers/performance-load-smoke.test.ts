@@ -1,8 +1,8 @@
 import test from "node:test";
-import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 import { performance } from "node:perf_hooks";
 import Fastify from "fastify";
+import { readSourceFile } from "../../../helpers/tracked-source-files.ts";
 
 process.env.NODE_ENV ??= "development";
 process.env.SUPABASE_URL ??= "https://example.supabase.co";
@@ -218,15 +218,9 @@ test("performance smoke mantiene detail publico estable bajo carga concurrente",
 });
 
 test("public capacity budget guardrail covers bounded public surfaces", () => {
-  const publicProfessionals = readFileSync(
-    new URL("../../../../server/routes/public-professionals.fastify.ts", import.meta.url),
-    "utf8",
-  );
+  const publicProfessionals = readSourceFile("server/routes/public-professionals.fastify.ts");
 
-  const publicReportAccess = readFileSync(
-    new URL("../../../../server/routes/public-report-access.fastify.ts", import.meta.url),
-    "utf8",
-  );
+  const publicReportAccess = readSourceFile("server/routes/public-report-access.fastify.ts");
 
   assert.match(publicProfessionals, /parsePositiveInt\(request\.query\.limit, 20, 50\)/);
   assert.match(publicProfessionals, /parseOffset\(request\.query\.offset, 0\)/);

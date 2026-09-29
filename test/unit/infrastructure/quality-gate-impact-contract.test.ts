@@ -1,7 +1,5 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 
 import {
   IMPACT_RULES,
@@ -19,10 +17,11 @@ import {
   validateReadmeTaxonomyProjection,
   validateRulePrecedence,
 } from "../../../scripts/governance/quality-gate-impact-validator.mjs";
+import { readSourceFile } from "../../helpers/tracked-source-files.ts";
 
-const rootPackageJsonText = readFileSync(resolve(process.cwd(), "package.json"), "utf8");
-const frontendPackageJsonText = readFileSync(resolve(process.cwd(), "frontend/package.json"), "utf8");
-const readmeText = readFileSync(resolve(process.cwd(), "test/README.md"), "utf8");
+const rootPackageJsonText = readSourceFile("package.json");
+const frontendPackageJsonText = readSourceFile("frontend/package.json");
+const readmeText = readSourceFile("test/README.md");
 
 function ids(values: Array<{ id: string }>): string[] {
   return values.map((value) => value.id);

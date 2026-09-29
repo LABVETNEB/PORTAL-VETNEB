@@ -1,22 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { readSourceFile } from "../../../helpers/tracked-source-files.ts";
 
 // M22: el SQL de elegibilidad se movió a la capa infrastructure (repository
 // canónico); el path legacy quedó como shim de un solo re-export.
 function readSource(): string {
-  return readFileSync(
-    resolve(
-      process.cwd(),
-      "server",
-      "features",
-      "public-professionals",
-      "infrastructure",
-      "public-professionals-repository.ts",
-    ),
-    "utf8",
-  ).replace(/\r\n/g, "\n");
+  return readSourceFile("server/features/public-professionals/infrastructure/public-professionals-repository.ts");
 }
 
 function assertContains(source: string, expected: string): void {

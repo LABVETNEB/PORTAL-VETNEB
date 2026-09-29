@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 
 import { readDashboardCssSource } from "../helpers/read-dashboard-css-source.ts";
+import { readSourceFile as read } from "../helpers/tracked-source-files.ts";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PR-TRUNC · Terminal-surface text integrity, static contract.
@@ -169,10 +169,6 @@ const TERMINAL_REGIONS: readonly TerminalRegion[] = [
     ],
   },
 ];
-
-function read(file: string): string {
-  return readFileSync(file, "utf8").replace(/\r\n/g, "\n");
-}
 
 function sliceRegion(source: string, region: TerminalRegion): string {
   const startIndex = source.indexOf(region.start);

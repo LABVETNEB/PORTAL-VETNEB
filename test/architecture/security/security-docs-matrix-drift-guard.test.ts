@@ -1,13 +1,10 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
+import { readSourceFile as read } from "../../helpers/tracked-source-files.ts";
 
 const root = process.cwd();
-
-function read(path: string): string {
-  return readFileSync(join(root, path), "utf8");
-}
 
 function exists(path: string): boolean {
   return existsSync(join(root, path));

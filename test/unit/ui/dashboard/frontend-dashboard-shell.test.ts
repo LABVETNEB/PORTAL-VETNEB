@@ -1,20 +1,12 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const DASHBOARD_LAYOUT_PATH = "frontend/src/app/dashboard/layout.tsx";
 const PRIVATE_DASHBOARD_SHELL_PATH =
   "frontend/src/components/dashboard/PrivateDashboardShell.tsx";
 const DASHBOARD_SHELL_ROUTER_PATH =
   "frontend/src/components/dashboard/DashboardShellRouter.tsx";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 test("dashboard layout delegates private shell composition to private dashboard shell", () => {
   const source = read(DASHBOARD_LAYOUT_PATH);

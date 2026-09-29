@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { readSourceFile } from "../../helpers/tracked-source-files.ts";
 
 process.env.SUPABASE_URL ??= "https://example.supabase.co";
 process.env.SUPABASE_ANON_KEY ??= "test-anon-key";
@@ -223,10 +223,7 @@ test("resolvePublicSiteUrl hace fail-fast ante un valor inválido", () => {
 });
 
 test("ENV exige CORS_ORIGIN explícito en producción", () => {
-  const source = readFileSync(
-    resolve(process.cwd(), "server/lib/env.ts"),
-    "utf8",
-  ).replace(/\r\n/g, "\n");
+  const source = readSourceFile("server/lib/env.ts");
 
   assert.ok(source.includes("if (nodeEnv === \"production\" && configuredCorsOrigins.length === 0) {"));
   assert.ok(source.includes("throw new Error(\"CORS_ORIGIN es obligatorio cuando NODE_ENV=production\");"));

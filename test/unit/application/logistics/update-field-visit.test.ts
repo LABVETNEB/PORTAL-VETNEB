@@ -1,12 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 
 import {
   createUpdateFieldVisit,
   type LogisticsFieldVisitUpdateRepository,
 } from "../../../../server/features/logistics/application/index.ts";
+import { readSourceFile } from "../../../helpers/tracked-source-files.ts";
 
 type StubFieldVisit = {
   id: number;
@@ -135,7 +134,7 @@ test("el caso de uso update field visit de M09 no importa HTTP ni persistencia c
   const violations: string[] = [];
 
   for (const file of APPLICATION_FILES) {
-    const source = readFileSync(join(process.cwd(), ...file.split("/")), "utf8");
+    const source = readSourceFile(file);
     for (const specifier of listImportSpecifiers(source)) {
       for (const { label, pattern } of FORBIDDEN_IMPORT_RULES) {
         if (pattern.test(specifier)) {

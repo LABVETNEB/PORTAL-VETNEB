@@ -1,17 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { readSourceFile } from "../../../helpers/tracked-source-files.ts";
 
-const routeSource = readFileSync(
-  resolve(process.cwd(), "server", "routes", "admin-reports.fastify.ts"),
-  "utf8",
-);
+const routeSource = readSourceFile("server/routes/admin-reports.fastify.ts");
 
-const adapterSource = readFileSync(
-  resolve(process.cwd(), "server", "lib", "fastify-admin-auth.ts"),
-  "utf8",
-);
+const adapterSource = readSourceFile("server/lib/fastify-admin-auth.ts");
 
 test("admin reports route uses shared session last access helper", () => {
   assert.match(routeSource, /authenticateFastifyAdmin/);

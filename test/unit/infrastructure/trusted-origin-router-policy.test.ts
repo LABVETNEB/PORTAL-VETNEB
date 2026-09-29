@@ -1,11 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-
-function readRouteSource(relativeRoutePath: string) {
-  return readFileSync(resolve(process.cwd(), relativeRoutePath), "utf8");
-}
+import { readSourceFile as readRouteSource } from "../../helpers/tracked-source-files.ts";
 
 test("clinic-public-profile nativo valida origin antes de auth en mutaciones", () => {
   const source = readRouteSource("server/routes/clinic-public-profile.fastify.ts");

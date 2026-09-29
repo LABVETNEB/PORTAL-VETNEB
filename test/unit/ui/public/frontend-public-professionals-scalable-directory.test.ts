@@ -1,6 +1,4 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
 
 import {
@@ -10,6 +8,7 @@ import {
   parsePublicProfessionalClinicId,
   summarizePublicProfessional,
 } from "../../../../frontend/src/lib/public-professionals.ts";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const PROFESIONALES_SEARCH_CONTENT_PATH =
   "frontend/src/components/public/ProfesionalesSearchContent.tsx";
@@ -20,13 +19,6 @@ const PUBLIC_PROFESSIONALS_HELPER_PATH =
 const PUBLIC_PROFESSIONALS_API_CLIENT_PATH = "frontend/src/lib/api.ts";
 const PUBLIC_PROFESSIONALS_QUERY_SERVICE_PATH =
   "server/features/public-professionals/public-professionals-query-service.ts";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 function extractSerializeProfessional(source: string) {
   const start = source.indexOf("export async function serializePublicProfessional(");

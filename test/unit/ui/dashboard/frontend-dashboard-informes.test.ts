@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const INFORMES_PAGE_PATH = "frontend/src/app/dashboard/informes/page.tsx";
 const INFORMES_LIST_PATH =
@@ -9,13 +8,6 @@ const INFORMES_LIST_PATH =
 const INFORMES_ACTIONS_PATH =
   "frontend/src/app/dashboard/informes/informes.actions.ts";
 const API_CLIENT_PATH = "frontend/src/lib/api.ts";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 test("dashboard informes defines non-indexable metadata and clinic read dependencies", () => {
   const source = read(INFORMES_PAGE_PATH);

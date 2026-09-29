@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { readdirSync, readFileSync } from "node:fs";
+import { readdirSync } from "node:fs";
 import { resolve } from "node:path";
 
 import {
@@ -12,6 +12,7 @@ import {
 } from "../../../scripts/governance/workflow-security-policy.mjs";
 import { REQUIRED_SOURCE_PATHS } from "../../../scripts/governance/quality-gate-impact-policy.mjs";
 import { evaluateChangedPathImpact } from "../../../scripts/governance/quality-gate-impact-validator.mjs";
+import { readSourceFile as readWorkflow } from "../../helpers/tracked-source-files.ts";
 
 const canonicalWorkflowPaths = [
   ".github/workflows/app-version-force-update.yml",
@@ -99,10 +100,6 @@ const canonicalWorkflowDigests = new Map<string, string>([
   [".github/workflows/qga-governance.yml", "88ed322d67eda6fbec0a7ed0fa106625a43263a4d6998d6eceb24aeee389b393"],
   [".github/workflows/visual-regression-manual.yml", "93b7092980e736be847be273a5eb05597a50f1c412420e5d8d8ecfd157ffa0fc"],
 ]);
-
-function readWorkflow(workflowPath: string): string {
-  return readFileSync(resolve(process.cwd(), workflowPath), "utf8").replace(/\r\n/g, "\n");
-}
 
 function workflowDigest(source: string): string {
   return createHash("sha256").update(source, "utf8").digest("hex");

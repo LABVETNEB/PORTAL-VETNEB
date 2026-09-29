@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import test from "node:test";
+import { readSourceFile as read, listSourceFiles } from "../helpers/tracked-source-files.ts";
 
 const root = process.cwd();
 const applicationDir = "server/features/users-roles/application";
@@ -11,18 +12,9 @@ const compositionFile =
 const infrastructureDir =
   "server/features/users-roles/infrastructure";
 
-function read(path: string) {
-  return readFileSync(join(root, path), "utf8").replace(/\r\n/g, "\n");
-}
-
 function walk(path: string): string[] {
-  const files: string[] = [];
-  for (const entry of readdirSync(join(root, path), { withFileTypes: true })) {
-    const child = `${path}/${entry.name}`;
-    if (entry.isDirectory()) files.push(...walk(child));
-    if (entry.isFile() && entry.name.endsWith(".ts")) files.push(child);
-  }
-  return files.sort();
+  return listSourceFiles(join(root, path), { extensions: [".ts"] })
+    .map((file) => `${path}/${file}`);
 }
 
 function importSpecifiers(source: string) {

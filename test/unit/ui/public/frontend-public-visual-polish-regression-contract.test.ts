@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const NAVBAR_PATH = "frontend/src/components/layout/Navbar.tsx";
 const FOOTER_PATH = "frontend/src/components/layout/Footer.tsx";
@@ -10,10 +9,6 @@ const SERVICIOS_PAGE_PATH = "frontend/src/app/servicios/page.tsx";
 const PUBLIC_ROUTE_CONTROL_PATH = "frontend/src/components/public/PublicRouteControl.tsx";
 const SPECIMEN_JOURNEY_COMPONENT_PATH =
   "frontend/src/components/public/SpecimenJourneySection.tsx";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(/\r\n/g, "\n");
-}
 
 // ─── PR #899: Secondary hero gradient + servicios card hover palette ─────────
 

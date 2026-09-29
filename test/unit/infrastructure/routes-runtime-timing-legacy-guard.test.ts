@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { readdirSync } from "node:fs";
+import { resolve } from "node:path";
+import { readSourceFile } from "../../helpers/tracked-source-files.ts";
 
 const routesDir = resolve(process.cwd(), "server", "routes");
 
@@ -15,7 +16,7 @@ test("native route files do not use legacy request timing markers", () => {
     .filter((fileName) => fileName.endsWith(".ts"))
     .sort()
     .flatMap((fileName) => {
-      const source = readFileSync(join(routesDir, fileName), "utf8");
+      const source = readSourceFile(`server/routes/${fileName}`);
       const markers = legacyTimingMarkers.filter((marker) =>
         source.includes(marker),
       );

@@ -1,18 +1,12 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const LAYOUT_PATH = "frontend/src/app/layout.tsx";
 const GLOBALS_CSS_PATH = "frontend/src/app/globals.css";
 const FONT_ASSET_PATH = "frontend/public/fonts/InterVariable.woff2";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 test("global font is a local variable woff2 asset without remote font imports", () => {
   const layout = read(LAYOUT_PATH);

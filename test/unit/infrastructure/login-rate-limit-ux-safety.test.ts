@@ -1,20 +1,12 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
-import { listSourceFiles } from "../../helpers/tracked-source-files.ts";
+import { listSourceFiles, readSourceFile as read } from "../../helpers/tracked-source-files.ts";
 
 const LOGIN_CONTENT_PATH = "frontend/src/components/public/LoginContent.tsx";
 const API_CLIENT_PATH = "frontend/src/lib/api.ts";
 const NEXT_ENV_PATH = "frontend/next-env.d.ts";
 const FRONTEND_SRC_PATH = "frontend/src";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 function listFrontendSourceFiles(relativeDir: string): string[] {
   return listSourceFiles(resolve(process.cwd(), relativeDir), {

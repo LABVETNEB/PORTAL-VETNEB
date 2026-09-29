@@ -1,10 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-
-const REPO_ROOT = resolve(fileURLToPath(new URL("../../../", import.meta.url)));
+import { readSourceFile as readSource } from "../../helpers/tracked-source-files.ts";
 
 const {
   API_NOSNIFF_HEADER_NAME,
@@ -20,10 +16,6 @@ const {
   generateFastifyRequestId,
   isSafeRequestId,
 } = await import("../../../server/lib/http/api-request-id.ts");
-
-function readSource(relativePath: string): string {
-  return readFileSync(resolve(REPO_ROOT, relativePath), "utf8");
-}
 
 test("api security headers helper clasifica solo superficie API", () => {
   assert.equal(API_NOSNIFF_HEADER_NAME, "X-Content-Type-Options");

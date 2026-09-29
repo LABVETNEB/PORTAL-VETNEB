@@ -1,7 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { readSourceFile as read } from "../../helpers/tracked-source-files.ts";
 
 const { normalizeListPagination } = await import(
   "../../../server/lib/list-pagination.ts"
@@ -62,13 +61,6 @@ const HEAVY_SURFACES: readonly HeavySurface[] = [
     markers: ["normalizeLogisticsLimit", "normalizeLogisticsOffset"],
   },
 ];
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 test("global pagination clamps heavy list defaults and extremes", () => {
   assert.deepEqual(normalizeListPagination(undefined), {

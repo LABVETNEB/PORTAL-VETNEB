@@ -1,15 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
 import { readDashboardCssSource } from "../../../helpers/read-dashboard-css-source.ts";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const TABLE_HEAVY_CARDS = [
   "frontend/src/app/dashboard/admin/AdminClinicsManagementCard.tsx",

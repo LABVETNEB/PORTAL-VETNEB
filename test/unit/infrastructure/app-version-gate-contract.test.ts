@@ -1,14 +1,6 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
+import { readSourceFile as read } from "../../helpers/tracked-source-files.ts";
 
 test("backend exposes a no-store app version endpoint", () => {
   const route = read("server/routes/app-version.fastify.ts");

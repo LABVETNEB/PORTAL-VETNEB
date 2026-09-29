@@ -1,12 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 
 import {
   createCancelRoutePlan,
   type LogisticsRoutePlanCancelRepository,
 } from "../../../../server/features/logistics/application/index.ts";
+import { readSourceFile } from "../../../helpers/tracked-source-files.ts";
 
 // El resultado del puerto es opaco para el caso de uso (unión éxito/rechazo del
 // dominio, igual que el seam `RoutePlanLifecycleTransitionResult`).
@@ -98,7 +97,7 @@ test("el caso de uso cancel de M08 no importa HTTP ni persistencia concreta", ()
   const violations: string[] = [];
 
   for (const file of APPLICATION_FILES) {
-    const source = readFileSync(join(process.cwd(), ...file.split("/")), "utf8");
+    const source = readSourceFile(file);
     for (const specifier of listImportSpecifiers(source)) {
       for (const { label, pattern } of FORBIDDEN_IMPORT_RULES) {
         if (pattern.test(specifier)) {

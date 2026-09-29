@@ -1,15 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { readSourceFile as read } from "../../helpers/tracked-source-files.ts";
 
 type PackageJson = {
   scripts?: Record<string, string>;
 };
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8");
-}
 
 function readPackageJson(): PackageJson {
   return JSON.parse(read("package.json")) as PackageJson;

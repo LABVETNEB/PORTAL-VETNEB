@@ -25,23 +25,16 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync } from "node:fs";
-import { extname, join, relative, resolve } from "node:path";
+import { join, relative, resolve } from "node:path";
+import { listSourceFiles, readSourceFile } from "../../../helpers/tracked-source-files.ts";
 
 const FRONTEND_SRC = resolve(process.cwd(), "frontend/src");
 const TS_EXTENSIONS = new Set([".ts", ".tsx"]);
 
 function walkDir(dir: string): string[] {
-  const files: string[] = [];
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const full = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      files.push(...walkDir(full));
-    } else if (entry.isFile() && TS_EXTENSIONS.has(extname(entry.name))) {
-      files.push(full);
-    }
-  }
-  return files;
+  return listSourceFiles(dir, { extensions: [...TS_EXTENSIONS] }).map((file) =>
+    join(dir, file),
+  );
 }
 
 type Violation = { file: string; line: number; snippet: string };
@@ -49,7 +42,7 @@ type Violation = { file: string; line: number; snippet: string };
 function scanLines(files: string[], pattern: RegExp): Violation[] {
   const violations: Violation[] = [];
   for (const file of files) {
-    const content = readFileSync(file, "utf8");
+    const content = readSourceFile(relative(process.cwd(), file));
     content.split("\n").forEach((line, idx) => {
       if (pattern.test(line)) {
         violations.push({
@@ -119,7 +112,7 @@ test("all <script> JSX elements in frontend/src declare type=\"application/ld+js
   const violations: Violation[] = [];
   for (const file of runtimeFiles) {
     if (!file.endsWith(".tsx")) continue;
-    const content = readFileSync(file, "utf8");
+    const content = readSourceFile(relative(process.cwd(), file));
     const lines = content.split("\n");
     lines.forEach((line, idx) => {
       if (/<script\b/.test(line)) {
@@ -154,7 +147,7 @@ test("all dangerouslySetInnerHTML uses in frontend/src are JSON-LD guarded (appl
   // security:public-surface applies the same guard at the script level.
   const violations: Violation[] = [];
   for (const file of runtimeFiles) {
-    const content = readFileSync(file, "utf8");
+    const content = readSourceFile(relative(process.cwd(), file));
     let searchFrom = 0;
     let pos: number;
     while ((pos = content.indexOf("dangerouslySetInnerHTML", searchFrom)) !== -1) {

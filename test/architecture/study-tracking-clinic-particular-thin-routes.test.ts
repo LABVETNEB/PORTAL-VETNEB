@@ -4,18 +4,12 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
 import ts from "typescript";
+import { readSourceFile, readSourceFile as readSource } from "../helpers/tracked-source-files.ts";
 
 const repoRoot = process.cwd();
 const clinicRoute = "server/routes/study-tracking.fastify.ts";
 const particularRoute =
   "server/routes/particular-study-tracking.fastify.ts";
-
-function readSource(relativePath: string): string {
-  return readFileSync(resolve(repoRoot, relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 function parse(relativePath: string): ts.SourceFile {
   return ts.createSourceFile(
@@ -261,10 +255,7 @@ test("M44 preserva rutas M32 y realinea sólo el specifier Particular Access", (
   assert.equal(
     createHash("sha256")
       .update(
-        readFileSync(resolve(repoRoot, clinicRoute), "utf8").replace(
-          /\r\n/g,
-          "\n",
-        ),
+        readSourceFile(clinicRoute),
       )
       .digest("hex"),
     "9c5a2a407dfb22b2ccb2cb197bb10bc108fb5a246bfa906374f2de5c370a7669",

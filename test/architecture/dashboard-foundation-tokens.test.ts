@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync } from "node:fs";
-import { join, relative, resolve } from "node:path";
+import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as readSource, listSourceFiles } from "../helpers/tracked-source-files.ts";
 
 // B03 · dashboard design-system foundation contract.
 //
@@ -251,13 +251,6 @@ const SCHEMA_ENTRIES: ReadonlyArray<readonly [string, ThemeClass]> =
 
 const SCHEMA_TOKENS: readonly string[] = SCHEMA_ENTRIES.map(([token]) => token);
 
-function readSource(repoRelativePath: string): string {
-  return readFileSync(resolve(REPO_ROOT, repoRelativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
-
 /**
  * Strips comments so the contract is asserted against DECLARATIONS.
  *
@@ -442,27 +435,13 @@ function fingerprints(token: string): { light: string; dark: string } {
   };
 }
 
-function collectFilesRecursive(repoRelativeDir: string, extensions: RegExp): string[] {
-  const absoluteDir = resolve(REPO_ROOT, repoRelativeDir);
-  const found: string[] = [];
-
-  for (const entry of readdirSync(absoluteDir, { withFileTypes: true })) {
-    const absoluteEntry = join(absoluteDir, entry.name);
-    if (entry.isDirectory()) {
-      found.push(
-        ...collectFilesRecursive(
-          relative(REPO_ROOT, absoluteEntry).replace(/\\/g, "/"),
-          extensions,
-        ),
-      );
-      continue;
-    }
-    if (entry.isFile() && extensions.test(entry.name)) {
-      found.push(relative(REPO_ROOT, absoluteEntry).replace(/\\/g, "/"));
-    }
-  }
-
-  return found;
+function collectFilesRecursive(
+  repoRelativeDir: string,
+  extensions: RegExp,
+): string[] {
+  return listSourceFiles(resolve(REPO_ROOT, repoRelativeDir))
+    .filter((file) => extensions.test(file.slice(file.lastIndexOf("/") + 1)))
+    .map((file) => `${repoRelativeDir}/${file}`);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

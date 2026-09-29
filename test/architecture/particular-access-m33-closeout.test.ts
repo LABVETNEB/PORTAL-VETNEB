@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 import test from "node:test";
 import ts from "typescript";
+import { readSourceFile as readSource, listSourceFiles } from "../helpers/tracked-source-files.ts";
 
 const repoRoot = process.cwd();
 const featureDir = "server/features/particular-access";
@@ -53,22 +54,13 @@ const expectedExternalParticularConsumers = [
   "server/routes/study-tracking.fastify.ts",
 ].sort();
 
-function readSource(relativePath: string): string {
-  return readFileSync(resolve(repoRoot, relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
-
 function walkFiles(relativeDir: string): string[] {
   const absolute = resolve(repoRoot, relativeDir);
   if (!existsSync(absolute)) {
     return [];
   }
-  return readdirSync(absolute, { withFileTypes: true }).flatMap((entry) => {
-    const path = `${relativeDir}/${entry.name}`;
-    return entry.isDirectory() ? walkFiles(path) : [path];
-  });
+
+  return listSourceFiles(absolute).map((file) => `${relativeDir}/${file}`);
 }
 
 function parse(relativePath: string): ts.SourceFile {

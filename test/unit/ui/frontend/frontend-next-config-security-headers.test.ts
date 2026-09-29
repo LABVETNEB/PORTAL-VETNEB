@@ -1,18 +1,10 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const CONFIG_PATH = "frontend/next.config.ts";
 const FOOTER_PATH = "frontend/src/components/layout/Footer.tsx";
 const MIDDLEWARE_PATH = "frontend/src/proxy.ts";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 test("next.config.ts declares all required baseline security headers", () => {
   const source = read(CONFIG_PATH);

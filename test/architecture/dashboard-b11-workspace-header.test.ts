@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
 import { readDashboardCssSource } from "../helpers/read-dashboard-css-source.ts";
+import { readSourceFile as read, listSourceFiles } from "../helpers/tracked-source-files.ts";
 
 const REPO_ROOT = process.cwd();
 const HEADER_PATH =
@@ -30,10 +31,6 @@ const EXPECTED_CONSUMERS = [
   "frontend/src/components/dashboard/ClinicDashboardWorkspaceController.tsx",
 ] as const;
 
-function read(path: string): string {
-  return readFileSync(resolve(REPO_ROOT, path), "utf8").replace(/\r\n/g, "\n");
-}
-
 /** Comments name neighbouring owners on purpose; fences read code only. */
 function stripComments(source: string): string {
   return source
@@ -42,12 +39,8 @@ function stripComments(source: string): string {
 }
 
 function sourceFiles(path: string): string[] {
-  const absolute = resolve(REPO_ROOT, path);
-  return readdirSync(absolute, { withFileTypes: true }).flatMap((entry) => {
-    const child = `${path}/${entry.name}`;
-    if (entry.isDirectory()) return sourceFiles(child);
-    return /\.(?:ts|tsx)$/.test(entry.name) ? [child] : [];
-  });
+  return listSourceFiles(resolve(REPO_ROOT, path), { extensions: [".ts", ".tsx"] })
+    .map((file) => `${path}/${file}`);
 }
 
 test("B11 · WorkspaceHeader exists at components/dashboard and publishes through layout", () => {

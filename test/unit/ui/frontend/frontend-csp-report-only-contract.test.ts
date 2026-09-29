@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync } from "node:fs";
+import { join, relative } from "node:path";
 
 import {
   buildCspReportingEndpointConfig,
@@ -9,6 +9,7 @@ import {
   CSP_REPORT_TO_GROUP,
   CSP_REPORT_URI_PATH,
 } from "../../../../frontend/src/lib/security/csp-policy.ts";
+import { readSourceFile } from "../../../helpers/tracked-source-files.ts";
 
 const repoRoot = process.cwd();
 const nextConfigPath = join(repoRoot, "frontend", "next.config.ts");
@@ -22,7 +23,7 @@ const footerPath = join(
 );
 
 function readIfExists(path: string): string {
-  return existsSync(path) ? readFileSync(path, "utf8").replace(/\r\n/g, "\n") : "";
+  return existsSync(path) ? readSourceFile(relative(repoRoot, path)) : "";
 }
 
 const nextConfigSrc = readIfExists(nextConfigPath);

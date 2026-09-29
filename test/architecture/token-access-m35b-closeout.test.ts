@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 import test from "node:test";
 import ts from "typescript";
+import { readSourceFile as read, listSourceFiles } from "../helpers/tracked-source-files.ts";
 
 const root = process.cwd();
 const evidence =
@@ -128,17 +129,13 @@ const globalGuardAnchors = [
   },
 ] as const;
 
-function read(path: string): string {
-  return readFileSync(resolve(root, path), "utf8").replace(/\r\n/g, "\n");
-}
-
 function walk(path: string): string[] {
   const absolute = resolve(root, path);
-  if (!existsSync(absolute)) return [];
-  return readdirSync(absolute, { withFileTypes: true }).flatMap((entry) => {
-    const child = `${path}/${entry.name}`;
-    return entry.isDirectory() ? walk(child) : [child];
-  });
+  if (!existsSync(absolute)) {
+    return [];
+  }
+
+  return listSourceFiles(absolute).map((file) => `${path}/${file}`);
 }
 
 function parse(path: string): ts.SourceFile {

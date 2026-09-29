@@ -1,18 +1,10 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const API_CLIENT_PATH = "frontend/src/lib/api.ts";
 const PROFESIONALES_SEARCH_CONTENT_PATH =
   "frontend/src/components/public/ProfesionalesSearchContent.tsx";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 function extractFunction(source: string, functionName: string): string {
   const declaration = `export async function ${functionName}(`;

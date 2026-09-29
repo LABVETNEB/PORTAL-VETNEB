@@ -1,7 +1,5 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import {
   getClinicPermissions,
   isClinicUserRole,
@@ -13,10 +11,7 @@ import {
   isReportStatus,
   normalizeReportStatus,
 } from "../../../../server/features/reports/domain/index.ts";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8");
-}
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 test("isClinicUserRole reconoce únicamente roles válidos", () => {
   assert.equal(isClinicUserRole("clinic_owner"), true);

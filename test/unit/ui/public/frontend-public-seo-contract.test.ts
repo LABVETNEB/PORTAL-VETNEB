@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const SEO_PATH = "frontend/src/lib/seo.ts";
 const LAYOUT_PATH = "frontend/src/app/layout.tsx";
@@ -17,13 +18,6 @@ const CONTACTO_PATH = "frontend/src/app/contacto/page.tsx";
 const PRECIOS_PATH = "frontend/src/app/precios/page.tsx";
 const PARTICULARES_PATH = "frontend/src/app/particulares/page.tsx";
 const LOGIN_PATH = "frontend/src/app/login/page.tsx";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 test("public SEO base keeps controlled site URL and canonical metadata helpers", () => {
   const source = read(SEO_PATH);

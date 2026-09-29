@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
-import { existsSync, globSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, globSync } from "node:fs";
 import { basename, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { readSourceFile, listSourceFiles } from "../helpers/tracked-source-files.ts";
 
 const REPO_ROOT = resolve(fileURLToPath(new URL("../../", import.meta.url)));
 
@@ -487,20 +488,9 @@ function listFilesRecursive(relativeDir: string): string[] {
     return [];
   }
 
-  const files: string[] = [];
-  const walk = (absoluteDir: string): void => {
-    for (const entry of readdirSync(absoluteDir, { withFileTypes: true })) {
-      const absolute = resolve(absoluteDir, entry.name);
-      if (entry.isDirectory()) {
-        walk(absolute);
-      } else if (entry.isFile()) {
-        files.push(relative(REPO_ROOT, absolute).split(sep).join("/"));
-      }
-    }
-  };
-
-  walk(rootDir);
-  return files;
+  return listSourceFiles(rootDir).map((file) =>
+    relative(REPO_ROOT, resolve(rootDir, file)).split(sep).join("/"),
+  );
 }
 
 function listTestFilesRecursive(): string[] {
@@ -563,9 +553,7 @@ function resolveExistingSourcePath(relativePath: string): string | undefined {
 function readSource(relativePath: string): string {
   const resolved = resolveExistingSourcePath(relativePath);
   assert.ok(resolved, `source not found for ${relativePath}`);
-  return readFileSync(resolve(REPO_ROOT, resolved), "utf8")
-    .replace(/^\uFEFF/, "")
-    .replace(/\r\n/g, "\n");
+  return readSourceFile(resolved).replace(/^\uFEFF/, "");
 }
 
 function assertContains(source: string, marker: string, context: string): void {
@@ -687,7 +675,7 @@ test("audit suite keeps every audit route surface mounted in Fastify app", () =>
 
 test("test script glob is shell-protected and discovers the full canonical test suite", () => {
   const pkg = JSON.parse(
-    readFileSync(resolve(REPO_ROOT, "package.json"), "utf8"),
+    readSourceFile("package.json"),
   ) as { scripts?: Record<string, string> };
 
   assert.deepEqual(

@@ -1,9 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import {
   mkdirSync,
   mkdtempSync,
   readdirSync,
+  readFileSync,
   rmdirSync,
   rmSync,
   writeFileSync,
@@ -12,10 +14,12 @@ import { tmpdir } from "node:os";
 import { basename, join, relative, resolve, sep } from "node:path";
 import {
   createSourceReader,
+  gitLsFiles,
   listSourceFiles,
   listTrackedFiles,
   listTrackedSourceFiles,
   normalizeLineEndings,
+  parseGitIndexPaths,
   readSourceFile,
 } from "../helpers/tracked-source-files.ts";
 
@@ -405,4 +409,101 @@ test("lector canónico no degrada fallos: sin disco para untracked, sin vacío n
   });
 
   assert.throws(() => malformed("pkg/binary.ts"), /must yield a string/);
+});
+
+test("inventario tracked lee el índice git en proceso igual que git ls-files (v2, v3, v4) y delega en git ante formatos no soportados", () => {
+  assert.deepEqual(
+    parseGitIndexPaths(readFileSync(resolve(process.cwd(), ".git", "index"))),
+    gitLsFiles(),
+    "el índice del repositorio se lee igual que git ls-files",
+  );
+
+  const root = mkdtempSync(join(tmpdir(), "vetneb-git-index-"));
+  const git = (...args: string[]) =>
+    execFileSync("git", args, { cwd: root, encoding: "utf8" });
+  const lsFiles = () => git("ls-files", "-z").split("\0").filter(Boolean);
+  const indexBytes = () => readFileSync(join(root, ".git", "index"));
+
+  try {
+    git("init", "-q");
+    mkdirSync(join(root, "pkg", "nested"), { recursive: true });
+    for (const path of [
+      "pkg/nested/deep.ts",
+      "pkg/nested/deeper-sibling.ts",
+      "pkg/a.ts",
+      "z.md",
+      "ñandú.ts",
+      // v4 comprime el prefijo: tras este nombre largo el siguiente descarta >= 128 bytes.
+      `pkg/${"a".repeat(150)}.ts`,
+      "pkg/b.ts",
+    ]) {
+      writeFileSync(join(root, path), path);
+    }
+    git("add", "-A");
+    git("write-tree");
+
+    for (const version of ["2", "4"]) {
+      git("update-index", "--index-version", version);
+      assert.equal(indexBytes().readUInt32BE(4), Number(version));
+      assert.deepEqual(parseGitIndexPaths(indexBytes()), lsFiles(), `índice v${version}`);
+    }
+
+    writeFileSync(join(root, "pkg", "intent.ts"), "intent");
+    git("update-index", "--index-version", "2");
+    git("add", "-N", "pkg/intent.ts");
+    assert.equal(indexBytes().readUInt32BE(4), 3, "intent-to-add exige flags extendidos (v3)");
+    assert.ok(lsFiles().includes("pkg/intent.ts"));
+    assert.deepEqual(parseGitIndexPaths(indexBytes()), lsFiles(), "índice v3 con entrada extendida");
+    git("update-index", "--index-version", "4");
+    assert.deepEqual(parseGitIndexPaths(indexBytes()), lsFiles(), "índice v4 con entrada extendida");
+
+    // v4: un prefijo a descartar mayor que el nombre previo es inconsistente aun
+    // cuando la longitud declarada (0xFFF) no permite contrastarlo.
+    const v4 = indexBytes();
+    const firstFlags = v4.readUInt16BE(12 + 60);
+    let firstName = 12 + 62 + (firstFlags & 0x4000 ? 2 : 0);
+    while ((v4[firstName] as number) & 0x80) firstName += 1;
+    const secondEntry = v4.indexOf(0, firstName + 1) + 1;
+    const secondFlags = v4.readUInt16BE(secondEntry + 60);
+    const overlongStrip = Buffer.from(v4);
+    overlongStrip.writeUInt16BE(secondFlags | 0x0fff, secondEntry + 60);
+    overlongStrip[secondEntry + 62 + (secondFlags & 0x4000 ? 2 : 0)] = 0x7f;
+    assert.equal(parseGitIndexPaths(overlongStrip), null, "prefijo v4 inconsistente delega en git");
+
+    const truncated = indexBytes().subarray(0, indexBytes().length - 40);
+    assert.equal(parseGitIndexPaths(truncated), null, "índice truncado delega en git");
+
+    git("update-index", "--index-version", "3");
+    const v3 = indexBytes();
+    const unknownVersion = Buffer.from(v3);
+    unknownVersion.writeUInt32BE(9, 4);
+    assert.deepEqual(parseGitIndexPaths(v3), lsFiles());
+    assert.equal(parseGitIndexPaths(unknownVersion), null, "versión desconocida delega en git");
+    assert.equal(parseGitIndexPaths(Buffer.from("not an index")), null);
+
+    const directoryEntry = Buffer.from(v3);
+    directoryEntry.writeUInt32BE(0o040000, 12 + 24);
+    assert.equal(parseGitIndexPaths(directoryEntry), null, "entrada de directorio (índice sparse) delega en git");
+    const wrongNameLength = Buffer.from(v3);
+    wrongNameLength.writeUInt16BE(v3.readUInt16BE(12 + 60) - 1, 12 + 60);
+    assert.equal(parseGitIndexPaths(wrongNameLength), null, "longitud de nombre inconsistente delega en git");
+
+    // La cadena de extensiones debe terminar exactamente en el hash final.
+    const body = v3.subarray(0, v3.length - 20);
+    const hash = Buffer.alloc(20);
+    const extension = (declared: number, data: number) => {
+      const bytes = Buffer.alloc(8 + data);
+      bytes.write("ZZZZ", 0, "latin1");
+      bytes.writeUInt32BE(declared, 4);
+      return bytes;
+    };
+    assert.deepEqual(parseGitIndexPaths(Buffer.concat([body, extension(1, 1), hash])), lsFiles());
+    assert.equal(parseGitIndexPaths(Buffer.concat([body, extension(2, 1), hash])), null);
+    assert.equal(parseGitIndexPaths(Buffer.concat([body, Buffer.from("ZZZZ"), hash])), null);
+
+    git("update-index", "--split-index");
+    assert.equal(parseGitIndexPaths(indexBytes()), null, "índice dividido delega en git");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });

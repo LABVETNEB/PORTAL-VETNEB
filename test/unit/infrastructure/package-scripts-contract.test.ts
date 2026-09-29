@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile } from "../../helpers/tracked-source-files.ts";
 
 type PackageJson = {
   name: string;
@@ -15,7 +14,7 @@ type PackageJson = {
 };
 
 function readPackage(relativePath: string): PackageJson {
-  return JSON.parse(readFileSync(resolve(process.cwd(), relativePath), "utf8")) as PackageJson;
+  return JSON.parse(readSourceFile(relativePath)) as PackageJson;
 }
 
 test("root package keeps backend identity package manager and module mode", () => {

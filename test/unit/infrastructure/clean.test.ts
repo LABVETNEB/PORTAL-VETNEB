@@ -1,6 +1,4 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
 
 import {
@@ -9,6 +7,7 @@ import {
   type Clean7aDependencyCleanupScopeInput,
   type Clean7aPackageJson,
 } from "../../helpers/clean7a-dependency-cleanup-scope.ts";
+import { readSourceFile } from "../../helpers/tracked-source-files.ts";
 
 const activeRadixDependencies = {
   "@radix-ui/react-dialog": "1.0.0",
@@ -243,10 +242,7 @@ test("deterministic CLEAN7A invariants do not inspect current git diff", () => {
     assertClean7aDependencyCleanupInvariants();
   });
 
-  const helperSource = readFileSync(
-    resolve(process.cwd(), "test/helpers/clean7a-dependency-cleanup-scope.ts"),
-    "utf8",
-  );
+  const helperSource = readSourceFile("test/helpers/clean7a-dependency-cleanup-scope.ts");
   const invariantFunction = helperSource.slice(
     helperSource.indexOf("export function assertClean7aDependencyCleanupInvariants"),
     helperSource.indexOf("export function isClean7aAllowedDependencyChange"),

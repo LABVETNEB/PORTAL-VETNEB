@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { resolve } from "node:path";
+import { readSourceFile as read, listSourceFiles } from "../../helpers/tracked-source-files.ts";
 
 type AuthSurface = {
   label: string;
@@ -63,13 +64,6 @@ const RETIRED_EXPRESS_AUTH_MIDDLEWARES = [
   "server/middlewares/particular-auth.ts",
   "server/middlewares/clinic-permissions.ts",
 ] as const;
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 function assertContains(source: string, marker: string, context: string): void {
   assert.ok(source.includes(marker), `${context} must contain ${marker}`);
@@ -227,19 +221,8 @@ test("trusted-origin hook stays global and precedes registered route surfaces", 
 });
 
 function walkRouteFiles(dir: string): string[] {
-  const files: string[] = [];
-
-  for (const entry of readdirSync(resolve(process.cwd(), dir), { withFileTypes: true })) {
-    const child = `${dir}/${entry.name}`;
-
-    if (entry.isDirectory()) {
-      files.push(...walkRouteFiles(child));
-    } else if (entry.isFile() && entry.name.endsWith(".ts")) {
-      files.push(child);
-    }
-  }
-
-  return files;
+  return listSourceFiles(resolve(process.cwd(), dir), { extensions: [".ts"] })
+    .map((file) => `${dir}/${file}`);
 }
 
 test("WBR-08c: no server/routes surface reintroduces a local clinic auth helper", () => {

@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read, listSourceFiles } from "../helpers/tracked-source-files.ts";
 
 const root = process.cwd();
 const application =
@@ -15,21 +16,9 @@ const composition =
 const readsRoute = "server/routes/reports.fastify.ts";
 const statusRoute = "server/routes/reports-status.fastify.ts";
 
-function read(path: string) {
-  return readFileSync(resolve(root, path), "utf8").replace(/\r\n/g, "\n");
-}
-
 function tsFiles(directory: string): string[] {
-  return readdirSync(resolve(root, directory), {
-    recursive: true,
-    withFileTypes: true,
-  })
-    .filter((entry) => entry.isFile() && entry.name.endsWith(".ts"))
-    .map((entry) =>
-      resolve(entry.parentPath, entry.name)
-        .slice(resolve(root).length + 1)
-        .replaceAll("\\", "/"),
-    );
+  return listSourceFiles(resolve(root, directory), { extensions: [".ts"] })
+    .map((file) => `${directory}/${file}`);
 }
 
 test("M40 materializa inventario productivo exacto", () => {

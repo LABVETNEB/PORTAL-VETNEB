@@ -1,20 +1,14 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const REPORT_ACTIONS_PATH =
   "frontend/src/components/dashboard/ReportDownloadButton.tsx";
 const INFORMES_PAGE_PATH = "frontend/src/app/dashboard/informes/page.tsx";
 const INFORMES_LIST_PATH =
   "frontend/src/app/dashboard/informes/InformesReportsList.tsx";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 test("frontend report actions component exists and uses preview/download APIs", () => {
   assert.equal(existsSync(resolve(process.cwd(), REPORT_ACTIONS_PATH)), true);

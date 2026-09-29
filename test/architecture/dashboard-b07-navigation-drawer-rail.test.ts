@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
+import { readSourceFile as read } from "../helpers/tracked-source-files.ts";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // B07 · NavigationDrawer (256px) + NavigationRail (80px) static contract.
@@ -105,13 +106,6 @@ const LEGACY_SIDEBAR_TOKENS = [
 
 /** Layers the primitives must never reach, directly or transitively. */
 const FORBIDDEN_PRESENTATION_IMPORTS = ["@/lib/api", "@/app/", "@/app"] as const;
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(REPO_ROOT, relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 /**
  * Executable projection. Every "must NOT contain" assertion runs against this:

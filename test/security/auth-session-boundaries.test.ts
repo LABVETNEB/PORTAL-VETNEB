@@ -1,8 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import Fastify, { type FastifyInstance } from "fastify";
+import { readSourceFile } from "../helpers/tracked-source-files.ts";
 
 process.env.NODE_ENV ??= "development";
 process.env.SUPABASE_URL ??= "https://example.supabase.co";
@@ -436,10 +435,7 @@ test("endpoints /me respetan límites de sesión por superficie sin fallback cru
 });
 
 test("frontend proxy mantiene separación dashboard/admin y deja particulares fuera", () => {
-  const source = readFileSync(
-    resolve(process.cwd(), "frontend/src/proxy.ts"),
-    "utf8",
-  ).replace(/\r\n/g, "\n");
+  const source = readSourceFile("frontend/src/proxy.ts");
 
   assert.ok(source.includes('from "../../shared/session-cookie-names"'));
   assert.ok(source.includes("CLINIC_SESSION_COOKIE_NAME"));

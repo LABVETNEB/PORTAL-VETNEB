@@ -1,8 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { readSourceFile as readText, listSourceFiles } from "../helpers/tracked-source-files.ts";
 
 // Guard de frontera de la capa application de Logistics (M11, cierre de Fase B).
 // Clona el mecanismo ya validado por `logistics-domain-boundary-guard.test.ts`:
@@ -21,32 +22,13 @@ const applicationPortsDir = `${applicationDir}/ports`;
 const domainDir = "server/features/logistics/domain";
 const domainIndexFile = `${domainDir}/index.ts`;
 
-function readText(relativePath: string): string {
-  return readFileSync(join(repoRoot, relativePath), "utf8");
-}
-
 function toRepoRelativePath(path: string): string {
   return path.replaceAll("\\", "/");
 }
 
 function walkTsFiles(relativeDir: string): string[] {
-  const absoluteDir = join(repoRoot, relativeDir);
-  const files: string[] = [];
-
-  for (const entry of readdirSync(absoluteDir, { withFileTypes: true })) {
-    const relativePath = `${relativeDir}/${entry.name}`;
-
-    if (entry.isDirectory()) {
-      files.push(...walkTsFiles(relativePath));
-      continue;
-    }
-
-    if (entry.isFile() && entry.name.endsWith(".ts")) {
-      files.push(relativePath);
-    }
-  }
-
-  return files;
+  return listSourceFiles(join(repoRoot, relativeDir), { extensions: [".ts"] })
+    .map((file) => `${relativeDir}/${file}`);
 }
 
 // --- Normalizacion de fuente -------------------------------------------------

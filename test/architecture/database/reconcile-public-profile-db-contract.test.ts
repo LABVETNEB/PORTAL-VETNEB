@@ -1,13 +1,8 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read } from "../../helpers/tracked-source-files.ts";
 
 const SCRIPT_PATH = "scripts/db/reconcile-public-profile-db.mjs";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8");
-}
 
 test("public profile reconciliation script keeps required table and extension contracts", () => {
   const source = read(SCRIPT_PATH);

@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile, readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const BELL_PATH =
   "frontend/src/components/dashboard/DashboardNotificationsBell.tsx";
@@ -9,13 +8,6 @@ const TOPBAR_PATH =
   "frontend/src/components/dashboard/DashboardTopbar.tsx";
 const PARTICULARES_PATH =
   "frontend/src/components/public/ParticularesContent.tsx";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 function sectionBetween(source: string, start: string, end: string): string {
   const startIndex = source.indexOf(start);
@@ -474,17 +466,8 @@ test("clinic and admin dashboards pass surface to topbar notifications prop", ()
   // B10: the clinic notification role moved from the six clinic routes to
   // their single shell owner, which is where it is now asserted. Admin still
   // declares its own topbar, so its assertion is unchanged.
-  const clinicShell = readFileSync(
-    resolve(
-      process.cwd(),
-      "frontend/src/components/dashboard/ClinicDashboardShell.tsx",
-    ),
-    "utf8",
-  );
-  const adminPage = readFileSync(
-    resolve(process.cwd(), "frontend/src/app/dashboard/admin/page.tsx"),
-    "utf8",
-  );
+  const clinicShell = readSourceFile("frontend/src/components/dashboard/ClinicDashboardShell.tsx");
+  const adminPage = readSourceFile("frontend/src/app/dashboard/admin/page.tsx");
 
   assert.ok(
     clinicShell.includes("<DashboardTopbar"),

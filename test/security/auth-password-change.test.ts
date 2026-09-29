@@ -1,8 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import Fastify from "fastify";
+import { readSourceFile as readSource } from "../helpers/tracked-source-files.ts";
 
 process.env.NODE_ENV ??= "development";
 process.env.SUPABASE_URL ??= "https://example.supabase.co";
@@ -38,10 +37,6 @@ type AuditCall = {
   targetClinicUserId?: unknown;
   metadata?: Record<string, unknown>;
 };
-
-function readSource(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8");
-}
 
 function assertSecretNotPresent(value: unknown, secret: string): void {
   assert.equal(

@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile } from "../../helpers/tracked-source-files.ts";
 
 type PackageJson = {
   scripts?: Record<string, string>;
@@ -25,7 +24,7 @@ const EXTERNAL_COVERAGE_PACKAGES = [
 
 function readPackageJson(): PackageJson {
   return JSON.parse(
-    readFileSync(resolve(process.cwd(), "package.json"), "utf8"),
+    readSourceFile("package.json"),
   ) as PackageJson;
 }
 

@@ -1,13 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { resolve } from "node:path";
+import { readSourceFile as readRepoFile } from "../../../helpers/tracked-source-files.ts";
 
 const repoRoot = process.cwd();
-
-function readRepoFile(path: string): string {
-  return readFileSync(resolve(repoRoot, path), "utf8");
-}
 
 test("logistics metrics suite keeps required test files", () => {
   const requiredTestFiles = [

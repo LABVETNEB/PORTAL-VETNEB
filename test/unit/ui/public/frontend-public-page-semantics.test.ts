@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const HOME_PATH = "frontend/src/app/page.tsx";
 const SERVICIOS_PATH = "frontend/src/app/servicios/page.tsx";
@@ -19,13 +18,6 @@ const LOGIN_PATH = "frontend/src/app/login/page.tsx";
 const PARTICULARES_PATH = "frontend/src/app/particulares/page.tsx";
 const SITEMAP_PATH = "frontend/src/app/sitemap.ts";
 const SEO_PATH = "frontend/src/lib/seo.ts";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 function count(source: string, pattern: string): number {
   return source.split(pattern).length - 1;

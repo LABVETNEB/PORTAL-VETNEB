@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 // A03 · §20.3 — a next-page transition must emit ONE window.
 //
@@ -37,13 +36,6 @@ const CLINIC_TOKENS_PATH =
   "frontend/src/components/dashboard/ClinicParticularTokensCard.tsx";
 const LOGISTICS_RECENT_PATH =
   "frontend/src/app/dashboard/logistica/LogisticsRecentListCanvas.tsx";
-
-function read(relativePath: string) {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 /**
  * Source with comments removed, for guards that assert the ABSENCE of a

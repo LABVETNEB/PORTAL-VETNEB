@@ -1,13 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { readSourceFile, readSourceFile as read } from "../../helpers/tracked-source-files.ts";
 
 const AUTH_SECURITY_PATH = "server/lib/auth-security.ts";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8");
-}
 
 // WBR-15 (VET-15, F1): the legacy SHA-256 password digest must remain
 // verify-only. This guard checks the real caller census: hashLegacyPassword
@@ -104,10 +99,7 @@ test("negative proof: a mutated source reintroducing === on the stored hash is d
 });
 
 test("auth-security-legacy-password-guard source stays ascii only", () => {
-  const source = readFileSync(
-    resolve(process.cwd(), "test/unit/infrastructure/auth-security-legacy-password-guard.test.ts"),
-    "utf8",
-  );
+  const source = readSourceFile("test/unit/infrastructure/auth-security-legacy-password-guard.test.ts");
 
   for (let index = 0; index < source.length; index += 1) {
     assert.equal(

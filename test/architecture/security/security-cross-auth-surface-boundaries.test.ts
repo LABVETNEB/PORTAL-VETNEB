@@ -1,7 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { readSourceFile as read } from "../../helpers/tracked-source-files.ts";
 
 const CLINIC_COOKIE = "cookies[ENV.cookieName]";
 const ADMIN_COOKIE = "cookies[ENV.adminCookieName]";
@@ -59,10 +58,6 @@ const particularFiles = [
 const publicTokenFiles = [
   "server/routes/public-report-access.fastify.ts",
 ] as const;
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8");
-}
 
 function assertContains(source: string, marker: string, context: string): void {
   assert.ok(source.includes(marker), `${context}: missing marker ${marker}`);

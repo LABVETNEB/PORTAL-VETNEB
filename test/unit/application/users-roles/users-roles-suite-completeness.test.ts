@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync } from "node:fs";
+import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const root = process.cwd();
 const domainDir = "server/features/users-roles/domain";
@@ -12,10 +13,6 @@ const applicationTestDir = "test/unit/application/users-roles";
 const infrastructureTestDir =
   "test/unit/infrastructure/users-roles";
 const self = "users-roles-suite-completeness.test.ts";
-
-function read(path: string) {
-  return readFileSync(join(root, path), "utf8");
-}
 
 function names(path: string, suffix: string) {
   return readdirSync(join(root, path), { withFileTypes: true })

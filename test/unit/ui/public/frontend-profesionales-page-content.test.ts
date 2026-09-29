@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const PROFESIONALES_PAGE_PATH = "frontend/src/app/profesionales/page.tsx";
 const PROFESIONALES_SEARCH_CONTENT_PATH =
@@ -11,13 +10,6 @@ const PROFESIONAL_DETAIL_CONTENT_PATH =
 const PROFESIONALES_DETAIL_PAGE_PATH =
   "frontend/src/app/profesionales/[clinicId]/page.tsx";
 const API_PATH = "frontend/src/lib/api.ts";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 test("profesionales page defines metadata and delegates to search content", () => {
   const source = read(PROFESIONALES_PAGE_PATH);

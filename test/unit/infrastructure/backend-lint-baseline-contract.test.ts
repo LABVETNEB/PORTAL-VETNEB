@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
 import { ESLint } from "eslint";
+import { readSourceFile } from "../../helpers/tracked-source-files.ts";
 
 type PackageJson = {
   scripts?: Record<string, string>;
@@ -44,9 +44,9 @@ const PROMOTED_ERROR_RULES = [
 function readContract(): Contract {
   return {
     pkg: JSON.parse(
-      readFileSync(resolve(process.cwd(), "package.json"), "utf8"),
+      readSourceFile("package.json"),
     ) as PackageJson,
-    config: readFileSync(resolve(process.cwd(), "eslint.config.mjs"), "utf8"),
+    config: readSourceFile("eslint.config.mjs"),
   };
 }
 

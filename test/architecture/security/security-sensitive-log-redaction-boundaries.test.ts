@@ -1,10 +1,6 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import test from "node:test";
-
-const REPO_ROOT = resolve(fileURLToPath(new URL("../../../", import.meta.url)));
+import { readSourceFile as readSource } from "../../helpers/tracked-source-files.ts";
 
 const SENSITIVE_LOG_REDACTION_BOUNDARIES = {
   requestLogs: {
@@ -62,10 +58,6 @@ const AUDIT_FILES = [
   "server/lib/clinic-audit.ts",
   "server/lib/particular-audit.ts",
 ] as const;
-
-function readSource(relativePath: string): string {
-  return readFileSync(resolve(REPO_ROOT, relativePath), "utf8");
-}
 
 function assertContains(source: string, marker: string, context: string) {
   assert.ok(source.includes(marker), `${context} must contain: ${marker}`);
@@ -610,7 +602,7 @@ test("structured logger redaction evaluator fails closed on real redaction regre
     () => removeLiteralItem(logger, SENSITIVE_KEY_EXACT_LITERAL, "absentkey"),
     /mutation target must exist in source/,
   );
-  assert.throws(() => readSource("server/lib/logger.absent.ts"), /ENOENT/);
+  assert.throws(() => readSource("server/lib/logger.absent.ts"), /not a git-tracked file/);
   assert.throws(
     () => replaceOnce(logger, "result[key] = rawSecretValue;", ""),
     /mutation target must exist in source/,

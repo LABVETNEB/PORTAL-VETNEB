@@ -1,7 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { readSourceFile } from "../../helpers/tracked-source-files.ts";
 
 process.env.SUPABASE_URL ??= "https://example.supabase.co";
 process.env.SUPABASE_ANON_KEY ??= "test-anon-key";
@@ -39,10 +38,7 @@ function stubUpload(): { getCapturedPaths: () => string[] } {
 }
 
 test("server/lib/supabase.ts no usa Math.random para generar paths de storage", () => {
-  const source = readFileSync(
-    resolve(process.cwd(), "server/lib/supabase.ts"),
-    "utf8",
-  );
+  const source = readSourceFile("server/lib/supabase.ts");
 
   assert.doesNotMatch(
     source,
@@ -150,10 +146,7 @@ test("el path de storage no incorpora informacion sensible mas alla del nombre s
 });
 
 test("supabase-storage-path-randomness guardrail source stays ascii only", () => {
-  const source = readFileSync(
-    resolve(process.cwd(), "test/unit/infrastructure/supabase-storage-path-randomness.test.ts"),
-    "utf8",
-  );
+  const source = readSourceFile("test/unit/infrastructure/supabase-storage-path-randomness.test.ts");
 
   for (let index = 0; index < source.length; index += 1) {
     assert.equal(

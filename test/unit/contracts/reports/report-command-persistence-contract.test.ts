@@ -1,21 +1,13 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read, listSourceFiles } from "../../../helpers/tracked-source-files.ts";
 
 const root = process.cwd();
 
-function read(path: string): string {
-  return readFileSync(resolve(root, path), "utf8").replace(/\r\n/g, "\n");
-}
-
 function walk(directory: string): string[] {
-  return readdirSync(resolve(root, directory), { withFileTypes: true }).flatMap(
-    (entry) => {
-      const path = `${directory}/${entry.name}`;
-      return entry.isDirectory() ? walk(path) : [path];
-    },
-  );
+  return listSourceFiles(resolve(root, directory)).map((file) => `${directory}/${file}`);
 }
 
 test("server/db.ts retira exports Reports sin duplicar persistencia M38", () => {

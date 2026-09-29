@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { basename, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { readSourceFile, listSourceFiles } from "../helpers/tracked-source-files.ts";
 
 const REPO_ROOT = resolve(fileURLToPath(new URL("../../", import.meta.url)));
 
@@ -39,20 +40,9 @@ function listFilesRecursive(relativeDir: string): string[] {
     return [];
   }
 
-  const files: string[] = [];
-  const walk = (absoluteDir: string): void => {
-    for (const entry of readdirSync(absoluteDir, { withFileTypes: true })) {
-      const absolute = resolve(absoluteDir, entry.name);
-      if (entry.isDirectory()) {
-        walk(absolute);
-      } else if (entry.isFile()) {
-        files.push(relative(REPO_ROOT, absolute).split(sep).join("/"));
-      }
-    }
-  };
-
-  walk(rootDir);
-  return files;
+  return listSourceFiles(rootDir).map((file) =>
+    relative(REPO_ROOT, resolve(rootDir, file)).split(sep).join("/"),
+  );
 }
 
 // Resolve a legacy test-root path to its current canonical location, tolerating tests
@@ -77,10 +67,7 @@ function resolveExistingSourcePath(relativePath: string): string | undefined {
 function readSource(relativePath: string): string {
   const resolved = resolveExistingSourcePath(relativePath);
   assert.ok(resolved, `source not found for ${relativePath}`);
-  return readFileSync(resolve(REPO_ROOT, resolved), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
+  return readSourceFile(resolved);
 }
 
 function assertContains(source: string, marker: string, context: string): void {

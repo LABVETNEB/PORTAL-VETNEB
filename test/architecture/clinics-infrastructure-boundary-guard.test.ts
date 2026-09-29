@@ -1,9 +1,10 @@
 
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import { readSourceFile as readText } from "../helpers/tracked-source-files.ts";
 
 const repoRoot = fileURLToPath(new URL("../../", import.meta.url));
 
@@ -61,13 +62,6 @@ const publicFunctionExports = [
   "deleteAdminClinic",
   "updateAdminClinicUserCredentials",
 ] as const;
-
-function readText(relativePath: string): string {
-  return readFileSync(
-    join(repoRoot, relativePath),
-    "utf8",
-  ).replace(/\r\n/g, "\n");
-}
 
 function normalizePath(value: string): string {
   return value.replaceAll("\\", "/");

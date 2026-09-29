@@ -1,5 +1,4 @@
-import { execFileSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -27,18 +26,172 @@ const DEFAULT_EXCLUDED_DIRECTORIES = new Set([
   "test-results",
 ]);
 
+let cachedIndexPaths: readonly string[] | null = null;
 let cachedTrackedFiles: readonly string[] | null = null;
+
+const SHA1_BYTES = 20;
+const INDEX_ENTRY_FIXED_BYTES = 40 + SHA1_BYTES + 2;
+const INDEX_EXTENDED_FLAG = 0x4000;
+const INDEX_NAME_MASK = 0x0fff;
+const GITLINK_OR_FILE_MODES = new Set([0o100644, 0o100755, 0o120000, 0o160000]);
+
+/**
+ * Paths of a git index file (`.git/index`), in index order, exactly as
+ * `git ls-files -z` prints them. Spawning git once per test process is the
+ * dominant cost of the canonical reader on Windows, so the index is parsed in
+ * process. Every entry is validated structurally (bounds, NUL terminator,
+ * name length, file mode) and the extension chain must end exactly at the
+ * trailing hash. Returns `null` for anything this parser does not fully
+ * understand (unknown version, split or sparse index, any inconsistency): the
+ * caller then asks git itself, so an unsupported index can never yield a
+ * partial inventory.
+ */
+export function parseGitIndexPaths(index: Uint8Array): string[] | null {
+  const bytes = Buffer.from(index.buffer, index.byteOffset, index.byteLength);
+
+  if (bytes.length < 12 + SHA1_BYTES || bytes.toString("latin1", 0, 4) !== "DIRC") {
+    return null;
+  }
+
+  const version = bytes.readUInt32BE(4);
+  const count = bytes.readUInt32BE(8);
+  const body = bytes.length - SHA1_BYTES;
+
+  if (![2, 3, 4].includes(version)) {
+    return null;
+  }
+
+  // Names are copied NUL-separated into one buffer and decoded once: one
+  // string per entry is the dominant cost of reading the index in-process.
+  let names = Buffer.allocUnsafe(body);
+  let written = 0;
+  let previousStart = 0;
+  let previousLength = 0;
+  let offset = 12;
+
+  for (let entry = 0; entry < count; entry += 1) {
+    if (offset + INDEX_ENTRY_FIXED_BYTES > body) {
+      return null;
+    }
+
+    const mode = bytes.readUInt32BE(offset + 24);
+    const flags = bytes.readUInt16BE(offset + 40 + SHA1_BYTES);
+    let cursor = offset + INDEX_ENTRY_FIXED_BYTES;
+
+    if (!GITLINK_OR_FILE_MODES.has(mode)) {
+      return null;
+    }
+
+    if (flags & INDEX_EXTENDED_FLAG) {
+      if (version < 3) {
+        return null;
+      }
+      cursor += 2;
+    }
+
+    let keep = 0;
+
+    if (version === 4) {
+      if (cursor >= body) {
+        return null;
+      }
+      let byte = bytes[cursor++] as number;
+      let strip = byte & 0x7f;
+      while (byte & 0x80) {
+        if (cursor >= body) {
+          return null;
+        }
+        byte = bytes[cursor++] as number;
+        strip = (strip + 1) * 128 + (byte & 0x7f);
+      }
+      if (strip > previousLength) {
+        return null;
+      }
+      keep = previousLength - strip;
+    }
+
+    const end = bytes.indexOf(0, cursor);
+    if (end < 0 || end >= body) {
+      return null;
+    }
+
+    const length = keep + end - cursor;
+    const declared = flags & INDEX_NAME_MASK;
+    if (declared !== INDEX_NAME_MASK && declared !== length) {
+      return null;
+    }
+
+    if (written + length + 1 > names.length) {
+      const grown = Buffer.allocUnsafe(Math.max(names.length * 2, written + length + 1));
+      names.copy(grown, 0, 0, written);
+      names = grown;
+    }
+
+    names.copy(names, written, previousStart, previousStart + keep);
+    bytes.copy(names, written + keep, cursor, end);
+    previousStart = written;
+    previousLength = length;
+    written += length;
+    names[written++] = 0;
+    offset = version === 4 ? end + 1 : offset + ((cursor - offset + length + 8) & ~7);
+  }
+
+  for (let cursor = offset; cursor < body; ) {
+    const signature = bytes.toString("latin1", cursor, cursor + 4);
+    if (signature === "link" || signature === "sdir") {
+      return null;
+    }
+    cursor += 8 + bytes.readUInt32BE(cursor + 4);
+    if (cursor > body) {
+      return null;
+    }
+  }
+
+  return count === 0 ? [] : names.toString("utf8", 0, written - 1).split("\0");
+}
+
+function readIndexPaths(): string[] | null {
+  if (process.env.GIT_DIR || process.env.GIT_INDEX_FILE || process.env.GIT_WORK_TREE) {
+    return null;
+  }
+
+  try {
+    if (!statSync(resolve(REPO_ROOT, ".git")).isDirectory()) {
+      return null;
+    }
+
+    return parseGitIndexPaths(readFileSync(resolve(REPO_ROOT, ".git", "index")));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * `git ls-files -z` itself: the reference the in-process parser must match.
+ * `node:child_process` is resolved on first use: most test processes never
+ * need it and a static import costs every one of them its load time.
+ */
+export function gitLsFiles(): string[] {
+  const { execFileSync } = process.getBuiltinModule("node:child_process");
+  const stdout = execFileSync("git", ["ls-files", "-z"], {
+    cwd: REPO_ROOT,
+    encoding: "utf8",
+    maxBuffer: 64 * 1024 * 1024,
+  });
+
+  return stdout.split("\0").filter(Boolean);
+}
+
+/** Tracked paths in index order, read once per process. */
+function trackedPaths(): readonly string[] {
+  cachedIndexPaths ??= readIndexPaths() ?? gitLsFiles();
+
+  return cachedIndexPaths;
+}
 
 /** Every git-tracked path, repo-relative with forward slashes, sorted. */
 export function listTrackedFiles(): string[] {
-  if (!cachedTrackedFiles) {
-    const stdout = execFileSync("git", ["ls-files", "-z"], {
-      cwd: REPO_ROOT,
-      encoding: "utf8",
-      maxBuffer: 64 * 1024 * 1024,
-    });
-    cachedTrackedFiles = stdout.split("\0").filter(Boolean).sort();
-  }
+  cachedTrackedFiles ??= [...trackedPaths()].sort();
 
   return [...cachedTrackedFiles];
 }
@@ -153,7 +306,7 @@ export function createSourceReader(
 }
 
 const readTrackedSource = createSourceReader({
-  trackedFiles: listTrackedFiles,
+  trackedFiles: trackedPaths,
   readFile: (path) => readFileSync(resolve(REPO_ROOT, path), "utf8"),
 });
 

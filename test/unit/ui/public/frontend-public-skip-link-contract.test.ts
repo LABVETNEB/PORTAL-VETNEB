@@ -1,18 +1,10 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const PUBLIC_LAYOUT_PATH = "frontend/src/components/layout/PublicLayout.tsx";
 const SKIP_TO_CONTENT_PATH = "frontend/src/components/public/SkipToContent.tsx";
 const GLOBALS_CSS_PATH = "frontend/src/app/globals.css";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 test("public layout renders the skip link as the first focusable element before the navbar", () => {
   const source = read(PUBLIC_LAYOUT_PATH);

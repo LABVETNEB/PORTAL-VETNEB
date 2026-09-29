@@ -2,11 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
-import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { E2E_COHORT_SPECS, E2E_SUITE_CATALOG } from "../../../frontend/e2e/suites/catalog.ts";
+import { readSourceFile } from "../../helpers/tracked-source-files.ts";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // E2E-GLOBAL-10 · catalog ↔ visual workflow reconciliation (R-14).
@@ -73,7 +73,7 @@ function sequence(value: unknown, label: string): unknown[] {
 }
 
 function readWorkflow(path = VISUAL_WORKFLOW): string {
-  return readFileSync(resolve(REPO_ROOT, path), "utf8").replace(/\r\n/g, "\n");
+  return readSourceFile(path);
 }
 
 function parseWorkflow(source: string): Mapping {

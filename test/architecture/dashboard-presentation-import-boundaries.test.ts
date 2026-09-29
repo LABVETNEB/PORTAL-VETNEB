@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, statSync } from "node:fs";
 import { dirname, relative, resolve, sep } from "node:path";
+import { listSourceFiles, readSourceFile as readSource } from "../helpers/tracked-source-files.ts";
 
 // B01 (audit §49 / §54) — dashboard presentation import boundaries.
 //
@@ -126,32 +127,15 @@ const NAVIGATION_FORBIDDEN_EXPORTS = [
   "ClinicDashboardSidebar",
 ] as const;
 
-function readSource(relativePath: string): string {
-  const absolute = resolve(SOURCE_ROOT, relativePath);
-  assert.ok(existsSync(absolute), `source not found: ${relativePath}`);
-  return readFileSync(absolute, "utf8").replace(/\r\n/g, "\n");
-}
-
 function listFilesRecursive(relativeDir: string): string[] {
   const rootDir = resolve(SOURCE_ROOT, relativeDir);
   if (!existsSync(rootDir)) {
     return [];
   }
 
-  const files: string[] = [];
-  const walk = (absoluteDir: string): void => {
-    for (const entry of readdirSync(absoluteDir, { withFileTypes: true })) {
-      const absolute = resolve(absoluteDir, entry.name);
-      if (entry.isDirectory()) {
-        walk(absolute);
-      } else if (entry.isFile()) {
-        files.push(relative(SOURCE_ROOT, absolute).split(sep).join("/"));
-      }
-    }
-  };
-
-  walk(rootDir);
-  return files;
+  return listSourceFiles(rootDir).map((file) =>
+    relative(SOURCE_ROOT, resolve(rootDir, file)).split(sep).join("/"),
+  );
 }
 
 // Module specifiers are read from real import/export declarations only.

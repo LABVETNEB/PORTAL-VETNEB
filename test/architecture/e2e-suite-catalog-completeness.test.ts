@@ -1,7 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync } from "node:fs";
-import { dirname, join, relative, resolve, sep } from "node:path";
+import { dirname, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -20,6 +19,7 @@ import {
   type E2eExecutionCohort,
   type E2eLayer,
 } from "../../frontend/e2e/suites/catalog.ts";
+import { readSourceFile, listSourceFiles } from "../helpers/tracked-source-files.ts";
 
 const TEST_FILE = fileURLToPath(import.meta.url);
 const REPO_ROOT = resolve(dirname(TEST_FILE), "..", "..");
@@ -207,7 +207,7 @@ function assertExecutionCohortPartition(catalogPaths: readonly E2eCatalogEntry["
 }
 
 function readPackageScripts(): Record<string, string> {
-  const packageJson = JSON.parse(readFileSync(resolve(REPO_ROOT, "frontend/package.json"), "utf8")) as {
+  const packageJson = JSON.parse(readSourceFile("frontend/package.json")) as {
     scripts?: Record<string, string>;
   };
 
@@ -225,22 +225,13 @@ const EXCLUDED_E2E_DIRECTORIES = new Set([
 
 function workspaceE2eSpecs(): string[] {
   const e2eRoot = resolve(REPO_ROOT, "frontend/e2e");
-  const specs: string[] = [];
 
-  function visit(directory: string): void {
-    for (const item of readdirSync(directory, { withFileTypes: true })) {
-      if (item.isDirectory()) {
-        if (!EXCLUDED_E2E_DIRECTORIES.has(item.name)) visit(join(directory, item.name));
-        continue;
-      }
-      if (!item.isFile() || !item.name.endsWith(".spec.ts")) continue;
-
-      specs.push(relative(resolve(REPO_ROOT, "frontend"), join(directory, item.name)).split(sep).join("/"));
-    }
-  }
-
-  visit(e2eRoot);
-  return specs.sort((a, b) => a.localeCompare(b));
+  return listSourceFiles(e2eRoot, {
+    extensions: [".spec.ts"],
+    excludedDirectories: [...EXCLUDED_E2E_DIRECTORIES],
+  })
+    .map((file) => `e2e/${file}`)
+    .sort((a, b) => a.localeCompare(b));
 }
 
 function validateCatalog(

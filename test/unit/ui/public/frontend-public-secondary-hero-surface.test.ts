@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const GLOBALS_CSS_PATH = "frontend/src/app/globals.css";
 
@@ -13,13 +12,6 @@ const SECONDARY_HERO_FILES = [
   "frontend/src/components/public/ParticularesContent.tsx",
   "frontend/src/components/public/PreciosContent.tsx",
 ];
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 function getSecondaryHeroSurfaceBlock(source: string): string {
   const startMarker = "/* public-secondary-hero-surface:start */";

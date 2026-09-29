@@ -1,8 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { readSourceFile as readSource } from "../../../helpers/tracked-source-files.ts";
 
 process.env.NODE_ENV ??= "development";
 process.env.SUPABASE_URL ??= "https://example.supabase.co";
@@ -10,8 +8,6 @@ process.env.SUPABASE_ANON_KEY ??= "test-anon-key";
 process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
 process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/postgres";
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
-
-const repoRoot = resolve(fileURLToPath(new URL("../../../../", import.meta.url)));
 
 const { ENV } = await import("../../../../server/lib/env.ts");
 const { createFastifyApp } = await import("../../../../server/fastify-app.ts");
@@ -85,10 +81,6 @@ function assertJsonErrorBodyDoesNotExposeSecrets(rawBody: string, label: string)
       `${label} no debe incluir ${marker}`,
     );
   }
-}
-
-function readSource(relativePath: string) {
-  return readFileSync(resolve(repoRoot, relativePath), "utf8");
 }
 
 function listImportSpecifiers(source: string) {

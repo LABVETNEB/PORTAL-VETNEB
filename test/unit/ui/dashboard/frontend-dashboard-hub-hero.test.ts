@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile, readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const HERO_PATH = "frontend/src/components/dashboard/DashboardHubHero.tsx";
 const HUB_PATH = "frontend/src/components/dashboard/DashboardModuleHub.tsx";
@@ -12,13 +11,6 @@ const ADMIN_CONTROLLER_PATH =
 const ADMIN_PAGE_PATH = "frontend/src/app/dashboard/admin/page.tsx";
 const CATALOG_PATH =
   "frontend/src/features/dashboard/config/dashboardModules.ts";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 // ── Hero component: presentational and accessible ────────────────────────────
 
@@ -172,11 +164,8 @@ test("admin page forwards live audit counts to the workspace controller", () => 
 // ── Scope invariant: no new dependency surfaced by this feature ──────────────
 
 test("hero feature does not register itself as a dependency", () => {
-  const rootPkg = readFileSync(resolve(process.cwd(), "package.json"), "utf8");
-  const frontendPkg = readFileSync(
-    resolve(process.cwd(), "frontend/package.json"),
-    "utf8",
-  );
+  const rootPkg = readSourceFile("package.json");
+  const frontendPkg = readSourceFile("frontend/package.json");
 
   assert.equal(rootPkg.includes("DashboardHubHero"), false);
   assert.equal(frontendPkg.includes("DashboardHubHero"), false);

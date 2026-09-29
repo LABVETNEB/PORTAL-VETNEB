@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const PAGE_PATH = "frontend/src/app/dashboard/admin/page.tsx";
 const CONTROLLER_PATH =
@@ -12,13 +11,6 @@ const UPLOAD_PATH =
 const STATUS_PATH =
   "frontend/src/app/dashboard/admin/AdminReportStatusBadge.tsx";
 const GLOBALS_PATH = "frontend/src/app/globals.css";
-
-function read(relativePath: string) {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 function sectionBetween(source: string, start: string, end: string): string {
   const startIndex = source.indexOf(start);

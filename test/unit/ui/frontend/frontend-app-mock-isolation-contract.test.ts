@@ -1,30 +1,20 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
+import { readSourceFile as read, listSourceFiles } from "../../../helpers/tracked-source-files.ts";
 
 const appRoot = resolve(process.cwd(), "frontend/src/app");
 const apiClientPath = "frontend/src/lib/api.ts";
 
 function listFiles(directory: string): string[] {
-  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-    const fullPath = join(directory, entry.name);
-
-    if (entry.isDirectory()) {
-      return listFiles(fullPath);
-    }
-
-    return entry.isFile() && fullPath.endsWith(".tsx") ? [fullPath] : [];
-  });
-}
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8");
+  return listSourceFiles(directory, { extensions: [".tsx"] }).map((file) =>
+    join(directory, file),
+  );
 }
 
 test("frontend app pages do not import mock data directly", () => {
   const offenders = listFiles(appRoot).flatMap((filePath) => {
-    const source = readFileSync(filePath, "utf8");
+    const source = read(relative(process.cwd(), filePath));
     const relativePath = relative(process.cwd(), filePath).replace(/\\/g, "/");
 
     return [
