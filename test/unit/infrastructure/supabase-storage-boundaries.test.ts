@@ -1,11 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { readSourceFile } from "../../helpers/tracked-source-files.ts";
 
 const SUPABASE_SOURCE_PATH = "server/lib/supabase.ts";
-const source = readFileSync(resolve(process.cwd(), SUPABASE_SOURCE_PATH), "utf8")
-  .replace(/\r\n/g, "\n");
+const source = readSourceFile(SUPABASE_SOURCE_PATH);
 
 function extractExportedFunction(functionName: string): string {
   const marker = `export async function ${functionName}`;

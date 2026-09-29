@@ -1,7 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { existsSync } from "node:fs";
+import { join, relative, resolve } from "node:path";
+import {
+  listSourceFiles as listSourceTree,
+  readSourceFile as read,
+} from "../helpers/tracked-source-files.ts";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // B10 · Clinic app-shell unification static contract.
@@ -131,12 +135,6 @@ const FORBIDDEN_STYLE_PROPERTIES = [
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-function read(repoRelativePath: string): string {
-  const absolute = resolve(REPO_ROOT, repoRelativePath);
-  assert.ok(existsSync(absolute), `source not found: ${repoRelativePath}`);
-  return readFileSync(absolute, "utf8").replace(/\r\n/g, "\n");
-}
-
 /** Strips block and line comments so a prose mention never satisfies a guard. */
 function stripComments(source: string): string {
   return source
@@ -146,23 +144,10 @@ function stripComments(source: string): string {
 
 function listSourceFiles(relativeDir: string): string[] {
   const rootDir = resolve(REPO_ROOT, relativeDir);
-  const found: string[] = [];
 
-  const walk = (absoluteDir: string) => {
-    for (const entry of readdirSync(absoluteDir)) {
-      const absolute = join(absoluteDir, entry);
-      if (statSync(absolute).isDirectory()) {
-        walk(absolute);
-        continue;
-      }
-      if (absolute.endsWith(".ts") || absolute.endsWith(".tsx")) {
-        found.push(absolute);
-      }
-    }
-  };
-
-  walk(rootDir);
-  return found;
+  return listSourceTree(rootDir, { extensions: [".ts", ".tsx"] }).map((file) =>
+    join(rootDir, file),
+  );
 }
 
 /** Normalises separators FIRST: on Windows the walker yields `frontend\src`. */
@@ -228,7 +213,7 @@ test("B10 · ClinicDashboardShell is the single clinic shell owner", () => {
 
   const definitions = files.filter((absolute) =>
     /export function ClinicDashboardShell\(/.test(
-      stripComments(readFileSync(absolute, "utf8")),
+      stripComments(read(relative(REPO_ROOT, absolute))),
     ),
   );
   assert.deepEqual(
@@ -524,7 +509,7 @@ test("B10 · the shell is not exported from any presentation barrel", () => {
 
   for (const absolute of barrels) {
     assert.equal(
-      stripComments(readFileSync(absolute, "utf8")).includes(
+      stripComments(read(relative(REPO_ROOT, absolute))).includes(
         "ClinicDashboardShell",
       ),
       false,

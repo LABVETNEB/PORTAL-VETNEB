@@ -1,15 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { z } from "zod";
-
-function readEnvExample(relPath: string): string {
-  return readFileSync(resolve(process.cwd(), relPath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
+import { readSourceFile as readEnvExample } from "../../helpers/tracked-source-files.ts";
 
 function activeLines(content: string): string[] {
   return content.split("\n").filter((line) => {

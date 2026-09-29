@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const REPO_ROOT = process.cwd();
 
@@ -21,13 +22,6 @@ const SHELL_ROUTER_PATH =
   "frontend/src/components/dashboard/DashboardShellRouter.tsx";
 const CATALOG_PATH =
   "frontend/src/features/dashboard/config/dashboardModules.ts";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(REPO_ROOT, relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 // ── The Home/hub is gone ─────────────────────────────────────────────────────
 

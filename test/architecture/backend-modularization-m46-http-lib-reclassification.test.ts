@@ -1,8 +1,6 @@
 import assert from "node:assert/strict";
 import {
   existsSync,
-  readFileSync,
-  readdirSync,
   statSync,
 } from "node:fs";
 import {
@@ -12,6 +10,7 @@ import {
 } from "node:path";
 import test from "node:test";
 import ts from "typescript";
+import { readSourceFile as read, listSourceFiles } from "../helpers/tracked-source-files.ts";
 
 const repoRoot = process.cwd();
 const httpDirectory = "server/lib/http";
@@ -143,35 +142,15 @@ function normalizePath(value: string): string {
   return value.replaceAll("\\", "/");
 }
 
-function read(relativePath: string): string {
-  return readFileSync(resolve(repoRoot, relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
-
 function walkTsFiles(relativeDirectory: string): string[] {
-  const absoluteDirectory = resolve(repoRoot, relativeDirectory);
-
-  if (!existsSync(absoluteDirectory)) {
+  const absolute = resolve(repoRoot, relativeDirectory);
+  if (!existsSync(absolute)) {
     return [];
   }
 
-  return readdirSync(absoluteDirectory, { withFileTypes: true })
-    .flatMap((entry) => {
-      const relativePath = `${relativeDirectory}/${entry.name}`;
-
-      if (entry.isDirectory()) {
-        return walkTsFiles(relativePath);
-      }
-
-      return entry.isFile() &&
-        entry.name.endsWith(".ts") &&
-        !entry.name.endsWith(".d.ts")
-        ? [relativePath]
-        : [];
-    })
-    .sort();
+  return listSourceFiles(absolute, { extensions: [".ts"] })
+    .filter((file) => !file.endsWith(".d.ts"))
+    .map((file) => `${relativeDirectory}/${file}`);
 }
 
 function parse(relativePath: string): ts.SourceFile {

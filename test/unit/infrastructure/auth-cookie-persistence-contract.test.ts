@@ -13,33 +13,20 @@
  */
 
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync, statSync } from "node:fs";
-import { resolve } from "node:path";
+import { relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import {
+  readSourceFile as readSource,
+  listSourceFiles,
+} from "../../helpers/tracked-source-files.ts";
 
 const REPO_ROOT = resolve(fileURLToPath(new URL("../../../", import.meta.url)));
 
-function readSource(relativePath: string): string {
-  return readFileSync(resolve(REPO_ROOT, relativePath), "utf8");
-}
-
 function collectTsFiles(dir: string): string[] {
-  const results: string[] = [];
-
-  for (const entry of readdirSync(dir)) {
-    const full = `${dir}/${entry}`;
-    const stat = statSync(full);
-
-    if (stat.isDirectory()) {
-      if (entry === "node_modules" || entry === ".next") continue;
-      results.push(...collectTsFiles(full));
-    } else if (entry.endsWith(".ts") || entry.endsWith(".tsx")) {
-      results.push(full);
-    }
-  }
-
-  return results;
+  return listSourceFiles(dir, { extensions: [".ts", ".tsx"] }).map(
+    (file) => `${dir}/${file}`,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -186,7 +173,7 @@ test("cookie persistence contract: frontend has no sessionStorage or localStorag
   const files = collectTsFiles(frontendSrcDir);
 
   for (const file of files) {
-    const source = readFileSync(file, "utf8");
+    const source = readSource(relative(REPO_ROOT, file));
     const relPath = file.replace(REPO_ROOT + "/", "");
 
     assert.equal(
@@ -228,7 +215,7 @@ test("cookie persistence contract: frontend has no beforeunload/unload/visibilit
   const files = collectTsFiles(frontendSrcDir);
 
   for (const file of files) {
-    const source = readFileSync(file, "utf8");
+    const source = readSource(relative(REPO_ROOT, file));
     const relPath = file.replace(REPO_ROOT + "/", "");
 
     assert.equal(

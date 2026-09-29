@@ -1,19 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-
-const REPO_ROOT = resolve(fileURLToPath(new URL("../../", import.meta.url)));
+import {
+  readSourceFile as readNormalizedSource,
+  readSourceFile as readSource,
+} from "../helpers/tracked-source-files.ts";
 
 const {
   SENSITIVE_API_CACHE_CONTROL,
   shouldApplySensitiveApiNoStore,
 } = await import("../../server/lib/http/sensitive-response-cache.ts");
-
-function readSource(relativePath: string): string {
-  return readFileSync(resolve(REPO_ROOT, relativePath), "utf8");
-}
 
 test("sensitive response cache helper clasifica API no publica para no-store", () => {
   assert.equal(SENSITIVE_API_CACHE_CONTROL, "no-store");
@@ -587,10 +582,6 @@ function replaceOnce(source: string, target: string, replacement: string): strin
   );
 
   return source.slice(0, first) + replacement + source.slice(first + target.length);
-}
-
-function readNormalizedSource(relativePath: string): string {
-  return readSource(relativePath).replace(/\r\n/g, "\n");
 }
 
 test("evaluator no-store: el source real cumple la politica fija del contrato", () => {

@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 process.env.NODE_ENV ??= "test";
 process.env.SUPABASE_URL ??= "https://example.supabase.co";
@@ -16,13 +16,6 @@ const {
   CLIENT_VERSION_HEADER,
   CLIENT_VERSION_UNSUPPORTED_CODE,
 } = await import("../../../../server/middlewares/version-gate.ts");
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 type GateScenarioResult = {
   result: unknown;

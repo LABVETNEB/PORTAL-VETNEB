@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { readSourceFile } from "../../helpers/tracked-source-files.ts";
 
 const REPO_ROOT = resolve(fileURLToPath(new URL("../../../", import.meta.url)));
 const SCRIPT_PATH = resolve(REPO_ROOT, "scripts/dev/smoke-staging.ps1");
 
 function readSource(path: string): string {
-  return readFileSync(path, "utf8").replace(/^\uFEFF/, "").replace(/\r\n/g, "\n");
+  return readSourceFile(relative(REPO_ROOT, path)).replace(/^\uFEFF/, "");
 }
 
 function assertContains(source: string, marker: string, context: string): void {

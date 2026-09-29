@@ -4,12 +4,12 @@ import { execFileSync } from "node:child_process";
 import {
   mkdirSync,
   mkdtempSync,
-  readFileSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
+import { readSourceFile } from "../../helpers/tracked-source-files.ts";
 
 const workflowPath = resolve(
   process.cwd(),
@@ -37,7 +37,7 @@ const frontendImpactPaths = new Set([
 ]);
 
 function readWorkflow(): string {
-  return readFileSync(workflowPath, "utf8").replace(/\r\n/g, "\n");
+  return readSourceFile(relative(process.cwd(), workflowPath));
 }
 
 function runGit(repository: string, args: readonly string[]): string {
@@ -444,10 +444,7 @@ test("Frontend CI reserva un envelope exterior sobre el globalTimeout de Playwri
   );
   const jobTimeoutMs = Number(jobTimeout[1]) * 60_000;
 
-  const playwrightConfig = readFileSync(
-    resolve(process.cwd(), "frontend", "playwright.config.ts"),
-    "utf8",
-  ).replace(/\r\n/g, "\n");
+  const playwrightConfig = readSourceFile("frontend/playwright.config.ts");
   const playwrightDefault = playwrightConfig.match(
     /const globalTimeout =[^;]*\|\|\s*(\d+) \* 60_000;/,
   );

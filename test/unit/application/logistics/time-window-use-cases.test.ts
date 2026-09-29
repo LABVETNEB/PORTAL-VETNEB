@@ -1,12 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 
 import {
   createTimeWindowUseCases,
   type LogisticsTimeWindowsRepository,
 } from "../../../../server/features/logistics/application/index.ts";
+import { readSourceFile } from "../../../helpers/tracked-source-files.ts";
 
 type StubTimeWindow = {
   id: number;
@@ -164,7 +163,7 @@ test("los casos de uso de time windows de M15 no importan HTTP ni persistencia c
   const violations: string[] = [];
 
   for (const file of APPLICATION_FILES) {
-    const source = readFileSync(join(process.cwd(), ...file.split("/")), "utf8");
+    const source = readSourceFile(file);
     for (const specifier of listImportSpecifiers(source)) {
       for (const { label, pattern } of FORBIDDEN_IMPORT_RULES) {
         if (pattern.test(specifier)) {

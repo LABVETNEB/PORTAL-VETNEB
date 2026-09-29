@@ -2,16 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   existsSync,
-  readFileSync,
-  readdirSync,
 } from "node:fs";
 import { join } from "node:path";
+import { readSourceFile as readText, listSourceFiles } from "../helpers/tracked-source-files.ts";
 
 const repoRoot = process.cwd();
-
-function readText(relativePath: string) {
-  return readFileSync(join(repoRoot, relativePath), "utf8");
-}
 
 function readJson(relativePath: string) {
   return JSON.parse(readText(relativePath).replace(/^\uFEFF/, ""));
@@ -27,23 +22,7 @@ function listImportSpecifiers(source: string) {
 }
 
 function walkFiles(relativeDir: string): string[] {
-  const absoluteDir = join(repoRoot, relativeDir);
-  const files: string[] = [];
-
-  for (const entry of readdirSync(absoluteDir, { withFileTypes: true })) {
-    const relativePath = `${relativeDir}/${entry.name}`;
-
-    if (entry.isDirectory()) {
-      files.push(...walkFiles(relativePath));
-      continue;
-    }
-
-    if (entry.isFile()) {
-      files.push(relativePath);
-    }
-  }
-
-  return files;
+  return listSourceFiles(join(repoRoot, relativeDir)).map((file) => `${relativeDir}/${file}`);
 }
 
 test("backend Fastify-only no reintroduce runtime Express directo", () => {

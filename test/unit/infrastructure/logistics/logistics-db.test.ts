@@ -1,22 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { readSourceFile } from "../../../helpers/tracked-source-files.ts";
 
 // M12: la implementación canónica vive en la capa infrastructure del contexto.
 // M17 retiró el shim raíz `server/db-logistics.ts`; este archivo protege sólo la
 // implementación canónica (la ausencia y no-recreación del shim las fija el guard
 // de infraestructura `logistics-infrastructure-boundary-guard.test.ts`).
-const CANONICAL_DB_LOGISTICS_PATH = resolve(
-  process.cwd(),
-  "server",
-  "features",
-  "logistics",
-  "infrastructure",
-  "db-logistics.ts",
-);
+const CANONICAL_DB_LOGISTICS_PATH =
+  "server/features/logistics/infrastructure/db-logistics.ts";
 
-const dbLogisticsSource = readFileSync(CANONICAL_DB_LOGISTICS_PATH, "utf8");
+const dbLogisticsSource = readSourceFile(CANONICAL_DB_LOGISTICS_PATH);
 
 // Baseline R0 medido en HEAD 101731d antes del move: `server/db-logistics.ts`
 // contenía exactamente 7 call-sites `db.transaction(`. El move no puede

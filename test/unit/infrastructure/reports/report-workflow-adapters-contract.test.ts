@@ -1,16 +1,11 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const DATA_ADAPTER =
   "server/features/reports/infrastructure/report-workflow-data-adapter.ts";
 const NOTIFICATION_ADAPTER =
   "server/features/reports/infrastructure/report-workflow-notification-adapter.ts";
-
-function read(path: string): string {
-  return readFileSync(resolve(process.cwd(), path), "utf8").replace(/\r\n/g, "\n");
-}
 
 test("data adapter preserva consulta y mapping minimo de Study Tracking", () => {
   const source = read(DATA_ADAPTER);

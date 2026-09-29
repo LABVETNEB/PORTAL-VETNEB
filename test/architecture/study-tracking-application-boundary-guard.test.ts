@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import test from "node:test";
+import { readSourceFile as readText, listSourceFiles } from "../helpers/tracked-source-files.ts";
 
 const repoRoot = process.cwd();
 const featureDir = "server/features/study-tracking";
@@ -24,33 +25,14 @@ const routeFactories = new Map<string, readonly string[]>([
   ],
 ]);
 
-function readText(relativePath: string): string {
-  return readFileSync(join(repoRoot, relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
-
 function walkTsFiles(relativeDir: string): string[] {
-  const absoluteDir = join(repoRoot, relativeDir);
-
-  if (!existsSync(absoluteDir)) {
+  const absolute = join(repoRoot, relativeDir);
+  if (!existsSync(absolute)) {
     return [];
   }
 
-  const files: string[] = [];
-
-  for (const entry of readdirSync(absoluteDir, { withFileTypes: true })) {
-    const relativePath = `${relativeDir}/${entry.name}`;
-
-    if (entry.isDirectory()) {
-      files.push(...walkTsFiles(relativePath));
-    } else if (entry.isFile() && entry.name.endsWith(".ts")) {
-      files.push(relativePath);
-    }
-  }
-
-  return files;
+  return listSourceFiles(absolute, { extensions: [".ts"] })
+    .map((file) => `${relativeDir}/${file}`);
 }
 
 function listImportSpecifiers(source: string): string[] {

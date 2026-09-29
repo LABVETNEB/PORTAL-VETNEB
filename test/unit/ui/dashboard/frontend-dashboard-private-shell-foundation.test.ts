@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const STATUS_BADGE_PATH = "frontend/src/components/dashboard/StatusBadge.tsx";
 const EMPTY_STATE_PATH = "frontend/src/components/dashboard/EmptyState.tsx";
@@ -11,13 +10,6 @@ const PAGE_HEADER_PATH =
   "frontend/src/components/dashboard/DashboardPageHeader.tsx";
 const PRIVATE_SHELL_PATH =
   "frontend/src/components/dashboard/PrivateDashboardShell.tsx";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 test("status badge maps required report and logistics statuses to icon text and semantic class", () => {
   const source = read(STATUS_BADGE_PATH);

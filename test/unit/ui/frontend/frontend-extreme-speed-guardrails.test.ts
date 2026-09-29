@@ -12,51 +12,18 @@
  */
 
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync, statSync } from "node:fs";
-import { resolve, join } from "node:path";
+import { existsSync, statSync } from "node:fs";
+import { join, relative, resolve } from "node:path";
 import test from "node:test";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
+import { readSourceFile as read, listSourceFiles } from "../../../helpers/tracked-source-files.ts";
 
 function findFiles(dir: string, ext: string[]): string[] {
-  const results: string[] = [];
-
-  function walk(current: string) {
-    let entries: string[];
-
-    try {
-      entries = readdirSync(current);
-    } catch {
-      return;
-    }
-
-    for (const entry of entries) {
-      const full = join(current, entry);
-
-      if (entry === "node_modules" || entry === ".next") continue;
-
-      let stat;
-      try {
-        stat = statSync(full);
-      } catch {
-        continue;
-      }
-
-      if (stat.isDirectory()) {
-        walk(full);
-      } else if (ext.some((e) => entry.endsWith(e))) {
-        results.push(full);
-      }
-    }
+  const root = resolve(process.cwd(), dir);
+  if (!existsSync(root)) {
+    return [];
   }
 
-  walk(resolve(process.cwd(), dir));
-  return results;
+  return listSourceFiles(root, { extensions: ext }).map((file) => join(root, file));
 }
 
 // ---------------------------------------------------------------------------
@@ -100,7 +67,7 @@ test("layout and public components maintain NEXT_LINK_IMPORTS=0 across the board
   const violations: string[] = [];
 
   for (const file of files) {
-    const source = readFileSync(file, "utf8");
+    const source = read(relative(process.cwd(), file));
     if (source.includes("next/link")) violations.push(file);
   }
 
@@ -144,7 +111,7 @@ test("layout and public components do not import echarts or @tanstack/react-tabl
   const files = [...layoutFiles, ...publicFiles];
 
   for (const file of files) {
-    const source = readFileSync(file, "utf8");
+    const source = read(relative(process.cwd(), file));
 
     assert.equal(
       source.includes("from 'echarts'") || source.includes('from "echarts"'),

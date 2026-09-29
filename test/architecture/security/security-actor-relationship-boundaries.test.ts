@@ -1,10 +1,6 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import test from "node:test";
-
-const REPO_ROOT = resolve(fileURLToPath(new URL("../../../", import.meta.url)));
+import { readSourceFile as readSource } from "../../helpers/tracked-source-files.ts";
 
 const ACTOR_RELATIONSHIP_BOUNDARIES = {
   admin: {
@@ -23,10 +19,6 @@ const ACTOR_RELATIONSHIP_BOUNDARIES = {
     canTargetClinicOrReportFromClientInput: false,
   },
 } as const;
-
-function readSource(relativePath: string): string {
-  return readFileSync(resolve(REPO_ROOT, relativePath), "utf8");
-}
 
 function assertContains(source: string, marker: string, context: string) {
   assert.ok(source.includes(marker), `${context} must contain: ${marker}`);

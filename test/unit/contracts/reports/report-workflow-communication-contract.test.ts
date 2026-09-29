@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 import test from "node:test";
 import ts from "typescript";
+import { listSourceFiles, readSourceFile } from "../../../helpers/tracked-source-files.ts";
 
 const root = process.cwd();
 const application =
@@ -23,9 +24,7 @@ const workflow =
   "server/features/reports/infrastructure/db-report-workflow.ts";
 
 function read(path: string): string {
-  return readFileSync(resolve(root, path), "utf8")
-    .replace(/^\uFEFF/, "")
-    .replace(/\r\n/g, "\n");
+  return readSourceFile(path).replace(/^\uFEFF/, "");
 }
 
 function imports(path: string): string[] {
@@ -162,23 +161,15 @@ test("ningun consumidor runtime o test de comportamiento importa el shim", () =>
   const violations: string[] = [];
 
   for (const base of ["server", "test"]) {
-    const pending = [resolve(root, base)];
-    while (pending.length > 0) {
-      const directory = pending.pop()!;
-      for (const entry of readdirSync(directory, { withFileTypes: true })) {
-        const absolute = resolve(directory, entry.name);
-        if (entry.isDirectory()) {
-          pending.push(absolute);
-        } else if (entry.isFile() && entry.name.endsWith(".ts")) {
-          const path = relative(root, absolute).replaceAll("\\", "/");
-          if (path === "test/architecture/reports-workflow-ports-boundary-guard.test.ts") {
-            continue;
-          }
-          for (const specifier of imports(path)) {
-            if (resolveImport(path, specifier) === shim) {
-              violations.push(`${path}: ${specifier}`);
-            }
-          }
+    const directory = resolve(root, base);
+    for (const file of listSourceFiles(directory, { extensions: [".ts"] })) {
+      const path = relative(root, resolve(directory, file)).replaceAll("\\", "/");
+      if (path === "test/architecture/reports-workflow-ports-boundary-guard.test.ts") {
+        continue;
+      }
+      for (const specifier of imports(path)) {
+        if (resolveImport(path, specifier) === shim) {
+          violations.push(`${path}: ${specifier}`);
         }
       }
     }

@@ -1,10 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { MAX_DOCUMENT_SCROLL_DELTA_PX } from "../../frontend/e2e/helpers/zero-scroll-contract.ts";
+import { readSourceFile, listSourceFiles } from "../helpers/tracked-source-files.ts";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // E2E-GLOBAL-10 · zero-scroll régime guard (LIMPIEZA E2E P2-2 / R-12).
@@ -79,22 +79,12 @@ type Violation = {
 };
 
 function sourceFiles(): string[] {
-  const files: string[] = [];
-
-  function visit(directory: string): void {
-    for (const item of readdirSync(directory, { withFileTypes: true })) {
-      if (item.isDirectory()) {
-        if (!EXCLUDED_DIRECTORIES.has(item.name)) visit(join(directory, item.name));
-        continue;
-      }
-      if (!item.isFile()) continue;
-      if (!SOURCE_EXTENSIONS.some((extension) => item.name.endsWith(extension))) continue;
-      files.push(join(directory, item.name));
-    }
-  }
-
-  visit(E2E_ROOT);
-  return files.sort((a, b) => a.localeCompare(b));
+  return listSourceFiles(E2E_ROOT, {
+    extensions: SOURCE_EXTENSIONS,
+    excludedDirectories: [...EXCLUDED_DIRECTORIES],
+  })
+    .map((file) => join(E2E_ROOT, file))
+    .sort((a, b) => a.localeCompare(b));
 }
 
 /** Characters after which a `/` opens a regex literal rather than dividing. */
@@ -527,7 +517,7 @@ function readSources(): Map<string, string> {
   for (const file of sourceFiles()) {
     sources.set(
       relative(REPO_ROOT, file).split(sep).join("/"),
-      readFileSync(file, "utf8").replace(/\r\n/g, "\n"),
+      readSourceFile(relative(REPO_ROOT, file)),
     );
   }
   return sources;
@@ -542,7 +532,7 @@ test("the document zero-scroll régime is exactly zero and has one owner", () =>
       "than a threshold to re-tune",
   );
 
-  const owner = readFileSync(resolve(REPO_ROOT, OWNER_MODULE), "utf8");
+  const owner = readSourceFile(OWNER_MODULE);
   assert.match(
     owner,
     new RegExp(`export const ${OWNER_SYMBOL} = 0;`),

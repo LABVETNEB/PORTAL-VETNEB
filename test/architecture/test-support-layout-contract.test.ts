@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
-import { listSourceFiles } from "../helpers/tracked-source-files.ts";
+import { listSourceFiles, readSourceFile as read } from "../helpers/tracked-source-files.ts";
 
 const REPO_ROOT = resolve(import.meta.dirname, "../..");
 const TEST_ROOT = resolve(REPO_ROOT, "test");
@@ -16,10 +16,6 @@ const CANONICAL_PATHS = [
   "test/factories/public-professionals.ts",
   "test/mocks/public-professionals-route.ts",
 ] as const;
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(REPO_ROOT, relativePath), "utf8");
-}
 
 test("layout canónico de soporte está presente y las rutas legacy ausentes", () => {
   for (const path of CANONICAL_PATHS) {

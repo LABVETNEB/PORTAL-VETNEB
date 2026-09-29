@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const PRIMITIVES_PATH =
   "frontend/src/components/dashboard/ParticularTokensCardPrimitives.tsx";
@@ -10,13 +9,6 @@ const ADMIN_CARD_PATH =
 const CLINIC_CARD_PATH =
   "frontend/src/components/dashboard/ClinicParticularTokensCard.tsx";
 const DOC_PATH = "docs/audit/pr-vis-7-implementation.md";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 test("PR-VIS-7 exposes small visual-only particular token card primitives", () => {
   const source = read(PRIMITIVES_PATH);

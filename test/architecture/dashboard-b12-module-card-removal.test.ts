@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
 import { readDashboardCssSource } from "../helpers/read-dashboard-css-source.ts";
+import { readSourceFile as read, listSourceFiles } from "../helpers/tracked-source-files.ts";
 
 const REPO_ROOT = process.cwd();
 const SURFACES_CSS = "frontend/src/styles/dashboard/surfaces.css";
@@ -25,10 +26,6 @@ const OWNER = `.dashboard-app-shell
 const INTERNAL_ESCAPE = ["data-dashboard-b12", "internal-surface"].join("-");
 const NEGATIVE_OWNER = [":not([", INTERNAL_ESCAPE].join("");
 
-function read(path: string): string {
-  return readFileSync(resolve(REPO_ROOT, path), "utf8").replace(/\r\n/g, "\n");
-}
-
 function rule(source: string, selector: string): string {
   const start = source.indexOf(selector);
   assert.ok(start >= 0, `missing B12 owner ${selector}`);
@@ -44,11 +41,7 @@ function b12OwnerRule(): string {
 }
 
 function sourceFiles(path = SOURCE_ROOT): string[] {
-  const absolutePath = resolve(REPO_ROOT, path);
-  return readdirSync(absolutePath, { withFileTypes: true }).flatMap((entry) => {
-    const child = `${path}/${entry.name}`;
-    return entry.isDirectory() ? sourceFiles(child) : [child];
-  });
+  return listSourceFiles(resolve(REPO_ROOT, path)).map((file) => `${path}/${file}`);
 }
 
 function occurrenceCount(source: string, value: string): number {

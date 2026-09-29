@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const DASHBOARD_PAGE_PATH = "frontend/src/app/dashboard/page.tsx";
 const ADMIN_TOKENS_CARD_PATH =
@@ -13,13 +14,6 @@ const CAPACITY_OWNER_PATH =
 const CAPACITY_ENGINE_PATH =
   "frontend/src/lib/dashboard/capacity/computeCapacity.ts";
 const API_PATH = "frontend/src/lib/api.ts";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 function sectionBetween(source: string, start: string, end: string): string {
   const startIndex = source.indexOf(start);

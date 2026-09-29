@@ -1,17 +1,11 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const PACKAGE_PATH = "package.json";
 const ADMIN_LAUNCHER_PATH = "scripts/dev/open-admin-dashboard.ps1";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 test("package exposes local admin dashboard launcher", () => {
   const source = read(PACKAGE_PATH);

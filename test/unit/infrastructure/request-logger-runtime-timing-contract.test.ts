@@ -1,12 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { readSourceFile } from "../../helpers/tracked-source-files.ts";
 
-const middlewareSource = readFileSync(
-  resolve(process.cwd(), "server", "middlewares", "request-logger.ts"),
-  "utf8",
-);
+const middlewareSource = readSourceFile("server/middlewares/request-logger.ts");
 
 test("request logger uses shared runtime timing helper", () => {
   assert.match(middlewareSource, /createRuntimeTimer/);

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { existsSync, statSync, readFileSync } from "node:fs";
 import { extname, resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as readSource } from "../../../helpers/tracked-source-files.ts";
 
 const MANIFEST_PATH = "frontend/src/app/manifest.ts";
 const SEO_PATH = "frontend/src/lib/seo.ts";
@@ -16,10 +17,6 @@ type IconReference = {
 
 function assetPath(relativePath: string): string {
   return resolve(process.cwd(), relativePath);
-}
-
-function readSource(relativePath: string): string {
-  return readFileSync(assetPath(relativePath), "utf8").replace(/\r\n/g, "\n");
 }
 
 function readPngDimensions(relativePath: string): {

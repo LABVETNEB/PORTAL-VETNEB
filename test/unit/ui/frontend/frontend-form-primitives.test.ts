@@ -1,18 +1,10 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const SELECT_PATH = "frontend/src/components/ui/select.tsx";
 const TEXTAREA_PATH = "frontend/src/components/ui/textarea.tsx";
 const LABEL_PATH = "frontend/src/components/ui/label.tsx";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 test("select primitive uses native select semantics and shared tokenized styling", () => {
   const source = read(SELECT_PATH);

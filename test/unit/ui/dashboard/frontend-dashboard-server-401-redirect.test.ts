@@ -1,12 +1,11 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
 
 import {
   ApiResponseError,
   isUnauthorizedApiError,
 } from "../../../../frontend/src/lib/api-error.ts";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const SERVER_AUTH_PATH = "frontend/src/lib/dashboard-server-auth.ts";
 const PROXY_PATH = "frontend/src/proxy.ts";
@@ -20,13 +19,6 @@ const DASHBOARD_SERVER_PAGES = [
   "frontend/src/app/dashboard/logistica/rutas/page.tsx",
   "frontend/src/app/dashboard/logistica/metricas/page.tsx",
 ] as const;
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 test("dashboard API error policy classifies only HTTP 401 as unauthenticated", () => {
   assert.equal(

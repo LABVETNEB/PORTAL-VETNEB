@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 import test from "node:test";
 import ts from "typescript";
+import { readSourceFile, listSourceFiles } from "../helpers/tracked-source-files.ts";
 
 const root = process.cwd();
 const feature = "server/features/reports";
@@ -57,9 +58,7 @@ function repoPath(path: string): string {
 }
 
 function read(path: string): string {
-  return readFileSync(resolve(root, path), "utf8")
-    .replace(/^\uFEFF/, "")
-    .replace(/\r\n/g, "\n");
+  return readSourceFile(path).replace(/^\uFEFF/, "");
 }
 
 function walk(directory: string): string[] {
@@ -68,10 +67,7 @@ function walk(directory: string): string[] {
     return [];
   }
 
-  return readdirSync(absolute, { withFileTypes: true }).flatMap((entry) => {
-    const path = `${directory}/${entry.name}`;
-    return entry.isDirectory() ? walk(path) : [path];
-  });
+  return listSourceFiles(absolute).map((file) => `${directory}/${file}`);
 }
 
 function imports(path: string): ImportReference[] {

@@ -1,20 +1,14 @@
 import assert from "node:assert/strict";
-import { statSync, readFileSync } from "node:fs";
+import { statSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const HOME_PAGE_PATH = "frontend/src/app/page.tsx";
 const SCROLL_REVEAL_PATH =
   "frontend/src/components/public/PublicScrollReveal.tsx";
 const HERO_IMAGE_PATH =
   "frontend/public/images/hero-microscope-vetneb.webp";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 test("home hero uses optimized Next image as LCP candidate", () => {
   const source = read(HOME_PAGE_PATH);

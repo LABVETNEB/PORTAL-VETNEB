@@ -1,18 +1,10 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile, readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const CLINIC_COMMAND_CENTER_PATH = "frontend/src/app/dashboard/ClinicCommandCenter.tsx";
 const DASHBOARD_PAGE_PATH = "frontend/src/app/dashboard/page.tsx";
 const STATUS_BADGE_PATH = "frontend/src/components/dashboard/StatusBadge.tsx";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 // ── Existence and scope boundaries ──────────────────────────────────────────
 
@@ -238,8 +230,8 @@ test("StatusBadge maps scheduled and no_show field visit statuses", () => {
 // ── Scope invariants ─────────────────────────────────────────────────────────
 
 test("package.json and pnpm-lock.yaml are not modified by this feature", () => {
-  const rootPkg = readFileSync(resolve(process.cwd(), "package.json"), "utf8");
-  const frontendPkg = readFileSync(resolve(process.cwd(), "frontend/package.json"), "utf8");
+  const rootPkg = readSourceFile("package.json");
+  const frontendPkg = readSourceFile("frontend/package.json");
 
   assert.ok(rootPkg.length > 0);
   assert.ok(frontendPkg.length > 0);

@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { resolve } from "node:path";
+import { readSourceFile as readSource } from "../helpers/tracked-source-files.ts";
 
 const REPO_ROOT = process.cwd();
 
@@ -96,13 +97,6 @@ const SUITE_GUARDRAILS: readonly SuiteGuardrail[] = [
     ],
   },
 ];
-
-function readSource(relativePath: string): string {
-  return readFileSync(resolve(REPO_ROOT, relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 function normalizeText(value: string): string {
   return value
@@ -266,8 +260,9 @@ test("fixture suite completeness permanece local a tests y sin dependencias real
   assert.deepEqual(importLines, [
     'import test from "node:test";',
     'import assert from "node:assert/strict";',
-    'import { existsSync, readFileSync } from "node:fs";',
+    'import { existsSync } from "node:fs";',
     'import { resolve } from "node:path";',
+    'import { readSourceFile as readSource } from "../helpers/tracked-source-files.ts";',
   ]);
 
   assert.deepEqual(exportLines, []);

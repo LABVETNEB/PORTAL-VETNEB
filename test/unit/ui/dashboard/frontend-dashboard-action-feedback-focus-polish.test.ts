@@ -1,12 +1,11 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
 import { isClean7aAllowedDependencyChange } from "../../../helpers/clean7a-dependency-cleanup-scope.ts";
 import { isReportForeignAccessBackendFile } from "../../../helpers/report-foreign-access-scope.ts";
 import { dashboardScopeGuardApplies } from "../../../helpers/dashboard-scope-guard.ts";
 import { readDashboardCssSource } from "../../../helpers/read-dashboard-css-source.ts";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const BUTTON_PATH = "frontend/src/components/ui/button.tsx";
 const ADMIN_CLINICS_CARD_PATH =
@@ -28,13 +27,6 @@ const ADMIN_PARTICULAR_TOKENS_CARD_PATH =
 const UPLOAD_REPORT_MODAL_PATH =
   "frontend/src/components/dashboard/UploadReportModal.tsx";
 const PUBLIC_SEO_SCOPE_EXCEPTION = "frontend/src/lib/seo.ts";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 // ── Button base ──────────────────────────────────────────────────────────────
 

@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync } from "node:fs";
-import { dirname, join, relative, resolve, sep } from "node:path";
+import { dirname, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { readSourceFile, listSourceFiles } from "../helpers/tracked-source-files.ts";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // E2E-GLOBAL-07 (LIMPIEZA E2E P2-1/P2-5, R-11/R-17) — single source of truth
@@ -97,21 +97,17 @@ function toRepoPath(absolutePath: string): string {
 }
 
 function listE2eSources(): Map<string, string> {
+  const e2eRoot = resolve(REPO_ROOT, E2E_ROOT);
   const sources = new Map<string, string>();
 
-  function visit(directory: string): void {
-    for (const item of readdirSync(directory, { withFileTypes: true })) {
-      const absolutePath = join(directory, item.name);
-      if (item.isDirectory()) {
-        if (!EXCLUDED_DIRECTORIES.has(item.name)) visit(absolutePath);
-        continue;
-      }
-      if (!item.isFile() || !SOURCE_EXTENSIONS.some((ext) => item.name.endsWith(ext))) continue;
-      sources.set(toRepoPath(absolutePath), readFileSync(absolutePath, "utf8"));
-    }
+  for (const file of listSourceFiles(e2eRoot, {
+    extensions: SOURCE_EXTENSIONS,
+    excludedDirectories: [...EXCLUDED_DIRECTORIES],
+  })) {
+    const repoPath = toRepoPath(resolve(e2eRoot, file));
+    sources.set(repoPath, readSourceFile(repoPath));
   }
 
-  visit(resolve(REPO_ROOT, E2E_ROOT));
   return new Map([...sources].sort(([a], [b]) => a.localeCompare(b)));
 }
 
@@ -154,8 +150,8 @@ test("session setup, app origin and synthetic session literals live only in help
 });
 
 test("the app origin is derived from the effective Playwright baseURL, not redeclared", () => {
-  const helper = readFileSync(resolve(REPO_ROOT, SESSION_HELPER), "utf8");
-  const config = readFileSync(resolve(REPO_ROOT, "frontend/playwright.config.ts"), "utf8");
+  const helper = readSourceFile(SESSION_HELPER);
+  const config = readSourceFile("frontend/playwright.config.ts");
 
   assert.ok(helper.includes("test.info().project.use"), "origin must come from the project use options");
   assert.ok(helper.includes("new URL(baseURL).origin"), "cookies must be scoped to the baseURL origin");
@@ -163,8 +159,8 @@ test("the app origin is derived from the effective Playwright baseURL, not redec
 });
 
 test("the populated profile matches the values the hermetic fixture API serves data for", () => {
-  const helper = readFileSync(resolve(REPO_ROOT, SESSION_HELPER), "utf8");
-  const fixture = readFileSync(resolve(REPO_ROOT, FIXTURE_API), "utf8");
+  const helper = readSourceFile(SESSION_HELPER);
+  const fixture = readSourceFile(FIXTURE_API);
 
   for (const role of ["ADMIN", "CLINIC"] as const) {
     const declared = fixture.match(new RegExp(`^const POPULATED_${role}_SESSION = "([^"]+)";$`, "m"));

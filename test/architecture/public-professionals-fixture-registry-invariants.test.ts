@@ -1,7 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative, resolve, sep } from "node:path";
+import { existsSync } from "node:fs";
+import { relative, resolve, sep } from "node:path";
+import {
+  readSourceFile as readSource,
+  listSourceFiles as listSourceTree,
+} from "../helpers/tracked-source-files.ts";
 
 const REPO_ROOT = process.cwd();
 
@@ -91,41 +95,14 @@ function toRepoPath(path: string): string {
   return path.split(sep).join("/");
 }
 
-function readSource(relativePath: string): string {
-  return readFileSync(resolve(REPO_ROOT, relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
-
 function listSourceFiles(directory: string): string[] {
   const absoluteDirectory = resolve(REPO_ROOT, directory);
-  const entries = readdirSync(absoluteDirectory);
-  const files: string[] = [];
 
-  for (const entry of entries) {
-    if (IGNORED_DIRECTORIES.has(entry)) {
-      continue;
-    }
-
-    const absolutePath = join(absoluteDirectory, entry);
-    const stats = statSync(absolutePath);
-
-    if (stats.isDirectory()) {
-      files.push(...listSourceFiles(relative(REPO_ROOT, absolutePath)));
-      continue;
-    }
-
-    if (!stats.isFile()) {
-      continue;
-    }
-
-    if (/\.(cjs|cts|js|mjs|mts|ts)$/.test(entry)) {
-      files.push(toRepoPath(relative(REPO_ROOT, absolutePath)));
-    }
-  }
-
-  return files.sort();
+  return listSourceTree(absoluteDirectory, {
+    excludedDirectories: [...IGNORED_DIRECTORIES],
+  })
+    .filter((file) => /\.(cjs|cts|js|mjs|mts|ts)$/.test(file))
+    .map((file) => toRepoPath(relative(REPO_ROOT, resolve(absoluteDirectory, file))));
 }
 
 function listFixtureGuardrailFiles(): string[] {

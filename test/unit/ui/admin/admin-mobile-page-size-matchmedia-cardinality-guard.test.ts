@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { extname, resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read, listSourceFiles } from "../../../helpers/tracked-source-files.ts";
 
 // R-08 cleanup guard: MOBILE_PAGE_SIZE and matchMedia-as-cardinality were
 // removed module-by-module across PR-SRV-1/PR-SRV-2 (Sessions, Roles,
@@ -29,23 +30,7 @@ function collectFiles(relativeRoot: string): string[] {
     return [];
   }
 
-  const files: string[] = [];
-  const workspacePrefix = resolve(process.cwd(), "").replace(/\\/g, "/") + "/";
-
-  function walk(currentPath: string): void {
-    for (const entry of readdirSync(currentPath)) {
-      const fullPath = `${currentPath}/${entry}`;
-      const info = statSync(fullPath);
-      if (info.isDirectory()) {
-        walk(fullPath);
-        continue;
-      }
-      files.push(fullPath.replace(/\\/g, "/").replace(workspacePrefix, ""));
-    }
-  }
-
-  walk(absoluteRoot.replace(/\\/g, "/"));
-  return files;
+  return listSourceFiles(absoluteRoot).map((file) => `${relativeRoot}/${file}`);
 }
 
 function isAdminCodeFile(file: string): boolean {
@@ -53,10 +38,6 @@ function isAdminCodeFile(file: string): boolean {
     CODE_EXTENSIONS.has(extname(file).toLowerCase()) &&
     !/\.(test|spec)\.[cm]?[jt]sx?$/i.test(file)
   );
-}
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(/\r\n/g, "\n");
 }
 
 test("admin runtime never reintroduces MOBILE_PAGE_SIZE as a source of truth", () => {

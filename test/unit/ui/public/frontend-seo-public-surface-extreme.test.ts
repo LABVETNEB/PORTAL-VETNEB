@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const SEO_PATH = "frontend/src/lib/seo.ts";
 const ROBOTS_PATH = "frontend/src/app/robots.ts";
@@ -19,13 +18,6 @@ const PROFESIONALES_PATH = "frontend/src/app/profesionales/page.tsx";
 const OFFLINE_PATH = "frontend/src/app/offline/page.tsx";
 const LOGIN_PATH = "frontend/src/app/login/page.tsx";
 const PARTICULARES_PATH = "frontend/src/app/particulares/page.tsx";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 // ─── robots.ts contracts ──────────────────────────────────────────────────────
 

@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { join, relative, resolve } from "node:path";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 import test from "node:test";
 
 import { readDashboardCssSource } from "../helpers/read-dashboard-css-source.ts";
+import { readSourceFile as readSource, listSourceFiles } from "../helpers/tracked-source-files.ts";
 
 // Option D · single capacity owner.
 //
@@ -33,30 +34,11 @@ const LEGACY_CAPACITY_OWNERS = [
   "adaptiveRowPitchCalibration",
 ] as const;
 
-function readSource(repoRelativePath: string): string {
-  return readFileSync(resolve(process.cwd(), repoRelativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
-
 /** Recursive walk: a non-recursive census silently exempts nested modules. */
 function collectSourceFiles(repoRelativeDir: string): string[] {
-  const absoluteDir = resolve(process.cwd(), repoRelativeDir);
-  const found: string[] = [];
-
-  for (const entry of readdirSync(absoluteDir, { withFileTypes: true })) {
-    const absoluteEntry = join(absoluteDir, entry.name);
-    if (entry.isDirectory()) {
-      found.push(...collectSourceFiles(relative(process.cwd(), absoluteEntry)));
-      continue;
-    }
-    if (entry.isFile() && /\.tsx?$/.test(entry.name)) {
-      found.push(relative(process.cwd(), absoluteEntry).replace(/\\/g, "/"));
-    }
-  }
-
-  return found;
+  return listSourceFiles(resolve(process.cwd(), repoRelativeDir), {
+    extensions: [".ts", ".tsx"],
+  }).map((file) => `${repoRelativeDir}/${file}`);
 }
 
 function countOccurrences(source: string, pattern: RegExp): number {

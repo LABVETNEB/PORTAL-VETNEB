@@ -1,9 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read } from "../helpers/tracked-source-files.ts";
 
-const ROOT = process.cwd();
 const CONFIG = "frontend/src/features/dashboard/config/dashboardModules.ts";
 const NAVIGATION =
   "frontend/src/features/dashboard/application/dashboardModuleNavigation.ts";
@@ -13,10 +11,6 @@ const MOBILE_NAV = "frontend/src/components/dashboard/DashboardMobileNav.tsx";
 const DRAWER = "frontend/src/components/dashboard/NavigationDrawer.tsx";
 const RAIL = "frontend/src/components/dashboard/NavigationRail.tsx";
 const NAVIGATION_CSS = "frontend/src/styles/dashboard/navigation.css";
-
-function read(path: string): string {
-  return readFileSync(resolve(ROOT, path), "utf8").replace(/\r\n/g, "\n");
-}
 
 test("B13 · the admin entry grammar owns an explicit default and hub URL", () => {
   const config = read(CONFIG);

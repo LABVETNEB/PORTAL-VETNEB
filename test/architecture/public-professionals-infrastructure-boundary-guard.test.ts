@@ -1,8 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { readSourceFile as readText, listSourceFiles } from "../helpers/tracked-source-files.ts";
 
 // Guard de frontera del contexto Public Professionals — capa infrastructure
 // (M22, Fase E). Clona el mecanismo ya validado por los guards de Logistics
@@ -74,40 +75,18 @@ const SQL_CONSTANT_NAMES = [
 // call-sites `.transaction(`. El move no puede introducir ninguna.
 const R0_TRANSACTION_CALL_SITES = 0;
 
-function readText(relativePath: string): string {
-  return readFileSync(join(repoRoot, relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
-
 function toRepoRelativePath(path: string): string {
   return path.replaceAll("\\", "/");
 }
 
 function walkTsFiles(relativeDir: string): string[] {
-  const absoluteDir = join(repoRoot, relativeDir);
-
-  if (!existsSync(absoluteDir)) {
+  const absolute = join(repoRoot, relativeDir);
+  if (!existsSync(absolute)) {
     return [];
   }
 
-  const files: string[] = [];
-
-  for (const entry of readdirSync(absoluteDir, { withFileTypes: true })) {
-    const relativePath = `${relativeDir}/${entry.name}`;
-
-    if (entry.isDirectory()) {
-      files.push(...walkTsFiles(relativePath));
-      continue;
-    }
-
-    if (entry.isFile() && entry.name.endsWith(".ts")) {
-      files.push(relativePath);
-    }
-  }
-
-  return files;
+  return listSourceFiles(absolute, { extensions: [".ts"] })
+    .map((file) => `${relativeDir}/${file}`);
 }
 
 // Parser robusto de imports: `import ... from`, `require(...)`, `import(...)`

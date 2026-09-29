@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
 import type { HealthCheckResponse } from "../../../server/lib/http-runtime.ts";
+import { readSourceFile } from "../../helpers/tracked-source-files.ts";
 
 process.env.NODE_ENV ??= "test";
 process.env.SUPABASE_URL ??= "https://example.supabase.co";
@@ -312,17 +311,14 @@ test("100 concurrent requests over a mixed success/failure/expiry timeline stay 
 });
 
 test("the cache implementation uses no timers or intervals (pull-based, no global handles)", () => {
-  const source = readFileSync(
-    resolve(process.cwd(), "server/lib/http-runtime.ts"),
-    "utf8",
-  );
+  const source = readSourceFile("server/lib/http-runtime.ts");
 
   assert.doesNotMatch(source, /setInterval\s*\(/);
   assert.doesNotMatch(source, /setTimeout\s*\(/);
 });
 
 test("fastify-app wires the production health route through the cached probe, not the raw one", () => {
-  const source = readFileSync(resolve(process.cwd(), "server/fastify-app.ts"), "utf8");
+  const source = readSourceFile("server/fastify-app.ts");
 
   assert.match(source, /getCachedHealthCheckResponse/);
   assert.doesNotMatch(
@@ -332,10 +328,7 @@ test("fastify-app wires the production health route through the cached probe, no
 });
 
 test("health-check-cache guardrail source stays ascii only", () => {
-  const source = readFileSync(
-    resolve(process.cwd(), "test/unit/infrastructure/health-check-cache.test.ts"),
-    "utf8",
-  );
+  const source = readSourceFile("test/unit/infrastructure/health-check-cache.test.ts");
 
   for (let index = 0; index < source.length; index += 1) {
     assert.equal(

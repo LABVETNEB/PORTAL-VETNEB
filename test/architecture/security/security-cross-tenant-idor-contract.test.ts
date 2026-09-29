@@ -1,12 +1,9 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve, posix } from "node:path";
-import { fileURLToPath } from "node:url";
+import { posix } from "node:path";
 import test from "node:test";
 import ts from "typescript";
-import { listTrackedFiles } from "../../helpers/tracked-source-files.ts";
+import { listTrackedFiles, readSourceFile } from "../../helpers/tracked-source-files.ts";
 
-const REPO_ROOT = resolve(fileURLToPath(new URL("../../../", import.meta.url)));
 const REGISTRY_PATH =
   "test/architecture/security/security-cross-tenant-idor-contract.test.ts";
 
@@ -1660,9 +1657,7 @@ function replaceOnce(source: string, from: string, to: string): string {
 }
 
 function readSource(relativePath: string): string {
-  return readFileSync(resolve(REPO_ROOT, relativePath), "utf8")
-    .replace(/^\uFEFF/, "")
-    .replace(/\r\n/g, "\n");
+  return readSourceFile(relativePath).replace(/^\uFEFF/, "");
 }
 
 function readEvidenceCode(relativePath: string): string {

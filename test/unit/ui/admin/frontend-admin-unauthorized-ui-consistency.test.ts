@@ -1,12 +1,11 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
 
 import {
   ApiResponseError,
   getAdminAccessErrorState,
 } from "../../../../frontend/src/lib/api-error.ts";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const API_PATH = "frontend/src/lib/api.ts";
 const ADMIN_PAGE_PATH = "frontend/src/app/dashboard/admin/page.tsx";
@@ -14,13 +13,6 @@ const ADMIN_CONTROLLER_PATH =
   "frontend/src/app/dashboard/admin/AdminDashboardWorkspaceController.tsx";
 const ADMIN_ACCESS_STATE_PATH =
   "frontend/src/app/dashboard/admin/AdminAccessErrorState.tsx";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 test("admin access policy classifies only typed HTTP 401 and 403 errors", () => {
   assert.deepEqual(

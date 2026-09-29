@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const INFORMES_LIST_PATH =
   "frontend/src/app/dashboard/informes/InformesReportsList.tsx";
@@ -12,13 +11,6 @@ const PARTICULARES_CONTENT_PATH =
 const ADMIN_PAGE_PATH = "frontend/src/app/dashboard/admin/page.tsx";
 const ADMIN_AUDIT_CARD_PATH =
   "frontend/src/app/dashboard/admin/AdminAuditCard.tsx";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 test("notification click targets render stable clinic, particular, and admin anchors", () => {
   const informesList = read(INFORMES_LIST_PATH);

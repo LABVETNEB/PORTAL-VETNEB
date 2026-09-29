@@ -1,8 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { dirname, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { listSourceFiles, readSourceFile as readSource } from "../../../helpers/tracked-source-files.ts";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // A04 · Dashboard security invariants baseline.
@@ -22,23 +23,6 @@ import { fileURLToPath } from "node:url";
 const TEST_FILE = fileURLToPath(import.meta.url);
 const REPO_ROOT = resolve(dirname(TEST_FILE), "..", "..", "..", "..");
 
-const sourceCache = new Map<string, string>();
-
-/** Repo source with CRLF normalized so markers match on Windows and Linux. */
-function readSource(repoRelativePath: string): string {
-  const cached = sourceCache.get(repoRelativePath);
-  if (cached !== undefined) {
-    return cached;
-  }
-
-  const absolute = resolve(REPO_ROOT, repoRelativePath);
-  assert.ok(existsSync(absolute), `source not found: ${repoRelativePath}`);
-
-  const source = readFileSync(absolute, "utf8").replace(/\r\n/g, "\n");
-  sourceCache.set(repoRelativePath, source);
-  return source;
-}
-
 /**
  * Prose is not behaviour. A file that merely NAMES `document.cookie` in a
  * comment must not fail the guard, and a comment must not be able to satisfy a
@@ -56,20 +40,9 @@ function collectSourceFiles(relativeDir: string): string[] {
     return [];
   }
 
-  const files: string[] = [];
-  const walk = (absoluteDir: string): void => {
-    for (const entry of readdirSync(absoluteDir, { withFileTypes: true })) {
-      const absolute = resolve(absoluteDir, entry.name);
-      if (entry.isDirectory()) {
-        walk(absolute);
-      } else if (/\.tsx?$/.test(entry.name)) {
-        files.push(relative(REPO_ROOT, absolute).split(sep).join("/"));
-      }
-    }
-  };
-
-  walk(rootDir);
-  return files.sort();
+  return listSourceFiles(rootDir, { extensions: [".ts", ".tsx"] }).map((file) =>
+    relative(REPO_ROOT, resolve(rootDir, file)).split(sep).join("/"),
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

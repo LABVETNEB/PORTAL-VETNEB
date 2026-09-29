@@ -1,8 +1,5 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 
 import {
   ADMIN_SESSION_COOKIE_NAME,
@@ -11,6 +8,7 @@ import {
   FIXED_SESSION_COOKIE_NAMES,
 } from "../../../shared/session-cookie-names.ts";
 import { resolveParticularSessionCookieName } from "../../../server/lib/session-cookie-names.ts";
+import { readSourceFile as readSource } from "../../helpers/tracked-source-files.ts";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // A04 · R2 · Session cookie name contract.
@@ -32,21 +30,12 @@ import { resolveParticularSessionCookieName } from "../../../server/lib/session-
 // the three boundaries.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const TEST_FILE = fileURLToPath(import.meta.url);
-const REPO_ROOT = resolve(dirname(TEST_FILE), "..", "..", "..");
-
 const LINE_BREAK = String.fromCharCode(10);
 
 const SHARED_CONTRACT_PATH = "shared/session-cookie-names.ts";
 const RESOLVER_PATH = "server/lib/session-cookie-names.ts";
 const ENV_PATH = "server/lib/env.ts";
 const PROXY_PATH = "frontend/src/proxy.ts";
-
-function readSource(repoRelativePath: string): string {
-  const absolute = resolve(REPO_ROOT, repoRelativePath);
-  assert.ok(existsSync(absolute), `source not found: ${repoRelativePath}`);
-  return readFileSync(absolute, "utf8").replace(/\r\n/g, "\n");
-}
 
 function stripComments(source: string): string {
   return source

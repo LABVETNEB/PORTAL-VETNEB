@@ -1,7 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { existsSync } from "node:fs";
+import { join, relative, resolve } from "node:path";
+import {
+  listSourceFiles as listSourceTree,
+  readSourceFile as read,
+} from "../helpers/tracked-source-files.ts";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // B08 · Navigation migration static contract.
@@ -112,12 +116,6 @@ const GEOMETRY_LITERALS = ["256", "80", "40", "56"];
 /** Layers a presentation surface must never reach, directly or transitively. */
 const FORBIDDEN_PRESENTATION_IMPORTS = ["@/lib/api", "@/app/", "@/app"] as const;
 
-function read(relativePath: string): string {
-  const absolute = resolve(REPO_ROOT, relativePath);
-  assert.ok(existsSync(absolute), `source not found: ${relativePath}`);
-  return readFileSync(absolute, "utf8").replace(/\r\n/g, "\n");
-}
-
 /**
  * Executable projection. Every "must NOT contain" assertion runs against this:
  * the B08 surfaces deliberately DOCUMENT the constructs they are forbidden to
@@ -141,23 +139,10 @@ function sliceBlock(source: string, start: string, end: string): string {
 
 function listSourceFiles(relativeDir: string): string[] {
   const rootDir = resolve(REPO_ROOT, relativeDir);
-  const found: string[] = [];
 
-  const walk = (absoluteDir: string) => {
-    for (const entry of readdirSync(absoluteDir)) {
-      const absolute = join(absoluteDir, entry);
-      if (statSync(absolute).isDirectory()) {
-        walk(absolute);
-        continue;
-      }
-      if (/\.(ts|tsx)$/.test(entry)) {
-        found.push(absolute.replace(/\\/g, "/"));
-      }
-    }
-  };
-
-  walk(rootDir);
-  return found;
+  return listSourceTree(rootDir, { extensions: [".ts", ".tsx"] }).map((file) =>
+    join(rootDir, file).replace(/\\/g, "/"),
+  );
 }
 
 /** First-order relative/aliased imports of a frontend source file. */
@@ -210,7 +195,7 @@ test("B08 · no runtime source references the retired horizontal nav", () => {
 
   const offenders = files.filter((absolute) =>
     /DashboardHorizontalNav|DashboardNavSurface/.test(
-      stripComments(readFileSync(absolute, "utf8")),
+      stripComments(read(relative(REPO_ROOT, absolute))),
     ),
   );
 
@@ -392,7 +377,7 @@ test("B08 · exactly one surface in frontend/src mounts the primitives", () => {
   const files = listSourceFiles(FRONTEND_SRC);
   const mounts = files.filter((absolute) =>
     /<NavigationDrawer[\s/>]|<NavigationRail[\s/>]/.test(
-      stripComments(readFileSync(absolute, "utf8")),
+      stripComments(read(relative(REPO_ROOT, absolute))),
     ),
   );
 

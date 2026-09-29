@@ -1,20 +1,12 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const SURFACE_BADGE_PATH =
   "frontend/src/features/dashboard/presentation/surfaces/DashboardStatusBadge.tsx";
 const SURFACES_INDEX_PATH =
   "frontend/src/features/dashboard/presentation/surfaces/index.ts";
 const STATUS_BADGE_PATH = "frontend/src/components/dashboard/StatusBadge.tsx";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 test("PR-PRES-5 surfaces boundary re-exports StatusBadge from the canonical primitive", () => {
   const source = read(SURFACE_BADGE_PATH);

@@ -1,5 +1,5 @@
-import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { dirname, relative, resolve } from "node:path";
+import { readSourceFile } from "./tracked-source-files.ts";
 
 const GLOBALS_CSS_PATH = "frontend/src/app/globals.css";
 
@@ -16,7 +16,7 @@ function isDashboardCssPath(absolutePath: string): boolean {
 }
 
 function readNormalized(absolutePath: string): string {
-  return readFileSync(absolutePath, "utf8").replace(/\r\n/g, "\n");
+  return readSourceFile(relative(process.cwd(), absolutePath));
 }
 
 /**

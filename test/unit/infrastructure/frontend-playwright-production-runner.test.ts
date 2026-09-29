@@ -1,10 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
+import { readSourceFile } from "../../helpers/tracked-source-files.ts";
 
 type WebServerLike = {
   command?: string;
@@ -120,7 +120,7 @@ const NEXT_BIN = "<next-bin>";
 type RunnerEnv = Record<string, string | undefined>;
 
 function readFrontendSource(path: string): string {
-  return readFileSync(resolve(process.cwd(), "frontend", path), "utf8").replace(/\r\n/g, "\n");
+  return readSourceFile(`frontend/${path}`);
 }
 
 function frontendScripts(): Record<string, unknown> {
@@ -521,10 +521,7 @@ test("Playwright retiene traces sólo en CI saneado", async (t) => {
 const FIXTURE_PATH = "frontend/e2e/fixtures/admin-populated-api-server.mjs";
 
 function readFixtureSource(): string {
-  return readFileSync(resolve(process.cwd(), FIXTURE_PATH), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
+  return readSourceFile(FIXTURE_PATH);
 }
 
 test("E2E fixture serves a public /api/app-version route ahead of the admin session guard", () => {

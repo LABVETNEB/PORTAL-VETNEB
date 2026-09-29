@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { isDeepStrictEqual } from "node:util";
+import { readSourceFile, readSourceFile as readText } from "./tracked-source-files.ts";
 
 const CLEAN7A_DEPENDENCY_FILES = new Set([
   "frontend/package.json",
@@ -72,13 +71,9 @@ function parsePackageJson(
 
 function readCurrentPackageJson(relativePath: string): Clean7aPackageJson {
   return parsePackageJson(
-    readFileSync(resolve(process.cwd(), relativePath), "utf8"),
+    readSourceFile(relativePath),
     relativePath,
   );
-}
-
-function readText(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8");
 }
 
 function gitDiffNameOnly(paths: readonly string[]): string[] {

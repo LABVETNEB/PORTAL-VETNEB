@@ -1,19 +1,11 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const ADMIN_FAILED_LOGIN_ALERTS_CARD_PATH =
   "frontend/src/app/dashboard/admin/AdminFailedLoginAlertsReadOnlyCard.tsx";
 const ADMIN_MOBILE_COMMAND_MODULE_PATH =
   "frontend/src/app/dashboard/admin/AdminMobileCommandModule.tsx";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 test("admin failed login alerts card is client-side and imports required dependencies", () => {
   const source = read(ADMIN_FAILED_LOGIN_ALERTS_CARD_PATH);

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
 import ts from "typescript";
@@ -7,6 +7,11 @@ import ts from "typescript";
 import "./backend-modularization-m44-legacy-imports-sweep.test.ts";
 import "./backend-modularization-m45-feature-dependency-guard.test.ts";
 import "./backend-modularization-m46-http-lib-reclassification.test.ts";
+import {
+  readSourceFile,
+  readSourceFile as read,
+  listSourceFiles,
+} from "../helpers/tracked-source-files.ts";
 
 const repoRoot = process.cwd();
 const certificationPath =
@@ -113,13 +118,6 @@ const expectedFeatureCensus = {
   "users-roles": { label: "Users/Roles", files: 9, loc: 674 },
 } as const;
 
-function read(relativePath: string): string {
-  return readFileSync(resolve(repoRoot, relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
-
 function countPhysicalLines(source: string): number {
   const normalized = source.replaceAll("\r\n", "\n");
 
@@ -135,23 +133,9 @@ function countPhysicalLines(source: string): number {
 }
 
 function listTypeScriptFiles(relativeDirectory: string): string[] {
-  return readdirSync(resolve(repoRoot, relativeDirectory), {
-    withFileTypes: true,
-  })
-    .flatMap((entry) => {
-      const relativePath = `${relativeDirectory}/${entry.name}`;
-
-      if (entry.isDirectory()) {
-        return listTypeScriptFiles(relativePath);
-      }
-
-      return entry.isFile() &&
-        relativePath.endsWith(".ts") &&
-        !relativePath.endsWith(".d.ts")
-        ? [relativePath]
-        : [];
-    })
-    .sort();
+  return listSourceFiles(resolve(repoRoot, relativeDirectory), { extensions: [".ts"] })
+    .filter((file) => !file.endsWith(".d.ts"))
+    .map((file) => `${relativeDirectory}/${file}`);
 }
 
 function listRootTypeScriptFiles(relativeDirectory: string): string[] {
@@ -173,7 +157,7 @@ function census(paths: readonly string[]): { files: number; loc: number } {
     files: paths.length,
     loc: paths.reduce(
       (total, relativePath) =>
-        total + countPhysicalLines(readFileSync(resolve(repoRoot, relativePath), "utf8")),
+        total + countPhysicalLines(readSourceFile(relativePath)),
       0,
     ),
   };

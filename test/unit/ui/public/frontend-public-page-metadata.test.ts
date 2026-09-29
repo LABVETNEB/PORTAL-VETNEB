@@ -1,18 +1,10 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const SERVICIOS_PAGE_PATH = "frontend/src/app/servicios/page.tsx";
 const PROFESIONALES_PAGE_PATH = "frontend/src/app/profesionales/page.tsx";
 const CLINICAS_PAGE_PATH = "frontend/src/app/clinicas/page.tsx";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 test("servicios public page defines SEO metadata and services JSON-LD", () => {
   const source = read(SERVICIOS_PAGE_PATH);

@@ -1,8 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { load } from "js-yaml";
+import { readSourceFile as readWorkflowSource } from "../../helpers/tracked-source-files.ts";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PR Governance · trigger lifecycle contract.
@@ -28,13 +27,6 @@ import { load } from "js-yaml";
 // ─────────────────────────────────────────────────────────────────────────────
 
 const WORKFLOW_PATH = ".github/workflows/pr-governance.yml";
-
-function readWorkflowSource(repoRelativePath: string): string {
-  return readFileSync(resolve(process.cwd(), repoRelativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 type WorkflowDocument = {
   readonly on: {

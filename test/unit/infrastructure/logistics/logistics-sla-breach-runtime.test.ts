@@ -1,16 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 
 import { markOverdueSlaBreachesWithDb } from "../../../../server/features/logistics/infrastructure/sla-breach-db.ts";
+import { readSourceFile } from "../../../helpers/tracked-source-files.ts";
 
-const slaBreachDbSource = readFileSync(
-  new URL(
-    "../../../../server/features/logistics/infrastructure/sla-breach-db.ts",
-    import.meta.url,
-  ),
-  "utf8",
-);
+const slaBreachDbSource = readSourceFile("server/features/logistics/infrastructure/sla-breach-db.ts");
 
 test("SLA breach runtime DB-wired entrypoint imports DB helper lazily and delegates through the domain core", () => {
   assert.equal(typeof markOverdueSlaBreachesWithDb, "function");

@@ -1,8 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { relative, resolve } from "node:path";
-import { listTrackedSourceFiles } from "../helpers/tracked-source-files.ts";
+import { listTrackedSourceFiles, readSourceFile, readSourceFile as readSource } from "../helpers/tracked-source-files.ts";
 
 // WBR-16 (VET-17) -- `shared/**` dependency boundary.
 //
@@ -38,13 +37,6 @@ import { listTrackedSourceFiles } from "../helpers/tracked-source-files.ts";
 
 const SHARED_ROOT = "shared";
 const REPO_ROOT = process.cwd();
-
-function readSource(relativePath: string): string {
-  return readFileSync(resolve(REPO_ROOT, relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 // Same extraction technique as
 // test/architecture/dashboard-presentation-import-boundaries.test.ts: static
@@ -261,10 +253,7 @@ test("shared/session-cookie-names.ts documents the dependency-free contract that
 });
 
 test("shared-dependency-boundary guard source stays ascii only", () => {
-  const source = readFileSync(
-    resolve(REPO_ROOT, "test/architecture/shared-dependency-boundary.test.ts"),
-    "utf8",
-  );
+  const source = readSourceFile("test/architecture/shared-dependency-boundary.test.ts");
 
   for (let index = 0; index < source.length; index += 1) {
     assert.equal(

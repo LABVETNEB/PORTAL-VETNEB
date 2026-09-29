@@ -1,19 +1,11 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const repositoryFile =
   "server/features/users-roles/infrastructure/admin-users-roles-repository.ts";
 const portFile =
   "server/features/users-roles/application/ports/admin-users-roles-repository.ts";
-
-function read(path: string) {
-  return readFileSync(resolve(process.cwd(), path), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 function importSpecifiers(source: string) {
   return Array.from(

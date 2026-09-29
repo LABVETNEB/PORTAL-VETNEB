@@ -1,7 +1,5 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import nodemailer from "nodemailer";
 import {
   logError,
@@ -9,6 +7,7 @@ import {
   logWarn,
   serializeError,
 } from "../../../server/lib/logger.ts";
+import { readSourceFile } from "../../helpers/tracked-source-files.ts";
 
 process.env.SUPABASE_URL ??= "https://example.supabase.co";
 process.env.SUPABASE_ANON_KEY ??= "test-anon-key";
@@ -316,10 +315,7 @@ test("sendContactMessageEmail exige CONTACT_TO explícito en entorno público", 
 });
 
 test("templates de email no tienen mojibake visible", () => {
-  const source = readFileSync(
-    resolve(process.cwd(), "server/lib/email.ts"),
-    "utf8",
-  );
+  const source = readSourceFile("server/lib/email.ts");
 
   for (const expected of [
     "clínica",

@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read, listSourceFiles } from "../helpers/tracked-source-files.ts";
 
 const root = process.cwd();
 const featureDir = "server/features/users-roles";
@@ -15,20 +16,8 @@ const permissionsFile = "server/lib/permissions.ts";
 const closeoutFile =
   "docs/implementation/m43-users-roles-repository-thin-route-closeout.md";
 
-function read(path: string) {
-  return readFileSync(resolve(root, path), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
-
 function walk(path: string): string[] {
-  return readdirSync(resolve(root, path), { withFileTypes: true })
-    .flatMap((entry) => {
-      const child = `${path}/${entry.name}`;
-      return entry.isDirectory() ? walk(child) : [child];
-    })
-    .sort();
+  return listSourceFiles(resolve(root, path)).map((file) => `${path}/${file}`);
 }
 
 test("M43 materializa composition e infrastructure y retira el repository raíz", () => {

@@ -6,8 +6,9 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, existsSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync } from "node:fs";
+import { join, relative } from "node:path";
+import { readSourceFile } from "../../helpers/tracked-source-files.ts";
 
 const PS_SCRIPT_PATH = join(
   import.meta.dirname ?? "",
@@ -29,7 +30,7 @@ const TS_SCRIPT_PATH = join(
 );
 
 function read(path: string) {
-  return readFileSync(path, "utf8").replace(/\r\n/g, "\n");
+  return readSourceFile(relative(process.cwd(), path));
 }
 
 test("reset login rate limit scripts exist", () => {

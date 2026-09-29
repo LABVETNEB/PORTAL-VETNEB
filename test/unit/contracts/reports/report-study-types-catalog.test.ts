@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
@@ -12,6 +12,10 @@ import {
   parseReportStudyType,
   serializeReportStudyType,
 } from "../../../../server/features/reports/domain/index.ts";
+import {
+  readSourceFile,
+  listSourceFiles as listSourceTree,
+} from "../../../helpers/tracked-source-files.ts";
 
 const REPO_ROOT = resolve(fileURLToPath(new URL("../../../../", import.meta.url)));
 const CANONICAL_CATALOG_PATH =
@@ -76,34 +80,15 @@ const CRITICAL_REPORT_TESTS = [
 ] as const;
 
 function readSource(relativePath: string): string {
-  return readFileSync(resolve(REPO_ROOT, relativePath), "utf8")
-    .replace(/^\uFEFF/, "")
-    .replace(/\r\n/g, "\n");
+  return readSourceFile(relativePath).replace(/^\uFEFF/, "");
 }
 
 function listSourceFiles(relativeDir: string): string[] {
   const root = resolve(REPO_ROOT, relativeDir);
-  const files: string[] = [];
 
-  function walk(dir: string) {
-    for (const entry of readdirSync(dir)) {
-      const fullPath = resolve(dir, entry);
-      const stat = statSync(fullPath);
-
-      if (stat.isDirectory()) {
-        walk(fullPath);
-        continue;
-      }
-
-      if (fullPath.endsWith(".ts")) {
-        files.push(fullPath);
-      }
-    }
-  }
-
-  walk(root);
-
-  return files.map((file) => relative(REPO_ROOT, file).replaceAll("\\", "/"));
+  return listSourceTree(root, { extensions: [".ts"] }).map((file) =>
+    relative(REPO_ROOT, resolve(root, file)).replaceAll("\\", "/"),
+  );
 }
 
 function assertContains(source: string, marker: string, context: string) {

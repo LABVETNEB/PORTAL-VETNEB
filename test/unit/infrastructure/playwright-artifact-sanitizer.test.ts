@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
 
@@ -18,6 +18,7 @@ import {
   validateSanitizedTree,
   writeZip,
 } from "../../../scripts/security/playwright-artifact-sanitizer.mjs";
+import { readSourceFile } from "../../helpers/tracked-source-files.ts";
 
 // LIMPIEZA E2E B-4 prerequisite. The fixture mirrors the member layout and
 // JSONL event shapes that Playwright 1.63.0 actually writes (measured with an
@@ -694,7 +695,7 @@ const PLAYWRIGHT_WORKFLOWS: Record<string, { rawInputs: readonly string[]; sanit
 const NON_PLAYWRIGHT_UPLOAD_PATHS = new Set(["frontend/e2e/**/*.png", "sbom/portal-vetneb.cdx.json"]);
 
 function workflowJobs(workflowPath: string): [string, Step[]][] {
-  const document = load(readFileSync(resolve(REPO_ROOT, workflowPath), "utf8")) as Mapping;
+  const document = load(readSourceFile(workflowPath)) as Mapping;
   return Object.entries(document.jobs as Mapping).map(([name, job]) => [name, ((job as Mapping).steps ?? []) as Step[]]);
 }
 

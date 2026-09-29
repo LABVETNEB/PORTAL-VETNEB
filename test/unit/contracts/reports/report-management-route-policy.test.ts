@@ -1,11 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { resolve } from "node:path";
-
-function readRouteSource(relativeRoutePath: string) {
-  return readFileSync(resolve(process.cwd(), relativeRoutePath), "utf8");
-}
+import { readSourceFile as readRouteSource } from "../../../helpers/tracked-source-files.ts";
 
 function routeExists(relativeRoutePath: string) {
   return existsSync(resolve(process.cwd(), relativeRoutePath));

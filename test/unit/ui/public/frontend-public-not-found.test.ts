@@ -1,18 +1,12 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const NOT_FOUND_PATH = "frontend/src/app/not-found.tsx";
 const PUBLIC_LAYOUT_PATH =
   "frontend/src/components/layout/PublicLayout.tsx";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 test("App Router exposes an institutional branded not-found page", () => {
   assert.equal(existsSync(resolve(process.cwd(), NOT_FOUND_PATH)), true);

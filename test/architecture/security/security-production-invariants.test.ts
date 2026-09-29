@@ -1,11 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8");
-}
+import { readSourceFile as read } from "../../helpers/tracked-source-files.ts";
 
 function assertContains(source: string, expected: string, file: string): void {
   assert.ok(

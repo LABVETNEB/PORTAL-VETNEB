@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile } from "../../../helpers/tracked-source-files.ts";
 
 type FrozenObservation = {
   moduleId: string;
@@ -21,7 +20,7 @@ const HELPER_PATH = "frontend/e2e/helpers/dashboard-adaptive-limit-matrix.ts";
 const SPEC_PATH = "frontend/e2e/regression/dashboard-adaptive-limit-baseline.spec.ts";
 
 test("A03 field visit ordered IDs use the fieldVisits response contract", () => {
-  const helper = readFileSync(resolve(process.cwd(), HELPER_PATH), "utf8");
+  const helper = readSourceFile(HELPER_PATH);
   const providerStart = helper.indexOf("const fieldVisitClinicNames:");
   const providerEnd = helper.indexOf("\n};", providerStart);
 
@@ -35,12 +34,9 @@ test("A03 field visit ordered IDs use the fieldVisits response contract", () => 
 });
 
 test("A03 frozen baseline is complete, exact and source-backed", () => {
-  const fixture = readFileSync(resolve(process.cwd(), FIXTURE_PATH), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-  const helper = readFileSync(resolve(process.cwd(), HELPER_PATH), "utf8");
-  const spec = readFileSync(resolve(process.cwd(), SPEC_PATH), "utf8");
+  const fixture = readSourceFile(FIXTURE_PATH);
+  const helper = readSourceFile(HELPER_PATH);
+  const spec = readSourceFile(SPEC_PATH);
   const observationsStart = fixture.indexOf("  observations: [\n");
   const observationsEnd = fixture.indexOf("\n  ],", observationsStart);
   const observationBlock =

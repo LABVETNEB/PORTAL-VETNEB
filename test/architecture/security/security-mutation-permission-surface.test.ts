@@ -1,7 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { readSourceFile as readSource } from "../../helpers/tracked-source-files.ts";
 
 type SensitiveMutationRoute = {
   file: string;
@@ -161,13 +160,6 @@ const SENSITIVE_MUTATION_ROUTES: readonly SensitiveMutationRoute[] = [
     protectedCalls: ["deleteClinicPublicAvatarCommand"],
   },
 ];
-
-function readSource(file: string): string {
-  return readFileSync(resolve(process.cwd(), file), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

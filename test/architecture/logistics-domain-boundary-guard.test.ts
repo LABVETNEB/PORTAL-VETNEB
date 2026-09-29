@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
+import { readSourceFile as readText, listSourceFiles } from "../helpers/tracked-source-files.ts";
 
 const repoRoot = process.cwd();
 const domainDir = "server/features/logistics/domain";
@@ -27,28 +28,9 @@ const REQUIRED_DOMAIN_MODULES = [
 // de import ya parseados (nunca contra texto libre ni comentarios históricos).
 const LEGACY_DOMAIN_DIR = ["server", "lib", "logistics"].join("/");
 
-function readText(relativePath: string) {
-  return readFileSync(join(repoRoot, relativePath), "utf8");
-}
-
 function walkTsFiles(relativeDir: string): string[] {
-  const absoluteDir = join(repoRoot, relativeDir);
-  const files: string[] = [];
-
-  for (const entry of readdirSync(absoluteDir, { withFileTypes: true })) {
-    const relativePath = `${relativeDir}/${entry.name}`;
-
-    if (entry.isDirectory()) {
-      files.push(...walkTsFiles(relativePath));
-      continue;
-    }
-
-    if (entry.isFile() && entry.name.endsWith(".ts")) {
-      files.push(relativePath);
-    }
-  }
-
-  return files;
+  return listSourceFiles(join(repoRoot, relativeDir), { extensions: [".ts"] })
+    .map((file) => `${relativeDir}/${file}`);
 }
 
 function listImportSpecifiers(source: string) {

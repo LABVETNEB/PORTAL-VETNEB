@@ -9,9 +9,6 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { dirname, resolve } from "node:path";
 
 import {
   POST,
@@ -22,14 +19,11 @@ import {
   OPTIONS,
   HEAD,
 } from "../../../../frontend/src/app/api/security/csp-report/route.ts";
+import { readSourceFile } from "../../../helpers/tracked-source-files.ts";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const ROUTE_SOURCE_PATH = resolve(
-  __dirname,
-  "../../../../frontend/src/app/api/security/csp-report/route.ts",
+const ROUTE_SOURCE = readSourceFile(
+  "frontend/src/app/api/security/csp-report/route.ts",
 );
-const ROUTE_SOURCE = readFileSync(ROUTE_SOURCE_PATH, "utf8");
 
 // ----- Source-level contract -----
 

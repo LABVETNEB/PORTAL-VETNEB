@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 import test from "node:test";
 import ts from "typescript";
+import { readSourceFile, readSourceFile as readSource } from "../helpers/tracked-source-files.ts";
 
 const repoRoot = process.cwd();
 const routeFile = "server/routes/admin-study-tracking.fastify.ts";
@@ -20,13 +21,6 @@ const compositionFile =
 const infrastructureIndexFile =
   "server/features/study-tracking/infrastructure/index.ts";
 const legacyShimFile = "server/db-study-tracking.ts";
-
-function readSource(relativePath: string): string {
-  return readFileSync(resolve(repoRoot, relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 function parse(relativePath: string): ts.SourceFile {
   return ts.createSourceFile(
@@ -191,10 +185,7 @@ function handlerPropertyCalls(
 function digest(relativePath: string): string {
   return createHash("sha256")
     .update(
-      readFileSync(resolve(repoRoot, relativePath), "utf8").replace(
-        /\r\n/g,
-        "\n",
-      ),
+      readSourceFile(relativePath),
     )
     .digest("hex");
 }

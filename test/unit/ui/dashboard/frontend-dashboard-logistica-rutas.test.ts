@@ -1,16 +1,8 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const RUTAS_PAGE_PATH = "frontend/src/app/dashboard/logistica/rutas/page.tsx";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 test("dashboard logistica rutas defines non-indexable metadata and dependencies", () => {
   const source = read(RUTAS_PAGE_PATH);

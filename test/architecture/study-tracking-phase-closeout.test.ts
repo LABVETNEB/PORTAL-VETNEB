@@ -1,9 +1,14 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 import test from "node:test";
 import ts from "typescript";
+import {
+  readSourceFile,
+  readSourceFile as readSource,
+  listSourceFiles,
+} from "../helpers/tracked-source-files.ts";
 
 const repoRoot = process.cwd();
 const featureDir = "server/features/study-tracking";
@@ -61,21 +66,13 @@ const residualDbConsumers = new Map<
   { owner: string; milestone: string }
 >();
 
-function readSource(relativePath: string): string {
-  return readFileSync(resolve(repoRoot, relativePath), "utf8").replace(/\r\n/g, "\n");
-}
-
 function walkFiles(relativeDir: string): string[] {
-  const absoluteDir = resolve(repoRoot, relativeDir);
-
-  if (!existsSync(absoluteDir)) {
+  const absolute = resolve(repoRoot, relativeDir);
+  if (!existsSync(absolute)) {
     return [];
   }
 
-  return readdirSync(absoluteDir, { withFileTypes: true }).flatMap((entry) => {
-    const relativePath = `${relativeDir}/${entry.name}`;
-    return entry.isDirectory() ? walkFiles(relativePath) : [relativePath];
-  });
+  return listSourceFiles(absolute).map((file) => `${relativeDir}/${file}`);
 }
 
 function parse(relativePath: string): ts.SourceFile {
@@ -152,10 +149,7 @@ function importTargets(relativePath: string): string[] {
 function digest(relativePath: string): string {
   return createHash("sha256")
     .update(
-      readFileSync(resolve(repoRoot, relativePath), "utf8").replace(
-        /\r\n/g,
-        "\n",
-      ),
+      readSourceFile(relativePath),
     )
     .digest("hex");
 }

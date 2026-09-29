@@ -1,10 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import Fastify from "fastify";
 
 import { createMemoryRateLimitStore } from "../../server/lib/rate-limit-store.ts";
+import { readSourceFile as read } from "../helpers/tracked-source-files.ts";
 
 process.env.NODE_ENV ??= "development";
 process.env.SUPABASE_URL ??= "https://example.supabase.co";
@@ -17,10 +16,6 @@ process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 // ---------------------------------------------------------------------------
 // Helpers de inspección estática
 // ---------------------------------------------------------------------------
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8");
-}
 
 function assertContains(source: string, expected: string, ctx: string): void {
   assert.ok(source.includes(expected), `${ctx}: falta "${expected}"`);

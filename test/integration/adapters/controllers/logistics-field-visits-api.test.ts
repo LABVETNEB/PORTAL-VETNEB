@@ -1,17 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { readSourceFile } from "../../../helpers/tracked-source-files.ts";
 
-const routeSource = readFileSync(
-  resolve(process.cwd(), "server", "routes", "logistics-field-visits.fastify.ts"),
-  "utf8",
-);
+const routeSource = readSourceFile("server/routes/logistics-field-visits.fastify.ts");
 
-const fastifyAppSource = readFileSync(
-  resolve(process.cwd(), "server", "fastify-app.ts"),
-  "utf8",
-);
+const fastifyAppSource = readSourceFile("server/fastify-app.ts");
 
 test("logistics field visit API is registered under the clinic logistics prefix", () => {
   assert.match(fastifyAppSource, /logisticsFieldVisitsNativeRoutes/);
@@ -309,7 +302,7 @@ test("logistics field visit M09 application files stay free of HTTP and DB impor
   const violations: string[] = [];
 
   for (const file of applicationFiles) {
-    const source = readFileSync(resolve(process.cwd(), file), "utf8");
+    const source = readSourceFile(file);
     const specifiers = Array.from(
       source.matchAll(
         /\bfrom\s+["']([^"']+)["']|\brequire\s*\(\s*["']([^"']+)["']\s*\)|\bimport\s*\(\s*["']([^"']+)["']\s*\)|\bimport\s+["']([^"']+)["']/g,

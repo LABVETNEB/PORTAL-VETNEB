@@ -1,7 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { readSourceFile, readSourceFile as read } from "../../helpers/tracked-source-files.ts";
 
 // WBR-11 (VET-16): server/bootstrap.ts and server/preflight.ts are the only
 // two runtime infrastructure error paths identified by the roadmap. This
@@ -12,10 +11,6 @@ const RUNTIME_INFRA_ERROR_SURFACES = [
   "server/bootstrap.ts",
   "server/preflight.ts",
 ] as const;
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8");
-}
 
 test("runtime infrastructure error surfaces do not use raw console.error/console.warn", () => {
   for (const file of RUNTIME_INFRA_ERROR_SURFACES) {
@@ -107,10 +102,7 @@ test("no runtime infrastructure error surface double-logs the same failure", () 
 });
 
 test("infrastructure-error-logging-contract guardrail source stays ascii only", () => {
-  const source = readFileSync(
-    resolve(process.cwd(), "test/unit/infrastructure/infrastructure-error-logging-contract.test.ts"),
-    "utf8",
-  );
+  const source = readSourceFile("test/unit/infrastructure/infrastructure-error-logging-contract.test.ts");
 
   for (let index = 0; index < source.length; index += 1) {
     assert.equal(

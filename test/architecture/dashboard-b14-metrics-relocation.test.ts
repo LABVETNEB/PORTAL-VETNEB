@@ -1,9 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read } from "../helpers/tracked-source-files.ts";
 
-const ROOT = process.cwd();
 const CONFIG = "frontend/src/features/dashboard/config/dashboardModules.ts";
 const CLINIC = "frontend/src/app/dashboard/ClinicCommandCenter.tsx";
 const TOKENS = "frontend/src/app/dashboard/admin/AdminParticularTokensCard.tsx";
@@ -11,10 +9,6 @@ const SESSIONS = "frontend/src/app/dashboard/admin/AdminSessionsReadOnlyCard.tsx
 const USERS = "frontend/src/app/dashboard/admin/AdminUsersRolesReadOnlyCard.tsx";
 const AUDIT = "frontend/src/app/dashboard/admin/AdminAuditCard.tsx";
 const MOBILE_AUDIT = "frontend/src/app/dashboard/admin/AdminMobileAuditModule.tsx";
-
-function read(path: string): string {
-  return readFileSync(resolve(ROOT, path), "utf8").replace(/\r\n/g, "\n");
-}
 
 const ADMIN = [
   "admin",

@@ -1,23 +1,15 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
 import {
   assertClean7aDependencyCleanupInvariants,
 } from "../../../helpers/clean7a-dependency-cleanup-scope.ts";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const ADMIN_PAGE_PATH = "frontend/src/app/dashboard/admin/page.tsx";
 const ADMIN_COMMAND_CENTER_PATH =
   "frontend/src/app/dashboard/admin/AdminCommandCenter.tsx";
 const STICKY_ACTION_BAR_PATH =
   "frontend/src/components/dashboard/StickyActionBar.tsx";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 function assertNoForbiddenSurfaceImports(source: string, context: string): void {
   const importLines = source

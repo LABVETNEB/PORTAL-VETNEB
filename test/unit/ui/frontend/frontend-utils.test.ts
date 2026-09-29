@@ -1,16 +1,8 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const UTILS_PATH = "frontend/src/lib/utils.ts";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 test("frontend utils keep class merge helper backed by clsx and tailwind-merge", () => {
   const source = read(UTILS_PATH);

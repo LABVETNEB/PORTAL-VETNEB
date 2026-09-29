@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { resolve } from "node:path";
+import { readSourceFile as read } from "../helpers/tracked-source-files.ts";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // B09 · Mobile navigation unification static contract.
@@ -110,13 +111,6 @@ const B09_ATTRIBUTES = [
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
-
-function read(repoRelativePath: string): string {
-  return readFileSync(resolve(REPO_ROOT, repoRelativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 /** Strips block and line comments so a prose mention never satisfies a guard. */
 function stripComments(source: string): string {

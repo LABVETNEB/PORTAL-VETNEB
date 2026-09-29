@@ -1,24 +1,15 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
+import { readSourceFile as read, listSourceFiles } from "../helpers/tracked-source-files.ts";
 
 const root = process.cwd();
 const kernelFile = "server/lib/permissions.ts";
 const featureDir = "server/features/users-roles";
 
-function read(path: string) {
-  return readFileSync(join(root, path), "utf8");
-}
-
 function walk(path: string): string[] {
-  const files: string[] = [];
-  for (const entry of readdirSync(join(root, path), { withFileTypes: true })) {
-    const child = `${path}/${entry.name}`;
-    if (entry.isDirectory()) files.push(...walk(child));
-    if (entry.isFile()) files.push(child);
-  }
-  return files;
+  return listSourceFiles(join(root, path)).map((file) => `${path}/${file}`);
 }
 
 function walkTs(path: string): string[] {

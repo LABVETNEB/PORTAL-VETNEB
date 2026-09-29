@@ -1,7 +1,5 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import {
   ROUTE_PLAN_CREATED_BY_TYPES,
   ROUTE_PLAN_OBJECTIVES,
@@ -11,6 +9,7 @@ import {
   routePlans,
   routeStops,
 } from "../../../../drizzle/schema.ts";
+import { readSourceFile } from "../../../helpers/tracked-source-files.ts";
 
 function assertNormalizedUniqueValues(
   values: readonly string[],
@@ -90,15 +89,7 @@ test("logistics schema exports route plans and route stops tables", () => {
 });
 
 test("logistics route plans and stops migration creates base schema", () => {
-  const migration = readFileSync(
-    resolve(
-      process.cwd(),
-      "drizzle",
-      "migrations",
-      "0019_logistics_route_plans_stops.sql",
-    ),
-    "utf8",
-  );
+  const migration = readSourceFile("drizzle/migrations/0019_logistics_route_plans_stops.sql");
 
   assert.match(migration, /CREATE TABLE IF NOT EXISTS "route_plans"/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS "route_stops"/);
@@ -119,15 +110,7 @@ test("logistics route plans and stops migration creates base schema", () => {
 });
 
 test("logistics route plans and stops migration creates tenant and sequence indexes", () => {
-  const migration = readFileSync(
-    resolve(
-      process.cwd(),
-      "drizzle",
-      "migrations",
-      "0019_logistics_route_plans_stops.sql",
-    ),
-    "utf8",
-  );
+  const migration = readSourceFile("drizzle/migrations/0019_logistics_route_plans_stops.sql");
 
   assert.match(migration, /route_plans_clinic_id_idx/);
   assert.match(migration, /route_plans_clinic_service_date_idx/);
@@ -140,15 +123,7 @@ test("logistics route plans and stops migration creates tenant and sequence inde
 });
 
 test("logistics route plans and stops migration creates ownership foreign keys", () => {
-  const migration = readFileSync(
-    resolve(
-      process.cwd(),
-      "drizzle",
-      "migrations",
-      "0019_logistics_route_plans_stops.sql",
-    ),
-    "utf8",
-  );
+  const migration = readSourceFile("drizzle/migrations/0019_logistics_route_plans_stops.sql");
 
   assert.match(migration, /route_plans_clinic_id_clinics_id_fk/);
   assert.match(migration, /route_stops_route_plan_id_route_plans_id_fk/);
@@ -157,16 +132,7 @@ test("logistics route plans and stops migration creates ownership foreign keys",
 });
 
 test("logistics route plans and stops migration is registered in drizzle journal", () => {
-  const journal = readFileSync(
-    resolve(
-      process.cwd(),
-      "drizzle",
-      "migrations",
-      "meta",
-      "_journal.json",
-    ),
-    "utf8",
-  );
+  const journal = readSourceFile("drizzle/migrations/meta/_journal.json");
 
   const parsed = JSON.parse(journal) as {
     entries?: Array<{ idx?: number; tag?: string }>;

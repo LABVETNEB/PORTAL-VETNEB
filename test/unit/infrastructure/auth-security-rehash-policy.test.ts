@@ -1,12 +1,8 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
+import { readSourceFile as read } from "../../helpers/tracked-source-files.ts";
 
 const AUTH_SECURITY_PATH = "server/lib/auth-security.ts";
-
-function read(path: string): string {
-  return readFileSync(path, "utf8");
-}
 
 test("auth security uses one argon2 policy for hashing and rehash checks", () => {
   const source = read(AUTH_SECURITY_PATH);

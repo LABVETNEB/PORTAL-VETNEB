@@ -2,8 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { createServer, type IncomingHttpHeaders } from "node:http";
-import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { readSourceFile as read } from "../../helpers/tracked-source-files.ts";
 
 process.env.NODE_ENV ??= "test";
 process.env.SUPABASE_URL ??= "https://example.supabase.co";
@@ -29,13 +29,6 @@ type ScriptResult = {
   stdout: string;
   stderr: string;
 };
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 function runReadinessScript(
   args: string[],

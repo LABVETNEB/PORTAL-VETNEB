@@ -1,14 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { basename, join, resolve } from "node:path";
+import { existsSync, readdirSync, statSync } from "node:fs";
+import { basename, join, relative, resolve } from "node:path";
+import { readSourceFile } from "../helpers/tracked-source-files.ts";
 
 const migrationsDir = resolve(process.cwd(), "drizzle", "migrations");
 const metaDir = join(migrationsDir, "meta");
 const journalPath = join(metaDir, "_journal.json");
 
 function readText(path: string): string {
-  return readFileSync(path, "utf8");
+  return readSourceFile(relative(process.cwd(), path));
 }
 
 function getSqlMigrationFiles(): string[] {

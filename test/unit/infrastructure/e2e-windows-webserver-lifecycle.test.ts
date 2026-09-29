@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import test from "node:test";
+import { readSourceFile } from "../../helpers/tracked-source-files.ts";
 
 const HELPER_PATH = "frontend/e2e/helpers/windows-webserver-lifecycle.mjs";
 const CONFIG_PATH = "frontend/playwright.config.ts";
@@ -213,7 +214,7 @@ test("reuse and Linux cleanup never terminate a pre-existing server", async () =
 });
 
 test("Playwright config scopes the launcher and forced cleanup to Windows", () => {
-  const config = readFileSync(resolve(process.cwd(), CONFIG_PATH), "utf8");
+  const config = readSourceFile(CONFIG_PATH);
 
   assert.match(
     config,

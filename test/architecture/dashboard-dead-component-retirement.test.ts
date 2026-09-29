@@ -1,7 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { basename, extname, relative, resolve, sep } from "node:path";
+import {
+  readSourceFile as readSource,
+  listSourceFiles as listSourceTree,
+} from "../helpers/tracked-source-files.ts";
 
 // B02 (audit §14.3 / §49) — dead dashboard component retirement.
 //
@@ -49,33 +53,15 @@ const RETIRED_PATHS = RETIRED_COMPONENTS.map(
   (component) => `${LEGACY_COMPONENT_ROOT}/${component}.tsx`,
 );
 
-function readSource(relativePath: string): string {
-  return readFileSync(resolve(SOURCE_ROOT, relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
-
 function listSourceFiles(relativeDir: string): string[] {
   const rootDir = resolve(SOURCE_ROOT, relativeDir);
   if (!existsSync(rootDir)) {
     return [];
   }
 
-  const files: string[] = [];
-  const walk = (absoluteDir: string): void => {
-    for (const entry of readdirSync(absoluteDir, { withFileTypes: true })) {
-      const absolute = resolve(absoluteDir, entry.name);
-      if (entry.isDirectory()) {
-        walk(absolute);
-      } else if (entry.isFile() && /\.(ts|tsx|js|jsx|mjs|cjs)$/.test(entry.name)) {
-        files.push(relative(SOURCE_ROOT, absolute).split(sep).join("/"));
-      }
-    }
-  };
-
-  walk(rootDir);
-  return files.sort();
+  return listSourceTree(rootDir, {
+    extensions: [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"],
+  }).map((file) => relative(SOURCE_ROOT, resolve(rootDir, file)).split(sep).join("/"));
 }
 
 // Module specifiers are read from real import/export declarations only, never

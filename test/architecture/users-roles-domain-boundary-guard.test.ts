@@ -1,15 +1,12 @@
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync } from "node:fs";
+import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
+import { readSourceFile as read } from "../helpers/tracked-source-files.ts";
 
 const root = process.cwd();
 const domainDir = "server/features/users-roles/domain";
 const domainIndex = `${domainDir}/index.ts`;
-
-function read(path: string) {
-  return readFileSync(join(root, path), "utf8").replace(/\r\n/g, "\n");
-}
 
 function domainTsFiles() {
   return readdirSync(join(root, domainDir), { withFileTypes: true })

@@ -1,7 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
-import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { runInNewContext } from "node:vm";
@@ -13,6 +12,7 @@ import {
   type E2eExecutionCohort,
 } from "../../../frontend/e2e/suites/catalog.ts";
 import { evaluateWorkflowSecurity } from "../../../scripts/governance/workflow-security-validator.mjs";
+import { readSourceFile, readSourceFile as readWorkflow } from "../../helpers/tracked-source-files.ts";
 
 const require = createRequire(import.meta.url);
 const { CORE_SCHEMA, load, mergeTag } = require("js-yaml") as {
@@ -70,10 +70,6 @@ function parseWorkflow(source: string): Mapping {
     }),
     "workflow",
   );
-}
-
-function readWorkflow(path: string): string {
-  return readFileSync(resolve(REPO_ROOT, path), "utf8").replace(/\r\n/g, "\n");
 }
 
 function workflowSources(): WorkflowInput {
@@ -170,7 +166,7 @@ type ApplicationServer = { command?: string; url?: string; env?: Record<string, 
 type RunnerEnv = Record<string, string | undefined>;
 
 function readLauncher(): string {
-  return readFileSync(resolve(REPO_ROOT, "frontend", LAUNCHER_PATH), "utf8").replace(/\r\n/g, "\n");
+  return readSourceFile(`frontend/${LAUNCHER_PATH}`);
 }
 
 // TEST-GLOBAL-03: the contract is the EFFECTIVE command. win32 configures the
@@ -217,7 +213,7 @@ function runLauncher(source: string, kind: string, env: RunnerEnv): string {
 function effectiveApplicationCommand(configured: string | undefined, env: RunnerEnv, launcherSource: string): string {
   const [program, target, ...rest] = (configured ?? "").split(" ");
   if (program === "pnpm") {
-    const scripts = JSON.parse(readFileSync(resolve(REPO_ROOT, "frontend/package.json"), "utf8")).scripts ?? {};
+    const scripts = JSON.parse(readSourceFile("frontend/package.json")).scripts ?? {};
     if (typeof scripts[target] !== "string") throw new Error(`unknown frontend script in webServer command: ${configured}`);
     return [scripts[target], ...rest].join(" ");
   }

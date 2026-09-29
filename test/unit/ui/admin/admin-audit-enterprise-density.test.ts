@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const ADMIN_PAGE = "frontend/src/app/dashboard/admin/page.tsx";
 const AUDIT_SHARED = "frontend/src/app/dashboard/admin/admin-audit-shared.ts";
@@ -12,10 +11,6 @@ const AUDIT_TABLE = "frontend/src/app/dashboard/admin/AdminAuditDenseTable.tsx";
 const AUDIT_FILTER = "frontend/src/app/dashboard/admin/AdminAuditFilterBar.tsx";
 const AUDIT_DETAIL = "frontend/src/app/dashboard/admin/AdminAuditDetailDialog.tsx";
 const GLOBALS_CSS = "frontend/src/app/globals.css";
-
-function read(path: string) {
-  return readFileSync(resolve(process.cwd(), path), "utf8").replace(/\r\n/g, "\n");
-}
 
 test("R-06 preserves the real audit-log navigation surface", () => {
   const page = read(ADMIN_PAGE);

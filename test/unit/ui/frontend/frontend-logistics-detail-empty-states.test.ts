@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const VISITAS_PAGE_PATH =
   "frontend/src/app/dashboard/logistica/visitas/page.tsx";
@@ -9,13 +8,6 @@ const RUTAS_PAGE_PATH =
   "frontend/src/app/dashboard/logistica/rutas/page.tsx";
 const METRICAS_PAGE_PATH =
   "frontend/src/app/dashboard/logistica/metricas/page.tsx";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 test("logistics visits detail page shows an empty table state", () => {
   const source = read(VISITAS_PAGE_PATH);

@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import test from "node:test";
+import { readSourceFile as read } from "../../helpers/tracked-source-files.ts";
 
 const NEXT_ENV_PATH = "frontend/next-env.d.ts";
 const PLAYWRIGHT_CONFIG_PATH = "frontend/playwright.config.ts";
@@ -16,13 +17,6 @@ const DEV_ROUTES_REFERENCE = "./.next/dev/types/routes.d.ts";
 const PRODUCTION_ROUTES_REFERENCE = "./.next/types/routes.d.ts";
 const DEV_ROOT_PARAMS_REFERENCE = "./.next/dev/types/root-params.d.ts";
 const PRODUCTION_ROOT_PARAMS_REFERENCE = "./.next/types/root-params.d.ts";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 test("frontend next-env.d.ts keeps the production route and root-params type references", () => {
   const source = read(NEXT_ENV_PATH);

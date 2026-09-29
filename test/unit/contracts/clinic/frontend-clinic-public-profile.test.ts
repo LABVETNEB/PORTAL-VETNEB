@@ -1,19 +1,13 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const PROFILE_CARD_PATH =
   "frontend/src/components/dashboard/ClinicPublicProfileCard.tsx";
 const API_PATH = "frontend/src/lib/api.ts";
 const DASHBOARD_PAGE_PATH = "frontend/src/app/dashboard/page.tsx";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 test("clinic public profile card exists and is clinic scoped", () => {
   assert.equal(existsSync(resolve(process.cwd(), PROFILE_CARD_PATH)), true);

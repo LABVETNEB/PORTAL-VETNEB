@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Successor of `frontend-dashboard-horizontal-nav.test.ts`, retired with its
@@ -38,13 +37,6 @@ const FRAME_PATH =
 const TOPBAR_PATH = "frontend/src/components/dashboard/DashboardTopbar.tsx";
 const SHELL_ROUTER_PATH =
   "frontend/src/components/dashboard/DashboardShellRouter.tsx";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 test("every admin module stays reachable from the canonical navigation table", () => {
   const catalog = read(MODULE_CATALOG_PATH);

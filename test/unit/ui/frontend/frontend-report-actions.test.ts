@@ -1,17 +1,9 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const UPLOAD_REPORT_MODAL_PATH = "frontend/src/components/dashboard/UploadReportModal.tsx";
 const REPORT_DOWNLOAD_BUTTON_PATH = "frontend/src/components/dashboard/ReportDownloadButton.tsx";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 test("upload report modal is client-side and imports upload dependencies", () => {
   const source = read(UPLOAD_REPORT_MODAL_PATH);

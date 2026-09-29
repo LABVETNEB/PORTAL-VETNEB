@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { basename, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { readSourceFile } from "../../../helpers/tracked-source-files.ts";
 
 const REPO_ROOT = resolve(fileURLToPath(new URL("../../../../", import.meta.url)));
 
@@ -463,9 +464,7 @@ const STUDY_TRACKING_SUITE: readonly StudyTrackingSuiteEntry[] = [
 ];
 
 function readSource(relativePath: string): string {
-  return readFileSync(resolve(REPO_ROOT, relativePath), "utf8")
-    .replace(/^\uFEFF/, "")
-    .replace(/\r\n/g, "\n");
+  return readSourceFile(relativePath).replace(/^\uFEFF/, "");
 }
 
 function assertContains(source: string, marker: string, context: string): void {

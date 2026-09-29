@@ -1,14 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-
-function readSource(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
+import { readSourceFile, readSourceFile as readSource } from "../helpers/tracked-source-files.ts";
 
 function assertContainsAll(
   source: string,
@@ -328,16 +320,8 @@ test("admin report upload audita creación exitosa de informe por admin", () => 
 });
 
 test("study tracking queda cubierto por guardrails de flujos criticos auditados", async () => {
-  const { readFileSync } = await import("node:fs");
-
-  const clinicSource = readFileSync(
-    new URL("../../server/routes/study-tracking.fastify.ts", import.meta.url),
-    "utf8",
-  );
-  const adminSource = readFileSync(
-    new URL("../../server/routes/admin-study-tracking.fastify.ts", import.meta.url),
-    "utf8",
-  );
+  const clinicSource = readSourceFile("server/routes/study-tracking.fastify.ts");
+  const adminSource = readSourceFile("server/routes/admin-study-tracking.fastify.ts");
 
   assert.match(clinicSource, /writeAuditLog\?:/);
   assert.match(clinicSource, /writeAuditLog: audit\.writeAuditLog/);

@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
-import { listSourceFiles } from "../../../helpers/tracked-source-files.ts";
+import { listSourceFiles, readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const GLOBALS_CSS_PATH = "frontend/src/app/globals.css";
 const HOME_PAGE_PATH = "frontend/src/app/page.tsx";
@@ -27,13 +26,6 @@ const DASHBOARD_ADMIN_AUDIT_CARD_PATH =
 const DASHBOARD_ADMIN_AUDIT_TABLE_PATH =
   "frontend/src/app/dashboard/admin/AdminAuditDenseTable.tsx";
 const BADGE_PATH = "frontend/src/components/ui/badge.tsx";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 function listFrontendSourceFiles(relativeDir = "frontend/src"): string[] {
   return listSourceFiles(resolve(process.cwd(), relativeDir), {

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { extname, resolve } from "node:path";
 import test from "node:test";
@@ -9,6 +9,7 @@ import {
   CANARY_ENV_VALUE_VAR,
   DEFAULT_CANARY_SECRET_VALUE,
 } from "../../../../scripts/security/env-value-leak-detector.mjs";
+import { readSourceFile as read, listSourceFiles } from "../../../helpers/tracked-source-files.ts";
 
 const FRONTEND_SRC_ROOT = "frontend/src";
 const FOOTER_PATH = "frontend/src/components/layout/Footer.tsx";
@@ -41,33 +42,13 @@ const LINK_TAG_REGEX = /<Link\b/;
 const ANCHOR_TAG_REGEX = /<a\b/;
 const IFRAME_TAG_REGEX = /<iframe\b/;
 
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(/\r\n/g, "\n");
-}
-
 function collectFiles(relativeRoot: string): string[] {
   const absoluteRoot = resolve(process.cwd(), relativeRoot);
   if (!existsSync(absoluteRoot)) {
     return [];
   }
 
-  const files: string[] = [];
-  const workspacePrefix = resolve(process.cwd(), "").replace(/\\/g, "/") + "/";
-
-  function walk(currentPath: string): void {
-    for (const entry of readdirSync(currentPath)) {
-      const fullPath = `${currentPath}/${entry}`;
-      const info = statSync(fullPath);
-      if (info.isDirectory()) {
-        walk(fullPath);
-        continue;
-      }
-      files.push(fullPath.replace(/\\/g, "/").replace(workspacePrefix, ""));
-    }
-  }
-
-  walk(absoluteRoot.replace(/\\/g, "/"));
-  return files;
+  return listSourceFiles(absoluteRoot).map((file) => `${relativeRoot}/${file}`);
 }
 
 function isFrontendCodeFile(file: string): boolean {

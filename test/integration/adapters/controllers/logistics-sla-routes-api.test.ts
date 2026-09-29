@@ -1,17 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { readSourceFile } from "../../../helpers/tracked-source-files.ts";
 
-const routeSource = readFileSync(
-  resolve(process.cwd(), "server", "routes", "logistics-sla.fastify.ts"),
-  "utf8",
-);
+const routeSource = readSourceFile("server/routes/logistics-sla.fastify.ts");
 
-const appSource = readFileSync(
-  resolve(process.cwd(), "server", "fastify-app.ts"),
-  "utf8",
-);
+const appSource = readSourceFile("server/fastify-app.ts");
 
 test("logistics SLA API exposes read-only policy, instance, overdue and summary endpoints", () => {
   assert.match(routeSource, /export const logisticsSlaNativeRoutes/);
@@ -262,7 +255,7 @@ test("logistics SLA application layer stays free of HTTP and DB imports", () => 
   const violations: string[] = [];
 
   for (const file of applicationFiles) {
-    const source = readFileSync(resolve(process.cwd(), file), "utf8");
+    const source = readSourceFile(file);
     const specifiers = Array.from(
       source.matchAll(
         /\bfrom\s+["']([^"']+)["']|\brequire\s*\(\s*["']([^"']+)["']\s*\)|\bimport\s*\(\s*["']([^"']+)["']\s*\)|\bimport\s+["']([^"']+)["']/g,

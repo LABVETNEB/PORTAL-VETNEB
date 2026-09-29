@@ -1,8 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { readSourceFile as readText } from "../../../helpers/tracked-source-files.ts";
 
 // Suite global de casos de uso de Logistics application (M11, cierre de Fase B).
 //
@@ -25,13 +26,13 @@ const routesDir = "server/routes";
 
 const selfTestFile = "logistics-application-use-case-suite-completeness.test.ts";
 
+// Unico import relativo admitido en este contrato: el lector canonico de source de
+// la suite (TEST-GLOBAL-05A). Se compara por path resuelto, nunca por substring.
+const CANONICAL_SOURCE_READER = "test/helpers/tracked-source-files.ts";
+
 // Piso de la Fase B (M06-M10): nueve modulos de caso de uso, nueve tests
 // correlativos, nueve factories publicas y nueve puertos.
 const PHASE_B_FLOOR = 9;
-
-function readText(relativePath: string): string {
-  return readFileSync(join(repoRoot, relativePath), "utf8");
-}
 
 function toRepoRelativePath(path: string): string {
   return path.replaceAll("\\", "/");
@@ -532,12 +533,13 @@ test("los tests unitarios application conservan la higiene minima de la suite", 
 test("el contrato de inventario no reejecuta la suite ni lanza procesos", () => {
   const source = readText(`${unitTestDir}/${selfTestFile}`);
   const { codeOnly } = stripSource(source);
-
-  for (const { label, pattern } of [
+  const processPatterns = [
     { label: "spawn de procesos", pattern: /\b(spawn|spawnSync|exec|execSync|execFile|fork)\s*\(/ },
     { label: "invocacion de PNPM", pattern: /\bpnpm\b/ },
     { label: "ejecucion de tests hijos", pattern: /\brun\s*\(\s*\{/ },
-  ]) {
+  ];
+
+  for (const { label, pattern } of processPatterns) {
     assert.equal(
       pattern.test(codeOnly),
       false,
@@ -545,12 +547,44 @@ test("el contrato de inventario no reejecuta la suite ni lanza procesos", () => 
     );
   }
 
-  // No importa los modulos de caso de uso: solo lee sus fuentes.
-  for (const specifier of listImportSpecifiers(source)) {
-    assert.equal(
-      specifier.startsWith("."),
-      false,
-      `el contrato de inventario no debe importar modulos del repo ("${specifier}")`,
+  // No importa casos de uso, rutas ni otros modulos del repo: solo lee sus fuentes
+  // a traves del lector canonico, el unico import relativo admitido.
+  const selfFile = `${unitTestDir}/${selfTestFile}`;
+  const relativeImportTargets = (text: string): string[] =>
+    listImportSpecifiers(text)
+      .filter((specifier) => specifier.startsWith("."))
+      .map((specifier) => resolveRelativeTsSpecifier(selfFile, specifier))
+      .sort();
+
+  assert.deepEqual(
+    relativeImportTargets(source),
+    [CANONICAL_SOURCE_READER],
+    "el contrato de inventario solo puede importar el lector canonico de test; no modulos del producto",
+  );
+
+  // El guard se prueba en memoria: cualquier import relativo distinto del lector
+  // canonico o cualquier proceso hijo lo vuelve rojo.
+  const readerSpecifier = "../../../helpers/tracked-source-files.ts";
+  const withLine = (line: string) => `${source}\n${line}\n`;
+  const importLine = (specifier: string) => `import { probe } from ${JSON.stringify(specifier)};`;
+
+  for (const [label, mutated] of [
+    ["caso de uso", withLine(importLine(`../../../../${applicationDir}/create-route-plan.ts`))],
+    ["ruta", withLine(importLine(`../../../../${routesDir}/logistics.fastify.ts`))],
+    ["otro helper", source.split(readerSpecifier).join("../../../helpers/dashboard-scope-guard.ts")],
+    ["substring del lector", source.split(readerSpecifier).join(`${readerSpecifier}.orig`)],
+  ] as const) {
+    assert.notDeepEqual(
+      relativeImportTargets(mutated),
+      [CANONICAL_SOURCE_READER],
+      `un import relativo no autorizado (${label}) debe detectarse`,
+    );
+  }
+
+  for (const probe of ['execFile("git", ["status"]);', 'spawn("node");', "pnpm.install();", "run({ files: [] });"]) {
+    assert.ok(
+      processPatterns.some(({ pattern }) => pattern.test(stripSource(withLine(probe)).codeOnly)),
+      `un proceso hijo debe detectarse: ${probe}`,
     );
   }
 });

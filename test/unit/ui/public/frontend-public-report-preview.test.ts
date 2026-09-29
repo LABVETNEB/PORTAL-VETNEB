@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const HOME_PATH = "frontend/src/app/page.tsx";
 const CLINICAS_PATH = "frontend/src/app/clinicas/page.tsx";
@@ -9,13 +10,6 @@ const SERVICIOS_PATH = "frontend/src/app/servicios/page.tsx";
 const PRECIOS_CONTENT_PATH = "frontend/src/components/public/PreciosContent.tsx";
 const REPORT_PREVIEW_COMPONENT_PATH =
   "frontend/src/components/public/ReportPreviewCard.tsx";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 // ─── ReportPreviewCard — eliminado en PR-15 ────────────────────────────────
 

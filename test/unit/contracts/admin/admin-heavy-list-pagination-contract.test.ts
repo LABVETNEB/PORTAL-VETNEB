@@ -1,15 +1,10 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as readSource } from "../../../helpers/tracked-source-files.ts";
 
 const { normalizeListPagination } = await import(
   "../../../../server/lib/list-pagination.ts"
 );
-
-function readSource(path: string) {
-  return readFileSync(resolve(process.cwd(), path), "utf8");
-}
 
 test("normalizeListPagination aplica defaults conservadores", () => {
   assert.deepEqual(normalizeListPagination(undefined), {

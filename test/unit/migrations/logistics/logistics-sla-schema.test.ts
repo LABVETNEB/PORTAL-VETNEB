@@ -1,7 +1,5 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import {
   SLA_INSTANCE_STATUSES,
   SLA_POLICY_SCOPES,
@@ -9,6 +7,7 @@ import {
   slaInstances,
   slaPolicies,
 } from "../../../../drizzle/schema.ts";
+import { readSourceFile } from "../../../helpers/tracked-source-files.ts";
 
 function assertNormalizedUniqueValues(
   values: readonly string[],
@@ -64,10 +63,7 @@ test("logistics schema exports SLA policies and instances tables", () => {
 });
 
 test("logistics SLA migration creates policies and instances base schema", () => {
-  const migration = readFileSync(
-    resolve(process.cwd(), "drizzle", "migrations", "0021_logistics_sla.sql"),
-    "utf8",
-  );
+  const migration = readSourceFile("drizzle/migrations/0021_logistics_sla.sql");
 
   assert.match(migration, /CREATE TABLE IF NOT EXISTS "sla_policies"/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS "sla_instances"/);
@@ -89,10 +85,7 @@ test("logistics SLA migration creates policies and instances base schema", () =>
 });
 
 test("logistics SLA migration creates validation checks in the correct tables", () => {
-  const migration = readFileSync(
-    resolve(process.cwd(), "drizzle", "migrations", "0021_logistics_sla.sql"),
-    "utf8",
-  );
+  const migration = readSourceFile("drizzle/migrations/0021_logistics_sla.sql");
 
   const policiesStart = migration.indexOf('CREATE TABLE IF NOT EXISTS "sla_policies"');
   const instancesStart = migration.indexOf('CREATE TABLE IF NOT EXISTS "sla_instances"');
@@ -107,10 +100,7 @@ test("logistics SLA migration creates validation checks in the correct tables", 
 });
 
 test("logistics SLA migration creates tenant-first indexes", () => {
-  const migration = readFileSync(
-    resolve(process.cwd(), "drizzle", "migrations", "0021_logistics_sla.sql"),
-    "utf8",
-  );
+  const migration = readSourceFile("drizzle/migrations/0021_logistics_sla.sql");
 
   assert.match(migration, /sla_policies_clinic_id_idx/);
   assert.match(migration, /sla_policies_scope_target_type_idx/);
@@ -124,10 +114,7 @@ test("logistics SLA migration creates tenant-first indexes", () => {
 });
 
 test("logistics SLA migration creates ownership foreign keys", () => {
-  const migration = readFileSync(
-    resolve(process.cwd(), "drizzle", "migrations", "0021_logistics_sla.sql"),
-    "utf8",
-  );
+  const migration = readSourceFile("drizzle/migrations/0021_logistics_sla.sql");
 
   assert.match(migration, /sla_policies_clinic_id_clinics_id_fk/);
   assert.match(migration, /sla_instances_clinic_id_clinics_id_fk/);
@@ -137,10 +124,7 @@ test("logistics SLA migration creates ownership foreign keys", () => {
 });
 
 test("logistics SLA migration is registered in drizzle journal", () => {
-  const journal = readFileSync(
-    resolve(process.cwd(), "drizzle", "migrations", "meta", "_journal.json"),
-    "utf8",
-  );
+  const journal = readSourceFile("drizzle/migrations/meta/_journal.json");
 
   const parsed = JSON.parse(journal) as {
     entries?: Array<{ idx?: number; tag?: string }>;

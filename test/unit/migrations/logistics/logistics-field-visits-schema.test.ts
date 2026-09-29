@@ -1,7 +1,5 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import {
   FIELD_VISIT_SOURCE_TYPES,
   FIELD_VISIT_STATUSES,
@@ -9,6 +7,7 @@ import {
   fieldVisits,
   visitLocations,
 } from "../../../../drizzle/schema.ts";
+import { readSourceFile } from "../../../helpers/tracked-source-files.ts";
 
 function assertNormalizedUniqueValues(
   values: readonly string[],
@@ -76,15 +75,7 @@ test("logistics schema exports field visits and visit locations tables", () => {
 });
 
 test("logistics field visits migration creates tenant-first schema", () => {
-  const migration = readFileSync(
-    resolve(
-      process.cwd(),
-      "drizzle",
-      "migrations",
-      "0017_logistics_field_visits.sql",
-    ),
-    "utf8",
-  );
+  const migration = readSourceFile("drizzle/migrations/0017_logistics_field_visits.sql");
 
   assert.match(migration, /CREATE TABLE IF NOT EXISTS "field_visits"/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS "visit_locations"/);
@@ -103,16 +94,7 @@ test("logistics field visits migration creates tenant-first schema", () => {
 });
 
 test("logistics migration is registered in drizzle journal", () => {
-  const journal = readFileSync(
-    resolve(
-      process.cwd(),
-      "drizzle",
-      "migrations",
-      "meta",
-      "_journal.json",
-    ),
-    "utf8",
-  );
+  const journal = readSourceFile("drizzle/migrations/meta/_journal.json");
 
   const parsed = JSON.parse(journal) as {
     entries?: Array<{ idx?: number; tag?: string }>;

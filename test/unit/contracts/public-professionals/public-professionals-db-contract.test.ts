@@ -1,23 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { readSourceFile } from "../../../helpers/tracked-source-files.ts";
 
 // M22 movió el SQL de persistencia a infrastructure. M24 retiró el path legacy;
 // este contrato lee directamente `public-professionals-repository.ts`, que sigue
 // siendo la única implementación canónica de persistencia y consultas públicas.
 function readDbPublicProfessionalsSource(): string {
-  return readFileSync(
-    resolve(
-      process.cwd(),
-      "server",
-      "features",
-      "public-professionals",
-      "infrastructure",
-      "public-professionals-repository.ts",
-    ),
-    "utf8",
-  ).replace(/\r\n/g, "\n");
+  return readSourceFile("server/features/public-professionals/infrastructure/public-professionals-repository.ts");
 }
 
 function assertContains(source: string, expected: string): void {

@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile } from "../../../helpers/tracked-source-files.ts";
 
 process.env.NODE_ENV ??= "development";
 process.env.SUPABASE_URL ??= "https://example.supabase.co";
@@ -370,13 +369,7 @@ test("fallback Drizzle corre sólo ante PostgreSQL 42703", async () => {
 });
 
 test("source contract fija SQL dual, autoría, límites y ausencia de side effects", () => {
-  const source = readFileSync(
-    resolve(
-      process.cwd(),
-      "server/features/reports/infrastructure/report-command-repository.ts",
-    ),
-    "utf8",
-  ).replace(/\r\n/g, "\n");
+  const source = readSourceFile("server/features/reports/infrastructure/report-command-repository.ts");
 
   for (const marker of [
     '.where(eq(reports.storagePath, input.storagePath))',

@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const HISTOPATHOLOGY_PAGE_PATH =
   "frontend/src/app/histopatologia-veterinaria/page.tsx";
@@ -10,13 +11,6 @@ const CYTOLOGY_PAGE_PATH =
 const SERVICES_PAGE_PATH = "frontend/src/app/servicios/page.tsx";
 const SEO_PATH = "frontend/src/lib/seo.ts";
 const SITEMAP_PATH = "frontend/src/app/sitemap.ts";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 test("diagnostic service landing pages exist", () => {
   assert.equal(existsSync(resolve(process.cwd(), HISTOPATHOLOGY_PAGE_PATH)), true);

@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
+import { readSourceFile as readText, listSourceFiles } from "../helpers/tracked-source-files.ts";
 
 const repoRoot = process.cwd();
 
@@ -47,33 +48,14 @@ const PUBLIC_PROFILE_MIGRATED_FUNCTION_NAMES = [
   "buildPatchInput",
 ];
 
-function readText(relativePath: string) {
-  return readFileSync(join(repoRoot, relativePath), "utf8").replace(/\r\n/g, "\n");
-}
-
 function walkFiles(relativeDir: string, extension = ".ts"): string[] {
-  const absoluteDir = join(repoRoot, relativeDir);
-
-  if (!existsSync(absoluteDir)) {
+  const absolute = join(repoRoot, relativeDir);
+  if (!existsSync(absolute)) {
     return [];
   }
 
-  const files: string[] = [];
-
-  for (const entry of readdirSync(absoluteDir, { withFileTypes: true })) {
-    const relativePath = `${relativeDir}/${entry.name}`;
-
-    if (entry.isDirectory()) {
-      files.push(...walkFiles(relativePath, extension));
-      continue;
-    }
-
-    if (entry.isFile() && entry.name.endsWith(extension)) {
-      files.push(relativePath);
-    }
-  }
-
-  return files;
+  return listSourceFiles(absolute, { extensions: [extension] })
+    .map((file) => `${relativeDir}/${file}`);
 }
 
 // Parser robusto de imports: cubre `import ... from`, `require(...)`,

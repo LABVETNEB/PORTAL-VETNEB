@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { test } from "node:test";
+import { readSourceFile as readSource, listSourceFiles } from "../helpers/tracked-source-files.ts";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // B05 · Filter-field surface inversion (roadmap §49/§54).
@@ -52,13 +52,6 @@ const SURFACES_CSS = "frontend/src/styles/dashboard/surfaces.css";
 const FIELD_TOKEN = "--dash-color-field";
 const CONTAINER_FILL_UTILITY = /bg-(card|muted)\/\d+/;
 
-function readSource(repoRelativePath: string): string {
-  return readFileSync(resolve(REPO_ROOT, repoRelativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
-
 function stripComments(source: string): string {
   return source.replace(/\/\*[\s\S]*?\*\//g, " ");
 }
@@ -95,21 +88,9 @@ function collectFilesRecursive(
   repoRelativeDir: string,
   extensions: RegExp,
 ): string[] {
-  const absoluteDir = resolve(REPO_ROOT, repoRelativeDir);
-  const found: string[] = [];
-
-  for (const entry of readdirSync(absoluteDir, { withFileTypes: true })) {
-    const entryRelative = `${repoRelativeDir}/${entry.name}`;
-    if (entry.isDirectory()) {
-      found.push(...collectFilesRecursive(entryRelative, extensions));
-      continue;
-    }
-    if (entry.isFile() && extensions.test(entry.name)) {
-      found.push(entryRelative);
-    }
-  }
-
-  return found;
+  return listSourceFiles(resolve(REPO_ROOT, repoRelativeDir))
+    .filter((file) => extensions.test(file.slice(file.lastIndexOf("/") + 1)))
+    .map((file) => `${repoRelativeDir}/${file}`);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

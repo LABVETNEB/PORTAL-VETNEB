@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync, statSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { join, relative, resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read, listSourceFiles } from "../../../helpers/tracked-source-files.ts";
 
 const PARTICULARES_CONTENT_PATH =
   "frontend/src/components/public/ParticularesContent.tsx";
@@ -10,13 +10,6 @@ const PUBLIC_SURFACE_AUDIT_SCRIPT_PATH =
   "scripts/security/audit-public-devtools-surface.mjs";
 const NAVBAR_PATH = "frontend/src/components/layout/Navbar.tsx";
 const FOOTER_PATH = "frontend/src/components/layout/Footer.tsx";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 function extractMarkedBlock(
   source: string,
@@ -86,24 +79,8 @@ function extractDesktopSummary(source: string): string {
 
 function listFiles(relativeRoot: string): string[] {
   const absoluteRoot = resolve(process.cwd(), relativeRoot);
-  const files: string[] = [];
 
-  function walk(absolutePath: string) {
-    for (const entry of readdirSync(absolutePath, { withFileTypes: true })) {
-      const child = join(absolutePath, entry.name);
-      if (entry.isDirectory()) {
-        walk(child);
-        continue;
-      }
-
-      if (statSync(child).isFile()) {
-        files.push(child);
-      }
-    }
-  }
-
-  walk(absoluteRoot);
-  return files;
+  return listSourceFiles(absoluteRoot).map((file) => join(absoluteRoot, file));
 }
 
 test("particulares active session renders a single mobile-safe case summary", () => {
@@ -314,7 +291,7 @@ test("mobile-safe feature markers stay out of Navbar, Footer and backend surface
 
   for (const directory of ["server", "drizzle"]) {
     for (const absolutePath of listFiles(directory)) {
-      const source = readFileSync(absolutePath, "utf8");
+      const source = read(relative(process.cwd(), absolutePath));
       for (const marker of forbiddenMarkers) {
         assert.equal(
           source.includes(marker),
@@ -573,7 +550,7 @@ test("flat-stack markers stay out of Navbar, Footer and backend surfaces", () =>
 
   for (const directory of ["server", "drizzle"]) {
     for (const absolutePath of listFiles(directory)) {
-      const source = readFileSync(absolutePath, "utf8");
+      const source = read(relative(process.cwd(), absolutePath));
       for (const marker of forbiddenMarkers) {
         assert.equal(
           source.includes(marker),

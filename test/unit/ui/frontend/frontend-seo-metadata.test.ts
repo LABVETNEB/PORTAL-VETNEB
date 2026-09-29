@@ -1,19 +1,11 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
+import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 const ROOT_LAYOUT_PATH = "frontend/src/app/layout.tsx";
 const SEO_PATH = "frontend/src/lib/seo.ts";
 const ROBOTS_PATH = "frontend/src/app/robots.ts";
 const SITEMAP_PATH = "frontend/src/app/sitemap.ts";
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
-    /\r\n/g,
-    "\n",
-  );
-}
 
 test("frontend root layout wires base metadata and organization JSON-LD", () => {
   const source = read(ROOT_LAYOUT_PATH);

@@ -1,17 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { readSourceFile } from "../../../helpers/tracked-source-files.ts";
 
-const routeSource = readFileSync(
-  resolve(process.cwd(), "server", "routes", "report-access-tokens.fastify.ts"),
-  "utf8",
-);
+const routeSource = readSourceFile("server/routes/report-access-tokens.fastify.ts");
 
-const adapterSource = readFileSync(
-  resolve(process.cwd(), "server", "lib", "fastify-clinic-auth.ts"),
-  "utf8",
-);
+const adapterSource = readSourceFile("server/lib/fastify-clinic-auth.ts");
 
 // WBR-08b: migrated to the canonical clinic auth helper, which now owns the
 // session last-access refresh (mirrors the admin family's split above).
