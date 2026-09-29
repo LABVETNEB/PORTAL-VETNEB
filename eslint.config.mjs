@@ -111,10 +111,22 @@ export default [
           selector: `CallExpression[callee.property.name=${testRunner}] > ObjectExpression > Property[key.name='only'][value.value=true]`,
           message: onlyMessage,
         },
+        {
+          selector: `CallExpression[callee.name=${testRunner}] > ObjectExpression > Property[key.value='only'][value.value=true]`,
+          message: onlyMessage,
+        },
+        {
+          selector: `CallExpression[callee.property.name=${testRunner}] > ObjectExpression > Property[key.value='only'][value.value=true]`,
+          message: onlyMessage,
+        },
         // The allowlist below also matches TestContext#test, so floating
         // subtests are rejected here instead.
         {
           selector: `ExpressionStatement > CallExpression[callee.type='MemberExpression'][callee.property.name=${testRunner}]`,
+          message: "Await subtests; a floating t.test() is cancelled when its parent ends.",
+        },
+        {
+          selector: `ExpressionStatement > UnaryExpression[operator='void'] > CallExpression[callee.type='MemberExpression'][callee.property.name=${testRunner}]`,
           message: "Await subtests; a floating t.test() is cancelled when its parent ends.",
         },
       ],

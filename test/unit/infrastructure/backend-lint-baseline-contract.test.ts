@@ -66,8 +66,13 @@ const ONLY_SELECTORS = [
   `CallExpression[callee.property.name='only'][callee.object.property.name=${TEST_RUNNER}]`,
   `CallExpression[callee.name=${TEST_RUNNER}] > ObjectExpression > Property[key.name='only'][value.value=true]`,
   `CallExpression[callee.property.name=${TEST_RUNNER}] > ObjectExpression > Property[key.name='only'][value.value=true]`,
+  `CallExpression[callee.name=${TEST_RUNNER}] > ObjectExpression > Property[key.value='only'][value.value=true]`,
+  `CallExpression[callee.property.name=${TEST_RUNNER}] > ObjectExpression > Property[key.value='only'][value.value=true]`,
 ];
-const FLOATING_SUBTEST_SELECTOR = `ExpressionStatement > CallExpression[callee.type='MemberExpression'][callee.property.name=${TEST_RUNNER}]`;
+const FLOATING_SUBTEST_SELECTORS = [
+  `ExpressionStatement > CallExpression[callee.type='MemberExpression'][callee.property.name=${TEST_RUNNER}]`,
+  `ExpressionStatement > UnaryExpression[operator='void'] > CallExpression[callee.type='MemberExpression'][callee.property.name=${TEST_RUNNER}]`,
+];
 const NODE_TEST_SAFE_CALLS = [
   { from: "package", package: "node:test", name: ["test", "it", "describe", "suite"] },
 ];
@@ -254,7 +259,9 @@ async function validateTestLintConfig(blocks: readonly Linter.Config[]): Promise
     for (const selector of ONLY_SELECTORS) {
       if (!selectors.includes(selector)) issues.push(".only selector missing");
     }
-    if (!selectors.includes(FLOATING_SUBTEST_SELECTOR)) issues.push("floating subtest selector missing");
+    for (const selector of FLOATING_SUBTEST_SELECTORS) {
+      if (!selectors.includes(selector)) issues.push("floating subtest selector missing");
+    }
     if (severityOf(testRules[UNUSED_RULE]) !== "warn") issues.push("no-unused-vars is not warn");
     if (!isDeepStrictEqual(optionsOf(testRules[UNUSED_RULE]), [UNUSED_VARS_OPTIONS])) {
       issues.push("no-unused-vars options changed");
@@ -495,10 +502,24 @@ test("backend lint contract rejects unsafe in-memory mutations", async () => {
     const rules = testBlockOf(candidate).rules!;
     rules[ONLY_RULE] = ["error", ...optionsOf(rules[ONLY_RULE]).slice(1)] as Linter.RuleEntry;
   }, [".only selector missing"]);
+  await assertConfigMutationRejected(blocks, "quoted .only selector dropped", (candidate) => {
+    const rules = testBlockOf(candidate).rules!;
+    const kept = optionsOf(rules[ONLY_RULE]).filter(
+      (option) => (option as { selector?: string }).selector !== ONLY_SELECTORS[4],
+    );
+    rules[ONLY_RULE] = ["error", ...kept] as Linter.RuleEntry;
+  }, [".only selector missing"]);
   await assertConfigMutationRejected(blocks, "floating subtest selector dropped", (candidate) => {
     const rules = testBlockOf(candidate).rules!;
     const kept = optionsOf(rules[ONLY_RULE]).filter(
-      (option) => (option as { selector?: string }).selector !== FLOATING_SUBTEST_SELECTOR,
+      (option) => (option as { selector?: string }).selector !== FLOATING_SUBTEST_SELECTORS[0],
+    );
+    rules[ONLY_RULE] = ["error", ...kept] as Linter.RuleEntry;
+  }, ["floating subtest selector missing"]);
+  await assertConfigMutationRejected(blocks, "void floating subtest selector dropped", (candidate) => {
+    const rules = testBlockOf(candidate).rules!;
+    const kept = optionsOf(rules[ONLY_RULE]).filter(
+      (option) => (option as { selector?: string }).selector !== FLOATING_SUBTEST_SELECTORS[1],
     );
     rules[ONLY_RULE] = ["error", ...kept] as Linter.RuleEntry;
   }, ["floating subtest selector missing"]);
@@ -609,6 +630,8 @@ test("TEST-GLOBAL-05B test lint block is separate, type-aware and enforces its t
 // Probe literals are assembled at runtime so this file does not add committed
 // occurrences to the 01B census patterns it would otherwise match as text.
 const ONLY = "only";
+const QUOTED_ONLY = `"${ONLY}"`;
+const COMPUTED_QUOTED_ONLY = `[${QUOTED_ONLY}]`;
 const REJECTS = "rejects";
 const PROBE_HEADER =
   'import assert from "node:assert/strict";\nimport test, { describe, it, suite } from "node:test";\n';
@@ -620,11 +643,16 @@ const RULE_PROBES: readonly (readonly [string, string, readonly string[]])[] = [
   ["describe .only", `describe.${ONLY}("a", () => {});\n`, [FLOATING_RULE, ONLY_RULE]],
   ["suite .only", `suite.${ONLY}("a", () => {});\n`, [FLOATING_RULE, ONLY_RULE]],
   ["{ only: true } option", 'test("a", { only: true }, () => {});\n', [ONLY_RULE]],
+  ["{ \"only\": true } option", `test("a", { ${QUOTED_ONLY}: true }, () => {});\n`, [ONLY_RULE]],
+  ["{ [\"only\"]: true } option", `test("a", { ${COMPUTED_QUOTED_ONLY}: true }, () => {});\n`, [ONLY_RULE]],
   ["subtest .only", `test("a", async (t) => { await t.test.${ONLY}("b", () => {}); });\n`, [ONLY_RULE]],
   ["subtest { only: true } option", 'test("a", async (t) => { await t.test("b", { only: true }, () => {}); });\n', [ONLY_RULE]],
+  ["subtest { \"only\": true } option", `test("a", async (t) => { await t.test("b", { ${QUOTED_ONLY}: true }, () => {}); });\n`, [ONLY_RULE]],
   ["unrelated only() member", `const q = { ${ONLY}: (x: number) => x };\nassert.equal(q.${ONLY}(1), 1);\n`, []],
   ["{ only: false } option", 'test("a", { only: false }, () => {});\n', []],
+  ["{ \"only\": false } option", `test("a", { ${QUOTED_ONLY}: false }, () => {});\n`, []],
   ["floating subtest", 'test("a", async (t) => { t.test("b", () => {}); });\n', [ONLY_RULE]],
+  ["void floating subtest", 'test("a", async (t) => { void t.test("b", () => {}); });\n', [ONLY_RULE]],
   ["awaited subtest", 'test("a", async (t) => { await t.test("b", () => {}); });\n', []],
   ["returned subtest", 'test("a", (t) => t.test("b", () => {}));\n', []],
   ["regex test() as an argument", 'test("a", () => { assert.ok(/x/.test("x")); });\n', []],
