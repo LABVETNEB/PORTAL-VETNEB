@@ -491,15 +491,47 @@ test("inventario tracked lee el índice git en proceso igual que git ls-files (v
     // La cadena de extensiones debe terminar exactamente en el hash final.
     const body = v3.subarray(0, v3.length - 20);
     const hash = Buffer.alloc(20);
-    const extension = (declared: number, data: number) => {
+    const extension = (
+      signature: string,
+      declared: number,
+      data: number,
+    ) => {
       const bytes = Buffer.alloc(8 + data);
-      bytes.write("ZZZZ", 0, "latin1");
+      bytes.write(signature, 0, "latin1");
       bytes.writeUInt32BE(declared, 4);
       return bytes;
     };
-    assert.deepEqual(parseGitIndexPaths(Buffer.concat([body, extension(1, 1), hash])), lsFiles());
-    assert.equal(parseGitIndexPaths(Buffer.concat([body, extension(2, 1), hash])), null);
-    assert.equal(parseGitIndexPaths(Buffer.concat([body, Buffer.from("ZZZZ"), hash])), null);
+
+    // Unknown optional extensions have an uppercase first byte and may be
+    // ignored while preserving the parsed inventory.
+    assert.deepEqual(
+      parseGitIndexPaths(
+        Buffer.concat([body, extension("ZZZZ", 1, 1), hash]),
+      ),
+      lsFiles(),
+    );
+
+    // Unknown mandatory extensions have a lowercase first byte. They must
+    // fail closed so the caller delegates to git instead of returning a
+    // potentially incomplete tracked inventory.
+    assert.equal(
+      parseGitIndexPaths(
+        Buffer.concat([body, extension("abcd", 1, 1), hash]),
+      ),
+      null,
+      "unknown mandatory extension delegates to git",
+    );
+
+    assert.equal(
+      parseGitIndexPaths(
+        Buffer.concat([body, extension("ZZZZ", 2, 1), hash]),
+      ),
+      null,
+    );
+    assert.equal(
+      parseGitIndexPaths(Buffer.concat([body, Buffer.from("ZZZZ"), hash])),
+      null,
+    );
 
     git("update-index", "--split-index");
     assert.equal(parseGitIndexPaths(indexBytes()), null, "índice dividido delega en git");

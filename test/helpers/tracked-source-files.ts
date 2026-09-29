@@ -137,10 +137,24 @@ export function parseGitIndexPaths(index: Uint8Array): string[] | null {
   }
 
   for (let cursor = offset; cursor < body; ) {
-    const signature = bytes.toString("latin1", cursor, cursor + 4);
-    if (signature === "link" || signature === "sdir") {
+    if (cursor + 8 > body) {
       return null;
     }
+
+    const signature = bytes.toString("latin1", cursor, cursor + 4);
+    const firstSignatureByte = bytes[cursor] as number;
+
+    // A lowercase first signature byte marks a mandatory Git index
+    // extension. This parser does not implement mandatory extensions, so it
+    // must fail closed and let the caller fall back to git.
+    if (
+      signature === "link" ||
+      signature === "sdir" ||
+      (firstSignatureByte >= 0x61 && firstSignatureByte <= 0x7a)
+    ) {
+      return null;
+    }
+
     cursor += 8 + bytes.readUInt32BE(cursor + 4);
     if (cursor > body) {
       return null;
