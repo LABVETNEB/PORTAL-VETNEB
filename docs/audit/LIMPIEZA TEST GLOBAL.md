@@ -338,7 +338,7 @@ se clasifica por **qué prueba la assertion**, no por si el archivo es un guard.
 | Clase | Archivos | Tests |
 |---|---:|---:|
 | `RUNTIME_BEHAVIOURAL` | 151 | 1.333 |
-| `ACCIDENTAL_COUPLING_CAND` | **137** | **1.042** |
+| `ACCIDENTAL_COUPLING_CAND` | **137** histórico | **1.042** histórico |
 | `LEGITIMATE_GUARD` | 95 | 816 |
 | `MIXED` | 87 | 817 |
 | `LEGITIMATE_STATIC_CONTRACT` | 90 | 514 |
@@ -374,12 +374,14 @@ El clasificador es heurístico. Se calibró leyendo manualmente los 15 candidato
 Por tanto:
 
 ```text
-ACCIDENTAL_COUPLING_CANDIDATE   = 137 archivos / 1.042 tests   (pool a adjudicar)
+ACCIDENTAL_COUPLING_CANDIDATE   = 137 archivos / 1.042 tests   (cifra histórica; pool entonces a adjudicar)
 ACCIDENTAL_COUPLING_CONFIRMADO  = 3 archivos                   (verificados a mano, §10.3)
 ```
 
 **No se declara deuda confirmada sin lectura manual.** La adjudicación del pool
-es el objeto de `TEST-GLOBAL-06`, no de esta auditoría.
+fue el objeto de `TEST-GLOBAL-06`, no de esta auditoría. El pool vigente es el
+recomputado de C.2: 66 archivos / 623 tests; la cifra histórica no gobierna
+ninguna fase futura.
 
 ### 7.5 Guards legítimos que deben preservarse
 
@@ -1381,7 +1383,7 @@ confianza en el rojo**, no de performance.
 | `TG-R03` | `FALSE_GREEN` + `WEAK_ASSERTION` | **P1** | 1.264 tests (157 archivos) con ≥80 % substring y sin runtime; mutación escapante demostrada | §8.2, §10.1 |
 | `TG-R04` | `PLATFORM_VARIANCE` + `FALSE_RED` | **P1** | 8 tests rojos permanentes en win32 por el launcher de Playwright; `validate:local` nunca PASSED en el entorno del owner. Un noveno FAILED es una precondición de DB ausente (`ENVIRONMENT_DEPENDENT`), fuera de este riesgo | §10.2 |
 | `TG-R05` | `COVERAGE_GAP` | **P1** | Contratos de seguridad estáticos sin prueba negativa: 0 de 9 harness de mutación en `architecture/security/**` | §11 |
-| `TG-R06` | `ACCIDENTAL_COUPLING` | **P1** | 137 archivos / 1.042 tests candidatos, 89 % en `unit/ui/**` | §7.3 |
+| `TG-R06` | `ACCIDENTAL_COUPLING` | **P1** | Histórico: 137 archivos / 1.042 tests; vigente: 66 / 623 candidatos, 65 en `unit/ui/**`, adjudicados por `06` | §7.3, C.2 |
 | `TG-R07` | `MOCK_DRIFT` | **P2** | 659 `as any` en la costura test↔runtime; el tipado no detecta cambio de contrato de puertos | §12.3 |
 | `TG-R08` | `PERFORMANCE_DEBT` (gobernanza) | **P2** | `test/**` (156.700 LOC) sin ninguna regla de lint | §25.2 |
 | `TG-R09` | `DUPLICATE_SOURCE_OF_TRUTH` | **P2** | 283 lectores de source ad hoc vs **8** importadores del helper canónico | §6.4, §13.1 |
@@ -1433,7 +1435,7 @@ Bloqueantes para iniciar el programa   =   NINGUNO
 | Baseline reproducible | Capturado (§3) |
 | CI verde sobre el baseline | Verificado (`Backend CI` = success @ `ee8e7425`) |
 | `LIMPIEZA E2E` cerrado | Verificado (CLOSED, last verified 2026-09-21) |
-| Autorización R2 para lint | **Requerida** para `TEST-GLOBAL-05B` (`eslint.config.mjs`). No bloquea `05A`, que es R1 |
+| Autorización R2 para lint | **Consumida** por `TEST-GLOBAL-05B` (#1792, baseline de lint). No bloquea fases pendientes |
 | Autorización R2 para CI | **Requerida** para `TEST-GLOBAL-12B` (workflow de coverage, ci-only). Su default es **no ejecutarse**; `12A` es docs-only y no la necesita |
 | Autorización R2 para producto | **Requerida** para `TEST-GLOBAL-10A` (inyección en email/storage/`ENV`) y `TEST-GLOBAL-10C` (registro de plugins Fastify). No bloquea `10B` ni `10D`, que son test-only |
 | DB para gates locales | `pnpm validate:local` queda BLOCKED sin DB desde #1711; reportar como ambiental |
@@ -1449,8 +1451,8 @@ obligatoria y §36 sólo puede exigir objetivos que la tengan.
 |---|---|---|
 | Arquitectura | 100 % de specs clasificados; `test/*.test.ts` = 0; capa inferida == carpeta; helper de lectura canónico único | `01B`, `05A`, `06` |
 | Confiabilidad | 0 falsos rojos de launcher tolerados en win32; `validate:local` capaz de PASSED en el entorno del owner **cuando su precondición de DB está satisfecha**, y BLOCKED con esa precondición nombrada cuando no lo está | `03` |
-| Source coupling | 137 candidatos adjudicados a 100 %; guards legítimos preservados sin excepción; acoplamiento accidental corregido o registrado con owner y motivo | `06`, `07`, `08` |
-| Assertions | 0 contratos críticos con oracle sólo-presencia; substring ratio < 20 % **en las carpetas remediadas por `07`/`08`** | `04`, `07`, `08` |
+| Source coupling | Pool vigente de 66 candidatos adjudicado a 100 %; guards legítimos preservados sin excepción; acoplamiento accidental corregido o registrado con owner y motivo | `06`, `07`, `08` |
+| Assertions | 0 contratos críticos con oracle sólo-presencia; ratio de oracles sólo-substring pendientes < 20 % en el universo adjudicado de `STRENGTHEN` de cada entrega de `07`/`08` (definición única en C.11) | `04`, `07`, `08` |
 | Seguridad | Prueba negativa en tenant isolation, auth, permisos, redacción y rate limit; 0 registries stale no dereferenciados | `02`, `04` |
 | Seguridad — meta-guards de `architecture/security/**` | Los 3 meta-guards reasignados desde `04` con mutation proof de inventario, y la lista de guardrails de seguridad derivada de una única fuente canónica (parte de `TG-R05`) | `11` |
 | Mocks — costuras de infraestructura | 0 `as any` sobre `ENV`, email y storage; ownership declarado por double | `10A` → `10B` |
@@ -1458,13 +1460,13 @@ obligatoria y §36 sólo puede exigir objetivos que la tengan.
 | Performance | Mantener wall time < 60 s; ninguna optimización con pérdida semántica | subproducto de `05A`; sin fase propia (§24) |
 | Gobernanza | `test/**` bajo lint; coverage baseline publicado con su salvedad metodológica (§21) | `05B`, `12A`, `12B` |
 
-Nota sobre el eje "Assertions": el objetivo original decía *substring ratio
-global < 20 %*. Esta revisión lo acota a las carpetas efectivamente remediadas
-porque el ratio global depende de los 137 candidatos adjudicados, y `06` puede
-resolver legítimamente muchos de ellos como `KEEP` (§31.6): exigir un ratio
-global sería exigir retirar guards legítimos para mover un número. El objetivo
-sustantivo —ningún contrato crítico con oracle sólo-presencia— se conserva
-intacto y es el que §36 audita.
+Nota normativa sobre el eje "Assertions": el objetivo histórico decía
+*substring ratio global < 20 %*. El criterio vigente es exclusivamente el
+**ratio de oracles sólo-substring pendientes** definido en C.11: su universo
+son sólo los registros `STRENGTHEN` adjudicados por `06` para la entrega; no la
+subcarpeta completa, ningún `KEEP`, ningún archivo fuera del pool ni un
+`RETIRE`. Así el objetivo mide el fortalecimiento que corresponde ejecutar, no
+presiona a retirar guards legítimos ni permite alterar el denominador.
 
 ## 31. Roadmap `TEST-GLOBAL-*`
 
@@ -1583,7 +1585,7 @@ montar una DB, o convertir cualquiera de esos fallos en `skip` o en `PASSED`.
 | `TEST-GLOBAL-04` | **P1** — Prueba negativa para guards de seguridad (1 PR por contrato) | test-only | R1 | — | 02 |
 | `TEST-GLOBAL-05A` | Lector canónico de source y migración de lectores ad hoc | test-only | R1 | — | 01 |
 | `TEST-GLOBAL-05B` | Alta de `test/**` en `lintableFiles` y baseline de lint | config-only | **R2** | **Nico, explícita** | 05A |
-| `TEST-GLOBAL-06` | Adjudicación de los 137 candidatos (sin modificar tests) | docs-only | R1 | — | 01, 05A |
+| `TEST-GLOBAL-06` | Adjudicación completada del pool recomputado de 66 candidatos (sin modificar tests) | docs-only | R1 | — | 01, 05A |
 | `TEST-GLOBAL-07` | Remediación `unit/ui` ola 1 — dashboard | test-only | R1 | — | 06 |
 | `TEST-GLOBAL-08` | Remediación `unit/ui` ola 2 — admin, public, frontend | test-only | R1 | — | 07 |
 | `TEST-GLOBAL-09` | Integración de repositorios y servicios externos, o declaración de bloqueo | test-only | R1 | — | 05A |
@@ -1974,7 +1976,7 @@ autorización de Nico. Cada uno tiene su propio rollback. Toda dependencia «de
 - **Output**: `test/**` bajo análisis estático + baseline publicado.
 - **Coste**: medio. **Paralelizable**: no.
 
-### TEST-GLOBAL-06 — Adjudicación de los 137 candidatos
+### TEST-GLOBAL-06 — Adjudicación completada del pool recomputado (66 candidatos)
 
 - **Objetivo**: convertir un pool de candidatos heurísticos en decisiones adjudicadas con evidencia, sin tocar un solo test.
 - **Problema**: `TG-R06`. El pool es candidato, no deuda confirmada (§7.4).
@@ -1985,7 +1987,7 @@ autorización de Nico. Cada uno tiene su propio rollback. Toda dependencia «de
 - **Autorización**: no requiere. **Dependencias**: `01` (el pool debe recomputarse con el tooling de `01B` antes de adjudicar: las cifras de §7.3 son `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE`) y `05A`.
 - **Scope**: clasificar cada candidato del pool recomputado en `LEGITIMATE_GUARD` / `LEGITIMATE_STATIC_CONTRACT` / `MIXED` / `ACCIDENTAL_COUPLING`, con: contrato protegido, mutación que detecta, mutación que escapa, capa correcta según la frontera de §19, y si existe cobertura E2E equivalente **verificada contra `frontend/e2e/suites/catalog.ts`**, no supuesta.
 - **No-scope**: modificar, mover o borrar un solo test; crear specs E2E; reabrir `LIMPIEZA E2E`.
-- **Aceptación**: (1) 100 % del pool adjudicado —137 si el recómputo lo confirma, o la cifra recomputada con la diferencia declarada—; (2) cada candidato con owner y decisión `KEEP` / `STRENGTHEN` / `RELOCATE` / `RETIRE`; (3) **cada decisión distinta de `KEEP` lleva su evidencia**; (4) regla fail-closed: **sin evidencia suficiente → `KEEP`**. Nunca `RETIRE` por defecto, nunca `RETIRE` por sospecha, nunca `RETIRE` para mover una métrica.
+- **Aceptación**: (1) 100 % del pool recomputado adjudicado —66 candidatos, con la diferencia respecto de los 137 históricos declarada en C.2—; (2) cada candidato con owner y decisión `KEEP` / `STRENGTHEN` / `RELOCATE` / `RETIRE`; (3) **cada decisión distinta de `KEEP` lleva su evidencia**; (4) regla fail-closed: **sin evidencia suficiente → `KEEP`**. Nunca `RETIRE` por defecto, nunca `RETIRE` por sospecha, nunca `RETIRE` para mover una métrica.
 - **Gates**: `git diff --check` → `PASSED`. `pnpm test` → `NOT_RUN` (docs-only).
 - **Rollback**: revertir el commit. No toca `test/**`; ninguna decisión se ejecuta en esta fase.
 - **Output**: registro de adjudicación que gobierna `07` y `08`.
@@ -2060,14 +2062,14 @@ Reglas adicionales, vinculantes:
 ### TEST-GLOBAL-07 / 08 — Remediación `unit/ui`
 
 - **Objetivo**: ejecutar las decisiones adjudicadas por `06` en `unit/ui`, sin perder ninguna señal.
-- **07**: `unit/ui/dashboard` (28 candidatos). **08**: `unit/ui/admin` + `public` + `frontend` (94). Cifras del pool heurístico; `06` las recomputa antes de ejecutar.
+- **07**: `unit/ui/dashboard` (17 candidatos adjudicados: 16 `STRENGTHEN`, 1 `KEEP`). **08**: `unit/ui/admin` + `public` + `frontend` (48: 32 `STRENGTHEN`, 16 `KEEP`). C.2/C.4 son la única fuente vigente; 28/94 eran cifras históricas del pool heurístico.
 - **Tipo de scope**: test-only, **un PR por subdominio**.
-- **Paths permitidos**: la subcarpeta de `test/unit/ui/**` del PR, y `frontend/e2e/suites/catalog.ts` **sólo** para realinear censos cuando un `RELOCATE` lo exija.
+- **Paths permitidos**: exclusivamente la subcarpeta de `test/unit/ui/**` que contiene `U(D)`. En esta adjudicación `RELOCATE = 0`; por tanto no se toca `frontend/e2e/suites/catalog.ts`. Una readjudicación docs-only previa que autorizara un `RELOCATE` define en su propio contrato la realineación de censos requerida.
 - **Riesgo**: R1. **Autorización**: no requiere. **Dependencias**: `06` para `07`; `07` para `08`.
-- **Scope por PR**: un subdominio, una causa, un rollback. Todo `RETIRE` y todo `RELOCATE` cumple **las ocho condiciones de la prueba de equivalencia de §31.6**, demostradas dentro del propio PR.
+- **Scope por PR**: un subdominio, una causa, un rollback. Esta adjudicación no permite `RETIRE` ni `RELOCATE`; una readjudicación docs-only previa que los proponga exige las ocho condiciones de la prueba de equivalencia de §31.6, demostradas dentro del PR ejecutor.
 - **No-scope**: tocar `frontend/src/**`; crear specs E2E nuevos sin pasar por el catálogo y sus censos; reabrir `LIMPIEZA E2E`; retirar cualquier guard de seguridad.
-- **Aceptación**: (1) todas las decisiones del subdominio, tal como `06` las adjudicó, ejecutadas o revertidas a `KEEP` con motivo; (2) **ningún contrato pierde cobertura demostrable** — se verifica contra §31.6 condiciones 1–6; (3) substring ratio **de la subcarpeta remediada** < 20 %, entendido como consecuencia de fortalecer oracles y no como objetivo que autorice retiros (§30); (4) censos de catálogo realineados en el mismo PR; (5) 0 fallos atribuibles al PR, sobre el estado **POST-03** de §31.0 (`03` es dependencia transitiva vía `01`→`03`; si excepcionalmente no hubiera fusionado, se declara contra PRE-03); (6) cero artefactos `playwright-report/`, `test-results/` y `frontend/next-env.d.ts` sin alterar (`AGENTS.md` §7, §13).
-- **Gates**: `pnpm test` dirigido a la subcarpeta → `PASSED`. Cohorte E2E mínima que contenga el spec receptor, cuando hubo `RELOCATE` → `PASSED` (§7 de `AGENTS.md`: la cohorte más pequeña que lo contenga, **nunca `e2e:full`** salvo que no exista alternativa).
+- **Aceptación**: (1) todas las decisiones `STRENGTHEN` de `U(D)` se ejecutan; un cambio a `KEEP`, `RETIRE` o `RELOCATE` sólo puede ocurrir mediante readjudicación docs-only fusionada antes del PR ejecutor; (2) **ningún contrato pierde cobertura demostrable** — se verifica contra §31.6 condiciones 1–6; (3) ratio de oracles sólo-substring pendientes < 20 %, calculado únicamente sobre `U(D)` con la definición fail-closed de C.11; al cierre de una entrega completa, `P(D) = 0`; ningún `KEEP`, archivo fuera del pool ni `RETIRE` integra o reduce el denominador; (4) no se realinean censos de catálogo: esta adjudicación tiene `RELOCATE = 0`; (5) 0 fallos atribuibles al PR, sobre el estado **POST-03** de §31.0 (`03` es dependencia transitiva vía `01`→`03`; si excepcionalmente no hubiera fusionado, se declara contra PRE-03); (6) cero artefactos `playwright-report/`, `test-results/` y `frontend/next-env.d.ts` sin alterar (`AGENTS.md` §7, §13).
+- **Gates**: `pnpm test` dirigido a `U(D)` → `PASSED`. No hay gate E2E en esta adjudicación (`RELOCATE = 0`); una readjudicación que habilite uno selecciona la cohorte mínima que contenga el receptor (§7 de `AGENTS.md`, nunca `e2e:full` salvo que no exista alternativa).
 - **Rollback**: por PR, revertir ese commit restaura los tests del subdominio y su realineación de censos juntos. Riesgo de rollback a vigilar: si un `RELOCATE` ya fusionó su spec receptor E2E, revertir el PR del estático **no** retira el receptor — queda cobertura duplicada, que es el lado seguro del error y se resuelve en `13`.
 - **Output**: `unit/ui` con oracles alineados a la capa correcta.
 - **Coste**: muy alto. **Paralelizable**: no entre sí (comparten censos de catálogo).
@@ -2577,7 +2579,7 @@ repositorio. A.0 dice, cifra por cifra, cuál lo es y cuál no.
 | Producción: `server/**` 226 / 46.081, `frontend/src/**` 200 / 43.276 | §6.3 | `REPRODUCIBLE_WITH_DOCUMENTED_COMMAND` | A.3b |
 | Resto de §6.2, §6.3 y §6.4 (carpetas, `e2e`, `shared`/`drizzle`/`scripts`, ratios, soporte compartido e importadores) | §6.2–§6.4 | `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` | — |
 | Censo bruto: `node:fs` 410, `readFileSync` 406, `existsSync` 104, `readdirSync` 82, `child_process` 25, `statSync` 20, `js-yaml` 8, `createRequire` 8 | §7.1 | `REPRODUCIBLE_WITH_DOCUMENTED_COMMAND` | A.2, A.3b |
-| Buckets fs × runtime, clasificación por oracle (137 / 1.042 …), concentración por carpeta | §7.2, §7.3 | `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` | A.4 (`classify.mjs`, `coupling.mjs`) |
+| Buckets fs × runtime, clasificación por oracle histórica (137 / 1.042), concentración histórica por carpeta | §7.2, §7.3 | `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` | A.4 (`classify.mjs`, `coupling.mjs`); el pool vigente es 66 / 623 en C.2 |
 | Calibración: falsos positivos del clasificador y 3 casos confirmados | §7.4, Anexo B | `MANUAL_CLASSIFICATION` | Anexo B |
 | Assertions por forma, total 20.623, substring 6.262 / 1.522 | §8, §8.2 | `REPRODUCIBLE_WITH_DOCUMENTED_COMMAND` | A.3, A.3b |
 | 157 archivos / 1.264 tests con ≥ 80 % substring y sin runtime; 0 archivos sin `assert.*`; 21 con wrappers | §8.1, §8.2 | `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` | A.4 |
@@ -2609,10 +2611,12 @@ repositorio. A.0 dice, cifra por cifra, cuál lo es y cuál no.
 
 Una cifra `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` **no queda invalidada** por esa
 categoría: significa que hoy nadie puede recomputarla sin el scratchpad
-original. Toda decisión que dependa de ella (p. ej. el pool de 137 candidatos de
-`TEST-GLOBAL-06` o los 283 lectores de `TEST-GLOBAL-05A`) debe recomputarla
-primero. La reproducibilidad durable de estas cifras es criterio de aceptación
-de `TEST-GLOBAL-01B` (§31), no de este documento docs-only.
+original. Toda decisión que dependiera de ella debía recomputarla primero: así,
+los 137 candidatos históricos se sustituyeron para el gobierno de `06`–`08`
+por el pool vigente de 66 de C.2. Los 283 lectores de `TEST-GLOBAL-05A` también
+requirieron su propio recómputo. La reproducibilidad durable de estas cifras
+fue criterio de aceptación de `TEST-GLOBAL-01B` (§31), no de este documento
+docs-only.
 
 ### A.1 Inventario
 
@@ -4072,6 +4076,27 @@ Convenciones de todos los registros de C.5–C.9:
 - **Unidad de entrega** (ficha `07/08`: un PR por subdominio): `07` = 16 `STRENGTHEN` de
   `dashboard`; `08` = tres PRs: `admin` (15), `frontend` (9), `public` (8), en ese orden o el que
   fije su propia ficha. Los `KEEP` no requieren cambios.
+- **Denominador único del criterio `< 20 %`**: para una entrega `D`, el universo fijo
+  `U(D)` es el conjunto exacto de filas de C.4.1 con `Decisión = STRENGTHEN` y `Fase = D`:
+  `U(07/dashboard) = 16`, `U(08/admin) = 15`, `U(08/frontend) = 9` y
+  `U(08/public) = 8`. El numerador `P(D)` cuenta las filas de `U(D)` que, al cierre
+  del PR, todavía no tienen un oracle adicional que falle ante su mutación registrada
+  en C.15.1. El ratio canónico es `P(D) / |U(D)| × 100`; debe ser `< 20 %`.
+  La presencia de la mutación proof es binaria y fail-closed: si falta, es ambigua o
+  no falla, la fila permanece en `P(D)`. La lista C.4.1 es la fuente reproducible de
+  membresía; el PR declara numerador, denominador, IDs `G06-*` y resultado.
+- **Frontera métrica**: ningún `KEEP`, el caso `contracts` sin fase ejecutora, otro
+  archivo de la subcarpeta ni otro miembro del pool integra `U(D)`. `RETIRE` no puede
+  disminuir ni sustituir el denominador: para este registro es 0 y queda prohibido en
+  `07/08` sin readjudicación docs-only previa. Por tanto la métrica sólo puede mejorar
+  fortaleciendo los `STRENGTHEN` adjudicados; no obliga a modificar un `KEEP` ni tests
+  fuera de `U(D)`.
+- **Entrada y cierre inequívocos**: una entrega sólo entra después de que #1793 esté
+  fusionada y sus filas `U(D)` y mutaciones C.15.1 estén disponibles sin cambios. Cierra
+  únicamente cuando cada fila de `U(D)` tiene su mutation proof fail-closed y, por tanto,
+  `P(D) = 0` (que satisface `< 20 %`); si falta una sola prueba, la entrega no cierra.
+  Esto aplica por igual a `07/dashboard` y a cada entrega de `08` (`admin`, `frontend`,
+  `public`).
 - **Aceptación vinculante de cada `STRENGTHEN`**: sin retirar ni debilitar ninguna assertion, el
   spec incorpora un oracle que se pone en rojo ante **la mutación registrada** (C.15.1), y el PR
   lo demuestra con un mutation proof en memoria dentro del propio spec (patrón de §11:
@@ -4101,8 +4126,6 @@ Convenciones de todos los registros de C.5–C.9:
 | `RES-06-01` | El motivo de la fila `A0-07-ORACLE` del contrato de censo de `01B` dice que los ex candidatos «caen en `UNKNOWN_REQUIRES_REVIEW`», pero por `coupling.ts:133-139` un spec dominado por substring **sin** afirmación de comportamiento cae en `LEGITIMATE_STATIC_CONTRACT`; sólo los no dominados caen en `UNKNOWN_REQUIRES_REVIEW` | `TEST-GLOBAL-11` (dueño del censo de `01B`, §31.2); test-only, fuera del scope de `06` |
 | `RES-06-02` | `UNKNOWN_REQUIRES_REVIEW` = 162 archivos / 1.222 tests, fuera del pool de `06` y sin fase que los adjudique. Incluye los ex casos de calibración B.3 (`frontend-report-actions`, `OVER_SPECIFICATION` confirmada) y B.5 (`auth-security-rehash-policy`) | Nico: decidir si se abre una readjudicación (PR docs-only propio). Sin esa decisión no hay owner |
 | `RES-06-03` | `G06-C01` tiene escape verificado (M-C01) pero ninguna fase puede ejecutar un `STRENGTHEN` en `test/unit/contracts/**` | Nico: asignar fase mediante PR docs-only de readjudicación |
-| `RES-06-04` | Fuera de este anexo, este documento conserva «137» en §7.3, §7.4, §28 (`TG-R06`), §30 (tabla y nota), §31.1, el título de la ficha de `06` y A.0; la ficha `07/08` cita 28 y 94 candidatos (recomputados: 17 y 48); y su Veredicto aún lista `05A`/`05B` como `PENDING` (fusionados en #1789 y #1792) | PR docs-only posterior al de esta fase, que registre el resultado de `06` en esas secciones y en el Veredicto (§1) |
-| `RES-06-05` | La aceptación (3) de `07/08` mide el substring ratio de **toda** la subcarpeta remediada, que incluye archivos fuera del pool y los `KEEP` de este registro; el objetivo < 20 % puede no alcanzarse sin retiros, que §30 prohíbe usar como palanca | Nico: precisar el denominador antes de ejecutar `07` |
 | `RES-06-06` | La equivalencia E2E de los receptores de C.14 no está demostrada | Sólo relevante si una readjudicación propone `RELOCATE`; exige §31.6 completo |
 
 Severidad de lo anterior respecto del entregable de `06`: **0 P0 · 0 P1 · 0 P2 in-scope**. Son
@@ -4334,15 +4357,18 @@ STATUS:               ACTIVE
 PRIMARY_AUDIT:        COMPLETE        (diagnóstico técnico, §§6-29)
 GOVERNANCE_REAUDIT:   COMPLETE        (§37, 13 hallazgos TG-A)
 ROADMAP_GOVERNANCE:   CORRECTED       (13/13 TG-A en CORRECTED_IN_THIS_REVISION)
-IMPLEMENTATION:       IN_PROGRESS     (verificado sobre main@6c751512, 2026-09-27)
+IMPLEMENTATION:       IN_PROGRESS     (baseline de esta adjudicación: main@bac0986a, 2026-09-29)
 
 COMPLETED:    01A #1761 · 01B #1762 · 02 #1763 · 03 #1765 (sobre el fix de launcher #1764)
               04  CLOSED: dimensión A cumplida (#1763 #1766 #1767 #1768); dimensión B
                   14/14 MUTATION_PROOF_PRESENT: 12 originales (#1763 #1766 #1767
                   #1773–#1781) + validation-cutoff (#1783) + write-attribution (#1784);
                   0 accepted defer; 0 pendientes propiedad de 04
+              05A #1789 · 05B #1792
+              06  COMPLETE_IN_THIS_PR: 66/66 adjudicados en C.2–C.11; la
+                  efectividad canónica en `main` queda condicionada al merge de #1793
 IN_PROGRESS:  ninguna
-PENDING:      05A · 05B · 06 · 07 · 08 · 09 · 10A · 10B · 10C · 10D · 11 · 12A · 12B · 13
+PENDING:      07 · 08 · 09 · 10A · 10B · 10C · 10D · 11 · 12A · 12B · 13
               (11 posee los 3 meta-guards de TG-R05, MUTATION_PROOF_PENDING;
                12A sigue bloqueada por el DAG: 04 satisfecha, 08 pendiente)
 
@@ -4350,17 +4376,18 @@ TECHNICAL_P0: 2       TG-R01 · TG-R02                       — CERRADOS (02, #
 TECHNICAL_P1: 4       TG-R04                                — CERRADO  (03, #1765)
                       TG-R05                                — ABIERTO, parcial: 14/17 (04: 14/14 cumplidos;
                                                               11: 0/3, pendientes los 3 meta-guards)
-                      TG-R03 · TG-R06                       — ABIERTOS (06, 07, 08)
+                      TG-R03 · TG-R06                       — ABIERTOS (07, 08; 06 adjudicada)
 TECHNICAL_P2: 6       TG-R07 … TG-R12                       — ABIERTOS
 TECHNICAL_P3: 4       TG-R13 … TG-R16                       — ABIERTOS
 OPEN ACTUAL:  13 de 16
 
 ROADMAP:  13 fases lógicas · 19 subfases · PRs >= 19
-R2 FUTUROS (autorización explícita de Nico):  05B · 10A · 10C · 12B
-NEXT:     TEST-GLOBAL-05A (lector canónico de source, test-only, R1). Es la única
-          subfase pendiente con todas sus dependencias satisfechas (§32: 01).
-          De ella dependen 05B, 06, 09 y 11, así que desbloquea la ruta al
-          cierre de TG-R05. Registrarla como NEXT no la inicia.
+R2 FUTUROS (autorización explícita de Nico):  10A · 10C · 12B
+NEXT:     TEST-GLOBAL-07 (remediación `unit/ui/dashboard`, test-only, R1),
+          después del merge de #1793. Entry criterion: las 16 filas `STRENGTHEN`
+          de `U(07/dashboard)` en C.11 y sus mutaciones C.15.1. Cierre: cada una
+          con mutation proof fail-closed y `P(07/dashboard) = 0`; los `KEEP` no
+          se modifican. Registrarla como NEXT no inicia ni ejecuta trabajo de 07.
 ```
 
 Los conteos `TECHNICAL_*` repiten el **inventario total** de §28 y no cambian.
