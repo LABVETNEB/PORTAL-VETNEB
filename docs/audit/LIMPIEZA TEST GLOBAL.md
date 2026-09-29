@@ -2927,6 +2927,1403 @@ gh run list --branch main --limit 6 \
 | B.7 | `test/integration/adapters/controllers/auth.fastify.test.ts` | `INTEGRATION_CONTROLLER` correcto | Puertos inyectados vía opciones del plugin; Fastify real |
 | B.8 | `test/unit/infrastructure/email-gmail-api.test.ts` | `CONTROLLED_NONDETERMINISM` correcto | Parches de `globalThis.fetch` restaurados en `try/finally` |
 
+## Anexo C — Registro de adjudicación de `TEST-GLOBAL-06`
+
+Output de la ficha de `TEST-GLOBAL-06` (§31): el registro de adjudicación que gobierna
+`TEST-GLOBAL-07` y `TEST-GLOBAL-08`. Se aloja en este documento para no duplicar lo que ya
+define: la frontera de capa (§19), el estándar de guard (§16), las convenciones del roadmap
+(§31.0) y la prueba de equivalencia (§31.6) se aplican por referencia.
+
+```text
+Estado                      ADJUDICATED — 100 % del pool recomputado adjudicado
+Tipo / riesgo               docs-only · R1 (la escritura es este anexo; el análisis es R0)
+current_revision_baseline   main@bac0986a5a7b4c6b339f0fe8f8b1cc078527b8dc
+                            config(test): establish TEST-GLOBAL-05B lint baseline (#1792)
+                            main == origin/main · diff tracked vacío al empezar
+Fecha                       2026-09-29
+Owner                       QA / Frontend owner
+Gobierna                    07 (dashboard) · 08 (admin, frontend, public)
+```
+
+### C.1 Autoridad, alcance y reglas de lectura
+
+- Este anexo es el **Output** de la ficha de `TEST-GLOBAL-06`: adjudica cada candidato del pool
+  recomputado sin modificar, mover ni borrar un solo test.
+- `07` y `08` ejecutan **exactamente** las decisiones de este registro (ficha `07/08`, aceptación 1).
+  Cambiar una decisión —incluido convertir un `KEEP` o un `STRENGTHEN` en `RETIRE` o `RELOCATE`—
+  exige un **PR docs-only de readjudicación propio**, anterior al PR que la ejecute. Ningún PR de
+  `07`/`08` reinterpreta una decisión.
+- Regla fail-closed aplicada sin excepción: **sin evidencia suficiente → `KEEP`**.
+- Ninguna decisión debilita un contrato de seguridad (§17). `STRENGTHEN` sólo **añade**
+  oráculo; nunca retira ni debilita una assertion.
+
+### C.2 Recómputo del pool
+
+#### C.2.1 Comando reproducible
+
+Ejecutado desde la raíz del repo sobre el baseline, con el tooling versionado de `TEST-GLOBAL-01B`
+(`test/helpers/census/**`), sin archivos auxiliares:
+
+```powershell
+node --experimental-strip-types --input-type=module -e "import { createTrackedCorpus } from './test/helpers/census/corpus.ts'; import { classifyCorpus } from './test/helpers/census/classify.ts'; import { couplingCensus } from './test/helpers/census/coupling.ts'; const corpus = createTrackedCorpus(); const c = couplingCensus(corpus, classifyCorpus(corpus)); const pool = c.specs.filter((s) => s.oracleClass === 'ACCIDENTAL_COUPLING_CANDIDATE'); console.log(JSON.stringify(c.byClass)); console.log(pool.length, pool.reduce((n, s) => n + s.tests, 0)); for (const s of pool) console.log(s.path);"
+```
+
+#### C.2.2 Resultado
+
+```text
+POOL RECOMPUTADO            66 archivos / 623 tests   (clase ACCIDENTAL_COUPLING_CANDIDATE)
+CIFRA HISTÓRICA (§7.3)     137 archivos / 1.042 tests
+DIFERENCIA                  −71 archivos / −419 tests
+
+Corpus clasificado          564 specs / 4.643 tests
+  RUNTIME_BEHAVIOURAL             150 / 1.336
+  ACCIDENTAL_COUPLING_CANDIDATE    66 /   623   ← pool de 06
+  LEGITIMATE_GUARD                 56 /   506
+  MIXED                            60 /   559
+  LEGITIMATE_STATIC_CONTRACT       70 /   397
+  UNKNOWN_REQUIRES_REVIEW         162 / 1.222
+
+Concentración del pool      test/unit/ui 65 · test/unit/contracts 1
+  test/unit/ui/admin 16 (176 tests) · dashboard 17 (196) · frontend 14 (85) · public 18 (161)
+  test/unit/contracts/clinic 1 (5)
+```
+
+**Definición del pool.** El pool de `06` es la clase `ACCIDENTAL_COUPLING_CANDIDATE` y sólo ella:
+el tooling lo declara «pool to adjudicate in TEST-GLOBAL-06, never confirmed debt»
+(`test/helpers/census/coupling.ts:16-17`). Las demás clases no forman parte del pool; la situación
+de `UNKNOWN_REQUIRES_REVIEW` se registra como residual `RES-06-02`.
+
+#### C.2.3 Causa verificable de la diferencia respecto de 137
+
+- La cifra 137 procede del scratchpad no versionado `coupling.mjs` (Anexo A.4) y es
+  `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` (A.0). Por §3.3 (2) no es vigente, y su lista de
+  137 archivos **no puede reconstruirse** desde el repositorio: no se identifica cuáles son los 71
+  que salieron. No se manipuló el censo para recuperar 137.
+- El clasificador versionado exige **dos** condiciones para ser candidato: oracle dominado por
+  substring (≥ 80 %) **y** afirmación de comportamiento de navegador (§19) —
+  `test/helpers/census/coupling.ts:133-139`—.
+- `TEST-GLOBAL-01B` registró la diferencia como `RECLASSIFIED` en la fila `A0-07-ORACLE` del
+  contrato de censo, con baseline **66** archivos / **623** tests —
+  `test/architecture/test-global-01b-census-contract.test.ts:648-671`—. Ese baseline se fijó en
+  #1762 (`4f367018`, único commit que introduce `baseline: 66,` en el archivo) y el recómputo sobre
+  `bac0986a` —posterior a `05A` (#1789) y `05B` (#1792)— devuelve exactamente la misma cifra.
+
+### C.3 Método de adjudicación
+
+#### C.3.1 Clasificación (por poder del oracle frente al contrato que el test dice proteger, §7.3)
+
+| Clase | Criterio aplicado |
+|---|---|
+| `LEGITIMATE_GUARD` | Guard con auto-discovery y assertion fail-closed (§16). |
+| `LEGITIMATE_STATIC_CONTRACT` | El texto del source o de la configuración **es** el contrato: API/props/variantes de un componente presentacional sin estado, tokens y clases CSS, contenido, metadata, SEO, JSON-LD, sitemap, composición, landmarks, orden en source, y guards de ausencia (§19, `SOURCE / CONFIG CONTRACT`). |
+| `MIXED` | El archivo combina contratos estáticos legítimos (típicamente guards de ausencia: sin `fetch` directo, sin `next/link`, sin campos sensibles, invariantes CLEAN7A) **con** afirmaciones de comportamiento de producto asertadas mediante substrings. |
+| `ACCIDENTAL_COUPLING` | Todas las afirmaciones del archivo son de comportamiento y se prueban sólo con substrings de `.tsx`, sin ningún contrato estático legítimo. |
+
+#### C.3.2 Reglas de decisión (vinculantes)
+
+```text
+R-1  LEGITIMATE_GUARD o LEGITIMATE_STATIC_CONTRACT              → KEEP
+R-2  MIXED o ACCIDENTAL_COUPLING con una afirmación de COMPORTAMIENTO DE PRODUCTO:
+       (a) estado error / vacío / carga / feedback
+       (b) guard: confirmación, anti-race, doble submit, rate-limit, provider,
+           revocación de la sesión propia
+       (c) seguridad o privacidad en UI: enmascarado, redacción, redirect seguro
+       (d) datos: derivación de lo mostrado (conteos), wiring de lo enviado o
+           recibido (query, payload, page size, caché), saneo de ids
+       (e) navegación: workspace inicial, límites de paginación
+       (f) accesibilidad en runtime: aria-current, aria-busy, teclado,
+           reduced motion
+       (g) ciclo de vida: cleanup de observers y contextos
+     + mutación que escapa VERIFICADA POR EJECUCIÓN (C.3.3)
+     + fase ejecutora existente                                  → STRENGTHEN
+R-3  Igual que R-2 pero SIN fase ejecutora                        → KEEP + residual
+R-4  Afirmaciones presentacionales (variante/slot opcional de un
+     componente sin estado, clase condicional)                    → no activan R-2
+R-5  RETIRE / RELOCATE sólo con las ocho condiciones de §31.6
+     demostradas; si falta una                                    → KEEP (condición 8)
+R-6  La existencia de un spec E2E parecido NUNCA reemplaza la
+     evidencia: la equivalencia se declara NO DEMOSTRADA salvo
+     prueba de §31.6 condiciones 2, 3 y 7                         → no reduce STRENGTHEN
+```
+
+#### C.3.3 Estándar de evidencia de `STRENGTHEN` — ejecución en memoria (R0)
+
+Cada `STRENGTHEN` se sostiene con una mutación **ejecutada**, no razonada:
+
+1. **Ejecución en memoria.** Un preload de Node parchea `fs.readFileSync` y sirve **un** archivo de
+   producción mutado **sólo en memoria**; ningún archivo del repositorio se modifica. El spec se
+   ejecuta sin cambios con el mismo comando que `pnpm test` usa por archivo
+   (`node --experimental-strip-types --experimental-specifier-resolution=node --test`).
+2. **Cuatro modos por mutación**: `orig` (sin mutación: debe pasar), `mut` (mutación: si pasa, la
+   mutación **escapa**), `control` (borrar el ancla de la mutación: si falla, el spec observa el
+   ancla y la inyección es efectiva) y `vacío` (servir el archivo vacío: prueba de inyección cuando
+   el control no falla porque el spec ni siquiera asserta el ancla).
+3. **Escape a nivel suite.** Bajo la mutación se ejecutan además **todos** los specs de `test/**`
+   que nombran el archivo mutado o importan su módulo (observadores). La mutación sólo se registra
+   como «escapa» si **0** observadores fallan. Dos mutaciones candidatas fueron detectadas por otro
+   spec y se sustituyeron (C.15.3): el criterio no se relajó.
+4. **Prefiltro estático** (sólo diagnóstico): cada mutación se evaluó también sobre todos los
+   literales, fragmentos de template y regex del spec completo, en crudo, con espacios colapsados,
+   sin comentarios y por línea recortada; las mutaciones se escribieron de modo que la línea
+   asertada conserve su texto exacto (la guarda va en la línea previa y el override en la
+   siguiente).
+5. **Alcance de la afirmación.** La evidencia mide el oracle de la suite unitaria (`pnpm test`). No
+   afirma nada sobre `pnpm --dir frontend lint|typecheck`: cada mutación es el representante
+   mínimo de su clase (condición ignorada, guard desactivado, atributo sobrescrito) y sus grafías
+   realistas (condición equivocada, variable errónea) tienen la misma propiedad de contención.
+
+Estas ejecuciones dirigidas son **evidencia R0 de adjudicación**, no el gate de la fase:
+`pnpm test` se reporta `NOT_RUN` (C.12).
+
+#### C.3.4 Cobertura E2E — verificación contra el catálogo
+
+Cada candidato se contrastó **físicamente** con `frontend/e2e/suites/catalog.ts`
+(100 entradas, último commit que lo tocó `1c513d0e`). C.14 lista los receptores que observan
+la misma superficie. En los 66 candidatos la equivalencia se declara **NO DEMOSTRADA**: ninguna
+condición 3 de §31.6 (receptor en rojo ante la misma mutación) ni 7 (receptor verde) puede
+demostrarse en una fase docs-only que no ejecuta E2E, y ningún receptor se infiere por parecido.
+
+### C.4 Resumen de la adjudicación
+
+```text
+POOL RECOMPUTADO     66 archivos / 623 tests
+ADJUDICADOS          66 / 66  (100 %)   · duplicados 0 · faltantes 0
+
+POR DECISIÓN         STRENGTHEN 48 (497 tests) · KEEP 18 (126 tests) · RELOCATE 0 · RETIRE 0
+POR CLASE            ACCIDENTAL_COUPLING 1 · MIXED 48 · LEGITIMATE_STATIC_CONTRACT 17 ·
+                     LEGITIMATE_GUARD 0
+
+POR SUBDOMINIO       dashboard (07)   17 → STRENGTHEN 16 · KEEP 1
+                     admin (08)       16 → STRENGTHEN 15 · KEEP 1
+                     frontend (08)    14 → STRENGTHEN  9 · KEEP 5
+                     public (08)      18 → STRENGTHEN  8 · KEEP 10
+                     contracts (—)     1 → KEEP 1 (R-3, sin fase ejecutora)
+
+EVIDENCIA STRENGTHEN 48/48 con mutación ejecutada en memoria que escapa del spec (orig y mut en
+                     verde) y de 100 % de sus observadores en la suite; inyección probada por
+                     control o por archivo vacío en 48/48
+```
+
+#### C.4.1 Índice de decisiones
+
+| ID | Spec (`test/unit/…`) | Clase | Decisión | Mutación | Fase |
+|---|---|---|---|---|---|
+| G06-D01 | `ui/dashboard/frontend-dashboard-accessibility-focus-aria.test.ts` | MIXED | STRENGTHEN | M-D15 | 07 |
+| G06-D02 | `ui/dashboard/frontend-dashboard-clinic-command-center.test.ts` | MIXED | STRENGTHEN | M-D02 | 07 |
+| G06-D03 | `ui/dashboard/frontend-dashboard-clinic-tokens.test.ts` | MIXED | STRENGTHEN | M-D03 | 07 |
+| G06-D04 | `ui/dashboard/frontend-dashboard-empty-states.test.ts` | ACCIDENTAL_COUPLING | STRENGTHEN | M-D01 | 07 |
+| G06-D05 | `ui/dashboard/frontend-dashboard-home.test.ts` | MIXED | STRENGTHEN | M-D04 | 07 |
+| G06-D06 | `ui/dashboard/frontend-dashboard-hub-hero.test.ts` | MIXED | STRENGTHEN | M-D16 | 07 |
+| G06-D07 | `ui/dashboard/frontend-dashboard-informes.test.ts` | MIXED | STRENGTHEN | M-D05 | 07 |
+| G06-D08 | `ui/dashboard/frontend-dashboard-logistica-metricas.test.ts` | MIXED | STRENGTHEN | M-D06 | 07 |
+| G06-D09 | `ui/dashboard/frontend-dashboard-logistica-rutas.test.ts` | MIXED | STRENGTHEN | M-D07 | 07 |
+| G06-D10 | `ui/dashboard/frontend-dashboard-logistica-visitas.test.ts` | MIXED | STRENGTHEN | M-D08 | 07 |
+| G06-D11 | `ui/dashboard/frontend-dashboard-logistica.test.ts` | MIXED | STRENGTHEN | M-D09 | 07 |
+| G06-D12 | `ui/dashboard/frontend-dashboard-logistics-hub.test.ts` | MIXED | STRENGTHEN | M-D10 | 07 |
+| G06-D13 | `ui/dashboard/frontend-dashboard-private-shell-foundation.test.ts` | MIXED | STRENGTHEN | M-D11 | 07 |
+| G06-D14 | `ui/dashboard/frontend-dashboard-reports-master-detail.test.ts` | MIXED | STRENGTHEN | M-D13 | 07 |
+| G06-D15 | `ui/dashboard/frontend-dashboard-shared-components.test.ts` | MIXED | STRENGTHEN | M-D14 | 07 |
+| G06-D16 | `ui/dashboard/frontend-dashboard-shell.test.ts` | LEGITIMATE_STATIC_CONTRACT | KEEP | — | — |
+| G06-D17 | `ui/dashboard/frontend-dashboard-state-polish.test.ts` | MIXED | STRENGTHEN | M-D12 | 07 |
+| G06-A01 | `ui/admin/admin-audit-enterprise-density.test.ts` | MIXED | STRENGTHEN | M-A01 | 08 |
+| G06-A02 | `ui/admin/admin-overview-clinics-enterprise-density.test.ts` | MIXED | STRENGTHEN | M-A15 | 08 |
+| G06-A03 | `ui/admin/admin-reports-enterprise-density.test.ts` | MIXED | STRENGTHEN | M-A03 | 08 |
+| G06-A04 | `ui/admin/admin-sessions-enterprise-density.test.ts` | MIXED | STRENGTHEN | M-A05 | 08 |
+| G06-A05 | `ui/admin/admin-tokens-enterprise-density.test.ts` | MIXED | STRENGTHEN | M-A04 | 08 |
+| G06-A06 | `ui/admin/admin-users-roles-enterprise-density.test.ts` | MIXED | STRENGTHEN | M-A07 | 08 |
+| G06-A07 | `ui/admin/frontend-admin-clinics-management-card.test.ts` | MIXED | STRENGTHEN | M-A09 | 08 |
+| G06-A08 | `ui/admin/frontend-admin-failed-login-alerts-card.test.ts` | MIXED | STRENGTHEN | M-A10 | 08 |
+| G06-A09 | `ui/admin/frontend-admin-maintenance-dry-run-card.test.ts` | MIXED | STRENGTHEN | M-A11 | 08 |
+| G06-A10 | `ui/admin/frontend-admin-particular-tokens.test.ts` | MIXED | STRENGTHEN | M-A12 | 08 |
+| G06-A11 | `ui/admin/frontend-admin-pricing-card.test.ts` | MIXED | STRENGTHEN | M-A13 | 08 |
+| G06-A12 | `ui/admin/frontend-admin-sessions-card.test.ts` | MIXED | STRENGTHEN | M-A06 | 08 |
+| G06-A13 | `ui/admin/frontend-admin-users-roles-card.test.ts` | MIXED | STRENGTHEN | M-A08 | 08 |
+| G06-A14 | `ui/admin/frontend-dashboard-admin-command-center.test.ts` | LEGITIMATE_STATIC_CONTRACT | KEEP | — | — |
+| G06-A15 | `ui/admin/frontend-dashboard-admin-section-tabs.test.ts` | MIXED | STRENGTHEN | M-A14 | 08 |
+| G06-A16 | `ui/admin/frontend-dashboard-admin.test.ts` | MIXED | STRENGTHEN | M-A16 | 08 |
+| G06-F01 | `ui/frontend/frontend-auth-context.test.ts` | MIXED | STRENGTHEN | M-F10 | 08 |
+| G06-F02 | `ui/frontend/frontend-badge-component.test.ts` | LEGITIMATE_STATIC_CONTRACT | KEEP | — | — |
+| G06-F03 | `ui/frontend/frontend-button-component.test.ts` | LEGITIMATE_STATIC_CONTRACT | KEEP | — | — |
+| G06-F04 | `ui/frontend/frontend-contact-form.test.ts` | MIXED | STRENGTHEN | M-F02 | 08 |
+| G06-F05 | `ui/frontend/frontend-form-primitives.test.ts` | LEGITIMATE_STATIC_CONTRACT | KEEP | — | — |
+| G06-F06 | `ui/frontend/frontend-input-component.test.ts` | LEGITIMATE_STATIC_CONTRACT | KEEP | — | — |
+| G06-F07 | `ui/frontend/frontend-login-content.test.ts` | MIXED | STRENGTHEN | M-F03 | 08 |
+| G06-F08 | `ui/frontend/frontend-login-form-integration.test.ts` | MIXED | STRENGTHEN | M-F05 | 08 |
+| G06-F09 | `ui/frontend/frontend-login-page.test.ts` | MIXED | STRENGTHEN | M-F06 | 08 |
+| G06-F10 | `ui/frontend/frontend-login-password-visibility-contract.test.ts` | MIXED | STRENGTHEN | M-F04 | 08 |
+| G06-F11 | `ui/frontend/frontend-particulares-access-contract.test.ts` | MIXED | STRENGTHEN | M-F08 | 08 |
+| G06-F12 | `ui/frontend/frontend-particulares-content.test.ts` | MIXED | STRENGTHEN | M-F07 | 08 |
+| G06-F13 | `ui/frontend/frontend-report-download-action.test.ts` | MIXED | STRENGTHEN | M-F09 | 08 |
+| G06-F14 | `ui/frontend/frontend-table-skeleton-components.test.ts` | LEGITIMATE_STATIC_CONTRACT | KEEP | — | — |
+| G06-P01 | `ui/public/frontend-clinicas-page-content.test.ts` | LEGITIMATE_STATIC_CONTRACT | KEEP | — | — |
+| G06-P02 | `ui/public/frontend-contacto-page.test.ts` | MIXED | STRENGTHEN | M-P05 | 08 |
+| G06-P03 | `ui/public/frontend-diagnostic-reports-landing-page.test.ts` | LEGITIMATE_STATIC_CONTRACT | KEEP | — | — |
+| G06-P04 | `ui/public/frontend-footer-lab-info.test.ts` | LEGITIMATE_STATIC_CONTRACT | KEEP | — | — |
+| G06-P05 | `ui/public/frontend-home-pricing-list.test.ts` | MIXED | STRENGTHEN | M-P01 | 08 |
+| G06-P06 | `ui/public/frontend-pathology-laboratory-landing-page.test.ts` | LEGITIMATE_STATIC_CONTRACT | KEEP | — | — |
+| G06-P07 | `ui/public/frontend-profesionales-page-content.test.ts` | MIXED | STRENGTHEN | M-P07 | 08 |
+| G06-P08 | `ui/public/frontend-public-button-contrast-contract.test.ts` | MIXED | STRENGTHEN | M-P06 | 08 |
+| G06-P09 | `ui/public/frontend-public-eyebrow-pills.test.ts` | LEGITIMATE_STATIC_CONTRACT | KEEP | — | — |
+| G06-P10 | `ui/public/frontend-public-hero-interaction-surfaces.test.ts` | LEGITIMATE_STATIC_CONTRACT | KEEP | — | — |
+| G06-P11 | `ui/public/frontend-public-layout-navigation.test.ts` | LEGITIMATE_STATIC_CONTRACT | KEEP | — | — |
+| G06-P12 | `ui/public/frontend-public-page-semantics.test.ts` | MIXED | STRENGTHEN | M-P08 | 08 |
+| G06-P13 | `ui/public/frontend-public-performance-contract.test.ts` | MIXED | STRENGTHEN | M-P02 | 08 |
+| G06-P14 | `ui/public/frontend-public-perspective-scroll.test.ts` | MIXED | STRENGTHEN | M-P03 | 08 |
+| G06-P15 | `ui/public/frontend-public-service-bento-specimen-journey.test.ts` | LEGITIMATE_STATIC_CONTRACT | KEEP | — | — |
+| G06-P16 | `ui/public/frontend-public-visual-polish-regression-contract.test.ts` | MIXED | STRENGTHEN | M-P04 | 08 |
+| G06-P17 | `ui/public/frontend-public-visual-primitives.test.ts` | LEGITIMATE_STATIC_CONTRACT | KEEP | — | — |
+| G06-P18 | `ui/public/frontend-servicios-page-content.test.ts` | LEGITIMATE_STATIC_CONTRACT | KEEP | — | — |
+| G06-C01 | `contracts/clinic/frontend-clinic-public-profile.test.ts` | MIXED | KEEP | M-C01 | — |
+
+Convenciones de todos los registros de C.5–C.9:
+
+- **Owner**: el contrato conserva como owner verificable **el propio spec**, que es su único owner
+  ejecutado en CI (`validate-backend` → `pnpm test`). «Fase» es quien ejecuta la decisión. Dominio
+  según la convención `owner: domain` del catálogo E2E.
+- **Capa correcta (§19)**: `SOURCE/CONFIG` para la parte estática; `REAL BROWSER` para la parte
+  conductual. `STRENGTHEN` no mueve de capa: fortalece el oracle en `test/**`, porque el traslado
+  (`RELOCATE`) no es demostrable (C.3.4) y el spec es hoy el único owner en CI.
+- **E2E**: IDs de C.14; «NO DEMOSTRADA» en todos los casos (C.3.4).
+- **Evidencia**: resultados en C.15.2; `n/n` = tests en verde del spec.
+
+### C.5 Registro — `test/unit/ui/dashboard/**` — fase ejecutora `TEST-GLOBAL-07`
+
+#### G06-D01 · `test/unit/ui/dashboard/frontend-dashboard-accessibility-focus-aria.test.ts`
+- **Test/contrato**: «PR-8 StudyTimeline expose named panels and textual states» (5 tests · 38 assertions · 92 % substring).
+- **Clasificación**: MIXED — contrato ARIA/foco de tabs, action bar, timeline y topbar + guard de alcance («avoids forbidden files»).
+- **Contrato protegido**: el paso actual del timeline de estudio se anuncia con `aria-current="step"`; regiones y controles con nombre accesible.
+- **Owner**: el propio spec · dominio clinic/platform · fase 07.
+- **Mutación que detecta**: borrar el ancla de M-D15 → 1 fail (ejecutado); introducir `<a` en los archivos vigilados (assertions negativas).
+- **Mutación que escapa**: M-D15 — el paso actual deja de exponer `aria-current`.
+- **Capa §19**: SOURCE/CONFIG (nombres ARIA) + REAL BROWSER (estado accesible).
+- **E2E**: E10, E11 — equivalencia NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2).
+- **Evidencia**: M-D15 orig 5/5 · mut 5/5 · control 1 fail · observadores 3, detectada por 0.
+- **Motivo**: el estado accesible se asserta como presencia de texto; sobrescribirlo en runtime no se observa.
+
+#### G06-D02 · `test/unit/ui/dashboard/frontend-dashboard-clinic-command-center.test.ts`
+- **Test/contrato**: «ClinicCommandCenter shows reports load error alert with role=alert» (24 tests · 98 assertions · 94 % substring).
+- **Clasificación**: MIXED — guards de frontera (sin API, middleware, auth, fetch, `next/link`; `package.json` intacto) + estados error/vacío.
+- **Contrato protegido**: el Command Center de clínica distingue fallo de carga (alerta) de lista vacía para métricas, informes y visitas.
+- **Owner**: el propio spec · dominio clinic · fase 07.
+- **Mutación que detecta**: borrar el ancla de M-D02 → 1 fail (ejecutado); importar `@/lib/api` o `next/link` (27 assertions negativas).
+- **Mutación que escapa**: M-D02 — la alerta de informes aparece sin error y se oculta ante un fallo real.
+- **Capa §19**: SOURCE/CONFIG (fronteras) + REAL BROWSER (render condicional).
+- **E2E**: E01 (extended, observa la misma superficie), E02 — NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2).
+- **Evidencia**: M-D02 orig 24/24 · mut 24/24 · control 1 fail · observadores 6, detectada por 0.
+- **Motivo**: `.includes("reportsLoadError ?")` también contiene `!reportsLoadError ?` (misma clase que el falso verde B.2).
+
+#### G06-D03 · `test/unit/ui/dashboard/frontend-dashboard-clinic-tokens.test.ts`
+- **Test/contrato**: «clinic generated token block clears only through confirmation close» (17 tests · 226 assertions · 88 % substring).
+- **Clasificación**: MIXED — aislamiento clínica/admin, helpers clinic-scoped, sin controles de `clinicId` (guards) + flujo del token generado.
+- **Contrato protegido**: el token generado (secreto de un solo uso) sólo se cierra tras confirmar la comunicación manual.
+- **Owner**: el propio spec · dominio clinic · fase 07.
+- **Mutación que detecta**: borrar el ancla de M-D03 → 1 fail (ejecutado); reintroducir `label: "Admin"` o controles de `clinicId` (48 assertions negativas).
+- **Mutación que escapa**: M-D03 — «Cerrar token visible» habilitado sin confirmación.
+- **Capa §19**: SOURCE/CONFIG (aislamiento) + REAL BROWSER (habilitación del control).
+- **E2E**: E03, E01 — NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2).
+- **Evidencia**: M-D03 orig 17/17 · mut 17/17 · control 1 fail · observadores 12, detectada por 0.
+- **Motivo**: el guard de confirmación se asserta como literal del atributo; un override posterior no se observa. El spec contiene una normalización que elimina comentarios de bloque: la mutación no usa comentarios.
+
+#### G06-D04 · `test/unit/ui/dashboard/frontend-dashboard-empty-states.test.ts`
+- **Test/contrato**: «dashboard overview clinic command center distinguishes recent list load failures from empty states» (4 tests · 43 assertions · 100 % substring · 0 negativas).
+- **Clasificación**: ACCIDENTAL_COUPLING — las cuatro afirmaciones son de comportamiento y sólo usan `.includes()`.
+- **Contrato protegido**: fallo de carga ≠ estado vacío en Operaciones, Informes y Logística.
+- **Owner**: el propio spec · dominio clinic · fase 07.
+- **Mutación que detecta**: borrar el ancla de M-D01 → 1 fail (ejecutado).
+- **Mutación que escapa**: M-D01 — invertir `statsLoadError ?`; es el falso verde B.2 / §10.1, ahora **ejecutado**.
+- **Capa §19**: REAL BROWSER.
+- **E2E**: E01 (extended; observa «load error, not the empty state») — NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2). No `RETIRE`/`RELOCATE`: condiciones 3 y 7 de §31.6 no demostrables (C.3.4).
+- **Evidencia**: M-D01 orig 4/4 · mut 4/4 · control 1 fail · observadores 6, detectada por 0.
+- **Motivo**: caso demostrado de `TG-R03`; `ACCIDENTAL_COUPLING` no se convierte automáticamente en `RETIRE`.
+
+#### G06-D05 · `test/unit/ui/dashboard/frontend-dashboard-home.test.ts`
+- **Test/contrato**: «dashboard home reads stats reports and field visits through API helpers» (12 tests · 161 assertions · 87 % substring).
+- **Clasificación**: MIXED — metadata noindex, `no-store`, sin topbar/header retirados (guards) + propagación de flags de error.
+- **Contrato protegido**: un fallo de métricas se marca como error y no como vacío.
+- **Owner**: el propio spec · dominio clinic · fase 07.
+- **Mutación que detecta**: borrar el ancla de M-D04 → 1 fail (ejecutado); reintroducir `DashboardTopbar` o `DashboardPageHeader` (24 negativas).
+- **Mutación que escapa**: M-D04 — el flag `statsLoadError` nunca se activa.
+- **Capa §19**: SOURCE/CONFIG + REAL BROWSER.
+- **E2E**: E01, E02 — NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2).
+- **Evidencia**: M-D04 orig 12/12 · mut 12/12 · control 1 fail · observadores 82, detectada por 0.
+- **Motivo**: la assignment se asserta como presencia; su ejecución no.
+
+#### G06-D06 · `test/unit/ui/dashboard/frontend-dashboard-hub-hero.test.ts`
+- **Test/contrato**: «clinic controller opens directly into a module workspace with the shared rail (no hub)» (9 tests · 60 assertions · 88 % substring).
+- **Clasificación**: MIXED — guards de ausencia (sin hub, sin cockpit, sin fetch, sin identificadores sensibles, sin auto-registro) + resolución del módulo inicial.
+- **Contrato protegido**: `/dashboard` de clínica abre el workspace por defecto (`operaciones`) sin hub.
+- **Owner**: el propio spec · dominio clinic · fase 07.
+- **Mutación que detecta**: servir el archivo vacío → 1 fail (ejecutado; el control de ancla pasa porque el literal existe dos veces); reintroducir `data-dashboard-module-hub` o `fetch(` (21 negativas).
+- **Mutación que escapa**: M-D16 — el workspace inicial deja de resolver al módulo por defecto.
+- **Capa §19**: SOURCE/CONFIG (ausencias) + REAL BROWSER (workspace inicial).
+- **E2E**: E02 (smoke/ci; «opens the default Operaciones workspace without a hub») — NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2).
+- **Evidencia**: M-D16 orig 9/9 · mut 9/9 · control 9/9 · vacío 1 fail · observadores 9, detectada por 0.
+- **Motivo**: los guards de ausencia se conservan; la resolución del default sólo se asserta como texto.
+
+#### G06-D07 · `test/unit/ui/dashboard/frontend-dashboard-informes.test.ts`
+- **Test/contrato**: «dashboard informes separates fetch failures from real empty report lists» (15 tests · 159 assertions · 98 % substring).
+- **Clasificación**: MIXED — metadata, cookies/`no-store`, sin fetch cliente (guards) + estados y paginación.
+- **Contrato protegido**: fallo de búsqueda de informes ≠ lista vacía en la ruta completa `/dashboard/informes`.
+- **Owner**: el propio spec · dominio clinic · fase 07.
+- **Mutación que detecta**: borrar el ancla de M-D05 → 1 fail (ejecutado); literales de fetch cliente (24 negativas).
+- **Mutación que escapa**: M-D05 — `reportsLoadError` nunca se activa.
+- **Capa §19**: SOURCE/CONFIG + REAL BROWSER.
+- **E2E**: E01 (workspace, no la ruta completa), E04 — NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2).
+- **Evidencia**: M-D05 orig 15/15 · mut 15/15 · control 1 fail · observadores 82, detectada por 0.
+- **Motivo**: el fallo real se presentaría como «sin informes» sin señal.
+
+#### G06-D08 · `test/unit/ui/dashboard/frontend-dashboard-logistica-metricas.test.ts`
+- **Test/contrato**: «dashboard logistica metricas separates fetch failures from empty metrics» (11 tests · 96 assertions · 97 % substring).
+- **Clasificación**: MIXED — metadata, cookies/`no-store` + pager R-14, agregados y estados.
+- **Contrato protegido**: fallo de planes de ruta ≠ métricas vacías; el pager se deshabilita ante error.
+- **Owner**: el propio spec · dominio clinic · fase 07.
+- **Mutación que detecta**: servir el archivo vacío → 11 fail (ejecutado); el control de ancla **pasa**: el spec no asserta la activación del flag.
+- **Mutación que escapa**: M-D06 — `routePlansLoadError` nunca se activa.
+- **Capa §19**: SOURCE/CONFIG + REAL BROWSER.
+- **E2E**: E05 (extended; pager) — NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2).
+- **Evidencia**: M-D06 orig 11/11 · mut 11/11 · control 11/11 · vacío 11 fail · observadores 82, detectada por 0.
+- **Motivo**: el test nombrado no observa el set del flag de error.
+
+#### G06-D09 · `test/unit/ui/dashboard/frontend-dashboard-logistica-rutas.test.ts`
+- **Test/contrato**: «dashboard logistica rutas distinguishes load failures from real empty state» (10 tests · 78 assertions · 99 % substring).
+- **Clasificación**: MIXED — metadata, cookies/`no-store` + pager R-13 y estados.
+- **Contrato protegido**: fallo de carga de rutas ≠ estado vacío.
+- **Owner**: el propio spec · dominio clinic · fase 07.
+- **Mutación que detecta**: servir el archivo vacío → 10 fail (ejecutado); el control de ancla pasa.
+- **Mutación que escapa**: M-D07 — `routePlansLoadError` nunca se activa.
+- **Capa §19**: SOURCE/CONFIG + REAL BROWSER.
+- **E2E**: E06 (extended) — NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2).
+- **Evidencia**: M-D07 orig 10/10 · mut 10/10 · control 10/10 · vacío 10 fail · observadores 82, detectada por 0.
+- **Motivo**: igual que G06-D08.
+
+#### G06-D10 · `test/unit/ui/dashboard/frontend-dashboard-logistica-visitas.test.ts`
+- **Test/contrato**: «dashboard logistica visitas separates fetch failures from real empty visits» (11 tests · 77 assertions · 99 % substring).
+- **Clasificación**: MIXED — metadata, cookies/`no-store`, sin fetch cliente + pager R-12 y estados.
+- **Contrato protegido**: fallo de carga de visitas ≠ estado vacío.
+- **Owner**: el propio spec · dominio clinic · fase 07.
+- **Mutación que detecta**: borrar el ancla de M-D08 → 1 fail (ejecutado).
+- **Mutación que escapa**: M-D08 — `visitsLoadError` nunca se activa.
+- **Capa §19**: SOURCE/CONFIG + REAL BROWSER.
+- **E2E**: E07 (extended) — NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2).
+- **Evidencia**: M-D08 orig 11/11 · mut 11/11 · control 1 fail · observadores 82, detectada por 0.
+- **Motivo**: la presencia de la assignment no prueba su ejecución.
+
+#### G06-D11 · `test/unit/ui/dashboard/frontend-dashboard-logistica.test.ts`
+- **Test/contrato**: «dashboard logistica computes active visits and active route plans explicitly» (10 tests · 62 assertions · 90 % substring).
+- **Clasificación**: MIXED — sin `next/link`, sin superficie pública/middleware/auth, scope (guards) + cálculo de activos.
+- **Contrato protegido**: visitas activas = `in_progress` ∪ `scheduled`; planes activos = `in_progress` ∪ `released`.
+- **Owner**: el propio spec · dominio clinic · fase 07.
+- **Mutación que detecta**: borrar el ancla de M-D09 → 1 fail (ejecutado); anchors o `next/link` (17 negativas).
+- **Mutación que escapa**: M-D09 — las visitas `in_progress` dejan de contarse.
+- **Capa §19**: SOURCE/CONFIG + lógica de derivación (sin receptor en el catálogo).
+- **E2E**: ninguno en el catálogo — NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2).
+- **Evidencia**: M-D09 orig 10/10 · mut 10/10 · control 1 fail · observadores 82, detectada por 0.
+- **Motivo**: el predicado se asserta como substring y un cortocircuito previo no se observa.
+
+#### G06-D12 · `test/unit/ui/dashboard/frontend-dashboard-logistics-hub.test.ts`
+- **Test/contrato**: «LogisticsCommandCenter shows visits error alert with role=alert» (24 tests · 107 assertions · 95 % substring).
+- **Clasificación**: MIXED — fronteras (sin API, auth, middleware, server, `next/link`, CLEAN7A) + estados del hub.
+- **Contrato protegido**: el hub de logística muestra alerta ante fallo de visitas y planes y `EmptyState` ante vacío.
+- **Owner**: el propio spec · dominio clinic · fase 07.
+- **Mutación que detecta**: borrar el ancla de M-D10 → 1 fail (ejecutado); importar `@/lib/api` (25 negativas).
+- **Mutación que escapa**: M-D10 — la alerta de visitas aparece sin error y se oculta ante fallo.
+- **Capa §19**: SOURCE/CONFIG + REAL BROWSER.
+- **E2E**: E01, E08 — NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2).
+- **Evidencia**: M-D10 orig 24/24 · mut 24/24 · control 1 fail · observadores 3, detectada por 0.
+- **Motivo**: misma clase que B.2.
+
+#### G06-D13 · `test/unit/ui/dashboard/frontend-dashboard-private-shell-foundation.test.ts`
+- **Test/contrato**: «error state announces alert and wires retry callback» (7 tests · 72 assertions · 100 % substring).
+- **Clasificación**: MIXED — API de `StatusBadge`, `EmptyState`, `LoadingState`, `ErrorState`, header y shell + cableado del reintento.
+- **Contrato protegido**: `ErrorState` anuncia `role="alert"` y muestra «Reintentar» cuando recibe `onRetry`.
+- **Owner**: el propio spec · dominio clinic/admin · fase 07.
+- **Mutación que detecta**: borrar el ancla de M-D11 → 1 fail (ejecutado); copy «Error desconocido» (negativa).
+- **Mutación que escapa**: M-D11 — «Reintentar» se renderiza sólo cuando **no** hay callback.
+- **Capa §19**: SOURCE/CONFIG (API) + REAL BROWSER (render condicional).
+- **E2E**: E01 (retry controls) — NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2).
+- **Evidencia**: M-D11 orig 7/7 · mut 7/7 · control 1 fail · observadores 2, detectada por 0.
+- **Motivo**: el camino de recuperación de todos los estados de error depende de esta rama.
+
+#### G06-D14 · `test/unit/ui/dashboard/frontend-dashboard-reports-master-detail.test.ts`
+- **Test/contrato**: «dashboard informes server-side pagination controls and compact summary» (7 tests · 100 assertions · 98 % substring).
+- **Clasificación**: MIXED — sin filtrado client-side, sin `formatDate(` en el timeline, CLEAN7A (guards) + pager y selección.
+- **Contrato protegido**: el pager de Informes deshabilita «Página anterior» en la primera página; selección por defecto explícita.
+- **Owner**: el propio spec · dominio clinic · fase 07.
+- **Mutación que detecta**: borrar el ancla de M-D13 → 1 fail (ejecutado); cálculo de negocio en el timeline (21 negativas).
+- **Mutación que escapa**: M-D13 — «Página anterior» habilitada en la página 1.
+- **Capa §19**: SOURCE/CONFIG + REAL BROWSER.
+- **E2E**: E04 (extended), E09 — NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2).
+- **Evidencia**: M-D13 orig 7/7 · mut 7/7 · control 1 fail · observadores 13, detectada por 0.
+- **Motivo**: la habilitación efectiva del control no se observa.
+
+#### G06-D15 · `test/unit/ui/dashboard/frontend-dashboard-shared-components.test.ts`
+- **Test/contrato**: «stats cards keep four-card loading skeleton» (8 tests · 60 assertions · 95 % substring).
+- **Clasificación**: MIXED — topbar (logout por registro de rutas, sin `next/link`, sin chip de sesión mock) + estado de carga de `StatsCards`.
+- **Contrato protegido**: `StatsCards` muestra el skeleton de cuatro tarjetas mientras `loading`.
+- **Owner**: el propio spec · dominio clinic/admin · fase 07.
+- **Mutación que detecta**: borrar el ancla de M-D14 → 1 fail (ejecutado); `import Link from "next/link";` (negativa).
+- **Mutación que escapa**: M-D14 — el skeleton nunca se muestra.
+- **Capa §19**: SOURCE/CONFIG + REAL BROWSER.
+- **E2E**: ninguno para `StatsCards` — NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2).
+- **Evidencia**: M-D14 orig 8/8 · mut 8/8 · control 1 fail · observadores 2, detectada por 0.
+- **Motivo**: estado de carga afirmado sólo por presencia.
+
+#### G06-D16 · `test/unit/ui/dashboard/frontend-dashboard-shell.test.ts`
+- **Test/contrato**: «dashboard layout delegates private shell composition…», «…delegates role routing…», «…no-sidebar horizontal app shell column» (3 tests · 18 assertions · 100 % substring).
+- **Clasificación**: LEGITIMATE_STATIC_CONTRACT — composición de módulos y ausencia de sidebar.
+- **Contrato protegido**: `layout.tsx` → `PrivateDashboardShell` → `DashboardShellRouter`; sin `<AdminDashboardSidebar />`.
+- **Owner**: el propio spec · dominio clinic/admin · sin acción.
+- **Mutación que detecta**: retirar el import de `PrivateDashboardShell` o reintroducir `<AdminDashboardSidebar />` (razonada sobre las assertions).
+- **Mutación que escapa**: conservar el import y renderizar `children` fuera del frame (razonada, no ejecutada; contrato de composición, R-4).
+- **Capa §19**: SOURCE/CONFIG.
+- **E2E**: E12 — NO DEMOSTRADA.
+- **Decisión**: **KEEP** (R-1).
+- **Evidencia**: `MANUAL_CLASSIFICATION` de las 3 afirmaciones (composición e imports).
+- **Motivo**: el source es el contrato; no hay lógica de producto afirmada.
+
+#### G06-D17 · `test/unit/ui/dashboard/frontend-dashboard-state-polish.test.ts`
+- **Test/contrato**: «error state retains full existing api and role=alert» (19 tests · 63 assertions · 87 % substring).
+- **Clasificación**: MIXED — API de estados, sin spinner fullscreen, sin stack traces, sin `next/link`, sin cambios de deps (guards) + reintento.
+- **Contrato protegido**: `ErrorState` conserva `role="alert"` y el reintento cableado; `LoadingState` anuncia `aria-live`.
+- **Owner**: el propio spec · dominio clinic/admin · fase 07.
+- **Mutación que detecta**: borrar el ancla de M-D12 → 1 fail (ejecutado); `fixed inset-0` (13 negativas).
+- **Mutación que escapa**: M-D12 — igual que M-D11.
+- **Capa §19**: SOURCE/CONFIG + REAL BROWSER.
+- **E2E**: E01 — NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2).
+- **Evidencia**: M-D12 orig 19/19 · mut 19/19 · control 1 fail · observadores 2, detectada por 0.
+- **Motivo**: segundo spec sobre la misma rama; ambos escapan. `07` puede fortalecerlos con un evaluador compartido, sin retirar ninguno (§31.6).
+
+### C.6 Registro — `test/unit/ui/admin/**` — fase ejecutora `TEST-GLOBAL-08`
+
+#### G06-A01 · `test/unit/ui/admin/admin-audit-enterprise-density.test.ts`
+- **Test/contrato**: «R-06 uses controlled detail without raw sensitive audit fields» (6 tests · 69 assertions · 100 % substring).
+- **Clasificación**: MIXED — densidad, sin `matchMedia`, sin logging ni fetch públicos ni scroll regional (21 negativas) + redacción de metadata.
+- **Contrato protegido**: la metadata estructurada de auditoría no se muestra cruda («Dato estructurado omitido»).
+- **Owner**: el propio spec · dominio admin · fase 08.
+- **Mutación que detecta**: borrar el ancla de M-A01 → 1 fail (ejecutado); `window.matchMedia` (negativa).
+- **Mutación que escapa**: M-A01 — la metadata estructurada se devuelve con `JSON.stringify`.
+- **Capa §19**: SOURCE/CONFIG + lógica de redacción (disclosure en UI).
+- **E2E**: E22 (asserta lo opuesto: valores completos en detalle) — NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2).
+- **Evidencia**: M-A01 orig 6/6 · mut 6/6 · control 1 fail · observadores 3, detectada por 0.
+- **Motivo**: contrato de disclosure protegido sólo por la presencia del literal de retorno.
+
+#### G06-A02 · `test/unit/ui/admin/admin-overview-clinics-enterprise-density.test.ts`
+- **Test/contrato**: «admin clinics console derives the server page size from measurement while respecting no-scroll» (6 tests · 28 assertions · 93 % substring).
+- **Clasificación**: MIXED — sin clases de landing, sin hero con gradiente, contrato no-scroll global (13 negativas) + page size medido.
+- **Contrato protegido**: el `limit` enviado al servidor deriva de las filas medidas.
+- **Owner**: el propio spec · dominio admin · fase 08.
+- **Mutación que detecta**: servir el archivo vacío → 2 fail (ejecutado); `overflow-y-auto`, `PAGE_SIZE_OPTIONS`, `<Select` (negativas).
+- **Mutación que escapa**: M-A15 — page size fijo en 1 fila.
+- **Capa §19**: SOURCE/CONFIG + REAL BROWSER (capacidad adaptativa).
+- **E2E**: E13, E14 (extended) — NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2).
+- **Evidencia**: M-A15 orig 8/8 · mut 8/8 · control 8/8 · vacío 2 fail · observadores 15, detectada por 0.
+- **Motivo**: `limit: effectiveLimit` sigue presente aunque `effectiveLimit` ya no dependa de la medición.
+
+#### G06-A03 · `test/unit/ui/admin/admin-reports-enterprise-density.test.ts`
+- **Test/contrato**: «Admin Informes recomputa offset y descarta respuestas viejas (anti-race)» (9 tests · 118 assertions · 95 % substring).
+- **Clasificación**: MIXED — sin `PAGE_SIZE` fijo, sin scroll regional, seguridad de archivos (22 negativas) + anti-race.
+- **Contrato protegido**: una respuesta vieja no sobrescribe la página vigente.
+- **Owner**: el propio spec · dominio admin · fase 08.
+- **Mutación que detecta**: borrar el ancla de M-A03 → 1 fail (ejecutado); `const PAGE_SIZE = 9;` (negativa).
+- **Mutación que escapa**: M-A03 — guard `requestId` desactivado en sus 2 ocurrencias.
+- **Capa §19**: SOURCE/CONFIG + REAL BROWSER (orden de respuestas).
+- **E2E**: E15 — NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2).
+- **Evidencia**: M-A03 orig 9/9 · mut 9/9 · control 1 fail · observadores 10, detectada por 0.
+- **Motivo**: una race no se observa por substrings.
+
+#### G06-A04 · `test/unit/ui/admin/admin-sessions-enterprise-density.test.ts`
+- **Test/contrato**: «PR-7B keeps revocation constrained, confirmed and blocks current admin session» (7 tests · 35 assertions · 97 % substring).
+- **Clasificación**: MIXED — sin campos sensibles ni red ampliada, `limit: PAGE_SIZE` prohibido + revocación acotada.
+- **Contrato protegido**: «Revocar» está deshabilitado sobre la propia sesión admin y durante la revocación.
+- **Owner**: el propio spec · dominio admin · fase 08.
+- **Mutación que detecta**: borrar el ancla de M-A05 → 1 fail (ejecutado); `limit: PAGE_SIZE` (negativa).
+- **Mutación que escapa**: M-A05 — override `disabled: false` en ambas ocurrencias.
+- **Capa §19**: SOURCE/CONFIG + REAL BROWSER.
+- **E2E**: E16 — NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2).
+- **Evidencia**: M-A05 orig 7/7 · mut 7/7 · control 1 fail · observadores 12, detectada por 0.
+- **Motivo**: control de acceso operativo afirmado por presencia; el override no se observa.
+
+#### G06-A05 · `test/unit/ui/admin/admin-tokens-enterprise-density.test.ts`
+- **Test/contrato**: «admin tokens recomputa pagina localmente y descarta respuestas viejas (anti-race)» (7 tests · 76 assertions · 93 % substring).
+- **Clasificación**: MIXED — secretos enmascarados, sin `Promise.all` por fila (21 negativas) + anti-race.
+- **Contrato protegido**: una respuesta vieja no sobrescribe la ventana vigente de tokens.
+- **Owner**: el propio spec · dominio admin · fase 08.
+- **Mutación que detecta**: borrar el ancla de M-A04 → 1 fail (ejecutado); `TOKENS_SUPERSET_CAP` (negativa).
+- **Mutación que escapa**: M-A04 — guard `requestId` desactivado en sus 4 ocurrencias.
+- **Capa §19**: SOURCE/CONFIG + REAL BROWSER.
+- **E2E**: E17 — NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2).
+- **Evidencia**: M-A04 orig 7/7 · mut 7/7 · control 1 fail · observadores 17, detectada por 0.
+- **Motivo**: igual que G06-A03.
+
+#### G06-A06 · `test/unit/ui/admin/admin-users-roles-enterprise-density.test.ts`
+- **Test/contrato**: «PR-7A keeps role changes constrained, confirmed and auditable» (6 tests · 29 assertions · 97 % substring).
+- **Clasificación**: MIXED — sin campos sensibles ni red ampliada + cambio de rol confirmado.
+- **Contrato protegido**: el cambio de rol requiere confirmación explícita.
+- **Owner**: el propio spec · dominio admin · fase 08.
+- **Mutación que detecta**: servir el archivo vacío → 3 fail (ejecutado); el control de ancla pasa (el spec no asserta el guard `if (!confirmed)`).
+- **Mutación que escapa**: M-A07 — la confirmación cancelada no detiene el cambio.
+- **Capa §19**: SOURCE/CONFIG + REAL BROWSER.
+- **E2E**: E18 — NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2).
+- **Evidencia**: M-A07 orig 6/6 · mut 6/6 · control 6/6 · vacío 3 fail · observadores 13, detectada por 0.
+- **Motivo**: el test nombrado no observa el guard de confirmación.
+
+#### G06-A07 · `test/unit/ui/admin/frontend-admin-clinics-management-card.test.ts`
+- **Test/contrato**: «admin clinics management card hides admin-entered passwords by default and avoids hashes» (17 tests · 121 assertions · 87 % substring).
+- **Clasificación**: MIXED — sin roles, sin hashes, sin doble filtrado, runtime único (27 negativas) + enmascarado y búsqueda.
+- **Contrato protegido**: la contraseña inicial de la clínica está oculta por defecto.
+- **Owner**: el propio spec · dominio admin · fase 08.
+- **Mutación que detecta**: borrar el ancla de M-A09 → 1 fail (ejecutado); reintroducir `Badge` o acciones de rol (negativas).
+- **Mutación que escapa**: M-A09 — `type="text"` forzado: contraseña visible en claro.
+- **Capa §19**: SOURCE/CONFIG + REAL BROWSER.
+- **E2E**: E19 (cubre el drawer de **edición**, no el alta) — NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2).
+- **Evidencia**: M-A09 orig 17/17 · mut 17/17 · control 1 fail · observadores 15, detectada por 0.
+- **Motivo**: privacidad de credenciales afirmada por presencia.
+
+#### G06-A08 · `test/unit/ui/admin/frontend-admin-failed-login-alerts-card.test.ts`
+- **Test/contrato**: «admin failed login alerts card guards concurrent fetches with a request id» (20 tests · 138 assertions · 94 % substring).
+- **Clasificación**: MIXED — sin copy técnico ni secretos, sin `matchMedia`, `PAGE_SIZE` sólo fallback (15 negativas) + anti-race y filtros.
+- **Contrato protegido**: una respuesta vieja no sobrescribe la vigente.
+- **Owner**: el propio spec · dominio admin · fase 08.
+- **Mutación que detecta**: borrar el ancla de M-A10 → 1 fail (ejecutado); `const PAGE_SIZE = 5;` (negativa).
+- **Mutación que escapa**: M-A10 — guard `requestId` desactivado en sus 2 ocurrencias.
+- **Capa §19**: SOURCE/CONFIG + REAL BROWSER.
+- **E2E**: E20 — NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2).
+- **Evidencia**: M-A10 orig 20/20 · mut 20/20 · control 1 fail · observadores 10, detectada por 0.
+- **Motivo**: igual que G06-A03.
+
+#### G06-A09 · `test/unit/ui/admin/frontend-admin-maintenance-dry-run-card.test.ts`
+- **Test/contrato**: «admin maintenance dry-run card renders initial empty state and errors» (11 tests · 87 assertions · 94 % substring).
+- **Clasificación**: MIXED — sin acción destructiva (guard) + estados del dry-run.
+- **Contrato protegido**: el error del dry-run se muestra y el estado inicial es vacío.
+- **Owner**: el propio spec · dominio admin · fase 08.
+- **Mutación que detecta**: borrar el ancla de M-A11 → 1 fail (ejecutado); `setFirstCandidateRowNode` (negativa).
+- **Mutación que escapa**: M-A11 — el bloque de error aparece sin error y se oculta ante error.
+- **Capa §19**: SOURCE/CONFIG + REAL BROWSER.
+- **E2E**: E21 (layout) — NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2).
+- **Evidencia**: M-A11 orig 11/11 · mut 11/11 · control 1 fail · observadores 7, detectada por 0.
+- **Motivo**: misma clase que B.2.
+
+#### G06-A10 · `test/unit/ui/admin/frontend-admin-particular-tokens.test.ts`
+- **Test/contrato**: «admin generated token block requires manual communication confirmation» (20 tests · 259 assertions · 91 % substring).
+- **Clasificación**: MIXED — sin `clinicId` manual, `autoComplete` off, delete vs revoke, token no expuesto (34 negativas) + confirmación.
+- **Contrato protegido**: el token generado no puede cerrarse sin confirmar la comunicación manual.
+- **Owner**: el propio spec · dominio admin · fase 08.
+- **Mutación que detecta**: borrar el ancla de M-A12 → 1 fail (ejecutado); reintroducir `{ key: "clinicId", label: "ID de clínica" }` (negativa).
+- **Mutación que escapa**: M-A12 — override `disabled: false`.
+- **Capa §19**: SOURCE/CONFIG + REAL BROWSER.
+- **E2E**: E17, E22 — NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2).
+- **Evidencia**: M-A12 orig 20/20 · mut 20/20 · control 1 fail · observadores 17, detectada por 0.
+- **Motivo**: igual que G06-D03, superficie admin.
+
+#### G06-A11 · `test/unit/ui/admin/frontend-admin-pricing-card.test.ts`
+- **Test/contrato**: «admin pricing card does not send unchanged items in save-all» (13 tests · 64 assertions · 94 % substring · 4 negativas de forma `!source.toLowerCase().includes(…)`).
+- **Clasificación**: MIXED — helpers de API y sin secretos en source (guard) + lógica de «Guardar todos».
+- **Contrato protegido**: «Guardar todos» envía sólo ítems con cambios y sin error de validación.
+- **Owner**: el propio spec · dominio admin · fase 08.
+- **Mutación que detecta**: borrar el ancla de M-A13 → 1 fail (ejecutado); introducir `password`, `hash`, `token` o `cookie` en el source (4 negativas).
+- **Mutación que escapa**: M-A13 — el filtro `payload !== null && errorMessage === null` queda cortocircuitado.
+- **Capa §19**: lógica de UI (sin receptor en el catálogo) + REAL BROWSER.
+- **E2E**: E23 (extended), E21 — NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2).
+- **Evidencia**: M-A13 orig 13/13 · mut 13/13 · control 1 fail · observadores 5, detectada por 0.
+- **Motivo**: escritura de precios públicos con filtro no observado.
+
+#### G06-A12 · `test/unit/ui/admin/frontend-admin-sessions-card.test.ts`
+- **Test/contrato**: «admin sessions card revokes sessions only after explicit confirmation» (14 tests · 115 assertions · 97 % substring).
+- **Clasificación**: MIXED — no expone token, cookie ni hash (8 negativas) + revocación confirmada.
+- **Contrato protegido**: la revocación requiere confirmación explícita.
+- **Owner**: el propio spec · dominio admin · fase 08.
+- **Mutación que detecta**: borrar el ancla de M-A06 → 1 fail (ejecutado); `limit: PAGE_SIZE` (negativa).
+- **Mutación que escapa**: M-A06 — la confirmación cancelada no detiene la revocación.
+- **Capa §19**: SOURCE/CONFIG + REAL BROWSER.
+- **E2E**: E16 — NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2).
+- **Evidencia**: M-A06 orig 14/14 · mut 14/14 · control 1 fail · observadores 12, detectada por 0.
+- **Motivo**: operación destructiva guardada por un literal.
+
+#### G06-A13 · `test/unit/ui/admin/frontend-admin-users-roles-card.test.ts`
+- **Test/contrato**: «admin users roles card changes clinic roles only after confirmation» (14 tests · 148 assertions · 97 % substring).
+- **Clasificación**: MIXED — sin aviso de campos sensibles, `limit: PAGE_SIZE` prohibido + cambio de rol confirmado.
+- **Contrato protegido**: el cambio de rol de clínica requiere confirmación.
+- **Owner**: el propio spec · dominio admin · fase 08.
+- **Mutación que detecta**: borrar el ancla de M-A08 → 1 fail (ejecutado).
+- **Mutación que escapa**: M-A08 — igual que M-A07.
+- **Capa §19**: SOURCE/CONFIG + REAL BROWSER.
+- **E2E**: E18 — NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2).
+- **Evidencia**: M-A08 orig 14/14 · mut 14/14 · control 1 fail · observadores 13, detectada por 0.
+- **Motivo**: a diferencia de G06-A06, este spec sí asserta el ancla, pero no su efecto.
+
+#### G06-A14 · `test/unit/ui/admin/frontend-dashboard-admin-command-center.test.ts`
+- **Test/contrato**: «StickyActionBar keeps reusable fixed and sticky action contracts», «AdminCommandCenter keeps a compact KPI summary…», «AdminOverviewQuickLinks preserves admin ?module= navigation», «…composes module hub…», «…preserves CLEAN7A dependency invariants» (5 tests · 84 assertions · 93 % substring).
+- **Clasificación**: LEGITIMATE_STATIC_CONTRACT — API de props, composición, href literal `${ROUTES.dashboardAdmin}?module=${link.module}` e invariantes CLEAN7A.
+- **Contrato protegido**: API de `StickyActionBar`, estructura del Command Center y destinos `?module=` del admin.
+- **Owner**: el propio spec · dominio admin · sin acción.
+- **Mutación que detecta**: cambiar el template del href, retirar `PublicRouteControl` o introducir `Dropdown` / `fetch(` (13 negativas; razonada).
+- **Mutación que escapa**: `onClick` que navega a otro módulo conservando el href (razonada, no ejecutada; R-4).
+- **Capa §19**: SOURCE/CONFIG.
+- **E2E**: E24 — NO DEMOSTRADA.
+- **Decisión**: **KEEP** (R-1).
+- **Evidencia**: `MANUAL_CLASSIFICATION` de las 5 afirmaciones.
+- **Motivo**: el href y la API son el contrato; la navegación la ejecuta `PublicRouteControl`, cuyo contrato se adjudica en G06-P16.
+
+#### G06-A15 · `test/unit/ui/admin/frontend-dashboard-admin-section-tabs.test.ts`
+- **Test/contrato**: «AdminSectionTabs uses buttons and accessible tab semantics without links» (5 tests · 49 assertions · 92 % substring).
+- **Clasificación**: MIXED — sin `next/link`, scope frontend-only (11 negativas) + teclado de tabs.
+- **Contrato protegido**: las tabs admin navegan por teclado (Home/End/flechas) con semántica ARIA completa.
+- **Owner**: el propio spec · dominio admin · fase 08.
+- **Mutación que detecta**: borrar el ancla de M-A14 → 1 fail (ejecutado); `from "next/link"` (negativa).
+- **Mutación que escapa**: M-A14 — la tecla Home deja de mover el foco.
+- **Capa §19**: SOURCE/CONFIG + REAL BROWSER (foco y teclado).
+- **E2E**: E10 (Enter en tarjetas del hub, no Home en tabs) — NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2).
+- **Evidencia**: M-A14 orig 5/5 · mut 5/5 · control 1 fail · observadores 3, detectada por 0.
+- **Motivo**: interacción de teclado afirmada por presencia de la comparación.
+
+#### G06-A16 · `test/unit/ui/admin/frontend-dashboard-admin.test.ts`
+- **Test/contrato**: «dashboard admin keeps sensitive audit metadata redaction» (16 tests · 223 assertions · 93 % substring).
+- **Clasificación**: MIXED — metadata noindex, cookies/`no-store`, ids únicos (guards) + redacción, estados y sync de URL.
+- **Contrato protegido**: la metadata sensible de auditoría se redacta en la vista admin.
+- **Owner**: el propio spec · dominio admin · fase 08.
+- **Mutación que detecta**: borrar el ancla de M-A16 → 1 fail (ejecutado); importar `UploadReportModal` (negativa).
+- **Mutación que escapa**: M-A16 — la metadata estructurada se muestra cruda.
+- **Capa §19**: SOURCE/CONFIG + lógica de redacción.
+- **E2E**: E25, E26 — NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2).
+- **Evidencia**: M-A16 orig 16/16 · mut 16/16 · control 1 fail · vacío 4 fail · observadores 3, detectada por 0.
+- **Motivo**: la mutación inicial sobre el flag de error de auditoría (M-A02) fue **detectada** por `test/unit/ui/admin/frontend-admin-live-read-contract.test.ts`, que es owner de ese contrato. Se descartó y se adjudicó sobre la redacción, que ningún observador detecta.
+
+### C.7 Registro — `test/unit/ui/frontend/**` — fase ejecutora `TEST-GLOBAL-08`
+
+#### G06-F01 · `test/unit/ui/frontend/frontend-auth-context.test.ts`
+- **Test/contrato**: «frontend useAuth hook requires provider» (4 tests · 27 assertions · 89 % substring).
+- **Clasificación**: MIXED — layout raíz sin `AuthProvider` global (guard) + contrato del contexto.
+- **Contrato protegido**: `useAuth` fuera de `AuthProvider` falla de forma explícita.
+- **Owner**: el propio spec · dominio platform · fase 08.
+- **Mutación que detecta**: servir el archivo vacío → 1 fail (ejecutado); importar `AuthProvider` en el layout raíz (negativa).
+- **Mutación que escapa**: M-F10 — `useAuth` devuelve `null` en vez de lanzar.
+- **Capa §19**: lógica de hook (sin receptor) + SOURCE/CONFIG.
+- **E2E**: E27 — NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2).
+- **Evidencia**: M-F10 orig 4/4 · mut 4/4 · control 4/4 · vacío 1 fail · observadores 1, detectada por 0.
+- **Motivo**: fail-closed del hook afirmado por presencia del `throw`. La mutación inicial (M-F01, logout que no limpia el usuario) fue **detectada** por `test/unit/ui/dashboard/frontend-dashboard-last-module.test.ts` y se descartó.
+
+#### G06-F02 · `test/unit/ui/frontend/frontend-badge-component.test.ts`
+- **Test/contrato**: 5 tests de utilidades de variantes, clases base, variantes, tipado y exports (24 assertions · 100 % substring).
+- **Clasificación**: LEGITIMATE_STATIC_CONTRACT — API y clases de un primitivo sin estado.
+- **Contrato protegido**: variantes, clases base y exports estables de `badge.tsx`.
+- **Owner**: el propio spec · dominio platform · sin acción.
+- **Mutación que detecta**: renombrar una variante o una clase base; reintroducir ` focus:outline-none` (negativa; razonada).
+- **Mutación que escapa**: clase presente en un comentario (grafía §7.5; razonada, no ejecutada).
+- **Capa §19**: SOURCE/CONFIG.
+- **E2E**: ninguno específico — NO DEMOSTRADA.
+- **Decisión**: **KEEP** (R-1).
+- **Evidencia**: `MANUAL_CLASSIFICATION`.
+- **Motivo**: el clasificador lo marcó por la palabra `transition` en clases Tailwind; no hay comportamiento afirmado.
+
+#### G06-F03 · `test/unit/ui/frontend/frontend-button-component.test.ts`
+- **Test/contrato**: 5 tests de variantes, tamaños, `forwardRef`/`asChild` y exports (29 assertions · 100 % substring).
+- **Clasificación**: LEGITIMATE_STATIC_CONTRACT — API del primitivo (`const Comp = asChild ? Slot : "button";`).
+- **Contrato protegido**: variantes, tamaños, ref y API `asChild` de `button.tsx`.
+- **Owner**: el propio spec · dominio platform · sin acción.
+- **Mutación que detecta**: cambiar la selección `asChild` o una variante (razonada).
+- **Mutación que escapa**: renderizar siempre `<button>` conservando el literal de selección (razonada, no ejecutada; R-4).
+- **Capa §19**: SOURCE/CONFIG.
+- **E2E**: ninguno específico — NO DEMOSTRADA.
+- **Decisión**: **KEEP** (R-1, R-4).
+- **Evidencia**: `MANUAL_CLASSIFICATION`.
+- **Motivo**: API presentacional; el marcador `hover` procede de clases.
+
+#### G06-F04 · `test/unit/ui/frontend/frontend-contact-form.test.ts`
+- **Test/contrato**: «frontend contact form exposes feedback and no longer blocks submit» (3 tests · 32 assertions · 100 % substring).
+- **Clasificación**: MIXED — endpoint público del cliente y payload (wiring) + feedback de error; sin el copy «próximamente» (negativa).
+- **Contrato protegido**: un envío fallido muestra feedback de error.
+- **Owner**: el propio spec · dominio public · fase 08.
+- **Mutación que detecta**: borrar el ancla de M-F02 → 1 fail (ejecutado); reintroducir «Enviar mensaje (próximamente)» (negativa).
+- **Mutación que escapa**: M-F02 — el error de envío no se muestra.
+- **Capa §19**: REAL BROWSER + wiring.
+- **E2E**: E28 (hidratación, no error) — NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2).
+- **Evidencia**: M-F02 orig 3/3 · mut 3/3 · control 1 fail · observadores 9, detectada por 0.
+- **Motivo**: feedback de error afirmado por presencia.
+
+#### G06-F05 · `test/unit/ui/frontend/frontend-form-primitives.test.ts`
+- **Test/contrato**: 4 tests de semántica nativa y estilos de `select`, `textarea` y `label` (42 assertions · 100 % substring).
+- **Clasificación**: LEGITIMATE_STATIC_CONTRACT.
+- **Contrato protegido**: elementos nativos, clases tokenizadas y `aria-hidden` del icono.
+- **Owner**: el propio spec · dominio platform · sin acción.
+- **Mutación que detecta**: sustituir el elemento nativo o las clases `disabled:`/`peer-disabled:` (razonada).
+- **Mutación que escapa**: clase dentro de un comentario (razonada, no ejecutada).
+- **Capa §19**: SOURCE/CONFIG.
+- **E2E**: E11 (axe, extended) — NO DEMOSTRADA.
+- **Decisión**: **KEEP** (R-1).
+- **Evidencia**: `MANUAL_CLASSIFICATION`.
+- **Motivo**: primitivos sin estado; el marcador `focus` procede de clases.
+
+#### G06-F06 · `test/unit/ui/frontend/frontend-input-component.test.ts`
+- **Test/contrato**: 4 tests de `forwardRef`, props, clases base y export (17 assertions · 100 % substring).
+- **Clasificación**: LEGITIMATE_STATIC_CONTRACT.
+- **Contrato protegido**: API y clases base de `input.tsx`.
+- **Owner**: el propio spec · dominio platform · sin acción.
+- **Mutación que detecta**: retirar el spread de props o `displayName` (razonada).
+- **Mutación que escapa**: clase dentro de un comentario (razonada, no ejecutada).
+- **Capa §19**: SOURCE/CONFIG.
+- **E2E**: ninguno específico — NO DEMOSTRADA.
+- **Decisión**: **KEEP** (R-1).
+- **Evidencia**: `MANUAL_CLASSIFICATION`.
+- **Motivo**: primitivo sin estado.
+
+#### G06-F07 · `test/unit/ui/frontend/frontend-login-content.test.ts`
+- **Test/contrato**: «frontend login content allows toggling clinic password visibility» (8 tests · 71 assertions · 99 % substring).
+- **Clasificación**: MIXED — sin bypass demo, sin tabs de rol, acceso particular separado (17 negativas) + credenciales, redirect y visibilidad.
+- **Contrato protegido**: la contraseña está oculta por defecto y sólo se muestra por toggle explícito.
+- **Owner**: el propio spec · dominio platform · fase 08.
+- **Mutación que detecta**: borrar el ancla de M-F03 → 1 fail (ejecutado); `safePath === ROUTES.dashboardAdmin` (negativa).
+- **Mutación que escapa**: M-F03 — `type="text"` forzado.
+- **Capa §19**: SOURCE/CONFIG + REAL BROWSER.
+- **E2E**: E29, E30 — NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2).
+- **Evidencia**: M-F03 orig 8/8 · mut 8/8 · control 1 fail · observadores 10, detectada por 0.
+- **Motivo**: privacidad de credenciales afirmada por presencia.
+
+#### G06-F08 · `test/unit/ui/frontend/frontend-login-form-integration.test.ts`
+- **Test/contrato**: «login public page prevents mobile double submit while request is pending» (6 tests · 78 assertions · 97 % substring).
+- **Clasificación**: MIXED — contrato del cliente API, routing particular (14 negativas) + guard de doble submit.
+- **Contrato protegido**: mientras la request está pendiente no se admite un segundo submit.
+- **Owner**: el propio spec · dominio platform · fase 08.
+- **Mutación que detecta**: borrar las anclas de M-F05 → 2 fail (ejecutado).
+- **Mutación que escapa**: M-F05 — guard del handler desactivado y botones habilitados.
+- **Capa §19**: REAL BROWSER.
+- **E2E**: E29 — NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2).
+- **Evidencia**: M-F05 orig 6/6 · mut 6/6 · control 2 fail · observadores 10, detectada por 0.
+- **Motivo**: el guard y el `disabled` se asertan como literales; los overrides no se observan.
+
+#### G06-F09 · `test/unit/ui/frontend/frontend-login-page.test.ts`
+- **Test/contrato**: «login content keeps safe dashboard redirect and error handling» (5 tests · 59 assertions · 98 % substring).
+- **Clasificación**: MIXED — metadata noindex, `Suspense`, sin fetch directo, sin gradiente legado (11 negativas) + redirect seguro.
+- **Contrato protegido**: `next=/dashboard/admin` se degrada a `/dashboard` tras el login de clínica.
+- **Owner**: el propio spec · dominio platform · fase 08.
+- **Mutación que detecta**: borrar el ancla de M-F06 → 1 fail (ejecutado).
+- **Mutación que escapa**: M-F06 — la exclusión exacta de `ROUTES.dashboardAdmin` queda cortocircuitada.
+- **Capa §19**: lógica de redirect + REAL BROWSER.
+- **E2E**: E30 (sólo el redirect sin sesión) — NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2).
+- **Evidencia**: M-F06 orig 5/5 · mut 5/5 · control 1 fail · observadores 10, detectada por 0 (incluye `frontend-login-next-redirect-boundary.test.ts`).
+- **Motivo**: frontera de redirect afirmada por presencia; ningún observador la detecta.
+
+#### G06-F10 · `test/unit/ui/frontend/frontend-login-password-visibility-contract.test.ts`
+- **Test/contrato**: «login password visibility starts hidden and toggles input type safely» (6 tests · 25 assertions · 84 % substring).
+- **Clasificación**: MIXED — sin tabs de rol (8 negativas) + visibilidad.
+- **Contrato protegido**: la contraseña arranca oculta.
+- **Owner**: el propio spec · dominio platform · fase 08.
+- **Mutación que detecta**: borrar el ancla de M-F04 → 1 fail (ejecutado); reintroducir «Clínicas» como tab (negativa).
+- **Mutación que escapa**: M-F04 — `type="text"` forzado.
+- **Capa §19**: REAL BROWSER.
+- **E2E**: E29 — NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2).
+- **Evidencia**: M-F04 orig 6/6 · mut 6/6 · control 1 fail · observadores 10, detectada por 0.
+- **Motivo**: igual que G06-F07; dos specs sobre el mismo contrato, ninguno lo observa.
+
+#### G06-F11 · `test/unit/ui/frontend/frontend-particulares-access-contract.test.ts`
+- **Test/contrato**: «particulares content keeps token login form contract» (5 tests · 56 assertions · 89 % substring).
+- **Clasificación**: MIXED — metadata noindex, dependencias sólo de token, sin navegación mixta ni privada (guards) + formulario de token.
+- **Contrato protegido**: el formulario de token se bloquea durante el envío y el cooldown de rate-limit.
+- **Owner**: el propio spec · dominio particular · fase 08.
+- **Mutación que detecta**: borrar el ancla de M-F08 → 1 fail (ejecutado); importar `loginClinic` (negativa).
+- **Mutación que escapa**: M-F08 — el cooldown deja de bloquear.
+- **Capa §19**: SOURCE/CONFIG (aislamiento) + REAL BROWSER.
+- **E2E**: E31 — NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2).
+- **Evidencia**: M-F08 orig 5/5 · mut 5/5 · control 1 fail · observadores 11, detectada por 0.
+- **Motivo**: respeto del rate-limit afirmado por presencia.
+
+#### G06-F12 · `test/unit/ui/frontend/frontend-particulares-content.test.ts`
+- **Test/contrato**: «particulares content surfaces refreshSession fetch failures instead of silent logout state» (21 tests · 122 assertions · 80 % substring).
+- **Clasificación**: MIXED — sin almacenamiento de sesión en el navegador, sin datos sensibles en mensajes (13 negativas) + estados de sesión.
+- **Contrato protegido**: un fallo de verificación de sesión se muestra como error recuperable, no como logout silencioso.
+- **Owner**: el propio spec · dominio particular · fase 08.
+- **Mutación que detecta**: borrar el ancla de M-F07 → 1 fail (ejecutado); reintroducir «No se pudo conectar con el backend» (negativa).
+- **Mutación que escapa**: M-F07 — `setSessionCheckError(true)` nunca se ejecuta.
+- **Capa §19**: REAL BROWSER.
+- **E2E**: E31 — NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2).
+- **Evidencia**: M-F07 orig 21/21 · mut 21/21 · control 1 fail · observadores 11, detectada por 0.
+- **Motivo**: estado de error afirmado por presencia.
+
+#### G06-F13 · `test/unit/ui/frontend/frontend-report-download-action.test.ts`
+- **Test/contrato**: «frontend report actions handles unavailable loading and error states» (3 tests · 25 assertions · 92 % substring).
+- **Clasificación**: MIXED — APIs de preview/descarga, sin copy «sin permiso» (4 negativas) + estados.
+- **Contrato protegido**: el error de preview/descarga se muestra con `role="alert"`.
+- **Owner**: el propio spec · dominio clinic · fase 08.
+- **Mutación que detecta**: servir el archivo vacío → 2 fail (ejecutado); el control de ancla pasa.
+- **Mutación que escapa**: M-F09 — el error se oculta y el bloque aparece sin error.
+- **Capa §19**: REAL BROWSER.
+- **E2E**: E10 (etiquetas de acciones, no errores) — NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2).
+- **Evidencia**: M-F09 orig 3/3 · mut 3/3 · control 3/3 · vacío 2 fail · observadores 4, detectada por 0.
+- **Motivo**: el test nombrado no observa la condición.
+
+#### G06-F14 · `test/unit/ui/frontend/frontend-table-skeleton-components.test.ts`
+- **Test/contrato**: 6 tests de primitivas `table` y `skeleton` (55 assertions · 100 % substring).
+- **Clasificación**: LEGITIMATE_STATIC_CONTRACT.
+- **Contrato protegido**: API, `displayName` y clases de tabla y skeleton.
+- **Owner**: el propio spec · dominio platform · sin acción.
+- **Mutación que detecta**: retirar un subcomponente o su `displayName` (razonada).
+- **Mutación que escapa**: clase dentro de un comentario (razonada, no ejecutada).
+- **Capa §19**: SOURCE/CONFIG.
+- **E2E**: ninguno específico — NO DEMOSTRADA.
+- **Decisión**: **KEEP** (R-1).
+- **Evidencia**: `MANUAL_CLASSIFICATION`.
+- **Motivo**: el marcador `scroll` procede del wrapper de overflow de la tabla.
+
+### C.8 Registro — `test/unit/ui/public/**` — fase ejecutora `TEST-GLOBAL-08`
+
+#### G06-P01 · `test/unit/ui/public/frontend-clinicas-page-content.test.ts`
+- **Test/contrato**: 9 tests de metadata, hero y CTAs, módulos, timeline, onboarding, sin API privada ni contenido demo (56 assertions · 98 % substring).
+- **Clasificación**: LEGITIMATE_STATIC_CONTRACT — contenido, estructura y guards de superficie pública.
+- **Contrato protegido**: contenido y estructura de `/clinicas`; ausencia de `"/dashboard"` y de copy demo.
+- **Owner**: el propio spec · dominio public · sin acción.
+- **Mutación que detecta**: retirar un bloque o `aria-label="Pasos operativos de derivación con VETNEB"`; introducir `"/dashboard"` (5 negativas; razonada).
+- **Mutación que escapa**: texto dentro de `{/* … */}` (grafía §7.5; razonada, no ejecutada).
+- **Capa §19**: SOURCE/CONFIG.
+- **E2E**: E32, E40 — NO DEMOSTRADA.
+- **Decisión**: **KEEP** (R-1).
+- **Evidencia**: `MANUAL_CLASSIFICATION`.
+- **Motivo**: el contenido es el contrato; «CTAs visibles sobre fondo azul» es un contrato de clases.
+
+#### G06-P02 · `test/unit/ui/public/frontend-contacto-page.test.ts`
+- **Test/contrato**: «contacto content keeps form submission contract intact» (10 tests · 62 assertions · 95 % substring).
+- **Clasificación**: MIXED — metadata, landmarks, datos de contacto reales, sin copy demo ni rutas privadas (8 negativas) + payload del envío.
+- **Contrato protegido**: el payload del formulario conserva `name`, `email`, `clinicName` y `message`.
+- **Owner**: el propio spec · dominio public · fase 08.
+- **Mutación que detecta**: borrar el ancla de M-P05 → 1 fail (ejecutado); reintroducir `contacto@vetneb.com` (negativa).
+- **Mutación que escapa**: M-P05 — el payload descarta siempre `clinicName`.
+- **Capa §19**: wiring + SOURCE/CONFIG.
+- **E2E**: E28 — NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2).
+- **Evidencia**: M-P05 orig 10/10 · mut 10/10 · control 1 fail · vacío 6 fail · observadores 9, detectada por 0.
+- **Motivo**: el literal del campo sigue presente aunque un spread posterior lo sobrescriba.
+
+#### G06-P03 · `test/unit/ui/public/frontend-diagnostic-reports-landing-page.test.ts`
+- **Test/contrato**: 9 tests de existencia, metadata SEO, JSON-LD, contenido, navegación, sitemap y claims (67 assertions · 97 % substring).
+- **Clasificación**: LEGITIMATE_STATIC_CONTRACT — SEO y contenido (§19 los nombra como contrato estático).
+- **Contrato protegido**: landing `/informes-veterinarios`: metadata, `Service` JSON-LD, sitemap y ausencia de claims no verificables.
+- **Owner**: el propio spec · dominio public · sin acción.
+- **Mutación que detecta**: retirar metadata/JSON-LD o la entrada del sitemap; introducir `"/dashboard"` (18 negativas; razonada).
+- **Mutación que escapa**: texto dentro de un comentario (razonada, no ejecutada).
+- **Capa §19**: SOURCE/CONFIG.
+- **E2E**: E33 — NO DEMOSTRADA.
+- **Decisión**: **KEEP** (R-1).
+- **Evidencia**: `MANUAL_CLASSIFICATION`.
+- **Motivo**: marcado por la palabra `Scroll` en el contenido; no afirma comportamiento.
+
+#### G06-P04 · `test/unit/ui/public/frontend-footer-lab-info.test.ts`
+- **Test/contrato**: 4 tests de orden layout/footer, FAQ, info de laboratorio y mapa no interactivo (52 assertions · 94 % substring).
+- **Clasificación**: LEGITIMATE_STATIC_CONTRACT.
+- **Contrato protegido**: footer tras `main`, FAQ pública, mapa no interactivo y ausencia del bloque de marca redundante.
+- **Owner**: el propio spec · dominio public · sin acción.
+- **Mutación que detecta**: retirar una pregunta frecuente o reintroducir «Laboratorio veterinario digital. Informes, estudios y gestión» (4 negativas; razonada).
+- **Mutación que escapa**: texto dentro de un comentario (razonada, no ejecutada).
+- **Capa §19**: SOURCE/CONFIG.
+- **E2E**: E34 — NO DEMOSTRADA.
+- **Decisión**: **KEEP** (R-1).
+- **Evidencia**: `MANUAL_CLASSIFICATION`.
+- **Motivo**: contenido y estructura.
+
+#### G06-P05 · `test/unit/ui/public/frontend-home-pricing-list.test.ts`
+- **Test/contrato**: «precios page uses runtime pricing cache and backend API on cache miss» (3 tests · 23 assertions · 96 % substring).
+- **Clasificación**: MIXED — home sin sección de precios (5 negativas) + caché runtime y estados.
+- **Contrato protegido**: la caché runtime de precios se puebla tras un fetch exitoso.
+- **Owner**: el propio spec · dominio public · fase 08.
+- **Mutación que detecta**: borrar el ancla de M-P01 → 1 fail (ejecutado); reintroducir «Lista de precios» en home (negativa).
+- **Mutación que escapa**: M-P01 — la caché nunca se puebla.
+- **Capa §19**: lógica de caché + REAL BROWSER.
+- **E2E**: E35 (skeleton y alerta, no caché) — NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2).
+- **Evidencia**: M-P01 orig 3/3 · mut 3/3 · control 1 fail · observadores 7, detectada por 0.
+- **Motivo**: rama de caché afirmada por presencia.
+
+#### G06-P06 · `test/unit/ui/public/frontend-pathology-laboratory-landing-page.test.ts`
+- **Test/contrato**: 10 tests de landing SEO, JSON-LD, navegación, sitemap y estructura de enlaces (61 assertions · 93 % substring).
+- **Clasificación**: LEGITIMATE_STATIC_CONTRACT.
+- **Contrato protegido**: landing de laboratorio patológico: SEO, JSON-LD centralizado, sitemap y enlaces sin anchors anidados.
+- **Owner**: el propio spec · dominio public · sin acción.
+- **Mutación que detecta**: retirar JSON-LD o la entrada del sitemap; introducir `/dashboard` (18 negativas; razonada).
+- **Mutación que escapa**: texto dentro de un comentario (razonada, no ejecutada).
+- **Capa §19**: SOURCE/CONFIG.
+- **E2E**: E33 — NO DEMOSTRADA.
+- **Decisión**: **KEEP** (R-1).
+- **Evidencia**: `MANUAL_CLASSIFICATION`.
+- **Motivo**: igual que G06-P03.
+
+#### G06-P07 · `test/unit/ui/public/frontend-profesionales-page-content.test.ts`
+- **Test/contrato**: «profesionales search content uses free text query and approximate backend search helper» (7 tests · 84 assertions · 95 % substring).
+- **Clasificación**: MIXED — sin lenguaje de marketplace ni rutas privadas (19 negativas) + wiring de búsqueda.
+- **Contrato protegido**: la búsqueda envía el texto ingresado al helper aproximado del backend.
+- **Owner**: el propio spec · dominio public · fase 08.
+- **Mutación que detecta**: borrar el ancla de M-P07 → 1 fail (ejecutado); `minLength` (negativa).
+- **Mutación que escapa**: M-P07 — la búsqueda consulta con query vacía.
+- **Capa §19**: wiring + REAL BROWSER.
+- **E2E**: E36 (detalle, no búsqueda) — NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2).
+- **Evidencia**: M-P07 orig 7/7 · mut 7/7 · control 1 fail · vacío 3 fail · observadores 9, detectada por 0.
+- **Motivo**: `query: currentQuery` sigue presente aunque se sobrescriba.
+
+#### G06-P08 · `test/unit/ui/public/frontend-public-button-contrast-contract.test.ts`
+- **Test/contrato**: «login and particulares submit CTAs keep loading semantics and contract class» (4 tests · 44 assertions · 91 % substring).
+- **Clasificación**: MIXED — contrato de clases CTA y contraste (12 negativas) + semántica de carga.
+- **Contrato protegido**: los CTA de envío anuncian `aria-busy` mientras envían.
+- **Owner**: el propio spec · dominio public · fase 08.
+- **Mutación que detecta**: borrar el ancla de M-P06 → 1 fail (ejecutado); `.public-cta-primary::before` (negativa).
+- **Mutación que escapa**: M-P06 — `aria-busy` sobrescrito en el CTA de login.
+- **Capa §19**: SOURCE/CONFIG (clases) + REAL BROWSER (estado accesible).
+- **E2E**: E11 (extended) — NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2). El contrato de clases de contraste se conserva intacto.
+- **Evidencia**: M-P06 orig 4/4 · mut 4/4 · control 1 fail · vacío 2 fail · observadores 10, detectada por 0.
+- **Motivo**: el binding de estado accesible sólo se asserta como literal.
+
+#### G06-P09 · `test/unit/ui/public/frontend-public-eyebrow-pills.test.ts`
+- **Test/contrato**: 2 tests de chips clínicos sin pills decorativas legadas (8 assertions · 88 % substring).
+- **Clasificación**: LEGITIMATE_STATIC_CONTRACT.
+- **Contrato protegido**: `Eyebrow` presente y sin pill legada; home sin pill de hero.
+- **Owner**: el propio spec · dominio public · sin acción.
+- **Mutación que detecta**: reintroducir la pill legada o `return null;` (6 negativas; razonada).
+- **Mutación que escapa**: ninguna relevante al contrato: la ausencia de un patrón es textual.
+- **Capa §19**: SOURCE/CONFIG.
+- **E2E**: E37 — NO DEMOSTRADA.
+- **Decisión**: **KEEP** (R-1).
+- **Evidencia**: `MANUAL_CLASSIFICATION`.
+- **Motivo**: guard de ausencia y API.
+
+#### G06-P10 · `test/unit/ui/public/frontend-public-hero-interaction-surfaces.test.ts`
+- **Test/contrato**: 4 tests de primitivas CSS en `globals.css` (23 assertions · 100 % substring).
+- **Clasificación**: LEGITIMATE_STATIC_CONTRACT — el CSS es el entregable.
+- **Contrato protegido**: definición de `.public-hero-action-grid` y demás primitivas.
+- **Owner**: el propio spec · dominio public · sin acción.
+- **Mutación que detecta**: retirar un selector (razonada).
+- **Mutación que escapa**: selector dentro de un comentario CSS (razonada, no ejecutada).
+- **Capa §19**: SOURCE/CONFIG.
+- **E2E**: E37 — NO DEMOSTRADA.
+- **Decisión**: **KEEP** (R-1).
+- **Evidencia**: `MANUAL_CLASSIFICATION`.
+- **Motivo**: contrato de CSS.
+
+#### G06-P11 · `test/unit/ui/public/frontend-public-layout-navigation.test.ts`
+- **Test/contrato**: 9 tests de landmarks, rutas centralizadas, desktop/mobile, orden de enlaces, CTAs y guards (76 assertions · 91 % substring).
+- **Clasificación**: LEGITIMATE_STATIC_CONTRACT — el dropdown mobile es `<details>/<summary>` nativo, sin lógica JS: su presencia **es** el contrato.
+- **Contrato protegido**: arquitectura de información pública, rutas centralizadas y ausencia de rutas privadas y copy demo.
+- **Owner**: el propio spec · dominio public · sin acción.
+- **Mutación que detecta**: retirar `<details` o `aria-label="Navegación mobile"`; volver `"use client";` el Navbar (14 negativas; razonada).
+- **Mutación que escapa**: clases que oculten el panel conservando los literales (razonada, no ejecutada; contrato de layout).
+- **Capa §19**: SOURCE/CONFIG.
+- **E2E**: E34 — NO DEMOSTRADA.
+- **Decisión**: **KEEP** (R-1).
+- **Evidencia**: `MANUAL_CLASSIFICATION`.
+- **Motivo**: sin lógica de producto en el componente afirmado.
+
+#### G06-P12 · `test/unit/ui/public/frontend-public-page-semantics.test.ts`
+- **Test/contrato**: «precios page sanitizes semantic ids for category headings» (10 tests · 79 assertions · 90 % substring).
+- **Clasificación**: MIXED — metadata, jerarquía de headings, sin reviews falsas, sitemap y noindex (contratos SEO estáticos) + saneo de ids.
+- **Contrato protegido**: los ids de categoría de `/precios` se sanean antes de usarse en `id`/`aria-labelledby`.
+- **Owner**: el propio spec · dominio public · fase 08.
+- **Mutación que detecta**: borrar el ancla de M-P08 → 1 fail (ejecutado); `<PublicExternalControl` (negativa).
+- **Mutación que escapa**: M-P08 — `toSemanticId` devuelve el valor sin sanear.
+- **Capa §19**: SOURCE/CONFIG (SEO) + lógica de saneo.
+- **E2E**: E33, E35 — NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2). Los contratos SEO del archivo se conservan intactos.
+- **Evidencia**: M-P08 orig 10/10 · mut 10/10 · control 1 fail · vacío 2 fail · observadores 7, detectada por 0.
+- **Motivo**: la cadena de saneo sigue presente aunque la función retorne antes.
+
+#### G06-P13 · `test/unit/ui/public/frontend-public-performance-contract.test.ts`
+- **Test/contrato**: «public scroll reveal keeps reduced motion and cleanup guarantees» (5 tests · 25 assertions · 80 % substring).
+- **Clasificación**: MIXED — imagen LCP con `next/image`, presupuesto de asset (contrato de artefacto) + cleanup del reveal.
+- **Contrato protegido**: el reveal desconecta el observer y revierte el contexto GSAP al desmontar.
+- **Owner**: el propio spec · dominio public · fase 08.
+- **Mutación que detecta**: borrar el ancla de M-P02 → 1 fail (ejecutado); `unoptimized` (negativa).
+- **Mutación que escapa**: M-P02 — `ctx?.revert()` nunca se ejecuta.
+- **Capa §19**: SOURCE/CONFIG + REAL BROWSER.
+- **E2E**: E37 — NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2).
+- **Evidencia**: M-P02 orig 5/5 · mut 5/5 · control 1 fail · observadores 7, detectada por 0.
+- **Motivo**: garantía de cleanup afirmada por presencia.
+
+#### G06-P14 · `test/unit/ui/public/frontend-public-perspective-scroll.test.ts`
+- **Test/contrato**: «hook respects prefers-reduced-motion without registering listeners» (20 tests · 92 assertions · 88 % substring).
+- **Clasificación**: MIXED — sin `preventDefault`, sin wheel/touch, sin copy demo (20 negativas) + reduced motion.
+- **Contrato protegido**: con `prefers-reduced-motion` el hook no registra listeners ni anima.
+- **Owner**: el propio spec · dominio public · fase 08.
+- **Mutación que detecta**: servir el archivo vacío → 5 fail (ejecutado); el control de ancla pasa.
+- **Mutación que escapa**: M-P03 — la rama de reduced-motion queda cortocircuitada.
+- **Capa §19**: REAL BROWSER.
+- **E2E**: E38 (observa el resultado visual, producido también por el CSS) — NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2; R-6: el receptor no reduce la decisión).
+- **Evidencia**: M-P03 orig 20/20 · mut 20/20 · control 20/20 · vacío 5 fail · observadores 1, detectada por 0.
+- **Motivo**: accesibilidad de movimiento afirmada por presencia; el CSS también neutraliza el efecto, así que el receptor no prueba la misma clase de mutación.
+
+#### G06-P15 · `test/unit/ui/public/frontend-public-service-bento-specimen-journey.test.ts`
+- **Test/contrato**: 22 tests de API de `SpecimenJourneySection`, bento, headings, etapas, datos de protocolo, orden en source, CTAs y guards (88 assertions · 94 % substring).
+- **Clasificación**: LEGITIMATE_STATIC_CONTRACT — contenido verificado, API de variantes y slots de un componente presentacional (R-4).
+- **Contrato protegido**: bento y recorrido de muestra con datos de protocolo verificados; sin `gsap`, sin términos de marketing ni API privada.
+- **Owner**: el propio spec · dominio public · sin acción.
+- **Mutación que detecta**: retirar una etapa o un dato de protocolo; importar `gsap` (11 negativas; razonada).
+- **Mutación que escapa**: invertir el slot opcional `stage.protocol &&` (razonada, no ejecutada; presentacional, R-4).
+- **Capa §19**: SOURCE/CONFIG.
+- **E2E**: E39 — NO DEMOSTRADA.
+- **Decisión**: **KEEP** (R-1, R-4).
+- **Evidencia**: `MANUAL_CLASSIFICATION`.
+- **Motivo**: contenido y API presentacional.
+
+#### G06-P16 · `test/unit/ui/public/frontend-public-visual-polish-regression-contract.test.ts`
+- **Test/contrato**: «PublicRouteControl emits aria-current=page when the route is active» (13 tests · 27 assertions · 93 % substring).
+- **Clasificación**: MIXED — paleta y clases (static) + estado de ruta activa.
+- **Contrato protegido**: la ruta activa expone `aria-current="page"` (raíz exacta, anidadas por prefijo).
+- **Owner**: el propio spec · dominio public · fase 08.
+- **Mutación que detecta**: borrar el ancla de M-P04 → 1 fail (ejecutado); `bg-sky-50` (negativa).
+- **Mutación que escapa**: M-P04 — `aria-current` sobrescrito a `undefined`.
+- **Capa §19**: SOURCE/CONFIG (clases) + REAL BROWSER (estado accesible).
+- **E2E**: E34 (no menciona `aria-current`) — NO DEMOSTRADA.
+- **Decisión**: **STRENGTHEN** (R-2).
+- **Evidencia**: M-P04 orig 13/13 · mut 13/13 · control 1 fail · observadores 24, detectada por 0.
+- **Motivo**: estado accesible de navegación afirmado por presencia.
+
+#### G06-P17 · `test/unit/ui/public/frontend-public-visual-primitives.test.ts`
+- **Test/contrato**: 7 tests de variantes de `PublicAction`/`PublicHero`, contenedor no interactivo y contrato de iconos (46 assertions · 100 % substring).
+- **Clasificación**: LEGITIMATE_STATIC_CONTRACT — API y variantes presentacionales (R-4).
+- **Contrato protegido**: variantes intencionales, `contactCard` como `div` no interactivo (sin `<Link`) e iconos decorativos `aria-hidden`.
+- **Owner**: el propio spec · dominio public · sin acción.
+- **Mutación que detecta**: reintroducir `<Link` como contenedor (negativa; razonada).
+- **Mutación que escapa**: invertir `showArrow ? … : null` (razonada, no ejecutada; R-4).
+- **Capa §19**: SOURCE/CONFIG.
+- **E2E**: E37 — NO DEMOSTRADA.
+- **Decisión**: **KEEP** (R-1, R-4).
+- **Evidencia**: `MANUAL_CLASSIFICATION`.
+- **Motivo**: primitivos presentacionales sin estado.
+
+#### G06-P18 · `test/unit/ui/public/frontend-servicios-page-content.test.ts`
+- **Test/contrato**: 13 tests de metadata/JSON-LD, hero, categorías, CTAs, bento jerárquico, bandas y guards (85 assertions · 92 % substring).
+- **Clasificación**: LEGITIMATE_STATIC_CONTRACT — contenido, SEO y clases de jerarquía (R-4).
+- **Contrato protegido**: contenido de `/servicios`, jerarquía del bento, enlaces limitados a CTAs explícitos, sin demo ni rutas privadas.
+- **Owner**: el propio spec · dominio public · sin acción.
+- **Mutación que detecta**: retirar una categoría o CTA; introducir `"/dashboard"` (16 negativas; razonada).
+- **Mutación que escapa**: clase de jerarquía en rama muerta (razonada, no ejecutada; R-4).
+- **Capa §19**: SOURCE/CONFIG.
+- **E2E**: E39, E40 — NO DEMOSTRADA.
+- **Decisión**: **KEEP** (R-1, R-4).
+- **Evidencia**: `MANUAL_CLASSIFICATION`.
+- **Motivo**: contenido y SEO.
+
+### C.9 Registro — `test/unit/contracts/**` — sin fase ejecutora
+
+#### G06-C01 · `test/unit/contracts/clinic/frontend-clinic-public-profile.test.ts`
+- **Test/contrato**: «clinic public profile card exposes required publication fields» (5 tests · 47 assertions · 96 % substring).
+- **Clasificación**: MIXED — tarjeta clinic-scoped sin `/api/admin` (3 negativas), helpers de API + resumen de publicación.
+- **Contrato protegido**: el perfil público de la clínica muestra los errores de publicación en el resumen.
+- **Owner**: el propio spec · dominio clinic · **sin fase ejecutora**: las fichas de `07/08` limitan sus paths a `test/unit/ui/**`.
+- **Mutación que detecta**: servir el archivo vacío → 3 fail (ejecutado); importar `/api/admin` (negativa).
+- **Mutación que escapa**: M-C01 — los errores de publicación dejan de mostrarse.
+- **Capa §19**: SOURCE/CONFIG + REAL BROWSER.
+- **E2E**: E41 — NO DEMOSTRADA.
+- **Decisión**: **KEEP** (R-3).
+- **Evidencia**: M-C01 orig 5/5 · mut 5/5 · control 5/5 · vacío 3 fail · observadores 2, detectada por 0.
+- **Motivo**: adjudicar `STRENGTHEN` sin fase dueña crearía una decisión huérfana (§30, regla de trazabilidad). El escape queda registrado como residual `RES-06-03`, no oculto.
+
+### C.10 Prueba de equivalencia de §31.6 — por qué `RETIRE = 0` y `RELOCATE = 0`
+
+| Condición | Estado en esta fase | Consecuencia |
+|---|---|---|
+| 1 Owner del contrato | Cada contrato tiene hoy un solo owner verificable en CI: su spec | Retirarlo lo dejaría sin owner |
+| 2 Observación equivalente | Sólo hay receptores **parecidos** en el catálogo (C.14); ninguno demostrado equivalente | No demostrable |
+| 3 Misma clase de mutación | Exige poner el receptor en rojo ante la mutación; una fase docs-only no ejecuta E2E | No demostrable |
+| 4 Negative proof preservada | 60 de 66 candidatos llevan assertions negativas (`includes(…) === false`, `!…includes(…)`, `doesNotMatch`) que ningún receptor E2E replica | Retirarlas está prohibido |
+| 5 Fail-closed preservado | Los guards de ausencia son fail-closed por construcción | Se conservan |
+| 6 Ningún P0/P1 sin señal | `TG-R03`/`TG-R06` (P1) quedarían sin señal ejecutable en CI | Bloquea el retiro |
+| 7 Receptor E2E real | Los receptores de extended no corren en el gate `ci`; ninguno se verificó verde sobre este SHA | No demostrable |
+| 8 Fallback fail-closed | Aplicado | `KEEP` o `STRENGTHEN`, nunca `RETIRE`/`RELOCATE` |
+
+### C.11 Gobierno de `07` y `08`
+
+- **Unidad de entrega** (ficha `07/08`: un PR por subdominio): `07` = 16 `STRENGTHEN` de
+  `dashboard`; `08` = tres PRs: `admin` (15), `frontend` (9), `public` (8), en ese orden o el que
+  fije su propia ficha. Los `KEEP` no requieren cambios.
+- **Aceptación vinculante de cada `STRENGTHEN`**: sin retirar ni debilitar ninguna assertion, el
+  spec incorpora un oracle que se pone en rojo ante **la mutación registrada** (C.15.1), y el PR
+  lo demuestra con un mutation proof en memoria dentro del propio spec (patrón de §11:
+  `source.replace(…)` → evaluador → assertion falla). La mutación registrada es el mínimo exigido,
+  no el máximo. Si el fortalecimiento exigiera tocar `frontend/src/**`, la regla de no-scope de
+  `07/08` manda: se reporta y no se ejecuta.
+- **Negative proofs**: toda assertion negativa existente se conserva (§31.6 condición 4).
+- **Censos a realinear en el mismo PR** (`AGENTS.md` §4), re-anclando baseline y motivo sin
+  ampliar la tolerancia: en `test/architecture/test-global-01b-census-contract.test.ts`, las filas
+  `A0-11-MUTATION` («specs con harness de mutación en memoria», banda sobre baseline 26),
+  `A0-07-ORACLE` (el pool de candidatos baja cuando un oracle deja de estar dominado por
+  substring) y `A0-08-SUBSTRING`.
+- **Prohibido en `07/08`** sin PR docs-only de readjudicación previo: `RETIRE`, `RELOCATE`, crear
+  specs E2E, tocar `frontend/e2e/suites/catalog.ts` y reabrir `LIMPIEZA E2E`.
+
+### C.12 Validación de la fase
+
+| Gate | Estado |
+|---|---|
+| `git diff --check` | `PASSED` sobre el diff final de esta fase, cuya única modificación es este anexo |
+| `pnpm test` | `NOT_RUN` — docs-only (ficha `06`). Las ejecuciones dirigidas del §3.3 son evidencia R0 de adjudicación y no sustituyen este gate |
+
+### C.13 Contradicciones y residuales (reportados, no corregidos fuera de scope)
+
+| ID | Hallazgo | Owner / siguiente paso |
+|---|---|---|
+| `RES-06-01` | El motivo de la fila `A0-07-ORACLE` del contrato de censo de `01B` dice que los ex candidatos «caen en `UNKNOWN_REQUIRES_REVIEW`», pero por `coupling.ts:133-139` un spec dominado por substring **sin** afirmación de comportamiento cae en `LEGITIMATE_STATIC_CONTRACT`; sólo los no dominados caen en `UNKNOWN_REQUIRES_REVIEW` | `TEST-GLOBAL-11` (dueño del censo de `01B`, §31.2); test-only, fuera del scope de `06` |
+| `RES-06-02` | `UNKNOWN_REQUIRES_REVIEW` = 162 archivos / 1.222 tests, fuera del pool de `06` y sin fase que los adjudique. Incluye los ex casos de calibración B.3 (`frontend-report-actions`, `OVER_SPECIFICATION` confirmada) y B.5 (`auth-security-rehash-policy`) | Nico: decidir si se abre una readjudicación (PR docs-only propio). Sin esa decisión no hay owner |
+| `RES-06-03` | `G06-C01` tiene escape verificado (M-C01) pero ninguna fase puede ejecutar un `STRENGTHEN` en `test/unit/contracts/**` | Nico: asignar fase mediante PR docs-only de readjudicación |
+| `RES-06-04` | Fuera de este anexo, este documento conserva «137» en §7.3, §7.4, §28 (`TG-R06`), §30 (tabla y nota), §31.1, el título de la ficha de `06` y A.0; la ficha `07/08` cita 28 y 94 candidatos (recomputados: 17 y 48); y su Veredicto aún lista `05A`/`05B` como `PENDING` (fusionados en #1789 y #1792) | PR docs-only posterior al de esta fase, que registre el resultado de `06` en esas secciones y en el Veredicto (§1) |
+| `RES-06-05` | La aceptación (3) de `07/08` mide el substring ratio de **toda** la subcarpeta remediada, que incluye archivos fuera del pool y los `KEEP` de este registro; el objetivo < 20 % puede no alcanzarse sin retiros, que §30 prohíbe usar como palanca | Nico: precisar el denominador antes de ejecutar `07` |
+| `RES-06-06` | La equivalencia E2E de los receptores de C.14 no está demostrada | Sólo relevante si una readjudicación propone `RELOCATE`; exige §31.6 completo |
+
+Severidad de lo anterior respecto del entregable de `06`: **0 P0 · 0 P1 · 0 P2 in-scope**. Son
+residuales de programa con owner nombrado y no invalidan ninguna adjudicación.
+
+### C.14 Receptores E2E verificados en `frontend/e2e/suites/catalog.ts`
+
+«ci» = la entrada tiene `executionCohorts` `ci` (gate `validate-frontend`); «extended» no corre en
+ese gate. «Observa» parafrasea el campo `proves` de la entrada.
+
+| ID | Spec (`frontend/e2e/…`) | Cohorte | Capa | Observa |
+|---|---|---|---|---|
+| E01 | `clinic/shell/dashboard-clinic-module-state-parity.spec.ts` | extended | mocked | Errores SSR de Operaciones, Informes y Logística con reintento en vez de vacío; estados de Tokens y Perfil |
+| E02 | `clinic/shell/dashboard-interaction-foundation.spec.ts` | smoke · ci | fixture | `/dashboard` abre Operaciones sin hub; navegación y deep links |
+| E03 | `clinic/tokens/dashboard-clinic-tokens-mobile-parity.spec.ts` | public-clinic · ci | mocked | Toolbar, error de tracking y acciones deliberadas del asistente de tokens |
+| E04 | `clinic/reports/dashboard-informes-server-adaptive-pagination.spec.ts` | extended | fixture | Pager visible y cambio de filas en Informes |
+| E05 | `clinic/logistics/dashboard-logistica-metricas-full-route-adaptive.spec.ts` | extended | fixture | Pager y métricas de la página visible |
+| E06 | `clinic/logistics/dashboard-logistica-rutas-full-route-adaptive.spec.ts` | extended | fixture | Pager de rutas |
+| E07 | `clinic/logistics/dashboard-logistica-visitas-full-route-adaptive.spec.ts` | extended | fixture | Pager de visitas |
+| E08 | `clinic/logistics/dashboard-logistica-mobile-action-bar-reachability.spec.ts` | public-clinic · ci | fixture | Acciones del hub de logística hit-testables |
+| E09 | `clinic/shell/dashboard-master-detail-state-polish.spec.ts` | visual-contract · ci | fixture | Lista y detalle inline de Informes |
+| E10 | `platform/accessibility/dashboard-accessibility-keyboard.spec.ts` | visual-contract · ci | fixture | Roles y etiquetas de filtros, acciones de informe, notificaciones y hub; Enter en tarjetas |
+| E11 | `platform/accessibility/accessibility-axe-key-routes.spec.ts` | extended | fixture | axe sin violaciones en rutas clave |
+| E12 | `regression/dashboard-b10-clinic-shell-unification.spec.ts` | visual-contract · ci | mocked | Un app bar, una banda lateral y un main por ruta clínica |
+| E13 | `admin/clinics/admin-clinics-mobile-card-layout.spec.ts` | admin-mobile · ci | mocked | Cards de clínicas operables y paginación adaptativa |
+| E14 | `regression/dashboard-adaptive-limit-baseline.spec.ts` | extended | mocked | limit/offset adaptativo de 15 consumidores contra baseline A03 |
+| E15 | `admin/shell/admin-mobile-core-modules-no-scroll.spec.ts` | admin-mobile · ci | mocked | Módulos core sin scroll; pager de informes anclado |
+| E16 | `admin/shell/admin-mobile-ops-modules-no-scroll.spec.ts` | admin-mobile · ci | mocked | Sesiones y usuarios sin scroll; selects sin recorte |
+| E17 | `admin/tokens/admin-tokens-mobile-toolbar-layout.spec.ts` | admin-mobile · ci | fixture | Toolbar, pager y diálogo de alta de tokens admin |
+| E18 | `admin/users/admin-users-roles-pager-reachability.spec.ts` | visual-contract · ci | fixture | Pager de usuarios alcanzable |
+| E19 | `admin/clinics/admin-clinic-edit-drawer.spec.ts` | admin-mobile · ci | mocked | Drawer de **edición**: contraseñas ocultas hasta reveal explícito |
+| E20 | `admin/shell/admin-mobile-status-modules-no-scroll.spec.ts` | admin-mobile · ci | mocked | Alertas paginadas por ajuste medido |
+| E21 | `admin/shell/admin-mobile-config-modules-no-scroll.spec.ts` | admin-mobile · ci | mocked | Precios, schema-health y dry-run sin scroll |
+| E22 | `platform/app-shell/dashboard-detail-text-integrity.spec.ts` | visual-contract · ci | mocked | Valores largos completos en detalle y diálogos |
+| E23 | `admin/pricing/admin-pricing-multi-form-measurement.spec.ts` | extended | mocked | Pager visible y formularios sin recorte |
+| E24 | `platform/app-shell/dashboard-card-navigation-shell.spec.ts` | visual-contract · ci | fixture | Hub admin, activación de workspace y deep links |
+| E25 | `regression/dashboard-b13-admin-entry.spec.ts` | visual-contract · ci | fixture | Entrada admin, precedencia de `?module=` |
+| E26 | `regression/dashboard-operational-contract.spec.ts` | smoke · ci | fixture | Filtros de auditoría S1 persistidos en URL |
+| E27 | `platform/auth/dashboard-logout-private-cache.spec.ts` | smoke · ci | mocked | Logout y caché privada |
+| E28 | `platform/hydration/contacto-hydration.spec.ts` | smoke · ci | fixture | Hidratación del formulario de contacto |
+| E29 | `platform/hydration/login-hydration.spec.ts` | smoke · ci | fixture | Hidratación del login |
+| E30 | `platform/auth/dashboard-auth-redirect.spec.ts` | smoke · ci | fixture | Ruta privada sin sesión → `/login?next=` |
+| E31 | `particular/auth/particular-authenticated-zoom-sentinel.spec.ts` | public-clinic · ci | mocked | Estado autenticado de `/particulares` |
+| E32 | `public/clinics/public-clinics-b2b-operations.spec.ts` | public-clinic · ci | fixture | Landing `/clinicas` y sus CTAs |
+| E33 | `public/routes/public-routes.spec.ts` | smoke · ci | fixture | Rutas públicas y landings SEO diagnósticas |
+| E34 | `public/navigation/public-navigation-footer.spec.ts` | public-clinic · ci | fixture | Navbar, footer y navegación mobile |
+| E35 | `public/pricing/public-pricing-actionable.spec.ts` | public-clinic · ci | mocked | Precios: skeleton y alerta ante 500 |
+| E36 | `public/professionals/public-professional-detail.spec.ts` | public-clinic · ci | mocked | Detalle de profesional |
+| E37 | `public/home/home-hero-evidence-first.spec.ts` | public-clinic · ci | fixture | Hero de home e imagen optimizada |
+| E38 | `public/home/public-perspective-scroll.spec.ts` | public-clinic · ci | fixture | Perspectiva y reduced motion |
+| E39 | `public/services/public-service-bento-specimen-journey.spec.ts` | public-clinic · ci | fixture | Bento y recorrido de muestra |
+| E40 | `public/reports/public-report-preview.spec.ts` | public-clinic · ci | fixture | Sin contenido demo en home, servicios y clínicas |
+| E41 | `clinic/profile/dashboard-clinic-perfil-mobile-operability.spec.ts` | public-clinic · ci | mocked | Editor de perfil operable en mobile |
+
+### C.15 Mutaciones registradas
+
+#### C.15.1 Catálogo
+
+Cada mutación actúa sobre **un** archivo de producción y sólo en memoria. «Antes de» inserta una
+línea nueva con el texto indicado; «tras» inserta una línea nueva después del ancla; «reemplaza»
+cambia el ancla por el texto indicado. Las anclas son únicas salvo donde se indica «×n».
+
+- **M-D01** — `frontend/src/app/dashboard/ClinicCommandCenter.tsx`: reemplaza `{statsLoadError ? (` por `{!statsLoadError ? (`.
+- **M-D02** — `frontend/src/app/dashboard/ClinicCommandCenter.tsx`: reemplaza `{reportsLoadError ? (` por `{!reportsLoadError ? (`.
+- **M-D03** — `frontend/src/components/dashboard/ClinicParticularTokensCard.tsx`: tras `disabled={!isGeneratedTokenConfirmed}` inserta `{...{ disabled: false }}`.
+- **M-D04** — `frontend/src/app/dashboard/page.tsx`: antes de `statsLoadError = true;` inserta `if (false)`.
+- **M-D05** — `frontend/src/app/dashboard/informes/page.tsx`: antes de `reportsLoadError = true;` inserta `if (false)`.
+- **M-D06** — `frontend/src/app/dashboard/logistica/metricas/page.tsx`: antes de `routePlansLoadError = true;` inserta `if (false)`.
+- **M-D07** — `frontend/src/app/dashboard/logistica/rutas/page.tsx`: antes de `routePlansLoadError = true;` inserta `if (false)`.
+- **M-D08** — `frontend/src/app/dashboard/logistica/visitas/page.tsx`: antes de `visitsLoadError = true;` inserta `if (false)`.
+- **M-D09** — `frontend/src/app/dashboard/logistica/page.tsx`: reemplaza `(v) => v.status === "in_progress"` por `(v) => false && v.status === "in_progress"`.
+- **M-D10** — `frontend/src/app/dashboard/logistica/LogisticsCommandCenter.tsx`: reemplaza `{fieldVisitsLoadError ? (` por `{!fieldVisitsLoadError ? (`.
+- **M-D11**, **M-D12** — `frontend/src/components/dashboard/ErrorState.tsx`: reemplaza `{onRetry ? (` por `{!onRetry ? (`.
+- **M-D13** — `frontend/src/app/dashboard/informes/InformesReportsList.tsx`: tras `disabled={page <= 1}` inserta `{...{ disabled: false }}`.
+- **M-D14** — `frontend/src/components/dashboard/StatsCards.tsx`: antes de `if (loading) {` inserta `if (false)`.
+- **M-D15** — `frontend/src/components/dashboard/StudyTimeline.tsx`: tras `aria-current={step.status === "current" ? "step" : undefined}` inserta `{...{ "aria-current": undefined }}`.
+- **M-D16** — `frontend/src/components/dashboard/ClinicDashboardWorkspaceController.tsx`: en el `useState<ClinicModule>(…)` inicial reemplaza `initialModule ?? DEFAULT_CLINIC_MODULE,` por `(initialModule ?? DEFAULT_CLINIC_MODULE) && ("informes" as ClinicModule),`.
+- **M-A01**, **M-A16** — `frontend/src/app/dashboard/admin/admin-audit-shared.ts`: antes de `return "Dato estructurado omitido";` inserta `if (value) return JSON.stringify(value);`.
+- **M-A02** (descartada, C.15.3) — `frontend/src/app/dashboard/admin/page.tsx`: reemplaza `loadError: true,` por `loadError: true && false,`.
+- **M-A03** — `frontend/src/app/dashboard/admin/AdminReportsCard.tsx`: antes de `if (requestId !== latestRequestRef.current) return;` (×2) inserta `if (false)`.
+- **M-A04** — `frontend/src/app/dashboard/admin/AdminParticularTokensCard.tsx`: ídem (×4).
+- **M-A05** — `frontend/src/app/dashboard/admin/AdminSessionsReadOnlyCard.tsx`: tras `disabled={isRevoking || isCurrentAdminSession}` (×2) inserta `{...{ disabled: false }}`.
+- **M-A06** — `frontend/src/app/dashboard/admin/AdminSessionsReadOnlyCard.tsx`: antes de `if (!confirmed) {` inserta `if (false)`.
+- **M-A07**, **M-A08** — `frontend/src/app/dashboard/admin/AdminUsersRolesReadOnlyCard.tsx`: antes de `if (!confirmed) {` inserta `if (false)`.
+- **M-A09** — `frontend/src/app/dashboard/admin/AdminClinicsManagementCard.tsx`: tras `type={isCreatePasswordVisible ? "text" : "password"}` inserta `{...{ type: "text" }}`.
+- **M-A10** — `frontend/src/app/dashboard/admin/AdminFailedLoginAlertsReadOnlyCard.tsx`: antes de `if (requestId !== latestRequestRef.current) return;` (×2) inserta `if (false)`.
+- **M-A11** — `frontend/src/app/dashboard/admin/AdminMaintenanceDryRunCard.tsx`: reemplaza `{error ? (` por `{!error ? (`.
+- **M-A12** — `frontend/src/app/dashboard/admin/AdminParticularTokensCard.tsx`: tras `disabled={!isGeneratedTokenConfirmed}` inserta `{...{ disabled: false }}`.
+- **M-A13** — `frontend/src/app/dashboard/admin/AdminPricingEditorCard.tsx`: antes de `item.payload !== null && item.errorMessage === null,` inserta `true ||`.
+- **M-A14** — `frontend/src/app/dashboard/admin/AdminSectionTabs.tsx`: reemplaza `const isHomeKey = event.key === "Home";` por `const isHomeKey = event.key === "Home" && false;`.
+- **M-A15** — `frontend/src/app/dashboard/admin/AdminClinicsManagementCard.tsx`: reemplaza `const effectiveLimit = rowsPerPage;` por `const effectiveLimit = Math.min(rowsPerPage, 1);`.
+- **M-F01** (descartada, C.15.3) — `frontend/src/context/AuthContext.tsx`: antes de `setUser(null);` inserta `if (false)`.
+- **M-F02** — `frontend/src/components/public/ContactoContent.tsx`: antes de `setErrorMessage(resolveContactSubmitErrorMessage(error));` inserta `if (false)`.
+- **M-F03**, **M-F04** — `frontend/src/components/public/LoginContent.tsx`: tras `type={isPasswordVisible ? "text" : "password"}` inserta `{...{ type: "text" }}`.
+- **M-F05** — `frontend/src/components/public/LoginContent.tsx`: antes de `if (isSubmitting || rateLimitCooldown > 0) {` inserta `if (false)`, y tras `disabled={isBlocked}` (×4) inserta `{...{ disabled: false }}`.
+- **M-F06** — `frontend/src/components/public/LoginContent.tsx`: antes de `parsedNextPath.pathname === ROUTES.dashboardAdmin ||` inserta `false &&`.
+- **M-F07** — `frontend/src/components/public/ParticularesContent.tsx`: antes de `setSessionCheckError(true);` inserta `if (false)`.
+- **M-F08** — `frontend/src/components/public/ParticularesContent.tsx`: reemplaza `const isBlocked = isSubmitting || rateLimitCooldown > 0;` por `const isBlocked = isSubmitting || rateLimitCooldown > 0 && false;`.
+- **M-F09** — `frontend/src/components/dashboard/ReportDownloadButton.tsx`: reemplaza `{errorMessage ? (` por `{!errorMessage ? (`.
+- **M-F10** — `frontend/src/hooks/useAuth.ts`: antes de `if (context === null) {` inserta `if (false)`.
+- **M-P01** — `frontend/src/components/public/PreciosContent.tsx`: antes de `if (!cachedSnapshot && pricingSnapshot.success) {` inserta `if (false)`.
+- **M-P02** — `frontend/src/components/public/PublicScrollReveal.tsx`: antes de `ctx?.revert();` inserta `if (false)`.
+- **M-P03** — `frontend/src/hooks/useScrollPerspective.ts`: reemplaza `if (window.matchMedia(REDUCED_MOTION_QUERY).matches) {` por `if (false && window.matchMedia(REDUCED_MOTION_QUERY).matches) {`.
+- **M-P04** — `frontend/src/components/public/PublicRouteControl.tsx`: tras `aria-current={isRouteActive ? "page" : undefined}` inserta `{...{ "aria-current": undefined }}`.
+- **M-P05** — `frontend/src/components/public/ContactoContent.tsx`: tras `clinicName: clinica.trim() || null,` inserta `...{ clinicName: null },`.
+- **M-P06** — `frontend/src/components/public/LoginContent.tsx`: tras `aria-busy={isSubmitting}` inserta `{...{ "aria-busy": false }}`.
+- **M-P07** — `frontend/src/components/public/ProfesionalesSearchContent.tsx`: tras `query: currentQuery,` inserta `...{ query: "" },`.
+- **M-P08** — `frontend/src/components/public/PreciosContent.tsx`: tras `function toSemanticId(value: string): string {` inserta `if (value) return value;`.
+- **M-C01** — `frontend/src/components/dashboard/ClinicPublicProfileCard.tsx`: antes de `if (publicationErrors.length) {` inserta `if (false)`.
+
+#### C.15.2 Resultados de ejecución (sobre `bac0986a`)
+
+`orig` y `mut` = tests en verde del spec, siempre con 0 fallos; `control` y `vacío` = fallos
+provocados («—» = no fue necesario porque el control ya falló). «Obs.» = specs observadores
+ejecutados bajo la mutación; «Det.» = observadores que la detectaron.
+
+| Mutación | Spec | orig | mut | control | vacío | Obs. | Det. |
+|---|---|---:|---:|---:|---:|---:|---:|
+| M-D01 | empty-states | 4 | 4 | 1 | — | 6 | 0 |
+| M-D02 | clinic-command-center | 24 | 24 | 1 | — | 6 | 0 |
+| M-D03 | clinic-tokens | 17 | 17 | 1 | — | 12 | 0 |
+| M-D04 | home | 12 | 12 | 1 | — | 82 | 0 |
+| M-D05 | informes | 15 | 15 | 1 | — | 82 | 0 |
+| M-D06 | logistica-metricas | 11 | 11 | 0 | 11 | 82 | 0 |
+| M-D07 | logistica-rutas | 10 | 10 | 0 | 10 | 82 | 0 |
+| M-D08 | logistica-visitas | 11 | 11 | 1 | — | 82 | 0 |
+| M-D09 | logistica | 10 | 10 | 1 | — | 82 | 0 |
+| M-D10 | logistics-hub | 24 | 24 | 1 | — | 3 | 0 |
+| M-D11 | private-shell-foundation | 7 | 7 | 1 | — | 2 | 0 |
+| M-D12 | state-polish | 19 | 19 | 1 | — | 2 | 0 |
+| M-D13 | reports-master-detail | 7 | 7 | 1 | — | 13 | 0 |
+| M-D14 | shared-components | 8 | 8 | 1 | — | 2 | 0 |
+| M-D15 | accessibility-focus-aria | 5 | 5 | 1 | — | 3 | 0 |
+| M-D16 | hub-hero | 9 | 9 | 0 | 1 | 9 | 0 |
+| M-A01 | admin-audit-enterprise-density | 6 | 6 | 1 | — | 3 | 0 |
+| M-A03 | admin-reports-enterprise-density | 9 | 9 | 1 | — | 10 | 0 |
+| M-A04 | admin-tokens-enterprise-density | 7 | 7 | 1 | — | 17 | 0 |
+| M-A05 | admin-sessions-enterprise-density | 7 | 7 | 1 | — | 12 | 0 |
+| M-A06 | frontend-admin-sessions-card | 14 | 14 | 1 | — | 12 | 0 |
+| M-A07 | admin-users-roles-enterprise-density | 6 | 6 | 0 | 3 | 13 | 0 |
+| M-A08 | frontend-admin-users-roles-card | 14 | 14 | 1 | — | 13 | 0 |
+| M-A09 | frontend-admin-clinics-management-card | 17 | 17 | 1 | — | 15 | 0 |
+| M-A10 | frontend-admin-failed-login-alerts-card | 20 | 20 | 1 | — | 10 | 0 |
+| M-A11 | frontend-admin-maintenance-dry-run-card | 11 | 11 | 1 | — | 7 | 0 |
+| M-A12 | frontend-admin-particular-tokens | 20 | 20 | 1 | — | 17 | 0 |
+| M-A13 | frontend-admin-pricing-card | 13 | 13 | 1 | — | 5 | 0 |
+| M-A14 | frontend-dashboard-admin-section-tabs | 5 | 5 | 1 | — | 3 | 0 |
+| M-A15 | admin-overview-clinics-enterprise-density | 8 | 8 | 0 | 2 | 15 | 0 |
+| M-A16 | frontend-dashboard-admin | 16 | 16 | 1 | 4 | 3 | 0 |
+| M-F02 | frontend-contact-form | 3 | 3 | 1 | — | 9 | 0 |
+| M-F03 | frontend-login-content | 8 | 8 | 1 | — | 10 | 0 |
+| M-F04 | frontend-login-password-visibility-contract | 6 | 6 | 1 | — | 10 | 0 |
+| M-F05 | frontend-login-form-integration | 6 | 6 | 2 | — | 10 | 0 |
+| M-F06 | frontend-login-page | 5 | 5 | 1 | — | 10 | 0 |
+| M-F07 | frontend-particulares-content | 21 | 21 | 1 | — | 11 | 0 |
+| M-F08 | frontend-particulares-access-contract | 5 | 5 | 1 | — | 11 | 0 |
+| M-F09 | frontend-report-download-action | 3 | 3 | 0 | 2 | 4 | 0 |
+| M-F10 | frontend-auth-context | 4 | 4 | 0 | 1 | 1 | 0 |
+| M-P01 | frontend-home-pricing-list | 3 | 3 | 1 | — | 7 | 0 |
+| M-P02 | frontend-public-performance-contract | 5 | 5 | 1 | — | 7 | 0 |
+| M-P03 | frontend-public-perspective-scroll | 20 | 20 | 0 | 5 | 1 | 0 |
+| M-P04 | frontend-public-visual-polish-regression-contract | 13 | 13 | 1 | — | 24 | 0 |
+| M-P05 | frontend-contacto-page | 10 | 10 | 1 | 6 | 9 | 0 |
+| M-P06 | frontend-public-button-contrast-contract | 4 | 4 | 1 | 2 | 10 | 0 |
+| M-P07 | frontend-profesionales-page-content | 7 | 7 | 1 | 3 | 9 | 0 |
+| M-P08 | frontend-public-page-semantics | 10 | 10 | 1 | 2 | 7 | 0 |
+| M-C01 | frontend-clinic-public-profile | 5 | 5 | 0 | 3 | 2 | 0 |
+
+Los tests en verde pueden superar el conteo estático de `test(` del spec cuando el archivo genera
+tests en bucle (p. ej. `admin-overview-clinics`, 6 estáticos → 8 ejecutados).
+
+#### C.15.3 Mutaciones descartadas por detección en la suite
+
+| Mutación | Detectada por | Tratamiento |
+|---|---|---|
+| M-A02 | `test/unit/ui/admin/frontend-admin-live-read-contract.test.ts` (con la mutación falla; sin ella pasa) | El contrato «fallo de auditoría ≠ vacío» ya tiene owner con oracle efectivo. `G06-A16` se adjudicó con M-A16 |
+| M-F01 | `test/unit/ui/dashboard/frontend-dashboard-last-module.test.ts` (ídem) | El logout que limpia el usuario ya tiene owner efectivo. `G06-F01` se adjudicó con M-F10 |
+
+#### C.15.4 Harness de reproducción
+
+Este bloque es **documentación, no tooling versionado** (versionarlo sería test-only y queda
+fuera de una fase docs-only). Guardar como archivo fuera del repositorio:
+
+```ts
+// mut-preload.ts — sirve UN archivo de producción mutado, sólo en memoria.
+// MUT_TARGET = path repo-relativo · MUT_EDITS = JSON [{ find, replace, all? }]
+// MUT_MODE = orig | mut | control (reemplazo vacío) | blank (archivo vacío)
+import fs from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
+
+const target = String(process.env.MUT_TARGET).toLowerCase();
+const edits: { find: string; replace: string; all?: boolean }[] = JSON.parse(process.env.MUT_EDITS ?? "[]");
+const mode = process.env.MUT_MODE ?? "orig";
+const original = fs.readFileSync;
+
+(fs as any).readFileSync = function patched(path: any, options: any) {
+  const result = original.call(fs, path, options);
+  const p = String(path instanceof URL ? path.pathname : path).replace(/\\/g, "/").toLowerCase();
+  if (mode === "orig" || !p.endsWith(target)) return result;
+  let text = (typeof result === "string" ? result : result.toString("utf8")).replace(/\r\n/g, "\n");
+  if (mode === "blank") text = "";
+  for (const e of mode === "blank" ? [] : edits) {
+    const next = mode === "control" ? "" : e.replace;
+    text = e.all ? text.split(e.find).join(next) : text.replace(e.find, next);
+  }
+  return typeof result === "string" ? text : Buffer.from(text, "utf8");
+};
+syncBuiltinESMExports();
+```
+
+```powershell
+# Desde la raíz del repo, por mutación y modo:
+$env:MUT_TARGET = "frontend/src/app/dashboard/ClinicCommandCenter.tsx"
+$env:MUT_EDITS  = '[{"find":"{statsLoadError ? (","replace":"{!statsLoadError ? ("}]'
+$env:MUT_MODE   = "mut"
+node --experimental-strip-types --experimental-specifier-resolution=node --import file:///<ruta>/mut-preload.ts --test test/unit/ui/dashboard/frontend-dashboard-empty-states.test.ts
+```
+
+Para el escape a nivel suite, repetir con `MUT_MODE=mut` sobre cada spec de `git ls-files
+'test/**/*.test.ts'` cuyo texto contenga el path mutado o el nombre de su módulo.
+
 ---
 
 ## Veredicto
