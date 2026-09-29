@@ -18,6 +18,82 @@ const lintableFiles = [
   "drizzle/**/*.{ts,mts,mjs}",
 ];
 
+// TEST-GLOBAL-05B: the test suite gets its own minimal, type-aware rule set,
+// kept out of lintableFiles so backend rules and results do not change.
+// Mirrors test/tsconfig.json, which only includes *.ts.
+const testFiles = ["test/**/*.ts"];
+const testRunner = "/^(test|it|describe|suite)$/";
+const onlyMessage = "Committed .only narrows the suite; remove it.";
+const testRunnerNames = new Set(["test", "it", "describe", "suite"]);
+
+const nodeTestGuards = {
+  rules: {
+    "no-aliased-only": {
+      meta: {
+        type: "problem",
+        schema: [],
+        messages: {
+          only: onlyMessage,
+        },
+      },
+      create(context) {
+        const aliasSpecifiers = new Set();
+        const calls = [];
+
+        const isOnlyProperty = (property) =>
+          property.type === "Property" &&
+          property.value.type === "Literal" &&
+          property.value.value === true &&
+          ((property.key.type === "Identifier" && !property.computed && property.key.name === "only") ||
+            (property.key.type === "Literal" && property.key.value === "only"));
+
+        const isImportedAlias = (identifier) => {
+          let scope = context.sourceCode.getScope(identifier);
+          while (scope) {
+            const variable = scope.set.get(identifier.name);
+            if (variable) return variable.defs.some((definition) => aliasSpecifiers.has(definition.node));
+            scope = scope.upper;
+          }
+          return false;
+        };
+
+        return {
+          ImportDeclaration(node) {
+            if (node.source.value !== "node:test") return;
+
+            for (const specifier of node.specifiers) {
+              if (specifier.type === "ImportDefaultSpecifier") {
+                if (!testRunnerNames.has(specifier.local.name)) aliasSpecifiers.add(specifier);
+              }
+              if (
+                specifier.type === "ImportSpecifier" &&
+                specifier.imported.type === "Identifier" &&
+                testRunnerNames.has(specifier.imported.name) &&
+                specifier.local.name !== specifier.imported.name
+              ) {
+                aliasSpecifiers.add(specifier);
+              }
+            }
+          },
+          CallExpression(node) {
+            calls.push(node);
+          },
+          "Program:exit"() {
+            for (const call of calls) {
+              if (call.callee.type !== "Identifier" || !isImportedAlias(call.callee)) continue;
+              const onlyProperty = call.arguments
+                .filter((argument) => argument.type === "ObjectExpression")
+                .flatMap((argument) => argument.properties)
+                .find(isOnlyProperty);
+              if (onlyProperty) context.report({ node: onlyProperty, messageId: "only" });
+            }
+          },
+        };
+      },
+    },
+  },
+};
+
 export default [
   {
     ignores: [
@@ -62,6 +138,87 @@ export default [
       "no-undef": "off",
       "no-unused-vars": "off",
       ...asWarnings(typescriptEslint.configs.recommended.rules),
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          argsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+        },
+      ],
+    },
+  },
+  {
+    files: testFiles,
+    languageOptions: {
+      globals: globals.node,
+      parser: typescriptParser,
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+    plugins: {
+      "@typescript-eslint": typescriptEslint,
+      "node-test-guards": nodeTestGuards,
+    },
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: `CallExpression[callee.property.name='only'][callee.object.name=${testRunner}]`,
+          message: onlyMessage,
+        },
+        {
+          selector: `CallExpression[callee.property.name='only'][callee.object.property.name=${testRunner}]`,
+          message: onlyMessage,
+        },
+        {
+          selector: `CallExpression[callee.property.value='only'][callee.object.name=${testRunner}]`,
+          message: onlyMessage,
+        },
+        {
+          selector: `CallExpression[callee.property.value='only'][callee.object.property.name=${testRunner}]`,
+          message: onlyMessage,
+        },
+        {
+          selector: `CallExpression[callee.name=${testRunner}] > ObjectExpression > Property[key.name='only'][value.value=true]`,
+          message: onlyMessage,
+        },
+        {
+          selector: `CallExpression[callee.property.name=${testRunner}] > ObjectExpression > Property[key.name='only'][value.value=true]`,
+          message: onlyMessage,
+        },
+        {
+          selector: `CallExpression[callee.name=${testRunner}] > ObjectExpression > Property[key.value='only'][value.value=true]`,
+          message: onlyMessage,
+        },
+        {
+          selector: `CallExpression[callee.property.name=${testRunner}] > ObjectExpression > Property[key.value='only'][value.value=true]`,
+          message: onlyMessage,
+        },
+        // The allowlist below also matches TestContext#test, so floating
+        // subtests are rejected here instead.
+        {
+          selector: `ExpressionStatement > CallExpression[callee.type='MemberExpression'][callee.property.name=${testRunner}]`,
+          message: "Await subtests; a floating t.test() is cancelled when its parent ends.",
+        },
+        {
+          selector: `UnaryExpression[operator='void'] > CallExpression[callee.type='MemberExpression'][callee.property.name=${testRunner}]`,
+          message: "Await subtests; a floating t.test() is cancelled when its parent ends.",
+        },
+      ],
+      "node-test-guards/no-aliased-only": "error",
+      // node:test registers top-level test()/it()/describe()/suite() promises
+      // with the runner itself.
+      "@typescript-eslint/no-floating-promises": [
+        "error",
+        {
+          allowForKnownSafeCalls: [
+            { from: "package", package: "node:test", name: ["test", "it", "describe", "suite"] },
+          ],
+        },
+      ],
       "@typescript-eslint/no-unused-vars": [
         "warn",
         {
