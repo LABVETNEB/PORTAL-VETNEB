@@ -1,6 +1,5 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import nodemailer from "nodemailer";
 import {
   logError,
   logInfo,
@@ -8,6 +7,7 @@ import {
   serializeError,
 } from "../../../server/lib/logger.ts";
 import { readSourceFile } from "../../helpers/tracked-source-files.ts";
+import { createEmailDependencies } from "../../mocks/email-dependencies.ts";
 
 process.env.SUPABASE_URL ??= "https://example.supabase.co";
 process.env.SUPABASE_ANON_KEY ??= "test-anon-key";
@@ -15,7 +15,6 @@ process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
 process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/postgres";
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 
-const { ENV } = await import("../../../server/lib/env.ts");
 const { sendContactMessageEmail, sendSpecialStainRequiredEmail } = await import("../../../server/lib/email.ts");
 
 function captureSingleJsonLine(
@@ -100,26 +99,6 @@ test("serializeError encapsula valores no Error sin mutar el original", () => {
 
 test("sendContactMessageEmail usa CONTACT_TO y fallback SMTP_FROM sin loguear secretos", async () => {
   const originalInfo = console.info;
-  const originalCreateTransport = nodemailer.createTransport;
-  const originalEnv = {
-    contactTo: ENV.contactTo,
-    smtp: {
-      enabled: ENV.smtp.enabled,
-      host: ENV.smtp.host,
-      port: ENV.smtp.port,
-      secure: ENV.smtp.secure,
-      user: ENV.smtp.user,
-      pass: ENV.smtp.pass,
-      from: ENV.smtp.from,
-    },
-    gmailApi: {
-      enabled: ENV.gmailApi.enabled,
-      clientId: ENV.gmailApi.clientId,
-      clientSecret: ENV.gmailApi.clientSecret,
-      refreshToken: ENV.gmailApi.refreshToken,
-      from: ENV.gmailApi.from,
-    },
-  };
   const infoCalls: unknown[][] = [];
   const sendMailCalls: Array<Record<string, unknown>> = [];
   const transportCalls: unknown[] = [];
@@ -128,49 +107,60 @@ test("sendContactMessageEmail usa CONTACT_TO y fallback SMTP_FROM sin loguear se
     infoCalls.push(args);
   };
 
-  (ENV as any).contactTo = [
-    "contacto@vetneb.com; ops@vetneb.com, CONTACTO@vetneb.com",
-  ];
-  (ENV.smtp as any).enabled = true;
-  (ENV.smtp as any).host = "smtp.gmail.com";
-  (ENV.smtp as any).port = 587;
-  (ENV.smtp as any).secure = false;
-  (ENV.smtp as any).user = "smtp-user-contact";
-  (ENV.smtp as any).pass = "smtp-pass-contact";
-  (ENV.smtp as any).from = "fallback@vetneb.com";
-  (ENV.gmailApi as any).enabled = false;
-  (ENV.gmailApi as any).clientId = "";
-  (ENV.gmailApi as any).clientSecret = "";
-  (ENV.gmailApi as any).refreshToken = "";
-  (ENV.gmailApi as any).from = "";
-
-  (nodemailer as any).createTransport = (options: unknown) => {
+  const smtp = {
+    enabled: true,
+    host: "smtp.gmail.com",
+    port: 587,
+    secure: false,
+    user: "smtp-user-contact",
+    pass: "smtp-pass-contact",
+    from: "fallback@vetneb.com",
+  };
+  const createSmtpTransport = (options: unknown) => {
     transportCalls.push(options);
 
     return {
-    sendMail: async (payload: Record<string, unknown>) => {
-      sendMailCalls.push(payload);
-      return { messageId: `contact-${sendMailCalls.length}` };
-    },
-  };
+      sendMail: async (payload: Record<string, unknown>) => {
+        sendMailCalls.push(payload);
+        return { messageId: `contact-${sendMailCalls.length}` };
+      },
+    };
   };
 
   try {
-    const contactToResult = await sendContactMessageEmail({
-      name: "Maria Gomez",
-      email: "maria@example.com",
-      clinicName: "Clínica Sur",
-      message: "Necesito coordinar una consulta clínica.",
-    });
+    const contactToResult = await sendContactMessageEmail(
+      {
+        name: "Maria Gomez",
+        email: "maria@example.com",
+        clinicName: "Clínica Sur",
+        message: "Necesito coordinar una consulta clínica.",
+      },
+      createEmailDependencies({
+        config: {
+          contactTo: [
+            "contacto@vetneb.com; ops@vetneb.com, CONTACTO@vetneb.com",
+          ],
+          smtp,
+        },
+        createSmtpTransport,
+      }),
+    );
 
-    (ENV as any).contactTo = [];
-
-    const fallbackResult = await sendContactMessageEmail({
-      name: "Juan Perez",
-      email: "juan@example.com",
-      clinicName: null,
-      message: "Necesito registrar mi clínica en el portal.",
-    });
+    const fallbackResult = await sendContactMessageEmail(
+      {
+        name: "Juan Perez",
+        email: "juan@example.com",
+        clinicName: null,
+        message: "Necesito registrar mi clínica en el portal.",
+      },
+      createEmailDependencies({
+        config: {
+          contactTo: [],
+          smtp,
+        },
+        createSmtpTransport,
+      }),
+    );
 
     assert.deepEqual(contactToResult, {
       sent: true,
@@ -182,20 +172,6 @@ test("sendContactMessageEmail usa CONTACT_TO y fallback SMTP_FROM sin loguear se
     });
   } finally {
     console.info = originalInfo;
-    (nodemailer as any).createTransport = originalCreateTransport;
-    (ENV as any).contactTo = originalEnv.contactTo;
-    (ENV.smtp as any).enabled = originalEnv.smtp.enabled;
-    (ENV.smtp as any).host = originalEnv.smtp.host;
-    (ENV.smtp as any).port = originalEnv.smtp.port;
-    (ENV.smtp as any).secure = originalEnv.smtp.secure;
-    (ENV.smtp as any).user = originalEnv.smtp.user;
-    (ENV.smtp as any).pass = originalEnv.smtp.pass;
-    (ENV.smtp as any).from = originalEnv.smtp.from;
-    (ENV.gmailApi as any).enabled = originalEnv.gmailApi.enabled;
-    (ENV.gmailApi as any).clientId = originalEnv.gmailApi.clientId;
-    (ENV.gmailApi as any).clientSecret = originalEnv.gmailApi.clientSecret;
-    (ENV.gmailApi as any).refreshToken = originalEnv.gmailApi.refreshToken;
-    (ENV.gmailApi as any).from = originalEnv.gmailApi.from;
   }
 
   assert.equal(sendMailCalls.length, 2);
@@ -228,27 +204,6 @@ test("sendContactMessageEmail usa CONTACT_TO y fallback SMTP_FROM sin loguear se
 
 test("sendContactMessageEmail exige CONTACT_TO explícito en entorno público", async () => {
   const originalInfo = console.info;
-  const originalCreateTransport = nodemailer.createTransport;
-  const originalEnv = {
-    isProduction: ENV.isProduction,
-    contactTo: ENV.contactTo,
-    smtp: {
-      enabled: ENV.smtp.enabled,
-      host: ENV.smtp.host,
-      port: ENV.smtp.port,
-      secure: ENV.smtp.secure,
-      user: ENV.smtp.user,
-      pass: ENV.smtp.pass,
-      from: ENV.smtp.from,
-    },
-    gmailApi: {
-      enabled: ENV.gmailApi.enabled,
-      clientId: ENV.gmailApi.clientId,
-      clientSecret: ENV.gmailApi.clientSecret,
-      refreshToken: ENV.gmailApi.refreshToken,
-      from: ENV.gmailApi.from,
-    },
-  };
   const infoCalls: unknown[][] = [];
   const sendMailCalls: Array<Record<string, unknown>> = [];
 
@@ -256,35 +211,38 @@ test("sendContactMessageEmail exige CONTACT_TO explícito en entorno público", 
     infoCalls.push(args);
   };
 
-  (ENV as any).isProduction = true;
-  (ENV as any).contactTo = [];
-  (ENV.smtp as any).enabled = true;
-  (ENV.smtp as any).host = "smtp.contact.example";
-  (ENV.smtp as any).port = 587;
-  (ENV.smtp as any).secure = false;
-  (ENV.smtp as any).user = "smtp-user-contact";
-  (ENV.smtp as any).pass = "smtp-pass-contact";
-  (ENV.smtp as any).from = "fallback@vetneb.com";
-  (ENV.gmailApi as any).enabled = false;
-  (ENV.gmailApi as any).clientId = "";
-  (ENV.gmailApi as any).clientSecret = "";
-  (ENV.gmailApi as any).refreshToken = "";
-  (ENV.gmailApi as any).from = "";
-
-  (nodemailer as any).createTransport = () => ({
-    sendMail: async (payload: Record<string, unknown>) => {
-      sendMailCalls.push(payload);
-      return { messageId: `contact-${sendMailCalls.length}` };
+  const dependencies = createEmailDependencies({
+    config: {
+      isProduction: true,
+      contactTo: [],
+      smtp: {
+        enabled: true,
+        host: "smtp.contact.example",
+        port: 587,
+        secure: false,
+        user: "smtp-user-contact",
+        pass: "smtp-pass-contact",
+        from: "fallback@vetneb.com",
+      },
     },
+    createSmtpTransport: () => ({
+      sendMail: async (payload) => {
+        sendMailCalls.push(payload);
+        return { messageId: `contact-${sendMailCalls.length}` };
+      },
+    }),
   });
 
   try {
-    const result = await sendContactMessageEmail({
-      name: "Producción sin CONTACT_TO",
-      email: "ops@example.com",
-      clinicName: "Clínica Norte",
-      message: "Debe marcarse como smtp_disabled por configuración pública incompleta.",
-    });
+    const result = await sendContactMessageEmail(
+      {
+        name: "Producción sin CONTACT_TO",
+        email: "ops@example.com",
+        clinicName: "Clínica Norte",
+        message: "Debe marcarse como smtp_disabled por configuración pública incompleta.",
+      },
+      dependencies,
+    );
 
     assert.deepEqual(result, {
       sent: false,
@@ -292,21 +250,6 @@ test("sendContactMessageEmail exige CONTACT_TO explícito en entorno público", 
     });
   } finally {
     console.info = originalInfo;
-    (nodemailer as any).createTransport = originalCreateTransport;
-    (ENV as any).isProduction = originalEnv.isProduction;
-    (ENV as any).contactTo = originalEnv.contactTo;
-    (ENV.smtp as any).enabled = originalEnv.smtp.enabled;
-    (ENV.smtp as any).host = originalEnv.smtp.host;
-    (ENV.smtp as any).port = originalEnv.smtp.port;
-    (ENV.smtp as any).secure = originalEnv.smtp.secure;
-    (ENV.smtp as any).user = originalEnv.smtp.user;
-    (ENV.smtp as any).pass = originalEnv.smtp.pass;
-    (ENV.smtp as any).from = originalEnv.smtp.from;
-    (ENV.gmailApi as any).enabled = originalEnv.gmailApi.enabled;
-    (ENV.gmailApi as any).clientId = originalEnv.gmailApi.clientId;
-    (ENV.gmailApi as any).clientSecret = originalEnv.gmailApi.clientSecret;
-    (ENV.gmailApi as any).refreshToken = originalEnv.gmailApi.refreshToken;
-    (ENV.gmailApi as any).from = originalEnv.gmailApi.from;
   }
 
   assert.equal(sendMailCalls.length, 0);
@@ -332,6 +275,46 @@ test("templates de email no tienen mojibake visible", () => {
   assert.doesNotMatch(source, /Ã|Â|�/);
 });
 
+test("send*Email usan ENV, nodemailer y fetch global como dependencias por defecto", () => {
+  const source = readSourceFile("server/lib/email.ts");
+  const defaults = source.match(
+    /\nconst defaultEmailDependencies: EmailDependencies = \{\n([\s\S]*?)\n\};\n/,
+  );
+
+  assert.ok(defaults, "email.ts debe declarar defaultEmailDependencies");
+  assert.deepEqual(
+    defaults[1].split("\n").map((line) => line.trim()),
+    [
+      "config: ENV,",
+      "createSmtpTransport: (options) => nodemailer.createTransport(options),",
+      "fetch: (url, init) => fetch(url, init),",
+    ],
+  );
+
+  const senders = [
+    ...source.matchAll(/\nexport async function (send\w+Email)\(\n([\s\S]*?)\n\)/g),
+  ];
+
+  assert.deepEqual(
+    senders.map((match) => match[1]),
+    [
+      "sendContactMessageEmail",
+      "sendParticularTokenEmail",
+      "sendSpecialStainRequiredEmail",
+    ],
+  );
+
+  for (const [, name, parameters] of senders) {
+    assert.equal(
+      parameters.trimEnd().endsWith(
+        "dependencies: EmailDependencies = defaultEmailDependencies,",
+      ),
+      true,
+      `${name} debe usar defaultEmailDependencies como default`,
+    );
+  }
+});
+
 test("sendSpecialStainRequiredEmail omite envío cuando no hay destinatarios válidos", async () => {
   const original = console.info;
   const calls: unknown[][] = [];
@@ -341,14 +324,17 @@ test("sendSpecialStainRequiredEmail omite envío cuando no hay destinatarios vá
   };
 
   try {
-    const result = await sendSpecialStainRequiredEmail({
-      to: [undefined, null, "", "invalido", " ; , "],
-      clinicName: "Clínica Centro",
-      trackingCaseId: 77,
-      receptionAt: new Date("2026-04-20T12:00:00.000Z"),
-      estimatedDeliveryAt: new Date("2026-04-25T12:00:00.000Z"),
-      currentStage: "processing",
-    });
+    const result = await sendSpecialStainRequiredEmail(
+      {
+        to: [undefined, null, "", "invalido", " ; , "],
+        clinicName: "Clínica Centro",
+        trackingCaseId: 77,
+        receptionAt: new Date("2026-04-20T12:00:00.000Z"),
+        estimatedDeliveryAt: new Date("2026-04-25T12:00:00.000Z"),
+        currentStage: "processing",
+      },
+      createEmailDependencies(),
+    );
 
     assert.deepEqual(result, {
       sent: false,
@@ -365,48 +351,41 @@ test("sendSpecialStainRequiredEmail omite envío cuando no hay destinatarios vá
   });
 });
 
-test("sendSpecialStainRequiredEmail normaliza destinatarios y omite envío si SMTP está deshabilitado", async (t) => {
-  if (ENV.smtp.enabled) {
-    t.skip("Este entorno tiene SMTP habilitado; este caso cubre únicamente smtp_disabled");
-    return;
-  }
-
+test("sendSpecialStainRequiredEmail normaliza destinatarios y omite envío si SMTP está deshabilitado", async () => {
   const original = console.info;
-  const originalGmailApi = {
-    enabled: ENV.gmailApi.enabled,
-    clientId: ENV.gmailApi.clientId,
-    clientSecret: ENV.gmailApi.clientSecret,
-    refreshToken: ENV.gmailApi.refreshToken,
-    from: ENV.gmailApi.from,
-  };
   const calls: unknown[][] = [];
 
   console.info = (...args: unknown[]) => {
     calls.push(args);
   };
-  (ENV.gmailApi as any).enabled = false;
-  (ENV.gmailApi as any).clientId = "";
-  (ENV.gmailApi as any).clientSecret = "";
-  (ENV.gmailApi as any).refreshToken = "";
-  (ENV.gmailApi as any).from = "";
+
+  const dependencies = createEmailDependencies({
+    config: {
+      smtp: { enabled: false },
+      gmailApi: { enabled: false },
+    },
+  });
 
   try {
-    const result = await sendSpecialStainRequiredEmail({
-      to: [
-        " TEST@Example.com ; other@example.com, invalido ",
-        "test@example.com",
-        null,
-      ],
-      clinicName: "Clínica Norte",
-      trackingCaseId: 88,
-      receptionAt: new Date("2026-04-20T12:00:00.000Z"),
-      estimatedDeliveryAt: new Date("2026-04-25T12:00:00.000Z"),
-      currentStage: "evaluation",
-      paymentUrl: "https://example.com/pago/88",
-      adminContactEmail: "admin@vetneb.com",
-      adminContactPhone: "3511234567",
-      notes: "Caso prioritario",
-    });
+    const result = await sendSpecialStainRequiredEmail(
+      {
+        to: [
+          " TEST@Example.com ; other@example.com, invalido ",
+          "test@example.com",
+          null,
+        ],
+        clinicName: "Clínica Norte",
+        trackingCaseId: 88,
+        receptionAt: new Date("2026-04-20T12:00:00.000Z"),
+        estimatedDeliveryAt: new Date("2026-04-25T12:00:00.000Z"),
+        currentStage: "evaluation",
+        paymentUrl: "https://example.com/pago/88",
+        adminContactEmail: "admin@vetneb.com",
+        adminContactPhone: "3511234567",
+        notes: "Caso prioritario",
+      },
+      dependencies,
+    );
 
     assert.deepEqual(result, {
       sent: false,
@@ -414,11 +393,6 @@ test("sendSpecialStainRequiredEmail normaliza destinatarios y omite envío si SM
     });
   } finally {
     console.info = original;
-    (ENV.gmailApi as any).enabled = originalGmailApi.enabled;
-    (ENV.gmailApi as any).clientId = originalGmailApi.clientId;
-    (ENV.gmailApi as any).clientSecret = originalGmailApi.clientSecret;
-    (ENV.gmailApi as any).refreshToken = originalGmailApi.refreshToken;
-    (ENV.gmailApi as any).from = originalGmailApi.from;
   }
 
   assert.equal(calls.length, 1);

@@ -1,6 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
+import {
+  createStorageApiError,
+  createStoragePortFake,
+} from "../../mocks/storage-port.ts";
 
 process.env.SUPABASE_URL ??= "https://example.supabase.co";
 process.env.SUPABASE_ANON_KEY ??= "test-anon-key";
@@ -12,59 +16,55 @@ process.env.SUPABASE_STORAGE_BUCKET ??= "reports";
 const {
   uploadReport,
   uploadClinicAvatar,
-  supabase,
 } = await import("../../../server/lib/supabase.ts");
 
 test("uploadReport sube archivo con path sanitizado y opciones esperadas", async () => {
-  const originalFrom = supabase.storage.from;
   const originalDateNow = Date.now;
   const originalRandomBytes = crypto.randomBytes;
 
-  let capturedBucket: string | null = null;
   let capturedPath: string | null = null;
-  let capturedFile: Buffer | null = null;
+  let capturedFile: unknown = null;
   let capturedOptions: unknown = null;
 
   Date.now = () => 1710000000000;
   (crypto as any).randomBytes = () => Buffer.from("aabbccddeeff", "hex");
 
-  (supabase.storage as any).from = (bucket: string) => {
-    capturedBucket = bucket;
+  const { storage, fromCalls } = createStoragePortFake({
+    upload: async (path, file, options) => {
+      capturedPath = path;
+      capturedFile = file;
+      capturedOptions = options;
 
-    return {
-      upload: async (path: string, file: Buffer, options: unknown) => {
-        capturedPath = path;
-        capturedFile = file;
-        capturedOptions = options;
-
-        return {
-          error: null,
-        };
-      },
-    };
-  };
+      return {
+        data: { id: "object-id", path, fullPath: `reports/${path}` },
+        error: null,
+      };
+    },
+  });
 
   const file = Buffer.from("pdf-content");
 
   try {
-    const result = await uploadReport({
-      file,
-      fileName: "reporte final.pdf",
-      clinicId: 7,
-      mimeType: "application/pdf",
-    });
+    const result = await uploadReport(
+      {
+        file,
+        fileName: "reporte final.pdf",
+        clinicId: 7,
+        mimeType: "application/pdf",
+      },
+      storage,
+    );
 
     assert.equal(
       result,
       "clinics/7/1710000000000-aabbccddeeff-reporte_final.pdf",
     );
   } finally {
-    (supabase.storage as any).from = originalFrom;
     Date.now = originalDateNow;
     crypto.randomBytes = originalRandomBytes;
   }
 
-  assert.equal(capturedBucket, "reports");
+  assert.deepEqual(fromCalls, ["reports"]);
   assert.equal(
     capturedPath,
     "clinics/7/1710000000000-aabbccddeeff-reporte_final.pdf",
@@ -77,7 +77,6 @@ test("uploadReport sube archivo con path sanitizado y opciones esperadas", async
 });
 
 test("uploadReport usa nombre fallback cuando fileName viene vacío", async () => {
-  const originalFrom = supabase.storage.from;
   const originalDateNow = Date.now;
   const originalRandomBytes = crypto.randomBytes;
 
@@ -86,30 +85,33 @@ test("uploadReport usa nombre fallback cuando fileName viene vacío", async () =
   Date.now = () => 1710000000001;
   (crypto as any).randomBytes = () => Buffer.from("aabbccddeeff", "hex");
 
-  (supabase.storage as any).from = () => ({
-    upload: async (path: string) => {
+  const { storage } = createStoragePortFake({
+    upload: async (path) => {
       capturedPath = path;
 
       return {
+        data: { id: "object-id", path, fullPath: `reports/${path}` },
         error: null,
       };
     },
   });
 
   try {
-    const result = await uploadReport({
-      file: Buffer.from("pdf-content"),
-      fileName: "",
-      clinicId: 8,
-      mimeType: "application/pdf",
-    });
+    const result = await uploadReport(
+      {
+        file: Buffer.from("pdf-content"),
+        fileName: "",
+        clinicId: 8,
+        mimeType: "application/pdf",
+      },
+      storage,
+    );
 
     assert.equal(
       result,
       "clinics/8/1710000000001-aabbccddeeff-report",
     );
   } finally {
-    (supabase.storage as any).from = originalFrom;
     Date.now = originalDateNow;
     crypto.randomBytes = originalRandomBytes;
   }
@@ -121,80 +123,76 @@ test("uploadReport usa nombre fallback cuando fileName viene vacío", async () =
 });
 
 test("uploadReport propaga error de upload cuando mimeType es válido", async () => {
-  const originalFrom = supabase.storage.from;
-  const expectedError = new Error("upload report failed");
+  const expectedError = createStorageApiError("upload report failed");
 
-  (supabase.storage as any).from = () => ({
+  const { storage } = createStoragePortFake({
     upload: async () => ({
+      data: null,
       error: expectedError,
     }),
   });
 
-  try {
-    await assert.rejects(
-      uploadReport({
+  await assert.rejects(
+    uploadReport(
+      {
         file: Buffer.from("pdf-content"),
         fileName: "reporte.pdf",
         clinicId: 7,
         mimeType: "application/pdf",
-      }),
-      (error: unknown) => error === expectedError,
-    );
-  } finally {
-    (supabase.storage as any).from = originalFrom;
-  }
+      },
+      storage,
+    ),
+    (error: unknown) => error === expectedError,
+  );
 });
 
 test("uploadClinicAvatar sube avatar con path sanitizado y opciones esperadas", async () => {
-  const originalFrom = supabase.storage.from;
   const originalDateNow = Date.now;
   const originalRandomBytes = crypto.randomBytes;
 
-  let capturedBucket: string | null = null;
   let capturedPath: string | null = null;
-  let capturedFile: Buffer | null = null;
+  let capturedFile: unknown = null;
   let capturedOptions: unknown = null;
 
   Date.now = () => 1710000000002;
   (crypto as any).randomBytes = () => Buffer.from("aabbccddeeff", "hex");
 
-  (supabase.storage as any).from = (bucket: string) => {
-    capturedBucket = bucket;
+  const { storage, fromCalls } = createStoragePortFake({
+    upload: async (path, file, options) => {
+      capturedPath = path;
+      capturedFile = file;
+      capturedOptions = options;
 
-    return {
-      upload: async (path: string, file: Buffer, options: unknown) => {
-        capturedPath = path;
-        capturedFile = file;
-        capturedOptions = options;
-
-        return {
-          error: null,
-        };
-      },
-    };
-  };
+      return {
+        data: { id: "object-id", path, fullPath: `reports/${path}` },
+        error: null,
+      };
+    },
+  });
 
   const file = Buffer.from("avatar-content");
 
   try {
-    const result = await uploadClinicAvatar({
-      file,
-      fileName: "avatar clinica.webp",
-      clinicId: 12,
-      mimeType: "image/webp",
-    });
+    const result = await uploadClinicAvatar(
+      {
+        file,
+        fileName: "avatar clinica.webp",
+        clinicId: 12,
+        mimeType: "image/webp",
+      },
+      storage,
+    );
 
     assert.equal(
       result,
       "clinic-avatars/12/1710000000002-aabbccddeeff-avatar_clinica.webp",
     );
   } finally {
-    (supabase.storage as any).from = originalFrom;
     Date.now = originalDateNow;
     crypto.randomBytes = originalRandomBytes;
   }
 
-  assert.equal(capturedBucket, "reports");
+  assert.deepEqual(fromCalls, ["reports"]);
   assert.equal(
     capturedPath,
     "clinic-avatars/12/1710000000002-aabbccddeeff-avatar_clinica.webp",
@@ -207,7 +205,6 @@ test("uploadClinicAvatar sube avatar con path sanitizado y opciones esperadas", 
 });
 
 test("uploadClinicAvatar usa nombre fallback cuando fileName viene vacío", async () => {
-  const originalFrom = supabase.storage.from;
   const originalDateNow = Date.now;
   const originalRandomBytes = crypto.randomBytes;
 
@@ -216,30 +213,33 @@ test("uploadClinicAvatar usa nombre fallback cuando fileName viene vacío", asyn
   Date.now = () => 1710000000003;
   (crypto as any).randomBytes = () => Buffer.from("aabbccddeeff", "hex");
 
-  (supabase.storage as any).from = () => ({
-    upload: async (path: string) => {
+  const { storage } = createStoragePortFake({
+    upload: async (path) => {
       capturedPath = path;
 
       return {
+        data: { id: "object-id", path, fullPath: `reports/${path}` },
         error: null,
       };
     },
   });
 
   try {
-    const result = await uploadClinicAvatar({
-      file: Buffer.from("avatar-content"),
-      fileName: "",
-      clinicId: 15,
-      mimeType: "image/png",
-    });
+    const result = await uploadClinicAvatar(
+      {
+        file: Buffer.from("avatar-content"),
+        fileName: "",
+        clinicId: 15,
+        mimeType: "image/png",
+      },
+      storage,
+    );
 
     assert.equal(
       result,
       "clinic-avatars/15/1710000000003-aabbccddeeff-avatar",
     );
   } finally {
-    (supabase.storage as any).from = originalFrom;
     Date.now = originalDateNow;
     crypto.randomBytes = originalRandomBytes;
   }
@@ -251,31 +251,29 @@ test("uploadClinicAvatar usa nombre fallback cuando fileName viene vacío", asyn
 });
 
 test("uploadClinicAvatar propaga error de upload cuando mimeType es válido", async () => {
-  const originalFrom = supabase.storage.from;
-  const expectedError = new Error("upload avatar failed");
+  const expectedError = createStorageApiError("upload avatar failed");
 
-  (supabase.storage as any).from = () => ({
+  const { storage } = createStoragePortFake({
     upload: async () => ({
+      data: null,
       error: expectedError,
     }),
   });
 
-  try {
-    await assert.rejects(
-      uploadClinicAvatar({
+  await assert.rejects(
+    uploadClinicAvatar(
+      {
         file: Buffer.from("avatar-content"),
         fileName: "avatar.png",
         clinicId: 10,
         mimeType: "image/png",
-      }),
-      (error: unknown) => error === expectedError,
-    );
-  } finally {
-    (supabase.storage as any).from = originalFrom;
-  }
+      },
+      storage,
+    ),
+    (error: unknown) => error === expectedError,
+  );
 });
 test("uploadReport neutraliza path traversal y separadores de ruta en fileName", async () => {
-  const originalFrom = supabase.storage.from;
   const originalDateNow = Date.now;
   const originalRandomBytes = crypto.randomBytes;
 
@@ -284,23 +282,27 @@ test("uploadReport neutraliza path traversal y separadores de ruta en fileName",
   Date.now = () => 1710000000100;
   (crypto as any).randomBytes = () => Buffer.from("aabbccddeeff", "hex");
 
-  (supabase.storage as any).from = () => ({
-    upload: async (path: string) => {
+  const { storage } = createStoragePortFake({
+    upload: async (path) => {
       capturedPath = path;
 
       return {
+        data: { id: "object-id", path, fullPath: `reports/${path}` },
         error: null,
       };
     },
   });
 
   try {
-    const result = await uploadReport({
-      file: Buffer.from("pdf-content"),
-      fileName: "..\\../Luna final #1.pdf",
-      clinicId: 17,
-      mimeType: "application/pdf",
-    });
+    const result = await uploadReport(
+      {
+        file: Buffer.from("pdf-content"),
+        fileName: "..\\../Luna final #1.pdf",
+        clinicId: 17,
+        mimeType: "application/pdf",
+      },
+      storage,
+    );
 
     assert.equal(
       result,
@@ -314,14 +316,12 @@ test("uploadReport neutraliza path traversal y separadores de ruta en fileName",
     assert.equal(result.startsWith("http://"), false);
     assert.equal(result.startsWith("https://"), false);
   } finally {
-    (supabase.storage as any).from = originalFrom;
     Date.now = originalDateNow;
     crypto.randomBytes = originalRandomBytes;
   }
 });
 
 test("uploadClinicAvatar neutraliza path traversal y separadores de ruta en fileName", async () => {
-  const originalFrom = supabase.storage.from;
   const originalDateNow = Date.now;
   const originalRandomBytes = crypto.randomBytes;
 
@@ -330,23 +330,27 @@ test("uploadClinicAvatar neutraliza path traversal y separadores de ruta en file
   Date.now = () => 1710000000101;
   (crypto as any).randomBytes = () => Buffer.from("aabbccddeeff", "hex");
 
-  (supabase.storage as any).from = () => ({
-    upload: async (path: string) => {
+  const { storage } = createStoragePortFake({
+    upload: async (path) => {
       capturedPath = path;
 
       return {
+        data: { id: "object-id", path, fullPath: `reports/${path}` },
         error: null,
       };
     },
   });
 
   try {
-    const result = await uploadClinicAvatar({
-      file: Buffer.from("avatar-content"),
-      fileName: "../avatar final.png",
-      clinicId: 21,
-      mimeType: "image/png",
-    });
+    const result = await uploadClinicAvatar(
+      {
+        file: Buffer.from("avatar-content"),
+        fileName: "../avatar final.png",
+        clinicId: 21,
+        mimeType: "image/png",
+      },
+      storage,
+    );
 
     assert.equal(
       result,
@@ -360,7 +364,6 @@ test("uploadClinicAvatar neutraliza path traversal y separadores de ruta en file
     assert.equal(result.startsWith("http://"), false);
     assert.equal(result.startsWith("https://"), false);
   } finally {
-    (supabase.storage as any).from = originalFrom;
     Date.now = originalDateNow;
     crypto.randomBytes = originalRandomBytes;
   }

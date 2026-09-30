@@ -1,5 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import {
+  createStorageApiError,
+  createStoragePortFake,
+} from "../../mocks/storage-port.ts";
 
 process.env.SUPABASE_URL ??= "https://example.supabase.co";
 process.env.SUPABASE_ANON_KEY ??= "test-anon-key";
@@ -14,98 +18,68 @@ const {
   createSignedReportUrl,
   createSignedReportDownloadUrl,
   deleteStorageObject,
-  supabase,
 } = supabaseModule;
 
 test("createSignedStorageUrl devuelve signedUrl cuando storage responde correctamente", async () => {
-  const originalFrom = supabase.storage.from;
-
-  let capturedBucket: string | null = null;
   let capturedPath: string | null = null;
   let capturedExpires: number | null = null;
 
-  (supabase.storage as any).from = (bucket: string) => {
-    capturedBucket = bucket;
+  const { storage, fromCalls } = createStoragePortFake({
+    createSignedUrl: async (path, expires) => {
+      capturedPath = path;
+      capturedExpires = expires;
 
-    return {
-      createSignedUrl: async (path: string, expires: number) => {
-        capturedPath = path;
-        capturedExpires = expires;
+      return {
+        data: {
+          signedUrl: "https://example.com/signed/report.pdf",
+        },
+        error: null,
+      };
+    },
+  });
 
-        return {
-          data: {
-            signedUrl: "https://example.com/signed/report.pdf",
-          },
-          error: null,
-        };
-      },
-    };
-  };
+  const result = await createSignedStorageUrl("clinics/7/report.pdf", storage);
 
-  try {
-    const result = await createSignedStorageUrl("clinics/7/report.pdf");
-
-    assert.equal(result, "https://example.com/signed/report.pdf");
-  } finally {
-    (supabase.storage as any).from = originalFrom;
-  }
-
-  assert.equal(capturedBucket, "reports");
+  assert.equal(result, "https://example.com/signed/report.pdf");
+  assert.deepEqual(fromCalls, ["reports"]);
   assert.equal(capturedPath, "clinics/7/report.pdf");
   assert.equal(typeof capturedExpires, "number");
   assert.equal((capturedExpires ?? 0) > 0, true);
 });
 
 test("createSignedStorageUrl lanza error cuando falta signedUrl", async () => {
-  const originalFrom = supabase.storage.from;
-
-  (supabase.storage as any).from = () => ({
-    createSignedUrl: async () => ({
-      data: {
-        signedUrl: null,
-      },
-      error: null,
-    }),
+  const { storage } = createStoragePortFake({
+    // 10B residual: el tipo del SDK exige signedUrl string, la rama defensiva bajo prueba.
+    createSignedUrl: async () => ({ data: { signedUrl: null }, error: null }) as any,
   });
 
-  try {
-    await assert.rejects(
-      createSignedStorageUrl("clinics/7/report.pdf"),
-      /No se pudo generar la URL firmada del archivo/,
-    );
-  } finally {
-    (supabase.storage as any).from = originalFrom;
-  }
+  await assert.rejects(
+    createSignedStorageUrl("clinics/7/report.pdf", storage),
+    /No se pudo generar la URL firmada del archivo/,
+  );
 });
 
 test("createSignedStorageUrl propaga error de storage", async () => {
-  const originalFrom = supabase.storage.from;
-  const expectedError = new Error("signed url error");
+  const expectedError = createStorageApiError("signed url error");
 
-  (supabase.storage as any).from = () => ({
+  const { storage } = createStoragePortFake({
     createSignedUrl: async () => ({
       data: null,
       error: expectedError,
     }),
   });
 
-  try {
-    await assert.rejects(
-      createSignedStorageUrl("clinics/7/report.pdf"),
-      (error: unknown) => error === expectedError,
-    );
-  } finally {
-    (supabase.storage as any).from = originalFrom;
-  }
+  await assert.rejects(
+    createSignedStorageUrl("clinics/7/report.pdf", storage),
+    (error: unknown) => error === expectedError,
+  );
 });
 
 test("createSignedReportUrl delega en createSignedStorageUrl", async () => {
-  const originalFrom = supabase.storage.from;
-
   let capturedPath: string | null = null;
 
-  (supabase.storage as any).from = () => ({
-    createSignedUrl: async (path: string) => {
+  const { storage } = createStoragePortFake({
+    createSignedUrl: async (path) => {
       capturedPath = path;
 
       return {
@@ -117,26 +91,19 @@ test("createSignedReportUrl delega en createSignedStorageUrl", async () => {
     },
   });
 
-  try {
-    const result = await createSignedReportUrl("clinics/9/report-final.pdf");
+  const result = await createSignedReportUrl("clinics/9/report-final.pdf", storage);
 
-    assert.equal(result, "https://example.com/signed/delegated.pdf");
-  } finally {
-    (supabase.storage as any).from = originalFrom;
-  }
-
+  assert.equal(result, "https://example.com/signed/delegated.pdf");
   assert.equal(capturedPath, "clinics/9/report-final.pdf");
 });
 
 test("createSignedReportDownloadUrl usa nombre de descarga explicito cuando se provee", async () => {
-  const originalFrom = supabase.storage.from;
-
   let capturedPath: string | null = null;
   let capturedExpires: number | null = null;
   let capturedOptions: unknown = null;
 
-  (supabase.storage as any).from = () => ({
-    createSignedUrl: async (path: string, expires: number, options: unknown) => {
+  const { storage } = createStoragePortFake({
+    createSignedUrl: async (path, expires, options) => {
       capturedPath = path;
       capturedExpires = expires;
       capturedOptions = options;
@@ -150,17 +117,13 @@ test("createSignedReportDownloadUrl usa nombre de descarga explicito cuando se p
     },
   });
 
-  try {
-    const result = await createSignedReportDownloadUrl(
-      "clinics/5/report.pdf",
-      "mi-reporte.pdf",
-    );
+  const result = await createSignedReportDownloadUrl(
+    "clinics/5/report.pdf",
+    "mi-reporte.pdf",
+    storage,
+  );
 
-    assert.equal(result, "https://example.com/download/report.pdf");
-  } finally {
-    (supabase.storage as any).from = originalFrom;
-  }
-
+  assert.equal(result, "https://example.com/download/report.pdf");
   assert.equal(capturedPath, "clinics/5/report.pdf");
   assert.equal(typeof capturedExpires, "number");
   assert.deepEqual(capturedOptions, {
@@ -169,12 +132,10 @@ test("createSignedReportDownloadUrl usa nombre de descarga explicito cuando se p
 });
 
 test("createSignedReportDownloadUrl usa download true cuando no se provee nombre", async () => {
-  const originalFrom = supabase.storage.from;
-
   let capturedOptions: unknown = null;
 
-  (supabase.storage as any).from = () => ({
-    createSignedUrl: async (_path: string, _expires: number, options: unknown) => {
+  const { storage } = createStoragePortFake({
+    createSignedUrl: async (_path, _expires, options) => {
       capturedOptions = options;
 
       return {
@@ -186,86 +147,66 @@ test("createSignedReportDownloadUrl usa download true cuando no se provee nombre
     },
   });
 
-  try {
-    const result = await createSignedReportDownloadUrl("clinics/5/report.pdf");
+  const result = await createSignedReportDownloadUrl(
+    "clinics/5/report.pdf",
+    undefined,
+    storage,
+  );
 
-    assert.equal(result, "https://example.com/download/default.pdf");
-  } finally {
-    (supabase.storage as any).from = originalFrom;
-  }
-
+  assert.equal(result, "https://example.com/download/default.pdf");
   assert.deepEqual(capturedOptions, {
     download: true,
   });
 });
 
 test("createSignedReportDownloadUrl lanza error cuando storage falla", async () => {
-  const originalFrom = supabase.storage.from;
-  const expectedError = new Error("download signed url error");
+  const expectedError = createStorageApiError("download signed url error");
 
-  (supabase.storage as any).from = () => ({
+  const { storage } = createStoragePortFake({
     createSignedUrl: async () => ({
       data: null,
       error: expectedError,
     }),
   });
 
-  try {
-    await assert.rejects(
-      createSignedReportDownloadUrl("clinics/5/report.pdf"),
-      (error: unknown) => error === expectedError,
-    );
-  } finally {
-    (supabase.storage as any).from = originalFrom;
-  }
+  await assert.rejects(
+    createSignedReportDownloadUrl("clinics/5/report.pdf", undefined, storage),
+    (error: unknown) => error === expectedError,
+  );
 });
 
 test("deleteStorageObject elimina path en el bucket configurado", async () => {
-  const originalFrom = supabase.storage.from;
+  let capturedPaths: unknown = null;
 
-  let capturedBucket: string | null = null;
-  let capturedPaths: string[] | null = null;
+  const { storage, fromCalls } = createStoragePortFake({
+    remove: async (paths) => {
+      capturedPaths = paths;
 
-  (supabase.storage as any).from = (bucket: string) => {
-    capturedBucket = bucket;
+      return {
+        data: [],
+        error: null,
+      };
+    },
+  });
 
-    return {
-      remove: async (paths: string[]) => {
-        capturedPaths = paths;
+  await deleteStorageObject("clinics/5/report.pdf", storage);
 
-        return {
-          error: null,
-        };
-      },
-    };
-  };
-
-  try {
-    await deleteStorageObject("clinics/5/report.pdf");
-  } finally {
-    (supabase.storage as any).from = originalFrom;
-  }
-
-  assert.equal(capturedBucket, "reports");
+  assert.deepEqual(fromCalls, ["reports"]);
   assert.deepEqual(capturedPaths, ["clinics/5/report.pdf"]);
 });
 
 test("deleteStorageObject propaga error de remove", async () => {
-  const originalFrom = supabase.storage.from;
-  const expectedError = new Error("remove error");
+  const expectedError = createStorageApiError("remove error");
 
-  (supabase.storage as any).from = () => ({
+  const { storage } = createStoragePortFake({
     remove: async () => ({
+      data: null,
       error: expectedError,
     }),
   });
 
-  try {
-    await assert.rejects(
-      deleteStorageObject("clinics/5/report.pdf"),
-      (error: unknown) => error === expectedError,
-    );
-  } finally {
-    (supabase.storage as any).from = originalFrom;
-  }
+  await assert.rejects(
+    deleteStorageObject("clinics/5/report.pdf", storage),
+    (error: unknown) => error === expectedError,
+  );
 });

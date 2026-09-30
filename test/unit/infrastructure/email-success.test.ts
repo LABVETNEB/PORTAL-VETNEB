@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import nodemailer from "nodemailer";
+import { createEmailDependencies } from "../../mocks/email-dependencies.ts";
 
 process.env.SUPABASE_URL ??= "https://example.supabase.co";
 process.env.SUPABASE_ANON_KEY ??= "test-anon-key";
@@ -8,7 +8,6 @@ process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
 process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/postgres";
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 
-const { ENV } = await import("../../../server/lib/env.ts");
 const {
   sendParticularTokenEmail,
   sendSpecialStainRequiredEmail,
@@ -21,52 +20,38 @@ test("sendParticularTokenEmail envia token particular con payload minimo", async
     infoCalls.push(args);
   };
 
-  const originalSmtp = {
-    enabled: ENV.smtp.enabled,
-    host: ENV.smtp.host,
-    port: ENV.smtp.port,
-    secure: ENV.smtp.secure,
-    user: ENV.smtp.user,
-    pass: ENV.smtp.pass,
-    from: ENV.smtp.from,
-  };
-  const originalGmailApi = {
-    enabled: ENV.gmailApi.enabled,
-    clientId: ENV.gmailApi.clientId,
-    clientSecret: ENV.gmailApi.clientSecret,
-    refreshToken: ENV.gmailApi.refreshToken,
-    from: ENV.gmailApi.from,
-  };
-  const originalCreateTransport = nodemailer.createTransport;
   const sendMailCalls: Array<Record<string, unknown>> = [];
 
-  (ENV.smtp as any).enabled = true;
-  (ENV.smtp as any).host = "smtp-particular.example.com";
-  (ENV.smtp as any).port = 587;
-  (ENV.smtp as any).secure = false;
-  (ENV.smtp as any).user = "smtp-user";
-  (ENV.smtp as any).pass = "smtp-pass";
-  (ENV.smtp as any).from = "noreply@vetneb.com";
-  (ENV.gmailApi as any).enabled = false;
-  (ENV.gmailApi as any).clientId = "";
-  (ENV.gmailApi as any).clientSecret = "";
-  (ENV.gmailApi as any).refreshToken = "";
-  (ENV.gmailApi as any).from = "";
-
-  (nodemailer as any).createTransport = () => ({
-    sendMail: async (payload: Record<string, unknown>) => {
-      sendMailCalls.push(payload);
-      return { messageId: "particular-message-123" };
+  const dependencies = createEmailDependencies({
+    config: {
+      smtp: {
+        enabled: true,
+        host: "smtp-particular.example.com",
+        port: 587,
+        secure: false,
+        user: "smtp-user",
+        pass: "smtp-pass",
+        from: "noreply@vetneb.com",
+      },
     },
+    createSmtpTransport: () => ({
+      sendMail: async (payload) => {
+        sendMailCalls.push(payload);
+        return { messageId: "particular-message-123" };
+      },
+    }),
   });
 
   try {
-    const result = await sendParticularTokenEmail({
-      to: " TUTOR@Example.com ",
-      token: "token-visible-una-sola-vez",
-      tutorLastName: "Gomez",
-      petName: "Luna",
-    });
+    const result = await sendParticularTokenEmail(
+      {
+        to: " TUTOR@Example.com ",
+        token: "token-visible-una-sola-vez",
+        tutorLastName: "Gomez",
+        petName: "Luna",
+      },
+      dependencies,
+    );
 
     assert.deepEqual(result, {
       sent: true,
@@ -74,19 +59,6 @@ test("sendParticularTokenEmail envia token particular con payload minimo", async
     });
   } finally {
     console.info = originalInfo;
-    (nodemailer as any).createTransport = originalCreateTransport;
-    (ENV.smtp as any).enabled = originalSmtp.enabled;
-    (ENV.smtp as any).host = originalSmtp.host;
-    (ENV.smtp as any).port = originalSmtp.port;
-    (ENV.smtp as any).secure = originalSmtp.secure;
-    (ENV.smtp as any).user = originalSmtp.user;
-    (ENV.smtp as any).pass = originalSmtp.pass;
-    (ENV.smtp as any).from = originalSmtp.from;
-    (ENV.gmailApi as any).enabled = originalGmailApi.enabled;
-    (ENV.gmailApi as any).clientId = originalGmailApi.clientId;
-    (ENV.gmailApi as any).clientSecret = originalGmailApi.clientSecret;
-    (ENV.gmailApi as any).refreshToken = originalGmailApi.refreshToken;
-    (ENV.gmailApi as any).from = originalGmailApi.from;
   }
 
   assert.equal(sendMailCalls.length, 1);
@@ -123,69 +95,53 @@ test("sendSpecialStainRequiredEmail envia correo con payload esperado cuando SMT
     infoCalls.push(args);
   };
 
-  const originalSmtp = {
-    enabled: ENV.smtp.enabled,
-    host: ENV.smtp.host,
-    port: ENV.smtp.port,
-    secure: ENV.smtp.secure,
-    user: ENV.smtp.user,
-    pass: ENV.smtp.pass,
-    from: ENV.smtp.from,
-  };
-  const originalGmailApi = {
-    enabled: ENV.gmailApi.enabled,
-    clientId: ENV.gmailApi.clientId,
-    clientSecret: ENV.gmailApi.clientSecret,
-    refreshToken: ENV.gmailApi.refreshToken,
-    from: ENV.gmailApi.from,
-  };
-
-  const originalCreateTransport = nodemailer.createTransport;
-
   let capturedTransportOptions: unknown = null;
   const sendMailCalls: Array<Record<string, unknown>> = [];
 
-  (ENV.smtp as any).enabled = true;
-  (ENV.smtp as any).host = "smtp.example.com";
-  (ENV.smtp as any).port = 587;
-  (ENV.smtp as any).secure = false;
-  (ENV.smtp as any).user = "smtp-user";
-  (ENV.smtp as any).pass = "smtp-pass";
-  (ENV.smtp as any).from = "noreply@vetneb.com";
-  (ENV.gmailApi as any).enabled = false;
-  (ENV.gmailApi as any).clientId = "";
-  (ENV.gmailApi as any).clientSecret = "";
-  (ENV.gmailApi as any).refreshToken = "";
-  (ENV.gmailApi as any).from = "";
-
-  (nodemailer as any).createTransport = (options: unknown) => {
-    capturedTransportOptions = options;
-
-    return {
-      sendMail: async (payload: Record<string, unknown>) => {
-        sendMailCalls.push(payload);
-        return { messageId: "message-123" };
+  const dependencies = createEmailDependencies({
+    config: {
+      smtp: {
+        enabled: true,
+        host: "smtp.example.com",
+        port: 587,
+        secure: false,
+        user: "smtp-user",
+        pass: "smtp-pass",
+        from: "noreply@vetneb.com",
       },
-    };
-  };
+    },
+    createSmtpTransport: (options) => {
+      capturedTransportOptions = options;
+
+      return {
+        sendMail: async (payload) => {
+          sendMailCalls.push(payload);
+          return { messageId: "message-123" };
+        },
+      };
+    },
+  });
 
   try {
-    const result = await sendSpecialStainRequiredEmail({
-      to: [
-        " TEST@Example.com ; other@example.com, invalido ",
-        "test@example.com",
-        null,
-      ],
-      clinicName: "Clínica Norte",
-      trackingCaseId: 55,
-      receptionAt: new Date("2026-04-20T12:00:00.000Z"),
-      estimatedDeliveryAt: new Date("2026-04-25T12:00:00.000Z"),
-      currentStage: "evaluation",
-      paymentUrl: "https://example.com/pago/55",
-      adminContactEmail: "admin@vetneb.com",
-      adminContactPhone: "3511234567",
-      notes: "Caso prioritario",
-    });
+    const result = await sendSpecialStainRequiredEmail(
+      {
+        to: [
+          " TEST@Example.com ; other@example.com, invalido ",
+          "test@example.com",
+          null,
+        ],
+        clinicName: "Clínica Norte",
+        trackingCaseId: 55,
+        receptionAt: new Date("2026-04-20T12:00:00.000Z"),
+        estimatedDeliveryAt: new Date("2026-04-25T12:00:00.000Z"),
+        currentStage: "evaluation",
+        paymentUrl: "https://example.com/pago/55",
+        adminContactEmail: "admin@vetneb.com",
+        adminContactPhone: "3511234567",
+        notes: "Caso prioritario",
+      },
+      dependencies,
+    );
 
     assert.deepEqual(result, {
       sent: true,
@@ -193,20 +149,6 @@ test("sendSpecialStainRequiredEmail envia correo con payload esperado cuando SMT
     });
   } finally {
     console.info = originalInfo;
-    (nodemailer as any).createTransport = originalCreateTransport;
-
-    (ENV.smtp as any).enabled = originalSmtp.enabled;
-    (ENV.smtp as any).host = originalSmtp.host;
-    (ENV.smtp as any).port = originalSmtp.port;
-    (ENV.smtp as any).secure = originalSmtp.secure;
-    (ENV.smtp as any).user = originalSmtp.user;
-    (ENV.smtp as any).pass = originalSmtp.pass;
-    (ENV.smtp as any).from = originalSmtp.from;
-    (ENV.gmailApi as any).enabled = originalGmailApi.enabled;
-    (ENV.gmailApi as any).clientId = originalGmailApi.clientId;
-    (ENV.gmailApi as any).clientSecret = originalGmailApi.clientSecret;
-    (ENV.gmailApi as any).refreshToken = originalGmailApi.refreshToken;
-    (ENV.gmailApi as any).from = originalGmailApi.from;
   }
 
   assert.deepEqual(capturedTransportOptions, {

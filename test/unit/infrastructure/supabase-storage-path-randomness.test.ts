@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readSourceFile } from "../../helpers/tracked-source-files.ts";
+import { createStoragePortFake } from "../../mocks/storage-port.ts";
+import type { StoragePort } from "../../../server/lib/supabase.ts";
 
 process.env.SUPABASE_URL ??= "https://example.supabase.co";
 process.env.SUPABASE_ANON_KEY ??= "test-anon-key";
@@ -9,7 +11,7 @@ process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/post
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 process.env.SUPABASE_STORAGE_BUCKET ??= "reports";
 
-const { uploadReport, uploadClinicAvatar, supabase } = await import(
+const { uploadReport, uploadClinicAvatar } = await import(
   "../../../server/lib/supabase.ts"
 );
 
@@ -26,15 +28,15 @@ function extractRandomSegment(storagePath: string): string {
   return match![1]!;
 }
 
-function stubUpload(): { getCapturedPaths: () => string[] } {
+function stubUpload(): { storage: StoragePort; getCapturedPaths: () => string[] } {
   const capturedPaths: string[] = [];
-  (supabase.storage as any).from = () => ({
-    upload: async (path: string) => {
+  const { storage } = createStoragePortFake({
+    upload: async (path) => {
       capturedPaths.push(path);
-      return { error: null };
+      return { data: { id: path, path, fullPath: `reports/${path}` }, error: null };
     },
   });
-  return { getCapturedPaths: () => capturedPaths };
+  return { storage, getCapturedPaths: () => capturedPaths };
 }
 
 test("server/lib/supabase.ts no usa Math.random para generar paths de storage", () => {
@@ -58,62 +60,56 @@ test("server/lib/supabase.ts no usa Math.random para generar paths de storage", 
 });
 
 test("buildReportStoragePath (via uploadReport) usa un segmento random hexadecimal de 12 caracteres con la primitive real", async () => {
-  const originalFrom = supabase.storage.from;
-  const { getCapturedPaths } = stubUpload();
+  const { storage, getCapturedPaths } = stubUpload();
 
-  try {
-    const result = await uploadReport({
+  const result = await uploadReport(
+    {
       file: Buffer.from("pdf-content"),
       fileName: "reporte.pdf",
       clinicId: 3,
       mimeType: "application/pdf",
-    });
+    },
+    storage,
+  );
 
-    const randomSegment = extractRandomSegment(result);
-    assert.match(randomSegment, HEX_RANDOM_SEGMENT);
-    assert.equal(getCapturedPaths()[0], result);
-  } finally {
-    (supabase.storage as any).from = originalFrom;
-  }
+  const randomSegment = extractRandomSegment(result);
+  assert.match(randomSegment, HEX_RANDOM_SEGMENT);
+  assert.equal(getCapturedPaths()[0], result);
 });
 
 test("buildClinicAvatarStoragePath (via uploadClinicAvatar) usa un segmento random hexadecimal de 12 caracteres con la primitive real", async () => {
-  const originalFrom = supabase.storage.from;
-  const { getCapturedPaths } = stubUpload();
+  const { storage, getCapturedPaths } = stubUpload();
 
-  try {
-    const result = await uploadClinicAvatar({
+  const result = await uploadClinicAvatar(
+    {
       file: Buffer.from("avatar-content"),
       fileName: "avatar.png",
       clinicId: 4,
       mimeType: "image/png",
-    });
+    },
+    storage,
+  );
 
-    const randomSegment = extractRandomSegment(result);
-    assert.match(randomSegment, HEX_RANDOM_SEGMENT);
-    assert.equal(getCapturedPaths()[0], result);
-  } finally {
-    (supabase.storage as any).from = originalFrom;
-  }
+  const randomSegment = extractRandomSegment(result);
+  assert.match(randomSegment, HEX_RANDOM_SEGMENT);
+  assert.equal(getCapturedPaths()[0], result);
 });
 
 test("uploadReport genera 1000 paths distintos con la primitive random real (no Math.random)", async () => {
-  const originalFrom = supabase.storage.from;
-  const { getCapturedPaths } = stubUpload();
+  const { storage, getCapturedPaths } = stubUpload();
   const N = 1000;
 
-  try {
-    for (let i = 0; i < N; i += 1) {
-      // eslint-disable-next-line no-await-in-loop
-      await uploadReport({
+  for (let i = 0; i < N; i += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    await uploadReport(
+      {
         file: Buffer.from("pdf-content"),
         fileName: "reporte.pdf",
         clinicId: 1,
         mimeType: "application/pdf",
-      });
-    }
-  } finally {
-    (supabase.storage as any).from = originalFrom;
+      },
+      storage,
+    );
   }
 
   const paths = getCapturedPaths();
@@ -126,19 +122,17 @@ test("uploadReport genera 1000 paths distintos con la primitive random real (no 
 });
 
 test("el path de storage no incorpora informacion sensible mas alla del nombre sanitizado", async () => {
-  const originalFrom = supabase.storage.from;
-  const { getCapturedPaths } = stubUpload();
+  const { storage, getCapturedPaths } = stubUpload();
 
-  try {
-    await uploadReport({
+  await uploadReport(
+    {
       file: Buffer.from("pdf-content"),
       fileName: "reporte.pdf",
       clinicId: 42,
       mimeType: "application/pdf",
-    });
-  } finally {
-    (supabase.storage as any).from = originalFrom;
-  }
+    },
+    storage,
+  );
 
   const [result] = getCapturedPaths();
   assert.equal(result!.split("/").length, 3, "clinics/{clinicId}/{filename} debe conservar 3 segmentos");
