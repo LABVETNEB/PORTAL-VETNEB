@@ -1,11 +1,42 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
+import { parseTsx } from "../dashboard/dashboard-source-oracle.ts";
+import { functionNamed, writesAfterRequest } from "./source-function-runner.ts";
 
 const ADMIN_FAILED_LOGIN_ALERTS_CARD_PATH =
   "frontend/src/app/dashboard/admin/AdminFailedLoginAlertsReadOnlyCard.tsx";
 const ADMIN_MOBILE_COMMAND_MODULE_PATH =
   "frontend/src/app/dashboard/admin/AdminMobileCommandModule.tsx";
+
+// State writes of loadFailedLoginAlerts once its request is in flight, for a
+// current and a superseded request, resolving and failing.
+async function alertsLoadWrites(source: string) {
+  const load = functionNamed(
+    parseTsx(source, ADMIN_FAILED_LOGIN_ALERTS_CARD_PATH),
+    "loadFailedLoginAlerts",
+  );
+  const outcomes: Record<string, string[]> = {};
+
+  for (const superseded of [false, true]) {
+    for (const fails of [false, true]) {
+      outcomes[`${superseded ? "superseded" : "current"}-${fails ? "failure" : "success"}`] =
+        await writesAfterRequest(load, {
+          fetcher: "getAdminFailedLoginAlerts",
+          setters: ["setError", "setSnapshot"],
+          bindings: {
+            query: { limit: 5, offset: 0 },
+            startTransition: (callback: () => void) => callback(),
+          },
+          response: { alerts: [], total: 0 },
+          superseded,
+          fails,
+        });
+    }
+  }
+
+  return outcomes;
+}
 
 test("admin failed login alerts card is client-side and imports required dependencies", () => {
   const source = read(ADMIN_FAILED_LOGIN_ALERTS_CARD_PATH);
@@ -80,13 +111,28 @@ test("admin failed login alerts card recomputes offset when the limit changes an
   assert.ok(source.includes("nextOffset = Math.min(nextOffset, lastValidOffset);"));
 });
 
-test("admin failed login alerts card guards concurrent fetches with a request id", () => {
+test("admin failed login alerts card guards concurrent fetches with a request id", async () => {
   const source = read(ADMIN_FAILED_LOGIN_ALERTS_CARD_PATH);
 
   assert.ok(source.includes("const latestRequestRef = useRef(0);"));
   assert.ok(source.includes("const requestId = latestRequestRef.current + 1;"));
   assert.ok(source.includes("latestRequestRef.current = requestId;"));
   assert.ok(source.includes("if (requestId !== latestRequestRef.current) return;"));
+
+  const latestWins = {
+    "current-success": ["setSnapshot"],
+    "current-failure": ["setError"],
+    "superseded-success": [],
+    "superseded-failure": [],
+  };
+  assert.deepEqual(await alertsLoadWrites(source), latestWins);
+
+  const unguarded = source.replace(
+    /if \(requestId !== latestRequestRef\.current\) return;/g,
+    "if (false)\n$&",
+  );
+  assert.notEqual(unguarded, source);
+  assert.notDeepEqual(await alertsLoadWrites(unguarded), latestWins);
 });
 
 test("admin failed login alerts card pages by the effective limit, not a fixed size", () => {

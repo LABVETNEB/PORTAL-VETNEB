@@ -1,9 +1,39 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import ts from "typescript";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
+import {
+  exportedFunction,
+  parseTsx,
+  renderedUnder,
+  staticAttribute,
+} from "../dashboard/dashboard-source-oracle.ts";
 
 const ADMIN_MAINTENANCE_CARD_PATH =
   "frontend/src/app/dashboard/admin/AdminMaintenanceDryRunCard.tsx";
+
+// Whether the error block that shows `{error}` renders on every path ("must"),
+// on some path ("may") or never ("absent"), without and with a dry-run error.
+function dryRunErrorBlock(source: string) {
+  const card = exportedFunction(
+    parseTsx(source, ADMIN_MAINTENANCE_CARD_PATH),
+    "AdminMaintenanceDryRunCard",
+  );
+  const block = (error: boolean) => {
+    const shown = renderedUnder(card, new Map([["error", error]])).filter(
+      ({ element }) =>
+        staticAttribute(element, "className") === "clinical-alert-error" &&
+        ts.isJsxElement(element) &&
+        element.children.some(
+          (child) => ts.isJsxExpression(child) && child.expression?.getText() === "error",
+        ),
+    );
+
+    return shown.length === 0 ? "absent" : shown.every(({ must }) => must) ? "must" : "may";
+  };
+
+  return { withoutError: block(false), withError: block(true) };
+}
 
 test("admin maintenance dry-run card is client-side and imports required dependencies", () => {
   const source = read(ADMIN_MAINTENANCE_CARD_PATH);
@@ -133,6 +163,13 @@ test("admin maintenance dry-run card renders initial empty state and errors", ()
   assert.ok(source.includes("Sin análisis ejecutado. Presioná"));
   assert.ok(source.includes("Analizar limpieza"));
   assert.ok(source.includes("consultar el endpoint dry-run."));
+
+  const alertOnlyOnError = { withoutError: "absent", withError: "must" };
+  assert.deepEqual(dryRunErrorBlock(source), alertOnlyOnError);
+
+  const inverted = source.replace("{error ? (", () => "{!error ? (");
+  assert.notEqual(inverted, source);
+  assert.notDeepEqual(dryRunErrorBlock(inverted), alertOnlyOnError);
 });
 
 test("admin maintenance dry-run card renders dry-run totals and audit context", () => {

@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import ts from "typescript";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
+import { evaluate, parseTsx } from "../dashboard/dashboard-source-oracle.ts";
+import { functionNamed, initializerNamed, runSource } from "./source-function-runner.ts";
 
 const COMMAND_CENTER_PATH =
   "frontend/src/app/dashboard/admin/AdminCommandCenter.tsx";
@@ -9,6 +12,50 @@ const QUICK_LINKS_PATH =
 const CLINICS_CARD_PATH =
   "frontend/src/app/dashboard/admin/AdminClinicsManagementCard.tsx";
 const GLOBALS_PATH = "frontend/src/app/globals.css";
+
+// Follows the measured capacity through rowsPerPage, effectiveLimit and the
+// memoized query into the request loadClinics actually sends.
+async function sentLimits(source: string): Promise<number[]> {
+  const file = parseTsx(source, CLINICS_CARD_PATH);
+  const factory = initializerNamed(file, "query");
+  const CLINICS_FALLBACK_ROWS = evaluate(initializerNamed(file, "CLINICS_FALLBACK_ROWS"), {});
+  const limits: number[] = [];
+
+  if (!ts.isCallExpression(factory) || factory.expression.getText() !== "useMemo") {
+    throw new Error("query is not memoized");
+  }
+
+  for (const [mobile, desktop] of [[true, false], [false, true], [false, false]]) {
+    for (const capacity of [1, 5, 13]) {
+      const rowsPerPage = evaluate(initializerNamed(file, "rowsPerPage"), {
+        mobileCapacity: { measured: mobile, capacity },
+        desktopCapacity: { measured: desktop, capacity },
+        CLINICS_FALLBACK_ROWS,
+      });
+      const effectiveLimit = evaluate(initializerNamed(file, "effectiveLimit"), { rowsPerPage, Math });
+      const query = (evaluate(factory.arguments[0], { effectiveLimit, offset: 0, submittedSearch: "" }) as () => unknown)();
+      const sent: { limit: number }[] = [];
+      const loadClinics = runSource<() => void>(functionNamed(file, "loadClinics"), {
+        query,
+        latestRequestRef: { current: 0 },
+        setError: () => {},
+        setSnapshot: () => {},
+        startTransition: (callback: () => void) => callback(),
+        getAdminClinics: async (request: { limit: number }) => {
+          sent.push(request);
+          return {};
+        },
+        formatAdminClinicsError: String,
+      });
+
+      loadClinics();
+      await Promise.resolve();
+      limits.push(sent.length === 1 ? sent[0].limit : Number.NaN);
+    }
+  }
+
+  return limits;
+}
 
 const FORBIDDEN_OVERSIZED = [
   "text-2xl",
@@ -58,7 +105,7 @@ test("admin overview keeps the four compact operational panels", () => {
   assert.ok(linksSource.includes('module: "admin-clinics"'));
 });
 
-test("admin clinics console derives the server page size from measurement while respecting no-scroll", () => {
+test("admin clinics console derives the server page size from measurement while respecting no-scroll", async () => {
   const source = read(CLINICS_CARD_PATH);
 
   // R-02: cardinality is measured (Zero-Scroll adaptive contract), not a
@@ -80,6 +127,16 @@ test("admin clinics console derives the server page size from measurement while 
   assert.equal(source.includes("filteredRows"), false);
   assert.equal(source.includes("PAGE_SIZE_OPTIONS"), false);
   assert.equal(source.includes("<Select"), false);
+
+  const measured = [1, 5, 13, 1, 5, 13, 9, 9, 9];
+  assert.deepEqual(await sentLimits(source), measured);
+
+  const pinned = source.replace(
+    "const effectiveLimit = rowsPerPage;",
+    () => "const effectiveLimit = Math.min(rowsPerPage, 1);",
+  );
+  assert.notEqual(pinned, source);
+  assert.notDeepEqual(await sentLimits(pinned), measured);
 });
 
 test("PR-3 leaves the global dashboard main no-scroll contract intact", () => {

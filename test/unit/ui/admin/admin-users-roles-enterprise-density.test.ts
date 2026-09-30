@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
+import { parseTsx } from "../dashboard/dashboard-source-oracle.ts";
+import { callsUnderConfirm, functionNamed, runSource } from "./source-function-runner.ts";
 
 const CARD_PATH =
   "frontend/src/app/dashboard/admin/AdminUsersRolesReadOnlyCard.tsx";
@@ -15,6 +17,40 @@ const MODULE_CATALOG_PATH = "frontend/src/features/dashboard/config/dashboardMod
 const MODULE_ICONS_PATH = "frontend/src/components/dashboard/dashboardModuleIcons.ts";
 const API_PATH = "frontend/src/lib/api.ts";
 const GLOBALS_PATH = "frontend/src/app/globals.css";
+
+const ROLE_CHANGE_EFFECTS = [
+  "changeAdminClinicUserRole",
+  "setError",
+  "setRoleChangeMessage",
+  "setChangedUserKey",
+  "setChangingUserKey",
+  "setSnapshot",
+] as const;
+
+// Names of every request and state write handleChangeClinicRole performs when
+// the confirmation dialog answers `confirmed`.
+async function roleChangeEffects(card: string, confirmed: boolean): Promise<unknown[]> {
+  const file = parseTsx(card, CARD_PATH);
+  const helper = (name: string) => runSource(functionNamed(file, name), {});
+  const calls = await callsUnderConfirm(
+    functionNamed(file, "handleChangeClinicRole"),
+    confirmed,
+    ROLE_CHANGE_EFFECTS,
+    {
+      disableUserActions: false,
+      getNextClinicRole: helper("getNextClinicRole"),
+      getUserKey: helper("getUserKey"),
+      formatRole: String,
+      formatRoleChangeError: String,
+      changeAdminClinicUserRole: async (userId: number, role: string) => ({
+        user: { userType: "clinic", userId, username: "ana", role },
+      }),
+    },
+    [{ userType: "clinic", userId: 3, username: "ana", role: "clinic_owner" }],
+  );
+
+  return calls.map(([name]) => name);
+}
 
 test("PR-7A preserves the real admin-users-roles navigation surface", () => {
   const page = read(PAGE_PATH);
@@ -71,7 +107,7 @@ test("PR-7A renders a compact desktop table and prioritized mobile list", () => 
   }
 });
 
-test("PR-7A keeps role changes constrained, confirmed and auditable", () => {
+test("PR-7A keeps role changes constrained, confirmed and auditable", async () => {
   const card = read(CARD_PATH);
   const api = read(API_PATH);
 
@@ -82,6 +118,31 @@ test("PR-7A keeps role changes constrained, confirmed and auditable", () => {
   assert.ok(card.includes("No se puede degradar el último Owner clínica."));
   assert.ok(api.includes('method: "PATCH"'));
   assert.ok(api.includes("body: JSON.stringify({ role })"));
+
+  const confirmedOnly = {
+    declined: [],
+    confirmed: [
+      "setError",
+      "setRoleChangeMessage",
+      "setChangedUserKey",
+      "setChangingUserKey",
+      "changeAdminClinicUserRole",
+      "setSnapshot",
+      "setChangedUserKey",
+      "setRoleChangeMessage",
+      "setChangingUserKey",
+    ],
+  };
+  const observe = async (candidate: string) => ({
+    declined: await roleChangeEffects(candidate, false),
+    confirmed: await roleChangeEffects(candidate, true),
+  });
+  assert.deepEqual(await observe(card), confirmedOnly);
+
+  const source = card;
+  const ungated = source.replace("if (!confirmed) {", () => "if (false)\nif (!confirmed) {");
+  assert.notEqual(ungated, source);
+  assert.notDeepEqual(await observe(ungated), confirmedOnly);
 });
 
 test("PR-7A does not expose sensitive fields or expand network surface", () => {

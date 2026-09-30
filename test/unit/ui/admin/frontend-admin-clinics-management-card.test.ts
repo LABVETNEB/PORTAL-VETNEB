@@ -1,9 +1,32 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
+import {
+  effectiveAttribute,
+  evaluate,
+  jsxElements,
+  parseTsx,
+  staticAttribute,
+} from "../dashboard/dashboard-source-oracle.ts";
 
 const ADMIN_CLINICS_CARD_PATH =
   "frontend/src/app/dashboard/admin/AdminClinicsManagementCard.tsx";
+
+// Effective input type of the initial-password field while hidden and while
+// revealed, after later attributes and spreads.
+function createPasswordInputType(source: string): unknown[] {
+  return jsxElements(parseTsx(source, ADMIN_CLINICS_CARD_PATH))
+    .filter((element) => staticAttribute(element, "id") === "create-clinic-password")
+    .map((input) => {
+      const type = effectiveAttribute(input, "type");
+
+      return type.kind !== "value"
+        ? type.kind
+        : [false, true].map((isCreatePasswordVisible) =>
+            evaluate(type.expression, { isCreatePasswordVisible }),
+          );
+    });
+}
 
 const ADMIN_CLINICS_DRAWER_PATH =
   "frontend/src/app/dashboard/admin/ClinicEditDrawer.tsx";
@@ -103,6 +126,15 @@ test("admin clinics management card hides admin-entered passwords by default and
   assert.equal(drawerSource.includes("hash"), false);
   assert.equal(source.includes("contraseña actual"), false);
   assert.equal(drawerSource.includes("contraseña actual"), false);
+
+  assert.deepEqual(createPasswordInputType(source), [["password", "text"]]);
+
+  const exposed = source.replace(
+    'type={isCreatePasswordVisible ? "text" : "password"}',
+    () => 'type={isCreatePasswordVisible ? "text" : "password"}\n{...{ type: "text" }}',
+  );
+  assert.notEqual(exposed, source);
+  assert.notDeepEqual(createPasswordInputType(exposed), [["password", "text"]]);
 });
 
 test("admin clinic password reveal controls require explicit accessible interaction", () => {

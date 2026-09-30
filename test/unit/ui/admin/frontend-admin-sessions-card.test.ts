@@ -1,9 +1,35 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
+import { parseTsx } from "../dashboard/dashboard-source-oracle.ts";
+import { callsUnderConfirm, functionNamed, runSource } from "./source-function-runner.ts";
 
 const ADMIN_SESSIONS_CARD_PATH =
   "frontend/src/app/dashboard/admin/AdminSessionsReadOnlyCard.tsx";
+
+// Revocations handleRevokeSession sends when the operator answers the
+// confirmation dialog with `confirmed`.
+async function revocationRequests(source: string, confirmed: boolean) {
+  const file = parseTsx(source, ADMIN_SESSIONS_CARD_PATH);
+
+  return callsUnderConfirm(
+    functionNamed(file, "handleRevokeSession"),
+    confirmed,
+    ["revokeAdminSession"],
+    {
+      getSessionKey: runSource(functionNamed(file, "getSessionKey"), {}),
+      formatSessionType: String,
+      latestRequestRef: { current: 0 },
+      query: { limit: 9, offset: 0 },
+      setError: () => {},
+      setRevokingSessionKey: () => {},
+      setSnapshot: () => {},
+      getAdminSessions: async () => ({ sessions: [], total: 0 }),
+      revokeAdminSession: async () => undefined,
+    },
+    [{ sessionType: "clinic", sessionId: 41 }],
+  );
+}
 
 test("admin sessions card is client-side and imports required dependencies", () => {
   const source = read(ADMIN_SESSIONS_CARD_PATH);
@@ -95,7 +121,7 @@ test("admin sessions card loads sessions and handles load errors", () => {
   assert.ok(source.includes("loadSessions();"));
 });
 
-test("admin sessions card revokes sessions only after explicit confirmation", () => {
+test("admin sessions card revokes sessions only after explicit confirmation", async () => {
   const source = read(ADMIN_SESSIONS_CARD_PATH);
 
   assert.ok(source.includes("async function handleRevokeSession(session: AdminSessionSummary)"));
@@ -108,6 +134,20 @@ test("admin sessions card revokes sessions only after explicit confirmation", ()
   assert.ok(source.includes("setSnapshot(refreshed);"));
   assert.ok(source.includes('"No se pudo revocar la sesión seleccionada."'));
   assert.ok(source.includes("setRevokingSessionKey(null);"));
+
+  const gated = {
+    declined: [],
+    confirmed: [["revokeAdminSession", "clinic", 41]],
+  };
+  const observe = async (candidate: string) => ({
+    declined: await revocationRequests(candidate, false),
+    confirmed: await revocationRequests(candidate, true),
+  });
+  assert.deepEqual(await observe(source), gated);
+
+  const ungated = source.replace("if (!confirmed) {", () => "if (false)\nif (!confirmed) {");
+  assert.notEqual(ungated, source);
+  assert.notDeepEqual(await observe(ungated), gated);
 });
 
 test("admin sessions card renders safe description filters and table columns", () => {

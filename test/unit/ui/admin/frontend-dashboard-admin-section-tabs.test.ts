@@ -5,10 +5,36 @@ import { isClean7aAllowedDependencyChange } from "../../../helpers/clean7a-depen
 import { isReportForeignAccessBackendFile } from "../../../helpers/report-foreign-access-scope.ts";
 import { dashboardScopeGuardApplies } from "../../../helpers/dashboard-scope-guard.ts";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
+import { parseTsx } from "../dashboard/dashboard-source-oracle.ts";
+import { functionNamed, runSource } from "./source-function-runner.ts";
 
 const ADMIN_PAGE_PATH = "frontend/src/app/dashboard/admin/page.tsx";
 const ADMIN_SECTION_TABS_PATH =
   "frontend/src/app/dashboard/admin/AdminSectionTabs.tsx";
+
+// Tab that receives selection and focus when a key is pressed on the last of
+// three tabs; "-" means the key is left to the browser.
+function keyboardTargets(source: string): Record<string, string> {
+  const handler = functionNamed(parseTsx(source, ADMIN_SECTION_TABS_PATH), "handleTabKeyDown");
+  const targets: Record<string, string> = {};
+
+  for (const key of ["Home", "End", "ArrowRight", "ArrowLeft", "Tab"]) {
+    const selected: string[] = [];
+    const focused: string[] = [];
+    let prevented = false;
+    const onKeyDown = runSource<(event: unknown, tabIndex: number) => void>(handler, {
+      availableTabs: [{ id: "resumen" }, { id: "alertas" }, { id: "auditoria" }],
+      setActiveTabId: (id: string) => selected.push(id),
+      window: { requestAnimationFrame: (callback: () => void) => callback() },
+      document: { getElementById: (id: string) => ({ focus: () => focused.push(id) }) },
+    });
+
+    onKeyDown({ key, preventDefault: () => (prevented = true) }, 2);
+    targets[key] = prevented ? `${selected.join()}|${focused.join()}` : "-";
+  }
+
+  return targets;
+}
 
 function assertNoForbiddenSurfaceImports(source: string, context: string): void {
   const importLines = source
@@ -77,6 +103,22 @@ test("AdminSectionTabs uses buttons and accessible tab semantics without links",
   assert.equal(source.includes("href="), false);
   assert.equal(source.includes("fetch("), false);
   assertNoForbiddenSurfaceImports(source, "AdminSectionTabs");
+
+  const roving = {
+    Home: "resumen|admin-section-tab-resumen",
+    End: "auditoria|admin-section-tab-auditoria",
+    ArrowRight: "resumen|admin-section-tab-resumen",
+    ArrowLeft: "alertas|admin-section-tab-alertas",
+    Tab: "-",
+  };
+  assert.deepEqual(keyboardTargets(source), roving);
+
+  const homeIgnored = source.replace(
+    'const isHomeKey = event.key === "Home";',
+    () => 'const isHomeKey = event.key === "Home" && false;',
+  );
+  assert.notEqual(homeIgnored, source);
+  assert.notDeepEqual(keyboardTargets(homeIgnored), roving);
 });
 
 test("dashboard admin integrates tabs below module hub, command center and critical alerts", () => {
