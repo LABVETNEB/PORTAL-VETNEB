@@ -924,7 +924,7 @@ test("smtp transport uses ipv4 and tls servername without logging smtp secrets",
   const emailSource = readSource("server/lib/email.ts");
 
   assertContains(emailSource, "family: 4", "smtp transport ipv4 enforcement");
-  assertContains(emailSource, "servername: ENV.smtp.host", "smtp transport tls servername");
+  assertContains(emailSource, "servername: config.smtp.host", "smtp transport tls servername");
   assertNotContains(emailSource, "SMTP_PASS", "smtp module source");
   assertNoDirectSecretLogging(emailSource, "smtp module");
 });

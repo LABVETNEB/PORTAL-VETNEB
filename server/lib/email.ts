@@ -1,16 +1,46 @@
-import nodemailer, { type Transporter } from "nodemailer";
+import nodemailer from "nodemailer";
 import { ENV } from "./env.ts";
 
-let cachedTransporter: Transporter | null = null;
-let cachedTransporterKey: string | null = null;
-
-type VetnebSmtpTransportOptions =
+export type VetnebSmtpTransportOptions =
   Parameters<typeof nodemailer.createTransport>[0] & {
     family: 4;
     tls: {
       servername: string;
     };
   };
+
+export type EmailConfig = Pick<
+  typeof ENV,
+  "smtp" | "gmailApi" | "contactTo" | "isProduction" | "publicSiteUrl" | "corsOrigins"
+>;
+
+export type EmailSmtpTransport = {
+  sendMail(message: {
+    from: string;
+    to: string;
+    replyTo?: string;
+    subject: string;
+    text: string;
+    html?: string;
+  }): Promise<{ messageId: string }>;
+};
+
+export type EmailDependencies = {
+  config: EmailConfig;
+  createSmtpTransport: (options: VetnebSmtpTransportOptions) => EmailSmtpTransport;
+  fetch: (url: string, init: RequestInit) => Promise<Response>;
+};
+
+const defaultEmailDependencies: EmailDependencies = {
+  config: ENV,
+  createSmtpTransport: (options) => nodemailer.createTransport(options),
+  fetch: (url, init) => fetch(url, init),
+};
+
+const transporterCache = new WeakMap<
+  EmailDependencies["createSmtpTransport"],
+  { key: string; transporter: EmailSmtpTransport }
+>();
 
 type EmailTransportMessage = {
   to: string[];
@@ -133,40 +163,48 @@ function normalizeRecipients(values: Array<string | null | undefined>): string[]
   return Array.from(unique);
 }
 
-function getTransporter(): Transporter | null {
-  if (!ENV.smtp.enabled) {
+function getTransporter(
+  dependencies: EmailDependencies,
+): EmailSmtpTransport | null {
+  const { config } = dependencies;
+
+  if (!config.smtp.enabled) {
     return null;
   }
 
   const transporterKey = JSON.stringify([
-    ENV.smtp.host,
-    ENV.smtp.port,
-    ENV.smtp.secure,
-    ENV.smtp.user,
+    config.smtp.host,
+    config.smtp.port,
+    config.smtp.secure,
+    config.smtp.user,
   ]);
+  const cached = transporterCache.get(dependencies.createSmtpTransport);
 
-  if (cachedTransporter && cachedTransporterKey === transporterKey) {
-    return cachedTransporter;
+  if (cached && cached.key === transporterKey) {
+    return cached.transporter;
   }
 
   const transporterOptions = {
-    host: ENV.smtp.host,
-    port: ENV.smtp.port,
-    secure: ENV.smtp.secure,
+    host: config.smtp.host,
+    port: config.smtp.port,
+    secure: config.smtp.secure,
     auth: {
-      user: ENV.smtp.user,
-      pass: ENV.smtp.pass,
+      user: config.smtp.user,
+      pass: config.smtp.pass,
     },
     family: 4,
     tls: {
-      servername: ENV.smtp.host,
+      servername: config.smtp.host,
     },
   } as VetnebSmtpTransportOptions;
 
-  cachedTransporter = nodemailer.createTransport(transporterOptions);
-  cachedTransporterKey = transporterKey;
+  const transporter = dependencies.createSmtpTransport(transporterOptions);
+  transporterCache.set(dependencies.createSmtpTransport, {
+    key: transporterKey,
+    transporter,
+  });
 
-  return cachedTransporter;
+  return transporter;
 }
 
 function sanitizeHeaderValue(value: string): string {
@@ -303,9 +341,10 @@ async function fetchGmailApi(
     command: string;
     message: string;
   },
+  dependencies: EmailDependencies,
 ) {
   try {
-    return await fetch(url, init);
+    return await dependencies.fetch(url, init);
   } catch {
     throw buildGmailApiError(input.message, {
       code: input.code,
@@ -325,12 +364,13 @@ async function readJsonObject(response: Response): Promise<Record<string, unknow
   return payload as Record<string, unknown>;
 }
 
-async function getGmailApiAccessToken() {
+async function getGmailApiAccessToken(dependencies: EmailDependencies) {
+  const { gmailApi } = dependencies.config;
   const body = new URLSearchParams({
     grant_type: "refresh_token",
-    client_id: ENV.gmailApi.clientId,
-    client_secret: ENV.gmailApi.clientSecret,
-    refresh_token: ENV.gmailApi.refreshToken,
+    client_id: gmailApi.clientId,
+    client_secret: gmailApi.clientSecret,
+    refresh_token: gmailApi.refreshToken,
   });
 
   const response = await fetchGmailApi(
@@ -347,6 +387,7 @@ async function getGmailApiAccessToken() {
       command: "TOKEN",
       message: "Gmail API token request failed",
     },
+    dependencies,
   );
 
   if (!response.ok) {
@@ -380,11 +421,12 @@ async function getGmailApiAccessToken() {
 
 async function sendGmailApiMessage(
   input: EmailTransportMessage,
+  dependencies: EmailDependencies,
 ): Promise<EmailTransportResult> {
-  const accessToken = await getGmailApiAccessToken();
+  const accessToken = await getGmailApiAccessToken(dependencies);
   const raw = base64UrlEncode(
     buildMimeMessage({
-      from: ENV.gmailApi.from,
+      from: dependencies.config.gmailApi.from,
       to: input.to,
       replyTo: input.replyTo,
       subject: input.subject,
@@ -408,6 +450,7 @@ async function sendGmailApiMessage(
       command: "SEND",
       message: "Gmail API send request failed",
     },
+    dependencies,
   );
 
   if (!response.ok) {
@@ -446,19 +489,20 @@ async function sendGmailApiMessage(
 
 async function sendConfiguredEmailMessage(
   input: EmailTransportMessage,
+  dependencies: EmailDependencies,
 ): Promise<EmailTransportResult | null> {
-  if (ENV.gmailApi.enabled) {
-    return sendGmailApiMessage(input);
+  if (dependencies.config.gmailApi.enabled) {
+    return sendGmailApiMessage(input, dependencies);
   }
 
-  const transporter = getTransporter();
+  const transporter = getTransporter(dependencies);
 
   if (!transporter) {
     return null;
   }
 
   const info = await transporter.sendMail({
-    from: ENV.smtp.from,
+    from: dependencies.config.smtp.from,
     to: input.to.join(", "),
     replyTo: input.replyTo ?? undefined,
     subject: input.subject,
@@ -738,17 +782,17 @@ function buildContactMessageHtml(input: {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-function resolveContactRecipients(): string[] {
-  const explicitRecipients = normalizeRecipients(ENV.contactTo);
+function resolveContactRecipients(config: EmailConfig): string[] {
+  const explicitRecipients = normalizeRecipients(config.contactTo);
 
   if (explicitRecipients.length > 0) {
     return explicitRecipients;
   }
 
-  if (!ENV.isProduction) {
-    const fallbackFrom = ENV.gmailApi.enabled
-      ? ENV.gmailApi.from
-      : ENV.smtp.from;
+  if (!config.isProduction) {
+    const fallbackFrom = config.gmailApi.enabled
+      ? config.gmailApi.from
+      : config.smtp.from;
 
     return normalizeRecipients([fallbackFrom]);
   }
@@ -845,16 +889,19 @@ export function getSafeEmailTransportErrorMetadata(
   return metadata;
 }
 
-export async function sendContactMessageEmail(input: {
-  name: string;
-  email: string;
-  clinicName: string | null;
-  message: string;
-}): Promise<
+export async function sendContactMessageEmail(
+  input: {
+    name: string;
+    email: string;
+    clinicName: string | null;
+    message: string;
+  },
+  dependencies: EmailDependencies = defaultEmailDependencies,
+): Promise<
   | { sent: false; reason: "smtp_disabled" }
   | { sent: true; messageId: string }
 > {
-  const recipients = resolveContactRecipients();
+  const recipients = resolveContactRecipients(dependencies.config);
 
   if (recipients.length === 0) {
     console.info("[EMAIL] contact_message skipped: smtp disabled", {
@@ -871,7 +918,7 @@ export async function sendContactMessageEmail(input: {
     subject: `[VETNEB] Contacto web: ${input.name}`,
     text: buildContactMessageText(input),
     html: buildContactMessageHtml(input),
-  });
+  }, dependencies);
 
   if (!delivery) {
     console.info("[EMAIL] contact_message skipped: smtp disabled", {
@@ -896,12 +943,15 @@ export async function sendContactMessageEmail(input: {
   };
 }
 
-export async function sendParticularTokenEmail(input: {
-  to: string;
-  token: string;
-  tutorLastName: string;
-  petName: string;
-}): Promise<
+export async function sendParticularTokenEmail(
+  input: {
+    to: string;
+    token: string;
+    tutorLastName: string;
+    petName: string;
+  },
+  dependencies: EmailDependencies = defaultEmailDependencies,
+): Promise<
   | { sent: false; reason: "no_recipients" | "smtp_disabled" }
   | { sent: true; messageId: string }
 > {
@@ -913,14 +963,17 @@ export async function sendParticularTokenEmail(input: {
     return { sent: false, reason: "no_recipients" as const };
   }
 
-  const portalUrl = resolveParticularPortalUrl(ENV.publicSiteUrl, ENV.corsOrigins);
+  const portalUrl = resolveParticularPortalUrl(
+    dependencies.config.publicSiteUrl,
+    dependencies.config.corsOrigins,
+  );
 
   const delivery = await sendConfiguredEmailMessage({
     to: recipients,
     subject: "[VETNEB] Token de acceso particular",
     text: buildParticularTokenText({ ...input, portalUrl }),
     html: buildParticularTokenHtml({ ...input, portalUrl }),
-  });
+  }, dependencies);
 
   if (!delivery) {
     console.info("[EMAIL] particular_token skipped: smtp disabled", {
@@ -942,18 +995,21 @@ export async function sendParticularTokenEmail(input: {
   };
 }
 
-export async function sendSpecialStainRequiredEmail(input: {
-  to: Array<string | null | undefined>;
-  clinicName: string;
-  trackingCaseId: number;
-  receptionAt: Date;
-  estimatedDeliveryAt: Date;
-  currentStage: string;
-  paymentUrl?: string | null;
-  adminContactEmail?: string | null;
-  adminContactPhone?: string | null;
-  notes?: string | null;
-}) {
+export async function sendSpecialStainRequiredEmail(
+  input: {
+    to: Array<string | null | undefined>;
+    clinicName: string;
+    trackingCaseId: number;
+    receptionAt: Date;
+    estimatedDeliveryAt: Date;
+    currentStage: string;
+    paymentUrl?: string | null;
+    adminContactEmail?: string | null;
+    adminContactPhone?: string | null;
+    notes?: string | null;
+  },
+  dependencies: EmailDependencies = defaultEmailDependencies,
+) {
   const recipients = normalizeRecipients(input.to);
 
   if (recipients.length === 0) {
@@ -968,7 +1024,7 @@ export async function sendSpecialStainRequiredEmail(input: {
     to: recipients,
     subject: `[VETNEB] Estudio #${input.trackingCaseId}: requiere tinción especial`,
     text: buildSpecialStainRequiredText(input),
-  });
+  }, dependencies);
 
   if (!delivery) {
     console.info("[EMAIL] special_stain_required skipped: smtp disabled", {

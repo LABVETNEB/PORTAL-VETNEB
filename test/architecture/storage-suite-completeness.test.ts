@@ -153,8 +153,8 @@ const STORAGE_SUITE: readonly StorageSuiteEntry[] = [
       {
         path: "server/lib/supabase.ts",
         markers: [
-          "await supabase.storage.getBucket",
-          "await supabase.storage.createBucket",
+          "await storage.getBucket",
+          "await storage.createBucket",
           "throw error ?? new Error",
         ],
       },
