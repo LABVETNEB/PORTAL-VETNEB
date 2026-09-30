@@ -1,5 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import {
+  createStorageApiError,
+  createStoragePortFake,
+} from "../../mocks/storage-port.ts";
 
 process.env.SUPABASE_URL ??= "https://example.supabase.co";
 process.env.SUPABASE_ANON_KEY ??= "test-anon-key";
@@ -12,13 +16,9 @@ const {
   ensureStorageBucketExists,
   createSignedStorageUrl,
   createSignedReportDownloadUrl,
-  supabase,
 } = await import("../../../server/lib/supabase.ts");
 
 test("ensureStorageBucketExists crea bucket cuando getBucket devuelve error", async () => {
-  const originalGetBucket = supabase.storage.getBucket;
-  const originalCreateBucket = supabase.storage.createBucket;
-
   let capturedBucketName: string | null = null;
   let capturedCreateOptions: unknown = null;
 
@@ -27,35 +27,25 @@ test("ensureStorageBucketExists crea bucket cuando getBucket devuelve error", as
     public: false,
   };
 
-  (supabase.storage as any).getBucket = async () => {
-    return {
+  const { storage } = createStoragePortFake({
+    getBucket: async () => ({
       data: null,
-      error: new Error("bucket lookup failed"),
-    };
-  };
+      error: createStorageApiError("bucket lookup failed"),
+    }),
+    createBucket: async (bucketName, options) => {
+      capturedBucketName = bucketName;
+      capturedCreateOptions = options;
 
-  (supabase.storage as any).createBucket = async (
-    bucketName: string,
-    options: unknown,
-  ) => {
-    capturedBucketName = bucketName;
-    capturedCreateOptions = options;
+      return {
+        data: createdBucket,
+        error: null,
+      };
+    },
+  });
 
-    return {
-      data: createdBucket,
-      error: null,
-    };
-  };
+  const result = await ensureStorageBucketExists(storage);
 
-  try {
-    const result = await ensureStorageBucketExists();
-
-    assert.deepEqual(result, createdBucket);
-  } finally {
-    (supabase.storage as any).getBucket = originalGetBucket;
-    (supabase.storage as any).createBucket = originalCreateBucket;
-  }
-
+  assert.deepEqual(result, createdBucket);
   assert.equal(capturedBucketName, "reports");
   assert.deepEqual(capturedCreateOptions, {
     public: false,
@@ -63,51 +53,33 @@ test("ensureStorageBucketExists crea bucket cuando getBucket devuelve error", as
 });
 
 test("createSignedStorageUrl usa fallback cuando data viene null sin error", async () => {
-  const originalFrom = supabase.storage.from;
-
-  (supabase.storage as any).from = () => ({
-    createSignedUrl: async () => ({
-      data: null,
-      error: null,
-    }),
+  const { storage } = createStoragePortFake({
+    // 10B residual: el tipo del SDK excluye {data: null, error: null}, la rama defensiva bajo prueba.
+    createSignedUrl: async () => ({ data: null, error: null }) as any,
   });
 
-  try {
-    await assert.rejects(
-      createSignedStorageUrl("clinics/3/report.pdf"),
-      /No se pudo generar la URL firmada del archivo/,
-    );
-  } finally {
-    (supabase.storage as any).from = originalFrom;
-  }
+  await assert.rejects(
+    createSignedStorageUrl("clinics/3/report.pdf", storage),
+    /No se pudo generar la URL firmada del archivo/,
+  );
 });
 
 test("createSignedReportDownloadUrl usa fallback cuando signedUrl no existe y no hay error", async () => {
-  const originalFrom = supabase.storage.from;
-
   let capturedOptions: unknown = null;
 
-  (supabase.storage as any).from = () => ({
-    createSignedUrl: async (_path: string, _expires: number, options: unknown) => {
+  const { storage } = createStoragePortFake({
+    createSignedUrl: async (_path, _expires, options) => {
       capturedOptions = options;
 
-      return {
-        data: {
-          signedUrl: undefined,
-        },
-        error: null,
-      };
+      // 10B residual: el tipo del SDK exige signedUrl string, la rama defensiva bajo prueba.
+      return { data: { signedUrl: undefined }, error: null } as any;
     },
   });
 
-  try {
-    await assert.rejects(
-      createSignedReportDownloadUrl("clinics/9/report.pdf", "descarga.pdf"),
-      /No se pudo generar la URL firmada de descarga/,
-    );
-  } finally {
-    (supabase.storage as any).from = originalFrom;
-  }
+  await assert.rejects(
+    createSignedReportDownloadUrl("clinics/9/report.pdf", "descarga.pdf", storage),
+    /No se pudo generar la URL firmada de descarga/,
+  );
 
   assert.deepEqual(capturedOptions, {
     download: "descarga.pdf",

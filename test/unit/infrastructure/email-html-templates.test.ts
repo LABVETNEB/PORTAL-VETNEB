@@ -1,6 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import nodemailer from "nodemailer";
+import {
+  createEmailDependencies,
+  type EmailConfigOverrides,
+} from "../../mocks/email-dependencies.ts";
+import type { EmailDependencies } from "../../../server/lib/email.ts";
 
 process.env.SUPABASE_URL ??= "https://example.supabase.co";
 process.env.SUPABASE_ANON_KEY ??= "test-anon-key";
@@ -8,7 +12,6 @@ process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
 process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/postgres";
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 
-const { ENV } = await import("../../../server/lib/env.ts");
 const {
   sendParticularTokenEmail,
   sendContactMessageEmail,
@@ -22,61 +25,34 @@ function decodeBase64Url(value: string): string {
   return Buffer.from(padded, "base64").toString("utf8");
 }
 
-type EnvSnapshot = {
-  isProduction: boolean;
-  contactTo: string[];
-  corsOrigins: string[];
-  publicSiteUrl: string | undefined;
-  smtp: typeof ENV.smtp;
-  gmailApi: typeof ENV.gmailApi;
+const TEST_SMTP: EmailConfigOverrides["smtp"] = {
+  enabled: true,
+  host: "smtp.test.example",
+  port: 587,
+  secure: false,
+  user: "u",
+  pass: "p",
+  from: "noreply@vetneb.com",
 };
 
-function snapshotEnv(): EnvSnapshot {
-  return {
-    isProduction: ENV.isProduction,
-    contactTo: [...ENV.contactTo],
-    corsOrigins: [...ENV.corsOrigins],
-    publicSiteUrl: ENV.publicSiteUrl,
-    smtp: { ...ENV.smtp },
-    gmailApi: { ...ENV.gmailApi },
-  };
-}
+const TEST_GMAIL_API: EmailConfigOverrides["gmailApi"] = {
+  enabled: true,
+  clientId: "cid",
+  clientSecret: "csec",
+  refreshToken: "rtoken",
+  from: "lab.vetneb@gmail.com",
+};
 
-function restoreEnv(snap: EnvSnapshot): void {
-  (ENV as any).isProduction = snap.isProduction;
-  (ENV as any).contactTo = snap.contactTo;
-  (ENV as any).corsOrigins = snap.corsOrigins;
-  (ENV as any).publicSiteUrl = snap.publicSiteUrl;
-  for (const k of Object.keys(snap.smtp) as (keyof typeof ENV.smtp)[]) {
-    (ENV.smtp as any)[k] = snap.smtp[k];
-  }
-  for (const k of Object.keys(snap.gmailApi) as (keyof typeof ENV.gmailApi)[]) {
-    (ENV.gmailApi as any)[k] = snap.gmailApi[k];
-  }
-}
-
-function enableSmtp(): void {
-  (ENV.smtp as any).enabled = true;
-  (ENV.smtp as any).host = "smtp.test.example";
-  (ENV.smtp as any).port = 587;
-  (ENV.smtp as any).secure = false;
-  (ENV.smtp as any).user = "u";
-  (ENV.smtp as any).pass = "p";
-  (ENV.smtp as any).from = "noreply@vetneb.com";
-  (ENV.gmailApi as any).enabled = false;
-  (ENV.gmailApi as any).clientId = "";
-  (ENV.gmailApi as any).clientSecret = "";
-  (ENV.gmailApi as any).refreshToken = "";
-  (ENV.gmailApi as any).from = "";
-}
-
-function enableGmailApi(): void {
-  (ENV.gmailApi as any).enabled = true;
-  (ENV.gmailApi as any).clientId = "cid";
-  (ENV.gmailApi as any).clientSecret = "csec";
-  (ENV.gmailApi as any).refreshToken = "rtoken";
-  (ENV.gmailApi as any).from = "lab.vetneb@gmail.com";
-  (ENV.smtp as any).enabled = false;
+function recordingSmtpTransport(
+  sendMailCalls: Array<Record<string, unknown>>,
+  messageId: string,
+): EmailDependencies["createSmtpTransport"] {
+  return () => ({
+    sendMail: async (payload) => {
+      sendMailCalls.push(payload);
+      return { messageId };
+    },
+  });
 }
 
 // ─── escapeHtml ──────────────────────────────────────────────────────────────
@@ -86,36 +62,30 @@ function enableGmailApi(): void {
 // the public send functions — we verify escaped output in the html payload.
 
 test("HTML builders escapan caracteres peligrosos en datos dinamicos", async () => {
-  const snap = snapshotEnv();
-  const originalCreateTransport = nodemailer.createTransport;
   const sendMailCalls: Array<Record<string, unknown>> = [];
 
-  (ENV as any).isProduction = false;
-  (ENV as any).contactTo = ["ops@vetneb.com"];
-  enableSmtp();
-
-  (nodemailer as any).createTransport = () => ({
-    sendMail: async (p: Record<string, unknown>) => {
-      sendMailCalls.push(p);
-      return { messageId: "escape-test" };
+  const dependencies = createEmailDependencies({
+    config: {
+      isProduction: false,
+      contactTo: ["ops@vetneb.com"],
+      smtp: TEST_SMTP,
     },
+    createSmtpTransport: recordingSmtpTransport(sendMailCalls, "escape-test"),
   });
 
   const xssName = `<script>alert('xss')</script>`;
   const xssClinic = `"><img src=x onerror=alert(1)>`;
   const xssMessage = `Hello & "world" <b>bold</b>`;
 
-  try {
-    await sendContactMessageEmail({
+  await sendContactMessageEmail(
+    {
       name: xssName,
       email: "safe@example.com",
       clinicName: xssClinic,
       message: xssMessage,
-    });
-  } finally {
-    (nodemailer as any).createTransport = originalCreateTransport;
-    restoreEnv(snap);
-  }
+    },
+    dependencies,
+  );
 
   assert.equal(sendMailCalls.length, 1);
   const html = String(sendMailCalls[0].html);
@@ -145,43 +115,41 @@ test("Gmail API genera text/plain cuando la funcion no aporta html (sendSpecialS
   // sendSpecialStainRequiredEmail is NOT wired to an HTML builder — it still
   // sends text/plain only. This test confirms the no-html fallback path.
   const { sendSpecialStainRequiredEmail } = await import("../../../server/lib/email.ts");
-  const snap = snapshotEnv();
-  const originalFetch = globalThis.fetch;
   let rawMessage = "";
 
-  (ENV as any).isProduction = true;
-  (ENV as any).contactTo = [];
-  enableGmailApi();
-
-  (globalThis as any).fetch = async (input: unknown, init?: RequestInit) => {
-    const url = String(input);
-    if (url === "https://oauth2.googleapis.com/token") {
-      return new Response(JSON.stringify({ access_token: "tok" }), {
+  const dependencies = createEmailDependencies({
+    config: {
+      isProduction: true,
+      contactTo: [],
+      gmailApi: TEST_GMAIL_API,
+    },
+    fetch: async (url, init) => {
+      if (url === "https://oauth2.googleapis.com/token") {
+        return new Response(JSON.stringify({ access_token: "tok" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      const body = JSON.parse(String(init.body)) as { raw: string };
+      rawMessage = body.raw;
+      return new Response(JSON.stringify({ id: "msg-plain" }), {
         status: 200,
         headers: { "content-type": "application/json" },
       });
-    }
-    const body = JSON.parse(String(init?.body)) as { raw: string };
-    rawMessage = body.raw;
-    return new Response(JSON.stringify({ id: "msg-plain" }), {
-      status: 200,
-      headers: { "content-type": "application/json" },
-    });
-  };
+    },
+  });
 
-  try {
-    await sendSpecialStainRequiredEmail({
+  await sendSpecialStainRequiredEmail(
+    {
       to: ["vet@example.com"],
       clinicName: "Clinica Test",
       trackingCaseId: 1,
       receptionAt: new Date("2026-01-01T10:00:00Z"),
       estimatedDeliveryAt: new Date("2026-01-05T10:00:00Z"),
       currentStage: "analysis",
-    });
-  } finally {
-    (globalThis as any).fetch = originalFetch;
-    restoreEnv(snap);
-  }
+    },
+    dependencies,
+  );
 
   assert.ok(rawMessage.length > 0);
   const mime = decodeBase64Url(rawMessage);
@@ -197,41 +165,39 @@ test("Gmail API genera text/plain cuando la funcion no aporta html (sendSpecialS
 // ─── Gmail API: multipart/alternative when html present ──────────────────────
 
 test("Gmail API genera multipart/alternative cuando la funcion aporta html", async () => {
-  const snap = snapshotEnv();
-  const originalFetch = globalThis.fetch;
   let rawMessage = "";
 
-  (ENV as any).isProduction = true;
-  (ENV as any).contactTo = ["ops@vetneb.com"];
-  enableGmailApi();
-
-  (globalThis as any).fetch = async (input: unknown, init?: RequestInit) => {
-    const url = String(input);
-    if (url === "https://oauth2.googleapis.com/token") {
-      return new Response(JSON.stringify({ access_token: "tok" }), {
+  const dependencies = createEmailDependencies({
+    config: {
+      isProduction: true,
+      contactTo: ["ops@vetneb.com"],
+      gmailApi: TEST_GMAIL_API,
+    },
+    fetch: async (url, init) => {
+      if (url === "https://oauth2.googleapis.com/token") {
+        return new Response(JSON.stringify({ access_token: "tok" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      const body = JSON.parse(String(init.body)) as { raw: string };
+      rawMessage = body.raw;
+      return new Response(JSON.stringify({ id: "msg-multipart" }), {
         status: 200,
         headers: { "content-type": "application/json" },
       });
-    }
-    const body = JSON.parse(String(init?.body)) as { raw: string };
-    rawMessage = body.raw;
-    return new Response(JSON.stringify({ id: "msg-multipart" }), {
-      status: 200,
-      headers: { "content-type": "application/json" },
-    });
-  };
+    },
+  });
 
-  try {
-    await sendContactMessageEmail({
+  await sendContactMessageEmail(
+    {
       name: "Ana Torres",
       email: "ana@example.com",
       clinicName: "Clinica Norte",
       message: "Consulta de prueba.",
-    });
-  } finally {
-    (globalThis as any).fetch = originalFetch;
-    restoreEnv(snap);
-  }
+    },
+    dependencies,
+  );
 
   assert.ok(rawMessage.length > 0);
   const mime = decodeBase64Url(rawMessage);
@@ -252,46 +218,34 @@ test("Gmail API genera multipart/alternative cuando la funcion aporta html", asy
 // ─── SMTP: html recibido cuando hay template HTML ────────────────────────────
 
 test("SMTP recibe html en sendParticularTokenEmail", async () => {
-  const snap = snapshotEnv();
-  const originalCreateTransport = nodemailer.createTransport;
   const sendMailCalls: Array<Record<string, unknown>> = [];
 
-  // Unique host busts transporter cache from any prior SMTP test
-  (ENV.gmailApi as any).enabled = false;
-  (ENV.gmailApi as any).clientId = "";
-  (ENV.gmailApi as any).clientSecret = "";
-  (ENV.gmailApi as any).refreshToken = "";
-  (ENV.gmailApi as any).from = "";
-  (ENV.smtp as any).enabled = true;
-  (ENV.smtp as any).host = "smtp-html-particular.test";
-  (ENV.smtp as any).port = 587;
-  (ENV.smtp as any).secure = false;
-  (ENV.smtp as any).user = "smtp-user-html";
-  (ENV.smtp as any).pass = "smtp-pass-html";
-  (ENV.smtp as any).from = "lab.vetneb@example.com";
-
-  (nodemailer as any).createTransport = () => ({
-    sendMail: async (p: Record<string, unknown>) => {
-      sendMailCalls.push(p);
-      return { messageId: "smtp-token" };
+  const dependencies = createEmailDependencies({
+    config: {
+      smtp: {
+        enabled: true,
+        host: "smtp-html-particular.test",
+        port: 587,
+        secure: false,
+        user: "smtp-user-html",
+        pass: "smtp-pass-html",
+        from: "lab.vetneb@example.com",
+      },
     },
+    createSmtpTransport: recordingSmtpTransport(sendMailCalls, "smtp-token"),
   });
 
-  let result: Awaited<ReturnType<typeof sendParticularTokenEmail>> | null = null;
-
-  try {
-    result = await sendParticularTokenEmail({
+  const result = await sendParticularTokenEmail(
+    {
       to: "tutor@example.com",
       token: "ABC-DEF-XYZ",
       tutorLastName: "Perez",
       petName: "Max",
-    });
-  } finally {
-    (nodemailer as any).createTransport = originalCreateTransport;
-    restoreEnv(snap);
-  }
+    },
+    dependencies,
+  );
 
-  assert.equal(result?.sent, true, "result.sent must be true");
+  assert.equal(result.sent, true, "result.sent must be true");
   assert.equal(sendMailCalls.length, 1);
   const p = sendMailCalls[0];
   assert.equal(typeof p.text, "string", "text must be present");
@@ -305,48 +259,36 @@ test("SMTP recibe html en sendParticularTokenEmail", async () => {
 // ─── sendContactMessageEmail: usa text + html ────────────────────────────────
 
 test("sendContactMessageEmail usa text y html via SMTP", async () => {
-  const snap = snapshotEnv();
-  const originalCreateTransport = nodemailer.createTransport;
   const sendMailCalls: Array<Record<string, unknown>> = [];
 
-  // Unique host busts transporter cache from any prior SMTP test
-  (ENV as any).isProduction = true;
-  (ENV as any).contactTo = ["ops@vetneb.com"];
-  (ENV.gmailApi as any).enabled = false;
-  (ENV.gmailApi as any).clientId = "";
-  (ENV.gmailApi as any).clientSecret = "";
-  (ENV.gmailApi as any).refreshToken = "";
-  (ENV.gmailApi as any).from = "";
-  (ENV.smtp as any).enabled = true;
-  (ENV.smtp as any).host = "smtp-html-contact.test";
-  (ENV.smtp as any).port = 587;
-  (ENV.smtp as any).secure = false;
-  (ENV.smtp as any).user = "smtp-user-html";
-  (ENV.smtp as any).pass = "smtp-pass-html";
-  (ENV.smtp as any).from = "lab.vetneb@example.com";
-
-  (nodemailer as any).createTransport = () => ({
-    sendMail: async (p: Record<string, unknown>) => {
-      sendMailCalls.push(p);
-      return { messageId: "smtp-contact" };
+  const dependencies = createEmailDependencies({
+    config: {
+      isProduction: true,
+      contactTo: ["ops@vetneb.com"],
+      smtp: {
+        enabled: true,
+        host: "smtp-html-contact.test",
+        port: 587,
+        secure: false,
+        user: "smtp-user-html",
+        pass: "smtp-pass-html",
+        from: "lab.vetneb@example.com",
+      },
     },
+    createSmtpTransport: recordingSmtpTransport(sendMailCalls, "smtp-contact"),
   });
 
-  let result: Awaited<ReturnType<typeof sendContactMessageEmail>> | null = null;
-
-  try {
-    result = await sendContactMessageEmail({
+  const result = await sendContactMessageEmail(
+    {
       name: "Laura Garcia",
       email: "laura@example.com",
       clinicName: "Clinica Sur",
       message: "Quiero registrar mi clinica.",
-    });
-  } finally {
-    (nodemailer as any).createTransport = originalCreateTransport;
-    restoreEnv(snap);
-  }
+    },
+    dependencies,
+  );
 
-  assert.equal(result?.sent, true, "result.sent must be true");
+  assert.equal(result.sent, true, "result.sent must be true");
   assert.equal(sendMailCalls.length, 1);
   const p = sendMailCalls[0];
   assert.equal(typeof p.text, "string");
@@ -360,42 +302,25 @@ test("sendContactMessageEmail usa text y html via SMTP", async () => {
 // ─── Portal CTA: HTML token particular con portalUrl ─────────────────────────
 
 test("sendParticularTokenEmail HTML contiene boton CTA y no expone token en href", async () => {
-  const snap = snapshotEnv();
-  const originalCreateTransport = nodemailer.createTransport;
   const sendMailCalls: Array<Record<string, unknown>> = [];
 
-  (ENV.gmailApi as any).enabled = false;
-  (ENV.gmailApi as any).clientId = "";
-  (ENV.gmailApi as any).clientSecret = "";
-  (ENV.gmailApi as any).refreshToken = "";
-  (ENV.gmailApi as any).from = "";
-  (ENV.smtp as any).enabled = true;
-  (ENV.smtp as any).host = "smtp-cta-particular.test";
-  (ENV.smtp as any).port = 587;
-  (ENV.smtp as any).secure = false;
-  (ENV.smtp as any).user = "u";
-  (ENV.smtp as any).pass = "p";
-  (ENV.smtp as any).from = "noreply@vetneb.com";
-  (ENV as any).corsOrigins = ["https://portal.vetneb.com"];
-
-  (nodemailer as any).createTransport = () => ({
-    sendMail: async (p: Record<string, unknown>) => {
-      sendMailCalls.push(p);
-      return { messageId: "cta-test" };
+  const dependencies = createEmailDependencies({
+    config: {
+      smtp: { ...TEST_SMTP, host: "smtp-cta-particular.test" },
+      corsOrigins: ["https://portal.vetneb.com"],
     },
+    createSmtpTransport: recordingSmtpTransport(sendMailCalls, "cta-test"),
   });
 
-  try {
-    await sendParticularTokenEmail({
+  await sendParticularTokenEmail(
+    {
       to: "tutor@example.com",
       token: "TOKEN-CTA-TEST",
       tutorLastName: "Gomez",
       petName: "Luna",
-    });
-  } finally {
-    (nodemailer as any).createTransport = originalCreateTransport;
-    restoreEnv(snap);
-  }
+    },
+    dependencies,
+  );
 
   assert.equal(sendMailCalls.length, 1);
   const html = String(sendMailCalls[0].html);
@@ -424,42 +349,25 @@ test("sendParticularTokenEmail HTML contiene boton CTA y no expone token en href
 });
 
 test("sendParticularTokenEmail HTML sin corsOrigins https no incluye boton CTA", async () => {
-  const snap = snapshotEnv();
-  const originalCreateTransport = nodemailer.createTransport;
   const sendMailCalls: Array<Record<string, unknown>> = [];
 
-  (ENV.gmailApi as any).enabled = false;
-  (ENV.gmailApi as any).clientId = "";
-  (ENV.gmailApi as any).clientSecret = "";
-  (ENV.gmailApi as any).refreshToken = "";
-  (ENV.gmailApi as any).from = "";
-  (ENV.smtp as any).enabled = true;
-  (ENV.smtp as any).host = "smtp-no-cta-particular.test";
-  (ENV.smtp as any).port = 587;
-  (ENV.smtp as any).secure = false;
-  (ENV.smtp as any).user = "u";
-  (ENV.smtp as any).pass = "p";
-  (ENV.smtp as any).from = "noreply@vetneb.com";
-  (ENV as any).corsOrigins = ["http://localhost:3000"];
-
-  (nodemailer as any).createTransport = () => ({
-    sendMail: async (p: Record<string, unknown>) => {
-      sendMailCalls.push(p);
-      return { messageId: "no-cta-test" };
+  const dependencies = createEmailDependencies({
+    config: {
+      smtp: { ...TEST_SMTP, host: "smtp-no-cta-particular.test" },
+      corsOrigins: ["http://localhost:3000"],
     },
+    createSmtpTransport: recordingSmtpTransport(sendMailCalls, "no-cta-test"),
   });
 
-  try {
-    await sendParticularTokenEmail({
+  await sendParticularTokenEmail(
+    {
       to: "tutor@example.com",
       token: "TOKEN-NO-CTA",
       tutorLastName: "Lopez",
       petName: "Rex",
-    });
-  } finally {
-    (nodemailer as any).createTransport = originalCreateTransport;
-    restoreEnv(snap);
-  }
+    },
+    dependencies,
+  );
 
   assert.equal(sendMailCalls.length, 1);
   const html = String(sendMailCalls[0].html);
@@ -475,42 +383,25 @@ test("sendParticularTokenEmail HTML sin corsOrigins https no incluye boton CTA",
 });
 
 test("sendParticularTokenEmail text/plain con portalUrl incluye URL del portal y token", async () => {
-  const snap = snapshotEnv();
-  const originalCreateTransport = nodemailer.createTransport;
   const sendMailCalls: Array<Record<string, unknown>> = [];
 
-  (ENV.gmailApi as any).enabled = false;
-  (ENV.gmailApi as any).clientId = "";
-  (ENV.gmailApi as any).clientSecret = "";
-  (ENV.gmailApi as any).refreshToken = "";
-  (ENV.gmailApi as any).from = "";
-  (ENV.smtp as any).enabled = true;
-  (ENV.smtp as any).host = "smtp-text-cta.test";
-  (ENV.smtp as any).port = 587;
-  (ENV.smtp as any).secure = false;
-  (ENV.smtp as any).user = "u";
-  (ENV.smtp as any).pass = "p";
-  (ENV.smtp as any).from = "noreply@vetneb.com";
-  (ENV as any).corsOrigins = ["https://portal.vetneb.com"];
-
-  (nodemailer as any).createTransport = () => ({
-    sendMail: async (p: Record<string, unknown>) => {
-      sendMailCalls.push(p);
-      return { messageId: "text-cta-test" };
+  const dependencies = createEmailDependencies({
+    config: {
+      smtp: { ...TEST_SMTP, host: "smtp-text-cta.test" },
+      corsOrigins: ["https://portal.vetneb.com"],
     },
+    createSmtpTransport: recordingSmtpTransport(sendMailCalls, "text-cta-test"),
   });
 
-  try {
-    await sendParticularTokenEmail({
+  await sendParticularTokenEmail(
+    {
       to: "tutor@example.com",
       token: "TOKEN-TEXT-CTA",
       tutorLastName: "Ramirez",
       petName: "Paco",
-    });
-  } finally {
-    (nodemailer as any).createTransport = originalCreateTransport;
-    restoreEnv(snap);
-  }
+    },
+    dependencies,
+  );
 
   assert.equal(sendMailCalls.length, 1);
   const text = String(sendMailCalls[0].text);
@@ -525,44 +416,27 @@ test("sendParticularTokenEmail text/plain con portalUrl incluye URL del portal y
 });
 
 test("seguridad: token no aparece en ningun href del HTML particular", async () => {
-  const snap = snapshotEnv();
-  const originalCreateTransport = nodemailer.createTransport;
   const sendMailCalls: Array<Record<string, unknown>> = [];
 
-  (ENV.gmailApi as any).enabled = false;
-  (ENV.gmailApi as any).clientId = "";
-  (ENV.gmailApi as any).clientSecret = "";
-  (ENV.gmailApi as any).refreshToken = "";
-  (ENV.gmailApi as any).from = "";
-  (ENV.smtp as any).enabled = true;
-  (ENV.smtp as any).host = "smtp-sec-token.test";
-  (ENV.smtp as any).port = 587;
-  (ENV.smtp as any).secure = false;
-  (ENV.smtp as any).user = "u";
-  (ENV.smtp as any).pass = "p";
-  (ENV.smtp as any).from = "noreply@vetneb.com";
-  (ENV as any).corsOrigins = ["https://portal.vetneb.com"];
-
-  (nodemailer as any).createTransport = () => ({
-    sendMail: async (p: Record<string, unknown>) => {
-      sendMailCalls.push(p);
-      return { messageId: "sec-test" };
+  const dependencies = createEmailDependencies({
+    config: {
+      smtp: { ...TEST_SMTP, host: "smtp-sec-token.test" },
+      corsOrigins: ["https://portal.vetneb.com"],
     },
+    createSmtpTransport: recordingSmtpTransport(sendMailCalls, "sec-test"),
   });
 
   const token = "SUPER-SECRET-TOKEN-XYZ";
 
-  try {
-    await sendParticularTokenEmail({
+  await sendParticularTokenEmail(
+    {
       to: "tutor@example.com",
       token,
       tutorLastName: "Villa",
       petName: "Coco",
-    });
-  } finally {
-    (nodemailer as any).createTransport = originalCreateTransport;
-    restoreEnv(snap);
-  }
+    },
+    dependencies,
+  );
 
   assert.equal(sendMailCalls.length, 1);
   const html = String(sendMailCalls[0].html);
@@ -589,37 +463,29 @@ test("seguridad: token no aparece en ningun href del HTML particular", async () 
 // ─── Contrato PUBLIC_SITE_URL: URL pública desacoplada de CORS_ORIGIN ─────────
 
 test("PUBLIC_SITE_URL definido: el link usa ese dominio y no el de CORS_ORIGIN", async () => {
-  const snap = snapshotEnv();
-  const originalCreateTransport = nodemailer.createTransport;
   const sendMailCalls: Array<Record<string, unknown>> = [];
 
-  enableSmtp();
-  // Host único: el transporter se cachea por host/port/user (evita colisión entre tests).
-  (ENV.smtp as any).host = "smtp-psu-defined.test";
-  (ENV as any).publicSiteUrl = "https://vetneb.com.ar";
-  // CORS_ORIGIN apunta a un host distinto (staging onrender): NO debe ganar.
-  (ENV as any).corsOrigins = [
-    "https://portal-vetneb-frontend-staging.onrender.com",
-  ];
-
-  (nodemailer as any).createTransport = () => ({
-    sendMail: async (p: Record<string, unknown>) => {
-      sendMailCalls.push(p);
-      return { messageId: "psu-test" };
+  const dependencies = createEmailDependencies({
+    config: {
+      smtp: { ...TEST_SMTP, host: "smtp-psu-defined.test" },
+      publicSiteUrl: "https://vetneb.com.ar",
+      // CORS_ORIGIN apunta a un host distinto (staging onrender): NO debe ganar.
+      corsOrigins: [
+        "https://portal-vetneb-frontend-staging.onrender.com",
+      ],
     },
+    createSmtpTransport: recordingSmtpTransport(sendMailCalls, "psu-test"),
   });
 
-  try {
-    await sendParticularTokenEmail({
+  await sendParticularTokenEmail(
+    {
       to: "tutor@example.com",
       token: "TOKEN-PSU",
       tutorLastName: "Diaz",
       petName: "Mia",
-    });
-  } finally {
-    (nodemailer as any).createTransport = originalCreateTransport;
-    restoreEnv(snap);
-  }
+    },
+    dependencies,
+  );
 
   assert.equal(sendMailCalls.length, 1);
   const html = String(sendMailCalls[0].html);
@@ -642,33 +508,26 @@ test("PUBLIC_SITE_URL definido: el link usa ese dominio y no el de CORS_ORIGIN",
 });
 
 test("PUBLIC_SITE_URL con trailing slash: el link no duplica la barra", async () => {
-  const snap = snapshotEnv();
-  const originalCreateTransport = nodemailer.createTransport;
   const sendMailCalls: Array<Record<string, unknown>> = [];
 
-  enableSmtp();
-  (ENV.smtp as any).host = "smtp-psu-slash.test";
-  (ENV as any).publicSiteUrl = "https://vetneb.com.ar/";
-  (ENV as any).corsOrigins = ["https://portal.vetneb.com"];
-
-  (nodemailer as any).createTransport = () => ({
-    sendMail: async (p: Record<string, unknown>) => {
-      sendMailCalls.push(p);
-      return { messageId: "psu-slash-test" };
+  const dependencies = createEmailDependencies({
+    config: {
+      smtp: { ...TEST_SMTP, host: "smtp-psu-slash.test" },
+      publicSiteUrl: "https://vetneb.com.ar/",
+      corsOrigins: ["https://portal.vetneb.com"],
     },
+    createSmtpTransport: recordingSmtpTransport(sendMailCalls, "psu-slash-test"),
   });
 
-  try {
-    await sendParticularTokenEmail({
+  await sendParticularTokenEmail(
+    {
       to: "tutor@example.com",
       token: "TOKEN-SLASH",
       tutorLastName: "Ruiz",
       petName: "Toby",
-    });
-  } finally {
-    (nodemailer as any).createTransport = originalCreateTransport;
-    restoreEnv(snap);
-  }
+    },
+    dependencies,
+  );
 
   assert.equal(sendMailCalls.length, 1);
   const html = String(sendMailCalls[0].html);
@@ -685,37 +544,30 @@ test("PUBLIC_SITE_URL con trailing slash: el link no duplica la barra", async ()
 });
 
 test("PUBLIC_SITE_URL ausente: el link cae al primer https de CORS_ORIGIN", async () => {
-  const snap = snapshotEnv();
-  const originalCreateTransport = nodemailer.createTransport;
   const sendMailCalls: Array<Record<string, unknown>> = [];
 
-  enableSmtp();
-  (ENV.smtp as any).host = "smtp-psu-fallback.test";
-  (ENV as any).publicSiteUrl = undefined;
-  (ENV as any).corsOrigins = [
-    "http://localhost:3000",
-    "https://vetneb.com.ar",
-    "https://segundo.example.com",
-  ];
-
-  (nodemailer as any).createTransport = () => ({
-    sendMail: async (p: Record<string, unknown>) => {
-      sendMailCalls.push(p);
-      return { messageId: "fallback-test" };
+  const dependencies = createEmailDependencies({
+    config: {
+      smtp: { ...TEST_SMTP, host: "smtp-psu-fallback.test" },
+      publicSiteUrl: undefined,
+      corsOrigins: [
+        "http://localhost:3000",
+        "https://vetneb.com.ar",
+        "https://segundo.example.com",
+      ],
     },
+    createSmtpTransport: recordingSmtpTransport(sendMailCalls, "fallback-test"),
   });
 
-  try {
-    await sendParticularTokenEmail({
+  await sendParticularTokenEmail(
+    {
       to: "tutor@example.com",
       token: "TOKEN-FALLBACK",
       tutorLastName: "Vega",
       petName: "Kira",
-    });
-  } finally {
-    (nodemailer as any).createTransport = originalCreateTransport;
-    restoreEnv(snap);
-  }
+    },
+    dependencies,
+  );
 
   assert.equal(sendMailCalls.length, 1);
   const html = String(sendMailCalls[0].html);
@@ -732,18 +584,19 @@ test("PUBLIC_SITE_URL ausente: el link cae al primer https de CORS_ORIGIN", asyn
 });
 
 test("seguridad: el envío con PUBLIC_SITE_URL no imprime el token en logs", async () => {
-  const snap = snapshotEnv();
-  const originalCreateTransport = nodemailer.createTransport;
   const originalInfo = console.info;
   const logged: string[] = [];
 
-  enableSmtp();
-  (ENV.smtp as any).host = "smtp-psu-logs.test";
-  (ENV as any).publicSiteUrl = "https://vetneb.com.ar";
-
-  (nodemailer as any).createTransport = () => ({
-    sendMail: async () => ({ messageId: "log-test" }),
+  const dependencies = createEmailDependencies({
+    config: {
+      smtp: { ...TEST_SMTP, host: "smtp-psu-logs.test" },
+      publicSiteUrl: "https://vetneb.com.ar",
+    },
+    createSmtpTransport: () => ({
+      sendMail: async () => ({ messageId: "log-test" }),
+    }),
   });
+
   console.info = (...args: unknown[]) => {
     logged.push(
       args
@@ -755,16 +608,17 @@ test("seguridad: el envío con PUBLIC_SITE_URL no imprime el token en logs", asy
   const token = "SECRET-LOG-TOKEN-123";
 
   try {
-    await sendParticularTokenEmail({
-      to: "tutor@example.com",
-      token,
-      tutorLastName: "Soto",
-      petName: "Nina",
-    });
+    await sendParticularTokenEmail(
+      {
+        to: "tutor@example.com",
+        token,
+        tutorLastName: "Soto",
+        petName: "Nina",
+      },
+      dependencies,
+    );
   } finally {
     console.info = originalInfo;
-    (nodemailer as any).createTransport = originalCreateTransport;
-    restoreEnv(snap);
   }
 
   const all = logged.join("\n");
@@ -778,42 +632,25 @@ test("seguridad: el envío con PUBLIC_SITE_URL no imprime el token en logs", asy
 // ─── Guardrail: ausencia de JS y clipboard en email HTML particular ───────────
 
 test("guardrail: email html particular no contiene navigator.clipboard ni scripts de lado cliente", async () => {
-  const snap = snapshotEnv();
-  const originalCreateTransport = nodemailer.createTransport;
   const sendMailCalls: Array<Record<string, unknown>> = [];
 
-  (ENV.gmailApi as any).enabled = false;
-  (ENV.gmailApi as any).clientId = "";
-  (ENV.gmailApi as any).clientSecret = "";
-  (ENV.gmailApi as any).refreshToken = "";
-  (ENV.gmailApi as any).from = "";
-  (ENV.smtp as any).enabled = true;
-  (ENV.smtp as any).host = "smtp-guardrail-clipboard.test";
-  (ENV.smtp as any).port = 587;
-  (ENV.smtp as any).secure = false;
-  (ENV.smtp as any).user = "u";
-  (ENV.smtp as any).pass = "p";
-  (ENV.smtp as any).from = "noreply@vetneb.com";
-  (ENV as any).corsOrigins = ["https://portal.vetneb.com"];
-
-  (nodemailer as any).createTransport = () => ({
-    sendMail: async (p: Record<string, unknown>) => {
-      sendMailCalls.push(p);
-      return { messageId: "guardrail-clipboard" };
+  const dependencies = createEmailDependencies({
+    config: {
+      smtp: { ...TEST_SMTP, host: "smtp-guardrail-clipboard.test" },
+      corsOrigins: ["https://portal.vetneb.com"],
     },
+    createSmtpTransport: recordingSmtpTransport(sendMailCalls, "guardrail-clipboard"),
   });
 
-  try {
-    await sendParticularTokenEmail({
+  await sendParticularTokenEmail(
+    {
       to: "tutor@example.com",
       token: "GUARDRAIL-TOKEN-001",
       tutorLastName: "Perez",
       petName: "Milo",
-    });
-  } finally {
-    (nodemailer as any).createTransport = originalCreateTransport;
-    restoreEnv(snap);
-  }
+    },
+    dependencies,
+  );
 
   assert.equal(sendMailCalls.length, 1);
   const html = String(sendMailCalls[0].html);

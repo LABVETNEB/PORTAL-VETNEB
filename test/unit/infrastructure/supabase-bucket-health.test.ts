@@ -1,5 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import {
+  createStorageApiError,
+  createStoragePortFake,
+} from "../../mocks/storage-port.ts";
 
 process.env.SUPABASE_URL ??= "https://example.supabase.co";
 process.env.SUPABASE_ANON_KEY ??= "test-anon-key";
@@ -11,57 +15,48 @@ process.env.SUPABASE_STORAGE_BUCKET ??= "reports";
 const {
   ensureStorageBucketExists,
   checkStorageHealth,
-  supabase,
 } = await import("../../../server/lib/supabase.ts");
 
 test("ensureStorageBucketExists devuelve bucket existente sin crear uno nuevo", async () => {
-  const originalGetBucket = supabase.storage.getBucket;
-  const originalCreateBucket = supabase.storage.createBucket;
-
   let capturedBucket: string | null = null;
   let createBucketCalls = 0;
 
   const existingBucket = {
     id: "bucket-id",
     name: "reports",
+    owner: "",
+    created_at: "2026-01-01T00:00:00.000Z",
+    updated_at: "2026-01-01T00:00:00.000Z",
     public: false,
   };
 
-  (supabase.storage as any).getBucket = async (bucket: string) => {
-    capturedBucket = bucket;
+  const { storage } = createStoragePortFake({
+    getBucket: async (bucket) => {
+      capturedBucket = bucket;
 
-    return {
-      data: existingBucket,
-      error: null,
-    };
-  };
+      return {
+        data: existingBucket,
+        error: null,
+      };
+    },
+    createBucket: async (bucketName) => {
+      createBucketCalls += 1;
 
-  (supabase.storage as any).createBucket = async () => {
-    createBucketCalls += 1;
+      return {
+        data: { name: bucketName },
+        error: null,
+      };
+    },
+  });
 
-    return {
-      data: null,
-      error: null,
-    };
-  };
+  const result = await ensureStorageBucketExists(storage);
 
-  try {
-    const result = await ensureStorageBucketExists();
-
-    assert.deepEqual(result, existingBucket);
-  } finally {
-    (supabase.storage as any).getBucket = originalGetBucket;
-    (supabase.storage as any).createBucket = originalCreateBucket;
-  }
-
+  assert.deepEqual(result, existingBucket);
   assert.equal(capturedBucket, "reports");
   assert.equal(createBucketCalls, 0);
 });
 
 test("ensureStorageBucketExists crea bucket cuando no existe", async () => {
-  const originalGetBucket = supabase.storage.getBucket;
-  const originalCreateBucket = supabase.storage.createBucket;
-
   let capturedCreateBucketName: string | null = null;
   let capturedCreateBucketOptions: unknown = null;
 
@@ -70,35 +65,23 @@ test("ensureStorageBucketExists crea bucket cuando no existe", async () => {
     public: false,
   };
 
-  (supabase.storage as any).getBucket = async () => {
-    return {
-      data: null,
-      error: null,
-    };
-  };
+  const { storage } = createStoragePortFake({
+    // 10B residual: el tipo del SDK excluye {data: null, error: null}, la rama defensiva bajo prueba.
+    getBucket: async () => ({ data: null, error: null }) as any,
+    createBucket: async (bucketName, options) => {
+      capturedCreateBucketName = bucketName;
+      capturedCreateBucketOptions = options;
 
-  (supabase.storage as any).createBucket = async (
-    bucketName: string,
-    options: unknown,
-  ) => {
-    capturedCreateBucketName = bucketName;
-    capturedCreateBucketOptions = options;
+      return {
+        data: createdBucket,
+        error: null,
+      };
+    },
+  });
 
-    return {
-      data: createdBucket,
-      error: null,
-    };
-  };
+  const result = await ensureStorageBucketExists(storage);
 
-  try {
-    const result = await ensureStorageBucketExists();
-
-    assert.deepEqual(result, createdBucket);
-  } finally {
-    (supabase.storage as any).getBucket = originalGetBucket;
-    (supabase.storage as any).createBucket = originalCreateBucket;
-  }
-
+  assert.deepEqual(result, createdBucket);
   assert.equal(capturedCreateBucketName, "reports");
   assert.deepEqual(capturedCreateBucketOptions, {
     public: false,
@@ -106,85 +89,64 @@ test("ensureStorageBucketExists crea bucket cuando no existe", async () => {
 });
 
 test("ensureStorageBucketExists propaga error de createBucket", async () => {
-  const originalGetBucket = supabase.storage.getBucket;
-  const originalCreateBucket = supabase.storage.createBucket;
+  const expectedError = createStorageApiError("create bucket failed");
 
-  const expectedError = new Error("create bucket failed");
-
-  (supabase.storage as any).getBucket = async () => {
-    return {
-      data: null,
-      error: null,
-    };
-  };
-
-  (supabase.storage as any).createBucket = async () => {
-    return {
+  const { storage } = createStoragePortFake({
+    // 10B residual: el tipo del SDK excluye {data: null, error: null}, la rama defensiva bajo prueba.
+    getBucket: async () => ({ data: null, error: null }) as any,
+    createBucket: async () => ({
       data: null,
       error: expectedError,
-    };
-  };
+    }),
+  });
 
-  try {
-    await assert.rejects(
-      ensureStorageBucketExists(),
-      (error: unknown) => error === expectedError,
-    );
-  } finally {
-    (supabase.storage as any).getBucket = originalGetBucket;
-    (supabase.storage as any).createBucket = originalCreateBucket;
-  }
+  await assert.rejects(
+    ensureStorageBucketExists(storage),
+    (error: unknown) => error === expectedError,
+  );
 });
 
 test("checkStorageHealth devuelve bucket cuando storage responde correctamente", async () => {
-  const originalGetBucket = supabase.storage.getBucket;
-
   let capturedBucket: string | null = null;
 
   const bucketData = {
     id: "bucket-id",
     name: "reports",
+    owner: "",
+    created_at: "2026-01-01T00:00:00.000Z",
+    updated_at: "2026-01-01T00:00:00.000Z",
     public: false,
   };
 
-  (supabase.storage as any).getBucket = async (bucket: string) => {
-    capturedBucket = bucket;
+  const { storage } = createStoragePortFake({
+    getBucket: async (bucket) => {
+      capturedBucket = bucket;
 
-    return {
-      data: bucketData,
-      error: null,
-    };
-  };
+      return {
+        data: bucketData,
+        error: null,
+      };
+    },
+  });
 
-  try {
-    const result = await checkStorageHealth();
+  const result = await checkStorageHealth(storage);
 
-    assert.deepEqual(result, bucketData);
-  } finally {
-    (supabase.storage as any).getBucket = originalGetBucket;
-  }
-
+  assert.deepEqual(result, bucketData);
   assert.equal(capturedBucket, "reports");
 });
 
 test("checkStorageHealth propaga error de getBucket", async () => {
-  const originalGetBucket = supabase.storage.getBucket;
+  const expectedError = createStorageApiError("healthcheck failed");
 
-  const expectedError = new Error("healthcheck failed");
-
-  (supabase.storage as any).getBucket = async () => {
-    return {
+  const { storage } = createStoragePortFake({
+    getBucket: async () => ({
       data: null,
       error: expectedError,
-    };
-  };
+    }),
+  });
 
-  try {
-    await assert.rejects(
-      checkStorageHealth(),
-      (error: unknown) => error === expectedError,
-    );
-  } finally {
-    (supabase.storage as any).getBucket = originalGetBucket;
-  }
+  await assert.rejects(
+    checkStorageHealth(storage),
+    (error: unknown) => error === expectedError,
+  );
 });

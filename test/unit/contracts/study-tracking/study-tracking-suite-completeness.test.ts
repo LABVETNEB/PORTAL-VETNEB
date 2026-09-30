@@ -347,7 +347,7 @@ const STUDY_TRACKING_SUITE: readonly StudyTrackingSuiteEntry[] = [
         path: "test/unit/infrastructure/email-success.test.ts",
         markers: [
           "sendSpecialStainRequiredEmail",
-          "nodemailer.createTransport",
+          "createSmtpTransport",
           "sendMailCalls",
           "special_stain_required",
           "trackingCaseId: 55",

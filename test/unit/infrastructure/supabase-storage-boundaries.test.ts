@@ -69,3 +69,33 @@ test("storage boundaries sanitizan nombres antes de construir paths persistibles
   assert.match(source, /sanitizeFileName\(fileName,\s*"report"\)/);
   assert.match(source, /sanitizeFileName\(fileName,\s*"avatar"\)/);
 });
+
+test("storage boundaries usan supabase.storage como puerto por defecto", () => {
+  const helpers = [
+    ...source.matchAll(/\nexport async function (\w+)\(\n([\s\S]*?)\n\)/g),
+  ];
+
+  assert.deepEqual(
+    helpers.map((match) => match[1]),
+    [
+      "ensureStorageBucketExists",
+      "checkStorageHealth",
+      "uploadReport",
+      "createSignedStorageUrl",
+      "createSignedReportUrl",
+      "createSignedReportDownloadUrl",
+      "uploadClinicAvatar",
+      "deleteStorageObject",
+    ],
+  );
+
+  for (const [, name, parameters] of helpers) {
+    assert.equal(
+      parameters.trimEnd().endsWith("storage: StoragePort = supabase.storage,"),
+      true,
+      `${name} debe usar supabase.storage como default`,
+    );
+  }
+
+  assert.match(source, /return createSignedStorageUrl\(storagePath, storage\);/);
+});
