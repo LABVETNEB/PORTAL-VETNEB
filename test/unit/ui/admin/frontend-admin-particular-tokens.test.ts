@@ -1,6 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
+import {
+  effectiveAttribute,
+  elementText,
+  evaluate,
+  jsxElements,
+  parseTsx,
+  tagName,
+} from "../dashboard/dashboard-source-oracle.ts";
+import { functionNamed, runSource } from "./source-function-runner.ts";
 
 const ADMIN_CARD_PATH =
   "frontend/src/app/dashboard/admin/AdminParticularTokensCard.tsx";
@@ -19,6 +28,42 @@ const EXPECTED_SPECIES_OPTIONS = [
   "Caprinos",
   "Aves",
 ] as const;
+
+// For each "Cerrar token visible" control: its effective `disabled` and whether
+// its click handler clears the token, while unconfirmed and once confirmed.
+function generatedTokenClosers(source: string) {
+  const file = parseTsx(source, ADMIN_CARD_PATH);
+
+  return jsxElements(file)
+    .filter(
+      (element) =>
+        ["Button", "button"].includes(tagName(element)) &&
+        elementText(element) === "Cerrar token visible",
+    )
+    .map((closer) => {
+      const disabled = effectiveAttribute(closer, "disabled");
+      const onClick = effectiveAttribute(closer, "onClick");
+      const clears = (isGeneratedTokenConfirmed: boolean) => {
+        let cleared = false;
+        const handler = runSource<() => void>(
+          functionNamed(file, onClick.kind === "value" ? onClick.expression.getText() : "?"),
+          { isGeneratedTokenConfirmed, clearGeneratedTokenState: () => (cleared = true) },
+        );
+        handler();
+        return cleared;
+      };
+
+      return {
+        disabled:
+          disabled.kind === "value"
+            ? [false, true].map((isGeneratedTokenConfirmed) =>
+                Boolean(evaluate(disabled.expression, { isGeneratedTokenConfirmed })),
+              )
+            : disabled.kind,
+        clears: [clears(false), clears(true)],
+      };
+    });
+}
 
 function sectionBetween(source: string, start: string, end: string): string {
   const startIndex = source.indexOf(start);
@@ -341,6 +386,16 @@ test("admin generated token block requires manual communication confirmation", (
   assert.ok(clearGeneratedToken.includes("setIsGeneratedTokenConfirmed(false);"));
   assert.ok(clearGeneratedToken.includes("setCopyStatusMessage(null);"));
   assert.ok(source.includes("disabled={isSubmitting || generatedToken !== null}"));
+
+  const confirmationGated = [{ disabled: [true, false], clears: [false, true] }];
+  assert.deepEqual(generatedTokenClosers(source), confirmationGated);
+
+  const overridden = source.replace(
+    "disabled={!isGeneratedTokenConfirmed}",
+    () => "disabled={!isGeneratedTokenConfirmed}\n{...{ disabled: false }}",
+  );
+  assert.notEqual(overridden, source);
+  assert.notDeepEqual(generatedTokenClosers(overridden), confirmationGated);
 });
 
 test("admin dashboard mounts token generator and exposes admin navigation anchor", () => {

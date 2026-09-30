@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
+import { parseTsx } from "../dashboard/dashboard-source-oracle.ts";
+import { functionNamed, writesAfterRequest } from "./source-function-runner.ts";
 
 const TOKENS_CARD_PATH =
   "frontend/src/app/dashboard/admin/AdminParticularTokensCard.tsx";
@@ -10,6 +12,44 @@ const ADMIN_PAGE_PATH = "frontend/src/app/dashboard/admin/page.tsx";
 // rather than of one component's private item list — a strictly stronger
 // anchor: it also fails if the module loses its glyph.
 const MODULE_CATALOG_PATH = "frontend/src/features/dashboard/config/dashboardModules.ts";
+
+// State writes of both token loaders once their request is in flight, for a
+// current and a superseded request, resolving and failing.
+async function tokenLoadWrites(source: string) {
+  const file = parseTsx(source, TOKENS_CARD_PATH);
+  const outcomes: Record<string, string[]> = {};
+
+  for (const loader of ["loadTokens", "loadMoreTokens"]) {
+    for (const superseded of [false, true]) {
+      for (const fails of [false, true]) {
+        outcomes[`${loader}:${superseded ? "superseded" : "current"}-${fails ? "failure" : "success"}`] =
+          await writesAfterRequest(functionNamed(file, loader), {
+            fetcher: "getAdminParticularTokens",
+            setters: [
+              "setIsLoadingTokens",
+              "setIsLoadingMoreTokens",
+              "setErrorMessage",
+              "setTokens",
+              "setHasMoreFromServer",
+              "setSelectedTokenId",
+            ],
+            bindings: {
+              TOKENS_INITIAL_ADAPTIVE_WINDOW_SIZE: 90,
+              TOKENS_LOAD_MORE_BATCH_SIZE: 30,
+              isLoadingMoreTokens: false,
+              hasMoreFromServer: true,
+              tokens: [],
+            },
+            response: { particularTokens: [] },
+            superseded,
+            fails,
+          });
+      }
+    }
+  }
+
+  return outcomes;
+}
 const MODULE_ICONS_PATH = "frontend/src/components/dashboard/dashboardModuleIcons.ts";
 const GLOBALS_PATH = "frontend/src/app/globals.css";
 
@@ -62,7 +102,7 @@ test("admin tokens keeps a bounded two-page adaptive window plus cargar más", (
   assert.equal(source.includes("25/50/100"), false);
 });
 
-test("admin tokens recomputa pagina localmente y descarta respuestas viejas (anti-race)", () => {
+test("admin tokens recomputa pagina localmente y descarta respuestas viejas (anti-race)", async () => {
   const source = read(TOKENS_CARD_PATH);
 
   assert.ok(source.includes("const latestRequestRef = useRef(0);"));
@@ -76,6 +116,31 @@ test("admin tokens recomputa pagina localmente y descarta respuestas viejas (ant
   assert.ok(source.includes("canvasNode: mobileBodyNode,"));
   assert.ok(source.includes("minItems: TOKENS_FALLBACK_ROWS,"));
   assert.ok(source.includes("minItems: 1,"));
+
+  const latestWins = {
+    "loadTokens:current-success": ["setTokens", "setHasMoreFromServer", "setSelectedTokenId", "setIsLoadingTokens"],
+    "loadTokens:current-failure": [
+      "setTokens",
+      "setHasMoreFromServer",
+      "setSelectedTokenId",
+      "setErrorMessage",
+      "setIsLoadingTokens",
+    ],
+    "loadTokens:superseded-success": [],
+    "loadTokens:superseded-failure": [],
+    "loadMoreTokens:current-success": ["setTokens", "setHasMoreFromServer", "setIsLoadingMoreTokens"],
+    "loadMoreTokens:current-failure": ["setErrorMessage", "setIsLoadingMoreTokens"],
+    "loadMoreTokens:superseded-success": [],
+    "loadMoreTokens:superseded-failure": [],
+  };
+  assert.deepEqual(await tokenLoadWrites(source), latestWins);
+
+  const unguarded = source.replace(
+    /if \(requestId !== latestRequestRef\.current\) return;/g,
+    "if (false)\n$&",
+  );
+  assert.notEqual(unguarded, source);
+  assert.notDeepEqual(await tokenLoadWrites(unguarded), latestWins);
 });
 
 test("admin tokens toolbar is mobile-safe and wraps actions", () => {

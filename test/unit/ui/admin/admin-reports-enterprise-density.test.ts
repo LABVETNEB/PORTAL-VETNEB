@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
+import { parseTsx } from "../dashboard/dashboard-source-oracle.ts";
+import { functionNamed, writesAfterRequest } from "./source-function-runner.ts";
 
 const PAGE_PATH = "frontend/src/app/dashboard/admin/page.tsx";
 const CONTROLLER_PATH =
@@ -11,6 +13,29 @@ const UPLOAD_PATH =
 const STATUS_PATH =
   "frontend/src/app/dashboard/admin/AdminReportStatusBadge.tsx";
 const GLOBALS_PATH = "frontend/src/app/globals.css";
+
+// State writes of loadReports once its request is in flight, for a current
+// and a superseded request, resolving and failing.
+async function reportsLoadWrites(source: string) {
+  const loadReports = functionNamed(parseTsx(source, CARD_PATH), "loadReports");
+  const outcomes: Record<string, string[]> = {};
+
+  for (const superseded of [false, true]) {
+    for (const fails of [false, true]) {
+      outcomes[`${superseded ? "superseded" : "current"}-${fails ? "failure" : "success"}`] =
+        await writesAfterRequest(loadReports, {
+          fetcher: "getAdminReportWorkflow",
+          setters: ["setIsLoading", "setErrorMessage", "setReports", "setHasMore", "setSelectedReportId"],
+          bindings: { query: { limit: 9, offset: 0 } },
+          response: { reports: [], pagination: { hasMore: false } },
+          superseded,
+          fails,
+        });
+    }
+  }
+
+  return outcomes;
+}
 
 function sectionBetween(source: string, start: string, end: string): string {
   const startIndex = source.indexOf(start);
@@ -64,7 +89,7 @@ test("Admin Informes usa paginación server-side adaptativa por viewport (HY cap
   assert.ok(card.includes("Página siguiente"));
 });
 
-test("Admin Informes recomputa offset y descarta respuestas viejas (anti-race)", () => {
+test("Admin Informes recomputa offset y descarta respuestas viejas (anti-race)", async () => {
   const card = read(CARD_PATH);
 
   // Request-id guard: a stale response whose id is no longer current is dropped.
@@ -89,6 +114,22 @@ test("Admin Informes recomputa offset y descarta respuestas viejas (anti-race)",
       "minItems: REPORTS_FALLBACK_ROWS,",
     ),
   );
+
+  const latestWins = {
+    "current-success": ["setReports", "setHasMore", "setSelectedReportId", "setIsLoading"],
+    "current-failure": ["setReports", "setHasMore", "setSelectedReportId", "setErrorMessage", "setIsLoading"],
+    "superseded-success": [],
+    "superseded-failure": [],
+  };
+  assert.deepEqual(await reportsLoadWrites(card), latestWins);
+
+  const source = card;
+  const unguarded = source.replace(
+    /if \(requestId !== latestRequestRef\.current\) return;/g,
+    "if (false)\n$&",
+  );
+  assert.notEqual(unguarded, source);
+  assert.notDeepEqual(await reportsLoadWrites(unguarded), latestWins);
 });
 
 test("Admin Informes presenta tabla y lista mobile densas con detalle en diálogo", () => {

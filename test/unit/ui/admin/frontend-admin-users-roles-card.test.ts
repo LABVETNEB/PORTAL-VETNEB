@@ -1,9 +1,40 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
+import { parseTsx } from "../dashboard/dashboard-source-oracle.ts";
+import { callsUnderConfirm, functionNamed, runSource } from "./source-function-runner.ts";
 
 const ADMIN_USERS_ROLES_CARD_PATH =
   "frontend/src/app/dashboard/admin/AdminUsersRolesReadOnlyCard.tsx";
+
+// Role requests handleChangeClinicRole sends when the operator answers the
+// confirmation dialog with `confirmed`.
+async function roleChangeRequests(source: string, confirmed: boolean) {
+  const file = parseTsx(source, ADMIN_USERS_ROLES_CARD_PATH);
+  const helper = (name: string) => runSource(functionNamed(file, name), {});
+
+  return callsUnderConfirm(
+    functionNamed(file, "handleChangeClinicRole"),
+    confirmed,
+    ["changeAdminClinicUserRole"],
+    {
+      disableUserActions: false,
+      getNextClinicRole: helper("getNextClinicRole"),
+      getUserKey: helper("getUserKey"),
+      formatRole: String,
+      formatRoleChangeError: String,
+      setError: () => {},
+      setRoleChangeMessage: () => {},
+      setChangedUserKey: () => {},
+      setChangingUserKey: () => {},
+      setSnapshot: () => {},
+      changeAdminClinicUserRole: async (userId: number, role: string) => ({
+        user: { userType: "clinic", userId, username: "ana", role },
+      }),
+    },
+    [{ userType: "clinic", userId: 7, username: "ana", role: "clinic_staff" }],
+  );
+}
 
 test("admin users roles card is client-side and imports required dependencies", () => {
   const source = read(ADMIN_USERS_ROLES_CARD_PATH);
@@ -148,7 +179,7 @@ test("admin users roles card loads users roles and resets feedback", () => {
   assert.ok(source.includes("loadUsersRoles();"));
 });
 
-test("admin users roles card changes clinic roles only after confirmation", () => {
+test("admin users roles card changes clinic roles only after confirmation", async () => {
   const source = read(ADMIN_USERS_ROLES_CARD_PATH);
 
   assert.ok(source.includes("async function handleChangeClinicRole("));
@@ -163,6 +194,20 @@ test("admin users roles card changes clinic roles only after confirmation", () =
   assert.ok(source.includes("setRoleChangeMessage("));
   assert.ok(source.includes("setError(formatRoleChangeError(err));"));
   assert.ok(source.includes("setChangingUserKey(null);"));
+
+  const gated = {
+    declined: [],
+    confirmed: [["changeAdminClinicUserRole", 7, "clinic_owner"]],
+  };
+  const observe = async (candidate: string) => ({
+    declined: await roleChangeRequests(candidate, false),
+    confirmed: await roleChangeRequests(candidate, true),
+  });
+  assert.deepEqual(await observe(source), gated);
+
+  const ungated = source.replace("if (!confirmed) {", () => "if (false)\nif (!confirmed) {");
+  assert.notEqual(ungated, source);
+  assert.notDeepEqual(await observe(ungated), gated);
 });
 
 test("admin users roles card renders title counters filters and table columns", () => {

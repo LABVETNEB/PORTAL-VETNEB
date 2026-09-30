@@ -1,10 +1,50 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
+import { parseTsx } from "../dashboard/dashboard-source-oracle.ts";
+import { functionNamed, runSource } from "./source-function-runner.ts";
 
 const ADMIN_PRICING_CARD_PATH =
   "frontend/src/app/dashboard/admin/AdminPricingEditorCard.tsx";
 const ADMIN_PAGE_PATH = "frontend/src/app/dashboard/admin/page.tsx";
+
+// Ids "Guardar todos" sends when item 1 changed, item 2 is unchanged and item
+// 3 carries a validation error.
+async function savedItemIds(source: string): Promise<number[]> {
+  const sent: number[] = [];
+  const payloads: Record<number, { payload: unknown; errorMessage: string | null }> = {
+    1: { payload: { priceLabel: "$ 10" }, errorMessage: null },
+    2: { payload: null, errorMessage: null },
+    3: { payload: null, errorMessage: "Precio inválido" },
+  };
+  const handleSaveAll = runSource<() => Promise<void>>(
+    functionNamed(parseTsx(source, ADMIN_PRICING_CARD_PATH), "handleSaveAll"),
+    {
+      savingItemId: null,
+      isSavingAll: false,
+      pendingItemIds: [1, 2, 3],
+      hasPendingValidationErrors: false,
+      getUpdatePayload: (id: number) => payloads[id],
+      updateAdminPricingItem: async (id: number, payload: unknown) => {
+        sent.push(id);
+        return { pricingItem: { id, ...(payload as object) } };
+      },
+      setIsSavingAll: () => {},
+      setCategories: () => {},
+      setOriginalItemsById: () => {},
+      setFormStateById: () => {},
+      applyUpdatedItem: () => [],
+      toFormState: () => ({}),
+      SAVE_SUCCESS_MESSAGE: "ok",
+      SAVE_ERROR_MESSAGE: "error",
+      updateItemFormState: () => {},
+      formatAdminPricingError: String,
+    },
+  );
+
+  await handleSaveAll();
+  return sent;
+}
 
 test("admin pricing card uses admin pricing API helpers", () => {
   const source = read(ADMIN_PRICING_CARD_PATH);
@@ -85,11 +125,20 @@ test("admin pricing card detects pending changes via pendingItemIds useMemo", ()
   assert.ok(source.includes("nextDisplayOrder !== original.displayOrder"));
 });
 
-test("admin pricing card does not send unchanged items in save-all", () => {
+test("admin pricing card does not send unchanged items in save-all", async () => {
   const source = read(ADMIN_PRICING_CARD_PATH);
 
   assert.ok(source.includes("item.payload !== null && item.errorMessage === null"));
   assert.ok(source.includes("for (const { id, payload } of toSave)"));
+
+  assert.deepEqual(await savedItemIds(source), [1]);
+
+  const unfiltered = source.replace(
+    "item.payload !== null && item.errorMessage === null,",
+    () => "true ||\nitem.payload !== null && item.errorMessage === null,",
+  );
+  assert.notEqual(unfiltered, source);
+  assert.notDeepEqual(await savedItemIds(unfiltered), [1]);
 });
 
 test("admin pricing card disables Guardar todos when no changes or saving", () => {

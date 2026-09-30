@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readSourceFile, readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
+import { parseTsx } from "../dashboard/dashboard-source-oracle.ts";
+import { runModule } from "./source-function-runner.ts";
 
 const ADMIN_PAGE_PATH = "frontend/src/app/dashboard/admin/page.tsx";
 const ADMIN_COMMAND_CENTER_PATH =
@@ -15,6 +17,29 @@ const ADMIN_AUDIT_SHARED_PATH =
   "frontend/src/app/dashboard/admin/admin-audit-shared.ts";
 const CATALOG_PATH =
   "frontend/src/features/dashboard/config/dashboardModules.ts";
+
+// Runs the shared audit module: sensitive keys are dropped and nested values
+// never reach the admin view verbatim.
+function redactedAuditSummary(source: string): string {
+  const shared = runModule(parseTsx(source, ADMIN_AUDIT_SHARED_PATH), {
+    "@/lib/utils": { formatDateTime: String },
+  });
+  const summary = shared.getAuditMetadataSummary as (entry: {
+    event: string;
+    metadata: Record<string, unknown>;
+  }) => string;
+
+  return summary({
+    event: "report.updated",
+    metadata: {
+      passwordHash: "h",
+      accessToken: "t",
+      contactEmail: "e",
+      payload: { secret: "s" },
+      clinicName: "Norte",
+    },
+  });
+}
 
 test("dashboard admin defines non-indexable metadata and admin dependencies", () => {
   const source = read(ADMIN_PAGE_PATH);
@@ -115,6 +140,16 @@ test("dashboard admin keeps sensitive audit metadata redaction", () => {
   assert.ok(source.includes("normalizedKey.includes(part)"));
   assert.ok(source.includes("!isSensitiveAuditMetadataKey(key)"));
   assert.ok(source.includes("export function getAuditMetadataSummary(entry: {"));
+
+  const redacted = "payload: Dato estructurado omitido · clinicName: Norte";
+  assert.equal(redactedAuditSummary(source), redacted);
+
+  const verbatim = source.replace(
+    'return "Dato estructurado omitido";',
+    () => 'if (value) return JSON.stringify(value);\n  return "Dato estructurado omitido";',
+  );
+  assert.notEqual(verbatim, source);
+  assert.notEqual(redactedAuditSummary(verbatim), redacted);
 });
 
 test("dashboard admin forwards cookies and performs no-store admin reads", () => {

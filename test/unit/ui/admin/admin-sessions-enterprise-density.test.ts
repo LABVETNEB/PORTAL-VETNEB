@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
+import {
+  effectiveAttribute,
+  evaluate,
+  jsxElements,
+  parseTsx,
+} from "../dashboard/dashboard-source-oracle.ts";
 
 const CARD_PATH =
   "frontend/src/app/dashboard/admin/AdminSessionsReadOnlyCard.tsx";
@@ -15,6 +21,28 @@ const MODULE_CATALOG_PATH = "frontend/src/features/dashboard/config/dashboardMod
 const MODULE_ICONS_PATH = "frontend/src/components/dashboard/dashboardModuleIcons.ts";
 const API_PATH = "frontend/src/lib/api.ts";
 const GLOBALS_PATH = "frontend/src/app/globals.css";
+
+// Effective `disabled` of every control that revokes a session, after later
+// attributes and spreads, for (isRevoking, isCurrentAdminSession) in
+// (F,F) (F,T) (T,F) (T,T).
+function revokeControlsDisabled(card: string): unknown[] {
+  return jsxElements(parseTsx(card, CARD_PATH))
+    .filter((element) => {
+      const onClick = effectiveAttribute(element, "onClick");
+      return onClick.kind === "value" && onClick.expression.getText().includes("handleRevokeSession(");
+    })
+    .map((control) => {
+      const disabled = effectiveAttribute(control, "disabled");
+
+      return disabled.kind !== "value"
+        ? disabled.kind
+        : [false, true].flatMap((isRevoking) =>
+            [false, true].map((isCurrentAdminSession) =>
+              Boolean(evaluate(disabled.expression, { isRevoking, isCurrentAdminSession })),
+            ),
+          );
+    });
+}
 
 test("PR-7B preserves the real admin-sessions navigation surface", () => {
   const page = read(PAGE_PATH);
@@ -83,6 +111,17 @@ test("PR-7B keeps revocation constrained, confirmed and blocks current admin ses
   assert.ok(card.includes("snapshot?.currentAdminSessionId"));
   assert.ok(card.includes("disabled={isRevoking || isCurrentAdminSession}"));
   assert.ok(card.includes('"Sesión actual"'));
+
+  const blocked = [false, true, true, true];
+  assert.deepEqual(revokeControlsDisabled(card), [blocked, blocked]);
+
+  const source = card;
+  const reenabled = source.replace(
+    /disabled=\{isRevoking \|\| isCurrentAdminSession\}/g,
+    "$&\n{...{ disabled: false }}",
+  );
+  assert.notEqual(reenabled, source);
+  assert.notDeepEqual(revokeControlsDisabled(reenabled), [blocked, blocked]);
 });
 
 test("PR-7B surfaces load errors explicitly instead of empty success states", () => {

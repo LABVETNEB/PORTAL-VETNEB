@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
+import { parseTsx } from "../dashboard/dashboard-source-oracle.ts";
+import { runModule } from "./source-function-runner.ts";
 
 const ADMIN_PAGE = "frontend/src/app/dashboard/admin/page.tsx";
 const AUDIT_SHARED = "frontend/src/app/dashboard/admin/admin-audit-shared.ts";
@@ -11,6 +13,23 @@ const AUDIT_TABLE = "frontend/src/app/dashboard/admin/AdminAuditDenseTable.tsx";
 const AUDIT_FILTER = "frontend/src/app/dashboard/admin/AdminAuditFilterBar.tsx";
 const AUDIT_DETAIL = "frontend/src/app/dashboard/admin/AdminAuditDetailDialog.tsx";
 const GLOBALS_CSS = "frontend/src/app/globals.css";
+
+// The detail column the actions project comes from getAuditMetadataSummary;
+// running the shared module shows what an operator actually reads.
+function auditDetailProjection(source: string): string {
+  const shared = runModule(parseTsx(source, AUDIT_SHARED), {
+    "@/lib/utils": { formatDateTime: String },
+  });
+  const summary = shared.getAuditMetadataSummary as (entry: {
+    event: string;
+    metadata: Record<string, unknown>;
+  }) => string;
+
+  return summary({
+    event: "clinic.updated",
+    metadata: { changes: { name: "Nueva" }, tags: ["norte"], plan: "basic", sessionId: "s-1" },
+  });
+}
 
 test("R-06 preserves the real audit-log navigation surface", () => {
   const page = read(ADMIN_PAGE);
@@ -131,6 +150,18 @@ test("R-06 uses controlled detail without raw sensitive audit fields", () => {
   assert.ok(auditShared.includes('"hash"'));
   assert.ok(auditShared.includes('"email"'));
   assert.ok(auditShared.includes('"session"'));
+
+  const redacted =
+    "changes: Dato estructurado omitido · tags: Dato estructurado omitido · plan: basic";
+  assert.equal(auditDetailProjection(auditShared), redacted);
+
+  const source = auditShared;
+  const serialized = source.replace(
+    'return "Dato estructurado omitido";',
+    () => 'if (value) return JSON.stringify(value);\n  return "Dato estructurado omitido";',
+  );
+  assert.notEqual(serialized, source);
+  assert.notEqual(auditDetailProjection(serialized), redacted);
 });
 
 test("R-06 does not introduce logging, public fetches, or regional scroll", () => {
