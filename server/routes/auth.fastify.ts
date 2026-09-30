@@ -166,7 +166,7 @@ type UnifiedAuthenticatedCandidate =
   | AuthenticatedClinicCandidate
   | AuthenticatedParticularCandidate;
 
-export type AuthNativeRoutesOptions = {
+type AuthNativeRoutesFields = {
   createActiveSession?: (input: {
     clinicUserId: number;
     tokenHash: string;
@@ -235,6 +235,36 @@ export type AuthNativeRoutesOptions = {
   now?: () => number;
 };
 
+// Puertos cuya ausencia hace cargar los defaults de DB: una instancia inyectada
+// los trae todos y la composición productiva no trae ninguno.
+const CLINIC_AUTH_INJECTED_PORT_KEYS = [
+  "createActiveSession",
+  "deleteActiveSession",
+  "getActiveSessionByToken",
+  "getClinicUserById",
+  "getClinicUserByUsername",
+  "updateSessionLastAccess",
+  "upsertClinicUser",
+  "generateSessionToken",
+  "hashPassword",
+  "hashSessionToken",
+  "verifyPassword",
+  "writeAuditLog",
+] as const satisfies readonly (keyof AuthNativeRoutesFields)[];
+
+type ClinicAuthInjectedPortKey = (typeof CLINIC_AUTH_INJECTED_PORT_KEYS)[number];
+
+export type AuthNativeRoutesInjectedOptions = AuthNativeRoutesFields &
+  Required<Pick<AuthNativeRoutesFields, ClinicAuthInjectedPortKey>>;
+
+export type AuthNativeRoutesDefaultOptions = AuthNativeRoutesFields & {
+  [Key in ClinicAuthInjectedPortKey]?: never;
+};
+
+export type AuthNativeRoutesOptions =
+  | AuthNativeRoutesInjectedOptions
+  | AuthNativeRoutesDefaultOptions;
+
 const REQUEST_TIMER_KEY = "__clinicAuthRequestTimer";
 const PASSWORD_CHANGE_MIN_LENGTH = 8;
 const PASSWORD_CHANGE_ERROR_MESSAGE = "No se pudo actualizar la credencial.";
@@ -245,7 +275,7 @@ type AuthFastifyRequest = FastifyRequest & {
 
 type NativeAuthDeps = Required<
   Pick<
-    AuthNativeRoutesOptions,
+    AuthNativeRoutesFields,
     | "createActiveSession"
     | "deleteActiveSession"
     | "getActiveSessionByToken"
@@ -709,19 +739,9 @@ function getAuthAuthorization(
 export const clinicAuthNativeRoutes: FastifyPluginAsync<
   AuthNativeRoutesOptions
 > = async (app, options) => {
-  const hasAllInjectedDeps =
-    !!options.createActiveSession &&
-    !!options.deleteActiveSession &&
-    !!options.getActiveSessionByToken &&
-    !!options.getClinicUserById &&
-    !!options.getClinicUserByUsername &&
-    !!options.updateSessionLastAccess &&
-    !!options.upsertClinicUser &&
-    !!options.generateSessionToken &&
-    !!options.hashPassword &&
-    !!options.hashSessionToken &&
-    !!options.verifyPassword &&
-    !!options.writeAuditLog;
+  const hasAllInjectedDeps = CLINIC_AUTH_INJECTED_PORT_KEYS.every(
+    (key) => !!options[key],
+  );
 
   const defaultDeps = hasAllInjectedDeps ? undefined : await loadDefaultDeps();
 
