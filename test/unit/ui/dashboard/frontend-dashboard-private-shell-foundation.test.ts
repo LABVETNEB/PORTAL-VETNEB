@@ -1,6 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
+import {
+  assertPlainProps,
+  effectiveAttribute,
+  elementText,
+  exportedFunction,
+  type JsxNode,
+  parseTsx,
+  renderedUnder,
+  staticAttribute,
+  unwrap,
+} from "./dashboard-source-oracle.ts";
 
 const STATUS_BADGE_PATH = "frontend/src/components/dashboard/StatusBadge.tsx";
 const EMPTY_STATE_PATH = "frontend/src/components/dashboard/EmptyState.tsx";
@@ -10,6 +21,34 @@ const PAGE_HEADER_PATH =
   "frontend/src/components/dashboard/DashboardPageHeader.tsx";
 const PRIVATE_SHELL_PATH =
   "frontend/src/components/dashboard/PrivateDashboardShell.tsx";
+
+// TEST-GLOBAL-07 (G06-D13): the root announces role="alert" on every render and
+// "Reintentar", wired to `onRetry`, renders exactly when a callback is given.
+// `.includes("onRetry ? (")` also matches the inverted `!onRetry ? (`
+// (C.15.1 M-D11).
+function retryRendering(source: string) {
+  const component = exportedFunction(parseTsx(source, ERROR_STATE_PATH), "ErrorState");
+  const wiresRetry = (element: JsxNode) => {
+    const onClick = effectiveAttribute(element, "onClick");
+    return onClick.kind === "value" && unwrap(onClick.expression).getText() === "onRetry";
+  };
+
+  assertPlainProps(component, ["onRetry"]);
+
+  const withCallback = renderedUnder(component, new Map([["onRetry", true]]));
+  const withoutCallback = renderedUnder(component, new Map([["onRetry", false]]));
+  return {
+    alertRoot: [withCallback, withoutCallback].every((rendered) =>
+      rendered.some((r) => r.must && staticAttribute(r.element, "role") === "alert"),
+    ),
+    retryWithCallback: withCallback.some(
+      (r) => r.must && wiresRetry(r.element) && elementText(r.element) === "Reintentar",
+    ),
+    retryWithoutCallback: withoutCallback.some(
+      (r) => wiresRetry(r.element) || elementText(r.element).includes("Reintentar"),
+    ),
+  };
+}
 
 test("status badge maps required report and logistics statuses to icon text and semantic class", () => {
   const source = read(STATUS_BADGE_PATH);
@@ -110,6 +149,19 @@ test("error state announces alert and wires retry callback", () => {
   assert.ok(source.includes("onClick={onRetry}"));
   assert.ok(source.includes("Reintentar"));
   assert.equal(source.includes("Error desconocido"), false);
+  assert.deepEqual(retryRendering(source), {
+    alertRoot: true,
+    retryWithCallback: true,
+    retryWithoutCallback: false,
+  });
+
+  const inverted = source.replace("{onRetry ? (", () => "{!onRetry ? (");
+  assert.notEqual(inverted, source);
+  assert.deepEqual(retryRendering(inverted), {
+    alertRoot: true,
+    retryWithCallback: false,
+    retryWithoutCallback: true,
+  });
 });
 
 test("dashboard page header keeps required title and optional description badge actions", () => {

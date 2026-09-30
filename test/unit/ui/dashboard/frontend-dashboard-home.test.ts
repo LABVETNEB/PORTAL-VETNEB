@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
+import {
+  effectiveAttribute,
+  failureFlagViolations,
+  jsxElements,
+  parseTsx,
+  tagName,
+  unwrap,
+} from "./dashboard-source-oracle.ts";
 
 const DASHBOARD_PAGE_PATH = "frontend/src/app/dashboard/page.tsx";
 const CLINIC_COMMAND_CENTER_PATH = "frontend/src/app/dashboard/ClinicCommandCenter.tsx";
@@ -8,6 +16,39 @@ const CLINIC_INFORMES_SUMMARY_PATH =
   "frontend/src/app/dashboard/ClinicInformesWorkspaceSummary.tsx";
 const CLINIC_LOGISTICA_SUMMARY_PATH =
   "frontend/src/app/dashboard/ClinicLogisticaWorkspaceSummary.tsx";
+const HOME_LOAD_FLAGS = [
+  ["statsLoadError", "getDashboardStats"],
+  ["reportsLoadError", "getReports"],
+  ["visitsLoadError", "getLogisticsFieldVisits"],
+] as const;
+const HOME_FLAG_CONSUMERS = [
+  ["ClinicCommandCenter", "statsLoadError"],
+  ["ClinicCommandCenter", "reportsLoadError"],
+  ["ClinicCommandCenter", "visitsLoadError"],
+  ["ClinicInformesWorkspaceSummary", "reportsLoadError"],
+  ["ClinicLogisticaWorkspaceSummary", "visitsLoadError"],
+] as const;
+
+// TEST-GLOBAL-07 (G06-D05): each load flag is raised by the catch of its own
+// fetch and reaches its consumer. The literal `statsLoadError = true;` stays
+// present under `if (false)` (C.15.1 M-D04), so presence proves nothing.
+function homeLoadFlags(source: string) {
+  const elements = jsxElements(parseTsx(source, DASHBOARD_PAGE_PATH));
+
+  return {
+    violations: HOME_LOAD_FLAGS.flatMap(([flag, fetcher]) =>
+      failureFlagViolations(source, DASHBOARD_PAGE_PATH, "DashboardPage", [fetcher], flag),
+    ),
+    wiring: HOME_FLAG_CONSUMERS.map(([tag, flag]) => {
+      const consumers = elements.filter((element) => tagName(element) === tag);
+      const value = consumers.length === 1 ? effectiveAttribute(consumers[0], flag) : undefined;
+
+      return value?.kind === "value"
+        ? `${tag}.${flag}=${unwrap(value.expression).getText()}`
+        : `${tag}.${flag} unwired`;
+    }),
+  };
+}
 
 function sectionBetween(source: string, start: string, end: string): string {
   const startIndex = source.indexOf(start);
@@ -112,6 +153,16 @@ test("dashboard home reads stats reports and field visits through API helpers", 
   // non-normative surface for §20 rows 11 and 12: its 3-row slices stay.
   assert.ok(source.includes("recentReports={recentReports.slice(0, 3)}"));
   assert.ok(source.includes("recentVisits={recentVisits.slice(0, 3)}"));
+
+  const wired = HOME_FLAG_CONSUMERS.map(([tag, flag]) => `${tag}.${flag}=${flag}`);
+  assert.deepEqual(homeLoadFlags(source), { violations: [], wiring: wired });
+
+  const neverRaised = source.replace("statsLoadError = true;", () => "if (false)\nstatsLoadError = true;");
+  assert.notEqual(neverRaised, source);
+  assert.deepEqual(homeLoadFlags(neverRaised), {
+    violations: ["statsLoadError = true is not an unconditional statement of a catch block"],
+    wiring: wired,
+  });
 });
 
 test("dashboard home opens the unified module workspace (no hub header/cards)", () => {

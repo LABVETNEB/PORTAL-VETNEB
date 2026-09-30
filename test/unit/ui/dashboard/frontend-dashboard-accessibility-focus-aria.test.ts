@@ -1,10 +1,20 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import test from "node:test";
+import ts from "typescript";
 import { isClean7aAllowedDependencyChange } from "../../../helpers/clean7a-dependency-cleanup-scope.ts";
 import { isReportForeignAccessBackendFile } from "../../../helpers/report-foreign-access-scope.ts";
 import { dashboardScopeGuardApplies } from "../../../helpers/dashboard-scope-guard.ts";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
+import {
+  descendants,
+  effectiveAttribute,
+  evaluate,
+  jsxElements,
+  parseTsx,
+  tagName,
+  unwrap,
+} from "./dashboard-source-oracle.ts";
 
 const ADMIN_SECTION_TABS_PATH =
   "frontend/src/app/dashboard/admin/AdminSectionTabs.tsx";
@@ -17,6 +27,41 @@ const DASHBOARD_TOPBAR_PATH =
 const DASHBOARD_NOTIFICATIONS_BELL_PATH =
   "frontend/src/components/dashboard/DashboardNotificationsBell.tsx";
 const PUBLIC_SEO_SCOPE_EXCEPTION = "frontend/src/lib/seo.ts";
+
+// TEST-GLOBAL-07 (G06-D01): the step item rendered for each timeline step
+// announces `aria-current="step"` for the current status and for no other. A
+// later `{...{ "aria-current": undefined }}` keeps the literal attribute in the
+// source (C.15.1 M-D15).
+function currentStepMarker(source: string) {
+  const file = parseTsx(source, STUDY_TIMELINE_PATH);
+  const items = jsxElements(file).filter((element) => tagName(element) === "li");
+  const [item] = items;
+  const config = descendants(file, ts.isVariableDeclaration).find(
+    (declaration) => declaration.name.getText() === "TIMELINE_STATUS_CONFIG",
+  );
+  const statuses = config?.initializer ? unwrap(config.initializer) : undefined;
+  const marker = item ? effectiveAttribute(item, "aria-current") : undefined;
+  let callback: ts.Node | undefined = item;
+
+  while (callback && !ts.isArrowFunction(callback)) callback = callback.parent;
+
+  return {
+    items: items.length,
+    mappedOverSteps:
+      callback !== undefined &&
+      ts.isCallExpression(callback.parent) &&
+      callback.parent.expression.getText() === "steps.map",
+    ariaCurrent:
+      marker?.kind === "value" && statuses && ts.isObjectLiteralExpression(statuses)
+        ? Object.fromEntries(
+            statuses.properties.map((property) => {
+              const status = property.name?.getText() ?? "";
+              return [status, evaluate(marker.expression, { step: { status } })];
+            }),
+          )
+        : String(marker?.kind),
+  };
+}
 
 function assertNoForbiddenSurfaceImports(source: string, context: string): void {
   const importLines = source
@@ -83,6 +128,24 @@ test("PR-8 StudyTimeline expose named panels and textual states", () => {
   assert.ok(timelineSource.includes("Estado: ${config.label}"));
   assert.ok(timelineSource.includes('{step.date ?? "Pendiente"}'));
   assertNoForbiddenSurfaceImports(timelineSource, "StudyTimeline");
+
+  const unmarked = { completed: undefined, current: undefined, pending: undefined, warning: undefined, error: undefined };
+  assert.deepEqual(currentStepMarker(timelineSource), {
+    items: 1,
+    mappedOverSteps: true,
+    ariaCurrent: { ...unmarked, current: "step" },
+  });
+
+  const overridden = timelineSource.replace(
+    'aria-current={step.status === "current" ? "step" : undefined}',
+    () => 'aria-current={step.status === "current" ? "step" : undefined}\n{...{ "aria-current": undefined }}',
+  );
+  assert.notEqual(overridden, timelineSource);
+  assert.deepEqual(currentStepMarker(overridden), {
+    items: 1,
+    mappedOverSteps: true,
+    ariaCurrent: unmarked,
+  });
 });
 
 test("PR-8 Topbar and notification controls keep focus labels", () => {

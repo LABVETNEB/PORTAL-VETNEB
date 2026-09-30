@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
+import {
+  effectiveAttribute,
+  failureFlagViolations,
+  jsxElements,
+  parseTsx,
+  tagName,
+  unwrap,
+} from "./dashboard-source-oracle.ts";
 
 const INFORMES_PAGE_PATH = "frontend/src/app/dashboard/informes/page.tsx";
 const INFORMES_LIST_PATH =
@@ -8,6 +16,28 @@ const INFORMES_LIST_PATH =
 const INFORMES_ACTIONS_PATH =
   "frontend/src/app/dashboard/informes/informes.actions.ts";
 const API_CLIENT_PATH = "frontend/src/lib/api.ts";
+
+// TEST-GLOBAL-07 (G06-D07): the page raises `reportsLoadError` from the catch
+// of its report search and hands it to the list. The literal
+// `reportsLoadError = true;` stays present under `if (false)` (C.15.1 M-D05).
+function reportsLoadFlag(source: string) {
+  const lists = jsxElements(parseTsx(source, INFORMES_PAGE_PATH)).filter(
+    (element) => tagName(element) === "InformesReportsList",
+  );
+  const handed = lists.length === 1 ? effectiveAttribute(lists[0], "initialLoadError") : undefined;
+
+  return {
+    violations: failureFlagViolations(
+      source,
+      INFORMES_PAGE_PATH,
+      "InformesPage",
+      ["searchReportsPaginated", "getReportsPaginated"],
+      "reportsLoadError",
+    ),
+    initialLoadError:
+      handed?.kind === "value" ? unwrap(handed.expression).getText() : "unwired",
+  };
+}
 
 test("dashboard informes defines non-indexable metadata and clinic read dependencies", () => {
   const source = read(INFORMES_PAGE_PATH);
@@ -201,6 +231,17 @@ test("dashboard informes separates fetch failures from real empty report lists",
   assert.ok(listSource.includes("<ErrorState"));
   assert.ok(listSource.includes("reports.length > 0 ?"));
   assert.ok(listSource.includes("No hay informes disponibles."));
+  assert.deepEqual(reportsLoadFlag(source), {
+    violations: [],
+    initialLoadError: "reportsLoadError",
+  });
+
+  const neverRaised = source.replace("reportsLoadError = true;", () => "if (false)\nreportsLoadError = true;");
+  assert.notEqual(neverRaised, source);
+  assert.deepEqual(reportsLoadFlag(neverRaised), {
+    violations: ["reportsLoadError = true is not an unconditional statement of a catch block"],
+    initialLoadError: "reportsLoadError",
+  });
 });
 
 test("dashboard informes keeps module navigation in the shell, not a duplicate page header", () => {

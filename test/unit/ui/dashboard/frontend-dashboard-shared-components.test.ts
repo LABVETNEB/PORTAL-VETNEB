@@ -1,9 +1,60 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import ts from "typescript";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
+import {
+  assertPlainProps,
+  evaluate,
+  exportedFunction,
+  parseTsx,
+  renderedUnder,
+  tagName,
+} from "./dashboard-source-oracle.ts";
 
 const DASHBOARD_TOPBAR_PATH = "frontend/src/components/dashboard/DashboardTopbar.tsx";
 const STATS_CARDS_PATH = "frontend/src/components/dashboard/StatsCards.tsx";
+
+// TEST-GLOBAL-07 (G06-D15): while `loading` the component returns the skeleton
+// grid — every rendered Skeleton comes from a loop over an executed length-4
+// array — and once loaded no Skeleton renders. The literal `if (loading) {`
+// stays present under `if (false)` (C.15.1 M-D14).
+function statsCardsLoading(source: string) {
+  const component = exportedFunction(parseTsx(source, STATS_CARDS_PATH), "StatsCards");
+  const skeletons = (loading: boolean) =>
+    renderedUnder(component, new Map([["loading", loading]])).filter(
+      (rendered) => tagName(rendered.element) === "Skeleton",
+    );
+
+  assertPlainProps(component, ["loading"]);
+
+  const loops = new Set<ts.CallExpression>();
+  for (const { element } of skeletons(true)) {
+    let node: ts.Node = element;
+
+    while (
+      node !== component &&
+      !(
+        ts.isCallExpression(node) &&
+        ts.isPropertyAccessExpression(node.expression) &&
+        node.expression.name.text === "map"
+      )
+    ) {
+      node = node.parent;
+    }
+
+    if (ts.isCallExpression(node)) loops.add(node);
+  }
+
+  return {
+    loadingSkeletonCards: [...loops].map((loop) => {
+      const receiver = ts.isPropertyAccessExpression(loop.expression)
+        ? evaluate(loop.expression.expression, {})
+        : undefined;
+      return Array.isArray(receiver) ? receiver.length : "not an array";
+    }),
+    loadedSkeletons: skeletons(false).length,
+  };
+}
 
 test("dashboard topbar keeps route-registry logout action and UI dependencies", () => {
   const source = read(DASHBOARD_TOPBAR_PATH);
@@ -100,6 +151,11 @@ test("stats cards keep four-card loading skeleton", () => {
   assert.ok(source.includes("h-4 w-24"));
   assert.ok(source.includes("h-8 w-16 mb-1"));
   assert.ok(source.includes("h-3 w-32"));
+  assert.deepEqual(statsCardsLoading(source), { loadingSkeletonCards: [4], loadedSkeletons: 0 });
+
+  const neverLoading = source.replace("if (loading) {", () => "if (false)\nif (loading) {");
+  assert.notEqual(neverLoading, source);
+  assert.deepEqual(statsCardsLoading(neverLoading), { loadingSkeletonCards: [], loadedSkeletons: 0 });
 });
 
 test("stats cards render configured metrics with fallback and hidden icons", () => {

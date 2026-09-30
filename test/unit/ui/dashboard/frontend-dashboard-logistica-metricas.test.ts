@@ -1,8 +1,57 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import ts from "typescript";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
+import {
+  descendants,
+  elementText,
+  exportedFunction,
+  failureFlagViolations,
+  type JsxNode,
+  parseTsx,
+  renderedUnder,
+  staticAttribute,
+  truth,
+} from "./dashboard-source-oracle.ts";
 
 const METRICAS_PAGE_PATH = "frontend/src/app/dashboard/logistica/metricas/page.tsx";
+const PLANS_ALERT = "No se pudieron cargar los planes de ruta para métricas. Intente nuevamente.";
+const METRICS_EMPTY = "No hay métricas de ruta disponibles.";
+
+// TEST-GLOBAL-07 (G06-D08): the catch of the route-plan fetch raises
+// `routePlansLoadError`, which then renders the alert instead of the empty
+// metrics and disables both pager directions. The literal
+// `routePlansLoadError = true;` stays present under `if (false)` (C.15.1 M-D06).
+function routePlansFailure(source: string) {
+  const file = parseTsx(source, METRICAS_PAGE_PATH);
+  const page = exportedFunction(file, "MetricasPage");
+  const failed = new Map([["routePlansLoadError", true]]);
+  const set = renderedUnder(page, failed);
+  const isAlert = (element: JsxNode) =>
+    staticAttribute(element, "role") === "alert" && elementText(element).includes(PLANS_ALERT);
+  const pager = ["canGoPrevious", "canGoNext"].map((name) => {
+    const [declaration] = descendants(page.body, ts.isVariableDeclaration).filter(
+      (candidate) => candidate.name.getText() === name,
+    );
+    return declaration?.initializer ? truth(declaration.initializer, failed) : "undeclared";
+  });
+
+  return {
+    violations: failureFlagViolations(
+      source,
+      METRICAS_PAGE_PATH,
+      "MetricasPage",
+      ["getRoutePlans"],
+      "routePlansLoadError",
+    ),
+    alertWhenSet: set.some((rendered) => rendered.must && isAlert(rendered.element)),
+    emptyWhenSet: set.some((rendered) => elementText(rendered.element).includes(METRICS_EMPTY)),
+    pagerWhenSet: pager,
+    alertWhenClear: renderedUnder(page, new Map([["routePlansLoadError", false]])).some(
+      (rendered) => isAlert(rendered.element),
+    ),
+  };
+}
 
 test("dashboard logistica metricas defines non-indexable metadata and dependencies", () => {
   const source = read(METRICAS_PAGE_PATH);
@@ -169,4 +218,20 @@ test("dashboard logistica metricas separates fetch failures from empty metrics",
   assert.ok(source.includes("No se pudieron cargar las métricas de ruta. Intente nuevamente."));
   assert.ok(source.includes("No hay métricas de ruta disponibles."));
   assert.equal(source.includes("fetch("), false);
+
+  const separated = {
+    violations: [],
+    alertWhenSet: true,
+    emptyWhenSet: false,
+    pagerWhenSet: [false, false],
+    alertWhenClear: false,
+  };
+  assert.deepEqual(routePlansFailure(source), separated);
+
+  const neverRaised = source.replace("routePlansLoadError = true;", () => "if (false)\nroutePlansLoadError = true;");
+  assert.notEqual(neverRaised, source);
+  assert.deepEqual(routePlansFailure(neverRaised), {
+    ...separated,
+    violations: ["routePlansLoadError = true is not an unconditional statement of a catch block"],
+  });
 });

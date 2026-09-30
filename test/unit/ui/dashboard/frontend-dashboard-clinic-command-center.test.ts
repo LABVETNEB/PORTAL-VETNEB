@@ -1,10 +1,63 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readSourceFile, readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
+import {
+  assertPlainProps,
+  elementText,
+  exportedFunction,
+  type JsxNode,
+  parseTsx,
+  renderedUnder,
+  staticAttribute,
+  tagName,
+} from "./dashboard-source-oracle.ts";
 
 const CLINIC_COMMAND_CENTER_PATH = "frontend/src/app/dashboard/ClinicCommandCenter.tsx";
 const DASHBOARD_PAGE_PATH = "frontend/src/app/dashboard/page.tsx";
 const STATUS_BADGE_PATH = "frontend/src/components/dashboard/StatusBadge.tsx";
+const STATS_ALERT = [
+  "statsLoadError",
+  "No se pudieron cargar las métricas operativas. Intente nuevamente.",
+] as const;
+const REPORTS_ALERT = [
+  "reportsLoadError",
+  "No se pudieron cargar los informes recientes. Intente nuevamente.",
+  "No hay informes recientes disponibles.",
+] as const;
+const VISITS_ALERT = [
+  "visitsLoadError",
+  "No se pudieron cargar las visitas de campo recientes. Intente nuevamente.",
+  "No hay visitas de campo recientes disponibles.",
+] as const;
+const DISTINGUISHED = { whenSet: true, emptyWhenSet: false, whenClear: false };
+
+// TEST-GLOBAL-07 (G06-D02): with its flag set the alert renders on every path
+// and the empty state on none; with the flag clear the alert renders on no
+// path. `.includes("reportsLoadError ?")` also matches the inverted
+// `!reportsLoadError ?` (C.15.1 M-D02).
+function alertRendering(source: string, flag: string, message: string, empty?: string) {
+  const component = exportedFunction(
+    parseTsx(source, CLINIC_COMMAND_CENTER_PATH),
+    "ClinicCommandCenter",
+  );
+  const isAlert = (element: JsxNode) =>
+    staticAttribute(element, "role") === "alert" && elementText(element).includes(message);
+  const isEmpty = (element: JsxNode) =>
+    empty !== undefined &&
+    tagName(element) === "EmptyState" &&
+    staticAttribute(element, "description") === empty;
+
+  assertPlainProps(component, [flag]);
+
+  const set = renderedUnder(component, new Map([[flag, true]]));
+  return {
+    whenSet: set.some((rendered) => rendered.must && isAlert(rendered.element)),
+    emptyWhenSet: set.some((rendered) => isEmpty(rendered.element)),
+    whenClear: renderedUnder(component, new Map([[flag, false]])).some((rendered) =>
+      isAlert(rendered.element),
+    ),
+  };
+}
 
 // ── Existence and scope boundaries ──────────────────────────────────────────
 
@@ -103,6 +156,7 @@ test("ClinicCommandCenter shows metrics error alert when statsLoadError is true"
   assert.ok(source.includes("No se pudieron cargar las métricas operativas. Intente nuevamente."));
   assert.ok(source.includes('role="alert"'));
   assert.ok(source.indexOf('id: "recientes"') > source.indexOf("statsLoadError ?"));
+  assert.deepEqual(alertRendering(source, ...STATS_ALERT), DISTINGUISHED);
 });
 
 // ── Reports list ─────────────────────────────────────────────────────────────
@@ -132,6 +186,15 @@ test("ClinicCommandCenter shows reports load error alert with role=alert", () =>
   const source = read(CLINIC_COMMAND_CENTER_PATH);
 
   assert.ok(source.includes("No se pudieron cargar los informes recientes. Intente nuevamente."));
+  assert.deepEqual(alertRendering(source, ...REPORTS_ALERT), DISTINGUISHED);
+
+  const inverted = source.replace("{reportsLoadError ? (", () => "{!reportsLoadError ? (");
+  assert.notEqual(inverted, source);
+  assert.deepEqual(alertRendering(inverted, ...REPORTS_ALERT), {
+    whenSet: false,
+    emptyWhenSet: true,
+    whenClear: true,
+  });
 });
 
 // ── Visits list ──────────────────────────────────────────────────────────────
@@ -159,6 +222,7 @@ test("ClinicCommandCenter shows visits load error alert", () => {
   const source = read(CLINIC_COMMAND_CENTER_PATH);
 
   assert.ok(source.includes("No se pudieron cargar las visitas de campo recientes. Intente nuevamente."));
+  assert.deepEqual(alertRendering(source, ...VISITS_ALERT), DISTINGUISHED);
 });
 
 // ── Layout contract ──────────────────────────────────────────────────────────

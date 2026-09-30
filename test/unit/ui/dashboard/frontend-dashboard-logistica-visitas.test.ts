@@ -1,8 +1,45 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
+import {
+  elementText,
+  exportedFunction,
+  failureFlagViolations,
+  type JsxNode,
+  parseTsx,
+  renderedUnder,
+  staticAttribute,
+} from "./dashboard-source-oracle.ts";
 
 const VISITAS_PAGE_PATH = "frontend/src/app/dashboard/logistica/visitas/page.tsx";
+const VISITS_ALERT = "No se pudieron cargar las visitas de campo. Intente nuevamente.";
+const VISITS_EMPTY = "No hay visitas de campo disponibles.";
+
+// TEST-GLOBAL-07 (G06-D10): the catch of the visits fetch raises
+// `visitsLoadError`, which then renders the alert instead of the empty state.
+// The literal `visitsLoadError = true;` stays present under `if (false)`
+// (C.15.1 M-D08).
+function visitsFailure(source: string) {
+  const page = exportedFunction(parseTsx(source, VISITAS_PAGE_PATH), "VisitasPage");
+  const set = renderedUnder(page, new Map([["visitsLoadError", true]]));
+  const isAlert = (element: JsxNode) =>
+    staticAttribute(element, "role") === "alert" && elementText(element).includes(VISITS_ALERT);
+
+  return {
+    violations: failureFlagViolations(
+      source,
+      VISITAS_PAGE_PATH,
+      "VisitasPage",
+      ["getLogisticsFieldVisits"],
+      "visitsLoadError",
+    ),
+    alertWhenSet: set.some((rendered) => rendered.must && isAlert(rendered.element)),
+    emptyWhenSet: set.some((rendered) => elementText(rendered.element).includes(VISITS_EMPTY)),
+    alertWhenClear: renderedUnder(page, new Map([["visitsLoadError", false]])).some(
+      (rendered) => isAlert(rendered.element),
+    ),
+  };
+}
 
 test("dashboard logistica visitas defines non-indexable metadata and dependencies", () => {
   const source = read(VISITAS_PAGE_PATH);
@@ -142,4 +179,14 @@ test("dashboard logistica visitas separates fetch failures from real empty visit
   assert.ok(source.includes('role="alert"'));
   assert.ok(source.includes(": visits.length ?"));
   assert.ok(source.includes("No hay visitas de campo disponibles."));
+
+  const separated = { violations: [], alertWhenSet: true, emptyWhenSet: false, alertWhenClear: false };
+  assert.deepEqual(visitsFailure(source), separated);
+
+  const neverRaised = source.replace("visitsLoadError = true;", () => "if (false)\nvisitsLoadError = true;");
+  assert.notEqual(neverRaised, source);
+  assert.deepEqual(visitsFailure(neverRaised), {
+    ...separated,
+    violations: ["visitsLoadError = true is not an unconditional statement of a catch block"],
+  });
 });

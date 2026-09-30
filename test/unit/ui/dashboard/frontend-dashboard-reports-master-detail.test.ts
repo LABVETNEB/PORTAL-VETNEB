@@ -4,6 +4,13 @@ import {
   assertClean7aDependencyCleanupInvariants,
 } from "../../../helpers/clean7a-dependency-cleanup-scope.ts";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
+import {
+  effectiveAttribute,
+  evaluate,
+  jsxElements,
+  parseTsx,
+  staticAttribute,
+} from "./dashboard-source-oracle.ts";
 
 const INFORMES_PAGE_PATH = "frontend/src/app/dashboard/informes/page.tsx";
 const INFORMES_LIST_PATH =
@@ -14,6 +21,28 @@ const STUDY_TIMELINE_PATH =
   "frontend/src/components/dashboard/StudyTimeline.tsx";
 const STICKY_ACTION_BAR_PATH =
   "frontend/src/components/dashboard/StickyActionBar.tsx";
+
+// TEST-GLOBAL-07 (G06-D14): each pager direction is disabled exactly at its
+// boundary page. A later `{...{ disabled: false }}` keeps
+// `disabled={page <= 1}` in the source (C.15.1 M-D13).
+function pagerDisabled(source: string) {
+  const elements = jsxElements(parseTsx(source, INFORMES_LIST_PATH));
+  const disabledOn = (label: string, pages: readonly [number, number][]) => {
+    const buttons = elements.filter((element) => staticAttribute(element, "aria-label") === label);
+    const disabled = buttons.length === 1 ? effectiveAttribute(buttons[0], "disabled") : undefined;
+
+    return disabled?.kind === "value"
+      ? pages.map(([page, reportsTotalPages]) =>
+          Boolean(evaluate(disabled.expression, { page, reportsTotalPages })),
+        )
+      : `${buttons.length} buttons, disabled ${String(disabled?.kind)}`;
+  };
+
+  return {
+    previous: disabledOn("Página anterior", [[1, 3], [2, 3]]),
+    next: disabledOn("Página siguiente", [[3, 3], [2, 3]]),
+  };
+}
 
 function assertNoForbiddenSurfaceImports(source: string, context: string): void {
   const importLines = source
@@ -139,6 +168,14 @@ test("dashboard informes server-side pagination controls and compact summary", (
   assert.ok(source.includes("goToNextPage"));
   assert.ok(source.includes("disabled={page <= 1}"));
   assert.ok(source.includes("disabled={page >= reportsTotalPages}"));
+  assert.deepEqual(pagerDisabled(source), { previous: [true, false], next: [true, false] });
+
+  const overridden = source.replace(
+    "disabled={page <= 1}",
+    () => "disabled={page <= 1}\n{...{ disabled: false }}",
+  );
+  assert.notEqual(overridden, source);
+  assert.deepEqual(pagerDisabled(overridden), { previous: [false, false], next: [true, false] });
 });
 
 test("dashboard informes pagination is server-adaptive and does not use client-side array filtering", () => {

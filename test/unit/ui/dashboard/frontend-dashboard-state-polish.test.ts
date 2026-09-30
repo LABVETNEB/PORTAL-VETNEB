@@ -1,10 +1,49 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
+import {
+  assertPlainProps,
+  effectiveAttribute,
+  elementText,
+  exportedFunction,
+  type JsxNode,
+  parseTsx,
+  renderedUnder,
+  staticAttribute,
+  unwrap,
+} from "./dashboard-source-oracle.ts";
 
 const LOADING_STATE_PATH = "frontend/src/components/dashboard/LoadingState.tsx";
 const EMPTY_STATE_PATH = "frontend/src/components/dashboard/EmptyState.tsx";
 const ERROR_STATE_PATH = "frontend/src/components/dashboard/ErrorState.tsx";
+
+// TEST-GLOBAL-07 (G06-D17): the root announces role="alert" on every render and
+// "Reintentar", wired to `onRetry`, renders exactly when a callback is given.
+// `.includes("onRetry ? (")` also matches the inverted `!onRetry ? (`
+// (C.15.1 M-D12).
+function retryRendering(source: string) {
+  const component = exportedFunction(parseTsx(source, ERROR_STATE_PATH), "ErrorState");
+  const wiresRetry = (element: JsxNode) => {
+    const onClick = effectiveAttribute(element, "onClick");
+    return onClick.kind === "value" && unwrap(onClick.expression).getText() === "onRetry";
+  };
+
+  assertPlainProps(component, ["onRetry"]);
+
+  const withCallback = renderedUnder(component, new Map([["onRetry", true]]));
+  const withoutCallback = renderedUnder(component, new Map([["onRetry", false]]));
+  return {
+    alertRoot: [withCallback, withoutCallback].every((rendered) =>
+      rendered.some((r) => r.must && staticAttribute(r.element, "role") === "alert"),
+    ),
+    retryWithCallback: withCallback.some(
+      (r) => r.must && wiresRetry(r.element) && elementText(r.element) === "Reintentar",
+    ),
+    retryWithoutCallback: withoutCallback.some(
+      (r) => wiresRetry(r.element) || elementText(r.element).includes("Reintentar"),
+    ),
+  };
+}
 
 // ── LoadingState ────────────────────────────────────────────────────────────
 
@@ -124,6 +163,19 @@ test("error state retains full existing api and role=alert", () => {
   assert.ok(source.includes("onClick={onRetry}"));
   assert.ok(source.includes("Reintentar"));
   assert.equal(source.includes("Error desconocido"), false);
+  assert.deepEqual(retryRendering(source), {
+    alertRoot: true,
+    retryWithCallback: true,
+    retryWithoutCallback: false,
+  });
+
+  const inverted = source.replace("{onRetry ? (", () => "{!onRetry ? (");
+  assert.notEqual(inverted, source);
+  assert.deepEqual(retryRendering(inverted), {
+    alertRoot: true,
+    retryWithCallback: false,
+    retryWithoutCallback: true,
+  });
 });
 
 test("error state retry button has type=button attribute", () => {

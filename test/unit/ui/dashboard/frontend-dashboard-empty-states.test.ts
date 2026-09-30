@@ -1,6 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
+import {
+  assertPlainProps,
+  elementText,
+  exportedFunction,
+  type JsxNode,
+  parseTsx,
+  renderedUnder,
+  staticAttribute,
+  tagName,
+} from "./dashboard-source-oracle.ts";
 
 const DASHBOARD_PAGE_PATH = "frontend/src/app/dashboard/page.tsx";
 const CLINIC_COMMAND_CENTER_PATH = "frontend/src/app/dashboard/ClinicCommandCenter.tsx";
@@ -10,6 +20,47 @@ const INFORMES_LIST_PATH =
 const LOGISTICA_PAGE_PATH = "frontend/src/app/dashboard/logistica/page.tsx";
 const LOGISTICS_COMMAND_CENTER_PATH =
   "frontend/src/app/dashboard/logistica/LogisticsCommandCenter.tsx";
+const COMMAND_CENTER_ALERTS: readonly (readonly [flag: string, message: string, empty?: string])[] = [
+  ["statsLoadError", "No se pudieron cargar las métricas operativas. Intente nuevamente."],
+  [
+    "reportsLoadError",
+    "No se pudieron cargar los informes recientes. Intente nuevamente.",
+    "No hay informes recientes disponibles.",
+  ],
+  [
+    "visitsLoadError",
+    "No se pudieron cargar las visitas de campo recientes. Intente nuevamente.",
+    "No hay visitas de campo recientes disponibles.",
+  ],
+];
+
+// TEST-GLOBAL-07 (G06-D04): with its flag set the alert renders on every path
+// and the empty state on none; with the flag clear the alert renders on no
+// path. `.includes("statsLoadError ?")` also matches the inverted
+// `!statsLoadError ?` (C.15.1 M-D01).
+function alertRendering(source: string, flag: string, message: string, empty?: string) {
+  const component = exportedFunction(
+    parseTsx(source, CLINIC_COMMAND_CENTER_PATH),
+    "ClinicCommandCenter",
+  );
+  const isAlert = (element: JsxNode) =>
+    staticAttribute(element, "role") === "alert" && elementText(element).includes(message);
+  const isEmpty = (element: JsxNode) =>
+    empty !== undefined &&
+    tagName(element) === "EmptyState" &&
+    staticAttribute(element, "description") === empty;
+
+  assertPlainProps(component, [flag]);
+
+  const set = renderedUnder(component, new Map([[flag, true]]));
+  return {
+    whenSet: set.some((rendered) => rendered.must && isAlert(rendered.element)),
+    emptyWhenSet: set.some((rendered) => isEmpty(rendered.element)),
+    whenClear: renderedUnder(component, new Map([[flag, false]])).some((rendered) =>
+      isAlert(rendered.element),
+    ),
+  };
+}
 
 test("dashboard overview page retains load-error variables and propagates them to command center", () => {
   const source = read(DASHBOARD_PAGE_PATH);
@@ -39,6 +90,22 @@ test("dashboard overview clinic command center distinguishes recent list load fa
   assert.ok(source.includes('role="alert"'));
   assert.ok(source.includes("No hay informes recientes disponibles."));
   assert.ok(source.includes("No hay visitas de campo recientes disponibles."));
+
+  for (const alert of COMMAND_CENTER_ALERTS) {
+    assert.deepEqual(
+      alertRendering(source, ...alert),
+      { whenSet: true, emptyWhenSet: false, whenClear: false },
+      alert[0],
+    );
+  }
+
+  const inverted = source.replace("{statsLoadError ? (", () => "{!statsLoadError ? (");
+  assert.notEqual(inverted, source);
+  assert.deepEqual(alertRendering(inverted, ...COMMAND_CENTER_ALERTS[0]), {
+    whenSet: false,
+    emptyWhenSet: false,
+    whenClear: true,
+  });
 });
 
 test("dashboard informes page shows empty state when reports are unavailable", () => {

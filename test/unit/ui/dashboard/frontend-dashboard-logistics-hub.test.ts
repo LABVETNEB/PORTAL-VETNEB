@@ -1,12 +1,26 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import test from "node:test";
+import ts from "typescript";
 import {
   assertClean7aDependencyCleanupInvariants,
 } from "../../../helpers/clean7a-dependency-cleanup-scope.ts";
 import { isReportForeignAccessBackendFile } from "../../../helpers/report-foreign-access-scope.ts";
 import { dashboardScopeGuardApplies } from "../../../helpers/dashboard-scope-guard.ts";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
+import {
+  activeStatuses,
+  assertPlainProps,
+  descendants,
+  elementText,
+  exportedFunction,
+  type JsxNode,
+  parseTsx,
+  renderedUnder,
+  staticAttribute,
+  tagName,
+  TYPES_PATH,
+} from "./dashboard-source-oracle.ts";
 
 const LOGISTICS_PAGE_PATH = "frontend/src/app/dashboard/logistica/page.tsx";
 const COMMAND_CENTER_PATH =
@@ -15,6 +29,63 @@ const STICKY_ACTION_BAR_PATH =
   "frontend/src/components/dashboard/StickyActionBar.tsx";
 const DASHBOARD_PAGE_HEADER_PATH =
   "frontend/src/components/dashboard/DashboardPageHeader.tsx";
+const VISITS_ALERT = [
+  "fieldVisitsLoadError",
+  "No se pudieron cargar las visitas de campo. Intente nuevamente.",
+  "No hay visitas de campo disponibles.",
+] as const;
+const PLANS_ALERT = [
+  "routePlansLoadError",
+  "No se pudieron cargar los planes de ruta. Intente nuevamente.",
+  "No hay planes de ruta disponibles.",
+] as const;
+const DISTINGUISHED = { whenSet: true, emptyWhenSet: false, whenClear: false };
+const ACTIVE = { activeVisits: ["scheduled", "in_progress"], activePlans: ["released", "in_progress"] };
+
+// TEST-GLOBAL-07 (G06-D12): with its flag set the alert renders on every path
+// and the empty state on none; with the flag clear the alert renders on no
+// path. `.includes("fieldVisitsLoadError ?")` also matches the inverted
+// `!fieldVisitsLoadError ?` (C.15.1 M-D10).
+function alertRendering(source: string, flag: string, message: string, empty: string) {
+  const component = exportedFunction(
+    parseTsx(source, COMMAND_CENTER_PATH),
+    "LogisticsCommandCenter",
+  );
+  const isAlert = (element: JsxNode) =>
+    staticAttribute(element, "role") === "alert" && elementText(element).includes(message);
+  const isEmpty = (element: JsxNode) =>
+    tagName(element) === "EmptyState" && staticAttribute(element, "description") === empty;
+
+  assertPlainProps(component, [flag]);
+
+  const set = renderedUnder(component, new Map([[flag, true]]));
+  return {
+    whenSet: set.some((rendered) => rendered.must && isAlert(rendered.element)),
+    emptyWhenSet: set.some((rendered) => isEmpty(rendered.element)),
+    whenClear: renderedUnder(component, new Map([[flag, false]])).some((rendered) =>
+      isAlert(rendered.element),
+    ),
+  };
+}
+
+// The hub is where "active" is derived for display (the route page's copy is
+// not rendered): each metric must show the length of its executed filter.
+function displayedActiveCounts(source: string): string[][] {
+  return descendants(parseTsx(source, COMMAND_CENTER_PATH), ts.isObjectLiteralExpression)
+    .map((metric) => {
+      const field = (name: string) => {
+        const property = metric.properties.find(
+          (candidate) => ts.isPropertyAssignment(candidate) && candidate.name.getText() === name,
+        );
+        return property && ts.isPropertyAssignment(property) ? property.initializer : undefined;
+      };
+      const key = field("key");
+      const value = field("value");
+
+      return key && ts.isStringLiteral(key) && value ? [key.text, value.getText()] : [];
+    })
+    .filter(([key]) => key === "visitas-activas" || key === "planes-activos");
+}
 
 function assertNoForbiddenSurfaceImports(source: string, context: string): void {
   const importLines = source
@@ -130,6 +201,11 @@ test("LogisticsCommandCenter computes active visits and plans from props without
   assert.ok(source.includes('v.status === "in_progress" || v.status === "scheduled"'));
   assert.ok(source.includes("const activePlans = routePlans.filter("));
   assert.ok(source.includes('p.status === "in_progress" || p.status === "released"'));
+  assert.deepEqual(activeStatuses(source, COMMAND_CENTER_PATH, read(TYPES_PATH)), ACTIVE);
+  assert.deepEqual(displayedActiveCounts(source), [
+    ["visitas-activas", "activeVisits.length"],
+    ["planes-activos", "activePlans.length"],
+  ]);
 });
 
 // ── Section heading ──────────────────────────────────────────────────────────
@@ -177,6 +253,15 @@ test("LogisticsCommandCenter shows visits error alert with role=alert", () => {
   assert.ok(source.includes("fieldVisitsLoadError ?"));
   assert.ok(source.includes("No se pudieron cargar las visitas de campo. Intente nuevamente."));
   assert.ok(source.includes('role="alert"'));
+  assert.deepEqual(alertRendering(source, ...VISITS_ALERT), DISTINGUISHED);
+
+  const inverted = source.replace("{fieldVisitsLoadError ? (", () => "{!fieldVisitsLoadError ? (");
+  assert.notEqual(inverted, source);
+  assert.deepEqual(alertRendering(inverted, ...VISITS_ALERT), {
+    whenSet: false,
+    emptyWhenSet: true,
+    whenClear: true,
+  });
 });
 
 test("LogisticsCommandCenter renders EmptyState for missing visits", () => {
@@ -213,6 +298,7 @@ test("LogisticsCommandCenter shows route plans error alert with role=alert", () 
 
   assert.ok(source.includes("routePlansLoadError ?"));
   assert.ok(source.includes("No se pudieron cargar los planes de ruta. Intente nuevamente."));
+  assert.deepEqual(alertRendering(source, ...PLANS_ALERT), DISTINGUISHED);
 });
 
 test("LogisticsCommandCenter renders EmptyState for missing route plans", () => {

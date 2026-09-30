@@ -191,11 +191,12 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     section: "§6.1",
     metric: "archivos de soporte bajo test/**",
     historical: 14,
+    baseline: 22,
     compute: () => volumes.supportFiles,
-    resolution: "REPRODUCED",
+    resolution: "RECLASSIFIED",
     guard: { kind: "TOLERANCE_BAND", tolerance: 0.5 },
     motive:
-      "01B añade los módulos de censo versionados bajo test/helpers/census: la banda del 50 % absorbe esa alta y sigue siendo umbral, no pase libre.",
+      "01B añade los módulos de censo versionados bajo test/helpers/census: la banda del 50 % absorbe esa alta y sigue siendo umbral, no pase libre. Re-anclaje 14 -> 22: main@36ef743aabf0863100cd35a19a4e86e055bf8e68 producia 21 archivos de soporte (tope exacto de la banda 14 +- 7) y TEST-GLOBAL-07 anade test/unit/ui/dashboard/dashboard-source-oracle.ts, el oracle semantico que comparten los 16 specs de U(07/dashboard) en lugar de copiarlo en cada uno, lo que lleva el valor a 22. Crecimiento intencional dentro de TEST-GLOBAL-07: se re-ancla el baseline a 22 sin ampliar la tolerancia y sin excluir ningun archivo del inventario.",
   },
   {
     row: "A0-06-VOLUME",
@@ -864,13 +865,13 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     section: "§11",
     metric: "specs con harness de mutación en memoria",
     historical: 9,
-    baseline: 26,
+    baseline: 42,
     compute: () =>
       classification.specs.filter((spec) => spec.hasMutationHarness).length,
     resolution: "RECLASSIFIED",
     guard: BAND,
     motive:
-      "La detección versionada es textual (mutación de una variable de source por `.replace(`) y alcanza 2 archivos que el recuento manual de §11 no listaba: el histórico 9 pasó a 11 al reclasificar. Es una cota superior honesta: el criterio de §11 —mutar, evaluar y exigir rojo— sólo se confirma por lectura. Desde 01B el programa añadió harnesses reales: IDOR (02, #1763), runner Playwright (03, #1765), redacción de logs (04, #1766) y configuración de cookies de sesión en env.ts (04); el árbol de ese momento produjo 15. Crecimiento intencional, re-anclado sin ampliar la tolerancia ni excluir ningún spec del detector. Re-anclaje 15 -> 20: con el baseline anterior 15, main@cf088f3edbfb972b8b0941104a17fac57c5cc713 ya producia 19 specs detectados (tope de la banda 15 +- 4) y el mutation proof cross-auth de TEST-GLOBAL-04 (security-cross-auth-surface-boundaries) lleva el valor a 20. Crecimiento intencional dentro de TEST-GLOBAL-04: se re-ancla el baseline a 20 sin ampliar GROWTH_TOLERANCE y sin excluir ningun spec del detector. Re-anclaje 20 -> 26: con el baseline anterior 20, main@f555aa2710f1003caa0460d25b95fc8f2f7d65ac ya producia 25 specs detectados (tope de la banda 20 +- 5) y el mutation proof de validation cut-off de TEST-GLOBAL-04 (security-validation-cutoff-boundaries) lleva el valor a 26. Crecimiento intencional dentro de TEST-GLOBAL-04: se re-ancla el baseline a 26 sin ampliar GROWTH_TOLERANCE y sin excluir ningun spec del detector.",
+      "La detección versionada es textual (mutación de una variable de source por `.replace(`) y alcanza 2 archivos que el recuento manual de §11 no listaba: el histórico 9 pasó a 11 al reclasificar. Es una cota superior honesta: el criterio de §11 —mutar, evaluar y exigir rojo— sólo se confirma por lectura. Desde 01B el programa añadió harnesses reales: IDOR (02, #1763), runner Playwright (03, #1765), redacción de logs (04, #1766) y configuración de cookies de sesión en env.ts (04); el árbol de ese momento produjo 15. Crecimiento intencional, re-anclado sin ampliar la tolerancia ni excluir ningún spec del detector. Re-anclaje 15 -> 20: con el baseline anterior 15, main@cf088f3edbfb972b8b0941104a17fac57c5cc713 ya producia 19 specs detectados (tope de la banda 15 +- 4) y el mutation proof cross-auth de TEST-GLOBAL-04 (security-cross-auth-surface-boundaries) lleva el valor a 20. Crecimiento intencional dentro de TEST-GLOBAL-04: se re-ancla el baseline a 20 sin ampliar GROWTH_TOLERANCE y sin excluir ningun spec del detector. Re-anclaje 20 -> 26: con el baseline anterior 20, main@f555aa2710f1003caa0460d25b95fc8f2f7d65ac ya producia 25 specs detectados (tope de la banda 20 +- 5) y el mutation proof de validation cut-off de TEST-GLOBAL-04 (security-validation-cutoff-boundaries) lleva el valor a 26. Crecimiento intencional dentro de TEST-GLOBAL-04: se re-ancla el baseline a 26 sin ampliar GROWTH_TOLERANCE y sin excluir ningun spec del detector. Re-anclaje 26 -> 42: con el baseline anterior 26, main@36ef743aabf0863100cd35a19a4e86e055bf8e68 producia 27 specs detectados (dentro de la banda 26 +- 7) y las mutation proofs en memoria de TEST-GLOBAL-07 sobre los 16 STRENGTHEN de U(07/dashboard) (Anexo C.11) llevan el valor a 42: el detector textual reconoce 15 de las 16, porque accessibility-focus-aria muta una variable cuyo nombre no empieza por los prefijos del detector. Crecimiento intencional dentro de TEST-GLOBAL-07: se re-ancla el baseline a 42 sin ampliar GROWTH_TOLERANCE y sin excluir ningun spec del detector.",
   },
   {
     row: "A0-11-MUTATION",

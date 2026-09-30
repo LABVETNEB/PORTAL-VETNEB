@@ -1,8 +1,45 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
+import {
+  elementText,
+  exportedFunction,
+  failureFlagViolations,
+  type JsxNode,
+  parseTsx,
+  renderedUnder,
+  staticAttribute,
+} from "./dashboard-source-oracle.ts";
 
 const RUTAS_PAGE_PATH = "frontend/src/app/dashboard/logistica/rutas/page.tsx";
+const PLANS_ALERT = "No se pudieron cargar los planes de ruta. Intente nuevamente.";
+const PLANS_EMPTY = "No hay planes de ruta disponibles.";
+
+// TEST-GLOBAL-07 (G06-D09): the catch of the route-plan fetch raises
+// `routePlansLoadError`, which then renders the alert instead of the empty
+// state. The literal `routePlansLoadError = true;` stays present under
+// `if (false)` (C.15.1 M-D07).
+function routePlansFailure(source: string) {
+  const page = exportedFunction(parseTsx(source, RUTAS_PAGE_PATH), "RutasPage");
+  const set = renderedUnder(page, new Map([["routePlansLoadError", true]]));
+  const isAlert = (element: JsxNode) =>
+    staticAttribute(element, "role") === "alert" && elementText(element).includes(PLANS_ALERT);
+
+  return {
+    violations: failureFlagViolations(
+      source,
+      RUTAS_PAGE_PATH,
+      "RutasPage",
+      ["getRoutePlans"],
+      "routePlansLoadError",
+    ),
+    alertWhenSet: set.some((rendered) => rendered.must && isAlert(rendered.element)),
+    emptyWhenSet: set.some((rendered) => elementText(rendered.element).includes(PLANS_EMPTY)),
+    alertWhenClear: renderedUnder(page, new Map([["routePlansLoadError", false]])).some(
+      (rendered) => isAlert(rendered.element),
+    ),
+  };
+}
 
 test("dashboard logistica rutas defines non-indexable metadata and dependencies", () => {
   const source = read(RUTAS_PAGE_PATH);
@@ -138,4 +175,14 @@ test("dashboard logistica rutas distinguishes load failures from real empty stat
   assert.equal(source.includes("bg-gray-100"), false);
   assert.equal(source.includes("border-gray-100"), false);
   assert.equal(source.includes("fetch("), false);
+
+  const separated = { violations: [], alertWhenSet: true, emptyWhenSet: false, alertWhenClear: false };
+  assert.deepEqual(routePlansFailure(source), separated);
+
+  const neverRaised = source.replace("routePlansLoadError = true;", () => "if (false)\nroutePlansLoadError = true;");
+  assert.notEqual(neverRaised, source);
+  assert.deepEqual(routePlansFailure(neverRaised), {
+    ...separated,
+    violations: ["routePlansLoadError = true is not an unconditional statement of a catch block"],
+  });
 });

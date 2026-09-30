@@ -1,8 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
+import {
+  activeStatuses,
+  TYPES_PATH,
+} from "./dashboard-source-oracle.ts";
 
 const LOGISTICA_PAGE_PATH = "frontend/src/app/dashboard/logistica/page.tsx";
+const ACTIVE = { activeVisits: ["scheduled", "in_progress"], activePlans: ["released", "in_progress"] };
+
+// TEST-GLOBAL-07 (G06-D11): the predicates are executed, not read. The literal
+// `v.status === "in_progress" || v.status === "scheduled"` survives a
+// short-circuit prepended to the arrow (C.15.1 M-D09).
 
 test("dashboard logistica defines non-indexable metadata and dependencies", () => {
   const source = read(LOGISTICA_PAGE_PATH);
@@ -57,6 +66,17 @@ test("dashboard logistica computes active visits and active route plans explicit
   assert.ok(source.includes('v.status === "in_progress" || v.status === "scheduled"'));
   assert.ok(source.includes("const activePlans = routePlans.filter("));
   assert.ok(source.includes('p.status === "in_progress" || p.status === "released"'));
+  assert.deepEqual(activeStatuses(source, LOGISTICA_PAGE_PATH, read(TYPES_PATH)), ACTIVE);
+
+  const shortCircuited = source.replace(
+    '(v) => v.status === "in_progress"',
+    () => '(v) => false && v.status === "in_progress"',
+  );
+  assert.notEqual(shortCircuited, source);
+  assert.deepEqual(activeStatuses(shortCircuited, LOGISTICA_PAGE_PATH, read(TYPES_PATH)), {
+    ...ACTIVE,
+    activeVisits: ["scheduled"],
+  });
 });
 
 test("dashboard logistica composes command center in the full-route module stage", () => {

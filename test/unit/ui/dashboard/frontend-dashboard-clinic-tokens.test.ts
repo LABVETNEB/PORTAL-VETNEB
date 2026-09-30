@@ -2,7 +2,18 @@ import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
+import ts from "typescript";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
+import {
+  descendants,
+  effectiveAttribute,
+  elementText,
+  evaluate,
+  jsxElements,
+  parseTsx,
+  tagName,
+  unwrap,
+} from "./dashboard-source-oracle.ts";
 
 const DASHBOARD_PAGE_PATH = "frontend/src/app/dashboard/page.tsx";
 const ADMIN_TOKENS_CARD_PATH =
@@ -23,6 +34,49 @@ function sectionBetween(source: string, start: string, end: string): string {
   assert.notEqual(endIndex, -1, `Missing end marker: ${end}`);
 
   return source.slice(startIndex, endIndex);
+}
+
+// TEST-GLOBAL-07 (G06-D03): the one-shot token closes only after the manual
+// delivery is confirmed — the close button is disabled until then and its
+// handler, also reached from the dialog's own close, returns first. A later
+// `{...{ disabled: false }}` keeps `disabled={!isGeneratedTokenConfirmed}`
+// in the source (C.15.1 M-D03).
+function generatedTokenClose(source: string) {
+  const file = parseTsx(source, CLINIC_TOKENS_CARD_PATH);
+  const closers = jsxElements(file).filter(
+    (element) =>
+      ["Button", "button"].includes(tagName(element)) &&
+      elementText(element) === "Cerrar token visible",
+  );
+  const [closer] = closers;
+  const whenConfirmed = (expression: ts.Expression) =>
+    [false, true].map((confirmed) =>
+      Boolean(evaluate(expression, { isGeneratedTokenConfirmed: confirmed })),
+    );
+  const disabled = closer ? effectiveAttribute(closer, "disabled") : undefined;
+  const onClick = closer ? effectiveAttribute(closer, "onClick") : undefined;
+  const handlers = descendants(file, ts.isFunctionDeclaration).filter(
+    (declaration) => declaration.name?.text === "handleCloseGeneratedToken",
+  );
+  const [guard] = handlers.length === 1 ? (handlers[0].body?.statements ?? []) : [];
+  const guardBody =
+    guard && ts.isIfStatement(guard) && !guard.elseStatement
+      ? ts.isBlock(guard.thenStatement)
+        ? guard.thenStatement.statements
+        : [guard.thenStatement]
+      : [];
+  const [exit] = guardBody;
+  const leavesFirst =
+    guardBody.length === 1 && ts.isReturnStatement(exit) && exit.expression === undefined;
+
+  return {
+    closers: closers.length,
+    disabledWhenConfirmed:
+      disabled?.kind === "value" ? whenConfirmed(disabled.expression) : String(disabled?.kind),
+    onClick: onClick?.kind === "value" ? unwrap(onClick.expression).getText() : String(onClick?.kind),
+    handlerReturnsWhenConfirmed:
+      leavesFirst && ts.isIfStatement(guard) ? whenConfirmed(guard.expression) : "unguarded",
+  };
 }
 
 function assertOrdered(source: string, markers: string[]): void {
@@ -493,6 +547,24 @@ test("clinic generated token block clears only through confirmation close", () =
   assert.ok(clearGeneratedToken.includes("setIsGeneratedTokenConfirmed(false);"));
   assert.ok(clearGeneratedToken.includes("setCopyStatusMessage(null);"));
   assert.ok(source.includes("disabled={isSubmitting || generatedToken !== null}"));
+
+  const confirmationGated = {
+    closers: 1,
+    disabledWhenConfirmed: [true, false],
+    onClick: "handleCloseGeneratedToken",
+    handlerReturnsWhenConfirmed: [true, false],
+  };
+  assert.deepEqual(generatedTokenClose(source), confirmationGated);
+
+  const overridden = source.replace(
+    "disabled={!isGeneratedTokenConfirmed}",
+    () => "disabled={!isGeneratedTokenConfirmed}\n{...{ disabled: false }}",
+  );
+  assert.notEqual(overridden, source);
+  assert.deepEqual(generatedTokenClose(overridden), {
+    ...confirmationGated,
+    disabledWhenConfirmed: [false, false],
+  });
 });
 
 test("frontend api exposes clinic-scoped particular token helpers", () => {
