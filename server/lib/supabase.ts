@@ -22,6 +22,17 @@ export const supabase = createClient(
   ENV.supabaseServiceRoleKey,
 );
 
+type SupabaseStorageClient = typeof supabase.storage;
+
+export type StorageBucketPort = Pick<
+  ReturnType<SupabaseStorageClient["from"]>,
+  "upload" | "createSignedUrl" | "remove"
+>;
+
+export type StoragePort = Pick<SupabaseStorageClient, "getBucket" | "createBucket"> & {
+  from(bucketId: string): StorageBucketPort;
+};
+
 function sanitizeFileName(fileName: string, fallback: string): string {
   const sanitized = fileName
     .normalize("NFKD")
@@ -59,16 +70,18 @@ function buildClinicAvatarStoragePath(clinicId: number, fileName: string): strin
  * Asegura que el bucket exista.
  * Se usa al iniciar el servidor.
  */
-export async function ensureStorageBucketExists() {
+export async function ensureStorageBucketExists(
+  storage: StoragePort = supabase.storage,
+) {
   const { data: existingBucket, error: getBucketError } =
-    await supabase.storage.getBucket(ENV.supabaseStorageBucket);
+    await storage.getBucket(ENV.supabaseStorageBucket);
 
   if (!getBucketError && existingBucket) {
     return existingBucket;
   }
 
   const { data: createdBucket, error: createBucketError } =
-    await supabase.storage.createBucket(ENV.supabaseStorageBucket, {
+    await storage.createBucket(ENV.supabaseStorageBucket, {
       public: false,
     });
 
@@ -83,8 +96,10 @@ export async function ensureStorageBucketExists() {
  * Healthcheck de storage.
  * No crea ni modifica nada.
  */
-export async function checkStorageHealth() {
-  const { data, error } = await supabase.storage.getBucket(
+export async function checkStorageHealth(
+  storage: StoragePort = supabase.storage,
+) {
+  const { data, error } = await storage.getBucket(
     ENV.supabaseStorageBucket,
   );
 
@@ -98,12 +113,15 @@ export async function checkStorageHealth() {
 /**
  * Sube un archivo de informe al bucket y devuelve el storagePath persistible.
  */
-export async function uploadReport(params: {
-  file: Buffer;
-  fileName: string;
-  clinicId: number;
-  mimeType: string;
-}): Promise<string> {
+export async function uploadReport(
+  params: {
+    file: Buffer;
+    fileName: string;
+    clinicId: number;
+    mimeType: string;
+  },
+  storage: StoragePort = supabase.storage,
+): Promise<string> {
   const { file, fileName, clinicId, mimeType } = params;
 
   if (!ALLOWED_MIME_TYPES.includes(mimeType as AllowedMimeType)) {
@@ -112,7 +130,7 @@ export async function uploadReport(params: {
 
   const storagePath = buildReportStoragePath(clinicId, fileName);
 
-  const { error } = await supabase.storage
+  const { error } = await storage
     .from(ENV.supabaseStorageBucket)
     .upload(storagePath, file, {
       contentType: mimeType,
@@ -131,8 +149,9 @@ export async function uploadReport(params: {
  */
 export async function createSignedStorageUrl(
   storagePath: string,
+  storage: StoragePort = supabase.storage,
 ): Promise<string> {
-  const { data, error } = await supabase.storage
+  const { data, error } = await storage
     .from(ENV.supabaseStorageBucket)
     .createSignedUrl(storagePath, ENV.signedUrlExpiresInSeconds);
 
@@ -145,8 +164,9 @@ export async function createSignedStorageUrl(
 
 export async function createSignedReportUrl(
   storagePath: string,
+  storage: StoragePort = supabase.storage,
 ): Promise<string> {
-  return createSignedStorageUrl(storagePath);
+  return createSignedStorageUrl(storagePath, storage);
 }
 
 /**
@@ -155,8 +175,9 @@ export async function createSignedReportUrl(
 export async function createSignedReportDownloadUrl(
   storagePath: string,
   downloadFileName?: string,
+  storage: StoragePort = supabase.storage,
 ): Promise<string> {
-  const { data, error } = await supabase.storage
+  const { data, error } = await storage
     .from(ENV.supabaseStorageBucket)
     .createSignedUrl(storagePath, ENV.signedUrlExpiresInSeconds, {
       download: downloadFileName || true,
@@ -168,12 +189,15 @@ export async function createSignedReportDownloadUrl(
 
   return data.signedUrl;
 }
-export async function uploadClinicAvatar(params: {
-  file: Buffer;
-  fileName: string;
-  clinicId: number;
-  mimeType: string;
-}): Promise<string> {
+export async function uploadClinicAvatar(
+  params: {
+    file: Buffer;
+    fileName: string;
+    clinicId: number;
+    mimeType: string;
+  },
+  storage: StoragePort = supabase.storage,
+): Promise<string> {
   const { file, fileName, clinicId, mimeType } = params;
 
   if (!ALLOWED_AVATAR_MIME_TYPES.includes(mimeType as (typeof ALLOWED_AVATAR_MIME_TYPES)[number])) {
@@ -182,7 +206,7 @@ export async function uploadClinicAvatar(params: {
 
   const storagePath = buildClinicAvatarStoragePath(clinicId, fileName);
 
-  const { error } = await supabase.storage
+  const { error } = await storage
     .from(ENV.supabaseStorageBucket)
     .upload(storagePath, file, {
       contentType: mimeType,
@@ -196,8 +220,11 @@ export async function uploadClinicAvatar(params: {
   return storagePath;
 }
 
-export async function deleteStorageObject(storagePath: string): Promise<void> {
-  const { error } = await supabase.storage
+export async function deleteStorageObject(
+  storagePath: string,
+  storage: StoragePort = supabase.storage,
+): Promise<void> {
+  const { error } = await storage
     .from(ENV.supabaseStorageBucket)
     .remove([storagePath]);
 

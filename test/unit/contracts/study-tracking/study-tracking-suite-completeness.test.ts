@@ -367,7 +367,7 @@ const STUDY_TRACKING_SUITE: readonly StudyTrackingSuiteEntry[] = [
         path: "server/lib/email.ts",
         markers: [
           "export async function sendSpecialStainRequiredEmail",
-          "ENV.smtp.enabled",
+          "config.smtp.enabled",
           "nodemailer.createTransport",
           "special_stain_required",
           "trackingCaseId",
