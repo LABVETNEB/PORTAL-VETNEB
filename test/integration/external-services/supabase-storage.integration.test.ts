@@ -10,7 +10,7 @@ process.env.SUPABASE_ANON_KEY ??= "test-anon-key";
 process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
 process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/postgres";
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
-process.env.SUPABASE_STORAGE_BUCKET ??= "reports";
+process.env.SUPABASE_STORAGE_BUCKET = "reports";
 
 const { createSignedStorageUrl, deleteStorageObject, uploadReport } = await import(
   "../../../server/lib/supabase.ts"
