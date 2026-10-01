@@ -30,7 +30,7 @@ const MAX_ATTEMPTS = 3;
 async function createClinicApp(overrides: Record<string, unknown> = {}) {
   const app = Fastify();
 
-  await app.register(clinicAuthNativeRoutes as any, {
+  await app.register(clinicAuthNativeRoutes, {
     prefix: "/api/auth",
     createActiveSession: async () => {},
     deleteActiveSession: async () => {},

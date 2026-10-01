@@ -125,7 +125,7 @@ test("login exitoso (unified) resetea el rate limit — usuario puede fallar de 
 
   // Simular: tras N-1 fallos, el usuario acierta (válido). Luego puede seguir fallando sin quedar bloqueado.
   const app = Fastify();
-  await app.register(clinicAuthNativeRoutes as any, {
+  await app.register(clinicAuthNativeRoutes, {
     prefix: "/api/auth",
     ...makeClinicDeps({
       loginRateLimitStore: store,
@@ -194,7 +194,7 @@ test("login exitoso (unified) no limpia keys de otros identificadores", async ()
 
   let authenticatingAs = "b@vetneb.com";
   const app = Fastify();
-  await app.register(clinicAuthNativeRoutes as any, {
+  await app.register(clinicAuthNativeRoutes, {
     prefix: "/api/auth",
     ...makeClinicDeps({
       loginRateLimitStore: store,
@@ -598,7 +598,7 @@ test("createMemoryRateLimitStore.delete de key inexistente no lanza error", asyn
   const { createMemoryRateLimitStore: mk } = await import("../../../../server/lib/rate-limit-store.ts");
   const store = mk();
 
-  assert.doesNotReject(async () => {
+  await assert.doesNotReject(async () => {
     await store.delete!("key-que-no-existe");
   });
 });

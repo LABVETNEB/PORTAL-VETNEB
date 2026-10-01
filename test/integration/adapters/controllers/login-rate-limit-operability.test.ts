@@ -241,7 +241,7 @@ test("empty unified identifier uses missing bucket and does not query real users
   const attempts: Array<Record<string, unknown>> = [];
   const app = Fastify();
 
-  await app.register(clinicAuthNativeRoutes as any, {
+  await app.register(clinicAuthNativeRoutes, {
     prefix: "/api/auth",
     ...baseClinicDeps({
       loginRateLimitStore: store,
