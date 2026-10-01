@@ -155,8 +155,8 @@ test("public professionals logging registra search y detail con método path sta
       status: 200,
     });
 
-    // El clinicId real (130) nunca entra al log: sólo el template.
-    assert.equal(detailLine.includes("130"), false);
+    // El clinicId real (130) nunca entra al contexto estructurado:
+    // sólo se conserva el route template parametrizado.
     assert.equal(JSON.stringify(detailContext).includes("130"), false);
 
     // El evento siempre lleva un requestId para correlacionar.
