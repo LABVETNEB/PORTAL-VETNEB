@@ -598,14 +598,12 @@ function uniqueValues(values: readonly string[]): string[] {
 function assertCriticalRouteInventory(surfaces: readonly CriticalSurface[]): void {
   const slugs = surfaces.map((surface) => surface.slug);
   assert.deepEqual(slugs, uniqueValues(slugs), "critical route inventory must not duplicate slugs");
-  assert.ok(
-    surfaces.some((surface) => surface.slug === "mutation-permission-surface"),
-    "critical route inventory must retain mutation permission coverage",
-  );
   const registered = surfaces.flatMap((surface) => surface.guardrailTests.map((test) => test.path));
-  for (const path of governancePaths("criticalRoute")) {
-    assert.ok(registered.includes(path), `critical route inventory must include canonical guardrail: ${path}`);
-  }
+  assert.deepEqual(
+    [...new Set(registered)].sort(),
+    governancePaths("criticalRoute").slice().sort(),
+    "critical route membership must derive exactly from the canonical governance registry",
+  );
 }
 
 test("critical route surface registry mantiene inventario final esperado", () => {
@@ -624,7 +622,7 @@ test("critical route surface registry mantiene inventario final esperado", () =>
   assertCriticalRouteInventory(CRITICAL_ROUTE_SURFACE_REGISTRY);
   assert.throws(
     () => assertCriticalRouteInventory(CRITICAL_ROUTE_SURFACE_REGISTRY.filter((surface) => surface.slug !== "mutation-permission-surface")),
-    /mutation permission coverage/,
+    /critical route membership must derive exactly/,
   );
 
   for (const surface of CRITICAL_ROUTE_SURFACE_REGISTRY) {

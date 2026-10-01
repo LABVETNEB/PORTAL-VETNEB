@@ -32,6 +32,17 @@ export const SECURITY_GOVERNANCE_REGISTRY: readonly SecurityGovernanceEntry[] = 
   { id: "public-professionals-fixtures", path: "test/architecture/public-professionals-fixture-suite-completeness-invariants.test.ts", category: "public-search", owner: "critical-route", criticalRoute: true },
   { id: "backend-ci-workflow", path: "test/unit/infrastructure/backend-ci-workflow.test.ts", category: "validation", owner: "critical-route", criticalRoute: true },
   { id: "package-scripts", path: "test/unit/infrastructure/package-scripts.test.ts", category: "validation", owner: "critical-route", criticalRoute: true },
+  { id: "auth-fastify", path: "test/integration/adapters/controllers/auth.fastify.test.ts", category: "security", owner: "critical-route", criticalRoute: true },
+  { id: "admin-auth-fastify", path: "test/integration/adapters/controllers/admin-auth.fastify.test.ts", category: "security", owner: "critical-route", criticalRoute: true },
+  { id: "admin-particular-tokens-fastify", path: "test/integration/adapters/controllers/admin-particular-tokens.fastify.test.ts", category: "security", owner: "critical-route", criticalRoute: true },
+  { id: "admin-report-access-tokens-fastify", path: "test/integration/adapters/controllers/admin-report-access-tokens.fastify.test.ts", category: "security", owner: "critical-route", criticalRoute: true },
+  { id: "admin-study-tracking-fastify", path: "test/integration/adapters/controllers/admin-study-tracking.fastify.test.ts", category: "security", owner: "critical-route", criticalRoute: true },
+  { id: "report-access-tokens-fastify", path: "test/integration/adapters/controllers/report-access-tokens.fastify.test.ts", category: "security", owner: "critical-route", criticalRoute: true },
+  { id: "reports-fastify", path: "test/integration/adapters/controllers/reports.fastify.test.ts", category: "security", owner: "critical-route", criticalRoute: true },
+  { id: "public-professionals-headers", path: "test/integration/adapters/controllers/public-professionals-response-headers-invariants.test.ts", category: "public-search", owner: "critical-route", criticalRoute: true },
+  { id: "storage-upload-success", path: "test/unit/infrastructure/supabase-upload-success.test.ts", category: "storage", owner: "critical-route", criticalRoute: true },
+  { id: "storage-signed-url", path: "test/unit/infrastructure/supabase-signed-url.test.ts", category: "storage", owner: "critical-route", criticalRoute: true },
+  { id: "storage-recovery-edge", path: "test/unit/infrastructure/supabase-recovery-edge.test.ts", category: "storage", owner: "critical-route", criticalRoute: true },
 ];
 
 export type GovernanceView = "boundarySuite" | "criticalRoute" | "docsMatrix";

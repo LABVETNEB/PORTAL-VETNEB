@@ -4,7 +4,7 @@ import { basename, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { readSourceFile, listSourceFiles } from "../../helpers/tracked-source-files.ts";
-import { governancePaths } from "./security-governance-registry.ts";
+import { assertSecurityGovernanceRegistry, governancePaths } from "./security-governance-registry.ts";
 
 const REPO_ROOT = resolve(fileURLToPath(new URL("../../../", import.meta.url)));
 
@@ -551,12 +551,6 @@ function assertSecurityBoundaryInventory(
 ): void {
   const paths = guardrails.map((guardrail) => guardrail.path);
   assert.deepEqual(paths, uniqueValues(paths), "security boundary inventory must not duplicate paths");
-  assert.ok(
-    guardrails.some(
-      (guardrail) => guardrail.path === "test/architecture/security/security-session-cookie-boundaries.test.ts",
-    ),
-    "security boundary inventory must retain the session cookie guardrail",
-  );
   assert.deepEqual(
     guardrails.map((guardrail) => guardrail.path),
     governancePaths("boundarySuite"),
@@ -595,6 +589,7 @@ function assertGuardrailFileContract(guardrail: SecurityBoundaryGuardrail): void
 }
 
 test("security boundary suite completeness registry keeps canonical order", () => {
+  assertSecurityGovernanceRegistry();
   const slugs = SECURITY_BOUNDARY_SUITE.map((guardrail) => guardrail.slug);
   const paths = SECURITY_BOUNDARY_SUITE.map((guardrail) => guardrail.path);
 
@@ -618,7 +613,7 @@ test("security boundary suite completeness registry keeps canonical order", () =
   assertSecurityBoundaryInventory(SECURITY_BOUNDARY_SUITE);
   assert.throws(
     () => assertSecurityBoundaryInventory(SECURITY_BOUNDARY_SUITE.filter((guardrail) => guardrail.path !== "test/architecture/security/security-session-cookie-boundaries.test.ts")),
-    /session cookie guardrail/,
+    /boundary suite membership must derive/,
   );
 
   for (const guardrail of SECURITY_BOUNDARY_SUITE) {
