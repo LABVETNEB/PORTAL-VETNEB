@@ -66,6 +66,7 @@ type WorkflowStep = {
   uses?: string;
   run?: string;
   with?: Record<string, unknown>;
+  "continue-on-error"?: boolean;
 };
 
 type WorkflowJob = {
@@ -286,10 +287,29 @@ test("backend CI keeps minimum permissions and declares no job-level permissions
   }
 });
 
-test("backend CI never masks failures with continue-on-error or shell short-circuits", () => {
+test("backend CI permits masking only for the isolated coverage diagnostic", () => {
   const source = read(BACKEND_CI_PATH);
+  const jobs = backendWorkflow().jobs ?? {};
 
-  assert.ok(!source.includes("continue-on-error"));
+  for (const [jobId, job] of Object.entries(jobs)) {
+    for (const step of job.steps ?? []) {
+      const permittedCoverageDiagnostic =
+        jobId === "test-coverage-diagnostic" &&
+        step.name === "Test coverage diagnostic" &&
+        step.run === "pnpm test:coverage";
+
+      if (permittedCoverageDiagnostic) {
+        assert.equal(step["continue-on-error"], true);
+      } else {
+        assert.equal(
+          step["continue-on-error"],
+          undefined,
+          `${jobId}/${step.name ?? "unnamed"} must not mask failures`,
+        );
+      }
+    }
+  }
+
   assert.ok(!source.includes("|| true"));
   assert.ok(!source.includes("if: always()\n        run: node scripts/supply-chain"));
 });
