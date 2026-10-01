@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { readSourceFile as read } from "../../helpers/tracked-source-files.ts";
+import { governancePaths } from "./security-governance-registry.ts";
 
 type FileExpectation = {
   path: string;
@@ -594,6 +595,17 @@ function uniqueValues(values: readonly string[]): string[] {
   return [...new Set(values)];
 }
 
+function assertCriticalRouteInventory(surfaces: readonly CriticalSurface[]): void {
+  const slugs = surfaces.map((surface) => surface.slug);
+  assert.deepEqual(slugs, uniqueValues(slugs), "critical route inventory must not duplicate slugs");
+  const registered = surfaces.flatMap((surface) => surface.guardrailTests.map((test) => test.path));
+  assert.deepEqual(
+    [...new Set(registered)].sort(),
+    governancePaths("criticalRoute").slice().sort(),
+    "critical route membership must derive exactly from the canonical governance registry",
+  );
+}
+
 test("critical route surface registry mantiene inventario final esperado", () => {
   const slugs = CRITICAL_ROUTE_SURFACE_REGISTRY.map((surface) => surface.slug);
 
@@ -607,6 +619,11 @@ test("critical route surface registry mantiene inventario final esperado", () =>
   ]);
 
   assert.deepEqual(slugs, uniqueValues(slugs));
+  assertCriticalRouteInventory(CRITICAL_ROUTE_SURFACE_REGISTRY);
+  assert.throws(
+    () => assertCriticalRouteInventory(CRITICAL_ROUTE_SURFACE_REGISTRY.filter((surface) => surface.slug !== "mutation-permission-surface")),
+    /critical route membership must derive exactly/,
+  );
 
   for (const surface of CRITICAL_ROUTE_SURFACE_REGISTRY) {
     assert.match(surface.slug, /^[a-z0-9]+(?:-[a-z0-9]+)*$/);
@@ -616,6 +633,7 @@ test("critical route surface registry mantiene inventario final esperado", () =>
     assert.ok(surface.guardrailTests.length > 0);
   }
 });
+
 
 test("critical route surface registry apunta a runtime y guardrails existentes", () => {
   for (const surface of CRITICAL_ROUTE_SURFACE_REGISTRY) {

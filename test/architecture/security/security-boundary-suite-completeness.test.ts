@@ -4,6 +4,11 @@ import { basename, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { readSourceFile, listSourceFiles } from "../../helpers/tracked-source-files.ts";
+import {
+  assertSecurityGovernanceRegistry,
+  governancePaths,
+  SECURITY_GOVERNANCE_REGISTRY,
+} from "./security-governance-registry.ts";
 
 const REPO_ROOT = resolve(fileURLToPath(new URL("../../../", import.meta.url)));
 
@@ -545,6 +550,29 @@ function uniqueValues(values: readonly string[]): string[] {
   return [...new Set(values)];
 }
 
+function assertSecurityBoundaryInventory(
+  guardrails: readonly SecurityBoundaryGuardrail[],
+): void {
+  const paths = guardrails.map((guardrail) => guardrail.path);
+  assert.deepEqual(paths, uniqueValues(paths), "security boundary inventory must not duplicate paths");
+  assert.deepEqual(
+    guardrails.map((guardrail) => guardrail.path),
+    governancePaths("boundarySuite"),
+    "boundary suite membership must derive from the canonical governance registry",
+  );
+}
+
+function assertBoundaryDiscovery(
+  discovered: readonly string[],
+  inventory: readonly SecurityBoundaryGuardrail[] = SECURITY_BOUNDARY_SUITE,
+): void {
+  assert.deepEqual(
+    [...discovered].sort(),
+    inventory.map((guardrail) => guardrail.path).slice().sort(),
+    "boundary discovery must match the complete canonical inventory",
+  );
+}
+
 function assertFileExists(relativePath: string): void {
   assert.ok(
     resolveExistingSourcePath(relativePath) !== undefined,
@@ -576,6 +604,7 @@ function assertGuardrailFileContract(guardrail: SecurityBoundaryGuardrail): void
 }
 
 test("security boundary suite completeness registry keeps canonical order", () => {
+  assertSecurityGovernanceRegistry();
   const slugs = SECURITY_BOUNDARY_SUITE.map((guardrail) => guardrail.slug);
   const paths = SECURITY_BOUNDARY_SUITE.map((guardrail) => guardrail.path);
 
@@ -596,6 +625,11 @@ test("security boundary suite completeness registry keeps canonical order", () =
 
   assert.deepEqual(slugs, uniqueValues(slugs));
   assert.deepEqual(paths, uniqueValues(paths));
+  assertSecurityBoundaryInventory(SECURITY_BOUNDARY_SUITE);
+  assert.throws(
+    () => assertSecurityBoundaryInventory(SECURITY_BOUNDARY_SUITE.filter((guardrail) => guardrail.path !== "test/architecture/security/security-session-cookie-boundaries.test.ts")),
+    /boundary suite membership must derive/,
+  );
 
   for (const guardrail of SECURITY_BOUNDARY_SUITE) {
     assert.match(guardrail.slug, /^[a-z0-9]+(?:-[a-z0-9]+)*$/);
@@ -607,6 +641,17 @@ test("security boundary suite completeness registry keeps canonical order", () =
   }
 });
 
+test("security governance registry rejects malformed canonical entries", () => {
+  assertSecurityGovernanceRegistry(SECURITY_GOVERNANCE_REGISTRY);
+  const first = SECURITY_GOVERNANCE_REGISTRY[0];
+  assert.throws(() => assertSecurityGovernanceRegistry([...SECURITY_GOVERNANCE_REGISTRY, { ...first }]), /duplicate or empty governance id/);
+  assert.throws(() => assertSecurityGovernanceRegistry([...SECURITY_GOVERNANCE_REGISTRY, { ...first, id: "no-view", path: "test/no-view.test.ts", boundarySuite: undefined, criticalRoute: undefined, docsMatrix: undefined }]), /unassigned governance entry/);
+  assert.throws(() => assertSecurityGovernanceRegistry([{ ...first, path: "" }, ...SECURITY_GOVERNANCE_REGISTRY.slice(1)]), /duplicate or empty governance path/);
+  assert.throws(() => assertSecurityGovernanceRegistry([{ ...first, category: "invalid" as "security" }, ...SECURITY_GOVERNANCE_REGISTRY.slice(1)]), /invalid governance category/);
+  assert.throws(() => assertSecurityGovernanceRegistry([{ ...first, owner: "invalid" as "boundary" }, ...SECURITY_GOVERNANCE_REGISTRY.slice(1)]), /invalid governance owner/);
+});
+
+
 test("security boundary suite includes every security boundaries guardrail file", () => {
   const actualFiles = listFilesRecursive("test")
     .filter((relativePath) =>
@@ -614,11 +659,15 @@ test("security boundary suite includes every security boundaries guardrail file"
     )
     .sort();
 
-  const expectedFiles = SECURITY_BOUNDARY_SUITE.map((guardrail) => guardrail.path)
-    .slice()
-    .sort();
-
-  assert.deepEqual(actualFiles, expectedFiles);
+  assertBoundaryDiscovery(actualFiles);
+  assert.throws(
+    () => assertBoundaryDiscovery([...actualFiles, "test/architecture/security/security-invented-boundaries.test.ts"]),
+    /boundary discovery must match the complete canonical inventory/,
+  );
+  assert.throws(
+    () => assertSecurityBoundaryInventory([...SECURITY_BOUNDARY_SUITE, { ...SECURITY_BOUNDARY_SUITE[0], path: "test/architecture/security/security-stale-boundaries.test.ts" }]),
+    /boundary suite membership must derive/,
+  );
 });
 
 test("security boundary guardrails use node test assert strict and local-only source", () => {
