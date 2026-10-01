@@ -100,13 +100,8 @@ test("parser-backed validator accepts the seven real workflows", () => {
     ],
   );
   assert.equal(report.policyVersion, "QGA-4.2");
-  assert.deepEqual(
-    report.exceptionsUsed.map((exception) => exception.path),
-    [
-      "jobs.test-coverage-diagnostic.services.postgres.image",
-      "jobs.validate-backend.services.postgres.image",
-    ],
-  );
+  assert.equal(report.exceptionsUsed.length, 1);
+  assert.equal(report.exceptionsUsed[0].path, "jobs.validate-backend.services.postgres.image");
 });
 
 test("current pinned actions are approved and use lowercase SHA refs", () => {

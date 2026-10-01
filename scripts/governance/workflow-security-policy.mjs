@@ -59,15 +59,5 @@ export const CONTAINER_IMAGE_POLICY = deepFreeze({
         "The current CI service uses the supported PostgreSQL 16 major line. Digest pinning requires a separately governed image-refresh workflow.",
       reviewBy: "2026-10-01",
     },
-    {
-      workflow: ".github/workflows/backend-ci.yml",
-      job: "test-coverage-diagnostic",
-      service: "postgres",
-      image: "postgres:16",
-      owner: "Backend owner",
-      reason:
-        "The coverage diagnostic mirrors the isolated PostgreSQL 16 prerequisite of backend validation. Digest pinning requires a separately governed image-refresh workflow.",
-      reviewBy: "2026-10-01",
-    },
   ],
 });

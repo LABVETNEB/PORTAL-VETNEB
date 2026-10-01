@@ -93,7 +93,7 @@ const mutableActionReferences = [
 
 const canonicalWorkflowDigests = new Map<string, string>([
   [".github/workflows/app-version-force-update.yml", "25c69fb58364b709395f0ee920560845a83941eeb86efdd759a69af5f880d701"],
-  [".github/workflows/backend-ci.yml", "378ba3613585f9649b119173b95a7777e0db367de8f9b4d090a7bac5852a690e"],
+  [".github/workflows/backend-ci.yml", "a2ec2341a32f14a3f440481484bd365ae728ab7ff076135a4369d9f1f5859049"],
   [".github/workflows/e2e-completeness.yml", "094f77b4cbe637073d1b03a01f1ebd37cee7af552aea45808d04da122dc1e3dd"],
   [".github/workflows/frontend-ci.yml", "5fc0539530c806e2133e8e15256f565ad249ab3e69fa131f0afd69808ab84534"],
   [".github/workflows/pr-governance.yml", "8dc2bf50342db4e45c7bcb5eadbeeeae28b87ac7b766260b903253ca6ba13947"],
@@ -142,16 +142,6 @@ test("workflow security policy exposes immutable QGA-4 declarative contract", ()
       owner: "Backend owner",
       reason:
         "The current CI service uses the supported PostgreSQL 16 major line. Digest pinning requires a separately governed image-refresh workflow.",
-      reviewBy: "2026-10-01",
-    },
-    {
-      workflow: ".github/workflows/backend-ci.yml",
-      job: "test-coverage-diagnostic",
-      service: "postgres",
-      image: "postgres:16",
-      owner: "Backend owner",
-      reason:
-        "The coverage diagnostic mirrors the isolated PostgreSQL 16 prerequisite of backend validation. Digest pinning requires a separately governed image-refresh workflow.",
       reviewBy: "2026-10-01",
     },
   ]);
@@ -230,19 +220,15 @@ test("canonical workflows pin only allowlisted external action references", () =
   }
 });
 
-test("backend workflow keeps its declared PostgreSQL 16 service exceptions", () => {
+test("backend workflow keeps the exact PostgreSQL 16 service exception", () => {
   const source = readWorkflow(".github/workflows/backend-ci.yml");
 
   assertContains(source, "      postgres:\n        image: postgres:16", ".github/workflows/backend-ci.yml");
-  assert.deepEqual(
-    CONTAINER_IMAGE_POLICY.exceptions.map((exception) => exception.job),
-    ["validate-backend", "test-coverage-diagnostic"],
-  );
-  for (const exception of CONTAINER_IMAGE_POLICY.exceptions) {
-    assert.equal(exception.workflow, ".github/workflows/backend-ci.yml");
-    assert.equal(exception.service, "postgres");
-    assert.equal(exception.image, "postgres:16");
-  }
+  assert.equal(CONTAINER_IMAGE_POLICY.exceptions.length, 1);
+  assert.equal(CONTAINER_IMAGE_POLICY.exceptions[0].workflow, ".github/workflows/backend-ci.yml");
+  assert.equal(CONTAINER_IMAGE_POLICY.exceptions[0].job, "validate-backend");
+  assert.equal(CONTAINER_IMAGE_POLICY.exceptions[0].service, "postgres");
+  assert.equal(CONTAINER_IMAGE_POLICY.exceptions[0].image, "postgres:16");
 });
 
 test("quality impact protects the declarative workflow security policy and parser-backed validator", () => {

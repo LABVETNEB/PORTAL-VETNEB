@@ -426,6 +426,8 @@ test("Backend CI publica un check final siempre presente con propagación estric
 const COVERAGE_JOB_ID = "test-coverage-diagnostic";
 const COVERAGE_STEP_NAME = "Test coverage diagnostic";
 const COVERAGE_COMMAND = "pnpm test:coverage";
+const COVERAGE_POSTGRES_IMAGE =
+  "postgres@sha256:a3b7f434b2dc57ce85a67e171163eb8ab1a1ebcb39d27484661f26b1dfbe30d6";
 
 function validateCoverageDiagnostic(workflow: Workflow): string[] {
   const issues: string[] = [];
@@ -451,8 +453,8 @@ function validateCoverageDiagnostic(workflow: Workflow): string[] {
   }
 
   const postgres = coverageJob?.services?.postgres;
-  if (postgres?.image !== "postgres:16") {
-    issues.push("coverage diagnostic does not provision PostgreSQL 16");
+  if (postgres?.image !== COVERAGE_POSTGRES_IMAGE) {
+    issues.push("coverage diagnostic does not provision its pinned PostgreSQL image");
   }
   if (postgres?.env?.POSTGRES_DB !== "portal_vetneb_ci") {
     issues.push("coverage diagnostic database name is not isolated");
@@ -540,7 +542,7 @@ test("Backend CI coverage diagnostic rejects contract mutations", () => {
       mutateWorkflow(workflow, (candidate) => {
         delete candidate.jobs[COVERAGE_JOB_ID].services;
       }),
-    ).includes("coverage diagnostic does not provision PostgreSQL 16"),
+    ).includes("coverage diagnostic does not provision its pinned PostgreSQL image"),
   );
 
   assert.ok(
