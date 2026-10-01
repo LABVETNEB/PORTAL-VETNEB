@@ -107,13 +107,18 @@ test("pnpm-workspace.yaml preserves the build-script policy for argon2 and esbui
 
 test("Backend CI keeps both dependency audits mandatory and blocking", () => {
   const workflow = readTextFile(".github", "workflows", "backend-ci.yml");
+  const start = workflow.indexOf("  validate-backend:\n");
+  const end = workflow.indexOf("\n  backend-check:\n", start);
+  const backendValidation = workflow.slice(start, end);
 
+  assert.notEqual(start, -1);
+  assert.notEqual(end, -1);
   assertContains(
-    workflow,
+    backendValidation,
     "      - name: Dependency security audit\n        run: |\n          pnpm audit --prod\n          pnpm audit",
   );
-  assertNotContains(workflow, "continue-on-error");
-  assertNotContains(workflow, "|| true");
+  assertNotContains(backendValidation, "continue-on-error");
+  assertNotContains(backendValidation, "|| true");
 });
 
 test("Backend CI uses the pinned pnpm and Node toolchain", () => {

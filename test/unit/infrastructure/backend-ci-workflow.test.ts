@@ -28,6 +28,8 @@ type WorkflowJob = {
   name?: string;
   needs?: string | string[];
   steps?: WorkflowStep[];
+  services?: Record<string, { image?: string; env?: Record<string, string> }>;
+  env?: Record<string, string>;
 };
 
 type Workflow = {
@@ -360,7 +362,7 @@ test("Backend CI mantiene Postgres efímero y migraciones antes de validaciones"
     heavy,
     "SUPABASE_DB_URL: postgresql://postgres:postgres@localhost:5432/portal_vetneb_ci",
   );
-  assert.equal(source.match(/\n      postgres:\n/g)?.length, 1);
+  assert.equal(source.match(/\n      postgres:\n/g)?.length, 2);
   assertNotContains(getJobBlock(source, "detect-backend-impact"), "postgres:");
   assertNotContains(getJobBlock(source, "backend-check"), "postgres:");
 });
@@ -448,6 +450,25 @@ function validateCoverageDiagnostic(workflow: Workflow): string[] {
     issues.push("coverage diagnostic is conditionally skipped");
   }
 
+  const postgres = coverageJob?.services?.postgres;
+  if (postgres?.image !== "postgres:16") {
+    issues.push("coverage diagnostic does not provision PostgreSQL 16");
+  }
+  if (postgres?.env?.POSTGRES_DB !== "portal_vetneb_ci") {
+    issues.push("coverage diagnostic database name is not isolated");
+  }
+  if (
+    coverageJob?.env?.DATABASE_URL !==
+      "postgresql://postgres:postgres@localhost:5432/portal_vetneb_ci" ||
+    coverageJob?.env?.SUPABASE_DB_URL !==
+      "postgresql://postgres:postgres@localhost:5432/portal_vetneb_ci"
+  ) {
+    issues.push("coverage diagnostic database URLs are not isolated");
+  }
+  if (!coverageJob?.steps?.some((step) => step.run === "pnpm db:migrate")) {
+    issues.push("coverage diagnostic does not run database migrations");
+  }
+
   const requiredNeeds = requiredCheckJob?.needs;
   const needsCoverageJob = Array.isArray(requiredNeeds)
     ? requiredNeeds.includes(COVERAGE_JOB_ID)
@@ -466,7 +487,7 @@ test("Backend CI executes coverage as an independent nonblocking diagnostic", ()
   assert.deepEqual(validateCoverageDiagnostic(workflow), []);
 });
 
-test("Backend CI coverage diagnostic rejects blocking, removal and command mutations", () => {
+test("Backend CI coverage diagnostic rejects contract mutations", () => {
   const workflow = loadYaml(readWorkflow()) as Workflow;
 
   assert.ok(
@@ -512,6 +533,24 @@ test("Backend CI coverage diagnostic rejects blocking, removal and command mutat
         ];
       }),
     ).includes("required check job depends on coverage diagnostic"),
+  );
+
+  assert.ok(
+    validateCoverageDiagnostic(
+      mutateWorkflow(workflow, (candidate) => {
+        delete candidate.jobs[COVERAGE_JOB_ID].services;
+      }),
+    ).includes("coverage diagnostic does not provision PostgreSQL 16"),
+  );
+
+  assert.ok(
+    validateCoverageDiagnostic(
+      mutateWorkflow(workflow, (candidate) => {
+        candidate.jobs[COVERAGE_JOB_ID].steps = candidate.jobs[COVERAGE_JOB_ID].steps!.filter(
+          (step) => step.run !== "pnpm db:migrate",
+        );
+      }),
+    ).includes("coverage diagnostic does not run database migrations"),
   );
 });
 
