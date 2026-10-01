@@ -1157,6 +1157,39 @@ porcentaje esté inflado por ellos. Publicarlo sin esta salvedad induciría a
 interpretar el número como medida de protección de los contratos estáticos, que
 es una lectura que la evidencia no respalda.
 
+#### 21.2 TEST-GLOBAL-12A — accepted defer (2026-10-01)
+
+`TEST-GLOBAL-12A` ejecutó el script versionado `pnpm test:coverage` sobre
+`main@9713e9ee8cc0665adf9e907919dfdebcb8d80d3c`. El proceso terminó con exit
+code `1`: el único archivo de test informado como fallido fue
+`test/integration/app/e2e-global-03b-authoritative-auth-boundary.fastify.test.ts`.
+Su precondición nominal, evaluada antes de importar el servidor, es una URL
+local para la DB aislada `portal_vetneb_ci`; esa precondición no está disponible
+en este entorno.
+
+Por la regla POST-03 de §31.0, el gate se clasifica `BLOCKED` por la
+precondición ausente **DB aislada `portal_vetneb_ci`** (launcher `0` / DB `1`).
+No hubo otro archivo fallido informado por la corrida. Las cifras y la tabla de
+coverage emitidas por esa ejecución son una **MEDICIÓN DIAGNÓSTICA NO
+CANÓNICA**: no se publican como baseline, no satisfacen §36 criterio 10 y no se
+usan para inferir cobertura del sistema.
+
+Se registra el siguiente `accepted defer`:
+
+| Campo | Valor |
+|---|---|
+| Owner | Nico |
+| Fecha | 2026-10-01 |
+| Precondición ausente | DB aislada `portal_vetneb_ci` accesible mediante `DATABASE_URL` o `SUPABASE_DB_URL` local |
+| Evidencia | `pnpm test:coverage` ejecutado sobre `main@9713e9ee8cc0665adf9e907919dfdebcb8d80d3c`; exit code `1`; único archivo fallido informado: `e2e-global-03b-authoritative-auth-boundary.fastify.test.ts` |
+| Resultado | No se publicó baseline canónico; no se tocó DB, CI, tests ni configuración |
+
+Este defer no altera las cuatro distinciones de §21.1: `source-as-data`,
+runtime coverage, semantic assertion strength y mutation strength siguen siendo
+medidas distintas. En particular, el runtime coverage no mide la fortaleza de
+guards estáticos, no sustituye semantic assertion strength y no constituye
+mutation proof.
+
 ## 22. Error-path coverage
 
 Assertions de status HTTP en la suite:
@@ -4367,10 +4400,11 @@ COMPLETED:    01A #1761 · 01B #1762 · 02 #1763 · 03 #1765 (sobre el fix de la
               05A #1789 · 05B #1792
               06  COMPLETE_IN_THIS_PR: 66/66 adjudicados en C.2–C.11; la
                   efectividad canónica en `main` queda condicionada al merge de #1793
+ACCEPTED_DEFER: 12A — DB aislada `portal_vetneb_ci` ausente; owner Nico,
+                2026-10-01 (§21.2). No publica baseline canónico ni inicia 12B/13.
 IN_PROGRESS:  ninguna
-PENDING:      07 · 08 · 09 · 10A · 10B · 10C · 10D · 11 · 12A · 12B · 13
-              (11 posee los 3 meta-guards de TG-R05, MUTATION_PROOF_PENDING;
-               12A sigue bloqueada por el DAG: 04 satisfecha, 08 pendiente)
+PENDING:      07 · 08 · 09 · 10A · 10B · 10C · 10D · 11 · 12B · 13
+              (11 posee los 3 meta-guards de TG-R05, MUTATION_PROOF_PENDING)
 
 TECHNICAL_P0: 2       TG-R01 · TG-R02                       — CERRADOS (02, #1763)
 TECHNICAL_P1: 4       TG-R04                                — CERRADO  (03, #1765)
