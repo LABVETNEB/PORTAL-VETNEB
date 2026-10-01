@@ -476,12 +476,12 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     section: "§6.4",
     metric: "importadores de helpers/tracked-source-files.ts",
     historical: 8,
-    baseline: 409,
+    baseline: 410,
     compute: () => supportConsumers("test/helpers/tracked-source-files.ts"),
     resolution: "RECLASSIFIED",
     guard: NON_DECREASING,
     motive:
-      "TEST-GLOBAL-05A debe subirlo; congelarlo penalizaría el objetivo del programa. Es una métrica de adopción del lector canónico, no un volumen: la banda simétrica 8 ± 2 ponía en rojo cada lote de 05A que superara 10 importadores y dejaba caer a 6 en verde. NON_DECREASING, sin techo: crecer sigue permitido. El histórico 8 es el snapshot de §6.4; el baseline es el piso POST del último lote de 05A: 12 tras el lote 2 (audit-separated-surfaces y audit-study-tracking-gaps), 14 tras el lote 3 (public-professionals-fixture adoption y assertions-quality) y 409 tras el cierre consolidado 05A (14 -> 409: lectores simples, lectores especializados, walkers, soporte compartido y el contrato de inventario de logistics migrados al lector canónico en un único PR), de modo que revertir cualquier migración ya completada y bajar de 409 rompe el guard. AGENTS.md §4: el censo que el lote rompe causalmente se realinea en el mismo PR sin debilitarlo. TEST-GLOBAL-11 revisa este censo (§31.2).",
+      "TEST-GLOBAL-05A debe subirlo; congelarlo penalizaría el objetivo del programa. Es una métrica de adopción del lector canónico, no un volumen: la banda simétrica 8 ± 2 ponía en rojo cada lote de 05A que superara 10 importadores y dejaba caer a 6 en verde. NON_DECREASING, sin techo: crecer sigue permitido. El histórico 8 es el snapshot de §6.4; el baseline era el piso POST del cierre consolidado 05A: 12 tras el lote 2 (audit-separated-surfaces y audit-study-tracking-gaps), 14 tras el lote 3 (public-professionals-fixture adoption y assertions-quality) y 409 tras el cierre consolidado 05A (14 -> 409: lectores simples, lectores especializados, walkers, soporte compartido y el contrato de inventario de logistics migrados al lector canónico en un único PR). TEST-GLOBAL-09 añade el consumidor repository-testability-blockers, por lo que el piso causal vigente es 410; bajar de 410 rompe el guard. AGENTS.md §4: el censo que el lote rompe causalmente se realinea en el mismo PR sin debilitarlo. TEST-GLOBAL-11 revisa este censo (§31.2).",
   },
   {
     row: "A0-06-SUPPORT",
@@ -1710,16 +1710,16 @@ test("censo 05A: la deuda de lectores ad hoc rompe al crecer y la adopción del 
   assert.equal(adoptionEntry.guard.kind, "NON_DECREASING");
   assert.equal(adoptionEntry.resolution, "RECLASSIFIED");
   assert.equal(adoptionEntry.historical, 8, "el histórico de §6.4 se conserva");
-  assert.equal(adoptionEntry.baseline, 409, "piso versionado POST cierre consolidado 05A");
-  assert.equal(anchor, 409, "el piso es el checkpoint POST del cierre consolidado 05A, no el histórico");
-  assert.equal(current, 409, "la adopción vigente es la del checkpoint POST del cierre consolidado 05A");
+  assert.equal(adoptionEntry.baseline, 410, "piso versionado tras el consumidor de TEST-GLOBAL-09");
+  assert.equal(anchor, 410, "el piso incorpora el consumidor canónico de TEST-GLOBAL-09, no el histórico");
+  assert.equal(current, 410, "la adopción vigente incluye repository-testability-blockers");
   assert.equal(
     guardViolation(adoptionEntry, evaluateEntry(adoptionEntry)),
     null,
     `vigente ${current}: la adopción real no puede poner el censo en rojo`,
   );
 
-  for (const grown of [409, 410, 1000]) {
+  for (const grown of [410, 411, 1000]) {
     const at = { ...adoptionEntry, compute: () => grown };
 
     assert.equal(
@@ -1729,13 +1729,13 @@ test("censo 05A: la deuda de lectores ad hoc rompe al crecer y la adopción del 
     );
   }
 
-  // 408 = POST - 1; 14 = checkpoint PRE (POST lote 3); 8 = histórico de §6.4.
-  for (const regressedTo of [408, 14, 8]) {
+  // 409 = POST - 1; 14 = checkpoint PRE (POST lote 3); 8 = histórico de §6.4.
+  for (const regressedTo of [409, 14, 8]) {
     const regressed = { ...adoptionEntry, compute: () => regressedTo };
 
     assert.match(
       guardViolation(regressed, evaluateEntry(regressed)) ?? "",
-      new RegExp(`: ${regressedTo} cae por debajo del piso de no-decrecimiento 409$`),
+      new RegExp(`: ${regressedTo} cae por debajo del piso de no-decrecimiento 410$`),
       `${regressedTo} importadores: revertir una migración completada debe poner el censo en rojo`,
     );
   }
