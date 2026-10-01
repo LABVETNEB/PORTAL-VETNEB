@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
 import { readSourceFile as read } from "../../helpers/tracked-source-files.ts";
+import { governancePaths } from "./security-governance-registry.ts";
 
 const root = process.cwd();
 
@@ -24,18 +25,6 @@ const REQUIRED_SECURITY_DOCS = [
   "docs/security/ENDPOINT_PERMISSION_MATRIX.md",
   "docs/security/ENDPOINT_TEST_MATRIX.md",
   "docs/ops/CROSS_TENANT_SMOKE_EVIDENCE_RUNBOOK.md",
-] as const;
-
-const REQUIRED_GUARDRAIL_TESTS = [
-  "test/architecture/security/security-critical-route-surface-registry.test.ts",
-  "test/architecture/security/security-boundary-suite-completeness.test.ts",
-  "test/architecture/security/security-cross-tenant-idor-contract.test.ts",
-  "test/architecture/security/security-resource-ownership-boundaries.test.ts",
-  "test/architecture/security/security-response-disclosure-boundaries.test.ts",
-  "test/architecture/security/security-session-cookie-boundaries.test.ts",
-  "test/architecture/security/security-mutation-permission-surface.test.ts",
-  "test/security/security-trusted-origin-cors-boundaries.test.ts",
-  "test/architecture/security/security-sensitive-log-redaction-boundaries.test.ts",
 ] as const;
 
 const CRITICAL_ENDPOINT_MARKERS = [
@@ -60,6 +49,19 @@ const CRITICAL_ENDPOINT_MARKERS = [
   "/api/admin/report-workflow",
   "/api/contact",
 ] as const;
+
+function assertRequiredGuardrailInventory(paths: readonly string[]): void {
+  assert.deepEqual(paths, [...new Set(paths)], "security docs inventory must not duplicate guardrails");
+  assert.ok(
+    paths.includes("test/architecture/security/security-cross-tenant-idor-contract.test.ts"),
+    "security docs inventory must retain the cross-tenant IDOR guardrail",
+  );
+  assert.deepEqual(
+    [...paths].sort(),
+    governancePaths("docsMatrix").sort(),
+    "docs matrix membership must derive from the canonical governance registry",
+  );
+}
 
 test("security docs matrix drift guard keeps required source-of-truth docs present", () => {
   for (const path of REQUIRED_SECURITY_DOCS) {
@@ -131,9 +133,15 @@ test("security docs matrix drift guard keeps critical endpoint inventory documen
 });
 
 test("security docs matrix drift guard keeps referenced guardrail tests present", () => {
+  const requiredGuardrailTests = governancePaths("docsMatrix");
+  assertRequiredGuardrailInventory(requiredGuardrailTests);
+  assert.throws(
+    () => assertRequiredGuardrailInventory(requiredGuardrailTests.filter((path) => path !== "test/architecture/security/security-cross-tenant-idor-contract.test.ts")),
+    /cross-tenant IDOR guardrail/,
+  );
   const combinedSecurityDocs = REQUIRED_SECURITY_DOCS.map((path) => read(path)).join("\n");
 
-  for (const path of REQUIRED_GUARDRAIL_TESTS) {
+  for (const path of requiredGuardrailTests) {
     assert.equal(exists(path), true, `missing guardrail test file: ${path}`);
 
     const basename = path.slice("test/".length);
@@ -143,6 +151,7 @@ test("security docs matrix drift guard keeps referenced guardrail tests present"
     );
   }
 });
+
 
 test("security docs matrix drift guard keeps cross-tenant runtime evidence tied to CTIDOR registry", () => {
   const crossTenantRunbook = read("docs/ops/CROSS_TENANT_SMOKE_EVIDENCE_RUNBOOK.md");

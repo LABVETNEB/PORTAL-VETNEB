@@ -4,6 +4,7 @@ import { basename, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { readSourceFile, listSourceFiles } from "../../helpers/tracked-source-files.ts";
+import { governancePaths } from "./security-governance-registry.ts";
 
 const REPO_ROOT = resolve(fileURLToPath(new URL("../../../", import.meta.url)));
 
@@ -545,6 +546,24 @@ function uniqueValues(values: readonly string[]): string[] {
   return [...new Set(values)];
 }
 
+function assertSecurityBoundaryInventory(
+  guardrails: readonly SecurityBoundaryGuardrail[],
+): void {
+  const paths = guardrails.map((guardrail) => guardrail.path);
+  assert.deepEqual(paths, uniqueValues(paths), "security boundary inventory must not duplicate paths");
+  assert.ok(
+    guardrails.some(
+      (guardrail) => guardrail.path === "test/architecture/security/security-session-cookie-boundaries.test.ts",
+    ),
+    "security boundary inventory must retain the session cookie guardrail",
+  );
+  assert.deepEqual(
+    guardrails.map((guardrail) => guardrail.path),
+    governancePaths("boundarySuite"),
+    "boundary suite membership must derive from the canonical governance registry",
+  );
+}
+
 function assertFileExists(relativePath: string): void {
   assert.ok(
     resolveExistingSourcePath(relativePath) !== undefined,
@@ -596,6 +615,11 @@ test("security boundary suite completeness registry keeps canonical order", () =
 
   assert.deepEqual(slugs, uniqueValues(slugs));
   assert.deepEqual(paths, uniqueValues(paths));
+  assertSecurityBoundaryInventory(SECURITY_BOUNDARY_SUITE);
+  assert.throws(
+    () => assertSecurityBoundaryInventory(SECURITY_BOUNDARY_SUITE.filter((guardrail) => guardrail.path !== "test/architecture/security/security-session-cookie-boundaries.test.ts")),
+    /session cookie guardrail/,
+  );
 
   for (const guardrail of SECURITY_BOUNDARY_SUITE) {
     assert.match(guardrail.slug, /^[a-z0-9]+(?:-[a-z0-9]+)*$/);
@@ -606,6 +630,7 @@ test("security boundary suite completeness registry keeps canonical order", () =
     assert.ok(guardrail.testAnchors.length >= 3);
   }
 });
+
 
 test("security boundary suite includes every security boundaries guardrail file", () => {
   const actualFiles = listFilesRecursive("test")
