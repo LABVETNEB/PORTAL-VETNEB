@@ -421,6 +421,100 @@ test("Backend CI publica un check final siempre presente con propagación estric
   assertNotContains(finalCheck, "continue-on-error");
 });
 
+const COVERAGE_JOB_ID = "test-coverage-diagnostic";
+const COVERAGE_STEP_NAME = "Test coverage diagnostic";
+const COVERAGE_COMMAND = "pnpm test:coverage";
+
+function validateCoverageDiagnostic(workflow: Workflow): string[] {
+  const issues: string[] = [];
+  const coverageJob = workflow.jobs[COVERAGE_JOB_ID];
+  const requiredCheckJob = workflow.jobs[REQUIRED_CHECK_JOB_ID];
+  const coverageStep = coverageJob?.steps?.find(
+    (step) => step.name === COVERAGE_STEP_NAME,
+  );
+
+  if (!coverageStep) {
+    issues.push("coverage diagnostic step missing");
+    return issues;
+  }
+
+  if (coverageStep.run !== COVERAGE_COMMAND) {
+    issues.push("coverage diagnostic does not run test:coverage");
+  }
+  if (coverageStep["continue-on-error"] !== true) {
+    issues.push("coverage diagnostic failure is blocking");
+  }
+  if ("if" in coverageStep) {
+    issues.push("coverage diagnostic is conditionally skipped");
+  }
+
+  const requiredNeeds = requiredCheckJob?.needs;
+  const needsCoverageJob = Array.isArray(requiredNeeds)
+    ? requiredNeeds.includes(COVERAGE_JOB_ID)
+    : requiredNeeds === COVERAGE_JOB_ID;
+
+  if (needsCoverageJob) {
+    issues.push("required check job depends on coverage diagnostic");
+  }
+
+  return issues;
+}
+
+test("Backend CI executes coverage as an independent nonblocking diagnostic", () => {
+  const workflow = loadYaml(readWorkflow()) as Workflow;
+
+  assert.deepEqual(validateCoverageDiagnostic(workflow), []);
+});
+
+test("Backend CI coverage diagnostic rejects blocking, removal and command mutations", () => {
+  const workflow = loadYaml(readWorkflow()) as Workflow;
+
+  assert.ok(
+    validateCoverageDiagnostic(
+      mutateWorkflow(workflow, (candidate) => {
+        const step = candidate.jobs[COVERAGE_JOB_ID].steps!.find(
+          (item) => item.name === COVERAGE_STEP_NAME,
+        )!;
+        step["continue-on-error"] = false;
+      }),
+    ).includes("coverage diagnostic failure is blocking"),
+  );
+
+  assert.ok(
+    validateCoverageDiagnostic(
+      mutateWorkflow(workflow, (candidate) => {
+        const steps = candidate.jobs[COVERAGE_JOB_ID].steps!;
+        candidate.jobs[COVERAGE_JOB_ID].steps = steps.filter(
+          (step) => step.name !== COVERAGE_STEP_NAME,
+        );
+      }),
+    ).includes("coverage diagnostic step missing"),
+  );
+
+  assert.ok(
+    validateCoverageDiagnostic(
+      mutateWorkflow(workflow, (candidate) => {
+        const step = candidate.jobs[COVERAGE_JOB_ID].steps!.find(
+          (item) => item.name === COVERAGE_STEP_NAME,
+        )!;
+        step.run = "pnpm test";
+      }),
+    ).includes("coverage diagnostic does not run test:coverage"),
+  );
+
+  assert.ok(
+    validateCoverageDiagnostic(
+      mutateWorkflow(workflow, (candidate) => {
+        const requiredNeeds = candidate.jobs[REQUIRED_CHECK_JOB_ID].needs!;
+        candidate.jobs[REQUIRED_CHECK_JOB_ID].needs = [
+          ...(Array.isArray(requiredNeeds) ? requiredNeeds : [requiredNeeds]),
+          COVERAGE_JOB_ID,
+        ];
+      }),
+    ).includes("required check job depends on coverage diagnostic"),
+  );
+});
+
 // WBR-04b (VET-10): structural (real YAML parse, not string matching) proof
 // that the lint step is inside the SAME job the required "validate-backend"
 // check aggregates, that it actually invokes lint:backend, and that nothing
