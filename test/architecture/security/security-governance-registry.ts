@@ -63,6 +63,8 @@ export function assertSecurityGovernanceRegistry(
   for (const entry of entries) {
     if (!entry.id || ids.has(entry.id)) throw new Error(`duplicate or empty governance id: ${entry.id}`);
     if (!entry.path || paths.has(entry.path)) throw new Error(`duplicate or empty governance path: ${entry.path}`);
+    if (!["security", "storage", "public-search", "validation"].includes(entry.category)) throw new Error(`invalid governance category: ${entry.category}`);
+    if (!["boundary", "critical-route", "docs-matrix"].includes(entry.owner)) throw new Error(`invalid governance owner: ${entry.owner}`);
     if (!entry.boundarySuite && !entry.criticalRoute && !entry.docsMatrix) throw new Error(`unassigned governance entry: ${entry.id}`);
     ids.add(entry.id);
     paths.add(entry.path);
