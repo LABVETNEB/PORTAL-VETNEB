@@ -99,7 +99,7 @@ async function createClinicPasswordChangeApp(input?: {
     role: "clinic_owner",
   });
 
-  await app.register(clinicAuthNativeRoutes as any, {
+  await app.register(clinicAuthNativeRoutes, {
     prefix: "/api/auth",
     now: () => NOW,
     loginRateLimitWindowMs: 60_000,

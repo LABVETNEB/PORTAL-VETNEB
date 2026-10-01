@@ -71,7 +71,7 @@ async function createIntegrationApp() {
 
   const hashSessionToken = (token: string) => `hash:${token}`;
 
-  await app.register(clinicAuthNativeRoutes as any, {
+  await app.register(clinicAuthNativeRoutes, {
     prefix: "/api/auth",
     now: () => Date.UTC(2026, 4, 5, 0, 0, 0),
     createActiveSession: async (input: StoredSession) => {

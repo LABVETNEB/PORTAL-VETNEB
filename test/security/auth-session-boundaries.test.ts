@@ -113,7 +113,7 @@ async function createAuthBoundariesHarness(): Promise<AuthBoundariesHarness> {
   const adminSessions = new Map<string, AdminSessionRecord>();
   const particularSessions = new Map<string, ParticularSessionRecord>();
 
-  await app.register(clinicAuthNativeRoutes as any, {
+  await app.register(clinicAuthNativeRoutes, {
     prefix: "/api/auth",
     createActiveSession: async (input: ClinicSessionRecord & { tokenHash: string }) => {
       clinicSessions.set(input.tokenHash, {
