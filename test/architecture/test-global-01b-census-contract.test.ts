@@ -893,7 +893,7 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     resolution: "RECLASSIFIED",
     guard: BAND,
     motive:
-      "Volumen de prueba negativa, no congelable. El árbol previo a 04/no-store producía 28, el borde superior de 22 ± 6; el contrato no-store (04) añade la prueba fail-closed de su helper de mutación con assert.throws( y el árbol vigente produce 29. TEST-GLOBAL-08/frontend añade nueve pruebas en memoria que expresan explícitamente el fallo del contrato y lleva la cifra a 38. Crecimiento intencional, re-anclado sin ampliar la tolerancia ni cambiar el detector.",
+      "Volumen de prueba negativa, no congelable. El ancla histórica era 29 tras 04/no-store; antes de esta PR el corpus ya había acumulado 37 specs con assert.throws(. TEST-GLOBAL-08/frontend añade exactamente +1 mediante G06-F01 (frontend-auth-context.test.ts), y el ancla vigente queda en 38. Se distingue el drift pre-PR de su delta verificable, sin ampliar la tolerancia ni cambiar el detector.",
   },
   {
     row: "A0-11-MUTATION",
@@ -933,7 +933,7 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     resolution: "RECLASSIFIED",
     guard: BAND,
     motive:
-      "El vocabulario versionado es explícito y bilingüe (fail-closed, mutación, nunca, rechaza, rompe, refuses, breaks) y por eso reconoce más nombres que el recuento original. Como el criterio está escrito, la cifra es auditable. TEST-GLOBAL-08/frontend incorpora nueve nombres de prueba que describen qué mutación queda detectada, y re-ancla el resultado observado 226 sin ampliar la tolerancia ni excluir specs.",
+      "El vocabulario versionado es explícito y bilingüe (fail-closed, mutación, nunca, rechaza, rompe, refuses, breaks) y por eso reconoce más nombres que el recuento original. El ancla histórica era 180; antes de esta PR el corpus ya había acumulado 225 nombres reconocidos. TEST-GLOBAL-08/frontend aporta exactamente +1 mediante G06-F09 (frontend-login-page.test.ts, nombre con 'never') y deja el ancla vigente en 226. Se distingue el drift pre-PR de su delta verificable, sin ampliar la tolerancia ni excluir specs.",
   },
   // ── §13 determinismo ──────────────────────────────────────────────────────
   {
