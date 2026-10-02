@@ -73,20 +73,22 @@ test("B11 · WorkspaceHeader exists at components/dashboard and publishes throug
 
 test("B11 · DashboardModuleWorkspace delegates one header and owns no ad hoc duplicate", () => {
   const workspace = read(MODULE_WORKSPACE);
+  const scaffold = read("frontend/src/components/dashboard/ModuleSurface.tsx");
   assert.ok(
     workspace.includes(
-      'import { WorkspaceHeader } from "@/features/dashboard/presentation/layout";',
+      'import { WorkspaceScaffold } from "@/features/dashboard/presentation/layout";',
     ),
   );
-  assert.equal([...workspace.matchAll(/<WorkspaceHeader\b/g)].length, 1);
+  assert.equal([...workspace.matchAll(/<WorkspaceScaffold\b/g)].length, 1);
+  assert.equal([...scaffold.matchAll(/<WorkspaceHeader\b/g)].length, 1);
   assert.equal(workspace.includes("<h2"), false);
   assert.equal(workspace.includes("dashboard-section-description"), false);
   assert.equal(workspace.includes("dashboard-workspace-header flex"), false);
-  assert.ok(workspace.includes("aria-labelledby={titleId}"));
-  assert.ok(workspace.includes("aria-describedby={description ? descriptionId : undefined}"));
+  assert.ok(scaffold.includes("aria-labelledby={props.titleId}"));
+  assert.ok(scaffold.includes("aria-describedby={props.description ? props.descriptionId : undefined}"));
   assert.ok(workspace.includes("descriptionId={description ? descriptionId : undefined}"));
-  assert.ok(workspace.includes("data-dashboard-module-workspace={moduleId}"));
-  assert.ok(workspace.includes("data-dashboard-module-viewport={moduleId}"));
+  assert.ok(scaffold.includes("data-dashboard-module-workspace={props.moduleId}"));
+  assert.ok(scaffold.includes("data-dashboard-module-viewport={props.moduleId}"));
 });
 
 test("B11 · the two shared controllers are the complete consumer census", () => {
@@ -176,11 +178,11 @@ test("B11 · DashboardPageHeader, B10 shell and B09 mobile nav stay outside B11"
     assert.ok(read(path).includes(owner), `${path} must keep owning ${owner}`);
   }
 
-  // B15 has not started: no source file names the scaffold.
+  // B15 realigns the old future-work fence: exactly one primitive owns the header composition.
   const scaffoldOwners = sourceFiles("frontend/src").filter((path) =>
-    stripComments(read(path)).includes("WorkspaceScaffold"),
+    stripComments(read(path)).includes("export function WorkspaceScaffold"),
   );
-  assert.deepEqual(scaffoldOwners, [], "B15 WorkspaceScaffold is outside B11");
+  assert.deepEqual(scaffoldOwners, ["frontend/src/components/dashboard/ModuleSurface.tsx"]);
 });
 
 test("B11 · runtime contract is catalogued with A02/A03/A08 ownership", () => {
@@ -200,4 +202,65 @@ test("B11 · runtime contract is catalogued with A02/A03/A08 ownership", () => {
     ),
     "B11 must run in visual-contract and its canonical CI execution partition",
   );
+});
+
+test("B15 · one presentation scaffold owns ordered workspace slots", () => {
+  const scaffoldPath = "frontend/src/components/dashboard/ModuleSurface.tsx";
+  const source = read(scaffoldPath);
+  const barrel = read(WORKSPACE_BARREL);
+  assert.equal((source.match(/export function WorkspaceScaffold\b/g) ?? []).length, 1);
+  assert.ok(barrel.includes('export { WorkspaceScaffold'));
+  assert.ok(source.includes("WorkspaceHeader"));
+  for (const slot of ["toolbar", "filters", "collection", "details", "footer"]) {
+    assert.ok(source.includes(slot), `missing ${slot} slot`);
+  }
+  assert.ok(source.indexOf("{toolbar}") < source.indexOf("{filters}"));
+  assert.ok(source.indexOf("{filters}") < source.indexOf("{collection}"));
+  assert.ok(source.indexOf("{collection}") < source.indexOf("{details}"));
+  assert.ok(source.indexOf("{details}") < source.indexOf("{footer}"));
+  for (const forbidden of ["@/app/", "@/lib/api", "next/navigation", "DetailsPane", "CollectionWorkspace", "window.", "document.", "fetch("]) {
+    assert.equal(source.includes(forbidden), false, `scaffold must not own ${forbidden}`);
+  }
+});
+
+test("B16 · one controlled utility panel is published and composed by the B15 scaffold", () => {
+  const source = read("frontend/src/components/dashboard/ModuleSurface.tsx");
+  const barrel = read(WORKSPACE_BARREL);
+  const css = readDashboardCssSource();
+  assert.equal((source.match(/export function UtilitySidePanel\b/g) ?? []).length, 1);
+  assert.ok(barrel.includes("UtilitySidePanel"));
+  assert.ok(source.includes("onExpandedChange"));
+  assert.ok(source.includes("aria-expanded={expanded}"));
+  assert.ok(source.includes("aria-controls={contentId}"));
+  assert.ok(source.includes("hidden={!expanded}"));
+  assert.ok(source.includes("<aside className=\"dashboard-utility-side-panel\""));
+  assert.ok(source.includes("<UtilitySidePanel"));
+  assert.ok(source.includes("details={" ) || source.includes("props.details"));
+  assert.ok(css.includes("--dash-utility-panel-w: 336px;"));
+  assert.ok(css.includes('.dashboard-utility-side-panel[data-expanded="true"]'));
+  assert.ok(css.includes("inline-size: var(--dash-utility-panel-w);"));
+  for (const forbidden of ["DetailsPane", "DocumentViewer", "fetch(", "@/lib/api", "@/app/"]) {
+    assert.equal(source.includes(forbidden), false, forbidden);
+  }
+});
+
+test("B15 · legacy composition adapters converge through the scaffold", () => {
+  const adapters = [
+    MODULE_WORKSPACE,
+    PAGE_HEADER,
+    "frontend/src/components/dashboard/ModuleSurface.tsx",
+    "frontend/src/components/dashboard/ClinicMobileModuleFrame.tsx",
+    "frontend/src/components/dashboard/ClinicFullRouteModuleStage.tsx",
+  ];
+  const owners = sourceFiles("frontend/src").filter((path) =>
+    read(path).includes("export function WorkspaceScaffold"),
+  );
+  assert.deepEqual(owners, ["frontend/src/components/dashboard/ModuleSurface.tsx"]);
+  for (const path of adapters) {
+    assert.equal((read(path).match(/<WorkspaceScaffold\b/g) ?? []).length, 1, path);
+  }
+  const scaffold = read(adapters[2]);
+  for (const marker of ["data-dashboard-module-workspace", "data-dashboard-module-viewport", "data-dashboard-module-surface", "data-workspace-scaffold"]) {
+    assert.ok(scaffold.includes(marker), marker);
+  }
 });

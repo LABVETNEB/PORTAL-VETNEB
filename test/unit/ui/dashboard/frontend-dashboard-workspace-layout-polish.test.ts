@@ -183,9 +183,10 @@ test("PR-2 globals.css defines .dashboard-filter-panel with shadow", () => {
 
 test("PR-2 DashboardModuleWorkspace applies dashboard-workspace-enter to section", () => {
   const source = read(WORKSPACE_PATH);
+  const scaffold = read("frontend/src/components/dashboard/ModuleSurface.tsx");
   assert.ok(
-    source.includes("dashboard-workspace-enter"),
-    "DashboardModuleWorkspace section must use dashboard-workspace-enter class",
+    source.includes('kind="module"') && scaffold.includes("dashboard-workspace-enter"),
+    "DashboardModuleWorkspace must delegate the section with dashboard-workspace-enter to the scaffold",
   );
 });
 
@@ -208,9 +209,10 @@ test("PR-2 canonical WorkspaceHeader does not use plain mb-4", () => {
 
 test("PR-2 DashboardModuleWorkspace keeps data-dashboard-module-workspace attribute", () => {
   const source = read(WORKSPACE_PATH);
+  const scaffold = read("frontend/src/components/dashboard/ModuleSurface.tsx");
   assert.ok(
-    source.includes("data-dashboard-module-workspace={moduleId}"),
-    "DashboardModuleWorkspace must keep data-dashboard-module-workspace attribute",
+    source.includes("moduleId={moduleId}") && scaffold.includes("data-dashboard-module-workspace={props.moduleId}"),
+    "DashboardModuleWorkspace must pass its module ID to the scaffold's workspace attribute",
   );
 });
 

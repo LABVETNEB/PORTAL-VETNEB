@@ -166,18 +166,19 @@ test("error state announces alert and wires retry callback", () => {
 
 test("dashboard page header keeps required title and optional description badge actions", () => {
   const source = read(PAGE_HEADER_PATH);
+  const scaffold = read("frontend/src/components/dashboard/ModuleSurface.tsx");
 
   assert.ok(source.includes("title: string;"));
   assert.ok(source.includes("description?: string;"));
   assert.ok(source.includes("badge?: ReactNode;"));
   assert.ok(source.includes("actions?: ReactNode;"));
-  assert.ok(source.includes("text-xl font-semibold"));
-  assert.ok(source.includes("text-sm text-muted-foreground"));
+  assert.ok(scaffold.includes("text-xl font-semibold"));
+  assert.ok(scaffold.includes("text-sm text-muted-foreground"));
   assert.ok(source.includes("{title}"));
   assert.ok(source.includes("{description}"));
   assert.ok(source.includes("{badge}"));
   assert.ok(source.includes("{actions}"));
-  assert.ok(source.includes("sm:flex-row sm:items-start sm:justify-between"));
+  assert.ok(scaffold.includes("sm:flex-row sm:items-start sm:justify-between"));
 });
 
 test("private dashboard shell renders children through dashboard shell router", () => {

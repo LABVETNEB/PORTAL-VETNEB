@@ -719,6 +719,77 @@
 }
 /* dashboard-b12-module-card-removal:end */
 
+.dashboard-app-shell .dashboard-workspace-with-panel {
+  position: relative;
+  display: flex;
+  min-inline-size: 0;
+  min-block-size: 0;
+  flex: 1 1 auto;
+}
+
+.dashboard-app-shell .dashboard-workspace-primary {
+  display: flex;
+  min-inline-size: 0;
+  min-block-size: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
+.dashboard-app-shell .dashboard-utility-side-panel {
+  display: flex;
+  min-block-size: 0;
+  flex: 0 0 auto;
+  flex-direction: column;
+  background: var(--dash-color-surface);
+}
+
+.dashboard-app-shell .dashboard-utility-side-panel[data-expanded="true"] {
+  inline-size: var(--dash-utility-panel-w);
+  border-inline-start: 1px solid var(--dash-color-outline-subtle);
+  padding: 16px;
+}
+
+.dashboard-app-shell .dashboard-utility-side-panel[data-expanded="false"] {
+  inline-size: max-content;
+}
+
+.dashboard-app-shell .dashboard-utility-side-panel-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-inline-size: 44px;
+  min-block-size: 44px;
+  align-self: flex-start;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.dashboard-app-shell .dashboard-utility-side-panel-toggle:focus {
+  outline: 2px solid var(--dash-color-focus-ring);
+  outline-offset: 2px;
+}
+
+.dashboard-app-shell .dashboard-utility-side-panel-content {
+  min-block-size: 0;
+  overflow: auto;
+}
+
+@media (max-width: 1279px) {
+  .dashboard-app-shell .dashboard-utility-side-panel[data-expanded="true"] {
+    position: absolute;
+    inset-block: 0;
+    inset-inline-end: 0;
+    z-index: 1;
+    inline-size: min(var(--dash-utility-panel-w), 100%);
+  }
+}
+
+@media (max-width: 767px) {
+  .dashboard-app-shell .dashboard-utility-side-panel[data-expanded="true"] {
+    inline-size: 100%;
+  }
+}
+
 /* dashboard-detail-value-integrity:start */
 /*
   PR-TRUNC · Terminal-surface text integrity.

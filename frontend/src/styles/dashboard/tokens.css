@@ -487,6 +487,10 @@
 }
 /* dashboard-b11-workspace-header-geometry:end */
 
+.dashboard-app-shell {
+  --dash-utility-panel-w: 336px;
+}
+
 /* dashboard-b09-mobile-navigation-geometry:start
  *
  * B09 - DashboardMobileNav geometry ledger.

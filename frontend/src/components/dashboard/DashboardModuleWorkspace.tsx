@@ -2,7 +2,7 @@
 
 import { useId, type ReactNode } from "react";
 import { LayoutDashboard } from "lucide-react";
-import { WorkspaceHeader } from "@/features/dashboard/presentation/layout";
+import { WorkspaceScaffold } from "@/features/dashboard/presentation/layout";
 
 type DashboardModuleWorkspaceProps = {
   title: string;
@@ -29,38 +29,28 @@ export function DashboardModuleWorkspace({
   const descriptionId = useId();
 
   return (
-    <section
-      className="flex min-h-0 flex-1 flex-col dashboard-workspace-enter"
-      data-dashboard-module-workspace={moduleId}
-      aria-labelledby={titleId}
-      aria-describedby={description ? descriptionId : undefined}
-    >
-      <WorkspaceHeader
-        title={title}
-        titleId={titleId}
-        description={description}
-        descriptionId={description ? descriptionId : undefined}
-        leadingAction={
-          onBack ? (
-            <button
-              type="button"
-              onClick={onBack}
-              aria-label="Vista general"
-              data-dashboard-module-back-button="true"
-              className="inline-flex min-h-10 items-center gap-1.5 rounded-md px-2 text-[0.8125rem] font-medium text-muted-foreground dashboard-btn-interactive hover:bg-accent/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 shrink-0"
-            >
-              <LayoutDashboard className="h-4 w-4" aria-hidden="true" />
-              <span>Vista general</span>
-            </button>
-          ) : null
-        }
-      />
-      <div
-        className="flex min-h-0 min-w-0 flex-1 flex-col pt-4"
-        data-dashboard-module-viewport={moduleId}
-      >
-        {children}
-      </div>
-    </section>
+    <WorkspaceScaffold
+      kind="module"
+      moduleId={moduleId}
+      titleId={titleId}
+      descriptionId={description ? descriptionId : undefined}
+      title={title}
+      description={description}
+      collection={children}
+      leadingAction={
+        onBack ? (
+          <button
+            type="button"
+            onClick={onBack}
+            aria-label="Vista general"
+            data-dashboard-module-back-button="true"
+            className="inline-flex min-h-10 items-center gap-1.5 rounded-md px-2 text-[0.8125rem] font-medium text-muted-foreground dashboard-btn-interactive hover:bg-accent/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 shrink-0"
+          >
+            <LayoutDashboard className="h-4 w-4" aria-hidden="true" />
+            <span>Vista general</span>
+          </button>
+        ) : null
+      }
+    />
   );
 }

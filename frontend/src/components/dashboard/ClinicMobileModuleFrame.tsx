@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { ClinicModule } from "./ClinicDashboardWorkspaceController";
+import { WorkspaceScaffold } from "@/features/dashboard/presentation/layout";
 
 type ClinicMobileModuleFrameProps = {
   moduleId: ClinicModule;
@@ -10,12 +11,5 @@ export function ClinicMobileModuleFrame({
   moduleId,
   children,
 }: ClinicMobileModuleFrameProps) {
-  return (
-    <section
-      data-clinic-mobile-module={moduleId}
-      className="clinic-mobile-module-frame"
-    >
-      {children}
-    </section>
-  );
+  return <WorkspaceScaffold kind="mobile" moduleId={moduleId}>{children}</WorkspaceScaffold>;
 }
