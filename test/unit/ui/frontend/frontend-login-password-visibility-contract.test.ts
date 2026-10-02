@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
+import { effectiveAttribute, evaluate, jsxElements, parseTsx, staticAttribute, tagName } from "../dashboard/dashboard-source-oracle.ts";
 
 const LOGIN_CONTENT_PATH = "frontend/src/components/public/LoginContent.tsx";
 
@@ -69,4 +70,24 @@ test("login removes explicit role tabs from the clinic form surface", () => {
   assert.equal(source.includes("<Link"), false);
   assert.equal(source.includes("openParticularAccess"), false);
   assert.equal(source.includes("router.push(ROUTES.particulares);"), false);
+});
+
+test("TEST-GLOBAL-08 G06-F10 kills M-F04 with its own password-type execution", () => {
+  const source = read(LOGIN_CONTENT_PATH);
+  const typeWhenHidden = (candidate: string) => {
+    const input = jsxElements(parseTsx(candidate, LOGIN_CONTENT_PATH)).find(
+      (element) => tagName(element) === "Input" && staticAttribute(element, "data-auth-credential-input") === "true",
+    );
+    assert.ok(input, "credential input must exist");
+    const type = effectiveAttribute(input, "type");
+    assert.equal(type.kind, "value");
+    return evaluate(type.expression, { isPasswordVisible: false });
+  };
+  assert.equal(typeWhenHidden(source), "password");
+  const mutant = source.replace(
+    'type={isPasswordVisible ? "text" : "password"}',
+    'type={isPasswordVisible ? "text" : "password"} {...{ type: "text" }}',
+  );
+  assert.notEqual(mutant, source, "M-F04 must be applicable");
+  assert.equal(typeWhenHidden(mutant), "text", "M-F04 forces the credential visible");
 });

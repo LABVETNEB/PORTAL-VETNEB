@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
+import { evaluate, parseTsx } from "../dashboard/dashboard-source-oracle.ts";
+import { initializerNamed } from "../admin/source-function-runner.ts";
 
 const PARTICULARES_PAGE_PATH = "frontend/src/app/particulares/page.tsx";
 const PARTICULARES_CONTENT_PATH =
@@ -98,4 +100,19 @@ test("particulares content keeps clinics entrypoint and avoids mixed/private nav
   assert.equal(source.includes("useSearchParams"), false);
   assert.equal(source.includes('from "next/navigation"'), false);
   assert.equal(source.includes("/login?tipo=particular"), false);
+});
+
+test("TEST-GLOBAL-08 G06-F11 kills M-F08 by blocking a rate-limited token submit", () => {
+  const source = read(PARTICULARES_CONTENT_PATH);
+  const isBlocked = (candidate: string) => evaluate(
+    initializerNamed(parseTsx(candidate, PARTICULARES_CONTENT_PATH), "isBlocked"),
+    { isSubmitting: false, rateLimitCooldown: 7 },
+  );
+  assert.equal(isBlocked(source), true);
+  const mutant = source.replace(
+    "const isBlocked = isSubmitting || rateLimitCooldown > 0;",
+    "const isBlocked = isSubmitting || rateLimitCooldown > 0 && false;",
+  );
+  assert.notEqual(mutant, source, "M-F08 must be applicable");
+  assert.equal(isBlocked(mutant), false, "M-F08 enables a rate-limited token form");
 });

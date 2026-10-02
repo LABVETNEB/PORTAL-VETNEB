@@ -888,12 +888,12 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     section: "§11",
     metric: "specs con assert.throws(",
     historical: 22,
-    baseline: 29,
+    baseline: 38,
     compute: () => filesMatching(corpus, specs, /assert\.throws\(/).length,
     resolution: "RECLASSIFIED",
     guard: BAND,
     motive:
-      "Volumen de prueba negativa, no congelable. El árbol previo a 04/no-store producía 28, el borde superior de 22 ± 6; el contrato no-store (04) añade la prueba fail-closed de su helper de mutación con assert.throws( y el árbol vigente produce 29. Crecimiento intencional, re-anclado sin ampliar la tolerancia ni cambiar el detector.",
+      "Volumen de prueba negativa, no congelable. El ancla histórica era 29 tras 04/no-store; antes de esta PR el corpus ya había acumulado 37 specs con assert.throws(. TEST-GLOBAL-08/frontend añade exactamente +1 mediante G06-F01 (frontend-auth-context.test.ts), y el ancla vigente queda en 38. Se distingue el drift pre-PR de su delta verificable, sin ampliar la tolerancia ni cambiar el detector.",
   },
   {
     row: "A0-11-MUTATION",
@@ -924,7 +924,7 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     section: "§11",
     metric: "tests nombrados con semántica fail-closed",
     historical: 130,
-    baseline: 180,
+    baseline: 226,
     compute: () =>
       classification.specs.reduce(
         (sum, spec) => sum + spec.failClosedTestNames.length,
@@ -933,7 +933,7 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     resolution: "RECLASSIFIED",
     guard: BAND,
     motive:
-      "El vocabulario versionado es explícito y bilingüe (fail-closed, mutación, nunca, rechaza, rompe, refuses, breaks) y por eso reconoce más nombres que el recuento original. Como el criterio está escrito, la cifra es auditable.",
+      "El vocabulario versionado es explícito y bilingüe (fail-closed, mutación, nunca, rechaza, rompe, refuses, breaks) y por eso reconoce más nombres que el recuento original. El ancla histórica era 180; antes de esta PR el corpus ya había acumulado 225 nombres reconocidos. TEST-GLOBAL-08/frontend aporta exactamente +1 mediante G06-F09 (frontend-login-page.test.ts, nombre con 'never') y deja el ancla vigente en 226. Se distingue el drift pre-PR de su delta verificable, sin ampliar la tolerancia ni excluir specs.",
   },
   // ── §13 determinismo ──────────────────────────────────────────────────────
   {

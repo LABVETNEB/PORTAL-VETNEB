@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
+import { effectiveAttribute, evaluate, jsxElements, parseTsx, staticAttribute, tagName } from "../dashboard/dashboard-source-oracle.ts";
 
 const LOGIN_CONTENT_PATH = "frontend/src/components/public/LoginContent.tsx";
 const LOGIN_PAGE_PATH = "frontend/src/app/login/page.tsx";
@@ -119,4 +120,26 @@ test("frontend login content allows toggling clinic password visibility", () => 
   assert.ok(source.includes('aria-controls="password"'));
   assert.ok(source.includes('data-auth-credential-visibility-toggle="true"'));
   assert.ok(source.includes('className="public-cta-primary w-full"'));
+});
+
+test("TEST-GLOBAL-08 G06-F07 kills M-F03 by preserving the hidden password type", () => {
+  const source = read(LOGIN_CONTENT_PATH);
+  const input = (candidate: string) => jsxElements(parseTsx(candidate, LOGIN_CONTENT_PATH)).find(
+    (element) => tagName(element) === "Input" && staticAttribute(element, "data-auth-credential-input") === "true",
+  );
+  const type = (candidate: string, visible: boolean) => {
+    const credentialInput = input(candidate);
+    assert.ok(credentialInput, "credential input must exist");
+    const value = effectiveAttribute(credentialInput, "type");
+    assert.equal(value.kind, "value");
+    return evaluate(value.expression, { isPasswordVisible: visible });
+  };
+  assert.equal(type(source, false), "password");
+  assert.equal(type(source, true), "text");
+  const mutant = source.replace(
+    'type={isPasswordVisible ? "text" : "password"}',
+    'type={isPasswordVisible ? "text" : "password"} {...{ type: "text" }}',
+  );
+  assert.notEqual(mutant, source, "M-F03 must be applicable");
+  assert.equal(type(mutant, false), "text", "M-F03 overrides the hidden password type");
 });

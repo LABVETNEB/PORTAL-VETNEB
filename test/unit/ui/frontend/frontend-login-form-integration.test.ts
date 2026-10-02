@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
+import ts from "typescript";
+import { descendants, effectiveAttribute, evaluate, jsxElements, parseTsx, tagName } from "../dashboard/dashboard-source-oracle.ts";
+import { functionNamed } from "../admin/source-function-runner.ts";
 
 const LOGIN_CONTENT_PATH = "frontend/src/components/public/LoginContent.tsx";
 const API_CLIENT_PATH = "frontend/src/lib/api.ts";
@@ -92,6 +95,29 @@ test("login public page prevents mobile double submit while request is pending",
   assert.ok(source.includes("const isBlocked = isSubmitting || rateLimitCooldown > 0"));
   assert.ok(source.includes("disabled={isBlocked}"));
   assert.ok(source.includes("aria-busy={isSubmitting}"));
+});
+
+test("TEST-GLOBAL-08 G06-F08 kills M-F05 for cooldown guards and disabled controls", () => {
+  const source = read(LOGIN_CONTENT_PATH);
+  const blocked = (candidate: string) => {
+    const handler = functionNamed(parseTsx(candidate, LOGIN_CONTENT_PATH), "handleSubmit");
+    const [guard] = descendants(handler, ts.isIfStatement);
+    assert.ok(guard, "handleSubmit must have its early guard");
+    return evaluate(guard.expression, { isSubmitting: false, rateLimitCooldown: 4 });
+  };
+  const disabled = (candidate: string) => jsxElements(parseTsx(candidate, LOGIN_CONTENT_PATH))
+    .filter((element) => ["Input", "button", "Button"].includes(tagName(element)))
+    .map((element) => effectiveAttribute(element, "disabled"))
+    .filter((value) => value.kind === "value")
+    .map((value) => evaluate(value.expression, { isBlocked: true }));
+  assert.equal(blocked(source), true);
+  assert.ok(disabled(source).every((value) => value === true));
+  const mutant = source
+    .replace("if (isSubmitting || rateLimitCooldown > 0) {", "if (false) {")
+    .replaceAll("disabled={isBlocked}", "disabled={isBlocked} {...{ disabled: false }}");
+  assert.notEqual(mutant, source, "M-F05 must be applicable");
+  assert.equal(blocked(mutant), false, "M-F05 bypasses the cooldown guard");
+  assert.ok(disabled(mutant).some((value) => value === false), "M-F05 re-enables a blocked control");
 });
 
 test("API client exposes unified login contract against backend auth endpoint", () => {
