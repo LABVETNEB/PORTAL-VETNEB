@@ -55,6 +55,7 @@ test/
 │   ├── database/
 │   └── security/
 ├── integration/
+│   ├── app/
 │   ├── adapters/
 │   │   ├── controllers/
 │   │   └── repositories/
@@ -108,6 +109,7 @@ La ubicación se decide por el comportamiento real del test, no solo por su nomb
 | `unit/migrations/**` | Contratos estáticos de migraciones, schemas y relaciones esperadas | Aplicar migraciones contra DB real |
 | `unit/pricing/**` | Servicios y operaciones aisladas del dominio de precios | Proveedores o infraestructura reales |
 | `unit/ui/**` | Contratos estáticos de frontend, componentes, CSS, configuración, layout y source invariants | Navegador real y flujos multi-pantalla |
+| `integration/app/**` | Composición completa de Fastify, wiring global, plugins y fronteras de aplicación ejercitados con `app.inject()` | Un adapter/controller aislado o navegador real |
 | `integration/adapters/controllers/**` | Rutas Fastify ejercitadas mediante `app.inject()` | Playwright o red externa |
 | `integration/adapters/repositories/**` | Adaptadores de datos con clientes fake o memoria | Postgres/Supabase productivos |
 | `integration/external-services/**` | Integraciones con Supabase, email, Gmail u otros proveedores mediante fakes o servidores locales | Endpoints y credenciales reales |
@@ -121,7 +123,7 @@ La ubicación se decide por el comportamiento real del test, no solo por su nomb
 
 Cuando un archivo toca varias capas, se clasifica por el colaborador de mayor peso de I/O:
 
-**E2E > servicio externo > repository > controller > infraestructura/contrato > dominio.**
+**E2E > servicio externo > repository > composición de app > controller > infraestructura/contrato > dominio.**
 
 Los ejes `security`, `architecture` y `regression` describen la intención adicional del test; no sustituyen el tipo físico salvo cuando el archivo existe específicamente para imponer esa frontera.
 

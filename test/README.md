@@ -38,6 +38,7 @@ test/
 │   ├── database/
 │   └── security/
 ├── integration/
+│   ├── app/
 │   ├── adapters/
 │   │   ├── controllers/
 │   │   └── repositories/
@@ -89,6 +90,7 @@ No se duplica Playwright bajo `test/e2e`.
 | `unit/migrations/**` | Contratos estáticos de migraciones y schemas |
 | `unit/pricing/**` | Servicios y operaciones aisladas del dominio de precios |
 | `unit/ui/**` | Contratos estáticos de frontend, componentes, CSS, layout, configuración y source |
+| `integration/app/**` | Composición completa de Fastify, wiring global, plugins y fronteras de aplicación ejercitados con `app.inject()` |
 | `integration/adapters/controllers/**` | Fastify mediante `app.inject()` |
 | `integration/adapters/repositories/**` | Acceso a datos con clientes fake o memoria |
 | `integration/external-services/**` | Supabase, email, Gmail u otros proveedores mediante fakes |

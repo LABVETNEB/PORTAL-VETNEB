@@ -1424,7 +1424,7 @@ confianza en el rojo**, no de performance.
 | `TG-R11` | `OVER_SPECIFICATION` | **P2** | Difusión de ownership: 50 archivos de producción con ≥11 guards; `api.ts` con 45 | §23 |
 | `TG-R12` | `FIXTURE_DRIFT` | **P2** | `fastify-app-route-stubs.ts` (762 LOC, 2 consumidores) y `dashboard-operational-contract.ts` (552 LOC, 1) sobre-especializados | §12.1 |
 | `TG-R13` | `STALE_GUARD` (coste) | **P3** | **498** assertions de censo congelado en **134** archivos (426/116 en el censo line-scoped original, §20); `M48` con triple fuente de verdad | §20 |
-| `TG-R14` | `DOCUMENTATION_DRIFT` | **P3** | **Histórico:** el árbol canónico de `test/README.md` documentaba 2 paths ausentes y omitía `unit/application`, `unit/clinics`, `unit/pricing`. La reconciliación post-close realineó README y convención con el árbol actual | §18, §33 |
+| `TG-R14` | `DOCUMENTATION_DRIFT` | **P3** | **Histórico:** el árbol canónico de `test/README.md` documentaba 2 paths ausentes y omitía `unit/application`, `unit/clinics`, `unit/pricing` e `integration/app`. La reconciliación post-close realineó README y convención con el árbol actual | §18, §33 |
 | `TG-R15` | `NONDETERMINISM` | **P3** | 8 de 11 archivos mutan `process.env` sin restaurar (acotado a intra-archivo por aislamiento de proceso) | §13.2 |
 | `TG-R16` | `WEAK_ASSERTION` | **P3** | Inconsistencia de normalización CRLF: 295 normalizan, 36 lectores no | §13.1 |
 
@@ -1630,11 +1630,12 @@ montar una DB, o convertir cualquiera de esos fallos en `skip` o en `PASSED`.
 | `TEST-GLOBAL-12A` | Publicación documental del baseline de coverage con su salvedad | docs-only | R1 | — | 04, 08 |
 | `TEST-GLOBAL-12B` | Incorporación de `test:coverage` a CI como diagnóstico no bloqueante | ci-only | **R2** | **Nico, explícita** | 12A |
 | `TEST-GLOBAL-13` | Gobernanza, documentación y certificación de cierre | docs-only | R1 | — | todas |
+| `TEST-GLOBAL-14` | Fortalecimiento de `G06-C01` contra `M-C01` | test-only | R1 | — | 06; decisión docs-only de Nico; owner de ejecución asignado |
 
 ```text
-FASES LÓGICAS  = 13   (TEST-GLOBAL-01 … 13)
-SUBFASES       = 19   (por los splits de 01, 05, 10 y 12)
-PRs            > 19   (04 entrega 1 PR por contrato; 07/08, 1 por subdominio;
+FASES LÓGICAS  = 14   (TEST-GLOBAL-01 … 14)
+SUBFASES       = 20   (por los splits de 01, 05, 10 y 12, más 14)
+PRs            ≥ 20   (04 entrega 1 PR por contrato; 07/08, 1 por subdominio;
                        05A y 10B, por lotes)
 ```
 
@@ -2336,21 +2337,25 @@ Nico conserva la autoridad de decisión. `RES-06-03` requiere una nueva fase
 ejecutable; su definición siguiente no asigna un owner de ejecución ni la
 autoriza, por lo que ninguno de los dos residuales cierra §36.12.
 
-**Fase ejecutable sugerida — `TEST-GLOBAL-14` (no iniciada):**
+### TEST-GLOBAL-14 — Fortalecimiento de `G06-C01` contra `M-C01` (propuesta, no iniciada)
 
-| Campo | Definición |
-|---|---|
-| Objetivo | Fortalecer `G06-C01` para detectar `M-C01` de forma fail-closed, si la readjudicación de Nico confirma `STRENGTHEN`. |
-| Tipo de scope | test-only |
-| Paths permitidos | `test/unit/contracts/clinic/frontend-clinic-public-profile.test.ts` y los tests de soporte estrictamente necesarios para su mutation proof. |
-| Riesgo | R1 |
-| Dependencia | Decisión docs-only de Nico sobre `RES-06-03` y asignación explícita de owner de ejecución. |
-| Aceptación | `M-C01` deja el contrato en rojo; el caso original conserva su comportamiento; no se debilita ningún guard. |
-| Gates | Test dirigido del contrato y `pnpm validate:local`, según la matriz backend de `AGENTS.md` §6. |
-| Rollback | Revertir exclusivamente el commit de la fase restaura el contrato previo. |
+- **ID**: `TEST-GLOBAL-14`.
+- **Objetivo**: fortalecer `G06-C01` para detectar `M-C01` de forma fail-closed, si la decisión docs-only de Nico confirma `STRENGTHEN`.
+- **Tipo de scope**: test-only.
+- **Paths permitidos**: exclusivamente `test/unit/contracts/clinic/frontend-clinic-public-profile.test.ts`.
+- **No-scope**: `test/unit/ui/**`, `frontend/**`, `server/**`, `scripts/**`, `drizzle/**`, `.github/**`, `docs/**`, manifests de paquetes, lockfiles, DB, secretos, runtime, CI y E2E.
+- **Riesgo**: R1.
+- **Autorización**: —. La decisión de gobernanza sobre `RES-06-03` no es una autorización R2/R3.
+- **Dependencias**: `06`; decisión docs-only de Nico sobre `RES-06-03`; owner de ejecución asignado.
+- **Aceptación**: `M-C01` deja el contrato en rojo; el caso original conserva su comportamiento; ningún guard pierde poder de detección.
+- **Gates**: test dirigido del contrato y `pnpm validate:local`, según la matriz backend de `AGENTS.md` §6.
+- **Rollback**: revertir exclusivamente el commit de la fase restaura el contrato previo.
+- **Output**: strengthening test-only de `G06-C01` con mutation proof `M-C01` fail-closed y evidencia dirigida de original `PASS` / mutant `FAIL`.
+- **Coste**: bajo-medio.
 
-La fase es `NEW_EXECUTABLE_PHASE_REQUIRED`, no una fase fusionada ni una
-aceptación de `RES-06-03`.
+La fase está `BLOCKED` y `NOT_STARTED`: no está fusionada, no tiene owner de
+ejecución ni autoriza implementación. Registrarla elimina la ausencia de fase,
+pero no constituye aceptación de `RES-06-03`.
 
 #### Snapshot histórico de no cierre de `13` (2026-10-01; revalidado el 2026-10-02)
 
@@ -2392,6 +2397,7 @@ resuelta (`TG-A07`).
                          ├──────────────┘  (11 ← 05A y 11 ← 01B)
                          │
                          ├──► 06 ──► 07 ──► 08 ──┬──► 12A ──► 12B ──┐
+                         │                         └──► 14 ──────────┤
                          │                       │                  │
                          └──► 09 ──► 10A ──┬──► 10B ──┐              │
                                            │          │              │
@@ -2412,11 +2418,12 @@ Relaciones, en forma de lista inequívoca:
 02  → 04
 05A → 05B · 06 · 09 · 11
 06  → 07 → 08
+06  → 14 → 13
 09  → 10A
 10A → 10B · 10C
 10C → 10D
 04 + 08 → 12A → 12B
-03 · 04 · 05B · 07 · 08 · 10B · 10D · 11 · 12A · 12B → 13
+03 · 04 · 05B · 07 · 08 · 10B · 10D · 11 · 12A · 12B · 14 → 13
 ```
 
 - `11` tiene **dos** predecesores: `05A` (lector canónico) y `01B` (su censo
@@ -2426,6 +2433,9 @@ Relaciones, en forma de lista inequívoca:
   autoriza, `13` depende de `12A` y registra `12B` como `accepted defer`.
 - `13` depende de **todas** las subfases ejecutables, no sólo de la rama de
   `12`. `03`, `05B`, `10D` y `11` alimentan el cierre directamente.
+- `14` nace del residual técnico de `06`. Su ejecución requiere antes la
+  decisión docs-only y el owner nombrado en §31.1; cuando llegue a ejecutarse,
+  su evidencia es precondición de una nueva evaluación de `13`.
 
 **Paralelizables sin conflicto**: `02 ∥ 03`, `09 ∥ 11`, `10B ∥ 10C`,
 y los lotes internos de `05A` entre sí, y los PRs de `04` entre sí.
@@ -2448,6 +2458,7 @@ un cast cuya costura no existe).
 | ídem | `LEGITIMATE_GUARD` 332 / `MIXED` 38 | **HISTORICAL** | Criterio distinto del de §7.3 |
 | ídem | Helper canónico `listSourceFiles` | **CURRENT** | Existe y funciona; adopción baja (**8** importadores, recomputado sobre §3.2) |
 | `test/README.md` | Árbol canónico con `integration/adapters/repositories` y `integration/external-services` | **HISTORICAL** | En el baseline previo a #1805 ambos paths estaban ausentes (§18). #1805 creó tests en ambos; el README y la convención describen ahora el árbol actual. |
+| `test/README.md` y convención | `integration/app/**` omitido pese a dos specs tracked de composición Fastify | **HISTORICAL** | La reconciliación post-close lo registra como categoría canónica; `fastify-app.test.ts` y `e2e-global-03b-authoritative-auth-boundary.fastify.test.ts` cubren composición de aplicación y frontera auth con `app.inject()`. |
 | `test/README.md` | `test/*.test.ts` = 0 | **CURRENT** | Verificado |
 | `docs/audit/LIMPIEZA E2E.md` | `CLOSED`, last verified 2026-09-21 | **CURRENT** | No se reabre |
 
@@ -2473,9 +2484,9 @@ reabre** aquel programa.
 Regla de `AGENTS.md` §4 aplicada: un scope primario, una causa, un rollback.
 
 ```text
-FASES LÓGICAS = 13   (TEST-GLOBAL-01 … 13)
-SUBFASES      = 19   (splits de 01, 05, 10 y 12)
-PRs           ≥ 19   (04 entrega 1 PR por contrato; 07/08, 1 por subdominio;
+FASES LÓGICAS = 14   (TEST-GLOBAL-01 … 14)
+SUBFASES      = 20   (splits de 01, 05, 10 y 12, más 14)
+PRs           ≥ 20   (04 entrega 1 PR por contrato; 07/08, 1 por subdominio;
                       05A y 10B, por lotes)
 ```
 
@@ -2506,6 +2517,7 @@ final la conserva como evidencia de `08` y no altera los criterios de §36.
 | 12A | docs-only | Baseline de coverage con salvedad metodológica | R1 | No |
 | 12B | ci-only | `test:coverage` en CI, no bloqueante — **default: no ejecutar** | **R2** | **Sí** |
 | 13 | docs-only | Certificación de cierre | R1 | No |
+| 14 | test-only | Fortalecer `G06-C01` contra `M-C01` | R1 | No; requiere decisión docs-only y owner de ejecución |
 
 ### Matriz final de aceptación (recomputada el 2026-10-02)
 
@@ -2535,6 +2547,7 @@ medición de coverage incompleta.
 | 12A | `TEST-GLOBAL-12A` | #1807; accepted defer de DB aislada, owner Nico, 2026-10-01 | `BLOCKED` |
 | 12B | `TEST-GLOBAL-12B` | #1808; coverage CI diagnóstico no bloqueante | `PASSED` |
 | 13 | `TEST-GLOBAL-13` | Anexo D; censo 01B sobre `main@1947178`; §36.12/§36.13 bloqueados por `RES-06-02` y `RES-06-03` | `BLOCKED` |
+| 14 | `TEST-GLOBAL-14` | No iniciada: pendiente decisión docs-only, owner de ejecución y autorización de trabajo sobre `RES-06-03` | `BLOCKED` |
 
 Matriz de aceptación transversal — toda fase debe cumplir:
 
@@ -4503,7 +4516,7 @@ TECHNICAL_P1: 4       TG-R03 · TG-R04 · TG-R05 · TG-R06 — CERRADOS
                       (03, 04, 06, 07, 08 y 11; TG-R05 = 17/17)
 OPEN ACTUAL:  0 de los riesgos P0/P1 del programa
 
-ROADMAP: 13 fases lógicas completadas o evaluadas · `TEST-GLOBAL-14` propuesto,
+ROADMAP: 14 fases lógicas: 13 completadas o evaluadas · `TEST-GLOBAL-14` propuesto,
          no iniciado · no-cierre reconciliado en 2026-10-02
 ```
 
