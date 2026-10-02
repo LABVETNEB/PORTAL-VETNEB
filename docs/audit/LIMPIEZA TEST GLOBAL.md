@@ -7,27 +7,27 @@
 | Documento | LIMPIEZA TEST GLOBAL |
 | Tipo | Auditoría técnica global de caja blanca del subsistema de tests no-E2E |
 | Repositorio | PORTAL-VETNEB |
-| Alcance | `test/**` (562 specs ejecutables). `frontend/e2e/**` sólo como frontera |
-| Estado | ACTIVE |
+| Alcance | `test/**` (baseline histórico: 562 specs; censo final 01B: 567 clasificados). `frontend/e2e/**` sólo como frontera |
+| Estado | CLOSED |
 | Propósito | Fuente rectora **autosuficiente** del programa de saneamiento `TEST-GLOBAL-*` |
-| Implementación | IN_PROGRESS — estado por fase en el [Veredicto](#veredicto) (verificado sobre `main@6c751512`). Esta auditoría no implementa ninguna fase |
+| Implementación | COMPLETE — cierre de `TEST-GLOBAL-13` verificado sobre `main@1947178a1a2f127d91cdf86b552a6514f15cbc5e` (2026-10-02). Esta auditoría no implementa ninguna fase |
 | Revisión | R2 — diagnóstico original + reauditoría de gobernanza aplicada (§37) |
 
 ### Metadata de lifecycle
 
 | Campo | Valor |
 |---|---|
-| Document owner | QA / Backend owner |
+| Document owner | `@LABVETNEB` (CODEOWNERS `/docs/**`; modelo single-maintainer) |
 | Domain | Arquitectura de tests no-E2E: `test/**`, helpers, fixtures, factories, mocks, guards de arquitectura, CI backend |
-| Lifecycle status | ACTIVE |
+| Lifecycle status | CLOSED |
 | Authoritative source role | Diagnóstico y roadmap del programa `TEST-GLOBAL-*`. No es el mapa operativo de CI (ese es [CI_PR_CHECKS_RUNBOOK.md](../ops/CI_PR_CHECKS_RUNBOOK.md)) ni la norma de organización física (esa es [test-suite-enterprise-organization-convention.md](../implementation/test-suite-enterprise-organization-convention.md)) |
 | Effective date | 2026-09-21 |
-| Last verified date | 2026-09-27 (cierre documental de `TEST-GLOBAL-04` verificado sobre `main@6c751512`) |
-| Review cadence | Por fase `TEST-GLOBAL-*` cerrada |
+| Last verified date | 2026-10-02 (certificación final `TEST-GLOBAL-13` sobre `main@1947178a1a2f127d91cdf86b552a6514f15cbc5e`) |
+| Review cadence | Ante cambio material del censo, de los guards, de los accepted defers o de los paths gobernados |
 | Supersedes | Ninguno. Reclasifica cifras de `TDR-002` y de `pr-test-architecture-consolidation-audit.md` como históricas (§33) |
 | Superseded by | Ninguno |
 | Related controls or gaps | `TDR-002`; `ERM-CTRL-011`; `ERM-CTRL-012`; `ERM-CTRL-025`; `ERM-QLT-001` |
-| Evidence or approval reference | Auditoría técnica R0 sobre `main@ee8e7425f911b4b49848957bff52242aa95158e2`; reauditoría de gobernanza R0 y reverificación de censos sobre `main@38fe1dfe12423454b3c48f1b139a5775e4b9d388` (§3, §37); cierre agregado de `TEST-GLOBAL-04` verificado sobre `main@6c7515124ec359ce1067a4ebb94691ed7fc213d9`, con #1783 y #1784 fusionadas |
+| Evidence or approval reference | Auditoría técnica R0 sobre `main@ee8e7425f911b4b49848957bff52242aa95158e2`; reauditoría de gobernanza R0 sobre `main@38fe1dfe12423454b3c48f1b139a5775e4b9d388` (§3, §37); certificación final en [Anexo D](#anexo-d--certificación-final-de-test-global-13-2026-10-02), incluido censo 01B `PASSED` sobre `main@1947178a1a2f127d91cdf86b552a6514f15cbc5e` |
 | Autosuficiencia | Este documento **no depende de ningún prompt, encargo ni conversación externa**. Toda definición normativa que necesita una fase está transcrita aquí (§31.0, §31.6) |
 
 > **Vigencia y reproducibilidad de las cifras.** El diagnóstico técnico se midió
@@ -2313,11 +2313,28 @@ pnpm test:coverage = BLOCKED  → la corrida es incompleta (DB ausente, §31.0)
 - **No-scope**: `test/**` salvo su `README.md`; cualquier corrección de test —si al cerrar aparece una, es una fase nueva, no un añadido a `13`.
 - **Riesgo**: R1. **Autorización**: no requiere.
 - **Dependencias**: **todas** las subfases ejecutables, por las ramas del DAG de §32. `13` no puede declararse antes que `03`, `10D` ni `11`, aunque ninguna de las tres alimente a `12`.
-- **Aceptación**: los nueve criterios de §36, cada uno con su evidencia y su estado canónico; matriz de §34 completa; residuales de §35 con owner y motivo; ledger de §37 cerrado.
+- **Aceptación**: los trece criterios de §36, cada uno con su evidencia y su estado canónico; matriz de §34 completa; residuales de §35 con owner y motivo; ledger de §37 cerrado.
 - **Gates**: `git diff --check` → `PASSED`. Censo recomputado → `PASSED`.
 - **Rollback**: revertir el commit devuelve el documento a `ACTIVE`. Ningún artefacto ejecutable depende de este PR.
 - **Output**: programa certificado como `CLOSED` o con sus `accepted defer` declarados.
 - **Coste**: medio.
+
+#### Snapshot histórico de no cierre de `13` (2026-10-01; superado el 2026-10-02)
+
+Verificado entonces sobre `main@fdb69871dafad5ca820241fa9f8fb92943fe072a`. El programa
+permanecía `ACTIVE`: no se marcaba `CLOSED`, no se actualizaba `TDR-002` a resuelto y no se
+añadía el anexo de cierre hasta satisfacer los 13 criterios de §36.
+
+| Criterio bloqueado | Evidencia faltante | Owner | Siguiente acción |
+|---|---|---|---|
+| §36.2 — los cuatro P1 cerrados | `TEST-GLOBAL-08` sólo completó el subdominio `admin` (15/32 `STRENGTHEN`, #1795). Faltan las 9 filas de `frontend` y las 8 de `public` de C.7/C.8, cada una con su mutation proof fail-closed. | QA / Frontend owner | Completar los dos subdominios pendientes de `08` en PRs test-only separados; no reinterpretar `STRENGTHEN` sin una readjudicación docs-only previa. |
+| §36.12 — residuales y ledger | §35 todavía enumera residuales sin owner individual verificable. | Nico (asignación de gobernanza) | Asignar owner y decisión a cada residual en una actualización documental posterior a los cierres ejecutables. |
+| §36.13 — documento `CLOSED` con anexo | Depende de que los criterios 1–12 estén satisfechos. | `TEST-GLOBAL-13` | Reauditar 13/13 sólo después de cerrar los dos puntos anteriores. |
+
+Este snapshot fue correcto en su fecha. Quedó superado por #1809 y #1810 (los 17
+`STRENGTHEN` restantes de `08`) y por la asignación verificable de owners de §35;
+la evidencia de cierre actual está en el Anexo D. No se reescribe como si la
+evidencia posterior hubiera existido el 2026-10-01.
 
 ## 32. Dependencias entre fases
 
@@ -2426,8 +2443,11 @@ PRs           ≥ 19   (04 entrega 1 PR por contrato; 07/08, 1 por subdominio;
                       05A y 10B, por lotes)
 ```
 
-**Ninguna subfase de este roadmap invoca la excepción mixed-scope.** Cada fila
-tiene exactamente un scope primario, una causa y un rollback.
+El diseño del roadmap no invoca la excepción mixed-scope. La evidencia final
+registra una excepción histórica: #1795 incluyó remediación de dependencias y
+su nota documental junto con `08/admin`, bajo instrucción explícita citada por
+esa PR. No se reinterpreta como test-only ni se repite como patrón; la matriz
+final la conserva como evidencia de `08` y no altera los criterios de §36.
 
 | Subfase | Tipo de PR (scope único) | Objeto | Riesgo | ¿Autorización de Nico? |
 |---|---|---|---|---|
@@ -2451,6 +2471,35 @@ tiene exactamente un scope primario, una causa y un rollback.
 | 12B | ci-only | `test:coverage` en CI, no bloqueante — **default: no ejecutar** | **R2** | **Sí** |
 | 13 | docs-only | Certificación de cierre | R1 | No |
 
+### Matriz final de aceptación (recomputada el 2026-10-02)
+
+La matriz de planificación anterior conserva los scopes normativos. Esta tabla
+registra la evidencia efectivamente fusionada, su fase dueña y el estado
+canónico de cierre. `12A` cierra por su `accepted defer` explícito, no por una
+medición de coverage incompleta.
+
+| Subfase | Fase dueña | Evidencia fusionada o aceptada | Estado canónico |
+|---|---|---|---|
+| 01A | `TEST-GLOBAL-01A` | #1761; alta documental del programa | `PASSED` |
+| 01B | `TEST-GLOBAL-01B` | #1762; contrato y tooling de censo versionados | `PASSED` |
+| 02 | `TEST-GLOBAL-02` | #1763; IDOR dereferenciado con negative proof | `PASSED` |
+| 03 | `TEST-GLOBAL-03` | #1764/#1765; launcher win32 y oracle cross-platform | `PASSED` |
+| 04 | `TEST-GLOBAL-04` | #1763, #1766–#1768, #1773–#1784 y #1785; 14/14 guards de su alcance | `PASSED` |
+| 05A | `TEST-GLOBAL-05A` | #1786–#1789; lector canónico y migración | `PASSED` |
+| 05B | `TEST-GLOBAL-05B` | #1792; baseline de lint para `test/**` | `PASSED` |
+| 06 | `TEST-GLOBAL-06` | #1793; 66/66 candidatos adjudicados | `PASSED` |
+| 07 | `TEST-GLOBAL-07` | #1794; 16 `STRENGTHEN` dashboard | `PASSED` |
+| 08 | `TEST-GLOBAL-08` | #1795 (admin 15/15), #1809 (frontend 9/9), #1810 (public 8/8) | `PASSED` |
+| 09 | `TEST-GLOBAL-09` | #1805; repositories y external-services | `PASSED` |
+| 10A | `TEST-GLOBAL-10A` | #1798; seams inyectables | `PASSED` |
+| 10B | `TEST-GLOBAL-10B` | #1799; doubles tipados y casts retirados | `PASSED` |
+| 10C | `TEST-GLOBAL-10C` | #1801; registro Fastify tipado | `PASSED` |
+| 10D | `TEST-GLOBAL-10D` | #1803; rutas sin cast de registro | `PASSED` |
+| 11 | `TEST-GLOBAL-11` | #1806; registry único y 3/3 mutation proofs de inventario | `PASSED` |
+| 12A | `TEST-GLOBAL-12A` | #1807; accepted defer de DB aislada, owner Nico, 2026-10-01 | `BLOCKED` |
+| 12B | `TEST-GLOBAL-12B` | #1808; coverage CI diagnóstico no bloqueante | `PASSED` |
+| 13 | `TEST-GLOBAL-13` | Anexo D; censo 01B sobre `main@1947178` | `PASSED` |
+
 Matriz de aceptación transversal — toda fase debe cumplir:
 
 | Criterio | Verificación |
@@ -2469,16 +2518,22 @@ Matriz de aceptación transversal — toda fase debe cumplir:
 
 ## 35. Residuales explícitos
 
-| Residual | Motivo |
-|---|---|
-| Evidencia runtime de cross-tenant en staging | R3; `AGENTS.md` §17. `TEST-GLOBAL-02` cierra el oracle circular, **no** produce la evidencia de staging |
-| Tests contra DB real | R3; `AGENTS.md` §14. Fuera de todo el programa |
-| Mutation testing con herramienta externa | Deliberadamente descartado (§11.2) |
-| Thresholds de coverage | Fuera de scope; `TDR-004` lo mantiene como decisión separada |
-| Runner de componentes React | No se propone. Cambiaría la arquitectura de test del frontend; exige auditoría propia |
-| `frontend/e2e/**` | `LIMPIEZA E2E` CLOSED. No se reabre |
-| Fila de este documento en `docs/audit/README.md` | Resuelto por `TEST-GLOBAL-01A` (#1761): la fila existe con estado `ACTIVE` |
-| Migración monorepo | `AGENTS.md` §18; política futura, no autorizada |
+Todos los residuales tienen un owner efectivo verificable: `@LABVETNEB` es el
+fallback `*` y titular de los paths en `.github/CODEOWNERS`; el modelo de
+ownership confirma que es la única cuenta maintainer efectiva. Esto asigna
+accountability, no simula segregación de funciones. Ningún residual se presenta
+como un criterio cerrado por `PASSED` si su trabajo no pertenece a este programa.
+
+| ID | Residual | Motivo | Owner | Evidencia de owner | Decisión | Estado |
+|---|---|---|---|---|---|---|
+| `RES-35-01` | Evidencia runtime cross-tenant en staging | R3; `AGENTS.md` §17. `02` cierra el oracle circular, no la evidencia desplegada | `@LABVETNEB` | CODEOWNERS `*`; ownership model, fallback del repositorio | Mantener fuera del programa; abrir operación R3 sólo con tarea, entorno y autorización propios | `NOT_RUN` |
+| `RES-35-02` | Tests contra DB real | R3; `AGENTS.md` §14. Fuera de todo el programa | `@LABVETNEB` | CODEOWNERS `*`; ownership model, fallback del repositorio | Mantener fuera del programa | `NOT_RUN` |
+| `RES-35-03` | Mutation testing con herramienta externa | Deliberadamente descartado (§11.2) | `@LABVETNEB` | CODEOWNERS `/test/**`; ownership model, test architecture | No adoptar herramienta externa en este programa | `NOT_RUN` |
+| `RES-35-04` | Thresholds de coverage | Fuera de scope; `TDR-004` conserva la decisión separada | `@LABVETNEB` | CODEOWNERS `/package.json` y `/test/**`; ownership model | Resolver sólo en una fase separada de policy/coverage | `NOT_RUN` |
+| `RES-35-05` | Runner de componentes React | No se propone; modificaría la arquitectura de tests frontend | `@LABVETNEB` | CODEOWNERS `/frontend/**` y `/test/**`; ownership model | Requiere auditoría de arquitectura propia | `NOT_RUN` |
+| `RES-35-06` | `frontend/e2e/**` | `LIMPIEZA E2E` está `CLOSED`; no se reabre | `@LABVETNEB` | CODEOWNERS `/frontend/**`; ownership model | Preservar la frontera del programa | `NOT_RUN` |
+| `RES-35-07` | Fila de este documento en `docs/audit/README.md` | Resuelta por `01A` (#1761); el estado debía realinearse al cierre | `@LABVETNEB` | CODEOWNERS `/docs/**`; ownership model | Actualizar la fila a `CLOSED` en este cierre documental | `PASSED` |
+| `RES-35-08` | Migración monorepo | `AGENTS.md` §18: política futura, no autorizada | `@LABVETNEB` | CODEOWNERS `*`; ownership model, fallback del repositorio | Mantener fuera del programa | `NOT_RUN` |
 
 ## 36. Criterio de cierre del programa
 
@@ -4386,57 +4441,109 @@ Para el escape a nivel suite, repetir con `MUT_MODE=mut` sobre cada spec de `git
 
 ```text
 LIMPIEZA TEST GLOBAL
-STATUS:               ACTIVE
+STATUS:               CLOSED
 PRIMARY_AUDIT:        COMPLETE        (diagnóstico técnico, §§6-29)
 GOVERNANCE_REAUDIT:   COMPLETE        (§37, 13 hallazgos TG-A)
 ROADMAP_GOVERNANCE:   CORRECTED       (13/13 TG-A en CORRECTED_IN_THIS_REVISION)
-IMPLEMENTATION:       IN_PROGRESS     (baseline de esta adjudicación: main@bac0986a, 2026-09-29)
+IMPLEMENTATION:       COMPLETE        (certificada en Anexo D sobre main@1947178, 2026-10-02)
 
-COMPLETED:    01A #1761 · 01B #1762 · 02 #1763 · 03 #1765 (sobre el fix de launcher #1764)
-              04  CLOSED: dimensión A cumplida (#1763 #1766 #1767 #1768); dimensión B
-                  14/14 MUTATION_PROOF_PRESENT: 12 originales (#1763 #1766 #1767
-                  #1773–#1781) + validation-cutoff (#1783) + write-attribution (#1784);
-                  0 accepted defer; 0 pendientes propiedad de 04
-              05A #1789 · 05B #1792
-              06  COMPLETE_IN_THIS_PR: 66/66 adjudicados en C.2–C.11; la
-                  efectividad canónica en `main` queda condicionada al merge de #1793
+COMPLETED:    01A #1761 · 01B #1762 · 02 #1763 · 03 #1764/#1765 · 04 #1763,
+              #1766–#1785 · 05A #1786–#1789 · 05B #1792 · 06 #1793 · 07 #1794
+              · 08 #1795/#1809/#1810 · 09 #1805 · 10A #1798 · 10B #1799 ·
+              10C #1801 · 10D #1803 · 11 #1806 · 12B #1808 · 13 Anexo D
 ACCEPTED_DEFER: 12A — DB aislada `portal_vetneb_ci` ausente; owner Nico,
-                2026-10-01 (§21.2). No publica baseline canónico ni inicia 12B/13.
-IN_PROGRESS:  ninguna
-PENDING:      07 · 08 · 09 · 10A · 10B · 10C · 10D · 11 · 12B · 13
-              (11 posee los 3 meta-guards de TG-R05, MUTATION_PROOF_PENDING)
+                2026-10-01 (§21.2). No publica baseline canónico; satisface
+                §36.10 por la vía explícita de defer.
+PENDING:      ninguna
 
-TECHNICAL_P0: 2       TG-R01 · TG-R02                       — CERRADOS (02, #1763)
-TECHNICAL_P1: 4       TG-R04                                — CERRADO  (03, #1765)
-                      TG-R05                                — ABIERTO, parcial: 14/17 (04: 14/14 cumplidos;
-                                                              11: 0/3, pendientes los 3 meta-guards)
-                      TG-R03 · TG-R06                       — ABIERTOS (07, 08; 06 adjudicada)
-TECHNICAL_P2: 6       TG-R07 … TG-R12                       — ABIERTOS
-TECHNICAL_P3: 4       TG-R13 … TG-R16                       — ABIERTOS
-OPEN ACTUAL:  13 de 16
+TECHNICAL_P0: 2       TG-R01 · TG-R02 — CERRADOS (02, #1763)
+TECHNICAL_P1: 4       TG-R03 · TG-R04 · TG-R05 · TG-R06 — CERRADOS
+                      (03, 04, 06, 07, 08 y 11; TG-R05 = 17/17)
+OPEN ACTUAL:  0 de los riesgos P0/P1 del programa
 
-ROADMAP:  13 fases lógicas · 19 subfases · PRs >= 19
-R2 FUTUROS (autorización explícita de Nico):  10A · 10C · 12B
-NEXT:     TEST-GLOBAL-07 (remediación `unit/ui/dashboard`, test-only, R1),
-          después del merge de #1793. Entry criterion: las 16 filas `STRENGTHEN`
-          de `U(07/dashboard)` en C.11 y sus mutaciones C.15.1. Cierre: cada una
-          con mutation proof fail-closed y `P(07/dashboard) = 0`; los `KEEP` no
-          se modifican. Registrarla como NEXT no inicia ni ejecuta trabajo de 07.
+ROADMAP: 13 fases lógicas · 19 subfases · cierre documentado en 2026-10-02
 ```
 
-Los conteos `TECHNICAL_*` repiten el **inventario total** de §28 y no cambian.
-El estado de cada riesgo está en la misma línea. Un riesgo se marca `CERRADO`
-sólo si su fase dueña está fusionada con la evidencia que pide su ficha:
-`TG-R01`/`TG-R02` por `02` (18 contratos dereferenciados, 0 paths stale,
-negative proof en el PR) y `TG-R04` por `03` (fallos de launcher = 0 declarados
-en #1765). `TG-R05` tiene dos fases dueñas con partes disjuntas (`04`: 14
-guards; `11`: 3 meta-guards) y sólo se marca `CERRADO` cuando ambas partes
-están cumplidas. Sobre `main@6c751512` está cumplida la parte de `04` (14/14,
-cerrada con #1783 y #1784) y falta la de `11` (0/3). Estas evidencias vienen de los PRs y de Backend CI `success` en sus
-merge commits; este PR docs-only no las volvió a ejecutar. La reauditoría de
-gobernanza no cierra ningún riesgo técnico. Las dos series se explican en §28.1. La única intersección
-es `TG-A13`, que corrigió una cifra citada por `TG-R13` sin cambiar su
-severidad.
+Los conteos `TECHNICAL_*` siguen representando el inventario de §28; este
+cierre sólo afirma el estado de los riesgos P0/P1 que §36 exige. `TG-R05`
+queda cerrado porque las partes disjuntas están completas: 14 mutation proofs
+por `04` y 3 por `11` (#1806). La evidencia procede de los merge commits y sus
+checks `SUCCESS`; este cierre docs-only no reejecuta sus suites históricas.
+El Anexo D separa expresamente esa evidencia de los gates ejecutados ahora.
+
+---
+
+## Anexo D — Certificación final de `TEST-GLOBAL-13` (2026-10-02)
+
+### Base y alcance
+
+- **Fecha de cierre:** 2026-10-02.
+- **Base certificada:** `main@1947178a1a2f127d91cdf86b552a6514f15cbc5e`
+  (`test(public): complete TEST-GLOBAL-08 public strengthening (#1810)`).
+- **Scope de 13:** documentación y `test/README.md`; no se modifica código,
+  tests ejecutables, configuración, CI, DB ni secretos.
+- **Evidencia de fases:** los PRs de la matriz final de §34 están `MERGED` y
+  sus merge commits pertenecen a la historia de la base certificada.
+
+### Censo final 01B
+
+| Campo | Resultado |
+|---|---|
+| SHA | `1947178a1a2f127d91cdf86b552a6514f15cbc5e` |
+| Command | `pnpm exec node --experimental-strip-types --experimental-specifier-resolution=node --test test/architecture/test-global-01b-census-contract.test.ts` |
+| Exit | `0` — 10/10 tests `PASSED` |
+| Candidate files | 62 |
+| Candidate tests | 601 |
+| byClass | `RUNTIME_BEHAVIOURAL` 152/1339; `ACCIDENTAL_COUPLING_CANDIDATE` 62/601; `LEGITIMATE_GUARD` 56/506; `MIXED` 61/566; `LEGITIMATE_STATIC_CONTRACT` 70/399; `UNKNOWN_REQUIRES_REVIEW` 166/1259 (files/tests) |
+
+El conteo se obtiene del tooling versionado de `test/helpers/census/**`, no de
+un scratch script; el contrato 01B comprueba sus invariantes y guards.
+
+### Matriz de cierre §36
+
+| # | Criterio | Fase dueña | Evidencia | Estado |
+|---|---|---|---|---|
+| 1 | P0 `TG-R01`/`TG-R02` con negative proof | 02 | #1763 | `PASSED` |
+| 2 | Cuatro P1 cerrados | 03, 04, 06, 07, 08, 11 | #1765, #1785, #1793–#1795, #1806, #1809, #1810; `TG-R05` 17/17 | `PASSED` |
+| 3 | Pool 100 % adjudicado | 06 | #1793; 66/66 en Anexo C | `PASSED` |
+| 4 | Ocho contratos sin `NO_NEGATIVE_PROOF` | 04 | #1763, #1766–#1768, #1783/#1784 y cierre #1785 | `PASSED` |
+| 5 | Launcher win32/CI sin fallos | 03 | #1764/#1765 | `PASSED` |
+| 6 | Estado DB contractual | 03 | POST-03: launcher 0; DB aislada ausente queda nominalmente `BLOCKED` (§31.0) | `PASSED` |
+| 7 | Baseline lint de `test/**` | 05B | #1792 | `PASSED` |
+| 8 | Censo recomputado y auditado | 01B, 11, 13 | #1762, #1806 y censo final de este anexo | `PASSED` |
+| 9 | Costuras de inyección | 10A–10D | #1798, #1799, #1801, #1803 | `PASSED` |
+| 10 | Coverage canónico o defer válido + 12B | 12A, 12B | #1807: defer válido; #1808: diagnóstico CI | `PASSED` |
+| 11 | Sin guard de seguridad debilitado | Transversal | 17/17 mutation proofs: 14 por 04 y 3 por 11; checks de merge `SUCCESS` | `PASSED` |
+| 12 | Residuales con owner/motivo y ledger cerrado | 13 | §35 y §37 | `PASSED` |
+| 13 | Documento `CLOSED` con anexo | 13 | Este anexo, metadata y Veredicto | `PASSED` |
+
+### Accepted defer, seguridad y gobernanza
+
+- **12A:** `BLOCKED` sólo por la DB aislada `portal_vetneb_ci`; accepted defer
+  de 2026-10-01 con owner Nico (§21.2). No se presenta una medición parcial
+  como baseline canónico.
+- **12B:** #1808 está fusionada y aporta coverage diagnóstico no bloqueante.
+- **Seguridad:** `TG-R01` y `TG-R02` están cerrados por #1763; `TG-R03`/`R04`
+  por las fases 07/08 y #1765; `TG-R05` es 17/17 mutation proofs tras #1806;
+  `TG-R06` queda cerrado por adjudicación y strengthening. No se observó guard
+  debilitado en la evidencia de los PRs fusionados.
+- **§37:** 19 entradas `TG-Axx` cerradas como `CORRECTED_IN_THIS_REVISION`; 0
+  entradas `OPEN`.
+- **§35:** los ocho residuales tienen owner efectivo, evidencia de ownership,
+  motivo y decisión; sus estados no se confunden con `PASSED`.
+- **`TDR-002`:** `RESOLVED` en este cierre; conserva los baselines históricos y
+  sus triggers de revisión.
+- **Índices y organización:** `docs/audit/README.md` se realinea a `CLOSED`;
+  `test/README.md` y la convención de organización coinciden con el árbol
+  actual y no requieren modificación.
+
+### Resultado adversarial
+
+`P0 = 0`, `P1 = 0` y `P2 in-scope = 0` para el cierre documental. El único
+desvío histórico de scope detectado es #1795, documentado en §34; no se oculta
+ni se repite y no crea una corrección ejecutable para `13`. No hay `RETIRE` ni
+`RELOCATE` no autorizados en `TEST-GLOBAL-08`: admin, frontend y public suman
+32/32 `STRENGTHEN` con `P(admin)=0`, `P(frontend)=0` y `P(public)=0`.
 
 Un agente que reciba este repositorio puede ejecutar el programa leyendo
 únicamente `AGENTS.md` y este archivo: §31.0 fija las convenciones, §31.1 la
