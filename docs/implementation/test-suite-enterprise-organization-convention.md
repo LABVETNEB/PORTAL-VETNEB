@@ -55,16 +55,20 @@ test/
 │   ├── database/
 │   └── security/
 ├── integration/
+│   ├── app/
 │   ├── adapters/
 │   │   ├── controllers/
 │   │   └── repositories/
 │   └── external-services/
 ├── security/
 ├── unit/
+│   ├── application/
+│   ├── clinics/
 │   ├── contracts/
 │   ├── domain/
 │   ├── infrastructure/
 │   ├── migrations/
+│   ├── pricing/
 │   └── ui/
 ├── helpers/
 ├── fixtures/
@@ -97,11 +101,15 @@ La ubicación se decide por el comportamiento real del test, no solo por su nomb
 | `architecture/**` | Guards que leen filesystem, source, configuración, registries, censos o límites entre capas | Reglas de negocio o flujos HTTP |
 | `architecture/database/**` | Contratos estructurales de persistencia, reconciliación y superficie de DB | Conexiones productivas |
 | `architecture/security/**` | Registries y fronteras estáticas/transversales de seguridad | Secretos reales o red externa |
+| `unit/application/**` | Casos de uso y operaciones de aplicación por dominio, aislados de infraestructura real | Fastify, DB, red o filesystem de runtime |
+| `unit/clinics/**` | Servicios y operaciones aisladas del dominio de clínicas | Servidores o proveedores reales |
 | `unit/domain/**` | Reglas puras, serializers, tokens, timing, permisos, paginación y agregaciones sin I/O | Fastify, DB, red, filesystem de runtime |
 | `unit/contracts/**` | Contratos aislados de políticas, middleware, sesiones, timing, rutas o superficies por dominio, sin servidor real | `app.inject()` y proveedores reales |
 | `unit/infrastructure/**` | Tooling, configuración, middleware, logging, email aislado, scripts y contratos de infraestructura con fakes | I/O externo real |
 | `unit/migrations/**` | Contratos estáticos de migraciones, schemas y relaciones esperadas | Aplicar migraciones contra DB real |
+| `unit/pricing/**` | Servicios y operaciones aisladas del dominio de precios | Proveedores o infraestructura reales |
 | `unit/ui/**` | Contratos estáticos de frontend, componentes, CSS, configuración, layout y source invariants | Navegador real y flujos multi-pantalla |
+| `integration/app/**` | Composición completa de Fastify, wiring global, plugins y fronteras de aplicación ejercitados con `app.inject()` | Un adapter/controller aislado o navegador real |
 | `integration/adapters/controllers/**` | Rutas Fastify ejercitadas mediante `app.inject()` | Playwright o red externa |
 | `integration/adapters/repositories/**` | Adaptadores de datos con clientes fake o memoria | Postgres/Supabase productivos |
 | `integration/external-services/**` | Integraciones con Supabase, email, Gmail u otros proveedores mediante fakes o servidores locales | Endpoints y credenciales reales |
@@ -115,7 +123,7 @@ La ubicación se decide por el comportamiento real del test, no solo por su nomb
 
 Cuando un archivo toca varias capas, se clasifica por el colaborador de mayor peso de I/O:
 
-**E2E > servicio externo > repository > controller > infraestructura/contrato > dominio.**
+**E2E > servicio externo > repository > composición de app > controller > infraestructura/contrato > dominio.**
 
 Los ejes `security`, `architecture` y `regression` describen la intención adicional del test; no sustituyen el tipo físico salvo cuando el archivo existe específicamente para imponer esa frontera.
 
