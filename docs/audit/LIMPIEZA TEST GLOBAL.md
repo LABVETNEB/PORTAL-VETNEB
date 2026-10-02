@@ -8,9 +8,9 @@
 | Tipo | Auditoría técnica global de caja blanca del subsistema de tests no-E2E |
 | Repositorio | PORTAL-VETNEB |
 | Alcance | `test/**` (baseline histórico: 562 specs; censo final 01B: 567 clasificados). `frontend/e2e/**` sólo como frontera |
-| Estado | CLOSED |
+| Estado | ACTIVE |
 | Propósito | Fuente rectora **autosuficiente** del programa de saneamiento `TEST-GLOBAL-*` |
-| Implementación | COMPLETE — cierre de `TEST-GLOBAL-13` verificado sobre `main@1947178a1a2f127d91cdf86b552a6514f15cbc5e` (2026-10-02). Esta auditoría no implementa ninguna fase |
+| Implementación | BLOCKED — post-close reconciliation sobre `main@693ff0d912e834afe408acce0b45711201d3de72` (2026-10-02): §36.12/§36.13 requieren decisión de `RES-06-02` y owner/fase o defer para `RES-06-03`. Esta auditoría no implementa ninguna fase ejecutable |
 | Revisión | R2 — diagnóstico original + reauditoría de gobernanza aplicada (§37) |
 
 ### Metadata de lifecycle
@@ -19,15 +19,15 @@
 |---|---|
 | Document owner | `@LABVETNEB` (CODEOWNERS `/docs/**`; modelo single-maintainer) |
 | Domain | Arquitectura de tests no-E2E: `test/**`, helpers, fixtures, factories, mocks, guards de arquitectura, CI backend |
-| Lifecycle status | CLOSED |
+| Lifecycle status | ACTIVE |
 | Authoritative source role | Diagnóstico y roadmap del programa `TEST-GLOBAL-*`. No es el mapa operativo de CI (ese es [CI_PR_CHECKS_RUNBOOK.md](../ops/CI_PR_CHECKS_RUNBOOK.md)) ni la norma de organización física (esa es [test-suite-enterprise-organization-convention.md](../implementation/test-suite-enterprise-organization-convention.md)) |
 | Effective date | 2026-09-21 |
-| Last verified date | 2026-10-02 (reauditoría de cierre: `§36.12` y `§36.13` `BLOCKED` sobre `main@1947178a1a2f127d91cdf86b552a6514f15cbc5e`) |
+| Last verified date | 2026-10-02 (post-close reconciliation: censo 01B 10/10 `PASSED` sobre `main@693ff0d912e834afe408acce0b45711201d3de72`; `§36.12` y `§36.13` siguen `BLOCKED`) |
 | Review cadence | Ante cambio material del censo, de los guards, de los accepted defers o de los paths gobernados |
 | Supersedes | Ninguno. Reclasifica cifras de `TDR-002` y de `pr-test-architecture-consolidation-audit.md` como históricas (§33) |
 | Superseded by | Ninguno |
 | Related controls or gaps | `TDR-002`; `ERM-CTRL-011`; `ERM-CTRL-012`; `ERM-CTRL-025`; `ERM-QLT-001` |
-| Evidence or approval reference | Auditoría técnica R0 sobre `main@ee8e7425f911b4b49848957bff52242aa95158e2`; reauditoría de gobernanza R0 sobre `main@38fe1dfe12423454b3c48f1b139a5775e4b9d388` (§3, §37); reauditoría de no-cierre en [Anexo D](#anexo-d--reauditoría-de-no-cierre-de-test-global-13-2026-10-02), incluido censo 01B `PASSED` sobre `main@1947178a1a2f127d91cdf86b552a6514f15cbc5e` |
+| Evidence or approval reference | Auditoría técnica R0 sobre `main@ee8e7425f911b4b49848957bff52242aa95158e2`; reauditoría de gobernanza R0 sobre `main@38fe1dfe12423454b3c48f1b139a5775e4b9d388` (§3, §37); post-close reconciliation en [Anexo D](#anexo-d--reauditoría-de-no-cierre-de-test-global-13-2026-10-02), con censo 01B 10/10 `PASSED` sobre `main@693ff0d912e834afe408acce0b45711201d3de72` |
 | Autosuficiencia | Este documento **no depende de ningún prompt, encargo ni conversación externa**. Toda definición normativa que necesita una fase está transcrita aquí (§31.0, §31.6) |
 
 > **Vigencia y reproducibilidad de las cifras.** El diagnóstico técnico se midió
@@ -993,14 +993,14 @@ Matiz de justicia: CI **sí** levanta un servicio `postgres:16` y ejecuta
 es prueba de que el **schema resultante** sea el esperado (constraints, índices,
 FKs, tipos) ni de que los **repositorios** funcionen contra él.
 
-Concuerda con §33: `test/README.md` documenta como canónicos dos paths —
+En el baseline de §3.2, `test/README.md` documentaba como canónicos dos paths —
 `test/integration/adapters/repositories/` y `test/integration/external-services/`—
-que **no existen en el árbol**. Verificado sobre §3.2: 0 archivos tracked y el
-directorio ausente en el working tree para ambos. La redacción precisa es
-**"paths canónicos documentados pero ausentes del árbol"**, no "carpetas
-vacías": la diferencia importa porque un directorio vacío no sobrevive a `git`,
-de modo que `TEST-GLOBAL-09` no encuentra una carpeta que poblar sino un path
-que crear o que retirar de la documentación.
+que no existían. La observación fue correcta entonces: un directorio vacío no
+sobrevive a `git`, de modo que `TEST-GLOBAL-09` debía crear el path o retirarlo
+de la documentación. El estado actual es distinto: #1805 creó tests tracked en
+ambos paths. `test/README.md` y la convención los documentan como categorías
+actuales; este párrafo conserva el snapshot histórico y no describe el árbol
+vigente.
 
 Esta auditoría es R0: no se ejecutó ni se diseñó ningún cambio de DB
 (`AGENTS.md` §§14–15).
@@ -1420,11 +1420,11 @@ confianza en el rojo**, no de performance.
 | `TG-R07` | `MOCK_DRIFT` | **P2** | 659 `as any` en la costura test↔runtime; el tipado no detecta cambio de contrato de puertos | §12.3 |
 | `TG-R08` | `PERFORMANCE_DEBT` (gobernanza) | **P2** | `test/**` (156.700 LOC) sin ninguna regla de lint | §25.2 |
 | `TG-R09` | `DUPLICATE_SOURCE_OF_TRUTH` | **P2** | 283 lectores de source ad hoc vs **8** importadores del helper canónico | §6.4, §13.1 |
-| `TG-R10` | `COVERAGE_GAP` | **P2** | 0 tests de repositorio y 0 de servicio externo; los dos paths canónicos están documentados en `test/README.md` pero **ausentes del árbol** | §18, §33 |
+| `TG-R10` | `COVERAGE_GAP` | **P2** | **Histórico:** 0 tests de repositorio y 0 de servicio externo; los dos paths canónicos estaban documentados pero ausentes. #1805 creó ambos paths; el estado actual de organización se registra en §18 y §33 | §18, §33 |
 | `TG-R11` | `OVER_SPECIFICATION` | **P2** | Difusión de ownership: 50 archivos de producción con ≥11 guards; `api.ts` con 45 | §23 |
 | `TG-R12` | `FIXTURE_DRIFT` | **P2** | `fastify-app-route-stubs.ts` (762 LOC, 2 consumidores) y `dashboard-operational-contract.ts` (552 LOC, 1) sobre-especializados | §12.1 |
 | `TG-R13` | `STALE_GUARD` (coste) | **P3** | **498** assertions de censo congelado en **134** archivos (426/116 en el censo line-scoped original, §20); `M48` con triple fuente de verdad | §20 |
-| `TG-R14` | `DOCUMENTATION_DRIFT` | **P3** | El árbol canónico de `test/README.md` documenta 2 paths ausentes del árbol y omite `unit/application`, `unit/clinics`, `unit/pricing` | §18, §33 |
+| `TG-R14` | `DOCUMENTATION_DRIFT` | **P3** | **Histórico:** el árbol canónico de `test/README.md` documentaba 2 paths ausentes y omitía `unit/application`, `unit/clinics`, `unit/pricing`. La reconciliación post-close realineó README y convención con el árbol actual | §18, §33 |
 | `TG-R15` | `NONDETERMINISM` | **P3** | 8 de 11 archivos mutan `process.env` sin restaurar (acotado a intra-archivo por aislamiento de proceso) | §13.2 |
 | `TG-R16` | `WEAK_ASSERTION` | **P3** | Inconsistencia de normalización CRLF: 295 normalizan, 36 lectores no | §13.1 |
 
@@ -2110,10 +2110,10 @@ Reglas adicionales, vinculantes:
 ### TEST-GLOBAL-09 — Repositorios y servicios externos
 
 - **Objetivo**: cubrir repositorios y servicios externos **si el producto ya ofrece una costura testeable**, y declarar el bloqueo con evidencia si no la ofrece.
-- **Problema**: `TG-R10`. Dos paths canónicos documentados en `test/README.md` pero **ausentes del árbol** (§18); 0 SQL ejecutado contra una base real.
+- **Problema histórico**: `TG-R10`. Al planificar la fase, dos paths canónicos documentados en `test/README.md` estaban ausentes (§18); 0 SQL ejecutado contra una base real.
 - **Evidencia**: §18, §26, §33.
 - **Tipo de scope**: test-only.
-- **Paths permitidos**: `test/integration/adapters/repositories/**`, `test/integration/external-services/**` (ambos a crear), y `test/README.md` **sólo** si la fase concluye que el árbol canónico debe corregirse — en cuyo caso esa corrección se entrega como PR docs-only aparte.
+- **Paths permitidos**: `test/integration/adapters/repositories/**`, `test/integration/external-services/**` (ambos a crear en el baseline), y `test/README.md` **sólo** si la fase concluye que el árbol canónico debe corregirse — en cuyo caso esa corrección se entrega como PR docs-only aparte.
 - **Riesgo**: R1. **Autorización**: no requiere. **Dependencias**: `05A`.
 - **Scope**: poblar los dos paths con la costura que exista hoy. **Si no existe costura, el resultado legítimo y esperado de la fase es declarar el bloqueo** con la evidencia de qué falta, y derivar a `TEST-GLOBAL-10A`.
 - **No-scope**: ejecutar migraciones o SQL contra una DB real (R3, `AGENTS.md` §14); crear una DB de test sin autorización; **fabricar la costura ausente con mocks o casts más débiles** — eso convertiría deuda de producto en deuda de test y está prohibido (§26); tocar `server/**`.
@@ -2122,6 +2122,10 @@ Reglas adicionales, vinculantes:
 - **Rollback**: revertir el commit. En la salida (b) no hay nada que revertir salvo documentación de bloqueo.
 - **Output**: cobertura de repositorio, o un bloqueo documentado que define el scope de `10A`.
 - **Coste**: medio-alto. **Paralelizable**: sí, con `11`.
+
+**Resultado histórico:** #1805 creó los dos paths y su cobertura dirigida. La
+ausencia de paths pertenece al baseline de planificación; el estado actual se
+registra en §18 y §33.
 
 ### TEST-GLOBAL-10 — Testability de producto (cuatro PRs: 10A → 10B, 10C → 10D)
 
@@ -2309,7 +2313,7 @@ pnpm test:coverage = BLOCKED  → la corrida es incompleta (DB ausente, §31.0)
 
 - **Objetivo**: certificar el cierre del programa con censo recomputado y residuales con owner.
 - **Tipo de scope**: docs-only. **Paths permitidos**: `docs/**`, `test/README.md`.
-- **Scope**: actualizar `TDR-002`, `test/README.md` (corrigiendo el árbol canónico: los dos paths ausentes de §18 y las tres subcarpetas omitidas, `TG-R14`), la convención de organización y este documento a `CLOSED`; certificación final con el censo recomputado por el tooling de `01B`.
+- **Scope**: actualizar `TDR-002`, `test/README.md`, la convención de organización y este documento con el estado que arrojen los 13 criterios; sólo certificar `CLOSED` si los 13 están satisfechos. La reconciliación post-close corrigió el árbol canónico y preservó los snapshots históricos de §18 y §33.
 - **No-scope**: `test/**` salvo su `README.md`; cualquier corrección de test —si al cerrar aparece una, es una fase nueva, no un añadido a `13`.
 - **Riesgo**: R1. **Autorización**: no requiere.
 - **Dependencias**: **todas** las subfases ejecutables, por las ramas del DAG de §32. `13` no puede declararse antes que `03`, `10D` ni `11`, aunque ninguna de las tres alimente a `12`.
@@ -2318,6 +2322,35 @@ pnpm test:coverage = BLOCKED  → la corrida es incompleta (DB ausente, §31.0)
 - **Rollback**: revertir el commit devuelve el documento a `ACTIVE`. Ningún artefacto ejecutable depende de este PR.
 - **Output**: programa certificado como `CLOSED` o con sus `accepted defer` declarados.
 - **Coste**: medio.
+
+#### Reconciliación post-close de `13` (2026-10-02)
+
+La fusión #1811 dejó la metadata en `CLOSED` aunque el Veredicto, §35, §36 y
+Anexo D conservaban el no-cierre. Esta revisión docs-only normaliza la fuente
+de verdad: el programa permanece `ACTIVE`, `TDR-002` permanece `OPEN` y el
+censo 01B pasó 10/10 sobre `main@693ff0d912e834afe408acce0b45711201d3de72`.
+No reabre las fases completadas ni implementa tests.
+
+`RES-06-02` sigue sin una decisión de readjudicación o un accepted defer;
+Nico conserva la autoridad de decisión. `RES-06-03` requiere una nueva fase
+ejecutable; su definición siguiente no asigna un owner de ejecución ni la
+autoriza, por lo que ninguno de los dos residuales cierra §36.12.
+
+**Fase ejecutable sugerida — `TEST-GLOBAL-14` (no iniciada):**
+
+| Campo | Definición |
+|---|---|
+| Objetivo | Fortalecer `G06-C01` para detectar `M-C01` de forma fail-closed, si la readjudicación de Nico confirma `STRENGTHEN`. |
+| Tipo de scope | test-only |
+| Paths permitidos | `test/unit/contracts/clinic/frontend-clinic-public-profile.test.ts` y los tests de soporte estrictamente necesarios para su mutation proof. |
+| Riesgo | R1 |
+| Dependencia | Decisión docs-only de Nico sobre `RES-06-03` y asignación explícita de owner de ejecución. |
+| Aceptación | `M-C01` deja el contrato en rojo; el caso original conserva su comportamiento; no se debilita ningún guard. |
+| Gates | Test dirigido del contrato y `pnpm validate:local`, según la matriz backend de `AGENTS.md` §6. |
+| Rollback | Revertir exclusivamente el commit de la fase restaura el contrato previo. |
+
+La fase es `NEW_EXECUTABLE_PHASE_REQUIRED`, no una fase fusionada ni una
+aceptación de `RES-06-03`.
 
 #### Snapshot histórico de no cierre de `13` (2026-10-01; revalidado el 2026-10-02)
 
@@ -2333,9 +2366,11 @@ añadía el anexo de cierre hasta satisfacer los 13 criterios de §36.
 
 Este snapshot fue correcto en su fecha. #1809 y #1810 sí completaron los 17
 `STRENGTHEN` restantes de `08`, pero la reauditoría del 2026-10-02 confirmó que
-`RES-06-02` sigue sin decisión y que `RES-06-03` sigue sin fase ejecutora. Por
-eso §36.12 y §36.13 permanecen `BLOCKED`; el Anexo D registra el no-cierre. No
-se reescribe como si la evidencia posterior hubiera existido el 2026-10-01.
+`RES-06-02` sigue sin decisión y que `RES-06-03` no tenía fase ejecutora. Por
+eso §36.12 y §36.13 permanecían `BLOCKED`; el Anexo D registra el no-cierre. La
+reconciliación post-close definió después `TEST-GLOBAL-14` como fase requerida,
+sin asignar owner ni autorización: el estado sigue `BLOCKED`. No se reescribe
+como si la evidencia posterior hubiera existido el 2026-10-01.
 
 ## 32. Dependencias entre fases
 
@@ -2412,7 +2447,7 @@ un cast cuya costura no existe).
 | ídem | `ACCIDENTAL_COUPLING confirmado = 0` | **NEEDS_REVALIDATION** | Ver nota metodológica abajo |
 | ídem | `LEGITIMATE_GUARD` 332 / `MIXED` 38 | **HISTORICAL** | Criterio distinto del de §7.3 |
 | ídem | Helper canónico `listSourceFiles` | **CURRENT** | Existe y funciona; adopción baja (**8** importadores, recomputado sobre §3.2) |
-| `test/README.md` | Árbol canónico con `integration/adapters/repositories` y `integration/external-services` | **STALE** | Ambos paths **ausentes del árbol**: 0 archivos tracked y directorio inexistente (§18) |
+| `test/README.md` | Árbol canónico con `integration/adapters/repositories` y `integration/external-services` | **HISTORICAL** | En el baseline previo a #1805 ambos paths estaban ausentes (§18). #1805 creó tests en ambos; el README y la convención describen ahora el árbol actual. |
 | `test/README.md` | `test/*.test.ts` = 0 | **CURRENT** | Verificado |
 | `docs/audit/LIMPIEZA E2E.md` | `CLOSED`, last verified 2026-09-21 | **CURRENT** | No se reabre |
 
@@ -2526,7 +2561,7 @@ ni una fase ejecutora. Ningún residual se presenta como un criterio cerrado por
 residuales activos de C.13 que carecen de esos elementos se registran abajo como
 `BLOCKED`, sin inventar un defer ni un owner de ejecución.
 
-| ID | Residual | Motivo | Owner | Evidencia de owner | Decisión | Estado |
+| ID | Residual | Motivo | Owner / rol | Evidencia de owner | Decisión / follow-up | Estado |
 |---|---|---|---|---|---|---|
 | `RES-35-01` | Evidencia runtime cross-tenant en staging | R3; `AGENTS.md` §17. `02` cierra el oracle circular, no la evidencia desplegada | `@LABVETNEB` | CODEOWNERS `*`; ownership model, fallback del repositorio | Mantener fuera del programa; abrir operación R3 sólo con tarea, entorno y autorización propios | `NOT_RUN` |
 | `RES-35-02` | Tests contra DB real | R3; `AGENTS.md` §14. Fuera de todo el programa | `@LABVETNEB` | CODEOWNERS `*`; ownership model, fallback del repositorio | Mantener fuera del programa | `NOT_RUN` |
@@ -2534,10 +2569,10 @@ residuales activos de C.13 que carecen de esos elementos se registran abajo como
 | `RES-35-04` | Thresholds de coverage | Fuera de scope; `TDR-004` conserva la decisión separada | `@LABVETNEB` | CODEOWNERS `/package.json` y `/test/**`; ownership model | Resolver sólo en una fase separada de policy/coverage | `NOT_RUN` |
 | `RES-35-05` | Runner de componentes React | No se propone; modificaría la arquitectura de tests frontend | `@LABVETNEB` | CODEOWNERS `/frontend/**` y `/test/**`; ownership model | Requiere auditoría de arquitectura propia | `NOT_RUN` |
 | `RES-35-06` | `frontend/e2e/**` | `LIMPIEZA E2E` está `CLOSED`; no se reabre | `@LABVETNEB` | CODEOWNERS `/frontend/**`; ownership model | Preservar la frontera del programa | `NOT_RUN` |
-| `RES-35-07` | Fila de este documento en `docs/audit/README.md` | Resuelta por `01A` (#1761); el estado debía realinearse al cierre | `@LABVETNEB` | CODEOWNERS `/docs/**`; ownership model | Actualizar la fila a `CLOSED` en este cierre documental | `PASSED` |
+| `RES-35-07` | Fila de este documento en `docs/audit/README.md` | El programa permanece `ACTIVE` mientras §36.12/§36.13 estén bloqueados | `@LABVETNEB` | CODEOWNERS `/docs/**`; ownership model | Mantener la fila `ACTIVE` y cambiarla a `CLOSED` únicamente con los 13 criterios satisfechos | `PASSED` |
 | `RES-35-08` | Migración monorepo | `AGENTS.md` §18: política futura, no autorizada | `@LABVETNEB` | CODEOWNERS `*`; ownership model, fallback del repositorio | Mantener fuera del programa | `NOT_RUN` |
-| `RES-06-02` | `UNKNOWN_REQUIRES_REVIEW` (162 archivos / 1.222 tests) | Está fuera del pool de `06` y no existe fase que lo adjudique | Autoridad de decisión: Nico; accountability de paths: `@LABVETNEB`; owner de ejecución: inexistente | C.13; CODEOWNERS sólo acredita paths, no decisión ni fase | Ninguna decisión ni `accepted defer` registrada. Requiere una readjudicación docs-only que decida el tratamiento y, si procede, nombre fase/owner de ejecución | `BLOCKED` |
-| `RES-06-03` | Escape `M-C01` de `G06-C01` en `test/unit/contracts/**` | El escape está verificado y `07/08` no pueden ejecutar `STRENGTHEN` en ese path | Autoridad de decisión: Nico; accountability de paths: `@LABVETNEB`; owner de ejecución: inexistente | C.9, C.13; las fichas de `07/08` limitan su scope a `test/unit/ui/**` | Ninguna asignación de fase ni `accepted defer` registrada. Requiere una readjudicación docs-only anterior a cualquier ejecución | `BLOCKED` |
+| `RES-06-02` | `UNKNOWN_REQUIRES_REVIEW` (162 archivos / 1.222 tests) | Está fuera del pool de `06` y no existe fase que lo adjudique | Decisión: Nico; paths: `@LABVETNEB`; ejecución: inexistente | C.13; CODEOWNERS sólo acredita paths, no decisión ni fase | Ninguna decisión ni `accepted defer` registrada. Requiere readjudicación docs-only que decida el tratamiento y, si procede, nombre fase/owner de ejecución | `BLOCKED` |
+| `RES-06-03` | Escape `M-C01` de `G06-C01` en `test/unit/contracts/**` | El escape está verificado y `07/08` no pueden ejecutar `STRENGTHEN` en ese path | Decisión: Nico; paths: `@LABVETNEB`; ejecución: sin asignar | C.9, C.13; las fichas de `07/08` limitan su scope a `test/unit/ui/**` | `NEW_EXECUTABLE_PHASE_REQUIRED`: `TEST-GLOBAL-14` está definido en §31 pero requiere decisión y owner antes de ejecución; no existe `accepted defer` | `BLOCKED` |
 
 ## 36. Criterio de cierre del programa
 
@@ -2596,7 +2631,7 @@ Este ledger es **trazabilidad histórica**, no backlog: un `TG-Axx` con estado
 | `TG-A07` | P2 | El DAG de §32 dejaba `03`, `10` y `11` como hojas terminales, mientras §31 afirmaba que `13` dependía de todas; §36 exigía los 4 P1 cerrados, y `03` es un P1 | §32 reconstruido como DAG único con lista de relaciones explícita; `13` depende de las diez subfases terminales. §36 nombra la subfase que cierra cada criterio | `CORRECTED_IN_THIS_REVISION` |
 | `TG-A08` | P2 | `01B` creaba un censo nuevo, reproduciendo el patrón `FROZEN_CENSUS`/`DUPLICATE_SOURCE_OF_TRUTH` que `11` existe para sanear, sin que ninguna fase lo revisitara | §31.2 fija la regla de fuente única del censo de `01B` (qué es cálculo, qué es guard, qué es congelable y qué no). `11` incorpora ese censo a su scope y añade `01B` a sus dependencias en §32 | `CORRECTED_IN_THIS_REVISION` |
 | `TG-A09` | P3 | §6.4, §13.1 y §33 declaraban **9 importadores** del helper canónico | Recomputado sobre §3.2: son **8**, y los 8 importan realmente (no son menciones). Se añade la precisión de que 2 de ellos son además guards del propio helper | `CORRECTED_IN_THIS_REVISION` |
-| `TG-A10` | P3 | §18 describía `integration/adapters/repositories/` y `integration/external-services/` como «carpetas documentadas y vacías» | Verificado: 0 archivos tracked **y directorio inexistente**. Redacción corregida a «paths canónicos documentados pero ausentes del árbol» en §18, §28 (`TG-R10`, `TG-R14`) y §33; `09` ajustada en consecuencia | `CORRECTED_IN_THIS_REVISION` |
+| `TG-A10` | P3 | §18 describía `integration/adapters/repositories/` y `integration/external-services/` como «carpetas documentadas y vacías» | Verificado en la revisión original: 0 archivos tracked y directorio inexistente. Se corrigió a «paths canónicos documentados pero ausentes del árbol». #1805 creó luego ambos paths; la reconciliación post-close preserva aquella evidencia como histórica y registra el estado actual en §18, §28 y §33 | `CORRECTED_IN_THIS_REVISION` |
 | `TG-A11` | P3 | Todo el Anexo A asumía Git Bash (`xargs`, `awk`, `grep`), mientras `AGENTS.md` §1 fija Windows + PowerShell como entorno del proyecto | A.3c añade la **variante PowerShell canónica verificada**: 40 de 41 cifras reproducen idénticas, y la única divergencia está explicada y corregida (`TG-A13`). Los comandos Git Bash se conservan marcados como históricos | `CORRECTED_IN_THIS_REVISION` |
 | `TG-A12` | P3 | §10.1 citaba el test del falso verde con el nombre truncado y sugería que tenía 3 assertions | Nombre exacto, ubicación (línea 36), constante de path y conteo real: **11 assertions, las 11 `.includes()`**, de las que se citan 3. El hallazgo técnico se conserva intacto y verificado | `CORRECTED_IN_THIS_REVISION` |
 | `TG-A13` | P3 | §20 declaraba 426 assertions de censo congelado en 116 archivos, cifra obtenida con un censo line-scoped incapaz de ver las assertions formateadas en varias líneas | Recomputado leyendo el archivo completo: **498 en 134 archivos** (426 + 72). §20, §27 y `TG-R13` corregidos; la cifra operativa de `11` es la nueva | `CORRECTED_IN_THIS_REVISION` |
@@ -2683,7 +2718,7 @@ repositorio. A.0 dice, cifra por cifra, cuál lo es y cuál no.
 | Clasificación de contratos críticos y matriz de seguridad | §11.1, §17 | `MANUAL_CLASSIFICATION` | — |
 | **8** importadores del helper canónico `tracked-source-files.ts` | §6.4, §13.1 | `CURRENT_REVERIFICATION` | A.3c |
 | Importadores del resto de doubles y soporte compartido | §6.4, §12.1 | `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` | — |
-| Los dos paths canónicos de integración ausentes del árbol | §18, §33 | `CURRENT_REVERIFICATION` | A.3c |
+| Ausencia de los dos paths canónicos de integración en el baseline | §18, §33 | `HISTORICAL_EXECUTION_EVIDENCE` | A.3c; #1805 creó ambos paths |
 | Nombre, ubicación y 11 assertions del test del falso verde | §10.1, B.2 | `CURRENT_REVERIFICATION` | A.3c |
 | **Tiempos observados** de ejecución: 26.422 ms y 298,7 ms (corrida original), 146.129 ms y 1.864 ms (re-ejecución en la misma máquina) | §24, §3.5, §9.1 | `HISTORICAL_EXECUTION_EVIDENCE` | A.5 |
 | **Pareto y ranking de entradas caras** (50 % en 33 entradas, 80 % en 130, tabla de entradas más costosas, tiempo agregado 133,6 s) | §24 | `AUDIT_DERIVED_NOT_YET_REPRODUCIBLE` | Derivado de procesar la salida TAP con un script no versionado |
@@ -2905,11 +2940,11 @@ Helper canónico, paths de integración y test del falso verde:
 @(git ls-files 'test/**/*.ts' |
   Where-Object { (Get-Content -LiteralPath $_ -Raw) -match 'tracked-source-files' }).Count   # 8
 
-# §18 — paths canónicos documentados pero ausentes del árbol
-@(git ls-files 'test/integration/adapters/repositories/**').Count   # 0
-@(git ls-files 'test/integration/external-services/**').Count       # 0
-Test-Path 'test/integration/adapters/repositories'                  # False
-Test-Path 'test/integration/external-services'                      # False
+# §18 histórico — paths canónicos documentados pero ausentes del árbol
+@(git ls-files 'test/integration/adapters/repositories/**').Count   # 0 en el baseline histórico
+@(git ls-files 'test/integration/external-services/**').Count       # 0 en el baseline histórico
+Test-Path 'test/integration/adapters/repositories'                  # False en el baseline histórico
+Test-Path 'test/integration/external-services'                      # False en el baseline histórico
 
 # §10.1 / B.2 — el test del falso verde y su mutación
 $g = 'test/unit/ui/dashboard/frontend-dashboard-empty-states.test.ts'
@@ -4216,8 +4251,8 @@ Convenciones de todos los registros de C.5–C.9:
 | ID | Hallazgo | Owner / siguiente paso |
 |---|---|---|
 | `RES-06-01` | El motivo de la fila `A0-07-ORACLE` del contrato de censo de `01B` dice que los ex candidatos «caen en `UNKNOWN_REQUIRES_REVIEW`», pero por `coupling.ts:133-139` un spec dominado por substring **sin** afirmación de comportamiento cae en `LEGITIMATE_STATIC_CONTRACT`; sólo los no dominados caen en `UNKNOWN_REQUIRES_REVIEW` | `TEST-GLOBAL-11` (dueño del censo de `01B`, §31.2); test-only, fuera del scope de `06` |
-| `RES-06-02` | `UNKNOWN_REQUIRES_REVIEW` = 162 archivos / 1.222 tests, fuera del pool de `06` y sin fase que los adjudique. Incluye los ex casos de calibración B.3 (`frontend-report-actions`, `OVER_SPECIFICATION` confirmada) y B.5 (`auth-security-rehash-policy`) | Nico: decidir si se abre una readjudicación (PR docs-only propio). Sin esa decisión no hay owner |
-| `RES-06-03` | `G06-C01` tiene escape verificado (M-C01) pero ninguna fase puede ejecutar un `STRENGTHEN` en `test/unit/contracts/**` | Nico: asignar fase mediante PR docs-only de readjudicación |
+| `RES-06-02` | `UNKNOWN_REQUIRES_REVIEW` = 162 archivos / 1.222 tests, fuera del pool de `06` y sin fase que los adjudique. Incluye los ex casos de calibración B.3 (`frontend-report-actions`, `OVER_SPECIFICATION` confirmada) y B.5 (`auth-security-rehash-policy`) | **Estado actual:** `BLOCKED`. Nico conserva la decisión de abrir readjudicación docs-only; `@LABVETNEB` sólo responde por paths y no existe owner de ejecución ni defer. |
+| `RES-06-03` | `G06-C01` tiene escape verificado (M-C01) pero ninguna fase puede ejecutar un `STRENGTHEN` en `test/unit/contracts/**` | **Estado actual:** `BLOCKED`. `TEST-GLOBAL-14` es `NEW_EXECUTABLE_PHASE_REQUIRED`, definido en §31; requiere decisión, owner y autorización antes de ejecutarse. |
 | `RES-06-06` | La equivalencia E2E de los receptores de C.14 no está demostrada | Sólo relevante si una readjudicación propone `RELOCATE`; exige §31.6 completo |
 
 Severidad de lo anterior respecto del entregable de `06`: **0 P0 · 0 P1 · 0 P2 in-scope**. Son
@@ -4449,7 +4484,7 @@ STATUS:               ACTIVE
 PRIMARY_AUDIT:        COMPLETE        (diagnóstico técnico, §§6-29)
 GOVERNANCE_REAUDIT:   COMPLETE        (§37, 13 hallazgos TG-A)
 ROADMAP_GOVERNANCE:   CORRECTED       (13/13 TG-A en CORRECTED_IN_THIS_REVISION)
-IMPLEMENTATION:       BLOCKED         (reauditoría de Anexo D sobre main@1947178, 2026-10-02)
+IMPLEMENTATION:       BLOCKED         (post-close reconciliation sobre main@693ff0d9, 2026-10-02)
 
 COMPLETED:    01A #1761 · 01B #1762 · 02 #1763 · 03 #1764/#1765 · 04 #1763,
               #1766–#1785 · 05A #1786–#1789 · 05B #1792 · 06 #1793 · 07 #1794
@@ -4458,15 +4493,18 @@ COMPLETED:    01A #1761 · 01B #1762 · 02 #1763 · 03 #1764/#1765 · 04 #1763,
 ACCEPTED_DEFER: 12A — DB aislada `portal_vetneb_ci` ausente; owner Nico,
                 2026-10-01 (§21.2). No publica baseline canónico; satisface
                 §36.10 por la vía explícita de defer.
-BLOCKED:      13 — `RES-06-02` sin decisión/owner de ejecución y `RES-06-03`
-              sin fase ejecutora; §36.12 y §36.13 no cierran
+PENDING:      Decisión docs-only de Nico para `RES-06-02`; owner y autorización
+              de `TEST-GLOBAL-14` para `RES-06-03`
+BLOCKED:      §36.12 y §36.13 — `RES-06-02` carece de decisión/defer y
+              `RES-06-03` requiere la fase ejecutable `TEST-GLOBAL-14`
 
 TECHNICAL_P0: 2       TG-R01 · TG-R02 — CERRADOS (02, #1763)
 TECHNICAL_P1: 4       TG-R03 · TG-R04 · TG-R05 · TG-R06 — CERRADOS
                       (03, 04, 06, 07, 08 y 11; TG-R05 = 17/17)
 OPEN ACTUAL:  0 de los riesgos P0/P1 del programa
 
-ROADMAP: 13 fases lógicas · 19 subfases · no-cierre reauditorizado en 2026-10-02
+ROADMAP: 13 fases lógicas completadas o evaluadas · `TEST-GLOBAL-14` propuesto,
+         no iniciado · no-cierre reconciliado en 2026-10-02
 ```
 
 Los conteos `TECHNICAL_*` siguen representando el inventario de §28; la
@@ -4484,8 +4522,10 @@ declara por qué el programa no puede cerrarse.
 ### Base y alcance
 
 - **Fecha de reauditoría:** 2026-10-02.
-- **Base certificada:** `main@1947178a1a2f127d91cdf86b552a6514f15cbc5e`
+- **Base inicial:** `main@1947178a1a2f127d91cdf86b552a6514f15cbc5e`
   (`test(public): complete TEST-GLOBAL-08 public strengthening (#1810)`).
+- **Base post-close:** `main@693ff0d912e834afe408acce0b45711201d3de72`
+  (`docs(test): close LIMPIEZA TEST GLOBAL (#1811)`).
 - **Scope de 13:** documentación y `test/README.md`; no se modifica código,
   tests ejecutables, configuración, CI, DB ni secretos.
 - **Evidencia de fases:** los PRs de la matriz final de §34 están `MERGED` y
@@ -4495,12 +4535,11 @@ declara por qué el programa no puede cerrarse.
 
 | Campo | Resultado |
 |---|---|
-| SHA | `1947178a1a2f127d91cdf86b552a6514f15cbc5e` |
+| SHA | `693ff0d912e834afe408acce0b45711201d3de72` |
 | Command | `pnpm exec node --experimental-strip-types --experimental-specifier-resolution=node --test test/architecture/test-global-01b-census-contract.test.ts` |
 | Exit | `0` — 10/10 tests `PASSED` |
-| Candidate files | 62 |
-| Candidate tests | 601 |
-| byClass | `RUNTIME_BEHAVIOURAL` 152/1339; `ACCIDENTAL_COUPLING_CANDIDATE` 62/601; `LEGITIMATE_GUARD` 56/506; `MIXED` 61/566; `LEGITIMATE_STATIC_CONTRACT` 70/399; `UNKNOWN_REQUIRES_REVIEW` 166/1259 (files/tests) |
+| Candidate files / tests | No recomputados en la corrida post-close; la última medición registrada es 62 / 601 sobre `main@1947178` |
+| byClass | No recomputado post-close; conservar como evidencia previa, no como medición de `693ff0d9` |
 
 El conteo se obtiene del tooling versionado de `test/helpers/census/**`, no de
 un scratch script; el contrato 01B comprueba sus invariantes y guards.
@@ -4516,12 +4555,12 @@ un scratch script; el contrato 01B comprueba sus invariantes y guards.
 | 5 | Launcher win32/CI sin fallos | 03 | #1764/#1765 | `PASSED` |
 | 6 | Estado DB contractual | 03 | POST-03: launcher 0; DB aislada ausente queda nominalmente `BLOCKED` (§31.0) | `PASSED` |
 | 7 | Baseline lint de `test/**` | 05B | #1792 | `PASSED` |
-| 8 | Censo recomputado y auditado | 01B, 11, 13 | #1762, #1806 y censo final de este anexo | `PASSED` |
+| 8 | Censo recomputado y auditado | 01B, 11, 13 | #1762, #1806 y 10/10 `PASSED` sobre `main@693ff0d9` | `PASSED` |
 | 9 | Costuras de inyección | 10A–10D | #1798, #1799, #1801, #1803 | `PASSED` |
 | 10 | Coverage canónico o defer válido + 12B | 12A, 12B | #1807: defer válido; #1808: diagnóstico CI | `PASSED` |
 | 11 | Sin guard de seguridad debilitado | Transversal | 17/17 mutation proofs: 14 por 04 y 3 por 11; checks de merge `SUCCESS` | `PASSED` |
-| 12 | Residuales con decisión y fase/defer cuando están activos; ledger cerrado | 13 | `RES-06-02` no tiene decisión/owner de ejecución y `RES-06-03` no tiene fase; §35 y C.13 | `BLOCKED` |
-| 13 | Documento `CLOSED` con anexo | 13 | Depende de §36.12; Veredicto y metadata permanecen `ACTIVE` | `BLOCKED` |
+| 12 | Residuales con decisión y fase/defer cuando están activos; ledger cerrado | 13 | `RES-06-02` no tiene decisión/owner de ejecución; `RES-06-03` requiere `TEST-GLOBAL-14`, aún sin owner/defer; §35 y C.13 | `BLOCKED` |
+| 13 | Documento `CLOSED` con anexo | 13 | Depende de §36.12; Veredicto y metadata están `ACTIVE` | `BLOCKED` |
 
 ### Accepted defer, seguridad y gobernanza
 
@@ -4535,14 +4574,13 @@ un scratch script; el contrato 01B comprueba sus invariantes y guards.
   debilitado en la evidencia de los PRs fusionados.
 - **§37:** 19 entradas `TG-Axx` cerradas como `CORRECTED_IN_THIS_REVISION`; 0
   entradas `OPEN`.
-- **§35/C.13:** la reauditoría incorpora `RES-06-02` y `RES-06-03` como
-  `BLOCKED`: CODEOWNERS sólo acredita accountability de paths; no aporta la
-  decisión pendiente ni la fase ejecutora. No hay `accepted defer` inventado.
+- **§35/C.13:** `RES-06-02` sigue `BLOCKED` sin decisión/defer; `RES-06-03`
+  sigue `BLOCKED`, con `TEST-GLOBAL-14` definido como fase requerida pero sin
+  owner ni autorización de ejecución. CODEOWNERS sólo acredita paths.
 - **`TDR-002`:** permanece `OPEN` hasta que ambos residuales tengan resolución
   verificable o defer explícito conforme a §36.12.
 - **Índices y organización:** `docs/audit/README.md` permanece `ACTIVE`;
-  `test/README.md` y la convención de organización coinciden con el árbol
-  actual y no requieren modificación.
+  `test/README.md` y la convención fueron realineados al árbol actual.
 
 ### Resultado adversarial
 

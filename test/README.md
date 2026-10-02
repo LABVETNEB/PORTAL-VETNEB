@@ -44,10 +44,13 @@ test/
 │   └── external-services/
 ├── security/
 ├── unit/
+│   ├── application/
+│   ├── clinics/
 │   ├── contracts/
 │   ├── domain/
 │   ├── infrastructure/
 │   ├── migrations/
+│   ├── pricing/
 │   └── ui/
 ├── helpers/
 ├── fixtures/
@@ -78,10 +81,13 @@ No se duplica Playwright bajo `test/e2e`.
 | `architecture/**` | Guards de estructura, filesystem, source, imports, configuración, registries y censos |
 | `architecture/database/**` | Contratos estructurales de persistencia y reconciliación |
 | `architecture/security/**` | Registries y fronteras estáticas/transversales de seguridad |
+| `unit/application/**` | Casos de uso y operaciones de aplicación por dominio |
+| `unit/clinics/**` | Servicios y operaciones aisladas del dominio de clínicas |
 | `unit/domain/**` | Reglas puras sin I/O: tokens, serializers, timing, permisos, paginación y agregaciones |
 | `unit/contracts/**` | Políticas y contratos aislados de rutas, middleware, sesiones y superficies por dominio |
 | `unit/infrastructure/**` | Tooling, config, logging, email aislado, scripts y middleware con fakes |
 | `unit/migrations/**` | Contratos estáticos de migraciones y schemas |
+| `unit/pricing/**` | Servicios y operaciones aisladas del dominio de precios |
 | `unit/ui/**` | Contratos estáticos de frontend, componentes, CSS, layout, configuración y source |
 | `integration/adapters/controllers/**` | Fastify mediante `app.inject()` |
 | `integration/adapters/repositories/**` | Acceso a datos con clientes fake o memoria |
