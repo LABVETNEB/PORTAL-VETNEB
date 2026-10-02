@@ -3,6 +3,8 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
+import { parseTsx } from "../dashboard/dashboard-source-oracle.ts";
+import { runModule } from "../admin/source-function-runner.ts";
 
 const AUTH_CONTEXT_PATH = "frontend/src/context/AuthContext.tsx";
 const USE_AUTH_PATH = "frontend/src/hooks/useAuth.ts";
@@ -48,6 +50,21 @@ test("frontend useAuth hook requires provider", () => {
   assert.ok(source.includes("useContext(AuthContext)"));
   assert.ok(source.includes("throw new Error(\"useAuth must be used within AuthProvider\")"));
   assert.ok(source.includes("return context"));
+});
+
+test("TEST-GLOBAL-08 G06-F01 kills M-F10 when useAuth is called outside its provider", () => {
+  const source = read(USE_AUTH_PATH);
+  const imports = {
+    react: { useContext: () => null },
+    "@/context/AuthContext": { AuthContext: {} },
+  };
+  const original = runModule(parseTsx(source, USE_AUTH_PATH), imports);
+  assert.throws(() => (original.useAuth as () => unknown)(), /must be used within AuthProvider/);
+
+  const mutant = source.replace("if (context === null) {", "if (false) {");
+  assert.notEqual(mutant, source, "M-F10 must be applicable");
+  const mutated = runModule(parseTsx(mutant, USE_AUTH_PATH), imports);
+  assert.equal((mutated.useAuth as () => unknown)(), null, "M-F10 removes the provider guard");
 });
 
 test("frontend root layout remains server-rendered without global auth provider", () => {

@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
+import { parseTsx } from "../dashboard/dashboard-source-oracle.ts";
+import { functionNamed, runSource } from "../admin/source-function-runner.ts";
 
 const LOGIN_PAGE_PATH = "frontend/src/app/login/page.tsx";
 const LOGIN_CONTENT_PATH = "frontend/src/components/public/LoginContent.tsx";
@@ -94,4 +96,19 @@ test("login content exposes public navigation affordances without direct fetch",
   assert.equal(source.includes("router.push(ROUTES.particulares);"), false);
   assert.equal(source.includes('"/api"'), false);
   assert.equal(source.includes("fetch("), false);
+});
+
+test("TEST-GLOBAL-08 G06-F09 kills M-F06 so admin next never reaches the clinic dashboard", () => {
+  const source = read(LOGIN_CONTENT_PATH);
+  const safePath = (candidate: string) => runSource<(next: string | null) => string>(
+    functionNamed(parseTsx(candidate, LOGIN_CONTENT_PATH), "getSafeNextPath"),
+    { ROUTES: { dashboard: "/dashboard", dashboardAdmin: "/dashboard/admin" }, SAFE_LOGIN_REDIRECT_ORIGIN: "https://portal.vetneb.local", URL },
+  );
+  assert.equal(safePath(source)("/dashboard/admin"), "/dashboard");
+  const mutant = source.replace(
+    "parsedNextPath.pathname === ROUTES.dashboardAdmin ||",
+    "false && parsedNextPath.pathname === ROUTES.dashboardAdmin ||",
+  );
+  assert.notEqual(mutant, source, "M-F06 must be applicable");
+  assert.equal(safePath(mutant)("/dashboard/admin"), "/dashboard/admin", "M-F06 exposes the admin route");
 });

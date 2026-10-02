@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
+import { parseTsx } from "../dashboard/dashboard-source-oracle.ts";
+import { functionNamed, runSource } from "../admin/source-function-runner.ts";
 
 const CONTACT_CONTENT_PATH = "frontend/src/components/public/ContactoContent.tsx";
 const API_CLIENT_PATH = "frontend/src/lib/api.ts";
@@ -50,4 +52,35 @@ test("frontend contact form exposes feedback and no longer blocks submit", () =>
   assert.equal(source.includes("Enviar mensaje (próximamente)"), false);
   assert.equal(source.includes("Nota de desarrollo"), false);
   assert.equal(source.includes("onSubmit={(e) => e.preventDefault()}"), false);
+});
+
+test("TEST-GLOBAL-08 G06-F04 kills M-F02 by surfacing rejected submissions", async () => {
+  const source = read(CONTACT_CONTENT_PATH);
+  const run = async (candidate: string) => {
+    const errors: unknown[] = [];
+    const submit = runSource<(event: { preventDefault(): void }) => Promise<void>>(
+      functionNamed(parseTsx(candidate, CONTACT_CONTENT_PATH), "handleSubmit"),
+      {
+        isSubmitting: false,
+        clearFeedbackMessages: () => undefined,
+        setIsSubmitting: () => undefined,
+        nombre: "Ana", apellido: "Pérez", email: "ana@example.test", clinica: "", mensaje: "Consulta",
+        submitContactMessage: async () => { throw new Error("network down"); },
+        setWarningMessage: () => undefined, setSuccessMessage: () => undefined,
+        setNombre: () => undefined, setApellido: () => undefined, setEmail: () => undefined,
+        setClinica: () => undefined, setMensaje: () => undefined,
+        setErrorMessage: (message: unknown) => errors.push(message),
+        resolveContactSubmitErrorMessage: () => "No se pudo contactar al servidor.",
+      },
+    );
+    await submit({ preventDefault: () => undefined });
+    return errors;
+  };
+  assert.deepEqual(await run(source), ["No se pudo contactar al servidor."]);
+  const mutant = source.replace(
+    "setErrorMessage(resolveContactSubmitErrorMessage(error));",
+    "if (false) setErrorMessage(resolveContactSubmitErrorMessage(error));",
+  );
+  assert.notEqual(mutant, source, "M-F02 must be applicable");
+  assert.deepEqual(await run(mutant), [], "M-F02 hides the failed-submit feedback");
 });

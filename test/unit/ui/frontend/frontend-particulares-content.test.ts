@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
+import { parseTsx } from "../dashboard/dashboard-source-oracle.ts";
+import { functionNamed, runSource } from "../admin/source-function-runner.ts";
 
 const PARTICULARES_CONTENT_PATH =
   "frontend/src/components/public/ParticularesContent.tsx";
@@ -429,4 +431,30 @@ test("particulares content no introduce almacenamiento de sesión en el navegado
 
   assert.equal(source.includes("sessionStorage"), false);
   assert.equal(source.includes("localStorage"), false);
+});
+
+test("TEST-GLOBAL-08 G06-F12 kills M-F07 by retaining recoverable refresh failures", async () => {
+  const source = read(PARTICULARES_CONTENT_PATH);
+  const run = async (candidate: string) => {
+    const checks: unknown[] = [];
+    const refresh = runSource<() => Promise<void>>(
+      functionNamed(parseTsx(candidate, PARTICULARES_CONTENT_PATH), "refreshSession"),
+      {
+        setIsCheckingSession: () => undefined, setErrorMessage: () => undefined,
+        getParticularSession: async () => { throw new Error("temporary failure"); },
+        setSession: () => undefined, hasActiveSessionRef: { current: false },
+        setTrackingCase: () => undefined, setTrackingLoadError: () => undefined,
+        getParticularStudyTrackingCase: async () => null,
+        isParticularSessionExpiredError: () => false, closeExpiredParticularSession: () => undefined,
+        getParticularAccessErrorMessage: () => "safe failure", PARTICULAR_ACCESS_ERROR_MESSAGE: "safe failure",
+        setSessionCheckError: (value: unknown) => checks.push(value),
+      },
+    );
+    await refresh();
+    return checks;
+  };
+  assert.deepEqual(await run(source), [false, true]);
+  const mutant = source.replace("setSessionCheckError(true);", "if (false) setSessionCheckError(true);");
+  assert.notEqual(mutant, source, "M-F07 must be applicable");
+  assert.deepEqual(await run(mutant), [false], "M-F07 suppresses recoverable-error state");
 });
