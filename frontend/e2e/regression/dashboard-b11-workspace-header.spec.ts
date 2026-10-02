@@ -1,4 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
+import { build } from "esbuild";
+import { resolve } from "node:path";
 
 import {
   clearDashboardModuleMemory,
@@ -84,6 +86,89 @@ async function expectNoOuterScroll(page: Page, label: string) {
 test.beforeAll(() => {
   expect(SURFACES.map((surface) => surface.id)).toEqual(SURFACE_IDS);
   expect(VIEWPORTS.map((viewport) => viewport.slug)).toEqual(VIEWPORT_SLUGS);
+});
+
+let b16Harness: string;
+
+test.beforeAll(async () => {
+  const result = await build({
+    stdin: {
+      contents: `import React from "react";
+import { createRoot } from "react-dom/client";
+import { WorkspaceScaffold } from "./src/components/dashboard/ModuleSurface.tsx";
+const main = document.querySelector("main.dashboard-main");
+const mount = document.createElement("div");
+mount.setAttribute("data-b16-harness", "true");
+mount.style.cssText = "position:absolute;inset:0;display:flex;min-height:0;min-width:0;background:white;z-index:2";
+main.style.position = "relative";
+main.append(mount);
+createRoot(mount).render(<WorkspaceScaffold kind="full-route" moduleId="b16-harness" collection={<div data-b16-primary="true">Colección intacta</div>} details={<div data-b16-content="true">Contenido genérico</div>} />);`,
+      resolveDir: resolve(process.cwd()),
+      loader: "tsx",
+    },
+    bundle: true,
+    write: false,
+    platform: "browser",
+    format: "iife",
+    alias: { "@": resolve(process.cwd(), "src") },
+  });
+  b16Harness = result.outputFiles[0].text;
+});
+
+test.describe("B16 · UtilitySidePanel scaffold integration", () => {
+  for (const viewport of [
+    { width: 1366, height: 768 },
+    { width: 1024, height: 768 },
+    { width: 390, height: 844 },
+  ]) {
+    test(`controlled panel @ ${viewport.width}x${viewport.height}`, async ({ page }) => {
+      const surface = SURFACES[0];
+      await page.setViewportSize(viewport);
+      await prepareSurface(page, surface);
+      await openSurface(page, surface);
+      await page.addScriptTag({ content: b16Harness });
+
+      const harness = page.locator('[data-b16-harness="true"]');
+      const panel = harness.locator(".dashboard-utility-side-panel");
+      const toggle = panel.locator("button.dashboard-utility-side-panel-toggle");
+      await expect(toggle).toBeVisible();
+      await expect(panel.getByRole("button", { name: "Expandir panel utilitario", expanded: false })).toBeVisible();
+      await expect(panel).toHaveAttribute("data-expanded", "false");
+      await expect(harness.locator('[data-b16-content="true"]')).toBeHidden();
+      await toggle.focus();
+      await page.keyboard.press("Enter");
+      await expect(panel).toHaveAttribute("data-expanded", "true");
+      await expect(panel.getByRole("button", { name: "Contraer panel utilitario", expanded: true })).toBeVisible();
+      await expect(harness.locator('[data-b16-content="true"]')).toBeVisible();
+      await page.keyboard.press("Tab");
+      await page.keyboard.press("Shift+Tab");
+      await expect(toggle).toBeFocused();
+      const width = await panel.evaluate((element) => element.getBoundingClientRect().width);
+      console.log(`[B16] ${viewport.width}x${viewport.height}: panel width ${width}px`);
+      if (viewport.width < 768) {
+        expect(width).toBeGreaterThanOrEqual(viewport.width - 1);
+        expect(width).toBeLessThanOrEqual(viewport.width + 1);
+      } else {
+        expect(width).toBeGreaterThanOrEqual(334);
+        expect(width).toBeLessThanOrEqual(338);
+      }
+      const touch = await toggle.evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        return { width: rect.width, height: rect.height, outline: getComputedStyle(element).outlineStyle };
+      });
+      expect(touch.width).toBeGreaterThanOrEqual(44);
+      expect(touch.height).toBeGreaterThanOrEqual(44);
+      expect(touch.outline).not.toBe("none");
+      await expect(harness.locator('[data-b16-primary="true"]')).toContainText("Colección intacta");
+      await expectNoOuterScroll(page, `B16 expanded @ ${viewport.width}`);
+      await toggle.click();
+      await expect(panel).toHaveAttribute("data-expanded", "false");
+      await expect(toggle).toBeFocused();
+      await page.keyboard.press("Space");
+      await expect(panel).toHaveAttribute("data-expanded", "true");
+      await expectNoOuterScroll(page, `B16 @ ${viewport.width}`);
+    });
+  }
 });
 
 test.describe("B11 · canonical WorkspaceHeader shared owner", () => {
@@ -182,6 +267,40 @@ test.describe("B11 · canonical WorkspaceHeader shared owner", () => {
             `${label}: B09 mobile navigation owner`,
           ).toHaveCount(1);
         }
+      });
+    }
+  }
+});
+
+const B15_SURFACES = [
+  ...SURFACES,
+  DASHBOARD_GEOMETRY_SURFACES.find((surface) => surface.id === "clinic-informes-full"),
+];
+
+test.describe("B15 · single workspace scaffold owner", () => {
+  for (const surface of B15_SURFACES) {
+    if (!surface) throw new Error("B15: missing canonical clinic full route");
+    for (const viewport of VIEWPORTS) {
+      test(`${surface.id} @ ${viewport.slug}`, async ({ page }) => {
+        await page.setViewportSize({ width: viewport.width, height: viewport.height });
+        await prepareSurface(page, surface);
+        await openSurface(page, surface);
+        const scaffold = page.locator('[data-workspace-scaffold="true"]');
+        await expect(scaffold).toHaveCount(1);
+        await expect(scaffold.locator('[data-dashboard-module-viewport]')).toHaveCount(1);
+        const measurements = await scaffold.evaluate((element) => {
+          const rect = element.getBoundingClientRect();
+          const parent = element.parentElement?.getBoundingClientRect();
+          const header = element.querySelector('[data-workspace-header="true"]');
+          const viewportNode = element.querySelector('[data-dashboard-module-viewport]');
+          return {
+            widthDelta: parent ? Math.abs(rect.width - parent.width) : -1,
+            viewportAfterHeader: !header || Boolean(viewportNode && header.compareDocumentPosition(viewportNode) & Node.DOCUMENT_POSITION_FOLLOWING),
+          };
+        });
+        expect(measurements.widthDelta).toBeLessThanOrEqual(0.5);
+        expect(measurements.viewportAfterHeader).toBe(true);
+        await expectNoOuterScroll(page, `${surface.id} @ ${viewport.slug}`);
       });
     }
   }

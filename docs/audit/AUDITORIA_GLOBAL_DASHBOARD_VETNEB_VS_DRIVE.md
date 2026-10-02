@@ -23,6 +23,10 @@
 
 > **Esta auditoría no implementó ningún cambio de código, CSS, backend, base de datos, configuración ni dependencias.** No se crearon ramas, commits, pushes ni pull requests fuera del proceso normal de revisión documental.
 
+> **Actualización B15 · 2026-10-02.** B15 está COMPLETE: `WorkspaceScaffold` centraliza la composición de slots sin cambiar CSS, runtime, endpoints, capacidad adaptativa ni navegación. A02 21/21 (273/273), A03 16/16 (195/195, 234/234), A05/A08 36/36, contratos E2E B10–B15 91/91, guards de arquitectura/UI 98/98, lint, typecheck, build y `security:public-surface` están PASSED. El test de integración que requiere una DB aislada está BLOCKED_BY_ENVIRONMENT por faltar `DATABASE_URL` o `SUPABASE_DB_URL`.
+
+> **Actualización B16 · 2026-10-02.** B16 está COMPLETE en el árbol local: `UtilitySidePanel` se integra al slot neutral `details` de `WorkspaceScaffold`, mide 336 ±2 px expandido y es colapsable. A02 21/21 (273/273), A03 16/16 (195/195, 234/234), A05 15/15, A08 21/21, E2E B10–B16 94/94, cohorte visual 529 aprobados/1 omitido, guards arquitectura/UI 107/107, lint, typecheck, build, `security:public-surface` y diff-check están PASSED. El siguiente slot del roadmap es C01; no se implementó Programa C.
+
 ---
 
 ## 1. Resumen ejecutivo
@@ -1421,7 +1425,7 @@ El superbuscador es el **cuarto** consumidor. Los dos primeros (header de aplica
 
 ## 29. Diferencias de workspace
 
-**P1-14 · Sin scaffold reutilizable.** Cada módulo compone su encabezado, tira de métricas, filtros, colección y pager a mano. `ModuleSurface` (1 299 B) y `DashboardModuleWorkspace` (2 218 B) cubren sólo parte.
+**P1-14 · Cerrado por B15.** `WorkspaceScaffold` es el owner reutilizable de la composición interna y los adaptadores de compatibilidad preservan las cinco formas DOM medidas. Toolbar, filtros, colección, detalle y footer continúan siendo slots; B16 incorporó `UtilitySidePanel` al slot neutral de detalle. `DetailsPane` continúa pendiente de C13 (P1-18).
 
 **P2-08 · Encabezado de workspace desproporcionado.** 73.95 px de gutter + `workspace-header` más 46.02 px de `CardHeader` = **119.97 px** para un título, una descripción y dos botones. Drive resuelve el equivalente en 0 px (el título vive en el drawer).
 
@@ -1553,7 +1557,7 @@ Inventario vigente: **P1-01** (tres implementaciones), **P1-02** (colapso 768–
 | P1-11 | `features/dashboard/presentation/` vacío (7 barriles, 1 componente) | Arquitectura | §14.4 |
 | P1-12 | Seis mecanismos de navegación / nueve componentes | Navegación | §16 |
 | P1-13 | La navegación gasta el eje escaso (altura) en vez del sobrado (anchura) | Navegación | §28 |
-| P1-14 | Sin `WorkspaceScaffold` reutilizable | 15 módulos | §29 |
+| P1-14 | **CERRADO B15:** `WorkspaceScaffold` reutilizable con adaptadores de compatibilidad | 15 módulos | §29 |
 | P1-15 | Sin alternancia lista/cuadrícula | Colecciones | §30 |
 | P1-16 | **Sin selección en ninguna de las 12 colecciones** | Colecciones | §31 |
 | P1-17 | No existe la capa toolbar | 15 módulos | §33 |
@@ -1784,8 +1788,8 @@ features/dashboard/
 | **B12** | 5 | Retirar la tarjeta de módulo como capa de superficie (−1 de las 4 capas) | B11, B04 |
 | **B13** | 5 | Degradar el hub a «Inicio»: entrada directa al último módulo o al predeterminado | B08 |
 | **B14** | 5 | Reubicar la tira de métricas (a toolbar o panel) | B11 |
-| **B15** | 6 | `WorkspaceScaffold` (header · toolbar · filters · collection · details · footer) | B12 |
-| **B16** | 6 | `UtilitySidePanel` de 336 px | B15 |
+| **B15** | 6 | **COMPLETE:** `WorkspaceScaffold` (header · toolbar · filters · collection · details · footer) | B12 |
+| **B16** | 6 | **COMPLETE:** `UtilitySidePanel` de 336 px, colapsable | B15 |
 
 ---
 
@@ -1795,7 +1799,7 @@ features/dashboard/
 
 | PR | Nivel | Objetivo | Dependencias |
 |---|---|---|---|
-| **C01** | 7 | `CollectionWorkspace` + `ContentList` + `ContentListItem` + `CollectionHeader` pegajosa | B15 |
+| **C01** | 7 | **NEXT_SLOT:** `CollectionWorkspace` + `ContentList` + `ContentListItem` + `CollectionHeader` pegajosa | B15 |
 | **C02** | 7 | `CollectionPager` unificado (fusiona `DashboardPager` y `CompactPager`) | C01 |
 | **C03** | 7 | `CollectionEmptyState` / error / loading unificados | C01 |
 | **C04** | 7 | Ordenamiento por columna (P2-09) | C01 |

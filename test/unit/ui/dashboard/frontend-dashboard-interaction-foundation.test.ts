@@ -245,9 +245,10 @@ test("PR-1 DashboardModuleWorkspace keeps focus-visible ring on Volver button", 
 
 test("PR-1 DashboardModuleWorkspace keeps data-dashboard-module-workspace attribute", () => {
   const source = read(DASHBOARD_MODULE_WORKSPACE_PATH);
+  const scaffold = read("frontend/src/components/dashboard/ModuleSurface.tsx");
   assert.ok(
-    source.includes("data-dashboard-module-workspace={moduleId}"),
-    "DashboardModuleWorkspace must keep data-dashboard-module-workspace attribute",
+    source.includes("moduleId={moduleId}") && scaffold.includes("data-dashboard-module-workspace={props.moduleId}"),
+    "DashboardModuleWorkspace must pass its module ID to the scaffold's workspace attribute",
   );
 });
 

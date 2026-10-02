@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { WorkspaceScaffold } from "@/features/dashboard/presentation/layout";
 
 /**
  * CMP-06 — Full clinic routes use the same structural stage/workspace/viewport
@@ -17,17 +18,7 @@ export function ClinicFullRouteModuleStage({
       data-clinic-dashboard-stage="true"
       className="flex min-h-0 flex-1 flex-col overflow-hidden dashboard-module-stage"
     >
-      <section
-        data-dashboard-module-workspace={moduleId}
-        className="flex min-h-0 flex-1 flex-col"
-      >
-        <div
-          data-dashboard-module-viewport={moduleId}
-          className="flex min-h-0 min-w-0 flex-1 flex-col"
-        >
-          {children}
-        </div>
-      </section>
+      <WorkspaceScaffold kind="full-route" moduleId={moduleId} collection={children} />
     </div>
   );
 }

@@ -2152,6 +2152,28 @@ export function assertMatchesBaseline(
 
   for (const [leafKey, expected] of frozen) {
     const actual = observed.get(leafKey)!;
+    if (expected.source === "client-slice") {
+      expect(
+        expected.offset,
+        `${leafKey}: frozen client-slice offset must equal its first rendered fixture index (${provenance})`,
+      ).toBe(expected.firstRenderedFixtureIndex);
+      expect(
+        expected.pageItemCount,
+        `${leafKey}: frozen client-slice item count must equal its captured ids (${provenance})`,
+      ).toBe(expected.secondPageFixtureIds.length);
+      expect(
+        expected.secondPageCount,
+        `${leafKey}: frozen client-slice second-page count must equal its captured ids (${provenance})`,
+      ).toBe(expected.secondPageFixtureIds.length);
+      expect(
+        expected.pageItemCount,
+        `${leafKey}: frozen client-slice item count must equal its limit (${provenance})`,
+      ).toBe(expected.limit);
+      expect(
+        expected.secondPageCount,
+        `${leafKey}: frozen client-slice second-page count must equal its limit (${provenance})`,
+      ).toBe(expected.limit);
+    }
     expect(
       {
         source: actual.source,
