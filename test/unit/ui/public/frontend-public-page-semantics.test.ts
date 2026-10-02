@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
+import { parseTsx } from "../dashboard/dashboard-source-oracle.ts";
+import { functionNamed, runSource } from "../admin/source-function-runner.ts";
 
 const HOME_PATH = "frontend/src/app/page.tsx";
 const SERVICIOS_PATH = "frontend/src/app/servicios/page.tsx";
@@ -151,6 +153,26 @@ test("precios page sanitizes semantic ids for category headings", () => {
   assert.equal(
     source.includes("id={`pricing-category-${category.category}`}"),
     false,
+  );
+});
+
+test("TEST-GLOBAL-08 G06-P12 kills M-P08 when semantic ids skip normalization", () => {
+  const source = read(PRECIOS_CONTENT_PATH);
+  const toSemanticId = (candidate: string) => runSource<(value: string) => string>(
+    functionNamed(parseTsx(candidate, PRECIOS_CONTENT_PATH), "toSemanticId"),
+    {},
+  );
+
+  assert.equal(toSemanticId(source)("Estudios Clínicos / Ñandú"), "estudios-clinicos-nandu");
+  const mutant = source.replace(
+    "function toSemanticId(value: string): string {",
+    "function toSemanticId(value: string): string { if (value) return value;",
+  );
+  assert.notEqual(mutant, source, "M-P08 must be applicable");
+  assert.equal(
+    toSemanticId(mutant)("Estudios Clínicos / Ñandú"),
+    "Estudios Clínicos / Ñandú",
+    "M-P08 returns an unsafe semantic id",
   );
 });
 

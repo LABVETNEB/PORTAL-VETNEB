@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import ts from "typescript";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
+import { descendants, evaluate, parseTsx } from "../dashboard/dashboard-source-oracle.ts";
 
 const PROFESIONALES_PAGE_PATH = "frontend/src/app/profesionales/page.tsx";
 const PROFESIONALES_SEARCH_CONTENT_PATH =
@@ -98,6 +100,35 @@ test("profesionales search content uses free text query and approximate backend 
   assert.ok(apiSource.includes("q"));
   assert.ok(apiSource.includes("/api/public/professionals/search"));
   assert.ok(apiSource.includes("/api/public/professionals/${clinicId}"));
+});
+
+test("TEST-GLOBAL-08 G06-P07 kills M-P07 when a later spread clears the typed search query", () => {
+  const source = read(PROFESIONALES_SEARCH_CONTENT_PATH);
+  const request = (candidate: string) => {
+    const [call] = descendants(parseTsx(candidate, PROFESIONALES_SEARCH_CONTENT_PATH), ts.isCallExpression)
+      .filter((node) => node.expression.getText() === "searchPublicProfessionals");
+    assert.ok(call, "searchPublicProfessionals must be called");
+    return evaluate(call.arguments[0], {
+      currentQuery: "Cardiología",
+      PUBLIC_PROFESSIONALS_PAGE_SIZE: 12,
+    });
+  };
+
+  assert.deepEqual(request(source), {
+    query: "Cardiología",
+    limit: 12,
+    offset: 0,
+  });
+  const mutant = source.replace(
+    "query: currentQuery,",
+    "query: currentQuery, ...{ query: \"\" },",
+  );
+  assert.notEqual(mutant, source, "M-P07 must be applicable");
+  assert.deepEqual(request(mutant), {
+    query: "",
+    limit: 12,
+    offset: 0,
+  }, "M-P07 sends an empty search query");
 });
 
 test("profesionales search content renders compact professional result cards", () => {

@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
+import { parseTsx } from "../dashboard/dashboard-source-oracle.ts";
+import { runModule } from "../admin/source-function-runner.ts";
 
 const NAVBAR_PATH = "frontend/src/components/layout/Navbar.tsx";
 const FOOTER_PATH = "frontend/src/components/layout/Footer.tsx";
@@ -111,6 +113,36 @@ test("PublicRouteControl emits aria-current=page when the route is active", () =
   const source = read(PUBLIC_ROUTE_CONTROL_PATH);
 
   assert.ok(source.includes('aria-current={isRouteActive ? "page" : undefined}'));
+});
+
+test("TEST-GLOBAL-08 G06-P16 kills M-P04 when a later prop spread clears aria-current", () => {
+  const source = read(PUBLIC_ROUTE_CONTROL_PATH);
+  const ariaCurrent = (candidate: string) => {
+    const PublicRouteControl = runModule(
+      parseTsx(candidate, PUBLIC_ROUTE_CONTROL_PATH),
+      {
+        react: { useCallback: (callback: unknown) => callback, useEffect: () => undefined },
+        "next/navigation": { usePathname: () => "/profesionales", useRouter: () => ({}) },
+        "@/components/ui/button": { Button: () => null },
+        "@/lib/utils": { cn: (...classes: unknown[]) => classes.filter(Boolean).join(" ") },
+      },
+      { React: { createElement: (type: unknown, props: Record<string, unknown>) => ({ type, props }) } },
+    ).PublicRouteControl as (props: Record<string, unknown>) => { props: Record<string, unknown> };
+    return PublicRouteControl({
+      href: "/profesionales",
+      children: "Profesionales",
+      variant: "bare",
+      activeClassName: "active",
+    }).props["aria-current"];
+  };
+
+  assert.equal(ariaCurrent(source), "page");
+  const mutant = source.replace(
+    'aria-current={isRouteActive ? "page" : undefined}',
+    'aria-current={isRouteActive ? "page" : undefined} {...{ "aria-current": undefined }}',
+  );
+  assert.notEqual(mutant, source, "M-P04 must be applicable");
+  assert.equal(ariaCurrent(mutant), undefined, "M-P04 clears the active-route state");
 });
 
 test("PublicRouteControl active route logic: root exact-only, nested prefix-aware", () => {

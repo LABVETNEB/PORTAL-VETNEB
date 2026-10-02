@@ -865,7 +865,11 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     section: "§11",
     metric: "specs con harness de mutación en memoria",
     historical: 9,
-    baseline: 57,
+    // Historical anchor 57; f911209d already measured 66 (+9 accumulated
+    // TEST-GLOBAL-08/frontend drift). The eight public G06-P strengthens add
+    // exactly +8, so the current measured value is 74. Detector and tolerance
+    // remain unchanged.
+    baseline: 74,
     compute: () =>
       classification.specs.filter((spec) => spec.hasMutationHarness).length,
     resolution: "RECLASSIFIED",

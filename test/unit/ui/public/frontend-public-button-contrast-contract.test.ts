@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
+import { effectiveAttribute, evaluate, jsxElements, parseTsx, tagName } from "../dashboard/dashboard-source-oracle.ts";
 
 const GLOBALS_CSS_PATH = "frontend/src/app/globals.css";
 const HOME_PAGE_PATH = "frontend/src/app/page.tsx";
@@ -139,4 +140,25 @@ test("login and particulares submit CTAs keep loading semantics and contract cla
   assert.ok(particulares.includes("aria-busy={isSubmitting}"));
   assert.ok(contacto.includes("public-cta-primary w-full"));
   assert.ok(contacto.includes("aria-busy={isSubmitting}"));
+});
+
+test("TEST-GLOBAL-08 G06-P08 kills M-P06 when submit state is overridden after aria-busy", () => {
+  const source = read(LOGIN_CONTENT_PATH);
+  const ariaBusy = (candidate: string) => {
+    const submit = jsxElements(parseTsx(candidate, LOGIN_CONTENT_PATH)).find(
+      (element) => tagName(element) === "Button" && effectiveAttribute(element, "type").kind === "value",
+    );
+    assert.ok(submit, "login submit CTA must exist");
+    const attribute = effectiveAttribute(submit, "aria-busy");
+    assert.equal(attribute.kind, "value");
+    return evaluate(attribute.expression, { isSubmitting: true });
+  };
+
+  assert.equal(ariaBusy(source), true);
+  const mutant = source.replace(
+    "aria-busy={isSubmitting}",
+    'aria-busy={isSubmitting} {...{ "aria-busy": false }}',
+  );
+  assert.notEqual(mutant, source, "M-P06 must be applicable");
+  assert.equal(ariaBusy(mutant), false, "M-P06 suppresses the busy announcement");
 });

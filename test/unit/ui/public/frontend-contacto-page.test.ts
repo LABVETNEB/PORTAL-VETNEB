@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
+import { parseTsx } from "../dashboard/dashboard-source-oracle.ts";
+import { functionNamed, runSource } from "../admin/source-function-runner.ts";
 
 const CONTACTO_PAGE_PATH = "frontend/src/app/contacto/page.tsx";
 const CONTACTO_CONTENT_PATH = "frontend/src/components/public/ContactoContent.tsx";
@@ -104,6 +106,49 @@ test("contacto content keeps form submission contract intact", () => {
   assert.ok(source.includes('id="email"'));
   assert.ok(source.includes('id="clinica"'));
   assert.ok(source.includes('id="mensaje"'));
+});
+
+test("TEST-GLOBAL-08 G06-P02 kills M-P05 when a later spread clears clinicName", async () => {
+  const source = read(CONTACTO_CONTENT_PATH);
+  const submitted = async (candidate: string) => {
+    const payloads: unknown[] = [];
+    const handleSubmit = runSource<(event: { preventDefault(): void }) => Promise<void>>(
+      functionNamed(parseTsx(candidate, CONTACTO_CONTENT_PATH), "handleSubmit"),
+      {
+        isSubmitting: false,
+        clearFeedbackMessages: () => undefined,
+        setIsSubmitting: () => undefined,
+        nombre: "Ana",
+        apellido: "Pérez",
+        email: "ana@example.test",
+        clinica: "Clínica Ñandú",
+        mensaje: "Consulta",
+        submitContactMessage: async (payload: unknown) => {
+          payloads.push(payload);
+          return { sent: true, message: "Enviado" };
+        },
+        setWarningMessage: () => undefined,
+        setSuccessMessage: () => undefined,
+        setNombre: () => undefined,
+        setApellido: () => undefined,
+        setEmail: () => undefined,
+        setClinica: () => undefined,
+        setMensaje: () => undefined,
+        setErrorMessage: () => undefined,
+        resolveContactSubmitErrorMessage: () => "Error",
+      },
+    );
+    await handleSubmit({ preventDefault: () => undefined });
+    return payloads.map((payload) => (payload as { clinicName: unknown }).clinicName);
+  };
+
+  assert.deepEqual(await submitted(source), ["Clínica Ñandú"]);
+  const mutant = source.replace(
+    "clinicName: clinica.trim() || null,",
+    "clinicName: clinica.trim() || null, ...{ clinicName: null },",
+  );
+  assert.notEqual(mutant, source, "M-P05 must be applicable");
+  assert.deepEqual(await submitted(mutant), [null], "M-P05 clears the submitted clinic name");
 });
 
 test("contacto content avoids prohibited public demo copy", () => {

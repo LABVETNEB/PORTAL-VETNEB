@@ -3,6 +3,8 @@ import { statSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
+import { parseTsx } from "../dashboard/dashboard-source-oracle.ts";
+import { runModule } from "../admin/source-function-runner.ts";
 
 const HOME_PAGE_PATH = "frontend/src/app/page.tsx";
 const SCROLL_REVEAL_PATH =
@@ -71,4 +73,74 @@ test("public scroll reveal keeps reduced motion and cleanup guarantees", () => {
   assert.ok(source.includes("observer?.disconnect()"));
   assert.ok(source.includes("cancelIdleInitialization?.()"));
   assert.ok(source.includes("ctx?.revert()"));
+});
+
+test("TEST-GLOBAL-08 G06-P13 kills M-P02 when unmount cleanup skips GSAP context reversion", async () => {
+  const source = read(SCROLL_REVEAL_PATH);
+  const run = async (candidate: string) => {
+    let effect: (() => void | (() => void)) | undefined;
+    let observe: ((entries: Array<{ isIntersecting: boolean }>) => void) | undefined;
+    let idleCallback: (() => void) | undefined;
+    let reverts = 0;
+    const root = {};
+    class Observer {
+      constructor(callback: (entries: Array<{ isIntersecting: boolean }>) => void) {
+        observe = callback;
+      }
+      observe() {}
+      disconnect() {}
+    }
+    const PublicScrollReveal = runModule(
+      parseTsx(candidate, SCROLL_REVEAL_PATH),
+      {
+        react: {
+          useEffect: (callback: () => void | (() => void)) => { effect = callback; },
+          useRef: () => ({ current: root }),
+        },
+        "@/lib/utils": { cn: (...classes: unknown[]) => classes.filter(Boolean).join(" ") },
+        gsap: {
+          gsap: {
+            registerPlugin: () => undefined,
+            context: (callback: () => void) => {
+              callback();
+              return { revert: () => { reverts += 1; } };
+            },
+            fromTo: () => undefined,
+          },
+        },
+        "gsap/ScrollTrigger": { ScrollTrigger: {} },
+      },
+      {
+        React: { createElement: () => null },
+        window: {
+          matchMedia: () => ({ matches: false }),
+          requestIdleCallback: (callback: () => void) => { idleCallback = callback; return 1; },
+          cancelIdleCallback: () => undefined,
+          setTimeout: () => 1,
+          clearTimeout: () => undefined,
+          IntersectionObserver: Observer,
+        },
+        IntersectionObserver: Observer,
+      },
+    ).PublicScrollReveal as (props: { children: unknown }) => unknown;
+
+    PublicScrollReveal({ children: null });
+    assert.ok(effect, "component must register its effect");
+    const cleanup = effect();
+    assert.ok(observe, "effect must observe the reveal root");
+    observe([{ isIntersecting: true }]);
+    assert.ok(idleCallback, "intersection must schedule initialization");
+    idleCallback();
+    await new Promise((resolve) => setImmediate(resolve));
+    if (typeof cleanup !== "function") {
+      throw new Error("effect must provide cleanup");
+    }
+    cleanup();
+    return reverts;
+  };
+
+  assert.equal(await run(source), 1);
+  const mutant = source.replace("ctx?.revert();", "if (false) ctx?.revert();");
+  assert.notEqual(mutant, source, "M-P02 must be applicable");
+  assert.equal(await run(mutant), 0, "M-P02 leaves GSAP context active after unmount");
 });

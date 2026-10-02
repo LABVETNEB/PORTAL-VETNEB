@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
+import { parseTsx } from "../dashboard/dashboard-source-oracle.ts";
+import { runModule } from "../admin/source-function-runner.ts";
 
 const HOOK_PATH = "frontend/src/hooks/useScrollPerspective.ts";
 const COMPONENT_PATH = "frontend/src/components/public/PerspectiveScrollSection.tsx";
@@ -62,6 +64,54 @@ test("hook respects prefers-reduced-motion without registering listeners", () =>
 
   assert.ok(source.includes("(prefers-reduced-motion: reduce)"));
   assert.ok(source.includes('data-perspective-disabled", "reduced-motion"'));
+});
+
+test("TEST-GLOBAL-08 G06-P14 kills M-P03 when reduced motion registers perspective listeners", () => {
+  const source = read(HOOK_PATH);
+  const registrations = (candidate: string) => {
+    let effect: (() => void | (() => void)) | undefined;
+    const listeners: string[] = [];
+    const element = {
+      style: { setProperty: () => undefined, removeProperty: () => undefined },
+      setAttribute: () => undefined,
+      removeAttribute: () => undefined,
+      getBoundingClientRect: () => ({ top: 0, height: 100 }),
+    };
+    const useScrollPerspective = runModule(
+      parseTsx(candidate, HOOK_PATH),
+      {
+        react: {
+          useEffect: (callback: () => void | (() => void)) => { effect = callback; },
+          useRef: () => ({ current: element }),
+        },
+      },
+      {
+        window: {
+          matchMedia: () => ({ matches: true }),
+          addEventListener: (name: string) => listeners.push(name),
+          removeEventListener: () => undefined,
+          requestAnimationFrame: () => 1,
+          cancelAnimationFrame: () => undefined,
+          innerHeight: 900,
+          innerWidth: 1280,
+        },
+      },
+    ).useScrollPerspective as () => unknown;
+
+    useScrollPerspective();
+    assert.ok(effect, "hook must register its effect");
+    const cleanup = effect();
+    if (typeof cleanup === "function") cleanup();
+    return listeners;
+  };
+
+  assert.deepEqual(registrations(source), []);
+  const mutant = source.replace(
+    "if (window.matchMedia(REDUCED_MOTION_QUERY).matches) {",
+    "if (false && window.matchMedia(REDUCED_MOTION_QUERY).matches) {",
+  );
+  assert.notEqual(mutant, source, "M-P03 must be applicable");
+  assert.deepEqual(registrations(mutant), ["scroll", "resize"], "M-P03 registers motion listeners");
 });
 
 test("hook never hijacks scrolling: no wheel/touch interception, no preventDefault", () => {
