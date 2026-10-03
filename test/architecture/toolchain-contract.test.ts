@@ -115,7 +115,7 @@ test("Backend CI keeps both dependency audits mandatory and blocking", () => {
   assert.notEqual(end, -1);
   assertContains(
     backendValidation,
-    "      - name: Dependency security audit\n        run: |\n          pnpm audit --prod\n          pnpm audit",
+    "      - name: Dependency security audit\n        run: |\n          pnpm audit --prod\n          node scripts/supply-chain/dependency-audit-gate.mjs",
   );
   assertNotContains(backendValidation, "continue-on-error");
   assertNotContains(backendValidation, "|| true");

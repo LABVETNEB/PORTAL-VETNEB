@@ -373,7 +373,7 @@ test("Backend CI ejecuta todos los gates obligatorios en orden", () => {
   assertOrdered(heavy, [
     "      - name: Install dependencies\n        run: pnpm install --frozen-lockfile",
     "      - name: Lint backend\n        run: pnpm lint:backend",
-    "      - name: Dependency security audit\n        run: |\n          pnpm audit --prod\n          pnpm audit",
+    "      - name: Dependency security audit\n        run: |\n          pnpm audit --prod\n          node scripts/supply-chain/dependency-audit-gate.mjs",
     "      - name: Run database migrations\n        run: pnpm db:migrate",
     "      - name: Typecheck\n        run: pnpm typecheck",
     "      - name: Typecheck tests\n        run: pnpm typecheck:test",
