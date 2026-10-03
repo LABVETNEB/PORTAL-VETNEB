@@ -390,8 +390,121 @@ test("C01 · Auditoría adopts the table and list forms without moving capacity,
   assert.deepEqual(consumers.sort(), [C01_AUDIT_CARD, C01_AUDIT_TABLE, C01_AUDIT_MOBILE].sort());
   for (const path of sourceFiles("frontend/src")) {
     const source = read(path);
-    for (const later of ["CollectionPager", "CollectionEmptyState", "useCollectionSelection", "SelectionToolbar", "aria-sort"]) {
-      assert.equal(source.includes(later), false, `${path}: ${later} belongs to C02+`);
+    // C02 landed CollectionPager; its own fence lives in the C02 block below.
+    for (const later of ["CollectionEmptyState", "useCollectionSelection", "SelectionToolbar", "aria-sort"]) {
+      assert.equal(source.includes(later), false, `${path}: ${later} belongs to C03+`);
     }
   }
+});
+
+const C02_OWNER = "frontend/src/components/dashboard/DashboardPager.tsx";
+const C02_COMPACT_ADAPTER = "frontend/src/components/dashboard/CompactPager.tsx";
+const C02_NAVIGATION_BARREL = "frontend/src/features/dashboard/presentation/navigation/index.ts";
+const C02_CENTERED_CONSUMERS = [
+  "frontend/src/app/dashboard/ClinicLogisticaWorkspaceSummary.tsx",
+  "frontend/src/app/dashboard/logistica/LogisticsRecentListCanvas.tsx",
+] as const;
+const C02_COMPACT_CONSUMERS = [
+  "frontend/src/app/dashboard/admin/AdminMaintenanceDryRunCard.tsx",
+  "frontend/src/app/dashboard/admin/AdminPricingEditorCard.tsx",
+] as const;
+
+function exportedFunctionBody(source: string, name: string): string {
+  const start = source.indexOf(`export function ${name}(`);
+  assert.ok(start >= 0, `missing export function ${name}`);
+  const next = source.indexOf("\nexport ", start + 1);
+  return stripComments(source.slice(start, next < 0 ? undefined : next));
+}
+
+test("C02 · CollectionPager is the single runtime owner and the legacy names are thin adapters", () => {
+  const owner = read(C02_OWNER);
+  const compact = stripComments(read(C02_COMPACT_ADAPTER));
+
+  assert.equal((owner.match(/export function CollectionPager\(/g) ?? []).length, 1);
+  const runtimeOwners = sourceFiles("frontend/src").filter((path) =>
+    /function CollectionPager\(|data-dashboard-compact-pager=|className=\{cn\("dashboard-pager min-h-10"/.test(read(path)),
+  );
+  assert.deepEqual(runtimeOwners, [C02_OWNER], "one pager implementation, no duplicate under a legacy name");
+
+  const dashboardAdapter = exportedFunctionBody(owner, "DashboardPager");
+  assert.match(dashboardAdapter, /return <CollectionPager \{\.\.\.props\} variant="centered" \/>;/);
+  assert.match(compact, /return <CollectionPager \{\.\.\.props\} variant="compact" \/>;/);
+  assert.ok(compact.includes('} from "@/components/dashboard/DashboardPager";'));
+  for (const adapter of [dashboardAdapter, compact]) {
+    for (const markup of ["<button", "<nav", "<div", "<span", "aria-live", "Pág.", "style=", "Reservation", "RESERVATION"]) {
+      assert.equal(adapter.includes(markup), false, `a legacy adapter must not render ${markup} itself`);
+    }
+  }
+
+  // The three A05 reservations keep a single ledger in the owner module.
+  const declarations = sourceFiles("frontend/src").flatMap((path) =>
+    [...read(path).matchAll(/"--dash-adaptive-pager-reserved-block-size":/g)].map(() => path),
+  );
+  assert.deepEqual(declarations, [C02_OWNER, C02_OWNER, C02_OWNER]);
+  for (const reservation of [
+    'export const DASHBOARD_PAGER_RESERVATION = {\n  "--dash-adaptive-pager-reserved-block-size": "var(--dash-pagination-h, 2.5rem)",',
+    'export const DASHBOARD_TOUCH_PAGER_RESERVATION = {\n  "--dash-adaptive-pager-reserved-block-size":\n    "max(var(--dash-pagination-h, 2.5rem), 2.5rem)",',
+    'export const DASHBOARD_INLINE_PAGER_RESERVATION = {\n  "--dash-adaptive-pager-reserved-block-size": "var(--dash-control-h, 2rem)",',
+  ]) {
+    assert.ok(owner.includes(reservation), reservation.split(" = ")[0]);
+  }
+  assert.match(owner, /<nav[\s\S]*?style=\{DASHBOARD_TOUCH_PAGER_RESERVATION\}/, "centered keeps the touch reservation");
+  assert.match(owner, /<div[\s\S]*?style=\{DASHBOARD_PAGER_RESERVATION\}/, "compact keeps the standard reservation");
+
+  const surfaces = read(C01_SURFACES_BARREL);
+  assert.ok(surfaces.includes("  CollectionPager,\n  type CollectionPagerProps,"));
+  assert.ok(surfaces.includes('} from "@/components/dashboard/DashboardPager";'));
+  const navigation = read(C02_NAVIGATION_BARREL);
+  for (const legacy of ["DashboardPager,", "type DashboardPagerProps,", "CompactPager,", "type CompactPagerProps,", "DASHBOARD_TOUCH_PAGER_RESERVATION,"]) {
+    assert.ok(navigation.includes(legacy), `the legacy navigation surface keeps ${legacy}`);
+  }
+});
+
+test("C02 · CollectionPager owns presentation only: no data, capacity, sorting, selection, states or observers", () => {
+  const code = stripComments(read(C02_OWNER));
+  for (const forbidden of [
+    "fetch(", "@/lib/api", "@/app/", "next/navigation", "useState", "useEffect", "useLayoutEffect", "useMemo",
+    "useCallback", "useRef", "ResizeObserver", "MutationObserver", "useDashboardCanvasCapacity", "computeCapacity",
+    "usePagedRows", "aria-sort", "onSort", "sortBy", "aria-selected", "onSelect", "checkbox",
+    "EmptyState", "ErrorState", "LoadingState", "SelectionToolbar", "BulkActionMenu", "role=", "tabIndex",
+  ]) {
+    assert.equal(code.includes(forbidden), false, `CollectionPager must not own ${forbidden}`);
+  }
+  assert.doesNotMatch(code, /\b(?:limit|offset|pageSize)\b\s*[:=?]/, "the pager never sizes or offsets a request");
+});
+
+test("C02 · consumers keep their adapters and capacity owners; C03+ and C05 geometry are not started", () => {
+  const census = (pattern: RegExp) =>
+    sourceFiles("frontend/src").filter((path) => pattern.test(read(path))).sort();
+  assert.deepEqual(census(/<DashboardPager\b/), [...C02_CENTERED_CONSUMERS].sort());
+  assert.deepEqual(census(/<CompactPager\b/), [...C02_COMPACT_CONSUMERS].sort());
+  assert.deepEqual(census(/<CollectionPager\b/), [C02_COMPACT_ADAPTER, C02_OWNER].sort(), "C02 is not the C17+ migration");
+  for (const path of [...C02_CENTERED_CONSUMERS, ...C02_COMPACT_CONSUMERS]) {
+    assert.ok(read(path).includes("usePagedRows"), `${path}: client pagination stays with usePagedRows`);
+  }
+  assert.ok(read("frontend/src/app/dashboard/logistica/LogisticsRecentListCanvas.tsx").includes(
+    "useDashboardCanvasCapacity({\n    canvasNode,\n    fallbackItems: 3,\n    minItems: 1,\n    maxItems: 12,\n  });",
+  ));
+
+  for (const path of sourceFiles("frontend/src")) {
+    const source = read(path);
+    for (const later of ["CollectionEmptyState", "useCollectionSelection", "SelectionToolbar", "BulkActionMenu", "aria-sort"]) {
+      assert.equal(source.includes(later), false, `${path}: ${later} is outside C02`);
+    }
+  }
+  assert.deepEqual(
+    sourceFiles("frontend/src/hooks").filter((path) => /useAdaptive|Capacity/.test(path)),
+    ["frontend/src/hooks/useDashboardCanvasCapacity.ts"],
+    "one capacity owner; no adaptive hook reintroduced",
+  );
+  const css = readDashboardCssSource();
+  for (const frozen of [
+    "--dash-pagination-h: clamp(2.25rem, 4vh, 2.75rem);",
+    "--dash-row-pitch-compact: 36px;",
+    "--dash-row-pitch-regular: 44px;",
+    "--dash-table-head-h: 32px;",
+  ]) {
+    assert.ok(css.includes(frozen), `${frozen} stays frozen until C05/A07`);
+  }
+  assert.equal(/--dash-collection-pager|--dash-collection-row/.test(css), false, "C02 adds no geometry token");
 });
