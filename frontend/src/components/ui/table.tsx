@@ -108,6 +108,73 @@ const TableCaption = React.forwardRef<
 ));
 TableCaption.displayName = "TableCaption";
 
+// C01 · collection primitives. Structure and semantics only: data, fetch,
+// paging, sorting and selection stay with the consumer.
+
+const CollectionWorkspace = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn("dashboard-collection-workspace", className)}
+    {...props}
+    data-collection-workspace="true"
+  />
+));
+CollectionWorkspace.displayName = "CollectionWorkspace";
+
+const CollectionHeader = React.forwardRef<
+  HTMLTableSectionElement,
+  React.HTMLAttributes<HTMLTableSectionElement>
+>(({ className, ...props }, ref) => (
+  <TableHeader
+    ref={ref}
+    className={cn("dashboard-collection-header", className)}
+    {...props}
+    data-collection-header="true"
+  />
+));
+CollectionHeader.displayName = "CollectionHeader";
+
+type ContentListProps =
+  | ({ as: "tbody" } & React.ComponentPropsWithRef<"tbody">)
+  | ({ as: "ul" } & React.ComponentPropsWithRef<"ul">)
+  | ({ as: "ol" } & React.ComponentPropsWithRef<"ol">)
+  | ({ as: "div" } & React.ComponentPropsWithRef<"div">);
+
+function ContentList({ as, ...props }: ContentListProps) {
+  switch (as) {
+    case "tbody":
+      return <TableBody {...(props as React.ComponentPropsWithRef<"tbody">)} data-content-list="true" />;
+    case "ul":
+      return <ul {...(props as React.ComponentPropsWithRef<"ul">)} data-content-list="true" />;
+    case "ol":
+      return <ol {...(props as React.ComponentPropsWithRef<"ol">)} data-content-list="true" />;
+    case "div":
+      return <div {...(props as React.ComponentPropsWithRef<"div">)} data-content-list="true" />;
+  }
+}
+
+type ContentListItemProps =
+  | ({ as: "tr" } & React.ComponentPropsWithRef<"tr">)
+  | ({ as: "li" } & React.ComponentPropsWithRef<"li">)
+  | ({ as: "article" } & React.ComponentPropsWithRef<"article">)
+  | ({ as: "div" } & React.ComponentPropsWithRef<"div">);
+
+function ContentListItem({ as, ...props }: ContentListItemProps) {
+  switch (as) {
+    case "tr":
+      return <TableRow {...(props as React.ComponentPropsWithRef<"tr">)} data-content-list-item="true" />;
+    case "li":
+      return <li {...(props as React.ComponentPropsWithRef<"li">)} data-content-list-item="true" />;
+    case "article":
+      return <article {...(props as React.ComponentPropsWithRef<"article">)} data-content-list-item="true" />;
+    case "div":
+      return <div {...(props as React.ComponentPropsWithRef<"div">)} data-content-list-item="true" />;
+  }
+}
+
 export {
   Table,
   TableHeader,
@@ -117,4 +184,10 @@ export {
   TableRow,
   TableCell,
   TableCaption,
+  CollectionWorkspace,
+  CollectionHeader,
+  ContentList,
+  ContentListItem,
+  type ContentListProps,
+  type ContentListItemProps,
 };

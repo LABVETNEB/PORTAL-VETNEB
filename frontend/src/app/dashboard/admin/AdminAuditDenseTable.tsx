@@ -1,12 +1,15 @@
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
-  TableBody,
   TableCell,
   TableHead,
-  TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  CollectionHeader,
+  ContentList,
+  ContentListItem,
+} from "@/features/dashboard/presentation/surfaces";
 import { AdminAuditDetailDialog } from "./AdminAuditDetailDialog";
 
 type BadgeVariant = "default" | "secondary" | "destructive" | "outline";
@@ -55,7 +58,7 @@ export function AdminAuditDenseTable({
           </div>
         ) : (
           <Table className="table-fixed text-[13px] [&_td]:h-9 [&_td]:px-2 [&_td]:py-1 [&_th]:h-8 [&_th]:px-2 [&_th]:text-xs [&_th]:font-semibold">
-            <TableHeader>
+            <CollectionHeader>
               <TableRow>
                 <TableHead className="w-[9.5rem]">Fecha</TableHead>
                 <TableHead className="w-[10rem]">Actor</TableHead>
@@ -64,10 +67,10 @@ export function AdminAuditDenseTable({
                 <TableHead className="hidden xl:table-cell">Detalle</TableHead>
                 <TableHead className="w-[4.5rem] text-right">Acción</TableHead>
               </TableRow>
-            </TableHeader>
-            <TableBody>
+            </CollectionHeader>
+            <ContentList as="tbody">
               {rows.map((row, index) => (
-                <TableRow key={row.id}>
+                <ContentListItem as="tr" key={row.id}>
                   <TableCell className="truncate text-xs text-muted-foreground">
                     {row.date}
                   </TableCell>
@@ -91,9 +94,9 @@ export function AdminAuditDenseTable({
                   <TableCell className="text-right">
                     <AdminAuditDetailDialog row={row} />
                   </TableCell>
-                </TableRow>
+                </ContentListItem>
               ))}
-            </TableBody>
+            </ContentList>
           </Table>
         )}
       </div>

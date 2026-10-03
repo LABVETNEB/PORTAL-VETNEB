@@ -264,3 +264,134 @@ test("B15 · legacy composition adapters converge through the scaffold", () => {
     assert.ok(scaffold.includes(marker), marker);
   }
 });
+
+const C01_TABLE = "frontend/src/components/ui/table.tsx";
+const C01_SURFACES_BARREL = "frontend/src/features/dashboard/presentation/surfaces/index.ts";
+const C01_AUDIT_CARD = "frontend/src/app/dashboard/admin/AdminAuditCard.tsx";
+const C01_AUDIT_TABLE = "frontend/src/app/dashboard/admin/AdminAuditDenseTable.tsx";
+const C01_AUDIT_MOBILE = "frontend/src/app/dashboard/admin/AdminMobileAuditModule.tsx";
+const C01_PRIMITIVES = ["CollectionWorkspace", "CollectionHeader", "ContentList", "ContentListItem"] as const;
+
+function cssRule(css: string, selector: string): string {
+  const start = css.indexOf(`${selector} {`);
+  assert.ok(start >= 0, `missing rule ${selector}`);
+  return stripComments(css.slice(start, css.indexOf("}", start) + 1));
+}
+
+function c01PrimitiveCode(): string {
+  const source = read(C01_TABLE);
+  const start = source.indexOf("// C01");
+  assert.ok(start >= 0, "C01 block must stay identifiable in ui/table");
+  return stripComments(source.slice(start, source.lastIndexOf("export {")));
+}
+
+test("C01 · collection primitives extend the ui/table base and publish through surfaces", () => {
+  const code = c01PrimitiveCode();
+  const barrel = read(C01_SURFACES_BARREL);
+  assert.equal((code.match(/const CollectionWorkspace = React\.forwardRef</g) ?? []).length, 1);
+  assert.equal((code.match(/const CollectionHeader = React\.forwardRef</g) ?? []).length, 1);
+  assert.equal((code.match(/function ContentList\(/g) ?? []).length, 1);
+  assert.equal((code.match(/function ContentListItem\(/g) ?? []).length, 1);
+  assert.ok(code.includes("<TableHeader"), "the header reuses the table header skin");
+  assert.ok(code.includes("<TableBody"), "the tbody form reuses the table body skin");
+  assert.ok(code.includes("<TableRow"), "the tr form reuses the table row skin");
+  for (const name of C01_PRIMITIVES) {
+    assert.ok(barrel.includes(`  ${name},`), `surfaces must publish ${name}`);
+  }
+  assert.ok(barrel.includes('} from "@/components/ui/table";'));
+  const owners = sourceFiles("frontend/src").filter((path) =>
+    /const CollectionWorkspace\b|function ContentList\(/.test(read(path)),
+  );
+  assert.deepEqual(owners, [C01_TABLE], "one owner per primitive, no duplicate under another name");
+});
+
+test("C01 · primitives own structure only: no data, paging, sorting, selection or geometry in TSX", () => {
+  const code = c01PrimitiveCode();
+  for (const forbidden of [
+    "fetch(", "@/lib/api", "@/app/", "next/navigation", "useState", "useEffect", "useDashboardCanvasCapacity",
+    "limit", "offset", "Pager", "aria-sort", "onSort", "sortBy", "aria-selected", "onSelect", "checkbox",
+    "role=", "tabIndex", "onClick", "style=", "overflow", "position",
+  ]) {
+    assert.equal(code.includes(forbidden), false, `C01 primitives must not own ${forbidden}`);
+  }
+  // The B15 scaffold keeps composing slots without absorbing the collection.
+  assert.equal(read("frontend/src/components/dashboard/ModuleSurface.tsx").includes("CollectionWorkspace"), false);
+});
+
+test("C01 · CollectionHeader is sticky against the collection frame with a 36px ledger bound to the A03 reserve", () => {
+  const css = readDashboardCssSource();
+  assert.equal([...css.matchAll(/--dash-collection-header-h:\s*36px;/g)].length, 1);
+  assert.equal([...css.matchAll(/--dash-collection-header-h\s*:/g)].length, 2);
+  assert.match(
+    css,
+    /\.dashboard-app-shell \[data-dashboard-canvas-reserve\^="table-head"\] \{\s*--dash-collection-header-h: var\(--dash-table-head-h\);\s*\}/,
+    "inside a capacity canvas the head reserve owns the header height",
+  );
+
+  const header = cssRule(css, ".dashboard-collection-header");
+  assert.ok(header.includes("position: sticky;"));
+  assert.ok(header.includes("inset-block-start: 0;"));
+  assert.ok(header.includes("background-color: var(--dash-color-surface);"));
+  assert.equal(/fixed|overflow/.test(header), false);
+  assert.ok(css.includes("  block-size: var(--dash-collection-header-h);"));
+
+  const workspace = cssRule(css, "  .dashboard-collection-workspace");
+  assert.ok(workspace.includes("display: flex;"));
+  assert.ok(workspace.includes("min-block-size: 0;"));
+  assert.equal(/overflow|position|block-size:\s*\d/.test(workspace.replace("min-block-size: 0;", "")), false,
+    "the workspace bounds the collection frame; it is never a second scroll owner");
+
+  // Frozen neighbours: A03 reserve, B11 header, B16 panel.
+  assert.ok(css.includes("--dash-table-head-h: 44px;"));
+  assert.ok(css.includes("--dash-table-head-h: 32px;"));
+  assert.ok(css.includes('[data-dashboard-canvas-reserve^="table-head"] table thead > tr > th {'));
+  assert.ok(css.includes("--dash-workspace-header-h: 40px;"));
+  assert.ok(css.includes("--dash-utility-panel-w: 336px;"));
+});
+
+test("C01 · Auditoría adopts the table and list forms without moving capacity, actions or the pager", () => {
+  const card = read(C01_AUDIT_CARD);
+  const table = read(C01_AUDIT_TABLE);
+  const mobile = read(C01_AUDIT_MOBILE);
+
+  const workspaceStart = card.indexOf("<CollectionWorkspace");
+  const workspace = card.slice(workspaceStart, card.indexOf(">", workspaceStart));
+  assert.ok(workspaceStart >= 0, "the measured desktop canvas is the CollectionWorkspace");
+  for (const attribute of [
+    "ref={setDesktopBodyNode}",
+    'data-dashboard-adaptive-rows-canvas="true"',
+    'data-dashboard-row-pitch="compact"',
+    'data-dashboard-canvas-reserve="table-head-dense"',
+    'className="min-h-0 flex-1"',
+  ]) {
+    assert.ok(workspace.includes(attribute), `canvas keeps ${attribute}`);
+  }
+  for (const capacity of ["useDashboardCanvasCapacity", "canvasNode: desktopBodyNode,", "canvasNode: mobileBodyNode,", "DASHBOARD_PAGER_RESERVATION", "goToNextPage", "goToPreviousPage"]) {
+    assert.ok(card.includes(capacity), capacity);
+  }
+
+  assert.ok(table.includes("<Table className=\"table-fixed"), "the Table frame stays the scroll owner");
+  assert.ok(table.includes("<CollectionHeader>"));
+  assert.ok(table.includes('<ContentList as="tbody">'));
+  assert.ok(table.includes('<ContentListItem as="tr" key={row.id}>'));
+  assert.ok(table.includes("<AdminAuditDetailDialog row={row} />"));
+  assert.equal(/<TableHeader\b|<TableBody\b/.test(table), false);
+
+  assert.match(mobile, /<ContentList\s+as="div"\s+ref=\{bodyRef\}/);
+  assert.match(mobile, /<ContentListItem\s+as="article"\s+key=\{row\.id\}\s+data-admin-mobile-ops-item="true"\s+data-dashboard-adaptive-row="true"/);
+  for (const operation of ["<AdminAuditDetailDialog row={row} />", "<AdminMobileOpsPager", "onPrevious={onPrevious}", "onNext={onNext}"]) {
+    assert.ok(mobile.includes(operation), operation);
+  }
+
+  // Minimal adoption fence: C01 is not the C17+ migration.
+  const consumers = sourceFiles("frontend/src").filter(
+    (path) => path !== C01_TABLE && /<(CollectionWorkspace|CollectionHeader|ContentList|ContentListItem)\b/.test(read(path)),
+  );
+  assert.deepEqual(consumers.sort(), [C01_AUDIT_CARD, C01_AUDIT_TABLE, C01_AUDIT_MOBILE].sort());
+  for (const path of sourceFiles("frontend/src")) {
+    const source = read(path);
+    for (const later of ["CollectionPager", "CollectionEmptyState", "useCollectionSelection", "SelectionToolbar", "aria-sort"]) {
+      assert.equal(source.includes(later), false, `${path}: ${later} belongs to C02+`);
+    }
+  }
+});

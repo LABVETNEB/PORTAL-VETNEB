@@ -491,6 +491,22 @@
   --dash-utility-panel-w: 336px;
 }
 
+/* dashboard-c01-collection-geometry:start
+ *
+ * C01 - CollectionHeader geometry ledger. 36px is the audit target (46).
+ * Inside a capacity canvas the head reserve the engine subtracts stays the
+ * owner: binding the header to it keeps the measured head equal to the reserve
+ * by construction, so A03 does not move. Aligning that reserve to 36px moves
+ * capacity and belongs to C05 with A07. */
+.dashboard-app-shell {
+  --dash-collection-header-h: 36px;
+}
+
+.dashboard-app-shell [data-dashboard-canvas-reserve^="table-head"] {
+  --dash-collection-header-h: var(--dash-table-head-h);
+}
+/* dashboard-c01-collection-geometry:end */
+
 /* dashboard-b09-mobile-navigation-geometry:start
  *
  * B09 - DashboardMobileNav geometry ledger.
