@@ -290,7 +290,7 @@ test("C02 · centered CollectionPager is a landmark with the touch reservation, 
   assert.deepEqual(disabledStates(render(CollectionPager, { variant: "centered", "aria-label": "P", page: 0, pageCount: 1 })), [true, true]);
   assert.deepEqual(disabledStates(render(CollectionPager, { variant: "centered", "aria-label": "P", page: 1, pageCount: 3, disabled: true })), [true, true]);
   assert.deepEqual(
-    disabledStates(render(CollectionPager, { variant: "centered", "aria-label": "P", page: 0, pageCount: 1, hasPrev: true, hasNext: true })),
+    disabledStates(render(CollectionPager, { variant: "centered", "aria-label": "P", page: 0, pageCount: 1, hasPrev: true, hasNext: true, onPrev, onNext })),
     [false, false],
     "explicit hasPrev/hasNext win over the derived state",
   );
@@ -358,6 +358,30 @@ test("C02 · compact CollectionPager announces the visible range and total insid
     })),
     [true, true],
   );
+});
+
+test("C02 · a built-in control is enabled only when it has a callback to navigate with", () => {
+  const compact = { variant: "compact", page: 1, pageCount: 3, rangeStart: 4, rangeEnd: 6, total: 9, hasPrev: true, hasNext: true };
+  assert.deepEqual(disabledStates(render(CollectionPager, { ...compact, onNext })), [true, false], "compact: no onPrev");
+  assert.deepEqual(disabledStates(render(CollectionPager, { ...compact, onPrev })), [false, true], "compact: no onNext");
+  assert.deepEqual(disabledStates(render(CollectionPager, { ...compact, onPrev, onNext })), [false, false]);
+
+  const centered = { variant: "centered", "aria-label": "P", page: 1, pageCount: 3 };
+  assert.deepEqual(disabledStates(render(CollectionPager, centered)), [true, true], "centered: no callbacks");
+  assert.deepEqual(disabledStates(render(CollectionPager, { ...centered, onNext })), [true, false], "centered: no onPrev");
+  assert.deepEqual(disabledStates(render(CollectionPager, { ...centered, onPrev })), [false, true], "centered: no onNext");
+  assert.deepEqual(disabledStates(render(CollectionPager, { ...centered, onPrev, onNext })), [false, false]);
+
+  // A slot replaces its built-in control: the consumer's markup is rendered as
+  // given and the remaining built-in control still follows its own callback.
+  const slotted = render(CollectionPager, {
+    ...centered,
+    prevControl: { type: "button", props: { id: "url-prev", children: [] } },
+    onNext,
+  });
+  const [custom, builtIn] = buttons(slotted);
+  assert.deepEqual(custom.attrs, { id: "url-prev" }, "the slot control is not altered");
+  assert.deepEqual([builtIn.attrs["aria-label"], builtIn.attrs.disabled], ["Página siguiente", false]);
 });
 
 test("C02 · both variants share one zero-based page contract", () => {

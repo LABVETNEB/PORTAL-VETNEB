@@ -170,8 +170,9 @@ export function CollectionPager(props: CollectionPagerProps) {
   } = props;
   const safePageCount = Math.max(1, pageCount);
   const displayPage = Math.min(Math.max(1, page + 1), safePageCount);
-  const prevDisabled = disabled || !(hasPrev ?? displayPage > 1);
-  const nextDisabled = disabled || !(hasNext ?? displayPage < safePageCount);
+  // A built-in control is only enabled when it can actually navigate.
+  const prevDisabled = disabled || !onPrev || !(hasPrev ?? displayPage > 1);
+  const nextDisabled = disabled || !onNext || !(hasNext ?? displayPage < safePageCount);
   const pageState = `Pág. ${displayPage} / ${safePageCount}`;
 
   if (props.variant === "compact") {

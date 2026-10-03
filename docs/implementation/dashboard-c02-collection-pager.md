@@ -31,7 +31,7 @@ Diferencias legítimas entre ambos pagers (no fusionables sin cambiar contrato):
 - `variant: "compact"` — `rangeStart`, `rangeEnd`, `total`, `itemLabel?` (por defecto `elementos`).
 - Común — `page` base 0, `pageCount`, `hasPrev?`/`hasNext?` (si faltan se derivan de la página), `onPrev`, `onNext`, `disabled`, `className`.
 
-Una sola regla de estado: `displayPage = clamp(page + 1, 1, max(1, pageCount))`, `prev` deshabilitado si `disabled || !(hasPrev ?? displayPage > 1)` y simétrico para `next`. El estado centrado ya acotaba así; el compacto mostraba `page + 1` sin acotar. Para toda entrada alcanzable (`usePagedRows` garantiza `0 ≤ page < pageCount` y `pageCount ≥ 1`) ambas reglas producen el mismo texto; sólo difieren con `page ≥ pageCount` o `pageCount = 0`, estados que ningún consumidor produce.
+Una sola regla de estado: `displayPage = clamp(page + 1, 1, max(1, pageCount))`, `prev` deshabilitado si `disabled || !onPrev || !(hasPrev ?? displayPage > 1)` y simétrico para `next`: un control built-in nunca queda habilitado sin callback que lo opere (los controles de slot no se alteran). El estado centrado ya acotaba así; el compacto mostraba `page + 1` sin acotar. Para toda entrada alcanzable (`usePagedRows` garantiza `0 ≤ page < pageCount` y `pageCount ≥ 1`) ambas reglas producen el mismo texto; sólo difieren con `page ≥ pageCount` o `pageCount = 0`, estados que ningún consumidor produce.
 
 **Adaptadores.** `DashboardPager` (`<CollectionPager {...props} variant="centered" />`) y `CompactPager` (`<CollectionPager {...props} variant="compact" />`) conservan nombres, tipos de props e imports; no renderizan markup propio. Los cuatro consumidores no cambian.
 
