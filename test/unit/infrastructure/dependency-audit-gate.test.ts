@@ -136,7 +136,7 @@ test("8 · malformed audit output fails closed", () => {
     report([bracesAdvisory({ findings: [{ version: "3.0.3", paths: [], dev: true, optional: false, bundled: false }] })]),
   ];
   for (const stdout of malformed) {
-    assert.throws(() => parseAuditReport(stdout), undefined, stdout);
+    assert.throws(() => parseAuditReport(stdout), Error, stdout);
     const { failures } = gate((scope) => (scope === "prod" ? { status: 0, stdout: report([]) } : { status: 1, stdout }));
     assert.equal(failures.length, 1, stdout);
   }
