@@ -27,6 +27,8 @@
 
 > **Actualización B16 · 2026-10-02.** B16 está COMPLETE en el árbol local: `UtilitySidePanel` se integra al slot neutral `details` de `WorkspaceScaffold`, mide 336 ±2 px expandido y es colapsable. A02 21/21 (273/273), A03 16/16 (195/195, 234/234), A05 15/15, A08 21/21, E2E B10–B16 94/94, cohorte visual 529 aprobados/1 omitido, guards arquitectura/UI 107/107, lint, typecheck, build, `security:public-surface` y diff-check están PASSED. El siguiente slot del roadmap es C01; no se implementó Programa C.
 
+> **Actualización C01 · 2026-10-02.** C01 está COMPLETE en el árbol local: `CollectionWorkspace`, `ContentList`, `ContentListItem` y `CollectionHeader` extienden `ui/table.tsx` y se publican por `presentation/surfaces`; Auditoría admin las adopta en sus formas tabla (desktop) y lista (móvil). `CollectionHeader` es `sticky` respecto del frame de `Table` dentro de un `CollectionWorkspace` que no es contenedor de scroll, y mide 36 px fuera de canvas con reserva; dentro de un canvas adaptativo su alto queda ligado a la reserva A03 congelada (32 px en Auditoría) hasta C05. A02 21/21, A03 16/16 (195/195, 234/234), A05 15/15, A08 21/21, E2E B11–C01 17/17, contratos zero-scroll y causales 130/130, guards arquitectura/UI 2432/2433 (1 omitido condicional preexistente), lint, typecheck, build, `security:public-surface` y diff-check están PASSED. NEXT_SLOT = C02; C02 no se inició. Detalle en `docs/implementation/dashboard-c01-collection-workspace.md`.
+
 ---
 
 ## 1. Resumen ejecutivo
@@ -1438,7 +1440,7 @@ El superbuscador es el **cuarto** consumidor. Los dos primeros (header de aplica
 **P1-07 · Seis alturas de fila.** 35.66 · 37 · 41 · 49 · 51 · 156.5 px frente a 48 homogéneas.
 **P1-15 · Sin alternancia lista/cuadrícula** en ninguna colección, ni siquiera donde aporta valor (informes, clínicas, documentos).
 **P2-09 · Sin ordenamiento por columna** en ninguna tabla.
-**P2-10 · Cabecera de tabla no pegajosa** (28 px, se desplaza con el contenido en el canvas `auto`).
+**P2-10 · Cabecera de tabla no pegajosa** (28 px, se desplaza con el contenido en el canvas `auto`). **Primitiva cerrada por C01:** `CollectionHeader` pegajosa, adoptada en Auditoría; el resto de las tablas la recibe al migrar (C17+).
 **P3-08 · Densidad de celda heterogénea:** `padding 2px 8px` en admin frente a valores distintos en clínica.
 
 ---
@@ -1799,8 +1801,8 @@ features/dashboard/
 
 | PR | Nivel | Objetivo | Dependencias |
 |---|---|---|---|
-| **C01** | 7 | **NEXT_SLOT:** `CollectionWorkspace` + `ContentList` + `ContentListItem` + `CollectionHeader` pegajosa | B15 |
-| **C02** | 7 | `CollectionPager` unificado (fusiona `DashboardPager` y `CompactPager`) | C01 |
+| **C01** | 7 | **COMPLETE:** `CollectionWorkspace` + `ContentList` + `ContentListItem` + `CollectionHeader` pegajosa | B15 |
+| **C02** | 7 | **NEXT_SLOT:** `CollectionPager` unificado (fusiona `DashboardPager` y `CompactPager`) | C01 |
 | **C03** | 7 | `CollectionEmptyState` / error / loading unificados | C01 |
 | **C04** | 7 | Ordenamiento por columna (P2-09) | C01 |
 | **C05** | 7 | Altura de fila homogénea a 40 px — **requiere A07** por `itemHeightPx` | C01, A07 |

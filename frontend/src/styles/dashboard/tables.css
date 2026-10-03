@@ -25,3 +25,39 @@
   }
 }
 /* dashboard-tables-cards-consistency-polish:end */
+
+/* dashboard-c01-collection-workspace:start
+ * C01 - CollectionWorkspace / CollectionHeader (components/ui/table.tsx).
+ * The workspace is a bounded flex column, never a scroll container: the
+ * collection's own frame (the Table wrapper) stays the single scroll owner, and
+ * a flexed workspace is what bounds it. */
+@layer components {
+  .dashboard-collection-workspace {
+    display: flex;
+    flex-direction: column;
+    min-block-size: 0;
+    min-inline-size: 0;
+  }
+}
+
+/* Unlayered on purpose: the header geometry must beat the `TableHead` height
+   utility, while the A03 canvas reserve (zero-scroll.css) keeps the higher
+   specificity and therefore the last word inside capacity canvases. Sticky,
+   never fixed: it binds to the nearest scroll container, the Table wrapper. */
+.dashboard-collection-header {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 1;
+  background-color: var(--dash-color-surface);
+}
+
+.dashboard-collection-header,
+.dashboard-collection-header > tr,
+.dashboard-collection-header > tr > th {
+  block-size: var(--dash-collection-header-h);
+}
+
+.dashboard-collection-header > tr > th {
+  padding-block: 0;
+}
+/* dashboard-c01-collection-workspace:end */

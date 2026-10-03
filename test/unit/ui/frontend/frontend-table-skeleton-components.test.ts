@@ -1,9 +1,38 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
+import { runModule } from "../admin/source-function-runner.ts";
+import { parseTsx } from "../dashboard/dashboard-source-oracle.ts";
 
 const TABLE_PATH = "frontend/src/components/ui/table.tsx";
 const SKELETON_PATH = "frontend/src/components/ui/skeleton.tsx";
+
+type RenderedElement = { type: unknown; props: Record<string, unknown> };
+type ForwardRefStub = {
+  render: (props: Record<string, unknown>, ref: unknown) => RenderedElement;
+};
+type Primitive = (props: Record<string, unknown>) => RenderedElement;
+
+// Runs table.tsx as written against a React stub that records createElement,
+// so the C01 primitives are exercised as code, not matched as text.
+function loadTablePrimitives(): Record<string, unknown> {
+  const react = {
+    forwardRef: (render: ForwardRefStub["render"]): ForwardRefStub => ({ render }),
+    createElement: (
+      type: unknown,
+      props: Record<string, unknown> | null,
+      ...children: unknown[]
+    ): RenderedElement => ({ type, props: { ...props, children } }),
+  };
+  return runModule(parseTsx(read(TABLE_PATH), TABLE_PATH), {
+    react,
+    "@/lib/utils": { cn: (...values: unknown[]) => values.filter(Boolean).join(" ") },
+  });
+}
+
+function ownKeys(element: RenderedElement): string[] {
+  return Object.keys(element.props).filter((key) => key !== "children").sort();
+}
 
 test("table primitives import React and class merging utility", () => {
   const source = read(TABLE_PATH);
@@ -79,6 +108,67 @@ test("table primitive exports stable component surface", () => {
   assert.ok(source.includes("TableRow,"));
   assert.ok(source.includes("TableCell,"));
   assert.ok(source.includes("TableCaption,"));
+});
+
+test("C01 · ContentList and ContentListItem keep the consumer's semantics and add only a structural marker", () => {
+  const primitives = loadTablePrimitives();
+  const ContentList = primitives.ContentList as Primitive;
+  const ContentListItem = primitives.ContentListItem as Primitive;
+
+  const lists: readonly [string, unknown][] = [
+    ["tbody", primitives.TableBody],
+    ["ul", "ul"],
+    ["ol", "ol"],
+    ["div", "div"],
+  ];
+  for (const [as, expected] of lists) {
+    const element = ContentList({ as, className: "consumer", id: "list", "data-content-list": "false" });
+    assert.equal(element.type, expected, `ContentList as=${as}`);
+    assert.equal(element.props["data-content-list"], "true");
+    assert.equal(element.props.className, "consumer");
+    // No role, sort, selection, handler or tab stop is added on the consumer's behalf.
+    assert.deepEqual(ownKeys(element), ["className", "data-content-list", "id"]);
+  }
+
+  const items: readonly [string, unknown][] = [
+    ["tr", primitives.TableRow],
+    ["li", "li"],
+    ["article", "article"],
+    ["div", "div"],
+  ];
+  for (const [as, expected] of items) {
+    const element = ContentListItem({ as, className: "row" });
+    assert.equal(element.type, expected, `ContentListItem as=${as}`);
+    assert.equal(element.props["data-content-list-item"], "true");
+    assert.deepEqual(ownKeys(element), ["className", "data-content-list-item"]);
+  }
+});
+
+test("C01 · CollectionWorkspace and CollectionHeader forward refs, merge classes and pin their markers", () => {
+  const primitives = loadTablePrimitives();
+  const ref = () => undefined;
+
+  const workspace = (primitives.CollectionWorkspace as ForwardRefStub).render(
+    {
+      className: "min-h-0 flex-1",
+      "data-dashboard-adaptive-rows-canvas": "true",
+      "data-collection-workspace": "false",
+    },
+    ref,
+  );
+  assert.equal(workspace.type, "div");
+  assert.equal(workspace.props.ref, ref);
+  assert.equal(workspace.props.className, "dashboard-collection-workspace min-h-0 flex-1");
+  assert.equal(workspace.props["data-collection-workspace"], "true");
+  // Capacity attributes belong to the consumer and pass through untouched.
+  assert.equal(workspace.props["data-dashboard-adaptive-rows-canvas"], "true");
+
+  const header = (primitives.CollectionHeader as ForwardRefStub).render({ className: "dense" }, ref);
+  assert.equal(header.type, primitives.TableHeader);
+  assert.equal(header.props.ref, ref);
+  assert.equal(header.props.className, "dashboard-collection-header dense");
+  assert.equal(header.props["data-collection-header"], "true");
+  assert.deepEqual(ownKeys(header), ["className", "data-collection-header", "ref"]);
 });
 
 test("skeleton primitive keeps utility merge props and clinical loading class", () => {

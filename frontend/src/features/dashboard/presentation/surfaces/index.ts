@@ -15,3 +15,12 @@
  * docs/implementation/dashboard-surface-primitives.md.
  */
 export * from "./DashboardStatusBadge";
+/** C01 collection primitives; implementation extends the `ui/table` base (audit §14.2). */
+export {
+  CollectionWorkspace,
+  CollectionHeader,
+  ContentList,
+  ContentListItem,
+  type ContentListProps,
+  type ContentListItemProps,
+} from "@/components/ui/table";

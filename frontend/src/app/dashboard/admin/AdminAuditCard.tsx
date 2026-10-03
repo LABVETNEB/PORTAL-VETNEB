@@ -17,6 +17,7 @@ import { AdminMobileAuditModule } from "./AdminMobileAuditModule";
 import { getAdminAuditPage } from "./admin-audit.actions";
 import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
 import { DASHBOARD_PAGER_RESERVATION } from "@/components/dashboard/DashboardPager";
+import { CollectionWorkspace } from "@/features/dashboard/presentation/surfaces";
 
 // Server pagination is now sized by the measured rows container (Zero-Scroll
 // adaptive contract). The legacy fixed page size survives only as the
@@ -277,7 +278,7 @@ export function AdminAuditCard({
           it is content-sized, which made the previous measurement
           self-referential: nine rows measured nine rows' worth of height and
           the fit never fell below nine, whatever the viewport. */}
-      <div
+      <CollectionWorkspace
         ref={setDesktopBodyNode}
         data-dashboard-adaptive-rows-canvas="true"
         data-dashboard-row-pitch="compact"
@@ -289,7 +290,7 @@ export function AdminAuditCard({
           loadError={loadError}
           hasActiveFilters={hasActiveFilters}
         />
-      </div>
+      </CollectionWorkspace>
 
       <footer
         data-dashboard-adaptive-reserved-region="pager"

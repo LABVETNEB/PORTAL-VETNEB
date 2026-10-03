@@ -1,6 +1,7 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
+import { ContentList, ContentListItem } from "@/features/dashboard/presentation/surfaces";
 import { AdminAuditDetailDialog } from "./AdminAuditDetailDialog";
 import {
   AdminAuditFilterBar,
@@ -78,7 +79,8 @@ export function AdminMobileAuditModule({
         }}
       />
 
-      <div
+      <ContentList
+        as="div"
         ref={bodyRef}
         data-dashboard-adaptive-rows-canvas="true"
           data-dashboard-row-pitch="regular"
@@ -90,7 +92,8 @@ export function AdminMobileAuditModule({
           </div>
         ) : rows.length ? (
           rows.map((row, index) => (
-            <article
+            <ContentListItem
+              as="article"
               key={row.id}
               data-admin-mobile-ops-item="true"
               data-dashboard-adaptive-row="true"
@@ -113,7 +116,7 @@ export function AdminMobileAuditModule({
                 </p>
               </div>
               <AdminAuditDetailDialog row={row} />
-            </article>
+            </ContentListItem>
           ))
         ) : (
           <div className="flex h-full items-center justify-center px-4 text-center text-xs text-muted-foreground">
@@ -124,7 +127,7 @@ export function AdminMobileAuditModule({
                 : "No hay eventos de auditoría disponibles."}
           </div>
         )}
-      </div>
+      </ContentList>
 
       <AdminMobileOpsPager
         ariaLabel="Paginación de auditoría"

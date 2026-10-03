@@ -115,6 +115,213 @@ createRoot(mount).render(<WorkspaceScaffold kind="full-route" moduleId="b16-harn
   b16Harness = result.outputFiles[0].text;
 });
 
+let c01Harness: string;
+
+// C01 harness: the published primitives inside the real B15 scaffold (with the
+// B16 panel) and the app CSS, over a deliberately overflowing dataset. Zero
+// scroll keeps every production canvas at its fitted page size, so this is the
+// only state in which the sticky header can be observed engaging.
+test.beforeAll(async () => {
+  const result = await build({
+    stdin: {
+      contents: `import React from "react";
+import { createRoot } from "react-dom/client";
+import { WorkspaceScaffold } from "./src/components/dashboard/ModuleSurface.tsx";
+import { Table, TableCell, TableHead, TableRow } from "./src/components/ui/table.tsx";
+import { CollectionHeader, CollectionWorkspace, ContentList, ContentListItem } from "./src/features/dashboard/presentation/surfaces/index.ts";
+const main = document.querySelector("main.dashboard-main");
+const mount = document.createElement("div");
+mount.setAttribute("data-c01-harness", "true");
+mount.style.cssText = "position:absolute;inset:0;display:flex;min-height:0;min-width:0;background:white;z-index:2";
+main.style.position = "relative";
+main.append(mount);
+const rows = Array.from({ length: 60 }, (_, index) => index + 1);
+createRoot(mount).render(<WorkspaceScaffold kind="full-route" moduleId="c01-harness" details={<div data-c01-details="true">Detalle genérico</div>} collection={
+  <CollectionWorkspace className="flex-1">
+    <Table>
+      <CollectionHeader><TableRow><TableHead>Registro</TableHead><TableHead>Acción</TableHead></TableRow></CollectionHeader>
+      <ContentList as="tbody">{rows.map((row) => <ContentListItem as="tr" key={row}><TableCell>Registro {row}</TableCell><TableCell><button type="button">Abrir {row}</button></TableCell></ContentListItem>)}</ContentList>
+    </Table>
+  </CollectionWorkspace>
+} />);`,
+      resolveDir: resolve(process.cwd()),
+      loader: "tsx",
+    },
+    bundle: true,
+    write: false,
+    platform: "browser",
+    format: "iife",
+    alias: { "@": resolve(process.cwd(), "src") },
+  });
+  c01Harness = result.outputFiles[0].text;
+});
+
+const COLLECTION_HEADER_TARGET_PX = 36;
+
+/** The first ancestor that can scroll — the box `position: sticky` binds to. */
+async function readCollectionScrollOwnership(page: Page, rootSelector: string) {
+  return page.evaluate((selector) => {
+    const root = document.querySelector<HTMLElement>(selector);
+    const header = root?.querySelector<HTMLElement>('[data-collection-header="true"]') ?? null;
+    const workspace = root?.querySelector<HTMLElement>('[data-collection-workspace="true"]') ?? null;
+    let owner: HTMLElement | null = header?.parentElement ?? null;
+    while (owner && !["auto", "scroll", "hidden"].includes(getComputedStyle(owner).overflowY)) {
+      owner = owner.parentElement;
+    }
+    const scrollers = workspace
+      ? [workspace, ...Array.from(workspace.querySelectorAll<HTMLElement>("*"))].filter((element) => {
+          const overflowY = getComputedStyle(element).overflowY;
+          return (overflowY === "auto" || overflowY === "scroll") && element.scrollHeight > element.clientHeight;
+        })
+      : [];
+    const headerStyle = header ? getComputedStyle(header) : null;
+    return {
+      headerPresent: header !== null,
+      headerPosition: headerStyle?.position ?? "absent",
+      headerHeight: header?.getBoundingClientRect().height ?? -1,
+      ownerIsTableFrame: Boolean(owner && owner.firstElementChild?.tagName === "TABLE" && owner.contains(header)),
+      ownerInsideWorkspace: Boolean(owner && workspace && workspace !== owner && workspace.contains(owner)),
+      workspaceOverflowY: workspace ? getComputedStyle(workspace).overflowY : "absent",
+      workspaceScrollDelta: workspace ? workspace.scrollHeight - workspace.clientHeight : -1,
+      ownerScrollDelta: owner ? owner.scrollHeight - owner.clientHeight : -1,
+      ownerHorizontalDelta: owner ? owner.scrollWidth - owner.clientWidth : -1,
+      activeScrollers: scrollers.length,
+    };
+  }, rootSelector);
+}
+
+test.describe("C01 · CollectionWorkspace + sticky CollectionHeader harness", () => {
+  for (const viewport of [
+    { width: 1366, height: 768 },
+    { width: 390, height: 844 },
+  ]) {
+    test(`sticky header binds to the collection frame @ ${viewport.width}x${viewport.height}`, async ({ page }) => {
+      const label = `C01 harness @ ${viewport.width}x${viewport.height}`;
+      const surface = SURFACES[0];
+      await page.setViewportSize(viewport);
+      await prepareSurface(page, surface);
+      await openSurface(page, surface);
+      await page.addScriptTag({ content: c01Harness });
+
+      const harness = '[data-c01-harness="true"]';
+      await expect(page.locator(`${harness} [data-content-list-item="true"]`)).toHaveCount(60);
+      const before = await readCollectionScrollOwnership(page, harness);
+      console.log(`[C01] ${label}: ${JSON.stringify(before)}`);
+      expect(before.headerPosition, `${label}: sticky, never fixed`).toBe("sticky");
+      expect(Math.abs(before.headerHeight - COLLECTION_HEADER_TARGET_PX), `${label}: 36px header`).toBeLessThanOrEqual(1);
+      expect(before.ownerIsTableFrame, `${label}: sticky binds to the Table frame`).toBe(true);
+      expect(before.ownerInsideWorkspace, `${label}: the frame lives inside the workspace`).toBe(true);
+      expect(before.workspaceOverflowY, `${label}: the workspace is not a scroll container`).toBe("visible");
+      expect(before.workspaceScrollDelta, `${label}: the workspace bounds the frame`).toBeLessThanOrEqual(0);
+      expect(before.ownerScrollDelta, `${label}: the frame owns the overflow`).toBeGreaterThan(0);
+      expect(before.activeScrollers, `${label}: exactly one scroll owner`).toBe(1);
+      expect(before.ownerHorizontalDelta, `${label}: no horizontal overflow`).toBeLessThanOrEqual(0);
+      await expectNoOuterScroll(page, label);
+
+      const stuck = await page.evaluate((selector) => {
+        const header = document.querySelector<HTMLElement>(`${selector} [data-collection-header="true"]`)!;
+        const frame = header.closest("table")!.parentElement!;
+        frame.scrollTop = 400;
+        const firstRow = frame.querySelector<HTMLElement>('[data-content-list-item="true"]')!;
+        return {
+          scrollTop: frame.scrollTop,
+          headerTopOffset: header.getBoundingClientRect().top - frame.getBoundingClientRect().top,
+          firstRowBelowHeader: firstRow.getBoundingClientRect().bottom <= header.getBoundingClientRect().top,
+        };
+      }, harness);
+      expect(stuck.scrollTop, `${label}: the frame scrolled`).toBeGreaterThan(0);
+      expect(Math.abs(stuck.headerTopOffset), `${label}: header pinned to the frame top`).toBeLessThanOrEqual(2);
+      expect(stuck.firstRowBelowHeader, `${label}: rows scroll beneath the header`).toBe(true);
+      await expectNoOuterScroll(page, `${label} scrolled`);
+
+      // Tab order still walks the row actions; no selection stop is introduced.
+      await page.locator(harness).getByRole("button", { name: "Abrir 1", exact: true }).focus();
+      await page.keyboard.press("Tab");
+      await expect(page.locator(harness).getByRole("button", { name: "Abrir 2", exact: true })).toBeFocused();
+
+      // B16 stays intact next to the collection.
+      const panel = page.locator(`${harness} .dashboard-utility-side-panel`);
+      await panel.locator("button.dashboard-utility-side-panel-toggle").click();
+      await expect(panel).toHaveAttribute("data-expanded", "true");
+      const width = await panel.evaluate((element) => element.getBoundingClientRect().width);
+      if (viewport.width >= 768) {
+        expect(width, `${label}: B16 panel`).toBeGreaterThanOrEqual(334);
+        expect(width, `${label}: B16 panel`).toBeLessThanOrEqual(338);
+      }
+      await expectNoOuterScroll(page, `${label} panel expanded`);
+    });
+  }
+});
+
+test.describe("C01 · Auditoría adopts the collection primitives", () => {
+  const auditSurface = DASHBOARD_GEOMETRY_SURFACES.find((surface) => surface.id === "admin-auditoria");
+  if (!auditSurface) throw new Error("C01: missing canonical admin-auditoria surface");
+  const desktopCard = '#audit-log > section[aria-labelledby="admin-audit-register-title"]';
+
+  test("desktop table form keeps the A03 reserve, actions and pager @ 1366x768", async ({ page }) => {
+    const label = "C01 admin-auditoria @ 1366x768";
+    await page.setViewportSize({ width: 1366, height: 768 });
+    await prepareSurface(page, auditSurface);
+    await openSurface(page, auditSurface);
+
+    const workspace = page.locator(`${desktopCard} [data-collection-workspace="true"]`);
+    await expect(workspace).toHaveCount(1);
+    await expect(workspace).toHaveAttribute("data-dashboard-adaptive-rows-canvas", "true");
+    await expect(workspace).toHaveAttribute("data-dashboard-canvas-reserve", "table-head-dense");
+
+    const ownership = await readCollectionScrollOwnership(page, desktopCard);
+    const reserve = await workspace.evaluate((element) =>
+      Number.parseFloat(getComputedStyle(element).getPropertyValue("--dash-canvas-reserved")),
+    );
+    console.log(`[C01] ${label}: ${JSON.stringify({ ...ownership, reserve })}`);
+    expect(ownership.headerPosition).toBe("sticky");
+    expect(Math.abs(ownership.headerHeight - reserve), `${label}: header equals the A03 reserve`).toBeLessThanOrEqual(0.5);
+    expect(ownership.ownerIsTableFrame).toBe(true);
+    expect(ownership.ownerInsideWorkspace).toBe(true);
+    expect(ownership.workspaceOverflowY).toBe("visible");
+    expect(ownership.ownerScrollDelta, `${label}: fitted page, zero internal scroll`).toBeLessThanOrEqual(0);
+    expect(ownership.activeScrollers).toBe(0);
+
+    const rows = page.locator(`${desktopCard} tbody[data-content-list="true"] > tr[data-content-list-item="true"]`);
+    await expect(rows.first()).toBeVisible();
+    const rowCount = await rows.count();
+    expect(rowCount).toBeGreaterThan(0);
+
+    const detail = rows.first().getByRole("button", { name: /Ver detalle del evento/ });
+    await detail.click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog")).toBeHidden();
+
+    const range = page.locator(`${desktopCard} footer span[aria-live="polite"]`);
+    const firstRange = (await range.textContent())?.trim();
+    const next = page.locator(`${desktopCard} footer`).getByRole("button", { name: "Página siguiente" });
+    await expect(next).toBeEnabled();
+    await next.click();
+    await expect(range).not.toHaveText(firstRange ?? "");
+    await expectNoOuterScroll(page, label);
+  });
+
+  test("mobile list form keeps its canvas and row actions @ 390x844", async ({ page }) => {
+    const label = "C01 admin-auditoria @ 390x844";
+    await page.setViewportSize({ width: 390, height: 844 });
+    await prepareSurface(page, auditSurface);
+    await openSurface(page, auditSurface);
+
+    const list = page.locator('[data-admin-mobile-ops-module="audit"] [data-content-list="true"]');
+    await expect(list).toHaveCount(1);
+    await expect(list).toHaveAttribute("data-dashboard-adaptive-rows-canvas", "true");
+    expect(await list.evaluate((element) => element.tagName)).toBe("DIV");
+    const items = list.locator(':scope > article[data-content-list-item="true"]');
+    await expect(items.first()).toBeVisible();
+    await expect(page.locator('[data-collection-header="true"]').filter({ visible: true })).toHaveCount(0);
+    await items.first().getByRole("button", { name: /Ver detalle del evento/ }).click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expectNoOuterScroll(page, label);
+  });
+});
+
 test.describe("B16 · UtilitySidePanel scaffold integration", () => {
   for (const viewport of [
     { width: 1366, height: 768 },
