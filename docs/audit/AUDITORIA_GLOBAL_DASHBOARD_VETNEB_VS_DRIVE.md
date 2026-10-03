@@ -31,6 +31,8 @@
 
 > **Actualización C02 · 2026-10-03.** C02 está COMPLETE en el árbol local: `CollectionPager` es el único owner runtime del pager y de las tres reservas A05, se publica por `presentation/surfaces` y expone las variantes `centered` y `compact`; `DashboardPager` y `CompactPager` quedan como adaptadores finos sin markup propio y sus cuatro consumidores no cambian. Paridad DOM legacy demostrada en runtime; reservas, `limit`, `offset`, hooks de capacidad y CSS sin cambios; la variante compacta conserva la reserva estándar (36 px a 1366 × 768) hasta C05/A07. A02 21/21, A03 16/16 (195/195, 234/234), A05 15/15, A08 21/21, spec B11–C02 20/20, contratos zero-scroll y causales de pager 168/168, guards arquitectura/UI, lint, typecheck, build, `security:public-surface` y diff-check están PASSED. NEXT_SLOT = C03; C03 no se inició. Detalle en `docs/implementation/dashboard-c02-collection-pager.md`.
 
+> **Actualización C03 · 2026-10-03.** C03 está COMPLETE en el árbol local: `CollectionState` es el único owner runtime de los estados vacío, error y carga de colección (unión discriminada por `variant`), vive en `components/dashboard/EmptyState.tsx` y se publica por `presentation/surfaces`; `EmptyState`, `ErrorState` y `LoadingState` quedan como adaptadores finos sin markup propio y sus 19 sitios de render no cambian. Paridad DOM legacy demostrada en runtime (1 404/1 404 combinaciones); `role="alert"`, `role="status"` + `aria-live="polite"` + `aria-busy="true"`, el retry opcional y los cinco esqueletos se conservan; único atributo nuevo `data-collection-state`. Sin cambios de CSS, reservas, `limit`, `offset` ni hooks de capacidad. A02 21/21 (273/273), A03 16/16 (195/195, 234/234), A05 15/15, A08 21/21, spec B11–C03 24/24, contratos zero-scroll y causales de estados 103/103, guards arquitectura/UI, lint, typecheck, build, `security:public-surface` y diff-check están PASSED. NEXT_SLOT = C04; C04 no se inició. Detalle en `docs/implementation/dashboard-c03-collection-states.md`.
+
 ---
 
 ## 1. Resumen ejecutivo
@@ -1805,8 +1807,8 @@ features/dashboard/
 |---|---|---|---|
 | **C01** | 7 | **COMPLETE:** `CollectionWorkspace` + `ContentList` + `ContentListItem` + `CollectionHeader` pegajosa | B15 |
 | **C02** | 7 | **COMPLETE:** `CollectionPager` unificado (fusiona `DashboardPager` y `CompactPager`) | C01 |
-| **C03** | 7 | **NEXT_SLOT:** `CollectionEmptyState` / error / loading unificados | C01 |
-| **C04** | 7 | Ordenamiento por columna (P2-09) | C01 |
+| **C03** | 7 | **COMPLETE:** `CollectionState` (vacío / error / carga) unificado; `EmptyState`, `ErrorState` y `LoadingState` como adaptadores | C01 |
+| **C04** | 7 | **NEXT_SLOT:** Ordenamiento por columna (P2-09) | C01 |
 | **C05** | 7 | Altura de fila homogénea a 40 px — **requiere A07** por `itemHeightPx` | C01, A07 |
 | **C06** | 8 | `useCollectionSelection`: individual, múltiple, página, limpiar, teclado | C01 |
 | **C07** | 8 | `SelectionToolbar` contextual | C06 |

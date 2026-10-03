@@ -508,3 +508,110 @@ test("C02 · consumers keep their adapters and capacity owners; C03+ and C05 geo
   }
   assert.equal(/--dash-collection-pager|--dash-collection-row/.test(css), false, "C02 adds no geometry token");
 });
+
+const C03_OWNER = "frontend/src/components/dashboard/EmptyState.tsx";
+const C03_ERROR_ADAPTER = "frontend/src/components/dashboard/ErrorState.tsx";
+const C03_LOADING_ADAPTER = "frontend/src/components/dashboard/LoadingState.tsx";
+const C03_EMPTY_CONSUMERS = [
+  "frontend/src/app/dashboard/ClinicCommandCenter.tsx",
+  "frontend/src/app/dashboard/ClinicInformesWorkspaceSummary.tsx",
+  "frontend/src/app/dashboard/ClinicLogisticaWorkspaceSummary.tsx",
+  "frontend/src/app/dashboard/admin/AdminClinicsManagementCard.tsx",
+  "frontend/src/app/dashboard/admin/AdminFailedLoginAlertsReadOnlyCard.tsx",
+  "frontend/src/app/dashboard/informes/InformesReportsList.tsx",
+  "frontend/src/app/dashboard/logistica/LogisticsCommandCenter.tsx",
+  "frontend/src/components/dashboard/ClinicParticularTokensCard.tsx",
+] as const;
+const C03_ERROR_CONSUMERS = ["frontend/src/app/dashboard/informes/InformesReportsList.tsx"] as const;
+const C03_LOADING_CONSUMERS = [
+  "frontend/src/app/dashboard/admin/AdminClinicsManagementCard.tsx",
+  "frontend/src/app/dashboard/admin/AdminFailedLoginAlertsReadOnlyCard.tsx",
+] as const;
+
+test("C03 · CollectionState is the single runtime owner and the legacy state names are thin adapters", () => {
+  const owner = read(C03_OWNER);
+  const errorAdapter = stripComments(read(C03_ERROR_ADAPTER));
+  const loadingAdapter = stripComments(read(C03_LOADING_ADAPTER));
+
+  assert.equal((owner.match(/export function CollectionState\(/g) ?? []).length, 1);
+  for (const renderer of ["renderEmptyState", "renderErrorState", "renderLoadingState"]) {
+    assert.equal((owner.match(new RegExp(`function ${renderer}\\(`, "g")) ?? []).length, 1, renderer);
+  }
+  const runtimeOwners = sourceFiles("frontend/src").filter((path) =>
+    /data-collection-state=|function CollectionState\(|getRows\(rows\)|"No se pudo completar la acción"/.test(read(path)),
+  );
+  assert.deepEqual(runtimeOwners, [C03_OWNER], "one state implementation, no duplicate under a legacy name");
+  assert.equal((owner.match(/role="alert"/g) ?? []).length, 1, "one alert root");
+  assert.equal((owner.match(/aria-busy="true"/g) ?? []).length, 1, "one loading status root for the five skeletons");
+
+  assert.match(exportedFunctionBody(owner, "EmptyState"), /return <CollectionState \{\.\.\.props\} variant="empty" \/>;/);
+  assert.match(errorAdapter, /return <CollectionState \{\.\.\.props\} variant="error" \/>;/);
+  assert.match(loadingAdapter, /return <CollectionState \{\.\.\.props\} variant="loading" skeleton=\{variant\} \/>;/);
+  assert.ok(errorAdapter.startsWith('"use client";'), "ErrorState keeps its client boundary");
+  for (const adapter of [exportedFunctionBody(owner, "EmptyState"), errorAdapter, loadingAdapter]) {
+    for (const markup of ["<div", "<h2", "<p", "<span", "<Button", "<Skeleton", "role=", "aria-", "className", "Reintentar", "Cargando"]) {
+      assert.equal(adapter.includes(markup), false, `a legacy state adapter must not render ${markup} itself`);
+    }
+  }
+  for (const adapter of [errorAdapter, loadingAdapter]) {
+    assert.ok(adapter.includes('} from "@/components/dashboard/EmptyState";'));
+  }
+
+  const surfaces = read(C01_SURFACES_BARREL);
+  assert.ok(surfaces.includes("  CollectionState,\n  type CollectionStateProps,"));
+  assert.ok(surfaces.includes('} from "@/components/dashboard/EmptyState";'));
+});
+
+test("C03 · CollectionState owns presentation only: no data, retry policy, paging, sorting, selection or observers", () => {
+  const code = stripComments(read(C03_OWNER));
+  for (const forbidden of [
+    "fetch(", "@/lib/api", "@/app/", "next/navigation", "useState", "useEffect", "useLayoutEffect", "useMemo",
+    "useCallback", "useRef", "useTransition", "ResizeObserver", "MutationObserver", "useDashboardCanvasCapacity",
+    "computeCapacity", "usePagedRows", "Pager", "aria-sort", "onSort", "sortBy", "aria-selected", "onSelect",
+    "checkbox", "useCollectionSelection", "SelectionToolbar", "BulkActionMenu", "tabIndex", 'aria-live="assertive"',
+    "setTimeout", "style=",
+  ]) {
+    assert.equal(code.includes(forbidden), false, `CollectionState must not own ${forbidden}`);
+  }
+  assert.doesNotMatch(code, /\b(?:limit|offset|pageSize)\b\s*[:=?]/, "a state never sizes or offsets a request");
+  assert.equal((code.match(/onClick=\{onRetry\}/g) ?? []).length, 1, "retry calls the consumer callback as given");
+  assert.equal(/"use client"/.test(code), false, "the owner adds no client boundary to server consumers");
+});
+
+test("C03 · consumers keep the legacy adapters; C01/C02 owners, capacity and C04+ stay untouched", () => {
+  const census = (pattern: RegExp) =>
+    sourceFiles("frontend/src").filter((path) => pattern.test(read(path))).sort();
+  assert.deepEqual(census(/<EmptyState\b/), [...C03_EMPTY_CONSUMERS].sort());
+  assert.deepEqual(census(/<ErrorState\b/), [...C03_ERROR_CONSUMERS].sort());
+  assert.deepEqual(census(/<LoadingState\b/), [...C03_LOADING_CONSUMERS].sort());
+  assert.deepEqual(
+    census(/<CollectionState\b/),
+    [C03_ERROR_ADAPTER, C03_LOADING_ADAPTER, C03_OWNER].sort(),
+    "C03 is not the C17+ migration",
+  );
+  for (const owner of [C01_TABLE, C02_OWNER]) {
+    assert.equal(/CollectionState|EmptyState|ErrorState|LoadingState/.test(stripComments(read(owner))), false, owner);
+  }
+
+  for (const path of sourceFiles("frontend/src")) {
+    const source = read(path);
+    for (const later of ["CollectionEmptyState", "useCollectionSelection", "SelectionToolbar", "BulkActionMenu", "aria-sort"]) {
+      assert.equal(source.includes(later), false, `${path}: ${later} is outside C03`);
+    }
+  }
+  assert.deepEqual(
+    sourceFiles("frontend/src/hooks").filter((path) => /useAdaptive|Capacity/.test(path)),
+    ["frontend/src/hooks/useDashboardCanvasCapacity.ts"],
+    "one capacity owner; no adaptive hook reintroduced",
+  );
+  const css = readDashboardCssSource();
+  for (const frozen of [
+    "--dash-pagination-h: clamp(2.25rem, 4vh, 2.75rem);",
+    "--dash-row-pitch-compact: 36px;",
+    "--dash-row-pitch-regular: 44px;",
+    "--dash-table-head-h: 32px;",
+  ]) {
+    assert.ok(css.includes(frozen), `${frozen} stays frozen until C05/A07`);
+  }
+  assert.equal(/--dash-collection-state|--dash-collection-row|data-collection-state/.test(css), false, "C03 adds no geometry token or state CSS");
+});
