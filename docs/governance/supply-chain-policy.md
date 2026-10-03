@@ -121,7 +121,8 @@ La agrupación configurada es determinista: un grupo por ecosistema/directorio, 
 - Un audit fallido no se silencia con `continue-on-error`, `|| true` ni flags de exclusión
   añadidos para pasar el gate.
 - En CI el audit completo corre a través de `scripts/supply-chain/dependency-audit-gate.mjs`,
-  que repite el audit de producción (estricto, sin excepciones) y evalúa `pnpm audit --json`.
+  que repite el audit de producción (estricto, sin excepciones) y evalúa `pnpm audit --json`,
+  ambos con `--audit-level info` para que ninguna severidad quede filtrada.
   Quedan prohibidas las excepciones genéricas: por severidad, por comodín, por paquete o por
   `ignoreGhsas`/`auditConfig`.
 

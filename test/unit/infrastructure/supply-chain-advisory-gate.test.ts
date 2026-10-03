@@ -176,9 +176,16 @@ test("the exception list is exactly one GHSA, frozen, with no wildcard or severi
   const code = [parseAuditReport, evaluateProductionAudit, evaluateFullAudit, runPnpmAudit, runDependencyAuditGate, main]
     .map((fn) => fn.toString().replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, ""))
     .join("\n");
-  for (const forbidden of ["--audit-level", "ignoreGhsas", "ignoreCves", "auditConfig", "continue-on-error", "|| true", '"*"', "GHSA-*", "startsWith("]) {
+  for (const forbidden of ["ignoreGhsas", "ignoreCves", "auditConfig", "continue-on-error", "|| true", '"*"', "GHSA-*", "startsWith("]) {
     assert.equal(code.includes(forbidden), false, `the gate must not use ${forbidden}`);
   }
   assert.equal(evaluateFullAudit.toString().includes("severity"), false, "tolerance never depends on severity");
-  assert.ok(runPnpmAudit.toString().includes('["audit", "--prod", "--json"]'), "the production audit keeps --prod");
+
+  // Both audits see every severity: pnpm's default --audit-level (low) would hide `info`.
+  const audit = runPnpmAudit.toString();
+  assert.ok(audit.includes('const level = ["--audit-level", "info"];'));
+  assert.ok(audit.includes('["audit", "--prod", "--json", ...level]'), "the production audit keeps --prod at level info");
+  assert.ok(audit.includes('["audit", "--json", ...level]'), "the full audit runs at level info");
+  assert.equal((audit.match(/--audit-level/g) ?? []).length, 1, "a single, explicit audit level");
+  assert.equal(/"(?:low|moderate|high|critical)"/.test(audit), false, "no raised audit level");
 });

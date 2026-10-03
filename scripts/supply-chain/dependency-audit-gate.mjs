@@ -164,7 +164,9 @@ export function evaluateFullAudit(advisories, exceptions = TEMPORARY_AUDIT_EXCEP
 }
 
 export function runPnpmAudit(scope) {
-  const args = scope === "prod" ? ["audit", "--prod", "--json"] : ["audit", "--json"];
+  // pnpm filters below `low` by default; `info` makes every severity visible.
+  const level = ["--audit-level", "info"];
+  const args = scope === "prod" ? ["audit", "--prod", "--json", ...level] : ["audit", "--json", ...level];
   const options = { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 };
   // Windows resolves pnpm through its .cmd shim, which needs a shell; the
   // arguments are fixed literals, so the command line is constant.
