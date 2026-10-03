@@ -1,14 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import ts from "typescript";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 import {
   assertPlainProps,
   effectiveAttribute,
   elementText,
-  exportedFunction,
   type JsxNode,
   parseTsx,
   renderedUnder,
+  type SourceFunction,
   staticAttribute,
   unwrap,
 } from "./dashboard-source-oracle.ts";
@@ -17,6 +18,8 @@ const STATUS_BADGE_PATH = "frontend/src/components/dashboard/StatusBadge.tsx";
 const EMPTY_STATE_PATH = "frontend/src/components/dashboard/EmptyState.tsx";
 const LOADING_STATE_PATH = "frontend/src/components/dashboard/LoadingState.tsx";
 const ERROR_STATE_PATH = "frontend/src/components/dashboard/ErrorState.tsx";
+// C03: EmptyState.tsx hosts CollectionState, the single owner of the three states.
+const COLLECTION_STATE_PATH = EMPTY_STATE_PATH;
 const PAGE_HEADER_PATH =
   "frontend/src/components/dashboard/DashboardPageHeader.tsx";
 const PRIVATE_SHELL_PATH =
@@ -26,8 +29,17 @@ const PRIVATE_SHELL_PATH =
 // "Reintentar", wired to `onRetry`, renders exactly when a callback is given.
 // `.includes("onRetry ? (")` also matches the inverted `!onRetry ? (`
 // (C.15.1 M-D11).
+function ownerRenderer(source: string, name: string): SourceFunction {
+  const matches = parseTsx(source, COLLECTION_STATE_PATH).statements.filter(
+    (statement): statement is SourceFunction =>
+      ts.isFunctionDeclaration(statement) && statement.name?.text === name && statement.body !== undefined,
+  );
+  assert.equal(matches.length, 1, `${name}: expected one declaration in the CollectionState owner`);
+  return matches[0];
+}
+
 function retryRendering(source: string) {
-  const component = exportedFunction(parseTsx(source, ERROR_STATE_PATH), "ErrorState");
+  const component = ownerRenderer(source, "renderErrorState");
   const wiresRetry = (element: JsxNode) => {
     const onClick = effectiveAttribute(element, "onClick");
     return onClick.kind === "value" && unwrap(onClick.expression).getText() === "onRetry";
@@ -110,7 +122,9 @@ test("status badge exposes stable props and size variants", () => {
 test("empty state renders title description action and optional lucide icon", () => {
   const source = read(EMPTY_STATE_PATH);
 
-  assert.ok(source.includes('import { Inbox, type LucideIcon } from "lucide-react";'));
+  assert.match(source, /import \{[^}]*\bInbox,[^}]*\btype LucideIcon,[^}]*\} from "lucide-react";/);
+  assert.ok(source.includes("export type EmptyStateProps = CollectionStateEmptyProps;"));
+  assert.ok(source.includes('return <CollectionState {...props} variant="empty" />;'));
   assert.ok(source.includes("title: string;"));
   assert.ok(source.includes("description?: string;"));
   assert.ok(source.includes("action?: ReactNode;"));
@@ -123,24 +137,29 @@ test("empty state renders title description action and optional lucide icon", ()
 });
 
 test("loading state renders table cards detail timeline and list variants with skeletons", () => {
-  const source = read(LOADING_STATE_PATH);
+  const adapter = read(LOADING_STATE_PATH);
+  const source = read(COLLECTION_STATE_PATH);
 
+  assert.ok(adapter.includes("variant?: CollectionStateSkeleton;"));
+  assert.ok(adapter.includes('return <CollectionState {...props} variant="loading" skeleton={variant} />;'));
   assert.ok(source.includes('import { Skeleton } from "@/components/ui/skeleton";'));
-  assert.ok(source.includes('variant?: "table" | "cards" | "detail" | "timeline" | "list";'));
+  assert.ok(source.includes('export type CollectionStateSkeleton = "table" | "cards" | "detail" | "timeline" | "list";'));
   assert.ok(source.includes("rows?: number;"));
-  assert.ok(source.includes('variant = "cards"'));
-  assert.ok(source.includes('if (variant === "table")'));
-  assert.ok(source.includes('if (variant === "detail")'));
-  assert.ok(source.includes('if (variant === "timeline")'));
-  assert.ok(source.includes('if (variant === "list")'));
+  assert.ok(source.includes('skeleton = "cards"'));
+  assert.ok(source.includes('if (skeleton === "table")'));
+  assert.ok(source.includes('if (skeleton === "detail")'));
+  assert.ok(source.includes('if (skeleton === "timeline")'));
+  assert.ok(source.includes('if (skeleton === "list")'));
   assert.ok(source.includes('aria-busy="true"'));
   assert.ok(source.includes("getRows(rows)"));
 });
 
 test("error state announces alert and wires retry callback", () => {
-  const source = read(ERROR_STATE_PATH);
+  const adapter = read(ERROR_STATE_PATH);
+  const source = read(COLLECTION_STATE_PATH);
 
-  assert.ok(source.includes('"use client";'));
+  assert.ok(adapter.includes('"use client";'));
+  assert.ok(adapter.includes('return <CollectionState {...props} variant="error" />;'));
   assert.ok(source.includes("message: string;"));
   assert.ok(source.includes("onRetry?: () => void;"));
   assert.ok(source.includes('role="alert"'));

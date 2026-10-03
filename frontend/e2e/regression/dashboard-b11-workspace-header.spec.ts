@@ -13,7 +13,7 @@ import {
   type DashboardGeometrySurface,
 } from "../helpers/dashboard-geometry-matrix";
 import { A03_ADAPTIVE_DATASET_COOKIE } from "../helpers/dashboard-adaptive-limit-matrix";
-import { addAppCookies } from "../helpers/session";
+import { addAppCookies, sessionCookie } from "../helpers/session";
 
 // B11 is the target-geometry bridge for A02, the height-ledger analysis for
 // A03, and a zero-scroll-preserving change under A08. The complete matrices
@@ -691,6 +691,110 @@ test.describe("C02 · CollectionPager owns both legacy pagers on real consumers"
       await expect(live).toHaveText(`1–${first.size} de 256`);
       expect(requests, `${label}: client pagination issues no request`).toEqual([]);
       expectExactReservation(await readC02Pager(page, pagerSelector, rowSelector), `${label} after paging`);
+      await expectNoOuterScroll(page, label);
+    });
+  }
+});
+
+// C03 · CollectionState renders the legacy EmptyState/ErrorState on a real
+// consumer. Informes (full route) is the A03/A05 pilot whose empty and error
+// branches share one bounded canvas: the default clinic session gets the
+// fixture's 404 (SSR load error) and the populated one an unmatched query
+// (empty). Loading is not deterministically observable on a real consumer, so
+// its contract is proved at runtime in frontend-dashboard-state-polish.test.ts.
+
+type C03StateReadout = {
+  count: number;
+  role: string | null;
+  ariaLive: string | null;
+  ariaBusy: string | null;
+  headings: string[];
+  insidePanel: boolean;
+  clippedOrScrolling: string[];
+  otherStates: string[];
+};
+
+async function readC03State(page: Page, variant: "empty" | "error"): Promise<C03StateReadout> {
+  return page.evaluate((stateVariant) => {
+    const visible = (element: Element) => element.getClientRects().length > 0;
+    const states = [...document.querySelectorAll<HTMLElement>(`[data-collection-state="${stateVariant}"]`)].filter(visible);
+    const state = states[0];
+    const panel = state?.closest<HTMLElement>("section#reports-master-list");
+    if (!state || !panel) {
+      return { count: states.length, role: null, ariaLive: null, ariaBusy: null, headings: [], insidePanel: false, clippedOrScrolling: [], otherStates: [] };
+    }
+    const box = state.getBoundingClientRect();
+    const frame = panel.getBoundingClientRect();
+    const clippedOrScrolling = [panel, ...panel.querySelectorAll<HTMLElement>("*")]
+      .filter((element) => element.scrollHeight - element.clientHeight > 1 || element.scrollWidth - element.clientWidth > 1)
+      .map((element) => `${element.tagName.toLowerCase()}.${[...element.classList].slice(0, 3).join(".")}`);
+    return {
+      count: states.length,
+      role: state.getAttribute("role"),
+      ariaLive: state.getAttribute("aria-live"),
+      ariaBusy: state.getAttribute("aria-busy"),
+      headings: [...state.querySelectorAll("h2")].map((heading) => heading.textContent?.trim() ?? ""),
+      insidePanel:
+        box.top >= frame.top - 1 && box.bottom <= frame.bottom + 1 && box.left >= frame.left - 1 && box.right <= frame.right + 1,
+      clippedOrScrolling,
+      otherStates: [...document.querySelectorAll("[data-collection-state]")]
+        .filter((element) => element !== state && visible(element))
+        .map((element) => element.getAttribute("data-collection-state") ?? ""),
+    };
+  }, variant);
+}
+
+async function openC03Informes(page: Page, viewport: { width: number; height: number }, profile: "default" | "populated", path: string) {
+  await page.setViewportSize(viewport);
+  await suppressNextDevChrome(page);
+  await clearDashboardModuleMemory(page);
+  await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
+  await addAppCookies(page, [sessionCookie("clinic", profile)]);
+  await page.goto(path, { waitUntil: "domcontentloaded" });
+  await expect(page.locator(MAIN_SELECTOR)).toBeVisible({ timeout: 25_000 });
+  await page.waitForLoadState("networkidle", { timeout: 20_000 });
+  await waitForLayoutSettled(page);
+}
+
+test.describe("C03 · CollectionState owns the legacy states on a real consumer", () => {
+  for (const viewport of [
+    { width: 1366, height: 768 },
+    { width: 390, height: 844 },
+  ]) {
+    test(`error variant (ErrorState) on Informes @ ${viewport.width}x${viewport.height}`, async ({ page }) => {
+      const label = `C03 error clinic-informes-full @ ${viewport.width}x${viewport.height}`;
+      await openC03Informes(page, viewport, "default", "/dashboard/informes");
+
+      const state = page.locator('[data-collection-state="error"]').filter({ visible: true });
+      await expect(state).toHaveCount(1);
+      await expect(state).toHaveAttribute("role", "alert");
+      await expect(state.getByRole("heading", { level: 2, name: "No se pudieron cargar los informes" })).toBeVisible();
+      await expect(state).toContainText("No se pudieron cargar los informes. Intente nuevamente.");
+      await expect(state.getByRole("button", { name: "Reintentar" }), `${label}: no retry without onRetry`).toHaveCount(0);
+
+      const readout = await readC03State(page, "error");
+      console.log(`[C03] ${label}: ${JSON.stringify(readout)}`);
+      expect(readout).toMatchObject({ count: 1, role: "alert", ariaLive: null, ariaBusy: null, insidePanel: true });
+      expect(readout.clippedOrScrolling, `${label}: the state fits its canvas without clip or nested scroll`).toEqual([]);
+      expect(readout.otherStates, `${label}: an error is never shown as empty or loading`).toEqual([]);
+      await expectNoOuterScroll(page, label);
+    });
+
+    test(`empty variant (EmptyState) on Informes @ ${viewport.width}x${viewport.height}`, async ({ page }) => {
+      const label = `C03 empty clinic-informes-full @ ${viewport.width}x${viewport.height}`;
+      await openC03Informes(page, viewport, "populated", "/dashboard/informes?query=c03-sin-coincidencias");
+
+      const state = page.locator('[data-collection-state="empty"]').filter({ visible: true });
+      await expect(state).toHaveCount(1);
+      await expect(state.getByRole("heading", { level: 2, name: "No hay informes disponibles." })).toBeVisible();
+      await expect(state).toContainText("Cuando haya informes para los filtros actuales, aparecerán en esta lista.");
+      await expect(page.getByRole("alert").filter({ hasText: "No se pudieron cargar los informes" })).toHaveCount(0);
+
+      const readout = await readC03State(page, "empty");
+      console.log(`[C03] ${label}: ${JSON.stringify(readout)}`);
+      expect(readout).toMatchObject({ count: 1, role: null, ariaLive: null, ariaBusy: null, insidePanel: true });
+      expect(readout.clippedOrScrolling, `${label}: the state fits its canvas without clip or nested scroll`).toEqual([]);
+      expect(readout.otherStates, `${label}: empty is never shown as error or loading`).toEqual([]);
       await expectNoOuterScroll(page, label);
     });
   }

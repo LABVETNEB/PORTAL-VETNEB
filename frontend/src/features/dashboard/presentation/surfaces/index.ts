@@ -31,3 +31,12 @@ export {
   type CollectionPagerCenteredProps,
   type CollectionPagerCompactProps,
 } from "@/components/dashboard/DashboardPager";
+/** C03 collection states; the legacy `EmptyState`/`ErrorState`/`LoadingState` names are its adapters. */
+export {
+  CollectionState,
+  type CollectionStateProps,
+  type CollectionStateEmptyProps,
+  type CollectionStateErrorProps,
+  type CollectionStateLoadingProps,
+  type CollectionStateSkeleton,
+} from "@/components/dashboard/EmptyState";
