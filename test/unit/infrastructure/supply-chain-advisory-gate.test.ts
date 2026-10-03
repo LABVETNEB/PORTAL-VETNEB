@@ -3,12 +3,15 @@ import assert from "node:assert/strict";
 
 import {
   TEMPORARY_AUDIT_EXCEPTIONS,
+  evaluateFullAudit,
+  evaluateProductionAudit,
+  main,
   parseAuditReport,
   runDependencyAuditGate,
+  runPnpmAudit,
   type AuditRunResult,
   type AuditScope,
 } from "../../../scripts/supply-chain/dependency-audit-gate.mjs";
-import { readSourceFile as read } from "../../helpers/tracked-source-files.ts";
 
 const ALLOWED_GHSA = "GHSA-vfj7-8cjw-p6xm";
 const ALLOWED_PATH =
@@ -169,11 +172,13 @@ test("the exception list is exactly one GHSA, frozen, with no wildcard or severi
   );
   assert.ok(Object.isFrozen(TEMPORARY_AUDIT_EXCEPTIONS) && Object.isFrozen(exception) && Object.isFrozen(exception.findings));
 
-  const source = read("scripts/supply-chain/dependency-audit-gate.mjs");
-  const code = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+  // The executable gate, read from the loaded functions themselves.
+  const code = [parseAuditReport, evaluateProductionAudit, evaluateFullAudit, runPnpmAudit, runDependencyAuditGate, main]
+    .map((fn) => fn.toString().replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, ""))
+    .join("\n");
   for (const forbidden of ["--audit-level", "ignoreGhsas", "ignoreCves", "auditConfig", "continue-on-error", "|| true", '"*"', "GHSA-*", "startsWith("]) {
     assert.equal(code.includes(forbidden), false, `the gate must not use ${forbidden}`);
   }
-  const evaluation = code.slice(code.indexOf("export function evaluateFullAudit("), code.indexOf("export function runPnpmAudit("));
-  assert.equal(evaluation.includes("severity"), false, "tolerance never depends on severity");
+  assert.equal(evaluateFullAudit.toString().includes("severity"), false, "tolerance never depends on severity");
+  assert.ok(runPnpmAudit.toString().includes('["audit", "--prod", "--json"]'), "the production audit keeps --prod");
 });

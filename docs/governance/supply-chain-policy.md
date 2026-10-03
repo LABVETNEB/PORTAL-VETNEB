@@ -129,7 +129,7 @@ La agrupación configurada es determinista: un grupo por ecosistema/directorio, 
 
 Una excepción sólo se admite cuando no existe versión parcheada instalable, se declara con
 su huella exacta en `TEMPORARY_AUDIT_EXCEPTIONS` y está cubierta por
-`test/unit/infrastructure/dependency-audit-gate.test.ts`. El gate falla si aparece cualquier
+`test/unit/infrastructure/supply-chain-advisory-gate.test.ts`. El gate falla si aparece cualquier
 otro advisory, si la huella cambia (paquete, rango, versión, ruta o alcance dev) o si la
 excepción deja de reportarse (stale): en ese caso se retira en un PR propio.
 
