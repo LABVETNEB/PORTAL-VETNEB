@@ -165,11 +165,13 @@ export function evaluateFullAudit(advisories, exceptions = TEMPORARY_AUDIT_EXCEP
 
 export function runPnpmAudit(scope) {
   const args = scope === "prod" ? ["audit", "--prod", "--json"] : ["audit", "--json"];
-  const result = spawnSync("pnpm", args, {
-    encoding: "utf8",
-    maxBuffer: 64 * 1024 * 1024,
-    shell: process.platform === "win32",
-  });
+  const options = { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 };
+  // Windows resolves pnpm through its .cmd shim, which needs a shell; the
+  // arguments are fixed literals, so the command line is constant.
+  const result =
+    process.platform === "win32"
+      ? spawnSync(`pnpm ${args.join(" ")}`, { ...options, shell: true })
+      : spawnSync("pnpm", args, options);
   return { status: result.status, stdout: result.stdout ?? "", error: result.error };
 }
 
