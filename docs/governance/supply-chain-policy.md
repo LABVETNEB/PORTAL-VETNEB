@@ -120,6 +120,30 @@ La agrupación configurada es determinista: un grupo por ecosistema/directorio, 
   equivalente sin haberla ejecutado.
 - Un audit fallido no se silencia con `continue-on-error`, `|| true` ni flags de exclusión
   añadidos para pasar el gate.
+- En CI el audit completo corre a través de `scripts/supply-chain/dependency-audit-gate.mjs`,
+  que repite el audit de producción (estricto, sin excepciones) y evalúa `pnpm audit --json`,
+  ambos con `--audit-level info` para que ninguna severidad quede filtrada.
+  Quedan prohibidas las excepciones genéricas: por severidad, por comodín, por paquete o por
+  `ignoreGhsas`/`auditConfig`.
+
+### 9.1 Excepciones temporales de advisory
+
+Una excepción sólo se admite cuando no existe versión parcheada instalable, se declara con
+su huella exacta en `TEMPORARY_AUDIT_EXCEPTIONS` y está cubierta por
+`test/unit/infrastructure/supply-chain-advisory-gate.test.ts`. El gate falla si aparece cualquier
+otro advisory, si la huella cambia (paquete, rango, versión, ruta o alcance dev) o si la
+excepción deja de reportarse (stale): en ese caso se retira en un PR propio.
+
+| Campo | Valor |
+| --- | --- |
+| ID | `GHSA-vfj7-8cjw-p6xm` |
+| Package | `braces` |
+| Effective version | `3.0.3` |
+| Scope | development dependency only (`frontend > eslint-config-next > @next/eslint-plugin-next > fast-glob > micromatch > braces`) |
+| Production exposure | none según `pnpm audit --prod` |
+| Reason | no patched upstream version exists (`first_patched_version: null`; último `braces` publicado: 3.0.3) |
+| Owner | Security / Dependency owner |
+| Removal trigger | upstream patched release available; o la ruta deja de resolver `braces` vulnerable; o el advisory se retira o reclasifica de forma que invalida la excepción |
 
 ## 10. Requisitos de lockfile
 
