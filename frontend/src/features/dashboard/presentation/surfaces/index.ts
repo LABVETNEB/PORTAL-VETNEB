@@ -24,3 +24,10 @@ export {
   type ContentListProps,
   type ContentListItemProps,
 } from "@/components/ui/table";
+/** C02 collection pager; the legacy `DashboardPager`/`CompactPager` names are its adapters. */
+export {
+  CollectionPager,
+  type CollectionPagerProps,
+  type CollectionPagerCenteredProps,
+  type CollectionPagerCompactProps,
+} from "@/components/dashboard/DashboardPager";
