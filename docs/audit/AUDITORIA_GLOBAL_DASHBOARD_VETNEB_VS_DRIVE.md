@@ -29,6 +29,8 @@
 
 > **Actualización C01 · 2026-10-02.** C01 está COMPLETE en el árbol local: `CollectionWorkspace`, `ContentList`, `ContentListItem` y `CollectionHeader` extienden `ui/table.tsx` y se publican por `presentation/surfaces`; Auditoría admin las adopta en sus formas tabla (desktop) y lista (móvil). `CollectionHeader` es `sticky` respecto del frame de `Table` dentro de un `CollectionWorkspace` que no es contenedor de scroll, y mide 36 px fuera de canvas con reserva; dentro de un canvas adaptativo su alto queda ligado a la reserva A03 congelada (32 px en Auditoría) hasta C05. A02 21/21, A03 16/16 (195/195, 234/234), A05 15/15, A08 21/21, E2E B11–C01 17/17, contratos zero-scroll y causales 130/130, guards arquitectura/UI 2432/2433 (1 omitido condicional preexistente), lint, typecheck, build, `security:public-surface` y diff-check están PASSED. NEXT_SLOT = C02; C02 no se inició. Detalle en `docs/implementation/dashboard-c01-collection-workspace.md`.
 
+> **Actualización C02 · 2026-10-03.** C02 está COMPLETE en el árbol local: `CollectionPager` es el único owner runtime del pager y de las tres reservas A05, se publica por `presentation/surfaces` y expone las variantes `centered` y `compact`; `DashboardPager` y `CompactPager` quedan como adaptadores finos sin markup propio y sus cuatro consumidores no cambian. Paridad DOM legacy demostrada en runtime; reservas, `limit`, `offset`, hooks de capacidad y CSS sin cambios; la variante compacta conserva la reserva estándar (36 px a 1366 × 768) hasta C05/A07. A02 21/21, A03 16/16 (195/195, 234/234), A05 15/15, A08 21/21, spec B11–C02 20/20, contratos zero-scroll y causales de pager 168/168, guards arquitectura/UI, lint, typecheck, build, `security:public-surface` y diff-check están PASSED. NEXT_SLOT = C03; C03 no se inició. Detalle en `docs/implementation/dashboard-c02-collection-pager.md`.
+
 ---
 
 ## 1. Resumen ejecutivo
@@ -1802,8 +1804,8 @@ features/dashboard/
 | PR | Nivel | Objetivo | Dependencias |
 |---|---|---|---|
 | **C01** | 7 | **COMPLETE:** `CollectionWorkspace` + `ContentList` + `ContentListItem` + `CollectionHeader` pegajosa | B15 |
-| **C02** | 7 | **NEXT_SLOT:** `CollectionPager` unificado (fusiona `DashboardPager` y `CompactPager`) | C01 |
-| **C03** | 7 | `CollectionEmptyState` / error / loading unificados | C01 |
+| **C02** | 7 | **COMPLETE:** `CollectionPager` unificado (fusiona `DashboardPager` y `CompactPager`) | C01 |
+| **C03** | 7 | **NEXT_SLOT:** `CollectionEmptyState` / error / loading unificados | C01 |
 | **C04** | 7 | Ordenamiento por columna (P2-09) | C01 |
 | **C05** | 7 | Altura de fila homogénea a 40 px — **requiere A07** por `itemHeightPx` | C01, A07 |
 | **C06** | 8 | `useCollectionSelection`: individual, múltiple, página, limpiar, teclado | C01 |

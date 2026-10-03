@@ -1,22 +1,15 @@
 "use client";
 
 import type { CSSProperties, ReactNode } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
- * Shared centered pager for the zero-scroll dashboard grammar:
- *
- *   Anterior | Página X de Y | Siguiente
- *
- * The cluster is centered inside a fixed `--dash-pagination-h` reserve so it
- * can never be pushed below its surface. Two usage modes:
- *
- * 1. Standard mode: pass `page`/`pageCount`/`onPrev`/`onNext` and the pager
- *    renders its own controls.
- * 2. Slot mode: pass `prevControl`/`stateControl`/`nextControl` when the
- *    surface owns pinned control markup (URL pagers, contract-locked
- *    aria-labels); the pager only contributes the centered geometry and the
- *    stable selectors.
+ * C02 — single runtime owner of the dashboard pager and of its reservations.
+ * `CollectionPager` is published through `presentation/surfaces`; the legacy
+ * `DashboardPager` (below) and `CompactPager` (its own module) are thin
+ * adapters that pin a variant. It lives in this module, as C01 lives in
+ * `ui/table`, because the 14 reservation consumers already import from here.
  */
 /**
  * Canonical pager reservation, shared by every surface that owns pager markup
@@ -72,11 +65,9 @@ export const DASHBOARD_INLINE_PAGER_RESERVATION = {
   maxBlockSize: "var(--dash-adaptive-pager-reserved-block-size)",
 } as CSSProperties;
 
-export type DashboardPagerProps = {
-  /** Accessible name of the pagination landmark. */
-  "aria-label": string;
+type CollectionPagerBaseProps = {
   className?: string;
-  /** Zero-based page index (standard mode). */
+  /** Zero-based page index. */
   page?: number;
   pageCount?: number;
   hasPrev?: boolean;
@@ -84,46 +75,149 @@ export type DashboardPagerProps = {
   onPrev?: () => void;
   onNext?: () => void;
   disabled?: boolean;
-  /** Slot mode overrides. */
+};
+
+/**
+ * Centered footer `Anterior | Pág. X / Y | Siguiente` inside a `nav` landmark
+ * and the touch reservation. Slot mode (`prevControl`/`stateControl`/
+ * `nextControl`) lets a surface own pinned control markup while the pager
+ * keeps the centered geometry and the stable selectors.
+ */
+export type CollectionPagerCenteredProps = CollectionPagerBaseProps & {
+  variant: "centered";
+  /** Accessible name of the pagination landmark. */
+  "aria-label": string;
   prevControl?: ReactNode;
   stateControl?: ReactNode;
   nextControl?: ReactNode;
   /**
-   * CMP-09 — accessible range/total announcement, mirroring Admin's
-   * `AdminMobileOpsPager` `rangeLabel` (e.g. "1–13 de 60"). Rendered
-   * `sr-only`, matching Admin: the visible label stays the compact
-   * "Pág. X / Y" in both. Omit when no total is known (the logistics full
-   * routes' backend does not expose one).
+   * CMP-09 — accessible range/total announcement (e.g. "1–13 de 60"),
+   * rendered `sr-only` like Admin's `AdminMobileOpsPager`. Omit when no total
+   * is known (the logistics full routes' backend does not expose one).
    */
   rangeLabel?: string;
 };
 
-const pagerButtonClassName =
-  "dashboard-pagination-btn inline-flex h-8 items-center justify-center rounded-md border border-input bg-card/95 px-3 text-xs font-semibold text-foreground shadow-sm transition-colors hover:border-vetneb-teal/45 hover:bg-accent/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
+/**
+ * Compact bar pinned to the bottom of a module body: visible range/total
+ * announcement, then `Pág. X / Y` and icon controls, inside the standard
+ * reservation.
+ */
+export type CollectionPagerCompactProps = CollectionPagerBaseProps & {
+  variant: "compact";
+  /** 1-based index of the first visible item (0 when empty). */
+  rangeStart: number;
+  rangeEnd: number;
+  total: number;
+  /** Plural noun for the range label, e.g. "registros". */
+  itemLabel?: string;
+};
 
-export function DashboardPager({
-  "aria-label": ariaLabel,
-  className,
-  page = 0,
-  pageCount = 1,
-  hasPrev,
-  hasNext,
-  onPrev,
-  onNext,
-  disabled = false,
-  prevControl,
-  stateControl,
-  nextControl,
-  rangeLabel,
-}: DashboardPagerProps) {
+export type CollectionPagerProps =
+  | CollectionPagerCenteredProps
+  | CollectionPagerCompactProps;
+
+type CollectionPagerVariant = CollectionPagerProps["variant"];
+
+const PAGER_STEPS = {
+  prev: { label: "Página anterior", text: "Anterior", Icon: ChevronLeft },
+  next: { label: "Página siguiente", text: "Siguiente", Icon: ChevronRight },
+} as const;
+
+const PAGER_CONTROL_CLASS_NAME =
+  "inline-flex h-8 items-center justify-center rounded-md border border-input bg-card/95 text-foreground hover:border-vetneb-teal/45 hover:bg-accent/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
+
+const PAGER_CONTROL_VARIANT_CLASS_NAME: Record<CollectionPagerVariant, string> = {
+  centered: "dashboard-pagination-btn px-3 text-xs font-semibold shadow-sm transition-colors",
+  compact: "w-8 dashboard-btn-interactive",
+};
+
+function renderPagerControl(
+  step: keyof typeof PAGER_STEPS,
+  variant: CollectionPagerVariant,
+  disabled: boolean,
+  onClick: (() => void) | undefined,
+) {
+  const { label, text, Icon } = PAGER_STEPS[step];
+  const compact = variant === "compact";
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      data-dashboard-pager-prev={compact && step === "prev" ? "true" : undefined}
+      data-dashboard-pager-next={compact && step === "next" ? "true" : undefined}
+      aria-label={label}
+      className={`${PAGER_CONTROL_CLASS_NAME} ${PAGER_CONTROL_VARIANT_CLASS_NAME[variant]}`}
+    >
+      {compact ? <Icon className="h-4 w-4" aria-hidden="true" /> : text}
+    </button>
+  );
+}
+
+export function CollectionPager(props: CollectionPagerProps) {
+  const {
+    variant,
+    className,
+    page = 0,
+    pageCount = 1,
+    hasPrev,
+    hasNext,
+    onPrev,
+    onNext,
+    disabled = false,
+  } = props;
   const safePageCount = Math.max(1, pageCount);
   const displayPage = Math.min(Math.max(1, page + 1), safePageCount);
-  const canGoPrev = hasPrev ?? displayPage > 1;
-  const canGoNext = hasNext ?? displayPage < safePageCount;
+  // A built-in control is only enabled when it can actually navigate.
+  const prevDisabled = disabled || !onPrev || !(hasPrev ?? displayPage > 1);
+  const nextDisabled = disabled || !onNext || !(hasNext ?? displayPage < safePageCount);
+  const pageState = `Pág. ${displayPage} / ${safePageCount}`;
+
+  if (props.variant === "compact") {
+    const { rangeStart, rangeEnd, total, itemLabel = "elementos" } = props;
+
+    return (
+      <div
+        className={cn("dashboard-compact-pager overflow-hidden pt-0", className)}
+        style={DASHBOARD_PAGER_RESERVATION}
+        data-collection-pager={variant}
+        data-dashboard-compact-pager="true"
+        data-dashboard-pager="compact"
+        data-dashboard-adaptive-reserved-region="pager"
+      >
+        <span aria-live="polite" aria-atomic="true">
+          {total === 0
+            ? `Sin ${itemLabel}`
+            : `${rangeStart}–${rangeEnd} de ${total} ${itemLabel}`}
+        </span>
+        <div className="flex items-center gap-2">
+          <span
+            className="text-xs text-muted-foreground"
+            data-dashboard-pager-state="true"
+          >
+            {pageState}
+          </span>
+          {renderPagerControl("prev", variant, prevDisabled, onPrev)}
+          {renderPagerControl("next", variant, nextDisabled, onNext)}
+        </div>
+      </div>
+    );
+  }
+
+  const {
+    "aria-label": ariaLabel,
+    prevControl,
+    stateControl,
+    nextControl,
+    rangeLabel,
+  } = props;
 
   return (
     <nav
       aria-label={ariaLabel}
+      data-collection-pager={variant}
       data-dashboard-pager="true"
       data-dashboard-adaptive-reserved-region="pager"
       className={cn("dashboard-pager min-h-10", className)}
@@ -135,41 +229,28 @@ export function DashboardPager({
         </span>
       ) : null}
       <span data-dashboard-pager-prev="true" className="inline-flex">
-        {prevControl ?? (
-          <button
-            type="button"
-            onClick={onPrev}
-            disabled={disabled || !canGoPrev}
-            aria-label="Página anterior"
-            className={pagerButtonClassName}
-          >
-            Anterior
-          </button>
-        )}
+        {prevControl ??
+          renderPagerControl("prev", variant, prevDisabled, onPrev)}
       </span>
       <span
         data-dashboard-pager-state="true"
         className="text-xs text-muted-foreground"
       >
         {stateControl ?? (
-          <span className="dashboard-pagination-context">
-            Pág. {displayPage} / {safePageCount}
-          </span>
+          <span className="dashboard-pagination-context">{pageState}</span>
         )}
       </span>
       <span data-dashboard-pager-next="true" className="inline-flex">
-        {nextControl ?? (
-          <button
-            type="button"
-            onClick={onNext}
-            disabled={disabled || !canGoNext}
-            aria-label="Página siguiente"
-            className={pagerButtonClassName}
-          >
-            Siguiente
-          </button>
-        )}
+        {nextControl ??
+          renderPagerControl("next", variant, nextDisabled, onNext)}
       </span>
     </nav>
   );
+}
+
+export type DashboardPagerProps = Omit<CollectionPagerCenteredProps, "variant">;
+
+/** Legacy name of the centered variant (C02 compatibility adapter). */
+export function DashboardPager(props: DashboardPagerProps) {
+  return <CollectionPager {...props} variant="centered" />;
 }

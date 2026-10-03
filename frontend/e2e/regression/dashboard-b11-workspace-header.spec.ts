@@ -12,6 +12,7 @@ import {
   waitForLayoutSettled,
   type DashboardGeometrySurface,
 } from "../helpers/dashboard-geometry-matrix";
+import { A03_ADAPTIVE_DATASET_COOKIE } from "../helpers/dashboard-adaptive-limit-matrix";
 import { addAppCookies } from "../helpers/session";
 
 // B11 is the target-geometry bridge for A02, the height-ledger analysis for
@@ -510,5 +511,187 @@ test.describe("B15 · single workspace scaffold owner", () => {
         await expectNoOuterScroll(page, `${surface.id} @ ${viewport.slug}`);
       });
     }
+  }
+});
+
+type C02PagerReadout = {
+  blockSize: number;
+  minBlockSize: number;
+  maxBlockSize: number;
+  height: number;
+  top: number;
+  bottom: number;
+  controlHeights: number[];
+  controlsHitTestable: boolean;
+  lastRowBottom: number;
+  rows: number;
+};
+
+// Reads the reserved pager region, its controls (hit-tested at their centre so
+// an overlapping row or nav would be caught) and the rows canvas above it.
+async function readC02Pager(page: Page, pagerSelector: string, rowSelector: string): Promise<C02PagerReadout> {
+  return page.evaluate(({ pagerSelector, rowSelector }) => {
+    const pager = [...document.querySelectorAll<HTMLElement>(pagerSelector)].find(
+      (candidate) => candidate.getBoundingClientRect().height > 0,
+    )!;
+    const style = getComputedStyle(pager);
+    const rect = pager.getBoundingClientRect();
+    const controls = [...pager.querySelectorAll<HTMLButtonElement>("button")];
+    const rows = [...document.querySelectorAll<HTMLElement>(rowSelector)].filter(
+      (row) => row.getBoundingClientRect().height > 0,
+    );
+    return {
+      blockSize: Number.parseFloat(style.blockSize),
+      minBlockSize: Number.parseFloat(style.minBlockSize),
+      maxBlockSize: Number.parseFloat(style.maxBlockSize),
+      height: rect.height,
+      top: rect.top,
+      bottom: rect.bottom,
+      controlHeights: controls.map((control) => control.getBoundingClientRect().height),
+      // Disabled centered controls are `pointer-events: none` by design
+      // (responsive.css), so only enabled ones can own their hit point.
+      controlsHitTestable: controls.filter((control) => !control.disabled).every((control) => {
+        const box = control.getBoundingClientRect();
+        const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+        return hit !== null && (hit === control || control.contains(hit));
+      }),
+      lastRowBottom: Math.max(0, ...rows.map((row) => row.getBoundingClientRect().bottom)),
+      rows: rows.length,
+    };
+  }, { pagerSelector, rowSelector });
+}
+
+function trackApiRequests(page: Page): string[] {
+  const requests: string[] = [];
+  page.on("request", (request) => {
+    const url = new URL(request.url());
+    if (url.pathname.startsWith("/api/")) requests.push(`${request.method()} ${url.pathname}${url.search}`);
+  });
+  return requests;
+}
+
+function expectExactReservation(readout: C02PagerReadout, label: string) {
+  expect(readout.minBlockSize, `${label}: min-block-size is the reservation`).toBeCloseTo(readout.blockSize, 1);
+  expect(readout.maxBlockSize, `${label}: max-block-size is the reservation`).toBeCloseTo(readout.blockSize, 1);
+  expect(Math.abs(readout.height - readout.blockSize), `${label}: rendered height is the reservation`).toBeLessThanOrEqual(0.5);
+  expect(readout.lastRowBottom, `${label}: rows stay above the pager`).toBeLessThanOrEqual(readout.top + 0.5);
+  expect(readout.controlsHitTestable, `${label}: enabled controls are reachable`).toBe(true);
+}
+
+const C02_RANGE = /^(\d+)–(\d+) de (\d+)(?: \S+)?$/;
+
+function parseRange(text: string | null, label: string) {
+  const match = C02_RANGE.exec((text ?? "").trim());
+  expect(match, `${label}: range "${text}"`).not.toBeNull();
+  const [start, end, total] = match!.slice(1).map(Number);
+  return { start, end, total, size: end - start + 1 };
+}
+
+test.describe("C02 · CollectionPager owns both legacy pagers on real consumers", () => {
+  test("compact variant (CompactPager) on Precios @ 1366x768", async ({ page }) => {
+    const label = "C02 admin-precios @ 1366x768";
+    const surface = DASHBOARD_GEOMETRY_SURFACES.find((candidate) => candidate.id === "admin-precios");
+    if (!surface) throw new Error("C02: missing canonical admin-precios surface");
+    await page.setViewportSize({ width: 1366, height: 768 });
+    await prepareSurface(page, surface);
+    await openSurface(page, surface);
+
+    const pagerSelector = '[data-collection-pager="compact"]';
+    const pager = page.locator(pagerSelector).filter({ visible: true });
+    await expect(pager).toHaveCount(1);
+    await expect(pager).toHaveAttribute("data-dashboard-compact-pager", "true");
+    await expect(pager).toHaveAttribute("data-dashboard-pager", "compact");
+    await expect(pager).toHaveAttribute("data-dashboard-adaptive-reserved-region", "pager");
+
+    const rowSelector = "form[data-admin-pricing-item-form]";
+    const before = await readC02Pager(page, pagerSelector, rowSelector);
+    console.log(`[C02] ${label}: ${JSON.stringify(before)}`);
+    expectExactReservation(before, label);
+    expect(before.controlHeights, `${label}: icon controls keep h-8`).toEqual([32, 32]);
+
+    const live = pager.locator('[aria-live="polite"][aria-atomic="true"]');
+    const state = pager.locator('[data-dashboard-pager-state="true"]');
+    const first = parseRange(await live.textContent(), label);
+    expect(await live.textContent()).toMatch(/ estudios$/);
+    expect(first.start).toBe(1);
+    expect(first.size, `${label}: rendered forms equal the announced range`).toBe(before.rows);
+    const pageCount = Math.ceil(first.total / first.size);
+    expect(pageCount, `${label}: the fixture paginates`).toBeGreaterThan(1);
+    await expect(state).toHaveText(`Pág. 1 / ${pageCount}`);
+    const prev = pager.getByRole("button", { name: "Página anterior" });
+    const next = pager.getByRole("button", { name: "Página siguiente" });
+    await expect(prev).toBeDisabled();
+    await expect(next).toBeEnabled();
+
+    const requests = trackApiRequests(page);
+    await next.click();
+    await expect(state).toHaveText(`Pág. 2 / ${pageCount}`);
+    const second = parseRange(await live.textContent(), `${label} page 2`);
+    expect(second.start, `${label}: page 2 starts after page 1`).toBe(first.end + 1);
+    expect(second.total).toBe(first.total);
+    if (pageCount > 2) expect(second.size, `${label}: page size invariant across pages`).toBe(first.size);
+    await expect(prev).toBeEnabled();
+
+    await prev.focus();
+    await page.keyboard.press("Enter");
+    await expect(state).toHaveText(`Pág. 1 / ${pageCount}`);
+    await expect(live).toHaveText(`1–${first.end} de ${first.total} estudios`);
+    expect(requests, `${label}: client pagination issues no request`).toEqual([]);
+    expectExactReservation(await readC02Pager(page, pagerSelector, rowSelector), `${label} after paging`);
+    await expectNoOuterScroll(page, label);
+  });
+
+  for (const viewport of [
+    { width: 1366, height: 768 },
+    { width: 390, height: 844 },
+  ]) {
+    test(`centered variant (DashboardPager) on Logística @ ${viewport.width}x${viewport.height}`, async ({ page }) => {
+      const label = `C02 clinic-logistica @ ${viewport.width}x${viewport.height}`;
+      const surface = DASHBOARD_GEOMETRY_SURFACES.find((candidate) => candidate.id === "clinic-logistica");
+      if (!surface) throw new Error("C02: missing canonical clinic-logistica surface");
+      await page.setViewportSize(viewport);
+      await prepareSurface(page, surface);
+      // The A03 dataset (256 synthetic visits) is what makes this list paginate.
+      await addAppCookies(page, [A03_ADAPTIVE_DATASET_COOKIE]);
+      await openSurface(page, surface);
+
+      const pagerSelector = '[data-clinic-logistics-pagination-footer="true"] [data-collection-pager="centered"]';
+      const pager = page.getByRole("navigation", { name: "Paginación de visitas recientes" });
+      await expect(pager).toBeVisible();
+      await expect(pager).toHaveAttribute("data-collection-pager", "centered");
+      await expect(pager).toHaveAttribute("data-dashboard-pager", "true");
+      await expect(pager).toHaveAttribute("data-dashboard-adaptive-reserved-region", "pager");
+
+      const rowSelector = '[data-clinic-logistics-row="true"]';
+      const before = await readC02Pager(page, pagerSelector, rowSelector);
+      console.log(`[C02] ${label}: ${JSON.stringify(before)}`);
+      expectExactReservation(before, label);
+      expect(before.blockSize, `${label}: touch reservation floor`).toBeGreaterThanOrEqual(40);
+      expect(before.controlHeights, `${label}: text controls keep h-8`).toEqual([32, 32]);
+
+      const live = pager.locator('.sr-only[aria-live="polite"]');
+      const state = pager.locator('[data-dashboard-pager-state="true"]');
+      const first = parseRange(await live.textContent(), label);
+      expect(first).toMatchObject({ start: 1, total: 256 });
+      expect(first.size, `${label}: rendered rows equal the announced range`).toBe(before.rows);
+      const pageCount = Math.ceil(first.total / first.size);
+      await expect(state).toHaveText(`Pág. 1 / ${pageCount}`);
+      const prev = pager.getByRole("button", { name: "Página anterior" });
+      const next = pager.getByRole("button", { name: "Página siguiente" });
+      await expect(prev).toBeDisabled();
+      await expect(next).toBeEnabled();
+
+      const requests = trackApiRequests(page);
+      await next.focus();
+      await page.keyboard.press("Enter");
+      await expect(state).toHaveText(`Pág. 2 / ${pageCount}`);
+      await expect(live).toHaveText(`${first.end + 1}–${first.end + first.size} de 256`);
+      await prev.click();
+      await expect(state).toHaveText(`Pág. 1 / ${pageCount}`);
+      await expect(live).toHaveText(`1–${first.size} de 256`);
+      expect(requests, `${label}: client pagination issues no request`).toEqual([]);
+      expectExactReservation(await readC02Pager(page, pagerSelector, rowSelector), `${label} after paging`);
+      await expectNoOuterScroll(page, label);
+    });
   }
 });
