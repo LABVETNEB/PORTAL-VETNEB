@@ -2,7 +2,7 @@
 
 ## Estado
 
-**C06 = COMPLETE** en el árbol local (commit `34b3d5f2` más cambios locales sin commit). Esta actualización reemplaza los bloqueos documentados más abajo: la selección de página en móvil se resolvió con un host autorizado por Nico. La franja móvil existente aloja un checkbox nativo de página como slot presentacional de `AdminAuditFilterBar`, fuera del `<form>` S1 y sin lógica de selección en S1. La franja conserva 53 px, sin overflow ni overlap con «Filtros», y el target es de 36×36 en 320–767 px. No hay cambios de A03, `limit`, `offset`, pitch, canvas ni pager. E2E móvil: individual, múltiple, página parcial/completa, vaciado de página, persistencia entre páginas, teclado, foco, sin dialog, submit ni request, y axe; mutation proof de la página 5/5. Gates finales verdes (ver el rector).
+**C06 = COMPLETE** en el estado publicado por este PR. La implementación runtime y sus pruebas quedaron validadas en el commit `f2e192a1a8617f177b752766f33eb4c45c040679`; el ajuste documental posterior no modifica runtime ni tests. La selección de página en móvil se resolvió con un host autorizado por Nico (ver «Bloqueo móvil histórico — RESUELTO»). La franja móvil existente aloja un checkbox nativo de página como slot presentacional de `AdminAuditFilterBar`, fuera del `<form>` S1 y sin lógica de selección en S1. La franja conserva 53 px, sin overflow ni overlap con «Filtros», y el target es de 36×36 en 320–767 px. No hay cambios de A03, `limit`, `offset`, pitch, canvas ni pager. E2E móvil: individual, múltiple, página parcial/completa, vaciado de página, persistencia entre páginas, teclado, foco, sin dialog, submit ni request, y axe; mutation proof de la página 5/5. Gates finales verdes (ver el rector).
 
 ## Owner
 
@@ -27,6 +27,7 @@
 **Lista móvil, < 768 px:**
 - Checkbox nativo por ítem con el mismo nombre accesible.
 - Touch target de 36 × 36 dentro de la propia fila, con la marca `data-state="selected"`.
+- Checkbox nativo de página («Seleccionar los eventos de esta página», con `indeterminate` real) en la franja móvil existente, mediante el slot presentacional `leadingSlot` de `AdminAuditFilterBar`, fuera del `<form>` S1.
 - Sin cambios de pitch, canvas, pager ni filtros.
 
 **Teclado y acciones:**
@@ -35,9 +36,11 @@
 - El selector nunca abre el detalle, y «Ver» no cambia la selección.
 - No hay `onKeyDown`, ni `aria-selected` en filas, ni roles nuevos. El CSS se limita a clases de utilidad existentes.
 
-## Bloqueo móvil: selección de página
+## Bloqueo móvil histórico — RESUELTO
 
-Mediciones a 320×568, 360×800, 375×812, 390×844, 412×915, 430×932 y 767×1024.
+**Resolución final.** Nico autorizó usar la franja móvil existente como host visual. El checkbox nativo de página vive en el slot presentacional `leadingSlot` de `AdminAuditFilterBar`, fuera del `<form>` S1 y sin lógica de selección en S1. La franja sigue midiendo 53 px, sin overflow ni overlap con «Filtros», y el target es de 36×36 de 320 a 767 px. A03 drift = 0, `limit` y `offset` sin cambios, zero-scroll PASSED. El control no dispara submit, «Filtros», «Ver» ni requests. Mutation proof de la página: 5/5.
+
+**Bloqueo original, conservado como registro.** Mediciones a 320×568, 360×800, 375×812, 390×844, 412×915, 430×932 y 767×1024.
 
 **Composición real de la superficie móvil**, de arriba abajo:
 1. `<form>` S1 oculto.
@@ -66,12 +69,7 @@ Todas quedan por debajo del touch target de 36 px. Un control de «seleccionar p
 - en el pager, usa el pager compartido como selector;
 - en una toolbar, adelanta C07.
 
-Todas esas opciones están prohibidas por el contrato vigente.
-
-**Para completarlo hace falta una de estas autorizaciones:**
-1. Un host de altura cero en la franja móvil (archivo de S1).
-2. Una reserva de capacidad para una cabecera de selección móvil, con recaptura autorizada de A03.
-3. La toolbar contextual de C07.
+Con el contrato de ese momento, todas esas opciones estaban prohibidas. El bloqueo se cerró con la opción 1 (un host de altura cero en la franja móvil), sin reserva de capacidad, sin recaptura de A03 y sin C07.
 
 ## Censo
 
@@ -81,13 +79,13 @@ A0-06-SUPPORT = 411 en el árbol Git real. El unit C06, ya versionado, importa `
 
 | Gate | Resultado |
 |---|---|
-| Unit C06 + guard B11/C01–C06 + censo + `tracked-source-inventory` | PASSED 60/60 sobre `34b3d5f2`; tras los cambios móviles, el guard B11 da 24/24 |
+| Unit C06 + guard B11/C01–C06 + censo + `tracked-source-inventory` | PASSED: 60/60 sobre el estado Git real, y el guard B11 con la adopción móvil final da 24/24 |
 | Mutation proof del owner | unit, 7/7 |
-| Mutation proof del adopter | E2E, 5/5, restaurado por hash: identidad por índice, indeterminado ausente, selector que dispara «Ver», selector móvil ausente, selector móvil que desborda la fila |
-| E2E `dashboard-b11-workspace-header` | PASSED 38/38 (21 C06). Desktop 1366×768: individual, múltiple, parcial/completa, vaciado de página, teclado, foco, «Ver», persistencia entre páginas y axe. Geometría desktop/tablet a 1920, 1280, 1024, 834 y 768 px. Móvil 390×844: individual, múltiple, teclado, «Ver», persistencia entre páginas y axe. Geometría móvil en los 7 viewports |
+| Mutation proof del adopter | E2E, 10/10, restaurado por hash: identidad por índice, indeterminado ausente, selector que dispara «Ver», selector móvil ausente, selector móvil que desborda la fila; página móvil: control eliminado, `toggleVisiblePage` roto, indeterminado ausente, conexión a «Filtros», franja que crece |
+| E2E `dashboard-b11-workspace-header` | PASSED 38/38 (21 C06). Desktop 1366×768: individual, múltiple, parcial/completa, vaciado de página, teclado, foco, «Ver», persistencia entre páginas y axe. Geometría desktop/tablet a 1920, 1280, 1024, 834 y 768 px. Móvil 390×844: individual, múltiple, página parcial/completa, vaciado de página, teclado, «Ver», persistencia entre páginas y axe. Geometría móvil en los 7 viewports, con franja de 53 px |
 | A02 | PASSED 21/21 |
 | A03 | PASSED 16/16 (195/195, 234/234), sin recaptura |
-| A05 | PASSED 15/15 |
+| A05 | PASSED 15/15 (corrida previa al checkbox de página móvil, que no cambia reservas) |
 | A07 | PASSED: el owner único de capacidad está en los guards |
 | A08 | PASSED 21/21 |
 | Contratos zero-scroll | PASSED 66/66 |
@@ -104,11 +102,10 @@ A0-06-SUPPORT = 411 en el árbol Git real. El unit C06, ya versionado, importa `
 
 ## Riesgos residuales
 
-- Selección de página en móvil bloqueada (ver arriba).
 - La UI para limpiar toda la selección está diferida a C07.
 - La selección fuera de página es deliberada: C07 y C09 deben decidir el alcance de sus operaciones.
 - P3 preexistente: un bloque `md:hidden` muerto en `AdminAuditDenseTable`.
 
 ## Rollback lógico
 
-Revertir el commit C06 y los cambios locales posteriores (lista móvil, guard B11, spec B11, catálogo y documentos). Sin datos ni backend.
+Revertir los commits C06 de este PR. Sin datos ni backend.
