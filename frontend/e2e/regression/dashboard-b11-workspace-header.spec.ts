@@ -1,3 +1,4 @@
+import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { build } from "esbuild";
 import { resolve } from "node:path";
@@ -795,6 +796,177 @@ test.describe("C03 · CollectionState owns the legacy states on a real consumer"
       expect(readout).toMatchObject({ count: 1, role: null, ariaLive: null, ariaBusy: null, insidePanel: true });
       expect(readout.clippedOrScrolling, `${label}: the state fits its canvas without clip or nested scroll`).toEqual([]);
       expect(readout.otherStates, `${label}: empty is never shown as error or loading`).toEqual([]);
+      await expectNoOuterScroll(page, label);
+    });
+  }
+});
+
+// C06 · useCollectionSelection on Auditoría's table form. Selection is state
+// only: it never fetches, pages or opens the row's detail dialog, and the
+// selector column fits the frozen row pitch without moving the A03 limit.
+test.describe("C06 · Auditoría collection selection", () => {
+  const auditSurface = DASHBOARD_GEOMETRY_SURFACES.find((surface) => surface.id === "admin-auditoria");
+  if (!auditSurface) throw new Error("C06: missing canonical admin-auditoria surface");
+  const desktopCard = '#audit-log > section[aria-labelledby="admin-audit-register-title"]';
+  const pageSelector = `${desktopCard} thead input[data-collection-selection="page"]`;
+  const rowSelector = `${desktopCard} tbody[data-content-list="true"] > tr[data-content-list-item="true"]`;
+
+  async function readPageCheckbox(page: Page) {
+    return page.locator(pageSelector).evaluate((input: HTMLInputElement) => ({
+      checked: input.checked,
+      indeterminate: input.indeterminate,
+    }));
+  }
+
+  async function readRowStates(page: Page) {
+    return page.locator(rowSelector).evaluateAll((rows) =>
+      rows.map((row) => {
+        const input = row.querySelector<HTMLInputElement>('input[data-collection-selection="item"]');
+        return { name: input?.getAttribute("aria-label") ?? "", checked: Boolean(input?.checked), state: row.getAttribute("data-state") };
+      }),
+    );
+  }
+
+  test("individual, multiple, page, keyboard and paging contract @ 1366x768", async ({ page }) => {
+    const label = "C06 admin-auditoria @ 1366x768";
+    await page.setViewportSize({ width: 1366, height: 768 });
+    await prepareSurface(page, auditSurface);
+    await openSurface(page, auditSurface);
+
+    const rows = page.locator(rowSelector);
+    await expect(rows.first()).toBeVisible();
+    const limit = await rows.count();
+    expect(limit, `${label}: a multi-row page`).toBeGreaterThan(3);
+    const itemBoxes = rows.locator('input[data-collection-selection="item"]');
+    await expect(itemBoxes).toHaveCount(limit);
+    expect(await readPageCheckbox(page)).toEqual({ checked: false, indeterminate: false });
+    expect((await readRowStates(page)).every((row) => !row.checked && row.state === null)).toBe(true);
+
+    const requests: string[] = [];
+    page.on("request", (request) => requests.push(`${request.method()} ${request.url()}`));
+
+    // Individual + multiple by click; the row's detail dialog never opens.
+    await itemBoxes.nth(0).click();
+    await expect(itemBoxes.nth(0)).toBeChecked();
+    await expect(rows.nth(0)).toHaveAttribute("data-state", "selected");
+    await expect(page.locator(pageSelector)).toBeChecked({ indeterminate: true });
+    await itemBoxes.nth(1).click();
+    await expect(itemBoxes.nth(1)).toBeChecked();
+    await expect(itemBoxes.nth(0)).toBeChecked();
+    await itemBoxes.nth(0).click();
+    await expect(itemBoxes.nth(0)).not.toBeChecked();
+    await expect(rows.nth(0)).not.toHaveAttribute("data-state", "selected");
+    await expect(itemBoxes.nth(1)).toBeChecked();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+
+    // Keyboard: Space toggles the focused selector, Enter does not, Tab reaches the row action next.
+    await itemBoxes.nth(2).focus();
+    await page.keyboard.press("Space");
+    await expect(itemBoxes.nth(2)).toBeChecked();
+    await page.keyboard.press("Enter");
+    await expect(itemBoxes.nth(2)).toBeChecked();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await page.keyboard.press("Space");
+    await expect(itemBoxes.nth(2)).not.toBeChecked();
+    await page.keyboard.press("Tab");
+    await expect(rows.nth(2).getByRole("button", { name: /Ver detalle del evento/ })).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(itemBoxes.nth(3)).toBeFocused();
+    expect(await itemBoxes.nth(3).evaluate((input) => input.matches(":focus-visible"))).toBe(true);
+
+    // Accessibility while the page is partially selected (indeterminate header).
+    await expect(page.getByRole("checkbox", { name: "Seleccionar los eventos de esta página" })).toBeVisible();
+    const firstName = (await readRowStates(page))[0].name;
+    expect(firstName).toMatch(/^Seleccionar evento \d+$/);
+    await expect(page.getByRole("checkbox", { name: firstName, exact: true })).toHaveCount(1);
+    const axe = await new AxeBuilder({ page })
+      .include(desktopCard)
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+      .analyze();
+    expect(axe.violations.map((violation) => `${violation.id}: ${violation.nodes.length}`), `${label}: axe`).toEqual([]);
+
+    // Page selection by keyboard: partial -> all visible; all -> none (clears the page).
+    await page.locator(pageSelector).focus();
+    await page.keyboard.press("Space");
+    expect(await readPageCheckbox(page)).toEqual({ checked: true, indeterminate: false });
+    expect((await readRowStates(page)).every((row) => row.checked && row.state === "selected")).toBe(true);
+    await page.locator(pageSelector).click();
+    expect(await readPageCheckbox(page)).toEqual({ checked: false, indeterminate: false });
+    expect((await readRowStates(page)).every((row) => !row.checked && row.state === null)).toBe(true);
+
+    // Primary action keeps its behaviour and leaves the selection as it was.
+    await itemBoxes.nth(0).click();
+    await rows.nth(0).getByRole("button", { name: /Ver detalle del evento/ }).click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog")).toBeHidden();
+    await expect(itemBoxes.nth(0)).toBeChecked();
+    await expect(itemBoxes).toHaveCount(limit);
+    expect(requests, `${label}: selection is local state, no request`).toEqual([]);
+
+    // Paging: the page flags follow the visible IDs; the selection persists by ID.
+    const range = page.locator(`${desktopCard} footer span[aria-live="polite"]`);
+    const firstRange = (await range.textContent())?.trim() ?? "";
+    await page.locator(`${desktopCard} footer`).getByRole("button", { name: "Página siguiente" }).click();
+    await expect(range).not.toHaveText(firstRange);
+    // The range derives from the offset at once; wait for the fetched rows themselves.
+    await expect(page.getByRole("checkbox", { name: firstName, exact: true })).toHaveCount(0);
+    await expect(rows).toHaveCount(limit);
+    const secondPage = await readRowStates(page);
+    expect(secondPage.some((row) => row.name === firstName), `${label}: page 2 shows other IDs`).toBe(false);
+    expect(secondPage.every((row) => !row.checked)).toBe(true);
+    expect(await readPageCheckbox(page)).toEqual({ checked: false, indeterminate: false });
+    await page.locator(`${desktopCard} footer`).getByRole("button", { name: "Página anterior" }).click();
+    await expect(range).toHaveText(firstRange);
+    await expect(page.getByRole("checkbox", { name: firstName, exact: true })).toHaveCount(1);
+    await expect(page.getByRole("checkbox", { name: firstName, exact: true })).toBeChecked();
+    await expect(page.locator(pageSelector)).toBeChecked({ indeterminate: true });
+    await expect(rows).toHaveCount(limit);
+    await expectNoOuterScroll(page, label);
+  });
+
+  for (const slug of ["w1920x1080", "w1280x720", "w1024x768", "w834x1194", "w768x1024", "w390x844"] as const) {
+    const viewport = DASHBOARD_GEOMETRY_VIEWPORTS.find((candidate) => candidate.slug === slug);
+    if (!viewport) throw new Error(`C06: missing canonical viewport ${slug}`);
+
+    test(`selector column fits the frozen geometry @ ${viewport.width}x${viewport.height}`, async ({ page }) => {
+      const label = `C06 admin-auditoria @ ${viewport.width}x${viewport.height}`;
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      await prepareSurface(page, auditSurface);
+      await openSurface(page, auditSurface);
+      if (viewport.width < 768) {
+        await expect(page.locator('[data-admin-mobile-ops-module="audit"] [data-content-list-item="true"]').first()).toBeVisible();
+        await expect(page.locator("[data-collection-selection]").filter({ visible: true })).toHaveCount(0);
+        await expectNoOuterScroll(page, label);
+        return;
+      }
+      await expect(page.locator(rowSelector).first()).toBeVisible();
+      await page.locator(`${rowSelector} input[data-collection-selection="item"]`).first().click();
+      const metrics = await page.locator(desktopCard).evaluate((card) => {
+        const frame = card.querySelector("table")!.parentElement!;
+        const box = (selector: string) => {
+          const rect = card.querySelector(selector)!.getBoundingClientRect();
+          return [rect.width, rect.height];
+        };
+        const rows = [...card.querySelectorAll('tbody > tr[data-content-list-item="true"]')];
+        const canvas = card.querySelector("[data-dashboard-row-pitch]")!;
+        return {
+          frameOverflowX: frame.scrollWidth - frame.clientWidth,
+          frameOverflowY: frame.scrollHeight - frame.clientHeight,
+          checkbox: box('tbody input[data-collection-selection="item"]'),
+          headCheckbox: box('thead input[data-collection-selection="page"]'),
+          rowHeights: [...new Set(rows.map((row) => Math.round(row.getBoundingClientRect().height * 100) / 100))],
+          pitch: Number.parseFloat(getComputedStyle(canvas).getPropertyValue("--dash-row-pitch")),
+          headHeight: card.querySelector("thead")!.getBoundingClientRect().height,
+        };
+      });
+      console.log(`[C06] ${label}: ${JSON.stringify(metrics)}`);
+      expect(metrics.frameOverflowX, `${label}: no horizontal overflow from the selector column`).toBeLessThanOrEqual(0);
+      expect(metrics.frameOverflowY, `${label}: no internal vertical scroll`).toBeLessThanOrEqual(0);
+      expect(metrics.checkbox).toEqual([18, 18]);
+      expect(metrics.headCheckbox).toEqual([18, 18]);
+      expect(metrics.rowHeights, `${label}: rows keep the frozen pitch`).toEqual([metrics.pitch]);
+      expect(metrics.headHeight).toBeCloseTo(32, 0);
       await expectNoOuterScroll(page, label);
     });
   }

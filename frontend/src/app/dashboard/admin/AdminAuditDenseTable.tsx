@@ -9,10 +9,13 @@ import {
   CollectionHeader,
   ContentList,
   ContentListItem,
+  type CollectionSelection,
 } from "@/features/dashboard/presentation/surfaces";
 import { AdminAuditDetailDialog } from "./AdminAuditDetailDialog";
 
-type BadgeVariant = "default" | "secondary" | "destructive" | "outline";
+const SELECTION_CHECKBOX_CLASS = "size-[18px] cursor-pointer align-middle accent-vetneb-teal";
+
+type BadgeVariant ="default" | "secondary" | "destructive" | "outline";
 
 export type AdminAuditRow = {
   id: number;
@@ -30,6 +33,7 @@ type AdminAuditDenseTableProps = {
   rows: AdminAuditRow[];
   loadError: boolean;
   hasActiveFilters: boolean;
+  selection: CollectionSelection<number>;
   // Measurement hook for the Zero-Scroll adaptive contract (viewport-safe
   // server pagination): the first row gives the real row height. The measured
   // container is the rows region owned by `AdminAuditCard`, not this wrapper —
@@ -40,6 +44,7 @@ export function AdminAuditDenseTable({
   rows,
   loadError,
   hasActiveFilters,
+  selection,
 }: AdminAuditDenseTableProps) {
   const emptyMessage = hasActiveFilters
     ? "No hay eventos para los filtros seleccionados."
@@ -60,6 +65,19 @@ export function AdminAuditDenseTable({
           <Table className="table-fixed text-[13px] [&_td]:h-9 [&_td]:px-2 [&_td]:py-1 [&_th]:h-8 [&_th]:px-2 [&_th]:text-xs [&_th]:font-semibold">
             <CollectionHeader>
               <TableRow>
+                <TableHead className="w-9">
+                  <input
+                    type="checkbox"
+                    aria-label="Seleccionar los eventos de esta página"
+                    data-collection-selection="page"
+                    className={SELECTION_CHECKBOX_CLASS}
+                    checked={selection.allVisibleSelected}
+                    ref={(node) => {
+                      if (node) node.indeterminate = selection.someVisibleSelected;
+                    }}
+                    onChange={selection.toggleVisiblePage}
+                  />
+                </TableHead>
                 <TableHead className="w-[9.5rem]">Fecha</TableHead>
                 <TableHead className="w-[10rem]">Actor</TableHead>
                 <TableHead className="w-[12rem]">Acción</TableHead>
@@ -69,8 +87,22 @@ export function AdminAuditDenseTable({
               </TableRow>
             </CollectionHeader>
             <ContentList as="tbody">
-              {rows.map((row, index) => (
-                <ContentListItem as="tr" key={row.id}>
+              {rows.map((row) => (
+                <ContentListItem
+                  as="tr"
+                  key={row.id}
+                  data-state={selection.isSelected(row.id) ? "selected" : undefined}
+                >
+                  <TableCell>
+                    <input
+                      type="checkbox"
+                      aria-label={`Seleccionar evento ${row.id}`}
+                      data-collection-selection="item"
+                      className={SELECTION_CHECKBOX_CLASS}
+                      checked={selection.isSelected(row.id)}
+                      onChange={() => selection.toggle(row.id)}
+                    />
+                  </TableCell>
                   <TableCell className="truncate text-xs text-muted-foreground">
                     {row.date}
                   </TableCell>

@@ -40,3 +40,10 @@ export {
   type CollectionStateLoadingProps,
   type CollectionStateSkeleton,
 } from "@/components/dashboard/EmptyState";
+/** C06 collection selection: state only, keyed by item ID; actions on the selection belong to C07/C09. */
+export {
+  useCollectionSelection,
+  type CollectionSelection,
+  type CollectionSelectionId,
+  type CollectionSelectionOptions,
+} from "./useCollectionSelection";

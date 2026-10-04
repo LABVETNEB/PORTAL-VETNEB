@@ -344,7 +344,11 @@ async function expectPopulatedAdminModule(
     const firstDataRow = table.getByRole("row").nth(1);
     await expect(firstDataRow.getByText("Admin #41", { exact: true })).toBeVisible();
     await expect(firstDataRow.getByText("Login admin", { exact: true })).toBeVisible();
-    await expect(firstDataRow.getByRole("cell").first()).not.toBeEmpty();
+    // C06: the first cell is the row selector; the first data cell (Fecha) follows it.
+    await expect(
+      firstDataRow.getByRole("cell").first().getByRole("checkbox", { name: /^Seleccionar evento \d+$/ }),
+    ).toHaveCount(1);
+    await expect(firstDataRow.getByRole("cell").nth(1)).not.toBeEmpty();
     await expect(workspace.getByText("47 coincidencias", { exact: true })).toBeVisible();
     await expect(
       workspace.getByText("No hay eventos de auditoría disponibles."),
