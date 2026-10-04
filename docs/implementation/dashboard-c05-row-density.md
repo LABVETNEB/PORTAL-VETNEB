@@ -87,7 +87,7 @@ Drift: **15/26**. Las 15 hojas con drift son las de ≥ 768 px con `limit` ≥ 1
 
 C05 puede reabrirse sólo si ocurre una de estas condiciones:
 
-- **A.** Se implementa y valida una separación explícita entre la altura visual de la fila y el pitch de capacidad (conceptualmente `visualRowHeightPx` frente a `capacityPitchPx`, o una arquitectura equivalente) sin drift A03.
+- **A.** Se implementa y valida una separación explícita entre la altura visual de fila y el pitch usado por el motor de capacidad (conceptualmente `visualRowHeightPx` frente a `capacityPitchPx`, o una arquitectura equivalente), **y además** se recupera o reserva suficiente espacio efectivo de canvas en cada viewport de A03 para alojar físicamente el `limit` congelado con filas visuales de 40 px, sin clipping, overlap ni scroll interno, con `limit` y `offset` invariantes respecto de A03 y con los contratos zero-scroll/A08 en PASSED. La separación de pitches **no basta por sí sola**: renderizar 40 px mientras `computeCapacity` calcula con 36 px sobreasigna el canvas (medido: `admin-clinics` @ 1920 × 1080 caben 20 filas a 36 px y 18 a 40 px). La recaptura de baselines no es un mecanismo admisible para ocultar esa regresión. Cómo recuperar ese espacio no se diseña aquí.
 - **B.** Nico autoriza explícitamente redefinir los baselines de `limit`/`offset` y ejecutar la recaptura completa requerida.
 
 ## Riesgos residuales
