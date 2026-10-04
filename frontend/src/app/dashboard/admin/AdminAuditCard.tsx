@@ -230,6 +230,7 @@ export function AdminAuditCard({
         onPrevious={goToPreviousPage}
         onNext={goToNextPage}
         bodyRef={setMobileBodyNode}
+        selection={selection}
       />
 
       <section

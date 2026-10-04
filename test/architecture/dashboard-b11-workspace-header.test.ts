@@ -688,7 +688,7 @@ test("C06 · Auditoría adopts selection on its table by event ID without touchi
   assert.ok(card.includes("const visibleIds = useMemo(() => (loadError ? [] : rows.map((row) => row.id)), [loadError, rows]);"),
     "the visible page is exactly the rendered rows, by ID");
   assert.ok(card.includes("const selection = useCollectionSelection({ visibleIds });"));
-  assert.ok(card.includes("selection={selection}"));
+  assert.equal((card.match(/selection=\{selection\}/g) ?? []).length, 2, "desktop table and mobile list share the one selection owner");
   for (const frozen of [
     "const effectiveLimit = rowsPerPage;", "limit: effectiveLimit,", "offset,", "maxItems: ADMIN_AUDIT_FALLBACK_ROWS,",
     "maxItems: ADMIN_AUDIT_LIMIT_CAP,", "setOffset(offset + effectiveLimit);", "setOffset(Math.max(0, offset - effectiveLimit));",
@@ -714,8 +714,41 @@ test("C06 · Auditoría adopts selection on its table by event ID without touchi
   );
   assert.deepEqual(consumers, [C01_AUDIT_CARD], "C06 is not the C17+ migration");
   const selectionProps = sourceFiles("frontend/src").filter((path) => read(path).includes("CollectionSelection<"));
-  assert.deepEqual(selectionProps.sort(), [C01_AUDIT_TABLE, C06_OWNER].sort());
-  assert.equal(read(C01_AUDIT_MOBILE).includes("selection"), false, "mobile page selection has no authorized host: C06 stays BLOCKED below 768px");
+  assert.deepEqual(selectionProps.sort(), [C01_AUDIT_MOBILE, C01_AUDIT_TABLE, C06_OWNER].sort());
+
+  // Mobile list: per-item native checkbox on the shared owner, by event ID.
+  const mobile = stripComments(read(C01_AUDIT_MOBILE));
+  for (const required of [
+    "selection: CollectionSelection<number>;",
+    'type="checkbox"',
+    "aria-label={`Seleccionar evento ${row.id}`}",
+    "checked={selection.isSelected(row.id)}",
+    "onChange={() => selection.toggle(row.id)}",
+    'data-state={selection.isSelected(row.id) ? "selected" : undefined}',
+    "<AdminAuditDetailDialog row={row} />",
+    'aria-label="Seleccionar los eventos de esta página"',
+    'data-collection-selection="page"',
+    "checked={selection.allVisibleSelected}",
+    "node.indeterminate = selection.someVisibleSelected;",
+    "onChange={selection.toggleVisiblePage}",
+    "leadingSlot={",
+  ]) {
+    assert.ok(mobile.includes(required), `mobile list keeps ${required}`);
+  }
+  for (const forbidden of ["index", "aria-selected", "aria-checked", "onKeyDown", "stopPropagation", "clearSelection"]) {
+    assert.equal(mobile.includes(forbidden), false, `mobile list must not own ${forbidden}`);
+  }
+
+  // The mobile page checkbox is hosted by the existing strip as a presentational
+  // slot, outside the S1 form and with no selection logic inside S1.
+  const filterBar = stripComments(read("frontend/src/app/dashboard/admin/AdminAuditFilterBar.tsx"));
+  const strip = filterBar.slice(filterBar.indexOf("export function AdminAuditFilterBar("));
+  assert.ok(strip.indexOf("<FilterForm {...props} />") < strip.indexOf("{props.leadingSlot}"), "the slot renders after, not inside, the S1 form");
+  assert.equal((filterBar.match(/\{props\.leadingSlot\}/g) ?? []).length, 1);
+  for (const forbidden of ["selection", "checkbox", "toggleVisiblePage", "indeterminate"]) {
+    assert.equal(filterBar.includes(forbidden), false, `S1 never owns ${forbidden}`);
+  }
+  assert.equal(read("frontend/src/app/dashboard/admin/AdminMobileOpsPager.tsx").includes("selection"), false, "the shared pager never hosts selection");
 });
 
 test("C06 · C04, C05 and C07+ stay unstarted around the selection owner", () => {

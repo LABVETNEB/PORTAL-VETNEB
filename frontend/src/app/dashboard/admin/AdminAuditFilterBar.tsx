@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { Filter } from "lucide-react";
 import {
   dashboardFilterActionClassName,
@@ -39,6 +40,8 @@ type AdminAuditFilterBarProps = {
     roleChanges: number;
     notifications: number;
   };
+  /** Presentational slot at the start of the mobile strip, outside the filter form. */
+  leadingSlot?: ReactNode;
 };
 
 type FilterFormProps = AdminAuditFilterBarProps & {
@@ -145,6 +148,7 @@ export function AdminAuditFilterBar(props: AdminAuditFilterBarProps) {
     <>
       <FilterForm {...props} />
       <div className="flex shrink-0 items-center justify-between gap-2 border-b border-vetneb-line/70 px-3 py-1.5 md:hidden">
+        {props.leadingSlot}
         <div className="flex min-w-0 flex-1 items-baseline gap-1.5 text-xs text-muted-foreground">
           <span className="min-w-0 truncate">
             {props.hasActiveFilters ? "Filtros activos" : "Todos los eventos"}

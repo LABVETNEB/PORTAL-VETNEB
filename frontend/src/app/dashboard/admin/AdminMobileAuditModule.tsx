@@ -1,7 +1,11 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
-import { ContentList, ContentListItem } from "@/features/dashboard/presentation/surfaces";
+import {
+  ContentList,
+  ContentListItem,
+  type CollectionSelection,
+} from "@/features/dashboard/presentation/surfaces";
 import { AdminAuditDetailDialog } from "./AdminAuditDetailDialog";
 import {
   AdminAuditFilterBar,
@@ -33,6 +37,7 @@ type AdminMobileAuditModuleProps = {
   onPrevious: () => void;
   onNext: () => void;
   bodyRef: (node: HTMLElement | null) => void;
+  selection: CollectionSelection<number>;
 };
 
 export function AdminMobileAuditModule({
@@ -51,6 +56,7 @@ export function AdminMobileAuditModule({
   onPrevious,
   onNext,
   bodyRef,
+  selection,
 }: AdminMobileAuditModuleProps) {
   const hasActiveFilters = Object.values(filters).some(Boolean);
 
@@ -77,6 +83,22 @@ export function AdminMobileAuditModule({
           roleChanges: roleChangesTotal,
           notifications: notificationsTotal,
         }}
+        leadingSlot={
+          <label className="-ml-1.5 flex size-9 shrink-0 cursor-pointer items-center justify-center">
+            <input
+              type="checkbox"
+              aria-label="Seleccionar los eventos de esta página"
+              data-collection-selection="page"
+              className="size-[18px] cursor-pointer accent-vetneb-teal"
+              disabled={loadError || rows.length === 0}
+              checked={selection.allVisibleSelected}
+              ref={(node) => {
+                if (node) node.indeterminate = selection.someVisibleSelected;
+              }}
+              onChange={selection.toggleVisiblePage}
+            />
+          </label>
+        }
       />
 
       <ContentList
@@ -91,14 +113,25 @@ export function AdminMobileAuditModule({
             No se pudieron cargar los eventos.
           </div>
         ) : rows.length ? (
-          rows.map((row, index) => (
+          rows.map((row) => (
             <ContentListItem
               as="article"
               key={row.id}
               data-admin-mobile-ops-item="true"
               data-dashboard-adaptive-row="true"
-              className="flex min-h-9 items-center gap-2 overflow-hidden px-2 py-0.5"
+              data-state={selection.isSelected(row.id) ? "selected" : undefined}
+              className="flex min-h-9 items-center gap-1 overflow-hidden py-0.5 pr-2 data-[state=selected]:bg-vetneb-teal/10"
             >
+              <label className="flex size-9 shrink-0 cursor-pointer items-center justify-center">
+                <input
+                  type="checkbox"
+                  aria-label={`Seleccionar evento ${row.id}`}
+                  data-collection-selection="item"
+                  className="size-[18px] cursor-pointer accent-vetneb-teal"
+                  checked={selection.isSelected(row.id)}
+                  onChange={() => selection.toggle(row.id)}
+                />
+              </label>
               <div className="min-w-0 flex-1">
                 <div className="flex min-w-0 items-center gap-1.5">
                   <Badge
