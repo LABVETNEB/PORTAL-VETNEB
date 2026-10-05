@@ -74,7 +74,9 @@ test("admin clinics management card lists clinics users and editable actions wit
     source,
     /<Card\s+id="admin-clinics"\s+data-dashboard-b12-module-card="true"/,
   );
-  assert.ok(source.includes("<TableHead>Clínica</TableHead>"));
+  // C04: Clínica is a server-sorted column header.
+  assert.ok(source.includes('<TableHead aria-sort={clinicsAriaSort(appliedSort, "name")}>'));
+  assert.ok(source.includes('label="Clínica"'));
   assert.ok(source.includes("<TableHead>Contacto</TableHead>"));
   assert.ok(source.includes("<TableHead>Usuario</TableHead>"));
   // Edit actions live in the drawer (split from inline table editing in PR3C)

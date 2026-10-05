@@ -33,13 +33,17 @@ async function sentLimits(source: string): Promise<number[]> {
         CLINICS_FALLBACK_ROWS,
       });
       const effectiveLimit = evaluate(initializerNamed(file, "effectiveLimit"), { rowsPerPage, Math });
-      const query = (evaluate(factory.arguments[0], { effectiveLimit, offset: 0, submittedSearch: "" }) as () => unknown)();
+      const pageQueryFactory = initializerNamed(file, "pageQuery") as ts.CallExpression;
+      const pageQuery = (evaluate(pageQueryFactory.arguments[0], { effectiveLimit, offset: 0, submittedSearch: "" }) as () => unknown)();
+      const query = (evaluate(factory.arguments[0], { pageQuery, requestedSort: null }) as () => unknown)();
       const sent: { limit: number }[] = [];
       const loadClinics = runSource<() => void>(functionNamed(file, "loadClinics"), {
         query,
+        requestedSort: null,
         latestRequestRef: { current: 0 },
         setError: () => {},
         setSnapshot: () => {},
+        setAppliedSort: () => {},
         startTransition: (callback: () => void) => callback(),
         getAdminClinics: async (request: { limit: number }) => {
           sent.push(request);

@@ -391,8 +391,8 @@ test("C01 · Auditoría adopts the table and list forms without moving capacity,
   assert.deepEqual(consumers.sort(), [C01_AUDIT_CARD, C01_AUDIT_TABLE, C01_AUDIT_MOBILE].sort());
   for (const path of sourceFiles("frontend/src")) {
     const source = read(path);
-    // C02 landed CollectionPager, C06 useCollectionSelection and C07 SelectionToolbar; their fences live in their blocks below.
-    for (const later of ["CollectionEmptyState", "aria-sort"]) {
+    // C02 landed CollectionPager, C04 aria-sort, C06 useCollectionSelection and C07 SelectionToolbar; their fences live in their blocks below.
+    for (const later of ["CollectionEmptyState"]) {
       assert.equal(source.includes(later), false, `${path}: ${later} belongs to C03+`);
     }
   }
@@ -489,7 +489,8 @@ test("C02 · consumers keep their adapters and capacity owners; C03+ and C05 geo
 
   for (const path of sourceFiles("frontend/src")) {
     const source = read(path);
-    for (const later of ["CollectionEmptyState", "BulkActionMenu", "aria-sort"]) {
+    // aria-sort is fenced to its C04 adopter in the C04 block below.
+    for (const later of ["CollectionEmptyState", "BulkActionMenu"]) {
       assert.equal(source.includes(later), false, `${path}: ${later} is outside C02`);
     }
   }
@@ -596,7 +597,8 @@ test("C03 · consumers keep the legacy adapters; C01/C02 owners, capacity and C0
 
   for (const path of sourceFiles("frontend/src")) {
     const source = read(path);
-    for (const later of ["CollectionEmptyState", "BulkActionMenu", "aria-sort"]) {
+    // aria-sort is fenced to its C04 adopter in the C04 block below.
+    for (const later of ["CollectionEmptyState", "BulkActionMenu"]) {
       assert.equal(source.includes(later), false, `${path}: ${later} is outside C03`);
     }
   }
@@ -753,10 +755,11 @@ test("C06 · Auditoría adopts selection on its table by event ID without touchi
   assert.equal(read("frontend/src/app/dashboard/admin/AdminMobileOpsPager.tsx").includes("selection"), false, "the shared pager never hosts selection");
 });
 
-test("C06 · C04, C05 and C08+ stay unstarted around the selection owner", () => {
+test("C06 · C05 and C08+ stay unstarted around the selection owner; C04 is fenced to its adopter", () => {
   for (const path of sourceFiles("frontend/src")) {
     const source = read(path);
-    for (const later of ["BulkActionMenu", "OverflowMenu", "ContextMenu", "SubMenu", "aria-sort"]) {
+    // aria-sort is fenced to its C04 adopter in the C04 block below.
+    for (const later of ["BulkActionMenu", "OverflowMenu", "ContextMenu", "SubMenu"]) {
       assert.equal(source.includes(later), false, `${path}: ${later} is outside C06/C07`);
     }
   }
@@ -870,4 +873,43 @@ test("C07 · Auditoría swaps its DefaultToolbar in place on the C06 owner, desk
     sources[target] = sources[target].replace(anchor, () => replacement);
     assert.notDeepEqual(c07AdopterViolations(sources.card, sources.mobile, sources.filterBar), [], `mutation must be rejected: ${replacement}`);
   }
+});
+
+const C04_ADOPTER = "frontend/src/app/dashboard/admin/AdminClinicsManagementCard.tsx";
+const C04_API = "frontend/src/lib/api.ts";
+
+test("C04 · aria-sort exists only on the Clínicas admin headers the server sorts, through native buttons", () => {
+  const census = sourceFiles("frontend/src").filter((path) => read(path).includes("aria-sort")).sort();
+  assert.deepEqual(census, [C04_ADOPTER], "C04 has one adopter; no other surface claims an order (§7.8)");
+
+  const card = stripComments(read(C04_ADOPTER));
+  assert.deepEqual(
+    [...card.matchAll(/aria-sort=\{([^}]*)\}/g)].map((match) => match[1]),
+    ['clinicsAriaSort(appliedSort, "name")', 'clinicsAriaSort(appliedSort, "createdAt")'],
+    "aria-sort sits on the two sortable TableHead elements only, derived from the order the rendered rows have",
+  );
+  assert.equal(/clinicsAriaSort\(requestedSort/.test(card), false, "aria-sort never runs ahead of the rows");
+  for (const key of ["name", "createdAt"]) {
+    assert.ok(card.includes(`<TableHead aria-sort={clinicsAriaSort(appliedSort, "${key}")}>`), `${key}: aria-sort on the th`);
+    assert.equal((card.match(new RegExp(`toggleColumnSort\\("${key}"\\)`, "g")) ?? []).length, 1, `${key}: one header control`);
+  }
+  for (const plain of ["Contacto", "Usuario"]) {
+    assert.ok(card.includes(`<TableHead>${plain}</TableHead>`), `${plain} stays a plain header`);
+  }
+  assert.ok(card.includes('<TableHead className="text-right">Acciones</TableHead>'));
+  assert.ok(card.includes('    <button\n      type="button"\n      title={title}\n      onClick={onToggle}'), "native button control");
+  assert.equal(/role="button"|tabIndex|onKeyDown/.test(card), false, "keyboard comes from the native button");
+
+  // The sort travels to the server; nothing reorders rows in the client.
+  assert.equal(/\.sort\(|toSorted\(|\.reverse\(|toReversed\(|localeCompare/.test(card), false);
+  const api = read(C04_API);
+  assert.equal((api.match(/query\.set\("sort", /g) ?? []).length, 1, "only the clinics client sends an order");
+  assert.equal((api.match(/query\.set\("direction", /g) ?? []).length, 1);
+
+  // C05 geometry and the A03 capacity owner stay frozen.
+  assert.ok(card.includes('<Table className="text-[0.8125rem] [&_th]:h-9 [&_th]:px-3 [&_td]:px-3">'));
+  assert.ok(card.includes("const CLINICS_TABLE_HEADER_PX = 36;"));
+  assert.ok(card.includes("const effectiveLimit = rowsPerPage;"));
+  assert.equal(/sort/i.test(card.slice(card.indexOf("const mobileCapacity ="), card.indexOf("const effectiveLimit ="))), false,
+    "the capacity owner never reads the order");
 });
