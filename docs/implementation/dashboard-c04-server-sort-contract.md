@@ -180,7 +180,7 @@ Ver el reporte de cierre del PR. Los gates siguen AGENTS §6 para backend: tests
 
 ## Riesgo residual
 
-- La prueba de orden global evalúa el SQL emitido, no una ejecución real en Postgres: no hay DB local y, aunque CI sí provisiona `portal_vetneb_ci`, ningún test ejecuta allí la query de C04 (`REAL_POSTGRES_SORT_QUERY_EXECUTION = NOT_COVERED`). La semántica `ORDER BY → LIMIT/OFFSET` de una sola sentencia es estándar de Postgres.
+- La prueba de orden global evalúa el SQL emitido, no una ejecución real en Postgres: no hay DB local y, aunque CI sí provisiona `portal_vetneb_ci`, ningún test ejecuta allí la query de C04 (`REAL_POSTGRES_SORT_QUERY_EXECUTION = NOT_AVAILABLE`: no existe un test/script dedicado). La semántica `ORDER BY → LIMIT/OFFSET` de una sola sentencia es estándar de Postgres.
 - La colación de Postgres para `name` puede diferir del orden de bytes, pero no afecta la totalidad del orden ni la estabilidad (las garantiza `id`).
 
 ## Rollback
@@ -190,7 +190,7 @@ Revertir el PR. No hay datos, schema ni migraciones que revertir. Los clientes q
 ## Validación post-merge (fase 3)
 
 - **Base:** el merge commit de PR #1822 es `7d3066250652bc63f9625c6a58058628dcd70cfa` (MERGED el 2026-10-05); `main` = `origin/main` = `7149765dea31089c00183255b7a866355e39511c` tras el PR #1823 (sólo docs). Las fuentes C04 no tienen diff entre el head del PR (`470f957a`) y el merge, ni entre `7d306625` y `7149765d`: `server`, `test`, `frontend`, `package.json`, `pnpm-lock.yaml` y `.github` no cambiaron (`RUNTIME_C04_DRIFT = NO`).
-- Esta sección distingue tres hechos: **`validate:local` local = FAILED**, **secuencia equivalente en CI = PASSED** y **query de orden contra PostgreSQL real = NOT_COVERED**.
+- Esta sección distingue tres hechos: **`validate:local` local = FAILED**, **secuencia equivalente en CI = PASSED** y **query de orden contra PostgreSQL real = NOT_AVAILABLE** (no existe un test/script dedicado).
 
 **Contrato en `main`:**
 - allowlists sincronizadas;
@@ -214,7 +214,7 @@ Revertir el PR. No hay datos, schema ni migraciones que revertir. Los clientes q
 | `pnpm build` | PASSED |
 | `pnpm validate:local` (local) | **FAILED** (ejecutado, sin exit 0; hecho histórico que se conserva, no se reclasifica). Causa: precondición ambiental, `portal_vetneb_ci` ausente en la máquina local. 4 810 tests, 4 808 pass, 1 skip; la única falla es `e2e-global-03b-authoritative-auth-boundary`, que aborta al importar porque exige la DB aislada `portal_vetneb_ci`. Es el mismo resultado que antes del merge; los 12 tests C04 pasaron en esa corrida |
 | Postgres local | BLOCKED (no hay DB local) |
-| Query de orden contra PostgreSQL real | `NOT_COVERED` (`REAL_POSTGRES_SORT_QUERY_EXECUTION`): ningún test ejecuta la query de C04 contra PostgreSQL, ni en local ni en CI. La evidencia es el SQL emitido (ver «Riesgo residual») |
+| Query de orden contra PostgreSQL real | `NOT_AVAILABLE` (`REAL_POSTGRES_SORT_QUERY_EXECUTION`): no existe actualmente un test/script dedicado que ejecute la query C04 de ordenamiento contra PostgreSQL, ni en local ni en CI (el único test que usa `portal_vetneb_ci`, `E2E-GLOBAL-03B`, no toca el listado de clínicas). La evidencia disponible sigue siendo el SQL emitido y las pruebas contractuales descritas en «Riesgo residual» |
 | GitHub, sobre el merge commit | `validate-backend`, `backend-heavy-validation`, `detect-backend-impact`, `generate-sbom`, `test-coverage-diagnostic` y Supabase Preview: SUCCESS |
 | **CI `backend-heavy-validation` sobre `main`** | **PASSED**: run `37317062164` / job `111786439870` sobre `7d306625` y run `37329815433` / job `111829866063` sobre `7149765d`, ambos evento push a `main`. Ejecutan `pnpm lint:backend` → audit → `pnpm db:migrate` → `pnpm typecheck` → `pnpm typecheck:test` → `pnpm test` → `pnpm build` con exit 0, con PostgreSQL 16 y la base aislada `portal_vetneb_ci` (`DATABASE_URL` y `SUPABASE_DB_URL`). 4 810 tests, 4 810 pass, 0 skip, 0 fail, con `E2E-GLOBAL-03B` en PASS y los 18 tests C04 en PASS. Es técnicamente equivalente al cuerpo de `validate:local` (`typecheck && typecheck:test && test && build`), pero **no invoca literalmente ese script** |
 | Mutation proof | Se reutiliza la evidencia de 10/10 porque las fuentes y los tests C04 no cambiaron después del PR; no se re-ejecutó |
@@ -230,4 +230,4 @@ Revertir el PR. No hay datos, schema ni migraciones que revertir. Los clientes q
 | Fase 3 | `COMPLETE` |
 | NEXT_SLOT | C04 frontend |
 | C05 | BLOCKED (sin cambios) |
-| `REAL_POSTGRES_SORT_QUERY_EXECUTION` | `NOT_COVERED` (riesgo residual; no bloquea el cierre porque el rector exige validación en `main`, no una ejecución contra Postgres) |
+| `REAL_POSTGRES_SORT_QUERY_EXECUTION` | `NOT_AVAILABLE`: no existe actualmente un test/script dedicado; riesgo residual no bloqueante (el rector exige validación en `main`, no una ejecución contra Postgres) |
