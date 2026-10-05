@@ -34,7 +34,9 @@ const CLINICS = Array.from({ length: 30 }, (_, index) => {
     contactEmail: `clinica${clinicId}@${clinicId % 3 === 0 ? "vet" : "centro"}.example.test`,
     contactPhone: null,
     createdAt,
-    updatedAt: "2026-06-01T12:00:00.000Z",
+    // Distinct from createdAt and not monotone with it, so what the Fechas cell
+    // shows can be told apart from what the server sorts by.
+    updatedAt: new Date(Date.UTC(2026, 5, 1 + ((clinicId * 7) % 13), 8 + (clinicId % 5), 0, 0)).toISOString(),
     users: [
       {
         userType: "clinic" as const,
@@ -192,15 +194,28 @@ async function headerGeometry(page: Page) {
   });
 }
 
-async function visibleFechas(page: Page): Promise<{ shown: string[]; created: string[] }> {
+// What the Fechas cells show against the same dates formatted independently, in
+// the browser locale the app uses. The column keeps showing updatedAt (dates are
+// frozen by the rector); the title carries both dates explicitly.
+async function visibleFechas(page: Page): Promise<{ shown: string[]; updated: string[]; created: string[]; titles: string[]; expectedTitles: string[] }> {
   const ids = await visibleIds(page);
-  const shown = await page.locator(`${CARD} tbody tr td:nth-child(4)`).allTextContents();
-  const created = await page.evaluate(
-    (isoDates) => isoDates.map((iso) =>
-      new Intl.DateTimeFormat("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(iso))),
-    ids.map((id) => CLINICS[id - 1].createdAt),
+  const cells = page.locator(`${CARD} tbody tr td:nth-child(4)`);
+  const shown = await cells.allTextContents();
+  const titles = await cells.evaluateAll((nodes) => nodes.map((node) => node.getAttribute("title") ?? ""));
+  const formatted = await page.evaluate(
+    (rows) => {
+      const format = (iso: string) => new Intl.DateTimeFormat("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
+      return rows.map((row) => ({ created: format(row.createdAt), updated: format(row.updatedAt) }));
+    },
+    ids.map((id) => ({ createdAt: CLINICS[id - 1].createdAt, updatedAt: CLINICS[id - 1].updatedAt })),
   );
-  return { shown: shown.map((text) => text.trim()), created };
+  return {
+    shown: shown.map((text) => text.trim()),
+    updated: formatted.map((row) => row.updated),
+    created: formatted.map((row) => row.created),
+    titles,
+    expectedTitles: formatted.map((row) => `Creada: ${row.created} · Actualizada: ${row.updated}`),
+  };
 }
 
 async function committedFrames(page: Page): Promise<void> {
@@ -264,9 +279,13 @@ test.describe("C04 · Clínicas admin column sort (desktop table)", () => {
     await expect(header(page, "Fechas")).toHaveAttribute("aria-sort", "ascending");
     const firstPage = await visibleIds(page);
 
-    // The column sorted by createdAt shows createdAt, in the order the server sorted.
+    // Dates stay frozen: the column keeps showing updatedAt while the server
+    // orders by createdAt, and the title tells both apart.
     const fechas = await visibleFechas(page);
-    expect(fechas.shown).toEqual(fechas.created);
+    expect(fechas.shown).toEqual(fechas.updated);
+    expect(fechas.shown).not.toEqual(fechas.created);
+    expect(fechas.titles).toEqual(fechas.expectedTitles);
+    await expect(sortButton(page, "Fechas")).toHaveAttribute("title", "Ordenar por fecha de creación");
     const createdOrder = firstPage.map((id) => CLINICS[id - 1].createdAt);
     expect(createdOrder).toEqual([...createdOrder].sort());
 
@@ -425,5 +444,45 @@ test.describe("C04 · Clínicas admin mobile list keeps the historical order", (
     await expect.poll(() => JSON.stringify([requests.at(-1)?.sort, requests.at(-1)?.direction])).toBe('["name","desc"]');
     await settled(page, requests);
     await expect(header(page, "Clínica")).toHaveAttribute("aria-sort", "descending");
+  });
+
+  test("crossing between the table and the list restarts at the first page in both directions, keeping limit and the chosen order", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 768 });
+    const requests = await openClinics(page);
+    const { limit: desktopLimit } = await settled(page, requests);
+
+    // Desktop: name desc, then page 2 of that order.
+    await sortButton(page, "Clínica").click();
+    await settled(page, requests);
+    await sortButton(page, "Clínica").click();
+    expect(await settled(page, requests)).toEqual({ limit: desktopLimit, offset: 0, search: null, sort: "name", direction: "desc" });
+    await page.locator(`${CARD} [aria-label="Página siguiente"]:visible`).click();
+    expect(await settled(page, requests)).toEqual({ limit: desktopLimit, offset: desktopLimit, search: null, sort: "name", direction: "desc" });
+
+    // Desktop → mobile: the list has no order, so its window is the first historical page.
+    const toMobile = requests.length;
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect.poll(() => requests.length > toMobile && requests.at(-1)?.sort === null).toBe(true);
+    const mobileFirst = await settled(page, requests);
+    const afterMobileSwitch = requests.slice(toMobile);
+    expect(afterMobileSwitch.map((request) => [request.sort, request.direction, request.offset])).toEqual(afterMobileSwitch.map(() => [null, null, 0]));
+    expect(mobileFirst).toMatchObject({ offset: 0, search: null, sort: null, direction: null });
+    const mobileLimit = mobileFirst.limit;
+    const mobileNames = await page.locator(`${CARD} [data-admin-mobile-core-item="true"] h3`).allTextContents();
+    expect(mobileNames).toEqual(serverResult(mobileFirst).ids.map((id) => CLINICS[id - 1].clinicName));
+    expect(mobileNames.length).toBe(mobileLimit);
+
+    // Mobile page 2 of the historical order, then back to the table.
+    await page.locator(`${CARD} [data-admin-mobile-core-pager] [aria-label="Página siguiente"]`).click();
+    expect(await settled(page, requests)).toEqual({ limit: mobileLimit, offset: mobileLimit, search: null, sort: null, direction: null });
+
+    const toDesktop = requests.length;
+    await page.setViewportSize({ width: 1366, height: 768 });
+    await expect.poll(() => requests.length > toDesktop && requests.at(-1)?.sort === "name").toBe(true);
+    const desktopFirst = await settled(page, requests);
+    expect(requests.slice(toDesktop).map((request) => request.offset)).toEqual(requests.slice(toDesktop).map(() => 0));
+    expect(desktopFirst).toEqual({ limit: desktopLimit, offset: 0, search: null, sort: "name", direction: "desc" });
+    await expect(header(page, "Clínica")).toHaveAttribute("aria-sort", "descending");
+    await expect(page.locator(CARD).getByText(`1–${desktopLimit} de ${CLINICS.length}`)).toBeVisible();
   });
 });

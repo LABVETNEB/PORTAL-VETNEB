@@ -3,6 +3,7 @@ import test from "node:test";
 import ts from "typescript";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 import {
+  descendants,
   effectiveAttribute,
   elementText,
   evaluate,
@@ -350,7 +351,42 @@ async function c04Violations(cardSource: string, apiSource: string): Promise<str
     check((code.match(/setAppliedSort\(/g) ?? []).length === 1, "only the loader applies an order");
   });
 
-  // The sortable Fechas column shows the value the server sorts by.
+  // The effective order also changes when the viewport enters or leaves the
+  // mobile list (no sort there): the window restarts at the first page, exactly
+  // as for a user-driven order change, before any request is built, and only
+  // the offset is written (columnSort survives to be restored on desktop).
+  await attempt("order regime offset reset", () => {
+    const component = functionNamed(card, "AdminClinicsManagementCard");
+    const guards = descendants(component, ts.isIfStatement).filter((statement) =>
+      statement.thenStatement.getText().includes("setOrderOfOffset("));
+    if (guards.length !== 1) throw new Error(`expected one order-regime guard, found ${guards.length}`);
+    check(/\[orderOfOffset, setOrderOfOffset\] = useState<ClinicsColumnSort>\(null\)/.test(code), "the order the offset belongs to starts unsorted");
+
+    const guard = functionNamed(parseTsx(`function orderRegime() { ${guards[0].getText()} }`, "order-regime.tsx"), "orderRegime");
+    const desktopDesc = { sort: "name", direction: "desc" };
+    const desktopAsc = { sort: "name", direction: "asc" };
+    const run = (orderOfOffset: Sort, requestedSort: Sort) => {
+      const writes: [string, unknown][] = [];
+      runSource<() => void>(guard, {
+        orderOfOffset,
+        requestedSort,
+        setOrderOfOffset: (value: unknown) => writes.push(["setOrderOfOffset", value]),
+        setOffset: (value: unknown) => writes.push(["setOffset", value]),
+      })();
+      return writes;
+    };
+    const resets = (writes: [string, unknown][], next: Sort) =>
+      JSON.stringify(writes) === JSON.stringify([["setOrderOfOffset", next], ["setOffset", 0]]);
+
+    check(resets(run(desktopDesc, null), null), "desktop → mobile (requested order becomes null) resets the offset");
+    check(resets(run(null, desktopDesc), desktopDesc), "mobile → desktop (requested order restored) resets the offset");
+    check(resets(run(desktopAsc, desktopDesc), desktopDesc), "a user-driven order change resets the offset");
+    check(run(desktopDesc, desktopDesc).length === 0, "an unchanged order never touches the offset");
+    check(run(null, null).length === 0, "mobile and desktop without a sort keep the offset (nothing changed)");
+  });
+
+  // The sortable Fechas column keeps the date it always showed (rector: dates
+  // are frozen); only the order requested from the server is by creation date.
   await attempt("fechas cell", () => {
     const row = jsxElements(card).find((element) =>
       tagName(element) === "TableRow" && (effectiveAttribute(element, "key").kind === "value") &&
@@ -362,9 +398,15 @@ async function c04Violations(cardSource: string, apiSource: string): Promise<str
     if (!fechas || !ts.isJsxElement(fechas)) throw new Error("Fechas cell not found");
     const shown = fechas.children.filter(ts.isJsxExpression).map((child) => child.expression).filter((expression): expression is ts.Expression => expression !== undefined);
     const scope = { clinic: { createdAt: "CREATED", updatedAt: "UPDATED" }, formatDateTime: (value: string) => `<${value}>` };
-    check(shown.length === 1 && evaluate(shown[0], scope) === "<CREATED>", `Fechas shows ${shown.map((expression) => expression.getText()).join(", ")}`);
+    check(shown.length === 1 && evaluate(shown[0], scope) === "<UPDATED>", `Fechas shows ${shown.map((expression) => expression.getText()).join(", ")}`);
     check(evaluate(effectiveAttributeExpression(fechas, "title"), scope) === "Creada: <CREATED> · Actualizada: <UPDATED>",
-      "updatedAt stays secondary and labelled in the title");
+      "both dates stay explicit and labelled in the title");
+
+    // The control still says it orders by creation date, and asks for createdAt.
+    const header = tableHeaders(card).find((candidate) => candidate.label === "Fechas");
+    const control = header && jsxElements(header.element).find((element) => tagName(element) === "ClinicsSortHeaderButton");
+    check(staticAttribute(control as JsxNode, "title") === "Ordenar por fecha de creación", "the Fechas control announces creation-date ordering");
+    check(control !== undefined && effectiveAttributeExpression(control, "onToggle").getText() === '() => toggleColumnSort("createdAt")', "Fechas requests createdAt");
   });
 
   // A new order restarts at offset 0 and touches nothing else.
@@ -429,7 +471,15 @@ test("C04 · the contract check rejects every forbidden regression (in-memory mu
     ["applied order escapes the stale-request guard", "card", ["          if (requestId !== latestRequestRef.current) return;\n          setSnapshot(result);\n          setAppliedSort(sortOfRequest);", "          setAppliedSort(sortOfRequest);\n          if (requestId !== latestRequestRef.current) return;\n          setSnapshot(result);"]],
     ["applied order never set", "card", ["          setAppliedSort(sortOfRequest);\n", ""]],
     ["applied order set on click", "card", ["    setColumnSort((current) => nextClinicsColumnSort(current, key));\n", "    setColumnSort((current) => nextClinicsColumnSort(current, key));\n    setAppliedSort(nextClinicsColumnSort(columnSort, key));\n"]],
-    ["Fechas shows updatedAt", "card", ["                      {formatDateTime(clinic.createdAt)}\n                    </TableCell>", "                      {formatDateTime(clinic.updatedAt)}\n                    </TableCell>"]],
+    ["Fechas shows createdAt in place of updatedAt", "card", ["                      {formatDateTime(clinic.updatedAt)}\n                    </TableCell>", "                      {formatDateTime(clinic.createdAt)}\n                    </TableCell>"]],
+    ["Fechas orders by updatedAt", "card", ['onToggle={() => toggleColumnSort("createdAt")}', 'onToggle={() => toggleColumnSort("updatedAt")}']],
+    ["Fechas control stops announcing creation-date ordering", "card", ['title="Ordenar por fecha de creación"', 'title="Ordenar por fecha"']],
+    ["stale response writes the snapshot", "card", ["          if (requestId !== latestRequestRef.current) return;\n          setSnapshot(result);\n          setAppliedSort(sortOfRequest);", "          setSnapshot(result);\n          if (requestId !== latestRequestRef.current) return;\n          setAppliedSort(sortOfRequest);"]],
+    ["no offset reset desktop → mobile", "card", ["  if (orderOfOffset !== requestedSort) {", "  if (orderOfOffset !== requestedSort && requestedSort !== null) {"]],
+    ["no offset reset mobile → desktop", "card", ["  if (orderOfOffset !== requestedSort) {", "  if (orderOfOffset !== requestedSort && requestedSort === null) {"]],
+    ["regime change keeps the stale offset", "card", ["    setOrderOfOffset(requestedSort);\n    setOffset(0);\n  }", "    setOrderOfOffset(requestedSort);\n  }"]],
+    ["regime reset also rewrites the limit window", "card", ["    setOrderOfOffset(requestedSort);\n    setOffset(0);\n  }", "    setOrderOfOffset(requestedSort);\n    setOffset(0);\n    previousLimitRef.current = 0;\n  }"]],
+    ["regime reset drops the chosen order", "card", ["    setOrderOfOffset(requestedSort);\n    setOffset(0);\n  }", "    setOrderOfOffset(requestedSort);\n    setOffset(0);\n    setColumnSort(null);\n  }"]],
     ["toggle stuck on desc", "card", ['current?.sort === key && current.direction === "asc" ? "desc" : "asc"', 'current?.sort === key ? "desc" : "asc"']],
     ["aria-sort mapping inverted", "card", ['return current.direction === "asc" ? "ascending" : "descending";', 'return current.direction === "asc" ? "descending" : "ascending";']],
     ["sort not sent with the query", "card", ["() => (requestedSort ? { ...pageQuery, ...requestedSort } : pageQuery),", "() => pageQuery,"]],

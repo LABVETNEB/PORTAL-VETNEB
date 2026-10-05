@@ -255,6 +255,16 @@ export function AdminClinicsManagementCard() {
   // it never carries a hidden order and keeps the historical server order.
   const requestedSort = mobileCapacity.measured ? null : columnSort;
 
+  // The effective order also changes when the viewport enters or leaves the
+  // mobile list, so the window restarts at the first page exactly as for a
+  // user-driven order change. Adjusted while rendering, before any request is
+  // built, so none carries the old offset; columnSort itself is untouched.
+  const [orderOfOffset, setOrderOfOffset] = useState<ClinicsColumnSort>(null);
+  if (orderOfOffset !== requestedSort) {
+    setOrderOfOffset(requestedSort);
+    setOffset(0);
+  }
+
   const pageQuery = useMemo(
     () => ({
       limit: effectiveLimit,
@@ -749,7 +759,7 @@ export function AdminClinicsManagementCard() {
                       className="whitespace-nowrap py-1 text-xs text-muted-foreground"
                       title={`Creada: ${formatDateTime(clinic.createdAt)} · Actualizada: ${formatDateTime(clinic.updatedAt)}`}
                     >
-                      {formatDateTime(clinic.createdAt)}
+                      {formatDateTime(clinic.updatedAt)}
                     </TableCell>
 
                     <TableCell className="py-1 text-right">
