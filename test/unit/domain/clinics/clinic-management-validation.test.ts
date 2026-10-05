@@ -2,6 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  ADMIN_CLINICS_SORT_DIRECTIONS,
+  ADMIN_CLINICS_SORT_KEYS,
+  parseAdminClinicsListSort,
   parseClinicUserRole,
   parseClinicCreateInput,
   parseClinicUpdateInput,
@@ -555,4 +558,72 @@ test("confirmClinicNameMatches: mismatch por espacio en el nombre real → false
 test("confirmClinicNameMatches: es case-sensitive y sin normalización adicional", () => {
   assert.equal(confirmClinicNameMatches("ABC", "abc"), false);
   assert.equal(confirmClinicNameMatches("ABC", "ABC"), true);
+});
+
+/* ==========================================================================
+ * parseAdminClinicsListSort (C04 server sort contract)
+ * ======================================================================== */
+
+test("parseAdminClinicsListSort: allowlist exacta de claves y direcciones", () => {
+  assert.deepEqual([...ADMIN_CLINICS_SORT_KEYS], ["name", "createdAt"]);
+  assert.deepEqual([...ADMIN_CLINICS_SORT_DIRECTIONS], ["asc", "desc"]);
+});
+
+test("parseAdminClinicsListSort: sin sort ni direction no hay orden pedido", () => {
+  assert.deepEqual(parseAdminClinicsListSort(undefined, undefined), {
+    ok: true,
+    data: null,
+  });
+});
+
+test("parseAdminClinicsListSort: cada clave allowlisted en ambas direcciones", () => {
+  for (const key of ["name", "createdAt"]) {
+    for (const direction of ["asc", "desc"]) {
+      assert.deepEqual(parseAdminClinicsListSort(key, direction), {
+        ok: true,
+        data: { key, direction },
+      });
+    }
+  }
+});
+
+test("parseAdminClinicsListSort: sort y direction deben enviarse juntos", () => {
+  const error = "Query inválida. sort y direction deben enviarse juntos.";
+  assert.deepEqual(parseAdminClinicsListSort("name", undefined), { ok: false, error });
+  assert.deepEqual(parseAdminClinicsListSort(undefined, "asc"), { ok: false, error });
+});
+
+test("parseAdminClinicsListSort: rechaza claves fuera de la allowlist sin degradar a otro orden", () => {
+  for (const sort of [
+    "id",
+    "id desc",
+    "contactEmail",
+    "passwordHash",
+    "created_at",
+    "Name",
+    "name,id",
+    "name; DROP TABLE clinics",
+    "constructor",
+    "__proto__",
+    "",
+    ["name", "createdAt"],
+    42,
+    null,
+  ]) {
+    assert.deepEqual(
+      parseAdminClinicsListSort(sort, "asc"),
+      { ok: false, error: "Query inválida. sort no permitido." },
+      String(sort),
+    );
+  }
+});
+
+test("parseAdminClinicsListSort: rechaza direcciones fuera de asc/desc", () => {
+  for (const direction of ["ASC", "Asc", "ascending", "random", "", ["asc"], 1, null]) {
+    assert.deepEqual(
+      parseAdminClinicsListSort("name", direction),
+      { ok: false, error: "Query inválida. direction debe ser asc o desc." },
+      String(direction),
+    );
+  }
 });

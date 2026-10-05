@@ -30,12 +30,14 @@ import {
   updateAdminClinicCommand,
 } from "../features/clinics/admin-clinics-command-service.ts";
 import type {
+  AdminClinicsListParams,
   AdminClinicsSnapshot,
 } from "../features/clinics/admin-clinics-query-service.ts";
 import {
   listAdminClinicsQuery,
 } from "../features/clinics/admin-clinics-query-service.ts";
 import {
+  parseAdminClinicsListSort,
   parseClinicCreateInput,
   parseClinicUpdateInput,
   parseClinicDeleteConfirmation,
@@ -62,6 +64,8 @@ type AdminClinicsQuery = {
   limit?: string;
   offset?: string;
   search?: string;
+  sort?: unknown;
+  direction?: unknown;
 };
 
 type AdminClinicCreateBody = {
@@ -95,11 +99,9 @@ export type AdminClinicsNativeRoutesOptions = {
   updateAdminSessionLastAccess?: (tokenHash: string) => Promise<void>;
   hashSessionToken?: (token: string) => string;
   hashPassword?: (password: string) => Promise<string>;
-  listAdminClinics?: (params: {
-    limit?: number;
-    offset?: number;
-    search?: string;
-  }) => Promise<AdminClinicsSnapshot>;
+  listAdminClinics?: (
+    params: AdminClinicsListParams,
+  ) => Promise<AdminClinicsSnapshot>;
   createAdminClinicWithUser?: (
     input: AdminClinicCreateInput,
   ) => Promise<AdminClinicCreateResult>;
@@ -352,6 +354,18 @@ export const adminClinicsNativeRoutes: FastifyPluginAsync<
         });
       }
 
+      const sort = parseAdminClinicsListSort(
+        request.query.sort,
+        request.query.direction,
+      );
+
+      if (!sort.ok) {
+        return reply.code(400).send({
+          success: false,
+          error: sort.error,
+        });
+      }
+
       const rawSearch = request.query.search;
       const search =
         typeof rawSearch === "string" ? rawSearch.trim().slice(0, 100) : undefined;
@@ -364,6 +378,7 @@ export const adminClinicsNativeRoutes: FastifyPluginAsync<
               limit,
               offset,
               ...(search ? { search } : {}),
+              ...(sort.data ? { sort: sort.data } : {}),
             },
             {
               listAdminClinics: deps.listAdminClinics,

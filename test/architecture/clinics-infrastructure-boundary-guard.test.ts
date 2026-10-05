@@ -765,3 +765,54 @@ test("M28 preserva Options públicas y el registro en fastify-app", () => {
     /app\.register\(clinicPublicProfileNativeRoutes,\s*\{\s*prefix: "\/api\/clinic\/profile"/s,
   );
 });
+
+// C04 server sort contract: security and architecture properties, not layout.
+test("C04 · el orden de clínicas es server-side, allowlisted y nunca deriva SQL del request", () => {
+  const repository = readText(repositoryFile);
+  const builderStart = repository.indexOf("export function buildAdminClinicsListQuery(");
+  const listStart = repository.indexOf("export async function listAdminClinics(");
+  const listEnd = repository.indexOf("export async function createAdminClinicWithUser(");
+  assert.ok(builderStart >= 0 && listStart > builderStart && listEnd > listStart);
+
+  const builder = repository.slice(builderStart, listStart);
+  const list = repository.slice(listStart, listEnd);
+
+  assert.equal((builder.match(/\.orderBy\(/g) ?? []).length, 1, "un único ORDER BY en el listado");
+  assert.ok(builder.includes("const orderBy = resolveAdminClinicsOrder(params.sort);"));
+  assert.match(
+    builder,
+    /\.where\(whereClause\)\s*\.orderBy\(\.\.\.orderBy\)\s*\.limit\(limit\)\s*\.offset\(offset\)/,
+    "WHERE -> ORDER BY -> LIMIT -> OFFSET en la misma sentencia",
+  );
+  assert.ok(list.includes("buildAdminClinicsListQuery(params)"), "listAdminClinics lee por el builder");
+  assert.equal(/\.sort\(|\.reverse\(|toSorted\(/.test(list), false, "sin reordenar filas en JS después de paginar");
+  assert.equal(/sql\.raw|sql\.identifier/.test(repository), false, "sin SQL crudo ni identificadores dinámicos");
+
+  const allowlist = repository.slice(
+    repository.indexOf("export const ADMIN_CLINICS_LIST_ORDER = {"),
+    repository.indexOf("} as const;", repository.indexOf("export const ADMIN_CLINICS_LIST_ORDER = {")),
+  );
+  const columns = [...allowlist.matchAll(/(?:asc|desc)\(clinics\.(\w+)\)/g)].map((match) => match[1]);
+  assert.deepEqual([...new Set(columns)].sort(), ["createdAt", "id", "name"], "sólo columnas no sensibles de clinics");
+  assert.match(repository, /Object\.hasOwn\(ADMIN_CLINICS_LIST_ORDER, sort\.key\)/);
+  assert.match(repository, /throw new Error\("Orden de clínicas no permitido\."\)/);
+
+  const route = readText("server/routes/admin-clinics.fastify.ts");
+  assert.equal((route.match(/request\.query\.sort\b/g) ?? []).length, 1);
+  assert.equal((route.match(/request\.query\.direction\b/g) ?? []).length, 1);
+  assert.match(
+    route,
+    /parseAdminClinicsListSort\(\s*request\.query\.sort,\s*request\.query\.direction,\s*\)/,
+    "sort/direction sólo entran por el parser de dominio",
+  );
+  assert.ok(route.includes("...(sort.data ? { sort: sort.data } : {}),"), "sin sort el listado recibe los params legacy");
+});
+
+test("C04 · el frontend de C04 no empezó: el cliente de clínicas no envía orden", () => {
+  const api = readText("frontend/src/lib/api.ts");
+  const start = api.indexOf("export async function getAdminClinics(");
+  const end = api.indexOf("export async function", start + 1);
+  const client = api.slice(start, end);
+  assert.ok(start >= 0 && client.includes("/api/admin/clinics"));
+  assert.equal(/sort|direction/.test(client), false, "C04 frontend llega en su propio PR tras validar este contrato en main");
+});

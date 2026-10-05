@@ -17,9 +17,15 @@ export type {
   ClinicValidationResult,
   ClinicCreateInput,
   ClinicUpdateInput,
+  AdminClinicsSort,
+  AdminClinicsSortDirection,
+  AdminClinicsSortKey,
 } from "./clinic-management-validation.ts";
 
 export {
+  ADMIN_CLINICS_SORT_DIRECTIONS,
+  ADMIN_CLINICS_SORT_KEYS,
+  parseAdminClinicsListSort,
   parseClinicUserRole,
   parseClinicCreateInput,
   parseClinicUpdateInput,
