@@ -1,4 +1,5 @@
 import type {
+  AdminClinicsListSort,
   AdminClinicsSnapshot,
   AdminClinicSummary,
 } from "./infrastructure/index.ts";
@@ -12,6 +13,7 @@ export type AdminClinicsListParams = {
   limit?: number;
   offset?: number;
   search?: string;
+  sort?: AdminClinicsListSort;
 };
 
 export type AdminClinicsQueryServiceOverrides = {

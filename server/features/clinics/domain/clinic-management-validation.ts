@@ -157,6 +157,57 @@ function isValidEmail(value: string) {
 
 // --- API canónica pública ---------------------------------------------------
 
+// C04 server sort contract: public keys only; the repository maps each key to
+// its ORDER BY, so a client never names a column.
+export const ADMIN_CLINICS_SORT_KEYS = ["name", "createdAt"] as const;
+export const ADMIN_CLINICS_SORT_DIRECTIONS = ["asc", "desc"] as const;
+
+export type AdminClinicsSortKey = (typeof ADMIN_CLINICS_SORT_KEYS)[number];
+export type AdminClinicsSortDirection =
+  (typeof ADMIN_CLINICS_SORT_DIRECTIONS)[number];
+export type AdminClinicsSort = {
+  key: AdminClinicsSortKey;
+  direction: AdminClinicsSortDirection;
+};
+
+function isAllowlisted<T extends string>(
+  allowed: readonly T[],
+  value: unknown,
+): value is T {
+  return typeof value === "string" && (allowed as readonly string[]).includes(value);
+}
+
+// `sort` and `direction` are optional together; any other shape is rejected,
+// never coerced to a different order.
+export function parseAdminClinicsListSort(
+  sort: unknown,
+  direction: unknown,
+): ClinicValidationResult<AdminClinicsSort | null> {
+  if (sort === undefined && direction === undefined) {
+    return { ok: true, data: null };
+  }
+
+  if (sort === undefined || direction === undefined) {
+    return {
+      ok: false,
+      error: "Query inválida. sort y direction deben enviarse juntos.",
+    };
+  }
+
+  if (!isAllowlisted(ADMIN_CLINICS_SORT_KEYS, sort)) {
+    return { ok: false, error: "Query inválida. sort no permitido." };
+  }
+
+  if (!isAllowlisted(ADMIN_CLINICS_SORT_DIRECTIONS, direction)) {
+    return {
+      ok: false,
+      error: "Query inválida. direction debe ser asc o desc.",
+    };
+  }
+
+  return { ok: true, data: { key: sort, direction } };
+}
+
 export function parseClinicUserRole(value: unknown): ClinicUserRole | null {
   if (value === undefined || value === null || value === "") {
     return "clinic_owner";

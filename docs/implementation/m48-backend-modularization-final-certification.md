@@ -194,13 +194,13 @@ newline final no se cuenta.
 
 | Área | Archivos TypeScript | LOC |
 | --- | ---: | ---: |
-| `server/features` | 149 | 16.983 |
-| `server/routes` | 35 | 21.174 |
+| `server/features` | 149 | 17.092 |
+| `server/routes` | 35 | 21.189 |
 | `server/lib` | 30 | 5.180 |
 | `server/middlewares` | 3 | 429 |
 | raíz/entrypoints `server/*.ts` | 9 | 2.420 |
 | otros | 0 | 0 |
-| **Total `server`** | **226** | **46.186** |
+| **Total `server`** | **226** | **46.310** |
 
 El review P2 de M48 detectó que la primera metodología aplicaba una semántica
 equivalente a `source.split("\n").length`, que sumaba un segmento vacío por
@@ -220,7 +220,7 @@ porque ésa es su topología proporcional documentada.
 
 | Feature | Archivos | LOC | Capas/directorios reales | Barrel raíz | Entrantes | Salientes | Closeout |
 | --- | ---: | ---: | --- | --- | --- | --- | --- |
-| Clinics | 10 | 2.638 | domain, infrastructure, servicios directos | sí | Users/Roles (2 refs) | Public Professionals (3) | M29 |
+| Clinics | 10 | 2.747 | domain, infrastructure, servicios directos | sí | Users/Roles (2 refs) | Public Professionals (3) | M29 |
 | Logistics | 46 | 4.238 | domain, application, infrastructure | no requerido | ninguna | ninguna | M17 |
 | Particular Access | 12 | 1.086 | domain, application, infrastructure | sí | Reports (1) | Reports/ST (7) | M33/M35b |
 | Pricing | 4 | 489 | infrastructure, servicios directos | no requerido | ninguna | ninguna | M20 |

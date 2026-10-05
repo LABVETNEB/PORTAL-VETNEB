@@ -1,4 +1,4 @@
-import { asc, eq, ilike, inArray, or, sql } from "drizzle-orm";
+import { asc, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 
 import { db } from "../../../db.ts";
 import {
@@ -243,20 +243,62 @@ function normalizeSearch(value: unknown): string | undefined {
   return trimmed || undefined;
 }
 
-export async function listAdminClinics(params: {
+// C04 allowlist: public sort key -> total ORDER BY. Each variant ends on the
+// unique id in its own direction; name/asc is the historical default.
+export const ADMIN_CLINICS_LIST_ORDER = {
+  name: {
+    asc: [asc(clinics.name), asc(clinics.id)],
+    desc: [desc(clinics.name), desc(clinics.id)],
+  },
+  createdAt: {
+    asc: [asc(clinics.createdAt), asc(clinics.id)],
+    desc: [desc(clinics.createdAt), desc(clinics.id)],
+  },
+} as const;
+
+export type AdminClinicsListSort = {
+  key: keyof typeof ADMIN_CLINICS_LIST_ORDER;
+  direction: keyof (typeof ADMIN_CLINICS_LIST_ORDER)["name"];
+};
+
+export type AdminClinicsListQueryParams = {
   limit?: number;
   offset?: number;
   search?: string;
-} = {}): Promise<AdminClinicsSnapshot> {
+  sort?: AdminClinicsListSort;
+};
+
+function resolveAdminClinicsOrder(sort: AdminClinicsListSort | undefined) {
+  if (!sort) {
+    return ADMIN_CLINICS_LIST_ORDER.name.asc;
+  }
+
+  const byDirection = Object.hasOwn(ADMIN_CLINICS_LIST_ORDER, sort.key)
+    ? ADMIN_CLINICS_LIST_ORDER[sort.key]
+    : undefined;
+
+  if (!byDirection || !Object.hasOwn(byDirection, sort.direction)) {
+    throw new Error("Orden de clínicas no permitido.");
+  }
+
+  return byDirection[sort.direction];
+}
+
+// One statement per read: WHERE -> ORDER BY -> LIMIT -> OFFSET, so the page is
+// a slice of the globally ordered, filtered set.
+export function buildAdminClinicsListQuery(params: AdminClinicsListQueryParams = {}) {
   const { limit, offset } = normalizeListPagination(params);
   const search = normalizeSearch(params.search);
+  const orderBy = resolveAdminClinicsOrder(params.sort);
 
   const whereClause = search
     ? or(ilike(clinics.name, `%${search}%`), ilike(clinics.contactEmail, `%${search}%`))
     : undefined;
 
-  const [clinicRows, totalRows] = await Promise.all([
-    db
+  return {
+    limit,
+    offset,
+    rows: db
       .select({
         clinicId: clinics.id,
         clinicName: clinics.name,
@@ -267,11 +309,19 @@ export async function listAdminClinics(params: {
       })
       .from(clinics)
       .where(whereClause)
-      .orderBy(asc(clinics.name), asc(clinics.id))
+      .orderBy(...orderBy)
       .limit(limit)
       .offset(offset),
-    db.select({ total: sql<number>`count(*)` }).from(clinics).where(whereClause),
-  ]);
+    total: db.select({ total: sql<number>`count(*)` }).from(clinics).where(whereClause),
+  };
+}
+
+export async function listAdminClinics(
+  params: AdminClinicsListQueryParams = {},
+): Promise<AdminClinicsSnapshot> {
+  const query = buildAdminClinicsListQuery(params);
+  const { limit, offset } = query;
+  const [clinicRows, totalRows] = await Promise.all([query.rows, query.total]);
 
   const clinicIds = clinicRows.map((clinic) => clinic.clinicId);
   const userRows = clinicIds.length
