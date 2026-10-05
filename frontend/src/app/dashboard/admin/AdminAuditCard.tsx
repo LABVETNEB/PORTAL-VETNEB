@@ -17,7 +17,10 @@ import { AdminMobileAuditModule } from "./AdminMobileAuditModule";
 import { getAdminAuditPage } from "./admin-audit.actions";
 import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
 import { DASHBOARD_PAGER_RESERVATION } from "@/components/dashboard/DashboardPager";
-import { CollectionWorkspace } from "@/features/dashboard/presentation/surfaces";
+import {
+  CollectionWorkspace,
+  useCollectionSelection,
+} from "@/features/dashboard/presentation/surfaces";
 
 // Server pagination is now sized by the measured rows container (Zero-Scroll
 // adaptive contract). The legacy fixed page size survives only as the
@@ -189,6 +192,11 @@ export function AdminAuditCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, deferLoadForOffsetReconciliation]);
 
+  // C06: the rendered page is the selection's visible page; selection is keyed
+  // by event ID and survives paging until it is cleared.
+  const visibleIds = useMemo(() => (loadError ? [] : rows.map((row) => row.id)), [loadError, rows]);
+  const selection = useCollectionSelection({ visibleIds });
+
   const pageCount = Math.max(1, Math.ceil(totalCount / effectiveLimit));
   const page = Math.min(Math.floor(offset / effectiveLimit) + 1, pageCount);
   const rangeStart = totalCount === 0 ? 0 : offset + 1;
@@ -222,6 +230,7 @@ export function AdminAuditCard({
         onPrevious={goToPreviousPage}
         onNext={goToNextPage}
         bodyRef={setMobileBodyNode}
+        selection={selection}
       />
 
       <section
@@ -289,6 +298,7 @@ export function AdminAuditCard({
           rows={rows}
           loadError={loadError}
           hasActiveFilters={hasActiveFilters}
+          selection={selection}
         />
       </CollectionWorkspace>
 

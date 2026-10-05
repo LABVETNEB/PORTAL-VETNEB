@@ -1,3 +1,4 @@
+import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { build } from "esbuild";
 import { resolve } from "node:path";
@@ -795,6 +796,352 @@ test.describe("C03 · CollectionState owns the legacy states on a real consumer"
       expect(readout).toMatchObject({ count: 1, role: null, ariaLive: null, ariaBusy: null, insidePanel: true });
       expect(readout.clippedOrScrolling, `${label}: the state fits its canvas without clip or nested scroll`).toEqual([]);
       expect(readout.otherStates, `${label}: empty is never shown as error or loading`).toEqual([]);
+      await expectNoOuterScroll(page, label);
+    });
+  }
+});
+
+// C06 · useCollectionSelection on Auditoría's table form. Selection is state
+// only: it never fetches, pages or opens the row's detail dialog, and the
+// selector column fits the frozen row pitch without moving the A03 limit.
+test.describe("C06 · Auditoría collection selection", () => {
+  const auditSurface = DASHBOARD_GEOMETRY_SURFACES.find((surface) => surface.id === "admin-auditoria");
+  if (!auditSurface) throw new Error("C06: missing canonical admin-auditoria surface");
+  const desktopCard = '#audit-log > section[aria-labelledby="admin-audit-register-title"]';
+  const pageSelector = `${desktopCard} thead input[data-collection-selection="page"]`;
+  const rowSelector = `${desktopCard} tbody[data-content-list="true"] > tr[data-content-list-item="true"]`;
+
+  async function readPageCheckbox(page: Page) {
+    return page.locator(pageSelector).evaluate((input: HTMLInputElement) => ({
+      checked: input.checked,
+      indeterminate: input.indeterminate,
+    }));
+  }
+
+  async function readRowStates(page: Page) {
+    return page.locator(rowSelector).evaluateAll((rows) =>
+      rows.map((row) => {
+        const input = row.querySelector<HTMLInputElement>('input[data-collection-selection="item"]');
+        return { name: input?.getAttribute("aria-label") ?? "", checked: Boolean(input?.checked), state: row.getAttribute("data-state") };
+      }),
+    );
+  }
+
+  test("individual, multiple, page, keyboard and paging contract @ 1366x768", async ({ page }) => {
+    const label = "C06 admin-auditoria @ 1366x768";
+    await page.setViewportSize({ width: 1366, height: 768 });
+    await prepareSurface(page, auditSurface);
+    await openSurface(page, auditSurface);
+
+    const rows = page.locator(rowSelector);
+    await expect(rows.first()).toBeVisible();
+    const limit = await rows.count();
+    expect(limit, `${label}: a multi-row page`).toBeGreaterThan(3);
+    const itemBoxes = rows.locator('input[data-collection-selection="item"]');
+    await expect(itemBoxes).toHaveCount(limit);
+    expect(await readPageCheckbox(page)).toEqual({ checked: false, indeterminate: false });
+    expect((await readRowStates(page)).every((row) => !row.checked && row.state === null)).toBe(true);
+
+    const requests: string[] = [];
+    page.on("request", (request) => requests.push(`${request.method()} ${request.url()}`));
+
+    // Individual + multiple by click; the row's detail dialog never opens.
+    await itemBoxes.nth(0).click();
+    await expect(itemBoxes.nth(0)).toBeChecked();
+    await expect(rows.nth(0)).toHaveAttribute("data-state", "selected");
+    await expect(page.locator(pageSelector)).toBeChecked({ indeterminate: true });
+    await itemBoxes.nth(1).click();
+    await expect(itemBoxes.nth(1)).toBeChecked();
+    await expect(itemBoxes.nth(0)).toBeChecked();
+    await itemBoxes.nth(0).click();
+    await expect(itemBoxes.nth(0)).not.toBeChecked();
+    await expect(rows.nth(0)).not.toHaveAttribute("data-state", "selected");
+    await expect(itemBoxes.nth(1)).toBeChecked();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+
+    // Keyboard: Space toggles the focused selector, Enter does not, Tab reaches the row action next.
+    await itemBoxes.nth(2).focus();
+    await page.keyboard.press("Space");
+    await expect(itemBoxes.nth(2)).toBeChecked();
+    await page.keyboard.press("Enter");
+    await expect(itemBoxes.nth(2)).toBeChecked();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await page.keyboard.press("Space");
+    await expect(itemBoxes.nth(2)).not.toBeChecked();
+    await page.keyboard.press("Tab");
+    await expect(rows.nth(2).getByRole("button", { name: /Ver detalle del evento/ })).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(itemBoxes.nth(3)).toBeFocused();
+    expect(await itemBoxes.nth(3).evaluate((input) => input.matches(":focus-visible"))).toBe(true);
+
+    // Accessibility while the page is partially selected (indeterminate header).
+    await expect(page.getByRole("checkbox", { name: "Seleccionar los eventos de esta página" })).toBeVisible();
+    const firstName = (await readRowStates(page))[0].name;
+    expect(firstName).toMatch(/^Seleccionar evento \d+$/);
+    await expect(page.getByRole("checkbox", { name: firstName, exact: true })).toHaveCount(1);
+    const axe = await new AxeBuilder({ page })
+      .include(desktopCard)
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+      .analyze();
+    expect(axe.violations.map((violation) => `${violation.id}: ${violation.nodes.length}`), `${label}: axe`).toEqual([]);
+
+    // Page selection by keyboard: partial -> all visible; all -> none (clears the page).
+    await page.locator(pageSelector).focus();
+    await page.keyboard.press("Space");
+    expect(await readPageCheckbox(page)).toEqual({ checked: true, indeterminate: false });
+    expect((await readRowStates(page)).every((row) => row.checked && row.state === "selected")).toBe(true);
+    await page.locator(pageSelector).click();
+    expect(await readPageCheckbox(page)).toEqual({ checked: false, indeterminate: false });
+    expect((await readRowStates(page)).every((row) => !row.checked && row.state === null)).toBe(true);
+
+    // Primary action keeps its behaviour and leaves the selection as it was.
+    await itemBoxes.nth(0).click();
+    await rows.nth(0).getByRole("button", { name: /Ver detalle del evento/ }).click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog")).toBeHidden();
+    await expect(itemBoxes.nth(0)).toBeChecked();
+    await expect(itemBoxes).toHaveCount(limit);
+    expect(requests, `${label}: selection is local state, no request`).toEqual([]);
+
+    // Paging: the page flags follow the visible IDs; the selection persists by ID.
+    const range = page.locator(`${desktopCard} footer span[aria-live="polite"]`);
+    const firstRange = (await range.textContent())?.trim() ?? "";
+    await page.locator(`${desktopCard} footer`).getByRole("button", { name: "Página siguiente" }).click();
+    await expect(range).not.toHaveText(firstRange);
+    // The range derives from the offset at once; wait for the fetched rows themselves.
+    await expect(page.getByRole("checkbox", { name: firstName, exact: true })).toHaveCount(0);
+    await expect(rows).toHaveCount(limit);
+    const secondPage = await readRowStates(page);
+    expect(secondPage.some((row) => row.name === firstName), `${label}: page 2 shows other IDs`).toBe(false);
+    expect(secondPage.every((row) => !row.checked)).toBe(true);
+    expect(await readPageCheckbox(page)).toEqual({ checked: false, indeterminate: false });
+    await page.locator(`${desktopCard} footer`).getByRole("button", { name: "Página anterior" }).click();
+    await expect(range).toHaveText(firstRange);
+    await expect(page.getByRole("checkbox", { name: firstName, exact: true })).toHaveCount(1);
+    await expect(page.getByRole("checkbox", { name: firstName, exact: true })).toBeChecked();
+    await expect(page.locator(pageSelector)).toBeChecked({ indeterminate: true });
+    await expect(rows).toHaveCount(limit);
+    await expectNoOuterScroll(page, label);
+  });
+
+  for (const slug of ["w1920x1080", "w1280x720", "w1024x768", "w834x1194", "w768x1024"] as const) {
+    const viewport = DASHBOARD_GEOMETRY_VIEWPORTS.find((candidate) => candidate.slug === slug);
+    if (!viewport) throw new Error(`C06: missing canonical viewport ${slug}`);
+
+    test(`selector column fits the frozen geometry @ ${viewport.width}x${viewport.height}`, async ({ page }) => {
+      const label = `C06 admin-auditoria @ ${viewport.width}x${viewport.height}`;
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      await prepareSurface(page, auditSurface);
+      await openSurface(page, auditSurface);
+      await expect(page.locator(rowSelector).first()).toBeVisible();
+      await page.locator(`${rowSelector} input[data-collection-selection="item"]`).first().click();
+      const metrics = await page.locator(desktopCard).evaluate((card) => {
+        const frame = card.querySelector("table")!.parentElement!;
+        const box = (selector: string) => {
+          const rect = card.querySelector(selector)!.getBoundingClientRect();
+          return [rect.width, rect.height];
+        };
+        const rows = [...card.querySelectorAll('tbody > tr[data-content-list-item="true"]')];
+        const canvas = card.querySelector("[data-dashboard-row-pitch]")!;
+        return {
+          frameOverflowX: frame.scrollWidth - frame.clientWidth,
+          frameOverflowY: frame.scrollHeight - frame.clientHeight,
+          checkbox: box('tbody input[data-collection-selection="item"]'),
+          headCheckbox: box('thead input[data-collection-selection="page"]'),
+          rowHeights: [...new Set(rows.map((row) => Math.round(row.getBoundingClientRect().height * 100) / 100))],
+          pitch: Number.parseFloat(getComputedStyle(canvas).getPropertyValue("--dash-row-pitch")),
+          headHeight: card.querySelector("thead")!.getBoundingClientRect().height,
+        };
+      });
+      console.log(`[C06] ${label}: ${JSON.stringify(metrics)}`);
+      expect(metrics.frameOverflowX, `${label}: no horizontal overflow from the selector column`).toBeLessThanOrEqual(0);
+      expect(metrics.frameOverflowY, `${label}: no internal vertical scroll`).toBeLessThanOrEqual(0);
+      expect(metrics.checkbox).toEqual([18, 18]);
+      expect(metrics.headCheckbox).toEqual([18, 18]);
+      expect(metrics.rowHeights, `${label}: rows keep the frozen pitch`).toEqual([metrics.pitch]);
+      expect(metrics.headHeight).toBeCloseTo(32, 0);
+      await expectNoOuterScroll(page, label);
+    });
+  }
+});
+
+
+// C06 · the mobile list form selects on the same owner as the table: a native
+// checkbox per item inside the item's own row, so the canvas, pitch and A03
+// limit do not move. Page selection has no authorized mobile host (see the
+// documented blocker): no S1, pager, toolbar or new reserved region.
+test.describe("C06 · Auditoría mobile collection selection", () => {
+  const auditSurface = DASHBOARD_GEOMETRY_SURFACES.find((surface) => surface.id === "admin-auditoria");
+  if (!auditSurface) throw new Error("C06: missing canonical admin-auditoria surface");
+  const mobileModule = '[data-admin-mobile-ops-module="audit"]';
+  const itemSelector = `${mobileModule} [data-content-list="true"] > article[data-content-list-item="true"]`;
+
+  async function readMobileItems(page: Page) {
+    return page.locator(itemSelector).evaluateAll((items) =>
+      items.map((item) => {
+        const input = item.querySelector<HTMLInputElement>('input[data-collection-selection="item"]');
+        return { name: input?.getAttribute("aria-label") ?? "", checked: Boolean(input?.checked), state: item.getAttribute("data-state") };
+      }),
+    );
+  }
+
+  test("individual, multiple, keyboard, Ver and paging on the shared owner @ 390x844", async ({ page }) => {
+    const label = "C06 mobile admin-auditoria @ 390x844";
+    await page.setViewportSize({ width: 390, height: 844 });
+    await prepareSurface(page, auditSurface);
+    await openSurface(page, auditSurface);
+
+    const items = page.locator(itemSelector);
+    await expect(items.first()).toBeVisible();
+    const limit = await items.count();
+    const boxes = items.locator('input[data-collection-selection="item"]');
+    await expect(boxes).toHaveCount(limit);
+    expect((await readMobileItems(page)).every((item) => !item.checked && item.state === null)).toBe(true);
+
+    const requests: string[] = [];
+    page.on("request", (request) => requests.push(`${request.method()} ${request.url()}`));
+
+    await boxes.nth(0).click();
+    await boxes.nth(1).click();
+    await expect(boxes.nth(0)).toBeChecked();
+    await expect(boxes.nth(1)).toBeChecked();
+    await expect(items.nth(0)).toHaveAttribute("data-state", "selected");
+    await boxes.nth(1).click();
+    await expect(boxes.nth(1)).not.toBeChecked();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+
+    await boxes.nth(2).focus();
+    await page.keyboard.press("Space");
+    await expect(boxes.nth(2)).toBeChecked();
+    expect(await boxes.nth(2).evaluate((input) => input.matches(":focus-visible"))).toBe(true);
+    await page.keyboard.press("Space");
+    await expect(boxes.nth(2)).not.toBeChecked();
+    await page.keyboard.press("Tab");
+    await expect(items.nth(2).getByRole("button", { name: /Ver detalle del evento/ })).toBeFocused();
+
+    await items.nth(0).getByRole("button", { name: /Ver detalle del evento/ }).click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog")).toBeHidden();
+    await expect(boxes.nth(0)).toBeChecked();
+
+    // Page checkbox in the mobile strip: same owner, visible IDs only.
+    const pageBox = page.getByRole("checkbox", { name: "Seleccionar los eventos de esta página" });
+    await expect(pageBox).toHaveCount(1);
+    await expect(pageBox).toBeChecked({ indeterminate: true });
+    const urlBefore = page.url();
+    await pageBox.focus();
+    await page.keyboard.press("Space");
+    await expect(pageBox).toBeChecked();
+    expect(await pageBox.evaluate((input: HTMLInputElement) => input.indeterminate)).toBe(false);
+    expect((await readMobileItems(page)).every((item) => item.checked && item.state === "selected")).toBe(true);
+    expect(await pageBox.evaluate((input) => input.matches(":focus-visible"))).toBe(true);
+    await pageBox.click();
+    await expect(pageBox).not.toBeChecked();
+    expect((await readMobileItems(page)).every((item) => !item.checked)).toBe(true);
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    expect(page.url(), `${label}: no filter submit or navigation`).toBe(urlBefore);
+    await boxes.nth(0).click();
+    expect(requests, `${label}: selection is local state, no request`).toEqual([]);
+
+    const axe = await new AxeBuilder({ page })
+      .include(mobileModule)
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+      .analyze();
+    expect(axe.violations.map((violation) => `${violation.id}: ${violation.nodes.length}`), `${label}: axe`).toEqual([]);
+
+    const firstName = (await readMobileItems(page))[0].name;
+    const pager = page.locator(`${mobileModule} nav[data-admin-mobile-ops-pager="true"]`);
+    await pager.getByRole("button", { name: "Siguiente" }).click();
+    await expect(page.getByRole("checkbox", { name: firstName, exact: true })).toHaveCount(0);
+    await expect(items).toHaveCount(limit);
+    expect((await readMobileItems(page)).every((item) => !item.checked)).toBe(true);
+    await expect(pageBox).not.toBeChecked();
+    expect(await pageBox.evaluate((input: HTMLInputElement) => input.indeterminate)).toBe(false);
+    await pageBox.click();
+    expect((await readMobileItems(page)).every((item) => item.checked)).toBe(true);
+    await pager.getByRole("button", { name: "Anterior" }).click();
+    await expect(page.getByRole("checkbox", { name: firstName, exact: true })).toBeChecked();
+    await expect(pageBox).toBeChecked({ indeterminate: true });
+    expect((await readMobileItems(page)).filter((item) => item.checked).length, "page 2 selection never leaks into page 1").toBe(1);
+    await expect(items).toHaveCount(limit);
+    await expectNoOuterScroll(page, label);
+  });
+
+  for (const [width, height] of [[320, 568], [360, 800], [375, 812], [390, 844], [412, 915], [430, 932], [767, 1024]] as const) {
+    test(`item selector fits each row without moving the canvas @ ${width}x${height}`, async ({ page }) => {
+      const label = `C06 mobile admin-auditoria @ ${width}x${height}`;
+      await page.setViewportSize({ width, height });
+      await prepareSurface(page, auditSurface);
+      await openSurface(page, auditSurface);
+      await expect(page.locator(itemSelector).first()).toBeVisible();
+      await page.locator(`${itemSelector} input[data-collection-selection="item"]`).first().click();
+
+      const metrics = await page.locator(mobileModule).evaluate((module) => {
+        const canvas = module.querySelector<HTMLElement>('[data-content-list="true"]')!;
+        const items = [...canvas.querySelectorAll<HTMLElement>(':scope > article[data-content-list-item="true"]')];
+        const pitch = Number.parseFloat(getComputedStyle(canvas).getPropertyValue("--dash-row-pitch"));
+        const geometry = items.map((item) => {
+          const row = item.getBoundingClientRect();
+          const box = item.querySelector('input[data-collection-selection="item"]')!.getBoundingClientRect();
+          const hit = item.querySelector("label")!.getBoundingClientRect();
+          const view = item.querySelector("button")!.getBoundingClientRect();
+          return {
+            rowHeight: Math.round(row.height * 100) / 100,
+            box: [box.width, box.height],
+            hit: [hit.width, hit.height],
+            inside: hit.left >= row.left && view.right <= row.right + 0.5 && hit.top >= row.top - 0.5 && hit.bottom <= row.bottom + 0.5,
+            overlap: hit.right > view.left,
+            viewVisible: view.width > 0 && view.height > 0,
+          };
+        });
+        const canvasRect = canvas.getBoundingClientRect();
+        const pageBoxes = [...module.querySelectorAll<HTMLElement>('[data-collection-selection="page"]')];
+        const strip = pageBoxes[0]?.closest("label")?.parentElement ?? null;
+        const stripRect = strip?.getBoundingClientRect();
+        const pageHit = pageBoxes[0]?.closest("label")?.getBoundingClientRect();
+        const stripChildren = strip ? [...strip.children].map((child) => child.getBoundingClientRect()) : [];
+        const filtersButton = strip?.querySelector("button")?.getBoundingClientRect();
+        return {
+          items: items.length,
+          pitch,
+          canvasOverflowY: canvas.scrollHeight - canvas.clientHeight,
+          canvasOverflowX: canvas.scrollWidth - canvas.clientWidth,
+          leftoverPx: Math.round((canvasRect.height - items.length * pitch) * 10) / 10,
+          pageSelectors: pageBoxes.length,
+          pageInsideForm: Boolean(pageBoxes[0]?.closest("form")),
+          stripHeight: stripRect ? Math.round(stripRect.height * 10) / 10 : null,
+          stripOverflowX: strip ? strip.scrollWidth - strip.clientWidth : null,
+          pageHit: pageHit ? [pageHit.width, pageHit.height] : null,
+          stripOverlap: stripChildren.some((rect, index) => index > 0 && rect.left < stripChildren[index - 1].right - 0.5),
+          stripInside: Boolean(stripRect && stripChildren.every((rect) => rect.left >= stripRect.left - 0.5 && rect.right <= stripRect.right + 0.5)),
+          filtersVisible: Boolean(filtersButton && filtersButton.width > 0),
+          geometry,
+        };
+      });
+      console.log(`[C06 mobile] ${label}: ${JSON.stringify({ ...metrics, geometry: metrics.geometry[0] })}`);
+      expect(metrics.items).toBeGreaterThan(0);
+      expect(metrics.canvasOverflowY, `${label}: no internal vertical scroll`).toBeLessThanOrEqual(0);
+      expect(metrics.canvasOverflowX, `${label}: no horizontal overflow`).toBeLessThanOrEqual(0);
+      expect(metrics.pageSelectors, `${label}: one page selector in the mobile strip`).toBe(1);
+      expect(metrics.pageInsideForm, `${label}: the page selector is never part of the S1 form`).toBe(false);
+      expect(metrics.stripHeight, `${label}: the strip keeps its 53px height`).toBe(53);
+      expect(metrics.stripOverflowX, `${label}: the strip does not overflow`).toBeLessThanOrEqual(0);
+      expect(metrics.stripOverlap, `${label}: strip controls never overlap`).toBe(false);
+      expect(metrics.stripInside, `${label}: strip controls stay inside the strip`).toBe(true);
+      expect(metrics.filtersVisible, `${label}: Filtros stays visible`).toBe(true);
+      expect(metrics.pageHit![0], `${label}: 36px page touch target`).toBeGreaterThanOrEqual(36);
+      expect(metrics.pageHit![1], `${label}: 36px page touch target`).toBeGreaterThanOrEqual(36);
+      for (const [index, row] of metrics.geometry.entries()) {
+        expect(row.rowHeight, `${label} item ${index}: frozen pitch`).toBe(metrics.pitch);
+        expect(row.box, `${label} item ${index}: 18px checkbox`).toEqual([18, 18]);
+        expect(row.hit[0], `${label} item ${index}: 36px touch target`).toBeGreaterThanOrEqual(36);
+        expect(row.hit[1], `${label} item ${index}: 36px touch target`).toBeGreaterThanOrEqual(36);
+        expect(row.inside, `${label} item ${index}: selector and Ver stay inside the row`).toBe(true);
+        expect(row.overlap, `${label} item ${index}: selector never overlaps Ver`).toBe(false);
+        expect(row.viewVisible, `${label} item ${index}: Ver stays visible`).toBe(true);
+      }
       await expectNoOuterScroll(page, label);
     });
   }

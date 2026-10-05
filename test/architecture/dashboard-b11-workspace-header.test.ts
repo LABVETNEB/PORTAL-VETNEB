@@ -373,7 +373,8 @@ test("C01 · Auditoría adopts the table and list forms without moving capacity,
   assert.ok(table.includes("<Table className=\"table-fixed"), "the Table frame stays the scroll owner");
   assert.ok(table.includes("<CollectionHeader>"));
   assert.ok(table.includes('<ContentList as="tbody">'));
-  assert.ok(table.includes('<ContentListItem as="tr" key={row.id}>'));
+  // C06 adds the selection state marker to the same item; the C01 form is unchanged.
+  assert.match(table, /<ContentListItem\s+as="tr"\s+key=\{row\.id\}[\s>]/);
   assert.ok(table.includes("<AdminAuditDetailDialog row={row} />"));
   assert.equal(/<TableHeader\b|<TableBody\b/.test(table), false);
 
@@ -390,8 +391,8 @@ test("C01 · Auditoría adopts the table and list forms without moving capacity,
   assert.deepEqual(consumers.sort(), [C01_AUDIT_CARD, C01_AUDIT_TABLE, C01_AUDIT_MOBILE].sort());
   for (const path of sourceFiles("frontend/src")) {
     const source = read(path);
-    // C02 landed CollectionPager; its own fence lives in the C02 block below.
-    for (const later of ["CollectionEmptyState", "useCollectionSelection", "SelectionToolbar", "aria-sort"]) {
+    // C02 landed CollectionPager and C06 useCollectionSelection; their fences live in their blocks below.
+    for (const later of ["CollectionEmptyState", "SelectionToolbar", "aria-sort"]) {
       assert.equal(source.includes(later), false, `${path}: ${later} belongs to C03+`);
     }
   }
@@ -488,7 +489,7 @@ test("C02 · consumers keep their adapters and capacity owners; C03+ and C05 geo
 
   for (const path of sourceFiles("frontend/src")) {
     const source = read(path);
-    for (const later of ["CollectionEmptyState", "useCollectionSelection", "SelectionToolbar", "BulkActionMenu", "aria-sort"]) {
+    for (const later of ["CollectionEmptyState", "SelectionToolbar", "BulkActionMenu", "aria-sort"]) {
       assert.equal(source.includes(later), false, `${path}: ${later} is outside C02`);
     }
   }
@@ -595,7 +596,7 @@ test("C03 · consumers keep the legacy adapters; C01/C02 owners, capacity and C0
 
   for (const path of sourceFiles("frontend/src")) {
     const source = read(path);
-    for (const later of ["CollectionEmptyState", "useCollectionSelection", "SelectionToolbar", "BulkActionMenu", "aria-sort"]) {
+    for (const later of ["CollectionEmptyState", "SelectionToolbar", "BulkActionMenu", "aria-sort"]) {
       assert.equal(source.includes(later), false, `${path}: ${later} is outside C03`);
     }
   }
@@ -614,4 +615,159 @@ test("C03 · consumers keep the legacy adapters; C01/C02 owners, capacity and C0
     assert.ok(css.includes(frozen), `${frozen} stays frozen until C05/A07`);
   }
   assert.equal(/--dash-collection-state|--dash-collection-row|data-collection-state/.test(css), false, "C03 adds no geometry token or state CSS");
+});
+
+const C06_OWNER = "frontend/src/features/dashboard/presentation/surfaces/useCollectionSelection.ts";
+
+/** Selection wiring the Auditoría table must keep: identity by ID, native checkboxes, no row takeover. */
+function c06AdopterViolations(table: string): string[] {
+  const code = stripComments(table);
+  const violations: string[] = [];
+  for (const required of [
+    "selection: CollectionSelection<number>;",
+    'type="checkbox"',
+    'aria-label="Seleccionar los eventos de esta página"',
+    "checked={selection.allVisibleSelected}",
+    "node.indeterminate = selection.someVisibleSelected;",
+    "onChange={selection.toggleVisiblePage}",
+    "aria-label={`Seleccionar evento ${row.id}`}",
+    "checked={selection.isSelected(row.id)}",
+    "onChange={() => selection.toggle(row.id)}",
+    'data-state={selection.isSelected(row.id) ? "selected" : undefined}',
+    "<AdminAuditDetailDialog row={row} />",
+  ]) {
+    if (!code.includes(required)) violations.push(`missing ${required}`);
+  }
+  if (/selection\.\w+\(\s*(?!row\.id\b)[^)]+\)/.test(code)) violations.push("selection is keyed by something other than row.id");
+  for (const forbidden of [
+    "index", "aria-selected", "aria-checked", "tabIndex", "onKeyDown", "onKeyUp", "stopPropagation",
+    "preventDefault", "selectedIds", "selectedCount", "clearSelection", "aria-sort", "onSort",
+  ]) {
+    if (code.includes(forbidden)) violations.push(`owns ${forbidden}`);
+  }
+  if (/role="(?!alert")/.test(code)) violations.push("selection adds an ARIA role");
+  if ((code.match(/onClick=/g) ?? []).length > 0) violations.push("rows or selectors gained a click handler");
+  return violations;
+}
+
+test("C06 · useCollectionSelection is the single selection owner and publishes through surfaces", () => {
+  const owner = read(C06_OWNER);
+  assert.ok(owner.startsWith('"use client";\n'), "the hook module is a client boundary of its own");
+  assert.equal((owner.match(/export function useCollectionSelection</g) ?? []).length, 1);
+  const owners = sourceFiles("frontend/src").filter((path) => /function use\w*Selection\b/.test(read(path)));
+  assert.deepEqual(owners, [C06_OWNER], "one selection hook, no per-module duplicate");
+
+  const surfaces = read(C01_SURFACES_BARREL);
+  assert.ok(surfaces.includes("  useCollectionSelection,\n  type CollectionSelection,"));
+  assert.ok(surfaces.includes('} from "./useCollectionSelection";'));
+  for (const name of ["CollectionSelection", "CollectionSelectionId", "CollectionSelectionOptions"]) {
+    assert.ok(owner.includes(`export type ${name}<`) || owner.includes(`export type ${name} =`), name);
+  }
+});
+
+test("C06 · the owner keeps selection state only: no data, effects, paging, sorting, actions or DOM", () => {
+  const code = stripComments(read(C06_OWNER));
+  const imports = [...code.matchAll(/^import .* from "([^"]+)";$/gm)].map((match) => match[1]);
+  assert.deepEqual(imports, ["react"]);
+  for (const forbidden of [
+    "fetch(", "@/lib/api", "@/app/", "next/navigation", "useEffect", "useLayoutEffect", "useRef", "useReducer",
+    "ResizeObserver", "MutationObserver", "setTimeout", "useDashboardCanvasCapacity", "computeCapacity",
+    "usePagedRows", "Pager", ".sort(", "aria-sort", "onSort", "sortBy", "document", "window", "addEventListener",
+    "key ===", "indexOf", "SelectionToolbar", "BulkActionMenu", "OverflowMenu", "ContextMenu", "ActionMenu",
+    "SubMenu", "isSelectable",
+  ]) {
+    assert.equal(code.includes(forbidden), false, `useCollectionSelection must not own ${forbidden}`);
+  }
+  assert.doesNotMatch(code, /\b(?:limit|offset|pageSize)\b\s*[:=?]/, "selection never sizes or offsets a request");
+  assert.ok(code.includes("useState<ReadonlySet<Id>>"), "selected identities are kept as a set of IDs");
+});
+
+test("C06 · Auditoría adopts selection on its table by event ID without touching actions, paging or capacity", () => {
+  const card = read(C01_AUDIT_CARD);
+  const table = read(C01_AUDIT_TABLE);
+  assert.ok(card.includes("const visibleIds = useMemo(() => (loadError ? [] : rows.map((row) => row.id)), [loadError, rows]);"),
+    "the visible page is exactly the rendered rows, by ID");
+  assert.ok(card.includes("const selection = useCollectionSelection({ visibleIds });"));
+  assert.equal((card.match(/selection=\{selection\}/g) ?? []).length, 2, "desktop table and mobile list share the one selection owner");
+  for (const frozen of [
+    "const effectiveLimit = rowsPerPage;", "limit: effectiveLimit,", "offset,", "maxItems: ADMIN_AUDIT_FALLBACK_ROWS,",
+    "maxItems: ADMIN_AUDIT_LIMIT_CAP,", "setOffset(offset + effectiveLimit);", "setOffset(Math.max(0, offset - effectiveLimit));",
+  ]) {
+    assert.ok(card.includes(frozen), `paging and capacity stay as they were: ${frozen}`);
+  }
+  assert.deepEqual(c06AdopterViolations(table), []);
+
+  // In-memory mutations of the adopter must be rejected by the same check.
+  for (const [anchor, replacement] of [
+    ["onChange={() => selection.toggle(row.id)}", "onChange={() => selection.toggle(rows.indexOf(row))}"],
+    ["checked={selection.isSelected(row.id)}", 'checked={selection.isSelected(row.id)} aria-checked="true"'],
+    ["onChange={selection.toggleVisiblePage}", "onChange={selection.clearSelection}"],
+    ["node.indeterminate = selection.someVisibleSelected;", "node.indeterminate = false;"],
+    ['data-collection-selection="item"', 'data-collection-selection="item" onClick={(event) => event.stopPropagation()}'],
+  ] as const) {
+    assert.equal(table.split(anchor).length, 2, `unique adopter anchor: ${anchor}`);
+    assert.notDeepEqual(c06AdopterViolations(table.replace(anchor, () => replacement)), [], `mutation must be rejected: ${replacement}`);
+  }
+
+  const consumers = sourceFiles("frontend/src").filter(
+    (path) => path !== C06_OWNER && path !== C01_SURFACES_BARREL && read(path).includes("useCollectionSelection"),
+  );
+  assert.deepEqual(consumers, [C01_AUDIT_CARD], "C06 is not the C17+ migration");
+  const selectionProps = sourceFiles("frontend/src").filter((path) => read(path).includes("CollectionSelection<"));
+  assert.deepEqual(selectionProps.sort(), [C01_AUDIT_MOBILE, C01_AUDIT_TABLE, C06_OWNER].sort());
+
+  // Mobile list: per-item native checkbox on the shared owner, by event ID.
+  const mobile = stripComments(read(C01_AUDIT_MOBILE));
+  for (const required of [
+    "selection: CollectionSelection<number>;",
+    'type="checkbox"',
+    "aria-label={`Seleccionar evento ${row.id}`}",
+    "checked={selection.isSelected(row.id)}",
+    "onChange={() => selection.toggle(row.id)}",
+    'data-state={selection.isSelected(row.id) ? "selected" : undefined}',
+    "<AdminAuditDetailDialog row={row} />",
+    'aria-label="Seleccionar los eventos de esta página"',
+    'data-collection-selection="page"',
+    "checked={selection.allVisibleSelected}",
+    "node.indeterminate = selection.someVisibleSelected;",
+    "onChange={selection.toggleVisiblePage}",
+    "leadingSlot={",
+  ]) {
+    assert.ok(mobile.includes(required), `mobile list keeps ${required}`);
+  }
+  for (const forbidden of ["index", "aria-selected", "aria-checked", "onKeyDown", "stopPropagation", "clearSelection"]) {
+    assert.equal(mobile.includes(forbidden), false, `mobile list must not own ${forbidden}`);
+  }
+
+  // The mobile page checkbox is hosted by the existing strip as a presentational
+  // slot, outside the S1 form and with no selection logic inside S1.
+  const filterBar = stripComments(read("frontend/src/app/dashboard/admin/AdminAuditFilterBar.tsx"));
+  const strip = filterBar.slice(filterBar.indexOf("export function AdminAuditFilterBar("));
+  assert.ok(strip.indexOf("<FilterForm {...props} />") < strip.indexOf("{props.leadingSlot}"), "the slot renders after, not inside, the S1 form");
+  assert.equal((filterBar.match(/\{props\.leadingSlot\}/g) ?? []).length, 1);
+  for (const forbidden of ["selection", "checkbox", "toggleVisiblePage", "indeterminate"]) {
+    assert.equal(filterBar.includes(forbidden), false, `S1 never owns ${forbidden}`);
+  }
+  assert.equal(read("frontend/src/app/dashboard/admin/AdminMobileOpsPager.tsx").includes("selection"), false, "the shared pager never hosts selection");
+});
+
+test("C06 · C04, C05 and C07+ stay unstarted around the selection owner", () => {
+  for (const path of sourceFiles("frontend/src")) {
+    const source = read(path);
+    for (const later of ["SelectionToolbar", "BulkActionMenu", "OverflowMenu", "ContextMenu", "SubMenu", "aria-sort"]) {
+      assert.equal(source.includes(later), false, `${path}: ${later} is outside C06`);
+    }
+  }
+  const css = readDashboardCssSource();
+  for (const frozen of [
+    "--dash-row-pitch-compact: 36px;",
+    "--dash-row-pitch-regular: 44px;",
+    "--dash-table-head-h: 32px;",
+    "--dash-pagination-h: clamp(2.25rem, 4vh, 2.75rem);",
+  ]) {
+    assert.ok(css.includes(frozen), `${frozen} stays frozen until C05/A07`);
+  }
+  assert.equal(/data-collection-selection|\[data-state="?selected|--dash-selection|--dash-collection-row/.test(css), false,
+    "C06 adds no CSS: the row skin already styles data-state=selected");
+  assert.ok(read(C01_TABLE).includes("data-[state=selected]:bg-vetneb-teal/10"), "the existing TableRow skin is the selected affordance");
 });
