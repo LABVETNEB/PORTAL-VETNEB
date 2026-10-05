@@ -211,8 +211,8 @@ Revertir el PR. No hay datos, schema ni migraciones que revertir. Los clientes q
 | `pnpm typecheck` / `pnpm typecheck:test` | PASSED / PASSED |
 | `pnpm lint:backend` | PASSED: 0 errores, 45 warnings. El único warning en clínicas es `ENV` sin uso en `admin-clinics.fastify.ts:8`, idéntico en `cf70dc41` e introducido en `f94a347b` |
 | `pnpm build` | PASSED |
-| `pnpm validate:local` | FAILED por precondición ambiental. 4 810 tests, 4 808 pass, 1 skip; la única falla es `e2e-global-03b-authoritative-auth-boundary`, que aborta al importar porque exige la DB aislada `portal_vetneb_ci`. Es el mismo resultado que antes del merge; los 12 tests C04 pasaron en esa corrida |
-| Postgres real | BLOCKED (no hay DB local). La evidencia aceptada es la evaluación del SQL emitido (ver «Riesgo residual») |
+| `pnpm validate:local` | **FAILED** (ejecutado, sin exit 0). Causa: precondición ambiental. 4 810 tests, 4 808 pass, 1 skip; la única falla es `e2e-global-03b-authoritative-auth-boundary`, que aborta al importar porque exige la DB aislada `portal_vetneb_ci`. Es el mismo resultado que antes del merge; los 12 tests C04 pasaron en esa corrida |
+| Postgres real | BLOCKED (no hay DB local). La única evidencia disponible es la evaluación del SQL emitido (ver «Riesgo residual»); no sustituye la ejecución real |
 | GitHub, sobre el merge commit | `validate-backend`, `backend-heavy-validation`, `detect-backend-impact`, `generate-sbom`, `test-coverage-diagnostic` y Supabase Preview: SUCCESS |
 | Mutation proof | Se reutiliza la evidencia de 10/10 porque las fuentes y los tests C04 no cambiaron después del PR; no se re-ejecutó |
 
@@ -220,9 +220,10 @@ Revertir el PR. No hay datos, schema ni migraciones que revertir. Los clientes q
 
 | Ítem | Estado |
 |---|---|
-| `C04_SERVER_SORT_PREREQUISITE` | `COMPLETE` |
-| `C04_SERVER_SORT_MAIN_VALIDATION` | `PASSED` |
-| `C04_FRONTEND` | `READY_FOR_IMPLEMENTATION` (adopter recomendado: Clínicas) |
-| C04 | `IN_PROGRESS_PREREQUISITE_COMPLETE`. No está COMPLETE: falta su PR frontend |
-| NEXT_SLOT | C04 frontend |
+| `C04_SERVER_SORT_PREREQUISITE` | `INTEGRATED_IN_MAIN` |
+| `C04_SERVER_SORT_MAIN_VALIDATION` | `BLOCKED`: el gate requerido `pnpm validate:local` terminó FAILED y la ejecución contra Postgres real está BLOCKED |
+| `C04_FRONTEND` | `BLOCKED_PENDING_SUCCESSFUL_MAIN_VALIDATION` (adopter previsto: Clínicas) |
+| C04 | `BLOCKED_PENDING_MAIN_VALIDATION` |
+| Fase 3 | NO COMPLETA |
+| NEXT_SLOT | Cerrar la validación de `main` de C04: ejecutar `pnpm validate:local` con exit 0 en un entorno con la DB aislada `portal_vetneb_ci`, o una decisión explícita de Nico que enmiende el criterio. No es C04 frontend |
 | C05 | BLOCKED (sin cambios) |
