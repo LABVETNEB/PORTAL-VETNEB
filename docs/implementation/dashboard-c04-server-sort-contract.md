@@ -187,11 +187,42 @@ Ver el reporte de cierre del PR. Los gates siguen AGENTS §6 para backend: tests
 
 Revertir el PR. No hay datos, schema ni migraciones que revertir. Los clientes que no envían `sort` no notan diferencia.
 
+## Validación post-merge (fase 3)
+
+- **Base:** `main` = `origin/main` = `7d3066250652bc63f9625c6a58058628dcd70cfa`, el merge commit de PR #1822 (MERGED el 2026-10-05). Las fuentes C04 no tienen diff entre el head del PR (`470f957a`) y el merge.
+
+**Contrato en `main`:**
+- allowlists sincronizadas;
+- `where → orderBy → limit → offset` en una sola query;
+- sin `sql.raw`, `sql.identifier` ni `.sort()`/`.reverse()`/`toSorted` post-paginación;
+- `server/lib` sin cambios.
+
+**Paridad del SQL legacy.** El SQL de `buildAdminClinicsListQuery` sin `sort` es byte a byte igual al de la query literal de `listAdminClinics` en `cf70dc41` (antes de #1822), incluido el `total`. Se verificó en 5/5 casos: vacío; `limit`/`offset`; búsqueda; `limit` 500, `offset` 999 999 y búsqueda con espacios; `limit` 0, `offset` −5 y búsqueda vacía.
+
+| Gate | Estado |
+|---|---|
+| Dominio | PASSED 76/76 |
+| Integración de ruta y query de clínicas | PASSED 25/25 (10 C04) |
+| Guard de infraestructura Clinics | PASSED 22/22 |
+| Guard de dominio Clinics | PASSED 12/12 |
+| M48 | PASSED 35/35, sin drift |
+| `admin-clinics-query-service` | PASSED 3/3 |
+| Contratos db, auth y paginación pesada admin | PASSED 15/15, 3/3 y 5/5 |
+| `pnpm typecheck` / `pnpm typecheck:test` | PASSED / PASSED |
+| `pnpm lint:backend` | PASSED: 0 errores, 45 warnings. El único warning en clínicas es `ENV` sin uso en `admin-clinics.fastify.ts:8`, idéntico en `cf70dc41` e introducido en `f94a347b` |
+| `pnpm build` | PASSED |
+| `pnpm validate:local` | FAILED por precondición ambiental. 4 810 tests, 4 808 pass, 1 skip; la única falla es `e2e-global-03b-authoritative-auth-boundary`, que aborta al importar porque exige la DB aislada `portal_vetneb_ci`. Es el mismo resultado que antes del merge; los 12 tests C04 pasaron en esa corrida |
+| Postgres real | BLOCKED (no hay DB local). La evidencia aceptada es la evaluación del SQL emitido (ver «Riesgo residual») |
+| GitHub, sobre el merge commit | `validate-backend`, `backend-heavy-validation`, `detect-backend-impact`, `generate-sbom`, `test-coverage-diagnostic` y Supabase Preview: SUCCESS |
+| Mutation proof | Se reutiliza la evidencia de 10/10 porque las fuentes y los tests C04 no cambiaron después del PR; no se re-ejecutó |
+
 ## Estado
 
 | Ítem | Estado |
 |---|---|
-| `C04_SERVER_SORT_PREREQUISITE` | `IMPLEMENTED_LOCALLY` |
-| `C04_FRONTEND` | `BLOCKED_PENDING_PR_MERGE_AND_MAIN_VALIDATION` |
-| C04 en `main` | sigue `BLOCKED_BY_SERVER_SORT_CONTRACT` hasta la fase 3 (validación post-merge en `main`) |
+| `C04_SERVER_SORT_PREREQUISITE` | `COMPLETE` |
+| `C04_SERVER_SORT_MAIN_VALIDATION` | `PASSED` |
+| `C04_FRONTEND` | `READY_FOR_IMPLEMENTATION` (adopter recomendado: Clínicas) |
+| C04 | `IN_PROGRESS_PREREQUISITE_COMPLETE`. No está COMPLETE: falta su PR frontend |
+| NEXT_SLOT | C04 frontend |
 | C05 | BLOCKED (sin cambios) |
