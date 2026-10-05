@@ -1101,7 +1101,9 @@ test.describe("C06 · Auditoría mobile collection selection", () => {
         const strip = pageBoxes[0]?.closest("label")?.parentElement ?? null;
         const stripRect = strip?.getBoundingClientRect();
         const pageHit = pageBoxes[0]?.closest("label")?.getBoundingClientRect();
-        const stripChildren = strip ? [...strip.children].map((child) => child.getBoundingClientRect()) : [];
+        const stripChildren = strip
+          ? [...strip.children].filter((child) => !child.matches('[data-selection-live="true"]')).map((child) => child.getBoundingClientRect())
+          : [];
         const filtersButton = [...(strip?.querySelectorAll("button") ?? [])]
           .find((button) => button.textContent?.trim() === "Filtros")?.getBoundingClientRect();
         return {
@@ -1165,8 +1167,9 @@ test.describe("C07 · Auditoría contextual SelectionToolbar", () => {
       const rect = host.getBoundingClientRect();
       const toolbar = host.querySelector<HTMLElement>('[data-selection-toolbar="true"]');
       const clear = toolbar?.querySelector("button")?.getBoundingClientRect();
-      const count = toolbar?.querySelector<HTMLElement>("[aria-live]");
-      const children = [...host.children].map((child) => child.getBoundingClientRect()).filter((box) => box.width > 0);
+      const count = toolbar?.querySelector<HTMLElement>("[data-selection-count]");
+      const live = host.querySelector<HTMLElement>('[data-selection-live="true"]');
+      const children = [...host.children].filter((child) => child !== live).map((child) => child.getBoundingClientRect()).filter((box) => box.width > 0);
       return {
         height: Math.round(rect.height * 100) / 100,
         overflowX: host.scrollWidth - host.clientWidth,
@@ -1174,6 +1177,7 @@ test.describe("C07 · Auditoría contextual SelectionToolbar", () => {
         toolbar: Boolean(toolbar),
         clear: clear ? [Math.round(clear.width), Math.round(clear.height)] : null,
         countTruncated: count ? count.scrollWidth > count.clientWidth : null,
+        live: live ? { text: live.textContent, ariaLive: live.getAttribute("aria-live") } : null,
         clearInside: Boolean(clear && clear.left >= rect.left - 0.5 && clear.right <= rect.right + 0.5 && clear.top >= rect.top - 0.5 && clear.bottom <= rect.bottom + 0.5),
         overlap: children.some((box, index) => index > 0 && box.left < children[index - 1].right - 0.5),
       };
@@ -1198,6 +1202,8 @@ test.describe("C07 · Auditoría contextual SelectionToolbar", () => {
     await expect(toolbar).toHaveCount(0);
     const idle = await readHost(page, desktopHeader, canvas);
     expect(idle.toolbar).toBe(false);
+    expect(idle.live, `${label}: the live region is mounted, empty, before the first selection`).toEqual({ text: "", ariaLive: "polite" });
+    const liveNode = await header.locator('[data-selection-live="true"]').elementHandle();
 
     const requests: string[] = [];
     page.on("request", (request) => requests.push(`${request.method()} ${request.url()}`));
@@ -1205,6 +1211,11 @@ test.describe("C07 · Auditoría contextual SelectionToolbar", () => {
     await boxes.nth(0).click();
     await expect(toolbar).toBeVisible();
     await expect(toolbar).toContainText("1 seleccionado");
+    await expect(header.locator('[data-selection-live="true"]')).toHaveText("1 seleccionado");
+    expect(
+      await liveNode!.evaluate((node) => node.isConnected),
+      `${label}: the same live region node survives the swap (content change, not insertion)`,
+    ).toBe(true);
     await expect(metrics).toHaveCount(0);
     await expect(header.getByRole("heading", { name: "Registro operativo" })).toBeVisible();
     await boxes.nth(1).click();
@@ -1330,7 +1341,10 @@ test.describe("C07 · Auditoría contextual SelectionToolbar", () => {
     const active = await readHost(page, host, canvas);
     expect(active.height, `${label}: the strip keeps its height`).toBe(idle.height);
     expect(active.canvasHeight, `${label}: the canvas keeps its height`).toBe(idle.canvasHeight);
-    expect(active.clear![1], `${label}: clear matches the strip's 40px Filtros target`).toBe(40);
+    expect(active.clear![1], `${label}: 44px touch target below 768`).toBe(44);
+    expect(active.clear![0], `${label}: 44px touch target below 768`).toBeGreaterThanOrEqual(44);
+    expect(idle.live, `${label}: the live region is mounted, empty, before the first selection`).toEqual({ text: "", ariaLive: "polite" });
+    expect(active.live).toEqual({ text: "2 seleccionados", ariaLive: "polite" });
     await expect(items).toHaveCount(limit);
 
     const axe = await new AxeBuilder({ page })
@@ -1397,8 +1411,8 @@ test.describe("C07 · Auditoría contextual SelectionToolbar", () => {
       expect(active.overflowX, `${label}: no horizontal overflow`).toBeLessThanOrEqual(0);
       expect(active.overlap, `${label}: strip controls never overlap`).toBe(false);
       expect(active.clearInside, `${label}: clear control inside the strip`).toBe(true);
-      expect(active.clear![1], `${label}: 40px touch target, as Filtros`).toBe(40);
-      expect(active.clear![0], `${label}: 40px touch target`).toBeGreaterThanOrEqual(40);
+      expect(active.clear![1], `${label}: 44px touch target`).toBe(44);
+      expect(active.clear![0], `${label}: 44px touch target`).toBeGreaterThanOrEqual(44);
       expect(active.countTruncated, `${label}: the count is legible`).toBe(false);
       await expect(page.locator(mobileModule).getByRole("button", { name: "Filtros", exact: true })).toBeVisible();
       await expect(items).toHaveCount(limit);

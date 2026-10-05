@@ -834,9 +834,15 @@ test("C07 · the toolbar reads selectedCount and clearSelection only: no state, 
   ]) {
     assert.equal(code.includes(forbidden), false, `SelectionToolbar must not own ${forbidden}`);
   }
-  assert.equal((code.match(/if \(selectedCount === 0\) return <>\{children\}<\/>;/g) ?? []).length, 1, "DefaultToolbar renders unchanged at 0");
+  assert.equal((code.match(/\{selectedCount === 0 \? \(\s*children\s*\) : \(/g) ?? []).length, 1, "DefaultToolbar renders unchanged at 0");
   assert.equal((code.match(/onClearSelection\(\);/g) ?? []).length, 1, "the clear control calls the C06 owner as given");
   assert.equal((code.match(/role="group"/g) ?? []).length, 1);
+  assert.equal((code.match(/aria-live="polite"/g) ?? []).length, 1, "one persistent live region, never a second one");
+  assert.ok(code.includes('{selectedCount === 0 ? "" : count}'), "the live region is mounted at 0 and only its text changes");
+  assert.ok(code.indexOf('aria-live="polite"') > code.indexOf("</div>\n      )}"), "the live region sits outside the swapped branch");
+  assert.ok(code.includes("-my-0.5 h-11 min-h-11 min-w-11"), "44px touch target below md without growing the host");
+  assert.ok(code.includes("if (toolbar?.contains(target)) continue;") && code.includes('if (target.matches(":focus")) break;'),
+    "focus falls back to a control that really takes it, never to the toolbar's own button");
   assert.ok(code.includes('aria-label="Limpiar selección"') && code.includes('type="button"'));
   assert.equal(/data-selection-toolbar/.test(readDashboardCssSource()), false, "C07 adds no CSS or geometry token");
 });

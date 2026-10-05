@@ -8,9 +8,9 @@
 
 - **Ubicación:** `frontend/src/features/dashboard/presentation/surfaces/SelectionToolbar.tsx`. Es el único owner del swap, un módulo `"use client"` que se publica por `presentation/surfaces`.
 - **API:** `selectedCount`, `onClearSelection` y `children` (la DefaultToolbar del host). No recibe `CollectionSelection` ni crea estado: lee el owner C06 sólo a través de esos dos valores.
-- **Swap:** con `selectedCount === 0`, la toolbar devuelve `children` tal cual, sin wrapper. Con una selección, ocupa el mismo slot con un `div role="group" aria-label="Selección"` que contiene el contador (`aria-live="polite"`: «1 seleccionado» / «N seleccionados») y un botón «Limpiar» (`aria-label="Limpiar selección"`, `type="button"`).
-- **Limpiar:** llama a `onClearSelection` (es decir, `clearSelection` de C06, que limpia toda la selección, también la que está fuera de la página) y mueve el foco al checkbox de página (`[data-collection-selection="page"]`) de la misma `section`, porque el botón se desmonta. Sin foco atrapado.
-- **Botón:** mide 32 px de alto en ≥ 768 («acción de toolbar») y 40 px en < 768, igual que «Filtros» en la franja. En < 640 se muestra sólo el icono, con un mínimo de 40×40, para que el contador no se trunque a 320 px.
+- **Swap:** con `selectedCount === 0`, la toolbar devuelve `children` tal cual, sin wrapper. Con una selección, ocupa el mismo slot con un `div role="group" aria-label="Selección"` que contiene el contador visible («1 seleccionado» / «N seleccionados») y un botón «Limpiar» (`aria-label="Limpiar selección"`, `type="button"`). Una única live region `sr-only` con `aria-live="polite"` queda montada también con 0 seleccionados (vacía) y sólo cambia su texto, de modo que la primera selección se anuncia como cambio de contenido y no como inserción.
+- **Limpiar:** llama a `onClearSelection` (es decir, `clearSelection` de C06, que limpia toda la selección, también la que está fuera de la página) y mueve el foco al checkbox de página habilitado de la misma `section`, porque el botón se desmonta. Si ese selector no está disponible (por ejemplo, tras un error de carga con la selección persistida), el foco pasa al primer control habilitado de la colección que realmente lo reciba; se omiten los controles de la propia toolbar y los ocultos. Sin foco atrapado.
+- **Botón:** mide 32 px de alto en ≥ 768 («acción de toolbar») y 44×44 px como mínimo en < 768 (objetivo táctil del §56.6). El margen vertical negativo (`-my-0.5`) hace que el botón no aumente la línea flex de la franja de 53 px. En < 640 se muestra sólo el icono, para que el contador no se trunque a 320 px.
 
 ## Hosts reales del WorkspaceToolbar en Auditoría
 
@@ -33,7 +33,7 @@ C04 (orden), C05 (fila de 40 px, BLOCKED), C08 (menús), C09 (`BulkActionMenu` y
 |---|---|
 | Unit C06 + C07 (`dashboard-c06-collection-selection`) | PASSED 15/15 |
 | Guards B11/C01–C07 (`dashboard-b11-workspace-header`) | PASSED 27/27 |
-| Mutation proof de la toolbar (unit) | 6/6: swap invertido, swap eliminado, contador que no usa `selectedCount`, `onClearSelection` eliminado y foco no restaurado |
+| Mutation proof de la toolbar (unit) | 10/10: swap invertido, swap eliminado, contador que no usa `selectedCount`, `onClearSelection` eliminado, foco no restaurado, fallback sin verificar el foco, fallback que no omite la propia toolbar, live region que se desmonta y live region sin `polite` |
 | Mutation proof de los adopters (guard) | 6/6: contador fijo, clear desviado, segunda toolbar, segundo owner en móvil, DefaultToolbar descartada y slot eliminado |
 | E2E C06 + C07 (`dashboard-b11-workspace-header`, `-g C0[67]`) | PASSED 27/27 (C07: 13) |
 | Geometría C07 | header de tabla 57 → 57 px, franja móvil 53 → 53 px, canvas sin cambio, sin overflow, sin overlap, contador sin truncar a 1920/1280/1024/834/768 y 767/430/412/390/375/360/320 px |

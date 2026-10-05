@@ -391,25 +391,39 @@ function toolbarText(node: ToolbarNode | string): string {
 
 function renderToolbar(SelectionToolbar: ToolbarComponent, selectedCount: number, onClearSelection: () => void) {
   const nodes = expandToolbar(SelectionToolbar({ selectedCount, onClearSelection, children: DEFAULT_TOOLBAR }));
-  assert.equal(nodes.length, 1, "the toolbar slot renders exactly one root");
+  assert.equal(nodes.length, 2, "the toolbar slot is the swapped region plus one persistent live region");
   const root = nodes[0] as ToolbarNode;
+  const live = nodes[1] as ToolbarNode;
   const button = root.children.find((child): child is ToolbarNode => typeof child !== "string" && child.tag === "button");
-  return { root, isDefault: root.attrs["data-default-toolbar"] === "true", text: toolbarText(root), button };
+  return { root, live, isDefault: root.attrs["data-default-toolbar"] === "true", text: toolbarText(root), button };
 }
 
-// The clear control focuses the page selector of its own collection (its `section`).
-function clickEvent(log: string[]) {
+type FakeControl = { name: string; focusable: boolean };
+
+// The clear control moves focus inside its own collection (`section`): the enabled page selector
+// first, then the first other control that really takes focus; the toolbar's own controls are skipped.
+function clickEvent(log: string[], page: FakeControl[] = [{ name: "page", focusable: true }], others: FakeControl[] = []) {
+  let focused = "";
+  const toolbarControl = { name: "clear", focus: () => log.push("focus clear"), matches: () => false };
+  const element = ({ name, focusable }: FakeControl) => ({
+    name,
+    focus: () => {
+      log.push(`focus ${name}`);
+      if (focusable) focused = name;
+    },
+    matches: () => focused === name,
+  });
+  const toolbar = { contains: (target: { name: string }) => target === toolbarControl };
+  const collection = {
+    querySelectorAll: (query: string) => {
+      log.push(`query ${query}`);
+      if (query.includes("data-collection-selection")) return page.map(element);
+      return [toolbarControl, ...others.map(element)];
+    },
+  };
   return {
     currentTarget: {
-      closest: (selector: string) => {
-        log.push(`closest ${selector}`);
-        return {
-          querySelector: (query: string) => {
-            log.push(`query ${query}`);
-            return { focus: () => log.push("focus") };
-          },
-        };
-      },
+      closest: (selector: string) => (selector === "section" ? collection : toolbar),
     },
   };
 }
@@ -441,8 +455,19 @@ test("C07 · DefaultToolbar ⇄ SelectionToolbar follows selectedCount on the on
     { type: one.button?.attrs.type, label: one.button?.attrs["aria-label"], text: one.button && toolbarText(one.button) },
     { type: "button", label: "Limpiar selección", text: "Limpiar" },
   );
-  const counter = one.root.children[0] as ToolbarNode;
-  assert.equal(counter.attrs["aria-live"], "polite", "the count is announced politely");
+  assert.equal(String(one.button?.attrs.className).includes("h-11 min-h-11 min-w-11"), true, "44px touch target below md");
+  assert.equal((one.root.children[0] as ToolbarNode).attrs["aria-live"], undefined, "the visible count is not a second live region");
+
+  // One live region stays mounted across the swap, so the first selection is a content change, not an insertion.
+  assert.deepEqual(
+    { tag: idle.live.tag, live: idle.live.attrs["aria-live"], text: toolbarText(idle.live) },
+    { tag: "span", live: "polite", text: "" },
+    "the live region exists, empty, before the first selection",
+  );
+  assert.deepEqual(
+    { live: one.live.attrs["aria-live"], text: toolbarText(one.live) },
+    { live: "polite", text: "1 seleccionado" },
+  );
 
   view.act((selection) => selection.select(101));
   view.act((selection) => selection.select(103));
@@ -461,8 +486,28 @@ test("C07 · DefaultToolbar ⇄ SelectionToolbar follows selectedCount on the on
   view.rerender(PAGE_1);
   assert.equal(view.current.allVisibleSelected || view.current.someVisibleSelected, false);
   assert.equal(show().isDefault, true, "cleared → back to DefaultToolbar");
-  assert.deepEqual(log, ["closest section", "clear", 'query [data-collection-selection="page"]:not(:disabled)', "focus"],
-    "focus moves to the page selector after the owner is cleared");
+  assert.deepEqual(
+    log.filter((entry) => entry === "clear" || entry.startsWith("focus")),
+    ["clear", "focus page"],
+    "focus moves to the page selector after the owner is cleared",
+  );
+  assert.equal(show().text, "Todos los eventos");
+  assert.equal(toolbarText(show().live), "", "the live region empties without unmounting");
+});
+
+test("C07 · without an enabled page selector the focus falls back to the first control that takes it", () => {
+  const SelectionToolbar = loadToolbar();
+  const log: string[] = [];
+  const { button } = renderToolbar(SelectionToolbar, 3, () => log.push("clear"));
+  // No page selector (error state), a control hidden from focus, then a real one; the toolbar's own button is skipped.
+  (button!.attrs.onClick as (event: unknown) => void)(
+    clickEvent(log, [], [{ name: "hidden-form", focusable: false }, { name: "filtros", focusable: true }, { name: "later", focusable: true }]),
+  );
+  assert.deepEqual(
+    log.filter((entry) => entry === "clear" || entry.startsWith("focus")),
+    ["clear", "focus hidden-form", "focus filtros"],
+    "the owner is cleared first, hidden controls are skipped and the toolbar's own button never gets focus",
+  );
 });
 
 test("C07 · clearing without a page selector in reach still clears and never throws", () => {
@@ -479,6 +524,8 @@ type ToolbarFlags = {
   countFollowsSelectedCount: boolean;
   clearCallsOwner: boolean;
   focusAfterClear: boolean;
+  focusFallback: boolean;
+  liveRegionPersistent: boolean;
 };
 
 function toolbarFlags(source: string): ToolbarFlags {
@@ -487,13 +534,27 @@ function toolbarFlags(source: string): ToolbarFlags {
   const log: string[] = [];
   const seven = renderToolbar(SelectionToolbar, 7, () => log.push("clear"));
   if (seven.button) (seven.button.attrs.onClick as (event: unknown) => void)(clickEvent(log));
+  const fallbackLog: string[] = [];
+  const fallback = renderToolbar(SelectionToolbar, 2, () => fallbackLog.push("clear"));
+  if (fallback.button) {
+    (fallback.button.attrs.onClick as (event: unknown) => void)(
+      clickEvent(fallbackLog, [], [{ name: "hidden-form", focusable: false }, { name: "filtros", focusable: true }]),
+    );
+  }
+  const idleToolbar = renderToolbar(SelectionToolbar, 0, noop);
   return {
-    defaultAtZero: renderToolbar(SelectionToolbar, 0, noop).isDefault,
+    liveRegionPersistent:
+      idleToolbar.live.attrs["aria-live"] === "polite" &&
+      toolbarText(idleToolbar.live) === "" &&
+      seven.live.attrs["aria-live"] === "polite" &&
+      toolbarText(seven.live) === "7 seleccionados",
+    focusFallback: fallbackLog.includes("focus filtros") && !fallbackLog.includes("focus clear"),
+    defaultAtZero: idleToolbar.isDefault,
     selectionAtOne: !renderToolbar(SelectionToolbar, 1, noop).isDefault,
     countFollowsSelectedCount:
       seven.text.startsWith("7 seleccionados") && renderToolbar(SelectionToolbar, 1, noop).text.startsWith("1 seleccionado"),
     clearCallsOwner: log.includes("clear"),
-    focusAfterClear: log.includes("clear") && log.indexOf("focus") > log.indexOf("clear"),
+    focusAfterClear: log.includes("clear") && log.indexOf("focus page") > log.indexOf("clear"),
   };
 }
 
@@ -502,14 +563,18 @@ test("C07 · in-memory mutations of the toolbar each break their contract flag",
   const intact = toolbarFlags(source);
   assert.ok(Object.values(intact).every(Boolean), JSON.stringify(intact));
 
-  const swap = "if (selectedCount === 0) return <>{children}</>;";
+  const swap = "{selectedCount === 0 ? (";
   const mutations: [keyof ToolbarFlags, string, string][] = [
-    ["defaultAtZero", swap, "if (selectedCount !== 0) return <>{children}</>;"],
-    ["selectionAtOne", swap, "if (selectedCount !== 0) return <>{children}</>;"],
-    ["defaultAtZero", swap, ""],
+    ["defaultAtZero", swap, "{selectedCount !== 0 ? ("],
+    ["selectionAtOne", swap, "{selectedCount !== 0 ? ("],
+    ["defaultAtZero", swap, "{false ? ("],
     ["countFollowsSelectedCount", "`${selectedCount} seleccionados`", "`1 seleccionados`"],
     ["clearCallsOwner", "    onClearSelection();\n", ""],
-    ["focusAfterClear", "?.focus();", "?.blur?.();"],
+    ["focusAfterClear", "      target.focus();\n", "      target.blur?.();\n"],
+    ["focusFallback", "if (toolbar?.contains(target)) continue;", ""],
+    ["focusFallback", 'if (target.matches(":focus")) break;', "break;"],
+    ["liveRegionPersistent", '{selectedCount === 0 ? "" : count}', "{count}"],
+    ["liveRegionPersistent", '<span aria-live="polite"', '<span aria-live="off"'],
   ];
   for (const [flag, anchor, replacement] of mutations) {
     assert.equal(source.split(anchor).length, 2, `${flag}: the mutation anchor must be unique`);
