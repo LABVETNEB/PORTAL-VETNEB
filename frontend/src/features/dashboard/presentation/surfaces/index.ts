@@ -47,3 +47,5 @@ export {
   type CollectionSelectionId,
   type CollectionSelectionOptions,
 } from "./useCollectionSelection";
+/** C07 contextual toolbar: DefaultToolbar ⇄ SelectionToolbar on the C06 owner; bulk actions are C09. */
+export { SelectionToolbar, type SelectionToolbarProps } from "./SelectionToolbar";

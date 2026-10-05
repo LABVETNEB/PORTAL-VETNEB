@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   ContentList,
   ContentListItem,
+  SelectionToolbar,
   type CollectionSelection,
 } from "@/features/dashboard/presentation/surfaces";
 import { AdminAuditDetailDialog } from "./AdminAuditDetailDialog";
@@ -99,6 +100,11 @@ export function AdminMobileAuditModule({
             />
           </label>
         }
+        renderToolbar={(defaultToolbar) => (
+          <SelectionToolbar selectedCount={selection.selectedCount} onClearSelection={selection.clearSelection}>
+            {defaultToolbar}
+          </SelectionToolbar>
+        )}
       />
 
       <ContentList

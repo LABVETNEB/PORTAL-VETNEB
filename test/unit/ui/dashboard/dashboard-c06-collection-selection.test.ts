@@ -342,3 +342,178 @@ test("C06 · in-memory mutations of the owner each break their contract flag", (
     assert.equal(flags[flag], false, `${flag}: the mutated owner must break its contract`);
   }
 });
+
+// ── C07 · SelectionToolbar on the C06 owner ──────────────────────────────────
+// The toolbar module runs as written against a createElement-recording stub and
+// is fed by the real hook above, so the swap, the counter and clearing are
+// observed on the one owner, not on a fake selection.
+
+const TOOLBAR_PATH = "frontend/src/features/dashboard/presentation/surfaces/SelectionToolbar.tsx";
+
+type ToolbarNode = { tag: string; attrs: Record<string, unknown>; children: (ToolbarNode | string)[] };
+type ToolbarComponent = (props: Record<string, unknown>) => unknown;
+
+const TOOLBAR_FRAGMENT = Symbol("Fragment");
+const TOOLBAR_REACT = {
+  Fragment: TOOLBAR_FRAGMENT,
+  createElement: (type: unknown, props: Record<string, unknown> | null, ...children: unknown[]) => ({
+    type,
+    props: { ...props, children },
+  }),
+};
+const TOOLBAR_IMPORTS = {
+  "lucide-react": { X: (props: Record<string, unknown>) => TOOLBAR_REACT.createElement("svg", { ...props, "data-icon": "x" }) },
+  "@/components/ui/button": {
+    Button: ({ children, ...props }: Record<string, unknown>) => TOOLBAR_REACT.createElement("button", props, children),
+  },
+};
+const DEFAULT_TOOLBAR = TOOLBAR_REACT.createElement("div", { "data-default-toolbar": "true" }, "Todos los eventos");
+
+function loadToolbar(source = read(TOOLBAR_PATH)): ToolbarComponent {
+  return runModule(parseTsx(source, TOOLBAR_PATH), TOOLBAR_IMPORTS, { React: TOOLBAR_REACT })
+    .SelectionToolbar as ToolbarComponent;
+}
+
+function expandToolbar(node: unknown): (ToolbarNode | string)[] {
+  if (Array.isArray(node)) return node.flatMap((entry) => expandToolbar(entry));
+  if (node === null || node === undefined || node === false || node === "") return [];
+  if (typeof node === "string" || typeof node === "number") return [String(node)];
+  const { type, props } = node as { type: unknown; props: Record<string, unknown> };
+  if (type === TOOLBAR_FRAGMENT) return expandToolbar(props.children);
+  if (typeof type === "function") return expandToolbar((type as ToolbarComponent)(props));
+  const { children, ...attrs } = props;
+  return [{ tag: String(type), attrs, children: expandToolbar(children) }];
+}
+
+function toolbarText(node: ToolbarNode | string): string {
+  return typeof node === "string" ? node : node.children.map(toolbarText).join("");
+}
+
+function renderToolbar(SelectionToolbar: ToolbarComponent, selectedCount: number, onClearSelection: () => void) {
+  const nodes = expandToolbar(SelectionToolbar({ selectedCount, onClearSelection, children: DEFAULT_TOOLBAR }));
+  assert.equal(nodes.length, 1, "the toolbar slot renders exactly one root");
+  const root = nodes[0] as ToolbarNode;
+  const button = root.children.find((child): child is ToolbarNode => typeof child !== "string" && child.tag === "button");
+  return { root, isDefault: root.attrs["data-default-toolbar"] === "true", text: toolbarText(root), button };
+}
+
+// The clear control focuses the page selector of its own collection (its `section`).
+function clickEvent(log: string[]) {
+  return {
+    currentTarget: {
+      closest: (selector: string) => {
+        log.push(`closest ${selector}`);
+        return {
+          querySelector: (query: string) => {
+            log.push(`query ${query}`);
+            return { focus: () => log.push("focus") };
+          },
+        };
+      },
+    },
+  };
+}
+
+test("C07 · DefaultToolbar ⇄ SelectionToolbar follows selectedCount on the one C06 owner", () => {
+  const SelectionToolbar = loadToolbar();
+  const view = mount(PAGE_1);
+  const log: string[] = [];
+  const onClear = () => {
+    log.push("clear");
+    view.current.clearSelection();
+  };
+  const show = () => renderToolbar(SelectionToolbar, view.current.selectedCount, onClear);
+
+  const idle = show();
+  assert.equal(idle.isDefault, true, "0 selected → DefaultToolbar, rendered as given");
+  assert.equal(idle.text, "Todos los eventos");
+
+  view.act((selection) => selection.select(102));
+  const one = show();
+  assert.equal(one.isDefault, false, "1 selected → SelectionToolbar takes the slot");
+  assert.deepEqual(
+    { tag: one.root.tag, role: one.root.attrs.role, label: one.root.attrs["aria-label"], marker: one.root.attrs["data-selection-toolbar"] },
+    { tag: "div", role: "group", label: "Selección", marker: "true" },
+  );
+  assert.equal(one.text.startsWith("1 seleccionado"), true);
+  assert.equal(one.text.includes("1 seleccionados"), false);
+  assert.deepEqual(
+    { type: one.button?.attrs.type, label: one.button?.attrs["aria-label"], text: one.button && toolbarText(one.button) },
+    { type: "button", label: "Limpiar selección", text: "Limpiar" },
+  );
+  const counter = one.root.children[0] as ToolbarNode;
+  assert.equal(counter.attrs["aria-live"], "polite", "the count is announced politely");
+
+  view.act((selection) => selection.select(101));
+  view.act((selection) => selection.select(103));
+  assert.equal(show().text.startsWith("3 seleccionados"), true, "several selected → exact count");
+
+  // Paging keeps the selection by ID, so the toolbar stays while the count is > 0.
+  view.rerender(PAGE_2);
+  assert.equal(show().text.startsWith("3 seleccionados"), true);
+  view.act((selection) => selection.select(104));
+  const crossPage = show();
+  assert.equal(crossPage.text.startsWith("4 seleccionados"), true);
+
+  view.act(() => (crossPage.button!.attrs.onClick as (event: unknown) => void)(clickEvent(log)));
+  assert.equal(view.current.selectedCount, 0, "clearing empties the whole owner, on and off the page");
+  assert.deepEqual([...view.current.selectedIds], []);
+  view.rerender(PAGE_1);
+  assert.equal(view.current.allVisibleSelected || view.current.someVisibleSelected, false);
+  assert.equal(show().isDefault, true, "cleared → back to DefaultToolbar");
+  assert.deepEqual(log, ["closest section", "clear", 'query [data-collection-selection="page"]:not(:disabled)', "focus"],
+    "focus moves to the page selector after the owner is cleared");
+});
+
+test("C07 · clearing without a page selector in reach still clears and never throws", () => {
+  const SelectionToolbar = loadToolbar();
+  let cleared = 0;
+  const { button } = renderToolbar(SelectionToolbar, 2, () => (cleared += 1));
+  (button!.attrs.onClick as (event: unknown) => void)({ currentTarget: { closest: () => null } });
+  assert.equal(cleared, 1);
+});
+
+type ToolbarFlags = {
+  defaultAtZero: boolean;
+  selectionAtOne: boolean;
+  countFollowsSelectedCount: boolean;
+  clearCallsOwner: boolean;
+  focusAfterClear: boolean;
+};
+
+function toolbarFlags(source: string): ToolbarFlags {
+  const SelectionToolbar = loadToolbar(source);
+  const noop = () => {};
+  const log: string[] = [];
+  const seven = renderToolbar(SelectionToolbar, 7, () => log.push("clear"));
+  if (seven.button) (seven.button.attrs.onClick as (event: unknown) => void)(clickEvent(log));
+  return {
+    defaultAtZero: renderToolbar(SelectionToolbar, 0, noop).isDefault,
+    selectionAtOne: !renderToolbar(SelectionToolbar, 1, noop).isDefault,
+    countFollowsSelectedCount:
+      seven.text.startsWith("7 seleccionados") && renderToolbar(SelectionToolbar, 1, noop).text.startsWith("1 seleccionado"),
+    clearCallsOwner: log.includes("clear"),
+    focusAfterClear: log.includes("clear") && log.indexOf("focus") > log.indexOf("clear"),
+  };
+}
+
+test("C07 · in-memory mutations of the toolbar each break their contract flag", () => {
+  const source = read(TOOLBAR_PATH);
+  const intact = toolbarFlags(source);
+  assert.ok(Object.values(intact).every(Boolean), JSON.stringify(intact));
+
+  const swap = "if (selectedCount === 0) return <>{children}</>;";
+  const mutations: [keyof ToolbarFlags, string, string][] = [
+    ["defaultAtZero", swap, "if (selectedCount !== 0) return <>{children}</>;"],
+    ["selectionAtOne", swap, "if (selectedCount !== 0) return <>{children}</>;"],
+    ["defaultAtZero", swap, ""],
+    ["countFollowsSelectedCount", "`${selectedCount} seleccionados`", "`1 seleccionados`"],
+    ["clearCallsOwner", "    onClearSelection();\n", ""],
+    ["focusAfterClear", "?.focus();", "?.blur?.();"],
+  ];
+  for (const [flag, anchor, replacement] of mutations) {
+    assert.equal(source.split(anchor).length, 2, `${flag}: the mutation anchor must be unique`);
+    const flags = toolbarFlags(source.replace(anchor, () => replacement));
+    assert.equal(flags[flag], false, `${flag}: the mutated toolbar must break its contract`);
+  }
+});
