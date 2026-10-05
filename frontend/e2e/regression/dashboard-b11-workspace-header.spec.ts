@@ -1101,8 +1101,11 @@ test.describe("C06 · Auditoría mobile collection selection", () => {
         const strip = pageBoxes[0]?.closest("label")?.parentElement ?? null;
         const stripRect = strip?.getBoundingClientRect();
         const pageHit = pageBoxes[0]?.closest("label")?.getBoundingClientRect();
-        const stripChildren = strip ? [...strip.children].map((child) => child.getBoundingClientRect()) : [];
-        const filtersButton = strip?.querySelector("button")?.getBoundingClientRect();
+        const stripChildren = strip
+          ? [...strip.children].filter((child) => !child.matches('[data-selection-live="true"]')).map((child) => child.getBoundingClientRect())
+          : [];
+        const filtersButton = [...(strip?.querySelectorAll("button") ?? [])]
+          .find((button) => button.textContent?.trim() === "Filtros")?.getBoundingClientRect();
         return {
           items: items.length,
           pitch,
@@ -1142,6 +1145,277 @@ test.describe("C06 · Auditoría mobile collection selection", () => {
         expect(row.overlap, `${label} item ${index}: selector never overlaps Ver`).toBe(false);
         expect(row.viewVisible, `${label} item ${index}: Ver stays visible`).toBe(true);
       }
+      await expectNoOuterScroll(page, label);
+    });
+  }
+});
+
+// C07 · SelectionToolbar takes the DefaultToolbar's place inside the existing
+// header (table form) and mobile strip (list form) while the C06 owner has a
+// selection, and gives it back when cleared: no new band, no capacity change.
+test.describe("C07 · Auditoría contextual SelectionToolbar", () => {
+  const auditSurface = DASHBOARD_GEOMETRY_SURFACES.find((surface) => surface.id === "admin-auditoria");
+  if (!auditSurface) throw new Error("C07: missing canonical admin-auditoria surface");
+  const desktopCard = '#audit-log > section[aria-labelledby="admin-audit-register-title"]';
+  const desktopHeader = `${desktopCard} > header`;
+  const desktopRows = `${desktopCard} tbody[data-content-list="true"] > tr[data-content-list-item="true"]`;
+  const mobileModule = '[data-admin-mobile-ops-module="audit"]';
+  const mobileItems = `${mobileModule} [data-content-list="true"] > article[data-content-list-item="true"]`;
+
+  async function readHost(page: Page, hostSelector: string, canvasSelector: string) {
+    return page.locator(hostSelector).evaluate((host, canvas) => {
+      const rect = host.getBoundingClientRect();
+      const toolbar = host.querySelector<HTMLElement>('[data-selection-toolbar="true"]');
+      const clear = toolbar?.querySelector("button")?.getBoundingClientRect();
+      const count = toolbar?.querySelector<HTMLElement>("[data-selection-count]");
+      const live = host.querySelector<HTMLElement>('[data-selection-live="true"]');
+      const children = [...host.children].filter((child) => child !== live).map((child) => child.getBoundingClientRect()).filter((box) => box.width > 0);
+      return {
+        height: Math.round(rect.height * 100) / 100,
+        overflowX: host.scrollWidth - host.clientWidth,
+        canvasHeight: Math.round(document.querySelector(canvas)!.getBoundingClientRect().height * 100) / 100,
+        toolbar: Boolean(toolbar),
+        clear: clear ? [Math.round(clear.width), Math.round(clear.height)] : null,
+        countTruncated: count ? count.scrollWidth > count.clientWidth : null,
+        live: live ? { text: live.textContent, ariaLive: live.getAttribute("aria-live") } : null,
+        clearInside: Boolean(clear && clear.left >= rect.left - 0.5 && clear.right <= rect.right + 0.5 && clear.top >= rect.top - 0.5 && clear.bottom <= rect.bottom + 0.5),
+        overlap: children.some((box, index) => index > 0 && box.left < children[index - 1].right - 0.5),
+      };
+    }, canvasSelector);
+  }
+
+  test("swap, count, paging, keyboard clear and focus on the table form @ 1366x768", async ({ page }) => {
+    const label = "C07 admin-auditoria @ 1366x768";
+    await page.setViewportSize({ width: 1366, height: 768 });
+    await prepareSurface(page, auditSurface);
+    await openSurface(page, auditSurface);
+
+    const rows = page.locator(desktopRows);
+    await expect(rows.first()).toBeVisible();
+    const limit = await rows.count();
+    const boxes = rows.locator('input[data-collection-selection="item"]');
+    const header = page.locator(desktopHeader);
+    const toolbar = header.getByRole("group", { name: "Selección" });
+    const metrics = header.locator('[data-dashboard-b14-metrics="admin-audit"]');
+    const canvas = `${desktopCard} [data-dashboard-adaptive-rows-canvas="true"]`;
+    await expect(metrics).toBeVisible();
+    await expect(toolbar).toHaveCount(0);
+    const idle = await readHost(page, desktopHeader, canvas);
+    expect(idle.toolbar).toBe(false);
+    expect(idle.live, `${label}: the live region is mounted, empty, before the first selection`).toEqual({ text: "", ariaLive: "polite" });
+    const liveNode = await header.locator('[data-selection-live="true"]').elementHandle();
+
+    const requests: string[] = [];
+    page.on("request", (request) => requests.push(`${request.method()} ${request.url()}`));
+
+    await boxes.nth(0).click();
+    await expect(toolbar).toBeVisible();
+    await expect(toolbar).toContainText("1 seleccionado");
+    await expect(header.locator('[data-selection-live="true"]')).toHaveText("1 seleccionado");
+    expect(
+      await liveNode!.evaluate((node) => node.isConnected),
+      `${label}: the same live region node survives the swap (content change, not insertion)`,
+    ).toBe(true);
+    await expect(metrics).toHaveCount(0);
+    await expect(header.getByRole("heading", { name: "Registro operativo" })).toBeVisible();
+    await boxes.nth(1).click();
+    await expect(toolbar).toContainText("2 seleccionados");
+    const active = await readHost(page, desktopHeader, canvas);
+    expect(active.height, `${label}: the swap keeps the header height`).toBe(idle.height);
+    expect(active.canvasHeight, `${label}: the canvas keeps its height`).toBe(idle.canvasHeight);
+    expect(active.overflowX).toBeLessThanOrEqual(0);
+    expect(active.clearInside && !active.overlap, `${label}: clear control inside the header, no overlap`).toBe(true);
+    await expect(rows).toHaveCount(limit);
+    expect(requests, `${label}: the swap is local state, no request`).toEqual([]);
+
+    const axe = await new AxeBuilder({ page })
+      .include(desktopCard)
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+      .analyze();
+    expect(axe.violations.map((violation) => `${violation.id}: ${violation.nodes.length}`), `${label}: axe`).toEqual([]);
+
+    // Paging keeps the selection by ID: the toolbar stays and counts off-page IDs.
+    const range = page.locator(`${desktopCard} footer span[aria-live="polite"]`);
+    const firstRange = (await range.textContent())?.trim() ?? "";
+    const firstName = (await boxes.nth(0).getAttribute("aria-label")) ?? "";
+    await page.locator(`${desktopCard} footer`).getByRole("button", { name: "Página siguiente" }).click();
+    await expect(range).not.toHaveText(firstRange);
+    await expect(page.getByRole("checkbox", { name: firstName, exact: true })).toHaveCount(0);
+    await expect(rows).toHaveCount(limit);
+    await expect(toolbar).toContainText("2 seleccionados");
+    await boxes.nth(0).click();
+    await expect(toolbar).toContainText("3 seleccionados");
+
+    // Keyboard: the clear control is reachable in Tab order, focus-visible, and Enter clears the owner.
+    await boxes.nth(0).focus();
+    const clear = toolbar.getByRole("button", { name: "Limpiar selección" });
+    for (let step = 0; step < 40 && !(await clear.evaluate((button) => button === document.activeElement)); step += 1) {
+      await page.keyboard.press("Shift+Tab");
+    }
+    await expect(clear).toBeFocused();
+    expect(await clear.evaluate((button) => button.matches(":focus-visible"))).toBe(true);
+    requests.length = 0;
+    await page.keyboard.press("Enter");
+    await expect(toolbar).toHaveCount(0);
+    await expect(metrics).toBeVisible();
+    await expect(page.locator(`${desktopCard} thead input[data-collection-selection="page"]`)).toBeFocused();
+    expect(await page.evaluate(() => document.activeElement !== document.body)).toBe(true);
+    expect(await boxes.evaluateAll((inputs) => inputs.filter((input) => (input as HTMLInputElement).checked).length)).toBe(0);
+    expect((await readHost(page, desktopHeader, canvas)).height).toBe(idle.height);
+    expect(requests, `${label}: clearing is local state, no request`).toEqual([]);
+
+    // The clear covered the IDs selected on the other page as well.
+    await page.locator(`${desktopCard} footer`).getByRole("button", { name: "Página anterior" }).click();
+    await expect(range).toHaveText(firstRange);
+    await expect(page.getByRole("checkbox", { name: firstName, exact: true })).not.toBeChecked();
+    await expect(toolbar).toHaveCount(0);
+    await expect(rows).toHaveCount(limit);
+    await expectNoOuterScroll(page, label);
+  });
+
+  for (const slug of ["w1920x1080", "w1280x720", "w1024x768", "w834x1194", "w768x1024"] as const) {
+    const viewport = DASHBOARD_GEOMETRY_VIEWPORTS.find((candidate) => candidate.slug === slug);
+    if (!viewport) throw new Error(`C07: missing canonical viewport ${slug}`);
+
+    test(`table-form swap keeps the header and canvas @ ${viewport.width}x${viewport.height}`, async ({ page }) => {
+      const label = `C07 admin-auditoria @ ${viewport.width}x${viewport.height}`;
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      await prepareSurface(page, auditSurface);
+      await openSurface(page, auditSurface);
+      const rows = page.locator(desktopRows);
+      await expect(rows.first()).toBeVisible();
+      const limit = await rows.count();
+      const canvas = `${desktopCard} [data-dashboard-adaptive-rows-canvas="true"]`;
+      const idle = await readHost(page, desktopHeader, canvas);
+      await rows.locator('input[data-collection-selection="item"]').first().click();
+      await expect(page.locator(`${desktopHeader} [data-selection-toolbar="true"]`)).toBeVisible();
+      const active = await readHost(page, desktopHeader, canvas);
+      console.log(`[C07] ${label}: ${JSON.stringify({ idle, active })}`);
+      expect(active.height, `${label}: header height`).toBe(idle.height);
+      expect(active.canvasHeight, `${label}: canvas height`).toBe(idle.canvasHeight);
+      expect(active.overflowX, `${label}: no horizontal overflow`).toBeLessThanOrEqual(0);
+      expect(active.clearInside, `${label}: clear control inside the header`).toBe(true);
+      expect(active.overlap, `${label}: no overlap`).toBe(false);
+      expect(active.clear![1], `${label}: 32px toolbar action`).toBe(32);
+      expect(active.countTruncated, `${label}: the count is legible`).toBe(false);
+      await expect(rows).toHaveCount(limit);
+      await page.getByRole("button", { name: "Limpiar selección" }).click();
+      await expect(page.locator(`${desktopHeader} [data-selection-toolbar="true"]`)).toHaveCount(0);
+      expect(await readHost(page, desktopHeader, canvas)).toEqual(idle);
+      await expectNoOuterScroll(page, label);
+    });
+  }
+
+  test("swap, count, keyboard clear and focus on the mobile strip @ 390x844", async ({ page }) => {
+    const label = "C07 mobile admin-auditoria @ 390x844";
+    await page.setViewportSize({ width: 390, height: 844 });
+    await prepareSurface(page, auditSurface);
+    await openSurface(page, auditSurface);
+
+    const items = page.locator(mobileItems);
+    await expect(items.first()).toBeVisible();
+    const limit = await items.count();
+    const boxes = items.locator('input[data-collection-selection="item"]');
+    const pageBox = page.getByRole("checkbox", { name: "Seleccionar los eventos de esta página" });
+    const strip = `${mobileModule} label:has(> input[data-collection-selection="page"])`;
+    const toolbar = page.locator(mobileModule).getByRole("group", { name: "Selección" });
+    const filtros = page.locator(mobileModule).getByRole("button", { name: "Filtros", exact: true });
+    const canvas = `${mobileModule} [data-content-list="true"]`;
+    const host = `${strip} >> xpath=..`;
+    const defaultToolbar = page.locator(host).getByText("Todos los eventos", { exact: true });
+    await expect(toolbar).toHaveCount(0);
+    await expect(defaultToolbar).toBeVisible();
+    const idle = await readHost(page, host, canvas);
+
+    const requests: string[] = [];
+    page.on("request", (request) => requests.push(`${request.method()} ${request.url()}`));
+    const urlBefore = page.url();
+
+    await boxes.nth(0).click();
+    await boxes.nth(1).click();
+    await expect(toolbar).toBeVisible();
+    await expect(toolbar).toContainText("2 seleccionados");
+    await expect(defaultToolbar).toHaveCount(0);
+    await expect(filtros).toBeVisible();
+    await expect(pageBox).toBeVisible();
+    const active = await readHost(page, host, canvas);
+    expect(active.height, `${label}: the strip keeps its height`).toBe(idle.height);
+    expect(active.canvasHeight, `${label}: the canvas keeps its height`).toBe(idle.canvasHeight);
+    expect(active.clear![1], `${label}: 44px touch target below 768`).toBe(44);
+    expect(active.clear![0], `${label}: 44px touch target below 768`).toBeGreaterThanOrEqual(44);
+    expect(idle.live, `${label}: the live region is mounted, empty, before the first selection`).toEqual({ text: "", ariaLive: "polite" });
+    expect(active.live).toEqual({ text: "2 seleccionados", ariaLive: "polite" });
+    await expect(items).toHaveCount(limit);
+
+    const axe = await new AxeBuilder({ page })
+      .include(mobileModule)
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+      .analyze();
+    expect(axe.violations.map((violation) => `${violation.id}: ${violation.nodes.length}`), `${label}: axe`).toEqual([]);
+
+    // Tab order in the strip: page selector → clear → Filtros; Enter clears and focus returns to the page selector.
+    await pageBox.focus();
+    await page.keyboard.press("Tab");
+    const clear = toolbar.getByRole("button", { name: "Limpiar selección" });
+    await expect(clear).toBeFocused();
+    expect(await clear.evaluate((button) => button.matches(":focus-visible"))).toBe(true);
+    await page.keyboard.press("Tab");
+    await expect(filtros).toBeFocused();
+    await page.keyboard.press("Shift+Tab");
+    await expect(clear).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(toolbar).toHaveCount(0);
+    await expect(pageBox).toBeFocused();
+    await expect(defaultToolbar).toBeVisible();
+    expect(await boxes.evaluateAll((inputs) => inputs.filter((input) => (input as HTMLInputElement).checked).length)).toBe(0);
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    expect(page.url(), `${label}: no filter submit or navigation`).toBe(urlBefore);
+    expect(requests, `${label}: swap and clear are local state, no request`).toEqual([]);
+    expect(await readHost(page, host, canvas)).toEqual(idle);
+
+    // Page selection drives the same toolbar; it persists across pages while the count is > 0.
+    await pageBox.click();
+    await expect(toolbar).toContainText(`${limit} seleccionado`);
+    const pager = page.locator(`${mobileModule} nav[data-admin-mobile-ops-pager="true"]`);
+    await pager.getByRole("button", { name: "Siguiente" }).click();
+    await expect(pageBox).not.toBeChecked();
+    await expect(toolbar).toContainText(`${limit} seleccionado`);
+    await toolbar.getByRole("button", { name: "Limpiar selección" }).click();
+    await expect(toolbar).toHaveCount(0);
+    await pager.getByRole("button", { name: "Anterior" }).click();
+    await expect(items).toHaveCount(limit);
+    expect(await boxes.evaluateAll((inputs) => inputs.filter((input) => (input as HTMLInputElement).checked).length)).toBe(0);
+    await expectNoOuterScroll(page, label);
+  });
+
+  for (const [width, height] of [[320, 568], [360, 800], [375, 812], [412, 915], [430, 932], [767, 1024]] as const) {
+    test(`mobile strip swap fits without a new band @ ${width}x${height}`, async ({ page }) => {
+      const label = `C07 mobile admin-auditoria @ ${width}x${height}`;
+      await page.setViewportSize({ width, height });
+      await prepareSurface(page, auditSurface);
+      await openSurface(page, auditSurface);
+      const items = page.locator(mobileItems);
+      await expect(items.first()).toBeVisible();
+      const limit = await items.count();
+      const host = `${mobileModule} label:has(> input[data-collection-selection="page"]) >> xpath=..`;
+      const canvas = `${mobileModule} [data-content-list="true"]`;
+      const idle = await readHost(page, host, canvas);
+      await items.locator('input[data-collection-selection="item"]').first().click();
+      const toolbar = page.locator(mobileModule).getByRole("group", { name: "Selección" });
+      await expect(toolbar).toContainText("1 seleccionado");
+      const active = await readHost(page, host, canvas);
+      console.log(`[C07 mobile] ${label}: ${JSON.stringify({ idle, active })}`);
+      expect(active.height, `${label}: the strip keeps its 53px height`).toBe(53);
+      expect(active.height).toBe(idle.height);
+      expect(active.canvasHeight, `${label}: canvas height`).toBe(idle.canvasHeight);
+      expect(active.overflowX, `${label}: no horizontal overflow`).toBeLessThanOrEqual(0);
+      expect(active.overlap, `${label}: strip controls never overlap`).toBe(false);
+      expect(active.clearInside, `${label}: clear control inside the strip`).toBe(true);
+      expect(active.clear![1], `${label}: 44px touch target`).toBe(44);
+      expect(active.clear![0], `${label}: 44px touch target`).toBeGreaterThanOrEqual(44);
+      expect(active.countTruncated, `${label}: the count is legible`).toBe(false);
+      await expect(page.locator(mobileModule).getByRole("button", { name: "Filtros", exact: true })).toBeVisible();
+      await expect(items).toHaveCount(limit);
       await expectNoOuterScroll(page, label);
     });
   }

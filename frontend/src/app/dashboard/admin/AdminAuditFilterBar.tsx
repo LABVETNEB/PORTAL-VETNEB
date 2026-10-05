@@ -42,6 +42,8 @@ type AdminAuditFilterBarProps = {
   };
   /** Presentational slot at the start of the mobile strip, outside the filter form. */
   leadingSlot?: ReactNode;
+  /** Hosts the strip's default toolbar so a contextual toolbar can take its place. */
+  renderToolbar?: (defaultToolbar: ReactNode) => ReactNode;
 };
 
 type FilterFormProps = AdminAuditFilterBarProps & {
@@ -144,27 +146,30 @@ function FilterForm({
 }
 
 export function AdminAuditFilterBar(props: AdminAuditFilterBarProps) {
+  const defaultToolbar = (
+    <div className="flex min-w-0 flex-1 items-baseline gap-1.5 text-xs text-muted-foreground">
+      <span className="min-w-0 truncate">
+        {props.hasActiveFilters ? "Filtros activos" : "Todos los eventos"}
+      </span>
+      {props.metrics ? (
+        <ModuleMetricRun
+          surfaceId="admin-audit"
+          metricAttribute="data-admin-audit-metric"
+          metrics={[
+            { key: "eventos", value: props.metrics.events, label: "eventos" },
+            { key: "roles", value: props.metrics.roleChanges, label: "roles" },
+            { key: "avisos", value: props.metrics.notifications, label: "avisos" },
+          ]}
+        />
+      ) : null}
+    </div>
+  );
   return (
     <>
       <FilterForm {...props} />
       <div className="flex shrink-0 items-center justify-between gap-2 border-b border-vetneb-line/70 px-3 py-1.5 md:hidden">
         {props.leadingSlot}
-        <div className="flex min-w-0 flex-1 items-baseline gap-1.5 text-xs text-muted-foreground">
-          <span className="min-w-0 truncate">
-            {props.hasActiveFilters ? "Filtros activos" : "Todos los eventos"}
-          </span>
-          {props.metrics ? (
-            <ModuleMetricRun
-              surfaceId="admin-audit"
-              metricAttribute="data-admin-audit-metric"
-              metrics={[
-                { key: "eventos", value: props.metrics.events, label: "eventos" },
-                { key: "roles", value: props.metrics.roleChanges, label: "roles" },
-                { key: "avisos", value: props.metrics.notifications, label: "avisos" },
-              ]}
-            />
-          ) : null}
-        </div>
+        {props.renderToolbar ? props.renderToolbar(defaultToolbar) : defaultToolbar}
         <ModuleDialog
           title="Filtrar auditoría"
           description="Los filtros se aplican sobre el registro completo."

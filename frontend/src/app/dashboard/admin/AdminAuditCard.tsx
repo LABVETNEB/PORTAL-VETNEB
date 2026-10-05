@@ -19,6 +19,7 @@ import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
 import { DASHBOARD_PAGER_RESERVATION } from "@/components/dashboard/DashboardPager";
 import {
   CollectionWorkspace,
+  SelectionToolbar,
   useCollectionSelection,
 } from "@/features/dashboard/presentation/surfaces";
 
@@ -247,6 +248,7 @@ export function AdminAuditCard({
             Acción, actor, entidad y fecha con detalle controlado.
           </p>
         </div>
+        <SelectionToolbar selectedCount={selection.selectedCount} onClearSelection={selection.clearSelection}>
         <div
           data-dashboard-b14-metrics="admin-audit"
           className="grid min-w-0 flex-1 grid-cols-3 divide-x divide-vetneb-line/70"
@@ -272,6 +274,7 @@ export function AdminAuditCard({
         <span className="shrink-0 text-xs font-medium text-muted-foreground">
           {totalCount} coincidencias
         </span>
+        </SelectionToolbar>
       </header>
 
       <AdminAuditFilterBar

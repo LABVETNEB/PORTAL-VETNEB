@@ -391,8 +391,8 @@ test("C01 · Auditoría adopts the table and list forms without moving capacity,
   assert.deepEqual(consumers.sort(), [C01_AUDIT_CARD, C01_AUDIT_TABLE, C01_AUDIT_MOBILE].sort());
   for (const path of sourceFiles("frontend/src")) {
     const source = read(path);
-    // C02 landed CollectionPager and C06 useCollectionSelection; their fences live in their blocks below.
-    for (const later of ["CollectionEmptyState", "SelectionToolbar", "aria-sort"]) {
+    // C02 landed CollectionPager, C06 useCollectionSelection and C07 SelectionToolbar; their fences live in their blocks below.
+    for (const later of ["CollectionEmptyState", "aria-sort"]) {
       assert.equal(source.includes(later), false, `${path}: ${later} belongs to C03+`);
     }
   }
@@ -489,7 +489,7 @@ test("C02 · consumers keep their adapters and capacity owners; C03+ and C05 geo
 
   for (const path of sourceFiles("frontend/src")) {
     const source = read(path);
-    for (const later of ["CollectionEmptyState", "SelectionToolbar", "BulkActionMenu", "aria-sort"]) {
+    for (const later of ["CollectionEmptyState", "BulkActionMenu", "aria-sort"]) {
       assert.equal(source.includes(later), false, `${path}: ${later} is outside C02`);
     }
   }
@@ -596,7 +596,7 @@ test("C03 · consumers keep the legacy adapters; C01/C02 owners, capacity and C0
 
   for (const path of sourceFiles("frontend/src")) {
     const source = read(path);
-    for (const later of ["CollectionEmptyState", "SelectionToolbar", "BulkActionMenu", "aria-sort"]) {
+    for (const later of ["CollectionEmptyState", "BulkActionMenu", "aria-sort"]) {
       assert.equal(source.includes(later), false, `${path}: ${later} is outside C03`);
     }
   }
@@ -735,9 +735,11 @@ test("C06 · Auditoría adopts selection on its table by event ID without touchi
   ]) {
     assert.ok(mobile.includes(required), `mobile list keeps ${required}`);
   }
-  for (const forbidden of ["index", "aria-selected", "aria-checked", "onKeyDown", "stopPropagation", "clearSelection"]) {
+  for (const forbidden of ["index", "aria-selected", "aria-checked", "onKeyDown", "stopPropagation"]) {
     assert.equal(mobile.includes(forbidden), false, `mobile list must not own ${forbidden}`);
   }
+  // C07 hands clearSelection to the SelectionToolbar only; its wiring is pinned by the C07 block.
+  assert.equal((mobile.match(/clearSelection/g) ?? []).length, 1, "the mobile list never clears the selection itself");
 
   // The mobile page checkbox is hosted by the existing strip as a presentational
   // slot, outside the S1 form and with no selection logic inside S1.
@@ -751,11 +753,11 @@ test("C06 · Auditoría adopts selection on its table by event ID without touchi
   assert.equal(read("frontend/src/app/dashboard/admin/AdminMobileOpsPager.tsx").includes("selection"), false, "the shared pager never hosts selection");
 });
 
-test("C06 · C04, C05 and C07+ stay unstarted around the selection owner", () => {
+test("C06 · C04, C05 and C08+ stay unstarted around the selection owner", () => {
   for (const path of sourceFiles("frontend/src")) {
     const source = read(path);
-    for (const later of ["SelectionToolbar", "BulkActionMenu", "OverflowMenu", "ContextMenu", "SubMenu", "aria-sort"]) {
-      assert.equal(source.includes(later), false, `${path}: ${later} is outside C06`);
+    for (const later of ["BulkActionMenu", "OverflowMenu", "ContextMenu", "SubMenu", "aria-sort"]) {
+      assert.equal(source.includes(later), false, `${path}: ${later} is outside C06/C07`);
     }
   }
   const css = readDashboardCssSource();
@@ -770,4 +772,102 @@ test("C06 · C04, C05 and C07+ stay unstarted around the selection owner", () =>
   assert.equal(/data-collection-selection|\[data-state="?selected|--dash-selection|--dash-collection-row/.test(css), false,
     "C06 adds no CSS: the row skin already styles data-state=selected");
   assert.ok(read(C01_TABLE).includes("data-[state=selected]:bg-vetneb-teal/10"), "the existing TableRow skin is the selected affordance");
+});
+
+const C07_OWNER = "frontend/src/features/dashboard/presentation/surfaces/SelectionToolbar.tsx";
+const C07_FILTER_BAR = "frontend/src/app/dashboard/admin/AdminAuditFilterBar.tsx";
+const C07_WIRING = "<SelectionToolbar selectedCount={selection.selectedCount} onClearSelection={selection.clearSelection}>";
+const C07_STRIP_SLOT = "{props.renderToolbar ? props.renderToolbar(defaultToolbar) : defaultToolbar}";
+
+/** Swap wiring Auditoría must keep: inside the existing header and mobile strip, on the C06 owner. */
+function c07AdopterViolations(card: string, mobile: string, filterBar: string): string[] {
+  const violations: string[] = [];
+  const desktop = stripComments(card);
+  if ((desktop.match(/<SelectionToolbar\b/g) ?? []).length !== 1 || !desktop.includes(C07_WIRING)) violations.push("desktop wiring");
+  const header = desktop.slice(desktop.indexOf('<header className="flex min-h-12 '), desktop.indexOf("</header>"));
+  const swap = header.slice(header.indexOf(C07_WIRING), header.indexOf("</SelectionToolbar>"));
+  if (!header.includes(C07_WIRING) || !swap.includes('data-dashboard-b14-metrics="admin-audit"') || !swap.includes("{totalCount} coincidencias")) {
+    violations.push("desktop DefaultToolbar is not swapped inside the existing header");
+  }
+  if (swap.includes("admin-audit-register-title")) violations.push("the section heading must stay outside the swap");
+
+  const list = stripComments(mobile);
+  if ((list.match(/<SelectionToolbar\b/g) ?? []).length !== 1
+    || !list.includes(`renderToolbar={(defaultToolbar) => (\n          ${C07_WIRING}\n            {defaultToolbar}\n          </SelectionToolbar>`)) {
+    violations.push("mobile wiring");
+  }
+
+  const bar = stripComments(filterBar);
+  const strip = bar.slice(bar.indexOf("export function AdminAuditFilterBar("));
+  if ((bar.match(/props\.renderToolbar\b/g) ?? []).length !== 2 || !strip.includes(C07_STRIP_SLOT)) violations.push("strip slot");
+  if (strip.indexOf("<FilterForm {...props} />") > strip.indexOf(C07_STRIP_SLOT)) violations.push("the slot must render after, not inside, the S1 form");
+  if (strip.indexOf("{props.leadingSlot}") > strip.indexOf(C07_STRIP_SLOT) || strip.indexOf(C07_STRIP_SLOT) > strip.indexOf("<ModuleDialog")) {
+    violations.push("the swap takes the default toolbar's place between the page selector and Filtros");
+  }
+  for (const forbidden of ["selection", "SelectionToolbar"]) {
+    if (bar.includes(forbidden)) violations.push(`S1 owns ${forbidden}`);
+  }
+  return violations;
+}
+
+test("C07 · SelectionToolbar is the single contextual toolbar owner and publishes through surfaces", () => {
+  const owner = read(C07_OWNER);
+  assert.ok(owner.startsWith('"use client";\n'), "the toolbar handles clicks: a client boundary of its own");
+  assert.equal((owner.match(/export function SelectionToolbar\(/g) ?? []).length, 1);
+  const owners = sourceFiles("frontend/src").filter((path) => /function SelectionToolbar\b|\bSelectionToolbar\s*=/.test(read(path)));
+  assert.deepEqual(owners, [C07_OWNER], "one contextual toolbar, no per-module duplicate");
+  const consumers = sourceFiles("frontend/src").filter((path) => /<SelectionToolbar\b/.test(read(path))).sort();
+  assert.deepEqual(consumers, [C01_AUDIT_CARD, C01_AUDIT_MOBILE].sort(), "C07 is not the C17+ migration");
+  assert.ok(read(C01_SURFACES_BARREL).includes('export { SelectionToolbar, type SelectionToolbarProps } from "./SelectionToolbar";'));
+  assert.ok(owner.includes("export type SelectionToolbarProps = {"));
+});
+
+test("C07 · the toolbar reads selectedCount and clearSelection only: no state, data, paging, geometry or menus", () => {
+  const code = stripComments(read(C07_OWNER));
+  const imports = [...code.matchAll(/^import (?:type )?.* from "([^"]+)";$/gm)].map((match) => match[1]);
+  assert.deepEqual(imports, ["react", "lucide-react", "@/components/ui/button"]);
+  for (const forbidden of [
+    "useState", "useEffect", "useLayoutEffect", "useRef", "useReducer", "useMemo", "useCallback", "useCollectionSelection",
+    "CollectionSelection", "selectedIds", "fetch(", "@/lib/api", "@/app/", "next/navigation", "Pager", "limit", "offset",
+    "aria-sort", "onSort", "BulkActionMenu", "OverflowMenu", "ContextMenu", "ActionMenu", "SubMenu", "aria-haspopup",
+    'role="menu', 'role="toolbar"', "tabIndex", "onKeyDown", "style=", "setTimeout", "h-12",
+  ]) {
+    assert.equal(code.includes(forbidden), false, `SelectionToolbar must not own ${forbidden}`);
+  }
+  assert.equal((code.match(/\{selectedCount === 0 \? \(\s*children\s*\) : \(/g) ?? []).length, 1, "DefaultToolbar renders unchanged at 0");
+  assert.equal((code.match(/onClearSelection\(\);/g) ?? []).length, 1, "the clear control calls the C06 owner as given");
+  assert.equal((code.match(/role="group"/g) ?? []).length, 1);
+  assert.equal((code.match(/aria-live="polite"/g) ?? []).length, 1, "one persistent live region, never a second one");
+  assert.ok(code.includes('{selectedCount === 0 ? "" : count}'), "the live region is mounted at 0 and only its text changes");
+  assert.ok(code.indexOf('aria-live="polite"') > code.indexOf("</div>\n      )}"), "the live region sits outside the swapped branch");
+  assert.ok(code.includes("-my-0.5 h-11 min-h-11 min-w-11"), "44px touch target below md without growing the host");
+  assert.ok(code.includes("if (toolbar?.contains(target)) continue;") && code.includes('if (target.matches(":focus")) break;'),
+    "focus falls back to a control that really takes it, never to the toolbar's own button");
+  assert.ok(code.includes('aria-label="Limpiar selección"') && code.includes('type="button"'));
+  assert.equal(/data-selection-toolbar/.test(readDashboardCssSource()), false, "C07 adds no CSS or geometry token");
+});
+
+test("C07 · Auditoría swaps its DefaultToolbar in place on the C06 owner, desktop and mobile", () => {
+  const card = read(C01_AUDIT_CARD);
+  const mobile = read(C01_AUDIT_MOBILE);
+  const filterBar = read(C07_FILTER_BAR);
+  assert.deepEqual(c07AdopterViolations(card, mobile, filterBar), []);
+  assert.ok(card.includes('<header className="flex min-h-12 shrink-0 items-center gap-3 border-b border-vetneb-line/70 px-3 py-2 sm:px-4">'),
+    "the header reservation is unchanged");
+
+  // In-memory mutations of the adopters must be rejected by the same check.
+  const closing = "          {totalCount} coincidencias\n        </span>\n        </SelectionToolbar>";
+  for (const [target, anchor, replacement] of [
+    ["card", "selectedCount={selection.selectedCount}", "selectedCount={0}"],
+    ["card", "onClearSelection={selection.clearSelection}", "onClearSelection={() => undefined}"],
+    ["card", closing, `${closing}\n        <SelectionToolbar selectedCount={0} onClearSelection={() => undefined}>{null}</SelectionToolbar>`],
+    ["mobile", "selectedCount={selection.selectedCount}", "selectedCount={useCollectionSelection({ visibleIds: [] }).selectedCount}"],
+    ["mobile", "            {defaultToolbar}\n", "            {null}\n"],
+    ["filterBar", C07_STRIP_SLOT, "{defaultToolbar}"],
+  ] as const) {
+    const sources: Record<"card" | "mobile" | "filterBar", string> = { card, mobile, filterBar };
+    assert.equal(sources[target].split(anchor).length, 2, `unique ${target} anchor: ${anchor}`);
+    sources[target] = sources[target].replace(anchor, () => replacement);
+    assert.notDeepEqual(c07AdopterViolations(sources.card, sources.mobile, sources.filterBar), [], `mutation must be rejected: ${replacement}`);
+  }
 });

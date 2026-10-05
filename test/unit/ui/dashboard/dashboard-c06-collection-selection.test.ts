@@ -342,3 +342,243 @@ test("C06 · in-memory mutations of the owner each break their contract flag", (
     assert.equal(flags[flag], false, `${flag}: the mutated owner must break its contract`);
   }
 });
+
+// ── C07 · SelectionToolbar on the C06 owner ──────────────────────────────────
+// The toolbar module runs as written against a createElement-recording stub and
+// is fed by the real hook above, so the swap, the counter and clearing are
+// observed on the one owner, not on a fake selection.
+
+const TOOLBAR_PATH = "frontend/src/features/dashboard/presentation/surfaces/SelectionToolbar.tsx";
+
+type ToolbarNode = { tag: string; attrs: Record<string, unknown>; children: (ToolbarNode | string)[] };
+type ToolbarComponent = (props: Record<string, unknown>) => unknown;
+
+const TOOLBAR_FRAGMENT = Symbol("Fragment");
+const TOOLBAR_REACT = {
+  Fragment: TOOLBAR_FRAGMENT,
+  createElement: (type: unknown, props: Record<string, unknown> | null, ...children: unknown[]) => ({
+    type,
+    props: { ...props, children },
+  }),
+};
+const TOOLBAR_IMPORTS = {
+  "lucide-react": { X: (props: Record<string, unknown>) => TOOLBAR_REACT.createElement("svg", { ...props, "data-icon": "x" }) },
+  "@/components/ui/button": {
+    Button: ({ children, ...props }: Record<string, unknown>) => TOOLBAR_REACT.createElement("button", props, children),
+  },
+};
+const DEFAULT_TOOLBAR = TOOLBAR_REACT.createElement("div", { "data-default-toolbar": "true" }, "Todos los eventos");
+
+function loadToolbar(source = read(TOOLBAR_PATH)): ToolbarComponent {
+  return runModule(parseTsx(source, TOOLBAR_PATH), TOOLBAR_IMPORTS, { React: TOOLBAR_REACT })
+    .SelectionToolbar as ToolbarComponent;
+}
+
+function expandToolbar(node: unknown): (ToolbarNode | string)[] {
+  if (Array.isArray(node)) return node.flatMap((entry) => expandToolbar(entry));
+  if (node === null || node === undefined || node === false || node === "") return [];
+  if (typeof node === "string" || typeof node === "number") return [String(node)];
+  const { type, props } = node as { type: unknown; props: Record<string, unknown> };
+  if (type === TOOLBAR_FRAGMENT) return expandToolbar(props.children);
+  if (typeof type === "function") return expandToolbar((type as ToolbarComponent)(props));
+  const { children, ...attrs } = props;
+  return [{ tag: String(type), attrs, children: expandToolbar(children) }];
+}
+
+function toolbarText(node: ToolbarNode | string): string {
+  return typeof node === "string" ? node : node.children.map(toolbarText).join("");
+}
+
+function renderToolbar(SelectionToolbar: ToolbarComponent, selectedCount: number, onClearSelection: () => void) {
+  const nodes = expandToolbar(SelectionToolbar({ selectedCount, onClearSelection, children: DEFAULT_TOOLBAR }));
+  assert.equal(nodes.length, 2, "the toolbar slot is the swapped region plus one persistent live region");
+  const root = nodes[0] as ToolbarNode;
+  const live = nodes[1] as ToolbarNode;
+  const button = root.children.find((child): child is ToolbarNode => typeof child !== "string" && child.tag === "button");
+  return { root, live, isDefault: root.attrs["data-default-toolbar"] === "true", text: toolbarText(root), button };
+}
+
+type FakeControl = { name: string; focusable: boolean };
+
+// The clear control moves focus inside its own collection (`section`): the enabled page selector
+// first, then the first other control that really takes focus; the toolbar's own controls are skipped.
+function clickEvent(log: string[], page: FakeControl[] = [{ name: "page", focusable: true }], others: FakeControl[] = []) {
+  let focused = "";
+  const toolbarControl = { name: "clear", focus: () => log.push("focus clear"), matches: () => false };
+  const element = ({ name, focusable }: FakeControl) => ({
+    name,
+    focus: () => {
+      log.push(`focus ${name}`);
+      if (focusable) focused = name;
+    },
+    matches: () => focused === name,
+  });
+  const toolbar = { contains: (target: { name: string }) => target === toolbarControl };
+  const collection = {
+    querySelectorAll: (query: string) => {
+      log.push(`query ${query}`);
+      if (query.includes("data-collection-selection")) return page.map(element);
+      return [toolbarControl, ...others.map(element)];
+    },
+  };
+  return {
+    currentTarget: {
+      closest: (selector: string) => (selector === "section" ? collection : toolbar),
+    },
+  };
+}
+
+test("C07 · DefaultToolbar ⇄ SelectionToolbar follows selectedCount on the one C06 owner", () => {
+  const SelectionToolbar = loadToolbar();
+  const view = mount(PAGE_1);
+  const log: string[] = [];
+  const onClear = () => {
+    log.push("clear");
+    view.current.clearSelection();
+  };
+  const show = () => renderToolbar(SelectionToolbar, view.current.selectedCount, onClear);
+
+  const idle = show();
+  assert.equal(idle.isDefault, true, "0 selected → DefaultToolbar, rendered as given");
+  assert.equal(idle.text, "Todos los eventos");
+
+  view.act((selection) => selection.select(102));
+  const one = show();
+  assert.equal(one.isDefault, false, "1 selected → SelectionToolbar takes the slot");
+  assert.deepEqual(
+    { tag: one.root.tag, role: one.root.attrs.role, label: one.root.attrs["aria-label"], marker: one.root.attrs["data-selection-toolbar"] },
+    { tag: "div", role: "group", label: "Selección", marker: "true" },
+  );
+  assert.equal(one.text.startsWith("1 seleccionado"), true);
+  assert.equal(one.text.includes("1 seleccionados"), false);
+  assert.deepEqual(
+    { type: one.button?.attrs.type, label: one.button?.attrs["aria-label"], text: one.button && toolbarText(one.button) },
+    { type: "button", label: "Limpiar selección", text: "Limpiar" },
+  );
+  assert.equal(String(one.button?.attrs.className).includes("h-11 min-h-11 min-w-11"), true, "44px touch target below md");
+  assert.equal((one.root.children[0] as ToolbarNode).attrs["aria-live"], undefined, "the visible count is not a second live region");
+
+  // One live region stays mounted across the swap, so the first selection is a content change, not an insertion.
+  assert.deepEqual(
+    { tag: idle.live.tag, live: idle.live.attrs["aria-live"], text: toolbarText(idle.live) },
+    { tag: "span", live: "polite", text: "" },
+    "the live region exists, empty, before the first selection",
+  );
+  assert.deepEqual(
+    { live: one.live.attrs["aria-live"], text: toolbarText(one.live) },
+    { live: "polite", text: "1 seleccionado" },
+  );
+
+  view.act((selection) => selection.select(101));
+  view.act((selection) => selection.select(103));
+  assert.equal(show().text.startsWith("3 seleccionados"), true, "several selected → exact count");
+
+  // Paging keeps the selection by ID, so the toolbar stays while the count is > 0.
+  view.rerender(PAGE_2);
+  assert.equal(show().text.startsWith("3 seleccionados"), true);
+  view.act((selection) => selection.select(104));
+  const crossPage = show();
+  assert.equal(crossPage.text.startsWith("4 seleccionados"), true);
+
+  view.act(() => (crossPage.button!.attrs.onClick as (event: unknown) => void)(clickEvent(log)));
+  assert.equal(view.current.selectedCount, 0, "clearing empties the whole owner, on and off the page");
+  assert.deepEqual([...view.current.selectedIds], []);
+  view.rerender(PAGE_1);
+  assert.equal(view.current.allVisibleSelected || view.current.someVisibleSelected, false);
+  assert.equal(show().isDefault, true, "cleared → back to DefaultToolbar");
+  assert.deepEqual(
+    log.filter((entry) => entry === "clear" || entry.startsWith("focus")),
+    ["clear", "focus page"],
+    "focus moves to the page selector after the owner is cleared",
+  );
+  assert.equal(show().text, "Todos los eventos");
+  assert.equal(toolbarText(show().live), "", "the live region empties without unmounting");
+});
+
+test("C07 · without an enabled page selector the focus falls back to the first control that takes it", () => {
+  const SelectionToolbar = loadToolbar();
+  const log: string[] = [];
+  const { button } = renderToolbar(SelectionToolbar, 3, () => log.push("clear"));
+  // No page selector (error state), a control hidden from focus, then a real one; the toolbar's own button is skipped.
+  (button!.attrs.onClick as (event: unknown) => void)(
+    clickEvent(log, [], [{ name: "hidden-form", focusable: false }, { name: "filtros", focusable: true }, { name: "later", focusable: true }]),
+  );
+  assert.deepEqual(
+    log.filter((entry) => entry === "clear" || entry.startsWith("focus")),
+    ["clear", "focus hidden-form", "focus filtros"],
+    "the owner is cleared first, hidden controls are skipped and the toolbar's own button never gets focus",
+  );
+});
+
+test("C07 · clearing without a page selector in reach still clears and never throws", () => {
+  const SelectionToolbar = loadToolbar();
+  let cleared = 0;
+  const { button } = renderToolbar(SelectionToolbar, 2, () => (cleared += 1));
+  (button!.attrs.onClick as (event: unknown) => void)({ currentTarget: { closest: () => null } });
+  assert.equal(cleared, 1);
+});
+
+type ToolbarFlags = {
+  defaultAtZero: boolean;
+  selectionAtOne: boolean;
+  countFollowsSelectedCount: boolean;
+  clearCallsOwner: boolean;
+  focusAfterClear: boolean;
+  focusFallback: boolean;
+  liveRegionPersistent: boolean;
+};
+
+function toolbarFlags(source: string): ToolbarFlags {
+  const SelectionToolbar = loadToolbar(source);
+  const noop = () => {};
+  const log: string[] = [];
+  const seven = renderToolbar(SelectionToolbar, 7, () => log.push("clear"));
+  if (seven.button) (seven.button.attrs.onClick as (event: unknown) => void)(clickEvent(log));
+  const fallbackLog: string[] = [];
+  const fallback = renderToolbar(SelectionToolbar, 2, () => fallbackLog.push("clear"));
+  if (fallback.button) {
+    (fallback.button.attrs.onClick as (event: unknown) => void)(
+      clickEvent(fallbackLog, [], [{ name: "hidden-form", focusable: false }, { name: "filtros", focusable: true }]),
+    );
+  }
+  const idleToolbar = renderToolbar(SelectionToolbar, 0, noop);
+  return {
+    liveRegionPersistent:
+      idleToolbar.live.attrs["aria-live"] === "polite" &&
+      toolbarText(idleToolbar.live) === "" &&
+      seven.live.attrs["aria-live"] === "polite" &&
+      toolbarText(seven.live) === "7 seleccionados",
+    focusFallback: fallbackLog.includes("focus filtros") && !fallbackLog.includes("focus clear"),
+    defaultAtZero: idleToolbar.isDefault,
+    selectionAtOne: !renderToolbar(SelectionToolbar, 1, noop).isDefault,
+    countFollowsSelectedCount:
+      seven.text.startsWith("7 seleccionados") && renderToolbar(SelectionToolbar, 1, noop).text.startsWith("1 seleccionado"),
+    clearCallsOwner: log.includes("clear"),
+    focusAfterClear: log.includes("clear") && log.indexOf("focus page") > log.indexOf("clear"),
+  };
+}
+
+test("C07 · in-memory mutations of the toolbar each break their contract flag", () => {
+  const source = read(TOOLBAR_PATH);
+  const intact = toolbarFlags(source);
+  assert.ok(Object.values(intact).every(Boolean), JSON.stringify(intact));
+
+  const swap = "{selectedCount === 0 ? (";
+  const mutations: [keyof ToolbarFlags, string, string][] = [
+    ["defaultAtZero", swap, "{selectedCount !== 0 ? ("],
+    ["selectionAtOne", swap, "{selectedCount !== 0 ? ("],
+    ["defaultAtZero", swap, "{false ? ("],
+    ["countFollowsSelectedCount", "`${selectedCount} seleccionados`", "`1 seleccionados`"],
+    ["clearCallsOwner", "    onClearSelection();\n", ""],
+    ["focusAfterClear", "      target.focus();\n", "      target.blur?.();\n"],
+    ["focusFallback", "if (toolbar?.contains(target)) continue;", ""],
+    ["focusFallback", 'if (target.matches(":focus")) break;', "break;"],
+    ["liveRegionPersistent", '{selectedCount === 0 ? "" : count}', "{count}"],
+    ["liveRegionPersistent", '<span aria-live="polite"', '<span aria-live="off"'],
+  ];
+  for (const [flag, anchor, replacement] of mutations) {
+    assert.equal(source.split(anchor).length, 2, `${flag}: the mutation anchor must be unique`);
+    const flags = toolbarFlags(source.replace(anchor, () => replacement));
+    assert.equal(flags[flag], false, `${flag}: the mutated toolbar must break its contract`);
+  }
+});
