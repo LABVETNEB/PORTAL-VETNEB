@@ -23,7 +23,8 @@ import { setSession } from "../helpers/session";
 //                            one navigation model must be visible; from 768px
 //                            up it must be the lateral band and NOT this one.
 //                            The retired rail must not exist at any viewport.
-//   PRIMARY DESTINATIONS     admin ships Inicio + a curated cut + "Más"; clinic
+//   PRIMARY DESTINATIONS     admin ships a curated cut + "Más" (its Inicio slot
+//                            is retired with the mobile hub, pre-C05); clinic
 //                            ships its WHOLE catalog and neither Inicio nor "Más"
 //                            (B09_CLINIC_HOME_ITEM = RETIRED). A regression
 //                            here is a lost destination, not a cosmetic diff.
@@ -34,8 +35,9 @@ import { setSession } from "../helpers/session";
 //                            its hrefs from it and must survive history.
 //   UNKNOWN `?module=`       the retired admin bar read the query RAW, so an
 //                            unknown value lit `aria-current` on "Más" while
-//                            the controller painted the hub. Parsing first is
-//                            what makes both converge on Inicio.
+//                            the controller painted the hub. Parsing first
+//                            makes both converge; below 768px that null state
+//                            lands on the landing module (mobile hub retired).
 //   TOUCH TARGETS >= 44x44   B09_TOUCH_POLICY = OPTION_A, measured on the
 //                            surfaces B09 owns (bar, overflow, kebab), never
 //                            inferred from a class name.
@@ -103,7 +105,6 @@ const ADMIN_MODULE_LABELS = [
 
 /** The curated primary cut: `ADMIN_MOBILE_PRIMARY_MODULE_IDS`. */
 const ADMIN_PRIMARY_ITEMS = [
-  "home",
   "admin-clinics",
   "audit-log",
   "admin-sessions",
@@ -329,9 +330,9 @@ function assertMobileRegime(reading: BandReading, label: string) {
   ).toEqual([]);
 
   // Exactly one destination reports current, on every surface the bar mounts
-  // on. Admin resolves the hub through "Inicio"; Clínica, which retired that
-  // slot (B09_CLINIC_HOME_ITEM = RETIRED), resolves the module its surface
-  // paints. Zero is the failure mode a removed slot introduces and two is the
+  // on. Neither role has an Inicio slot below 768px any more (admin retired its
+  // mobile hub pre-C05; B09_CLINIC_HOME_ITEM = RETIRED), so both report the
+  // module their surface paints. Zero is the failure mode a removed slot introduces and two is the
   // one an invented state introduces.
   expect(
     reading.currentCount,
@@ -503,7 +504,7 @@ test.describe("B09 · admin destinations", () => {
     ).toHaveCount(1);
   });
 
-  test("an unknown ?module= resolves to the hub, not to the overflow", async ({
+  test("an unknown ?module= lands on the landing module, never on the hub", async ({
     page,
   }) => {
     test.setTimeout(90_000);
@@ -512,19 +513,22 @@ test.describe("B09 · admin destinations", () => {
     // The retired bar read `?module=` RAW: an unknown value produced a non-null
     // active module that matched no primary destination, so "Más" claimed
     // `aria-current` while the controller painted the hub. Parsing through the
-    // catalog makes both land on the hub.
+    // catalog resolves it to the null (hub) state, and below 768px that state
+    // lands on the landing module (pre-C05: the mobile hub is retired).
     await gotoSurface(page, "admin", "/dashboard/admin?module=not-a-real-module");
 
+    await expect(page).toHaveURL(/\/dashboard\/admin\?module=admin$/, { timeout: 15_000 });
+    await expect(
+      page.locator('[data-dashboard-module-workspace="admin"]'),
+    ).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator('[data-admin-mobile-hub-launcher="true"]')).toBeHidden();
     const nav = paintedNav(page, NAV_ADMIN);
     await expect(nav).toBeVisible();
-    await expect(
-      nav.locator('[data-dashboard-mobile-nav-item="home"]'),
-      "Inicio is current for an unknown module",
-    ).toHaveAttribute("aria-current", "page");
+    await expect(nav.locator('[data-dashboard-mobile-nav-item="home"]')).toHaveCount(0);
     await expect(
       nav.locator('[data-dashboard-mobile-nav-item="overflow"]'),
-      "the overflow must not claim an unknown module",
-    ).not.toHaveAttribute("aria-current", "page");
+      "the landing module lives off the bar, so the overflow reports it",
+    ).toHaveAttribute("aria-current", "page", { timeout: 15_000 });
     await expect(nav.locator("[aria-current='page']")).toHaveCount(1);
   });
 
@@ -1023,26 +1027,25 @@ test.describe("B09 · deep links, history and hub reset", () => {
     await expect(nav.locator("[aria-current='page']")).toHaveCount(1);
   });
 
-  test("Inicio returns the admin workspace to the hub", async ({ page }) => {
+  test("the admin bar carries no Inicio and a hub request keeps the module", async ({ page }) => {
     test.setTimeout(90_000);
     await page.setViewportSize({ width: 390, height: 844 });
     await gotoSurface(page, "admin", "/dashboard/admin?module=admin-clinics");
 
-    await paintedNav(page, NAV_ADMIN)
-      .locator('[data-dashboard-mobile-nav-item="home"]')
-      .click();
+    const nav = paintedNav(page, NAV_ADMIN);
+    await expect(nav.locator('[data-dashboard-mobile-nav-item="home"]')).toHaveCount(0);
 
-    // The hub-reset signal is synchronous on purpose: the controller paints
-    // from local state ahead of the URL commit, so a same-URL no-op push would
-    // otherwise strand it on the previous module.
+    // Pre-C05: the mobile hub is retired. An explicit hub request lands on the
+    // persisted last module instead of painting the launcher.
+    await page.goto("/dashboard/admin?hub=1");
+    await expect(page).toHaveURL(/\/dashboard\/admin\?module=admin-clinics$/, { timeout: 15_000 });
     await expect(
-      page.locator('[data-admin-mobile-hub-launcher="true"]'),
+      page.locator('[data-dashboard-module-workspace="admin-clinics"]'),
     ).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator('[data-admin-mobile-hub-launcher="true"]')).toBeHidden();
     await expect(
-      paintedNav(page, NAV_ADMIN).locator(
-        '[data-dashboard-mobile-nav-item="home"]',
-      ),
-    ).toHaveAttribute("aria-current", "page");
+      paintedNav(page, NAV_ADMIN).locator('[data-dashboard-mobile-nav-item="admin-clinics"]'),
+    ).toHaveAttribute("aria-current", "page", { timeout: 15_000 });
   });
 
   test("a reload restores the deep-linked module, not the last one visited", async ({

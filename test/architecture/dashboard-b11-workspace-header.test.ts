@@ -804,8 +804,10 @@ function c07AdopterViolations(card: string, mobile: string, filterBar: string): 
   const strip = bar.slice(bar.indexOf("export function AdminAuditFilterBar("));
   if ((bar.match(/props\.renderToolbar\b/g) ?? []).length !== 2 || !strip.includes(C07_STRIP_SLOT)) violations.push("strip slot");
   if (strip.indexOf("<FilterForm {...props} />") > strip.indexOf(C07_STRIP_SLOT)) violations.push("the slot must render after, not inside, the S1 form");
-  if (strip.indexOf("{props.leadingSlot}") > strip.indexOf(C07_STRIP_SLOT) || strip.indexOf(C07_STRIP_SLOT) > strip.indexOf("<ModuleDialog")) {
-    violations.push("the swap takes the default toolbar's place between the page selector and Filtros");
+  // Pre-C05 mobile space: the strip summary is retired and Filtros sits next to
+  // the page selector, so the swap slot now follows both.
+  if (strip.indexOf("{props.leadingSlot}") > strip.indexOf("<ModuleDialog") || strip.indexOf("<ModuleDialog") > strip.indexOf(C07_STRIP_SLOT)) {
+    violations.push("the swap follows the page selector and Filtros in the strip");
   }
   for (const forbidden of ["selection", "SelectionToolbar"]) {
     if (bar.includes(forbidden)) violations.push(`S1 owns ${forbidden}`);
@@ -873,6 +875,18 @@ test("C07 · Auditoría swaps its DefaultToolbar in place on the C06 owner, desk
     sources[target] = sources[target].replace(anchor, () => replacement);
     assert.notDeepEqual(c07AdopterViolations(sources.card, sources.mobile, sources.filterBar), [], `mutation must be rejected: ${replacement}`);
   }
+
+  // Reverting the pre-C05 order (slot back between the selector and Filtros) is rejected.
+  const strip = filterBar.slice(filterBar.indexOf("export function AdminAuditFilterBar("));
+  const head = filterBar.slice(0, filterBar.length - strip.length);
+  const slotLine = `        ${C07_STRIP_SLOT}\n`;
+  const leadingLine = "        {props.leadingSlot}\n";
+  assert.equal(strip.split(slotLine).length, 2, "unique strip slot line");
+  assert.equal(strip.split(leadingLine).length, 2, "unique leading slot line");
+  const reverted = head + strip
+    .replace(slotLine, () => "")
+    .replace(leadingLine, () => `${leadingLine}${slotLine}`);
+  assert.notDeepEqual(c07AdopterViolations(card, mobile, reverted), [], "mutation must be rejected: slot before Filtros");
 });
 
 const C04_ADOPTER = "frontend/src/app/dashboard/admin/AdminClinicsManagementCard.tsx";
@@ -912,4 +926,89 @@ test("C04 · aria-sort exists only on the Clínicas admin headers the server sor
   assert.ok(card.includes("const effectiveLimit = rowsPerPage;"));
   assert.equal(/sort/i.test(card.slice(card.indexOf("const mobileCapacity ="), card.indexOf("const effectiveLimit ="))), false,
     "the capacity owner never reads the order");
+});
+
+// ── PRE-C05 · mobile space (Nico, pre-C05) ───────────────────────────────────
+// Below md the admin modules give their internal descriptors/summaries back to
+// the collection; elements marked to move are MOVED (one instance, same
+// handler). Row pitch stays frozen above ("stays frozen until C05/A07").
+
+const PRE_C05_REPORTS = "frontend/src/app/dashboard/admin/AdminReportsCard.tsx";
+const PRE_C05_CLINICS = "frontend/src/app/dashboard/admin/AdminClinicsManagementCard.tsx";
+const PRE_C05_SESSIONS = "frontend/src/app/dashboard/admin/AdminSessionsReadOnlyCard.tsx";
+
+function preC05Between(source: string, start: string, end: string): string {
+  const from = source.indexOf(start);
+  assert.ok(from !== -1, `missing ${start}`);
+  const to = source.indexOf(end, from);
+  assert.ok(to !== -1, `missing ${end}`);
+  return source.slice(from, to);
+}
+
+test("PRE-C05 · Informes: page count retired everywhere, descriptor desktop-only, Filtros moved into the header", () => {
+  const card = stripComments(read(PRE_C05_REPORTS));
+  assert.equal(/en página/.test(card), false, '"N en página" is retired at every breakpoint');
+
+  const header = preC05Between(card, "<CardHeader", "</CardHeader>");
+  assert.ok(
+    header.includes('<div className="hidden min-w-0 md:block">\n          <CardTitle className="text-xl leading-tight md:text-base">Informes</CardTitle>'),
+    "the internal Informes descriptor only paints from md",
+  );
+  assert.ok(header.includes("Cola administrativa, trazabilidad y documentos en una sola vista."), "desktop keeps the descriptor");
+  assert.equal((card.match(/title="Filtrar informes"/g) ?? []).length, 1, "one Filtros trigger: moved, not duplicated");
+  assert.ok(
+    header.includes('<div className="min-w-0 md:hidden">\n          <ModuleDialog\n            title="Filtrar informes"'),
+    "Filtros takes the freed header slot below md",
+  );
+  const filtros = header.indexOf('title="Filtrar informes"');
+  const refresh = header.indexOf("onClick={() => void loadReports()}");
+  const upload = header.indexOf("onClick={() => setIsUploadOpen(true)}");
+  assert.ok(filtros !== -1 && refresh > filtros && upload > refresh, "Filtros | Actualizar | Subir informe: the upload keeps the trailing slot");
+  assert.ok(card.includes("{renderAdvancedFilterForm(true)}"), "the mobile dialog still hosts the same filter form");
+  assert.ok(
+    card.includes('className="hidden min-h-8 shrink-0 items-center justify-between gap-2 rounded-md border border-vetneb-line/65 bg-vetneb-surface-raised/45 px-2.5 text-xs text-muted-foreground md:flex md:min-h-7"'),
+    "the toolbar band only paints from md",
+  );
+});
+
+test("PRE-C05 · Clínicas: descriptor desktop-only, actions above the mobile search, search right below them", () => {
+  const card = stripComments(read(PRE_C05_CLINICS));
+  const header = preC05Between(card, "<CardHeader", "</CardHeader>");
+  assert.ok(
+    header.includes('<div className="hidden min-w-0 md:block">\n          <CardTitle className="text-[0.95rem] leading-tight">Clínicas</CardTitle>'),
+    "the internal Clínicas descriptor only paints from md",
+  );
+  assert.ok(header.includes("Administración de clínicas registradas · alto volumen."), "desktop keeps the descriptor");
+  const create = header.indexOf("onClick={() => setIsCreateOpen(true)}");
+  const refresh = header.indexOf("onClick={() => loadClinics()}");
+  const search = header.indexOf('placeholder="Buscar clínica..."');
+  assert.ok(create !== -1 && refresh > create && search > refresh, "Nueva clínica and Actualizar stay above the mobile search");
+  assert.equal((card.match(/placeholder="Buscar clínica\.\.\."/g) ?? []).length, 1, "the mobile search moved, not duplicated");
+  assert.ok(header.includes('<div className="relative max-w-xs shrink-0 md:hidden">'), "the mobile search sits in the header below md only");
+  assert.ok(
+    header.includes('<div className="mb-0 flex flex-wrap items-center gap-2">'),
+    "the actions row cancels the header space-y margin so >=md keeps its height",
+  );
+});
+
+test("PRE-C05 · Sesiones mobile: summary retired, Tipo and Estado left of Actualizar in one band", () => {
+  const card = stripComments(read(PRE_C05_SESSIONS));
+  assert.ok(card.includes('<CardTitle className="text-base">Sesiones activas y expiradas</CardTitle>'), "desktop header is untouched");
+  const mobile = card.slice(card.indexOf('data-admin-mobile-ops-module="sessions"'));
+  assert.equal(mobile.includes("Activas y expiradas"), false, "the mobile summary subtitle is retired");
+  assert.equal(/\$\{snapshot\.total\} sesiones/.test(mobile), false, 'the mobile "N sesiones" count is retired');
+  assert.equal(mobile.includes("grid min-h-12 shrink-0 grid-cols-2"), false, "the separate filter band is gone");
+
+  const header = preC05Between(mobile, "<header", "</header>");
+  const tipo = header.indexOf("Tipo\n            <select");
+  const estado = header.indexOf("Estado\n            <select");
+  const refresh = header.indexOf("onClick={loadSessions}");
+  assert.ok(tipo !== -1 && estado > tipo && refresh > estado, "[Tipo] [Estado] [Actualizar]");
+  assert.ok(header.includes('<p className="sr-only" role="alert">'), "a load error is still announced");
+  for (const handler of [
+    'setSessionType(event.target.value as AdminSessionType | "all");',
+    'setStatus(event.target.value as AdminSessionStatus | "all");',
+  ]) {
+    assert.equal(header.split(handler).length, 2, `${handler} moved with its select`);
+  }
 });

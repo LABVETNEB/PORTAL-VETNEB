@@ -92,7 +92,7 @@ type LayerContract = {
   horizontalNavVisible: boolean;
   activeIsolation: string;
   activeBackgroundColor: string;
-  // Persistent ancestors that survive the Hub<->module swap. They must paint an
+  // Persistent ancestors that survive the module swap. They must paint an
   // opaque background so the mobile GPU compositor cannot keep a recycled tile
   // from the previous module behind them (real-device ghosting / scanlines).
   frameBackgroundColor: string;
@@ -257,27 +257,39 @@ async function expectLayerContract(
   }).toPass({ timeout: 10_000 });
 }
 
+// Pre-C05 mobile space: the admin mobile Inicio (hub + its two launcher pages)
+// is retired below 768px. The swaps these layers must survive are module ->
+// module, through the bottom nav or the "Más" destination overflow; a hub
+// request lands on the landing module.
 async function openModule(
   page: Page,
   moduleId: string,
   viewportLabel: string,
 ) {
-  const launcher = page.locator('[data-admin-mobile-hub-launcher="true"]');
-  const moduleTile = launcher.locator(`[data-admin-mobile-hub-tile="${moduleId}"]`);
+  const nav = page.locator('[data-dashboard-mobile-nav="admin"]').filter({ visible: true });
+  const slot = nav.locator(`[data-dashboard-mobile-nav-item="${moduleId}"]`);
   const workspace = page.locator(
     `[data-dashboard-module-workspace="${moduleId}"]`,
   );
 
-  if ((await moduleTile.count()) === 0) {
-    await launcher
-      .locator('[data-admin-mobile-hub-pager="true"]')
-      .getByRole("button", { name: "Siguiente", exact: true })
-      .click();
-  }
-
-  await expect(moduleTile).toBeVisible();
-  await moduleTile.click();
-  await expect(workspace).toBeVisible({ timeout: 15_000 });
+  // Hydration race: retry the activation until the workspace actually mounts.
+  await expect(async () => {
+    if ((await slot.count()) > 0) {
+      await slot.click();
+    } else {
+      const overflow = page.locator('[data-dashboard-mobile-nav-overflow="true"]');
+      if (!(await overflow.isVisible())) {
+        await nav.locator('[data-dashboard-mobile-nav-item="overflow"]').click();
+      }
+      const link = overflow.locator(`[data-dashboard-mobile-nav-overflow-link="${moduleId}"]`);
+      if ((await link.count()) === 0) {
+        await overflow.locator('[data-dashboard-mobile-nav-overflow-page="next"]').click();
+      }
+      await link.click();
+    }
+    await expect(workspace).toBeVisible({ timeout: 5_000 });
+  }).toPass({ timeout: 20_000 });
+  await expect(page.locator("[data-dashboard-module-workspace]")).toHaveCount(1);
   await expectLayerContract(
     page,
     `[data-dashboard-module-workspace="${moduleId}"]`,
@@ -287,20 +299,17 @@ async function openModule(
   return workspace;
 }
 
-async function backToHub(page: Page, viewportLabel: string) {
-  await page
-    .locator('[data-dashboard-mobile-nav="admin"]')
-    .filter({ visible: true })
-    .getByRole("button", { name: "Inicio", exact: true })
-    .click();
+async function landOnRetiredHub(page: Page, viewportLabel: string) {
+  await page.goto("/dashboard/admin?hub=1");
+  await suppressNextDevIndicator(page);
 
-  const hub = page.locator('[data-admin-mobile-hub-launcher="true"]');
-  await expect(hub).toBeVisible({ timeout: 15_000 });
-  await expect(page.locator("[data-dashboard-module-workspace]")).toHaveCount(0);
+  const landing = page.locator('[data-dashboard-module-workspace="admin"]');
+  await expect(landing).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('[data-admin-mobile-hub-launcher="true"]')).toBeHidden();
   await expectLayerContract(
     page,
-    '[data-admin-mobile-hub-launcher="true"]',
-    `${viewportLabel} hub`,
+    '[data-dashboard-module-workspace="admin"]',
+    `${viewportLabel} landing module`,
   );
 }
 
@@ -315,16 +324,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
     await setAdminSession(page, "populated");
     await mockAdminSessions(page);
 
-    await page.goto("/dashboard/admin?hub=1");
-    await suppressNextDevIndicator(page);
-
-    const hub = page.locator('[data-admin-mobile-hub-launcher="true"]');
-    await expect(hub).toBeVisible({ timeout: 15_000 });
-    await expectLayerContract(
-      page,
-      '[data-admin-mobile-hub-launcher="true"]',
-      `${viewport.name} initial hub`,
-    );
+    await landOnRetiredHub(page, viewport.name);
 
     const sessionsWorkspace = await openModule(
       page,
@@ -342,7 +342,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
       ),
     ).toBeVisible();
 
-    await backToHub(page, viewport.name);
+    const auditWorkspace = await openModule(page, "audit-log", viewport.name);
     await expect(
       page.locator('button[aria-label^="Revocar sesión"]'),
     ).toHaveCount(0);
@@ -351,24 +351,20 @@ for (const viewport of MOBILE_VIEWPORTS) {
     ).toHaveCount(0);
     await expect(page.locator('[aria-label="Lista de sesiones"]')).toHaveCount(0);
     await expect(page.getByText(/Sesión #\d+/)).toHaveCount(0);
-
-    const auditWorkspace = await openModule(page, "audit-log", viewport.name);
     await expect(
       auditWorkspace.locator('[data-admin-mobile-ops-module="audit"]'),
     ).toBeVisible();
     await expect(auditWorkspace.locator("#audit-log")).toBeVisible();
-
-    await backToHub(page, viewport.name);
-    await expect(page.locator("#audit-log")).toHaveCount(0);
-    await expect(
-      page.locator('[data-admin-mobile-ops-module="audit"]'),
-    ).toHaveCount(0);
 
     const tokensWorkspace = await openModule(
       page,
       "admin-particular-tokens",
       viewport.name,
     );
+    await expect(page.locator("#audit-log")).toHaveCount(0);
+    await expect(
+      page.locator('[data-admin-mobile-ops-module="audit"]'),
+    ).toHaveCount(0);
     await expect(
       tokensWorkspace.locator('[data-admin-particulars-toolbar="true"]'),
     ).toBeVisible();
@@ -379,7 +375,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
       tokensWorkspace.getByRole("button", { name: "Actualizar", exact: true }),
     ).toBeVisible();
 
-    await backToHub(page, viewport.name);
+    await openModule(page, "admin-clinics", viewport.name);
     await expect(page.locator("#admin-particular-tokens")).toHaveCount(0);
     await expect(
       page.locator('[data-admin-particulars-toolbar="true"]'),
@@ -391,14 +387,13 @@ for (const viewport of MOBILE_VIEWPORTS) {
 }
 
 // ── PR-A: real-device opaque paint chain (light + dark) ──────────────────────
-// The hub leaf surface and active workspace were already opaque, but their
-// persistent ancestors (app-shell frame, dashboard-main, hub root) painted no
-// background, letting the mobile GPU compositor recycle a stale tile from the
-// previous module behind them (ghosting / scanlines on real devices). This
-// guards the full opaque paint chain after a real Hub→Tokens→Hub round trip in
-// both light and dark, and emits structural before/after screenshots. Headless
-// Chromium does not reproduce the GPU recycling itself, so the screenshots are
-// structural; the opaque-ancestor invariant is the automated guard.
+// Persistent ancestors (app-shell frame, dashboard-main, the module stage) must
+// paint an opaque background, or the mobile GPU compositor can recycle a stale
+// tile from the previous module behind them (ghosting / scanlines on real
+// devices). With the mobile hub retired (pre-C05) the round trip is
+// Tokens -> Clínicas through the bottom nav. Headless Chromium does not
+// reproduce the GPU recycling itself, so the screenshots are structural; the
+// opaque-ancestor invariant is the automated guard.
 const SNAPSHOT_PHASE =
   process.env.PRA_SNAPSHOT_PHASE === "before" ? "before" : "after";
 
@@ -424,32 +419,7 @@ async function applyColorMode(page: Page, mode: "light" | "dark") {
   await page.emulateMedia({ colorScheme: mode, reducedMotion: "reduce" });
 }
 
-async function openTokensFromHub(page: Page) {
-  const launcher = page.locator('[data-admin-mobile-hub-launcher="true"]');
-  const tile = launcher.locator(
-    '[data-admin-mobile-hub-tile="admin-particular-tokens"]',
-  );
-  if ((await tile.count()) === 0) {
-    await launcher
-      .locator('[data-admin-mobile-hub-pager="true"]')
-      .getByRole("button", { name: "Siguiente", exact: true })
-      .click();
-  }
-  await expect(tile).toBeVisible();
-  const workspace = page.locator(
-    '[data-dashboard-module-workspace="admin-particular-tokens"]',
-  );
-  // Hydration race: re-click the tile until the workspace actually mounts.
-  await expect(async () => {
-    await tile.click();
-    await expect(workspace).toBeVisible({ timeout: 5_000 });
-  }).toPass({ timeout: 20_000 });
-  await expect(
-    workspace.locator('[data-admin-particulars-mobile-list="true"]'),
-  ).toBeVisible({ timeout: 15_000 });
-}
-
-async function readHubPaintChain(page: Page) {
+async function readModulePaintChain(page: Page) {
   return page.evaluate(() => {
     const surface = document.querySelector<HTMLElement>(
       '[data-vetneb-app-shell-surface="admin"]',
@@ -458,11 +428,8 @@ async function readHubPaintChain(page: Page) {
       ':scope > [data-vetneb-app-shell-frame="true"]',
     );
     const main = document.querySelector<HTMLElement>("main.dashboard-main");
-    const hubRoot = document.querySelector<HTMLElement>(
-      "[data-dashboard-hub-root]",
-    );
-    const launcher = document.querySelector<HTMLElement>(
-      '[data-admin-mobile-hub-launcher="true"]',
+    const stage = document.querySelector<HTMLElement>(
+      '[data-dashboard-module-stage="true"]',
     );
     const appBar = document.querySelector<HTMLElement>(
       '[data-admin-mobile-app-bar="true"]',
@@ -471,16 +438,8 @@ async function readHubPaintChain(page: Page) {
       '[data-dashboard-mobile-nav="admin"]',
     );
 
-    if (
-      !surface ||
-      !frame ||
-      !main ||
-      !hubRoot ||
-      !launcher ||
-      !appBar ||
-      !bottomNav
-    ) {
-      throw new Error("Admin mobile paint chain is incomplete on the hub");
+    if (!surface || !frame || !main || !stage || !appBar || !bottomNav) {
+      throw new Error("Admin mobile paint chain is incomplete on the module stage");
     }
 
     function describe(element: HTMLElement) {
@@ -499,8 +458,7 @@ async function readHubPaintChain(page: Page) {
       ).length,
       frame: describe(frame),
       main: describe(main),
-      hubRoot: describe(hubRoot),
-      launcher: describe(launcher),
+      stage: describe(stage),
       appBar: describe(appBar),
       bottomNav: describe(bottomNav),
     };
@@ -508,7 +466,7 @@ async function readHubPaintChain(page: Page) {
 }
 
 for (const cell of PAINT_CHAIN_MATRIX) {
-  test(`admin mobile hub keeps an opaque paint chain after tokens — ${cell.width}x${cell.height} ${cell.mode}`, async ({
+  test(`admin mobile module stage keeps an opaque paint chain after tokens — ${cell.width}x${cell.height} ${cell.mode}`, async ({
     page,
   }, testInfo: TestInfo) => {
     await page.setViewportSize({ width: cell.width, height: cell.height });
@@ -516,33 +474,19 @@ for (const cell of PAINT_CHAIN_MATRIX) {
     await setAdminSession(page, "populated");
     await mockAdminSessions(page);
 
-    await page.goto("/dashboard/admin?hub=1");
-    await suppressNextDevIndicator(page);
+    const label = `${cell.width}x${cell.height} ${cell.mode}`;
+    await landOnRetiredHub(page, label);
+    const tokensWorkspace = await openModule(page, "admin-particular-tokens", label);
+    await expect(
+      tokensWorkspace.locator('[data-admin-particulars-mobile-list="true"]'),
+    ).toBeVisible({ timeout: 15_000 });
 
-    const hub = page.locator('[data-admin-mobile-hub-launcher="true"]');
-    await expect(hub).toBeVisible({ timeout: 15_000 });
-
-    await openTokensFromHub(page);
-
-    // Real SPA round trip: tapping the bottom-nav "Inicio" must return the
-    // controller to the hub with NO stale module workspace left mounted. This
-    // guards the bottom-nav/controller restore-last-module desync directly,
-    // with no hard reload / localStorage workaround.
-    await page
-      .locator('[data-dashboard-mobile-nav="admin"]')
-      .filter({ visible: true })
-      .getByRole("button", { name: "Inicio", exact: true })
-      .click();
-    await expect(hub).toBeVisible({ timeout: 15_000 });
-    await expect(page.locator("[data-dashboard-module-workspace]")).toHaveCount(
-      0,
-    );
+    // Real SPA swap with NO stale module workspace left mounted.
+    await openModule(page, "admin-clinics", label);
     await expect(
       page.locator('[data-admin-particulars-mobile-list="true"]'),
     ).toHaveCount(0);
 
-    // Structural screenshot first, so the red (pre-fix) run still emits
-    // before-* evidence even though the assertions below fail.
     const screenshotDirectory = resolve(
       testInfo.config.rootDir,
       "..",
@@ -553,27 +497,21 @@ for (const cell of PAINT_CHAIN_MATRIX) {
     await page.screenshot({
       path: resolve(
         screenshotDirectory,
-        `${SNAPSHOT_PHASE}-${cell.width}-${cell.mode}-hub-after-tokens.png`,
+        `${SNAPSHOT_PHASE}-${cell.width}-${cell.mode}-clinics-after-tokens.png`,
       ),
       animations: "disabled",
       fullPage: false,
     });
 
-    // Opaque paint-chain invariant: every persistent ancestor must paint an
-    // opaque background (alpha 1, opacity 1, no backdrop-filter) so no recycled
-    // GPU tile can show through. FAILS before the fix (frame/main/hub-root are
-    // transparent); PASSES after.
     await expect(async () => {
-      const chain = await readHubPaintChain(page);
-      const label = `${cell.width}x${cell.height} ${cell.mode}`;
+      const chain = await readModulePaintChain(page);
 
-      expect(chain.workspaceCount, `${label}: stale workspace mounted`).toBe(0);
+      expect(chain.workspaceCount, `${label}: exactly one workspace mounted`).toBe(1);
 
       const opaqueNodes = {
         frame: chain.frame,
         main: chain.main,
-        hubRoot: chain.hubRoot,
-        launcher: chain.launcher,
+        stage: chain.stage,
         appBar: chain.appBar,
         bottomNav: chain.bottomNav,
       };
@@ -588,13 +526,11 @@ for (const cell of PAINT_CHAIN_MATRIX) {
         expect(Number(node.opacity), `${label}: ${name} opacity`).toBe(1);
       }
 
-      // No scroll container introduced on the persistent shell ancestors:
-      // overflow may be hidden/clip/visible, but never a scrollable auto/scroll.
+      // No scroll container introduced on the persistent shell ancestors.
       for (const [name, node] of Object.entries({
         frame: chain.frame,
         main: chain.main,
-        hubRoot: chain.hubRoot,
-        launcher: chain.launcher,
+        stage: chain.stage,
       })) {
         expect(
           ["auto", "scroll"],

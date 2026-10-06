@@ -21,6 +21,10 @@ import { setAdminSession } from "../../helpers/session";
 // on mobile). Headless Chromium does not reproduce the GPU recycling itself, so
 // the screenshots are structural evidence and the persistence/paint invariants
 // are the automated guard.
+//
+// Pre-C05 mobile space: the admin mobile hub ("Inicio") is retired below 768px,
+// so on mobile the swap the stage must survive is module -> module through the
+// bottom nav; a hub request lands on a module and never paints the launcher.
 
 const STAGE_SELECTOR = '[data-dashboard-module-stage="true"]';
 
@@ -149,31 +153,21 @@ async function expectStageContract(
   }).toPass({ timeout: 10_000 });
 }
 
-async function openClinicsFromHub(page: Page) {
-  const launcher = page.locator('[data-admin-mobile-hub-launcher="true"]');
-  const tile = launcher.locator('[data-admin-mobile-hub-tile="admin-clinics"]');
-  const workspace = page.locator(
-    '[data-dashboard-module-workspace="admin-clinics"]',
-  );
-  await expect(async () => {
-    await tile.click();
-    await expect(workspace).toBeVisible({ timeout: 5_000 });
-  }).toPass({ timeout: 20_000 });
-}
-
-async function backToHub(page: Page) {
-  await page
+async function openFromBottomNav(page: Page, moduleId: string) {
+  const item = page
     .locator('[data-dashboard-mobile-nav="admin"]')
     .filter({ visible: true })
-    .getByRole("button", { name: "Inicio", exact: true })
-    .click();
-  const hub = page.locator('[data-admin-mobile-hub-launcher="true"]');
-  await expect(hub).toBeVisible({ timeout: 15_000 });
-  await expect(page.locator("[data-dashboard-module-workspace]")).toHaveCount(0);
+    .locator(`[data-dashboard-mobile-nav-item="${moduleId}"]`);
+  const workspace = page.locator(`[data-dashboard-module-workspace="${moduleId}"]`);
+  await expect(async () => {
+    await item.click();
+    await expect(workspace).toBeVisible({ timeout: 5_000 });
+  }).toPass({ timeout: 20_000 });
+  await expect(page.locator("[data-dashboard-module-workspace]")).toHaveCount(1);
 }
 
 for (const cell of MATRIX) {
-  test(`admin mobile hub keeps one persistent isolated stage across the swap — ${cell.width}x${cell.height} ${cell.mode}`, async ({
+  test(`admin mobile keeps one persistent isolated stage across module swaps (hub retired) — ${cell.width}x${cell.height} ${cell.mode}`, async ({
     page,
   }, testInfo: TestInfo) => {
     await page.setViewportSize({ width: cell.width, height: cell.height });
@@ -183,35 +177,35 @@ for (const cell of MATRIX) {
     await page.goto("/dashboard/admin?hub=1");
     await suppressNextDevIndicator(page);
 
-    const hub = page.locator('[data-admin-mobile-hub-launcher="true"]');
-    await expect(hub).toBeVisible({ timeout: 15_000 });
+    // The retired hub request lands on the landing module inside the stage.
+    const landing = page.locator('[data-dashboard-module-workspace="admin"]');
+    await expect(landing).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('[data-admin-mobile-hub-launcher="true"]')).toBeHidden();
 
     const token = `stage-${cell.width}-${cell.mode}`;
     await stampStage(page, token);
     await expectStageContract(
       page,
-      '[data-admin-mobile-hub-launcher="true"]',
+      '[data-dashboard-module-workspace="admin"]',
       token,
-      `${token} initial hub`,
+      `${token} landing module`,
     );
 
-    // Hub -> module: the stage node must persist (same stamped DOM node) and now
-    // wrap the module workspace.
-    await openClinicsFromHub(page);
+    // module -> module: the stage node must persist (same stamped DOM node).
+    await openFromBottomNav(page, "admin-clinics");
     await expectStageContract(
       page,
       '[data-dashboard-module-workspace="admin-clinics"]',
       token,
-      `${token} module`,
+      `${token} clinics`,
     );
 
-    // module -> Hub: still the same persistent stage, no stale workspace left.
-    await backToHub(page);
+    await openFromBottomNav(page, "audit-log");
     await expectStageContract(
       page,
-      '[data-admin-mobile-hub-launcher="true"]',
+      '[data-dashboard-module-workspace="audit-log"]',
       token,
-      `${token} hub after module`,
+      `${token} audit after clinics`,
     );
 
     const screenshotDirectory = resolve(
@@ -224,7 +218,7 @@ for (const cell of MATRIX) {
     await page.screenshot({
       path: resolve(
         screenshotDirectory,
-        `${cell.width}-${cell.mode}-hub-after-clinics.png`,
+        `${cell.width}-${cell.mode}-audit-after-clinics.png`,
       ),
       animations: "disabled",
       fullPage: false,

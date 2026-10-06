@@ -219,9 +219,6 @@ export function AdminAuditCard({
         filters={filters}
         eventOptions={eventOptions}
         actorTypeOptions={actorTypeOptions}
-        globalTotal={globalTotal}
-        roleChangesTotal={roleChanges.total}
-        notificationsTotal={notifications.total}
         rows={rows}
         totalCount={totalCount}
         loadError={loadError}

@@ -588,11 +588,27 @@ export function AdminReportsCard() {
       className="dashboard-surface flex min-h-0 flex-1 flex-col overflow-hidden shadow-none"
     >
       <CardHeader className="flex-row items-start justify-between gap-3 space-y-0 border-b border-vetneb-line/70 px-4 py-3 md:py-1">
-        <div className="min-w-0">
+        {/* Pre-C05 mobile space: the internal "Informes" descriptor is retired
+            below md and "Filtros" moves into the freed slot of this header. */}
+        <div className="hidden min-w-0 md:block">
           <CardTitle className="text-xl leading-tight md:text-base">Informes</CardTitle>
           <p className="mt-0 text-xs text-muted-foreground">
             Cola administrativa, trazabilidad y documentos en una sola vista.
           </p>
+        </div>
+        <div className="min-w-0 md:hidden">
+          <ModuleDialog
+            title="Filtrar informes"
+            dashboardScopedPortal
+            trigger={
+              <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5 px-2 text-xs">
+                <Filter className="h-3.5 w-3.5" aria-hidden="true" />
+                Filtros
+              </Button>
+            }
+          >
+            {renderAdvancedFilterForm(true)}
+          </ModuleDialog>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <Button
@@ -625,12 +641,9 @@ export function AdminReportsCard() {
       <CardContent className="flex min-h-0 flex-1 flex-col gap-2 px-4 pb-3 pt-2 md:gap-1 md:pb-1 md:pt-1">
         <div
           data-admin-reports-toolbar="true"
-          className="flex min-h-8 shrink-0 items-center justify-between gap-2 rounded-md border border-vetneb-line/65 bg-vetneb-surface-raised/45 px-2.5 text-xs text-muted-foreground md:min-h-7"
+          className="hidden min-h-8 shrink-0 items-center justify-between gap-2 rounded-md border border-vetneb-line/65 bg-vetneb-surface-raised/45 px-2.5 text-xs text-muted-foreground md:flex md:min-h-7"
         >
-          <div className="hidden flex-wrap items-center gap-x-3 gap-y-1 md:flex">
-            <span>
-              <strong className="font-semibold text-vetneb-ink">{filteredReports.length}</strong> en página
-            </span>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <span>
               <strong className="font-semibold text-vetneb-ink">{deliveredCount}</strong> entregados
             </span>
@@ -638,29 +651,10 @@ export function AdminReportsCard() {
               <strong className="font-semibold text-vetneb-ink">{specialStainCount}</strong> con tinción
             </span>
           </div>
-          <span className="min-w-0 flex-1 truncate md:hidden">
-            {hasActiveFilters
-              ? `${filteredReports.length} filtrados`
-              : `${filteredReports.length} en página`}
-          </span>
           <div className="flex shrink-0 items-center gap-1.5">
-            <span className="hidden tabular-nums md:inline">
+            <span className="tabular-nums">
               {hasActiveFilters ? "Filtros activos" : `Página ${page}`}
             </span>
-            <div className="md:hidden">
-              <ModuleDialog
-                title="Filtrar informes"
-                dashboardScopedPortal
-                trigger={
-                  <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5 px-2 text-xs">
-                    <Filter className="h-3.5 w-3.5" aria-hidden="true" />
-                    Filtros
-                  </Button>
-                }
-              >
-                {renderAdvancedFilterForm(true)}
-              </ModuleDialog>
-            </div>
           </div>
         </div>
 

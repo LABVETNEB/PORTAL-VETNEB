@@ -46,7 +46,8 @@ const SHELL_ROUTES: ShellRouteCase[] = [
     // URL isAdminHubRequested() exempts from that replace, so the hub actually
     // stays mounted for the readiness check to observe.
     path: "/dashboard/admin?hub=1",
-    ready: '[data-dashboard-hub-root="true"]',
+    // Pre-C05: the mobile hub is retired; `?hub=1` lands on the landing module.
+    ready: '[data-dashboard-module-workspace="admin"]',
   },
   {
     label: "admin audit",

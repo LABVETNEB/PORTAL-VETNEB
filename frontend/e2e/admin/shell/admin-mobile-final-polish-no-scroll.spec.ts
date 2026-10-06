@@ -403,8 +403,9 @@ async function expectMobileChrome(page: Page, viewport: Viewport, label: string)
   await expect(lateralNav.first(), `${label}: lateral nav hidden on mobile`).toBeHidden();
 
   const navItems = bottomNav.locator('[data-dashboard-mobile-nav-item]');
-  await expect(navItems).toHaveCount(5);
-  for (let index = 0; index < 5; index += 1) {
+  // Pre-C05: the admin mobile Inicio slot is retired (Clínicas · Auditoría · Sesiones · Más).
+  await expect(navItems).toHaveCount(4);
+  for (let index = 0; index < 4; index += 1) {
     await expectInsideViewport(
       navItems.nth(index),
       viewport,
@@ -497,44 +498,11 @@ for (const viewport of MOBILE_VIEWPORTS) {
     await mockMissingPopulatedApis(page);
     await preparePage(page, viewport, "/dashboard/admin?hub=1");
 
-    const launcher = page.locator('[data-admin-mobile-hub-launcher="true"]');
-    await expect(launcher).toBeVisible({ timeout: 15_000 });
-    await auditMobileSurface(
-      page,
-      viewport,
-      '[data-admin-mobile-hub-launcher="true"]',
-      `${viewport.name} launcher page 1`,
-    );
-
-    const launcherItems = launcher.locator('[data-admin-mobile-hub-tile]');
-    const launcherItemCount = await launcherItems.count();
-    expect(launcherItemCount).toBeGreaterThan(0);
-    for (let index = 0; index < launcherItemCount; index += 1) {
-      await expectInsideMobileContentBand(
-        page,
-        launcherItems.nth(index),
-        viewport,
-        `${viewport.name} launcher page 1 tile ${index + 1}`,
-      );
-    }
-
-    const hubPager = launcher.locator('[data-admin-mobile-hub-pager="true"]');
-    await expectInsideMobileContentBand(
-      page,
-      hubPager,
-      viewport,
-      `${viewport.name} launcher pager`,
-    );
-    await captureScreen(page, testInfo, viewport.name, "launcher-page-1");
-
-    await hubPager.getByRole("button", { name: "Siguiente", exact: true }).click();
-    await auditMobileSurface(
-      page,
-      viewport,
-      '[data-admin-mobile-hub-launcher="true"]',
-      `${viewport.name} launcher page 2`,
-    );
-    await captureScreen(page, testInfo, viewport.name, "launcher-page-2");
+    // Pre-C05: the admin mobile Inicio (hub + its two launcher pages) is
+    // retired; a hub request lands on the landing module.
+    await expect(page.locator('[data-dashboard-module-workspace="admin"]')).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('[data-admin-mobile-hub-launcher="true"]')).toBeHidden();
+    await expect(page.locator('[data-admin-mobile-hub-pager="true"]')).toBeHidden();
 
     const bottomNav = page
       .locator('[data-dashboard-mobile-nav="admin"]')

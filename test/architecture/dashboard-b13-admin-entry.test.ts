@@ -82,9 +82,12 @@ test("B13 · every admin Inicio target is explicit and does not clear persistenc
     const source = read(path);
     assert.ok(source.includes("buildAdminHubHref()"), `${path} links Inicio to ?hub=1`);
   }
-  assert.ok(
-    read(MOBILE_NAV).includes("buildHubHref(surface)"),
-    `${MOBILE_NAV} links Inicio to ?hub=1 for whichever surface owns the bar`,
+  // Pre-C05 mobile space: the mobile bar no longer carries an Inicio slot for
+  // any role, so it links no hub URL at all (ADMIN_MOBILE_HOME_ITEM = RETIRED).
+  assert.equal(
+    read(MOBILE_NAV).includes("buildHubHref("),
+    false,
+    `${MOBILE_NAV} must not link a hub: the admin mobile Inicio is retired`,
   );
 
   const mobile = read(MOBILE_NAV);
@@ -92,6 +95,38 @@ test("B13 · every admin Inicio target is explicit and does not clear persistenc
     mobile.includes('writeDashboardLastModule(ADMIN_LAST_MODULE_STORAGE_KEY, "")'),
     false,
     "admin Inicio must not erase the durable last module",
+  );
+});
+
+test("B13 · below 768px the admin hub resolves to the landing module, never paints", () => {
+  const source = read(CONTROLLER);
+
+  assert.ok(
+    source.includes('const ADMIN_MOBILE_REGIME_QUERY = "(max-width: 767px)";'),
+    "the retirement is scoped to the mobile regime the bottom nav owns",
+  );
+  const effectStart = source.indexOf("function resolveRetiredMobileHub()");
+  assert.ok(effectStart !== -1, "the null module state has a mobile resolver");
+  const effect = source.slice(effectStart, source.indexOf("}, [activeModule, accessErrorStatus", effectStart));
+  assert.ok(effect.includes("if (!media.matches) return;"), ">=768px keeps the hub untouched");
+  assert.ok(
+    effect.includes("parseAdminModule(readDashboardLastModule(ADMIN_LAST_MODULE_STORAGE_KEY)) ??")
+      && effect.includes("DEFAULT_ADMIN_MODULE"),
+    "the mobile hub lands where a bare route lands: last module, else the default",
+  );
+  assert.ok(effect.includes("window.history.replaceState("), "the hub URL is replaced, not stacked in history");
+  assert.equal(effect.includes("router."), false, "the fallback never enters the router queue, so it cannot overtake a user navigation");
+  assert.ok(
+    effect.includes("parseAdminModule(new URLSearchParams(window.location.search).get(MODULE_QUERY_PARAM))"),
+    "a module already in the live URL wins over the landing fallback",
+  );
+  assert.ok(
+    source.includes('<div data-admin-hub-surface="page-header" className="hidden md:contents">'),
+    "the Inicio page header never paints below md",
+  );
+  assert.ok(
+    source.includes('className="max-md:hidden!"'),
+    "the hub (launcher and its two pages) never paints below md, yet stays a direct stage child",
   );
 });
 

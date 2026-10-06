@@ -185,7 +185,9 @@ export const ADMIN_MODULE_NAV_LABELS: readonly {
 
 /**
  * Admin modules promoted to the PRIMARY slots of the mobile bottom navigation
- * (B09), in the order they are painted after the "Inicio" entry.
+ * (B09), in the order they are painted. The admin "Inicio" entry that used to
+ * precede them is retired below 768px (pre-C05 mobile space): the bar paints
+ * these three slots plus "Más".
  *
  * This is a product cut, not a derivation: the shipped mobile bar surfaces
  * Clínicas / Auditoría / Sesiones, which is NOT the head of
@@ -226,8 +228,9 @@ export const ADMIN_MOBILE_PRIMARY_MODULE_IDS: readonly AdminModule[] = [
  * destination stays last, the position a phone user reaches with the thumb and
  * the one both roles already spend on their least operational entry.
  *
- * CAPACITY. Five slots is what the band already carries for Admin (Inicio + a
- * three-module cut + "Más"), so nothing about the geometry is new: the item is
+ * CAPACITY. Five slots is what the band carried for Admin (Inicio + a
+ * three-module cut + "Más") before its Inicio slot was retired, so nothing about
+ * the geometry is new: the item is
  * `flex: 1 1 0` over a `min-inline-size` of 44px, which floors the band at
  * 5 x 44 = 220px and clears the narrowest supported phone by 100px.
  *

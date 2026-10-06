@@ -69,9 +69,10 @@ for (const viewport of MOBILE_VIEWPORTS) {
     const destinations = nav.locator('[data-dashboard-mobile-nav-item]');
 
     await expect(nav).toBeVisible();
-    await expect(destinations).toHaveCount(5);
+    // Pre-C05: Inicio retired — Clínicas · Auditoría · Sesiones · Más.
+    await expect(destinations).toHaveCount(4);
 
-    for (let index = 0; index < 5; index += 1) {
+    for (let index = 0; index < 4; index += 1) {
       await expectInsideViewport(
         destinations.nth(index),
         viewport.width,
@@ -94,12 +95,8 @@ for (const viewport of MOBILE_VIEWPORTS) {
       navOverflow.clientWidth + TOLERANCE,
     );
 
-    await nav.getByRole("button", { name: "Inicio", exact: true }).click();
-    await expect(
-      page.locator('[data-admin-mobile-hub-launcher="true"]'),
-    ).toBeVisible({
-      timeout: 15_000,
-    });
+    await expect(nav.getByRole("button", { name: "Inicio", exact: true })).toHaveCount(0);
+    await expect(page.locator('[data-admin-mobile-hub-launcher="true"]')).toBeHidden();
 
     await nav.getByRole("button", { name: "Clínicas", exact: true }).click();
     await expectModule(page, "admin-clinics");

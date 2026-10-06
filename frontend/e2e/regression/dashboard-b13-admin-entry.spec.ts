@@ -114,13 +114,16 @@ test.describe("B13 · durable admin entry and explicit hub", () => {
     await expect(page.locator(HUB)).toBeVisible();
   });
 
-  test("11 mobile Inicio uses the explicit hub URL and preserves the last module", async ({ page }) => {
+  test("11 mobile has no Inicio: ?hub=1 lands on the persisted module and keeps it", async ({ page }) => {
+    // Pre-C05 mobile space: the admin mobile hub (Inicio) is retired below 768px.
     await page.setViewportSize({ width: 390, height: 844 });
     await open(page, "/dashboard/admin?module=admin-clinics");
     await expectPersistedLastModule(page, "admin-clinics");
-    await page.locator(`${MOBILE} [data-dashboard-mobile-nav-item="home"]`).click();
-    await expect(page).toHaveURL(/\/dashboard\/admin\?hub=1$/);
-    await expect(page.locator(HUB)).toBeVisible();
+    await expect(page.locator(`${MOBILE} [data-dashboard-mobile-nav-item="home"]`)).toHaveCount(0);
+    // `open` re-seeds storage on every load; seed the module this visit persisted.
+    await open(page, "/dashboard/admin?hub=1", "admin-clinics");
+    await expectModule(page, "admin-clinics");
+    await expect(page.locator(HUB)).toBeHidden();
     await expectPersistedLastModule(page, "admin-clinics");
   });
 

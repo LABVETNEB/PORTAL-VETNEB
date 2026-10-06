@@ -66,7 +66,8 @@ const SHELLS: ShellCase[] = [
     label: "admin dashboard shell",
     surface: "admin",
     path: "/dashboard/admin",
-    ready: '[data-dashboard-hub-root="true"]',
+    // Pre-C05: below 768px the hub is retired; the landing module is painted.
+    ready: '[data-dashboard-hub-root="true"], [data-dashboard-module-workspace="admin"]',
   },
 ];
 
