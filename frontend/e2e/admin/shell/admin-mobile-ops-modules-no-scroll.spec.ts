@@ -616,8 +616,24 @@ for (const failure of [
       const parent = node.parentElement ? getComputedStyle(node.parentElement) : null;
       return { clip: computed.clip, position: computed.position, width: node.getBoundingClientRect().width, overflowParent: parent?.overflow };
     });
-    expect(style.position, "not the sr-only technique (absolute 1px clip)").not.toBe("absolute");
+    expect(style.clip, "not the sr-only technique (collapsed clip rect)").not.toMatch(/rect\(0(px)?, 0(px)?, 0(px)?, 0(px)?\)/);
     expect(style.width, "not a 1px sr-only box").toBeGreaterThan(20);
+
+    // It sits in the header's slack: it never covers Actualizar, Tipo or Estado.
+    for (const name of ["Actualizar", "Tipo", "Estado"]) {
+      const control =
+        name === "Actualizar"
+          ? moduleRoot.getByRole("button", { name, exact: true })
+          : moduleRoot.getByRole("combobox", { name });
+      const other = await control.boundingBox();
+      expect(other, `${name} box`).not.toBeNull();
+      const overlaps =
+        box!.x < other!.x + other!.width &&
+        box!.x + box!.width > other!.x &&
+        box!.y < other!.y + other!.height &&
+        box!.y + box!.height > other!.y;
+      expect(overlaps, `the error indicator must not cover ${name}`).toBe(false);
+    }
 
     // Screen reader: the exact same failure is still announced.
     await expect(alert, "one alert, with the exact message").toHaveCount(1);

@@ -608,7 +608,7 @@ export function AdminSessionsReadOnlyCard() {
               <option value="expired">Expiradas</option>
             </select>
           </label>
-          <div className="flex shrink-0 flex-col items-end gap-0.5 self-stretch">
+          <div className="relative flex shrink-0 flex-col items-end self-stretch">
             <Button
               type="button"
               variant="outline"
@@ -624,16 +624,18 @@ export function AdminSessionsReadOnlyCard() {
               Actualizar
             </Button>
             {/* Stale rows survive a failed refresh/revoke, so the list's own
-                error state is never reached. This compact line lives in the
-                header's existing slack under Actualizar (no added height, so
-                the measured capacity cannot move); the exact message stays in
-                the sr-only alert above and in the title. */}
+                error state is never reached. This compact line is ABSOLUTELY
+                positioned in the slack under Actualizar: out of flow, so it can
+                never add height on any platform's font metrics (a taller header
+                would move the measured capacity, refetch and clear the error).
+                The exact message stays in the sr-only alert above and in the
+                title. */}
             {error ? (
               <span
                 data-admin-sesiones-mobile-error="true"
                 aria-hidden="true"
                 title={error}
-                className="line-clamp-2 max-w-[5.5rem] text-right text-[10px] font-medium leading-[11px] text-destructive"
+                className="absolute inset-x-0 bottom-0 line-clamp-2 text-right text-[10px] font-medium leading-[11px] text-destructive"
               >
                 Error al actualizar
               </span>
