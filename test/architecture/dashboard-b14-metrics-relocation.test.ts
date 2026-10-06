@@ -9,6 +9,7 @@ const SESSIONS = "frontend/src/app/dashboard/admin/AdminSessionsReadOnlyCard.tsx
 const USERS = "frontend/src/app/dashboard/admin/AdminUsersRolesReadOnlyCard.tsx";
 const AUDIT = "frontend/src/app/dashboard/admin/AdminAuditCard.tsx";
 const MOBILE_AUDIT = "frontend/src/app/dashboard/admin/AdminMobileAuditModule.tsx";
+const AUDIT_FILTER_BAR = "frontend/src/app/dashboard/admin/AdminAuditFilterBar.tsx";
 
 const ADMIN = [
   "admin",
@@ -43,7 +44,6 @@ test("B14 · the five audited failures now integrate metrics into existing funct
     [SESSIONS, 'data-dashboard-b14-metrics="admin-sessions"', 'aria-label="Filtros de sesiones"'],
     [USERS, 'data-dashboard-b14-metrics="admin-users-roles"', 'aria-label="Filtros de usuarios y roles"'],
     [AUDIT, 'data-dashboard-b14-metrics="admin-audit"', "AdminAuditFilterBar"],
-    [MOBILE_AUDIT, "metrics={{", "AdminAuditFilterBar"],
   ] as const;
 
   for (const [path, integratedAnchor, functionalAnchor] of cases) {
@@ -55,6 +55,20 @@ test("B14 · the five audited failures now integrate metrics into existing funct
   assert.equal(read(SESSIONS).includes("dashboard-filter-stats-grid"), false);
   assert.equal(read(USERS).includes("grid min-h-11 shrink-0 grid-cols-3"), false);
   assert.equal(read(MOBILE_AUDIT).includes("grid min-h-9 shrink-0 grid-cols-3"), false);
+});
+
+test("B14 · pre-C05 mobile space retires the audit summary from the mobile strip only", () => {
+  // The mobile strip used to carry "Todos los eventos · N eventos · N roles ·
+  // N avisos". Nico retired that summary below md (no relocation): the strip
+  // keeps the page selector and Filtros. The desktop header metrics stay.
+  const mobile = read(MOBILE_AUDIT);
+  const bar = read(AUDIT_FILTER_BAR);
+  assert.equal(mobile.includes("metrics={{"), false, "the mobile audit module passes no metrics to the strip");
+  assert.equal(bar.includes("ModuleMetricRun"), false, "the strip renders no metric run");
+  assert.equal(bar.includes("data-admin-audit-metric"), false, "no audit metric chip survives in the strip");
+  assert.equal(bar.includes("Todos los eventos"), false, "the strip summary label is retired with the metrics");
+  assert.ok(mobile.includes("AdminAuditFilterBar"), "the mobile strip itself (selector + Filtros) stays");
+  assert.ok(read(AUDIT).includes('data-dashboard-b14-metrics="admin-audit"'), "desktop metrics are untouched");
 });
 
 test("B14 · six pass modules and four explicit N/A modules remain outside the relocation set", () => {

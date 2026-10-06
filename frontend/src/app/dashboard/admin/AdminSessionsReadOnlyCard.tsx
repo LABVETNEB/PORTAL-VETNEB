@@ -564,36 +564,16 @@ export function AdminSessionsReadOnlyCard() {
         aria-label="Sesiones administrativas"
         className="dashboard-surface flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-vetneb-line/80 bg-card md:hidden"
       >
-        <header className="flex min-h-10 shrink-0 items-center justify-between gap-2 overflow-hidden border-b border-vetneb-line/70 px-2 py-1">
-          <div className="min-w-0">
-            <p className="truncate text-xs font-semibold text-vetneb-ink">
-              {snapshot ? `${snapshot.total} sesiones` : "Sesiones"}
+        {/* Pre-C05 mobile space: the "N sesiones · Activas y expiradas" summary
+            is retired; Tipo and Estado move into its band, left of Actualizar.
+            A load error is still announced to assistive tech. */}
+        <header className="flex min-h-10 shrink-0 items-end gap-2 overflow-hidden border-b border-vetneb-line/70 px-2 py-1">
+          {error ? (
+            <p className="sr-only" role="alert">
+              {error}
             </p>
-            <p
-              className={`truncate text-[11px] ${error ? "text-destructive" : "text-muted-foreground"}`}
-              role={error ? "alert" : undefined}
-            >
-              {error ?? "Activas y expiradas"}
-            </p>
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-7 shrink-0 px-2 text-xs"
-            onClick={loadSessions}
-            disabled={disableActions}
-            aria-busy={isPending ? true : undefined}
-          >
-            {isPending ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-            ) : null}
-            Actualizar
-          </Button>
-        </header>
-
-        <div className="grid min-h-12 shrink-0 grid-cols-2 gap-2 overflow-hidden border-b border-vetneb-line/70 bg-muted/15 px-2 py-1">
-          <label className="grid min-w-0 gap-0.5 text-[10px] font-medium text-muted-foreground">
+          ) : null}
+          <label className="grid min-w-0 flex-1 gap-0.5 text-[10px] font-medium text-muted-foreground">
             Tipo
             <select
               className="field-select h-9 items-center px-2 py-1 text-xs leading-none"
@@ -611,7 +591,7 @@ export function AdminSessionsReadOnlyCard() {
               <option value="particular">Particular</option>
             </select>
           </label>
-          <label className="grid min-w-0 gap-0.5 text-[10px] font-medium text-muted-foreground">
+          <label className="grid min-w-0 flex-1 gap-0.5 text-[10px] font-medium text-muted-foreground">
             Estado
             <select
               className="field-select h-9 items-center px-2 py-1 text-xs leading-none"
@@ -628,7 +608,40 @@ export function AdminSessionsReadOnlyCard() {
               <option value="expired">Expiradas</option>
             </select>
           </label>
-        </div>
+          <div className="relative flex shrink-0 flex-col items-end self-stretch">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-0.5 h-7 shrink-0 px-2 text-xs"
+              onClick={loadSessions}
+              disabled={disableActions}
+              aria-busy={isPending ? true : undefined}
+            >
+              {isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+              ) : null}
+              Actualizar
+            </Button>
+            {/* Stale rows survive a failed refresh/revoke, so the list's own
+                error state is never reached. This compact line is ABSOLUTELY
+                positioned in the slack under Actualizar: out of flow, so it can
+                never add height on any platform's font metrics (a taller header
+                would move the measured capacity, refetch and clear the error).
+                The exact message stays in the sr-only alert above and in the
+                title. */}
+            {error ? (
+              <span
+                data-admin-sesiones-mobile-error="true"
+                aria-hidden="true"
+                title={error}
+                className="absolute inset-x-0 bottom-0 line-clamp-2 text-right text-[10px] font-medium leading-[11px] text-destructive"
+              >
+                Error al actualizar
+              </span>
+            ) : null}
+          </div>
+        </header>
 
         <div
           ref={setMobileBodyNode}

@@ -84,6 +84,12 @@ type AdminDashboardWorkspaceControllerProps = {
   pageHeader?: ReactNode;
 };
 
+// Pre-C05 mobile space: below 768px (the regime `DashboardMobileNav` owns) the
+// admin hub — the "Inicio" module and its two launcher pages — is retired. The
+// null module state resolves to the same landing module a bare route restores,
+// so no mobile surface paints or links the hub. >=768px keeps the hub intact.
+const ADMIN_MOBILE_REGIME_QUERY = "(max-width: 767px)";
+
 function getHeroStatusTone(systemStatus: string): DashboardHubHeroStatusTone {
   if (systemStatus === "ok") return "ok";
   if (systemStatus === "degraded") return "warn";
@@ -225,10 +231,11 @@ export function AdminDashboardWorkspaceController({
 
   useEffect(() => () => clearAdminAccessError(), []);
 
-  // The mobile bottom-nav "Inicio" publishes a hub-reset signal; honour it by
-  // dropping back to the hub even when its URL navigation collapses into a
-  // same-URL no-op (in-flight module push cancelled before it committed), which
-  // would otherwise leave the controller stranded on the previous module.
+  // Hub-reset signal: honour it by dropping back to the hub even when its URL
+  // navigation collapses into a same-URL no-op (in-flight module push cancelled
+  // before it committed), which would otherwise leave the controller stranded
+  // on the previous module. The mobile bottom-nav "Inicio" that produced it is
+  // retired (pre-C05); the subscription stays because the signal is contracted.
   useEffect(
     () =>
       subscribeAdminHubReset(() => {
@@ -276,6 +283,37 @@ export function AdminDashboardWorkspaceController({
       { scroll: false },
     );
   }, [searchParams, hasManuallyReturnedToHub, router]);
+
+  useEffect(() => {
+    if (activeModule !== null || accessErrorStatus) return;
+    const media = window.matchMedia(ADMIN_MOBILE_REGIME_QUERY);
+    function resolveRetiredMobileHub() {
+      if (!media.matches) return;
+      // A bottom-nav activation already owns this navigation.
+      if (pendingNavigationIntent.current) return;
+      // A module the live URL already carries (a bottom-nav tap that committed
+      // before this controller hydrated) wins over the landing fallback.
+      if (parseAdminModule(new URLSearchParams(window.location.search).get(MODULE_QUERY_PARAM))) {
+        return;
+      }
+      const landingModule =
+        parseAdminModule(readDashboardLastModule(ADMIN_LAST_MODULE_STORAGE_KEY)) ??
+        DEFAULT_ADMIN_MODULE;
+      hasRestoredLastModule.current = true;
+      setActiveModule(landingModule);
+      // Native replace, synced into useSearchParams by the router: it never
+      // enters the router action queue, so it cannot overtake a navigation the
+      // user already started from the bottom nav.
+      window.history.replaceState(
+        null,
+        "",
+        buildDashboardModuleHref(ROUTES.dashboardAdmin, landingModule),
+      );
+    }
+    resolveRetiredMobileHub();
+    media.addEventListener("change", resolveRetiredMobileHub);
+    return () => media.removeEventListener("change", resolveRetiredMobileHub);
+  }, [activeModule, accessErrorStatus]);
 
   // React flushes discrete-event state synchronously, so promoting the module
   // directly inside the tile's onClick unmounts the hub launcher WITHIN the
@@ -456,12 +494,17 @@ export function AdminDashboardWorkspaceController({
         </>
       ) : (
         <>
-          {pageHeader}
+          {/* The hub stays a direct stage child: the stage's sibling rhythm
+              rule spaces it from the page header from 768px up. */}
+          <div data-admin-hub-surface="page-header" className="hidden md:contents">
+            {pageHeader}
+          </div>
           <DashboardModuleHub
             heading="Módulos de administración"
             description="Acceso a clínicas, precios, sesiones, auditoría y estado del sistema."
             cards={adminCards}
             hero={adminHero}
+            className="max-md:hidden!"
           />
         </>
       )}

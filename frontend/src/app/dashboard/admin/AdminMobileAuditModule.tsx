@@ -24,9 +24,6 @@ type AdminMobileAuditModuleProps = {
   filters: AdminAuditFilterValues;
   eventOptions: FilterOption[];
   actorTypeOptions: FilterOption[];
-  globalTotal: number;
-  roleChangesTotal: number;
-  notificationsTotal: number;
   // Single source of truth (`AdminAuditCard`): this module only renders the
   // rows/pager state it receives, it never fetches on its own.
   rows: AdminAuditRow[];
@@ -45,9 +42,6 @@ export function AdminMobileAuditModule({
   filters,
   eventOptions,
   actorTypeOptions,
-  globalTotal,
-  roleChangesTotal,
-  notificationsTotal,
   rows,
   totalCount,
   loadError,
@@ -79,11 +73,6 @@ export function AdminMobileAuditModule({
         eventOptions={eventOptions}
         actorTypeOptions={actorTypeOptions}
         hasActiveFilters={hasActiveFilters}
-        metrics={{
-          events: globalTotal,
-          roleChanges: roleChangesTotal,
-          notifications: notificationsTotal,
-        }}
         leadingSlot={
           <label className="-ml-1.5 flex size-9 shrink-0 cursor-pointer items-center justify-center">
             <input

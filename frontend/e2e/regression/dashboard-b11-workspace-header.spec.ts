@@ -1322,9 +1322,18 @@ test.describe("C07 · Auditoría contextual SelectionToolbar", () => {
     const filtros = page.locator(mobileModule).getByRole("button", { name: "Filtros", exact: true });
     const canvas = `${mobileModule} [data-content-list="true"]`;
     const host = `${strip} >> xpath=..`;
-    const defaultToolbar = page.locator(host).getByText("Todos los eventos", { exact: true });
+    // Pre-C05 mobile space: the idle strip paints no summary; Filtros sits next to the page selector.
+    const retiredSummary = page.locator(host).getByText("Todos los eventos", { exact: true });
     await expect(toolbar).toHaveCount(0);
-    await expect(defaultToolbar).toBeVisible();
+    await expect(retiredSummary).toHaveCount(0);
+    const stripOrder = await page.locator(host).evaluate((strip) => {
+      const pageSelector = strip.querySelector('input[data-collection-selection="page"]')!.closest("label")!.getBoundingClientRect();
+      const filters = [...strip.querySelectorAll("button")].find((button) => button.textContent?.trim() === "Filtros")!.getBoundingClientRect();
+      return { pageRight: pageSelector.right, filtersLeft: filters.left, sameRow: Math.abs((pageSelector.top + pageSelector.bottom) / 2 - (filters.top + filters.bottom) / 2) <= 4 };
+    });
+    expect(stripOrder.filtersLeft, "Filtros follows the page selector").toBeGreaterThan(stripOrder.pageRight);
+    expect(stripOrder.filtersLeft - stripOrder.pageRight, "Filtros sits next to the page selector").toBeLessThanOrEqual(16);
+    expect(stripOrder.sameRow, "Filtros and the page selector share one band").toBe(true);
     const idle = await readHost(page, host, canvas);
 
     const requests: string[] = [];
@@ -1335,7 +1344,6 @@ test.describe("C07 · Auditoría contextual SelectionToolbar", () => {
     await boxes.nth(1).click();
     await expect(toolbar).toBeVisible();
     await expect(toolbar).toContainText("2 seleccionados");
-    await expect(defaultToolbar).toHaveCount(0);
     await expect(filtros).toBeVisible();
     await expect(pageBox).toBeVisible();
     const active = await readHost(page, host, canvas);
@@ -1353,20 +1361,22 @@ test.describe("C07 · Auditoría contextual SelectionToolbar", () => {
       .analyze();
     expect(axe.violations.map((violation) => `${violation.id}: ${violation.nodes.length}`), `${label}: axe`).toEqual([]);
 
-    // Tab order in the strip: page selector → clear → Filtros; Enter clears and focus returns to the page selector.
+    // Tab order in the strip (pre-C05): page selector → Filtros → clear; Enter clears and focus returns to the page selector.
     await pageBox.focus();
+    await page.keyboard.press("Tab");
+    await expect(filtros).toBeFocused();
     await page.keyboard.press("Tab");
     const clear = toolbar.getByRole("button", { name: "Limpiar selección" });
     await expect(clear).toBeFocused();
     expect(await clear.evaluate((button) => button.matches(":focus-visible"))).toBe(true);
-    await page.keyboard.press("Tab");
-    await expect(filtros).toBeFocused();
     await page.keyboard.press("Shift+Tab");
+    await expect(filtros).toBeFocused();
+    await page.keyboard.press("Tab");
     await expect(clear).toBeFocused();
     await page.keyboard.press("Enter");
     await expect(toolbar).toHaveCount(0);
     await expect(pageBox).toBeFocused();
-    await expect(defaultToolbar).toBeVisible();
+    await expect(retiredSummary).toHaveCount(0);
     expect(await boxes.evaluateAll((inputs) => inputs.filter((input) => (input as HTMLInputElement).checked).length)).toBe(0);
     await expect(page.getByRole("dialog")).toHaveCount(0);
     expect(page.url(), `${label}: no filter submit or navigation`).toBe(urlBefore);

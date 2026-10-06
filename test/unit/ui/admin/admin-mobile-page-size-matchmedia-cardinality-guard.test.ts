@@ -18,11 +18,25 @@ const CODE_EXTENSIONS = new Set([".ts", ".tsx"]);
 // panels) — never to decide row count, limit, offset, or pagination. They
 // are explicitly out of scope for the cardinality migration (see
 // docs/audit/final-global-vetneb-50-60-pr-roadmap.md R-08).
+//
+// Pre-C05 mobile space adds the workspace controller: its matchMedia only
+// decides the navigation REGIME (below 768px the retired admin hub lands on a
+// module); it never reads or sets row count, limit, offset or pagination.
 const NON_CARDINAL_MATCHMEDIA_ALLOWLIST = new Set([
   `${ADMIN_ROOT}/AdminMobileHealthModule.tsx`,
   MAINTENANCE_MODULE,
   `${ADMIN_ROOT}/AdminMobilePricingModule.tsx`,
+  `${ADMIN_ROOT}/AdminDashboardWorkspaceController.tsx`,
 ]);
+
+test("the controller's matchMedia is the mobile-regime hub gate and nothing else", () => {
+  const source = read(`${ADMIN_ROOT}/AdminDashboardWorkspaceController.tsx`);
+  assert.equal((source.match(/matchMedia\(/g) ?? []).length, 1, "one regime query");
+  assert.ok(source.includes("window.matchMedia(ADMIN_MOBILE_REGIME_QUERY)"));
+  assert.ok(source.includes('const ADMIN_MOBILE_REGIME_QUERY = "(max-width: 767px)";'));
+  assert.equal(/limit|offset|rowsPerPage|pageSize|capacity/i.test(source), false,
+    "the controller owns no cardinality: matchMedia cannot feed a page size from here");
+});
 
 function collectFiles(relativeRoot: string): string[] {
   const absoluteRoot = resolve(process.cwd(), relativeRoot);

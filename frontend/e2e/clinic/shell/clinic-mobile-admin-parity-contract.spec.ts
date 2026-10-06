@@ -67,28 +67,32 @@ function assertShellAndSurfaceParity(
   // count is a set of DESTINATIONS plus the CHROME a role needs to reach the
   // ones that do not fit, and the roles differ in both:
   //
-  //   admin    home 1 + overflow 1 + 3 destinations = 5
+  //   admin    home 0 + overflow 1 + 3 destinations = 4
   //   clínica  home 0 + overflow 0 + 5 destinations = 5
   //
-  // The hub is ADMIN's null module state, reached through "Inicio", and Clínica
-  // owns no home destination on any band — `NavigationRail`/`NavigationDrawer`
-  // paint that item for admin only and `DashboardNavigationFrame` types the
-  // clinic active module as NON-NULLABLE (B09_CLINIC_HOME_ITEM = RETIRED). The
-  // overflow trigger exists only while a role's primary cut is SHORTER than its
-  // catalog: Admin cuts 3 of 10 and keeps "Más", Clínica promotes all 5 and
-  // loses it (CLINIC_MOBILE_OVERFLOW = RETIRED).
+  // Neither role has a home slot below 768px. Clínica never owned one
+  // (`NavigationRail`/`NavigationDrawer` paint that item for admin only and
+  // `DashboardNavigationFrame` types the clinic active module as NON-NULLABLE:
+  // B09_CLINIC_HOME_ITEM = RETIRED), and Admin gave its up in the pre-C05
+  // mobile space change: the mobile hub ("Inicio" and its two launcher pages)
+  // is retired, so `?hub=1` lands on a module and the bar points at nothing it
+  // does not paint. The overflow trigger exists only while a role's primary cut
+  // is SHORTER than its catalog: Admin cuts 3 of 10 and keeps "Más", Clínica
+  // promotes all 5 and loses it (CLINIC_MOBILE_OVERFLOW = RETIRED).
   //
-  // PC-7 forbids declaring parity by weakening an assertion, and this is the
-  // opposite of a weakening: the TOTAL is an equality again — it was
-  // `admin - 1` while Clínica ran four slots — and each role's split is pinned
-  // exactly, so nothing is left free. A clinic bar that lost a destination
-  // fails on the total; one that grew a "Más" fails on `overflowItemCount`; an
-  // admin bar that lost Inicio or its overflow fails on its own counts.
+  // PC-7 forbids declaring parity by weakening an assertion. The band's height
+  // is still compared at 0.5px, the shared capacity is still a hard ceiling, and
+  // the total stops being an equality only because Admin deliberately spends one
+  // slot fewer — so each role's total AND split is pinned EXACTLY instead, with
+  // nothing left free. A clinic bar that lost a destination fails on its total;
+  // one that grew a "Más" fails on `overflowItemCount`; an admin bar that grew
+  // an Inicio back, or lost its overflow, fails on its own counts, and neither
+  // bar may exceed the capacity the other one fills.
   expectBoundsWithinTolerance({ ...ctx, region: "bottomNav", admin: admin.bottomNav.bounds, clinic: clinic.bottomNav.bounds, axis: "height" });
   expect(
     admin.bottomNav.homeItemCount,
     formatParityFailure({ ...ctx, region: "bottomNav", property: "homeItemCount(admin)", adminValue: admin.bottomNav.homeItemCount, clinicValue: clinic.bottomNav.homeItemCount }),
-  ).toBe(1);
+  ).toBe(0);
   expect(
     clinic.bottomNav.homeItemCount,
     formatParityFailure({ ...ctx, region: "bottomNav", property: "homeItemCount(clinic)", adminValue: admin.bottomNav.homeItemCount, clinicValue: clinic.bottomNav.homeItemCount }),
@@ -102,9 +106,17 @@ function assertShellAndSurfaceParity(
     formatParityFailure({ ...ctx, region: "bottomNav", property: "overflowItemCount(clinic)", adminValue: admin.bottomNav.overflowItemCount, clinicValue: clinic.bottomNav.overflowItemCount }),
   ).toBe(0);
   expect(
+    admin.bottomNav.itemCount,
+    formatParityFailure({ ...ctx, region: "bottomNav", property: "itemCount(admin)", adminValue: admin.bottomNav.itemCount, clinicValue: clinic.bottomNav.itemCount }),
+  ).toBe(4);
+  expect(
     clinic.bottomNav.itemCount,
-    formatParityFailure({ ...ctx, region: "bottomNav", property: "itemCount (one band, one capacity)", adminValue: admin.bottomNav.itemCount, clinicValue: clinic.bottomNav.itemCount }),
-  ).toBe(admin.bottomNav.itemCount);
+    formatParityFailure({ ...ctx, region: "bottomNav", property: "itemCount(clinic)", adminValue: admin.bottomNav.itemCount, clinicValue: clinic.bottomNav.itemCount }),
+  ).toBe(5);
+  expect(
+    admin.bottomNav.itemCount,
+    formatParityFailure({ ...ctx, region: "bottomNav", property: "itemCount (one band, one capacity: admin <= clinic)", adminValue: admin.bottomNav.itemCount, clinicValue: clinic.bottomNav.itemCount }),
+  ).toBeLessThanOrEqual(clinic.bottomNav.itemCount);
 
   // The destinations each role actually reaches in one tap, derived from the
   // two counts above rather than restated as a literal: the split is the whole
@@ -175,6 +187,13 @@ const CLINIC_DESKTOP_ONLY_METRIC_SURFACES = new Set([
 ]);
 
 /**
+ * Admin references whose mobile metric run was retired by the pre-C05 mobile
+ * space change. Frozen as a roster, not derived from a measurement: derived, a
+ * run that came back would be absorbed as "expected".
+ */
+const ADMIN_REFERENCES_WITHOUT_MOBILE_METRIC_RUN = new Set(["admin-auditoria"]);
+
+/**
  * Capa C: ModuleMetricRun. Only asserted when BOTH sides actually expose a
  * mobile-visible metric run — some admin read-only cards (sessions, users-
  * roles) mount `[data-dashboard-b14-metrics]` desktop-only (`hidden md:grid`),
@@ -210,6 +229,22 @@ function assertMetricsParity(
     expect(
       clinic.metrics.count,
       formatParityFailure({ ...ctx, region: "metrics", property: "count(desktop-only clinic surface)", adminValue: admin.metrics.count, clinicValue: clinic.metrics.count }),
+    ).toBe(0);
+    return false;
+  }
+
+  // Pre-C05 mobile space: the admin Auditoría strip no longer paints its metric
+  // run below md (the "N eventos · N roles · N avisos" summary was retired, not
+  // relocated). The clinic full routes mapped to it used to compare their run's
+  // height against that one; the reference is gone by an authorised change, so
+  // the comparison is declared suspended here — asserted in the positive
+  // direction so the admin run reappearing fails as loudly as any other drift —
+  // and the run's own canonical grammar stays covered by
+  // `dashboard-clinic-metric-run-parity.spec.ts` (CMP-05/09/11).
+  if (ADMIN_REFERENCES_WITHOUT_MOBILE_METRIC_RUN.has(ctx.adminReferenceId)) {
+    expect(
+      admin.metrics.count,
+      formatParityFailure({ ...ctx, region: "metrics", property: "count(admin reference without a mobile run)", adminValue: admin.metrics.count, clinicValue: clinic.metrics.count }),
     ).toBe(0);
     return false;
   }

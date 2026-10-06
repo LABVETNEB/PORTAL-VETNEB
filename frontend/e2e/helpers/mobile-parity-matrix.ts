@@ -235,11 +235,11 @@ export type ParityContract = {
     readonly bounds: ParityBounds | null;
     readonly itemCount: number;
     /**
-     * Slots carrying the hub/home destination. Measured rather than assumed,
-     * because the ONE declared divergence between the two bars is exactly this
-     * item: the hub is admin's null module state and Clínica owns no home
-     * destination on any band (B09_CLINIC_HOME_ITEM = RETIRED). Reading it lets
-     * the contract pin WHICH slot differs instead of relaxing the count.
+     * Slots carrying the hub/home destination. Measured rather than assumed, so
+     * a home slot that comes back on either bar fails on its own count instead
+     * of hiding inside a total. Below 768px it is 0 for BOTH roles: Clínica owns
+     * no home destination on any band (B09_CLINIC_HOME_ITEM = RETIRED) and the
+     * admin mobile hub was retired in the pre-C05 mobile space change.
      */
     readonly homeItemCount: number;
     /**
@@ -250,9 +250,9 @@ export type ParityContract = {
      *
      * CLINIC_MOBILE_OVERFLOW = RETIRED. The trigger exists only while a role's
      * primary cut is shorter than its catalog: Admin cuts 3 of 10 and keeps it,
-     * Clínica promotes all 5 and loses it. Both bars still ship FIVE slots, so
-     * the total is once again an equality — Admin spends two of them on chrome
-     * (home + overflow), Clínica spends zero and gets five destinations.
+     * Clínica promotes all 5 and loses it. The band's capacity is FIVE slots:
+     * Admin fills four (3 destinations + the overflow), Clínica fills all five
+     * with destinations, and each total is pinned exactly.
      */
     readonly overflowItemCount: number;
   };

@@ -148,9 +148,9 @@ const CONTAINER_ANCHORS: ReadonlyArray<{
   },
   {
     path: ADMIN_CLINICS_TSX,
-    anchor: 'className="relative max-w-xs shrink-0"',
+    anchor: 'className="relative max-w-xs shrink-0 md:hidden"',
     role: "DIRECT",
-    why: "S4 mobile search wrapper (already transparent pre-B05)",
+    why: "S4 mobile search wrapper (already transparent pre-B05; header-hosted below md since pre-C05)",
   },
 ];
 

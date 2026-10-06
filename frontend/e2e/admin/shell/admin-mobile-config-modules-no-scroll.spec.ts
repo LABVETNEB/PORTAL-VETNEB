@@ -301,15 +301,14 @@ for (const moduleSpec of CONFIG_MODULES) {
           await captureScreen(page, testInfo, `${CONFIG_SNAPSHOT_PHASE}-${shortViewport}-${mode}-${moduleSpec.key}-${chipId}`);
         }
 
-        await page
-          .locator('[data-dashboard-mobile-nav="admin"]')
-          .filter({ visible: true })
-          .getByRole("button", { name: "Inicio", exact: true })
-          .click();
+        // Pre-C05: the admin mobile Inicio (hub) is retired; the bar has no slot for it.
         await expect(
-          page.locator('[data-admin-mobile-hub-launcher="true"]'),
-          `${viewport.name} ${mode}: back to hub`,
-        ).toBeVisible({ timeout: 15_000 });
+          page
+            .locator('[data-dashboard-mobile-nav="admin"]')
+            .filter({ visible: true })
+            .getByRole("button", { name: "Inicio", exact: true }),
+          `${viewport.name} ${mode}: no Inicio slot`,
+        ).toHaveCount(0);
 
         expect(consoleErrors, `${viewport.name} ${mode} ${moduleSpec.key}: console errors`).toEqual([]);
       });

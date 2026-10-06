@@ -739,16 +739,30 @@ test("B09 · the admin hub B13 owns is intact", () => {
     );
   }
 
-  // A null admin module is still the hub, and the bar reports it on "Inicio"
-  // rather than inventing a default module — which would be B13's call.
+  // ADMIN_MOBILE_HOME_ITEM = RETIRED (pre-C05 mobile space). Below 768px the
+  // admin hub is retired, so the bar carries no Inicio slot pointing at it; the
+  // controller resolves the null module to the landing module on that regime.
   const executable = stripComments(read(MOBILE_NAV_TSX));
-  assert.ok(
+  assert.equal(
     executable.includes('data-dashboard-mobile-nav-item="home"'),
-    "the hub/home entry is a real destination, not a defaulted module",
+    false,
+    "the mobile bar must not link the retired admin hub",
+  );
+  assert.equal(
+    executable.includes("requestAdminHubReset"),
+    false,
+    "no mobile producer of the hub reset survives with the Inicio slot",
+  );
+  const controller = stripComments(
+    read("frontend/src/app/dashboard/admin/AdminDashboardWorkspaceController.tsx"),
   );
   assert.ok(
-    executable.includes("requestAdminHubReset"),
-    "the synchronous hub-reset signal survives: the controller paints from state ahead of the URL",
+    controller.includes("subscribeAdminHubReset"),
+    "the contracted hub-reset subscription stays on the controller",
+  );
+  assert.ok(
+    controller.includes("function resolveRetiredMobileHub()"),
+    "the null admin module below 768px resolves to the landing module",
   );
 });
 
@@ -760,18 +774,12 @@ test("B09 · the clinic bar carries no Inicio and always resolves a module", () 
   // B09_CLINIC_HOME_ITEM flipped from PRESERVE to RETIRED. Clínica has no
   // "Inicio" destination on ANY band: `NavigationRail`/`NavigationDrawer`
   // paint the item for admin only, and `DashboardNavigationFrame` types the
-  // clinic active module as NON-NULLABLE. The mobile bar was the last surface
-  // where the two roles disagreed, so the hub/home slot is now admin-only and
-  // the bar drops from five slots to four.
-  assert.match(
-    executable,
-    /const showsHome = surface === "admin";/,
-    "the hub/home destination is gated on the admin surface, not painted for both roles",
-  );
-  assert.match(
-    executable,
-    /\{showsHome \? \(/,
-    "the gate must wrap the home destination itself, not merely be declared",
+  // clinic active module as NON-NULLABLE. ADMIN_MOBILE_HOME_ITEM followed
+  // (pre-C05 mobile space): the bar paints no home slot for either role.
+  assert.equal(
+    /showsHome/.test(executable),
+    false,
+    "no home gate survives: the bar has no Inicio slot for any role",
   );
 
   // Zero current destinations is not an acceptable outcome of removing Inicio:
@@ -797,15 +805,18 @@ test("B09 · the clinic bar carries no Inicio and always resolves a module", () 
     "the segment goes through the canonical clinic parser, never a raw compare",
   );
 
-  // ADMIN NEGATIVE CONTROL. The shared owner keeps the admin hub exactly as it
-  // shipped: the destination, its explicit `?hub=1` href and the sync reset.
-  assert.ok(
+  // ADMIN CONTROL. The admin mobile Inicio is retired (pre-C05): no home
+  // destination and no `?hub=1` href on the bar. Admin still resolves its
+  // module from `?module=` alone.
+  assert.equal(
     executable.includes('data-dashboard-mobile-nav-item="home"'),
-    "admin keeps the hub/home destination",
+    false,
+    "admin carries no hub/home destination on the mobile bar",
   );
-  assert.ok(
-    executable.includes("buildHubHref(surface)"),
-    "admin Inicio still links the durable explicit hub URL",
+  assert.equal(
+    executable.includes("buildHubHref("),
+    false,
+    "the mobile bar links no hub URL",
   );
   assert.ok(
     executable.includes("parseAdminModule(urlModule)"),
@@ -816,7 +827,7 @@ test("B09 · the clinic bar carries no Inicio and always resolves a module", () 
   const catalog = read(MODULE_CATALOG);
   assert.ok(
     catalog.includes("export const ADMIN_HOME_NAV_ITEM = {"),
-    "the admin home nav item stays declared by the catalog",
+    "the admin home nav item stays declared by the catalog (the lateral bands use it)",
   );
   const adminCutFrom = catalog.indexOf(
     "export const ADMIN_MOBILE_PRIMARY_MODULE_IDS",
@@ -829,7 +840,7 @@ test("B09 · the clinic bar carries no Inicio and always resolves a module", () 
   assert.equal(
     [...adminCut.matchAll(/"[a-z-]+",/g)].length,
     3,
-    "admin keeps exactly three promoted modules: five slots, unchanged",
+    "admin keeps exactly three promoted modules: three slots plus Más",
   );
 });
 
@@ -841,12 +852,8 @@ test("B09 · every preserved behaviour has a carrier in the new owner", () => {
   for (const behaviour of [
     "requestAdminModuleActivate",
     "requestClinicModuleActivate",
-    "requestAdminHubReset",
-    "requestClinicHubReset",
     "subscribeClinicModuleActivate",
     "subscribeClinicHubReset",
-    "writeDashboardLastModule",
-    "CLINIC_LAST_MODULE_STORAGE_KEY",
     "aria-current",
     "aria-expanded",
     "aria-controls",
@@ -858,14 +865,12 @@ test("B09 · every preserved behaviour has a carrier in the new owner", () => {
     );
   }
 
-  // CMP-02 — the durable explicit hub URL is now built for BOTH roles from one
-  // parameterised helper, so the clinic "Inicio" slot stops resolving silently to
-  // the default module (audit DIF-041 / RC-015). B13's invariant is unchanged: the
-  // owner links Inicio to an explicit `?hub=1`, never to a bare route.
-  assert.ok(
-    executable.includes("buildHubHref(surface)"),
-    "B13 owns the durable explicit hub URL, parameterised by surface",
-  );
+  // The hub resets and the clinic last-module clear were carried only by the
+  // Inicio slot's `goHome`; with ADMIN_MOBILE_HOME_ITEM retired (pre-C05) and
+  // B09_CLINIC_HOME_ITEM already retired, the bar has no home producer left.
+  for (const retired of ["requestAdminHubReset", "requestClinicHubReset", "goHome", "buildHubHref("]) {
+    assert.equal(executable.includes(retired), false, `${retired} must not survive without an Inicio slot`);
+  }
   assert.equal(
     executable.includes('writeDashboardLastModule(ADMIN_LAST_MODULE_STORAGE_KEY, "")'),
     false,
@@ -1003,7 +1008,7 @@ test("B09 · the clinic bar promotes its whole catalog and keeps no overflow", (
     "the owner mounts the overflow sheet only for a surface that still has one",
   );
 
-  // ADMIN NEGATIVE CONTROL. Admin cuts 3 of 10, so it keeps both chrome slots
+  // ADMIN NEGATIVE CONTROL. Admin cuts 3 of 10, so it keeps its "Más" chrome slot
   // and every affordance the sheet carries. This change is clinic-only.
   const adminCutFrom = catalog.indexOf(
     "export const ADMIN_MOBILE_PRIMARY_MODULE_IDS",
@@ -1014,7 +1019,7 @@ test("B09 · the clinic bar promotes its whole catalog and keeps no overflow", (
       .slice(adminCutFrom, catalog.indexOf("];", adminCutFrom))
       .matchAll(/"[a-z-]+",/g)].length,
     3,
-    "admin keeps exactly three promoted modules: five slots, unchanged",
+    "admin keeps exactly three promoted modules: three slots plus Más",
   );
   for (const preserved of [
     'data-dashboard-mobile-nav-item="overflow"',

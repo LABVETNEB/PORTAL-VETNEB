@@ -35,7 +35,8 @@ const routeCases: RouteCase[] = [
     label: "admin dashboard hub",
     path: "/dashboard/admin?hub=1",
     ready: '[data-dashboard-module-hub="true"]',
-    mobileReady: '[data-admin-mobile-hub-launcher="true"]',
+    // Pre-C05: the mobile hub is retired; `?hub=1` lands on the landing module.
+    mobileReady: '[data-dashboard-module-workspace="admin"]',
     session: "admin",
   },
 ];

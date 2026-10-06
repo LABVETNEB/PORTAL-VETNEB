@@ -470,13 +470,15 @@ export function AdminClinicsManagementCard() {
       className="dashboard-surface flex min-h-0 flex-1 flex-col"
     >
       <CardHeader className="shrink-0 flex flex-col gap-2 border-b border-vetneb-line/70 px-4 py-2 lg:flex-row lg:items-center lg:justify-between">
-        <div className="min-w-0">
+        {/* Pre-C05 mobile space: the internal "Clínicas" descriptor is retired
+            below md; the mobile search sits right under the actions. */}
+        <div className="hidden min-w-0 md:block">
           <CardTitle className="text-[0.95rem] leading-tight">Clínicas</CardTitle>
           <p className="text-[0.72rem] text-muted-foreground">
             Administración de clínicas registradas · alto volumen.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="mb-0 flex flex-wrap items-center gap-2">
           <Button
             type="button"
             variant="outline"
@@ -500,9 +502,24 @@ export function AdminClinicsManagementCard() {
             {isPending ? "Actualizando..." : "Actualizar"}
           </Button>
         </div>
+        <div className="relative max-w-xs shrink-0 md:hidden">
+          <Search
+            className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
+            aria-hidden="true"
+          />
+          <Input
+            data-dashboard-filter-field="true"
+            className="h-8 pl-8 text-sm"
+            placeholder="Buscar clínica..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            disabled={isBusy}
+            aria-label="Buscar clínicas"
+          />
+        </div>
       </CardHeader>
 
-      <CardContent className="flex min-h-0 flex-1 flex-col gap-2 px-4 pb-4 pt-3">
+      <CardContent className="flex min-h-0 flex-1 flex-col gap-2 px-4 pb-4 pt-2 md:pt-3">
         <ModuleDialog
           open={isCreateOpen}
           onOpenChange={handleCreateDialogOpenChange}
@@ -818,22 +835,6 @@ export function AdminClinicsManagementCard() {
           className="flex min-h-0 flex-1 flex-col gap-2 md:hidden"
           data-admin-mobile-core-module="clinics"
         >
-          <div className="relative max-w-xs shrink-0">
-            <Search
-              className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
-              aria-hidden="true"
-            />
-            <Input
-              data-dashboard-filter-field="true"
-              className="h-8 pl-8 text-sm"
-              placeholder="Buscar clínica..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              disabled={isBusy}
-              aria-label="Buscar clínicas"
-            />
-          </div>
-
           <div
             ref={setMobileBodyNode}
             data-dashboard-adaptive-rows-canvas="true"

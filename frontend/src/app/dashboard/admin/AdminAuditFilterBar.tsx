@@ -14,7 +14,6 @@ import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { ModuleMetricRun } from "@/components/dashboard/ModuleMetricRun";
 
 export type AdminAuditFilterValues = {
   event: string;
@@ -35,14 +34,9 @@ type AdminAuditFilterBarProps = {
   eventOptions: FilterOption[];
   actorTypeOptions: FilterOption[];
   hasActiveFilters: boolean;
-  metrics?: {
-    events: number;
-    roleChanges: number;
-    notifications: number;
-  };
   /** Presentational slot at the start of the mobile strip, outside the filter form. */
   leadingSlot?: ReactNode;
-  /** Hosts the strip's default toolbar so a contextual toolbar can take its place. */
+  /** Hosts the strip's contextual toolbar; the idle strip paints none. */
   renderToolbar?: (defaultToolbar: ReactNode) => ReactNode;
 };
 
@@ -146,30 +140,15 @@ function FilterForm({
 }
 
 export function AdminAuditFilterBar(props: AdminAuditFilterBarProps) {
-  const defaultToolbar = (
-    <div className="flex min-w-0 flex-1 items-baseline gap-1.5 text-xs text-muted-foreground">
-      <span className="min-w-0 truncate">
-        {props.hasActiveFilters ? "Filtros activos" : "Todos los eventos"}
-      </span>
-      {props.metrics ? (
-        <ModuleMetricRun
-          surfaceId="admin-audit"
-          metricAttribute="data-admin-audit-metric"
-          metrics={[
-            { key: "eventos", value: props.metrics.events, label: "eventos" },
-            { key: "roles", value: props.metrics.roleChanges, label: "roles" },
-            { key: "avisos", value: props.metrics.notifications, label: "avisos" },
-          ]}
-        />
-      ) : null}
-    </div>
-  );
+  // Pre-C05 mobile space: the strip summary (default label + eventos ·
+  // roles · avisos metric run) is retired below md and "Filtros" sits next to the
+  // page selector; the selection toolbar keeps the remaining width.
+  const defaultToolbar = null;
   return (
     <>
       <FilterForm {...props} />
-      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-vetneb-line/70 px-3 py-1.5 md:hidden">
+      <div className="flex shrink-0 items-center gap-2 border-b border-vetneb-line/70 px-3 py-1.5 md:hidden">
         {props.leadingSlot}
-        {props.renderToolbar ? props.renderToolbar(defaultToolbar) : defaultToolbar}
         <ModuleDialog
           title="Filtrar auditoría"
           description="Los filtros se aplican sobre el registro completo."
@@ -183,6 +162,7 @@ export function AdminAuditFilterBar(props: AdminAuditFilterBarProps) {
         >
           <FilterForm {...props} mobile />
         </ModuleDialog>
+        {props.renderToolbar ? props.renderToolbar(defaultToolbar) : defaultToolbar}
       </div>
     </>
   );

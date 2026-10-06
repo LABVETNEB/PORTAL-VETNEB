@@ -382,14 +382,13 @@ for (const moduleSpec of OPS_MODULES) {
         `${viewport.name} ${moduleSpec.key} action`,
       );
 
-      await page
-        .locator('[data-dashboard-mobile-nav="admin"]')
-        .filter({ visible: true })
-        .getByRole("button", { name: "Inicio", exact: true })
-        .click();
-      await expect(page.locator('[data-admin-mobile-hub-launcher="true"]')).toBeVisible({
-        timeout: 15_000,
-      });
+      // Pre-C05: the admin mobile Inicio (hub) is retired; the bar has no slot for it.
+      await expect(
+        page
+          .locator('[data-dashboard-mobile-nav="admin"]')
+          .filter({ visible: true })
+          .getByRole("button", { name: "Inicio", exact: true }),
+      ).toHaveCount(0);
     });
   }
 }
@@ -483,3 +482,181 @@ test("Admin mobile sessions Tipo/Estado selects render their full option text un
     "sessions: within adaptive superset cap",
   ).toBeLessThanOrEqual(32);
 });
+
+// ── PRE-C05 · Sesiones mobile space ──────────────────────────────────────────
+// The "N sesiones · Activas y expiradas" summary is retired below md; Tipo and
+// Estado move into its band, left of Actualizar, which keeps its place.
+for (const viewport of ADMIN_MOBILE_VIEWPORTS) {
+  test(`PRE-C05 Sesiones mobile: summary retired, [Tipo][Estado][Actualizar] band at ${viewport.name}`, async ({ page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await setAdminSession(page, "populated");
+    await mockOpsApis(page);
+    const queries: URLSearchParams[] = [];
+    page.on("request", (request) => {
+      const url = new URL(request.url());
+      if (request.method() === "GET" && url.pathname === "/api/admin/sessions") queries.push(url.searchParams);
+    });
+    await page.goto("/dashboard/admin?module=admin-sessions");
+    await suppressNextDevIndicator(page);
+
+    const moduleRoot = page.locator('[data-admin-mobile-ops-module="sessions"]');
+    const items = moduleRoot.locator('[data-admin-mobile-ops-item="true"]');
+    await expect(items.first()).toBeVisible({ timeout: 15_000 });
+    await expect(moduleRoot.getByText("Activas y expiradas", { exact: true })).toHaveCount(0);
+    await expect(moduleRoot.getByText(/^\d+ sesiones$/)).toHaveCount(0);
+
+    const header = moduleRoot.locator("header").first();
+    const tipo = moduleRoot.getByRole("combobox", { name: "Tipo" });
+    const estado = moduleRoot.getByRole("combobox", { name: "Estado" });
+    const refresh = moduleRoot.getByRole("button", { name: "Actualizar", exact: true });
+    const [headerBox, tipoBox, estadoBox, refreshBox, sectionBox] = await Promise.all([
+      header.boundingBox(), tipo.boundingBox(), estado.boundingBox(), refresh.boundingBox(), moduleRoot.boundingBox(),
+    ]);
+    for (const [label, rect] of Object.entries({ header: headerBox, tipo: tipoBox, estado: estadoBox, refresh: refreshBox })) {
+      expect(rect, `${viewport.name}: ${label} box`).not.toBeNull();
+    }
+    expect(tipoBox!.x + tipoBox!.width, "Tipo left of Estado").toBeLessThanOrEqual(estadoBox!.x);
+    expect(estadoBox!.x + estadoBox!.width, "Estado left of Actualizar").toBeLessThanOrEqual(refreshBox!.x);
+    for (const rect of [tipoBox!, estadoBox!, refreshBox!]) {
+      expect(rect.y, "inside the header band").toBeGreaterThanOrEqual(headerBox!.y - 1);
+      expect(rect.y + rect.height, "inside the header band").toBeLessThanOrEqual(headerBox!.y + headerBox!.height + 1);
+    }
+    // Actualizar keeps its place: top-right of the sessions surface.
+    expect(refreshBox!.y - sectionBox!.y, "Actualizar stays at the top of the surface").toBeLessThanOrEqual(8);
+    expect(sectionBox!.x + sectionBox!.width - (refreshBox!.x + refreshBox!.width), "Actualizar stays at the right edge").toBeLessThanOrEqual(12);
+    const firstRow = await items.first().boundingBox();
+    expect(firstRow!.y - (headerBox!.y + headerBox!.height), "rows start right below the band").toBeLessThanOrEqual(2);
+    const rowHeights = await items.evaluateAll((rows) => rows.map((row) => Math.round(row.getBoundingClientRect().height)));
+    const pitch = await items.first().evaluate((row) => Math.round(parseFloat(getComputedStyle(row).getPropertyValue("--dash-row-pitch-regular"))));
+    expect(new Set(rowHeights), "C05 row pitch unchanged (regular token)").toEqual(new Set([pitch]));
+
+    // Filter semantics: same params, offset reset to 0, limit unchanged.
+    const before = queries.at(-1)!;
+    await tipo.selectOption("clinic");
+    await expect.poll(() => queries.at(-1)?.get("sessionType")).toBe("clinic");
+    expect(queries.at(-1)!.get("offset")).toBe("0");
+    expect(queries.at(-1)!.get("limit")).toBe(before.get("limit"));
+    await estado.selectOption("active");
+    await expect.poll(() => queries.at(-1)?.get("status")).toBe("active");
+    expect(queries.at(-1)!.get("sessionType")).toBe("clinic");
+
+    // Refresh handler reloads the same query.
+    const count = queries.length;
+    await refresh.click();
+    await expect.poll(() => queries.length).toBeGreaterThan(count);
+    expect(queries.at(-1)!.toString()).toBe(queries.at(-2)!.toString());
+
+    assertModuleNoScrollContract(
+      await readModuleNoScrollContract(page, '[data-admin-mobile-ops-module="sessions"]'),
+      `${viewport.name} PRE-C05 sessions`,
+    );
+  });
+}
+
+// ── Review P2 · Sesiones: a failed refresh/revoke stays visible with stale rows ─
+// `loadSessions`/`handleRevokeSession` keep the previous snapshot on failure, so
+// the list's own error state is never reached. With the summary retired, the
+// only exact message was sr-only: sighted users saw stale data and no failure.
+for (const failure of [
+  { name: "refresh", message: "Sesiones no disponibles" },
+  { name: "revoke", message: "No se pudo revocar la sesión" },
+] as const) {
+  test(`P2 Sesiones mobile: failed ${failure.name} keeps the stale rows and shows the error to sighted users`, async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await setAdminSession(page, "populated");
+    await mockOpsApis(page);
+    await page.goto("/dashboard/admin?module=admin-sessions");
+    await suppressNextDevIndicator(page);
+
+    const moduleRoot = page.locator('[data-admin-mobile-ops-module="sessions"]');
+    const items = moduleRoot.locator('[data-admin-mobile-ops-item="true"]');
+    await expect(items.first()).toBeVisible({ timeout: 15_000 });
+    const header = moduleRoot.locator("header").first();
+    const indicator = moduleRoot.getByText("Error al actualizar", { exact: true });
+    const alert = moduleRoot.getByRole("alert");
+    await expect(indicator, "no error before the failure").toHaveCount(0);
+
+    // Loaded state: the baseline the failure must not disturb.
+    const loadedLabels = await items.evaluateAll((rows) => rows.map((row) => row.textContent));
+    const loadedHeader = await header.boundingBox();
+    const loadedFirstRow = await items.first().boundingBox();
+    const sessionRequests: URLSearchParams[] = [];
+    page.on("request", (request) => {
+      const url = new URL(request.url());
+      if (request.method() === "GET" && url.pathname === "/api/admin/sessions") sessionRequests.push(url.searchParams);
+    });
+
+    // Newest route wins: every sessions call, and the revoke POST, now fails.
+    await page.route("**/api/admin/sessions**", async (route) => {
+      await route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({ success: false, error: failure.message, message: failure.message }),
+      });
+    });
+
+    if (failure.name === "refresh") {
+      await moduleRoot.getByRole("button", { name: "Actualizar", exact: true }).click();
+    } else {
+      page.on("dialog", (dialog) => void dialog.accept());
+      await moduleRoot.getByRole("button", { name: /^Revocar sesión/ }).first().click();
+    }
+
+    // Sighted user: a visible, in-viewport, readable indicator.
+    await expect(indicator).toBeVisible({ timeout: 10_000 });
+    const box = await indicator.boundingBox();
+    expect(box, "indicator box").not.toBeNull();
+    expect(box!.x).toBeGreaterThanOrEqual(0);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(390);
+    expect(box!.height, "a readable, non-collapsed line").toBeGreaterThanOrEqual(10);
+    const clipped = await indicator.evaluate((node) => node.scrollWidth > node.clientWidth + 1);
+    expect(clipped, "the indicator is not horizontally clipped").toBe(false);
+    const style = await indicator.evaluate((node) => {
+      const computed = getComputedStyle(node);
+      const parent = node.parentElement ? getComputedStyle(node.parentElement) : null;
+      return { clip: computed.clip, position: computed.position, width: node.getBoundingClientRect().width, overflowParent: parent?.overflow };
+    });
+    expect(style.clip, "not the sr-only technique (collapsed clip rect)").not.toMatch(/rect\(0(px)?, 0(px)?, 0(px)?, 0(px)?\)/);
+    expect(style.width, "not a 1px sr-only box").toBeGreaterThan(20);
+
+    // It sits in the header's slack: it never covers Actualizar, Tipo or Estado.
+    for (const name of ["Actualizar", "Tipo", "Estado"]) {
+      const control =
+        name === "Actualizar"
+          ? moduleRoot.getByRole("button", { name, exact: true })
+          : moduleRoot.getByRole("combobox", { name });
+      const other = await control.boundingBox();
+      expect(other, `${name} box`).not.toBeNull();
+      const overlaps =
+        box!.x < other!.x + other!.width &&
+        box!.x + box!.width > other!.x &&
+        box!.y < other!.y + other!.height &&
+        box!.y + box!.height > other!.y;
+      expect(overlaps, `the error indicator must not cover ${name}`).toBe(false);
+    }
+
+    // Screen reader: the exact same failure is still announced.
+    await expect(alert, "one alert, with the exact message").toHaveCount(1);
+    await expect(alert).toContainText(failure.message);
+
+    // Stale rows survive and nothing was restored or moved.
+    await expect(items.first()).toBeVisible();
+    expect(await items.evaluateAll((rows) => rows.map((row) => row.textContent)), "stale rows preserved").toEqual(loadedLabels);
+    expect(await header.boundingBox(), "no added height: capacity cannot move").toEqual(loadedHeader);
+    expect(await items.first().boundingBox(), "rows did not move").toEqual(loadedFirstRow);
+    await expect(moduleRoot.getByText("Activas y expiradas", { exact: true })).toHaveCount(0);
+    await expect(moduleRoot.getByText(/^\d+ sesiones$/)).toHaveCount(0);
+
+    // The error is not self-erasing: no capacity-driven refetch clears it.
+    await page.waitForLoadState("networkidle");
+    const settled = sessionRequests.length;
+    await page.waitForLoadState("networkidle");
+    expect(sessionRequests.length, "no refetch loop after the failure").toBe(settled);
+    await expect(indicator).toBeVisible();
+
+    assertModuleNoScrollContract(
+      await readModuleNoScrollContract(page, '[data-admin-mobile-ops-module="sessions"]'),
+      `P2 ${failure.name} sessions`,
+    );
+  });
+}

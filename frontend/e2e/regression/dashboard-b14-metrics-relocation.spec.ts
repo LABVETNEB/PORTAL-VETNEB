@@ -157,7 +157,7 @@ test.describe("B14 · metrics relocation", () => {
     ).toHaveAttribute("aria-selected", "true");
   });
 
-  test("mobile keeps audit metrics inside the existing filters toolbar", async ({ page }) => {
+  test("mobile retires the audit summary metrics from the filters strip (pre-C05)", async ({ page }) => {
     const audit = SURFACES.find((surface) => surface.id === "admin-auditoria");
     if (!audit) throw new Error("B14 audit surface missing");
 
@@ -166,28 +166,16 @@ test.describe("B14 · metrics relocation", () => {
       await prepareSurface(page, audit);
       await openSurface(page, audit);
 
-      const metrics = page.locator('[data-dashboard-b14-metrics="admin-audit"] >> visible=true');
-      await expect(metrics).toHaveCount(1);
-      await expect(metrics.locator("xpath=ancestor::div[contains(@class, 'border-b')]")).toHaveCount(1);
-
+      const mobileAudit = page.locator('[data-admin-mobile-ops-module="audit"]');
+      await expect(mobileAudit).toBeVisible();
+      await expect(mobileAudit.locator('[data-dashboard-b14-metrics="admin-audit"]'), `${width}px: no metric run`).toHaveCount(0);
       for (const key of ["eventos", "roles", "avisos"]) {
-        const chip = metrics.locator(`[data-admin-audit-metric="${key}"]`);
-        await expect(chip, `${width}px: ${key} metric must be visible`).toBeVisible();
-        await expect(chip).toContainText(key);
-        const box = await chip.boundingBox();
-        expect(box, `${width}px: ${key} bounding box`).not.toBeNull();
-        expect(box!.width, `${width}px: ${key} must have real width`).toBeGreaterThan(0);
-        expect(box!.x, `${width}px: ${key} clipped on the left`).toBeGreaterThanOrEqual(0);
-        expect(
-          box!.x + box!.width,
-          `${width}px: ${key} clipped on the right`,
-        ).toBeLessThanOrEqual(width);
+        await expect(mobileAudit.locator(`[data-admin-audit-metric="${key}"]`), `${width}px: ${key} retired`).toHaveCount(0);
       }
-
-      const clipped = await metrics.evaluate(
-        (node) => node.scrollWidth > node.clientWidth + 1,
-      );
-      expect(clipped, `${width}px: metrics row is truncated`).toBe(false);
+      await expect(
+        mobileAudit.getByRole("checkbox", { name: "Seleccionar los eventos de esta página" }),
+        `${width}px: page selector stays`,
+      ).toBeVisible();
 
       const filters = page.getByRole("button", { name: "Filtros", exact: true });
       await expect(filters, `${width}px: Filters trigger must stay usable`).toBeVisible();

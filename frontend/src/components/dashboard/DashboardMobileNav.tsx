@@ -9,22 +9,14 @@ import {
   type ReactNode,
 } from "react";
 import { useSearchParams, useSelectedLayoutSegment } from "next/navigation";
-import { Home, Menu, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
+import { requestAdminModuleActivate } from "@/lib/admin-hub-reset";
 import {
-  requestAdminHubReset,
-  requestAdminModuleActivate,
-} from "@/lib/admin-hub-reset";
-import {
-  requestClinicHubReset,
   requestClinicModuleActivate,
   subscribeClinicHubReset,
   subscribeClinicModuleActivate,
 } from "@/lib/clinic-hub-reset";
-import {
-  CLINIC_LAST_MODULE_STORAGE_KEY,
-  writeDashboardLastModule,
-} from "@/lib/dashboard-last-module";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import {
@@ -39,7 +31,6 @@ import {
 import {
   MODULE_QUERY_PARAM,
   buildDashboardModuleHref,
-  buildHubHref,
   isHubRequested,
 } from "@/features/dashboard/application";
 import {
@@ -95,14 +86,22 @@ import {
  * ONE BAND, FIVE SLOTS, TWO COMPOSITIONS. The band is one primitive with one
  * capacity, and each role spends it differently:
  *
- *   admin    Inicio · Clínicas · Auditoría · Sesiones · Más   (2 chrome, 3 destinations)
+ *   admin    Clínicas · Auditoría · Sesiones · Más            (1 chrome, 3 destinations)
  *   clínica  Ops · Info · Log · Tokens · Perfil               (0 chrome, 5 destinations)
  *
- * B09_CLINIC_HOME_ITEM = RETIRED: the bar paints "Inicio" for ADMIN alone. The
- * hub is admin's null module state, and Clínica never owned that destination
+ * B09_CLINIC_HOME_ITEM = RETIRED: Clínica never owned an "Inicio" destination
  * anywhere else — `NavigationRail` and `NavigationDrawer` render the item for
  * admin only, and `DashboardNavigationFrame` types the clinic active module as
  * NON-NULLABLE.
+ *
+ * ADMIN_MOBILE_HOME_ITEM = RETIRED (pre-C05 mobile space). Below 768px the admin
+ * hub — the "Inicio" module and its two launcher pages — no longer exists: the
+ * workspace controller resolves the null module state to the landing module on
+ * that regime, so an "Inicio" slot here would point at a destination that is
+ * never painted. The lateral bands (>=768px) keep their admin Inicio item and
+ * `?hub=1` is still the desktop hub. Every admin module stays reachable from the
+ * three promoted slots or the destination overflow, which lists the whole
+ * catalog.
  *
  * CLINIC_MOBILE_OVERFLOW = RETIRED: the two slots Admin spends on chrome are the
  * two Clínica spends on `tokens` and `perfil`, which used to be reachable only
@@ -124,8 +123,9 @@ import {
  * bar would report ZERO current destinations exactly where it used to report
  * the home slot. `/dashboard?hub=1` still renders `ClinicModuleHub` — it is a
  * URL of the route, not an entry of this bar — but no surface links to it any
- * more, so `requestClinicHubReset` below has no producer left; it is kept
- * because the shared `onHome` path is admin's and the signal is contracted.
+ * more, and with the admin home slot retired too the bar publishes no hub
+ * reset for either role; `subscribeClinicHubReset` below stays because the
+ * signal is contracted.
  *
  * @see docs/implementation/dashboard-b09-mobile-navigation-unification.md
  */
@@ -168,7 +168,7 @@ function destinationsFor(
 }
 
 /**
- * Primary slots after "Inicio", declared per role in the catalog.
+ * Primary module slots of the bar, declared per role in the catalog.
  *
  * CMP-02 — this used to short-circuit for clinic (`if (surface !== "admin")
  * return all`), which is why the clinic bar carried six 65px slots and no
@@ -383,7 +383,6 @@ type MobileNavBarProps = {
   readonly identify: boolean;
   readonly activeModule: string | null;
   readonly onActivate: (moduleId: string) => void;
-  readonly onHome: () => void;
   readonly overflowOpen: boolean;
   readonly onToggleOverflow: () => void;
   readonly children?: ReactNode;
@@ -394,7 +393,6 @@ function DashboardMobileNavBar({
   identify,
   activeModule,
   onActivate,
-  onHome,
   overflowOpen,
   onToggleOverflow,
   children,
@@ -404,20 +402,9 @@ function DashboardMobileNavBar({
   const hasOverflow = hasDestinationOverflow(surface, all);
   const basePath = SURFACE_BASE_PATH[surface];
 
-  // B09_CLINIC_HOME_ITEM = RETIRED. "Inicio" is an ADMIN destination: the hub
-  // is admin's null module state, and `NavigationRail`/`NavigationDrawer`
-  // already paint the item for that role only, with
-  // `DashboardNavigationFrame` typing the clinic active module as
-  // NON-NULLABLE. This bar was the last surface where the two roles
-  // disagreed, so Clínica goes from five slots to four and its remaining
-  // destinations get the width the Inicio slot was taking. The hub STATE
-  // (`/dashboard?hub=1`) is untouched: it is a URL of the route, not an entry
-  // of this bar.
-  const showsHome = surface === "admin";
-
   // "Más" reports current only while a module that is NOT on the bar is open —
   // never for an unknown `?module=`, which the parser already resolved to the
-  // hub/home state.
+  // null (hub) state.
   const overflowIsCurrent =
     hasOverflow &&
     activeModule !== null &&
@@ -432,24 +419,6 @@ function DashboardMobileNavBar({
         data-dashboard-mobile-nav={identify ? surface : undefined}
         className="dashboard-mobile-nav"
       >
-        {showsHome ? (
-          <PublicRouteControl
-            href={buildHubHref(surface)}
-            prefetch={false}
-            variant="bare"
-            aria-label="Inicio"
-            aria-current={!activeModule ? "page" : undefined}
-            data-dashboard-mobile-nav-item="home"
-            onClick={onHome}
-            className={cn(
-              "dashboard-mobile-nav-item",
-              !activeModule && "dashboard-mobile-nav-item-active",
-            )}
-          >
-            <Home className="dashboard-mobile-nav-glyph" aria-hidden="true" />
-            <span>Inicio</span>
-          </PublicRouteControl>
-        ) : null}
 
         {primary.map((destination) => {
           const Icon = destination.icon;
@@ -514,7 +483,7 @@ function MobileNavWithUrl({ surface }: DashboardMobileNavProps) {
   // so it reads the segment instead; the segment names ARE the clinic module
   // ids, so the canonical parser validates them and no second route table
   // appears. Admin is untouched: its module comes from `?module=` alone and
-  // its hub is the null state that "Inicio" reports.
+  // its hub is the null state (no bar slot reports it below 768px).
   const routeSegment = useSelectedLayoutSegment();
   // `?hub=1` is a state of the ROOT route, never one of the clinic modules —
   // the same explicit, durable intent `ClinicDashboardWorkspaceController`
@@ -581,20 +550,6 @@ function MobileNavWithUrl({ surface }: DashboardMobileNavProps) {
     [surface],
   );
 
-  const goHome = useCallback(() => {
-    setActiveModule(null);
-    setOverflowOpen(false);
-    if (surface === "admin") {
-      // Force the workspace controller back to the hub even when the URL push
-      // collapses into a same-URL no-op (in-flight module navigation not yet
-      // committed).
-      requestAdminHubReset();
-      return;
-    }
-    writeDashboardLastModule(CLINIC_LAST_MODULE_STORAGE_KEY, "");
-    requestClinicHubReset();
-  }, [surface]);
-
   const all = useMemo(() => destinationsFor(surface), [surface]);
   const hasOverflow = hasDestinationOverflow(surface, all);
 
@@ -604,7 +559,6 @@ function MobileNavWithUrl({ surface }: DashboardMobileNavProps) {
       identify
       activeModule={activeModule}
       onActivate={activate}
-      onHome={goHome}
       overflowOpen={overflowOpen}
       onToggleOverflow={() => setOverflowOpen((current) => !current)}
     >
@@ -637,7 +591,6 @@ export function DashboardMobileNav({ surface }: DashboardMobileNavProps) {
           identify={false}
           activeModule={null}
           onActivate={noop}
-          onHome={noop}
           overflowOpen={false}
           onToggleOverflow={noop}
         />

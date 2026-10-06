@@ -6,8 +6,9 @@
 // no-op (the in-flight module push is cancelled before it commits, so
 // `useSearchParams` never changes and the reconciliation effect never runs).
 // Publishing this signal lets the controller drop back to the hub regardless of
-// the URL navigation state. Only the mobile bottom-nav publishes; desktop never
-// does, so desktop behaviour is unchanged.
+// the URL navigation state. Only the mobile bottom-nav "Inicio" published it;
+// that slot is retired (pre-C05 mobile space), so the reset has no producer
+// left and is kept as a contracted signal.
 
 type AdminHubResetListener = () => void;
 
@@ -42,9 +43,20 @@ type AdminModuleActivateListener = (moduleId: string) => void;
 
 const moduleActivateListeners = new Set<AdminModuleActivateListener>();
 
+// The bar can hydrate before the controller subscribes: a tap in that window
+// used to be dropped, and the controller then resolved its own landing over the
+// user's navigation. Hand the latest unheard request to the first subscriber,
+// only while it is fresh.
+const LATE_ACTIVATION_MAX_AGE_MS = 5_000;
+let unheardActivation: { moduleId: string; at: number } | null = null;
+
 /** Ask the admin workspace controller to open a module immediately. */
 export function requestAdminModuleActivate(moduleId: string): void {
   if (typeof window === "undefined") {
+    return;
+  }
+  if (moduleActivateListeners.size === 0) {
+    unheardActivation = { moduleId, at: performance.now() };
     return;
   }
   moduleActivateListeners.forEach((listener) => listener(moduleId));
@@ -54,5 +66,10 @@ export function subscribeAdminModuleActivate(
   listener: AdminModuleActivateListener,
 ): () => void {
   moduleActivateListeners.add(listener);
+  const late = unheardActivation;
+  unheardActivation = null;
+  if (late && performance.now() - late.at <= LATE_ACTIVATION_MAX_AGE_MS) {
+    listener(late.moduleId);
+  }
   return () => moduleActivateListeners.delete(listener);
 }
