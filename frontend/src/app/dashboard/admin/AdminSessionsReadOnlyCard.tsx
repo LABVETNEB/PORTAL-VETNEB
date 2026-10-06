@@ -608,20 +608,37 @@ export function AdminSessionsReadOnlyCard() {
               <option value="expired">Expiradas</option>
             </select>
           </label>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="mt-0.5 h-7 shrink-0 self-start px-2 text-xs"
-            onClick={loadSessions}
-            disabled={disableActions}
-            aria-busy={isPending ? true : undefined}
-          >
-            {isPending ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+          <div className="flex shrink-0 flex-col items-end gap-0.5 self-stretch">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-0.5 h-7 shrink-0 px-2 text-xs"
+              onClick={loadSessions}
+              disabled={disableActions}
+              aria-busy={isPending ? true : undefined}
+            >
+              {isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+              ) : null}
+              Actualizar
+            </Button>
+            {/* Stale rows survive a failed refresh/revoke, so the list's own
+                error state is never reached. This compact line lives in the
+                header's existing slack under Actualizar (no added height, so
+                the measured capacity cannot move); the exact message stays in
+                the sr-only alert above and in the title. */}
+            {error ? (
+              <span
+                data-admin-sesiones-mobile-error="true"
+                aria-hidden="true"
+                title={error}
+                className="line-clamp-2 max-w-[5.5rem] text-right text-[10px] font-medium leading-[11px] text-destructive"
+              >
+                Error al actualizar
+              </span>
             ) : null}
-            Actualizar
-          </Button>
+          </div>
         </header>
 
         <div

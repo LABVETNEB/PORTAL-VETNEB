@@ -552,3 +552,95 @@ for (const viewport of ADMIN_MOBILE_VIEWPORTS) {
     );
   });
 }
+
+// ── Review P2 · Sesiones: a failed refresh/revoke stays visible with stale rows ─
+// `loadSessions`/`handleRevokeSession` keep the previous snapshot on failure, so
+// the list's own error state is never reached. With the summary retired, the
+// only exact message was sr-only: sighted users saw stale data and no failure.
+for (const failure of [
+  { name: "refresh", message: "Sesiones no disponibles" },
+  { name: "revoke", message: "No se pudo revocar la sesión" },
+] as const) {
+  test(`P2 Sesiones mobile: failed ${failure.name} keeps the stale rows and shows the error to sighted users`, async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await setAdminSession(page, "populated");
+    await mockOpsApis(page);
+    await page.goto("/dashboard/admin?module=admin-sessions");
+    await suppressNextDevIndicator(page);
+
+    const moduleRoot = page.locator('[data-admin-mobile-ops-module="sessions"]');
+    const items = moduleRoot.locator('[data-admin-mobile-ops-item="true"]');
+    await expect(items.first()).toBeVisible({ timeout: 15_000 });
+    const header = moduleRoot.locator("header").first();
+    const indicator = moduleRoot.getByText("Error al actualizar", { exact: true });
+    const alert = moduleRoot.getByRole("alert");
+    await expect(indicator, "no error before the failure").toHaveCount(0);
+
+    // Loaded state: the baseline the failure must not disturb.
+    const loadedLabels = await items.evaluateAll((rows) => rows.map((row) => row.textContent));
+    const loadedHeader = await header.boundingBox();
+    const loadedFirstRow = await items.first().boundingBox();
+    const sessionRequests: URLSearchParams[] = [];
+    page.on("request", (request) => {
+      const url = new URL(request.url());
+      if (request.method() === "GET" && url.pathname === "/api/admin/sessions") sessionRequests.push(url.searchParams);
+    });
+
+    // Newest route wins: every sessions call, and the revoke POST, now fails.
+    await page.route("**/api/admin/sessions**", async (route) => {
+      await route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({ success: false, error: failure.message, message: failure.message }),
+      });
+    });
+
+    if (failure.name === "refresh") {
+      await moduleRoot.getByRole("button", { name: "Actualizar", exact: true }).click();
+    } else {
+      page.on("dialog", (dialog) => void dialog.accept());
+      await moduleRoot.getByRole("button", { name: /^Revocar sesión/ }).first().click();
+    }
+
+    // Sighted user: a visible, in-viewport, readable indicator.
+    await expect(indicator).toBeVisible({ timeout: 10_000 });
+    const box = await indicator.boundingBox();
+    expect(box, "indicator box").not.toBeNull();
+    expect(box!.x).toBeGreaterThanOrEqual(0);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(390);
+    expect(box!.height, "a readable, non-collapsed line").toBeGreaterThanOrEqual(10);
+    const clipped = await indicator.evaluate((node) => node.scrollWidth > node.clientWidth + 1);
+    expect(clipped, "the indicator is not horizontally clipped").toBe(false);
+    const style = await indicator.evaluate((node) => {
+      const computed = getComputedStyle(node);
+      const parent = node.parentElement ? getComputedStyle(node.parentElement) : null;
+      return { clip: computed.clip, position: computed.position, width: node.getBoundingClientRect().width, overflowParent: parent?.overflow };
+    });
+    expect(style.position, "not the sr-only technique (absolute 1px clip)").not.toBe("absolute");
+    expect(style.width, "not a 1px sr-only box").toBeGreaterThan(20);
+
+    // Screen reader: the exact same failure is still announced.
+    await expect(alert, "one alert, with the exact message").toHaveCount(1);
+    await expect(alert).toContainText(failure.message);
+
+    // Stale rows survive and nothing was restored or moved.
+    await expect(items.first()).toBeVisible();
+    expect(await items.evaluateAll((rows) => rows.map((row) => row.textContent)), "stale rows preserved").toEqual(loadedLabels);
+    expect(await header.boundingBox(), "no added height: capacity cannot move").toEqual(loadedHeader);
+    expect(await items.first().boundingBox(), "rows did not move").toEqual(loadedFirstRow);
+    await expect(moduleRoot.getByText("Activas y expiradas", { exact: true })).toHaveCount(0);
+    await expect(moduleRoot.getByText(/^\d+ sesiones$/)).toHaveCount(0);
+
+    // The error is not self-erasing: no capacity-driven refetch clears it.
+    await page.waitForLoadState("networkidle");
+    const settled = sessionRequests.length;
+    await page.waitForLoadState("networkidle");
+    expect(sessionRequests.length, "no refetch loop after the failure").toBe(settled);
+    await expect(indicator).toBeVisible();
+
+    assertModuleNoScrollContract(
+      await readModuleNoScrollContract(page, '[data-admin-mobile-ops-module="sessions"]'),
+      `P2 ${failure.name} sessions`,
+    );
+  });
+}

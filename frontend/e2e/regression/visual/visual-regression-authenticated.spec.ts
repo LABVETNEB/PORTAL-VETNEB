@@ -51,7 +51,9 @@ const routes: RouteCase[] = [
     path: "/dashboard/admin?hub=1",
     session: "admin",
     ready: '[data-dashboard-module-hub="true"]',
-    mobileReady: '[data-admin-mobile-hub-launcher="true"]',
+    // Pre-C05 mobile space: below 768px the admin hub is retired and `?hub=1`
+    // lands on the landing module, so the 320 baseline paints that module.
+    mobileReady: '[data-dashboard-module-workspace="admin"]',
   },
 ];
 
