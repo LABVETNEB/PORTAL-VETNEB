@@ -1961,12 +1961,21 @@ export async function changeAdminClinicUserRole(
   );
 }
 
+export type AdminClinicsSortKey = "name" | "createdAt";
+export type AdminClinicsSortDirection = "asc" | "desc";
+
+// C04: the server sorts globally before LIMIT/OFFSET; sort and direction
+// travel together or not at all.
+export type AdminClinicsSortParams =
+  | { sort?: undefined; direction?: undefined }
+  | { sort: AdminClinicsSortKey; direction: AdminClinicsSortDirection };
+
 export async function getAdminClinics(
   params: {
     limit?: number;
     offset?: number;
     search?: string;
-  } = {},
+  } & AdminClinicsSortParams = {},
   options?: RequestInit,
 ): Promise<AdminClinicsSnapshot> {
   const query = new URLSearchParams();
@@ -1981,6 +1990,11 @@ export async function getAdminClinics(
 
   if (params.search && params.search.trim()) {
     query.set("search", params.search.trim());
+  }
+
+  if (params.sort !== undefined) {
+    query.set("sort", params.sort);
+    query.set("direction", params.direction);
   }
 
   const qs = query.toString();

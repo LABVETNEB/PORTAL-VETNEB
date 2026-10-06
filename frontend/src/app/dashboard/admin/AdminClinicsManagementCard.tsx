@@ -10,7 +10,7 @@ import {
   useTransition,
 } from "react";
 import dynamic from "next/dynamic";
-import { ChevronLeft, ChevronRight, Eye, EyeOff, Loader2, Pencil, Plus, RefreshCw, Search } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Eye, EyeOff, Loader2, Pencil, Plus, RefreshCw, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ModuleDialog } from "@/components/dashboard/ModuleDialog";
@@ -35,6 +35,8 @@ import {
   getAdminClinics,
   updateAdminClinic,
   updateAdminClinicUserCredentials,
+  type AdminClinicsSortDirection,
+  type AdminClinicsSortKey,
 } from "@/lib/api";
 import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
 import {
@@ -87,6 +89,58 @@ type ClinicUserRow = {
   extraUsers: number;
 };
 
+// C04: explicit column sort executed by the server over the whole collection.
+// null = no request, so the server keeps its historical order.
+type ClinicsColumnSort = {
+  sort: AdminClinicsSortKey;
+  direction: AdminClinicsSortDirection;
+} | null;
+
+function nextClinicsColumnSort(
+  current: ClinicsColumnSort,
+  key: AdminClinicsSortKey,
+): ClinicsColumnSort {
+  return {
+    sort: key,
+    direction: current?.sort === key && current.direction === "asc" ? "desc" : "asc",
+  };
+}
+
+function clinicsAriaSort(
+  current: ClinicsColumnSort,
+  key: AdminClinicsSortKey,
+): "ascending" | "descending" | "none" {
+  if (current?.sort !== key) return "none";
+  return current.direction === "asc" ? "ascending" : "descending";
+}
+
+function ClinicsSortHeaderButton({
+  label,
+  title,
+  ariaSort,
+  onToggle,
+}: {
+  label: string;
+  title: string;
+  ariaSort: "ascending" | "descending" | "none";
+  onToggle: () => void;
+}) {
+  const Icon = ariaSort === "ascending" ? ArrowUp : ariaSort === "descending" ? ArrowDown : ArrowUpDown;
+
+  return (
+    <button
+      type="button"
+      title={title}
+      onClick={onToggle}
+      data-admin-clinics-sort-button="true"
+      className="-mx-1 inline-flex items-center gap-1 rounded px-1 py-0.5 uppercase transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
+    >
+      {label}
+      <Icon className="h-3 w-3 shrink-0" aria-hidden="true" />
+    </button>
+  );
+}
+
 function getInitialCreateForm(): CreateClinicForm {
   return {
     clinicName: "",
@@ -128,6 +182,10 @@ export function AdminClinicsManagementCard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [submittedSearch, setSubmittedSearch] = useState("");
   const [offset, setOffset] = useState(0);
+  const [columnSort, setColumnSort] = useState<ClinicsColumnSort>(null);
+  // The order the rendered rows actually have: set only together with the
+  // snapshot of the latest request, so aria-sort never runs ahead of the rows.
+  const [appliedSort, setAppliedSort] = useState<ClinicsColumnSort>(null);
   const [createForm, setCreateForm] = useState<CreateClinicForm>(getInitialCreateForm);
   const [editingClinic, setEditingClinic] = useState<AdminClinicManagementSummary | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -193,7 +251,21 @@ export function AdminClinicsManagementCard() {
   const pageCount = Math.max(1, Math.ceil(totalClinics / effectiveLimit));
   const isBusy = isPending || activeActionKey !== null;
 
-  const query = useMemo(
+  // Sort headers exist only in the desktop table; the mobile list has none, so
+  // it never carries a hidden order and keeps the historical server order.
+  const requestedSort = mobileCapacity.measured ? null : columnSort;
+
+  // The effective order also changes when the viewport enters or leaves the
+  // mobile list, so the window restarts at the first page exactly as for a
+  // user-driven order change. Adjusted while rendering, before any request is
+  // built, so none carries the old offset; columnSort itself is untouched.
+  const [orderOfOffset, setOrderOfOffset] = useState<ClinicsColumnSort>(null);
+  if (orderOfOffset !== requestedSort) {
+    setOrderOfOffset(requestedSort);
+    setOffset(0);
+  }
+
+  const pageQuery = useMemo(
     () => ({
       limit: effectiveLimit,
       offset,
@@ -201,12 +273,17 @@ export function AdminClinicsManagementCard() {
     }),
     [effectiveLimit, offset, submittedSearch],
   );
+  const query = useMemo(
+    () => (requestedSort ? { ...pageQuery, ...requestedSort } : pageQuery),
+    [pageQuery, requestedSort],
+  );
 
   function loadClinics() {
     setError(null);
 
     const requestId = latestRequestRef.current + 1;
     latestRequestRef.current = requestId;
+    const sortOfRequest = requestedSort;
 
     startTransition(() => {
       void (async () => {
@@ -214,6 +291,7 @@ export function AdminClinicsManagementCard() {
           const result = await getAdminClinics(query);
           if (requestId !== latestRequestRef.current) return;
           setSnapshot(result);
+          setAppliedSort(sortOfRequest);
         } catch (err) {
           if (requestId !== latestRequestRef.current) return;
           setError(
@@ -375,6 +453,14 @@ export function AdminClinicsManagementCard() {
   function goToNextPage() {
     setError(null);
     setOffset(offset + effectiveLimit);
+  }
+
+  // A new order restarts at its first page, as a new search does; the limit
+  // is untouched.
+  function toggleColumnSort(key: AdminClinicsSortKey) {
+    setError(null);
+    setColumnSort((current) => nextClinicsColumnSort(current, key));
+    setOffset(0);
   }
 
   return (
@@ -608,10 +694,24 @@ export function AdminClinicsManagementCard() {
           <Table className="text-[0.8125rem] [&_th]:h-9 [&_th]:px-3 [&_td]:px-3">
             <TableHeader>
               <TableRow>
-                <TableHead>Clínica</TableHead>
+                <TableHead aria-sort={clinicsAriaSort(appliedSort, "name")}>
+                  <ClinicsSortHeaderButton
+                    label="Clínica"
+                    title="Ordenar por nombre de clínica"
+                    ariaSort={clinicsAriaSort(appliedSort, "name")}
+                    onToggle={() => toggleColumnSort("name")}
+                  />
+                </TableHead>
                 <TableHead>Contacto</TableHead>
                 <TableHead>Usuario</TableHead>
-                <TableHead>Fechas</TableHead>
+                <TableHead aria-sort={clinicsAriaSort(appliedSort, "createdAt")}>
+                  <ClinicsSortHeaderButton
+                    label="Fechas"
+                    title="Ordenar por fecha de creación"
+                    ariaSort={clinicsAriaSort(appliedSort, "createdAt")}
+                    onToggle={() => toggleColumnSort("createdAt")}
+                  />
+                </TableHead>
                 <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>

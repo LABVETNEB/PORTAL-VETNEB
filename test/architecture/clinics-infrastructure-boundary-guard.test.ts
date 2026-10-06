@@ -808,11 +808,24 @@ test("C04 · el orden de clínicas es server-side, allowlisted y nunca deriva SQ
   assert.ok(route.includes("...(sort.data ? { sort: sort.data } : {}),"), "sin sort el listado recibe los params legacy");
 });
 
-test("C04 · el frontend de C04 no empezó: el cliente de clínicas no envía orden", () => {
+test("C04 · el cliente de clínicas envía sólo la allowlist del contrato, en par y sin orden por defecto", () => {
   const api = readText("frontend/src/lib/api.ts");
   const start = api.indexOf("export async function getAdminClinics(");
   const end = api.indexOf("export async function", start + 1);
   const client = api.slice(start, end);
   assert.ok(start >= 0 && client.includes("/api/admin/clinics"));
-  assert.equal(/sort|direction/.test(client), false, "C04 frontend llega en su propio PR tras validar este contrato en main");
+  assert.ok(api.includes('export type AdminClinicsSortKey = "name" | "createdAt";'), "allowlist cliente = dominio");
+  assert.ok(api.includes('export type AdminClinicsSortDirection = "asc" | "desc";'));
+  assert.ok(api.includes("  | { sort?: undefined; direction?: undefined }\n  | { sort: AdminClinicsSortKey; direction: AdminClinicsSortDirection };"),
+    "sort y direction viajan juntos o no viajan");
+  assert.ok(client.includes("} & AdminClinicsSortParams = {},"));
+  assert.match(
+    client,
+    /if \(params\.sort !== undefined\) \{\s*query\.set\("sort", params\.sort\);\s*query\.set\("direction", params\.direction\);\s*\}/,
+    "sin orden explícito no se envía sort ni direction: el servidor conserva el orden histórico",
+  );
+
+  const domain = readText(featureDir + "/domain/clinic-management-validation.ts");
+  assert.ok(domain.includes('export const ADMIN_CLINICS_SORT_KEYS = ["name", "createdAt"] as const;'), "allowlist dominio = cliente");
+  assert.ok(domain.includes('export const ADMIN_CLINICS_SORT_DIRECTIONS = ["asc", "desc"] as const;'));
 });
