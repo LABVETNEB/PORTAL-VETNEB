@@ -951,13 +951,19 @@ export function ClinicPublicProfileCard() {
         ...section,
         content: profileStack,
       }))}
+      // From 768px up the avatar stays operable with "Cambiar contraseña"
+      // open, so its feedback must still reach the user there: the footer
+      // mounts in that section only while a message exists (no empty band),
+      // and only from 768px up — below it the avatar is not on screen and the
+      // password chip keeps its previous footer-less layout.
       footer={
-        !isPasswordTabActive ? (
+        !isPasswordTabActive || errorMessage || statusMessage ? (
           <div
             data-clinic-profile-footer="true"
             className={cn(
               "flex min-h-8 shrink-0 flex-wrap items-center gap-2 border-t border-vetneb-line/65 pt-2 text-xs",
               !errorMessage && !statusMessage && "md:hidden",
+              isPasswordTabActive && "max-md:hidden",
             )}
           >
             {errorMessage ? (
@@ -967,7 +973,7 @@ export function ClinicPublicProfileCard() {
             ) : null}
 
             {statusMessage ? (
-              <p className="clinical-alert-success px-3 py-1.5">
+              <p className="clinical-alert-success px-3 py-1.5" role="status">
                 {statusMessage}
               </p>
             ) : null}

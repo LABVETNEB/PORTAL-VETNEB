@@ -130,6 +130,13 @@ test("CLINIC-DT · clinic pagers paint Anterior/Siguiente only from 768px up; lo
   assert.ok(tokensPager.includes('className="flex items-center justify-center gap-1.5"'), "centered at every width");
   assert.equal(tokensPager.includes("md:justify-end"), false, "no longer pushed right from 768px up");
   assert.ok(tokens.includes("disabled={!pagedTokens.hasPrev || isLoadingTokens}"));
+  // Review P2: the phone-only painted state keeps an assistive equivalent
+  // from 768px up (live, atomic, never painted there, absent on phones).
+  const announcement = between(tokensPager, 'data-clinic-access-pagination-announcement="true"', "</span>");
+  assert.ok(announcement.includes('className="hidden md:block md:sr-only"'));
+  assert.ok(announcement.includes('aria-live="polite"'));
+  assert.ok(announcement.includes('aria-atomic="true"'));
+  assert.ok(announcement.includes("Página ${pagedTokens.page + 1} de ${pagedTokens.pageCount}"));
 
   const logistica = read(LOGISTICA);
   assert.ok(logistica.includes('pageStateRegime="phone-only"'));
@@ -198,6 +205,12 @@ test("CLINIC-DT · Perfil: avatar on top, single-open rows in order, one form, s
   assert.ok(source.includes('!hasProfileLoadState && "md:hidden"'));
   assert.ok(source.includes('!errorMessage && !statusMessage && "md:hidden"'));
   assert.ok(source.includes('<p className="clinical-alert-error px-3 py-1.5" role="alert">'));
+  assert.ok(source.includes('<p className="clinical-alert-success px-3 py-1.5" role="status">'));
+  // Review P2: the avatar stays operable with "Cambiar contraseña" open from
+  // 768px up, so its feedback mounts there while (and only while) a message
+  // exists; phones keep the password chip footer-less.
+  assert.ok(source.includes("!isPasswordTabActive || errorMessage || statusMessage ? ("));
+  assert.ok(source.includes('isPasswordTabActive && "max-md:hidden"'));
   // Yellow: the publication badge is kept and closes the stack next to save.
   assert.equal(count(source, "{publicationBadge}"), 2);
 });

@@ -89,11 +89,25 @@ Contratos dedicados: `test/architecture/dashboard-clinic-desktop-tablet-space.te
   unitarios de Perfil/Tokens/Operaciones, S7/D-06 y censos del catálogo E2E y del lector
   canónico.
 
+## Review (Codex P2) y evidencia Linux
+
+- Perfil: desde 768px el avatar sigue operable con "Cambiar contraseña" abierta; el footer de
+  feedback se monta en esa sección sólo mientras hay mensaje (sin banda vacía) y sólo ≥768
+  (en mobile el avatar no está en pantalla). El estado de éxito pasa a `role="status"`.
+- Tokens: el estado de página pintado sigue siendo phone-only; desde 768px se anuncia con un
+  `sr-only` `aria-live="polite"` (`Página N de M, a–b de T`) que se actualiza al paginar.
+- Linux (E2E Completeness run 37586662433, head `09a05e6d`, artifact 11467034681): A02, 40
+  registros (5 módulos × 8 viewports ≥768) desde los campos del log; A03, 24 leaves copiados
+  del artifact y corroborados por A05 del mismo run; `dashboard-768` y `stress-dashboard-768`
+  promovidos byte a byte desde el actual estable (auth 3/3, stress retry 2/2). Teléfono: 0
+  registros y 0 leaves cambiados.
+
 ## Riesgo residual
 
-- `platformRecords.linux` (A02) y `platformObservations.linux` (A03) de esos registros, y los
-  12 PNG Linux de `/dashboard` ≥768 (claro, dark-gray y stress), quedan `PENDING_REAL_CI`:
-  se promueven desde E2E Completeness y no se derivan de Win32. Los 320px no cambian.
+- La cascada serial de los specs visuales dejó sin evidencia Linux 10 capturas de Clínica
+  (`/dashboard` 768 dark-gray y 1024/1536/1920 claro/dark-gray, y stress 1024/1536/1920):
+  requieren una corrida production-candidate; no se fabrican ni se derivan de Win32. Las
+  12 capturas de Admin que tampoco corrieron no se tocan.
 - Tokens: la ventana de fetch se sigue calculando con la misma fórmula sobre la capacidad
   medida (`min(36, max(12, filas × 3))`). Con más filas, el `limit` de la request crece dentro
   del mismo tope; las dos páginas completas siguen cubiertas (máx. 18 filas a 834×1194).

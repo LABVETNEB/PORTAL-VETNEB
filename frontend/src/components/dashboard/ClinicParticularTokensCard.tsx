@@ -1118,6 +1118,20 @@ export function ClinicParticularTokensCard() {
                     >
                       Anterior
                     </Button>
+                    {/* From 768px up nothing but Anterior / Siguiente paints;
+                        the page state is announced to assistive tech instead
+                        (below 768px the visible state below carries it). */}
+                    <span
+                      data-clinic-access-pagination-announcement="true"
+                      className="hidden md:block md:sr-only"
+                      aria-live="polite"
+                      aria-atomic="true"
+                    >
+                      {`Página ${pagedTokens.page + 1} de ${pagedTokens.pageCount}`}
+                      {pagedTokens.total > 0
+                        ? `, ${pagedTokens.rangeStart}–${pagedTokens.rangeEnd} de ${pagedTokens.total}`
+                        : ""}
+                    </span>
                     {/* Phone-only page state: from 768px up the pager is
                         Anterior / Siguiente, centered, and nothing else. */}
                     <span

@@ -327,6 +327,18 @@ for (const viewport of DT_VIEWPORTS) {
         card.locator('[data-clinic-access-pagination-status="true"]'),
         "tokens",
       );
+      // The painted state is phone-only, but assistive tech still gets the
+      // page state from 768px up, and it follows Anterior / Siguiente.
+      const announcement = card.locator('[data-clinic-access-pagination-announcement="true"]');
+      await expect(announcement).toHaveAttribute("aria-live", "polite");
+      await expect(announcement).toHaveText(/^Página 1 de (\d+), 1–(\d+) de (\d+)$/);
+      await expectAccessibleOnly(announcement, "tokens page announcement");
+      const pageCount = Number((await announcement.textContent())?.match(/de (\d+),/)?.[1]);
+      expect(pageCount, "the stubbed dataset spans several pages").toBeGreaterThan(1);
+      await card.getByRole("button", { name: "Página siguiente" }).click();
+      await expect(announcement).toHaveText(new RegExp(`^Página 2 de ${pageCount}, `));
+      await card.getByRole("button", { name: "Página anterior" }).click();
+      await expect(announcement).toHaveText(new RegExp(`^Página 1 de ${pageCount}, 1–`));
       await expectZeroScroll(page, "tokens");
     });
 
@@ -404,6 +416,23 @@ for (const viewport of DT_VIEWPORTS) {
       expect(payload.isPublic).toBe(true);
       await expect(editor.getByText("Perfil público actualizado.")).toBeVisible();
 
+      // Avatar feedback stays reachable with "Cambiar contraseña" open (the
+      // save status above is still current, so the footer carries it there).
+      await editor.getByRole("button", { name: "Cambiar contraseña", exact: true }).click();
+      await expect(editor.locator('input[name="currentPassword"]')).toBeVisible();
+      await expect(editor.getByRole("status").filter({ hasText: "Perfil público actualizado." })).toBeVisible();
+      await expect(avatar).toBeVisible();
+      await editor.locator("#clinic-profile-avatar").setInputFiles({
+        name: "no-imagen.txt",
+        mimeType: "text/plain",
+        buffer: Buffer.from("not an image"),
+      });
+      const avatarError = editor.locator('[data-clinic-profile-footer="true"] [role="alert"]');
+      await expect(avatarError).toHaveText("La imagen debe ser JPG, PNG o WebP.");
+      await expect(avatarError).toBeVisible();
+      await expect(editor.locator('input[name="currentPassword"]'), "password stays open").toBeVisible();
+      await expectZeroScroll(page, "perfil avatar feedback");
+
       // Rows stay at a readable width instead of spanning a wide workspace.
       const stack = editor.locator('[data-clinic-profile-stack="true"]');
       const stackWidth = (await box(stack)).width;
@@ -412,6 +441,35 @@ for (const viewport of DT_VIEWPORTS) {
     });
   });
 }
+
+test.describe("CLINIC-DT-SPACE · avatar status while Cambiar contraseña is open", () => {
+  test("removing the avatar announces its result from 768px up", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 768 });
+    await setClinicSession(page, "populated");
+    await stubClientApis(page);
+    await page.route("**/api/clinic/profile**", (route) => {
+      const pathname = new URL(route.request().url()).pathname;
+      if (pathname === "/api/clinic/profile" && route.request().method() === "GET") {
+        return json(route, { success: true, profile: { ...PROFILE, avatarUrl: "/icons/icon-192x192.png" } });
+      }
+      if (pathname === "/api/clinic/profile/avatar" && route.request().method() === "DELETE") {
+        return json(route, { success: true, message: "Imagen eliminada.", profile: PROFILE });
+      }
+      return route.fallback();
+    });
+    const workspace = await openModule(page, "perfil");
+    const editor = workspace.locator('[data-clinic-profile-editor="true"]');
+    const remove = editor.getByRole("button", { name: "Quitar imagen" });
+    await expect(remove).toBeEnabled({ timeout: 12_000 });
+    await editor.getByRole("button", { name: "Cambiar contraseña", exact: true }).click();
+    await editor.locator('input[name="currentPassword"]').fill("actual-sin-enviar");
+    // Nothing to report yet: the section adds no feedback band.
+    await expect(editor.locator('[data-clinic-profile-footer="true"]')).toHaveCount(0);
+    await remove.click();
+    await expect(editor.getByRole("status").filter({ hasText: "Imagen eliminada." })).toBeVisible();
+    await expect(editor.locator('input[name="currentPassword"]'), "password state kept").toHaveValue("actual-sin-enviar");
+  });
+});
 
 test.describe(`CLINIC-DT-SPACE · phone boundary ${PHONE.name}`, () => {
   test.beforeEach(async ({ page }) => {
@@ -436,6 +494,7 @@ test.describe(`CLINIC-DT-SPACE · phone boundary ${PHONE.name}`, () => {
     await expect(workspace.locator('[data-clinic-report-filter-bar="advanced"]')).toBeHidden();
 
     workspace = await openModule(page, "tokens");
+    await expect(workspace.locator('[data-clinic-access-pagination-announcement="true"]')).toBeHidden();
     await expect(workspace.locator('[data-clinic-access-pagination-status="true"]')).toHaveText(/Página 1 \/ \d+/, {
       timeout: 12_000,
     });
