@@ -323,6 +323,9 @@ test.describe("admin dashboard — workspace activation", () => {
 
     await page.locator(`${ADMIN_DRAWER} [data-dashboard-navigation-item="audit-log"]`).click();
     await expect(page.locator('[data-dashboard-module-workspace="audit-log"]')).toBeVisible({ timeout: 5_000 });
+    // The workspace swaps optimistically, before the router commits; the history
+    // entry Back pops only exists once the URL has committed.
+    await expect(page).toHaveURL(/\/dashboard\/admin\?module=audit-log$/);
 
     await page.goBack();
     await expect(page.locator('[data-dashboard-module-workspace="admin"]')).toBeVisible({ timeout: 5_000 });

@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { ExternalLink, KeyRound, LogOut, MoreVertical } from "lucide-react";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { ThemeModeToggle } from "@/components/theme/ThemeModeToggle";
+import { requestAdminModuleActivate } from "@/lib/admin-hub-reset";
+import { requestClinicModuleActivate } from "@/lib/clinic-hub-reset";
 import { ROUTES } from "@/lib/routes";
 import { DashboardLogoutControl } from "./DashboardLogoutControl";
 import { DashboardNotificationsBell } from "./DashboardNotificationsBell";
@@ -40,12 +42,14 @@ const SURFACE_COPY = {
     menuLabel: "Acciones de administración",
     /** Admin manages its own credentials from the sessions module. */
     passwordHref: `${ROUTES.dashboardAdmin}?module=admin-sessions`,
+    passwordModule: "admin-sessions",
   },
   clinic: {
     triggerLabel: "Menú de la clínica",
     menuLabel: "Acciones de la clínica",
     /** Clínica manages its credentials from the "Cambiar contraseña" tab of Perfil. */
     passwordHref: `${ROUTES.dashboard}?module=perfil`,
+    passwordModule: "perfil",
   },
 } as const;
 
@@ -125,7 +129,13 @@ export function DashboardMobileKebabMenu({ surface }: DashboardMobileKebabMenuPr
             href={copy.passwordHref}
             prefetch={false}
             variant="bare"
-            onClick={() => setIsOpen(false)}
+            onClick={() => {
+              setIsOpen(false);
+              // Same optimistic activation as every module destination: the
+              // stage must not wait for the server render behind the commit.
+              if (isAdmin) requestAdminModuleActivate(copy.passwordModule);
+              else requestClinicModuleActivate(copy.passwordModule);
+            }}
             className={actionClass}
           >
             <KeyRound className="h-4 w-4" aria-hidden="true" />

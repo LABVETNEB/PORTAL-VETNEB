@@ -11,7 +11,10 @@ import {
 import { useSearchParams, useSelectedLayoutSegment } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
-import { requestAdminModuleActivate } from "@/lib/admin-hub-reset";
+import {
+  observeAdminModuleActivate,
+  requestAdminModuleActivate,
+} from "@/lib/admin-hub-reset";
 import {
   requestClinicModuleActivate,
   subscribeClinicHubReset,
@@ -523,8 +526,17 @@ function MobileNavWithUrl({ surface }: DashboardMobileNavProps) {
     setActiveModule(parsed);
   }, [parsed]);
 
+  // A destination outside the bar (lateral band, kebab, overview links, app-bar
+  // search) moves the current slot with the stage on both roles. Admin observes
+  // instead of listening, so its controller keeps the late hand-over.
   useEffect(() => {
-    if (surface !== "clinic") return;
+    if (surface === "admin") {
+      return observeAdminModuleActivate((moduleId) => {
+        const adminModule = parseAdminModule(moduleId);
+        if (!adminModule) return;
+        setActiveModule(adminModule);
+      });
+    }
     return subscribeClinicModuleActivate((moduleId) => {
       const clinicModule = parseClinicModule(moduleId);
       if (!clinicModule) return;

@@ -25,8 +25,8 @@ const TEST_FILE = fileURLToPath(import.meta.url);
 const REPO_ROOT = resolve(dirname(TEST_FILE), "..", "..");
 process.chdir(REPO_ROOT);
 
-const EXPECTED_WORKSPACE_SPEC_COUNT = 102;
-const EXPECTED_CATALOG_SPEC_COUNT = 102;
+const EXPECTED_WORKSPACE_SPEC_COUNT = 103;
+const EXPECTED_CATALOG_SPEC_COUNT = 103;
 const EXPECTED_MANUAL_ONLY_SPEC_COUNT = 0;
 const EXPECTED_DOMAIN_COUNTS = new Map([
   // +1: C04 Clínicas admin column sort (admin-clinics-column-sort.spec.ts).
@@ -46,7 +46,9 @@ const EXPECTED_DOMAIN_COUNTS = new Map([
   // +3: E2E-GLOBAL-03 simulated auth boundary specs (platform/auth):
   // dashboard-admin-boundary-cross-role, dashboard-session-boundary-unauthorized,
   // session-boundary-forbidden-role (LIMPIEZA E2E P0-1/R-01/B-3).
-  ["platform", 22],
+  // +1: DASHBOARD_GLOBAL_LIVE_SYNC live module navigation contract
+  // (platform/app-shell), routed to visual-contract like its app-shell siblings.
+  ["platform", 23],
   // +1: B10 clinic app-shell unification, the runtime half of the shared
   // ClinicDashboardShell contract.
   // +1: B11 canonical WorkspaceHeader, the runtime half of the shared
@@ -73,7 +75,9 @@ const EXPECTED_LAYER_COUNTS = new Map<E2eLayer, number>([
   // off particular-tokens/users-roles response stubs and onto that fixture.
   // +1: served PWA surface E2E. It fabricates nothing: /offline, the manifest
   // and sw.js are served by the real Next.js app under test.
-  ["fixture", 64],
+  // +1: DASHBOARD_GLOBAL_LIVE_SYNC. It fabricates nothing: held router payloads
+  // are continued to the fixture API.
+  ["fixture", 65],
 ]);
 const EXPECTED_CURRENT_COUNTS = new Map([
   // +3: E2E-GLOBAL-03 simulated auth boundary specs, promoted straight to
@@ -89,7 +93,8 @@ const EXPECTED_CURRENT_COUNTS = new Map([
   // visual-contract like A08 (same zero-scroll/visual contract, AGENTS.md §7).
   // +1: CLINIC-DT clinic desktop/tablet space contract (zero-scroll desktop
   // geometry, AGENTS.md §7).
-  ["visual-contract", 25],
+  // +1: DASHBOARD_GLOBAL_LIVE_SYNC live module navigation contract (AGENTS.md §7).
+  ["visual-contract", 26],
   // +1: CMP-12 cross-role runtime parity contract, routed public-clinic like
   // the other CMP-04..09 parity specs (AGENTS.md §7).
   // +1: E2E-GLOBAL-06 P1 dashboard-logistica-mobile-action-bar-reachability,
@@ -107,14 +112,15 @@ const EXPECTED_EXECUTION_COUNTS = new Map<E2eExecutionCohort, number>([
   // +1: served PWA surface E2E (public-clinic -> ci union).
   // +1: C04 Clínicas admin column sort (admin-mobile -> ci union).
   // +1: CLINIC-DT clinic desktop/tablet space contract (visual-contract -> ci union).
-  ["ci", 71],
+  // +1: DASHBOARD_GLOBAL_LIVE_SYNC (visual-contract -> ci union).
+  ["ci", 72],
   ["extended", 27],
   // -1: E2E-GLOBAL-10 (R-16). `evidence` keeps the generator that does assert
   // layout (dashboard-runtime-post-ux1-visual-evidence) and loses the one that
   // asserted nothing.
   ["evidence", 1],
   ["visual-linux", 3],
-  ["full", 102],
+  ["full", 103],
   ["affected", 0],
 ]);
 const E2E_GLOBAL_06_PROMOTED_P1_SPECS = [
@@ -336,7 +342,7 @@ function validateCatalog(
   }
 
   const currentUnion = unique([...currentMemberships.keys()]).sort();
-  assert.equal(currentUnion.length, 71);
+  assert.equal(currentUnion.length, 72);
   assert.deepEqual(E2E_COHORT_SPECS.ci, currentUnion, "ci must equal the current four-cohort union");
 
   for (const cohort of ["extended", "evidence", "visual-linux", "full"] as const) {
@@ -408,11 +414,11 @@ test("catalog validation catches missing and duplicate entries in memory", async
 
   assert.throws(
     () => validateCatalog(missing, workspaceSpecs, E2E_MANUAL_ONLY_SPECS),
-    /101|classified/,
+    /102|classified/,
   );
   assert.throws(
     () => validateCatalog(duplicated, workspaceSpecs, E2E_MANUAL_ONLY_SPECS),
-    /103|unique/,
+    /104|unique/,
   );
 });
 
@@ -466,7 +472,7 @@ test("affected selection fails closed for empty or shared changes", async () => 
 
   const sharedSelection = runner.classifyAffectedPaths(["frontend/e2e/helpers/admin-mobile-contracts.ts"]);
   assert.equal(sharedSelection.fallback, true);
-  assert.equal(sharedSelection.specs.length, 71);
+  assert.equal(sharedSelection.specs.length, 72);
   assert.match(sharedSelection.reason, /shared E2E infrastructure/);
 });
 

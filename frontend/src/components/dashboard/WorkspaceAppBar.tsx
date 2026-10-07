@@ -18,6 +18,7 @@ import {
   CLINIC_MODULE_NAV_LABELS,
 } from "@/features/dashboard/config";
 import { buildDashboardModuleHref } from "@/features/dashboard/application";
+import { requestAdminModuleActivate } from "@/lib/admin-hub-reset";
 import { requestClinicModuleActivate } from "@/lib/clinic-hub-reset";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
@@ -133,10 +134,11 @@ function WorkspaceModuleSearch() {
       setQuery("");
       setActiveIndex(0);
       inputRef.current?.blur();
-      // The clinic workspace activates its module optimistically before the URL
-      // commit, exactly as the shipped clinic nav surfaces do; admin has no
-      // such activation buffer.
-      if (!isAdmin) {
+      // Both workspaces activate the module optimistically before the URL
+      // commit, exactly as the shipped nav surfaces do.
+      if (isAdmin) {
+        requestAdminModuleActivate(entry.moduleId);
+      } else {
         requestClinicModuleActivate(entry.moduleId);
       }
       router.push(buildDashboardModuleHref(basePath, entry.moduleId));
