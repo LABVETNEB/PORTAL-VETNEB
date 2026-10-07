@@ -7,7 +7,6 @@ import {
   useState,
   useTransition,
 } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { AdminAuditDenseTable, type AdminAuditRow } from "./AdminAuditDenseTable";
 import {
   AdminAuditFilterBar,
@@ -36,11 +35,6 @@ export const ADMIN_AUDIT_FALLBACK_ROWS = 9;
 // this cap, protecting the payload.
 export const ADMIN_AUDIT_LIMIT_CAP = 32;
 
-type AuditSummary = {
-  total: number;
-  latestDate: string;
-};
-
 type FilterOption = {
   value: string;
   label: string;
@@ -50,18 +44,12 @@ type AdminAuditCardProps = {
   filters: AdminAuditFilterValues;
   eventOptions: FilterOption[];
   actorTypeOptions: FilterOption[];
-  globalTotal: number;
-  roleChanges: AuditSummary;
-  notifications: AuditSummary;
 };
 
 export function AdminAuditCard({
   filters,
   eventOptions,
   actorTypeOptions,
-  globalTotal,
-  roleChanges,
-  notifications,
 }: AdminAuditCardProps) {
   const hasActiveFilters = Object.values(filters).some(Boolean);
 
@@ -198,8 +186,6 @@ export function AdminAuditCard({
   const visibleIds = useMemo(() => (loadError ? [] : rows.map((row) => row.id)), [loadError, rows]);
   const selection = useCollectionSelection({ visibleIds });
 
-  const pageCount = Math.max(1, Math.ceil(totalCount / effectiveLimit));
-  const page = Math.min(Math.floor(offset / effectiveLimit) + 1, pageCount);
   const rangeStart = totalCount === 0 ? 0 : offset + 1;
   const rangeEnd = Math.min(offset + rows.length, totalCount);
   const hasPreviousPage = offset > 0;
@@ -231,49 +217,16 @@ export function AdminAuditCard({
         selection={selection}
       />
 
+      {/* Desktop/tablet space pass: the "Registro operativo" header (title,
+          eventos · roles · avisos metric run and the match count) is retired,
+          as it was below md in pre-C05. The C07 SelectionToolbar now sits in
+          the table header row, beside the page selector, the same pairing the
+          mobile strip uses. */}
       <section
-        aria-labelledby="admin-audit-register-title"
+        aria-label="Registro operativo"
         data-dashboard-b12-module-card="true"
         className="dashboard-surface hidden min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-vetneb-line/80 bg-card md:flex"
       >
-      <header className="flex min-h-12 shrink-0 items-center gap-3 border-b border-vetneb-line/70 px-3 py-2 sm:px-4">
-        <div className="min-w-0">
-          <h2 id="admin-audit-register-title" className="text-base font-semibold text-vetneb-ink">
-            Registro operativo
-          </h2>
-          <p className="truncate text-xs text-muted-foreground">
-            Acción, actor, entidad y fecha con detalle controlado.
-          </p>
-        </div>
-        <SelectionToolbar selectedCount={selection.selectedCount} onClearSelection={selection.clearSelection}>
-        <div
-          data-dashboard-b14-metrics="admin-audit"
-          className="grid min-w-0 flex-1 grid-cols-3 divide-x divide-vetneb-line/70"
-          aria-label="Resumen de auditoría"
-        >
-          <div id="admin-event-summary" className="min-w-0 px-2 text-center">
-            <p className="truncate text-[10px] text-muted-foreground">Eventos</p>
-            <strong className="text-sm font-semibold tabular-nums text-vetneb-ink">{globalTotal}</strong>
-          </div>
-          <div id="audit-role-changes" aria-label="Cambios de rol" className="min-w-0 px-2 text-center">
-            <p className="truncate text-[10px] leading-3 text-muted-foreground">
-              Roles · <span data-admin-audit-latest="roles">Últ. {roleChanges.latestDate}</span>
-            </p>
-            <strong className="text-sm font-semibold tabular-nums text-vetneb-ink">{roleChanges.total}</strong>
-          </div>
-          <div id="admin-notifications" aria-label="Notificaciones" className="min-w-0 px-2 text-center">
-            <p className="truncate text-[10px] leading-3 text-muted-foreground">
-              Avisos · <span data-admin-audit-latest="avisos">Últ. {notifications.latestDate}</span>
-            </p>
-            <strong className="text-sm font-semibold tabular-nums text-vetneb-ink">{notifications.total}</strong>
-          </div>
-        </div>
-        <span className="shrink-0 text-xs font-medium text-muted-foreground">
-          {totalCount} coincidencias
-        </span>
-        </SelectionToolbar>
-      </header>
-
       <AdminAuditFilterBar
         values={filters}
         eventOptions={eventOptions}
@@ -299,38 +252,53 @@ export function AdminAuditCard({
           loadError={loadError}
           hasActiveFilters={hasActiveFilters}
           selection={selection}
+          selectionToolbar={
+            // C07 on desktop/tablet: with a selection the toolbar covers the
+            // column labels of the table header row, right beside the page
+            // selector (the mobile strip pairing). It is anchored to the
+            // sticky header, so the row and its columns keep their geometry;
+            // idle, the host is transparent and only keeps the live region.
+            <div
+              data-audit-selection-toolbar-host="true"
+              className={`absolute inset-y-0 left-9 right-0 z-[2] flex items-center px-2 font-normal normal-case tracking-normal ${
+                selection.selectedCount > 0 ? "bg-[var(--dash-color-surface)]" : "pointer-events-none"
+              }`}
+            >
+              <SelectionToolbar selectedCount={selection.selectedCount} onClearSelection={selection.clearSelection}>
+                {null}
+              </SelectionToolbar>
+            </div>
+          }
         />
       </CollectionWorkspace>
 
       <footer
         data-dashboard-adaptive-reserved-region="pager"
-        className="flex shrink-0 items-center justify-between gap-2 overflow-hidden border-t border-vetneb-line/70 px-3 text-xs text-muted-foreground sm:px-4"
+        aria-label="Paginación de auditoría"
+        className="flex shrink-0 items-center justify-center gap-2 overflow-hidden border-t border-vetneb-line/70 px-3 text-xs text-muted-foreground sm:px-4"
         style={DASHBOARD_PAGER_RESERVATION}
       >
-        <span aria-live="polite">
+        <span className="sr-only" aria-live="polite">
           {totalCount === 0 ? "Sin eventos" : `${rangeStart}–${rangeEnd} de ${totalCount}`}
         </span>
-        <div className="flex items-center gap-2">
-          <span>Pág. {page} / {pageCount}</span>
-          <button
-            type="button"
-            onClick={goToPreviousPage}
-            disabled={loadError || !hasPreviousPage || isPending}
-            aria-label="Página anterior"
-            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-input bg-card hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            onClick={goToNextPage}
-            disabled={loadError || !hasNextPage || isPending}
-            aria-label="Página siguiente"
-            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-input bg-card hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <ChevronRight className="h-4 w-4" aria-hidden="true" />
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={goToPreviousPage}
+          disabled={loadError || !hasPreviousPage || isPending}
+          aria-label="Página anterior"
+          className="inline-flex h-7 items-center justify-center rounded-md border border-input bg-card px-2.5 font-medium text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Anterior
+        </button>
+        <button
+          type="button"
+          onClick={goToNextPage}
+          disabled={loadError || !hasNextPage || isPending}
+          aria-label="Página siguiente"
+          className="inline-flex h-7 items-center justify-center rounded-md border border-input bg-card px-2.5 font-medium text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Siguiente
+        </button>
       </footer>
       </section>
     </div>

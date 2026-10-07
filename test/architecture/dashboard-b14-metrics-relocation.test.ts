@@ -37,19 +37,36 @@ test("B14 · navigation census is exactly 10 admin + 5 clinic modules", () => {
   }
 });
 
-test("B14 · the five audited failures now integrate metrics into existing functional regions", () => {
-  const cases = [
-    [CLINIC, "<ModuleMetricRun", 'id: "metricas"'],
-    [TOKENS, 'data-dashboard-b14-metrics="admin-particular-tokens"', "CardHeader"],
-    [SESSIONS, 'data-dashboard-b14-metrics="admin-sessions"', 'aria-label="Filtros de sesiones"'],
-    [USERS, 'data-dashboard-b14-metrics="admin-users-roles"', 'aria-label="Filtros de usuarios y roles"'],
-    [AUDIT, 'data-dashboard-b14-metrics="admin-audit"', "AdminAuditFilterBar"],
-  ] as const;
+// Desktop/tablet space pass (Nico): the four admin metric runs B14 had
+// relocated into existing headers are marked for removal on the reference
+// captures, so they are RETIRED at every width (pre-C05 already retired them
+// below md). Retirement is not relocation: no admin run reappears anywhere,
+// and the functional regions that hosted them stay.
+const ADMIN_RETIRED_RUNS = [
+  [TOKENS, "admin-particular-tokens", 'data-admin-particulars-toolbar="true"'],
+  [SESSIONS, "admin-sessions", 'aria-label="Filtros de sesiones"'],
+  [USERS, "admin-users-roles", 'aria-label="Filtros de usuarios y roles"'],
+  [AUDIT, "admin-audit", "<AdminAuditFilterBar"],
+] as const;
 
-  for (const [path, integratedAnchor, functionalAnchor] of cases) {
+test("B14 · the clinic run stays integrated and the four admin runs are retired, regions kept", () => {
+  const clinic = read(CLINIC);
+  assert.ok(clinic.includes("<ModuleMetricRun"), "the clinic run stays integrated");
+  assert.ok(clinic.includes('id: "metricas"'), "the clinic run keeps its functional region");
+
+  for (const [path, run, functionalAnchor] of ADMIN_RETIRED_RUNS) {
     const source = read(path);
-    assert.ok(source.includes(integratedAnchor), `${path} must retain its integrated metrics`);
+    assert.equal(source.includes("data-dashboard-b14-metrics"), false, `${path}: the ${run} metric run is retired`);
     assert.ok(source.includes(functionalAnchor), `${path} must retain its functional region`);
+  }
+  assert.equal(read(TOKENS).includes("ParticularTokensMetricStrip"), false, "the tokens metric strip is not rendered");
+  for (const label of ["Total filtrado", "Expiradas visibles", "Admins</span>"]) {
+    for (const path of [SESSIONS, USERS]) {
+      assert.equal(read(path).includes(label), false, `${path}: retired metric label ${label}`);
+    }
+  }
+  for (const id of ['id="admin-event-summary"', 'id="audit-role-changes"', 'id="admin-notifications"']) {
+    assert.equal(read(AUDIT).includes(id), false, `the audit header metric ${id} is retired`);
   }
   assert.equal(read(CLINIC).includes("dashboard-kpi-pill"), false);
   assert.equal(read(SESSIONS).includes("dashboard-filter-stats-grid"), false);
@@ -68,7 +85,7 @@ test("B14 · pre-C05 mobile space retires the audit summary from the mobile stri
   assert.equal(bar.includes("data-admin-audit-metric"), false, "no audit metric chip survives in the strip");
   assert.equal(bar.includes("Todos los eventos"), false, "the strip summary label is retired with the metrics");
   assert.ok(mobile.includes("AdminAuditFilterBar"), "the mobile strip itself (selector + Filtros) stays");
-  assert.ok(read(AUDIT).includes('data-dashboard-b14-metrics="admin-audit"'), "desktop metrics are untouched");
+  assert.equal(read(AUDIT).includes("data-dashboard-b14-metrics"), false, "the desktop/tablet space pass retires the desktop run too");
 });
 
 test("B14 · six pass modules and four explicit N/A modules remain outside the relocation set", () => {
@@ -81,16 +98,16 @@ test("B14 · six pass modules and four explicit N/A modules remain outside the r
   assert.deepEqual([...pass, ...notApplicable].filter((id) => touched.includes(id)), []);
 });
 
-test("B14 · source structure, not the data marker alone, proves relocation", () => {
-  const tokens = read(TOKENS);
-  const sessions = read(SESSIONS);
-  const users = read(USERS);
+test("B14 · source structure, not the data marker alone, proves retirement", () => {
+  // The headers that hosted the runs are gone with them: no CardHeader in the
+  // three admin cards, and the audit section no longer owns a header element.
+  for (const path of [TOKENS, SESSIONS, USERS]) {
+    assert.equal(/<CardHeader\b/.test(read(path)), false, `${path}: the header that hosted the run is retired`);
+  }
   const audit = read(AUDIT);
-
-  assert.ok(tokens.indexOf('data-dashboard-b14-metrics="admin-particular-tokens"') > tokens.indexOf('data-admin-particulars-toolbar="true"'));
-  assert.ok(sessions.indexOf('data-dashboard-b14-metrics="admin-sessions"') < sessions.indexOf('<CardContent'));
-  assert.ok(users.indexOf('data-dashboard-b14-metrics="admin-users-roles"') < users.indexOf('<CardContent'));
-  assert.ok(audit.indexOf('data-dashboard-b14-metrics="admin-audit"') < audit.indexOf("<AdminAuditFilterBar"));
+  const desktop = audit.slice(audit.indexOf('aria-label="Registro operativo"'));
+  assert.equal(/<header\b/.test(desktop), false, "the audit section header that hosted the run is retired");
+  assert.ok(desktop.indexOf("<AdminAuditFilterBar") > -1, "filters now open the audit section");
 });
 
 test("B14 · navigation universe is intentionally distinct from A03 adaptive consumers", () => {

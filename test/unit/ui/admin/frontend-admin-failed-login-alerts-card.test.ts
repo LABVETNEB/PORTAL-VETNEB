@@ -283,7 +283,10 @@ test("admin failed login alerts card renders filters table columns and rows", ()
   assert.ok(source.includes("Total filtrado"));
   assert.ok(source.includes("Superficie"));
   assert.ok(source.includes("Motivo"));
-  assert.ok(source.includes("Página"));
+  // Admin pagination is Anterior/Siguiente only: no page / "N visibles" tile.
+  assert.equal(source.includes(">Página<"), false);
+  assert.equal(source.includes("visibles"), false);
+  assert.equal(source.includes("Pág."), false);
   assert.ok(source.includes("<TableHead>ID</TableHead>"));
   assert.ok(source.includes("<TableHead>Superficie</TableHead>"));
   assert.ok(source.includes("<TableHead>Usuario</TableHead>"));

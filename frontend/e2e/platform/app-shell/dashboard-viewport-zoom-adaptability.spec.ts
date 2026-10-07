@@ -892,7 +892,9 @@ const AUDIT_MODULE_PATH = "/dashboard/admin?module=audit-log";
 const AUDIT_ROW_SELECTOR = "#audit-log table tbody tr";
 // `#audit-log` mounts the mobile list first, so the desktop card must be
 // addressed by its own labelled heading, never by child order.
-const AUDIT_DESKTOP_CARD = '#audit-log > section[aria-labelledby="admin-audit-register-title"]';
+// Desktop/tablet space pass: the section keeps "Registro operativo" as its
+// accessible name (aria-label) after its header was retired.
+const AUDIT_DESKTOP_CARD = '#audit-log > section[aria-label="Registro operativo"]';
 // `boundary-1280x736` is the fit boundary, not a device: its measured rows
 // region is ~340.5px, where the previous 6px gap admitted 8 rows —
 // `floor((340.5 - 32 - 6) / 37) = 8` — even though the table only starts 8px
@@ -1062,10 +1064,13 @@ for (const viewport of AUDIT_DESKTOP_VIEWPORTS) {
     const footer = page.locator(`${AUDIT_DESKTOP_CARD} footer`);
     await footer.getByRole("button", { name: "Página siguiente" }).click();
 
+    // Anterior/Siguiente only (desktop/tablet space pass): page 2 is proven by
+    // the enabled Anterior and the announced range moving past page 1.
     await expect(
-      footer.getByText(/^Pág\. 2 \//),
+      footer.getByRole("button", { name: "Página anterior" }),
       `${viewport.name}: pager advanced to page 2`,
-    ).toBeVisible({ timeout: 10_000 });
+    ).toBeEnabled({ timeout: 10_000 });
+    await expect(footer.getByText(/Pág\./), `${viewport.name}: no painted page state`).toHaveCount(0);
     await expect(
       footer.locator("span").first(),
       `${viewport.name}: range label advanced past the first page`,

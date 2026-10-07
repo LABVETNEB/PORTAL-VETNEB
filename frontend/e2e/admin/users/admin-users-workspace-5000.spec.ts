@@ -87,25 +87,26 @@ async function readWorkspaceState(page: Page): Promise<WorkspaceState> {
           )
         : [];
 
-      const perPageLabel = Array.from(document.querySelectorAll("span"))
-        .map((node) => node.textContent?.trim() ?? "")
-        .find((text) => /^\d+ por página$/.test(text));
-      const perPage = perPageLabel ? Number(perPageLabel.split(" ")[0]) : null;
+      // Admin desktop/tablet space pass: no "N por página" label is painted, so
+      // the effective page size is the limit of the latest request the card sent.
+      const usersRequests = performance
+        .getEntriesByType("resource")
+        .map((entry) => entry.name)
+        .filter((name) => new URL(name).pathname === "/api/admin/users-roles");
+      const lastUsersRequest = usersRequests.at(-1);
+      const requestedLimit = lastUsersRequest
+        ? Number(new URL(lastUsersRequest).searchParams.get("limit"))
+        : Number.NaN;
+      const perPage = Number.isInteger(requestedLimit) && requestedLimit > 0 ? requestedLimit : null;
 
-      // B08: the lateral navigation renders the admin module labels, and
-      // "Clínicas" is both a module label and a summary chip label. An
-      // unscoped document scan resolves to the nav item (whose parent is a
-      // route button with no <strong>), so the scan is bound to the
-      // workspace that owns these chips. Not a .first() — a real owner.
-      const workspaceRoot = document.querySelector(workspaceSelector);
+      // The Total filtrado · Admins · Clínicas tiles are retired with the
+      // header; the filtered total is still announced by the pager's range.
       const summary: Record<string, string> = {};
-      for (const label of ["Total filtrado", "Admins", "Clínicas"]) {
-        const span = Array.from(
-          (workspaceRoot ?? document).querySelectorAll("span"),
-        ).find((node) => node.textContent?.trim() === label);
-        const strong = span?.parentElement?.querySelector("strong");
-        summary[label] = strong?.textContent?.trim() ?? "";
-      }
+      const announcedRange =
+        document
+          .querySelector(`footer[aria-label="${paginationLabel}"] > span[aria-live="polite"]`)
+          ?.textContent?.trim() ?? "";
+      summary["Total filtrado"] = /de (\d+)$/.exec(announcedRange)?.[1] ?? "";
 
       const footer = document.querySelector<HTMLElement>(
         `footer[aria-label="${paginationLabel}"]`,
@@ -202,15 +203,13 @@ test.describe("admin users-roles workspace 5000-user fixture (CAP-A2)", () => {
       Array.from({ length: limit }, (_, index) => expectedUsernameAt(index)),
     );
 
-    // Totals strip coherent with the 5000-user dataset.
+    // Total coherent with the 5000-user dataset (announced by the pager).
     expect(state.summary["Total filtrado"]).toBe(String(HIGH_VOLUME_TOTAL));
-    expect(state.summary.Admins).toBe(String(HIGH_VOLUME_ADMIN_TOTAL));
-    expect(state.summary["Clínicas"]).toBe(String(HIGH_VOLUME_CLINIC_TOTAL));
+    expect(HIGH_VOLUME_ADMIN_TOTAL + HIGH_VOLUME_CLINIC_TOTAL).toBe(HIGH_VOLUME_TOTAL);
 
-    // Pagination footer coherent with the server-side slicing.
-    const pageCount = Math.ceil(HIGH_VOLUME_TOTAL / limit);
+    // Pagination coherent with the server-side slicing; Anterior/Siguiente only.
     expect(state.rangeText).toBe(`1–${limit} de ${HIGH_VOLUME_TOTAL}`);
-    expect(state.pageText).toBe(`Pág. 1 / ${pageCount}`);
+    expect(state.pageText).toBeNull();
 
     // The tail of the fixture must never be rendered on the first page.
     expect(state.bodyText).not.toContain(LAST_FIXTURE_USERNAME);
@@ -225,7 +224,6 @@ test.describe("admin users-roles workspace 5000-user fixture (CAP-A2)", () => {
 
     const firstPage = await readStableState(page, HIGH_VOLUME_TOTAL);
     const limit = firstPage.perPage!;
-    const pageCount = Math.ceil(HIGH_VOLUME_TOTAL / limit);
 
     await desktopPagination(page)
       .getByRole("button", { name: "Siguiente" })
@@ -237,7 +235,7 @@ test.describe("admin users-roles workspace 5000-user fixture (CAP-A2)", () => {
       expect(state.rangeText).toBe(
         `${limit + 1}–${limit * 2} de ${HIGH_VOLUME_TOTAL}`,
       );
-      expect(state.pageText).toBe(`Pág. 2 / ${pageCount}`);
+      expect(state.pageText).toBeNull();
       expect(state.usernames).toEqual(
         Array.from({ length: limit }, (_, index) =>
           expectedUsernameAt(limit + index),
@@ -254,7 +252,7 @@ test.describe("admin users-roles workspace 5000-user fixture (CAP-A2)", () => {
       const state = await readWorkspaceState(page);
 
       expect(state.rangeText).toBe(`1–${limit} de ${HIGH_VOLUME_TOTAL}`);
-      expect(state.pageText).toBe(`Pág. 1 / ${pageCount}`);
+      expect(state.pageText).toBeNull();
       expect(state.usernames[0]).toBe("admin_operaciones");
     }).toPass({ timeout: 10_000 });
   });
@@ -279,15 +277,11 @@ test.describe("admin users-roles workspace 5000-user fixture (CAP-A2)", () => {
       expect(state.summary["Total filtrado"]).toBe(
         String(HIGH_VOLUME_ADMIN_TOTAL),
       );
-      expect(state.summary.Admins).toBe(String(HIGH_VOLUME_ADMIN_TOTAL));
-      expect(state.summary["Clínicas"]).toBe("0");
       expect(state.usernames[0]).toBe("admin_operaciones");
       expect(state.rangeText).toBe(
         `1–${limit} de ${HIGH_VOLUME_ADMIN_TOTAL}`,
       );
-      expect(state.pageText).toBe(
-        `Pág. 1 / ${Math.ceil(HIGH_VOLUME_ADMIN_TOTAL / limit)}`,
-      );
+      expect(state.pageText).toBeNull();
     }).toPass({ timeout: 10_000 });
 
     // userType=clinic + role=clinic_owner matches the CAP-A1 endpoint totals.
@@ -301,10 +295,6 @@ test.describe("admin users-roles workspace 5000-user fixture (CAP-A2)", () => {
       expect(state.summary["Total filtrado"]).toBe(
         String(HIGH_VOLUME_CLINIC_OWNER_TOTAL),
       );
-      expect(state.summary.Admins).toBe("0");
-      expect(state.summary["Clínicas"]).toBe(
-        String(HIGH_VOLUME_CLINIC_OWNER_TOTAL),
-      );
       // Legacy clinic owners lead the filtered dataset.
       expect(state.usernames.slice(0, 4)).toEqual([
         "usuario_clinica_02",
@@ -312,9 +302,10 @@ test.describe("admin users-roles workspace 5000-user fixture (CAP-A2)", () => {
         "usuario_clinica_06",
         "usuario_clinica_08",
       ]);
-      expect(state.pageText).toBe(
-        `Pág. 1 / ${Math.ceil(HIGH_VOLUME_CLINIC_OWNER_TOTAL / limit)}`,
+      expect(state.rangeText).toBe(
+        `1–${Math.min(limit, HIGH_VOLUME_CLINIC_OWNER_TOTAL)} de ${HIGH_VOLUME_CLINIC_OWNER_TOTAL}`,
       );
+      expect(state.pageText).toBeNull();
     }).toPass({ timeout: 10_000 });
   });
 

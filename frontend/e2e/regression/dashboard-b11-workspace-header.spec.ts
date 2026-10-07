@@ -258,7 +258,7 @@ test.describe("C01 · CollectionWorkspace + sticky CollectionHeader harness", ()
 test.describe("C01 · Auditoría adopts the collection primitives", () => {
   const auditSurface = DASHBOARD_GEOMETRY_SURFACES.find((surface) => surface.id === "admin-auditoria");
   if (!auditSurface) throw new Error("C01: missing canonical admin-auditoria surface");
-  const desktopCard = '#audit-log > section[aria-labelledby="admin-audit-register-title"]';
+  const desktopCard = '#audit-log > section[aria-label="Registro operativo"]';
 
   test("desktop table form keeps the A03 reserve, actions and pager @ 1366x768", async ({ page }) => {
     const label = "C01 admin-auditoria @ 1366x768";
@@ -394,12 +394,22 @@ test.describe("B11 · canonical WorkspaceHeader shared owner", () => {
         await expect(allHeaders, `${label}: one canonical owner in the DOM`).toHaveCount(1);
         await expect(page.locator(APP_SHELL_SELECTOR), `${label}: one app shell`).toHaveCount(1);
 
+        // Admin desktop/tablet space pass: the admin module header band is
+        // reclaimed from 768px up too (admin-only rule); Clínica keeps it.
         const isMobile = viewport.width < 768;
-        if (isMobile) {
+        const reclaimed = isMobile || surface.role === "admin";
+        if (reclaimed) {
           await expect(
             allHeaders,
-            `${label}: mobile app bar owns the contextual header`,
+            isMobile
+              ? `${label}: mobile app bar owns the contextual header`
+              : `${label}: admin desktop/tablet reclaims the module header band`,
           ).toBeHidden();
+          const wiring = await workspace.evaluate((element) => ({
+            labelledBy: element.getAttribute("aria-labelledby"),
+            headingId: element.querySelector("h2")?.id ?? null,
+          }));
+          expect(wiring.labelledBy, `${label}: the workspace keeps its accessible name`).toBe(wiring.headingId);
         } else {
           const header = allHeaders;
           await expect(header, `${label}: painted canonical header`).toBeVisible();
@@ -589,13 +599,42 @@ function parseRange(text: string | null, label: string) {
 }
 
 test.describe("C02 · CollectionPager owns both legacy pagers on real consumers", () => {
-  test("compact variant (CompactPager) on Precios @ 1366x768", async ({ page }) => {
-    const label = "C02 admin-precios @ 1366x768";
+  test("compact variant (CompactPager) on Precios @ 1366x768 when a category overflows the view", async ({ page }) => {
+    // Desktop/tablet space pass: a Precios category shows ALL its studies in
+    // one view; the compact pager only mounts when the measured canvas cannot
+    // hold the whole category. A 24-study category forces that real fallback.
+    const label = "C02 admin-precios overflow @ 1366x768";
     const surface = DASHBOARD_GEOMETRY_SURFACES.find((candidate) => candidate.id === "admin-precios");
     if (!surface) throw new Error("C02: missing canonical admin-precios surface");
     await page.setViewportSize({ width: 1366, height: 768 });
     await prepareSurface(page, surface);
-    await openSurface(page, surface);
+    await page.route("**/api/admin/pricing**", async (route) => {
+      const url = new URL(route.request().url());
+      if (route.request().method() !== "GET" || url.pathname !== "/api/admin/pricing") return route.fallback();
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          success: true,
+          categories: [
+            {
+              category: "Citología C02",
+              items: Array.from({ length: 24 }, (_, index) => ({
+                id: 7100 + index,
+                studyName: `Estudio C02 ${String(index + 1).padStart(2, "0")}`,
+                priceLabel: `$ ${1000 + index}`,
+                displayOrder: index,
+                isActive: true,
+                updatedAt: "2026-02-10T15:30:00.000Z",
+              })),
+            },
+          ],
+        }),
+      });
+    });
+    await page.goto(surface.route, { waitUntil: "domcontentloaded" });
+    await expect(page.getByText("Estudio C02 01")).toBeVisible({ timeout: 25_000 });
+    await waitForLayoutSettled(page);
 
     const pagerSelector = '[data-collection-pager="compact"]';
     const pager = page.locator(pagerSelector).filter({ visible: true });
@@ -603,22 +642,25 @@ test.describe("C02 · CollectionPager owns both legacy pagers on real consumers"
     await expect(pager).toHaveAttribute("data-dashboard-compact-pager", "true");
     await expect(pager).toHaveAttribute("data-dashboard-pager", "compact");
     await expect(pager).toHaveAttribute("data-dashboard-adaptive-reserved-region", "pager");
+    await expect(page.locator('[data-admin-pricing-all-items="false"]')).toHaveCount(1);
 
     const rowSelector = "form[data-admin-pricing-item-form]";
     const before = await readC02Pager(page, pagerSelector, rowSelector);
     console.log(`[C02] ${label}: ${JSON.stringify(before)}`);
     expectExactReservation(before, label);
-    expect(before.controlHeights, `${label}: icon controls keep h-8`).toEqual([32, 32]);
+    expect(before.controlHeights, `${label}: text controls keep h-8`).toEqual([32, 32]);
 
+    // Anterior/Siguiente only: the range is announced, no page state is painted.
     const live = pager.locator('[aria-live="polite"][aria-atomic="true"]');
-    const state = pager.locator('[data-dashboard-pager-state="true"]');
+    await expect(pager.locator('[data-dashboard-pager-state="true"]')).toHaveCount(0);
+    await expect(live).toHaveClass(/sr-only/);
+    await expect(pager.getByRole("button")).toHaveText(["Anterior", "Siguiente"]);
     const first = parseRange(await live.textContent(), label);
     expect(await live.textContent()).toMatch(/ estudios$/);
     expect(first.start).toBe(1);
+    expect(first.total).toBe(24);
     expect(first.size, `${label}: rendered forms equal the announced range`).toBe(before.rows);
-    const pageCount = Math.ceil(first.total / first.size);
-    expect(pageCount, `${label}: the fixture paginates`).toBeGreaterThan(1);
-    await expect(state).toHaveText(`Pág. 1 / ${pageCount}`);
+    expect(first.size, `${label}: the category overflows`).toBeLessThan(first.total);
     const prev = pager.getByRole("button", { name: "Página anterior" });
     const next = pager.getByRole("button", { name: "Página siguiente" });
     await expect(prev).toBeDisabled();
@@ -626,20 +668,38 @@ test.describe("C02 · CollectionPager owns both legacy pagers on real consumers"
 
     const requests = trackApiRequests(page);
     await next.click();
-    await expect(state).toHaveText(`Pág. 2 / ${pageCount}`);
     const second = parseRange(await live.textContent(), `${label} page 2`);
     expect(second.start, `${label}: page 2 starts after page 1`).toBe(first.end + 1);
     expect(second.total).toBe(first.total);
-    if (pageCount > 2) expect(second.size, `${label}: page size invariant across pages`).toBe(first.size);
     await expect(prev).toBeEnabled();
 
     await prev.focus();
     await page.keyboard.press("Enter");
-    await expect(state).toHaveText(`Pág. 1 / ${pageCount}`);
     await expect(live).toHaveText(`1–${first.end} de ${first.total} estudios`);
     expect(requests, `${label}: client pagination issues no request`).toEqual([]);
     expectExactReservation(await readC02Pager(page, pagerSelector, rowSelector), `${label} after paging`);
     await expectNoOuterScroll(page, label);
+  });
+
+  test("Precios shows every study of the category in one view, without a pager @ 1366x768 and 768x1024", async ({ page }) => {
+    const surface = DASHBOARD_GEOMETRY_SURFACES.find((candidate) => candidate.id === "admin-precios");
+    if (!surface) throw new Error("C02: missing canonical admin-precios surface");
+    for (const viewport of [{ width: 1366, height: 768 }, { width: 768, height: 1024 }]) {
+      const label = `Precios all-in-view @ ${viewport.width}x${viewport.height}`;
+      await page.setViewportSize(viewport);
+      await prepareSurface(page, surface);
+      await openSurface(page, surface);
+      const tabs = page.locator('[role="tablist"][aria-label="Categorías de precios"]');
+      await expect(tabs.getByRole("tab"), `${label}: Citología and Histopatología stay separate tabs`).toHaveCount(2);
+      for (const tab of await tabs.getByRole("tab").all()) {
+        await tab.click();
+        const declared = Number((await tab.locator("span").last().textContent())?.trim());
+        await expect(page.locator('[data-admin-pricing-all-items="true"]'), `${label}: one view`).toHaveCount(1);
+        await expect(page.locator("form[data-admin-pricing-item-form]").filter({ visible: true })).toHaveCount(declared);
+        await expect(page.locator('[data-collection-pager="compact"]').filter({ visible: true })).toHaveCount(0);
+      }
+      await expectNoOuterScroll(page, label);
+    }
   });
 
   for (const viewport of [
@@ -807,7 +867,7 @@ test.describe("C03 · CollectionState owns the legacy states on a real consumer"
 test.describe("C06 · Auditoría collection selection", () => {
   const auditSurface = DASHBOARD_GEOMETRY_SURFACES.find((surface) => surface.id === "admin-auditoria");
   if (!auditSurface) throw new Error("C06: missing canonical admin-auditoria surface");
-  const desktopCard = '#audit-log > section[aria-labelledby="admin-audit-register-title"]';
+  const desktopCard = '#audit-log > section[aria-label="Registro operativo"]';
   const pageSelector = `${desktopCard} thead input[data-collection-selection="page"]`;
   const rowSelector = `${desktopCard} tbody[data-content-list="true"] > tr[data-content-list-item="true"]`;
 
@@ -1150,14 +1210,17 @@ test.describe("C06 · Auditoría mobile collection selection", () => {
   }
 });
 
-// C07 · SelectionToolbar takes the DefaultToolbar's place inside the existing
-// header (table form) and mobile strip (list form) while the C06 owner has a
-// selection, and gives it back when cleared: no new band, no capacity change.
+// C07 · SelectionToolbar takes the DefaultToolbar's place while the C06 owner
+// has a selection, and gives it back when cleared: no new band, no capacity
+// change. List form: inside the mobile strip, beside the page selector. Table
+// form (admin desktop/tablet space pass, the section header is retired): an
+// overlay host in the table header row, beside the page selector, covering the
+// column labels only while there is a selection.
 test.describe("C07 · Auditoría contextual SelectionToolbar", () => {
   const auditSurface = DASHBOARD_GEOMETRY_SURFACES.find((surface) => surface.id === "admin-auditoria");
   if (!auditSurface) throw new Error("C07: missing canonical admin-auditoria surface");
-  const desktopCard = '#audit-log > section[aria-labelledby="admin-audit-register-title"]';
-  const desktopHeader = `${desktopCard} > header`;
+  const desktopCard = '#audit-log > section[aria-label="Registro operativo"]';
+  const desktopHeader = `${desktopCard} thead [data-audit-selection-toolbar-host="true"]`;
   const desktopRows = `${desktopCard} tbody[data-content-list="true"] > tr[data-content-list-item="true"]`;
   const mobileModule = '[data-admin-mobile-ops-module="audit"]';
   const mobileItems = `${mobileModule} [data-content-list="true"] > article[data-content-list-item="true"]`;
@@ -1196,9 +1259,11 @@ test.describe("C07 · Auditoría contextual SelectionToolbar", () => {
     const boxes = rows.locator('input[data-collection-selection="item"]');
     const header = page.locator(desktopHeader);
     const toolbar = header.getByRole("group", { name: "Selección" });
-    const metrics = header.locator('[data-dashboard-b14-metrics="admin-audit"]');
     const canvas = `${desktopCard} [data-dashboard-adaptive-rows-canvas="true"]`;
-    await expect(metrics).toBeVisible();
+    const pageSelector = page.locator(`${desktopCard} thead input[data-collection-selection="page"]`);
+    // Idle, the host is transparent and inert: the column labels stay readable.
+    await expect(header).toHaveCSS("pointer-events", "none");
+    await expect(header).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
     await expect(toolbar).toHaveCount(0);
     const idle = await readHost(page, desktopHeader, canvas);
     expect(idle.toolbar).toBe(false);
@@ -1216,8 +1281,14 @@ test.describe("C07 · Auditoría contextual SelectionToolbar", () => {
       await liveNode!.evaluate((node) => node.isConnected),
       `${label}: the same live region node survives the swap (content change, not insertion)`,
     ).toBe(true);
-    await expect(metrics).toHaveCount(0);
-    await expect(header.getByRole("heading", { name: "Registro operativo" })).toBeVisible();
+    await expect(header).not.toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+    await expect(page.locator(desktopCard)).toHaveAttribute("aria-label", "Registro operativo");
+    const [selectorBox, toolbarBox] = await Promise.all([pageSelector.boundingBox(), toolbar.boundingBox()]);
+    expect(
+      Math.abs(selectorBox!.y + selectorBox!.height / 2 - (toolbarBox!.y + toolbarBox!.height / 2)),
+      `${label}: the toolbar is horizontally aligned with the page selector`,
+    ).toBeLessThanOrEqual(1);
+    expect(toolbarBox!.x, `${label}: the toolbar starts right after the page selector`).toBeGreaterThan(selectorBox!.x + selectorBox!.width);
     await boxes.nth(1).click();
     await expect(toolbar).toContainText("2 seleccionados");
     const active = await readHost(page, desktopHeader, canvas);
@@ -1257,8 +1328,8 @@ test.describe("C07 · Auditoría contextual SelectionToolbar", () => {
     requests.length = 0;
     await page.keyboard.press("Enter");
     await expect(toolbar).toHaveCount(0);
-    await expect(metrics).toBeVisible();
-    await expect(page.locator(`${desktopCard} thead input[data-collection-selection="page"]`)).toBeFocused();
+    await expect(header).toHaveCSS("pointer-events", "none");
+    await expect(pageSelector).toBeFocused();
     expect(await page.evaluate(() => document.activeElement !== document.body)).toBe(true);
     expect(await boxes.evaluateAll((inputs) => inputs.filter((input) => (input as HTMLInputElement).checked).length)).toBe(0);
     expect((await readHost(page, desktopHeader, canvas)).height).toBe(idle.height);

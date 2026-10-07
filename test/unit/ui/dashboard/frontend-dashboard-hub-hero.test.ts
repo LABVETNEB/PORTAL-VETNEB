@@ -251,26 +251,24 @@ test("clinic controller opens directly into a module workspace with the shared r
 
 // ── Admin controller wiring ──────────────────────────────────────────────────
 
-test("admin controller renders an admin control hero with audit metrics and system status", () => {
+test("admin controller no longer renders the hub hero (admin hub retired at every width)", () => {
   const source = read(ADMIN_CONTROLLER_PATH);
 
-  assert.ok(source.includes('import { DashboardHubHero } from "@/components/dashboard/DashboardHubHero";'));
-  assert.ok(source.includes('variant="admin"'));
-  assert.ok(source.includes("auditEntriesCount: number;"));
-  assert.ok(source.includes("eventTypesCount: number;"));
-  assert.ok(source.includes("value: auditEntriesCount,"));
-  assert.ok(source.includes("value: eventTypesCount,"));
-  assert.ok(source.includes("statusLabel={systemStatusLabel}"));
-  assert.ok(source.includes('onPrimaryAction={() => activateModule("admin")}'));
-  assert.ok(source.includes("hero={adminHero}"));
-  assert.equal(source.includes('variant="clinic"'), false);
+  // Desktop/tablet space pass: the hero was part of the admin hub, which the
+  // reference captures retire from 768px up (pre-C05 retired it below 768px).
+  for (const retired of ["DashboardHubHero", "adminHero", "auditEntriesCount", "eventTypesCount", "activateModule"]) {
+    assert.equal(source.includes(retired), false, `retired: ${retired}`);
+  }
 });
 
-test("admin page forwards live audit counts to the workspace controller", () => {
+test("admin page forwards live audit counts to the command center, not the controller", () => {
   const source = read(ADMIN_PAGE_PATH);
+  const controller = source.slice(source.indexOf("<AdminDashboardWorkspaceController"));
 
   assert.ok(source.includes("auditEntriesCount={auditOverviewSnapshot.pagination.total}"));
   assert.ok(source.includes("eventTypesCount={eventTypesCount}"));
+  assert.equal(controller.includes("auditEntriesCount="), false, "the controller takes no hero counts");
+  assert.equal(controller.includes("systemStatusLabel="), false);
 });
 
 // ── Scope invariant: no new dependency surfaced by this feature ──────────────

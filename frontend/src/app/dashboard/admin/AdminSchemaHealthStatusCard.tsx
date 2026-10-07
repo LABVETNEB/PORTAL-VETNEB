@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ModuleTabsActions } from "@/components/dashboard/ModuleTabs";
 import {
   Card,
   CardContent,
@@ -57,7 +58,18 @@ function sanitizeSchemaHealthError(error: unknown) {
   return message;
 }
 
-export function AdminSchemaHealthStatusCard() {
+type AdminSchemaHealthStatusCardProps = {
+  /**
+   * Mantenimiento (desktop/tablet space pass): drop the "Estado de esquema"
+   * header and hand Reintentar to the enclosing ModuleTabs bar. Estado keeps
+   * the default header.
+   */
+  actionsInTabs?: boolean;
+};
+
+export function AdminSchemaHealthStatusCard({
+  actionsInTabs = false,
+}: AdminSchemaHealthStatusCardProps = {}) {
   const [snapshot, setSnapshot] = useState<AdminSchemaHealthSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
@@ -88,22 +100,38 @@ export function AdminSchemaHealthStatusCard() {
   const showLoadingState = !hasLoadedOnce && !snapshot && !error;
   const showDegradedState = snapshot?.status === "degraded";
 
+  const retryButton = (
+    <Button
+      type="button"
+      variant="outline"
+      size={actionsInTabs ? "sm" : undefined}
+      className={actionsInTabs ? "h-8 px-2.5 text-xs" : undefined}
+      onClick={loadSchemaHealth}
+      disabled={isPending}
+      aria-busy={isPending ? true : undefined}
+    >
+      {isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
+      {isPending ? "Consultando..." : "Reintentar"}
+    </Button>
+  );
+
   return (
     <Card id="admin-schema-health" className="dashboard-surface">
-      <CardHeader className="flex flex-col gap-3 border-b border-vetneb-line/70 md:flex-row md:items-start md:justify-between">
-        <div>
-          <CardTitle className="text-base">Estado de esquema</CardTitle>
-          <CardDescription>
-            Validación de columnas críticas requeridas por el backend.
-          </CardDescription>
-        </div>
-        <Button type="button" variant="outline" onClick={loadSchemaHealth} disabled={isPending} aria-busy={isPending ? true : undefined}>
-          {isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
-          {isPending ? "Consultando..." : "Reintentar"}
-        </Button>
-      </CardHeader>
+      {actionsInTabs ? (
+        <ModuleTabsActions>{retryButton}</ModuleTabsActions>
+      ) : (
+        <CardHeader className="flex flex-col gap-3 border-b border-vetneb-line/70 md:flex-row md:items-start md:justify-between">
+          <div>
+            <CardTitle className="text-base">Estado de esquema</CardTitle>
+            <CardDescription>
+              Validación de columnas críticas requeridas por el backend.
+            </CardDescription>
+          </div>
+          {retryButton}
+        </CardHeader>
+      )}
 
-      <CardContent className="space-y-4 pt-6">
+      <CardContent className={actionsInTabs ? "space-y-4 pt-4" : "space-y-4 pt-6"}>
         {showLoadingState ? (
           <div className="surface-empty">
             Consultando estado de esquema...

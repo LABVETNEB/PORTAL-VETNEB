@@ -782,17 +782,30 @@ const C07_FILTER_BAR = "frontend/src/app/dashboard/admin/AdminAuditFilterBar.tsx
 const C07_WIRING = "<SelectionToolbar selectedCount={selection.selectedCount} onClearSelection={selection.clearSelection}>";
 const C07_STRIP_SLOT = "{props.renderToolbar ? props.renderToolbar(defaultToolbar) : defaultToolbar}";
 
-/** Swap wiring Auditoría must keep: inside the existing header and mobile strip, on the C06 owner. */
-function c07AdopterViolations(card: string, mobile: string, filterBar: string): string[] {
+/**
+ * Swap wiring Auditoría must keep, on the C06 owner. Mobile: inside the strip,
+ * after the page selector and Filtros. Desktop/tablet (space pass): the
+ * "Registro operativo" header is retired, so the card hands the toolbar to the
+ * table header row, where it paints beside the page selector.
+ */
+function c07AdopterViolations(card: string, mobile: string, filterBar: string, table: string): string[] {
   const violations: string[] = [];
   const desktop = stripComments(card);
   if ((desktop.match(/<SelectionToolbar\b/g) ?? []).length !== 1 || !desktop.includes(C07_WIRING)) violations.push("desktop wiring");
-  const header = desktop.slice(desktop.indexOf('<header className="flex min-h-12 '), desktop.indexOf("</header>"));
-  const swap = header.slice(header.indexOf(C07_WIRING), header.indexOf("</SelectionToolbar>"));
-  if (!header.includes(C07_WIRING) || !swap.includes('data-dashboard-b14-metrics="admin-audit"') || !swap.includes("{totalCount} coincidencias")) {
-    violations.push("desktop DefaultToolbar is not swapped inside the existing header");
+  const slot = desktop.slice(desktop.indexOf("selectionToolbar={"), desktop.indexOf("</SelectionToolbar>"));
+  if (!desktop.includes("selectionToolbar={") || !slot.includes('data-audit-selection-toolbar-host="true"')
+    || !slot.includes(`${C07_WIRING}\n                {null}`)) {
+    violations.push("desktop toolbar is not handed to the table header slot");
   }
-  if (swap.includes("admin-audit-register-title")) violations.push("the section heading must stay outside the swap");
+  if (!slot.includes("absolute inset-y-0 left-9 right-0")) violations.push("the desktop host must overlay the header row, not reserve height");
+  for (const retired of ["admin-audit-register-title", 'data-dashboard-b14-metrics="admin-audit"', "coincidencias"]) {
+    if (desktop.includes(retired)) violations.push(`retired desktop header element is back: ${retired}`);
+  }
+  const headerRow = stripComments(table);
+  const selectorCell = headerRow.slice(headerRow.indexOf('<TableHead className="w-9">'), headerRow.indexOf("</TableHead>"));
+  if (!selectorCell.includes('data-collection-selection="page"') || !selectorCell.includes("{selectionToolbar}")) {
+    violations.push("the table must paint the toolbar inside the page selector header cell");
+  }
 
   const list = stripComments(mobile);
   if ((list.match(/<SelectionToolbar\b/g) ?? []).length !== 1
@@ -856,24 +869,30 @@ test("C07 · Auditoría swaps its DefaultToolbar in place on the C06 owner, desk
   const card = read(C01_AUDIT_CARD);
   const mobile = read(C01_AUDIT_MOBILE);
   const filterBar = read(C07_FILTER_BAR);
-  assert.deepEqual(c07AdopterViolations(card, mobile, filterBar), []);
-  assert.ok(card.includes('<header className="flex min-h-12 shrink-0 items-center gap-3 border-b border-vetneb-line/70 px-3 py-2 sm:px-4">'),
-    "the header reservation is unchanged");
+  const table = read(C01_AUDIT_TABLE);
+  assert.deepEqual(c07AdopterViolations(card, mobile, filterBar, table), []);
 
   // In-memory mutations of the adopters must be rejected by the same check.
-  const closing = "          {totalCount} coincidencias\n        </span>\n        </SelectionToolbar>";
+  const closing = "              </SelectionToolbar>\n            </div>";
   for (const [target, anchor, replacement] of [
     ["card", "selectedCount={selection.selectedCount}", "selectedCount={0}"],
     ["card", "onClearSelection={selection.clearSelection}", "onClearSelection={() => undefined}"],
-    ["card", closing, `${closing}\n        <SelectionToolbar selectedCount={0} onClearSelection={() => undefined}>{null}</SelectionToolbar>`],
+    ["card", closing, `${closing}\n            <SelectionToolbar selectedCount={0} onClearSelection={() => undefined}>{null}</SelectionToolbar>`],
+    ["card", "absolute inset-y-0 left-9 right-0", "flex-none"],
+    ["card", 'aria-label="Registro operativo"', 'aria-label="Registro operativo" data-dashboard-b14-metrics="admin-audit"'],
+    ["table", "                  {selectionToolbar}\n", ""],
     ["mobile", "selectedCount={selection.selectedCount}", "selectedCount={useCollectionSelection({ visibleIds: [] }).selectedCount}"],
     ["mobile", "            {defaultToolbar}\n", "            {null}\n"],
     ["filterBar", C07_STRIP_SLOT, "{defaultToolbar}"],
   ] as const) {
-    const sources: Record<"card" | "mobile" | "filterBar", string> = { card, mobile, filterBar };
+    const sources: Record<"card" | "mobile" | "filterBar" | "table", string> = { card, mobile, filterBar, table };
     assert.equal(sources[target].split(anchor).length, 2, `unique ${target} anchor: ${anchor}`);
     sources[target] = sources[target].replace(anchor, () => replacement);
-    assert.notDeepEqual(c07AdopterViolations(sources.card, sources.mobile, sources.filterBar), [], `mutation must be rejected: ${replacement}`);
+    assert.notDeepEqual(
+      c07AdopterViolations(sources.card, sources.mobile, sources.filterBar, sources.table),
+      [],
+      `mutation must be rejected: ${replacement}`,
+    );
   }
 
   // Reverting the pre-C05 order (slot back between the selector and Filtros) is rejected.
@@ -886,7 +905,7 @@ test("C07 · Auditoría swaps its DefaultToolbar in place on the C06 owner, desk
   const reverted = head + strip
     .replace(slotLine, () => "")
     .replace(leadingLine, () => `${leadingLine}${slotLine}`);
-  assert.notDeepEqual(c07AdopterViolations(card, mobile, reverted), [], "mutation must be rejected: slot before Filtros");
+  assert.notDeepEqual(c07AdopterViolations(card, mobile, reverted, table), [], "mutation must be rejected: slot before Filtros");
 });
 
 const C04_ADOPTER = "frontend/src/app/dashboard/admin/AdminClinicsManagementCard.tsx";
@@ -945,16 +964,17 @@ function preC05Between(source: string, start: string, end: string): string {
   return source.slice(from, to);
 }
 
-test("PRE-C05 · Informes: page count retired everywhere, descriptor desktop-only, Filtros moved into the header", () => {
+test("PRE-C05 · Informes: page count retired everywhere, descriptor retired, Filtros moved into the header", () => {
   const card = stripComments(read(PRE_C05_REPORTS));
   assert.equal(/en página/.test(card), false, '"N en página" is retired at every breakpoint');
 
   const header = preC05Between(card, "<CardHeader", "</CardHeader>");
-  assert.ok(
-    header.includes('<div className="hidden min-w-0 md:block">\n          <CardTitle className="text-xl leading-tight md:text-base">Informes</CardTitle>'),
-    "the internal Informes descriptor only paints from md",
-  );
-  assert.ok(header.includes("Cola administrativa, trazabilidad y documentos en una sola vista."), "desktop keeps the descriptor");
+  // Desktop/tablet space pass: the descriptor is retired from md up too, and
+  // the actions own the band there (right-aligned above the filters).
+  assert.equal(card.includes("Cola administrativa, trazabilidad y documentos en una sola vista."), false, "the descriptor is retired at every width");
+  assert.equal(card.includes("<CardTitle"), false, "no internal Informes title survives");
+  assert.ok(header.startsWith('<CardHeader className="flex-row items-start justify-between gap-3 space-y-0 border-b border-vetneb-line/70 px-4 py-3 md:justify-end md:py-1">'),
+    "from md up the action band is right-aligned");
   assert.equal((card.match(/title="Filtrar informes"/g) ?? []).length, 1, "one Filtros trigger: moved, not duplicated");
   assert.ok(
     header.includes('<div className="min-w-0 md:hidden">\n          <ModuleDialog\n            title="Filtrar informes"'),
@@ -965,20 +985,19 @@ test("PRE-C05 · Informes: page count retired everywhere, descriptor desktop-onl
   const upload = header.indexOf("onClick={() => setIsUploadOpen(true)}");
   assert.ok(filtros !== -1 && refresh > filtros && upload > refresh, "Filtros | Actualizar | Subir informe: the upload keeps the trailing slot");
   assert.ok(card.includes("{renderAdvancedFilterForm(true)}"), "the mobile dialog still hosts the same filter form");
-  assert.ok(
-    card.includes('className="hidden min-h-8 shrink-0 items-center justify-between gap-2 rounded-md border border-vetneb-line/65 bg-vetneb-surface-raised/45 px-2.5 text-xs text-muted-foreground md:flex md:min-h-7"'),
-    "the toolbar band only paints from md",
-  );
+  assert.equal(card.includes("data-admin-reports-toolbar"), false, "the entregados · con tinción · página strip is retired at every width");
+  assert.equal(/entregados|con tinción|Página \$\{page\}|por página/.test(card), false, "no summary or page-state text is painted");
 });
 
-test("PRE-C05 · Clínicas: descriptor desktop-only, actions above the mobile search, search right below them", () => {
+test("PRE-C05 · Clínicas: descriptor retired, actions above the mobile search, search right below them", () => {
   const card = stripComments(read(PRE_C05_CLINICS));
   const header = preC05Between(card, "<CardHeader", "</CardHeader>");
-  assert.ok(
-    header.includes('<div className="hidden min-w-0 md:block">\n          <CardTitle className="text-[0.95rem] leading-tight">Clínicas</CardTitle>'),
-    "the internal Clínicas descriptor only paints from md",
-  );
-  assert.ok(header.includes("Administración de clínicas registradas · alto volumen."), "desktop keeps the descriptor");
+  // Desktop/tablet space pass: the descriptor is retired from md up too and the
+  // whole header band is mobile-only; >=md actions live in the search row.
+  assert.equal(card.includes("Administración de clínicas registradas · alto volumen."), false, "the descriptor is retired at every width");
+  assert.equal(card.includes("<CardTitle"), false, "no internal Clínicas title survives");
+  assert.ok(card.includes('<CardHeader className="shrink-0 flex flex-col gap-2 border-b border-vetneb-line/70 px-4 py-2 md:hidden">'),
+    "the header band (actions + mobile search) only paints below md");
   const create = header.indexOf("onClick={() => setIsCreateOpen(true)}");
   const refresh = header.indexOf("onClick={() => loadClinics()}");
   const search = header.indexOf('placeholder="Buscar clínica..."');
@@ -987,13 +1006,14 @@ test("PRE-C05 · Clínicas: descriptor desktop-only, actions above the mobile se
   assert.ok(header.includes('<div className="relative max-w-xs shrink-0 md:hidden">'), "the mobile search sits in the header below md only");
   assert.ok(
     header.includes('<div className="mb-0 flex flex-wrap items-center gap-2">'),
-    "the actions row cancels the header space-y margin so >=md keeps its height",
+    "the actions row cancels the header space-y margin",
   );
 });
 
 test("PRE-C05 · Sesiones mobile: summary retired, Tipo and Estado left of Actualizar in one band", () => {
   const card = stripComments(read(PRE_C05_SESSIONS));
-  assert.ok(card.includes('<CardTitle className="text-base">Sesiones activas y expiradas</CardTitle>'), "desktop header is untouched");
+  // The desktop/tablet half is pinned by dashboard-admin-desktop-tablet-space.test.ts.
+  assert.equal(card.includes("Sesiones activas y expiradas"), false, "the desktop header is retired by the space pass");
   const mobile = card.slice(card.indexOf('data-admin-mobile-ops-module="sessions"'));
   assert.equal(mobile.includes("Activas y expiradas"), false, "the mobile summary subtitle is retired");
   assert.equal(/\$\{snapshot\.total\} sesiones/.test(mobile), false, 'the mobile "N sesiones" count is retired');

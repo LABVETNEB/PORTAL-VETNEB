@@ -61,15 +61,13 @@ const ROUTE_CASES: RouteCase[] = [
   },
   // Admin
   {
-    // Bare /dashboard/admin is a landing, not the hub: AdminDashboardWorkspaceController's
-    // one-shot restore effect replaces it with ?module=<lastModule ?? DEFAULT_ADMIN_MODULE>
-    // as soon as it settles, exactly like the clinic default above. ?hub=1 is the
-    // sole durable hub state (buildHubHref("admin") / isHubRequested) and is the
-    // only URL this contract can measure without racing that replace.
-    label: "admin hub",
+    // The admin hub is retired at every width (desktop/tablet space pass): the
+    // legacy ?hub=1 resolves to the landing module (last module, else Resumen),
+    // which is what this contract now measures.
+    label: "admin legacy hub URL (Resumen)",
     surface: "admin",
     path: "/dashboard/admin?hub=1",
-    ready: '[data-dashboard-module-hub="true"]',
+    ready: '[data-dashboard-module-workspace="admin"]',
   },
   {
     label: "admin clinics",

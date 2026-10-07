@@ -1716,7 +1716,7 @@ test("censo 05A: la deuda de lectores ad hoc rompe al crecer y la adopción del 
   assert.equal(adoptionEntry.historical, 8, "el histórico de §6.4 se conserva");
   assert.equal(adoptionEntry.baseline, 411, "piso versionado tras el consumidor de C06");
   assert.equal(anchor, 411, "el piso incorpora los consumidores canónicos de TEST-GLOBAL-09 y C06, no el histórico");
-  assert.equal(current, 412, "la adopción vigente incluye repository-testability-blockers, dashboard-c06-collection-selection y C04 admin-clinics-column-sort");
+  assert.equal(current, 413, "la adopción vigente incluye repository-testability-blockers, dashboard-c06-collection-selection, C04 admin-clinics-column-sort y dashboard-admin-desktop-tablet-space");
   assert.equal(
     guardViolation(adoptionEntry, evaluateEntry(adoptionEntry)),
     null,

@@ -1,7 +1,6 @@
 "use client";
 
 import type { CSSProperties, ReactNode } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -99,9 +98,10 @@ export type CollectionPagerCenteredProps = CollectionPagerBaseProps & {
 };
 
 /**
- * Compact bar pinned to the bottom of a module body: visible range/total
- * announcement, then `Pág. X / Y` and icon controls, inside the standard
- * reservation.
+ * Compact bar pinned to the bottom of a module body: centered `Anterior` /
+ * `Siguiente` controls inside the standard reservation. The range/total is
+ * announced to assistive tech only (admin desktop/tablet space pass: no page
+ * numbers, page state or range text is painted).
  */
 export type CollectionPagerCompactProps = CollectionPagerBaseProps & {
   variant: "compact";
@@ -120,8 +120,8 @@ export type CollectionPagerProps =
 type CollectionPagerVariant = CollectionPagerProps["variant"];
 
 const PAGER_STEPS = {
-  prev: { label: "Página anterior", text: "Anterior", Icon: ChevronLeft },
-  next: { label: "Página siguiente", text: "Siguiente", Icon: ChevronRight },
+  prev: { label: "Página anterior", text: "Anterior" },
+  next: { label: "Página siguiente", text: "Siguiente" },
 } as const;
 
 const PAGER_CONTROL_CLASS_NAME =
@@ -129,7 +129,7 @@ const PAGER_CONTROL_CLASS_NAME =
 
 const PAGER_CONTROL_VARIANT_CLASS_NAME: Record<CollectionPagerVariant, string> = {
   centered: "dashboard-pagination-btn px-3 text-xs font-semibold shadow-sm transition-colors",
-  compact: "w-8 dashboard-btn-interactive",
+  compact: "px-2.5 text-xs font-semibold dashboard-btn-interactive",
 };
 
 function renderPagerControl(
@@ -138,7 +138,7 @@ function renderPagerControl(
   disabled: boolean,
   onClick: (() => void) | undefined,
 ) {
-  const { label, text, Icon } = PAGER_STEPS[step];
+  const { label, text } = PAGER_STEPS[step];
   const compact = variant === "compact";
 
   return (
@@ -151,7 +151,7 @@ function renderPagerControl(
       aria-label={label}
       className={`${PAGER_CONTROL_CLASS_NAME} ${PAGER_CONTROL_VARIANT_CLASS_NAME[variant]}`}
     >
-      {compact ? <Icon className="h-4 w-4" aria-hidden="true" /> : text}
+      {text}
     </button>
   );
 }
@@ -187,18 +187,12 @@ export function CollectionPager(props: CollectionPagerProps) {
         data-dashboard-pager="compact"
         data-dashboard-adaptive-reserved-region="pager"
       >
-        <span aria-live="polite" aria-atomic="true">
+        <span className="sr-only" aria-live="polite" aria-atomic="true">
           {total === 0
             ? `Sin ${itemLabel}`
             : `${rangeStart}–${rangeEnd} de ${total} ${itemLabel}`}
         </span>
         <div className="flex items-center gap-2">
-          <span
-            className="text-xs text-muted-foreground"
-            data-dashboard-pager-state="true"
-          >
-            {pageState}
-          </span>
           {renderPagerControl("prev", variant, prevDisabled, onPrev)}
           {renderPagerControl("next", variant, nextDisabled, onNext)}
         </div>

@@ -976,6 +976,17 @@ export type LeafTarget = {
    * request to fall back on.
    */
   readonly pageLabelSelector: string | null;
+  /**
+   * `phone-only`: the label is painted below 768px only. From 768px up the
+   * admin pagers paint Anterior/Siguiente and nothing else (admin desktop/tablet
+   * space pass), so there the helper requires the label to be ABSENT and proves
+   * the transition from what the pager and the collection really do: the
+   * previous control turns enabled and the rendered rows change (plus, for
+   * `server-request`, the single advancing request and a complete page 2).
+   */
+  readonly pageLabelRegime?: "phone-only";
+  /** Required with `pageLabelRegime`: the previous-page control. */
+  readonly prevSelector?: string;
   readonly nextSelector: string;
   /** Optional 0-based disambiguation when the page renders N equal canvases. */
   readonly scopeNth?: number;
@@ -1012,6 +1023,10 @@ const adminScope = (moduleId: string) => `[data-dashboard-module-workspace="${mo
  */
 const PAGE_LABEL =
   'text=/^[\\s\\u00a0]*(?:Página|Pág\\.)[\\s\\u00a0]*\\d+(?:[\\s\\u00a0]*(?:de|\\/)[\\s\\u00a0]*\\d+)?[\\s\\u00a0]*$/';
+
+/** Every previous-page affordance shipped by the dashboard pagers. */
+const PREV_CONTROL =
+  '[aria-label="Página anterior"], [aria-label="Anterior"], [data-dashboard-pager-prev="true"], button:text-is("Anterior")';
 
 /** Every next-page affordance shipped by the dashboard pagers. */
 const NEXT_CONTROL =
@@ -1115,6 +1130,8 @@ export const A03_OBSERVERS: Readonly<Record<A03ModuleId, ModuleObserver>> = Obje
           `${adminScope("audit-log")} [data-admin-mobile-ops-item="true"]`,
         ],
         pageLabelSelector: `${adminScope("audit-log")} >> ${PAGE_LABEL}`,
+        pageLabelRegime: "phone-only",
+        prevSelector: `${adminScope("audit-log")} >> ${PREV_CONTROL}`,
         nextSelector: `${adminScope("audit-log")} >> ${NEXT_CONTROL}`,
       },
     ],
@@ -1137,6 +1154,8 @@ export const A03_OBSERVERS: Readonly<Record<A03ModuleId, ModuleObserver>> = Obje
           `${adminScope("admin-report-upload")} [data-admin-mobile-core-item="true"]`,
         ],
         pageLabelSelector: `${adminScope("admin-report-upload")} >> ${PAGE_LABEL}`,
+        pageLabelRegime: "phone-only",
+        prevSelector: `${adminScope("admin-report-upload")} >> ${PREV_CONTROL}`,
         nextSelector: `${adminScope("admin-report-upload")} >> ${NEXT_CONTROL}`,
       },
     ],
@@ -1159,6 +1178,8 @@ export const A03_OBSERVERS: Readonly<Record<A03ModuleId, ModuleObserver>> = Obje
           `${adminScope("admin-particular-tokens")} [data-admin-mobile-core-item="true"]`,
         ],
         pageLabelSelector: `${adminScope("admin-particular-tokens")} >> ${PAGE_LABEL}`,
+        pageLabelRegime: "phone-only",
+        prevSelector: `${adminScope("admin-particular-tokens")} >> ${PREV_CONTROL}`,
         nextSelector: `${adminScope("admin-particular-tokens")} >> ${NEXT_CONTROL}`,
       },
     ],
@@ -1180,8 +1201,9 @@ export const A03_OBSERVERS: Readonly<Record<A03ModuleId, ModuleObserver>> = Obje
           `${adminScope("admin-clinics")} tbody tr`,
           `${adminScope("admin-clinics")} [data-admin-mobile-core-item="true"]`,
         ],
-        // The Clínicas pager ships a range ("N–M de T") plus prev/next, not a
-        // "Página N" caption. A03 does not invent one: the transition is proven
+        // The Clínicas pager ships prev/next only (desktop) or a "Pág. N / M"
+        // caption without a "Página N" grammar the leaf relies on (mobile); A03
+        // does not invent one: the transition is proven
         // by the single GET /api/admin/clinics the click emits (offset > 0) and
         // a complete converged second page.
         pageLabelSelector: null,
@@ -1214,6 +1236,8 @@ export const A03_OBSERVERS: Readonly<Record<A03ModuleId, ModuleObserver>> = Obje
           `${adminScope("admin-users-roles")} [data-admin-mobile-ops-item="true"]`,
         ],
         pageLabelSelector: `${adminScope("admin-users-roles")} >> ${PAGE_LABEL}`,
+        pageLabelRegime: "phone-only",
+        prevSelector: `${adminScope("admin-users-roles")} >> ${PREV_CONTROL}`,
         nextSelector: `${adminScope("admin-users-roles")} >> ${NEXT_CONTROL}`,
       },
     ],
@@ -1233,6 +1257,8 @@ export const A03_OBSERVERS: Readonly<Record<A03ModuleId, ModuleObserver>> = Obje
         convergenceSelector: adminScope("admin-sessions"),
         rowSelectors: [`${adminScope("admin-sessions")} [data-admin-sesiones-row="true"]`],
         pageLabelSelector: `${adminScope("admin-sessions")} >> ${PAGE_LABEL}`,
+        pageLabelRegime: "phone-only",
+        prevSelector: `${adminScope("admin-sessions")} >> ${PREV_CONTROL}`,
         nextSelector: `${adminScope("admin-sessions")} >> ${NEXT_CONTROL}`,
       },
     ],
@@ -1258,6 +1284,8 @@ export const A03_OBSERVERS: Readonly<Record<A03ModuleId, ModuleObserver>> = Obje
           `${adminScope("admin")} [data-admin-mobile-status-item="true"]`,
         ],
         pageLabelSelector: `${adminScope("admin")} >> ${PAGE_LABEL}`,
+        pageLabelRegime: "phone-only",
+        prevSelector: `${adminScope("admin")} >> ${PREV_CONTROL}`,
         nextSelector: `${adminScope("admin")} >> ${NEXT_CONTROL}`,
       },
     ],
@@ -1267,15 +1295,10 @@ export const A03_OBSERVERS: Readonly<Record<A03ModuleId, ModuleObserver>> = Obje
     source: "client-slice",
     cookies: [A03_ADMIN_SESSION_COOKIE],
     stubs: [STUB_PRICING],
-    // Desktop rows are edit forms whose readonly input carries the study name;
-    // the mobile catalog row prints the same study name as its first line.
-    rowIdentity: {
-      kind: "anyOf",
-      options: [
-        { kind: "inputValue", selector: "input[readonly]" },
-        { kind: "text", pattern: /^(.+?)(?:\n|$)/ },
-      ],
-    },
+    // Both presentations print the study name as the row's first line: the
+    // desktop compact form row (admin desktop/tablet space pass) and the mobile
+    // catalog row.
+    rowIdentity: { kind: "text", pattern: /^(.+?)(?:\n|$)/ },
     orderedIds: staticIds(A03_PRICING_ITEMS.map((item) => item.studyName)),
     leaves: [
       {
@@ -1293,6 +1316,8 @@ export const A03_OBSERVERS: Readonly<Record<A03ModuleId, ModuleObserver>> = Obje
           `${adminScope("admin-pricing")} [data-admin-mobile-config-item="true"]`,
         ],
         pageLabelSelector: `${adminScope("admin-pricing")} >> ${PAGE_LABEL}`,
+        pageLabelRegime: "phone-only",
+        prevSelector: `${adminScope("admin-pricing")} >> ${PREV_CONTROL}`,
         nextSelector: `${adminScope("admin-pricing")} >> ${NEXT_CONTROL}`,
       },
     ],
@@ -1336,6 +1361,8 @@ export const A03_OBSERVERS: Readonly<Record<A03ModuleId, ModuleObserver>> = Obje
           '[data-admin-mobile-maintenance-candidate-row="true"]',
         ],
         pageLabelSelector: `${adminScope("admin-maintenance")} >> ${PAGE_LABEL}`,
+        pageLabelRegime: "phone-only",
+        prevSelector: `${adminScope("admin-maintenance")} >> ${PREV_CONTROL}`,
         nextSelector: `${adminScope("admin-maintenance")} >> ${NEXT_CONTROL}`,
       },
     ],
@@ -1550,14 +1577,25 @@ export type PreparedLeafFirstPage =
       readonly source: "server-request";
       readonly nextControl: Locator;
       readonly pageLabel: Locator | null;
+      readonly unpainted: UnpaintedPageProof | null;
       readonly firstPageCount: number;
     }
   | {
       readonly source: "client-slice";
       readonly nextControl: Locator;
-      readonly pageLabel: Locator;
+      readonly pageLabel: Locator | null;
+      readonly unpainted: UnpaintedPageProof | null;
       readonly firstPageCount: number;
     };
+
+/**
+ * Page-1 evidence for a pager that paints no page state in this regime: the
+ * previous control (disabled on page 1) and the rows page 1 rendered.
+ */
+export type UnpaintedPageProof = {
+  readonly prevControl: Locator;
+  readonly firstPageTexts: readonly string[];
+};
 
 /**
  * Navigates a leaf to its route and proves PAGE 1 — and only page 1 — is
@@ -1664,12 +1702,33 @@ export async function prepareLeafFirstPage(
     return { source: "url-query", nextControl, pathname, firstPageUrl, firstPageLimit };
   }
 
-  const pageLabel = leaf.pageLabelSelector
+  const viewportWidth = page.viewportSize()?.width ?? 0;
+  const labelPainted =
+    leaf.pageLabelSelector !== null &&
+    (leaf.pageLabelRegime !== "phone-only" || viewportWidth < 768);
+
+  const pageLabel = labelPainted
     ? page.locator(`${leaf.pageLabelSelector} >> visible=true`).first()
     : null;
 
   if (pageLabel) {
     await expect(pageLabel, `${label}: page 1`).toHaveText(pageLabelPattern(1));
+  }
+
+  // Unpainted regime: no page number may be painted, page 1 has a disabled
+  // previous control, and its rendered rows are kept as the content baseline.
+  let unpainted: UnpaintedPageProof | null = null;
+  if (leaf.pageLabelRegime === "phone-only" && !labelPainted) {
+    if (!leaf.prevSelector) {
+      throw new Error(`${label}: a phone-only page label requires a prevSelector — fail closed`);
+    }
+    await expect(
+      page.locator(`${leaf.pageLabelSelector} >> visible=true`),
+      `${label}: no page state is painted from 768px up`,
+    ).toHaveCount(0);
+    const prevControl = page.locator(`${leaf.prevSelector} >> visible=true`).first();
+    await expect(prevControl, `${label}: page 1 has a disabled previous control`).toBeDisabled();
+    unpainted = { prevControl, firstPageTexts: [] };
   }
 
   if (observer.source === "client-slice") {
@@ -1685,18 +1744,21 @@ export async function prepareLeafFirstPage(
   const firstPageRows = await resolveVisibleRows(page, leaf.rowSelectors, label);
   const firstPageCount = await firstPageRows.count();
   expect(firstPageCount, `${label}: converged first page must render rows`).toBeGreaterThan(0);
-
-  if (observer.source === "server-request") {
-    return { source: "server-request", nextControl, pageLabel, firstPageCount };
+  if (unpainted) {
+    unpainted = { ...unpainted, firstPageTexts: await firstPageRows.allInnerTexts() };
   }
 
-  if (!pageLabel) {
+  if (observer.source === "server-request") {
+    return { source: "server-request", nextControl, pageLabel, unpainted, firstPageCount };
+  }
+
+  if (!pageLabel && !unpainted) {
     throw new Error(
-      `${label}: a client-slice observer requires a pageLabelSelector — fail closed`,
+      `${label}: a client-slice observer requires a painted page label or the unpainted-regime proof — fail closed`,
     );
   }
 
-  return { source: "client-slice", nextControl, pageLabel, firstPageCount };
+  return { source: "client-slice", nextControl, pageLabel, unpainted, firstPageCount };
 }
 
 export async function observeLeaf(
@@ -1727,6 +1789,7 @@ export async function observeLeaf(
       identity,
       label,
       prepared.pageLabel,
+      prepared.unpainted,
       prepared.nextControl,
     );
   }
@@ -1738,6 +1801,7 @@ export async function observeLeaf(
     identity,
     label,
     prepared.pageLabel,
+    prepared.unpainted,
     prepared.nextControl,
     prepared.firstPageCount,
     leaf.scopeNth ?? 0,
@@ -1794,6 +1858,7 @@ async function observeServerRequestLeaf(
   identity: ObservationIdentity,
   label: string,
   pageLabel: Locator | null,
+  unpainted: UnpaintedPageProof | null,
   nextControl: Locator,
 ): Promise<ServerRequestObservation> {
   const transport = observer.transport ?? "http";
@@ -1912,7 +1977,8 @@ async function observeServerRequestLeaf(
   // Label-less pager: the ONLY thing standing between "page 2" and "page 1
   // re-rendered" is the request the click emitted, so it has to have advanced.
   // With a label, `Página 2` already carries that proof and `offset > 0` is
-  // implied by the same request.
+  // implied by the same request. The unpainted regime adds the pager's and the
+  // collection's own evidence below, once the window has committed.
   if (!pageLabel) {
     expect(
       offset,
@@ -1943,9 +2009,19 @@ async function observeServerRequestLeaf(
     `${label}: second page must be COMPLETE (rendered rows === limit)`,
   ).toBe(limit);
 
+  if (unpainted) {
+    await expect(unpainted.prevControl, `${label}: page 2 enables the previous control`).toBeEnabled();
+    expect(
+      await secondPageRows.allInnerTexts(),
+      `${label}: page 2 renders different rows than page 1`,
+    ).not.toEqual(unpainted.firstPageTexts);
+  }
+
   const pageProof = pageLabel
     ? "the second-page label"
-    : `the advanced window of that request (offset ${offset} > 0) and the converged second-page render`;
+    : unpainted
+      ? `the advanced window of that request (offset ${offset} > 0), the converged second-page render, the enabled previous control and rows that differ from page 1 (no page state is painted)`
+      : `the advanced window of that request (offset ${offset} > 0) and the converged second-page render`;
 
   return {
     ...identity,
@@ -1969,7 +2045,8 @@ async function observeClientSliceLeaf(
   leaf: LeafTarget,
   identity: ObservationIdentity,
   label: string,
-  pageLabel: Locator,
+  pageLabel: Locator | null,
+  unpainted: UnpaintedPageProof | null,
   nextControl: Locator,
   firstPageCount: number,
   convergenceIndex: number,
@@ -2006,10 +2083,39 @@ async function observeClientSliceLeaf(
   // never a superset request limit (audit §20.4, tokens deriva D-03).
   const limit = firstPageCount;
 
+  // Page-1 identities, read before the click: the unpainted regime proves the
+  // transition by the slice itself moving, not by a painted caption.
+  const firstPageIds = unpainted
+    ? await readRowIdentities(
+        await resolveVisibleRows(page, leaf.rowSelectors, label),
+        rowIdentity,
+        `${label} page 1`,
+      )
+    : [];
+
   await expect(nextControl, `${label}: next-page control`).toBeEnabled();
   await nextControl.click();
 
-  await expect(pageLabel, `${label}: second page reached`).toHaveText(pageLabelPattern(2));
+  if (pageLabel) {
+    await expect(pageLabel, `${label}: second page reached`).toHaveText(pageLabelPattern(2));
+  } else if (unpainted) {
+    await expect(unpainted.prevControl, `${label}: page 2 enables the previous control`).toBeEnabled();
+    await expect
+      .poll(
+        async () =>
+          (
+            await readRowIdentities(
+              await resolveVisibleRows(page, leaf.rowSelectors, label),
+              rowIdentity,
+              `${label} transition`,
+            )
+          )[0],
+        { message: `${label}: second page reached (first rendered row moved past page 1)`, timeout: 30_000 },
+      )
+      .not.toBe(firstPageIds[0]);
+  } else {
+    throw new Error(`${label}: no page-2 proof available — fail closed`);
+  }
   await waitForAdaptiveConvergence(
     page,
     leaf.convergenceSelector,
@@ -2041,6 +2147,12 @@ async function observeClientSliceLeaf(
     secondPageIds.length,
     `${label}: second page must be COMPLETE (pageItemCount === limit)`,
   ).toBe(limit);
+  if (unpainted) {
+    expect(
+      secondPageIds.filter((id) => firstPageIds.includes(id)),
+      `${label}: page 2 shares no row with page 1`,
+    ).toEqual([]);
+  }
 
   return {
     ...identity,

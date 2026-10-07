@@ -627,3 +627,26 @@
   }
 }
 /* dashboard-b09-mobile-navigation-unification:end */
+
+/* admin-desktop-tablet-module-header-reclaim:start */
+/* Admin desktop/tablet space pass. The in-workspace module header (the 40px
+   B11 band that carried the retired "Vista general" back control and the
+   module title) is chrome from 768px up too: the lateral band already marks
+   the active module and the admin hub it returned to no longer exists. It is
+   hidden with the same declarations G-003 applies below 768px, so the module
+   content starts right under the app bar. Admin only; Clínica keeps its
+   header, and below 768px mobile-chrome.css already owns the reclaim. */
+@media (min-width: 768px) {
+  [data-vetneb-app-shell-surface="admin"]
+    [data-dashboard-module-workspace]
+    .dashboard-workspace-header {
+    display: none !important;
+  }
+
+  [data-vetneb-app-shell-surface="admin"]
+    [data-dashboard-module-workspace]
+    [data-dashboard-module-viewport] {
+    padding-top: 0 !important;
+  }
+}
+/* admin-desktop-tablet-module-header-reclaim:end */

@@ -1,33 +1,34 @@
 import { expect, test, type Page } from "@playwright/test";
 import { waitForAdaptiveConvergence } from "../../helpers/dashboard-adaptive-limit-matrix";
 import { setAdminSession } from "../../helpers/session";
+import { MAX_DOCUMENT_SCROLL_DELTA_PX } from "../../helpers/zero-scroll-contract";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PR #1465 review P2 — Admin Pricing adaptive page size must measure EVERY
-// visible form, not only the first.
+// PR #1465 review P2 — a save message must never let a pricing form push the
+// collection out of the viewport.
 //
-// A per-item manual form grows when its status/error message appears after a
-// save. When only the first form was measured, a later, taller errored form
-// overflowed the region and pushed the compact pager out of the viewport. This
-// behaviour test drives a real save failure on a NON-first visible form and
-// asserts the region stays bounded: the pager remains fully visible, no form is
-// clipped, the document never gains accidental scroll, and the errored form's
-// message + action stay reachable (on the current page or via the pager).
+// Originally each study was a tall card whose error grew it, so the page size
+// had to measure every form. Since the admin desktop/tablet space pass each
+// study is ONE compact form row locked to the `regular` row pitch and a whole
+// category fits one view: the message shares the study cell (accessible
+// truncation: full text in role=alert and title) instead of growing the row.
+// This behaviour test drives a real save failure with a deliberately long
+// message on a NON-first row and asserts the row keeps the pitch, every study
+// stays in view with no pager, the message and the save action stay reachable
+// and the document never gains scroll.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const TOLERANCE = 2;
 const PRICING_WORKSPACE = '[data-dashboard-module-workspace="admin-pricing"]';
 
-// A deliberately long, multi-line error so the failed form grows ~100px beyond
-// the others. At the chosen viewport this pushes the naive "measure only the
-// first form" behaviour to render one form too many (which then overflows and
-// clips), while the fix — measuring the tallest form — renders a fitting count.
+// A deliberately long error: under the old card it grew the failed form by
+// ~100px; the compact row must absorb it without growing.
 const LONG_ERROR_MESSAGE =
   "Detalle extendido del rechazo del backend al validar el catálogo. ".repeat(
     13,
   ) + "Reintente en unos instantes.";
 
-// One category with six studies so several forms render and a pager exists.
+// One category with six studies: several rows render, all inside one view.
 const PRICING_SNAPSHOT = {
   success: true,
   categories: [
@@ -94,129 +95,68 @@ async function readDocumentScroll(page: Page) {
   });
 }
 
-test.describe("admin pricing adaptive page size measures every visible form", () => {
-  test("a taller errored non-first form keeps the pager visible and clips nothing", async ({
+test.describe("admin pricing keeps every study in view when a save fails", () => {
+  test("a long error on a non-first row keeps the row pitch, every study visible and nothing clipped", async ({
     page,
   }) => {
-    // Viewport tuned (measured) so the forms region (~790px) fits exactly two
-    // forms once one grows with the tall error: the fix renders two forms (the
-    // errored one stays visible), whereas measuring only the short first form
-    // would render three and clip the last one below the region.
-    await page.setViewportSize({ width: 1440, height: 1240 });
+    await page.setViewportSize({ width: 1440, height: 900 });
     await setAdminSession(page, "default");
     await mockPricing(page);
 
     await page.goto("/dashboard/admin?module=admin-pricing");
 
-    const workspace = page.locator(
-      '[data-dashboard-module-workspace="admin-pricing"]',
-    );
+    const workspace = page.locator(PRICING_WORKSPACE);
     await expect(workspace).toBeVisible({ timeout: 15_000 });
 
     const forms = page.locator("[data-admin-pricing-item-form]");
+    const studies = PRICING_SNAPSHOT.categories[0].items.length;
+    await expect(forms, "the whole category renders in one view").toHaveCount(studies, { timeout: 12_000 });
+    await expect(page.locator('[data-admin-pricing-all-items="true"]')).toHaveCount(1);
+    await expect(page.locator('[data-dashboard-compact-pager="true"]'), "no pager while the category fits").toHaveCount(0);
+    const firstHeight = (await forms.nth(0).boundingBox())!.height;
 
-    // Need at least two visible forms so the failure lands on a NON-first one.
-    await expect(async () => {
-      const count = await forms.count();
-      expect(count, "at least two forms rendered").toBeGreaterThanOrEqual(2);
-    }).toPass({ timeout: 12_000 });
-
-    // Target the second visible form (a NON-first form).
+    // Make an edit on the second (NON-first) row so the save fires a PATCH.
     const secondForm = forms.nth(1);
-
-    // Make an edit so the save actually fires a PATCH, then trigger the failure.
-    const priceInput = secondForm.locator('input[placeholder="Consultar"]');
-    await priceInput.fill("$9.999");
+    await secondForm.getByRole("textbox", { name: /^Precio de / }).fill("$9.999");
     await secondForm.getByRole("button", { name: "Guardar precio" }).click();
 
-    // The tall error message appears on the second form.
-    await expect(page.getByText(LONG_ERROR_MESSAGE).first()).toBeVisible({
-      timeout: 10_000,
-    });
+    const message = secondForm.getByRole("alert");
+    await expect(message, "the error is announced").toHaveText(LONG_ERROR_MESSAGE, { timeout: 10_000 });
+    await expect(message).toBeVisible();
+    await expect(message, "the full text stays available on hover").toHaveAttribute("title", LONG_ERROR_MESSAGE);
+    expect(
+      await message.evaluate((node) => node.scrollWidth > node.clientWidth),
+      "the long message is truncated, not wrapped into a taller row",
+    ).toBe(true);
 
-    // Let the ResizeObserver/rAF pipeline settle the adaptive page size the
-    // taller errored form triggers: drained, identical renders of the workspace.
-    await waitForAdaptiveConvergence(page, PRICING_WORKSPACE, "form count settled");
-
-    const viewport = page.viewportSize()!;
+    await waitForAdaptiveConvergence(page, PRICING_WORKSPACE, "rows settled after the error");
 
     // (1) No accidental scroll on document / body / main.
     await expect(async () => {
       const m = await readDocumentScroll(page);
-      expect(m.htmlScrollH, "documentElement vertical").toBeLessThanOrEqual(
-        m.htmlClientH + TOLERANCE,
-      );
-      expect(m.htmlScrollW, "documentElement horizontal").toBeLessThanOrEqual(
-        m.htmlClientW + TOLERANCE,
-      );
-      expect(m.bodyScrollH, "body vertical").toBeLessThanOrEqual(
-        m.bodyClientH + TOLERANCE,
-      );
-      expect(m.mainScrollH, "main vertical").toBeLessThanOrEqual(
-        m.mainClientH + TOLERANCE,
-      );
+      expect(m.htmlScrollH, "documentElement vertical").toBeLessThanOrEqual(m.htmlClientH + MAX_DOCUMENT_SCROLL_DELTA_PX);
+      expect(m.htmlScrollW, "documentElement horizontal").toBeLessThanOrEqual(m.htmlClientW + MAX_DOCUMENT_SCROLL_DELTA_PX);
+      expect(m.bodyScrollH, "body vertical").toBeLessThanOrEqual(m.bodyClientH + MAX_DOCUMENT_SCROLL_DELTA_PX);
+      expect(m.mainScrollH, "main vertical").toBeLessThanOrEqual(m.mainClientH + TOLERANCE);
     }).toPass({ timeout: 10_000 });
 
-    // (2) The compact pager is fully inside the viewport.
-    const pager = page.locator('[data-dashboard-compact-pager="true"]');
-    await expect(pager).toBeVisible();
-    const pagerBox = await pager.boundingBox();
-    expect(pagerBox, "pager bounding box").not.toBeNull();
-    expect(pagerBox!.y, "pager top inside viewport").toBeGreaterThanOrEqual(
-      -TOLERANCE,
-    );
-    expect(
-      pagerBox!.y + pagerBox!.height,
-      "pager bottom inside viewport",
-    ).toBeLessThanOrEqual(viewport.height + TOLERANCE);
+    // (2) The errored row keeps the pitch and the category still fits: no pager.
+    expect(Math.abs((await secondForm.boundingBox())!.height - firstHeight), "errored row keeps the row pitch").toBeLessThanOrEqual(0.5);
+    await expect(forms).toHaveCount(studies);
+    await expect(page.locator('[data-dashboard-compact-pager="true"]')).toHaveCount(0);
 
-    // (3) No rendered form is clipped: each sits above the pager top and within
-    //     the viewport, so nothing is hidden behind the pinned pager.
-    const visibleForms = await forms.count();
-    for (let index = 0; index < visibleForms; index += 1) {
-      const box = await forms.nth(index).boundingBox();
-      expect(box, `form ${index} bounding box`).not.toBeNull();
-      expect(box!.y, `form ${index} top inside viewport`).toBeGreaterThanOrEqual(
-        -TOLERANCE,
-      );
-      expect(
-        box!.y + box!.height,
-        `form ${index} bottom above pager`,
-      ).toBeLessThanOrEqual(pagerBox!.y + TOLERANCE);
+    // (3) No row is clipped: every row lies inside the rows canvas.
+    const canvas = (await page.locator('[data-admin-pricing-all-items="true"]').boundingBox())!;
+    for (let index = 0; index < studies; index += 1) {
+      const box = (await forms.nth(index).boundingBox())!;
+      expect(box.y, `row ${index} top inside the canvas`).toBeGreaterThanOrEqual(canvas.y - TOLERANCE);
+      expect(box.y + box.height, `row ${index} bottom inside the canvas`).toBeLessThanOrEqual(canvas.y + canvas.height + TOLERANCE);
     }
 
-    // (4) The errored second form's message AND its save action stay reachable —
-    //     on the current page, or after paging to it if the adaptive count shrank.
-    //     The errored form is the only one carrying the long error message.
-    const erroredForm = page
-      .locator("[data-admin-pricing-item-form]")
-      .filter({ hasText: LONG_ERROR_MESSAGE });
-
-    const nextButton = page.locator('[data-dashboard-pager-next="true"]');
-    const pagerState = pager.locator('[data-dashboard-pager-state="true"]');
-    for (let hop = 0; hop < 6; hop += 1) {
-      if (await erroredForm.count()) {
-        break;
-      }
-      if (await nextButton.isDisabled()) {
-        break;
-      }
-      const stateBeforeHop = (await pagerState.textContent()) ?? "";
-      await nextButton.click();
-      // The hop is complete when the pager commits the next page and the
-      // re-sliced forms have drained through the adaptive pipeline.
-      await expect(pagerState, `pager advanced on hop ${hop + 1}`).not.toHaveText(stateBeforeHop);
-      await waitForAdaptiveConvergence(page, PRICING_WORKSPACE, `pager hop ${hop + 1}`);
-    }
-
-    await expect(erroredForm, "errored form is reachable").toHaveCount(1);
-    await expect(
-      erroredForm.getByText(LONG_ERROR_MESSAGE),
-      "errored form message stays visible",
-    ).toBeVisible();
-    await expect(
-      erroredForm.getByRole("button", { name: "Guardar precio" }),
-      "errored form save action stays visible",
-    ).toBeVisible();
+    // (4) The errored row's save action stays visible and inside its row.
+    const save = secondForm.getByRole("button", { name: "Guardar precio" });
+    await expect(save, "errored row save action stays visible").toBeVisible();
+    const [saveBox, rowBox] = await Promise.all([save.boundingBox(), secondForm.boundingBox()]);
+    expect(saveBox!.y >= rowBox!.y - 0.5 && saveBox!.y + saveBox!.height <= rowBox!.y + rowBox!.height + 0.5, "save action inside the row").toBe(true);
   });
 });

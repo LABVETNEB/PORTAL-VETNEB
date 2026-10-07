@@ -43,8 +43,11 @@ test("notification click targets render stable clinic, particular, and admin anc
     adminPage.includes('id="admin-particular-tokens"'),
     "admin particular token section anchor must exist",
   );
+  // Admin notifications route to ?module=audit-log (no hash): the audit
+  // section anchor is the destination; the old #admin-notifications tile
+  // left with the retired audit header (desktop/tablet space pass).
   assert.ok(
-    adminAuditCard.includes('id="admin-notifications"'),
-    "admin notifications section anchor must exist",
+    adminAuditCard.includes('id="audit-log"'),
+    "admin audit section anchor must exist",
   );
 });

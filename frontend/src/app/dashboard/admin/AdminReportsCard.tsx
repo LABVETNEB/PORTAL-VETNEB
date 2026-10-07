@@ -10,8 +10,6 @@ import {
   useState,
 } from "react";
 import {
-  ChevronLeft,
-  ChevronRight,
   Filter,
   FilePlus2,
   Loader2,
@@ -28,7 +26,7 @@ import {
 import { ModuleDialog } from "@/components/dashboard/ModuleDialog";
 import { ReportFileActions } from "@/components/dashboard/ReportDownloadButton";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import {
@@ -270,20 +268,12 @@ export function AdminReportsCard() {
   const filteredReports = reports.filter((report) =>
     matchesAdminReportFilters(report, appliedFilters),
   );
-  const deliveredCount = filteredReports.filter(
-    (report) => report.workflowStage === "delivered",
-  ).length;
-  const specialStainCount = filteredReports.filter(
-    (report) => report.specialStainRequested,
-  ).length;
   // The report-workflow endpoint exposes no `total`, only `hasMore` per full
   // page (PR-SRV-0 §6 rule 2): offset is clamped to ≥ 0 and next-page is driven
   // by `hasMore`; there is no pageCount / jump-to-last.
   const page = Math.floor(offset / effectiveLimit) + 1;
   const hasPrev = offset > 0;
   const hasNext = hasMore;
-  const rangeStart = filteredReports.length ? offset + 1 : 0;
-  const rangeEnd = offset + filteredReports.length;
 
   const query = useMemo(
     () => ({ limit: effectiveLimit, offset }),
@@ -587,15 +577,11 @@ export function AdminReportsCard() {
       data-dashboard-b12-module-card="true"
       className="dashboard-surface flex min-h-0 flex-1 flex-col overflow-hidden shadow-none"
     >
-      <CardHeader className="flex-row items-start justify-between gap-3 space-y-0 border-b border-vetneb-line/70 px-4 py-3 md:py-1">
-        {/* Pre-C05 mobile space: the internal "Informes" descriptor is retired
-            below md and "Filtros" moves into the freed slot of this header. */}
-        <div className="hidden min-w-0 md:block">
-          <CardTitle className="text-xl leading-tight md:text-base">Informes</CardTitle>
-          <p className="mt-0 text-xs text-muted-foreground">
-            Cola administrativa, trazabilidad y documentos en una sola vista.
-          </p>
-        </div>
+      <CardHeader className="flex-row items-start justify-between gap-3 space-y-0 border-b border-vetneb-line/70 px-4 py-3 md:justify-end md:py-1">
+        {/* The internal "Informes" descriptor is retired at every width
+            (pre-C05 below md, desktop/tablet space pass from md up): below md
+            "Filtros" takes the freed slot; from md up the actions are the
+            whole band, right above the filters. */}
         <div className="min-w-0 md:hidden">
           <ModuleDialog
             title="Filtrar informes"
@@ -639,25 +625,6 @@ export function AdminReportsCard() {
       </CardHeader>
 
       <CardContent className="flex min-h-0 flex-1 flex-col gap-2 px-4 pb-3 pt-2 md:gap-1 md:pb-1 md:pt-1">
-        <div
-          data-admin-reports-toolbar="true"
-          className="hidden min-h-8 shrink-0 items-center justify-between gap-2 rounded-md border border-vetneb-line/65 bg-vetneb-surface-raised/45 px-2.5 text-xs text-muted-foreground md:flex md:min-h-7"
-        >
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <span>
-              <strong className="font-semibold text-vetneb-ink">{deliveredCount}</strong> entregados
-            </span>
-            <span>
-              <strong className="font-semibold text-vetneb-ink">{specialStainCount}</strong> con tinción
-            </span>
-          </div>
-          <div className="flex shrink-0 items-center gap-1.5">
-            <span className="tabular-nums">
-              {hasActiveFilters ? "Filtros activos" : `Página ${page}`}
-            </span>
-          </div>
-        </div>
-
         {renderAdvancedFilterForm()}
 
         {errorMessage ? (
@@ -844,38 +811,32 @@ export function AdminReportsCard() {
 
           <nav
             data-dashboard-adaptive-reserved-region="pager"
-            className="mt-2 hidden shrink-0 items-center justify-between gap-2 overflow-hidden border-t border-vetneb-line/65 px-1 text-xs text-muted-foreground md:mt-0.5 md:flex"
+            className="mt-2 hidden shrink-0 items-center justify-center gap-2 overflow-hidden border-t border-vetneb-line/65 px-1 text-xs text-muted-foreground md:mt-0.5 md:flex"
             style={DASHBOARD_PAGER_RESERVATION}
             aria-label="Paginación de informes admin"
           >
-            <span>
-              {filteredReports.length ? `${rangeStart}–${rangeEnd}` : "0 resultados"} · {effectiveLimit} por página
-            </span>
-            <div className="flex items-center gap-1.5">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-8 w-8 p-0 md:h-7 md:w-7"
-                disabled={!hasPrev || isLoading}
-                onClick={goToPreviousPage}
-                aria-label="Página anterior"
-              >
-                <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
-              </Button>
-              <span className="min-w-16 text-center">Página {page}</span>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-8 w-8 p-0 md:h-7 md:w-7"
-                disabled={!hasNext || isLoading}
-                onClick={goToNextPage}
-                aria-label="Página siguiente"
-              >
-                <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
-              </Button>
-            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 px-2.5 text-xs md:h-7"
+              disabled={!hasPrev || isLoading}
+              onClick={goToPreviousPage}
+              aria-label="Página anterior"
+            >
+              Anterior
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 px-2.5 text-xs md:h-7"
+              disabled={!hasNext || isLoading}
+              onClick={goToNextPage}
+              aria-label="Página siguiente"
+            >
+              Siguiente
+            </Button>
           </nav>
         </section>
       </CardContent>

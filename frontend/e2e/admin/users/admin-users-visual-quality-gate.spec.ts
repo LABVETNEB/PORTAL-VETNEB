@@ -354,25 +354,26 @@ async function readDesktopMetricsOnce(page: Page): Promise<DesktopMetrics> {
         });
       });
 
-      const perPageLabel = Array.from(document.querySelectorAll("span"))
-        .map((node) => node.textContent?.trim() ?? "")
-        .find((text) => /^\d+ por página$/.test(text));
-      const perPage = perPageLabel ? Number(perPageLabel.split(" ")[0]) : null;
+      // Admin desktop/tablet space pass: no "N por página" label is painted, so
+      // the effective page size is the limit of the latest request the card sent.
+      const usersRequests = performance
+        .getEntriesByType("resource")
+        .map((entry) => entry.name)
+        .filter((name) => new URL(name).pathname === "/api/admin/users-roles");
+      const lastUsersRequest = usersRequests.at(-1);
+      const requestedLimit = lastUsersRequest
+        ? Number(new URL(lastUsersRequest).searchParams.get("limit"))
+        : Number.NaN;
+      const perPage = Number.isInteger(requestedLimit) && requestedLimit > 0 ? requestedLimit : null;
 
-      // B08: the lateral navigation renders the admin module labels, and
-      // "Clínicas" is both a module label and a summary chip label. An
-      // unscoped document scan resolves to the nav item (whose parent is a
-      // route button with no <strong>), so the scan is bound to the
-      // workspace that owns these chips. Not a .first() — a real owner.
-      const workspaceRoot = document.querySelector(workspaceSelector);
+      // The Total filtrado · Admins · Clínicas tiles are retired with the
+      // header; the filtered total is still announced by the pager's range.
       const summary: Record<string, string> = {};
-      for (const summaryLabel of ["Total filtrado", "Admins", "Clínicas"]) {
-        const span = Array.from(
-          (workspaceRoot ?? document).querySelectorAll("span"),
-        ).find((node) => node.textContent?.trim() === summaryLabel);
-        const strong = span?.parentElement?.querySelector("strong");
-        summary[summaryLabel] = strong?.textContent?.trim() ?? "";
-      }
+      const announcedRange =
+        document
+          .querySelector(`footer[aria-label="${paginationLabel}"] > span[aria-live="polite"]`)
+          ?.textContent?.trim() ?? "";
+      summary["Total filtrado"] = /de (\d+)$/.exec(announcedRange)?.[1] ?? "";
 
       const footer = document.querySelector<HTMLElement>(
         `footer[aria-label="${paginationLabel}"]`,
@@ -1027,17 +1028,14 @@ test.describe("admin users-roles visual quality gate (PR-CAP-QA1)", () => {
         expect(limit).toBeLessThanOrEqual(cap);
         assertRenderBound(settled.usernames.length, cap, settled.bodyText, label);
 
-        // Totals strip coherent with the dataset/filter combination.
+        // Total coherent with the dataset/filter combination (announced range).
         expect(settled.summary["Total filtrado"], `${label}: total filtrado`).toBe(
           String(expectedTotal),
         );
+        expect(HIGH_VOLUME_ADMIN_TOTAL + HIGH_VOLUME_CLINIC_TOTAL).toBe(expectedTotalForState("default"));
         if (state === "filter-admin") {
-          expect(settled.summary.Admins).toBe(String(HIGH_VOLUME_ADMIN_TOTAL));
-          expect(settled.summary["Clínicas"]).toBe("0");
           expect(settled.usernames[0]).toBe("admin_operaciones");
         } else if (state === "filter-clinic-owner") {
-          expect(settled.summary.Admins).toBe("0");
-          expect(settled.summary["Clínicas"]).toBe(String(HIGH_VOLUME_CLINIC_OWNER_TOTAL));
           const expectedHeads = [
             "usuario_clinica_02",
             "usuario_clinica_04",
@@ -1047,8 +1045,6 @@ test.describe("admin users-roles visual quality gate (PR-CAP-QA1)", () => {
           const headCount = Math.min(4, limit);
           expect(settled.usernames.slice(0, headCount)).toEqual(expectedHeads.slice(0, headCount));
         } else {
-          expect(settled.summary.Admins).toBe(String(HIGH_VOLUME_ADMIN_TOTAL));
-          expect(settled.summary["Clínicas"]).toBe(String(HIGH_VOLUME_CLINIC_TOTAL));
           if (state === "next-page") {
             expect(settled.usernames).toEqual(
               Array.from({ length: limit }, (_, index) => expectedUsernameAt(limit + index)),
@@ -1068,7 +1064,8 @@ test.describe("admin users-roles visual quality gate (PR-CAP-QA1)", () => {
 
         const expectedPagination = expectedPaginationText(state, expectedTotal, limit);
         expect(settled.rangeText, `${label}: pagination range`).toBe(expectedPagination.range);
-        expect(settled.pageText, `${label}: pagination page context`).toBe(expectedPagination.page);
+        // Desktop/tablet space pass: Anterior/Siguiente only, no page context.
+        expect(settled.pageText, `${label}: no painted page context`).toBeNull();
 
         assertNoScroll(settled.overflow, label);
         assertNoInternalScroll(settled.worstInternalScroll, label);

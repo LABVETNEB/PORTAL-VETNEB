@@ -259,12 +259,13 @@ test.describe("dashboard workspace layout polish — smoke (PR-2)", () => {
     await expect(workspace).toHaveClass(/dashboard-workspace-enter/);
   });
 
-  test("admin /dashboard/admin loads module hub", async ({ page }) => {
+  test("admin legacy ?hub=1 loads the Resumen workspace (hub retired at every width)", async ({ page }) => {
     await setAdminSession(page, "default");
     await page.goto("/dashboard/admin?hub=1");
-    await expect(
-      page.locator('[data-dashboard-module-hub="true"]'),
-    ).toBeVisible({ timeout: 8_000 });
+    const workspace = page.locator('[data-dashboard-module-workspace="admin"]');
+    await expect(workspace).toBeVisible({ timeout: 8_000 });
+    await expect(workspace).toHaveClass(/dashboard-workspace-enter/);
+    await expect(page.locator('[data-dashboard-module-hub="true"]')).toHaveCount(0);
   });
 
   test("admin /dashboard/admin?module=admin-clinics renders workspace with enter class", async ({
@@ -293,21 +294,18 @@ test.describe("dashboard workspace layout polish — smoke (PR-2)", () => {
     await expect(page.locator("#report-detail")).toHaveCount(0);
   });
 
-  test("admin workspace Volver button keeps dashboard-btn-interactive (PR-1 contract preserved)", async ({
+  test("admin workspace no longer exposes a Vista general control (lateral nav owns nav)", async ({
     page,
   }) => {
-    // The clinic workspace no longer exposes a "Vista general" control — module
-    // navigation is owned by the shared rail. The admin hub still uses the back
-    // button, so the PR-1 interaction contract is asserted there.
+    // Desktop/tablet space pass: like Clínica, Admin has no hub to return to,
+    // so its workspaces carry no "Vista general" back control at any width.
     await setAdminSession(page, "default");
     await page.goto("/dashboard/admin?module=admin-clinics");
     const workspace = page.locator(
       '[data-dashboard-module-workspace="admin-clinics"]',
     );
     await expect(workspace).toBeVisible({ timeout: 8_000 });
-    const volverBtn = workspace.locator('button[aria-label="Vista general"]');
-    await expect(volverBtn).toBeVisible();
-    await expect(volverBtn).toHaveClass(/dashboard-btn-interactive/);
+    await expect(workspace.locator('button[aria-label="Vista general"]')).toHaveCount(0);
   });
 
   test("clinic workspace no longer exposes a Vista general control (rail owns nav)", async ({

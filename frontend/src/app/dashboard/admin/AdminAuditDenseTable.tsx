@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -34,6 +35,8 @@ type AdminAuditDenseTableProps = {
   loadError: boolean;
   hasActiveFilters: boolean;
   selection: CollectionSelection<number>;
+  /** C07 contextual toolbar, painted in the header row beside the page selector. */
+  selectionToolbar?: ReactNode;
   // Measurement hook for the Zero-Scroll adaptive contract (viewport-safe
   // server pagination): the first row gives the real row height. The measured
   // container is the rows region owned by `AdminAuditCard`, not this wrapper —
@@ -45,6 +48,7 @@ export function AdminAuditDenseTable({
   loadError,
   hasActiveFilters,
   selection,
+  selectionToolbar,
 }: AdminAuditDenseTableProps) {
   const emptyMessage = hasActiveFilters
     ? "No hay eventos para los filtros seleccionados."
@@ -77,6 +81,7 @@ export function AdminAuditDenseTable({
                     }}
                     onChange={selection.toggleVisiblePage}
                   />
+                  {selectionToolbar}
                 </TableHead>
                 <TableHead className="w-[9.5rem]">Fecha</TableHead>
                 <TableHead className="w-[10rem]">Actor</TableHead>

@@ -11,13 +11,7 @@ import {
 import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ModuleTabs } from "@/components/dashboard/ModuleTabs";
 import { CompactPager } from "@/components/dashboard/CompactPager";
@@ -33,25 +27,19 @@ import {
   type AdminPricingUpdatePayload,
 } from "@/lib/api";
 
-// Single-viewport App Shell: prices are organized by category tabs and paginated
-// within each category. The per-item manual form (contract) is tall, so the page
-// size is derived from the measured forms region instead of a fixed constant —
-// a fixed `ITEMS_PER_PAGE = 1` collapsed the editor to one study per page even
-// when the viewport had room for more (VIS-ADMIN-002). The full catalog stays
-// reachable via category tabs + the compact pager (pagination is preferred over
-// scroll per the no-scroll contract).
+// Single-viewport App Shell: prices are organized by category tabs, and each
+// category shows ALL its studies in one view (desktop/tablet space pass): the
+// per-item manual form (contract) is one compact row locked to the `regular`
+// pitch, so a whole category fits the canvas. The catalog is read in a single
+// GET with no paging parameters, so this is presentation only. Should a category
+// ever outgrow the measured canvas, it pages instead of scrolling (no-scroll
+// contract), with the measured capacity as the page size.
 //
-// `PRICING_FALLBACK_ITEMS` covers the pre-measurement paint; the cap bounds the
-// effective page size on very tall viewports. The 12px inter-form gap is fed to
-// the hook as the row-height surcharge so `floor(height / rowHeight)` counts the
-// real stacked footprint. The floor stays at 1 because the tall six-field manual
-// form only physically fits a single instance at the shortest supported desktop
-// height (1366×768, no-scroll contract); on taller viewports the measured value
-// grows to show several studies per page, which is the actual VIS-ADMIN-002 win
-// over the previous hard `= 1`.
+// `PRICING_FALLBACK_ITEMS` only covers the pre-measurement capacity read; the
+// cap bounds the fallback page size on very tall viewports.
 const PRICING_FALLBACK_ITEMS = 1;
 const PRICING_MIN_ITEMS = 1;
-const PRICING_MAX_ITEMS = 6;
+const PRICING_MAX_ITEMS = 32;
 
 const LOAD_ERROR_MESSAGE = "No se pudieron cargar los precios. Intente nuevamente.";
 const EMPTY_STATE_MESSAGE = "No hay precios configurados.";
@@ -205,9 +193,18 @@ type PricingCategoryItemsProps = {
   onSaveItem: (itemId: number) => void;
 };
 
-// Paginated editable studies for a single pricing category. Keeps the per-item
-// manual form contract while bounding how many forms render so a page fits one
-// desktop viewport without scroll.
+// Column grid shared by the header row and every item form, so labels and
+// fields line up. From lg up the two read-only columns (public view, last
+// update) join; below lg they are secondary and step out (AGENTS §10).
+const PRICING_ROW_GRID_CLASS_NAME =
+  "grid items-center gap-2 grid-cols-[minmax(0,2fr)_minmax(0,1fr)_4.5rem_7rem_7.5rem] lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_4.5rem_7rem_minmax(0,1fr)_9.5rem_7.5rem]";
+
+// Every study of the active category in one view, as one compact form row per
+// study (desktop/tablet space pass). The rows keep the per-item manual form
+// contract: same fields, same save, same messages. The pager survives only as
+// an overflow fallback: when the measured canvas cannot hold the whole
+// category, the category pages with the same Anterior/Siguiente control
+// instead of scrolling.
 function PricingCategoryItems({
   items,
   formStateById,
@@ -216,37 +213,43 @@ function PricingCategoryItems({
   onUpdateItem,
   onSaveItem,
 }: PricingCategoryItemsProps) {
-  // ── Adaptive page size (measures EVERY visible form) ─────────────────────
-  // A per-item manual form grows when its status/error message appears after a
-  // save. Observing only the first form let a later, taller errored form
-  // overflow the region and push the pager out of view (PR #1465 review P2).
-  //
-  // The page size used to come from the MAXIMUM measured form height, which
-  // closed a genuine oscillation: an error grows a form -> fewer forms fit ->
-  // the tall form unmounts -> the measured height shrinks -> more forms fit ->
-  // the error reappears. That needed a monotonic-within-item-set reservation to
-  // damp it. With the footprint declared in CSS the oscillation cannot be
-  // expressed: no form height reaches the page size, so the damping, the
-  // per-form observer and the category-keyed reset all disappear with it.
+  // Rows are locked to the `regular` row pitch (zero-scroll.css), so the
+  // capacity is a pure function of the canvas, never of the rendered forms or
+  // of a save message: the message shares the study cell instead of growing
+  // the row.
   const [formsBodyNode, setFormsBodyNode] = useState<HTMLElement | null>(null);
 
-  const { capacity: itemsPerPage } = useDashboardCanvasCapacity({
+  const { capacity, measured } = useDashboardCanvasCapacity({
     canvasNode: formsBodyNode,
     fallbackItems: PRICING_FALLBACK_ITEMS,
     minItems: PRICING_MIN_ITEMS,
     maxItems: PRICING_MAX_ITEMS,
   });
 
-  const paged = usePagedRows(items, itemsPerPage);
+  const fitsInOneView = !measured || items.length <= capacity;
+  const paged = usePagedRows(items, fitsInOneView ? Math.max(1, items.length) : capacity);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3">
+    <div className="flex min-h-0 flex-1 flex-col gap-1">
+      <div
+        aria-hidden="true"
+        data-admin-pricing-columns="true"
+        className={`${PRICING_ROW_GRID_CLASS_NAME} shrink-0 border-b border-vetneb-line/65 px-2 pb-1 text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-muted-foreground`}
+      >
+        <span>Estudio</span>
+        <span>Precio</span>
+        <span>Orden</span>
+        <span>Estado</span>
+        <span className="hidden lg:block">Vista pública</span>
+        <span className="hidden lg:block">Última actualización</span>
+        <span className="text-right">Acción</span>
+      </div>
       <div
         ref={setFormsBodyNode}
         data-dashboard-adaptive-rows-canvas="true"
-        data-dashboard-row-pitch="form"
-        data-dashboard-row-gap="wide"
-        className="flex min-h-0 flex-1 flex-col gap-3 content-start"
+        data-dashboard-row-pitch="regular"
+        data-admin-pricing-all-items={fitsInOneView ? "true" : "false"}
+        className="flex min-h-0 flex-1 flex-col divide-y divide-vetneb-line/60 overflow-hidden"
       >
         {paged.pageItems.map((item) => {
           const formState = formStateById[item.id];
@@ -256,147 +259,130 @@ function PricingCategoryItems({
           }
 
           const isSaving = savingItemId === item.id;
+          const message = formState.errorMessage ?? formState.statusMessage;
 
           return (
             <form
               key={item.id}
               data-admin-pricing-item-form
               data-dashboard-adaptive-row="true"
-              className="rounded-lg border border-vetneb-line/75 bg-vetneb-surface-raised/76 p-3.5 shadow-[0_8px_22px_rgba(15,45,62,0.07)]"
+              className="flex items-center px-2"
               onSubmit={(event) => {
                 event.preventDefault();
                 void onSaveItem(item.id);
               }}
             >
               <fieldset
-                className="grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-3"
+                className={`${PRICING_ROW_GRID_CLASS_NAME} w-full min-w-0`}
                 disabled={isSaving || isSavingAll}
               >
-                <label className="space-y-1.5">
-                  <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                    Estudio
-                  </span>
-                  <Input value={item.studyName} readOnly className="bg-card/90" />
-                </label>
-
-                <label className="space-y-1.5">
-                  <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                    Precio
-                  </span>
-                  <Input
-                    value={formState.priceLabel}
-                    onChange={(event) =>
-                      onUpdateItem(item.id, (current) => ({
-                        ...current,
-                        priceLabel: event.target.value,
-                        statusMessage: null,
-                        errorMessage: null,
-                      }))
-                    }
-                    placeholder="Consultar"
-                  />
-                </label>
-
-                <label className="space-y-1.5">
-                  <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                    Orden
-                  </span>
-                  <Input
-                    type="number"
-                    min="0"
-                    inputMode="numeric"
-                    value={formState.displayOrder}
-                    onChange={(event) =>
-                      onUpdateItem(item.id, (current) => ({
-                        ...current,
-                        displayOrder: event.target.value,
-                        statusMessage: null,
-                        errorMessage: null,
-                      }))
-                    }
-                  />
-                </label>
-
-                <label className="space-y-1.5">
-                  <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                    Estado
-                  </span>
-                  <select
-                    value={formState.isActive ? "active" : "inactive"}
-                    onChange={(event) =>
-                      onUpdateItem(item.id, (current) => ({
-                        ...current,
-                        isActive: event.target.value === "active",
-                        statusMessage: null,
-                        errorMessage: null,
-                      }))
-                    }
-                    className="field-select"
+                <div className="min-w-0">
+                  <p
+                    className="truncate text-xs font-semibold text-vetneb-ink"
+                    title={item.studyName}
                   >
-                    <option value="active">Activo</option>
-                    <option value="inactive">Inactivo</option>
-                  </select>
-                </label>
-
-                <label className="space-y-1.5">
-                  <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                    Vista pública
-                  </span>
-                  <Input
-                    value={normalizePriceLabel(formState.priceLabel)}
-                    readOnly
-                    className="bg-card/90"
-                  />
-                </label>
-
-                <label className="space-y-1.5">
-                  <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                    Última actualización
-                  </span>
-                  <Input
-                    value={formatUpdatedAt(item.updatedAt)}
-                    readOnly
-                    className="bg-card/90"
-                  />
-                </label>
-              </fieldset>
-
-              <div className="mt-3 flex flex-col gap-3 border-t border-vetneb-line/65 pt-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-h-5">
-                  {formState.errorMessage ? (
-                    <p className="clinical-alert-error px-3 py-2" role="alert">
-                      {formState.errorMessage}
-                    </p>
-                  ) : null}
-
-                  {formState.statusMessage ? (
-                    <p className="clinical-alert-success px-3 py-2">
-                      {formState.statusMessage}
+                    {item.studyName}
+                  </p>
+                  {message ? (
+                    <p
+                      className={`truncate text-[0.68rem] leading-tight ${
+                        formState.errorMessage ? "text-destructive" : "text-vetneb-teal"
+                      }`}
+                      role={formState.errorMessage ? "alert" : "status"}
+                      title={message}
+                    >
+                      {message}
                     </p>
                   ) : null}
                 </div>
 
-                <Button type="submit" className="w-full sm:w-auto" disabled={isSaving || isSavingAll}>
+                <Input
+                  aria-label={`Precio de ${item.studyName}`}
+                  className="h-8 text-xs"
+                  value={formState.priceLabel}
+                  onChange={(event) =>
+                    onUpdateItem(item.id, (current) => ({
+                      ...current,
+                      priceLabel: event.target.value,
+                      statusMessage: null,
+                      errorMessage: null,
+                    }))
+                  }
+                  placeholder="Consultar"
+                />
+
+                <Input
+                  aria-label={`Orden de ${item.studyName}`}
+                  className="h-8 text-xs"
+                  type="number"
+                  min="0"
+                  inputMode="numeric"
+                  value={formState.displayOrder}
+                  onChange={(event) =>
+                    onUpdateItem(item.id, (current) => ({
+                      ...current,
+                      displayOrder: event.target.value,
+                      statusMessage: null,
+                      errorMessage: null,
+                    }))
+                  }
+                />
+
+                <select
+                  aria-label={`Estado de ${item.studyName}`}
+                  value={formState.isActive ? "active" : "inactive"}
+                  onChange={(event) =>
+                    onUpdateItem(item.id, (current) => ({
+                      ...current,
+                      isActive: event.target.value === "active",
+                      statusMessage: null,
+                      errorMessage: null,
+                    }))
+                  }
+                  className="field-select h-8 py-1 text-xs"
+                >
+                  <option value="active">Activo</option>
+                  <option value="inactive">Inactivo</option>
+                </select>
+
+                <span className="hidden truncate text-xs text-muted-foreground lg:block">
+                  <span className="sr-only">Vista pública: </span>
+                  {normalizePriceLabel(formState.priceLabel)}
+                </span>
+
+                <span className="hidden truncate text-xs text-muted-foreground lg:block">
+                  <span className="sr-only">Última actualización: </span>
+                  {formatUpdatedAt(item.updatedAt)}
+                </span>
+
+                <Button
+                  type="submit"
+                  size="sm"
+                  className="h-8 w-full px-2.5 text-xs"
+                  disabled={isSaving || isSavingAll}
+                >
                   {isSaving ? "Guardando..." : "Guardar precio"}
                 </Button>
-              </div>
+              </fieldset>
             </form>
           );
         })}
       </div>
 
-      <CompactPager
-        page={paged.page}
-        pageCount={paged.pageCount}
-        rangeStart={paged.rangeStart}
-        rangeEnd={paged.rangeEnd}
-        total={paged.total}
-        hasPrev={paged.hasPrev}
-        hasNext={paged.hasNext}
-        onPrev={paged.goPrev}
-        onNext={paged.goNext}
-        itemLabel="estudios"
-      />
+      {fitsInOneView ? null : (
+        <CompactPager
+          page={paged.page}
+          pageCount={paged.pageCount}
+          rangeStart={paged.rangeStart}
+          rangeEnd={paged.rangeEnd}
+          total={paged.total}
+          hasPrev={paged.hasPrev}
+          hasNext={paged.hasNext}
+          onPrev={paged.goPrev}
+          onNext={paged.goNext}
+          itemLabel="estudios"
+        />
+      )}
     </div>
   );
 }
@@ -649,47 +635,56 @@ export function AdminPricingEditorCard() {
     }
   }
 
+  const showCategoryTabs = !loadError && hasPricingItems;
+  const pricingActions = (
+    <>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="h-8 px-2.5 text-xs"
+        onClick={() => void handleSaveAll()}
+        disabled={
+          isLoading ||
+          savingItemId !== null ||
+          isSavingAll ||
+          pendingItemIds.length === 0 ||
+          hasPendingValidationErrors
+        }
+        data-save-all
+      >
+        {isSavingAll
+          ? "Guardando todos..."
+          : pendingItemIds.length > 0
+            ? `Guardar todos (${pendingItemIds.length})`
+            : "Guardar todos"}
+      </Button>
+      <Button
+        type="button"
+        size="sm"
+        className="h-8 px-2.5 text-xs"
+        onClick={() => void loadPricing()}
+        disabled={isLoading || savingItemId !== null || isSavingAll}
+        aria-busy={isLoading ? true : undefined}
+      >
+        {isLoading ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
+        {isLoading ? "Actualizando..." : "Actualizar"}
+      </Button>
+    </>
+  );
+
+  // Desktop/tablet space pass: the "Lista de precios" header is retired and
+  // Guardar todos / Actualizar ride the category tab bar. Without tabs (load
+  // error, empty catalog) they keep a bare action row, so Actualizar stays
+  // reachable to retry.
   return (
     <Card className="dashboard-surface flex min-h-0 flex-1 flex-col">
-      <CardHeader className="shrink-0 flex flex-col gap-3 border-b border-vetneb-line/70 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <CardTitle className="text-base">Lista de precios</CardTitle>
-          <CardDescription>
-            Gestión manual de etiquetas de precio por estudio.
-          </CardDescription>
-        </div>
-        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => void handleSaveAll()}
-            disabled={
-              isLoading ||
-              savingItemId !== null ||
-              isSavingAll ||
-              pendingItemIds.length === 0 ||
-              hasPendingValidationErrors
-            }
-            data-save-all
-          >
-            {isSavingAll
-              ? "Guardando todos..."
-              : pendingItemIds.length > 0
-                ? `Guardar todos (${pendingItemIds.length})`
-                : "Guardar todos"}
-          </Button>
-          <Button
-            type="button"
-            onClick={() => void loadPricing()}
-            disabled={isLoading || savingItemId !== null || isSavingAll}
-            aria-busy={isLoading ? true : undefined}
-          >
-            {isLoading ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
-            {isLoading ? "Actualizando..." : "Actualizar"}
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent className="flex min-h-0 flex-1 flex-col gap-3 pt-4">
+      <CardContent className="flex min-h-0 flex-1 flex-col gap-3 pt-3">
+        {showCategoryTabs ? null : (
+          <div className="flex shrink-0 items-center justify-end gap-2">
+            {pricingActions}
+          </div>
+        )}
         {loadError ? (
           <p
             role="alert"
@@ -705,9 +700,10 @@ export function AdminPricingEditorCard() {
           </p>
         ) : null}
 
-        {!loadError && hasPricingItems ? (
+        {showCategoryTabs ? (
           <ModuleTabs
             ariaLabel="Categorías de precios"
+            actions={pricingActions}
             tabs={categories.map((category) => ({
               id: category.category,
               label: category.category,

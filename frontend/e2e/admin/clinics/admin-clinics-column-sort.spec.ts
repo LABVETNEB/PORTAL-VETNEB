@@ -303,7 +303,11 @@ test.describe("C04 · Clínicas admin column sort (desktop table)", () => {
     const unsortedPageTwo = serverResult({ limit, offset: limit, search: null, sort: null, direction: null }).ids;
     const pageOnlyOrder = [...unsortedPageTwo].sort((a, b) => compare(CLINICS[a - 1].createdAt, CLINICS[b - 1].createdAt) || a - b);
     expect(secondPage).not.toEqual(pageOnlyOrder);
-    await expect(page.locator(CARD).getByText(`${limit + 1}–${Math.min(2 * limit, CLINICS.length)} de ${CLINICS.length}`)).toBeVisible();
+    expect(secondPage).toEqual(serverResult(request).ids);
+    // Admin desktop/tablet space pass: the pager paints Anterior/Siguiente only,
+    // so page 2 is proven by the rendered slice and the enabled Anterior.
+    await expect(page.locator(`${CARD} [aria-label="Página anterior"]:visible`)).toBeEnabled();
+    await expect(page.locator(CARD).getByText(/\d+–\d+ de \d+/)).toHaveCount(0);
 
     // A new order restarts at the first page with the same limit.
     await sortButton(page, "Fechas").click();
@@ -373,7 +377,7 @@ test.describe("C04 · Clínicas admin column sort (desktop table)", () => {
     expect(requests.slice(before).filter((sent) => sent.search === null)).toEqual([]);
     const expected = serverResult(request);
     expect(await visibleIds(page)).toEqual(expected.ids);
-    await expect(page.locator(CARD).getByText(`1–${expected.ids.length} de ${expected.total}`)).toBeVisible();
+    await expect(page.locator(CARD).getByText(/\d+–\d+ de \d+/)).toHaveCount(0);
     await expect(header(page, "Clínica")).toHaveAttribute("aria-sort", "descending");
 
     // Changing the order keeps the submitted search.
@@ -483,6 +487,6 @@ test.describe("C04 · Clínicas admin mobile list keeps the historical order", (
     expect(requests.slice(toDesktop).map((request) => request.offset)).toEqual(requests.slice(toDesktop).map(() => 0));
     expect(desktopFirst).toEqual({ limit: desktopLimit, offset: 0, search: null, sort: "name", direction: "desc" });
     await expect(header(page, "Clínica")).toHaveAttribute("aria-sort", "descending");
-    await expect(page.locator(CARD).getByText(`1–${desktopLimit} de ${CLINICS.length}`)).toBeVisible();
+    expect(await visibleIds(page)).toEqual(serverResult(desktopFirst).ids);
   });
 });

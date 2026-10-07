@@ -113,12 +113,18 @@ test.describe("clinic controller/workspace parity contract (PR-CL1)", () => {
     await expect(page).toHaveURL(/\/dashboard\/logistica/);
   });
 
-  test("admin /dashboard/admin baseline still loads hub", async ({ page }) => {
+  // The admin hub ("Inicio") is retired at every width: with no persisted
+  // module, the legacy `?hub=1` entry is replaced in place by Resumen.
+  test("admin legacy /dashboard/admin?hub=1 lands on Resumen without a hub", async ({ page }) => {
     await setAdminSession(page, "default");
     await page.goto("/dashboard/admin?hub=1");
+    await expect(page).toHaveURL(/\/dashboard\/admin\?module=admin$/, { timeout: 8_000 });
     await expect(
-      page.locator('[data-dashboard-module-hub="true"]'),
+      page.locator('[data-dashboard-module-workspace="admin"]'),
     ).toBeVisible({ timeout: 8_000 });
+    await expect(page.locator("[data-dashboard-module-workspace]")).toHaveCount(1);
+    await expect(page.locator('[data-dashboard-module-hub="true"]')).toHaveCount(0);
+    await expect(page.locator('[data-dashboard-hub-root="true"]')).toHaveCount(0);
   });
 
   test("admin baseline module still loads workspace", async ({ page }) => {

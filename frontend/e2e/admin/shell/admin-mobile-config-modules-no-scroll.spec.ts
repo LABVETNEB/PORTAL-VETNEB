@@ -45,11 +45,13 @@ type ConfigModule = {
 };
 
 const CONFIG_MODULES: ConfigModule[] = [
-  { key: "admin-pricing", moduleId: "admin-pricing", desktopReady: "Lista de precios" },
+  { key: "admin-pricing", moduleId: "admin-pricing", desktopReady: "Guardar todos" },
   {
     key: "admin-maintenance",
     moduleId: "admin-maintenance",
-    desktopReady: /Mantenimiento|Estado de esquema/i,
+    // The "Estado de esquema" header is retired on desktop/tablet; Reintentar
+    // now rides the Mantenimiento tab bar.
+    desktopReady: /Reintentar|Consultando/i,
   },
 ];
 
@@ -337,10 +339,16 @@ for (const moduleSpec of CONFIG_MODULES) {
       page.locator(`[data-admin-mobile-config-module="${moduleSpec.key}"]`),
       `${moduleSpec.key} desktop: mobile config module hidden`,
     ).toBeHidden();
+    // Desktop/tablet space pass: the admin module header band (title + the
+    // retired Vista general control) is reclaimed from 768px up as well.
+    await expect(
+      page.locator(`[data-dashboard-module-workspace="${moduleSpec.moduleId}"]`),
+      `${moduleSpec.key} desktop: workspace mounted`,
+    ).toBeVisible({ timeout: 15_000 });
     await expect(
       page.locator(`[data-dashboard-module-workspace="${moduleSpec.moduleId}"] .dashboard-workspace-header`),
-      `${moduleSpec.key} desktop: workspace header visible`,
-    ).toBeVisible({ timeout: 15_000 });
+      `${moduleSpec.key} desktop: module header band reclaimed`,
+    ).toBeHidden();
     await expect(
       page
         .locator(`[data-dashboard-module-workspace="${moduleSpec.moduleId}"]`)

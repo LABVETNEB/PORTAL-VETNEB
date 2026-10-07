@@ -167,7 +167,7 @@ test("dashboard admin tabs preserve existing admin cards and audit filter contra
     "<AdminMaintenanceDryRunCard />",
     "<AdminParticularTokensCard />",
     "<AdminPricingEditorCard />",
-    "<AdminSessionsReadOnlyCard />",
+    "<AdminSessionsReadOnlyCard desktopActions={adminPasswordChangeAction} />",
     "<AdminUsersRolesReadOnlyCard />",
     "<AdminAuditCard",
   ]) {

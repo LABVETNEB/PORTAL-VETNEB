@@ -72,7 +72,7 @@ test("dashboard admin includes read-only admin cards", () => {
   assert.ok(source.includes("<AdminMaintenanceDryRunCard />"));
   assert.ok(source.includes("<AdminClinicsManagementCard />"));
   assert.ok(source.includes("<AdminParticularTokensCard />"));
-  assert.ok(source.includes("<AdminSessionsReadOnlyCard />"));
+  assert.ok(source.includes("<AdminSessionsReadOnlyCard desktopActions={adminPasswordChangeAction} />"));
   assert.ok(source.includes("<AdminFailedLoginAlertsReadOnlyCard />"));
   assert.ok(source.includes("<AdminUsersRolesReadOnlyCard />"));
 });
@@ -217,7 +217,7 @@ test("dashboard admin renders topbar, health, and summary cards", () => {
   assert.ok(source.includes('id="admin-sessions"'));
   assert.ok(source.includes('id="admin-particular-tokens"'));
   assert.ok(source.includes('id="admin-users-roles"'));
-  assert.ok(auditCardSource.includes('id="admin-event-summary"'));
+  assert.equal(auditCardSource.includes('id="admin-event-summary"'), false, "the audit header run is retired");
   assert.ok(source.includes("Estado y mantenimiento"));
   assert.ok(source.includes("Transporte de correo"));
   assert.ok(source.includes("Gmail API"));
@@ -238,22 +238,23 @@ test("dashboard admin renders topbar, health, and summary cards", () => {
   assert.equal(source.includes("ADMIN_READ_CONTRACT_MARKERS"), false);
 });
 
-test("dashboard admin keeps module hub cards and preserves admin sections", () => {
+test("dashboard admin retires the module hub cards and preserves admin sections", () => {
   const source = read(ADMIN_PAGE_PATH);
   const controllerSource = read("frontend/src/app/dashboard/admin/AdminDashboardWorkspaceController.tsx");
   const auditCardSource = read(ADMIN_AUDIT_CARD_PATH);
   const auditSharedSource = read(ADMIN_AUDIT_SHARED_PATH);
 
-  // PR5B: admin cards and DashboardModuleHub are inside AdminDashboardWorkspaceController.
-  assert.ok(controllerSource.includes("const adminCards = ["));
-  assert.ok(controllerSource.includes('title: "Subir informe"'));
-  assert.ok(controllerSource.includes('"admin-report-upload"'));
+  // Desktop/tablet space pass: the hub cards are retired at every width; the
+  // module meta that titles each workspace stays.
+  assert.equal(controllerSource.includes("const adminCards = ["), false);
+  assert.ok(controllerSource.includes('title: "Informes"'));
+  assert.ok(controllerSource.includes('"admin-report-upload": {'));
   assert.ok(controllerSource.includes('title: "Clínicas"'));
-  assert.ok(controllerSource.includes('"admin-clinics"'));
+  assert.ok(controllerSource.includes('"admin-clinics": {'));
   assert.ok(controllerSource.includes('title: "Tokens particulares"'));
-  assert.ok(controllerSource.includes('"admin-particular-tokens"'));
+  assert.ok(controllerSource.includes('"admin-particular-tokens": {'));
   assert.ok(controllerSource.includes('title: "Estado del sistema"'));
-  assert.ok(controllerSource.includes('"admin-health"'));
+  assert.ok(controllerSource.includes('"admin-health": {'));
   assert.ok(source.includes('<AdminDashboardWorkspaceController'));
   assert.ok(source.includes('id="admin-report-upload"'));
   assert.ok(source.includes("<AdminReportsCard />"));
@@ -266,7 +267,7 @@ test("dashboard admin keeps module hub cards and preserves admin sections", () =
   assert.ok(source.includes('id="admin-particular-tokens"'));
   assert.ok(source.includes('id="admin-sessions"'));
   assert.ok(source.includes('id="admin-users-roles"'));
-  assert.ok(auditCardSource.includes('id="audit-role-changes"'));
+  assert.equal(auditCardSource.includes('id="audit-role-changes"'), false, "the audit header run is retired");
   assert.ok(source.includes("<AdminAuditCard"));
 
   const mainIndex = source.indexOf('<main className="dashboard-main">');
@@ -303,17 +304,16 @@ test("dashboard admin surfaces system health fetch failures", () => {
   assert.ok(source.includes("formatSystemStatusDetail(serviceChecks)"));
 });
 
-test("dashboard admin surfaces study tracking notifications", () => {
+test("dashboard admin keeps the study tracking notification read for access control", () => {
   const source = read(ADMIN_PAGE_PATH);
   const cardSource = read(ADMIN_AUDIT_CARD_PATH);
 
+  // The read still runs and still feeds the access-error resolution; its
+  // summary tile left with the retired audit header (desktop/tablet space pass).
   assert.ok(source.includes('event: "study_tracking.notification.created", limit: 1, offset: 0'));
-  assert.ok(source.includes("const notificationSnapshot = notificationRead.snapshot;"));
-  assert.ok(cardSource.includes('id="admin-notifications"'));
-  assert.ok(cardSource.includes("Notificaciones"));
-  assert.ok(source.includes("notificationSnapshot.pagination.total"));
-  assert.ok(source.includes("notificationSnapshot.items[0]?.createdAt"));
-  assert.ok(source.includes('event: "study_tracking.notification.created",'));
+  assert.ok(source.includes("notificationRead.accessErrorStatus"));
+  assert.equal(cardSource.includes('id="admin-notifications"'), false);
+  assert.equal(source.includes("notificationSnapshot"), false);
 });
 
 test("dashboard admin renders role-change summary and dense audit table", () => {
@@ -321,10 +321,9 @@ test("dashboard admin renders role-change summary and dense audit table", () => 
   const cardSource = read(ADMIN_AUDIT_CARD_PATH);
   const tableSource = read(ADMIN_AUDIT_TABLE_PATH);
 
-  assert.ok(cardSource.includes('id="audit-role-changes"'));
-  assert.ok(cardSource.includes("Cambios de rol"));
+  assert.equal(cardSource.includes('id="audit-role-changes"'), false, "the role-change tile left with the audit header");
   assert.ok(source.includes('event: "clinic_user.role.changed"'));
-  assert.ok(source.includes("roleChangeSnapshot.pagination.total"));
+  assert.ok(source.includes("roleChangeRead.accessErrorStatus"));
   assert.ok(source.includes("<AdminAuditCard"));
   assert.ok(cardSource.includes('id="audit-log"'));
   assert.ok(cardSource.includes("Registro operativo"));
@@ -401,10 +400,9 @@ test("dashboard admin avoids duplicate section ids in navigation anchors", () =>
   const source = read(ADMIN_PAGE_PATH);
   const auditCardSource = read(ADMIN_AUDIT_CARD_PATH);
   const adminHealthIdMatches = source.match(/id="admin-health"/g) ?? [];
-  const adminNotificationsIdMatches =
-    auditCardSource.match(/id="admin-notifications"/g) ?? [];
+  const auditLogIdMatches = auditCardSource.match(/id="audit-log"/g) ?? [];
 
   assert.equal(adminHealthIdMatches.length, 1);
-  assert.equal(adminNotificationsIdMatches.length, 1);
-  assert.equal(auditCardSource.includes('id="admin-event-summary"'), true);
+  assert.equal(auditLogIdMatches.length, 1);
+  assert.equal(auditCardSource.includes('id="admin-event-summary"'), false);
 });

@@ -51,7 +51,7 @@ test("PR-7B preserves the real admin-sessions navigation surface", () => {
 
   assert.ok(page.includes('id="admin-sessions"'));
   assert.ok(page.includes('"admin-sessions": sessionsWorkspaceSlot'));
-  assert.ok(page.includes("<AdminSessionsReadOnlyCard />"));
+  assert.ok(page.includes("<AdminSessionsReadOnlyCard desktopActions={adminPasswordChangeAction} />"));
   assert.ok(controller.includes('"admin-sessions": {'));
   assert.ok(controller.includes('title: "Sesiones"'));
   assert.ok(catalog.includes('moduleId: "admin-sessions"') &&
@@ -80,7 +80,6 @@ test("PR-7B renders a compact desktop table and prioritized mobile list", () => 
   const card = read(CARD_PATH);
 
   for (const marker of [
-    "Total filtrado",
     "Activas",
     "Expiradas",
     "Tipo de sesión",
@@ -92,13 +91,14 @@ test("PR-7B renders a compact desktop table and prioritized mobile list", () => 
     "md:flex",
     "md:hidden",
     'aria-label="Paginación de sesiones"',
-    "h-7 px-2 text-xs",
+    "h-7 px-2.5 text-xs",
     "h-5 px-1.5 text-[11px]",
   ]) {
     assert.ok(card.includes(marker), `missing compact marker: ${marker}`);
   }
 
   assert.equal(card.includes("CardDescription"), false);
+  assert.equal(card.includes("Total filtrado"), false, "the desktop metric run is retired");
 });
 
 test("PR-7B keeps revocation constrained, confirmed and blocks current admin session", () => {

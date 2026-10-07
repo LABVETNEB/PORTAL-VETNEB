@@ -310,12 +310,12 @@ export const DASHBOARD_GEOMETRY_SURFACES = [
     role: "admin",
     route: "/dashboard/admin?hub=1",
     shellType: "admin-hub",
-    // Pre-C05 mobile space: below 768px the admin hub is retired and `?hub=1`
-    // lands on the landing module, so the surface resolves to whichever of the
-    // two the regime paints (only one is ever mounted).
-    readinessSelector: '[data-dashboard-hub-root="true"], [data-dashboard-module-workspace="admin"]',
-    contentRootSelector: '[data-dashboard-hub-root="true"], [data-dashboard-module-workspace="admin"]',
-    primaryContentSemantics: "first module launcher tile of the admin hub (landing module below 768px)",
+    // The admin hub is retired at every width (pre-C05 below 768px, desktop/
+    // tablet space pass from 768px up): `?hub=1` lands on the landing module,
+    // which is what this legacy-URL surface measures at all 13 viewports.
+    readinessSelector: '[data-dashboard-module-workspace="admin"]',
+    contentRootSelector: '[data-dashboard-module-workspace="admin"]',
+    primaryContentSemantics: "landing module the retired admin hub URL resolves to",
   },
   adminModule("admin-resumen", "admin", "first block of the admin overview module"),
   adminModule("admin-informes", "admin-report-upload", "first report workflow block"),

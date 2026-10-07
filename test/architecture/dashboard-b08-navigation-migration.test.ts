@@ -505,9 +505,13 @@ test("B08 · the admin surface supports a null active module", () => {
       source.includes('aria-current={isActive ? "page" : undefined}'),
       `${path} must mark only the active module`,
     );
-    assert.ok(
-      source.includes('aria-current={!activeModule ? "page" : undefined}'),
-      `${path} must mark Inicio current for the admin hub`,
+    // Desktop/tablet space pass: the admin Inicio item is retired with the
+    // hub, so the transient null state (before the landing module resolves)
+    // marks nothing current instead of a destination that no longer exists.
+    assert.equal(
+      source.includes("!activeModule"),
+      false,
+      `${path} must not mark a retired Inicio item current`,
     );
   }
 
@@ -523,11 +527,16 @@ test("B08 · the admin surface supports a null active module", () => {
   );
 });
 
-test("B08 · the B13 hub survives", () => {
-  assert.ok(existsSync(resolve(REPO_ROOT, HUB_TSX)), "DashboardModuleHub is B13's");
-  assert.ok(
+test("B08 · the B13 admin hub is retired at every width, its primitive kept", () => {
+  // Pre-C05 retired the admin hub below 768px; the desktop/tablet space pass
+  // (Nico, reference captures) retires it from 768px up. The shared primitive
+  // stays published for its other consumers; the admin controller no longer
+  // renders it at any width.
+  assert.ok(existsSync(resolve(REPO_ROOT, HUB_TSX)), "DashboardModuleHub stays published");
+  assert.equal(
     stripComments(read(ADMIN_CONTROLLER_TSX)).includes("<DashboardModuleHub"),
-    "the admin hub must still render: degrading it to an 'Inicio' item is B13",
+    false,
+    "the admin controller renders no hub at any width",
   );
 });
 

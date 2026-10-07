@@ -115,9 +115,11 @@ test("the lateral navigation navigates via PublicRouteControl and the shared gra
       source.includes("buildDashboardModuleHref(basePath, item.moduleId)"),
       `${path} must build every href through the application layer`,
     );
-    assert.ok(
-      source.includes("buildAdminHubHref()"),
-      `${path} must expose the explicit B13 admin hub destination`,
+    // Desktop/tablet space pass: the admin hub and its Inicio item are retired.
+    assert.equal(
+      source.includes("buildAdminHubHref"),
+      false,
+      `${path} must not link the retired admin hub`,
     );
     assert.ok(
       source.includes('aria-current={isActive ? "page" : undefined}'),

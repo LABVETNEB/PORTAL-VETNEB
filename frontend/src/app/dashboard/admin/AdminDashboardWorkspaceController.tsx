@@ -9,22 +9,6 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import {
-  Activity,
-  Building2,
-  ClipboardPlus,
-  KeyRound,
-  ReceiptText,
-  ScrollText,
-  Settings2,
-  ShieldCheck,
-  TicketCheck,
-  UsersRound,
-} from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { DashboardHubHero } from "@/components/dashboard/DashboardHubHero";
-import type { DashboardHubHeroStatusTone } from "@/components/dashboard/DashboardHubHero";
-import { DashboardModuleHub } from "@/components/dashboard/DashboardModuleHub";
 import { DashboardModuleWorkspace } from "@/components/dashboard/DashboardModuleWorkspace";
 import {
   ADMIN_LAST_MODULE_STORAGE_KEY,
@@ -50,7 +34,6 @@ import {
 import type { AdminModule } from "@/features/dashboard/config";
 import {
   MODULE_QUERY_PARAM,
-  buildAdminHubHref,
   buildDashboardModuleHref,
   isAdminHubRequested,
 } from "@/features/dashboard/application";
@@ -75,27 +58,15 @@ type AdminDashboardWorkspaceControllerProps = {
   initialModule?: AdminModule | null;
   initialAccessErrorStatus?: AdminAccessErrorStatus | null;
   workspaces: AdminWorkspaceSlots;
-  systemStatus: string;
-  systemStatusLabel: string;
-  systemStatusVariant: "default" | "secondary" | "destructive" | "outline";
-  auditEntriesCount: number;
-  eventTypesCount: number;
-  /** Page header rendered only on the hub; hidden in modules to reclaim height. */
+  /** Page header rendered only for an access error without a module. */
   pageHeader?: ReactNode;
 };
 
-// Pre-C05 mobile space: below 768px (the regime `DashboardMobileNav` owns) the
-// admin hub — the "Inicio" module and its two launcher pages — is retired. The
-// null module state resolves to the same landing module a bare route restores,
-// so no mobile surface paints or links the hub. >=768px keeps the hub intact.
-const ADMIN_MOBILE_REGIME_QUERY = "(max-width: 767px)";
-
-function getHeroStatusTone(systemStatus: string): DashboardHubHeroStatusTone {
-  if (systemStatus === "ok") return "ok";
-  if (systemStatus === "degraded") return "warn";
-  if (systemStatus === "down") return "down";
-  return "neutral";
-}
+// The admin hub — the "Inicio" module and its launcher — is retired at every
+// width: below 768px since pre-C05 (#1826) and from 768px up since the
+// desktop/tablet space pass. The null module state (bare route or a legacy
+// `?hub=1`) resolves to the same landing module a bare route restores, so no
+// surface paints or links the hub.
 
 const ADMIN_MODULE_META: Record<AdminModule, { title: string; description: string }> = {
   admin: {
@@ -144,11 +115,6 @@ export function AdminDashboardWorkspaceController({
   initialModule,
   initialAccessErrorStatus,
   workspaces,
-  systemStatus,
-  systemStatusLabel,
-  systemStatusVariant,
-  auditEntriesCount,
-  eventTypesCount,
   pageHeader,
 }: AdminDashboardWorkspaceControllerProps) {
   const router = useRouter();
@@ -169,16 +135,10 @@ export function AdminDashboardWorkspaceController({
   const hasRestoredLastModule = useRef(false);
   const previousUrlModule = useRef<AdminModule | null>(initialModule ?? null);
   const currentUrlModule = useRef<AdminModule | null>(initialModule ?? null);
-  // Latest sync navigation intention (hub tile, hero CTA, bottom-nav signal,
-  // hub reset). The stage swaps optimistically before the router commits the
+  // Latest sync navigation intention (bottom-nav signal, hub reset). The stage swaps optimistically before the router commits the
   // matching URL; this ref lets the URL-sync effect tell that commit apart
   // from a stale, superseded one.
   const pendingNavigationIntent = useRef<{ target: AdminModule | null } | null>(
-    null,
-  );
-  // Two-commit activation buffer: a hub tile/card click only RECORDS the
-  // module here; the promotion effect below applies it one commit later.
-  const [pendingActivation, setPendingActivation] = useState<AdminModule | null>(
     null,
   );
   const [hasManuallyReturnedToHub, setHasManuallyReturnedToHub] =
@@ -248,10 +208,10 @@ export function AdminDashboardWorkspaceController({
   );
 
   // The mobile bottom-nav module destinations publish their target so the
-  // workspace swaps synchronously, mirroring the hub cards' optimistic
-  // activateModule. Without this the swap waited on the async URL push, which
-  // intermittently lagged past the navigation under load and left the previous
-  // module rendered (mobile bottom-nav flake).
+  // workspace swaps synchronously, as an optimistic activation. Without this
+  // the swap waited on the async URL push, which intermittently lagged past the
+  // navigation under load and left the previous module rendered (mobile
+  // bottom-nav flake).
   useEffect(
     () =>
       subscribeAdminModuleActivate((moduleId) => {
@@ -286,13 +246,11 @@ export function AdminDashboardWorkspaceController({
 
   useEffect(() => {
     if (activeModule !== null || accessErrorStatus) return;
-    const media = window.matchMedia(ADMIN_MOBILE_REGIME_QUERY);
-    function resolveRetiredMobileHub() {
-      if (!media.matches) return;
-      // A bottom-nav activation already owns this navigation.
+    function resolveRetiredHub() {
+      // A navigation activation already owns this navigation.
       if (pendingNavigationIntent.current) return;
-      // A module the live URL already carries (a bottom-nav tap that committed
-      // before this controller hydrated) wins over the landing fallback.
+      // A module the live URL already carries (a nav tap that committed before
+      // this controller hydrated) wins over the landing fallback.
       if (parseAdminModule(new URLSearchParams(window.location.search).get(MODULE_QUERY_PARAM))) {
         return;
       }
@@ -303,166 +261,19 @@ export function AdminDashboardWorkspaceController({
       setActiveModule(landingModule);
       // Native replace, synced into useSearchParams by the router: it never
       // enters the router action queue, so it cannot overtake a navigation the
-      // user already started from the bottom nav.
+      // user already started.
       window.history.replaceState(
         null,
         "",
         buildDashboardModuleHref(ROUTES.dashboardAdmin, landingModule),
       );
     }
-    resolveRetiredMobileHub();
-    media.addEventListener("change", resolveRetiredMobileHub);
-    return () => media.removeEventListener("change", resolveRetiredMobileHub);
+    resolveRetiredHub();
   }, [activeModule, accessErrorStatus]);
-
-  // React flushes discrete-event state synchronously, so promoting the module
-  // directly inside the tile's onClick unmounts the hub launcher WITHIN the
-  // native click lifecycle. Locally the input sequence usually wins that race;
-  // on a slow CI runner the stretched frame timing let the unmount land
-  // mid-action and Playwright saw the clicked tile "detached from the DOM".
-  // Recording the intention in the click's own commit and promoting it from
-  // this effect (the NEXT commit) keeps the clicked tile mounted through the
-  // whole click deterministically — commit ordering, not timers.
-  useEffect(() => {
-    if (!pendingActivation) return;
-    const moduleId = pendingActivation;
-    setPendingActivation(null);
-    clearAdminAccessError();
-    recordNavigationIntent(moduleId);
-    setActiveModule(moduleId);
-    router.push(buildDashboardModuleHref(ROUTES.dashboardAdmin, moduleId), {
-      scroll: false,
-    });
-  }, [pendingActivation, recordNavigationIntent, router]);
-
-  const activateModule = useCallback((moduleId: AdminModule) => {
-    setPendingActivation(moduleId);
-  }, []);
-
-  const backToHub = useCallback(() => {
-    clearAdminAccessError();
-    recordNavigationIntent(null);
-    setActiveModule(null);
-    setHasManuallyReturnedToHub(true);
-    router.replace(buildAdminHubHref(), { scroll: false });
-  }, [recordNavigationIntent, router]);
-
-  const adminHero = (
-    <DashboardHubHero
-      variant="admin"
-      icon={ShieldCheck}
-      eyebrow="Centro de control · Administración"
-      title="Centro de control operativo"
-      description="Estado del sistema, seguridad y auditoría en una sola lectura antes de abrir cada módulo."
-      statusLabel={systemStatusLabel}
-      statusTone={getHeroStatusTone(systemStatus)}
-      metrics={[
-        {
-          label: "Eventos de auditoría",
-          value: auditEntriesCount,
-          hint: "Registros totales",
-        },
-        {
-          label: "Tipos de evento",
-          value: eventTypesCount,
-          hint: "Categorías distintas",
-        },
-      ]}
-      primaryActionLabel="Abrir administración"
-      onPrimaryAction={() => activateModule("admin")}
-    />
-  );
-
-  const adminCards = [
-    {
-      icon: Settings2,
-      title: "Administración",
-      description: "Resumen operativo, alertas críticas y métricas del sistema.",
-      moduleId: "admin" as AdminModule,
-      onClick: () => activateModule("admin"),
-      actionLabel: "Ver resumen",
-    },
-    {
-      icon: ClipboardPlus,
-      title: "Subir informe",
-      description: "Cargar nuevos informes vinculados a tokens de clínica.",
-      moduleId: "admin-report-upload" as AdminModule,
-      onClick: () => activateModule("admin-report-upload"),
-      actionLabel: "Ir a carga",
-    },
-    {
-      icon: Activity,
-      title: "Estado del sistema",
-      description: "Salud de servicios, esquema y mantenimiento backend.",
-      moduleId: "admin-health" as AdminModule,
-      onClick: () => activateModule("admin-health"),
-      badge:
-        systemStatus !== "ok" ? (
-          <Badge variant={systemStatusVariant}>{systemStatusLabel}</Badge>
-        ) : null,
-      actionLabel: "Ver estado",
-    },
-    {
-      icon: Building2,
-      title: "Clínicas",
-      description: "Crear, buscar y editar clínicas registradas en el portal.",
-      moduleId: "admin-clinics" as AdminModule,
-      onClick: () => activateModule("admin-clinics"),
-      actionLabel: "Gestionar",
-    },
-    {
-      icon: TicketCheck,
-      title: "Tokens particulares",
-      description: "Revisar y gestionar tokens de acceso para particulares.",
-      moduleId: "admin-particular-tokens" as AdminModule,
-      onClick: () => activateModule("admin-particular-tokens"),
-      actionLabel: "Ver tokens",
-    },
-    {
-      icon: ReceiptText,
-      title: "Precios",
-      description: "Actualizar precios del portal visibles en /precios.",
-      moduleId: "admin-pricing" as AdminModule,
-      onClick: () => activateModule("admin-pricing"),
-      actionLabel: "Editar precios",
-    },
-    {
-      icon: KeyRound,
-      title: "Sesiones",
-      description: "Consultar y revocar sesiones activas de clínicas.",
-      moduleId: "admin-sessions" as AdminModule,
-      onClick: () => activateModule("admin-sessions"),
-      actionLabel: "Ver sesiones",
-    },
-    {
-      icon: UsersRound,
-      title: "Usuarios y roles",
-      description: "Permisos administrativos y de clínica con trazabilidad.",
-      moduleId: "admin-users-roles" as AdminModule,
-      onClick: () => activateModule("admin-users-roles"),
-      actionLabel: "Ver usuarios",
-    },
-    {
-      icon: ScrollText,
-      title: "Auditoría",
-      description: "Log de eventos con filtros por tipo de evento y actor.",
-      moduleId: "audit-log" as AdminModule,
-      onClick: () => activateModule("audit-log"),
-      actionLabel: "Ver log",
-    },
-    {
-      icon: ShieldCheck,
-      title: "Mantenimiento",
-      description: "Dry-run de mantenimiento y verificación de esquema.",
-      moduleId: "admin-maintenance" as AdminModule,
-      onClick: () => activateModule("admin-maintenance"),
-      actionLabel: "Ver mantenimiento",
-    },
-  ];
 
   const activeMeta = activeModule ? ADMIN_MODULE_META[activeModule] : null;
 
-  // Single persistent, opaque, isolated stage for the Hub<->module swap. The
+  // Single persistent, opaque, isolated stage for the module swap. The
   // stage node never unmounts (only its children swap), so the swap happens
   // inside one stable stacking/paint surface instead of recreating a new
   // stacking context per navigation — which let mobile GPUs keep a recycled
@@ -479,7 +290,6 @@ export function AdminDashboardWorkspaceController({
           title={activeMeta.title}
           description={activeMeta.description}
           moduleId={activeModule}
-          onBack={backToHub}
         >
           {accessErrorStatus ? (
             <AdminAccessErrorState status={accessErrorStatus} />
@@ -492,22 +302,7 @@ export function AdminDashboardWorkspaceController({
           {pageHeader}
           <AdminAccessErrorState status={accessErrorStatus} />
         </>
-      ) : (
-        <>
-          {/* The hub stays a direct stage child: the stage's sibling rhythm
-              rule spaces it from the page header from 768px up. */}
-          <div data-admin-hub-surface="page-header" className="hidden md:contents">
-            {pageHeader}
-          </div>
-          <DashboardModuleHub
-            heading="Módulos de administración"
-            description="Acceso a clínicas, precios, sesiones, auditoría y estado del sistema."
-            cards={adminCards}
-            hero={adminHero}
-            className="max-md:hidden!"
-          />
-        </>
-      )}
+      ) : null}
     </div>
   );
 }

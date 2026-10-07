@@ -153,15 +153,22 @@ test("admin sessions card revokes sessions only after explicit confirmation", as
 test("admin sessions card renders safe description filters and table columns", () => {
   const source = read(ADMIN_SESSIONS_CARD_PATH);
 
-  assert.ok(source.includes("Sesiones activas y expiradas"));
-  assert.ok(source.includes("Sin tokens ni hashes. Revocación auditada."));
-  assert.ok(source.includes("Total filtrado"));
+  // Desktop/tablet space pass: the title, safe description and metric run of
+  // the desktop header are retired; the filter band hosts Actualizar, the
+  // injected desktop actions and a visible, announced load error.
+  for (const retired of ["Sesiones activas y expiradas", "Sin tokens ni hashes. Revocación auditada.", "Total filtrado", "data-dashboard-b14-metrics"]) {
+    assert.equal(source.includes(retired), false, `retired: ${retired}`);
+  }
+  const band = source.slice(source.indexOf('aria-label="Filtros de sesiones"'), source.indexOf("data-admin-sesiones-list-body"));
+  assert.ok(band.includes('data-admin-sesiones-desktop-error="true"'));
+  assert.ok(band.includes('role="alert"'));
+  assert.ok(band.includes("{desktopActions}"));
+  assert.ok(band.indexOf("{desktopActions}") < band.indexOf("onClick={loadSessions}"));
   assert.ok(source.includes("Activas"));
   assert.ok(source.includes("Expiradas"));
   assert.ok(source.includes("Tipo de sesión"));
   assert.ok(source.includes("Estado"));
-  assert.ok(source.includes('data-dashboard-b14-metrics="admin-sessions"'));
-  assert.ok(source.includes("Página"));
+  assert.equal(source.includes("Pág."), false, "no page state is painted");
   assert.ok(source.includes(">Sesión</TableHead>"));
   assert.ok(source.includes(">Actor</TableHead>"));
   assert.ok(source.includes(">Estado</TableHead>"));

@@ -43,7 +43,7 @@ test("B13 · the admin entry grammar owns an explicit default and hub URL", () =
   assert.ok(navigation.includes("ROUTES.dashboard,"), "the clinic hub base path is declared");
 });
 
-test("B13 · entry precedence preserves URL intent and restores the durable hub", () => {
+test("B13 · entry precedence preserves URL intent and resolves the retired hub", () => {
   const source = read(CONTROLLER);
 
   assert.ok(
@@ -64,23 +64,30 @@ test("B13 · entry precedence preserves URL intent and restores the durable hub"
     source.includes("buildDashboardModuleHref(ROUTES.dashboardAdmin, landingModule)"),
     "the bare landing is canonicalized with replace",
   );
-  assert.ok(source.includes("router.replace(buildAdminHubHref(), { scroll: false });"));
-  assert.ok(source.includes("setHasManuallyReturnedToHub(true);"));
+  // Desktop/tablet space pass: the hub is retired at every width, so nothing
+  // navigates TO it any more (no back-to-hub control, no hub tiles feeding a
+  // two-commit activation buffer). The contracted hub-reset signal is still
+  // honoured and still lands on the resolver below.
+  assert.equal(source.includes("buildAdminHubHref"), false, "no control links or replaces into the hub");
+  assert.equal(source.includes("onBack="), false, "modules carry no back-to-hub control");
+  assert.equal(source.includes("pendingActivation"), false, "the hub-tile activation buffer left with the tiles");
+  assert.ok(source.includes("setHasManuallyReturnedToHub(true);"), "the contracted hub-reset signal is still honoured");
   assert.ok(source.includes("pendingNavigationIntent"));
-  assert.ok(source.includes("pendingActivation"));
   assert.ok(source.includes("previousUrlModule"));
   assert.ok(source.includes("currentUrlModule"));
 });
 
-test("B13 · every admin Inicio target is explicit and does not clear persistence", () => {
-  // CMP-02 — the drawer and the rail are DESKTOP admin surfaces and keep the
-  // admin-bound builder. The mobile bar serves both roles, so it links Inicio
-  // through the surface-parameterised builder; the invariant B13 owns — an
-  // explicit `?hub=1`, never a bare route — is unchanged for admin and now holds
-  // for clinic too (audit DIF-041 / RC-015).
+test("B13 · no admin surface links the retired Inicio and persistence is kept", () => {
+  // Desktop/tablet space pass: the drawer (>=1280px) and the rail (768-1279px)
+  // drop their admin Inicio item with the hub, exactly as the mobile bar did in
+  // pre-C05. No admin navigation primitive links `?hub=1` any more; the
+  // grammar itself survives in the application layer (first test) because the
+  // clinic hub still owns it and legacy admin URLs must keep resolving.
   for (const path of [DRAWER, RAIL]) {
     const source = read(path);
-    assert.ok(source.includes("buildAdminHubHref()"), `${path} links Inicio to ?hub=1`);
+    assert.equal(source.includes("buildAdminHubHref"), false, `${path} must not link the retired admin hub`);
+    assert.equal(source.includes("ADMIN_HOME_NAV_ITEM"), false, `${path} must not paint the admin Inicio item`);
+    assert.equal(source.includes("DASHBOARD_HOME_ICON"), false, `${path} carries no Inicio glyph`);
   }
   // Pre-C05 mobile space: the mobile bar no longer carries an Inicio slot for
   // any role, so it links no hub URL at all (ADMIN_MOBILE_HOME_ITEM = RETIRED).
@@ -98,21 +105,21 @@ test("B13 · every admin Inicio target is explicit and does not clear persistenc
   );
 });
 
-test("B13 · below 768px the admin hub resolves to the landing module, never paints", () => {
+test("B13 · at every width the admin hub resolves to the landing module, never paints", () => {
   const source = read(CONTROLLER);
 
-  assert.ok(
-    source.includes('const ADMIN_MOBILE_REGIME_QUERY = "(max-width: 767px)";'),
-    "the retirement is scoped to the mobile regime the bottom nav owns",
-  );
-  const effectStart = source.indexOf("function resolveRetiredMobileHub()");
-  assert.ok(effectStart !== -1, "the null module state has a mobile resolver");
+  // Pre-C05 retired the hub below 768px; the desktop/tablet space pass retires
+  // it from 768px up, so the resolver is no longer gated on a media query.
+  assert.equal(source.includes("matchMedia"), false, "the retirement is not scoped to a width regime");
+  assert.equal(source.includes("ADMIN_MOBILE_REGIME_QUERY"), false);
+  const effectStart = source.indexOf("function resolveRetiredHub()");
+  assert.ok(effectStart !== -1, "the null module state has a resolver");
   const effect = source.slice(effectStart, source.indexOf("}, [activeModule, accessErrorStatus", effectStart));
-  assert.ok(effect.includes("if (!media.matches) return;"), ">=768px keeps the hub untouched");
+  assert.ok(effect.includes("if (pendingNavigationIntent.current) return;"), "a navigation already in flight wins");
   assert.ok(
     effect.includes("parseAdminModule(readDashboardLastModule(ADMIN_LAST_MODULE_STORAGE_KEY)) ??")
       && effect.includes("DEFAULT_ADMIN_MODULE"),
-    "the mobile hub lands where a bare route lands: last module, else the default",
+    "the hub lands where a bare route lands: last module, else the default (Resumen)",
   );
   assert.ok(effect.includes("window.history.replaceState("), "the hub URL is replaced, not stacked in history");
   assert.equal(effect.includes("router."), false, "the fallback never enters the router queue, so it cannot overtake a user navigation");
@@ -120,14 +127,10 @@ test("B13 · below 768px the admin hub resolves to the landing module, never pai
     effect.includes("parseAdminModule(new URLSearchParams(window.location.search).get(MODULE_QUERY_PARAM))"),
     "a module already in the live URL wins over the landing fallback",
   );
-  assert.ok(
-    source.includes('<div data-admin-hub-surface="page-header" className="hidden md:contents">'),
-    "the Inicio page header never paints below md",
-  );
-  assert.ok(
-    source.includes('className="max-md:hidden!"'),
-    "the hub (launcher and its two pages) never paints below md, yet stays a direct stage child",
-  );
+  for (const retired of ["DashboardModuleHub", "DashboardHubHero", "data-admin-hub-surface", "Módulos de administración", "Abrir administración"]) {
+    assert.equal(source.includes(retired), false, `the hub surface is gone: ${retired}`);
+  }
+  assert.ok(source.includes(") : null}\n    </div>\n  );\n}"), "the null module state paints nothing while it resolves");
 });
 
 test("B13 · the lateral rail reserves a viewport budget for Inicio", () => {

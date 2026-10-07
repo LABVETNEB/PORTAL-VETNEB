@@ -45,7 +45,10 @@ test.beforeAll(() => {
 });
 
 test.describe("B14 · metrics relocation", () => {
-  test("desktop keeps every moved metric inside an existing header or toolbar", async ({ page }) => {
+  // Admin desktop/tablet space pass: the four admin metric runs B14 relocated
+  // are retired with the headers that hosted them (reference captures); the
+  // clinic run keeps its detailed desktop cards.
+  test("desktop keeps the clinic metrics and retires the four admin metric runs", async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 768 });
 
     for (const surface of SURFACES) {
@@ -66,30 +69,16 @@ test.describe("B14 · metrics relocation", () => {
         continue;
       }
 
-      const metrics = page.locator('[data-dashboard-b14-metrics] >> visible=true');
-      await expect(metrics, `${surface.id}: exactly one visible integrated metrics owner`).toHaveCount(1);
-      await expect(metrics).toBeVisible();
-
+      const workspace = page.locator(surface.contentRootSelector);
+      await expect(workspace, `${surface.id}: workspace`).toBeVisible();
+      await expect(
+        page.locator("[data-dashboard-b14-metrics]"),
+        `${surface.id}: the admin metric run is retired at every width`,
+      ).toHaveCount(0);
       if (surface.id === "admin-auditoria") {
-        const latest = page.locator("[data-admin-audit-latest]");
-        await expect(latest, "both audit recency dates must be rendered").toHaveCount(2);
-        for (const key of ["roles", "avisos"]) {
-          const date = page.locator(`[data-admin-audit-latest="${key}"]`);
-          await expect(date, `${key}: recency date must be visible to sighted users`).toBeVisible();
-          const clipped = await date.evaluate((node) => {
-            const line = node.closest("p") as HTMLElement;
-            const own = node.getBoundingClientRect();
-            return {
-              lineClipped: line.scrollWidth > line.clientWidth + 1,
-              width: own.width,
-              srOnly: node.className.includes("sr-only"),
-            };
-          });
-          expect(clipped.srOnly, `${key}: recency date must not be sr-only`).toBe(false);
-          expect(clipped.width, `${key}: recency date must occupy real width`).toBeGreaterThan(0);
-          expect(clipped.lineClipped, `${key}: recency line is clipped by truncate`).toBe(false);
-        }
+        await expect(page.locator("[data-admin-audit-latest]"), "the audit recency tiles left with the run").toHaveCount(0);
       }
+      await expect(workspace.locator("tbody tr").first(), `${surface.id}: the collection opens the module`).toBeVisible();
     }
   });
 

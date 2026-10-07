@@ -466,7 +466,7 @@ test("dashboard admin keeps dense professional layout and visual state surfaces"
       "<AdminDashboardWorkspaceController",
       "<AdminCommandCenter",
       "<AdminMaintenanceDryRunCard />",
-      "<AdminSessionsReadOnlyCard />",
+      "<AdminSessionsReadOnlyCard desktopActions={adminPasswordChangeAction} />",
       "<AdminFailedLoginAlertsReadOnlyCard />",
       "<AdminUsersRolesReadOnlyCard />",
       "Alertas críticas",
