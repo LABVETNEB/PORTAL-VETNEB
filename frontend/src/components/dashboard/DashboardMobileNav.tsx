@@ -526,6 +526,14 @@ function MobileNavWithUrl({ surface }: DashboardMobileNavProps) {
     setActiveModule(parsed);
   }, [parsed]);
 
+  // Back/Forward abandons a pending activation: the slot falls back to the
+  // committed module until the restore commit moves `parsed`.
+  useEffect(() => {
+    const dropOptimisticSlot = () => setActiveModule(parsed);
+    window.addEventListener("popstate", dropOptimisticSlot);
+    return () => window.removeEventListener("popstate", dropOptimisticSlot);
+  }, [parsed]);
+
   // A destination outside the bar (lateral band, kebab, overview links, app-bar
   // search) moves the current slot with the stage on both roles. Admin observes
   // instead of listening, so its controller keeps the late hand-over.

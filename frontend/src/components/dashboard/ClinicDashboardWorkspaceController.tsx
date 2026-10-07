@@ -21,6 +21,7 @@ import {
   applyClinicUrlCommit,
   clinicModuleHref,
   recordClinicNavigationIntent,
+  relinquishClinicNavigationIntent,
   type ClinicNavigationState,
 } from "@/lib/dashboard/navigation/clinicNavigationState";
 import { isHubRequested } from "@/features/dashboard/application";
@@ -111,6 +112,7 @@ export function ClinicDashboardWorkspaceController({
   const navigationState = useRef<ClinicNavigationState>({
     confirmedUrlModule: initialModule ?? DEFAULT_CLINIC_MODULE,
     pendingIntent: null,
+    supersededTargets: [],
   });
   const [hasManuallyReturnedToHub, setHasManuallyReturnedToHub] =
     useState(false);
@@ -176,6 +178,23 @@ export function ClinicDashboardWorkspaceController({
       setActiveModule(outcome.activeModule as ClinicModule);
     }
   }, [router, nextModule, isHubActive]);
+
+  // Back/Forward while an activation is still pending is the user's own,
+  // authoritative navigation. `applyClinicUrlCommit` already classifies its
+  // commit as external; this backstop covers the history entry that carries the
+  // confirmed module, which produces no module change for that effect to see.
+  useEffect(() => {
+    function relinquishOnHistoryNavigation() {
+      const outcome = relinquishClinicNavigationIntent(navigationState.current);
+      navigationState.current = outcome.state;
+      if (outcome.activeModule === null) return;
+      setHubOverride(null);
+      setActiveModule(outcome.activeModule as ClinicModule);
+    }
+
+    window.addEventListener("popstate", relinquishOnHistoryNavigation);
+    return () => window.removeEventListener("popstate", relinquishOnHistoryNavigation);
+  }, []);
 
   useEffect(
     () =>

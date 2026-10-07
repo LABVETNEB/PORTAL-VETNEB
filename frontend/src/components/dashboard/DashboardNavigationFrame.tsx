@@ -53,8 +53,8 @@ import { NavigationRail } from "./NavigationRail";
  * slow backend. The stage swaps on the activation signal the destinations
  * publish; the current item listens to the same signal, so band and stage move
  * together on the click. The override is bound to the committed module it was
- * issued from and is dropped on the next commit, so the URL stays the single
- * authority for deep links, reload, Back and Forward.
+ * issued from and is dropped on the next commit or on any Back/Forward, so the
+ * URL stays the single authority for deep links, reload and history.
  *
  * ADMIN HUB IS A LEGAL STATE. `?hub=1` is the durable explicit hub URL and
  * null is retained while an optimistic navigation settles. B13 gives that
@@ -119,6 +119,14 @@ function useLiveModule<M extends string>(
   useEffect(() => {
     setIntent(null);
   }, [committedModule]);
+
+  // Back/Forward abandons a pending activation (the controllers do the same),
+  // so the item falls back to the committed module until the restore lands.
+  useEffect(() => {
+    const dropIntent = () => setIntent(null);
+    window.addEventListener("popstate", dropIntent);
+    return () => window.removeEventListener("popstate", dropIntent);
+  }, []);
 
   useEffect(
     () =>

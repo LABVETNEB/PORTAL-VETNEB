@@ -2,7 +2,7 @@
 
 ## Estado
 
-Implementado en local sobre `main@f6486331`, rama `fix/dashboard-global-live-state-sync`. Sin commit. Frontend-only: no toca backend, API, auth, sesión, permisos, catálogos, rutas, geometría ni baselines.
+PR #1830 sobre `main@f6486331`, rama `fix/dashboard-global-live-state-sync`. Frontend-only: no toca backend, API, auth, sesión, permisos, catálogos, rutas, geometría ni baselines. Incluye la corrección del P2 de review «Preserve Back navigation during optimistic activation» (ver «Back/Forward durante una activación pendiente»).
 
 ## Síntoma
 
@@ -46,6 +46,30 @@ El repo ya tenía el contrato para esto, la **activación optimista**: el destin
 
 Drawer y Rail siguen sin estado; el estado transitorio vive en el frame.
 
+## Back/Forward durante una activación pendiente (P2 de review)
+
+**Defecto.** Con B todavía en vuelo (workspace y navegación ya en B, URL en A), un Back producía un commit que los controllers clasificaban como «commit superado del router»:
+
+- **Admin:** hacía `return` sin abandonar el intent. URL y resaltado volvían al módulo histórico, pero el workspace quedaba en B indefinidamente, incluso después de un Forward.
+- **Clínica:** reconciliaba la URL hacia B con `router.replace`, que es un segundo payload de B. Si ese replace se cancelaba, Next hacía una navegación dura a B: el Back quedaba deshecho.
+
+Reproducción: 21 de 21 casos fallan sobre `27411943`. El router de Next descarta por sí mismo la navegación B superada por el Back: en ningún modo hubo `pushState` ni commit tardío de B. El problema era sólo nuestra clasificación.
+
+**Modelo.** Un commit que no coincide con el intent pendiente sólo puede ser *stale* si su módulo es el destino de una activación **superada mientras seguía en vuelo**. Esos destinos se registran al grabar un intent nuevo (`supersededTargets`). Cualquier otro commit que no coincide es una navegación externa (Back, Forward o deep link) y es del usuario: el intent se abandona y se obedece la URL.
+
+| Commit observado con intent pendiente | Clase | Acción |
+|---|---|---|
+| destino del intent | intent confirmado | consumir y obedecer |
+| destino superado en vuelo | commit stale del router | Clínica reconcilia y Admin ignora (sin cambios) |
+| otro módulo | navegación externa | abandonar el intent y obedecer |
+| sin cambio de módulo | no es commit | respaldo `popstate` |
+
+La clasificación no depende del orden entre el listener `popstate` de Next y los nuestros. Se midió que el efecto de URL ve el commit del Back antes que nuestro handler, incluso en fase capture, así que una solución basada sólo en `popstate` no alcanzaba.
+
+**Respaldo `popstate`.** Un Back a una entrada que lleva el mismo módulo comiteado (por ejemplo `/dashboard` y `/dashboard?module=operaciones`) no cambia el módulo, así que ningún commit llega al clasificador. Para ese caso, `popstate` abandona el intent y vuelve el stage al módulo comiteado (`relinquishClinicNavigationIntent` en Clínica). Además descarta el override del ítem actual en `DashboardNavigationFrame` y el slot optimista de `DashboardMobileNav`. Cada listener se registra en un efecto y se limpia con `removeEventListener`.
+
+Que los tres handlers son causales se demostró desactivando cada uno: el caso «mismo módulo comiteado» falla en el workspace o en `aria-current`. En Admin el respaldo es defensivo: la UI no crea dos entradas seguidas del mismo módulo (landing y `?hub=1` usan replace).
+
 ## Por qué no hay refresh
 
 No se usa `router.refresh`, `reload`, `replace` al mismo URL, timers, keys aleatorias ni navegación dura. No hace falta revalidar ningún Server Component: los datos de los workspaces ya están en el payload actual, y lo único que faltaba era que la UI siguiera a la intención del usuario.
@@ -53,6 +77,8 @@ No se usa `router.refresh`, `reload`, `replace` al mismo URL, timers, keys aleat
 ## Matriz de tests
 
 - `frontend/e2e/platform/app-shell/dashboard-global-live-navigation-sync.spec.ts` (cohorte `visual-contract`, layer `fixture`): 2 roles × 6 viewports (390×844, 768×1024, 1024×768, 1366×768, 1536×960, 1920×1080) × {switch con servidor retenido + interacción inmediata tras reload; A→B→C rápido con servidor retenido + Back/Back/Forward}, más app bar, accesos de Resumen y kebab. Asegura un solo `aria-current` en la navegación pintada, un solo workspace y un solo payload por switch, sin warnings de hydration.
+- Mismo spec, bloque «Back during a pending activation» (21 casos): Admin y Clínica × {drawer 1366, rail 1024, mobile 390} × {respuesta tardía, request cancelado}, más búsqueda del app bar (ambos roles), accesos de Resumen, kebab (ambos roles) y Back a la entrada del mismo módulo comiteado (drawer y mobile). En cada caso, con el payload retenido, asegura que el Back gana en URL, workspace y `aria-current` antes de liberar B. Después, que el late o el abort de B no lo deshace, que no hay escrituras de historial hacia B, que `history.length` se conserva, que B tiene un solo payload y que Forward restaura la entrada.
+- `test/unit/ui/dashboard/dashboard-clinic-navigation-state.test.ts`: clasificación del Back con intent pendiente, sólo un destino superado es stale, re-grabar el mismo destino no se supera a sí mismo, y el respaldo `relinquishClinicNavigationIntent`.
 - `test/unit/ui/dashboard/frontend-dashboard-lateral-navigation.test.ts`: la señal deja de ser clinic-only (realineado), anclas del frame y un test runtime del observador: no consume el hand-over y el unsubscribe funciona.
 - Censos del catálogo E2E realineados en +1 (`e2e-suite-catalog-completeness`, `e2e-completeness-workflow`).
 
@@ -65,4 +91,5 @@ No se usa `router.refresh`, `reload`, `replace` al mismo URL, timers, keys aleat
 ## Riesgos residuales
 
 - Si llega un commit superado (A después del optimista B), el ítem lateral sigue a la URL hasta el commit de B. Es el mismo comportamiento que ya tenía la barra móvil, y el estado final converge.
+- Si con dos activaciones en vuelo (B superada por C) el usuario vuelve con Back exactamente a una entrada del módulo B, ese commit se clasifica como stale y Clínica reconcilia a C. Exige un doble click más un Back dentro de la ventana pendiente y hacia ese módulo. El respaldo `popstate` de Admin igual abandona el intent.
 - Si el servidor nunca responde, la URL no se mueve aunque la UI ya muestre el destino. Un reload en ese estado vuelve al módulo de la URL.

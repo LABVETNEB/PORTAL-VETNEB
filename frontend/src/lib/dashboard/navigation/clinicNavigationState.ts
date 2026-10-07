@@ -45,6 +45,12 @@ export type ClinicNavigationState = {
   readonly confirmedUrlModule: string;
   /** Newest intention not yet confirmed by a URL commit. */
   readonly pendingIntent: ClinicNavigationIntent | null;
+  /**
+   * Targets of intentions superseded while their navigation was still in
+   * flight: the ONLY modules a stale router commit can carry. Any other
+   * mismatching commit is an external navigation (Back/Forward, deep link).
+   */
+  readonly supersededTargets: readonly string[];
 };
 
 export type ClinicUrlCommitOutcome = {
@@ -77,19 +83,36 @@ export function recordClinicNavigationIntent(
     return state;
   }
 
-  return { confirmedUrlModule: state.confirmedUrlModule, pendingIntent: { target } };
+  const superseded = state.pendingIntent;
+  return {
+    confirmedUrlModule: state.confirmedUrlModule,
+    pendingIntent: { target },
+    supersededTargets:
+      superseded === null || superseded.target === target
+        ? state.supersededTargets
+        : [...state.supersededTargets, superseded.target],
+  };
 }
 
 /**
  * Classify an observed URL commit.
  *
  * - no pending intent          -> external navigation (deep link, Back/Forward,
- *                                 restore). Obey it.
+ *                                 restore). Obey it. A history navigation drops
+ *                                 the intent first (see
+ *                                 `relinquishClinicNavigationIntent`), so its
+ *                                 commit always lands here.
  * - commit matches the intent  -> the navigation landed. Consume the intent and
  *                                 obey it; url and state now agree.
- * - commit differs             -> the superseded navigation landed late. Keep
- *                                 the optimistic workspace and re-assert the
+ * - commit is a superseded     -> the superseded navigation landed late. Keep
+ *   target                       the optimistic workspace and re-assert the
  *                                 intent's url so nothing is left diverged.
+ * - any other commit           -> external navigation that arrived while the
+ *                                 intent was pending (Back/Forward). It is the
+ *                                 user's own, so the intent is ABANDONED and the
+ *                                 commit obeyed. Treating every mismatch as stale
+ *                                 kept the left module on screen and reconciled
+ *                                 the url back to it, undoing Back.
  */
 export function applyClinicUrlCommit(
   state: ClinicNavigationState,
@@ -97,18 +120,58 @@ export function applyClinicUrlCommit(
 ): ClinicUrlCommitOutcome {
   const intent = state.pendingIntent;
 
-  if (intent !== null && nextModule !== intent.target) {
+  if (
+    intent !== null &&
+    nextModule !== intent.target &&
+    state.supersededTargets.includes(nextModule)
+  ) {
     return {
-      state: { confirmedUrlModule: nextModule, pendingIntent: intent },
+      state: {
+        confirmedUrlModule: nextModule,
+        pendingIntent: intent,
+        supersededTargets: state.supersededTargets,
+      },
       activeModule: null,
       reconcileTo: intent.target,
     };
   }
 
   return {
-    state: { confirmedUrlModule: nextModule, pendingIntent: null },
+    state: { confirmedUrlModule: nextModule, pendingIntent: null, supersededTargets: [] },
     activeModule: nextModule,
     reconcileTo: null,
+  };
+}
+
+export type ClinicHistoryNavigationOutcome = {
+  readonly state: ClinicNavigationState;
+  readonly activeModule: string | null;
+};
+
+/**
+ * A history navigation (Back/Forward, `popstate`) arrived.
+ *
+ * Backstop of `applyClinicUrlCommit`, not its replacement: a history entry that
+ * carries the confirmed module produces no module change, so no commit ever
+ * reaches the classifier and the optimistic module would stay on screen. The
+ * pending intent is abandoned and the stage falls back to the confirmed module.
+ * When the commit was already classified as external, there is nothing left to
+ * abandon and this is a no-op.
+ */
+export function relinquishClinicNavigationIntent(
+  state: ClinicNavigationState,
+): ClinicHistoryNavigationOutcome {
+  if (state.pendingIntent === null) {
+    return { state, activeModule: null };
+  }
+
+  return {
+    state: {
+      confirmedUrlModule: state.confirmedUrlModule,
+      pendingIntent: null,
+      supersededTargets: [],
+    },
+    activeModule: state.confirmedUrlModule,
   };
 }
 
