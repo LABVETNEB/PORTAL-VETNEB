@@ -1,6 +1,7 @@
 "use client";
 
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
+import { requestAdminModuleActivate } from "@/lib/admin-hub-reset";
 import { ROUTES } from "@/lib/routes";
 
 const QUICK_LINKS: Array<{ label: string; module: string }> = [
@@ -24,6 +25,7 @@ export function AdminOverviewQuickLinks() {
             prefetch={false}
             variant="bare"
             aria-label={`Ir a ${link.label}`}
+            onClick={() => requestAdminModuleActivate(link.module)}
             className="inline-flex items-center rounded-md border border-input bg-background px-2.5 py-1 text-[0.72rem] font-semibold text-foreground dashboard-nav-interactive hover:bg-accent/60 focus-visible:ring-offset-2"
           >
             {link.label}

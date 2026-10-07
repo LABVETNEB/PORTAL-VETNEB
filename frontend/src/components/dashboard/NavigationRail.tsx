@@ -1,6 +1,7 @@
 "use client";
 
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
+import { requestAdminModuleActivate } from "@/lib/admin-hub-reset";
 import { requestClinicModuleActivate } from "@/lib/clinic-hub-reset";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
@@ -108,9 +109,12 @@ export function NavigationRail({ surface, activeModule }: NavigationRailProps) {
             title={item.label}
             data-dashboard-navigation-item={item.moduleId}
             onClick={() => {
-              // Clinic only: the controller swaps the active module on this
-              // signal, before the async URL commit lands.
-              if (isAdmin) return;
+              // Both roles: the controller swaps the stage on this signal and
+              // the frame moves the current item, before the URL commit lands.
+              if (isAdmin) {
+                requestAdminModuleActivate(item.moduleId);
+                return;
+              }
               requestClinicModuleActivate(item.moduleId);
             }}
             className={cn(

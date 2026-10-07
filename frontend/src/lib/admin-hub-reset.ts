@@ -36,12 +36,21 @@ export function subscribeAdminHubReset(
 // hub cards never show this because `activateModule` sets the active module from
 // local state synchronously, ahead of the URL. Mirror that: publish the target
 // module so the controller activates it synchronously (optimistically) while the
-// URL catches up in the background. Only the mobile bottom-nav publishes, so
-// desktop behaviour is unchanged.
+// URL catches up in the background. Every in-dashboard module destination
+// publishes (mobile bar, lateral band, app-bar search, overview links, kebab):
+// the commit waits on the whole server render, so a destination that skipped
+// the signal left the stage on the previous module until it landed.
 
 type AdminModuleActivateListener = (moduleId: string) => void;
 
 const moduleActivateListeners = new Set<AdminModuleActivateListener>();
+
+// Navigation chrome (lateral band, mobile bar) mirrors every request so its
+// current item moves with the stage instead of waiting for the URL commit.
+// Observers are kept apart from the controller listeners on purpose: they never
+// count as "heard" and never consume the late hand-over below, which belongs to
+// the controller alone.
+const moduleActivateObservers = new Set<AdminModuleActivateListener>();
 
 // The bar can hydrate before the controller subscribes: a tap in that window
 // used to be dropped, and the controller then resolved its own landing over the
@@ -55,6 +64,7 @@ export function requestAdminModuleActivate(moduleId: string): void {
   if (typeof window === "undefined") {
     return;
   }
+  moduleActivateObservers.forEach((observer) => observer(moduleId));
   if (moduleActivateListeners.size === 0) {
     unheardActivation = { moduleId, at: performance.now() };
     return;
@@ -72,4 +82,12 @@ export function subscribeAdminModuleActivate(
     listener(late.moduleId);
   }
   return () => moduleActivateListeners.delete(listener);
+}
+
+/** Mirror every admin module request without taking the controller's role. */
+export function observeAdminModuleActivate(
+  observer: AdminModuleActivateListener,
+): () => void {
+  moduleActivateObservers.add(observer);
+  return () => moduleActivateObservers.delete(observer);
 }

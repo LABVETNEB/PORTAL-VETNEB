@@ -195,7 +195,10 @@ test("the lateral primitives keep natural keyboard order without roving tabindex
   }
 });
 
-test("the clinic surface still notifies the controller before route navigation", () => {
+test("both surfaces notify their controller before route navigation", () => {
+  // DASHBOARD_GLOBAL_LIVE_SYNC: this used to pin the signal as clinic-only. The
+  // admin controller then waited for the URL commit, which lands only after the
+  // whole no-store server render, so an admin click painted nothing until then.
   for (const path of [DRAWER_PATH, RAIL_PATH]) {
     const source = read(path);
 
@@ -203,17 +206,50 @@ test("the clinic surface still notifies the controller before route navigation",
       source.includes(
         'import { requestClinicModuleActivate } from "@/lib/clinic-hub-reset";',
       ),
-      `${path} must keep the optimistic activation signal`,
+      `${path} must keep the clinic optimistic activation signal`,
     );
     assert.ok(
+      source.includes(
+        'import { requestAdminModuleActivate } from "@/lib/admin-hub-reset";',
+      ),
+      `${path} must publish the admin optimistic activation signal`,
+    );
+    assert.equal(
       source.includes("if (isAdmin) return;"),
-      `${path}: the signal is clinic-only`,
+      false,
+      `${path}: the signal must not be clinic-only`,
+    );
+    assert.ok(
+      source.includes("requestAdminModuleActivate(item.moduleId);"),
+      `${path} must fire the admin signal before the URL commit lands`,
     );
     assert.ok(
       source.includes("requestClinicModuleActivate(item.moduleId);"),
-      `${path} must fire the signal before the URL commit lands`,
+      `${path} must fire the clinic signal before the URL commit lands`,
     );
   }
+});
+
+test("the frame moves the current item with the activation, not with the commit", () => {
+  const frame = read("frontend/src/components/dashboard/DashboardNavigationFrame.tsx");
+
+  assert.ok(
+    frame.includes("observeAdminModuleActivate"),
+    "admin current item observes the activation without consuming the controller hand-over",
+  );
+  assert.ok(
+    frame.includes("subscribeClinicModuleActivate"),
+    "clinic current item follows the same activation the clinic controller swaps on",
+  );
+  assert.ok(
+    frame.includes("intent.from === committedModule"),
+    "the live override is bound to the commit it was issued from, so the URL stays authoritative",
+  );
+  assert.equal(
+    /router\.refresh|location\.reload|setTimeout/.test(frame),
+    false,
+    "the live item must not be produced by a refresh or a timer",
+  );
 });
 
 test("topbar is a single-band header: module navigation moved beside main", () => {
@@ -268,4 +304,42 @@ test("shell router no longer renders a vertical sidebar as primary navigation", 
   assert.ok(source.includes("flex flex-col h-dvh overflow-hidden"));
   assert.ok(source.includes("data-vetneb-app-shell-surface={surface}"));
   assert.ok(source.includes("<DashboardMobileNav surface={surface} />"));
+});
+
+test("admin observers mirror every request without taking the controller's late hand-over", async () => {
+  const globals = globalThis as { window?: unknown };
+  const hadWindow = "window" in globals;
+  const previousWindow = globals.window;
+  globals.window = globalThis;
+  try {
+    const {
+      observeAdminModuleActivate,
+      requestAdminModuleActivate,
+      subscribeAdminModuleActivate,
+    } = await import("../../../../frontend/src/lib/admin-hub-reset.ts");
+
+    const observed: string[] = [];
+    const stopObserving = observeAdminModuleActivate((moduleId) => observed.push(moduleId));
+
+    // Controller not mounted yet: the observer sees the request, and the request
+    // still waits for the controller as an unheard activation.
+    requestAdminModuleActivate("admin-clinics");
+    assert.deepEqual(observed, ["admin-clinics"]);
+
+    const heard: string[] = [];
+    const stopListening = subscribeAdminModuleActivate((moduleId) => heard.push(moduleId));
+    assert.deepEqual(heard, ["admin-clinics"], "the observer must not consume the late hand-over");
+
+    requestAdminModuleActivate("audit-log");
+    assert.deepEqual(observed, ["admin-clinics", "audit-log"]);
+    assert.deepEqual(heard, ["admin-clinics", "audit-log"]);
+
+    stopObserving();
+    stopListening();
+    requestAdminModuleActivate("admin-pricing");
+    assert.deepEqual(observed, ["admin-clinics", "audit-log"], "an unsubscribed observer hears nothing");
+  } finally {
+    if (hadWindow) globals.window = previousWindow;
+    else delete globals.window;
+  }
 });

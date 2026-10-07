@@ -26,6 +26,7 @@ import {
   subscribeAdminModuleActivate,
 } from "@/lib/admin-hub-reset";
 import type { AdminAccessErrorStatus } from "@/lib/api-error";
+import { subscribeHistoryTraversal } from "@/lib/dashboard/navigation/historyTraversal";
 import { ROUTES } from "@/lib/routes";
 import {
   DEFAULT_ADMIN_MODULE,
@@ -141,15 +142,30 @@ export function AdminDashboardWorkspaceController({
   const pendingNavigationIntent = useRef<{ target: AdminModule | null } | null>(
     null,
   );
+  // Targets of intents superseded while still in flight: the only modules a
+  // stale router commit can carry. Any other mismatching commit is external.
+  const supersededTargets = useRef<readonly (AdminModule | null)[]>([]);
+  // Raised when a Back/Forward traversal starts, consumed by the url commit it
+  // produces (or by the popstate backstop): that commit is external even when
+  // it lands on a superseded target.
+  const historyTraversalStarted = useRef(false);
   const [hasManuallyReturnedToHub, setHasManuallyReturnedToHub] =
     useState(false);
 
   const recordNavigationIntent = useCallback((target: AdminModule | null) => {
+    const superseded = pendingNavigationIntent.current;
     pendingNavigationIntent.current =
       currentUrlModule.current === target ? null : { target };
+    supersededTargets.current =
+      pendingNavigationIntent.current === null
+        ? []
+        : superseded && superseded.target !== target
+          ? [...supersededTargets.current, superseded.target]
+          : supersededTargets.current;
   }, []);
 
   useEffect(() => {
+    const previousCommittedModule = currentUrlModule.current;
     const nextModule = parseAdminModule(searchParams.get(MODULE_QUERY_PARAM));
     currentUrlModule.current = nextModule;
 
@@ -171,25 +187,60 @@ export function AdminDashboardWorkspaceController({
     // SUPERSEDED previous navigation can still commit after that optimistic
     // swap (the router action queue drains in dispatch order), and blindly
     // applying it here yanked the hub away mid-interaction (CI: hub tile
-    // detached mid-click). Consume the intent on the first commit that follows
-    // it: a mismatching commit is the stale navigation and must not override
-    // the optimistic state; the matching commit (or a same-URL collapse, where
-    // state and URL already agree) re-converges URL and state. One-shot
-    // consumption keeps external navigations (back/forward, deep links)
-    // working: they are never skipped more than once, and only inside the
-    // sub-second optimistic window.
+    // detached mid-click). Only a SUPERSEDED target can arrive that way, so only
+    // that commit (or a re-render that did not move the module at all) keeps the
+    // optimistic state. Every other mismatching commit is an external navigation
+    // that landed inside the optimistic window - Back/Forward, a deep link - and
+    // it is the user's own: the intent is abandoned and the URL obeyed. Skipping
+    // every mismatch used to keep the left module on screen after a Back, and the
+    // matching commit (or a same-URL collapse) still re-converges URL and state.
+    // A commit produced by a history traversal is external even when it lands
+    // on a superseded target: the module alone cannot tell it from a stale one.
+    const fromHistory = historyTraversalStarted.current;
+    historyTraversalStarted.current = false;
     const intent = pendingNavigationIntent.current;
-    if (intent) {
-      if (nextModule !== intent.target) {
-        return;
-      }
-      pendingNavigationIntent.current = null;
+    if (
+      intent &&
+      !fromHistory &&
+      nextModule !== intent.target &&
+      (nextModule === previousCommittedModule ||
+        supersededTargets.current.includes(nextModule))
+    ) {
+      return;
     }
+    pendingNavigationIntent.current = null;
+    supersededTargets.current = [];
 
     setActiveModule(parseAdminModule(searchParams.get(MODULE_QUERY_PARAM)));
   }, [searchParams]);
 
   useEffect(() => () => clearAdminAccessError(), []);
+
+  useEffect(
+    () =>
+      subscribeHistoryTraversal(() => {
+        historyTraversalStarted.current = true;
+      }),
+    [],
+  );
+
+  // Backstop of the classification above for Back/Forward while an activation
+  // is pending: a history entry that carries the committed module does not move
+  // the module, so the effect keeps the optimistic stage. The intent is
+  // abandoned here and the stage falls back to the committed module; when the
+  // effect already treated the commit as external, there is nothing left to do.
+  useEffect(() => {
+    function relinquishOnHistoryNavigation() {
+      historyTraversalStarted.current = false;
+      if (!pendingNavigationIntent.current) return;
+      pendingNavigationIntent.current = null;
+      supersededTargets.current = [];
+      if (currentUrlModule.current) setActiveModule(currentUrlModule.current);
+    }
+
+    window.addEventListener("popstate", relinquishOnHistoryNavigation);
+    return () => window.removeEventListener("popstate", relinquishOnHistoryNavigation);
+  }, []);
 
   // Hub-reset signal: honour it by dropping back to the hub even when its URL
   // navigation collapses into a same-URL no-op (in-flight module push cancelled

@@ -5,8 +5,10 @@ import {
   applyClinicUrlCommit,
   clinicModuleHref,
   recordClinicNavigationIntent,
+  relinquishClinicNavigationIntent,
   type ClinicNavigationState,
 } from "../../../../frontend/src/lib/dashboard/navigation/clinicNavigationState.ts";
+import { subscribeHistoryTraversal } from "../../../../frontend/src/lib/dashboard/navigation/historyTraversal.ts";
 
 // B09 · P2 — clinic module navigation state machine.
 //
@@ -39,7 +41,7 @@ const LOGISTICA = "logistica";
 const BASE = "/dashboard";
 
 function initial(module: string = OPERACIONES): ClinicNavigationState {
-  return { confirmedUrlModule: module, pendingIntent: null };
+  return { confirmedUrlModule: module, pendingIntent: null, supersededTargets: [] };
 }
 
 /**
@@ -53,6 +55,7 @@ function preFixRecordIntent(
   return {
     confirmedUrlModule: state.confirmedUrlModule,
     pendingIntent: state.confirmedUrlModule === target ? null : { target },
+    supersededTargets: state.supersededTargets,
   };
 }
 
@@ -367,4 +370,134 @@ test("restore · the restore's late commit is reconciled to the tap, then conver
   assert.equal(settled.reconcileTo, null, "one replace per intention, and no loop");
   assert.equal(settled.state.pendingIntent, null);
   assert.equal(settled.state.confirmedUrlModule, LOGISTICA);
+});
+
+// ── History navigation during a pending intent (PR #1830 P2) ─────────────────
+//
+// Back/Forward is the user's own navigation, never a superseded router commit.
+// Classifying every mismatch as stale kept the left module on screen and
+// reconciled the url back to it: a `router.replace` that undid the Back (and,
+// when that replace was cancelled, a hard navigation into the left module).
+
+test("history · Back while an intent is pending is obeyed, not reconciled", () => {
+  let state = initial(INFORMES);
+  state = recordClinicNavigationIntent(state, LOGISTICA); // tap, payload in flight
+
+  const back = applyClinicUrlCommit(state, OPERACIONES); // Back lands first
+
+  assert.equal(back.activeModule, OPERACIONES, "the stage follows history");
+  assert.equal(back.reconcileTo, null, "no replace may rewrite the Back");
+  assert.equal(back.state.pendingIntent, null, "the abandoned intent cannot come back");
+  assert.deepEqual(back.state.supersededTargets, []);
+  assert.equal(back.state.confirmedUrlModule, OPERACIONES);
+
+  // Forward afterwards is a plain external commit.
+  const forward = applyClinicUrlCommit(back.state, INFORMES);
+  assert.equal(forward.activeModule, INFORMES);
+  assert.equal(forward.reconcileTo, null);
+});
+
+test("history · only a superseded target is stale; any other mismatch is external", () => {
+  let state = initial(OPERACIONES);
+  state = recordClinicNavigationIntent(state, INFORMES);
+  state = recordClinicNavigationIntent(state, LOGISTICA);
+  assert.deepEqual(state.supersededTargets, [INFORMES]);
+
+  const stale = applyClinicUrlCommit(state, INFORMES);
+  assert.equal(stale.reconcileTo, LOGISTICA, "the superseded push is still defended");
+
+  const external = applyClinicUrlCommit(stale.state, "tokens");
+  assert.equal(external.activeModule, "tokens", "a module nobody dispatched is external");
+  assert.equal(external.reconcileTo, null);
+  assert.equal(external.state.pendingIntent, null);
+});
+
+test("history · re-recording the same target does not supersede itself", () => {
+  let state = initial(OPERACIONES);
+  state = recordClinicNavigationIntent(state, INFORMES);
+  state = recordClinicNavigationIntent(state, INFORMES);
+  assert.deepEqual(state.supersededTargets, []);
+});
+
+test("history · the popstate backstop abandons an intent the classifier never saw", () => {
+  // Back to an entry carrying the confirmed module: no module change, so no
+  // commit reaches applyClinicUrlCommit and only the backstop can drop B.
+  let state = initial(INFORMES);
+  state = recordClinicNavigationIntent(state, LOGISTICA);
+
+  const backstop = relinquishClinicNavigationIntent(state);
+  assert.equal(backstop.activeModule, INFORMES, "the stage falls back to the confirmed module");
+  assert.equal(backstop.state.pendingIntent, null);
+  assert.deepEqual(backstop.state.supersededTargets, []);
+
+  const idle = relinquishClinicNavigationIntent(backstop.state);
+  assert.equal(idle.activeModule, null, "nothing pending: a no-op");
+  assert.equal(idle.state, backstop.state);
+});
+
+// ── Traversal onto a superseded target (PR #1830 CI follow-up) ───────────────
+//
+// B in flight, C supersedes it, Back lands on an entry of B. By module alone
+// that commit is indistinguishable from B's own stale commit, and it was
+// reconciled to C: the Back was undone. Only the commit's ORIGIN separates them.
+
+test("history · a traversal onto a superseded target is external, not stale", () => {
+  let state = initial(INFORMES);
+  state = recordClinicNavigationIntent(state, LOGISTICA);
+  state = recordClinicNavigationIntent(state, "tokens");
+  assert.deepEqual(state.supersededTargets, [LOGISTICA]);
+
+  const router = applyClinicUrlCommit(state, LOGISTICA);
+  assert.equal(router.reconcileTo, "tokens", "a router commit of B is still stale");
+
+  const back = applyClinicUrlCommit(state, LOGISTICA, "history");
+  assert.equal(back.activeModule, LOGISTICA, "the user's Back wins");
+  assert.equal(back.reconcileTo, null, "and is never rewritten to C");
+  assert.equal(back.state.pendingIntent, null);
+  assert.deepEqual(back.state.supersededTargets, []);
+});
+
+test("history · the matching commit is consumed whatever its origin", () => {
+  let state = initial(INFORMES);
+  state = recordClinicNavigationIntent(state, LOGISTICA);
+  const commit = applyClinicUrlCommit(state, LOGISTICA, "history");
+  assert.equal(commit.activeModule, LOGISTICA);
+  assert.equal(commit.state.pendingIntent, null);
+});
+
+test("history · only a traverse navigation raises the traversal signal", () => {
+  const globals = globalThis as { window?: unknown };
+  const hadWindow = "window" in globals;
+  const previousWindow = globals.window;
+  const navigation = new EventTarget();
+  globals.window = { navigation };
+  try {
+    let raised = 0;
+    const stop = subscribeHistoryTraversal(() => {
+      raised += 1;
+    });
+    const navigate = (navigationType: string) =>
+      navigation.dispatchEvent(Object.assign(new Event("navigate"), { navigationType }));
+
+    navigate("push");
+    navigate("replace");
+    navigate("reload");
+    assert.equal(raised, 0, "router writes never count as history traversal");
+    navigate("traverse");
+    assert.equal(raised, 1);
+
+    stop();
+    navigate("traverse");
+    assert.equal(raised, 1, "the listener is removed on cleanup");
+
+    globals.window = {};
+    const noop = subscribeHistoryTraversal(() => {
+      raised += 1;
+    });
+    noop();
+    assert.equal(raised, 1, "without the Navigation API the subscription is a no-op");
+  } finally {
+    if (hadWindow) globals.window = previousWindow;
+    else delete globals.window;
+  }
 });
