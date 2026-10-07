@@ -5,10 +5,12 @@ import {
   type ChangeEvent,
   type ReactNode,
   useEffect,
+  useId,
   useRef,
   useState,
 } from "react";
 import NextImage from "next/image";
+import { ChevronDown } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,8 +24,8 @@ import {
   type ClinicPublicProfileUpdatePayload,
 } from "@/lib/api";
 import { ModuleCardSections } from "@/components/dashboard/ModuleCard";
-import { ModuleMetricRun } from "@/components/dashboard/ModuleMetricRun";
 import { PasswordChangePanel } from "@/components/dashboard/PasswordChangePanel";
+import { cn } from "@/lib/utils";
 
 type ProfileFormState = {
   displayName: string;
@@ -64,7 +66,22 @@ const ALLOWED_AVATAR_MIME_TYPES = new Set([
   "image/webp",
 ]);
 const PROFILE_FORM_ID = "clinic-public-profile-form";
+const STATUS_TAB_ID = "estado";
 const PASSWORD_TAB_ID = "cambiar-contrasena";
+
+const PROFILE_SECTIONS = [
+  { id: STATUS_TAB_ID, label: "Estado" },
+  { id: "datos", label: "Datos" },
+  { id: "contacto", label: "Contacto" },
+  { id: "contenido", label: "Contenido" },
+  { id: PASSWORD_TAB_ID, label: "Cambiar contraseña" },
+] as const;
+
+type ProfileSectionId = (typeof PROFILE_SECTIONS)[number]["id"];
+
+const PROFILE_SECTION_LABELS = Object.fromEntries(
+  PROFILE_SECTIONS.map((section) => [section.id, section.label]),
+) as Record<ProfileSectionId, string>;
 
 const PUBLICATION_FIELD_LABELS: Record<string, string> = {
   displayName: "Nombre visible",
@@ -256,7 +273,7 @@ function getPublicationLabel(profile: ClinicPublicProfile | null) {
 export function ClinicPublicProfileCard() {
   const [profile, setProfile] = useState<ClinicPublicProfile | null>(null);
   const [formState, setFormState] = useState<ProfileFormState>(INITIAL_FORM_STATE);
-  const [activeTabId, setActiveTabId] = useState("estado");
+  const [activeTabId, setActiveTabId] = useState<string>(STATUS_TAB_ID);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -485,17 +502,27 @@ export function ClinicPublicProfileCard() {
     ? completionSummaryParts.join(" · ")
     : "Todos los campos de publicación están completos.";
 
+  const isStatusTabActive = activeTabId === STATUS_TAB_ID;
+
+  // Avatar o logo: below 768px it is the "Estado" chip's content, exactly as
+  // before; from 768px up it is always visible at the top of the editor. It is
+  // therefore always mounted (hidden on phones while another chip is active),
+  // which also keeps the selected file in its input across section changes.
   const statusTab = (
     <div
-      data-clinic-profile-fields="true"
-      className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden"
+      data-clinic-profile-fields={isStatusTabActive ? "true" : undefined}
+      data-clinic-profile-avatar="true"
+      className={cn(
+        "flex min-h-0 flex-1 flex-col gap-2 overflow-hidden md:flex-none",
+        !isStatusTabActive && "max-md:hidden",
+      )}
     >
       <div className="clinical-muted-band rounded-lg px-3 py-2">
         <label htmlFor="clinic-profile-avatar" className="field-label">
           Avatar o logo
         </label>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <div className="flex h-12 w-12 sm:h-16 sm:w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-vetneb-line/70 bg-white">
+          <div className="flex h-12 w-12 sm:h-16 sm:w-16 md:h-12 md:w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-vetneb-line/70 bg-white">
             {profileAvatarSrc ? (
               <NextImage
                 src={profileAvatarSrc}
@@ -511,7 +538,7 @@ export function ClinicPublicProfileCard() {
               </span>
             )}
           </div>
-          <div className="min-w-0 flex-1 space-y-2">
+          <div className="min-w-0 flex-1 space-y-2 md:flex md:items-center md:gap-2 md:space-y-0">
             <Input
               id="clinic-profile-avatar"
               ref={avatarInputRef}
@@ -519,8 +546,9 @@ export function ClinicPublicProfileCard() {
               accept="image/jpeg,image/png,image/webp"
               onChange={handleAvatarInputChange}
               disabled={isWorking}
+              className="md:min-w-0 md:flex-1"
             />
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 md:shrink-0 md:flex-nowrap">
               <Button
                 type="button"
                 variant="outline"
@@ -737,15 +765,126 @@ export function ClinicPublicProfileCard() {
     </div>
   );
 
-  function renderProfileForm(content: ReactNode) {
-    return (
-      <form id={PROFILE_FORM_ID} className="contents" onSubmit={handleSubmit}>
-        {content}
-      </form>
+  const isPasswordTabActive = activeTabId === PASSWORD_TAB_ID;
+  const sectionBaseId = useId();
+
+  // Clinic desktop/tablet space pass. From 768px up the chip band gives way to
+  // a vertical list of disclosure rows under the always-visible avatar, with
+  // ONE section open at a time. Rows and chips drive the same `activeTabId`, so
+  // both regimes share one source of truth; below 768px the rows do not paint
+  // and the chips behave exactly as before. Field values live in `formState`,
+  // so a closed section may unmount its inputs without losing anything (which
+  // also keeps browser validation scoped to the open section, as before); the
+  // password panel owns its own state and is therefore kept mounted, hidden.
+  function toggleSection(sectionId: string) {
+    setActiveTabId((current) =>
+      current === sectionId ? STATUS_TAB_ID : sectionId,
     );
   }
 
-  const isPasswordTabActive = activeTabId === PASSWORD_TAB_ID;
+  function renderSectionToggle(sectionId: ProfileSectionId) {
+    const isOpen = activeTabId === sectionId;
+
+    return (
+      <button
+        type="button"
+        id={`${sectionBaseId}-toggle-${sectionId}`}
+        aria-expanded={isOpen}
+        aria-controls={`${sectionBaseId}-section-${sectionId}`}
+        data-clinic-profile-section-toggle={sectionId}
+        onClick={() => toggleSection(sectionId)}
+        className={cn(
+          "hidden h-8 w-full shrink-0 items-center justify-between gap-2 rounded-md px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-1 md:flex",
+          isOpen
+            ? "bg-vetneb-navy text-white shadow-sm"
+            : "bg-vetneb-surface-muted/60 text-muted-foreground hover:bg-vetneb-surface-muted",
+        )}
+      >
+        <span>{PROFILE_SECTION_LABELS[sectionId]}</span>
+        <ChevronDown
+          aria-hidden="true"
+          className={cn(
+            "h-3.5 w-3.5 shrink-0 transition-transform",
+            isOpen && "rotate-180",
+          )}
+        />
+      </button>
+    );
+  }
+
+  function renderSection(
+    sectionId: ProfileSectionId,
+    content: ReactNode,
+    keepMounted = false,
+  ) {
+    const isOpen = activeTabId === sectionId;
+
+    return (
+      <div
+        id={`${sectionBaseId}-section-${sectionId}`}
+        data-clinic-profile-section={sectionId}
+        hidden={!isOpen}
+        className={isOpen ? "contents md:flex md:flex-col" : "hidden"}
+      >
+        {isOpen || keepMounted ? content : null}
+      </div>
+    );
+  }
+
+  const publicationBadge = (
+    <Badge variant={getPublicationVariant(profile)}>
+      {getPublicationLabel(profile)}
+    </Badge>
+  );
+
+  const saveProfileButton = !isPasswordTabActive ? (
+    <Button
+      type="submit"
+      size="sm"
+      className="h-8 px-3 text-xs"
+      disabled={isWorking}
+      form={PROFILE_FORM_ID}
+    >
+      {isSubmitting ? "Guardando..." : "Guardar perfil público"}
+    </Button>
+  ) : null;
+
+  // One stack for every section: the panel renders it whatever chip is
+  // active, so React keeps the same subtree (and the password panel's state)
+  // across section changes. Below 768px it is `display: contents` and only the
+  // active section paints; from 768px up it is the capped-width column
+  // avatar → Datos → Contacto → Contenido → Cambiar contraseña → Guardar.
+  const profileStack = (
+    <div
+      data-clinic-profile-stack="true"
+      className="contents md:flex md:w-full md:max-w-3xl md:flex-col md:gap-1.5"
+    >
+      <form id={PROFILE_FORM_ID} className="contents" onSubmit={handleSubmit}>
+        {statusTab}
+        {renderSectionToggle("datos")}
+        {renderSection("datos", detailsTab)}
+        {renderSectionToggle("contacto")}
+        {renderSection("contacto", contactTab)}
+        {renderSectionToggle("contenido")}
+        {renderSection("contenido", contentTab)}
+      </form>
+      {renderSectionToggle(PASSWORD_TAB_ID)}
+      {renderSection(
+        PASSWORD_TAB_ID,
+        <PasswordChangePanel variant="clinic" density="compact" embeddedFromMd />,
+        true,
+      )}
+      <div
+        data-clinic-profile-desktop-actions="true"
+        className="hidden md:flex md:flex-wrap md:items-center md:justify-end md:gap-2 md:pt-1"
+      >
+        {publicationBadge}
+        {saveProfileButton}
+      </div>
+    </div>
+  );
+
+  const hasProfileLoadState = Boolean(profileLoadErrorMessage) || isLoading;
 
   return (
     <ModuleCardSections
@@ -758,54 +897,35 @@ export function ClinicPublicProfileCard() {
       cardAttributeValue="perfil"
       chipAttribute="data-clinic-profile-chip"
       panelAttribute="data-clinic-profile-panel"
+      panelClassName="md:flex-none"
       activeId={activeTabId}
       onActiveIdChange={setActiveTabId}
       header={
         <>
+          {/* Below 768px only: the publication badge and "Guardar perfil
+              público" lead the card. From 768px up the same pair closes the
+              section stack instead, and the summary run is retired. */}
           <div
             data-clinic-profile-toolbar="true"
-            className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-vetneb-line/70 p-1.5"
+            className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-vetneb-line/70 p-1.5 md:hidden"
           >
-            {/* CMP-05 formulas intentionally use the existing profile snapshot; no endpoint is added.
-                Desktop-only below: the toolbar stays because it carries the publication badge and
-                "Guardar perfil público", and retiring just the run returns the wrapped 16px line
-                plus the 8px flex row-gap to that action row. The CMP-10 subtitle slot underneath
-                ("Recomendados: …", loading, error + retry) is a SIBLING of this toolbar and is
-                deliberately untouched. */}
-            <ModuleMetricRun
-              className="hidden md:flex"
-              surfaceId="clinic-perfil"
-              metrics={[
-                { key: "estado", label: "Estado", value: publication?.isSearchEligible ? "Visible" : "Oculto" },
-                { key: "completitud", label: "Completitud", value: publication ? `${publication.qualityScore}/${publication.minimumQualityScore}` : "—" },
-                { key: "pendientes", label: "Pendientes", value: missingRequiredFields.length + missingRecommendedFields.length },
-              ]}
-            />
             <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-            <Badge variant={getPublicationVariant(profile)}>
-              {getPublicationLabel(profile)}
-            </Badge>
-            {!isPasswordTabActive ? (
-              <Button
-                type="submit"
-                size="sm"
-                className="h-8 px-3 text-xs"
-                disabled={isWorking}
-                form={PROFILE_FORM_ID}
-              >
-                {isSubmitting ? "Guardando..." : "Guardar perfil público"}
-              </Button>
-              ) : null}
+              {publicationBadge}
+              {saveProfileButton}
             </div>
           </div>
           {/* CMP-10 (DIF-034) — always-rendered subtitle slot, mirroring
               AdminSessionsReadOnlyCard's header subtitle: loading/error text
               swaps in place of the default state, so the row never
-              appears/disappears and the tabs below it never shift. */}
+              appears/disappears and the tabs below it never shift. From 768px
+              up only the loading and error states paint: the completion
+              summary is retired there. */}
           <div
-            className={`flex min-h-8 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-vetneb-line/70 px-2.5 py-1.5 text-xs ${
-              profileLoadErrorMessage ? "text-destructive" : "text-muted-foreground"
-            }`}
+            className={cn(
+              "flex min-h-8 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-vetneb-line/70 px-2.5 py-1.5 text-xs",
+              profileLoadErrorMessage ? "text-destructive" : "text-muted-foreground",
+              !hasProfileLoadState && "md:hidden",
+            )}
             role={profileLoadErrorMessage ? "alert" : isLoading ? "status" : undefined}
           >
             <span className="line-clamp-2">
@@ -827,40 +947,18 @@ export function ClinicPublicProfileCard() {
           </div>
         </>
       }
-      sections={[
-            {
-              id: "estado",
-              label: "Estado",
-              content: renderProfileForm(statusTab),
-            },
-            {
-              id: "datos",
-              label: "Datos",
-              content: renderProfileForm(detailsTab),
-            },
-            {
-              id: "contacto",
-              label: "Contacto",
-              content: renderProfileForm(contactTab),
-            },
-            {
-              id: "contenido",
-              label: "Contenido",
-              content: renderProfileForm(contentTab),
-            },
-            {
-              id: PASSWORD_TAB_ID,
-              label: "Cambiar contraseña",
-              content: (
-                <PasswordChangePanel variant="clinic" density="compact" />
-              ),
-            },
-          ]}
+      sections={PROFILE_SECTIONS.map((section) => ({
+        ...section,
+        content: profileStack,
+      }))}
       footer={
         !isPasswordTabActive ? (
           <div
             data-clinic-profile-footer="true"
-            className="flex min-h-8 shrink-0 flex-wrap items-center gap-2 border-t border-vetneb-line/65 pt-2 text-xs"
+            className={cn(
+              "flex min-h-8 shrink-0 flex-wrap items-center gap-2 border-t border-vetneb-line/65 pt-2 text-xs",
+              !errorMessage && !statusMessage && "md:hidden",
+            )}
           >
             {errorMessage ? (
               <p className="clinical-alert-error px-3 py-1.5" role="alert">

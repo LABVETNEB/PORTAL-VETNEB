@@ -25,15 +25,17 @@ const TEST_FILE = fileURLToPath(import.meta.url);
 const REPO_ROOT = resolve(dirname(TEST_FILE), "..", "..");
 process.chdir(REPO_ROOT);
 
-const EXPECTED_WORKSPACE_SPEC_COUNT = 101;
-const EXPECTED_CATALOG_SPEC_COUNT = 101;
+const EXPECTED_WORKSPACE_SPEC_COUNT = 102;
+const EXPECTED_CATALOG_SPEC_COUNT = 102;
 const EXPECTED_MANUAL_ONLY_SPEC_COUNT = 0;
 const EXPECTED_DOMAIN_COUNTS = new Map([
   // +1: C04 Clínicas admin column sort (admin-clinics-column-sort.spec.ts).
   ["admin", 20],
   // +1: CMP-12 cross-role runtime parity contract
   // (clinic-mobile-admin-parity-contract.spec.ts, RC-017 closure).
-  ["clinic", 26],
+  // +1: CLINIC-DT clinic desktop/tablet space contract
+  // (dashboard-clinic-desktop-tablet-space.spec.ts).
+  ["clinic", 27],
   // +1: public professional dynamic detail E2E (public-professional-detail.spec.ts).
   // +1: served PWA surface E2E (public-pwa-served-surface.spec.ts), the
   // HTTP/browser half of the LIMPIEZA E2E §6.2 PWA residual.
@@ -62,7 +64,8 @@ const EXPECTED_DOMAIN_COUNTS = new Map([
 const EXPECTED_LAYER_COUNTS = new Map<E2eLayer, number>([
   // +1: public professional dynamic detail E2E (route-stubbed detail endpoint).
   // +1: C04 Clínicas admin column sort (route-stubbed server sort contract).
-  ["mocked", 37],
+  // +1: CLINIC-DT space contract (route-stubbed profile and particular tokens).
+  ["mocked", 38],
   // -1: E2E-GLOBAL-10 removed the assertion-free evidence generator (R-16);
   // +1 fixture / -1 mocked: §23 remediation moved dashboard keyboard a11y
   // off browser response stubs and onto the shared populated fixture.
@@ -84,7 +87,9 @@ const EXPECTED_CURRENT_COUNTS = new Map([
   // geometry contract, AGENTS.md §7), promoted from extended.
   // +1: E2E-GLOBAL-09 P2 follow-up, responsive cold-load sentinel, routed
   // visual-contract like A08 (same zero-scroll/visual contract, AGENTS.md §7).
-  ["visual-contract", 24],
+  // +1: CLINIC-DT clinic desktop/tablet space contract (zero-scroll desktop
+  // geometry, AGENTS.md §7).
+  ["visual-contract", 25],
   // +1: CMP-12 cross-role runtime parity contract, routed public-clinic like
   // the other CMP-04..09 parity specs (AGENTS.md §7).
   // +1: E2E-GLOBAL-06 P1 dashboard-logistica-mobile-action-bar-reachability,
@@ -101,14 +106,15 @@ const EXPECTED_EXECUTION_COUNTS = new Map<E2eExecutionCohort, number>([
   // +1: public professional dynamic detail E2E (public-clinic -> ci union).
   // +1: served PWA surface E2E (public-clinic -> ci union).
   // +1: C04 Clínicas admin column sort (admin-mobile -> ci union).
-  ["ci", 70],
+  // +1: CLINIC-DT clinic desktop/tablet space contract (visual-contract -> ci union).
+  ["ci", 71],
   ["extended", 27],
   // -1: E2E-GLOBAL-10 (R-16). `evidence` keeps the generator that does assert
   // layout (dashboard-runtime-post-ux1-visual-evidence) and loses the one that
   // asserted nothing.
   ["evidence", 1],
   ["visual-linux", 3],
-  ["full", 101],
+  ["full", 102],
   ["affected", 0],
 ]);
 const E2E_GLOBAL_06_PROMOTED_P1_SPECS = [
@@ -330,7 +336,7 @@ function validateCatalog(
   }
 
   const currentUnion = unique([...currentMemberships.keys()]).sort();
-  assert.equal(currentUnion.length, 70);
+  assert.equal(currentUnion.length, 71);
   assert.deepEqual(E2E_COHORT_SPECS.ci, currentUnion, "ci must equal the current four-cohort union");
 
   for (const cohort of ["extended", "evidence", "visual-linux", "full"] as const) {
@@ -402,11 +408,11 @@ test("catalog validation catches missing and duplicate entries in memory", async
 
   assert.throws(
     () => validateCatalog(missing, workspaceSpecs, E2E_MANUAL_ONLY_SPECS),
-    /100|classified/,
+    /101|classified/,
   );
   assert.throws(
     () => validateCatalog(duplicated, workspaceSpecs, E2E_MANUAL_ONLY_SPECS),
-    /102|unique/,
+    /103|unique/,
   );
 });
 
@@ -460,7 +466,7 @@ test("affected selection fails closed for empty or shared changes", async () => 
 
   const sharedSelection = runner.classifyAffectedPaths(["frontend/e2e/helpers/admin-mobile-contracts.ts"]);
   assert.equal(sharedSelection.fallback, true);
-  assert.equal(sharedSelection.specs.length, 70);
+  assert.equal(sharedSelection.specs.length, 71);
   assert.match(sharedSelection.reason, /shared E2E infrastructure/);
 });
 

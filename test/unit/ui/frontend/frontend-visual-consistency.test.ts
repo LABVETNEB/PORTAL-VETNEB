@@ -425,13 +425,15 @@ test("dashboard home keeps visual dashboard states and card spacing conventions"
     commandCenterSource,
     [
       '<ModuleCardSections',
-      '<ModuleMetricRun',
+      "<StatsCards stats={stats} />",
       "recentReports.map((report) =>",
       "recentVisits.map((visit) =>",
     ],
     "clinic command center shell",
   );
   assert.equal(commandCenterSource.includes("dashboard-operational-priority"), false);
+  // Clinic desktop/tablet space pass: no summary run above the chips.
+  assert.equal(commandCenterSource.includes("<ModuleMetricRun"), false);
 
   assertMatchesAll(
     combinedSource,

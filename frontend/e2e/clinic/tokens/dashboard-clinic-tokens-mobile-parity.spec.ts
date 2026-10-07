@@ -512,11 +512,16 @@ async function expectListBandRecovered(
     const panel = document.querySelector<HTMLElement>(
       '[data-clinic-access-list-panel="true"]',
     );
-    const header = panel?.firstElementChild as HTMLElement | null;
     const alert = panel?.querySelector<HTMLElement>(':scope > [role="alert"]');
     const body = document.querySelector<HTMLElement>(
       '[data-clinic-access-list-body="true"]',
     );
+    // The clinic desktop/tablet space pass retired the list header at every
+    // width, so it is no longer even mounted: the panel opens on the list body
+    // (or an alert). Any other leading child is a header coming back.
+    const leading = panel?.firstElementChild as HTMLElement | null;
+    const header =
+      leading && leading !== body && leading.getAttribute("role") !== "alert" ? leading : null;
     const pager = document.querySelector<HTMLElement>(
       '[data-clinic-access-pagination-footer="true"]',
     );

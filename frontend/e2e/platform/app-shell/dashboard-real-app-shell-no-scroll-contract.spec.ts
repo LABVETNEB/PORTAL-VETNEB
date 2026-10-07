@@ -734,7 +734,7 @@ for (const viewport of VIEWPORTS) {
       });
     }
 
-    test("clinic perfil public profile editor tabs fit without scroll", async ({
+    test("clinic perfil public profile editor sections fit without scroll", async ({
       page,
     }, testInfo) => {
       await page.setViewportSize({
@@ -752,12 +752,19 @@ for (const viewport of VIEWPORTS) {
         timeout: 12_000,
       });
 
-      for (const tabName of ["Estado", "Datos", "Contenido"]) {
-        await page.getByRole("tab", { name: tabName }).click();
+      // Clinic desktop/tablet space pass: from 768px up the avatar is always
+      // visible and the sections are single-open disclosure rows (the chips
+      // are the phone navigation). The tallest state of each section, alone
+      // with the avatar and the save row, must fit.
+      await expectPageNoOverflow(page, testInfo, `${viewport.name}-perfil-publico-avatar`);
+      for (const sectionName of ["Datos", "Contacto", "Contenido", "Cambiar contraseña"]) {
+        const toggle = page.getByRole("button", { name: sectionName, exact: true });
+        await toggle.click();
+        await expect(toggle).toHaveAttribute("aria-expanded", "true");
         await expectPageNoOverflow(
           page,
           testInfo,
-          `${viewport.name}-perfil-publico-${tabName}`,
+          `${viewport.name}-perfil-publico-${sectionName}`,
         );
       }
     });

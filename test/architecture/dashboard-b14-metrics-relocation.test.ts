@@ -10,6 +10,23 @@ const USERS = "frontend/src/app/dashboard/admin/AdminUsersRolesReadOnlyCard.tsx"
 const AUDIT = "frontend/src/app/dashboard/admin/AdminAuditCard.tsx";
 const MOBILE_AUDIT = "frontend/src/app/dashboard/admin/AdminMobileAuditModule.tsx";
 const AUDIT_FILTER_BAR = "frontend/src/app/dashboard/admin/AdminAuditFilterBar.tsx";
+// Clinic desktop/tablet space pass: the five clinic workspace cards retire
+// their summary runs at every width (they never painted below md); the five
+// full routes keep theirs, out of scope by decision.
+const CLINIC_WORKSPACE_RETIRED_RUNS = [
+  [CLINIC, "clinic-operaciones", 'id: "metricas"'],
+  ["frontend/src/app/dashboard/ClinicInformesWorkspaceSummary.tsx", "clinic-informes-workspace", 'data-clinic-reports-toolbar="true"'],
+  ["frontend/src/app/dashboard/ClinicLogisticaWorkspaceSummary.tsx", "clinic-logistica-workspace", "{fullModuleLink}"],
+  ["frontend/src/components/dashboard/ClinicPublicProfileCard.tsx", "clinic-perfil", 'data-clinic-profile-toolbar="true"'],
+  ["frontend/src/components/dashboard/ClinicParticularTokensCard.tsx", "clinic-tokens", 'data-clinic-access-toolbar="true"'],
+] as const;
+const CLINIC_FULL_ROUTE_RUNS = [
+  ["frontend/src/app/dashboard/informes/page.tsx", "clinic-informes-full"],
+  ["frontend/src/app/dashboard/logistica/LogisticsCommandCenter.tsx", "clinic-logistica-full"],
+  ["frontend/src/app/dashboard/logistica/visitas/page.tsx", "clinic-logistica-visitas"],
+  ["frontend/src/app/dashboard/logistica/rutas/page.tsx", "clinic-logistica-rutas"],
+  ["frontend/src/app/dashboard/logistica/metricas/page.tsx", "clinic-logistica-metricas"],
+] as const;
 
 const ADMIN = [
   "admin",
@@ -49,10 +66,18 @@ const ADMIN_RETIRED_RUNS = [
   [AUDIT, "admin-audit", "<AdminAuditFilterBar"],
 ] as const;
 
-test("B14 · the clinic run stays integrated and the four admin runs are retired, regions kept", () => {
-  const clinic = read(CLINIC);
-  assert.ok(clinic.includes("<ModuleMetricRun"), "the clinic run stays integrated");
-  assert.ok(clinic.includes('id: "metricas"'), "the clinic run keeps its functional region");
+test("B14 · the clinic workspace runs and the four admin runs are retired, regions kept; clinic full routes keep theirs", () => {
+  for (const [path, run, functionalAnchor] of CLINIC_WORKSPACE_RETIRED_RUNS) {
+    const source = read(path);
+    assert.equal(source.includes("<ModuleMetricRun"), false, `${path}: the ${run} run is retired`);
+    assert.equal(source.includes(`"${run}"`), false, `${path}: no ${run} surface id survives`);
+    assert.ok(source.includes(functionalAnchor), `${path} must retain its functional region`);
+  }
+  for (const [path, run] of CLINIC_FULL_ROUTE_RUNS) {
+    const source = read(path);
+    assert.ok(source.includes("<ModuleMetricRun"), `${path}: the ${run} full-route run stays`);
+    assert.ok(source.includes(`surfaceId="${run}"`), `${path}: keeps ${run}`);
+  }
 
   for (const [path, run, functionalAnchor] of ADMIN_RETIRED_RUNS) {
     const source = read(path);

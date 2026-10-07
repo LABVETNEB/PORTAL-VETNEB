@@ -443,9 +443,10 @@ test.describe("clinic perfil → perfil público module state parity (client-dri
     await expect(editor.getByText("Cargando perfil público...")).toBeVisible();
     releaseProfileResponse();
 
-    // Since #1144 the publication label renders twice (header badge + Estado
-    // tile), so pin to one match to avoid a strict-mode violation.
-    await expect(editor.getByText("Borrador privado").first()).toBeVisible({
+    // The publication badge is mounted twice since the clinic desktop/tablet
+    // space pass: in the phone toolbar and closing the desktop section stack,
+    // one of them hidden per width. Assert the one that paints.
+    await expect(editor.getByText("Borrador privado").filter({ visible: true })).toBeVisible({
       timeout: 4_000,
     });
   });
@@ -478,7 +479,9 @@ test.describe("clinic perfil → cambiar contraseña module state parity (CL-GAP
     await setClinicSession(page, "default");
     await page.goto("/dashboard?module=perfil");
 
-    await page.getByRole("tab", { name: "Cambiar contraseña", exact: true }).click();
+    // Desktop (default viewport): Cambiar contraseña is a single-open
+    // disclosure row since the clinic desktop/tablet space pass.
+    await page.getByRole("button", { name: "Cambiar contraseña", exact: true }).click();
     const panel = page.locator("#clinic-password-change");
     await expect(panel).toBeVisible({ timeout: 8_000 });
 
@@ -509,7 +512,9 @@ test.describe("clinic perfil → cambiar contraseña module state parity (CL-GAP
     });
 
     await page.goto("/dashboard?module=perfil");
-    await page.getByRole("tab", { name: "Cambiar contraseña", exact: true }).click();
+    // Desktop (default viewport): Cambiar contraseña is a single-open
+    // disclosure row since the clinic desktop/tablet space pass.
+    await page.getByRole("button", { name: "Cambiar contraseña", exact: true }).click();
     const panel = page.locator("#clinic-password-change");
     await expect(panel).toBeVisible({ timeout: 8_000 });
 

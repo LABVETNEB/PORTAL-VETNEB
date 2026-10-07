@@ -95,6 +95,13 @@ export type CollectionPagerCenteredProps = CollectionPagerBaseProps & {
    * is known (the logistics full routes' backend does not expose one).
    */
   rangeLabel?: string;
+  /**
+   * `phone-only`: the `Pág. X / Y` state is painted below 768px only; from
+   * 768px up the pager shows Anterior / Siguiente and nothing else (clinic
+   * desktop/tablet space pass). Page state, `disabled` and the handlers are
+   * unchanged. Omitted, the state paints at every width.
+   */
+  pageStateRegime?: "phone-only";
 };
 
 /**
@@ -206,6 +213,7 @@ export function CollectionPager(props: CollectionPagerProps) {
     stateControl,
     nextControl,
     rangeLabel,
+    pageStateRegime,
   } = props;
 
   return (
@@ -228,7 +236,10 @@ export function CollectionPager(props: CollectionPagerProps) {
       </span>
       <span
         data-dashboard-pager-state="true"
-        className="text-xs text-muted-foreground"
+        className={cn(
+          "text-xs text-muted-foreground",
+          pageStateRegime === "phone-only" && "md:hidden",
+        )}
       >
         {stateControl ?? (
           <span className="dashboard-pagination-context">{pageState}</span>

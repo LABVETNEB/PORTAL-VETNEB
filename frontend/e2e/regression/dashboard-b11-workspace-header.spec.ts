@@ -26,8 +26,6 @@ const DESCRIPTION_SELECTOR = '[data-workspace-header-description="true"]';
 const APP_SHELL_SELECTOR = '[data-vetneb-app-shell="true"]';
 const MAIN_SELECTOR = "main.dashboard-main";
 const MOBILE_NAV_SELECTOR = '[data-dashboard-mobile-nav="clinic"]';
-const TARGET_HEIGHT_PX = 40;
-const TOLERANCE_PX = 2;
 
 const SURFACE_IDS = ["admin-tokens", "clinic-tokens"] as const;
 const VIEWPORT_SLUGS = ["w390x844", "w1366x768"] as const;
@@ -394,88 +392,32 @@ test.describe("B11 · canonical WorkspaceHeader shared owner", () => {
         await expect(allHeaders, `${label}: one canonical owner in the DOM`).toHaveCount(1);
         await expect(page.locator(APP_SHELL_SELECTOR), `${label}: one app shell`).toHaveCount(1);
 
-        // Admin desktop/tablet space pass: the admin module header band is
-        // reclaimed from 768px up too (admin-only rule); Clínica keeps it.
+        // Admin and clinic desktop/tablet space passes: the module header band
+        // is reclaimed from 768px up on both roles, as G-003 already does below
+        // 768px, so the canonical owner stays in the DOM (one per workspace)
+        // only as the workspace's accessible name and description.
         const isMobile = viewport.width < 768;
-        const reclaimed = isMobile || surface.role === "admin";
-        if (reclaimed) {
-          await expect(
-            allHeaders,
-            isMobile
-              ? `${label}: mobile app bar owns the contextual header`
-              : `${label}: admin desktop/tablet reclaims the module header band`,
-          ).toBeHidden();
-          const wiring = await workspace.evaluate((element) => ({
-            labelledBy: element.getAttribute("aria-labelledby"),
-            headingId: element.querySelector("h2")?.id ?? null,
-          }));
-          expect(wiring.labelledBy, `${label}: the workspace keeps its accessible name`).toBe(wiring.headingId);
-        } else {
-          const header = allHeaders;
-          await expect(header, `${label}: painted canonical header`).toBeVisible();
-
-          const geometry = await header.evaluate((element) => {
-            const rect = element.getBoundingClientRect();
-            const style = getComputedStyle(element);
-            const title = element.querySelector<HTMLElement>("h2");
-            const titleStyle = title ? getComputedStyle(title) : null;
-            return {
-              height: rect.height,
-              width: rect.width,
-              parentWidth: element.parentElement?.getBoundingClientRect().width ?? -1,
-              paddingLeft: Number.parseFloat(style.paddingLeft),
-              paddingRight: Number.parseFloat(style.paddingRight),
-              borderRadius: style.borderRadius,
-              boxShadow: style.boxShadow,
-              titleFontSize: titleStyle?.fontSize ?? "absent",
-              titleLineHeight: titleStyle?.lineHeight ?? "absent",
-              titleWeight: titleStyle?.fontWeight ?? "absent",
-            };
-          });
-
-          expect(geometry.height, `${label}: A02 target height`).toBeGreaterThanOrEqual(
-            TARGET_HEIGHT_PX - TOLERANCE_PX,
-          );
-          expect(geometry.height, `${label}: A02 target height`).toBeLessThanOrEqual(
-            TARGET_HEIGHT_PX + TOLERANCE_PX,
-          );
-          expect(Math.abs(geometry.width - geometry.parentWidth), `${label}: full width`).toBeLessThanOrEqual(0.5);
-          expect(geometry.paddingLeft).toBe(16);
-          expect(geometry.paddingRight).toBe(16);
-          expect(geometry.borderRadius).toBe("0px");
-          expect(geometry.boxShadow).toBe("none");
-          expect(geometry.titleFontSize).toBe("14px");
-          expect(geometry.titleLineHeight).toBe("20px");
-          expect(geometry.titleWeight).toBe("600");
-
-          const heading = header.locator("h2");
-          const description = header.locator(DESCRIPTION_SELECTOR);
-          await expect(heading).toHaveCount(1);
-          await expect(description).toHaveCount(1);
-          const accessibility = await workspace.evaluate((element) => {
-            const description = element.querySelector<HTMLElement>(
-              '[data-workspace-header-description="true"]',
-            );
-            const rect = description?.getBoundingClientRect();
-            return {
-              labelledBy: element.getAttribute("aria-labelledby"),
-              describedBy: element.getAttribute("aria-describedby"),
-              headingId: element.querySelector("h2")?.id ?? null,
-              descriptionId: description?.id ?? null,
-              descriptionPosition: description ? getComputedStyle(description).position : null,
-              descriptionWidth: rect?.width ?? -1,
-              descriptionHeight: rect?.height ?? -1,
-              descriptionText: description?.textContent?.trim() ?? "",
-            };
-          });
-
-          expect(accessibility.labelledBy).toBe(accessibility.headingId);
-          expect(accessibility.describedBy).toBe(accessibility.descriptionId);
-          expect(accessibility.descriptionPosition).toBe("absolute");
-          expect(accessibility.descriptionWidth).toBeLessThanOrEqual(1);
-          expect(accessibility.descriptionHeight).toBeLessThanOrEqual(1);
-          expect(accessibility.descriptionText.length).toBeGreaterThan(0);
-        }
+        await expect(
+          allHeaders,
+          isMobile
+            ? `${label}: mobile app bar owns the contextual header`
+            : `${label}: desktop/tablet reclaims the module header band`,
+        ).toBeHidden();
+        await expect(allHeaders.locator("h2"), `${label}: one heading`).toHaveCount(1);
+        await expect(allHeaders.locator(DESCRIPTION_SELECTOR), `${label}: one description`).toHaveCount(1);
+        const wiring = await workspace.evaluate((element) => ({
+          labelledBy: element.getAttribute("aria-labelledby"),
+          describedBy: element.getAttribute("aria-describedby"),
+          headingId: element.querySelector("h2")?.id ?? null,
+          descriptionId:
+            element.querySelector<HTMLElement>('[data-workspace-header-description="true"]')?.id ?? null,
+          viewportPaddingTop: Number.parseFloat(
+            getComputedStyle(element.querySelector<HTMLElement>("[data-dashboard-module-viewport]")!).paddingTop,
+          ),
+        }));
+        expect(wiring.labelledBy, `${label}: the workspace keeps its accessible name`).toBe(wiring.headingId);
+        expect(wiring.describedBy, `${label}: the workspace keeps its description`).toBe(wiring.descriptionId);
+        expect(wiring.viewportPaddingTop, `${label}: no gap left where the band was`).toBe(0);
 
         await expect(page).toHaveURL(new RegExp(surface.route.replace("?", "\\?")));
         await expectNoOuterScroll(page, label);
@@ -736,7 +678,15 @@ test.describe("C02 · CollectionPager owns both legacy pagers on real consumers"
       expect(first).toMatchObject({ start: 1, total: 256 });
       expect(first.size, `${label}: rendered rows equal the announced range`).toBe(before.rows);
       const pageCount = Math.ceil(first.total / first.size);
-      await expect(state).toHaveText(`Pág. 1 / ${pageCount}`);
+      // Clinic desktop/tablet space pass: from 768px up the page state is not
+      // painted (Anterior / Siguiente only); the announced range still proves
+      // every transition below.
+      const statePainted = viewport.width < 768;
+      const expectState = async (pageNumber: number) => {
+        if (statePainted) await expect(state).toHaveText(`Pág. ${pageNumber} / ${pageCount}`);
+        else await expect(state, `${label}: page state not painted`).toBeHidden();
+      };
+      await expectState(1);
       const prev = pager.getByRole("button", { name: "Página anterior" });
       const next = pager.getByRole("button", { name: "Página siguiente" });
       await expect(prev).toBeDisabled();
@@ -745,10 +695,11 @@ test.describe("C02 · CollectionPager owns both legacy pagers on real consumers"
       const requests = trackApiRequests(page);
       await next.focus();
       await page.keyboard.press("Enter");
-      await expect(state).toHaveText(`Pág. 2 / ${pageCount}`);
       await expect(live).toHaveText(`${first.end + 1}–${first.end + first.size} de 256`);
+      await expectState(2);
+      await expect(prev).toBeEnabled();
       await prev.click();
-      await expect(state).toHaveText(`Pág. 1 / ${pageCount}`);
+      await expectState(1);
       await expect(live).toHaveText(`1–${first.size} de 256`);
       expect(requests, `${label}: client pagination issues no request`).toEqual([]);
       expectExactReservation(await readC02Pager(page, pagerSelector, rowSelector), `${label} after paging`);

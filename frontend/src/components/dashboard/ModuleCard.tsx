@@ -297,6 +297,8 @@ interface ModuleCardPanelProps {
   readonly id: string;
   readonly ariaLabel: string;
   readonly dataAttributes?: Readonly<Record<string, string | undefined>>;
+  /** Extra classes for a surface whose panel stops filling the card at some width. */
+  readonly className?: string;
   readonly children: ReactNode;
 }
 
@@ -305,6 +307,7 @@ export function ModuleCardPanel({
   id,
   ariaLabel,
   dataAttributes,
+  className,
   children,
 }: ModuleCardPanelProps) {
   return (
@@ -312,7 +315,7 @@ export function ModuleCardPanel({
       role="tabpanel"
       id={id}
       aria-label={ariaLabel}
-      className={PANEL_CLASS}
+      className={cn(PANEL_CLASS, className)}
       {...dataAttributes}
     >
       {children}
@@ -337,6 +340,8 @@ interface ModuleCardSectionsProps {
   readonly cardAttributeValue: string;
   readonly chipAttribute: string;
   readonly panelAttribute: string;
+  /** Forwarded to the panel; omitted, the panel fills the card as before. */
+  readonly panelClassName?: string;
 }
 
 /**
@@ -357,6 +362,7 @@ export function ModuleCardSections({
   cardAttributeValue,
   chipAttribute,
   panelAttribute,
+  panelClassName,
 }: ModuleCardSectionsProps) {
   const baseId = useId();
   const fallbackId = sections[0]?.id ?? "";
@@ -398,6 +404,7 @@ export function ModuleCardSections({
         id={`${baseId}-panel-${active.id}`}
         ariaLabel={active.label}
         dataAttributes={{ [panelAttribute]: active.id }}
+        className={panelClassName}
       >
         {active.content}
       </ModuleCardPanel>

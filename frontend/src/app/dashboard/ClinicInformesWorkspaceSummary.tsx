@@ -20,7 +20,6 @@ import { DashboardRefreshButton } from "@/components/dashboard/DashboardRefreshB
 import { DASHBOARD_TOUCH_PAGER_RESERVATION } from "@/components/dashboard/DashboardPager";
 import { ModuleDialog } from "@/components/dashboard/ModuleDialog";
 import { ModuleCard } from "@/components/dashboard/ModuleCard";
-import { ModuleMetricRun } from "@/components/dashboard/ModuleMetricRun";
 import { ReportFileActions } from "@/components/dashboard/ReportDownloadButton";
 import { usePagedRows } from "@/components/dashboard/usePagedRows";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
@@ -223,7 +222,7 @@ export function ClinicInformesWorkspaceSummary({
         className={
           mobile
             ? "grid grid-cols-2 gap-2"
-            : "hidden shrink-0 md:grid md:grid-cols-4 lg:grid-cols-[0.82fr_1.1fr_0.85fr_1fr_1fr_0.85fr_0.85fr_auto_auto]"
+            : "hidden shrink-0 md:grid md:min-w-0 md:shrink md:grow md:basis-[36rem] md:grid-cols-4 lg:basis-[59rem] lg:grid-cols-[0.82fr_1.1fr_0.85fr_1fr_1fr_minmax(8.5rem,0.85fr)_minmax(8.5rem,0.85fr)_auto_auto]"
         }
         onSubmit={applyAdvancedFilters}
         aria-label={
@@ -324,19 +323,17 @@ export function ClinicInformesWorkspaceSummary({
       ariaLabel="Informes recientes de la clínica"
       dataAttributes={{ "data-clinic-mobile-module": "informes" }}
     >
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-vetneb-line/70 p-1.5">
-          {/* Desktop-only below: the host stays because it carries Filtros and
-              "Abrir módulo completo", and retiring just the run returns the
-              wrapped 16px line plus the 8px flex row-gap to the action row. */}
-          <ModuleMetricRun
-            className="hidden md:flex"
-            surfaceId="clinic-informes-workspace"
-            metrics={[
-              { key: "total", label: "Total", value: filteredReports.length },
-              { key: "en-proceso", label: "En proceso", value: filteredReports.filter((report) => report.status === "processing").length },
-              { key: "disponibles", label: "Disponibles", value: filteredReports.filter((report) => report.status === "ready" || report.status === "delivered").length },
-            ]}
-          />
+      <div
+        data-clinic-reports-toolbar="true"
+        className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-vetneb-line/70 p-1.5 md:justify-end"
+      >
+        {/* Clinic desktop/tablet space pass: from 768px up the summary run is
+            retired and the filters own this band, left of the actions. The
+            bar's flex-basis is the width its grid needs, so when filters and
+            actions do not fit side by side the actions wrap to a second line
+            instead of squeezing the fields. Below 768px the bar is not painted,
+            so the band keeps only Filtros and "Abrir módulo completo". */}
+        {!reportsLoadError ? renderAdvancedFilterForm() : null}
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
           <ModuleDialog
             open={isFilterDialogOpen}
@@ -362,7 +359,6 @@ export function ClinicInformesWorkspaceSummary({
         </div>
       </div>
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-2">
-        {!reportsLoadError ? renderAdvancedFilterForm() : null}
 
       {reportsLoadError ? (
         <div
@@ -543,10 +539,12 @@ export function ClinicInformesWorkspaceSummary({
                 </Button>
               </span>
 
+              {/* The painted page state is a phone-only affordance: from 768px
+                  up the pager shows Anterior / Siguiente and nothing else. */}
               <span
                 data-dashboard-pager-state="true"
                 data-clinic-reports-pagination-status="true"
-                className="min-w-16 text-center"
+                className="min-w-16 text-center md:hidden"
               >
                 Pág. {pagedReports.page + 1} / {pagedReports.pageCount}
               </span>
