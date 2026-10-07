@@ -7,11 +7,12 @@ import {
   useRef,
   useState,
   useTransition,
+  type ReactNode,
 } from "react";
 import { Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -112,7 +113,14 @@ function SessionStatusBadge({ status }: SessionStatusBadgeProps) {
   );
 }
 
-export function AdminSessionsReadOnlyCard() {
+type AdminSessionsReadOnlyCardProps = {
+  /** Extra desktop/tablet actions painted next to Actualizar in the filter band. */
+  desktopActions?: ReactNode;
+};
+
+export function AdminSessionsReadOnlyCard({
+  desktopActions,
+}: AdminSessionsReadOnlyCardProps = {}) {
   const [snapshot, setSnapshot] = useState<AdminSessionsSnapshot | null>(null);
   const [sessionType, setSessionType] = useState<AdminSessionType | "all">(
     "all",
@@ -274,11 +282,6 @@ export function AdminSessionsReadOnlyCard() {
     : 1;
   const rangeStart = sessions.length ? offset + 1 : 0;
   const rangeEnd = offset + sessions.length;
-  const activeOnPage = sessions.filter((session) => session.status === "active")
-    .length;
-  const expiredOnPage = sessions.filter(
-    (session) => session.status === "expired",
-  ).length;
   const disableActions = isPending || revokingSessionKey !== null;
 
   function goToPreviousPage() {
@@ -299,55 +302,11 @@ export function AdminSessionsReadOnlyCard() {
         data-dashboard-b12-module-card="true"
         className="dashboard-surface hidden min-h-0 flex-1 flex-col overflow-hidden shadow-none hover:shadow-none md:flex"
       >
-      <CardHeader className="flex min-h-11 shrink-0 flex-row items-center justify-between gap-3 space-y-0 border-b border-vetneb-line/70 px-3 py-1 sm:px-4">
-        <div className="min-w-0">
-          <CardTitle className="text-base">Sesiones activas y expiradas</CardTitle>
-          <p
-            className={`line-clamp-2 text-xs sm:truncate ${
-              error ? "text-destructive" : "text-muted-foreground"
-            }`}
-            role={error ? "alert" : undefined}
-            title={error ?? undefined}
-          >
-            {error ??
-              "Admin, clínica y particulares. Sin tokens ni hashes. Revocación auditada."}
-          </p>
-        </div>
-        <div
-          data-dashboard-b14-metrics="admin-sessions"
-          className="hidden min-w-0 flex-1 grid-cols-4 divide-x divide-vetneb-line/70 md:grid"
-        >
-          <div className="min-w-0 px-2 text-center">
-            <p className="truncate text-[10px] text-muted-foreground">Total filtrado</p>
-            <strong className="text-sm font-semibold tabular-nums text-vetneb-ink">{snapshot?.total ?? "—"}</strong>
-          </div>
-          <div className="min-w-0 px-2 text-center">
-            <p className="truncate text-[10px] text-muted-foreground" title="Activas visibles en la página actual">Activas</p>
-            <strong className="text-sm font-semibold tabular-nums text-vetneb-ink">{snapshot ? activeOnPage : "—"}</strong>
-          </div>
-          <div className="min-w-0 px-2 text-center">
-            <p className="truncate text-[10px] text-muted-foreground" title="Expiradas visibles en la página actual">Expiradas</p>
-            <strong className="text-sm font-semibold tabular-nums text-vetneb-ink">{snapshot ? expiredOnPage : "—"}</strong>
-          </div>
-          <div className="min-w-0 px-2 text-center">
-            <p className="truncate text-[10px] text-muted-foreground">Página</p>
-            <strong className="text-sm font-semibold tabular-nums text-vetneb-ink">{snapshot ? page : "—"}</strong>
-          </div>
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-8 shrink-0 px-2.5 text-xs"
-          onClick={loadSessions}
-          disabled={disableActions}
-          aria-busy={isPending ? true : undefined}
-        >
-          {isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
-          {isPending ? "Actualizando..." : "Actualizar"}
-        </Button>
-      </CardHeader>
-
+      {/* Desktop/tablet space pass: the desktop sessions header (title,
+          description and metric run) is retired. Actualizar (and the page-owned
+          Cambiar contraseña) move into the filter band; the load error keeps
+          a visible, announced line there, so stale rows stay on screen with
+          the failure explained. */}
       <CardContent className="flex min-h-0 flex-1 flex-col p-0">
         <div
           className="flex min-h-11 shrink-0 items-end gap-2 border-b border-vetneb-line/70 bg-muted/15 px-3 py-1 sm:px-4"
@@ -390,9 +349,31 @@ export function AdminSessionsReadOnlyCard() {
             </select>
           </label>
 
-          <span className="ml-auto hidden pb-2 text-[11px] text-muted-foreground md:inline">
-            {effectiveLimit} por página
-          </span>
+          {error ? (
+            <p
+              data-admin-sesiones-desktop-error="true"
+              className="min-w-0 flex-1 truncate pb-2 text-[11px] text-destructive"
+              role="alert"
+              title={error}
+            >
+              {error}
+            </p>
+          ) : null}
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            {desktopActions}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 shrink-0 px-2.5 text-xs"
+              onClick={loadSessions}
+              disabled={disableActions}
+              aria-busy={isPending ? true : undefined}
+            >
+              {isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
+              {isPending ? "Actualizando..." : "Actualizar"}
+            </Button>
+          </div>
         </div>
 
         <div
@@ -513,11 +494,11 @@ export function AdminSessionsReadOnlyCard() {
         <footer
           data-admin-sesiones-pagination="true"
           data-dashboard-adaptive-reserved-region="pager"
-          className="dashboard-table-pagination shrink-0 overflow-hidden border-t border-vetneb-line/70 px-3 text-xs text-muted-foreground sm:px-4"
+          className="dashboard-table-pagination shrink-0 overflow-hidden border-t border-vetneb-line/70 px-3 text-xs text-muted-foreground sm:px-4 md:justify-center"
           style={DASHBOARD_PAGER_RESERVATION}
           aria-label="Paginación de sesiones"
         >
-          <span aria-live="polite">
+          <span className="sr-only" aria-live="polite">
             {sessions.length
               ? `${rangeStart}–${rangeEnd} de ${snapshot?.total ?? 0}`
               : error
@@ -531,24 +512,17 @@ export function AdminSessionsReadOnlyCard() {
               size="sm"
               disabled={!hasPreviousPage || disableActions}
               onClick={goToPreviousPage}
-              className="h-7 px-2 text-xs flex-1 sm:flex-none"
+              className="h-7 px-2.5 text-xs flex-1 sm:flex-none"
             >
               Anterior
             </Button>
-            <span
-              className="dashboard-pagination-context"
-              aria-live="polite"
-              aria-atomic="true"
-            >
-              Pág. {page} / {pageCount}
-            </span>
             <Button
               type="button"
               variant="outline"
               size="sm"
               disabled={!hasNextPage || disableActions}
               onClick={goToNextPage}
-              className="h-7 px-2 text-xs flex-1 sm:flex-none"
+              className="h-7 px-2.5 text-xs flex-1 sm:flex-none"
             >
               Siguiente
             </Button>

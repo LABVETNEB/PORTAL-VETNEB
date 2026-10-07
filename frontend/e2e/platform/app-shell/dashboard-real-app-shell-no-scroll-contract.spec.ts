@@ -72,10 +72,11 @@ const ROUTES: RouteCase[] = [
     ready: '[data-dashboard-module-workspace="perfil"]',
   },
   {
-    label: "admin hub",
+    // The admin hub is retired at every width: the legacy URL lands on Resumen.
+    label: "admin legacy hub URL",
     surface: "admin",
     path: "/dashboard/admin?hub=1",
-    ready: '[data-dashboard-module-hub="true"]',
+    ready: '[data-dashboard-module-workspace="admin"]',
   },
   {
     label: "admin overview populated",
@@ -349,7 +350,12 @@ async function expectPopulatedAdminModule(
       firstDataRow.getByRole("cell").first().getByRole("checkbox", { name: /^Seleccionar evento \d+$/ }),
     ).toHaveCount(1);
     await expect(firstDataRow.getByRole("cell").nth(1)).not.toBeEmpty();
-    await expect(workspace.getByText("47 coincidencias", { exact: true })).toBeVisible();
+    // The match count is no longer painted (desktop/tablet space pass); the
+    // total is still announced by the pager's live range.
+    await expect(workspace.getByText("47 coincidencias", { exact: true })).toHaveCount(0);
+    await expect(
+      workspace.locator('footer[aria-label="Paginación de auditoría"] [aria-live="polite"]'),
+    ).toHaveText(/^1–\d+ de 47$/);
     await expect(
       workspace.getByText("No hay eventos de auditoría disponibles."),
     ).toHaveCount(0);

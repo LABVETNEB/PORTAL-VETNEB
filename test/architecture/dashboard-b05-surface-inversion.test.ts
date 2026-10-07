@@ -142,9 +142,9 @@ const CONTAINER_ANCHORS: ReadonlyArray<{
   },
   {
     path: ADMIN_CLINICS_TSX,
-    anchor: 'className="relative max-w-xs flex-1"',
+    anchor: 'className="relative min-w-0 max-w-md flex-1"',
     role: "DIRECT",
-    why: "S4 desktop search wrapper (already transparent pre-B05)",
+    why: "S4 desktop search wrapper (already transparent pre-B05; shares its row with Nueva clínica and Actualizar since the admin desktop/tablet space pass)",
   },
   {
     path: ADMIN_CLINICS_TSX,

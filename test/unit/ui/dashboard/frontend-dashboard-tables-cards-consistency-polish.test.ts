@@ -89,11 +89,12 @@ test("PR-7 globals.css defines .dashboard-filter-stats-grid-5 variant", () => {
 
 // ── Stats grid class usage ───────────────────────────────────────────────────
 
-test("B14 AdminSessionsReadOnlyCard keeps metrics in its existing header", () => {
+test("AdminSessionsReadOnlyCard retires its header metric run without a standalone stats bar", () => {
   const source = read(SESSIONS_CARD_PATH);
-  assert.ok(
-    source.includes('data-dashboard-b14-metrics="admin-sessions"'),
-    "AdminSessionsReadOnlyCard must mark the integrated metric cluster",
+  assert.equal(
+    source.includes("data-dashboard-b14-metrics"),
+    false,
+    "the desktop/tablet space pass retires the B14 metric cluster",
   );
   assert.equal(
     source.includes("dashboard-filter-stats-grid"),
@@ -115,11 +116,12 @@ test("PR-7 AdminFailedLoginAlertsReadOnlyCard uses dashboard-filter-stats-grid f
   );
 });
 
-test("B14 AdminUsersRolesReadOnlyCard keeps metrics in its existing header", () => {
+test("AdminUsersRolesReadOnlyCard retires its header metric run without a standalone strip", () => {
   const source = read(USERS_ROLES_CARD_PATH);
-  assert.ok(
-    source.includes('data-dashboard-b14-metrics="admin-users-roles"'),
-    "AdminUsersRolesReadOnlyCard must mark the integrated metric cluster",
+  assert.equal(
+    source.includes("data-dashboard-b14-metrics"),
+    false,
+    "the desktop/tablet space pass retires the B14 metric cluster",
   );
   assert.equal(
     source.includes("grid min-h-11 shrink-0 grid-cols-3"),
@@ -154,7 +156,7 @@ test("PR-7 AdminFailedLoginAlertsReadOnlyCard pagination uses dashboard-table-pa
   );
 });
 
-test("PR-7 AdminUsersRolesReadOnlyCard pagination uses dashboard-table-pagination and context span", () => {
+test("PR-7 AdminUsersRolesReadOnlyCard pagination uses dashboard-table-pagination without a page context", () => {
   const source = read(USERS_ROLES_CARD_PATH);
   assert.ok(
     source.includes("dashboard-table-pagination"),
@@ -164,9 +166,10 @@ test("PR-7 AdminUsersRolesReadOnlyCard pagination uses dashboard-table-paginatio
     source.includes("dashboard-table-pagination-controls"),
     "AdminUsersRolesReadOnlyCard must use dashboard-table-pagination-controls class",
   );
-  assert.ok(
+  assert.equal(
     source.includes("dashboard-pagination-context"),
-    "AdminUsersRolesReadOnlyCard must include dashboard-pagination-context span",
+    false,
+    "admin pagination paints Anterior/Siguiente only: no page context span",
   );
 });
 

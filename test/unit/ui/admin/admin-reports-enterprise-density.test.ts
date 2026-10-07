@@ -172,7 +172,7 @@ test("Admin Informes expone barra avanzada para los campos visibles reales", () 
   assert.ok(card.includes("const buttonClassName = dashboardFilterActionClassName(density);"));
   assert.ok(card.includes("<FilterBar"));
   assert.ok(card.includes('<FilterField label="Estado" density={density} labelHidden={!mobile}>'));
-  assert.ok(card.includes("md:min-h-7"));
+  assert.equal(card.includes("data-admin-reports-toolbar"), false, "the summary strip is retired at every width");
   assert.ok(card.includes("[&_th]:h-7"));
   assert.ok(card.includes("type AdminReportsFilterState = {"));
   assert.ok(card.includes("report: string;"));

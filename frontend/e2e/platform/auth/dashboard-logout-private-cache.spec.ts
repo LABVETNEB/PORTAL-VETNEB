@@ -34,9 +34,10 @@ test.describe("dashboard logout — calls the stubbed logout endpoint and leaves
       });
     });
 
+    // The admin hub is retired at every width: the legacy URL lands on Resumen.
     await page.goto("/dashboard/admin?hub=1");
     await expect(
-      page.locator('[data-dashboard-module-hub="true"]'),
+      page.locator('[data-dashboard-module-workspace="admin"]'),
     ).toBeVisible({ timeout: 15_000 });
 
     await desktopLogoutButton(page).click();

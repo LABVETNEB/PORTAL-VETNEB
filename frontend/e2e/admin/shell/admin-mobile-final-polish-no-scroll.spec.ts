@@ -587,14 +587,17 @@ test("Admin desktop final polish smoke at 1280x800", async ({ page }, testInfo) 
   await expect(lateralDrawer).toBeVisible({ timeout: 15_000 });
   await expect(page.locator('[data-dashboard-mobile-nav="admin"]')).toBeHidden();
   await expect(page.locator('[data-admin-mobile-hub-launcher="true"]')).toBeHidden();
-  const desktopHub = page.locator('[data-dashboard-module-hub="true"]');
-  await expect(desktopHub).toBeVisible();
-  await expectInsideViewport(desktopHub, DESKTOP_VIEWPORT, "desktop launcher");
+  // Desktop/tablet space pass: the desktop hub is retired too; the legacy
+  // `?hub=1` entry lands on the Resumen workspace.
+  await expect(page.locator('[data-dashboard-module-hub="true"]')).toHaveCount(0);
+  const landing = page.locator('[data-dashboard-module-workspace="admin"]');
+  await expect(landing).toBeVisible({ timeout: 15_000 });
+  await expectInsideViewport(landing, DESKTOP_VIEWPORT, "desktop landing");
   assertSurfaceContract(
-    await readSurfaceContract(page, '[data-dashboard-module-hub="true"]'),
-    "desktop launcher",
+    await readSurfaceContract(page, '[data-dashboard-module-workspace="admin"]', false),
+    "desktop landing",
   );
-  await captureScreen(page, testInfo, DESKTOP_VIEWPORT.name, "launcher");
+  await captureScreen(page, testInfo, DESKTOP_VIEWPORT.name, "landing");
 
   for (const moduleScreen of MODULE_SCREENS) {
     await preparePage(

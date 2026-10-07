@@ -344,17 +344,6 @@ export function AdminFailedLoginAlertsReadOnlyCard({
             </select>
           </label>
 
-          <div className="surface-soft">
-            <p className="text-xs text-muted-foreground">Página</p>
-            <p className="mt-1 text-sm font-semibold text-vetneb-ink">
-              {page}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {snapshot
-                ? `${snapshot.failedLoginAlerts.length} visibles`
-                : "—"}
-            </p>
-          </div>
         </div>
 
         {error ? (
@@ -468,7 +457,7 @@ export function AdminFailedLoginAlertsReadOnlyCard({
 
         <div
           data-dashboard-adaptive-reserved-region="pager"
-          className="dashboard-table-pagination shrink-0 overflow-hidden"
+          className="dashboard-table-pagination shrink-0 overflow-hidden md:justify-center"
           style={DASHBOARD_TOUCH_PAGER_RESERVATION}
         >
           <div className="dashboard-table-pagination-controls">
@@ -481,14 +470,6 @@ export function AdminFailedLoginAlertsReadOnlyCard({
             >
               Anterior
             </Button>
-            <span
-              className="dashboard-pagination-context"
-              aria-live="polite"
-              aria-atomic="true"
-            >
-              Pág.&nbsp;{page}
-              {snapshot ? ` / ${pageCount}` : null}
-            </span>
             <Button
               type="button"
               variant="outline"

@@ -487,7 +487,7 @@ for (const viewport of [
   { width: 1024, height: 768 },
   { width: 1366, height: 768 },
 ] as const) {
-  test(`PRE-C05 desktop preservation at ${viewport.width}x${viewport.height}: descriptors stay, page count retired`, async ({ page }) => {
+  test(`desktop/tablet space pass at ${viewport.width}x${viewport.height}: descriptors and summary retired, actions relocated, page count retired`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await addAppCookies(page, [sessionCookie("admin", "populated"), A03_ADAPTIVE_DATASET_COOKIE]);
     await mockAdminClinics(page);
@@ -495,15 +495,28 @@ for (const viewport of [
     await suppressNextDevIndicator(page);
 
     const reports = page.locator('[data-dashboard-module-workspace="admin-report-upload"]');
-    await expect(reports.getByText("Cola administrativa, trazabilidad y documentos en una sola vista.")).toBeVisible({ timeout: 15_000 });
-    await expect(reports.locator('[data-admin-reports-toolbar="true"]')).toBeVisible();
-    await expect(reports.locator('[data-admin-reports-toolbar="true"]')).toContainText("entregados");
-    await expect(reports.getByText(/\d+ en página/)).toHaveCount(0);
+    const upload = reports.getByRole("button", { name: "Subir informe" }).filter({ visible: true });
+    await expect(upload).toBeVisible({ timeout: 15_000 });
+    await expect(reports.getByText("Cola administrativa, trazabilidad y documentos en una sola vista.")).toHaveCount(0);
+    await expect(reports.locator('[data-admin-reports-toolbar="true"]')).toHaveCount(0);
+    await expect(reports.getByText(/\d+ en página|por página|Página \d+/)).toHaveCount(0);
+    const uploadBox = await upload.boundingBox();
+    const filtersBox = await reports.locator('[data-admin-report-upload-filter-bar="advanced"]').boundingBox();
+    expect(uploadBox && filtersBox && uploadBox.y + uploadBox.height <= filtersBox.y + 1, "Subir informe sits above the filters").toBe(true);
 
     await page.goto("/dashboard/admin?module=admin-clinics");
     const clinics = page.locator('[data-dashboard-module-workspace="admin-clinics"]');
-    await expect(clinics.getByText("Administración de clínicas registradas · alto volumen.")).toBeVisible({ timeout: 15_000 });
-    await expect(clinics.getByPlaceholder("Buscar clínica por nombre, email o usuario...")).toBeVisible();
+    const search = clinics.getByPlaceholder("Buscar clínica por nombre, email o usuario...");
+    await expect(search).toBeVisible({ timeout: 15_000 });
+    await expect(clinics.getByText("Administración de clínicas registradas · alto volumen.")).toHaveCount(0);
     await expect(clinics.getByPlaceholder("Buscar clínica...")).toBeHidden();
+    const create = clinics.getByRole("button", { name: "Nueva clínica" }).filter({ visible: true });
+    const refresh = clinics.getByRole("button", { name: "Actualizar" }).filter({ visible: true });
+    const [searchBox, createBox, refreshBox] = await Promise.all([search.boundingBox(), create.boundingBox(), refresh.boundingBox()]);
+    expect(searchBox && createBox && refreshBox).toBeTruthy();
+    for (const box of [createBox!, refreshBox!]) {
+      expect(Math.abs(box.y + box.height / 2 - (searchBox!.y + searchBox!.height / 2)), "same row as the search").toBeLessThanOrEqual(2);
+    }
+    expect(searchBox!.x < createBox!.x && createBox!.x < refreshBox!.x, "[search] [Nueva clínica] [Actualizar]").toBe(true);
   });
 }

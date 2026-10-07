@@ -373,8 +373,14 @@ const A03_ADMIN_REPORT_STAGES = [
   "delivered",
 ];
 
+// Informes needs two complete pages at its largest adaptive limit: since the
+// admin desktop/tablet space pass returned the header band, 1920x1080 measures
+// 22 rows, which 40 reports could no longer fill twice. 80 keeps the dataset
+// "sized far beyond any viewport's capacity" without touching limit/offset.
+const A03_ADMIN_REPORTS_DATASET_SIZE = 80;
+
 const A03_ADMIN_REPORTS = Array.from(
-  { length: A03_ADMIN_DATASET_SIZE },
+  { length: A03_ADMIN_REPORTS_DATASET_SIZE },
   (_, index) => {
     const id = 7400 + index;
     return {

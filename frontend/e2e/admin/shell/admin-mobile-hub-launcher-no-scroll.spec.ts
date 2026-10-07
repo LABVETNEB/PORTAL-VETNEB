@@ -130,18 +130,25 @@ for (const viewport of [
   { width: 1280, height: 800 },
   { width: 1366, height: 768 },
 ] as const) {
-  test(`Admin desktop hub keeps lateral navigation and has no mobile launcher at ${viewport.width}x${viewport.height}`, async ({
+  test(`Admin desktop/tablet retires the hub, keeps lateral navigation and has no mobile launcher at ${viewport.width}x${viewport.height}`, async ({
     page,
   }) => {
+    // Desktop/tablet space pass: the hub is retired from 768px up too, so the
+    // legacy URL lands on Resumen there exactly as it does on phones.
     await page.setViewportSize(viewport);
     await setAdminSession(page, "populated");
     await page.goto("/dashboard/admin?hub=1");
     await suppressNextDevIndicator(page);
 
-    await expect(page.locator('[data-dashboard-module-hub="true"]')).toBeVisible({ timeout: 15_000 });
-    await expect(page).toHaveURL(/\/dashboard\/admin\?hub=1$/);
+    await expect(page).toHaveURL(/\/dashboard\/admin\?module=admin$/, { timeout: 15_000 });
+    await expect(page.locator('[data-dashboard-module-workspace="admin"]')).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('[data-dashboard-module-hub="true"]')).toHaveCount(0);
+    await expect(
+      page.locator('[data-dashboard-navigation-rail="admin"], [data-dashboard-navigation-drawer="admin"]').filter({ visible: true }),
+    ).toHaveCount(1);
+    await expect(page.locator('[data-dashboard-navigation-item="home"]').filter({ visible: true })).toHaveCount(0);
     await expect(page.locator('[data-dashboard-mobile-nav="admin"]')).toBeHidden();
     await expect(page.locator('[data-admin-mobile-hub-launcher="true"]')).toBeHidden();
-    await expect(page.getByText("Seleccione un módulo para acceder a sus funciones.", { exact: true })).toBeVisible();
+    await expect(page.getByText("Seleccione un módulo para acceder a sus funciones.", { exact: true })).toBeHidden();
   });
 }

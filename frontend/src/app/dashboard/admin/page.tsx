@@ -303,8 +303,6 @@ export default async function AdminPage({
     loadAdminSystemHealth(requestOptions),
   ]);
   const auditOverviewSnapshot = auditOverviewRead.snapshot;
-  const roleChangeSnapshot = roleChangeRead.snapshot;
-  const notificationSnapshot = notificationRead.snapshot;
   const systemHealth = systemHealthRead.snapshot;
   const initialAccessErrorStatus =
     initialModule === "audit-log"
@@ -667,23 +665,24 @@ export default async function AdminPage({
   // ── Sesiones workspace ──────────────────────────────────────────────────────
   // Single-viewport App Shell: the sessions card needs the full viewport height,
   // so password change moves into a compact dialog (button) instead of a sibling
-  // tab/card — keeping the card the primary, no-scroll surface.
+  // tab/card — keeping the card the primary, no-scroll surface. From md up the
+  // trigger sits in the card filter band, next to Actualizar.
+  const adminPasswordChangeAction = (
+    <ModuleDialog
+      title="Cambiar contraseña"
+      description="Actualizá tu contraseña de acceso sin cerrar la sesión actual."
+      trigger={
+        <Button type="button" variant="outline" size="sm" className="h-8 px-2.5 text-xs">
+          Cambiar contraseña
+        </Button>
+      }
+    >
+      <PasswordChangePanel variant="admin" />
+    </ModuleDialog>
+  );
   const sessionsWorkspaceSlot = (
     <section id="admin-sessions" className="flex min-h-0 flex-1 flex-col gap-2">
-      <div className="hidden shrink-0 items-center justify-end md:flex">
-        <ModuleDialog
-          title="Cambiar contraseña"
-          description="Actualizá tu contraseña de acceso sin cerrar la sesión actual."
-          trigger={
-            <Button type="button" variant="outline" size="sm">
-              Cambiar contraseña
-            </Button>
-          }
-        >
-          <PasswordChangePanel variant="admin" />
-        </ModuleDialog>
-      </div>
-      <AdminSessionsReadOnlyCard />
+      <AdminSessionsReadOnlyCard desktopActions={adminPasswordChangeAction} />
     </section>
   );
 
@@ -701,15 +700,6 @@ export default async function AdminPage({
       filters={auditFilters}
       eventOptions={auditEventOptions}
       actorTypeOptions={actorTypeOptions}
-      globalTotal={auditOverviewSnapshot.pagination.total}
-      roleChanges={{
-        total: roleChangeSnapshot.pagination.total,
-        latestDate: formatAuditDate(roleChangeSnapshot.items[0]?.createdAt ?? null),
-      }}
-      notifications={{
-        total: notificationSnapshot.pagination.total,
-        latestDate: formatAuditDate(notificationSnapshot.items[0]?.createdAt ?? null),
-      }}
     />
   );
 
@@ -722,11 +712,12 @@ export default async function AdminPage({
       <div className="hidden min-h-0 flex-1 flex-col md:flex">
         <ModuleTabs
           ariaLabel="Mantenimiento del sistema"
+          withActionsSlot
           tabs={[
             {
               id: "esquema",
               label: "Esquema",
-              content: <AdminSchemaHealthStatusCard />,
+              content: <AdminSchemaHealthStatusCard actionsInTabs />,
             },
             {
               id: "dry-run",
@@ -790,11 +781,6 @@ export default async function AdminPage({
                 "audit-log": auditLogWorkspaceSlot,
                 "admin-maintenance": maintenanceWorkspaceSlot,
               }}
-              systemStatus={systemStatus}
-              systemStatusLabel={formatSystemStatus(systemStatus)}
-              systemStatusVariant={getSystemStatusVariant(systemStatus)}
-              auditEntriesCount={auditOverviewSnapshot.pagination.total}
-              eventTypesCount={eventTypesCount}
             />
           </Suspense>
         </main>

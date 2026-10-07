@@ -1,6 +1,8 @@
 "use client";
 
 import {
+  createContext,
+  useContext,
   useEffect,
   useId,
   useMemo,
@@ -8,6 +10,7 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 
 export type ModuleTab = {
@@ -24,7 +27,25 @@ type ModuleTabsProps = {
   onTabChange?: (tabId: string) => void;
   className?: string;
   ariaLabel?: string;
+  /**
+   * Opt-in action region painted at the end of the tab bar. A tab panel can
+   * also hand its own actions to it through {@link ModuleTabsActions}. Omitted,
+   * the tablist renders exactly as before.
+   */
+  actions?: ReactNode;
+  withActionsSlot?: boolean;
 };
+
+const ModuleTabsActionsSlotContext = createContext<HTMLElement | null>(null);
+
+/**
+ * Renders its children in the tab bar of the nearest {@link ModuleTabs} that
+ * opted into an action region; renders nothing anywhere else.
+ */
+export function ModuleTabsActions({ children }: { children: ReactNode }) {
+  const slot = useContext(ModuleTabsActionsSlotContext);
+  return slot ? createPortal(children, slot) : null;
+}
 
 /**
  * Height-aware segmented tabs for the App Shell. The tablist stays fixed and the
@@ -38,8 +59,12 @@ export function ModuleTabs({
   onTabChange,
   className,
   ariaLabel = "Secciones del módulo",
+  actions,
+  withActionsSlot = false,
 }: ModuleTabsProps) {
   const baseId = useId();
+  const [actionsSlot, setActionsSlot] = useState<HTMLElement | null>(null);
+  const hasActionRegion = withActionsSlot || actions != null;
   const renderableTabs = useMemo(
     () => tabs.filter((tab) => tab.content !== null && tab.content !== false),
     [tabs],
@@ -90,33 +115,54 @@ export function ModuleTabs({
     });
   }
 
+  const tablist = (
+    <div
+      role="tablist"
+      aria-label={ariaLabel}
+      className={cn("dashboard-module-tablist", hasActionRegion && "min-w-0 flex-1")}
+    >
+      {renderableTabs.map((tab, index) => {
+        const isActive = tab.id === activeTab.id;
+        return (
+          <button
+            key={tab.id}
+            id={`${baseId}-tab-${tab.id}`}
+            type="button"
+            role="tab"
+            aria-selected={isActive}
+            aria-controls={`${baseId}-panel-${tab.id}`}
+            tabIndex={isActive ? 0 : -1}
+            data-module-tab={tab.id}
+            onClick={() => selectTab(tab.id)}
+            onKeyDown={(event) => handleKeyDown(event, index)}
+            className="dashboard-module-tab dashboard-btn-interactive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
+          >
+            <span>{tab.label}</span>
+            {tab.badge != null ? (
+              <span className="shrink-0">{tab.badge}</span>
+            ) : null}
+          </button>
+        );
+      })}
+    </div>
+  );
+
   return (
     <div className={cn("dashboard-module-tabs", className)} data-module-tabs="true">
-      <div role="tablist" aria-label={ariaLabel} className="dashboard-module-tablist">
-        {renderableTabs.map((tab, index) => {
-          const isActive = tab.id === activeTab.id;
-          return (
-            <button
-              key={tab.id}
-              id={`${baseId}-tab-${tab.id}`}
-              type="button"
-              role="tab"
-              aria-selected={isActive}
-              aria-controls={`${baseId}-panel-${tab.id}`}
-              tabIndex={isActive ? 0 : -1}
-              data-module-tab={tab.id}
-              onClick={() => selectTab(tab.id)}
-              onKeyDown={(event) => handleKeyDown(event, index)}
-              className="dashboard-module-tab dashboard-btn-interactive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
-            >
-              <span>{tab.label}</span>
-              {tab.badge != null ? (
-                <span className="shrink-0">{tab.badge}</span>
-              ) : null}
-            </button>
-          );
-        })}
-      </div>
+      {hasActionRegion ? (
+        <div className="flex min-w-0 shrink-0 items-center gap-2" data-module-tabs-bar="true">
+          {tablist}
+          <div
+            ref={setActionsSlot}
+            className="flex shrink-0 items-center gap-2 empty:hidden"
+            data-module-tabs-actions="true"
+          >
+            {actions}
+          </div>
+        </div>
+      ) : (
+        tablist
+      )}
 
       <div
         id={`${baseId}-panel-${activeTab.id}`}
@@ -125,7 +171,9 @@ export function ModuleTabs({
         data-module-tabpanel={activeTab.id}
         className="dashboard-module-tabpanel focus-visible:outline-none"
       >
-        {activeTab.content}
+        <ModuleTabsActionsSlotContext.Provider value={actionsSlot}>
+          {activeTab.content}
+        </ModuleTabsActionsSlotContext.Provider>
       </div>
     </div>
   );

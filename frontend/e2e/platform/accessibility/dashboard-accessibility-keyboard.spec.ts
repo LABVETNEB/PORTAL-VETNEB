@@ -153,58 +153,47 @@ test.describe("DashboardNotificationsBell — desktop panel role (PR-8)", () => 
   });
 });
 
-// ─── Admin module hub — keyboard & a11y ──────────────────────────────────────
-// AdminSectionTabs is defined but not rendered on any current page.
-// These tests exercise the real keyboard-accessible patterns on the admin hub:
-// module card buttons and workspace navigation.
+// ─── Admin lateral navigation — keyboard & a11y ──────────────────────────────
+// Desktop/tablet space pass: the admin hub is retired at every width, so the
+// keyboard path to a module is the lateral navigation (drawer >=1280px).
 
-test.describe("Admin module hub — keyboard & a11y (PR-8)", () => {
+test.describe("Admin lateral navigation — keyboard & a11y (PR-8)", () => {
   test.beforeEach(async ({ page }) => {
     await setAdminSession(page, "default");
     await page.goto("/dashboard/admin?hub=1");
     await expect(
-      page.locator('[data-dashboard-module-hub="true"]'),
+      page.locator('[data-dashboard-module-workspace="admin"]'),
     ).toBeVisible({ timeout: 8_000 });
   });
 
-  test("admin hub module cards have accessible button roles and aria-labels", async ({
+  test("admin navigation items are named links and no hub card remains", async ({
     page,
   }) => {
-    const hub = page.locator('[data-dashboard-module-hub="true"]');
-    const cards = hub.locator("button[data-dashboard-module-card]");
-    const count = await cards.count();
-    expect(count).toBeGreaterThanOrEqual(1);
-    const ariaLabel = await cards.first().getAttribute("aria-label");
-    expect(ariaLabel).toBeTruthy();
-    expect((ariaLabel ?? "").length).toBeGreaterThan(0);
+    await expect(page.locator('[data-dashboard-module-hub="true"]')).toHaveCount(0);
+    const items = page.locator('[data-dashboard-navigation-drawer="admin"] [data-dashboard-navigation-item]');
+    expect(await items.count()).toBeGreaterThanOrEqual(1);
+    await expect(items.first()).toHaveAccessibleName(/\S/);
   });
 
-  test("admin hub module card activates workspace via Enter key", async ({
+  test("an admin navigation item activates its workspace via Enter key", async ({
     page,
   }) => {
-    const hub = page.locator('[data-dashboard-module-hub="true"]');
-    const firstCard = hub
-      .locator("button[data-dashboard-module-card]")
-      .first();
-    await firstCard.focus();
+    const item = page.locator('[data-dashboard-navigation-drawer="admin"] [data-dashboard-navigation-item="audit-log"]');
+    await item.focus();
     await page.keyboard.press("Enter");
-    // After Enter, a workspace should be rendered
     await expect(
-      page.locator("[data-dashboard-module-workspace]"),
-    ).toBeVisible({ timeout: 3_000 });
+      page.locator('[data-dashboard-module-workspace="audit-log"]'),
+    ).toBeVisible({ timeout: 5_000 });
   });
 
-  test("admin workspace back button has accessible aria-label", async ({
+  test("admin workspace has no back-to-hub control", async ({
     page,
   }) => {
     await page.goto("/dashboard/admin?module=admin");
     await expect(
       page.locator('[data-dashboard-module-workspace="admin"]'),
     ).toBeVisible({ timeout: 8_000 });
-    const backBtn = page.getByRole("button", { name: /vista general/i });
-    await expect(backBtn).toBeVisible();
-    const ariaLabel = await backBtn.getAttribute("aria-label");
-    expect(ariaLabel).toMatch(/vista general/i);
+    await expect(page.getByRole("button", { name: /vista general/i })).toHaveCount(0);
   });
 
   test("admin workspace section has accessible label", async ({ page }) => {

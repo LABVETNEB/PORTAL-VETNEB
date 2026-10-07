@@ -18,15 +18,12 @@ import {
   type FilterBarDensity,
 } from "@/components/dashboard/FilterBar";
 import { ModuleDialog } from "@/components/dashboard/ModuleDialog";
-import {
-  ParticularTokensMetricStrip,
-  ParticularTokensMobileList,
-} from "@/components/dashboard/ParticularTokensCardPrimitives";
+import { ParticularTokensMobileList } from "@/components/dashboard/ParticularTokensCardPrimitives";
 import { ReportFileActions } from "@/components/dashboard/ReportDownloadButton";
 import { usePagedRows } from "@/components/dashboard/usePagedRows";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import {
@@ -551,11 +548,15 @@ export function AdminParticularTokensCard() {
     minItems: 1,
     maxItems: TOKENS_ADAPTIVE_MAX_ROWS,
   });
+  // The desktop table is capped at the observed maximum (18): since the
+  // desktop/tablet space pass returned the header band, tall viewports measure
+  // up to 21 rows, which the fixed two-page initial window (2 × 18) cannot
+  // cover. Capping the page keeps the request `limit` frozen.
   const desktopCapacity = useDashboardCanvasCapacity({
     canvasNode: desktopBodyNode,
     fallbackItems: TOKENS_FALLBACK_ROWS,
     minItems: TOKENS_FALLBACK_ROWS,
-    maxItems: TOKENS_ADAPTIVE_MAX_ROWS,
+    maxItems: TOKENS_MAX_OBSERVED_ADAPTIVE_ROWS,
   });
   const rowsPerPage = mobileCapacity.measured
     ? mobileCapacity.capacity
@@ -605,10 +606,6 @@ export function AdminParticularTokensCard() {
   );
   const pagedTokens = usePagedRows(filteredTokens, rowsPerPage);
   const visibleTokens = pagedTokens.pageItems;
-  const activeTokensCount = visibleTokens.filter((token) => token.isActive).length;
-  const linkedReportsCount = visibleTokens.filter(
-    (token) => token.hasLinkedReport,
-  ).length;
   const createStepIndex = getCreateStepIndex(createStep);
   const isLastCreateStep = createStep === "sample";
 
@@ -1300,17 +1297,9 @@ export function AdminParticularTokensCard() {
       data-dashboard-b12-module-card="true"
       className="dashboard-surface flex min-h-0 flex-1 flex-col overflow-hidden"
     >
-      <CardHeader className="hidden shrink-0 border-b border-vetneb-line/70 px-4 py-3 md:flex md:py-2">
-        <div className="flex flex-col gap-2 md:gap-1 lg:flex-row lg:items-center lg:justify-between">
-          <div className="min-w-0">
-            <CardTitle className="text-xl md:text-base">Tokens particulares</CardTitle>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Accesos sensibles, trazabilidad bajo demanda y acciones controladas.
-            </p>
-          </div>
-        </div>
-      </CardHeader>
-
+      {/* Desktop/tablet space pass: the "Tokens particulares" header and the
+          en página · activos · con informe · página metric strip are retired,
+          so the section tabs and the filters open the card. */}
       <CardContent className="flex min-h-0 flex-1 flex-col gap-1.5 px-4 py-2 md:gap-1.5 md:py-2">
         <div
           data-admin-particulars-toolbar="true"
@@ -1343,19 +1332,6 @@ export function AdminParticularTokensCard() {
               Generar token
             </Button>
           </div>
-
-          <ParticularTokensMetricStrip
-            data-dashboard-b14-metrics="admin-particular-tokens"
-            metrics={[
-              { label: "En página", value: visibleTokens.length },
-              { label: "Activos", value: activeTokensCount },
-              { label: "Con informe", value: linkedReportsCount },
-              { label: "Página", value: pagedTokens.page + 1 },
-            ]}
-            className="hidden min-h-8 items-center rounded-md border-0 bg-transparent md:flex"
-            itemClassName="min-w-[4.25rem] px-2 py-0.5 text-center"
-            valueClassName="text-base leading-4"
-          />
 
           <form
             className="flex w-full min-w-0 items-center gap-1 md:hidden"
@@ -1605,16 +1581,10 @@ export function AdminParticularTokensCard() {
 
           <div
             data-dashboard-adaptive-reserved-region="pager"
-            className="mt-2 hidden shrink-0 items-center justify-between gap-2 overflow-hidden border-t border-vetneb-line/65 px-1 text-xs text-muted-foreground md:mt-1 md:flex"
+            className="mt-2 hidden shrink-0 items-center justify-center gap-2 overflow-hidden border-t border-vetneb-line/65 px-1 text-xs text-muted-foreground md:mt-1 md:flex"
             style={DASHBOARD_PAGER_RESERVATION}
           >
-            <span>
-              {filteredTokens.length
-                ? `${pagedTokens.rangeStart}–${pagedTokens.rangeEnd}`
-                : "0 resultados"}{" "}
-              · {rowsPerPage} por página
-            </span>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-2">
               <Button
                 type="button"
                 variant="outline"
@@ -1628,7 +1598,6 @@ export function AdminParticularTokensCard() {
               >
                 Anterior
               </Button>
-              <span className="min-w-16 text-center">Página {pagedTokens.page + 1}</span>
               {!pagedTokens.hasNext && hasMoreFromServer ? (
                 <Button
                   type="button"

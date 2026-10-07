@@ -12,7 +12,7 @@ import { Loader2, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -160,7 +160,6 @@ export function AdminUsersRolesReadOnlyCard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [offset, setOffset] = useState(0);
-  const [jumpPageInput, setJumpPageInput] = useState("1");
   const [error, setError] = useState<string | null>(null);
   const [roleChangeMessage, setRoleChangeMessage] = useState<string | null>(null);
   const [changingUserKey, setChangingUserKey] = useState<string | null>(null);
@@ -402,89 +401,21 @@ export function AdminUsersRolesReadOnlyCard() {
     setOffset(offset + effectiveLimit);
   }
 
-  function goToPage(targetPage: number) {
-    const clampedPage = Math.min(Math.max(targetPage, 1), pageCount);
-    resetFiltersFeedback();
-    setOffset((clampedPage - 1) * effectiveLimit);
-  }
-
-  function handleJumpToPage() {
-    const parsedPage = Number.parseInt(jumpPageInput, 10);
-    if (!Number.isFinite(parsedPage)) {
-      setJumpPageInput(String(page));
-      return;
-    }
-    goToPage(parsedPage);
-  }
-
-  // Keep the jump input aligned with the current page whenever it changes
-  // externally (Anterior/Siguiente, filters, or a successful jump).
-  useEffect(() => {
-    setJumpPageInput(String(page));
-  }, [page]);
-
   return (
     <>
       <Card
         data-dashboard-b12-module-card="true"
         className="dashboard-surface hidden min-h-0 flex-1 flex-col overflow-hidden shadow-none hover:shadow-none md:flex"
       >
-      <CardHeader className="flex min-h-12 shrink-0 flex-row items-center justify-between gap-3 space-y-0 border-b border-vetneb-line/70 px-3 py-2 sm:px-4 md:min-h-10 md:py-1.5">
-        <div className="min-w-0">
-          <CardTitle className="text-base">Usuarios y roles</CardTitle>
-          <p
-            className={`line-clamp-2 text-xs sm:truncate ${
-              error
-                ? "text-destructive"
-                : roleChangeMessage
-                  ? "text-vetneb-teal"
-                  : "text-muted-foreground"
-            }`}
-            role={error ? "alert" : roleChangeMessage ? "status" : undefined}
-            title={error ?? roleChangeMessage ?? undefined}
-          >
-            {error ??
-              roleChangeMessage ??
-              "Permisos administrativos y de clínica con cambios auditados."}
-          </p>
-        </div>
-        <div
-          data-dashboard-b14-metrics="admin-users-roles"
-          className="hidden min-w-0 flex-1 grid-cols-3 divide-x divide-vetneb-line/70 md:grid"
-        >
-          <div className="min-w-0 px-2 text-center">
-            <span className="truncate text-[10px] text-muted-foreground">Total filtrado</span>
-            <strong className="text-sm font-semibold tabular-nums text-vetneb-ink">{snapshot?.total ?? "—"}</strong>
-          </div>
-          <div className="min-w-0 px-2 text-center">
-            <span className="truncate text-[10px] text-muted-foreground">Admins</span>
-            <strong className="text-sm font-semibold tabular-nums text-vetneb-ink">{snapshot?.totals.adminUsers ?? "—"}</strong>
-          </div>
-          <div className="min-w-0 px-2 text-center">
-            <span className="truncate text-[10px] text-muted-foreground">Clínicas</span>
-            <strong className="text-sm font-semibold tabular-nums text-vetneb-ink">{snapshot?.totals.clinicUsers ?? "—"}</strong>
-          </div>
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-8 shrink-0 px-2.5 text-xs md:h-7 md:px-2"
-          onClick={loadUsersRoles}
-          disabled={isPending || isMutatingRole}
-          aria-busy={isPending ? true : undefined}
-        >
-          {isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
-          {isPending ? "Actualizando..." : "Actualizar"}
-        </Button>
-      </CardHeader>
-
+      {/* Desktop/tablet space pass: the "Usuarios y roles" header and its
+          metric run are retired. Actualizar moves into the filter band, where
+          the error / role-change feedback keeps its visible, announced line. */}
       <CardContent className="flex min-h-0 flex-1 flex-col p-0">
         <div
           className="flex min-h-12 shrink-0 items-end gap-2 border-b border-vetneb-line/70 px-3 py-2 sm:px-4 md:min-h-10 md:py-1"
           aria-label="Filtros de usuarios y roles"
         >
-          <label className="grid min-w-0 flex-[2] gap-1 text-[11px] font-medium text-muted-foreground md:gap-0.5">
+          <label className="grid min-w-0 flex-[2] gap-1 text-[11px] font-medium text-muted-foreground md:max-w-md md:gap-0.5">
             Buscar
             <div className="relative">
               <Search
@@ -545,9 +476,30 @@ export function AdminUsersRolesReadOnlyCard() {
             </select>
           </label>
 
-          <span className="ml-auto hidden pb-2 text-[11px] text-muted-foreground md:inline">
-            {effectiveLimit} por página
-          </span>
+          {error || roleChangeMessage ? (
+            <p
+              data-admin-users-roles-desktop-feedback="true"
+              className={`min-w-0 flex-1 truncate pb-1.5 text-[11px] ${
+                error ? "text-destructive" : "text-vetneb-teal"
+              }`}
+              role={error ? "alert" : "status"}
+              title={error ?? roleChangeMessage ?? undefined}
+            >
+              {error ?? roleChangeMessage}
+            </p>
+          ) : null}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="ml-auto h-8 shrink-0 px-2.5 text-xs md:h-7 md:px-2"
+            onClick={loadUsersRoles}
+            disabled={isPending || isMutatingRole}
+            aria-busy={isPending ? true : undefined}
+          >
+            {isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
+            {isPending ? "Actualizando..." : "Actualizar"}
+          </Button>
         </div>
 
         {/* Measured rows region. It carries no vertical padding of its own: the
@@ -680,11 +632,11 @@ export function AdminUsersRolesReadOnlyCard() {
 
         <footer
           data-dashboard-adaptive-reserved-region="pager"
-          className="dashboard-table-pagination shrink-0 overflow-hidden border-t border-vetneb-line/70 px-3 text-xs text-muted-foreground sm:px-4"
+          className="dashboard-table-pagination shrink-0 overflow-hidden border-t border-vetneb-line/70 px-3 text-xs text-muted-foreground sm:px-4 md:justify-center"
           style={DASHBOARD_PAGER_RESERVATION}
           aria-label="Paginación de usuarios y roles"
         >
-          <span aria-live="polite">
+          <span className="sr-only" aria-live="polite">
             {users.length ? `${rangeStart}–${rangeEnd} de ${snapshot?.total ?? 0}` : "Sin usuarios"}
           </span>
           <div className="dashboard-table-pagination-controls">
@@ -694,54 +646,20 @@ export function AdminUsersRolesReadOnlyCard() {
               size="sm"
               disabled={!hasPreviousPage || disableUserActions}
               onClick={goToPreviousPage}
-              className="h-7 px-2 text-xs flex-1 sm:flex-none"
+              className="h-7 px-2.5 text-xs flex-1 sm:flex-none"
             >
               Anterior
             </Button>
-            <span
-              className="dashboard-pagination-context"
-              aria-live="polite"
-              aria-atomic="true"
-            >
-              Pág. {page} / {pageCount}
-            </span>
             <Button
               type="button"
               variant="outline"
               size="sm"
               disabled={!hasNextPage || disableUserActions}
               onClick={goToNextPage}
-              className="h-7 px-2 text-xs flex-1 sm:flex-none"
+              className="h-7 px-2.5 text-xs flex-1 sm:flex-none"
             >
               Siguiente
             </Button>
-            <div className="hidden items-center gap-1 md:flex">
-              <Input
-                type="number"
-                min={1}
-                max={pageCount}
-                value={jumpPageInput}
-                disabled={disableUserActions || pageCount <= 1}
-                onChange={(event) => setJumpPageInput(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    handleJumpToPage();
-                  }
-                }}
-                aria-label="Ir a la página"
-                className="h-7 w-14 px-1.5 text-xs leading-none"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={disableUserActions || pageCount <= 1}
-                onClick={handleJumpToPage}
-                className="h-7 px-2 text-xs"
-              >
-                Ir
-              </Button>
-            </div>
           </div>
         </footer>
       </CardContent>

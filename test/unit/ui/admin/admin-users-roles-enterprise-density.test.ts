@@ -87,8 +87,8 @@ test("PR-7A uses viewport-safe adaptive server pagination with a nine-row fallba
 test("PR-7A renders a compact desktop table and prioritized mobile list", () => {
   const card = read(CARD_PATH);
 
+  assert.equal(card.includes("Total filtrado"), false, "the desktop metric run is retired");
   for (const marker of [
-    "Total filtrado",
     "Tipo usuario",
     "Rol",
     'aria-label="Tabla de usuarios y roles administrativos"',

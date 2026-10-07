@@ -752,40 +752,42 @@ test.describe("B08 · admin module navigation", () => {
     });
   }
 
-  test("the explicit admin hub marks Inicio current and keeps every module reachable", async ({
+  test("a legacy ?hub=1 lands on Resumen: Inicio is retired and every module stays reachable", async ({
     page,
   }) => {
+    // Desktop/tablet space pass: the admin hub is retired from 768px up too, so
+    // the explicit hub URL resolves to the landing module (no persistence here:
+    // the default, Resumen) instead of painting a hub.
     test.setTimeout(180_000);
     await prepareRole(page, "admin");
     await page.setViewportSize({ width: 1366, height: 768 });
     await openSurface(page, adminHub, "/dashboard/admin?hub=1");
 
-    await expect(
-      page.locator(`${DRAWER_SELECTOR} [aria-current='page']`),
-      "hub: Inicio is the only current destination",
-    ).toHaveCount(1);
+    await expect(page, "hub: the legacy URL is replaced by the landing module").toHaveURL(
+      /\/dashboard\/admin\?module=admin$/,
+      { timeout: 20_000 },
+    );
+    await expectActiveModule(page, "admin", "drawer", "legacy hub -> Resumen");
     await expect(
       page.locator(`${DRAWER_SELECTOR} [data-dashboard-navigation-item='home']`),
-    ).toHaveAttribute("aria-current", "page");
-
-    // Every module stays reachable from the hub, alongside Inicio.
+      "hub: no Inicio item is painted",
+    ).toHaveCount(0);
     await expect(
       paintedBand(page, DRAWER_SELECTOR).locator(
         "[data-dashboard-navigation-item]",
       ),
-      "hub: the full admin module list stays reachable",
-    ).toHaveCount(11);
+      "the full admin module list stays reachable",
+    ).toHaveCount(10);
     await expect(
       page.locator('[data-dashboard-hub-root="true"]'),
-      "hub: DashboardModuleHub still renders",
-    ).toBeVisible();
+      "hub: DashboardModuleHub never renders",
+    ).toHaveCount(0);
 
-    // Entering a module from the hub gives it — and only it — aria-current.
     await bandItem(page, "admin-clinics", "drawer").click();
     await expect(page).toHaveURL(/\/dashboard\/admin\?module=admin-clinics$/, {
       timeout: 20_000,
     });
-    await expectActiveModule(page, "admin-clinics", "drawer", "hub -> module");
+    await expectActiveModule(page, "admin-clinics", "drawer", "Resumen -> module");
   });
 });
 
@@ -954,7 +956,8 @@ const ADMIN_HUB_SURFACE = REPRESENTATIVES.find(
 
 /**
  * The rail is the only band whose intrinsic block size can exceed the frame.
- * Admin carries eleven 56px items, so it asks for 672px (11 items + 10 gaps + the
+ * Admin carried eleven 56px items (ten since the desktop/tablet space pass retired
+ * Inicio), so it asked for 672px (11 items + 10 gaps + the
  * block padding) while the drawer's 40px items never come close. The probe
  * ladder above only samples tall viewports, so it cannot see this: 1024x600 is
  * a 1280x750 laptop at 125% zoom, lands inside the rail regime, and leaves the
@@ -968,7 +971,7 @@ const ADMIN_HUB_SURFACE = REPRESENTATIVES.find(
  * not `overflow-y: auto`, as the sanctioned answer.
  */
 const SHORT_RAIL_VIEWPORT = { width: 1024, height: 600 } as const;
-const ADMIN_RAIL_ITEM_COUNT = 11;
+const ADMIN_RAIL_ITEM_COUNT = 10;
 
 test.describe("B08 · rail destinations at short heights", () => {
   test("every admin destination stays visible and focusable without scrolling the frame", async ({

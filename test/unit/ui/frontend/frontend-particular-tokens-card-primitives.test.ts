@@ -53,7 +53,8 @@ test("PR-VIS-7 wires primitives only into admin and clinic token cards", () => {
       'from "@/components/dashboard/ParticularTokensCardPrimitives";',
     ),
   );
-  assert.ok(admin.includes("<ParticularTokensMetricStrip"));
+  // Desktop/tablet space pass: the admin metric strip is retired.
+  assert.equal(admin.includes("<ParticularTokensMetricStrip"), false);
   assert.ok(admin.includes("<ParticularTokensMobileList"));
   assert.ok(admin.includes('data-admin-particulars-mobile-list="true"'));
 

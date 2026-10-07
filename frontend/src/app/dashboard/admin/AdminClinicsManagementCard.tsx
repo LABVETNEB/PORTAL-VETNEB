@@ -10,7 +10,7 @@ import {
   useTransition,
 } from "react";
 import dynamic from "next/dynamic";
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Eye, EyeOff, Loader2, Pencil, Plus, RefreshCw, Search } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Eye, EyeOff, Loader2, Pencil, Plus, RefreshCw, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ModuleDialog } from "@/components/dashboard/ModuleDialog";
@@ -18,7 +18,6 @@ import {
   Card,
   CardContent,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import {
   Table,
@@ -40,7 +39,7 @@ import {
 } from "@/lib/api";
 import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
 import {
-  DASHBOARD_INLINE_PAGER_RESERVATION,
+  DASHBOARD_PAGER_RESERVATION,
   DASHBOARD_TOUCH_PAGER_RESERVATION,
 } from "@/components/dashboard/DashboardPager";
 import { formatDateTime } from "@/lib/utils";
@@ -243,8 +242,6 @@ export function AdminClinicsManagementCard() {
   const rows = useMemo(() => getClinicUserRows(snapshot), [snapshot]);
 
   const totalClinics = snapshot?.total ?? 0;
-  const pageStart = totalClinics > 0 ? offset + 1 : 0;
-  const pageEnd = Math.min(offset + effectiveLimit, totalClinics);
   const hasPrev = offset > 0;
   const hasNext = offset + effectiveLimit < totalClinics;
   const page = Math.floor(offset / effectiveLimit) + 1;
@@ -469,15 +466,11 @@ export function AdminClinicsManagementCard() {
       data-dashboard-b12-module-card="true"
       className="dashboard-surface flex min-h-0 flex-1 flex-col"
     >
-      <CardHeader className="shrink-0 flex flex-col gap-2 border-b border-vetneb-line/70 px-4 py-2 lg:flex-row lg:items-center lg:justify-between">
-        {/* Pre-C05 mobile space: the internal "Clínicas" descriptor is retired
-            below md; the mobile search sits right under the actions. */}
-        <div className="hidden min-w-0 md:block">
-          <CardTitle className="text-[0.95rem] leading-tight">Clínicas</CardTitle>
-          <p className="text-[0.72rem] text-muted-foreground">
-            Administración de clínicas registradas · alto volumen.
-          </p>
-        </div>
+      {/* The internal "Clínicas" descriptor is retired at every width
+          (pre-C05 below md, desktop/tablet space pass from md up). Below md
+          this band keeps the actions with the mobile search under them; from
+          md up the actions live in the search row of the card body. */}
+      <CardHeader className="shrink-0 flex flex-col gap-2 border-b border-vetneb-line/70 px-4 py-2 md:hidden">
         <div className="mb-0 flex flex-wrap items-center gap-2">
           <Button
             type="button"
@@ -519,7 +512,7 @@ export function AdminClinicsManagementCard() {
         </div>
       </CardHeader>
 
-      <CardContent className="flex min-h-0 flex-1 flex-col gap-2 px-4 pb-4 pt-2 md:pt-3">
+      <CardContent className="flex min-h-0 flex-1 flex-col gap-2 px-4 pb-4 pt-2 md:pb-2">
         <ModuleDialog
           open={isCreateOpen}
           onOpenChange={handleCreateDialogOpenChange}
@@ -650,8 +643,11 @@ export function AdminClinicsManagementCard() {
           <div className="clinical-alert-success">{successMessage}</div>
         ) : null}
 
-        <div className="hidden items-center justify-between gap-2 md:flex">
-          <div className="relative max-w-xs flex-1">
+        <div
+          data-admin-clinics-desktop-toolbar="true"
+          className="hidden items-center gap-2 md:flex"
+        >
+          <div className="relative min-w-0 max-w-md flex-1">
             <Search
               className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
               aria-hidden="true"
@@ -666,39 +662,28 @@ export function AdminClinicsManagementCard() {
               aria-label="Buscar clínicas"
             />
           </div>
-          {totalClinics > 0 ? (
-            <div
-              data-dashboard-adaptive-reserved-region="pager"
-              className="flex shrink-0 items-center gap-2 overflow-hidden text-xs text-muted-foreground"
-              style={DASHBOARD_INLINE_PAGER_RESERVATION}
-            >
-              <span className="tabular-nums">
-                {pageStart}–{pageEnd} de {totalClinics}
-              </span>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="h-8 w-8 p-0"
-                onClick={goToPreviousPage}
-                disabled={isBusy || !hasPrev}
-                aria-label="Página anterior"
-              >
-                <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="h-8 w-8 p-0"
-                onClick={goToNextPage}
-                disabled={isBusy || !hasNext}
-                aria-label="Página siguiente"
-              >
-                <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
-              </Button>
-            </div>
-          ) : null}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 shrink-0"
+            onClick={() => setIsCreateOpen(true)}
+            disabled={isBusy}
+          >
+            <Plus aria-hidden="true" />
+            Nueva clínica
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            className="h-8 shrink-0"
+            onClick={() => loadClinics()}
+            disabled={isBusy}
+            aria-busy={isPending ? true : undefined}
+          >
+            {isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <RefreshCw aria-hidden="true" />}
+            {isPending ? "Actualizando..." : "Actualizar"}
+          </Button>
         </div>
 
         <div
@@ -830,6 +815,39 @@ export function AdminClinicsManagementCard() {
             </TableBody>
           </Table>
         </div>
+
+        {/* Always mounted from md up: a pager that only appeared with data
+            would hand its reserved height back to the canvas before the first
+            response and re-page the table once it mounted. */}
+        <nav
+          data-dashboard-adaptive-reserved-region="pager"
+          className="hidden shrink-0 items-center justify-center gap-2 overflow-hidden border-t border-vetneb-line/65 text-xs text-muted-foreground md:flex"
+          style={DASHBOARD_PAGER_RESERVATION}
+          aria-label="Paginación de clínicas"
+        >
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-7 px-2.5 text-xs"
+            onClick={goToPreviousPage}
+            disabled={isBusy || !hasPrev}
+            aria-label="Página anterior"
+          >
+            Anterior
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-7 px-2.5 text-xs"
+            onClick={goToNextPage}
+            disabled={isBusy || !hasNext}
+            aria-label="Página siguiente"
+          >
+            Siguiente
+          </Button>
+        </nav>
 
         <div
           className="flex min-h-0 flex-1 flex-col gap-2 md:hidden"

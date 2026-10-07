@@ -727,7 +727,7 @@ test("B09 · the clinic full-route topology B10 owns is intact", () => {
   }
 });
 
-test("B09 · the admin hub B13 owns is intact", () => {
+test("B09 · the B13 hub primitives survive while the admin hub is retired", () => {
   const hub = "frontend/src/components/dashboard/DashboardModuleHub.tsx";
   const launcher =
     "frontend/src/components/dashboard/AdminMobileHubLauncher.tsx";
@@ -760,10 +760,13 @@ test("B09 · the admin hub B13 owns is intact", () => {
     controller.includes("subscribeAdminHubReset"),
     "the contracted hub-reset subscription stays on the controller",
   );
+  // Desktop/tablet space pass: the resolver is no longer scoped to the mobile
+  // regime; the null admin module resolves to the landing module at every width.
   assert.ok(
-    controller.includes("function resolveRetiredMobileHub()"),
-    "the null admin module below 768px resolves to the landing module",
+    controller.includes("function resolveRetiredHub()"),
+    "the null admin module resolves to the landing module",
   );
+  assert.equal(controller.includes("matchMedia"), false, "the resolver is not gated on a width regime");
 });
 
 // ── T8b · B09_CLINIC_HOME_ITEM = RETIRED ─────────────────────────────────────

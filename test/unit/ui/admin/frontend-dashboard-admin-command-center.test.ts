@@ -119,26 +119,27 @@ test("dashboard admin composes module hub, command center, and existing cards", 
   const controllerSource = read("frontend/src/app/dashboard/admin/AdminDashboardWorkspaceController.tsx");
 
   assert.ok(source.includes("<DashboardPageHeader"));
-  // PR5B: DashboardModuleHub and adminCards are inside AdminDashboardWorkspaceController.
   assert.ok(source.includes("<AdminDashboardWorkspaceController"));
   assert.ok(source.includes("<AdminCommandCenter"));
   assert.ok(source.includes("recentActivity={recentAdminActivity}"));
-  assert.ok(controllerSource.includes("const adminCards = ["));
-  assert.ok(controllerSource.includes('title: "Subir informe"'));
-  assert.ok(controllerSource.includes('"admin-report-upload"'));
+  // Desktop/tablet space pass: the admin hub (adminCards + DashboardModuleHub)
+  // is retired at every width; the module catalog meta stays in the controller.
+  assert.equal(controllerSource.includes("const adminCards = ["), false);
+  assert.equal(controllerSource.includes("DashboardModuleHub"), false);
+  assert.ok(controllerSource.includes('"admin-report-upload": {'));
   assert.ok(controllerSource.includes('title: "Clínicas"'));
-  assert.ok(controllerSource.includes('"admin-clinics"'));
+  assert.ok(controllerSource.includes('"admin-clinics": {'));
   assert.ok(controllerSource.includes('title: "Tokens particulares"'));
-  assert.ok(controllerSource.includes('"admin-particular-tokens"'));
+  assert.ok(controllerSource.includes('"admin-particular-tokens": {'));
   assert.ok(controllerSource.includes('title: "Estado del sistema"'));
-  assert.ok(controllerSource.includes('"admin-health"'));
+  assert.ok(controllerSource.includes('"admin-health": {'));
   assert.ok(source.includes("<AdminFailedLoginAlertsReadOnlyCard />"));
   assert.ok(source.includes("<AdminSchemaHealthStatusCard />"));
   assert.ok(source.includes("<AdminMaintenanceDryRunCard />"));
   assert.ok(source.includes("<AdminClinicsManagementCard />"));
   assert.ok(source.includes("<AdminParticularTokensCard />"));
   assert.ok(source.includes("<AdminPricingEditorCard />"));
-  assert.ok(source.includes("<AdminSessionsReadOnlyCard />"));
+  assert.ok(source.includes("<AdminSessionsReadOnlyCard desktopActions={adminPasswordChangeAction} />"));
   assert.ok(source.includes("<AdminUsersRolesReadOnlyCard />"));
   assert.equal(source.includes('className="h-24 md:hidden" aria-hidden="true"'), false);
 

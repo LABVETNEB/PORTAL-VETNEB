@@ -96,15 +96,16 @@ test("admin dashboard wires the panel with the admin variant", () => {
     ),
   );
   assert.ok(source.includes('<PasswordChangePanel variant="admin" />'));
-  // The existing sessions card and its anchor are preserved.
-  assert.ok(source.includes("<AdminSessionsReadOnlyCard />"));
+  // The existing sessions card and its anchor are preserved; from md up the
+  // dialog trigger is handed to the card filter band (desktop/tablet space pass).
+  assert.ok(source.includes("<AdminSessionsReadOnlyCard desktopActions={adminPasswordChangeAction} />"));
   assert.ok(source.includes('id="admin-sessions"'));
 
   // PR #1005: the security panel is surfaced above the sessions card so it is
   // visible immediately when the admin-sessions workspace opens.
   assert.ok(
     source.indexOf('<PasswordChangePanel variant="admin" />') <
-      source.indexOf("<AdminSessionsReadOnlyCard />"),
+      source.indexOf("<AdminSessionsReadOnlyCard desktopActions={adminPasswordChangeAction} />"),
     "admin password panel must render before the sessions card",
   );
 

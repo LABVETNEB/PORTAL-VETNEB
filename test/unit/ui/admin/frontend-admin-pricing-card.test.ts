@@ -57,10 +57,15 @@ test("admin pricing card uses admin pricing API helpers", () => {
   assert.ok(source.includes("type AdminPricingUpdatePayload"));
 });
 
-test("admin pricing card renders explicit title and state messages", () => {
+test("admin pricing card renders state messages without the retired title", () => {
   const source = read(ADMIN_PRICING_CARD_PATH);
 
-  assert.ok(source.includes("Lista de precios"));
+  // Desktop/tablet space pass: the "Lista de precios" header is retired; its
+  // actions ride the category tab bar (or a bare row when there are no tabs).
+  assert.equal(source.includes("<CardTitle"), false);
+  assert.equal(source.includes("<CardHeader"), false);
+  assert.ok(source.includes("actions={pricingActions}"));
+  assert.ok(source.includes("{showCategoryTabs ? null : ("));
   assert.ok(source.includes("No se pudieron cargar los precios. Intente nuevamente."));
   assert.ok(source.includes("No hay precios configurados."));
   assert.ok(source.includes("No se pudo actualizar el precio. Intente nuevamente."));
@@ -80,19 +85,32 @@ test("admin pricing card normalizes priceLabel and supports explicit clearing", 
   assert.ok(source.includes("payload.priceLabel = nextPriceLabel;"));
 });
 
-test("admin pricing card renders each pricing item as a manual form", () => {
+test("admin pricing card renders each pricing item as a compact manual form row", () => {
   const source = read(ADMIN_PRICING_CARD_PATH);
 
   assert.ok(source.includes("data-admin-pricing-item-form"));
-  assert.ok(source.includes("Estudio"));
-  assert.ok(source.includes("Precio"));
-  assert.ok(source.includes("Orden"));
-  assert.ok(source.includes("Estado"));
-  assert.ok(source.includes("Vista pública"));
-  assert.ok(source.includes("Última actualización"));
-  assert.ok(source.includes("lg:grid-cols-2"));
-  assert.ok(source.includes("bg-vetneb-surface-raised"));
+  for (const label of ["Estudio", "Precio", "Orden", "Estado", "Vista pública", "Última actualización"]) {
+    assert.ok(source.includes(`<span>${label}</span>`) || source.includes(`lg:block">${label}</span>`), `column label ${label}`);
+  }
+  for (const field of ["Precio de", "Orden de", "Estado de"]) {
+    assert.ok(source.includes(`aria-label={\`${field} ${"$"}{item.studyName}\`}`), `${field}: each field keeps an accessible name`);
+  }
+  assert.ok(source.includes("const PRICING_ROW_GRID_CLASS_NAME ="), "header and rows share one column grid");
+  assert.ok(source.includes('data-dashboard-row-pitch="regular"'), "rows lock to a row pitch, not to the form block");
+  assert.equal(source.includes('data-dashboard-row-pitch="form"'), false);
   assert.ok(source.includes("Guardar precio"));
+});
+
+test("admin pricing card shows every study of a category in one view, paging only on overflow", () => {
+  const source = read(ADMIN_PRICING_CARD_PATH);
+
+  assert.ok(source.includes("const fitsInOneView = !measured || items.length <= capacity;"));
+  assert.ok(source.includes("usePagedRows(items, fitsInOneView ? Math.max(1, items.length) : capacity)"));
+  assert.ok(source.includes("{fitsInOneView ? null : (\n        <CompactPager"), "the pager only mounts when the category overflows");
+  assert.equal((source.match(/<CompactPager\b/g) ?? []).length, 1);
+  // Data source unchanged: one GET of the whole catalog, no limit/offset.
+  assert.ok(source.includes("const snapshot = await getAdminPricing();"));
+  assert.equal(/\blimit\b|\boffset\b/.test(source), false, "pricing never sizes or offsets a request");
 });
 
 test("admin pricing card supports display order and active state updates", () => {

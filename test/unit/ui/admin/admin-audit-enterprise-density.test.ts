@@ -38,9 +38,13 @@ test("R-06 preserves the real audit-log navigation surface", () => {
   assert.ok(page.includes('"audit-log": auditLogWorkspaceSlot'));
   assert.ok(page.includes("<AdminAuditCard"));
   assert.ok(card.includes('id="audit-log"'));
-  assert.ok(card.includes('id="admin-event-summary"'));
-  assert.ok(card.includes('id="audit-role-changes"'));
-  assert.ok(card.includes('id="admin-notifications"'));
+  // Desktop/tablet space pass: the eventos · roles · avisos header run and its
+  // anchors are retired (no live producer links them: notifications route to
+  // ?module=audit-log since fix-admin-notification-module-destinations).
+  for (const retired of ['id="admin-event-summary"', 'id="audit-role-changes"', 'id="admin-notifications"']) {
+    assert.equal(card.includes(retired), false, `retired: ${retired}`);
+  }
+  assert.ok(card.includes('aria-label="Registro operativo"'));
   assert.ok(card.includes("dashboard-surface"));
 });
 

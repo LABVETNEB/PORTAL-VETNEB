@@ -210,17 +210,26 @@ test("admin users roles card changes clinic roles only after confirmation", asyn
   assert.notDeepEqual(await observe(ungated), gated);
 });
 
-test("admin users roles card renders title counters filters and table columns", () => {
+test("admin users roles card renders filters and table columns without the retired header", () => {
   const source = read(ADMIN_USERS_ROLES_CARD_PATH);
   const removedRoleDescription = "Permite cambiar roles de " + "usuarios";
   const removedLockoutDescription = "de clínica con confirmación explícita y bloqueo anti-" + "lockout.";
 
-  assert.ok(source.includes("Usuarios y roles"));
+  assert.ok(source.includes('aria-label="Usuarios y roles administrativos"'));
   assert.equal(source.includes(removedRoleDescription), false);
   assert.equal(source.includes(removedLockoutDescription), false);
-  assert.ok(source.includes("Total filtrado"));
-  assert.ok(source.includes("Admins"));
-  assert.ok(source.includes("Clínicas"));
+  // Desktop/tablet space pass: the "Usuarios y roles" header, its description
+  // and its Total filtrado · Admins · Clínicas counters are retired; Actualizar
+  // and the error / role-change feedback live in the filter band.
+  assert.equal(source.includes("<CardHeader"), false);
+  assert.equal(source.includes("Total filtrado"), false);
+  assert.equal(source.includes("Permisos administrativos y de clínica con cambios auditados."), false);
+  const filters = source.slice(source.indexOf('aria-label="Filtros de usuarios y roles"'), source.indexOf("Measured rows region"));
+  assert.ok(filters.includes('data-admin-users-roles-desktop-feedback="true"'));
+  assert.ok(filters.includes('role={error ? "alert" : "status"}'));
+  assert.ok(filters.includes("onClick={loadUsersRoles}"));
+  assert.ok(filters.indexOf('placeholder="Buscar usuario o clínica"') < filters.indexOf("Tipo usuario"));
+  assert.ok(filters.indexOf("Rol\n") < filters.indexOf("onClick={loadUsersRoles}"), "[Buscar] [Tipo] [Rol] ... [Actualizar]");
   assert.ok(source.includes("Tipo usuario"));
   assert.ok(source.includes("Rol"));
   assert.ok(source.includes(">Usuario</TableHead>"));
@@ -255,30 +264,21 @@ test("admin users roles card renders rows editable clinic actions and admin non-
   assert.ok(source.includes("No editable"));
 });
 
-test("admin users roles card supports desktop jump-to-page navigation", () => {
+test("admin users roles card desktop pagination is Anterior/Siguiente only, centered", () => {
   const source = read(ADMIN_USERS_ROLES_CARD_PATH);
 
-  assert.ok(source.includes('const [jumpPageInput, setJumpPageInput] = useState("1");'));
-  assert.ok(source.includes("function goToPage(targetPage: number)"));
-  assert.ok(
-    source.includes(
-      "const clampedPage = Math.min(Math.max(targetPage, 1), pageCount);",
-    ),
-  );
-  assert.ok(source.includes("resetFiltersFeedback();"));
-  assert.ok(
-    source.includes("setOffset((clampedPage - 1) * effectiveLimit);"),
-  );
-  assert.ok(source.includes("function handleJumpToPage()"));
-  assert.ok(
-    source.includes("const parsedPage = Number.parseInt(jumpPageInput, 10);"),
-  );
-  assert.ok(source.includes("if (!Number.isFinite(parsedPage)) {"));
-  assert.ok(source.includes("setJumpPageInput(String(page));"));
-  assert.ok(source.includes('aria-label="Ir a la página"'));
-  assert.ok(source.includes('if (event.key === "Enter") {'));
-  assert.ok(source.includes("handleJumpToPage();"));
-  assert.ok(source.includes("disabled={disableUserActions || pageCount <= 1}"));
+  // Desktop/tablet space pass (Nico): the jump-to-page field and every painted
+  // page number / range are retired; offset paging itself is unchanged.
+  for (const retired of ["jumpPageInput", "handleJumpToPage", "function goToPage(", 'aria-label="Ir a la página"', "por página"]) {
+    assert.equal(source.includes(retired), false, `retired: ${retired}`);
+  }
+  assert.ok(source.includes("setOffset(Math.max(offset - effectiveLimit, 0));"));
+  assert.ok(source.includes("setOffset(offset + effectiveLimit);"));
+  const footer = source.slice(source.indexOf('aria-label="Paginación de usuarios y roles"') - 400, source.indexOf("</footer>"));
+  assert.ok(footer.includes("dashboard-table-pagination shrink-0") && footer.includes("md:justify-center"), "the controls are centered");
+  assert.ok(footer.includes('<span className="sr-only" aria-live="polite">'), "the range is announced, not painted");
+  assert.equal(/Pág\.|dashboard-pagination-context/.test(footer), false, "no page state is painted");
+  assert.ok(footer.indexOf("onClick={goToPreviousPage}") < footer.indexOf("onClick={goToNextPage}"));
 });
 
 test("admin users roles card keeps empty state and pagination without sensitive-field notice", () => {

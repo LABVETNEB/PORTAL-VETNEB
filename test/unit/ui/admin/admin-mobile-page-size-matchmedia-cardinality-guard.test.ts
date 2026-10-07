@@ -26,16 +26,15 @@ const NON_CARDINAL_MATCHMEDIA_ALLOWLIST = new Set([
   `${ADMIN_ROOT}/AdminMobileHealthModule.tsx`,
   MAINTENANCE_MODULE,
   `${ADMIN_ROOT}/AdminMobilePricingModule.tsx`,
-  `${ADMIN_ROOT}/AdminDashboardWorkspaceController.tsx`,
 ]);
 
-test("the controller's matchMedia is the mobile-regime hub gate and nothing else", () => {
+test("the controller owns no matchMedia and no cardinality", () => {
+  // The mobile-regime hub gate left with the desktop/tablet space pass: the
+  // hub is retired at every width, so the controller queries no media at all.
   const source = read(`${ADMIN_ROOT}/AdminDashboardWorkspaceController.tsx`);
-  assert.equal((source.match(/matchMedia\(/g) ?? []).length, 1, "one regime query");
-  assert.ok(source.includes("window.matchMedia(ADMIN_MOBILE_REGIME_QUERY)"));
-  assert.ok(source.includes('const ADMIN_MOBILE_REGIME_QUERY = "(max-width: 767px)";'));
+  assert.equal(source.includes("matchMedia"), false, "no regime query survives");
   assert.equal(/limit|offset|rowsPerPage|pageSize|capacity/i.test(source), false,
-    "the controller owns no cardinality: matchMedia cannot feed a page size from here");
+    "the controller owns no cardinality");
 });
 
 function collectFiles(relativeRoot: string): string[] {

@@ -306,7 +306,7 @@ test("C02 · centered CollectionPager is a landmark with the touch reservation, 
   assert.equal(text(slotted), "PREVSTATENEXT");
 });
 
-test("C02 · compact CollectionPager announces the visible range and total inside the standard reservation", () => {
+test("C02 · compact CollectionPager announces the visible range and total inside the standard reservation, painting Anterior/Siguiente only", () => {
   const middle = render(CollectionPager, {
     variant: "compact",
     page: 1,
@@ -331,7 +331,10 @@ test("C02 · compact CollectionPager announces the visible range and total insid
   const [live] = findAll(middle, (node) => node.attrs["aria-live"] === "polite");
   assert.equal(live.attrs["aria-atomic"], "true");
   assert.equal(text(live), "4–6 de 9 grupos");
-  assert.equal(pageState(middle), "Pág. 2 / 3");
+  // Admin desktop/tablet space pass: the range is announced, never painted,
+  // and no page state is rendered.
+  assert.deepEqual(live.attrs.className, ["sr-only"], "the range is announced to assistive tech only");
+  assert.equal(findAll(middle, (node) => node.attrs["data-dashboard-pager-state"] === "true").length, 0, "no painted page state");
 
   const [prev, next] = buttons(middle);
   assert.deepEqual(
@@ -342,10 +345,7 @@ test("C02 · compact CollectionPager announces the visible range and total insid
     [next.attrs["data-dashboard-pager-next"], next.attrs["aria-label"], next.attrs.onClick, next.attrs.disabled],
     ["true", "Página siguiente", "onNext", false],
   );
-  for (const button of [prev, next]) {
-    const [icon] = button.children as PagerNode[];
-    assert.equal(icon.attrs["aria-hidden"], "true", "the icon is decorative; the aria-label names the control");
-  }
+  assert.deepEqual([text(prev), text(next)], ["Anterior", "Siguiente"], "the controls carry visible text");
 
   const empty = render(CollectionPager, {
     variant: "compact", page: 0, pageCount: 1, rangeStart: 0, rangeEnd: 0, total: 0, hasPrev: false, hasNext: false,
@@ -384,11 +384,14 @@ test("C02 · a built-in control is enabled only when it has a callback to naviga
   assert.deepEqual([builtIn.attrs["aria-label"], builtIn.attrs.disabled], ["Página siguiente", false]);
 });
 
-test("C02 · both variants share one zero-based page contract", () => {
-  for (const variant of ["centered", "compact"] as const) {
-    const base = variant === "centered"
-      ? { variant, "aria-label": "P" }
-      : { variant, rangeStart: 1, rangeEnd: 1, total: 1, hasPrev: false, hasNext: false };
+test("C02 · the centered variant keeps the zero-based page contract; the compact one paints no page state", () => {
+  const compact = { variant: "compact", rangeStart: 1, rangeEnd: 1, total: 1, hasPrev: false, hasNext: false } as const;
+  for (const [page, pageCount] of [[0, 3], [2, 3], [5, 3], [0, 0]] as const) {
+    const node = render(CollectionPager, { ...compact, page, pageCount });
+    assert.equal(findAll(node, (child) => child.attrs["data-dashboard-pager-state"] === "true").length, 0);
+  }
+  for (const variant of ["centered"] as const) {
+    const base = { variant, "aria-label": "P" };
     const state = (page: number, pageCount: number) => pageState(render(CollectionPager, { ...base, page, pageCount }));
     assert.equal(state(0, 3), "Pág. 1 / 3", `${variant}: page 0 is the first page`);
     assert.equal(state(2, 3), "Pág. 3 / 3", `${variant}: page count - 1 is the last page`);
@@ -409,7 +412,9 @@ const LEGACY_CONTROL_BASE = [
 const LEGACY_CENTERED_CONTROL = [
   ...LEGACY_CONTROL_BASE, "dashboard-pagination-btn", "font-semibold", "px-3", "shadow-sm", "text-xs", "transition-colors",
 ].sort();
-const LEGACY_COMPACT_CONTROL = [...LEGACY_CONTROL_BASE, "dashboard-btn-interactive", "w-8"].sort();
+// The compact control became a text button with the admin desktop/tablet
+// space pass (Anterior/Siguiente only, no icon-only controls).
+const LEGACY_COMPACT_CONTROL = [...LEGACY_CONTROL_BASE, "dashboard-btn-interactive", "font-semibold", "px-2.5", "text-xs"].sort();
 
 function reservation(size: string) {
   return {
@@ -445,11 +450,7 @@ function legacyCompactControl(step: "prev" | "next", disabled: boolean): PagerNo
       onClick: step === "prev" ? "onPrev" : "onNext",
       type: "button",
     },
-    children: [{
-      tag: "svg",
-      attrs: { "aria-hidden": "true", className: ["h-4", "w-4"], "data-icon": step === "prev" ? "chevron-left" : "chevron-right" },
-      children: [],
-    }],
+    children: [step === "prev" ? "Anterior" : "Siguiente"],
   };
 }
 
@@ -530,12 +531,11 @@ test("C02 · CompactPager adapter reproduces the legacy compact DOM through Coll
       style: reservation("var(--dash-pagination-h, 2.5rem)"),
     },
     children: [
-      { tag: "span", attrs: { "aria-atomic": "true", "aria-live": "polite" }, children: ["1–4 de 12 estudios"] },
+      { tag: "span", attrs: { "aria-atomic": "true", "aria-live": "polite", className: ["sr-only"] }, children: ["1–4 de 12 estudios"] },
       {
         tag: "div",
         attrs: { className: ["flex", "gap-2", "items-center"] },
         children: [
-          { tag: "span", attrs: { className: ["text-muted-foreground", "text-xs"], "data-dashboard-pager-state": "true" }, children: ["Pág. 1 / 3"] },
           legacyCompactControl("prev", true),
           legacyCompactControl("next", false),
         ],

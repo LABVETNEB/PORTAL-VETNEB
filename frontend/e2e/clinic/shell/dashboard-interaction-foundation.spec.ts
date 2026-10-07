@@ -193,19 +193,17 @@ test.describe("dashboard interaction foundation — smoke (PR-1)", () => {
     await expect(page.locator('[data-dashboard-module-hub="true"]')).toHaveCount(0);
   });
 
-  // ── Admin: still hub-based (unchanged product) ───────────────────────────────
+  // ── Admin: no hub either (desktop/tablet space pass) ─────────────────────────
 
-  // Bare /dashboard/admin is a landing, not the hub: AdminDashboardWorkspaceController's
-  // one-shot restore effect replaces it with ?module=<lastModule ?? DEFAULT_ADMIN_MODULE>
-  // unless the URL already carries module= or hub=1. ?hub=1 is the sole durable hub
-  // state (buildHubHref("admin") / isHubRequested), so it is the only entry this
-  // assertion can measure without racing that replace.
-  test("admin /dashboard/admin?hub=1 loads module hub", async ({ page }) => {
+  // The admin hub is retired at every width: a legacy ?hub=1 resolves to the
+  // landing module (last module, else Resumen) and paints no hub.
+  test("admin /dashboard/admin?hub=1 loads the landing workspace, no hub", async ({ page }) => {
     await setAdminSession(page, "default");
     await page.goto("/dashboard/admin?hub=1");
     await expect(
-      page.locator('[data-dashboard-module-hub="true"]'),
+      page.locator('[data-dashboard-module-workspace="admin"]'),
     ).toBeVisible({ timeout: 8_000 });
+    await expect(page.locator('[data-dashboard-module-hub="true"]')).toHaveCount(0);
   });
 
   test("admin /dashboard/admin?module=admin-clinics renders workspace", async ({
@@ -218,21 +216,15 @@ test.describe("dashboard interaction foundation — smoke (PR-1)", () => {
     ).toBeVisible({ timeout: 8_000 });
   });
 
-  test("admin workspace Volver button keeps dashboard-btn-interactive (PR-1 contract)", async ({
+  test("admin workspace has no Vista general control (lateral nav owns navigation)", async ({
     page,
   }) => {
-    // The admin hub still uses the "Vista general" back control, so the original
-    // PR-1 `dashboard-btn-interactive` contract is asserted there (the clinic
-    // workspace no longer has it — the rail owns navigation).
     await setAdminSession(page, "default");
     await page.goto("/dashboard/admin?module=admin-clinics");
     const workspace = page.locator(
       '[data-dashboard-module-workspace="admin-clinics"]',
     );
     await expect(workspace).toBeVisible({ timeout: 8_000 });
-
-    const volverBtn = workspace.locator('button[aria-label="Vista general"]');
-    await expect(volverBtn).toBeVisible();
-    await expect(volverBtn).toHaveClass(/dashboard-btn-interactive/);
+    await expect(workspace.locator('button[aria-label="Vista general"]')).toHaveCount(0);
   });
 });

@@ -95,19 +95,20 @@ async function mockAdminClinicsUpdate(page: Page) {
   );
 }
 
-// Navigate to the admin-clinics workspace.
-// PR5C: the admin hub is shown by default; clicking the Clínicas card opens the
-// workspace and renders AdminClinicsManagementCard directly — no tabs exist in
-// the workspace model.
+// Navigate to the admin-clinics workspace, which renders
+// AdminClinicsManagementCard directly — no tabs exist in the workspace model.
 // toPass retries the click+verify sequence in case the first click fires before
 // React has attached its onClick handler (CI cold-start hydration race).
+// Desktop/tablet space pass: the admin hub is retired, so `?hub=1` lands on
+// Resumen and Clínicas is reached through the lateral navigation item.
 async function navigateToGestionTab(page: Page) {
-  const clinicasCard = page.locator('[data-dashboard-module-card="admin-clinics"]');
-  await expect(clinicasCard).toBeVisible({ timeout: 5_000 });
+  await expect(page.locator('[data-dashboard-module-workspace="admin"]')).toBeVisible({ timeout: 10_000 });
+  const clinicasItem = page.locator('[data-dashboard-navigation-item="admin-clinics"]:visible');
+  await expect(clinicasItem).toBeVisible({ timeout: 5_000 });
 
   await expect(async () => {
-    if (await clinicasCard.isVisible()) {
-      await clinicasCard.click();
+    if (await clinicasItem.isVisible()) {
+      await clinicasItem.click();
     }
     await expect(
       page.locator('[data-dashboard-module-workspace="admin-clinics"]'),
