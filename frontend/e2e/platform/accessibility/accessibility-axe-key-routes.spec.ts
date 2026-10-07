@@ -8,7 +8,7 @@ type RouteCase = {
   label: string;
   path: string;
   ready: string;
-  mobileReady?: string;
+  readyUrl?: RegExp;
   session?: SessionSurface;
 };
 
@@ -32,11 +32,12 @@ const routeCases: RouteCase[] = [
     session: "clinic",
   },
   {
-    label: "admin dashboard hub",
-    path: "/dashboard/admin?hub=1",
-    ready: '[data-dashboard-module-hub="true"]',
-    // Pre-C05: the mobile hub is retired; `?hub=1` lands on the landing module.
-    mobileReady: '[data-dashboard-module-workspace="admin"]',
+    // The admin hub is retired at every width: a bare /dashboard/admin with no
+    // persisted module lands on Resumen, replaced in place to its canonical URL.
+    label: "admin dashboard landing",
+    path: "/dashboard/admin",
+    ready: '[data-dashboard-module-workspace="admin"]',
+    readyUrl: /\/dashboard\/admin\?module=admin$/,
     session: "admin",
   },
 ];
@@ -89,15 +90,11 @@ test.describe("PR-VIS-8 axe accessibility on key routes", () => {
           response?.ok(),
           `${routeCase.path} should return a successful response`,
         ).toBeTruthy();
-        await expect(
-          page
-            .locator(
-              viewport.name === "mobile" && routeCase.mobileReady
-                ? routeCase.mobileReady
-                : routeCase.ready,
-            )
-            .first(),
-        ).toBeVisible({ timeout: 8_000 });
+        await expect(page.locator(routeCase.ready).first()).toBeVisible({ timeout: 8_000 });
+        if (routeCase.readyUrl) {
+          await expect(page).toHaveURL(routeCase.readyUrl, { timeout: 8_000 });
+          await expect(page.locator('[data-dashboard-module-hub="true"]')).toHaveCount(0);
+        }
 
         const results = await new AxeBuilder({ page })
           .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
