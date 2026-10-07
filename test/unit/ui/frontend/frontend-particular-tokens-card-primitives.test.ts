@@ -63,10 +63,11 @@ test("PR-VIS-7 wires primitives only into admin and clinic token cards", () => {
       'from "@/components/dashboard/ParticularTokensCardPrimitives";',
     ),
   );
-  assert.ok(clinic.includes('from "@/components/dashboard/ModuleMetricRun";'));
-  assert.ok(clinic.includes("<ModuleMetricRun"));
+  // Clinic desktop/tablet space pass: the summary run and the list header
+  // band (title, description, "Pág. N") are retired at every width.
+  assert.equal(clinic.includes("ModuleMetricRun"), false);
   assert.ok(clinic.includes("<ParticularTokensPanel"));
-  assert.ok(clinic.includes("<ParticularTokensPanelHeader"));
+  assert.equal(clinic.includes("ParticularTokensPanelHeader"), false);
   assert.ok(clinic.includes("<ParticularTokensPanelBody"));
   assert.ok(clinic.includes("<ParticularTokensPanelFooter"));
   assert.ok(clinic.includes("<ParticularTokensEmptyPanel"));

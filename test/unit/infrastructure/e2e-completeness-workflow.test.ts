@@ -310,7 +310,9 @@ test("automatic workflow coverage is derived from catalog cohorts and equals ful
   // +1: public professional dynamic detail E2E.
   // +1: served PWA surface E2E (public/pwa/public-pwa-served-surface.spec.ts).
   // +1: C04 Clínicas admin column sort (admin/clinics/admin-clinics-column-sort.spec.ts).
-  assert.equal(E2E_SUITE_CATALOG.length, 101);
+  // +1: CLINIC-DT clinic desktop/tablet space contract
+  // (clinic/shell/dashboard-clinic-desktop-tablet-space.spec.ts).
+  assert.equal(E2E_SUITE_CATALOG.length, 102);
 
   const partitionUnion = new Set(PARTITION_COHORTS.flatMap((cohort) => E2E_COHORT_SPECS[cohort]));
   assert.deepEqual([...partitionUnion].sort(), [...E2E_COHORT_SPECS.full].sort());

@@ -46,9 +46,10 @@ test.beforeAll(() => {
 
 test.describe("B14 · metrics relocation", () => {
   // Admin desktop/tablet space pass: the four admin metric runs B14 relocated
-  // are retired with the headers that hosted them (reference captures); the
-  // clinic run keeps its detailed desktop cards.
-  test("desktop keeps the clinic metrics and retires the four admin metric runs", async ({ page }) => {
+  // are retired with the headers that hosted them (reference captures). Clinic
+  // desktop/tablet space pass: the clinic summary run and the "Métricas
+  // operativas" intro are retired too; the detailed desktop cards stay.
+  test("desktop keeps the clinic metric cards and retires every metric run", async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 768 });
 
     for (const surface of SURFACES) {
@@ -62,7 +63,19 @@ test.describe("B14 · metrics relocation", () => {
           "true",
         );
         await expect(commandCenter.locator(".dashboard-kpi-pill")).toHaveCount(0);
-        await expect(commandCenter.getByText("Métricas operativas")).toBeVisible();
+        await expect(
+          page.locator("[data-dashboard-b14-metrics]"),
+          "clinic-operaciones: the summary run is retired at every width",
+        ).toHaveCount(0);
+        const heading = commandCenter.getByRole("heading", { name: "Métricas operativas" });
+        const headingBox = await heading.boundingBox();
+        expect(
+          (headingBox?.width ?? 0) * (headingBox?.height ?? 0),
+          "the intro heading stays only as the section's accessible name",
+        ).toBeLessThanOrEqual(1);
+        await expect(
+          commandCenter.getByText("Vista rápida de informes, pendientes y actividad logística del día."),
+        ).toBeHidden();
         const desktopStats = commandCenter.locator(".dashboard-metric-card:visible");
         await expect(desktopStats, "desktop clinic metrics retain the detailed cards").toHaveCount(4);
         await expect(desktopStats.getByText("Planes de ruta", { exact: true })).toBeVisible();
@@ -87,9 +100,11 @@ test.describe("B14 · metrics relocation", () => {
   // The product contract changed — that band is redundant on mobile and its
   // 29px were returned to the module — so the assertion is inverted rather than
   // dropped: the run must not paint, the band must not survive as an empty
-  // strip, and the chip band must have taken the freed height. What B14 itself
-  // established and still holds is asserted unchanged below it: the phone never
-  // renders the desktop metric cards.
+  // strip, and the chip band must have taken the freed height. The clinic
+  // desktop/tablet space pass then retired the run from desktop as well, so it
+  // is no longer mounted at all. What B14 itself established and still holds is
+  // asserted unchanged below it: the phone never renders the desktop metric
+  // cards.
   test("mobile clinic retires the metric band and returns its height to the tabs", async ({
     page,
   }) => {
@@ -104,35 +119,29 @@ test.describe("B14 · metrics relocation", () => {
     await expect(commandCenter.locator(".dashboard-metric-card:visible")).toHaveCount(0);
 
     const metricRun = commandCenter.locator('[data-dashboard-b14-metrics="clinic-operaciones"]');
-    await expect(metricRun, "the run stays mounted for desktop").toHaveCount(1);
-    await expect(metricRun, "the run must not paint on a phone").toBeHidden();
+    await expect(metricRun, "the run is retired at every width").toHaveCount(0);
 
-    const band = await metricRun.evaluate((element) => {
+    const band = await commandCenter.evaluate((card) => {
       const px = (raw: string) => Number.parseFloat(raw) || 0;
       const paints = (node: Element) => node.getClientRects().length > 0;
-      const host = element.parentElement;
-      const card = element.closest("section.dashboard-surface");
-      const cardStyle = card ? window.getComputedStyle(card) : null;
-      const firstPainted = card ? (Array.from(card.children).find(paints) ?? null) : null;
+      const cardStyle = window.getComputedStyle(card);
+      const firstPainted = Array.from(card.children).find(paints) ?? null;
+      const childrenBeforeChips = Array.from(card.children).findIndex(
+        (child) => child.getAttribute("role") === "tablist",
+      );
 
       return {
-        runHeight: element.getBoundingClientRect().height,
-        runRects: element.getClientRects().length,
-        hostHeight: host ? host.getBoundingClientRect().height : -1,
-        hostRects: host ? host.getClientRects().length : -1,
+        childrenBeforeChips,
         firstPaintedRole: firstPainted ? firstPainted.getAttribute("role") : null,
         firstPaintedOffset: firstPainted
           ? firstPainted.getBoundingClientRect().top -
-            (card ? card.getBoundingClientRect().top : 0) -
-            (cardStyle ? px(cardStyle.borderBlockStartWidth) : 0)
+            card.getBoundingClientRect().top -
+            px(cardStyle.borderBlockStartWidth)
           : -1,
       };
     });
 
-    expect(band.runHeight, "the run must occupy no band").toBe(0);
-    expect(band.runRects, "the run must generate no box").toBe(0);
-    expect(band.hostRects, "the header band must not paint as an empty strip").toBe(0);
-    expect(band.hostHeight, "the header band must occupy no height").toBe(0);
+    expect(band.childrenBeforeChips, "no header band survives above the chips").toBe(0);
     expect(band.firstPaintedRole, "the chip band must be the card's first painted child").toBe(
       "tablist",
     );

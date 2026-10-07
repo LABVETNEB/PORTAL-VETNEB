@@ -57,6 +57,13 @@ type PasswordChangePanelProps = {
   density?: PasswordChangeDensity;
   title?: string;
   description?: string;
+  /**
+   * From 768px up the panel sits inside a disclosure row that already names
+   * it (clinic Perfil, desktop/tablet space pass): its own title band stops
+   * painting (the title stays as an `sr-only` heading) and the content
+   * padding tightens. Below 768px nothing changes.
+   */
+  embeddedFromMd?: boolean;
 };
 
 type PasswordFormState = {
@@ -100,6 +107,7 @@ export function PasswordChangePanel({
   density = "default",
   title = DEFAULT_TITLE,
   description = DEFAULT_DESCRIPTION,
+  embeddedFromMd = false,
 }: PasswordChangePanelProps) {
   const isCompact = density === "compact";
   const fieldId = useId();
@@ -176,7 +184,7 @@ export function PasswordChangePanel({
       )}
     >
       {isCompact ? (
-        <div className="sr-only sm:hidden">
+        <div className={cn("sr-only sm:hidden", embeddedFromMd && "md:block")}>
           <h3>{title}</h3>
           <p>{description}</p>
         </div>
@@ -185,6 +193,7 @@ export function PasswordChangePanel({
         className={cn(
           "border-b border-vetneb-line/70 px-5 py-4",
           isCompact && "hidden sm:flex",
+          embeddedFromMd && "md:hidden",
         )}
       >
         <CardTitle className="text-base">{title}</CardTitle>
@@ -195,12 +204,14 @@ export function PasswordChangePanel({
           "px-5 py-4",
           isCompact &&
             "flex min-h-0 flex-1 flex-col px-3 py-2.5 sm:block sm:px-5 sm:py-4",
+          embeddedFromMd && "md:px-3 md:py-2.5",
         )}
       >
         <form
           className={cn(
             "space-y-3",
             isCompact && "space-y-2 sm:space-y-3",
+            embeddedFromMd && "md:space-y-2",
           )}
           onSubmit={handleSubmit}
         >

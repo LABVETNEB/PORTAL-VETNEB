@@ -58,9 +58,13 @@ test("clinic public profile card exposes required publication fields", () => {
   assert.ok(source.includes("missingRequiredFields"));
   assert.ok(source.includes("missingRecommendedFields"));
   assert.ok(source.includes("publicationErrors"));
-  assert.ok(source.includes("qualityScore"));
-  assert.ok(source.includes("minimumQualityScore"));
   assert.ok(source.includes("isSearchEligible"));
+  // Clinic desktop/tablet space pass: the "Completitud" summary run (the only
+  // reader of qualityScore/minimumQualityScore) is retired with the rest of
+  // the red-marked summary; the publication badge and the phone completion
+  // line keep reading the publication snapshot.
+  assert.equal(source.includes("ModuleMetricRun"), false);
+  assert.ok(source.includes("getPublicationLabel(profile)"));
 });
 
 test("clinic public profile editor keeps mobile fields operable", () => {
@@ -73,9 +77,40 @@ test("clinic public profile editor keeps mobile fields operable", () => {
   assert.ok(source.includes("ModuleCardSections"));
   assert.ok(source.includes('label: "Contacto"'));
   assert.ok(source.includes("h-12 w-12 sm:h-16 sm:w-16"));
-  assert.ok(source.includes('surfaceId="clinic-perfil"'));
   assert.ok(source.includes("min-h-0 flex-1 overflow-hidden"));
   assert.equal(source.includes("overflow-y-auto"), false);
+});
+
+test("clinic public profile editor is single-open from 768px up without losing state", () => {
+  const source = read(PROFILE_CARD_PATH);
+
+  // One section source of truth for chips (<768px) and disclosure rows (>=768px).
+  assert.ok(source.includes("activeId={activeTabId}"));
+  assert.ok(source.includes("onActiveIdChange={setActiveTabId}"));
+  assert.ok(source.includes("aria-expanded={isOpen}"));
+  assert.ok(source.includes("aria-controls={`${sectionBaseId}-section-${sectionId}`}"));
+  assert.ok(source.includes('"hidden h-8 w-full'), "rows paint from md only");
+  // Order: avatar, Datos, Contacto, Contenido, Cambiar contraseña, then save.
+  const order = [
+    "{statusTab}",
+    'renderSectionToggle("datos")',
+    'renderSectionToggle("contacto")',
+    'renderSectionToggle("contenido")',
+    "renderSectionToggle(PASSWORD_TAB_ID)",
+    'data-clinic-profile-desktop-actions="true"',
+  ].map((needle) => source.indexOf(needle));
+  assert.ok(order.every((index) => index > 0), "every stack element exists");
+  assert.deepEqual([...order].sort((a, b) => a - b), order, "stack order");
+  // Values live in formState; the password panel and the avatar stay mounted.
+  assert.ok(source.includes("{isOpen || keepMounted ? content : null}"));
+  assert.ok(source.includes('<PasswordChangePanel variant="clinic" density="compact" embeddedFromMd />,'));
+  assert.match(source, /embeddedFromMd \/>,\s+true,\s+\)/, "the password panel is kept mounted");
+  assert.equal(source.includes("renderProfileForm"), false, "one profile form, not one per section");
+  assert.equal((source.match(/id=\{PROFILE_FORM_ID\}/g) ?? []).length, 1);
+  // Save keeps its handler and stays a form submit; width is capped on desktop.
+  assert.ok(source.includes('onSubmit={handleSubmit}'));
+  assert.ok(source.includes("form={PROFILE_FORM_ID}"));
+  assert.ok(source.includes("md:max-w-3xl"));
 });
 
 test("frontend api exposes clinic public profile helpers", () => {

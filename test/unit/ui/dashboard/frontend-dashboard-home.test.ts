@@ -247,7 +247,10 @@ test("dashboard home clinic command center presentational props contain operatio
   assert.ok(source.includes("informe(s) pendiente(s) de entrega."));
   assert.ok(source.includes("visita(s) de campo activa(s) en curso."));
   assert.ok(source.includes("Sin pendientes operativos detectados."));
-  assert.ok(source.includes("<ModuleMetricRun"));
+  // Clinic desktop/tablet space pass: the summary run above the chips is
+  // retired; the Métricas tab's StatsCards carry the same figures.
+  assert.equal(source.includes("<ModuleMetricRun"), false);
+  assert.ok(source.includes("<StatsCards stats={stats} />"));
   assert.ok(source.includes("Informes recientes"));
   assert.ok(source.includes("Visitas de campo"));
   assert.ok(source.includes("reportsLoadError ?"));

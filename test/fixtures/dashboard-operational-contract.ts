@@ -405,7 +405,9 @@ export const SUPER_SEARCH_CONTRACTS: readonly SuperSearchContract[] = [
     emptyState: '"Sin tokens para los filtros aplicados"',
     errorState: "load error surfaced by the card; the bar disappears when tokens is empty",
     renderPolicy: "when-tokens-loaded",
-    desktopVisibility: 'FilterBar from md: up ("mb-2 hidden shrink-0 md:grid")',
+    // Clinic desktop/tablet space pass: the bar moved into the toolbar band,
+    // left of Actualizar / Generar token particular, so it lost its `mb-2`.
+    desktopVisibility: 'FilterBar from md: up, in the toolbar band ("hidden shrink-0 md:grid")',
     mobileAccess: "ModuleDialog variant (data-clinic-access-filter-bar=advanced-mobile)",
     markers: [
       "onSubmit={applyAdvancedFilters}",
@@ -418,7 +420,7 @@ export const SUPER_SEARCH_CONTRACTS: readonly SuperSearchContract[] = [
       "disabled={isLoadingTokens}",
       "onClick={() => void loadTokens(effectiveFetchLimit)}",
       "{tokens.length ? renderAdvancedFilterForm() : null}",
-      "mb-2 hidden shrink-0 md:grid",
+      "hidden shrink-0 md:grid",
       'data-clinic-access-filter-bar={mobile ? "advanced-mobile" : "advanced"}',
       '"Filtros avanzados de tokens clínica"',
     ],
@@ -537,7 +539,7 @@ export const DASHBOARD_OPERATIONAL_DRIFT: readonly DashboardDriftRecord[] = [
     runtimeSourcePath: "frontend/src/components/dashboard/ClinicParticularTokensCard.tsx",
     runtimeMarkers: [
       "{tokens.length ? renderAdvancedFilterForm() : null}",
-      "mb-2 hidden shrink-0 md:grid",
+      "hidden shrink-0 md:grid",
       '"Filtros avanzados de tokens clínica mobile"',
     ],
     resolution: "runtime-prevails",

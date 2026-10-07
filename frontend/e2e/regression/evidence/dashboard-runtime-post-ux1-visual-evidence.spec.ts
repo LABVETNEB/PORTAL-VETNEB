@@ -1,5 +1,5 @@
 import { writeFile } from "node:fs/promises";
-import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { expect, test, type Locator, type Page, type TestInfo } from "@playwright/test";
 import { setClinicSession } from "../../helpers/session";
 import { MAX_DOCUMENT_SCROLL_DELTA_PX } from "../../helpers/zero-scroll-contract";
 
@@ -206,13 +206,30 @@ async function writeMetrics(testInfo: TestInfo, metrics: VisualMetrics[]) {
   );
 }
 
+/** Phones navigate with the five chips; from 768px up "Estado" is the always-visible avatar. */
+function profileNavigationLabels(viewport: (typeof VIEWPORTS)[number]) {
+  return PROFILE_TABS.filter((profileTab) => viewport.width < 768 || profileTab.id !== "estado").map(
+    (profileTab) => profileTab.label,
+  );
+}
+
+function profileNavigationControl(
+  editor: Locator,
+  viewport: (typeof VIEWPORTS)[number],
+  label: string,
+) {
+  return viewport.width < 768
+    ? editor.getByRole("tab", { name: label, exact: true })
+    : editor.getByRole("button", { name: label, exact: true });
+}
+
 async function collectMetrics(
   page: Page,
   viewport: (typeof VIEWPORTS)[number],
   tab: (typeof PROFILE_TABS)[number],
 ) {
   return page.evaluate(
-    ({ tabId, viewportName, tabLabel, tabLabels }) => {
+    ({ tabId, viewportName, tabLabel, tabLabels, desktop }) => {
       function toBounds(element: Element | null) {
         if (!element) return null;
         const rect = element.getBoundingClientRect();
@@ -246,12 +263,19 @@ async function collectMetrics(
       }
 
       const main = document.querySelector<HTMLElement>("main.dashboard-main");
+      // Clinic desktop/tablet space pass: from 768px up the section
+      // navigation is the stack of single-open disclosure rows under the
+      // always-visible avatar; below 768px it is the chip tablist.
       const tablist = document.querySelector<HTMLElement>(
-        '[data-clinic-profile-editor="true"] .dashboard-module-card-chips',
+        desktop
+          ? '[data-clinic-profile-editor="true"] [data-clinic-profile-stack="true"]'
+          : '[data-clinic-profile-editor="true"] .dashboard-module-card-chips',
       );
       const tabButtons = Array.from(
         document.querySelectorAll<HTMLElement>(
-          '[data-clinic-profile-editor="true"] [role="tab"]',
+          desktop
+            ? '[data-clinic-profile-editor="true"] [data-clinic-profile-section-toggle]'
+            : '[data-clinic-profile-editor="true"] [role="tab"]',
         ),
       );
       const tabRows = new Set(
@@ -338,7 +362,8 @@ async function collectMetrics(
             ) ?? null;
           return {
             label,
-            selected: button?.getAttribute("aria-selected") === "true",
+            selected:
+              button?.getAttribute(desktop ? "aria-expanded" : "aria-selected") === "true",
             bounds: toBounds(button),
           };
         }),
@@ -349,7 +374,8 @@ async function collectMetrics(
       tabId: tab.id,
       viewportName: viewport.name,
       tabLabel: tab.label,
-      tabLabels: PROFILE_TABS.map((profileTab) => profileTab.label),
+      tabLabels: profileNavigationLabels(viewport),
+      desktop: viewport.width >= 768,
     },
   );
 }
@@ -384,19 +410,21 @@ test("clinic profile runtime visual evidence after UX1", async ({ page }, testIn
     const editor = page.locator('[data-clinic-profile-editor="true"]');
     await expect(editor).toBeVisible();
 
-    for (const profileTab of PROFILE_TABS) {
-      await expect(
-        editor.getByRole("tab", { name: profileTab.label, exact: true }),
-      ).toBeVisible();
+    for (const label of profileNavigationLabels(viewport)) {
+      await expect(profileNavigationControl(editor, viewport, label)).toBeVisible();
+    }
+    if (viewport.width >= 768) {
+      await expect(editor.getByRole("tab"), "no chip tablist from 768px up").toHaveCount(0);
+      await expect(editor.getByText("Avatar o logo", { exact: true })).toBeVisible();
     }
     await expect(
       editor.getByRole("tab", { name: "Acceso", exact: true }),
     ).toHaveCount(0);
 
     for (const profileTab of PROFILE_TABS) {
-      await editor
-        .getByRole("tab", { name: profileTab.label, exact: true })
-        .click();
+      if (viewport.width < 768 || profileTab.id !== "estado") {
+        await profileNavigationControl(editor, viewport, profileTab.label).click();
+      }
       await expect(
         editor.locator(`[data-clinic-profile-panel="${profileTab.id}"]`),
       ).toBeVisible();

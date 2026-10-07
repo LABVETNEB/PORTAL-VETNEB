@@ -978,8 +978,9 @@ export type LeafTarget = {
   readonly pageLabelSelector: string | null;
   /**
    * `phone-only`: the label is painted below 768px only. From 768px up the
-   * admin pagers paint Anterior/Siguiente and nothing else (admin desktop/tablet
-   * space pass), so there the helper requires the label to be ABSENT and proves
+   * admin pagers (admin desktop/tablet space pass) and the clinic module-shell
+   * pagers (clinic desktop/tablet space pass) paint Anterior/Siguiente and
+   * nothing else, so there the helper requires the label to be ABSENT and proves
    * the transition from what the pager and the collection really do: the
    * previous control turns enabled and the rendered rows change (plus, for
    * `server-request`, the single advancing request and a complete page 2).
@@ -1389,6 +1390,10 @@ export const A03_OBSERVERS: Readonly<Record<A03ModuleId, ModuleObserver>> = Obje
           '[data-clinic-reports-mobile-row="true"]',
         ],
         pageLabelSelector: '[data-clinic-reports-pagination-status="true"]',
+        // Clinic desktop/tablet space pass: "Pág. N / M" paints below 768px only.
+        pageLabelRegime: "phone-only",
+        prevSelector:
+          '[data-clinic-reports-pagination-controls="true"] >> [aria-label="Página anterior"]',
         nextSelector:
           '[data-clinic-reports-pagination-controls="true"] >> [aria-label="Página siguiente"]',
       },
@@ -1410,6 +1415,11 @@ export const A03_OBSERVERS: Readonly<Record<A03ModuleId, ModuleObserver>> = Obje
         rowSelectors: ['[data-clinic-logistics-row="true"]'],
         pageLabelSelector:
           '[data-clinic-logistics-pagination-footer="true"] [data-dashboard-pager-state="true"]',
+        // Clinic desktop/tablet space pass: the pager opts into the phone-only
+        // page state (`pageStateRegime`).
+        pageLabelRegime: "phone-only",
+        prevSelector:
+          '[data-clinic-logistics-pagination-footer="true"] [aria-label="Página anterior"]',
         nextSelector:
           '[data-clinic-logistics-pagination-footer="true"] [data-dashboard-pager-next="true"]',
       },
@@ -1433,6 +1443,10 @@ export const A03_OBSERVERS: Readonly<Record<A03ModuleId, ModuleObserver>> = Obje
           '[data-clinic-access-mobile-row="true"]',
         ],
         pageLabelSelector: '[data-clinic-access-pagination-status="true"]',
+        // Clinic desktop/tablet space pass: "Página N / M" paints below 768px only.
+        pageLabelRegime: "phone-only",
+        prevSelector:
+          '[data-clinic-access-pagination-controls="true"] >> [aria-label="Página anterior"]',
         nextSelector:
           '[data-clinic-access-pagination-controls="true"] >> [aria-label="Página siguiente"]',
       },

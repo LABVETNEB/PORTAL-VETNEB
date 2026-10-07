@@ -137,16 +137,20 @@ test("B14 · ClinicCommandCenter leaves metric ownership to the Metrics tab", ()
 
 // ── Metrics section ──────────────────────────────────────────────────────────
 
-test("ClinicCommandCenter renders metrics section heading and keeps the shared metric run in its card header", () => {
+test("ClinicCommandCenter keeps the metrics heading as the section name and paints no intro or summary run from 768px up", () => {
   const source = read(CLINIC_COMMAND_CENTER_PATH);
 
   assert.ok(source.includes("Métricas operativas"));
-  assert.ok(source.includes("dashboard-section-heading"));
-  assert.ok(source.includes("dashboard-section-description"));
+  assert.ok(source.includes('aria-labelledby="clinic-command-center-heading"'));
+  // Clinic desktop/tablet space pass: the heading stays the section's
+  // accessible name (sr-only from md), the description stops painting from md,
+  // and the card header run is retired. Phones keep both lines unchanged.
+  assert.ok(source.includes('className="dashboard-section-heading md:sr-only"'));
+  assert.ok(source.includes('className="dashboard-section-description md:hidden"'));
   assert.ok(source.includes("Vista rápida de informes, pendientes y actividad logística del día."));
-  assert.ok(source.includes("<ModuleMetricRun"));
-  assert.ok(source.includes('surfaceId="clinic-operaciones"'));
-  assert.ok(source.includes('import { ModuleMetricRun } from "@/components/dashboard/ModuleMetricRun";'));
+  assert.equal(source.includes("ModuleMetricRun"), false);
+  assert.equal(source.includes('surfaceId="clinic-operaciones"'), false);
+  assert.equal(source.includes("header={"), false, "no band above the chips");
 });
 
 test("ClinicCommandCenter shows metrics error alert when statsLoadError is true", () => {

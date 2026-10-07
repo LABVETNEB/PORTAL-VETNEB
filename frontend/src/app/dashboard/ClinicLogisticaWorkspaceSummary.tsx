@@ -10,7 +10,6 @@ import { DashboardPager } from "@/components/dashboard/DashboardPager";
 import { DashboardRefreshButton } from "@/components/dashboard/DashboardRefreshButton";
 import { ModuleDialog } from "@/components/dashboard/ModuleDialog";
 import { ModuleCard } from "@/components/dashboard/ModuleCard";
-import { ModuleMetricRun } from "@/components/dashboard/ModuleMetricRun";
 import { usePagedRows } from "@/components/dashboard/usePagedRows";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { ROUTES } from "@/lib/routes";
@@ -67,19 +66,10 @@ export function ClinicLogisticaWorkspaceSummary({
       ariaLabel="Visitas de campo recientes de la clínica"
       dataAttributes={{ "data-clinic-mobile-module": "logistica" }}
     >
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-vetneb-line/70 p-1.5">
-        {/* Desktop-only below: the host stays because it carries "Abrir módulo
-            completo", and retiring just the run returns the wrapped 16px line
-            plus the 8px flex row-gap to that action. */}
-        <ModuleMetricRun
-          className="hidden md:flex"
-          surfaceId="clinic-logistica-workspace"
-          metrics={[
-            { key: "visitas", label: "Visitas", value: recentVisits.length },
-            { key: "activas", label: "Activas", value: recentVisits.filter((visit) => visit.status === "in_progress").length },
-            { key: "completadas", label: "Completadas", value: recentVisits.filter((visit) => visit.status === "done").length },
-          ]}
-        />
+      {/* Clinic desktop/tablet space pass: the summary run is retired, so the
+          band carries only "Abrir módulo completo", right-aligned from 768px
+          up. Below 768px it keeps its previous start alignment. */}
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-vetneb-line/70 p-1.5 md:justify-end">
         {fullModuleLink}
       </div>
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-2">
@@ -145,6 +135,7 @@ export function ClinicLogisticaWorkspaceSummary({
             <DashboardPager
               className="w-full border-t border-vetneb-line/65"
               aria-label="Paginación de visitas recientes"
+              pageStateRegime="phone-only"
               page={pagedVisits.page}
               pageCount={pagedVisits.pageCount}
               hasPrev={pagedVisits.hasPrev}

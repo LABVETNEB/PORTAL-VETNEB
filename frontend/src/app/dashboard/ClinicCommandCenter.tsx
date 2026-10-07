@@ -1,5 +1,4 @@
 import type { Report, FieldVisit, DashboardStats } from "@/types";
-import { ModuleMetricRun } from "@/components/dashboard/ModuleMetricRun";
 import { StatsCards } from "@/components/dashboard/StatsCards";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
 import { EmptyState } from "@/components/dashboard/EmptyState";
@@ -92,27 +91,6 @@ export function ClinicCommandCenter({
       cardAttributeValue="true"
       chipAttribute="data-clinic-command-center-chip"
       panelAttribute="data-clinic-command-center-panel"
-      header={
-        /* The run is this band's ONLY child, so retiring it alone below `md`
-           would leave the host painting its own `py-1.5` + `border-b` — a 13px
-           empty strip, measured on all six phone viewports. Both halves are
-           retired: the host leaves the flow so the chip band becomes the card's
-           first painted child, and the run keeps the same `hidden md:flex`
-           grammar the mapped Admin references use, so its OWN computed display
-           is `none` below `md` instead of merely inheriting an unpainted
-           ancestor. Desktop is untouched. */
-        <div className="flex shrink-0 items-center border-b border-vetneb-line/70 px-2 py-1.5 text-xs text-muted-foreground max-md:hidden">
-          <ModuleMetricRun
-            className="hidden md:flex"
-            surfaceId="clinic-operaciones"
-            metrics={[
-              { key: "informes", label: "Informes", value: stats?.totalReports ?? "—" },
-              { key: "pendientes", label: "Pendientes", value: stats?.pendingReports ?? "—" },
-              { key: "visitas-activas", label: "Visitas activas", value: stats?.activeVisits ?? "—" },
-            ]}
-          />
-        </div>
-      }
         sections={[
           {
             id: "metricas",
@@ -122,14 +100,17 @@ export function ClinicCommandCenter({
                 className="flex min-h-0 flex-1 flex-col gap-3"
                 aria-labelledby="clinic-command-center-heading"
               >
-                <div>
+                {/* From 768px up the heading stays only as the section's
+                    accessible name and the description stops painting: the
+                    chips already say "Métricas" right above the cards. */}
+                <div className="md:contents">
                   <h2
                     id="clinic-command-center-heading"
-                    className="dashboard-section-heading"
+                    className="dashboard-section-heading md:sr-only"
                   >
                     Métricas operativas
                   </h2>
-                  <p className="dashboard-section-description">
+                  <p className="dashboard-section-description md:hidden">
                     Vista rápida de informes, pendientes y actividad logística del día.
                   </p>
                 </div>

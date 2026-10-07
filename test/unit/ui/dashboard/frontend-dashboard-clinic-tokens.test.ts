@@ -511,7 +511,9 @@ test("clinic token generation keeps generated token block list refresh and reset
   assert.ok(source.includes('type="checkbox"'));
   assert.ok(source.includes("Cerrar token visible"));
   assert.ok(source.includes("disabled={!isGeneratedTokenConfirmed}"));
-  assert.ok(source.includes("Últimos tokens de la clínica"));
+  // Clinic desktop/tablet space pass: the list header ("Últimos tokens de la
+  // clínica") is retired; the refresh action keeps the same fetch window.
+  assert.equal(source.includes("Últimos tokens de la clínica"), false);
   assert.ok(source.includes('onClick={() => void loadTokens(effectiveFetchLimit)}'));
   assert.ok(source.includes("setFormState(INITIAL_FORM_STATE);"));
   assertOrdered(submitSuccess, [

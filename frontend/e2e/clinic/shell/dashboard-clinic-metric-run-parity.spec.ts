@@ -28,12 +28,21 @@ const VIEWPORTS = [
 //
 // The five full routes keep `true`: they are out of this scope by decision, not
 // by omission, and a change there must fail this matrix.
+//
+// The five module-shell workspaces used to keep a desktop-only run (`false`).
+// The clinic desktop/tablet space pass retired those runs at every width (red
+// on the reference captures), so they are asserted ABSENT below, with the same
+// "freed band is taken" geometry on the card: a run reappearing anywhere still
+// fails here.
+const RETIRED_WORKSPACE_RUNS = [
+  ["operaciones", "/dashboard?module=operaciones", "clinic-operaciones", "operaciones"],
+  ["informes-workspace", "/dashboard?module=informes", "clinic-informes-workspace", "informes"],
+  ["logistica-workspace", "/dashboard?module=logistica", "clinic-logistica-workspace", "logistica"],
+  ["perfil", "/dashboard?module=perfil", "clinic-perfil", "perfil"],
+  ["tokens", "/dashboard?module=tokens", "clinic-tokens", "tokens"],
+] as const;
+
 const SURFACES = [
-  ["operaciones", "/dashboard?module=operaciones", "clinic-operaciones", false, true],
-  ["informes-workspace", "/dashboard?module=informes", "clinic-informes-workspace", false, false],
-  ["logistica-workspace", "/dashboard?module=logistica", "clinic-logistica-workspace", false, false],
-  ["perfil", "/dashboard?module=perfil", "clinic-perfil", false, false],
-  ["tokens", "/dashboard?module=tokens", "clinic-tokens", false, false],
   ["informes-full", "/dashboard/informes", "clinic-informes-full", true, false],
   ["logistica-full", "/dashboard/logistica", "clinic-logistica-full", true, false],
   ["logistica-visitas", "/dashboard/logistica/visitas", "clinic-logistica-visitas", true, false],
@@ -108,6 +117,42 @@ async function readMetricRunContract(metricRun: Locator) {
 }
 
 for (const viewport of VIEWPORTS) {
+  for (const [name, path, surfaceId, moduleId] of RETIRED_WORKSPACE_RUNS) {
+    test(`CMP-05 · ${name} mounts no metric run at ${viewport.name}`, async ({ page }) => {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      await setClinicSession(page, "default");
+      await page.goto(path);
+
+      const workspace = page.locator(`[data-dashboard-module-workspace="${moduleId}"]`);
+      const card = workspace.locator("section.dashboard-surface").first();
+      await expect(card, `${name}: module card`).toBeVisible({ timeout: 12_000 });
+      await waitForLayoutSettled(page);
+      await expect(page.locator(`[data-dashboard-b14-metrics="${surfaceId}"]`), `${name}: no run`).toHaveCount(0);
+      await expect(page.locator("[data-dashboard-b14-metrics]"), `${name}: no run of any id`).toHaveCount(0);
+
+      await expect(async () => {
+        const cardBand = await card.evaluate((element) => {
+          const paints = (node: Element) => node.getClientRects().length > 0;
+          const style = window.getComputedStyle(element);
+          const first = Array.from(element.children).find(paints) ?? null;
+          return first
+            ? first.getBoundingClientRect().top -
+                element.getBoundingClientRect().top -
+                (Number.parseFloat(style.borderBlockStartWidth) || 0)
+            : -1;
+        });
+        const pageScroll = await page.evaluate(() => ({
+          scrollsX: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+          scrollsY: document.documentElement.scrollHeight > document.documentElement.clientHeight,
+        }));
+        expect(cardBand, `${name}: the card's first band starts at its top`).toBeGreaterThanOrEqual(0);
+        expect(cardBand, `${name}: the card's first band starts at its top`).toBeLessThanOrEqual(1);
+        expect(pageScroll.scrollsX, `${name}: no page horizontal overflow`).toBe(false);
+        expect(pageScroll.scrollsY, `${name}: no page vertical overflow`).toBe(false);
+      }).toPass({ intervals: [200, 300, 500, 800, 1_000], timeout: 10_000 });
+    });
+  }
+
   for (const [name, path, surfaceId, mobileMetricRun, hostBandRetiredBelowMd] of SURFACES) {
     const title = mobileMetricRun
       ? `CMP-05 · ${name} renders the canonical metric run at ${viewport.name}`

@@ -115,16 +115,12 @@ test.describe("B12 · module card removal", () => {
         await expect(page).toHaveURL(new RegExp(surface.route.replace("?", "\\?")));
 
         const header = workspace.locator(HEADER_SELECTOR);
-        if (viewport.width >= 768 && surface.role === "admin") {
-          // Admin desktop/tablet space pass: the admin module header band is
-          // reclaimed from 768px up (admin-only rule); Clínica keeps it.
+        if (viewport.width >= 768) {
+          // Admin and clinic desktop/tablet space passes: the module header
+          // band is reclaimed from 768px up on both roles; one owner stays in
+          // the DOM as the workspace's accessible name.
           await expect(header).toHaveCount(1);
           await expect(header).toBeHidden();
-        } else if (viewport.width >= 768) {
-          await expect(header).toBeVisible();
-          const height = await header.evaluate((element) => element.getBoundingClientRect().height);
-          expect(height).toBeGreaterThanOrEqual(38);
-          expect(height).toBeLessThanOrEqual(42);
         }
       });
     }
