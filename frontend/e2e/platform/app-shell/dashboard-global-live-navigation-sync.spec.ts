@@ -86,10 +86,17 @@ function moduleUrl(role: Role, moduleId: string): RegExp {
 function holdServerNavigations(page: Page) {
   const held: Route[] = [];
   let armed = false;
+  let watching = false;
   const requested: string[] = [];
+  const documents: string[] = [];
 
   return {
     async install() {
+      // A document request after `arm()` is a hard navigation: the client
+      // router gave up and the browser reloaded the app.
+      page.on("request", (request) => {
+        if (watching && request.resourceType() === "document") documents.push(request.url());
+      });
       await page.route(
         (url) => url.searchParams.has("_rsc"),
         async (route) => {
@@ -104,22 +111,25 @@ function holdServerNavigations(page: Page) {
     },
     arm() {
       armed = true;
+      watching = true;
       requested.length = 0;
     },
     /**
-     * `continue` lets every held payload reach the fixture and waits until each
-     * one has settled (a late response); `abort` fails them as a cancelled
-     * request would. Either way nothing is left in flight when it resolves.
+     * Lets every held payload reach the fixture and waits until each one has
+     * settled, so nothing is left in flight when it resolves. When the router
+     * already abandoned a payload, Next discards it: either `continue` rejects
+     * or the late response is read and dropped. Both are the router's own
+     * cancellation of a superseded navigation and are covered alike.
+     *
+     * There is deliberately no `route.abort()` mode. That is a NETWORK failure,
+     * a different contract: Next answers a failed Flight request with a browser
+     * navigation to the failed url ("Failed to fetch RSC payload ... Falling back
+     * to browser navigation", next/dist/client/components/router-reducer/
+     * fetch-server-response.js), even for a navigation history already left.
      */
-    async release(mode: "continue" | "abort" = "continue") {
+    async release() {
       armed = false;
       for (const route of held.splice(0)) {
-        if (mode === "abort") {
-          await route.abort().catch(() => {
-            /* the router already dropped this request */
-          });
-          continue;
-        }
         const continued = await route.continue().then(
           () => true,
           () => false /* the router aborted a superseded navigation */,
@@ -128,6 +138,7 @@ function holdServerNavigations(page: Page) {
       }
     },
     requested,
+    documents,
   };
 }
 
@@ -317,8 +328,8 @@ test.describe("DASHBOARD_GLOBAL_LIVE_SYNC · destinations outside the band", () 
 // Back/Forward during a PENDING activation. The stage swapped to B on the click
 // while B's payload is still in flight; Back is an external, authoritative
 // navigation, so it must win: the optimistic B is abandoned, URL, workspace and
-// navigation follow history, and B's late answer (or its cancellation) can
-// neither repaint B nor write B into history.
+// navigation follow history, and B's late answer (read or discarded by the
+// router) can neither repaint B, nor write B into history, nor reload the app.
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function recordHistoryWrites(page: Page) {
@@ -361,8 +372,6 @@ type PendingBackCase = {
   readonly backTo: string;
   readonly target: string;
   readonly activate: (page: Page) => Promise<void>;
-  /** The band matrix also cancels B; the other producers share its owner. */
-  readonly modes: readonly ("continue" | "abort")[];
   /** Url of the last primed entry when it is not the module's canonical one. */
   readonly committedUrl?: RegExp;
 };
@@ -386,7 +395,6 @@ const PENDING_BACK_CASES: PendingBackCase[] = [
         backTo: ROUTE[role].landing,
         target: second,
         activate: (page) => navItem(page, role, regime, second).click(),
-        modes: ["continue", "abort"],
       };
     }),
   ),
@@ -407,7 +415,6 @@ const PENDING_BACK_CASES: PendingBackCase[] = [
         await page.locator('[data-workspace-app-bar-search-input="true"]').fill(query);
         await page.locator(`[data-workspace-app-bar-search-option="${target}"]`).click();
       },
-      modes: ["continue"],
     }),
   ),
   {
@@ -419,7 +426,6 @@ const PENDING_BACK_CASES: PendingBackCase[] = [
     target: "audit-log",
     activate: (page) =>
       page.getByRole("button", { name: "Ir a Auditoría" }).filter({ visible: true }).click(),
-    modes: ["continue"],
   },
   // Back to an entry that carries the SAME module as the committed one
   // (`/dashboard` and `/dashboard?module=operaciones`): no module change reaches
@@ -437,7 +443,6 @@ const PENDING_BACK_CASES: PendingBackCase[] = [
       backTo: "operaciones",
       target: "logistica",
       activate: (page) => navItem(page, "clinic", regimeFor(viewport.width), "logistica").click(),
-      modes: ["continue", "abort"],
     }),
   ),
   ...(
@@ -457,7 +462,40 @@ const PENDING_BACK_CASES: PendingBackCase[] = [
         await page.getByRole("button", { name: trigger }).filter({ visible: true }).click();
         await page.getByRole("button", { name: "Cambiar contraseña" }).filter({ visible: true }).click();
       },
-      modes: ["continue"],
+    }),
+  ),
+  // Two activations in flight: C supersedes B before either commits. Back must
+  // still win, whether it lands on an entry nobody dispatched or on an entry of
+  // the SUPERSEDED module itself, which a stale router commit would also carry.
+  ...(["admin", "clinic"] as const).flatMap((role) =>
+    PENDING_BACK_REGIMES.flatMap((viewport): PendingBackCase[] => {
+      const regime = regimeFor(viewport.width);
+      const [first, second, third] = ROUTE[role].path;
+      const activateBThenC = async (page: Page) => {
+        await navItem(page, role, regime, second).click();
+        await expectConverged(page, role, regime, second);
+        await navItem(page, role, regime, third).click();
+      };
+      return [
+        {
+          name: `${role} ${regime} ${viewport.width}x${viewport.height} B then C pending`,
+          role,
+          viewport,
+          prime: [first],
+          backTo: ROUTE[role].landing,
+          target: third,
+          activate: activateBThenC,
+        },
+        {
+          name: `${role} ${regime} ${viewport.width}x${viewport.height} Back onto the superseded module`,
+          role,
+          viewport,
+          prime: [second, first],
+          backTo: second,
+          target: third,
+          activate: activateBThenC,
+        },
+      ];
     }),
   ),
 ];
@@ -470,63 +508,61 @@ test.describe("DASHBOARD_GLOBAL_LIVE_SYNC · Back during a pending activation", 
   });
 
   for (const testCase of PENDING_BACK_CASES) {
-    for (const mode of testCase.modes) {
-      const outcome = mode === "continue" ? "answers late" : "is cancelled";
-      test(`${testCase.name}: Back wins while the payload is held, and still wins when it ${outcome}`, async ({
-        page,
-      }) => {
-        const { role, viewport, prime, backTo, target } = testCase;
-        const regime = regimeFor(viewport.width);
-        if (role === "admin") await setAdminSession(page, "populated");
-        else await setClinicSession(page, "populated");
-        await page.setViewportSize(viewport);
-        const gate = holdServerNavigations(page);
-        await gate.install();
-        await openLanding(page, role);
+    test(`${testCase.name}: Back wins while the payload is held, and its late answer cannot undo it`, async ({
+      page,
+    }) => {
+      const { role, viewport, prime, backTo, target } = testCase;
+      const regime = regimeFor(viewport.width);
+      if (role === "admin") await setAdminSession(page, "populated");
+      else await setClinicSession(page, "populated");
+      await page.setViewportSize(viewport);
+      const gate = holdServerNavigations(page);
+      await gate.install();
+      await openLanding(page, role);
 
-        const committed = prime[prime.length - 1];
-        const committedUrl = testCase.committedUrl ?? urlFor(role, committed);
-        for (const moduleId of prime) {
-          await navItem(page, role, regime, moduleId).click();
-          await expect(page).toHaveURL(moduleId === committed ? committedUrl : urlFor(role, moduleId));
-          await expectConverged(page, role, regime, moduleId);
-        }
-        const historyLength = await page.evaluate(() => window.history.length);
-        const writesBefore = (await historyWrites(page)).length;
+      const committed = prime[prime.length - 1];
+      const committedUrl = testCase.committedUrl ?? urlFor(role, committed);
+      for (const moduleId of prime) {
+        await navItem(page, role, regime, moduleId).click();
+        await expect(page).toHaveURL(moduleId === committed ? committedUrl : urlFor(role, moduleId));
+        await expectConverged(page, role, regime, moduleId);
+      }
+      const historyLength = await page.evaluate(() => window.history.length);
+      const writesBefore = (await historyWrites(page)).length;
 
-        // Pending activation: the stage and the navigation are already on B.
-        gate.arm();
-        await testCase.activate(page);
-        await expectConverged(page, role, regime, target);
-        await expect(page).toHaveURL(committedUrl);
+      // Pending activation: the stage and the navigation are already on B.
+      gate.arm();
+      await testCase.activate(page);
+      await expectConverged(page, role, regime, target);
+      await expect(page).toHaveURL(committedUrl);
 
-        // Back while B is still in flight: history wins immediately.
-        await page.goBack();
-        await expect(page).toHaveURL(urlFor(role, backTo));
-        await expectConverged(page, role, regime, backTo);
+      // Back while B is still in flight: history wins immediately.
+      await page.goBack();
+      await expect(page).toHaveURL(urlFor(role, backTo));
+      await expectConverged(page, role, regime, backTo);
 
-        // B's late answer (or its cancellation) cannot undo Back.
-        await gate.release(mode);
-        await page.waitForLoadState("networkidle");
-        await flushPaint(page);
-        await expect(page).toHaveURL(urlFor(role, backTo));
-        await expectConverged(page, role, regime, backTo);
-        expect(await page.evaluate(() => window.history.length)).toBe(historyLength);
-        const lateWrites = (await historyWrites(page)).slice(writesBefore);
-        expect(
-          lateWrites.filter((url) => url.includes(`module=${target}`)),
-          "no history write may target the abandoned module",
-        ).toEqual([]);
-        expect(
-          gate.requested.filter((moduleId) => moduleId === target),
-          "one payload for the abandoned activation, never a reconciling replay",
-        ).toHaveLength(1);
+      // B's late answer, read or discarded by the router, cannot undo Back.
+      await gate.release();
+      await page.waitForLoadState("networkidle");
+      await flushPaint(page);
+      await expect(page).toHaveURL(urlFor(role, backTo));
+      await expectConverged(page, role, regime, backTo);
+      expect(await page.evaluate(() => window.history.length)).toBe(historyLength);
+      const lateWrites = (await historyWrites(page)).slice(writesBefore);
+      expect(
+        lateWrites.filter((url) => url.includes(`module=${target}`)),
+        "no history write may target the abandoned module",
+      ).toEqual([]);
+      expect(
+        gate.requested.filter((moduleId) => moduleId === target),
+        "one payload for the abandoned activation, never a reconciling replay",
+      ).toHaveLength(1);
+      expect(gate.documents, "the client router never falls back to a browser navigation").toEqual([]);
 
-        // Forward restores exactly the entry Back left.
-        await page.goForward();
-        await expect(page).toHaveURL(committedUrl);
-        await expectConverged(page, role, regime, committed);
-      });
-    }
+      // Forward restores exactly the entry Back left.
+      await page.goForward();
+      await expect(page).toHaveURL(committedUrl);
+      await expectConverged(page, role, regime, committed);
+    });
   }
 });

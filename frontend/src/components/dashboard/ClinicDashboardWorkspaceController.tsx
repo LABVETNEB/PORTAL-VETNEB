@@ -24,6 +24,7 @@ import {
   relinquishClinicNavigationIntent,
   type ClinicNavigationState,
 } from "@/lib/dashboard/navigation/clinicNavigationState";
+import { subscribeHistoryTraversal } from "@/lib/dashboard/navigation/historyTraversal";
 import { isHubRequested } from "@/features/dashboard/application";
 import type { ClinicModule } from "@/features/dashboard/config";
 
@@ -116,6 +117,18 @@ export function ClinicDashboardWorkspaceController({
   });
   const [hasManuallyReturnedToHub, setHasManuallyReturnedToHub] =
     useState(false);
+  // Raised when a Back/Forward traversal starts, consumed by the url commit it
+  // produces (or by the popstate backstop when no module change follows): that
+  // commit is external even when it lands on a superseded target.
+  const historyTraversalStarted = useRef(false);
+
+  useEffect(
+    () =>
+      subscribeHistoryTraversal(() => {
+        historyTraversalStarted.current = true;
+      }),
+    [],
+  );
 
   const recordNavigationIntent = useCallback((target: ClinicModule) => {
     navigationState.current = recordClinicNavigationIntent(
@@ -159,7 +172,9 @@ export function ClinicDashboardWorkspaceController({
     // `push`: superseding a navigation must not add a history entry). That
     // replace produces a matching commit, which consumes the intent, so there
     // is at most one per intention and no loop.
-    const outcome = applyClinicUrlCommit(navigationState.current, nextModule);
+    const origin = historyTraversalStarted.current ? "history" : "router";
+    historyTraversalStarted.current = false;
+    const outcome = applyClinicUrlCommit(navigationState.current, nextModule, origin);
     navigationState.current = outcome.state;
 
     if (outcome.reconcileTo !== null) {
@@ -185,6 +200,7 @@ export function ClinicDashboardWorkspaceController({
   // confirmed module, which produces no module change for that effect to see.
   useEffect(() => {
     function relinquishOnHistoryNavigation() {
+      historyTraversalStarted.current = false;
       const outcome = relinquishClinicNavigationIntent(navigationState.current);
       navigationState.current = outcome.state;
       if (outcome.activeModule === null) return;

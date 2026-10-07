@@ -107,6 +107,8 @@ export function recordClinicNavigationIntent(
  * - commit is a superseded     -> the superseded navigation landed late. Keep
  *   target                       the optimistic workspace and re-assert the
  *                                 intent's url so nothing is left diverged.
+ * - commit from a traversal     -> external, always (origin `history`): Back
+ *                                 may land on an entry of a superseded target.
  * - any other commit           -> external navigation that arrived while the
  *                                 intent was pending (Back/Forward). It is the
  *                                 user's own, so the intent is ABANDONED and the
@@ -114,13 +116,23 @@ export function recordClinicNavigationIntent(
  *                                 kept the left module on screen and reconciled
  *                                 the url back to it, undoing Back.
  */
+/**
+ * Where an observed commit came from, when the caller knows it. `history` is a
+ * Back/Forward traversal (see `historyTraversal.ts`): it is always external,
+ * even when it lands on an entry of a superseded target, which a stale router
+ * commit would carry too. `router` keeps the classification by module.
+ */
+export type ClinicCommitOrigin = "router" | "history";
+
 export function applyClinicUrlCommit(
   state: ClinicNavigationState,
   nextModule: string,
+  origin: ClinicCommitOrigin = "router",
 ): ClinicUrlCommitOutcome {
   const intent = state.pendingIntent;
 
   if (
+    origin === "router" &&
     intent !== null &&
     nextModule !== intent.target &&
     state.supersededTargets.includes(nextModule)

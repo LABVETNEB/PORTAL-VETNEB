@@ -26,6 +26,7 @@ import {
   subscribeAdminModuleActivate,
 } from "@/lib/admin-hub-reset";
 import type { AdminAccessErrorStatus } from "@/lib/api-error";
+import { subscribeHistoryTraversal } from "@/lib/dashboard/navigation/historyTraversal";
 import { ROUTES } from "@/lib/routes";
 import {
   DEFAULT_ADMIN_MODULE,
@@ -144,6 +145,10 @@ export function AdminDashboardWorkspaceController({
   // Targets of intents superseded while still in flight: the only modules a
   // stale router commit can carry. Any other mismatching commit is external.
   const supersededTargets = useRef<readonly (AdminModule | null)[]>([]);
+  // Raised when a Back/Forward traversal starts, consumed by the url commit it
+  // produces (or by the popstate backstop): that commit is external even when
+  // it lands on a superseded target.
+  const historyTraversalStarted = useRef(false);
   const [hasManuallyReturnedToHub, setHasManuallyReturnedToHub] =
     useState(false);
 
@@ -189,9 +194,14 @@ export function AdminDashboardWorkspaceController({
     // it is the user's own: the intent is abandoned and the URL obeyed. Skipping
     // every mismatch used to keep the left module on screen after a Back, and the
     // matching commit (or a same-URL collapse) still re-converges URL and state.
+    // A commit produced by a history traversal is external even when it lands
+    // on a superseded target: the module alone cannot tell it from a stale one.
+    const fromHistory = historyTraversalStarted.current;
+    historyTraversalStarted.current = false;
     const intent = pendingNavigationIntent.current;
     if (
       intent &&
+      !fromHistory &&
       nextModule !== intent.target &&
       (nextModule === previousCommittedModule ||
         supersededTargets.current.includes(nextModule))
@@ -206,6 +216,14 @@ export function AdminDashboardWorkspaceController({
 
   useEffect(() => () => clearAdminAccessError(), []);
 
+  useEffect(
+    () =>
+      subscribeHistoryTraversal(() => {
+        historyTraversalStarted.current = true;
+      }),
+    [],
+  );
+
   // Backstop of the classification above for Back/Forward while an activation
   // is pending: a history entry that carries the committed module does not move
   // the module, so the effect keeps the optimistic stage. The intent is
@@ -213,6 +231,7 @@ export function AdminDashboardWorkspaceController({
   // effect already treated the commit as external, there is nothing left to do.
   useEffect(() => {
     function relinquishOnHistoryNavigation() {
+      historyTraversalStarted.current = false;
       if (!pendingNavigationIntent.current) return;
       pendingNavigationIntent.current = null;
       supersededTargets.current = [];
