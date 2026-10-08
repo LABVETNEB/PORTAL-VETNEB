@@ -10,6 +10,7 @@ import {
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DashboardModuleWorkspace } from "@/components/dashboard/DashboardModuleWorkspace";
+import { usePublishStageModule } from "@/components/dashboard/useStageModule";
 import {
   ADMIN_LAST_MODULE_STORAGE_KEY,
   readDashboardLastModule,
@@ -145,6 +146,10 @@ export function AdminDashboardWorkspaceController({
   // Targets of intents superseded while still in flight: the only modules a
   // stale router commit can carry. Any other mismatching commit is external.
   const supersededTargets = useRef<readonly (AdminModule | null)[]>([]);
+  // Module whose entry the in-flight burst left with a push (see
+  // `clinicNavigationState.pushedFrom`): returning to it steps back onto that
+  // entry instead of replacing the pushed one into a duplicate [A, A].
+  const pushedFrom = useRef<{ readonly module: AdminModule | null } | null>(null);
   // Raised when a Back/Forward traversal starts, consumed by the url commit it
   // produces (or by the popstate backstop): that commit is external even when
   // it lands on a superseded target.
@@ -152,16 +157,18 @@ export function AdminDashboardWorkspaceController({
   const [hasManuallyReturnedToHub, setHasManuallyReturnedToHub] =
     useState(false);
 
+  // Same rule as `recordClinicNavigationIntent`: only "nothing in flight AND
+  // the url already shows the target" is a no-op. While a navigation is in
+  // flight the url is stale by construction, so A -> B -> A used to clear the
+  // intent and B's late commit was then obeyed as an external navigation.
   const recordNavigationIntent = useCallback((target: AdminModule | null) => {
     const superseded = pendingNavigationIntent.current;
-    pendingNavigationIntent.current =
-      currentUrlModule.current === target ? null : { target };
+    if (superseded === null && currentUrlModule.current === target) return;
+    pendingNavigationIntent.current = { target };
     supersededTargets.current =
-      pendingNavigationIntent.current === null
-        ? []
-        : superseded && superseded.target !== target
-          ? [...supersededTargets.current, superseded.target]
-          : supersededTargets.current;
+      superseded && superseded.target !== target
+        ? [...supersededTargets.current, superseded.target]
+        : supersededTargets.current;
   }, []);
 
   useEffect(() => {
@@ -206,13 +213,29 @@ export function AdminDashboardWorkspaceController({
       (nextModule === previousCommittedModule ||
         supersededTargets.current.includes(nextModule))
     ) {
+      // SINGLE FLIGHT: the superseded navigation landed and the latest request
+      // was claimed instead of pushed, so replacing this entry is the one
+      // navigation that brings the url to it. Its commit consumes the intent.
+      if (nextModule !== previousCommittedModule && intent.target !== null) {
+        if (pushedFrom.current?.module === intent.target) {
+          pendingNavigationIntent.current = null;
+          supersededTargets.current = [];
+          pushedFrom.current = null;
+          window.history.back();
+          return;
+        }
+        router.replace(buildDashboardModuleHref(ROUTES.dashboardAdmin, intent.target), {
+          scroll: false,
+        });
+      }
       return;
     }
     pendingNavigationIntent.current = null;
     supersededTargets.current = [];
+    pushedFrom.current = null;
 
     setActiveModule(parseAdminModule(searchParams.get(MODULE_QUERY_PARAM)));
-  }, [searchParams]);
+  }, [searchParams, router]);
 
   useEffect(() => () => clearAdminAccessError(), []);
 
@@ -235,6 +258,7 @@ export function AdminDashboardWorkspaceController({
       if (!pendingNavigationIntent.current) return;
       pendingNavigationIntent.current = null;
       supersededTargets.current = [];
+      pushedFrom.current = null;
       if (currentUrlModule.current) setActiveModule(currentUrlModule.current);
     }
 
@@ -263,15 +287,22 @@ export function AdminDashboardWorkspaceController({
   // the swap waited on the async URL push, which intermittently lagged past the
   // navigation under load and left the previous module rendered (mobile
   // bottom-nav flake).
+  // SINGLE FLIGHT (`admin-hub-reset.ts`): a request that arrives while a module
+  // navigation is still in flight is claimed, and reconciled above once it lands.
   useEffect(
     () =>
       subscribeAdminModuleActivate((moduleId) => {
         const parsed = parseAdminModule(moduleId);
-        if (!parsed) return;
+        if (!parsed) return false;
+        const inFlight = pendingNavigationIntent.current?.target != null;
+        const committed = currentUrlModule.current;
         clearAdminAccessError();
         recordNavigationIntent(parsed);
+        // Not in flight: the caller pushes this one, which starts the burst.
+        if (!inFlight && pendingNavigationIntent.current) pushedFrom.current = { module: committed };
         setHasManuallyReturnedToHub(false);
         setActiveModule(parsed);
+        return inFlight;
       }),
     [recordNavigationIntent],
   );
@@ -321,6 +352,11 @@ export function AdminDashboardWorkspaceController({
     }
     resolveRetiredHub();
   }, [activeModule, accessErrorStatus]);
+
+  // The lateral band, the mobile bar and the mobile title render this, not
+  // their own reading of the URL: a superseded commit kept above must not move
+  // them either.
+  usePublishStageModule("admin", activeModule);
 
   const activeMeta = activeModule ? ADMIN_MODULE_META[activeModule] : null;
 

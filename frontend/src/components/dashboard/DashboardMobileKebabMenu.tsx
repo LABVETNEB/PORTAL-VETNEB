@@ -129,12 +129,15 @@ export function DashboardMobileKebabMenu({ surface }: DashboardMobileKebabMenuPr
             href={copy.passwordHref}
             prefetch={false}
             variant="bare"
-            onClick={() => {
+            onClick={(event) => {
               setIsOpen(false);
               // Same optimistic activation as every module destination: the
               // stage must not wait for the server render behind the commit.
-              if (isAdmin) requestAdminModuleActivate(copy.passwordModule);
-              else requestClinicModuleActivate(copy.passwordModule);
+              // A claimed request is navigated by the controller (single flight).
+              const claimed = isAdmin
+                ? requestAdminModuleActivate(copy.passwordModule)
+                : requestClinicModuleActivate(copy.passwordModule);
+              if (claimed) event.preventDefault();
             }}
             className={actionClass}
           >

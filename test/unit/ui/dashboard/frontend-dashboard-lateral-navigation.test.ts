@@ -220,46 +220,86 @@ test("both surfaces notify their controller before route navigation", () => {
       `${path}: the signal must not be clinic-only`,
     );
     assert.ok(
-      source.includes("requestAdminModuleActivate(item.moduleId);"),
+      source.includes("? requestAdminModuleActivate(item.moduleId)"),
       `${path} must fire the admin signal before the URL commit lands`,
     );
     assert.ok(
-      source.includes("requestClinicModuleActivate(item.moduleId);"),
+      source.includes(": requestClinicModuleActivate(item.moduleId);"),
       `${path} must fire the clinic signal before the URL commit lands`,
+    );
+    assert.ok(
+      source.includes("if (claimed) event.preventDefault();"),
+      `${path} must not push a navigation the controller claimed (single flight)`,
     );
   }
 });
 
-test("the frame moves the current item with the activation, not with the commit", () => {
+test("the band renders the stage owner's module, never its own reading of the commit", () => {
+  // DASHBOARD_STAGE_MODULE: the band used to keep a private copy of the pending
+  // activation and drop it on every URL commit. A `?module=` navigate action
+  // completes before the server answers, so a superseded push can commit ahead
+  // of the latest one; the stage owner classified it and kept the new module,
+  // the band followed it back to the module the user had left.
   const frame = read("frontend/src/components/dashboard/DashboardNavigationFrame.tsx");
 
-  assert.ok(
-    frame.includes("observeAdminModuleActivate"),
-    "admin current item observes the activation without consuming the controller hand-over",
-  );
-  assert.ok(
-    frame.includes("observeClinicModuleActivate"),
-    "clinic current item observes the activation without consuming the stage owner's hand-over",
-  );
+  for (const hook of ["useAdminStageModule()", "useClinicStageModule()"]) {
+    assert.ok(frame.includes(hook), `the band renders what the stage owner publishes (${hook})`);
+  }
+  for (const bus of ["@/lib/admin-hub-reset", "@/lib/clinic-hub-reset"]) {
+    assert.equal(
+      frame.includes(bus),
+      false,
+      "the band is chrome: it neither listens to nor mirrors the activation bus, the owner does",
+    );
+  }
   assert.equal(
-    frame.includes("subscribeClinicModuleActivate"),
+    /\buse(State|Effect)\b/.test(frame),
     false,
-    "the band is chrome: listening would count a tap as heard before the stage owner subscribes",
+    "no private intent and no commit-driven reset: the current item is the owner's, not the band's",
   );
   assert.equal(
     /<LateralNavigation surface="clinic" activeModule=\{routeModule\} \/>/.test(frame),
     false,
     "a full route's band follows the activation instead of staying pinned to its module",
   );
-  assert.ok(
-    frame.includes("intent.from === committedModule"),
-    "the live override is bound to the commit it was issued from, so the URL stays authoritative",
-  );
   assert.equal(
     /router\.refresh|location\.reload|setTimeout/.test(frame),
     false,
     "the live item must not be produced by a refresh or a timer",
   );
+});
+
+test("every stage owner publishes the module it shows; every chrome surface renders it", () => {
+  const owners = [
+    [
+      "frontend/src/app/dashboard/admin/AdminDashboardWorkspaceController.tsx",
+      'usePublishStageModule("admin", activeModule);',
+    ],
+    [
+      "frontend/src/components/dashboard/ClinicDashboardWorkspaceController.tsx",
+      'usePublishStageModule("clinic", isHubActive ? null : activeModule);',
+    ],
+    [
+      "frontend/src/components/dashboard/ClinicFullRouteModuleStage.tsx",
+      'usePublishStageModule("clinic", leavingTo, leavingTo !== null);',
+    ],
+  ] as const;
+  for (const [path, publish] of owners) {
+    assert.ok(read(path).includes(publish), `${path} publishes its resolved module`);
+  }
+
+  for (const path of [
+    "frontend/src/components/dashboard/DashboardMobileNav.tsx",
+    "frontend/src/components/dashboard/ModuleContextTitle.tsx",
+  ]) {
+    const source = read(path);
+    assert.ok(source.includes("useStageModule(surface)"), `${path} renders the owner's module`);
+    assert.equal(
+      /observe(Admin|Clinic)ModuleActivate/.test(source),
+      false,
+      `${path} keeps no mirror of the activation bus`,
+    );
+  }
 });
 
 test("topbar is a single-band header: module navigation moved beside main", () => {
@@ -316,87 +356,245 @@ test("shell router no longer renders a vertical sidebar as primary navigation", 
   assert.ok(source.includes("<DashboardMobileNav surface={surface} />"));
 });
 
-test("admin observers mirror every request without taking the controller's late hand-over", async () => {
+test("an admin request before the controller subscribes is handed over once", async () => {
   const globals = globalThis as { window?: unknown };
   const hadWindow = "window" in globals;
   const previousWindow = globals.window;
   globals.window = globalThis;
   try {
-    const {
-      observeAdminModuleActivate,
-      requestAdminModuleActivate,
-      subscribeAdminModuleActivate,
-    } = await import("../../../../frontend/src/lib/admin-hub-reset.ts");
+    const { requestAdminModuleActivate, subscribeAdminModuleActivate } = await import(
+      "../../../../frontend/src/lib/admin-hub-reset.ts"
+    );
 
-    const observed: string[] = [];
-    const stopObserving = observeAdminModuleActivate((moduleId) => observed.push(moduleId));
-
-    // Controller not mounted yet: the observer sees the request, and the request
-    // still waits for the controller as an unheard activation.
+    // Controller not mounted yet: the request waits as an unheard activation.
     requestAdminModuleActivate("admin-clinics");
-    assert.deepEqual(observed, ["admin-clinics"]);
-
     const heard: string[] = [];
-    const stopListening = subscribeAdminModuleActivate((moduleId) => heard.push(moduleId));
-    assert.deepEqual(heard, ["admin-clinics"], "the observer must not consume the late hand-over");
+    const stopListening = subscribeAdminModuleActivate((moduleId) => {
+      heard.push(moduleId);
+    });
+    assert.deepEqual(heard, ["admin-clinics"], "the late request reaches the controller");
 
     requestAdminModuleActivate("audit-log");
-    assert.deepEqual(observed, ["admin-clinics", "audit-log"]);
     assert.deepEqual(heard, ["admin-clinics", "audit-log"]);
 
-    stopObserving();
     stopListening();
     requestAdminModuleActivate("admin-pricing");
-    assert.deepEqual(observed, ["admin-clinics", "audit-log"], "an unsubscribed observer hears nothing");
+    assert.deepEqual(heard, ["admin-clinics", "audit-log"], "an unsubscribed controller hears nothing");
+    const next: string[] = [];
+    subscribeAdminModuleActivate((moduleId) => {
+      next.push(moduleId);
+    })();
+    assert.deepEqual(next, ["admin-pricing"], "the next controller takes the unheard request");
+    const again: string[] = [];
+    subscribeAdminModuleActivate((moduleId) => {
+      again.push(moduleId);
+    })();
+    assert.deepEqual(again, [], "the hand-over is consumed");
   } finally {
     if (hadWindow) globals.window = previousWindow;
     else delete globals.window;
   }
 });
 
-test("clinic observers mirror every request and a tap before the controller subscribes is handed over", async () => {
+test("a clinic tap before the controller subscribes is handed over once", async () => {
   const globals = globalThis as { window?: unknown };
   const hadWindow = "window" in globals;
   const previousWindow = globals.window;
   globals.window = globalThis;
   try {
-    const {
-      observeClinicModuleActivate,
-      requestClinicModuleActivate,
-      subscribeClinicModuleActivate,
-    } = await import("../../../../frontend/src/lib/clinic-hub-reset.ts");
-
-    const observed: string[] = [];
-    const stopObserving = observeClinicModuleActivate((moduleId) => observed.push(moduleId));
+    const { requestClinicModuleActivate, subscribeClinicModuleActivate } = await import(
+      "../../../../frontend/src/lib/clinic-hub-reset.ts"
+    );
 
     // The band hydrated, the controller has not subscribed yet: the tap used to
     // reach only the chrome, so the stage kept the module the user had left.
     requestClinicModuleActivate("tokens");
-    assert.deepEqual(observed, ["tokens"]);
-
     const heard: string[] = [];
-    const stopListening = subscribeClinicModuleActivate((moduleId) => heard.push(moduleId));
-    assert.deepEqual(heard, ["tokens"], "the observer must not consume the late hand-over");
+    const stopListening = subscribeClinicModuleActivate((moduleId) => {
+      heard.push(moduleId);
+    });
+    assert.deepEqual(heard, ["tokens"], "the late tap reaches the controller");
 
     requestClinicModuleActivate("perfil");
-    assert.deepEqual(observed, ["tokens", "perfil"]);
     assert.deepEqual(heard, ["tokens", "perfil"]);
 
-    stopObserving();
     stopListening();
     requestClinicModuleActivate("informes");
-    assert.deepEqual(observed, ["tokens", "perfil"], "an unsubscribed observer hears nothing");
-
     const late: string[] = [];
-    const stopLate = subscribeClinicModuleActivate((moduleId) => late.push(moduleId));
+    const stopLate = subscribeClinicModuleActivate((moduleId) => {
+      late.push(moduleId);
+    });
     assert.deepEqual(late, ["informes"], "an unheard request is handed to the next subscriber once");
     stopLate();
     const again: string[] = [];
-    subscribeClinicModuleActivate((moduleId) => again.push(moduleId))();
+    subscribeClinicModuleActivate((moduleId) => {
+      again.push(moduleId);
+    })();
     assert.deepEqual(again, [], "the hand-over is consumed");
   } finally {
     if (hadWindow) globals.window = previousWindow;
     else delete globals.window;
+  }
+});
+
+test("the stage module is the latest owner's claim, undefined without an owner", async () => {
+  const { getStageModuleSnapshot, publishStageModule, subscribeStageModule } = await import(
+    "../../../../frontend/src/lib/dashboard/navigation/stageModule.ts"
+  );
+
+  assert.equal(getStageModuleSnapshot("admin"), undefined, "no owner: the chrome reads the URL");
+  const notified: string[] = [];
+  const stop = subscribeStageModule("admin", () =>
+    notified.push(String(getStageModuleSnapshot("admin"))),
+  );
+
+  // A superseded commit never reaches this store: only the owner's resolution does.
+  const releaseB = publishStageModule("admin", "admin-particular-tokens");
+  const releaseC = publishStageModule("admin", "admin-pricing");
+  releaseB();
+  assert.equal(getStageModuleSnapshot("admin"), "admin-pricing", "the stage owner's latest value wins");
+  assert.equal(getStageModuleSnapshot("clinic"), undefined, "surfaces never share a claim");
+
+  // An owner mounting while the previous one releases never reads as "no owner".
+  const releaseNext = publishStageModule("admin", null);
+  releaseC();
+  assert.equal(getStageModuleSnapshot("admin"), null, "a module-less stage is null, not undefined");
+  releaseNext();
+  releaseNext();
+  assert.equal(getStageModuleSnapshot("admin"), undefined, "a released owner leaves the URL in charge");
+  assert.deepEqual(notified, [
+    "admin-particular-tokens",
+    "admin-pricing",
+    "admin-pricing",
+    "null",
+    "null",
+    "undefined",
+  ]);
+
+  stop();
+  publishStageModule("admin", "audit-log")();
+  assert.equal(notified.length, 6, "an unsubscribed listener hears nothing");
+});
+
+test("SINGLE FLIGHT: only a stage owner claims a request, and only when it says so", async () => {
+  const globals = globalThis as { window?: unknown };
+  const hadWindow = "window" in globals;
+  const previousWindow = globals.window;
+  globals.window = globalThis;
+  try {
+    const admin = await import("../../../../frontend/src/lib/admin-hub-reset.ts");
+    const clinic = await import("../../../../frontend/src/lib/clinic-hub-reset.ts");
+
+    // No owner yet: nobody can navigate later, so the caller must.
+    assert.equal(admin.requestAdminModuleActivate("admin-clinics"), false);
+    assert.equal(clinic.requestClinicModuleActivate("tokens"), false);
+
+    // The owner claims only while its previous navigation is in flight.
+    let adminInFlight = false;
+    const stopAdmin = admin.subscribeAdminModuleActivate(() => adminInFlight);
+    assert.equal(admin.requestAdminModuleActivate("audit-log"), false, "nothing in flight: the caller pushes");
+    adminInFlight = true;
+    assert.equal(admin.requestAdminModuleActivate("admin-pricing"), true, "in flight: the owner claims");
+    stopAdmin();
+
+    let clinicInFlight = true;
+    const stopClinic = clinic.subscribeClinicModuleActivate(() => clinicInFlight);
+    assert.equal(clinic.requestClinicModuleActivate("perfil"), true);
+    clinicInFlight = false;
+    assert.equal(clinic.requestClinicModuleActivate("logistica"), false);
+    stopClinic();
+
+    // A handing-over stage never claims: its destinations leave the route.
+    const stopStage = clinic.subscribeClinicModuleActivate(() => true, { handsOver: true });
+    assert.equal(clinic.requestClinicModuleActivate("informes"), false, "a full-route stage never claims");
+    stopStage();
+    clinic.relinquishClinicModuleActivateHandOver();
+    admin.subscribeAdminModuleActivate(() => {})();
+  } finally {
+    if (hadWindow) globals.window = previousWindow;
+    else delete globals.window;
+  }
+});
+
+test("SINGLE FLIGHT: every producer honours a claim and both owners claim and reconcile", () => {
+  for (const [path, honours] of [
+    ["frontend/src/components/dashboard/NavigationDrawer.tsx", "if (claimed) event.preventDefault();"],
+    ["frontend/src/components/dashboard/NavigationRail.tsx", "if (claimed) event.preventDefault();"],
+    ["frontend/src/components/dashboard/DashboardMobileKebabMenu.tsx", "if (claimed) event.preventDefault();"],
+    [
+      "frontend/src/components/dashboard/WorkspaceAppBar.tsx",
+      "if (!claimed) router.push(buildDashboardModuleHref(basePath, entry.moduleId));",
+    ],
+    [
+      "frontend/src/app/dashboard/admin/AdminOverviewQuickLinks.tsx",
+      "if (requestAdminModuleActivate(link.module)) event.preventDefault();",
+    ],
+    ["frontend/src/components/dashboard/DashboardMobileNav.tsx", "if (onActivate(destination.moduleId)) event.preventDefault();"],
+    ["frontend/src/components/dashboard/DashboardMobileNav.tsx", "if (onNavigate(destination.moduleId)) event.preventDefault();"],
+  ] as const) {
+    assert.ok(read(path).includes(honours), `${path} must not navigate a claimed request`);
+  }
+
+  const admin = read("frontend/src/app/dashboard/admin/AdminDashboardWorkspaceController.tsx");
+  assert.ok(admin.includes("const inFlight = pendingNavigationIntent.current?.target != null;"));
+  assert.ok(admin.includes("return inFlight;"), "the admin controller claims while in flight");
+  assert.ok(
+    admin.includes("router.replace(buildDashboardModuleHref(ROUTES.dashboardAdmin, intent.target), {"),
+    "the admin controller replaces the superseded entry with the claimed module",
+  );
+  assert.ok(
+    admin.includes("if (superseded === null && currentUrlModule.current === target) return;"),
+    "a pending navigation keeps every newer intent, as in clinicNavigationState",
+  );
+  assert.ok(
+    admin.includes("if (pushedFrom.current?.module === intent.target) {") &&
+      admin.includes("window.history.back();"),
+    "returning to the module the burst pushed from steps back instead of leaving [A, A]",
+  );
+
+  const clinic = read("frontend/src/components/dashboard/ClinicDashboardWorkspaceController.tsx");
+  assert.ok(clinic.includes("const inFlight = navigationState.current.pendingIntent !== null;"));
+  assert.ok(clinic.includes("return inFlight;"), "the clinic controller claims while in flight");
+  assert.ok(clinic.includes("outcome.reconcileTo"), "the clinic controller reconciles the superseded entry");
+  assert.ok(
+    clinic.includes("if (outcome.historyBack) {") && clinic.includes("recordNavigationIntent(parsed, { pushed: !inFlight });"),
+    "the clinic controller steps back to the module its burst pushed from",
+  );
+  // Leaving the hub is optimistic: until the module commits, the url is still
+  // `?hub=1`. Neither the url effect nor the last-module restore may read it as
+  // the default module, and the hub entry is module-less for the burst origin.
+  assert.ok(
+    clinic.includes("confirmedUrlModule: hubInUrl ? null : (initialModule ?? DEFAULT_CLINIC_MODULE),"),
+    "a session that starts on the hub has no module entry to step back onto",
+  );
+  assert.ok(
+    clinic.includes("navigationState.current = confirmClinicHubEntry(navigationState.current);"),
+    "a hub commit is confirmed as module-less",
+  );
+  assert.equal(
+    clinic.split("if (hubInUrl || isHubActive) return;").length - 1,
+    1,
+    "the last-module restore never fires while the url is still the hub",
+  );
+});
+
+test("Abrir módulo completo shows its pending state for the whole full-route navigation", () => {
+  const control = read("frontend/src/components/dashboard/FullModuleRouteControl.tsx");
+  assert.ok(control.includes("const [isPending, startTransition] = useTransition();"));
+  assert.ok(control.includes("startTransition(() => router.push(href));"), "the push runs inside the transition");
+  assert.ok(control.includes("aria-busy={isPending || undefined}"), "the pending state is exposed, not only painted");
+  assert.ok(control.includes('"Abriendo módulo…"'), "the pending state is visible");
+  assert.ok(control.includes("<PublicRouteControl"), "keeps the route-control pattern and its pre-hydration fallback");
+  assert.equal(/router\.refresh|location\.(reload|assign)|setTimeout/.test(control), false);
+
+  for (const [path, href] of [
+    ["frontend/src/app/dashboard/ClinicLogisticaWorkspaceSummary.tsx", "ROUTES.dashboardLogistica"],
+    ["frontend/src/app/dashboard/ClinicInformesWorkspaceSummary.tsx", "ROUTES.dashboardInformes"],
+  ] as const) {
+    assert.ok(
+      read(path).includes(`<FullModuleRouteControl href={${href}}`),
+      `${path} opens its full route through the pending-aware control`,
+    );
   }
 });
 
@@ -414,7 +612,9 @@ test("a full-route stage hands the latest activation to the controller that repl
 
     // A then B from a full route, both before A's `/dashboard` commit.
     const leaving: string[] = [];
-    const stopStage = subscribeClinicModuleActivate((moduleId) => leaving.push(moduleId), {
+    const stopStage = subscribeClinicModuleActivate((moduleId) => {
+      leaving.push(moduleId);
+    }, {
       handsOver: true,
     });
     requestClinicModuleActivate("tokens");
@@ -424,19 +624,25 @@ test("a full-route stage hands the latest activation to the controller that repl
     // A commits: the stage unmounts and the controller takes the stage.
     stopStage();
     const controller: string[] = [];
-    const stopController = subscribeClinicModuleActivate((moduleId) => controller.push(moduleId));
+    const stopController = subscribeClinicModuleActivate((moduleId) => {
+      controller.push(moduleId);
+    });
     assert.deepEqual(controller, ["informes"], "the latest intent survives the owner change, not A");
 
     requestClinicModuleActivate("perfil");
     assert.deepEqual(controller, ["informes", "perfil"]);
     stopController();
     const remounted: string[] = [];
-    subscribeClinicModuleActivate((moduleId) => remounted.push(moduleId))();
+    subscribeClinicModuleActivate((moduleId) => {
+      remounted.push(moduleId);
+    })();
     assert.deepEqual(remounted, [], "an intent a final owner heard is never replayed");
 
     // A handing-over stage never consumes what it keeps for the next owner.
     const nextStage: string[] = [];
-    const stopNextStage = subscribeClinicModuleActivate((moduleId) => nextStage.push(moduleId), {
+    const stopNextStage = subscribeClinicModuleActivate((moduleId) => {
+      nextStage.push(moduleId);
+    }, {
       handsOver: true,
     });
     requestClinicModuleActivate("logistica");
@@ -448,7 +654,9 @@ test("a full-route stage hands the latest activation to the controller that repl
     relinquishClinicModuleActivateHandOver();
     stopNextStage();
     const afterBack: string[] = [];
-    subscribeClinicModuleActivate((moduleId) => afterBack.push(moduleId))();
+    subscribeClinicModuleActivate((moduleId) => {
+      afterBack.push(moduleId);
+    })();
     assert.deepEqual(afterBack, [], "a history navigation drops the retained intent");
   } finally {
     if (hadWindow) globals.window = previousWindow;

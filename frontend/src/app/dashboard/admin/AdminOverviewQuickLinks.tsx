@@ -25,7 +25,10 @@ export function AdminOverviewQuickLinks() {
             prefetch={false}
             variant="bare"
             aria-label={`Ir a ${link.label}`}
-            onClick={() => requestAdminModuleActivate(link.module)}
+            onClick={(event) => {
+              // A claimed request is navigated by the controller (single flight).
+              if (requestAdminModuleActivate(link.module)) event.preventDefault();
+            }}
             className="inline-flex items-center rounded-md border border-input bg-background px-2.5 py-1 text-[0.72rem] font-semibold text-foreground dashboard-nav-interactive hover:bg-accent/60 focus-visible:ring-offset-2"
           >
             {link.label}

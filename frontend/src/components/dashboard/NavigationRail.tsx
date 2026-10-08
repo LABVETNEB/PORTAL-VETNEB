@@ -108,14 +108,14 @@ export function NavigationRail({ surface, activeModule }: NavigationRailProps) {
             aria-current={isActive ? "page" : undefined}
             title={item.label}
             data-dashboard-navigation-item={item.moduleId}
-            onClick={() => {
+            onClick={(event) => {
               // Both roles: the controller swaps the stage on this signal and
               // the frame moves the current item, before the URL commit lands.
-              if (isAdmin) {
-                requestAdminModuleActivate(item.moduleId);
-                return;
-              }
-              requestClinicModuleActivate(item.moduleId);
+              // A claimed request is navigated by the controller (single flight).
+              const claimed = isAdmin
+                ? requestAdminModuleActivate(item.moduleId)
+                : requestClinicModuleActivate(item.moduleId);
+              if (claimed) event.preventDefault();
             }}
             className={cn(
               "dashboard-navigation-rail-item",

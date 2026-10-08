@@ -41,8 +41,11 @@ export type ClinicNavigationIntent = {
 };
 
 export type ClinicNavigationState = {
-  /** Module of the last URL commit actually observed. */
-  readonly confirmedUrlModule: string;
+  /**
+   * Module of the last URL commit actually observed, or `null` when that commit
+   * is the hub (`?hub=1`): a module-less entry, never the operational default.
+   */
+  readonly confirmedUrlModule: string | null;
   /** Newest intention not yet confirmed by a URL commit. */
   readonly pendingIntent: ClinicNavigationIntent | null;
   /**
@@ -51,6 +54,12 @@ export type ClinicNavigationState = {
    * mismatching commit is an external navigation (Back/Forward, deep link).
    */
   readonly supersededTargets: readonly string[];
+  /**
+   * Module whose history entry the in-flight burst left with a PUSH, when it
+   * pushed one. Returning to it collapses the burst onto that entry instead of
+   * replacing the pushed one, which would leave [A, A].
+   */
+  readonly pushedFrom?: string | null;
 };
 
 export type ClinicUrlCommitOutcome = {
@@ -66,6 +75,11 @@ export type ClinicUrlCommitOutcome = {
    * pending intent: the replace produces a matching commit, which consumes it.
    */
   readonly reconcileTo: string | null;
+  /**
+   * The latest intention is the module the burst pushed from: step back onto
+   * its entry (`history.back()`) instead of replacing the pushed one.
+   */
+  readonly historyBack?: boolean;
 };
 
 /**
@@ -78,6 +92,7 @@ export type ClinicUrlCommitOutcome = {
 export function recordClinicNavigationIntent(
   state: ClinicNavigationState,
   target: string,
+  { pushed = false }: { readonly pushed?: boolean } = {},
 ): ClinicNavigationState {
   if (state.pendingIntent === null && state.confirmedUrlModule === target) {
     return state;
@@ -91,7 +106,21 @@ export function recordClinicNavigationIntent(
       superseded === null || superseded.target === target
         ? state.supersededTargets
         : [...state.supersededTargets, superseded.target],
+    // A new burst pushes from the committed module; a later intention keeps the
+    // burst's origin, because the entry it pushed is still the one in flight.
+    pushedFrom:
+      superseded === null ? (pushed ? state.confirmedUrlModule : null) : (state.pushedFrom ?? null),
   };
+}
+
+/**
+ * The hub url committed. It carries no module, so a burst that leaves it pushed
+ * from no module entry and a later return to the default is a real navigation.
+ * An intent already in flight is kept: its own commit still has to be classified.
+ */
+export function confirmClinicHubEntry(state: ClinicNavigationState): ClinicNavigationState {
+  if (state.confirmedUrlModule === null) return state;
+  return { ...state, confirmedUrlModule: null };
 }
 
 /**
@@ -137,11 +166,28 @@ export function applyClinicUrlCommit(
     nextModule !== intent.target &&
     state.supersededTargets.includes(nextModule)
   ) {
+    // Back to the module the burst pushed from: its entry is still right below
+    // the pushed one, so stepping back leaves no duplicate. The traversal's
+    // commit is external and finds nothing pending.
+    if (state.pushedFrom != null && state.pushedFrom === intent.target) {
+      return {
+        state: {
+          confirmedUrlModule: nextModule,
+          pendingIntent: null,
+          supersededTargets: [],
+          pushedFrom: null,
+        },
+        activeModule: null,
+        reconcileTo: null,
+        historyBack: true,
+      };
+    }
     return {
       state: {
         confirmedUrlModule: nextModule,
         pendingIntent: intent,
         supersededTargets: state.supersededTargets,
+        pushedFrom: state.pushedFrom ?? null,
       },
       activeModule: null,
       reconcileTo: intent.target,
@@ -149,7 +195,12 @@ export function applyClinicUrlCommit(
   }
 
   return {
-    state: { confirmedUrlModule: nextModule, pendingIntent: null, supersededTargets: [] },
+    state: {
+      confirmedUrlModule: nextModule,
+      pendingIntent: null,
+      supersededTargets: [],
+      pushedFrom: null,
+    },
     activeModule: nextModule,
     reconcileTo: null,
   };
@@ -182,6 +233,7 @@ export function relinquishClinicNavigationIntent(
       confirmedUrlModule: state.confirmedUrlModule,
       pendingIntent: null,
       supersededTargets: [],
+      pushedFrom: null,
     },
     activeModule: state.confirmedUrlModule,
   };

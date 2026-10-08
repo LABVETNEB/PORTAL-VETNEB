@@ -374,6 +374,12 @@ type PendingBackCase = {
   readonly activate: (page: Page) => Promise<void>;
   /** Url of the last primed entry when it is not the module's canonical one. */
   readonly committedUrl?: RegExp;
+  /**
+   * The target was chosen while another activation was in flight, so the
+   * stage owner claimed it instead of pushing it (single flight): it never had
+   * a payload of its own.
+   */
+  readonly claimedTarget?: boolean;
 };
 
 const PENDING_BACK_REGIMES = [
@@ -484,6 +490,7 @@ const PENDING_BACK_CASES: PendingBackCase[] = [
           prime: [first],
           backTo: ROUTE[role].landing,
           target: third,
+          claimedTarget: true,
           activate: activateBThenC,
         },
         {
@@ -493,6 +500,7 @@ const PENDING_BACK_CASES: PendingBackCase[] = [
           prime: [second, first],
           backTo: second,
           target: third,
+          claimedTarget: true,
           activate: activateBThenC,
         },
       ];
@@ -555,8 +563,10 @@ test.describe("DASHBOARD_GLOBAL_LIVE_SYNC · Back during a pending activation", 
       ).toEqual([]);
       expect(
         gate.requested.filter((moduleId) => moduleId === target),
-        "one payload for the abandoned activation, never a reconciling replay",
-      ).toHaveLength(1);
+        testCase.claimedTarget
+          ? "a claimed activation abandoned by Back is never requested, not even as a reconciling replay"
+          : "one payload for the abandoned activation, never a reconciling replay",
+      ).toHaveLength(testCase.claimedTarget ? 0 : 1);
       expect(gate.documents, "the client router never falls back to a browser navigation").toEqual([]);
 
       // Forward restores exactly the entry Back left.

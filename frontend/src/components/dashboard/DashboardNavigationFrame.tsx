@@ -1,9 +1,7 @@
 "use client";
 
-import { Suspense, useEffect, useState, type ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
-import { observeAdminModuleActivate } from "@/lib/admin-hub-reset";
-import { observeClinicModuleActivate } from "@/lib/clinic-hub-reset";
 import {
   DEFAULT_CLINIC_MODULE,
   parseAdminModule,
@@ -13,6 +11,7 @@ import {
 import { MODULE_QUERY_PARAM } from "@/features/dashboard/application";
 import { NavigationDrawer, type NavigationDrawerProps } from "./NavigationDrawer";
 import { NavigationRail } from "./NavigationRail";
+import { useAdminStageModule, useClinicStageModule } from "./useStageModule";
 
 /**
  * B08 - the lateral navigation frame.
@@ -48,21 +47,22 @@ import { NavigationRail } from "./NavigationRail";
  *  - the clinic full routes declare their module (`module="informes"`,
  *    `module="logistica"`), because `?module=` is not part of their grammar.
  *
- * LIVE CURRENT ITEM. A `?module=` switch is a navigation of a dynamic page, so
- * the URL only commits once the whole server render has arrived - seconds on a
- * slow backend. The stage swaps on the activation signal the destinations
- * publish; the current item listens to the same signal, so band and stage move
- * together on the click. The override is bound to the committed module it was
- * issued from and is dropped on the next commit or on any Back/Forward, so the
- * URL stays the single authority for deep links, reload and history.
+ * CURRENT ITEM = STAGE MODULE. A `?module=` switch is a navigation of a
+ * dynamic page, so the URL only commits once the whole server render has
+ * arrived - seconds on a slow backend - and a superseded navigation can commit
+ * before the latest one. The stage owner swaps on the activation signal and
+ * classifies every commit; the band renders the module that owner publishes
+ * (`lib/dashboard/navigation/stageModule.ts`), so band and stage move together
+ * on the click and neither follows a stale commit. The URL is read only while
+ * no owner is mounted: the server render, and a full route on its own module.
  *
  * ADMIN HUB IS A LEGAL STATE. `?hub=1` is the durable explicit hub URL and
  * null is retained while an optimistic navigation settles. B13 gives that
  * state an Inicio item instead of leaving the lateral landmark without a
  * current destination.
  *
- * OWNERSHIP. This frame renders; it owns nothing durable (the live override
- * above is transient and yields to every commit). Module ids, order and labels
+ * OWNERSHIP. This frame renders; it owns nothing, not even a pending
+ * activation: that belongs to the stage owner. Module ids, order and labels
  * come from `features/dashboard/config`, the `?module=` key from
  * `features/dashboard/application`, and the geometry (256/80/40/56 px) from
  * `styles/dashboard/tokens.css` - never restated here.
@@ -102,63 +102,26 @@ function LateralNavigation(props: NavigationDrawerProps) {
   );
 }
 
-type ModuleActivateSubscription = (
-  listener: (moduleId: string) => void,
-) => () => void;
-
-function useLiveModule<M extends string>(
-  committedModule: M | null,
-  subscribe: ModuleActivateSubscription,
-  parse: (value: string) => M | null,
-): M | null {
-  const [intent, setIntent] = useState<{
-    readonly from: M | null;
-    readonly to: M;
-  } | null>(null);
-
-  useEffect(() => {
-    setIntent(null);
-  }, [committedModule]);
-
-  // Back/Forward abandons a pending activation (the controllers do the same),
-  // so the item falls back to the committed module until the restore lands.
-  useEffect(() => {
-    const dropIntent = () => setIntent(null);
-    window.addEventListener("popstate", dropIntent);
-    return () => window.removeEventListener("popstate", dropIntent);
-  }, []);
-
-  useEffect(
-    () =>
-      subscribe((moduleId) => {
-        const target = parse(moduleId);
-        if (target) setIntent({ from: committedModule, to: target });
-      }),
-    [committedModule, subscribe, parse],
-  );
-
-  return intent && intent.from === committedModule ? intent.to : committedModule;
-}
-
 function AdminUrlNavigation() {
   const searchParams = useSearchParams();
-  const activeModule = useLiveModule(
-    parseAdminModule(searchParams.get(MODULE_QUERY_PARAM)),
-    observeAdminModuleActivate,
-    parseAdminModule,
-  );
+  const staged = useAdminStageModule();
+  const activeModule =
+    staged === undefined
+      ? parseAdminModule(searchParams.get(MODULE_QUERY_PARAM))
+      : parseAdminModule(staged);
 
   return <LateralNavigation surface="admin" activeModule={activeModule} />;
 }
 
 function ClinicUrlNavigation() {
   const searchParams = useSearchParams();
-  const activeModule = useLiveModule(
-    parseClinicModule(searchParams.get(MODULE_QUERY_PARAM)) ??
-      DEFAULT_CLINIC_MODULE,
-    observeClinicModuleActivate,
-    parseClinicModule,
-  );
+  const staged = useClinicStageModule();
+  // The hub (a null stage) keeps the operational default current, as `?hub=1`
+  // always did here.
+  const activeModule =
+    staged === undefined
+      ? parseClinicModule(searchParams.get(MODULE_QUERY_PARAM))
+      : parseClinicModule(staged);
 
   return (
     <LateralNavigation
@@ -170,14 +133,11 @@ function ClinicUrlNavigation() {
 
 // Every band destination leaves a full route for `/dashboard`, a different page
 // whose server render can take seconds; pinning the item to the route's module
-// kept it there for the whole wait. It follows the activation like the URL
-// surfaces do, and yields when this route unmounts or on Back/Forward.
+// kept it there for the whole wait. The route's stage publishes the destination
+// while it hands over, and nothing once Back/Forward keeps the route.
 function ClinicRouteNavigation({ routeModule }: { readonly routeModule: ClinicModule }) {
-  const activeModule = useLiveModule(
-    routeModule,
-    observeClinicModuleActivate,
-    parseClinicModule,
-  );
+  const staged = useClinicStageModule();
+  const activeModule = staged === undefined ? routeModule : parseClinicModule(staged);
 
   return (
     <LateralNavigation surface="clinic" activeModule={activeModule ?? routeModule} />

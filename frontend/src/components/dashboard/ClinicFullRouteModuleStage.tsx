@@ -12,6 +12,7 @@ import {
   subscribeClinicModuleActivate,
 } from "@/lib/clinic-hub-reset";
 import { LoadingState } from "./LoadingState";
+import { usePublishStageModule } from "./useStageModule";
 
 /**
  * CMP-06 — Full clinic routes use the same structural stage/workspace/viewport
@@ -54,6 +55,10 @@ export function ClinicFullRouteModuleStage({
     window.addEventListener("popstate", stay);
     return () => window.removeEventListener("popstate", stay);
   }, []);
+
+  // Only while leaving: on its own module the route's band and bar already
+  // know it from the route.
+  usePublishStageModule("clinic", leavingTo, leavingTo !== null);
 
   const pendingLabel = leavingTo
     ? CLINIC_MODULE_NAV_LABELS.find((entry) => entry.moduleId === leavingTo)?.label
