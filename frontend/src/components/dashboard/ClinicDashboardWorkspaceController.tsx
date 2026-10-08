@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DashboardModuleWorkspace } from "./DashboardModuleWorkspace";
+import { usePublishStageModule } from "./useStageModule";
 import { ROUTES } from "@/lib/routes";
 import {
   CLINIC_LAST_MODULE_STORAGE_KEY,
@@ -130,12 +131,16 @@ export function ClinicDashboardWorkspaceController({
     [],
   );
 
-  const recordNavigationIntent = useCallback((target: ClinicModule) => {
-    navigationState.current = recordClinicNavigationIntent(
-      navigationState.current,
-      target,
-    );
-  }, []);
+  const recordNavigationIntent = useCallback(
+    (target: ClinicModule, options?: { readonly pushed?: boolean }) => {
+      navigationState.current = recordClinicNavigationIntent(
+        navigationState.current,
+        target,
+        options,
+      );
+    },
+    [],
+  );
 
   // No module in the URL means the operational default — never a hub.
   //
@@ -177,6 +182,13 @@ export function ClinicDashboardWorkspaceController({
     const outcome = applyClinicUrlCommit(navigationState.current, nextModule, origin);
     navigationState.current = outcome.state;
 
+    // The latest intention is the module the burst pushed from: step back onto
+    // its entry rather than replace the pushed one into a duplicate [A, A].
+    if (outcome.historyBack) {
+      window.history.back();
+      return;
+    }
+
     if (outcome.reconcileTo !== null) {
       router.replace(
         clinicModuleHref(
@@ -212,17 +224,23 @@ export function ClinicDashboardWorkspaceController({
     return () => window.removeEventListener("popstate", relinquishOnHistoryNavigation);
   }, []);
 
+  // SINGLE FLIGHT (`clinic-hub-reset.ts`): a request that arrives while a module
+  // navigation is still in flight is claimed; the reconcile above issues it once
+  // that navigation lands, as a replace of its entry.
   useEffect(
     () =>
       subscribeClinicModuleActivate((moduleId) => {
         const parsed = parseClinicModule(moduleId);
-        if (!parsed) return;
-        recordNavigationIntent(parsed);
+        if (!parsed) return false;
+        const inFlight = navigationState.current.pendingIntent !== null;
+        // Not in flight: the caller pushes this one, which starts the burst.
+        recordNavigationIntent(parsed, { pushed: !inFlight });
         setHasManuallyReturnedToHub(false);
         // CMP-02 — leaving the hub is optimistic too, so the stage swaps on tap
         // instead of waiting for the URL commit. Same two-commit model as modules.
         setHubOverride(false);
         setActiveModule(parsed);
+        return inFlight;
       }),
     [recordNavigationIntent],
   );
@@ -294,6 +312,11 @@ export function ClinicDashboardWorkspaceController({
     recordNavigationIntent,
     router,
   ]);
+
+  // The lateral band, the mobile bar and the mobile title render this, not
+  // their own reading of the URL: a superseded commit reconciled above must not
+  // move them either. The hub is a module-less stage.
+  usePublishStageModule("clinic", isHubActive ? null : activeModule);
 
   const meta = MODULE_META[activeModule];
 

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { FieldVisit } from "@/types";
-import { Route as RouteIcon, ExternalLink } from "lucide-react";
+import { Route as RouteIcon } from "lucide-react";
 import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
 import { EmptyState } from "@/components/dashboard/EmptyState";
@@ -12,6 +12,7 @@ import { ModuleDialog } from "@/components/dashboard/ModuleDialog";
 import { ModuleCard } from "@/components/dashboard/ModuleCard";
 import { usePagedRows } from "@/components/dashboard/usePagedRows";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
+import { FullModuleRouteControl } from "@/components/dashboard/FullModuleRouteControl";
 import { ROUTES } from "@/lib/routes";
 import { formatDate } from "@/lib/utils";
 
@@ -50,15 +51,7 @@ export function ClinicLogisticaWorkspaceSummary({
       : (recentVisits.find((visit) => visit.id === selectedVisitId) ?? null);
 
   const fullModuleLink = (
-    <PublicRouteControl
-      href={ROUTES.dashboardLogistica}
-      variant="bare"
-      className="inline-flex h-8 items-center gap-1.5 rounded-md border border-vetneb-teal/45 bg-vetneb-teal/10 px-2.5 text-xs font-semibold text-vetneb-teal transition-colors hover:bg-vetneb-teal/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
-      aria-label="Abrir módulo completo de logística"
-    >
-      <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-      Abrir módulo completo
-    </PublicRouteControl>
+    <FullModuleRouteControl href={ROUTES.dashboardLogistica} ariaLabel="Abrir módulo completo de logística" />
   );
 
   return (

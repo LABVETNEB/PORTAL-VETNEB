@@ -135,13 +135,12 @@ function WorkspaceModuleSearch() {
       setActiveIndex(0);
       inputRef.current?.blur();
       // Both workspaces activate the module optimistically before the URL
-      // commit, exactly as the shipped nav surfaces do.
-      if (isAdmin) {
-        requestAdminModuleActivate(entry.moduleId);
-      } else {
-        requestClinicModuleActivate(entry.moduleId);
-      }
-      router.push(buildDashboardModuleHref(basePath, entry.moduleId));
+      // commit, exactly as the shipped nav surfaces do. A claimed request is
+      // navigated by the controller (single flight).
+      const claimed = isAdmin
+        ? requestAdminModuleActivate(entry.moduleId)
+        : requestClinicModuleActivate(entry.moduleId);
+      if (!claimed) router.push(buildDashboardModuleHref(basePath, entry.moduleId));
     },
     [basePath, isAdmin, router],
   );

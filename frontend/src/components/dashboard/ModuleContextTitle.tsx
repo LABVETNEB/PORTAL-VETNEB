@@ -13,6 +13,7 @@ import {
   isHubRequested,
 } from "@/features/dashboard/application";
 import { ROUTES } from "@/lib/routes";
+import { useStageModule } from "./useStageModule";
 
 /** The canonical Inicio/hub identity, shared by both roles. */
 const HUB_TITLE = "Inicio";
@@ -51,6 +52,24 @@ export function ModuleContextTitle({ surface, fallback }: ModuleContextTitleProp
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const rawModule = searchParams.get(MODULE_QUERY_PARAM);
+  // The title names the module the stage shows, like the band and the bar: the
+  // URL lags the tap by the whole server render and can pass through a
+  // superseded module. It is read below only while no stage owner is mounted.
+  const staged = useStageModule(surface);
+
+  if (staged !== undefined) {
+    if (staged === null) {
+      return <>{surface === "clinic" ? HUB_TITLE : fallback}</>;
+    }
+    const adminModule = surface === "admin" ? parseAdminModule(staged) : null;
+    const clinicModule = surface === "clinic" ? parseClinicModule(staged) : null;
+    const label = adminModule
+      ? LABEL_BY_MODULE.admin.get(adminModule)
+      : clinicModule
+        ? LABEL_BY_MODULE.clinic.get(clinicModule)
+        : undefined;
+    return <>{label || fallback}</>;
+  }
 
   // CMP-02 — the hub is a state of the route, not a module, on BOTH roles. Admin
   // reached "Inicio" implicitly (no `?module=` on `?hub=1`, so the parser returned

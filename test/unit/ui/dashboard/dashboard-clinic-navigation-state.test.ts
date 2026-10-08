@@ -501,3 +501,59 @@ test("history · only a traverse navigation raises the traversal signal", () => 
     else delete globals.window;
   }
 });
+
+// ── A burst that returns to the module it pushed from ────────────────────────
+//
+// Every committed router state writes one history entry. A -> B pushes B's
+// entry; choosing A again while B is in flight used to replace that entry with
+// A, leaving [A, A]: a Back that changed nothing. Stepping back onto A's own
+// entry leaves no duplicate.
+
+test("pushed burst · A -> B -> A steps back onto A's entry instead of replacing", () => {
+  let state = initial();
+  state = recordClinicNavigationIntent(state, INFORMES, { pushed: true });
+  assert.equal(state.pushedFrom, OPERACIONES, "the burst pushed from the committed module");
+  state = recordClinicNavigationIntent(state, OPERACIONES, { pushed: false });
+  assert.equal(state.pushedFrom, OPERACIONES, "a claimed intention keeps the burst's origin");
+
+  const landed = applyClinicUrlCommit(state, INFORMES);
+  assert.equal(landed.historyBack, true, "the stale entry is left by stepping back");
+  assert.equal(landed.reconcileTo, null, "no replace: it would turn B's entry into a second A");
+  assert.equal(landed.activeModule, null, "the stage already shows A");
+  assert.equal(landed.state.pendingIntent, null, "nothing is left pending for the traversal to undo");
+
+  const traversal = applyClinicUrlCommit(landed.state, OPERACIONES, "history");
+  assert.equal(traversal.activeModule, OPERACIONES);
+  assert.equal(traversal.reconcileTo, null);
+});
+
+test("pushed burst · the origin survives a replace chain", () => {
+  let state = initial();
+  state = recordClinicNavigationIntent(state, INFORMES, { pushed: true });
+  state = recordClinicNavigationIntent(state, LOGISTICA);
+  const first = applyClinicUrlCommit(state, INFORMES);
+  assert.equal(first.reconcileTo, LOGISTICA, "B lands: one replace to the latest module");
+  assert.equal(first.state.pushedFrom, OPERACIONES);
+
+  state = recordClinicNavigationIntent(first.state, OPERACIONES);
+  const second = applyClinicUrlCommit(state, LOGISTICA);
+  assert.equal(second.historyBack, true, "the replaced entry is still the one the burst pushed");
+  assert.equal(second.reconcileTo, null);
+});
+
+test("a burst that never pushed (last-module restore) still reconciles with a replace", () => {
+  let state = initial();
+  state = recordClinicNavigationIntent(state, INFORMES);
+  state = recordClinicNavigationIntent(state, OPERACIONES);
+  const landed = applyClinicUrlCommit(state, INFORMES);
+  assert.notEqual(landed.historyBack, true, "no entry was pushed: stepping back would leave the page");
+  assert.equal(landed.reconcileTo, OPERACIONES);
+});
+
+test("an external commit and Back/Forward drop the burst's origin", () => {
+  let state = initial();
+  state = recordClinicNavigationIntent(state, INFORMES, { pushed: true });
+  assert.equal(applyClinicUrlCommit(state, LOGISTICA, "history").state.pushedFrom, null);
+  assert.equal(relinquishClinicNavigationIntent(state).state.pushedFrom, null);
+  assert.equal(applyClinicUrlCommit(state, INFORMES).state.pushedFrom, null, "its own commit ends the burst");
+});

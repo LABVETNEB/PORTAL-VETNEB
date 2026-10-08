@@ -11,15 +11,8 @@ import {
 import { useSearchParams, useSelectedLayoutSegment } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
-import {
-  observeAdminModuleActivate,
-  requestAdminModuleActivate,
-} from "@/lib/admin-hub-reset";
-import {
-  observeClinicModuleActivate,
-  requestClinicModuleActivate,
-  subscribeClinicHubReset,
-} from "@/lib/clinic-hub-reset";
+import { requestAdminModuleActivate } from "@/lib/admin-hub-reset";
+import { requestClinicModuleActivate } from "@/lib/clinic-hub-reset";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import {
@@ -41,6 +34,7 @@ import {
   CLINIC_MODULE_ICONS,
   type DashboardModuleIcon,
 } from "./dashboardModuleIcons";
+import { useStageModule } from "./useStageModule";
 
 /**
  * B09 - DashboardMobileNav, the single mobile navigation model (<768px).
@@ -127,8 +121,16 @@ import {
  * the home slot. `/dashboard?hub=1` still renders `ClinicModuleHub` — it is a
  * URL of the route, not an entry of this bar — but no surface links to it any
  * more, and with the admin home slot retired too the bar publishes no hub
- * reset for either role; `subscribeClinicHubReset` below stays because the
- * signal is contracted.
+ * reset for either role. A hub reset still reaches the bar: the clinic
+ * controller owns it and publishes the module-less stage the bar renders.
+ *
+ * CURRENT SLOT = STAGE MODULE. The bar renders the module the stage owner
+ * publishes (`lib/dashboard/navigation/stageModule.ts`), the same value the
+ * lateral band renders. It used to keep its own optimistic slot, moved by every
+ * activation and dropped by every URL commit, so a superseded navigation that
+ * committed before the latest one pulled the slot back to the module the user
+ * had left while the stage kept the new one. The URL resolver below is only
+ * read while no owner is mounted.
  *
  * @see docs/implementation/dashboard-b09-mobile-navigation-unification.md
  */
@@ -255,7 +257,8 @@ type DashboardMobileNavOverflowProps = {
   readonly destinations: readonly MobileNavDestination[];
   readonly basePath: string;
   readonly onClose: () => void;
-  readonly onNavigate: (moduleId: string) => void;
+  /** Returns `true` when the stage owner claimed the navigation (single flight). */
+  readonly onNavigate: (moduleId: string) => boolean;
 };
 
 function DashboardMobileNavOverflow({
@@ -325,7 +328,9 @@ function DashboardMobileNavOverflow({
               variant="bare"
               aria-label={destination.label}
               data-dashboard-mobile-nav-overflow-link={destination.moduleId}
-              onClick={() => onNavigate(destination.moduleId)}
+              onClick={(event) => {
+                if (onNavigate(destination.moduleId)) event.preventDefault();
+              }}
               className="dashboard-mobile-nav-overflow-link"
             >
               <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -385,7 +390,8 @@ type MobileNavBarProps = {
    */
   readonly identify: boolean;
   readonly activeModule: string | null;
-  readonly onActivate: (moduleId: string) => void;
+  /** Returns `true` when the stage owner claimed the navigation (single flight). */
+  readonly onActivate: (moduleId: string) => boolean;
   readonly overflowOpen: boolean;
   readonly onToggleOverflow: () => void;
   readonly children?: ReactNode;
@@ -435,7 +441,9 @@ function DashboardMobileNavBar({
               aria-label={destination.label}
               aria-current={isActive ? "page" : undefined}
               data-dashboard-mobile-nav-item={destination.moduleId}
-              onClick={() => onActivate(destination.moduleId)}
+              onClick={(event) => {
+                if (onActivate(destination.moduleId)) event.preventDefault();
+              }}
               className={cn(
                 "dashboard-mobile-nav-item",
                 isActive && "dashboard-mobile-nav-item-active",
@@ -518,54 +526,20 @@ function MobileNavWithUrl({ surface }: DashboardMobileNavProps) {
     [surface, urlModule, routeModule, clinicHubRequested],
   );
 
-  const [activeModule, setActiveModule] = useState<string | null>(parsed);
+  // Every destination (this bar, the lateral band, the kebab, the overview
+  // links, the app-bar search) reaches the stage owner through the bus, and the
+  // slot follows the owner, so it moves with the stage on the tap.
+  const staged = useStageModule(surface);
+  const activeModule = staged === undefined ? parsed : staged;
   const [overflowOpen, setOverflowOpen] = useState(false);
   const closeOverflow = useCallback(() => setOverflowOpen(false), []);
 
-  useEffect(() => {
-    setActiveModule(parsed);
-  }, [parsed]);
-
-  // Back/Forward abandons a pending activation: the slot falls back to the
-  // committed module until the restore commit moves `parsed`.
-  useEffect(() => {
-    const dropOptimisticSlot = () => setActiveModule(parsed);
-    window.addEventListener("popstate", dropOptimisticSlot);
-    return () => window.removeEventListener("popstate", dropOptimisticSlot);
-  }, [parsed]);
-
-  // A destination outside the bar (lateral band, kebab, overview links, app-bar
-  // search) moves the current slot with the stage on both roles. The bar observes
-  // instead of listening, so the stage owner keeps the late hand-over.
-  useEffect(() => {
-    if (surface === "admin") {
-      return observeAdminModuleActivate((moduleId) => {
-        const adminModule = parseAdminModule(moduleId);
-        if (!adminModule) return;
-        setActiveModule(adminModule);
-      });
-    }
-    return observeClinicModuleActivate((moduleId) => {
-      const clinicModule = parseClinicModule(moduleId);
-      if (!clinicModule) return;
-      setActiveModule(clinicModule);
-    });
-  }, [surface]);
-
-  useEffect(() => {
-    if (surface !== "clinic") return;
-    return subscribeClinicHubReset(() => setActiveModule(null));
-  }, [surface]);
-
   const activate = useCallback(
     (moduleId: string) => {
-      setActiveModule(moduleId);
-      if (surface === "admin") {
-        requestAdminModuleActivate(moduleId);
-      } else {
-        requestClinicModuleActivate(moduleId);
-      }
       setOverflowOpen(false);
+      return surface === "admin"
+        ? requestAdminModuleActivate(moduleId)
+        : requestClinicModuleActivate(moduleId);
     },
     [surface],
   );
@@ -610,7 +584,7 @@ export function DashboardMobileNav({ surface }: DashboardMobileNavProps) {
           surface={surface}
           identify={false}
           activeModule={null}
-          onActivate={noop}
+          onActivate={claimNothing}
           overflowOpen={false}
           onToggleOverflow={noop}
         />
@@ -622,3 +596,7 @@ export function DashboardMobileNav({ surface }: DashboardMobileNavProps) {
 }
 
 function noop() {}
+
+function claimNothing() {
+  return false;
+}

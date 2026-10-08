@@ -39,18 +39,22 @@ export function subscribeAdminHubReset(
 // URL catches up in the background. Every in-dashboard module destination
 // publishes (mobile bar, lateral band, app-bar search, overview links, kebab):
 // the commit waits on the whole server render, so a destination that skipped
-// the signal left the stage on the previous module until it landed.
+// the signal left the stage on the previous module until it landed. The
+// navigation chrome does not listen here: it renders the module the controller
+// publishes (`lib/dashboard/navigation/stageModule.ts`).
 
-type AdminModuleActivateListener = (moduleId: string) => void;
+// SINGLE FLIGHT. Every committed router state writes one history entry, so two
+// module pushes in flight left either [A, B, C] (B committed on its own: Back
+// landed on the module the user had abandoned) or [A, C], depending on payload
+// timing. The controller therefore claims a request that arrives while its
+// previous navigation is still in flight: the caller does not navigate, and the
+// controller replaces the in-flight entry with the latest module once that
+// navigation lands. History is always [A, C].
+
+/** Returns `true` to claim the navigation of this request. */
+type AdminModuleActivateListener = (moduleId: string) => boolean | void;
 
 const moduleActivateListeners = new Set<AdminModuleActivateListener>();
-
-// Navigation chrome (lateral band, mobile bar) mirrors every request so its
-// current item moves with the stage instead of waiting for the URL commit.
-// Observers are kept apart from the controller listeners on purpose: they never
-// count as "heard" and never consume the late hand-over below, which belongs to
-// the controller alone.
-const moduleActivateObservers = new Set<AdminModuleActivateListener>();
 
 // The bar can hydrate before the controller subscribes: a tap in that window
 // used to be dropped, and the controller then resolved its own landing over the
@@ -59,17 +63,23 @@ const moduleActivateObservers = new Set<AdminModuleActivateListener>();
 const LATE_ACTIVATION_MAX_AGE_MS = 5_000;
 let unheardActivation: { moduleId: string; at: number } | null = null;
 
-/** Ask the admin workspace controller to open a module immediately. */
-export function requestAdminModuleActivate(moduleId: string): void {
+/**
+ * Ask the admin workspace controller to open a module immediately. `true` means
+ * the controller claimed the navigation: the caller must not navigate.
+ */
+export function requestAdminModuleActivate(moduleId: string): boolean {
   if (typeof window === "undefined") {
-    return;
+    return false;
   }
-  moduleActivateObservers.forEach((observer) => observer(moduleId));
   if (moduleActivateListeners.size === 0) {
     unheardActivation = { moduleId, at: performance.now() };
-    return;
+    return false;
   }
-  moduleActivateListeners.forEach((listener) => listener(moduleId));
+  let claimed = false;
+  moduleActivateListeners.forEach((listener) => {
+    if (listener(moduleId) === true) claimed = true;
+  });
+  return claimed;
 }
 
 export function subscribeAdminModuleActivate(
@@ -82,12 +92,4 @@ export function subscribeAdminModuleActivate(
     listener(late.moduleId);
   }
   return () => moduleActivateListeners.delete(listener);
-}
-
-/** Mirror every admin module request without taking the controller's role. */
-export function observeAdminModuleActivate(
-  observer: AdminModuleActivateListener,
-): () => void {
-  moduleActivateObservers.add(observer);
-  return () => moduleActivateObservers.delete(observer);
 }
