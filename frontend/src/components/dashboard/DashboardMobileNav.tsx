@@ -16,9 +16,9 @@ import {
   requestAdminModuleActivate,
 } from "@/lib/admin-hub-reset";
 import {
+  observeClinicModuleActivate,
   requestClinicModuleActivate,
   subscribeClinicHubReset,
-  subscribeClinicModuleActivate,
 } from "@/lib/clinic-hub-reset";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
@@ -535,8 +535,8 @@ function MobileNavWithUrl({ surface }: DashboardMobileNavProps) {
   }, [parsed]);
 
   // A destination outside the bar (lateral band, kebab, overview links, app-bar
-  // search) moves the current slot with the stage on both roles. Admin observes
-  // instead of listening, so its controller keeps the late hand-over.
+  // search) moves the current slot with the stage on both roles. The bar observes
+  // instead of listening, so the stage owner keeps the late hand-over.
   useEffect(() => {
     if (surface === "admin") {
       return observeAdminModuleActivate((moduleId) => {
@@ -545,7 +545,7 @@ function MobileNavWithUrl({ surface }: DashboardMobileNavProps) {
         setActiveModule(adminModule);
       });
     }
-    return subscribeClinicModuleActivate((moduleId) => {
+    return observeClinicModuleActivate((moduleId) => {
       const clinicModule = parseClinicModule(moduleId);
       if (!clinicModule) return;
       setActiveModule(clinicModule);

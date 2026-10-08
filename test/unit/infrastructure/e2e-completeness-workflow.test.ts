@@ -314,7 +314,9 @@ test("automatic workflow coverage is derived from catalog cohorts and equals ful
   // (clinic/shell/dashboard-clinic-desktop-tablet-space.spec.ts).
   // +1: DASHBOARD_GLOBAL_LIVE_SYNC live module navigation contract
   // (platform/app-shell/dashboard-global-live-navigation-sync.spec.ts).
-  assert.equal(E2E_SUITE_CATALOG.length, 103);
+  // +1: DASHBOARD_REAL_POINTER_NAVIGATION real-click module navigation contract
+  // (platform/app-shell/dashboard-real-pointer-navigation.spec.ts).
+  assert.equal(E2E_SUITE_CATALOG.length, 104);
 
   const partitionUnion = new Set(PARTITION_COHORTS.flatMap((cohort) => E2E_COHORT_SPECS[cohort]));
   assert.deepEqual([...partitionUnion].sort(), [...E2E_COHORT_SPECS.full].sort());

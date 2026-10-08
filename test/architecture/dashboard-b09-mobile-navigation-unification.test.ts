@@ -855,7 +855,9 @@ test("B09 · every preserved behaviour has a carrier in the new owner", () => {
   for (const behaviour of [
     "requestAdminModuleActivate",
     "requestClinicModuleActivate",
-    "subscribeClinicModuleActivate",
+    // Followed as an observer since the clinic bus mirrors admin's: the bar must
+    // not consume the hand-over that belongs to the stage owner.
+    "observeClinicModuleActivate",
     "subscribeClinicHubReset",
     "aria-current",
     "aria-expanded",

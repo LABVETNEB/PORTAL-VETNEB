@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import { observeAdminModuleActivate } from "@/lib/admin-hub-reset";
-import { subscribeClinicModuleActivate } from "@/lib/clinic-hub-reset";
+import { observeClinicModuleActivate } from "@/lib/clinic-hub-reset";
 import {
   DEFAULT_CLINIC_MODULE,
   parseAdminModule,
@@ -156,7 +156,7 @@ function ClinicUrlNavigation() {
   const activeModule = useLiveModule(
     parseClinicModule(searchParams.get(MODULE_QUERY_PARAM)) ??
       DEFAULT_CLINIC_MODULE,
-    subscribeClinicModuleActivate,
+    observeClinicModuleActivate,
     parseClinicModule,
   );
 
@@ -165,6 +165,22 @@ function ClinicUrlNavigation() {
       surface="clinic"
       activeModule={activeModule ?? DEFAULT_CLINIC_MODULE}
     />
+  );
+}
+
+// Every band destination leaves a full route for `/dashboard`, a different page
+// whose server render can take seconds; pinning the item to the route's module
+// kept it there for the whole wait. It follows the activation like the URL
+// surfaces do, and yields when this route unmounts or on Back/Forward.
+function ClinicRouteNavigation({ routeModule }: { readonly routeModule: ClinicModule }) {
+  const activeModule = useLiveModule(
+    routeModule,
+    observeClinicModuleActivate,
+    parseClinicModule,
+  );
+
+  return (
+    <LateralNavigation surface="clinic" activeModule={activeModule ?? routeModule} />
   );
 }
 
@@ -189,7 +205,7 @@ export function DashboardNavigationFrame({
       data-dashboard-navigation-frame={surface}
     >
       {routeModule ? (
-        <LateralNavigation surface="clinic" activeModule={routeModule} />
+        <ClinicRouteNavigation routeModule={routeModule} />
       ) : (
         <Suspense fallback={urlFallback}>
           {isAdmin ? <AdminUrlNavigation /> : <ClinicUrlNavigation />}
