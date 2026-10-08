@@ -45,6 +45,15 @@ const moduleActivateListeners = new Map<ClinicModuleActivateListener, boolean>()
 const LATE_ACTIVATION_MAX_AGE_MS = 5_000;
 let unheardActivation: { moduleId: string; at: number } | null = null;
 
+// Back/Forward commits the restored entry inside the router's own popstate
+// listener, so an owner subscribing during that dispatch was mounted by the
+// traversal: it supersedes the kept destination, and the stage that kept it is
+// unmounted before its own popstate listener runs. Holds without the Navigation
+// API, where `subscribeHistoryTraversal` cannot drop it earlier.
+function isHistoryTraversalDispatch(): boolean {
+  return typeof window !== "undefined" && window.event?.type === "popstate";
+}
+
 /** `true` means a stage owner claimed the navigation: the caller must not navigate. */
 export function requestClinicModuleActivate(moduleId: string): boolean {
   if (typeof window === "undefined") {
@@ -68,7 +77,11 @@ export function subscribeClinicModuleActivate(
   if (!handsOver) {
     const late = unheardActivation;
     unheardActivation = null;
-    if (late && performance.now() - late.at <= LATE_ACTIVATION_MAX_AGE_MS) {
+    if (
+      late &&
+      !isHistoryTraversalDispatch() &&
+      performance.now() - late.at <= LATE_ACTIVATION_MAX_AGE_MS
+    ) {
       listener(late.moduleId);
     }
   }

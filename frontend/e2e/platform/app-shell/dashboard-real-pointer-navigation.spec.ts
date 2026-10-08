@@ -429,13 +429,21 @@ test.describe("DASHBOARD_REAL_POINTER_NAVIGATION · clinic full routes", () => {
   // and every later click claimed by a navigation that no longer existed.
   for (const route of CLINIC_FULL_ROUTES) {
     for (const viewport of [VIEWPORTS[0], VIEWPORTS[3]]) {
+      // Without the Navigation API nothing drops the destination before the
+      // router's popstate listener commits the restored entry.
+      for (const navigationApi of [true, false]) {
       const regime = regimeFor(viewport.width);
 
-      test(`${route.path} ${viewport.width}x${viewport.height} (${regime}): Back before the commit lands on the origin and the next click still navigates`, async ({
+      test(`${route.path} ${viewport.width}x${viewport.height} (${regime}): Back before the commit lands on the origin and the next click still navigates${navigationApi ? "" : " without the Navigation API"}`, async ({
         page,
       }) => {
         const runtimeErrors: string[] = [];
         page.on("pageerror", (error) => runtimeErrors.push(error.message));
+        if (!navigationApi) {
+          await page.addInitScript(() => {
+            Object.defineProperty(window, "navigation", { value: undefined, configurable: true });
+          });
+        }
         await page.setViewportSize(viewport);
         const gate = await holdServerNavigations(page);
         await page.goto(`/dashboard?module=${route.module}`);
@@ -465,6 +473,7 @@ test.describe("DASHBOARD_REAL_POINTER_NAVIGATION · clinic full routes", () => {
         expect(reloads.documents, "client navigation, never a reload").toEqual([]);
         expect(runtimeErrors).toEqual([]);
       });
+      }
     }
   }
 });

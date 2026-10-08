@@ -663,3 +663,42 @@ test("a full-route stage hands the latest activation to the controller that repl
     else delete globals.window;
   }
 });
+
+test("an owner mounted by Back/Forward inside popstate never adopts the kept destination", async () => {
+  const globals = globalThis as { window?: unknown; event?: unknown };
+  const hadWindow = "window" in globals;
+  const previousWindow = globals.window;
+  globals.window = globalThis;
+  try {
+    const { requestClinicModuleActivate, subscribeClinicModuleActivate } = await import(
+      "../../../../frontend/src/lib/clinic-hub-reset.ts"
+    );
+
+    // The full route keeps Tokens for `/dashboard`; Back starts before its commit.
+    const stopStage = subscribeClinicModuleActivate(() => {}, { handsOver: true });
+    requestClinicModuleActivate("tokens");
+
+    // Real order without the Navigation API: the router's popstate listener
+    // commits the restored entry, the stage unmounts before its own listener
+    // runs, and the controller subscribes while popstate is still dispatching.
+    globals.event = { type: "popstate" };
+    stopStage();
+    const controller: string[] = [];
+    const stopController = subscribeClinicModuleActivate((moduleId) => {
+      controller.push(moduleId);
+    });
+    delete globals.event;
+    stopController();
+    assert.deepEqual(controller, [], "the traversal superseded the kept destination");
+
+    const later: string[] = [];
+    subscribeClinicModuleActivate((moduleId) => {
+      later.push(moduleId);
+    })();
+    assert.deepEqual(later, [], "the dropped destination is never replayed afterwards");
+  } finally {
+    delete globals.event;
+    if (hadWindow) globals.window = previousWindow;
+    else delete globals.window;
+  }
+});
