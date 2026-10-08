@@ -7,7 +7,10 @@ import {
   parseClinicModule,
   type ClinicModule,
 } from "@/features/dashboard/config";
-import { subscribeClinicModuleActivate } from "@/lib/clinic-hub-reset";
+import {
+  relinquishClinicModuleActivateHandOver,
+  subscribeClinicModuleActivate,
+} from "@/lib/clinic-hub-reset";
 import { LoadingState } from "./LoadingState";
 
 /**
@@ -19,7 +22,8 @@ import { LoadingState } from "./LoadingState";
  * activation here, so the route's content stayed on stage for the whole wait
  * and the click looked dropped. The stage swaps to the destination's pending
  * workspace on the signal; the commit replaces the page, and Back/Forward
- * restores the route's own content.
+ * restores the route's own content. It hands the latest destination over to the
+ * controller that replaces it, so A then B before A's commit never lands on A.
  */
 export function ClinicFullRouteModuleStage({
   moduleId,
@@ -32,15 +36,21 @@ export function ClinicFullRouteModuleStage({
 
   useEffect(
     () =>
-      subscribeClinicModuleActivate((target) => {
-        const parsed = parseClinicModule(target);
-        if (parsed) setLeavingTo(parsed);
-      }),
+      subscribeClinicModuleActivate(
+        (target) => {
+          const parsed = parseClinicModule(target);
+          if (parsed) setLeavingTo(parsed);
+        },
+        { handsOver: true },
+      ),
     [],
   );
 
   useEffect(() => {
-    const stay = () => setLeavingTo(null);
+    const stay = () => {
+      relinquishClinicModuleActivateHandOver();
+      setLeavingTo(null);
+    };
     window.addEventListener("popstate", stay);
     return () => window.removeEventListener("popstate", stay);
   }, []);

@@ -50,6 +50,11 @@ const CLINIC_FULL_ROUTES = [
   { path: "/dashboard/informes", module: "informes", stage: "informes-full", target: "logistica" },
 ] as const;
 
+const CLINIC_FULL_ROUTE_HANDOVERS = [
+  { path: "/dashboard/logistica", stage: "logistica-full", first: "tokens", second: "perfil" },
+  { path: "/dashboard/informes", stage: "informes-full", first: "logistica", second: "tokens" },
+] as const;
+
 function regimeFor(width: number): Regime {
   if (width >= 1280) return "drawer";
   if (width >= 768) return "rail";
@@ -130,6 +135,21 @@ async function holdServerNavigations(page: Page) {
     arm() {
       armed = true;
     },
+    /** Lets through only the held payloads of one destination, in order. */
+    async releaseModule(moduleId: string) {
+      const target = held.filter(
+        (route) => new URL(route.request().url()).searchParams.get("module") === moduleId,
+      );
+      for (const route of target) {
+        held.splice(held.indexOf(route), 1);
+        const continued = await route.continue().then(
+          () => true,
+          () => false /* the router aborted a superseded navigation */,
+        );
+        if (continued) await route.request().response();
+      }
+      return target.length;
+    },
     async release() {
       armed = false;
       for (const route of held.splice(0)) {
@@ -141,6 +161,34 @@ async function holdServerNavigations(page: Page) {
       }
     },
   };
+}
+
+/**
+ * Records, on every DOM mutation from now on, any stage or current item that
+ * shows `moduleId`: a transient paint between two commits is caught too.
+ */
+async function recordPaintsOf(page: Page, moduleId: string) {
+  await page.evaluate((id) => {
+    const paints: string[] = [];
+    const record = () => {
+      if (document.querySelector(`[data-dashboard-module-workspace="${id}"]`)) paints.push("stage");
+      const current = document.querySelector(
+        `[aria-current="page"][data-dashboard-navigation-item="${id}"], [aria-current="page"][data-dashboard-mobile-nav-item="${id}"]`,
+      );
+      if (current) paints.push("current");
+    };
+    new MutationObserver(record).observe(document.documentElement, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ["aria-current", "data-dashboard-module-workspace"],
+    });
+    (window as Window & { __stalePaints?: string[] }).__stalePaints = paints;
+  }, moduleId);
+  return () =>
+    page.evaluate(() => [
+      ...new Set((window as Window & { __stalePaints?: string[] }).__stalePaints ?? ["unrecorded"]),
+    ]);
 }
 
 async function signIn(page: Page, role: Role) {
@@ -233,6 +281,52 @@ test.describe("DASHBOARD_REAL_POINTER_NAVIGATION · clinic full routes", () => {
         await expectCurrent(page, "clinic", regime, route.target);
         await expectStage(page, route.target);
         expect(reloads.documents, "client navigation, never a reload").toEqual([]);
+      });
+    }
+  }
+
+  // The full-route stage hands the stage over to the `/dashboard` controller on
+  // the first commit. A second destination clicked before that commit used to
+  // stay with the unmounted stage, so the new owner opened the first one.
+  for (const route of CLINIC_FULL_ROUTE_HANDOVERS) {
+    for (const viewport of [VIEWPORTS[0], VIEWPORTS[3]]) {
+      const regime = regimeFor(viewport.width);
+
+      test(`${route.path} ${viewport.width}x${viewport.height} (${regime}): A then B before A commits keeps B across the owner handoff`, async ({
+        page,
+      }) => {
+        const runtimeErrors: string[] = [];
+        page.on("pageerror", (error) => runtimeErrors.push(error.message));
+        await page.setViewportSize(viewport);
+        const gate = await holdServerNavigations(page);
+        await page.goto(route.path);
+        await expectStage(page, route.stage);
+        await page.waitForLoadState("networkidle");
+
+        const reloads = watchDocuments(page);
+        reloads.arm();
+        gate.arm();
+        await pointerClick(navItem(page, "clinic", regime, route.first));
+        await expectStage(page, route.first);
+        await pointerClick(navItem(page, "clinic", regime, route.second));
+        await expectCurrent(page, "clinic", regime, route.second);
+        await expectStage(page, route.second);
+
+        const stalePaints = await recordPaintsOf(page, route.first);
+
+        // A's payload lands first. Whether the router commits A or discards it,
+        // the owner that ends up on stage must keep B; no frame may paint A.
+        expect(await gate.releaseModule(route.first)).toBeGreaterThan(0);
+        await expectCurrent(page, "clinic", regime, route.second);
+        await expectStage(page, route.second);
+
+        await gate.release();
+        await expect(page).toHaveURL(moduleUrl("/dashboard", route.second));
+        await expectCurrent(page, "clinic", regime, route.second);
+        await expectStage(page, route.second);
+        expect(await stalePaints(), `${route.first} painted after ${route.second} was chosen`).toEqual([]);
+        expect(reloads.documents, "client navigation, never a reload").toEqual([]);
+        expect(runtimeErrors).toEqual([]);
       });
     }
   }

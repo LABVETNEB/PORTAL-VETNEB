@@ -23,7 +23,12 @@ type ClinicModuleActivateListener = (moduleId: string) => void;
 // Chrome used to listen too, so a tap after the band hydrated but before the
 // controller subscribed counted as heard and was lost for the stage: the item
 // moved, the workspace stayed. Same model as the admin bus.
-const moduleActivateListeners = new Set<ClinicModuleActivateListener>();
+//
+// The full-route stage is an owner that HANDS OVER: every destination leaves its
+// route for `/dashboard`, whose controller replaces it on the commit. It hears
+// each request but keeps the latest one for that next owner; otherwise A then B
+// before A's commit left the new controller on A.
+const moduleActivateListeners = new Map<ClinicModuleActivateListener, boolean>();
 const moduleActivateObservers = new Set<ClinicModuleActivateListener>();
 
 const LATE_ACTIVATION_MAX_AGE_MS = 5_000;
@@ -34,23 +39,32 @@ export function requestClinicModuleActivate(moduleId: string): void {
     return;
   }
   moduleActivateObservers.forEach((observer) => observer(moduleId));
-  if (moduleActivateListeners.size === 0) {
-    unheardActivation = { moduleId, at: performance.now() };
-    return;
-  }
-  moduleActivateListeners.forEach((listener) => listener(moduleId));
+  let settled = false;
+  moduleActivateListeners.forEach((handsOver, listener) => {
+    listener(moduleId);
+    if (!handsOver) settled = true;
+  });
+  unheardActivation = settled ? null : { moduleId, at: performance.now() };
 }
 
 export function subscribeClinicModuleActivate(
   listener: ClinicModuleActivateListener,
+  { handsOver = false }: { readonly handsOver?: boolean } = {},
 ): () => void {
-  moduleActivateListeners.add(listener);
-  const late = unheardActivation;
-  unheardActivation = null;
-  if (late && performance.now() - late.at <= LATE_ACTIVATION_MAX_AGE_MS) {
-    listener(late.moduleId);
+  moduleActivateListeners.set(listener, handsOver);
+  if (!handsOver) {
+    const late = unheardActivation;
+    unheardActivation = null;
+    if (late && performance.now() - late.at <= LATE_ACTIVATION_MAX_AGE_MS) {
+      listener(late.moduleId);
+    }
   }
   return () => moduleActivateListeners.delete(listener);
+}
+
+/** Back/Forward before the commit supersedes the intent kept for the next owner. */
+export function relinquishClinicModuleActivateHandOver(): void {
+  unheardActivation = null;
 }
 
 /** Mirror every clinic module request without taking a stage owner's role. */

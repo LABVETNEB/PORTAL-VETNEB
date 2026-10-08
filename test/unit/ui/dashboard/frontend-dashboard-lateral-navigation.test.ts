@@ -399,3 +399,59 @@ test("clinic observers mirror every request and a tap before the controller subs
     else delete globals.window;
   }
 });
+
+test("a full-route stage hands the latest activation to the controller that replaces it", async () => {
+  const globals = globalThis as { window?: unknown };
+  const hadWindow = "window" in globals;
+  const previousWindow = globals.window;
+  globals.window = globalThis;
+  try {
+    const {
+      relinquishClinicModuleActivateHandOver,
+      requestClinicModuleActivate,
+      subscribeClinicModuleActivate,
+    } = await import("../../../../frontend/src/lib/clinic-hub-reset.ts");
+
+    // A then B from a full route, both before A's `/dashboard` commit.
+    const leaving: string[] = [];
+    const stopStage = subscribeClinicModuleActivate((moduleId) => leaving.push(moduleId), {
+      handsOver: true,
+    });
+    requestClinicModuleActivate("tokens");
+    requestClinicModuleActivate("informes");
+    assert.deepEqual(leaving, ["tokens", "informes"]);
+
+    // A commits: the stage unmounts and the controller takes the stage.
+    stopStage();
+    const controller: string[] = [];
+    const stopController = subscribeClinicModuleActivate((moduleId) => controller.push(moduleId));
+    assert.deepEqual(controller, ["informes"], "the latest intent survives the owner change, not A");
+
+    requestClinicModuleActivate("perfil");
+    assert.deepEqual(controller, ["informes", "perfil"]);
+    stopController();
+    const remounted: string[] = [];
+    subscribeClinicModuleActivate((moduleId) => remounted.push(moduleId))();
+    assert.deepEqual(remounted, [], "an intent a final owner heard is never replayed");
+
+    // A handing-over stage never consumes what it keeps for the next owner.
+    const nextStage: string[] = [];
+    const stopNextStage = subscribeClinicModuleActivate((moduleId) => nextStage.push(moduleId), {
+      handsOver: true,
+    });
+    requestClinicModuleActivate("logistica");
+    const strictRemount = subscribeClinicModuleActivate(() => {}, { handsOver: true });
+    strictRemount();
+    assert.deepEqual(nextStage, ["logistica"]);
+
+    // Back/Forward before the commit is the user's own navigation.
+    relinquishClinicModuleActivateHandOver();
+    stopNextStage();
+    const afterBack: string[] = [];
+    subscribeClinicModuleActivate((moduleId) => afterBack.push(moduleId))();
+    assert.deepEqual(afterBack, [], "a history navigation drops the retained intent");
+  } finally {
+    if (hadWindow) globals.window = previousWindow;
+    else delete globals.window;
+  }
+});
