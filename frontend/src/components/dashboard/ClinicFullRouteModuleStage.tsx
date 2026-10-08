@@ -11,6 +11,7 @@ import {
   relinquishClinicModuleActivateHandOver,
   subscribeClinicModuleActivate,
 } from "@/lib/clinic-hub-reset";
+import { subscribeHistoryTraversal } from "@/lib/dashboard/navigation/historyTraversal";
 import { LoadingState } from "./LoadingState";
 import { usePublishStageModule } from "./useStageModule";
 
@@ -47,13 +48,22 @@ export function ClinicFullRouteModuleStage({
     [],
   );
 
+  // The kept destination is dropped when a Back/Forward STARTS. React commits the
+  // restored entry inside the router's own popstate listener, which runs before
+  // this one: `/dashboard`'s controller mounted, adopted the abandoned destination
+  // and unmounted this stage before `popstate` reached it. `popstate` stays as the
+  // backstop where the Navigation API is missing.
   useEffect(() => {
     const stay = () => {
       relinquishClinicModuleActivateHandOver();
       setLeavingTo(null);
     };
+    const stopTraversal = subscribeHistoryTraversal(stay);
     window.addEventListener("popstate", stay);
-    return () => window.removeEventListener("popstate", stay);
+    return () => {
+      stopTraversal();
+      window.removeEventListener("popstate", stay);
+    };
   }, []);
 
   // Only while leaving: on its own module the route's band and bar already

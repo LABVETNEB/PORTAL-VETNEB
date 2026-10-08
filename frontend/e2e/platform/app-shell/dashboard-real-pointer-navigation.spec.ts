@@ -421,6 +421,52 @@ test.describe("DASHBOARD_REAL_POINTER_NAVIGATION · clinic full routes", () => {
       });
     }
   }
+
+  // Back while a destination chosen on the full route is still in flight. The
+  // router commits the restored `/dashboard` entry inside the popstate dispatch,
+  // so the controller used to mount and adopt the handed-over destination before
+  // the stage could drop it: url on the origin, stage on the abandoned module,
+  // and every later click claimed by a navigation that no longer existed.
+  for (const route of CLINIC_FULL_ROUTES) {
+    for (const viewport of [VIEWPORTS[0], VIEWPORTS[3]]) {
+      const regime = regimeFor(viewport.width);
+
+      test(`${route.path} ${viewport.width}x${viewport.height} (${regime}): Back before the commit lands on the origin and the next click still navigates`, async ({
+        page,
+      }) => {
+        const runtimeErrors: string[] = [];
+        page.on("pageerror", (error) => runtimeErrors.push(error.message));
+        await page.setViewportSize(viewport);
+        const gate = await holdServerNavigations(page);
+        await page.goto(`/dashboard?module=${route.module}`);
+        await expectStage(page, route.module);
+        await page.waitForLoadState("networkidle");
+        await page.locator(`[data-public-route-href="${route.path}"]`).filter({ visible: true }).first().click();
+        await expect(page).toHaveURL(new RegExp(`${route.path.replace(/\//g, "\\/")}$`));
+        await expectStage(page, route.stage);
+        await page.waitForLoadState("networkidle");
+
+        const reloads = watchDocuments(page);
+        reloads.arm();
+        gate.arm();
+        await pointerClick(navItem(page, "clinic", regime, route.target));
+        await expectStage(page, route.target);
+
+        await page.goBack();
+        await gate.release();
+        await expect(page).toHaveURL(moduleUrl("/dashboard", route.module));
+        await expectStage(page, route.module);
+        await expectCurrent(page, "clinic", regime, route.module);
+
+        await pointerClick(navItem(page, "clinic", regime, "perfil"));
+        await expect(page).toHaveURL(moduleUrl("/dashboard", "perfil"));
+        await expectStage(page, "perfil");
+        await expectCurrent(page, "clinic", regime, "perfil");
+        expect(reloads.documents, "client navigation, never a reload").toEqual([]);
+        expect(runtimeErrors).toEqual([]);
+      });
+    }
+  }
 });
 
 // A then B before A commits, on the module shell. The stage owner classifies
