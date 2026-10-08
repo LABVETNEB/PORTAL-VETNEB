@@ -528,6 +528,8 @@ const C03_ERROR_CONSUMERS = ["frontend/src/app/dashboard/informes/InformesReport
 const C03_LOADING_CONSUMERS = [
   "frontend/src/app/dashboard/admin/AdminClinicsManagementCard.tsx",
   "frontend/src/app/dashboard/admin/AdminFailedLoginAlertsReadOnlyCard.tsx",
+  // Pending destination while a full route waits for the `/dashboard` commit.
+  "frontend/src/components/dashboard/ClinicFullRouteModuleStage.tsx",
 ] as const;
 
 test("C03 · CollectionState is the single runtime owner and the legacy state names are thin adapters", () => {

@@ -238,8 +238,18 @@ test("the frame moves the current item with the activation, not with the commit"
     "admin current item observes the activation without consuming the controller hand-over",
   );
   assert.ok(
+    frame.includes("observeClinicModuleActivate"),
+    "clinic current item observes the activation without consuming the stage owner's hand-over",
+  );
+  assert.equal(
     frame.includes("subscribeClinicModuleActivate"),
-    "clinic current item follows the same activation the clinic controller swaps on",
+    false,
+    "the band is chrome: listening would count a tap as heard before the stage owner subscribes",
+  );
+  assert.equal(
+    /<LateralNavigation surface="clinic" activeModule=\{routeModule\} \/>/.test(frame),
+    false,
+    "a full route's band follows the activation instead of staying pinned to its module",
   );
   assert.ok(
     frame.includes("intent.from === committedModule"),
@@ -338,6 +348,108 @@ test("admin observers mirror every request without taking the controller's late 
     stopListening();
     requestAdminModuleActivate("admin-pricing");
     assert.deepEqual(observed, ["admin-clinics", "audit-log"], "an unsubscribed observer hears nothing");
+  } finally {
+    if (hadWindow) globals.window = previousWindow;
+    else delete globals.window;
+  }
+});
+
+test("clinic observers mirror every request and a tap before the controller subscribes is handed over", async () => {
+  const globals = globalThis as { window?: unknown };
+  const hadWindow = "window" in globals;
+  const previousWindow = globals.window;
+  globals.window = globalThis;
+  try {
+    const {
+      observeClinicModuleActivate,
+      requestClinicModuleActivate,
+      subscribeClinicModuleActivate,
+    } = await import("../../../../frontend/src/lib/clinic-hub-reset.ts");
+
+    const observed: string[] = [];
+    const stopObserving = observeClinicModuleActivate((moduleId) => observed.push(moduleId));
+
+    // The band hydrated, the controller has not subscribed yet: the tap used to
+    // reach only the chrome, so the stage kept the module the user had left.
+    requestClinicModuleActivate("tokens");
+    assert.deepEqual(observed, ["tokens"]);
+
+    const heard: string[] = [];
+    const stopListening = subscribeClinicModuleActivate((moduleId) => heard.push(moduleId));
+    assert.deepEqual(heard, ["tokens"], "the observer must not consume the late hand-over");
+
+    requestClinicModuleActivate("perfil");
+    assert.deepEqual(observed, ["tokens", "perfil"]);
+    assert.deepEqual(heard, ["tokens", "perfil"]);
+
+    stopObserving();
+    stopListening();
+    requestClinicModuleActivate("informes");
+    assert.deepEqual(observed, ["tokens", "perfil"], "an unsubscribed observer hears nothing");
+
+    const late: string[] = [];
+    const stopLate = subscribeClinicModuleActivate((moduleId) => late.push(moduleId));
+    assert.deepEqual(late, ["informes"], "an unheard request is handed to the next subscriber once");
+    stopLate();
+    const again: string[] = [];
+    subscribeClinicModuleActivate((moduleId) => again.push(moduleId))();
+    assert.deepEqual(again, [], "the hand-over is consumed");
+  } finally {
+    if (hadWindow) globals.window = previousWindow;
+    else delete globals.window;
+  }
+});
+
+test("a full-route stage hands the latest activation to the controller that replaces it", async () => {
+  const globals = globalThis as { window?: unknown };
+  const hadWindow = "window" in globals;
+  const previousWindow = globals.window;
+  globals.window = globalThis;
+  try {
+    const {
+      relinquishClinicModuleActivateHandOver,
+      requestClinicModuleActivate,
+      subscribeClinicModuleActivate,
+    } = await import("../../../../frontend/src/lib/clinic-hub-reset.ts");
+
+    // A then B from a full route, both before A's `/dashboard` commit.
+    const leaving: string[] = [];
+    const stopStage = subscribeClinicModuleActivate((moduleId) => leaving.push(moduleId), {
+      handsOver: true,
+    });
+    requestClinicModuleActivate("tokens");
+    requestClinicModuleActivate("informes");
+    assert.deepEqual(leaving, ["tokens", "informes"]);
+
+    // A commits: the stage unmounts and the controller takes the stage.
+    stopStage();
+    const controller: string[] = [];
+    const stopController = subscribeClinicModuleActivate((moduleId) => controller.push(moduleId));
+    assert.deepEqual(controller, ["informes"], "the latest intent survives the owner change, not A");
+
+    requestClinicModuleActivate("perfil");
+    assert.deepEqual(controller, ["informes", "perfil"]);
+    stopController();
+    const remounted: string[] = [];
+    subscribeClinicModuleActivate((moduleId) => remounted.push(moduleId))();
+    assert.deepEqual(remounted, [], "an intent a final owner heard is never replayed");
+
+    // A handing-over stage never consumes what it keeps for the next owner.
+    const nextStage: string[] = [];
+    const stopNextStage = subscribeClinicModuleActivate((moduleId) => nextStage.push(moduleId), {
+      handsOver: true,
+    });
+    requestClinicModuleActivate("logistica");
+    const strictRemount = subscribeClinicModuleActivate(() => {}, { handsOver: true });
+    strictRemount();
+    assert.deepEqual(nextStage, ["logistica"]);
+
+    // Back/Forward before the commit is the user's own navigation.
+    relinquishClinicModuleActivateHandOver();
+    stopNextStage();
+    const afterBack: string[] = [];
+    subscribeClinicModuleActivate((moduleId) => afterBack.push(moduleId))();
+    assert.deepEqual(afterBack, [], "a history navigation drops the retained intent");
   } finally {
     if (hadWindow) globals.window = previousWindow;
     else delete globals.window;
