@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   applyClinicUrlCommit,
   clinicModuleHref,
+  confirmClinicHubEntry,
   recordClinicNavigationIntent,
   relinquishClinicNavigationIntent,
   type ClinicNavigationState,
@@ -556,4 +557,43 @@ test("an external commit and Back/Forward drop the burst's origin", () => {
   assert.equal(applyClinicUrlCommit(state, LOGISTICA, "history").state.pushedFrom, null);
   assert.equal(relinquishClinicNavigationIntent(state).state.pushedFrom, null);
   assert.equal(applyClinicUrlCommit(state, INFORMES).state.pushedFrom, null, "its own commit ends the burst");
+});
+
+// Review of PR #1835: the hub (`/dashboard?hub=1`) is a module-less entry. Read
+// as the operational default, Hub -> Informes (in flight) -> Operaciones looked
+// like a return to the module the burst pushed from and stepped back onto the hub.
+test("hub entry · a burst that leaves the hub reconciles to the latest module, never steps back", () => {
+  let state = confirmClinicHubEntry(initial());
+  assert.equal(state.confirmedUrlModule, null, "the hub entry carries no module");
+  state = recordClinicNavigationIntent(state, INFORMES, { pushed: true });
+  assert.equal(state.pushedFrom, null, "the burst pushed from the hub, not from a module entry");
+  state = recordClinicNavigationIntent(state, OPERACIONES);
+
+  const landed = applyClinicUrlCommit(state, INFORMES);
+  assert.notEqual(landed.historyBack, true, "stepping back would land on the hub");
+  assert.equal(landed.reconcileTo, OPERACIONES);
+  assert.equal(landed.activeModule, null, "the stage already shows Operaciones");
+
+  const settled = applyClinicUrlCommit(landed.state, OPERACIONES);
+  assert.equal(settled.activeModule, OPERACIONES);
+  assert.equal(settled.reconcileTo, null);
+  assert.equal(settled.state.pendingIntent, null);
+});
+
+test("hub entry · the operational default is a real navigation from the hub", () => {
+  const state = recordClinicNavigationIntent(confirmClinicHubEntry(initial()), OPERACIONES, { pushed: true });
+  assert.deepEqual(state.pendingIntent, { target: OPERACIONES }, "armed: a later tap is claimed, not pushed twice");
+  const landed = applyClinicUrlCommit(state, OPERACIONES);
+  assert.equal(landed.activeModule, OPERACIONES);
+  assert.equal(landed.state.pendingIntent, null);
+});
+
+test("hub entry · confirming the hub keeps an intent already in flight", () => {
+  const pending = recordClinicNavigationIntent(initial(), INFORMES, { pushed: true });
+  const state = confirmClinicHubEntry(pending);
+  assert.equal(state.confirmedUrlModule, null);
+  assert.deepEqual(state.pendingIntent, pending.pendingIntent);
+  assert.deepEqual(state.supersededTargets, pending.supersededTargets);
+  assert.equal(state.pushedFrom, pending.pushedFrom);
+  assert.equal(relinquishClinicNavigationIntent(state).activeModule, null, "Back from a hub burst restores no module");
 });

@@ -560,6 +560,22 @@ test("SINGLE FLIGHT: every producer honours a claim and both owners claim and re
     clinic.includes("if (outcome.historyBack) {") && clinic.includes("recordNavigationIntent(parsed, { pushed: !inFlight });"),
     "the clinic controller steps back to the module its burst pushed from",
   );
+  // Leaving the hub is optimistic: until the module commits, the url is still
+  // `?hub=1`. Neither the url effect nor the last-module restore may read it as
+  // the default module, and the hub entry is module-less for the burst origin.
+  assert.ok(
+    clinic.includes("confirmedUrlModule: hubInUrl ? null : (initialModule ?? DEFAULT_CLINIC_MODULE),"),
+    "a session that starts on the hub has no module entry to step back onto",
+  );
+  assert.ok(
+    clinic.includes("navigationState.current = confirmClinicHubEntry(navigationState.current);"),
+    "a hub commit is confirmed as module-less",
+  );
+  assert.equal(
+    clinic.split("if (hubInUrl || isHubActive) return;").length - 1,
+    1,
+    "the last-module restore never fires while the url is still the hub",
+  );
 });
 
 test("Abrir módulo completo shows its pending state for the whole full-route navigation", () => {

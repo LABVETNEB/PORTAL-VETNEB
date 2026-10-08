@@ -688,3 +688,64 @@ for (const role of ["admin", "clinic"] as const) {
     }
   });
 }
+
+// A burst that leaves the clinic hub (`/dashboard?hub=1`) did not push from an
+// entry of the operational default, although that is the module the url
+// resolves to. Hub, then Informes in flight, then Operaciones used to step back
+// onto the hub entry; it must replace Informes' entry with Operaciones instead.
+test.describe("DASHBOARD_REAL_POINTER_NAVIGATION · clinic burst that leaves the hub", () => {
+  test.beforeEach(async ({ page }) => {
+    await signIn(page, "clinic");
+  });
+
+  for (const viewport of [VIEWPORTS[0], VIEWPORTS[3]]) {
+    const regime = regimeFor(viewport.width);
+
+    test(`${viewport.width}x${viewport.height} (${regime}): hub, then informes in flight, then operaciones lands on operaciones, not on the hub`, async ({
+      page,
+    }) => {
+      const runtimeErrors: string[] = [];
+      page.on("pageerror", (error) => runtimeErrors.push(error.message));
+      await page.setViewportSize(viewport);
+      const gate = await holdServerNavigations(page);
+      await page.goto("/dashboard?hub=1");
+      // The hub is a module-less stage on every viewport (desktop grid, mobile launcher).
+      await expect(page.locator("[data-dashboard-module-workspace]")).toHaveCount(0);
+      await page.locator("[data-public-route-control-hydrated]").first().waitFor({ state: "attached" });
+      await page.waitForLoadState("networkidle");
+      const originLength = await page.evaluate(() => window.history.length);
+
+      const reloads = watchDocuments(page);
+      reloads.arm();
+      gate.arm();
+      await selectModule(page, "clinic", regime, "informes");
+      await expectStage(page, "informes");
+      await selectModule(page, "clinic", regime, "operaciones");
+      await expectCurrent(page, "clinic", regime, "operaciones");
+      await expectStage(page, "operaciones");
+      expect(gate.requested(), "operaciones waits for informes instead of a second push").toEqual(["informes"]);
+
+      // Informes lands; the one follow-up navigation brings the url to Operaciones.
+      expect(await gate.releaseModule("informes")).toBeGreaterThan(0);
+      // The default module has no `?module=`: its payload is the bare `/dashboard`.
+      await expect.poll(() => gate.requested()).toEqual(["informes", ""]);
+      await gate.release();
+      await expect(page).toHaveURL(/\/dashboard$/);
+      await expectCurrent(page, "clinic", regime, "operaciones");
+      await expectStage(page, "operaciones");
+      expect(
+        await page.evaluate(() => window.history.length),
+        "the hub and the module the burst ended on",
+      ).toBe(originLength + 1);
+
+      await page.goBack();
+      await expect(page).toHaveURL(/\/dashboard\?hub=1$/);
+      await expect(page.locator("[data-dashboard-module-workspace]")).toHaveCount(0);
+      await page.goForward();
+      await expect(page).toHaveURL(/\/dashboard$/);
+      await expectStage(page, "operaciones");
+      expect(reloads.documents, "client navigation, never a reload").toEqual([]);
+      expect(runtimeErrors).toEqual([]);
+    });
+  }
+});

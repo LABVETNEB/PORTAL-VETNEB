@@ -21,6 +21,7 @@ import {
 import {
   applyClinicUrlCommit,
   clinicModuleHref,
+  confirmClinicHubEntry,
   recordClinicNavigationIntent,
   relinquishClinicNavigationIntent,
   type ClinicNavigationState,
@@ -112,7 +113,7 @@ export function ClinicDashboardWorkspaceController({
   // a stale, superseded one. The classification lives in a pure module because
   // it is a race: it cannot be exercised through the router, only modelled.
   const navigationState = useRef<ClinicNavigationState>({
-    confirmedUrlModule: initialModule ?? DEFAULT_CLINIC_MODULE,
+    confirmedUrlModule: hubInUrl ? null : (initialModule ?? DEFAULT_CLINIC_MODULE),
     pendingIntent: null,
     supersededTargets: [],
   });
@@ -161,7 +162,15 @@ export function ClinicDashboardWorkspaceController({
     // CMP-02 — the hub carries no `?module=`, so `nextModule` resolves to the
     // DEFAULT and this effect would reconcile the URL straight back to a module,
     // ejecting the user from the hub on arrival. The hub is not a module commit;
-    // it is skipped here and owned by `isHubActive` above.
+    // it is skipped here and owned by `isHubActive` above. Leaving the hub is
+    // optimistic too: until the module url commits, the url is still the hub,
+    // and reading it as a commit of the default module abandoned the intent.
+    // The hub entry is confirmed as module-less, so a burst that leaves it never
+    // steps back onto it as if it were the default module's entry.
+    if (hubInUrl) {
+      navigationState.current = confirmClinicHubEntry(navigationState.current);
+      return;
+    }
     if (isHubActive) return;
 
     // A sync activation swaps the stage before its URL commit. Under load the
@@ -204,7 +213,7 @@ export function ClinicDashboardWorkspaceController({
     if (outcome.activeModule !== null) {
       setActiveModule(outcome.activeModule as ClinicModule);
     }
-  }, [router, nextModule, isHubActive]);
+  }, [router, nextModule, hubInUrl, isHubActive]);
 
   // Back/Forward while an activation is still pending is the user's own,
   // authoritative navigation. `applyClinicUrlCommit` already classifies its
@@ -283,8 +292,10 @@ export function ClinicDashboardWorkspaceController({
     // CMP-02 — `/dashboard?hub=1` carries no `?module=`, so without this guard the
     // last-module restore would fire on the hub and replace it with a workspace.
     // That is the same class of defect the audit recorded for the bare-URL race:
-    // an unguarded replace landing after an explicit navigation.
-    if (isHubActive) return;
+    // an unguarded replace landing after an explicit navigation. Leaving the hub
+    // keeps that url until the module commits, so it is guarded too: the restore
+    // read the module just tapped and replaced the hub entry with it.
+    if (hubInUrl || isHubActive) return;
     if (searchParams.get("module")) return;
     const lastModule = parseClinicModule(
       readDashboardLastModule(CLINIC_LAST_MODULE_STORAGE_KEY),
@@ -308,6 +319,7 @@ export function ClinicDashboardWorkspaceController({
   }, [
     searchParams,
     hasManuallyReturnedToHub,
+    hubInUrl,
     isHubActive,
     recordNavigationIntent,
     router,

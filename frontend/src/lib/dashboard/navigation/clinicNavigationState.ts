@@ -41,8 +41,11 @@ export type ClinicNavigationIntent = {
 };
 
 export type ClinicNavigationState = {
-  /** Module of the last URL commit actually observed. */
-  readonly confirmedUrlModule: string;
+  /**
+   * Module of the last URL commit actually observed, or `null` when that commit
+   * is the hub (`?hub=1`): a module-less entry, never the operational default.
+   */
+  readonly confirmedUrlModule: string | null;
   /** Newest intention not yet confirmed by a URL commit. */
   readonly pendingIntent: ClinicNavigationIntent | null;
   /**
@@ -108,6 +111,16 @@ export function recordClinicNavigationIntent(
     pushedFrom:
       superseded === null ? (pushed ? state.confirmedUrlModule : null) : (state.pushedFrom ?? null),
   };
+}
+
+/**
+ * The hub url committed. It carries no module, so a burst that leaves it pushed
+ * from no module entry and a later return to the default is a real navigation.
+ * An intent already in flight is kept: its own commit still has to be classified.
+ */
+export function confirmClinicHubEntry(state: ClinicNavigationState): ClinicNavigationState {
+  if (state.confirmedUrlModule === null) return state;
+  return { ...state, confirmedUrlModule: null };
 }
 
 /**

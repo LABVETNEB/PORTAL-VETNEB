@@ -100,6 +100,32 @@ Sin `CI=true`, la misma máquina, los mismos comandos y las fuentes de HEAD dan,
 - Árbol completo de HEAD: 4850/1. El fallo es `e2e-global-03b`, BLOCKED sin DB.
 - Fix sin stage: 47 fallos. 46 son archivos nuevos sin trackear (306/306 con stage simulado) y 1 es el mismo `03b`.
 
+## Revisión de PR #1835: burst que sale del hub
+
+Hilo de Codex (P2) sobre `clinicNavigationState.ts`: en una sesión que arranca en `/dashboard?hub=1`, `confirmedUrlModule` valía `operaciones`. Con Hub → Informes (en vuelo) → Operaciones, `pushedFrom` quedaba en `operaciones` y el commit de Informes hacía `history.back()` al hub.
+
+La reproducción en navegador mostró tres defectos con una sola causa: mientras la navegación salía del hub, la URL `?hub=1` se leía como `/dashboard`, es decir, como el módulo por defecto.
+
+1. Al salir del hub, el stage cambia antes que la URL. El efecto de URL tomaba `?hub=1` como commit de `operaciones`, lo clasificaba como externo y abandonaba el intent: el stage mostraba Operaciones hasta que llegaba Informes. Este defecto ya estaba en HEAD.
+2. El restore del último módulo veía una URL sin `?module=` y hacía `router.replace` al módulo recién elegido. Eso pisaba la entrada del hub (Back ya no volvía al hub) y duplicaba el payload. También estaba en HEAD.
+3. Corregidos 1 y 2, aparecía el caso del hilo: `history.back()` caía en el hub.
+
+Fix en `ClinicDashboardWorkspaceController.tsx` y `clinicNavigationState.ts`:
+
+- El efecto de URL y el restore se saltean mientras `hubInUrl`.
+- La entrada del hub se confirma como "sin módulo" (`confirmedUrlModule: null`, `confirmClinicHubEntry`). Por eso un burst que sale del hub no tiene `pushedFrom`, reconcilia con `replace`, y Operaciones desde el hub queda como intent real (single flight).
+
+RED → GREEN con el spec `dashboard-real-pointer-navigation` (390 y 1366, "clinic burst that leaves the hub"):
+
+| Build | Resultado |
+| --- | --- |
+| HEAD 8cec79a5 | FAILED: el stage no muestra Informes |
+| Solo el guard del efecto | FAILED: dos payloads de Informes (restore) |
+| Más el guard del restore | FAILED: sin reconcile y el snapshot muestra el hub (`history.back()`) |
+| Más la entrada del hub | PASSED (2/2) |
+
+Unit `dashboard-clinic-navigation-state`: RED (export inexistente) → 30/30.
+
 ## Decisión de arquitectura
 
 No requiere ADR/RFC:
@@ -119,4 +145,4 @@ No requiere ADR/RFC:
 
 ## Estado final
 
-Implementación local, sin commit. Escrituras Git/GitHub: manuales (Nico).
+Fix base en el commit 8cec79a5 (PR #1835). La corrección de la revisión del hub es local, sin commit. Escrituras Git/GitHub: manuales (Nico).
