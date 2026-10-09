@@ -75,14 +75,20 @@ const SURFACES: readonly Surface[] = [
   },
 ];
 
-/** Cuts every router payload of the destination to half its body while armed. */
+/**
+ * Cuts every router payload of the destination to half its body while armed.
+ * The matcher names the three page paths literally: E2E-GLOBAL-11 resolves it
+ * statically and proves that no fixture API route can be fulfilled here.
+ */
 async function truncateDestinationPayloads(page: Page, matches: (url: URL) => boolean) {
   let armed = false;
   let cut = 0;
   await page.route(
-    (url) => url.searchParams.has("_rsc") && matches(url),
+    (url) =>
+      (url.pathname === "/servicios" || url.pathname === "/dashboard" || url.pathname === "/dashboard/admin") &&
+      url.searchParams.has("_rsc"),
     async (route) => {
-      if (!armed) {
+      if (!armed || !matches(new URL(route.request().url()))) {
         await route.continue();
         return;
       }

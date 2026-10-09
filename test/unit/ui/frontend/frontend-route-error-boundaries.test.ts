@@ -1,8 +1,6 @@
 import assert from "node:assert/strict";
-import { existsSync } from "node:fs";
-import { resolve } from "node:path";
 import test from "node:test";
-import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
+import { listTrackedFiles, readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 
 // PR-NAV-01 (D-01): the App Router error boundaries. The runtime half (a
 // truncated router payload recovers through "Reintentar") is
@@ -61,7 +59,8 @@ test("global-error owns its document; the other boundaries replace a page and br
 });
 
 test("PR-NAV-01 adds no loading boundary (DT-4: it would change when the url commits)", () => {
+  const tracked = listTrackedFiles();
   for (const path of ["frontend/src/app/loading.tsx", "frontend/src/app/dashboard/loading.tsx"]) {
-    assert.equal(existsSync(resolve(process.cwd(), path)), false, path);
+    assert.equal(tracked.includes(path), false, path);
   }
 });
