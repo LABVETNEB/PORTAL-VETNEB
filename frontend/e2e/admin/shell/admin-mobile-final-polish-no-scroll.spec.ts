@@ -583,7 +583,10 @@ test("Admin desktop final polish smoke at 1280x800", async ({ page }, testInfo) 
   await mockMissingPopulatedApis(page);
   await preparePage(page, DESKTOP_VIEWPORT, "/dashboard/admin?hub=1");
 
+  // The Suspense fallback band and the resolved band coexist for an instant on
+  // every load: the contract is exactly one drawer once it settles.
   const lateralDrawer = page.locator('[data-dashboard-navigation-drawer]');
+  await expect(lateralDrawer).toHaveCount(1, { timeout: 15_000 });
   await expect(lateralDrawer).toBeVisible({ timeout: 15_000 });
   await expect(page.locator('[data-dashboard-mobile-nav="admin"]')).toBeHidden();
   await expect(page.locator('[data-admin-mobile-hub-launcher="true"]')).toBeHidden();
@@ -605,6 +608,7 @@ test("Admin desktop final polish smoke at 1280x800", async ({ page }, testInfo) 
       DESKTOP_VIEWPORT,
       `/dashboard/admin?module=${moduleScreen.moduleId}`,
     );
+    await expect(lateralDrawer).toHaveCount(1, { timeout: 15_000 });
     await expect(lateralDrawer).toBeVisible({ timeout: 15_000 });
     await expect(page.locator('[data-dashboard-mobile-nav="admin"]')).toBeHidden();
     await expect(page.locator(moduleScreen.mobileRoot)).toBeHidden();
