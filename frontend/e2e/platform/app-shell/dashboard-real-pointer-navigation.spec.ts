@@ -804,3 +804,163 @@ test.describe("DASHBOARD_REAL_POINTER_NAVIGATION · clinic burst that leaves the
     });
   }
 });
+
+// SINGLE FLIGHT · a payload that never answers. A claimed choice waited for the
+// in-flight navigation to land, and nothing ends a payload that never answers:
+// the url and history froze on the origin while the stage followed every click,
+// and each later click was claimed too, until a reload. The owner's flight has
+// a budget (10 s); past it the latest choice is navigated anyway, so the poll
+// below allows that budget plus the router's own latency.
+const ABANDONED_FLIGHT_HANDOVER_MS = 25_000;
+const NEXT_CHOICE: Record<Role, string> = { admin: "admin-sessions", clinic: "informes" };
+
+for (const role of ["admin", "clinic"] as const) {
+  test.describe(`DASHBOARD_REAL_POINTER_NAVIGATION · ${role} abandoned flight`, () => {
+    test.beforeEach(async ({ page }) => {
+      await signIn(page, role);
+    });
+
+    for (const [viewport, navigationApi] of [
+      [VIEWPORTS[0], true],
+      [VIEWPORTS[3], true],
+      [VIEWPORTS[3], false],
+    ] as const) {
+      const regime = regimeFor(viewport.width);
+
+      test(`${viewport.width}x${viewport.height} (${regime}): a payload that never answers hands the latest choice over and the next click still navigates${navigationApi ? "" : " without the Navigation API"}`, async ({
+        page,
+      }) => {
+        test.setTimeout(90_000);
+        const { base, landing } = SHELL[role];
+        const hung = SUPERSEDED[role].first;
+        const latest = SUPERSEDED[role].second[regime];
+        const next = NEXT_CHOICE[role];
+        const runtimeErrors: string[] = [];
+        page.on("pageerror", (error) => runtimeErrors.push(error.message));
+        if (!navigationApi) {
+          await page.addInitScript(() => {
+            Object.defineProperty(window, "navigation", { value: undefined, configurable: true });
+          });
+        }
+        await page.setViewportSize(viewport);
+        const gate = await holdServerNavigations(page);
+        await page.goto(`${base}?module=${landing}`);
+        await expectStage(page, landing);
+        await page.waitForLoadState("networkidle");
+        const originLength = await page.evaluate(() => window.history.length);
+
+        const reloads = watchDocuments(page);
+        reloads.arm();
+        gate.arm();
+        await selectModule(page, role, regime, hung);
+        await expectStage(page, hung);
+        await selectModule(page, role, regime, latest);
+        await expectCurrent(page, role, regime, latest);
+        await expectStage(page, latest);
+        expect(gate.requested(), `${latest} waits for ${hung} while that flight is young`).toEqual([hung]);
+        await expect(page).toHaveURL(moduleUrl(base, landing));
+
+        // `hung` is never released: the owner abandons its flight and navigates the latest choice.
+        await expect
+          .poll(() => gate.requested(), {
+            timeout: ABANDONED_FLIGHT_HANDOVER_MS,
+            message: `${latest} must not wait forever on ${hung}`,
+          })
+          .toEqual([hung, latest]);
+        const divergence = await recordDivergenceFrom(page, role, regime, latest);
+        expect(await gate.releaseModule(latest)).toBeGreaterThan(0);
+        await expect(page).toHaveURL(moduleUrl(base, latest));
+        await expectCurrent(page, role, regime, latest);
+        await expectStage(page, latest);
+        expect(await divergence(), `${hung} repainted after ${latest} was chosen`).toEqual([]);
+        expect(
+          await page.evaluate(() => window.history.length),
+          "one entry for the burst: the abandoned module never reached history",
+        ).toBe(originLength + 1);
+
+        // The next click navigates on its own: nothing is claimed any more.
+        await selectModule(page, role, regime, next);
+        await expect.poll(() => gate.requested()).toEqual([hung, latest, next]);
+        expect(await gate.releaseModule(next)).toBeGreaterThan(0);
+        await expect(page).toHaveURL(moduleUrl(base, next));
+        await expectCurrent(page, role, regime, next);
+        await expectStage(page, next);
+
+        // The abandoned payload answers last: it can neither repaint nor write history.
+        const late = await recordDivergenceFrom(page, role, regime, next);
+        const settledLength = await page.evaluate(() => window.history.length);
+        await gate.release();
+        await waitForLayoutSettled(page);
+        await expect(page).toHaveURL(moduleUrl(base, next));
+        await expectCurrent(page, role, regime, next);
+        await expectStage(page, next);
+        expect(await late(), `the late ${hung} answer repainted it`).toEqual([]);
+        expect(await page.evaluate(() => window.history.length)).toBe(settledLength);
+
+        await page.goBack();
+        await expect(page).toHaveURL(moduleUrl(base, latest));
+        await expectStage(page, latest);
+        await page.goBack();
+        await expect(page).toHaveURL(moduleUrl(base, landing));
+        await expectCurrent(page, role, regime, landing);
+        await expectStage(page, landing);
+        expect(reloads.documents, "client navigation, never a reload").toEqual([]);
+        expect(runtimeErrors).toEqual([]);
+      });
+    }
+
+    test(`1366x768 (drawer): Back after the flight was abandoned lands on the origin and the next click still navigates`, async ({
+      page,
+    }) => {
+      test.setTimeout(90_000);
+      const regime = regimeFor(VIEWPORTS[3].width);
+      const { base, landing } = SHELL[role];
+      const hung = SUPERSEDED[role].first;
+      const latest = SUPERSEDED[role].second[regime];
+      const next = NEXT_CHOICE[role];
+      const runtimeErrors: string[] = [];
+      page.on("pageerror", (error) => runtimeErrors.push(error.message));
+      await page.setViewportSize(VIEWPORTS[3]);
+      const gate = await holdServerNavigations(page);
+      await page.goto(`${base}?module=${next}`);
+      await expectStage(page, next);
+      await page.waitForLoadState("networkidle");
+      await selectModule(page, role, regime, landing);
+      await expect(page).toHaveURL(moduleUrl(base, landing));
+      await expectStage(page, landing);
+      await page.waitForLoadState("networkidle");
+
+      const reloads = watchDocuments(page);
+      reloads.arm();
+      gate.arm();
+      await selectModule(page, role, regime, hung);
+      await selectModule(page, role, regime, latest);
+      await expectStage(page, latest);
+      await expect
+        .poll(() => gate.requested(), {
+          timeout: ABANDONED_FLIGHT_HANDOVER_MS,
+          message: `${latest} must not wait forever on ${hung}`,
+        })
+        .toEqual([hung, latest]);
+
+      // Back while the handed-over navigation is still in flight is the person's own.
+      await page.goBack();
+      await expect(page).toHaveURL(moduleUrl(base, next));
+      await expectCurrent(page, role, regime, next);
+      await expectStage(page, next);
+      const late = await recordDivergenceFrom(page, role, regime, next);
+      await gate.release();
+      await waitForLayoutSettled(page);
+      await expect(page).toHaveURL(moduleUrl(base, next));
+      await expectStage(page, next);
+      expect(await late(), "a late answer undid Back").toEqual([]);
+
+      await selectModule(page, role, regime, landing);
+      await expect(page).toHaveURL(moduleUrl(base, landing));
+      await expectCurrent(page, role, regime, landing);
+      await expectStage(page, landing);
+      expect(reloads.documents, "client navigation, never a reload").toEqual([]);
+      expect(runtimeErrors).toEqual([]);
+    });
+  });
+}

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { useRouter, useSearchParams } from "next/navigation";
 import { DashboardModuleWorkspace } from "./DashboardModuleWorkspace";
 import { usePublishStageModule } from "./useStageModule";
+import { useNavigationFlight } from "./useNavigationFlight";
 import { ROUTES } from "@/lib/routes";
 import {
   CLINIC_LAST_MODULE_STORAGE_KEY,
@@ -143,6 +144,24 @@ export function ClinicDashboardWorkspaceController({
     [],
   );
 
+  // SINGLE FLIGHT's budget (`navigationFlight.ts`): past it the owner stops
+  // waiting on a navigation that never answered and navigates the latest intent
+  // once. Nothing is issued for the committed module or for the navigation that
+  // is itself the one in flight: claims just stop.
+  const navigateAbandonedIntent = useCallback(
+    (abandonedTarget: string) => {
+      const { pendingIntent, confirmedUrlModule } = navigationState.current;
+      const target = pendingIntent?.target ?? null;
+      if (target === null || target === confirmedUrlModule || target === abandonedTarget) return null;
+      router.push(clinicModuleHref(ROUTES.dashboard, DEFAULT_CLINIC_MODULE, target), {
+        scroll: false,
+      });
+      return target;
+    },
+    [router],
+  );
+  const flight = useNavigationFlight(navigateAbandonedIntent);
+
   // No module in the URL means the operational default — never a hub.
   //
   // Derived OUTSIDE the effect, and as a plain string, because it is the
@@ -190,6 +209,7 @@ export function ClinicDashboardWorkspaceController({
     historyTraversalStarted.current = false;
     const outcome = applyClinicUrlCommit(navigationState.current, nextModule, origin);
     navigationState.current = outcome.state;
+    if (outcome.state.pendingIntent === null) flight.end();
 
     // The latest intention is the module the burst pushed from: step back onto
     // its entry rather than replace the pushed one into a duplicate [A, A].
@@ -207,13 +227,14 @@ export function ClinicDashboardWorkspaceController({
         ),
         { scroll: false },
       );
+      flight.start(outcome.reconcileTo);
       return;
     }
 
     if (outcome.activeModule !== null) {
       setActiveModule(outcome.activeModule as ClinicModule);
     }
-  }, [router, nextModule, hubInUrl, isHubActive]);
+  }, [router, nextModule, hubInUrl, isHubActive, flight]);
 
   // Back/Forward while an activation is still pending is the user's own,
   // authoritative navigation. `applyClinicUrlCommit` already classifies its
@@ -222,6 +243,7 @@ export function ClinicDashboardWorkspaceController({
   useEffect(() => {
     function relinquishOnHistoryNavigation() {
       historyTraversalStarted.current = false;
+      flight.end();
       const outcome = relinquishClinicNavigationIntent(navigationState.current);
       navigationState.current = outcome.state;
       if (outcome.activeModule === null) return;
@@ -231,7 +253,7 @@ export function ClinicDashboardWorkspaceController({
 
     window.addEventListener("popstate", relinquishOnHistoryNavigation);
     return () => window.removeEventListener("popstate", relinquishOnHistoryNavigation);
-  }, []);
+  }, [flight]);
 
   // SINGLE FLIGHT (`clinic-hub-reset.ts`): a request that arrives while a module
   // navigation is still in flight is claimed; the reconcile above issues it once
@@ -241,9 +263,14 @@ export function ClinicDashboardWorkspaceController({
       subscribeClinicModuleActivate((moduleId) => {
         const parsed = parseClinicModule(moduleId);
         if (!parsed) return false;
-        const inFlight = navigationState.current.pendingIntent !== null;
-        // Not in flight: the caller pushes this one, which starts the burst.
+        // An abandoned flight no longer holds the next click.
+        const inFlight = navigationState.current.pendingIntent !== null && flight.isActive();
+        // Not in flight: the caller pushes this one, which starts the burst. A
+        // push of the committed module commits no module change, so it cannot
+        // end a flight: none is armed for it.
         recordNavigationIntent(parsed, { pushed: !inFlight });
+        const { pendingIntent, confirmedUrlModule } = navigationState.current;
+        if (!inFlight && pendingIntent !== null && parsed !== confirmedUrlModule) flight.start(parsed);
         setHasManuallyReturnedToHub(false);
         // CMP-02 — leaving the hub is optimistic too, so the stage swaps on tap
         // instead of waiting for the URL commit. Same two-commit model as modules.
@@ -251,7 +278,7 @@ export function ClinicDashboardWorkspaceController({
         setActiveModule(parsed);
         return inFlight;
       }),
-    [recordNavigationIntent],
+    [recordNavigationIntent, flight],
   );
 
   // CMP-02 — "Inicio" now resolves to the REAL clinic hub. It used to fall back to
@@ -316,6 +343,7 @@ export function ClinicDashboardWorkspaceController({
       clinicModuleHref(ROUTES.dashboard, DEFAULT_CLINIC_MODULE, lastModule),
       { scroll: false },
     );
+    flight.start(lastModule);
   }, [
     searchParams,
     hasManuallyReturnedToHub,
@@ -323,6 +351,7 @@ export function ClinicDashboardWorkspaceController({
     isHubActive,
     recordNavigationIntent,
     router,
+    flight,
   ]);
 
   // The lateral band, the mobile bar and the mobile title render this, not

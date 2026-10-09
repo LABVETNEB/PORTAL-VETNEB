@@ -146,3 +146,63 @@ No requiere ADR/RFC:
 ## Estado final
 
 Fix base en el commit 8cec79a5 (PR #1835). La corrección de la revisión del hub es local, sin commit. Escrituras Git/GitHub: manuales (Nico).
+
+## M2 · Presupuesto del vuelo (navegación que nunca responde)
+
+**Defecto.** El claim de SINGLE FLIGHT esperaba que la navegación en vuelo aterrizara. Next 16.3.8 nunca aborta el request de una navegación de usuario (el `signal` de `fetchMissingDynamicData` sólo lo usa el HMR) y no expone evento, rechazo ni callback mientras está pendiente. Un payload que nunca responde no llega a ningún estado terminal: cada click posterior queda reclamado, el stage lo sigue y la URL y el historial quedan en el origen hasta recargar. Reproducido en `next start` con fixture sintético (Admin y Clínica, 390 y 1366 px, con y sin Navigation API): a los 16 s, URL en el origen, un solo payload pedido, ningún `pushState`.
+
+**Alternativas medidas.**
+
+| Diseño | Evidencia | Decisión |
+| --- | --- | --- |
+| B/C: sin claim, cada click navega y Next resuelve | Dos `router.push` directos con B liberado antes que C: `[A, B, C]` en 8/8 (B con 2, 4, 6 y 12 s de antigüedad) | Descartado: reintroduce lo que #1835 corrigió |
+| A: claim con presupuesto | Ver validación | Elegido |
+
+**Mecanismo.** `lib/dashboard/navigation/navigationFlight.ts` (sin imports) y `components/dashboard/useNavigationFlight.ts`. Cada owner arma el vuelo con el destino de la navegación que arranca (push del productor, reconcile, restore) y lo cierra en todo estado terminal (commit que consume el intent, commit externo, Back/Forward, `history.back()`, desmontaje). Un request se reclama sólo mientras el vuelo está dentro del presupuesto. Al vencer:
+
+- si el último intent no es el módulo comiteado ni la navegación abandonada, el owner lo navega con `push` **una vez**, como vuelo nuevo;
+- si no, no se emite nada: el claim simplemente se apaga.
+
+Una navegación nunca se entrega dos veces, así que dos payloads colgados no forman un bucle de reintentos. Tampoco se arma un vuelo para un push del módulo comiteado: su commit no cambia de módulo y nada lo terminaría, de modo que retendría clicks durante un presupuesto entero. Un commit tardío de la navegación abandonada sigue siendo un target superado: se reconcilia y no se pinta. Un intent que vuelve al módulo comiteado queda pendiente sin vuelo: protege contra el commit tardío de B (lo devuelve con `history.back()`) y no reclama clicks.
+
+**Presupuesto (10 s): qué garantiza y qué no.** No existe en el protocolo una señal que distinga "lento" de "colgado", así que el presupuesto es una política, no una propiedad de Next:
+
+- Garantiza que, dentro de él, SINGLE FLIGHT se comporta exactamente como en #1835.
+- Garantiza que ningún claim dura más que el presupuesto.
+- Garantiza que la última elección se emite a lo sumo una vez.
+- No garantiza que la navegación abandonada no responda después; si responde con éxito, se reconcilia.
+- No acota cuánto tarda un servidor colgado.
+- El valor no se derivó de latencias de producción, que no están medidas. Si el p95 real de una navegación de módulo se acerca al presupuesto, las ráfagas lentas pasan a navegarse en dos pasos. Hay que medirlo antes de ajustarlo.
+
+**Validación adversarial (Chromium, `next start`, fixture sintético, orden de respuestas controlado por compuertas):**
+
+| Escenario | Resultado |
+| --- | --- |
+| B responde tras el handover y antes que C (Admin y Clínica, desktop y móvil, con y sin Navigation API) | `[A, C]` 14/14, sin entrada de B |
+| B responde después de C | `[A, C]`, sin recarga |
+| B y C cuelgan | Antes de F1: C re-emitido cada 10 s (4 requests en 35 s). Con F1: un solo handover, y el click siguiente pide su payload en 32/63 ms |
+| Tras dos abandonos, click en el módulo comiteado y luego en otro | Antes de F2: el siguiente esperaba 10 041 ms (Clínica) / 10 040 ms (Admin). Con F2: 36 / 43 ms |
+| A → B colgado → A | Sin navegación al vencer; el commit tardío de B vuelve a A, que queda como Forward |
+| B responde dentro del presupuesto | Camino de #1835: `[A, C]` vía replace |
+| Desmontaje con vuelo activo | Ningún request después de salir |
+| Pestaña congelada más allá del presupuesto | Sin handover mientras está congelada; converge al reactivarse |
+
+- E2E `dashboard-real-pointer-navigation` · "abandoned flight" (8): `main` FAILED 8/8, fix PASSED.
+- Specs de navegación completos: 120/120.
+- Unit anti-bucle: implementación previa FAILED (además, el timer nunca se libera), F1 PASSED.
+
+**Matriz contra `main`** (build de `37dbcaf6` exportado con `git archive`; mismas secuencias, ambos roles):
+
+- A→B→C y A→B→A dentro del presupuesto: idénticos (requests, push/replace, Back/Forward).
+- A→B colgado→C, A→B colgado→C→D, tres elecciones colgadas y clicks tras el vencimiento: `main` queda trabado (0 pushes, clicks reclamados); el fix converge en `[A, último]` con un solo handover.
+
+**Limitaciones conocidas.**
+
+- **No reproducido, no imposible.** Que B no escriba entrada cuando responde entre el handover y C se observó en 14/14 corridas del flujo real. El mismo orden con dos `router.push` directos sí escribe `[A, B, C]`, y no se estableció el mecanismo que lo evita en el flujo real. Queda como riesgo residual.
+- **Fallo tardío, clasificado PREEXISTING_NEXT_DEFECT.**
+  - Si una navegación superada a una ruta **conocida** con datos diferidos (`?module=` del dashboard) falla tarde (524 o error de red), Next fuerza una navegación de documento a su URL. `serverPatchReducer` evalúa `mpa` antes de comprobar si el árbol cambió.
+  - Reproducido en `main` y con el fix, en Admin y Clínica, con la misma URL final (B).
+  - No aparece en rutas públicas: una navegación a una ruta pública no conocida queda pendiente como acción, Next la descarta y su fallo se ignora.
+  - El fix no cambia la vida del request de B, que nadie aborta. La diferencia es que C, ya comiteada, queda en el historial: `[A, C, B]` en lugar de `[A, B]`.
+  - Hipótesis no medida: la exposición a perder datos es similar, porque en `main` el stage optimista de C también es operable mientras se espera.
+  - Mitigación fuera de este scope: timeouts del render de servidor o un fix upstream.

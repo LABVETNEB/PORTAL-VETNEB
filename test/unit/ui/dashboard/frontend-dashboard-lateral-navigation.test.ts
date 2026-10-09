@@ -536,7 +536,9 @@ test("SINGLE FLIGHT: every producer honours a claim and both owners claim and re
   }
 
   const admin = read("frontend/src/app/dashboard/admin/AdminDashboardWorkspaceController.tsx");
-  assert.ok(admin.includes("const inFlight = pendingNavigationIntent.current?.target != null;"));
+  assert.ok(
+    admin.includes("const inFlight = pendingNavigationIntent.current?.target != null && flight.isActive();"),
+  );
   assert.ok(admin.includes("return inFlight;"), "the admin controller claims while in flight");
   assert.ok(
     admin.includes("router.replace(buildDashboardModuleHref(ROUTES.dashboardAdmin, intent.target), {"),
@@ -553,7 +555,9 @@ test("SINGLE FLIGHT: every producer honours a claim and both owners claim and re
   );
 
   const clinic = read("frontend/src/components/dashboard/ClinicDashboardWorkspaceController.tsx");
-  assert.ok(clinic.includes("const inFlight = navigationState.current.pendingIntent !== null;"));
+  assert.ok(
+    clinic.includes("const inFlight = navigationState.current.pendingIntent !== null && flight.isActive();"),
+  );
   assert.ok(clinic.includes("return inFlight;"), "the clinic controller claims while in flight");
   assert.ok(clinic.includes("outcome.reconcileTo"), "the clinic controller reconciles the superseded entry");
   assert.ok(
@@ -700,5 +704,120 @@ test("an owner mounted by Back/Forward inside popstate never adopts the kept des
     delete globals.event;
     if (hadWindow) globals.window = previousWindow;
     else delete globals.window;
+  }
+});
+
+// M2 — SINGLE FLIGHT's budget. A payload that never answers ended no flight, so
+// every later request was claimed and the url and history froze on the origin
+// until a reload. The flight is abandoned past its budget: claims stop and the
+// owner navigates the latest intent itself, as a new flight.
+// Real timers on a short budget: `createNavigationFlight` takes the budget, so
+// no clock double is needed and the 10 s default is asserted on its own.
+const elapse = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+const TEST_BUDGET_MS = 100;
+
+test("SINGLE FLIGHT budget: an abandoned flight hands the latest intent over once, never in a loop", async () => {
+  const { createNavigationFlight, NAVIGATION_FLIGHT_BUDGET_MS } = await import(
+    "../../../../frontend/src/lib/dashboard/navigation/navigationFlight.ts"
+  );
+  assert.equal(NAVIGATION_FLIGHT_BUDGET_MS, 10_000);
+
+  // The owner's rule: hand over the latest intent unless it is the navigation
+  // that was abandoned. Both payloads hang: informes, then the handed-over perfil.
+  const latest = "perfil";
+  const navigations: string[] = [];
+  const flight = createNavigationFlight((abandoned) => {
+    if (latest === abandoned) return null;
+    navigations.push(latest);
+    return latest;
+  }, TEST_BUDGET_MS);
+
+  assert.equal(flight.isActive(), false, "nothing is in flight before a navigation is issued");
+  flight.start("informes");
+  await elapse(TEST_BUDGET_MS / 5);
+  assert.equal(flight.isActive(), true, "a young flight still claims");
+  assert.deepEqual(navigations, []);
+
+  await elapse(TEST_BUDGET_MS * 1.3);
+  assert.deepEqual(navigations, ["perfil"], "the latest intent is navigated when the budget elapses");
+  assert.equal(flight.isActive(), true, "the handed-over navigation is a new flight with its own budget");
+
+  await elapse(TEST_BUDGET_MS * 1.5);
+  assert.deepEqual(navigations, ["perfil"], "a handed-over navigation that hangs too is never re-issued");
+  assert.equal(flight.isActive(), false, "the second abandonment only stops the claims");
+});
+
+test("SINGLE FLIGHT budget: a commit, Back or unmount before the budget ends the flight", async () => {
+  const { createNavigationFlight } = await import(
+    "../../../../frontend/src/lib/dashboard/navigation/navigationFlight.ts"
+  );
+  const expired: string[] = [];
+  const flight = createNavigationFlight((abandoned) => {
+    expired.push(abandoned);
+    return abandoned;
+  }, TEST_BUDGET_MS);
+
+  flight.start("informes");
+  await elapse(TEST_BUDGET_MS / 5);
+  flight.end();
+  await elapse(TEST_BUDGET_MS * 1.5);
+  assert.deepEqual(expired, [], "a flight that landed inside its budget never hands over");
+  assert.equal(flight.isActive(), false);
+
+  // A reconcile re-arms the flight: the budget counts from the latest navigation.
+  flight.start("informes");
+  await elapse(TEST_BUDGET_MS * 0.6);
+  flight.start("perfil");
+  await elapse(TEST_BUDGET_MS * 0.6);
+  assert.deepEqual(expired, [], "re-arming restarts the budget");
+  await elapse(TEST_BUDGET_MS * 0.9);
+  assert.deepEqual(expired, ["perfil"], "the abandoned target is the latest navigation issued");
+  assert.equal(flight.isActive(), false, "re-issuing the abandoned target itself is not a new flight");
+  flight.end();
+  assert.equal(flight.isActive(), false, "ending an ended flight is harmless");
+});
+
+test("SINGLE FLIGHT budget: both owners claim only within it and settle it on every terminal state", () => {
+  const hook = read("frontend/src/components/dashboard/useNavigationFlight.ts");
+  assert.ok(
+    hook.includes("useEffect(() => () => flight.end(), [flight]);"),
+    "an owner that unmounts takes its flight with it",
+  );
+
+  for (const [path, claim] of [
+    [
+      "frontend/src/components/dashboard/ClinicDashboardWorkspaceController.tsx",
+      "const inFlight = navigationState.current.pendingIntent !== null && flight.isActive();",
+    ],
+    [
+      "frontend/src/app/dashboard/admin/AdminDashboardWorkspaceController.tsx",
+      "const inFlight = pendingNavigationIntent.current?.target != null && flight.isActive();",
+    ],
+  ] as const) {
+    const owner = read(path);
+    assert.ok(owner.includes(claim), `${path} claims only while its flight is within budget`);
+    assert.ok(owner.includes("const flight = useNavigationFlight(navigateAbandonedIntent);"), path);
+    assert.ok(owner.includes("router.push("), `${path} navigates the latest intent of an abandoned flight`);
+    assert.equal(
+      owner.split("flight.start(").length - 1,
+      path.includes("Clinic") ? 3 : 2,
+      `${path} arms the flight, with its target, for every navigation it starts or lets the caller start`,
+    );
+    assert.ok(
+      owner.includes("target === abandonedTarget) return null;"),
+      `${path} never re-issues the navigation it abandoned: no retry loop`,
+    );
+    // A push of the committed module commits no module change, so nothing would
+    // ever end its flight: claims would hold every click for a whole budget.
+    assert.ok(
+      owner.includes("parsed !== confirmedUrlModule) flight.start(parsed);") ||
+        owner.includes("if (parsed !== committed) flight.start(parsed);"),
+      `${path} arms no flight for a push of the committed module`,
+    );
+    assert.ok(
+      owner.includes("historyTraversalStarted.current = false;\n      flight.end();"),
+      `${path}: Back/Forward ends the flight`,
+    );
+    assert.equal(/window\.event|setInterval|location\.reload/.test(owner), false, path);
   }
 });
