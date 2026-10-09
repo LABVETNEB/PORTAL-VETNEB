@@ -316,7 +316,9 @@ test("automatic workflow coverage is derived from catalog cohorts and equals ful
   // (platform/app-shell/dashboard-global-live-navigation-sync.spec.ts).
   // +1: DASHBOARD_REAL_POINTER_NAVIGATION real-click module navigation contract
   // (platform/app-shell/dashboard-real-pointer-navigation.spec.ts).
-  assert.equal(E2E_SUITE_CATALOG.length, 104);
+  // +1: PR-NAV-01 truncated stream recovery error-boundary contract
+  // (platform/app-shell/navigation-truncated-stream-recovery.spec.ts).
+  assert.equal(E2E_SUITE_CATALOG.length, 105);
 
   const partitionUnion = new Set(PARTITION_COHORTS.flatMap((cohort) => E2E_COHORT_SPECS[cohort]));
   assert.deepEqual([...partitionUnion].sort(), [...E2E_COHORT_SPECS.full].sort());
