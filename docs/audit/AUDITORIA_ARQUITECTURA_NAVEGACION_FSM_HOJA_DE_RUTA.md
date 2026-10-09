@@ -55,6 +55,7 @@ mediciones productivas: H-01..H-08 siguen abiertas.
 | Formulario "Aplicar" de auditoría | "usa el router" | `<form method="get">` (navegación de documento) | `AdminAuditFilterBar.tsx:57-69` |
 | Versión de Next | "16.3.8 leído de `node_modules`" | 16.3.8 por lockfile; 16.3.6 instalado en rev. 1 | Encabezado |
 | Escenarios "payload held" | Se reescribían a 0 `_rsc` | Siguen siendo contratos E2E | §16 PR-NAV-03 |
+| Rev. 2.1 (review de #1840) | #1 persistía sólo `module`; `RESET` sin emisor real | #1 persiste `module` y `route` válidos; la frontera despacha `NAV_FAILED`/`RESET` y PR-NAV-03 la incluye en scope | §12.3, §12.4 #1/#20/#21, §12.5, §16 |
 
 ---
 
@@ -661,7 +662,9 @@ En el código, "Aplicar" es un `<form method="get">` nativo, es decir una navega
 > **Rev. 2 (2026-10-09).** Esta sección reemplaza la especificación T1 de rev. 1 (tabla de 24 filas con
 > `PUSH_NATIVE`, `REPLACE_NATIVE` y `REFRESH_DATA`; recuperable en el historial de git, commit
 > `d186aff5`, §12). Fuente: contrato técnico de rev. 2 (§0.2), transcrito sin reinterpretación. La
-> columna "Orig." de §12.4 traza cada fila contra rev. 1. **La partición de guards se revisó a mano;
+> columna "Orig." de §12.4 traza cada fila contra rev. 1. **Rev. 2.1 (review de #1840):** las filas
+> #1, #20 y #21 y los contratos de entrada de §12.1 se enmendaron respecto del contrato: persistencia
+> de rutas completas y cableado frontera ↔ provider. El número de filas no cambia (27). **La partición de guards se revisó a mano;
 > su verificación mecánica (exhaustividad, ≥ 10 000 trazas) es el criterio de aceptación de PR-NAV-02
 > y todavía no se ejecutó.**
 
@@ -737,6 +740,17 @@ Contratos de entrada que cumple el **provider**, no la máquina:
 - `TRAVERSE_STARTED.destination` es la URL destino: `navigate` de Navigation API (`event.destination`),
   o `location` en el respaldo `popstate`, que dispara después de mover la URL.
 - `URL_COMMITTED` se emite sólo cuando la ubicación comiteada cambia.
+- *(Rev. 2.1)* `HYDRATED.location` de una ruta completa de Clínica lleva `{ kind: "route", path,
+  module }` con `module` resuelto por la gramática existente de rutas completas. Una ruta sin módulo
+  resoluble no produce `PERSIST` (guard `valid` de #1). Admin nunca produce `route`, y cada
+  superficie persiste en su propia clave (`dashboard-last-module.ts`).
+- *(Rev. 2.1)* Contrato frontera ↔ provider. `app/dashboard/error.tsx` vive bajo
+  `app/dashboard/layout.tsx`, que monta el provider, así que la frontera accede al store. Al montar,
+  despacha `NAV_FAILED(reason)` una sola vez. En "Reintentar" despacha `RESET(parse(window.location))`
+  y después invoca `retry()`. La frontera **sólo** observa errores de render y payload que React le
+  entrega. Un payload colgado o un refresh pendiente no la montan: esos casos los cubre el presupuesto
+  (`STALLED`), no `FAILED`. No existe otra autoridad de recuperación: `STALLED` recupera con
+  `HARD_NAVIGATE` (#15) y `FAILED` con `retry()` (#21).
 
 ### 12.2. Estados finitos
 
@@ -763,9 +777,9 @@ cruzar páginas". **Superado:** con T2 todo cambio de módulo, hub o ruta pasa p
 | `URL_COMMITTED` | `location` (sin `navId`) | Derivado **en render** de `usePathname`/`useSearchParams` del provider (§11.3) |
 | `TRAVERSE_STARTED` | `destination` | `navigate` de Navigation API (`event.destination`) o `popstate` (`location`) |
 | `BUDGET_EXPIRED` | `navId` | Timer del intérprete |
-| `NAV_FAILED` | `reason` | Frontera de error (PR-NAV-01) |
+| `NAV_FAILED` | `reason` | Montaje de la frontera `app/dashboard/error.tsx` (PR-NAV-01, cableada en PR-NAV-03; rev. 2.1) |
 | `RETRY` | — | UI de `STALLED` |
-| `RESET` | `location` | `retry()` de la frontera de error (`app/dashboard/error.tsx:10,26`) |
+| `RESET` | `location` | Botón "Reintentar" de la frontera: despacha `RESET(parse(window.location))` y luego invoca `retry()` (rev. 2.1) |
 
 ### 12.4. Tabla de transiciones (27 filas)
 
@@ -790,7 +804,7 @@ Columna "Orig." = fila del roadmap y cambio aplicado. `SELECT_*` = `SELECT_MODUL
 
 | # | Estado | Evento | Guard | Estado siguiente / contexto | Efectos (en este orden) | Orig. |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | `BOOTING` | `HYDRATED` | `bootRestore(ev) === null` y no rige #3 | `IDLE`; `committed = display = ev.location`; `lastModule = ev.location.module` si `module`, si no `storedModule` | `PERSIST(m)` si `ev.location.kind === "module"`; `PUBLISH_DISPLAY` | #1 (absorbe #3 de Clínica) |
+| 1 | `BOOTING` | `HYDRATED` | `bootRestore(ev) === null` y no rige #3 | `IDLE`; `committed = display = ev.location`; `lastModule = ev.location.module` si `ev.location.kind ∈ {module, route}` y `valid(ev.location.module)`, si no `storedModule` | `PERSIST(ev.location.module)` si `ev.location.kind ∈ {module, route}` y `valid(ev.location.module)`; `PUBLISH_DISPLAY` | #1 (absorbe #3 de Clínica). Rev. 2.1: persiste también `route`, igual que #9, #14 y `settle` (review de #1840) |
 | 2 | `BOOTING` | `HYDRATED` | `bootRestore(ev) = T` y `T` proviene de `storedModule` | `ROUTING(n, T, restore, replace, false)`; `committed = display = ev.location`; `lastModule = T.module` | `ROUTER_REPLACE(T)`; `ARM_BUDGET(n)`; `PUBLISH_DISPLAY` | #2: `REPLACE_NATIVE` → `ROUTER_REPLACE`; display deja de ser el almacenado |
 | 3 | `BOOTING` | `HYDRATED` | Admin, `ev.location.kind === "none"` y `!valid(storedModule)` (`T = {module default}`) | igual que #2 con `T` default | igual que #2 | #3: Admin normaliza vía router; Clínica pasa a #1 |
 | 4 | `IDLE` | `SELECT_*` | `X ≠ null` y `same(X, committed)` | `IDLE` (sin cambios) | — | #4 extendida a hub y ruta |
@@ -809,8 +823,8 @@ Columna "Orig." = fila del roadmap y cambio aplicado. `SELECT_*` = `SELECT_MODUL
 | 17 | `IDLE` / `ROUTING(id)` / `STALLED(id)` / `TRAVERSING(id)` | `TRAVERSE_STARTED(D)` | `IDLE`: `!same(D, committed)`. Resto: siempre | `TRAVERSING(n, D)`; `display = D`; `superseded = []` | `CANCEL_BUDGET(id)` si había; `ARM_BUDGET(n)`; `PUBLISH_DISPLAY` | #17: agrega presupuesto (fila #27) y `TRAVERSING` como origen |
 | 18 | `TRAVERSING(id)` | `URL_COMMITTED(L)` | — | `settle(L)` | `CANCEL_BUDGET(id)`; efectos de `settle(L)` | #18 + normalización Admin |
 | 19 | `TRAVERSING(id, D)` | `SELECT_*` | `X ≠ null`, `!same(X, D)` | `ROUTING(n, X, user, push, true)`; `display = X` | `CANCEL_BUDGET(id)`; `ROUTER_PUSH(X)`; `ARM_BUDGET(n)`; `PUBLISH_DISPLAY` | #19: elimina "según #5/#6 desde committed" (lógica T1) |
-| 20 | `BOOTING` / `IDLE` / `ROUTING` / `TRAVERSING` / `STALLED` | `NAV_FAILED(r)` | — | `FAILED(r)`; `display` sin cambios | `CANCEL_BUDGET(id)` si había; `PUBLISH_DISPLAY` | #20 |
-| 21 | `FAILED` | `RESET(L)` | — | `settle(L)` | efectos de `settle(L)` | #21: **sin** `REFRESH_DATA`; la recuperación es el `retry()` de la frontera (`app/dashboard/error.tsx:10,26`) |
+| 20 | `BOOTING` / `IDLE` / `ROUTING` / `TRAVERSING` / `STALLED` | `NAV_FAILED(r)` | — | `FAILED(r)`; `display` sin cambios; `superseded = []` | `CANCEL_BUDGET(id)` si había; `PUBLISH_DISPLAY` | #20. Rev. 2.1: origen exclusivo = montaje de `app/dashboard/error.tsx` (§12.5) |
+| 21 | `FAILED` | `RESET(L)` | — | `settle(L)` | efectos de `settle(L)` | #21: **sin** `REFRESH_DATA`. Rev. 2.1: `RESET` lo despacha la frontera inmediatamente antes de invocar su `retry()` (`app/dashboard/error.tsx:10,26`); la máquina no emite efecto de recuperación propio (§12.5) |
 | 22 | `IDLE` | `URL_COMMITTED(L)` | `!same(L, committed)` | `settle(L)` | efectos de `settle(L)` | #22 + normalización Admin |
 | 23 | `ROUTING(id, T)` / `STALLED(id, T)` | `URL_COMMITTED(L)` | `!same(L, T)`, `L ∉ superseded` y (`STALLED` o `!afterTraverse`) | `settle(L)` | `CANCEL_BUDGET(id)` (sólo `ROUTING`); efectos de `settle(L)` | #23 |
 | 24 | `IDLE` | `TRAVERSE_STARTED(D)` | `same(D, committed)` | `IDLE` | — | #24 |
@@ -902,7 +916,7 @@ stateDiagram-v2
 | Navegación de usuario | `ROUTER_PUSH(to)` | `router.push(href(to), { scroll: false })`; `href` con la gramática existente (`buildDashboardModuleHref`, `clinicModuleHref`; default de Clínica = URL desnuda) | 5, 7, 8, 10, 16, 19, 25 |
 | Normalización inicial / Admin sin módulo | `ROUTER_REPLACE(to)` | `router.replace(href(to), { scroll: false })` | 2, 3, `settle` (18, 21, 22, 23) |
 | Recuperación | `HARD_NAVIGATE(to, mode)` | `location.assign` / `location.replace` | 15 |
-| Recuperación de render | — (fuera de la máquina) | `retry()` de `app/dashboard/error.tsx`, que despacha `RESET(location)` | 21 |
+| Recuperación de render | — (fuera de la máquina) | `retry()` de Next en `app/dashboard/error.tsx`, invocado por la frontera **después** de despachar `RESET(location)`; única autoridad de recuperación de render (rev. 2.1) | 20, 21 |
 | Temporización | `ARM_BUDGET(id)` / `CANCEL_BUDGET(id)` | `setTimeout` → `BUDGET_EXPIRED(id)` (valor DT-5) | todas las entradas/salidas de `ROUTING`/`TRAVERSING` |
 | Persistencia | `PERSIST(m)` | `writeDashboardLastModule` | sólo en confirmaciones (1, 9, 14, `settle`) |
 | Publicación | `PUBLISH_DISPLAY` | notificación del store | toda transición que cambia `display` o el tag |
@@ -1153,7 +1167,7 @@ workflows. Todas las operaciones Git/GitHub son [MANUAL-NICO] salvo delegación 
 | Esfuerzo | Medio: 27 filas + 60 pares estado × evento + generador de trazas con PRNG propio con semilla (sin dependencias) |
 | Skill Claude | `vetneb-briefing-planificacion-diseno-desarrollo-pruebas` (criterios y matriz); `vetneb-production-web-optimization-engineer` (diseño mínimo) |
 | Implementación | `transition(config, ctx, state, event): { ctx, state, effects }` con la tabla de §12.4 exacta; los pares no listados se resuelven según la tabla de ignorados de §12.4 (sin cambios, 0 efectos). Ninguna reinterpretación de guards: una ambigüedad detectada al implementar detiene el PR y se reporta |
-| Tests | (1) Una prueba por fila #1–#27, con estado, contexto y efectos exactos en orden. (2) Exhaustividad de los 60 pares con casos de cada rama de guard (partición de §12.4). (3) Unión de efectos: ningún tipo fuera de `NavEffect` (S9). (4) Model-based: ≥ 10 000 trazas reproducibles (PRNG con semilla fija declarada, p. ej. mulberry32; ≤ 40 eventos; Admin y Clínica) con `navId` viejos, ubicaciones válidas e inválidas, commits superados y traverses; tras cada paso S1, S3, S4, S10, S11, L5; drenaje final de presupuestos para L2; misma semilla ⇒ mismo hash de traza. (5) Trazas nombradas: A→B→A con B en vuelo (#1830, fila 25); Back antes del commit en ruta completa (#1836, fila 17); payload retenido más allá del presupuesto (#1837, filas 12/15); hub → módulo; refresh pendiente + selección (SP-5 → `STALLED`); restauración superada por un clic (#2 → #10); Back a la entrada desnuda de Admin (#18 → `ROUTER_REPLACE`); `RESET` a URL desnuda de Admin (#21); clic durante traverse (#19 → #26 → #9) |
+| Tests | (1) Una prueba por fila #1–#27, con estado, contexto y efectos exactos en orden. (2) Exhaustividad de los 60 pares con casos de cada rama de guard (partición de §12.4). (3) Unión de efectos: ningún tipo fuera de `NavEffect` (S9). (4) Model-based: ≥ 10 000 trazas reproducibles (PRNG con semilla fija declarada, p. ej. mulberry32; ≤ 40 eventos; Admin y Clínica) con `navId` viejos, ubicaciones válidas e inválidas, commits superados y traverses; tras cada paso S1, S3, S4, S10, S11, L5; drenaje final de presupuestos para L2; misma semilla ⇒ mismo hash de traza. (5) Trazas nombradas: A→B→A con B en vuelo (#1830, fila 25); Back antes del commit en ruta completa (#1836, fila 17); payload retenido más allá del presupuesto (#1837, filas 12/15); hub → módulo; refresh pendiente + selección (SP-5 → `STALLED`); restauración superada por un clic (#2 → #10); Back a la entrada desnuda de Admin (#18 → `ROUTER_REPLACE`); `RESET` a URL desnuda de Admin (#21); clic durante traverse (#19 → #26 → #9); rev. 2.1: `HYDRATED` en ruta completa `informes` ⇒ `PERSIST(informes)` y `lastModule = informes` (#1), seguido de `URL_COMMITTED` a `/dashboard` (#22, `committed = operaciones`) y nuevo `BOOTING` con `storedModule = informes` ⇒ restauración C (#2); `NAV_FAILED` en `ROUTING(id)` ⇒ `FAILED` con `CANCEL_BUDGET(id)` y `BUDGET_EXPIRED(id)` posterior ignorado ⇒ `RESET` ⇒ `IDLE` (#20, ignorados, #21) |
 | Aceptación | Test dirigido PASSED; 27/27 filas y 60/60 pares cubiertos; `pnpm --dir frontend lint`, `typecheck`, `build` y `pnpm security:public-surface` PASSED; `pnpm validate:local` PASSED o FAILED sólo por el gate ambiental `03b` (DB) documentado. Si un test demuestra que la tabla tiene un hueco o un solapamiento, PR-NAV-02 **no la corrige sola**: se reporta y la enmienda vuelve a este documento |
 | Rollback | Revert (código no referenciado) |
 | Bloqueos | Autorización de Nico (rev. 1: DT-1, resuelto) |
@@ -1168,14 +1182,14 @@ workflows. Todas las operaciones Git/GitHub son [MANUAL-NICO] salvo delegación 
 | Objetivo | Admin navega módulos exclusivamente por la FSM (T2); en `IDLE`, URL y contenido coinciden en el mismo commit |
 | Justificación | D-02, D-05, D-06 y D-09 para Admin (D-09: el viaje al servidor se conserva porque aporta `initialAccessErrorStatus`, §15.2 SP-4) |
 | Dependencias | PR-NAV-02 fusionada (máquina verificada mecánicamente); acta del spike (§15.2) y auditoría de restauración (§15.3), que se incorporan al documento de implementación |
-| Scope | Nuevo `frontend/src/components/dashboard/DashboardNavigationProvider.tsx` (store + intérprete); `frontend/src/app/dashboard/layout.tsx` (montaje); `AdminDashboardWorkspaceController.tsx` (pasa a vista de `display`); `frontend/src/lib/admin-hub-reset.ts` (adaptador de despacho); `useStageModule.ts` (selector, sin romper la API del chrome); doc `docs/implementation/dashboard-navigation-fsm-admin.md`; realineación de guards que anclan el controlador Admin (p. ej. `test/unit/ui/admin/frontend-dashboard-admin.test.ts`, `test/architecture/dashboard-b13-admin-entry.test.ts`, `test/unit/ui/dashboard/frontend-dashboard-last-module.test.ts`) |
+| Scope | Nuevo `frontend/src/components/dashboard/DashboardNavigationProvider.tsx` (store + intérprete); `frontend/src/app/dashboard/layout.tsx` (montaje); `frontend/src/app/dashboard/error.tsx` (rev. 2.1: despacha `NAV_FAILED` al montar y `RESET` antes de `retry()`, sin cambiar su copia fija ni exponer `error.message`/`digest`); `AdminDashboardWorkspaceController.tsx` (pasa a vista de `display`); `frontend/src/lib/admin-hub-reset.ts` (adaptador de despacho); `useStageModule.ts` (selector, sin romper la API del chrome); doc `docs/implementation/dashboard-navigation-fsm-admin.md`; realineación de guards que anclan el controlador Admin (p. ej. `test/unit/ui/admin/frontend-dashboard-admin.test.ts`, `test/architecture/dashboard-b13-admin-entry.test.ts`, `test/unit/ui/dashboard/frontend-dashboard-last-module.test.ts`) |
 | Exclusiones | Clínica (controlador, buses, rutas completas); filtros de auditoría ("Aplicar" es un formulario de documento; "Limpiar" queda como `router.replace` externo, que la FSM trata como commit externo #22/#23); los `router.refresh()` existentes; SW; backend |
 | Riesgo | R1 (frontend in-scope); alto impacto funcional |
 | Esfuerzo | Alto: el corte es pequeño en LOC, pero la realineación de guards, el intérprete con presupuesto (T2 conserva el estado en vuelo) y el E2E por 6 viewports son extensos |
 | Skill Claude | `vetneb-production-web-optimization-engineer` (ownership único); `vetneb-web-end-to-end-global` (selección de cohortes y realineación de specs) |
 | Implementación | El provider crea un store por superficie e interpreta los efectos de §12.5 (`ROUTER_PUSH`, `ROUTER_REPLACE`, `HARD_NAVIGATE`, presupuesto, `PERSIST`, `PUBLISH_DISPLAY`); **ninguna** llamada a `history.pushState/replaceState` ni a `router.refresh()` desde la FSM. `request*ModuleActivate` despacha `SELECT_MODULE` y devuelve `true`. `display` de `IDLE` y `URL_COMMITTED` se derivan **en render** (§11.3). `initialAccessErrorStatus` llega con el render de la navegación. Restauración por filas #2–#3 (opción C, con placeholder neutro mientras `ROUTING` `restore`). Se retiran del controlador Admin `pendingNavigationIntent`, `supersededTargets`, `pushedFrom`, flight, restore y `resolveRetiredHub` (incluido su `replaceState` nativo) |
-| Tests | Existentes que deben seguir PASSED sin debilitarse: `dashboard-global-live-navigation-sync.spec.ts`, `dashboard-real-pointer-navigation.spec.ts`, `dashboard-b08-…`, `dashboard-b09-…`, `dashboard-b13-admin-entry.spec.ts` (cohorte `visual-contract`), `e2e:admin-mobile`. Los escenarios "payload held" **se conservan como contratos** (bajo T2 hay payload por cambio de módulo). Nuevos: refresh pendiente (`DashboardRefreshButton`) + selección de módulo → converge o `STALLED` dentro del presupuesto (H-08); restauración R-1, R-5 y R-6 de §15.3; Back a la entrada desnuda de Admin → normalización (L5); ningún frame con URL ≠ `display` tras el commit (requisito de render) |
-| Aceptación | Para Admin: S1–S11 aplicables, L1, L2, L4 y L5 en E2E; **1** `_rsc` de navegación por selección efectiva; los superseded se descartan sin repintar; `STALLED` visible dentro del presupuesto; 0 entradas de historial por restauración; Back/Forward exacto; `e2e:visual-contract` y `e2e:admin-mobile` PASSED; gates frontend §6 PASSED |
+| Tests | Existentes que deben seguir PASSED sin debilitarse: `dashboard-global-live-navigation-sync.spec.ts`, `dashboard-real-pointer-navigation.spec.ts`, `dashboard-b08-…`, `dashboard-b09-…`, `dashboard-b13-admin-entry.spec.ts` (cohorte `visual-contract`), `e2e:admin-mobile`. Los escenarios "payload held" **se conservan como contratos** (bajo T2 hay payload por cambio de módulo). Nuevos: refresh pendiente (`DashboardRefreshButton`) + selección de módulo → converge o `STALLED` dentro del presupuesto (H-08); restauración R-1, R-5 y R-6 de §15.3; Back a la entrada desnuda de Admin → normalización (L5); ningún frame con URL ≠ `display` tras el commit (requisito de render). Rev. 2.1, frontera: (a) un `_rsc` de cambio de módulo respondido con Flight truncado (patrón E2E de PR-NAV-01) monta la frontera ⇒ la FSM queda en `FAILED` y no queda presupuesto armado: el timer del `navId` previo no produce `STALLED` ni efectos tras su vencimiento; (b) "Reintentar" ⇒ `RESET` + `retry()` ⇒ `IDLE` con URL = `display` = workspace, sin `document` request; (c) el mismo caso en URL desnuda de Admin ⇒ `RESET` normaliza por `ROUTER_REPLACE` (L5); (d) el E2E de recuperación de PR-NAV-01 sigue PASSED sin debilitarse |
+| Aceptación | Para Admin: S1–S11 aplicables, L1, L2, L4 y L5 en E2E; **1** `_rsc` de navegación por selección efectiva; los superseded se descartan sin repintar; `STALLED` visible dentro del presupuesto; 0 entradas de historial por restauración; Back/Forward exacto; `FAILED` y `RESET` alcanzables por E2E, sin presupuesto obsoleto vivo tras la recuperación (rev. 2.1); recuperación de PR-NAV-01 preservada; `e2e:visual-contract` y `e2e:admin-mobile` PASSED; gates frontend §6 PASSED |
 | Rollback | Revert del squash restaura controlador y bus; el provider sin consumidores queda inactivo |
 | Bloqueos | Rev. 1: DT-1, DT-2 (**resueltos** en rev. 2). Vigentes: PR-NAV-02 fusionada; valor inicial del presupuesto (DT-5) a fijar por Nico antes de implementar, porque bajo T2 el presupuesto ya aplica a cambios de módulo |
 
@@ -1212,7 +1226,7 @@ workflows. Todas las operaciones Git/GitHub son [MANUAL-NICO] salvo delegación 
 | Esfuerzo | Medio |
 | Skill Claude | `vetneb-bugs-errores-optimizacion-rutas` |
 | Implementación | Filas #8–#19 y #25–#27 de la tabla de rev. 2 (rev. 1 citaba "#6, #8–#16") con `navId`; UI de `STALLED` con "Reintentar" (`HARD_NAVIGATE`) y la banda operativa |
-| Tests | Nuevo: payload de `/dashboard` retenido > presupuesto desde ruta completa → `STALLED` visible → clic posterior navega; "Abrir módulo completo" colgado → recuperable. Existentes: bloques de ruta completa de `dashboard-real-pointer-navigation.spec.ts` (incluida la variante sin Navigation API), `dashboard-clinic-full-route-stage-parity.spec.ts` (`e2e:public-clinic`), specs de logística full-route |
+| Tests | Nuevo: payload de `/dashboard` retenido > presupuesto desde ruta completa → `STALLED` visible → clic posterior navega; "Abrir módulo completo" colgado → recuperable. Rev. 2.1 (persistencia de ruta completa, contrato DT-8): entrada directa a `/dashboard/informes` → hidratación → último módulo almacenado = `informes` → navegación a `/dashboard` desnudo en un documento nuevo → la restauración C abre `informes` con 0 entradas de historial extra. Existentes: bloques de ruta completa de `dashboard-real-pointer-navigation.spec.ts` (incluida la variante sin Navigation API), `dashboard-clinic-full-route-stage-parity.spec.ts` (`e2e:public-clinic`), specs de logística full-route |
 | Aceptación | L2, L3 en rutas completas; ningún estado sin salida; cohortes `visual-contract` y `public-clinic` PASSED |
 | Rollback | Revert del squash |
 | Bloqueos | DT-5 (valor del presupuesto con datos de A0) |
