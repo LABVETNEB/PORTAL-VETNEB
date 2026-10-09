@@ -294,11 +294,19 @@ test("clinic controller persists/restores with the clinic key and replace-only r
     false,
     "the restore must not hand-build the url: that is what spelled the default module as ?module=operaciones",
   );
+  // The only push in the controller navigates the latest intent of an abandoned
+  // flight (M2), a navigation the person chose; the restore itself never pushes.
+  const restoreStart = source.indexOf(
+    "if (hasRestoredLastModule.current || hasManuallyReturnedToHub) return;",
+  );
+  const restore = source.slice(restoreStart, source.indexOf("]);", restoreStart));
+  assert.ok(restoreStart > 0 && restore.includes("router.replace("));
   assert.equal(
-    source.includes("router.push("),
+    restore.includes("router.push("),
     false,
     "restore stays replace-only: it must never add a history entry",
   );
+  assert.equal(source.split("router.push(").length - 1, 1, "one push: the abandoned flight's latest intent");
   assert.ok(
     source.includes(
       "if (hasRestoredLastModule.current || hasManuallyReturnedToHub) return;",

@@ -380,8 +380,8 @@ test("AdminDashboardWorkspaceController syncs module from URL with useSearchPara
     source.includes('setActiveModule(parseAdminModule(searchParams.get(MODULE_QUERY_PARAM)));'),
   );
   // Keyed on the url; `router` is the stable instance the single-flight
-  // reconcile replaces with.
-  assert.ok(source.includes('[searchParams, router]'));
+  // reconcile replaces with, and `flight` the owner's stable navigation flight.
+  assert.ok(source.includes('[searchParams, router, flight]'));
   assert.ok(source.includes('from "next/navigation"'));
   assert.ok(source.includes('useRouter, useSearchParams'));
 

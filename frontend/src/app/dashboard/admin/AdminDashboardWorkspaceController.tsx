@@ -11,6 +11,7 @@ import {
 import { useRouter, useSearchParams } from "next/navigation";
 import { DashboardModuleWorkspace } from "@/components/dashboard/DashboardModuleWorkspace";
 import { usePublishStageModule } from "@/components/dashboard/useStageModule";
+import { useNavigationFlight } from "@/components/dashboard/useNavigationFlight";
 import {
   ADMIN_LAST_MODULE_STORAGE_KEY,
   readDashboardLastModule,
@@ -171,6 +172,18 @@ export function AdminDashboardWorkspaceController({
         : supersededTargets.current;
   }, []);
 
+  // SINGLE FLIGHT's budget (`navigationFlight.ts`), as on the clinic stage.
+  const navigateAbandonedIntent = useCallback(
+    (abandonedTarget: string) => {
+      const target = pendingNavigationIntent.current?.target ?? null;
+      if (target === null || target === currentUrlModule.current || target === abandonedTarget) return null;
+      router.push(buildDashboardModuleHref(ROUTES.dashboardAdmin, target), { scroll: false });
+      return target;
+    },
+    [router],
+  );
+  const flight = useNavigationFlight(navigateAbandonedIntent);
+
   useEffect(() => {
     const previousCommittedModule = currentUrlModule.current;
     const nextModule = parseAdminModule(searchParams.get(MODULE_QUERY_PARAM));
@@ -221,21 +234,24 @@ export function AdminDashboardWorkspaceController({
           pendingNavigationIntent.current = null;
           supersededTargets.current = [];
           pushedFrom.current = null;
+          flight.end();
           window.history.back();
           return;
         }
         router.replace(buildDashboardModuleHref(ROUTES.dashboardAdmin, intent.target), {
           scroll: false,
         });
+        flight.start(intent.target);
       }
       return;
     }
     pendingNavigationIntent.current = null;
     supersededTargets.current = [];
     pushedFrom.current = null;
+    flight.end();
 
     setActiveModule(parseAdminModule(searchParams.get(MODULE_QUERY_PARAM)));
-  }, [searchParams, router]);
+  }, [searchParams, router, flight]);
 
   useEffect(() => () => clearAdminAccessError(), []);
 
@@ -255,6 +271,7 @@ export function AdminDashboardWorkspaceController({
   useEffect(() => {
     function relinquishOnHistoryNavigation() {
       historyTraversalStarted.current = false;
+      flight.end();
       if (!pendingNavigationIntent.current) return;
       pendingNavigationIntent.current = null;
       supersededTargets.current = [];
@@ -264,7 +281,7 @@ export function AdminDashboardWorkspaceController({
 
     window.addEventListener("popstate", relinquishOnHistoryNavigation);
     return () => window.removeEventListener("popstate", relinquishOnHistoryNavigation);
-  }, []);
+  }, [flight]);
 
   // Hub-reset signal: honour it by dropping back to the hub even when its URL
   // navigation collapses into a same-URL no-op (in-flight module push cancelled
@@ -294,17 +311,23 @@ export function AdminDashboardWorkspaceController({
       subscribeAdminModuleActivate((moduleId) => {
         const parsed = parseAdminModule(moduleId);
         if (!parsed) return false;
-        const inFlight = pendingNavigationIntent.current?.target != null;
+        // An abandoned flight no longer holds the next click.
+        const inFlight = pendingNavigationIntent.current?.target != null && flight.isActive();
         const committed = currentUrlModule.current;
         clearAdminAccessError();
         recordNavigationIntent(parsed);
-        // Not in flight: the caller pushes this one, which starts the burst.
-        if (!inFlight && pendingNavigationIntent.current) pushedFrom.current = { module: committed };
+        // Not in flight: the caller pushes this one, which starts the burst. A
+        // push of the committed module commits no module change, so it cannot
+        // end a flight: none is armed for it.
+        if (!inFlight && pendingNavigationIntent.current) {
+          pushedFrom.current = { module: committed };
+          if (parsed !== committed) flight.start(parsed);
+        }
         setHasManuallyReturnedToHub(false);
         setActiveModule(parsed);
         return inFlight;
       }),
-    [recordNavigationIntent],
+    [recordNavigationIntent, flight],
   );
 
   useEffect(() => {
