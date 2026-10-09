@@ -557,6 +557,7 @@ type NavContext = {
   committed: Location;        // última ubicación confirmada por URL
   display: Location;          // lo que el stage y el chrome muestran
   nextNavId: number;          // monótono, nunca se reutiliza
+  superseded: Location[];     // destinos de navegaciones reemplazadas mientras seguían en vuelo
 };
 ```
 
@@ -601,17 +602,20 @@ Con T1, un cambio de módulo es `IDLE → IDLE` (síncrono). `ROUTING` sólo apa
 | 8 | `IDLE` | `OPEN_ROUTE(p)` | — | `ROUTING(navId++, route p)` | `ROUTER_PUSH(p)`, `ARM_BUDGET` |
 | 9 | `ROUTING(id)` | `URL_COMMITTED(url)` | `url` coincide con `target` | `IDLE` | `CANCEL_BUDGET`, `PERSIST`, `PUBLISH_DISPLAY` |
 | 10 | `ROUTING(id)` | `SELECT_MODULE(m)` | — | `ROUTING(id' = navId++, m)` | `ROUTER_PUSH(href(m))`, `ARM_BUDGET(id')` (Next descarta la acción pendiente, `app-router-instance.js:146-150`) |
-| 11 | `ROUTING(id)` | `URL_COMMITTED(url)` | `url` ≠ `target` y no hay traverse | `ROUTING(id)` | — (commit obsoleto: no se pinta, no se reconcilia) |
+| 11 | `ROUTING(id)` | `URL_COMMITTED(url)` | `url` ∈ `superseded` | `ROUTING(id)` | — (commit obsoleto: no se pinta, no se reconcilia) |
 | 12 | `ROUTING(id)` | `BUDGET_EXPIRED(id)` | `id` vigente | `STALLED(id)` | `PUBLISH_DISPLAY(stalled)` |
 | 13 | `ROUTING(id)` | `BUDGET_EXPIRED(k)` | `k ≠ id` | `ROUTING(id)` | — (timer obsoleto) |
 | 14 | `STALLED(id)` | `URL_COMMITTED(url)` | `url` coincide con `target` | `IDLE` | `PUBLISH_DISPLAY` |
 | 15 | `STALLED(id)` | `RETRY` | — | `ROUTING(navId++, target)` | `HARD_NAVIGATE(href(target))` (documento completo) |
 | 16 | `STALLED` / `ROUTING` | `SELECT_MODULE(m)` | — | `ROUTING(navId++, m)` | como #10 |
-| 17 | cualquiera ≠ `BOOTING` | `TRAVERSE_STARTED` | — | `TRAVERSING(navId++)` | `CANCEL_BUDGET` |
+| 17 | cualquiera ≠ `BOOTING` | `TRAVERSE_STARTED` | `parse(window.location)` ≠ `committed` o hay `ROUTING`/`STALLED` pendiente | `TRAVERSING(navId++)` | `CANCEL_BUDGET` |
 | 18 | `TRAVERSING` | `URL_COMMITTED(url)` | — | `IDLE` (committed = display = parse(url)) | `PERSIST`, `PUBLISH_DISPLAY` |
 | 19 | `TRAVERSING` | `SELECT_MODULE(m)` | — | según #5/#6 desde `committed` | ídem |
 | 20 | cualquiera | `NAV_FAILED` | — | `FAILED(reason)` | `CANCEL_BUDGET` |
 | 21 | `FAILED` | `RESET` | — | `IDLE` (desde URL actual) | `REFRESH_DATA` |
+| 22 | `IDLE` | `URL_COMMITTED(url)` | `parse(url)` ≠ `committed` (commit externo sin señal previa: Back/Forward que Next comitea antes del `popstate` posterior, sin Navigation API) | `IDLE` (committed = display = parse(url)) | `CANCEL_BUDGET`, `PERSIST`, `PUBLISH_DISPLAY` |
+| 23 | `ROUTING(id)` / `STALLED(id)` | `URL_COMMITTED(url)` | `url` ∉ `superseded` y `url` ≠ `target` (commit externo, no obsoleto) | `IDLE` (committed = display = parse(url)) | `CANCEL_BUDGET`, `PERSIST`, `PUBLISH_DISPLAY` |
+| 24 | `IDLE` | `TRAVERSE_STARTED` | `parse(window.location)` = `committed` (el commit de la fila 22 ya ocurrió y el `popstate` llega tarde) | `IDLE` | — (el respaldo `popstate` es idempotente) |
 
 Toda combinación (estado, evento) no listada es **ignorada sin efectos** y la tabla debe ser
 exhaustiva por test (PR-NAV-02).
@@ -734,7 +738,8 @@ stateDiagram-v2
 
 ### 15.2. Spike de transporte (gate de DT-1, sin PR de código)
 
-Ejecutado en un scratchpad sobre un build `next start` con fixture, sin commitear código. Debe
+**Pendiente de ejecución: no se ha corrido ni se registra ningún resultado en este documento.** Se
+ejecutará en un scratchpad sobre un build `next start` con fixture, sin commitear código. Debe
 producir un acta (incluida en el documento de implementación de PR-NAV-03) con estos resultados
 binarios:
 
@@ -830,11 +835,11 @@ workflows. Todas las operaciones Git/GitHub son [MANUAL-NICO] salvo delegación 
 | Scope | Nuevo `frontend/src/lib/dashboard/navigation/dashboardNavigationMachine.ts` (sin imports, como `clinicNavigationState.ts`); nuevo `test/unit/ui/dashboard/dashboard-navigation-machine.test.ts` |
 | Exclusiones | Controladores, chrome, buses, provider, E2E |
 | Riesgo | R1 |
-| Esfuerzo | Medio: tabla de 21 filas + generador de trazas con PRNG con semilla propio (sin dependencias) |
+| Esfuerzo | Medio: tabla de 24 filas + generador de trazas con PRNG con semilla propio (sin dependencias) |
 | Skill Claude | `vetneb-briefing-planificacion-diseno-desarrollo-pruebas` (criterios y matriz); `vetneb-production-web-optimization-engineer` (diseño mínimo) |
 | Implementación | `type NavState = { tag: "BOOTING" } \| { tag: "IDLE" } \| { tag: "ROUTING"; navId; target } \| …`; `transition(ctx, state, event): { ctx, state, effects }`; filas no listadas = identidad |
 | Tests | Por fila de §12.4; exhaustividad (todo par estado×evento declarado o identidad); model-based: ≥ 10 000 trazas aleatorias con semilla fija verificando S1, S3, S4, S7, L1, L2, L4; trazas históricas de #1830–#1837 como casos nombrados (A→B→A, Back antes del commit en ruta completa, payload colgado, hub→módulo) |
-| Aceptación | `node --test` del archivo PASSED; `pnpm validate:local` PASSED o FAILED sólo por el gate ambiental `03b` (DB) documentado; cobertura de filas 21/21 |
+| Aceptación | `node --test` del archivo PASSED; `pnpm validate:local` PASSED o FAILED sólo por el gate ambiental `03b` (DB) documentado; cobertura de filas 24/24 |
 | Rollback | Revert (código no referenciado) |
 | Bloqueos | DT-1 |
 
@@ -855,7 +860,7 @@ workflows. Todas las operaciones Git/GitHub son [MANUAL-NICO] salvo delegación 
 | Skill Claude | `vetneb-production-web-optimization-engineer` (ownership único); `vetneb-web-end-to-end-global` (selección de cohortes y realineación de specs) |
 | Implementación | Provider crea un store por superficie; `request*ModuleActivate` despacha `SELECT_MODULE` y devuelve `true`; efectos T1 + `REFRESH_DATA`; `initialAccessErrorStatus` llega por el refresh (SP-4); se retiran del controlador Admin `pendingNavigationIntent`, `supersededTargets`, `pushedFrom`, flight, restore y `resolveRetiredHub` |
 | Tests | Existentes que deben seguir PASSED sin debilitarse: `dashboard-global-live-navigation-sync.spec.ts`, `dashboard-real-pointer-navigation.spec.ts`, `dashboard-b08-…`, `dashboard-b09-…`, `dashboard-b13-admin-entry.spec.ts` (cohorte `visual-contract`), `e2e:admin-mobile`. Los escenarios "payload held" de Admin cambian de forma (con T1 no hay payload de módulo): se reescriben para afirmar 0 `_rsc` de navegación y convergencia inmediata, documentado en el PR |
-| Aceptación | Para Admin: S1–S7 y L1, L4 en E2E; 0 requests `_rsc` por cambio de módulo (salvo el refresh); historial Back/Forward exacto; `e2e:visual-contract` y `e2e:admin-mobile` PASSED; gates frontend §6 PASSED |
+| Aceptación | Para Admin: S1–S7 y L1, L4 en E2E; 0 requests `_rsc` bloqueantes por cambio de módulo (el `_rsc` de `REFRESH_DATA` se cuenta aparte: 1 por selección efectiva); historial Back/Forward exacto; `e2e:visual-contract` y `e2e:admin-mobile` PASSED; gates frontend §6 PASSED |
 | Rollback | Revert del squash restaura controlador y bus; el provider sin consumidores queda inactivo |
 | Bloqueos | DT-1, DT-2 |
 
@@ -1072,7 +1077,9 @@ Los PR de Fase C son revertibles de forma independiente sólo en orden inverso (
 5. LOC de coordinación (§10.2) reducidas ≥ 40 % sin perder casos de los E2E existentes.
 6. Los cuatro contextos required en SUCCESS en cada PR (`AGENTS.md` §6).
 7. Evidencia productiva post-despliegue (R3, [MANUAL-NICO]): ningún reporte del síntoma en el período
-   que Nico defina y latencias `_rsc` de módulo = 0 requests con T1.
+   que Nico defina; con T1, 0 requests `_rsc` que bloqueen la navegación de módulo (el commit de URL
+   no espera a ningún `_rsc`) y exactamente 1 request `_rsc` de `REFRESH_DATA` por selección efectiva
+   (DT-2), contado por separado y descartable por la siguiente navegación.
 
 ---
 
