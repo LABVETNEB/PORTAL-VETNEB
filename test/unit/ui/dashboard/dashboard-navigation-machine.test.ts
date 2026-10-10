@@ -15,7 +15,7 @@ import {
 
 // PR-NAV-02 — mechanical verification of the navigation machine against the
 // normative table of docs/audit/AUDITORIA_ARQUITECTURA_NAVEGACION_FSM_HOJA_DE_RUTA.md
-// §12 (rev. 2.2.1: 28 rows, 113 guard branches) and the invariants of §13.
+// §12 (rev. 2.2.2: 28 rows, 113 guard branches) and the invariants of §13.
 //
 // The machine is never its own oracle. Four independent sources judge it:
 //
@@ -611,6 +611,7 @@ const PROPERTIES = {
   S10: "in ROUTING restore, display = committed",
   S11: "exactly one budget armed while ROUTING/TRAVERSING, with its navId, and none otherwise",
   S12: "PERSIST only carries a module the surface has: the one of the location just confirmed in IDLE",
+  S13: "afterTraverse holds exactly while the flight descends, selection after selection, from a traverse whose commit was not yet recorded",
   L1: "a valid selection either starts a navigation with ROUTER_PUSH or is idempotent on the destination in force",
   L2: "ROUTING and TRAVERSING end in STALLED when their budget expires",
   L3: "STALLED recovers on RETRY and FAILED on RESET",
@@ -642,6 +643,12 @@ type World = {
   readonly armed: readonly number[];
   /** Highest navId ever armed. */
   readonly issued: number;
+  /**
+   * S13, kept apart from the machine's own flag: a selection abandoned a
+   * traverse (#19) and no commit has been recorded since (#26), through every
+   * selection that replaced that flight (#10).
+   */
+  readonly owed: boolean;
 };
 
 type Step = {
@@ -653,7 +660,7 @@ type Step = {
 };
 
 function boot(config: MachineConfig): World {
-  return { ...initial(config), armed: [], issued: 0 };
+  return { ...initial(config), armed: [], issued: 0, owed: false };
 }
 
 function advance(config: MachineConfig, before: World, event: NavEvent): Step {
@@ -676,8 +683,22 @@ function advance(config: MachineConfig, before: World, event: NavEvent): Step {
     }
   }
 
-  const world: World = { ctx: result.ctx, state: result.state, armed, issued };
+  const world: World = { ctx: result.ctx, state: result.state, armed, issued, owed: owes(before, event, result) };
   return { event, branches, result, world, broken: audit(config, before, event, branches, result, world, ledger) };
+}
+
+/** Whether the flight a transition leaves open still awaits the commit of an abandoned traverse. */
+function owes(before: World, event: NavEvent, result: TransitionResult): boolean {
+  const { state } = result;
+  if (state.tag !== "ROUTING" || state.intent !== "user") return false;
+  const chose = (SELECT_TYPES as readonly EventType[]).includes(event.type);
+  const from = before.state;
+
+  if (from.tag === "TRAVERSING") return chose;
+  if (from.tag !== "ROUTING") return false;
+  if (state.navId !== from.navId) return chose && before.owed;
+  // The same flight: the debt is paid by the one commit it lets through.
+  return before.owed && !(event.type === "URL_COMMITTED" && !unchanged(before, result));
 }
 
 function audit(
@@ -768,6 +789,7 @@ function audit(
         confirmed.module === effect.module,
     );
   }
+  check("S13", state.tag !== "ROUTING" || state.afterTraverse === after.owed);
   check("L2", !live || (state.tag === "STALLED" && after.armed.length === 0));
   check(
     "L3",
@@ -949,7 +971,7 @@ function alphabet(config: MachineConfig, world: World): readonly NavEvent[] {
 function abstractKey(world: World): string {
   const state = "navId" in world.state ? { ...world.state, navId: 0 } : world.state;
   const armed = world.armed.map((id) => ("navId" in world.state && id === world.state.navId ? "own" : "other"));
-  return `${stateKey(state)} | ${ctxKey({ ...world.ctx, nextNavId: 0 })} | armed=${armed.join()}`;
+  return `${stateKey(state)} | ${ctxKey({ ...world.ctx, nextNavId: 0 })} | armed=${armed.join()} | owed=${world.owed}`;
 }
 
 type Coverage = {
@@ -1086,11 +1108,11 @@ function explore(config: MachineConfig, coverage: Coverage): Walk {
 const SEED = 0x4e415632;
 const TRACE_COUNT = 10_000;
 const MAX_EVENTS = 40;
-const TRACE_HASH = "a73a97e2406c9242";
+const TRACE_HASH = "d6b4b32f4822884a";
 /** "WIDE" in ASCII: the campaign over the wide universe, pinned apart so TRACE_HASH keeps its generator. */
 const WIDE_SEED = 0x57494445;
 const WIDE_TRACE_COUNT = 2_000;
-const WIDE_HASH = "7c133347a5c95876";
+const WIDE_HASH = "17abdaccdca4ee3b";
 
 function mulberry32(seed: number): () => number {
   let state = seed >>> 0;
@@ -1606,9 +1628,9 @@ given(CLINIC, context(OPS, INFORMES, 8), routing(7, INFORMES, { afterTraverse: t
   .on(
     selectModule("perfil"),
     "#10",
-    "a new selection drops afterTraverse",
+    "rev. 2.2.2: a new selection keeps afterTraverse: the commit of the traverse is still owed (C-10)",
     to(
-      routing(8, PERFIL),
+      routing(8, PERFIL, { afterTraverse: true }),
       context(OPS, PERFIL, 9, { superseded: [INFORMES] }),
       cancel(7),
       push(PERFIL),
@@ -2799,6 +2821,131 @@ test("regression · C-8 · L5 · a traverse onto the bare Admin entry during its
   ]);
 });
 
+// ── Regression: the counterexample the table of rev. 2.2.1 failed (C-10) ─────
+//
+// Found by the review of this PR, not by the suite: no oracle of rev. 2.2.1
+// could see it, because row #10 itself said `afterTraverse = false`. S13 is the
+// property that sees it now.
+
+const BACK_THEN_TWO = [hydrated(OPS), traverseStarted(INFORMES), selectModule("logistica"), selectModule("perfil")];
+
+test("regression · C-10 · S13 · a second selection after a traverse still survives the commit of that traverse (rows 17, 19, 10, 26, 9)", () => {
+  const events = [...BACK_THEN_TWO, urlCommitted(INFORMES), urlCommitted(PERFIL)];
+
+  assert.deepEqual(play(CLINIC, events).slice(1), [
+    "#17 → TRAVERSING#1(module:informes) | committed=module:operaciones display=module:informes next=2 superseded={} last=operaciones | ARM_BUDGET(1) > PUBLISH_DISPLAY",
+    "#19 → ROUTING#2(module:logistica,user,push,afterTraverse) | committed=module:operaciones display=module:logistica next=3 superseded={} last=operaciones | CANCEL_BUDGET(1) > ROUTER_PUSH(module:logistica) > ARM_BUDGET(2) > PUBLISH_DISPLAY",
+    "#10 → ROUTING#3(module:perfil,user,push,afterTraverse) | committed=module:operaciones display=module:perfil next=4 superseded={module:logistica} last=operaciones | CANCEL_BUDGET(2) > ROUTER_PUSH(module:perfil) > ARM_BUDGET(3) > PUBLISH_DISPLAY",
+    "#26 → ROUTING#3(module:perfil,user,push) | committed=module:informes display=module:perfil next=4 superseded={module:logistica} last=operaciones | —",
+    "#9 → IDLE | committed=module:perfil display=module:perfil next=4 superseded={} last=perfil | CANCEL_BUDGET(3) > PERSIST(perfil) > PUBLISH_DISPLAY",
+  ]);
+  assert.equal(
+    restingPlace(finish(CLINIC, events.slice(0, -1))),
+    "ROUTING at module:informes",
+    "S13: rev. 2.2.1 dropped afterTraverse on row 10, and the commit of the traverse took row 23: budget 3 cancelled, PERSIST(informes), IDLE on the history entry",
+  );
+});
+
+test("regression · C-10 · S13 · every selection of the burst inherits the debt: Admin, the hub and full routes (rows 19, 10, 26)", () => {
+  // Three selections, the last one the hub.
+  assert.deepEqual(
+    play(CLINIC, [...BACK_THEN_TWO, SELECT_HUB, urlCommitted(INFORMES), urlCommitted(HUB)]).map(short).slice(3),
+    [
+      "#10 → ROUTING#3(module:perfil,user,push,afterTraverse)",
+      "#10 → ROUTING#4(hub,user,push,afterTraverse)",
+      "#26 → ROUTING#4(hub,user,push)",
+      "#9 → IDLE",
+    ],
+  );
+
+  // From a full route, Back to the shell and two full routes of one module.
+  assert.deepEqual(
+    play(CLINIC, [
+      hydrated(INFORMES_ROUTE),
+      traverseStarted(OPS),
+      openRoute("/dashboard/logistica", "logistica"),
+      openRoute("/dashboard/logistica/visitas", "logistica"),
+      urlCommitted(OPS),
+      urlCommitted(VISITS_ROUTE),
+    ])
+      .map(short)
+      .slice(2),
+    [
+      "#19 → ROUTING#2(route:/dashboard/logistica:logistica,user,push,afterTraverse)",
+      "#10 → ROUTING#3(route:/dashboard/logistica/visitas:logistica,user,push,afterTraverse)",
+      "#26 → ROUTING#3(route:/dashboard/logistica/visitas:logistica,user,push)",
+      "#9 → IDLE",
+    ],
+  );
+
+  // Admin, Back to the bare entry: rev. 2.2.1 answered its late commit with row
+  // 23 and a ROUTER_REPLACE onto the last module, over the click still in flight.
+  const admin = [
+    hydrated(HOME, null, true),
+    traverseStarted(NONE),
+    selectModule("admin-clinics"),
+    selectModule("admin-pricing"),
+    urlCommitted(NONE),
+    urlCommitted(PRICING),
+  ];
+  const transcript = play(ADMIN, admin);
+  assert.deepEqual(transcript.map(short).slice(2), [
+    "#19 → ROUTING#2(module:admin-clinics,user,push,afterTraverse)",
+    "#10 → ROUTING#3(module:admin-pricing,user,push,afterTraverse)",
+    "#26 → ROUTING#3(module:admin-pricing,user,push)",
+    "#9 → IDLE",
+  ]);
+  assert.ok(transcript.every((line) => !line.includes("ROUTER_REPLACE")), "no normalization over the click");
+  assert.equal(restingPlace(finish(ADMIN, admin)), "IDLE at module:admin-pricing");
+});
+
+test("regression · C-10 · S13 · the debt is paid by one commit and ends with the flight (rows 26, 11, 23, 9, 22, 12, 15, 17, 25, 20)", () => {
+  const after = (events: readonly NavEvent[], skip: number): readonly string[] =>
+    play(CLINIC, events).map(short).slice(skip);
+
+  // Selecting the target already in flight is inert and keeps the debt.
+  assert.deepEqual(after([...BACK_THEN_TWO.slice(0, 3), selectModule("logistica"), urlCommitted(INFORMES)], 3), [
+    "ignored → ROUTING#2(module:logistica,user,push,afterTraverse)",
+    "#26 → ROUTING#2(module:logistica,user,push)",
+  ]);
+  // So do a superseded commit and a stale budget: neither is the commit owed.
+  assert.deepEqual(after([...BACK_THEN_TWO, urlCommitted(LOGISTICA), budgetExpired(2), urlCommitted(INFORMES)], 4), [
+    "#11 → ROUTING#3(module:perfil,user,push,afterTraverse)",
+    "#13 → ROUTING#3(module:perfil,user,push,afterTraverse)",
+    "#26 → ROUTING#3(module:perfil,user,push)",
+  ]);
+  // Paid once: after row 26 a later selection flies without it, and the next foreign commit is external.
+  assert.deepEqual(
+    after([...BACK_THEN_TWO.slice(0, 3), urlCommitted(INFORMES), selectModule("perfil"), urlCommitted(HUB)], 3),
+    ["#26 → ROUTING#2(module:logistica,user,push)", "#10 → ROUTING#3(module:perfil,user,push)", "#23 → IDLE"],
+  );
+  // The target lands first: the flight is over, and a commit after it is external (H3 excludes it).
+  assert.deepEqual(after([...BACK_THEN_TWO, urlCommitted(PERFIL), urlCommitted(INFORMES)], 4), ["#9 → IDLE", "#22 → IDLE"]);
+  // A stall keeps no provenance (row 23 covers STALLED whatever came before), and RETRY starts clean.
+  assert.deepEqual(after([...BACK_THEN_TWO, budgetExpired(3), urlCommitted(INFORMES)], 4), [
+    "#12 → STALLED#3(module:perfil,user,push)",
+    "#23 → IDLE",
+  ]);
+  assert.deepEqual(after([...BACK_THEN_TWO, budgetExpired(3), RETRY], 5), ["#15 → ROUTING#4(module:perfil,user,push)"]);
+  // A new traverse takes the flight; a selection during it owes the commit of that one.
+  assert.deepEqual(after([...BACK_THEN_TWO, traverseStarted(HUB), selectModule("logistica")], 4), [
+    "#17 → TRAVERSING#4(hub)",
+    "#19 → ROUTING#5(module:logistica,user,push,afterTraverse)",
+  ]);
+  // Returning to the committed location and a failure both end the flight.
+  assert.deepEqual(after([...BACK_THEN_TWO, selectModule("operaciones")], 4), ["#25 → IDLE"]);
+  assert.deepEqual(after([...BACK_THEN_TWO, navFailed("render"), budgetExpired(3), reset(INFORMES)], 4), [
+    "#20 → FAILED(render)",
+    "ignored → FAILED(render)",
+    "#21 → IDLE",
+  ]);
+  // No traverse, no debt: a click over a restore inherits nothing.
+  assert.deepEqual(after([hydrated(OPS, "logistica"), selectModule("informes"), urlCommitted(HUB)], 1), [
+    "#10 → ROUTING#2(module:informes,user,push)",
+    "#23 → IDLE",
+  ]);
+});
+
 // ── HISTORY: the abstract router and session history of §13.1 ────────────────
 //
 // The traces above feed the machine anything. Here the machine's own effects
@@ -3389,7 +3536,7 @@ function sessions(seed: number, count: number): History {
 /** "S5V2" in ASCII. Changing it, the model or the machine changes SESSION_HASH. */
 const SESSION_SEED = 0x53355632;
 const SESSION_COUNT = 4_000;
-const SESSION_HASH = "d4f699cdb8cab0f9";
+const SESSION_HASH = "f3b66b570889461e";
 /** §13.1: defences against what H1, H3 and H6 exclude; the closed loop cannot reach them. */
 const OPEN_LOOP_ONLY: readonly Branch[] = ["#11", "#13", "#23", "#26"];
 

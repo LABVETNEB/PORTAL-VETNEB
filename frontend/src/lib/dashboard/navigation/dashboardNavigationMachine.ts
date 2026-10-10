@@ -1,6 +1,6 @@
 /**
  * Dashboard navigation machine — the executable form of the normative table in
- * docs/audit/AUDITORIA_ARQUITECTURA_NAVEGACION_FSM_HOJA_DE_RUTA.md §12 (rev. 2.2.1).
+ * docs/audit/AUDITORIA_ARQUITECTURA_NAVEGACION_FSM_HOJA_DE_RUTA.md §12 (rev. 2.2.2).
  *
  * One explicit state per surface replaces the implicit refs of the two
  * workspace controllers. Every transition is a pure function of
@@ -341,7 +341,7 @@ function select(ctx: NavContext, state: NavState, target: NavLocation | null): T
         target,
         cancelBudget(state),
         supersede(ctx.superseded, state.target, target),
-        false,
+        state.afterTraverse,
       ); // #10
     case "TRAVERSING":
       if (same(target, state.destination)) return stay(ctx, state);
