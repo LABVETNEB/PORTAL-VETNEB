@@ -9,12 +9,12 @@
 | Base comparada | `main` = `37dbcaf6714f6ae7fb37eaad100370af2ab53cb8` (PR #1836) |
 | Frontend productivo | `37dbcaf6` según sonda `/api/build-info` registrada el 2026-10-09 en una sesión previa; **no reverificado en esta sesión** (lectura de producción fuera del scope) |
 | Stack verificado | Next.js `16.3.8` según `pnpm-lock.yaml` (desde #1834), React `19.3.0`. **Corrección rev. 2:** durante la auditoría original `frontend/node_modules` tenía `next@16.3.6` (instalación del 2026-10-07, anterior a #1834); la afirmación "leídos de `frontend/node_modules`" era inexacta para Next. Las pruebas válidas de rev. 2 (§15.2, §15.3) corrieron sobre `16.3.8` tras `pnpm install --frozen-lockfile` autorizado por Nico |
-| Lifecycle status | Rev. 1: PROPUESTA. **Rev. 2 (2026-10-09): APROBADO por Nico** — DT-1 = T2, DT-2 = sin refresh por selección, restauración inicial = opción C, especificación FSM de 27 transiciones (§0). **Rev. 2.2 (2026-10-09): enmienda PROPUESTA** de esa especificación (§0.4); queda aprobada cuando Nico fusiona su PR. **Rev. 2.2.2 (2026-10-10): enmienda PROPUESTA** de la fila #10 (§0.6), con la misma regla |
-| Estado de implementación | NO IMPLEMENTADO (programa FSM). PR-NAV-01 fusionada (#1839, `c51b7e74`); #1837 fusionada (`585bf3ba`). Las 27 transiciones **no** tienen aún verificación mecánica: corresponde a PR-NAV-02. **Rev. 2.2:** esa verificación se ejecutó en local y la tabla de rev. 2.1 no la superó (§0.4); PR-NAV-02 sigue sin publicar |
+| Lifecycle status | Rev. 1: PROPUESTA. **Rev. 2 (2026-10-09): APROBADO por Nico** — DT-1 = T2, DT-2 = sin refresh por selección, restauración inicial = opción C, especificación FSM de 27 transiciones (§0). **Rev. 2.2 (2026-10-09) y rev. 2.2.1 (2026-10-10): enmiendas APROBADAS** de esa especificación con la fusión de su PR (#1841, `4f693d5c`, 2026-10-10); hasta entonces figuraban como propuestas (§0.4, §0.5). **Rev. 2.2.2 (2026-10-10): enmienda PROPUESTA** de la fila #10 (§0.6); queda aprobada cuando Nico fusiona su PR (#1843) |
+| Estado de implementación | **Estado vigente (rev. 2.2.2, 2026-10-10).** Productivo: **NO IMPLEMENTADO** (programa FSM). La máquina pura existe pero no está conectada al dashboard: en #1842 sólo la importa su suite, y el provider y el intérprete de §12.5.1 corresponden a PR-NAV-03. PR-NAV-01 fusionada (#1839, `c51b7e74`); #1837 fusionada (`585bf3ba`). **PR-NAV-02 está publicada como PR #1842** (abierta, sin fusionar, head `541aabaa`): la implementación existe, transcribe rev. 2.2.1 y fue sometida a su verificación mecánica versionada, que pasa sobre ese head (241 tests; cuatro contextos required en verde). Queda **pendiente de corregir el hallazgo C-10** (P2 de su review, §0.6), y su **realineación está BLOQUEADA** hasta que se fusione la enmienda rev. 2.2.2. *Historia de esta fila:* rev. 2 decía que las 27 transiciones no tenían aún verificación mecánica y que correspondía a PR-NAV-02; rev. 2.2, que esa verificación se había ejecutado en local, que la tabla de rev. 2.1 no la superó (§0.4) y que PR-NAV-02 seguía sin publicar |
 | Revisión 2 | 2026-10-09 sobre `main` = `c51b7e74`. Incorpora el spike de transporte SP-1..SP-7 y la auditoría de restauración R-1..R-8 (§0, §15.2, §15.3). La propuesta T1 de rev. 1 se conserva como historia y queda marcada como superada donde aplica |
 | Revisión 2.2 | 2026-10-09 sobre `main` = `603c352f`. Enmienda docs-only de §11.3, §12, §13, §16 y §18–§21 tras la verificación mecánica de PR-NAV-02, que **falló** contra la tabla de rev. 2.1. Corrige ocho hallazgos (C-1..C-8, §0.4): la tabla pasa de 27 a **28 filas** y de 107 a **113 ramas de guard**; los invariantes, de S1–S11/L1–L5 a **S1–S12/L1–L6**. **PR-NAV-02 queda BLOQUEADA** hasta que esta revisión esté fusionada; su fusión equivale a la aprobación de Nico. La tabla enmendada se verificó sobre una copia temporal no versionada (§0.4, §23.5) |
 | Revisión 2.2.1 | 2026-10-10, dentro de la misma PR (#1841). Corrige el P1 de su review: rev. 2.2 difería los efectos de `HYDRATED` al montaje del provider sin fijar su orden frente al `NAV_FAILED` de la frontera, y una restauración abandonada podía navegar y dejar un presupuesto vivo en `FAILED`. Agrega el **algoritmo de coordinación del intérprete** (§12.5.1, C-9) con invariantes de integración I1–I8. No cambia la máquina, la tabla ni S1–S12/L1–L6 (§0.5) |
-| Revisión 2.2.2 | 2026-10-10 sobre `main` = `4f693d5c`. **Enmienda PROPUESTA**, docs-only, tras el P2 del review de PR-NAV-02 (#1842, head `541aabaa`): la fila #10 descartaba `afterTraverse`, y el commit tardío de un traverse abandonaba toda selección posterior a la primera (C-10, §0.6). Cambia **el estado siguiente de la fila #10** y agrega el invariante **S13**. No cambian los tipos, los guards, las 28 filas, las 113 ramas ni los 60 pares. **PR-NAV-02 queda BLOQUEADA** hasta que esta revisión esté fusionada; su fusión equivale a la aprobación de Nico. Verificada sobre una copia temporal no versionada (§0.6, §23.5) |
+| Revisión 2.2.2 | 2026-10-10 sobre `main` = `4f693d5c`, en la PR #1843. **Enmienda PROPUESTA**, docs-only, tras el P2 del review de PR-NAV-02 (#1842, head `541aabaa`): la fila #10 descartaba `afterTraverse`, y el commit tardío de un traverse abandonaba toda selección posterior a la primera (C-10, §0.6). Cambia **el estado siguiente de la fila #10** y agrega el invariante **S13**. No cambian los tipos, los guards, las 28 filas, las 113 ramas ni los 60 pares. **PR-NAV-02 queda BLOQUEADA** hasta que esta revisión esté fusionada; su fusión equivale a la aprobación de Nico. Verificada sobre una copia temporal no versionada (§0.6, §23.5) |
 
 ---
 
@@ -306,6 +306,12 @@ intervención independiente de la FSM: fronteras de error (PR-NAV-01, §22).
 > hallazgos (§0.4): los contraejemplos C-1, C-2 y C-3 contra §13 y la partición, cuatro huecos de
 > contrato (C-4..C-7) y un contraejemplo más, C-8, que apareció al modelar el historial. Esta revisión
 > los enmienda y PR-NAV-02 queda bloqueada hasta su fusión.
+>
+> **Rev. 2.2.2 (2026-10-10) — estado vigente.** Rev. 2.2 y rev. 2.2.1 se fusionaron en #1841
+> (`4f693d5c`). PR-NAV-02 se implementó sobre rev. 2.2.1 y está **publicada como PR #1842**, abierta, con
+> su verificación mecánica en verde. Su review halló C-10 (§0.6): la corrección exige enmendar la fila
+> #10, de modo que #1842 queda bloqueada hasta la fusión de esta revisión y después se realinea. La
+> máquina sigue sin conectarse al dashboard; NAV-A0 sigue pendiente.
 
 ---
 
@@ -1638,7 +1644,7 @@ workflows. Todas las operaciones Git/GitHub son [MANUAL-NICO] salvo delegación 
 | ID | PR-NAV-02 |
 | Objetivo | Especificación ejecutable de §12 sin cablear: `initial()`/`transition()` puras, tipos discriminados, exhaustividad **verificada mecánicamente** |
 | Justificación | D-05, D-07: hoy hay dos especificaciones divergentes y ninguna exhaustiva |
-| Dependencias | DT-1 = T2, DT-2 y DT-8 decididos (rev. 2, §0). Pendiente sólo la autorización de Nico para implementar |
+| Dependencias | DT-1 = T2, DT-2 y DT-8 decididos (rev. 2, §0). Pendiente sólo la autorización de Nico para implementar. **Rev. 2.2.2:** autorización otorgada e implementación publicada (#1842); la dependencia vigente es la fusión de esta revisión ("Rev. 2.2.2 — estado") |
 | Scope | Dos archivos nuevos, ninguno modificado: `frontend/src/lib/dashboard/navigation/dashboardNavigationMachine.ts` (tipos de §12.1, auxiliares y tabla de §12.4 exactos; sin imports, sin DOM, sin timers, sin `Date`/`Math.random`; sólo TypeScript borrable, sin `enum`, `namespace` ni parameter properties, porque el runner usa `--experimental-strip-types`) y `test/unit/ui/dashboard/dashboard-navigation-machine.test.ts` (`node:test` + `node:assert/strict`; importa por ruta relativa como `dashboard-clinic-navigation-state.test.ts:4-11`). Ambos deben quedar trackeados antes de `pnpm test`: los guards leen fuentes con `readSourceFile`, que sólo lee archivos trackeados (`test/helpers/tracked-source-files.ts:327-335`), así que un archivo sin trackear quedaría fuera de su inventario |
 | Exclusiones | Controladores, chrome, buses, provider, `stageModule`, `navigationFlight`, specs E2E, `catalog.ts`, censos, tests existentes, dependencias, workflows, backend, DB, SW, `page.tsx`, este roadmap |
 | Riesgo | R1 |
@@ -1648,7 +1654,7 @@ workflows. Todas las operaciones Git/GitHub son [MANUAL-NICO] salvo delegación 
 | Tests | (1) Una prueba por fila #1–#27, con estado, contexto y efectos exactos en orden. (2) Exhaustividad de los 60 pares con casos de cada rama de guard (partición de §12.4). (3) Unión de efectos: ningún tipo fuera de `NavEffect` (S9). (4) Model-based: ≥ 10 000 trazas reproducibles (PRNG con semilla fija declarada, p. ej. mulberry32; ≤ 40 eventos; Admin y Clínica) con `navId` viejos, ubicaciones válidas e inválidas, commits superados y traverses; tras cada paso S1, S3, S4, S10, S11, L5; drenaje final de presupuestos para L2; misma semilla ⇒ mismo hash de traza. (5) Trazas nombradas: A→B→A con B en vuelo (#1830, fila 25); Back antes del commit en ruta completa (#1836, fila 17); payload retenido más allá del presupuesto (#1837, filas 12/15); hub → módulo; refresh pendiente + selección (SP-5 → `STALLED`); restauración superada por un clic (#2 → #10); Back a la entrada desnuda de Admin (#18 → `ROUTER_REPLACE`); `RESET` a URL desnuda de Admin (#21); clic durante traverse (#19 → #26 → #9); rev. 2.1: `HYDRATED` en ruta completa `informes` ⇒ `PERSIST(informes)` y `lastModule = informes` (#1), seguido de `URL_COMMITTED` a `/dashboard` (#22, `committed = operaciones`) y nuevo `BOOTING` con `storedModule = informes` ⇒ restauración C (#2); `NAV_FAILED` en `ROUTING(id)` ⇒ `FAILED` con `CANCEL_BUDGET(id)` y `BUDGET_EXPIRED(id)` posterior ignorado ⇒ `RESET` ⇒ `IDLE` (#20, ignorados, #21) |
 | Aceptación | Test dirigido PASSED; 27/27 filas y 60/60 pares cubiertos; `pnpm --dir frontend lint`, `typecheck`, `build` y `pnpm security:public-surface` PASSED; `pnpm validate:local` PASSED o FAILED sólo por el gate ambiental `03b` (DB) documentado. Si un test demuestra que la tabla tiene un hueco o un solapamiento, PR-NAV-02 **no la corrige sola**: se reporta y la enmienda vuelve a este documento |
 | Rollback | Revert (código no referenciado) |
-| Bloqueos | Autorización de Nico (rev. 1: DT-1, resuelto) |
+| Bloqueos | Autorización de Nico (rev. 1: DT-1, resuelto). **Rev. 2.2.2:** resuelto también; el bloqueo vigente es el de "Rev. 2.2.2 — estado" |
 | Rev. 2.2 — estado | **BLOQUEADA** hasta que esta revisión esté fusionada. La implementación literal de rev. 2.1 existe sólo en local (rama `feat/dashboard-navigation-machine`, sin commit) y dejó 8 tests en rojo, que son los hallazgos C-1, C-2 y C-3 de §0.4. Al desbloquearse se **realinea** con rev. 2.2 sobre la nueva `main`, sin debilitar ningún test: los que cambian lo hacen porque cambia la fila normativa que transcriben |
 | Rev. 2.2 — scope | Los mismos dos archivos nuevos; ninguno existente. La máquina aplica `persistable` y el `settle` enmendado (#9, #14, #28), extiende #25 a `TRAVERSING`, agrega el guard de #17/#19 y fija `initial()` según §12.1 |
 | Rev. 2.2 — tests | Sustituye las cifras de "Tests": (1) una prueba por fila **#1–#28**. (2) Los 60 pares y las **113 ramas** de la partición, cada una con un caso literal; la columna "Guard" transcrita como predicados independientes y sin orden, con la exigencia de que cada situación visitada satisfaga **exactamente uno** (0 = hueco, 2 = solapamiento). (3) Unión de efectos (S9). (4) Tres pruebas mecánicas con los invariantes por transición S1, S3, S4, S5(a), S6, S9, S10, S11, S12 y L1–L6: recorrido **exhaustivo** en anchura de un universo reducido (contraejemplo mínimo por invariante), **≥ 10 000 trazas** aleatorias con semilla y **≥ 4 000 sesiones en lazo cerrado** sobre el modelo de §13.1 (S5(b), L6, C-6); cada prueba aleatoria con su semilla y su hash anclados. (5) Trazas nombradas de rev. 2.1 más las de rev. 2.2: C-1 (#17 → #27 → #14 normaliza; variante #15 → #9 → #9); C-2 (#10 → #11 → #23 deja `superseded = []` y el commit siguiente resuelve sólo a #9); C-3 (selección del target en restauración: inerte; del target trabado: #16); C-5 (ruta sin módulo resoluble y módulo retirado: sin `PERSIST`, `lastModule` intacto); C-6 (`NAV_FAILED` → traverse y commit ignorados → `RESET` por desmontaje ⇒ `IDLE`; segundo `RESET` inerte; en la entrada desnuda de Admin, un solo presupuesto); C-8 (Back + Forward antes del commit ⇒ #28; Back + clic en el módulo comiteado ⇒ #25). (6) `initial()` con los valores de §12.1 |
@@ -1834,6 +1840,10 @@ flowchart TD
 | 8 | PR-NAV-06, PR-NAV-07 | entre sí | — | Pendiente |
 | 9 | PR-NAV-08 | — | — | Pendiente |
 
+**Rev. 2.2.2 (2026-10-10) — estado vigente.** La columna anterior es la de rev. 2. Ítem 4: PR-NAV-02
+está publicada como PR #1842 (abierta), pendiente de C-10 y bloqueada hasta la fusión de esta revisión
+(§16). Ítems 5–9: sin cambios; PR-NAV-03 depende de que #1842 se fusione.
+
 Restricción de recursos (`AGENTS.md` §8): una cohorte E2E o build por vez; ningún PR de esta hoja
 requiere ejecución simultánea de builds frontend y backend.
 
@@ -1894,7 +1904,7 @@ Reglas de ejecución que aplican a todos los PR:
 | La tabla de 27 transiciones tiene un hueco o solapamiento no detectado a mano | Media | Alto | Exhaustividad mecánica de PR-NAV-02; si falla, la enmienda vuelve a este documento. **Rev. 2.2: se materializó** (solapamiento #9/#11 y #14/#11, L5 y L1; §0.4) y la mitigación operó como estaba prevista |
 | Evidencia sólo en Chromium headless / Windows / fixture local | — | Medio | Matriz de navegadores (H-05) y NAV-A0 fuera de este programa |
 | Migración parcial deja dos autoridades | Baja | Alto | Regla §15.1.4 y guard de PR-NAV-07 |
-| Rev. 2.2 — la enmienda sólo está verificada sobre una copia temporal no versionada | — | Alto si se toma como prueba | Su prueba versionada es PR-NAV-02; hasta entonces las cifras de §0.4 son evidencia de sesión, igual que las de §0.2 |
+| Rev. 2.2 — la enmienda sólo está verificada sobre una copia temporal no versionada | — | Alto si se toma como prueba | Su prueba versionada es PR-NAV-02; hasta entonces las cifras de §0.4 son evidencia de sesión, igual que las de §0.2. **Rev. 2.2.2:** #1842 ya versiona esa prueba para rev. 2.2.1 (publicada, sin fusionar). El mismo riesgo vale ahora para las cifras de §0.6, que siguen siendo de copia temporal hasta que #1842 se realinee |
 | Rev. 2.2 — el modelo de historial descansa en H1–H7, que son contratos de Next y del provider; H1 no tiene evidencia ejecutada para un `push` sobre un traverse pendiente | Media | Medio | E2E obligatorios de PR-NAV-03/04 (§13.1, §16). Si un supuesto resulta falso, la enmienda vuelve a este documento |
 | Rev. 2.2 — S4 sólo protege mientras hay vuelo: tras #25, #28 o `settle` la máquina olvida `superseded`, y un commit tardío de una navegación descartada se obedece como externo (#22) | Baja (SP-3 no lo observó) | Medio | E2E "late answer never repaints" extendido a A→B→A; residual de H3 |
 | Rev. 2.2 — C-8 cambia un parpadeo por un `STALLED` espurio: si el commit de un traverse abandonado llega, la vista pasa por esa entrada antes de converger | Baja–media (depende de H1 para traverse) | Bajo | El E2E de C-8 registra cuál de los dos sub-casos ocurre; DT-11 se revisa si el parpadeo es frecuente |
@@ -1962,6 +1972,10 @@ Los PR de Fase C son revertibles de forma independiente sólo en orden inverso (
 | DT-13 (rev. 2.2.1) | Preferencia de último módulo de Clínica tras un fallo de render durante la restauración inicial | A: sin cambio (el `RESET` reposa en la URL vigente y la persiste) / B: `RESET` reintenta la restauración pendiente / C: `settle` no persiste cuando viene de `FAILED` | Sin recomendación todavía: B y C cambian la fila #21 y necesitan su propia verificación | — | **Pendiente.** No bloquea PR-NAV-02 ni PR-NAV-03 |
 | DT-14 (rev. 2.2.2) | Procedencia de un traverse a lo largo de una ráfaga de selecciones (C-10) | A: la fila #10 hereda `afterTraverse` / B: `afterTraverse` deja de ser booleano y guarda el destino del traverse, #26 exige `same(L, destino)` y `STALLED` lo conserva / C: sin cambio | **A.** Es el cambio mínimo que cierra el contraejemplo: un argumento de una fila, sin tocar tipos, guards ni recuentos. B es más preciso (no anota un commit realmente externo y cubre la ráfaga que pasa por un `STALLED`) pero cambia los tipos "exactos" de §12.1, la partición de `ROUTING`/`STALLED × URL_COMMITTED` y el recuento de ramas; se justifica sólo si el E2E de H1 muestra que un traverse sobrevive a un `push`. C abandona el último clic y, en Admin, lo pisa con una normalización | PR-NAV-02 | **Propuesto en rev. 2.2.2**; se aprueba al fusionarla |
 
+**Rev. 2.2.2 (2026-10-10) — estado vigente.** DT-9, DT-10, DT-11 y DT-12 quedaron **aprobadas** con la
+fusión de #1841 (`4f693d5c`): la columna "Estado rev. 2" conserva el texto con que se propusieron. DT-14
+sigue propuesta hasta la fusión de esta revisión (#1843). DT-13 sigue pendiente.
+
 ---
 
 ## 22. Primera intervención recomendada
@@ -1979,6 +1993,10 @@ No se recomienda iniciar PR-NAV-02..05 hasta tener DT-1 decidido con el acta del
 > **Rev. 2.** PR-NAV-01 está fusionada (#1839). DT-1, DT-2 y DT-8 están decididos (§0). La siguiente
 > intervención es **PR-NAV-02**, especificada en §16, cuando Nico la autorice. NAV-A0 y el diagnóstico
 > de D-11 siguen siendo paralelizables.
+>
+> **Rev. 2.2.2 (2026-10-10) — estado vigente.** PR-NAV-02 está autorizada, implementada y publicada
+> (#1842). La siguiente intervención es fusionar esta revisión y realinear #1842 con ella (§16);
+> PR-NAV-03 viene después de la fusión de #1842.
 
 ---
 
@@ -2084,6 +2102,8 @@ Evidencia de rev. 2.2, también **no versionada** (sesión de Claude del 2026-10
 | Rev. 2.2.1 — modelo temporal `rev22/interpreter-model.ts` (sesión del 2026-10-10, no versionado) | Intérprete parametrizado (store, cola, vigencia, conciliación, planificador de microtareas y timers simulados) sobre la copia de la máquina de rev. 2.2. 15 reproducciones R1–R8.6 bajo "V0" (texto de rev. 2.2) y "V1" (§12.5.1); búsqueda aleatoria de 20 000 ejecuciones con las semillas `0x50314631` y `0x0badc0de` para V1 y cinco mutantes. Resultados en §0.5 |
 | Rev. 2.2.1 — review de #1841 | Thread `PRRT_kwDOR5qlsc6rAZbc` sobre §11.3, P1: "Preserve bootstrap effects before child error dispatches". Origen de C-9 |
 | Rev. 2.2.2 — review de #1842 | Thread `PRRT_kwDOR5qlsc6rBw_4` sobre `dashboardNavigationMachine.ts:344` (head `541aabaa`), P2: "Preserve afterTraverse across replacement selections". Origen de C-10 |
+| Rev. 2.2.2 — review de #1843 | Thread `PRRT_kwDOR5qlsc6rE8eS` sobre la fila "Revisión 2.2.2" del encabezado (head `71df345f`), P2: "Update the canonical PR-NAV-02 implementation status". Origen de la corrección de las afirmaciones de estado vigente: encabezado ("Lifecycle status", "Estado de implementación"), §1, §16, §17 y §21. No cambia la especificación |
+| Rev. 2.2.2 — `gh pr view 1841/1842/1843` (R0, 2026-10-10) | #1841 `MERGED` (`4f693d5c`); #1842 `OPEN`, head `541aabaa`, cuatro contextos required en `SUCCESS`, un thread sin resolver; #1843 `OPEN`, un único archivo |
 | Rev. 2.2.2 — copias temporales (sesión de Claude del 2026-10-10, no versionadas; Node 24.14.1, `node --experimental-strip-types --test`) | `head/`: los dos archivos de `541aabaa` (blobs `4dc7c205` y `5c5804e0`), 241 de 241. `cand/`: la máquina con la fila #10 enmendada y la suite con S13, su variable testigo, el caso literal de #10 y tres trazas nombradas: 245 de 245; hashes `d6b4b32f4822884a`, `17abdaccdca4ee3b` y `f3b66b570889461e`. Origen de las columnas "Antes" y "Después" de §0.6 |
 | Rev. 2.2.2 — corrida cruzada: suite con S13 contra la máquina de `541aabaa` | 240 de 242; S13 roto en 1 820 + 20 080 transiciones, con su traza mínima. Demuestra que el oráculo nuevo ve el defecto |
 | Rev. 2.2.2 — `repro-p2.test.ts` | Reproducción dirigida del P2, independiente de la suite: 8 variantes y 2 controles. 8 en rojo contra `541aabaa`, 10 de 10 contra la copia enmendada |
@@ -2170,8 +2190,9 @@ solo dueño y transiciones explícitas, y convierte el estado en vuelo en un est
 
 | Elemento | Estado |
 | --- | --- |
-| Archivo modificado | Sólo este documento (docs-only), en una PR propia |
+| Archivo modificado | Sólo este documento (docs-only), en una PR propia (#1843) |
 | Hallazgo corregido | C-10, P2 del review de #1842: la fila #10 descartaba `afterTraverse` |
+| Corrección del review de #1843 | El encabezado decía que PR-NAV-02 seguía sin publicar. Se alinearon con GitHub las afirmaciones de estado vigente (encabezado, §1, §16, §17, §21); el texto de las revisiones anteriores se conserva, rotulado por revisión |
 | Especificación FSM | Enmendada en un punto: estado siguiente de la fila #10. 28 filas, 113 ramas y 60 pares sin cambios; S1–S13 y L1–L6 |
 | Código, tests, configuración, dependencias, workflows | Sin cambios. La rama de #1842 no se modificó |
 | Verificación de la enmienda | Mecánica, sobre copia temporal no versionada: 245 tests en verde, S13 con 0 violaciones, 89 de 89 mutaciones, 0 vuelos huérfanos; auditoría adversarial en §0.6 |
