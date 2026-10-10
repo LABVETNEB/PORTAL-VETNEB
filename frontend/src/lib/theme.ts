@@ -5,6 +5,13 @@ export const DARK_GRAY_THEME_MODE = "dark-gray";
 export const NORMAL_THEME_COLOR = "#0c354e";
 export const DARK_GRAY_THEME_COLOR = "#1c1f21";
 
+// First 16 hex digits of the SHA-256 of frontend/public/theme-init.js. The
+// script blocks the parser of every document, so its URL carries this content
+// version and next.config.ts lets that exact URL be cached for good.
+export const THEME_INIT_SCRIPT_PATH = "/theme-init.js";
+export const THEME_INIT_SCRIPT_VERSION = "52962763805719be";
+export const THEME_INIT_SCRIPT_SRC = `${THEME_INIT_SCRIPT_PATH}?v=${THEME_INIT_SCRIPT_VERSION}`;
+
 export type ThemeMode =
   | typeof NORMAL_THEME_MODE
   | typeof DARK_GRAY_THEME_MODE;

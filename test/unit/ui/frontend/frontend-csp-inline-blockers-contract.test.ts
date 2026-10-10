@@ -25,7 +25,12 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { join, relative, resolve } from "node:path";
+import {
+  THEME_INIT_SCRIPT_SRC,
+  THEME_INIT_SCRIPT_VERSION,
+} from "../../../../frontend/src/lib/theme.ts";
 import { listSourceFiles, readSourceFile } from "../../../helpers/tracked-source-files.ts";
 
 const FRONTEND_SRC = resolve(process.cwd(), "frontend/src");
@@ -107,8 +112,9 @@ test("all <script> JSX elements in frontend/src declare type=\"application/ld+js
   // All current <script> tags are JSON-LD structured data (safe, serialized via
   // JSON.stringify). This test guards that no bare executable script is introduced.
   // Exception: same-origin external src scripts are covered by script-src 'self'
-  // and are NOT enforcement blockers. Allowlisted exact srcs only.
-  const ALLOWED_EXTERNAL_SCRIPT_SRCS = [/src\s*=\s*["']\/theme-init\.js["']/];
+  // and are NOT enforcement blockers. Allowlisted exact srcs only: the one
+  // identifier whose value the next test pins to the versioned theme-init.js.
+  const ALLOWED_EXTERNAL_SCRIPT_SRCS = [/src\s*=\s*\{THEME_INIT_SCRIPT_SRC\}/];
   const violations: Violation[] = [];
   for (const file of runtimeFiles) {
     if (!file.endsWith(".tsx")) continue;
@@ -135,6 +141,38 @@ test("all <script> JSX elements in frontend/src declare type=\"application/ld+js
     violations,
     [],
     `Bare executable <script> (no type="application/ld+json") found — BLOCKER for CSP enforcement without a nonce:\n${JSON.stringify(violations, null, 2)}`,
+  );
+});
+
+test("the allowlisted external script src is the same-origin, content-versioned theme-init.js", () => {
+  // The allowlist above names an identifier, not a URL, so the identifier is
+  // pinned here: one definition, a same-origin path, and a version that is the
+  // hash of the served file. Editing theme-init.js without moving the version
+  // would leave browsers running the old script from an immutable cache entry.
+  const definitions = scanLines(runtimeFiles, /\bTHEME_INIT_SCRIPT_SRC\s*=(?!=)/);
+  assert.deepEqual(
+    definitions.map((definition) => definition.file.replace(/\\/g, "/")),
+    ["frontend/src/lib/theme.ts"],
+    "THEME_INIT_SCRIPT_SRC must have exactly one definition",
+  );
+
+  const servedScriptVersion = createHash("sha256")
+    .update(readSourceFile("frontend/public/theme-init.js"))
+    .digest("hex")
+    .slice(0, 16);
+  assert.equal(THEME_INIT_SCRIPT_VERSION, servedScriptVersion);
+  assert.equal(THEME_INIT_SCRIPT_SRC, `/theme-init.js?v=${servedScriptVersion}`);
+
+  const layout = readSourceFile("frontend/src/app/layout.tsx");
+  assert.match(
+    layout,
+    /import \{[^}]*\bTHEME_INIT_SCRIPT_SRC\b[^}]*\} from "@\/lib\/theme";/,
+    "the root layout must take the script src from lib/theme",
+  );
+  assert.equal(
+    /<script\b[^>]*\bsrc\s*=\s*["']/.test(layout),
+    false,
+    "the root layout must not load a script from an unversioned literal src",
   );
 });
 
