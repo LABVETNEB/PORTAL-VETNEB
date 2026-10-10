@@ -13,6 +13,7 @@
 | Estado de implementación | NO IMPLEMENTADO (programa FSM). PR-NAV-01 fusionada (#1839, `c51b7e74`); #1837 fusionada (`585bf3ba`). Las 27 transiciones **no** tienen aún verificación mecánica: corresponde a PR-NAV-02. **Rev. 2.2:** esa verificación se ejecutó en local y la tabla de rev. 2.1 no la superó (§0.4); PR-NAV-02 sigue sin publicar |
 | Revisión 2 | 2026-10-09 sobre `main` = `c51b7e74`. Incorpora el spike de transporte SP-1..SP-7 y la auditoría de restauración R-1..R-8 (§0, §15.2, §15.3). La propuesta T1 de rev. 1 se conserva como historia y queda marcada como superada donde aplica |
 | Revisión 2.2 | 2026-10-09 sobre `main` = `603c352f`. Enmienda docs-only de §11.3, §12, §13, §16 y §18–§21 tras la verificación mecánica de PR-NAV-02, que **falló** contra la tabla de rev. 2.1. Corrige ocho hallazgos (C-1..C-8, §0.4): la tabla pasa de 27 a **28 filas** y de 107 a **113 ramas de guard**; los invariantes, de S1–S11/L1–L5 a **S1–S12/L1–L6**. **PR-NAV-02 queda BLOQUEADA** hasta que esta revisión esté fusionada; su fusión equivale a la aprobación de Nico. La tabla enmendada se verificó sobre una copia temporal no versionada (§0.4, §23.5) |
+| Revisión 2.2.1 | 2026-10-10, dentro de la misma PR (#1841). Corrige el P1 de su review: rev. 2.2 difería los efectos de `HYDRATED` al montaje del provider sin fijar su orden frente al `NAV_FAILED` de la frontera, y una restauración abandonada podía navegar y dejar un presupuesto vivo en `FAILED`. Agrega el **algoritmo de coordinación del intérprete** (§12.5.1, C-9) con invariantes de integración I1–I8. No cambia la máquina, la tabla ni S1–S12/L1–L6 (§0.5) |
 
 ---
 
@@ -58,6 +59,7 @@ mediciones productivas: H-01..H-08 siguen abiertas.
 | Escenarios "payload held" | Se reescribían a 0 `_rsc` | Siguen siendo contratos E2E | §16 PR-NAV-03 |
 | Rev. 2.1 (review de #1840) | #1 persistía sólo `module`; `RESET` sin emisor real | #1 persiste `module` y `route` válidos; la frontera despacha `NAV_FAILED`/`RESET` y PR-NAV-03 la incluye en scope | §12.3, §12.4 #1/#20/#21, §12.5, §16 |
 | Rev. 2.2 (verificación mecánica de PR-NAV-02) | Tabla de 27 filas "revisada a mano"; S1–S11, L1–L5 | 28 filas, 113 ramas de guard, S1–S12 y L1–L6; ocho correcciones C-1..C-8 | §0.4 |
+| Rev. 2.2.1 (review de #1841, P1) | Efectos de `HYDRATED` "en un efecto" de montaje, sin regla de orden frente a los demás eventos | Algoritmo de coordinación del intérprete: cola FIFO, drenaje en microtarea, vigencia por `navId`, conciliación de timers; I1–I8 y P1–P4 (C-9) | §0.5, §11.3, §12.5.1 |
 
 ### 0.4. Revisión 2.2 — enmienda tras la verificación mecánica
 
@@ -110,6 +112,63 @@ portar la enmienda y los reporta.
 Decisiones que esta revisión incorpora y que Nico aprueba al fusionarla: DT-9 (señal de salida de
 `FAILED`), DT-10 (el adaptador no reclama en `BOOTING`/`FAILED`) y DT-11 (un vuelo hacia `committed` se
 resuelve en la transición), en §21.
+
+### 0.5. Revisión 2.2.1 — P1 del review de #1841 (C-9)
+
+El review de la PR de rev. 2.2 (#1841, thread sobre §11.3) encontró un defecto en la propia enmienda.
+No afecta a la máquina ni a la tabla de §12.4: afecta al **contrato del intérprete**.
+
+| Campo | Contenido |
+| --- | --- |
+| Id | C-9 |
+| Texto defectuoso | §11.3 de rev. 2.2: "`HYDRATED` se aplica al crear el store […]. Los efectos que produce `HYDRATED` sí se interpretan en un efecto" de montaje del provider |
+| Causa | El mismo párrafo establecía que los efectos de un hijo corren antes que los del padre. Diferir los efectos de `HYDRATED` al efecto del provider los deja **detrás** del `NAV_FAILED` que la frontera despacha en el suyo. Rev. 2.2 no decía si los efectos de un evento se ejecutan al despacharlo ni en qué orden respecto de los diferidos: un intérprete conforme podía ejecutar `CANCEL_BUDGET(1)` antes que `ARM_BUDGET(1)` |
+| Consecuencia | Con un fallo de render en la carga inicial y restauración (#2/#3): el `ROUTER_REPLACE` de una restauración ya abandonada navega después del fallo, y queda un presupuesto vivo con la máquina en `FAILED`. La máquina ignora el `BUDGET_EXPIRED` tardío (S3), pero el timer existe y la navegación sale |
+| Alcance real | El defecto no es exclusivo del arranque. Sin una regla de coordinación, cualquier par de eventos despachados antes de ejecutar los efectos del primero lo reproduce: `RESET` con la cola pendiente (dos `router.replace` y dos timers), dos selecciones antes del primer drenaje, el doble montaje de StrictMode (pierde el presupuesto) y el `RESET` que llega con el provider ya desmontado |
+| Corrección | Algoritmo de coordinación normativo, §12.5.1: transición al despachar, cola FIFO única de efectos, drenaje en microtarea con el provider montado, **vigencia por `navId`** al ejecutar y conciliación de timers al cierre. Invariantes de integración I1–I8 y supuestos de plataforma P1–P4 |
+| Lo que no cambia | `transition()`, los tipos de §12.1, las 28 filas, las 113 ramas, S1–S12 y L1–L6. PR-NAV-02 no se ve afectada: el intérprete es de PR-NAV-03 |
+
+Reproducciones sobre un modelo temporal del intérprete, que envuelve la copia de la máquina de rev. 2.2
+(§23.5). "V0" ejecuta el texto de rev. 2.2 al pie de la letra: efectos de `HYDRATED` en el montaje del
+provider y el resto al despachar. "V1" es el algoritmo de §12.5.1.
+
+| # | Reproducción | V0 (rev. 2.2) | V1 (rev. 2.2.1) |
+| --- | --- | --- | --- |
+| R1 | `HYDRATED` → restauración → `NAV_FAILED` en un commit posterior | Correcto: `router.replace` emitido antes del fallo, presupuesto cancelado | Igual |
+| R2 | `NAV_FAILED` antes de drenar los efectos de `HYDRATED` (**el P1**) | **Falla**: orden `CANCEL_BUDGET(1)` → `ROUTER_REPLACE` → `ARM_BUDGET(1)`; termina en `FAILED` con el timer 1 vivo y un `router.replace` emitido | `FAILED`, 0 timers, 0 navegaciones |
+| R3 | `RESET` con la cola pendiente (entrada desnuda de Admin) | **Falla**: 2 `router.replace` y timers 1 y 2 vivos | `ROUTING(2)`, 1 `router.replace`, timer 2 |
+| R4a | Desmontaje de la frontera en una tarea posterior | Correcto | Igual: `RESET` reconcilia, `IDLE` |
+| R4b | Salida del dashboard con la frontera montada, en ambos órdenes de limpieza | **Falla**: `router.replace` y timer con el provider desmontado | 0 navegaciones, 0 timers |
+| R5 | Dos selecciones y un traverse reemplazan la restauración inicial antes del primer drenaje | **Falla**: 3 navegaciones y 2 timers | 1 `router.push` (el último destino), 1 timer |
+| R6 | Callback tardío de un timer después de `FAILED` | Correcto: par ignorado | Igual |
+| R7 | StrictMode: doble montaje del provider y de la frontera en el mismo flush | **Falla**: 2 `router.replace` emitidos, uno de ellos ya en `FAILED`, y la máquina termina en `FAILED` | `FAILED`, 0 timers, 0 navegaciones |
+| R7b | StrictMode sin fallo: doble montaje del provider | **Falla**: la limpieza cancela el timer y nadie lo re-arma | 1 `router.replace`, 1 timer |
+| R8.1–R8.6 | Error durante la hidratación: Admin desnudo con y sin almacenado, Admin con módulo, Clínica desnuda con y sin almacenado, Clínica en ruta completa | **Falla** en los tres casos con restauración (R8.1, R8.2, R8.4): igual que R2 | Los seis: `FAILED`, 0 timers, 0 navegaciones |
+
+Búsqueda aleatoria: tareas compuestas por despachos, montajes y desmontajes del provider y disparos de
+timer, con los oráculos I1–I8 evaluados al ejecutar cada efecto y al final de cada tarea.
+
+| Variante | Semilla `0x50314631` (20 000 ejecuciones, ≈ 169 000 tareas) | Semilla `0x0badc0de` |
+| --- | --- | --- |
+| V1, algoritmo de §12.5.1 | **0 violaciones** | **0 violaciones** |
+| M1: sin vigencia | I7 ×30 359, I2 ×18 428, I8 ×21 665 | I7 ×30 421, I2 ×18 409, I8 ×21 606 |
+| M2: drenaje síncrono en vez de microtarea | I8 ×9 294 | I8 ×9 325 |
+| M3: vigencia por "última transición" en vez de por `navId` | I6 ×117 | I6 ×75 |
+| M4: sin conciliación de timers (A6) | I3 ×961 | I3 ×1 034 |
+| M5: drena con el provider desmontado | I4 ×173 759 | I4 ×171 859 |
+
+Lectura de la tabla: cada elemento del algoritmo es necesario, y los oráculos detectan su ausencia. M3
+es el caso menos obvio: descartar todo efecto que no sea de la última transición deja en `ROUTING`, sin
+navegación emitida, el vuelo que la fila #26 conserva.
+
+Regresión: la suite de rev. 2.2 se re-ejecutó sin cambios contra la misma copia de la máquina: 213 de
+213. El modelo del intérprete compila con `tsc --strict`.
+
+Límites, explícitos: (1) el modelo no ejecuta React ni Next; P1–P4 son supuestos hasta PR-NAV-03. (2) La
+primera versión del algoritmo re-armaba el presupuesto sólo al montar y la búsqueda aleatoria la refutó
+con un `BUDGET_EXPIRED` entregado sin que el timer hubiera disparado; de ahí la conciliación de cierre
+A6, que hace cumplir I3 también frente a un evento así. (3) "A5: un efecto que lanza no detiene el
+drenaje" es una regla de robustez no modelada. Decisión nueva: DT-12 (§21).
 
 ---
 
@@ -721,11 +780,24 @@ En el código, "Aplicar" es un `<form method="get">` nativo, es decir una navega
   la máquina. El provider lo garantiza aplicándolo al crear el store en el cliente: los efectos de un
   hijo corren antes que los del padre, y la frontera (`app/dashboard/error.tsx`) es hija del provider,
   así que un `HYDRATED` despachado en un efecto de montaje llegaría **después** de `NAV_FAILED` y se
-  ignoraría en `FAILED`. Los efectos que produce `HYDRATED` sí se interpretan en un efecto. Además,
+  ignoraría en `FAILED`. Además,
   `URL_COMMITTED` se emite sólo cuando la ubicación derivada difiere de la **última ubicación entregada
   a la máquina por cualquier evento** (`HYDRATED`, `URL_COMMITTED` o `RESET`), no sólo de la del último
   `URL_COMMITTED`: sin esa regla, un `RESET` seguido del commit de la misma ubicación re-normalizaría
   dos veces una entrada desnuda de Admin.
+- **Rev. 2.2.1 — ejecución de efectos (C-9, P1 del review de #1841).** Rev. 2.2 decía aquí que los
+  efectos de `HYDRATED` "se interpretan en un efecto" de montaje del provider. Era insuficiente y, leído
+  al pie de la letra, incorrecto: ese mismo orden hijo → padre hace que el `NAV_FAILED` de la frontera se
+  procese **antes** de que el provider ejecute el `ROUTER_REPLACE` y el `ARM_BUDGET` de las filas #2/#3,
+  que entonces navegan y arman un timer con la máquina ya en `FAILED`. Queda sustituido por el
+  **algoritmo de coordinación de §12.5.1**, que es normativo: una transición se aplica al despachar, sus
+  efectos entran en una cola FIFO única, la cola se drena en una microtarea con el provider montado y
+  cada efecto de navegación o de armado se ejecuta sólo si su vuelo sigue vigente.
+- **Rev. 2.2.1 — render sin efectos secundarios.** "Se derivan en render" (rev. 2) significa **cálculo
+  puro**: el render puede previsualizar `transition(…, URL_COMMITTED(L))` para pintar `display` en el
+  mismo commit que la URL, pero no despacha. `URL_COMMITTED` se despacha en un efecto de layout del
+  provider de ese commit; `NAV_FAILED` y `RESET`, en efectos pasivos de la frontera; el resto, en
+  handlers y callbacks. Crear el store, incluida la transición `HYDRATED`, no ejecuta nada (§12.5.1).
 
 ---
 
@@ -870,6 +942,9 @@ Contratos de entrada que cumple el **provider**, no la máquina:
     la entrada desnuda de Admin, `settle` arma el de la normalización.
 - *(Rev. 2.2, C-4)* `HYDRATED` precede a todo otro evento y `URL_COMMITTED` se deduplica contra la última
   ubicación entregada por cualquier evento (§11.3).
+- *(Rev. 2.2.1, C-9)* Los eventos de la frontera se despachan en efectos **pasivos** y sus efectos, como
+  los de cualquier otro evento, pasan por la cola de §12.5.1: ni el `RESET` del desmontaje ni el
+  `NAV_FAILED` del montaje ejecutan nada por sí mismos.
 
 ### 12.2. Estados finitos
 
@@ -1069,6 +1144,87 @@ stateDiagram-v2
 
 Prohibidos por tipo: `PUSH_NATIVE`, `REPLACE_NATIVE` y `REFRESH_DATA`.
 
+#### 12.5.1. Coordinación del intérprete (rev. 2.2.1, C-9)
+
+La máquina es pura y devuelve efectos; **cuándo** se ejecutan lo fija este algoritmo. Es normativo para
+el provider de PR-NAV-03 y no cambia `transition()` ni los tipos de §12.1.
+
+Estado del store, uno por superficie: `ctx`, `state`; `outbox`, una cola FIFO de entradas; `seq`, el
+número de transiciones no inertes aplicadas; `ready`, verdadero mientras el provider está montado;
+`timers`, a lo sumo un timer físico por `navId`. Una transición es **inerte** cuando no cambia `state`
+ni `ctx` y no produce efectos (pares ignorados y filas #4, #6, #11, #13 y #24).
+
+| Paso | Regla |
+| --- | --- |
+| A1 — crear | El store se crea en el render de cliente con `initial(config)` seguido de la transición `HYDRATED`. Los efectos de esa transición **se encolan**, no se ejecutan. Crear el store no navega, no arma timers, no persiste y no notifica; puede repetirse o descartarse sin consecuencias |
+| A2 — despachar | `dispatch(evento)` aplica `transition()` de inmediato y en el orden de llamada: es la única serialización de eventos. Si la transición no es inerte, incrementa `seq`. Cada efecto se agrega al final de `outbox` como entrada `(efecto, flight, seq)`, donde `flight` es el `navId` del estado resultante si es `ROUTING` o `TRAVERSING`, y `null` si no. `dispatch` nunca ejecuta un efecto y nunca se llama durante el render |
+| A3 — programar | Tras encolar, `dispatch` programa **un** drenaje en una microtarea si no hay uno programado. Todos los despachos de un mismo bloque síncrono — el flush de efectos de un commit, un handler, un doble montaje de StrictMode — comparten ese drenaje |
+| A4 — montar | El efecto **pasivo** de montaje del provider pone `ready = true` y programa un drenaje. No ejecuta efectos por sí mismo. No puede ser un efecto de layout: el drenaje correría antes que los efectos pasivos de la frontera del mismo commit |
+| A5 — drenar | Si `ready` es falso, el drenaje no hace nada y la cola se conserva. Si es verdadero, extrae las entradas **en orden**, una por una, hasta vaciar la cola; un `dispatch` ocurrido durante el drenaje agrega al final y el mismo drenaje lo alcanza. Cada entrada se ejecuta sólo si está **vigente** (tabla siguiente); si no, se descarta definitivamente. Un efecto que lanza una excepción no detiene el drenaje |
+| A6 — conciliar | Paso de cierre de todo drenaje con `ready`: se cancela todo timer cuyo `navId` no sea el del vuelo vigente y, si el estado es `ROUTING` o `TRAVERSING` y no hay timer para su `navId`, se arma. Los timers quedan así determinados por el estado, no por la historia de efectos |
+| A7 — timer | El callback de un timer se quita a sí mismo de `timers` y despacha `BUDGET_EXPIRED(navId)`. Un `navId` nunca se reutiliza, de modo que un callback tardío cae en #13 o en un par ignorado |
+| A8 — desmontar | La limpieza del efecto del provider pone `ready = false`, cancela todos los timers y da de baja a los productores de eventos (Navigation API, `popstate`). No vacía la cola ni cambia el estado: bajo StrictMode el montaje siguiente la drena y A6 re-arma el presupuesto; en un desmontaje real el store se descarta sin haber ejecutado nada más |
+
+Vigencia de una entrada en el momento de ejecutarla, contra el estado actual `S`:
+
+| Efecto | Vigente si | Si no está vigente |
+| --- | --- | --- |
+| `ROUTER_PUSH`, `ROUTER_REPLACE`, `HARD_NAVIGATE` con `flight = n` | `S` es `ROUTING` con `navId = n` | Se descarta: ese vuelo fue reemplazado, abandonado o falló antes de que la navegación saliera |
+| `ROUTER_PUSH` con `flight = null` (fila #25) | `entrada.seq = seq`: ninguna transición no inerte posterior | Se descarta: algo ocurrió después de volver a `committed` |
+| `ARM_BUDGET(n)` | `S` es `ROUTING` o `TRAVERSING` con `navId = n` | Se descarta: nunca se arma el presupuesto de un vuelo que ya no existe |
+| `CANCEL_BUDGET(n)` | siempre | — (idempotente) |
+| `PERSIST(m)` | siempre | — (confirmó una ubicación; el orden FIFO deja ganar a la última) |
+| `PUBLISH_DISPLAY` | siempre | — (notifica; los suscriptores leen el estado actual) |
+
+La vigencia se decide por `navId`, no por igualdad de destino ni por "última transición": la fila #26
+cambia `committed` sin cambiar de vuelo y no debe invalidar el `ROUTER_PUSH` de #19; y como un `navId`
+no se reutiliza, ninguna transición posterior — tampoco un `RESET` — puede volver vigente una entrada
+descartada o todavía en cola de un vuelo anterior.
+
+Orden normativo del arranque cuando el render inicial falla (el caso del P1):
+
+| # | Momento | Qué ocurre | Cola / timers |
+| --- | --- | --- | --- |
+| 1 | Render de cliente | A1: `HYDRATED` → #2/#3, `ROUTING(1, T, restore)` | `[ROUTER_REPLACE(T)@1, ARM_BUDGET(1)@1, PUBLISH_DISPLAY]` / ninguno |
+| 2 | Efecto pasivo de la frontera (hija: corre primero) | `dispatch(NAV_FAILED)` → #20, `FAILED` | se agregan `[CANCEL_BUDGET(1), PUBLISH_DISPLAY]` / ninguno |
+| 3 | Efecto pasivo del provider | A4: `ready = true` | sin cambios |
+| 4 | Microtarea | A5: `ROUTER_REPLACE(T)@1` y `ARM_BUDGET(1)@1` **no vigentes, descartados**; se ejecutan `PUBLISH_DISPLAY`, `CANCEL_BUDGET(1)` (sin timer que cancelar) y `PUBLISH_DISPLAY`. A6: nada que conciliar | vacía / ninguno |
+| 5 | "Reintentar" o desmontaje de la frontera | `dispatch(RESET(L))` → #21. Si `L` es la entrada desnuda de Admin: `ROUTING(2, T', restore)` con `[ROUTER_REPLACE(T')@2, ARM_BUDGET(2)@2, PUBLISH_DISPLAY]`, vigentes en su drenaje | un `router.replace`, un timer (`navId` 2) |
+
+Si la frontera se monta en un commit **posterior** al del provider, el drenaje del paso 4 ya ocurrió con
+`ROUTING(1)` vigente: el `router.replace` salió antes de conocerse el fallo, que es legítimo, y
+`NAV_FAILED` cancela su presupuesto. Lo que el algoritmo impide es que una navegación salga **después**
+de que la máquina dejó ese vuelo.
+
+Obligaciones verificables — invariantes de integración, que no reemplazan a los de §13:
+
+| Id | Invariante | Cómo se observa |
+| --- | --- | --- |
+| I1 | Los efectos se ejecutan en el orden en que se encolaron (FIFO) | Índice de encolado creciente en cada ejecución |
+| I2 | Ninguna navegación se ejecuta fuera de su vuelo: al ejecutar `ROUTER_PUSH`/`ROUTER_REPLACE`/`HARD_NAVIGATE`, el estado es `ROUTING` hacia ese destino, o `IDLE` en ese destino para #25 | Oráculo por estado, independiente del `navId` |
+| I3 | En reposo (cola vacía, provider montado): los timers son exactamente el del vuelo vigente si el estado es `ROUTING`/`TRAVERSING`, y ninguno si no. En particular, ningún presupuesto vivo en `FAILED`, `IDLE`, `STALLED` o `BOOTING`. Es la contraparte de integración de S11 | Conjunto de timers contra el estado al final de cada tarea |
+| I4 | Con el provider desmontado no se ejecuta ningún efecto ni queda ningún timer | Idem |
+| I5 | A lo sumo una navegación ejecutada por vuelo (`navId`) | Conteo por `navId` |
+| I6 | En reposo, un vuelo en `ROUTING` tiene su navegación emitida exactamente una vez: la vigencia nunca deja un vuelo sin salir | Conteo por `navId` del estado |
+| I7 | Nunca se arma un presupuesto para un vuelo que no es el vigente | Estado en el momento de ejecutar `ARM_BUDGET` |
+| I8 | Ninguna navegación ejecutada en una tarea pertenece a un vuelo que esa misma tarea abandonó | Navegaciones de la tarea contra el estado final |
+
+Supuestos de plataforma en que descansa el algoritmo. Ninguno se ejecutó en un navegador en esta
+revisión; los cierra PR-NAV-03:
+
+| Id | Supuesto | Qué lo confirma |
+| --- | --- | --- |
+| P1 | Los efectos pasivos de un mismo commit se ejecutan en **un único flush síncrono**, sin microtareas intercaladas. Dentro de él el orden es hijo → padre, que es lo que originó C-9, pero el algoritmo no depende de ese orden: sólo de que el efecto de la frontera y el del provider compartan flush | Test con React del provider y de la frontera (PR-NAV-03) |
+| P2 | Una microtarea programada durante ese flush corre después de que termina y antes de cualquier callback de timer (run-to-completion) | Semántica del lenguaje; cubierto por el mismo test |
+| P3 | Bajo StrictMode en desarrollo, montaje → limpieza → montaje ocurren en el mismo bloque síncrono | Test en modo desarrollo; no vale como evidencia de producción |
+| P4 | `router.push`, `router.replace` y `location.assign`/`replace` pueden invocarse desde una microtarea posterior a los efectos | E2E en production runner con Next 16.3.8 |
+
+Verificación de esta revisión, sobre un modelo temporal del intérprete (§0.5, §23.5): 15 reproducciones
+dirigidas y 20 000 ejecuciones aleatorias con cada una de dos semillas, sin ninguna violación de I1–I8; y
+cinco variantes del algoritmo, cada una sin uno de sus elementos, que violan todas al menos un
+invariante (entre las cinco: I2, I3, I4, I6, I7 e I8).
+Ese modelo **no** ejecuta React: prueba que el algoritmo es correcto bajo P1–P4, no que React los cumpla.
+
 ### 12.6. Contratos de integración con Next.js 16.3.8
 
 | Contrato | Fuente (16.3.8 salvo indicación) | Uso rev. 2 |
@@ -1127,6 +1283,12 @@ estado y `superseded` vaciado al salir de `ROUTING`/`STALLED`.
 tabla enmendada pasa a ser un resultado de la verificación mecánica sobre la copia temporal; su prueba
 versionada es PR-NAV-02.
 
+**Rev. 2.2.1.** Estos invariantes son de la **máquina**: hablan de estados, contexto y efectos
+*emitidos*. Que un efecto emitido se *ejecute* en el momento correcto es responsabilidad del intérprete
+y tiene sus propios invariantes, I1–I8 (§12.5.1). El par a tener presente es S11 ↔ I3: S11 garantiza que
+la máquina emite un `ARM_BUDGET` por vuelo y lo cancela al salir; I3, que en reposo existe exactamente
+ese timer. PR-NAV-02 prueba S11; I3 sólo puede probarse con el intérprete (PR-NAV-03).
+
 ### 13.1. Modelo abstracto de historial (rev. 2.2, C-7)
 
 S5 habla del historial de sesión, que la máquina no ve: sólo emite efectos. Para verificarlo hace falta
@@ -1169,6 +1331,10 @@ En lazo cerrado las filas #11, #13, #23 y #26 **no se alcanzan**: son defensas f
 H6 excluyen (commit de una navegación descartada, timer cancelado que dispara, commit externo en vuelo
 y commit de un traverse ya descartado). Siguen cubiertas por los casos literales, el recorrido
 exhaustivo y las trazas aleatorias, que no asumen esos supuestos.
+
+**Rev. 2.2.1.** Este modelo entrega un evento por tarea y aplica sus efectos de inmediato, que es lo que
+el algoritmo de §12.5.1 hace cuando no hay nada más en cola. No cubre varios eventos dentro de una misma
+tarea ni el arranque: eso lo verifica el modelo del intérprete de §0.5 y, de forma versionada, PR-NAV-03.
 
 ---
 
@@ -1378,6 +1544,7 @@ workflows. Todas las operaciones Git/GitHub son [MANUAL-NICO] salvo delegación 
 | Rev. 2.2 — scope | Los mismos dos archivos nuevos; ninguno existente. La máquina aplica `persistable` y el `settle` enmendado (#9, #14, #28), extiende #25 a `TRAVERSING`, agrega el guard de #17/#19 y fija `initial()` según §12.1 |
 | Rev. 2.2 — tests | Sustituye las cifras de "Tests": (1) una prueba por fila **#1–#28**. (2) Los 60 pares y las **113 ramas** de la partición, cada una con un caso literal; la columna "Guard" transcrita como predicados independientes y sin orden, con la exigencia de que cada situación visitada satisfaga **exactamente uno** (0 = hueco, 2 = solapamiento). (3) Unión de efectos (S9). (4) Tres pruebas mecánicas con los invariantes por transición S1, S3, S4, S5(a), S6, S9, S10, S11, S12 y L1–L6: recorrido **exhaustivo** en anchura de un universo reducido (contraejemplo mínimo por invariante), **≥ 10 000 trazas** aleatorias con semilla y **≥ 4 000 sesiones en lazo cerrado** sobre el modelo de §13.1 (S5(b), L6, C-6); cada prueba aleatoria con su semilla y su hash anclados. (5) Trazas nombradas de rev. 2.1 más las de rev. 2.2: C-1 (#17 → #27 → #14 normaliza; variante #15 → #9 → #9); C-2 (#10 → #11 → #23 deja `superseded = []` y el commit siguiente resuelve sólo a #9); C-3 (selección del target en restauración: inerte; del target trabado: #16); C-5 (ruta sin módulo resoluble y módulo retirado: sin `PERSIST`, `lastModule` intacto); C-6 (`NAV_FAILED` → traverse y commit ignorados → `RESET` por desmontaje ⇒ `IDLE`; segundo `RESET` inerte; en la entrada desnuda de Admin, un solo presupuesto); C-8 (Back + Forward antes del commit ⇒ #28; Back + clic en el módulo comiteado ⇒ #25). (6) `initial()` con los valores de §12.1 |
 | Rev. 2.2 — aceptación | Todo lo anterior en verde, con 0 situaciones sin fila única y 0 vuelos huérfanos; semillas y hashes reportados (los de §0.4 son de la copia temporal y se re-anclan); mismos gates de "Aceptación". Si la verificación versionada contradice esta revisión, vuelve a aplicar la regla: se reporta y la enmienda regresa a este documento |
+| Rev. 2.2.1 — alcance frente a C-9 | Sin cambios: PR-NAV-02 entrega la máquina pura y **no** incluye el intérprete. Sus tests prueban qué efectos se emiten y en qué orden dentro de una transición (S11 incluido); **no** prueban cuándo se ejecutan, ni el orden de efectos de React, ni StrictMode, ni la hidratación. Nada de §12.5.1 puede darse por verificado con PR-NAV-02 |
 
 ### Fase C — Sustitución controlada
 
@@ -1399,8 +1566,11 @@ workflows. Todas las operaciones Git/GitHub son [MANUAL-NICO] salvo delegación 
 | Aceptación | Para Admin: S1–S11 aplicables, L1, L2, L4 y L5 en E2E; **1** `_rsc` de navegación por selección efectiva; los superseded se descartan sin repintar; `STALLED` visible dentro del presupuesto; 0 entradas de historial por restauración; Back/Forward exacto; `FAILED` y `RESET` alcanzables por E2E, sin presupuesto obsoleto vivo tras la recuperación (rev. 2.1); recuperación de PR-NAV-01 preservada; `e2e:visual-contract` y `e2e:admin-mobile` PASSED; gates frontend §6 PASSED |
 | Rollback | Revert del squash restaura controlador y bus; el provider sin consumidores queda inactivo |
 | Bloqueos | Rev. 1: DT-1, DT-2 (**resueltos** en rev. 2). Vigentes: PR-NAV-02 fusionada; valor inicial del presupuesto (DT-5) a fijar por Nico antes de implementar, porque bajo T2 el presupuesto ya aplica a cambios de módulo |
-| Rev. 2.2 — integración obligatoria | (1) **Orden (C-4):** `HYDRATED` se aplica al crear el store en el cliente; sus efectos se interpretan en un efecto de montaje. (2) **Deduplicación (C-4):** `URL_COMMITTED` contra la última ubicación entregada por cualquier evento. (3) **Frontera (C-6):** `app/dashboard/error.tsx` despacha `NAV_FAILED` al montar y `RESET` tanto en "Reintentar" como en la limpieza de efecto, con la ubicación comiteada vigente del provider; sigue sin exponer `error.message` ni `digest`. (4) **Adaptador (C-6, DT-10):** `requestAdminModuleActivate` devuelve `false` en `BOOTING` y `FAILED`. Ninguno de estos puntos agrega eventos ni efectos a §12.1 |
-| Rev. 2.2 — tests obligatorios | **C-4:** fallo de render en la carga inicial ⇒ la máquina recibió `HYDRATED` antes que `NAV_FAILED` (el módulo almacenado sobrevive al fallo). **C-6:** (a) "Reintentar" seguido del desmontaje no arma un segundo presupuesto ni emite un segundo `router.replace` en la entrada desnuda; (b) Back dentro de `/dashboard/admin` con la frontera visible: la frontera sigue montada, la FSM sigue en `FAILED` y "Reintentar" deja URL = `display` = workspace; (c) con la frontera visible, un clic del chrome no queda muerto: navega por su cuenta y la FSM se reconcilia; (d) salir del dashboard con la frontera visible no deja presupuesto ni timer vivo. Todo sobre el production runner: bajo `next dev` con StrictMode el doble montaje produce `NAV_FAILED` → `RESET` → `NAV_FAILED` y no vale como evidencia. **S5 / H1, H2, H4:** `history.length` crece 1 en una ráfaga A→B→C con payloads retenidos, 0 en A→B→A y 0 en la restauración (R-6); Back/Forward recorre exactamente esas entradas. **C-8 / L6:** Back con payload retenido y Forward antes del commit ⇒ sin `STALLED` al vencer el presupuesto; Back con payload retenido y clic en el módulo comiteado ⇒ sin `STALLED`. Ese mismo E2E **registra** si el commit del traverse abandonado llega (H1 para traverse, hoy sin evidencia) y, si llega, que la vista converge al clic. **Aceptación ampliada** a S12 y L6 |
+| Rev. 2.2 — integración obligatoria | (1) **Orden (C-4):** `HYDRATED` se aplica al crear el store en el cliente; sus efectos se encolan y se ejecutan según §12.5.1 (rev. 2.2.1; rev. 2.2 decía "en un efecto de montaje", C-9). (2) **Deduplicación (C-4):** `URL_COMMITTED` contra la última ubicación entregada por cualquier evento. (3) **Frontera (C-6):** `app/dashboard/error.tsx` despacha `NAV_FAILED` al montar y `RESET` tanto en "Reintentar" como en la limpieza de efecto, con la ubicación comiteada vigente del provider; sigue sin exponer `error.message` ni `digest`. (4) **Adaptador (C-6, DT-10):** `requestAdminModuleActivate` devuelve `false` en `BOOTING` y `FAILED`. Ninguno de estos puntos agrega eventos ni efectos a §12.1 |
+| Rev. 2.2 — tests obligatorios | **C-4:** fallo de render en la carga inicial ⇒ la máquina recibió `HYDRATED` antes que `NAV_FAILED` (el módulo almacenado sobrevive al fallo). **C-6:** (a) "Reintentar" seguido del desmontaje no arma un segundo presupuesto ni emite un segundo `router.replace` en la entrada desnuda; (b) Back dentro de `/dashboard/admin` con la frontera visible: la frontera sigue montada, la FSM sigue en `FAILED` y "Reintentar" deja URL = `display` = workspace; (c) con la frontera visible, un clic del chrome no queda muerto: navega por su cuenta y la FSM se reconcilia; (d) salir del dashboard con la frontera visible no deja presupuesto ni timer vivo. Todo sobre el production runner: bajo `next dev` con StrictMode el doble montaje produce `NAV_FAILED` → `RESET` → `NAV_FAILED`, que el drenaje único de §12.5.1 absorbe sin navegar (rev. 2.2.1), pero el modo desarrollo no vale como evidencia de producción. **S5 / H1, H2, H4:** `history.length` crece 1 en una ráfaga A→B→C con payloads retenidos, 0 en A→B→A y 0 en la restauración (R-6); Back/Forward recorre exactamente esas entradas. **C-8 / L6:** Back con payload retenido y Forward antes del commit ⇒ sin `STALLED` al vencer el presupuesto; Back con payload retenido y clic en el módulo comiteado ⇒ sin `STALLED`. Ese mismo E2E **registra** si el commit del traverse abandonado llega (H1 para traverse, hoy sin evidencia) y, si llega, que la vista converge al clic. **Aceptación ampliada** a S12 y L6 |
+| Rev. 2.2.1 — coordinación del intérprete (C-9): scope | El intérprete se implementa como **coordinador sin React** — store, cola, vigencia y conciliación de §12.5.1, con el planificador de microtareas, los timers y el router inyectados — en un archivo nuevo, `frontend/src/lib/dashboard/navigation/dashboardNavigationCoordinator.ts`, sin imports de React ni de Next; `DashboardNavigationProvider.tsx` queda como envoltura delgada que lo crea en render (A1), lo monta en un efecto pasivo (A4), lo desmonta (A8) y le entrega los eventos. Test unit nuevo junto al de la máquina |
+| Rev. 2.2.1 — coordinación del intérprete (C-9): obligaciones | (1) **Serialización del intérprete:** `dispatch` aplica la transición al llamarse y en orden; nunca se llama en render; ninguna otra vía cambia el estado (A2). (2) **Drenaje seguro de efectos:** cola FIFO única, un drenaje por bloque síncrono en microtarea, sin drenar con el provider desmontado, sin reentrada, tolerante a un efecto que lanza (A3, A5). (3) **Orden de hidratación:** el store nace con `HYDRATED` aplicado y sus efectos encolados; `ready` se establece en un efecto **pasivo** del provider; el markup del primer render depende sólo de `display`, nunca de `state.tag` ni de la restauración en curso, para no romper la hidratación (A1, A4). (4) **Manejo de la frontera:** `NAV_FAILED` y `RESET` en efectos pasivos, encolados como cualquier evento; ninguno ejecuta nada por sí mismo (§12.1). (5) **Cancelación de presupuestos:** timers por `navId`, conciliados contra el estado al cierre de cada drenaje y cancelados al desmontar (A6, A8). (6) **Protección contra eventos y efectos obsoletos:** vigencia por `navId` al ejecutar; un `navId` no se reutiliza; un callback tardío es inerte (A5, A7). (7) **Sin efectos secundarios en render:** previsualización pura de `URL_COMMITTED` en render y despacho en efecto de layout (§11.3) |
+| Rev. 2.2.1 — coordinación del intérprete (C-9): tests obligatorios | **Unit del coordinador, sin React**, con planificador y timers simulados: las reproducciones R1–R8 de §0.5 como casos nombrados, cada una con su orden de eventos, su orden de efectos ejecutados, el estado final, el número de timers y la lista de navegaciones; búsqueda aleatoria con semilla y los oráculos I1–I8; y las cinco variantes de §0.5 como **pruebas de mutación** que deben fallar. **Con React** (unit del provider o E2E): P1 y P3 — orden hijo → padre de los efectos pasivos y doble montaje de StrictMode. **E2E de fallos durante la restauración inicial**, en production runner con el patrón de stream truncado de PR-NAV-01: (a) Admin en URL desnuda con módulo almacenado y el render inicial fallando ⇒ frontera visible, **ningún** `_rsc` de restauración emitido después del fallo, la URL sigue desnuda y, pasado el presupuesto, no aparece `STALLED` ni cambia nada; (b) "Reintentar" ⇒ exactamente **un** `router.replace` de normalización y `IDLE` en el módulo almacenado; (c) lo mismo con la frontera montándose en un commit posterior (payload de la restauración ya emitido): el presupuesto se cancela y el commit tardío no saca a la máquina de `FAILED`; (d) salir del dashboard con la restauración en vuelo no deja timers ni navega después. **Aceptación ampliada** a I1–I8 |
 
 #### PR-NAV-04 — Corte de Clínica (shell + hub)
 
@@ -1421,6 +1591,7 @@ workflows. Todas las operaciones Git/GitHub son [MANUAL-NICO] salvo delegación 
 | Rollback | Revert del squash |
 | Bloqueos | Ninguno adicional |
 | Rev. 2.2 — integración y tests obligatorios | `requestClinicModuleActivate` devuelve `false` en `BOOTING` y `FAILED` (DT-10). **C-6 en Clínica**, que es donde el pathname cambia de verdad: un `_rsc` truncado en una ruta completa monta la frontera; Back a `/dashboard` la desmonta **sin** "Reintentar" ⇒ la FSM de Clínica sale de `FAILED`, URL = `display` = workspace y el siguiente clic del shell navega. El caso simétrico: fallo en `/dashboard` y navegación a una ruta completa. **S5 y C-8 / L6** con los mismos E2E de PR-NAV-03, en Clínica y con el hub. Aceptación ampliada a S12 y L6 (L5 no aplica: Clínica no normaliza) |
+| Rev. 2.2.1 — coordinación del intérprete (C-9) | Clínica usa el mismo coordinador de PR-NAV-03, sin variantes: las siete obligaciones de su ficha (serialización, drenaje seguro, orden de hidratación, manejo de la frontera, cancelación de presupuestos, protección contra obsoletos y render sin efectos) aplican tal cual a la superficie de Clínica. **E2E de fallos durante la restauración inicial**, que en Clínica es la fila #2: `/dashboard` desnudo con último módulo almacenado ≠ default y el render inicial fallando ⇒ frontera visible, ningún `_rsc` de restauración después del fallo, sin `STALLED` al vencer el presupuesto; "Reintentar" ⇒ `IDLE` en el módulo por defecto con URL = `display`: la restauración C no se reintenta, porque `RESET` no pasa por `bootRestore`. **Limitación conocida, a fijar por E2E tal como es:** ese `settle` persiste el módulo por defecto y pisa la preferencia almacenada (DT-13, §21); en Admin no ocurre, porque la normalización usa `lastModule`. Lo mismo entrando por una ruta completa. Aceptación ampliada a I1–I8 |
 
 #### PR-NAV-05 — Rutas completas: `ROUTING`/`STALLED` y retiro del hand-over
 
@@ -1579,6 +1750,9 @@ requiere ejecución simultánea de builds frontend y backend.
 | Rev. 2.2 — E2E de los supuestos H1–H7 | `history.length` por ráfaga, A→B→A y restauración; Back/Forward exacto; descarte de la navegación pendiente | specs nuevos o existentes realineados | PR-NAV-03, PR-NAV-04 |
 | Rev. 2.2 — E2E de la frontera abandonada (C-6) | Frontera desmontada por cambio de pathname sin "Reintentar" ⇒ FSM fuera de `FAILED`; clic del chrome con la frontera visible; doble `RESET` | spec nuevo (patrón de stream truncado de PR-NAV-01) | PR-NAV-03 (Admin), PR-NAV-04 y PR-NAV-05 (Clínica) |
 | Rev. 2.2 — E2E de vuelo hacia `committed` (C-8) | Back + Forward antes del commit y Back + clic en el módulo comiteado no muestran `STALLED` | spec nuevo | PR-NAV-03, PR-NAV-04, PR-NAV-05 |
+| Rev. 2.2.1 — unit del coordinador (C-9) | Algoritmo de §12.5.1 sin React: reproducciones R1–R8, búsqueda aleatoria con I1–I8 y cinco pruebas de mutación | test unit nuevo junto al de la máquina | PR-NAV-03 |
+| Rev. 2.2.1 — supuestos de plataforma P1–P4 | Orden hijo → padre de los efectos pasivos, microtarea tras el flush, doble montaje de StrictMode, navegación desde microtarea | unit del provider con React y E2E en production runner | PR-NAV-03 |
+| Rev. 2.2.1 — E2E de fallos durante la restauración inicial (C-9) | Render inicial fallido con restauración pendiente: ninguna navegación ni `STALLED` después del fallo; "Reintentar" emite una sola normalización | spec nuevo (patrón de stream truncado de PR-NAV-01) | PR-NAV-03 (Admin, filas #2/#3), PR-NAV-04 (Clínica, fila #2) |
 
 Reglas de ejecución que aplican a todos los PR:
 
@@ -1611,7 +1785,11 @@ Reglas de ejecución que aplican a todos los PR:
 | Rev. 2.2 — S4 sólo protege mientras hay vuelo: tras #25, #28 o `settle` la máquina olvida `superseded`, y un commit tardío de una navegación descartada se obedece como externo (#22) | Baja (SP-3 no lo observó) | Medio | E2E "late answer never repaints" extendido a A→B→A; residual de H3 |
 | Rev. 2.2 — C-8 cambia un parpadeo por un `STALLED` espurio: si el commit de un traverse abandonado llega, la vista pasa por esa entrada antes de converger | Baja–media (depende de H1 para traverse) | Bajo | El E2E de C-8 registra cuál de los dos sub-casos ocurre; DT-11 se revisa si el parpadeo es frecuente |
 | Rev. 2.2 — con la frontera visible, el clic del chrome navega fuera de la FSM (DT-10): sin presupuesto ni `STALLED` | Baja | Bajo | Es el mismo fallback que cubre la pre-hidratación; la FSM se reconcilia por `RESET`. Alternativa descartada: reclamar el clic y descartarlo |
-| Rev. 2.2 — el `RESET` por desmontaje se dispara en el doble montaje de StrictMode bajo `next dev` | Alta en dev, nula en producción | Bajo | Validar sólo en production runner (§18); PR-NAV-03 decide si lo filtra |
+| Rev. 2.2 — el `RESET` por desmontaje se dispara en el doble montaje de StrictMode bajo `next dev` | Alta en dev, nula en producción | Bajo | Validar sólo en production runner (§18); PR-NAV-03 decide si lo filtra. **Rev. 2.2.1:** ya no navega: el drenaje único de §12.5.1 descarta la normalización transitoria (R7, §0.5). Queda un `PERSIST` del módulo de la URL vigente, inocuo |
+| Rev. 2.2.1 — el algoritmo de coordinación descansa en P1–P4, que no se ejecutaron en navegador | Baja–media | Medio: si el efecto de la frontera y el del provider no compartieran flush, la restauración se emitiría antes de procesar `NAV_FAILED` (caso R1 de §0.5) | Test con React y E2E obligatorios en PR-NAV-03 (§12.5.1, §16). La seguridad de los timers no depende de P1: I3 se concilia en cada drenaje y el presupuesto se cancela igual |
+| Rev. 2.2.1 — el drenaje en microtarea retrasa navegación y `PUBLISH_DISPLAY` una microtarea respecto del despacho | Segura | Bajo | Misma tarea, antes del pintado; `display` se deriva en render (§11.3) y no depende de la notificación |
+| Rev. 2.2.1 — crear el store en render lee el último módulo almacenado: el estado inicial difiere entre servidor y cliente | Segura | Medio si el markup dependiera de él | Obligación (3) de PR-NAV-03: el primer render depende sólo de `display`, que coincide en ambos (S10) |
+| Rev. 2.2.1 — en Clínica, un fallo de render durante la restauración inicial seguido de "Reintentar" pisa la preferencia de último módulo con el módulo por defecto | Baja | Bajo (pérdida de una preferencia, sin divergencia URL↔contenido) | Hallazgo de la revisión adversarial de C-9; no viola ningún invariante y no se corrige aquí: exige decidir una fila (DT-13) |
 | Rev. 2.2 — Next cambia en un minor cuándo resetea la frontera (`error-boundary.js:82-90`) | Baja | Medio | El productor de `RESET` es el desmontaje, no el motivo: cualquier salida de la frontera sigue cubierta. El E2E de C-6 lo detecta |
 
 | PR | Esfuerzo | Rollback |
@@ -1663,6 +1841,8 @@ Los PR de Fase C son revertibles de forma independiente sólo en orden inverso (
 | DT-9 (rev. 2.2) | Salida de `FAILED` cuando Next abandona la frontera sin `retry()` (C-6) | A: `RESET` por desmontaje de la frontera / B: fila nueva `FAILED × URL_COMMITTED → settle` / C: sin cambio | **A.** B saca a la máquina de `FAILED` con la frontera todavía visible cuando la URL cambia sin cambiar el pathname; C deja la navegación muerta | PR-NAV-03, 04, 05 | **Propuesto en rev. 2.2**; se aprueba al fusionarla. No agrega eventos ni filas |
 | DT-10 (rev. 2.2) | Selección del chrome en `BOOTING`/`FAILED` | A: el adaptador no reclama y el chrome navega / B: reclama y la máquina descarta | **A.** B reproduce "los clics dejan de responder" | PR-NAV-03, 04 | **Propuesto en rev. 2.2** |
 | DT-11 (rev. 2.2) | Vuelo cuyo destino es `committed` (C-8) | A: resolver en la transición (#25 extendida, #28) / B: esperar el presupuesto y mostrar `STALLED` | **A**, con el costo de parpadeo de §12.4 | PR-NAV-02 | **Propuesto en rev. 2.2**; se revisa con el E2E de C-8 |
+| DT-12 (rev. 2.2.1) | Coordinación del intérprete (C-9) | A: cola FIFO de efectos + drenaje en microtarea + vigencia por `navId` + conciliación de timers / B: sólo FIFO, ejecutando los efectos de `HYDRATED` antes de procesar `NAV_FAILED` / C: despachar `HYDRATED` en un efecto y aceptar `FAILED` sin hidratar | **A.** B respeta el orden pero emite el `router.replace` de una restauración que ya se sabe abandonada; C pierde el módulo almacenado y deja `display = none` | PR-NAV-03, 04 | **Propuesto en rev. 2.2.1**; se aprueba al fusionar #1841 |
+| DT-13 (rev. 2.2.1) | Preferencia de último módulo de Clínica tras un fallo de render durante la restauración inicial | A: sin cambio (el `RESET` reposa en la URL vigente y la persiste) / B: `RESET` reintenta la restauración pendiente / C: `settle` no persiste cuando viene de `FAILED` | Sin recomendación todavía: B y C cambian la fila #21 y necesitan su propia verificación | — | **Pendiente.** No bloquea PR-NAV-02 ni PR-NAV-03 |
 
 ---
 
@@ -1783,6 +1963,8 @@ Evidencia de rev. 2.2, también **no versionada** (sesión de Claude del 2026-10
 | Corrida intermedia: suite de rev. 2.1 sin tocar contra la máquina enmendada | 188 de 193 en verde; los 5 restantes eran el hash anclado, la redacción vieja de L1 (dos tests), la forma de efectos de #9/#14 y la traza que afirmaba el `IDLE` sin módulo. Demuestra que C-1, C-2 y C-5 no rompen ninguno de los 152 casos literales |
 | Corrida intermedia: suite de rev. 2.2 contra la máquina con C-1..C-5 y sin C-8 | 572 vuelos huérfanos en 4 000 sesiones y L6 roto. Origen de C-8 |
 | `frontend/node_modules/next/dist/client/components/error-boundary.js:82-90` (16.3.8) | Reset de la frontera por cambio de pathname (C-6). Lectura, no ejecución |
+| Rev. 2.2.1 — modelo temporal `rev22/interpreter-model.ts` (sesión del 2026-10-10, no versionado) | Intérprete parametrizado (store, cola, vigencia, conciliación, planificador de microtareas y timers simulados) sobre la copia de la máquina de rev. 2.2. 15 reproducciones R1–R8.6 bajo "V0" (texto de rev. 2.2) y "V1" (§12.5.1); búsqueda aleatoria de 20 000 ejecuciones con las semillas `0x50314631` y `0x0badc0de` para V1 y cinco mutantes. Resultados en §0.5 |
+| Rev. 2.2.1 — review de #1841 | Thread `PRRT_kwDOR5qlsc6rAZbc` sobre §11.3, P1: "Preserve bootstrap effects before child error dispatches". Origen de C-9 |
 
 ### 23.6. Documentación previa relacionada
 
@@ -1846,3 +2028,16 @@ solo dueño y transiciones explícitas, y convierte el estado en vuelo en un est
 | PR-NAV-02 | **BLOQUEADA** hasta fusionar esta revisión; después se realinea y repite la suite completa con sus hashes nuevos |
 | Lo que sigue sin probar | H1–H7 (E2E de PR-NAV-03/04); comportamiento real de la frontera al cambiar de pathname (leído, no ejecutado); producción (NAV-A0) |
 | Navegación declarada resuelta | **NO** |
+
+### Estado final de la revisión 2.2.1
+
+| Elemento | Estado |
+| --- | --- |
+| Archivo modificado | Sólo este documento (docs-only), dentro de la PR #1841 |
+| Hallazgo corregido | C-9, P1 del review: orden de ejecución de efectos durante el arranque |
+| Especificación FSM | Sin cambios respecto de rev. 2.2: 28 filas, 113 ramas, S1–S12 y L1–L6 |
+| Contrato del intérprete | Nuevo y normativo: algoritmo de coordinación de §12.5.1 con I1–I8 |
+| Verificación | Modelo temporal del intérprete: 15 reproducciones y 2 × 20 000 ejecuciones sin violaciones; cinco mutantes detectados. Suite de rev. 2.2 re-ejecutada: 213 de 213 |
+| Lo que sigue sin probar | P1–P4 y todo comportamiento de React, StrictMode e hidratación: PR-NAV-03 |
+| Decisión abierta | DT-13 (preferencia de Clínica tras un fallo en la restauración inicial) |
+| PR-NAV-02 | Sigue **BLOQUEADA** hasta la fusión; C-9 no altera su alcance |
