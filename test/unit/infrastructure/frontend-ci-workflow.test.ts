@@ -24,6 +24,8 @@ const frontendPathFilters = [
   "      - 'pnpm-lock.yaml'",
   "      - 'pnpm-workspace.yaml'",
   "      - 'package.json'",
+  "      - '.npmrc'",
+  "      - '.pnpmrc'",
   "      - '.github/workflows/frontend-ci.yml'",
   "      - '.github/workflows/e2e-completeness.yml'",
 ] as const;
@@ -32,6 +34,8 @@ const frontendImpactPaths = new Set([
   "pnpm-lock.yaml",
   "pnpm-workspace.yaml",
   "package.json",
+  ".npmrc",
+  ".pnpmrc",
   ".github/workflows/frontend-ci.yml",
   ".github/workflows/e2e-completeness.yml",
 ]);
@@ -324,7 +328,7 @@ test("Frontend CI excluye cambios exclusivos de una base que avanzó", () => {
   }
 });
 
-test("Frontend CI usa exactamente las siete rutas vigentes para solicitar heavy", () => {
+test("Frontend CI usa exactamente las nueve rutas vigentes para solicitar heavy", () => {
   const detector = getJobBlock(readWorkflow(), "detect-frontend-impact");
 
   assertContains(
@@ -332,7 +336,7 @@ test("Frontend CI usa exactamente las siete rutas vigentes para solicitar heavy"
     `          should_run=false
           while IFS= read -r -d '' changed_path; do
             case "$changed_path" in
-              frontend/*|shared/*|pnpm-lock.yaml|pnpm-workspace.yaml|package.json|.github/workflows/frontend-ci.yml|.github/workflows/e2e-completeness.yml)
+              frontend/*|shared/*|pnpm-lock.yaml|pnpm-workspace.yaml|package.json|.npmrc|.pnpmrc|.github/workflows/frontend-ci.yml|.github/workflows/e2e-completeness.yml)
                 should_run=true
                 break
                 ;;
@@ -354,6 +358,17 @@ test("Frontend CI pide heavy cuando el PR sólo cambia el contrato cross-runtime
   // The benign baselines must stay unchanged.
   assert.equal(shouldRunFrontend(["docs/audit/example.md"]), false);
   assert.equal(shouldRunFrontend(["server/routes/example.fastify.ts"]), false);
+});
+
+test("Frontend CI pide heavy cuando el PR sólo cambia la configuración de instalación", () => {
+  // .npmrc and .pnpmrc drive the install the production frontend build runs,
+  // and they deploy the frontend on Render: they must be validated first.
+  assert.equal(shouldRunFrontend([".npmrc"]), true);
+  assert.equal(shouldRunFrontend([".pnpmrc"]), true);
+
+  // Only the root files route: a same-named file elsewhere is not an install input.
+  assert.equal(shouldRunFrontend(["docs/.npmrc"]), false);
+  assert.equal(shouldRunFrontend(["server/.pnpmrc"]), false);
 });
 
 test("Frontend CI alinea los push path filters con el detector de impacto de PR", () => {
