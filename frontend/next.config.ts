@@ -5,6 +5,10 @@ import {
   buildReportOnlyCsp,
   CSP_REPORT_URI_PATH,
 } from "./src/lib/security/csp-policy";
+import {
+  THEME_INIT_SCRIPT_PATH,
+  THEME_INIT_SCRIPT_VERSION,
+} from "./src/lib/theme";
 
 const isProductionBuild = process.env.NODE_ENV === "production";
 
@@ -125,6 +129,25 @@ const nextConfig: NextConfig = {
           {
             key: "Service-Worker-Allowed",
             value: "/",
+          },
+        ],
+      },
+      {
+        // Only the URL carrying the current content version is immutable. Any
+        // other query, and the bare path, keep the revalidating default, so a
+        // response for a version this build does not own is never pinned.
+        source: THEME_INIT_SCRIPT_PATH,
+        has: [
+          {
+            type: "query",
+            key: "v",
+            value: THEME_INIT_SCRIPT_VERSION,
+          },
+        ],
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
           },
         ],
       },

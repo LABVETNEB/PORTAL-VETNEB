@@ -152,3 +152,65 @@ test("persisted dark gray theme applies before hydration without mismatch", asyn
 
   hydrationFailures.assertClean();
 });
+
+// `theme-init.js` is a parser-blocking script in <head>: until it arrives the
+// document has no body, and the browser keeps showing the previous page with
+// nothing behind it. A later document must therefore not need the network for
+// it. No `page.route` anywhere in this test: Playwright turns the HTTP cache off
+// while routing is on, and the cache is the thing under test.
+test("a later document takes the pre-paint theme script from the HTTP cache", async ({
+  page,
+}) => {
+  const themeScriptTransfer = () =>
+    page.evaluate(() => {
+      const [entry] = performance
+        .getEntriesByType("resource")
+        .filter((candidate) => new URL(candidate.name).pathname === "/theme-init.js")
+        .map((candidate) => candidate.toJSON() as Record<string, unknown>);
+
+      return entry
+        ? {
+            query: new URL(String(entry.name)).search,
+            transferSize: entry.transferSize,
+            deliveryType: entry.deliveryType,
+            renderBlocking: entry.renderBlockingStatus,
+          }
+        : null;
+    });
+
+  await page.addInitScript(
+    ([key, value]) => {
+      window.localStorage.setItem(key, value);
+    },
+    [STORAGE_KEY, "dark-gray"] as const,
+  );
+
+  const first = await page.goto("/", { waitUntil: "load" });
+  expect(first?.ok(), "/ should render successfully").toBeTruthy();
+
+  const firstTransfer = await themeScriptTransfer();
+  expect(firstTransfer?.query, "the script URL carries its content version").toMatch(
+    /^\?v=[0-9a-f]{16}$/,
+  );
+  expect(
+    firstTransfer?.transferSize,
+    "the first document fetches the script from the network",
+  ).toBeGreaterThan(0);
+
+  const later = await page.goto("/servicios", { waitUntil: "load" });
+  expect(later?.ok(), "/servicios should render successfully").toBeTruthy();
+
+  // A revalidated copy (304) reports the size of its response headers here; only
+  // a copy the network was never asked for reports zero.
+  const laterTransfer = await themeScriptTransfer();
+  expect(laterTransfer?.query).toBe(firstTransfer?.query);
+  expect(laterTransfer?.renderBlocking, "the script still blocks rendering").toBe("blocking");
+  expect(
+    laterTransfer?.transferSize,
+    "the later document must not wait on the network for the script",
+  ).toBe(0);
+  expect(laterTransfer?.deliveryType).toBe("cache");
+
+  // The cached copy still runs before first paint.
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark-gray");
+});
