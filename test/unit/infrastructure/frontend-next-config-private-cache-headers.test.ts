@@ -476,10 +476,10 @@ test("the declared rules leave no document reusable without validation and no ot
 
   assert.deepEqual([...policyViolations(rules, surfaces)], []);
 
-  // The default this stage replaces: a year for a shared cache, nothing for
-  // the browser, which has no lifetime to apply and validates already.
+  // The default this stage replaces: a year for a shared cache, and no stated
+  // lifetime at all for the browser, which is then free to pick its own.
   assert.equal(unvalidatedReuseSeconds("shared", { cacheControl: NEXT_PRERENDER_DEFAULT }), 31_536_000);
-  assert.equal(unvalidatedReuseSeconds("private", { cacheControl: NEXT_PRERENDER_DEFAULT }), 0);
+  assert.equal(unvalidatedReuseSeconds("private", { cacheControl: NEXT_PRERENDER_DEFAULT }), Infinity);
 });
 
 test("the cache contract rejects each way the document policy can be lost or spread", async () => {
@@ -554,9 +554,9 @@ test("the cache contract rejects a router payload or a 304 a cache could hand ou
   assert.deepEqual(cachePolicyViolations("revalidated", { cacheControl: payload.cacheControl }), []);
   assert.notDeepEqual(cachePolicyViolations("revalidated", { cacheControl: NEXT_PRERENDER_DEFAULT }), []);
   assert.notDeepEqual(
-    cachePolicyViolations("revalidated", { lastModified: "Mon, 05 Oct 2026 00:00:00 GMT" }),
+    cachePolicyViolations("revalidated", {}),
     [],
-    "without an explicit lifetime a cache may derive one from Last-Modified",
+    "without a stated lifetime a cache may derive one of its own",
   );
 
   // Only `next start` can show whether a shared cache may store an entry point.
@@ -568,4 +568,91 @@ test("the cache contract rejects a router payload or a 304 a cache could hand ou
     cachePolicyViolations("access-document", { ...devStamp, setCookie: "name=value" }, "next-dev"),
     [],
   );
+});
+
+// A response that does not say how long it may be reused is not a response
+// that may not be reused: a cache is free to derive a lifetime of its own
+// (RFC 9111 §4.2.2). Only an explicit zero, an unqualified no-cache or a
+// response no cache of that kind may store proves that the origin is asked.
+test("the cache contract never reads an unstated or unreadable lifetime as zero", () => {
+  const html = "text/html; charset=utf-8";
+  const unproven: (string | undefined)[] = [
+    undefined,
+    "",
+    "public",
+    "must-revalidate",
+    "public, must-revalidate",
+    "private",
+    "s-maxage=0",
+    "max-stale=0, unknown-directive",
+    "max-age=abc",
+    "max-age=",
+    "max-age",
+    "max-age=-1",
+    "max-age=0, max-age=3600",
+    'no-cache="set-cookie"',
+  ];
+
+  for (const cacheControl of unproven) {
+    const label = `Cache-Control: ${cacheControl ?? "<absent>"}`;
+
+    assert.notEqual(unvalidatedReuseSeconds("private", { cacheControl }), 0, `private, ${label}`);
+    assert.notDeepEqual(cachePolicyViolations("public-document", { cacheControl, contentType: html }), [], label);
+    assert.notDeepEqual(cachePolicyViolations("access-document", { cacheControl, contentType: html }), [], label);
+    assert.notDeepEqual(
+      cachePolicyViolations("flight", { cacheControl, contentType: "text/x-component", vary: "rsc" }),
+      [],
+      label,
+    );
+    // A 304 renews the stored copy with whatever it carries. An ETag is not
+    // read at all: a validator makes validation possible, not mandatory.
+    assert.notDeepEqual(cachePolicyViolations("revalidated", { cacheControl }), [], label);
+    assert.notDeepEqual(cachePolicyViolations("stable-asset", { cacheControl }), [], label);
+    assert.notDeepEqual(cachePolicyViolations("immutable-asset", { cacheControl }), [], label);
+  }
+
+  assert.notDeepEqual(cachePolicyViolations("immutable-asset", { cacheControl: "public, immutable" }), []);
+
+  // An Expires that cannot be read, or measured from, proves nothing either.
+  for (const dated of [
+    { expires: "0" },
+    { expires: "not a date" },
+    { expires: "Mon, 05 Oct 2026 00:00:00 GMT", date: "not a date" },
+  ]) {
+    assert.notDeepEqual(cachePolicyViolations("revalidated", dated), [], JSON.stringify(dated));
+    assert.notDeepEqual(cachePolicyViolations("stable-asset", { cacheControl: "public", ...dated }), []);
+  }
+
+  const servedAt = "Mon, 05 Oct 2026 00:00:00 GMT";
+
+  assert.equal(unvalidatedReuseSeconds("shared", { expires: "Mon, 05 Oct 2026 01:00:00 GMT", date: servedAt }), 3600);
+  assert.equal(unvalidatedReuseSeconds("shared", { expires: "Sun, 04 Oct 2026 00:00:00 GMT", date: servedAt }), 0);
+
+  // The shared and the private lifetime are read separately.
+  assert.equal(unvalidatedReuseSeconds("shared", { cacheControl: "s-maxage=0" }), 0);
+  assert.equal(unvalidatedReuseSeconds("shared", { cacheControl: "private" }), 0);
+  assert.equal(unvalidatedReuseSeconds("shared", { cacheControl: 'private="set-cookie", max-age=60' }), 60);
+  assert.equal(unvalidatedReuseSeconds("private", { cacheControl: "max-age=0, s-maxage=3600" }), 0);
+  assert.equal(unvalidatedReuseSeconds("shared", { cacheControl: "max-age=0, s-maxage=3600" }), 3600);
+  assert.equal(unvalidatedReuseSeconds("shared", { cacheControl: "max-age=0, s-maxage=1e3" }), Infinity);
+
+  // What does prove it, and what each surface is still allowed to carry.
+  for (const proven of ["no-cache", "no-cache, must-revalidate", "max-age=0", "no-store"]) {
+    assert.equal(unvalidatedReuseSeconds("shared", { cacheControl: proven }), 0, proven);
+    assert.equal(unvalidatedReuseSeconds("private", { cacheControl: proven }), 0, proven);
+  }
+
+  const publicPolicy = { cacheControl: "public, max-age=0, s-maxage=0, must-revalidate", contentType: html };
+  const accessPolicy = { cacheControl: "private, no-cache, max-age=0, must-revalidate", contentType: html };
+
+  assert.deepEqual(cachePolicyViolations("public-document", publicPolicy), []);
+  assert.deepEqual(cachePolicyViolations("access-document", accessPolicy), []);
+  assert.deepEqual(cachePolicyViolations("revalidated", { cacheControl: "no-cache, must-revalidate" }), []);
+  assert.deepEqual(cachePolicyViolations("private", { cacheControl: "no-store" }), []);
+  assert.notDeepEqual(cachePolicyViolations("public-document", { ...publicPolicy, cacheControl: "no-store" }), []);
+  assert.notDeepEqual(cachePolicyViolations("offline-fallback", { cacheControl: "no-store", contentType: html }), []);
+  assert.deepEqual(cachePolicyViolations("stable-asset", { cacheControl: "public, max-age=3600, must-revalidate" }), []);
+  assert.notDeepEqual(cachePolicyViolations("public-document", { ...publicPolicy, cacheControl: "public, max-age=3600, must-revalidate" }), []);
+  assert.deepEqual(cachePolicyViolations("immutable-asset", { cacheControl: NEXT_BUILD_ASSET_DEFAULT }), []);
+  assert.notDeepEqual(cachePolicyViolations("public-document", { ...publicPolicy, cacheControl: NEXT_BUILD_ASSET_DEFAULT }), []);
 });

@@ -40,7 +40,6 @@ function served(response: APIResponse): ServedResponse {
     contentType: headers["content-type"],
     vary: headers["vary"],
     expires: headers["expires"],
-    lastModified: headers["last-modified"],
     date: headers["date"],
     setCookie: headers["set-cookie"],
   };

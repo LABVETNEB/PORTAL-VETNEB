@@ -29,7 +29,6 @@ export type ServedResponse = {
   readonly contentType?: string | null;
   readonly vary?: string | null;
   readonly expires?: string | null;
-  readonly lastModified?: string | null;
   readonly date?: string | null;
   readonly setCookie?: string | null;
 };
@@ -65,14 +64,19 @@ export function parseCacheControl(value: string | null | undefined): Map<string,
     const name = (separator === -1 ? part : part.slice(0, separator)).trim().toLowerCase();
 
     if (name) {
-      directives.set(
-        name,
-        separator === -1 ? null : part.slice(separator + 1).trim().replace(/^"|"$/g, ""),
-      );
+      const value = separator === -1 ? null : part.slice(separator + 1).trim().replace(/^"|"$/g, "");
+
+      // Caches disagree on which of two different values counts: neither does.
+      directives.set(name, directives.has(name) && directives.get(name) !== value ? "" : value);
     }
   }
 
   return directives;
+}
+
+// A qualified form (`private="set-cookie"`) restricts a field, not the response.
+function isUnqualified(directives: Map<string, string | null>, name: string): boolean {
+  return directives.get(name) === null;
 }
 
 function seconds(directives: Map<string, string | null>, name: string): number | null {
@@ -87,14 +91,24 @@ function seconds(directives: Map<string, string | null>, name: string): number |
   return raw !== null && /^\d+$/.test(raw) ? Number(raw) : Number.POSITIVE_INFINITY;
 }
 
+// Only the fixed HTTP date format: Date.parse alone also reads "0" as a date.
+function httpDate(value: string | null | undefined): number {
+  return /^[A-Z][a-z]{2}, \d{2} [A-Z][a-z]{2} \d{4} \d{2}:\d{2}:\d{2} GMT$/.test(value ?? "")
+    ? Date.parse(value as string)
+    : Number.NaN;
+}
+
 export function isStorableBy(kind: CacheKind, response: ServedResponse): boolean {
   const directives = parseCacheControl(response.cacheControl);
 
-  return !directives.has("no-store") && !(kind === "shared" && directives.has("private"));
+  return !directives.has("no-store") && !(kind === "shared" && isUnqualified(directives, "private"));
 }
 
 // Seconds during which a cache of that kind may answer with this response
-// without contacting the origin. Zero means every reuse is validated first.
+// without contacting the origin. Zero means every reuse is validated first,
+// and only what the response states can prove it: a response that states no
+// lifetime leaves the cache free to choose one (RFC 9111 §4.2.2), so it is
+// read as unbounded, never as zero. `must-revalidate` alone states none.
 export function unvalidatedReuseSeconds(kind: CacheKind, response: ServedResponse): number {
   const directives = parseCacheControl(response.cacheControl);
 
@@ -107,7 +121,7 @@ export function unvalidatedReuseSeconds(kind: CacheKind, response: ServedRespons
     seconds(directives, "stale-if-error") ?? 0,
   );
 
-  if (directives.has("no-cache")) {
+  if (isUnqualified(directives, "no-cache")) {
     return staleWindow;
   }
 
@@ -118,25 +132,17 @@ export function unvalidatedReuseSeconds(kind: CacheKind, response: ServedRespons
     return explicit + staleWindow;
   }
 
-  const servedAt = Date.parse(response.date ?? "") || Date.now();
+  const servedAt = response.date ? httpDate(response.date) : Date.now();
+  const expiresAt = httpDate(response.expires);
 
-  if (response.expires) {
-    const expiresAt = Date.parse(response.expires);
-
-    return (Number.isNaN(expiresAt) ? 0 : Math.max(0, (expiresAt - servedAt) / 1000)) + staleWindow;
+  // A date that cannot be read bounds nothing. RFC 9111 §5.3 tells a cache to
+  // take an unreadable Expires as already expired; a contract cannot rest on
+  // every cache doing so.
+  if (!Number.isNaN(expiresAt) && !Number.isNaN(servedAt)) {
+    return Math.max(0, (expiresAt - servedAt) / 1000) + staleWindow;
   }
 
-  // Without an explicit lifetime a cache may derive one from Last-Modified.
-  if (response.lastModified) {
-    const modifiedAt = Date.parse(response.lastModified);
-
-    return (
-      (Number.isNaN(modifiedAt) ? ONE_YEAR_SECONDS : Math.max(0, (servedAt - modifiedAt) / 10_000)) +
-      staleWindow
-    );
-  }
-
-  return staleWindow;
+  return Number.POSITIVE_INFINITY;
 }
 
 function varies(response: ServedResponse, header: string): boolean {
@@ -159,7 +165,11 @@ function revalidatingViolations(response: ServedResponse): string[] {
     const reuse = unvalidatedReuseSeconds(kind, response);
 
     if (reuse > 0) {
-      violations.push(`a ${kind} cache may reuse it for ${reuse}s without validation`);
+      violations.push(
+        Number.isFinite(reuse)
+          ? `a ${kind} cache may reuse it for ${reuse}s without validation`
+          : `nothing it states keeps a ${kind} cache from reusing it without validation`,
+      );
     }
   }
 
@@ -246,8 +256,10 @@ export function cachePolicyViolations(
         violations.push("is not public and immutable");
       }
 
-      if (unvalidatedReuseSeconds("private", response) < ONE_YEAR_SECONDS) {
-        violations.push("is revalidated within a year");
+      const lifetime = unvalidatedReuseSeconds("private", response);
+
+      if (!Number.isFinite(lifetime) || lifetime < ONE_YEAR_SECONDS) {
+        violations.push("does not state a lifetime of at least a year");
       }
 
       break;
@@ -264,7 +276,7 @@ export function cachePolicyViolations(
 
       for (const kind of ["shared", "private"] as const) {
         if (unvalidatedReuseSeconds(kind, response) > STABLE_ASSET_MAX_SECONDS) {
-          violations.push(`a ${kind} cache may reuse it for more than ${STABLE_ASSET_MAX_SECONDS}s`);
+          violations.push(`nothing it states limits a ${kind} cache to ${STABLE_ASSET_MAX_SECONDS}s of reuse`);
         }
       }
 
