@@ -220,6 +220,12 @@ function extractRelativeLiterals(code: string): string[] {
   return [...code.matchAll(/(["'`])(\.{1,2}\/[^"'`\s]*)\1/g)].map((match) => match[2]!);
 }
 
+// A path assembled from separate segments (`resolve(cwd, "..", "server")`)
+// has no literal that resolves on its own. The parent segment is the only
+// way such a path can leave frontend/, so bundled sources may not carry it.
+const BARE_PARENT_SEGMENT = /(["'`])\.\.\1/;
+const UNRESOLVABLE = "an unresolvable parent segment";
+
 function extractStyleReferences(code: string): string[] {
   return [
     ...code.matchAll(
@@ -242,25 +248,37 @@ function collectFrontendEdges(snapshot: RepositorySnapshot): FrontendEdge[] {
       continue;
     }
 
+    const directory = posix.dirname(file);
     let references: string[];
+    let literals: string[] = [];
 
     if (STYLE_FILE.test(file)) {
       references = extractStyleReferences(snapshot.textOf(file));
     } else if (SCRIPT_FILE.test(file)) {
       const code = snapshot.textOf(file);
-      references = file.startsWith(TYPECHECK_ONLY_PREFIX)
-        ? extractModuleSpecifiers(code).filter(isRelative)
-        : [...extractModuleSpecifiers(code).filter(isRelative), ...extractRelativeLiterals(code)];
+      references = extractModuleSpecifiers(code).filter(isRelative);
+
+      if (!file.startsWith(TYPECHECK_ONLY_PREFIX)) {
+        literals = extractRelativeLiterals(code).filter((literal) => !references.includes(literal));
+
+        if (BARE_PARENT_SEGMENT.test(code)) {
+          edges.push({ from: file, specifier: "..", resolved: UNRESOLVABLE });
+        }
+      }
     } else {
       continue;
     }
 
     for (const specifier of new Set(references)) {
-      edges.push({
-        from: file,
-        specifier,
-        resolved: resolveFrom(posix.dirname(file), specifier),
-      });
+      edges.push({ from: file, specifier, resolved: resolveFrom(directory, specifier) });
+    }
+
+    // A literal that is not a module specifier may be read relative to the
+    // file or to the build working directory (frontend/): both must hold.
+    for (const literal of new Set(literals)) {
+      for (const base of new Set([directory, FRONTEND_ROOT])) {
+        edges.push({ from: file, specifier: literal, resolved: resolveFrom(base, literal) });
+      }
     }
   }
 
@@ -269,9 +287,11 @@ function collectFrontendEdges(snapshot: RepositorySnapshot): FrontendEdge[] {
 
 // G1 -- relative imports and path literals of the frontend.
 function findUncoveredFrontendEdges(snapshot: RepositorySnapshot): string[] {
-  return collectFrontendEdges(snapshot)
-    .filter((edge) => !isCovered(edge.resolved))
-    .map(
+  const uncovered = collectFrontendEdges(snapshot).filter(
+    (edge) => edge.resolved === UNRESOLVABLE || !isCovered(edge.resolved),
+  );
+
+  return [...new Map(uncovered.map((edge) => [`${edge.from}\n${edge.specifier}`, edge])).values()].map(
       (edge) =>
         `G1 ${edge.from} references "${edge.specifier}", which resolves to "${edge.resolved}" outside the Render Included Paths`,
     );
@@ -371,13 +391,19 @@ function findUncoveredScriptInputs(snapshot: RepositorySnapshot): string[] {
 
   for (const [manifest, directory, names] of lifecycles) {
     const scripts = asObject(parseManifest(snapshot, manifest).scripts);
+    const visited = new Set<string>();
 
-    for (const name of names) {
+    // A lifecycle script can delegate to another script of the same manifest
+    // (`pnpm run generate && next build`). Any token naming one is followed,
+    // once: over-following is harmless, under-following is a false negative.
+    const inspect = (name: string): void => {
       const command = scripts[name];
 
-      if (typeof command !== "string") {
-        continue;
+      if (typeof command !== "string" || visited.has(name)) {
+        return;
       }
+
+      visited.add(name);
 
       for (const token of command.split(/[\s"'=;&|()<>]+/)) {
         if (token === "" || token.startsWith("-") || token.startsWith("@")) {
@@ -392,7 +418,13 @@ function findUncoveredScriptInputs(snapshot: RepositorySnapshot): string[] {
             `G4 ${manifest} script "${name}" uses "${token}", which resolves to "${resolved}" outside the Render Included Paths`,
           );
         }
+
+        inspect(token);
       }
+    };
+
+    for (const name of names) {
+      inspect(name);
     }
   }
 
@@ -667,6 +699,24 @@ test("negative proof: a frontend path literal reaching docs/** without an import
   assertSingleViolation(auditSnapshot(mutated), /^G1 frontend\/next\.config\.ts .*"docs\/ops\/changelog\.md"/);
 });
 
+test("negative proof: a path assembled from separate segments is detected", () => {
+  const target = "frontend/src/lib/theme.ts";
+  const mutated = overlay(repository, {
+    [target]: `${repository.textOf(target)}\nexport const schema = [process.cwd(), "..", "server", "schema.json"].join("/");\n`,
+  });
+
+  assertSingleViolation(auditSnapshot(mutated), /^G1 frontend\/src\/lib\/theme\.ts references "\.\.", .*unresolvable parent segment/);
+});
+
+test("negative proof: a path literal relative to the build working directory is detected", () => {
+  const target = "frontend/src/lib/theme.ts";
+  const mutated = overlay(repository, {
+    [target]: `${repository.textOf(target)}\nexport const schema = [process.cwd(), "../server/schema.json"].join("/");\n`,
+  });
+
+  assertSingleViolation(auditSnapshot(mutated), /^G1 frontend\/src\/lib\/theme\.ts references "\.\.\/server\/schema\.json", .*"server\/schema\.json"/);
+});
+
 test("negative proof: a stylesheet import leaving frontend/** is detected", () => {
   const mutated = overlay(repository, {
     "frontend/src/styles/external.css": '@import "../../../docs/brand/tokens.css";\n',
@@ -720,6 +770,30 @@ test("negative proof: a root postinstall script running code outside the contrac
   });
 
   assertSingleViolation(auditSnapshot(mutated), /^G4 package\.json script "postinstall" uses "scripts\/generate-frontend-contracts\.mjs"/);
+});
+
+test("negative proof: a build script delegating to a script that runs code outside the contract is detected", () => {
+  const mutated = withJsonEdit(repository, FRONTEND_MANIFEST, (manifest) => {
+    manifest.scripts = {
+      ...asObject(manifest.scripts),
+      build: "pnpm run generate && next build",
+      generate: "node ../scripts/generate-frontend-contracts.mjs",
+    };
+  });
+
+  assertSingleViolation(auditSnapshot(mutated), /^G4 frontend\/package\.json script "generate" uses "\.\.\/scripts\/generate-frontend-contracts\.mjs"/);
+});
+
+test("negative proof: mutually delegating scripts terminate without a violation", () => {
+  const mutated = withJsonEdit(repository, FRONTEND_MANIFEST, (manifest) => {
+    manifest.scripts = {
+      ...asObject(manifest.scripts),
+      prebuild: "pnpm run postbuild",
+      postbuild: "pnpm run prebuild",
+    };
+  });
+
+  assert.deepEqual(auditSnapshot(mutated), []);
 });
 
 test("negative proof: a CI detector path that Render would not deploy is detected", () => {
