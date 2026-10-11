@@ -9,12 +9,13 @@
 | Base comparada | `main` = `37dbcaf6714f6ae7fb37eaad100370af2ab53cb8` (PR #1836) |
 | Frontend productivo | `37dbcaf6` según sonda `/api/build-info` registrada el 2026-10-09 en una sesión previa; **no reverificado en esta sesión** (lectura de producción fuera del scope) |
 | Stack verificado | Next.js `16.3.8` según `pnpm-lock.yaml` (desde #1834), React `19.3.0`. **Corrección rev. 2:** durante la auditoría original `frontend/node_modules` tenía `next@16.3.6` (instalación del 2026-10-07, anterior a #1834); la afirmación "leídos de `frontend/node_modules`" era inexacta para Next. Las pruebas válidas de rev. 2 (§15.2, §15.3) corrieron sobre `16.3.8` tras `pnpm install --frozen-lockfile` autorizado por Nico |
-| Lifecycle status | Rev. 1: PROPUESTA. **Rev. 2 (2026-10-09): APROBADO por Nico** — DT-1 = T2, DT-2 = sin refresh por selección, restauración inicial = opción C, especificación FSM de 27 transiciones (§0). **Rev. 2.2 (2026-10-09) y rev. 2.2.1 (2026-10-10): enmiendas APROBADAS** de esa especificación con la fusión de su PR (#1841, `4f693d5c`, 2026-10-10); hasta entonces figuraban como propuestas (§0.4, §0.5). **Rev. 2.2.2 (2026-10-10): enmienda PROPUESTA** de la fila #10 (§0.6); queda aprobada cuando Nico fusiona su PR (#1843) |
-| Estado de implementación | **Estado vigente (rev. 2.2.2, 2026-10-10).** Productivo: **NO IMPLEMENTADO** (programa FSM). La máquina pura existe pero no está conectada al dashboard: en #1842 sólo la importa su suite, y el provider y el intérprete de §12.5.1 corresponden a PR-NAV-03. PR-NAV-01 fusionada (#1839, `c51b7e74`); #1837 fusionada (`585bf3ba`). **PR-NAV-02 está publicada como PR #1842** (abierta, sin fusionar, head `541aabaa`): la implementación existe, transcribe rev. 2.2.1 y fue sometida a su verificación mecánica versionada, que pasa sobre ese head (241 tests; cuatro contextos required en verde). Queda **pendiente de corregir el hallazgo C-10** (P2 de su review, §0.6), y su **realineación está BLOQUEADA** hasta que se fusione la enmienda rev. 2.2.2. *Historia de esta fila:* rev. 2 decía que las 27 transiciones no tenían aún verificación mecánica y que correspondía a PR-NAV-02; rev. 2.2, que esa verificación se había ejecutado en local, que la tabla de rev. 2.1 no la superó (§0.4) y que PR-NAV-02 seguía sin publicar |
+| Lifecycle status | Rev. 1: PROPUESTA. **Rev. 2 (2026-10-09): APROBADO por Nico** — DT-1 = T2, DT-2 = sin refresh por selección, restauración inicial = opción C, especificación FSM de 27 transiciones (§0). **Rev. 2.2 (2026-10-09) y rev. 2.2.1 (2026-10-10): enmiendas APROBADAS** de esa especificación con la fusión de su PR (#1841, `4f693d5c`, 2026-10-10); hasta entonces figuraban como propuestas (§0.4, §0.5). **Rev. 2.2.2 (2026-10-10): enmienda PROPUESTA** de la fila #10 (§0.6); queda aprobada cuando Nico fusiona su PR (#1843). **Rev. 2.3 (2026-10-10): rev. 2.2.2 quedó APROBADA** con la fusión de #1843 (`8d1a8812`). **Rev. 2.3 es una enmienda PROPUESTA** de §12–§13 (§0.7); queda aprobada cuando Nico fusiona su PR. **DT-5 = 10 000 ms, APROBADA por Nico** el 2026-10-10, y **DT-16 = A**, decidida el mismo día (§21) |
+| Estado de implementación | **Estado vigente (rev. 2.3, 2026-10-10).** Productivo: **NO IMPLEMENTADO** (programa FSM). PR-NAV-01 (#1839, `c51b7e74`) y #1837 (`585bf3ba`) están fusionadas. **PR-NAV-02 está fusionada** (#1842, `0908bb02`): la máquina pura y su suite están en `main`, transcriben rev. 2.2.2 (245 tests) y sólo la suite importa la máquina. **PR-NAV-03 no se inició**: su verificación previa de H1 en navegador refutó el supuesto del que depende la fila #10 (C-11, §0.7), y queda **BLOQUEADA** hasta que esta revisión esté fusionada y la máquina y su suite se realineen con ella (§16). *Historia de esta fila, rev. 2.2.2:* Productivo: NO IMPLEMENTADO (programa FSM). La máquina pura existe pero no está conectada al dashboard: en #1842 sólo la importa su suite, y el provider y el intérprete de §12.5.1 corresponden a PR-NAV-03. PR-NAV-01 fusionada (#1839, `c51b7e74`); #1837 fusionada (`585bf3ba`). **PR-NAV-02 está publicada como PR #1842** (abierta, sin fusionar, head `541aabaa`): la implementación existe, transcribe rev. 2.2.1 y fue sometida a su verificación mecánica versionada, que pasa sobre ese head (241 tests; cuatro contextos required en verde). Queda **pendiente de corregir el hallazgo C-10** (P2 de su review, §0.6), y su **realineación está BLOQUEADA** hasta que se fusione la enmienda rev. 2.2.2. *Historia de esta fila:* rev. 2 decía que las 27 transiciones no tenían aún verificación mecánica y que correspondía a PR-NAV-02; rev. 2.2, que esa verificación se había ejecutado en local, que la tabla de rev. 2.1 no la superó (§0.4) y que PR-NAV-02 seguía sin publicar |
 | Revisión 2 | 2026-10-09 sobre `main` = `c51b7e74`. Incorpora el spike de transporte SP-1..SP-7 y la auditoría de restauración R-1..R-8 (§0, §15.2, §15.3). La propuesta T1 de rev. 1 se conserva como historia y queda marcada como superada donde aplica |
 | Revisión 2.2 | 2026-10-09 sobre `main` = `603c352f`. Enmienda docs-only de §11.3, §12, §13, §16 y §18–§21 tras la verificación mecánica de PR-NAV-02, que **falló** contra la tabla de rev. 2.1. Corrige ocho hallazgos (C-1..C-8, §0.4): la tabla pasa de 27 a **28 filas** y de 107 a **113 ramas de guard**; los invariantes, de S1–S11/L1–L5 a **S1–S12/L1–L6**. **PR-NAV-02 queda BLOQUEADA** hasta que esta revisión esté fusionada; su fusión equivale a la aprobación de Nico. La tabla enmendada se verificó sobre una copia temporal no versionada (§0.4, §23.5) |
 | Revisión 2.2.1 | 2026-10-10, dentro de la misma PR (#1841). Corrige el P1 de su review: rev. 2.2 difería los efectos de `HYDRATED` al montaje del provider sin fijar su orden frente al `NAV_FAILED` de la frontera, y una restauración abandonada podía navegar y dejar un presupuesto vivo en `FAILED`. Agrega el **algoritmo de coordinación del intérprete** (§12.5.1, C-9) con invariantes de integración I1–I8. No cambia la máquina, la tabla ni S1–S12/L1–L6 (§0.5) |
-| Revisión 2.2.2 | 2026-10-10 sobre `main` = `4f693d5c`, en la PR #1843. **Enmienda PROPUESTA**, docs-only, tras el P2 del review de PR-NAV-02 (#1842, head `541aabaa`): la fila #10 descartaba `afterTraverse`, y el commit tardío de un traverse abandonaba toda selección posterior a la primera (C-10, §0.6). Cambia **el estado siguiente de la fila #10** y agrega el invariante **S13**. No cambian los tipos, los guards, las 28 filas, las 113 ramas ni los 60 pares. **PR-NAV-02 queda BLOQUEADA** hasta que esta revisión esté fusionada; su fusión equivale a la aprobación de Nico. Verificada sobre una copia temporal no versionada (§0.6, §23.5) |
+| Revisión 2.2.2 | 2026-10-10 sobre `main` = `4f693d5c`, en la PR #1843. **Enmienda APROBADA** con la fusión de #1843 (`8d1a8812`; propuesta hasta entonces), docs-only, tras el P2 del review de PR-NAV-02 (#1842, head `541aabaa`): la fila #10 descartaba `afterTraverse`, y el commit tardío de un traverse abandonaba toda selección posterior a la primera (C-10, §0.6). Cambia **el estado siguiente de la fila #10** y agrega el invariante **S13**. No cambian los tipos, los guards, las 28 filas, las 113 ramas ni los 60 pares. **PR-NAV-02 queda BLOQUEADA** hasta que esta revisión esté fusionada; su fusión equivale a la aprobación de Nico. Verificada sobre una copia temporal no versionada (§0.6, §23.5). *Rev. 2.3:* esa fusión ocurrió (#1843, `8d1a8812`), y PR-NAV-02 se realineó con ella y se fusionó (#1842, `0908bb02`) |
+| Revisión 2.3 | 2026-10-10 sobre `main` = `0908bb02`. **Enmienda PROPUESTA**, docs-only, tras la verificación en navegador que PR-NAV-03 debía hacer de H1 (§13.1): dos `router.push` de `?module=` no se descartan entre sí, y el primero puede aterrizar por su cuenta y dejar `[A, B, C]` (C-11, §0.7). La fila #10 emitía ese segundo `push`. La enmienda agrega el campo `next` a `ROUTING`, las filas **#29–#32** y los invariantes **S14** y **S15**; cambia las filas #9, #10, #11, #12, #16, #23, #25 y #26 (la #25 también persiste, por el P2 del review de #1844, C-11b), los invariantes S4, S5, S13, L1 y L2, y los supuestos H1 y H3. La tabla pasa de 28 a **32 filas** y de 113 a **119 ramas**, sobre los mismos 60 pares. Registra además **DT-5 = 10 000 ms** y **DT-16 = A**, decididas por Nico. **PR-NAV-03 queda BLOQUEADA** hasta que esta revisión esté fusionada y la máquina realineada; su fusión equivale a la aprobación de Nico. Verificada sobre una copia temporal no versionada y medida en production runner (§0.7, §23.5) |
 
 ---
 
@@ -62,6 +63,7 @@ mediciones productivas: H-01..H-08 siguen abiertas.
 | Rev. 2.2 (verificación mecánica de PR-NAV-02) | Tabla de 27 filas "revisada a mano"; S1–S11, L1–L5 | 28 filas, 113 ramas de guard, S1–S12 y L1–L6; ocho correcciones C-1..C-8 | §0.4 |
 | Rev. 2.2.1 (review de #1841, P1) | Efectos de `HYDRATED` "en un efecto" de montaje, sin regla de orden frente a los demás eventos | Algoritmo de coordinación del intérprete: cola FIFO, drenaje en microtarea, vigencia por `navId`, conciliación de timers; I1–I8 y P1–P4 (C-9) | §0.5, §11.3, §12.5.1 |
 | Rev. 2.2.2 (review de #1842, P2) | Fila #10: toda selección que reemplaza un vuelo lo deja con `afterTraverse = false` | Fila #10: el vuelo nuevo hereda `afterTraverse`; invariante S13 (C-10) | §0.6, §12.4 #10/#26, §13 |
+| Rev. 2.3 (H1 medido en navegador para PR-NAV-03) | H1: "una navegación nueva descarta la pendiente"; fila #10: toda selección sobre un vuelo emite `ROUTER_PUSH` de inmediato; fila #11: el commit superado no cambia nada | H1 y H3 según lo medido; un vuelo de usuario **reclama** la selección siguiente (`next`, #29) y la emite una vez, al aterrizar (#30) o al vencer su presupuesto (#31); #11 anota `committed`; #32; S14 (C-11). #25 persiste el `committed` que acepta; S15 (C-11b, review de #1844). DT-5 = 10 000 ms | §0.7, §12.1, §12.4, §13, §13.1, §21 |
 
 ### 0.4. Revisión 2.2 — enmienda tras la verificación mecánica
 
@@ -246,6 +248,143 @@ descripción de Next: sirve para comparar las dos revisiones, no para estimar fr
 de la columna "Después" son los de la copia temporal: PR-NAV-02 los re-ancla al realinearse y los
 reporta. Decisión nueva: DT-14 (§21).
 
+### 0.7. Revisión 2.3 — H1 refutado en navegador (C-11) y DT-5
+
+PR-NAV-02 se fusionó como #1842 (`0908bb02`). La ficha de PR-NAV-03 exige confirmar en navegador los
+supuestos H1–H7 del modelo de historial (§13.1), y esa comprobación se hizo **antes** de escribir el
+intérprete, sobre el build de producción de `0908bb02`. H1 resultó falso en el caso del que depende la
+fila #10. No es un defecto de la implementación de #1842, que transcribe la tabla: es un contraejemplo de
+la **especificación**, y §16 prohíbe que un PR de implementación la corrija por su cuenta.
+
+| Campo | Contenido |
+| --- | --- |
+| Id | C-11 |
+| Texto defectuoso | §13.1, H1: "una navegación nueva, un traverse o una navegación de documento **descartan** la pendiente". §12.4, fila #10: toda selección sobre un vuelo emite `ROUTER_PUSH(X)` en la misma transición. §12.4, fila #11: el commit superado "sin cambios" |
+| Causa | Un `router.push` de `?module=` no descarta al `router.push` pendiente: las dos navegaciones conviven en el router y cada una aterriza cuando llega su payload. Rev. 2.2 dejó escrito que H1 no tenía evidencia ejecutada para `push` sobre `push`; existía, en contra, y versionada: `docs/implementation/dashboard-stage-module-single-owner.md`, §M2, "dos `router.push` directos con B liberado antes que C: `[A, B, C]` en 8/8". Esta revisión la reprodujo |
+| Consecuencia | A → B → C con B respondiendo antes que C deja `[A, B, C]`: Back desde C cae en B, el módulo que el usuario abandonó. Es el síntoma 2 que #1835 corrigió. La fila #11 evita que B se pinte, pero no que escriba su entrada, y deja a la máquina con `committed` atrasado respecto de la URL: una selección posterior de ese destino vuela hacia la URL vigente y sólo la termina su presupuesto |
+| Alcance real | Las dos superficies, toda ráfaga de dos o más selecciones antes del primer commit. La ficha de PR-NAV-03 exigía a la vez "`history.length` crece 1 en una ráfaga A→B→C" y que el bloque *single flight* de `dashboard-real-pointer-navigation.spec.ts` siguiera en verde sin debilitarse; ese bloque afirma que la segunda elección **no pide payload** mientras la primera está en vuelo. Con rev. 2.2.2 lo segundo falla por construcción, y lo primero en 7 de las 10 corridas de E1 |
+| Corrección | La máquina **no emite una segunda navegación de usuario** mientras la primera está en vuelo y dentro de su presupuesto: la selección siguiente se **reclama** (campo `next`, fila #29) y sale a lo sumo una vez, como `replace` cuando el vuelo aterriza (#30) o como relevo cuando su presupuesto vence (#31). Es el mecanismo que #1835 y #1837 ya tienen en producción, llevado a la tabla. H1 y H3 se reescriben según lo medido |
+| Lo que no cambia | Los 60 pares, los seis estados, los diez eventos, los siete efectos, `initial()`, `settle`, `persistable`, las filas #1–#8, #13–#15, #17–#22, #24, #27 y #28, S1–S3, S6–S12, L3–L6 y el algoritmo de §12.5.1 |
+
+Mediciones. Production runner local (`next start`, `CI=true`, build con las variables de
+`frontend-ci.yml`), Next `16.3.8`, `BUILD_ID O74pOz5kAF84iClwC31BH`, Chromium headless de Playwright
+1.63.0, 1366×768, fixture sin modificar. Los payloads `_rsc` se retienen con `page.route` y se
+**continúan**, nunca se abortan ni se simulan. Las navegaciones se emiten con `window.next.router`, que es
+lo que hará el intérprete. Cinco corridas por caso y superficie, 90 en total.
+
+| # | Secuencia | Admin | Clínica |
+| --- | --- | --- | --- |
+| E1 | `push` B, `push` C; B responde primero (**lo que emite la fila #10**) | `[A, B, C]` 4/5; `[A, C]` 1/5 | `[A, B, C]` 3/5; `[A, C]` 2/5 |
+| E2 | `push` B, `push` C; C responde primero | `[A, C]` 5/5; la respuesta tardía de B no escribe historial | 5/5 |
+| E3 | `push` B, `push` A con A comiteado (fila #25) | B nunca comitea 5/5; el `push` a la URL vigente **pide un `_rsc`** y termina en `replaceState(A)` | 5/5 |
+| E4 | Back cruzando un reload con su `_rsc` retenido, luego `push` C | URL y stage en el destino del traverse **al instante**, con el payload todavía retenido, 5/5; C aterriza sin entrada de más | 5/5 |
+| E5 | `push` B; B aterriza; `replace` C (**filas #29 y #30**) | `[A, C]` 5/5; Back → A, Forward → C | 5/5 |
+| E6 | `push` B; `replace` C al aterrizar B; `replace` D al aterrizar C | `[A, D]` 5/5 | 5/5 |
+| E7 | `replace` B, `push` C, en ambos órdenes de respuesta (restore superado por un clic, fila #10) | +1 entrada 10/10: `[B, C]` o `[A, C]` según el orden y el plegado, nunca dos | 10/10 |
+| E8 | `push` B, `push` C, B aterriza, `replace` C con el `push` de C todavía pendiente | `[A, C]` 4/5; `[A, B, C]` 1/5 | `[A, C]` 5/5 |
+
+Lectura. E1 refuta H1 para `push` sobre `push`; E2 y E1 juntos dicen qué vale en su lugar: una navegación
+que aterriza termina a las que se emitieron **antes** que ella, no a las posteriores. E3 confirma la
+premisa de la fila #25. E4 muestra que un traverse dentro de la misma página comitea de inmediato, de
+modo que la ventana en que #19 y #26 pueden actuar es de un commit. E5 y E6 son el mecanismo de la
+enmienda. E7 dice que un `push` sobre un `replace` pendiente es seguro en los dos órdenes, y por eso un
+vuelo `restore` conserva la fila #10. E8 es la reconciliación que #1837 hace hoy sobre una navegación
+abandonada por presupuesto: mejora E1 sin garantizarlo.
+
+Diseño, en una línea por pieza. Todas salen de la misma causa: las navegaciones superadas **sí
+aterrizan**, así que las filas que rev. 2.2 trataba como defensas muertas están vivas.
+
+| Pieza | Regla | Origen |
+| --- | --- | --- |
+| `next` | `ROUTING` lleva la selección reclamada, o nada. `target` sigue siendo la navegación que está en el router | E1, E5 |
+| #29 | Un vuelo de **usuario** reclama la selección: mismo `navId`, mismo presupuesto, ningún efecto de navegación | Bloque *single flight* del E2E; E5 |
+| #30 | El vuelo aterriza con una selección reclamada: sale como `ROUTER_REPLACE` sobre la entrada recién escrita, con vuelo y presupuesto nuevos | E5, E6 |
+| #31 | El presupuesto vence con una selección reclamada: se releva una vez, con el mismo tipo de historial del vuelo que abandona | Bloque *abandoned flight* del E2E (#1837) |
+| #32 | Otra navegación comitea la selección reclamada: se reposa en ella y se descarta el vuelo del router con un `push` a la URL vigente | Hallado por el modelo de historial; E3 |
+| #10 | Queda sólo para vuelos `restore`: el clic sale de inmediato | E7 |
+| #11 | El commit superado no se pinta, pero **anota `committed`**: es donde está la URL | Hallado por el modelo de historial (vuelos huérfanos) |
+| #16 | Un vuelo de continuación trabado se re-emite como `replace`: su ráfaga ya tiene entrada | Hallado por el modelo de historial (segunda entrada) |
+| #25 | Persiste el `committed` que acepta, una vez, si no es lo guardado | Review de #1844 (C-11b); S15 |
+
+Verificación mecánica. Como en §0.4 y §0.6, sobre una **copia temporal** de la máquina y de la suite de
+`0908bb02` (§23.5); el repositorio no se modificó. "Antes" = los dos archivos de `main` sin tocar. El
+modelo de historial de la columna "Después" interpreta H1 y H3 **como se midieron** (§13.1).
+
+| Comprobación | Antes (rev. 2.2.2, `0908bb02`) | Después (rev. 2.3) |
+| --- | --- | --- |
+| Suite sin cambios | 245 de 245: el defecto es invisible mientras el modelo asume H1 | — |
+| El modelo de historial medido contra la máquina de rev. 2.2.2 (4 000 sesiones, misma semilla) | **714 de 15 840 ráfagas** con una segunda entrada dentro de presupuesto; 88 vuelos y 8 *stalls* huérfanos; 17 sesiones que no llegan a reposar; `committed` distinto de la URL en 3 020 pasos | — |
+| Suite enmendada contra la máquina enmendada | — | **289 de 289** (con C-11b) |
+| Filas / pares / ramas / casos literales | 28 / 60 / 113 / 171 | 32 / 60 / 119 / 202 |
+| Situaciones sin exactamente una fila | 0 | 0 |
+| Recorrido exhaustivo | 1 576 estados Admin + 10 724 Clínica; 327 438 transiciones | 6 382 + 94 643; 2 703 706 transiciones (los estados nuevos son `ROUTING` con `next`) |
+| Invariantes por transición (S1, S3–S6, S9–S15, L1–L6 y los de emisión) | S14 y S15 no existían | 0 violaciones en el recorrido, las trazas y las sesiones |
+| Trazas aleatorias (semilla `0x4e415632`) | 10 000; 209 653 transiciones; hash `d6b4b32f4822884a` | 10 000; 210 754 transiciones; hash `27e27d81acefecc1`; #29 ×9 539, #30 ×1 616, #31 ×1 634, #32 ×257 |
+| Trazas del universo amplio (semilla `0x57494445`) | 2 000; hash `17abdaccdca4ee3b` | 2 000; 40 310 transiciones; hash `ba95a7e7c17d9fd0` |
+| Sesiones en lazo cerrado (semilla `0x53355632`) | 4 000 bajo H1; hash `f3b66b570889461e` | 4 000 bajo H1 medido; 81 526 transiciones; hash `4a67c01b7da20550`; 15 930 ráfagas |
+| S5(b): ráfagas con una segunda entrada **dentro de presupuesto** | 714 (medido arriba) | **0** |
+| Vuelos y *stalls* sin nada pendiente en el router (L6 en lazo cerrado) | 96 (medido arriba) | 0 |
+| Sesiones que no terminan en reposo, tras la frontera o en una navegación de documento | 17 | 0 |
+| Mutaciones fuera de árbol sobre las piezas nuevas | — | 24 de 24 no equivalentes detectadas (18 de 18 del diseño y 6 de 6 de C-11b; un séptimo mutante de C-11b es equivalente, §0.7): las del diseño: #29 que navega, #30 que hace `push`, que no cancela o que no anota; #31 ausente, que no supera al colgado, que siempre hace `push` o que pierde `afterTraverse`; reclamo sobre un `restore`; #32 ausente, sin su `push` o detrás de #11; #11 que no anota; #16 que siempre hace `push`; reclamo que no publica o que no se retira |
+| Persistencia del `committed` aceptado por #25 (C-11b) | S15 roto en 404 de 210 737 transiciones aleatorias y en 41 878 de 2 705 178 recorridas, con la traza de 5 eventos del review | 0 violaciones; "persist once" (#25 escribe sólo si `committed` no es el módulo guardado) con 0 violaciones |
+
+Lo que C-11 **no** cierra, medido en el mismo modelo. Son ráfagas fuera del alcance de S5(b) tal como
+queda redactado, y se cuentan aparte en la suite en vez de afirmarse en cero:
+
+| Clase | Rev. 2.2.2 | Rev. 2.3 | Estado |
+| --- | --- | --- | --- |
+| Una navegación abandonada por su presupuesto (#31, #16) aterriza antes que la que la relevó y deja su entrada | 338 ráfagas | 240 | Residual. En `main` el controlador la reconcilia con un `replace` (E8: 9 de 10). La máquina no lo hace porque `superseded` no distingue un `push` colgado de un `restore`, y reconciliar un `restore` pierde la entrada del clic (E7). Opción B de DT-15 (§21) |
+| Un `push` sale mientras un traverse no comiteó y la URL ya se movió (#19, #25 desde `TRAVERSING`) | 137 | 88 | Residual de C-8 (DT-11). E4 muestra que dentro de la misma página el traverse comitea al instante |
+| A → B → C (reclamado) → B aterriza → A (reclamado) → C aterriza | — | No medido | Los dos `replace` de #30 dejan `[A, A]`. `main` lo evita con `history.back()`, que S9 prohíbe. Residual (§19) |
+
+Auditoría adversarial de la enmienda, sobre la copia. Tres hallazgos de la primera versión del diseño, que
+sólo reclamaba y emitía (#29, #30, #31); los tres los encontró el modelo de historial y están corregidos
+en la tabla de arriba. Un cuarto lo encontró el review de #1844 y se trata aparte (C-11b):
+
+| Hallazgo | Traza mínima | Corrección |
+| --- | --- | --- |
+| Un vuelo de continuación trabado se re-emitía como `push` y la ráfaga sumaba una segunda entrada | A → B → C (reclamado) → B aterriza (#30) → presupuesto vencido (#12) → D (#16) | #16 conserva el `history` de un vuelo de usuario trabado |
+| Tras un commit superado, `committed` quedaba atrás de la URL: 23 vuelos huérfanos en 4 000 sesiones | A → B → C (reclamado) → vence (#31) → B aterriza (#11) → B (reclamado) → vence (#31): `push` a la URL vigente, sin commit posible | #11 anota `committed`; la selección de ese destino pasa a ser #25 |
+| El commit de la selección reclamada, emitido por otra navegación, caía en #11 o en #23 y dejaba al vuelo del router aterrizar después | Restore → clic B (#10) → clic en el módulo restaurado (reclamado) → aterriza el restore | #32 |
+| **C-11b** (review de #1844, P2 `PRRT_kwDOR5qlsc6rGjIV`): #25 aceptaba un `committed` que #11, #26 o #30 habían anotado sin persistir, y reposaba en `IDLE` sin `PERSIST` | A es el módulo guardado; vuelo a B; el usuario reclama C; B comitea por #30 (`committed = B`, `lastModule = A`); el usuario elige B: #25. El `push` a la URL vigente no produce otro `URL_COMMITTED`, de modo que nada vuelve a persistir y la próxima entrada sin módulo restaura A. Por #11: igual, con B como commit superado | #25 persiste `persistable(committed)` cuando no es `lastModule`, y actualiza `lastModule`; S15 |
+
+Límites, explícitos: (1) E1–E8 son Chromium headless, Windows y fixture local, cinco corridas por caso:
+miden si algo ocurre, no su frecuencia en producción. (2) El modelo de historial es un modelo: "aterrizar
+una navegación termina a las anteriores" resume E1 y E2 y no se probó con tres navegaciones pendientes.
+(3) Los hashes de la columna "Después" son los de la copia temporal: la realineación de la máquina los
+re-ancla y los reporta (§16). (4) Nada de §12.5.1 se ejecutó: el intérprete sigue siendo de PR-NAV-03.
+Decisiones: DT-5 aprobada, DT-16 decidida y DT-15 propuesta (§21).
+
+**C-11b — P2 del review de #1844 (corregido en la misma PR).** Hilo `PRRT_kwDOR5qlsc6rGjIV`, sobre la fila
+#25: «Persist the module when #25 accepts an unpersisted commit».
+
+| Campo | Contenido |
+| --- | --- |
+| Texto defectuoso | #25 reposa en `committed` sin tocar `lastModule`, bajo el supuesto de que `committed` ya fue persistido. Casi cierto hasta rev. 2.2.2: allí `committed` sólo se movía con un `settle` (que persiste) o con #26, y #26 ya lo violaba por una traza poco frecuente (Back, un clic, el commit del traverse y volver a esa ubicación; leída de la tabla, no medida sobre `main`). Rev. 2.3 suma #11 y #30 y lo vuelve alcanzable con una ráfaga común |
+| Causa | Rev. 2.3 agrega dos filas que mueven `committed` **sin persistir**: #11 (el commit superado se anota) y #30 (el vuelo aterrizó y su continuación sigue pendiente); #26 ya lo hacía. #25 es la única fila que reposa en `committed` sin un commit propio, así que es la única que puede dejar a `IDLE` en un módulo que nunca se guardó. Reposar por un `push` a la URL vigente no genera otro `URL_COMMITTED` (E3), por lo que ninguna otra transición lo corrige después |
+| Consecuencia | URL, `display` y stage quedan en B y la preferencia guardada en A: la siguiente entrada sin módulo (Admin desnudo, Clínica con `/dashboard` desnudo) restaura A por #2/#3. Es una divergencia de persistencia, no de navegación; no rompe S1–S14 porque ninguno la mide |
+| Alternativas | (1) **#25 persiste el `committed` que acepta, sólo si difiere de `lastModule`.** (2) Un booleano `persisted` en `NavContext`. (3) Persistir en #11, #26 y #30 al anotar. (3) se descarta: persistiría un módulo que el usuario abandonó y que `display` nunca mostró (S4 prohíbe pintarlo, y `PERSIST` es una confirmación del estado final). (2) cambia el tipo de `NavContext` y agrega un campo que repite lo que `lastModule` ya dice: `lastModule` refleja siempre lo guardado, porque #1 y `settle` lo igualan a lo que escriben y #2/#3 lo igualan al valor leído del almacenamiento |
+| Corrección | (1). #25 pasa a ser `IDLE`; `display = committed`; `superseded = []`; con `m = persistable(committed)`: si `m ≠ null` y `m ≠ lastModule`, `lastModule = m` y `PERSIST(m)` después de `ROUTER_PUSH` y antes de `PUBLISH_DISPLAY`. Si `committed` ya es lo guardado, o es el hub, o una ruta sin módulo resoluble, no escribe nada. El orden respeta el invariante de publicación (`PUBLISH_DISPLAY` cierra la transición) |
+| Nuevo invariante | **S15:** en `IDLE`, si `committed` tiene un módulo de la superficie, `lastModule` es ese módulo. Lo cumplen #1, `settle` y, desde esta corrección, #25: son todas las filas que dejan `IDLE` en un `committed` aceptado (#4 y #24 no cambian de estado) |
+| Interacciones | #11: sigue sin persistir; si el usuario acepta el módulo anotado, #25 lo persiste, y si el vuelo termina en otra ubicación, `settle` persiste la final y el anotado nunca se guarda. #26 y #30: igual. #29, #31 y #32 no se ven afectadas (#32 pasa por `settle`). #17 y #20 abandonan el vuelo sin reposar, y la ubicación final la fija `settle` (#18, #21); #28 es `settle`. `PERSIST` es siempre vigente en §12.5.1 (tabla de vigencia), de modo que se escribe aunque el `ROUTER_PUSH` de #25 deje de estarlo |
+| Efecto de una restauración | Con un `restore` en vuelo (#2 deja `lastModule` en el módulo almacenado T), si el usuario elige explícitamente el módulo comiteado, #25 lo persiste y reemplaza a T: es su decisión más reciente. Antes de C-11b la preferencia seguía en T |
+| Lo que no cambia | Los 60 pares, las 32 filas y las 119 ramas; `settle`, `persistable`; S1–S14, L1–L6 e I1–I8, que se cumplen con la corrección |
+
+Verificación de C-11b, sobre la misma copia temporal (§23.5). El oráculo S15 se agregó **antes** de tocar la
+máquina: contra la máquina de rev. 2.3 sin corregir está roto en 404 de 210 737 transiciones aleatorias y en
+41 878 de 2 705 178 recorridas, y su traza mínima es la del review (Admin, 5 eventos: `HYDRATED`, clic B,
+clic A reclamado, commit de B por #30, clic B por #25). Con la corrección: 289 de 289 tests, S15 con 0
+violaciones en las tres pruebas, 0 situaciones sin fila única, 0 vuelos huérfanos y los mismos 15 930
+ráfagas con 0 segundas entradas dentro de presupuesto. Pruebas dirigidas, que la realineación porta a la
+suite versionada: B comitea por #30 y se elige B (Clínica y Admin) y la entrada sin módulo siguiente
+restaura B, no A; el mismo camino por #11 y por #26; el módulo sólo superado o sólo anotado nunca se
+persiste; un módulo ya guardado no se escribe dos veces; el hub no escribe. Mutaciones: 6 de 6
+detectadas (#25 sin persistir, persistiendo siempre, sin actualizar `lastModule`, persistiendo el hub,
+persistiendo en #11, persistiendo después de `PUBLISH_DISPLAY`); un séptimo mutante (persistir
+`target` en vez de `committed`) es **equivalente**, porque la guarda de #25 exige `same(X, committed)`.
+Límites: es evidencia de sesión, no un gate del repositorio; el código productivo no cambia con esta
+revisión, y los residuales de DT-15 (§0.7, §19) siguen abiertos.
+
 ---
 
 ## 1. Resumen ejecutivo
@@ -307,11 +446,19 @@ intervención independiente de la FSM: fronteras de error (PR-NAV-01, §22).
 > contrato (C-4..C-7) y un contraejemplo más, C-8, que apareció al modelar el historial. Esta revisión
 > los enmienda y PR-NAV-02 queda bloqueada hasta su fusión.
 >
-> **Rev. 2.2.2 (2026-10-10) — estado vigente.** Rev. 2.2 y rev. 2.2.1 se fusionaron en #1841
+> **Rev. 2.2.2 (2026-10-10) — estado a esa revisión; lo actualiza la nota de rev. 2.3 que sigue.** Rev. 2.2 y rev. 2.2.1 se fusionaron en #1841
 > (`4f693d5c`). PR-NAV-02 se implementó sobre rev. 2.2.1 y está **publicada como PR #1842**, abierta, con
 > su verificación mecánica en verde. Su review halló C-10 (§0.6): la corrección exige enmendar la fila
 > #10, de modo que #1842 queda bloqueada hasta la fusión de esta revisión y después se realinea. La
 > máquina sigue sin conectarse al dashboard; NAV-A0 sigue pendiente.
+>
+> **Rev. 2.3 (2026-10-10) — estado vigente.** Rev. 2.2.2 se fusionó en #1843 (`8d1a8812`) y PR-NAV-02 en
+> #1842 (`0908bb02`): la máquina pura y su suite están en `main`. Antes de escribir PR-NAV-03 se midió
+> en navegador el supuesto H1 del que depende la fila #10 y resultó falso: dos `router.push` de
+> `?module=` no se descartan entre sí (C-11, §0.7). Esta revisión enmienda la tabla para que un vuelo de
+> usuario **reclame** la selección siguiente en vez de navegarla, que es lo que #1835 y #1837 ya hacen en
+> producción, y registra **DT-5 = 10 000 ms**. PR-NAV-03 queda bloqueada hasta su fusión y la
+> realineación de la máquina. La máquina sigue sin conectarse al dashboard; NAV-A0 sigue pendiente.
 
 ---
 
@@ -805,6 +952,9 @@ Límites causales demostrados en rev. 2 (no extrapolar):
    `navId` correlaciona presupuestos (`BUDGET_EXPIRED`), y un evento de presupuesto con `navId`
    obsoleto no tiene efecto (S3). Un commit de URL no trae `navId`: se confirma por igualdad con el
    destino vigente y se descarta si pertenece a `superseded` (§12.4 #9, #11).*)*
+   *(Rev. 2.3: "destino vigente" pasa a nombrar `next ?? target`, lo que el usuario eligió. Un commit se
+   confirma contra `target`, la navegación que está en el router (#9, #30); el de la selección reclamada
+   es #32, y el de `superseded` se anota sin pintarse, #11.)*
 5. **Sin segunda autoridad**: la FSM reemplaza a los controladores, buses, `stageModule` y
    hand-over; no se agrega encima. La migración es por superficie y cada PR retira lo que reemplaza.
 6. **Next sigue siendo el router**: la FSM no intercepta ni reimplementa el router; usa sus API
@@ -880,6 +1030,12 @@ En el código, "Aplicar" es un `<form method="get">` nativo, es decir una navega
   mismo commit que la URL, pero no despacha. `URL_COMMITTED` se despacha en un efecto de layout del
   provider de ese commit; `NAV_FAILED` y `RESET`, en efectos pasivos de la frontera; el resto, en
   handlers y callbacks. Crear el store, incluida la transición `HYDRATED`, no ejecuta nada (§12.5.1).
+- **Rev. 2.3 — el reclamo vive en la máquina (C-11).** Hoy `request*ModuleActivate` devuelve `true`
+  ("reclamado") sólo cuando el controlador tiene una navegación en vuelo, y el productor navega en el
+  resto de los casos. Con la FSM el adaptador sigue devolviendo `true` siempre que haya dueño fuera de
+  `BOOTING` y `FAILED` (rev. 2.2), y es la **máquina** la que decide si la selección navega (#5, #10,
+  #16, #19) o queda reclamada por el vuelo de usuario que ya está en el router (#29). El chrome no
+  cambia y no hay una segunda copia del reclamo fuera de la tabla.
 
 ---
 
@@ -905,6 +1061,13 @@ En el código, "Aplicar" es un `<form method="get">` nativo, es decir una navega
 > `afterTraverse` y dejaba sin la protección de #26 a toda selección posterior a la primera (C-10, §0.6).
 > Esta sección queda enmendada en el lugar: **fila #10** y justificación de #26 (§12.4). No cambian los
 > tipos de §12.1, los guards, las 28 filas, las 113 ramas ni los 60 pares. §13 agrega S13.
+>
+> **Rev. 2.3 (2026-10-10).** La comprobación en navegador de H1 refutó el supuesto en que se apoyaba la
+> fila #10: dos `router.push` no se descartan entre sí (C-11, §0.7). Esta sección queda enmendada en el
+> lugar: el campo `next` de `ROUTING` (§12.1), las filas #9, #10, #11, #12, #16, #23, #25 y #26 y las
+> filas nuevas **#29–#32** (§12.4). La tabla tiene **32 filas** y la partición **119 ramas** sobre los
+> mismos 60 pares. La columna "Orig." marca cada cambio como "Rev. 2.3"; el texto de rev. 2.2.2 se
+> recupera en el historial de git (commit `8d1a8812`). §13 agrega S14 y §13.1 reescribe H1 y H3.
 
 ### 12.1. Tipos (exactos para PR-NAV-02)
 
@@ -934,7 +1097,7 @@ export type NavContext = {
 export type NavState =
   | { readonly tag: "BOOTING" }
   | { readonly tag: "IDLE" }
-  | { readonly tag: "ROUTING"; readonly navId: number; readonly target: NavLocation; readonly intent: "user" | "restore"; readonly history: "push" | "replace"; readonly afterTraverse: boolean }
+  | { readonly tag: "ROUTING"; readonly navId: number; readonly target: NavLocation; readonly intent: "user" | "restore"; readonly history: "push" | "replace"; readonly afterTraverse: boolean; readonly next: NavLocation | null } // rev. 2.3: `next`
   | { readonly tag: "TRAVERSING"; readonly navId: number; readonly destination: NavLocation }
   | { readonly tag: "STALLED"; readonly navId: number; readonly target: NavLocation; readonly intent: "user" | "restore" | "traverse"; readonly history: "push" | "replace" }
   | { readonly tag: "FAILED"; readonly reason: "render" | "payload" | "unknown" };
@@ -992,6 +1155,22 @@ export function transition(config: MachineConfig, ctx: NavContext, state: NavSta
   integración; la fila se conserva como defensa y `RESET` la recupera (#21).
 - `BOOTING` sólo se abandona por `HYDRATED` (#1–#3) o `NAV_FAILED` (#20), y ninguna fila vuelve a él.
 
+**Rev. 2.3 (C-11) — `ROUTING.next`, la selección reclamada.** Es el único cambio de tipos de esta
+revisión, y existe porque rev. 2.2.2 no podía distinguir "lo que el usuario eligió" de "lo que está en el
+router".
+
+| Campo | Significado en rev. 2.3 |
+| --- | --- |
+| `target` | Sin cambios: el destino de la navegación que **está en el router** con este `navId`. Es lo que un commit confirma (#9, #30) y lo que el intérprete juzga al ejecutar un efecto (§12.5.1, I2) |
+| `next` | La última selección del usuario hecha mientras ese vuelo está en el router, todavía sin navegar; `null` si no hay ninguna. Nunca es `target` ni `committed` |
+| *destino vigente* `D` | `next ?? target`: lo que el estado ya responde por el usuario. Es el `X` contra el que una selección es idempotente (L1) y lo que muestra `display` en un vuelo de usuario |
+| `history` | Sin cambios de tipo: cómo salió la navegación de `target`. Rev. 2.3 agrega la combinación `user` + `replace`, la de un vuelo de **continuación** (#30, y #31 y #16 cuando continúan uno): su ráfaga ya tiene entrada en el historial |
+
+- Toda fila que abre un vuelo lo abre con `next = null`. Sólo #29 lo establece, y sólo en un vuelo de
+  usuario; un vuelo `restore` nunca lo lleva. `STALLED` y `TRAVERSING` no tienen el campo.
+- `next` muere con el vuelo: #9 no aplica con reclamo (resuelve #30), y #17, #20, #23, #25, #28 y #32 lo
+  descartan al abandonar el vuelo. #26 lo conserva, porque conserva el vuelo.
+
 Contratos de entrada que cumple el **provider**, no la máquina:
 
 - `HYDRATED.storedModule` llega canonicalizado con la gramática real (`parseAdminModule`, que aplica
@@ -1039,7 +1218,7 @@ Contratos de entrada que cumple el **provider**, no la máquina:
 | --- | --- | --- |
 | `BOOTING` | — | Montado sin URL leída; sólo acepta `HYDRATED` (y `NAV_FAILED`) |
 | `IDLE` | — | `display` = `committed`; sin navegación asíncrona |
-| `ROUTING` | `navId`, `target`, `intent` (`user` \| `restore`), `history` (`push` \| `replace`), `afterTraverse` | Navegación T2 esperando commit, con presupuesto armado: selección de usuario (`display = target`) o restauración/normalización (`display = committed`) |
+| `ROUTING` | `navId`, `target`, `intent` (`user` \| `restore`), `history` (`push` \| `replace`), `afterTraverse`; rev. 2.3: `next` | Navegación T2 esperando commit, con presupuesto armado: selección de usuario (`display = target`; rev. 2.3: `display = next ?? target`) o restauración/normalización (`display = committed`) |
 | `TRAVERSING` | `navId`, `destination` | Back/Forward iniciado, con presupuesto armado; `display = destination` |
 | `STALLED` | `navId`, `target`, `intent` (`user` \| `restore` \| `traverse`), `history` | Presupuesto vencido; UI recuperable (`RETRY` = navegación de documento; nueva selección = reintento suave) |
 | `FAILED` | `reason` | Error capturado por la frontera; recuperable con `RESET`. Rev. 2.2: dura lo que dura montada la frontera (§12.1) |
@@ -1062,7 +1241,7 @@ cruzar páginas". **Superado:** con T2 todo cambio de módulo, hub o ruta pasa p
 | `RETRY` | — | UI de `STALLED` |
 | `RESET` | `location` | Botón "Reintentar" de la frontera: despacha `RESET(parse(window.location))` y luego invoca `retry()` (rev. 2.1). **Rev. 2.2:** también la limpieza de efecto de la frontera al desmontarse, con la ubicación comiteada vigente del provider (C-6, §12.1) |
 
-### 12.4. Tabla de transiciones (28 filas: las 27 de rev. 2.1 y la #28 de rev. 2.2)
+### 12.4. Tabla de transiciones (32 filas: las 27 de rev. 2.1, la #28 de rev. 2.2 y las #29–#32 de rev. 2.3)
 
 Funciones auxiliares puras (definición normativa):
 
@@ -1074,17 +1253,19 @@ Funciones auxiliares puras (definición normativa):
 | `bootRestore(ev)` | Admin: `ev.location.kind === "none"` → `{module: valid(stored) ? stored : defaultModule}`. Clínica: `!ev.explicit && same(ev.location, {module default}) && valid(stored) && stored !== default` → `{module stored}`. Si no, `null` |
 | `normalization(L)` | Admin y `L.kind === "none"` → `{module: valid(ctx.lastModule) ? lastModule : defaultModule}`. Si no, `null` |
 | `persistable(L)` *(rev. 2.2, C-5)* | `L.kind ∈ {module, route}` y `valid(L.module)` → `L.module`. Si no, `null`. Es el único origen de un efecto `PERSIST` y de una actualización de `lastModule` por commit |
-| `settle(L)` *(rev. 2.2: C-1, C-2, C-5)* | `normalization(L) = T ≠ null` → `ROUTING(n, T, restore, replace, false)`, `committed = display = L`, **`superseded = []`**, `lastModule` sin cambios, efectos `ROUTER_REPLACE(T)`, `ARM_BUDGET(n)`, `PUBLISH_DISPLAY`. Si no → `IDLE`, `committed = display = L`, `superseded = []`, y con `m = persistable(L)`: si `m ≠ null`, `lastModule = m` y efecto `PERSIST(m)`; después `PUBLISH_DISPLAY`. **Toda transición que reposa en una ubicación recién confirmada, o la normaliza, pasa por `settle`**: #9, #14, #18, #21, #22, #23 y #28. Quedan fuera #1 (hidratación, con el mismo `persistable`), #25 (reposa en una ubicación ya confirmada, que nunca es `none`) y #26 (anota `committed` y sigue en vuelo) |
+| `settle(L)` *(rev. 2.2: C-1, C-2, C-5)* | `normalization(L) = T ≠ null` → `ROUTING(n, T, restore, replace, false)`, `committed = display = L`, **`superseded = []`**, `lastModule` sin cambios, efectos `ROUTER_REPLACE(T)`, `ARM_BUDGET(n)`, `PUBLISH_DISPLAY`. Si no → `IDLE`, `committed = display = L`, `superseded = []`, y con `m = persistable(L)`: si `m ≠ null`, `lastModule = m` y efecto `PERSIST(m)`; después `PUBLISH_DISPLAY`. **Toda transición que reposa en una ubicación recién confirmada, o la normaliza, pasa por `settle`**: #9, #14, #18, #21, #22, #23 y #28 (rev. 2.3: y #32). Quedan fuera #1 (hidratación, con el mismo `persistable`), #25 (reposa en una ubicación ya confirmada, que nunca es `none`; **rev. 2.3, C-11b:** esa ubicación puede haberla anotado #11, #26 o #30 sin persistirla, así que #25 persiste el módulo cuando no es `lastModule`) y #26 (anota `committed` y sigue en vuelo); rev. 2.3: tampoco pasan #11 y #30, que anotan `committed` sin reposar en él |
 | `n` | `ctx.nextNavId`; toda transición que lo consume lo incrementa en 1 |
+| `D` *(rev. 2.3, C-11)* | Destino vigente de un vuelo: en `ROUTING`, `next ?? T`; en `TRAVERSING`, el destino; en `STALLED`, `T` |
+| `issue(q, h, a)` *(rev. 2.3, C-11)* | Emite la selección reclamada como vuelo propio: `ROUTING(n, q, user, h, a, next = ∅)`, `display = q`, efectos `ROUTER_PUSH(q)` si `h = push` o `ROUTER_REPLACE(q)` si `h = replace`, `ARM_BUDGET(n)`, `PUBLISH_DISPLAY`. Lo usan #30 (`h = replace`), #31 (`h` = el del vuelo que releva) y #16 (`h` = el del vuelo trabado si era de usuario, `push` si no) |
 
 `settle` no puede encadenar normalizaciones: `normalization` sólo devuelve un destino para `L.kind ===
 "none"`, y ese destino es siempre `{module}` con módulo válido, de modo que su commit toma la rama `IDLE`.
 Cada normalización emite exactamente un `ROUTER_REPLACE` y un `ARM_BUDGET`; el presupuesto del vuelo
 anterior, si existía, lo cancela la fila que invoca a `settle` **antes** de esos efectos (S11).
 
-Reglas de `display`: en `IDLE`, `committed`. En `ROUTING` `user`, `target`. En `ROUTING` `restore`,
-`committed`. En `TRAVERSING`, `destination`. En `STALLED`, el valor que tenía al entrar. En
-`FAILED`, sin cambios.
+Reglas de `display`: en `IDLE`, `committed`. En `ROUTING` `user`, `target` (rev. 2.3: el destino vigente
+`next ?? target`). En `ROUTING` `restore`, `committed`. En `TRAVERSING`, `destination`. En `STALLED`, el
+valor que tenía al entrar. En `FAILED`, sin cambios.
 
 Columna "Orig." = fila del roadmap y cambio aplicado. `SELECT_*` = `SELECT_MODULE`, `SELECT_HUB` u
 `OPEN_ROUTE`, con `X = targetOf(ev)`.
@@ -1099,26 +1280,30 @@ Columna "Orig." = fila del roadmap y cambio aplicado. `SELECT_*` = `SELECT_MODUL
 | 6 | cualquiera | `SELECT_*` | `X === null` (módulo inválido, hub en Admin, ruta en Admin) | sin cambios | — | #6 (ruta completa) absorbida por #5/#8; la fila pasa a ser el rechazo explícito |
 | 7 | `IDLE` | `SELECT_HUB` | `X ≠ null` y `!same(X, committed)` | `ROUTING(n, {hub}, user, push, false)`; `display = {hub}` | `ROUTER_PUSH({hub})`; `ARM_BUDGET(n)`; `PUBLISH_DISPLAY` | #7: `PUSH_NATIVE` → `ROUTER_PUSH`. Hoy sin emisor (`requestClinicHubReset` no tiene llamadores) |
 | 8 | `IDLE` | `OPEN_ROUTE` | `X ≠ null` y `!same(X, committed)` | `ROUTING(n, X, user, push, false)`; `display = X` | `ROUTER_PUSH(X)`; `ARM_BUDGET(n)`; `PUBLISH_DISPLAY` | #8 |
-| 9 | `ROUTING(id, T)` | `URL_COMMITTED(L)` | `same(L, T)` | `settle(L)` | `CANCEL_BUDGET(id)`; efectos de `settle(L)` | #9. **Rev. 2.2 (C-1, C-5):** pasa por `settle`; con `T = none` en Admin normaliza en vez de reposar, y `PERSIST` exige `persistable` |
-| 10 | `ROUTING(id, T, afterTraverse = a)` | `SELECT_*` | `X ≠ null`, `!same(X, T)`, `!same(X, committed)` | `ROUTING(n, X, user, push, a)`: **hereda `afterTraverse` del vuelo que reemplaza**; `display = X`; `superseded = (superseded ∪ {T}) \ {X}` (el destino vigente nunca está en `superseded`) | `CANCEL_BUDGET(id)`; `ROUTER_PUSH(X)`; `ARM_BUDGET(n)`; `PUBLISH_DISPLAY` | #10 (incluye `restore` superado por el usuario). **Rev. 2.2.2 (C-10):** rev. 2.2.1 fijaba `afterTraverse = false`; el guard y los efectos no cambian |
-| 11 | `ROUTING(id)` / `STALLED(id)` | `URL_COMMITTED(L)` | `L ∈ superseded` | sin cambios | — (commit obsoleto: no se pinta) | #11 extendida a `STALLED` |
-| 12 | `ROUTING(id, T)` | `BUDGET_EXPIRED(k)` | `k === id` | `STALLED(id, T, intent, history)`; `display` sin cambios | `PUBLISH_DISPLAY` | #12 |
+| 9 | `ROUTING(id, T, next = ∅)` | `URL_COMMITTED(L)` | `same(L, T)` y ninguna selección reclamada | `settle(L)` | `CANCEL_BUDGET(id)`; efectos de `settle(L)` | #9. **Rev. 2.2 (C-1, C-5):** pasa por `settle`; con `T = none` en Admin normaliza en vez de reposar, y `PERSIST` exige `persistable`. **Rev. 2.3 (C-11):** con una selección reclamada el vuelo no reposa: resuelve #30 |
+| 10 | `ROUTING(id, T, restore)` | `SELECT_*` | `X ≠ null`, `!same(X, T)`, `!same(X, committed)` y el vuelo es `restore` | `ROUTING(n, X, user, push, false)`; `display = X`; `superseded = (superseded ∪ {T}) \ {X}` (el destino vigente nunca está en `superseded`) | `CANCEL_BUDGET(id)`; `ROUTER_PUSH(X)`; `ARM_BUDGET(n)`; `PUBLISH_DISPLAY` | #10. **Rev. 2.2.2 (C-10):** heredaba `afterTraverse` del vuelo que reemplazaba. **Rev. 2.3 (C-11):** queda **sólo** para el `restore` superado por el usuario, donde un `push` sobre un `replace` pendiente agrega una entrada en cualquier orden (E7, §0.7); un vuelo `restore` nunca lleva `afterTraverse`, así que el argumento es `false`. Sobre un vuelo de usuario la selección se reclama (#29), y la herencia de C-10 pasa a #29–#31 |
+| 11 | `ROUTING(id)` / `STALLED(id)` | `URL_COMMITTED(L)` | `L ∈ superseded` y, en `ROUTING`, `!same(L, next)` | `committed = L`; estado, `display` y `superseded` sin cambios | — (commit obsoleto: no se pinta) | #11 extendida a `STALLED`. **Rev. 2.3 (C-11):** anota `committed`, porque la navegación superada sí aterrizó y la URL está ahí; rev. 2.2.2 no cambiaba nada y dejaba a la máquina atrás de la URL. Si `L` es la selección reclamada resuelve #32 |
+| 12 | `ROUTING(id, T, next = ∅)` | `BUDGET_EXPIRED(k)` | `k === id` y ninguna selección reclamada | `STALLED(id, T, intent, history)`; `display` sin cambios | `PUBLISH_DISPLAY` | #12. **Rev. 2.3 (C-11):** con una selección reclamada el vencimiento la releva: #31 |
 | 13 | `ROUTING(id)` / `TRAVERSING(id)` / `STALLED(id)` | `BUDGET_EXPIRED(k)` | `ROUTING`/`TRAVERSING`: `k !== id`. `STALLED`: cualquier `k` (su presupuesto ya venció; un disparo duplicado es inerte) | sin cambios | — (timer obsoleto) | #13 extendida |
 | 14 | `STALLED(id, T)` | `URL_COMMITTED(L)` | `same(L, T)` | `settle(L)` | efectos de `settle(L)` (sin `CANCEL_BUDGET`: el presupuesto ya venció) | #14. **Rev. 2.2 (C-1, C-5):** pasa por `settle`, como #9 |
 | 15 | `STALLED(id, T, intent, history)` | `RETRY` | — | `ROUTING(n, T, intent === "restore" ? "restore" : "user", history, false)` (un traverse trabado reintenta como `user`: `display = T` sin salto) | `HARD_NAVIGATE(T, history === "push" ? "assign" : "replace")`; `ARM_BUDGET(n)`; `PUBLISH_DISPLAY` | #15 (modo derivado del historial) |
-| 16 | `STALLED(id, T)` | `SELECT_*` | `X ≠ null`, `!same(X, committed)` | `ROUTING(n, X, user, push, false)`; `display = X`; `superseded = same(X, T) ? superseded : (superseded ∪ {T}) \ {X}` | `ROUTER_PUSH(X)`; `ARM_BUDGET(n)`; `PUBLISH_DISPLAY` | #16 (re-seleccionar el destino trabado = reintento suave) |
+| 16 | `STALLED(id, T, intent, history)` | `SELECT_*` | `X ≠ null`, `!same(X, committed)` | `issue(X, h, false)` con `h = history` si `intent = user` y `h = push` si no; `superseded = same(X, T) ? superseded : (superseded ∪ {T}) \ {X}` | `ROUTER_PUSH(X)` si `h = push`, `ROUTER_REPLACE(X)` si `h = replace`; `ARM_BUDGET(n)`; `PUBLISH_DISPLAY` | #16 (re-seleccionar el destino trabado = reintento suave). **Rev. 2.3 (C-11):** rev. 2.2.2 emitía siempre `ROUTER_PUSH`; un vuelo de continuación trabado (`user`, `replace`) ya tiene la entrada de su ráfaga, y un `push` le sumaba otra |
 | 17 | `IDLE` / `ROUTING(id)` / `STALLED(id)` / `TRAVERSING(id)` | `TRAVERSE_STARTED(D)` | `!same(D, committed)` en los cuatro orígenes | `TRAVERSING(n, D)`; `display = D`; `superseded = []` | `CANCEL_BUDGET(id)` si había (`ROUTING`, `TRAVERSING`); `ARM_BUDGET(n)`; `PUBLISH_DISPLAY` | #17: agrega presupuesto (fila #27) y `TRAVERSING` como origen. **Rev. 2.2 (C-8):** el guard `!same(D, committed)` deja de ser exclusivo de `IDLE`; el caso contrario es #24 o #28 |
 | 18 | `TRAVERSING(id)` | `URL_COMMITTED(L)` | — | `settle(L)` | `CANCEL_BUDGET(id)`; efectos de `settle(L)` | #18 + normalización Admin |
 | 19 | `TRAVERSING(id, D)` | `SELECT_*` | `X ≠ null`, `!same(X, D)`, `!same(X, committed)` | `ROUTING(n, X, user, push, true)`; `display = X` | `CANCEL_BUDGET(id)`; `ROUTER_PUSH(X)`; `ARM_BUDGET(n)`; `PUBLISH_DISPLAY` | #19: elimina "según #5/#6 desde committed" (lógica T1). **Rev. 2.2 (C-8):** agrega `!same(X, committed)`; ese caso pasa a #25 |
 | 20 | `BOOTING` / `IDLE` / `ROUTING` / `TRAVERSING` / `STALLED` | `NAV_FAILED(r)` | — | `FAILED(r)`; `display` sin cambios; `superseded = []` | `CANCEL_BUDGET(id)` si había; `PUBLISH_DISPLAY` | #20. Rev. 2.1: origen exclusivo = montaje de `app/dashboard/error.tsx` (§12.5) |
 | 21 | `FAILED` | `RESET(L)` | — | `settle(L)` | efectos de `settle(L)` | #21: **sin** `REFRESH_DATA`. Rev. 2.1: `RESET` lo despacha la frontera inmediatamente antes de invocar su `retry()` (`app/dashboard/error.tsx:10,26`); la máquina no emite efecto de recuperación propio (§12.5). **Rev. 2.2 (C-6):** también lo despacha el desmontaje de la frontera; la fila no cambia |
 | 22 | `IDLE` | `URL_COMMITTED(L)` | `!same(L, committed)` | `settle(L)` | efectos de `settle(L)` | #22 + normalización Admin |
-| 23 | `ROUTING(id, T)` / `STALLED(id, T)` | `URL_COMMITTED(L)` | `!same(L, T)`, `L ∉ superseded` y (`STALLED` o `!afterTraverse`) | `settle(L)` | `CANCEL_BUDGET(id)` (sólo `ROUTING`); efectos de `settle(L)` | #23 |
+| 23 | `ROUTING(id, T)` / `STALLED(id, T)` | `URL_COMMITTED(L)` | `!same(L, T)`, `L ∉ superseded` y (`STALLED` o `!afterTraverse`); rev. 2.3: en `ROUTING`, además `!same(L, next)` | `settle(L)` | `CANCEL_BUDGET(id)` (sólo `ROUTING`); efectos de `settle(L)` | #23. **Rev. 2.3 (C-11):** el commit de la selección reclamada es #32 |
 | 24 | `IDLE` | `TRAVERSE_STARTED(D)` | `same(D, committed)` | `IDLE` | — | #24 |
-| 25 | `ROUTING(id, T)` / `STALLED(id, T)` / `TRAVERSING(id, D)` | `SELECT_*` | `X ≠ null`, `same(X, committed)`, `!same(X, T)` (en `TRAVERSING`, `!same(X, D)`) | `IDLE`; `display = committed`; `superseded = []` | `CANCEL_BUDGET(id)` (`ROUTING` y `TRAVERSING`); `ROUTER_PUSH(X)`; `PUBLISH_DISPLAY` | **Nueva** (rev. 2). **Rev. 2.2 (C-8):** `TRAVERSING` como origen |
-| 26 | `ROUTING(id, T, afterTraverse = true)` | `URL_COMMITTED(L)` | `!same(L, T)`, `L ∉ superseded` | `ROUTING(id, T, intent, history, false)`; `committed = L` | — | **Nueva** (rev. 2) |
+| 25 | `ROUTING(id, T)` / `STALLED(id, T)` / `TRAVERSING(id, D)` | `SELECT_*` | `X ≠ null`, `same(X, committed)`, `!same(X, T)` (en `TRAVERSING`, `!same(X, D)`; rev. 2.3: en `ROUTING`, `!same(X, next ?? T)`) | `IDLE`; `display = committed`; `superseded = []`; **rev. 2.3 (C-11b):** con `m = persistable(committed)`, si `m ≠ null` y `m ≠ lastModule`: `lastModule = m` | `CANCEL_BUDGET(id)` (`ROUTING` y `TRAVERSING`); `ROUTER_PUSH(X)`; **rev. 2.3 (C-11b):** `PERSIST(m)` si `m ≠ null` y `m ≠ lastModule`; `PUBLISH_DISPLAY` | **Nueva** (rev. 2). **Rev. 2.2 (C-8):** `TRAVERSING` como origen. **Rev. 2.3:** el vuelo se abandona con su selección reclamada. Medido (E3, §0.7): el `push` a la URL vigente descarta al pendiente, que nunca comitea, y pide un `_rsc` propio. **Rev. 2.3 (C-11b, review de #1844):** persiste el `committed` que acepta si no es lo guardado; sin eso, un `committed` anotado por #11, #26 o #30 quedaba como estado final sin persistir |
+| 26 | `ROUTING(id, T, afterTraverse = true)` | `URL_COMMITTED(L)` | `!same(L, T)`, `L ∉ superseded`; rev. 2.3: `!same(L, next)` | `ROUTING(id, T, intent, history, false)`; `committed = L`; rev. 2.3: `next` sin cambios | — | **Nueva** (rev. 2). **Rev. 2.3 (C-11):** conserva la selección reclamada; si `L` es esa selección resuelve #32 |
 | 27 | `TRAVERSING(id, D)` | `BUDGET_EXPIRED(k)` | `k === id` | `STALLED(id, D, traverse, replace)`; `display = D` | `PUBLISH_DISPLAY` | **Nueva** (rev. 2) |
 | 28 | `ROUTING(id)` / `STALLED(id)` / `TRAVERSING(id)` | `TRAVERSE_STARTED(D)` | `same(D, committed)` | `settle(D)` | `CANCEL_BUDGET(id)` (`ROUTING` y `TRAVERSING`); efectos de `settle(D)` | **Nueva en rev. 2.2 (C-8)**: contraparte de #24 con un vuelo abierto |
+| 29 | `ROUTING(id, T, user, next = q)` | `SELECT_*` | `X ≠ null`, `!same(X, q ?? T)`, `!same(X, committed)` y el vuelo es `user` | El **mismo vuelo**: `ROUTING(id, T, user, history, afterTraverse, next = same(X, T) ? ∅ : X)`; `display = X`; `superseded` y `nextNavId` sin cambios | `PUBLISH_DISPLAY` | **Nueva en rev. 2.3 (C-11)**: la selección se reclama. Ningún efecto de navegación ni de presupuesto: el vuelo, su `navId` y su timer son los mismos |
+| 30 | `ROUTING(id, T, user, afterTraverse = a, next = q ≠ ∅)` | `URL_COMMITTED(L)` | `same(L, T)` | `issue(q, replace, a)`; `committed = L`; `superseded = superseded \ {q}` | `CANCEL_BUDGET(id)`; `ROUTER_REPLACE(q)`; `ARM_BUDGET(n)`; `PUBLISH_DISPLAY` | **Nueva en rev. 2.3 (C-11)**: el vuelo aterrizó y lo que el usuario quiere es `q`. `L` se anota y no se pinta ni se persiste |
+| 31 | `ROUTING(id, T, user, history = h, afterTraverse = a, next = q ≠ ∅)` | `BUDGET_EXPIRED(k)` | `k === id` | `issue(q, h, a)`; `committed` sin cambios; `superseded = (superseded ∪ {T}) \ {q}` | `ROUTER_PUSH(q)` si `h = push`, `ROUTER_REPLACE(q)` si `h = replace`; `ARM_BUDGET(n)`; `PUBLISH_DISPLAY` | **Nueva en rev. 2.3 (C-11)**: relevo. El vuelo nuevo no tiene reclamo, así que su propio vencimiento es #12: un relevo por selección, sin bucle |
+| 32 | `ROUTING(id, T, user, next = q ≠ ∅)` | `URL_COMMITTED(L)` | `same(L, q)` | `settle(L)`, que aquí nunca normaliza: `L` es una selección y no puede ser `none` | `CANCEL_BUDGET(id)`; `ROUTER_PUSH(L)`; efectos de `settle(L)` | **Nueva en rev. 2.3 (C-11)**: otra navegación comiteó la selección reclamada. Contraparte de #25 disparada por un commit: reposa como cualquier confirmación y, además, descarta el vuelo del router |
 
 Justificación de las filas nuevas:
 
@@ -1140,6 +1325,10 @@ Justificación de las filas nuevas:
   (#2, #3, #5, #7, #8, #15, #16 y la normalización de `settle`). `STALLED` no lo conserva: su tipo no
   lo lleva y el guard de #23 obedece ahí todo commit ajeno (`STALLED` o `!afterTraverse`), igual que en
   rev. 2.2.1 (residual en §19).
+  **Rev. 2.3 (C-11).** La mecánica cambia de fila, no de sentido. El vuelo que debe el commit del traverse
+  lo conserva a través de las selecciones que reclama (#29) y de los vuelos que las emiten (#30 al
+  aterrizar, #31 al vencer el presupuesto con un reclamo). #10 sale de la cadena porque sólo actúa sobre
+  un `restore`, que nunca lleva el flag. El vencimiento sin reclamo (#12) sigue terminándolo.
 - **#27.** Bajo T2, un traverse hacia una entrada sin caché emite payload (spike SP-6: Back cruzando un
   reload = 1 `_rsc`) y puede quedar colgado igual que cualquier payload (SP-5). L2 debe cubrir
   `TRAVERSING`.
@@ -1156,6 +1345,43 @@ Justificación de las filas nuevas:
   (L5). **Costo aceptado:** si el commit del traverse abandonado llega igual, la máquina lo obedece como
   externo (#22) antes de que aterrice el clic, y la vista pasa por esa entrada durante el intervalo
   entre ambos commits; en rev. 2.1 ese sub-caso no parpadeaba (#26) y el otro terminaba en `STALLED`.
+- **#29–#31 (rev. 2.3, C-11).** Rev. 2.2.2 emitía un `ROUTER_PUSH` por selección (#10) y confiaba en que
+  el router descartara al anterior. No lo hace (E1, §0.7): las dos navegaciones conviven, y si la primera
+  aterriza antes escribe su propia entrada. La única forma de garantizar una entrada por ráfaga con las
+  API públicas del router es no tener dos `push` propios pendientes a la vez. #29 **reclama** la
+  selección: la muestra (`display = X`) y la deja en `next` sin navegar, con el vuelo, el `navId` y el
+  presupuesto intactos. Cuando el vuelo aterriza, #30 la emite como `ROUTER_REPLACE` sobre la entrada
+  que ese aterrizaje acaba de escribir, de modo que la ráfaga termina con una entrada y Back vuelve al
+  origen (E5, E6). Si el vuelo no aterriza, el reclamo no puede esperar para siempre: #31 lo releva al
+  vencer el presupuesto, que es el comportamiento de #1837 y lo que afirma su E2E. El relevo conserva el
+  `history` del vuelo que abandona — `push` si ese vuelo todavía no escribió entrada, `replace` si era
+  una continuación — y abre un vuelo **sin** reclamo: su propio vencimiento es #12, así que una selección
+  se releva una vez y dos payloads colgados no forman un bucle. Desde el relevo hay dos
+  navegaciones propias en el router, la colgada y la nueva, y la garantía de una entrada **deja de
+  valer**: si la colgada responde primero escribe la suya. Esta revisión no lo resuelve; lo deja contado
+  como residual (§0.7, §19).
+- **Por qué #29 no alcanza a los vuelos `restore`.** Un `restore` es un `replace`, y un `push` emitido
+  sobre un `replace` pendiente agrega exactamente una entrada en los dos órdenes de respuesta (E7): no
+  hay nada que serializar. Reclamar ahí haría esperar al clic detrás del payload de la restauración sin
+  ganar nada. Por eso #10 se conserva para ese único origen.
+- **#32 (rev. 2.3).** Con una selección reclamada `q` puede llegar un commit de `q` que la máquina no
+  emitió en este vuelo: el de una navegación a `q` abandonada antes por su presupuesto, el del `restore`
+  cuyo destino el usuario volvió a elegir, o el de un traverse. El usuario ya está donde quería. Tratarlo
+  como superado (#11) o como externo (#23) dejaba al vuelo del router aterrizar después y pintar `T`. #32
+  reposa en `q` y emite `ROUTER_PUSH(q)`, que sobre la URL vigente no agrega entrada y descarta lo
+  pendiente (E3): es el argumento de #25, disparado por un commit en vez de por una selección. #32
+  precede a #11 en la partición: un commit igual a la selección reclamada la resuelve aunque esa
+  ubicación estuviera en `superseded`.
+- **#11 anota `committed` (rev. 2.3).** Rev. 2.2 contaba #11 entre las defensas que el lazo cerrado no
+  alcanza, porque H3 decía que una navegación descartada nunca aterriza. Aterriza (E1, E8), y cuando lo
+  hace la URL queda en `L`. Si la máquina no lo anota, `committed` deja de ser la URL: una selección
+  posterior de `L` vuela hacia la URL vigente y no puede confirmarse (L6), y un Back anuncia un destino
+  que la máquina cree comiteado. La fila sigue sin pintar, sin persistir y sin emitir efectos.
+- **#16 y el vuelo de continuación (rev. 2.3).** Hasta esta revisión todo vuelo de usuario era un `push`.
+  #30 introduce el vuelo de usuario con `history = replace`, cuya ráfaga ya escribió su entrada. Si se
+  traba (#12) y el usuario elige otra cosa, #16 debe emitirla también como `replace`: un `push` dejaba
+  la entrada del módulo abandonado y sumaba otra. `RETRY` (#15) ya derivaba su modo de `history`, así
+  que desde un vuelo de continuación trabado hace `location.replace`, que es lo correcto.
 
 Pares explícitamente ignorados: sin cambio de estado, sin efectos y con test obligatorio.
 
@@ -1163,7 +1389,7 @@ Pares explícitamente ignorados: sin cambio de estado, sin efectos y con test ob
 | --- | --- |
 | `BOOTING` | `SELECT_*` con `X ≠ null`, `URL_COMMITTED`, `TRAVERSE_STARTED`, `BUDGET_EXPIRED`, `RETRY`, `RESET` |
 | `IDLE` | `HYDRATED`, `URL_COMMITTED` con `same(L, committed)`, `BUDGET_EXPIRED`, `RETRY`, `RESET` |
-| `ROUTING` | `HYDRATED`, `SELECT_*` con `same(X, T)` (ya en vuelo con presupuesto), `RETRY`, `RESET` |
+| `ROUTING` | `HYDRATED`, `SELECT_*` con `same(X, T)` (ya en vuelo con presupuesto; rev. 2.3: con `same(X, next ?? T)`, el destino vigente), `RETRY`, `RESET` |
 | `TRAVERSING` | `HYDRATED`, `SELECT_*` con `same(X, D)`, `RETRY`, `RESET` |
 | `STALLED` | `HYDRATED`, `SELECT_*` con `same(X, committed)` y `same(X, T)` (rev. 2.1: alcanzable con entradas de historial duplicadas `[A, A]`. **Rev. 2.2:** inalcanzable por L6, porque #28 impide un vuelo hacia `committed`; se conserva como defensa y con su caso de test), `RESET` |
 | `FAILED` | `HYDRATED`, `SELECT_*` con `X ≠ null`, `URL_COMMITTED`, `TRAVERSE_STARTED`, `BUDGET_EXPIRED`, `NAV_FAILED`, `RETRY` |
@@ -1173,13 +1399,13 @@ Partición de guards por par:
 | Par | Reparto exhaustivo y disjunto |
 | --- | --- |
 | `BOOTING × HYDRATED` | #2 (destino desde almacenado) / #3 (Admin `none` sin almacenado válido) / #1 (resto) |
-| `* × SELECT_*` | `X === null` → #6 en todo estado; con `X ≠ null`: `IDLE` #4 / #5·#7·#8; `ROUTING` same(X,T) ignorado / same(X,committed) #25 / resto #10; `TRAVERSING` same(X,D) ignorado / same(X,committed) #25 *(rev. 2.2)* / resto #19; `STALLED` same(X,committed)∧same(X,T) ignorado / same(X,committed) #25 / resto #16; `BOOTING`, `FAILED` ignorado |
+| `* × SELECT_*` | `X === null` → #6 en todo estado; con `X ≠ null`: `IDLE` #4 / #5·#7·#8; `ROUTING` same(X,D) ignorado / same(X,committed) #25 / resto: vuelo `restore` #10, vuelo `user` #29 *(rev. 2.3; `D = next ?? T`)*; `TRAVERSING` same(X,D) ignorado / same(X,committed) #25 *(rev. 2.2)* / resto #19; `STALLED` same(X,committed)∧same(X,T) ignorado / same(X,committed) #25 / resto #16; `BOOTING`, `FAILED` ignorado |
 | `IDLE × URL_COMMITTED` | same → ignorado / resto #22 |
-| `ROUTING × URL_COMMITTED` | same(L,T) #9 / L ∈ superseded #11 / afterTraverse #26 / resto #23 (disjuntos porque `T ∉ superseded`, garantizado por #10/#16 y, **desde rev. 2.2**, porque toda otra entrada a `ROUTING` parte de `superseded = []` — #2, #3, #5, #7, #8, #19 y la normalización de `settle` — o conserva `T` y `superseded` sin tocarlos, como #15 y #26) |
+| `ROUTING × URL_COMMITTED` | same(L,T): #9 sin selección reclamada, #30 con ella *(rev. 2.3)* / same(L,next) #32 *(rev. 2.3)* / L ∈ superseded #11 / afterTraverse #26 / resto #23 (disjuntos porque `T ∉ superseded`, garantizado por #10/#16 y, **desde rev. 2.2**, porque toda otra entrada a `ROUTING` parte de `superseded = []` — #2, #3, #5, #7, #8, #19 y la normalización de `settle` — o conserva `T` y `superseded` sin tocarlos, como #15 y #26. **Rev. 2.3:** #29 conserva `T` y `superseded`; #30, #31 y #16 quitan de `superseded` el destino que emiten; y como `next` nunca es `T`, #32 no se cruza con #9 ni con #30. #32 se evalúa antes que #11: `next` sí puede estar en `superseded`) |
 | `STALLED × URL_COMMITTED` | same(L,T) #14 / L ∈ superseded #11 / resto #23 (misma garantía: `STALLED` hereda `T` y `superseded` de `ROUTING` por #12, o `superseded = []` de `TRAVERSING` por #27) |
 | `TRAVERSING × URL_COMMITTED` | #18 |
 | `* × TRAVERSE_STARTED` | `IDLE` same(D,committed) #24 / resto #17; `ROUTING`, `STALLED`, `TRAVERSING` same(D,committed) #28 *(rev. 2.2)* / resto #17; `BOOTING`, `FAILED` ignorado |
-| `* × BUDGET_EXPIRED` | `ROUTING` k=id #12 / k≠id #13; `TRAVERSING` k=id #27 / k≠id #13; `STALLED` #13; `BOOTING`, `IDLE`, `FAILED` ignorado |
+| `* × BUDGET_EXPIRED` | `ROUTING` k=id: #12 sin selección reclamada, #31 con ella *(rev. 2.3)* / k≠id #13; `TRAVERSING` k=id #27 / k≠id #13; `STALLED` #13; `BOOTING`, `IDLE`, `FAILED` ignorado |
 | `* × NAV_FAILED` | `FAILED` ignorado / resto #20 |
 | `* × RETRY` | `STALLED` #15 / resto ignorado |
 | `* × RESET` | `FAILED` #21 / resto ignorado |
@@ -1201,6 +1427,12 @@ siguen siendo 28 filas, 113 ramas y 60 pares, y la partición de `ROUTING × URL
 texto. Lo que cambia es qué situaciones son alcanzables: `ROUTING` con `afterTraverse` y `superseded`
 no vacío pasa a existir, y en ellas resuelve #26 donde antes resolvía #23 (§0.6).
 
+**Rev. 2.3 — recuento normativo.** Con el mismo criterio de rev. 2.2: **32 filas**, **119 ramas** (80 de
+fila y 39 ignoradas) y los mismos 60 pares. Las seis ramas nuevas son #29 × `ROUTING` × los tres
+`SELECT_*`, #30 y #32 × `ROUTING` × `URL_COMMITTED`, y #31 × `ROUTING` × `BUDGET_EXPIRED`. Ninguna rama
+desaparece: #10 conserva sus tres, ahora con el guard "vuelo `restore`". La verificación de §0.7 no halló
+ninguna situación alcanzable con cero o con más de una rama aplicable.
+
 Contradicciones T1 eliminadas respecto de §12.4 original: `PUSH_NATIVE` (#5, #7), `REPLACE_NATIVE`
 (#2, #3), `REFRESH_DATA` (#5, #21), "IDLE → IDLE en el shell" (#5) y "según #5/#6" (#19). Ninguna
 fila emite un efecto nativo de historial.
@@ -1212,6 +1444,8 @@ stateDiagram-v2
   BOOTING --> ROUTING: HYDRATED con restauracion (filas 2 y 3)
   IDLE --> ROUTING: SELECT (filas 5, 7, 8) o commit externo Admin sin modulo (fila 22)
   ROUTING --> ROUTING: SELECT nuevo destino (fila 10), commit del traverse previo (fila 26) o normalizacion Admin (filas 9, 23, 28)
+  ROUTING --> ROUTING: seleccion reclamada (fila 29), su emision al aterrizar o al vencer (filas 30, 31) o commit superado anotado (fila 11)
+  ROUTING --> IDLE: commit de la seleccion reclamada (fila 32)
   ROUTING --> IDLE: URL_COMMITTED destino (fila 9), volver a committed (filas 25, 28), externo (fila 23)
   ROUTING --> STALLED: BUDGET_EXPIRED vigente (fila 12)
   STALLED --> IDLE: URL_COMMITTED destino (fila 14), volver a committed (filas 25, 28), externo (fila 23)
@@ -1236,12 +1470,13 @@ stateDiagram-v2
 
 | Categoría | Efecto | Implementación del intérprete (PR-NAV-03) | Filas |
 | --- | --- | --- | --- |
-| Navegación de usuario | `ROUTER_PUSH(to)` | `router.push(href(to), { scroll: false })`; `href` con la gramática existente (`buildDashboardModuleHref`, `clinicModuleHref`; default de Clínica = URL desnuda) | 5, 7, 8, 10, 16, 19, 25 |
+| Navegación de usuario | `ROUTER_PUSH(to)` | `router.push(href(to), { scroll: false })`; `href` con la gramática existente (`buildDashboardModuleHref`, `clinicModuleHref`; default de Clínica = URL desnuda) | 5, 7, 8, 10, 16, 19, 25; rev. 2.3: 31 y 32 |
 | Normalización inicial / Admin sin módulo | `ROUTER_REPLACE(to)` | `router.replace(href(to), { scroll: false })` | 2, 3, `settle` (18, 21, 22, 23; rev. 2.2: también 9, 14 y 28) |
+| Continuación de una ráfaga *(rev. 2.3, C-11)* | `ROUTER_REPLACE(to)` | El mismo `router.replace`: el efecto no lleva procedencia y el intérprete no la necesita | 30; 31 y 16 cuando continúan un vuelo `user` con `history = replace` |
 | Recuperación | `HARD_NAVIGATE(to, mode)` | `location.assign` / `location.replace` | 15 |
 | Recuperación de render | — (fuera de la máquina) | `retry()` de Next en `app/dashboard/error.tsx`, invocado por la frontera **después** de despachar `RESET(location)`; única autoridad de recuperación de render (rev. 2.1). **Rev. 2.2:** cuando Next abandona la frontera sin `retry()`, la limpieza de efecto de la frontera despacha el `RESET` (§12.1); la recuperación de render ya ocurrió y la máquina sólo se reconcilia | 20, 21 |
-| Temporización | `ARM_BUDGET(id)` / `CANCEL_BUDGET(id)` | `setTimeout` → `BUDGET_EXPIRED(id)` (valor DT-5) | todas las entradas/salidas de `ROUTING`/`TRAVERSING` |
-| Persistencia | `PERSIST(m)` | `writeDashboardLastModule` | sólo en confirmaciones: 1 y `settle` (9, 14, 18, 21, 22, 23, 28). **Rev. 2.2:** siempre con `m = persistable(L)`, nunca un módulo que la superficie no tiene (S12) |
+| Temporización | `ARM_BUDGET(id)` / `CANCEL_BUDGET(id)` | `setTimeout` → `BUDGET_EXPIRED(id)` (valor DT-5; **rev. 2.3: 10 000 ms**, §21) | todas las entradas/salidas de `ROUTING`/`TRAVERSING` |
+| Persistencia | `PERSIST(m)` | `writeDashboardLastModule` | sólo en confirmaciones: 1 y `settle` (9, 14, 18, 21, 22, 23, 28; rev. 2.3: 32) y, desde C-11b, en la aceptación de `committed` por la fila 25. **Rev. 2.2:** siempre con `m = persistable(L)`, nunca un módulo que la superficie no tiene (S12) |
 | Publicación | `PUBLISH_DISPLAY` | notificación del store | toda transición que cambia `display` o el tag |
 
 Prohibidos por tipo: `PUSH_NATIVE`, `REPLACE_NATIVE` y `REFRESH_DATA`.
@@ -1254,7 +1489,8 @@ el provider de PR-NAV-03 y no cambia `transition()` ni los tipos de §12.1.
 Estado del store, uno por superficie: `ctx`, `state`; `outbox`, una cola FIFO de entradas; `seq`, el
 número de transiciones no inertes aplicadas; `ready`, verdadero mientras el provider está montado;
 `timers`, a lo sumo un timer físico por `navId`. Una transición es **inerte** cuando no cambia `state`
-ni `ctx` y no produce efectos (pares ignorados y filas #4, #6, #11, #13 y #24).
+ni `ctx` y no produce efectos (pares ignorados y filas #4, #6, #11, #13 y #24). *(Rev. 2.3: la fila #11 anota `committed` y deja de ser inerte, salvo cuando `L` ya es `committed`; la
+definición — nada cambia y nada se emite — es la que manda, no la lista.)*
 
 | Paso | Regla |
 | --- | --- |
@@ -1272,7 +1508,7 @@ Vigencia de una entrada en el momento de ejecutarla, contra el estado actual `S`
 | Efecto | Vigente si | Si no está vigente |
 | --- | --- | --- |
 | `ROUTER_PUSH`, `ROUTER_REPLACE`, `HARD_NAVIGATE` con `flight = n` | `S` es `ROUTING` con `navId = n` | Se descarta: ese vuelo fue reemplazado, abandonado o falló antes de que la navegación saliera |
-| `ROUTER_PUSH` con `flight = null` (fila #25) | `entrada.seq = seq`: ninguna transición no inerte posterior | Se descarta: algo ocurrió después de volver a `committed` |
+| `ROUTER_PUSH` con `flight = null` (fila #25; rev. 2.3: también #32) | `entrada.seq = seq`: ninguna transición no inerte posterior | Se descarta: algo ocurrió después de volver a `committed` |
 | `ARM_BUDGET(n)` | `S` es `ROUTING` o `TRAVERSING` con `navId = n` | Se descarta: nunca se arma el presupuesto de un vuelo que ya no existe |
 | `CANCEL_BUDGET(n)` | siempre | — (idempotente) |
 | `PERSIST(m)` | siempre | — (confirmó una ubicación; el orden FIFO deja ganar a la última) |
@@ -1283,6 +1519,20 @@ cambia `committed` sin cambiar de vuelo y no debe invalidar el `ROUTER_PUSH` de 
 de la fila #10 que heredó `afterTraverse`, C-10); y como un `navId`
 no se reutiliza, ninguna transición posterior — tampoco un `RESET` — puede volver vigente una entrada
 descartada o todavía en cola de un vuelo anterior.
+
+**Rev. 2.3 (C-11).** El algoritmo no cambia; cambia lo que la tabla le entrega. Tres consecuencias que el
+intérprete de PR-NAV-03 debe respetar:
+
+1. **Un reclamo no invalida nada.** #29 conserva el `navId`: el `ROUTER_PUSH(T)` de ese vuelo, si
+   todavía está en cola, sigue vigente y sale. La selección reclamada no lo sustituye; su navegación la
+   emite #30 o #31 con un `navId` nuevo. I2 se juzga contra `target`, que sigue siendo lo que está en el
+   router, y no contra `next`.
+2. **Un vuelo de usuario puede salir por `ROUTER_REPLACE`** (#30; #31 y #16 cuando continúan uno). La
+   tabla de vigencia ya trata igual a `ROUTER_PUSH` y `ROUTER_REPLACE` con `flight = n`.
+3. **Las reproducciones de §0.5 que encadenan selecciones cambian de valores esperados.** En R5 la
+   primera selección supera al `restore` (#10) y es la que navega; la segunda queda reclamada. Antes del
+   primer drenaje sale un `router.push`, el de la primera, y no "el último destino". PR-NAV-03 re-deriva
+   R1–R8 y la búsqueda aleatoria contra la máquina realineada; los invariantes I1–I8 conservan su texto.
 
 Orden normativo del arranque cuando el render inicial falla (el caso del P1):
 
@@ -1304,7 +1554,7 @@ Obligaciones verificables — invariantes de integración, que no reemplazan a l
 | Id | Invariante | Cómo se observa |
 | --- | --- | --- |
 | I1 | Los efectos se ejecutan en el orden en que se encolaron (FIFO) | Índice de encolado creciente en cada ejecución |
-| I2 | Ninguna navegación se ejecuta fuera de su vuelo: al ejecutar `ROUTER_PUSH`/`ROUTER_REPLACE`/`HARD_NAVIGATE`, el estado es `ROUTING` hacia ese destino, o `IDLE` en ese destino para #25 | Oráculo por estado, independiente del `navId` |
+| I2 | Ninguna navegación se ejecuta fuera de su vuelo: al ejecutar `ROUTER_PUSH`/`ROUTER_REPLACE`/`HARD_NAVIGATE`, el estado es `ROUTING` hacia ese destino, o `IDLE` en ese destino para #25 (rev. 2.3: y para #32) | Oráculo por estado, independiente del `navId` |
 | I3 | En reposo (cola vacía, provider montado): los timers son exactamente el del vuelo vigente si el estado es `ROUTING`/`TRAVERSING`, y ninguno si no. En particular, ningún presupuesto vivo en `FAILED`, `IDLE`, `STALLED` o `BOOTING`. Es la contraparte de integración de S11 | Conjunto de timers contra el estado al final de cada tarea |
 | I4 | Con el provider desmontado no se ejecuta ningún efecto ni queda ningún timer | Idem |
 | I5 | A lo sumo una navegación ejecutada por vuelo (`navId`) | Conteo por `navId` |
@@ -1333,8 +1583,9 @@ Ese modelo **no** ejecuta React: prueba que el algoritmo es correcto bajo P1–P
 | Contrato | Fuente (16.3.8 salvo indicación) | Uso rev. 2 |
 | --- | --- | --- |
 | `router.push`/`router.replace` escriben la URL en el `useInsertionEffect` del mismo commit que el árbol nuevo | `app-router.js:38-71` | Requisito de `display` en render (§11.3); R-1 (§15.3) |
-| `ACTION_NAVIGATE`/`ACTION_RESTORE` marcan `discarded` la acción pendiente; su estado nunca se aplica | `app-router-instance.js:75-97, 147-161` | #10, #16, #25; SP-3 (§15.2) |
-| Navegar a la URL vigente es `replace` sin entrada nueva | `app-router.js:59-66` | #25 |
+| `ACTION_NAVIGATE`/`ACTION_RESTORE` marcan `discarded` la acción pendiente; su estado nunca se aplica | `app-router-instance.js:75-97, 147-161` | #10, #16, #25; SP-3 (§15.2). **Rev. 2.3 (C-11):** vale mientras la acción sigue en la cola del router. Una navegación de `?module=` sale de esa cola antes de que llegue su payload (`dashboard-stage-module-single-owner.md`: ~15 ms) y deja de ser descartable; lo que queda pendiente es su render, que React comitea por separado |
+| **Rev. 2.3, medido.** Un `router.push` o `router.replace` no descarta a otro ya emitido: cada uno aterriza con su payload, y el que aterriza termina a los emitidos antes que él | E1, E2, E5–E8 de §0.7; `docs/implementation/dashboard-stage-module-single-owner.md` §M2 (`[A, B, C]` 8/8) | #29–#32, #11 y #16. H1 y H3 de §13.1 |
+| Navegar a la URL vigente es `replace` sin entrada nueva | `app-router.js:59-66` | #25; rev. 2.3: #32. Medido (E3, §0.7): además descarta la navegación pendiente y pide un `_rsc` propio |
 | `popstate` de entradas `__NA` → traverse (`ACTION_RESTORE`) | `app-router.js:284-299`; `app-router-instance.js:234-241` | #17, #18 |
 | `router.refresh()` = `ACTION_REFRESH` en transición; el estado del router se consume con `use()` | `app-router-instance.js:352-357`; `use-action-queue.js:109-139` | H-08: un refresh pendiente sin headers retiene commits posteriores (SP-5) |
 | `pushState`/`replaceState` nativos sincronizan `useSearchParams` | Docs `04-linking-and-navigating.md` ("Native History API"); `app-router.js:233-279` | **No lo usa la FSM** (T1 descartado). Sigue vigente para el código actual (`AdminDashboardWorkspaceController.tsx:370-374`) hasta PR-NAV-03 |
@@ -1362,28 +1613,35 @@ Ese modelo **no** ejecuta React: prueba que el algoritmo es correcto bajo P1–P
 > podía ver, porque la propia fila #10 lo prescribía (§0.6, C-10). **S13 es nuevo** y lo vuelve
 > verificable. S1–S12 y L1–L6 no cambian de texto; los que rev. 2.2 verifica mecánicamente (S1, S3–S6,
 > S9–S12 y L1–L6) se cumplen, junto con S13, sobre la copia temporal de la enmienda en las tres pruebas.
+>
+> **Rev. 2.3.** La comprobación en navegador refutó H1, el supuesto bajo el que S5(b) estaba verificado
+> (§0.7, C-11). **S14 es nuevo**; S4, S5, S13, L1 y L2 cambian de texto. Con H1 y H3 reescritos según lo
+> medido, S1, S3–S6, S9–S15 y L1–L6 se cumplen sobre la copia temporal de la enmienda en las tres pruebas,
+> y S5(b) vuelve a valer dentro del alcance que su fila declara. **S15 es nuevo** (C-11b, review de #1844): lo agrega el P2 sobre la persistencia de #25 (§0.7).
 
 | Id | Invariante | Filas que lo sostienen | Verificación PR-NAV-02 | Verificación posterior |
 | --- | --- | --- | --- | --- |
 | S1 | En `IDLE`, `display = committed` | 1, 4, 9, 14, 21–25, `settle` | model-based (todas las trazas) | E2E: URL ↔ workspace ↔ `aria-current` |
 | S2 | Un `aria-current` por landmark visible = `display` | — (UI) | n/a | E2E; excluye el fallback SSR de Clínica (D-11, evidencia adicional rev. 2; PR-NAV-X2) |
 | S3 | `BUDGET_EXPIRED` con id obsoleto no produce efectos ni cambios | 13 + ignorados | unit + generador de ids viejos | — |
-| S4 | Un commit ∈ `superseded` nunca se pinta | 11; rev. 2.2: y el vaciado de `superseded` en las dos ramas de `settle`, que mantiene `T ∉ superseded` | unit + model-based, más la propiedad auxiliar "el target en vuelo nunca está en `superseded`" | E2E "late answer never repaints" |
-| S5 | Una entrada por ráfaga de usuario; 0 por restauración/normalización. **Rev. 2.2**, formulación verificable (§13.1): (a) toda transición que entra a `ROUTING` `restore` vuela a un módulo válido con `ROUTER_REPLACE` (o con el `HARD_NAVIGATE` de un `RETRY`) y nunca emite `ROUTER_PUSH`; (b) bajo H1–H6, una ráfaga de selecciones de usuario agrega **a lo sumo una** entrada al historial | 5, 7, 8, 10, 16, 19, 25 (ráfaga); 2, 3, `settle` (restauración) | (a) por transición en las tres pruebas; (b) sesiones en lazo cerrado sobre el modelo de §13.1. Rev. 2.1 lo asignaba aquí sin modelo y §16 no lo listaba (C-7) | E2E de historial: los supuestos H1–H4 son de integración y los cierra PR-NAV-03/04 (§13.1). R-6 ya en verde para la implementación actual |
+| S4 | Un commit ∈ `superseded` nunca se pinta. **Rev. 2.3:** se anota en `committed` y nada más cambia: ni el estado, ni `display`, ni `superseded`, ni un efecto | 11; rev. 2.2: y el vaciado de `superseded` en las dos ramas de `settle`, que mantiene `T ∉ superseded` | unit + model-based, más la propiedad auxiliar "el target en vuelo nunca está en `superseded`" | E2E "late answer never repaints" |
+| S5 | Una entrada por ráfaga de usuario; 0 por restauración/normalización. **Rev. 2.2**, formulación verificable (§13.1): (a) toda transición que entra a `ROUTING` `restore` vuela a un módulo válido con `ROUTER_REPLACE` (o con el `HARD_NAVIGATE` de un `RETRY`) y nunca emite `ROUTER_PUSH`; (b) bajo H1–H6, una ráfaga de selecciones de usuario agrega **a lo sumo una** entrada al historial. **Rev. 2.3 (C-11):** (b) vale con H1 y H3 **como se midieron** (§13.1), y su alcance es la ráfaga en la que ningún presupuesto venció y ningún `push` salió sobre un traverse sin comitear; fuera de ese alcance la segunda entrada es un residual contado, no prohibido (§0.7, §19) | 5, 7, 8, 10, 16, 19, 25 (ráfaga); 2, 3, `settle` (restauración); rev. 2.3: 29–32 | (a) por transición en las tres pruebas; (b) sesiones en lazo cerrado sobre el modelo de §13.1. Rev. 2.1 lo asignaba aquí sin modelo y §16 no lo listaba (C-7) | E2E de historial: los supuestos H1–H4 son de integración y los cierra PR-NAV-03/04 (§13.1). R-6 ya en verde para la implementación actual |
 | S6 | Ninguna navegación de documento salvo `HARD_NAVIGATE`, MPA de Next (D-10) o autoridades 7–9 | 15 | por tipo de efecto | E2E sin `document` |
 | S7 | Un dueño por superficie | — | n/a | guard PR-NAV-07 |
 | S8 | `FAILED` sin stack traces | — | n/a | PR-NAV-01 (ya en `main`) |
 | **S9** (nueva) | Ninguna transición emite `REFRESH_DATA`, `PUSH_NATIVE` ni `REPLACE_NATIVE` | todas | por tipo + test de unión de efectos | guard PR-NAV-07 |
 | **S10** (nueva) | En `ROUTING` `restore`, `display = committed` | 2, 3, `settle` | model-based | E2E R-1/R-2 |
 | **S11** (nueva) | Exactamente un presupuesto armado mientras el estado es `ROUTING`/`TRAVERSING`, con su `navId` | todas | model-based contando `ARM`/`CANCEL` | — |
-| **S12** (nueva, rev. 2.2) | Todo `PERSIST(m)` cumple `valid(m)`, y `m` es el módulo de la ubicación que esa misma transición confirma en `IDLE` | 1, `settle` (`persistable`) | por transición en las tres pruebas; casos literales con módulo retirado y con ruta sin módulo resoluble | E2E de persistencia de ruta completa (PR-NAV-05) |
-| **S13** (nueva, rev. 2.2.2) | En `ROUTING`, `afterTraverse` es verdadero **si y sólo si** el vuelo desciende de un traverse abandonado por una selección (#19), a través de cero o más selecciones que lo reemplazaron (#10), sin que desde entonces un commit haya sido anotado por #26. Consecuencia en ambos sentidos: mientras dura esa ráfaga, el primer commit ajeno (`≠ T`, `∉ superseded`) no abandona la selección vigente (#26); y un vuelo que no debe nada obedece todo commit ajeno (#23) | 19, 10, 26; toda otra entrada a `ROUTING` parte de `false`: 2, 3, 5, 7, 8, 15, 16 y `settle` | por transición en las tres pruebas, contra una variable testigo que la suite deriva de eventos y tags **sin leer `afterTraverse`**; caso literal de #10 con `afterTraverse`; trazas nombradas de C-10 | E2E: Back y dos clics antes del commit no pasan por la entrada de historial ni pierden el último clic (PR-NAV-03/04). Sólo es observable si H1 no vale para un `push` sobre un traverse pendiente (§13.1) |
-| L1 | **Rev. 2.2 (C-3).** Desde `IDLE`/`ROUTING`/`TRAVERSING`/`STALLED`, un `SELECT_*` válido (`X ≠ null`) cumple exactamente una de dos: **inicia una navegación** y emite `ROUTER_PUSH(X)` en la misma transición, o **es idempotente** — sin cambio de estado ni efectos — porque `X` ya es el *destino vigente* del estado: `committed` en `IDLE`; el target en vuelo en `ROUTING`, aunque `display` todavía no coincida con él (restauración); el destino en `TRAVERSING`; y en `STALLED` sólo si el target es además `committed`, porque un target trabado ya no está en vuelo y re-seleccionarlo reintenta (#16). *Rev. 2.1 decía "salvo destino ya mostrado", falso durante una restauración* | 4, 5, 7, 8, 10, 16, 19, 25 e ignorados de `SELECT_*` | unit + model-based | E2E payload retenido |
-| L2 | `ROUTING` y `TRAVERSING` terminan: `IDLE`, `STALLED`, `TRAVERSING` o `FAILED` tras `BUDGET_EXPIRED` vigente | 12, 27 + S11 | model-based con reloj simulado | — |
+| **S12** (nueva, rev. 2.2) | Todo `PERSIST(m)` cumple `valid(m)`, y `m` es el módulo de la ubicación que esa misma transición confirma en `IDLE` (**rev. 2.3, C-11b:** o el `committed` que #25 acepta) | 1, `settle` (`persistable`); rev. 2.3: 25 | por transición en las tres pruebas; casos literales con módulo retirado y con ruta sin módulo resoluble | E2E de persistencia de ruta completa (PR-NAV-05) |
+| **S13** (nueva, rev. 2.2.2) | En `ROUTING`, `afterTraverse` es verdadero **si y sólo si** el vuelo desciende de un traverse abandonado por una selección (#19), a través de cero o más selecciones que lo reemplazaron (#10; **rev. 2.3:** que el vuelo reclamó, #29, y de los vuelos que las emiten, #30 y #31), sin que desde entonces un commit haya sido anotado por #26. Consecuencia en ambos sentidos: mientras dura esa ráfaga, el primer commit ajeno (`≠ T`, `∉ superseded`) no abandona la selección vigente (#26); y un vuelo que no debe nada obedece todo commit ajeno (#23) | 19, 10, 26; toda otra entrada a `ROUTING` parte de `false`: 2, 3, 5, 7, 8, 15, 16 y `settle`. **Rev. 2.3:** 19, 29, 30, 31 y 26; #10 pasa a las que parten de `false`, y #11 anota un commit sin saldar la deuda | por transición en las tres pruebas, contra una variable testigo que la suite deriva de eventos y tags **sin leer `afterTraverse`**; caso literal de #10 con `afterTraverse`; trazas nombradas de C-10 | E2E: Back y dos clics antes del commit no pasan por la entrada de historial ni pierden el último clic (PR-NAV-03/04). Sólo es observable si H1 no vale para un `push` sobre un traverse pendiente (§13.1) |
+| **S14** (nueva, rev. 2.3) | Mientras un vuelo de **usuario** está en `ROUTING`, ninguna selección emite una navegación, salvo la que vuelve a `committed` (#25): la selección queda reclamada (#29) y se emite **a lo sumo una vez**, cuando el vuelo aterriza (#30) o cuando su presupuesto vence (#31); no se emite si antes la reemplaza otra selección, si el vuelo se abandona (#17, #20, #23, #25, #28) o si otra navegación la comitea (#32). `next` sólo existe en un vuelo de usuario y nunca es su `target` ni `committed` | 29, 30, 31, 32; el guard `restore` de 10 | por transición en las tres pruebas; caso literal de cada fila nueva; en lazo cerrado sobre H1 medido, 0 ráfagas con una segunda entrada dentro de presupuesto | E2E: con el primer payload retenido, la segunda elección no pide el suyo hasta que el primero aterriza, y entonces exactamente uno (bloque *single flight* existente, sin cambios; PR-NAV-03/04) |
+| **S15** (nueva, rev. 2.3, C-11b) | En `IDLE`, si `committed` es una ubicación con un módulo de la superficie (`persistable(committed) ≠ null`), `lastModule` es ese módulo: ningún estado final aceptado queda sin persistir. El hub y una ruta sin módulo resoluble no imponen nada | 1, `settle`, 25 (las filas que dejan `IDLE` en un `committed` aceptado); 4 y 24 no cambian de estado | por transición en las tres pruebas y en las sesiones en lazo cerrado; casos literales de #25 con el módulo guardado, sin guardar, el hub y Admin; trazas nombradas del P2 por #30, #11 y #26 | E2E: tras un clic en el módulo comiteado con otro reclamado, recargar `/dashboard` o `/dashboard/admin` desnudo restaura ese módulo (R-5 con la FSM; PR-NAV-03/04) |
+| L1 | **Rev. 2.2 (C-3).** Desde `IDLE`/`ROUTING`/`TRAVERSING`/`STALLED`, un `SELECT_*` válido (`X ≠ null`) cumple exactamente una de dos: **inicia una navegación** y emite `ROUTER_PUSH(X)` en la misma transición, o **es idempotente** — sin cambio de estado ni efectos — porque `X` ya es el *destino vigente* del estado: `committed` en `IDLE`; el target en vuelo en `ROUTING`, aunque `display` todavía no coincida con él (restauración); el destino en `TRAVERSING`; y en `STALLED` sólo si el target es además `committed`, porque un target trabado ya no está en vuelo y re-seleccionarlo reintenta (#16). *Rev. 2.1 decía "salvo destino ya mostrado", falso durante una restauración*. **Rev. 2.3 (C-11):** son tres salidas, no dos: inicia una navegación (`ROUTER_PUSH(X)`, o `ROUTER_REPLACE(X)` en #16 sobre un vuelo de continuación trabado), **queda reclamada** por el vuelo de usuario que está en el router (#29: ese vuelo responde por ella y la emite en #30 o #31, salvo que antes se abandone o la reemplace otra selección), o es idempotente. En `ROUTING` el destino vigente es `next ?? T` | 4, 5, 7, 8, 10, 16, 19, 25, 29 e ignorados de `SELECT_*` | unit + model-based | E2E payload retenido |
+| L2 | `ROUTING` y `TRAVERSING` terminan: `IDLE`, `STALLED`, `TRAVERSING` o `FAILED` tras `BUDGET_EXPIRED` vigente. **Rev. 2.3:** o un vuelo nuevo hacia la selección reclamada (#31), que no lleva reclamo: ningún reclamo dura más que un presupuesto y una selección se releva a lo sumo una vez. Consecuencia: con una selección reclamada, `STALLED` puede llegar hasta **dos** presupuestos después del primer clic, el del vuelo colgado y el del relevo | 12, 27, 31 + S11 | model-based con reloj simulado | — |
 | L3 | Desde `STALLED` (`RETRY`) y `FAILED` (`RESET`) hay recuperación sin Reload manual | 15, 21 | unit | E2E |
 | L4 | `TRAVERSE_STARTED` siempre abandona el vuelo vigente de `ROUTING`/`STALLED`. **Rev. 2.2:** el estado siguiente es `TRAVERSING` (#17), `IDLE` (#28) o una normalización nueva de Admin, con otro `navId` (#28); nunca el mismo vuelo | 17, 28 | unit + model-based | E2E Back en vuelo |
 | **L5** (nueva) | Un Admin sin módulo nunca queda en `IDLE` | `settle`, 3. Rev. 2.2: `settle` cubre también 9, 14 y 28 (C-1) | model-based | E2E Back a entrada desnuda, incluido el payload que supera el presupuesto |
-| **L6** (nueva, rev. 2.2) | Ningún vuelo tiene por destino la ubicación comiteada: en `ROUTING`, `STALLED` y `TRAVERSING`, target/destino ≠ `committed`. Un vuelo así no podría confirmarse, porque el provider emite `URL_COMMITTED` sólo cuando la ubicación cambia | 4, 24, 25, 28 y los guards `!same(·, committed)` de 5, 7, 8, 10, 16, 17 y 19 | por transición en las tres pruebas; en lazo cerrado, 0 vuelos sin nada pendiente en el router | E2E: Back + Forward antes del commit y Back + clic en el módulo comiteado no muestran `STALLED` (PR-NAV-03/04) |
+| **L6** (nueva, rev. 2.2) | Ningún vuelo tiene por destino la ubicación comiteada: en `ROUTING`, `STALLED` y `TRAVERSING`, target/destino ≠ `committed`. Un vuelo así no podría confirmarse, porque el provider emite `URL_COMMITTED` sólo cuando la ubicación cambia | 4, 24, 25, 28 y los guards `!same(·, committed)` de 5, 7, 8, 10, 16, 17 y 19; rev. 2.3: y el de 29. #11 mantiene `committed` igual a la URL tras un commit superado, sin lo cual esos guards no protegen (§0.7) | por transición en las tres pruebas; en lazo cerrado, 0 vuelos sin nada pendiente en el router | E2E: Back + Forward antes del commit y Back + clic en el módulo comiteado no muestran `STALLED` (PR-NAV-03/04) |
 
 Ninguna fila contradice estos invariantes: `PERSIST` sólo en confirmaciones, `display` definido por
 estado y `superseded` vaciado al salir de `ROUTING`/`STALLED`.
@@ -1411,9 +1669,9 @@ si la frontera está montada.
 
 | Id | Supuesto | Fuente | Qué lo confirma |
 | --- | --- | --- | --- |
-| H1 | Una navegación nueva, un traverse o una navegación de documento **descartan** la pendiente | §12.6 (`app-router-instance.js:75-97, 147-161`); SP-3 lo observó para un `pushState` sobre un `router.push` pendiente | Lectura de código más SP-3. **Sin evidencia ejecutada** para `router.push` sobre `router.push` ni para un `push` sobre un traverse pendiente: E2E en PR-NAV-03 |
+| H1 | Una navegación nueva, un traverse o una navegación de documento **descartan** la pendiente. **Rev. 2.3 (C-11), medido:** falso para un `push` o un `replace` sobre otro ya emitido: **conviven**, y cada uno puede aterrizar por separado y en cualquier orden. Descartan lo pendiente un traverse (bloque *Back during a pending activation* de `dashboard-global-live-navigation-sync.spec.ts`, en verde en `main`), una navegación de documento y un `push` a la URL vigente (E3) | §12.6 (`app-router-instance.js:75-97, 147-161`); SP-3 lo observó para un `pushState` sobre un `router.push` pendiente | Lectura de código más SP-3. **Sin evidencia ejecutada** para `router.push` sobre `router.push` ni para un `push` sobre un traverse pendiente: E2E en PR-NAV-03. **Rev. 2.3:** ejecutado antes de PR-NAV-03 (E1–E8, §0.7). Sigue sin medir un `push` sobre un traverse que no comiteó: en E4 el traverse comitea antes |
 | H2 | Un `push` que aterriza agrega una entrada tras la actual y descarta las siguientes, salvo que su destino sea la URL vigente: entonces reemplaza en el lugar. Un `replace` que aterriza sobrescribe la entrada actual | §12.6 (`app-router.js:59-66`) | E2E de `history.length` en PR-NAV-03/04 |
-| H3 | Una navegación descartada nunca aterriza | §12.6; SP-3 (15/15, misma salvedad que H1) | Residual: si aterrizara, la máquina la obedece como externa cuando ya salió del vuelo (§19) |
+| H3 | Una navegación descartada nunca aterriza. **Rev. 2.3, medido:** y lo emitido **antes** de una navegación que aterriza no aterriza después (E2) | §12.6; SP-3 (15/15, misma salvedad que H1) | Residual: si aterrizara, la máquina la obedece como externa cuando ya salió del vuelo (§19) |
 | H4 | Back/Forward mueve el índice de inmediato, anuncia su destino y no agrega ni quita entradas | Semántica del navegador; `TRAVERSE_STARTED` de §12.1 | E2E Back/Forward con y sin Navigation API |
 | H5 | `HARD_NAVIGATE` es una navegación de documento y termina la instancia de la máquina | §12.5 | E2E de `STALLED` → "Reintentar" |
 | H6 | El provider emite `URL_COMMITTED` sólo cuando la ubicación que deriva difiere de la última entregada a la máquina | §11.3, §12.1 (rev. 2.2) | Unit del provider y E2E en PR-NAV-03 |
@@ -1451,6 +1709,22 @@ sesiones recorren las mismas transiciones y las mismas filas que antes; sólo ca
 texto canónico de `ROUTING` incluye `afterTraverse` (§0.6). S13 se juzga en el recorrido exhaustivo y en
 las trazas aleatorias, que no asumen H1.
 
+**Rev. 2.3 (C-11).** El modelo cambia en un punto: en vez de "a lo sumo una navegación pendiente" lleva
+la **lista** de las emitidas y no aterrizadas, en orden de emisión. Un `push` o un `replace` se agregan a
+la lista; cualquiera de la lista puede aterrizar, y al hacerlo quita a las emitidas antes que ella; un
+traverse, una navegación de documento y un `push` a la URL vigente la vacían. Las sesiones eligen con el
+PRNG cuál aterriza. Consecuencias:
+
+- Las filas #11, #23 y #32 **se alcanzan** en lazo cerrado: son los commits de navegaciones que H1 daba por
+  descartadas. Quedan fuera sólo #13 (un timer cancelado que dispara) y #26 (el commit de un traverse
+  posterior a un `push`, que el modelo sigue descartando).
+- S5(b) se afirma sobre las ráfagas de su alcance y da 0 de 15 930. Las que quedan fuera se **cuentan**:
+  240 con un presupuesto vencido y 88 con un `push` sobre un traverse sin comitear (§0.7).
+- La máquina de rev. 2.2.2 bajo este mismo modelo no pasa: 714 ráfagas con una segunda entrada, 96 vuelos y
+  *stalls* huérfanos y 17 sesiones sin reposo. Es la prueba de que el oráculo ve el defecto.
+- Lo que el modelo sigue sin probar es lo mismo que antes, con otro contenido: que el router real se
+  comporte así con tres o más navegaciones pendientes, y H2, H4–H7. Son E2E de PR-NAV-03/04.
+
 ---
 
 ## 14. Comparación arquitectura actual versus propuesta
@@ -1460,7 +1734,7 @@ las trazas aleatorias, que no asumen H1.
 | Autoridades que mueven URL/contenido (2–6 de §5.3) | 5 | 1 (intérprete del provider) |
 | Especificaciones de la máquina | 2 (pura Clínica + inline Admin) | 1 pura, parametrizada por superficie |
 | Estado de coordinación | 7–10 refs/estados por controlador + 2 buses + store | 1 estado discriminado por superficie |
-| Correlación intención↔commit | Inferida por módulo y `supersededTargets` | `navId` para presupuestos; commits por igualdad con el destino vigente y `superseded` (rev. 2) |
+| Correlación intención↔commit | Inferida por módulo y `supersededTargets` | `navId` para presupuestos; commits por igualdad con el destino vigente y `superseded` (rev. 2); rev. 2.3: por igualdad con `target`, la navegación que está en el router, con `next` y `superseded` como casos propios |
 | Cambio de módulo en vuelo | Siempre (render de servidor) | ~~Nunca con T1~~ **Rev. 2: siempre (T2)**, supervisado por `ROUTING` con presupuesto |
 | Terminal ante payload colgado | Presupuesto 10 s (sólo en #1837, sólo controladores) | `STALLED` en todo `ROUTING` y `TRAVERSING` (rev. 2, #12/#27) |
 | Frontera de error | Ninguna | `FAILED` + `error.tsx` |
@@ -1591,7 +1865,7 @@ workflows. Todas las operaciones Git/GitHub son [MANUAL-NICO] salvo delegación 
 | Skill Claude | `vetneb-lanzamiento-mantenimiento` si Nico delega sólo el análisis de la evidencia sanitizada |
 | Implementación | — |
 | Tests | — |
-| Aceptación | p50/p95/p99 de `_rsc` por superficie; % > 10 s; lista de navegadores; acta sanitizada (§17 de `AGENTS.md`) |
+| Aceptación | p50/p95/p99 de `_rsc` por superficie; % > 10 s; lista de navegadores; acta sanitizada (§17 de `AGENTS.md`). **Rev. 2.3:** estas mediciones son además una condición de la aprobación de DT-5: con ellas se decide si el presupuesto de 10 000 ms se mantiene (§21) |
 | Rollback | — |
 | Bloqueos | Autorización R3 de Nico; acceso a logs |
 
@@ -1663,6 +1937,9 @@ workflows. Todas las operaciones Git/GitHub son [MANUAL-NICO] salvo delegación 
 | Rev. 2.2.2 — estado | Publicada como PR #1842 (head `541aabaa`), que transcribe rev. 2.2.1 con sus cuatro contextos required en verde. Su review dejó un P2 sin resolver (thread `PRRT_kwDOR5qlsc6rBw_4`) que es un contraejemplo de la **fila #10**, no de la implementación (C-10, §0.6). Regla de "Aceptación": PR-NAV-02 no corrige la tabla sola. **BLOQUEADA** hasta fusionar esta revisión; después se realinea sobre la nueva `main` y repite la suite completa |
 | Rev. 2.2.2 — scope | Los mismos dos archivos, ninguno más. Máquina: el último argumento de la fila #10 pasa de `false` a `state.afterTraverse`. Suite: el caso literal de #10 desde un vuelo con `afterTraverse` espera el valor heredado; S13 se agrega a los invariantes por transición con su variable testigo (que entra además en la identidad de estado del recorrido exhaustivo); tres trazas nombradas de C-10; los tres hashes anclados se recalculan. La tabla de guards transcrita no cambia |
 | Rev. 2.2.2 — aceptación | Todo lo de rev. 2.2 en verde más S13 con 0 violaciones en las tres pruebas; 28/28 filas, 60/60 pares y 113/113 ramas sin cambios; semillas y hashes nuevos reportados (los de §0.6 son de la copia temporal). El realineo no debilita ningún test: el único caso literal que cambia lo hace porque cambia la fila normativa que transcribe |
+| Rev. 2.3 — estado | **Fusionada** (#1842, `0908bb02`): la máquina y la suite de `main` transcriben rev. 2.2.2 y pasan (245 tests). C-11 (§0.7) es un contraejemplo de la especificación, hallado en navegador, que ningún oráculo de esa suite podía ver mientras el modelo de historial asumiera H1. Cuando esta revisión esté fusionada, la máquina y su suite se **realinean** en una PR propia, anterior a PR-NAV-03 y precondición suya |
+| Rev. 2.3 — scope | Los mismos dos archivos, ninguno más (`frontend-only`). Máquina: campo `next` en `ROUTING`; filas #29–#32; #10 sólo desde un vuelo `restore`; #11 anota `committed`; #16 emite por `issue`. Suite: tabla de guards con las ramas nuevas y los guards enmendados; formas de efectos de #11, #16 y #29–#32; invariantes S4, L1 y L2 con su texto nuevo, S14, S15 y "alcance del reclamo"; #25 con su `PERSIST`; variable testigo de S13 a través de #29–#31; casos literales de las seis ramas nuevas y de los que cambian; trazas nombradas de C-10 re-escritas y las de C-11; modelo de historial con H1 y H3 medidos; los tres hashes recalculados |
+| Rev. 2.3 — aceptación | Suite completa en verde con 32/32 filas, 60/60 pares y 119/119 ramas, 0 situaciones sin fila única, S14 y S15 con 0 violaciones en las tres pruebas, 0 ráfagas con una segunda entrada dentro de presupuesto y 0 vuelos huérfanos en lazo cerrado; el residual de §0.7 **contado y reportado**, no afirmado en cero; semillas y hashes nuevos reportados (los de §0.7 son de la copia temporal). El realineo no debilita ningún test: los que cambian lo hacen porque cambia la fila o el supuesto normativo que transcriben. Si la verificación versionada contradice esta revisión, vuelve a aplicar la regla: se reporta y la enmienda regresa a este documento |
 
 ### Fase C — Sustitución controlada
 
@@ -1683,12 +1960,17 @@ workflows. Todas las operaciones Git/GitHub son [MANUAL-NICO] salvo delegación 
 | Tests | Existentes que deben seguir PASSED sin debilitarse: `dashboard-global-live-navigation-sync.spec.ts`, `dashboard-real-pointer-navigation.spec.ts`, `dashboard-b08-…`, `dashboard-b09-…`, `dashboard-b13-admin-entry.spec.ts` (cohorte `visual-contract`), `e2e:admin-mobile`. Los escenarios "payload held" **se conservan como contratos** (bajo T2 hay payload por cambio de módulo). Nuevos: refresh pendiente (`DashboardRefreshButton`) + selección de módulo → converge o `STALLED` dentro del presupuesto (H-08); restauración R-1, R-5 y R-6 de §15.3; Back a la entrada desnuda de Admin → normalización (L5); ningún frame con URL ≠ `display` tras el commit (requisito de render). Rev. 2.1, frontera: (a) un `_rsc` de cambio de módulo respondido con Flight truncado (patrón E2E de PR-NAV-01) monta la frontera ⇒ la FSM queda en `FAILED` y no queda presupuesto armado: el timer del `navId` previo no produce `STALLED` ni efectos tras su vencimiento; (b) "Reintentar" ⇒ `RESET` + `retry()` ⇒ `IDLE` con URL = `display` = workspace, sin `document` request; (c) el mismo caso en URL desnuda de Admin ⇒ `RESET` normaliza por `ROUTER_REPLACE` (L5); (d) el E2E de recuperación de PR-NAV-01 sigue PASSED sin debilitarse |
 | Aceptación | Para Admin: S1–S11 aplicables, L1, L2, L4 y L5 en E2E; **1** `_rsc` de navegación por selección efectiva; los superseded se descartan sin repintar; `STALLED` visible dentro del presupuesto; 0 entradas de historial por restauración; Back/Forward exacto; `FAILED` y `RESET` alcanzables por E2E, sin presupuesto obsoleto vivo tras la recuperación (rev. 2.1); recuperación de PR-NAV-01 preservada; `e2e:visual-contract` y `e2e:admin-mobile` PASSED; gates frontend §6 PASSED |
 | Rollback | Revert del squash restaura controlador y bus; el provider sin consumidores queda inactivo |
-| Bloqueos | Rev. 1: DT-1, DT-2 (**resueltos** en rev. 2). Vigentes: PR-NAV-02 fusionada; valor inicial del presupuesto (DT-5) a fijar por Nico antes de implementar, porque bajo T2 el presupuesto ya aplica a cambios de módulo |
+| Bloqueos | Rev. 1: DT-1, DT-2 (**resueltos** en rev. 2). Vigentes: PR-NAV-02 fusionada; valor inicial del presupuesto (DT-5) a fijar por Nico antes de implementar, porque bajo T2 el presupuesto ya aplica a cambios de módulo. **Rev. 2.3:** PR-NAV-02 está fusionada (#1842) y **DT-5 está decidida: 10 000 ms**. Bloqueos vigentes: la fusión de esta revisión y la realineación de la máquina con ella (ficha de PR-NAV-02). DT-16 está decidida (§21) y no bloquea |
 | Rev. 2.2 — integración obligatoria | (1) **Orden (C-4):** `HYDRATED` se aplica al crear el store en el cliente; sus efectos se encolan y se ejecutan según §12.5.1 (rev. 2.2.1; rev. 2.2 decía "en un efecto de montaje", C-9). (2) **Deduplicación (C-4):** `URL_COMMITTED` contra la última ubicación entregada por cualquier evento. (3) **Frontera (C-6):** `app/dashboard/error.tsx` despacha `NAV_FAILED` al montar y `RESET` tanto en "Reintentar" como en la limpieza de efecto, con la ubicación comiteada vigente del provider; sigue sin exponer `error.message` ni `digest`. (4) **Adaptador (C-6, DT-10):** `requestAdminModuleActivate` devuelve `false` en `BOOTING` y `FAILED`. Ninguno de estos puntos agrega eventos ni efectos a §12.1 |
 | Rev. 2.2 — tests obligatorios | **C-4:** fallo de render en la carga inicial ⇒ la máquina recibió `HYDRATED` antes que `NAV_FAILED` (el módulo almacenado sobrevive al fallo). **C-6:** (a) "Reintentar" seguido del desmontaje no arma un segundo presupuesto ni emite un segundo `router.replace` en la entrada desnuda; (b) Back dentro de `/dashboard/admin` con la frontera visible: la frontera sigue montada, la FSM sigue en `FAILED` y "Reintentar" deja URL = `display` = workspace; (c) con la frontera visible, un clic del chrome no queda muerto: navega por su cuenta y la FSM se reconcilia; (d) salir del dashboard con la frontera visible no deja presupuesto ni timer vivo. Todo sobre el production runner: bajo `next dev` con StrictMode el doble montaje produce `NAV_FAILED` → `RESET` → `NAV_FAILED`, que el drenaje único de §12.5.1 absorbe sin navegar (rev. 2.2.1), pero el modo desarrollo no vale como evidencia de producción. **S5 / H1, H2, H4:** `history.length` crece 1 en una ráfaga A→B→C con payloads retenidos, 0 en A→B→A y 0 en la restauración (R-6); Back/Forward recorre exactamente esas entradas. **C-8 / L6:** Back con payload retenido y Forward antes del commit ⇒ sin `STALLED` al vencer el presupuesto; Back con payload retenido y clic en el módulo comiteado ⇒ sin `STALLED`. Ese mismo E2E **registra** si el commit del traverse abandonado llega (H1 para traverse, hoy sin evidencia) y, si llega, que la vista converge al clic. **Aceptación ampliada** a S12 y L6 |
 | Rev. 2.2.1 — coordinación del intérprete (C-9): scope | El intérprete se implementa como **coordinador sin React** — store, cola, vigencia y conciliación de §12.5.1, con el planificador de microtareas, los timers y el router inyectados — en un archivo nuevo, `frontend/src/lib/dashboard/navigation/dashboardNavigationCoordinator.ts`, sin imports de React ni de Next; `DashboardNavigationProvider.tsx` queda como envoltura delgada que lo crea en render (A1), lo monta en un efecto pasivo (A4), lo desmonta (A8) y le entrega los eventos. Test unit nuevo junto al de la máquina |
 | Rev. 2.2.1 — coordinación del intérprete (C-9): obligaciones | (1) **Serialización del intérprete:** `dispatch` aplica la transición al llamarse y en orden; nunca se llama en render; ninguna otra vía cambia el estado (A2). (2) **Drenaje seguro de efectos:** cola FIFO única, un drenaje por bloque síncrono en microtarea, sin drenar con el provider desmontado, sin reentrada, tolerante a un efecto que lanza (A3, A5). (3) **Orden de hidratación:** el store nace con `HYDRATED` aplicado y sus efectos encolados; `ready` se establece en un efecto **pasivo** del provider; el markup del primer render depende sólo de `display`, nunca de `state.tag` ni de la restauración en curso, para no romper la hidratación (A1, A4). (4) **Manejo de la frontera:** `NAV_FAILED` y `RESET` en efectos pasivos, encolados como cualquier evento; ninguno ejecuta nada por sí mismo (§12.1). (5) **Cancelación de presupuestos:** timers por `navId`, conciliados contra el estado al cierre de cada drenaje y cancelados al desmontar (A6, A8). (6) **Protección contra eventos y efectos obsoletos:** vigencia por `navId` al ejecutar; un `navId` no se reutiliza; un callback tardío es inerte (A5, A7). (7) **Sin efectos secundarios en render:** previsualización pura de `URL_COMMITTED` en render y despacho en efecto de layout (§11.3) |
 | Rev. 2.2.1 — coordinación del intérprete (C-9): tests obligatorios | **Unit del coordinador, sin React**, con planificador y timers simulados: las reproducciones R1–R8 de §0.5 como casos nombrados, cada una con su orden de eventos, su orden de efectos ejecutados, el estado final, el número de timers y la lista de navegaciones; búsqueda aleatoria con semilla y los oráculos I1–I8; y las cinco variantes de §0.5 como **pruebas de mutación** que deben fallar. **Con React** (unit del provider o E2E): P1 y P3 — orden hijo → padre de los efectos pasivos y doble montaje de StrictMode. **E2E de fallos durante la restauración inicial**, en production runner con el patrón de stream truncado de PR-NAV-01: (a) Admin en URL desnuda con módulo almacenado y el render inicial fallando ⇒ frontera visible, **ningún** `_rsc` de restauración emitido después del fallo, la URL sigue desnuda y, pasado el presupuesto, no aparece `STALLED` ni cambia nada; (b) "Reintentar" ⇒ exactamente **un** `router.replace` de normalización y `IDLE` en el módulo almacenado; (c) lo mismo con la frontera montándose en un commit posterior (payload de la restauración ya emitido): el presupuesto se cancela y el commit tardío no saca a la máquina de `FAILED`; (d) salir del dashboard con la restauración en vuelo no deja timers ni navega después. **Aceptación ampliada** a I1–I8 |
+| Rev. 2.3 — H1 y P4, resultados registrados | La comprobación que esta ficha pedía se ejecutó antes de implementar (§0.7). **H1: refutado** para `push` sobre `push` (E1: `[A, B, C]` en 7 de 10) y reescrito en §13.1. **H3:** vale en la forma "lo emitido antes de un aterrizaje no aterriza después" (E2). **Premisa de #25: confirmada** (E3, 10 de 10), con un `_rsc` propio por el `push` a la URL vigente. **H1 para un traverse:** sin evidencia en contra; dentro de la misma página el traverse comitea al instante (E4), de modo que #26 no se alcanzó. **P4:** `router.push` y `router.replace` invocados fuera de un handler de React navegan (las 90 corridas). Nada de esto reemplaza los E2E de esta ficha: son llamadas directas al router sobre el build de `main`, sin provider |
+| Rev. 2.3 — scope y presupuesto (C-11, DT-5) | El scope de archivos no cambia. El presupuesto del intérprete es **10 000 ms**, el valor de `NAVIGATION_FLIGHT_BUDGET_MS` (`navigationFlight.ts:27`), productivo desde #1837. PR-NAV-03 decide dónde vive la constante que usa el intérprete, con dos límites: mientras Clínica y las rutas completas sigan sobre `navigationFlight.ts` (PR-NAV-04/05) no puede haber dos valores distintos en el árbol, y PR-NAV-07 conserva la constante cuando retira ese archivo. Con una selección reclamada, `STALLED` puede aparecer hasta 20 s después del primer clic (L2): el E2E de `STALLED` de esta ficha lo afirma con ese margen. Condiciones de la aprobación: el vencimiento no cancela la navegación ni descarta la respuesta tardía del destino vigente (#14 la confirma desde `STALLED`); los E2E de presupuesto existentes se conservan sin debilitar; el valor no se cambia sin una decisión nueva |
+| Rev. 2.3 — E2E existentes frente a la tabla enmendada | **Se conservan sin tocar:** el bloque *single flight* de `dashboard-real-pointer-navigation.spec.ts` (la segunda elección no pide payload hasta que la primera aterriza, después exactamente uno; `history.length` +1; Back al origen, Forward a la segunda), que es #29 → #30; el bloque *superseded commit* (el commit inyectado del primero no se pinta y la URL converge al segundo); el bloque *abandoned flight* (relevo dentro del presupuesto, una entrada, la respuesta tardía no repinta ni escribe historial), que es #31; y el caso "activación reclamada y abandonada por Back: 0 payloads" de `dashboard-global-live-navigation-sync.spec.ts`. Con rev. 2.2.2 el primero, el tercero y el cuarto fallaban por construcción, porque afirman que la selección reclamada no pide payload. **Se realinea (DT-16 = A, decidida):** el bloque *return to the committed module* (A, B en vuelo, A otra vez). Hoy afirma que volver a A no pide payload y que B queda como entrada Forward, lo que el controlador logra con `history.back()`. La fila #25, vigente desde rev. 2 y confirmada en E3, emite un `push` a la URL vigente. El bloque conserva **todos** sus escenarios y viewports y cada una de sus verificaciones, con el valor que da #25: stage y `aria-current` vuelven a A en el clic; los payloads pedidos son el de B y **uno** a la URL de A, ninguno más y ningún replay; liberado el de B, ningún `pushState` de B, ninguna divergencia de stage, banda, barra o título, y la URL sigue en A; `history.length` no crece en la ráfaga; Back llega al landing, Forward vuelve a A, y **no existe** una entrada Forward de B: un segundo Forward deja URL y stage en A; ninguna petición `document`; ningún error de página. Ninguna afirmación se retira sin su reemplazo |
+| Rev. 2.3 — tests obligatorios adicionales | Los de C-11 sobre el production runner: (a) A→B→C con B liberado **antes** que C, que es el orden que rev. 2.2.2 no resistía: una entrada, Back al origen, B nunca pintado; (b) el mismo con C liberado antes; (c) restore en vuelo + clic, en los dos órdenes: una entrada (E7 con el provider); (d) restore en vuelo + clic + clic en el módulo restaurado: reposa en él sin entrada de más (#32); (e) el residual de §0.7, **registrado tal como es**: un payload retenido más allá del presupuesto que responde antes que su relevo deja su entrada. **Aceptación ampliada** a S14 |
+| Rev. 2.3 — URL y `display` durante un reclamo | Entre el aterrizaje del vuelo (#30) y el commit de su continuación, la URL es la del vuelo aterrizado y `display` es la selección reclamada. Es el intervalo que ya afirma el bloque *superseded commit* (la URL pasa por el módulo superado; la banda, la barra, el título y el stage no), ahora producido por la propia máquina. El requisito "ningún frame con URL ≠ `display` tras el commit" de esta ficha es el de `IDLE` (S1) y no cambia |
 
 #### PR-NAV-04 — Corte de Clínica (shell + hub)
 
@@ -1710,6 +1992,7 @@ workflows. Todas las operaciones Git/GitHub son [MANUAL-NICO] salvo delegación 
 | Bloqueos | Ninguno adicional |
 | Rev. 2.2 — integración y tests obligatorios | `requestClinicModuleActivate` devuelve `false` en `BOOTING` y `FAILED` (DT-10). **C-6 en Clínica**, que es donde el pathname cambia de verdad: un `_rsc` truncado en una ruta completa monta la frontera; Back a `/dashboard` la desmonta **sin** "Reintentar" ⇒ la FSM de Clínica sale de `FAILED`, URL = `display` = workspace y el siguiente clic del shell navega. El caso simétrico: fallo en `/dashboard` y navegación a una ruta completa. **S5 y C-8 / L6** con los mismos E2E de PR-NAV-03, en Clínica y con el hub. Aceptación ampliada a S12 y L6 (L5 no aplica: Clínica no normaliza) |
 | Rev. 2.2.1 — coordinación del intérprete (C-9) | Clínica usa el mismo coordinador de PR-NAV-03, sin variantes: las siete obligaciones de su ficha (serialización, drenaje seguro, orden de hidratación, manejo de la frontera, cancelación de presupuestos, protección contra obsoletos y render sin efectos) aplican tal cual a la superficie de Clínica. **E2E de fallos durante la restauración inicial**, que en Clínica es la fila #2: `/dashboard` desnudo con último módulo almacenado ≠ default y el render inicial fallando ⇒ frontera visible, ningún `_rsc` de restauración después del fallo, sin `STALLED` al vencer el presupuesto; "Reintentar" ⇒ `IDLE` en el módulo por defecto con URL = `display`: la restauración C no se reintenta, porque `RESET` no pasa por `bootRestore`. **Limitación conocida, a fijar por E2E tal como es:** ese `settle` persiste el módulo por defecto y pisa la preferencia almacenada (DT-13, §21); en Admin no ocurre, porque la normalización usa `lastModule`. Lo mismo entrando por una ruta completa. Aceptación ampliada a I1–I8 |
+| Rev. 2.3 — reclamo en Clínica (C-11) | Clínica usa las mismas filas #29–#32, con el hub y las rutas completas como selecciones reclamables. Sus E2E equivalentes ya existen y se conservan: *single flight*, *abandoned flight* y "hub, luego Informes en vuelo, luego Operaciones" del mismo spec. La regla de #1835 "el stage de ruta completa nunca reclama" **no** se traslada: la máquina reclama igual desde una ruta completa, lo que es seguro pero secuencial; si PR-NAV-05 quiere recuperar la navegación inmediata entre páginas, necesita su propia medición de H1 para ese caso y su enmienda. Aceptación ampliada a S14 |
 
 #### PR-NAV-05 — Rutas completas: `ROUTING`/`STALLED` y retiro del hand-over
 
@@ -1729,6 +2012,7 @@ workflows. Todas las operaciones Git/GitHub son [MANUAL-NICO] salvo delegación 
 | Aceptación | L2, L3 en rutas completas; ningún estado sin salida; cohortes `visual-contract` y `public-clinic` PASSED |
 | Rollback | Revert del squash |
 | Bloqueos | DT-5 (valor del presupuesto con datos de A0) |
+| Rev. 2.3 — presupuesto | DT-5 tiene un valor inicial aprobado (10 000 ms, §21) y deja de bloquear esta ficha. NAV-A0 sigue siendo la fuente para revisarlo, antes o después de este PR; cambiarlo exige una decisión nueva |
 | Rev. 2.2 — tests obligatorios | **C-5 / S12:** el E2E de persistencia de ruta completa ya listado comprueba además que una ruta sin módulo resoluble, si llega a existir, no escribe el último módulo. **C-6:** los E2E de PR-NAV-04 se repiten con el stage de ruta completa ya migrado a vista de `display`, incluida "Abrir módulo completo" cuando el destino falla. **C-8 / L6:** Back + Forward y Back + clic en el módulo comiteado entre una ruta completa y el shell |
 
 ### Fase D — Validación
@@ -1840,9 +2124,14 @@ flowchart TD
 | 8 | PR-NAV-06, PR-NAV-07 | entre sí | — | Pendiente |
 | 9 | PR-NAV-08 | — | — | Pendiente |
 
-**Rev. 2.2.2 (2026-10-10) — estado vigente.** La columna anterior es la de rev. 2. Ítem 4: PR-NAV-02
+**Rev. 2.2.2 (2026-10-10) — estado a esa revisión; lo actualiza la nota de rev. 2.3 que sigue.** La columna anterior es la de rev. 2. Ítem 4: PR-NAV-02
 está publicada como PR #1842 (abierta), pendiente de C-10 y bloqueada hasta la fusión de esta revisión
 (§16). Ítems 5–9: sin cambios; PR-NAV-03 depende de que #1842 se fusione.
+
+**Rev. 2.3 (2026-10-10) — estado vigente.** Ítem 4: PR-NAV-02 fusionada (#1842, `0908bb02`). Entre los
+ítems 4 y 5 se intercalan dos pasos: la fusión de esta revisión y la **realineación de la máquina** con
+ella (ficha de PR-NAV-02, §16). Ítem 5: PR-NAV-03 depende de ambos; DT-5 ya no la bloquea. Ítems 6–9: sin
+cambios.
 
 Restricción de recursos (`AGENTS.md` §8): una cohorte E2E o build por vez; ningún PR de esta hoja
 requiere ejecución simultánea de builds frontend y backend.
@@ -1877,6 +2166,10 @@ requiere ejecución simultánea de builds frontend y backend.
 | Rev. 2.2.1 — E2E de fallos durante la restauración inicial (C-9) | Render inicial fallido con restauración pendiente: ninguna navegación ni `STALLED` después del fallo; "Reintentar" emite una sola normalización | spec nuevo (patrón de stream truncado de PR-NAV-01) | PR-NAV-03 (Admin, filas #2/#3), PR-NAV-04 (Clínica, fila #2) |
 | Rev. 2.2.2 — S13 por transición (C-10) | `afterTraverse` contra una variable testigo derivada de eventos y tags, en el recorrido exhaustivo, las trazas y las sesiones; caso literal de #10; trazas Back → C → D, Back → C → D → E, Admin hacia la entrada desnuda, hub y rutas completas, y los límites (commit superado, saldo único, `STALLED`, `RETRY`, traverse nuevo, #25, `NAV_FAILED`) | `test/unit/ui/dashboard/dashboard-navigation-machine.test.ts` | PR-NAV-02 |
 | Rev. 2.2.2 — E2E de Back + ráfaga (C-10) | Back y dos o más clics antes de cualquier commit: la vista no pasa por la entrada de historial, el último clic aterriza y no hay normalización de Admin sobre él. Registra además si el traverse sobrevive al `push` (H1) | spec nuevo junto al E2E de H1 | PR-NAV-03 (Admin), PR-NAV-04 (Clínica) |
+| Rev. 2.3 — unit de las filas nuevas y de S14 (C-11) | Casos literales de #29–#32 y de #10, #11, #16 y #25 enmendadas; S14, S15 y "alcance del reclamo" por transición; trazas nombradas de C-11 | `test/unit/ui/dashboard/dashboard-navigation-machine.test.ts` | Realineación de PR-NAV-02 |
+| Rev. 2.3 — lazo cerrado sobre H1 medido | Router con lista de navegaciones pendientes: S5(b) dentro de presupuesto, L6 y reposo de toda sesión; el residual, contado aparte | idem | Realineación de PR-NAV-02 |
+| Rev. 2.3 — E2E de C-11 | A→B→C con el primero respondiendo antes, restore + clic en ambos órdenes, #32, y el residual registrado | spec nuevo o los bloques existentes de `dashboard-real-pointer-navigation.spec.ts` | PR-NAV-03 (Admin), PR-NAV-04 (Clínica) |
+| Rev. 2.3 — E2E A, B en vuelo, A (DT-16) | El bloque *return to the committed module* realineado a la fila #25, con todos sus escenarios y sin retirar verificaciones de navegación, historial ni Back/Forward (§16) | `dashboard-real-pointer-navigation.spec.ts` | PR-NAV-03 (Admin), PR-NAV-04 (Clínica) |
 
 Reglas de ejecución que aplican a todos los PR:
 
@@ -1918,6 +2211,12 @@ Reglas de ejecución que aplican a todos los PR:
 | Rev. 2.2.2 — `afterTraverse` es un booleano: #26 anota el primer commit ajeno, sea o no el del traverse. Con C-10 esa ventana dura toda la ráfaga y no sólo su primer clic. Si en ella navega una autoridad ajena a la máquina y descarta el `push`, el vuelo no se abandona y termina por presupuesto en un `STALLED` que no corresponde a nada pendiente (recuperable con `RETRY`) | Baja: exige Back, uno o más clics y una navegación externa antes de cualquier commit; el criterio 2 de §20 retira esas autoridades | Bajo | Ya existía en rev. 2.2.1 para el primer clic; medido en el modelo relajado de §0.6. La opción B de DT-14 lo elimina a costa de cambiar tipos |
 | Rev. 2.2.2 — la procedencia no sobrevive a `STALLED`: Back → C → presupuesto vencido → D deja a D sin `afterTraverse`, y el commit tardío del traverse lo abandona por #23 | Muy baja: el commit del traverse debe llegar después de un presupuesto completo **y** H1 debe fallar | Bajo: converge cuando aterriza el `push`; parpadeo | Decisión de rev. 2 que C-10 no reabre (guard de #23: `STALLED` o `!afterTraverse`). La cubre la opción B de DT-14. El traverse que se traba él mismo (#27) y luego se reemplaza (#16) ya está protegido por `superseded` (#11) |
 | Rev. 2.2.2 — C-10 defiende un caso que H1 excluye: si un `push` siempre descarta el traverse pendiente, #26 nunca se alcanza y la enmienda no tiene efecto observable | — | Ninguno: en ese mundo la máquina se comporta igual que en rev. 2.2.1 (mismas transiciones en lazo cerrado, §13.1) | H1 no tiene evidencia ejecutada para un `push` sobre un traverse (§13.1); el E2E de PR-NAV-03 decide si #26, y con ella C-10, es defensa viva o muerta |
+| Rev. 2.3 — una navegación abandonada por su presupuesto (#31, #16) responde antes que la que la relevó y deja su propia entrada: `[A, B, C]` con B abandonado | Baja: exige un payload de más de 10 s que además llegue antes que el siguiente | Bajo: Back pasa por un módulo que el usuario sí eligió; URL, stage y `aria-current` no divergen | Medido: sin reconciliar, 7 de 10 (E1); con el `replace` de #1837, 1 de 10 (E8). En `main` hoy se reconcilia: es una **diferencia conocida** respecto del comportamiento actual, y la opción B de DT-15 la cierra a costa de dar procedencia a `superseded`. La suite la cuenta (240 de 15 930 ráfagas en el modelo) y PR-NAV-03 la fija por E2E |
+| Rev. 2.3 — el reclamo serializa: la segunda elección espera el aterrizaje de la primera antes de pedir su payload | Segura | Bajo: es el comportamiento de `main` desde #1835; la vista cambia en el clic (`display`) | La espera está acotada por el presupuesto (#31). Si además el relevo cuelga, `STALLED` aparece al segundo presupuesto: hasta 20 s desde el primer clic, contra 10 s sin reclamo. NAV-A0 dirá cuánto cuesta en producción |
+| Rev. 2.3 — A → B → C (reclamado) → B aterriza → A (reclamado) → C aterriza deja `[A, A]`: el segundo `replace` de #30 vuelve a escribir A sobre la entrada de la ráfaga | Baja: tres clics con un aterrizaje en medio | Bajo: un Back sin efecto visible | `main` lo evita con `history.back()`, que S9 prohíbe a la FSM. Residual aceptado. DT-16 (decidida: A) cubre el caso de dos clics con la fila #25, que no pasa por #30 |
+| Rev. 2.3 — `#25` y `#32` descartan el vuelo del router con un `push` a la URL vigente, medido con una sola navegación pendiente | Baja | Medio si con dos pendientes no las descartara: la segunda aterrizaría como externa (#22) | E3: 10 de 10. Con el reclamo hay a lo sumo una pendiente dentro de presupuesto. E2E de PR-NAV-03 |
+| Rev. 2.3 — la enmienda sólo está verificada sobre una copia temporal y con 90 corridas locales | — | Alto si se toma como prueba | Su prueba versionada es la realineación de la máquina; la de integración, los E2E de PR-NAV-03. Hasta entonces las cifras de §0.7 son evidencia de sesión |
+| Rev. 2.3 — `ROUTING` gana un campo y el recorrido exhaustivo crece de 12 300 a 101 025 estados | Segura | Bajo–medio: la suite de la copia tarda ~25 s, contra ~6 s de la de `main` | La realineación decide si reduce el universo del recorrido; no puede hacerlo quitando `next` de la identidad de estado |
 
 | PR | Esfuerzo | Rollback |
 | --- | --- | --- |
@@ -1937,7 +2236,7 @@ Los PR de Fase C son revertibles de forma independiente sólo en orden inverso (
 ## 20. Criterios de aceptación global
 
 1. S1–S11 y L1–L5 (rev. 2; rev. 1: S1–S8 y L1–L4) en PASSED con evidencia de CI Linux sobre el head
-   de cada PR. **Rev. 2.2: S1–S12 y L1–L6.** **Rev. 2.2.2: S1–S13 y L1–L6.**
+   de cada PR. **Rev. 2.2: S1–S12 y L1–L6.** **Rev. 2.2.2: S1–S13 y L1–L6.** **Rev. 2.3: S1–S15 y L1–L6.**
 2. Cero autoridades de navegación de módulo fuera del intérprete del provider (guard PR-NAV-07).
 3. Ningún estado sin salida: toda traza model-based termina fuera de `ROUTING` y `TRAVERSING` tras el
    presupuesto.
@@ -1962,7 +2261,7 @@ Los PR de Fase C son revertibles de forma independiente sólo en orden inverso (
 | DT-8 (rev. 2) | Restauración inicial (filas #2–#3) | A `REPLACE_NATIVE` / B `ROUTER_REPLACE` optimista / C `ROUTER_REPLACE` con `display = committed` | C | PR-NAV-02..04 | **Decidido: C** (§15.3) |
 | DT-3 | Timeout del fetch SSR (`lib/api.ts`) | Sin cambio / `AbortSignal.timeout` | Evaluar con A0; sería un PR propio fuera de este programa | — | Pendiente |
 | DT-4 | `loading.tsx` en `/dashboard` | No / sí | No en este programa: cambia cuándo comitea la URL y anula supuestos de E2E | — | Pendiente (sin cambio) |
-| DT-5 | Valor del presupuesto de `ROUTING` | 10 s (actual #1837) / derivado de p99 | p99 de A0 + margen | PR-NAV-05 | Pendiente. **Rev. 2:** bajo T2 el presupuesto aplica también a cambios de módulo y a `TRAVERSING`, así que condiciona además PR-NAV-03/04 |
+| DT-5 | Valor del presupuesto de `ROUTING` | 10 s (actual #1837) / derivado de p99 | p99 de A0 + margen | PR-NAV-05 | **Decidido en rev. 2.3: 10 000 ms**, aprobado por Nico el 2026-10-10 (condiciones abajo). *Rev. 2:* Pendiente; bajo T2 el presupuesto aplica también a cambios de módulo y a `TRAVERSING`, así que condiciona además PR-NAV-03/04 |
 | DT-6 | #1837 | Mergear como contención / cerrar y esperar FSM | Mergear tras resolver D-11 | NAV-A1 | Resuelto: fusionada (`585bf3ba`); D-11 sin diagnóstico cerrado |
 | DT-7 | Alta en `docs/audit/README.md` | Sí / no | Decidir en PR-NAV-08 | — | Pendiente |
 | DT-9 (rev. 2.2) | Salida de `FAILED` cuando Next abandona la frontera sin `retry()` (C-6) | A: `RESET` por desmontaje de la frontera / B: fila nueva `FAILED × URL_COMMITTED → settle` / C: sin cambio | **A.** B saca a la máquina de `FAILED` con la frontera todavía visible cuando la URL cambia sin cambiar el pathname; C deja la navegación muerta | PR-NAV-03, 04, 05 | **Propuesto en rev. 2.2**; se aprueba al fusionarla. No agrega eventos ni filas |
@@ -1971,10 +2270,31 @@ Los PR de Fase C son revertibles de forma independiente sólo en orden inverso (
 | DT-12 (rev. 2.2.1) | Coordinación del intérprete (C-9) | A: cola FIFO de efectos + drenaje en microtarea + vigencia por `navId` + conciliación de timers / B: sólo FIFO, ejecutando los efectos de `HYDRATED` antes de procesar `NAV_FAILED` / C: despachar `HYDRATED` en un efecto y aceptar `FAILED` sin hidratar | **A.** B respeta el orden pero emite el `router.replace` de una restauración que ya se sabe abandonada; C pierde el módulo almacenado y deja `display = none` | PR-NAV-03, 04 | **Propuesto en rev. 2.2.1**; se aprueba al fusionar #1841 |
 | DT-13 (rev. 2.2.1) | Preferencia de último módulo de Clínica tras un fallo de render durante la restauración inicial | A: sin cambio (el `RESET` reposa en la URL vigente y la persiste) / B: `RESET` reintenta la restauración pendiente / C: `settle` no persiste cuando viene de `FAILED` | Sin recomendación todavía: B y C cambian la fila #21 y necesitan su propia verificación | — | **Pendiente.** No bloquea PR-NAV-02 ni PR-NAV-03 |
 | DT-14 (rev. 2.2.2) | Procedencia de un traverse a lo largo de una ráfaga de selecciones (C-10) | A: la fila #10 hereda `afterTraverse` / B: `afterTraverse` deja de ser booleano y guarda el destino del traverse, #26 exige `same(L, destino)` y `STALLED` lo conserva / C: sin cambio | **A.** Es el cambio mínimo que cierra el contraejemplo: un argumento de una fila, sin tocar tipos, guards ni recuentos. B es más preciso (no anota un commit realmente externo y cubre la ráfaga que pasa por un `STALLED`) pero cambia los tipos "exactos" de §12.1, la partición de `ROUTING`/`STALLED × URL_COMMITTED` y el recuento de ramas; se justifica sólo si el E2E de H1 muestra que un traverse sobrevive a un `push`. C abandona el último clic y, en Admin, lo pisa con una normalización | PR-NAV-02 | **Propuesto en rev. 2.2.2**; se aprueba al fusionarla |
+| DT-15 (rev. 2.3) | Dos selecciones antes del primer commit, sabiendo que un `push` no descarta al pendiente (C-11) | A: la máquina **reclama** la segunda y la emite al aterrizar la primera o al vencer su presupuesto (#29–#32, con #10, #11 y #16 enmendadas) / B: A más reconciliación de la navegación abandonada por presupuesto que aterriza tarde, dando procedencia (`push` o `restore`) a cada entrada de `superseded` / C: conservar rev. 2.2.2, retirar S5(b) y rebajar los E2E *single flight* | **A.** Es el mecanismo que #1835 y #1837 ya tienen en producción, y conserva sus E2E sin tocarlos. B cierra el residual de §19 (E8: de 7/10 a 1/10) pero cambia el tipo de `NavContext` y agrega una fila; se justifica si NAV-A0 muestra payloads de más de 10 s con frecuencia. C reintroduce en Admin el síntoma 2 de #1835 | PR-NAV-03, 04, 05 y la realineación de PR-NAV-02 | **Propuesto en rev. 2.3**; se aprueba al fusionarla |
+| DT-16 (rev. 2.3) | A, B en vuelo, A otra vez: contrato del E2E *return to the committed module* frente a la fila #25 | A: fila #25 vigente — `push` a la URL vigente; pide un `_rsc`; B nunca comitea; el historial no crece — y el bloque E2E se realinea a ese contrato / B: conservar el contrato actual — volver a A no pide payload y B queda como entrada Forward —, que exige un efecto nativo de historial (`history.back()`) y enmendar S9 y §11.1.3 | **A.** #25 es norma desde rev. 2 y su premisa quedó medida (E3, 10 de 10); el contrato actual no es alcanzable con las API públicas del router. Cambia un detalle visible: B deja de quedar como Forward | PR-NAV-03 (sólo ese bloque E2E) | **Decidido en rev. 2.3: A**, por Nico el 2026-10-10: el bloque se realinea al contrato de la fila #25 sin eliminar escenarios ni debilitar las verificaciones de navegación, historial y Back/Forward (§16) |
 
-**Rev. 2.2.2 (2026-10-10) — estado vigente.** DT-9, DT-10, DT-11 y DT-12 quedaron **aprobadas** con la
+**Rev. 2.2.2 (2026-10-10) — estado a esa revisión; lo actualiza la nota de rev. 2.3 que sigue.** DT-9, DT-10, DT-11 y DT-12 quedaron **aprobadas** con la
 fusión de #1841 (`4f693d5c`): la columna "Estado rev. 2" conserva el texto con que se propusieron. DT-14
 sigue propuesta hasta la fusión de esta revisión (#1843). DT-13 sigue pendiente.
+
+**Rev. 2.3 (2026-10-10) — estado vigente.** DT-14 quedó **aprobada** con la fusión de #1843 (`8d1a8812`);
+su opción A se conserva en S13, y su mecánica pasa de la fila #10 a las filas #29–#31. **DT-5 está
+decidida.** DT-16 está decidida (opción A). DT-15 queda propuesta hasta la fusión de esta revisión. DT-13 sigue
+pendiente.
+
+Condiciones con que Nico aprobó DT-5 (2026-10-10), que esta revisión registra como normativas:
+
+1. El valor inicial es **10 000 ms**, el de `NAVIGATION_FLIGHT_BUDGET_MS` en producción, verificado en
+   `frontend/src/lib/dashboard/navigation/navigationFlight.ts:27`.
+2. La semántica de `ROUTING`, `TRAVERSING`, `STALLED` y de los efectos de presupuesto es la de este
+   documento. Esta revisión la cambia en un solo punto, que se aprueba con ella: el vencimiento de un
+   vuelo con una selección reclamada la releva (#31) en vez de pasar a `STALLED`.
+3. El vencimiento no cancela por sí mismo la navegación ni descarta una respuesta tardía válida: la
+   máquina no tiene efecto de cancelación, y el commit tardío del destino vigente se confirma desde
+   `STALLED` (#14).
+4. Los E2E de presupuesto existentes se conservan sin debilitarse (§16, PR-NAV-03).
+5. NAV-A0 mide p50, p95 y p99 de `_rsc` para evaluar después si el valor se ajusta.
+6. El presupuesto no se sube a 15 s ni a ningún otro valor sin una decisión nueva.
 
 ---
 
@@ -1994,9 +2314,13 @@ No se recomienda iniciar PR-NAV-02..05 hasta tener DT-1 decidido con el acta del
 > intervención es **PR-NAV-02**, especificada en §16, cuando Nico la autorice. NAV-A0 y el diagnóstico
 > de D-11 siguen siendo paralelizables.
 >
-> **Rev. 2.2.2 (2026-10-10) — estado vigente.** PR-NAV-02 está autorizada, implementada y publicada
+> **Rev. 2.2.2 (2026-10-10) — estado a esa revisión; lo actualiza la nota de rev. 2.3 que sigue.** PR-NAV-02 está autorizada, implementada y publicada
 > (#1842). La siguiente intervención es fusionar esta revisión y realinear #1842 con ella (§16);
 > PR-NAV-03 viene después de la fusión de #1842.
+>
+> **Rev. 2.3 (2026-10-10) — estado vigente.** #1843 y #1842 están fusionadas. La siguiente intervención
+> es fusionar esta revisión; después, realinear la máquina y su suite con ella (§16); después, PR-NAV-03.
+> NAV-A0 sigue siendo paralelizable y ahora condiciona además la revisión de DT-5.
 
 ---
 
@@ -2109,6 +2433,14 @@ Evidencia de rev. 2.2, también **no versionada** (sesión de Claude del 2026-10
 | Rev. 2.2.2 — `repro-p2.test.ts` | Reproducción dirigida del P2, independiente de la suite: 8 variantes y 2 controles. 8 en rojo contra `541aabaa`, 10 de 10 contra la copia enmendada |
 | Rev. 2.2.2 — bloque adversarial agregado a ambas copias | Cinco semillas extra por campaña, tormenta de commits fuera de orden con oráculo de resultado, y router con H1 relajado con y sin autoridad externa. Origen de las tablas de auditoría de §0.6 |
 | Rev. 2.2.2 — modelo del intérprete de rev. 2.2.1 sobre ambas máquinas | Tres reproducciones del P2 (una tarea, tareas separadas, Admin hacia la entrada desnuda) y la búsqueda aleatoria de §0.5 con sus dos semillas y cinco mutantes |
+| Rev. 2.3 — `gh pr view 1842/1843` y `git fetch` (R0/R1, 2026-10-10) | #1843 `MERGED` (`8d1a8812`); #1842 `MERGED` el 2026-10-10T16:39:07Z (`0908bb02`), que es `origin/main` |
+| Rev. 2.3 — arnés de navegador temporal (sesión de Claude del 2026-10-10, no versionado) | Dos specs de Playwright fuera de `frontend/e2e`, con config propio que extiende el del repo, retirados del árbol al terminar. Build de `0908bb02` con las variables de `frontend-ci.yml`, `next start` con `CI=true`, fixture sin modificar. 9 secuencias × 2 superficies × 5 corridas = 90, con el registro por corrida de requests `_rsc`, escrituras de `history`, `history.length`, URL y stage. Origen de E1–E8 de §0.7 |
+| Rev. 2.3 — `docs/implementation/dashboard-stage-module-single-owner.md`, §M2 (versionado, #1837) | "Dos `router.push` directos con B liberado antes que C: `[A, B, C]` en 8/8"; "B responde tras el handover y antes que C: `[A, C]` 14/14" en el flujo con reconciliación. Evidencia previa que §13.1 no citaba |
+| Rev. 2.3 — copias temporales (misma sesión, no versionadas; Node 24.14.1, `node --experimental-strip-types --test`) | `head/`: los dos archivos de `0908bb02` (blobs `42edbfa4` y `f7d31278`), 245 de 245. `cand/`: la máquina y la suite enmendadas, con la corrección de C-11b: 289 de 289; hashes `27e27d81acefecc1`, `ba95a7e7c17d9fd0` y `4a67c01b7da20550` (antes de C-11b: 280 de 280, `41b04f215052b219`, `836f3b89e7f600ee` y `59bf33aede5a22b2`). Origen de las columnas "Antes" y "Después" de §0.7 |
+| Rev. 2.3 — corrida cruzada: el modelo de historial medido contra la máquina de `0908bb02` | 714 de 15 840 ráfagas con una segunda entrada dentro de presupuesto, 88 vuelos y 8 *stalls* huérfanos, 17 sesiones sin reposo. Demuestra que el oráculo nuevo ve el defecto |
+| Rev. 2.3 — corridas intermedias del diseño | Sólo #29–#31: una ráfaga con dos entradas (origen del cambio de #16) y 23 vuelos huérfanos (origen del cambio de #11 y de #32) |
+| Rev. 2.3 — mutaciones fuera de árbol | 18 mutantes de la máquina enmendada, uno por pieza nueva o cambiada; los 18 dejan la suite en rojo. C-11b: 7 mutantes de la persistencia de #25; 6 dejan la suite en rojo y el séptimo es equivalente (persistir `target`, igual a `committed` por la guarda de #25) |
+| Rev. 2.3 — review de #1844 | Thread `PRRT_kwDOR5qlsc6rGjIV` sobre la fila #25 (head `c506dff3`), P2: "Persist the module when #25 accepts an unpersisted commit". Origen de C-11b y de S15 (§0.7) |
 
 ### 23.6. Documentación previa relacionada
 
@@ -2199,4 +2531,19 @@ solo dueño y transiciones explícitas, y convierte el estado en vuelo en un est
 | Lo que la enmienda no cierra | Clases preexistentes que sólo aparecen si H1 falla: traverse abandonado por #25/#28 seguido de un clic, ráfaga que pasa por `STALLED`, y `afterTraverse` booleano frente a una navegación externa (§0.6, §19, DT-14) |
 | Lo que sigue sin probar | H1 para un `push` sobre un traverse pendiente, que decide si #26 y C-10 son defensa viva (E2E de PR-NAV-03) |
 | PR-NAV-02 (#1842) | **BLOQUEADA** hasta fusionar esta revisión; después se realinea (un argumento en la máquina; S13, un caso literal, tres trazas y tres hashes en la suite) |
+| Navegación declarada resuelta | **NO** |
+
+### Estado final de la revisión 2.3
+
+| Elemento | Estado |
+| --- | --- |
+| Archivo modificado | Sólo este documento (docs-only), en una PR propia |
+| Hallazgo corregido | C-11: H1 es falso para un `push` sobre un `push` pendiente, y la fila #10 emitía ese segundo `push`. Hallado en navegador antes de implementar PR-NAV-03 |
+| Especificación FSM | Enmendada: campo `next` en `ROUTING`; filas #9, #10, #11, #12, #16, #23, #25 y #26; filas nuevas #29–#32. **32 filas, 119 ramas** y los mismos 60 pares; S1–S15 y L1–L6; H1 y H3 reescritos; #25 persiste el `committed` aceptado (C-11b) |
+| Decisiones | DT-5 **aprobada** por Nico: 10 000 ms. DT-16 **decidida** por Nico: opción A. DT-15 propuesta (se aprueba con la fusión) |
+| Código, tests, configuración, dependencias, workflows | Sin cambios. La máquina y la suite de `main` siguen transcribiendo rev. 2.2.2 |
+| Verificación de la enmienda | En navegador: 90 corridas sobre el production runner (E1–E8). Mecánica, sobre copia temporal no versionada: 289 tests en verde, 0 situaciones sin fila única, 0 ráfagas con una segunda entrada dentro de presupuesto, 0 vuelos huérfanos, 18 de 18 mutaciones; la máquina de rev. 2.2.2 no pasa el mismo modelo |
+| Lo que la enmienda no cierra | La navegación abandonada por presupuesto que aterriza antes que su relevo (diferencia conocida con `main`, opción B de DT-15); el `push` sobre un traverse sin comitear; `[A, A]` tras tres clics (§0.7, §19) |
+| Lo que sigue sin probar | El intérprete de §12.5.1 y P1–P3; H2 y H4–H7; el router con tres o más navegaciones pendientes; producción (NAV-A0) |
+| Siguiente paso | Fusionar esta revisión; realinear la máquina y su suite (dos archivos) y repetir la verificación versionada; recién entonces PR-NAV-03 |
 | Navegación declarada resuelta | **NO** |
