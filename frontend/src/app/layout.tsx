@@ -4,6 +4,7 @@ import "./globals.css";
 
 import { AppVersionGate } from "@/components/app-version/AppVersionGate";
 import { PwaServiceWorkerRegistrar } from "@/components/pwa/PwaServiceWorkerRegistrar";
+import { INTER_FONT_PATH } from "@/lib/fonts";
 import { baseMetadata, getOrganizationJsonLd } from "@/lib/seo";
 import { SITE_THEME_COLOR } from "@/lib/seo";
 import { NORMAL_THEME_MODE, THEME_INIT_SCRIPT_SRC } from "@/lib/theme";
@@ -28,7 +29,7 @@ export default function RootLayout({
         <script src={THEME_INIT_SCRIPT_SRC} />
         <link
           rel="preload"
-          href="/fonts/InterVariable.woff2"
+          href={INTER_FONT_PATH}
           as="font"
           type="font/woff2"
           crossOrigin="anonymous"
