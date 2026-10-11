@@ -5,6 +5,7 @@ import {
   buildReportOnlyCsp,
   CSP_REPORT_URI_PATH,
 } from "./src/lib/security/csp-policy";
+import { INTER_FONT_PATH } from "./src/lib/fonts";
 import {
   THEME_INIT_SCRIPT_PATH,
   THEME_INIT_SCRIPT_VERSION,
@@ -144,6 +145,18 @@ const nextConfig: NextConfig = {
             value: THEME_INIT_SCRIPT_VERSION,
           },
         ],
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+      {
+        // The file name carries the hash of the font bytes, so this exact
+        // path never changes content. Any other path under /fonts keeps the
+        // revalidating default.
+        source: INTER_FONT_PATH,
         headers: [
           {
             key: "Cache-Control",

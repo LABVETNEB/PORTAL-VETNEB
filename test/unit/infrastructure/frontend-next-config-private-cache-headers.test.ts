@@ -20,9 +20,13 @@ type NextConfigModule = {
 
 const REPO_ROOT = resolve(import.meta.dirname, "../../..");
 const NEXT_CONFIG_URL = pathToFileURL(resolve(REPO_ROOT, "frontend/next.config.ts")).href;
-const CONFIG_LOCAL_SPECIFIERS = new Set(["./src/lib/security/csp-policy", "./src/lib/theme"]);
+const CONFIG_LOCAL_SPECIFIERS = new Set([
+  "./src/lib/security/csp-policy",
+  "./src/lib/theme",
+  "./src/lib/fonts",
+]);
 
-// next.config.ts imports its two local modules without an extension, which the
+// next.config.ts imports its local modules without an extension, which the
 // type-stripping loader cannot resolve. Limit the fallback to those exact
 // configuration imports, so this process installs no general module resolver.
 registerHooks({
@@ -76,6 +80,31 @@ test("next.config makes theme-init.js immutable only at its exact content versio
     "the rule must apply to the current version only, never to the bare path or another query",
   );
   assert.deepEqual(scriptRule.headers, [
+    { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+  ]);
+});
+
+// The font is preloaded by every document. Its hash is part of the file name,
+// so only that exact path may be cached for good: a generic /fonts rule would
+// also pin any unversioned file published there later.
+test("next.config makes the font immutable only at its exact content-versioned path", async () => {
+  const { default: nextConfig } = (await import(NEXT_CONFIG_URL)) as NextConfigModule;
+  const { INTER_FONT_PATH, INTER_FONT_VERSION } = (await import(
+    pathToFileURL(resolve(REPO_ROOT, "frontend/src/lib/fonts.ts")).href
+  )) as { INTER_FONT_PATH: string; INTER_FONT_VERSION: string };
+
+  assert.match(INTER_FONT_VERSION, /^[0-9a-f]{16}$/);
+  assert.equal(INTER_FONT_PATH, `/fonts/InterVariable.${INTER_FONT_VERSION}.woff2`);
+
+  const headerRules = (await nextConfig.headers?.()) ?? [];
+  const fontRules = headerRules.filter((rule) => rule.source.includes("/fonts"));
+  assert.equal(fontRules.length, 1, "exactly one header rule may name /fonts");
+
+  const [fontRule] = fontRules;
+  assert.equal(fontRule.source, INTER_FONT_PATH);
+  assert.equal(fontRule.has, undefined);
+  assert.equal(/[:*(]/.test(fontRule.source), false, "the rule must be a literal path, not a pattern");
+  assert.deepEqual(fontRule.headers, [
     { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
   ]);
 });
