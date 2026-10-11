@@ -171,7 +171,7 @@ test("particulares active session keeps tracking, report, notification and logou
 
   for (const marker of [
     'className="particular-notifications-bell-layer shrink-0"',
-    "particular-notifications-bell-placeholder",
+    '<DashboardNotificationsBell surface="particular" />',
     'id="particular-study-tracking"',
     'id="particular-report"',
     "Consultar por WhatsApp",

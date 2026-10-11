@@ -25,8 +25,8 @@ const TEST_FILE = fileURLToPath(import.meta.url);
 const REPO_ROOT = resolve(dirname(TEST_FILE), "..", "..");
 process.chdir(REPO_ROOT);
 
-const EXPECTED_WORKSPACE_SPEC_COUNT = 106;
-const EXPECTED_CATALOG_SPEC_COUNT = 106;
+const EXPECTED_WORKSPACE_SPEC_COUNT = 107;
+const EXPECTED_CATALOG_SPEC_COUNT = 107;
 const EXPECTED_MANUAL_ONLY_SPEC_COUNT = 0;
 const EXPECTED_DOMAIN_COUNTS = new Map([
   // +1: C04 Clínicas admin column sort (admin-clinics-column-sort.spec.ts).
@@ -53,7 +53,9 @@ const EXPECTED_DOMAIN_COUNTS = new Map([
   // (platform/app-shell), routed to visual-contract like its app-shell siblings.
   // +1: PR-NAV-01 NAVIGATION_TRUNCATED_STREAM_RECOVERY error-boundary contract
   // (platform/app-shell), routed to visual-contract like its app-shell siblings.
-  ["platform", 25],
+  // +1: A1-7 failed page request recovery contract (platform/app-shell),
+  // routed to visual-contract like its app-shell siblings.
+  ["platform", 26],
   // +1: B10 clinic app-shell unification, the runtime half of the shared
   // ClinicDashboardShell contract.
   // +1: B11 canonical WorkspaceHeader, the runtime half of the shared
@@ -87,7 +89,9 @@ const EXPECTED_LAYER_COUNTS = new Map<E2eLayer, number>([
   // payloads are continued to the fixture API.
   // +1: A1-5 served document cache policy. It fabricates nothing: every header
   // it reads comes from the real Next.js app under test.
-  ["fixture", 67],
+  // +1: A1-7 failed page request recovery. It fabricates nothing: the paging
+  // request is continued to the application, which rejects it itself.
+  ["fixture", 68],
 ]);
 const EXPECTED_CURRENT_COUNTS = new Map([
   // +3: E2E-GLOBAL-03 simulated auth boundary specs, promoted straight to
@@ -106,7 +110,8 @@ const EXPECTED_CURRENT_COUNTS = new Map([
   // +1: DASHBOARD_GLOBAL_LIVE_SYNC live module navigation contract (AGENTS.md §7).
   // +1: DASHBOARD_REAL_POINTER_NAVIGATION real-click contract (AGENTS.md §7).
   // +1: PR-NAV-01 truncated stream recovery contract (AGENTS.md §7).
-  ["visual-contract", 28],
+  // +1: A1-7 failed page request recovery contract (AGENTS.md §7).
+  ["visual-contract", 29],
   // +1: CMP-12 cross-role runtime parity contract, routed public-clinic like
   // the other CMP-04..09 parity specs (AGENTS.md §7).
   // +1: E2E-GLOBAL-06 P1 dashboard-logistica-mobile-action-bar-reachability,
@@ -130,14 +135,15 @@ const EXPECTED_EXECUTION_COUNTS = new Map<E2eExecutionCohort, number>([
   // +1: DASHBOARD_REAL_POINTER_NAVIGATION (visual-contract -> ci union).
   // +1: PR-NAV-01 truncated stream recovery (visual-contract -> ci union).
   // +1: A1-5 served document cache policy (public-clinic -> ci union).
-  ["ci", 75],
+  // +1: A1-7 failed page request recovery (visual-contract -> ci union).
+  ["ci", 76],
   ["extended", 27],
   // -1: E2E-GLOBAL-10 (R-16). `evidence` keeps the generator that does assert
   // layout (dashboard-runtime-post-ux1-visual-evidence) and loses the one that
   // asserted nothing.
   ["evidence", 1],
   ["visual-linux", 3],
-  ["full", 106],
+  ["full", 107],
   ["affected", 0],
 ]);
 const E2E_GLOBAL_06_PROMOTED_P1_SPECS = [
@@ -359,7 +365,7 @@ function validateCatalog(
   }
 
   const currentUnion = unique([...currentMemberships.keys()]).sort();
-  assert.equal(currentUnion.length, 75);
+  assert.equal(currentUnion.length, 76);
   assert.deepEqual(E2E_COHORT_SPECS.ci, currentUnion, "ci must equal the current four-cohort union");
 
   for (const cohort of ["extended", "evidence", "visual-linux", "full"] as const) {
@@ -431,11 +437,11 @@ test("catalog validation catches missing and duplicate entries in memory", async
 
   assert.throws(
     () => validateCatalog(missing, workspaceSpecs, E2E_MANUAL_ONLY_SPECS),
-    /105|classified/,
+    /106|classified/,
   );
   assert.throws(
     () => validateCatalog(duplicated, workspaceSpecs, E2E_MANUAL_ONLY_SPECS),
-    /107|unique/,
+    /108|unique/,
   );
 });
 
@@ -489,7 +495,7 @@ test("affected selection fails closed for empty or shared changes", async () => 
 
   const sharedSelection = runner.classifyAffectedPaths(["frontend/e2e/helpers/admin-mobile-contracts.ts"]);
   assert.equal(sharedSelection.fallback, true);
-  assert.equal(sharedSelection.specs.length, 75);
+  assert.equal(sharedSelection.specs.length, 76);
   assert.match(sharedSelection.reason, /shared E2E infrastructure/);
 });
 

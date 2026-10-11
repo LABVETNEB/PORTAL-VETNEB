@@ -17,6 +17,11 @@ import { getAdminAuditPage } from "./admin-audit.actions";
 import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
 import { DASHBOARD_PAGER_RESERVATION } from "@/components/dashboard/DashboardPager";
 import {
+  classifyPageRequestFailure,
+  PageRequestRecovery,
+  type PageRequestFailure,
+} from "@/components/dashboard/PageRequestRecovery";
+import {
   CollectionWorkspace,
   SelectionToolbar,
   useCollectionSelection,
@@ -57,6 +62,8 @@ export function AdminAuditCard({
   const [totalCount, setTotalCount] = useState(0);
   const [offset, setOffset] = useState(0);
   const [loadError, setLoadError] = useState(false);
+  const [pageRequestFailure, setPageRequestFailure] =
+    useState<PageRequestFailure | null>(null);
   const [isPending, startTransition] = useTransition();
 
   // One collapsed runtime feeds both presentations (desktop table + mobile
@@ -66,6 +73,10 @@ export function AdminAuditCard({
   const [mobileBodyNode, setMobileBodyNode] = useState<HTMLElement | null>(null);
 
   const latestRequestRef = useRef(0);
+  // The offset of the rows on screen (null until a page has loaded), and the
+  // one the last failed request asked for.
+  const loadedOffsetRef = useRef<number | null>(null);
+  const failedOffsetRef = useRef(0);
 
   // Desktop keeps the nine-row page of the App Shell contract
   // (`expectNinePopulatedRows`, `dashboard-real-app-shell-no-scroll-contract.spec.ts`,
@@ -129,11 +140,25 @@ export function AdminAuditCard({
 
     startTransition(() => {
       void (async () => {
-        const result = await getAdminAuditPage(query);
-        if (requestId !== latestRequestRef.current) return;
-        setRows(result.rows);
-        setTotalCount(result.total);
-        setLoadError(result.loadError);
+        try {
+          const result = await getAdminAuditPage(query);
+          if (requestId !== latestRequestRef.current) return;
+          loadedOffsetRef.current = query.offset;
+          setRows(result.rows);
+          setTotalCount(result.total);
+          setLoadError(result.loadError);
+        } catch (error) {
+          if (requestId !== latestRequestRef.current) return;
+          // The rows on screen stay; the pager goes back to the page they
+          // belong to. With no page loaded yet there is nothing to keep.
+          failedOffsetRef.current = query.offset;
+          if (loadedOffsetRef.current === null) {
+            setLoadError(true);
+          } else {
+            setOffset(loadedOffsetRef.current);
+          }
+          setPageRequestFailure(classifyPageRequestFailure(error));
+        }
       })();
     });
   }
@@ -173,13 +198,27 @@ export function AdminAuditCard({
   }, [effectiveLimit, limitChanged, offset, reconciledOffset]);
 
   useEffect(() => {
-    if (deferLoadForOffsetReconciliation) {
+    // After a failed page request nothing asks again without the user.
+    if (deferLoadForOffsetReconciliation || pageRequestFailure) {
       return;
     }
 
     loadAuditPage();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, deferLoadForOffsetReconciliation]);
+  }, [query, deferLoadForOffsetReconciliation, pageRequestFailure]);
+
+  function retryPageRequest() {
+    setPageRequestFailure(null);
+    setOffset(failedOffsetRef.current);
+  }
+
+  const pageRequestRecovery = pageRequestFailure ? (
+    <PageRequestRecovery
+      failure={pageRequestFailure}
+      onRetry={retryPageRequest}
+      reloadNotice="Al recargar se conservan la sesión y los filtros aplicados; se pierden la página actual y la selección."
+    />
+  ) : null;
 
   // C06: the rendered page is the selection's visible page; selection is keyed
   // by event ID and survives paging until it is cleared.
@@ -192,10 +231,12 @@ export function AdminAuditCard({
   const hasNextPage = offset + rows.length < totalCount;
 
   function goToPreviousPage() {
+    setPageRequestFailure(null);
     setOffset(Math.max(0, offset - effectiveLimit));
   }
 
   function goToNextPage() {
+    setPageRequestFailure(null);
     setOffset(offset + effectiveLimit);
   }
 
@@ -215,6 +256,7 @@ export function AdminAuditCard({
         onNext={goToNextPage}
         bodyRef={setMobileBodyNode}
         selection={selection}
+        recovery={pageRequestRecovery}
       />
 
       {/* Desktop/tablet space pass: the "Registro operativo" header (title,
@@ -233,6 +275,8 @@ export function AdminAuditCard({
         actorTypeOptions={actorTypeOptions}
         hasActiveFilters={hasActiveFilters}
       />
+
+      {pageRequestRecovery}
 
       {/* Measured rows region. It is the flex-allocated space between the
           filter bar and the pager (`min-h-0 flex-1` keeps it shrinkable), so
