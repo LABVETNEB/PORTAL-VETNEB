@@ -1,16 +1,20 @@
-// Literals must stay in sync with frontend/public/theme-init.js (pre-paint init).
+// Literals must stay in sync with the pre-paint init script published as
+// frontend/public/theme-init.<version>.js.
 export const THEME_STORAGE_KEY = "vetneb-theme-mode";
 export const NORMAL_THEME_MODE = "normal";
 export const DARK_GRAY_THEME_MODE = "dark-gray";
 export const NORMAL_THEME_COLOR = "#0c354e";
 export const DARK_GRAY_THEME_COLOR = "#1c1f21";
 
-// First 16 hex digits of the SHA-256 of frontend/public/theme-init.js. The
-// script blocks the parser of every document, so its URL carries this content
-// version and next.config.ts lets that exact URL be cached for good.
-export const THEME_INIT_SCRIPT_PATH = "/theme-init.js";
+// First 16 hex digits of the SHA-256 of the pre-paint init script. The script
+// blocks the parser of every document. The hash is part of the file name, so
+// new bytes always get a new URL and next.config.ts lets that exact path be
+// cached for good.
 export const THEME_INIT_SCRIPT_VERSION = "52962763805719be";
-export const THEME_INIT_SCRIPT_SRC = `${THEME_INIT_SCRIPT_PATH}?v=${THEME_INIT_SCRIPT_VERSION}`;
+export const THEME_INIT_SCRIPT_SRC = `/theme-init.${THEME_INIT_SCRIPT_VERSION}.js`;
+// Documents rendered before the hash moved into the path load the script from
+// this path with a `v=<version>` query.
+export const THEME_INIT_LEGACY_SCRIPT_PATH = "/theme-init.js";
 
 export type ThemeMode =
   | typeof NORMAL_THEME_MODE

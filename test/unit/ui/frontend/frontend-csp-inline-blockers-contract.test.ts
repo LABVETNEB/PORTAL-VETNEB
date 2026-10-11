@@ -25,7 +25,6 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
 import { join, relative, resolve } from "node:path";
 import {
   THEME_INIT_SCRIPT_SRC,
@@ -146,9 +145,9 @@ test("all <script> JSX elements in frontend/src declare type=\"application/ld+js
 
 test("the allowlisted external script src is the same-origin, content-versioned theme-init.js", () => {
   // The allowlist above names an identifier, not a URL, so the identifier is
-  // pinned here: one definition, a same-origin path, and a version that is the
-  // hash of the served file. Editing theme-init.js without moving the version
-  // would leave browsers running the old script from an immutable cache entry.
+  // pinned here: one definition, a same-origin path, and a file name that
+  // carries the hash of the served bytes. Editing the script without renaming
+  // it would leave browsers running the old one from an immutable cache entry.
   const definitions = scanLines(runtimeFiles, /\bTHEME_INIT_SCRIPT_SRC\s*=(?!=)/);
   assert.deepEqual(
     definitions.map((definition) => definition.file.replace(/\\/g, "/")),
@@ -156,12 +155,9 @@ test("the allowlisted external script src is the same-origin, content-versioned 
     "THEME_INIT_SCRIPT_SRC must have exactly one definition",
   );
 
-  const servedScriptVersion = createHash("sha256")
-    .update(readSourceFile("frontend/public/theme-init.js"))
-    .digest("hex")
-    .slice(0, 16);
-  assert.equal(THEME_INIT_SCRIPT_VERSION, servedScriptVersion);
-  assert.equal(THEME_INIT_SCRIPT_SRC, `/theme-init.js?v=${servedScriptVersion}`);
+  // The hash of the served bytes is pinned next to the cache rule, in
+  // frontend-next-config-private-cache-headers.test.ts.
+  assert.equal(THEME_INIT_SCRIPT_SRC, `/theme-init.${THEME_INIT_SCRIPT_VERSION}.js`);
 
   const layout = readSourceFile("frontend/src/app/layout.tsx");
   assert.match(
@@ -173,6 +169,11 @@ test("the allowlisted external script src is the same-origin, content-versioned 
     /<script\b[^>]*\bsrc\s*=\s*["']/.test(layout),
     false,
     "the root layout must not load a script from an unversioned literal src",
+  );
+  assert.match(
+    layout,
+    /<script src=\{THEME_INIT_SCRIPT_SRC\} \/>/,
+    "the script must stay parser-blocking: no async, defer or type attribute",
   );
 });
 

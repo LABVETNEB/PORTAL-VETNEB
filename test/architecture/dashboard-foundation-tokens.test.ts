@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { resolve } from "node:path";
 import test from "node:test";
+import { THEME_INIT_SCRIPT_SRC } from "../../frontend/src/lib/theme.ts";
 import { readSourceFile as readSource, listSourceFiles } from "../helpers/tracked-source-files.ts";
 
 // B03 · dashboard design-system foundation contract.
@@ -40,7 +41,7 @@ const GLOBALS_CSS_PATH = "frontend/src/app/globals.css";
 const DASHBOARD_CSS_DIR = "frontend/src/styles/dashboard";
 const FRONTEND_SRC = "frontend/src";
 const THEME_MODULE_PATH = "frontend/src/lib/theme.ts";
-const THEME_INIT_PATH = "frontend/public/theme-init.js";
+const THEME_INIT_PATH = `frontend/public${THEME_INIT_SCRIPT_SRC}`;
 
 /**
  * B04 consumer boundary.

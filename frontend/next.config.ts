@@ -7,7 +7,8 @@ import {
 } from "./src/lib/security/csp-policy";
 import { INTER_FONT_PATH } from "./src/lib/fonts";
 import {
-  THEME_INIT_SCRIPT_PATH,
+  THEME_INIT_LEGACY_SCRIPT_PATH,
+  THEME_INIT_SCRIPT_SRC,
   THEME_INIT_SCRIPT_VERSION,
 } from "./src/lib/theme";
 
@@ -90,15 +91,30 @@ const nextConfig: NextConfig = {
   async rewrites() {
     const apiUrl = (process.env.NEXT_PUBLIC_API_URL ?? "").trim().replace(/\/+$/, "");
 
-    if (!apiUrl) {
-      return [];
-    }
-
     return [
       {
-        source: "/api/:path*",
-        destination: `${apiUrl}/api/:path*`,
+        // A document rendered by an earlier build still asks for the script
+        // by its old query-versioned URL. It resolves only while that version
+        // is the one this build publishes, so the URL never serves other
+        // bytes; the header rule below does not match it, so it revalidates.
+        source: THEME_INIT_LEGACY_SCRIPT_PATH,
+        has: [
+          {
+            type: "query" as const,
+            key: "v",
+            value: THEME_INIT_SCRIPT_VERSION,
+          },
+        ],
+        destination: THEME_INIT_SCRIPT_SRC,
       },
+      ...(apiUrl
+        ? [
+            {
+              source: "/api/:path*",
+              destination: `${apiUrl}/api/:path*`,
+            },
+          ]
+        : []),
     ];
   },
   async headers() {
@@ -134,17 +150,10 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        // Only the URL carrying the current content version is immutable. Any
-        // other query, and the bare path, keep the revalidating default, so a
-        // response for a version this build does not own is never pinned.
-        source: THEME_INIT_SCRIPT_PATH,
-        has: [
-          {
-            type: "query",
-            key: "v",
-            value: THEME_INIT_SCRIPT_VERSION,
-          },
-        ],
+        // The file name carries the hash of the script bytes, so this exact
+        // path never changes content. The legacy unversioned path and any
+        // other version keep the default and are never pinned.
+        source: THEME_INIT_SCRIPT_SRC,
         headers: [
           {
             key: "Cache-Control",

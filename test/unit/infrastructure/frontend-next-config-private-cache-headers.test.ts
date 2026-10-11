@@ -1,8 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { registerHooks } from "node:module";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { listSourceFiles, readSourceFile } from "../../helpers/tracked-source-files.ts";
 
 // Moved out of frontend/e2e/platform/auth/dashboard-logout-private-cache.spec.ts
 // (E2E-GLOBAL-04): it evaluates the real nextConfig.headers() in Node and never
@@ -14,8 +16,17 @@ type HeaderRule = {
   headers: { key: string; value: string }[];
 };
 
+type RewriteRule = {
+  source: string;
+  has?: { type: string; key?: string; value?: string }[];
+  destination: string;
+};
+
 type NextConfigModule = {
-  default: { headers?: () => Promise<HeaderRule[]> };
+  default: {
+    headers?: () => Promise<HeaderRule[]>;
+    rewrites?: () => Promise<RewriteRule[]>;
+  };
 };
 
 const REPO_ROOT = resolve(import.meta.dirname, "../../..");
@@ -42,6 +53,36 @@ registerHooks({
   },
 });
 
+type ThemeModule = {
+  THEME_INIT_LEGACY_SCRIPT_PATH: string;
+  THEME_INIT_SCRIPT_SRC: string;
+  THEME_INIT_SCRIPT_VERSION: string;
+};
+
+async function importThemeModule(): Promise<ThemeModule> {
+  return (await import(
+    pathToFileURL(resolve(REPO_ROOT, "frontend/src/lib/theme.ts")).href
+  )) as ThemeModule;
+}
+
+function contentVersion(bytes: Uint8Array): string {
+  return createHash("sha256").update(bytes).digest("hex").slice(0, 16);
+}
+
+// Every theme script present under frontend/public, tracked or not: whatever
+// is there gets served.
+function publishedThemeScripts(): string[] {
+  return listSourceFiles(resolve(REPO_ROOT, "frontend/public"), { extensions: [".js"] }).filter(
+    (file) => file.startsWith("theme-init"),
+  );
+}
+
+// .gitattributes pins the script to LF, so the text read here is byte for byte
+// what Next serves.
+function themeScriptBytes(fileName: string): Buffer {
+  return Buffer.from(readSourceFile(`frontend/public/${fileName}`), "utf8");
+}
+
 test("next.config declares no-store Cache-Control for /dashboard", async () => {
   const { default: nextConfig } = (await import(NEXT_CONFIG_URL)) as NextConfigModule;
 
@@ -59,29 +100,99 @@ test("next.config declares no-store Cache-Control for /dashboard", async () => {
 // theme-init.js blocks the parser of every document. Served revalidating, each
 // document waits on a round trip to the origin before it can render; served
 // long-lived without a version, a deploy would leave browsers on the old script.
-test("next.config makes theme-init.js immutable only at its exact content version", async () => {
+// Its hash is part of the file name, so only that exact path may be cached for
+// good: the unversioned path and any other version keep the default.
+test("next.config makes the theme script immutable only at its exact content-versioned path", async () => {
   const { default: nextConfig } = (await import(NEXT_CONFIG_URL)) as NextConfigModule;
-  const { THEME_INIT_SCRIPT_PATH, THEME_INIT_SCRIPT_VERSION } = (await import(
-    pathToFileURL(resolve(REPO_ROOT, "frontend/src/lib/theme.ts")).href
-  )) as { THEME_INIT_SCRIPT_PATH: string; THEME_INIT_SCRIPT_VERSION: string };
+  const { THEME_INIT_SCRIPT_SRC, THEME_INIT_SCRIPT_VERSION } = await importThemeModule();
 
-  assert.equal(THEME_INIT_SCRIPT_PATH, "/theme-init.js");
   assert.match(THEME_INIT_SCRIPT_VERSION, /^[0-9a-f]{16}$/);
+  assert.equal(THEME_INIT_SCRIPT_SRC, `/theme-init.${THEME_INIT_SCRIPT_VERSION}.js`);
 
   const headerRules = (await nextConfig.headers?.()) ?? [];
   const scriptRules = headerRules.filter((rule) => rule.source.includes("theme-init"));
-  assert.equal(scriptRules.length, 1, "exactly one header rule may name theme-init.js");
+  assert.equal(scriptRules.length, 1, "exactly one header rule may name the theme script");
 
   const [scriptRule] = scriptRules;
-  assert.equal(scriptRule.source, THEME_INIT_SCRIPT_PATH);
-  assert.deepEqual(
-    scriptRule.has,
-    [{ type: "query", key: "v", value: THEME_INIT_SCRIPT_VERSION }],
-    "the rule must apply to the current version only, never to the bare path or another query",
-  );
+  assert.equal(scriptRule.source, THEME_INIT_SCRIPT_SRC);
+  assert.equal(scriptRule.has, undefined, "the version lives in the path, not in a query");
+  assert.equal(/[:*(]/.test(scriptRule.source), false, "the rule must be a literal path, not a pattern");
   assert.deepEqual(scriptRule.headers, [
     { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
   ]);
+});
+
+// The immutable rule above is only as true as the name of the file: the one
+// published script must be named after the hash of its own bytes, and nothing
+// may publish or reference it without that hash.
+test("the published theme script is named after the hash of its own bytes", async () => {
+  const { THEME_INIT_SCRIPT_SRC, THEME_INIT_SCRIPT_VERSION } = await importThemeModule();
+  const publishedScripts = publishedThemeScripts();
+
+  assert.equal(
+    publishedScripts.length,
+    1,
+    `exactly one theme script is published, found ${publishedScripts.join(", ")}`,
+  );
+
+  const bytes = themeScriptBytes(publishedScripts[0]!);
+  const servedVersion = contentVersion(bytes);
+
+  assert.equal(publishedScripts[0], `theme-init.${servedVersion}.js`);
+  assert.equal(THEME_INIT_SCRIPT_VERSION, servedVersion);
+  assert.equal(THEME_INIT_SCRIPT_SRC, `/theme-init.${servedVersion}.js`);
+
+  const changed = Buffer.from(bytes);
+  changed[changed.length - 1] = changed[changed.length - 1]! ^ 0xff;
+  assert.notEqual(
+    `/theme-init.${contentVersion(changed)}.js`,
+    THEME_INIT_SCRIPT_SRC,
+    "changed bytes can never be published under the URL clients already hold",
+  );
+
+  assert.equal(
+    readSourceFile("frontend/src/lib/theme.ts").includes("?v="),
+    false,
+    "the script URL must not be built from a version query",
+  );
+  assert.equal(
+    readSourceFile("frontend/public/sw.js").includes("theme-init"),
+    false,
+    "sw.js caches the script by request URL only; naming it there would pin stale bytes across script changes",
+  );
+});
+
+// A document rendered by an earlier build asks for /theme-init.js?v=<version>.
+// That URL was immutable under that build, so it may keep resolving only while
+// its version is still the one published: once the bytes change it must stop
+// resolving instead of serving different bytes under a URL clients pinned.
+test("next.config resolves the legacy theme script URL only at the published version", async () => {
+  const { default: nextConfig } = (await import(NEXT_CONFIG_URL)) as NextConfigModule;
+  const { THEME_INIT_LEGACY_SCRIPT_PATH, THEME_INIT_SCRIPT_SRC, THEME_INIT_SCRIPT_VERSION } =
+    await importThemeModule();
+
+  assert.equal(THEME_INIT_LEGACY_SCRIPT_PATH, "/theme-init.js");
+
+  const rewriteRules = (await nextConfig.rewrites?.()) ?? [];
+  assert.ok(Array.isArray(rewriteRules), "rewrites must stay afterFiles: a published file always wins");
+
+  const scriptRewrites = rewriteRules.filter(
+    (rule) => rule.source.includes("theme-init") || rule.destination.includes("theme-init"),
+  );
+  assert.deepEqual(scriptRewrites, [
+    {
+      source: THEME_INIT_LEGACY_SCRIPT_PATH,
+      has: [{ type: "query", key: "v", value: THEME_INIT_SCRIPT_VERSION }],
+      destination: THEME_INIT_SCRIPT_SRC,
+    },
+  ]);
+
+  const headerRules = (await nextConfig.headers?.()) ?? [];
+  assert.equal(
+    headerRules.some((rule) => rule.source === THEME_INIT_LEGACY_SCRIPT_PATH),
+    false,
+    "the legacy path carries no content identity and must keep the revalidating default",
+  );
 });
 
 // Icons and public images keep stable URLs: the manifest, the document icon
@@ -111,8 +222,8 @@ test("next.config keeps the stable icon and image URLs revalidable, never immuta
 });
 
 // Whatever the path, a response may be cached for good only when its URL
-// changes with its bytes: a hash in the path, or the exact version query of
-// the rule. A pattern or a bare stable path can never promise that.
+// changes with its bytes: a hash in the path. A pattern, a bare stable path or
+// a condition outside the path can never promise that.
 test("next.config grants immutable only to content-versioned URLs", async () => {
   const { default: nextConfig } = (await import(NEXT_CONFIG_URL)) as NextConfigModule;
   const headerRules = (await nextConfig.headers?.()) ?? [];
@@ -131,15 +242,11 @@ test("next.config grants immutable only to content-versioned URLs", async () => 
       `${rule.source} is a pattern: immutable needs one literal URL`,
     );
 
-    const versionedByPath = /\.[0-9a-f]{16}\.[a-z0-9]+$/.test(rule.source);
-    const versionedByQuery =
-      rule.has?.length === 1 &&
-      rule.has[0]!.type === "query" &&
-      /^[0-9a-f]{16}$/.test(rule.has[0]!.value ?? "");
-
-    assert.ok(
-      versionedByPath || versionedByQuery,
-      `${rule.source} is immutable without a content version in its URL`,
+    assert.equal(rule.has, undefined, `${rule.source} is immutable under a condition outside its path`);
+    assert.match(
+      rule.source,
+      /\.[0-9a-f]{16}\.[a-z0-9]+$/,
+      `${rule.source} is immutable without a content version in its path`,
     );
   }
 });
