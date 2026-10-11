@@ -81,6 +81,40 @@ export function buildSecurityHeaders(
 
 const securityHeaders = buildSecurityHeaders();
 
+// A prerendered document keeps one URL across deploys while the assets it
+// names change with every build, and Next serves it with `s-maxage=31536000`
+// unless the response already carries a Cache-Control. Every cache may store
+// these documents, none may reuse one without asking this origin first.
+// Literal paths only: a pattern would also classify routes nobody reviewed.
+export const PUBLIC_DOCUMENT_CACHE_CONTROL =
+  "public, max-age=0, s-maxage=0, must-revalidate";
+export const PUBLIC_DOCUMENT_PATHS = [
+  "/",
+  "/servicios",
+  "/profesionales",
+  "/clinicas",
+  "/contacto",
+  "/precios",
+  "/offline",
+  "/citologia-veterinaria",
+  "/histopatologia-veterinaria",
+  "/informes-veterinarios",
+  "/laboratorio-patologico-veterinario",
+] as const;
+
+// Entry points of a session, reached under access query strings (`next`,
+// `tipo`): the same revalidation, but only the browser may keep a copy.
+export const ACCESS_DOCUMENT_CACHE_CONTROL =
+  "private, no-cache, max-age=0, must-revalidate";
+export const ACCESS_DOCUMENT_PATHS = ["/login", "/particulares"] as const;
+
+function documentCacheRules(paths: readonly string[], cacheControl: string) {
+  return paths.map((source) => ({
+    source,
+    headers: [{ key: "Cache-Control", value: cacheControl }],
+  }));
+}
+
 const nextConfig: NextConfig = {
   compress: true,
   poweredByHeader: false,
@@ -136,6 +170,8 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      ...documentCacheRules(PUBLIC_DOCUMENT_PATHS, PUBLIC_DOCUMENT_CACHE_CONTROL),
+      ...documentCacheRules(ACCESS_DOCUMENT_PATHS, ACCESS_DOCUMENT_CACHE_CONTROL),
       {
         source: "/sw.js",
         headers: [
