@@ -37,12 +37,11 @@ const RENDER_INCLUDED_PATHS = [
 const RENDER_IGNORED_PATHS: readonly string[] = [];
 
 // Paths that deploy on Render but that the heavy frontend job of
-// frontend-ci.yml does not react to. Pre-existing CI gap, out of scope for a
-// test-only change: closing it belongs to a ci-only PR that adds both paths
-// to the detector and empties this ledger in the same change. The ledger is
-// exact, so the gap can neither grow nor be closed without this guard
-// noticing.
-const KNOWN_CI_DETECTOR_GAP: readonly string[] = [".npmrc", ".pnpmrc"];
+// frontend-ci.yml does not react to. Empty since the detector covers `.npmrc`
+// and `.pnpmrc`: every path that deploys the frontend is validated by
+// frontend CI first. The ledger is exact, so a gap cannot reopen without
+// this guard noticing.
+const KNOWN_CI_DETECTOR_GAP: readonly string[] = [];
 
 const FRONTEND_ROOT = "frontend";
 const FRONTEND_MANIFEST = "frontend/package.json";
@@ -664,13 +663,9 @@ test("G6 the frontend CI impact detector never claims a path Render would not de
   assert.deepEqual(findCiDetectorDrift(repository), []);
 });
 
-test("G6 known gap: .npmrc and .pnpmrc deploy on Render without frontend CI impact", (t) => {
-  const gap = ciDetectorGap(repository);
-
-  assert.deepEqual(gap, [...KNOWN_CI_DETECTOR_GAP]);
-  t.diagnostic(
-    `OPEN GAP (ci-only follow-up): ${JSON.stringify(gap)} trigger a Render deploy but not the heavy frontend job of ${FRONTEND_CI_WORKFLOW}`,
-  );
+test("G6 every path that deploys on Render requests heavy frontend CI validation", () => {
+  assert.deepEqual(KNOWN_CI_DETECTOR_GAP, []);
+  assert.deepEqual(ciDetectorGap(repository), []);
 });
 
 // -- 3 - Negative proof: each violation is detected, alone --------------------
@@ -805,6 +800,21 @@ test("negative proof: a CI detector path that Render would not deploy is detecte
   assert.notEqual(mutated.textOf(FRONTEND_CI_WORKFLOW), workflow, "the detector mutation did not apply");
   assertSingleViolation(auditSnapshot(mutated), /^G6 .*"contracts\/\*\*" as frontend impact/);
 });
+
+for (const dropped of [".npmrc", ".pnpmrc"]) {
+  test(`negative proof: a CI detector that stops reacting to ${dropped} is detected`, () => {
+    const workflow = repository.textOf(FRONTEND_CI_WORKFLOW);
+    const mutated = overlay(repository, {
+      [FRONTEND_CI_WORKFLOW]: workflow.split(`|${dropped}|`).join("|"),
+    });
+
+    assert.notEqual(mutated.textOf(FRONTEND_CI_WORKFLOW), workflow, "the detector mutation did not apply");
+    assertSingleViolation(
+      auditSnapshot(mutated),
+      new RegExp(`^G6 paths that deploy on Render without frontend CI impact are \\["\\${dropped}"\\]`),
+    );
+  });
+}
 
 // -- 4 - Negative proof: independent changes stay green -----------------------
 

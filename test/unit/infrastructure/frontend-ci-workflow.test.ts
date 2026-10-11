@@ -24,6 +24,8 @@ const frontendPathFilters = [
   "      - 'pnpm-lock.yaml'",
   "      - 'pnpm-workspace.yaml'",
   "      - 'package.json'",
+  "      - '.npmrc'",
+  "      - '.pnpmrc'",
   "      - '.github/workflows/frontend-ci.yml'",
   "      - '.github/workflows/e2e-completeness.yml'",
 ] as const;
@@ -32,6 +34,8 @@ const frontendImpactPaths = new Set([
   "pnpm-lock.yaml",
   "pnpm-workspace.yaml",
   "package.json",
+  ".npmrc",
+  ".pnpmrc",
   ".github/workflows/frontend-ci.yml",
   ".github/workflows/e2e-completeness.yml",
 ]);
@@ -104,6 +108,7 @@ function changedFiles(
     "git",
     [
       "diff",
+      "--no-renames",
       "--name-only",
       "-z",
       "--diff-filter=ACDMRTUXB",
@@ -250,12 +255,12 @@ test("Frontend CI detecta impacto con rango PR seguro, push pesado y fallo cerra
   assertContains(detector, 'git cat-file -e "${MERGE_BASE}^{commit}"');
   assertContains(
     detector,
-    'git diff --name-only -z --diff-filter=ACDMRTUXB "$MERGE_BASE" "$HEAD_SHA" > "$changed_file_list"',
+    'git diff --no-renames --name-only -z --diff-filter=ACDMRTUXB "$MERGE_BASE" "$HEAD_SHA" > "$changed_file_list"',
   );
-  assertNotContains(
-    detector,
-    'git diff --name-only -z --diff-filter=ACDMRTUXB "$BASE_SHA" "$HEAD_SHA"',
-  );
+  // Rename detection would list only the destination of a moved file, hiding
+  // the impact path it left behind.
+  assertNotContains(detector, "git diff --name-only");
+  assertNotContains(detector, '"$BASE_SHA" "$HEAD_SHA" >');
   assertNotContains(detector, "continue-on-error");
 });
 
@@ -324,7 +329,7 @@ test("Frontend CI excluye cambios exclusivos de una base que avanzó", () => {
   }
 });
 
-test("Frontend CI usa exactamente las siete rutas vigentes para solicitar heavy", () => {
+test("Frontend CI usa exactamente las nueve rutas vigentes para solicitar heavy", () => {
   const detector = getJobBlock(readWorkflow(), "detect-frontend-impact");
 
   assertContains(
@@ -332,7 +337,7 @@ test("Frontend CI usa exactamente las siete rutas vigentes para solicitar heavy"
     `          should_run=false
           while IFS= read -r -d '' changed_path; do
             case "$changed_path" in
-              frontend/*|shared/*|pnpm-lock.yaml|pnpm-workspace.yaml|package.json|.github/workflows/frontend-ci.yml|.github/workflows/e2e-completeness.yml)
+              frontend/*|shared/*|pnpm-lock.yaml|pnpm-workspace.yaml|package.json|.npmrc|.pnpmrc|.github/workflows/frontend-ci.yml|.github/workflows/e2e-completeness.yml)
                 should_run=true
                 break
                 ;;
@@ -354,6 +359,103 @@ test("Frontend CI pide heavy cuando el PR sólo cambia el contrato cross-runtime
   // The benign baselines must stay unchanged.
   assert.equal(shouldRunFrontend(["docs/audit/example.md"]), false);
   assert.equal(shouldRunFrontend(["server/routes/example.fastify.ts"]), false);
+});
+
+test("Frontend CI pide heavy cuando el PR sólo cambia la configuración de instalación", () => {
+  // .npmrc and .pnpmrc drive the install the production frontend build runs,
+  // and they deploy the frontend on Render: they must be validated first.
+  assert.equal(shouldRunFrontend([".npmrc"]), true);
+  assert.equal(shouldRunFrontend([".pnpmrc"]), true);
+
+  // Only the root files route: a same-named file elsewhere is not an install input.
+  assert.equal(shouldRunFrontend(["docs/.npmrc"]), false);
+  assert.equal(shouldRunFrontend(["server/.pnpmrc"]), false);
+});
+
+test("Frontend CI pide heavy cuando una ruta de impacto se renombra fuera del dominio o se elimina", () => {
+  const repository = mkdtempSync(join(tmpdir(), "vetneb-frontend-ci-renames-"));
+
+  try {
+    initializeFixtureRepository(repository);
+    commitFile(repository, ".npmrc", "shamefully-hoist=true\nstrict-peer-dependencies=false\n", "npmrc");
+    commitFile(repository, ".pnpmrc", "auto-install-peers=true\nprefer-workspace-packages=true\n", "pnpmrc");
+    commitFile(repository, "docs/guide.md", "# Guide\n\nOperational notes.\n", "docs");
+    commitFile(repository, "frontend/src/page.ts", "export const page = 'frontend';\n", "frontend");
+    commitFile(repository, "shared/names.ts", "export const names = 'shared';\n", "shared");
+    const baseSha = commitFile(repository, "server/routes.ts", "export const routes = 'backend';\n", "backend");
+
+    const change = (operations: readonly (readonly string[])[]): string => {
+      runGit(repository, ["switch", "--detach", baseSha]);
+      // Switching back drops the directory once its only file is gone.
+      mkdirSync(resolve(repository, "archive"), { recursive: true });
+
+      for (const operation of operations) {
+        runGit(repository, operation);
+      }
+
+      runGit(repository, ["commit", "-m", "change"]);
+
+      return runGit(repository, ["rev-parse", "HEAD"]);
+    };
+
+    // What the detector saw before: with rename detection, a moved file is
+    // reported by its destination only.
+    const renameAwareFiles = (headSha: string): string[] =>
+      runGit(repository, ["diff", "--find-renames", "--name-only", baseSha, headSha])
+        .split("\n")
+        .filter(Boolean);
+
+    const renamedAway: ReadonlyArray<readonly [readonly (readonly string[])[], readonly string[]]> = [
+      [[["mv", ".npmrc", "docs/npmrc.backup"]], [".npmrc"]],
+      [[["mv", ".pnpmrc", "docs/pnpmrc.backup"]], [".pnpmrc"]],
+      [
+        [
+          ["mv", ".npmrc", "docs/npmrc.backup"],
+          ["mv", ".pnpmrc", "docs/pnpmrc.backup"],
+        ],
+        [".npmrc", ".pnpmrc"],
+      ],
+      [[["mv", "frontend/src/page.ts", "archive/page.ts"]], ["frontend/src/page.ts"]],
+      [[["mv", "shared/names.ts", "archive/names.ts"]], ["shared/names.ts"]],
+    ];
+
+    for (const [operations, sources] of renamedAway) {
+      const headSha = change(operations);
+      const detected = changedFiles(repository, baseSha, headSha);
+
+      for (const source of sources) {
+        assert.ok(detected.includes(source), `${source} must be listed when it is renamed away`);
+        assert.ok(
+          !renameAwareFiles(headSha).includes(source),
+          `${source} is the path rename detection hides`,
+        );
+      }
+
+      assert.equal(shouldRunFrontend(renameAwareFiles(headSha)), false);
+      assert.equal(shouldRunFrontend(detected), true);
+    }
+
+    for (const removed of [".npmrc", ".pnpmrc"]) {
+      const detected = changedFiles(repository, baseSha, change([["rm", removed]]));
+
+      assert.deepEqual(detected, [removed]);
+      assert.equal(shouldRunFrontend(detected), true);
+    }
+
+    // Independent renames must stay out: disabling rename detection adds the
+    // source path, it never turns an unrelated move into frontend impact.
+    for (const operations of [
+      [["mv", "docs/guide.md", "docs/manual.md"]],
+      [["mv", "server/routes.ts", "server/router.ts"]],
+    ]) {
+      const detected = changedFiles(repository, baseSha, change(operations));
+
+      assert.equal(detected.length, 2);
+      assert.equal(shouldRunFrontend(detected), false);
+    }
+  } finally {
+    rmSync(repository, { recursive: true, force: true });
+  }
 });
 
 test("Frontend CI alinea los push path filters con el detector de impacto de PR", () => {
