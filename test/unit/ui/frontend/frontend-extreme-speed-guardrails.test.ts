@@ -208,21 +208,22 @@ test("service worker PRIVATE_PATH_PREFIXES blocks /api/ and /dashboard", () => {
   assert.ok(source.includes('"/_next/server"'), "SW must block /_next/server from cache");
 });
 
+// A navigation always carries credentials, so no navigation response is stored
+// at all; the only document the worker keeps is fetched without credentials.
 test("service worker blocks credential requests from cache", () => {
   const source = read("frontend/public/sw.js");
 
   assert.ok(
-    source.includes("requestHasCredentials"),
-    "SW must guard against caching credentialed requests",
+    source.includes('new Request(url, { cache: "reload", credentials: "omit" })'),
+    "SW must precache without credentials",
   );
   assert.ok(
-    source.includes('credentials === "include"') ||
-      source.includes("credentials === 'include'"),
-    "SW must check for credentials: include",
+    source.includes("event.respondWith(fetch(request).catch(() => respondWithOfflineDocument()));"),
+    "SW must answer public navigation from the network without storing it",
   );
   assert.ok(
-    source.includes("Set-Cookie"),
-    "SW must not cache responses with Set-Cookie header",
+    source.includes("Set-Cookie") && source.includes("(?:no-store|private)"),
+    "SW must not cache responses with Set-Cookie, no-store or private",
   );
 });
 
