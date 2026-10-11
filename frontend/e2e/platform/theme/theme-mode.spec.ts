@@ -165,11 +165,12 @@ test("a later document takes the pre-paint theme script from the HTTP cache", as
     page.evaluate(() => {
       const [entry] = performance
         .getEntriesByType("resource")
-        .filter((candidate) => new URL(candidate.name).pathname === "/theme-init.js")
+        .filter((candidate) => new URL(candidate.name).pathname.startsWith("/theme-init"))
         .map((candidate) => candidate.toJSON() as Record<string, unknown>);
 
       return entry
         ? {
+            path: new URL(String(entry.name)).pathname,
             query: new URL(String(entry.name)).search,
             transferSize: entry.transferSize,
             deliveryType: entry.deliveryType,
@@ -189,9 +190,10 @@ test("a later document takes the pre-paint theme script from the HTTP cache", as
   expect(first?.ok(), "/ should render successfully").toBeTruthy();
 
   const firstTransfer = await themeScriptTransfer();
-  expect(firstTransfer?.query, "the script URL carries its content version").toMatch(
-    /^\?v=[0-9a-f]{16}$/,
+  expect(firstTransfer?.path, "the script path carries its content version").toMatch(
+    /^\/theme-init\.[0-9a-f]{16}\.js$/,
   );
+  expect(firstTransfer?.query, "the version is not carried by a query").toBe("");
   expect(
     firstTransfer?.transferSize,
     "the first document fetches the script from the network",
@@ -203,7 +205,7 @@ test("a later document takes the pre-paint theme script from the HTTP cache", as
   // A revalidated copy (304) reports the size of its response headers here; only
   // a copy the network was never asked for reports zero.
   const laterTransfer = await themeScriptTransfer();
-  expect(laterTransfer?.query).toBe(firstTransfer?.query);
+  expect(laterTransfer?.path).toBe(firstTransfer?.path);
   expect(laterTransfer?.renderBlocking, "the script still blocks rendering").toBe("blocking");
   expect(
     laterTransfer?.transferSize,
