@@ -136,8 +136,18 @@ test("app version gate blocks usage on CLIENT_VERSION_UNSUPPORTED with the requi
 
 test("service worker cache namespace changes for the version gate deployment", () => {
   const sw = read("frontend/public/sw.js");
+  const gate = read("frontend/src/components/app-version/AppVersionGate.tsx");
 
-  assert.ok(sw.includes('const SW_VERSION = "2026-06-26-app-version-gate-v1"'));
+  assert.ok(sw.includes('const SW_VERSION = "2026-10-11-cache-lifecycle-v2"'));
+  // "Actualizar ahora" clears caches by this prefix, so every cache the worker
+  // opens must be named from it. The behaviour itself is executed in
+  // frontend-service-worker-cache-lifecycle.test.ts.
+  assert.ok(sw.includes('const CACHE_PREFIX = "portal-vetneb-";'));
+  assert.ok(gate.includes('key.startsWith("portal-vetneb-")'));
+  assert.deepEqual(
+    [...new Set([...sw.matchAll(/caches\.open\(([^()]*(?:\([^()]*\))?)\)/g)].map((match) => match[1]))].sort(),
+    ["PRECACHE", "assetCacheName(generation - 1)", "assetCacheName(generation)", "legacyName", "previousName"],
+  );
   assert.ok(sw.includes('event.data?.type === "VETNEB_SKIP_WAITING"'));
   assert.ok(sw.includes('"/api/"'));
   assert.ok(sw.includes("isPrivatePath"));

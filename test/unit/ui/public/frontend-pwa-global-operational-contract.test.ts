@@ -116,13 +116,15 @@ test("service worker cachea solo navegación pública permitida y assets públic
   const swSource = read("frontend/public/sw.js");
 
   assert.ok(swSource.includes("const PUBLIC_NAVIGATION_ALLOWLIST = new Set(["));
-  assert.ok(swSource.includes("const PRECACHE_URLS = ["));
-  assert.ok(swSource.includes('url.pathname.startsWith("/_next/static/")'));
-  assert.ok(swSource.includes('url.pathname.startsWith("/images/")'));
-  assert.ok(swSource.includes('url.pathname.startsWith("/icons/")'));
-  assert.ok(swSource.includes("putIfCacheable(RUNTIME, request, response.clone())"));
+  assert.ok(swSource.includes("const PRECACHE_OPTIONAL_URLS = ["));
+  // A1-4: un asset se admite por la identidad de su URL (ruta de build o hash
+  // de contenido), nunca por su tipo ni por un prefijo de URL estable. El
+  // comportamiento se ejecuta en
+  // test/unit/infrastructure/frontend-service-worker-cache-lifecycle.test.ts.
+  assert.ok(swSource.includes('url.pathname.startsWith("/_next/static/") || CONTENT_HASHED_PATH.test(url.pathname)'));
+  assert.equal(swSource.includes("request.destination"), false, "el destino del request no clasifica un recurso");
+  assert.equal(swSource.includes('startsWith("/images/")') || swSource.includes('startsWith("/icons/")'), false);
   assert.ok(swSource.includes("if (response.headers.has(\"Set-Cookie\"))"));
-  assert.ok(swSource.includes("if (!requestHasCredentials(request))"));
 
   const publicAllowlistSource = extractPublicNavigationAllowlist(swSource);
 
@@ -165,65 +167,38 @@ test("service worker conserva privado/admin/API como network-only sin cache", ()
   assert.equal(swSource.includes("/api/reports"), false, "no debe cachearse reports de forma específica");
 });
 
-test("putIfCacheable no llama .clone() internamente — el clon viene del caller", () => {
+// A1-4 reemplazó putIfCacheable por un escritor por clase de recurso. La
+// disciplina es la misma: el caller clona antes de devolver la respuesta y el
+// escritor nunca clona ni deja escapar un rechazo. La entrega íntegra del body
+// y la ausencia de rechazos se ejecutan en el contrato de ciclo de vida.
+for (const writer of ["storeVersionedAsset", "refreshPrecached"]) {
+  test(`${writer} no llama .clone() internamente y captura sus errores de caché`, () => {
+    const swSource = read("frontend/public/sw.js");
+    const fnMatch = swSource.match(new RegExp(`async function ${writer}\\b[\\s\\S]*?\\n\\}`));
+
+    assert.ok(fnMatch, `${writer} debe existir en sw.js`);
+
+    const fnBodyNoComments = fnMatch[0].replace(/\/\/[^\n]*/g, "");
+
+    assert.equal(fnBodyNoComments.includes(".clone()"), false, "el clone es responsabilidad del caller");
+    assert.ok(fnBodyNoComments.includes("try {") && fnBodyNoComments.includes("} catch"));
+    assert.ok(/await cache\.put\((request|key), response\);/.test(fnBodyNoComments));
+  });
+}
+
+test("los call sites de escritura clonan dentro de event.waitUntil y nunca pasan la respuesta original", () => {
   const swSource = read("frontend/public/sw.js");
-
-  // Extraer el cuerpo de la función putIfCacheable
-  const fnMatch = swSource.match(/async function putIfCacheable\b[\s\S]*?\n\}/);
-  assert.ok(fnMatch, "putIfCacheable debe existir en sw.js");
-  const fnBody = fnMatch[0];
-
-  // Eliminar comentarios de línea antes de buscar patrones de código
-  const fnBodyNoComments = fnBody.replace(/\/\/[^\n]*/g, "");
-
-  assert.equal(
-    fnBodyNoComments.includes(".clone()"),
-    false,
-    "putIfCacheable no debe llamar .clone() en código (excluidos comentarios); el clone es responsabilidad del caller",
+  const writes = [...swSource.matchAll(/event\.waitUntil\((?:storeVersionedAsset|refreshPrecached)\(.*\)\);/g)].map(
+    (match) => match[0],
   );
+  const calls = swSource.match(/(?<!function )\b(?:storeVersionedAsset|refreshPrecached)\(/g) ?? [];
 
-  // Debe usar cache.put(request, response) sin clonar dentro
-  assert.ok(fnBodyNoComments.includes("cache.put(request, response)"), "putIfCacheable debe hacer cache.put con la response recibida directamente");
-});
+  assert.equal(writes.length, 3, `escrituras dentro de event.waitUntil: ${writes.join(" | ")}`);
+  assert.equal(calls.length, writes.length, "ninguna escritura puede quedar fuera de event.waitUntil");
 
-test("putIfCacheable envuelve operaciones async en try/catch para evitar unhandled rejection", () => {
-  const swSource = read("frontend/public/sw.js");
-
-  const fnMatch = swSource.match(/async function putIfCacheable\b[\s\S]*?\n\}/);
-  assert.ok(fnMatch, "putIfCacheable debe existir en sw.js");
-  const fnBody = fnMatch[0];
-
-  assert.ok(fnBody.includes("try {"), "putIfCacheable debe tener try/catch para capturar errores de caché");
-  assert.ok(fnBody.includes("} catch"), "putIfCacheable debe tener catch para evitar unhandled promise rejection");
-});
-
-test("call sites de putIfCacheable pasan response.clone() como argumento", () => {
-  const swSource = read("frontend/public/sw.js");
-
-  // Contar ocurrencias de putIfCacheable(RUNTIME, request, response.clone())
-  const callsWithClone = (swSource.match(/putIfCacheable\(RUNTIME, request, response\.clone\(\)\)/g) ?? []).length;
-  // Contar ocurrencias sin clone (el patrón inseguro)
-  const callsWithoutClone = (swSource.match(/putIfCacheable\(RUNTIME, request, response\)/g) ?? []).length;
-
-  assert.ok(callsWithClone >= 2, `todos los call sites deben pasar response.clone() — encontrados: ${callsWithClone}`);
-  assert.equal(
-    callsWithoutClone,
-    0,
-    `no debe haber call sites que pasen response sin clonar — encontrados: ${callsWithoutClone}`,
-  );
-});
-
-test("service worker no contiene el patrón inseguro de clone después de await", () => {
-  const swSource = read("frontend/public/sw.js");
-
-  // El patrón peligroso es: await algo; ... response.clone() (dentro de putIfCacheable)
-  // Verificamos que dentro de putIfCacheable no exista ningún .clone() en código (excluidos comentarios)
-  const fnMatch = swSource.match(/async function putIfCacheable\b[\s\S]*?\n\}/);
-  assert.ok(fnMatch, "putIfCacheable debe existir");
-  const fnBodyNoComments = fnMatch[0].replace(/\/\/[^\n]*/g, "");
-
-  const awaitBeforeClone = /await[\s\S]*?\.clone\(\)/.test(fnBodyNoComments);
-  assert.equal(awaitBeforeClone, false, "no debe haber .clone() en código después de un await dentro de putIfCacheable");
+  for (const write of writes) {
+    assert.ok(/, (response|carried)\.clone\(\)\)\);$/.test(write), `${write} debe pasar un clon`);
+  }
 });
 
 test("superficies clínica, admin, particular, logística y backend siguen declaradas para operación online", () => {
