@@ -8,7 +8,7 @@ import {
   THEME_INIT_SCRIPT_SRC,
   THEME_INIT_SCRIPT_VERSION,
 } from "../../../frontend/src/lib/theme.ts";
-import { readSourceFile } from "../../helpers/tracked-source-files.ts";
+import { listTrackedFiles, readSourceFile } from "../../helpers/tracked-source-files.ts";
 
 // A1-4 — runs frontend/public/sw.js exactly as published, inside a VM context
 // whose only bindings are a simulated worker scope, Cache Storage, network and
@@ -53,7 +53,7 @@ const OFFLINE_FALLBACK_PATH = "/offline-fallback.html";
 const OFFLINE_FALLBACK_SOURCE_PATH = "frontend/public/offline-fallback.html";
 const OFFLINE_FALLBACK_BYTE_BUDGET = 16 * 1024;
 // The worker version that published the current bytes of the fallback.
-const OFFLINE_FALLBACK_RELEASE = "2026-10-11-offline-fallback-v3:4893885f4722601d";
+const OFFLINE_FALLBACK_RELEASE = "2026-10-11-offline-fallback-v4:4d91742ad634ea44";
 const HERO_PATH = "/images/hero-microscope-vetneb.webp";
 const ICON_PATH = "/icons/icon-192x192.png";
 const OPTIONAL_PRECACHE_PATHS = [
@@ -87,12 +87,51 @@ function documentDependencies(html: string): string[] {
   ];
 }
 
-function documentLinks(html: string): [string, string][] {
-  return [...html.matchAll(/<a\b[^>]*?\shref="([^"]*)"[^>]*>([^<]+)<\/a>/g)].map((match) => [
-    match[1]!,
-    match[2]!.trim(),
-  ]);
+function attributesOf(tag: string): Record<string, string> {
+  return Object.fromEntries(
+    [...tag.matchAll(/\s([a-z-]+)(?:="([^"]*)")?/gi)].map((match) => [match[1]!.toLowerCase(), match[2] ?? ""]),
+  );
 }
+
+type DocumentForm = { attributes: Record<string, string>; buttons: { attributes: Record<string, string>; label: string }[] };
+
+function documentForms(html: string): DocumentForm[] {
+  return [...html.matchAll(/<form\b([^>]*)>([\s\S]*?)<\/form>/gi)].map((form) => ({
+    attributes: attributesOf(form[1]!),
+    buttons: [...form[2]!.matchAll(/<button\b([^>]*)>([^<]*)<\/button>/gi)].map((button) => ({
+      attributes: attributesOf(button[1]!),
+      label: button[2]!.trim(),
+    })),
+  }));
+}
+
+// Every way a visitor can leave a document, as "element method target [labels]".
+function documentNavigationControls(html: string): string[] {
+  return [
+    ...[...html.matchAll(/<(a|area)\b([^>]*)>/gi)].map(
+      (anchor) => `${anchor[1]!.toLowerCase()} ${attributesOf(anchor[2]!).href ?? ""}`,
+    ),
+    ...documentForms(html).map(
+      (form) =>
+        `form ${form.attributes.method ?? "get"} ${form.attributes.action ?? ""} [${form.buttons.map((button) => button.label).join("|")}]`,
+    ),
+  ];
+}
+
+// The URLs those controls ask the network for when the document is shown at
+// `path`. A GET form replaces the query of its action with its own fields: with
+// none, the request is the action followed by an empty query.
+function documentNavigationRequests(html: string, path: string): string[] {
+  return [
+    ...[...html.matchAll(/<(?:a|area)\b([^>]*)>/gi)].map((anchor) => attributesOf(anchor[1]!).href || path),
+    ...documentForms(html).map((form) => `${(form.attributes.action || path).split(/[?#]/)[0]}?`),
+  ];
+}
+
+// The single navigation control authorized for the fallback (PR #1854): a
+// native GET form to the home page. AGENTS.md §10 forbids <a> and next/link,
+// and its router-based control needs React, which this document must not need.
+const OFFLINE_FALLBACK_NAVIGATION = ["form get / [Ir al inicio]"];
 
 type ResponseShape = {
   status?: number;
@@ -618,6 +657,106 @@ function expectNetworkError(outcome: FetchOutcome, message: string): void {
 
 type Contract = (source: string) => Promise<void>;
 
+async function assertFallbackAnsweredWhole(source: string, document: string): Promise<void> {
+  const world = new World();
+
+  world.publish("build-a");
+  world.serve(OFFLINE_FALLBACK_PATH, document, PUBLIC_FILE);
+
+  const worker = await installAndActivate(source, world);
+  const offlinePageFetchesAtInstall = world.timesFetched(OFFLINE_PATH);
+
+  world.offline = true;
+
+  for (const path of ["/", "/servicios", OFFLINE_PATH]) {
+    const fallback = await worker.navigate(path);
+
+    assert.equal(fallback.response?.status, 200, `${path} is answered offline`);
+    assert.match(fallback.response?.headers.get("content-type") ?? "", /^text\/html/);
+
+    for (const dependency of documentDependencies(fallback.body ?? "")) {
+      const outcome = await worker.fetch(dependency);
+
+      assert.equal(
+        outcome.handled && !outcome.rejected && outcome.body !== null,
+        true,
+        `${path}: the fallback needs ${dependency}, which nothing can answer with the origin down`,
+      );
+    }
+
+    // Leaving the fallback is a navigation too: with the origin still down the
+    // worker must answer it, or the visitor lands on a browser error page.
+    for (const request of documentNavigationRequests(fallback.body ?? "", path)) {
+      assert.equal(
+        (await worker.navigate(request)).response?.status,
+        200,
+        `${path}: the control that asks for "${request}" must be a public navigation the worker answers`,
+      );
+    }
+
+    assert.equal(fallback.body, document, `${path} is answered with the published fallback`);
+  }
+
+  assert.equal(offlinePageFetchesAtInstall, 0, "the Next.js /offline page is never fetched to be the fallback");
+  assert.deepEqual(world.cachesHolding(OFFLINE_PATH), [], "and no navigation document is stored");
+}
+
+function assertFallbackDocument(html: string): void {
+  assert.match(html, /^<!doctype html>\n<html lang="es">/, "a complete document in Spanish");
+  assert.match(html, /<meta charset="utf-8">/);
+  assert.match(html, /<meta name="viewport" content="width=device-width, initial-scale=1">/);
+  assert.match(html, /<meta name="robots" content="noindex, nofollow">/, "the fallback is not indexable");
+  assert.match(html, /<title>Sin conexión — Portal VETNEB<\/title>/);
+  assert.equal(html.match(/<h1\b/g)?.length, 1, "one top-level heading");
+  assert.match(html, /<h1 id="offline-heading">[^<]+<\/h1>/);
+  assert.match(html, /<main>[\s\S]*<\/main>/);
+
+  for (const required of ["conexión", "informes", "sesiones clínicas", "administración"]) {
+    assert.ok(html.includes(required), `the message must mention "${required}"`);
+  }
+
+  for (const [forbidden, why] of [
+    [/<script\b/i, "no script"],
+    [/\son[a-z]+\s*=/i, "no inline event handler"],
+    [/javascript:/i, "no script URL"],
+    [/<(?:a|area)\b/i, "no anchor navigation (AGENTS.md §10)"],
+    [/<(?:input|textarea|select|option|label|fieldset|output|datalist)\b/i, "no control that could carry data"],
+    [/<(?:iframe|object|embed|img|video|audio|base)\b/i, "no embedded resource"],
+    [/https?:\/\//i, "no remote or absolute URL"],
+    [/@import|url\(/i, "no stylesheet resource"],
+    [/http-equiv/i, "no in-document header override"],
+    [/\/_next\/|\/fonts\/|\/api\/|\/dashboard/, "no build asset, font file or private path"],
+  ] as [RegExp, string][]) {
+    assert.doesNotMatch(html, forbidden, why);
+  }
+
+  assert.deepEqual(
+    documentDependencies(html).filter((dependency) => !OPTIONAL_PRECACHE_PATHS.includes(dependency)),
+    [],
+    "the only resource the document names is one the worker precaches",
+  );
+
+  // One native control, and a submission that carries nothing: no field, no
+  // named button, no override of where or how the form is sent.
+  assert.deepEqual(documentNavigationControls(html), OFFLINE_FALLBACK_NAVIGATION);
+  assert.equal(html.match(/<button\b/gi)?.length, 1, "the only button is the one that submits the form");
+
+  const [form] = documentForms(html);
+
+  assert.deepEqual(Object.keys(form!.attributes).sort(), ["action", "class", "method"]);
+  assert.deepEqual(Object.keys(form!.buttons[0]!.attributes).sort(), ["class", "type"]);
+  assert.equal(form!.buttons[0]!.attributes.type, "submit", "the control works without a script");
+
+  // Retrying the page that was asked for is the browser's own reload: a GET
+  // form cannot repeat a URL with its query and fragment intact.
+  assert.match(html, /recargue esta página/, "the document tells the visitor how to retry");
+  assert.equal(
+    Buffer.byteLength(html) <= OFFLINE_FALLBACK_BYTE_BUDGET,
+    true,
+    "the fallback stays a document, not an application",
+  );
+}
+
 const contracts: Record<string, Contract> = {
   // Contracts 1 and 2.
   "private surfaces are never answered or stored by the worker": async (source) => {
@@ -919,100 +1058,40 @@ const contracts: Record<string, Contract> = {
   // The regression: the worker used to answer with the Next.js /offline page.
   // Its client chunks are build assets this browser may never have downloaded,
   // so the document lost its content to the error boundary once they failed.
-  "the offline fallback needs nothing the worker cannot answer with the origin down": async (source) => {
-    const world = new World();
-
-    world.publish("build-a");
-    world.serve(OFFLINE_FALLBACK_PATH, offlineFallbackDocument, PUBLIC_FILE);
-
-    const worker = await installAndActivate(source, world);
-    const offlinePageFetchesAtInstall = world.timesFetched(OFFLINE_PATH);
-
-    world.offline = true;
-
-    for (const path of ["/", "/servicios", OFFLINE_PATH]) {
-      const fallback = await worker.navigate(path);
-
-      assert.equal(fallback.response?.status, 200, `${path} is answered offline`);
-      assert.match(fallback.response?.headers.get("content-type") ?? "", /^text\/html/);
-
-      for (const dependency of documentDependencies(fallback.body ?? "")) {
-        const outcome = await worker.fetch(dependency);
-
-        assert.equal(
-          outcome.handled && !outcome.rejected && outcome.body !== null,
-          true,
-          `${path}: the fallback needs ${dependency}, which nothing can answer with the origin down`,
-        );
-      }
-
-      // Leaving the fallback by one of its links is a navigation the worker answers.
-      for (const [href] of documentLinks(fallback.body ?? "")) {
-        assert.equal(
-          (await worker.navigate(href === "" ? path : href)).response?.status,
-          200,
-          `${path}: the link to "${href}" must be a public navigation the worker answers`,
-        );
-      }
-
-      assert.equal(fallback.body, offlineFallbackDocument, `${path} is answered with the published fallback`);
-    }
-
-    assert.equal(offlinePageFetchesAtInstall, 0, "the Next.js /offline page is never fetched to be the fallback");
-    assert.deepEqual(world.cachesHolding(OFFLINE_PATH), [], "and no navigation document is stored");
-  },
+  "the offline fallback needs nothing the worker cannot answer with the origin down": (source) =>
+    assertFallbackAnsweredWhole(source, offlineFallbackDocument),
 
   "the offline fallback is a self-contained document that works without JavaScript": async () => {
-    const html = offlineFallbackDocument;
-
-    assert.match(html, /^<!doctype html>\n<html lang="es">/, "a complete document in Spanish");
-    assert.match(html, /<meta charset="utf-8">/);
-    assert.match(html, /<meta name="viewport" content="width=device-width, initial-scale=1">/);
-    assert.match(html, /<meta name="robots" content="noindex, nofollow">/, "the fallback is not indexable");
-    assert.match(html, /<title>Sin conexión — Portal VETNEB<\/title>/);
-    assert.equal(html.match(/<h1\b/g)?.length, 1, "one top-level heading");
-    assert.match(html, /<h1 id="offline-heading">[^<]+<\/h1>/);
-    assert.match(html, /<main>[\s\S]*<\/main>/);
-
-    for (const required of ["conexión", "informes", "sesiones clínicas", "administración"]) {
-      assert.ok(html.includes(required), `the message must mention "${required}"`);
-    }
-
-    for (const [forbidden, why] of [
-      [/<script\b/i, "no script"],
-      [/\son[a-z]+\s*=/i, "no inline event handler"],
-      [/javascript:/i, "no script URL"],
-      [/<(?:form|input|button|textarea|select)\b/i, "no form control: nothing is asked of the visitor"],
-      [/<(?:iframe|object|embed|img|video|audio|base)\b/i, "no embedded resource"],
-      [/https?:\/\//i, "no remote or absolute URL"],
-      [/@import|url\(/i, "no stylesheet resource"],
-      [/http-equiv/i, "no in-document header override"],
-      [/\/_next\/|\/fonts\/|\/api\/|\/dashboard/, "no build asset, font file or private path"],
-    ] as [RegExp, string][]) {
-      assert.doesNotMatch(html, forbidden, why);
-    }
-
-    assert.deepEqual(
-      documentDependencies(html).filter((dependency) => !OPTIONAL_PRECACHE_PATHS.includes(dependency)),
-      [],
-      "the only resource the document names is one the worker precaches",
-    );
-    assert.deepEqual(
-      documentLinks(html),
-      [
-        ["", "Reintentar conexión"],
-        ["/", "Ir al inicio"],
-      ],
-      "retry reloads the page that was asked for; home is a native link",
-    );
-    assert.equal(html.match(/<a\b/g)?.length, 2, "every link is a native link with a text label");
-    assert.doesNotMatch(html, /<a\b[^>]*\s(?:target|download|ping)=/);
-    assert.equal(
-      Buffer.byteLength(html) <= OFFLINE_FALLBACK_BYTE_BUDGET,
-      true,
-      "the fallback stays a document, not an application",
-    );
+    assertFallbackDocument(offlineFallbackDocument);
   },
+
+  // AGENTS.md §10 is enforced on frontend/src by the navigation hardening
+  // contracts, which do not scan static documents. It is held here for
+  // frontend/public: no anchor navigation in any document, and native form
+  // navigation only in the offline fallback.
+  "static public documents keep the navigation contract": async () => {
+    const documents = listTrackedFiles().filter(
+      (file) => file.startsWith("frontend/public/") && /\.(?:html?|xhtml|svg)$/i.test(file),
+    );
+
+    assert.deepEqual(
+      documents,
+      [OFFLINE_FALLBACK_SOURCE_PATH],
+      "a new static document under frontend/public must be held to AGENTS.md §10 here",
+    );
+
+    for (const document of documents) {
+      const source = readSourceFile(document);
+
+      assert.doesNotMatch(source, /<(?:a|area)\b/i, `${document}: no anchor navigation`);
+      assert.deepEqual(
+        documentNavigationControls(source),
+        document === OFFLINE_FALLBACK_SOURCE_PATH ? OFFLINE_FALLBACK_NAVIGATION : [],
+        `${document}: only the authorized native control may navigate`,
+      );
+    }
+  },
+
 
   // A worker fetches the fallback only while it installs, and a browser
   // installs only when sw.js changes: new bytes of the document reach an
@@ -1565,6 +1644,76 @@ const mutants: { name: string; from: string; to: string; caughtBy: string }[] = 
     caughtBy: "stable public URLs are answered from the network while online",
   },
 ];
+
+// Each mutant breaks one property of the fallback's navigation control. The
+// document contract reads the markup; the worker contract drives the worker.
+const fallbackMutants: { name: string; from: string; to: string; caughtBy: "document" | "worker" }[] = [
+  {
+    name: "brings an anchor back",
+    from: '<button class="action" type="submit">Ir al inicio</button>',
+    to: '<a class="action" href="/">Ir al inicio</a>',
+    caughtBy: "document",
+  },
+  {
+    name: "adds a retry form with an empty action",
+    from: "</form>",
+    to: '</form><form method="get" action=""><button type="submit">Reintentar conexión</button></form>',
+    caughtBy: "document",
+  },
+  {
+    name: "submits a hidden field",
+    from: '<button class="action" type="submit">',
+    to: '<input type="hidden" name="origen" value="offline"><button class="action" type="submit">',
+    caughtBy: "document",
+  },
+  {
+    name: "names the submit button",
+    from: 'type="submit">Ir al inicio',
+    to: 'type="submit" name="accion" value="inicio">Ir al inicio',
+    caughtBy: "document",
+  },
+  {
+    name: "posts the form",
+    from: 'method="get"',
+    to: 'method="post"',
+    caughtBy: "document",
+  },
+  {
+    name: "navigates through a script",
+    from: 'type="submit">Ir al inicio',
+    to: "type=\"button\" onclick=\"location.assign('/')\">Ir al inicio",
+    caughtBy: "document",
+  },
+  {
+    name: "points the control at a private surface",
+    from: 'action="/"',
+    to: 'action="/dashboard"',
+    caughtBy: "worker",
+  },
+  {
+    name: "points the control at a path the worker does not answer",
+    from: 'action="/"',
+    to: 'action="/profesionales/42"',
+    caughtBy: "worker",
+  },
+];
+
+for (const mutant of fallbackMutants) {
+  test(`offline fallback mutant is caught: ${mutant.name}`, async () => {
+    const mutated = offlineFallbackDocument.replace(mutant.from, mutant.to);
+
+    assert.notEqual(mutated, offlineFallbackDocument, `the mutation anchor must exist in the fallback: ${mutant.from}`);
+
+    if (mutant.caughtBy === "document") {
+      assert.throws(() => assertFallbackDocument(mutated), "the document contract must fail for this mutant");
+    } else {
+      await assert.rejects(
+        () => assertFallbackAnsweredWhole(serviceWorkerSource, mutated),
+        "the worker contract must fail for this mutant",
+      );
+    }
+  });
+}
 
 for (const mutant of mutants) {
   test(`service worker mutant is caught: ${mutant.name}`, async () => {

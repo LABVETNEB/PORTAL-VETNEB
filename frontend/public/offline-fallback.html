@@ -123,10 +123,7 @@
       .actions {
         display: flex;
         flex-direction: column;
-        gap: 0.75rem;
         margin: 2rem 0 0;
-        padding: 0;
-        list-style: none;
       }
 
       .action {
@@ -137,22 +134,18 @@
         padding: 0.625rem 1.5rem;
         border: 2px solid var(--navy);
         border-radius: 0.5rem;
-        background: var(--card);
-        color: var(--navy);
-        font-weight: 600;
-        text-decoration: none;
-      }
-
-      .action-primary {
         background: var(--navy);
         color: #fff;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
       }
 
       .action:hover {
         text-decoration: underline;
       }
 
-      a:focus-visible {
+      .action:focus-visible {
         outline: 3px solid var(--teal);
         outline-offset: 3px;
       }
@@ -255,23 +248,21 @@
         <p class="eyebrow">Modo sin conexión</p>
         <h1 id="offline-heading">Portal VETNEB no puede conectarse en este momento</h1>
         <p class="lead">
-          Verifique su conexión a internet e intente nuevamente. Por seguridad, el acceso a informes,
-          sesiones clínicas y administración requiere una conexión activa con el servicio.
+          Verifique su conexión a internet y, cuando vuelva, recargue esta página. Por seguridad, el acceso a
+          informes, sesiones clínicas y administración requiere una conexión activa con el servicio.
         </p>
-        <nav aria-label="Acciones disponibles sin conexión">
-          <ul class="actions">
-            <li><a class="action action-primary" href="">Reintentar conexión</a></li>
-            <li><a class="action" href="/">Ir al inicio</a></li>
-          </ul>
-        </nav>
+        <form class="actions" method="get" action="/">
+          <button class="action" type="submit">Ir al inicio</button>
+        </form>
       </section>
 
       <section class="block" aria-labelledby="offline-steps-heading">
         <h2 id="offline-steps-heading">Qué puede hacer ahora</h2>
         <ol class="steps">
           <li>Compruebe que el Wi-Fi o los datos móviles estén activos y que el modo avión esté desactivado.</li>
-          <li>Cuando vuelva la conexión, use «Reintentar conexión»: se cargará la página que intentaba abrir.</li>
-          <li>Si otros sitios funcionan y este aviso continúa, espere unos minutos y reintente: el servicio puede estar temporalmente inaccesible.</li>
+          <li>Cuando vuelva la conexión, recargue esta página con el control de actualizar del navegador: se abrirá la página que intentaba abrir.</li>
+          <li>Si usa la aplicación instalada y no encuentra un control para recargar, use «Ir al inicio».</li>
+          <li>Si otros sitios funcionan y este aviso continúa, espere unos minutos y vuelva a recargar: el servicio puede estar temporalmente inaccesible.</li>
         </ol>
       </section>
 

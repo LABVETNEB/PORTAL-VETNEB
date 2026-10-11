@@ -13,7 +13,7 @@
  *   - cualquier otro     → la red, sin intervención del worker.
  */
 
-const SW_VERSION = "2026-10-11-offline-fallback-v3";
+const SW_VERSION = "2026-10-11-offline-fallback-v4";
 const CACHE_PREFIX = "portal-vetneb-";
 const PRECACHE = `${CACHE_PREFIX}precache-${SW_VERSION}`;
 // Las entradas versionadas no dependen de la versión del worker: una URL con

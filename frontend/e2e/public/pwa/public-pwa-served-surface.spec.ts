@@ -12,6 +12,11 @@ import { expect, test } from "@playwright/test";
 // disabled and must ask the network for nothing but itself. That proves the
 // document is autonomous; it does not prove that the worker delivers it.
 //
+// AGENTS.md §10 forbids <a> and next/link navigation, and its router-based
+// control needs the script this document must work without. Its one control is
+// therefore a native GET form to the home page, authorized for this document
+// only (PR #1854); retrying the page that was asked for is the browser's reload.
+//
 // Deliberately NOT proven here: register -> install -> activate -> precache ->
 // offline navigation fallback. `PwaServiceWorkerRegistrar` gates registration
 // on `window.location.protocol === "https:"`, and the required runner serves
@@ -163,22 +168,32 @@ test.describe("offline fallback document", () => {
         await expect(main).toContainText(required);
       }
 
-      const retry = page.getByRole("link", { name: "Reintentar conexión" });
-      const home = page.getByRole("link", { name: "Ir al inicio" });
+      await expect(main).toContainText("recargue esta página");
 
-      await expect(retry).toHaveAttribute("href", "");
-      await expect(home).toHaveAttribute("href", "/");
+      // No anchor navigation, and exactly one control: a form that can carry
+      // nothing, since it has no field and its button has no name.
+      await expect(page.locator("a, area")).toHaveCount(0);
+      await expect(page.getByRole("link")).toHaveCount(0);
+      await expect(page.getByRole("button")).toHaveCount(1);
 
-      // The styles travel inside the document: an unstyled link is underlined
-      // and has no background.
-      await expect(retry).toHaveCSS("text-decoration-line", "none");
-      await expect(retry).not.toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+      const form = page.locator("form");
+      const home = page.getByRole("button", { name: "Ir al inicio" });
 
-      await page.keyboard.press("Tab");
-      await expect(retry).toBeFocused();
-      await expect(retry).not.toHaveCSS("outline-style", "none");
+      await expect(form).toHaveCount(1);
+      await expect(form).toHaveAttribute("method", "get");
+      await expect(form).toHaveAttribute("action", "/");
+      await expect(form.locator("input, select, textarea, [name]")).toHaveCount(0);
+      await expect(home).toHaveAttribute("type", "submit");
+
+      // The styles travel inside the document: an unstyled button keeps the
+      // default cursor and the browser's own corners.
+      await expect(home).toHaveCSS("cursor", "pointer");
+      await expect(home).toHaveCSS("border-radius", "8px");
+
       await page.keyboard.press("Tab");
       await expect(home).toBeFocused();
+      await expect(home).toHaveCSS("outline-style", "solid");
+      await expect(home).toHaveCSS("outline-width", "3px");
 
       const overflow = await page.evaluate(
         () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -193,29 +208,45 @@ test.describe("offline fallback document", () => {
       ).toEqual([OFFLINE_FALLBACK_PATH]);
     });
 
-    test("its native links leave the fallback once the network answers", async ({ page }) => {
-      await page.goto(OFFLINE_FALLBACK_PATH);
+    // The worker delivers the document under the URL that was asked for, so
+    // it is loaded here under a query and a fragment it has to leave behind.
+    const SHOWN_UNDER = `${OFFLINE_FALLBACK_PATH}?tipo=clinica&next=%2Fdashboard%2Finformes`;
 
-      // An empty href is the current URL: retry asks again for the page the
-      // visitor was on, which here is the fallback's own path.
-      const retryNavigation = page.waitForResponse(
-        (candidate) =>
-          candidate.request().isNavigationRequest() &&
-          new URL(candidate.url()).pathname === OFFLINE_FALLBACK_PATH,
-      );
+    for (const key of ["Enter", "Space"] as const) {
+      test(`its control leaves through a GET that carries nothing (${key})`, async ({ page }) => {
+        await page.goto(`${SHOWN_UNDER}#seccion`);
 
-      await page.getByRole("link", { name: "Reintentar conexión" }).click();
-      expect((await retryNavigation).ok(), "the retry link must reload the current page").toBeTruthy();
+        const home = page.getByRole("button", { name: "Ir al inicio" });
+        await home.focus();
+
+        const navigation = page.waitForRequest(
+          (candidate) => candidate.isNavigationRequest() && new URL(candidate.url()).pathname === "/",
+        );
+
+        await page.keyboard.press(key);
+
+        const request = await navigation;
+        const target = new URL(request.url());
+
+        expect(request.method()).toBe("GET");
+        expect(request.postData()).toBeNull();
+        expect([...target.searchParams.keys()], "the query it was shown under must not travel").toEqual([]);
+        expect(target.hash).toBe("");
+        expect((await request.response())?.ok(), "the control must load the public home").toBeTruthy();
+
+        await expect(page).toHaveURL((url) => url.pathname === "/");
+        await expect(page.locator("h1#offline-heading")).toHaveCount(0);
+      });
+    }
+
+    test("a browser reload asks again for the exact URL it was shown under", async ({ page }) => {
+      await page.goto(SHOWN_UNDER);
+
+      const reloaded = await page.reload();
+      const url = new URL(reloaded?.url() ?? "about:blank");
+
+      expect(`${url.pathname}${url.search}`, "reload is the retry: the query must survive").toBe(SHOWN_UNDER);
       await expect(page.locator("h1#offline-heading")).toBeVisible();
-
-      const homeNavigation = page.waitForResponse(
-        (candidate) => candidate.request().isNavigationRequest() && new URL(candidate.url()).pathname === "/",
-      );
-
-      await page.getByRole("link", { name: "Ir al inicio" }).click();
-      expect((await homeNavigation).ok(), "the home link must load the public home").toBeTruthy();
-      await expect(page).toHaveURL((url) => url.pathname === "/");
-      await expect(page.locator("h1#offline-heading")).toHaveCount(0);
     });
   });
 });
