@@ -135,7 +135,7 @@ test("home hero image has priority prop for LCP optimization", () => {
   const source = read("frontend/src/app/page.tsx");
 
   assert.ok(
-    source.includes('src="/images/hero-microscope-vetneb.webp"'),
+    source.includes("src={heroImage}"),
     "hero image src must be present",
   );
   assert.ok(source.includes("priority"), "hero image must have priority prop for LCP");
@@ -147,7 +147,7 @@ test("home hero image is outside scroll reveal for LCP correctness", () => {
   const source = read("frontend/src/app/page.tsx");
 
   assert.equal(
-    /<PublicScrollReveal[\s\S]*?hero-microscope/.test(source),
+    /<PublicScrollReveal[\s\S]*?src=\{heroImage\}/.test(source),
     false,
     "hero image must not be wrapped in PublicScrollReveal — breaks LCP",
   );

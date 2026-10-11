@@ -84,6 +84,66 @@ test("next.config makes theme-init.js immutable only at its exact content versio
   ]);
 });
 
+// Icons and public images keep stable URLs: the manifest, the document icon
+// links, the social metadata and the service worker precache name them. A
+// stable URL can change bytes, so it may never be cached for good; it follows
+// the manifest that references it. The image optimizer also inherits its
+// freshness from the upstream max-age, so a year here would pin every
+// optimized variant of a public image for a year under an unchanged URL.
+test("next.config keeps the stable icon and image URLs revalidable, never immutable", async () => {
+  const { default: nextConfig } = (await import(NEXT_CONFIG_URL)) as NextConfigModule;
+  const headerRules = (await nextConfig.headers?.()) ?? [];
+  const cacheControlOf = (source: string): string | undefined =>
+    headerRules
+      .find((rule) => rule.source === source)
+      ?.headers.find((header) => header.key === "Cache-Control")?.value;
+
+  const manifestPolicy = cacheControlOf("/manifest.webmanifest");
+  assert.equal(manifestPolicy, "public, max-age=3600, must-revalidate");
+
+  for (const source of ["/icons/:path*", "/images/:path*"]) {
+    assert.equal(
+      cacheControlOf(source),
+      manifestPolicy,
+      `${source} must follow the manifest policy`,
+    );
+  }
+});
+
+// Whatever the path, a response may be cached for good only when its URL
+// changes with its bytes: a hash in the path, or the exact version query of
+// the rule. A pattern or a bare stable path can never promise that.
+test("next.config grants immutable only to content-versioned URLs", async () => {
+  const { default: nextConfig } = (await import(NEXT_CONFIG_URL)) as NextConfigModule;
+  const headerRules = (await nextConfig.headers?.()) ?? [];
+  const immutableRules = headerRules.filter((rule) =>
+    rule.headers.some(
+      (header) => header.key === "Cache-Control" && header.value.includes("immutable"),
+    ),
+  );
+
+  assert.ok(immutableRules.length > 0, "the scan must see the versioned rules");
+
+  for (const rule of immutableRules) {
+    assert.equal(
+      /[:*(]/.test(rule.source),
+      false,
+      `${rule.source} is a pattern: immutable needs one literal URL`,
+    );
+
+    const versionedByPath = /\.[0-9a-f]{16}\.[a-z0-9]+$/.test(rule.source);
+    const versionedByQuery =
+      rule.has?.length === 1 &&
+      rule.has[0]!.type === "query" &&
+      /^[0-9a-f]{16}$/.test(rule.has[0]!.value ?? "");
+
+    assert.ok(
+      versionedByPath || versionedByQuery,
+      `${rule.source} is immutable without a content version in its URL`,
+    );
+  }
+});
+
 // The font is preloaded by every document. Its hash is part of the file name,
 // so only that exact path may be cached for good: a generic /fonts rule would
 // also pin any unversioned file published there later.

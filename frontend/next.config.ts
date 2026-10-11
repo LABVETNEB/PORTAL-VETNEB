@@ -174,11 +174,15 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        // Stable URLs named by the manifest, the icon links, the social
+        // metadata and the service worker precache: their bytes can change
+        // under the same URL, so they follow the manifest policy instead of
+        // being cached for good. The image optimizer inherits this max-age.
         source: "/icons/:path*",
         headers: [
           {
             key: "Cache-Control",
-            value: "public, max-age=31536000, immutable",
+            value: "public, max-age=3600, must-revalidate",
           },
         ],
       },
@@ -187,7 +191,7 @@ const nextConfig: NextConfig = {
         headers: [
           {
             key: "Cache-Control",
-            value: "public, max-age=31536000, immutable",
+            value: "public, max-age=3600, must-revalidate",
           },
         ],
       },
