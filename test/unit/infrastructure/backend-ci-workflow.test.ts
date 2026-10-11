@@ -102,6 +102,37 @@ function commitFile(
   return runGit(repository, ["rev-parse", "HEAD"]);
 }
 
+// Both halves of the detector are taken from the workflow itself, so these
+// tests exercise the options and patterns CI runs, not a parallel copy.
+function detectorDiffArguments(): string[] {
+  const command = /^[ \t]*git diff (.+) "\$MERGE_BASE" "\$HEAD_SHA" > "\$changed_file_list"$/m.exec(
+    getJobBlock(readWorkflow(), "detect-backend-impact"),
+  );
+
+  assert.ok(command, "detect-backend-impact debe listar los cambios con git diff");
+
+  return command[1]!.split(" ");
+}
+
+function detectorIgnoredPatterns(): RegExp[] {
+  const ignored = /case "\$changed_path" in\n[ \t]+([^\n)]+)\)\n[ \t]+;;\n[ \t]+\*\)\n[ \t]+should_run=true\n/.exec(
+    getJobBlock(readWorkflow(), "detect-backend-impact"),
+  );
+
+  assert.ok(ignored, "detect-backend-impact debe declarar las rutas sin impacto");
+
+  // A shell `case` star matches any character, `/` included.
+  return ignored[1]!.split("|").map(
+    (pattern) =>
+      new RegExp(
+        `^${pattern
+          .split("*")
+          .map((literal) => literal.replace(/[.+?^${}()|[\]\\]/g, "\\$&"))
+          .join(".*")}$`,
+      ),
+  );
+}
+
 function changedFiles(
   repository: string,
   fromCommit: string,
@@ -109,14 +140,7 @@ function changedFiles(
 ): string[] {
   return execFileSync(
     "git",
-    [
-      "diff",
-      "--name-only",
-      "-z",
-      "--diff-filter=ACDMRTUXB",
-      fromCommit,
-      toCommit,
-    ],
+    ["diff", ...detectorDiffArguments(), fromCommit, toCommit],
     { cwd: repository, encoding: "utf8" },
   )
     .split("\0")
@@ -124,9 +148,10 @@ function changedFiles(
 }
 
 function shouldRunBackend(changedPaths: readonly string[]): boolean {
+  const ignored = detectorIgnoredPatterns();
+
   return changedPaths.some(
-    (changedPath) =>
-      !changedPath.startsWith("docs/") && !changedPath.endsWith(".md"),
+    (changedPath) => !ignored.some((pattern) => pattern.test(changedPath)),
   );
 }
 
@@ -250,12 +275,18 @@ test("Backend CI detecta impacto con rango PR seguro, push pesado y fallo cerrad
   assertContains(detector, 'git cat-file -e "${MERGE_BASE}^{commit}"');
   assertContains(
     detector,
-    'git diff --name-only -z --diff-filter=ACDMRTUXB "$MERGE_BASE" "$HEAD_SHA" > "$changed_file_list"',
+    'git diff --no-renames --name-only -z --diff-filter=ACDMRTUXB "$MERGE_BASE" "$HEAD_SHA" > "$changed_file_list"',
   );
-  assertNotContains(
-    detector,
-    'git diff --name-only -z --diff-filter=ACDMRTUXB "$BASE_SHA" "$HEAD_SHA"',
-  );
+  // Rename detection would list only the destination of a moved file, hiding
+  // the impact path it left behind.
+  assertNotContains(detector, "git diff --name-only");
+  assertNotContains(detector, '"$BASE_SHA" "$HEAD_SHA" >');
+  assert.deepEqual(detectorDiffArguments(), [
+    "--no-renames",
+    "--name-only",
+    "-z",
+    "--diff-filter=ACDMRTUXB",
+  ]);
   assertNotContains(detector, "continue-on-error");
 });
 
@@ -339,6 +370,92 @@ test("Backend CI omite docs y Markdown pero solicita heavy para cualquier otro a
 
           echo "should_run=$should_run" >> "$GITHUB_OUTPUT"`,
   );
+});
+
+test("Backend CI deriva de su propio detector las rutas sin impacto", () => {
+  assert.equal(detectorIgnoredPatterns().length, 2);
+
+  assert.equal(shouldRunBackend(["docs/audit/example.md"]), false);
+  assert.equal(shouldRunBackend(["docs/archive/env.ts"]), false);
+  assert.equal(shouldRunBackend(["README.md", "test/README.md"]), false);
+  assert.equal(shouldRunBackend(["server/lib/env.ts"]), true);
+  assert.equal(shouldRunBackend(["frontend/src/page.ts"]), true);
+  assert.equal(shouldRunBackend(["docs/guide.md", "drizzle/0001_rows.sql"]), true);
+});
+
+test("Backend CI pide heavy cuando una ruta con impacto se renombra hacia docs o Markdown, o se elimina", () => {
+  const repository = mkdtempSync(join(tmpdir(), "vetneb-backend-ci-renames-"));
+
+  try {
+    initializeFixtureRepository(repository);
+    commitFile(repository, "server/lib/env.ts", "export const env = 'backend';\nexport const mode = 'runtime';\n", "backend");
+    commitFile(repository, ".github/workflows/backend-ci.yml", "name: Backend CI\non: push\njobs: {}\n", "workflow");
+    commitFile(repository, "drizzle/0001_rows.sql", "CREATE TABLE sample_rows (id integer primary key);\n", "migration");
+    commitFile(repository, "frontend/src/page.ts", "export const page = 'frontend';\n", "frontend");
+    const baseSha = commitFile(repository, "docs/guide.md", "# Guide\n\nOperational notes.\n", "docs");
+
+    const change = (operations: readonly (readonly string[])[]): string => {
+      runGit(repository, ["switch", "--detach", baseSha]);
+      mkdirSync(resolve(repository, "docs", "archive"), { recursive: true });
+
+      for (const operation of operations) {
+        runGit(repository, operation);
+      }
+
+      runGit(repository, ["commit", "-m", "change"]);
+
+      return runGit(repository, ["rev-parse", "HEAD"]);
+    };
+
+    // What the detector saw before: with rename detection, a moved file is
+    // reported by its destination only.
+    const renameAwareFiles = (headSha: string): string[] =>
+      runGit(repository, ["diff", "--find-renames", "--name-only", baseSha, headSha])
+        .split("\n")
+        .filter(Boolean);
+
+    for (const [source, destination] of [
+      ["server/lib/env.ts", "docs/archive/env.ts"],
+      ["server/lib/env.ts", "ENV_NOTES.md"],
+      [".github/workflows/backend-ci.yml", "docs/archive/backend-ci.yml"],
+      ["drizzle/0001_rows.sql", "docs/archive/rows.sql"],
+    ] as const) {
+      const headSha = change([["mv", source, destination]]);
+      const detected = changedFiles(repository, baseSha, headSha);
+
+      assert.deepEqual(renameAwareFiles(headSha), [destination]);
+      assert.equal(
+        shouldRunBackend(renameAwareFiles(headSha)),
+        false,
+        `${source} -> ${destination} es el falso negativo que oculta la detección de renombres`,
+      );
+      assert.deepEqual([...detected].sort(), [source, destination].sort());
+      assert.equal(shouldRunBackend(detected), true);
+    }
+
+    for (const operations of [
+      [["rm", "server/lib/env.ts"]],
+      [["mv", "server/lib/env.ts", "server/lib/environment.ts"]],
+    ]) {
+      const detected = changedFiles(repository, baseSha, change(operations));
+
+      assert.ok(detected.includes("server/lib/env.ts"));
+      assert.equal(shouldRunBackend(detected), true);
+    }
+
+    // A documentation-only rename stays out: listing its source adds another
+    // ignored path, never impact.
+    const docsRename = changedFiles(
+      repository,
+      baseSha,
+      change([["mv", "docs/guide.md", "docs/archive/manual.md"]]),
+    );
+
+    assert.deepEqual([...docsRename].sort(), ["docs/archive/manual.md", "docs/guide.md"]);
+    assert.equal(shouldRunBackend(docsRename), false);
+  } finally {
+    rmSync(repository, { recursive: true, force: true });
+  }
 });
 
 test("Backend CI mantiene Postgres efímero y migraciones antes de validaciones", () => {
