@@ -38,7 +38,7 @@ test("home page exposes accessible hero and primary CTAs", () => {
   // Estructura base del hero
   assert.ok(source.includes('aria-labelledby="hero-heading"'));
   assert.ok(source.includes('id="hero-heading"'));
-  assert.ok(source.includes('src="/images/hero-microscope-vetneb.webp"'));
+  assert.ok(source.includes("src={heroImage}"));
   assert.ok(source.includes('import Image from "next/image";'));
   assert.ok(source.includes("VETNEB"));
 

@@ -215,7 +215,7 @@ test("home keeps hero and hero image untouched by PublicScrollReveal", () => {
     /<section\s+className="relative isolate overflow-hidden text-white"[\s\S]*?<\/section>/,
   );
 
-  assert.ok(source.includes('src="/images/hero-microscope-vetneb.webp"'));
+  assert.ok(source.includes("src={heroImage}"));
   assert.ok(heroMatch);
   assert.equal(heroMatch[0].includes("<PublicScrollReveal"), false);
   assert.equal(

@@ -16,7 +16,21 @@ test("home hero uses optimized Next image as LCP candidate", () => {
   const source = read(HOME_PAGE_PATH);
 
   assert.ok(source.includes('import Image from "next/image";'));
-  assert.ok(source.includes('src="/images/hero-microscope-vetneb.webp"'));
+  // The hero is a static import: the build publishes it under a URL that
+  // carries a hash of its bytes, so the optimized image can be cached
+  // long-term. A string path would be a stable URL whose optimized variants
+  // stay fresh for days after the file changes.
+  assert.ok(
+    source.includes(
+      'import heroImage from "../../public/images/hero-microscope-vetneb.webp";',
+    ),
+  );
+  assert.ok(source.includes("src={heroImage}"));
+  assert.equal(
+    /src="\/(?:images|icons)\//.test(source),
+    false,
+    "the home page must not load a public image through a stable string path",
+  );
   assert.ok(
     source.includes('alt="Microscopio en laboratorio patológico veterinario"'),
   );
@@ -35,7 +49,7 @@ test("home hero keeps LCP image outside scroll reveal wrappers", () => {
   assert.ok(heroMatch);
   assert.equal(heroMatch[0].includes("<PublicScrollReveal"), false);
   assert.equal(
-    /<PublicScrollReveal[\s\S]*?src="\/images\/hero-microscope-vetneb\.webp"/.test(
+    /<PublicScrollReveal[\s\S]*?src=\{heroImage\}/.test(
       source,
     ),
     false,

@@ -25,6 +25,10 @@ import { createPageMetadata } from "@/lib/seo";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
+// Static import: the build publishes the file under a content-hashed URL, so
+// the optimized hero can be cached long-term and still change with its bytes.
+import heroImage from "../../public/images/hero-microscope-vetneb.webp";
+
 export const metadata: Metadata = createPageMetadata(
   "Laboratorio Patológico Veterinario — Histopatología, Citología y Hematología",
   "La anatomía patológica veterinaria estudia los motivos, el desarrollo y las consecuencias de distintas enfermedades mediante el análisis de tejidos, órganos y muestras celulares. VETNEB integra histopatología, citología, citopatología, hematología, diagnóstico hematológico y hemoparásitos.",
@@ -158,7 +162,7 @@ export default function HomePage() {
       >
         <div className="absolute inset-0">
           <Image
-            src="/images/hero-microscope-vetneb.webp"
+            src={heroImage}
             alt="Microscopio en laboratorio patológico veterinario"
             fill
             priority
