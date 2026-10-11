@@ -1,9 +1,16 @@
+import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
 // LIMPIEZA E2E §6.2/§21 — the PWA surface a browser can actually observe under
-// the required harness: /offline as a public page, and the manifest and the
-// service worker script as served responses carrying their real headers. The
-// header assertions read the response, never `next.config.ts`.
+// the required harness: /offline as a public page, the offline fallback
+// document the service worker precaches, and the manifest and the service
+// worker script as served responses carrying their real headers. The header
+// assertions read the response, never `next.config.ts`.
+//
+// The fallback document is held to what it needs when the worker answers a
+// navigation with it and the origin is gone: it is loaded with JavaScript
+// disabled and must ask the network for nothing but itself. That proves the
+// document is autonomous; it does not prove that the worker delivers it.
 //
 // Deliberately NOT proven here: register -> install -> activate -> precache ->
 // offline navigation fallback. `PwaServiceWorkerRegistrar` gates registration
@@ -16,6 +23,9 @@ import { expect, test } from "@playwright/test";
 // stay covered fail-closed by the static contracts in `pnpm test`.
 
 const OFFLINE_PATH = "/offline";
+const OFFLINE_FALLBACK_PATH = "/offline-fallback.html";
+// The one resource the fallback names: an icon the service worker precaches.
+const OFFLINE_FALLBACK_ICON_PATH = "/icons/icon-192x192.png";
 const MANIFEST_PATH = "/manifest.webmanifest";
 const SERVICE_WORKER_PATH = "/sw.js";
 const SERVICE_WORKER_CACHE_DIRECTIVES = ["no-cache", "no-store", "must-revalidate"] as const;
@@ -84,6 +94,129 @@ test.describe("offline public page", () => {
     const directives = (await robots.getAttribute("content")) ?? "";
     expect(directives).toMatch(/noindex/i);
     expect(directives).toMatch(/nofollow/i);
+  });
+});
+
+test.describe("offline fallback document", () => {
+  test("is served as a public HTML document the service worker can precache", async ({ request }) => {
+    const response = await request.get(OFFLINE_FALLBACK_PATH, { maxRedirects: 0 });
+
+    expect(response.status()).toBe(200);
+    expect(response.headers()["content-type"]).toMatch(/^text\/html/);
+    // sw.js installs only with a clean public copy, and must get the bytes of
+    // the build that published it: the URL is stable, so it is never pinned.
+    expect(response.headers()["cache-control"] ?? "").not.toMatch(/no-store|private|immutable/);
+    expect(response.headers()["set-cookie"]).toBeUndefined();
+    expect(response.headers()["x-content-type-options"]).toBe("nosniff");
+    expect(response.headers()["x-frame-options"]).toBe("DENY");
+  });
+
+  test("is excluded from search indexing and has no axe violations", async ({ page }) => {
+    await page.goto(OFFLINE_FALLBACK_PATH);
+
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "noindex, nofollow");
+
+    for (const viewport of [
+      { width: 1440, height: 900 },
+      { width: 390, height: 844 },
+    ]) {
+      await page.setViewportSize(viewport);
+
+      const results = await new AxeBuilder({ page })
+        .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+        .analyze();
+
+      expect(
+        results.violations.map((violation) => `${violation.id}: ${violation.help}`),
+        `axe at ${viewport.width}px`,
+      ).toEqual([]);
+    }
+  });
+
+  test.describe("with JavaScript disabled", () => {
+    test.use({ javaScriptEnabled: false, viewport: { width: 320, height: 640 } });
+
+    test("needs no other request and stays whole, styled and operable by keyboard", async ({ page }) => {
+      const requested: string[] = [];
+
+      page.on("request", (request) => {
+        requested.push(new URL(request.url()).pathname);
+      });
+
+      const response = await page.goto(OFFLINE_FALLBACK_PATH, { waitUntil: "load" });
+
+      expect(response?.status()).toBe(200);
+
+      const heading = page.locator("h1#offline-heading");
+      await expect(heading).toBeVisible();
+      await expect(heading).toHaveText("Portal VETNEB no puede conectarse en este momento");
+      await expect(page.locator("html")).toHaveAttribute("lang", "es");
+      await expect(page).toHaveTitle("Sin conexión — Portal VETNEB");
+
+      // What `load` shows is final: the document carries no script, none could
+      // run, and no client boundary exists to take the content over.
+      await expect(page.locator("script")).toHaveCount(0);
+      await expect(page.locator("[data-route-error-boundary]")).toHaveCount(0);
+
+      const main = page.locator("main");
+      for (const required of ["conexión a internet", "informes", "sesiones clínicas", "administración"]) {
+        await expect(main).toContainText(required);
+      }
+
+      const retry = page.getByRole("link", { name: "Reintentar conexión" });
+      const home = page.getByRole("link", { name: "Ir al inicio" });
+
+      await expect(retry).toHaveAttribute("href", "");
+      await expect(home).toHaveAttribute("href", "/");
+
+      // The styles travel inside the document: an unstyled link is underlined
+      // and has no background.
+      await expect(retry).toHaveCSS("text-decoration-line", "none");
+      await expect(retry).not.toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+
+      await page.keyboard.press("Tab");
+      await expect(retry).toBeFocused();
+      await expect(retry).not.toHaveCSS("outline-style", "none");
+      await page.keyboard.press("Tab");
+      await expect(home).toBeFocused();
+
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      );
+      expect(overflow, "no horizontal overflow at 320px").toBeLessThanOrEqual(0);
+
+      // With the origin gone only the worker can answer, and it holds this
+      // document and that icon: any other request would be one that fails.
+      expect(
+        requested.filter((pathname) => pathname !== OFFLINE_FALLBACK_ICON_PATH),
+        "the document must ask for nothing but itself and its precached icon",
+      ).toEqual([OFFLINE_FALLBACK_PATH]);
+    });
+
+    test("its native links leave the fallback once the network answers", async ({ page }) => {
+      await page.goto(OFFLINE_FALLBACK_PATH);
+
+      // An empty href is the current URL: retry asks again for the page the
+      // visitor was on, which here is the fallback's own path.
+      const retryNavigation = page.waitForResponse(
+        (candidate) =>
+          candidate.request().isNavigationRequest() &&
+          new URL(candidate.url()).pathname === OFFLINE_FALLBACK_PATH,
+      );
+
+      await page.getByRole("link", { name: "Reintentar conexión" }).click();
+      expect((await retryNavigation).ok(), "the retry link must reload the current page").toBeTruthy();
+      await expect(page.locator("h1#offline-heading")).toBeVisible();
+
+      const homeNavigation = page.waitForResponse(
+        (candidate) => candidate.request().isNavigationRequest() && new URL(candidate.url()).pathname === "/",
+      );
+
+      await page.getByRole("link", { name: "Ir al inicio" }).click();
+      expect((await homeNavigation).ok(), "the home link must load the public home").toBeTruthy();
+      await expect(page).toHaveURL((url) => url.pathname === "/");
+      await expect(page.locator("h1#offline-heading")).toHaveCount(0);
+    });
   });
 });
 

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 import vm from "node:vm";
 import { INTER_FONT_PATH } from "../../../frontend/src/lib/fonts.ts";
@@ -18,6 +19,10 @@ import { readSourceFile } from "../../helpers/tracked-source-files.ts";
 // `waitUntil` outside a live event throws, and `put` rejects what the Cache API
 // rejects.
 //
+// The offline fallback is held to the same standard: the document the worker
+// answers with is the published frontend/public/offline-fallback.html, and it
+// must need nothing the worker cannot answer with the origin down.
+//
 // Not proven here: registration by PwaServiceWorkerRegistrar and the browser's
 // own update algorithm. Both need a real browser on an HTTPS origin.
 
@@ -27,6 +32,7 @@ const CACHE_PREFIX = "portal-vetneb-";
 const PREVIOUS_SW_VERSION = "2026-06-26-app-version-gate-v1";
 const PREVIOUS_PRECACHE = `${CACHE_PREFIX}precache-${PREVIOUS_SW_VERSION}`;
 const PREVIOUS_RUNTIME = `${CACHE_PREFIX}runtime-${PREVIOUS_SW_VERSION}`;
+const A1_4_PRECACHE = `${CACHE_PREFIX}precache-2026-10-11-cache-lifecycle-v2`;
 const FOREIGN_CACHE = "another-app-cache-v1";
 
 // The retention budget this suite holds the worker to.
@@ -43,6 +49,11 @@ function assetCacheName(generation: number): string {
 }
 
 const OFFLINE_PATH = "/offline";
+const OFFLINE_FALLBACK_PATH = "/offline-fallback.html";
+const OFFLINE_FALLBACK_SOURCE_PATH = "frontend/public/offline-fallback.html";
+const OFFLINE_FALLBACK_BYTE_BUDGET = 16 * 1024;
+// The worker version that published the current bytes of the fallback.
+const OFFLINE_FALLBACK_RELEASE = "2026-10-11-offline-fallback-v3:4893885f4722601d";
 const HERO_PATH = "/images/hero-microscope-vetneb.webp";
 const ICON_PATH = "/icons/icon-192x192.png";
 const OPTIONAL_PRECACHE_PATHS = [
@@ -57,6 +68,31 @@ const OPTIONAL_PRECACHE_PATHS = [
 
 const IMMUTABLE = "public, max-age=31536000, immutable";
 const REVALIDATING = "public, max-age=3600, must-revalidate";
+const HTML = { "content-type": "text/html; charset=utf-8" };
+// What `next start` sends for a file under public/.
+const PUBLIC_FILE = { ...HTML, "cache-control": "public, max-age=0" };
+
+// Every URL a browser fetches to render a document: scripts, stylesheets and
+// any other <link> resource, embedded media and CSS url() references.
+function documentDependencies(html: string): string[] {
+  return [
+    ...new Set(
+      [
+        /<(?:script|img|source|video|audio|iframe|embed|track)\b[^>]*?\ssrc="([^"]*)"/g,
+        /<link\b[^>]*?\shref="([^"]*)"/g,
+        /<object\b[^>]*?\sdata="([^"]*)"/g,
+        /url\(\s*["']?([^"')]+)["']?\s*\)/g,
+      ].flatMap((pattern) => [...html.matchAll(pattern)].map((match) => match[1]!)),
+    ),
+  ];
+}
+
+function documentLinks(html: string): [string, string][] {
+  return [...html.matchAll(/<a\b[^>]*?\shref="([^"]*)"[^>]*>([^<]+)<\/a>/g)].map((match) => [
+    match[1]!,
+    match[2]!.trim(),
+  ]);
+}
 
 type ResponseShape = {
   status?: number;
@@ -223,9 +259,12 @@ class World {
   }
 
   publish(label: string): void {
-    this.serve(OFFLINE_PATH, `offline document ${label}`, {
+    this.serve(OFFLINE_FALLBACK_PATH, `offline fallback ${label}`, PUBLIC_FILE);
+    // The Next.js /offline page is a public route like any other: its document
+    // needs build assets this browser may never have downloaded.
+    this.serve(OFFLINE_PATH, `<script src="${chunk(`offline-page-${label}`)}"></script>next offline page ${label}`, {
+      ...HTML,
       "cache-control": "s-maxage=31536000",
-      "content-type": "text/html; charset=utf-8",
     });
 
     for (const path of OPTIONAL_PRECACHE_PATHS) {
@@ -839,7 +878,7 @@ const contracts: Record<string, Contract> = {
   },
 
   // Contract 10, and the public navigation policy.
-  "public navigation is network-first, never stored, and falls back to /offline": async (source) => {
+  "public navigation is network-first, never stored, and falls back to the offline document": async (source) => {
     const { world, worker } = await publishedWorld(source);
 
     for (const path of ["/", "/servicios", "/login", "/?vetnebUpdate=1760000000000"]) {
@@ -860,7 +899,11 @@ const contracts: Record<string, Contract> = {
     world.offline = true;
 
     for (const path of ["/", "/servicios", "/login"]) {
-      assert.equal((await worker.navigate(path)).body, "offline document build-a", `${path} falls back to /offline`);
+      assert.equal(
+        (await worker.navigate(path)).body,
+        "offline fallback build-a",
+        `${path} falls back to the offline document`,
+      );
     }
 
     assert.equal((await worker.navigate("/dashboard")).handled, false, "a private navigation never gets the fallback");
@@ -870,6 +913,160 @@ const contracts: Record<string, Contract> = {
       (await worker.fetch("/images/og-vetneb.png", { destination: "image" })).handled,
       false,
       "nothing else is answered offline",
+    );
+  },
+
+  // The regression: the worker used to answer with the Next.js /offline page.
+  // Its client chunks are build assets this browser may never have downloaded,
+  // so the document lost its content to the error boundary once they failed.
+  "the offline fallback needs nothing the worker cannot answer with the origin down": async (source) => {
+    const world = new World();
+
+    world.publish("build-a");
+    world.serve(OFFLINE_FALLBACK_PATH, offlineFallbackDocument, PUBLIC_FILE);
+
+    const worker = await installAndActivate(source, world);
+    const offlinePageFetchesAtInstall = world.timesFetched(OFFLINE_PATH);
+
+    world.offline = true;
+
+    for (const path of ["/", "/servicios", OFFLINE_PATH]) {
+      const fallback = await worker.navigate(path);
+
+      assert.equal(fallback.response?.status, 200, `${path} is answered offline`);
+      assert.match(fallback.response?.headers.get("content-type") ?? "", /^text\/html/);
+
+      for (const dependency of documentDependencies(fallback.body ?? "")) {
+        const outcome = await worker.fetch(dependency);
+
+        assert.equal(
+          outcome.handled && !outcome.rejected && outcome.body !== null,
+          true,
+          `${path}: the fallback needs ${dependency}, which nothing can answer with the origin down`,
+        );
+      }
+
+      // Leaving the fallback by one of its links is a navigation the worker answers.
+      for (const [href] of documentLinks(fallback.body ?? "")) {
+        assert.equal(
+          (await worker.navigate(href === "" ? path : href)).response?.status,
+          200,
+          `${path}: the link to "${href}" must be a public navigation the worker answers`,
+        );
+      }
+
+      assert.equal(fallback.body, offlineFallbackDocument, `${path} is answered with the published fallback`);
+    }
+
+    assert.equal(offlinePageFetchesAtInstall, 0, "the Next.js /offline page is never fetched to be the fallback");
+    assert.deepEqual(world.cachesHolding(OFFLINE_PATH), [], "and no navigation document is stored");
+  },
+
+  "the offline fallback is a self-contained document that works without JavaScript": async () => {
+    const html = offlineFallbackDocument;
+
+    assert.match(html, /^<!doctype html>\n<html lang="es">/, "a complete document in Spanish");
+    assert.match(html, /<meta charset="utf-8">/);
+    assert.match(html, /<meta name="viewport" content="width=device-width, initial-scale=1">/);
+    assert.match(html, /<meta name="robots" content="noindex, nofollow">/, "the fallback is not indexable");
+    assert.match(html, /<title>Sin conexión — Portal VETNEB<\/title>/);
+    assert.equal(html.match(/<h1\b/g)?.length, 1, "one top-level heading");
+    assert.match(html, /<h1 id="offline-heading">[^<]+<\/h1>/);
+    assert.match(html, /<main>[\s\S]*<\/main>/);
+
+    for (const required of ["conexión", "informes", "sesiones clínicas", "administración"]) {
+      assert.ok(html.includes(required), `the message must mention "${required}"`);
+    }
+
+    for (const [forbidden, why] of [
+      [/<script\b/i, "no script"],
+      [/\son[a-z]+\s*=/i, "no inline event handler"],
+      [/javascript:/i, "no script URL"],
+      [/<(?:form|input|button|textarea|select)\b/i, "no form control: nothing is asked of the visitor"],
+      [/<(?:iframe|object|embed|img|video|audio|base)\b/i, "no embedded resource"],
+      [/https?:\/\//i, "no remote or absolute URL"],
+      [/@import|url\(/i, "no stylesheet resource"],
+      [/http-equiv/i, "no in-document header override"],
+      [/\/_next\/|\/fonts\/|\/api\/|\/dashboard/, "no build asset, font file or private path"],
+    ] as [RegExp, string][]) {
+      assert.doesNotMatch(html, forbidden, why);
+    }
+
+    assert.deepEqual(
+      documentDependencies(html).filter((dependency) => !OPTIONAL_PRECACHE_PATHS.includes(dependency)),
+      [],
+      "the only resource the document names is one the worker precaches",
+    );
+    assert.deepEqual(
+      documentLinks(html),
+      [
+        ["", "Reintentar conexión"],
+        ["/", "Ir al inicio"],
+      ],
+      "retry reloads the page that was asked for; home is a native link",
+    );
+    assert.equal(html.match(/<a\b/g)?.length, 2, "every link is a native link with a text label");
+    assert.doesNotMatch(html, /<a\b[^>]*\s(?:target|download|ping)=/);
+    assert.equal(
+      Buffer.byteLength(html) <= OFFLINE_FALLBACK_BYTE_BUDGET,
+      true,
+      "the fallback stays a document, not an application",
+    );
+  },
+
+  // A worker fetches the fallback only while it installs, and a browser
+  // installs only when sw.js changes: new bytes of the document reach an
+  // installed client only together with a new SW_VERSION.
+  "new bytes of the offline fallback ship with a new worker version": async (source) => {
+    const version = source.match(/const SW_VERSION = "([^"]+)";/)?.[1];
+    const digest = createHash("sha256").update(offlineFallbackDocument).digest("hex").slice(0, 16);
+
+    assert.equal(
+      `${version}:${digest}`,
+      OFFLINE_FALLBACK_RELEASE,
+      "offline-fallback.html changed: change SW_VERSION in sw.js, then record the new pair here",
+    );
+  },
+
+  "an update from the A1-4 worker replaces its /offline precache and keeps its assets": async (source) => {
+    const world = new World();
+
+    world.publish("build-b");
+    world.seed(A1_4_PRECACHE, OFFLINE_PATH, "next offline page build-a", HTML);
+    world.seed(A1_4_PRECACHE, ICON_PATH, "icon build-a", { "cache-control": REVALIDATING });
+    world.seed(assetCacheName(GENERATION), chunk("current"), "current generation chunk");
+    world.seed(assetCacheName(GENERATION - 1), chunk("previous"), "previous generation chunk");
+    world.seed(FOREIGN_CACHE, "/foreign", "owned by something else");
+
+    const worker = await installAndActivate(source, world);
+
+    assert.equal(world.cacheNames().includes(A1_4_PRECACHE), false, "the A1-4 precache is removed");
+    assert.deepEqual(world.cachesHolding(OFFLINE_PATH), [], "the Next.js /offline document is no longer stored");
+    assert.deepEqual(world.cachesHolding("/foreign"), [FOREIGN_CACHE]);
+
+    for (const name of ["current", "previous"]) {
+      assert.equal((await worker.fetch(chunk(name), { destination: "script" })).body, `${name} generation chunk`);
+      assert.equal(world.timesFetched(chunk(name)), 0, `the ${name} generation is still answered without the network`);
+    }
+
+    world.offline = true;
+    assert.equal((await worker.navigate("/servicios")).body, "offline fallback build-b");
+
+    // The origin cannot serve the fallback: the A1-4 worker keeps all it had.
+    const stranded = new World();
+
+    stranded.publish("build-b");
+    stranded.seed(A1_4_PRECACHE, OFFLINE_PATH, "next offline page build-a", HTML);
+    stranded.serve(OFFLINE_FALLBACK_PATH, "not found", HTML, { status: 404 });
+
+    const install = await new Worker(source, stranded).lifecycle("install");
+
+    assert.equal(install.failed, true, "the update fails to install");
+    assert.equal(install.skipWaitingCalls, 0, "and never takes over");
+    assert.deepEqual(
+      stranded.cachesHolding(OFFLINE_PATH),
+      [A1_4_PRECACHE],
+      "a failed install leaves the precache of the active worker alone",
     );
   },
 
@@ -898,7 +1095,7 @@ const contracts: Record<string, Contract> = {
     await installAndActivate(source, world);
 
     const precacheRequests = world.fetched.filter((request) =>
-      [OFFLINE_PATH, ...OPTIONAL_PRECACHE_PATHS].includes(pathOf(request.url)),
+      [OFFLINE_FALLBACK_PATH, ...OPTIONAL_PRECACHE_PATHS].includes(pathOf(request.url)),
     );
 
     assert.equal(precacheRequests.length, 1 + OPTIONAL_PRECACHE_PATHS.length);
@@ -909,7 +1106,7 @@ const contracts: Record<string, Contract> = {
 
     const installedCaches = world.cacheNames();
 
-    // A second build whose icon is gone still installs: only /offline is essential.
+    // A second build whose icon is gone still installs: only the fallback is essential.
     world.publish("build-b");
     world.routes.delete(ICON_PATH);
 
@@ -917,23 +1114,35 @@ const contracts: Record<string, Contract> = {
 
     assert.equal((await tolerant.lifecycle("install")).failed, false, "a missing optional asset must not block an update");
 
-    // The offline document is essential: without a clean copy the install fails.
-    for (const [headers, shape] of [
-      [{}, { status: 500 }],
-      [{}, { redirected: true }],
-      [{ "cache-control": "private, no-store" }, {}],
-    ] as [Record<string, string>, ResponseShape][]) {
+    // The fallback is essential: without a clean public HTML copy the install
+    // fails, and the worker that was active keeps answering with its own.
+    for (const [reason, headers, shape] of [
+      ["a 500", HTML, { status: 500 }],
+      ["a 404", HTML, { status: 404 }],
+      ["a redirect", HTML, { redirected: true }],
+      ["a private response", { ...HTML, "cache-control": "private, no-store" }, {}],
+      ["a response that sets a cookie", { ...HTML, "set-cookie": "sid=1" }, {}],
+      ["a JSON body", { "content-type": "application/json" }, {}],
+      ["an untyped body", {}, {}],
+    ] as [string, Record<string, string>, ResponseShape][]) {
       const failing = new World();
 
       failing.publish("build-a");
-      await installAndActivate(source, failing);
-      failing.serve(OFFLINE_PATH, "not a clean offline document", headers, shape);
+      const previous = await installAndActivate(source, failing);
+      failing.serve(OFFLINE_FALLBACK_PATH, "not a clean offline document", headers, shape);
 
       const next = new Worker(source.replace(/const SW_VERSION = "[^"]+";/, 'const SW_VERSION = "next-release";'), failing);
       const install = await next.lifecycle("install");
 
-      assert.equal(install.failed, true, "install must fail without a clean offline document");
+      assert.equal(install.failed, true, `install must fail when the fallback is ${reason}`);
       assert.equal(install.skipWaitingCalls, 0, "a failed install must not take over");
+
+      failing.offline = true;
+      assert.equal(
+        (await previous.navigate("/")).body,
+        "offline fallback build-a",
+        `the active worker keeps its fallback when the next one meets ${reason}`,
+      );
     }
 
     const offlineWorld = new World();
@@ -948,7 +1157,7 @@ const contracts: Record<string, Contract> = {
     assert.equal((await stranded.lifecycle("install")).failed, true, "an offline update must fail to install");
     assert.equal(
       (await active.navigate("/")).body,
-      "offline document build-a",
+      "offline fallback build-a",
       "the worker that stays active keeps its offline document",
     );
     assert.equal(installedCaches.every((name) => name.startsWith(CACHE_PREFIX)), true);
@@ -993,7 +1202,7 @@ const contracts: Record<string, Contract> = {
     assert.deepEqual(world.cachesHolding(chunk("build-a-never-downloaded")), []);
 
     world.offline = true;
-    assert.equal((await worker.navigate("/")).body, "offline document build-b", "the fallback is the new build's");
+    assert.equal((await worker.navigate("/")).body, "offline fallback build-b", "the fallback is the new build's");
     assert.equal(
       (await worker.fetch(ICON_PATH, { destination: "image" })).body,
       `${ICON_PATH} build-b`,
@@ -1063,7 +1272,7 @@ const contracts: Record<string, Contract> = {
     const reinstalled = await installAndActivate(source, world);
 
     world.offline = true;
-    assert.equal((await reinstalled.navigate("/")).body, "offline document build-a", "the re-registered worker is whole");
+    assert.equal((await reinstalled.navigate("/")).body, "offline fallback build-a", "the re-registered worker is whole");
     assert.deepEqual(world.cachesHolding("/foreign"), [FOREIGN_CACHE]);
   },
 
@@ -1236,6 +1445,7 @@ const contracts: Record<string, Contract> = {
 };
 
 const serviceWorkerSource = readSourceFile(SERVICE_WORKER_PATH);
+const offlineFallbackDocument = readSourceFile(OFFLINE_FALLBACK_SOURCE_PATH);
 
 for (const [name, contract] of Object.entries(contracts)) {
   test(`service worker: ${name}`, async () => {
@@ -1317,6 +1527,24 @@ const mutants: { name: string; from: string; to: string; caughtBy: string }[] = 
     from: "await adoptLegacyAssets(key);",
     to: "",
     caughtBy: "an update adopts versioned entries of the previous worker and drops the rest",
+  },
+  {
+    name: "answers offline navigations with the Next.js /offline page",
+    from: 'const OFFLINE_FALLBACK_URL = "/offline-fallback.html";',
+    to: 'const OFFLINE_FALLBACK_URL = "/offline";',
+    caughtBy: "the offline fallback needs nothing the worker cannot answer with the origin down",
+  },
+  {
+    name: "accepts a fallback that is not an HTML document",
+    from: "await precacheUrl(cache, OFFLINE_FALLBACK_URL, isOfflineFallbackResponse);",
+    to: "await precacheUrl(cache, OFFLINE_FALLBACK_URL);",
+    caughtBy: "install keeps only what it can prove and never strands the previous worker",
+  },
+  {
+    name: "installs without a fallback document",
+    from: "await precacheUrl(cache, OFFLINE_FALLBACK_URL, isOfflineFallbackResponse);",
+    to: "await precacheUrl(cache, OFFLINE_FALLBACK_URL, isOfflineFallbackResponse).catch(() => undefined);",
+    caughtBy: "install keeps only what it can prove and never strands the previous worker",
   },
   {
     name: "makes every precached URL essential",

@@ -138,7 +138,7 @@ test("service worker cache namespace changes for the version gate deployment", (
   const sw = read("frontend/public/sw.js");
   const gate = read("frontend/src/components/app-version/AppVersionGate.tsx");
 
-  assert.ok(sw.includes('const SW_VERSION = "2026-10-11-cache-lifecycle-v2"'));
+  assert.ok(sw.includes('const SW_VERSION = "2026-10-11-offline-fallback-v3"'));
   // "Actualizar ahora" clears caches by this prefix, so every cache the worker
   // opens must be named from it. The behaviour itself is executed in
   // frontend-service-worker-cache-lifecycle.test.ts.

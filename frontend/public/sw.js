@@ -6,14 +6,14 @@
  * Clases de recurso, por identidad de la URL y nunca por el tipo de recurso
  * que declara el request:
  *   - privado            → la red, sin intervención del worker.
- *   - navegación pública → red; sin red, el documento /offline precacheado.
- *                          Ningún HTML de navegación se almacena.
+ *   - navegación pública → red; sin red, el documento de contingencia
+ *                          precacheado. Ningún HTML de navegación se almacena.
  *   - versionado         → la URL cambia con los bytes: cache-first acotado.
  *   - estable precacheado→ red; sin red, la copia precacheada.
  *   - cualquier otro     → la red, sin intervención del worker.
  */
 
-const SW_VERSION = "2026-10-11-cache-lifecycle-v2";
+const SW_VERSION = "2026-10-11-offline-fallback-v3";
 const CACHE_PREFIX = "portal-vetneb-";
 const PRECACHE = `${CACHE_PREFIX}precache-${SW_VERSION}`;
 // Las entradas versionadas no dependen de la versión del worker: una URL con
@@ -21,7 +21,11 @@ const PRECACHE = `${CACHE_PREFIX}precache-${SW_VERSION}`;
 // pestañas de un build anterior siguen encontrando sus chunks ya descargados.
 const ASSET_CACHE_PREFIX = `${CACHE_PREFIX}assets-v1-`;
 const LEGACY_RUNTIME_PREFIX = `${CACHE_PREFIX}runtime-`;
-const OFFLINE_URL = "/offline";
+// Documento autónomo: HTML estático sin scripts ni assets del build, así que
+// se muestra entero aunque este navegador no tenga ningún chunk descargado.
+// La página /offline de Next es una ruta pública más, no la contingencia.
+// Sólo se pide al instalar: cambiar ese archivo exige cambiar SW_VERSION.
+const OFFLINE_FALLBACK_URL = "/offline-fallback.html";
 
 // Cache Storage no expira ni desaloja por sí solo. La edad de una entrada es
 // la generación (ventana de reloj) de la caché que la contiene: se escribe en
@@ -41,11 +45,11 @@ const PUBLIC_NAVIGATION_ALLOWLIST = new Set([
   "/contacto",
   "/precios",
   "/login",
-  OFFLINE_URL,
+  "/offline",
 ]);
 
 // URLs estables: sus bytes pueden cambiar sin que cambie la URL. Su fallo no
-// impide instalar; el de OFFLINE_URL sí.
+// impide instalar; el de OFFLINE_FALLBACK_URL sí.
 const PRECACHE_OPTIONAL_URLS = [
   "/manifest.webmanifest",
   "/icons/icon-192x192.png",
@@ -292,15 +296,24 @@ async function respondWithStableAsset(event, url) {
 }
 
 async function respondWithOfflineDocument() {
-  return (await matchPrecached(OFFLINE_URL)) || Response.error();
+  return (await matchPrecached(OFFLINE_FALLBACK_URL)) || Response.error();
+}
+
+// La contingencia responde navegaciones: además de pública y almacenable,
+// tiene que ser un documento HTML.
+function isOfflineFallbackResponse(response) {
+  return (
+    isStorablePublicResponse(response) &&
+    (response.headers.get("Content-Type") || "").toLowerCase().includes("text/html")
+  );
 }
 
 // Sin credenciales y sin caché HTTP: la copia precacheada es la respuesta
 // pública vigente del origen, no una personalizada ni una vieja.
-async function precacheUrl(cache, url) {
+async function precacheUrl(cache, url, isAcceptable = isStorablePublicResponse) {
   const response = await fetch(new Request(url, { cache: "reload", credentials: "omit" }));
 
-  if (!isStorablePublicResponse(response)) {
+  if (!isAcceptable(response)) {
     throw new TypeError(`precache rejected ${url}`);
   }
 
@@ -310,7 +323,7 @@ async function precacheUrl(cache, url) {
 async function precache() {
   const cache = await caches.open(PRECACHE);
 
-  await precacheUrl(cache, OFFLINE_URL);
+  await precacheUrl(cache, OFFLINE_FALLBACK_URL, isOfflineFallbackResponse);
   await Promise.all(PRECACHE_OPTIONAL_URLS.map((url) => precacheUrl(cache, url).catch(() => undefined)));
 }
 

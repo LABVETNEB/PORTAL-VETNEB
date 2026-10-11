@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="theme-color" content="#0c354e">
+    <title>Sin conexión — Portal VETNEB</title>
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192x192.png">
+    <style>
+      :root {
+        color-scheme: light;
+        --surface: hsl(198 34% 96%);
+        --card: hsl(190 33% 98%);
+        --ink: hsl(205 58% 15%);
+        --navy: hsl(207 72% 22%);
+        --teal: hsl(177 64% 24%);
+        --muted: hsl(205 22% 36%);
+        --line: hsl(197 28% 80%);
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      html {
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+      }
+
+      body {
+        display: flex;
+        min-height: 100vh;
+        min-height: 100dvh;
+        flex-direction: column;
+        margin: 0;
+        background: var(--surface);
+        color: var(--ink);
+        font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-size: 1rem;
+        line-height: 1.6;
+      }
+
+      header,
+      main,
+      footer {
+        width: 100%;
+        max-width: 60rem;
+        margin: 0 auto;
+        padding-right: 1.25rem;
+        padding-left: 1.25rem;
+      }
+
+      header {
+        padding-top: 1.5rem;
+      }
+
+      .brand {
+        margin: 0;
+        color: var(--navy);
+        font-weight: 700;
+        letter-spacing: 0.02em;
+      }
+
+      main {
+        flex: 1;
+        padding-top: 2.5rem;
+        padding-bottom: 3rem;
+      }
+
+      .intro {
+        max-width: 42rem;
+        margin: 0 auto;
+        text-align: center;
+      }
+
+      .badge {
+        display: inline-flex;
+        width: 4rem;
+        height: 4rem;
+        align-items: center;
+        justify-content: center;
+        border-radius: 1rem;
+        background: var(--navy);
+        color: #fff;
+      }
+
+      .badge svg {
+        width: 2rem;
+        height: 2rem;
+      }
+
+      .eyebrow {
+        margin: 1.5rem 0 0;
+        color: var(--teal);
+        font-size: 0.875rem;
+        font-weight: 600;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+      }
+
+      h1,
+      h2,
+      h3 {
+        overflow-wrap: anywhere;
+      }
+
+      h1 {
+        margin: 0.75rem 0 0;
+        font-size: clamp(1.75rem, 5vw, 2.75rem);
+        letter-spacing: -0.01em;
+        line-height: 1.15;
+      }
+
+      .lead {
+        margin: 1.25rem 0 0;
+        color: var(--muted);
+        font-size: 1.0625rem;
+      }
+
+      .actions {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        margin: 2rem 0 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .action {
+        display: flex;
+        min-height: 2.75rem;
+        align-items: center;
+        justify-content: center;
+        padding: 0.625rem 1.5rem;
+        border: 2px solid var(--navy);
+        border-radius: 0.5rem;
+        background: var(--card);
+        color: var(--navy);
+        font-weight: 600;
+        text-decoration: none;
+      }
+
+      .action-primary {
+        background: var(--navy);
+        color: #fff;
+      }
+
+      .action:hover {
+        text-decoration: underline;
+      }
+
+      a:focus-visible {
+        outline: 3px solid var(--teal);
+        outline-offset: 3px;
+      }
+
+      .block {
+        margin-top: 3rem;
+      }
+
+      h2 {
+        margin: 0;
+        font-size: 1.375rem;
+        line-height: 1.3;
+      }
+
+      .steps {
+        margin: 1rem 0 0;
+        padding-left: 1.5rem;
+      }
+
+      .steps li + li {
+        margin-top: 0.5rem;
+      }
+
+      .guidance {
+        display: grid;
+        gap: 1.25rem;
+        margin: 1.25rem 0 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .guidance li {
+        padding: 1.25rem;
+        border: 1px solid var(--line);
+        border-radius: 0.75rem;
+        background: var(--card);
+      }
+
+      h3 {
+        margin: 0;
+        font-size: 1.0625rem;
+        line-height: 1.35;
+      }
+
+      .guidance p {
+        margin: 0.5rem 0 0;
+        color: var(--muted);
+        font-size: 0.9375rem;
+      }
+
+      footer {
+        padding-top: 1.25rem;
+        padding-bottom: 1.5rem;
+        color: var(--muted);
+        font-size: 0.875rem;
+      }
+
+      footer p {
+        margin: 0;
+        padding-top: 1.25rem;
+        border-top: 1px solid var(--line);
+      }
+
+      @media (min-width: 40rem) {
+        .actions {
+          flex-direction: row;
+          justify-content: center;
+        }
+      }
+
+      @media (min-width: 48rem) {
+        main {
+          padding-top: 4rem;
+        }
+
+        .guidance {
+          grid-template-columns: repeat(3, 1fr);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <p class="brand">Portal VETNEB</p>
+    </header>
+
+    <main>
+      <section class="intro" aria-labelledby="offline-heading">
+        <span class="badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+            <path d="M12 20h.01"></path>
+            <path d="M8.5 16.429a5 5 0 0 1 7 0"></path>
+            <path d="M5 12.859a10 10 0 0 1 5.17-2.69"></path>
+            <path d="M19 12.859a10 10 0 0 0-2.007-1.523"></path>
+            <path d="M2 8.82a15 15 0 0 1 4.177-2.643"></path>
+            <path d="M22 8.82a15 15 0 0 0-11.288-3.764"></path>
+            <path d="m2 2 20 20"></path>
+          </svg>
+        </span>
+        <p class="eyebrow">Modo sin conexión</p>
+        <h1 id="offline-heading">Portal VETNEB no puede conectarse en este momento</h1>
+        <p class="lead">
+          Verifique su conexión a internet e intente nuevamente. Por seguridad, el acceso a informes,
+          sesiones clínicas y administración requiere una conexión activa con el servicio.
+        </p>
+        <nav aria-label="Acciones disponibles sin conexión">
+          <ul class="actions">
+            <li><a class="action action-primary" href="">Reintentar conexión</a></li>
+            <li><a class="action" href="/">Ir al inicio</a></li>
+          </ul>
+        </nav>
+      </section>
+
+      <section class="block" aria-labelledby="offline-steps-heading">
+        <h2 id="offline-steps-heading">Qué puede hacer ahora</h2>
+        <ol class="steps">
+          <li>Compruebe que el Wi-Fi o los datos móviles estén activos y que el modo avión esté desactivado.</li>
+          <li>Cuando vuelva la conexión, use «Reintentar conexión»: se cargará la página que intentaba abrir.</li>
+          <li>Si otros sitios funcionan y este aviso continúa, espere unos minutos y reintente: el servicio puede estar temporalmente inaccesible.</li>
+        </ol>
+      </section>
+
+      <section class="block" aria-labelledby="offline-guidance-heading">
+        <h2 id="offline-guidance-heading">Qué sigue protegido sin conexión</h2>
+        <ul class="guidance">
+          <li>
+            <h3>Las páginas públicas vuelven con la red</h3>
+            <p>Se recuperan al restablecerse la conexión. La información clínica requiere comunicación en línea con el servicio seguro.</p>
+          </li>
+          <li>
+            <h3>Datos privados protegidos</h3>
+            <p>Informes, paneles y sesiones autenticadas no se guardan para uso sin conexión, para evitar la exposición accidental de información sensible.</p>
+          </li>
+          <li>
+            <h3>Operación segura</h3>
+            <p>Este aviso no contiene datos de su cuenta y no reemplaza la trazabilidad clínica real del portal.</p>
+          </li>
+        </ul>
+      </section>
+    </main>
+
+    <footer>
+      <p>Portal VETNEB · Servicio Patológico VETNEB</p>
+    </footer>
+  </body>
+</html>
