@@ -34,7 +34,13 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const GENERATION_MS = 14 * DAY_MS;
 const ASSET_ENTRY_BUDGET = 120;
 const ASSET_BYTE_BUDGET = 2 * 1024 * 1024;
-const START = 1000 * GENERATION_MS + DAY_MS;
+const GENERATION = 1000;
+const START = GENERATION * GENERATION_MS + DAY_MS;
+const BOUNDARY = (GENERATION + 1) * GENERATION_MS;
+
+function assetCacheName(generation: number): string {
+  return `${CACHE_PREFIX}assets-v1-${generation}`;
+}
 
 const OFFLINE_PATH = "/offline";
 const HERO_PATH = "/images/hero-microscope-vetneb.webp";
@@ -174,6 +180,40 @@ class World {
   readonly routes = new Map<string, () => FakeResponse>();
   readonly fetched: FakeRequest[] = [];
   readonly stores = new Map<string, Map<string, FakeResponse>>();
+  readonly barriers: { operation: string; cacheName: string | null; arrive: () => void; released: Promise<void> }[] = [];
+  storageKeysCalls = 0;
+
+  // Holds the next matching cache operation at a point the test chooses, so
+  // an interleaving is an explicit order of promises and never a timer.
+  holdNext(operation: "put" | "keys", cacheName: string | null = null): { arrived: Promise<void>; release: () => void } {
+    let arrive = (): void => undefined;
+    let release = (): void => undefined;
+    const arrived = new Promise<void>((resolve) => {
+      arrive = resolve;
+    });
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+
+    this.barriers.push({ operation, cacheName, arrive, released });
+
+    return { arrived, release };
+  }
+
+  async barrier(operation: string, cacheName: string | null): Promise<void> {
+    const index = this.barriers.findIndex(
+      (candidate) => candidate.operation === operation && (candidate.cacheName === null || candidate.cacheName === cacheName),
+    );
+
+    if (index < 0) {
+      return;
+    }
+
+    const [held] = this.barriers.splice(index, 1);
+
+    held!.arrive();
+    await held!.released;
+  }
 
   serve(path: string, body: string, headers: Record<string, string> = {}, shape: ResponseShape = {}): void {
     this.routes.set(
@@ -246,26 +286,17 @@ class World {
   }
 
   cacheStorage() {
-    const openCache = (name: string) => {
-      const entries = (): Map<string, FakeResponse> => {
-        const existing = this.stores.get(name);
-
-        if (existing) {
-          return existing;
-        }
-
-        const created = new Map<string, FakeResponse>();
-        this.stores.set(name, created);
-        return created;
-      };
-
+    // A handle stays bound to the cache it opened: once that cache is deleted
+    // the handle still works but nothing can reach what it writes.
+    const openCache = (name: string, store: Map<string, FakeResponse>) => {
       return {
         match: async (key: CacheKey): Promise<FakeResponse | undefined> => {
           await this.storageTick();
-          return this.stores.get(name)?.get(cacheKey(key))?.copy();
+          return store.get(cacheKey(key))?.copy();
         },
         put: async (key: CacheKey, response: FakeResponse): Promise<void> => {
           await this.storageTick();
+          await this.barrier("put", name);
 
           if (this.putFailure) {
             throw this.putFailure;
@@ -276,7 +307,6 @@ class World {
           }
 
           const stored = response.consumeForStorage();
-          const store = entries();
 
           // Replacing a key moves it to the end: insertion order is write order.
           store.delete(cacheKey(key));
@@ -284,11 +314,11 @@ class World {
         },
         delete: async (key: CacheKey): Promise<boolean> => {
           await this.storageTick();
-          return this.stores.get(name)?.delete(cacheKey(key)) ?? false;
+          return store.delete(cacheKey(key));
         },
         keys: async (): Promise<FakeRequest[]> => {
           await this.storageTick();
-          return [...(this.stores.get(name)?.keys() ?? [])].map((url) => new FakeRequest(url));
+          return [...store.keys()].map((url) => new FakeRequest(url));
         },
         addAll: async (urls: string[]): Promise<void> => {
           const responses = await Promise.all(urls.map((url) => this.fetch(new FakeRequest(url))));
@@ -298,7 +328,6 @@ class World {
           }
 
           await this.storageTick();
-          const store = entries();
           urls.forEach((url, index) => store.set(cacheKey(url), responses[index]!.consumeForStorage()));
         },
       };
@@ -308,11 +337,11 @@ class World {
       open: async (name: string) => {
         await this.storageTick();
 
-        if (!this.stores.has(name)) {
-          this.stores.set(name, new Map());
-        }
+        const store = this.stores.get(name) ?? new Map<string, FakeResponse>();
 
-        return openCache(name);
+        this.stores.set(name, store);
+
+        return openCache(name, store);
       },
       has: async (name: string): Promise<boolean> => {
         await this.storageTick();
@@ -320,6 +349,8 @@ class World {
       },
       keys: async (): Promise<string[]> => {
         await this.storageTick();
+        this.storageKeysCalls += 1;
+        await this.barrier("keys", null);
         return this.cacheNames();
       },
       delete: async (name: string): Promise<boolean> => {
@@ -1036,6 +1067,146 @@ const contracts: Record<string, Contract> = {
     assert.deepEqual(world.cachesHolding("/foreign"), [FOREIGN_CACHE]);
   },
 
+  // PR #1853 review (P2): a write keeps the generation its request started in.
+  "a write that outlives its generation never sweeps a newer one": async (source) => {
+    for (const generationsAhead of [1, 2]) {
+      const { world, worker } = await publishedWorld(source);
+      const staleCache = assetCacheName(GENERATION);
+      const liveCache = assetCacheName(GENERATION + generationsAhead);
+
+      world.now = BOUNDARY - 1;
+      world.serve(chunk("warm"), "warm bytes");
+      await worker.fetch(chunk("warm"));
+
+      for (const name of ["stale-1", "stale-2", "live-1", "live-2", "live-3"]) {
+        world.serve(chunk(name), `${name} bytes`);
+      }
+
+      // Two requests start one millisecond before the boundary and stop at put.
+      const held = [world.holdNext("put", staleCache), world.holdNext("put", staleCache)];
+      const stale = [worker.fetch(chunk("stale-1")), worker.fetch(chunk("stale-2"))];
+
+      await Promise.all(held.map((barrier) => barrier.arrived));
+
+      // The clock crosses the boundary while they are parked; newer requests
+      // store, trim and sweep in the generation that is now current.
+      world.now = BOUNDARY + (generationsAhead - 1) * GENERATION_MS;
+      await Promise.all([worker.fetch(chunk("live-1")), worker.fetch(chunk("live-2"))]);
+
+      const sweepsBeforeRelease = world.storageKeysCalls;
+
+      held.forEach((barrier) => barrier.release());
+
+      const outcomes = await Promise.all(stale);
+
+      assert.deepEqual(outcomes.map((outcome) => outcome.body), ["stale-1 bytes", "stale-2 bytes"]);
+      assert.deepEqual(outcomes.flatMap((outcome) => outcome.lifetimeErrors), [], "a late write never rejects");
+      assert.deepEqual(
+        [world.cachesHolding(chunk("live-1")), world.cachesHolding(chunk("live-2"))],
+        [[liveCache], [liveCache]],
+        `${generationsAhead} generation(s) later: the late write must not sweep the current generation`,
+      );
+
+      await worker.fetch(chunk("live-3"));
+
+      assert.equal(
+        world.storageKeysCalls,
+        sweepsBeforeRelease,
+        "a late write never moves the sweep mark back: the current generation is not swept again",
+      );
+
+      for (const name of ["live-1", "live-2", "live-3"]) {
+        world.routes.delete(chunk(name));
+        assert.equal((await worker.fetch(chunk(name))).body, `${name} bytes`, `${name} still answers from the cache`);
+      }
+
+      if (generationsAhead === 1) {
+        // The generation the late writes landed in is the previous one: still readable.
+        for (const name of ["warm", "stale-1", "stale-2"]) {
+          world.routes.delete(chunk(name));
+          assert.equal((await worker.fetch(chunk(name))).body, `${name} bytes`, `${name} answers from the previous generation`);
+        }
+      } else {
+        // Two generations later it had expired: the late writes reach nothing.
+        assert.equal(world.cacheNames().includes(staleCache), false, "an expired generation is not brought back");
+        assert.deepEqual(world.cachesHolding(chunk("stale-1")), []);
+      }
+
+      assert.equal(world.cacheNames().filter((name) => name.includes("assets-")).length <= 2, true);
+    }
+  },
+
+  "a sweep already running never deletes a generation created meanwhile": async (source) => {
+    const { world, worker } = await publishedWorld(source);
+    const liveCache = assetCacheName(GENERATION + 1);
+
+    world.now = BOUNDARY - 1;
+    world.seed(assetCacheName(GENERATION - 2), chunk("expired"), "expired bytes");
+    world.seed(FOREIGN_CACHE, "/foreign", "owned by something else");
+
+    for (const name of ["sweeper", "live"]) {
+      world.serve(chunk(name), `${name} bytes`);
+    }
+
+    // The first write of this worker sweeps; its cache listing is delayed.
+    const listing = world.holdNext("keys");
+    const sweeper = worker.fetch(chunk("sweeper"));
+
+    await listing.arrived;
+
+    world.now = BOUNDARY;
+    await worker.fetch(chunk("live"));
+    listing.release();
+
+    assert.deepEqual((await sweeper).lifetimeErrors, []);
+    assert.deepEqual(world.cachesHolding(chunk("live")), [liveCache], "the delayed sweep must not delete the newer generation");
+    assert.deepEqual(world.cachesHolding(chunk("sweeper")), [assetCacheName(GENERATION)], "nor its own generation");
+    assert.deepEqual(world.cachesHolding(chunk("expired")), [], "an expired generation is still removed");
+    assert.deepEqual(world.cachesHolding("/foreign"), [FOREIGN_CACHE]);
+  },
+
+  "an activation that started before a boundary keeps the newer generation": async (source) => {
+    const world = new World();
+
+    world.publish("build-a");
+    world.now = BOUNDARY - 1;
+
+    const active = await installAndActivate(source, world);
+
+    world.seed(PREVIOUS_RUNTIME, chunk("build-a-page"), "build-a page chunk");
+    world.seed(assetCacheName(GENERATION - 2), chunk("expired"), "expired bytes");
+    world.serve(chunk("live"), "live bytes");
+
+    const next = new Worker(source.replace(/const SW_VERSION = "[^"]+";/, 'const SW_VERSION = "next-release";'), world);
+
+    assert.equal((await next.lifecycle("install")).failed, false);
+
+    const listing = world.holdNext("keys");
+    const activation = next.lifecycle("activate");
+
+    await listing.arrived;
+
+    // The worker still in control stores an asset after the boundary.
+    world.now = BOUNDARY;
+    await active.fetch(chunk("live"));
+    listing.release();
+
+    assert.equal((await activation).failed, false);
+    assert.deepEqual(
+      world.cachesHolding(chunk("live")),
+      [assetCacheName(GENERATION + 1)],
+      "the activation must not delete a generation newer than the one it computed",
+    );
+    assert.deepEqual(world.cachesHolding(chunk("expired")), [], "an expired generation is still removed");
+    assert.equal(world.cacheNames().includes(PREVIOUS_RUNTIME), false, "the previous runtime cache is still removed");
+    assert.equal(
+      (await next.fetch(chunk("build-a-page"), { destination: "script" })).body,
+      "build-a page chunk",
+      "an asset of the previous build is still answered after the update",
+    );
+    assert.equal(world.timesFetched(chunk("build-a-page")), 0);
+  },
+
   "concurrent requests for one asset each get a whole response": async (source) => {
     const { world, worker } = await publishedWorld(source);
 
@@ -1119,13 +1290,31 @@ const mutants: { name: string; from: string; to: string; caughtBy: string }[] = 
   },
   {
     name: "deletes caches it does not own",
-    from: "key.startsWith(CACHE_PREFIX) && !keep.has(key)",
-    to: "!keep.has(key)",
+    from: "key.startsWith(CACHE_PREFIX) &&",
+    to: "",
     caughtBy: "an update adopts versioned entries of the previous worker and drops the rest",
   },
   {
+    name: "lets a late write move the sweep mark back",
+    from: "sweptGeneration === null || generation > sweptGeneration",
+    to: "sweptGeneration !== generation",
+    caughtBy: "a write that outlives its generation never sweeps a newer one",
+  },
+  {
+    name: "sweeps every generation outside the window of the caller",
+    from: "return !(Number(key.slice(ASSET_CACHE_PREFIX.length)) >= generation - 1);",
+    to: "return key !== assetCacheName(generation) && key !== assetCacheName(generation - 1);",
+    caughtBy: "a sweep already running never deletes a generation created meanwhile",
+  },
+  {
+    name: "activates with a fixed window of generations",
+    from: "(!key.startsWith(ASSET_CACHE_PREFIX) || isExpiredAssetCache(key, generation))",
+    to: "key !== assetCacheName(generation) && key !== assetCacheName(generation - 1)",
+    caughtBy: "an activation that started before a boundary keeps the newer generation",
+  },
+  {
     name: "drops the previous worker's versioned entries",
-    from: "await adoptLegacyAssets(key, generation);",
+    from: "await adoptLegacyAssets(key);",
     to: "",
     caughtBy: "an update adopts versioned entries of the previous worker and drops the rest",
   },

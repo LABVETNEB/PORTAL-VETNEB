@@ -165,15 +165,25 @@ async function trimCache(cache, maxEntries) {
   }
 }
 
+// Una generación sólo vence hacia atrás. Quien limpia puede haber leído el
+// reloj antes de un cambio de generación, o seguir esperando a Cache Storage
+// cuando otro request ya escribió en la siguiente: nunca borra una generación
+// igual o posterior a la anterior a la suya, así que ninguna limpieza, por
+// tardía o intercalada que llegue, alcanza a la generación vigente.
+function isExpiredAssetCache(key, generation) {
+  if (!key.startsWith(ASSET_CACHE_PREFIX)) {
+    return false;
+  }
+
+  return !(Number(key.slice(ASSET_CACHE_PREFIX.length)) >= generation - 1);
+}
+
 // Fuera de activate sólo se borran generaciones de assets: la precache de un
 // worker más nuevo que todavía espera no se toca.
 async function sweepAssetGenerations(generation) {
-  const keep = new Set([assetCacheName(generation), assetCacheName(generation - 1)]);
   const keys = await caches.keys();
 
-  await Promise.all(
-    keys.filter((key) => key.startsWith(ASSET_CACHE_PREFIX) && !keep.has(key)).map((key) => caches.delete(key)),
-  );
+  await Promise.all(keys.filter((key) => isExpiredAssetCache(key, generation)).map((key) => caches.delete(key)));
 }
 
 // `response` debe ser un clon entregado por el caller antes de cualquier
@@ -184,7 +194,8 @@ async function storeVersionedAsset(generation, request, response) {
     await cache.put(request, response);
     await trimCache(cache, ASSET_MAX_ENTRIES);
 
-    if (sweptGeneration !== generation) {
+    // La marca sólo avanza: una escritura que terminó tarde no la retrocede.
+    if (sweptGeneration === null || generation > sweptGeneration) {
       sweptGeneration = generation;
       await sweepAssetGenerations(generation);
     }
@@ -306,8 +317,9 @@ async function precache() {
 // El worker anterior guardaba en una sola caché runtime documentos, URLs
 // estables y assets. Sólo se adoptan las entradas versionadas, en la
 // generación anterior: si nadie las lee, vencen en la próxima.
-async function adoptLegacyAssets(legacyName, generation) {
+async function adoptLegacyAssets(legacyName) {
   try {
+    const generation = assetGeneration(Date.now());
     const legacy = await caches.open(legacyName);
     const target = await caches.open(assetCacheName(generation - 1));
     const requests = (await legacy.keys()).filter((request) => {
@@ -332,17 +344,23 @@ async function adoptLegacyAssets(legacyName, generation) {
 
 async function claimCaches() {
   const generation = assetGeneration(Date.now());
-  const keep = new Set([PRECACHE, assetCacheName(generation), assetCacheName(generation - 1)]);
   const keys = await caches.keys();
 
   for (const key of keys) {
     if (key.startsWith(LEGACY_RUNTIME_PREFIX)) {
-      await adoptLegacyAssets(key, generation);
+      await adoptLegacyAssets(key);
     }
   }
 
   await Promise.all(
-    keys.filter((key) => key.startsWith(CACHE_PREFIX) && !keep.has(key)).map((key) => caches.delete(key)),
+    keys
+      .filter(
+        (key) =>
+          key.startsWith(CACHE_PREFIX) &&
+          key !== PRECACHE &&
+          (!key.startsWith(ASSET_CACHE_PREFIX) || isExpiredAssetCache(key, generation)),
+      )
+      .map((key) => caches.delete(key)),
   );
 }
 
