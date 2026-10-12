@@ -1,7 +1,6 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
-import dynamic from "next/dynamic";
 import {
   CalendarDays,
   Clipboard,
@@ -37,6 +36,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
+import { DashboardNotificationsBell } from "@/components/dashboard/DashboardNotificationsBell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -47,21 +47,6 @@ import {
   PublicExternalControl,
   PublicRouteControl,
 } from "@/components/public/PublicRouteControl";
-
-const ParticularNotificationsBell = dynamic(
-  () =>
-    import("@/components/dashboard/DashboardNotificationsBell").then(
-      (mod) => mod.DashboardNotificationsBell,
-    ),
-  {
-    loading: () => (
-      <span
-        className="particular-notifications-bell-placeholder inline-flex h-9 w-9 rounded-md border border-input bg-card shadow-[0_1px_2px_rgba(15,45,62,0.05)]"
-        aria-hidden="true"
-      />
-    ),
-  },
-);
 
 function formatDate(value: string | null | undefined) {
   if (!value) {
@@ -646,7 +631,7 @@ export function ParticularesContent() {
                 </div>
                 {session ? (
                   <div className="particular-notifications-bell-layer shrink-0">
-                    <ParticularNotificationsBell surface="particular" />
+                    <DashboardNotificationsBell surface="particular" />
                   </div>
                 ) : null}
               </div>

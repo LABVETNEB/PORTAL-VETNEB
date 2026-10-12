@@ -7,6 +7,11 @@ import { DASHBOARD_TOUCH_PAGER_RESERVATION } from "@/components/dashboard/Dashbo
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ErrorState } from "@/components/dashboard/ErrorState";
 import { ModuleDialog } from "@/components/dashboard/ModuleDialog";
+import {
+  classifyPageRequestFailure,
+  PageRequestRecovery,
+  type PageRequestFailure,
+} from "@/components/dashboard/PageRequestRecovery";
 import { ReportFileActions } from "@/components/dashboard/ReportDownloadButton";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
 import { Badge } from "@/components/ui/badge";
@@ -163,6 +168,8 @@ export function InformesReportsList({
     offset: (initialPage - 1) * initialPageSize,
   });
   const [loadError, setLoadError] = useState(initialLoadError);
+  const [pageRequestFailure, setPageRequestFailure] =
+    useState<PageRequestFailure | null>(null);
   const [selectedReportId, setSelectedReportId] = useState<number | null>(
     initialSelectedReportId,
   );
@@ -188,6 +195,12 @@ export function InformesReportsList({
   const effectiveLimit = rowsPerPage;
 
   useLayoutEffect(() => {
+    // After a failed page request the window stays on the rows on screen:
+    // re-deriving it here would ask again without the user.
+    if (pageRequestFailure) {
+      return;
+    }
+
     setRequestWindow((current) => {
       if (current.limit === effectiveLimit) {
         return current;
@@ -202,7 +215,7 @@ export function InformesReportsList({
         ),
       };
     });
-  }, [effectiveLimit, totalCount]);
+  }, [effectiveLimit, totalCount, pageRequestFailure]);
 
   const query = useMemo(
     () => ({
@@ -219,6 +232,9 @@ export function InformesReportsList({
   const desiredQueryKeyRef = useRef(queryKey);
   const satisfiedQueryKeyRef = useRef(queryKey);
   const requestInFlightRef = useRef(false);
+  // The window of the rows on screen, and the one the last failed request asked for.
+  const satisfiedWindowRef = useRef(requestWindow);
+  const failedWindowRef = useRef(requestWindow);
   const mountedRef = useRef(true);
 
   useLayoutEffect(() => {
@@ -268,6 +284,10 @@ export function InformesReportsList({
           }
 
           satisfiedQueryKeyRef.current = nextQueryKey;
+          satisfiedWindowRef.current = {
+            limit: nextQuery.pageSize,
+            offset: nextQuery.offset,
+          };
           setReports(result.reports);
           setSelectedReportId((current) =>
             current === null || result.reports.some((report) => report.id === current)
@@ -277,11 +297,28 @@ export function InformesReportsList({
           setTotalCount(result.total);
           setLoadError(result.loadError);
         }
+      } catch (error) {
+        if (!mountedRef.current) {
+          return;
+        }
+
+        // The rows on screen stay; the pager goes back to the page they belong to.
+        failedWindowRef.current = {
+          limit: desiredQueryRef.current.pageSize,
+          offset: desiredQueryRef.current.offset,
+        };
+        setRequestWindow(satisfiedWindowRef.current);
+        setPageRequestFailure(classifyPageRequestFailure(error));
       } finally {
         requestInFlightRef.current = false;
       }
     })();
   }, [query, queryKey]);
+
+  function retryPageRequest() {
+    setPageRequestFailure(null);
+    setRequestWindow(failedWindowRef.current);
+  }
 
   // The measured `effectiveLimit` can shrink faster than the corrective
   // server re-fetch resolves (network round trip). Capping the rendered
@@ -310,12 +347,38 @@ export function InformesReportsList({
       ? (reports[0] ?? null)
       : (reports.find((report) => report.id === selectedReportId) ?? null);
 
+  // The empty list and the load error also re-fetch once the canvas is
+  // measured, so the notice belongs to both result branches. Only one of them
+  // is on screen: there is never a second notice.
+  const pageRequestRecovery = pageRequestFailure ? (
+    <PageRequestRecovery
+      failure={pageRequestFailure}
+      onRetry={retryPageRequest}
+      reloadNotice="Al recargar se conservan la sesión y los filtros aplicados; se pierden la página actual y los filtros sin aplicar."
+    />
+  ) : null;
+
   const selectedReportTimelineSteps = selectedReport
     ? buildStudyTimelineSteps(selectedReport)
     : [];
 
+  // After a failed request the rows on screen can come from another page
+  // size than the measured one. Stepping from the measured size alone would
+  // skip or repeat records, so the step starts from the rows that are shown:
+  // the page holding the record after the last one, or before the first one.
+  const stepsFromShownRows = pageRequestFailure !== null;
+  const shownCount = visibleReports.length;
+
   function goToPreviousPage() {
+    setPageRequestFailure(null);
     setRequestWindow((current) => {
+      if (stepsFromShownRows) {
+        return {
+          limit: effectiveLimit,
+          offset: normalizeOffsetForLimit(Math.max(0, current.offset - 1), effectiveLimit, totalCount),
+        };
+      }
+
       const currentOffset = normalizeOffsetForLimit(
         current.offset,
         effectiveLimit,
@@ -329,7 +392,15 @@ export function InformesReportsList({
   }
 
   function goToNextPage() {
+    setPageRequestFailure(null);
     setRequestWindow((current) => {
+      if (stepsFromShownRows) {
+        return {
+          limit: effectiveLimit,
+          offset: normalizeOffsetForLimit(current.offset + shownCount, effectiveLimit, totalCount),
+        };
+      }
+
       const currentOffset = normalizeOffsetForLimit(
         current.offset,
         effectiveLimit,
@@ -579,6 +650,7 @@ export function InformesReportsList({
             aria-labelledby="reports-list-heading"
             className="dashboard-master-panel flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-vetneb-line/75 bg-card/82"
           >
+            {pageRequestRecovery}
             <div className="shrink-0 border-b border-vetneb-line/70 px-4 py-3">
               <h2 id="reports-list-heading" className="dashboard-section-heading">
                 Lista de informes
@@ -618,6 +690,7 @@ export function InformesReportsList({
             data-dashboard-adaptive-reservation="true"
             className="dashboard-master-panel flex min-h-0 flex-col overflow-hidden rounded-xl border border-vetneb-line/75 bg-card/82"
           >
+            {pageRequestRecovery}
             <div className="shrink-0 border-b border-vetneb-line/70 px-4 py-2.5">
               <h2 id="reports-list-heading" className="dashboard-section-heading">
                 Lista de informes

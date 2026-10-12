@@ -1,5 +1,7 @@
 "use client";
 
+import type { ReactNode } from "react";
+
 import { Badge } from "@/components/ui/badge";
 import {
   ContentList,
@@ -36,6 +38,8 @@ type AdminMobileAuditModuleProps = {
   onNext: () => void;
   bodyRef: (node: HTMLElement | null) => void;
   selection: CollectionSelection<number>;
+  /** Failed page request notice, owned by `AdminAuditCard`. */
+  recovery?: ReactNode;
 };
 
 export function AdminMobileAuditModule({
@@ -52,6 +56,7 @@ export function AdminMobileAuditModule({
   onNext,
   bodyRef,
   selection,
+  recovery,
 }: AdminMobileAuditModuleProps) {
   const hasActiveFilters = Object.values(filters).some(Boolean);
 
@@ -95,6 +100,8 @@ export function AdminMobileAuditModule({
           </SelectionToolbar>
         )}
       />
+
+      {recovery}
 
       <ContentList
         as="div"

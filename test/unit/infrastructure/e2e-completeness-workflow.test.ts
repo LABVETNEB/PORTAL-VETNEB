@@ -320,7 +320,9 @@ test("automatic workflow coverage is derived from catalog cohorts and equals ful
   // (platform/app-shell/navigation-truncated-stream-recovery.spec.ts).
   // +1: A1-5 served document cache policy
   // (public/cache/public-document-cache-policy.spec.ts).
-  assert.equal(E2E_SUITE_CATALOG.length, 106);
+  // +1: A1-7 failed page request recovery
+  // (platform/app-shell/dashboard-page-request-recovery.spec.ts).
+  assert.equal(E2E_SUITE_CATALOG.length, 107);
 
   const partitionUnion = new Set(PARTITION_COHORTS.flatMap((cohort) => E2E_COHORT_SPECS[cohort]));
   assert.deepEqual([...partitionUnion].sort(), [...E2E_COHORT_SPECS.full].sort());

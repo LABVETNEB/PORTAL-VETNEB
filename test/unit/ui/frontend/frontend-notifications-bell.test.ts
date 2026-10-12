@@ -486,19 +486,20 @@ test("clinic and admin dashboards pass surface to topbar notifications prop", ()
 test("particular role wires notifications bell when session is active", () => {
   const source = read(PARTICULARES_PATH);
 
+  // A1-7: the bell loads with the document. Deferred, its chunk was first
+  // requested at sign-in, which a deploy in between turned into a 404.
   assert.ok(
-    source.includes('import dynamic from "next/dynamic";'),
-    "ParticularesContent must use next/dynamic for the session-only bell",
+    !source.includes("next/dynamic"),
+    "ParticularesContent must not defer the session-only bell",
   );
   assert.ok(
     source.includes(
-      'import("@/components/dashboard/DashboardNotificationsBell").then(',
+      'import { DashboardNotificationsBell } from "@/components/dashboard/DashboardNotificationsBell";',
     ),
-    "ParticularesContent must dynamically import DashboardNotificationsBell",
+    "ParticularesContent must statically import DashboardNotificationsBell",
   );
-  assert.ok(source.includes("mod.DashboardNotificationsBell"));
   assert.ok(
-    source.includes('<ParticularNotificationsBell surface="particular" />'),
+    source.includes('<DashboardNotificationsBell surface="particular" />'),
     "ParticularesContent must render bell with particular surface",
   );
 });
