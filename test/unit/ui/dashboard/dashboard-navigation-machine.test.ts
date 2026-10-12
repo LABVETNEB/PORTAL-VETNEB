@@ -15,12 +15,12 @@ import {
 
 // PR-NAV-02 — mechanical verification of the navigation machine against the
 // normative table of docs/audit/AUDITORIA_ARQUITECTURA_NAVEGACION_FSM_HOJA_DE_RUTA.md
-// §12 (rev. 2.2.2: 28 rows, 113 guard branches) and the invariants of §13.
+// §12 (rev. 2.3: 32 rows, 119 guard branches) and the invariants of §13.
 //
 // The machine is never its own oracle. Four independent sources judge it:
 //
 //   1. CASES      — one literal expectation per cell of the guard partition
-//                   (113 cells over the 60 state × event pairs), written by hand
+//                   (119 cells over the 60 state × event pairs), written by hand
 //                   from the "Estado siguiente" and "Efectos" columns.
 //   2. GUARDS     — the "Guard" column and the ignored-pairs table transcribed
 //                   row by row, each guard on its own, with no ordering. A
@@ -29,9 +29,10 @@ import {
 //   3. PROPERTIES — the invariants of §13, checked after every transition of an
 //                   exhaustive walk of a small universe, of 10 000 seeded
 //                   random traces and of 4 000 closed-loop sessions.
-//   4. HISTORY    — the abstract router and session history of §13.1 (H1–H7).
-//                   It interprets the machine's effects and is the only thing
-//                   that answers back: S5(b), L6 and C-6 are judged here.
+//   4. HISTORY    — the abstract router and session history of §13.1 (H1–H7,
+//                   with H1 and H3 as measured in rev. 2.3). It interprets the
+//                   machine's effects and is the only thing that answers back:
+//                   S5(b), L6 and C-6 are judged here.
 //
 // A red test here is a finding about the SPECIFICATION as much as about the
 // code: §16 forbids this PR from amending the table on its own.
@@ -137,6 +138,7 @@ function routing(
     readonly intent?: "user" | "restore";
     readonly history?: "push" | "replace";
     readonly afterTraverse?: boolean;
+    readonly next?: NavLocation;
   } = {},
 ): NavState {
   return {
@@ -146,6 +148,7 @@ function routing(
     intent: options.intent ?? "user",
     history: options.history ?? "push",
     afterTraverse: options.afterTraverse ?? false,
+    next: options.next ?? null,
   };
 }
 
@@ -218,7 +221,7 @@ function stateKey(state: NavState): string {
     case "ROUTING":
       return `ROUTING#${state.navId}(${locKey(state.target)},${state.intent},${state.history}${
         state.afterTraverse ? ",afterTraverse" : ""
-      })`;
+      }${state.next ? `,next:${locKey(state.next)}` : ""})`;
     case "TRAVERSING":
       return `TRAVERSING#${state.navId}(${locKey(state.destination)})`;
     case "STALLED":
@@ -351,6 +354,16 @@ function flight({ state }: Situation): NavLocation {
   throw new Error(`${state.tag} flies nowhere`);
 }
 
+/** `q` of the table: the selection a user flight claimed, if any (rev. 2.3). */
+function claim({ state }: Situation): NavLocation | null {
+  return state.tag === "ROUTING" ? (state.next ?? null) : null;
+}
+
+/** `D` of the table: the destination in force, `next ?? T` in ROUTING. */
+function heading(situation: Situation): NavLocation {
+  return claim(situation) ?? flight(situation);
+}
+
 function expired({ state, event }: Situation): boolean {
   return event.type === "BUDGET_EXPIRED" && "navId" in state && event.navId === state.navId;
 }
@@ -373,6 +386,13 @@ const always = (): boolean => true;
 const committedOf = (s: Situation): NavLocation => s.ctx.committed;
 const superseded = (s: Situation): boolean => within(s.ctx.superseded, at(s));
 const afterTraverse = (s: Situation): boolean => s.state.tag === "ROUTING" && s.state.afterTraverse;
+const claimed = (s: Situation): boolean => claim(s) !== null;
+const commitsClaim = (s: Situation): boolean => {
+  const q = claim(s);
+  return q !== null && same(at(s), q);
+};
+const flies = (s: Situation, intent: "user" | "restore"): boolean =>
+  s.state.tag === "ROUTING" && s.state.intent === intent;
 const storedIsValid = (s: Situation): boolean =>
   s.event.type === "HYDRATED" && valid(s.config, s.event.storedModule);
 
@@ -395,15 +415,16 @@ const GUARDS: readonly Guard[] = [
   { branch: "#6", from: TAGS, on: SELECT_TYPES, when: (s) => targetOf(s.config, s.event) === null },
   { branch: "#7", from: ["IDLE"], on: ["SELECT_HUB"], when: (s) => chosen(s, (x) => !same(x, committedOf(s))) },
   { branch: "#8", from: ["IDLE"], on: ["OPEN_ROUTE"], when: (s) => chosen(s, (x) => !same(x, committedOf(s))) },
-  { branch: "#9", from: ["ROUTING"], on: ["URL_COMMITTED"], when: (s) => same(at(s), flight(s)) },
+  { branch: "#9", from: ["ROUTING"], on: ["URL_COMMITTED"], when: (s) => same(at(s), flight(s)) && !claimed(s) },
   {
     branch: "#10",
     from: ["ROUTING"],
     on: SELECT_TYPES,
-    when: (s) => chosen(s, (x) => !same(x, flight(s)) && !same(x, committedOf(s))),
+    when: (s) => flies(s, "restore") && chosen(s, (x) => !same(x, flight(s)) && !same(x, committedOf(s))),
   },
-  { branch: "#11", from: ["ROUTING", "STALLED"], on: ["URL_COMMITTED"], when: superseded },
-  { branch: "#12", from: ["ROUTING"], on: ["BUDGET_EXPIRED"], when: expired },
+  { branch: "#11", from: ["ROUTING"], on: ["URL_COMMITTED"], when: (s) => superseded(s) && !commitsClaim(s) },
+  { branch: "#11", from: ["STALLED"], on: ["URL_COMMITTED"], when: superseded },
+  { branch: "#12", from: ["ROUTING"], on: ["BUDGET_EXPIRED"], when: (s) => expired(s) && !claimed(s) },
   { branch: "#13", from: ["ROUTING", "TRAVERSING"], on: ["BUDGET_EXPIRED"], when: (s) => !expired(s) },
   { branch: "#13", from: ["STALLED"], on: ["BUDGET_EXPIRED"], when: always },
   { branch: "#14", from: ["STALLED"], on: ["URL_COMMITTED"], when: (s) => same(at(s), flight(s)) },
@@ -434,7 +455,7 @@ const GUARDS: readonly Guard[] = [
     branch: "#23",
     from: ["ROUTING"],
     on: ["URL_COMMITTED"],
-    when: (s) => !same(at(s), flight(s)) && !superseded(s) && !afterTraverse(s),
+    when: (s) => !same(at(s), flight(s)) && !superseded(s) && !afterTraverse(s) && !commitsClaim(s),
   },
   {
     branch: "#23",
@@ -447,13 +468,13 @@ const GUARDS: readonly Guard[] = [
     branch: "#25",
     from: ["ROUTING", "STALLED", "TRAVERSING"],
     on: SELECT_TYPES,
-    when: (s) => chosen(s, (x) => same(x, committedOf(s)) && !same(x, flight(s))),
+    when: (s) => chosen(s, (x) => same(x, committedOf(s)) && !same(x, heading(s))),
   },
   {
     branch: "#26",
     from: ["ROUTING"],
     on: ["URL_COMMITTED"],
-    when: (s) => afterTraverse(s) && !same(at(s), flight(s)) && !superseded(s),
+    when: (s) => afterTraverse(s) && !same(at(s), flight(s)) && !superseded(s) && !commitsClaim(s),
   },
   { branch: "#27", from: ["TRAVERSING"], on: ["BUDGET_EXPIRED"], when: expired },
   {
@@ -462,6 +483,15 @@ const GUARDS: readonly Guard[] = [
     on: ["TRAVERSE_STARTED"],
     when: (s) => same(at(s), committedOf(s)),
   },
+  {
+    branch: "#29",
+    from: ["ROUTING"],
+    on: SELECT_TYPES,
+    when: (s) => flies(s, "user") && chosen(s, (x) => !same(x, heading(s)) && !same(x, committedOf(s))),
+  },
+  { branch: "#30", from: ["ROUTING"], on: ["URL_COMMITTED"], when: (s) => same(at(s), flight(s)) && claimed(s) },
+  { branch: "#31", from: ["ROUTING"], on: ["BUDGET_EXPIRED"], when: (s) => expired(s) && claimed(s) },
+  { branch: "#32", from: ["ROUTING"], on: ["URL_COMMITTED"], when: commitsClaim },
 
   // Explicitly ignored pairs.
   {
@@ -483,7 +513,7 @@ const GUARDS: readonly Guard[] = [
     branch: "ignored",
     from: ["ROUTING", "TRAVERSING"],
     on: SELECT_TYPES,
-    when: (s) => chosen(s, (x) => same(x, flight(s))),
+    when: (s) => chosen(s, (x) => same(x, heading(s))),
   },
   { branch: "ignored", from: ["STALLED"], on: ["HYDRATED", "RESET"], when: always },
   {
@@ -536,8 +566,25 @@ function shapesOf(branch: Branch, from: NavState): readonly string[] {
     case "#5":
     case "#7":
     case "#8":
-    case "#16":
       return ["ROUTING:ROUTER_PUSH>ARM_BUDGET>PUBLISH_DISPLAY"];
+    case "#16":
+      // Rev. 2.3: a stalled continuation flight (user, replace) already has the entry of its burst.
+      return from.tag === "STALLED" && from.intent === "user" && from.history === "replace"
+        ? ["ROUTING:ROUTER_REPLACE>ARM_BUDGET>PUBLISH_DISPLAY"]
+        : ["ROUTING:ROUTER_PUSH>ARM_BUDGET>PUBLISH_DISPLAY"];
+    case "#11":
+      // Rev. 2.3: recorded in `committed`, with nothing emitted; inert when it already is `committed`.
+      return [`${from.tag}:`, UNCHANGED];
+    case "#29":
+      return ["ROUTING:PUBLISH_DISPLAY"];
+    case "#30":
+      return ["ROUTING:CANCEL_BUDGET>ROUTER_REPLACE>ARM_BUDGET>PUBLISH_DISPLAY"];
+    case "#31":
+      return from.tag === "ROUTING" && from.history === "replace"
+        ? ["ROUTING:ROUTER_REPLACE>ARM_BUDGET>PUBLISH_DISPLAY"]
+        : ["ROUTING:ROUTER_PUSH>ARM_BUDGET>PUBLISH_DISPLAY"];
+    case "#32":
+      return ["IDLE:CANCEL_BUDGET>ROUTER_PUSH>PUBLISH_DISPLAY", "IDLE:CANCEL_BUDGET>ROUTER_PUSH>PERSIST>PUBLISH_DISPLAY"];
     case "#9":
       return led("CANCEL_BUDGET", SETTLED);
     case "#10":
@@ -564,9 +611,10 @@ function shapesOf(branch: Branch, from: NavState): readonly string[] {
     case "#23":
       return from.tag === "ROUTING" ? led("CANCEL_BUDGET", SETTLED) : SETTLED;
     case "#25":
+      // Rev. 2.3 (C-11b): PERSIST when the `committed` it accepts is not what is stored.
       return budgeted(from)
-        ? ["IDLE:CANCEL_BUDGET>ROUTER_PUSH>PUBLISH_DISPLAY"]
-        : ["IDLE:ROUTER_PUSH>PUBLISH_DISPLAY"];
+        ? ["IDLE:CANCEL_BUDGET>ROUTER_PUSH>PUBLISH_DISPLAY", "IDLE:CANCEL_BUDGET>ROUTER_PUSH>PERSIST>PUBLISH_DISPLAY"]
+        : ["IDLE:ROUTER_PUSH>PUBLISH_DISPLAY", "IDLE:ROUTER_PUSH>PERSIST>PUBLISH_DISPLAY"];
     case "#28":
       return budgeted(from) ? led("CANCEL_BUDGET", SETTLED) : SETTLED;
     case "#26":
@@ -604,21 +652,24 @@ function unchanged(before: { ctx: NavContext; state: NavState }, result: Transit
 const PROPERTIES = {
   S1: "in IDLE, display = committed",
   S3: "a BUDGET_EXPIRED with a stale id changes nothing and emits nothing",
-  S4: "a commit that belongs to `superseded` is never painted",
+  S4: "a commit that belongs to `superseded` is never painted: it is recorded in `committed` and nothing else changes",
   S5: "a restore or normalization flies to a valid module by ROUTER_REPLACE and never emits ROUTER_PUSH",
   S6: "HARD_NAVIGATE only answers a RETRY from STALLED",
   S9: "no effect outside NavEffect: no REFRESH_DATA, PUSH_NATIVE or REPLACE_NATIVE",
   S10: "in ROUTING restore, display = committed",
   S11: "exactly one budget armed while ROUTING/TRAVERSING, with its navId, and none otherwise",
-  S12: "PERSIST only carries a module the surface has: the one of the location just confirmed in IDLE",
+  S12: "PERSIST only carries a module the surface has: the one of the location just confirmed in IDLE, or of the `committed` row #25 accepts",
   S13: "afterTraverse holds exactly while the flight descends, selection after selection, from a traverse whose commit was not yet recorded",
-  L1: "a valid selection either starts a navigation with ROUTER_PUSH or is idempotent on the destination in force",
-  L2: "ROUTING and TRAVERSING end in STALLED when their budget expires",
+  S14: "while a user flight is in ROUTING no selection navigates, save the return to `committed`: it is claimed and issued at most once, when the flight lands or its budget expires",
+  S15: "in IDLE, a `committed` with a module of the surface is the module stored: no accepted final state is left unpersisted",
+  L1: "a valid selection starts a navigation, is claimed by the user flight in the router, or is idempotent on the destination in force",
+  L2: "ROUTING and TRAVERSING end in STALLED when their budget expires, or in one relay flight for the claimed selection",
   L3: "STALLED recovers on RETRY and FAILED on RESET",
   L4: "TRAVERSE_STARTED always abandons the flight of ROUTING/STALLED",
   L5: "an Admin without a module never rests in IDLE",
   L6: "no flight targets the committed location: its commit could never be observed",
-  "display rules": "display follows §12.4: target in ROUTING user, destination in TRAVERSING, kept in STALLED/FAILED",
+  "display rules": "display follows §12.4: `next ?? target` in ROUTING user, destination in TRAVERSING, kept in STALLED/FAILED",
+  "claim scope": "`next` only exists in a user flight, set by a selection that flight claimed, and is never its target nor `committed`",
   "superseded scope": "`superseded` is empty outside ROUTING/STALLED",
   "target never superseded": "the target in flight is never in `superseded` (premise of the #9/#11 partition)",
   "navId monotonic": "navIds grow by one per budget armed and are never reused",
@@ -626,15 +677,18 @@ const PROPERTIES = {
   shape: "the machine produces the next state and the ordered effects of the row that resolves it",
   // What the interpreter of §12.5.1 takes for granted about a transition. These
   // are facts about the effects EMITTED; I1–I8 are about their execution.
-  "inert rows": "nothing changes and nothing is emitted exactly under an ignored pair or rows #4, #6, #11, #13 and #24 (A2)",
-  "navigation scope": "at most one navigation per transition: that of the flight it leaves in ROUTING, or the return to `committed` of row #25",
+  "inert rows": "nothing changes and nothing is emitted exactly under an ignored pair, rows #4, #6, #13 and #24, or row #11 on what already is `committed` (A2)",
+  "navigation scope": "at most one navigation per transition: that of the flight it leaves in ROUTING, or the push onto `committed` of rows #25 and #32",
   "budget scope": "ARM_BUDGET names the flight the transition leaves open, CANCEL_BUDGET the one it found, and the cancel comes first",
   publish: "PUBLISH_DISPLAY closes, once, every transition that emits anything or changes display or the tag",
 } as const;
 type Property = keyof typeof PROPERTIES;
 
-/** §12.5.1, A2: the transitions that do not advance `seq`. */
-const INERT_ROWS: readonly Branch[] = ["ignored", "#4", "#6", "#11", "#13", "#24"];
+/**
+ * §12.5.1, A2: the transitions that do not advance `seq`. Rev. 2.3: row #11
+ * records `committed` and left the list; the definition rules, not the list.
+ */
+const INERT_ROWS: readonly Branch[] = ["ignored", "#4", "#6", "#13", "#24"];
 
 type World = {
   readonly ctx: NavContext;
@@ -646,7 +700,7 @@ type World = {
   /**
    * S13, kept apart from the machine's own flag: a selection abandoned a
    * traverse (#19) and no commit has been recorded since (#26), through every
-   * selection that replaced that flight (#10).
+   * selection that flight claimed (#29) and the flights that issue them (#30, #31).
    */
   readonly owed: boolean;
 };
@@ -696,9 +750,11 @@ function owes(before: World, event: NavEvent, result: TransitionResult): boolean
 
   if (from.tag === "TRAVERSING") return chose;
   if (from.tag !== "ROUTING") return false;
-  if (state.navId !== from.navId) return chose && before.owed;
-  // The same flight: the debt is paid by the one commit it lets through.
-  return before.owed && !(event.type === "URL_COMMITTED" && !unchanged(before, result));
+  // Another flight out of a user flight issues what it claimed (#30, #31): the debt goes with it.
+  if (state.navId !== from.navId) return from.intent === "user" && !chose && before.owed;
+  // The same flight: the debt is paid by the one foreign commit it lets through.
+  // A superseded commit (#11) is recorded too, and is not the one owed.
+  return before.owed && !(event.type === "URL_COMMITTED" && !within(before.ctx.superseded, event.location));
 }
 
 function audit(
@@ -720,14 +776,25 @@ function audit(
 
   check("S1", state.tag !== "IDLE" || same(ctx.display, ctx.committed));
   check("S3", event.type !== "BUDGET_EXPIRED" || live || inert);
-  check(
-    "S4",
-    !(
-      event.type === "URL_COMMITTED" &&
-      (before.state.tag === "ROUTING" || before.state.tag === "STALLED") &&
-      within(before.ctx.superseded, event.location)
-    ) || inert,
+  const pending = before.state.tag === "ROUTING" ? (before.state.next ?? null) : null;
+  const navigations = effects.filter(
+    (effect) => effect.type === "ROUTER_PUSH" || effect.type === "ROUTER_REPLACE" || effect.type === "HARD_NAVIGATE",
   );
+  // Rev. 2.3: the superseded navigation did land, so `committed` follows the
+  // URL; the commit of the claimed selection is row #32, not this one.
+  if (
+    event.type === "URL_COMMITTED" &&
+    (before.state.tag === "ROUTING" || before.state.tag === "STALLED") &&
+    within(before.ctx.superseded, event.location) &&
+    !(pending !== null && same(pending, event.location))
+  ) {
+    check(
+      "S4",
+      effects.length === 0 &&
+        stateKey(state) === stateKey(before.state) &&
+        ctxKey(ctx) === ctxKey({ ...before.ctx, committed: event.location }),
+    );
+  }
   check(
     "S6",
     effects.every((effect) => effect.type !== "HARD_NAVIGATE") ||
@@ -755,13 +822,91 @@ function audit(
         from.tag === "IDLE"
           ? same(target, before.ctx.committed)
           : from.tag === "ROUTING"
-            ? same(target, from.target)
+            ? same(target, pending ?? from.target)
             : from.tag === "TRAVERSING"
               ? same(target, from.destination)
               : from.tag === "STALLED" && same(target, from.target) && same(target, before.ctx.committed);
-      const pushed = effects.some((effect) => effect.type === "ROUTER_PUSH" && same(effect.to, target));
-      check("L1", inForce ? inert : pushed);
+      // Rev. 2.3: three ways out. A user flight in the router answers for the
+      // selection (#29) unless it returns to `committed` (#25); a stalled
+      // continuation re-issues as a replace (#16).
+      const claims = from.tag === "ROUTING" && from.intent === "user" && !same(target, before.ctx.committed);
+      const continues =
+        from.tag === "STALLED" &&
+        from.intent === "user" &&
+        from.history === "replace" &&
+        !same(target, before.ctx.committed);
+      const started =
+        navigations.length === 1 &&
+        navigations.every(
+          (effect) => effect.type === (continues ? "ROUTER_REPLACE" : "ROUTER_PUSH") && same(effect.to, target),
+        );
+      const taken =
+        navigations.length === 0 &&
+        state.tag === "ROUTING" &&
+        from.tag === "ROUTING" &&
+        state.navId === from.navId &&
+        same(state.next ?? state.target, target) &&
+        same(ctx.display, target);
+      check("L1", inForce ? inert : claims ? taken : started);
+
+      // S14: nothing navigates over a user flight but the return to `committed`.
+      if (from.tag === "ROUTING" && from.intent === "user") {
+        check(
+          "S14",
+          navigations.every(
+            (effect) => effect.type === "ROUTER_PUSH" && state.tag === "IDLE" && same(effect.to, before.ctx.committed),
+          ),
+        );
+      }
     }
+  }
+
+  // S14: what a flight claimed is issued once, by the landing of that flight
+  // (#30, a replace) or by its budget (#31, in the history of the flight it
+  // relieves), and by nothing else.
+  if (before.state.tag === "ROUTING" && pending !== null) {
+    const from = before.state;
+    const landed = event.type === "URL_COMMITTED" && same(event.location, from.target);
+    if (landed || live) {
+      const kind = landed || from.history === "replace" ? "ROUTER_REPLACE" : "ROUTER_PUSH";
+      check(
+        "S14",
+        state.tag === "ROUTING" &&
+          state.navId === before.ctx.nextNavId &&
+          state.intent === "user" &&
+          same(state.target, pending) &&
+          (state.next ?? null) === null &&
+          navigations.length === 1 &&
+          navigations.every((effect) => effect.type === kind && same(effect.to, pending)),
+      );
+    } else if (state.tag === "ROUTING" && state.navId === from.navId) {
+      check("S14", navigations.length === 0);
+    } else {
+      // The flight was abandoned (#17, #20, #23, #25, #28) or its claim committed (#32).
+      check("S14", !(state.tag === "ROUTING" && (state.intent === "user" || (state.next ?? null) !== null)));
+    }
+  }
+
+  const held = state.tag === "ROUTING" ? (state.next ?? null) : null;
+  if (state.tag === "ROUTING" && held !== null) {
+    const kept = pending !== null && same(pending, held);
+    const picked =
+      event.type === "SELECT_MODULE" || event.type === "SELECT_HUB" || event.type === "OPEN_ROUTE"
+        ? targetOf(config, event)
+        : null;
+    check(
+      "claim scope",
+      state.intent === "user" &&
+        !same(held, state.target) &&
+        !same(held, ctx.committed) &&
+        before.state.tag === "ROUTING" &&
+        before.state.navId === state.navId &&
+        (kept || (picked !== null && same(picked, held))),
+    );
+  }
+
+  if (state.tag === "IDLE" && (ctx.committed.kind === "module" || ctx.committed.kind === "route")) {
+    check("S15", !valid(config, ctx.committed.module) || ctx.lastModule === ctx.committed.module);
   }
 
   const restoring = state.tag === "ROUTING" && state.intent === "restore" && !unchanged(before, result);
@@ -790,7 +935,18 @@ function audit(
     );
   }
   check("S13", state.tag !== "ROUTING" || state.afterTraverse === after.owed);
-  check("L2", !live || (state.tag === "STALLED" && after.armed.length === 0));
+  // Rev. 2.3: with a claimed selection the expiry relays it once (#31); the
+  // relay carries no claim, so its own expiry is the STALLED of row #12.
+  check(
+    "L2",
+    !live ||
+      (pending === null
+        ? state.tag === "STALLED" && after.armed.length === 0
+        : state.tag === "ROUTING" &&
+          state.navId === before.ctx.nextNavId &&
+          (state.next ?? null) === null &&
+          after.armed.join() === `${state.navId}`),
+  );
   check(
     "L3",
     !(before.state.tag === "STALLED" && event.type === "RETRY") ||
@@ -822,7 +978,7 @@ function audit(
 
   check(
     "display rules",
-    !(state.tag === "ROUTING" && state.intent === "user") || same(ctx.display, state.target),
+    !(state.tag === "ROUTING" && state.intent === "user") || same(ctx.display, state.next ?? state.target),
   );
   check("display rules", state.tag !== "TRAVERSING" || same(ctx.display, state.destination));
   check(
@@ -850,13 +1006,11 @@ function audit(
     const branch = branches[0] ?? "ignored";
     const shape = inert ? UNCHANGED : `${state.tag}:${effects.map((effect) => effect.type).join(">")}`;
     check("shape", shapesOf(branch, before.state).includes(shape));
-    check("inert rows", inert === INERT_ROWS.includes(branch));
+    const recorded = branch === "#11" && event.type === "URL_COMMITTED" && same(event.location, before.ctx.committed);
+    check("inert rows", inert === (INERT_ROWS.includes(branch) || recorded));
   }
 
   const opened = "navId" in state && state.navId === before.ctx.nextNavId;
-  const navigations = effects.filter(
-    (effect) => effect.type === "ROUTER_PUSH" || effect.type === "ROUTER_REPLACE" || effect.type === "HARD_NAVIGATE",
-  );
   // A flight opened in ROUTING carries its navigation; nothing else navigates twice.
   check("navigation scope", navigations.length === 1 || (navigations.length === 0 && !(opened && state.tag === "ROUTING")));
   for (const navigation of navigations) {
@@ -867,7 +1021,8 @@ function audit(
         navigation.type === "ROUTER_PUSH"
           ? state.intent === "user" && state.history === "push"
           : navigation.type === "ROUTER_REPLACE"
-            ? state.intent === "restore" && state.history === "replace"
+            ? // Rev. 2.3: a restore, or the continuation of a user burst that already has its entry.
+              state.history === "replace"
             : navigation.type === "HARD_NAVIGATE" &&
               navigation.mode === (state.history === "push" ? "assign" : "replace"),
       );
@@ -1108,11 +1263,11 @@ function explore(config: MachineConfig, coverage: Coverage): Walk {
 const SEED = 0x4e415632;
 const TRACE_COUNT = 10_000;
 const MAX_EVENTS = 40;
-const TRACE_HASH = "d6b4b32f4822884a";
+const TRACE_HASH = "eee4b548f9543355";
 /** "WIDE" in ASCII: the campaign over the wide universe, pinned apart so TRACE_HASH keeps its generator. */
 const WIDE_SEED = 0x57494445;
 const WIDE_TRACE_COUNT = 2_000;
-const WIDE_HASH = "17abdaccdca4ee3b";
+const WIDE_HASH = "a9e517445610b132";
 
 function mulberry32(seed: number): () => number {
   let state = seed >>> 0;
@@ -1191,8 +1346,9 @@ function nextEvent(random: () => number, config: MachineConfig, world: World, un
     return openRoute(path, module);
   }
   if (roll < 0.66) {
-    // Commits that matter: the target in flight, a superseded one, or anything.
+    // Commits that matter: the target in flight, the claimed selection, a superseded one, or anything.
     const aim = random();
+    if (state.tag === "ROUTING" && state.next && aim < 0.08) return urlCommitted(state.next);
     if ((state.tag === "ROUTING" || state.tag === "STALLED") && aim < 0.45) return urlCommitted(state.target);
     if ((state.tag === "ROUTING" || state.tag === "STALLED") && aim < 0.65 && ctx.superseded.length > 0) {
       return urlCommitted(pick(ctx.superseded));
@@ -1522,7 +1678,12 @@ given(CLINIC, IN_FLIGHT, routing(7, INFORMES))
       PUBLISH,
     ),
   )
-  .on(urlCommitted(PERFIL), "#11", "a superseded commit is not painted", UNCHANGED)
+  .on(
+    urlCommitted(PERFIL),
+    "#11",
+    "rev. 2.3: a superseded commit is not painted, but it did land: committed follows the URL",
+    to(routing(7, INFORMES), context(PERFIL, INFORMES, 8, { superseded: [PERFIL], lastModule: "operaciones" })),
+  )
   .on(
     urlCommitted(LOGISTICA),
     "#23",
@@ -1607,14 +1768,11 @@ given(CLINIC, context(OPS, OPS, 2, { lastModule: "logistica" }), routing(1, LOGI
   );
 given(CLINIC, context(OPS, INFORMES, 8, { superseded: [LOGISTICA, PERFIL] }), routing(7, INFORMES)).on(
   selectModule("logistica"),
-  "#10",
-  "re-selecting a superseded target takes it out of superseded",
+  "#29",
+  "rev. 2.3: re-selecting a superseded target is claimed like any other, and stays superseded until it is issued",
   to(
-    routing(8, LOGISTICA),
-    context(OPS, LOGISTICA, 9, { superseded: [PERFIL, INFORMES] }),
-    cancel(7),
-    push(LOGISTICA),
-    arm(8),
+    routing(7, INFORMES, { next: LOGISTICA }),
+    context(OPS, LOGISTICA, 8, { superseded: [LOGISTICA, PERFIL] }),
     PUBLISH,
   ),
 );
@@ -1627,17 +1785,248 @@ given(CLINIC, context(OPS, INFORMES, 8), routing(7, INFORMES, { afterTraverse: t
   )
   .on(
     selectModule("perfil"),
-    "#10",
-    "rev. 2.2.2: a new selection keeps afterTraverse: the commit of the traverse is still owed (C-10)",
+    "#29",
+    "rev. 2.3: the flight that owes the commit of a traverse keeps the debt through what it claims (C-10)",
+    to(routing(7, INFORMES, { afterTraverse: true, next: PERFIL }), context(OPS, PERFIL, 8), PUBLISH),
+  );
+
+// Rev. 2.3 — C-11: a user flight claims the next selection (#29) and issues it
+// once, when it lands (#30) or when its budget expires (#31); #32 when another
+// navigation commits it.
+
+const CLAIMED = context(OPS, LOGISTICA, 8, { superseded: [PERFIL], lastModule: "operaciones" });
+
+given(CLINIC, CLAIMED, routing(7, INFORMES, { next: LOGISTICA }))
+  .on(
+    urlCommitted(INFORMES),
+    "#30",
+    "the flight lands: the claimed selection leaves as a replace over the entry just written; the landing is recorded, not painted nor persisted",
     to(
-      routing(8, PERFIL, { afterTraverse: true }),
-      context(OPS, PERFIL, 9, { superseded: [INFORMES] }),
+      routing(8, LOGISTICA, { history: "replace" }),
+      context(INFORMES, LOGISTICA, 9, { superseded: [PERFIL], lastModule: "operaciones" }),
       cancel(7),
-      push(PERFIL),
+      replace(LOGISTICA),
       arm(8),
       PUBLISH,
     ),
+  )
+  .on(
+    budgetExpired(7),
+    "#31",
+    "the budget expires: the claimed selection relieves the hung flight, in its history, and supersedes it",
+    to(
+      routing(8, LOGISTICA),
+      context(OPS, LOGISTICA, 9, { superseded: [PERFIL, INFORMES], lastModule: "operaciones" }),
+      push(LOGISTICA),
+      arm(8),
+      PUBLISH,
+    ),
+  )
+  .on(
+    urlCommitted(LOGISTICA),
+    "#32",
+    "another navigation commits the claimed selection: rest on it and drop the flight with a push onto the current URL",
+    to(
+      IDLE,
+      context(LOGISTICA, LOGISTICA, 8, { lastModule: "logistica" }),
+      cancel(7),
+      push(LOGISTICA),
+      persist("logistica"),
+      PUBLISH,
+    ),
+  )
+  .on(
+    urlCommitted(PERFIL),
+    "#11",
+    "a superseded commit is recorded and the claim is kept",
+    to(
+      routing(7, INFORMES, { next: LOGISTICA }),
+      context(PERFIL, LOGISTICA, 8, { superseded: [PERFIL], lastModule: "operaciones" }),
+    ),
+  )
+  .on(
+    urlCommitted(HUB),
+    "#23",
+    "an external commit abandons the flight together with its claim",
+    to(IDLE, context(HUB, HUB, 8, { lastModule: "operaciones" }), cancel(7), PUBLISH),
+  )
+  .on(budgetExpired(6), "#13", "a stale budget leaves the claim alone", UNCHANGED)
+  .on(selectModule("logistica"), "ignored", "re-selecting the claimed selection: it already is the destination in force", UNCHANGED)
+  .on(
+    selectModule("informes"),
+    "#29",
+    "selecting the target in the router again withdraws the claim: same flight, no navigation",
+    to(routing(7, INFORMES), context(OPS, INFORMES, 8, { superseded: [PERFIL], lastModule: "operaciones" }), PUBLISH),
+  )
+  .on(
+    selectModule("perfil"),
+    "#29",
+    "a later selection replaces the claim: one flight, one budget, nothing navigates",
+    to(
+      routing(7, INFORMES, { next: PERFIL }),
+      context(OPS, PERFIL, 8, { superseded: [PERFIL], lastModule: "operaciones" }),
+      PUBLISH,
+    ),
+  )
+  .on(
+    selectModule("operaciones"),
+    "#25",
+    "returning to the committed module drops the flight and its claim; a module already stored is not written twice",
+    to(IDLE, context(OPS, OPS, 8, { lastModule: "operaciones" }), cancel(7), push(OPS), PUBLISH),
+  )
+  .on(
+    traverseStarted(PERFIL),
+    "#17",
+    "Back/Forward takes over the flight and its claim",
+    to(traversing(8, PERFIL), context(OPS, PERFIL, 9, { lastModule: "operaciones" }), cancel(7), arm(8), PUBLISH),
+  )
+  .on(
+    navFailed("render"),
+    "#20",
+    "a failure ends the flight and its claim",
+    to(failed("render"), context(OPS, LOGISTICA, 8, { lastModule: "operaciones" }), cancel(7), PUBLISH),
   );
+
+given(CLINIC, context(PERFIL, INFORMES, 8, { superseded: [PERFIL] }), routing(7, INFORMES)).on(
+  urlCommitted(PERFIL),
+  "#11",
+  "a superseded commit already recorded is inert: the definition of §12.5.1 rules, not the list",
+  UNCHANGED,
+);
+
+// The debt of a traverse (S13) and the history of the burst travel with the claim.
+
+const OWING = context(OPS, PERFIL, 8, { superseded: [PERFIL] });
+
+given(CLINIC, OWING, routing(7, INFORMES, { afterTraverse: true, next: PERFIL }))
+  .on(
+    urlCommitted(INFORMES),
+    "#30",
+    "the continuation inherits afterTraverse and leaves `superseded` when it is issued",
+    to(
+      routing(8, PERFIL, { history: "replace", afterTraverse: true }),
+      context(INFORMES, PERFIL, 9),
+      cancel(7),
+      replace(PERFIL),
+      arm(8),
+      PUBLISH,
+    ),
+  )
+  .on(
+    budgetExpired(7),
+    "#31",
+    "the relay inherits afterTraverse too",
+    to(routing(8, PERFIL, { afterTraverse: true }), context(OPS, PERFIL, 9, { superseded: [INFORMES] }), push(PERFIL), arm(8), PUBLISH),
+  )
+  .on(
+    urlCommitted(PERFIL),
+    "#32",
+    "row 32 comes before row 11: the commit of the claimed selection settles even when it was superseded",
+    to(IDLE, context(PERFIL, PERFIL, 8, { lastModule: "perfil" }), cancel(7), push(PERFIL), persist("perfil"), PUBLISH),
+  )
+  .on(
+    urlCommitted(LOGISTICA),
+    "#26",
+    "the commit of the traverse is recorded once and the claim is kept",
+    to(routing(7, INFORMES, { next: PERFIL }), context(LOGISTICA, PERFIL, 8, { superseded: [PERFIL] })),
+  );
+
+given(CLINIC, context(OPS, HUB, 8), routing(7, INFORMES, { next: HUB })).on(
+  urlCommitted(HUB),
+  "#32",
+  "the commit of a claimed hub persists nothing",
+  to(IDLE, context(HUB, HUB, 8), cancel(7), push(HUB), PUBLISH),
+);
+
+// A continuation flight (user, replace): its burst already has its entry.
+
+const CONTINUED = context(INFORMES, PERFIL, 10, { lastModule: "operaciones" });
+
+given(CLINIC, CONTINUED, routing(9, LOGISTICA, { history: "replace", next: PERFIL }))
+  .on(
+    budgetExpired(9),
+    "#31",
+    "a hung continuation is relieved as a replace: no second entry for the burst",
+    to(
+      routing(10, PERFIL, { history: "replace" }),
+      context(INFORMES, PERFIL, 11, { superseded: [LOGISTICA], lastModule: "operaciones" }),
+      replace(PERFIL),
+      arm(10),
+      PUBLISH,
+    ),
+  )
+  .on(
+    urlCommitted(LOGISTICA),
+    "#30",
+    "a continuation that lands issues what it claimed, again as a replace",
+    to(
+      routing(10, PERFIL, { history: "replace" }),
+      context(LOGISTICA, PERFIL, 11, { lastModule: "operaciones" }),
+      cancel(9),
+      replace(PERFIL),
+      arm(10),
+      PUBLISH,
+    ),
+  );
+given(CLINIC, context(INFORMES, LOGISTICA, 10), routing(9, LOGISTICA, { history: "replace" })).on(
+  budgetExpired(9),
+  "#12",
+  "a continuation without a claim stalls keeping its replace history",
+  to(stalled(9, LOGISTICA, "user", "replace"), context(INFORMES, LOGISTICA, 10), PUBLISH),
+);
+given(CLINIC, context(INFORMES, LOGISTICA, 10, { superseded: [PERFIL] }), stalled(9, LOGISTICA, "user", "replace"))
+  .on(
+    selectModule("perfil"),
+    "#16",
+    "rev. 2.3: a selection out of a stalled continuation is issued as a replace and leaves `superseded`",
+    to(
+      routing(10, PERFIL, { history: "replace" }),
+      context(INFORMES, PERFIL, 11, { superseded: [LOGISTICA] }),
+      replace(PERFIL),
+      arm(10),
+      PUBLISH,
+    ),
+  )
+  .on(
+    RETRY,
+    "#15",
+    "retrying a stalled continuation is a document replace",
+    to(
+      routing(10, LOGISTICA, { history: "replace" }),
+      context(INFORMES, LOGISTICA, 11, { superseded: [PERFIL] }),
+      hard(LOGISTICA, "replace"),
+      arm(10),
+      PUBLISH,
+    ),
+  );
+given(CLINIC, context(OPS, INFORMES, 4), stalled(3, INFORMES, "traverse", "replace")).on(
+  selectModule("logistica"),
+  "#16",
+  "a selection out of a stalled traverse opens a burst of its own: a push",
+  to(routing(4, LOGISTICA), context(OPS, LOGISTICA, 5, { superseded: [INFORMES] }), push(LOGISTICA), arm(4), PUBLISH),
+);
+
+// Rev. 2.3 — C-11b: row 25 persists the `committed` it accepts when it is not what is stored.
+
+given(ADMIN, context(CLINICS, PRICING, 8, { superseded: [CLINICS], lastModule: "admin" }), routing(7, PRICING)).on(
+  selectModule("admin-clinics"),
+  "#25",
+  "Admin: a committed module recorded by row 11 and never stored is persisted when the user accepts it",
+  to(
+    IDLE,
+    context(CLINICS, CLINICS, 8, { lastModule: "admin-clinics" }),
+    cancel(7),
+    push(CLINICS),
+    persist("admin-clinics"),
+    PUBLISH,
+  ),
+);
+given(CLINIC, context(mod(RETIRED), INFORMES, 8, { lastModule: "operaciones" }), routing(7, INFORMES)).on(
+  traverseStarted(mod(RETIRED)),
+  "#28",
+  "a committed module the surface does not have settles without a PERSIST",
+  to(IDLE, context(mod(RETIRED), mod(RETIRED), 8, { lastModule: "operaciones" }), cancel(7), PUBLISH),
+);
 given(ADMIN, context(HOME, CLINICS, 8, { lastModule: "admin-pricing" }), routing(7, CLINICS)).on(
   urlCommitted(NONE),
   "#23",
@@ -1737,7 +2126,12 @@ given(CLINIC, STUCK, stalled(5, INFORMES))
     "the late commit of the target settles without a budget to cancel",
     to(IDLE, context(INFORMES, INFORMES, 6, { lastModule: "informes" }), persist("informes"), PUBLISH),
   )
-  .on(urlCommitted(PERFIL), "#11", "a superseded commit is not painted", UNCHANGED)
+  .on(
+    urlCommitted(PERFIL),
+    "#11",
+    "rev. 2.3: a superseded commit is recorded while stalled too, and not painted",
+    to(stalled(5, INFORMES), context(PERFIL, INFORMES, 6, { superseded: [PERFIL], lastModule: "operaciones" })),
+  )
   .on(
     urlCommitted(LOGISTICA),
     "#23",
@@ -2003,32 +2397,57 @@ given(CLINIC, context(OPS, VISITS_ROUTE, 8, { superseded: [LOGISTICA_ROUTE] }), 
   .on(
     urlCommitted(LOGISTICA_ROUTE),
     "#11",
-    "a superseded full route is not the one in flight, though both carry the same module",
-    UNCHANGED,
+    "a superseded full route is not the one in flight, though both carry the same module: recorded, not painted",
+    to(routing(7, VISITS_ROUTE), context(LOGISTICA_ROUTE, VISITS_ROUTE, 8, { superseded: [LOGISTICA_ROUTE] })),
   )
   .on(
     openRoute("/dashboard/logistica", "logistica"),
-    "#10",
-    "re-selecting the superseded full route swaps it with the one in flight",
+    "#29",
+    "re-selecting the superseded full route is claimed: told apart from the one in flight by its path",
     to(
-      routing(8, LOGISTICA_ROUTE),
-      context(OPS, LOGISTICA_ROUTE, 9, { superseded: [VISITS_ROUTE] }),
-      cancel(7),
-      push(LOGISTICA_ROUTE),
-      arm(8),
+      routing(7, VISITS_ROUTE, { next: LOGISTICA_ROUTE }),
+      context(OPS, LOGISTICA_ROUTE, 8, { superseded: [LOGISTICA_ROUTE] }),
       PUBLISH,
     ),
+  );
+given(CLINIC, context(OPS, LOGISTICA_ROUTE, 8), routing(7, VISITS_ROUTE, { next: LOGISTICA_ROUTE }))
+  .on(
+    openRoute("/dashboard/logistica/visitas", "logistica"),
+    "#29",
+    "the claim is withdrawn by path: the other full route of the same module is the one in the router",
+    to(routing(7, VISITS_ROUTE), context(OPS, VISITS_ROUTE, 8), PUBLISH),
+  )
+  .on(
+    urlCommitted(LOGISTICA),
+    "#23",
+    "the module of the claimed full route is not that route: its commit is external",
+    to(IDLE, context(LOGISTICA, LOGISTICA, 8, { lastModule: "logistica" }), cancel(7), persist("logistica"), PUBLISH),
   );
 
 // Selections that resolve to a target — every state × every kind of selection
 
-const CHOICES: readonly { readonly kind: string; readonly event: NavEvent; readonly x: NavLocation; readonly idleRow: Branch }[] = [
-  { kind: "module", event: selectModule("logistica"), x: LOGISTICA, idleRow: "#5" },
-  { kind: "hub", event: SELECT_HUB, x: HUB, idleRow: "#7" },
-  { kind: "route", event: openRoute("/dashboard/logistica", "logistica"), x: LOGISTICA_ROUTE, idleRow: "#8" },
+const CHOICES: readonly {
+  readonly kind: string;
+  readonly event: NavEvent;
+  readonly x: NavLocation;
+  readonly idleRow: Branch;
+  /** What row 25 persists when it accepts `x` as `committed` and nothing is stored. */
+  readonly stores: string | null;
+}[] = [
+  { kind: "module", event: selectModule("logistica"), x: LOGISTICA, idleRow: "#5", stores: "logistica" },
+  { kind: "hub", event: SELECT_HUB, x: HUB, idleRow: "#7", stores: null },
+  {
+    kind: "route",
+    event: openRoute("/dashboard/logistica", "logistica"),
+    x: LOGISTICA_ROUTE,
+    idleRow: "#8",
+    stores: "logistica",
+  },
 ];
 
-for (const { kind, event, x, idleRow } of CHOICES) {
+for (const { kind, event, x, idleRow, stores } of CHOICES) {
+  // Rev. 2.3 (C-11b): row 25 persists the module of the `committed` it accepts, between the push and the publish.
+  const accepted = stores === null ? [] : [persist(stores)];
   given(CLINIC, initial(CLINIC).ctx, BOOTING).on(event, "ignored", `${kind}: a selection before hydration`, UNCHANGED);
   given(CLINIC, BROKEN, failed("render")).on(event, "ignored", `${kind}: a selection after a failure`, UNCHANGED);
 
@@ -2050,18 +2469,24 @@ for (const { kind, event, x, idleRow } of CHOICES) {
     event,
     "#25",
     `${kind}: returning to the committed location drops the flight`,
-    to(IDLE, context(x, x, 8), cancel(7), push(x), PUBLISH),
+    to(IDLE, context(x, x, 8, { lastModule: stores }), cancel(7), push(x), ...accepted, PUBLISH),
   );
   given(CLINIC, IN_FLIGHT, routing(7, INFORMES)).on(
     event,
+    "#29",
+    `${kind}: rev. 2.3: a selection over a user flight is claimed: shown at once, nothing navigates, same flight and budget`,
+    to(routing(7, INFORMES, { next: x }), context(OPS, x, 8, { superseded: [PERFIL], lastModule: "operaciones" }), PUBLISH),
+  );
+  given(CLINIC, context(OPS, OPS, 2, { lastModule: "perfil" }), routing(1, PERFIL, RESTORE)).on(
+    event,
     "#10",
-    `${kind}: a new selection supersedes the target in flight`,
+    `${kind}: rev. 2.3: a selection over a restore navigates at once and supersedes it`,
     to(
-      routing(8, x),
-      context(OPS, x, 9, { superseded: [PERFIL, INFORMES], lastModule: "operaciones" }),
-      cancel(7),
+      routing(2, x),
+      context(OPS, x, 3, { superseded: [PERFIL], lastModule: "perfil" }),
+      cancel(1),
       push(x),
-      arm(8),
+      arm(2),
       PUBLISH,
     ),
   );
@@ -2076,7 +2501,7 @@ for (const { kind, event, x, idleRow } of CHOICES) {
     event,
     "#25",
     `${kind}: rev. 2.2: returning to the committed location during a traverse drops the traverse`,
-    to(IDLE, context(x, x, 4, { lastModule: "operaciones" }), cancel(3), push(x), PUBLISH),
+    to(IDLE, context(x, x, 4, { lastModule: stores ?? "operaciones" }), cancel(3), push(x), ...accepted, PUBLISH),
   );
   given(CLINIC, TRAVERSE, traversing(3, INFORMES)).on(
     event,
@@ -2102,7 +2527,7 @@ for (const { kind, event, x, idleRow } of CHOICES) {
     event,
     "#25",
     `${kind}: returning to the committed location from a stall`,
-    to(IDLE, context(x, x, 6), push(x), PUBLISH),
+    to(IDLE, context(x, x, 6, { lastModule: stores }), push(x), ...accepted, PUBLISH),
   );
   given(CLINIC, STUCK, stalled(5, INFORMES)).on(
     event,
@@ -2178,9 +2603,9 @@ for (const scenario of CASES) {
 
 // ── Coverage of the table by the literal cases ───────────────────────────────
 
-const ROWS: readonly Branch[] = Array.from({ length: 28 }, (_, index): Branch => `#${index + 1}`);
+const ROWS: readonly Branch[] = Array.from({ length: 32 }, (_, index): Branch => `#${index + 1}`);
 
-test("coverage · the transcribed tables declare 28 rows, 60 pairs and 113 cells", () => {
+test("coverage · the transcribed tables declare 32 rows, 60 pairs and 119 cells", () => {
   assert.ok(EVERY_TAG_LISTED && EVERY_EVENT_LISTED && EVERY_EFFECT_LISTED);
 
   const branches = new Set(GUARDS.map((guard) => guard.branch));
@@ -2191,10 +2616,19 @@ test("coverage · the transcribed tables declare 28 rows, 60 pairs and 113 cells
   assert.equal(expected.length, 60);
   assert.deepEqual([...pairs].sort(), [...expected].sort(), "every state × event pair has a row or an ignored entry");
 
-  assert.equal(CELLS.size, 113);
+  assert.equal(CELLS.size, 119);
+  // Rev. 2.3: the six new cells, and row 10 keeps its three under the `restore` guard.
+  for (const cell of [
+    ...SELECT_TYPES.flatMap((type) => [cellKey("ROUTING", type, "#29"), cellKey("ROUTING", type, "#10")]),
+    cellKey("ROUTING", "URL_COMMITTED", "#30"),
+    cellKey("ROUTING", "URL_COMMITTED", "#32"),
+    cellKey("ROUTING", "BUDGET_EXPIRED", "#31"),
+  ]) {
+    assert.ok(CELLS.has(cell), cell);
+  }
 });
 
-test("coverage · 28/28 rows have a literal case", () => {
+test("coverage · 32/32 rows have a literal case", () => {
   const covered = new Set(CASES.map((scenario) => scenario.branch));
   assert.deepEqual(
     ROWS.filter((branch) => !covered.has(branch)),
@@ -2202,7 +2636,7 @@ test("coverage · 28/28 rows have a literal case", () => {
   );
 });
 
-test("coverage · 60/60 pairs and 113/113 guard branches have a literal case", (t) => {
+test("coverage · 60/60 pairs and 119/119 guard branches have a literal case", (t) => {
   const covered = new Set(
     CASES.map((scenario) => cellKey(scenario.state.tag, scenario.event.type, scenario.branch)),
   );
@@ -2211,7 +2645,7 @@ test("coverage · 60/60 pairs and 113/113 guard branches have a literal case", (
   assert.deepEqual([...covered].filter((cell) => !CELLS.has(cell)), [], "no case sits outside the table");
   assert.deepEqual([...CELLS].filter((cell) => !covered.has(cell)), [], "every guard branch has a case");
   assert.equal(pairs.size, 60);
-  t.diagnostic(`literal cases: ${CASES.length}; cells: ${covered.size}/113; pairs: ${pairs.size}/60`);
+  t.diagnostic(`literal cases: ${CASES.length}; cells: ${covered.size}/119; pairs: ${pairs.size}/60`);
 });
 
 // ── initial() and purity ─────────────────────────────────────────────────────
@@ -2483,7 +2917,7 @@ test("trace · hub → module → Back to the hub (rows 1, 5, 9, 17, 18)", () =>
   );
 });
 
-test("trace · a pending refresh holds every commit: selections stall, supersede and converge (SP-5)", () => {
+test("trace · a pending refresh holds every commit: selections are claimed, relayed, stall and converge (SP-5)", () => {
   assert.deepEqual(
     play(CLINIC, [
       hydrated(OPS),
@@ -2498,12 +2932,14 @@ test("trace · a pending refresh holds every commit: selections stall, supersede
     ]).slice(1),
     [
       "#5 → ROUTING#1(module:informes,user,push) | committed=module:operaciones display=module:informes next=2 superseded={} last=operaciones | ROUTER_PUSH(module:informes) > ARM_BUDGET(1) > PUBLISH_DISPLAY",
-      "#10 → ROUTING#2(module:logistica,user,push) | committed=module:operaciones display=module:logistica next=3 superseded={module:informes} last=operaciones | CANCEL_BUDGET(1) > ROUTER_PUSH(module:logistica) > ARM_BUDGET(2) > PUBLISH_DISPLAY",
-      "#13 → ROUTING#2(module:logistica,user,push) | committed=module:operaciones display=module:logistica next=3 superseded={module:informes} last=operaciones | —",
+      // Rev. 2.3: the second selection is claimed (no second push); the budget of the held flight relays it once.
+      "#29 → ROUTING#1(module:informes,user,push,next:module:logistica) | committed=module:operaciones display=module:logistica next=2 superseded={} last=operaciones | PUBLISH_DISPLAY",
+      "#31 → ROUTING#2(module:logistica,user,push) | committed=module:operaciones display=module:logistica next=3 superseded={module:informes} last=operaciones | ROUTER_PUSH(module:logistica) > ARM_BUDGET(2) > PUBLISH_DISPLAY",
       "#12 → STALLED#2(module:logistica,user,push) | committed=module:operaciones display=module:logistica next=3 superseded={module:informes} last=operaciones | PUBLISH_DISPLAY",
       "#16 → ROUTING#3(module:perfil,user,push) | committed=module:operaciones display=module:perfil next=4 superseded={module:informes,module:logistica} last=operaciones | ROUTER_PUSH(module:perfil) > ARM_BUDGET(3) > PUBLISH_DISPLAY",
-      "#11 → ROUTING#3(module:perfil,user,push) | committed=module:operaciones display=module:perfil next=4 superseded={module:informes,module:logistica} last=operaciones | —",
-      "#11 → ROUTING#3(module:perfil,user,push) | committed=module:operaciones display=module:perfil next=4 superseded={module:informes,module:logistica} last=operaciones | —",
+      // The two held payloads land late: recorded in `committed`, never painted nor persisted.
+      "#11 → ROUTING#3(module:perfil,user,push) | committed=module:informes display=module:perfil next=4 superseded={module:informes,module:logistica} last=operaciones | —",
+      "#11 → ROUTING#3(module:perfil,user,push) | committed=module:logistica display=module:perfil next=4 superseded={module:informes,module:logistica} last=operaciones | —",
       "#9 → IDLE | committed=module:perfil display=module:perfil next=4 superseded={} last=perfil | CANCEL_BUDGET(3) > PERSIST(perfil) > PUBLISH_DISPLAY",
     ],
   );
@@ -2520,7 +2956,7 @@ test("trace · a restore replaced by a user selection never repaints (rows 2, 10
     [
       "#2 → ROUTING#1(module:logistica,restore,replace) | committed=module:operaciones display=module:operaciones next=2 superseded={} last=logistica | ROUTER_REPLACE(module:logistica) > ARM_BUDGET(1) > PUBLISH_DISPLAY",
       "#10 → ROUTING#2(module:informes,user,push) | committed=module:operaciones display=module:informes next=3 superseded={module:logistica} last=logistica | CANCEL_BUDGET(1) > ROUTER_PUSH(module:informes) > ARM_BUDGET(2) > PUBLISH_DISPLAY",
-      "#11 → ROUTING#2(module:informes,user,push) | committed=module:operaciones display=module:informes next=3 superseded={module:logistica} last=logistica | —",
+      "#11 → ROUTING#2(module:informes,user,push) | committed=module:logistica display=module:informes next=3 superseded={module:logistica} last=logistica | —",
       "#9 → IDLE | committed=module:informes display=module:informes next=3 superseded={} last=informes | CANCEL_BUDGET(2) > PERSIST(informes) > PUBLISH_DISPLAY",
     ],
   );
@@ -2829,31 +3265,51 @@ test("regression · C-8 · L5 · a traverse onto the bare Admin entry during its
 
 const BACK_THEN_TWO = [hydrated(OPS), traverseStarted(INFORMES), selectModule("logistica"), selectModule("perfil")];
 
-test("regression · C-10 · S13 · a second selection after a traverse still survives the commit of that traverse (rows 17, 19, 10, 26, 9)", () => {
-  const events = [...BACK_THEN_TWO, urlCommitted(INFORMES), urlCommitted(PERFIL)];
+test("regression · C-10 · S13 · a second selection after a traverse still survives the commit of that traverse (rows 17, 19, 29, 26, 30, 9)", () => {
+  const events = [...BACK_THEN_TWO, urlCommitted(INFORMES), urlCommitted(LOGISTICA), urlCommitted(PERFIL)];
 
+  // Rev. 2.3: the second selection is claimed by the flight that owes the commit
+  // of the traverse; the debt is paid on that flight and its continuation lands.
   assert.deepEqual(play(CLINIC, events).slice(1), [
     "#17 → TRAVERSING#1(module:informes) | committed=module:operaciones display=module:informes next=2 superseded={} last=operaciones | ARM_BUDGET(1) > PUBLISH_DISPLAY",
     "#19 → ROUTING#2(module:logistica,user,push,afterTraverse) | committed=module:operaciones display=module:logistica next=3 superseded={} last=operaciones | CANCEL_BUDGET(1) > ROUTER_PUSH(module:logistica) > ARM_BUDGET(2) > PUBLISH_DISPLAY",
-    "#10 → ROUTING#3(module:perfil,user,push,afterTraverse) | committed=module:operaciones display=module:perfil next=4 superseded={module:logistica} last=operaciones | CANCEL_BUDGET(2) > ROUTER_PUSH(module:perfil) > ARM_BUDGET(3) > PUBLISH_DISPLAY",
-    "#26 → ROUTING#3(module:perfil,user,push) | committed=module:informes display=module:perfil next=4 superseded={module:logistica} last=operaciones | —",
+    "#29 → ROUTING#2(module:logistica,user,push,afterTraverse,next:module:perfil) | committed=module:operaciones display=module:perfil next=3 superseded={} last=operaciones | PUBLISH_DISPLAY",
+    "#26 → ROUTING#2(module:logistica,user,push,next:module:perfil) | committed=module:informes display=module:perfil next=3 superseded={} last=operaciones | —",
+    "#30 → ROUTING#3(module:perfil,user,replace) | committed=module:logistica display=module:perfil next=4 superseded={} last=operaciones | CANCEL_BUDGET(2) > ROUTER_REPLACE(module:perfil) > ARM_BUDGET(3) > PUBLISH_DISPLAY",
     "#9 → IDLE | committed=module:perfil display=module:perfil next=4 superseded={} last=perfil | CANCEL_BUDGET(3) > PERSIST(perfil) > PUBLISH_DISPLAY",
   ]);
   assert.equal(
-    restingPlace(finish(CLINIC, events.slice(0, -1))),
+    restingPlace(finish(CLINIC, events.slice(0, -2))),
     "ROUTING at module:informes",
-    "S13: rev. 2.2.1 dropped afterTraverse on row 10, and the commit of the traverse took row 23: budget 3 cancelled, PERSIST(informes), IDLE on the history entry",
+    "S13: rev. 2.2.1 dropped afterTraverse on the second selection, and the commit of the traverse took row 23: budget cancelled, PERSIST(informes), IDLE on the history entry",
   );
+
+  // The debt travels with the claim into the flights that issue it: the
+  // continuation of a landing (#30) and the relay of an expiry (#31).
+  const tail = (script: readonly NavEvent[]): readonly string[] => play(CLINIC, script).map(short).slice(4);
+  assert.deepEqual(tail([...BACK_THEN_TWO, urlCommitted(LOGISTICA), urlCommitted(INFORMES), urlCommitted(PERFIL)]), [
+    "#30 → ROUTING#3(module:perfil,user,replace,afterTraverse)",
+    "#26 → ROUTING#3(module:perfil,user,replace)",
+    "#9 → IDLE",
+  ]);
+  assert.deepEqual(tail([...BACK_THEN_TWO, budgetExpired(2), urlCommitted(INFORMES), urlCommitted(PERFIL)]), [
+    "#31 → ROUTING#3(module:perfil,user,push,afterTraverse)",
+    "#26 → ROUTING#3(module:perfil,user,push)",
+    "#9 → IDLE",
+  ]);
 });
 
-test("regression · C-10 · S13 · every selection of the burst inherits the debt: Admin, the hub and full routes (rows 19, 10, 26)", () => {
+test("regression · C-10 · S13 · every selection of the burst inherits the debt: Admin, the hub and full routes (rows 19, 29, 26, 30)", () => {
   // Three selections, the last one the hub.
   assert.deepEqual(
-    play(CLINIC, [...BACK_THEN_TWO, SELECT_HUB, urlCommitted(INFORMES), urlCommitted(HUB)]).map(short).slice(3),
+    play(CLINIC, [...BACK_THEN_TWO, SELECT_HUB, urlCommitted(INFORMES), urlCommitted(LOGISTICA), urlCommitted(HUB)])
+      .map(short)
+      .slice(3),
     [
-      "#10 → ROUTING#3(module:perfil,user,push,afterTraverse)",
-      "#10 → ROUTING#4(hub,user,push,afterTraverse)",
-      "#26 → ROUTING#4(hub,user,push)",
+      "#29 → ROUTING#2(module:logistica,user,push,afterTraverse,next:module:perfil)",
+      "#29 → ROUTING#2(module:logistica,user,push,afterTraverse,next:hub)",
+      "#26 → ROUTING#2(module:logistica,user,push,next:hub)",
+      "#30 → ROUTING#3(hub,user,replace)",
       "#9 → IDLE",
     ],
   );
@@ -2866,14 +3322,16 @@ test("regression · C-10 · S13 · every selection of the burst inherits the deb
       openRoute("/dashboard/logistica", "logistica"),
       openRoute("/dashboard/logistica/visitas", "logistica"),
       urlCommitted(OPS),
+      urlCommitted(LOGISTICA_ROUTE),
       urlCommitted(VISITS_ROUTE),
     ])
       .map(short)
       .slice(2),
     [
       "#19 → ROUTING#2(route:/dashboard/logistica:logistica,user,push,afterTraverse)",
-      "#10 → ROUTING#3(route:/dashboard/logistica/visitas:logistica,user,push,afterTraverse)",
-      "#26 → ROUTING#3(route:/dashboard/logistica/visitas:logistica,user,push)",
+      "#29 → ROUTING#2(route:/dashboard/logistica:logistica,user,push,afterTraverse,next:route:/dashboard/logistica/visitas:logistica)",
+      "#26 → ROUTING#2(route:/dashboard/logistica:logistica,user,push,next:route:/dashboard/logistica/visitas:logistica)",
+      "#30 → ROUTING#3(route:/dashboard/logistica/visitas:logistica,user,replace)",
       "#9 → IDLE",
     ],
   );
@@ -2886,20 +3344,22 @@ test("regression · C-10 · S13 · every selection of the burst inherits the deb
     selectModule("admin-clinics"),
     selectModule("admin-pricing"),
     urlCommitted(NONE),
+    urlCommitted(CLINICS),
     urlCommitted(PRICING),
   ];
   const transcript = play(ADMIN, admin);
   assert.deepEqual(transcript.map(short).slice(2), [
     "#19 → ROUTING#2(module:admin-clinics,user,push,afterTraverse)",
-    "#10 → ROUTING#3(module:admin-pricing,user,push,afterTraverse)",
-    "#26 → ROUTING#3(module:admin-pricing,user,push)",
+    "#29 → ROUTING#2(module:admin-clinics,user,push,afterTraverse,next:module:admin-pricing)",
+    "#26 → ROUTING#2(module:admin-clinics,user,push,next:module:admin-pricing)",
+    "#30 → ROUTING#3(module:admin-pricing,user,replace)",
     "#9 → IDLE",
   ]);
-  assert.ok(transcript.every((line) => !line.includes("ROUTER_REPLACE")), "no normalization over the click");
+  assert.ok(transcript.every((line) => !line.includes(",restore,")), "no normalization over the click");
   assert.equal(restingPlace(finish(ADMIN, admin)), "IDLE at module:admin-pricing");
 });
 
-test("regression · C-10 · S13 · the debt is paid by one commit and ends with the flight (rows 26, 11, 23, 9, 22, 12, 15, 17, 25, 20)", () => {
+test("regression · C-10 · S13 · the debt is paid by one commit and ends with the flight (rows 26, 11, 13, 23, 32, 22, 12, 15, 17, 25, 20)", () => {
   const after = (events: readonly NavEvent[], skip: number): readonly string[] =>
     play(CLINIC, events).map(short).slice(skip);
 
@@ -2908,42 +3368,261 @@ test("regression · C-10 · S13 · the debt is paid by one commit and ends with 
     "ignored → ROUTING#2(module:logistica,user,push,afterTraverse)",
     "#26 → ROUTING#2(module:logistica,user,push)",
   ]);
-  // So do a superseded commit and a stale budget: neither is the commit owed.
-  assert.deepEqual(after([...BACK_THEN_TWO, urlCommitted(LOGISTICA), budgetExpired(2), urlCommitted(INFORMES)], 4), [
-    "#11 → ROUTING#3(module:perfil,user,push,afterTraverse)",
-    "#13 → ROUTING#3(module:perfil,user,push,afterTraverse)",
-    "#26 → ROUTING#3(module:perfil,user,push)",
-  ]);
-  // Paid once: after row 26 a later selection flies without it, and the next foreign commit is external.
+  // A superseded commit is recorded (rev. 2.3) and a stale budget is inert: neither is the commit owed.
   assert.deepEqual(
-    after([...BACK_THEN_TWO.slice(0, 3), urlCommitted(INFORMES), selectModule("perfil"), urlCommitted(HUB)], 3),
-    ["#26 → ROUTING#2(module:logistica,user,push)", "#10 → ROUTING#3(module:perfil,user,push)", "#23 → IDLE"],
+    after([...BACK_THEN_TWO, budgetExpired(2), urlCommitted(LOGISTICA), budgetExpired(2), urlCommitted(INFORMES)], 4),
+    [
+      "#31 → ROUTING#3(module:perfil,user,push,afterTraverse)",
+      "#11 → ROUTING#3(module:perfil,user,push,afterTraverse)",
+      "#13 → ROUTING#3(module:perfil,user,push,afterTraverse)",
+      "#26 → ROUTING#3(module:perfil,user,push)",
+    ],
   );
-  // The target lands first: the flight is over, and a commit after it is external (H3 excludes it).
-  assert.deepEqual(after([...BACK_THEN_TWO, urlCommitted(PERFIL), urlCommitted(INFORMES)], 4), ["#9 → IDLE", "#22 → IDLE"]);
+  // Paid once: after row 26 what the flight claims travels without it, and the next foreign commit is external.
+  assert.deepEqual(
+    after(
+      [
+        ...BACK_THEN_TWO.slice(0, 3),
+        urlCommitted(INFORMES),
+        selectModule("perfil"),
+        urlCommitted(LOGISTICA),
+        urlCommitted(HUB),
+      ],
+      3,
+    ),
+    [
+      "#26 → ROUTING#2(module:logistica,user,push)",
+      "#29 → ROUTING#2(module:logistica,user,push,next:module:perfil)",
+      "#30 → ROUTING#3(module:perfil,user,replace)",
+      "#23 → IDLE",
+    ],
+  );
+  // Something else commits the claimed selection: the flight is over (#32), and a commit after it is external.
+  assert.deepEqual(after([...BACK_THEN_TWO, urlCommitted(PERFIL), urlCommitted(INFORMES)], 4), ["#32 → IDLE", "#22 → IDLE"]);
   // A stall keeps no provenance (row 23 covers STALLED whatever came before), and RETRY starts clean.
-  assert.deepEqual(after([...BACK_THEN_TWO, budgetExpired(3), urlCommitted(INFORMES)], 4), [
+  assert.deepEqual(after([...BACK_THEN_TWO, budgetExpired(2), budgetExpired(3), urlCommitted(INFORMES)], 4), [
+    "#31 → ROUTING#3(module:perfil,user,push,afterTraverse)",
     "#12 → STALLED#3(module:perfil,user,push)",
     "#23 → IDLE",
   ]);
-  assert.deepEqual(after([...BACK_THEN_TWO, budgetExpired(3), RETRY], 5), ["#15 → ROUTING#4(module:perfil,user,push)"]);
-  // A new traverse takes the flight; a selection during it owes the commit of that one.
+  assert.deepEqual(after([...BACK_THEN_TWO, budgetExpired(2), budgetExpired(3), RETRY], 6), [
+    "#15 → ROUTING#4(module:perfil,user,push)",
+  ]);
+  // A new traverse takes the flight and its claim; a selection during it owes the commit of that one.
   assert.deepEqual(after([...BACK_THEN_TWO, traverseStarted(HUB), selectModule("logistica")], 4), [
-    "#17 → TRAVERSING#4(hub)",
-    "#19 → ROUTING#5(module:logistica,user,push,afterTraverse)",
+    "#17 → TRAVERSING#3(hub)",
+    "#19 → ROUTING#4(module:logistica,user,push,afterTraverse)",
   ]);
   // Returning to the committed location and a failure both end the flight.
   assert.deepEqual(after([...BACK_THEN_TWO, selectModule("operaciones")], 4), ["#25 → IDLE"]);
-  assert.deepEqual(after([...BACK_THEN_TWO, navFailed("render"), budgetExpired(3), reset(INFORMES)], 4), [
+  assert.deepEqual(after([...BACK_THEN_TWO, navFailed("render"), budgetExpired(2), reset(INFORMES)], 4), [
     "#20 → FAILED(render)",
     "ignored → FAILED(render)",
     "#21 → IDLE",
   ]);
-  // No traverse, no debt: a click over a restore inherits nothing.
+  // No traverse, no debt: a click over a restore inherits nothing, and neither does a plain burst.
   assert.deepEqual(after([hydrated(OPS, "logistica"), selectModule("informes"), urlCommitted(HUB)], 1), [
     "#10 → ROUTING#2(module:informes,user,push)",
     "#23 → IDLE",
   ]);
+  assert.deepEqual(
+    after([hydrated(OPS), selectModule("informes"), selectModule("logistica"), urlCommitted(INFORMES), urlCommitted(HUB)], 2),
+    ["#29 → ROUTING#1(module:informes,user,push,next:module:logistica)", "#30 → ROUTING#2(module:logistica,user,replace)", "#23 → IDLE"],
+  );
+});
+
+// ── Regression: H1 refuted in the browser (C-11) and the P2 of #1844 (C-11b) ──
+//
+// Rev. 2.2.2 issued one ROUTER_PUSH per selection (row #10) and trusted the
+// router to discard the one before. It does not (§0.7, E1): both land, and the
+// first writes its own entry. These traces fix what the machine emits instead;
+// the closed loop below judges the history they leave.
+
+/** The navigations a script makes the machine emit, in order. */
+function navigated(config: MachineConfig, events: readonly NavEvent[]): readonly string[] {
+  let world = boot(config);
+  return events.flatMap((event) => {
+    const step = advance(config, world, event);
+    world = step.world;
+    return step.result.effects.filter((effect) => effect.type.startsWith("ROUTER_")).map(effectKey);
+  });
+}
+
+test("regression · C-11 · S14 · A→B→C before the first commit: one push, and C leaves as a replace when B lands (rows 5, 29, 30, 9)", () => {
+  const events = [hydrated(OPS), selectModule("informes"), selectModule("logistica"), urlCommitted(INFORMES), urlCommitted(LOGISTICA)];
+
+  assert.deepEqual(play(CLINIC, events).slice(1), [
+    "#5 → ROUTING#1(module:informes,user,push) | committed=module:operaciones display=module:informes next=2 superseded={} last=operaciones | ROUTER_PUSH(module:informes) > ARM_BUDGET(1) > PUBLISH_DISPLAY",
+    "#29 → ROUTING#1(module:informes,user,push,next:module:logistica) | committed=module:operaciones display=module:logistica next=2 superseded={} last=operaciones | PUBLISH_DISPLAY",
+    "#30 → ROUTING#2(module:logistica,user,replace) | committed=module:informes display=module:logistica next=3 superseded={} last=operaciones | CANCEL_BUDGET(1) > ROUTER_REPLACE(module:logistica) > ARM_BUDGET(2) > PUBLISH_DISPLAY",
+    "#9 → IDLE | committed=module:logistica display=module:logistica next=3 superseded={} last=logistica | CANCEL_BUDGET(2) > PERSIST(logistica) > PUBLISH_DISPLAY",
+  ]);
+  assert.deepEqual(
+    navigated(CLINIC, events),
+    ["ROUTER_PUSH(module:informes)", "ROUTER_REPLACE(module:logistica)"],
+    "S14: rev. 2.2.2 pushed logistica over the pending push of informes, and both wrote an entry",
+  );
+
+  // A longer burst still navigates once per landing, and only for the last choice.
+  assert.deepEqual(
+    navigated(ADMIN, [
+      hydrated(HOME, null, true),
+      selectModule("admin-clinics"),
+      selectModule("admin-pricing"),
+      selectModule("admin-clinics"),
+      selectModule("admin-pricing"),
+      urlCommitted(CLINICS),
+      urlCommitted(PRICING),
+    ]),
+    ["ROUTER_PUSH(module:admin-clinics)", "ROUTER_REPLACE(module:admin-pricing)"],
+  );
+});
+
+test("regression · C-11 · S14 and L2 · a held flight relays its claim once, then stalls; the late answer still confirms (rows 29, 31, 12, 13, 14)", () => {
+  const held = [hydrated(OPS), selectModule("informes"), selectModule("logistica"), budgetExpired(1), budgetExpired(1), budgetExpired(2)];
+
+  assert.deepEqual(play(CLINIC, held).map(short).slice(2), [
+    "#29 → ROUTING#1(module:informes,user,push,next:module:logistica)",
+    "#31 → ROUTING#2(module:logistica,user,push)",
+    "#13 → ROUTING#2(module:logistica,user,push)",
+    "#12 → STALLED#2(module:logistica,user,push)",
+  ]);
+  assert.deepEqual(
+    navigated(CLINIC, held),
+    ["ROUTER_PUSH(module:informes)", "ROUTER_PUSH(module:logistica)"],
+    "one relay per selection: the relay carries no claim, so two held payloads do not loop",
+  );
+  // DT-5, condition 3: the expiry cancels nothing, and the late commit of the destination in force is confirmed.
+  assert.deepEqual(play(CLINIC, [...held, urlCommitted(LOGISTICA)]).slice(-1), [
+    "#14 → IDLE | committed=module:logistica display=module:logistica next=3 superseded={} last=logistica | PERSIST(logistica) > PUBLISH_DISPLAY",
+  ]);
+});
+
+test("regression · C-11 · S4 and L6 · the relieved navigation lands late: recorded, never painted, and selecting it returns to it (rows 31, 11, 25)", () => {
+  const relieved = [hydrated(OPS), selectModule("informes"), selectModule("logistica"), budgetExpired(1), urlCommitted(INFORMES)];
+
+  assert.deepEqual(play(CLINIC, relieved).slice(-1), [
+    "#11 → ROUTING#2(module:logistica,user,push) | committed=module:informes display=module:logistica next=3 superseded={module:informes} last=operaciones | —",
+  ]);
+  // Rev. 2.2.2 left `committed` behind the URL: this selection flew onto the
+  // current URL, where no commit could confirm it (L6), and only its budget ended it.
+  assert.deepEqual(play(CLINIC, [...relieved, selectModule("informes"), budgetExpired(2)]).slice(-2), [
+    "#25 → IDLE | committed=module:informes display=module:informes next=3 superseded={} last=informes | CANCEL_BUDGET(2) > ROUTER_PUSH(module:informes) > PERSIST(informes) > PUBLISH_DISPLAY",
+    "ignored → IDLE | committed=module:informes display=module:informes next=3 superseded={} last=informes | —",
+  ]);
+});
+
+test("regression · C-11 · a restore replaced by a click and chosen again settles when it lands, without a second entry (rows 2, 10, 29, 32)", () => {
+  const events = [hydrated(OPS, "logistica"), selectModule("informes"), selectModule("logistica"), urlCommitted(LOGISTICA)];
+
+  assert.deepEqual(play(CLINIC, events), [
+    "#2 → ROUTING#1(module:logistica,restore,replace) | committed=module:operaciones display=module:operaciones next=2 superseded={} last=logistica | ROUTER_REPLACE(module:logistica) > ARM_BUDGET(1) > PUBLISH_DISPLAY",
+    // E7: a push over a pending replace adds one entry in either order, so the click leaves at once.
+    "#10 → ROUTING#2(module:informes,user,push) | committed=module:operaciones display=module:informes next=3 superseded={module:logistica} last=logistica | CANCEL_BUDGET(1) > ROUTER_PUSH(module:informes) > ARM_BUDGET(2) > PUBLISH_DISPLAY",
+    "#29 → ROUTING#2(module:informes,user,push,next:module:logistica) | committed=module:operaciones display=module:logistica next=3 superseded={module:logistica} last=logistica | PUBLISH_DISPLAY",
+    // Row 32 before row 11: the restore commits what the user now wants, and the push onto the current URL drops informes.
+    "#32 → IDLE | committed=module:logistica display=module:logistica next=3 superseded={} last=logistica | CANCEL_BUDGET(2) > ROUTER_PUSH(module:logistica) > PERSIST(logistica) > PUBLISH_DISPLAY",
+  ]);
+
+  // Without the second click the same commit is a superseded one: recorded, not painted.
+  assert.deepEqual(play(CLINIC, [events[0], events[1], events[3]] as NavEvent[]).map(short).slice(2), [
+    "#11 → ROUTING#2(module:informes,user,push)",
+  ]);
+});
+
+test("regression · C-11 · a stalled continuation is re-issued as a replace: its burst already has its entry (rows 30, 12, 16, 15)", () => {
+  const stalledContinuation = [
+    hydrated(OPS),
+    selectModule("informes"),
+    selectModule("logistica"),
+    urlCommitted(INFORMES),
+    budgetExpired(2),
+  ];
+
+  assert.deepEqual(play(CLINIC, [...stalledContinuation, selectModule("perfil")]).slice(-2), [
+    "#12 → STALLED#2(module:logistica,user,replace) | committed=module:informes display=module:logistica next=3 superseded={} last=operaciones | PUBLISH_DISPLAY",
+    "#16 → ROUTING#3(module:perfil,user,replace) | committed=module:informes display=module:perfil next=4 superseded={module:logistica} last=operaciones | ROUTER_REPLACE(module:perfil) > ARM_BUDGET(3) > PUBLISH_DISPLAY",
+  ]);
+  assert.deepEqual(
+    navigated(CLINIC, [...stalledContinuation, selectModule("perfil")]),
+    ["ROUTER_PUSH(module:informes)", "ROUTER_REPLACE(module:logistica)", "ROUTER_REPLACE(module:perfil)"],
+    "rev. 2.2.2 pushed perfil here: the entry of informes stayed and the burst added another",
+  );
+  assert.deepEqual(play(CLINIC, [...stalledContinuation, RETRY]).slice(-1), [
+    "#15 → ROUTING#3(module:logistica,user,replace) | committed=module:informes display=module:logistica next=4 superseded={} last=operaciones | HARD_NAVIGATE(module:logistica,replace) > ARM_BUDGET(3) > PUBLISH_DISPLAY",
+  ]);
+});
+
+test("regression · C-11b · S15 · row 25 persists the committed module it accepts, however it was recorded (rows 30, 11, 26, then 25)", () => {
+  const recorded: readonly (readonly [string, readonly NavEvent[]])[] = [
+    // The trace of the review: informes lands with logistica claimed, and the user picks informes.
+    ["#30", [hydrated(OPS), selectModule("informes"), selectModule("logistica"), urlCommitted(INFORMES)]],
+    // The relieved navigation lands late.
+    ["#11", [hydrated(OPS), selectModule("informes"), selectModule("logistica"), budgetExpired(1), urlCommitted(INFORMES)]],
+    // Back, a click, and the commit of the traverse.
+    ["#26", [hydrated(OPS), traverseStarted(INFORMES), selectModule("logistica"), urlCommitted(INFORMES)]],
+  ];
+
+  for (const [row, script] of recorded) {
+    const before = finish(CLINIC, script);
+    assert.equal(advance(CLINIC, finish(CLINIC, script.slice(0, -1)), script.at(-1) as NavEvent).branches.join(), row);
+    assert.deepEqual(
+      [locKey(before.ctx.committed), before.ctx.lastModule],
+      ["module:informes", "operaciones"],
+      `${row} records the commit without persisting it`,
+    );
+
+    const accepted = advance(CLINIC, before, selectModule("informes"));
+    assert.deepEqual(accepted.branches, ["#25"], row);
+    assert.deepEqual(
+      accepted.result.effects.map(effectKey).slice(-3),
+      ["ROUTER_PUSH(module:informes)", "PERSIST(informes)", "PUBLISH_DISPLAY"],
+      `${row}: persisted after the push and before the publish`,
+    );
+    assert.equal(accepted.world.ctx.lastModule, "informes");
+    // The next entry without a module restores what the user accepted, not what was stored before.
+    assert.deepEqual(play(CLINIC, [hydrated(OPS, accepted.world.ctx.lastModule)]).map(short), [
+      "#2 → ROUTING#1(module:informes,restore,replace)",
+    ]);
+  }
+
+  // Admin, the same by row 30: the bare entry normalizes to the module accepted.
+  const admin = finish(ADMIN, [
+    hydrated(HOME, null, true),
+    selectModule("admin-clinics"),
+    selectModule("admin-pricing"),
+    urlCommitted(CLINICS),
+    selectModule("admin-clinics"),
+  ]);
+  assert.deepEqual([restingPlace(admin), admin.ctx.lastModule], ["IDLE at module:admin-clinics", "admin-clinics"]);
+  assert.deepEqual(play(ADMIN, [urlCommitted(NONE)], admin).map(short), ["#22 → ROUTING#3(module:admin-clinics,restore,replace)"]);
+});
+
+test("regression · C-11b · S12 · a module only recorded or superseded is never persisted, and one already stored is not written twice", () => {
+  const persisted = (config: MachineConfig, events: readonly NavEvent[]): readonly string[] => {
+    let world = boot(config);
+    return events.flatMap((event) => {
+      const step = advance(config, world, event);
+      world = step.world;
+      return step.result.effects.filter((effect) => effect.type === "PERSIST").map(effectKey);
+    });
+  };
+  const burst = [hydrated(OPS), selectModule("informes"), selectModule("logistica")];
+
+  // informes lands (#30) or lands late (#11) and the flight ends elsewhere: only the final location is stored.
+  assert.deepEqual(persisted(CLINIC, [...burst, urlCommitted(INFORMES), urlCommitted(LOGISTICA)]), [
+    "PERSIST(operaciones)",
+    "PERSIST(logistica)",
+  ]);
+  assert.deepEqual(persisted(CLINIC, [...burst, budgetExpired(1), urlCommitted(INFORMES), urlCommitted(LOGISTICA)]), [
+    "PERSIST(operaciones)",
+    "PERSIST(logistica)",
+  ]);
+  // Returning to a committed module that is the one stored writes nothing; neither does the hub.
+  assert.deepEqual(persisted(CLINIC, [...burst, selectModule("operaciones")]), ["PERSIST(operaciones)"]);
+  assert.deepEqual(persisted(CLINIC, [hydrated(HUB, "perfil", true), selectModule("informes"), SELECT_HUB]), []);
+  // With a restore in flight, choosing the committed module is the user's latest decision: it replaces the stored one.
+  assert.deepEqual(persisted(CLINIC, [hydrated(OPS, "logistica"), selectModule("operaciones")]), ["PERSIST(operaciones)"]);
 });
 
 // ── HISTORY: the abstract router and session history of §13.1 ────────────────
@@ -2952,12 +3631,15 @@ test("regression · C-10 · S13 · the debt is paid by one commit and ends with 
 // drive a model of the router and of the session history, and only that model
 // answers back. Its assumptions are the integration contracts of §12.6:
 //
-//   H1  a new navigation, a traverse or a document navigation discards the
-//       pending one
+//   H1  as measured in rev. 2.3 (§0.7, E1–E8): a push or a replace does NOT
+//       discard another one already issued. They coexist, and each may land on
+//       its own and in any order. What discards everything pending is a
+//       traverse, a document navigation and a push onto the current URL
 //   H2  a push that lands appends after the current entry and drops the forward
 //       ones, unless it targets the current URL: then it replaces in place. A
 //       replace that lands overwrites the current entry
-//   H3  a discarded navigation never lands
+//   H3  a discarded navigation never lands; as measured: neither does anything
+//       issued BEFORE a navigation that landed
 //   H4  Back/Forward moves the index at once, announces its destination and
 //       neither adds nor removes entries
 //   H5  HARD_NAVIGATE is a document navigation and ends the machine instance
@@ -2967,7 +3649,8 @@ test("regression · C-10 · S13 · the debt is paid by one commit and ends with 
 //       the pathname changes; leaving dispatches RESET with the current location
 //
 // H1–H7 are assumptions about Next and the provider. Nothing here confirms
-// them: that is the E2E of PR-NAV-03/04 (§13.1).
+// them: that is the E2E of PR-NAV-03/04 (§13.1). The model keeps discarding a
+// pending traverse when a push goes out over it: that case was not measured.
 
 type Pending = { readonly kind: "push" | "replace" | "traverse"; readonly to: NavLocation };
 type Sink = (before: World, step: Step, events: readonly NavEvent[]) => void;
@@ -2976,11 +3659,29 @@ type Tally = {
   replaces: number;
   traverses: number;
   bursts: number;
-  /** S5(b): user bursts that appended a second entry. */
+  /** S5(b): user bursts that appended a second entry within the scope of the invariant. */
   readonly overflows: (readonly string[])[];
+  /**
+   * Outside that scope (§0.7, §19): counted and reported, never asserted to be
+   * zero. A second entry in a burst one of whose budgets expired: the relieved
+   * navigation landed before its relay.
+   */
+  lateLandings: number;
+  /** Bursts with a push issued over a traverse that had not committed, and their second entries. */
+  overTraverse: number;
+  overTraverseEntries: number;
 };
 
-const emptyTally = (): Tally => ({ appends: 0, replaces: 0, traverses: 0, bursts: 0, overflows: [] });
+const emptyTally = (): Tally => ({
+  appends: 0,
+  replaces: 0,
+  traverses: 0,
+  bursts: 0,
+  overflows: [],
+  lateLandings: 0,
+  overTraverse: 0,
+  overTraverseEntries: 0,
+});
 
 const pathnameOf = (config: MachineConfig, location: NavLocation): string =>
   location.kind === "route" ? location.path : config.surface === "admin" ? "/dashboard/admin" : "/dashboard";
@@ -2991,13 +3692,23 @@ function openSession(config: MachineConfig, start: NavLocation, tally: Tally, ob
   const log: string[] = [];
   let sink = observer;
   let index = 0;
-  let pending: Pending | null = null;
+  /** H1 as measured: every navigation issued and not landed, oldest first. */
+  let pending: Pending[] = [];
   /** The location the router has committed. */
   let canonical = start;
   /** H6: the last location handed to the machine. */
   let seen = start;
   /** Entries appended by the user burst in course. */
   let appended = 0;
+  /** The burst in course left the scope of S5(b): one of its budgets expired, or it pushed over a traverse. */
+  let lapsed = false;
+  let crossed = false;
+  /**
+   * Navigations of a burst that pushed while the URL had moved with a traverse
+   * that never committed (#19, #25 from TRAVERSING). One of them can outlive
+   * its burst: the residual of DT-11, which taints every burst it lands in.
+   */
+  const strays = new WeakSet<Pending>();
   let boundary = false;
   let ended = false;
   let world = boot(config);
@@ -3012,15 +3723,28 @@ function openSession(config: MachineConfig, start: NavLocation, tally: Tally, ob
 
     const from = before.state;
     const sameBurst = (from.tag === "ROUTING" || from.tag === "STALLED") && from.intent === "user";
+    if (sameBurst && budgeted(from) && event.type === "BUDGET_EXPIRED" && event.navId === from.navId) lapsed = true;
     for (const effect of step.result.effects) {
-      if (effect.type === "ROUTER_PUSH") {
-        if (!sameBurst) {
+      if (effect.type === "ROUTER_PUSH" || effect.type === "ROUTER_REPLACE") {
+        const pushes = effect.type === "ROUTER_PUSH";
+        if (pushes && !sameBurst) {
           appended = 0;
+          lapsed = false;
+          crossed = false;
           tally.bursts += 1;
         }
-        pending = { kind: "push", to: effect.to }; // H1
-      } else if (effect.type === "ROUTER_REPLACE") {
-        pending = { kind: "replace", to: effect.to }; // H1
+        // H1 as measured: a push onto the current URL discards everything
+        // pending (E3); any other navigation joins what is already issued.
+        const here = entries[index] ?? canonical;
+        const issued: Pending = { kind: pushes ? "push" : "replace", to: effect.to };
+        pending = pushes && same(effect.to, here) ? [] : pending.filter((entry) => entry.kind !== "traverse");
+        // The URL is ahead of what the router committed only after a traverse that did not land.
+        if (pushes && !crossed && (!same(here, canonical) || pending.some((entry) => strays.has(entry)))) {
+          crossed = true;
+          tally.overTraverse += 1;
+        }
+        if (crossed && (pushes || sameBurst)) strays.add(issued);
+        pending.push(issued);
       } else if (effect.type === "HARD_NAVIGATE") {
         // H5
         if (effect.mode === "assign") {
@@ -3030,18 +3754,21 @@ function openSession(config: MachineConfig, start: NavLocation, tally: Tally, ob
         } else {
           entries[index] = effect.to;
         }
-        pending = null;
+        pending = [];
         ended = true;
       }
     }
     return step;
   };
 
-  /** The pending navigation lands. H3: whatever was discarded before it never does. */
-  const land = (): void => {
-    const landing = pending;
-    if (landing === null) return;
-    pending = null;
+  /**
+   * One pending navigation lands: the latest issued unless told otherwise. H3
+   * as measured: it ends the ones issued before it, never the later ones.
+   */
+  const land = (pick: number = pending.length - 1): void => {
+    const landing = pending[pick];
+    if (landing === undefined) return;
+    pending = pending.slice(pick + 1);
     const from = canonical;
     const here = entries[index] ?? canonical;
 
@@ -3061,7 +3788,11 @@ function openSession(config: MachineConfig, start: NavLocation, tally: Tally, ob
       tally.appends += 1;
       appended += 1;
       log.push("· push lands as a new entry");
-      if (appended > 1) tally.overflows.push([...log]);
+      if (appended > 1) {
+        if (lapsed) tally.lateLandings += 1;
+        else if (crossed) tally.overTraverseEntries += 1;
+        else tally.overflows.push([...log]);
+      }
     }
 
     const left = boundary && pathnameOf(config, from) !== pathnameOf(config, canonical);
@@ -3080,7 +3811,7 @@ function openSession(config: MachineConfig, start: NavLocation, tally: Tally, ob
   const traverse = (action: "back" | "forward"): void => {
     index += action === "back" ? -1 : 1;
     const destination = entries[index] ?? canonical;
-    pending = { kind: "traverse", to: destination }; // H1
+    pending = [{ kind: "traverse", to: destination }]; // H1: a traverse discards what is pending
     tally.traverses += 1;
     log.push(`· ${action}`);
     deliver(traverseStarted(destination));
@@ -3095,7 +3826,7 @@ function openSession(config: MachineConfig, start: NavLocation, tally: Tally, ob
     forward: (): void => traverse("forward"),
     /** A render or payload error reaches the boundary (H7). The navigation that failed is gone. */
     fail(reason: "render" | "payload" | "unknown"): void {
-      pending = null;
+      pending = [];
       boundary = true;
       deliver(navFailed(reason));
     },
@@ -3115,7 +3846,7 @@ function openSession(config: MachineConfig, start: NavLocation, tally: Tally, ob
     get index(): number {
       return index;
     },
-    get pending(): Pending | null {
+    get pending(): readonly Pending[] {
       return pending;
     },
     get canonical(): NavLocation {
@@ -3145,16 +3876,19 @@ type Session = ReturnType<typeof openSession>;
 function orphanFlight({ world, pending, ended }: Session): boolean {
   const { state } = world;
   if (ended) return false;
-  if (state.tag === "ROUTING") return pending === null || pending.kind === "traverse" || !same(pending.to, state.target);
-  return state.tag === "TRAVERSING" && pending === null;
+  if (state.tag === "ROUTING") {
+    return !pending.some((entry) => entry.kind !== "traverse" && same(entry.to, state.target));
+  }
+  return state.tag === "TRAVERSING" && !pending.some((entry) => entry.kind === "traverse");
 }
 
 /** The same for a stall: STALLED whose navigation the router is no longer running. */
 function orphanStall({ world, pending, ended }: Session): boolean {
   const { state } = world;
   if (ended || state.tag !== "STALLED") return false;
-  if (pending === null || !same(pending.to, state.target)) return true;
-  return (pending.kind === "traverse") !== (state.intent === "traverse");
+  return !pending.some(
+    (entry) => same(entry.to, state.target) && (entry.kind === "traverse") === (state.intent === "traverse"),
+  );
 }
 
 /** The machine and the provider disagree on where the session is. FAILED is reconciled by RESET. */
@@ -3168,10 +3902,11 @@ function adrift({ world, seen, ended }: Session): boolean {
  * navigation (H5); never in a flight, a stall or with a budget armed.
  */
 function quiesce(session: Session): string | null {
-  for (let guard = 0; guard < 8 && session.pending !== null; guard += 1) session.land();
+  // Oldest first: every navigation still pending gets to land, in the order it was issued.
+  for (let guard = 0; guard < 16 && session.pending.length > 0; guard += 1) session.land(0);
 
   const { state, ctx, armed } = session.world;
-  if (session.pending !== null) return "navigations keep landing";
+  if (session.pending.length > 0) return "navigations keep landing";
   if (session.ended) return null;
   if (session.boundary) {
     return state.tag === "FAILED" && armed.length === 0 ? null : `behind the boundary in ${stateKey(state)}`;
@@ -3198,33 +3933,74 @@ function scripted(config: MachineConfig, start: NavLocation, storedModule: strin
 
 const keys = (locations: readonly NavLocation[]): readonly string[] => locations.map(locKey);
 
-test("history · H1 and H3 · a newer navigation discards the pending one, which never lands", () => {
+test("history · H1 and H3 · navigations coexist: the one that lands ends those issued before it, which never land", () => {
   const { session, tally, broken } = scripted(CLINIC, OPS);
 
+  // S14: the second selection is claimed, so the machine has one push in the router, not two.
   session.deliver(selectModule("informes"));
-  assert.deepEqual(session.pending, { kind: "push", to: INFORMES });
+  assert.deepEqual(session.pending, [{ kind: "push", to: INFORMES }]);
   session.deliver(selectModule("logistica"));
-  assert.deepEqual(session.pending, { kind: "push", to: LOGISTICA }, "H1: one navigation pending at most");
+  assert.deepEqual(session.pending, [{ kind: "push", to: INFORMES }], "the claimed selection does not navigate");
 
+  // E5: the push lands, and the claimed selection leaves as a replace over its entry.
   session.land();
-  assert.deepEqual(keys(session.entries), ["module:operaciones", "module:logistica"]);
+  assert.deepEqual(keys(session.entries), ["module:operaciones", "module:informes"]);
+  assert.deepEqual(session.pending, [{ kind: "replace", to: LOGISTICA }]);
+  session.land();
+  assert.deepEqual(keys(session.entries), ["module:operaciones", "module:logistica"], "one entry for the burst");
   assert.equal(restingPlace(session.world), "IDLE at module:logistica");
 
-  const delivered = session.events.length;
-  session.land();
-  assert.equal(session.events.length, delivered, "H3: the superseded push to informes never lands");
-  assert.deepEqual(keys(session.entries), ["module:operaciones", "module:logistica"]);
-
-  // A traverse discards a pending push just the same.
+  // A traverse discards a pending push.
   session.deliver(selectModule("perfil"));
   session.back();
-  assert.deepEqual(session.pending, { kind: "traverse", to: OPS });
+  assert.deepEqual(session.pending, [{ kind: "traverse", to: OPS }]);
   session.land();
   assert.equal(restingPlace(session.world), "IDLE at module:operaciones");
   assert.deepEqual(keys(session.entries), ["module:operaciones", "module:logistica"]);
-
   assert.deepEqual([tally.bursts, tally.appends, tally.overflows.length], [2, 1, 0]);
-  assert.deepEqual(broken, []);
+
+  // E7: a click over a pending restore issues a second navigation, and the two
+  // coexist. Whichever lands first, the burst adds exactly one entry.
+  for (const first of ["the click", "the restore"] as const) {
+    const restore = scripted(CLINIC, OPS, "logistica");
+    restore.session.deliver(selectModule("informes"));
+    assert.deepEqual(restore.session.pending, [
+      { kind: "replace", to: LOGISTICA },
+      { kind: "push", to: INFORMES },
+    ]);
+
+    if (first === "the click") {
+      restore.session.land(1);
+      assert.deepEqual(restore.session.pending, [], "H3: the restore, issued before what landed, never lands");
+      assert.deepEqual(keys(restore.session.entries), ["module:operaciones", "module:informes"]);
+    } else {
+      restore.session.land(0);
+      assert.equal(restingPlace(restore.session.world), "ROUTING at module:logistica", "row 11: recorded, not painted");
+      restore.session.land();
+      assert.deepEqual(keys(restore.session.entries), ["module:logistica", "module:informes"]);
+    }
+    assert.equal(restingPlace(restore.session.world), "IDLE at module:informes", first);
+    assert.deepEqual([restore.tally.appends, restore.tally.overflows.length, quiesce(restore.session)], [1, 0, null], first);
+    broken.push(...restore.broken);
+  }
+
+  // E1, what row 31 leaves behind: the relieved push lands before its relay and writes its own entry.
+  const relayed = scripted(CLINIC, OPS);
+  relayed.session.deliver(selectModule("informes"));
+  relayed.session.deliver(selectModule("logistica"));
+  relayed.session.deliver(budgetExpired(1));
+  assert.deepEqual(relayed.session.pending, [
+    { kind: "push", to: INFORMES },
+    { kind: "push", to: LOGISTICA },
+  ]);
+  assert.equal(quiesce(relayed.session), null);
+  assert.deepEqual(keys(relayed.session.entries), ["module:operaciones", "module:informes", "module:logistica"]);
+  assert.deepEqual(
+    [relayed.tally.lateLandings, relayed.tally.overflows.length],
+    [1, 0],
+    "outside the scope of S5(b): counted as the residual of §0.7, not as a breach",
+  );
+  assert.deepEqual([...broken, ...relayed.broken], []);
 });
 
 test("history · H2 · a push appends and drops the forward entries, lands in place on the current URL, and a replace overwrites", () => {
@@ -3244,10 +4020,10 @@ test("history · H2 · a push appends and drops the forward entries, lands in pl
   session.land();
   assert.deepEqual(keys(session.entries), ["module:operaciones", "module:perfil"], "the forward entries are gone");
 
-  // A→B→A with B in flight: row 25 pushes onto the current URL, which lands in place.
+  // A→B→A with B in flight: row 25 pushes onto the current URL, which discards B (E3) and lands in place.
   session.deliver(selectModule("informes"));
   session.deliver(selectModule("perfil"));
-  assert.deepEqual(session.pending, { kind: "push", to: PERFIL });
+  assert.deepEqual(session.pending, [{ kind: "push", to: PERFIL }]);
   const delivered = session.events.length;
   session.land();
   assert.deepEqual(keys(session.entries), ["module:operaciones", "module:perfil"], "no entry for the abandoned burst");
@@ -3257,7 +4033,7 @@ test("history · H2 · a push appends and drops the forward entries, lands in pl
 
   // A restore lands as a replace: zero entries for it (S5).
   const restore = scripted(ADMIN, NONE, "admin-pricing");
-  assert.deepEqual(restore.session.pending, { kind: "replace", to: PRICING });
+  assert.deepEqual(restore.session.pending, [{ kind: "replace", to: PRICING }]);
   restore.session.land();
   assert.deepEqual(keys(restore.session.entries), ["module:admin-pricing"]);
   assert.equal(restingPlace(restore.session.world), "IDLE at module:admin-pricing");
@@ -3293,7 +4069,7 @@ test("history · H5 · HARD_NAVIGATE is a document navigation: it ends the insta
   pushed.session.deliver(budgetExpired(1));
   pushed.session.deliver(RETRY);
   assert.ok(pushed.session.ended);
-  assert.equal(pushed.session.pending, null, "H1: the document navigation discards the held payload");
+  assert.deepEqual(pushed.session.pending, [], "H1: the document navigation discards the held payload");
   assert.deepEqual(keys(pushed.session.entries), ["module:operaciones", "module:informes"], "assign: one entry");
 
   const restored = scripted(CLINIC, OPS, "logistica");
@@ -3473,7 +4249,7 @@ function sessions(seed: number, count: number): History {
       const { boundary } = session;
       const flying = session.world.state;
       const options: [string, number][] = boundary ? [["reintentar", 3]] : [["select", 5], ["fail", 0.3]];
-      if (session.pending !== null) options.push(["land", 5]);
+      if (session.pending.length > 0) options.push(["land", 5]);
       if (!boundary && budgeted(flying)) options.push(["expire", 1.5]);
       if (session.index > 0) options.push(["back", 1.2]);
       if (session.index < session.entries.length - 1) options.push(["forward", 0.8]);
@@ -3483,7 +4259,8 @@ function sessions(seed: number, count: number): History {
       const action = (options.find(([, weight]) => (roll -= weight) < 0) ?? options[0])?.[0];
 
       if (action === "select") session.deliver(selection());
-      else if (action === "land") session.land();
+      // H1 as measured: any of the navigations pending may be the one that lands.
+      else if (action === "land") session.land(Math.floor(random() * session.pending.length));
       else if (action === "expire" && "navId" in flying) session.deliver(budgetExpired(flying.navId));
       else if (action === "retry") session.deliver(RETRY);
       else if (action === "back") session.back();
@@ -3536,9 +4313,13 @@ function sessions(seed: number, count: number): History {
 /** "S5V2" in ASCII. Changing it, the model or the machine changes SESSION_HASH. */
 const SESSION_SEED = 0x53355632;
 const SESSION_COUNT = 4_000;
-const SESSION_HASH = "f3b66b570889461e";
-/** §13.1: defences against what H1, H3 and H6 exclude; the closed loop cannot reach them. */
-const OPEN_LOOP_ONLY: readonly Branch[] = ["#11", "#13", "#23", "#26"];
+const SESSION_HASH = "5d15258d027a0c26";
+/**
+ * §13.1, rev. 2.3: with H1 as measured, rows #11, #23 and #32 are reached. What
+ * the closed loop still cannot reach is a cancelled timer that fires (#13) and
+ * the commit of a traverse after a push (#26), which the model keeps discarding.
+ */
+const OPEN_LOOP_ONLY: readonly Branch[] = ["#13", "#26"];
 
 let historyMemo: History | null = null;
 
@@ -3577,7 +4358,7 @@ test("history · 4 000 seeded sessions drive the router model in closed loop, re
   );
 });
 
-test("history · the rows the closed loop cannot reach are exactly the four defences of §13.1", () => {
+test("history · the rows the closed loop cannot reach are exactly the two defences of §13.1", () => {
   const { coverage } = history();
   assert.deepEqual(
     ROWS.filter((branch) => !coverage.branches.has(branch)),
@@ -3585,9 +4366,19 @@ test("history · the rows the closed loop cannot reach are exactly the four defe
   );
 });
 
-test("history · S5 · a burst of user selections appends at most one entry", () => {
+test("history · S5 · within its budget, a burst of user selections appends at most one entry", (t) => {
   const run = history();
-  assert.deepEqual(run.tally.overflows[0] ?? [], [], "a burst appended a second entry");
+  const { tally } = run;
+
+  assert.deepEqual(tally.overflows[0] ?? [], [], "a burst appended a second entry with no budget expired and no traverse pending");
+  assert.ok((run.coverage.branches.get("#29") ?? 0) > 0 && (run.coverage.branches.get("#30") ?? 0) > 0);
+
+  // Outside the scope of S5(b) (§0.7, §19): counted and reported, not asserted to be zero.
+  t.diagnostic(
+    `residual, counted: ${tally.lateLandings} second entries in bursts with an expired budget (a relieved navigation landed before its relay); ${tally.overTraverse} bursts pushed over a traverse not yet committed, with ${tally.overTraverseEntries} second entries`,
+  );
+  assert.ok(tally.lateLandings >= 0 && tally.overTraverseEntries <= tally.appends);
+  assert.ok(tally.overTraverse <= tally.bursts);
 });
 
 test("history · L6 · no flight and no stall is left with nothing pending in the router", (t) => {

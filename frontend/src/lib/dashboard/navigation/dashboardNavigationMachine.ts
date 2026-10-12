@@ -1,6 +1,6 @@
 /**
  * Dashboard navigation machine — the executable form of the normative table in
- * docs/audit/AUDITORIA_ARQUITECTURA_NAVEGACION_FSM_HOJA_DE_RUTA.md §12 (rev. 2.2.2).
+ * docs/audit/AUDITORIA_ARQUITECTURA_NAVEGACION_FSM_HOJA_DE_RUTA.md §12 (rev. 2.3).
  *
  * One explicit state per surface replaces the implicit refs of the two
  * workspace controllers. Every transition is a pure function of
@@ -57,6 +57,8 @@ export type NavState =
       readonly intent: "user" | "restore";
       readonly history: "push" | "replace";
       readonly afterTraverse: boolean;
+      /** The selection this user flight claimed and has not navigated; never `target` nor `committed`. */
+      readonly next: NavLocation | null;
     }
   | { readonly tag: "TRAVERSING"; readonly navId: number; readonly destination: NavLocation }
   | {
@@ -168,14 +170,17 @@ function includes(list: readonly NavLocation[], location: NavLocation): boolean 
   return list.some((entry) => same(entry, location));
 }
 
+function without(list: readonly NavLocation[], location: NavLocation): readonly NavLocation[] {
+  return list.filter((entry) => !same(entry, location));
+}
+
 /** `(superseded ∪ {replaced}) \ {next}`: the target in flight is never in it. */
 function supersede(
   list: readonly NavLocation[],
   replaced: NavLocation,
   next: NavLocation,
 ): readonly NavLocation[] {
-  const merged = includes(list, replaced) ? list : [...list, replaced];
-  return merged.filter((entry) => !same(entry, next));
+  return without(includes(list, replaced) ? list : [...list, replaced], next);
 }
 
 function cancelBudget(state: NavState): readonly NavEffect[] {
@@ -189,9 +194,9 @@ function stay(ctx: NavContext, state: NavState): TransitionResult {
 }
 
 /**
- * Rows #9, #14, #18, #21, #22, #23 and #28: every transition that rests on a
- * location just confirmed, or normalizes it. `lead` is the budget of the flight
- * it leaves, cancelled before anything else.
+ * Rows #9, #14, #18, #21, #22, #23, #28 and #32: every transition that rests on
+ * a location just confirmed, or normalizes it. `lead` is the budget of the
+ * flight it leaves, cancelled before anything else.
  */
 function settle(
   config: MachineConfig,
@@ -230,6 +235,7 @@ function settle(
       intent: "restore",
       history: "replace",
       afterTraverse: false,
+      next: null,
     },
     effects: [
       ...lead,
@@ -240,37 +246,59 @@ function settle(
   };
 }
 
-/** Rows #5, #7, #8, #10, #16 and #19: a user selection takes the flight. */
-function route(
+/**
+ * `issue` of §12.4. Rows #5, #7, #8, #10, #16 and #19: a user selection takes
+ * the flight. Rows #30 and #31: the selection a flight claimed leaves as a
+ * flight of its own. A `replace` continues a burst that already has its entry.
+ */
+function issue(
   ctx: NavContext,
   target: NavLocation,
+  history: "push" | "replace",
+  afterTraverse: boolean,
   lead: readonly NavEffect[],
   superseded: readonly NavLocation[],
-  afterTraverse: boolean,
 ): TransitionResult {
   const navId = ctx.nextNavId;
   return {
     ctx: { ...ctx, display: target, superseded, nextNavId: navId + 1 },
-    state: { tag: "ROUTING", navId, target, intent: "user", history: "push", afterTraverse },
+    state: { tag: "ROUTING", navId, target, intent: "user", history, afterTraverse, next: null },
     effects: [
       ...lead,
-      { type: "ROUTER_PUSH", to: target },
+      { type: history === "push" ? "ROUTER_PUSH" : "ROUTER_REPLACE", to: target },
       { type: "ARM_BUDGET", navId },
       PUBLISH_DISPLAY,
     ],
   };
 }
 
-/** Row #25: back to the committed location, which no commit could confirm. */
+/**
+ * Row #25: back to the committed location, which no commit could confirm. Rows
+ * #11, #26 and #30 record `committed` without persisting it, so its module is
+ * persisted here when it is not the one stored (C-11b).
+ */
 function returnToCommitted(
+  config: MachineConfig,
   ctx: NavContext,
   target: NavLocation,
   lead: readonly NavEffect[],
 ): TransitionResult {
+  const moduleId = persistable(config, ctx.committed);
+  const unsaved = moduleId !== null && moduleId !== ctx.lastModule;
   return {
-    ctx: { ...ctx, display: ctx.committed, superseded: [] },
+    ctx: {
+      ...ctx,
+      display: ctx.committed,
+      superseded: [],
+      lastModule: unsaved ? moduleId : ctx.lastModule,
+    },
     state: { tag: "IDLE" },
-    effects: [...lead, { type: "ROUTER_PUSH", to: target }, PUBLISH_DISPLAY],
+    effects: [
+      ...lead,
+      { type: "ROUTER_PUSH", to: target },
+      ...(unsaved ? [{ type: "PERSIST", module: moduleId } as const] : []),
+      PUBLISH_DISPLAY,
+    ],
   };
 }
 
@@ -297,6 +325,7 @@ function hydrate(config: MachineConfig, ctx: NavContext, event: HydratedEvent): 
         intent: "restore",
         history: "replace",
         afterTraverse: false,
+        next: null,
       },
       effects: [
         { type: "ROUTER_REPLACE", to: target },
@@ -323,7 +352,12 @@ function hydrate(config: MachineConfig, ctx: NavContext, event: HydratedEvent): 
   };
 }
 
-function select(ctx: NavContext, state: NavState, target: NavLocation | null): TransitionResult {
+function select(
+  config: MachineConfig,
+  ctx: NavContext,
+  state: NavState,
+  target: NavLocation | null,
+): TransitionResult {
   if (target === null) return stay(ctx, state); // #6
 
   switch (state.tag) {
@@ -332,34 +366,49 @@ function select(ctx: NavContext, state: NavState, target: NavLocation | null): T
       return stay(ctx, state);
     case "IDLE":
       if (same(target, ctx.committed)) return stay(ctx, state); // #4
-      return route(ctx, target, [], [], false); // #5 · #7 · #8
+      return issue(ctx, target, "push", false, [], []); // #5 · #7 · #8
     case "ROUTING":
-      if (same(target, state.target)) return stay(ctx, state);
-      if (same(target, ctx.committed)) return returnToCommitted(ctx, target, cancelBudget(state)); // #25
-      return route(
-        ctx,
-        target,
-        cancelBudget(state),
-        supersede(ctx.superseded, state.target, target),
-        state.afterTraverse,
-      ); // #10
+      if (same(target, state.next ?? state.target)) return stay(ctx, state);
+      if (same(target, ctx.committed)) {
+        return returnToCommitted(config, ctx, target, cancelBudget(state)); // #25
+      }
+      if (state.intent === "restore") {
+        // #10: a push over a pending replace adds one entry in either order.
+        return issue(
+          ctx,
+          target,
+          "push",
+          false,
+          cancelBudget(state),
+          supersede(ctx.superseded, state.target, target),
+        );
+      }
+      // #29: the flight in the router claims the selection; nothing navigates.
+      return {
+        ctx: { ...ctx, display: target },
+        state: { ...state, next: same(target, state.target) ? null : target },
+        effects: [PUBLISH_DISPLAY],
+      };
     case "TRAVERSING":
       if (same(target, state.destination)) return stay(ctx, state);
-      if (same(target, ctx.committed)) return returnToCommitted(ctx, target, cancelBudget(state)); // #25
-      return route(ctx, target, cancelBudget(state), ctx.superseded, true); // #19
+      if (same(target, ctx.committed)) {
+        return returnToCommitted(config, ctx, target, cancelBudget(state)); // #25
+      }
+      return issue(ctx, target, "push", true, cancelBudget(state), ctx.superseded); // #19
     case "STALLED":
       if (same(target, ctx.committed)) {
         if (same(target, state.target)) return stay(ctx, state);
-        return returnToCommitted(ctx, target, []); // #25
+        return returnToCommitted(config, ctx, target, []); // #25
       }
-      return route(
+      return issue(
         ctx,
         target,
+        state.intent === "user" ? state.history : "push",
+        false,
         [],
         same(target, state.target)
           ? ctx.superseded
           : supersede(ctx.superseded, state.target, target),
-        false,
       ); // #16
   }
 }
@@ -380,8 +429,28 @@ function commit(
     case "TRAVERSING":
       return settle(config, ctx, location, cancelBudget(state)); // #18
     case "ROUTING":
-      if (same(location, state.target)) return settle(config, ctx, location, cancelBudget(state)); // #9
-      if (includes(ctx.superseded, location)) return stay(ctx, state); // #11
+      if (same(location, state.target)) {
+        if (state.next === null) return settle(config, ctx, location, cancelBudget(state)); // #9
+        // #30: the flight landed and what the user wants is the selection it claimed.
+        return issue(
+          { ...ctx, committed: location },
+          state.next,
+          "replace",
+          state.afterTraverse,
+          cancelBudget(state),
+          without(ctx.superseded, state.next),
+        );
+      }
+      if (state.next !== null && same(location, state.next)) {
+        // #32: another navigation committed the claimed selection.
+        return settle(config, ctx, location, [
+          ...cancelBudget(state),
+          { type: "ROUTER_PUSH", to: location },
+        ]);
+      }
+      if (includes(ctx.superseded, location)) {
+        return { ctx: { ...ctx, committed: location }, state, effects: [] }; // #11
+      }
       if (state.afterTraverse) {
         // #26
         return {
@@ -393,7 +462,9 @@ function commit(
       return settle(config, ctx, location, cancelBudget(state)); // #23
     case "STALLED":
       if (same(location, state.target)) return settle(config, ctx, location, []); // #14
-      if (includes(ctx.superseded, location)) return stay(ctx, state); // #11
+      if (includes(ctx.superseded, location)) {
+        return { ctx: { ...ctx, committed: location }, state, effects: [] }; // #11
+      }
       return settle(config, ctx, location, []); // #23
   }
 }
@@ -421,6 +492,18 @@ function traverse(
 
 function expire(ctx: NavContext, state: NavState, navId: number): TransitionResult {
   if (state.tag === "ROUTING" && navId === state.navId) {
+    if (state.next !== null) {
+      // #31: one relay, in the history of the flight it relieves.
+      return issue(
+        ctx,
+        state.next,
+        state.history,
+        state.afterTraverse,
+        [],
+        supersede(ctx.superseded, state.target, state.next),
+      );
+    }
+
     // #12
     return {
       ctx,
@@ -482,6 +565,7 @@ function retry(ctx: NavContext, state: NavState): TransitionResult {
       intent: state.intent === "restore" ? "restore" : "user",
       history: state.history,
       afterTraverse: false,
+      next: null,
     },
     effects: [
       {
@@ -524,7 +608,7 @@ export function transition(
     case "SELECT_MODULE":
     case "SELECT_HUB":
     case "OPEN_ROUTE":
-      return select(ctx, state, targetOf(config, event));
+      return select(config, ctx, state, targetOf(config, event));
     case "URL_COMMITTED":
       return commit(config, ctx, state, event.location);
     case "TRAVERSE_STARTED":

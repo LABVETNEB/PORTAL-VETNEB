@@ -292,11 +292,12 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     section: "§6.2",
     metric: "LOC en test/unit/ui",
     historical: 29907,
+    baseline: 38130,
     compute: () => folderLines("test/unit/ui"),
-    resolution: "REPRODUCED",
+    resolution: "RECLASSIFIED",
     guard: BAND,
     motive:
-      "LOC por carpeta: magnitud no congelable (§31.2), y la remediación de 07/08 debe poder bajarla.",
+      "LOC por carpeta: magnitud no congelable (§31.2), y la remediación de 07/08 debe poder bajarla. Re-anclaje 29907 -> 38130: main@37698363654473011f05310f195d17d767a9691f producia 37339, a 45 lineas del tope de la banda 29907 +- 7477 (37384). La realineacion de la maquina de navegacion con rev. 2.3 de la hoja de ruta FSM suma 791 lineas netas en un unico archivo, test/unit/ui/dashboard/dashboard-navigation-machine.test.ts (3629 -> 4420), y ninguna en otro: la tabla transcrita pasa de 28 a 32 filas y de 113 a 119 ramas de guard con un caso literal por rama (171 -> 202), se agregan los invariantes S14, S15 y el alcance del reclamo, el modelo de historial pasa a llevar la lista de navegaciones pendientes (H1 y H3 medidos) y se suman las trazas de regresion de C-11 y C-11b. Crecimiento intencional y normativo (§16 de la hoja de ruta fija esa ubicacion para la suite): se re-ancla el baseline al valor medido despues de implementar, sin ampliar GROWTH_TOLERANCE, sin tolerancia propia y sin excluir ningun archivo del inventario.",
   },
   {
     row: "A0-06-FOLDERS",
