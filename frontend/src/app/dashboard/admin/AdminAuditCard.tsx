@@ -74,7 +74,9 @@ export function AdminAuditCard({
 
   const latestRequestRef = useRef(0);
   // The offset of the rows on screen (null until a page has loaded), and the
-  // one the last failed request asked for.
+  // one the last failed request asked for. After a failure `offset` goes back
+  // to the first and `rows` is the window on screen: range, pager and both
+  // presentations keep reading that one pair.
   const loadedOffsetRef = useRef<number | null>(null);
   const failedOffsetRef = useRef(0);
 
@@ -187,7 +189,8 @@ export function AdminAuditCard({
     limitChanged && reconciledOffset !== offset;
 
   useEffect(() => {
-    if (!limitChanged) {
+    // The kept window is not re-aligned to a page size it was not loaded with.
+    if (!limitChanged || pageRequestFailure) {
       return;
     }
 
@@ -195,7 +198,24 @@ export function AdminAuditCard({
       setOffset(reconciledOffset);
     }
     setReconciledLimit(effectiveLimit);
-  }, [effectiveLimit, limitChanged, offset, reconciledOffset]);
+  }, [effectiveLimit, limitChanged, offset, pageRequestFailure, reconciledOffset]);
+
+  // A resize whose request failed leaves rows loaded with another page size.
+  // The ones that no longer fit leave the window instead of being clipped, so
+  // the rows, their count and the range stay one coherent unit.
+  useEffect(() => {
+    if (pageRequestFailure && rows.length > effectiveLimit) {
+      setRows((current) => current.slice(0, effectiveLimit));
+    }
+  }, [effectiveLimit, pageRequestFailure, rows.length]);
+
+  // Leaving a kept window: the measured limit only sizes the request, and the
+  // target is taken from the rows on screen, so it is not re-aligned either.
+  function stepFromKeptWindow(nextOffset: number) {
+    setPageRequestFailure(null);
+    setReconciledLimit(effectiveLimit);
+    setOffset(nextOffset);
+  }
 
   useEffect(() => {
     // After a failed page request nothing asks again without the user.
@@ -231,12 +251,23 @@ export function AdminAuditCard({
   const hasNextPage = offset + rows.length < totalCount;
 
   function goToPreviousPage() {
-    setPageRequestFailure(null);
+    if (pageRequestFailure) {
+      stepFromKeptWindow(Math.max(0, offset - effectiveLimit));
+      return;
+    }
+
     setOffset(Math.max(0, offset - effectiveLimit));
   }
 
+  // After a failure the next page starts right after the last row shown: the
+  // kept rows may be fewer than the measured limit, and stepping by the limit
+  // would skip the records in between.
   function goToNextPage() {
-    setPageRequestFailure(null);
+    if (pageRequestFailure) {
+      stepFromKeptWindow(offset + rows.length);
+      return;
+    }
+
     setOffset(offset + effectiveLimit);
   }
 

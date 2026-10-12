@@ -250,7 +250,6 @@ export function InformesReportsList({
 
     if (
       requestInFlightRef.current ||
-      pageRequestFailure ||
       satisfiedQueryKeyRef.current === queryKey
     ) {
       return;
@@ -314,7 +313,7 @@ export function InformesReportsList({
         requestInFlightRef.current = false;
       }
     })();
-  }, [query, queryKey, pageRequestFailure]);
+  }, [query, queryKey]);
 
   function retryPageRequest() {
     setPageRequestFailure(null);
@@ -348,13 +347,38 @@ export function InformesReportsList({
       ? (reports[0] ?? null)
       : (reports.find((report) => report.id === selectedReportId) ?? null);
 
+  // The empty list and the load error also re-fetch once the canvas is
+  // measured, so the notice belongs to both result branches. Only one of them
+  // is on screen: there is never a second notice.
+  const pageRequestRecovery = pageRequestFailure ? (
+    <PageRequestRecovery
+      failure={pageRequestFailure}
+      onRetry={retryPageRequest}
+      reloadNotice="Al recargar se conservan la sesión y los filtros aplicados; se pierden la página actual y los filtros sin aplicar."
+    />
+  ) : null;
+
   const selectedReportTimelineSteps = selectedReport
     ? buildStudyTimelineSteps(selectedReport)
     : [];
 
+  // After a failed request the rows on screen can come from another page
+  // size than the measured one. Stepping from the measured size alone would
+  // skip or repeat records, so the step starts from the rows that are shown:
+  // the page holding the record after the last one, or before the first one.
+  const stepsFromShownRows = pageRequestFailure !== null;
+  const shownCount = visibleReports.length;
+
   function goToPreviousPage() {
     setPageRequestFailure(null);
     setRequestWindow((current) => {
+      if (stepsFromShownRows) {
+        return {
+          limit: effectiveLimit,
+          offset: normalizeOffsetForLimit(Math.max(0, current.offset - 1), effectiveLimit, totalCount),
+        };
+      }
+
       const currentOffset = normalizeOffsetForLimit(
         current.offset,
         effectiveLimit,
@@ -370,6 +394,13 @@ export function InformesReportsList({
   function goToNextPage() {
     setPageRequestFailure(null);
     setRequestWindow((current) => {
+      if (stepsFromShownRows) {
+        return {
+          limit: effectiveLimit,
+          offset: normalizeOffsetForLimit(current.offset + shownCount, effectiveLimit, totalCount),
+        };
+      }
+
       const currentOffset = normalizeOffsetForLimit(
         current.offset,
         effectiveLimit,
@@ -619,6 +650,7 @@ export function InformesReportsList({
             aria-labelledby="reports-list-heading"
             className="dashboard-master-panel flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-vetneb-line/75 bg-card/82"
           >
+            {pageRequestRecovery}
             <div className="shrink-0 border-b border-vetneb-line/70 px-4 py-3">
               <h2 id="reports-list-heading" className="dashboard-section-heading">
                 Lista de informes
@@ -658,14 +690,7 @@ export function InformesReportsList({
             data-dashboard-adaptive-reservation="true"
             className="dashboard-master-panel flex min-h-0 flex-col overflow-hidden rounded-xl border border-vetneb-line/75 bg-card/82"
           >
-            {pageRequestFailure ? (
-              <PageRequestRecovery
-                failure={pageRequestFailure}
-                onRetry={retryPageRequest}
-                reloadNotice="Al recargar se conservan la sesión y los filtros aplicados; se pierden la página actual y los filtros sin aplicar."
-              />
-            ) : null}
-
+            {pageRequestRecovery}
             <div className="shrink-0 border-b border-vetneb-line/70 px-4 py-2.5">
               <h2 id="reports-list-heading" className="dashboard-section-heading">
                 Lista de informes

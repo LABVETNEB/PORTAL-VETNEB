@@ -328,3 +328,26 @@ test("mutation: an automatic reload is detected wherever it is written", () => {
     ["router.refresh() runs outside an onClick handler"],
   );
 });
+
+// -- The notice exists wherever the failure can be recorded -------------------
+
+// Informes re-fetches after measuring its canvas in every result branch: with
+// rows, with none, and after a failed first load. Each branch mounts the one
+// notice; only one branch is ever on screen.
+function informesNoticeMounts(source: string): number {
+  return source.split("{pageRequestRecovery}").length - 1;
+}
+
+test("informes mounts its single notice from both result branches", () => {
+  const source = readSourceFile(INFORMES_LIST);
+
+  assert.equal(source.split("<PageRequestRecovery").length, 2, "one notice element");
+  assert.equal(informesNoticeMounts(source), 2, "the empty/error branch and the rows branch");
+  assert.equal(
+    informesNoticeMounts(
+      replaceOnce(source, "          >\n            {pageRequestRecovery}\n            <div className=\"shrink-0 border-b border-vetneb-line/70 px-4 py-3\">", "          >\n            <div className=\"shrink-0 border-b border-vetneb-line/70 px-4 py-3\">"),
+    ),
+    1,
+    "mutation: the shape of 41d428c5, where an empty list never showed the notice",
+  );
+});
