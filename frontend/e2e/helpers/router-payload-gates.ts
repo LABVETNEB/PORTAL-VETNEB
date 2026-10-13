@@ -56,7 +56,11 @@ export type RouterPayloadGates = {
   clearFailures(): void;
   /** Every answer the gates fabricated, in order. */
   injected(): readonly GateInjection[];
-  /** Removes the route and continues what is still held; returns the keys it had to let go. */
+  /**
+   * Retires the gates and continues what is still held; returns the keys it had
+   * to let go. From then on every payload falls through untouched: nothing is
+   * listed, held or fabricated, whatever was configured before.
+   */
   dispose(): Promise<string[]>;
 };
 
@@ -86,6 +90,13 @@ export async function installRouterPayloadGates(page: Page): Promise<RouterPaylo
   const keyOf = (route: Route) => payloadKey(route.request().url());
 
   const handler = async (route: Route) => {
+    // Disposal is a state of the handler, not an unroute(): Playwright removes a
+    // predicate route only by the identity of the function it was given, and
+    // E2E-GLOBAL-11 needs that predicate written inline below to resolve it.
+    if (disposed) {
+      await route.fallback();
+      return;
+    }
     if (route.request().headers()["next-router-prefetch"] !== undefined) {
       await route.continue();
       return;
@@ -110,7 +121,7 @@ export async function installRouterPayloadGates(page: Page): Promise<RouterPaylo
       await route.fulfill({ status: 200, headers, body: sent });
       return;
     }
-    if (holding && !disposed) {
+    if (holding) {
       held.push(route);
       return;
     }
@@ -197,18 +208,6 @@ export async function installRouterPayloadGates(page: Page): Promise<RouterPaylo
       disposed = true;
       holding = false;
       const leftover = held.map(keyOf);
-      await page.unroute(
-        (url) =>
-          (url.pathname === "/dashboard/admin" ||
-            url.pathname === "/dashboard" ||
-            url.pathname === "/dashboard/informes" ||
-            url.pathname === "/dashboard/logistica") &&
-          url.searchParams.has("_rsc"),
-        handler,
-      ).then(
-        () => true,
-        () => false /* the page is already closed */,
-      );
       for (const route of take([...held])) {
         await route.continue().then(
           () => true,

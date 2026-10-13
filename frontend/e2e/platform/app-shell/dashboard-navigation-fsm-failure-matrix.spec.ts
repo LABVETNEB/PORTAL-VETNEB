@@ -1366,6 +1366,35 @@ test.describe("DASHBOARD_NAVIGATION_FSM_FAILURE_MATRIX · model", () => {
   }
 });
 
+// ── The gates themselves ─────────────────────────────────────────────────────
+
+test.describe("DASHBOARD_NAVIGATION_FSM_FAILURE_MATRIX · gates", () => {
+  test("dispose() removes the route: a failure configured before it is never fabricated, and nothing is listed or held afterwards", async ({
+    page,
+  }) => {
+    const ctx: Ctx = { role: "clinic", dim: DIMS[0] };
+    const gates = await installRouterPayloadGates(page);
+    await open(page, ctx, moduleLoc("clinic", "informes"));
+    const documents = watchDocuments(page);
+
+    gates.hold();
+    gates.failNext("tokens", 500);
+    gates.cutNext("perfil", 0.5);
+    expect(await gates.dispose(), "nothing was held").toEqual([]);
+
+    for (const moduleId of ["tokens", "perfil"]) {
+      await bandItem(page, ctx, moduleId).click();
+      await expectView(page, ctx, moduleLoc("clinic", moduleId));
+    }
+    await expect(errorBoundary(page)).toHaveCount(0);
+    expect(gates.injected(), "a disposed gate fabricates nothing").toEqual([]);
+    expect(gates.requested(), "a disposed gate sees no payload").toEqual([]);
+    expect(gates.held()).toEqual([]);
+    expect(documents.take(), "both choices are client navigations").toEqual([]);
+    expect(await gates.dispose(), "disposing twice is inert").toEqual([]);
+  });
+});
+
 // ── The matrix counts itself ─────────────────────────────────────────────────
 
 test.describe("DASHBOARD_NAVIGATION_FSM_FAILURE_MATRIX · coverage", () => {
