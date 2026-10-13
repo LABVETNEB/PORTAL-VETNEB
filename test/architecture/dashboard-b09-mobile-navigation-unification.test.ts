@@ -756,17 +756,35 @@ test("B09 · the B13 hub primitives survive while the admin hub is retired", () 
   const controller = stripComments(
     read("frontend/src/app/dashboard/admin/AdminDashboardWorkspaceController.tsx"),
   );
+  // PR-NAV-03: the controller is a view of the navigation machine's display.
+  // The contracted hub-reset signal is still exported and now reaches the
+  // navigation owner, which hands it to the machine (rejected on admin, #6).
+  const adapter = stripComments(read("frontend/src/lib/admin-hub-reset.ts"));
+  const provider = stripComments(read("frontend/src/components/dashboard/DashboardNavigationProvider.tsx"));
+  const machine = stripComments(read("frontend/src/lib/dashboard/navigation/dashboardNavigationMachine.ts"));
   assert.ok(
-    controller.includes("subscribeAdminHubReset"),
-    "the contracted hub-reset subscription stays on the controller",
+    adapter.includes("export function requestAdminHubReset(): void {") && adapter.includes("owner?.selectHub();"),
+    "the contracted hub-reset signal stays exported and reaches the navigation owner",
   );
-  // Desktop/tablet space pass: the resolver is no longer scoped to the mobile
-  // regime; the null admin module resolves to the landing module at every width.
   assert.ok(
-    controller.includes("function resolveRetiredHub()"),
+    provider.includes('store.dispatch({ type: "SELECT_HUB" });'),
+    "the owner hands the hub reset to the machine",
+  );
+  // Desktop/tablet space pass: the resolver is not scoped to a width regime;
+  // an admin entry without a module is normalized to the landing module at
+  // every width, by the machine (`normalization`, rows #3 and `settle`).
+  assert.ok(
+    machine.includes('if (config.surface !== "admin" || location.kind !== "none") return null;') &&
+      machine.includes("module: valid(config, ctx.lastModule) ? ctx.lastModule : config.defaultModule,"),
     "the null admin module resolves to the landing module",
   );
-  assert.equal(controller.includes("matchMedia"), false, "the resolver is not gated on a width regime");
+  assert.ok(
+    provider.includes("defaultModule: DEFAULT_ADMIN_MODULE,"),
+    "the machine is configured with the admin catalog's operational default",
+  );
+  for (const [name, source] of [["controller", controller], ["provider", provider]] as const) {
+    assert.equal(source.includes("matchMedia"), false, `${name}: the resolver is not gated on a width regime`);
+  }
 });
 
 // ── T8b · B09_CLINIC_HOME_ITEM = RETIRED ─────────────────────────────────────

@@ -7,6 +7,10 @@ const NAVIGATION =
   "frontend/src/features/dashboard/application/dashboardModuleNavigation.ts";
 const CONTROLLER =
   "frontend/src/app/dashboard/admin/AdminDashboardWorkspaceController.tsx";
+const PROVIDER = "frontend/src/components/dashboard/DashboardNavigationProvider.tsx";
+const MACHINE = "frontend/src/lib/dashboard/navigation/dashboardNavigationMachine.ts";
+const COORDINATOR = "frontend/src/lib/dashboard/navigation/dashboardNavigationCoordinator.ts";
+const ADAPTER = "frontend/src/lib/admin-hub-reset.ts";
 const MOBILE_NAV = "frontend/src/components/dashboard/DashboardMobileNav.tsx";
 const DRAWER = "frontend/src/components/dashboard/NavigationDrawer.tsx";
 const RAIL = "frontend/src/components/dashboard/NavigationRail.tsx";
@@ -44,37 +48,77 @@ test("B13 · the admin entry grammar owns an explicit default and hub URL", () =
 });
 
 test("B13 · entry precedence preserves URL intent and resolves the retired hub", () => {
+  // PR-NAV-03: entry precedence is the navigation machine's (rows #1–#3 of the
+  // FSM roadmap §12.4), fed by the provider. The controller is its view.
   const source = read(CONTROLLER);
+  const provider = read(PROVIDER);
+  const machine = read(MACHINE);
 
+  for (const [path, owner] of [[CONTROLLER, source], [PROVIDER, provider]] as const) {
+    assert.ok(
+      owner.includes("parseAdminModule(searchParams.get(MODULE_QUERY_PARAM))"),
+      `${path}: module parsing remains the URL authority`,
+    );
+  }
   assert.ok(
-    source.includes("parseAdminModule(searchParams.get(MODULE_QUERY_PARAM))"),
-    "module parsing remains the controller's URL authority",
-  );
-  assert.ok(
-    source.includes(
-      "if (searchParams.get(MODULE_QUERY_PARAM) || isAdminHubRequested(searchParams)) return;",
+    provider.includes(
+      "const explicit = searchParams.has(MODULE_QUERY_PARAM) || searchParams.has(HUB_QUERY_PARAM);",
     ),
-    "any module URL and ?hub=1 win over storage",
+    "the entry tells the machine whether the URL carried a module or ?hub=1, valid or not",
   );
   assert.ok(
-    source.includes("const landingModule = lastModule ?? DEFAULT_ADMIN_MODULE;"),
+    machine.includes('if (event.location.kind !== "none") return null;'),
+    "a URL that resolves to a module wins over storage",
+  );
+  assert.ok(
+    provider.includes(
+      "storedModule: parseAdminModule(readDashboardLastModule(ADMIN_LAST_MODULE_STORAGE_KEY)),",
+    ) &&
+      machine.includes(
+        'return { kind: "module", module: valid(config, stored) ? stored : config.defaultModule };',
+      ) &&
+      provider.includes("defaultModule: DEFAULT_ADMIN_MODULE,"),
     "missing, stale, or unavailable storage falls back to the default",
   );
+  const hydrate = machine.slice(machine.indexOf("function hydrate("), machine.indexOf("function select("));
   assert.ok(
-    source.includes("buildDashboardModuleHref(ROUTES.dashboardAdmin, landingModule)"),
+    hydrate.includes('{ type: "ROUTER_REPLACE", to: target },') &&
+      hydrate.includes("ROUTER_PUSH") === false &&
+      provider.includes('else if (effect.type === "ROUTER_REPLACE") router.replace(href, { scroll: false });') &&
+      provider.includes("buildDashboardModuleHref(ROUTES.dashboardAdmin, location.module)"),
     "the bare landing is canonicalized with replace",
   );
   // Desktop/tablet space pass: the hub is retired at every width, so nothing
   // navigates TO it any more (no back-to-hub control, no hub tiles feeding a
   // two-commit activation buffer). The contracted hub-reset signal is still
-  // honoured and still lands on the resolver below.
+  // exported and reaches the navigation owner.
   assert.equal(source.includes("buildAdminHubHref"), false, "no control links or replaces into the hub");
   assert.equal(source.includes("onBack="), false, "modules carry no back-to-hub control");
   assert.equal(source.includes("pendingActivation"), false, "the hub-tile activation buffer left with the tiles");
-  assert.ok(source.includes("setHasManuallyReturnedToHub(true);"), "the contracted hub-reset signal is still honoured");
-  assert.ok(source.includes("pendingNavigationIntent"));
-  assert.ok(source.includes("previousUrlModule"));
-  assert.ok(source.includes("currentUrlModule"));
+  assert.ok(
+    read(ADAPTER).includes("export function requestAdminHubReset(): void {") &&
+      provider.includes('store.dispatch({ type: "SELECT_HUB" });'),
+    "the contracted hub-reset signal is still honoured",
+  );
+  // One owner: the refs that used to classify commits in the controller are
+  // gone, not duplicated next to the machine.
+  for (const retired of [
+    "pendingNavigationIntent",
+    "previousUrlModule",
+    "currentUrlModule",
+    "supersededTargets",
+    "pushedFrom",
+    "hasRestoredLastModule",
+    "useRouter",
+    "useNavigationFlight",
+    "window.history",
+  ]) {
+    assert.equal(source.includes(retired), false, `the controller keeps no navigation state of its own: ${retired}`);
+  }
+  assert.ok(
+    source.includes("const activeModule = navigation === null ? urlModule : navigation.module;"),
+    "the stage shows the machine's display",
+  );
 });
 
 test("B13 · no admin surface links the retired Inicio and persistence is kept", () => {
@@ -112,21 +156,46 @@ test("B13 · at every width the admin hub resolves to the landing module, never 
   // it from 768px up, so the resolver is no longer gated on a media query.
   assert.equal(source.includes("matchMedia"), false, "the retirement is not scoped to a width regime");
   assert.equal(source.includes("ADMIN_MOBILE_REGIME_QUERY"), false);
-  const effectStart = source.indexOf("function resolveRetiredHub()");
-  assert.ok(effectStart !== -1, "the null module state has a resolver");
-  const effect = source.slice(effectStart, source.indexOf("}, [activeModule, accessErrorStatus", effectStart));
-  assert.ok(effect.includes("if (pendingNavigationIntent.current) return;"), "a navigation already in flight wins");
+  // PR-NAV-03: the resolver is the machine's `normalization`, reached by rows
+  // #3 and `settle`. It replaced the controller's native `replaceState`.
+  const machine = read(MACHINE);
+  const provider = read(PROVIDER);
+  const resolverStart = machine.indexOf("function normalization(");
+  assert.ok(resolverStart !== -1, "the null module state has a resolver");
+  const resolver = machine.slice(resolverStart, machine.indexOf("function persistable(", resolverStart));
   assert.ok(
-    effect.includes("parseAdminModule(readDashboardLastModule(ADMIN_LAST_MODULE_STORAGE_KEY)) ??")
-      && effect.includes("DEFAULT_ADMIN_MODULE"),
+    resolver.includes('if (config.surface !== "admin" || location.kind !== "none") return null;'),
+    "a module already in the URL wins over the landing fallback",
+  );
+  assert.ok(
+    resolver.includes("module: valid(config, ctx.lastModule) ? ctx.lastModule : config.defaultModule,") &&
+      provider.includes("defaultModule: DEFAULT_ADMIN_MODULE,"),
     "the hub lands where a bare route lands: last module, else the default (Resumen)",
   );
-  assert.ok(effect.includes("window.history.replaceState("), "the hub URL is replaced, not stacked in history");
-  assert.equal(effect.includes("router."), false, "the fallback never enters the router queue, so it cannot overtake a user navigation");
+  const settle = machine.slice(machine.indexOf("function settle("), machine.indexOf("function issue("));
   assert.ok(
-    effect.includes("parseAdminModule(new URLSearchParams(window.location.search).get(MODULE_QUERY_PARAM))"),
-    "a module already in the live URL wins over the landing fallback",
+    settle.includes('intent: "restore",') &&
+      settle.includes('{ type: "ROUTER_REPLACE", to: target },') &&
+      settle.includes("ROUTER_PUSH") === false,
+    "the hub URL is replaced, not stacked in history",
   );
+  // The fallback is now a router navigation, so what protects a user
+  // navigation is no longer "it never enters the router queue": a selection
+  // over a pending restore leaves at once (#10) and the restore's own commit is
+  // recorded without being painted (#11).
+  assert.ok(
+    machine.includes('if (state.intent === "restore") {') &&
+      machine.includes("return { ctx: { ...ctx, committed: location }, state, effects: [] }; // #11"),
+    "a user navigation over the pending fallback wins, and the fallback's late commit never repaints",
+  );
+  // S9: no native history effect anywhere in the navigation owner.
+  for (const path of [CONTROLLER, PROVIDER, COORDINATOR]) {
+    assert.equal(
+      /history\.(pushState|replaceState|back|forward|go)\(/.test(read(path)),
+      false,
+      `${path}: the owner navigates through the router only`,
+    );
+  }
   for (const retired of ["DashboardModuleHub", "DashboardHubHero", "data-admin-hub-surface", "Módulos de administración", "Abrir administración"]) {
     assert.equal(source.includes(retired), false, `the hub surface is gone: ${retired}`);
   }

@@ -18,6 +18,10 @@ const ADMIN_CONTROLLER_PATH =
   "frontend/src/app/dashboard/admin/AdminDashboardWorkspaceController.tsx";
 const CLINIC_CONTROLLER_PATH =
   "frontend/src/components/dashboard/ClinicDashboardWorkspaceController.tsx";
+const ADMIN_NAVIGATION_PROVIDER_PATH =
+  "frontend/src/components/dashboard/DashboardNavigationProvider.tsx";
+const NAVIGATION_MACHINE_PATH =
+  "frontend/src/lib/dashboard/navigation/dashboardNavigationMachine.ts";
 
 const globalRef = globalThis as { window?: unknown };
 
@@ -210,45 +214,66 @@ test("dashboard last-module helper stores no sensitive identifiers", () => {
 // ── 9.3 Admin / clinic navigation contracts ─────────────────────────────────
 
 test("admin controller persists/restores with the admin key and replace-only restore", () => {
-  const source = read(ADMIN_CONTROLLER_PATH);
+  // PR-NAV-03: persistence and restore belong to the navigation machine; the
+  // provider is the only place that touches the admin key. The controller, now
+  // a view of the machine's display, reads and writes no storage at all.
+  const controller = read(ADMIN_CONTROLLER_PATH);
+  const source = read(ADMIN_NAVIGATION_PROVIDER_PATH);
+  const machine = read(NAVIGATION_MACHINE_PATH);
 
   assert.ok(source.includes("ADMIN_LAST_MODULE_STORAGE_KEY"));
   assert.equal(source.includes("CLINIC_LAST_MODULE_STORAGE_KEY"), false);
+  for (const storage of ["ADMIN_LAST_MODULE_STORAGE_KEY", "writeDashboardLastModule", "readDashboardLastModule"]) {
+    assert.equal(controller.includes(storage), false, `the admin controller no longer owns ${storage}`);
+  }
 
+  // PERSIST is the only writer, and the machine emits it on confirmations only
+  // (§12.5): an optimistic module the URL never committed is never stored.
   assert.ok(
     source.includes(
-      "writeDashboardLastModule(ADMIN_LAST_MODULE_STORAGE_KEY, activeModule)",
+      "persist: (moduleId) => writeDashboardLastModule(ADMIN_LAST_MODULE_STORAGE_KEY, moduleId),",
     ),
   );
+  assert.equal(source.split("writeDashboardLastModule(").length - 1, 1);
   assert.ok(
     source.includes("readDashboardLastModule(ADMIN_LAST_MODULE_STORAGE_KEY)"),
   );
+  assert.equal(source.split("readDashboardLastModule(").length - 1, 1, "storage is read once, for HYDRATED");
 
   // Any URL module (including an invalid legacy value) and the explicit hub
-  // keep priority over storage. A bare entry falls back to the explicit
-  // operational default when storage is absent, stale, or unavailable.
+  // are reported to the machine as explicit. A bare entry falls back to the
+  // explicit operational default when storage is absent, stale, or unavailable.
   assert.ok(
     source.includes(
-      "if (searchParams.get(MODULE_QUERY_PARAM) || isAdminHubRequested(searchParams)) return;",
+      "const explicit = searchParams.has(MODULE_QUERY_PARAM) || searchParams.has(HUB_QUERY_PARAM);",
     ),
   );
-  assert.ok(source.includes("const landingModule = lastModule ?? DEFAULT_ADMIN_MODULE;"));
+  assert.ok(source.includes("defaultModule: DEFAULT_ADMIN_MODULE,"));
+  assert.ok(
+    machine.includes(
+      'return { kind: "module", module: valid(config, stored) ? stored : config.defaultModule };',
+    ),
+  );
 
   // Restore uses replace, never push (no history pollution, no loop).
-  assert.ok(source.includes("buildDashboardModuleHref(ROUTES.dashboardAdmin, landingModule)"));
+  const hydrate = machine.slice(machine.indexOf("function hydrate("), machine.indexOf("function select("));
+  assert.ok(hydrate.includes('{ type: "ROUTER_REPLACE", to: target },'));
+  assert.equal(hydrate.includes("ROUTER_PUSH"), false);
+  assert.ok(source.includes("buildDashboardModuleHref(ROUTES.dashboardAdmin, location.module)"));
   assert.equal(
     source.includes("router.push(`/dashboard/admin?module=${lastModule}`"),
     false,
   );
+  // The restore is a landing-only one-shot by construction: only HYDRATED,
+  // the first event of a store, can produce it, and BOOTING is never re-entered.
   assert.ok(
-    source.includes(
-      "if (hasRestoredLastModule.current || hasManuallyReturnedToHub) return;",
-    ),
+    machine.includes('return state.tag === "BOOTING" ? hydrate(config, ctx, event) : stay(ctx, state); // #1–#3'),
   );
 
-  // Hub stays accessible; storage stays centralized in the allowlisted helper.
-  assert.ok(source.includes("setHasManuallyReturnedToHub(true);"));
+  // Hub stays addressable; storage stays centralized in the allowlisted helper.
+  assert.ok(read("frontend/src/lib/admin-hub-reset.ts").includes("export function requestAdminHubReset(): void {"));
   assert.equal(source.includes("localStorage"), false);
+  assert.equal(controller.includes("localStorage"), false);
 });
 
 test("clinic controller persists/restores with the clinic key and replace-only restore", () => {

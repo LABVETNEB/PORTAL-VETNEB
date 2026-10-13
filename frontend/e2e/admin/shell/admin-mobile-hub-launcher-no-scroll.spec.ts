@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { setAdminSession } from "../../helpers/session";
 import { MAX_DOCUMENT_SCROLL_DELTA_PX } from "../../helpers/zero-scroll-contract";
+import { ADMIN_LAST_MODULE_STORAGE_KEY } from "../../../src/lib/dashboard-last-module";
 
 // Pre-C05 mobile space: below 768px the admin "Inicio" module — the hub and its
 // two launcher pages — is retired. A hub request lands on the same module a
@@ -117,6 +118,16 @@ test("Admin mobile hub request lands on the persisted last module, never on the 
   await setAdminSession(page, "populated");
   await page.goto("/dashboard/admin?module=audit-log");
   await expect(page.locator('[data-dashboard-module-workspace="audit-log"]')).toBeVisible({ timeout: 15_000 });
+  // The server paints the workspace before the app hydrates, and the module is
+  // stored on hydration. Leaving on the paint alone abandons the document with
+  // nothing stored yet, and the hub request then lands on the default module.
+  // The precondition of this test is the stored module: it waits for that.
+  await expect
+    .poll(() => page.evaluate((key) => window.localStorage.getItem(key), ADMIN_LAST_MODULE_STORAGE_KEY), {
+      message: "the visited module is persisted once the app hydrates",
+      timeout: 15_000,
+    })
+    .toBe("audit-log");
 
   await page.goto("/dashboard/admin?hub=1");
   await expect(page).toHaveURL(/\/dashboard\/admin\?module=audit-log$/, { timeout: 15_000 });

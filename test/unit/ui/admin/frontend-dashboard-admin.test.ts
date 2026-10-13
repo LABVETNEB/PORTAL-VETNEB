@@ -376,14 +376,21 @@ test("AdminDashboardWorkspaceController syncs module from URL with useSearchPara
     /import\s*\{[\s\S]*?MODULE_QUERY_PARAM,[\s\S]*?\}\s*from\s*"@\/features\/dashboard\/application";/,
   );
   assert.ok(source.includes('searchParams.get(MODULE_QUERY_PARAM)'));
+  // PR-NAV-03: the controller is a view. The URL module is derived in render,
+  // and the module on stage is the navigation machine's display, which moves
+  // in the same commit as the URL; no effect copies the URL into state.
   assert.ok(
-    source.includes('setActiveModule(parseAdminModule(searchParams.get(MODULE_QUERY_PARAM)));'),
+    source.includes('const urlModule = parseAdminModule(searchParams.get(MODULE_QUERY_PARAM));'),
   );
-  // Keyed on the url; `router` is the stable instance the single-flight
-  // reconcile replaces with, and `flight` the owner's stable navigation flight.
-  assert.ok(source.includes('[searchParams, router, flight]'));
+  assert.ok(
+    source.includes('const activeModule = navigation === null ? urlModule : navigation.module;'),
+  );
+  assert.equal(source.includes('setActiveModule'), false);
+  // The only effect keyed on the module is the access-error reset.
+  assert.ok(source.includes('[activeModule, urlModule]'));
   assert.ok(source.includes('from "next/navigation"'));
-  assert.ok(source.includes('useRouter, useSearchParams'));
+  assert.ok(source.includes('import { useSearchParams } from "next/navigation";'));
+  assert.equal(source.includes('useRouter'), false, 'the view navigates nothing');
 
   const catalog = read(CATALOG_PATH);
   assert.ok(catalog.includes('export const ADMIN_MODULE_IDS = ['));

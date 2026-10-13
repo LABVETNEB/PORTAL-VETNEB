@@ -95,6 +95,13 @@ test.describe("PR-VIS-8 axe accessibility on key routes", () => {
           await expect(page).toHaveURL(routeCase.readyUrl, { timeout: 8_000 });
           await expect(page.locator('[data-dashboard-module-hub="true"]')).toHaveCount(0);
         }
+        // A client navigation re-renders the route's metadata: the <title>
+        // leaves the head in the commit that lands the route and is back a few
+        // milliseconds later. The admin landing lands through one (its bare
+        // entry is normalized by a router.replace), and that same commit is what
+        // makes the workspace and the URL above ready. The page is ready for an
+        // audit once it has its title; the document-title rule stays enforced.
+        await expect(page).toHaveTitle(/\S/);
 
         const results = await new AxeBuilder({ page })
           .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
