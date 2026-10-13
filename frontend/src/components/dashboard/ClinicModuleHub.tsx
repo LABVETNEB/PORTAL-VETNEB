@@ -5,6 +5,7 @@ import {
   DEFAULT_CLINIC_MODULE,
   type ClinicModule,
 } from "@/features/dashboard/config";
+import { requestClinicModuleActivate } from "@/lib/clinic-hub-reset";
 import { ROUTES } from "@/lib/routes";
 import { clinicModuleHref } from "@/lib/dashboard/navigation/clinicNavigationState";
 import {
@@ -27,6 +28,10 @@ import { CLINIC_MODULE_ICONS } from "./dashboardModuleIcons";
  * for the same reason the mobile context title is: a private label copy is what
  * drifts. Hrefs go through `clinicModuleHref`, so the default module is spelled
  * as the bare `/dashboard` and the hub cannot mint a second URL for one surface.
+ *
+ * A tile is a module selection like the band's, the bar's and the search's: it
+ * asks the navigation owner first and navigates on its own only when the owner
+ * declines (`lib/clinic-hub-reset.ts`).
  *
  * CLIENT component by necessity, not by preference: the tiles carry Lucide icon
  * COMPONENTS, and `page.tsx` hands this element to the client-side controller.
@@ -54,6 +59,7 @@ const CLINIC_HUB_CARDS: DashboardModuleCard[] = CLINIC_MODULE_NAV_LABELS.map(
       entry.moduleId,
     ),
     moduleId: entry.moduleId,
+    claim: () => requestClinicModuleActivate(entry.moduleId),
   }),
 );
 

@@ -83,6 +83,19 @@ async function expectHub(page: Page) {
   await expect(page.locator("[data-dashboard-module-workspace]")).toHaveCount(0);
 }
 
+/** A card of the hub's own launcher (the grid from 768px up). */
+function hubCard(page: Page, moduleId: string) {
+  return page.locator(`[data-dashboard-module-card="${moduleId}"]`).filter({ visible: true });
+}
+
+/** The hub, hydrated and at rest. */
+async function openHub(page: Page) {
+  await page.goto(`${BASE}?hub=1`);
+  await expectHub(page);
+  await page.locator("[data-public-route-control-hydrated]").first().waitFor({ state: "attached" });
+  await page.waitForLoadState("networkidle");
+}
+
 function historyLength(page: Page): Promise<number> {
   return page.evaluate(() => window.history.length);
 }
@@ -391,6 +404,161 @@ test.describe("DASHBOARD_NAVIGATION_FSM_CLINIC", () => {
     await expect(page).toHaveURL(moduleUrl("logistica"));
     await expectShown(page, "logistica");
     expect(reloads.documents, "client navigation, never a reload").toEqual([]);
+  });
+
+  // ── The hub's own cards are selections of the owner, like every other control ──
+
+  test("hub card: the click swaps the stage at once, the next choice on the band is claimed, and the burst leaves one entry over the hub (#5, #29, #30)", async ({
+    page,
+  }) => {
+    const payloads = await controlRouterPayloads(page);
+    const reloads = watchDocuments(page);
+    await openHub(page);
+    const length = await historyLength(page);
+
+    reloads.arm();
+    payloads.hold();
+    await hubCard(page, "informes").click();
+    // The owner took the selection: the stage shows it before any payload
+    // answers, and the URL is still the hub's.
+    await expectShown(page, "informes");
+    await expect(page).toHaveURL(HUB_URL);
+    expect(payloads.requested()).toEqual(["informes"]);
+
+    await navItem(page, "tokens").click();
+    await expectShown(page, "tokens");
+    expect(payloads.requested(), "the choice made over the card's flight is claimed, not pushed").toEqual(["informes"]);
+    const divergence = await recordDivergenceFrom(page, "tokens");
+
+    expect(await payloads.releaseOnly("informes")).toBeGreaterThan(0);
+    await expect.poll(() => payloads.requested()).toEqual(["informes", "tokens"]);
+    await payloads.release();
+    await expect(page).toHaveURL(moduleUrl("tokens"));
+    await expectShown(page, "tokens");
+    expect(await divergence(), "the card's module repainted after the next choice").toEqual([]);
+    expect(await historyLength(page), "the hub and the module the burst ended on").toBe(length + 1);
+
+    await page.goBack();
+    await expect(page).toHaveURL(HUB_URL);
+    await expectHub(page);
+    await page.goForward();
+    await expect(page).toHaveURL(moduleUrl("tokens"));
+    await expectShown(page, "tokens");
+    expect(reloads.documents, "client navigation, never a reload").toEqual([]);
+  });
+
+  test("hub card then the app-bar search: the search choice is claimed by the card's flight and lands with one entry", async ({
+    page,
+  }) => {
+    const payloads = await controlRouterPayloads(page);
+    await openHub(page);
+    const length = await historyLength(page);
+
+    payloads.hold();
+    await hubCard(page, "logistica").click();
+    await expectShown(page, "logistica");
+    const search = page.locator('[data-workspace-app-bar-search-input="true"]').filter({ visible: true });
+    await search.fill("Perfil");
+    await search.press("Enter");
+    await expectShown(page, "perfil");
+    expect(payloads.requested(), "the search choice waits for the card's flight").toEqual(["logistica"]);
+
+    await payloads.release();
+    await expect(page).toHaveURL(moduleUrl("perfil"));
+    await expectShown(page, "perfil");
+    expect(payloads.requested()).toEqual(["logistica", "perfil"]);
+    expect(await historyLength(page)).toBe(length + 1);
+  });
+
+  test("hub card by keyboard: a payload that never answers stalls within the budget and Reintentar reloads the destination (L2, L3)", async ({
+    page,
+  }) => {
+    await page.clock.install();
+    const payloads = await controlRouterPayloads(page);
+    const reloads = watchDocuments(page);
+    await openHub(page);
+
+    payloads.hold();
+    const card = hubCard(page, "tokens");
+    await card.focus();
+    await expect(card).toBeFocused();
+    await expect(card).toHaveAccessibleName(/^Tokens: /);
+    await page.keyboard.press("Enter");
+    await expectShown(page, "tokens");
+    await expect(page).toHaveURL(HUB_URL);
+    await expect(stalledNotice(page)).toHaveCount(0);
+
+    await page.clock.fastForward(PAST_THE_BUDGET_MS);
+    const notice = stalledNotice(page);
+    await expect(notice).toBeVisible();
+    await expect(notice).toHaveAttribute("role", "status");
+    await expectShown(page, "tokens");
+    expect(payloads.requested(), "the budget re-issues nothing by itself").toEqual(["tokens"]);
+
+    reloads.arm();
+    await notice.getByRole("button", { name: "Reintentar" }).click();
+    await expect(page).toHaveURL(moduleUrl("tokens"));
+    await expectShown(page, "tokens");
+    await expect(stalledNotice(page)).toHaveCount(0);
+    expect(reloads.documents.length, "the retry is one document navigation to the destination").toBe(1);
+  });
+
+  test("hub card with a truncated payload: the boundary mounts with no budget left behind and Reintentar recovers without a reload", async ({
+    page,
+  }) => {
+    await page.clock.install();
+    const payloads = await controlRouterPayloads(page);
+    const reloads = watchDocuments(page);
+    await openHub(page);
+
+    payloads.cut("perfil");
+    reloads.arm();
+    await hubCard(page, "perfil").click();
+    await expect(errorBoundary(page)).toBeVisible({ timeout: 15_000 });
+    await expect(page).toHaveURL(moduleUrl("perfil"));
+    await page.clock.fastForward(PAST_THE_BUDGET_MS);
+    await expect(stalledNotice(page)).toHaveCount(0);
+
+    payloads.uncut();
+    await errorBoundary(page).getByRole("button", { name: "Reintentar" }).click();
+    await expect(errorBoundary(page)).toHaveCount(0, { timeout: 15_000 });
+    await expect(page).toHaveURL(moduleUrl("perfil"));
+    await expectShown(page, "perfil");
+    expect(reloads.documents, "recovery is retry(), never a reload").toEqual([]);
+
+    await page.goBack();
+    await expect(page).toHaveURL(HUB_URL);
+    await expectHub(page);
+  });
+
+  test("hub tile below 768px: the launcher tile is a selection of the owner too, and the bar's next choice is claimed", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const bar = page.locator('[data-dashboard-mobile-nav="clinic"]').filter({ visible: true });
+    const payloads = await controlRouterPayloads(page);
+    await openHub(page);
+    const length = await historyLength(page);
+
+    payloads.hold();
+    await page.locator('[data-admin-mobile-hub-tile="informes"]').filter({ visible: true }).click();
+    await expect(page.locator('[data-dashboard-module-workspace="informes"]')).toBeVisible();
+    await expect(page.locator("[data-dashboard-module-workspace]")).toHaveCount(1);
+    await expect(bar.locator('[aria-current="page"]')).toHaveAttribute("data-dashboard-mobile-nav-item", "informes");
+    await expect(page).toHaveURL(HUB_URL);
+
+    await bar.locator('[data-dashboard-mobile-nav-item="tokens"]').click();
+    await expect(page.locator('[data-dashboard-module-workspace="tokens"]')).toBeVisible();
+    expect(payloads.requested(), "the bar's choice is claimed by the tile's flight").toEqual(["informes"]);
+
+    await payloads.release();
+    await expect(page).toHaveURL(moduleUrl("tokens"));
+    await expect(page.locator('[data-dashboard-module-workspace="tokens"]')).toBeVisible();
+    await expect(bar.locator('[aria-current="page"]')).toHaveAttribute("data-dashboard-mobile-nav-item", "tokens");
+    expect(await historyLength(page)).toBe(length + 1);
+    await page.goBack();
+    await expect(page).toHaveURL(HUB_URL);
+    await expectHub(page);
   });
 
   test("the default module is navigated to as the bare URL, and returning to it while it is committed adds no entry (#5, #25)", async ({

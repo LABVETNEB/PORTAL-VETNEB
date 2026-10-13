@@ -10,6 +10,11 @@ export type DashboardModuleCard = {
   title: string;
   description: string;
   href?: string;
+  /**
+   * Asked on activation, before the card navigates to `href`. `true` means the
+   * navigation owner took the selection and the card must not navigate.
+   */
+  claim?: () => boolean;
   onClick?: () => void;
   badge?: ReactNode;
   actionLabel?: string;
@@ -155,6 +160,9 @@ export function DashboardModuleHub({
                     aria-label={ariaLabel}
                     title={card.description}
                     data-dashboard-module-card={card.moduleId}
+                    onClick={(event) => {
+                      if (card.claim?.()) event.preventDefault();
+                    }}
                     className={sharedClassName}
                   >
                     {cardBody}

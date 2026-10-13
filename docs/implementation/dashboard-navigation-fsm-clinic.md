@@ -29,7 +29,8 @@ DT-16 (opción A). **DT-13 sigue pendiente** y no se resuelve aquí (§7).
 
 **Incluido.** El provider de PR-NAV-03 pasa a tener una superficie por store (Admin y Clínica) sobre el mismo
 coordinador; corte del controlador de Clínica; adaptador de entrada de Clínica; selector de `display` para el
-chrome de Clínica en `/dashboard` (`useStageModule.ts`); aviso de `STALLED` en el stage de Clínica; realineación de los guards que anclaban el mecanismo retirado o la exclusividad de Admin en
+chrome de Clínica en `/dashboard` (`useStageModule.ts`); tarjetas del hub de Clínica como selecciones del owner
+(`ClinicModuleHub.tsx`, `DashboardModuleHub.tsx`, `AdminMobileLauncherTile.tsx`, §10.2); aviso de `STALLED` en el stage de Clínica; realineación de los guards que anclaban el mecanismo retirado o la exclusividad de Admin en
 el provider; E2E de la ficha y sus censos.
 
 **Excluido, deliberadamente.**
@@ -271,7 +272,7 @@ resto de `dashboard-global-live-navigation-sync`; `navigation-truncated-stream-r
   pide el payload del módulo almacenado (D-12), no existe aviso de `STALLED` y la frontera no tiene owner.
 
 **GREEN.** El mismo unit, 17 de 17; el spec, 32 de 32 (después del RED se agregaron el caso DT-10 y los dos
-de la auditoría de cierre, §10.1).
+de la auditoría de cierre, §10.1; después, los cinco del review, §10.2: 37 de 37).
 
 **Defecto hallado por la cohorte, no por las corridas dirigidas.** La primera `e2e:visual-contract` falló en
 `dashboard-real-pointer-navigation`, bloque *clinic full routes*, "A then B before A commits keeps B across
@@ -306,6 +307,41 @@ Mutantes del punto E, cada uno aplicado a `DashboardNavigationProvider.tsx` y re
 | Módulos de Admin leídos con la gramática de Clínica | `b13-admin-entry`, `last-module`, `lateral-navigation` |
 | Una segunda escritura de almacenamiento | `last-module` |
 | La restauración de Admin sale por `push` | `b13-admin-entry` |
+
+### 10.2. Review de #1859 (P2): las tarjetas del hub no pasaban por el owner
+
+El review automático de #1859 señaló, sobre `dee6bd83`, que las tarjetas de `ClinicModuleHub` seguían siendo
+`PublicRouteControl` sin `requestClinicModuleActivate`. **Confirmado**, por lectura y en navegador.
+
+- **Causa raíz.** `DashboardModuleHub.tsx` (grilla desde 768 px) y `AdminMobileLauncherTile.tsx` (launcher por
+  debajo) renderizaban cada tarjeta como un control enrutado sin `onClick`: navegaban con su propio
+  `router.push`. La máquina no recibía `SELECT_MODULE`; sólo veía después el commit, como externo (#22). El
+  resto del chrome (banda, barra, kebab, búsqueda) sí pregunta al adaptador. La auditoría de emisores del corte
+  había listado sólo los llamadores de `requestClinicModuleActivate` y no los controles que nombran un módulo
+  sin llamarlo.
+- **Efecto medido (RED sobre `dee6bd83`, 4 de 5 en rojo).** Con el payload retenido, al pulsar una tarjeta el
+  stage seguía en el hub: sin `ROUTING`, sin presupuesto, sin aviso; una segunda elección salía como un segundo
+  `push` en vez de quedar reclamada. El quinto caso (payload truncado) pasaba igual, porque la frontera no
+  depende de quién navegó.
+- **Corrección.** `DashboardModuleCard` gana un campo opcional `claim`; los dos launchers lo consultan en el
+  `onClick` del control enrutado y hacen `preventDefault()` si el owner tomó la selección; `ClinicModuleHub` lo
+  define como `requestClinicModuleActivate(moduleId)`. Es el mismo patrón que `NavigationRail`. Si el owner
+  declina (`BOOTING`, `FAILED`, sin owner), la tarjeta conserva su `href` y navega sola (DT-10). No hay
+  autoridad nueva, ni navegación nativa, ni cambio de marcado, clases o nombre accesible. Admin no pasa `claim`
+  y no cambia.
+- **GREEN.** Cinco E2E nuevos en `dashboard-navigation-fsm-clinic.spec.ts` (37 de 37; los del hub, 36 de 36 con
+  `--repeat-each=6`) y un test de arquitectura que fija que toda superficie de Clínica que nombra un módulo
+  pregunta al owner.
+
+| Regresión pedida | Escenario |
+| --- | --- |
+| Tarjeta → módulo; hub → módulo → Back | *hub card: the click swaps the stage at once…* y el test *hub* existente |
+| Payload retenido; tarjeta + banda; historial sin duplicados | Ídem: reclamo (#29), continuación (#30), una entrada sobre el hub, Back al hub |
+| Tarjeta + búsqueda de la app bar | *hub card then the app-bar search* |
+| `STALLED` y recuperación; teclado y nombre accesible | *hub card by keyboard* (foco, Enter, aviso `role="status"`, "Reintentar") |
+| Payload truncado | *hub card with a truncated payload* |
+| Por debajo de 768 px | *hub tile below 768px* |
+| Dos tarjetas elegidas rápido | No es alcanzable tras la corrección: al tomar la selección el `display` deja de ser el hub en ese mismo clic y las tarjetas se desmontan. Lo afirma el primer escenario (el stage muestra el módulo antes de cualquier payload); la segunda elección llega por la banda, la barra o la búsqueda |
 
 ## 11. Riesgos residuales
 
@@ -357,5 +393,18 @@ variables de build de `frontend-ci.yml`. Estados canónicos de `AGENTS.md` §6.
 | `e2e:extended`, `e2e:full` | NOT_RUN | No los exige la ficha ni el mapeo de §7 para este cambio |
 | `pnpm typecheck`, `pnpm build` (backend), `pnpm audit` | NOT_RUN | Ningún archivo de backend ni de dependencias cambia |
 | `db:migrate` | BLOCKED | Sin base de datos local |
+
+Tras la corrección del review (§10.2), sobre `dee6bd83` más el parche, se repitió lo afectado:
+
+| Gate | Estado | Observado |
+| --- | --- | --- |
+| Unit del corte | PASSED | 18 de 18 |
+| `pnpm --dir frontend lint`, `typecheck`, `build`; `pnpm security:public-surface`; `pnpm typecheck:test`; `git diff --check` | PASSED | exit 0 |
+| `pnpm test` | FAILED | 5329 de 5331; el único fallo es `e2e-global-03b-authoritative-auth-boundary.fastify.test.ts`, que requiere base de datos (ambiental) |
+| E2E dirigido: `dashboard-navigation-fsm-clinic` | PASSED | 37 de 37; los escenarios del hub, 36 de 36 con `--repeat-each=6` |
+| `e2e:visual-contract` | PASSED | 790 passed, 1 skipped |
+| `e2e:admin-mobile` | PASSED | 159 de 159 |
+| `e2e:public-clinic` | PASSED | 345 de 345 |
+| `e2e:smoke` | PASSED | 66 de 66 |
 
 La evidencia válida para el merge es la de CI Linux sobre el head de la PR.

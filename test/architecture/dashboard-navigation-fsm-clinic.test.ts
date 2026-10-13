@@ -444,6 +444,49 @@ test("ownership: one provider, one coordinator, one store per surface", () => {
   assert.equal(provider.split("store.unmount();").length - 1, 1);
 });
 
+test("every clinic module destination asks the owner first, the hub's own cards included", () => {
+  // The hub is a supported surface (`/dashboard?hub=1`) and its cards are module
+  // selections. Left as plain links they navigated on their own: the owner saw
+  // only the commit, so a slow card stayed on the hub with no budget and no
+  // notice, and the next choice was a second push instead of a claim.
+  const hub = read("frontend/src/components/dashboard/ClinicModuleHub.tsx");
+  assert.ok(
+    hub.includes('import { requestClinicModuleActivate } from "@/lib/clinic-hub-reset";') &&
+      hub.includes("claim: () => requestClinicModuleActivate(entry.moduleId),"),
+    "each hub card asks the navigation owner",
+  );
+  // Both launchers of the hub honour the answer: the grid from 768px up and
+  // the tile launcher below it. A declined request keeps the card's own href.
+  for (const [path, control] of [
+    ["frontend/src/components/dashboard/DashboardModuleHub.tsx", "data-dashboard-module-card={card.moduleId}"],
+    ["frontend/src/components/dashboard/AdminMobileLauncherTile.tsx", "data-admin-mobile-hub-tile={card.moduleId}"],
+  ] as const) {
+    const source = read(path);
+    assert.match(
+      source,
+      /onClick=\{\(event\) => \{\s*if \(card\.claim\?\.\(\)\) event\.preventDefault\(\);\s*\}\}/,
+      `${path}: a claimed card must not navigate`,
+    );
+    assert.ok(
+      source.indexOf(control) < source.indexOf("if (card.claim?.()) event.preventDefault();") &&
+        source.includes('href={card.href ?? "#"}'),
+      `${path}: the claim sits on the routed control, which keeps its href`,
+    );
+    assert.equal(/useRouter|router\.|history\.|location\./.test(source), false, `${path}: the launcher navigates nothing itself`);
+  }
+  // No clinic control that names a module navigates without asking.
+  for (const path of [
+    "frontend/src/components/dashboard/NavigationDrawer.tsx",
+    "frontend/src/components/dashboard/NavigationRail.tsx",
+    "frontend/src/components/dashboard/DashboardMobileNav.tsx",
+    "frontend/src/components/dashboard/DashboardMobileKebabMenu.tsx",
+    "frontend/src/components/dashboard/WorkspaceAppBar.tsx",
+    "frontend/src/components/dashboard/ClinicModuleHub.tsx",
+  ]) {
+    assert.ok(read(path).includes("requestClinicModuleActivate("), `${path} asks the clinic owner`);
+  }
+});
+
 test("adapter: the owner decides; the full-route hand-over is kept for PR-NAV-05", () => {
   const adapter = read(ADAPTER);
 
