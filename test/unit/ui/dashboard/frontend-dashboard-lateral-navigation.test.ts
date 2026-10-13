@@ -288,48 +288,80 @@ test("every stage owner publishes the module it shows; every chrome surface rend
   );
   const adminOwner = read("frontend/src/components/dashboard/DashboardNavigationProvider.tsx");
   assert.ok(
-    adminOwner.includes(": previewDisplay(MACHINE, ADMIN_CONFIG, snapshot, source.location);") &&
+    adminOwner.includes("display: previewDisplay(MACHINE, surface.config, snapshot, source.location),") &&
+      adminOwner.includes("const view = useNavigationView(ADMIN_SURFACE);") &&
       adminOwner.includes("const searchParams = useSearchParams();"),
     "the display is derived in render, in the same commit as the URL",
   );
-  // Clinic isolation: the layout is shared, the owner is not. Outside
-  // /dashboard/admin the provider hands out no store slot and mounts no owner,
-  // so nothing below it can reach a store; and it never reads the URL itself.
+  // Surface isolation (PR-NAV-04): the layout and the provider are shared, the
+  // store is not. The provider resolves the surface of the route from the
+  // pathname alone and holds one store slot for it, replaced when the surface
+  // changes; outside the dashboard surfaces it hands out none and mounts no
+  // owner. It never reads the search params itself.
   const provider = adminOwner.slice(
     adminOwner.indexOf("export function DashboardNavigationProvider("),
-    adminOwner.indexOf("export type AdminDashboardNavigation"),
+    adminOwner.indexOf("const subscribeToNothing"),
   );
   assert.ok(
-    provider.includes("const isAdmin = usePathname() === ROUTES.dashboardAdmin;") &&
-      provider.includes("const slot = isAdmin ? (held ?? createAdminStoreSlot()) : null;") &&
-      provider.includes("<AdminStoreSlotContext.Provider value={slot}>") &&
+    provider.includes("const surface = surfaceOf(usePathname());") &&
+      provider.includes(
+        "const slot = surface === null ? null : held?.surface === surface ? held : createStoreSlot(surface);",
+      ) &&
+      provider.includes("<StoreSlotContext.Provider value={slot}>") &&
       provider.includes("{slot === null ? null : ("),
-    "the owner exists on /dashboard/admin only",
+    "one owner and one store slot per dashboard surface, none elsewhere",
   );
-  for (const urlRead of ["useSearchParams", "useRouter", "createAdminStore("]) {
+  for (const urlRead of ["useSearchParams", "useRouter", "createStore("]) {
     assert.equal(provider.includes(urlRead), false, `the layout-level provider does not touch ${urlRead}`);
   }
   // The page is never inside a boundary of the owner: a boundary around the
   // children would make the server send the page twice, fallback and content.
   assert.ok(
-    provider.includes("<Suspense fallback={null}>\n          <AdminNavigationOwner />\n        </Suspense>") &&
-      provider.includes("      )}\n      {children}\n    </AdminStoreSlotContext.Provider>"),
+    provider.includes("<Suspense fallback={null}>\n          <NavigationOwner />\n        </Suspense>") &&
+      provider.includes("      )}\n      {children}\n    </StoreSlotContext.Provider>"),
     "the owner is a sibling of the children and renders nothing",
   );
   assert.equal(adminOwner.split("<Suspense").length - 1, 1, "the only boundary of the owner wraps the owner itself");
   assert.ok(
-    adminOwner.includes("store ??= createAdminStore(router, location, explicit);") &&
-      adminOwner.split("createAdminStore(router, location, explicit)").length - 1 === 1,
+    adminOwner.includes("store ??= createStore(surface, router, located);") &&
+      adminOwner.split("createStore(surface, router, located)").length - 1 === 1,
     "one store per visit, created in render by whoever reads the URL first (A1)",
   );
-  const consumers = adminOwner.slice(adminOwner.indexOf("function useAdminNavigationSource("));
+  const consumers = adminOwner.slice(adminOwner.indexOf("function useNavigationSource("));
   assert.ok(
-    consumers.includes("slot === null ? null : { store: slot.resolve(router, location, explicit), location }"),
-    "without a slot there is no store to reach",
+    consumers.includes("const owned = slot !== null && (only === undefined || slot.surface === only) ? slot : null;") &&
+      consumers.includes("if (owned === null || urlKey === null) return null;") &&
+      consumers.includes("store: owned.resolve(router, seen)"),
+    "without a slot of its own surface there is no store to reach",
   );
-  for (const clinicOnly of ["clinic-hub-reset", "CLINIC_LAST_MODULE_STORAGE_KEY", "parseClinicModule", "stageModule"]) {
-    assert.equal(adminOwner.includes(clinicOnly), false, `the admin owner touches no clinic mechanism: ${clinicOnly}`);
+  // Each surface is declared apart and shares nothing with the other: neither
+  // its modules, nor its storage key, nor its adapter, nor its URL grammar.
+  const adminSurface = adminOwner.slice(adminOwner.indexOf("const ADMIN_CONFIG"), adminOwner.indexOf("const CLINIC_CONFIG"));
+  const clinicSurface = adminOwner.slice(adminOwner.indexOf("const CLINIC_CONFIG"), adminOwner.indexOf("const SURFACES"));
+  assert.ok(adminSurface.length > 0 && clinicSurface.length > 0);
+  for (const clinicOnly of [
+    "CLINIC_LAST_MODULE_STORAGE_KEY",
+    "CLINIC_MODULE_IDS",
+    "parseClinicModule",
+    "registerClinicNavigationOwner",
+    "clinicModuleHref",
+  ]) {
+    assert.equal(adminSurface.includes(clinicOnly), false, `the admin surface touches no clinic mechanism: ${clinicOnly}`);
   }
+  for (const adminOnly of [
+    "ADMIN_LAST_MODULE_STORAGE_KEY",
+    "ADMIN_MODULE_IDS",
+    "parseAdminModule",
+    "registerAdminNavigationOwner",
+    "adminHref",
+  ]) {
+    assert.equal(clinicSurface.includes(adminOnly), false, `the clinic surface touches no admin mechanism: ${adminOnly}`);
+  }
+  assert.ok(
+    adminOwner.includes("useNavigationView(ADMIN_SURFACE)") && adminOwner.includes("useNavigationView(CLINIC_SURFACE)"),
+    "each surface's consumers reach their own owner only",
+  );
+  assert.equal(adminOwner.includes("stageModule"), false, "the owner publishes nothing to the chrome store");
 
   const owners = [
     [
@@ -654,30 +686,44 @@ test("SINGLE FLIGHT: every producer honours a claim and both owners claim and re
     );
   }
 
+  // PR-NAV-04: the clinic surface runs the same rows through the same owner.
+  // Its controller is a view: it claims nothing, reconciles nothing and steps
+  // back onto nothing (DT-16 = A, row #25 above).
   const clinic = read("frontend/src/components/dashboard/ClinicDashboardWorkspaceController.tsx");
   assert.ok(
-    clinic.includes("const inFlight = navigationState.current.pendingIntent !== null && flight.isActive();"),
+    clinic.includes("const navigation = useClinicDashboardNavigation();") &&
+      admin.includes("registerOwner: registerClinicNavigationOwner,") &&
+      admin.includes("const unregisterOwner = surface.registerOwner({"),
+    "the clinic owner takes every selection the machine will not ignore, through the shared owner",
   );
-  assert.ok(clinic.includes("return inFlight;"), "the clinic controller claims while in flight");
-  assert.ok(clinic.includes("outcome.reconcileTo"), "the clinic controller reconciles the superseded entry");
-  assert.ok(
-    clinic.includes("if (outcome.historyBack) {") && clinic.includes("recordNavigationIntent(parsed, { pushed: !inFlight });"),
-    "the clinic controller steps back to the module its burst pushed from",
+  for (const retired of [
+    "navigationState",
+    "inFlight",
+    "reconcileTo",
+    "historyBack",
+    "recordNavigationIntent",
+    "confirmClinicHubEntry",
+    "subscribeClinicModuleActivate",
+  ]) {
+    assert.equal(clinic.includes(retired), false, `the clinic view keeps no claim of its own: ${retired}`);
+  }
+  assert.equal(
+    /history\.(back|forward|go|pushState|replaceState)\(|router\.refresh\(/.test(clinic),
+    false,
+    "the clinic view navigates nothing (S9, DT-2)",
   );
   // Leaving the hub is optimistic: until the module commits, the url is still
-  // `?hub=1`. Neither the url effect nor the last-module restore may read it as
-  // the default module, and the hub entry is module-less for the burst origin.
+  // `?hub=1`. It is a location of its own and never the default module: the
+  // burst that leaves it pushed from no module entry, so returning to the
+  // default from there is a real navigation, and the restore never reads it.
+  const clinicSurface = admin.slice(admin.indexOf("const CLINIC_CONFIG"), admin.indexOf("const SURFACES"));
   assert.ok(
-    clinic.includes("confirmedUrlModule: hubInUrl ? null : (initialModule ?? DEFAULT_CLINIC_MODULE),"),
-    "a session that starts on the hub has no module entry to step back onto",
+    clinicSurface.includes("  if (isHubRequested(query)) return HUB;\n  return {\n    kind: \"module\",") &&
+      machine.includes("  return a.kind === b.kind;\n"),
+    "a session that starts on the hub has no module entry to step back onto: the hub is module-less",
   );
   assert.ok(
-    clinic.includes("navigationState.current = confirmClinicHubEntry(navigationState.current);"),
-    "a hub commit is confirmed as module-less",
-  );
-  assert.equal(
-    clinic.split("if (hubInUrl || isHubActive) return;").length - 1,
-    1,
+    machine.includes('const atDefault = same(event.location, { kind: "module", module: config.defaultModule });'),
     "the last-module restore never fires while the url is still the hub",
   );
 });
@@ -884,38 +930,23 @@ test("SINGLE FLIGHT budget: both owners claim only within it and settle it on ev
     "an owner that unmounts takes its flight with it",
   );
 
-  for (const [path, claim] of [
-    [
-      "frontend/src/components/dashboard/ClinicDashboardWorkspaceController.tsx",
-      "const inFlight = navigationState.current.pendingIntent !== null && flight.isActive();",
-    ],
-  ] as const) {
-    const owner = read(path);
-    assert.ok(owner.includes(claim), `${path} claims only while its flight is within budget`);
-    assert.ok(owner.includes("const flight = useNavigationFlight(navigateAbandonedIntent);"), path);
-    assert.ok(owner.includes("router.push("), `${path} navigates the latest intent of an abandoned flight`);
-    assert.equal(
-      owner.split("flight.start(").length - 1,
-      3,
-      `${path} arms the flight, with its target, for every navigation it starts or lets the caller start`,
-    );
-    assert.ok(
-      owner.includes("target === abandonedTarget) return null;"),
-      `${path} never re-issues the navigation it abandoned: no retry loop`,
-    );
-    // A push of the committed module commits no module change, so nothing would
-    // ever end its flight: claims would hold every click for a whole budget.
-    assert.ok(
-      owner.includes("parsed !== confirmedUrlModule) flight.start(parsed);") ||
-        owner.includes("if (parsed !== committed) flight.start(parsed);"),
-      `${path} arms no flight for a push of the committed module`,
-    );
-    assert.ok(
-      owner.includes("historyTraversalStarted.current = false;\n      flight.end();"),
-      `${path}: Back/Forward ends the flight`,
-    );
-    assert.equal(/window\.event|setInterval|location\.reload/.test(owner), false, path);
+  // PR-NAV-04: the clinic stage is a view too. Its claim within the budget,
+  // the relay of the latest intent when the budget expires, the flight that is
+  // never armed for the committed module and the end of the flight on
+  // Back/Forward are the rows of the machine asserted below for the one
+  // provider both surfaces share (#29, #31, #13, #4 and #17).
+  const clinicView = read("frontend/src/components/dashboard/ClinicDashboardWorkspaceController.tsx");
+  for (const retired of [
+    "useNavigationFlight",
+    "flight.",
+    "navigateAbandonedIntent",
+    "router.",
+    "historyTraversalStarted",
+    "pendingIntent",
+  ]) {
+    assert.equal(clinicView.includes(retired), false, `the clinic view owns no flight: ${retired}`);
   }
+  assert.equal(/window\.event|setInterval|location\.reload/.test(clinicView), false);
 
   // PR-NAV-03: the admin owner keeps the same budget, as rows of the machine
   // interpreted by the coordinator (FSM roadmap §12.5.1, DT-5 = 10 000 ms).

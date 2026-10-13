@@ -793,10 +793,11 @@ test.describe("B09 · clinic destinations", () => {
 
     // Back to the module the bar landed on, so the loop above is a round trip
     // through the catalog rather than a one-way drift out of it.
+    // The navigation owner spells the default module as the bare URL.
     await paintedNav(page, NAV_CLINIC)
       .locator('[data-dashboard-mobile-nav-item="operaciones"]')
       .click();
-    await expect(page).toHaveURL(/\/dashboard\?module=operaciones$/, {
+    await expect(page).toHaveURL(/\/dashboard$/, {
       timeout: 15_000,
     });
     await expect(

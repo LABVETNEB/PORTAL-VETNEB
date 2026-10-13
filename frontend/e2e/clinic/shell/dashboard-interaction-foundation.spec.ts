@@ -167,8 +167,9 @@ test.describe("dashboard interaction foundation — smoke (PR-1)", () => {
     );
 
     // Switching via the shared rail changes the active workspace and the URL.
+    // The default module is navigated to as its canonical URL, the bare one.
     await clinicLateralNavItem(page, "operaciones").click();
-    await expect(page).toHaveURL(/\/dashboard\?module=operaciones$/, {
+    await expect(page).toHaveURL(/\/dashboard$/, {
       timeout: 5_000,
     });
     await expect(

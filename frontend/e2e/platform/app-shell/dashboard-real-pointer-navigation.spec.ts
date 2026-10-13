@@ -109,6 +109,16 @@ function moduleUrl(base: string, moduleId: string): RegExp {
   return new RegExp(`${base.replace(/\//g, "\\/")}\\?module=${moduleId}$`);
 }
 
+/**
+ * The URL a click on a module lands on. The owner navigates the clinic default
+ * module as the bare `/dashboard`, its canonical URL; an entry opened as
+ * `?module=operaciones` keeps that spelling and is matched by `moduleUrl`.
+ */
+function selectedUrl(role: Role, moduleId: string): RegExp {
+  const { base, landing } = SHELL[role];
+  return role === "clinic" && moduleId === landing ? new RegExp(`${base}$`) : moduleUrl(base, moduleId);
+}
+
 async function expectCurrent(page: Page, role: Role, regime: Regime, moduleId: string) {
   const current = paintedNav(page, role, regime).locator('[aria-current="page"]');
   await expect(current).toHaveCount(1);
@@ -652,16 +662,14 @@ test.describe("DASHBOARD_REAL_POINTER_NAVIGATION · clinic full-module control",
 
 // SINGLE FLIGHT · back to the committed module while another one is in flight.
 // B's push lands after the person already chose A again; replacing B's entry
-// with A left [A, A], so the next Back changed nothing. The owner steps back
-// onto A's own entry instead: no duplicate, and B stays as the Forward entry
-// the person did visit.
+// with A left [A, A], so the next Back changed nothing.
 //
-// Admin (PR-NAV-03, DT-16 = A): the navigation machine has no native history
-// effect to step back with. Returning to A is row #25 of the FSM roadmap §12.4,
-// a push to the URL the router already shows: it asks for one payload of A,
-// discards B's navigation before it can commit and writes no entry. Same
-// scenarios, viewports and checks, with the values of that row: history does
-// not grow in the burst and B never becomes an entry, Forward or otherwise.
+// Both roles navigate through the navigation machine (admin since PR-NAV-03,
+// clinic since PR-NAV-04; DT-16 = A), which has no native history effect to
+// step back with. Returning to A is row #25 of the FSM roadmap §12.4, a push to
+// the URL the router already shows: it asks for one payload of A, discards B's
+// navigation before it can commit and writes no entry. History does not grow
+// in the burst and B never becomes an entry, Forward or otherwise.
 for (const role of ["admin", "clinic"] as const) {
   test.describe(`DASHBOARD_REAL_POINTER_NAVIGATION · ${role} return to the committed module`, () => {
     test.beforeEach(async ({ page }) => {
@@ -713,69 +721,29 @@ for (const role of ["admin", "clinic"] as const) {
         await expectCurrent(page, role, regime, committed);
         await expectStage(page, committed);
 
-        if (role === "admin") {
-          await expect
-            .poll(() => gate.requested(), {
-              message: "the return asks for the abandoned module's payload and one of the committed url, no more",
-            })
-            .toEqual([abandoned, committed]);
-
-          const divergence = await recordDivergenceFrom(page, role, regime, committed);
-          expect(await gate.releaseModule(abandoned)).toBeGreaterThan(0);
-          await gate.release();
-          await waitForLayoutSettled(page);
-          await expect(page).toHaveURL(moduleUrl(base, committed));
-          await expectCurrent(page, role, regime, committed);
-          await expectStage(page, committed);
-          expect(
-            (await pushed()).filter((url) => url.includes(`module=${abandoned}`)),
-            `${abandoned} was discarded before it could write a history entry`,
-          ).toEqual([]);
-          expect(await divergence(), `${abandoned} repainted after the return to ${committed}`).toEqual([]);
-          expect(gate.requested(), "no reconciling replay after the return").toEqual([abandoned, committed]);
-          expect(
-            await page.evaluate(() => window.history.length),
-            "the landing and the committed module: the burst added nothing",
-          ).toBe(originLength + 1);
-
-          // Back leaves the committed module for the landing, never for a copy of itself.
-          await page.goBack();
-          await expect(page).toHaveURL(moduleUrl(base, landing));
-          await expectCurrent(page, role, regime, landing);
-          await expectStage(page, landing);
-          await page.goForward();
-          await expect(page).toHaveURL(moduleUrl(base, committed));
-          await expectCurrent(page, role, regime, committed);
-          await expectStage(page, committed);
-          // There is no Forward entry of the abandoned module to step onto.
-          await page.goForward();
-          await waitForLayoutSettled(page);
-          await expect(page).toHaveURL(moduleUrl(base, committed));
-          await expectCurrent(page, role, regime, committed);
-          await expectStage(page, committed);
-          expect(reloads.documents, "client navigation, never a reload").toEqual([]);
-          expect(runtimeErrors).toEqual([]);
-          return;
-        }
-
-        expect(gate.requested(), "the return to the committed module starts no payload").toEqual([abandoned]);
+        await expect
+          .poll(() => gate.requested(), {
+            message: "the return asks for the abandoned module's payload and one of the committed url, no more",
+          })
+          .toEqual([abandoned, committed]);
 
         const divergence = await recordDivergenceFrom(page, role, regime, committed);
         expect(await gate.releaseModule(abandoned)).toBeGreaterThan(0);
-        await expect
-          .poll(async () => (await pushed()).some((url) => url.includes(`module=${abandoned}`)))
-          .toBe(true);
-        await expect(page).toHaveURL(moduleUrl(base, committed));
-        await waitForLayoutSettled(page);
         await gate.release();
+        await waitForLayoutSettled(page);
+        await expect(page).toHaveURL(moduleUrl(base, committed));
         await expectCurrent(page, role, regime, committed);
         await expectStage(page, committed);
+        expect(
+          (await pushed()).filter((url) => url.includes(`module=${abandoned}`)),
+          `${abandoned} was discarded before it could write a history entry`,
+        ).toEqual([]);
         expect(await divergence(), `${abandoned} repainted after the return to ${committed}`).toEqual([]);
-        expect(gate.requested(), "no reconciling replay after the step back").toEqual([abandoned]);
+        expect(gate.requested(), "no reconciling replay after the return").toEqual([abandoned, committed]);
         expect(
           await page.evaluate(() => window.history.length),
-          "the landing, the committed module and the visited one: nothing duplicated",
-        ).toBe(originLength + 2);
+          "the landing and the committed module: the burst added nothing",
+        ).toBe(originLength + 1);
 
         // Back leaves the committed module for the landing, never for a copy of itself.
         await page.goBack();
@@ -786,10 +754,12 @@ for (const role of ["admin", "clinic"] as const) {
         await expect(page).toHaveURL(moduleUrl(base, committed));
         await expectCurrent(page, role, regime, committed);
         await expectStage(page, committed);
+        // There is no Forward entry of the abandoned module to step onto.
         await page.goForward();
-        await expect(page).toHaveURL(moduleUrl(base, abandoned));
-        await expectCurrent(page, role, regime, abandoned);
-        await expectStage(page, abandoned);
+        await waitForLayoutSettled(page);
+        await expect(page).toHaveURL(moduleUrl(base, committed));
+        await expectCurrent(page, role, regime, committed);
+        await expectStage(page, committed);
         expect(reloads.documents, "client navigation, never a reload").toEqual([]);
         expect(runtimeErrors).toEqual([]);
       });
@@ -979,7 +949,7 @@ for (const role of ["admin", "clinic"] as const) {
       await expectStage(page, next);
       await page.waitForLoadState("networkidle");
       await selectModule(page, role, regime, landing);
-      await expect(page).toHaveURL(moduleUrl(base, landing));
+      await expect(page).toHaveURL(selectedUrl(role, landing));
       await expectStage(page, landing);
       await page.waitForLoadState("networkidle");
 
@@ -1009,7 +979,7 @@ for (const role of ["admin", "clinic"] as const) {
       expect(await late(), "a late answer undid Back").toEqual([]);
 
       await selectModule(page, role, regime, landing);
-      await expect(page).toHaveURL(moduleUrl(base, landing));
+      await expect(page).toHaveURL(selectedUrl(role, landing));
       await expectCurrent(page, role, regime, landing);
       await expectStage(page, landing);
       expect(reloads.documents, "client navigation, never a reload").toEqual([]);

@@ -17,6 +17,9 @@ const DASHBOARD_BOUNDARY = "frontend/src/app/dashboard/error.tsx";
 // PR-NAV-03 (hoja de ruta FSM §12.1, C-6): the dashboard boundary is the only
 // producer of NAV_FAILED and RESET. FAILED lasts exactly as long as it is
 // mounted, because Next also drops it without retry() when the pathname changes.
+// PR-NAV-04: it tells the owner of whichever surface the route belongs to; on
+// the clinic surface the pathname does change, between /dashboard and its full
+// routes, and one store lives across them.
 test("the dashboard boundary reports its mount and its exit to the navigation owner", () => {
   const source = read(DASHBOARD_BOUNDARY);
 
@@ -38,12 +41,15 @@ test("the dashboard boundary reports its mount and its exit to the navigation ow
   assert.match(
     signals,
     /const store = source\?\.store \?\? null;\s*return useMemo\(\s*\(\) =>\s*store === null\s*\? null/,
-    "no owner outside /dashboard/admin: the shared boundary dispatches nothing from a clinic route",
+    "without an owner the shared boundary dispatches nothing",
   );
   assert.ok(
-    provider.includes("const slot = isAdmin ? (held ?? createAdminStoreSlot()) : null;") &&
-      provider.includes("slot === null ? null : { store: slot.resolve(router, location, explicit), location }"),
-    "a store exists on the admin route only",
+    signals.includes("const source = useNavigationSource();") &&
+      provider.includes(
+        "const slot = surface === null ? null : held?.surface === surface ? held : createStoreSlot(surface);",
+      ) &&
+      provider.includes("if (owned === null || urlKey === null) return null;"),
+    "the boundary reaches the store of the surface that owns the route, and only that one",
   );
   assert.ok(signals.includes("[store],"), "the signals are stable per owner: the boundary's effect runs once per mount");
 });

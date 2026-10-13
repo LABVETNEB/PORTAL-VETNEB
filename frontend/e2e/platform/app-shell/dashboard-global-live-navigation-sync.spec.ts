@@ -374,6 +374,8 @@ type PendingBackCase = {
   readonly activate: (page: Page) => Promise<void>;
   /** Url of the last primed entry when it is not the module's canonical one. */
   readonly committedUrl?: RegExp;
+  /** Commits a primed module by other means than a click on its navigation item. */
+  readonly primeWith?: (page: Page, moduleId: string) => Promise<void>;
   /**
    * The target was chosen while another activation was in flight, so the
    * stage owner claimed it instead of pushing it (single flight): it never had
@@ -434,8 +436,12 @@ const PENDING_BACK_CASES: PendingBackCase[] = [
       page.getByRole("button", { name: "Ir a Auditoría" }).filter({ visible: true }).click(),
   },
   // Back to an entry that carries the SAME module as the committed one
-  // (`/dashboard` and `/dashboard?module=operaciones`): no module change reaches
-  // the url effect, so only the history backstop can drop B.
+  // (`/dashboard` and `/dashboard?module=operaciones`): the traversal's
+  // destination is already the committed location, so no commit follows it
+  // and only the traversal itself can drop B (FSM roadmap §12.4, row #28).
+  // The navigation owner never writes that second spelling — a click on the
+  // module it already shows navigates nothing — so the entry is opened the
+  // way a deep link is, by the router.
   ...([
     { width: 1366, height: 768 },
     { width: 390, height: 844 },
@@ -446,6 +452,11 @@ const PENDING_BACK_CASES: PendingBackCase[] = [
       viewport,
       prime: ["operaciones"],
       committedUrl: /\/dashboard\?module=operaciones$/,
+      primeWith: (page, moduleId) =>
+        page.evaluate(
+          (url) => (window as Window & { next?: { router?: { push(href: string): void } } }).next?.router?.push(url),
+          `/dashboard?module=${moduleId}`,
+        ),
       backTo: "operaciones",
       target: "logistica",
       activate: (page) => navItem(page, "clinic", regimeFor(viewport.width), "logistica").click(),
@@ -531,7 +542,8 @@ test.describe("DASHBOARD_GLOBAL_LIVE_SYNC · Back during a pending activation", 
       const committed = prime[prime.length - 1];
       const committedUrl = testCase.committedUrl ?? urlFor(role, committed);
       for (const moduleId of prime) {
-        await navItem(page, role, regime, moduleId).click();
+        if (testCase.primeWith) await testCase.primeWith(page, moduleId);
+        else await navItem(page, role, regime, moduleId).click();
         await expect(page).toHaveURL(moduleId === committed ? committedUrl : urlFor(role, moduleId));
         await expectConverged(page, role, regime, moduleId);
       }

@@ -324,7 +324,9 @@ test("automatic workflow coverage is derived from catalog cohorts and equals ful
   // (platform/app-shell/dashboard-page-request-recovery.spec.ts).
   // +1: PR-NAV-03 admin navigation machine contract
   // (platform/app-shell/dashboard-navigation-fsm-admin.spec.ts).
-  assert.equal(E2E_SUITE_CATALOG.length, 108);
+  // +1: PR-NAV-04 clinic navigation machine contract
+  // (platform/app-shell/dashboard-navigation-fsm-clinic.spec.ts).
+  assert.equal(E2E_SUITE_CATALOG.length, 109);
 
   const partitionUnion = new Set(PARTITION_COHORTS.flatMap((cohort) => E2E_COHORT_SPECS[cohort]));
   assert.deepEqual([...partitionUnion].sort(), [...E2E_COHORT_SPECS.full].sort());

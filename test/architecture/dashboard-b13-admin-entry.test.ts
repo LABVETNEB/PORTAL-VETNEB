@@ -54,16 +54,17 @@ test("B13 · entry precedence preserves URL intent and resolves the retired hub"
   const provider = read(PROVIDER);
   const machine = read(MACHINE);
 
-  for (const [path, owner] of [[CONTROLLER, source], [PROVIDER, provider]] as const) {
-    assert.ok(
-      owner.includes("parseAdminModule(searchParams.get(MODULE_QUERY_PARAM))"),
-      `${path}: module parsing remains the URL authority`,
-    );
+  // PR-NAV-04: the provider owns both surfaces and each declares its own
+  // reading of the URL; this is the admin one.
+  for (const [path, owner, parse] of [
+    [CONTROLLER, source, "parseAdminModule(searchParams.get(MODULE_QUERY_PARAM))"],
+    [PROVIDER, provider, "location: adminLocation(parseAdminModule(query.get(MODULE_QUERY_PARAM))),"],
+  ] as const) {
+    assert.ok(owner.includes(parse), `${path}: module parsing remains the URL authority`);
   }
   assert.ok(
-    provider.includes(
-      "const explicit = searchParams.has(MODULE_QUERY_PARAM) || searchParams.has(HUB_QUERY_PARAM);",
-    ),
+    provider.includes("return query.has(MODULE_QUERY_PARAM) || query.has(HUB_QUERY_PARAM);") &&
+      provider.includes("      explicit: isExplicit(query),\n"),
     "the entry tells the machine whether the URL carried a module or ?hub=1, valid or not",
   );
   assert.ok(
@@ -71,9 +72,8 @@ test("B13 · entry precedence preserves URL intent and resolves the retired hub"
     "a URL that resolves to a module wins over storage",
   );
   assert.ok(
-    provider.includes(
-      "storedModule: parseAdminModule(readDashboardLastModule(ADMIN_LAST_MODULE_STORAGE_KEY)),",
-    ) &&
+    provider.includes("storedModule: surface.parseModule(readDashboardLastModule(surface.storageKey)),") &&
+      provider.includes("  storageKey: ADMIN_LAST_MODULE_STORAGE_KEY,\n  parseModule: parseAdminModule,\n") &&
       machine.includes(
         'return { kind: "module", module: valid(config, stored) ? stored : config.defaultModule };',
       ) &&

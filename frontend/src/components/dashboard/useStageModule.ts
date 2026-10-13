@@ -1,5 +1,5 @@
 import { useCallback, useLayoutEffect, useSyncExternalStore } from "react";
-import { useAdminDashboardNavigation } from "./DashboardNavigationProvider";
+import { useAdminDashboardNavigation, useClinicDashboardNavigation } from "./DashboardNavigationProvider";
 import {
   getStageModuleSnapshot,
   publishStageModule,
@@ -38,15 +38,18 @@ function usePublishedStageModule(surface: StageSurface): StageModuleSnapshot {
 
 /**
  * Chrome side: the owner's module, or `undefined` when no owner is mounted.
- * On the admin surface the owner is the navigation machine and this is its
- * `display` (PR-NAV-03); the clinic surface still reads the published stage.
- * It reads the search params for the admin display: call it under a boundary.
+ * The owner is the navigation machine and this is its `display` (admin since
+ * PR-NAV-03, clinic since PR-NAV-04). While the clinic display is a full
+ * route, the chrome still follows what that route's stage publishes as it
+ * hands over (PR-NAV-05). It reads the search params: call it under a boundary.
  */
 export function useStageModule(surface: StageSurface): StageModuleSnapshot {
   const adminNavigation = useAdminDashboardNavigation();
+  const clinicNavigation = useClinicDashboardNavigation();
   const published = usePublishedStageModule(surface);
   if (surface === "admin") return adminNavigation === null ? undefined : adminNavigation.module;
-  return published;
+  if (clinicNavigation?.hub) return null;
+  return clinicNavigation?.module ?? published;
 }
 
 export function useAdminStageModule(): StageModuleSnapshot {
@@ -54,7 +57,10 @@ export function useAdminStageModule(): StageModuleSnapshot {
   return adminNavigation === null ? undefined : adminNavigation.module;
 }
 
-/** Clinic only: no part of the admin navigation is read here. */
+/**
+ * Clinic full routes only, whose band renders outside any boundary and cannot
+ * read the search params: what the route's stage publishes while it hands over.
+ */
 export function useClinicStageModule(): StageModuleSnapshot {
   return usePublishedStageModule("clinic");
 }
