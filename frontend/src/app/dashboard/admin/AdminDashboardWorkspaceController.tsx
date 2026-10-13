@@ -1,44 +1,24 @@
 "use client";
 
-import {
-  useState,
-  useCallback,
-  useEffect,
-  useRef,
-  useSyncExternalStore,
-  type ReactNode,
-} from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useRef, useSyncExternalStore, type ReactNode } from "react";
+import { useSearchParams } from "next/navigation";
+import { RefreshCw } from "lucide-react";
 import { DashboardModuleWorkspace } from "@/components/dashboard/DashboardModuleWorkspace";
-import { usePublishStageModule } from "@/components/dashboard/useStageModule";
-import { useNavigationFlight } from "@/components/dashboard/useNavigationFlight";
-import {
-  ADMIN_LAST_MODULE_STORAGE_KEY,
-  readDashboardLastModule,
-  writeDashboardLastModule,
-} from "@/lib/dashboard-last-module";
+import { useAdminDashboardNavigation } from "@/components/dashboard/DashboardNavigationProvider";
+import { Button } from "@/components/ui/button";
 import {
   clearAdminAccessError,
   getAdminAccessErrorServerSnapshot,
   getAdminAccessErrorSnapshot,
   subscribeAdminAccessError,
 } from "@/lib/admin-access-error";
-import {
-  subscribeAdminHubReset,
-  subscribeAdminModuleActivate,
-} from "@/lib/admin-hub-reset";
 import type { AdminAccessErrorStatus } from "@/lib/api-error";
-import { subscribeHistoryTraversal } from "@/lib/dashboard/navigation/historyTraversal";
-import { ROUTES } from "@/lib/routes";
 import {
-  DEFAULT_ADMIN_MODULE,
   parseAdminModule,
 } from "@/features/dashboard/config";
 import type { AdminModule } from "@/features/dashboard/config";
 import {
   MODULE_QUERY_PARAM,
-  buildDashboardModuleHref,
-  isAdminHubRequested,
 } from "@/features/dashboard/application";
 import { AdminAccessErrorState } from "./AdminAccessErrorState";
 
@@ -58,6 +38,7 @@ type AdminWorkspaceSlots = {
 };
 
 type AdminDashboardWorkspaceControllerProps = {
+  /** The server's reading of the URL. The stage follows the navigation owner. */
   initialModule?: AdminModule | null;
   initialAccessErrorStatus?: AdminAccessErrorStatus | null;
   workspaces: AdminWorkspaceSlots;
@@ -67,9 +48,9 @@ type AdminDashboardWorkspaceControllerProps = {
 
 // The admin hub — the "Inicio" module and its launcher — is retired at every
 // width: below 768px since pre-C05 (#1826) and from 768px up since the
-// desktop/tablet space pass. The null module state (bare route or a legacy
-// `?hub=1`) resolves to the same landing module a bare route restores, so no
-// surface paints or links the hub.
+// desktop/tablet space pass. An entry without a module (bare route or a legacy
+// `?hub=1`) is normalized by the navigation machine to the last module or the
+// default one, so no surface paints or links the hub.
 
 const ADMIN_MODULE_META: Record<AdminModule, { title: string; description: string }> = {
   admin: {
@@ -114,17 +95,53 @@ const ADMIN_MODULE_META: Record<AdminModule, { title: string; description: strin
   },
 };
 
+// STALLED: the navigation outlived its budget and nothing in the router says
+// whether it will ever land. A zero-height anchor with the notice laid over
+// what follows it, so showing or dismissing it never changes the height the
+// workspace measures. The retry is a document navigation to the same target.
+function AdminNavigationStalledNotice({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className="relative z-[3] h-0 shrink-0">
+      <div
+        role="status"
+        data-dashboard-navigation-stalled="true"
+        className="absolute inset-x-0 top-0 flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-amber-500/25 bg-card px-3 py-1.5 text-xs text-amber-700 shadow-sm"
+      >
+        <p className="min-w-0 flex-1 basis-56">
+          <span className="font-semibold">El módulo está tardando en cargar.</span> Podés esperar o
+          reintentar la carga.
+        </p>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={onRetry}
+          className="h-7 shrink-0 border-amber-500/30 px-2 text-xs text-amber-700 hover:border-amber-500/45 hover:bg-amber-500/10 hover:text-amber-700 focus-visible:ring-2"
+        >
+          <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+          Reintentar
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * View of the admin stage. It decides nothing about navigation: the module on
+ * stage is the navigation machine's `display`
+ * (`components/dashboard/DashboardNavigationProvider.tsx`), which also owns the
+ * URL, history, the landing restore, the budget and the last-module storage.
+ */
 export function AdminDashboardWorkspaceController({
-  initialModule,
   initialAccessErrorStatus,
   workspaces,
   pageHeader,
 }: AdminDashboardWorkspaceControllerProps) {
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const [activeModule, setActiveModule] = useState<AdminModule | null>(
-    initialModule ?? null,
-  );
+  const navigation = useAdminDashboardNavigation();
+  const urlModule = parseAdminModule(searchParams.get(MODULE_QUERY_PARAM));
+  // Without an owner (no provider above) the stage reads the URL.
+  const activeModule = navigation === null ? urlModule : navigation.module;
   const browserAccessErrorStatus = useSyncExternalStore(
     subscribeAdminAccessError,
     getAdminAccessErrorSnapshot,
@@ -132,254 +149,17 @@ export function AdminDashboardWorkspaceController({
   );
   const accessErrorStatus =
     browserAccessErrorStatus ?? initialAccessErrorStatus ?? null;
-  // Landing-only latch for the last-module restore below: consumed either by
-  // the restore itself or by the first URL module transition the controller
-  // observes (see the URL-sync effect).
-  const hasRestoredLastModule = useRef(false);
-  const previousUrlModule = useRef<AdminModule | null>(initialModule ?? null);
-  const currentUrlModule = useRef<AdminModule | null>(initialModule ?? null);
-  // Latest sync navigation intention (bottom-nav signal, hub reset). The stage swaps optimistically before the router commits the
-  // matching URL; this ref lets the URL-sync effect tell that commit apart
-  // from a stale, superseded one.
-  const pendingNavigationIntent = useRef<{ target: AdminModule | null } | null>(
-    null,
-  );
-  // Targets of intents superseded while still in flight: the only modules a
-  // stale router commit can carry. Any other mismatching commit is external.
-  const supersededTargets = useRef<readonly (AdminModule | null)[]>([]);
-  // Module whose entry the in-flight burst left with a push (see
-  // `clinicNavigationState.pushedFrom`): returning to it steps back onto that
-  // entry instead of replacing the pushed one into a duplicate [A, A].
-  const pushedFrom = useRef<{ readonly module: AdminModule | null } | null>(null);
-  // Raised when a Back/Forward traversal starts, consumed by the url commit it
-  // produces (or by the popstate backstop): that commit is external even when
-  // it lands on a superseded target.
-  const historyTraversalStarted = useRef(false);
-  const [hasManuallyReturnedToHub, setHasManuallyReturnedToHub] =
-    useState(false);
 
-  // Same rule as `recordClinicNavigationIntent`: only "nothing in flight AND
-  // the url already shows the target" is a no-op. While a navigation is in
-  // flight the url is stale by construction, so A -> B -> A used to clear the
-  // intent and B's late commit was then obeyed as an external navigation.
-  const recordNavigationIntent = useCallback((target: AdminModule | null) => {
-    const superseded = pendingNavigationIntent.current;
-    if (superseded === null && currentUrlModule.current === target) return;
-    pendingNavigationIntent.current = { target };
-    supersededTargets.current =
-      superseded && superseded.target !== target
-        ? [...supersededTargets.current, superseded.target]
-        : supersededTargets.current;
-  }, []);
-
-  // SINGLE FLIGHT's budget (`navigationFlight.ts`), as on the clinic stage.
-  const navigateAbandonedIntent = useCallback(
-    (abandonedTarget: string) => {
-      const target = pendingNavigationIntent.current?.target ?? null;
-      if (target === null || target === currentUrlModule.current || target === abandonedTarget) return null;
-      router.push(buildDashboardModuleHref(ROUTES.dashboardAdmin, target), { scroll: false });
-      return target;
-    },
-    [router],
-  );
-  const flight = useNavigationFlight(navigateAbandonedIntent);
-
+  // An access error belongs to the module that reported it: it is dropped when
+  // the stage moves to another module and again when the URL commits one.
+  const shown = useRef({ activeModule, urlModule });
   useEffect(() => {
-    const previousCommittedModule = currentUrlModule.current;
-    const nextModule = parseAdminModule(searchParams.get(MODULE_QUERY_PARAM));
-    currentUrlModule.current = nextModule;
-
-    if (previousUrlModule.current !== nextModule) {
-      clearAdminAccessError();
-      previousUrlModule.current = nextModule;
-      // The last-module restore is a LANDING-only one-shot, so any observed URL
-      // module transition — hub tile push, deep link, browser Back/Forward —
-      // consumes it. It used to stay armed for the controller's whole life
-      // whenever the landing had nothing stored yet, so a browser Back to
-      // `/dashboard/admin` (which sets no manual-return flag) re-entered the
-      // restore, replaced the URL back into the module the visit had just
-      // persisted and remounted its workspace: the Back was undone and its
-      // history entry overwritten.
-      hasRestoredLastModule.current = true;
-    }
-
-    // A sync activation swaps the stage before its URL commit. Under load the
-    // SUPERSEDED previous navigation can still commit after that optimistic
-    // swap (the router action queue drains in dispatch order), and blindly
-    // applying it here yanked the hub away mid-interaction (CI: hub tile
-    // detached mid-click). Only a SUPERSEDED target can arrive that way, so only
-    // that commit (or a re-render that did not move the module at all) keeps the
-    // optimistic state. Every other mismatching commit is an external navigation
-    // that landed inside the optimistic window - Back/Forward, a deep link - and
-    // it is the user's own: the intent is abandoned and the URL obeyed. Skipping
-    // every mismatch used to keep the left module on screen after a Back, and the
-    // matching commit (or a same-URL collapse) still re-converges URL and state.
-    // A commit produced by a history traversal is external even when it lands
-    // on a superseded target: the module alone cannot tell it from a stale one.
-    const fromHistory = historyTraversalStarted.current;
-    historyTraversalStarted.current = false;
-    const intent = pendingNavigationIntent.current;
-    if (
-      intent &&
-      !fromHistory &&
-      nextModule !== intent.target &&
-      (nextModule === previousCommittedModule ||
-        supersededTargets.current.includes(nextModule))
-    ) {
-      // SINGLE FLIGHT: the superseded navigation landed and the latest request
-      // was claimed instead of pushed, so replacing this entry is the one
-      // navigation that brings the url to it. Its commit consumes the intent.
-      if (nextModule !== previousCommittedModule && intent.target !== null) {
-        if (pushedFrom.current?.module === intent.target) {
-          pendingNavigationIntent.current = null;
-          supersededTargets.current = [];
-          pushedFrom.current = null;
-          flight.end();
-          window.history.back();
-          return;
-        }
-        router.replace(buildDashboardModuleHref(ROUTES.dashboardAdmin, intent.target), {
-          scroll: false,
-        });
-        flight.start(intent.target);
-      }
-      return;
-    }
-    pendingNavigationIntent.current = null;
-    supersededTargets.current = [];
-    pushedFrom.current = null;
-    flight.end();
-
-    setActiveModule(parseAdminModule(searchParams.get(MODULE_QUERY_PARAM)));
-  }, [searchParams, router, flight]);
+    if (shown.current.activeModule === activeModule && shown.current.urlModule === urlModule) return;
+    shown.current = { activeModule, urlModule };
+    clearAdminAccessError();
+  }, [activeModule, urlModule]);
 
   useEffect(() => () => clearAdminAccessError(), []);
-
-  useEffect(
-    () =>
-      subscribeHistoryTraversal(() => {
-        historyTraversalStarted.current = true;
-      }),
-    [],
-  );
-
-  // Backstop of the classification above for Back/Forward while an activation
-  // is pending: a history entry that carries the committed module does not move
-  // the module, so the effect keeps the optimistic stage. The intent is
-  // abandoned here and the stage falls back to the committed module; when the
-  // effect already treated the commit as external, there is nothing left to do.
-  useEffect(() => {
-    function relinquishOnHistoryNavigation() {
-      historyTraversalStarted.current = false;
-      flight.end();
-      if (!pendingNavigationIntent.current) return;
-      pendingNavigationIntent.current = null;
-      supersededTargets.current = [];
-      pushedFrom.current = null;
-      if (currentUrlModule.current) setActiveModule(currentUrlModule.current);
-    }
-
-    window.addEventListener("popstate", relinquishOnHistoryNavigation);
-    return () => window.removeEventListener("popstate", relinquishOnHistoryNavigation);
-  }, [flight]);
-
-  // Hub-reset signal: honour it by dropping back to the hub even when its URL
-  // navigation collapses into a same-URL no-op (in-flight module push cancelled
-  // before it committed), which would otherwise leave the controller stranded
-  // on the previous module. The mobile bottom-nav "Inicio" that produced it is
-  // retired (pre-C05); the subscription stays because the signal is contracted.
-  useEffect(
-    () =>
-      subscribeAdminHubReset(() => {
-        clearAdminAccessError();
-        recordNavigationIntent(null);
-        setActiveModule(null);
-        setHasManuallyReturnedToHub(true);
-      }),
-    [recordNavigationIntent],
-  );
-
-  // The mobile bottom-nav module destinations publish their target so the
-  // workspace swaps synchronously, as an optimistic activation. Without this
-  // the swap waited on the async URL push, which intermittently lagged past the
-  // navigation under load and left the previous module rendered (mobile
-  // bottom-nav flake).
-  // SINGLE FLIGHT (`admin-hub-reset.ts`): a request that arrives while a module
-  // navigation is still in flight is claimed, and reconciled above once it lands.
-  useEffect(
-    () =>
-      subscribeAdminModuleActivate((moduleId) => {
-        const parsed = parseAdminModule(moduleId);
-        if (!parsed) return false;
-        // An abandoned flight no longer holds the next click.
-        const inFlight = pendingNavigationIntent.current?.target != null && flight.isActive();
-        const committed = currentUrlModule.current;
-        clearAdminAccessError();
-        recordNavigationIntent(parsed);
-        // Not in flight: the caller pushes this one, which starts the burst. A
-        // push of the committed module commits no module change, so it cannot
-        // end a flight: none is armed for it.
-        if (!inFlight && pendingNavigationIntent.current) {
-          pushedFrom.current = { module: committed };
-          if (parsed !== committed) flight.start(parsed);
-        }
-        setHasManuallyReturnedToHub(false);
-        setActiveModule(parsed);
-        return inFlight;
-      }),
-    [recordNavigationIntent, flight],
-  );
-
-  useEffect(() => {
-    if (!activeModule) return;
-    writeDashboardLastModule(ADMIN_LAST_MODULE_STORAGE_KEY, activeModule);
-  }, [activeModule]);
-
-  useEffect(() => {
-    if (hasRestoredLastModule.current || hasManuallyReturnedToHub) return;
-    if (searchParams.get(MODULE_QUERY_PARAM) || isAdminHubRequested(searchParams)) return;
-    const lastModule = parseAdminModule(
-      readDashboardLastModule(ADMIN_LAST_MODULE_STORAGE_KEY),
-    );
-    const landingModule = lastModule ?? DEFAULT_ADMIN_MODULE;
-    hasRestoredLastModule.current = true;
-    router.replace(
-      buildDashboardModuleHref(ROUTES.dashboardAdmin, landingModule),
-      { scroll: false },
-    );
-  }, [searchParams, hasManuallyReturnedToHub, router]);
-
-  useEffect(() => {
-    if (activeModule !== null || accessErrorStatus) return;
-    function resolveRetiredHub() {
-      // A navigation activation already owns this navigation.
-      if (pendingNavigationIntent.current) return;
-      // A module the live URL already carries (a nav tap that committed before
-      // this controller hydrated) wins over the landing fallback.
-      if (parseAdminModule(new URLSearchParams(window.location.search).get(MODULE_QUERY_PARAM))) {
-        return;
-      }
-      const landingModule =
-        parseAdminModule(readDashboardLastModule(ADMIN_LAST_MODULE_STORAGE_KEY)) ??
-        DEFAULT_ADMIN_MODULE;
-      hasRestoredLastModule.current = true;
-      setActiveModule(landingModule);
-      // Native replace, synced into useSearchParams by the router: it never
-      // enters the router action queue, so it cannot overtake a navigation the
-      // user already started.
-      window.history.replaceState(
-        null,
-        "",
-        buildDashboardModuleHref(ROUTES.dashboardAdmin, landingModule),
-      );
-    }
-    resolveRetiredHub();
-  }, [activeModule, accessErrorStatus]);
-
-  // The lateral band, the mobile bar and the mobile title render this, not
-  // their own reading of the URL: a superseded commit kept above must not move
-  // them either.
-  usePublishStageModule("admin", activeModule);
 
   const activeMeta = activeModule ? ADMIN_MODULE_META[activeModule] : null;
 
@@ -394,6 +174,7 @@ export function AdminDashboardWorkspaceController({
       data-dashboard-module-stage="true"
       className="flex min-h-0 flex-1 flex-col overflow-hidden dashboard-module-stage"
     >
+      {navigation?.stalled ? <AdminNavigationStalledNotice onRetry={navigation.retry} /> : null}
       {activeModule && activeMeta ? (
         <DashboardModuleWorkspace
           key={activeModule}

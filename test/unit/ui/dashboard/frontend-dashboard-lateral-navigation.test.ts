@@ -270,11 +270,68 @@ test("the band renders the stage owner's module, never its own reading of the co
 });
 
 test("every stage owner publishes the module it shows; every chrome surface renders it", () => {
+  // PR-NAV-03: on the admin surface the owner is the navigation machine. Stage
+  // and chrome render the same `display`, through one hook each, so there is
+  // nothing to publish and no second copy that could disagree.
+  const adminStage = read("frontend/src/app/dashboard/admin/AdminDashboardWorkspaceController.tsx");
+  assert.ok(
+    adminStage.includes("const navigation = useAdminDashboardNavigation();") &&
+      adminStage.includes("const activeModule = navigation === null ? urlModule : navigation.module;"),
+    "the admin stage shows the machine's display",
+  );
+  assert.equal(adminStage.includes("usePublishStageModule"), false, "the admin stage is not a second owner");
+  assert.ok(
+    read("frontend/src/components/dashboard/useStageModule.ts").includes(
+      'if (surface === "admin") return adminNavigation === null ? undefined : adminNavigation.module;',
+    ),
+    "the admin chrome reads the same display, and the URL when no owner is mounted",
+  );
+  const adminOwner = read("frontend/src/components/dashboard/DashboardNavigationProvider.tsx");
+  assert.ok(
+    adminOwner.includes(": previewDisplay(MACHINE, ADMIN_CONFIG, snapshot, source.location);") &&
+      adminOwner.includes("const searchParams = useSearchParams();"),
+    "the display is derived in render, in the same commit as the URL",
+  );
+  // Clinic isolation: the layout is shared, the owner is not. Outside
+  // /dashboard/admin the provider hands out no store slot and mounts no owner,
+  // so nothing below it can reach a store; and it never reads the URL itself.
+  const provider = adminOwner.slice(
+    adminOwner.indexOf("export function DashboardNavigationProvider("),
+    adminOwner.indexOf("export type AdminDashboardNavigation"),
+  );
+  assert.ok(
+    provider.includes("const isAdmin = usePathname() === ROUTES.dashboardAdmin;") &&
+      provider.includes("const slot = isAdmin ? (held ?? createAdminStoreSlot()) : null;") &&
+      provider.includes("<AdminStoreSlotContext.Provider value={slot}>") &&
+      provider.includes("{slot === null ? null : ("),
+    "the owner exists on /dashboard/admin only",
+  );
+  for (const urlRead of ["useSearchParams", "useRouter", "createAdminStore("]) {
+    assert.equal(provider.includes(urlRead), false, `the layout-level provider does not touch ${urlRead}`);
+  }
+  // The page is never inside a boundary of the owner: a boundary around the
+  // children would make the server send the page twice, fallback and content.
+  assert.ok(
+    provider.includes("<Suspense fallback={null}>\n          <AdminNavigationOwner />\n        </Suspense>") &&
+      provider.includes("      )}\n      {children}\n    </AdminStoreSlotContext.Provider>"),
+    "the owner is a sibling of the children and renders nothing",
+  );
+  assert.equal(adminOwner.split("<Suspense").length - 1, 1, "the only boundary of the owner wraps the owner itself");
+  assert.ok(
+    adminOwner.includes("store ??= createAdminStore(router, location, explicit);") &&
+      adminOwner.split("createAdminStore(router, location, explicit)").length - 1 === 1,
+    "one store per visit, created in render by whoever reads the URL first (A1)",
+  );
+  const consumers = adminOwner.slice(adminOwner.indexOf("function useAdminNavigationSource("));
+  assert.ok(
+    consumers.includes("slot === null ? null : { store: slot.resolve(router, location, explicit), location }"),
+    "without a slot there is no store to reach",
+  );
+  for (const clinicOnly of ["clinic-hub-reset", "CLINIC_LAST_MODULE_STORAGE_KEY", "parseClinicModule", "stageModule"]) {
+    assert.equal(adminOwner.includes(clinicOnly), false, `the admin owner touches no clinic mechanism: ${clinicOnly}`);
+  }
+
   const owners = [
-    [
-      "frontend/src/app/dashboard/admin/AdminDashboardWorkspaceController.tsx",
-      'usePublishStageModule("admin", activeModule);',
-    ],
     [
       "frontend/src/components/dashboard/ClinicDashboardWorkspaceController.tsx",
       'usePublishStageModule("clinic", isHubActive ? null : activeModule);',
@@ -356,43 +413,56 @@ test("shell router no longer renders a vertical sidebar as primary navigation", 
   assert.ok(source.includes("<DashboardMobileNav surface={surface} />"));
 });
 
-test("an admin request before the controller subscribes is handed over once", async () => {
-  const globals = globalThis as { window?: unknown };
-  const hadWindow = "window" in globals;
-  const previousWindow = globals.window;
-  globals.window = globalThis;
-  try {
-    const { requestAdminModuleActivate, subscribeAdminModuleActivate } = await import(
-      "../../../../frontend/src/lib/admin-hub-reset.ts"
-    );
+// PR-NAV-03 (FSM roadmap §11.3): the owner lives in the dashboard layout and its
+// store exists before any page mounts, so a request made before it registers is
+// not kept for a later replay. The caller is told `false` and navigates on its
+// own; the owner then sees that navigation as a URL commit. A replayed request
+// could land after it and navigate a second time.
+test("an admin request with no navigation owner is left to the caller and never replayed", async () => {
+  const { requestAdminModuleActivate, requestAdminHubReset, registerAdminNavigationOwner } = await import(
+    "../../../../frontend/src/lib/admin-hub-reset.ts"
+  );
 
-    // Controller not mounted yet: the request waits as an unheard activation.
-    requestAdminModuleActivate("admin-clinics");
-    const heard: string[] = [];
-    const stopListening = subscribeAdminModuleActivate((moduleId) => {
+  assert.equal(requestAdminModuleActivate("admin-clinics"), false, "no owner: the caller navigates");
+  requestAdminHubReset();
+
+  const heard: string[] = [];
+  const unregister = registerAdminNavigationOwner({
+    selectModule(moduleId) {
       heard.push(moduleId);
-    });
-    assert.deepEqual(heard, ["admin-clinics"], "the late request reaches the controller");
+      return true;
+    },
+    selectHub() {
+      heard.push("hub");
+    },
+  });
+  assert.deepEqual(heard, [], "nothing asked before the owner registered is replayed");
 
-    requestAdminModuleActivate("audit-log");
-    assert.deepEqual(heard, ["admin-clinics", "audit-log"]);
+  assert.equal(requestAdminModuleActivate("audit-log"), true);
+  requestAdminHubReset();
+  assert.deepEqual(heard, ["audit-log", "hub"]);
 
-    stopListening();
-    requestAdminModuleActivate("admin-pricing");
-    assert.deepEqual(heard, ["admin-clinics", "audit-log"], "an unsubscribed controller hears nothing");
-    const next: string[] = [];
-    subscribeAdminModuleActivate((moduleId) => {
+  // A newer owner replaces the previous one; the stale unregister is inert.
+  const next: string[] = [];
+  const unregisterNext = registerAdminNavigationOwner({
+    selectModule(moduleId) {
       next.push(moduleId);
-    })();
-    assert.deepEqual(next, ["admin-pricing"], "the next controller takes the unheard request");
-    const again: string[] = [];
-    subscribeAdminModuleActivate((moduleId) => {
-      again.push(moduleId);
-    })();
-    assert.deepEqual(again, [], "the hand-over is consumed");
-  } finally {
-    if (hadWindow) globals.window = previousWindow;
-    else delete globals.window;
+      return true;
+    },
+    selectHub() {},
+  });
+  unregister();
+  assert.equal(requestAdminModuleActivate("admin-pricing"), true);
+  assert.deepEqual(next, ["admin-pricing"]);
+  assert.deepEqual(heard, ["audit-log", "hub"], "the replaced owner hears nothing");
+
+  unregisterNext();
+  assert.equal(requestAdminModuleActivate("admin-sessions"), false, "an unregistered owner hears nothing");
+  assert.deepEqual(next, ["admin-pricing"]);
+
+  const adapter = read("frontend/src/lib/admin-hub-reset.ts");
+  for (const retired of ["unheardActivation", "LATE_ACTIVATION_MAX_AGE_MS", "performance.now()", "Listeners"]) {
+    assert.equal(adapter.includes(retired), false, `the listener bus and its replay are gone: ${retired}`);
   }
 });
 
@@ -489,12 +559,18 @@ test("SINGLE FLIGHT: only a stage owner claims a request, and only when it says 
     assert.equal(admin.requestAdminModuleActivate("admin-clinics"), false);
     assert.equal(clinic.requestClinicModuleActivate("tokens"), false);
 
-    // The owner claims only while its previous navigation is in flight.
-    let adminInFlight = false;
-    const stopAdmin = admin.subscribeAdminModuleActivate(() => adminInFlight);
-    assert.equal(admin.requestAdminModuleActivate("audit-log"), false, "nothing in flight: the caller pushes");
-    adminInFlight = true;
-    assert.equal(admin.requestAdminModuleActivate("admin-pricing"), true, "in flight: the owner claims");
+    // PR-NAV-03: the admin owner is the navigation machine. The adapter relays
+    // its answer and adds no claim of its own; whether a taken selection
+    // navigates at once or is claimed by the flight in the router is the
+    // machine's row #29 (dashboard-navigation-machine and -coordinator suites).
+    let adminTakes = false;
+    const stopAdmin = admin.registerAdminNavigationOwner({
+      selectModule: () => adminTakes,
+      selectHub() {},
+    });
+    assert.equal(admin.requestAdminModuleActivate("audit-log"), false, "the owner declined: the caller pushes");
+    adminTakes = true;
+    assert.equal(admin.requestAdminModuleActivate("admin-pricing"), true, "the owner took it: the caller must not");
     stopAdmin();
 
     let clinicInFlight = true;
@@ -509,7 +585,6 @@ test("SINGLE FLIGHT: only a stage owner claims a request, and only when it says 
     assert.equal(clinic.requestClinicModuleActivate("informes"), false, "a full-route stage never claims");
     stopStage();
     clinic.relinquishClinicModuleActivateHandOver();
-    admin.subscribeAdminModuleActivate(() => {})();
   } finally {
     if (hadWindow) globals.window = previousWindow;
     else delete globals.window;
@@ -535,24 +610,49 @@ test("SINGLE FLIGHT: every producer honours a claim and both owners claim and re
     assert.ok(read(path).includes(honours), `${path} must not navigate a claimed request`);
   }
 
-  const admin = read("frontend/src/app/dashboard/admin/AdminDashboardWorkspaceController.tsx");
+  // PR-NAV-03: on the admin surface the claim and its reconciliation are rows
+  // of the navigation machine; the owner only dispatches and interprets.
+  const admin = read("frontend/src/components/dashboard/DashboardNavigationProvider.tsx");
+  const machine = read("frontend/src/lib/dashboard/navigation/dashboardNavigationMachine.ts");
   assert.ok(
-    admin.includes("const inFlight = pendingNavigationIntent.current?.target != null && flight.isActive();"),
-  );
-  assert.ok(admin.includes("return inFlight;"), "the admin controller claims while in flight");
-  assert.ok(
-    admin.includes("router.replace(buildDashboardModuleHref(ROUTES.dashboardAdmin, intent.target), {"),
-    "the admin controller replaces the superseded entry with the claimed module",
-  );
-  assert.ok(
-    admin.includes("if (superseded === null && currentUrlModule.current === target) return;"),
-    "a pending navigation keeps every newer intent, as in clinicNavigationState",
+    admin.includes('if (parsed === null || tag === "BOOTING" || tag === "FAILED") return false;') &&
+      admin.includes('store.dispatch({ type: "SELECT_MODULE", module: parsed });\n        return true;'),
+    "the admin owner takes every selection the machine will not ignore (DT-10)",
   );
   assert.ok(
-    admin.includes("if (pushedFrom.current?.module === intent.target) {") &&
-      admin.includes("window.history.back();"),
-    "returning to the module the burst pushed from steps back instead of leaving [A, A]",
+    machine.includes("// #29: the flight in the router claims the selection; nothing navigates.") &&
+      machine.includes("state: { ...state, next: same(target, state.target) ? null : target },") &&
+      machine.includes("effects: [PUBLISH_DISPLAY],"),
+    "the machine claims a selection made while a user flight is in the router",
   );
+  const landed = machine.slice(machine.indexOf("// #30:"), machine.indexOf("// #32:"));
+  assert.ok(
+    landed.includes("state.next,") && landed.includes('"replace",'),
+    "the machine replaces the landed entry with the claimed module",
+  );
+  assert.ok(
+    machine.includes("if (same(target, state.next ?? state.target)) return stay(ctx, state);"),
+    "a flight keeps the newest selection: re-selecting it is the only no-op",
+  );
+  // DT-16 = A: returning to the committed module is a push to the current URL
+  // (#25), which discards the flight; the machine has no native history effect
+  // to step back with (S9), so no part of the owner calls history.back().
+  assert.ok(
+    machine.includes("return returnToCommitted(config, ctx, target, cancelBudget(state)); // #25") &&
+      machine.includes('{ type: "ROUTER_PUSH", to: target },'),
+    "returning to the committed module pushes its own URL instead of leaving [A, A]",
+  );
+  for (const path of [
+    "frontend/src/app/dashboard/admin/AdminDashboardWorkspaceController.tsx",
+    "frontend/src/components/dashboard/DashboardNavigationProvider.tsx",
+    "frontend/src/lib/dashboard/navigation/dashboardNavigationCoordinator.ts",
+  ]) {
+    assert.equal(
+      /history\.(back|forward|go|pushState|replaceState)\(|router\.refresh\(/.test(read(path)),
+      false,
+      `${path}: the admin owner navigates through router.push/replace only (S9, DT-2)`,
+    );
+  }
 
   const clinic = read("frontend/src/components/dashboard/ClinicDashboardWorkspaceController.tsx");
   assert.ok(
@@ -789,10 +889,6 @@ test("SINGLE FLIGHT budget: both owners claim only within it and settle it on ev
       "frontend/src/components/dashboard/ClinicDashboardWorkspaceController.tsx",
       "const inFlight = navigationState.current.pendingIntent !== null && flight.isActive();",
     ],
-    [
-      "frontend/src/app/dashboard/admin/AdminDashboardWorkspaceController.tsx",
-      "const inFlight = pendingNavigationIntent.current?.target != null && flight.isActive();",
-    ],
   ] as const) {
     const owner = read(path);
     assert.ok(owner.includes(claim), `${path} claims only while its flight is within budget`);
@@ -800,7 +896,7 @@ test("SINGLE FLIGHT budget: both owners claim only within it and settle it on ev
     assert.ok(owner.includes("router.push("), `${path} navigates the latest intent of an abandoned flight`);
     assert.equal(
       owner.split("flight.start(").length - 1,
-      path.includes("Clinic") ? 3 : 2,
+      3,
       `${path} arms the flight, with its target, for every navigation it starts or lets the caller start`,
     );
     assert.ok(
@@ -820,4 +916,46 @@ test("SINGLE FLIGHT budget: both owners claim only within it and settle it on ev
     );
     assert.equal(/window\.event|setInterval|location\.reload/.test(owner), false, path);
   }
+
+  // PR-NAV-03: the admin owner keeps the same budget, as rows of the machine
+  // interpreted by the coordinator (FSM roadmap §12.5.1, DT-5 = 10 000 ms).
+  const adminView = read("frontend/src/app/dashboard/admin/AdminDashboardWorkspaceController.tsx");
+  const adminOwner = read("frontend/src/components/dashboard/DashboardNavigationProvider.tsx");
+  const coordinator = read("frontend/src/lib/dashboard/navigation/dashboardNavigationCoordinator.ts");
+  const machine = read("frontend/src/lib/dashboard/navigation/dashboardNavigationMachine.ts");
+  for (const retired of ["useNavigationFlight", "flight.", "navigateAbandonedIntent", "router."]) {
+    assert.equal(adminView.includes(retired), false, `the admin view owns no flight: ${retired}`);
+  }
+  assert.ok(
+    adminOwner.includes(
+      'import { NAVIGATION_FLIGHT_BUDGET_MS } from "@/lib/dashboard/navigation/navigationFlight";',
+    ) && adminOwner.includes("timers.set(navId, setTimeout(expire, NAVIGATION_FLIGHT_BUDGET_MS));"),
+    "one budget value in the tree: the admin owner arms the same constant the clinic flight uses",
+  );
+  assert.equal(adminOwner.split("setTimeout(").length - 1, 1, "the admin owner arms a timer for the budget only");
+  assert.ok(
+    adminOwner.includes("clearTimeout(timers.get(navId));") && coordinator.includes("for (const navId of [...armed]) cancel(navId);"),
+    "an owner that unmounts takes its budget with it",
+  );
+  assert.ok(
+    coordinator.includes("if (navId !== flight) cancel(navId);") && coordinator.includes("if (flight !== null) arm(flight);"),
+    "the budget is settled on every terminal state: timers follow the state (A6)",
+  );
+  const expiry = machine.slice(machine.indexOf("function expire("), machine.indexOf("function fail("));
+  assert.ok(
+    expiry.includes("// #31: one relay, in the history of the flight it relieves.") &&
+      expiry.includes("supersede(ctx.superseded, state.target, state.next),"),
+    "the admin owner navigates the latest intent of an abandoned flight, once",
+  );
+  assert.ok(
+    expiry.includes('tag: "STALLED",') && expiry.includes("return stay(ctx, state); // #13 and the ignored pairs"),
+    "an abandoned flight with nothing to hand over stalls, and a stale budget is inert: no retry loop",
+  );
+  assert.ok(
+    machine.includes("if (same(target, ctx.committed)) return stay(ctx, state); // #4") &&
+      machine.includes("// #17") &&
+      machine.includes("effects: [...cancelBudget(state), { type: \"ARM_BUDGET\", navId }, PUBLISH_DISPLAY],"),
+    "no flight is armed for the committed module, and Back/Forward ends the flight it finds",
+  );
+  assert.equal(/window\.event|setInterval|location\.reload/.test(adminOwner + coordinator), false);
 });

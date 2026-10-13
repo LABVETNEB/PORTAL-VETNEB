@@ -655,6 +655,13 @@ test.describe("DASHBOARD_REAL_POINTER_NAVIGATION · clinic full-module control",
 // with A left [A, A], so the next Back changed nothing. The owner steps back
 // onto A's own entry instead: no duplicate, and B stays as the Forward entry
 // the person did visit.
+//
+// Admin (PR-NAV-03, DT-16 = A): the navigation machine has no native history
+// effect to step back with. Returning to A is row #25 of the FSM roadmap §12.4,
+// a push to the URL the router already shows: it asks for one payload of A,
+// discards B's navigation before it can commit and writes no entry. Same
+// scenarios, viewports and checks, with the values of that row: history does
+// not grow in the burst and B never becomes an entry, Forward or otherwise.
 for (const role of ["admin", "clinic"] as const) {
   test.describe(`DASHBOARD_REAL_POINTER_NAVIGATION · ${role} return to the committed module`, () => {
     test.beforeEach(async ({ page }) => {
@@ -705,6 +712,52 @@ for (const role of ["admin", "clinic"] as const) {
         await selectModule(page, role, regime, committed);
         await expectCurrent(page, role, regime, committed);
         await expectStage(page, committed);
+
+        if (role === "admin") {
+          await expect
+            .poll(() => gate.requested(), {
+              message: "the return asks for the abandoned module's payload and one of the committed url, no more",
+            })
+            .toEqual([abandoned, committed]);
+
+          const divergence = await recordDivergenceFrom(page, role, regime, committed);
+          expect(await gate.releaseModule(abandoned)).toBeGreaterThan(0);
+          await gate.release();
+          await waitForLayoutSettled(page);
+          await expect(page).toHaveURL(moduleUrl(base, committed));
+          await expectCurrent(page, role, regime, committed);
+          await expectStage(page, committed);
+          expect(
+            (await pushed()).filter((url) => url.includes(`module=${abandoned}`)),
+            `${abandoned} was discarded before it could write a history entry`,
+          ).toEqual([]);
+          expect(await divergence(), `${abandoned} repainted after the return to ${committed}`).toEqual([]);
+          expect(gate.requested(), "no reconciling replay after the return").toEqual([abandoned, committed]);
+          expect(
+            await page.evaluate(() => window.history.length),
+            "the landing and the committed module: the burst added nothing",
+          ).toBe(originLength + 1);
+
+          // Back leaves the committed module for the landing, never for a copy of itself.
+          await page.goBack();
+          await expect(page).toHaveURL(moduleUrl(base, landing));
+          await expectCurrent(page, role, regime, landing);
+          await expectStage(page, landing);
+          await page.goForward();
+          await expect(page).toHaveURL(moduleUrl(base, committed));
+          await expectCurrent(page, role, regime, committed);
+          await expectStage(page, committed);
+          // There is no Forward entry of the abandoned module to step onto.
+          await page.goForward();
+          await waitForLayoutSettled(page);
+          await expect(page).toHaveURL(moduleUrl(base, committed));
+          await expectCurrent(page, role, regime, committed);
+          await expectStage(page, committed);
+          expect(reloads.documents, "client navigation, never a reload").toEqual([]);
+          expect(runtimeErrors).toEqual([]);
+          return;
+        }
+
         expect(gate.requested(), "the return to the committed module starts no payload").toEqual([abandoned]);
 
         const divergence = await recordDivergenceFrom(page, role, regime, committed);

@@ -1,3 +1,4 @@
+import { DashboardNavigationProvider } from "@/components/dashboard/DashboardNavigationProvider";
 import { PrivateDashboardShell } from "@/components/dashboard/PrivateDashboardShell";
 
 export default function DashboardLayout({
@@ -5,5 +6,9 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <PrivateDashboardShell>{children}</PrivateDashboardShell>;
+  return (
+    <DashboardNavigationProvider>
+      <PrivateDashboardShell>{children}</PrivateDashboardShell>
+    </DashboardNavigationProvider>
+  );
 }
