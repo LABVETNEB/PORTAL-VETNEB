@@ -38,6 +38,9 @@ export function AdminMobileLauncherTile({ card }: AdminMobileLauncherTileProps) 
       variant="bare"
       aria-label={ariaLabel}
       data-admin-mobile-hub-tile={card.moduleId}
+      onClick={(event) => {
+        if (card.claim?.()) event.preventDefault();
+      }}
       className={sharedClassName}
     >
       {body}

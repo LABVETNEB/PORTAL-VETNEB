@@ -12,22 +12,36 @@ import {
   type ReactNode,
 } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { HUB_QUERY_PARAM, MODULE_QUERY_PARAM, buildDashboardModuleHref } from "@/features/dashboard/application";
+import {
+  HUB_QUERY_PARAM,
+  MODULE_QUERY_PARAM,
+  buildDashboardModuleHref,
+  buildHubHref,
+  isHubRequested,
+} from "@/features/dashboard/application";
 import {
   ADMIN_MODULE_IDS,
+  CLINIC_MODULE_IDS,
   DEFAULT_ADMIN_MODULE,
+  DEFAULT_CLINIC_MODULE,
   parseAdminModule,
+  parseClinicModule,
   type AdminModule,
+  type ClinicModule,
 } from "@/features/dashboard/config";
 import { registerAdminNavigationOwner } from "@/lib/admin-hub-reset";
+import { registerClinicNavigationOwner } from "@/lib/clinic-hub-reset";
 import {
   ADMIN_LAST_MODULE_STORAGE_KEY,
+  CLINIC_LAST_MODULE_STORAGE_KEY,
   readDashboardLastModule,
   writeDashboardLastModule,
 } from "@/lib/dashboard-last-module";
+import { clinicModuleHref } from "@/lib/dashboard/navigation/clinicNavigationState";
 import {
   createNavigationCoordinator,
   previewDisplay,
+  sameNavLocation,
   type NavigationCoordinator,
   type NavigationMachine,
 } from "@/lib/dashboard/navigation/dashboardNavigationCoordinator";
@@ -41,15 +55,18 @@ import { NAVIGATION_FLIGHT_BUDGET_MS } from "@/lib/dashboard/navigation/navigati
 import { ROUTES } from "@/lib/routes";
 
 /**
- * Owner of module navigation on `/dashboard/admin` (PR-NAV-03).
+ * Owner of module navigation on the dashboard: `/dashboard/admin` (PR-NAV-03)
+ * and the clinic surface, `/dashboard` with its hub (PR-NAV-04).
  *
  * A thin wrapper over the coordinator of §12.5.1: the store is created in
  * render with HYDRATED applied (A1), mounted in a passive effect (A4),
  * unmounted (A8) and handed the events. Every decision is the machine's; every
  * effect runs from the coordinator's queue, never from render.
  *
- * It lives in the dashboard layout, which the clinic routes share, and holds
- * nothing there: no store, no dispatch, no navigation (clinic is PR-NAV-04).
+ * One store per surface. The clinic store lives across `/dashboard` and its
+ * full routes, which is what lets it leave FAILED when the pathname changes;
+ * the full routes' own stage is not a view of it yet (PR-NAV-05). Crossing
+ * between the two surfaces starts a new store.
  *
  * The provider itself never reads the search params and never wraps its
  * children in a boundary: the layout also serves statically prerendered
@@ -58,19 +75,49 @@ import { ROUTES } from "@/lib/routes";
  * sibling of the children, and each consumer of the display.
  *
  * @see docs/implementation/dashboard-navigation-fsm-admin.md
+ * @see docs/implementation/dashboard-navigation-fsm-clinic.md
  */
 
 type RouterLike = ReturnType<typeof useRouter>;
+type UrlQuery = Pick<URLSearchParams, "get" | "has">;
 
 const MACHINE: NavigationMachine = { initial, transition };
+
+const NO_MODULE: NavLocation = { kind: "none" };
+const HUB: NavLocation = { kind: "hub" };
+
+type Located = {
+  readonly location: NavLocation;
+  /** The URL had `module` or `hub`, valid or not (HYDRATED.explicit). */
+  readonly explicit: boolean;
+};
+
+type NavigationOwner = {
+  /** `true` when the selection was dispatched to the machine. */
+  readonly selectModule: (moduleId: string) => boolean;
+  readonly selectHub: () => void;
+};
+
+/** What tells one surface from the other; the owner below is the same for both. */
+type NavigationSurface = {
+  readonly config: MachineConfig;
+  readonly storageKey: string;
+  readonly parseModule: (value: string | null) => string | null;
+  /** The surface's reading of a URL, or `null` when the URL is not its own. */
+  readonly locate: (pathname: string, query: UrlQuery) => Located | null;
+  readonly href: (location: NavLocation) => string;
+  readonly registerOwner: (owner: NavigationOwner) => () => void;
+};
+
+function isExplicit(query: UrlQuery): boolean {
+  return query.has(MODULE_QUERY_PARAM) || query.has(HUB_QUERY_PARAM);
+}
 
 const ADMIN_CONFIG: MachineConfig = {
   surface: "admin",
   modules: ADMIN_MODULE_IDS,
   defaultModule: DEFAULT_ADMIN_MODULE,
 };
-
-const NO_MODULE: NavLocation = { kind: "none" };
 
 function adminLocation(moduleId: AdminModule | null): NavLocation {
   return moduleId === null ? NO_MODULE : { kind: "module", module: moduleId };
@@ -82,35 +129,110 @@ function adminHref(location: NavLocation): string {
     : ROUTES.dashboardAdmin;
 }
 
-/** The admin location of a URL, or `null` when it is not the admin dashboard. */
-function adminLocationOfUrl(href: string): NavLocation | null {
-  const url = new URL(href, window.location.href);
-  if (url.pathname !== ROUTES.dashboardAdmin) return null;
-  return adminLocation(parseAdminModule(url.searchParams.get(MODULE_QUERY_PARAM)));
+const ADMIN_SURFACE: NavigationSurface = {
+  config: ADMIN_CONFIG,
+  storageKey: ADMIN_LAST_MODULE_STORAGE_KEY,
+  parseModule: parseAdminModule,
+  locate(pathname, query) {
+    if (pathname !== ROUTES.dashboardAdmin) return null;
+    return {
+      location: adminLocation(parseAdminModule(query.get(MODULE_QUERY_PARAM))),
+      explicit: isExplicit(query),
+    };
+  },
+  href: adminHref,
+  registerOwner: registerAdminNavigationOwner,
+};
+
+const CLINIC_CONFIG: MachineConfig = {
+  surface: "clinic",
+  modules: CLINIC_MODULE_IDS,
+  defaultModule: DEFAULT_CLINIC_MODULE,
+};
+
+const CLINIC_ROUTES_PREFIX = `${ROUTES.dashboard}/`;
+
+function isClinicPath(pathname: string): boolean {
+  if (pathname === ROUTES.dashboard) return true;
+  return (
+    pathname.startsWith(CLINIC_ROUTES_PREFIX) &&
+    pathname !== ROUTES.dashboardAdmin &&
+    !pathname.startsWith(`${ROUTES.dashboardAdmin}/`)
+  );
 }
 
-function createAdminStore(router: RouterLike, location: NavLocation, explicit: boolean): NavigationCoordinator {
+function clinicLocation(pathname: string, query: UrlQuery): NavLocation {
+  if (pathname !== ROUTES.dashboard) {
+    // A full route names its module in the segment below `/dashboard`, the
+    // grammar the mobile bar already reads. One that names none stores nothing.
+    const segment = pathname.slice(CLINIC_ROUTES_PREFIX.length).split("/")[0];
+    return { kind: "route", path: pathname, module: parseClinicModule(segment) ?? "" };
+  }
+  if (isHubRequested(query)) return HUB;
+  return {
+    kind: "module",
+    module: parseClinicModule(query.get(MODULE_QUERY_PARAM)) ?? DEFAULT_CLINIC_MODULE,
+  };
+}
+
+function clinicHref(location: NavLocation): string {
+  // The default module has more than one URL (`/dashboard`, `?module=operaciones`,
+  // an unknown `?module=`). A push of the location on screen (#25, #32) must be
+  // a push of the URL on screen, or it would add the entry it exists to avoid.
+  const shown = clinicLocation(window.location.pathname, new URLSearchParams(window.location.search));
+  if (isClinicPath(window.location.pathname) && sameNavLocation(shown, location)) {
+    return `${window.location.pathname}${window.location.search}`;
+  }
+  if (location.kind === "module") {
+    return clinicModuleHref(ROUTES.dashboard, DEFAULT_CLINIC_MODULE, location.module);
+  }
+  if (location.kind === "hub") return buildHubHref("clinic");
+  return location.kind === "route" ? location.path : ROUTES.dashboard;
+}
+
+const CLINIC_SURFACE: NavigationSurface = {
+  config: CLINIC_CONFIG,
+  storageKey: CLINIC_LAST_MODULE_STORAGE_KEY,
+  parseModule: parseClinicModule,
+  locate(pathname, query) {
+    if (!isClinicPath(pathname)) return null;
+    return {
+      location: clinicLocation(pathname, query),
+      explicit: pathname === ROUTES.dashboard && isExplicit(query),
+    };
+  },
+  href: clinicHref,
+  registerOwner: registerClinicNavigationOwner,
+};
+
+const SURFACES: readonly NavigationSurface[] = [ADMIN_SURFACE, CLINIC_SURFACE];
+
+function createStore(
+  surface: NavigationSurface,
+  router: RouterLike,
+  { location, explicit }: Located,
+): NavigationCoordinator {
   const timers = new Map<number, ReturnType<typeof setTimeout>>();
 
   return createNavigationCoordinator(
     MACHINE,
-    ADMIN_CONFIG,
+    surface.config,
     {
       type: "HYDRATED",
       location,
       explicit,
-      storedModule: parseAdminModule(readDashboardLastModule(ADMIN_LAST_MODULE_STORAGE_KEY)),
+      storedModule: surface.parseModule(readDashboardLastModule(surface.storageKey)),
     },
     {
       scheduleMicrotask: (drain) => queueMicrotask(drain),
       navigate(effect) {
-        const href = adminHref(effect.to);
+        const href = surface.href(effect.to);
         if (effect.type === "ROUTER_PUSH") router.push(href, { scroll: false });
         else if (effect.type === "ROUTER_REPLACE") router.replace(href, { scroll: false });
         else if (effect.mode === "assign") window.location.assign(href);
         else window.location.replace(href);
       },
-      persist: (moduleId) => writeDashboardLastModule(ADMIN_LAST_MODULE_STORAGE_KEY, moduleId),
+      persist: (moduleId) => writeDashboardLastModule(surface.storageKey, moduleId),
       armBudget(navId, expire) {
         timers.set(navId, setTimeout(expire, NAVIGATION_FLIGHT_BUDGET_MS));
       },
@@ -124,45 +246,54 @@ function createAdminStore(router: RouterLike, location: NavLocation, explicit: b
 }
 
 /**
- * One store per visit to the admin dashboard. A1: whichever component renders
- * first with the URL in hand creates it; the rest get the same one. A store
- * that React discards with its render never ran anything.
+ * One store per visit to a surface. A1: whichever component renders first with
+ * the URL in hand creates it; the rest get the same one. A store that React
+ * discards with its render never ran anything.
  */
-type AdminStoreSlot = {
-  readonly resolve: (router: RouterLike, location: NavLocation, explicit: boolean) => NavigationCoordinator;
+type StoreSlot = {
+  readonly surface: NavigationSurface;
+  readonly resolve: (router: RouterLike, located: Located) => NavigationCoordinator;
 };
 
-function createAdminStoreSlot(): AdminStoreSlot {
+function createStoreSlot(surface: NavigationSurface): StoreSlot {
   let store: NavigationCoordinator | null = null;
   return {
-    resolve(router, location, explicit) {
-      store ??= createAdminStore(router, location, explicit);
+    surface,
+    resolve(router, located) {
+      store ??= createStore(surface, router, located);
       return store;
     },
   };
 }
 
-const AdminStoreSlotContext = createContext<AdminStoreSlot | null>(null);
+const StoreSlotContext = createContext<StoreSlot | null>(null);
 
-type AdminNavigationSource = {
+type NavigationSource = {
+  readonly surface: NavigationSurface;
   readonly store: NavigationCoordinator;
-  /** The admin location of the URL this render sees. */
+  /** The surface's location of the URL this render sees. */
   readonly location: NavLocation;
 };
 
-/** `null` outside `/dashboard/admin`. Reads the search params: call it under a boundary. */
-function useAdminNavigationSource(): AdminNavigationSource | null {
-  const slot = useContext(AdminStoreSlotContext);
+/**
+ * The owner mounted above, or `null` when there is none or it is not `only`'s.
+ * Reads the search params: call it under a boundary.
+ */
+function useNavigationSource(only?: NavigationSurface): NavigationSource | null {
+  const slot = useContext(StoreSlotContext);
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
-  const urlModule = parseAdminModule(searchParams.get(MODULE_QUERY_PARAM));
-  const explicit = searchParams.has(MODULE_QUERY_PARAM) || searchParams.has(HUB_QUERY_PARAM);
-  const location = useMemo(() => adminLocation(urlModule), [urlModule]);
+  const owned = slot !== null && (only === undefined || slot.surface === only) ? slot : null;
+  const located = owned === null ? null : owned.surface.locate(pathname, searchParams);
+  // A new object per render: its text is what tells a URL change apart.
+  const urlKey = located === null ? null : JSON.stringify(located);
 
-  return useMemo(
-    () => (slot === null ? null : { store: slot.resolve(router, location, explicit), location }),
-    [slot, router, location, explicit],
-  );
+  return useMemo(() => {
+    if (owned === null || urlKey === null) return null;
+    const seen = JSON.parse(urlKey) as Located;
+    return { surface: owned.surface, store: owned.resolve(router, seen), location: seen.location };
+  }, [owned, router, urlKey]);
 }
 
 type NavigateEventLike = Event & {
@@ -171,9 +302,11 @@ type NavigateEventLike = Event & {
 };
 
 /** TRAVERSE_STARTED: Navigation API when present, `popstate` otherwise. */
-function subscribeTraversals(store: NavigationCoordinator): () => void {
+function subscribeTraversals(store: NavigationCoordinator, surface: NavigationSurface): () => void {
   const started = (href: string | undefined) => {
-    const destination = href === undefined ? null : adminLocationOfUrl(href);
+    if (href === undefined) return;
+    const url = new URL(href, window.location.href);
+    const destination = surface.locate(url.pathname, url.searchParams)?.location ?? null;
     if (destination !== null) store.dispatch({ type: "TRAVERSE_STARTED", destination });
   };
   const navigation = (window as Window & { navigation?: EventTarget }).navigation;
@@ -194,13 +327,14 @@ function subscribeTraversals(store: NavigationCoordinator): () => void {
 }
 
 /** Renders nothing: it is the store's lifecycle and its URL commits. */
-function AdminNavigationOwner() {
-  const source = useAdminNavigationSource();
+function NavigationOwner() {
+  const source = useNavigationSource();
   const store = source?.store ?? null;
+  const surface = source?.surface ?? null;
   const location = source?.location ?? NO_MODULE;
 
   // URL_COMMITTED, in the layout effect of the commit that moved the URL. The
-  // consumers previewed it in that same render (`useAdminDashboardNavigation`).
+  // consumers previewed it in that same render (`useNavigationView`).
   useLayoutEffect(() => {
     store?.commit(location);
   }, [store, location]);
@@ -208,12 +342,12 @@ function AdminNavigationOwner() {
   // A4 / A8. Passive on purpose: a layout effect would drain before the
   // boundary's own passive effect of the same commit had dispatched NAV_FAILED.
   useEffect(() => {
-    if (store === null) return undefined;
+    if (store === null || surface === null) return undefined;
     store.mount();
-    const unsubscribeTraversals = subscribeTraversals(store);
-    const unregisterOwner = registerAdminNavigationOwner({
+    const unsubscribeTraversals = subscribeTraversals(store, surface);
+    const unregisterOwner = surface.registerOwner({
       selectModule(moduleId) {
-        const parsed = parseAdminModule(moduleId);
+        const parsed = surface.parseModule(moduleId);
         const tag = store.getSnapshot().state.tag;
         // DT-10: the machine ignores these selections, so the chrome keeps them.
         if (parsed === null || tag === "BOOTING" || tag === "FAILED") return false;
@@ -230,33 +364,70 @@ function AdminNavigationOwner() {
       unsubscribeTraversals();
       store.unmount();
     };
-  }, [store]);
+  }, [store, surface]);
 
   return null;
 }
 
+function surfaceOf(pathname: string): NavigationSurface | null {
+  return SURFACES.find((surface) => surface.locate(pathname, new URLSearchParams()) !== null) ?? null;
+}
+
 /**
- * Mounted by the dashboard layout. Outside `/dashboard/admin` it provides no
- * slot and mounts no owner, so nothing below it can reach a store.
+ * Mounted by the dashboard layout. It reads the pathname only: which surface
+ * the route belongs to, so the store of one is never reachable from the other.
  */
 export function DashboardNavigationProvider({ children }: { children: ReactNode }) {
-  const isAdmin = usePathname() === ROUTES.dashboardAdmin;
-  const [held, setHeld] = useState<AdminStoreSlot | null>(() => (isAdmin ? createAdminStoreSlot() : null));
-  const slot = isAdmin ? (held ?? createAdminStoreSlot()) : null;
+  const surface = surfaceOf(usePathname());
+  const [held, setHeld] = useState<StoreSlot | null>(() => (surface === null ? null : createStoreSlot(surface)));
+  const slot = surface === null ? null : held?.surface === surface ? held : createStoreSlot(surface);
   if (slot !== held) setHeld(slot);
 
   return (
-    <AdminStoreSlotContext.Provider value={slot}>
+    <StoreSlotContext.Provider value={slot}>
       {slot === null ? null : (
         // The owner reads the search params; the boundary is where the build's
-        // prerender attempt of this route bails out. It has nothing to show.
+        // prerender attempt of a route bails out. It has nothing to show.
         <Suspense fallback={null}>
-          <AdminNavigationOwner />
+          <NavigationOwner />
         </Suspense>
       )}
       {children}
-    </AdminStoreSlotContext.Provider>
+    </StoreSlotContext.Provider>
   );
+}
+
+const subscribeToNothing = () => () => {};
+const noSnapshot = () => null;
+
+type NavigationView = {
+  readonly store: NavigationCoordinator;
+  /** The machine's `display`, with the URL of this render already delivered. */
+  readonly display: NavLocation;
+  /** The navigation outlived its budget (STALLED). */
+  readonly stalled: boolean;
+};
+
+/**
+ * A surface's navigation as its stage and chrome render it, or `null` when its
+ * owner is not the one mounted. The display is previewed in the same render,
+ * and commit, as the URL (§11.3).
+ */
+function useNavigationView(surface: NavigationSurface): NavigationView | null {
+  const source = useNavigationSource(surface);
+  const store = source?.store ?? null;
+  const snapshot = useSyncExternalStore(
+    store === null ? subscribeToNothing : store.subscribe,
+    store === null ? noSnapshot : store.getSnapshot,
+    store === null ? noSnapshot : store.getSnapshot,
+  );
+
+  if (source === null || store === null || snapshot === null) return null;
+  return {
+    store,
+    display: previewDisplay(MACHINE, surface.config, snapshot, source.location),
+    stalled: snapshot.state.tag === "STALLED",
+  };
 }
 
 export type AdminDashboardNavigation = {
@@ -268,29 +439,15 @@ export type AdminDashboardNavigation = {
   readonly retry: () => void;
 };
 
-const subscribeToNothing = () => () => {};
-const noSnapshot = () => null;
-
 /**
  * The admin navigation as stage and chrome render it. `null` outside
- * `/dashboard/admin`: no owner is mounted. Reads the search params, so the
- * display is previewed in the same render, and commit, as the URL (§11.3).
+ * `/dashboard/admin`: no admin owner is mounted. Reads the search params.
  */
 export function useAdminDashboardNavigation(): AdminDashboardNavigation | null {
-  const source = useAdminNavigationSource();
-  const store = source?.store ?? null;
-  const snapshot = useSyncExternalStore(
-    store === null ? subscribeToNothing : store.subscribe,
-    store === null ? noSnapshot : store.getSnapshot,
-    store === null ? noSnapshot : store.getSnapshot,
-  );
-
-  const display =
-    source === null || snapshot === null
-      ? null
-      : previewDisplay(MACHINE, ADMIN_CONFIG, snapshot, source.location);
-  const displayModule = display?.kind === "module" ? parseAdminModule(display.module) : null;
-  const stalled = snapshot?.state.tag === "STALLED";
+  const view = useNavigationView(ADMIN_SURFACE);
+  const store = view?.store ?? null;
+  const displayModule = view?.display.kind === "module" ? parseAdminModule(view.display.module) : null;
+  const stalled = view?.stalled ?? false;
 
   return useMemo(
     () =>
@@ -298,6 +455,37 @@ export function useAdminDashboardNavigation(): AdminDashboardNavigation | null {
         ? null
         : { module: displayModule, stalled, retry: () => store.dispatch({ type: "RETRY" }) },
     [store, displayModule, stalled],
+  );
+}
+
+export type ClinicDashboardNavigation = {
+  /** The module the machine's `display` names; `null` while it is the hub or a full route. */
+  readonly module: ClinicModule | null;
+  /** The `display` is the hub. */
+  readonly hub: boolean;
+  /** The navigation outlived its budget (STALLED). */
+  readonly stalled: boolean;
+  /** Leaves STALLED through a document navigation (RETRY). */
+  readonly retry: () => void;
+};
+
+/**
+ * The clinic navigation as the `/dashboard` stage renders it. `null` when no
+ * clinic owner is mounted. Reads the search params.
+ */
+export function useClinicDashboardNavigation(): ClinicDashboardNavigation | null {
+  const view = useNavigationView(CLINIC_SURFACE);
+  const store = view?.store ?? null;
+  const displayModule = view?.display.kind === "module" ? parseClinicModule(view.display.module) : null;
+  const hub = view?.display.kind === "hub";
+  const stalled = view?.stalled ?? false;
+
+  return useMemo(
+    () =>
+      store === null
+        ? null
+        : { module: displayModule, hub, stalled, retry: () => store.dispatch({ type: "RETRY" }) },
+    [store, displayModule, hub, stalled],
   );
 }
 
@@ -309,11 +497,11 @@ export type NavigationBoundarySignals = {
 };
 
 /**
- * Stable per owner, so the boundary's effect runs once per mount. `null` where
- * the boundary has no owner to tell: every clinic route.
+ * Stable per owner, so the boundary's effect runs once per mount. The owner is
+ * whichever surface the route belongs to; `null` when there is none.
  */
 export function useDashboardNavigationBoundary(): NavigationBoundarySignals | null {
-  const source = useAdminNavigationSource();
+  const source = useNavigationSource();
   const store = source?.store ?? null;
 
   return useMemo(

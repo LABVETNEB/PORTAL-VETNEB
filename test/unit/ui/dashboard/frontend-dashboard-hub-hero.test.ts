@@ -20,21 +20,22 @@ const CATALOG_PATH =
   "frontend/src/features/dashboard/config/dashboardModules.ts";
 const CONFIG_BARREL_PATH = "frontend/src/features/dashboard/config/index.ts";
 
-// TEST-GLOBAL-07 (G06-D06): the workspace state is initialised by executing its
-// initializer — no `initialModule` resolves to the catalog default, a given one
-// is kept. `initialModule ?? DEFAULT_CLINIC_MODULE` stays in the source when
-// the result is overridden (C.15.1 M-D16).
+// TEST-GLOBAL-07 (G06-D06): the module the stage opens with is resolved by
+// executing the source expression — no `?module=` resolves to the catalog
+// default, a given one is kept. The expression stays in the source when the
+// result is overridden (C.15.1 M-D16).
+//
+// PR-NAV-04: the controller holds no module state any more. What it resolves
+// by itself is the module of the URL it renders, which is also what the
+// navigation machine's `display` is on any entry it does not restore over.
+const CLINIC_MODULES: readonly unknown[] = ["operaciones", "informes", "logistica", "perfil", "tokens"];
+
 function initialWorkspace(source: string, catalog: string, barrel: string) {
   const file = parseTsx(source, CLINIC_CONTROLLER_PATH);
   const declarations = descendants(file, ts.isVariableDeclaration);
-  const states = declarations.filter(
-    (declaration) =>
-      ts.isArrayBindingPattern(declaration.name) &&
-      declaration.name.elements.map((element) => element.getText()).join(",") ===
-        "activeModule,setActiveModule",
-  );
-  const call =
-    states.length === 1 && states[0].initializer ? unwrap(states[0].initializer) : undefined;
+  const fromUrl = declarations.filter((declaration) => declaration.name.getText() === "urlModule");
+  const initializer =
+    fromUrl.length === 1 && fromUrl[0].initializer ? unwrap(fromUrl[0].initializer) : undefined;
   const importsDefault = file.statements.some(
     (statement) =>
       ts.isImportDeclaration(statement) &&
@@ -84,24 +85,18 @@ function initialWorkspace(source: string, catalog: string, barrel: string) {
   const defaultModule =
     catalogDefault && ts.isStringLiteral(catalogDefault) ? catalogDefault.text : undefined;
 
-  if (
-    !call ||
-    !ts.isCallExpression(call) ||
-    call.expression.getText() !== "useState" ||
-    call.arguments.length !== 1
-  ) {
-    return "activeModule is not a single useState(initial)";
-  }
-
-  const [initializer] = call.arguments;
+  if (!initializer) return "urlModule is not declared exactly once";
 
   return {
     defaultFromCatalog: importsDefault && !shadowed && forwardsCatalog && !barrelOverrides,
     catalogDefault: defaultModule ?? "not a literal",
-    resolved: [undefined, null, "informes", "logistica"].map((initialModule) => {
-      const initial = evaluate(initializer, { initialModule, DEFAULT_CLINIC_MODULE: defaultModule });
-      return typeof initial === "function" ? initial() : initial;
-    }),
+    resolved: [undefined, null, "informes", "logistica"].map((moduleParam) =>
+      evaluate(initializer, {
+        searchParams: { get: () => moduleParam ?? null },
+        parseClinicModule: (value: unknown) => (CLINIC_MODULES.includes(value) ? value : null),
+        DEFAULT_CLINIC_MODULE: defaultModule,
+      }),
+    ),
   };
 }
 
@@ -222,7 +217,7 @@ test("clinic controller opens directly into a module workspace with the shared r
       'export const DEFAULT_CLINIC_MODULE: ClinicModule = "operaciones";',
     ),
   );
-  assert.ok(source.includes('initialModule ?? DEFAULT_CLINIC_MODULE'));
+  assert.ok(source.includes('parseClinicModule(searchParams.get("module")) ?? DEFAULT_CLINIC_MODULE'));
 
   const catalog = read(CATALOG_PATH);
   const barrel = read(CONFIG_BARREL_PATH);
@@ -234,8 +229,8 @@ test("clinic controller opens directly into a module workspace with the shared r
   assert.deepEqual(initialWorkspace(source, catalog, barrel), opensDefault);
 
   const overridden = source.replace(
-    "initialModule ?? DEFAULT_CLINIC_MODULE,",
-    () => '(initialModule ?? DEFAULT_CLINIC_MODULE) && ("informes" as ClinicModule),',
+    'parseClinicModule(searchParams.get("module")) ?? DEFAULT_CLINIC_MODULE;',
+    () => '(parseClinicModule(searchParams.get("module")) ?? DEFAULT_CLINIC_MODULE) && ("informes" as ClinicModule);',
   );
   assert.notEqual(overridden, source);
   assert.deepEqual(initialWorkspace(overridden, catalog, barrel), {

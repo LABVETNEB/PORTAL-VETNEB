@@ -1,33 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import type { ReactNode } from "react";
+import { useSearchParams } from "next/navigation";
+import { RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { DashboardModuleWorkspace } from "./DashboardModuleWorkspace";
+import { useClinicDashboardNavigation } from "./DashboardNavigationProvider";
 import { usePublishStageModule } from "./useStageModule";
-import { useNavigationFlight } from "./useNavigationFlight";
-import { ROUTES } from "@/lib/routes";
-import {
-  CLINIC_LAST_MODULE_STORAGE_KEY,
-  readDashboardLastModule,
-  writeDashboardLastModule,
-} from "@/lib/dashboard-last-module";
-import {
-  subscribeClinicHubReset,
-  subscribeClinicModuleActivate,
-} from "@/lib/clinic-hub-reset";
 import {
   DEFAULT_CLINIC_MODULE,
   parseClinicModule,
 } from "@/features/dashboard/config";
-import {
-  applyClinicUrlCommit,
-  clinicModuleHref,
-  confirmClinicHubEntry,
-  recordClinicNavigationIntent,
-  relinquishClinicNavigationIntent,
-  type ClinicNavigationState,
-} from "@/lib/dashboard/navigation/clinicNavigationState";
-import { subscribeHistoryTraversal } from "@/lib/dashboard/navigation/historyTraversal";
 import { isHubRequested } from "@/features/dashboard/application";
 import type { ClinicModule } from "@/features/dashboard/config";
 
@@ -43,6 +26,7 @@ type ClinicWorkspaceSlots = {
 };
 
 type ClinicDashboardWorkspaceControllerProps = {
+  /** The server's reading of the URL. The stage follows the navigation owner. */
   initialModule?: ClinicModule | null;
   workspaces: ClinicWorkspaceSlots;
   /**
@@ -51,7 +35,7 @@ type ClinicDashboardWorkspaceControllerProps = {
    * place of the module workspace while the hub state is active.
    */
   hub: ReactNode;
-  /** Server-resolved hub state, so the first paint does not flash a module. */
+  /** The server's reading of `?hub=1`. The stage follows the navigation owner. */
   initialHub?: boolean;
 };
 
@@ -81,282 +65,61 @@ const MODULE_META: Record<
   },
 };
 
+// STALLED: the navigation outlived its budget and nothing in the router says
+// whether it will ever land. A zero-height anchor with the notice laid over
+// what follows it, so showing or dismissing it never changes the height the
+// workspace measures. The retry is a document navigation to the same target.
+function ClinicNavigationStalledNotice({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className="relative z-[3] h-0 shrink-0">
+      <div
+        role="status"
+        data-dashboard-navigation-stalled="true"
+        className="absolute inset-x-0 top-0 flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-amber-500/25 bg-card px-3 py-1.5 text-xs text-amber-700 shadow-sm"
+      >
+        <p className="min-w-0 flex-1 basis-56">
+          <span className="font-semibold">El módulo está tardando en cargar.</span> Podés esperar o
+          reintentar la carga.
+        </p>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={onRetry}
+          className="h-7 shrink-0 border-amber-500/30 px-2 text-xs text-amber-700 hover:border-amber-500/45 hover:bg-amber-500/10 hover:text-amber-700 focus-visible:ring-2"
+        >
+          <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+          Reintentar
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * View of the clinic stage on `/dashboard`. It decides nothing about
+ * navigation: the module or hub on stage is the navigation machine's `display`
+ * (`components/dashboard/DashboardNavigationProvider.tsx`), which also owns the
+ * URL, history, the restore of the last module, the budget and its storage.
+ */
 export function ClinicDashboardWorkspaceController({
-  initialModule,
   workspaces,
   hub,
-  initialHub = false,
 }: ClinicDashboardWorkspaceControllerProps) {
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const [activeModule, setActiveModule] = useState<ClinicModule>(
-    initialModule ?? DEFAULT_CLINIC_MODULE,
-  );
-
-  // CMP-02 — hub state, folded into the SAME optimistic model the modules use
-  // rather than bolted on beside it. A sync activation flips the override before
-  // the router commits; the override is dropped as soon as the URL moves, so the
-  // URL stays authoritative for deep links, Back/Forward and reload, and no
-  // second source of truth appears.
+  const navigation = useClinicDashboardNavigation();
+  // What the URL of this render says: the stage without an owner (no provider
+  // above), and while the display is a full route this page is leaving for.
   const hubInUrl = isHubRequested(searchParams);
-  const [hubOverride, setHubOverride] = useState<boolean | null>(
-    initialHub ? true : null,
-  );
-  const isHubActive = hubOverride ?? hubInUrl;
-
-  useEffect(() => {
-    setHubOverride(null);
-  }, [hubInUrl]);
-  const hasRestoredLastModule = useRef(false);
-  // Confirmed URL module + the latest sync navigation intention (nav signal,
-  // hub reset). The stage swaps the active module optimistically before the
-  // router commits the matching URL, so every commit has to be told apart from
-  // a stale, superseded one. The classification lives in a pure module because
-  // it is a race: it cannot be exercised through the router, only modelled.
-  const navigationState = useRef<ClinicNavigationState>({
-    confirmedUrlModule: hubInUrl ? null : (initialModule ?? DEFAULT_CLINIC_MODULE),
-    pendingIntent: null,
-    supersededTargets: [],
-  });
-  const [hasManuallyReturnedToHub, setHasManuallyReturnedToHub] =
-    useState(false);
-  // Raised when a Back/Forward traversal starts, consumed by the url commit it
-  // produces (or by the popstate backstop when no module change follows): that
-  // commit is external even when it lands on a superseded target.
-  const historyTraversalStarted = useRef(false);
-
-  useEffect(
-    () =>
-      subscribeHistoryTraversal(() => {
-        historyTraversalStarted.current = true;
-      }),
-    [],
-  );
-
-  const recordNavigationIntent = useCallback(
-    (target: ClinicModule, options?: { readonly pushed?: boolean }) => {
-      navigationState.current = recordClinicNavigationIntent(
-        navigationState.current,
-        target,
-        options,
-      );
-    },
-    [],
-  );
-
-  // SINGLE FLIGHT's budget (`navigationFlight.ts`): past it the owner stops
-  // waiting on a navigation that never answered and navigates the latest intent
-  // once. Nothing is issued for the committed module or for the navigation that
-  // is itself the one in flight: claims just stop.
-  const navigateAbandonedIntent = useCallback(
-    (abandonedTarget: string) => {
-      const { pendingIntent, confirmedUrlModule } = navigationState.current;
-      const target = pendingIntent?.target ?? null;
-      if (target === null || target === confirmedUrlModule || target === abandonedTarget) return null;
-      router.push(clinicModuleHref(ROUTES.dashboard, DEFAULT_CLINIC_MODULE, target), {
-        scroll: false,
-      });
-      return target;
-    },
-    [router],
-  );
-  const flight = useNavigationFlight(navigateAbandonedIntent);
-
-  // No module in the URL means the operational default — never a hub.
-  //
-  // Derived OUTSIDE the effect, and as a plain string, because it is the
-  // effect's real dependency. `useSearchParams()` hands back a new object on
-  // every render, so depending on it made the effect run again on renders where
-  // the url had not moved at all — and a re-render is exactly what the sync
-  // activation below causes, through `setActiveModule`, while its `push` is
-  // still in flight. `applyClinicUrlCommit` cannot tell that phantom run apart
-  // from a superseded commit: both arrive as "a module that is not the intent",
-  // so it reconciled, and the reconciling `replace` cancelled the push it was
-  // supposed to be protecting. Keying on the module ITSELF means the effect
-  // observes url commits and nothing else.
-  const nextModule =
-    parseClinicModule(searchParams.get("module")) ?? DEFAULT_CLINIC_MODULE;
-
-  useEffect(() => {
-    // CMP-02 — the hub carries no `?module=`, so `nextModule` resolves to the
-    // DEFAULT and this effect would reconcile the URL straight back to a module,
-    // ejecting the user from the hub on arrival. The hub is not a module commit;
-    // it is skipped here and owned by `isHubActive` above. Leaving the hub is
-    // optimistic too: until the module url commits, the url is still the hub,
-    // and reading it as a commit of the default module abandoned the intent.
-    // The hub entry is confirmed as module-less, so a burst that leaves it never
-    // steps back onto it as if it were the default module's entry.
-    if (hubInUrl) {
-      navigationState.current = confirmClinicHubEntry(navigationState.current);
-      return;
-    }
-    if (isHubActive) return;
-
-    // A sync activation swaps the stage before its URL commit. Under load the
-    // SUPERSEDED previous navigation can still commit after that optimistic
-    // swap (the router action queue drains in dispatch order); applying it here
-    // would yank the workspace away mid-interaction.
-    //
-    // Skipping that commit is only half the job. The URL would keep pointing at
-    // the module that LOST, and `DashboardMobileNav` derives its `aria-current`
-    // from `useSearchParams` — so url, bar and workspace would disagree with no
-    // event left to fix them. The stale commit is therefore RECONCILED: the
-    // winning intention's canonical url is re-asserted with `replace` (never
-    // `push`: superseding a navigation must not add a history entry). That
-    // replace produces a matching commit, which consumes the intent, so there
-    // is at most one per intention and no loop.
-    const origin = historyTraversalStarted.current ? "history" : "router";
-    historyTraversalStarted.current = false;
-    const outcome = applyClinicUrlCommit(navigationState.current, nextModule, origin);
-    navigationState.current = outcome.state;
-    if (outcome.state.pendingIntent === null) flight.end();
-
-    // The latest intention is the module the burst pushed from: step back onto
-    // its entry rather than replace the pushed one into a duplicate [A, A].
-    if (outcome.historyBack) {
-      window.history.back();
-      return;
-    }
-
-    if (outcome.reconcileTo !== null) {
-      router.replace(
-        clinicModuleHref(
-          ROUTES.dashboard,
-          DEFAULT_CLINIC_MODULE,
-          outcome.reconcileTo,
-        ),
-        { scroll: false },
-      );
-      flight.start(outcome.reconcileTo);
-      return;
-    }
-
-    if (outcome.activeModule !== null) {
-      setActiveModule(outcome.activeModule as ClinicModule);
-    }
-  }, [router, nextModule, hubInUrl, isHubActive, flight]);
-
-  // Back/Forward while an activation is still pending is the user's own,
-  // authoritative navigation. `applyClinicUrlCommit` already classifies its
-  // commit as external; this backstop covers the history entry that carries the
-  // confirmed module, which produces no module change for that effect to see.
-  useEffect(() => {
-    function relinquishOnHistoryNavigation() {
-      historyTraversalStarted.current = false;
-      flight.end();
-      const outcome = relinquishClinicNavigationIntent(navigationState.current);
-      navigationState.current = outcome.state;
-      if (outcome.activeModule === null) return;
-      setHubOverride(null);
-      setActiveModule(outcome.activeModule as ClinicModule);
-    }
-
-    window.addEventListener("popstate", relinquishOnHistoryNavigation);
-    return () => window.removeEventListener("popstate", relinquishOnHistoryNavigation);
-  }, [flight]);
-
-  // SINGLE FLIGHT (`clinic-hub-reset.ts`): a request that arrives while a module
-  // navigation is still in flight is claimed; the reconcile above issues it once
-  // that navigation lands, as a replace of its entry.
-  useEffect(
-    () =>
-      subscribeClinicModuleActivate((moduleId) => {
-        const parsed = parseClinicModule(moduleId);
-        if (!parsed) return false;
-        // An abandoned flight no longer holds the next click.
-        const inFlight = navigationState.current.pendingIntent !== null && flight.isActive();
-        // Not in flight: the caller pushes this one, which starts the burst. A
-        // push of the committed module commits no module change, so it cannot
-        // end a flight: none is armed for it.
-        recordNavigationIntent(parsed, { pushed: !inFlight });
-        const { pendingIntent, confirmedUrlModule } = navigationState.current;
-        if (!inFlight && pendingIntent !== null && parsed !== confirmedUrlModule) flight.start(parsed);
-        setHasManuallyReturnedToHub(false);
-        // CMP-02 — leaving the hub is optimistic too, so the stage swaps on tap
-        // instead of waiting for the URL commit. Same two-commit model as modules.
-        setHubOverride(false);
-        setActiveModule(parsed);
-        return inFlight;
-      }),
-    [recordNavigationIntent, flight],
-  );
-
-  // CMP-02 — "Inicio" now resolves to the REAL clinic hub. It used to fall back to
-  // the operational default because no hub existed, which is exactly the defect
-  // the audit recorded as DIF-041 (RC-015): a home slot that silently landed on
-  // Operaciones. The optimistic flip mirrors the module path.
-  useEffect(
-    () =>
-      subscribeClinicHubReset(() => {
-        setHubOverride(true);
-        setHasManuallyReturnedToHub(true);
-      }),
-    [],
-  );
-
-  useEffect(() => {
-    writeDashboardLastModule(CLINIC_LAST_MODULE_STORAGE_KEY, activeModule);
-  }, [activeModule]);
-
-  // Resume the last visited module on a bare `/dashboard` entry. This only ever
-  // resolves to a real module (there is no hub to force), stays replace-only to
-  // avoid history pollution, and yields to an explicit URL module or a manual
-  // return to the default.
-  //
-  // The restore is a NAVIGATION, so it obeys the same two rules as every other
-  // one. It used to bypass both. It hand-built `?module=${lastModule}`, which
-  // spells the DEFAULT module as `?module=operaciones` while the canonical url
-  // for it is the bare `/dashboard` — a second spelling of one surface, and the
-  // one `clinicModuleHref` exists to prevent. And it recorded no intent, so
-  // `applyClinicUrlCommit` classified its commit as EXTERNAL (deep link,
-  // Back/Forward) and obeyed it: a restore fired on mount could land AFTER an
-  // explicit tap and reopen the module the user had just navigated away from.
-  // Recording the intent first is what lets a later tap supersede the restore,
-  // and what makes the restore's own late commit reconcilable instead of
-  // authoritative.
-  useEffect(() => {
-    if (hasRestoredLastModule.current || hasManuallyReturnedToHub) return;
-    // CMP-02 — `/dashboard?hub=1` carries no `?module=`, so without this guard the
-    // last-module restore would fire on the hub and replace it with a workspace.
-    // That is the same class of defect the audit recorded for the bare-URL race:
-    // an unguarded replace landing after an explicit navigation. Leaving the hub
-    // keeps that url until the module commits, so it is guarded too: the restore
-    // read the module just tapped and replaced the hub entry with it.
-    if (hubInUrl || isHubActive) return;
-    if (searchParams.get("module")) return;
-    const lastModule = parseClinicModule(
-      readDashboardLastModule(CLINIC_LAST_MODULE_STORAGE_KEY),
-    );
-    if (!lastModule) return;
-    hasRestoredLastModule.current = true;
-    // Restoring the DEFAULT module is not a navigation: `clinicModuleHref`
-    // spells it as the bare `/dashboard`, which is exactly the url a bare entry
-    // is already showing — the same condition `recordClinicNavigationIntent`
-    // calls a genuine no-op (nothing in flight AND the url already shows the
-    // target). Issuing the replace anyway put an unguarded navigation in flight
-    // during mount, and an intent recorded for a target that already matches
-    // the confirmed url cannot arm a guard, so that replace could land after
-    // the user's first tap and overwrite it with the url they had left.
-    if (lastModule === DEFAULT_CLINIC_MODULE) return;
-    recordNavigationIntent(lastModule);
-    router.replace(
-      clinicModuleHref(ROUTES.dashboard, DEFAULT_CLINIC_MODULE, lastModule),
-      { scroll: false },
-    );
-    flight.start(lastModule);
-  }, [
-    searchParams,
-    hasManuallyReturnedToHub,
-    hubInUrl,
-    isHubActive,
-    recordNavigationIntent,
-    router,
-    flight,
-  ]);
+  const urlModule = parseClinicModule(searchParams.get("module")) ?? DEFAULT_CLINIC_MODULE;
+  const followsUrl = navigation === null || (navigation.module === null && !navigation.hub);
+  // CMP-02 — the hub is a STATE of `/dashboard` (`?hub=1`), never a module.
+  const isHubActive = followsUrl ? hubInUrl : navigation.hub;
+  const activeModule = followsUrl ? urlModule : (navigation.module ?? urlModule);
 
   // The lateral band, the mobile bar and the mobile title render this, not
-  // their own reading of the URL: a superseded commit reconciled above must not
-  // move them either. The hub is a module-less stage.
+  // their own reading of the URL, so they move with the stage on the click and
+  // never follow a superseded commit. The hub is a module-less stage.
   usePublishStageModule("clinic", isHubActive ? null : activeModule);
 
   const meta = MODULE_META[activeModule];
@@ -367,6 +130,7 @@ export function ClinicDashboardWorkspaceController({
       data-clinic-dashboard-stage="true"
       className="flex min-h-0 flex-1 flex-col overflow-hidden dashboard-module-stage"
     >
+      {navigation?.stalled ? <ClinicNavigationStalledNotice onRetry={navigation.retry} /> : null}
       {/* B09: no module navigation inside the stage. Below 768px the shared
           `DashboardMobileNav` owns it at shell level; from 768px up the B07/B08
           lateral band does. The rail that used to sit here carried both a tab

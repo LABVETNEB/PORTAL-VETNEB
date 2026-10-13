@@ -182,8 +182,9 @@ test.describe("clinic dashboard — rail navigation", () => {
       await expect(item).toBeVisible();
       await item.click();
 
+      // The navigation owner spells the default module as the bare URL.
       await expect(page).toHaveURL(
-        new RegExp(`/dashboard\\?module=${workspaceId}$`),
+        moduleId === "operaciones" ? /\/dashboard$/ : new RegExp(`/dashboard\\?module=${workspaceId}$`),
         { timeout: 5_000 },
       );
       await expect(
@@ -241,10 +242,11 @@ test.describe("clinic dashboard — rail navigation", () => {
     ).toBeVisible({ timeout: 5_000 });
 
     // informes → operaciones
+    // The navigation owner spells the default module as the bare URL.
     await paintedClinicMobileNav(page)
       .locator('[data-dashboard-mobile-nav-item="operaciones"]')
       .click();
-    await expect(page).toHaveURL(/\/dashboard\?module=operaciones$/, {
+    await expect(page).toHaveURL(/\/dashboard$/, {
       timeout: 5_000,
     });
     await expect(

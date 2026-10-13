@@ -11,7 +11,7 @@ import {
 import { MODULE_QUERY_PARAM } from "@/features/dashboard/application";
 import { NavigationDrawer, type NavigationDrawerProps } from "./NavigationDrawer";
 import { NavigationRail } from "./NavigationRail";
-import { useAdminStageModule, useClinicStageModule } from "./useStageModule";
+import { useAdminStageModule, useClinicStageModule, useStageModule } from "./useStageModule";
 
 /**
  * B08 - the lateral navigation frame.
@@ -115,7 +115,7 @@ function AdminUrlNavigation() {
 
 function ClinicUrlNavigation() {
   const searchParams = useSearchParams();
-  const staged = useClinicStageModule();
+  const staged = useStageModule("clinic");
   // The hub (a null stage) keeps the operational default current, as `?hub=1`
   // always did here.
   const activeModule =

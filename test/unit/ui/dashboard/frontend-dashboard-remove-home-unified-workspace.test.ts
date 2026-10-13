@@ -65,7 +65,9 @@ test("/dashboard resolves to the operational default module (operaciones)", () =
     ),
   );
   // Client controller also never falls back to null/hub.
-  assert.ok(controller.includes("initialModule ?? DEFAULT_CLINIC_MODULE"));
+  // PR-NAV-04: the module on stage is the navigation machine's display, and
+  // where that names no module the stage falls back to the URL's, never to null.
+  assert.ok(controller.includes("navigation.module ?? urlModule"));
   assert.ok(
     controller.includes(
       'parseClinicModule(searchParams.get("module")) ?? DEFAULT_CLINIC_MODULE',

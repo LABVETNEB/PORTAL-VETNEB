@@ -1,45 +1,49 @@
-type ClinicHubResetListener = () => void;
+// Input adapter of clinic module navigation (PR-NAV-04).
+//
+// Every in-dashboard module destination asks here before navigating. The
+// navigation machine owns the answer
+// (docs/audit/AUDITORIA_ARQUITECTURA_NAVEGACION_FSM_HOJA_DE_RUTA.md §11.3): this
+// file hands the request to the mounted owner, registered by
+// `components/dashboard/DashboardNavigationProvider.tsx`.
+//
+// `true` means the owner took the selection and the caller must not navigate:
+// the machine navigates it, claims it for the flight already in the router
+// (#29) or finds it already current. `false` means no owner can take it — none
+// is mounted yet, or the machine would ignore it (BOOTING, FAILED, an unknown
+// module) — and the caller keeps its own navigation.
+//
+// NO IMPORTS, no DOM beyond the hand-over below.
 
-const hubResetListeners = new Set<ClinicHubResetListener>();
+export type ClinicNavigationOwner = {
+  /** `true` when the selection was dispatched to the machine. */
+  readonly selectModule: (moduleId: string) => boolean;
+  readonly selectHub: () => void;
+};
 
-export function requestClinicHubReset(): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-  hubResetListeners.forEach((listener) => listener());
+let owner: ClinicNavigationOwner | null = null;
+
+/** The provider registers on mount; the returned function unregisters it. */
+export function registerClinicNavigationOwner(next: ClinicNavigationOwner): () => void {
+  owner = next;
+  return () => {
+    if (owner === next) owner = null;
+  };
 }
 
-export function subscribeClinicHubReset(
-  listener: ClinicHubResetListener,
-): () => void {
-  hubResetListeners.add(listener);
-  return () => hubResetListeners.delete(listener);
+/** The hub as a destination: SELECT_HUB (#7). No control of the product emits it yet. */
+export function requestClinicHubReset(): void {
+  owner?.selectHub();
 }
 
 /** Returns `true` to claim the navigation of this request (see SINGLE FLIGHT). */
 type ClinicModuleActivateListener = (moduleId: string) => boolean | void;
 
-// Stage owners (the workspace controller on `/dashboard`, the full-route stage
-// elsewhere) listen; navigation chrome does not touch this bus, it renders the
-// module the owner publishes (`lib/dashboard/navigation/stageModule.ts`).
-// Chrome used to listen too, so a tap after the band hydrated but before the
-// controller subscribed counted as heard and was lost for the stage: the item
-// moved, the workspace stayed. Same model as the admin bus.
-//
-// The full-route stage is an owner that HANDS OVER: every destination leaves its
-// route for `/dashboard`, whose controller replaces it on the commit. It hears
-// each request but keeps the latest one for that next owner; otherwise A then B
-// before A's commit left the new controller on A. It never claims: its
-// destinations leave the route, and the router discards a pending cross-route
-// navigation that a newer one supersedes.
-//
-// SINGLE FLIGHT. Every committed router state writes one history entry, so two
-// module pushes in flight left either [A, B, C] (B committed on its own: Back
-// landed on the module the user had abandoned) or [A, C], depending on payload
-// timing. The controller therefore claims a request that arrives while its
-// previous navigation is still in flight: the caller does not navigate, and the
-// controller replaces the in-flight entry with the latest module once that
-// navigation lands. History is always [A, C].
+// HAND-OVER OF THE FULL ROUTES, kept until PR-NAV-05. The full-route stage is not
+// a view of the machine yet: it listens here to swap to the destination's
+// pending workspace on the request, and never claims. Everything below this
+// line other than the call to the owner serves that stage only, including the
+// replay of a request no stage owner heard, which has no listener left since
+// the workspace controller stopped subscribing.
 const moduleActivateListeners = new Map<ClinicModuleActivateListener, boolean>();
 
 const LATE_ACTIVATION_MAX_AGE_MS = 5_000;
@@ -54,7 +58,7 @@ function isHistoryTraversalDispatch(): boolean {
   return typeof window !== "undefined" && window.event?.type === "popstate";
 }
 
-/** `true` means a stage owner claimed the navigation: the caller must not navigate. */
+/** `true` means the navigation owner took the selection: the caller must not navigate. */
 export function requestClinicModuleActivate(moduleId: string): boolean {
   if (typeof window === "undefined") {
     return false;
@@ -66,7 +70,7 @@ export function requestClinicModuleActivate(moduleId: string): boolean {
     if (!handsOver) settled = true;
   });
   unheardActivation = settled ? null : { moduleId, at: performance.now() };
-  return claimed;
+  return (owner?.selectModule(moduleId) ?? false) || claimed;
 }
 
 export function subscribeClinicModuleActivate(
