@@ -9,13 +9,14 @@
 | Base comparada | `main` = `37dbcaf6714f6ae7fb37eaad100370af2ab53cb8` (PR #1836) |
 | Frontend productivo | `37dbcaf6` según sonda `/api/build-info` registrada el 2026-10-09 en una sesión previa; **no reverificado en esta sesión** (lectura de producción fuera del scope) |
 | Stack verificado | Next.js `16.3.8` según `pnpm-lock.yaml` (desde #1834), React `19.3.0`. **Corrección rev. 2:** durante la auditoría original `frontend/node_modules` tenía `next@16.3.6` (instalación del 2026-10-07, anterior a #1834); la afirmación "leídos de `frontend/node_modules`" era inexacta para Next. Las pruebas válidas de rev. 2 (§15.2, §15.3) corrieron sobre `16.3.8` tras `pnpm install --frozen-lockfile` autorizado por Nico |
-| Lifecycle status | Rev. 1: PROPUESTA. **Rev. 2 (2026-10-09): APROBADO por Nico** — DT-1 = T2, DT-2 = sin refresh por selección, restauración inicial = opción C, especificación FSM de 27 transiciones (§0). **Rev. 2.2 (2026-10-09) y rev. 2.2.1 (2026-10-10): enmiendas APROBADAS** de esa especificación con la fusión de su PR (#1841, `4f693d5c`, 2026-10-10); hasta entonces figuraban como propuestas (§0.4, §0.5). **Rev. 2.2.2 (2026-10-10): enmienda PROPUESTA** de la fila #10 (§0.6); queda aprobada cuando Nico fusiona su PR (#1843). **Rev. 2.3 (2026-10-10): rev. 2.2.2 quedó APROBADA** con la fusión de #1843 (`8d1a8812`). **Rev. 2.3 es una enmienda PROPUESTA** de §12–§13 (§0.7); queda aprobada cuando Nico fusiona su PR. **DT-5 = 10 000 ms, APROBADA por Nico** el 2026-10-10, y **DT-16 = A**, decidida el mismo día (§21) |
-| Estado de implementación | **Estado vigente (rev. 2.3, 2026-10-10).** Productivo: **NO IMPLEMENTADO** (programa FSM). PR-NAV-01 (#1839, `c51b7e74`) y #1837 (`585bf3ba`) están fusionadas. **PR-NAV-02 está fusionada** (#1842, `0908bb02`): la máquina pura y su suite están en `main`, transcriben rev. 2.2.2 (245 tests) y sólo la suite importa la máquina. **PR-NAV-03 no se inició**: su verificación previa de H1 en navegador refutó el supuesto del que depende la fila #10 (C-11, §0.7), y queda **BLOQUEADA** hasta que esta revisión esté fusionada y la máquina y su suite se realineen con ella (§16). *Historia de esta fila, rev. 2.2.2:* Productivo: NO IMPLEMENTADO (programa FSM). La máquina pura existe pero no está conectada al dashboard: en #1842 sólo la importa su suite, y el provider y el intérprete de §12.5.1 corresponden a PR-NAV-03. PR-NAV-01 fusionada (#1839, `c51b7e74`); #1837 fusionada (`585bf3ba`). **PR-NAV-02 está publicada como PR #1842** (abierta, sin fusionar, head `541aabaa`): la implementación existe, transcribe rev. 2.2.1 y fue sometida a su verificación mecánica versionada, que pasa sobre ese head (241 tests; cuatro contextos required en verde). Queda **pendiente de corregir el hallazgo C-10** (P2 de su review, §0.6), y su **realineación está BLOQUEADA** hasta que se fusione la enmienda rev. 2.2.2. *Historia de esta fila:* rev. 2 decía que las 27 transiciones no tenían aún verificación mecánica y que correspondía a PR-NAV-02; rev. 2.2, que esa verificación se había ejecutado en local, que la tabla de rev. 2.1 no la superó (§0.4) y que PR-NAV-02 seguía sin publicar |
+| Lifecycle status | Rev. 1: PROPUESTA. **Rev. 2 (2026-10-09): APROBADO por Nico** — DT-1 = T2, DT-2 = sin refresh por selección, restauración inicial = opción C, especificación FSM de 27 transiciones (§0). **Rev. 2.2 (2026-10-09) y rev. 2.2.1 (2026-10-10): enmiendas APROBADAS** de esa especificación con la fusión de su PR (#1841, `4f693d5c`, 2026-10-10); hasta entonces figuraban como propuestas (§0.4, §0.5). **Rev. 2.2.2 (2026-10-10): enmienda PROPUESTA** de la fila #10 (§0.6); queda aprobada cuando Nico fusiona su PR (#1843). **Rev. 2.3 (2026-10-10): rev. 2.2.2 quedó APROBADA** con la fusión de #1843 (`8d1a8812`). **Rev. 2.3 es una enmienda PROPUESTA** de §12–§13 (§0.7); queda aprobada cuando Nico fusiona su PR. **DT-5 = 10 000 ms, APROBADA por Nico** el 2026-10-10, y **DT-16 = A**, decidida el mismo día (§21). **Rev. 3 (2026-10-13): rev. 2.3 quedó APROBADA** con la fusión de #1844 (`a569d1a0`, 2026-10-10), y con ella DT-15 (opción A). Rev. 3 es el **cierre documental** del programa (PR-NAV-08, §25): registra estados y residuales y **no enmienda la especificación** |
+| Estado de implementación | **Estado vigente (rev. 3, 2026-10-13, cierre documental).** Programa FSM **implementado y fusionado en `main`** (`9453efaa`): PR-NAV-01 (#1839), PR-NAV-02 (#1842) y su realineación a rev. 2.3 (#1857), PR-NAV-03 (#1858), PR-NAV-04 (#1859), PR-NAV-05 (#1860), PR-NAV-06 (#1861) y PR-NAV-07 (#1862). **Fusionado no equivale a libre de defectos:** siguen abiertos D-10 (`KNOWN_RESIDUAL_D10`, caracterizado y **no corregido**), DT-13, el residual de DT-15, el bypass de la campana de notificaciones de Admin y la evidencia productiva (NAV-A0, sin ejecutar). El despliegue productivo de `9453efaa` **no se verificó en esta revisión**. Estados por invariante, residuales y desviaciones: §25. *Estado a rev. 2.3 (2026-10-10), conservado como historia:* Productivo: **NO IMPLEMENTADO** (programa FSM). PR-NAV-01 (#1839, `c51b7e74`) y #1837 (`585bf3ba`) están fusionadas. **PR-NAV-02 está fusionada** (#1842, `0908bb02`): la máquina pura y su suite están en `main`, transcriben rev. 2.2.2 (245 tests) y sólo la suite importa la máquina. **PR-NAV-03 no se inició**: su verificación previa de H1 en navegador refutó el supuesto del que depende la fila #10 (C-11, §0.7), y queda **BLOQUEADA** hasta que esta revisión esté fusionada y la máquina y su suite se realineen con ella (§16). *Historia de esta fila, rev. 2.2.2:* Productivo: NO IMPLEMENTADO (programa FSM). La máquina pura existe pero no está conectada al dashboard: en #1842 sólo la importa su suite, y el provider y el intérprete de §12.5.1 corresponden a PR-NAV-03. PR-NAV-01 fusionada (#1839, `c51b7e74`); #1837 fusionada (`585bf3ba`). **PR-NAV-02 está publicada como PR #1842** (abierta, sin fusionar, head `541aabaa`): la implementación existe, transcribe rev. 2.2.1 y fue sometida a su verificación mecánica versionada, que pasa sobre ese head (241 tests; cuatro contextos required en verde). Queda **pendiente de corregir el hallazgo C-10** (P2 de su review, §0.6), y su **realineación está BLOQUEADA** hasta que se fusione la enmienda rev. 2.2.2. *Historia de esta fila:* rev. 2 decía que las 27 transiciones no tenían aún verificación mecánica y que correspondía a PR-NAV-02; rev. 2.2, que esa verificación se había ejecutado en local, que la tabla de rev. 2.1 no la superó (§0.4) y que PR-NAV-02 seguía sin publicar |
 | Revisión 2 | 2026-10-09 sobre `main` = `c51b7e74`. Incorpora el spike de transporte SP-1..SP-7 y la auditoría de restauración R-1..R-8 (§0, §15.2, §15.3). La propuesta T1 de rev. 1 se conserva como historia y queda marcada como superada donde aplica |
 | Revisión 2.2 | 2026-10-09 sobre `main` = `603c352f`. Enmienda docs-only de §11.3, §12, §13, §16 y §18–§21 tras la verificación mecánica de PR-NAV-02, que **falló** contra la tabla de rev. 2.1. Corrige ocho hallazgos (C-1..C-8, §0.4): la tabla pasa de 27 a **28 filas** y de 107 a **113 ramas de guard**; los invariantes, de S1–S11/L1–L5 a **S1–S12/L1–L6**. **PR-NAV-02 queda BLOQUEADA** hasta que esta revisión esté fusionada; su fusión equivale a la aprobación de Nico. La tabla enmendada se verificó sobre una copia temporal no versionada (§0.4, §23.5) |
 | Revisión 2.2.1 | 2026-10-10, dentro de la misma PR (#1841). Corrige el P1 de su review: rev. 2.2 difería los efectos de `HYDRATED` al montaje del provider sin fijar su orden frente al `NAV_FAILED` de la frontera, y una restauración abandonada podía navegar y dejar un presupuesto vivo en `FAILED`. Agrega el **algoritmo de coordinación del intérprete** (§12.5.1, C-9) con invariantes de integración I1–I8. No cambia la máquina, la tabla ni S1–S12/L1–L6 (§0.5) |
 | Revisión 2.2.2 | 2026-10-10 sobre `main` = `4f693d5c`, en la PR #1843. **Enmienda APROBADA** con la fusión de #1843 (`8d1a8812`; propuesta hasta entonces), docs-only, tras el P2 del review de PR-NAV-02 (#1842, head `541aabaa`): la fila #10 descartaba `afterTraverse`, y el commit tardío de un traverse abandonaba toda selección posterior a la primera (C-10, §0.6). Cambia **el estado siguiente de la fila #10** y agrega el invariante **S13**. No cambian los tipos, los guards, las 28 filas, las 113 ramas ni los 60 pares. **PR-NAV-02 queda BLOQUEADA** hasta que esta revisión esté fusionada; su fusión equivale a la aprobación de Nico. Verificada sobre una copia temporal no versionada (§0.6, §23.5). *Rev. 2.3:* esa fusión ocurrió (#1843, `8d1a8812`), y PR-NAV-02 se realineó con ella y se fusionó (#1842, `0908bb02`) |
 | Revisión 2.3 | 2026-10-10 sobre `main` = `0908bb02`. **Enmienda PROPUESTA**, docs-only, tras la verificación en navegador que PR-NAV-03 debía hacer de H1 (§13.1): dos `router.push` de `?module=` no se descartan entre sí, y el primero puede aterrizar por su cuenta y dejar `[A, B, C]` (C-11, §0.7). La fila #10 emitía ese segundo `push`. La enmienda agrega el campo `next` a `ROUTING`, las filas **#29–#32** y los invariantes **S14** y **S15**; cambia las filas #9, #10, #11, #12, #16, #23, #25 y #26 (la #25 también persiste, por el P2 del review de #1844, C-11b), los invariantes S4, S5, S13, L1 y L2, y los supuestos H1 y H3. La tabla pasa de 28 a **32 filas** y de 113 a **119 ramas**, sobre los mismos 60 pares. Registra además **DT-5 = 10 000 ms** y **DT-16 = A**, decididas por Nico. **PR-NAV-03 queda BLOQUEADA** hasta que esta revisión esté fusionada y la máquina realineada; su fusión equivale a la aprobación de Nico. Verificada sobre una copia temporal no versionada y medida en production runner (§0.7, §23.5) |
+| Revisión 3 | 2026-10-13 sobre `main` = `9453efaa` (PR-NAV-07, #1862), en la PR de PR-NAV-08. **Cierre documental**, docs-only. Agrega §25: trazabilidad por PR, estados canónicos de S1–S15 y L1–L6, residuales (D-10, DT-13, DT-15, campana de notificaciones), métrica de LOC, evidencia de la matriz de PR-NAV-06 y desviaciones entre fichas y ejecución. Actualiza las afirmaciones de estado vigente (encabezado, §1, §16, §17, §21, §22, §24) y conserva el texto de las revisiones anteriores, rotulado por revisión. **No cambia** §12–§13, ninguna fila, ningún invariante ni ninguna decisión; no modifica código, tests, guards ni `docs/audit/README.md` |
 
 ---
 
@@ -452,13 +453,24 @@ intervención independiente de la FSM: fronteras de error (PR-NAV-01, §22).
 > #10, de modo que #1842 queda bloqueada hasta la fusión de esta revisión y después se realinea. La
 > máquina sigue sin conectarse al dashboard; NAV-A0 sigue pendiente.
 >
-> **Rev. 2.3 (2026-10-10) — estado vigente.** Rev. 2.2.2 se fusionó en #1843 (`8d1a8812`) y PR-NAV-02 en
+> **Rev. 2.3 (2026-10-10) — estado a esa revisión; lo actualiza la nota de rev. 3 que sigue.** Rev. 2.2.2 se fusionó en #1843 (`8d1a8812`) y PR-NAV-02 en
 > #1842 (`0908bb02`): la máquina pura y su suite están en `main`. Antes de escribir PR-NAV-03 se midió
 > en navegador el supuesto H1 del que depende la fila #10 y resultó falso: dos `router.push` de
 > `?module=` no se descartan entre sí (C-11, §0.7). Esta revisión enmienda la tabla para que un vuelo de
 > usuario **reclame** la selección siguiente en vez de navegarla, que es lo que #1835 y #1837 ya hacen en
 > producción, y registra **DT-5 = 10 000 ms**. PR-NAV-03 queda bloqueada hasta su fusión y la
 > realineación de la máquina. La máquina sigue sin conectarse al dashboard; NAV-A0 sigue pendiente.
+>
+> **Rev. 3 (2026-10-13) — estado vigente.** Rev. 2.3 se fusionó en #1844 (`a569d1a0`), la máquina se
+> realineó con ella en #1857 (`e192d307`) y PR-NAV-03 a PR-NAV-07 están fusionadas (#1858–#1862; `main` =
+> `9453efaa`). Admin, Clínica y las rutas completas navegan por un único dueño por superficie. Las tres
+> raíces de este resumen quedan así: (1) la coordinación tiene estados terminales (`STALLED`, `FAILED`) y
+> una sola especificación; (2) el transporte **sigue siendo** un render de servidor por selección (T2,
+> por decisión), ahora supervisado con presupuesto; D-03 no se abordó; (3) existen fronteras de error. El
+> programa queda **cerrado documentalmente, no declarado libre de defectos**: D-10 no está corregido,
+> DT-13 sigue pendiente, el residual de DT-15 está registrado y no en cero, la campana de notificaciones
+> de Admin navega un `?module=` fuera del dueño, y ninguna hipótesis productiva (H-01..H-08) se cerró
+> porque NAV-A0 no se ejecutó (§25).
 
 ---
 
@@ -1848,6 +1860,11 @@ módulo. La alternativa de restaurar en el servidor (preferencia en cookie) no s
 Riesgo según `AGENTS.md` §3.1. Ningún PR de esta hoja toca backend, DB, dependencias, lockfile ni
 workflows. Todas las operaciones Git/GitHub son [MANUAL-NICO] salvo delegación explícita futura.
 
+> **Rev. 3 (2026-10-13).** Las fichas de esta sección conservan su texto normativo, incluidas las filas
+> "estado" de cada revisión. El estado de ejecución de cada una (PR, merge commit, evidencia y resultado)
+> está en §25.2, y las diferencias entre lo que la ficha pedía y lo que se fusionó, en §25.14. NAV-A0 y
+> las PR condicionales PR-NAV-X1..X3 **no se ejecutaron**.
+
 ### Fase A — Diagnóstico, baseline y contención
 
 #### A0 — Evidencia productiva (operación, no PR)
@@ -2074,6 +2091,7 @@ workflows. Todas las operaciones Git/GitHub son [MANUAL-NICO] salvo delegación 
 | Aceptación | Estados canónicos por invariante S/L |
 | Rollback | Revert |
 | Bloqueos | Ninguno |
+| Rev. 3 — estado | Ejecutada como rev. 3 de este documento (§25). Dependencias fusionadas: PR-NAV-06 (#1861, `99fb0f52`) y PR-NAV-07 (#1862, `9453efaa`). Scope efectivo: sólo este documento. `docs/audit/README.md` **no se modifica**: la ficha lo condiciona a una decisión de Nico, que para esta PR fue no tocarlo (DT-7, §21). La aceptación "estados canónicos por invariante S/L" es §25.4 |
 
 ### PR condicionales (sólo si la evidencia los justifica)
 
@@ -2128,10 +2146,18 @@ flowchart TD
 está publicada como PR #1842 (abierta), pendiente de C-10 y bloqueada hasta la fusión de esta revisión
 (§16). Ítems 5–9: sin cambios; PR-NAV-03 depende de que #1842 se fusione.
 
-**Rev. 2.3 (2026-10-10) — estado vigente.** Ítem 4: PR-NAV-02 fusionada (#1842, `0908bb02`). Entre los
+**Rev. 2.3 (2026-10-10) — estado a esa revisión; lo actualiza la nota de rev. 3 que sigue.** Ítem 4: PR-NAV-02 fusionada (#1842, `0908bb02`). Entre los
 ítems 4 y 5 se intercalan dos pasos: la fusión de esta revisión y la **realineación de la máquina** con
 ella (ficha de PR-NAV-02, §16). Ítem 5: PR-NAV-03 depende de ambos; DT-5 ya no la bloquea. Ítems 6–9: sin
 cambios.
+
+**Rev. 3 (2026-10-13) — estado vigente.** Los dos pasos intercalados ocurrieron: rev. 2.3 fusionada
+(#1844, `a569d1a0`) y máquina realineada (#1857, `e192d307`). Ítems 5–8: fusionados en el orden previsto,
+03 → 04 → 05 → 06 → 07 (#1858, #1859, #1860, #1861, #1862). PR-NAV-06 y PR-NAV-07 eran paralelizables y
+se ejecutaron en secuencia; #1862 declara a #1861 como dependencia y su cohorte `visual-contract` incluye
+la matriz. Ítem 9: esta revisión. **NAV-A0 sigue pendiente** (R3, [MANUAL-NICO]) y con ella DT-3, la
+revisión de DT-5 y las PR condicionales X1 y X3; el diagnóstico de D-11 (H-04) tampoco se cerró, de modo
+que PR-NAV-X2 sigue sin disparador. Detalle en §25.2.
 
 Restricción de recursos (`AGENTS.md` §8): una cohorte E2E o build por vez; ningún PR de esta hoja
 requiere ejecución simultánea de builds frontend y backend.
@@ -2277,10 +2303,27 @@ Los PR de Fase C son revertibles de forma independiente sólo en orden inverso (
 fusión de #1841 (`4f693d5c`): la columna "Estado rev. 2" conserva el texto con que se propusieron. DT-14
 sigue propuesta hasta la fusión de esta revisión (#1843). DT-13 sigue pendiente.
 
-**Rev. 2.3 (2026-10-10) — estado vigente.** DT-14 quedó **aprobada** con la fusión de #1843 (`8d1a8812`);
+**Rev. 2.3 (2026-10-10) — estado a esa revisión; lo actualiza la nota de rev. 3 que sigue.** DT-14 quedó **aprobada** con la fusión de #1843 (`8d1a8812`);
 su opción A se conserva en S13, y su mecánica pasa de la fila #10 a las filas #29–#31. **DT-5 está
 decidida.** DT-16 está decidida (opción A). DT-15 queda propuesta hasta la fusión de esta revisión. DT-13 sigue
 pendiente.
+
+**Rev. 3 (2026-10-13) — estado vigente.** La columna "Estado rev. 2" conserva el texto con que cada
+decisión se propuso. Estado al cierre:
+
+| Id | Estado al cierre | Referencia |
+| --- | --- | --- |
+| DT-1, DT-2, DT-8 | Decididas (rev. 2) e implementadas | #1858, #1859, #1860 |
+| DT-5 | Decidida (10 000 ms) e implementada: `NAVIGATION_FLIGHT_BUDGET_MS`, un único `setTimeout` en el provider. Su revisión con datos productivos sigue condicionada a NAV-A0, **sin ejecutar** | §25.11 (F1) |
+| DT-9, DT-10, DT-11, DT-12, DT-14 | Aprobadas (#1841, #1843) e implementadas | §25.4 |
+| DT-15 | **Aprobada: opción A**, con la fusión de #1844 (`a569d1a0`), e implementada. Su residual (una navegación abandonada por presupuesto que aterriza antes que su relevo) está **registrado, no corregido**; la opción B sigue sin decidir | §25.8 |
+| DT-16 | Decidida (A) e implementada en Admin (#1858) y Clínica (#1859) | §25.9 |
+| DT-13 | **Pendiente.** Se implementó la opción A (sin cambio), que es lo que dice la fila #21, y su consecuencia está fijada por unit y E2E "tal como es" | §25.7 |
+| DT-3, DT-4 | Pendientes, sin cambio. DT-3 depende de NAV-A0 | §25.12 (D-03) |
+| DT-6 | Resuelta (#1837 fusionada). D-11 sigue sin diagnóstico cerrado | §25.12 |
+| DT-7 | **No resuelta en PR-NAV-08:** `docs/audit/README.md` no se modifica en esta PR por indicación de Nico. El alta queda pendiente de una decisión posterior | §16 |
+| DT-17 (rev. 3, nueva) | **Pendiente, sin recomendación aprobada.** Qué hacer con D-10: aceptarlo expresamente como residual de Next, o abrir una PR runtime propia. Rev. 3 sólo la registra | §25.5 |
+| DT-18 (rev. 3, nueva) | **Pendiente, sin recomendación aprobada.** Qué hacer con el `router.push` sin reclamo de la campana de notificaciones de Admin: pasarlo por el dueño en una PR runtime propia, o aprobarlo como excepción normativa. La excepción del guard **no** es esa aprobación | §25.6 |
 
 Condiciones con que Nico aprobó DT-5 (2026-10-10), que esta revisión registra como normativas:
 
@@ -2318,9 +2361,13 @@ No se recomienda iniciar PR-NAV-02..05 hasta tener DT-1 decidido con el acta del
 > (#1842). La siguiente intervención es fusionar esta revisión y realinear #1842 con ella (§16);
 > PR-NAV-03 viene después de la fusión de #1842.
 >
-> **Rev. 2.3 (2026-10-10) — estado vigente.** #1843 y #1842 están fusionadas. La siguiente intervención
+> **Rev. 2.3 (2026-10-10) — estado a esa revisión; lo actualiza la nota de rev. 3 que sigue.** #1843 y #1842 están fusionadas. La siguiente intervención
 > es fusionar esta revisión; después, realinear la máquina y su suite con ella (§16); después, PR-NAV-03.
 > NAV-A0 sigue siendo paralelizable y ahora condiciona además la revisión de DT-5.
+>
+> **Rev. 3 (2026-10-13) — estado vigente.** Las intervenciones de la hoja de ruta están fusionadas hasta
+> PR-NAV-07. Esta revisión no recomienda ni inicia ninguna PR nueva. Lo que queda es decisión de Nico, sin
+> orden impuesto por este documento: NAV-A0 (R3), DT-13, DT-17 (D-10) y DT-18 (campana), en §21 y §25.13.
 
 ---
 
@@ -2547,3 +2594,440 @@ solo dueño y transiciones explícitas, y convierte el estado en vuelo en un est
 | Lo que sigue sin probar | El intérprete de §12.5.1 y P1–P3; H2 y H4–H7; el router con tres o más navegaciones pendientes; producción (NAV-A0) |
 | Siguiente paso | Fusionar esta revisión; realinear la máquina y su suite (dos archivos) y repetir la verificación versionada; recién entonces PR-NAV-03 |
 | Navegación declarada resuelta | **NO** |
+
+### Estado final de la revisión 3 (cierre documental, PR-NAV-08)
+
+| Elemento | Estado |
+| --- | --- |
+| Archivo modificado | Sólo este documento (docs-only), en la PR de PR-NAV-08. `docs/audit/README.md` no se toca |
+| Código, tests, guards, configuración, dependencias, workflows | Sin cambios |
+| Especificación FSM | Sin cambios respecto de rev. 2.3: 32 filas, 119 ramas, 60 pares, S1–S15, L1–L6, I1–I8 |
+| Cierre de implementación | **Cerrado**: PR-NAV-01 a PR-NAV-07 fusionadas (§25.2) |
+| Cierre de validación | **Parcial**: la validación versionada y de CI Linux existe para lo que cada ficha pedía; la productiva (NAV-A0) no existe (§25.3) |
+| Cierre de invariantes | **Cerrado con estado sustentado por invariante**: 18 `SATISFECHO` y 3 `PARCIAL` (S2, S5, S7) de 21 (§25.4) |
+| Cierre de riesgos | **Abierto**: D-10, DT-13, residual de DT-15 y campana de notificaciones pendientes de decisión, ninguno aceptado expresamente ni corregido (§25.13) |
+| Lo que sigue sin probar | Producción (NAV-A0, H-01..H-08); WebKit/iOS y PWA instalada; P3 de forma versionada; el router con tres o más navegaciones pendientes; la campana contra la FSM en un navegador |
+| Siguiente paso | Ninguno impuesto por este documento. Decisiones de Nico: NAV-A0, DT-13, DT-17, DT-18 |
+| Navegación declarada resuelta | **NO**. El programa se cierra documentalmente con residuales visibles |
+
+---
+
+## 25. Cierre documental del programa FSM (rev. 3, PR-NAV-08)
+
+### 25.1. Alcance, método y límites del cierre
+
+Esta sección no cambia la especificación ni reinterpreta el plan: registra **qué se fusionó, qué quedó
+demostrado y qué sigue abierto** en `main` = `9453efaa` (2026-10-13). Las secciones §0–§24 conservan su
+texto; sólo se actualizaron las notas de "estado vigente".
+
+Cinco categorías que esta sección mantiene separadas y que no deben leerse una por otra:
+
+| Categoría | Significado aquí |
+| --- | --- |
+| Implementación fusionada | El cambio está en `main` por un squash verificado en GitHub (`state = MERGED`, `mergeCommit`) |
+| Validación demostrada | Existe evidencia ejecutada y versionada (unit, guard o E2E) con los contextos required en `SUCCESS` sobre el head de la PR |
+| Residual conocido | Comportamiento no deseado, reproducible y registrado, que **no** está corregido |
+| Hipótesis sin verificar | Afirmación sin evidencia ejecutada (típicamente, todo lo productivo) |
+| Decisión normativa pendiente | Requiere que Nico elija; este documento no la toma |
+
+Método: lecturas R0 del repositorio y de GitHub (`gh pr view`, `gh run view`, `gh run list`) del 2026-10-13;
+lectura de los documentos de implementación de PR-NAV-03, 04 y 05, del guard de PR-NAV-07 y del spec de
+PR-NAV-06. **En esta revisión no se ejecutó ningún build, typecheck, test ni E2E**: es docs-only. Toda cifra
+de esta sección es de CI sobre el head de su PR, del cuerpo de la PR o de un documento versionado, y lleva su
+fuente. Las cifras locales de los cuerpos de PR son de Windows y se citan como tales.
+
+Límites: (1) un test en verde prueba lo que afirma, no la conformidad del producto; las celdas de
+**caracterización** afirman un defecto y pasan cuando el defecto se reproduce (§25.11). (2) Toda la
+evidencia de navegador es Chromium (Linux en CI, Windows en local) contra un fixture; WebKit/iOS, PWA
+instalada y producción no se ejecutaron. (3) El despliegue productivo de `9453efaa` no se verificó.
+
+### 25.2. Trazabilidad por PR
+
+Estados: `MERGED` (GitHub), `IMPLEMENTADO` (el cambio de la ficha está en `main`), `VALIDADO` (la evidencia
+que la ficha pedía existe y pasó en CI Linux), `PENDIENTE`, `BLOQUEADO`. Una PR `MERGED` y `VALIDADO` puede
+conservar residuales: la última columna los nombra.
+
+| Ítem | PR | Merge commit (fecha UTC) | Objetivo | Estado GitHub | Evidencia | Resultado |
+| --- | --- | --- | --- | --- | --- | --- |
+| NAV-A0 | — | — | Evidencia productiva (latencias `_rsc`, errores de cliente, navegadores) | — | Ninguna | `PENDIENTE` (R3, [MANUAL-NICO]). H-01, H-02, H-03, H-05 y H-08 siguen abiertas |
+| NAV-A1 | #1837 | `585bf3ba` (2026-10-09) | Contención de D-02 | `MERGED` | §16 | `IMPLEMENTADO`; su mecanismo fue reemplazado por la FSM (PR-NAV-03..05) y retirado (PR-NAV-07). D-11 sin diagnóstico |
+| Especificación | #1838, #1840, #1841, #1843, #1844 | `d186aff5`, `603c352f`, `4f693d5c`, `8d1a8812`, `a569d1a0` (2026-10-09/10) | Este documento: rev. 1, 2/2.1, 2.2/2.2.1, 2.2.2 y 2.3 | `MERGED` | §0 | Rev. 2.3 aprobada con #1844 |
+| PR-NAV-01 | #1839 | `c51b7e74` (2026-10-09) | Fronteras de error | `MERGED` | `navigation-truncated-stream-recovery.spec.ts` (cohorte `visual-contract`); cuatro contextos required en `SUCCESS` | `IMPLEMENTADO`, `VALIDADO`. Cierra D-01 |
+| PR-NAV-02 | #1842 | `0908bb02` (2026-10-10) | Máquina pura y suite (rev. 2.2.2) | `MERGED` | 245 tests (§0.7) | `IMPLEMENTADO`, `VALIDADO` para rev. 2.2.2 |
+| PR-NAV-02, realineación a rev. 2.3 | #1857 | `e192d307` (2026-10-12) | `ROUTING.next`, filas #29–#32, S14 y S15 | `MERGED` | Suite de la máquina: 286 tests; 32 filas, 60 pares, 119 ramas, 202 casos literales; 10 000 trazas, 2 000 amplias y 4 000 sesiones (cuerpo de #1857) | `IMPLEMENTADO`, `VALIDADO`. Sólo la máquina pura: no prueba integración |
+| PR-NAV-03 | #1858 | `7d930897` (2026-10-13 04:51) | Coordinador, provider y corte de Admin | `MERGED` | Coordinador 44 tests (I1–I8, dos semillas, cinco mutantes); `dashboard-navigation-fsm-admin.spec.ts` 26 tests; `docs/implementation/dashboard-navigation-fsm-admin.md` | `IMPLEMENTADO`, `VALIDADO`. Residuales: DT-15 registrado; P3 medido con arnés no versionado; `[A, A]` sin E2E |
+| PR-NAV-04 | #1859 | `8be59a30` (2026-10-13 12:22) | Corte de Clínica (shell y hub) | `MERGED` | `dashboard-navigation-fsm-clinic.test.ts` 17 tests; `dashboard-navigation-fsm-clinic.spec.ts` 32 tests; `docs/implementation/dashboard-navigation-fsm-clinic.md` | `IMPLEMENTADO`, `VALIDADO`. Cierra D-12. Residuales: DT-13 fijado "tal como es"; DT-15 registrado; `SELECT_HUB` sin emisor (sólo unit) |
+| PR-NAV-05 | #1860 | `c2988094` (2026-10-13 13:51) | Rutas completas y retiro del hand-over | `MERGED` | Unit 24 tests; spec de Clínica 43 tests; CI Linux `e2e:ci`: 1 366 passed, 1 skipped; `docs/implementation/dashboard-navigation-fsm-full-routes.md` | `IMPLEMENTADO`, `VALIDADO`. Cierra D-04. Residuales: enlaces entre subrutas de logística siguen siendo commits externos sin presupuesto; reclamo secuencial desde rutas completas |
+| PR-NAV-06 | #1861 | `99fb0f52` (2026-10-13 16:42) | Matriz de fallos y concurrencia | `MERGED` | CI Linux `e2e:ci`: 1 428 passed, 1 skipped; los 62 tests del spec en verde (§25.11) | `IMPLEMENTADO`, `VALIDADO` **con reserva**: 4 de sus 27 celdas de fallo son caracterización de D-10, y el presupuesto de duración quedó en el límite con una sola muestra |
+| PR-NAV-07 | #1862 | `9453efaa` (2026-10-13 18:05) | Retiro de coordinación superada y guard de dueño único | `MERGED` | `dashboard-navigation-single-owner.test.ts`; CI Linux `e2e:ci`: 1 428 passed, 1 skipped | `IMPLEMENTADO` **parcialmente respecto de la ficha** (§25.14), `VALIDADO`. Residual: excepción de la campana |
+| PR-NAV-08 | (esta PR) | — | Cierre documental | — | `git diff --check` | Esta revisión |
+| PR-NAV-X1, X2, X3 | — | — | Condicionales | — | Sus disparadores no se evaluaron (X1, X3: NAV-A0) o no se cumplieron (X2: D-11 sin diagnóstico; X3: PR-NAV-05 llegó antes) | No iniciadas |
+
+Contextos required (`validate-pr-governance`, `qga-workflow-security`, `validate-backend`,
+`validate-frontend`): los cuatro en `SUCCESS` en el rollup final de #1839, #1842, #1844, #1857, #1858, #1859,
+#1860, #1861 y #1862 (lectura `gh pr view --json statusCheckRollup`, 2026-10-13). En #1844 el rollup
+conserva además una ejecución `CANCELLED` de `validate-pr-governance`, reemplazada por la que terminó en
+`SUCCESS`. `e2e-full-completeness`, que no es required, también terminó en `SUCCESS` en #1858–#1862.
+
+### 25.3. Los cuatro cierres
+
+| Cierre | Pregunta | Estado | Sustento |
+| --- | --- | --- | --- |
+| Implementación | ¿Las PR planificadas están integradas? | **CERRADO** | PR-NAV-01 a 07 `MERGED` (§25.2). PR-NAV-07 con tres archivos conservados que la ficha nombraba para borrado (§25.14) |
+| Validación | ¿Las pruebas exigidas tienen evidencia? | **PARCIAL** | Sí para unit, guards y E2E de cada ficha, en CI Linux. No para: evidencia productiva (criterio 7 de §20, NAV-A0); el presupuesto de duración de PR-NAV-06 con más de una muestra; P3 de forma versionada |
+| Invariantes | ¿Cada S/L tiene un estado sustentado? | **CERRADO** | §25.4: 18 `SATISFECHO`, 3 `PARCIAL`, 0 `PENDIENTE` |
+| Riesgos | ¿Los residuales están corregidos, aceptados expresamente o pendientes de decisión? | **ABIERTO** | Ninguno está corregido ni aceptado expresamente: D-10, DT-13, DT-15 (opción B) y la campana quedan **pendientes de decisión** (§25.13) |
+
+El programa queda cerrado **documentalmente**. No queda declarado libre de defectos ni con todos los
+invariantes cumplidos sin excepción.
+
+### 25.4. Estados canónicos por invariante S/L
+
+Estados: `SATISFECHO`, `PARCIAL`, `PENDIENTE`, `NO_VERIFICADO`, `NO_APLICABLE`. El texto normativo de cada
+invariante es el de §13; la columna "Descripción" lo resume y no lo sustituye. "Estado inicial" es el de
+rev. 2.3 (2026-10-10): la máquina de `main` transcribía rev. 2.2.2 y no estaba conectada al dashboard, de
+modo que los invariantes de la máquina sólo estaban verificados sobre una copia temporal.
+
+Fuentes de evidencia, todas versionadas y ejecutadas en CI Linux sobre el head de la PR que introdujo cada
+una y de las posteriores (#1857–#1862):
+
+| Sigla | Fuente | Qué prueba |
+| --- | --- | --- |
+| M | `test/unit/ui/dashboard/dashboard-navigation-machine.test.ts` (286 tests) | La máquina pura: casos literales por rama, recorrido exhaustivo, 10 000 trazas (semilla `0x4e415632`, hash `eee4b548f9543355`), 2 000 trazas amplias (`0x57494445`, `a9e517445610b132`) y 4 000 sesiones en lazo cerrado (`0x53355632`, `5d15258d027a0c26`) |
+| C | `test/unit/ui/dashboard/dashboard-navigation-coordinator.test.ts` (44 tests) | El intérprete de §12.5.1: A1–A8, R1–R8, I1–I8 con dos semillas, cinco mutantes |
+| GC | `test/architecture/dashboard-navigation-fsm-clinic.test.ts` | Contratos de Clínica y de rutas completas sobre el coordinador real |
+| G | `test/architecture/dashboard-navigation-single-owner.test.ts` | Dueño único: AST de `frontend/src` |
+| EA | `frontend/e2e/platform/app-shell/dashboard-navigation-fsm-admin.spec.ts` | Integración de Admin en production runner |
+| EC | `frontend/e2e/platform/app-shell/dashboard-navigation-fsm-clinic.spec.ts` | Integración de Clínica, hub y rutas completas |
+| EM | `frontend/e2e/platform/app-shell/dashboard-navigation-fsm-failure-matrix.spec.ts` | Matriz de PR-NAV-06 (§25.11) |
+| EP | `frontend/e2e/platform/app-shell/dashboard-real-pointer-navigation.spec.ts` | Bloques *single flight*, *superseded commit*, *abandoned flight*, *return to the committed module*, Back antes del commit |
+| ET | `frontend/e2e/platform/app-shell/navigation-truncated-stream-recovery.spec.ts` | Frontera de error (PR-NAV-01) |
+
+Los hashes de M son los anclados en `main`; los de §0.7 eran de la copia temporal y se re-anclaron al
+realinear, como estaba previsto.
+
+| Id | Descripción (resumen de §13) | Estado inicial (rev. 2.3) | PR responsable | Evidencia ejecutada | Estado final | Residuales relacionados | Referencia verificable |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| S1 | En `IDLE`, `display = committed` | `NO_VERIFICADO` (copia temporal) | #1857; #1858, #1859, #1860 | M por transición; EA y EC "ningún frame de un Back/Forward con URL ≠ stage"; EM en reposo tras cada acción | `SATISFECHO` | D-10 desplaza la selección pero deja URL y stage coherentes entre sí: no contradice S1 | `docs/implementation/dashboard-navigation-fsm-admin.md` §7.2; `…-clinic.md` §8 |
+| S2 | Un `aria-current` por landmark visible, igual a `display` | `PENDIENTE` (UI) | #1858, #1859 | EA, EC, EP: stage, banda, barra y título convergen con el stage hidratado | `PARCIAL` | El invariante excluye el fallback SSR de Clínica, que mostraba dos `aria-current` antes de hidratar (D-11, R-8). Ese caso es `NO_VERIFICADO` tras el corte: no se volvió a medir y PR-NAV-X2 no se ejecutó | §8 D-11; §13 S2 |
+| S3 | `BUDGET_EXPIRED` obsoleto no produce nada | `NO_VERIFICADO` | #1857, #1858 | M (#13 e ignorados); C (A7: callback tardío inerte); EA y EC avanzan otro presupuesto tras cada recuperación sin que aparezca `STALLED` | `SATISFECHO` | — | `…-full-routes.md` §5 |
+| S4 | Un commit de `superseded` no se pinta; se anota en `committed` | `NO_VERIFICADO` | #1857; #1858, #1859 | M; EP bloque *superseded commit*; EM F1 "the late answer changes nothing" | `SATISFECHO` | S4 sólo protege mientras hay vuelo: tras #25, #28 o `settle`, un commit tardío se obedece como externo (§19, residual de H3) | §19 |
+| S5 | Una entrada por ráfaga de usuario; 0 por restauración | `NO_VERIFICADO` | #1857; #1858, #1859, #1860 | (a) M por transición; R-6 en EA y EC (0 entradas por restauración). (b) M en lazo cerrado dentro de su alcance; EP *single flight* (`history.length` +1); EM con oráculo de historial independiente | `PARCIAL` | (a) y (b) dentro de su alcance: cumplidos. **Fuera del alcance de (b) el contraejemplo es vigente:** una navegación abandonada por presupuesto puede dejar su entrada (DT-15, §25.8); `[A, A]` tras tres clicks (sin E2E); `push` sobre un traverse sin comitear (`NO_VERIFICADO` en navegador) | EA:901 y EC:1307 ("residual, recorded as it is") |
+| S6 | Ninguna navegación de documento salvo `HARD_NAVIGATE`, MPA de Next (D-10) o autoridades 7–9 | `NO_VERIFICADO` | #1857; #1858–#1861 | M por tipo de efecto; EA, EC y EM afirman "client navigation, never a reload" en las celdas que aceptan | `SATISFECHO` | La excepción "MPA de Next" es D-10 y **está viva** (§25.5): S6 no la prohíbe, la nombra. El guard no vigila `window.location.*` (R8) | EM F3, F4 |
+| S7 | Un dueño por superficie | `PENDIENTE` (guard de PR-NAV-07) | #1862 | G: un intérprete, un registrante por adaptador, historial nativo rechazado en todo `frontend/src`; mutaciones detectadas | `PARCIAL` | **Contraejemplo vigente:** la campana de notificaciones de Admin hace `router.push` de un `?module=` sin pasar por el dueño; el guard la deja pasar con una excepción exacta que **no es una aprobación** (§25.6). Otras excepciones acotadas y previstas por la norma: "Limpiar" de auditoría (§11.2) y el fallback de DT-10 | `test/architecture/dashboard-navigation-single-owner.test.ts:482-486, 860-891` |
+| S8 | `FAILED` sin stack traces | `SATISFECHO` (PR-NAV-01) | #1839; #1858 | ET; unit `frontend-route-error-boundaries`: copia fija, sin `error.message` ni `digest` | `SATISFECHO` | — | §16 PR-NAV-01 |
+| S9 | Ninguna transición emite `REFRESH_DATA`, `PUSH_NATIVE` ni `REPLACE_NATIVE` | `NO_VERIFICADO` | #1857; #1862 | M (unión de efectos); G rechaza `history.pushState/replaceState/back/forward/go` en todo `frontend/src`, provider incluido | `SATISFECHO` | La campana escribe `window.location.hash`, que el guard no clasifica como historial nativo (R8); no es un efecto de la máquina | G, test "native history is rejected everywhere" |
+| S10 | En `ROUTING` `restore`, `display = committed` | `NO_VERIFICADO` | #1857; #1858, #1859 | M; EA R-1 (stage neutro hasta el commit); EC R-2; EM N8 | `SATISFECHO` | — | `…-clinic.md` §6 |
+| S11 | Un presupuesto armado por vuelo, con su `navId` | `NO_VERIFICADO` | #1857; #1858 | M contando `ARM`/`CANCEL`; C (I3, A6) | `SATISFECHO` | — | `…-admin.md` §7.1 |
+| S12 | Todo `PERSIST(m)` es de un módulo válido y confirmado | `NO_VERIFICADO` | #1857; #1859, #1860 | M; GC; EC persistencia de ruta completa | `SATISFECHO` | El sub-caso "ruta completa sin módulo resoluble" es `NO_APLICABLE` en navegador: las cinco rutas completas nombran un módulo válido; queda cubierto sólo en unit | `…-full-routes.md` §6 |
+| S13 | `afterTraverse` si y sólo si el vuelo desciende de un traverse abandonado sin saldar | `NO_VERIFICADO` | #1857; #1858, #1859 | M con variable testigo; EA y EC "Back y dos clics": aterriza el último | `SATISFECHO` | La rama que S13 defiende (#26) **no se observó en navegador**: dentro de la misma página el traverse comitea al instante (E4). `afterTraverse` booleano y su pérdida en `STALLED` siguen en §19 | `…-admin.md` §7.3 punto 6 |
+| S14 | Un vuelo de usuario reclama la selección siguiente y la emite a lo sumo una vez | `NO_VERIFICADO` | #1857; #1858, #1859, #1860 | M; C (#29 → #30, #31); EP *single flight* y *abandoned flight* sin tocar; EC a través del pathname | `SATISFECHO` | El reclamo serializa: desde una ruta completa la segunda elección espera a la primera; cambiarlo exige medir H1 para ese caso (no hecho) | `…-full-routes.md` §8, §12 |
+| S15 | En `IDLE`, el módulo de `committed` es `lastModule` | `NO_VERIFICADO` | #1857; #1858, #1859 | M; EA y EC "S15: returning to a module that committed while another was claimed stores it" | `SATISFECHO` | DT-13 no rompe S15 (persiste lo que reposa); lo que pierde es la preferencia previa (§25.7). D-10 sobrescribe el módulo guardado con el de la URL abandonada (F4) | EA:942 |
+| L1 | Una selección válida navega, queda reclamada o es idempotente | `NO_VERIFICADO` | #1857; #1858, #1859, #1860 | M; EP payload retenido; EM | `SATISFECHO` | En `BOOTING` y `FAILED` el adaptador no reclama y el chrome navega fuera de la FSM, sin presupuesto (DT-10): es norma, no excepción | §11.3 |
+| L2 | `ROUTING` y `TRAVERSING` terminan tras el presupuesto | `NO_VERIFICADO` | #1857; #1858–#1861 | M con reloj simulado; EM F1 en las cuatro superficies (sin `STALLED` a 9 900 ms, `STALLED` a 10 100 ms, reloj de la página); F6 (refresh pendiente) | `SATISFECHO` | L2 habla de vuelos de la máquina. Los commits externos (campana, "Limpiar", enlaces entre subrutas de logística) no son vuelos: no tienen presupuesto ni `STALLED` | Cuerpo de #1861 |
+| L3 | Desde `STALLED` y `FAILED` hay recuperación sin Reload manual | `NO_VERIFICADO` | #1857; #1858–#1861 | M; EA, EC; EM F1 y F2 ("Reintentar recovers without a reload") | `SATISFECHO` | L3 no cubre el caso offline, que no llega a `STALLED` ni a `FAILED`: termina en la página de error del navegador (§25.11, F5) | EM F2 |
+| L4 | `TRAVERSE_STARTED` abandona el vuelo vigente | `NO_VERIFICADO` | #1857; #1858, #1859, #1860 | M; EP Back antes del commit, con y sin Navigation API; EM N4 | `SATISFECHO` | — | EM secuencias |
+| L5 | Un Admin sin módulo nunca reposa en `IDLE` | `NO_VERIFICADO` | #1857; #1858 | M; EA Back a la entrada desnuda, también con el payload más allá del presupuesto | `SATISFECHO` | No aplica a Clínica (no normaliza) | `…-admin.md` §7.2 |
+| L6 | Ningún vuelo tiene por destino la ubicación comiteada | `NO_VERIFICADO` | #1857; #1858, #1859, #1860 | M (0 vuelos huérfanos en lazo cerrado); EA, EC: Back + Forward y Back + módulo comiteado no muestran `STALLED`, también entre ruta completa y shell | `SATISFECHO` | — | `…-full-routes.md` §8 |
+
+Lectura de la tabla:
+
+- **Ningún invariante S/L formula la propiedad "la última selección válida sigue siendo la autoridad".**
+  D-10 la rompe (§25.5) sin contradecir literalmente ninguna fila: S6 lo exceptúa por nombre. Que los 21
+  invariantes tengan estado no dice nada sobre D-10.
+- `SATISFECHO` significa: sin contraejemplo vigente contra el texto del invariante y con evidencia ejecutada
+  en los dos niveles que le corresponden (máquina e integración). No significa aprobación productiva.
+- Los invariantes de integración I1–I8 (§12.5.1) no son S/L: los sostiene C (0 violaciones con dos semillas,
+  cinco mutantes detectados). Los supuestos P1, P2 y P4 se observaron en navegador; **P3** (StrictMode) se
+  midió con un arnés temporal no versionado y ningún gate lo re-verifica.
+- Supuestos del modelo de historial: H1 y H3 quedaron reescritos según lo medido (rev. 2.3); H1 para un
+  `push` sobre un traverse sin comitear sigue `NO_VERIFICADO`.
+
+### 25.5. D-10 — fallo tardío de una navegación o un refresh abandonados (`KNOWN_RESIDUAL_D10`)
+
+**Estado: residual conocido, caracterizado y NO CORREGIDO.** No está aceptado como comportamiento deseado.
+
+| Campo | F4 — 524 tardío de una navegación abandonada | F7 — `router.refresh()` abandonado que falla tarde |
+| --- | --- | --- |
+| Escenario | Un payload queda retenido más allá del presupuesto (`STALLED`); el usuario elige otro módulo (#16), que se pide, responde y **comitea**; después llega el 524 del primero | El `router.refresh()` del producto queda retenido antes de sus headers; el usuario elige un módulo, que se pide y se muestra en el stage pero **no puede comitear** (H-08); después el refresh falla (500) |
+| Causa observada | Next evalúa la respuesta fallida de la navegación que había dejado atrás y entrega su URL al navegador como navegación de documento (§8 D-10: `server-patch-reducer.js`, `action.mpa` antes que la comparación de árboles; lectura sobre 16.3.6, comportamiento reproducido sobre 16.3.8). La máquina no emite esa navegación | El mismo mecanismo sobre `ACTION_REFRESH`: el fallo tardío recarga la URL desde la que se emitió el refresh |
+| Qué se pierde | La selección posterior, **ya comiteada**: URL, stage y módulo guardado vuelven al destino abandonado | La selección posterior, emitida y visible, que nunca llegó a URL ni a historial |
+| Qué queda | Documento recargado en la URL abandonada; el módulo guardado se sobrescribe con el abandonado; el historial crece una entrada sobre la de la selección (la selección perdida queda a un Back) | Documento recargado en la URL del refresh; historial sin cambios; módulo guardado sin cambios |
+| Comportamiento deseado | La última selección válida sigue siendo la autoridad | Ídem |
+| Comportamiento real | No se cumple | No se cumple |
+| Celdas | F4 × S1 (shell Admin, 1366×768, sin Navigation API) y F4 × S2 (shell Clínica, 390×844, con Navigation API) | F7 × S2 (1366×768 sin Navigation API, y 390×844 con ella). F7 no tiene ninguna celda de aceptación |
+| Superficies | Medido en los shells de Admin y Clínica. Por mecanismo aplica a **todo** `ROUTING`, incluidos hub y rutas completas (no medido ahí en la variante "tras una selección posterior") | Medido en el shell de Clínica, único lugar con un emisor de producto alcanzable en la matriz (`DashboardRefreshButton.tsx:23`). Los otros `router.refresh()` de `frontend/src` (`UploadReportModal.tsx:528`, `LoginContent.tsx:123`) no se ejercitaron |
+
+Evidencia: las cuatro celdas `KNOWN_RESIDUAL_D10 (characterization, not acceptance)` de EM, en verde en CI
+Linux sobre el head de #1861 (`5fe0c92e`, run de Frontend CI `38426386623`) y sobre el de #1862; en local,
+60 de 60 en cinco repeticiones (cuerpo de #1861). Antecedentes: rev. 2, D-10 extendido (T2 5/5; refresh
+3/3). Cada celda afirma el defecto — la petición `document` a la URL abandonada, la URL que no es la de la
+selección, el stage ausente — y anota en el reporte "desired property holds: false".
+
+**El verde de esas cuatro celdas es evidencia de que el defecto se reproduce, no de que esté resuelto.** Un
+test de cobertura del mismo spec las cuenta aparte de las celdas que aceptan un contrato.
+
+Variante benigna, que no es este residual: si el 524 llega con el usuario todavía esperando ese destino
+(F4 de aceptación, cuatro superficies), la navegación de documento lleva al destino esperado.
+
+| Campo | Contenido |
+| --- | --- |
+| Riesgo residual | Medio (§19). Exige un payload o un refresh de más de 10 s que además **falle** tarde, después de otra selección. Sin datos productivos de frecuencia (NAV-A0) |
+| Condición para corregir | Un cambio **runtime**: en cómo el producto trata las navegaciones abandonadas y los `router.refresh()` existentes, o en Next. Esta revisión no evalúa ninguna opción ni recomienda una |
+| Decisión requerida | DT-17 (§21): aceptar D-10 expresamente como residual de Next, o autorizar una PR runtime independiente. Hasta entonces el estado es "pendiente de decisión", no "aceptado" |
+| Obligación si se corrige | Las cuatro celdas afirman el defecto: una corrección las pone en rojo y deben reescribirse en la misma PR para afirmar la propiedad deseada |
+
+### 25.6. Campana de notificaciones — navegación de módulo fuera del dueño
+
+**Estado: residual arquitectónico conocido, pendiente de resolución.** Es una excepción **tolerada por el
+guard**, no un diseño aprobado, y contradice literalmente el criterio 2 de §20 ("cero autoridades de
+navegación de módulo fuera del intérprete del provider"). Por eso S7 queda `PARCIAL`.
+
+| Campo | Contenido |
+| --- | --- |
+| Archivo | `frontend/src/components/dashboard/DashboardNotificationsBell.tsx:230-233`: `router.push(destination)` seguido de `scrollToHashDestination(destination)`. Montada en `DashboardTopbar.tsx` y `DashboardMobileKebabMenu.tsx` |
+| Origen del destino | `buildNotificationDestination(surface, notification)` (`:242`), tabla en `frontend/src/lib/notification-destinations.ts:36-84` |
+| Módulos alcanzables en Admin | `?module=admin-report-upload` (con `#report-<id>` opcional), `?module=admin-particular-tokens#admin-particular-token-<id>` y `?module=audit-log` |
+| Destinos en Clínica | Sin `?module=`: `/dashboard/informes` (con `#report-<id>` opcional), `/dashboard#clinic-particular-token-<id>` y `/dashboard`. Observación de lectura: `/dashboard` desnudo **es** la URL canónica del módulo por defecto de Clínica, de modo que también ahí la campana cambia de módulo o de ruta sin pasar por el dueño. El guard no lo distingue: su excepción cubre la llamada, no el destino |
+| Mecanismo de bypass | El `push` no despacha `SELECT_MODULE` ni `OPEN_ROUTE`: no hay `ROUTING`, ni `navId`, ni `ARM_BUDGET`. La máquina sólo ve el resultado, como commit externo (#22 en `IDLE`, #23 en vuelo) |
+| Consecuencias, por lectura de la tabla (no ejecutadas) | Si el payload de ese `push` cuelga, no hay presupuesto ni `STALLED`. Si hay un vuelo de usuario en curso, el `push` no se reclama (S14 no lo cubre) y convive con el del vuelo (H1 medido): su commit abandona el vuelo por #23 y puede dejar una entrada de más. Queda además expuesto a D-10 como cualquier `push` |
+| Riesgo de segunda autoridad | Es la única navegación de `?module=` fuera del intérprete que el guard deja en pie. El guard fija su tamaño — una llamada, un origen del destino, los tres módulos de la tabla, ningún módulo calculado — para que no crezca sin una decisión; no la legitima |
+| Evidencia | `test/architecture/dashboard-navigation-single-owner.test.ts:31-32` ("Listed here as it stands, not endorsed"), `:482-486` (excepción) y `:860-911` ("The bell is NOT an approved navigation authority"); cuerpo de #1862, "Known Limitations". **No existe ningún E2E que ejercite la campana contra la FSM** |
+| Inventario previo | §5.2 ya la listaba como emisor sin reclamo (`:231`). Ninguna revisión la clasificó ni la asignó a una PR: no figuraba como excepción en §11.2, §14.1 ni en la ficha de PR-NAV-07. **No estaba prevista como solución normativa** |
+| Condición de corrección | Que la selección de la campana pase por el adaptador del dueño (`request*ModuleActivate` / `OPEN_ROUTE`) y sólo navegue por su cuenta si el dueño declina (patrón de DT-10), **conservando la navegación al hash**: `scrollToHashDestination` y el fragmento del destino |
+| Detalle a preservar | La campana escribe `window.location.hash` en un `setTimeout(0)` cuando el destino comparte pathname (`:206-228`). Es una escritura que el guard no vigila (R8) y cuya interacción con la máquina no se ejecutó |
+| Seguimiento | DT-18 (§21). Si Nico lo autoriza, una PR **runtime independiente**, con su E2E; al retirar el `push` la excepción del guard falla por "stale exception" y debe retirarse en la misma PR. Esta revisión no la inicia, no modifica producción y no toca la excepción |
+
+### 25.7. DT-13 — preferencia de último módulo tras un fallo durante la restauración
+
+**Estado: decisión pendiente. Sin cambios en esta revisión.**
+
+| Campo | Contenido |
+| --- | --- |
+| Contrato vigente | Fila #21: `FAILED` × `RESET(L)` → `settle(L)`, que persiste `persistable(L)`. `RESET` no pasa por `bootRestore` |
+| Comportamiento real | Clínica entra a `/dashboard` desnudo con un último módulo almacenado distinto del default y el render inicial falla: la frontera se monta, el `router.replace` de la restauración no se emite nunca (C-9) y no queda presupuesto. "Reintentar" reposa en el módulo por defecto con URL desnuda **y lo guarda**: la preferencia almacenada se pierde. Entrando por una ruta completa ocurre lo mismo con el módulo de la ruta |
+| Contraejemplo | Almacenado `logistica` → entrada con payload truncado → "Reintentar" → almacenado `operaciones`. La siguiente entrada desnuda ya no restaura `logistica` |
+| Admin | No lo sufre: la normalización usa `lastModule`, y su E2E afirma que "Reintentar" emite exactamente una normalización al módulo almacenado |
+| Evidencia | Unit `test/architecture/dashboard-navigation-fsm-clinic.test.ts:205` ("C-9, DT-13 pending…"); E2E `dashboard-navigation-fsm-clinic.spec.ts:912` y `:964`, con el mensaje "known limitation, DT-13 pending". Los tres **afirman la limitación tal como es**: pasan mientras el defecto exista |
+| Impacto | Bajo: pérdida de una preferencia; sin divergencia URL ↔ contenido y sin violar ningún invariante (S15 se cumple) |
+| Opciones (§21) | A: sin cambio (implementada). B: `RESET` reintenta la restauración pendiente. C: `settle` no persiste cuando viene de `FAILED`. B y C cambian la fila #21 y exigen enmienda de este documento y su verificación mecánica |
+| Lo que esta revisión no hace | No elige opción, no cambia el estado de ninguna otra decisión para absorber este residual y no lo da por resuelto |
+
+### 25.8. DT-15 — reclamo concurrente y su residual
+
+**Estado: opción A aprobada e implementada; residual medido y registrado; opción B sin decidir.**
+
+| Campo | Contenido |
+| --- | --- |
+| Contrato actual | Un vuelo de usuario **reclama** la selección siguiente (#29) y la emite una vez: como `replace` al aterrizar (#30) o como relevo al vencer el presupuesto (#31). S14 |
+| Comportamiento observado | Dentro de presupuesto: una entrada por ráfaga (EP *single flight*, sin tocar). Tras un relevo (#31) o un re-intento (#16) hay dos navegaciones propias en el router; si la abandonada responde antes que su relevo, **no se pinta** (S4) pero puede escribir su propia entrada: `[A, B, C]` con B abandonado |
+| Evidencia | E2E "residual, recorded as it is" en `dashboard-navigation-fsm-admin.spec.ts:901` y `dashboard-navigation-fsm-clinic.spec.ts:1307`: afirman que el módulo abandonado no se repinta y que no hay recarga, y **registran** si la ráfaga agregó 1 o 2 entradas (aceptan ambos valores). Modelo de la copia temporal de rev. 2.3: 240 de 15 930 ráfagas. Navegador, rev. 2.3: sin reconciliar 7 de 10 (E1); con el `replace` de #1837, 1 de 10 (E8) |
+| Frecuencia en CI | `NO_VERIFICADO`: el resultado por corrida queda en una anotación del reporte, que no se leyó; no hay conteo acumulado |
+| Diferencia conocida con el comportamiento previo | Antes del corte, el controlador reconciliaba esa navegación con un `replace` (#1837). La FSM no lo hace: `superseded` no distingue un `push` colgado de un `restore`, y reconciliar un `restore` pierde la entrada del clic (E7). Es una regresión acotada y declarada, no un hallazgo nuevo |
+| Riesgo residual | Bajo: exige un payload de más de 10 s que además llegue antes que el siguiente. Back pasa por un módulo que el usuario sí eligió; URL, stage y `aria-current` no divergen |
+| Residuales emparentados | `[A, A]` tras A → B → C (reclamado) → B aterriza → A (reclamado) → C aterriza: aceptado en §19, **sin E2E propio**. `push` sobre un traverse sin comitear: 88 ráfagas en el modelo; en navegador el traverse comitea antes (E4). Reclamo secuencial desde rutas completas |
+| Condición de eventual modificación | Opción B: dar procedencia (`push` o `restore`) a cada entrada de `superseded` y agregar una fila. Cambia el tipo de `NavContext`; exige enmienda de este documento, verificación mecánica y realineación de la máquina. La norma la justifica sólo si NAV-A0 muestra payloads de más de 10 s con frecuencia; NAV-A0 no se ejecutó |
+| Lo que esta revisión no hace | No cambia el algoritmo ni la decisión |
+
+### 25.9. DT-16 — contrato de historial
+
+**Estado: decidido (opción A, fila #25) e implementado en Admin (#1858) y Clínica (#1859).**
+
+| Aspecto | Semántica implementada | Evidencia versionada |
+| --- | --- | --- |
+| Navegación comprometida (A → B) | Un `push`, una entrada; Back vuelve a A | EM N1 y N2 en S1 y S2; EP |
+| Navegación en vuelo (A → B, y C antes del commit) | C queda reclamado; al aterrizar B sale como `replace` sobre la entrada de la ráfaga: una entrada, Back a A, Forward a C | EP *single flight* (sin tocar); C (#29 → #30); EM N3 |
+| Regreso al módulo actual (A, B en vuelo, A otra vez) | Fila #25: un `push` a la URL vigente. Pide **un** `_rsc` de A; B nunca comitea; `history.length` no crece; **no queda entrada Forward de B** | EP bloque *return to the committed module*, realineado en Admin (#1858) y Clínica (#1859) conservando escenarios y viewports; C `:745`; `frontend-dashboard-lateral-navigation.test.ts:666, 688`; EM acción `return(via …)` en secuencias y modelo |
+| Back | Abandona el vuelo vigente (#17, #28); dentro de la misma página comitea al instante | EP *Back before the commit…*, con y sin Navigation API; EM N4; EA y EC C-8 |
+| Forward | Recorre exactamente las entradas escritas | EM N5; EA y EC |
+| Restauración | 0 entradas; Back a la página previa, Forward al módulo restaurado | EA y EC R-6; EM N8 |
+| Tras recuperar de `STALLED` | "Reintentar" (#15) es una navegación de documento con el modo del vuelo (`assign` para un push, `replace` para un replace): agrega la entrada que el push habría agregado. Otra selección (#16) navega y la respuesta tardía del destino abandonado no escribe historial | EM F1 (`history.length` +1) y F4 de aceptación; `docs/implementation/dashboard-navigation-fsm-full-routes.md` §5–§6 |
+
+Expectativa anterior frente a semántica implementada, para no confundirlas: hasta #1835 volver a A **no
+pedía payload** y B quedaba como entrada Forward, lo que el controlador lograba con `history.back()`. S9
+prohíbe ese efecto nativo. Desde el corte, volver a A pide un payload y B no queda como Forward. Es un cambio
+visible y decidido, no un defecto. Lo que sigue fuera de este contrato está en §25.8 (`[A, A]`, entrada de
+una navegación abandonada por presupuesto).
+
+### 25.10. Métrica cuantitativa de coordinación
+
+Conjunto normativo: la primera fila de §10.2 ("coordinación pura y buses": ocho archivos). Medición con
+`wc -l` sobre `main`.
+
+| Archivo | Baseline (`c35ebcb3`) | Tras PR-NAV-06 (`99fb0f52`) | Tras PR-NAV-07 (`9453efaa`) | Situación |
+| --- | ---: | ---: | ---: | --- |
+| `lib/dashboard/navigation/clinicNavigationState.ts` | 255 | 255 | 14 | **Conservado parcialmente**: queda `clinicModuleHref`, con dos importadores productivos |
+| `lib/dashboard/navigation/navigationFlight.ts` | 64 | 64 | 9 | **Conservado parcialmente**: queda `NAVIGATION_FLIGHT_BUDGET_MS` (DT-5), que usa el provider |
+| `components/dashboard/useNavigationFlight.ts` | 19 | 19 | 0 | **Eliminado** |
+| `lib/dashboard/navigation/stageModule.ts` | 77 | 77 | 77 | **Conservado íntegro** por consumidores activos (`useStageModule.ts`) |
+| `lib/dashboard/navigation/historyTraversal.ts` | 29 | 29 | 29 | Conservado: §14.1 lo lista como "conservar". Sin importador productivo (§25.14) |
+| `lib/clinic-hub-reset.ts` | 94 | 41 | 41 | Reducido a adaptador (PR-NAV-04, 05) |
+| `lib/admin-hub-reset.ts` | 95 | 51 | 51 | Reducido a adaptador (PR-NAV-03) |
+| `components/dashboard/useStageModule.ts` | 44 | 66 | 66 | **Creció**: selector del `display` de la máquina más la publicación del stage |
+| **Total** | **677** | **602** | **287** | **−390 LOC, −57,6 %** |
+
+Criterio de la ficha de PR-NAV-07 y criterio 5 de §20 (reducción ≥ 40 %): **cumplido**, 57,6 %.
+
+Qué mide y qué no, para no sobreleerla:
+
+- Mide sólo el conjunto normativo de §10.2. **No cuenta el código nuevo del dueño**, que no existía en el
+  baseline: `dashboardNavigationMachine.ts` (625), `dashboardNavigationCoordinator.ts` (273) y
+  `DashboardNavigationProvider.tsx` (543).
+- Los controladores y el stage de ruta completa (segunda fila de §10.2, 899 LOC) bajaron a 445 (Admin 199,
+  Clínica 153, stage 93). Es una medición aparte, no parte del 57,6 %.
+- **Tests y guards no cuentan** como eliminación de coordinación productiva. #1862 retiró además 612 líneas
+  de tests del mecanismo anterior y agregó 946 del guard; ninguna entra en la métrica.
+- De los cuatro archivos que la ficha nombraba para borrado, **uno** se eliminó. Dos están podados, no
+  eliminados, y uno permanece íntegro (§25.14).
+
+### 25.11. PR-NAV-06 — matriz de fallos y concurrencia
+
+Spec `dashboard-navigation-fsm-failure-matrix.spec.ts` (cohorte `visual-contract`, capa `ci`) y helper
+`frontend/e2e/helpers/router-payload-gates.ts`. Los payloads se retienen y continúan, se responden tarde con
+un status o se cortan; nada se aborta. El presupuesto corre sobre el reloj de la página.
+
+Dimensiones:
+
+| Eje | Valores |
+| --- | --- |
+| Fallos | F1 payload retenido más allá del presupuesto · F2 stream truncado · F3 HTTP 500 · F4 HTTP 524 tardío · F5 offline · F6 `router.refresh()` pendiente sin headers · F7 refresh abandonado que falla tarde |
+| Superficies | S1 shell de Admin · S2 shell de Clínica · S3 hub de Clínica · S4 rutas completas de Clínica (ambos sentidos) |
+| Secuencias | N1 A → B · N2 A → B → A · N3 ráfaga · N4 Back en vuelo · N5 Forward · N6 reload · N7 hub → módulo · N8 restauración inicial · N9 ruta completa → shell · N10 shell → ruta completa |
+| Entorno | Navigation API presente y ausente; 1366×768 y 390×844 (las cuatro combinaciones alcanzan cada superficie) |
+| Model-based | 20 secuencias generadas con semilla `0x4e415606` (el tope de la ficha es 30), plan anclado por digest `8324122d`. El oráculo **no** es la máquina productiva: es el modelo de historial de §13.1 (pila de entradas, índice y módulo guardado), que sólo predice lo observable en reposo |
+
+Resultado en CI Linux sobre el head de #1861 (`5fe0c92e`; Frontend CI, run `38426386623`): los **62 tests**
+del spec en verde.
+
+| Bloque | Tests | Naturaleza |
+| --- | ---: | --- |
+| Celdas de fallo que **aceptan** un contrato | 23 | Aceptación: F1–F5 × S1–S4 (20) y F6 × {S2, S2, S4} (3) |
+| Celdas de fallo `KNOWN_RESIDUAL_D10` | 4 | **Caracterización, no aceptación**: F4 × S1, F4 × S2, F7 × S2 ×2 (§25.5) |
+| Secuencias N1–N10 | 10 | Aceptación: 8 recorridos nombrados y 2 de restauración (N8 + N6) |
+| Modelo con semilla | 20 | Aceptación contra el oráculo independiente |
+| Cobertura | 4 | Meta-tests: cada par fallo × superficie y secuencia × superficie es una celda o una exclusión declarada; las celdas D-10 se cuentan aparte; el generador es determinista |
+| Compuertas | 1 | El helper no fabrica fallos ni retiene nada tras `dispose()` |
+
+Exclusiones declaradas en el spec, con su motivo: F6 y F7 en S1 y S3 y F7 en S4 (no hay emisor de producto
+de `router.refresh()` en esas superficies), y quince pares secuencia × superficie que no existen en el
+producto (por ejemplo N7 fuera del hub, N9 y N10 en Admin). "100 % de celdas" significa 100 % de las celdas
+**aplicables**.
+
+Lo que cada fallo deja demostrado, con su matiz:
+
+| Fallo | Contrato afirmado | Matiz |
+| --- | --- | --- |
+| F1 | Sin `STALLED` a 9 900 ms y `STALLED` a 10 100 ms; una elección posterior navega; la respuesta tardía no repinta ni escribe historial | Reloj de la página **pausado y avanzado**: acota la lógica de DT-5, no mide tiempos reales |
+| F2 | La frontera se monta, no queda presupuesto, "Reintentar" recupera sin recarga | — |
+| F3 | Un 500 es **una navegación de documento** al destino (salida MPA de Next); el origen sigue navegando | Recupera, pero por documento, no por la FSM |
+| F4 (aceptación) | El 524 tras el presupuesto, con el usuario esperando ese destino, es una navegación de documento a ese destino | Mismo mecanismo que D-10, en su variante benigna |
+| F5 | Al quedar offline en vuelo, Next **no espera conectividad**: la petición falla, cae a una navegación de documento que también falla y el navegador muestra **su propia página de error**. De vuelta online, **recargar** esa entrada recupera el destino | Refuta H-06 en Chromium (Next no deja la navegación esperando). **No satisface** "offline recuperable sin Reload manual" del criterio 4 de §20. Comportamiento específico de Chromium |
+| F6 | Una selección detrás del refresh retenido llega a `STALLED` dentro del presupuesto y converge al liberar, con un payload cada uno | Caracteriza H-08 en local y CI; sin medición productiva |
+| F7 | — | Sólo caracterización (D-10) |
+
+Presupuesto de duración (aceptación de la ficha: incremento de `e2e:ci` ≤ 10 %):
+
+| Medición | Antes | Después | Incremento |
+| --- | ---: | ---: | ---: |
+| CI Linux, paso "Run frontend E2E layered tests": head de #1860 → head de #1861 | 1 024 s (1 367 tests; Playwright 17,0 min) | 1 125 s (1 429 tests; Playwright 18,7 min) | **+9,9 %** |
+| CI Linux, mismo paso sobre el head de #1862 (mismos 1 429 tests) | — | 1 107 s (18,4 min) | +8,1 % respecto de #1860 |
+| Windows local, `e2e:ci` (cuerpo de #1861) | 266 s | 292 s | +9,8 % |
+| Windows local, suma de duraciones por test | 2 454 s | 2 717 s | +7,6 % |
+
+Lectura: el límite se cumple **en la única muestra de CI por condición, sin margen** (9,9 % contra 10 %).
+Dos corridas del mismo conjunto de tests (#1861 y #1862) difieren en 18 s, del mismo orden que la holgura.
+Con una muestra por condición y runners distintos **no hay garantía estadística** de que el incremento se
+mantenga bajo el 10 %. Estado del criterio: cumplido en lo observado, `NO_VERIFICADO` como propiedad
+estable.
+
+Observación menor, no resuelta: el cuerpo de #1861 reporta "61/61" en local y CI lista 62 tests del spec.
+
+### 25.12. Defectos e hipótesis de §8–§9 al cierre
+
+| Id | Estado al cierre | Sustento |
+| --- | --- | --- |
+| D-01 | Corregido | PR-NAV-01 (#1839); ET; EM F2 |
+| D-02 | Corregido por construcción: todo vuelo tiene presupuesto y `STALLED` | #1858, #1859; EM F1. Su frecuencia productiva (H-01) nunca se midió |
+| D-03 | **No abordado.** El render de servidor sigue sin límite de tiempo; el presupuesto acota la espera del cliente, no el render | DT-3 pendiente (depende de NAV-A0) |
+| D-04 | Corregido | PR-NAV-05 (#1860); EC rutas completas; EM S4 |
+| D-05 | Corregido: una especificación, parametrizada por superficie | #1857, #1858, #1859 |
+| D-06 | Parcial: las autoridades 2–6 de §5.3 quedaron consolidadas en el intérprete; la campana sigue fuera (§25.6); 7–9 son legítimas y externas | G |
+| D-07 | Corregido: estado discriminado y exhaustividad verificada | M |
+| D-08 | Corregido: replay `unheardActivation` y guard `window.event` retirados | #1860 |
+| D-09 | Hecho estructural **vigente por decisión**: T2 conserva el viaje al servidor por selección (DT-1) | §11.2 |
+| D-10 | **Residual conocido, no corregido** | §25.5 |
+| D-11 | **Sin diagnóstico** (H-04 abierta). Los runs finales de Frontend CI de #1858–#1862 terminaron en `SUCCESS`, lo que no es un diagnóstico | §8 |
+| D-12 | Corregido | PR-NAV-04 (#1859); EC R-2 |
+| H-01, H-02, H-03, H-05 | **Sin verificar**: dependen de NAV-A0 | — |
+| H-04 | Sin verificar | — |
+| H-06 | Refutada en Chromium en su forma original (Next no espera conectividad); el caso offline termina en la página de error del navegador | EM F5 |
+| H-07 | Sin contraejemplo: la frontera pública recupera el stream truncado | ET |
+| H-08 | Confirmada en local y CI como mecanismo; acotada por el presupuesto. Sin medición productiva | EA, EC, EM F6 |
+
+### 25.13. Riesgos residuales y decisiones pendientes
+
+Clases: defecto funcional, riesgo arquitectónico, deuda técnica, limitación de cobertura, decisión normativa
+pendiente. "Acción futura" aparece sólo donde la evidencia la justifica; ninguna se inicia aquí. Los
+identificadores R1–R16 de esta tabla numeran residuales y no son los niveles de riesgo R0–R3 de `AGENTS.md`.
+
+| Id | Residual | Clase | Evidencia | Acción futura |
+| --- | --- | --- | --- | --- |
+| R1 | D-10: un fallo tardío de una navegación o un refresh abandonados recarga la URL abandonada y desplaza la selección | Defecto funcional (de Next, expuesto por el producto) y decisión normativa pendiente | §25.5; EM, 4 celdas | DT-17. Sólo si Nico lo autoriza: PR runtime independiente |
+| R2 | DT-13: "Reintentar" tras un fallo durante la restauración pisa la preferencia de último módulo de Clínica | Decisión normativa pendiente (defecto funcional menor) | §25.7 | Decidir A, B o C; B y C exigen enmendar la fila #21 |
+| R3 | DT-15: la navegación abandonada por presupuesto puede dejar su entrada; `[A, A]`; reclamo secuencial desde rutas completas | Defecto funcional menor y decisión normativa pendiente (opción B) | §25.8 | Ninguna sin NAV-A0: la norma ata la opción B a datos productivos |
+| R4 | La campana de notificaciones navega `?module=` fuera del dueño | Riesgo arquitectónico y decisión normativa pendiente | §25.6; G | DT-18. Sólo si Nico lo autoriza: PR runtime independiente que preserve la navegación al hash |
+| R5 | `stageModule.ts` (77 LOC) y `useStageModule.ts` (66) siguen activos: publican y leen el módulo del stage para `DashboardMobileNav`, `DashboardNavigationFrame`, `ModuleContextTitle`, el controlador de Clínica y el stage de ruta completa. §14.1 preveía reemplazarlos por un selector del store y eliminarlos en PR-NAV-07 | Deuda técnica | Importadores en `frontend/src`; cuerpo de #1862 | Ninguna justificada por evidencia de defecto. Retirarlos exige tocar consumidores activos |
+| R6 | `historyTraversal.ts` se conserva porque §14.1 lo lista como "conservar", pero **no tiene importador productivo**: el provider implementa su propio productor de `TRAVERSE_STARTED` (`DashboardNavigationProvider.tsx:301-327`). Sólo lo importa un test unitario | Deuda técnica e inconsistencia documental | `git grep` sobre `frontend/src` y `test`; `…-full-routes.md` §12 | Decidir si la norma lo sigue conservando. No hay defecto asociado |
+| R7 | Comentarios que nombran el modelo anterior: "hands over" en `DashboardNavigationFrame.tsx:137`, `useStageModule.ts:44, 62` y `stageModule.ts:5`; el encabezado de `historyTraversal.ts` describe "dashboard controllers" y un flag que ya no existen; `dashboardNavigationMachine.ts:18` dice "Not wired to any consumer yet (PR-NAV-02)", que es **falso** desde #1858. No se encontró ninguna mención de `handsOver`, `unheardActivation` ni `relinquish…` en `frontend/src` | Deuda técnica | `git grep` sobre `frontend/src` | Ninguna urgente. No se evaluó línea por línea si los "hands over" restantes describen el comportamiento vigente |
+| R8 | El guard cubre `router.push/replace/back/forward` y la History API. **No** cubre escrituras de `window.location` (`assign`, `replace`, `reload`, `hash`) ni de la Navigation API (`navigation.navigate()`). Inventario sobre todo `frontend/src` en `9453efaa` (no sólo el dashboard): ninguna llamada de escritura a la Navigation API, y **doce** escrituras de `window.location` en diez archivos — `components/dashboard/DashboardNavigationProvider.tsx:233, 234` (`assign`/`replace` de `HARD_NAVIGATE`), `DashboardLogoutControl.tsx:62` y `DashboardTopbar.tsx:76` (`replace` a login), `PageRequestRecovery.tsx:59` (`reload`), `StickyActionBar.tsx:48` (`assign`), `BackForwardCacheGuard.tsx:16` (`reload`), `DashboardNotificationsBell.tsx:222` (`hash`), `components/public/PublicRouteControl.tsx:137` (`hash`) y `:274` (`assign`), `components/pwa/OfflineActions.tsx:11` (`reload`) y `components/app-version/AppVersionGate.tsx:57` (`replace`). Fuera de `frontend/src`, el script pre-hidratación `frontend/public/theme-init.*.js` también escribe `location` (autoridad 7 de §5.3) | Limitación de cobertura | Cuerpo de #1862; `git grep -n -E "location\.(assign\|replace\|reload)\(\|location\.(href\|hash\|pathname\|search)\s*=[^=]"` y `"navigation\.(navigate\|back\|forward\|traverseTo\|reload\|updateCurrentEntry)\("` sobre `frontend/src` | Ninguna justificada: no hay evidencia de una segunda autoridad por esa vía. Es el límite que la ficha de PR-NAV-07 fijó |
+| R9 | NAV-A0 no se ejecutó: ninguna hipótesis productiva está cerrada y DT-5 no se revisó con datos | Limitación de cobertura | §25.12 | [MANUAL-NICO]; operación de riesgo R3 según `AGENTS.md` §3.1 |
+| R10 | Offline en vuelo termina en la página de error del navegador; se recupera recargando | Defecto funcional (criterio 4 de §20 no cumplido para offline) | EM F5 | Ninguna definida. No se evaluó su relación con el fallback offline del service worker |
+| R11 | Commits externos sin presupuesto ni `STALLED`: enlaces entre subrutas de logística y otros `PublicRouteControl` a rutas completas, "Limpiar" de auditoría, clics con la frontera visible (DT-10) | Riesgo arquitectónico acotado | `…-full-routes.md` §12; G | Ninguna: fuera de las fichas |
+| R12 | El aviso de `STALLED` está implementado en tres archivos (controlador de Admin, controlador de Clínica, stage de ruta completa). PR-NAV-04 y 05 lo señalaron como candidato a PR-NAV-07, que no lo extrajo | Deuda técnica | `…-clinic.md` §11; `…-full-routes.md` §12 | Ninguna justificada por defecto |
+| R13 | P3 (StrictMode con React real) verificado con un arnés temporal no versionado; evidencia de navegador sólo en Chromium; el corte de payload que monta la frontera depende del tamaño relativo de layout y página | Limitación de cobertura | `…-admin.md` §7.4, §9 | Ninguna definida |
+| R14 | `SELECT_HUB` no tiene emisor en el producto: su cableado hasta `router.push("/dashboard?hub=1")` sólo está cubierto en unit | Limitación de cobertura | `…-clinic.md` §8 | La PR que agregue el emisor debe traer su E2E |
+| R15 | El incremento de `e2e:ci` quedó en 9,9 % contra un límite de 10 %, con una muestra | Limitación de cobertura | §25.11 | Ninguna: reportado para quien agregue E2E a la cohorte `ci` |
+| R16 | D-03 (render de servidor sin límite) y D-11 (doble instancia del chrome) siguen como estaban | Defecto funcional (D-03) e hipótesis sin verificar (D-11) | §25.12 | DT-3 con NAV-A0; diagnóstico de D-11 |
+
+### 25.14. Desviaciones entre fichas y ejecución
+
+Ninguna reinterpreta el alcance original: se registran tal como ocurrieron.
+
+| # | Lo que decía la norma | Lo que se fusionó | Lectura |
+| --- | --- | --- | --- |
+| 1 | Ficha de PR-NAV-07: "Eliminar `clinicNavigationState.ts`, `navigationFlight.ts`, `useNavigationFlight.ts`, `stageModule.ts` (si el selector ya no lo usa) y sus tests" | Eliminado sólo `useNavigationFlight.ts`. `clinicNavigationState.ts` y `navigationFlight.ts` quedan **podados** a una exportación viva cada uno; `stageModule.ts`, **íntegro** | La condición de `stageModule.ts` no se cumplió (el selector lo usa). Borrar los otros dos exigía modificar importadores productivos, fuera del "diff sólo de borrado + guard" de la ficha |
+| 2 | §14.1: `stageModule.ts` / `useStageModule.ts` → "reemplazar por selector del store → eliminar en 07" | `useStageModule.ts` lee el `display` de la máquina **y** conserva la publicación del stage; creció de 44 a 66 LOC | Reemplazo parcial (R5) |
+| 3 | §14.1: `historyTraversal.ts` → "conservar como adaptador de `TRAVERSE_STARTED`" | Conservado, pero el adaptador real está en el provider; el archivo no tiene importador productivo | Conservado por la letra de la norma, sin función (R6) |
+| 4 | Ficha de PR-NAV-07 y criterio 2 de §20: guard que prohíbe `router.push/replace` de `?module=` fuera del intérprete; "cero autoridades" | El guard existe con tres excepciones exactas: fallback de DT-10 y "Limpiar" (ambas previstas en §11.2–§11.3) y la campana, **que ninguna revisión había previsto** | La excepción de la campana no estaba en la norma y no es una aprobación (§25.6). Criterio 2: no cumplido literalmente |
+| 5 | Ficha de PR-NAV-06: "100 % de celdas PASSED en Linux CI" | Los 62 tests pasan; 4 celdas pasan **porque reproducen D-10** | "100 % en verde" no equivale a "100 % de contratos aceptados": 23 celdas de fallo aceptan, 4 caracterizan |
+| 6 | Ficha de PR-NAV-06: incremento de `e2e:ci` ≤ 10 % | +9,9 % en la única muestra | En el límite, sin garantía estadística (§25.11) |
+| 7 | Criterio 4 de §20: stream truncado, payload colgado, 524 tardío y **offline** recuperables sin Reload manual, salvo D-10 | Los tres primeros, sí (el 524 tardío, por navegación de documento). Offline termina en la página de error del navegador y se recupera recargando | Criterio 4: parcial (R10) |
+| 8 | §16, ficha de PR-NAV-02 (rev. 2.3): la máquina se realinea "en una PR propia" | #1857, titulada `fix(frontend)`, con scope "frontend runtime" | Cumplido. La suite versionada tiene 286 tests; la copia temporal de §0.7 tenía 289: los hashes y el conteo se re-anclaron, como la ficha preveía |
+| 9 | Ficha de PR-NAV-04: "si PR-NAV-05 quiere recuperar la navegación inmediata entre páginas, necesita su propia medición de H1" | PR-NAV-05 no hizo esa medición; el reclamo desde rutas completas sigue secuencial | Deliberado y declarado en `…-full-routes.md` §12 |
+| 10 | Ficha de PR-NAV-03: P3 "test en modo desarrollo" | Medido en `next dev` con un arnés **no versionado** (4 de 4; 20 de 20 con repetición) | Cumplido como medición, no como gate (R13) |
+| 11 | Ficha de PR-NAV-05: "UI de `STALLED` con Reintentar" | Implementada en el stage de ruta completa; con ella el aviso existe en tres archivos | Duplicación señalada por PR-NAV-04/05 y no resuelta en PR-NAV-07 (R12) |
+| 12 | Ficha de PR-NAV-06: PR-NAV-06 y PR-NAV-07 paralelizables tras PR-NAV-05 | Se ejecutaron en secuencia; #1862 declara a #1861 como dependencia | Sin efecto en el resultado |
+| 13 | §16, NAV-A0: paralelizable desde el inicio; condiciona DT-3, DT-5 y X1/X3 | No se ejecutó en ningún momento del programa | El programa se implementó completo **sin evidencia productiva** del síntoma original |
+
+### 25.15. Criterios de aceptación global de §20
+
+| # | Criterio | Estado | Sustento |
+| --- | --- | --- | --- |
+| 1 | S1–S15 y L1–L6 en PASSED con evidencia de CI Linux sobre el head de cada PR | `PARCIAL` | 18 `SATISFECHO`; S2, S5 y S7 `PARCIAL` (§25.4) |
+| 2 | Cero autoridades de navegación de módulo fuera del intérprete | `PARCIAL` | Guard en verde con la excepción de la campana (§25.6) |
+| 3 | Ningún estado sin salida | `SATISFECHO` | M (L2 con reloj simulado); EM F1 |
+| 4 | Stream truncado, payload colgado, 524 tardío y offline recuperables sin Reload manual, salvo D-10 | `PARCIAL` | Offline exige recargar (R10); D-10 sigue vivo |
+| 5 | LOC de coordinación reducidas ≥ 40 % sin perder casos E2E | `SATISFECHO` | 57,6 % (§25.10); las fichas declaran reemplazo para cada aserción retirada |
+| 6 | Cuatro contextos required en `SUCCESS` en cada PR | `SATISFECHO` | §25.2 |
+| 7 | Evidencia productiva post-despliegue | `PENDIENTE` | No ejecutado: [MANUAL-NICO], riesgo R3 según `AGENTS.md` §3.1 |
+
+### 25.16. Fuentes de evidencia de rev. 3
+
+| Fuente | Contenido |
+| --- | --- |
+| Baseline local (2026-10-13) | Rama `docs/dashboard-navigation-fsm-closeout`, HEAD = `main` = `origin/main` = `9453efaa`; índice vacío; árbol tracked limpio; untracked `frontend/AGENTS.md` y `frontend/CLAUDE.md` preservados; 5 stashes; 1 worktree; único `AGENTS.md` tracked: el raíz |
+| `gh pr view` de #1839, #1842, #1844, #1857–#1862 (R0) | Estado, `mergedAt`, `mergeCommit`, head, archivos, cuerpo y `statusCheckRollup` |
+| `gh run view` (R0), Frontend CI | `38404845274` (head de #1860, `5b6a2782`): 1 366 passed, 1 skipped, paso E2E 13:27:25–13:44:29. `38426386623` (head de #1861, `5fe0c92e`): 1 428 passed, 1 skipped, 15:58:49–16:17:34; 62 líneas del spec de la matriz, todas en verde. `38439364238` (head de #1862, `3c20b04f`): 1 428 passed, 1 skipped, 17:34:12–17:52:39 |
+| Documentos de implementación versionados | `docs/implementation/dashboard-navigation-fsm-admin.md`, `dashboard-navigation-fsm-clinic.md`, `dashboard-navigation-fsm-full-routes.md` |
+| Código y tests en `9453efaa` | Archivos y líneas citados en §25.4–§25.14; conteos con `wc -l`; búsquedas con `git grep` |
+| No consultado | Anotaciones por test de los reportes de Playwright (resultado por corrida del residual DT-15); producción; `trace.zip` de D-11 |
