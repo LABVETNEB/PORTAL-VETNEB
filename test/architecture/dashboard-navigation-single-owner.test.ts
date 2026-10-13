@@ -39,8 +39,16 @@ const DASHBOARD_SCOPES = ["frontend/src/app/dashboard/", "frontend/src/component
 const ROUTER_METHODS = new Set(["push", "replace", "back", "forward"]);
 const HISTORY_METHODS = new Set(["pushState", "replaceState", "back", "forward", "go"]);
 const MODULE_GRAMMAR = /[?&]module=|MODULE_QUERY_PARAM|ModuleHref\b/;
-const CLAIM =
-  /\brequest(?:Admin|Clinic)ModuleActivate\(|\bclaim(?:\?\.)?\(|\bonActivate\(|\bonNavigate\(|\bopenRoute\(/;
+// What asks the owner: the two adapters, and the props and methods that relay
+// one of them to a control (`card.claim`, the mobile bar's handlers, OPEN_ROUTE).
+const CLAIMS = new Set([
+  "requestAdminModuleActivate",
+  "requestClinicModuleActivate",
+  "claim",
+  "onActivate",
+  "onNavigate",
+  "openRoute",
+]);
 
 type Destination = "module" | "plain" | "opaque" | "none";
 
@@ -159,6 +167,77 @@ function destinationOf(
   return "opaque";
 }
 
+function isClaimCall(node: ts.Expression): boolean {
+  const call = unwrap(node);
+  if (!ts.isCallExpression(call)) return false;
+  const callee = unwrap(call.expression);
+  const name = ts.isIdentifier(callee) ? callee.text : ts.isPropertyAccessExpression(callee) ? callee.name.text : null;
+  return name !== null && CLAIMS.has(name);
+}
+
+/** A claim, or a choice between claims: every outcome asked the owner. */
+function isClaim(node: ts.Expression): boolean {
+  const expression = unwrap(node);
+  if (ts.isConditionalExpression(expression)) return isClaim(expression.whenTrue) && isClaim(expression.whenFalse);
+  return isClaimCall(expression);
+}
+
+function preventsDefault(statement: ts.Statement): boolean {
+  if (!ts.isExpressionStatement(statement)) return false;
+  const call = unwrap(statement.expression);
+  return (
+    ts.isCallExpression(call) &&
+    call.arguments.length === 0 &&
+    ts.isPropertyAccessExpression(call.expression) &&
+    call.expression.name.text === "preventDefault"
+  );
+}
+
+/**
+ * The click handler stops the control's own navigation exactly when the owner
+ * took the selection: a statement of the handler itself of the form
+ * `if (<claim>) event.preventDefault()`, where the condition is the claim or a
+ * `const` of the handler that holds it, with no way out of the handler before.
+ */
+function honoursClaim(handler: ts.Expression | undefined): boolean {
+  const inline = handler === undefined ? undefined : unwrap(handler);
+  if (inline === undefined || !(ts.isArrowFunction(inline) || ts.isFunctionExpression(inline))) return false;
+  if (!ts.isBlock(inline.body)) return false;
+
+  const held = new Set<string>();
+  for (const statement of inline.body.statements) {
+    if (ts.isVariableStatement(statement)) {
+      const constant = (statement.declarationList.flags & ts.NodeFlags.Const) !== 0;
+      for (const declaration of statement.declarationList.declarations) {
+        if (!ts.isIdentifier(declaration.name)) continue;
+        if (constant && declaration.initializer !== undefined && isClaim(declaration.initializer)) {
+          held.add(declaration.name.text);
+        } else {
+          held.delete(declaration.name.text);
+        }
+      }
+      continue;
+    }
+    if (ts.isIfStatement(statement)) {
+      const condition = unwrap(statement.expression);
+      const claimed = isClaimCall(condition) || (ts.isIdentifier(condition) && held.has(condition.text));
+      const consequent = ts.isBlock(statement.thenStatement)
+        ? [...statement.thenStatement.statements]
+        : [statement.thenStatement];
+      if (claimed && consequent.some(preventsDefault)) return true;
+    }
+    // Anything that can leave the handler first means the claim may never run.
+    let leaves = false;
+    const visit = (node: ts.Node) => {
+      if (ts.isReturnStatement(node) || ts.isThrowStatement(node)) leaves = true;
+      if (!ts.isFunctionLike(node)) node.forEachChild(visit);
+    };
+    visit(statement);
+    if (leaves) return false;
+  }
+  return false;
+}
+
 function memberName(node: ts.Node): string | null {
   if (ts.isPropertyAccessExpression(node)) return node.name.text;
   if (ts.isElementAccessExpression(node)) {
@@ -253,6 +332,13 @@ function parse(file: string, text: string): Scan {
           if (ROUTER_METHODS.has(method) && isRouter(bound.expression)) routerMethods.set(node.name.text, method);
           if (HISTORY_METHODS.has(method) && isHistory(bound.expression)) historyMethods.set(node.name.text, method);
         }
+        // `const push = router.push; const go = push;`: an alias of an alias.
+        if (ts.isIdentifier(bound)) {
+          const routerMethod = routerMethods.get(bound.text);
+          const historyMethod = historyMethods.get(bound.text);
+          if (routerMethod !== undefined) routerMethods.set(node.name.text, routerMethod);
+          if (historyMethod !== undefined) historyMethods.set(node.name.text, historyMethod);
+        }
         return;
       }
       if (!ts.isObjectBindingPattern(node.name)) return;
@@ -323,6 +409,18 @@ function parse(file: string, text: string): Scan {
     return ts.isCallExpression(current.parent) && current.parent.expression === current ? current.parent : null;
   };
 
+  /** The identifier reads a binding: not a declared name, a member name or an attribute. */
+  const isValueUse = (node: ts.Identifier) => {
+    const parent = node.parent;
+    if ((ts.isVariableDeclaration(parent) || ts.isBindingElement(parent) || ts.isParameter(parent)) && parent.name === node) {
+      return false;
+    }
+    if (ts.isBindingElement(parent) && parent.propertyName === node) return false;
+    if (ts.isPropertyAccessExpression(parent) && parent.name === node) return false;
+    if ((ts.isPropertyAssignment(parent) || ts.isJsxAttribute(parent)) && parent.name === node) return false;
+    return !ts.isTypeNode(parent) && !ts.isImportSpecifier(parent);
+  };
+
   walk(source, (node) => {
     if (ts.isIdentifier(node)) identifiers.add(node.text);
 
@@ -337,13 +435,16 @@ function parse(file: string, text: string): Scan {
 
     if (ts.isCallExpression(node)) {
       const callee = unwrap(node.expression);
-      if (ts.isIdentifier(callee)) {
-        if (callee.text === "createNavigationCoordinator") coordinators += 1;
-        const routerMethod = routerMethods.get(callee.text);
-        const historyMethod = historyMethods.get(callee.text);
-        if (routerMethod !== undefined) record(node, "router", routerMethod, node);
-        if (historyMethod !== undefined) record(node, "history", historyMethod, node);
-      }
+      if (ts.isIdentifier(callee) && callee.text === "createNavigationCoordinator") coordinators += 1;
+    }
+
+    // A method taken off the router or off `history`: every use of the name
+    // counts, called or handed on (`go(href)`, `go.call(router, href)`, `{ go }`).
+    if (ts.isIdentifier(node) && isValueUse(node)) {
+      const routerMethod = routerMethods.get(node.text);
+      const historyMethod = historyMethods.get(node.text);
+      if (routerMethod !== undefined) record(node, "router", routerMethod, callOf(node));
+      if (historyMethod !== undefined) record(node, "history", historyMethod, callOf(node));
     }
 
     if (
@@ -360,13 +461,13 @@ function parse(file: string, text: string): Scan {
         return ts.isJsxExpression(initializer) ? initializer.expression : (initializer as ts.Expression);
       };
       const href = value(attribute("href"));
-      const onClick = value(attribute("onClick"))?.getText() ?? "";
+
       controls.push({
         file,
         href: href === undefined ? "" : compact(href.getText()),
         destination: destinationOf(href, declarations),
         replace: attribute("replace") !== undefined,
-        honoursClaim: CLAIM.test(onClick) && /\bpreventDefault\(\)/.test(onClick),
+        honoursClaim: honoursClaim(value(attribute("onClick"))),
       });
     }
   });
@@ -600,6 +701,10 @@ test("fail-closed: a second owner that pushes or replaces a module selection is 
     ["  const { replace } = useRouter();\n  replace(buildDashboardModuleHref(ROUTES.dashboard, moduleId));", "a destructured method"],
     ["  const router = useRouter();\n  const go = router.push;\n  go(buildDashboardModuleHref(ROUTES.dashboard, moduleId));", "a method taken off the router"],
     ['  useRouter()["push"](buildDashboardModuleHref(ROUTES.dashboard, moduleId));', "the hook called in place"],
+    ["  const router = useRouter();\n  const push = router.push;\n  const go = push;\n  go(buildDashboardModuleHref(ROUTES.dashboard, moduleId));", "an alias of a method alias"],
+    ["  const { replace } = useRouter();\n  const first = replace;\n  const second = first;\n  second(buildDashboardModuleHref(ROUTES.dashboard, moduleId));", "a chain of aliases of a destructured method"],
+    ["  const router = useRouter();\n  const push = router.push;\n  push.call(router, buildDashboardModuleHref(ROUTES.dashboard, moduleId));", "a method alias invoked through call"],
+    ["  const router = useRouter();\n  const push = router.push;\n  const go = push.bind(router);\n  go(buildDashboardModuleHref(ROUTES.dashboard, moduleId));", "a bound alias of a method alias"],
     ["  const router = useRouter();\n  router.back();", "a traversal the machine did not issue"],
   ] as const) {
     assertBreach(secondOwner(body), new RegExp(`^${SECOND_OWNER}: router\\.`), why);
@@ -627,6 +732,7 @@ test("fail-closed: native history is rejected everywhere, the provider included"
     ['  globalThis.history["pushState"](null, "", href);', "pushState"],
     ["  const { replaceState } = window.history;\n  replaceState(null, \"\", href);", "replaceState"],
     ["  const back = history.back.bind(history);\n  back();", "back"],
+    ["  const back = window.history.back;\n  const leave = back;\n  leave();", "back"],
     ["  window.history[moduleId as \"back\"]();", "<computed>"],
   ] as const) {
     assertBreach(secondOwner(body), new RegExp(`^${SECOND_OWNER}: history\\.${method}\\(`), `history.${method}: ${body}`);
@@ -718,6 +824,69 @@ test("fail-closed: the DT-10 fallback is the declined request, not a navigation 
     ),
     /a module href that does not ask the owner first/,
     "a claim that does not stop the control's own navigation",
+  );
+
+  // The prevention has to follow from the claim, not sit beside it.
+  const control = (handler: string) =>
+    secondOwner(
+      `  return <PublicRouteControl href={buildDashboardModuleHref(ROUTES.dashboard, moduleId)} onClick={${handler}}>x</PublicRouteControl>;`,
+    );
+  for (const [handler, why] of [
+    ["(event) => { requestClinicModuleActivate(moduleId); if (href) event.preventDefault(); }", "prevention on an unrelated condition"],
+    ["(event) => { if (!requestClinicModuleActivate(moduleId)) event.preventDefault(); }", "prevention when the owner declined"],
+    ["(event) => { if (requestClinicModuleActivate(moduleId)) { if (href) event.preventDefault(); } }", "prevention nested under another condition"],
+    ["(event) => { if (requestClinicModuleActivate(moduleId)) return; event.preventDefault(); }", "prevention on the declined path"],
+    ["(event) => { if (href) return; if (requestClinicModuleActivate(moduleId)) event.preventDefault(); }", "a way out before the claim"],
+    ["(event) => { const claimed = href !== \"\"; if (claimed) event.preventDefault(); }", "a constant that holds no claim"],
+    ["(event) => { let claimed = requestClinicModuleActivate(moduleId); claimed = false; if (claimed) event.preventDefault(); }", "a claim held in a binding that can change"],
+    ["(event) => { const claimed = href ? requestClinicModuleActivate(moduleId) : false; if (claimed) event.preventDefault(); }", "a choice where one outcome never asks"],
+    ["(event) => { if (requestClinicModuleActivate(moduleId)) console.log(event.preventDefault); }", "prevention named but not called"],
+    ["handleClick", "a handler the control does not spell"],
+  ] as const) {
+    assertBreach(control(handler), /a module href that does not ask the owner first/, why);
+  }
+  for (const handler of [
+    "(event) => { if (requestClinicModuleActivate(moduleId)) event.preventDefault(); }",
+    "(event) => { console.log(moduleId); const claimed = href ? requestAdminModuleActivate(moduleId) : requestClinicModuleActivate(moduleId); if (claimed) { event.preventDefault(); } }",
+  ]) {
+    assert.deepEqual(
+      ownershipViolations(control(handler)).filter((violation) => violation.startsWith(SECOND_OWNER)),
+      [],
+      handler,
+    );
+  }
+});
+
+// The bell is NOT an approved navigation authority. On the admin surface its
+// destination is a `?module=` url pushed with no claim: the one module
+// navigation outside the interpreter that this guard lets stand, because
+// routing it through the owner is a runtime change. What is pinned here is its
+// size, so it cannot grow into a second owner unnoticed.
+test("the bell's external commit stays the one the roadmap inventories", () => {
+  const bell = TREE.get("frontend/src/components/dashboard/DashboardNotificationsBell.tsx") ?? "";
+  const destinations = TREE.get("frontend/src/lib/notification-destinations.ts") ?? "";
+
+  assert.equal(
+    compact(bell).split("buildNotificationDestination(").length - 1,
+    1,
+    "the destination has one source",
+  );
+  assert.ok(
+    compact(bell).includes("const destination = buildNotificationDestination(surface, notification);") &&
+      compact(bell).includes(
+        "function navigateToNotificationDestination(destination: string) { router.push(destination);",
+      ),
+    "what the bell pushes is what the destination table built",
+  );
+  assert.deepEqual(
+    [...new Set([...destinations.matchAll(/\?module=([a-z-]+)/g)].map((match) => match[1]))].sort(),
+    ["admin-particular-tokens", "admin-report-upload", "audit-log"],
+    "the modules a notification can open: a new one is a decision, not an edit",
+  );
+  assert.equal(
+    /\$\{[^}]*\}\?module=\$\{|module=\$\{/.test(destinations),
+    false,
+    "no computed module in a notification destination",
   );
 });
 
