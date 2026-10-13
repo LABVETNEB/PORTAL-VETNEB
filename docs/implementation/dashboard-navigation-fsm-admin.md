@@ -230,6 +230,16 @@ Frontera (d) es `navigation-truncated-stream-recovery.spec.ts`, sin cambios.
    puede llegar (#32) o haber sido descartado por el `push` (#30). El E2E afirma lo que vale en ambos casos
    y anota cuál ocurrió; la fila #32 tiene además un escenario propio y determinista.
 6. **E4 confirmado con el owner:** un traverse dentro de la misma página comitea al instante.
+7. **El último módulo se guarda al hidratar, no al pintar (hallado en CI, #1858).**
+   `admin-mobile-hub-launcher-no-scroll.spec.ts` falló en Frontend CI sobre `27ad9098`: tras cargar
+   `?module=audit-log` y pedir `?hub=1`, aterrizó en `admin`. El test tomaba el workspace pintado por el
+   servidor como señal de "módulo guardado", pero la escritura ocurre al hidratar y el documento se
+   abandonaba antes. Medido con CPU ralentizada 6×: el workspace es visible a los ~720 ms con el
+   almacenamiento vacío y la escritura llega a los ~1 020 ms; el escenario da 0 de 15. **`main` se comporta
+   igual** (mismos archivos en su versión de `e192d307`, mismo build): escritura a los ~970–1 170 ms y 0 de
+   15. No es un defecto de esta PR ni de la máquina: la fila #1 persiste al recibir `HYDRATED`, que es el
+   primer momento posible. El test se corrigió para esperar su precondición real, el módulo almacenado,
+   antes de navegar (15 de 15 a 6× y a 12×).
 
 ### 7.4. P3 — StrictMode con React real
 
