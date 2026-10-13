@@ -792,83 +792,15 @@ test("a full-route stage keeps no activation: the store that outlives the route 
   );
 });
 
-// M2 — SINGLE FLIGHT's budget. A payload that never answers ended no flight, so
-// every later request was claimed and the url and history froze on the origin
-// until a reload. The flight is abandoned past its budget: claims stop and the
-// owner navigates the latest intent itself, as a new flight.
-// Real timers on a short budget: `createNavigationFlight` takes the budget, so
-// no clock double is needed and the 10 s default is asserted on its own.
-const elapse = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
-const TEST_BUDGET_MS = 100;
-
-test("SINGLE FLIGHT budget: an abandoned flight hands the latest intent over once, never in a loop", async () => {
-  const { createNavigationFlight, NAVIGATION_FLIGHT_BUDGET_MS } = await import(
-    "../../../../frontend/src/lib/dashboard/navigation/navigationFlight.ts"
-  );
-  assert.equal(NAVIGATION_FLIGHT_BUDGET_MS, 10_000);
-
-  // The owner's rule: hand over the latest intent unless it is the navigation
-  // that was abandoned. Both payloads hang: informes, then the handed-over perfil.
-  const latest = "perfil";
-  const navigations: string[] = [];
-  const flight = createNavigationFlight((abandoned) => {
-    if (latest === abandoned) return null;
-    navigations.push(latest);
-    return latest;
-  }, TEST_BUDGET_MS);
-
-  assert.equal(flight.isActive(), false, "nothing is in flight before a navigation is issued");
-  flight.start("informes");
-  await elapse(TEST_BUDGET_MS / 5);
-  assert.equal(flight.isActive(), true, "a young flight still claims");
-  assert.deepEqual(navigations, []);
-
-  await elapse(TEST_BUDGET_MS * 1.3);
-  assert.deepEqual(navigations, ["perfil"], "the latest intent is navigated when the budget elapses");
-  assert.equal(flight.isActive(), true, "the handed-over navigation is a new flight with its own budget");
-
-  await elapse(TEST_BUDGET_MS * 1.5);
-  assert.deepEqual(navigations, ["perfil"], "a handed-over navigation that hangs too is never re-issued");
-  assert.equal(flight.isActive(), false, "the second abandonment only stops the claims");
-});
-
-test("SINGLE FLIGHT budget: a commit, Back or unmount before the budget ends the flight", async () => {
-  const { createNavigationFlight } = await import(
-    "../../../../frontend/src/lib/dashboard/navigation/navigationFlight.ts"
-  );
-  const expired: string[] = [];
-  const flight = createNavigationFlight((abandoned) => {
-    expired.push(abandoned);
-    return abandoned;
-  }, TEST_BUDGET_MS);
-
-  flight.start("informes");
-  await elapse(TEST_BUDGET_MS / 5);
-  flight.end();
-  await elapse(TEST_BUDGET_MS * 1.5);
-  assert.deepEqual(expired, [], "a flight that landed inside its budget never hands over");
-  assert.equal(flight.isActive(), false);
-
-  // A reconcile re-arms the flight: the budget counts from the latest navigation.
-  flight.start("informes");
-  await elapse(TEST_BUDGET_MS * 0.6);
-  flight.start("perfil");
-  await elapse(TEST_BUDGET_MS * 0.6);
-  assert.deepEqual(expired, [], "re-arming restarts the budget");
-  await elapse(TEST_BUDGET_MS * 0.9);
-  assert.deepEqual(expired, ["perfil"], "the abandoned target is the latest navigation issued");
-  assert.equal(flight.isActive(), false, "re-issuing the abandoned target itself is not a new flight");
-  flight.end();
-  assert.equal(flight.isActive(), false, "ending an ended flight is harmless");
+// DT-5 — the budget of a module navigation. The flight object that used to
+// hold it (`createNavigationFlight`, `useNavigationFlight`) is retired: the
+// budget is armed per `navId` by the one owner and settled by the machine.
+test("DT-5: the navigation budget is 10 000 ms", async () => {
+  const budget = await import("../../../../frontend/src/lib/dashboard/navigation/navigationFlight.ts");
+  assert.deepEqual({ ...budget }, { NAVIGATION_FLIGHT_BUDGET_MS: 10_000 }, "the constant is all that is left of the flight");
 });
 
 test("SINGLE FLIGHT budget: both owners claim only within it and settle it on every terminal state", () => {
-  const hook = read("frontend/src/components/dashboard/useNavigationFlight.ts");
-  assert.ok(
-    hook.includes("useEffect(() => () => flight.end(), [flight]);"),
-    "an owner that unmounts takes its flight with it",
-  );
-
   // PR-NAV-04: the clinic stage is a view too. Its claim within the budget,
   // the relay of the latest intent when the budget expires, the flight that is
   // never armed for the committed module and the end of the flight on
