@@ -498,44 +498,40 @@ test("an admin request with no navigation owner is left to the caller and never 
   }
 });
 
-test("a clinic tap before the controller subscribes is handed over once", async () => {
-  const globals = globalThis as { window?: unknown };
-  const hadWindow = "window" in globals;
-  const previousWindow = globals.window;
-  globals.window = globalThis;
-  try {
-    const { requestClinicModuleActivate, subscribeClinicModuleActivate } = await import(
-      "../../../../frontend/src/lib/clinic-hub-reset.ts"
-    );
+// PR-NAV-05: the clinic adapter is the admin one. The full-route stage was the
+// last listener of its bus; with the stage a view of the machine's display, a
+// request reaches the owner or nobody, and nothing is kept for a later replay.
+test("a clinic request with no navigation owner is left to the caller and never replayed", async () => {
+  const { requestClinicModuleActivate, requestClinicHubReset, registerClinicNavigationOwner } = await import(
+    "../../../../frontend/src/lib/clinic-hub-reset.ts"
+  );
 
-    // The band hydrated, the controller has not subscribed yet: the tap used to
-    // reach only the chrome, so the stage kept the module the user had left.
-    requestClinicModuleActivate("tokens");
-    const heard: string[] = [];
-    const stopListening = subscribeClinicModuleActivate((moduleId) => {
+  assert.equal(requestClinicModuleActivate("tokens"), false, "no owner: the caller navigates");
+  requestClinicHubReset();
+
+  const heard: string[] = [];
+  const unregister = registerClinicNavigationOwner({
+    selectModule(moduleId) {
       heard.push(moduleId);
-    });
-    assert.deepEqual(heard, ["tokens"], "the late tap reaches the controller");
+      return true;
+    },
+    selectHub() {
+      heard.push("hub");
+    },
+  });
+  assert.deepEqual(heard, [], "nothing asked before the owner registered is replayed");
 
-    requestClinicModuleActivate("perfil");
-    assert.deepEqual(heard, ["tokens", "perfil"]);
+  assert.equal(requestClinicModuleActivate("perfil"), true);
+  requestClinicHubReset();
+  assert.deepEqual(heard, ["perfil", "hub"]);
 
-    stopListening();
-    requestClinicModuleActivate("informes");
-    const late: string[] = [];
-    const stopLate = subscribeClinicModuleActivate((moduleId) => {
-      late.push(moduleId);
-    });
-    assert.deepEqual(late, ["informes"], "an unheard request is handed to the next subscriber once");
-    stopLate();
-    const again: string[] = [];
-    subscribeClinicModuleActivate((moduleId) => {
-      again.push(moduleId);
-    })();
-    assert.deepEqual(again, [], "the hand-over is consumed");
-  } finally {
-    if (hadWindow) globals.window = previousWindow;
-    else delete globals.window;
+  unregister();
+  assert.equal(requestClinicModuleActivate("informes"), false, "an unregistered owner hears nothing");
+  assert.deepEqual(heard, ["perfil", "hub"]);
+
+  const adapter = read("frontend/src/lib/clinic-hub-reset.ts");
+  for (const retired of ["unheardActivation", "LATE_ACTIVATION_MAX_AGE_MS", "performance.now()", "Listeners", "handsOver"]) {
+    assert.equal(adapter.includes(retired), false, `the listener bus and its replay are gone: ${retired}`);
   }
 });
 
@@ -605,18 +601,19 @@ test("SINGLE FLIGHT: only a stage owner claims a request, and only when it says 
     assert.equal(admin.requestAdminModuleActivate("admin-pricing"), true, "the owner took it: the caller must not");
     stopAdmin();
 
-    let clinicInFlight = true;
-    const stopClinic = clinic.subscribeClinicModuleActivate(() => clinicInFlight);
-    assert.equal(clinic.requestClinicModuleActivate("perfil"), true);
-    clinicInFlight = false;
-    assert.equal(clinic.requestClinicModuleActivate("logistica"), false);
+    // PR-NAV-04 / PR-NAV-05: the clinic owner is the same machine, on
+    // `/dashboard` and on its full routes. A full-route stage is a view: it
+    // has nothing to subscribe with, so it can neither claim nor decline.
+    let clinicTakes = true;
+    const stopClinic = clinic.registerClinicNavigationOwner({
+      selectModule: () => clinicTakes,
+      selectHub() {},
+    });
+    assert.equal(clinic.requestClinicModuleActivate("perfil"), true, "the owner took it: the caller must not");
+    clinicTakes = false;
+    assert.equal(clinic.requestClinicModuleActivate("logistica"), false, "the owner declined: the caller pushes");
     stopClinic();
-
-    // A handing-over stage never claims: its destinations leave the route.
-    const stopStage = clinic.subscribeClinicModuleActivate(() => true, { handsOver: true });
-    assert.equal(clinic.requestClinicModuleActivate("informes"), false, "a full-route stage never claims");
-    stopStage();
-    clinic.relinquishClinicModuleActivateHandOver();
+    assert.equal("subscribeClinicModuleActivate" in clinic, false, "no listener can claim beside the owner");
   } finally {
     if (hadWindow) globals.window = previousWindow;
     else delete globals.window;
@@ -729,13 +726,20 @@ test("SINGLE FLIGHT: every producer honours a claim and both owners claim and re
 });
 
 test("Abrir módulo completo shows its pending state for the whole full-route navigation", () => {
+  // PR-NAV-05: the control is a selection of the navigation owner (OPEN_ROUTE,
+  // row #8). Its pending state is the machine's display naming this route, so
+  // it lasts exactly as long as the flight and ends in STALLED, never in a
+  // transition flag that a payload which never answers would keep forever.
   const control = read("frontend/src/components/dashboard/FullModuleRouteControl.tsx");
-  assert.ok(control.includes("const [isPending, startTransition] = useTransition();"));
-  assert.ok(control.includes("startTransition(() => router.push(href));"), "the push runs inside the transition");
+  assert.ok(control.includes("const isPending = navigation?.route === href;"));
+  assert.ok(
+    control.includes("if (navigation?.openRoute(href)) event.preventDefault();"),
+    "the owner navigates the route; the control only falls back to its href when it declines",
+  );
   assert.ok(control.includes("aria-busy={isPending || undefined}"), "the pending state is exposed, not only painted");
   assert.ok(control.includes('"Abriendo módulo…"'), "the pending state is visible");
   assert.ok(control.includes("<PublicRouteControl"), "keeps the route-control pattern and its pre-hydration fallback");
-  assert.equal(/router\.refresh|location\.(reload|assign)|setTimeout/.test(control), false);
+  assert.equal(/router\.refresh|location\.(reload|assign)|setTimeout|useTransition/.test(control), false);
 
   for (const [path, href] of [
     ["frontend/src/app/dashboard/ClinicLogisticaWorkspaceSummary.tsx", "ROUTES.dashboardLogistica"],
@@ -748,109 +752,44 @@ test("Abrir módulo completo shows its pending state for the whole full-route na
   }
 });
 
-test("a full-route stage hands the latest activation to the controller that replaces it", async () => {
-  const globals = globalThis as { window?: unknown };
-  const hadWindow = "window" in globals;
-  const previousWindow = globals.window;
-  globals.window = globalThis;
-  try {
-    const {
-      relinquishClinicModuleActivateHandOver,
-      requestClinicModuleActivate,
-      subscribeClinicModuleActivate,
-    } = await import("../../../../frontend/src/lib/clinic-hub-reset.ts");
+// PR-NAV-05: a full-route stage used to keep the latest activation for the
+// controller that replaced it, and to drop it when a Back/Forward started
+// (`handsOver`, `unheardActivation`, the `window.event` guard). The store now
+// outlives the pathname change, so there is nothing to hand over: the claimed
+// selection is the machine's `next` (#29, #30) and a traversal is #17 / #28.
+test("a full-route stage keeps no activation: the store that outlives the route does", () => {
+  const stage = read("frontend/src/components/dashboard/ClinicFullRouteModuleStage.tsx");
+  const machine = read("frontend/src/lib/dashboard/navigation/dashboardNavigationMachine.ts");
+  const provider = read("frontend/src/components/dashboard/DashboardNavigationProvider.tsx");
 
-    // A then B from a full route, both before A's `/dashboard` commit.
-    const leaving: string[] = [];
-    const stopStage = subscribeClinicModuleActivate((moduleId) => {
-      leaving.push(moduleId);
-    }, {
-      handsOver: true,
-    });
-    requestClinicModuleActivate("tokens");
-    requestClinicModuleActivate("informes");
-    assert.deepEqual(leaving, ["tokens", "informes"]);
-
-    // A commits: the stage unmounts and the controller takes the stage.
-    stopStage();
-    const controller: string[] = [];
-    const stopController = subscribeClinicModuleActivate((moduleId) => {
-      controller.push(moduleId);
-    });
-    assert.deepEqual(controller, ["informes"], "the latest intent survives the owner change, not A");
-
-    requestClinicModuleActivate("perfil");
-    assert.deepEqual(controller, ["informes", "perfil"]);
-    stopController();
-    const remounted: string[] = [];
-    subscribeClinicModuleActivate((moduleId) => {
-      remounted.push(moduleId);
-    })();
-    assert.deepEqual(remounted, [], "an intent a final owner heard is never replayed");
-
-    // A handing-over stage never consumes what it keeps for the next owner.
-    const nextStage: string[] = [];
-    const stopNextStage = subscribeClinicModuleActivate((moduleId) => {
-      nextStage.push(moduleId);
-    }, {
-      handsOver: true,
-    });
-    requestClinicModuleActivate("logistica");
-    const strictRemount = subscribeClinicModuleActivate(() => {}, { handsOver: true });
-    strictRemount();
-    assert.deepEqual(nextStage, ["logistica"]);
-
-    // Back/Forward before the commit is the user's own navigation.
-    relinquishClinicModuleActivateHandOver();
-    stopNextStage();
-    const afterBack: string[] = [];
-    subscribeClinicModuleActivate((moduleId) => {
-      afterBack.push(moduleId);
-    })();
-    assert.deepEqual(afterBack, [], "a history navigation drops the retained intent");
-  } finally {
-    if (hadWindow) globals.window = previousWindow;
-    else delete globals.window;
+  assert.ok(
+    stage.includes("const navigation = useClinicDashboardNavigation();") &&
+      stage.includes("const leaving = navigation !== null && navigation.route !== pathname;"),
+    "the stage shows the display of the owner and decides nothing",
+  );
+  for (const retired of ["useState", "useEffect", "clinic-hub-reset", "historyTraversal", "popstate", "window"]) {
+    assert.equal(stage.includes(retired), false, `the full-route stage keeps no state of its own: ${retired}`);
   }
-});
-
-test("an owner mounted by Back/Forward inside popstate never adopts the kept destination", async () => {
-  const globals = globalThis as { window?: unknown; event?: unknown };
-  const hadWindow = "window" in globals;
-  const previousWindow = globals.window;
-  globals.window = globalThis;
-  try {
-    const { requestClinicModuleActivate, subscribeClinicModuleActivate } = await import(
-      "../../../../frontend/src/lib/clinic-hub-reset.ts"
-    );
-
-    // The full route keeps Tokens for `/dashboard`; Back starts before its commit.
-    const stopStage = subscribeClinicModuleActivate(() => {}, { handsOver: true });
-    requestClinicModuleActivate("tokens");
-
-    // Real order without the Navigation API: the router's popstate listener
-    // commits the restored entry, the stage unmounts before its own listener
-    // runs, and the controller subscribes while popstate is still dispatching.
-    globals.event = { type: "popstate" };
-    stopStage();
-    const controller: string[] = [];
-    const stopController = subscribeClinicModuleActivate((moduleId) => {
-      controller.push(moduleId);
-    });
-    delete globals.event;
-    stopController();
-    assert.deepEqual(controller, [], "the traversal superseded the kept destination");
-
-    const later: string[] = [];
-    subscribeClinicModuleActivate((moduleId) => {
-      later.push(moduleId);
-    })();
-    assert.deepEqual(later, [], "the dropped destination is never replayed afterwards");
-  } finally {
-    delete globals.event;
-    if (hadWindow) globals.window = previousWindow;
-    else delete globals.window;
-  }
+  // A then B before A commits: B is claimed by A's flight and leaves when A
+  // lands, on whichever page A's commit mounts.
+  assert.ok(
+    machine.includes("// #30: the flight landed and what the user wants is the selection it claimed."),
+    "the latest intent survives the owner change as the machine's own row",
+  );
+  // The clinic store is one per visit to the surface, across the pathname.
+  assert.ok(
+    provider.includes("const slot = surface === null ? null : held?.surface === surface ? held : createStoreSlot(surface);"),
+    "the store is replaced when the surface changes, never when the pathname does",
+  );
+  // Back/Forward before the commit: the traversal takes the display on the
+  // event, with or without the Navigation API.
+  assert.ok(
+    provider.includes('if (navigate.navigationType === "traverse") started(navigate.destination?.url);') &&
+      provider.includes('window.addEventListener("popstate", onPopState);') &&
+      machine.includes("// #17") &&
+      machine.includes("return settle(config, ctx, destination, cancelBudget(state)); // #28"),
+    "a history navigation supersedes the pending destination in the machine",
+  );
 });
 
 // M2 — SINGLE FLIGHT's budget. A payload that never answers ended no flight, so

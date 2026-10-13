@@ -68,6 +68,11 @@ function stalledNotice(page: Page) {
   return page.locator('[data-dashboard-navigation-stalled="true"]');
 }
 
+/** A full route showing its own content. */
+function fullRouteStage(page: Page, stageId: string) {
+  return page.locator(`[data-dashboard-module-workspace="${stageId}"]`);
+}
+
 /** Stage and navigation agree on one module. */
 async function expectShown(page: Page, moduleId: string) {
   await expect(page.locator(`[data-dashboard-module-workspace="${moduleId}"]`)).toBeVisible();
@@ -633,6 +638,10 @@ test.describe("DASHBOARD_NAVIGATION_FSM_CLINIC", () => {
     await expect(page).toHaveURL(moduleUrl("informes"));
     await expectShown(page, "informes");
     expect(payloads.requested()).toEqual(["informes"]);
+    // R-6: the restore is a replace. Back leaves the document, onto the route.
+    await page.goBack();
+    await expect(page).toHaveURL(routeUrl(INFORMES_ROUTE));
+    await expect(fullRouteStage(page, "informes-full")).toBeVisible();
   });
 
   // ── Budget, STALLED and its recovery (rows #12, #14, #15, #31) ─────────────
@@ -818,7 +827,7 @@ test.describe("DASHBOARD_NAVIGATION_FSM_CLINIC", () => {
     await expectShown(page, "informes");
     await page.waitForLoadState("networkidle");
 
-    // "Abrir módulo completo" is the control's own push, not migrated here.
+    // "Abrir módulo completo" is OPEN_ROUTE (PR-NAV-05): the failure cancels its budget (#20).
     payloads.cut(INFORMES_ROUTE);
     reloads.arm();
     await page.getByRole("button", { name: "Abrir módulo completo de informes" }).filter({ visible: true }).click();
@@ -1366,6 +1375,236 @@ test.describe("DASHBOARD_NAVIGATION_FSM_CLINIC", () => {
     await expectShown(page, "tokens");
 
     await page.goto(BASE);
+    await expect(page).toHaveURL(moduleUrl("tokens"));
+    await expectShown(page, "tokens");
+  });
+
+  // ── Full routes as views of the display (PR-NAV-05; rows #8, #12, #15, #16) ─
+
+  test("full route: a /dashboard payload that never answers stalls on the route's own stage within the budget, and another choice navigates (L2, L3, #16)", async ({
+    page,
+  }) => {
+    await page.clock.install();
+    const payloads = await controlRouterPayloads(page);
+    const reloads = watchDocuments(page);
+    await page.goto(INFORMES_ROUTE);
+    await expect(fullRouteStage(page, "informes-full")).toBeVisible();
+    await page.waitForLoadState("networkidle");
+
+    reloads.arm();
+    payloads.hold();
+    await navItem(page, "tokens").click();
+    await expectShown(page, "tokens");
+    await expect(page).toHaveURL(routeUrl(INFORMES_ROUTE));
+    await expect(stalledNotice(page)).toHaveCount(0);
+
+    await page.clock.fastForward(PAST_THE_BUDGET_MS);
+    const notice = stalledNotice(page);
+    await expect(notice).toBeVisible();
+    await expect(notice).toHaveAttribute("role", "status");
+    await expect(notice.getByRole("button", { name: "Reintentar" })).toBeVisible();
+    // The band stays operative and the stage keeps the destination.
+    await expectShown(page, "tokens");
+    await expect(page).toHaveURL(routeUrl(INFORMES_ROUTE));
+    expect(payloads.requested(), "the budget re-issues nothing by itself").toEqual(["tokens"]);
+
+    await navItem(page, "perfil").click();
+    await expectShown(page, "perfil");
+    await expect(stalledNotice(page)).toHaveCount(0);
+    expect(payloads.requested()).toEqual(["tokens", "perfil"]);
+    expect(await payloads.releaseOnly("perfil")).toBeGreaterThan(0);
+    await expect(page).toHaveURL(moduleUrl("perfil"));
+    await expectShown(page, "perfil");
+    await expect.poll(() => storedModule(page)).toBe("perfil");
+
+    // Nothing is left running: no budget of the stalled flight fires later.
+    await page.clock.fastForward(PAST_THE_BUDGET_MS);
+    await expect(stalledNotice(page)).toHaveCount(0);
+    await expectShown(page, "perfil");
+    expect(reloads.documents, "client navigation, never a reload").toEqual([]);
+  });
+
+  test("full route: Reintentar on the stalled stage is one document navigation to the destination and leaves nothing pending (#15)", async ({
+    page,
+  }) => {
+    await page.clock.install();
+    const payloads = await controlRouterPayloads(page);
+    const reloads = watchDocuments(page);
+    await page.goto(LOGISTICA_ROUTE);
+    await expect(fullRouteStage(page, "logistica-full")).toBeVisible();
+    await page.waitForLoadState("networkidle");
+    const length = await historyLength(page);
+
+    payloads.hold();
+    await navItem(page, "tokens").click();
+    await expectShown(page, "tokens");
+    await page.clock.fastForward(PAST_THE_BUDGET_MS);
+    const notice = stalledNotice(page);
+    await expect(notice).toBeVisible();
+
+    reloads.arm();
+    await notice.getByRole("button", { name: "Reintentar" }).click();
+    await expect(page).toHaveURL(moduleUrl("tokens"));
+    await expectShown(page, "tokens");
+    await expect(stalledNotice(page)).toHaveCount(0);
+    expect(reloads.documents.length, "the retry is one document navigation to the destination").toBe(1);
+    expect(reloads.documents[0]).toMatch(moduleUrl("tokens"));
+    expect(await historyLength(page), "the retry of a push adds the entry the push would have").toBe(length + 1);
+    await expect.poll(() => storedModule(page)).toBe("tokens");
+
+    await page.clock.fastForward(PAST_THE_BUDGET_MS);
+    await expect(stalledNotice(page)).toHaveCount(0);
+    await page.goBack();
+    await expect(page).toHaveURL(routeUrl(LOGISTICA_ROUTE));
+    await expect(fullRouteStage(page, "logistica-full")).toBeVisible();
+  });
+
+  test("Abrir módulo completo that never answers: pending from the click, stalled within the budget, and another choice navigates (#8, #12, #16)", async ({
+    page,
+  }) => {
+    await page.clock.install();
+    const payloads = await controlRouterPayloads(page);
+    const reloads = watchDocuments(page);
+    await page.goto(`${BASE}?module=informes`);
+    await expectShown(page, "informes");
+    await page.waitForLoadState("networkidle");
+
+    reloads.arm();
+    payloads.hold();
+    const control = page.getByRole("button", { name: "Abrir módulo completo de informes" }).filter({ visible: true });
+    await control.click();
+    await expect(control).toHaveAttribute("aria-busy", "true");
+    await expect(control).toContainText("Abriendo módulo");
+    await expect(page).toHaveURL(moduleUrl("informes"));
+    expect(payloads.requested()).toEqual([INFORMES_ROUTE]);
+    await expect(stalledNotice(page)).toHaveCount(0);
+
+    await page.clock.fastForward(PAST_THE_BUDGET_MS);
+    const notice = stalledNotice(page);
+    await expect(notice).toBeVisible();
+    await expect(notice).toHaveAttribute("role", "status");
+    await expect(control).toHaveAttribute("aria-busy", "true");
+    await expectShown(page, "informes");
+    expect(payloads.requested(), "the budget re-issues nothing by itself").toEqual([INFORMES_ROUTE]);
+
+    await navItem(page, "tokens").click();
+    await expectShown(page, "tokens");
+    await expect(stalledNotice(page)).toHaveCount(0);
+    expect(payloads.requested()).toEqual([INFORMES_ROUTE, "tokens"]);
+    expect(await payloads.releaseOnly("tokens")).toBeGreaterThan(0);
+    await expect(page).toHaveURL(moduleUrl("tokens"));
+    await expectShown(page, "tokens");
+    await page.clock.fastForward(PAST_THE_BUDGET_MS);
+    await expect(stalledNotice(page)).toHaveCount(0);
+    expect(reloads.documents, "client navigation, never a reload").toEqual([]);
+  });
+
+  test("Abrir módulo completo that never answers: Reintentar is one document navigation to the full route (#15)", async ({
+    page,
+  }) => {
+    await page.clock.install();
+    const payloads = await controlRouterPayloads(page);
+    const reloads = watchDocuments(page);
+    await page.goto(`${BASE}?module=logistica`);
+    await expectShown(page, "logistica");
+    await page.waitForLoadState("networkidle");
+
+    payloads.hold();
+    await page.getByRole("button", { name: "Abrir módulo completo de logística" }).filter({ visible: true }).click();
+    await page.clock.fastForward(PAST_THE_BUDGET_MS);
+    const notice = stalledNotice(page);
+    await expect(notice).toBeVisible();
+
+    reloads.arm();
+    await notice.getByRole("button", { name: "Reintentar" }).click();
+    await expect(page).toHaveURL(routeUrl(LOGISTICA_ROUTE));
+    await expect(fullRouteStage(page, "logistica-full")).toBeVisible();
+    await expect(stalledNotice(page)).toHaveCount(0);
+    expect(reloads.documents.length, "the retry is one document navigation to the destination").toBe(1);
+    expect(reloads.documents[0]).toMatch(routeUrl(LOGISTICA_ROUTE));
+    await expect.poll(() => storedModule(page)).toBe("logistica");
+    await page.clock.fastForward(PAST_THE_BUDGET_MS);
+    await expect(stalledNotice(page)).toHaveCount(0);
+  });
+
+  test("Abrir módulo completo, then a module before it commits: the choice is claimed and the burst leaves one entry (#29, #30)", async ({
+    page,
+  }) => {
+    const payloads = await controlRouterPayloads(page);
+    const reloads = watchDocuments(page);
+    await page.goto(`${BASE}?module=informes`);
+    await expectShown(page, "informes");
+    await page.waitForLoadState("networkidle");
+    const length = await historyLength(page);
+
+    reloads.arm();
+    payloads.hold();
+    await page.getByRole("button", { name: "Abrir módulo completo de informes" }).filter({ visible: true }).click();
+    await navItem(page, "tokens").click();
+    await expectShown(page, "tokens");
+    expect(payloads.requested(), "the second choice is claimed, not navigated").toEqual([INFORMES_ROUTE]);
+
+    await payloads.release();
+    await expect(page).toHaveURL(moduleUrl("tokens"));
+    await expectShown(page, "tokens");
+    expect(payloads.requested()).toEqual([INFORMES_ROUTE, "tokens"]);
+    expect(await historyLength(page), "one entry for the whole burst").toBe(length + 1);
+    await expect.poll(() => storedModule(page)).toBe("tokens");
+    await page.goBack();
+    await expect(page).toHaveURL(moduleUrl("informes"));
+    await expectShown(page, "informes");
+    expect(reloads.documents, "client navigation, never a reload").toEqual([]);
+  });
+
+  test("Back then Forward, and Back then the committed module, never stall between a full route and the shell (C-8, L6)", async ({
+    page,
+  }) => {
+    await page.clock.install();
+    const payloads = await controlRouterPayloads(page);
+    await page.goto(`${BASE}?module=informes`);
+    await expectShown(page, "informes");
+    await page.waitForLoadState("networkidle");
+    await page.getByRole("button", { name: "Abrir módulo completo de informes" }).filter({ visible: true }).click();
+    await expect(page).toHaveURL(routeUrl(INFORMES_ROUTE));
+    await expect(fullRouteStage(page, "informes-full")).toBeVisible();
+    // A new document: the entry behind is no longer in the router's cache, so
+    // Back needs a payload and stays in flight while it is held.
+    await page.reload();
+    await expect(fullRouteStage(page, "informes-full")).toBeVisible();
+    await page.waitForLoadState("networkidle");
+
+    // From the full route: Back towards the shell and Forward before it commits.
+    payloads.hold();
+    await page.goBack();
+    await expect.poll(() => payloads.requested(), "Back is in flight").toEqual(["informes"]);
+    await page.goForward();
+    await expect(page).toHaveURL(routeUrl(INFORMES_ROUTE));
+    await expect(fullRouteStage(page, "informes-full")).toBeVisible();
+    await page.clock.fastForward(PAST_THE_BUDGET_MS);
+    await expect(stalledNotice(page)).toHaveCount(0);
+    await expect(fullRouteStage(page, "informes-full")).toBeVisible();
+    // The late answer of the Back that Forward superseded moves nothing.
+    await payloads.release();
+    await waitForLayoutSettled(page);
+    await expect(page).toHaveURL(routeUrl(INFORMES_ROUTE));
+    await expect(fullRouteStage(page, "informes-full")).toBeVisible();
+
+    // From the shell: Back towards the full route, then the committed module.
+    await navItem(page, "tokens").click();
+    await expect(page).toHaveURL(moduleUrl("tokens"));
+    await expectShown(page, "tokens");
+    await page.reload();
+    await expectShown(page, "tokens");
+    await page.waitForLoadState("networkidle");
+    const asked = payloads.requested().length;
+    payloads.hold();
+    await page.goBack();
+    await expect.poll(() => payloads.requested().slice(asked), "Back is in flight").toEqual([INFORMES_ROUTE]);
+    await navItem(page, "tokens").click();
+    await expectShown(page, "tokens");
+    await page.clock.fastForward(PAST_THE_BUDGET_MS);
+    await expect(stalledNotice(page)).toHaveCount(0);
+    await payloads.release();
     await expect(page).toHaveURL(moduleUrl("tokens"));
     await expectShown(page, "tokens");
   });
