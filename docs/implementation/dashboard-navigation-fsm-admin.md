@@ -240,6 +240,18 @@ Frontera (d) es `navigation-truncated-stream-recovery.spec.ts`, sin cambios.
    15. No es un defecto de esta PR ni de la máquina: la fila #1 persiste al recibir `HYDRATED`, que es el
    primer momento posible. El test se corrigió para esperar su precondición real, el módulo almacenado,
    antes de navegar (15 de 15 a 6× y a 12×).
+8. **Una navegación de cliente deja el documento sin `<title>` unos milisegundos (hallado en CI, #1858).**
+   `accessibility-axe-key-routes.spec.ts` ("admin dashboard landing … on mobile") quedó *flaky* en E2E
+   Completeness sobre `f5cde537` con `document-title`. Al comitear una navegación del router, Next vuelve a
+   renderizar la metadata de la ruta: el `<title>` sale del `head` en ese commit y vuelve con el mismo texto
+   entre 2 y 18 ms después. Ocurre igual en `main` en cada cambio de módulo (medido: 2–4 ms). Lo que cambia
+   con esta PR es el landing: en `main` la entrada desnuda se normalizaba con un `replaceState` nativo, sin
+   navegación y sin hueco (150 de 150 limpio); con DT-8 opción C es un `router.replace`, y el commit que
+   quita el `<title>` es el mismo que hace aparecer el workspace y la URL que el test esperaba. Sin esperar
+   el título, 5 de 150 corridas fallan; el estado "sin título" en ese commit se registró en prácticamente
+   todas. El test espera ahora que el documento tenga título antes de auditar (150 de 150 en el arnés, 320
+   de 320 el spec real); la regla `document-title` sigue activa. El hueco en sí es de Next y no se corrige
+   aquí.
 
 ### 7.4. P3 — StrictMode con React real
 
