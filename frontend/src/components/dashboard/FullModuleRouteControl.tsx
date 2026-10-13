@@ -1,16 +1,15 @@
 "use client";
 
-import { useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { ExternalLink, Loader2 } from "lucide-react";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
+import { useClinicDashboardNavigation } from "./DashboardNavigationProvider";
 
 /**
  * "Abrir módulo completo": leaves the clinic module shell for a full route,
- * another page whose server render can take seconds. A plain push left the
- * control unchanged for that whole wait, so the click looked ignored. The push
- * runs inside a transition, and the control shows its pending state until the
- * full route commits.
+ * another page whose server render can take seconds. It is a selection of the
+ * navigation owner (OPEN_ROUTE): the machine navigates it, gives it a budget
+ * and shows it as its `display`, which is this control's pending state. When
+ * the owner declines, the control navigates through its own href.
  */
 export function FullModuleRouteControl({
   href,
@@ -19,8 +18,8 @@ export function FullModuleRouteControl({
   readonly href: string;
   readonly ariaLabel: string;
 }) {
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const navigation = useClinicDashboardNavigation();
+  const isPending = navigation?.route === href;
 
   return (
     <PublicRouteControl
@@ -30,9 +29,7 @@ export function FullModuleRouteControl({
       aria-label={ariaLabel}
       aria-busy={isPending || undefined}
       onClick={(event) => {
-        event.preventDefault();
-        if (isPending) return;
-        startTransition(() => router.push(href));
+        if (navigation?.openRoute(href)) event.preventDefault();
       }}
     >
       {isPending ? (

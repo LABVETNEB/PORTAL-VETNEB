@@ -25,8 +25,11 @@ import {
 //   1. the clinic contracts of the fiche (R-2/D-12, R-6, #7, C-9 with DT-13
 //      pending) on the unmodified coordinator, with the production module ids;
 //   2. the input adapter (`clinic-hub-reset.ts`), by behaviour;
-//   3. ownership: the controller is a view, the provider owns one store per
-//      surface, and the full-route hand-over stays where it was (PR-NAV-05).
+//   3. ownership: the controller is a view and the provider owns one store per
+//      surface.
+//
+// PR-NAV-05 — the full routes join it: their stage and "Abrir módulo completo"
+// are views of the same display, and the hand-over bus they kept is gone.
 
 const MACHINE = { initial, transition };
 
@@ -80,7 +83,10 @@ function clinicOwner(hydrated: Omit<Hydrated, "type">) {
       settle();
     },
     expire(navId: number) {
-      timers.get(navId)?.();
+      // A timer fires once: it is no longer pending when its callback runs.
+      const fire = timers.get(navId);
+      timers.delete(navId);
+      fire?.();
       settle();
     },
   };
@@ -283,22 +289,13 @@ test("adapter: a clinic request goes to the navigation owner, whose answer is th
     clinic.requestClinicHubReset();
     assert.deepEqual(heard, ["perfil", "informes", "hub"]);
 
-    // The full-route stage still hears every request and still never claims (PR-NAV-05 retires it).
-    const staged: string[] = [];
-    const stopStage = clinic.subscribeClinicModuleActivate(
-      (moduleId) => {
-        staged.push(moduleId);
-        return true;
-      },
-      { handsOver: true },
+    // PR-NAV-05: the owner is the only thing a request reaches. No bus, no
+    // listener, no replay and no hand-over are left to export.
+    assert.deepEqual(
+      Object.keys(clinic).sort(),
+      ["registerClinicNavigationOwner", "requestClinicHubReset", "requestClinicModuleActivate"],
+      "the adapter exports the owner registration and the two requests, nothing else",
     );
-    takes = false;
-    assert.equal(clinic.requestClinicModuleActivate("logistica"), false, "a handing-over stage never claims");
-    takes = true;
-    assert.equal(clinic.requestClinicModuleActivate("tokens"), true);
-    assert.deepEqual(staged, ["logistica", "tokens"]);
-    assert.deepEqual(heard, ["perfil", "informes", "hub", "logistica", "tokens"]);
-    stopStage();
 
     // A newer owner replaces the previous one; the stale unregister is inert.
     const next: string[] = [];
@@ -314,7 +311,6 @@ test("adapter: a clinic request goes to the navigation owner, whose answer is th
     assert.deepEqual(next, ["perfil"]);
     unregisterNext();
     assert.equal(clinic.requestClinicModuleActivate("perfil"), false, "an unregistered owner hears nothing");
-    clinic.relinquishClinicModuleActivateHandOver();
   }));
 
 const CONTROLLER = "frontend/src/components/dashboard/ClinicDashboardWorkspaceController.tsx";
@@ -487,25 +483,246 @@ test("every clinic module destination asks the owner first, the hub's own cards 
   }
 });
 
-test("adapter: the owner decides; the full-route hand-over is kept for PR-NAV-05", () => {
+const STAGE = "frontend/src/components/dashboard/ClinicFullRouteModuleStage.tsx";
+const CONTROL = "frontend/src/components/dashboard/FullModuleRouteControl.tsx";
+const INFORMES_ROUTE: NavLocation = { kind: "route", path: "/dashboard/informes", module: "informes" };
+
+test("adapter: the owner decides, and the full-route hand-over is retired (PR-NAV-05)", () => {
   const adapter = read(ADAPTER);
 
   assert.ok(adapter.includes("export function registerClinicNavigationOwner("));
   assert.ok(adapter.includes("owner?.selectHub();"), "the hub signal is SELECT_HUB");
-  assert.equal(adapter.includes("subscribeClinicHubReset"), false, "the hub-reset bus is gone with its only listener");
-  for (const kept of ["handsOver", "relinquishClinicModuleActivateHandOver", "subscribeClinicModuleActivate"]) {
-    assert.ok(adapter.includes(kept), `${kept} stays until PR-NAV-05`);
+  assert.ok(
+    adapter.includes("return owner === null ? false : owner.selectModule(moduleId);"),
+    "a module request is the owner's answer and nothing else",
+  );
+  for (const retired of [
+    "subscribeClinicHubReset",
+    "subscribeClinicModuleActivate",
+    "relinquishClinicModuleActivateHandOver",
+    "handsOver",
+    "unheardActivation",
+    "LATE_ACTIVATION_MAX_AGE_MS",
+    "isHistoryTraversalDispatch",
+    "window",
+    "popstate",
+    "performance.now()",
+    "Listener",
+  ]) {
+    assert.equal(adapter.includes(retired), false, `the hand-over is gone: ${retired}`);
   }
   assert.equal(/^import /m.test(adapter), false, "the adapter imports nothing");
 
-  const stage = read("frontend/src/components/dashboard/ClinicFullRouteModuleStage.tsx");
-  assert.ok(
-    stage.includes("{ handsOver: true },") && !stage.includes("DashboardNavigationProvider"),
-    "the full-route stage is not migrated here",
-  );
+  // No consumer of the retired bus is left in the surfaces it connected.
+  for (const path of [STAGE, CONTROL, CONTROLLER, PROVIDER, "frontend/src/components/dashboard/DashboardNavigationFrame.tsx"]) {
+    assert.equal(
+      /subscribeClinicModuleActivate|relinquishClinicModuleActivateHandOver|handsOver/.test(read(path)),
+      false,
+      `${path} keeps no hand-over`,
+    );
+  }
   assert.equal(
     read("frontend/src/components/dashboard/UploadReportModal.tsx").split("router.refresh()").length - 1,
     1,
     "UploadReportModal keeps its own refresh, outside this cut",
   );
+});
+
+test("ownership: the full-route stage is a view of the machine's display and owns no navigation (PR-NAV-05)", () => {
+  const stage = read(STAGE);
+
+  assert.ok(stage.includes("const navigation = useClinicDashboardNavigation();"), "the stage reads the navigation owner");
+  assert.ok(
+    stage.includes("const leaving = navigation !== null && navigation.route !== pathname;"),
+    "the route's own content is on stage exactly while the display is this route",
+  );
+  for (const retired of [
+    "useState",
+    "useEffect",
+    "setLeavingTo",
+    "clinic-hub-reset",
+    "historyTraversal",
+    "popstate",
+    "useRouter",
+    "router.",
+    "setTimeout",
+    "readDashboardLastModule",
+    "writeDashboardLastModule",
+  ]) {
+    assert.equal(stage.includes(retired), false, `the full-route view keeps no navigation authority: ${retired}`);
+  }
+  assert.equal(
+    /history\.(back|forward|go|pushState|replaceState)\(|router\.refresh\(|location\.(assign|replace|reload)\(/.test(stage),
+    false,
+    "no native history, refresh or document navigation in the view (S9, DT-2)",
+  );
+  // The band of a full route renders outside any boundary and reads what the
+  // stage publishes: the machine's display, relayed, not a second decision.
+  assert.ok(
+    stage.includes("const leavingTo = leaving ? navigation.module : null;") &&
+      stage.includes('usePublishStageModule("clinic", leavingTo, leavingTo !== null);'),
+    "the view relays the display to the band of the route",
+  );
+  assert.ok(
+    stage.includes("{navigation?.stalled ? <FullRouteNavigationStalledNotice onRetry={navigation.retry} /> : null}") &&
+      stage.includes('data-dashboard-navigation-stalled="true"') &&
+      stage.includes('role="status"') &&
+      stage.includes("Reintentar"),
+    "STALLED is visible and recoverable on a full route (L3)",
+  );
+  assert.ok(
+    stage.includes('<div className="relative z-[3] h-0 shrink-0">'),
+    "the notice is a zero-height anchor: it never changes the height the workspace measures",
+  );
+});
+
+test("ownership: Abrir módulo completo dispatches OPEN_ROUTE and reads its pending state from the machine (PR-NAV-05)", () => {
+  const control = read(CONTROL);
+
+  assert.ok(control.includes("const navigation = useClinicDashboardNavigation();"));
+  assert.ok(
+    control.includes("const isPending = navigation?.route === href;"),
+    "pending is the display naming this route, not a local flag",
+  );
+  assert.ok(
+    control.includes("if (navigation?.openRoute(href)) event.preventDefault();"),
+    "the owner navigates what it took; a declined request keeps the control's own href (DT-10)",
+  );
+  for (const retired of ["useTransition", "startTransition", "useState", "useRouter", "router.", "setTimeout"]) {
+    assert.equal(control.includes(retired), false, `the control keeps no navigation of its own: ${retired}`);
+  }
+  assert.ok(control.includes("aria-busy={isPending || undefined}"), "the pending state is exposed, not only painted");
+  assert.ok(control.includes('"Abriendo módulo…"'), "the pending state is visible");
+  assert.ok(
+    control.includes("<PublicRouteControl") && control.includes("href={href}"),
+    "keeps the route-control pattern, its href and its pre-hydration fallback",
+  );
+
+  // The owner's side: only a full route of the surface with a module of its own
+  // is dispatched; BOOTING and FAILED decline, as for a module (DT-10).
+  const provider = read(PROVIDER);
+  assert.ok(
+    provider.includes("const target = CLINIC_SURFACE.locate(href, NO_QUERY)?.location;") &&
+      provider.includes('if (target?.kind !== "route" || parseClinicModule(target.module) === null) return false;') &&
+      provider.includes('if (tag === "BOOTING" || tag === "FAILED") return false;') &&
+      provider.includes('store.dispatch({ type: "OPEN_ROUTE", path: target.path, module: target.module });'),
+    "OPEN_ROUTE reaches the machine through the clinic owner",
+  );
+  assert.equal(provider.split('type: "OPEN_ROUTE"').length - 1, 1, "one emitter of OPEN_ROUTE");
+});
+
+test("#8, #12, #15: Abrir módulo completo routes with a budget, stalls when it never lands and retries as a document navigation", () => {
+  const owner = clinicOwner({ location: moduleAt("informes"), explicit: true, storedModule: null });
+  owner.store.mount();
+  owner.settle();
+
+  owner.send({ type: "OPEN_ROUTE", path: "/dashboard/informes", module: "informes" });
+  assert.deepEqual(owner.navigations, [{ type: "ROUTER_PUSH", to: INFORMES_ROUTE }]);
+  assert.equal(owner.store.getSnapshot().state.tag, "ROUTING");
+  assert.deepEqual(owner.store.getSnapshot().ctx.display, INFORMES_ROUTE, "the control is pending on the click");
+  assert.deepEqual([...owner.timers.keys()], [1]);
+
+  owner.expire(1);
+  assert.equal(owner.store.getSnapshot().state.tag, "STALLED");
+  assert.deepEqual(owner.store.getSnapshot().ctx.display, INFORMES_ROUTE);
+  assert.equal(owner.navigations.length, 1, "the budget re-issues nothing by itself");
+  assert.equal(owner.timers.size, 0);
+
+  owner.send({ type: "RETRY" });
+  assert.deepEqual(owner.navigations.at(-1), { type: "HARD_NAVIGATE", to: INFORMES_ROUTE, mode: "assign" });
+  assert.equal(owner.store.getSnapshot().state.tag, "ROUTING");
+  assert.deepEqual([...owner.timers.keys()], [2], "the retry has a budget of its own");
+
+  // A route that names no module of the surface is not a selection (#6, S12).
+  const idle = clinicOwner({ location: moduleAt("informes"), explicit: true, storedModule: null });
+  idle.store.mount();
+  idle.settle();
+  idle.send({ type: "OPEN_ROUTE", path: "/dashboard/otra", module: "" });
+  assert.equal(idle.store.getSnapshot().state.tag, "IDLE");
+  assert.deepEqual(idle.navigations, []);
+  assert.deepEqual(idle.persisted, ["informes"]);
+});
+
+test("#5, #12, #16 from a full route: a /dashboard payload that never answers stalls, and the next choice navigates", () => {
+  const owner = clinicOwner({ location: INFORMES_ROUTE, explicit: false, storedModule: null });
+  owner.store.mount();
+  owner.settle();
+  assert.deepEqual(owner.persisted, ["informes"], "the route stores its module on entry (#1)");
+
+  owner.send({ type: "SELECT_MODULE", module: "tokens" });
+  assert.deepEqual(owner.store.getSnapshot().ctx.display, moduleAt("tokens"), "the route's stage leaves on the click");
+  owner.expire(1);
+  assert.equal(owner.store.getSnapshot().state.tag, "STALLED");
+  assert.deepEqual(owner.store.getSnapshot().ctx.display, moduleAt("tokens"));
+
+  owner.send({ type: "SELECT_MODULE", module: "perfil" });
+  assert.equal(owner.store.getSnapshot().state.tag, "ROUTING", "STALLED is never terminal");
+  assert.deepEqual(owner.navigations, [
+    { type: "ROUTER_PUSH", to: moduleAt("tokens") },
+    { type: "ROUTER_PUSH", to: moduleAt("perfil") },
+  ]);
+  owner.commit(moduleAt("perfil"));
+  assert.equal(owner.store.getSnapshot().state.tag, "IDLE");
+  assert.deepEqual(owner.store.getSnapshot().ctx.display, moduleAt("perfil"));
+  assert.deepEqual(owner.persisted, ["informes", "perfil"]);
+  assert.equal(owner.timers.size, 0, "no budget outlives the flight");
+
+  // Returning to the route the URL still shows is #25: no stall, no budget.
+  const back = clinicOwner({ location: INFORMES_ROUTE, explicit: false, storedModule: null });
+  back.store.mount();
+  back.settle();
+  back.send({ type: "SELECT_MODULE", module: "tokens" });
+  back.send({ type: "OPEN_ROUTE", path: "/dashboard/informes", module: "informes" });
+  assert.equal(back.store.getSnapshot().state.tag, "IDLE");
+  assert.deepEqual(back.store.getSnapshot().ctx.display, INFORMES_ROUTE, "the route's own content is back on stage");
+  assert.equal(back.timers.size, 0);
+});
+
+test("C-8 / L6 between a full route and the shell: Back then Forward, and Back then the committed module, never stall", () => {
+  const owner = clinicOwner({ location: moduleAt("informes"), explicit: true, storedModule: null });
+  owner.store.mount();
+  owner.settle();
+  owner.send({ type: "OPEN_ROUTE", path: "/dashboard/informes", module: "informes" });
+  owner.commit(INFORMES_ROUTE);
+  assert.equal(owner.store.getSnapshot().state.tag, "IDLE");
+
+  // Back towards the shell, then Forward before it commits (#17, #28).
+  owner.send({ type: "TRAVERSE_STARTED", destination: moduleAt("informes") });
+  assert.deepEqual(owner.store.getSnapshot().ctx.display, moduleAt("informes"), "the route's stage follows Back on the event");
+  owner.send({ type: "TRAVERSE_STARTED", destination: INFORMES_ROUTE });
+  assert.equal(owner.store.getSnapshot().state.tag, "IDLE");
+  assert.deepEqual(owner.store.getSnapshot().ctx.display, INFORMES_ROUTE);
+  assert.equal(owner.timers.size, 0, "no budget is left to expire into STALLED");
+
+  // From the shell: Back towards the route, then the committed module (#25).
+  owner.send({ type: "SELECT_MODULE", module: "tokens" });
+  owner.commit(moduleAt("tokens"));
+  const before = owner.navigations.length;
+  owner.send({ type: "TRAVERSE_STARTED", destination: INFORMES_ROUTE });
+  assert.equal(owner.store.getSnapshot().state.tag, "TRAVERSING");
+  owner.send({ type: "SELECT_MODULE", module: "tokens" });
+  assert.equal(owner.store.getSnapshot().state.tag, "IDLE");
+  assert.deepEqual(owner.store.getSnapshot().ctx.display, moduleAt("tokens"));
+  assert.deepEqual(owner.navigations.slice(before), [{ type: "ROUTER_PUSH", to: moduleAt("tokens") }]);
+  assert.equal(owner.timers.size, 0);
+});
+
+test("#29–#30 across the pathname: a module chosen while Abrir módulo completo is in flight is claimed and replaces the route's entry", () => {
+  const owner = clinicOwner({ location: moduleAt("informes"), explicit: true, storedModule: null });
+  owner.store.mount();
+  owner.settle();
+
+  owner.send({ type: "OPEN_ROUTE", path: "/dashboard/informes", module: "informes" });
+  owner.send({ type: "SELECT_MODULE", module: "tokens" });
+  assert.deepEqual(owner.navigations, [{ type: "ROUTER_PUSH", to: INFORMES_ROUTE }], "claimed, not navigated");
+  assert.deepEqual(owner.store.getSnapshot().ctx.display, moduleAt("tokens"));
+
+  // The route lands: its stage mounts as a view and shows the claimed module, never its own content.
+  assert.deepEqual(previewDisplay(MACHINE, CLINIC, owner.store.getSnapshot(), INFORMES_ROUTE), moduleAt("tokens"));
+  owner.commit(INFORMES_ROUTE);
+  assert.deepEqual(owner.navigations.at(-1), { type: "ROUTER_REPLACE", to: moduleAt("tokens") });
+  owner.commit(moduleAt("tokens"));
+  assert.equal(owner.store.getSnapshot().state.tag, "IDLE");
+  assert.deepEqual(owner.persisted, ["informes", "tokens"], "the route that only relayed the burst stores nothing");
+  assert.equal(owner.timers.size, 0);
 });

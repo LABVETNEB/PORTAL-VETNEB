@@ -65,8 +65,8 @@ import { ROUTES } from "@/lib/routes";
  *
  * One store per surface. The clinic store lives across `/dashboard` and its
  * full routes, which is what lets it leave FAILED when the pathname changes;
- * the full routes' own stage is not a view of it yet (PR-NAV-05). Crossing
- * between the two surfaces starts a new store.
+ * the stage of a full route and "Abrir módulo completo" are views of it too
+ * (PR-NAV-05). Crossing between the two surfaces starts a new store.
  *
  * The provider itself never reads the search params and never wraps its
  * children in a boundary: the layout also serves statically prerendered
@@ -76,6 +76,7 @@ import { ROUTES } from "@/lib/routes";
  *
  * @see docs/implementation/dashboard-navigation-fsm-admin.md
  * @see docs/implementation/dashboard-navigation-fsm-clinic.md
+ * @see docs/implementation/dashboard-navigation-fsm-full-routes.md
  */
 
 type RouterLike = ReturnType<typeof useRouter>;
@@ -463,29 +464,52 @@ export type ClinicDashboardNavigation = {
   readonly module: ClinicModule | null;
   /** The `display` is the hub. */
   readonly hub: boolean;
+  /** The path of the full route the `display` names; `null` while it is a module or the hub. */
+  readonly route: string | null;
   /** The navigation outlived its budget (STALLED). */
   readonly stalled: boolean;
   /** Leaves STALLED through a document navigation (RETRY). */
   readonly retry: () => void;
+  /** OPEN_ROUTE. `false`: the machine would ignore it and the caller navigates (DT-10). */
+  readonly openRoute: (href: string) => boolean;
 };
 
+const NO_QUERY = new URLSearchParams();
+
 /**
- * The clinic navigation as the `/dashboard` stage renders it. `null` when no
- * clinic owner is mounted. Reads the search params.
+ * The clinic navigation as its stages render it, on `/dashboard` and on a full
+ * route. `null` when no clinic owner is mounted. Reads the search params.
  */
 export function useClinicDashboardNavigation(): ClinicDashboardNavigation | null {
   const view = useNavigationView(CLINIC_SURFACE);
   const store = view?.store ?? null;
   const displayModule = view?.display.kind === "module" ? parseClinicModule(view.display.module) : null;
   const hub = view?.display.kind === "hub";
+  const route = view?.display.kind === "route" ? view.display.path : null;
   const stalled = view?.stalled ?? false;
 
   return useMemo(
     () =>
       store === null
         ? null
-        : { module: displayModule, hub, stalled, retry: () => store.dispatch({ type: "RETRY" }) },
-    [store, displayModule, hub, stalled],
+        : {
+            module: displayModule,
+            hub,
+            route,
+            stalled,
+            retry: () => store.dispatch({ type: "RETRY" }),
+            openRoute(href) {
+              // A full route is its pathname: an href that carries anything
+              // else names no module of the surface and is declined (#6).
+              const target = CLINIC_SURFACE.locate(href, NO_QUERY)?.location;
+              if (target?.kind !== "route" || parseClinicModule(target.module) === null) return false;
+              const tag = store.getSnapshot().state.tag;
+              if (tag === "BOOTING" || tag === "FAILED") return false;
+              store.dispatch({ type: "OPEN_ROUTE", path: target.path, module: target.module });
+              return true;
+            },
+          },
+    [store, displayModule, hub, route, stalled],
   );
 }
 
