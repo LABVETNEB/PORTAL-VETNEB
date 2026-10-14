@@ -54,6 +54,7 @@ export function ActiveFilterChips({
   const row = useRef<HTMLDivElement>(null);
   const measure = useRef<HTMLDivElement>(null);
   const intent = useRef<RemovalIntent | null>(null);
+  const disappearingOverflowFocus = useRef(false);
   const [fit, setFit] = useState<Fit | null>(null);
   const clearable = Boolean(onClearAll);
   const empty = filters.length === 0;
@@ -79,6 +80,10 @@ export function ActiveFilterChips({
         }
       }
     }
+    const overflow = host.querySelector<HTMLButtonElement>(":scope > [data-action-menu-trigger]");
+    if (visible === chips.length && overflow && document.activeElement === overflow) {
+      disappearingOverflowFocus.current = true;
+    }
     setFit((current) => (current?.visible === visible && current.reserve === trigger ? current : { visible, reserve: trigger }));
   }, []);
 
@@ -93,6 +98,15 @@ export function ActiveFilterChips({
     observer.observe(probe);
     return () => observer.disconnect();
   }, [layout, empty]);
+
+  useLayoutEffect(() => {
+    if (!disappearingOverflowFocus.current) return;
+    disappearingOverflowFocus.current = false;
+    const active = document.activeElement;
+    if (active && active !== document.body && active.isConnected) return;
+    const target = row.current?.querySelector<HTMLButtonElement>(":scope > ul [data-filter-chip] button:not(:disabled)");
+    (target ?? returnFocusRef?.current)?.focus({ preventScroll: true });
+  }, [fit, returnFocusRef]);
 
   useLayoutEffect(() => {
     const pending = intent.current;

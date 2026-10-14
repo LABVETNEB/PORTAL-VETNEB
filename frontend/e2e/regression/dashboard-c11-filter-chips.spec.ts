@@ -99,6 +99,21 @@ test("C11 · overflow por teclado y puntero, etiquetas extensas, disabled, ident
   await call(page, "__c11Set", [[" ", "A:1"]]); await expect(page.locator('[data-c11-error="true"]')).toHaveText("ActiveFilterChips: every filter needs a non-empty id");
 });
 
+test("C11 · conserva foco al desaparecer el overflow por resize", async ({ page }) => {
+  await mount(page, 390, 844); await setFilters(page, EIGHT.slice(0, 4)); await expect(overflow(page)).toBeVisible();
+  await overflow(page).focus(); await page.keyboard.press("ArrowDown");
+  await expect(page.getByRole("menuitem").first()).toBeFocused();
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await expect(overflow(page)).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => document.activeElement?.tagName)).not.toBe("BODY");
+  await expect(remover(page, "Evento: Inicio de sesión")).toBeFocused();
+
+  await page.setViewportSize({ width: 390, height: 844 }); await expect(overflow(page)).toBeVisible();
+  await overflow(page).focus(); await page.keyboard.press("ArrowDown"); await expect(page.getByRole("menuitem").first()).toBeFocused();
+  const search = page.getByRole("searchbox", { name: "Buscar registros" }); await search.click(); await expect(search).toBeFocused();
+  await page.setViewportSize({ width: 1920, height: 1080 }); await expect(overflow(page)).toHaveCount(0); await expect(search).toBeFocused();
+});
+
 for (const [width, height] of [[1920, 1080], [1366, 768], [1280, 720], [834, 1194], [768, 1024], [390, 844], [320, 568]]) test(`C11 · geometría, overflow y responsive ${width}x${height}`, async ({ page }) => {
   await mount(page, width, height); await setFilters(page, EIGHT); await waitForLayoutSettled(page);
   for (const size of [[width, height], [1366, 768], [width, height]]) {

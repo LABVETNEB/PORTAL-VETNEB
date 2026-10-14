@@ -37,6 +37,8 @@ Política de overflow: una capa de medición inerte (`aria-hidden`, `inert`, `vi
 
 Foco: si el control con foco desaparece tras una retirada, el foco pasa al chip que ocupa el mismo índice, luego al último chip, luego al disparador y por último a `returnFocusRef`. Tras retirar desde el menú, el foco va al disparador si sigue presente. Tras la limpieza global va a `returnFocusRef`. Si el consumidor no retira el filtro, el foco no se mueve.
 
+Corrección P2 de PR #1867: cuando la medición detecta que todos los chips caben y el disparador de overflow tiene el foco, C11 registra esa transición antes de actualizar `fit`. Tras el render, un layout effect entrega el foco al primer chip operable o a `returnFocusRef`, siempre que otro control no haya recibido el foco. No modifica el owner C08 ni la capacidad medida.
+
 ## Archivos
 
 - `frontend/src/features/dashboard/presentation/filters/FilterChip.tsx`, `FilterOverflow.tsx` y `ActiveFilterChips.tsx` (nuevos); `filters/index.ts` (exports).
@@ -50,7 +52,7 @@ Foco: si el control con foco desaparece tras una retirada, el foco pasa al chip 
 ## Validación
 
 - **Guard C11.** RED antes de la implementación (fuentes inexistentes); GREEN 2/2 después. Mutation proof en memoria con 7/7 mutaciones detectadas: export retirado, menú propio, dominio/URL, `role="menu"` propio, copia de filtros, radio y sombra.
-- **E2E C11.** 9/9 tests, cada uno repetido en `next dev` (×5) y en `next start` (×3), todos en verde. Los tests cubren:
+- **E2E C11.** 9/9 tests en el baseline publicado; la corrección P2 añade un décimo test: 10/10 en `next dev` y 10/10 en `next start`. Los tests cubren:
   - de cero a ocho filtros, en orden;
   - un callback por clic, Enter o Space, y Escape neutro;
   - orden de tabulación, foco visible (outline ≥ 2 px) y restauración de foco;
@@ -58,6 +60,7 @@ Foco: si el control con foco desaparece tras una retirada, el foco pasa al chip 
   - etiquetas largas (≤ 160 px, nombre completo), disabled por filtro y global, identidades inválidas y axe con el menú abierto y cerrado;
   - geometría en 1920×1080, 1366×768, 1280×720, 834×1194, 768×1024, 390×844 y 320×568, más un redimensionado A-B-A en caliente: chips de 32 px (44 px bajo 768), 96–160 px, radio 8, borde 1 px, sin sombra visible, región de 56 px, sin desborde del documento según `MAX_DOCUMENT_SCROLL_DELTA_PX`, sin solapes, todos los filtros alcanzables y objetivos táctiles ≥ 44 px.
 - **Mutation proof en navegador.** Sin restauración de foco → rojo. Sin cálculo de capacidad → 7/7 geometrías en rojo. Al restaurar, verde.
+- **P2 resize.** RED sobre el HEAD publicado: al abrir overflow por teclado y ampliar 390→1920 px, `document.activeElement` queda en `BODY`. GREEN tras la corrección; al retirar temporalmente la nueva transferencia de foco, vuelve a RED. El control con foco voluntario en la búsqueda conserva su foco.
 - **Compatibilidad.** B15, C08, C09, C10 y C11 bajo `next start`: 132/132 (×3). A02, A05 y A08 PASSED. A03 PASSED 16/16 en corrida aislada (195 registros primarios / 234 hojas); en la corrida concurrente previa falló `admin-failed-login-alerts` por timeout de concurrencia, una superficie que C11 no toca.
 - **C10 en `next dev`.** Falla de forma intermitente (5/36) con el barrel idéntico a HEAD: su arnés se inyecta antes de que termine la hidratación. Es preexistente y no aparece bajo `next start`. El arnés C11 espera la hidratación de `<main>` y no la sufre.
 - **Gates.** Frontend lint, typecheck y build, `typecheck:test`, `security:public-surface`, `e2e:verify-catalog` 7/7, build backend y `git diff --check`: PASSED. `pnpm test`, con los archivos nuevos simulados como trackeados: 5330 PASSED, 1 SKIPPED y 1 FAILED ambiental (`e2e-global-03b`, sin DB aislada). Por esa precondición, `validate:local` queda BLOCKED.
@@ -68,7 +71,6 @@ Fuera de scope: los superbuscadores S1–S7, backend, DB, dependencias, CI, nave
 
 Riesgos residuales:
 - Cada adopción (C18–C22) debe decidir su operación de retirada individual dentro de §7.8 y probar el `limit` de A03.
-- Si el menú está abierto y un redimensionado lo cierra (C08), el foco vuelve al disparador; si ese disparador desaparece porque ahora caben todos los chips, el foco no se restaura.
 - La capa de medición duplica los chips en el DOM (inerte y oculta).
 
 Rollback: retirar los archivos C11, su export, la entrada de catálogo y las realineaciones listadas. Ningún dato ni contrato de consulta requiere rollback.
