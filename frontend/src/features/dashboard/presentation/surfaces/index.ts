@@ -49,3 +49,17 @@ export {
 } from "./useCollectionSelection";
 /** C07 contextual toolbar: DefaultToolbar ⇄ SelectionToolbar on the C06 owner; bulk actions are C09. */
 export { SelectionToolbar, type SelectionToolbarProps } from "./SelectionToolbar";
+/** C08 menu primitives on one surface owner; bulk actions over the selection are C09. */
+export {
+  ActionMenu,
+  ActionMenuItem,
+  ContextMenu,
+  OverflowMenu,
+  SubMenu,
+  type ActionMenuItemProps,
+  type ActionMenuProps,
+  type ContextMenuProps,
+  type ContextMenuRegionProps,
+  type OverflowMenuProps,
+  type SubMenuProps,
+} from "./ActionMenu";
