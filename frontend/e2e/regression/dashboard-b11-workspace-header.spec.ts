@@ -1972,3 +1972,386 @@ test.describe("C08 · menu primitives in the WorkspaceScaffold", () => {
     });
   }
 });
+
+let c09Harness: string;
+
+// C09 harness: BulkActionMenu in the actions slot of the C07 toolbar, on the C06
+// owner, inside the real B15 scaffold and the app CSS. No production collection
+// has a bulk action contract yet (Auditoría is read-only; adoption is C17+), so
+// the host below is a controlled stand-in: it records what it is handed and
+// settles on request. It reaches no backend and proves no product operation.
+test.beforeAll(async () => {
+  const result = await build({
+    stdin: {
+      contents: `import React, { useState } from "react";
+import { createRoot } from "react-dom/client";
+import { WorkspaceScaffold } from "./src/components/dashboard/ModuleSurface.tsx";
+import { BulkActionMenu, SelectionToolbar, useCollectionSelection } from "./src/features/dashboard/presentation/surfaces/index.ts";
+const main = document.querySelector("main.dashboard-main");
+const mount = document.createElement("div");
+mount.setAttribute("data-c09-harness", "true");
+mount.style.cssText = "position:absolute;inset:0;display:flex;min-height:0;min-width:0;background:white;z-index:2";
+main.style.position = "relative";
+main.append(mount);
+const log = (window.__c09 = []);
+const PAGES = [[1, 2, 3], [4, 5, 6]];
+const HOST_HEIGHT = window.innerWidth >= 768 ? 36 : 53;
+function Harness() {
+  const [page, setPage] = useState(0);
+  const [pending, setPending] = useState(false);
+  const [status, setStatus] = useState("");
+  const selection = useCollectionSelection({ visibleIds: PAGES[page] });
+  const record = (action) => (ids) => { log.push({ action, ids }); };
+  const actions = [
+    { id: "exportar", label: "Exportar", onSelect: record("exportar") },
+    { id: "abrir", label: "Abrir detalle", requires: "single", onSelect: record("abrir") },
+    { id: "reintentar", label: "Reintentar", onSelect: (ids) => {
+      log.push({ action: "reintentar", ids });
+      const failed = ids.filter((id) => id % 2 === 0);
+      ids.filter((id) => id % 2 !== 0).forEach((id) => selection.deselect(id));
+      setStatus((ids.length - failed.length) + " completados, " + failed.length + " con error");
+    } },
+    { id: "procesar", label: "Procesar", onSelect: (ids) => {
+      log.push({ action: "procesar", ids });
+      setPending(true);
+      window.__c09Settle = () => { setPending(false); selection.clearSelection(); setStatus(ids.length + " procesados"); };
+    } },
+    { id: "asignar", label: "Asignar", disabledReason: "Sin permiso", onSelect: record("asignar") },
+    { id: "eliminar", label: "Eliminar", destructive: true, confirmsBeforeRunning: false, onSelect: record("eliminar") },
+  ];
+  return (
+    <section aria-label="Colección C09" style={{ display: "flex", flex: 1, minWidth: 0, minHeight: 0 }}>
+      <WorkspaceScaffold kind="surface" ariaLabel="Arnés C09"
+        toolbar={<div data-c09-host="true" style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", minWidth: 0, height: HOST_HEIGHT, boxSizing: "border-box" }}>
+          <input type="checkbox" data-collection-selection="page" aria-label="Seleccionar página" checked={selection.allVisibleSelected} onChange={selection.toggleVisiblePage} />
+          <SelectionToolbar selectedCount={selection.selectedCount} onClearSelection={selection.clearSelection}
+            actions={<BulkActionMenu selectedIds={selection.selectedIds} actions={actions} pending={pending} />}>
+            <span data-c09-default-toolbar="true">Registros</span>
+          </SelectionToolbar>
+        </div>}
+        collection={<div data-c09-collection="true">
+          <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+            {PAGES[page].map((row) => (
+              <li key={row} data-c09-row={row} style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 48, padding: "0 12px" }}>
+                <input type="checkbox" aria-label={"Seleccionar registro " + row} checked={selection.isSelected(row)} onChange={() => selection.toggle(row)} />
+                <span data-c09-row-label={row} style={{ flex: 1, minWidth: 0 }}>Registro {row}</span>
+              </li>
+            ))}
+          </ul>
+          <div style={{ display: "flex", gap: 8, padding: "0 12px" }}>
+            <button type="button" onClick={() => setPage(0)}>Página 1</button>
+            <button type="button" onClick={() => setPage(1)}>Página 2</button>
+          </div>
+          <p role="status" data-c09-status="true" style={{ margin: 0, padding: "0 12px" }}>{status}</p>
+        </div>}
+      />
+    </section>
+  );
+}
+createRoot(mount).render(<Harness />);`,
+      resolveDir: resolve(process.cwd()),
+      loader: "tsx",
+    },
+    bundle: true,
+    write: false,
+    platform: "browser",
+    format: "iife",
+    alias: { "@": resolve(process.cwd(), "src") },
+  });
+  c09Harness = result.outputFiles[0].text;
+});
+
+// C09 · BulkActionMenu sits in the SelectionToolbar's own group and opens the C08
+// menu: it exists only with a selection, hands the host every selected ID once
+// (across pages), keeps unavailable, unconfirmed destructive and in-flight
+// actions disabled with their reason, and never clears the C06 owner itself.
+test.describe("C09 · BulkActionMenu on the SelectionToolbar", () => {
+  const auditSurface = DASHBOARD_GEOMETRY_SURFACES.find((surface) => surface.id === "admin-auditoria");
+  if (!auditSurface) throw new Error("C09: missing canonical admin-auditoria surface");
+  const HARNESS = '[data-c09-harness="true"]';
+  const ROOT_MENU = '[data-action-menu-surface="root"]';
+  const ACTIONS = ["Exportar", "Abrir detalle", "Reintentar", "Procesar", "Asignar", "Eliminar"] as const;
+  type BulkCall = { action: string; ids: number[] };
+
+  async function mountHarness(page: Page, width: number, height: number) {
+    await page.setViewportSize({ width, height });
+    await prepareSurface(page, auditSurface!);
+    await openSurface(page, auditSurface!);
+    await page.addScriptTag({ content: c09Harness });
+    await expect(page.locator(`${HARNESS} [data-c09-row]`)).toHaveCount(3);
+    await waitForLayoutSettled(page);
+  }
+
+  const readLog = (page: Page) => page.evaluate(() => [...((window as unknown as { __c09: BulkCall[] }).__c09)]);
+
+  function controls(page: Page) {
+    const harness = page.locator(HARNESS);
+    const menu = page.getByRole("menu", { name: "Acciones", exact: true });
+    return {
+      harness,
+      menu,
+      group: harness.getByRole("group", { name: "Selección" }),
+      trigger: harness.getByRole("button", { name: "Acciones", exact: true }),
+      clear: harness.getByRole("button", { name: "Limpiar selección", exact: true }),
+      defaultToolbar: harness.locator('[data-c09-default-toolbar="true"]'),
+      pageSelector: harness.getByRole("checkbox", { name: "Seleccionar página", exact: true }),
+      row: (id: number) => harness.getByRole("checkbox", { name: `Seleccionar registro ${id}`, exact: true }),
+      goToPage: (number: 1 | 2) => harness.getByRole("button", { name: `Página ${number}`, exact: true }).click(),
+      item: (name: string) => menu.getByRole("menuitem", { name, exact: true }),
+    };
+  }
+
+  test("selection scope, exact IDs once, disabled reasons, cancellation, partial result, in-flight lock, keyboard, focus and axe @ 1366x768", async ({ page }) => {
+    const label = "C09 @ 1366x768";
+    await mountHarness(page, 1366, 768);
+    const { harness, menu, group, trigger, clear, defaultToolbar, pageSelector, row, goToPage, item } = controls(page);
+    const url = page.url();
+    const historyLength = await page.evaluate(() => window.history.length);
+    const requests: string[] = [];
+    page.on("request", (request) => requests.push(`${request.method()} ${request.url()}`));
+
+    // No selection: the DefaultToolbar, no selection group and no bulk menu.
+    await expect(defaultToolbar).toBeVisible();
+    await expect(group).toHaveCount(0);
+    await expect(trigger).toHaveCount(0);
+
+    // One selected: the menu joins the toolbar's own group, after the clear control.
+    await row(2).check();
+    await expect(group).toContainText("1 seleccionado");
+    await expect(defaultToolbar).toHaveCount(0);
+    expect(await group.getByRole("button").evaluateAll((buttons) => buttons.map((button) => button.getAttribute("aria-label"))),
+      `${label}: one group, clear then actions`).toEqual(["Limpiar selección", "Acciones"]);
+    await expect(trigger).toHaveAttribute("aria-haspopup", "menu");
+    await expect(trigger).toHaveAttribute("aria-expanded", "false");
+
+    // Keyboard only: Tab from the clear control reaches the trigger, Enter opens on the first action.
+    await clear.focus();
+    await page.keyboard.press("Tab");
+    await expect(trigger).toBeFocused();
+    expect(await trigger.evaluate((button) => button.matches(":focus-visible")), `${label}: visible focus on the trigger`).toBe(true);
+    await page.keyboard.press("Enter");
+    await expect(menu).toBeVisible();
+    await expect(menu.getByRole("menuitem")).toHaveText([
+      "Exportar", "Abrir detalle", "Reintentar", "Procesar", "Asignar · Sin permiso", "Eliminar · Requiere confirmación",
+    ]);
+    await expect(item("Exportar")).toBeFocused();
+
+    // A destructive action with no confirmation contract and a host-refused action are announced, focusable and inert.
+    await page.keyboard.press("End");
+    const destructive = item("Eliminar · Requiere confirmación");
+    await expect(destructive).toBeFocused();
+    await expect(destructive).toHaveAttribute("aria-disabled", "true");
+    await page.keyboard.press("Enter");
+    await page.keyboard.press("Space");
+    await destructive.click({ force: true });
+    await page.keyboard.press("ArrowUp");
+    const refused = item("Asignar · Sin permiso");
+    await expect(refused).toBeFocused();
+    await expect(refused).toHaveAttribute("aria-disabled", "true");
+    await page.keyboard.press("Enter");
+    await expect(menu).toBeVisible();
+    expect(await readLog(page), `${label}: disabled actions never reach the host`).toEqual([]);
+    await page.keyboard.press("Home");
+    await expect(item("Exportar")).toBeFocused();
+
+    const axe = await new AxeBuilder({ page })
+      .include(HARNESS)
+      .include("[data-action-menu-surface]")
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+      .analyze();
+    expect(axe.violations.map((violation) => `${violation.id}: ${violation.nodes.length}`), `${label}: axe`).toEqual([]);
+
+    // Cancelling runs nothing and keeps the selection: Escape, an outside click and Tab.
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("menu")).toHaveCount(0);
+    await expect(trigger).toBeFocused();
+    await trigger.click();
+    await expect(menu).toBeVisible();
+    await harness.locator('[data-c09-row-label="1"]').click();
+    await expect(page.getByRole("menu")).toHaveCount(0);
+    await trigger.focus();
+    await page.keyboard.press("ArrowDown");
+    await expect(menu).toBeVisible();
+    await page.keyboard.press("Tab");
+    await expect(page.getByRole("menu")).toHaveCount(0);
+    expect(await readLog(page), `${label}: a cancelled menu runs no action`).toEqual([]);
+    await expect(group).toContainText("1 seleccionado");
+
+    // Single selection: the single-item action runs once with that ID; focus returns to the trigger.
+    await trigger.focus();
+    await page.keyboard.press("Enter");
+    await page.keyboard.press("ArrowDown");
+    await expect(item("Abrir detalle")).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("menu")).toHaveCount(0);
+    await expect(trigger).toBeFocused();
+    expect(await readLog(page)).toEqual([{ action: "abrir", ids: [2] }]);
+
+    // Multiple selection across pages: the count and the IDs cover both pages, not the visible one.
+    await row(1).check();
+    await goToPage(2);
+    await expect(row(5)).toBeVisible();
+    await expect(group).toContainText("2 seleccionados");
+    await row(5).check();
+    await expect(group).toContainText("3 seleccionados");
+    await trigger.click();
+    const singleOnly = item("Abrir detalle · Sólo un elemento");
+    await expect(singleOnly).toHaveAttribute("aria-disabled", "true");
+    await singleOnly.click({ force: true });
+    await expect(menu).toBeVisible();
+    await item("Exportar").click();
+    await expect(page.getByRole("menu")).toHaveCount(0);
+    await expect(trigger).toBeFocused();
+    expect(await readLog(page), `${label}: every selected ID, in selection order, exactly once`).toEqual([
+      { action: "abrir", ids: [2] },
+      { action: "exportar", ids: [2, 1, 5] },
+    ]);
+    await expect(group, `${label}: running an action does not clear the selection`).toContainText("3 seleccionados");
+
+    // Partial result: the host owns it. It keeps the failed ID selected and reports; the menu stays for a retry.
+    await trigger.click();
+    await item("Reintentar").click();
+    await expect(group).toContainText("1 seleccionado");
+    await expect(harness.locator('[data-c09-status="true"]')).toHaveText("2 completados, 1 con error");
+    await expect(trigger).toBeFocused();
+    await goToPage(1);
+    await expect(row(2)).toBeChecked();
+    await expect(row(1)).not.toBeChecked();
+
+    // In flight: every action is disabled with its reason, the trigger keeps focus, nothing runs twice.
+    await row(3).check();
+    await trigger.click();
+    await item("Procesar").click();
+    await expect(trigger).toBeFocused();
+    await expect(trigger).toBeEnabled();
+    await page.keyboard.press("Enter");
+    await expect(menu.getByRole("menuitem")).toHaveText(ACTIONS.map((name) => `${name} · Acción en curso`));
+    expect(await menu.getByRole("menuitem").evaluateAll((items) => items.map((entry) => entry.getAttribute("aria-disabled"))))
+      .toEqual(ACTIONS.map(() => "true"));
+    await page.keyboard.press("Enter");
+    await item("Procesar · Acción en curso").click({ force: true });
+    await page.keyboard.press("Escape");
+    expect(await readLog(page), `${label}: one run per activation, none while in flight`).toEqual([
+      { action: "abrir", ids: [2] },
+      { action: "exportar", ids: [2, 1, 5] },
+      { action: "reintentar", ids: [2, 1, 5] },
+      { action: "procesar", ids: [2, 3] },
+    ]);
+
+    // The host settles and clears: the toolbar swaps back and the bulk menu leaves with it.
+    await page.evaluate(() => (window as unknown as { __c09Settle: () => void }).__c09Settle());
+    await expect(group).toHaveCount(0);
+    await expect(trigger).toHaveCount(0);
+    await expect(defaultToolbar).toBeVisible();
+    await expect(harness.locator('[data-c09-status="true"]')).toHaveText("2 procesados");
+    await expect(row(2)).not.toBeChecked();
+    await expect(pageSelector).toBeFocused();
+
+    // A host that moved focus elsewhere keeps its chosen destination when it clears.
+    await row(1).check();
+    await trigger.click();
+    await item("Procesar").click();
+    const pageControl = harness.getByRole("button", { name: "Página 1", exact: true });
+    await pageControl.focus();
+    await page.evaluate(() => (window as unknown as { __c09Settle: () => void }).__c09Settle());
+    await expect(group).toHaveCount(0);
+    await expect(pageControl).toBeFocused();
+
+    // C07 clear with the menu in the group: whole owner cleared, focus on the page selector.
+    await row(1).check();
+    await goToPage(2);
+    await row(4).check();
+    await expect(group).toContainText("2 seleccionados");
+    await clear.focus();
+    await page.keyboard.press("Enter");
+    await expect(pageSelector).toBeFocused();
+    await expect(defaultToolbar).toBeVisible();
+    await expect(trigger).toHaveCount(0);
+    await goToPage(1);
+    await expect(row(1)).not.toBeChecked();
+
+    expect(page.url(), `${label}: no navigation`).toBe(url);
+    expect(await page.evaluate(() => window.history.length), `${label}: no history entry`).toBe(historyLength);
+    expect(requests, `${label}: the bulk menu issues no request`).toEqual([]);
+    await expectNoOuterScroll(page, label);
+  });
+
+  for (const [width, height] of [[1920, 1080], [1366, 768], [1280, 720], [834, 1194], [768, 1024], [390, 844], [320, 568]] as const) {
+    test(`the menu fits the frozen toolbar host and the viewport @ ${width}x${height}`, async ({ page }) => {
+      const label = `C09 geometry @ ${width}x${height}`;
+      const touch = width < 768;
+      await mountHarness(page, width, height);
+      const { group, trigger, pageSelector } = controls(page);
+      const host = page.locator(`${HARNESS} [data-c09-host="true"]`);
+      const idle = await page.evaluate(() => ({
+        scrollWidth: document.documentElement.scrollWidth,
+        scrollHeight: document.documentElement.scrollHeight,
+      }));
+      const idleHost = await host.boundingBox();
+      expect(idleHost!.height, `${label}: host height of the adopted hosts (table header row 36px, mobile strip 53px)`).toBe(touch ? 53 : 36);
+
+      await pageSelector.check();
+      await expect(group).toContainText("3 seleccionados");
+      const layout = await group.evaluate((node) => {
+        const hostBox = node.closest('[data-c09-host="true"]')!.getBoundingClientRect();
+        const count = node.querySelector<HTMLElement>('[data-selection-count="true"]')!;
+        const buttons = [...node.querySelectorAll<HTMLElement>("button")];
+        const boxes = [count, ...buttons].map((element) => element.getBoundingClientRect());
+        return {
+          hostHeight: hostBox.height,
+          hostWidth: hostBox.width,
+          inside: boxes.every((box) => box.left >= hostBox.left - 0.5 && box.right <= hostBox.right + 0.5 && box.top >= hostBox.top - 0.5 && box.bottom <= hostBox.bottom + 0.5),
+          overlap: boxes.some((box, index) => boxes.slice(index + 1).some((other) => box.left < other.right - 0.5 && other.left < box.right - 0.5)),
+          countTruncated: count.scrollWidth > count.clientWidth,
+          buttons: buttons.map((button) => [button.getAttribute("aria-label"), Math.round(button.getBoundingClientRect().width * 100) / 100, button.getBoundingClientRect().height]),
+        };
+      });
+      console.log(`[C09] ${label}: ${JSON.stringify(layout)}`);
+      expect([layout.hostHeight, layout.hostWidth], `${label}: the swap with the bulk menu keeps the host box`).toEqual([idleHost!.height, idleHost!.width]);
+      expect(layout.inside, `${label}: count, clear and actions stay inside the host`).toBe(true);
+      expect(layout.overlap, `${label}: no control overlaps another`).toBe(false);
+      expect(layout.countTruncated, `${label}: the count is not truncated`).toBe(false);
+      const triggerBox = (await trigger.boundingBox())!;
+      if (touch) expect([triggerBox.width, triggerBox.height], `${label}: 44px touch target`).toEqual([44, 44]);
+      else expect(triggerBox.height, `${label}: 32px toolbar action`).toBe(32);
+
+      // Keyboard and pointer both open it; the surface is the C08 one, clamped to the viewport.
+      await trigger.focus();
+      await page.keyboard.press("ArrowDown");
+      await expect(page.locator(ROOT_MENU)).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(trigger).toBeFocused();
+      await trigger.click();
+      const surface = await page.locator(ROOT_MENU).evaluate((menu) => {
+        const rect = menu.getBoundingClientRect();
+        const viewport = { width: document.documentElement.clientWidth, height: document.documentElement.clientHeight };
+        const items = [...menu.querySelectorAll<HTMLElement>(':scope > [role="menuitem"]')];
+        return {
+          inside: rect.left >= 8 - 0.5 && rect.top >= 8 - 0.5 && rect.right <= viewport.width - 8 + 0.5 && rect.bottom <= viewport.height - 8 + 0.5,
+          width: rect.width,
+          position: getComputedStyle(menu).position,
+          scrollable: menu.scrollHeight > menu.clientHeight || menu.scrollWidth > menu.clientWidth,
+          itemHeights: [...new Set(items.map((entry) => Math.round(entry.getBoundingClientRect().height * 100) / 100))],
+          reasonsTruncated: items.some((entry) => {
+            const text = entry.querySelector<HTMLElement>("span")!;
+            return text.scrollWidth > text.clientWidth;
+          }),
+        };
+      });
+      console.log(`[C09] ${label} · menu: ${JSON.stringify(surface)}`);
+      expect(surface.inside, `${label}: menu inside the viewport with an 8px margin`).toBe(true);
+      expect(surface.position, `${label}: menu is fixed, outside the layout`).toBe("fixed");
+      expect(surface.itemHeights, `${label}: item height (audit §46)`).toEqual([touch ? 48 : 32]);
+      expect(surface.width, `${label}: menu min width`).toBeGreaterThanOrEqual(200);
+      expect(surface.width, `${label}: menu never wider than the viewport`).toBeLessThanOrEqual(width - 16);
+      expect(surface.scrollable, `${label}: no inner scroll`).toBe(false);
+      expect(surface.reasonsTruncated, `${label}: disabled reasons are fully visible`).toBe(false);
+      expect(await page.evaluate(() => ({
+        scrollWidth: document.documentElement.scrollWidth,
+        scrollHeight: document.documentElement.scrollHeight,
+      })), `${label}: the open menu does not grow the document`).toEqual(idle);
+      await expectNoOuterScroll(page, label);
+      expect(await readLog(page), `${label}: opening never runs an action`).toEqual([]);
+    });
+  }
+});

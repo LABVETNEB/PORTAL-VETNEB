@@ -489,8 +489,8 @@ test("C02 · consumers keep their adapters and capacity owners; C03+ and C05 geo
 
   for (const path of sourceFiles("frontend/src")) {
     const source = read(path);
-    // aria-sort is fenced to its C04 adopter in the C04 block below.
-    for (const later of ["CollectionEmptyState", "BulkActionMenu"]) {
+    // aria-sort is fenced to its C04 adopter in the C04 block below, BulkActionMenu to its owner in the C09 block.
+    for (const later of ["CollectionEmptyState"]) {
       assert.equal(source.includes(later), false, `${path}: ${later} is outside C02`);
     }
   }
@@ -599,8 +599,8 @@ test("C03 · consumers keep the legacy adapters; C01/C02 owners, capacity and C0
 
   for (const path of sourceFiles("frontend/src")) {
     const source = read(path);
-    // aria-sort is fenced to its C04 adopter in the C04 block below.
-    for (const later of ["CollectionEmptyState", "BulkActionMenu"]) {
+    // aria-sort is fenced to its C04 adopter in the C04 block below, BulkActionMenu to its owner in the C09 block.
+    for (const later of ["CollectionEmptyState"]) {
       assert.equal(source.includes(later), false, `${path}: ${later} is outside C03`);
     }
   }
@@ -713,8 +713,9 @@ test("C06 · Auditoría adopts selection on its table by event ID without touchi
     assert.notDeepEqual(c06AdopterViolations(table.replace(anchor, () => replacement)), [], `mutation must be rejected: ${replacement}`);
   }
 
+  // The C09 bulk menu imports the ID type from the owner module and never calls the hook: pinned in the C09 block.
   const consumers = sourceFiles("frontend/src").filter(
-    (path) => path !== C06_OWNER && path !== C01_SURFACES_BARREL && read(path).includes("useCollectionSelection"),
+    (path) => path !== C06_OWNER && path !== C01_SURFACES_BARREL && path !== C09_OWNER && read(path).includes("useCollectionSelection"),
   );
   assert.deepEqual(consumers, [C01_AUDIT_CARD], "C06 is not the C17+ migration");
   const selectionProps = sourceFiles("frontend/src").filter((path) => read(path).includes("CollectionSelection<"));
@@ -757,15 +758,9 @@ test("C06 · Auditoría adopts selection on its table by event ID without touchi
   assert.equal(read("frontend/src/app/dashboard/admin/AdminMobileOpsPager.tsx").includes("selection"), false, "the shared pager never hosts selection");
 });
 
-test("C06 · C05 and C08+ stay unstarted around the selection owner; C04 is fenced to its adopter", () => {
-  for (const path of sourceFiles("frontend/src")) {
-    const source = read(path);
-    // aria-sort is fenced to its C04 adopter in the C04 block below; C08 landed the
-    // menu primitives, fenced to their owner in the C08 block below.
-    for (const later of ["BulkActionMenu"]) {
-      assert.equal(source.includes(later), false, `${path}: ${later} is outside C06/C07`);
-    }
-  }
+test("C06 · C05 stays unstarted around the selection owner; C04, C08 and C09 are fenced in their own blocks", () => {
+  // aria-sort is fenced to its C04 adopter, the menu primitives to their C08 owner and
+  // BulkActionMenu to its C09 owner, each in its block below.
   const css = readDashboardCssSource();
   for (const frozen of [
     "--dash-row-pitch-compact: 36px;",
@@ -848,7 +843,7 @@ test("C07 · the toolbar reads selectedCount and clearSelection only: no state, 
   const imports = [...code.matchAll(/^import (?:type )?.* from "([^"]+)";$/gm)].map((match) => match[1]);
   assert.deepEqual(imports, ["react", "lucide-react", "@/components/ui/button"]);
   for (const forbidden of [
-    "useState", "useEffect", "useLayoutEffect", "useRef", "useReducer", "useMemo", "useCallback", "useCollectionSelection",
+    "useState", "useEffect", "useReducer", "useMemo", "useCallback", "useCollectionSelection",
     "CollectionSelection", "selectedIds", "fetch(", "@/lib/api", "@/app/", "next/navigation", "Pager", "limit", "offset",
     "aria-sort", "onSort", "BulkActionMenu", "OverflowMenu", "ContextMenu", "ActionMenu", "SubMenu", "aria-haspopup",
     'role="menu', 'role="toolbar"', "tabIndex", "onKeyDown", "style=", "setTimeout", "h-12",
@@ -864,6 +859,13 @@ test("C07 · the toolbar reads selectedCount and clearSelection only: no state, 
   assert.ok(code.includes("-my-0.5 h-11 min-h-11 min-w-11"), "44px touch target below md without growing the host");
   assert.ok(code.includes("if (toolbar?.contains(target)) continue;") && code.includes('if (target.matches(":focus")) break;'),
     "focus falls back to a control that really takes it, never to the toolbar's own button");
+  assert.ok(code.includes("onFocusCapture=") && code.includes("onBlurCapture=") &&
+    code.includes("document.activeElement === document.body") &&
+    code.includes("focusHandoff.current = null") &&
+    code.includes("focusCollectionControl(collection, null)"),
+  "a host-driven empty selection restores focus only when the removed toolbar held it");
+  assert.deepEqual([...code.matchAll(/\b(useLayoutEffect|useRef)\b/g)].map((match) => match[1]),
+    ["useLayoutEffect", "useRef", "useRef", "useLayoutEffect"], "only the focus handoff may use hooks");
   assert.ok(code.includes('aria-label="Limpiar selección"') && code.includes('type="button"'));
   assert.equal(/data-selection-toolbar/.test(readDashboardCssSource()), false, "C07 adds no CSS or geometry token");
 });
@@ -1122,11 +1124,10 @@ test("C08 · ActionMenu.tsx is the single menu owner and publishes the four prim
   // frontend-visual-consistency exempts this one file from its onContextMenu ban; nothing else may take the browser menu.
   assert.deepEqual(files.filter((path) => /oncontextmenu/i.test(read(path))), [C08_OWNER], "one context menu owner");
 
-  // The four names live in the owner and its barrel only: C08 adopts no module (C17+), and C09 is not started.
+  // The four names live in the owner, its barrel and the C09 bulk menu that composes them: no module adopts a menu before C17+.
   for (const path of files) {
     const source = read(path);
-    assert.equal(source.includes("BulkActionMenu"), false, `${path}: BulkActionMenu belongs to C09`);
-    if (path === C08_OWNER || path === C01_SURFACES_BARREL) continue;
+    if (path === C08_OWNER || path === C01_SURFACES_BARREL || path === C09_OWNER) continue;
     for (const name of C08_PRIMITIVES) {
       assert.equal(new RegExp(`\\b${name}\\b`).test(source), false, `${path}: ${name} is not adopted before C17+`);
     }
@@ -1200,5 +1201,119 @@ test("C08 · mutations of the menu owner are rejected", () => {
   for (const anchor of ["if (disabled) return;", 'aria-disabled={disabled ? "true" : undefined}', " || keepsNativeMenu(event.target)"]) {
     assert.equal(source.split(anchor).length, 3, `item and submenu both keep: ${anchor}`);
     assert.notDeepEqual(c08OwnerViolations(source.replace(anchor, () => "")), [], `mutation must be rejected: without ${anchor}`);
+  }
+});
+
+const C09_OWNER = "frontend/src/features/dashboard/presentation/surfaces/BulkActionMenu.tsx";
+const C09_BARREL_EXPORT = 'export { BulkActionMenu, type BulkAction, type BulkActionMenuProps } from "./BulkActionMenu";';
+const C09_TOOLBAR_SLOT = '<span className="hidden sm:inline">Limpiar</span>\n          </Button>\n          {actions}\n        </div>';
+
+/** Behaviour the bulk menu must keep; each entry is removed by a mutation below. */
+function c09OwnerViolations(source: string): string[] {
+  const code = stripComments(source);
+  const violations: string[] = [];
+  const count = (needle: string) => code.split(needle).length - 1;
+  for (const [needle, expected, claim] of [
+    ["if (selectedIds.length === 0 || actions.length === 0) return null;", 1, "no menu without a selection or without actions"],
+    ["<ActionMenu\n", 1, "one C08 menu, never a second surface"],
+    ["<ActionMenuItem\n", 1, "one C08 item per action"],
+    ["unavailableReason(action, selectedIds.length, pending)", 1, "availability reads the whole selection, on and off the page"],
+    ["disabled={reason !== null}", 1, "an unavailable action is a disabled, announced item"],
+    ["if (reason === null) action.onSelect([...selectedIds]);", 1, "an unavailable action never runs; an available one gets a copy of every selected ID"],
+    ["onSelect(", 1, "the host callback has one call site"],
+    ['if (pending) return "Acción en curso";', 1, "nothing runs while the host reports a bulk action in flight"],
+    ['if (action.destructive && !action.confirmsBeforeRunning) return "Requiere confirmación";', 1, "a destructive action without a host confirmation stays disabled"],
+    ["confirmsBeforeRunning: boolean;", 1, "a destructive action has to declare its confirmation"],
+    ['if (action.requires === "single" && selectedCount !== 1) return "Sólo un elemento";', 1, "single-item actions are disabled on a multiple selection"],
+    ["return action.disabledReason || null;", 1, "the host reason disables the action"],
+    ['{reason === null ? null : <span data-bulk-action-reason="true"> · {reason}</span>}', 1, "the reason is visible and part of the item name"],
+    ["label={label}", 1, "the trigger keeps its name when it is icon-only"],
+    ['<span className="hidden sm:inline">{label}</span>', 1, "icon-only trigger below sm, like the clear control"],
+    ['triggerClassName="-my-0.5 shrink-0 px-2.5 md:my-0"', 1, "the trigger never grows the host band"],
+  ] as const) {
+    if (count(needle) !== expected) violations.push(`${claim}: ${needle} ×${count(needle)}, expected ×${expected}`);
+  }
+  return violations;
+}
+
+test("C09 · BulkActionMenu.tsx is the single bulk menu owner, on the C08 menu, published through surfaces", () => {
+  const owner = read(C09_OWNER);
+  assert.ok(owner.startsWith('"use client";\n'), "it composes client menus: a client boundary of its own");
+  for (const declared of ["export function BulkActionMenu<", "export type BulkAction<", "export type BulkActionMenuProps<"]) {
+    assert.ok(owner.includes(declared) && owner.indexOf(declared) === owner.lastIndexOf(declared), `declared once: ${declared}`);
+  }
+  const files = sourceFiles("frontend/src");
+  assert.deepEqual(files.filter((path) => /function BulkActionMenu\b|\bBulkActionMenu\s*=/.test(read(path))), [C09_OWNER], "one bulk menu, no per-module duplicate");
+  assert.deepEqual(
+    files.filter((path) => read(path).includes("BulkAction")).sort(),
+    [C09_OWNER, C01_SURFACES_BARREL].sort(),
+    "C09 adopts no module: Auditoría is read-only and the real bulk actions arrive with C17+",
+  );
+  assert.ok(read(C01_SURFACES_BARREL).includes(C09_BARREL_EXPORT), "published through presentation/surfaces");
+  assert.ok(read(C01_SURFACES_BARREL).includes(C08_BARREL_EXPORT), "the C08 export is untouched");
+});
+
+test("C09 · the bulk menu is presentation only: no selection owner, state, data, surface or keyboard of its own", () => {
+  const source = read(C09_OWNER);
+  const code = stripComments(source);
+  const imports = [...code.matchAll(/^import (?:type )?(?:[\s\S]*?) from "([^"]+)";$/gm)].map((match) => match[1]);
+  assert.deepEqual(imports, ["react", "lucide-react", "./ActionMenu", "./useCollectionSelection"]);
+  assert.ok(code.includes('import { ActionMenu, ActionMenuItem } from "./ActionMenu";'), "the C08 primitives, not a copy");
+  assert.ok(code.includes('import type { CollectionSelectionId } from "./useCollectionSelection";'), "the C06 ID type only, never the hook");
+  for (const forbidden of [
+    "useState", "useEffect", "useLayoutEffect", "useRef", "useReducer", "useMemo", "useCallback", "useCollectionSelection(",
+    "clearSelection", "deselect", "toggle", "selectVisiblePage", "fetch(", "@/lib/api", "@/app/", "next/", "router",
+    "Pager", "limit", "offset", "aria-sort", "SelectionToolbar", "OverflowMenu", "ContextMenu", "SubMenu", "createPortal",
+    "role=", "tabIndex", "aria-haspopup", "aria-expanded", "onKeyDown", "onClick", "onContextMenu", "addEventListener",
+    "document", "window", "confirm(", "Promise", "async ", "await ", "setTimeout", "style=", "overflow-",
+  ]) {
+    assert.equal(code.includes(forbidden), false, `BulkActionMenu must not own ${forbidden}`);
+  }
+  assert.deepEqual(c09OwnerViolations(source), []);
+  assert.equal(/data-bulk-action/.test(readDashboardCssSource()), false, "C09 adds no CSS or geometry token");
+  for (const neighbour of [C06_OWNER, C08_OWNER]) {
+    assert.equal(stripComments(read(neighbour)).includes("Bulk"), false, `${neighbour} does not know the bulk menu`);
+  }
+});
+
+test("C09 · SelectionToolbar hosts the bulk menu through one slot of its existing group; Auditoría is not an adopter", () => {
+  const toolbar = stripComments(read(C07_OWNER));
+  assert.equal(toolbar.indexOf("{actions}"), toolbar.lastIndexOf("{actions}"), "one slot");
+  assert.ok(toolbar.includes(C09_TOOLBAR_SLOT), "the slot closes the selection group, after the clear control: no new band or wrapper");
+  assert.ok(toolbar.includes("  actions?: ReactNode;\n"), "an optional node: the toolbar never learns what a bulk action is");
+  assert.ok(
+    toolbar.includes("export function SelectionToolbar({ selectedCount, onClearSelection, actions, children }: SelectionToolbarProps) {"),
+  );
+  assert.ok(toolbar.indexOf("{actions}") > toolbar.indexOf("{selectedCount === 0 ? ("), "never rendered beside the DefaultToolbar");
+  assert.ok(toolbar.indexOf("{actions}") < toolbar.indexOf('aria-live="polite"'), "inside the swapped branch");
+  for (const adopter of [C01_AUDIT_CARD, C01_AUDIT_MOBILE]) {
+    assert.equal(/<SelectionToolbar\b[^>]*\bactions=/.test(read(adopter)), false, `${adopter}: read-only collection, no bulk action`);
+  }
+});
+
+test("C09 · mutations of the bulk menu are rejected", () => {
+  const source = read(C09_OWNER);
+  for (const [anchor, replacement] of [
+    ["if (selectedIds.length === 0 || actions.length === 0) return null;", ""],
+    ["selectedIds.length === 0 || ", ""],
+    ["unavailableReason(action, selectedIds.length, pending)", "unavailableReason(action, 1, pending)"],
+    ["unavailableReason(action, selectedIds.length, pending)", "unavailableReason(action, selectedIds.length, false)"],
+    ["disabled={reason !== null}", "disabled={false}"],
+    ["if (reason === null) action.onSelect([...selectedIds]);", "action.onSelect([...selectedIds]);"],
+    ["action.onSelect([...selectedIds]);", "action.onSelect(selectedIds);"],
+    ["action.onSelect([...selectedIds]);", "action.onSelect([...selectedIds]);\n              action.onSelect([...selectedIds]);"],
+    ['  if (pending) return "Acción en curso";\n', ""],
+    ["action.destructive && !action.confirmsBeforeRunning", "action.destructive && false"],
+    ["confirmsBeforeRunning: boolean;", "confirmsBeforeRunning?: boolean;"],
+    ['action.requires === "single" && selectedCount !== 1', 'action.requires === "single" && selectedCount === 0'],
+    ["return action.disabledReason || null;", "return null;"],
+    ['{reason === null ? null : <span data-bulk-action-reason="true"> · {reason}</span>}', ""],
+    ["      label={label}\n", ""],
+    ['<span className="hidden sm:inline">{label}</span>', "<span>{label}</span>"],
+    ['triggerClassName="-my-0.5 shrink-0 px-2.5 md:my-0"', 'triggerClassName="h-12"'],
+  ] as const) {
+    const mutated = source.replace(anchor, () => replacement);
+    assert.notEqual(mutated, source, `the mutation must change the owner: ${anchor}`);
+    assert.notDeepEqual(c09OwnerViolations(mutated), [], `mutation must be rejected: ${replacement || `without ${anchor}`}`);
   }
 });
