@@ -760,8 +760,9 @@ test("C06 · Auditoría adopts selection on its table by event ID without touchi
 test("C06 · C05 and C08+ stay unstarted around the selection owner; C04 is fenced to its adopter", () => {
   for (const path of sourceFiles("frontend/src")) {
     const source = read(path);
-    // aria-sort is fenced to its C04 adopter in the C04 block below.
-    for (const later of ["BulkActionMenu", "OverflowMenu", "ContextMenu", "SubMenu"]) {
+    // aria-sort is fenced to its C04 adopter in the C04 block below; C08 landed the
+    // menu primitives, fenced to their owner in the C08 block below.
+    for (const later of ["BulkActionMenu"]) {
       assert.equal(source.includes(later), false, `${path}: ${later} is outside C06/C07`);
     }
   }
@@ -1032,5 +1033,172 @@ test("PRE-C05 · Sesiones mobile: summary retired, Tipo and Estado left of Actua
     'setStatus(event.target.value as AdminSessionStatus | "all");',
   ]) {
     assert.equal(header.split(handler).length, 2, `${handler} moved with its select`);
+  }
+});
+
+const C08_OWNER = "frontend/src/features/dashboard/presentation/surfaces/ActionMenu.tsx";
+const C08_PRIMITIVES = ["OverflowMenu", "ContextMenu", "ActionMenu", "SubMenu"] as const;
+const C08_BARREL_EXPORT = [
+  "export {",
+  "  ActionMenu,",
+  "  ActionMenuItem,",
+  "  ContextMenu,",
+  "  OverflowMenu,",
+  "  SubMenu,",
+  "  type ActionMenuItemProps,",
+  "  type ActionMenuProps,",
+  "  type ContextMenuProps,",
+  "  type ContextMenuRegionProps,",
+  "  type OverflowMenuProps,",
+  "  type SubMenuProps,",
+  '} from "./ActionMenu";',
+].join("\n");
+
+/** Behaviour the menu owner must keep; each entry is removed by a mutation below. */
+function c08OwnerViolations(source: string): string[] {
+  const code = stripComments(source);
+  const violations: string[] = [];
+  const count = (needle: string) => code.split(needle).length - 1;
+  for (const [needle, expected, claim] of [
+    ['role="menu"', 1, "one menu surface implementation"],
+    ['role="menuitem"', 2, "one action item and one submenu item"],
+    ['aria-orientation="vertical"', 1, "vertical menu"],
+    ['aria-haspopup="menu"', 2, "the trigger and the submenu item announce their popup"],
+    ["aria-expanded={open}", 2, "the trigger and the submenu item expose their state"],
+    ['aria-disabled={disabled ? "true" : undefined}', 2, "disabled items stay focusable and announced"],
+    ["if (disabled) return;", 2, "a disabled item never runs its action or opens its submenu"],
+    ["onFocus={() => level.setOpenChild((current) => (current === id ? current : null))}", 1, "focusing a submenu item closes its siblings, never itself"],
+    ["onFocus={() => level.setOpenChild(null)}", 1, "focusing an action item closes any open submenu"],
+    ["root.closeAll(true);\n    onSelect();", 1, "selecting closes every level, restores focus, then acts once"],
+    ['document.addEventListener("pointerdown", dismissOutside, true);', 1, "one outside-click listener per open root"],
+    ['document.removeEventListener("pointerdown", dismissOutside, true);', 1, "the outside-click listener is released"],
+    ['case "Escape":', 1, "Escape closes the current level"],
+    ['case "ArrowDown":', 2, "ArrowDown moves in the menu and opens it from the trigger"],
+    ['case "ArrowUp":', 2, "ArrowUp moves in the menu and opens it from the trigger"],
+    ['case "Home":', 1, "Home"],
+    ['case "End":', 1, "End"],
+    ['case "Tab":', 1, "Tab closes the menu without trapping focus"],
+    ['event.key === "ArrowRight"', 1, "ArrowRight opens a submenu"],
+    ['case "ArrowLeft":', 1, "ArrowLeft closes a submenu"],
+    ['event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")', 1, "the context menu opens from the keyboard"],
+    ["restoreTarget.current?.focus({ preventScroll: true });", 1, "focus returns to where the menu was opened from"],
+    ["h-12 md:h-8", 1, "item: 48px touch below md, 32px from md (audit §46)"],
+    ["min-w-[200px] max-w-[calc(100vw-1rem)]", 1, "surface: min 200px, never wider than the viewport"],
+    ["fixed left-0 top-0 z-50 transition-none ", 1, "surface: fixed, with no transition that could delay placement"],
+    ["visibility", 0, "the surface is never hidden: a hidden ancestor makes its items unfocusable while they transition"],
+    ["invisible", 0, "the surface is never hidden"],
+    ["shadow-[var(--clinical-shadow-md)]", 1, "surface: elevation 2, the recipe --dash-elevation-menu aliases"],
+    ["if (!enabled || keepsNativeMenu(event.target)) return;", 2, "pointer and keyboard both yield to the browser menu"],
+    ["return Boolean(element && (selectionCovers(element) || element.closest(NATIVE_MENU_TARGETS)));", 1, "selected text and editable fields keep the browser menu"],
+    ["function selectionCovers(element: Element) {\n  const selection = window.getSelection();\n  if (!selection?.toString()) return false;\n  for (let index = 0; index < selection.rangeCount; index += 1) {\n    if (selection.getRangeAt(index).intersectsNode(element)) return true;\n  }\n  return false;\n}", 1, "only a selection that reaches the target keeps the browser menu, never one elsewhere in the document"],
+    [`const NATIVE_MENU_TARGETS = 'input, textarea, select, [contenteditable="true"]';`, 1, "editable targets"],
+    ["Math.max(VIEWPORT_MARGIN, Math.min(", 2, "the surface is clamped inside the viewport on both axes"],
+    // The onContextMenu exemption in frontend-visual-consistency covers this whole file, so the
+    // exempted surface is pinned here: three sites, eight cancellations, no native listener.
+    ["onContextMenu", 3, "the region type, the region handler and the surface: no other context menu site"],
+    ["onContextMenu={(event) => event.stopPropagation()}", 1, "the surface keeps the browser menu on itself"],
+    ["onContextMenu(event) {\n      if (!enabled || keepsNativeMenu(event.target)) return;\n      event.preventDefault();", 1, "the region yields before it cancels"],
+    ["function keepsNativeMenu(target: EventTarget | null) {\n  const element = target instanceof Element ? target : null;\n  return Boolean(", 1, "the yield rule has no earlier exit"],
+    ["preventDefault(", 8, "no cancellation beyond the menu keys and the two region openers"],
+    ["contextmenu", 0, "no native contextmenu listener or property"],
+    ["addEventListener(", 3, "pointerdown, resize and scroll only"],
+  ] as const) {
+    if (count(needle) !== expected) violations.push(`${claim}: ${needle} ×${count(needle)}, expected ×${expected}`);
+  }
+  return violations;
+}
+
+test("C08 · ActionMenu.tsx is the single menu owner and publishes the four primitives through surfaces", () => {
+  const owner = read(C08_OWNER);
+  assert.ok(owner.startsWith('"use client";\n'), "menus handle input: a client boundary of their own");
+  for (const name of [...C08_PRIMITIVES, "ActionMenuItem"]) {
+    assert.equal((owner.match(new RegExp(`export function ${name}\\(`, "g")) ?? []).length, 1, name);
+    assert.ok(owner.includes(`export type ${name}Props = `), `${name}Props`);
+  }
+  const files = sourceFiles("frontend/src");
+  const owners = files.filter((path) => /function (?:OverflowMenu|ContextMenu|ActionMenu|SubMenu|ActionMenuItem)\b|role="menu(?:item)?"/.test(read(path)));
+  assert.deepEqual(owners, [C08_OWNER], "one menu implementation, no per-module duplicate");
+  assert.ok(read(C01_SURFACES_BARREL).includes(C08_BARREL_EXPORT), "published through presentation/surfaces");
+  // frontend-visual-consistency exempts this one file from its onContextMenu ban; nothing else may take the browser menu.
+  assert.deepEqual(files.filter((path) => /oncontextmenu/i.test(read(path))), [C08_OWNER], "one context menu owner");
+
+  // The four names live in the owner and its barrel only: C08 adopts no module (C17+), and C09 is not started.
+  for (const path of files) {
+    const source = read(path);
+    assert.equal(source.includes("BulkActionMenu"), false, `${path}: BulkActionMenu belongs to C09`);
+    if (path === C08_OWNER || path === C01_SURFACES_BARREL) continue;
+    for (const name of C08_PRIMITIVES) {
+      assert.equal(new RegExp(`\\b${name}\\b`).test(source), false, `${path}: ${name} is not adopted before C17+`);
+    }
+  }
+});
+
+test("C08 · the menu owner is presentation only: no data, navigation, selection, paging, capacity or CSS", () => {
+  const source = read(C08_OWNER);
+  const code = stripComments(source);
+  const imports = [...code.matchAll(/^import (?:type )?(?:[\s\S]*?) from "([^"]+)";$/gm)].map((match) => match[1]);
+  assert.deepEqual(imports, ["react", "react-dom", "lucide-react", "@/components/ui/button", "@/lib/utils"]);
+  for (const forbidden of [
+    "fetch(", "@/lib/api", "@/app/", "next/", "<a ", "router", "history.", "location.", "useCollectionSelection",
+    "CollectionSelection", "selectedIds", "selectedCount", "SelectionToolbar", "Pager", "limit", "offset", "aria-sort",
+    "onSort", "ResizeObserver", "MutationObserver", "useDashboardCanvasCapacity", "computeCapacity", "setTimeout",
+    "setInterval", "localStorage", "sessionStorage", "overflow-auto", "overflow-y-auto", "overflow-scroll", "style={",
+    "dangerouslySetInnerHTML", 'role="dialog"', "aria-modal",
+  ]) {
+    assert.equal(code.includes(forbidden), false, `the menu owner must not own ${forbidden}`);
+  }
+  assert.deepEqual(c08OwnerViolations(source), []);
+
+  const css = readDashboardCssSource();
+  assert.equal(/data-action-menu|data-context-menu|role="?menu/.test(css), false, "C08 adds no CSS or geometry token");
+  for (const frozen of [
+    "--dash-row-pitch-compact: 36px;",
+    "--dash-row-pitch-regular: 44px;",
+    "--dash-table-head-h: 32px;",
+    "--dash-pagination-h: clamp(2.25rem, 4vh, 2.75rem);",
+    "--dash-elevation-menu: var(--clinical-shadow-md);",
+  ]) {
+    assert.ok(css.includes(frozen), `${frozen} stays frozen`);
+  }
+  for (const neighbour of [C06_OWNER, C07_OWNER, C02_OWNER, C03_OWNER, C01_TABLE]) {
+    assert.equal(/\b(?:OverflowMenu|ContextMenu|ActionMenu|SubMenu)\b/.test(stripComments(read(neighbour))), false, `${neighbour} owns no menu`);
+  }
+});
+
+test("C08 · mutations of the menu owner are rejected", () => {
+  const source = read(C08_OWNER);
+  for (const [anchor, replacement] of [
+    ["h-12 md:h-8", "h-10"],
+    ["min-w-[200px] max-w-[calc(100vw-1rem)]", "min-w-[200px]"],
+    ["z-50 transition-none ", "z-50 "],
+    ["(current) => (current === id ? current : null)", "null"],
+    ["root.closeAll(true);\n    onSelect();", "onSelect();\n    onSelect();"],
+    ['aria-orientation="vertical"', ""],
+    ['      case "Escape":', '      case "F24":'],
+    ['      case "Tab":', '      case "F23":'],
+    ['      case "ArrowLeft":', '      case "F22":'],
+    ['event.key === "ArrowRight"', 'event.key === "F21"'],
+    ['event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")', 'event.key === "ContextMenu"'],
+    ['document.removeEventListener("pointerdown", dismissOutside, true);', ""],
+    ["restoreTarget.current?.focus({ preventScroll: true });", ""],
+    ["shadow-[var(--clinical-shadow-md)]", "shadow-lg"],
+    ["selectionCovers(element) || ", ""],
+    ["if (selection.getRangeAt(index).intersectsNode(element)) return true;", "return true;"],
+    ["  if (!selection?.toString()) return false;\n", ""],
+    ['input, textarea, select, [contenteditable="true"]', "input"],
+    ['data-action-menu-trigger="true"', 'data-action-menu-trigger="true" onContextMenu={(event) => event.preventDefault()}'],
+    ["onContextMenu={(event) => event.stopPropagation()}", "onContextMenu={(event) => event.preventDefault()}"],
+    ["  return Boolean(element", "  if (element) return false;\n  return Boolean(element"],
+    ["onContextMenu(event) {\n", "onContextMenu(event) {\n      event.preventDefault();\n"],
+    ["const VIEWPORT_MARGIN = 8;", 'document.addEventListener("contextmenu", (event) => event.preventDefault());'],
+    ["const TRIGGER_GAP = 4;", "document.oncontextmenu = () => false;"],
+    ["const SURFACE_PADDING = 8;", 'document.addEventListener("copy", (event) => event.stopPropagation());'],
+  ] as const) {
+    assert.equal(source.split(anchor).length, 2, `unique owner anchor: ${anchor}`);
+    assert.notDeepEqual(c08OwnerViolations(source.replace(anchor, () => replacement)), [], `mutation must be rejected: ${replacement || `without ${anchor}`}`);
+  }
+  for (const anchor of ["if (disabled) return;", 'aria-disabled={disabled ? "true" : undefined}', " || keepsNativeMenu(event.target)"]) {
+    assert.equal(source.split(anchor).length, 3, `item and submenu both keep: ${anchor}`);
+    assert.notDeepEqual(c08OwnerViolations(source.replace(anchor, () => "")), [], `mutation must be rejected: without ${anchor}`);
   }
 });

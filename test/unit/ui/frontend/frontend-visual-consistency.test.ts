@@ -27,6 +27,8 @@ const DASHBOARD_ADMIN_AUDIT_TABLE_PATH =
   "frontend/src/app/dashboard/admin/AdminAuditDenseTable.tsx";
 const BADGE_PATH = "frontend/src/components/ui/badge.tsx";
 
+const C08_CONTEXT_MENU_OWNER = "frontend/src/features/dashboard/presentation/surfaces/ActionMenu.tsx";
+
 function listFrontendSourceFiles(relativeDir = "frontend/src"): string[] {
   return listSourceFiles(resolve(process.cwd(), relativeDir), {
     extensions: [".ts", ".tsx", ".js", ".jsx"],
@@ -189,6 +191,10 @@ test("globals css scopes text selection prevention to chrome while preserving se
       "onmousedown",
       "ontouchstart",
     ]) {
+      // C08: the ContextMenu primitive is the one sanctioned onContextMenu owner. It yields to the
+      // browser menu over selected text and editable fields, so copy and paste stay reachable; its
+      // guard (dashboard-b11-workspace-header) pins that and keeps every other file out.
+      if (forbiddenHandler === "oncontextmenu" && filePath === C08_CONTEXT_MENU_OWNER) continue;
       assert.equal(
         frontendSource.includes(forbiddenHandler),
         false,

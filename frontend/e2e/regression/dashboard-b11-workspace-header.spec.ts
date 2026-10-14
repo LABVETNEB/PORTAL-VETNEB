@@ -1452,3 +1452,523 @@ test.describe("C07 · Auditoría contextual SelectionToolbar", () => {
     });
   }
 });
+
+let c08Harness: string;
+
+// C08 harness: the four published menu primitives inside the real B15 scaffold
+// and the app CSS, beside the C06 selection owner and the C07 toolbar. No
+// module adopts a menu before C17+, so this is where their runtime is observed.
+test.beforeAll(async () => {
+  const result = await build({
+    stdin: {
+      contents: `import React from "react";
+import { createRoot } from "react-dom/client";
+import { WorkspaceScaffold } from "./src/components/dashboard/ModuleSurface.tsx";
+import { ActionMenu, ActionMenuItem, ContextMenu, OverflowMenu, SelectionToolbar, SubMenu, useCollectionSelection } from "./src/features/dashboard/presentation/surfaces/index.ts";
+const main = document.querySelector("main.dashboard-main");
+const mount = document.createElement("div");
+mount.setAttribute("data-c08-harness", "true");
+mount.style.cssText = "position:absolute;inset:0;display:flex;min-height:0;min-width:0;background:white;z-index:2";
+main.style.position = "relative";
+main.append(mount);
+const log = (window.__c08 = []);
+const ROWS = [1, 2, 3];
+function Items({ scope }) {
+  return (<>
+    <ActionMenuItem onSelect={() => log.push(scope + ":editar")}>Editar</ActionMenuItem>
+    <ActionMenuItem disabled onSelect={() => log.push(scope + ":archivar")}>Archivar</ActionMenuItem>
+    <SubMenu label="Mover a">
+      <ActionMenuItem onSelect={() => log.push(scope + ":mover-a")}>Carpeta A</ActionMenuItem>
+      <ActionMenuItem onSelect={() => log.push(scope + ":mover-b")}>Carpeta B</ActionMenuItem>
+    </SubMenu>
+    <SubMenu disabled label="Compartir"><ActionMenuItem onSelect={() => log.push(scope + ":compartir")}>Enlace</ActionMenuItem></SubMenu>
+    <ActionMenuItem onSelect={() => log.push(scope + ":eliminar")}>Eliminar</ActionMenuItem>
+  </>);
+}
+function Harness() {
+  const selection = useCollectionSelection({ visibleIds: ROWS });
+  return (<>
+    <WorkspaceScaffold kind="surface" ariaLabel="Arnés C08"
+      toolbar={<div data-c08-toolbar="true" style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", minWidth: 0 }}>
+        <SelectionToolbar selectedCount={selection.selectedCount} onClearSelection={selection.clearSelection}><span data-c08-default-toolbar="true">Registros</span></SelectionToolbar>
+        <span style={{ flex: 1 }} />
+        <ActionMenu trigger="Acciones"><Items scope="toolbar" /></ActionMenu>
+      </div>}
+      collection={<ul data-c08-list="true" style={{ listStyle: "none", margin: 0, padding: 0 }}>
+        {ROWS.map((row) => (
+          <ContextMenu key={row} label={"Acciones del registro " + row} menu={<Items scope={"context-" + row} />}>
+            {(region) => (
+              <li {...region} data-c08-row={row} style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 48, padding: "0 12px" }}>
+                <input type="checkbox" aria-label={"Seleccionar registro " + row} checked={selection.isSelected(row)} onChange={() => selection.toggle(row)} />
+                <span data-c08-row-label={row} style={{ flex: 1, minWidth: 0 }}>Registro {row}</span>
+                <button type="button" data-c08-open={row}>Abrir {row}</button>
+                <OverflowMenu label={"Más acciones del registro " + row}><Items scope={"overflow-" + row} /></OverflowMenu>
+              </li>
+            )}
+          </ContextMenu>
+        ))}
+      </ul>}
+    />
+    <div data-c08-bottom="true" style={{ position: "absolute", right: 8, bottom: 8 }}>
+      <ActionMenu trigger="Abajo" align="end"><Items scope="bottom" /></ActionMenu>
+    </div>
+  </>);
+}
+createRoot(mount).render(<Harness />);`,
+      resolveDir: resolve(process.cwd()),
+      loader: "tsx",
+    },
+    bundle: true,
+    write: false,
+    platform: "browser",
+    format: "iife",
+    alias: { "@": resolve(process.cwd(), "src") },
+  });
+  c08Harness = result.outputFiles[0].text;
+});
+
+// C08 · OverflowMenu, ContextMenu, ActionMenu and SubMenu share one surface
+// owner: ARIA menu semantics, full keyboard operation, focus returned to the
+// opener, disabled items that never act, viewport-clamped placement and the
+// audit §46 geometry (item 32 px from md, 48 px touch below; surface min 200 px).
+test.describe("C08 · menu primitives in the WorkspaceScaffold", () => {
+  const auditSurface = DASHBOARD_GEOMETRY_SURFACES.find((surface) => surface.id === "admin-auditoria");
+  if (!auditSurface) throw new Error("C08: missing canonical admin-auditoria surface");
+  const HARNESS = '[data-c08-harness="true"]';
+  const ROOT_MENU = '[data-action-menu-surface="root"]';
+  const SUB_MENU = '[data-action-menu-surface="sub"]';
+
+  async function mountHarness(page: Page, width: number, height: number) {
+    await page.setViewportSize({ width, height });
+    await prepareSurface(page, auditSurface!);
+    await openSurface(page, auditSurface!);
+    await page.addScriptTag({ content: c08Harness });
+    await expect(page.locator(`${HARNESS} [data-c08-row]`)).toHaveCount(3);
+    await waitForLayoutSettled(page);
+  }
+
+  const readLog = (page: Page) => page.evaluate(() => [...((window as unknown as { __c08: string[] }).__c08)]);
+  const focusedName = (page: Page) =>
+    page.evaluate(() => {
+      const active = document.activeElement as HTMLElement | null;
+      return active && active !== document.body ? (active.getAttribute("aria-label") ?? active.textContent?.trim() ?? "") : null;
+    });
+
+  /** Geometry of an open menu surface, in CSS pixels against the layout viewport. */
+  async function readSurface(page: Page, selector: string) {
+    return page.locator(selector).evaluate((menu) => {
+      const rect = menu.getBoundingClientRect();
+      const style = getComputedStyle(menu);
+      const items = [...menu.querySelectorAll<HTMLElement>(':scope > [role="menuitem"]')];
+      const first = items[0];
+      const firstStyle = first ? getComputedStyle(first) : null;
+      const viewport = { width: document.documentElement.clientWidth, height: document.documentElement.clientHeight };
+      return {
+        left: rect.left,
+        top: rect.top,
+        right: rect.right,
+        bottom: rect.bottom,
+        width: rect.width,
+        inside: rect.left >= 8 - 0.5 && rect.top >= 8 - 0.5 && rect.right <= viewport.width - 8 + 0.5 && rect.bottom <= viewport.height - 8 + 0.5,
+        position: style.position,
+        radius: style.borderTopLeftRadius,
+        paddingBlock: [style.paddingTop, style.paddingBottom],
+        elevated: style.boxShadow !== "none",
+        scrollable: menu.scrollHeight > menu.clientHeight || menu.scrollWidth > menu.clientWidth,
+        itemHeights: [...new Set(items.map((item) => Math.round(item.getBoundingClientRect().height * 100) / 100))],
+        itemPaddingInline: firstStyle ? [firstStyle.paddingLeft, firstStyle.paddingRight] : null,
+        itemRadius: firstStyle?.borderTopLeftRadius ?? null,
+        itemsInside: items.every((item) => {
+          const box = item.getBoundingClientRect();
+          return box.left >= rect.left - 0.5 && box.right <= rect.right + 0.5;
+        }),
+        firstItemTop: first?.getBoundingClientRect().top ?? null,
+      };
+    });
+  }
+
+  test("ActionMenu: ARIA, keyboard, disabled items, single action and focus restoration @ 1366x768", async ({ page }) => {
+    const label = "C08 ActionMenu @ 1366x768";
+    await mountHarness(page, 1366, 768);
+    const harness = page.locator(HARNESS);
+    const trigger = harness.getByRole("button", { name: "Acciones", exact: true });
+    const menu = page.getByRole("menu", { name: "Acciones", exact: true });
+
+    await expect(trigger).toHaveAttribute("aria-haspopup", "menu");
+    await expect(trigger).toHaveAttribute("aria-expanded", "false");
+    await expect(page.getByRole("menu")).toHaveCount(0);
+
+    // Enter opens on the first item; the trigger names and controls the menu. prepareSurface
+    // emulates reduced motion, where the global 0.01ms transition makes a surface that is
+    // revealed after placement still compute as hidden when its first item takes focus.
+    await trigger.focus();
+    await page.keyboard.press("Enter");
+    await expect(menu).toBeVisible();
+    await expect(trigger).toHaveAttribute("aria-expanded", "true");
+    expect(await trigger.getAttribute("aria-controls"), `${label}: aria-controls`).toBe(await menu.getAttribute("id"));
+    await expect(menu).toHaveAttribute("aria-orientation", "vertical");
+    await expect(menu.getByRole("menuitem")).toHaveText(["Editar", "Archivar", "Mover a", "Compartir", "Eliminar"]);
+    await expect(menu.getByRole("menuitem", { name: "Editar" })).toBeFocused();
+    expect(await menu.getByRole("menuitem").evaluateAll((items) => items.map((item) => item.getAttribute("tabindex"))),
+      `${label}: items are out of the Tab order`).toEqual(["-1", "-1", "-1", "-1", "-1"]);
+
+    // A disabled item is announced and focusable, and never acts — by keyboard or by pointer.
+    const disabled = menu.getByRole("menuitem", { name: "Archivar" });
+    await expect(disabled).toHaveAttribute("aria-disabled", "true");
+    await page.keyboard.press("ArrowDown");
+    await expect(disabled).toBeFocused();
+    await page.keyboard.press("Enter");
+    await page.keyboard.press("Space");
+    await disabled.click({ force: true });
+    await expect(menu).toBeVisible();
+    expect(await readLog(page), `${label}: a disabled item never runs its action`).toEqual([]);
+
+    // Roving focus: End, Home, wrap-around and type-ahead.
+    await page.keyboard.press("End");
+    await expect(menu.getByRole("menuitem", { name: "Eliminar" })).toBeFocused();
+    await page.keyboard.press("ArrowDown");
+    await expect(menu.getByRole("menuitem", { name: "Editar" })).toBeFocused();
+    await page.keyboard.press("ArrowUp");
+    await expect(menu.getByRole("menuitem", { name: "Eliminar" })).toBeFocused();
+    await page.keyboard.press("Home");
+    await expect(menu.getByRole("menuitem", { name: "Editar" })).toBeFocused();
+    await page.keyboard.press("m");
+    await expect(menu.getByRole("menuitem", { name: "Mover a" })).toBeFocused();
+    expect(await menu.getByRole("menuitem", { name: "Mover a" }).evaluate((item) => item.matches(":focus-visible")), `${label}: visible focus`).toBe(true);
+
+    // Escape closes and returns focus to the trigger.
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("menu")).toHaveCount(0);
+    await expect(trigger).toBeFocused();
+    await expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(await trigger.getAttribute("aria-controls")).toBeNull();
+
+    // ArrowUp opens on the last item; Enter runs the action exactly once and restores focus.
+    await page.keyboard.press("ArrowUp");
+    await expect(menu.getByRole("menuitem", { name: "Eliminar" })).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("menu")).toHaveCount(0);
+    await expect(trigger).toBeFocused();
+    expect(await readLog(page), `${label}: one action per activation, no duplicate handler`).toEqual(["toolbar:eliminar"]);
+
+    // Space opens too; Tab closes without trapping focus and moves on from the trigger.
+    await page.keyboard.press("Space");
+    await expect(menu.getByRole("menuitem", { name: "Editar" })).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(page.getByRole("menu")).toHaveCount(0);
+    await expect(harness.getByRole("checkbox", { name: "Seleccionar registro 1" })).toBeFocused();
+
+    // Pointer: the trigger toggles; a click on an item acts once.
+    await trigger.click();
+    await expect(menu).toBeVisible();
+    await trigger.click();
+    await expect(page.getByRole("menu")).toHaveCount(0);
+    await trigger.click();
+    await menu.getByRole("menuitem", { name: "Editar" }).click();
+    await expect(page.getByRole("menu")).toHaveCount(0);
+    await expect(trigger).toBeFocused();
+    expect(await readLog(page)).toEqual(["toolbar:eliminar", "toolbar:editar"]);
+    await expectNoOuterScroll(page, label);
+  });
+
+  test("SubMenu: opens and closes per level by keyboard and hover, and acts from the nested level @ 1366x768", async ({ page }) => {
+    const label = "C08 SubMenu @ 1366x768";
+    await mountHarness(page, 1366, 768);
+    const harness = page.locator(HARNESS);
+    const trigger = harness.getByRole("button", { name: "Acciones", exact: true });
+    const root = page.locator(ROOT_MENU);
+    const sub = page.locator(SUB_MENU);
+    const parent = root.getByRole("menuitem", { name: "Mover a" });
+
+    await trigger.focus();
+    await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("m");
+    await expect(parent).toBeFocused();
+    await expect(parent).toHaveAttribute("aria-haspopup", "menu");
+    await expect(parent).toHaveAttribute("aria-expanded", "false");
+
+    // ArrowRight opens the nested level on its first item; the parent item names and controls it.
+    await page.keyboard.press("ArrowRight");
+    await expect(sub).toBeVisible();
+    await expect(sub).toHaveAttribute("role", "menu");
+    await expect(page.getByRole("menu", { name: "Mover a", exact: true })).toHaveCount(1);
+    await expect(parent).toHaveAttribute("aria-expanded", "true");
+    expect(await parent.getAttribute("aria-controls")).toBe(await sub.getAttribute("id"));
+    await expect(sub.getByRole("menuitem", { name: "Carpeta A" })).toBeFocused();
+    const [rootBox, subBox, parentBox] = await Promise.all([readSurface(page, ROOT_MENU), readSurface(page, SUB_MENU), parent.boundingBox()]);
+    // The toolbar trigger sits at the right edge, so the nested level flips to the left of its parent.
+    expect(Math.min(Math.abs(subBox.left - rootBox.right), Math.abs(subBox.right - rootBox.left)), `${label}: the submenu opens flush beside its parent`).toBeLessThanOrEqual(1);
+    expect(Math.abs(subBox.firstItemTop! - parentBox!.y), `${label}: first nested item level with its parent item`).toBeLessThanOrEqual(1);
+    expect(subBox.inside && rootBox.inside, `${label}: both levels inside the viewport`).toBe(true);
+
+    // Arrow keys stay in the nested level; ArrowLeft closes it only and returns to the parent item.
+    await page.keyboard.press("ArrowDown");
+    await expect(sub.getByRole("menuitem", { name: "Carpeta B" })).toBeFocused();
+    await page.keyboard.press("ArrowDown");
+    await expect(sub.getByRole("menuitem", { name: "Carpeta A" })).toBeFocused();
+    await page.keyboard.press("ArrowLeft");
+    await expect(sub).toHaveCount(0);
+    await expect(root).toBeVisible();
+    await expect(parent).toBeFocused();
+
+    // Enter opens it as well; Escape closes one level per press.
+    await page.keyboard.press("Enter");
+    await expect(sub.getByRole("menuitem", { name: "Carpeta A" })).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(sub).toHaveCount(0);
+    await expect(root).toBeVisible();
+    await expect(parent).toBeFocused();
+    expect(await readLog(page), `${label}: opening a submenu is not an action`).toEqual([]);
+
+    // A disabled submenu never opens.
+    const disabled = root.getByRole("menuitem", { name: "Compartir" });
+    await expect(disabled).toHaveAttribute("aria-disabled", "true");
+    await page.keyboard.press("ArrowDown");
+    await expect(disabled).toBeFocused();
+    await page.keyboard.press("ArrowRight");
+    await page.keyboard.press("Enter");
+    await disabled.click({ force: true });
+    await expect(sub).toHaveCount(0);
+
+    // Acting from the nested level closes every level and returns focus to the trigger.
+    await page.keyboard.press("ArrowUp");
+    await page.keyboard.press("ArrowRight");
+    await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("menu")).toHaveCount(0);
+    await expect(trigger).toBeFocused();
+    expect(await readLog(page)).toEqual(["toolbar:mover-b"]);
+
+    // Hover opens the nested level; moving to a sibling closes it.
+    await trigger.click();
+    await parent.hover();
+    await expect(sub).toBeVisible();
+    await root.getByRole("menuitem", { name: "Eliminar" }).hover();
+    await expect(sub).toHaveCount(0);
+    await parent.hover();
+    await sub.getByRole("menuitem", { name: "Carpeta A" }).click();
+    await expect(page.getByRole("menu")).toHaveCount(0);
+    expect(await readLog(page)).toEqual(["toolbar:mover-b", "toolbar:mover-a"]);
+    await expectNoOuterScroll(page, label);
+  });
+
+  test("OverflowMenu and ContextMenu on rows: pointer, keyboard, outside click, selection, navigation and axe @ 1366x768", async ({ page }) => {
+    const label = "C08 rows @ 1366x768";
+    await mountHarness(page, 1366, 768);
+    const harness = page.locator(HARNESS);
+    const root = page.locator(ROOT_MENU);
+    const url = page.url();
+    const historyLength = await page.evaluate(() => window.history.length);
+    const requests: string[] = [];
+    page.on("request", (request) => requests.push(`${request.method()} ${request.url()}`));
+
+    // The C06 owner holds a selection before any menu opens.
+    const boxes = harness.getByRole("checkbox");
+    await boxes.nth(0).check();
+    const toolbar = harness.getByRole("group", { name: "Selección" });
+    await expect(toolbar).toContainText("1 seleccionado");
+    const selectionState = () => boxes.evaluateAll((inputs) => inputs.map((input) => (input as HTMLInputElement).checked));
+
+    // OverflowMenu: icon-only trigger with a name, menu lined up with the trigger's end edge.
+    const overflow = harness.getByRole("button", { name: "Más acciones del registro 2", exact: true });
+    await expect(overflow).toHaveAttribute("aria-haspopup", "menu");
+    expect(await overflow.evaluate((button) => button.textContent), `${label}: icon-only trigger`).toBe("");
+    await overflow.click();
+    const overflowMenu = page.getByRole("menu", { name: "Más acciones del registro 2", exact: true });
+    await expect(overflowMenu).toBeVisible();
+    const [menuBox, triggerBox] = await Promise.all([readSurface(page, ROOT_MENU), overflow.boundingBox()]);
+    expect(Math.abs(menuBox.right - (triggerBox!.x + triggerBox!.width)), `${label}: end-aligned`).toBeLessThanOrEqual(1);
+    expect(Math.abs(menuBox.top - (triggerBox!.y + triggerBox!.height + 4)), `${label}: 4px below the trigger`).toBeLessThanOrEqual(1);
+    expect([triggerBox!.width, triggerBox!.height], `${label}: 32px trigger from md`).toEqual([32, 32]);
+
+    // axe with a root menu and a nested level open.
+    await overflowMenu.getByRole("menuitem", { name: "Mover a" }).click();
+    await expect(page.locator(SUB_MENU)).toBeVisible();
+    const axe = await new AxeBuilder({ page })
+      .include(HARNESS)
+      .include('[data-action-menu-surface]')
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+      .analyze();
+    expect(axe.violations.map((violation) => `${violation.id}: ${violation.nodes.length}`), `${label}: axe`).toEqual([]);
+
+    // Outside click closes every level, acts on nothing and leaves the selection alone.
+    await harness.locator('[data-c08-row-label="1"]').click();
+    await expect(page.getByRole("menu")).toHaveCount(0);
+    expect(await readLog(page)).toEqual([]);
+    expect(await selectionState()).toEqual([true, false, false]);
+
+    // Opening another menu closes the first: one root at a time.
+    await overflow.click();
+    await harness.getByRole("button", { name: "Más acciones del registro 1", exact: true }).click();
+    await expect(root).toHaveCount(1);
+    await expect(page.getByRole("menu", { name: "Más acciones del registro 1", exact: true })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(harness.getByRole("button", { name: "Más acciones del registro 1", exact: true })).toBeFocused();
+
+    // A menu action is the host's callback only: the selection owner is not touched.
+    await overflow.click();
+    await overflowMenu.getByRole("menuitem", { name: "Editar" }).click();
+    expect(await readLog(page)).toEqual(["overflow-2:editar"]);
+    await expect(toolbar).toContainText("1 seleccionado");
+    expect(await selectionState()).toEqual([true, false, false]);
+
+    // ContextMenu by pointer: opens at the pointer, on the row that was clicked.
+    const row = harness.locator('[data-c08-row="3"]');
+    const rowBox = await row.boundingBox();
+    await row.click({ button: "right", position: { x: 160, y: 20 } });
+    const contextMenu = page.getByRole("menu", { name: "Acciones del registro 3", exact: true });
+    await expect(contextMenu).toBeVisible();
+    await expect(contextMenu.getByRole("menuitem")).toHaveText(["Editar", "Archivar", "Mover a", "Compartir", "Eliminar"]);
+    const pointBox = await readSurface(page, ROOT_MENU);
+    expect(Math.abs(pointBox.left - (rowBox!.x + 160)), `${label}: opens at the pointer (x)`).toBeLessThanOrEqual(1);
+    expect(Math.abs(pointBox.top - (rowBox!.y + 20)), `${label}: opens at the pointer (y)`).toBeLessThanOrEqual(1);
+    await expect(contextMenu.getByRole("menuitem", { name: "Editar" })).toBeFocused();
+    // A right click on another row moves the menu instead of stacking a second one.
+    await harness.locator('[data-c08-row="1"]').click({ button: "right", position: { x: 120, y: 20 } });
+    await expect(root).toHaveCount(1);
+    await expect(page.getByRole("menu", { name: "Acciones del registro 1", exact: true })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("menu")).toHaveCount(0);
+
+    // The browser menu keeps copy and paste: over selected text or an editable field the
+    // region neither opens its menu nor cancels the event; elsewhere it does both.
+    await page.evaluate(() => {
+      const seen: boolean[] = [];
+      (window as unknown as { __c08Prevented: boolean[] }).__c08Prevented = seen;
+      document.addEventListener("contextmenu", (event) => seen.push(event.defaultPrevented));
+    });
+    const prevented = () => page.evaluate(() => (window as unknown as { __c08Prevented: boolean[] }).__c08Prevented.splice(0));
+    const rowLabel = harness.locator('[data-c08-row-label="2"]');
+    await rowLabel.dispatchEvent("contextmenu", { bubbles: true, cancelable: true, button: 2, clientX: 200, clientY: 200 });
+    await expect(page.getByRole("menu", { name: "Acciones del registro 2", exact: true })).toBeVisible();
+    expect(await prevented(), `${label}: the region takes the context menu`).toEqual([true]);
+    await page.keyboard.press("Escape");
+    await rowLabel.evaluate((node) => window.getSelection()?.selectAllChildren(node));
+    await rowLabel.dispatchEvent("contextmenu", { bubbles: true, cancelable: true, button: 2, clientX: 200, clientY: 200 });
+    expect(await prevented(), `${label}: selected text keeps the browser menu`).toEqual([false]);
+    await harness.locator('[data-c08-row="2"]').dispatchEvent("contextmenu", { bubbles: true, cancelable: true, button: 2, clientX: 200, clientY: 200 });
+    expect(await prevented(), `${label}: the row holding the selection keeps the browser menu`).toEqual([false]);
+    await expect(page.getByRole("menu")).toHaveCount(0);
+    // A selection elsewhere is not this target's: another row still opens its menu, by pointer and by keyboard.
+    await harness.locator('[data-c08-row-label="3"]').dispatchEvent("contextmenu", { bubbles: true, cancelable: true, button: 2, clientX: 200, clientY: 200 });
+    await expect(page.getByRole("menu", { name: "Acciones del registro 3", exact: true })).toBeVisible();
+    expect(await prevented(), `${label}: a selection in another row does not keep the browser menu`).toEqual([true]);
+    await page.keyboard.press("Escape");
+    await harness.locator('[data-c08-open="1"]').focus();
+    await page.keyboard.press("Shift+F10");
+    await expect(page.getByRole("menu", { name: "Acciones del registro 1", exact: true }), `${label}: Shift+F10 with a selection in another row`).toBeVisible();
+    await page.keyboard.press("Escape");
+    expect(await page.evaluate(() => window.getSelection()?.toString()), `${label}: the selection survives`).toBe("Registro 2");
+    await page.evaluate(() => window.getSelection()?.removeAllRanges());
+    await boxes.nth(1).dispatchEvent("contextmenu", { bubbles: true, cancelable: true, button: 2, clientX: 200, clientY: 200 });
+    expect(await prevented(), `${label}: an editable field keeps the browser menu`).toEqual([false]);
+    await expect(page.getByRole("menu")).toHaveCount(0);
+
+    // ContextMenu by keyboard: Shift+F10 and the ContextMenu key, with focus returned to the opener.
+    const open2 = harness.locator('[data-c08-open="2"]');
+    for (const key of ["Shift+F10", "ContextMenu"]) {
+      await open2.focus();
+      await page.keyboard.press(key);
+      const keyboardMenu = page.getByRole("menu", { name: "Acciones del registro 2", exact: true });
+      await expect(keyboardMenu, `${label}: ${key}`).toBeVisible();
+      await expect(keyboardMenu.getByRole("menuitem", { name: "Editar" })).toBeFocused();
+      await page.keyboard.press("Escape");
+      await expect(page.getByRole("menu")).toHaveCount(0);
+      await expect(open2, `${label}: ${key} returns focus`).toBeFocused();
+    }
+    await page.keyboard.press("Shift+F10");
+    await page.keyboard.press("End");
+    await page.keyboard.press("Enter");
+    await expect(open2).toBeFocused();
+    expect(await readLog(page)).toEqual(["overflow-2:editar", "context-2:eliminar"]);
+
+    // Nothing above navigated, pushed history or issued a request; the selection is intact.
+    await expect(toolbar).toContainText("1 seleccionado");
+    expect(await selectionState()).toEqual([true, false, false]);
+    expect(page.url(), `${label}: no navigation`).toBe(url);
+    expect(await page.evaluate(() => window.history.length), `${label}: no history entry`).toBe(historyLength);
+    expect(requests, `${label}: menus are local state, no request`).toEqual([]);
+    await expectNoOuterScroll(page, label);
+  });
+
+  for (const [width, height] of [[1920, 1080], [1366, 768], [1024, 768], [768, 1024], [767, 1024], [430, 932], [390, 844], [360, 800], [320, 568]] as const) {
+    test(`geometry and viewport clamping @ ${width}x${height}`, async ({ page }) => {
+      const label = `C08 geometry @ ${width}x${height}`;
+      const touch = width < 768;
+      await mountHarness(page, width, height);
+      const harness = page.locator(HARNESS);
+      const idle = await page.evaluate(() => ({
+        scrollWidth: document.documentElement.scrollWidth,
+        scrollHeight: document.documentElement.scrollHeight,
+      }));
+      const expectSurface = (surface: Awaited<ReturnType<typeof readSurface>>, name: string) => {
+        console.log(`[C08] ${label} · ${name}: ${JSON.stringify(surface)}`);
+        expect(surface.inside, `${label}: ${name} inside the viewport with an 8px margin`).toBe(true);
+        expect(surface.position, `${label}: ${name} is fixed, outside the layout`).toBe("fixed");
+        expect(surface.itemHeights, `${label}: ${name} item height`).toEqual([touch ? 48 : 32]);
+        expect(surface.width, `${label}: ${name} min width`).toBeGreaterThanOrEqual(200);
+        expect(surface.width, `${label}: ${name} never wider than the viewport`).toBeLessThanOrEqual(width - 16);
+        expect(surface.radius, `${label}: ${name} radius`).toBe("8px");
+        expect(surface.paddingBlock, `${label}: ${name} padding`).toEqual(["8px", "8px"]);
+        expect(surface.itemPaddingInline, `${label}: ${name} item padding`).toEqual(["12px", "12px"]);
+        expect(surface.itemRadius, `${label}: ${name} item radius`).toBe("0px");
+        expect(surface.elevated, `${label}: ${name} elevation`).toBe(true);
+        expect(surface.scrollable, `${label}: ${name} has no inner scroll`).toBe(false);
+        expect(surface.itemsInside, `${label}: ${name} items do not overflow the surface`).toBe(true);
+      };
+      const expectDocumentUnchanged = async (name: string) => {
+        expect(await page.evaluate(() => ({
+          scrollWidth: document.documentElement.scrollWidth,
+          scrollHeight: document.documentElement.scrollHeight,
+        })), `${label}: ${name} does not grow the document`).toEqual(idle);
+        await expectNoOuterScroll(page, `${label} (${name})`);
+      };
+
+      // ActionMenu in the toolbar, with its nested level.
+      const trigger = harness.getByRole("button", { name: "Acciones", exact: true });
+      expect((await trigger.boundingBox())!.height, `${label}: toolbar trigger height`).toBe(touch ? 44 : 32);
+      await trigger.click();
+      expectSurface(await readSurface(page, ROOT_MENU), "ActionMenu");
+      await page.locator(ROOT_MENU).getByRole("menuitem", { name: "Mover a" }).click();
+      await expect(page.locator(SUB_MENU)).toBeVisible();
+      expectSurface(await readSurface(page, SUB_MENU), "SubMenu");
+      await expectDocumentUnchanged("ActionMenu + SubMenu");
+      await page.keyboard.press("Escape");
+      await page.keyboard.press("Escape");
+      await expect(page.getByRole("menu")).toHaveCount(0);
+
+      // OverflowMenu on the last row.
+      const overflow = harness.getByRole("button", { name: "Más acciones del registro 3", exact: true });
+      const overflowBox = await overflow.boundingBox();
+      expect([overflowBox!.width, overflowBox!.height], `${label}: overflow trigger`).toEqual(touch ? [44, 44] : [32, 32]);
+      await overflow.click();
+      expectSurface(await readSurface(page, ROOT_MENU), "OverflowMenu");
+      await expectDocumentUnchanged("OverflowMenu");
+      await page.keyboard.press("Escape");
+
+      // ActionMenu pinned to the bottom edge: it flips above its trigger.
+      const bottom = harness.getByRole("button", { name: "Abajo", exact: true });
+      await bottom.click();
+      const flipped = await readSurface(page, ROOT_MENU);
+      expectSurface(flipped, "flipped ActionMenu");
+      expect(flipped.bottom, `${label}: the menu opens above a trigger with no room below`).toBeLessThanOrEqual((await bottom.boundingBox())!.y + 0.5);
+      await page.locator(ROOT_MENU).getByRole("menuitem", { name: "Mover a" }).click();
+      expectSurface(await readSurface(page, SUB_MENU), "flipped SubMenu");
+      await expectDocumentUnchanged("flipped ActionMenu + SubMenu");
+      await page.keyboard.press("Escape");
+      await page.keyboard.press("Escape");
+
+      // ContextMenu at the far end of a row: it flips back inside the viewport.
+      const row = harness.locator('[data-c08-row="2"]');
+      const rowBox = await row.boundingBox();
+      await row.click({ button: "right", position: { x: rowBox!.width - 2, y: 24 } });
+      expectSurface(await readSurface(page, ROOT_MENU), "ContextMenu");
+      await expectDocumentUnchanged("ContextMenu");
+
+      // A viewport change closes the menu instead of leaving it misplaced.
+      await page.setViewportSize({ width: width - 8, height });
+      await expect(page.getByRole("menu")).toHaveCount(0);
+      expect(await readLog(page), `${label}: placement never runs an action`).toEqual([]);
+    });
+  }
+});
