@@ -233,10 +233,20 @@ function MenuSurface({ id, anchor, focus, label, labelledBy, onDismiss, children
   );
 }
 
-/** Copy and paste stay with the browser menu: over a text selection or an editable field. */
+/** A selection that reaches the element; one elsewhere in the document is not this target's. */
+function selectionCovers(element: Element) {
+  const selection = window.getSelection();
+  if (!selection?.toString()) return false;
+  for (let index = 0; index < selection.rangeCount; index += 1) {
+    if (selection.getRangeAt(index).intersectsNode(element)) return true;
+  }
+  return false;
+}
+
+/** Copy and paste stay with the browser menu: over the text selection or an editable field. */
 function keepsNativeMenu(target: EventTarget | null) {
   const element = target instanceof Element ? target : null;
-  return Boolean(window.getSelection()?.toString() || element?.closest(NATIVE_MENU_TARGETS));
+  return Boolean(element && (selectionCovers(element) || element.closest(NATIVE_MENU_TARGETS)));
 }
 
 function focusOnHover(event: PointerEvent<HTMLButtonElement>) {

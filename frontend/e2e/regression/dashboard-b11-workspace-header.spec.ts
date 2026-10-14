@@ -1846,6 +1846,19 @@ test.describe("C08 · menu primitives in the WorkspaceScaffold", () => {
     await rowLabel.evaluate((node) => window.getSelection()?.selectAllChildren(node));
     await rowLabel.dispatchEvent("contextmenu", { bubbles: true, cancelable: true, button: 2, clientX: 200, clientY: 200 });
     expect(await prevented(), `${label}: selected text keeps the browser menu`).toEqual([false]);
+    await harness.locator('[data-c08-row="2"]').dispatchEvent("contextmenu", { bubbles: true, cancelable: true, button: 2, clientX: 200, clientY: 200 });
+    expect(await prevented(), `${label}: the row holding the selection keeps the browser menu`).toEqual([false]);
+    await expect(page.getByRole("menu")).toHaveCount(0);
+    // A selection elsewhere is not this target's: another row still opens its menu, by pointer and by keyboard.
+    await harness.locator('[data-c08-row-label="3"]').dispatchEvent("contextmenu", { bubbles: true, cancelable: true, button: 2, clientX: 200, clientY: 200 });
+    await expect(page.getByRole("menu", { name: "Acciones del registro 3", exact: true })).toBeVisible();
+    expect(await prevented(), `${label}: a selection in another row does not keep the browser menu`).toEqual([true]);
+    await page.keyboard.press("Escape");
+    await harness.locator('[data-c08-open="1"]').focus();
+    await page.keyboard.press("Shift+F10");
+    await expect(page.getByRole("menu", { name: "Acciones del registro 1", exact: true }), `${label}: Shift+F10 with a selection in another row`).toBeVisible();
+    await page.keyboard.press("Escape");
+    expect(await page.evaluate(() => window.getSelection()?.toString()), `${label}: the selection survives`).toBe("Registro 2");
     await page.evaluate(() => window.getSelection()?.removeAllRanges());
     await boxes.nth(1).dispatchEvent("contextmenu", { bubbles: true, cancelable: true, button: 2, clientX: 200, clientY: 200 });
     expect(await prevented(), `${label}: an editable field keeps the browser menu`).toEqual([false]);

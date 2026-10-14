@@ -42,7 +42,7 @@ Validado sobre el estado Git real: ver «Verificación». Dos cohortes cierran e
 
 - **Estado:** cada raíz (`ActionMenu` o `ContextMenu`) es dueña de su estado abierto/cerrado; cada superficie, de cuál de sus submenús está abierto (uno por nivel). El host no recibe ni controla ese estado.
 - **Apertura:** clic, Enter, Space y ArrowDown abren en el primer ítem; ArrowUp abre en el último. `ContextMenu` abre con clic derecho (en el puntero) y con Shift+F10 o la tecla ContextMenu (sobre el elemento enfocado).
-- **Menú nativo preservado:** sobre texto seleccionado o sobre un campo editable (`input`, `textarea`, `select`, `contenteditable`), `ContextMenu` no abre ni cancela el evento: copiar y pegar siguen en el menú del navegador.
+- **Menú nativo preservado:** sobre una selección de texto que alcanza al destino del evento (lo contiene o lo cruza; una selección en otra fila no cuenta, review de #1864) o sobre un campo editable (`input`, `textarea`, `select`, `contenteditable`), `ContextMenu` no abre ni cancela el evento: copiar y pegar siguen en el menú del navegador.
 - **Teclado en el menú:** ArrowUp/ArrowDown con vuelta, Home, End, type-ahead por primera letra, ArrowRight/Enter/Space abren un submenú, ArrowLeft lo cierra.
 - **Cierre:** Escape cierra un nivel por pulsación. Tab cierra todo sin atrapar el foco. Clic exterior cierra todo sin ejecutar nada. Un cambio de tamaño o un scroll del viewport cierra el menú en vez de dejarlo descolocado.
 - **Foco:** al cerrar por Escape, Tab o selección, el foco vuelve al elemento desde el que se abrió; al cerrar un submenú, a su ítem padre. Tras un clic exterior el foco queda donde el usuario hizo clic.
@@ -97,7 +97,7 @@ Estado Git real, con el owner en el índice. Una tarea pesada por vez.
 | RED previo (guard C08 sin owner) | FAILED 3/3 como se esperaba |
 | RED en E2E, corregido en el owner | Con reduced motion el menú abría sin foco (10/12 en rojo); el submenú abierto por hover se cerraba solo (1/12 en rojo) |
 | Guards `test/architecture/**` + `test/unit/ui/**` | PASSED 2908/2909, 1 omitido preexistente |
-| Mutation proof del owner (guard C08) | 26 mutaciones en memoria, todas rechazadas (19 originales + 7 de la superficie exenta) |
+| Mutation proof del owner (guard C08) | 28 mutaciones en memoria, todas rechazadas (19 originales + 7 de la superficie exenta + 2 del alcance de la selección) |
 | E2E C08 (`dashboard-b11-workspace-header`, `-g C08`) | PASSED 12/12 |
 | Spec B11–C08 completo + C04 (`admin-clinics-column-sort`) | PASSED 70/70 |
 | A02 + A08 | PASSED 42/42 |
