@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useId, useRef, type InputHTMLAttributes } from "react";
+import { forwardRef, useCallback, useId, useRef, type InputHTMLAttributes } from "react";
 import { LoaderCircle, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -24,6 +24,25 @@ export const SuperSearchField = forwardRef<HTMLInputElement, SuperSearchFieldPro
     const inputId = id ?? generatedId;
     const inputRef = useRef<HTMLInputElement | null>(null);
     const unavailable = disabled || busy;
+    const setInputRef = useCallback((node: HTMLInputElement | null) => {
+      inputRef.current = node;
+      if (!node) {
+        if (typeof forwardedRef === "function") forwardedRef(null);
+        else if (forwardedRef) forwardedRef.current = null;
+        return;
+      }
+      const cleanup = typeof forwardedRef === "function"
+        ? (forwardedRef as (element: HTMLInputElement) => void | (() => void))(node)
+        : undefined;
+      if (forwardedRef && typeof forwardedRef !== "function") forwardedRef.current = node;
+      return () => {
+        inputRef.current = null;
+        if (typeof forwardedRef === "function") {
+          if (typeof cleanup === "function") cleanup();
+          else forwardedRef(null);
+        } else if (forwardedRef) forwardedRef.current = null;
+      };
+    }, [forwardedRef]);
 
     return (
       <div
@@ -35,11 +54,7 @@ export const SuperSearchField = forwardRef<HTMLInputElement, SuperSearchFieldPro
         <input
           {...inputProps}
           id={inputId}
-          ref={(node) => {
-            inputRef.current = node;
-            if (typeof forwardedRef === "function") forwardedRef(node);
-            else if (forwardedRef) forwardedRef.current = node;
-          }}
+          ref={setInputRef}
           type="text"
           role="searchbox"
           inputMode={inputMode}

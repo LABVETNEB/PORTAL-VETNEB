@@ -1,12 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readFileSync } from "node:fs";
-
-const root = new URL("../../frontend/src/features/dashboard/presentation/filters/", import.meta.url);
+import { readSourceFile } from "../helpers/tracked-source-files.ts";
 
 test("C10: el campo se publica en filters y no posee búsquedas de dominio", () => {
-  const source = readFileSync(new URL("SuperSearchField.tsx", root), "utf8");
-  const barrel = readFileSync(new URL("index.ts", root), "utf8");
+  const source = readSourceFile("frontend/src/features/dashboard/presentation/filters/SuperSearchField.tsx");
+  const barrel = readSourceFile("frontend/src/features/dashboard/presentation/filters/index.ts");
   assert.match(barrel, /SuperSearchField/);
   assert.match(source, /value: string/);
   assert.match(source, /onValueChange: \(value: string\) => void/);
