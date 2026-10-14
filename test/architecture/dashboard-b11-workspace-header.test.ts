@@ -1040,6 +1040,8 @@ test("PRE-C05 · Sesiones mobile: summary retired, Tipo and Estado left of Actua
 
 const C08_OWNER = "frontend/src/features/dashboard/presentation/surfaces/ActionMenu.tsx";
 const C08_PRIMITIVES = ["OverflowMenu", "ContextMenu", "ActionMenu", "SubMenu"] as const;
+/** C11 overflow of active filters: composes ActionMenu only; the other three names stay out of it. */
+const C11_OVERFLOW = "frontend/src/features/dashboard/presentation/filters/FilterOverflow.tsx";
 const C08_BARREL_EXPORT = [
   "export {",
   "  ActionMenu,",
@@ -1124,11 +1126,13 @@ test("C08 · ActionMenu.tsx is the single menu owner and publishes the four prim
   // frontend-visual-consistency exempts this one file from its onContextMenu ban; nothing else may take the browser menu.
   assert.deepEqual(files.filter((path) => /oncontextmenu/i.test(read(path))), [C08_OWNER], "one context menu owner");
 
-  // The four names live in the owner, its barrel and the C09 bulk menu that composes them: no module adopts a menu before C17+.
+  // The four names live in the owner, its barrel and the C09 bulk menu that composes them; the C11 filter overflow composes
+  // ActionMenu alone. No module adopts a menu before C17+.
   for (const path of files) {
     const source = read(path);
     if (path === C08_OWNER || path === C01_SURFACES_BARREL || path === C09_OWNER) continue;
     for (const name of C08_PRIMITIVES) {
+      if (path === C11_OVERFLOW && name === "ActionMenu") continue;
       assert.equal(new RegExp(`\\b${name}\\b`).test(source), false, `${path}: ${name} is not adopted before C17+`);
     }
   }

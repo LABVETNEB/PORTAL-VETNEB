@@ -453,12 +453,13 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     section: "§6.3",
     metric: "LOC de frontend/e2e/**",
     historical: 43756,
+    baseline: 54817,
     compute: () =>
       totalLines(corpus, sourceFilesUnder(corpus, "frontend/e2e")),
-    resolution: "REPRODUCED",
+    resolution: "RECLASSIFIED",
     guard: BAND,
     motive:
-      "LOC de la suite E2E: la gobierna LIMPIEZA E2E y crece por trabajo ajeno a este programa.",
+      "LOC de la suite E2E: la gobierna LIMPIEZA E2E y crece por trabajo ajeno a este programa. Re-anclaje 43756 -> 54817: main@067996dc3358c50f7f8e9aa5711a4a97c54a2d75 producia 54695, exactamente el tope de la banda 43756 +- 10939, y C11 suma 122 lineas netas: el spec nuevo regression/dashboard-c11-filter-chips.spec.ts (121), la unica prueba de navegador posible para chips, overflow, foco y geometria porque el repositorio no tiene DOM de test, y su entrada en suites/catalog.ts (1). Crecimiento intencional autorizado por Nico para C11: se re-ancla el baseline al valor medido despues de implementar, sin ampliar GROWTH_TOLERANCE y sin excluir ningun archivo del inventario.",
   },
   {
     row: "A0-06-RATIOS",
@@ -1717,7 +1718,7 @@ test("censo 05A: la deuda de lectores ad hoc rompe al crecer y la adopción del 
   assert.equal(adoptionEntry.historical, 8, "el histórico de §6.4 se conserva");
   assert.equal(adoptionEntry.baseline, 411, "piso versionado tras el consumidor de C06");
   assert.equal(anchor, 411, "el piso incorpora los consumidores canónicos de TEST-GLOBAL-09 y C06, no el histórico");
-  assert.equal(current, 423, "la adopción vigente suma el lector canónico de dashboard-c10-super-search-field a los 422 importadores anteriores");
+  assert.equal(current, 424, "la adopción vigente suma el lector canónico de dashboard-c11-filter-chips a los 423 importadores anteriores");
   assert.equal(
     guardViolation(adoptionEntry, evaluateEntry(adoptionEntry)),
     null,
