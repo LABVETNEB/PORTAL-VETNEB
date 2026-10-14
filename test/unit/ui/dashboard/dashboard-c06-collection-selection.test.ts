@@ -582,3 +582,229 @@ test("C07 · in-memory mutations of the toolbar each break their contract flag",
     assert.equal(flags[flag], false, `${flag}: the mutated toolbar must break its contract`);
   }
 });
+
+// ── C09 · BulkActionMenu on the C07 toolbar and the C06 owner ────────────────
+// The bulk menu module runs as written; the C08 primitives are recording stubs, so
+// what is observed is what C09 owns: which actions exist, which are disabled and
+// why, and the IDs the host callback receives. The menu surface itself is C08's.
+
+const BULK_PATH = "frontend/src/features/dashboard/presentation/surfaces/BulkActionMenu.tsx";
+
+type BulkActionInput = {
+  id: string;
+  label: string;
+  onSelect: (ids: readonly Id[]) => void;
+  requires?: "single";
+  disabledReason?: string;
+  destructive?: boolean;
+  confirmsBeforeRunning?: boolean;
+};
+type BulkCalls = [string, Id[]][];
+
+const BULK_IMPORTS = {
+  "lucide-react": {
+    MoreVertical: (props: Record<string, unknown>) => TOOLBAR_REACT.createElement("svg", { ...props, "data-icon": "more" }),
+  },
+  "./ActionMenu": {
+    ActionMenu: ({ children, trigger, ...props }: Record<string, unknown>) =>
+      TOOLBAR_REACT.createElement("c08-menu", props, TOOLBAR_REACT.createElement("c08-trigger", null, trigger), children),
+    ActionMenuItem: ({ children, ...props }: Record<string, unknown>) => TOOLBAR_REACT.createElement("c08-item", props, children),
+  },
+};
+
+function loadBulkMenu(source = read(BULK_PATH)): ToolbarComponent {
+  return runModule(parseTsx(source, BULK_PATH), BULK_IMPORTS, { React: TOOLBAR_REACT }).BulkActionMenu as ToolbarComponent;
+}
+
+function bulkActions(calls: BulkCalls): BulkActionInput[] {
+  const record = (name: string) => (ids: readonly Id[]) => void calls.push([name, [...ids]]);
+  return [
+    { id: "exportar", label: "Exportar", onSelect: record("exportar") },
+    { id: "abrir", label: "Abrir detalle", requires: "single", onSelect: record("abrir") },
+    { id: "asignar", label: "Asignar", disabledReason: "Sin permiso", onSelect: record("asignar") },
+    { id: "eliminar", label: "Eliminar", destructive: true, confirmsBeforeRunning: false, onSelect: record("eliminar") },
+    { id: "archivar", label: "Archivar", destructive: true, confirmsBeforeRunning: true, onSelect: record("archivar") },
+  ];
+}
+
+function renderBulkMenu(BulkActionMenu: ToolbarComponent, selectedIds: readonly Id[], actions: readonly BulkActionInput[], pending = false) {
+  const nodes = expandToolbar(BulkActionMenu({ selectedIds, actions, pending }));
+  const menu = nodes[0] as ToolbarNode | undefined;
+  const children = menu?.children.filter((child): child is ToolbarNode => typeof child !== "string") ?? [];
+  return {
+    rendered: nodes.length,
+    menu,
+    trigger: children.find((child) => child.tag === "c08-trigger"),
+    items: children
+      .filter((child) => child.tag === "c08-item")
+      .map((item) => ({ text: toolbarText(item), disabled: item.attrs.disabled === true, select: item.attrs.onSelect as () => void })),
+  };
+}
+
+test("C09 · no selection or no action renders no menu; a selection renders one named C08 menu", () => {
+  const BulkActionMenu = loadBulkMenu();
+  const actions = bulkActions([]);
+  assert.equal(renderBulkMenu(BulkActionMenu, [], actions).rendered, 0, "0 selected → no bulk menu");
+  assert.equal(renderBulkMenu(BulkActionMenu, [101], []).rendered, 0, "no action → no empty menu");
+
+  const one = renderBulkMenu(BulkActionMenu, [101], actions);
+  assert.equal(one.rendered, 1);
+  assert.deepEqual(
+    { tag: one.menu?.tag, label: one.menu?.attrs.label, disabled: one.menu?.attrs.disabled, trigger: one.trigger && toolbarText(one.trigger) },
+    { tag: "c08-menu", label: "Acciones", disabled: undefined, trigger: "Acciones" },
+    "the trigger is named for assistive technology even when only its icon shows",
+  );
+  assert.deepEqual(one.items.map((item) => item.text), [
+    "Exportar",
+    "Abrir detalle",
+    "Asignar · Sin permiso",
+    "Eliminar · Requiere confirmación",
+    "Archivar",
+  ]);
+  assert.deepEqual(one.items.map((item) => item.disabled), [false, false, true, true, false]);
+});
+
+test("C09 · an action runs once with every selected ID, across pages, and never changes the C06 owner", () => {
+  const BulkActionMenu = loadBulkMenu();
+  const view = mount(PAGE_1);
+  const calls: BulkCalls = [];
+  const actions = bulkActions(calls);
+  const show = () => renderBulkMenu(BulkActionMenu, view.current.selectedIds, actions);
+
+  view.act((selection) => selection.select(102));
+  const single = show();
+  single.items[1].select();
+  assert.deepEqual(calls, [["abrir", [102]]], "single selection: the single-item action runs once with that ID");
+
+  // The selection grows on this page and on the next one; the page that is visible does not narrow it.
+  view.act((selection) => selection.select(101));
+  view.rerender(PAGE_2);
+  view.act((selection) => selection.select(104));
+  const many = show();
+  assert.deepEqual(
+    { text: many.items[1].text, disabled: many.items[1].disabled },
+    { text: "Abrir detalle · Sólo un elemento", disabled: true },
+  );
+  many.items[1].select();
+  many.items[0].select();
+  assert.deepEqual(calls, [["abrir", [102]], ["exportar", [102, 101, 104]]], "every selected ID in selection order, off-page ones included, once");
+
+  // The host gets a copy: mutating it cannot reach the owner, and running an action clears nothing.
+  const received: (readonly Id[])[] = [];
+  const greedy: BulkActionInput[] = [{ id: "x", label: "X", onSelect: (ids) => void (received.push(ids), (ids as Id[]).push(999)) }];
+  const selectedIds = view.current.selectedIds;
+  renderBulkMenu(BulkActionMenu, selectedIds, greedy).items[0].select();
+  assert.notEqual(received[0], selectedIds);
+  assert.deepEqual([...selectedIds], [102, 101, 104]);
+  assert.deepEqual(view.selected(), [102, 101, 104], "the bulk menu never clears or narrows the selection; the host decides");
+  assert.equal(view.renders, 5, "running actions re-rendered nothing: no state of its own");
+});
+
+test("C09 · a host reason, an unconfirmed destructive action and an action in flight are disabled and never run", () => {
+  const BulkActionMenu = loadBulkMenu();
+  const calls: BulkCalls = [];
+  const actions = bulkActions(calls);
+
+  const idle = renderBulkMenu(BulkActionMenu, [101, 102], actions);
+  for (const index of [1, 2, 3]) idle.items[index].select();
+  assert.deepEqual(calls, [], "disabled is enforced here too, not only by the C08 item");
+  idle.items[4].select();
+  assert.deepEqual(calls, [["archivar", [101, 102]]], "a destructive action that declares its confirmation reaches the host, which confirms");
+
+  calls.length = 0;
+  const busy = renderBulkMenu(BulkActionMenu, [101, 102], actions, true);
+  assert.deepEqual(busy.items.map((item) => item.disabled), [true, true, true, true, true]);
+  assert.deepEqual([...new Set(busy.items.map((item) => item.text.split(" · ")[1]))], ["Acción en curso"]);
+  for (const item of busy.items) item.select();
+  assert.deepEqual(calls, [], "nothing runs twice while the host reports an action in flight");
+  assert.equal(busy.menu?.attrs.disabled, undefined, "the trigger stays enabled, so the focus it holds is never dropped");
+});
+
+test("C09 · the toolbar renders its actions slot only with a selection, after the clear control", () => {
+  const SelectionToolbar = loadToolbar();
+  const slot = TOOLBAR_REACT.createElement("div", { "data-bulk-slot": "true" }, "Acciones");
+  const show = (selectedCount: number) =>
+    expandToolbar(SelectionToolbar({ selectedCount, onClearSelection: () => {}, actions: slot, children: DEFAULT_TOOLBAR })) as ToolbarNode[];
+
+  const idle = show(0);
+  assert.deepEqual(
+    idle.map((node) => node.attrs["data-default-toolbar"] ?? node.attrs["aria-live"]),
+    ["true", "polite"],
+    "0 selected → DefaultToolbar as given plus the live region, no bulk slot beside them",
+  );
+  assert.equal(JSON.stringify(idle).includes("data-bulk-slot"), false);
+
+  const [group, live] = show(2);
+  const tags = group.children.map((child) => (typeof child === "string" ? child : child.attrs["data-bulk-slot"] ? "slot" : child.tag));
+  assert.deepEqual(tags, ["span", "button", "slot"], "count, clear, then the host's bulk menu, inside the one group");
+  assert.equal(toolbarText(live), "2 seleccionados", "the live region announces the count only");
+});
+
+type BulkFlags = {
+  hiddenAtZero: boolean;
+  runsOncePerActivation: boolean;
+  everySelectedId: boolean;
+  handsACopy: boolean;
+  singleOnly: boolean;
+  hostReasonLocks: boolean;
+  destructiveLocked: boolean;
+  pendingLocks: boolean;
+  reasonShown: boolean;
+};
+
+function bulkFlags(source: string): BulkFlags {
+  const BulkActionMenu = loadBulkMenu(source);
+  const calls: BulkCalls = [];
+  const actions = bulkActions(calls);
+  const ran = (run: () => void) => {
+    calls.length = 0;
+    run();
+    return calls.map(([name, ids]) => `${name}:${ids.join(",")}`);
+  };
+  const one = renderBulkMenu(BulkActionMenu, [7], actions);
+  const ids: readonly Id[] = [3, 1, 2];
+  const many = renderBulkMenu(BulkActionMenu, ids, actions);
+  const busy = renderBulkMenu(BulkActionMenu, [7], actions, true);
+  const handed: (readonly Id[])[] = [];
+  renderBulkMenu(BulkActionMenu, ids, [{ id: "x", label: "X", onSelect: (received) => void handed.push(received) }]).items[0]?.select();
+  const locked = (item: (typeof many.items)[number] | undefined) => Boolean(item?.disabled) && ran(() => item?.select()).length === 0;
+
+  return {
+    hiddenAtZero: renderBulkMenu(BulkActionMenu, [], actions).rendered === 0,
+    runsOncePerActivation: ran(() => one.items[0]?.select()).length === 1,
+    everySelectedId: ran(() => many.items[0]?.select()).join("|") === "exportar:3,1,2",
+    handsACopy: handed.length === 1 && handed[0] !== ids,
+    singleOnly: locked(many.items[1]) && !one.items[1]?.disabled,
+    hostReasonLocks: locked(many.items[2]),
+    destructiveLocked: locked(many.items[3]) && ran(() => many.items[4]?.select()).join("|") === "archivar:3,1,2",
+    pendingLocks: busy.items.length === 5 && busy.items.every((item) => locked(item)),
+    reasonShown: many.items[3]?.text === "Eliminar · Requiere confirmación",
+  };
+}
+
+test("C09 · in-memory mutations of the bulk menu each break their contract flag", () => {
+  const source = read(BULK_PATH);
+  const intact = bulkFlags(source);
+  assert.ok(Object.values(intact).every(Boolean), JSON.stringify(intact));
+
+  const call = "action.onSelect([...selectedIds]);";
+  const mutations: [keyof BulkFlags, string, string][] = [
+    ["hiddenAtZero", "selectedIds.length === 0 || ", ""],
+    ["runsOncePerActivation", call, "action.onSelect([...selectedIds]), action.onSelect([...selectedIds]);"],
+    ["everySelectedId", call, "action.onSelect(selectedIds.slice(0, 1));"],
+    ["handsACopy", call, "action.onSelect(selectedIds);"],
+    ["singleOnly", 'action.requires === "single" && selectedCount !== 1', "false"],
+    ["singleOnly", "unavailableReason(action, selectedIds.length, pending)", "unavailableReason(action, 1, pending)"],
+    ["hostReasonLocks", "return action.disabledReason || null;", "return null;"],
+    ["destructiveLocked", "action.destructive && !action.confirmsBeforeRunning", "false"],
+    ["destructiveLocked", "if (reason === null) action.onSelect", "action.onSelect"],
+    ["pendingLocks", '  if (pending) return "Acción en curso";\n', ""],
+    ["pendingLocks", "unavailableReason(action, selectedIds.length, pending)", "unavailableReason(action, selectedIds.length, false)"],
+    ["reasonShown", '<span data-bulk-action-reason="true"> · {reason}</span>', "null"],
+  ];
+  for (const [flag, anchor, replacement] of mutations) {
+    const mutated = source.replace(anchor, () => replacement);
+    assert.notEqual(mutated, source, `${flag}: the mutation must change the owner`);
+    assert.equal(bulkFlags(mutated)[flag], false, `${flag}: the mutated bulk menu must break its contract`);
+  }
+});

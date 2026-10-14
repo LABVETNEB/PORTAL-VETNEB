@@ -47,9 +47,11 @@ export {
   type CollectionSelectionId,
   type CollectionSelectionOptions,
 } from "./useCollectionSelection";
-/** C07 contextual toolbar: DefaultToolbar ⇄ SelectionToolbar on the C06 owner; bulk actions are C09. */
+/** C07 contextual toolbar: DefaultToolbar ⇄ SelectionToolbar on the C06 owner; its `actions` slot hosts C09. */
 export { SelectionToolbar, type SelectionToolbarProps } from "./SelectionToolbar";
-/** C08 menu primitives on one surface owner; bulk actions over the selection are C09. */
+/** C09 bulk actions over the C06 selection, on the C08 menu; the host executes and owns the outcome. */
+export { BulkActionMenu, type BulkAction, type BulkActionMenuProps } from "./BulkActionMenu";
+/** C08 menu primitives on one surface owner. */
 export {
   ActionMenu,
   ActionMenuItem,

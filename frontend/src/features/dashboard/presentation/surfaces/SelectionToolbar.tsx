@@ -9,11 +9,14 @@ import { Button } from "@/components/ui/button";
  * SelectionToolbar). With nothing selected it renders the host's default
  * toolbar as given; with a selection it takes that same slot, so the host's
  * reserved height never changes. It reads the C06 owner only through
- * `selectedCount` and `onClearSelection`; actions on the selection are C09.
+ * `selectedCount` and `onClearSelection`; the host hands its C09 bulk menu
+ * through `actions`.
  */
 export type SelectionToolbarProps = {
   selectedCount: number;
   onClearSelection: () => void;
+  /** C09 slot, rendered only while there is a selection, after the clear control. */
+  actions?: ReactNode;
   /** DefaultToolbar, rendered unchanged while `selectedCount` is 0. */
   children: ReactNode;
 };
@@ -21,7 +24,7 @@ export type SelectionToolbarProps = {
 const PAGE_SELECTOR = '[data-collection-selection="page"]:not(:disabled)';
 const FALLBACK_CONTROLS = 'button:not(:disabled), input:not(:disabled):not([type="hidden"]), select:not(:disabled)';
 
-export function SelectionToolbar({ selectedCount, onClearSelection, children }: SelectionToolbarProps) {
+export function SelectionToolbar({ selectedCount, onClearSelection, actions, children }: SelectionToolbarProps) {
   const count = selectedCount === 1 ? "1 seleccionado" : `${selectedCount} seleccionados`;
 
   function clear(event: MouseEvent<HTMLButtonElement>) {
@@ -61,6 +64,7 @@ export function SelectionToolbar({ selectedCount, onClearSelection, children }: 
             <X className="h-3.5 w-3.5" aria-hidden="true" />
             <span className="hidden sm:inline">Limpiar</span>
           </Button>
+          {actions}
         </div>
       )}
       <span aria-live="polite" data-selection-live="true" className="sr-only">
