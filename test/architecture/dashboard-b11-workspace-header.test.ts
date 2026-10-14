@@ -1092,6 +1092,15 @@ function c08OwnerViolations(source: string): string[] {
     ["return Boolean(window.getSelection()?.toString() || element?.closest(NATIVE_MENU_TARGETS));", 1, "selected text and editable fields keep the browser menu"],
     [`const NATIVE_MENU_TARGETS = 'input, textarea, select, [contenteditable="true"]';`, 1, "editable targets"],
     ["Math.max(VIEWPORT_MARGIN, Math.min(", 2, "the surface is clamped inside the viewport on both axes"],
+    // The onContextMenu exemption in frontend-visual-consistency covers this whole file, so the
+    // exempted surface is pinned here: three sites, eight cancellations, no native listener.
+    ["onContextMenu", 3, "the region type, the region handler and the surface: no other context menu site"],
+    ["onContextMenu={(event) => event.stopPropagation()}", 1, "the surface keeps the browser menu on itself"],
+    ["onContextMenu(event) {\n      if (!enabled || keepsNativeMenu(event.target)) return;\n      event.preventDefault();", 1, "the region yields before it cancels"],
+    ["function keepsNativeMenu(target: EventTarget | null) {\n  const element = target instanceof Element ? target : null;\n  return Boolean(", 1, "the yield rule has no earlier exit"],
+    ["preventDefault(", 8, "no cancellation beyond the menu keys and the two region openers"],
+    ["contextmenu", 0, "no native contextmenu listener or property"],
+    ["addEventListener(", 3, "pointerdown, resize and scroll only"],
   ] as const) {
     if (count(needle) !== expected) violations.push(`${claim}: ${needle} ×${count(needle)}, expected ×${expected}`);
   }
@@ -1174,6 +1183,13 @@ test("C08 · mutations of the menu owner are rejected", () => {
     ["shadow-[var(--clinical-shadow-md)]", "shadow-lg"],
     ["window.getSelection()?.toString() || ", ""],
     ['input, textarea, select, [contenteditable="true"]', "input"],
+    ['data-action-menu-trigger="true"', 'data-action-menu-trigger="true" onContextMenu={(event) => event.preventDefault()}'],
+    ["onContextMenu={(event) => event.stopPropagation()}", "onContextMenu={(event) => event.preventDefault()}"],
+    ["  return Boolean(window", "  if (element) return false;\n  return Boolean(window"],
+    ["onContextMenu(event) {\n", "onContextMenu(event) {\n      event.preventDefault();\n"],
+    ["const VIEWPORT_MARGIN = 8;", 'document.addEventListener("contextmenu", (event) => event.preventDefault());'],
+    ["const TRIGGER_GAP = 4;", "document.oncontextmenu = () => false;"],
+    ["const SURFACE_PADDING = 8;", 'document.addEventListener("copy", (event) => event.stopPropagation());'],
   ] as const) {
     assert.equal(source.split(anchor).length, 2, `unique owner anchor: ${anchor}`);
     assert.notDeepEqual(c08OwnerViolations(source.replace(anchor, () => replacement)), [], `mutation must be rejected: ${replacement || `without ${anchor}`}`);

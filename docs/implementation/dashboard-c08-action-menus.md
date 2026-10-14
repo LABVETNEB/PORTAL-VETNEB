@@ -82,6 +82,8 @@ C04, C05 (BLOCKED), C09 (`BulkActionMenu`, acciones bulk), C10–C26, backend, A
 
 - `C06 · C05 and C08+ stay unstarted…` prohibía los cuatro nombres en todo `frontend/src`. C08 los entrega, así que esa cerca conserva `BulkActionMenu` (C09) y los cuatro nombres quedan cercados por el bloque C08 al owner y su barril.
 - `frontend-visual-consistency` prohíbe `onContextMenu` en todo `frontend/src` (junto a `onCopy`, `onCut`, `onPaste`, `onSelectStart`, `onMouseDown` y `onTouchStart`) para que la interfaz no le quite al usuario copiar ni el menú del navegador. El rector exige `ContextMenu` en C08: es una contradicción entre ambas fuentes. Se resolvió con una excepción de un único archivo y un único handler (el owner C08, sólo `oncontextmenu`), condicionada por el guard C08 a que el owner ceda el menú nativo sobre texto seleccionado y campos editables y a que ningún otro archivo use `onContextMenu`. Los otros seis handlers siguen prohibidos también en el owner. **Requiere confirmación de Nico**; la alternativa es retirar `ContextMenu` de C08.
+  - Revisión posterior: la exención cubre el archivo entero, y el guard C08 sólo contaba la presencia de la regla de cesión. Seis mutaciones aditivas dentro del owner pasaban en verde (un `onContextMenu` incondicional en el trigger, la superficie cancelando en vez de detener la propagación, una salida temprana en `keepsNativeMenu`, un `preventDefault` antes de ceder, un listener nativo `contextmenu` y `document.oncontextmenu`). El guard C08 ahora fija la superficie exenta: exactamente tres sitios `onContextMenu` con su forma, ocho `preventDefault(`, tres `addEventListener(`, ningún `contextmenu` nativo y `keepsNativeMenu` sin salida previa. Las seis quedan rechazadas.
+  - Límite preexistente, no abierto por C08: `frontend-visual-consistency` busca los nombres de props (`oncopy`, `oncontextmenu`…), así que un `addEventListener("contextmenu" | "copy", …)` en cualquier otro archivo nunca fue detectado, tampoco en `main`.
 - `dashboard-foundation-tokens` restringe los tokens `--dash-*` a `styles/dashboard`, `components/dashboard` y `app/dashboard`. No se tocó: el owner consume `--clinical-shadow-md`, que es global, y el guard C08 fija que `--dash-elevation-menu` siga apuntando a esa receta.
 
 No se debilitó ni se omitió ningún otro guard.
@@ -95,7 +97,7 @@ Estado Git real, con el owner en el índice. Una tarea pesada por vez.
 | RED previo (guard C08 sin owner) | FAILED 3/3 como se esperaba |
 | RED en E2E, corregido en el owner | Con reduced motion el menú abría sin foco (10/12 en rojo); el submenú abierto por hover se cerraba solo (1/12 en rojo) |
 | Guards `test/architecture/**` + `test/unit/ui/**` | PASSED 2908/2909, 1 omitido preexistente |
-| Mutation proof del owner (guard C08) | 19 mutaciones en memoria, todas rechazadas |
+| Mutation proof del owner (guard C08) | 26 mutaciones en memoria, todas rechazadas (19 originales + 7 de la superficie exenta) |
 | E2E C08 (`dashboard-b11-workspace-header`, `-g C08`) | PASSED 12/12 |
 | Spec B11–C08 completo + C04 (`admin-clinics-column-sort`) | PASSED 70/70 |
 | A02 + A08 | PASSED 42/42 |
@@ -124,6 +126,24 @@ Cada control repite los mismos tests con las fuentes productivas en `HEAD` (barr
 
 Ningún módulo productivo importa el owner, así que C08 no tiene camino de código hacia la navegación. El último renglón es el único que no quedó demostrado como preexistente.
 
+### Revalidación en la máquina destino (`21a3589e` + endurecimiento del guard)
+
+Las dos cohortes anteriores corrieron sobre `next dev`. CI usa el runner de producción (`next start` sobre el build), y ahí se repitió.
+
+| Gate | Resultado |
+|---|---|
+| Build con el entorno de CI; marcadores del owner (`data-action-menu`, mensaje del contexto) en `.next` | PASSED; 0 archivos (control positivo: la toolbar C07 sí está). El owner no llega al bundle |
+| `e2e:ci` en el runner de producción (79 specs; contiene los 32 de `visual-contract` y los 15 de `admin-mobile`) | PASSED: 1440 pasan, 1 omitido, 0 fallan, 4.7 min. Incluye C08 12/12 y todos los renglones de la tabla anterior |
+| FSM clínica, tests «full route» × 30, runner de producción | PASSED 240/240 |
+| FSM clínica, tests «full route» × 30, `next dev` | FAILED 239/240: «full route … stalls» 30/30; falla 1 vez «Back then Forward…» (`Back is in flight`: el Back no emite su payload) |
+| Guards `test/architecture/**` + `test/unit/ui/**` | PASSED 2908/2909, 1 omitido preexistente |
+| `pnpm test` | FAILED 5318/5320: 1 omitido y 1 fallo ambiental, `e2e-global-03b` exige una DB que esta máquina no tiene |
+| Frontend lint, typecheck y build; `typecheck:test`; `security:public-surface`; `e2e:verify-catalog` 7/7; `git diff --check` | PASSED |
+| `e2e:visual-contract` y `e2e:admin-mobile` sobre `next dev` | NOT_RUN: sus specs ya corrieron en el runner que usa CI |
+| Control en `next dev` sin el owner | NOT_RUN: una tasa de 1/240 no se separa de 0 con un lote razonable; el owner no tiene efectos a nivel de módulo |
+
+Los fallos de las cohortes son del runner `next dev`, no del producto compilado ni de C08. El caso «full route … stalls» no se reprodujo en 60 corridas (30 por runner).
+
 ## Hallazgo zero-scroll preexistente
 
 La auditoría anterior registró 11 fallos zero-scroll en overview, tokens, informes, auditoría y usuarios/roles, con Clínicas admin en PASSED, de causa no demostrada. C08 no modifica ningún módulo, hoja de estilo ni contrato zero-scroll; no se atribuyen a C04 ni a C08 y no se re-congeló ningún baseline.
@@ -137,6 +157,8 @@ En esta sesión A08 (21/21), los contratos zero-scroll desktop (45/45 en la prim
 - `ContextMenu` abierto con el puntero sin nada enfocado no tiene a dónde devolver el foco al cerrarse.
 - Dentro de un `ModuleDialog` de Radix, el portal del menú queda fuera del focus trap del diálogo; ese caso no está cubierto y debe probarse al adoptar.
 - Sin adopter productivo, el código no entra al bundle hasta C17+.
+- La cesión del menú nativo en pantallas táctiles (pulsación larga para seleccionar texto dentro de una región con `ContextMenu`) no está medida: el E2E despacha `contextmenu` sintético. Debe probarse en un dispositivo real al adoptar.
+- Desde C17+ un módulo toma el menú contextual con `{...region}`, sin escribir `onContextMenu`: `frontend-visual-consistency` deja de verlo y la garantía pasa a ser la regla de cesión del owner, fijada por el guard C08 y el E2E.
 
 ## Rollback lógico
 
