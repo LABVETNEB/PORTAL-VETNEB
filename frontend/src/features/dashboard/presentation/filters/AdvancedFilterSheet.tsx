@@ -23,7 +23,28 @@ export type AdvancedFilterSheetProps = {
   };
 };
 
-const focusable = 'input:not(:disabled), select:not(:disabled), textarea:not(:disabled), button:not(:disabled), [tabindex]:not([tabindex="-1"])';
+const focusable = 'input:not([type="hidden"]), select, textarea, button, [tabindex]';
+
+function canReceiveFocus(element: HTMLElement, dialog: HTMLElement): boolean {
+  if (!dialog.contains(element) || !element.isConnected || element.tabIndex < 0 || element.matches(":disabled")) return false;
+  if (element.closest('[hidden], [inert], [aria-hidden="true"]') || element.getClientRects().length === 0) return false;
+  for (let node: HTMLElement | null = element; node && dialog.contains(node); node = node.parentElement) {
+    const style = getComputedStyle(node);
+    if (style.visibility !== "visible" || style.display === "none" || style.opacity === "0") return false;
+  }
+  return true;
+}
+
+function firstFocusable(body: HTMLElement | null, dialog: HTMLElement): HTMLElement | undefined {
+  const candidates = [...(body?.querySelectorAll<HTMLElement>(focusable) ?? [])]
+    .filter((element) => canReceiveFocus(element, dialog));
+  candidates.sort((a, b) => {
+    const first = a.tabIndex > 0 ? a.tabIndex : Infinity;
+    const second = b.tabIndex > 0 ? b.tabIndex : Infinity;
+    return first - second;
+  });
+  return candidates[0];
+}
 
 export function AdvancedFilterSheet({
   open,
@@ -39,6 +60,7 @@ export function AdvancedFilterSheet({
 }: AdvancedFilterSheetProps) {
   const titleId = useId();
   const descriptionId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const openerRef = useRef<HTMLElement | null>(null);
@@ -48,18 +70,21 @@ export function AdvancedFilterSheet({
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-40 bg-vetneb-ink/30 backdrop-blur-[1px]" />
         <Dialog.Content
+          ref={dialogRef}
           data-advanced-filter-sheet="true"
           aria-labelledby={titleId}
           aria-describedby={description ? descriptionId : undefined}
           className="fixed inset-x-0 bottom-0 z-50 flex max-h-[calc(100dvh-env(safe-area-inset-top))] min-w-0 flex-col overflow-hidden rounded-t-2xl border border-vetneb-line bg-card text-vetneb-ink shadow-xl outline-none md:bottom-auto md:left-1/2 md:top-1/2 md:w-[min(34rem,calc(100vw-2rem))] md:max-h-[88dvh] md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-2xl"
           onOpenAutoFocus={(event) => {
             openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-            const target = initialFocusRef?.current?.isConnected && !initialFocusRef.current.matches(":disabled")
+            const dialog = dialogRef.current;
+            if (!dialog) return;
+            const target = initialFocusRef?.current && canReceiveFocus(initialFocusRef.current, dialog)
               ? initialFocusRef.current
-              : bodyRef.current?.querySelector<HTMLElement>(focusable) ?? closeRef.current;
+              : firstFocusable(bodyRef.current, dialog) ?? closeRef.current;
             if (target) {
-              event.preventDefault();
               target.focus({ preventScroll: true });
+              if (document.activeElement === target) event.preventDefault();
             }
           }}
           onCloseAutoFocus={(event) => {

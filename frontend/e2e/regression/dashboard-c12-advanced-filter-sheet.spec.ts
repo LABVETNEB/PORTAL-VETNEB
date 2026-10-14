@@ -19,17 +19,27 @@ const main = document.querySelector("main.dashboard-main"), mount = document.cre
 mount.setAttribute("data-c12-harness", "true"); mount.style.cssText = "position:absolute;inset:0;display:flex;min-height:0;min-width:0;background:white;z-index:2"; main.style.position = "relative"; main.append(mount);
 const log = (window.__c12Log = []);
 function Harness() {
-  const [open, setOpen] = useState(false), [draft, setDraft] = useState(""), [applied, setApplied] = useState(""), [disabled, setDisabled] = useState(false), [showTrigger, setShowTrigger] = useState(true), [showActions, setShowActions] = useState(true), [showControl, setShowControl] = useState(true), [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false), [draft, setDraft] = useState(""), [applied, setApplied] = useState(""), [disabled, setDisabled] = useState(false), [showTrigger, setShowTrigger] = useState(true), [showActions, setShowActions] = useState(true), [showControl, setShowControl] = useState(true), [focusMode, setFocusMode] = useState("default"), [query, setQuery] = useState("");
   const trigger = useRef(null), fallback = useRef(null), first = useRef(null);
-  Object.assign(window, { __c12SetOpen: setOpen, __c12SetDraft: setDraft, __c12SetApplied: setApplied, __c12SetDisabled: setDisabled, __c12ShowTrigger: setShowTrigger, __c12ShowActions: setShowActions, __c12ShowControl: setShowControl });
+  Object.assign(window, { __c12SetOpen: setOpen, __c12SetDraft: setDraft, __c12SetApplied: setApplied, __c12SetDisabled: setDisabled, __c12ShowTrigger: setShowTrigger, __c12ShowActions: setShowActions, __c12ShowControl: setShowControl, __c12SetFocusMode: setFocusMode });
   const region = <div style={{ height: 56, flex: "none", display: "flex", alignItems: "center", gap: 8, padding: "8px 16px", borderBottom: "1px solid #ddd", minWidth: 0 }}>
     <button ref={fallback} type="button" data-c12-fallback="true">Volver a filtros</button>
     {showTrigger && <button ref={trigger} type="button" disabled={disabled} onClick={() => setOpen(true)}>Filtros avanzados</button>}
     <SuperSearchField label="Buscar registros" value={query} onValueChange={setQuery} />
     <ActiveFilterChips filters={applied ? applied.split("|").map((value, index) => ({ id: "f" + index, label: "Estado", value, onRemove: () => setApplied((current) => current.split("|").filter((_, at) => at !== index).join("|")) })) : []} />
   </div>;
-  return <WorkspaceScaffold kind="surface" ariaLabel="Arnés C12" filters={region} collection={<div data-c12-collection="true" style={{ flex: 1, minHeight: 0 }}>Colección intacta</div>} footer={<AdvancedFilterSheet open={open} onOpenChange={(next) => { log.push("open:" + next); setOpen(next); }} title="Filtros avanzados" description="Elegí filtros para la colección" initialFocusRef={first} returnFocusRef={trigger} fallbackFocusRef={fallback} actions={showActions ? { apply: { label: "Aplicar", disabled, onApply: () => { log.push("apply:" + draft); setApplied(draft); setOpen(false); } }, clear: { label: "Limpiar", disabled, onClear: () => { log.push("clear"); setDraft(""); setApplied(""); } }, cancel: { label: "Cancelar", disabled, onCancel: () => { log.push("cancel"); setDraft(applied); setOpen(false); } } } : undefined}>
-    {showControl && <><label htmlFor="c12-state">Estado</label><input ref={first} id="c12-state" value={draft} disabled={disabled} onChange={(event) => setDraft(event.target.value)} /></>}
+  return <WorkspaceScaffold kind="surface" ariaLabel="Arnés C12" filters={region} collection={<div data-c12-collection="true" style={{ flex: 1, minHeight: 0 }}>Colección intacta</div>} footer={<AdvancedFilterSheet open={open} onOpenChange={(next) => { log.push("open:" + next); setOpen(next); }} title="Filtros avanzados" description="Elegí filtros para la colección" initialFocusRef={focusMode === "default" || focusMode === "valid-ref" || focusMode === "invalid-ref" ? first : undefined} returnFocusRef={trigger} fallbackFocusRef={fallback} actions={showActions ? { apply: { label: "Aplicar", disabled, onApply: () => { log.push("apply:" + draft); setApplied(draft); setOpen(false); } }, clear: { label: "Limpiar", disabled, onClear: () => { log.push("clear"); setDraft(""); setApplied(""); } }, cancel: { label: "Cancelar", disabled, onCancel: () => { log.push("cancel"); setDraft(applied); setOpen(false); } } } : undefined}>
+    {focusMode === "default" && showControl && <><label htmlFor="c12-state">Estado</label><input ref={first} id="c12-state" value={draft} disabled={disabled} onChange={(event) => setDraft(event.target.value)} /></>}
+    {focusMode === "hidden-input" && <><input type="hidden" name="module" value="audit-log" /><label htmlFor="c12-visible">Visible</label><input id="c12-visible" /></>}
+    {focusMode === "hidden-select" && <><input type="hidden" name="module" value="audit-log" /><label htmlFor="c12-select">Módulo</label><select id="c12-select"><option>Auditoría</option></select></>}
+    {focusMode === "disabled" && <><input aria-label="Deshabilitado" disabled /><label htmlFor="c12-visible">Visible</label><input id="c12-visible" /></>}
+    {focusMode === "css-hidden" && <><input aria-label="Oculto" style={{ display: "none" }} /><label htmlFor="c12-visible">Visible</label><input id="c12-visible" /></>}
+    {focusMode === "hidden-parent" && <><div hidden><input aria-label="Oculto" /></div><label htmlFor="c12-visible">Visible</label><input id="c12-visible" /></>}
+    {focusMode === "aria-hidden-parent" && <><div aria-hidden="true"><input aria-label="Oculto" /></div><label htmlFor="c12-visible">Visible</label><input id="c12-visible" /></>}
+    {focusMode === "inert-parent" && <><div inert><input aria-label="Oculto" /></div><label htmlFor="c12-visible">Visible</label><input id="c12-visible" /></>}
+    {focusMode === "tab-order" && <><label htmlFor="c12-visible">Visible</label><input id="c12-visible" /><label htmlFor="c12-preferred">Preferido</label><input id="c12-preferred" tabIndex={1} /></>}
+    {focusMode === "valid-ref" && <><label htmlFor="c12-visible">Visible</label><input id="c12-visible" /><label htmlFor="c12-preferred">Preferido</label><input ref={first} id="c12-preferred" /></>}
+    {focusMode === "invalid-ref" && <><input ref={first} type="hidden" name="module" value="audit-log" /><label htmlFor="c12-visible">Visible</label><input id="c12-visible" /></>}
     <div data-c12-long="true" style={{ minHeight: "110vh" }}>Contenido largo sintético</div>
   </AdvancedFilterSheet>} />;
 }
@@ -48,6 +58,27 @@ async function mount(page: Page, width: number, height: number) {
 
 const logOf = (page: Page) => page.evaluate(() => [...(window as unknown as { __c12Log: string[] }).__c12Log]);
 const set = (page: Page, name: string, value: string | boolean) => page.evaluate(([key, next]) => (window as unknown as Record<string, (value: unknown) => void>)[key as string](next), [name, value] as const);
+
+test("C12 P2 · autofocus omite controles ocultos y conserva foco modal", async ({ page }) => {
+  await mount(page, 390, 844);
+  const trigger = page.getByRole("button", { name: "Filtros avanzados" });
+  const dialog = page.getByRole("dialog", { name: "Filtros avanzados" });
+  for (const [mode, target] of [
+    ["hidden-input", "Visible"], ["hidden-select", "Módulo"],
+    ["disabled", "Visible"], ["css-hidden", "Visible"],
+    ["hidden-parent", "Visible"], ["aria-hidden-parent", "Visible"],
+    ["inert-parent", "Visible"], ["tab-order", "Preferido"], ["valid-ref", "Preferido"],
+    ["invalid-ref", "Visible"], ["none", "Cerrar filtros avanzados"],
+  ] as const) {
+    await set(page, "__c12SetFocusMode", mode);
+    await trigger.focus(); await page.keyboard.press("Enter");
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole(target === "Cerrar filtros avanzados" ? "button" : mode === "hidden-select" ? "combobox" : "textbox", { name: target })).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(dialog).toHaveCount(0);
+    await expect(trigger).toBeFocused();
+  }
+});
 
 test("C12 · apertura, foco modal, Escape, cierre explícito y restauración", async ({ page }) => {
   await mount(page, 390, 844);
