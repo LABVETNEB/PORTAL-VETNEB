@@ -1,0 +1,50 @@
+# C12 · AdvancedFilterSheet
+
+## Base, alcance y contrato
+
+Base: `feat/dashboard-c12-advanced-filter-sheet` en `618be468` (PR C11 #1867); `origin/main` coincide. `frontend/AGENTS.md` y `frontend/CLAUDE.md` ya estaban sin seguimiento y se preservan. C12 añade una primitiva de presentación, su export, guard, E2E y catálogo. No adopta un módulo productivo: el roadmap asigna el piloto a C17 y las migraciones a C18–C22 (§50–51). Tampoco altera handlers, URL, paginación, límites, fechas, filtros ni estructura de shell.
+
+Matriz verificable:
+
+| Fuente | Obligación C12 | Evidencia |
+|---|---|---|
+| §7.8 | S1–S7 mantienen autoridad, submit, parámetros, fechas y paginación | Sin imports de dominio, API, router ni estado de filtros en la primitiva; guard C12 |
+| §45–46 | Foco visible; objetivos móviles ≥44 px; ningún cambio a la región de filtros de 56 px | E2E C12 y scaffold B15 |
+| §47, §50–51 | `AdvancedFilterSheet` pertenece a `presentation/filters`, después de C11 | Export del barrel; ninguna adopción productiva |
+| §60 R6/R7 | Controles alcanzables, teclado y axe | E2E C12 con 0/1/2 filtros, Escape, foco, axe y scroll interno |
+| A02/A03/A05/A08 | Geometría, `limit` y zero-scroll productivos congelados | Sólo portal modal de arnés; sin CSS global ni código de colección |
+| B15/B16, C08–C11 | Componer el scaffold y convivir con búsqueda/chips sin otro menú | Arnés B15 con C10/C11; Radix Dialog reutiliza la infraestructura modal existente |
+
+La posición de sheet en el borde inferior móvil y de diálogo centrado desde 768 px es una decisión técnica derivada de los overlays y breakpoints existentes; §46 no fija dimensiones del sheet. La altura se limita por `100dvh` y safe area superior en móvil, y por `88dvh` en desktop. El cuerpo es el único scroller del panel; cabecera y acciones quedan visibles, con padding inferior de safe area. Radix Dialog controla semántica modal, trampa de foco, Escape y bloqueo del fondo. El componente controla sólo foco y presentación, nunca el estado de filtros.
+
+## Auditoría S1–S7
+
+| ID | Autoridad, aplicación y URL | Filtros, fechas, página y limpieza | Cierre, estados y responsive |
+|---|---|---|---|
+| S1 Auditoría | `<form method="get">` a `/dashboard/admin`; `Aplicar` navega, query compartible | `event`, `actorType`, `from`, `to`, `clinicId`, `reportId`, `module`; offset por URL; `Limpiar` navega a `?module=audit-log` sólo si hay filtros | Barra siempre; diálogo mobile existente; carga/error en `AdminAuditCard` |
+| S2 Tokens admin | `filterDraft` y `appliedFilters`; `Aplicar` explícito | token, clínica, informe, paciente, estado, fechas; `setPage(0)`; limpiar ambos estados cuando hay filtros | `Actualizar` se deshabilita durante carga; diálogo mobile existente |
+| S3 Informes admin | draft/aplicados; `Aplicar` explícito | informe, clínica, paciente, estado, estudio, archivo, fechas; `setOffset(0)`; limpieza global | error/carga propios; diálogo mobile existente |
+| S4 Clínicas | `searchQuery` en cliente, `submittedSearch` tras debounce de 300 ms; consulta **server-side** | texto; `setOffset(0)` al confirmar búsqueda; sin fechas ni clear global de la barra | búsqueda desktop y mobile; `isBusy` deshabilita controles |
+| S5 Usuarios y roles | `searchQuery` con debounce 300 ms, selectores inmediatos; consulta server-side | texto, `userType`, `role`; offset vuelve a 0 en selects y al confirmar el texto; sin fechas ni clear global | presentaciones desktop/mobile; acciones deshabilitadas al mutar rol o cargar |
+| S6 Informes clínica | draft/aplicados; `Aplicar` explícito | como S3 sin clínica; `setPage(0)`; limpieza global | barra condicional a ausencia de error; diálogo mobile existente |
+| S7 Tokens clínica | draft/aplicados; `Aplicar` explícito | como S2 sin clínica; `setPage(0)`; limpieza global | barra condicional a `tokens.length`; fixture sin tokens para runtime S7 |
+
+S1 conserva la expansión de `to` a fin del día UTC; S2/S3/S6/S7 conservan la misma semántica. No hay retirada individual en S1–S7. El roadmap §7.2 describe S4 como filtrado en memoria y §7.5 describe S5 como reset sólo en selects; el código vigente tiene búsqueda server-side con debounce y reset de offset también al confirmar texto. El test `dashboard-operational-contract-baseline.test.ts` registra ese drift D-01/D-02 y pasó 13/13. Se preservó el código vigente y se reporta la discrepancia.
+
+## API y responsabilidades
+
+`AdvancedFilterSheet({ open, onOpenChange, title, description?, children, actions?, initialFocusRef?, returnFocusRef?, fallbackFocusRef?, closeLabel? })`. Cada acción opcional (`apply`, `clear`, `cancel`) exige su label y callback; el componente nunca cierra, limpia ni aplica por cuenta propia. Escape, overlay y el botón explícito comunican `onOpenChange(false)`. El foco inicial va al ref operable, primer control del cuerpo o botón de cierre; al cerrar vuelve al trigger operable o al fallback indicado. Un trigger retirado usa el fallback. Un consumidor futuro debe definir draft, estado aplicado, semántica de cerrar/cancelar, validación, disabled/loading/error, navegación y paginación según su contrato S1–S7, y probarlos antes de adoptar.
+
+## Validación y riesgos
+
+RED del guard antes del componente: 0/2. GREEN: 2/2; 6 mutaciones de arquitectura detectadas (export, dependencia modal, callback, dominio, foco y scroll). E2E C12: 13/13 en Chromium local, incluidos siete tamaños (1920×1080, 1366×768, 1280×720, 834×1194, 768×1024, 390×844, 320×568), frontera 767/768/769, interacción táctil, resize en caliente, foco, Escape, bloqueo del fondo, contenido largo, 0/1/2 filtros, acciones controladas y axe. Frontend lint, typecheck, build, `typecheck:test` y `security:public-surface`: PASSED en corridas locales. El censo usa sólo archivos seguidos por Git; Nico hizo staging manual del spec C12 para la medición POST. La cifra 54.817 es el ancla del ledger, no el PRE actual: el HEAD C11 contiene 136 líneas del spec C11 frente a las 121 que justificaron aquella ancla (+15). El PRE real de HEAD es 54.832 LOC; con la línea de catálogo C12 son 54.833. El POST C12 medido tras separar las métricas zero-scroll del resto de la geometría es 55.002 LOC (169 del spec C12). El techo de la banda vigente es 68.522 y el margen, 13.520.
+
+Nico autorizó realinear los recuentos exactos del catálogo: 113 specs totales, 23 `regression`, 71 `fixture`, 35 `visual-contract`, 82 CI y 113 `full`, más los casos derivados de entrada faltante (112) y duplicada (114). `e2e:verify-catalog` pasó 7/7; no se relajaron tolerancias, no se agregaron skips ni duplicados. El teclado virtual sólo puede aproximarse por `100dvh` en Chromium desktop; requiere verificación en dispositivo. No se recapturaron baselines A02/A03 ni se tocó CSS global. Rollback lógico: retirar la primitiva, export, guard, spec, catálogo y este documento.
+
+Regresión B15/C08–C11 en `next dev`: 87/91 aprobados y 4 FAILED, todos en el arnés C10 por la carrera de hidratación documentada en C11; B15, C08, C09 y C11 no mostraron fallos. Esa cohorte se reporta FAILED, no PASSED. Matriz A02/A03/A05/A08 y zero-scroll: 125/126 aprobados; un test de `dashboard-real-app-shell-no-scroll-contract.spec.ts` falló por un mismatch de `aria-hidden` en la navegación durante hidratación de `next dev`, ajeno a la primitiva C12. A03 verificó 234/234 hojas y 195/195 registros primarios. La matriz completa se reporta FAILED; el hallazgo queda fuera del alcance C12.
+
+Cierre de diagnóstico: con el build prescrito por Frontend CI (`NEXT_PUBLIC_API_URL` al fixture local y los flags de API local/embeds) servido por `next start`, el spec C10 completo pasó 9/9 y el único caso de navegación fallido pasó 1/1, con un worker y sin retries. El registro C11 ya demostraba la carrera C10 bajo `next dev` (5/36) con el barrel igual al HEAD y 132/132 bajo `next start`; el registro C10 ya documentaba nueve fallos de navegación/shell sólo en dev y su desaparición en producción. Ni el spec C10 ni la navegación/shell tienen diff C12; la primitiva nueva no tiene adopter productivo. Las dos matrices originales conservan estado FAILED. El runner de producción verifica los contratos relevantes; no convierte retrospectivamente aquellas corridas en PASSED. No se guardaron traces crudos de Playwright: contienen material de sesión sintética y la política del repo exige sanitización antes de conservarlos o compartirlos.
+
+Tras el staging manual de los siete paths iniciales, el censo midió primero 54.984 LOC (techo 68.522; margen 13.538). El guard 05A detectó una lectura ad hoc nueva en el test de arquitectura C12: se sustituyó por `readSourceFile`, el lector canónico con normalización CRLF. Esa adopción elevó de 424 a 425 una aserción exacta derivada; Nico autorizó explícitamente realinear sólo ese valor y su mensaje. El ledger, su piso 411 y las tolerancias permanecen iguales. El guard conjunto de C12, catálogo y 01B pasó 37/37 después de ambos ajustes. `pnpm test` detectó un falso positivo del guard zero-scroll por combinar en una línea métricas geométricas y de documento; el spec se separó por medición y el guard pasó 6/6 sin cambiar su régimen de cero. También detectó un conteo exacto de workflow en 112; Nico autorizó realinearlo a los 113 specs del catálogo, sin cambiar la lógica ni la cobertura. El spec C12 reformateado pasó 13/13 bajo `next start`. Queda pendiente staging manual de esas últimas ediciones y verificación final antes del commit.
+
+Después de esos cambios, los guards dirigidos pasaron 52/52. La repetición de `pnpm test` terminó FAILED con 5.332 aprobados, 1 omitido y un único fallo: `e2e-global-03b-authoritative-auth-boundary.fastify.test.ts` exige `DATABASE_URL` o `SUPABASE_DB_URL` apuntando a la DB local aislada `portal_vetneb_ci`, ausente en este entorno. Por esa precondición, `validate:local` no llega a su build backend; no se presenta como PASSED. Los cambios pendientes de staging manual son este documento, el spec C12 reformateado y la aserción de workflow autorizada.
