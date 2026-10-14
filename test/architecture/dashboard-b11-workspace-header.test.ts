@@ -843,7 +843,7 @@ test("C07 · the toolbar reads selectedCount and clearSelection only: no state, 
   const imports = [...code.matchAll(/^import (?:type )?.* from "([^"]+)";$/gm)].map((match) => match[1]);
   assert.deepEqual(imports, ["react", "lucide-react", "@/components/ui/button"]);
   for (const forbidden of [
-    "useState", "useEffect", "useLayoutEffect", "useRef", "useReducer", "useMemo", "useCallback", "useCollectionSelection",
+    "useState", "useEffect", "useReducer", "useMemo", "useCallback", "useCollectionSelection",
     "CollectionSelection", "selectedIds", "fetch(", "@/lib/api", "@/app/", "next/navigation", "Pager", "limit", "offset",
     "aria-sort", "onSort", "BulkActionMenu", "OverflowMenu", "ContextMenu", "ActionMenu", "SubMenu", "aria-haspopup",
     'role="menu', 'role="toolbar"', "tabIndex", "onKeyDown", "style=", "setTimeout", "h-12",
@@ -859,6 +859,13 @@ test("C07 · the toolbar reads selectedCount and clearSelection only: no state, 
   assert.ok(code.includes("-my-0.5 h-11 min-h-11 min-w-11"), "44px touch target below md without growing the host");
   assert.ok(code.includes("if (toolbar?.contains(target)) continue;") && code.includes('if (target.matches(":focus")) break;'),
     "focus falls back to a control that really takes it, never to the toolbar's own button");
+  assert.ok(code.includes("onFocusCapture=") && code.includes("onBlurCapture=") &&
+    code.includes("document.activeElement === document.body") &&
+    code.includes("focusHandoff.current = null") &&
+    code.includes("focusCollectionControl(collection, null)"),
+  "a host-driven empty selection restores focus only when the removed toolbar held it");
+  assert.deepEqual([...code.matchAll(/\b(useLayoutEffect|useRef)\b/g)].map((match) => match[1]),
+    ["useLayoutEffect", "useRef", "useRef", "useLayoutEffect"], "only the focus handoff may use hooks");
   assert.ok(code.includes('aria-label="Limpiar selección"') && code.includes('type="button"'));
   assert.equal(/data-selection-toolbar/.test(readDashboardCssSource()), false, "C07 adds no CSS or geometry token");
 });

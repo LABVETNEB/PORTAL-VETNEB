@@ -59,7 +59,7 @@ type BulkActionMenuProps<Id> = {
 | H · Toolbar | Un slot en el grupo existente. Con 0 seleccionados no existe (ni el slot ni el menú). |
 | I · Desktop y mobile | Trigger de 32 px desde 768; 44 × 44 px debajo, con sólo el icono debajo de 640 (igual que «Limpiar»). El margen `-my-0.5` evita que crezca la franja de 53 px. |
 | J · Ejecución | Siempre el host. `onSelect` recibe una copia de los IDs, una vez por activación, después de que C08 cerró el menú y devolvió el foco. |
-| K · Foco | El de C08: Escape, Tab y selección devuelven el foco al trigger, que no se deshabilita durante `pending`, así que no lo pierde. |
+| K · Foco | C08 devuelve el foco al trigger al cerrar el menú. Si el host vacía después la selección, C07 lo entrega al selector de página de la misma colección (o al primer control que acepte foco). |
 | L · Errores y parciales | Del host. El menú no muestra resultados; el host informa en su propia región y deja seleccionados los IDs fallidos con `deselect` de C06. |
 | M · Cancelación | Escape, clic exterior y Tab cierran sin ejecutar y sin tocar la selección. Con `pending`, todas las acciones quedan deshabilitadas («Acción en curso») hasta que el host lo retira. C09 no define cómo abortar una operación en curso. |
 | N · Destructivas | Una acción `destructive: true` exige declarar `confirmsBeforeRunning`. Con `false` queda deshabilitada («Requiere confirmación»). Con `true`, `onSelect` debe abrir la confirmación del host antes de cambiar nada. `ConfirmDialog` (§47.1) no existe todavía y no es parte de C09. |
@@ -118,9 +118,12 @@ Estado Git real, con el owner sin trackear y simulado como trackeado sólo para 
 
 El host mide lo mismo con 0 seleccionados y con la selección y el menú. Sin overflow del documento, sin solapamiento, contador sin truncar y motivos visibles completos en los siete viewports.
 
+## Corrección de review en PR #1865
+
+Codex señaló que una limpieza de selección hecha por el host desmontaba el trigger enfocado y dejaba el foco en `body`. El E2E C09 reprodujo el defecto en RED y lo verificó en GREEN. C07 ahora registra si su grupo tenía foco, y al pasar a cero seleccionados lo entrega al selector de página de la misma colección; si el host ya lo movió, respeta ese destino. El guard C07 se realineó para exigir el handoff sin permitir estado de selección ni lógica de negocio. El thread `PRRT_kwDOR5qlsc6sJTMT` sigue pendiente de publicación y resolución manual.
+
 ## Riesgos residuales
 
-- **Foco tras una limpieza hecha por el host.** Si el host limpia la selección al terminar una acción, la toolbar se desmonta con el trigger enfocado y el foco cae al documento. La toolbar C07 sólo restaura el foco para su propio «Limpiar». El adopter (C17+) debe mover el foco al terminar, o C07 debe asumirlo en una tarea propia.
 - **Confirmación por declaración.** `confirmsBeforeRunning: true` es una declaración del host; el menú no puede verificar que la confirmación exista. Debe revisarse en cada adopter hasta que haya `ConfirmDialog`.
 - **Ancho en hosts reales.** El trigger suma 44 px más 8 px de separación en móvil. La franja de Auditoría a 320 px ya aloja el selector de página y «Filtros»; un host así debe medir su presupuesto al adoptar. El arnés no incluye «Filtros».
 - **Texto largo.** Rótulo y motivo comparten una línea; a 320 px caben unos 45 caracteres antes de truncarse. El motivo sigue en el nombre accesible aunque se trunque a la vista.

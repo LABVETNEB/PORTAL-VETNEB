@@ -2245,6 +2245,17 @@ test.describe("C09 · BulkActionMenu on the SelectionToolbar", () => {
     await expect(defaultToolbar).toBeVisible();
     await expect(harness.locator('[data-c09-status="true"]')).toHaveText("2 procesados");
     await expect(row(2)).not.toBeChecked();
+    await expect(pageSelector).toBeFocused();
+
+    // A host that moved focus elsewhere keeps its chosen destination when it clears.
+    await row(1).check();
+    await trigger.click();
+    await item("Procesar").click();
+    const pageControl = harness.getByRole("button", { name: "Página 1", exact: true });
+    await pageControl.focus();
+    await page.evaluate(() => (window as unknown as { __c09Settle: () => void }).__c09Settle());
+    await expect(group).toHaveCount(0);
+    await expect(pageControl).toBeFocused();
 
     // C07 clear with the menu in the group: whole owner cleared, focus on the page selector.
     await row(1).check();

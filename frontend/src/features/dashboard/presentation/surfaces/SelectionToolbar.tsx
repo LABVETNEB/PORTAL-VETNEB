@@ -1,6 +1,6 @@
 "use client";
 
-import type { MouseEvent, ReactNode } from "react";
+import { useLayoutEffect, useRef, type MouseEvent, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -24,8 +24,28 @@ export type SelectionToolbarProps = {
 const PAGE_SELECTOR = '[data-collection-selection="page"]:not(:disabled)';
 const FALLBACK_CONTROLS = 'button:not(:disabled), input:not(:disabled):not([type="hidden"]), select:not(:disabled)';
 
+function focusCollectionControl(collection: Element | null, toolbar: Element | null) {
+  const targets = [
+    ...(collection?.querySelectorAll<HTMLElement>(PAGE_SELECTOR) ?? []),
+    ...(collection?.querySelectorAll<HTMLElement>(FALLBACK_CONTROLS) ?? []),
+  ];
+  for (const target of targets) {
+    if (toolbar?.contains(target)) continue;
+    target.focus();
+    if (target.matches(":focus")) break;
+  }
+}
+
 export function SelectionToolbar({ selectedCount, onClearSelection, actions, children }: SelectionToolbarProps) {
   const count = selectedCount === 1 ? "1 seleccionado" : `${selectedCount} seleccionados`;
+  const focusHandoff = useRef<Element | null>(null);
+
+  useLayoutEffect(() => {
+    if (selectedCount !== 0) return;
+    const collection = focusHandoff.current;
+    focusHandoff.current = null;
+    if (collection && document.activeElement === document.body) focusCollectionControl(collection, null);
+  }, [selectedCount]);
 
   function clear(event: MouseEvent<HTMLButtonElement>) {
     // This button unmounts with the selection: focus moves to the page selector of the same
@@ -33,15 +53,7 @@ export function SelectionToolbar({ selectedCount, onClearSelection, actions, chi
     const toolbar = event.currentTarget.closest('[data-selection-toolbar="true"]');
     const collection = event.currentTarget.closest("section");
     onClearSelection();
-    const targets = [
-      ...(collection?.querySelectorAll<HTMLElement>(PAGE_SELECTOR) ?? []),
-      ...(collection?.querySelectorAll<HTMLElement>(FALLBACK_CONTROLS) ?? []),
-    ];
-    for (const target of targets) {
-      if (toolbar?.contains(target)) continue;
-      target.focus();
-      if (target.matches(":focus")) break;
-    }
+    focusCollectionControl(collection, toolbar);
   }
 
   return (
@@ -49,7 +61,16 @@ export function SelectionToolbar({ selectedCount, onClearSelection, actions, chi
       {selectedCount === 0 ? (
         children
       ) : (
-        <div role="group" aria-label="Selección" data-selection-toolbar="true" className="flex min-w-0 flex-1 items-center gap-2">
+        <div
+          role="group"
+          aria-label="Selección"
+          data-selection-toolbar="true"
+          className="flex min-w-0 flex-1 items-center gap-2"
+          onFocusCapture={(event) => { focusHandoff.current = event.currentTarget.closest("section"); }}
+          onBlurCapture={(event) => {
+            if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget as Node)) focusHandoff.current = null;
+          }}
+        >
           <span data-selection-count="true" className="min-w-0 truncate text-xs font-semibold tabular-nums text-vetneb-ink">
             {count}
           </span>

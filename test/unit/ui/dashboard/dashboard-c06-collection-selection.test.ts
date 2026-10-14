@@ -356,12 +356,15 @@ type ToolbarComponent = (props: Record<string, unknown>) => unknown;
 const TOOLBAR_FRAGMENT = Symbol("Fragment");
 const TOOLBAR_REACT = {
   Fragment: TOOLBAR_FRAGMENT,
+  useLayoutEffect: () => {},
+  useRef: () => ({ current: null }),
   createElement: (type: unknown, props: Record<string, unknown> | null, ...children: unknown[]) => ({
     type,
     props: { ...props, children },
   }),
 };
 const TOOLBAR_IMPORTS = {
+  react: TOOLBAR_REACT,
   "lucide-react": { X: (props: Record<string, unknown>) => TOOLBAR_REACT.createElement("svg", { ...props, "data-icon": "x" }) },
   "@/components/ui/button": {
     Button: ({ children, ...props }: Record<string, unknown>) => TOOLBAR_REACT.createElement("button", props, children),
@@ -570,7 +573,7 @@ test("C07 · in-memory mutations of the toolbar each break their contract flag",
     ["defaultAtZero", swap, "{false ? ("],
     ["countFollowsSelectedCount", "`${selectedCount} seleccionados`", "`1 seleccionados`"],
     ["clearCallsOwner", "    onClearSelection();\n", ""],
-    ["focusAfterClear", "      target.focus();\n", "      target.blur?.();\n"],
+    ["focusAfterClear", "    target.focus();\n", "    target.blur?.();\n"],
     ["focusFallback", "if (toolbar?.contains(target)) continue;", ""],
     ["focusFallback", 'if (target.matches(":focus")) break;', "break;"],
     ["liveRegionPersistent", '{selectedCount === 0 ? "" : count}', "{count}"],
