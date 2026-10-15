@@ -790,6 +790,17 @@
   }
 }
 
+/* dashboard-c13-details-tabs:start
+ * C13 detail tabs reuse the module tab grammar; below 768 px they keep the 44 px touch target
+ * instead of the desktop --dash-tab-h density. Scoped to the C13 owner, so ModuleTabs is unchanged.
+ */
+@media (max-width: 767px) {
+  .dashboard-app-shell [data-details-tabs="true"] .dashboard-module-tab {
+    min-height: 44px;
+  }
+}
+/* dashboard-c13-details-tabs:end */
+
 /* dashboard-detail-value-integrity:start */
 /*
   PR-TRUNC · Terminal-surface text integrity.
