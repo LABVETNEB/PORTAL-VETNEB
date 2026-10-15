@@ -28,12 +28,12 @@ function metadataFor(id, mode) {
   return [{ id: "estado", label: "Estado", value: "Pendiente" }, { id: "origen", label: "Origen", value: "Carga manual" }, { id: "codigo", label: "Código", value: "C-" + id, mono: true }, { id: "resumen", label: "Resumen", value: "Registro de prueba " + id }];
 }
 function Harness() {
-  const [selectedId, setSelectedId] = useState(null), [tab, setTab] = useState("detalles"), [mode, setMode] = useState("complete"), [disabled, setDisabled] = useState(false), [, setTick] = useState(0);
-  Object.assign(window, { __c13SetMode: setMode, __c13SetDisabled: setDisabled, __c13SetTab: setTab, __c13Rerender: () => setTick((value) => value + 1), __c13Select: setSelectedId });
+  const [selectedId, setSelectedId] = useState(null), [tab, setTab] = useState("detalles"), [mode, setMode] = useState("complete"), [disabled, setDisabled] = useState(false), [tabCase, setTabCase] = useState("normal"), [, setTick] = useState(0);
+  Object.assign(window, { __c13SetMode: setMode, __c13SetDisabled: setDisabled, __c13SetTab: setTab, __c13SetTabCase: setTabCase, __c13Rerender: () => setTick((value) => value + 1), __c13Select: setSelectedId });
   const tabs = [
-    { id: "detalles", label: "Detalles", content: <DetailsMetadata items={metadataFor(selectedId, mode)} /> },
-    { id: "notas", label: "Notas", content: <p data-c13-notes="true">Notas sintéticas del registro {selectedId}. <button type="button">Acción de notas</button></p> },
-    { id: "relacionados", label: "Relacionados", disabled, content: <p data-c13-related="true">Sin relacionados sintéticos.</p> },
+    { id: "detalles", label: tabCase === "long-label" ? LONG : "Detalles", disabled: tabCase === "all-disabled", content: <DetailsMetadata items={metadataFor(selectedId, mode)} /> },
+    { id: "notas", label: "Notas", disabled: tabCase === "all-disabled", content: <p data-c13-notes="true">Notas sintéticas del registro {selectedId}. <button type="button">Acción de notas</button></p> },
+    { id: "relacionados", label: "Relacionados", disabled: disabled || tabCase === "all-disabled", content: <p data-c13-related="true">Sin relacionados sintéticos.</p> },
   ];
   return <WorkspaceScaffold kind="module" moduleId="c13-harness" title="Arnés C13" titleId="c13-harness-title"
     collection={<ul data-c13-collection="true" aria-label="Registros" style={{ listStyle: "none", margin: 0, padding: 0, flex: 1, minHeight: 0 }}>
@@ -184,11 +184,53 @@ test("C13 · tabs WAI-ARIA, teclado, disabled, foco y callbacks estables", async
   await tab("Notas").click();
   expect(await logOf(page)).toEqual(["select:1", "tab:notas", "tab:detalles", "tab:notas", "tab:detalles", "tab:notas"]);
   await call(page, "__c13SetDisabled", false);
+  await expect(tab("Relacionados")).toBeEnabled();
   await page.keyboard.press("ArrowRight");
   await expect(tab("Relacionados")).toBeFocused(); await expect(pane.getByRole("tabpanel", { name: "Relacionados" })).toBeVisible();
   await call(page, "__c13SetTab", "inexistente");
   await expect(tab("Detalles")).toHaveAttribute("aria-selected", "true"); await expect(tab("Detalles")).toHaveAttribute("tabindex", "0");
   expect((await logOf(page)).at(-1)).toBe("tab:relacionados");
+  await expectAxeClean(page);
+});
+
+for (const [width, height] of [[1366, 768], [320, 568]]) {
+  test(`C13 P2 · etiqueta larga sin overflow horizontal ${width}x${height}`, async ({ page }) => {
+    await mount(page, width, height); await expand(page);
+    if (width < 768) await call(page, "__c13Select", "1");
+    else await page.locator('[data-c13-record="1"]').click();
+    await call(page, "__c13SetTabCase", "long-label");
+    const panel = page.locator(PANEL);
+    const tab = panel.getByRole("tab", { name: LONG_TOKEN });
+    await expect(tab).toHaveAttribute("aria-selected", "true");
+    const metrics = await page.evaluate(() => {
+      const content = document.querySelector<HTMLElement>('[data-c13-harness="true"] .dashboard-utility-side-panel-content')!;
+      const tab = content.querySelector<HTMLElement>('[data-details-tab="detalles"]')!;
+      return { horizontal: content.scrollWidth - content.clientWidth, tabHorizontal: tab.scrollWidth - tab.clientWidth, tabWidth: tab.getBoundingClientRect().width, contentWidth: content.clientWidth, tabHeight: tab.getBoundingClientRect().height };
+    });
+    expect(metrics.horizontal).toBeLessThanOrEqual(1);
+    expect(metrics.tabHorizontal).toBeLessThanOrEqual(1);
+    expect(metrics.tabWidth).toBeLessThanOrEqual(metrics.contentWidth);
+    expect(metrics.tabHeight).toBeGreaterThan(44);
+    await tab.focus(); await page.keyboard.press("ArrowRight");
+    await expect(panel.getByRole("tab", { name: "Notas" })).toBeFocused();
+    await expect(panel.getByRole("tabpanel", { name: "Notas" })).toBeVisible();
+    await expectNoOuterScroll(page, `etiqueta larga ${width}x${height}`);
+  });
+}
+
+test("C13 P2 · todas las pestañas deshabilitadas quedan sin selección ni panel activo", async ({ page }) => {
+  await mount(page, 1366, 768); await expand(page);
+  await page.locator('[data-c13-record="1"]').click(); await call(page, "__c13SetTabCase", "all-disabled");
+  const panel = page.locator(PANEL);
+  const tabs = panel.getByRole("tab", { includeHidden: true });
+  await expect(tabs).toHaveCount(3);
+  for (const tab of await tabs.all()) {
+    await expect(tab).toBeDisabled();
+    await expect(tab).toHaveAttribute("aria-selected", "false");
+    await expect(tab).toHaveAttribute("tabindex", "-1");
+  }
+  for (const tabpanel of await panel.getByRole("tabpanel", { includeHidden: true }).all()) await expect(tabpanel).toBeHidden();
+  expect(await logOf(page)).toEqual(["select:1"]);
   await expectAxeClean(page);
 });
 
@@ -211,6 +253,7 @@ test("C13 · colapso y expansión B16 conservan pestaña, selección y foco", as
 test("C13 · valores extensos sin truncado y scroll interno del panel", async ({ page }) => {
   await mount(page, 1366, 768); await expand(page);
   await page.locator('[data-c13-record="1"]').click(); await call(page, "__c13SetMode", "long");
+  await expect(page.locator('dl[data-details-metadata="true"] dd')).toHaveCount(28);
   const metrics = await page.evaluate(() => {
     const content = document.querySelector<HTMLElement>('[data-c13-harness="true"] .dashboard-utility-side-panel-content')!;
     const pane = content.querySelector<HTMLElement>('[data-details-pane="true"]')!;

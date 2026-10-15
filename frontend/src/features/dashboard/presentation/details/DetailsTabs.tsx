@@ -24,7 +24,7 @@ export function DetailsTabs({ label, tabs, activeId, onActiveIdChange }: Details
   const baseId = useId();
   const tabRefs = useRef(new Map<string, HTMLButtonElement>());
   const enabled = tabs.filter((tab) => !tab.disabled);
-  const currentId = enabled.find((tab) => tab.id === activeId)?.id ?? enabled[0]?.id ?? tabs[0]?.id;
+  const currentId = enabled.find((tab) => tab.id === activeId)?.id ?? enabled[0]?.id;
   if (!tabs.length) return null;
 
   const tabId = (id: string) => `${baseId}-tab-${id}`;
@@ -50,7 +50,7 @@ export function DetailsTabs({ label, tabs, activeId, onActiveIdChange }: Details
     <div data-details-tabs="true" className="flex min-w-0 flex-col gap-3">
       <div role="tablist" aria-label={label} className="dashboard-module-tablist">
         {tabs.map((tab) => {
-          const selected = tab.id === currentId;
+          const selected = !tab.disabled && tab.id === currentId;
           return (
             <button
               key={tab.id}
@@ -68,7 +68,7 @@ export function DetailsTabs({ label, tabs, activeId, onActiveIdChange }: Details
               data-details-tab={tab.id}
               onClick={() => activate(tab.id)}
               onKeyDown={(event) => handleKeyDown(event, tab.id)}
-              className="dashboard-module-tab dashboard-btn-interactive focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-55"
+              className="dashboard-module-tab dashboard-btn-interactive min-w-0 max-w-full whitespace-normal [overflow-wrap:anywhere] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-55"
             >
               {tab.label}
             </button>
