@@ -32,7 +32,7 @@ function Harness() {
   return <WorkspaceScaffold kind="module" moduleId="c14-harness" title="Arnés C14" titleId="c14-title"
     collection={<ul style={{ listStyle: "none", margin: 0, padding: 0, flex: 1, minHeight: 0 }}><li><button type="button" data-c14-select="true" onClick={() => setSelected(true)}>Seleccionar</button></li></ul>}
     details={<DetailsPane label="Detalle sintético">
-      <DetailsTabs label="Secciones" activeId={active} onActiveIdChange={setActive} tabs={[{ id: "activity", label: "Actividad", content: <DetailsActivity steps={selected ? steps : []} ariaLabel="Actividad del registro" emptyTitle="Sin actividad" /> }]} />
+      <DetailsTabs label="Secciones" activeId={active} onActiveIdChange={setActive} tabs={[{ id: "activity", label: "Actividad", content: <DetailsActivity steps={selected ? steps : []} ariaLabel="Actividad del registro" className="c14-activity-probe" emptyTitle="Sin actividad" /> }]} />
       <DetailsActionDock label="Acciones del registro" description="Acciones disponibles" pending={pending} actions={selected ? [
         { id: "open", label: "Abrir", onClick: () => log.push("open") },
         { id: "download", label: "Descargar", onClick: () => log.push("download"), disabledReason: disabled ? "Archivo no disponible" : undefined },
@@ -66,7 +66,7 @@ const logOf = (page: Page) => page.evaluate(() => [...(window as unknown as { __
 test("C14 · actividad ordenada y estado vacío accesible", async ({ page }) => {
   await mount(page, 1366, 768);
   const panel = page.locator(PANEL);
-  await expect(panel.getByText("Sin actividad")).toBeVisible();
+  await expect(panel.getByText("Sin actividad")).toBeVisible(); await expect(panel.getByRole("group", { name: "Actividad del registro" })).toHaveClass(/c14-activity-probe/);
   await expect(panel.locator('[data-details-action-dock="true"]')).toHaveCount(0);
   await page.locator('[data-c14-select="true"]').click();
   const list = panel.getByRole("list", { name: "Actividad del registro" });

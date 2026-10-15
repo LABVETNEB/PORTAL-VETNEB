@@ -16,7 +16,7 @@ const ACTIVITY_STATUS_CONFIG = {
 } satisfies Record<DetailsActivityStatus, StatusConfig>;
 
 export function DetailsActivity({ steps, compact = false, ariaLabel = "Actividad del detalle", emptyTitle = "Sin actividad", emptyDescription, className }: DetailsActivityProps) {
-  if (steps.length === 0) return <DetailsEmptyState title={emptyTitle} description={emptyDescription} />;
+  if (steps.length === 0) return <DetailsEmptyState title={emptyTitle} description={emptyDescription} ariaLabel={ariaLabel} className={className} />;
   return (
     <ol className={cn("space-y-3", compact ? "text-sm" : "text-base", className)} aria-label={ariaLabel} data-details-activity="true">
       {steps.map((step, index) => {
