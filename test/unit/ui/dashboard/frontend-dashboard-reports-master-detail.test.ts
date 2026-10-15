@@ -19,6 +19,8 @@ const INFORMES_ACTIONS_PATH =
   "frontend/src/app/dashboard/informes/informes.actions.ts";
 const STUDY_TIMELINE_PATH =
   "frontend/src/components/dashboard/StudyTimeline.tsx";
+const DETAILS_ACTIVITY_PATH =
+  "frontend/src/features/dashboard/presentation/details/DetailsActivity.tsx";
 const STICKY_ACTION_BAR_PATH =
   "frontend/src/components/dashboard/StickyActionBar.tsx";
 
@@ -70,18 +72,21 @@ function assertNoForbiddenSurfaceImports(source: string, context: string): void 
 }
 
 test("StudyTimeline supports ordered visual states without business calculations", () => {
-  const source = read(STUDY_TIMELINE_PATH);
+  const adapter = read(STUDY_TIMELINE_PATH);
+  const source = read(DETAILS_ACTIVITY_PATH);
 
-  assert.ok(source.includes("export type StudyTimelineStep = {"));
-  assert.ok(source.includes("steps: StudyTimelineStep[];"));
+  assert.ok(adapter.includes("export type StudyTimelineStep = DetailsActivityStep;"));
+  assert.ok(adapter.includes("<DetailsActivity steps={steps}"));
+  assert.ok(source.includes("export type DetailsActivityStep = {"));
+  assert.ok(source.includes("steps: readonly DetailsActivityStep[];"));
   assert.ok(source.includes("ariaLabel?: string;"));
-  assert.ok(source.includes('ariaLabel = "Línea de tiempo del estudio"'));
+  assert.ok(adapter.includes('ariaLabel = "Línea de tiempo del estudio"'));
   assert.ok(source.includes('"completed"'));
   assert.ok(source.includes('"current"'));
   assert.ok(source.includes('"pending"'));
   assert.ok(source.includes('"warning"'));
   assert.ok(source.includes('"error"'));
-  assert.ok(source.includes("const TIMELINE_STATUS_CONFIG = {"));
+  assert.ok(source.includes("const ACTIVITY_STATUS_CONFIG = {"));
   assert.ok(source.includes("completed: {"));
   assert.ok(source.includes("current: {"));
   assert.ok(source.includes("pending: {"));
