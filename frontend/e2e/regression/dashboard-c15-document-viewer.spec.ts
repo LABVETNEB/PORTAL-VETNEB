@@ -36,14 +36,34 @@ function twoPagePdf(): Buffer {
   return Buffer.from(pdf);
 }
 
+function coloredPdf(count: number): Buffer {
+  const colors = ["1 0 0", "0 1 0", "0 0 1"];
+  const kids = Array.from({ length: count }, (_, index) => `${index + 3} 0 R`).join(" ");
+  const objects = ["<< /Type /Catalog /Pages 2 0 R >>", `<< /Type /Pages /Kids [${kids}] /Count ${count} >>`];
+  for (let index = 0; index < count; index += 1) objects.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 400] /Resources << >> /Contents ${count + 3 + index} 0 R >>`);
+  for (let index = 0; index < count; index += 1) {
+    const stream = `${colors[index % colors.length]} rg 0 0 300 400 re f\n`;
+    objects.push(`<< /Length ${Buffer.byteLength(stream)} >>\nstream\n${stream}endstream`);
+  }
+  let pdf = "%PDF-1.4\n";
+  const offsets = [0];
+  objects.forEach((object, index) => { offsets.push(Buffer.byteLength(pdf)); pdf += `${index + 1} 0 obj\n${object}\nendobj\n`; });
+  const xref = Buffer.byteLength(pdf);
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  offsets.slice(1).forEach((offset) => { pdf += `${String(offset).padStart(10, "0")} 00000 n \n`; });
+  return Buffer.from(`${pdf}trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`);
+}
+
 test.beforeAll(async () => {
   const result = await build({ stdin: { contents: `import React, { useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { WorkspaceScaffold } from "./src/components/dashboard/ModuleSurface.tsx";
 import { DocumentViewer } from "./src/features/dashboard/presentation/viewer/index.ts";
+import { PdfSession } from "./src/features/dashboard/presentation/viewer/pdfjs-client.ts";
 const main = document.querySelector("main.dashboard-main"), mount = document.createElement("div");
 mount.setAttribute("data-c15-harness", "true"); mount.style.cssText = "position:absolute;inset:0;display:flex;min-height:0;min-width:0;background:white;z-index:2"; main.style.position = "relative"; main.append(mount);
 const log = (window.__c15Log = []);
+window.__c15PdfSession = PdfSession;
 function Harness() {
   const [open, setOpen] = useState(false), [source, setSource] = useState(null), [allowed, setAllowed] = useState(true);
   const trigger = useRef(null);
@@ -98,7 +118,7 @@ test("C15 · PDF multipágina, zoom, descarga, Escape y foco", async ({ page }) 
   await expect(dialog.getByText("1 / 2")).toBeVisible();
   await dialog.getByRole("button", { name: "Página siguiente" }).click();
   await expect(dialog.getByRole("img", { name: "Página 2 de 2" })).toBeVisible();
-  expect(await dialog.locator("canvas").evaluate((canvas: HTMLCanvasElement) => canvas.width > canvas.height)).toBe(true);
+  expect(await dialog.locator('[data-c15-scroll="true"] canvas').evaluate((canvas: HTMLCanvasElement) => canvas.width > canvas.height)).toBe(true);
   await expect(dialog.getByRole("button", { name: "Página siguiente" })).toBeDisabled();
   await dialog.getByRole("button", { name: "Ampliar zoom" }).click(); await expect(dialog.getByText("125%")).toBeVisible();
   await dialog.getByRole("button", { name: "Descargar documento" }).click();
@@ -221,4 +241,104 @@ test("C15 · renderizados alternados, scroll interior y fallback fullscreen", as
   await expect(dialog.getByRole("img", { name: "Documento sintético" })).toBeVisible();
   await set(page, "__c15Source", pdf());
   await expect(dialog.getByRole("img", { name: "Página 1 de 2" })).toBeVisible({ timeout: 15_000 });
+});
+
+test("C16 · PDF de una página evita banda y PDF largo carga miniaturas reales por demanda", async ({ page }) => {
+  const browserMessages: string[] = [];
+  page.on("console", (message) => browserMessages.push(message.text()));
+  page.on("pageerror", (error) => browserMessages.push(error.message));
+  await mount(page);
+  let loads = 0;
+  await page.route(/^https:\/\/documents\.c15\.test\/colored-(one|many)\.pdf/, (route) => {
+    loads += 1;
+    const count = route.request().url().includes("colored-one") ? 1 : 24;
+    return route.fulfill({ status: 200, contentType: "application/pdf", headers: { "access-control-allow-origin": "*" }, body: coloredPdf(count) });
+  });
+  await set(page, "__c15Source", pdf(`${ORIGIN}/colored-one.pdf`));
+  await page.getByRole("button", { name: "Abrir documento" }).click();
+  const dialog = page.getByRole("dialog", { name: "Documento sintético" });
+  await expect(dialog.getByRole("img", { name: "Página 1 de 1" })).toBeVisible();
+  await expect(dialog.getByRole("navigation", { name: "Miniaturas del documento" })).toHaveCount(0);
+  await set(page, "__c15Source", pdf(`${ORIGIN}/colored-many.pdf?proof=${marker}`));
+  const strip = dialog.getByRole("navigation", { name: "Miniaturas del documento" });
+  await expect(strip).toBeVisible();
+  await expect(strip.getByRole("button", { name: "Ir a página 24 de 24" })).toBeAttached();
+  await expect(strip.locator('[data-c16-page="1"] canvas')).toBeVisible();
+  const firstColor = await strip.locator('[data-c16-page="1"] canvas').evaluate((canvas: HTMLCanvasElement) => Array.from(canvas.getContext("2d")!.getImageData(canvas.width / 2, canvas.height / 2, 1, 1).data));
+  expect(firstColor[0]).toBeGreaterThan(200);
+  expect(firstColor[1]).toBeLessThan(50);
+  expect(await strip.locator("canvas").evaluateAll((canvases: HTMLCanvasElement[]) => canvases.filter((canvas) => canvas.width > 0).length)).toBeLessThanOrEqual(8);
+  await strip.getByRole("button", { name: "Ir a página 2 de 24" }).click();
+  await expect(dialog.getByRole("img", { name: "Página 2 de 24" })).toBeVisible();
+  await expect(strip.getByRole("button", { name: "Ir a página 2 de 24" })).toHaveAttribute("aria-current", "page");
+  await dialog.getByRole("button", { name: "Página siguiente" }).click();
+  await expect(strip.getByRole("button", { name: "Ir a página 3 de 24" })).toHaveAttribute("aria-current", "page");
+  await dialog.getByRole("button", { name: "Ampliar zoom" }).click();
+  await expect(dialog.getByText("125%")).toBeVisible();
+  await expect(strip.getByRole("button", { name: "Ir a página 3 de 24" })).toHaveAttribute("aria-current", "page");
+  await strip.getByRole("button", { name: "Ir a página 24 de 24" }).click();
+  await expect(dialog.getByRole("img", { name: "Página 24 de 24" })).toBeVisible();
+  expect(await strip.locator("canvas").evaluateAll((canvases: HTMLCanvasElement[]) => canvases.filter((canvas) => canvas.width > 0).length)).toBeLessThanOrEqual(8);
+  await expect(strip.locator('[data-c16-page="1"] canvas')).toHaveJSProperty("width", 0);
+  await strip.getByRole("button", { name: "Ir a página 1 de 24" }).click();
+  await expect(dialog.getByRole("img", { name: "Página 1 de 24" })).toBeVisible();
+  await expect(strip.locator('[data-c16-page="1"] canvas')).toBeVisible();
+  expect(loads).toBe(2);
+  expect(browserMessages.join(" ")).not.toContain(marker);
+  expect(await page.evaluate(() => document.body.scrollHeight - document.body.clientHeight)).toBe(0);
+  expect((await new AxeBuilder({ page }).include('[data-c15-viewer="true"]').analyze()).violations).toEqual([]);
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Abrir documento" })).toBeFocused();
+});
+
+test("C16 · error individual, reintento y cambio rápido de documento", async ({ page }) => {
+  await mount(page);
+  await page.route(/^https:\/\/documents\.c15\.test\/colored-/, (route) => route.fulfill({ status: 200, contentType: "application/pdf", headers: { "access-control-allow-origin": "*" }, body: coloredPdf(route.request().url().includes("one") ? 1 : 3) }));
+  await page.evaluate(() => {
+    const klass = (window as unknown as { __c15PdfSession: typeof import("../../src/features/dashboard/presentation/viewer/pdfjs-client").PdfSession }).__c15PdfSession;
+    const original = klass.prototype.renderThumbnail;
+    let failed = false;
+    klass.prototype.renderThumbnail = function (canvas, number, signal) {
+      if (number === 2 && !failed) { failed = true; return Promise.reject(new Error("synthetic thumbnail failure")); }
+      return original.call(this, canvas, number, signal);
+    };
+  });
+  await set(page, "__c15Source", pdf(`${ORIGIN}/colored-many.pdf?proof=${marker}`));
+  await page.getByRole("button", { name: "Abrir documento" }).click();
+  const dialog = page.getByRole("dialog", { name: "Documento sintético" });
+  const strip = dialog.getByRole("navigation", { name: "Miniaturas del documento" });
+  await expect(strip.getByRole("button", { name: "Reintentar miniatura de página 2" })).toBeVisible();
+  await expect(strip.locator('[data-c16-page="1"] canvas')).toBeVisible();
+  await strip.getByRole("button", { name: "Reintentar miniatura de página 2" }).click();
+  await expect(strip.locator('[data-c16-page="2"] canvas')).toBeVisible();
+  await set(page, "__c15Source", pdf(`${ORIGIN}/colored-one.pdf`));
+  await expect(strip).toHaveCount(0);
+  await expect(dialog.getByRole("img", { name: "Página 1 de 1" })).toBeVisible();
+  expect(await page.evaluate(() => document.body.scrollHeight - document.body.clientHeight)).toBe(0);
+});
+
+test("C16 · banda móvil conserva scroll propio y fondo inmóvil", async ({ page }) => {
+  await mount(page, 390, 844);
+  await page.route("**/colored-many.pdf", (route) => route.fulfill({ status: 200, contentType: "application/pdf", headers: { "access-control-allow-origin": "*" }, body: coloredPdf(24) }));
+  await set(page, "__c15Source", pdf(`${ORIGIN}/colored-many.pdf`));
+  await page.getByRole("button", { name: "Abrir documento" }).click();
+  const dialog = page.getByRole("dialog", { name: "Documento sintético" });
+  const strip = dialog.getByRole("navigation", { name: "Miniaturas del documento" });
+  await expect(strip).toBeVisible();
+  await strip.getByRole("button", { name: "Ir a página 20 de 24" }).click();
+  await expect(dialog.getByRole("img", { name: "Página 20 de 24" })).toBeVisible();
+  const geometry = await page.evaluate(() => {
+    const strip = document.querySelector('[data-c16-thumbnails="true"]')!;
+    const main = document.querySelector("main.dashboard-main")!;
+    return { stripScroll: strip.scrollLeft, stripOverflow: strip.scrollWidth > strip.clientWidth,
+      bodyVertical: document.body.scrollHeight - document.body.clientHeight,
+      bodyHorizontal: document.body.scrollWidth - document.body.clientWidth,
+      mainVertical: main.scrollHeight - main.clientHeight };
+  });
+  expect(geometry.stripOverflow).toBe(true);
+  expect(geometry.stripScroll).toBeGreaterThan(0);
+  expect(geometry.bodyVertical).toBe(0);
+  expect(geometry.bodyHorizontal).toBe(0);
+  expect(geometry.mainVertical).toBe(0);
 });
