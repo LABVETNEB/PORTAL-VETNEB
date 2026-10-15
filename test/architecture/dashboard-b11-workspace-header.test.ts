@@ -523,6 +523,8 @@ const C03_EMPTY_CONSUMERS = [
   "frontend/src/app/dashboard/informes/InformesReportsList.tsx",
   "frontend/src/app/dashboard/logistica/LogisticsCommandCenter.tsx",
   "frontend/src/components/dashboard/ClinicParticularTokensCard.tsx",
+  // C13: DetailsEmptyState reuses the C03 empty grammar inside the details pane.
+  "frontend/src/features/dashboard/presentation/details/DetailsEmptyState.tsx",
 ] as const;
 const C03_ERROR_CONSUMERS = ["frontend/src/app/dashboard/informes/InformesReportsList.tsx"] as const;
 const C03_LOADING_CONSUMERS = [
