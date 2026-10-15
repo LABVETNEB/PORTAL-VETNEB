@@ -1,7 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page, type Route } from "@playwright/test";
 import { build } from "esbuild";
-import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { DASHBOARD_GEOMETRY_SESSION_COOKIE, DASHBOARD_GEOMETRY_SURFACES, installSurfaceMocks, suppressNextDevChrome, waitForLayoutSettled } from "../helpers/dashboard-geometry-matrix";
 import { addAppCookies } from "../helpers/session";
@@ -14,7 +13,7 @@ const BAD_PDF = `${ORIGIN}/broken.pdf`;
 const IMAGE = `${ORIGIN}/synthetic.png`;
 const marker = "SYNTHETIC_PRIVATE_MARKER";
 const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l7sAAAAASUVORK5CYII=", "base64");
-const worker = readFileSync(resolve(process.cwd(), "node_modules/pdfjs-dist/build/pdf.worker.min.mjs"));
+const workerPath = resolve(process.cwd(), "node_modules/pdfjs-dist/build/pdf.worker.min.mjs");
 let harness = "";
 let workerRequests = 0;
 
@@ -59,8 +58,8 @@ async function mount(page: Page, width = 1366, height = 768) {
   if (!audit) throw new Error("C15: missing audit fixture surface");
   workerRequests = 0;
   await page.setViewportSize({ width, height }); await suppressNextDevChrome(page); await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
-  await page.route("**/pdfjs-dist/build/pdf.worker.min.mjs", (route) => { workerRequests += 1; return route.fulfill({ status: 200, contentType: "text/javascript", body: worker }); });
-  await page.route(`${ORIGIN}/**`, (route) => {
+  await page.route("**/pdfjs-dist/build/pdf.worker.min.mjs", (route) => { workerRequests += 1; return route.fulfill({ status: 200, contentType: "text/javascript", path: workerPath }); });
+  await page.route(/^https:\/\/documents\.c15\.test\//, (route) => {
     const path = new URL(route.request().url()).pathname;
     const body = path.endsWith(".png") ? png : path.endsWith("broken.pdf") ? Buffer.from("not a PDF") : twoPagePdf();
     return route.fulfill({ status: 200, contentType: path.endsWith(".png") ? "image/png" : "application/pdf", headers: { "access-control-allow-origin": "*" }, body });
@@ -121,7 +120,9 @@ test("C15 · estados, imágenes, política de origen y recuperación", async ({ 
   await expect(dialog.getByRole("img", { name: "Documento sintético" })).toBeVisible();
   for (const [extension, mimeType] of [["jpg", "image/jpeg"], ["webp", "image/webp"]] as const) {
     const data = await page.evaluate((format) => { const canvas = document.createElement("canvas"); canvas.width = 2; canvas.height = 2; canvas.getContext("2d")!.fillRect(0, 0, 2, 2); return canvas.toDataURL(format); }, mimeType);
-    await page.route(`${ORIGIN}/synthetic.${extension}`, (route) => route.fulfill({ status: 200, contentType: mimeType, headers: { "access-control-allow-origin": "*" }, body: Buffer.from(data.split(",")[1], "base64") }));
+    const body = Buffer.from(data.split(",")[1], "base64");
+    if (extension === "jpg") await page.route("**/synthetic.jpg", (route) => route.fulfill({ status: 200, contentType: mimeType, headers: { "access-control-allow-origin": "*" }, body }));
+    else await page.route("**/synthetic.webp", (route) => route.fulfill({ status: 200, contentType: mimeType, headers: { "access-control-allow-origin": "*" }, body }));
     await set(page, "__c15Source", { kind: "image", mimeType, url: `${ORIGIN}/synthetic.${extension}` });
     await expect(dialog.getByRole("img", { name: "Documento sintético" })).toBeVisible();
   }
@@ -140,16 +141,60 @@ test("C15 · estados, imágenes, política de origen y recuperación", async ({ 
   expect(browserMessages.join(" ")).not.toContain(marker);
 });
 
+test("C15 · ambos extremos de una imagen ampliada quedan alcanzables", async ({ page }) => {
+  for (const width of [390, 1366]) {
+    await mount(page, width, 844);
+    const image = await page.evaluate((imageWidth) => {
+      const canvas = document.createElement("canvas");
+      canvas.width = imageWidth;
+      canvas.height = 300;
+      canvas.getContext("2d")!.fillRect(0, 0, canvas.width, canvas.height);
+      return canvas.toDataURL("image/png");
+    }, width - 32);
+    await page.route("**/synthetic.png", (route) => route.fulfill({ status: 200, contentType: "image/png", headers: { "access-control-allow-origin": "*" }, body: Buffer.from(image.split(",")[1], "base64") }));
+    await set(page, "__c15Source", { kind: "image", mimeType: "image/png", url: IMAGE });
+    await page.getByRole("button", { name: "Abrir documento" }).click();
+    const dialog = page.getByRole("dialog", { name: "Documento sintético" });
+    await expect(dialog.getByRole("img", { name: "Documento sintético" })).toBeVisible();
+    for (const target of [125, 150, 200]) {
+      while (Number((await dialog.getByText(/^[0-9]+%$/).textContent())?.replace("%", "")) < target) {
+        await dialog.getByRole("button", { name: "Ampliar zoom" }).click();
+      }
+      await expect.poll(() => dialog.getByRole("img", { name: "Documento sintético" }).evaluate((image) => image.getBoundingClientRect().width)).toBeGreaterThan(width - 32);
+      const scroll = dialog.locator('[data-c15-scroll="true"]');
+      const start = await scroll.evaluate((element) => {
+        element.scrollLeft = 0;
+        const image = element.querySelector("img")!;
+        return { left: image.getBoundingClientRect().left - element.getBoundingClientRect().left, max: element.scrollWidth - element.clientWidth };
+      });
+      expect(start.left, `${width}px at ${target}%: left edge`).toBeGreaterThanOrEqual(-1);
+      expect(start.max, `${width}px at ${target}%: horizontal range`).toBeGreaterThan(0);
+      const end = await scroll.evaluate((element) => {
+        element.scrollLeft = element.scrollWidth - element.clientWidth;
+        const image = element.querySelector("img")!;
+        return { right: image.getBoundingClientRect().right - element.getBoundingClientRect().right, left: element.scrollLeft };
+      });
+      expect(end.right, `${width}px at ${target}%: right edge`).toBeLessThanOrEqual(1);
+      expect(end.left).toBeGreaterThan(0);
+      expect(await page.evaluate(() => document.body.scrollWidth - document.body.clientWidth)).toBe(0);
+    }
+    await dialog.getByRole("button", { name: "Cerrar visor" }).last().click();
+  }
+});
+
 test("C15 · cierre durante carga, fullscreen y scroll sólo en modal", async ({ page }) => {
   await mount(page, 390, 844);
-  await page.route(PDF, async (route) => { await new Promise((done) => setTimeout(done, 600)); await route.fulfill({ status: 200, contentType: "application/pdf", headers: { "access-control-allow-origin": "*" }, body: twoPagePdf() }); });
+  let pendingPdf: Route | undefined;
+  await page.route("**/synthetic.pdf", (route) => { pendingPdf = route; });
   await set(page, "__c15Source", pdf()); await page.getByRole("button", { name: "Abrir documento" }).click();
   const dialog = page.getByRole("dialog", { name: "Documento sintético" });
   await expect(dialog.getByText("Cargando documento…")).toBeVisible();
+  await expect.poll(() => pendingPdf !== undefined).toBe(true);
   await dialog.getByRole("button", { name: "Pantalla completa" }).click();
   await expect.poll(() => page.evaluate(() => !!document.fullscreenElement)).toBe(true);
   await dialog.getByRole("button", { name: "Cerrar visor" }).last().click();
   await expect(dialog).toHaveCount(0);
+  if (pendingPdf) await pendingPdf.abort();
   expect(await page.evaluate(() => ({ body: document.body.scrollHeight - document.body.clientHeight, main: (() => { const main = document.querySelector("main.dashboard-main"); return (main?.scrollHeight ?? 0) - (main?.clientHeight ?? 0); })() }))).toEqual({ body: 0, main: 0 });
 });
 

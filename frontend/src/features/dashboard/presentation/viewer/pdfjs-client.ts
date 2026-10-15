@@ -1,16 +1,27 @@
 import type { PDFDocumentLoadingTask, PDFDocumentProxy, PDFPageProxy, RenderTask } from "pdfjs-dist";
 
 type PdfModule = typeof import("pdfjs-dist");
-let modulePromise: Promise<PdfModule> | undefined;
 
-async function pdfjs(): Promise<PdfModule> {
-  if (typeof window === "undefined") throw new Error("PDF viewer requires a browser");
-  modulePromise ??= import("pdfjs-dist").then((pdf) => {
-    pdf.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
-    return pdf;
-  });
-  return modulePromise;
+export function createPdfJsLoader(importModule: () => Promise<PdfModule> = () => import("pdfjs-dist")) {
+  let modulePromise: Promise<PdfModule> | undefined;
+  return function pdfjs(): Promise<PdfModule> {
+    if (typeof window === "undefined") return Promise.reject(new Error("PDF viewer requires a browser"));
+    if (!modulePromise) {
+      const pending = Promise.resolve().then(importModule).then((pdf) => {
+        pdf.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
+        return pdf;
+      });
+      const cached = pending.catch((error) => {
+        if (modulePromise === cached) modulePromise = undefined;
+        throw error;
+      });
+      modulePromise = cached;
+    }
+    return modulePromise;
+  };
 }
+
+const pdfjs = createPdfJsLoader();
 
 export class PdfSession {
   private loading?: PDFDocumentLoadingTask;

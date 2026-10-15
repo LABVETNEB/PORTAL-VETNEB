@@ -34,10 +34,12 @@ export function DocumentViewer({ open, onOpenChange, title, source, trustedOrigi
   const [retry, setRetry] = useState(0);
   const [rendering, setRendering] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
+  const [imageSize, setImageSize] = useState<{ url: string; width: number } | null>(null);
   const sourcePresent = source !== null;
   const safe = !!source && validateDocumentSource(source, { trustedOrigins });
   const kind = safe ? source.kind : undefined;
   const url = safe ? source.url : undefined;
+  const imageWidth = imageSize && imageSize.url === url ? imageSize.width : 0;
 
   useEffect(() => {
     if (!open) return;
@@ -123,7 +125,7 @@ export function DocumentViewer({ open, onOpenChange, title, source, trustedOrigi
           {state === "error" ? <div role="alert"><p>No se pudo mostrar el documento.</p><button type="button" className="mt-3 min-h-11 rounded-lg border border-vetneb-line px-4 focus-visible:outline-2 focus-visible:outline-primary" onClick={() => setRetry((value) => value + 1)}>Reintentar</button></div> : null}
           {state === "loading" || rendering ? <p role="status">Cargando documento…</p> : null}
           {kind === "pdf" && state === "ready" ? <canvas ref={canvasRef} aria-label={renderedPage ? `Página ${renderedPage} de ${numPages}` : undefined} aria-hidden={rendering || !renderedPage} role="img" className="mx-auto max-w-none shadow-md" style={{ visibility: rendering || !renderedPage ? "hidden" : "visible" }} /> : null}
-          {kind === "image" && url && (state === "loading" || state === "ready") ? <img key={`${url}:${retry}`} src={url} alt={title} className="mx-auto block max-w-full object-contain" style={{ maxHeight: "calc(100dvh - 8rem)", transform: `scale(${zoom})`, transformOrigin: "top center" }} onLoad={() => setState("ready")} onError={() => setState("error")} /> : null}
+          {kind === "image" && url && (state === "loading" || state === "ready") ? <img key={`${url}:${retry}`} src={url} alt={title} className="mx-auto block object-contain" style={{ width: imageWidth ? `min(${zoom * 100}%, ${imageWidth * zoom}px)` : undefined, maxWidth: imageWidth ? "none" : "100%", height: "auto" }} onLoad={(event) => { setImageSize({ url, width: event.currentTarget.naturalWidth }); setState("ready"); }} onError={() => setState("error")} /> : null}
         </div>
       </Dialog.Content>
     </Dialog.Portal>
