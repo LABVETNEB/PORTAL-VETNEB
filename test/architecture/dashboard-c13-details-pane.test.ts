@@ -16,7 +16,7 @@ const readPrimitives = (): Sources => {
 
 function violations(sources: Sources): string[] {
   const found: string[] = [];
-  for (const name of ["DetailsPane", "DetailsHeader", "DetailsTabs", "DetailsMetadata", "DetailsEmptyState"]) {
+  for (const name of ["DetailsPane", "DetailsHeader", "DetailsTabs", "DetailsMetadata", "DetailsEmptyState", "DetailsActivity", "DetailsActionDock"]) {
     if (!new RegExp(`export \\{ ${name}, [^}]*\\btype ${name}Props \\} from "\\./${name}";`).test(sources["index.ts"])) found.push(`export ausente: ${name}`);
     if (sources[`${name}.tsx`] === undefined) found.push(`módulo no publicado por el barrel: ${name}`);
   }
@@ -43,6 +43,12 @@ function violations(sources: Sources): string[] {
   if (!pane.includes("<section") || !pane.includes("aria-label={label}")) found.push("panel sin nombre accesible");
   const header = sources["DetailsHeader.tsx"] ?? "";
   if (!header.includes("headingLevel") || !header.includes("dashboard-detail-value")) found.push("encabezado sin nivel controlado o sin valor íntegro");
+  const activity = sources["DetailsActivity.tsx"] ?? "";
+  if (!activity.includes("<ol") || !activity.includes("steps.map((step, index) =>") || !activity.includes('aria-current={step.status === "current" ? "step" : undefined}') || !activity.includes("<DetailsEmptyState")) found.push("actividad sin orden, estado actual o vacío C03");
+  if (/formatDate\(|getReports|fetch\(/.test(activity)) found.push("dominio de informe en actividad");
+  const dock = sources["DetailsActionDock.tsx"] ?? "";
+  if (!dock.includes("<Button") || !dock.includes("disabled={disabled}") || !dock.includes("onClick={action.onClick}") || !dock.includes('role="group"')) found.push("dock sin controles accesibles y callbacks del host");
+  if (!dock.includes("disabledReason") || !dock.includes("pending") || !dock.includes('type="button"')) found.push("dock sin estados o semántica de botón");
   return found;
 }
 
@@ -62,6 +68,8 @@ test("C13: mutation proof del contrato de arquitectura", () => {
     ["DetailsTabs.tsx", 'role="tabpanel"', 'data-role="panel"', 'contrato de tabs ausente: role="tabpanel"'],
     ["DetailsEmptyState.tsx", 'from "@/components/dashboard/EmptyState"', 'from "./OwnEmptyState"', "estado vacío no reutiliza CollectionState"],
     ["DetailsPane.tsx", "aria-label={label}", "data-label={label}", "panel sin nombre accesible"],
+    ["DetailsActivity.tsx", "<ol", "<div", "actividad sin orden, estado actual o vacío C03"],
+    ["DetailsActionDock.tsx", "onClick={action.onClick}", "onClick={() => {}}", "dock sin controles accesibles y callbacks del host"],
   ];
   for (const [file, before, after, expected] of mutations) {
     const changed = sources[file].replace(before, after);
@@ -70,5 +78,5 @@ test("C13: mutation proof del contrato de arquitectura", () => {
   }
   const { ["DetailsMetadata.tsx"]: _unpublished, ...withoutMetadata } = sources;
   assert.ok(violations(withoutMetadata).includes("módulo no publicado por el barrel: DetailsMetadata"), "un módulo fuera del barrel debe detectarse");
-  assert.deepEqual(barrelModules(sources["index.ts"]), ["DetailsPane", "DetailsHeader", "DetailsTabs", "DetailsMetadata", "DetailsEmptyState"], "el barrel publica las cinco primitivas");
+  assert.deepEqual(barrelModules(sources["index.ts"]), ["DetailsPane", "DetailsHeader", "DetailsTabs", "DetailsMetadata", "DetailsEmptyState", "DetailsActivity", "DetailsActionDock"], "el barrel publica las siete primitivas");
 });

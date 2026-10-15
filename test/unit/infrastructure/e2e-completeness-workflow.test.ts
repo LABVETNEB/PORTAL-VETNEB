@@ -331,7 +331,7 @@ test("automatic workflow coverage is derived from catalog cohorts and equals ful
   // +1: C10 controlled SuperSearchField contract (regression/dashboard-c10-super-search-field.spec.ts).
   // +1: C11 active filter chips and overflow (regression/dashboard-c11-filter-chips.spec.ts).
   // +1: C13 details pane primitives (regression/dashboard-c13-details-pane.spec.ts).
-  assert.equal(E2E_SUITE_CATALOG.length, 114);
+  assert.equal(E2E_SUITE_CATALOG.length, 115);
 
   const partitionUnion = new Set(PARTITION_COHORTS.flatMap((cohort) => E2E_COHORT_SPECS[cohort]));
   assert.deepEqual([...partitionUnion].sort(), [...E2E_COHORT_SPECS.full].sort());

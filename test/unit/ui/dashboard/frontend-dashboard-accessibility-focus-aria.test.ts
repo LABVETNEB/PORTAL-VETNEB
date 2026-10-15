@@ -22,6 +22,8 @@ const STICKY_ACTION_BAR_PATH =
   "frontend/src/components/dashboard/StickyActionBar.tsx";
 const STUDY_TIMELINE_PATH =
   "frontend/src/components/dashboard/StudyTimeline.tsx";
+const DETAILS_ACTIVITY_PATH =
+  "frontend/src/features/dashboard/presentation/details/DetailsActivity.tsx";
 const DASHBOARD_TOPBAR_PATH =
   "frontend/src/components/dashboard/DashboardTopbar.tsx";
 const DASHBOARD_NOTIFICATIONS_BELL_PATH =
@@ -33,11 +35,11 @@ const PUBLIC_SEO_SCOPE_EXCEPTION = "frontend/src/lib/seo.ts";
 // later `{...{ "aria-current": undefined }}` keeps the literal attribute in the
 // source (C.15.1 M-D15).
 function currentStepMarker(source: string) {
-  const file = parseTsx(source, STUDY_TIMELINE_PATH);
+  const file = parseTsx(source, DETAILS_ACTIVITY_PATH);
   const items = jsxElements(file).filter((element) => tagName(element) === "li");
   const [item] = items;
   const config = descendants(file, ts.isVariableDeclaration).find(
-    (declaration) => declaration.name.getText() === "TIMELINE_STATUS_CONFIG",
+    (declaration) => declaration.name.getText() === "ACTIVITY_STATUS_CONFIG",
   );
   const statuses = config?.initializer ? unwrap(config.initializer) : undefined;
   const marker = item ? effectiveAttribute(item, "aria-current") : undefined;
@@ -119,7 +121,8 @@ test("PR-8 StickyActionBar provides named regions and action groups", () => {
 });
 
 test("PR-8 StudyTimeline expose named panels and textual states", () => {
-  const timelineSource = read(STUDY_TIMELINE_PATH);
+  const adapterSource = read(STUDY_TIMELINE_PATH);
+  const timelineSource = read(DETAILS_ACTIVITY_PATH);
 
   assert.ok(timelineSource.includes("<ol"));
   assert.ok(timelineSource.includes("ariaLabel?: string;"));
@@ -127,7 +130,10 @@ test("PR-8 StudyTimeline expose named panels and textual states", () => {
   assert.ok(timelineSource.includes('aria-current={step.status === "current" ? "step" : undefined}'));
   assert.ok(timelineSource.includes("Estado: ${config.label}"));
   assert.ok(timelineSource.includes('{step.date ?? "Pendiente"}'));
-  assertNoForbiddenSurfaceImports(timelineSource, "StudyTimeline");
+  assert.ok(adapterSource.includes("<DetailsActivity steps={steps}"));
+  assert.ok(adapterSource.includes('ariaLabel = "Línea de tiempo del estudio"'));
+  assertNoForbiddenSurfaceImports(timelineSource, "DetailsActivity");
+  assertNoForbiddenSurfaceImports(adapterSource, "StudyTimeline");
 
   const unmarked = { completed: undefined, current: undefined, pending: undefined, warning: undefined, error: undefined };
   assert.deepEqual(currentStepMarker(timelineSource), {
