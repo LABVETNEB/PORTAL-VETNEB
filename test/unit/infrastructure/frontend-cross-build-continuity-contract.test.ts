@@ -19,9 +19,12 @@ const INFORMES_LIST = "frontend/src/app/dashboard/informes/InformesReportsList.t
 const AUDIT_CARD = "frontend/src/app/dashboard/admin/AdminAuditCard.tsx";
 
 // Deferred chunks that are still requested after the document has loaded. The
-// one left is requested when the Clínicas module mounts, a module switch that
-// also navigates; a new entry is a new chunk a deploy can take away.
-const DEFERRED_CHUNK_LEDGER = ["frontend/src/app/dashboard/admin/AdminClinicsManagementCard.tsx"];
+// Clínicas requests one when its module mounts; C15 requests the PDF.js chunk
+// only when the viewer opens. Both are deferred requests a deploy can break.
+const DEFERRED_CHUNK_LEDGER = [
+  "frontend/src/app/dashboard/admin/AdminClinicsManagementCard.tsx",
+  "frontend/src/features/dashboard/presentation/viewer/pdfjs-client.ts",
+];
 const SERVER_ACTION_CALLERS = [AUDIT_CARD, INFORMES_LIST];
 
 function parse(path: string, source: string): ts.SourceFile {
