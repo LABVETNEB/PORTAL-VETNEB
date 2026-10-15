@@ -342,3 +342,92 @@ test("C16 · banda móvil conserva scroll propio y fondo inmóvil", async ({ pag
   expect(geometry.bodyHorizontal).toBe(0);
   expect(geometry.mainVertical).toBe(0);
 });
+
+test("C16 review P1 · ocho miniaturas observadas no reinician renders ni expulsiones", async ({ page }) => {
+  await mount(page, 1366, 1800);
+  await page.route("**/colored-many.pdf", (route) => route.fulfill({ status: 200, contentType: "application/pdf", headers: { "access-control-allow-origin": "*" }, body: coloredPdf(40) }));
+  await page.evaluate(() => {
+    const target = window as unknown as { __c15PdfSession: typeof import("../../src/features/dashboard/presentation/viewer/pdfjs-client").PdfSession; __c16Probe: { renders: number; completed: number; cancelled: number; restarted: number; peak: number; evictions: number }; __c16Session: { thumbnailTasks: Map<unknown, unknown> } };
+    const probe = target.__c16Probe = { renders: 0, completed: 0, cancelled: 0, restarted: 0, peak: 0, evictions: 0 };
+    const attempts = new Map<number, number>();
+    const original = target.__c15PdfSession.prototype.renderThumbnail;
+    target.__c15PdfSession.prototype.renderThumbnail = function (canvas, number, signal) {
+      probe.renders += 1;
+      const previous = attempts.get(number) ?? 0;
+      if (previous > 0) probe.restarted += 1;
+      attempts.set(number, previous + 1);
+      const pending = original.call(this, canvas, number, signal);
+      target.__c16Session = this as unknown as { thumbnailTasks: Map<unknown, unknown> };
+      probe.peak = Math.max(probe.peak, target.__c16Session.thumbnailTasks.size);
+      return pending.then(() => { probe.completed += 1; }, (error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") probe.cancelled += 1;
+        throw error;
+      });
+    };
+    new MutationObserver((records) => {
+      for (const record of records) if (record.target instanceof HTMLCanvasElement && record.oldValue && record.oldValue !== "0" && record.target.width === 0) probe.evictions += 1;
+    }).observe(document.body, { subtree: true, attributes: true, attributeOldValue: true, attributeFilter: ["width"] });
+  });
+  await set(page, "__c15Source", pdf(`${ORIGIN}/colored-many.pdf`));
+  await page.getByRole("button", { name: "Abrir documento" }).click();
+  const strip = page.getByRole("navigation", { name: "Miniaturas del documento" });
+  await expect(strip).toBeVisible();
+  const observed = await strip.evaluate((root) => {
+    const box = root.getBoundingClientRect();
+    return [...root.querySelectorAll<HTMLElement>("[data-c16-page]")].filter((tile) => {
+      const rect = tile.getBoundingClientRect();
+      return rect.bottom > box.top - 120 && rect.top < box.bottom + 120;
+    }).length;
+  });
+  expect(observed).toBeGreaterThanOrEqual(8);
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __c16Probe: { renders: number } }).__c16Probe.renders)).toBeGreaterThanOrEqual(8);
+  await expect(strip.getByText("Cargando miniatura…")).toHaveCount(0);
+  const before = await page.evaluate(() => ({ ...(window as unknown as { __c16Probe: object }).__c16Probe }));
+  await page.evaluate(() => new Promise<void>((resolve) => {
+    let frames = 0;
+    const advance = () => { if (++frames === 120) resolve(); else requestAnimationFrame(advance); };
+    requestAnimationFrame(advance);
+  }));
+  const after = await page.evaluate(() => {
+    const target = window as unknown as { __c16Probe: { renders: number; completed: number; cancelled: number; restarted: number; peak: number; evictions: number }; __c16Session: { thumbnailTasks: Map<unknown, unknown> } };
+    return { ...target.__c16Probe, active: target.__c16Session.thumbnailTasks.size };
+  });
+  const bitmapCount = await strip.locator("canvas").evaluateAll((canvases: HTMLCanvasElement[]) => canvases.filter((canvas) => canvas.width > 0).length);
+  console.log("C16 thumbnail stability", JSON.stringify({ observed, before, after, bitmapCount }));
+  expect(after.renders - (before as { renders: number }).renders).toBeLessThanOrEqual(2);
+  expect(after.evictions - (before as { evictions: number }).evictions).toBeLessThanOrEqual(2);
+  expect(after.cancelled - (before as { cancelled: number }).cancelled).toBe(0);
+  expect(after.restarted - (before as { restarted: number }).restarted).toBeLessThanOrEqual(2);
+  expect(after.peak).toBeLessThanOrEqual(2);
+  expect(after.active).toBe(0);
+  expect(after.completed).toBeGreaterThanOrEqual(6);
+  expect(bitmapCount).toBeLessThanOrEqual(8);
+});
+
+test("C16 review P2 · páginas diferidas no anuncian cargas inexistentes", async ({ page }) => {
+  await mount(page, 1366, 768);
+  await page.route("**/colored-many.pdf", (route) => route.fulfill({ status: 200, contentType: "application/pdf", headers: { "access-control-allow-origin": "*" }, body: coloredPdf(40) }));
+  await page.evaluate(() => {
+    const target = window as unknown as { __c15PdfSession: typeof import("../../src/features/dashboard/presentation/viewer/pdfjs-client").PdfSession; __c16ReleaseThumbnail: () => void };
+    const original = target.__c15PdfSession.prototype.renderThumbnail;
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    target.__c16ReleaseThumbnail = release;
+    target.__c15PdfSession.prototype.renderThumbnail = function (canvas, number, signal) {
+      return number === 1 ? gate.then(() => original.call(this, canvas, number, signal)) : original.call(this, canvas, number, signal);
+    };
+  });
+  await set(page, "__c15Source", pdf(`${ORIGIN}/colored-many.pdf`));
+  await page.getByRole("button", { name: "Abrir documento" }).click();
+  const strip = page.getByRole("navigation", { name: "Miniaturas del documento" });
+  await expect(strip).toBeVisible();
+  await expect(strip.locator('[data-c16-page="40"]')).toContainText("Página 40");
+  await expect(strip.locator('[data-c16-page="40"]')).not.toContainText("Cargando miniatura");
+  const selected = strip.getByRole("button", { name: "Ir a página 1 de 40" });
+  await expect(selected).toHaveAttribute("aria-current", "page");
+  await expect(selected).toHaveAttribute("aria-description", "Cargando miniatura");
+  await expect(strip.getByRole("status")).toHaveCount(1);
+  await page.evaluate(() => (window as unknown as { __c16ReleaseThumbnail: () => void }).__c16ReleaseThumbnail());
+  await expect(strip.locator('[data-c16-page="1"] canvas')).toBeVisible();
+  await expect(strip.getByRole("status")).toHaveCount(0);
+});

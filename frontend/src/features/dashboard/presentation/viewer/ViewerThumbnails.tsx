@@ -6,7 +6,7 @@ import type { PdfSession } from "./pdfjs-client";
 export const MAX_CACHED_THUMBNAILS = 6;
 
 type Props = { session: PdfSession; page: number; numPages: number; onPageChange: (page: number) => void };
-type ThumbnailStatus = "pending" | "ready" | "error";
+type ThumbnailStatus = "idle" | "loading" | "ready" | "error" | "evicted";
 
 function Thumbnail({ session, pageNumber, selected, numPages, root, remember, onPageChange }: {
   session: PdfSession; pageNumber: number; selected: boolean; numPages: number;
@@ -16,29 +16,38 @@ function Thumbnail({ session, pageNumber, selected, numPages, root, remember, on
   const tile = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const [visible, setVisible] = useState(false);
-  const [status, setStatus] = useState<ThumbnailStatus>("pending");
+  const [status, setStatus] = useState<ThumbnailStatus>("idle");
   const [retry, setRetry] = useState(0);
   const [version, setVersion] = useState(0);
 
   useEffect(() => {
     if (!tile.current || !root.current) return;
-    const observer = new IntersectionObserver(([entry]) => setVisible(entry.isIntersecting), { root: root.current, rootMargin: "120px" });
+    const observer = new IntersectionObserver(([entry]) => {
+      setVisible(entry.isIntersecting);
+      setStatus((current) => {
+        if (entry.isIntersecting && (current === "idle" || current === "evicted")) return "loading";
+        if (!entry.isIntersecting && current === "loading") return "idle";
+        return current;
+      });
+    }, { root: root.current, rootMargin: "120px" });
     observer.observe(tile.current);
     return () => observer.disconnect();
   }, [root]);
 
   useEffect(() => {
-    if (!visible || !canvas.current || status !== "pending") return;
+    if (selected && visible && status === "evicted") setStatus("loading");
+  }, [selected, visible, status]);
+
+  useEffect(() => {
+    if (!visible || !canvas.current || status !== "loading") return;
     const controller = new AbortController();
     let active = true;
-    setStatus("pending");
     void session.renderThumbnail(canvas.current, pageNumber, controller.signal).then(() => {
       if (!active) return;
       setStatus("ready");
       remember(pageNumber, () => {
         if (canvas.current) { canvas.current.width = 0; canvas.current.height = 0; }
-        setStatus("pending");
-        setVersion((value) => value + 1);
+        setStatus("evicted");
       });
     }).catch((error: unknown) => {
       if (!active) return;
@@ -50,26 +59,30 @@ function Thumbnail({ session, pageNumber, selected, numPages, root, remember, on
 
   return <div ref={tile} data-c16-page={pageNumber} className="flex shrink-0 flex-col items-center gap-1 p-1">
     <button type="button" aria-label={`Ir a página ${pageNumber} de ${numPages}`} aria-current={selected ? "page" : undefined}
+      aria-description={status === "loading" ? "Cargando miniatura" : status === "error" ? "Miniatura no disponible" : status === "evicted" ? "Miniatura en espera" : undefined}
       onClick={() => onPageChange(pageNumber)}
       className={`flex min-h-11 w-28 flex-col items-center justify-center rounded-lg border-2 p-1 text-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${selected ? "border-primary bg-vetneb-surface-muted" : "border-vetneb-line"}`}>
       <canvas ref={canvas} width={0} height={0} aria-hidden="true" className={status === "ready" ? "max-h-32 max-w-24" : "hidden"} />
-      {status === "pending" ? <span role="status">Cargando miniatura…</span> : null}
+      {status === "loading" ? <span role={selected ? "status" : undefined}>Cargando miniatura…</span> : null}
+      {status === "evicted" ? <span>Miniatura en espera</span> : null}
       {status === "error" ? <span>Miniatura no disponible</span> : null}
       <span>Página {pageNumber}</span>
     </button>
     {status === "error" ? <button type="button" className="min-h-11 rounded-lg px-2 text-xs underline focus-visible:outline-2 focus-visible:outline-primary"
-      aria-label={`Reintentar miniatura de página ${pageNumber}`} onClick={() => { setRetry((value) => value + 1); setStatus("pending"); }}>Reintentar</button> : null}
+      aria-label={`Reintentar miniatura de página ${pageNumber}`} onClick={() => { setRetry((value) => value + 1); setStatus("loading"); }}>Reintentar</button> : null}
   </div>;
 }
 
 export function ViewerThumbnails({ session, page, numPages, onPageChange }: Props) {
   const strip = useRef<HTMLElement>(null);
   const cache = useRef(new Map<number, () => void>());
+  const selectedPage = useRef(page);
+  useEffect(() => { selectedPage.current = page; }, [page]);
   const remember = useCallback((number: number, clear: () => void) => {
     cache.current.delete(number);
     cache.current.set(number, clear);
     if (cache.current.size > MAX_CACHED_THUMBNAILS) {
-      const oldest = cache.current.keys().next().value;
+      const oldest = [...cache.current.keys()].find((candidate) => candidate !== selectedPage.current);
       if (oldest !== undefined) { const evict = cache.current.get(oldest); cache.current.delete(oldest); evict?.(); }
     }
   }, []);

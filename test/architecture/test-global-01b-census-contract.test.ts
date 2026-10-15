@@ -1718,7 +1718,7 @@ test("censo 05A: la deuda de lectores ad hoc rompe al crecer y la adopción del 
   assert.equal(adoptionEntry.historical, 8, "el histórico de §6.4 se conserva");
   assert.equal(adoptionEntry.baseline, 411, "piso versionado tras el consumidor de C06");
   assert.equal(anchor, 411, "el piso incorpora los consumidores canónicos de TEST-GLOBAL-09 y C06, no el histórico");
-  assert.equal(current, 427, "la adopción vigente suma el guard C15 al censo previo de 426 importadores del lector canónico");
+  assert.equal(current, 428, "la adopción vigente suma el guard C16 al censo previo de 427 importadores del lector canónico");
   assert.equal(
     guardViolation(adoptionEntry, evaluateEntry(adoptionEntry)),
     null,
