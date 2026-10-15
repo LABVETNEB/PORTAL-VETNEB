@@ -7,6 +7,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { PdfSession } from "./pdfjs-client";
 import { validateDocumentSource, type DocumentSource, type TrustedDocumentPolicy } from "./document-source";
 import { ViewerToolbar, type ViewerToolbarProps } from "./ViewerToolbar";
+import { ViewerThumbnails } from "./ViewerThumbnails";
 
 export type DocumentViewerProps = TrustedDocumentPolicy & {
   open: boolean;
@@ -26,6 +27,7 @@ export function DocumentViewer({ open, onOpenChange, title, source, trustedOrigi
   const openerRef = useRef<HTMLElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sessionRef = useRef<PdfSession | null>(null);
+  const [pdfSession, setPdfSession] = useState<PdfSession | null>(null);
   const [state, setState] = useState<ViewerState>("empty");
   const [page, setPage] = useState(1);
   const [renderedPage, setRenderedPage] = useState(0);
@@ -49,14 +51,16 @@ export function DocumentViewer({ open, onOpenChange, title, source, trustedOrigi
   }, [open]);
 
   useEffect(() => {
-    if (!open) { setState("empty"); setNumPages(0); setPage(1); setRenderedPage(0); setZoom(1); setRendering(false); return; }
+    if (!open) { setPdfSession(null); setState("empty"); setNumPages(0); setPage(1); setRenderedPage(0); setZoom(1); setRendering(false); return; }
     setPage(1); setRenderedPage(0); setZoom(1); setNumPages(0); setRendering(false);
+    setPdfSession(null);
     if (!sourcePresent) { setState("empty"); return; }
     if (!safe || !url || !kind) { setState("fallback"); return; }
     if (kind === "image") { setState("loading"); setNumPages(1); return; }
     let active = true;
     const session = new PdfSession();
     sessionRef.current = session;
+    setPdfSession(session);
     setState("loading");
     void session.load(url).then((count) => {
       if (!active) return;
@@ -119,13 +123,17 @@ export function DocumentViewer({ open, onOpenChange, title, source, trustedOrigi
           <Dialog.Title id={titleId} className="min-w-0 flex-1 break-words text-base font-semibold">{title}</Dialog.Title>
         </div>
         <ViewerToolbar {...toolbar} />
-        <div data-c15-scroll="true" className="min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-auto overscroll-contain p-4">
-          {state === "empty" ? <p role="status">No hay documento para mostrar.</p> : null}
-          {state === "fallback" ? <p role="alert">Este documento no se puede mostrar de forma segura.</p> : null}
-          {state === "error" ? <div role="alert"><p>No se pudo mostrar el documento.</p><button type="button" className="mt-3 min-h-11 rounded-lg border border-vetneb-line px-4 focus-visible:outline-2 focus-visible:outline-primary" onClick={() => setRetry((value) => value + 1)}>Reintentar</button></div> : null}
-          {state === "loading" || rendering ? <p role="status">Cargando documento…</p> : null}
-          {kind === "pdf" && state === "ready" ? <canvas ref={canvasRef} aria-label={renderedPage ? `Página ${renderedPage} de ${numPages}` : undefined} aria-hidden={rendering || !renderedPage} role="img" className="mx-auto max-w-none shadow-md" style={{ visibility: rendering || !renderedPage ? "hidden" : "visible" }} /> : null}
-          {kind === "image" && url && (state === "loading" || state === "ready") ? <img key={`${url}:${retry}`} src={url} alt={title} className="mx-auto block object-contain" style={{ width: imageWidth ? `min(${zoom * 100}%, ${imageWidth * zoom}px)` : undefined, maxWidth: imageWidth ? "none" : "100%", height: "auto" }} onLoad={(event) => { setImageSize({ url, width: event.currentTarget.naturalWidth }); setState("ready"); }} onError={() => setState("error")} /> : null}
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col-reverse lg:flex-row">
+          {kind === "pdf" && numPages > 1 && state === "ready" && pdfSession ?
+            <ViewerThumbnails key={`${url}:${retry}`} session={pdfSession} page={page} numPages={numPages} onPageChange={setPage} /> : null}
+          <div data-c15-scroll="true" className="min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-auto overscroll-contain p-4">
+            {state === "empty" ? <p role="status">No hay documento para mostrar.</p> : null}
+            {state === "fallback" ? <p role="alert">Este documento no se puede mostrar de forma segura.</p> : null}
+            {state === "error" ? <div role="alert"><p>No se pudo mostrar el documento.</p><button type="button" className="mt-3 min-h-11 rounded-lg border border-vetneb-line px-4 focus-visible:outline-2 focus-visible:outline-primary" onClick={() => setRetry((value) => value + 1)}>Reintentar</button></div> : null}
+            {state === "loading" || rendering ? <p role="status">Cargando documento…</p> : null}
+            {kind === "pdf" && state === "ready" ? <canvas ref={canvasRef} aria-label={renderedPage ? `Página ${renderedPage} de ${numPages}` : undefined} aria-hidden={rendering || !renderedPage} role="img" className="mx-auto max-w-none shadow-md" style={{ visibility: rendering || !renderedPage ? "hidden" : "visible" }} /> : null}
+            {kind === "image" && url && (state === "loading" || state === "ready") ? <img key={`${url}:${retry}`} src={url} alt={title} className="mx-auto block object-contain" style={{ width: imageWidth ? `min(${zoom * 100}%, ${imageWidth * zoom}px)` : undefined, maxWidth: imageWidth ? "none" : "100%", height: "auto" }} onLoad={(event) => { setImageSize({ url, width: event.currentTarget.naturalWidth }); setState("ready"); }} onError={() => setState("error")} /> : null}
+          </div>
         </div>
       </Dialog.Content>
     </Dialog.Portal>
