@@ -13,6 +13,25 @@ const { ENV } = await import("../../../../server/lib/env.ts");
 const {
   adminReportsNativeRoutes,
 } = await import("../../../../server/routes/admin-reports.fastify.ts");
+const { inspectStoredReportMime } = await import("../../../../server/lib/supabase.ts");
+
+test("documentos admin: MIME se detecta por bytes y no por extension o Content-Type", async () => {
+  for (const [bytes, expected] of [
+    [Buffer.from("%PDF-1.7\n"), "application/pdf"],
+    [Buffer.from([0xff, 0xd8, 0xff, 0x00]), "image/jpeg"],
+    [Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), "image/png"],
+    [Buffer.from("RIFF1234WEBP"), "image/webp"],
+    [Buffer.from("malicious data"), null],
+  ] as const) {
+    const storage = { from: () => ({ download: async () => ({ data: new Blob([new Uint8Array(bytes)], { type: "application/pdf" }), error: null }) }) };
+    assert.equal(await inspectStoredReportMime("clinics/3/informe.pdf", storage as never), expected);
+  }
+});
+
+test("documentos admin: informe historico sin MIME persistido se verifica en Storage", async () => {
+  const storage = { from: () => ({ download: async () => ({ data: new Blob(["%PDF-1.7\n"], { type: "" }), error: null }) }) };
+  assert.equal(await inspectStoredReportMime("clinics/3/legacy", storage as never), "application/pdf");
+});
 
 function createReportFixture(overrides: Record<string, unknown> = {}) {
   return {
@@ -228,6 +247,85 @@ test("adminReportsNativeRoutes genera signed preview URL para informe con sesion
   }
 });
 
+test("adminReportsNativeRoutes entrega descriptor verificado para documentos historicos", async () => {
+  const calls: string[] = [];
+  const app = await createTestApp({
+    inspectReportMime: async (path: string) => {
+      calls.push(`inspect:${path}`);
+      return "application/pdf";
+    },
+    createSignedReportUrl: async (path: string) => {
+      calls.push(`sign:${path}`);
+      return "https://example.supabase.co/storage/v1/object/sign/reports/example?token=synthetic";
+    },
+  });
+  try {
+    const response = await app.inject({ method: "GET", url: "/api/admin/reports/88/preview-url?viewer=1", headers: { cookie: `${ENV.adminCookieName}=admin-session-token` } });
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(calls, ["inspect:reports/3/luna-report.pdf", "sign:reports/3/luna-report.pdf"]);
+    const body = JSON.parse(response.body);
+    assert.equal(body.mimeType, "application/pdf");
+    assert.equal(body.trustedOrigin, "https://example.supabase.co");
+    assert.equal(body.expiresInSeconds, ENV.signedUrlExpiresInSeconds);
+    assert.equal(body.storagePath, undefined);
+  } finally { await app.close(); }
+});
+
+test("adminReportsNativeRoutes no firma documentos sin MIME verificable", async () => {
+  let signed = false;
+  const app = await createTestApp({ inspectReportMime: async () => null, createSignedReportUrl: async () => { signed = true; return "https://example.supabase.co/signed"; } });
+  try {
+    const response = await app.inject({ method: "GET", url: "/api/admin/reports/88/preview-url?viewer=1", headers: { cookie: `${ENV.adminCookieName}=admin-session-token` } });
+    assert.equal(response.statusCode, 422);
+    assert.equal(signed, false);
+    assert.equal(response.body.includes("reports/"), false);
+  } finally { await app.close(); }
+});
+
+test("adminReportsNativeRoutes rechaza origen no confiable sin filtrar URL firmada", async () => {
+  const app = await createTestApp({ inspectReportMime: async () => "image/png", createSignedReportUrl: async () => "https://other.example.test/document?token=synthetic" });
+  try {
+    const response = await app.inject({ method: "GET", url: "/api/admin/reports/88/preview-url?viewer=1", headers: { cookie: `${ENV.adminCookieName}=admin-session-token` } });
+    assert.equal(response.statusCode, 422);
+    assert.equal(response.body.includes("other.example.test"), false);
+  } finally { await app.close(); }
+});
+
+test("adminReportsNativeRoutes no inspecciona ni firma visor sin sesion admin", async () => {
+  let reads = 0;
+  const app = await createTestApp({
+    getAdminSessionByToken: async () => null,
+    getReportById: async () => { reads++; return createReportFixture(); },
+    inspectReportMime: async () => { reads++; return "application/pdf"; },
+    createSignedReportUrl: async () => { reads++; return "https://example.supabase.co/x"; },
+  });
+  try {
+    const response = await app.inject({ method: "GET", url: "/api/admin/reports/88/preview-url?viewer=1", headers: { cookie: `${ENV.adminCookieName}=admin-session-token` } });
+    assert.equal(response.statusCode, 401);
+    assert.equal(reads, 0);
+  } finally { await app.close(); }
+});
+
+test("adminReportsNativeRoutes no inspecciona informe inexistente", async () => {
+  let inspected = false;
+  const app = await createTestApp({ getReportById: async () => null, inspectReportMime: async () => { inspected = true; return "application/pdf"; } });
+  try {
+    const response = await app.inject({ method: "GET", url: "/api/admin/reports/999/preview-url?viewer=1", headers: { cookie: `${ENV.adminCookieName}=admin-session-token` } });
+    assert.equal(response.statusCode, 404);
+    assert.equal(inspected, false);
+  } finally { await app.close(); }
+});
+
+test("adminReportsNativeRoutes no previsualiza path de otra clinica", async () => {
+  let inspected = false;
+  const app = await createTestApp({ getReportById: async () => createReportFixture({ storagePath: "clinics/4/private.pdf" }), inspectReportMime: async () => { inspected = true; return "application/pdf"; } });
+  try {
+    const response = await app.inject({ method: "GET", url: "/api/admin/reports/88/preview-url?viewer=1", headers: { cookie: `${ENV.adminCookieName}=admin-session-token` } });
+    assert.equal(response.statusCode, 422);
+    assert.equal(inspected, false);
+  } finally { await app.close(); }
+});
+
 test("adminReportsNativeRoutes genera signed download URL para informe con sesion admin", async () => {
   const reportCalls: number[] = [];
   const signedCalls: Array<{ storagePath: string; fileName?: string }> = [];
@@ -273,6 +371,39 @@ test("adminReportsNativeRoutes genera signed download URL para informe con sesio
   } finally {
     await app.close();
   }
+});
+
+test("adminReportsNativeRoutes entrega descarga validada para C17", async () => {
+  const app = await createTestApp({ createSignedReportDownloadUrl: async () => "https://example.supabase.co/storage/v1/object/sign/example?token=synthetic" });
+  try {
+    const response = await app.inject({ method: "GET", url: "/api/admin/reports/88/download-url?viewer=1", headers: { cookie: `${ENV.adminCookieName}=admin-session-token` } });
+    assert.equal(response.statusCode, 200);
+    const body = JSON.parse(response.body);
+    assert.equal(body.trustedOrigin, "https://example.supabase.co");
+    assert.equal(body.expiresInSeconds, ENV.signedUrlExpiresInSeconds);
+  } finally { await app.close(); }
+});
+
+test("adminReportsNativeRoutes rechaza descarga C17 de origen ajeno", async () => {
+  const app = await createTestApp({ createSignedReportDownloadUrl: async () => "https://other.example.test/secret?token=synthetic" });
+  try {
+    const response = await app.inject({ method: "GET", url: "/api/admin/reports/88/download-url?viewer=1", headers: { cookie: `${ENV.adminCookieName}=admin-session-token` } });
+    assert.equal(response.statusCode, 422);
+    assert.equal(response.body.includes("other.example.test"), false);
+  } finally { await app.close(); }
+});
+
+test("adminReportsNativeRoutes no firma descarga C17 de otra clinica", async () => {
+  let signed = false;
+  const app = await createTestApp({
+    getReportById: async () => createReportFixture({ storagePath: "clinics/4/private.pdf" }),
+    createSignedReportDownloadUrl: async () => { signed = true; return "https://example.supabase.co/signed"; },
+  });
+  try {
+    const response = await app.inject({ method: "GET", url: "/api/admin/reports/88/download-url?viewer=1", headers: { cookie: `${ENV.adminCookieName}=admin-session-token` } });
+    assert.equal(response.statusCode, 422);
+    assert.equal(signed, false);
+  } finally { await app.close(); }
 });
 
 test("adminReportsNativeRoutes bloquea signed URLs sin sesion admin antes de leer informe", async () => {

@@ -25,20 +25,34 @@ import {
 } from "@/components/dashboard/FilterBar";
 import { ModuleDialog } from "@/components/dashboard/ModuleDialog";
 import { ReportFileActions } from "@/components/dashboard/ReportDownloadButton";
+import { DocumentViewer, type DocumentSource } from "@/features/dashboard/presentation/viewer";
+import { SuperSearchField, AdvancedFilterSheet, ActiveFilterChips, type ActiveFilter } from "@/features/dashboard/presentation/filters";
+import { DetailsHeader, DetailsMetadata, DetailsPane } from "@/features/dashboard/presentation/details";
+import {
+  ActionMenu,
+  ActionMenuItem,
+  CollectionHeader,
+  CollectionPager,
+  CollectionState,
+  CollectionWorkspace,
+  ContentList,
+  ContentListItem,
+  SelectionToolbar,
+  useCollectionSelection,
+} from "@/features/dashboard/presentation/surfaces";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import {
   Table,
-  TableBody,
   TableCell,
   TableHead,
-  TableHeader,
-  TableRow,
 } from "@/components/ui/table";
 import {
   getAdminReportWorkflow,
+  getAdminReportDocumentSource,
+  getAdminReportDownloadDescriptor,
   updateAdminReportSpecialStain,
   updateAdminReportWorkflowStage,
   type AdminReportWorkflowItem,
@@ -46,7 +60,6 @@ import {
 } from "@/lib/api";
 import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
 import {
-  DASHBOARD_PAGER_RESERVATION,
   DASHBOARD_TOUCH_PAGER_RESERVATION,
 } from "@/components/dashboard/DashboardPager";
 import {
@@ -193,7 +206,12 @@ export function AdminReportsCard() {
   const [isLoading, setIsLoading] = useState(true);
   const [busyReportId, setBusyReportId] = useState<number | null>(null);
   const [selectedReportId, setSelectedReportId] = useState<number | null>(null);
+  const [viewerSource, setViewerSource] = useState<DocumentSource | null>(null);
+  const [viewerOrigin, setViewerOrigin] = useState<string | null>(null);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const viewerReturnFocusRef = useRef<HTMLElement | null>(null);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   const [filterDraft, setFilterDraft] =
     useState<AdminReportsFilterState>(INITIAL_FILTER_STATE);
   const [appliedFilters, setAppliedFilters] =
@@ -212,6 +230,7 @@ export function AdminReportsCard() {
   const [mobileBodyNode, setMobileBodyNode] = useState<HTMLElement | null>(null);
 
   const latestRequestRef = useRef(0);
+  const detailReturnFocusRef = useRef<HTMLElement | null>(null);
 
   // Row pitch accepted for the current layout. Reports rows are NOT uniform —
   // a row carrying the "Tinción" marker is ~41px, a plain one ~35.7px — so
@@ -268,6 +287,21 @@ export function AdminReportsCard() {
   const filteredReports = reports.filter((report) =>
     matchesAdminReportFilters(report, appliedFilters),
   );
+  const activeFilters: ActiveFilter[] = (Object.keys(appliedFilters) as Array<keyof AdminReportsFilterState>)
+    .filter((field) => appliedFilters[field].trim())
+    .map((field) => ({
+      id: field,
+      label: { report: "Informe", clinic: "Clínica", patient: "Paciente", status: "Estado", study: "Estudio", file: "Archivo", from: "Desde", to: "Hasta" }[field],
+      value: appliedFilters[field],
+      onRemove: () => {
+        setAppliedFilters((current) => ({ ...current, [field]: "" }));
+        setFilterDraft((current) => ({ ...current, [field]: "" }));
+        setOffset(0);
+      },
+    }));
+  const selection = useCollectionSelection<number>({
+    visibleIds: filteredReports.map((report) => report.id),
+  });
   // The report-workflow endpoint exposes no `total`, only `hasMore` per full
   // page (PR-SRV-0 §6 rule 2): offset is clamped to ≥ 0 and next-page is driven
   // by `hasMore`; there is no pageCount / jump-to-last.
@@ -419,8 +453,8 @@ export function AdminReportsCard() {
     setErrorMessage(null);
   }
 
-  function applyAdvancedFilters(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  function applyAdvancedFilters(event?: FormEvent<HTMLFormElement>) {
+    event?.preventDefault();
     setAppliedFilters({
       report: filterDraft.report.trim(),
       clinic: filterDraft.clinic.trim(),
@@ -454,6 +488,35 @@ export function AdminReportsCard() {
     setOffset(offset + effectiveLimit);
   }
 
+  function openReportDetail(id: number, trigger: HTMLElement | null) {
+    detailReturnFocusRef.current = trigger;
+    setSelectedReportId(id);
+  }
+
+  function closeReportDetail() {
+    setViewerOpen(false);
+    setViewerSource(null);
+    setSelectedReportId(null);
+    requestAnimationFrame(() => {
+      const trigger = detailReturnFocusRef.current;
+      if (trigger?.isConnected && trigger.getClientRects().length > 0) trigger.focus({ preventScroll: true });
+      detailReturnFocusRef.current = null;
+    });
+  }
+
+  async function openVerifiedReport(reportId: number, trigger: HTMLElement) {
+    const descriptor = await getAdminReportDocumentSource(reportId);
+    viewerReturnFocusRef.current = trigger;
+    setViewerSource(descriptor.source);
+    setViewerOrigin(descriptor.trustedOrigin);
+    setViewerOpen(true);
+  }
+
+  async function downloadVerifiedReport(reportId: number) {
+    const url = await getAdminReportDownloadDescriptor(reportId);
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
   function renderAdvancedFilterForm(mobile = false) {
     const density: FilterBarDensity = mobile ? "comfortable" : "compact";
     const controlClassName = dashboardFilterControlClassName(density);
@@ -476,13 +539,23 @@ export function AdminReportsCard() {
         }
       >
         <FilterField label="Informe" density={density} labelHidden={!mobile}>
-          <Input
-            className={controlClassName}
-            type="text"
-            placeholder="#ID"
-            value={filterDraft.report}
-            onChange={(event) => updateFilterDraft("report", event.target.value)}
-          />
+          {mobile ? (
+            <SuperSearchField
+              label="Buscar informe"
+              placeholder="#ID"
+              value={filterDraft.report}
+              onValueChange={(value) => updateFilterDraft("report", value)}
+              className="w-full md:w-full"
+            />
+          ) : (
+            <Input
+              className={controlClassName}
+              type="text"
+              placeholder="#ID"
+              value={filterDraft.report}
+              onChange={(event) => updateFilterDraft("report", event.target.value)}
+            />
+          )}
         </FilterField>
         <FilterField label="Clínica" density={density} labelHidden={!mobile}>
           <Input
@@ -577,25 +650,30 @@ export function AdminReportsCard() {
       data-dashboard-b12-module-card="true"
       className="dashboard-surface flex min-h-0 flex-1 flex-col overflow-hidden shadow-none"
     >
-      <CardHeader className="flex-row items-start justify-between gap-3 space-y-0 border-b border-vetneb-line/70 px-4 py-3 md:justify-end md:py-1">
+      <CardHeader className="flex-row items-center justify-between gap-3 space-y-0 border-b border-vetneb-line/70 px-4 py-3 md:py-0">
         {/* The internal "Informes" descriptor is retired at every width
             (pre-C05 below md, desktop/tablet space pass from md up): below md
             "Filtros" takes the freed slot; from md up the actions are the
             whole band, right above the filters. */}
         <div className="min-w-0 md:hidden">
-          <ModuleDialog
-            title="Filtrar informes"
-            dashboardScopedPortal
-            trigger={
-              <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5 px-2 text-xs">
-                <Filter className="h-3.5 w-3.5" aria-hidden="true" />
-                Filtros
-              </Button>
-            }
-          >
-            {renderAdvancedFilterForm(true)}
-          </ModuleDialog>
+          <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5 px-2 text-xs" onClick={() => setIsFilterSheetOpen(true)}>
+            <Filter className="h-3.5 w-3.5" aria-hidden="true" />
+            Filtros
+          </Button>
         </div>
+        <div className="hidden min-w-0 flex-1 md:flex">
+          <SuperSearchField
+            label="Buscar informe"
+            placeholder="Buscar informe por ID"
+            value={filterDraft.report}
+            onValueChange={(value) => updateFilterDraft("report", value)}
+            onKeyDown={(event) => { if (event.key === "Enter") applyAdvancedFilters(); }}
+          />
+        </div>
+        {activeFilters.length ? <div className="hidden min-w-0 flex-1 xl:flex">
+          <ActiveFilterChips filters={activeFilters} onClearAll={clearAdvancedFilters} />
+        </div> : null}
+        <SelectionToolbar selectedCount={selection.selectedCount} onClearSelection={selection.clearSelection}>
         <div className="flex shrink-0 items-center gap-2">
           <Button
             type="button"
@@ -622,10 +700,16 @@ export function AdminReportsCard() {
             Subir informe
           </Button>
         </div>
+        </SelectionToolbar>
       </CardHeader>
 
-      <CardContent className="flex min-h-0 flex-1 flex-col gap-2 px-4 pb-3 pt-2 md:gap-1 md:pb-1 md:pt-1">
+      <CardContent className="flex min-h-0 flex-1 flex-col gap-2 px-4 pb-3 pt-2 md:gap-1 md:pb-1 md:pt-0 lg:pb-0">
         {renderAdvancedFilterForm()}
+
+        <AdvancedFilterSheet open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen} title="Filtrar informes">
+          <ActiveFilterChips filters={activeFilters} onClearAll={clearAdvancedFilters} />
+          {renderAdvancedFilterForm(true)}
+        </AdvancedFilterSheet>
 
         {errorMessage ? (
           <p className="clinical-alert-error shrink-0 px-3 py-1.5 text-xs" role="alert">
@@ -642,7 +726,7 @@ export function AdminReportsCard() {
           aria-label="Cola administrativa de informes"
           className="flex min-h-0 flex-1 flex-col"
         >
-          <div
+          <CollectionWorkspace
             ref={setDesktopBodyNode}
             data-dashboard-adaptive-rows-canvas="true"
               data-dashboard-row-pitch="compact"
@@ -651,8 +735,18 @@ export function AdminReportsCard() {
           >
             {filteredReports.length ? (
               <Table className="table-fixed text-xs [&_th]:h-7 [&_th]:px-2 [&_td]:px-2">
-                <TableHeader>
-                  <TableRow>
+                <CollectionHeader>
+                  <ContentListItem as="tr">
+                    <TableHead className="w-7 px-1">
+                      <input
+                        type="checkbox"
+                        aria-label="Seleccionar página de informes"
+                        checked={selection.allVisibleSelected}
+                        ref={(node) => { if (node) node.indeterminate = selection.someVisibleSelected; }}
+                        onChange={selection.toggleVisiblePage}
+                        data-collection-selection="page"
+                      />
+                    </TableHead>
                     <TableHead className="w-[20%]">Caso / paciente</TableHead>
                     <TableHead className="w-[18%]">Clínica</TableHead>
                     <TableHead className="w-[14%]">Estudio</TableHead>
@@ -660,13 +754,17 @@ export function AdminReportsCard() {
                     <TableHead className="hidden w-[12%] lg:table-cell">Fecha</TableHead>
                     <TableHead className="hidden w-[13%] xl:table-cell">Archivo</TableHead>
                     <TableHead className="w-[8%] text-right">Acción</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+                  </ContentListItem>
+                </CollectionHeader>
+                <ContentList as="tbody">
                   {filteredReports.map((report, index) => (
-                    <TableRow
+                    <ContentListItem as="tr"
                       key={report.id}
+                      data-state={selection.isSelected(report.id) ? "selected" : undefined}
                     >
+                      <TableCell className="px-1 py-0.5">
+                        <input type="checkbox" aria-label={`Seleccionar informe #${report.id}`} checked={selection.isSelected(report.id)} onChange={() => selection.toggle(report.id)} data-collection-selection="item" />
+                      </TableCell>
                       <TableCell className="py-0.5">
                         <p className="truncate font-medium text-vetneb-ink">
                           {report.patientName || "Paciente sin registrar"}
@@ -700,30 +798,29 @@ export function AdminReportsCard() {
                         </span>
                       </TableCell>
                       <TableCell className="py-0.5 text-right">
+                        <div className="flex items-center justify-end gap-1">
                         <Button
                           type="button"
                           variant="outline"
                           size="sm"
                           className="h-7 px-2 text-xs"
-                          onClick={() => setSelectedReportId(report.id)}
+                          onClick={(event) => openReportDetail(report.id, event.currentTarget)}
                         >
                           Ver
                         </Button>
+                        <ActionMenu label={`Acciones del informe #${report.id}`} trigger={<>⋮</>} triggerClassName="hidden xl:inline-flex h-7 w-7 p-0">
+                          <ActionMenuItem onSelect={() => openReportDetail(report.id, document.activeElement instanceof HTMLElement ? document.activeElement : null)}>Ver detalle</ActionMenuItem>
+                        </ActionMenu>
+                        </div>
                       </TableCell>
-                    </TableRow>
+                    </ContentListItem>
                   ))}
-                </TableBody>
+                </ContentList>
               </Table>
             ) : (
-              <p className="surface-empty flex min-h-20 flex-1 items-center justify-center text-xs">
-                {isLoading
-                  ? "Cargando informes…"
-                  : hasActiveFilters
-                    ? "No hay informes que coincidan con los filtros aplicados."
-                    : "No hay informes en esta página."}
-              </p>
+              errorMessage ? <CollectionState variant="error" message={errorMessage} className="!min-h-20 flex-1" /> : isLoading ? <CollectionState variant="loading" label="Cargando informes…" compact className="!min-h-20 flex-1" /> : <CollectionState variant="empty" title={hasActiveFilters ? "No hay informes que coincidan con los filtros aplicados." : "No hay informes en esta página."} size="sm" className="!min-h-20 flex-1" />
             )}
-          </div>
+          </CollectionWorkspace>
 
           <div
             className="flex min-h-0 flex-1 flex-col gap-2 md:hidden"
@@ -737,13 +834,15 @@ export function AdminReportsCard() {
               data-admin-reports-mobile-list="true"
             >
               {filteredReports.length ? (
-                filteredReports.map((report, index) => (
-                  <div
+                <ContentList as="div">
+                {filteredReports.map((report, index) => (
+                  <ContentListItem as="div"
                     key={report.id}
                     className="flex min-h-9 items-center gap-2 px-2.5 py-0.5"
                     data-admin-mobile-core-item="true"
                     data-dashboard-adaptive-row="true"
                   >
+                    <input type="checkbox" aria-label={`Seleccionar informe #${report.id}`} checked={selection.isSelected(report.id)} onChange={() => selection.toggle(report.id)} data-collection-selection="item" />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-xs font-semibold">
                         #{report.id} · {report.patientName || "Sin paciente"}
@@ -758,20 +857,15 @@ export function AdminReportsCard() {
                       variant="outline"
                       size="sm"
                       className="h-7 px-2 text-xs"
-                      onClick={() => setSelectedReportId(report.id)}
+                      onClick={(event) => openReportDetail(report.id, event.currentTarget)}
                     >
                       Ver
                     </Button>
-                  </div>
-                ))
+                  </ContentListItem>
+                ))}
+                </ContentList>
               ) : (
-                <p className="surface-empty flex min-h-20 flex-1 items-center justify-center text-xs">
-                  {isLoading
-                    ? "Cargando informes…"
-                    : hasActiveFilters
-                      ? "No hay informes que coincidan con los filtros aplicados."
-                      : "No hay informes en esta página."}
-                </p>
+                errorMessage ? <CollectionState variant="error" message={errorMessage} className="!min-h-20 flex-1" /> : isLoading ? <CollectionState variant="loading" label="Cargando informes…" compact className="!min-h-20 flex-1" /> : <CollectionState variant="empty" title={hasActiveFilters ? "No hay informes que coincidan con los filtros aplicados." : "No hay informes en esta página."} size="sm" className="!min-h-20 flex-1" />
               )}
             </div>
 
@@ -782,6 +876,7 @@ export function AdminReportsCard() {
                 data-admin-mobile-core-pager="true"
                 data-dashboard-adaptive-reserved-region="pager"
               >
+                <input type="checkbox" aria-label="Seleccionar página de informes" checked={selection.allVisibleSelected} ref={(node) => { if (node) node.indeterminate = selection.someVisibleSelected; }} onChange={selection.toggleVisiblePage} data-collection-selection="page" />
                 <Button
                   type="button"
                   variant="outline"
@@ -809,35 +904,18 @@ export function AdminReportsCard() {
             ) : null}
           </div>
 
-          <nav
-            data-dashboard-adaptive-reserved-region="pager"
-            className="mt-2 hidden shrink-0 items-center justify-center gap-2 overflow-hidden border-t border-vetneb-line/65 px-1 text-xs text-muted-foreground md:mt-0.5 md:flex"
-            style={DASHBOARD_PAGER_RESERVATION}
+          <CollectionPager
+            variant="centered"
             aria-label="Paginación de informes admin"
-          >
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8 px-2.5 text-xs md:h-7"
-              disabled={!hasPrev || isLoading}
-              onClick={goToPreviousPage}
-              aria-label="Página anterior"
-            >
-              Anterior
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8 px-2.5 text-xs md:h-7"
-              disabled={!hasNext || isLoading}
-              onClick={goToNextPage}
-              aria-label="Página siguiente"
-            >
-              Siguiente
-            </Button>
-          </nav>
+            className="mt-2 hidden shrink-0 items-center justify-center gap-2 overflow-hidden border-t border-vetneb-line/65 px-1 text-xs text-muted-foreground md:mt-0.5 md:flex"
+            page={page - 1}
+            hasPrev={hasPrev}
+            hasNext={hasNext}
+            onPrev={goToPreviousPage}
+            onNext={goToNextPage}
+            disabled={isLoading}
+            stateControl={<span />}
+          />
         </section>
       </CardContent>
 
@@ -851,7 +929,7 @@ export function AdminReportsCard() {
         <ModuleDialog
           open={selectedReportId !== null}
           onOpenChange={(nextOpen) => {
-            if (!nextOpen) setSelectedReportId(null);
+            if (!nextOpen) closeReportDetail();
           }}
           busy={busyReportId === selectedReport.id}
           title={`Informe #${selectedReport.id}`}
@@ -860,31 +938,15 @@ export function AdminReportsCard() {
           }
           scrollableBody
         >
-          <div className="space-y-3 text-[0.8125rem]">
-            <div className="grid grid-cols-1 gap-x-3 gap-y-2 rounded-md border border-vetneb-line/70 px-3 py-2 sm:grid-cols-2">
-              <div className="min-w-0">
-                <p className="text-[0.6875rem] text-muted-foreground">Paciente</p>
-                <p className="dashboard-detail-value font-medium">
-                  {selectedReport.patientName || "Sin registrar"}
-                </p>
-              </div>
-              <div className="min-w-0">
-                <p className="text-[0.6875rem] text-muted-foreground">Estudio</p>
-                <p className="dashboard-detail-value font-medium">{studyLabel(selectedReport.studyType)}</p>
-              </div>
-              <div className="min-w-0">
-                <p className="text-[0.6875rem] text-muted-foreground">Carga</p>
-                <p className="dashboard-detail-value">{formatDate(selectedReport.uploadDate ?? selectedReport.createdAt)}</p>
-              </div>
-              <div className="min-w-0">
-                <p className="text-[0.6875rem] text-muted-foreground">Última actualización</p>
-                <p className="dashboard-detail-value">{formatDate(selectedReport.workflowUpdatedAt)}</p>
-              </div>
-              <div className="min-w-0 sm:col-span-2">
-                <p className="text-[0.6875rem] text-muted-foreground">Archivo</p>
-                <p className="dashboard-detail-value">{selectedReport.fileName || "Sin archivo disponible"}</p>
-              </div>
-            </div>
+          <DetailsPane label={`Detalle del informe #${selectedReport.id}`} busy={busyReportId === selectedReport.id}>
+            <DetailsHeader title="Detalle del informe" identifier={`#${selectedReport.id}`} context={selectedReport.clinicName || `Clínica #${selectedReport.clinicId}`} status={<AdminReportStatusBadge stage={selectedReport.workflowStage} />} />
+            <DetailsMetadata items={[
+              { id: "patient", label: "Paciente", value: selectedReport.patientName || "Sin registrar" },
+              { id: "study", label: "Estudio", value: studyLabel(selectedReport.studyType) },
+              { id: "upload", label: "Carga", value: formatDate(selectedReport.uploadDate ?? selectedReport.createdAt) },
+              { id: "updated", label: "Última actualización", value: formatDate(selectedReport.workflowUpdatedAt) },
+              { id: "file", label: "Archivo", value: selectedReport.fileName || "Sin archivo disponible" },
+            ]} />
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label className="space-y-1">
@@ -909,17 +971,8 @@ export function AdminReportsCard() {
               </label>
               <div className="space-y-1">
                 <span className="block text-xs font-medium">Tinción especial</span>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-8 w-full text-xs"
-                  disabled={busyReportId !== null}
-                  onClick={() => void handleSpecialStainChange(selectedReport)}
-                >
-                  {busyReportId === selectedReport.id ? (
-                    <Loader2 className="animate-spin" aria-hidden="true" />
-                  ) : null}
+                <Button type="button" variant="outline" size="sm" className="h-8 w-full text-xs" disabled={busyReportId !== null} onClick={() => void handleSpecialStainChange(selectedReport)}>
+                  {busyReportId === selectedReport.id ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
                   {selectedReport.specialStainRequested ? "Marcar resuelta" : "Solicitar tinción"}
                 </Button>
               </div>
@@ -932,11 +985,22 @@ export function AdminReportsCard() {
                 hasFile={Boolean(selectedReport.fileName)}
                 scope="admin"
                 align="start"
+                onPreview={(trigger) => openVerifiedReport(selectedReport.id, trigger)}
+                onDownload={() => downloadVerifiedReport(selectedReport.id)}
               />
             </div>
-          </div>
+          </DetailsPane>
         </ModuleDialog>
       ) : null}
+      <DocumentViewer
+        open={viewerOpen && selectedReport !== null}
+        onOpenChange={(open) => { setViewerOpen(open); if (!open) setViewerSource(null); }}
+        title={selectedReport ? `Informe #${selectedReport.id}` : "Informe"}
+        source={viewerSource}
+        trustedOrigins={viewerOrigin ? [viewerOrigin] : []}
+        onDownload={selectedReport ? () => { void downloadVerifiedReport(selectedReport.id); } : undefined}
+        returnFocusRef={viewerReturnFocusRef}
+      />
     </Card>
   );
 }

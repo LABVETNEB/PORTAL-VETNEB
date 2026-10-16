@@ -192,15 +192,22 @@ LOC significa líneas físicas, incluidos blancos y comentarios; se excluyen
 la última línea sin newline cuenta uno y el segmento vacío posterior a un
 newline final no se cuenta.
 
+El censo vivo se realineó para C17 con medición PRE M48 → POST C17:
+`server/features` 17.092→17.156 (+64, Reports), `server/routes`
+21.189→21.205 (+16), `server/lib` 5.180→5.199 (+19), total
+46.310→46.409 (+99). Los 226 archivos y las fronteras de importación
+permanecen iguales. Esta actualización del censo no modifica el cierre
+histórico de M48.
+
 | Área | Archivos TypeScript | LOC |
 | --- | ---: | ---: |
-| `server/features` | 149 | 17.092 |
-| `server/routes` | 35 | 21.189 |
-| `server/lib` | 30 | 5.180 |
+| `server/features` | 149 | 17.156 |
+| `server/routes` | 35 | 21.205 |
+| `server/lib` | 30 | 5.199 |
 | `server/middlewares` | 3 | 429 |
 | raíz/entrypoints `server/*.ts` | 9 | 2.420 |
 | otros | 0 | 0 |
-| **Total `server`** | **226** | **46.310** |
+| **Total `server`** | **226** | **46.409** |
 
 El review P2 de M48 detectó que la primera metodología aplicaba una semántica
 equivalente a `source.split("\n").length`, que sumaba un segmento vacío por
@@ -226,7 +233,7 @@ porque ésa es su topología proporcional documentada.
 | Pricing | 4 | 489 | infrastructure, servicios directos | no requerido | ninguna | ninguna | M20 |
 | Public Professionals | 8 | 1.150 | domain, infrastructure | sí | Clinics (3) | ninguna | M24 |
 | Report Access | 12 | 724 | domain, application, infrastructure, composition | sí | ninguna | Reports (1) | M34/M35b |
-| Reports | 27 | 3.076 | domain, application, infrastructure, composition | sí | Particular/Report Access (4) | Particular/ST (3) | M41 |
+| Reports | 27 | 3.140 | domain, application, infrastructure, composition | sí | Particular/Report Access (4) | Particular/ST (3) | M41 |
 | Study Tracking | 21 | 2.908 | domain, application, infrastructure | sí | Particular/Reports (6) | ninguna | M35 |
 | Users/Roles | 9 | 674 | domain, application, infrastructure, composition feature-level | no requerido | ninguna | Clinics (2) | M43 |
 

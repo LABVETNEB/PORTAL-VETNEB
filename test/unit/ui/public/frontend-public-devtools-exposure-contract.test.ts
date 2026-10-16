@@ -15,6 +15,7 @@ const FRONTEND_SRC_ROOT = "frontend/src";
 const FOOTER_PATH = "frontend/src/components/layout/Footer.tsx";
 const NEXT_STATIC_ROOT = "frontend/.next/static";
 const NEXT_MAIN_CHUNK_PATH = "frontend/.next/static/chunks/main-app.js";
+const PDFJS_CHUNK_PATH = "frontend/.next/static/chunks/pdfjs-fixture.js";
 const OVERSIZED_FILE_BYTES = 6 * 1024 * 1024 + 512;
 const STREAM_CHUNK_SIZE_FOR_TEST = 64;
 const AUDITOR_SCRIPT = resolve(process.cwd(), "scripts/security/audit-public-devtools-surface.mjs");
@@ -115,6 +116,81 @@ function writeOversizedMainChunk(workspaceRoot: string, content: string): void {
   assert.ok(Buffer.byteLength(content, "utf8") > OVERSIZED_FILE_BYTES);
   writeFileSync(resolve(workspaceRoot, NEXT_MAIN_CHUNK_PATH), content, "utf8");
 }
+
+function createPdfJsFixture(workspaceRoot: string, chunk: string, provenance = true): void {
+  createMinimalPublicWorkspace(workspaceRoot);
+  if (provenance) {
+    mkdirSync(resolve(workspaceRoot, "frontend/node_modules/pdfjs-dist/build"), { recursive: true });
+    mkdirSync(resolve(workspaceRoot, "frontend/src/features/dashboard/presentation/viewer"), { recursive: true });
+    writeFileSync(resolve(workspaceRoot, "frontend/node_modules/pdfjs-dist/package.json"), '{"version":"6.4.299"}');
+    writeFileSync(resolve(workspaceRoot, "frontend/node_modules/pdfjs-dist/build/pdf.mjs"),
+      'const PasswordResponses = { NEED_PASSWORD: 1, INCORRECT_PASSWORD: 2 }; const version = "6.4.299";');
+    writeFileSync(resolve(workspaceRoot, "frontend/src/features/dashboard/presentation/viewer/pdfjs-client.ts"),
+      'const load = () => import("pdfjs-dist");');
+  }
+  writeFileSync(resolve(workspaceRoot, PDFJS_CHUNK_PATH), chunk);
+}
+
+const PDFJS_ENUM_CHUNK = 'const pdfjsVersion="6.4.299";const GlobalWorkerOptions={};function getDocument(){};const v={NEED_PASSWORD:1,INCORRECT_PASSWORD:2};';
+
+test("PDF.js numeric password enum is classified only with verified provenance", () => {
+  withTempWorkspace((root) => {
+    createPdfJsFixture(root, PDFJS_ENUM_CHUNK);
+    const result = runAuditor(root);
+    assert.equal(result.ok, true, JSON.stringify(result.findings));
+  });
+});
+
+test("PDF.js enum classification rejects changed values, structure and duplicates", () => {
+  const mutations = [
+    PDFJS_ENUM_CHUNK.replace("NEED_PASSWORD:1", "NEED_PASSWORD:3"),
+    PDFJS_ENUM_CHUNK.replace("NEED_PASSWORD:1", '"NEED_PASSWORD":1'),
+    `${PDFJS_ENUM_CHUNK}const duplicate={NEED_PASSWORD:1};`,
+  ];
+  for (const chunk of mutations) {
+    withTempWorkspace((root) => {
+      createPdfJsFixture(root, chunk);
+      const result = runAuditor(root);
+      assert.equal(result.ok, false);
+      assert.ok(result.findings.some((finding) => finding.rule === "uppercase-sensitive-identifier"));
+    });
+  }
+});
+
+test("PDF.js enum classification rejects missing or changed provenance", () => {
+  for (const provenance of [false, true]) {
+    withTempWorkspace((root) => {
+      createPdfJsFixture(root, provenance ? PDFJS_ENUM_CHUNK.replace('6.4.299', '6.4.298') : PDFJS_ENUM_CHUNK, provenance);
+      const result = runAuditor(root);
+      assert.equal(result.ok, false);
+      assert.ok(result.findings.some((finding) => finding.rule === "uppercase-sensitive-identifier"));
+    });
+  }
+  for (const mutation of [
+    { path: "frontend/node_modules/pdfjs-dist/package.json", content: '{"version":"6.4.298"}' },
+    { path: "frontend/node_modules/pdfjs-dist/build/pdf.mjs", content: 'const PasswordResponses = { NEED_PASSWORD: 1, INCORRECT_PASSWORD: 3 }; const version = "6.4.299";' },
+    { path: "frontend/src/features/dashboard/presentation/viewer/pdfjs-client.ts", content: 'const load = () => import("other-library");' },
+  ]) {
+    withTempWorkspace((root) => {
+      createPdfJsFixture(root, PDFJS_ENUM_CHUNK);
+      writeFileSync(resolve(root, mutation.path), mutation.content);
+      const result = runAuditor(root);
+      assert.equal(result.ok, false);
+      assert.ok(result.findings.some((finding) => finding.rule === "uppercase-sensitive-identifier"));
+    });
+  }
+});
+
+test("PDF.js enum classification still blocks additional identifiers and canary values in the same chunk", () => {
+  withTempWorkspace((root) => {
+    createPdfJsFixture(root, `${PDFJS_ENUM_CHUNK}const ADMIN_PASSWORD=0;const leaked="${DEFAULT_CANARY_SECRET_VALUE}";`);
+    const result = runAuditor(root, { [CANARY_ENV_VALUE_VAR]: DEFAULT_CANARY_SECRET_VALUE });
+    assert.equal(result.ok, false);
+    assert.ok(result.findings.some((finding) => finding.rule === "uppercase-sensitive-identifier" && finding.message.includes("ADMIN_PASSWORD")));
+    assert.ok(result.findings.some((finding) => finding.rule === "env-sensitive-value-leak" && finding.file === PDFJS_CHUNK_PATH));
+    assert.equal(JSON.stringify(result).includes(DEFAULT_CANARY_SECRET_VALUE), false);
+  });
+});
 
 test("no public source maps are expected in production static assets", () => {
   if (!existsSync(resolve(process.cwd(), NEXT_STATIC_ROOT))) {

@@ -1,3 +1,21 @@
+type VerifiedDocumentMime = "application/pdf" | "image/jpeg" | "image/png" | "image/webp";
+
+function reportStoragePathMatchesClinic(storagePath: string, clinicId: number): boolean {
+  if (!Number.isSafeInteger(clinicId) || clinicId < 1) return false;
+  const segments = storagePath.split("/");
+  return segments.length >= 3 && (segments[0] === "clinics" || segments[0] === "reports") && segments[1] === String(clinicId) && segments.slice(2).every((segment) => segment.length > 0 && segment !== "." && segment !== "..");
+}
+
+function verifiedSignedUrlOrigin(signedUrl: string, configuredStorageUrl: string): string | null {
+  try {
+    const configured = new URL(configuredStorageUrl);
+    const signed = new URL(signedUrl);
+    if (configured.protocol !== "https:" || configured.username || configured.password || configured.search || configured.hash) return null;
+    if (signed.protocol !== "https:" || signed.username || signed.password || signed.origin !== configured.origin) return null;
+    return configured.origin;
+  } catch { return null; }
+}
+
 export type ReportRouteRecord = {
   id: number;
   clinicId: number;
@@ -68,6 +86,16 @@ export type ReportUploadRouteResult<TReport extends ReportRouteRecord> =
 export type SignedPreviewRouteResult =
   | { type: "not_found" }
   | { type: "signed"; previewUrl: string };
+
+export type VerifiedPreviewRouteResult =
+  | { type: "not_found" }
+  | { type: "unverifiable" }
+  | { type: "signed"; previewUrl: string; mimeType: "application/pdf" | "image/jpeg" | "image/png" | "image/webp"; trustedOrigin: string };
+
+export type VerifiedDownloadRouteResult =
+  | { type: "not_found" }
+  | { type: "unverifiable" }
+  | { type: "signed"; downloadUrl: string; trustedOrigin: string };
 
 export type SignedDownloadRouteResult =
   | { type: "not_found" }
@@ -227,6 +255,24 @@ export function createReportRouteService<
     };
   }
 
+  async function getVerifiedPreviewSource(
+    reportId: number,
+    inspectMime: (path: string) => Promise<VerifiedDocumentMime | null>,
+    configuredStorageUrl: string,
+  ): Promise<VerifiedPreviewRouteResult> {
+    const report = await dependencies.getReportById(reportId);
+    if (!report) return { type: "not_found" };
+    if (!reportStoragePathMatchesClinic(report.storagePath, report.clinicId)) return { type: "unverifiable" };
+    let mimeType;
+    try { mimeType = await inspectMime(report.storagePath); } catch { return { type: "unverifiable" }; }
+    if (!mimeType) return { type: "unverifiable" };
+    let previewUrl;
+    try { previewUrl = await dependencies.createSignedReportUrl(report.storagePath); } catch { return { type: "unverifiable" }; }
+    const trustedOrigin = verifiedSignedUrlOrigin(previewUrl, configuredStorageUrl);
+    if (!trustedOrigin) return { type: "unverifiable" };
+    return { type: "signed", previewUrl, mimeType, trustedOrigin };
+  }
+
   async function getSignedDownloadUrl(
     reportId: number,
   ): Promise<SignedDownloadRouteResult> {
@@ -243,6 +289,22 @@ export function createReportRouteService<
         report.fileName ?? undefined,
       ),
     };
+  }
+
+  async function getVerifiedDownloadSource(
+    reportId: number,
+    configuredStorageUrl: string,
+  ): Promise<VerifiedDownloadRouteResult> {
+    const report = await dependencies.getReportById(reportId);
+    if (!report) return { type: "not_found" };
+    if (!reportStoragePathMatchesClinic(report.storagePath, report.clinicId)) return { type: "unverifiable" };
+    let downloadUrl;
+    try {
+      downloadUrl = await dependencies.createSignedReportDownloadUrl(report.storagePath, report.fileName ?? undefined);
+    } catch { return { type: "unverifiable" }; }
+    const trustedOrigin = verifiedSignedUrlOrigin(downloadUrl, configuredStorageUrl);
+    if (!trustedOrigin) return { type: "unverifiable" };
+    return { type: "signed", downloadUrl, trustedOrigin };
   }
 
   async function uploadAdminReport(
@@ -477,7 +539,9 @@ export function createReportRouteService<
 
   return {
     getSignedPreviewUrl,
+    getVerifiedPreviewSource,
     getSignedDownloadUrl,
+    getVerifiedDownloadSource,
     uploadAdminReport,
     listAdminWorkflow,
     changeWorkflowStage,

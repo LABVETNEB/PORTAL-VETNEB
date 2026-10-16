@@ -1718,12 +1718,14 @@ test("censo 05A: la deuda de lectores ad hoc rompe al crecer y la adopción del 
   assert.equal(adoptionEntry.historical, 8, "el histórico de §6.4 se conserva");
   assert.equal(adoptionEntry.baseline, 411, "piso versionado tras el consumidor de C06");
   assert.equal(anchor, 411, "el piso incorpora los consumidores canónicos de TEST-GLOBAL-09 y C06, no el histórico");
-  assert.equal(current, 428, "la adopción vigente suma el guard C16 al censo previo de 427 importadores del lector canónico");
+  assert.equal(current, 429, "C17 añade dashboard-c17-admin-reports-pilot al censo de 428 importadores del lector canónico");
   assert.equal(
     guardViolation(adoptionEntry, evaluateEntry(adoptionEntry)),
     null,
     `vigente ${current}: la adopción real no puede poner el censo en rojo`,
   );
+  const belowFloor = { ...adoptionEntry, compute: () => 410 };
+  assert.match(guardViolation(belowFloor, evaluateEntry(belowFloor)) ?? "", /por debajo del piso/, "perder un consumidor del piso causal sigue fallando");
 
   for (const grown of [411, 412, 1000]) {
     const at = { ...adoptionEntry, compute: () => grown };

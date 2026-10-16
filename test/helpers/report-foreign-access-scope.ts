@@ -15,6 +15,10 @@ const SHARED_BACKEND_SCOPE_EXCEPTIONS = new Set([
   "server/lib/env.ts",
   "server/middlewares/version-gate.ts",
   "server/routes/app-version.fastify.ts",
+  // C17: exact admin document contract approved for this dashboard migration.
+  "server/features/reports/application/report-route-service.ts",
+  "server/lib/supabase.ts",
+  "server/routes/admin-reports.fastify.ts",
 ]);
 
 export function isSharedBackendScopeException(file: string): boolean {

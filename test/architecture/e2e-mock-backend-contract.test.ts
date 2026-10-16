@@ -1949,7 +1949,7 @@ test("E2E-GLOBAL-11 mutation 4: a fixture route fulfilled by page.route fails; p
       '  await page.route("**/api/**", (route) => answer(route, {}));',
     ].join("\n"),
   );
-  assert.equal(catchAll.unexpected.length, 13);
+  assert.equal(catchAll.unexpected.length, 14);
   assert.ok(catchAll.unexpected.includes(pair("ANY /api/app-version")));
 
   assert.deepEqual(probe('  await page.route("**/api/admin/audit-log**", (route) => route.continue());'), {

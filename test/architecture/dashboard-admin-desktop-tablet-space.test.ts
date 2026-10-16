@@ -73,12 +73,15 @@ test("ADMIN-DT · the module header band is reclaimed from 768px up, admin only"
 test("ADMIN-DT · Informes: actions own the band, filters follow, summary and page text retired", () => {
   const card = read(REPORTS);
   const header = between(card, "<CardHeader", "</CardHeader>");
-  assert.ok(header.includes("md:justify-end"), "Actualizar · Subir informe right-aligned at the top");
+  assert.ok(header.includes("justify-between") && header.includes('className="hidden min-w-0 flex-1 md:flex"'), "desktop search fills the leading slot so Actualizar · Subir informe stay at the right");
+  assert.ok(header.indexOf("<SuperSearchField") < header.indexOf("onClick={() => void loadReports()}") && header.indexOf("onClick={() => void loadReports()}") < header.indexOf("onClick={() => setIsUploadOpen(true)}"), "desktop actions follow search in the trailing slot");
   assert.equal(card.indexOf("{renderAdvancedFilterForm()}") > card.indexOf("</CardHeader>"), true, "filters right below the actions");
   for (const retired of ["data-admin-reports-toolbar", "entregados", "con tinción", "por página", "Cola administrativa, trazabilidad"]) {
     assert.equal(card.includes(retired), false, `retired: ${retired}`);
   }
-  assertPrevNextOnly(pagerRegion(card, 'aria-label="Paginación de informes admin"', "</nav>"), "Informes desktop pager");
+  const desktopPager = between(card, "<CollectionPager", "</section>");
+  assert.ok(desktopPager.includes('variant="centered"') && desktopPager.includes('aria-label="Paginación de informes admin"') && desktopPager.includes("justify-center"), "Informes keeps a centered desktop pager");
+  assert.ok(desktopPager.includes("onPrev={goToPreviousPage}") && desktopPager.includes("onNext={goToNextPage}") && desktopPager.includes("stateControl={<span />}") && !/Pág\.|por página|Ir a la página/.test(desktopPager), "the desktop pager paints no page count and keeps both actions");
   // Mobile (pre-C05) keeps its own touch pager with the page state.
   assert.ok(between(card, 'data-admin-mobile-core-pager="true"', "</div>").includes("Pág. {page}"), "the mobile pager is untouched");
 });

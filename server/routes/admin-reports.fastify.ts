@@ -20,7 +20,7 @@ import {
   enforceTrustedOrigin,
 } from "../lib/cors-headers.ts";
 import { authenticateFastifyAdmin } from "../lib/fastify-admin-auth.ts";
-import { ALLOWED_MIME_TYPES } from "../lib/supabase.ts";
+import { ALLOWED_MIME_TYPES, inspectStoredReportMime } from "../lib/supabase.ts";
 import {
   parseReportId,
   serializeSafeReport,
@@ -136,6 +136,7 @@ export type AdminReportsNativeRoutesOptions = {
     readAt: Date | null;
   }) => Promise<StudyTrackingNotification>;
   createSignedReportUrl?: (storagePath: string) => Promise<string>;
+  inspectReportMime?: (storagePath: string) => Promise<(typeof ALLOWED_MIME_TYPES)[number] | null>;
   createSignedReportDownloadUrl?: (
     storagePath: string,
     fileName?: string,
@@ -336,6 +337,7 @@ export const adminReportsNativeRoutes: FastifyPluginAsync<
     Params: {
       reportId?: unknown;
     };
+    Querystring: { viewer?: string };
   }>("/:reportId/preview-url", async (request, reply) => {
     const composition = await createAdminReportsRouteComposition(options);
     const admin = await authenticateAdminUser(
@@ -358,6 +360,16 @@ export const adminReportsNativeRoutes: FastifyPluginAsync<
       });
     }
 
+    if (request.query.viewer !== undefined) {
+      if (request.query.viewer !== "1") return reply.code(400).send({ success: false, error: "Solicitud invalida" });
+      const result = await composition.service.getVerifiedPreviewSource(
+        reportId, options.inspectReportMime ?? inspectStoredReportMime, ENV.supabaseUrl,
+      );
+      if (result.type === "not_found") return reply.code(404).send({ success: false, error: "Informe no encontrado" });
+      if (result.type === "unverifiable") return reply.code(422).send({ success: false, error: "Documento no verificable para visualizacion" });
+      return reply.code(200).send({ success: true, previewUrl: result.previewUrl, mimeType: result.mimeType, trustedOrigin: result.trustedOrigin, expiresInSeconds: ENV.signedUrlExpiresInSeconds });
+    }
+
     const result =
       await composition.service.getSignedPreviewUrl(reportId);
 
@@ -378,6 +390,7 @@ export const adminReportsNativeRoutes: FastifyPluginAsync<
     Params: {
       reportId?: unknown;
     };
+    Querystring: { viewer?: string };
   }>("/:reportId/download-url", async (request, reply) => {
     const composition = await createAdminReportsRouteComposition(options);
     const admin = await authenticateAdminUser(
@@ -400,14 +413,17 @@ export const adminReportsNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const result =
-      await composition.service.getSignedDownloadUrl(reportId);
+    if (request.query.viewer !== undefined) {
+      if (request.query.viewer !== "1") return reply.code(400).send({ success: false, error: "Solicitud invalida" });
+      const verified = await composition.service.getVerifiedDownloadSource(reportId, ENV.supabaseUrl);
+      if (verified.type === "not_found") return reply.code(404).send({ success: false, error: "Informe no encontrado" });
+      if (verified.type === "unverifiable") return reply.code(422).send({ success: false, error: "Documento no verificable para descarga" });
+      return reply.code(200).send({ success: true, downloadUrl: verified.downloadUrl, trustedOrigin: verified.trustedOrigin, expiresInSeconds: ENV.signedUrlExpiresInSeconds });
+    }
 
+    const result = await composition.service.getSignedDownloadUrl(reportId);
     if (result.type === "not_found") {
-      return reply.code(404).send({
-        success: false,
-        error: "Informe no encontrado",
-      });
+      return reply.code(404).send({ success: false, error: "Informe no encontrado" });
     }
 
     return reply.code(200).send({

@@ -13,6 +13,8 @@ type ReportFileActionsProps = {
   hasFile?: boolean;
   scope?: "clinic" | "admin";
   align?: "start" | "end";
+  onPreview?: (trigger: HTMLElement) => Promise<void>;
+  onDownload?: () => Promise<void>;
 };
 
 function getUnavailableLabel(reportId: number | null, hasFile: boolean) {
@@ -32,6 +34,8 @@ export function ReportFileActions({
   hasFile = true,
   scope = "clinic",
   align = "end",
+  onPreview,
+  onDownload,
 }: ReportFileActionsProps) {
   const [loadingAction, setLoadingAction] = useState<ReportAction | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -44,7 +48,7 @@ export function ReportFileActions({
     align === "start" ? "items-start text-left" : "items-end text-right";
   const buttonsAlignClass = align === "start" ? "justify-start" : "justify-end";
 
-  async function openReport(action: ReportAction) {
+  async function openReport(action: ReportAction, trigger?: HTMLElement) {
     if (!isAvailable || isLoading || typeof reportId !== "number") {
       return;
     }
@@ -53,6 +57,14 @@ export function ReportFileActions({
     setLoadingAction(action);
 
     try {
+      if (action === "preview" && onPreview && trigger) {
+        await onPreview(trigger);
+        return;
+      }
+      if (action === "download" && onDownload) {
+        await onDownload();
+        return;
+      }
       const url =
         action === "preview"
           ? await getReportPreviewUrl(reportId, { scope })
@@ -93,7 +105,7 @@ export function ReportFileActions({
           aria-busy={loadingAction === "preview"}
           title={isAvailable ? "Ver informe" : unavailableTitle}
           aria-label={isAvailable ? "Ver informe" : unavailableTitle}
-          onClick={() => void openReport("preview")}
+          onClick={(event) => void openReport("preview", event.currentTarget)}
         >
           <Eye className="h-3.5 w-3.5" aria-hidden="true" />
           {loadingAction === "preview" ? "Abriendo..." : "Ver informe"}

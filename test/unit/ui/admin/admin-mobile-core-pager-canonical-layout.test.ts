@@ -68,10 +68,9 @@ test("admin clinics mobile pager uses >=36px text touch targets", () => {
 
 test("admin reports mobile pager matches the canonical Tokens pager layout", () => {
   const source = read(REPORTS_CARD_PATH);
-  // Cut at the desktop <nav opening tag itself (not its aria-label), since the
-  // tag's own className (with the untouched justify-between) precedes the
-  // aria-label attribute and would otherwise leak into this mobile-only scope.
-  const pager = extractMobilePager(source, "<nav");
+  // C17 uses CollectionPager for desktop; keep this source guard scoped to the
+  // mobile footer, which still owns the touch-sized controls.
+  const pager = extractMobilePager(source, "<CollectionPager");
 
   assert.ok(pager.includes("justify-center"), "reports mobile pager must be centered");
   assert.equal(
@@ -104,7 +103,7 @@ test("admin reports mobile pager matches the canonical Tokens pager layout", () 
 
 test("admin reports mobile pager uses >=36px text touch targets", () => {
   const source = read(REPORTS_CARD_PATH);
-  const pager = extractMobilePager(source, "<nav");
+  const pager = extractMobilePager(source, "<CollectionPager");
 
   assert.ok(pager.includes("h-9"), "reports mobile pager buttons must be h-9 (36px)");
   assert.equal(
