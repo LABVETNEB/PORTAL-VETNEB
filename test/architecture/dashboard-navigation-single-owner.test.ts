@@ -155,6 +155,9 @@ function destinationOf(
     if (declared != null) return combine(declared.map(follow));
   }
   if (ts.isStringLiteralLike(expression)) return "plain";
+  // The retry targets this document's current URL, including query and hash.
+  // Pin the entire expression: omitting or replacing any part is opaque again.
+  if (text === "`${window.location.pathname}${window.location.search}${window.location.hash}`") return "plain";
   // `ROUTES.x`: a path of the route table, which holds no query.
   if (ts.isPropertyAccessExpression(expression) && expression.expression.getText() === "ROUTES") return "plain";
   // A template that spells its own query in place, and it is not `module`.
@@ -943,4 +946,22 @@ test("navigation that is not a module selection stays legal", () => {
     ),
     [],
   );
+});
+
+test("the dashboard retry may replace only the complete current URL", () => {
+  const button = "frontend/src/components/dashboard/DashboardRefreshButton.tsx";
+  const current = "`${window.location.pathname}${window.location.search}${window.location.hash}`";
+  assert.deepEqual(ownershipViolations(TREE), []);
+  for (const destination of [
+    "`${window.location.pathname}${window.location.search}`",
+    "`${window.location.pathname}?module=informes${window.location.hash}`",
+    "`${window.location.pathname}${moduleId}${window.location.hash}`",
+    "href",
+  ]) {
+    assertBreach(
+      mutated(button, current, destination),
+      /a dashboard navigation whose destination cannot be read|a module selection navigated outside the owner/,
+      `the retry destination changed to ${destination}`,
+    );
+  }
 });

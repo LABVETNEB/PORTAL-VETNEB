@@ -20,7 +20,7 @@ export function DashboardRefreshButton({
       type="button"
       variant="outline"
       size="sm"
-      onClick={() => router.refresh()}
+      onClick={() => router.replace(`${window.location.pathname}${window.location.search}${window.location.hash}`, { scroll: false })}
       className={className}
     >
       <RefreshCw className="h-4 w-4" aria-hidden="true" />
