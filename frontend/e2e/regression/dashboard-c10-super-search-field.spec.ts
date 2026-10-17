@@ -30,7 +30,8 @@ async function mount(page: Page, width: number, height: number) {
   if (!audit) throw new Error("C10: missing audit fixture surface");
   await page.setViewportSize({ width, height }); await suppressNextDevChrome(page); await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
   await addAppCookies(page, [DASHBOARD_GEOMETRY_SESSION_COOKIE[audit.role]]); await installSurfaceMocks(page, audit); await page.goto(audit.route, { waitUntil: "domcontentloaded" });
-  await expect(page.locator(audit.readinessSelector)).toBeVisible({ timeout: 25_000 }); await waitForLayoutSettled(page);
+  await expect(page.locator(audit.readinessSelector)).toBeVisible({ timeout: 25_000 });
+  await expect.poll(() => page.evaluate(() => Object.keys(document.querySelector("main.dashboard-main") ?? {}).some((key) => key.startsWith("__reactFiber$"))), { timeout: 25_000 }).toBe(true); await waitForLayoutSettled(page);
   await page.addScriptTag({ content: harness }); await expect(page.getByRole("searchbox", { name: "Buscar registros" })).toBeVisible(); await waitForLayoutSettled(page);
 }
 const history = (page: Page) => page.evaluate(() => [...(window as unknown as { __c10Log: string[] }).__c10Log]); const refs = (page: Page) => page.evaluate(() => [...(window as unknown as { __c10RefLog: string[] }).__c10RefLog]);
