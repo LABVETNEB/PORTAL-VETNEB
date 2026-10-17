@@ -16,6 +16,12 @@ El reintento del producto llamaba `router.refresh()`. En Next 16.4.0, el `refres
 
 El guard `dashboard-navigation-single-owner` reconoce solamente esa expresión exacta como destino local legible. Las mutaciones de query, hash y destino arbitrario vuelven a ser rechazadas. No se añade un segundo propietario de selección de módulo. Las pruebas F4 y F7 ahora exigen la autoridad de la selección reciente, convergencia URL/vista/FSM/almacenamiento, ausencia de cargas de documento y de entradas extra de historial. Una prueba independiente verifica que el reintento recupera informes tras cambiar la sesión sintética y obtiene exactamente un nuevo payload RSC.
 
+## Corrección en compilación de producción
+
+Las cuatro celdas pasaban con `next dev` y fallaban 4/4 con `next build` + `next start` (también F4 × S1 con un worker): `Execution context was destroyed` en F4 y `the failed refresh does not reload the document` en F7. En producción la ruta del módulo ya es conocida, así que Next 16.4.0 navega con `navigateToKnownRoute` y pide los datos dinámicos aparte (`render-tree.js`, `fetchMissingDynamicData`). Si esa respuesta falla, `dispatchRetryDueToTreeMismatch` despacha `ACTION_SERVER_PATCH` con `mpa: true`, y `server-patch-reducer.js` ejecuta `completeHardNavigation` antes de su propio chequeo `previousTree !== state.tree`. El 524 tardío de un vuelo abandonado o el 500 del reintento recargan la URL abandonada sobre la selección vigente. Con `next dev` la ruta no está precargada y la acción pendiente se descarta al llegar la navegación posterior, por eso no se reproducía. El defecto sigue en `next@16.4.2` y en `16.5.0-canary.16`, así que actualizar Next no lo corrige.
+
+`supersededFlightGuard.ts` envuelve `window.fetch` mientras el `DashboardNavigationProvider` está montado. Sólo actúa sobre payloads de navegación del router (`GET` con `rsc: 1`, sin `next-router-prefetch`): si uno falla (status no 2xx o rechazo de red no abortado) cuando ya se emitió un payload de navegación posterior, la falla no se entrega al router y el vuelo queda como uno que nunca responde, que es lo que el owner ya hace con un vuelo abandonado (F1). El payload más reciente conserva el fallback documental de Next (F3, F4 sin selección posterior, F5), y las respuestas, prefetches, Server Actions y solicitudes de API llegan sin cambios. No se modifica `node_modules`, no hay recargas añadidas ni un segundo propietario de selección.
+
 ## Evidencia de validación
 
 | Gate | Resultado |
@@ -36,6 +42,12 @@ El guard `dashboard-navigation-single-owner` reconoce solamente esa expresión e
 | Caso fallido aislado, sin retries, un worker | PASSED 2/2 (con y sin Navigation API) |
 | `security:public-surface` | PASSED, exit 0 |
 | `validate:local` | FAILED, exit 1 |
+| D10 en `next start`, sin guard, 1 worker | FAILED 4/4 (fallback documental) |
+| Unidad `dashboard-navigation-superseded-flight` | PASSED 7/7 (RED antes del módulo) |
+| D10 en `next start`, con guard, 1 y 4 workers | PASSED 5/5 y 5/5 |
+| Matriz de fallos completa en `next start`, 4 workers | PASSED 63/63 |
+| FSM admin y clínica, puntero real, recuperación de requests y C10 en `next start` | PASSED 157/157 |
+| D10, F6 y reintento de datos en `next dev` | PASSED 9/9 |
 
 El único fallo de la cohorte ocurrió en `dashboard-real-pointer-navigation.spec.ts`, ruta de Clínica `/dashboard/logistica` a 1366×768, antes de la lógica del test: `page.goto` devolvió `net::ERR_NO_BUFFER_SPACE`. El spec no fue modificado por D10. La misma prueba y su variante sin Navigation API pasaron en ejecución aislada 2/2, sin retries. La firma señala agotamiento intermitente de recursos de red locales bajo los diez workers de la cohorte; esa causalidad es una inferencia, no una demostración de independencia absoluta. La cohorte sigue FAILED. No se repite entera sin una hipótesis adicional ni se sustituye por la prueba aislada.
 
@@ -43,11 +55,11 @@ El único fallo de la cohorte ocurrió en `dashboard-real-pointer-navigation.spe
 
 ## Riesgo residual y reversión
 
-La semántica de reintento pasa de `refresh` a navegación `replace` de la misma URL. El test de datos comprueba que vuelve a pedir el contenido RSC; F7 comprueba que una respuesta vieja no desplaza una selección posterior. El cambio se revierte restaurando la llamada del botón y el guard asociado, pero reaparece F7. La descripción histórica de D10 en la hoja de ruta corresponde a la base anterior y se conserva como antecedente.
+La semántica de reintento pasa de `refresh` a navegación `replace` de la misma URL. El test de datos comprueba que vuelve a pedir el contenido RSC; F7 comprueba que una respuesta vieja no desplaza una selección posterior. El cambio se revierte restaurando la llamada del botón y el guard asociado, pero reaparece F7. La guarda depende de dos hechos de Next 16.4: el header `rsc: 1` de los payloads de navegación y una única solicitud de navegación por navegación del dashboard (sin rutas paralelas ni interceptadas). Si Next cambia esos headers, la guarda deja de actuar y reaparece D10 sin bloquear navegaciones; las cuatro celdas en `next start` lo detectan. Un payload retenido queda pendiente en memoria hasta que se descarga el documento. La guarda se retira cuando Next compruebe la obsolescencia antes del fallback documental. La descripción histórica de D10 en la hoja de ruta corresponde a la base anterior y se conserva como antecedente.
 
 ## Estado final
 
-Las cuatro celdas D10 cumplen su contrato. La entrega del worktree queda `BLOCKED` por los gates completos fallidos. El primer `visual-contract` falló con `ERR_NO_BUFFER_SPACE`; la repetición controlada de dos workers terminó con seis fallos C10, descritos más abajo. `validate:local` mantiene las dos precondiciones ajenas a D10. Se requiere una cohorte completa aprobada y ejecutar `validate:local` en un entorno con índice Git compatible y PostgreSQL de pruebas aislado antes de declarar el cierre contractual. No se alteró el índice, los stashes ni el worktree C17.
+Las cuatro celdas D10 cumplen su contrato en `next dev` y en `next start`. La entrega del worktree queda `BLOCKED` por los gates completos fallidos. El primer `visual-contract` falló con `ERR_NO_BUFFER_SPACE`; la repetición controlada de dos workers terminó con seis fallos C10, descritos más abajo. `validate:local` mantiene las dos precondiciones ajenas a D10. Se requiere una cohorte completa aprobada y ejecutar `validate:local` en un entorno con índice Git compatible y PostgreSQL de pruebas aislado antes de declarar el cierre contractual. No se alteró el índice, los stashes ni el worktree C17.
 
 ## Seguimiento de validación en worktree
 

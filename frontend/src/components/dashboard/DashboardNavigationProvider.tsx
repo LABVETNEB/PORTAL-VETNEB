@@ -52,6 +52,7 @@ import {
   type NavLocation,
 } from "@/lib/dashboard/navigation/dashboardNavigationMachine";
 import { NAVIGATION_FLIGHT_BUDGET_MS } from "@/lib/dashboard/navigation/navigationFlight";
+import { installSupersededFlightGuard } from "@/lib/dashboard/navigation/supersededFlightGuard";
 import { ROUTES } from "@/lib/routes";
 
 /**
@@ -383,6 +384,9 @@ export function DashboardNavigationProvider({ children }: { children: ReactNode 
   const [held, setHeld] = useState<StoreSlot | null>(() => (surface === null ? null : createStoreSlot(surface)));
   const slot = surface === null ? null : held?.surface === surface ? held : createStoreSlot(surface);
   if (slot !== held) setHeld(slot);
+
+  // D-10: a superseded payload's failure must not reload over the latest selection.
+  useEffect(() => installSupersededFlightGuard(window), []);
 
   return (
     <StoreSlotContext.Provider value={slot}>
