@@ -12,6 +12,11 @@ import { Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { usePagedRows } from "@/components/dashboard/usePagedRows";
+import {
+  CollectionState,
+  ContentList,
+  ContentListItem,
+} from "@/features/dashboard/presentation/surfaces";
 import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
 import {
   getAdminMaintenancePurgeDryRun,
@@ -147,14 +152,26 @@ function MaintenanceSchemaSection() {
             </p>
           ) : null}
         </div>
-      ) : (
+      ) : error ? (
         <div className="flex min-h-0 flex-1 items-center justify-center px-4 text-center text-xs text-muted-foreground">
-          {error
-            ? "Esquema no disponible."
-            : !hasLoadedOnce || isPending
-              ? "Consultando estado de esquema…"
-              : "Sin datos de esquema."}
+          Esquema no disponible.
         </div>
+      ) : !hasLoadedOnce || isPending ? (
+        <CollectionState
+          variant="loading"
+          skeleton="list"
+          compact
+          rows={2}
+          label="Consultando estado de esquema…"
+          className="border-0 bg-transparent shadow-none rounded-none"
+        />
+      ) : (
+        <CollectionState
+          variant="empty"
+          title="Sin datos de esquema."
+          size="sm"
+          className="h-full min-h-0 border-0 bg-transparent"
+        />
       )}
     </div>
   );
@@ -238,7 +255,8 @@ function MaintenanceDryRunSection() {
             <MaintenanceMetric label="Soportados" value={snapshot.totals.supportedCandidateRecords} />
             <MaintenanceMetric label="No sop." value={snapshot.totals.unsupportedGroups} />
           </div>
-          <div
+          <ContentList
+            as="div"
             ref={setCandidatesListNode}
             data-admin-mobile-maintenance-candidates-list="true"
             data-dashboard-adaptive-rows-canvas="true"
@@ -248,7 +266,8 @@ function MaintenanceDryRunSection() {
           >
             {pageCandidates.length ? (
               pageCandidates.map((candidate, index) => (
-                <div
+                <ContentListItem
+                  as="div"
                   key={candidate.category}
                   data-admin-mobile-config-item="true"
                   data-admin-mobile-maintenance-candidate-row="true"
@@ -274,14 +293,17 @@ function MaintenanceDryRunSection() {
                       {candidate.count}
                     </span>
                   </div>
-                </div>
+                </ContentListItem>
               ))
             ) : (
-              <div className="flex min-h-0 flex-1 items-center justify-center px-4 text-center text-xs text-muted-foreground">
-                Sin candidatos de limpieza.
-              </div>
+              <CollectionState
+                variant="empty"
+                title="Sin candidatos de limpieza."
+                size="sm"
+                className="h-full min-h-0 border-0 bg-transparent"
+              />
             )}
-          </div>
+          </ContentList>
           <AdminMobileOpsPager
             ariaLabel="Paginación de candidatos"
             page={candidates.length ? page : 0}
@@ -298,14 +320,27 @@ function MaintenanceDryRunSection() {
             onNext={pagedCandidates.goNext}
           />
         </>
-      ) : (
+      ) : error ? (
         <div className="flex min-h-0 flex-1 items-center justify-center px-4 text-center text-xs text-muted-foreground">
-          {error
-            ? error
-            : isPending
-              ? "Analizando…"
-              : "Sin análisis ejecutado. Presioná Analizar para consultar el endpoint dry-run."}
+          {error}
         </div>
+      ) : isPending ? (
+        <CollectionState
+          variant="loading"
+          skeleton="list"
+          compact
+          rows={3}
+          label="Analizando…"
+          className="border-0 bg-transparent shadow-none rounded-none"
+        />
+      ) : (
+        <CollectionState
+          variant="empty"
+          title="Sin análisis ejecutado"
+          description="Presioná Analizar para consultar el endpoint dry-run."
+          size="sm"
+          className="h-full min-h-0 border-0 bg-transparent"
+        />
       )}
     </div>
   );

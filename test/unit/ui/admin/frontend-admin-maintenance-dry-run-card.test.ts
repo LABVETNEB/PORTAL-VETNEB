@@ -3,16 +3,18 @@ import test from "node:test";
 import ts from "typescript";
 import { readSourceFile as read } from "../../../helpers/tracked-source-files.ts";
 import {
+  effectiveAttribute,
   exportedFunction,
   parseTsx,
   renderedUnder,
   staticAttribute,
+  tagName,
 } from "../dashboard/dashboard-source-oracle.ts";
 
 const ADMIN_MAINTENANCE_CARD_PATH =
   "frontend/src/app/dashboard/admin/AdminMaintenanceDryRunCard.tsx";
 
-// Whether the error block that shows `{error}` renders on every path ("must"),
+// Whether the C03 error state that shows `message={error}` renders on every path ("must"),
 // on some path ("may") or never ("absent"), without and with a dry-run error.
 function dryRunErrorBlock(source: string) {
   const card = exportedFunction(
@@ -21,12 +23,15 @@ function dryRunErrorBlock(source: string) {
   );
   const block = (error: boolean) => {
     const shown = renderedUnder(card, new Map([["error", error]])).filter(
-      ({ element }) =>
-        staticAttribute(element, "className") === "clinical-alert-error" &&
-        ts.isJsxElement(element) &&
-        element.children.some(
-          (child) => ts.isJsxExpression(child) && child.expression?.getText() === "error",
-        ),
+      ({ element }) => {
+        const message = effectiveAttribute(element, "message");
+        return (
+          tagName(element) === "CollectionState" &&
+          staticAttribute(element, "variant") === "error" &&
+          message.kind === "value" &&
+          message.expression.getText() === "error"
+        );
+      },
     );
 
     return shown.length === 0 ? "absent" : shown.every(({ must }) => must) ? "must" : "may";
@@ -46,7 +51,8 @@ test("admin maintenance dry-run card is client-side and imports required depende
   );
   assert.ok(source.includes('import { Badge } from "@/components/ui/badge";'));
   assert.ok(source.includes('import { Button } from "@/components/ui/button";'));
-  assert.ok(source.includes('import { CompactPager } from "@/components/dashboard/CompactPager";'));
+  assert.ok(source.includes('  CollectionPager,\n  CollectionState,\n  ContentList,\n  ContentListItem,\n} from "@/features/dashboard/presentation/surfaces";'));
+  assert.equal(source.includes("CompactPager"), false, "C20: the C02 owner replaces its compact adapter");
   assert.ok(source.includes('import { usePagedRows } from "@/components/dashboard/usePagedRows";'));
   assert.ok(
     source.includes(
@@ -158,11 +164,11 @@ test("admin maintenance dry-run card renders initial empty state and errors", ()
   const source = read(ADMIN_MAINTENANCE_CARD_PATH);
 
   assert.ok(source.includes("error ? ("));
-  assert.ok(source.includes("{error}"));
+  assert.ok(source.includes("message={error}"));
   assert.ok(source.includes("!snapshot ? ("));
-  assert.ok(source.includes("Sin análisis ejecutado. Presioná"));
-  assert.ok(source.includes("Analizar limpieza"));
-  assert.ok(source.includes("consultar el endpoint dry-run."));
+  assert.ok(source.includes('title="Sin análisis ejecutado"'));
+  assert.ok(source.includes('description="Presioná Analizar limpieza para consultar el endpoint dry-run."'));
+  assert.equal(source.includes("clinical-alert-error"), false, "C20: the dry-run error is the C03 alert");
 
   const alertOnlyOnError = { withoutError: "absent", withError: "must" };
   assert.deepEqual(dryRunErrorBlock(source), alertOnlyOnError);
@@ -199,6 +205,6 @@ test("admin maintenance dry-run card renders candidate list from snapshot", () =
   assert.ok(source.includes("<MaintenanceCandidateRow"));
   assert.ok(source.includes("key={candidate.category}"));
   assert.ok(source.includes("candidate={candidate}"));
-  assert.ok(source.includes("<CompactPager"));
+  assert.ok(source.includes('<CollectionPager\n              variant="compact"'));
   assert.ok(source.includes('itemLabel="grupos"'));
 });

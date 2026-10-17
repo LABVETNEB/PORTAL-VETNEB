@@ -12,6 +12,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  CollectionState,
+  ContentList,
+  ContentListItem,
+} from "@/features/dashboard/presentation/surfaces";
 import { getAdminSchemaHealth } from "@/lib/api";
 import { formatDateTime } from "@/lib/utils";
 import type { AdminSchemaHealthSnapshot } from "@/types";
@@ -133,9 +138,13 @@ export function AdminSchemaHealthStatusCard({
 
       <CardContent className={actionsInTabs ? "space-y-4 pt-4" : "space-y-4 pt-6"}>
         {showLoadingState ? (
-          <div className="surface-empty">
-            Consultando estado de esquema...
-          </div>
+          <CollectionState
+            variant="loading"
+            skeleton="list"
+            compact
+            rows={2}
+            label="Consultando estado de esquema..."
+          />
         ) : null}
 
         {error ? (
@@ -202,16 +211,17 @@ export function AdminSchemaHealthStatusCard({
               <div className="clinical-alert-warning">
                 <p className="font-semibold">Faltan columnas críticas.</p>
                 {snapshot.missing.length ? (
-                  <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
+                  <ContentList as="ul" className="mt-2 list-disc space-y-1 pl-5 text-sm">
                     {snapshot.missing.map((missingColumn) => (
-                      <li
+                      <ContentListItem
+                        as="li"
                         key={`${missingColumn.schema}.${missingColumn.table}.${missingColumn.column}`}
                         className="font-mono"
                       >
                         {missingColumn.schema}.{missingColumn.table}.{missingColumn.column}
-                      </li>
+                      </ContentListItem>
                     ))}
-                  </ul>
+                  </ContentList>
                 ) : (
                   <p className="mt-2 text-sm">
                     No se recibió detalle de columnas faltantes.

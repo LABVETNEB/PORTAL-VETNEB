@@ -14,8 +14,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ModuleTabs } from "@/components/dashboard/ModuleTabs";
-import { CompactPager } from "@/components/dashboard/CompactPager";
 import { usePagedRows } from "@/components/dashboard/usePagedRows";
+import {
+  CollectionPager,
+  CollectionState,
+  CollectionWorkspace,
+  ContentList,
+} from "@/features/dashboard/presentation/surfaces";
 import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
 import { formatDateTime } from "@/lib/utils";
 import {
@@ -244,13 +249,15 @@ function PricingCategoryItems({
         <span className="hidden lg:block">Última actualización</span>
         <span className="text-right">Acción</span>
       </div>
-      <div
+      <CollectionWorkspace
         ref={setFormsBodyNode}
         data-dashboard-adaptive-rows-canvas="true"
         data-dashboard-row-pitch="regular"
         data-admin-pricing-all-items={fitsInOneView ? "true" : "false"}
-        className="flex min-h-0 flex-1 flex-col divide-y divide-vetneb-line/60 overflow-hidden"
+        className="flex min-h-0 flex-1 flex-col overflow-hidden"
       >
+        {/* C20: a form is not a C01 list item, so the list stays `contents` and keeps the row separator. */}
+        <ContentList as="div" className="contents divide-y divide-vetneb-line/60">
         {paged.pageItems.map((item) => {
           const formState = formStateById[item.id];
 
@@ -367,10 +374,12 @@ function PricingCategoryItems({
             </form>
           );
         })}
-      </div>
+        </ContentList>
+      </CollectionWorkspace>
 
       {fitsInOneView ? null : (
-        <CompactPager
+        <CollectionPager
+          variant="compact"
           page={paged.page}
           pageCount={paged.pageCount}
           rangeStart={paged.rangeStart}
@@ -686,18 +695,31 @@ export function AdminPricingEditorCard() {
           </div>
         )}
         {loadError ? (
-          <p
-            role="alert"
-            className="clinical-alert-warning px-3 py-2"
-          >
-            {loadError}
-          </p>
+          <CollectionState
+            variant="error"
+            tone="warning"
+            title="Precios no disponibles"
+            message={loadError}
+          />
         ) : null}
 
         {!loadError && !hasPricingItems ? (
-          <p className="surface-empty">
-            {isLoading ? "Cargando precios..." : EMPTY_STATE_MESSAGE}
-          </p>
+          isLoading ? (
+            <CollectionState
+              variant="loading"
+              skeleton="list"
+              compact
+              rows={3}
+              label="Cargando precios..."
+            />
+          ) : (
+            <CollectionState
+              variant="empty"
+              title="Sin precios"
+              description={EMPTY_STATE_MESSAGE}
+              size="sm"
+            />
+          )
         ) : null}
 
         {showCategoryTabs ? (

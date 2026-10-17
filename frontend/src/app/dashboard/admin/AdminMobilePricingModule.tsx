@@ -6,6 +6,7 @@ import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CollectionState, ContentList } from "@/features/dashboard/presentation/surfaces";
 import {
   getAdminPricing,
   updateAdminPricingItem,
@@ -320,7 +321,9 @@ export function AdminMobilePricingModule() {
         className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden"
       >
         {catalogRows.length ? (
-          catalogRows.map((item) => {
+          // C20: each row is the button that selects the study, so the C01 list stays `contents` inside the gapped canvas.
+          <ContentList as="div" className="contents">
+          {catalogRows.map((item) => {
             const itemIndex = items.indexOf(item);
             const isCurrent = itemIndex === index;
             return (
@@ -348,11 +351,28 @@ export function AdminMobilePricingModule() {
                 </Badge>
               </button>
             );
-          })
-        ) : (
+          })}
+          </ContentList>
+        ) : loadError ? (
           <div className="flex min-h-0 flex-1 items-center justify-center px-4 text-center text-xs text-muted-foreground">
-            {loadError ?? (isLoading ? "Cargando precios…" : "Sin precios configurados.")}
+            {loadError}
           </div>
+        ) : isLoading ? (
+          <CollectionState
+            variant="loading"
+            skeleton="list"
+            compact
+            rows={3}
+            label="Cargando precios…"
+            className="border-0 bg-transparent shadow-none rounded-none"
+          />
+        ) : (
+          <CollectionState
+            variant="empty"
+            title="Sin precios configurados."
+            size="sm"
+            className="h-full min-h-0 border-0 bg-transparent"
+          />
         )}
       </div>
       <AdminMobileOpsPager
