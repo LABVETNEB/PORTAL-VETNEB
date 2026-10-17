@@ -310,7 +310,8 @@ test("admin failed login alerts card keeps empty state and pagination without en
   const removedReadOnlyFilters = "read-" + "only con filtros reversibles";
 
   assert.ok(source.includes("isPending ?"));
-  assert.ok(source.includes("LoadingState"));
+  // C19: loading goes through the C03 owner directly.
+  assert.match(source, /<CollectionState\s+variant="loading"/);
   assert.ok(source.includes('"No se pudieron cargar los intentos fallidos."'));
   assert.ok(source.includes("No hay intentos fallidos para los filtros seleccionados."));
   assert.ok(source.includes("const hasPreviousPage = offset > 0;"));

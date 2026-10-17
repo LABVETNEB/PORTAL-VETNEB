@@ -270,6 +270,11 @@ const C01_SURFACES_BARREL = "frontend/src/features/dashboard/presentation/surfac
 const C01_AUDIT_CARD = "frontend/src/app/dashboard/admin/AdminAuditCard.tsx";
 const C01_AUDIT_TABLE = "frontend/src/app/dashboard/admin/AdminAuditDenseTable.tsx";
 const C01_AUDIT_MOBILE = "frontend/src/app/dashboard/admin/AdminMobileAuditModule.tsx";
+const C19_CARDS = [
+  "frontend/src/app/dashboard/admin/AdminUsersRolesReadOnlyCard.tsx",
+  "frontend/src/app/dashboard/admin/AdminSessionsReadOnlyCard.tsx",
+  "frontend/src/app/dashboard/admin/AdminFailedLoginAlertsReadOnlyCard.tsx",
+] as const;
 const C01_PRIMITIVES = ["CollectionWorkspace", "CollectionHeader", "ContentList", "ContentListItem"] as const;
 
 function cssRule(css: string, selector: string): string {
@@ -384,11 +389,11 @@ test("C01 · Auditoría adopts the table and list forms without moving capacity,
     assert.ok(mobile.includes(operation), operation);
   }
 
-  // C17 adds Informes and C18 adds Tokens and Clínicas; the three Auditoría consumers remain exact.
+  // C17 adds Informes, C18 Tokens and Clínicas, C19 Usuarios, Sesiones and Intentos fallidos; the three Auditoría consumers remain exact.
   const consumers = sourceFiles("frontend/src").filter(
     (path) => path !== C01_TABLE && /<(CollectionWorkspace|CollectionHeader|ContentList|ContentListItem)\b/.test(read(path)),
   );
-  assert.deepEqual(consumers.sort(), [C01_AUDIT_CARD, C01_AUDIT_TABLE, C01_AUDIT_MOBILE, "frontend/src/app/dashboard/admin/AdminReportsCard.tsx", "frontend/src/app/dashboard/admin/AdminParticularTokensCard.tsx", "frontend/src/app/dashboard/admin/AdminClinicsManagementCard.tsx"].sort());
+  assert.deepEqual(consumers.sort(), [C01_AUDIT_CARD, C01_AUDIT_TABLE, C01_AUDIT_MOBILE, "frontend/src/app/dashboard/admin/AdminReportsCard.tsx", "frontend/src/app/dashboard/admin/AdminParticularTokensCard.tsx", "frontend/src/app/dashboard/admin/AdminClinicsManagementCard.tsx", ...C19_CARDS].sort());
   for (const path of sourceFiles("frontend/src")) {
     const source = read(path);
     // C02 landed CollectionPager, C04 aria-sort, C06 useCollectionSelection and C07 SelectionToolbar; their fences live in their blocks below.
@@ -518,7 +523,6 @@ const C03_EMPTY_CONSUMERS = [
   "frontend/src/app/dashboard/ClinicCommandCenter.tsx",
   "frontend/src/app/dashboard/ClinicInformesWorkspaceSummary.tsx",
   "frontend/src/app/dashboard/ClinicLogisticaWorkspaceSummary.tsx",
-  "frontend/src/app/dashboard/admin/AdminFailedLoginAlertsReadOnlyCard.tsx",
   "frontend/src/app/dashboard/informes/InformesReportsList.tsx",
   "frontend/src/app/dashboard/logistica/LogisticsCommandCenter.tsx",
   "frontend/src/components/dashboard/ClinicParticularTokensCard.tsx",
@@ -527,7 +531,6 @@ const C03_EMPTY_CONSUMERS = [
 ] as const;
 const C03_ERROR_CONSUMERS = ["frontend/src/app/dashboard/informes/InformesReportsList.tsx"] as const;
 const C03_LOADING_CONSUMERS = [
-  "frontend/src/app/dashboard/admin/AdminFailedLoginAlertsReadOnlyCard.tsx",
   // Pending destination while a full route waits for the `/dashboard` commit.
   "frontend/src/components/dashboard/ClinicFullRouteModuleStage.tsx",
 ] as const;
@@ -599,8 +602,9 @@ test("C03 · consumers keep the legacy adapters; C01/C02 owners, capacity and C0
       "frontend/src/app/dashboard/admin/AdminClinicsManagementCard.tsx",
       C01_AUDIT_TABLE,
       C01_AUDIT_MOBILE,
+      ...C19_CARDS,
     ].sort(),
-    "C17 (Informes) and C18 (Tokens, Clínicas, Auditoría) are the migrated product consumers",
+    "C17 (Informes), C18 (Tokens, Clínicas, Auditoría) and C19 (Usuarios, Sesiones, Intentos fallidos) are the migrated product consumers",
   );
   for (const owner of [C01_TABLE, C02_OWNER]) {
     assert.equal(/CollectionState|EmptyState|ErrorState|LoadingState/.test(stripComments(read(owner))), false, owner);

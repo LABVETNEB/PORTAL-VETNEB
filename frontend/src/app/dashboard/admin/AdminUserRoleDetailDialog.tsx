@@ -3,6 +3,7 @@
 import { Eye } from "lucide-react";
 import { ModuleDialog } from "@/components/dashboard/ModuleDialog";
 import { Button } from "@/components/ui/button";
+import { DetailsMetadata, DetailsPane } from "@/features/dashboard/presentation/details";
 import { formatDateTime } from "@/lib/utils";
 import type { AdminRoleUserSummary } from "@/types";
 
@@ -70,65 +71,25 @@ export function AdminUserRoleDetailDialog({
         </Button>
       }
     >
-      <dl className="grid grid-cols-1 gap-x-4 gap-y-3 text-[13px] sm:grid-cols-2">
-        <div className="min-w-0 sm:col-span-2">
-          <dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Usuario
-          </dt>
-          <dd className="dashboard-detail-value mt-0.5 font-medium text-vetneb-ink">
-            {user.username}
-          </dd>
-        </div>
-        <div className="min-w-0 sm:col-span-2">
-          <dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Clínica
-          </dt>
-          <dd className="dashboard-detail-value mt-0.5 text-vetneb-ink">
-            {clinicLabel}
-          </dd>
-          {clinicMetadata ? (
-            <dd className="dashboard-detail-value mt-0.5 text-xs text-muted-foreground">
-              {clinicMetadata}
-            </dd>
-          ) : null}
-        </div>
-        <div className="min-w-0">
-          <dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Tipo
-          </dt>
-          <dd className="dashboard-detail-value mt-0.5 text-vetneb-ink">
-            {userTypeLabel}
-          </dd>
-        </div>
-        <div className="min-w-0">
-          <dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Rol
-          </dt>
-          <dd className="dashboard-detail-value mt-0.5 text-vetneb-ink">
-            {roleLabel}
-          </dd>
-        </div>
-        <div className="min-w-0">
-          <dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Creado
-          </dt>
-          <dd className="dashboard-detail-value mt-0.5 tabular-nums text-vetneb-ink">
-            {formatDateTime(user.createdAt)}
-          </dd>
-        </div>
-        <div className="min-w-0">
-          <dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Actualizado
-          </dt>
-          <dd className="dashboard-detail-value mt-0.5 tabular-nums text-vetneb-ink">
-            {formatDateTime(user.updatedAt)}
-          </dd>
-        </div>
-      </dl>
-      <p className="mt-3 text-[11px] leading-4 text-muted-foreground">
-        Vista de sólo lectura. El cambio de rol se realiza desde la acción de la
-        fila.
-      </p>
+      <DetailsPane label={`Detalle del usuario ${user.userId}`}>
+        <DetailsMetadata
+          items={[
+            { id: "username", label: "Usuario", value: user.username },
+            { id: "clinic", label: "Clínica", value: clinicLabel },
+            ...(clinicMetadata
+              ? [{ id: "clinic-metadata", label: "Datos de clínica", value: clinicMetadata }]
+              : []),
+            { id: "user-type", label: "Tipo", value: userTypeLabel },
+            { id: "role", label: "Rol", value: roleLabel },
+            { id: "created", label: "Creado", value: formatDateTime(user.createdAt) },
+            { id: "updated", label: "Actualizado", value: formatDateTime(user.updatedAt) },
+          ]}
+        />
+        <p className="text-[11px] leading-4 text-muted-foreground">
+          Vista de sólo lectura. El cambio de rol se realiza desde la acción de la
+          fila.
+        </p>
+      </DetailsPane>
     </ModuleDialog>
   );
 }

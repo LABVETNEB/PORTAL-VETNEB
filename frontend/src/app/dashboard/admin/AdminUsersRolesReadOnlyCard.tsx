@@ -15,12 +15,16 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
-  TableBody,
   TableCell,
   TableHead,
-  TableHeader,
-  TableRow,
 } from "@/components/ui/table";
+import {
+  CollectionHeader,
+  CollectionState,
+  CollectionWorkspace,
+  ContentList,
+  ContentListItem,
+} from "@/features/dashboard/presentation/surfaces";
 import { changeAdminClinicUserRole, getAdminUsersRoles } from "@/lib/api";
 import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
 import { DASHBOARD_PAGER_RESERVATION } from "@/components/dashboard/DashboardPager";
@@ -510,7 +514,7 @@ export function AdminUsersRolesReadOnlyCard() {
             strictly local to this card, no row content, header or shell
             touched — is what lets the nine-row contract hold honestly there and
             lets 1280×720 fall to its real capacity instead of clipping. */}
-        <div
+        <CollectionWorkspace
           ref={setDesktopBodyNode}
           data-dashboard-adaptive-rows-canvas="true"
               data-dashboard-row-pitch="compact"
@@ -523,8 +527,8 @@ export function AdminUsersRolesReadOnlyCard() {
                 className="table-fixed text-[13px] [&_td]:h-8 [&_td]:px-2 [&_td]:py-0.5 [&_th]:h-8 [&_th]:px-2 [&_th]:text-xs [&_th]:font-semibold"
                 aria-label="Tabla de usuarios y roles administrativos"
               >
-                <TableHeader>
-                  <TableRow>
+                <CollectionHeader>
+                  <ContentListItem as="tr">
                     <TableHead className="w-[18%]">Usuario</TableHead>
                     <TableHead className="w-[10%]">Tipo</TableHead>
                     <TableHead className="w-[14%]">Rol</TableHead>
@@ -532,16 +536,17 @@ export function AdminUsersRolesReadOnlyCard() {
                     <TableHead className="hidden w-[10.5rem] xl:table-cell">Creado</TableHead>
                     <TableHead className="w-[10.5rem]">Actualizado</TableHead>
                     <TableHead className="w-[8.5rem] text-right">Acción</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+                  </ContentListItem>
+                </CollectionHeader>
+                <ContentList as="tbody">
                   {users.map((user, index) => {
                     const userKey = getUserKey(user);
                     const isChanging = changingUserKey === userKey;
                     const wasChanged = changedUserKey === userKey;
 
                     return (
-                      <TableRow
+                      <ContentListItem
+                        as="tr"
                         key={userKey}
                         className={wasChanged ? "bg-vetneb-teal/10" : undefined}
                       >
@@ -615,20 +620,31 @@ export function AdminUsersRolesReadOnlyCard() {
                             />
                           </span>
                         </TableCell>
-                      </TableRow>
+                      </ContentListItem>
                     );
                   })}
-                </TableBody>
+                </ContentList>
               </Table>
             </div>
+          ) : isPending ? (
+            <CollectionState
+              variant="loading"
+              skeleton="table"
+              compact
+              rows={3}
+              label="Cargando usuarios y roles..."
+              className="mx-3 border-0 bg-transparent shadow-none rounded-none sm:mx-4"
+            />
           ) : (
-            <div className="mx-3 flex min-h-20 items-center justify-center rounded-md border border-vetneb-line/70 bg-muted/20 px-4 text-center text-xs text-muted-foreground sm:mx-4">
-              {isPending
-                ? "Cargando usuarios y roles..."
-                : "No hay usuarios para los filtros seleccionados."}
-            </div>
+            <CollectionState
+              variant="empty"
+              title="Sin usuarios"
+              description="No hay usuarios para los filtros seleccionados."
+              size="sm"
+              className="mx-3 border-0 bg-transparent sm:mx-4"
+            />
           )}
-        </div>
+        </CollectionWorkspace>
 
         <footer
           data-dashboard-adaptive-reserved-region="pager"
@@ -775,12 +791,14 @@ export function AdminUsersRolesReadOnlyCard() {
           className="min-h-0 flex-1 divide-y divide-vetneb-line/70 overflow-hidden"
         >
           {users.length ? (
-            users.map((user, index) => {
+            <ContentList as="div" className="contents divide-y divide-vetneb-line/70">
+            {users.map((user, index) => {
               const userKey = getUserKey(user);
               const isChanging = changingUserKey === userKey;
 
               return (
-                <article
+                <ContentListItem
+                  as="article"
                   key={userKey}
                   data-admin-mobile-ops-item="true"
                   data-dashboard-adaptive-row="true"
@@ -825,17 +843,30 @@ export function AdminUsersRolesReadOnlyCard() {
                     }
                     clinicMetadata={getClinicMetadata(user)}
                   />
-                </article>
+                </ContentListItem>
               );
-            })
-          ) : (
+            })}
+            </ContentList>
+          ) : error ? (
             <div className="flex h-full items-center justify-center px-4 text-center text-xs text-muted-foreground">
-              {error
-                ? "Error al cargar usuarios"
-                : isPending
-                  ? "Cargando usuarios..."
-                  : "Sin usuarios"}
+              Error al cargar usuarios
             </div>
+          ) : isPending ? (
+            <CollectionState
+              variant="loading"
+              skeleton="list"
+              compact
+              rows={3}
+              label="Cargando usuarios..."
+              className="border-0 bg-transparent shadow-none rounded-none"
+            />
+          ) : (
+            <CollectionState
+              variant="empty"
+              title="Sin usuarios"
+              size="sm"
+              className="h-full min-h-0 border-0 bg-transparent"
+            />
           )}
         </div>
 

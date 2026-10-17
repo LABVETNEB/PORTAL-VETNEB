@@ -100,8 +100,9 @@ const TERMINAL_REGIONS: readonly TerminalRegion[] = [
   {
     label: "ADMIN · failed login attempt detail dialog",
     file: "frontend/src/app/dashboard/admin/AdminFailedLoginDetailDialog.tsx",
-    start: "<dl className=",
-    end: "</dl>",
+    // C19: the dialog body is the C13 DetailsPane + DetailsMetadata composition.
+    start: "<DetailsPane",
+    end: "</DetailsPane>",
     contractualValues: [
       "alert.username",
       "alert.ipAddress",
@@ -114,8 +115,9 @@ const TERMINAL_REGIONS: readonly TerminalRegion[] = [
   {
     label: "ADMIN · users and roles detail dialog",
     file: "frontend/src/app/dashboard/admin/AdminUserRoleDetailDialog.tsx",
-    start: "<dl className=",
-    end: "</dl>",
+    // C19: the dialog body is the C13 DetailsPane + DetailsMetadata composition.
+    start: "<DetailsPane",
+    end: "</DetailsPane>",
     contractualValues: [
       "user.username",
       "clinicLabel",
@@ -409,7 +411,8 @@ test("PR-TRUNC · collection surfaces that legitimately truncate still expose th
   const usersRolesDialog = read(
     "frontend/src/app/dashboard/admin/AdminUserRoleDetailDialog.tsx",
   );
-  for (const value of ["{user.username}", "{clinicLabel}"]) {
+  // C19: DetailsMetadata renders each item value whole inside its `.dashboard-detail-value` dd.
+  for (const value of ["value: user.username }", "value: clinicLabel }"]) {
     assert.ok(
       usersRolesDialog.includes(value),
       `AdminUserRoleDetailDialog must render ${value} in full — it is the terminal surface for that datum`,

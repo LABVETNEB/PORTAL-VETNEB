@@ -3,6 +3,7 @@
 import { Eye } from "lucide-react";
 import { ModuleDialog } from "@/components/dashboard/ModuleDialog";
 import { Button } from "@/components/ui/button";
+import { DetailsMetadata, DetailsPane } from "@/features/dashboard/presentation/details";
 import { formatDateTime } from "@/lib/utils";
 import type { AdminFailedLoginAlertSummary } from "@/types";
 
@@ -60,67 +61,22 @@ export function AdminFailedLoginDetailDialog({
         </Button>
       }
     >
-      <dl className="grid grid-cols-1 gap-x-4 gap-y-3 text-[13px] sm:grid-cols-2">
-        <div className="min-w-0">
-          <dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Superficie
-          </dt>
-          <dd className="dashboard-detail-value mt-0.5 text-vetneb-ink">
-            {surfaceLabel}
-          </dd>
-        </div>
-        <div className="min-w-0">
-          <dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Fecha
-          </dt>
-          <dd className="dashboard-detail-value mt-0.5 text-vetneb-ink">
-            {formatDateTime(alert.createdAt)}
-          </dd>
-        </div>
-        <div className="min-w-0">
-          <dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Usuario
-          </dt>
-          <dd className="dashboard-detail-value mt-0.5 text-vetneb-ink">
-            {alert.username && alert.username.trim() ? alert.username : "—"}
-          </dd>
-        </div>
-        <div className="min-w-0">
-          <dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Motivo
-          </dt>
-          <dd className="dashboard-detail-value mt-0.5 text-vetneb-ink">
-            {reasonLabel}
-          </dd>
-        </div>
-        <div className="min-w-0">
-          <dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            IP
-          </dt>
-          <dd className="dashboard-detail-value mt-0.5 font-mono text-xs text-vetneb-ink">
-            {alert.ipAddress ?? "—"}
-          </dd>
-        </div>
-        <div className="min-w-0">
-          <dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Identificador
-          </dt>
-          <dd className="dashboard-detail-value mt-0.5 font-mono text-xs text-vetneb-ink">
-            #{alert.id}
-          </dd>
-        </div>
-        <div className="min-w-0 rounded-lg border border-vetneb-line/70 bg-muted/25 px-3 py-2 sm:col-span-2">
-          <dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            User agent
-          </dt>
-          <dd className="dashboard-detail-value mt-1 font-mono text-xs leading-5 text-vetneb-ink/85">
-            {alert.userAgent ?? "—"}
-          </dd>
-        </div>
-      </dl>
-      <p className="mt-3 text-[11px] leading-4 text-muted-foreground">
-        La vista omite credenciales, cookies y metadata de sesión.
-      </p>
+      <DetailsPane label={`Detalle del intento fallido ${alert.id}`}>
+        <DetailsMetadata
+          items={[
+            { id: "surface", label: "Superficie", value: surfaceLabel },
+            { id: "date", label: "Fecha", value: formatDateTime(alert.createdAt) },
+            { id: "username", label: "Usuario", value: alert.username?.trim() ? alert.username : null },
+            { id: "reason", label: "Motivo", value: reasonLabel },
+            { id: "ip", label: "IP", value: alert.ipAddress, mono: true },
+            { id: "id", label: "Identificador", value: `#${alert.id}`, mono: true },
+            { id: "user-agent", label: "User agent", value: alert.userAgent, mono: true },
+          ]}
+        />
+        <p className="text-[11px] leading-4 text-muted-foreground">
+          La vista omite credenciales, cookies y metadata de sesión.
+        </p>
+      </DetailsPane>
     </ModuleDialog>
   );
 }

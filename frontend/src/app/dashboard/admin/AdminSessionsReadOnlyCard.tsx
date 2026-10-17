@@ -15,12 +15,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
-  TableBody,
   TableCell,
   TableHead,
-  TableHeader,
-  TableRow,
 } from "@/components/ui/table";
+import {
+  CollectionHeader,
+  CollectionState,
+  CollectionWorkspace,
+  ContentList,
+  ContentListItem,
+} from "@/features/dashboard/presentation/surfaces";
 import { getAdminSessions, revokeAdminSession } from "@/lib/api";
 import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
 import { DASHBOARD_PAGER_RESERVATION } from "@/components/dashboard/DashboardPager";
@@ -376,7 +380,7 @@ export function AdminSessionsReadOnlyCard({
           </div>
         </div>
 
-        <div
+        <CollectionWorkspace
           ref={setDesktopBodyNode}
           data-admin-sesiones-list-body="true"
           data-dashboard-adaptive-rows-canvas="true"
@@ -390,8 +394,8 @@ export function AdminSessionsReadOnlyCard({
                 className="table-fixed text-[13px] [&_td]:h-9 [&_td]:px-2 [&_td]:py-1 [&_th]:h-8 [&_th]:px-2 [&_th]:text-xs [&_th]:font-semibold"
                 aria-label="Tabla de sesiones administrativas"
               >
-                <TableHeader>
-                  <TableRow>
+                <CollectionHeader>
+                  <ContentListItem as="tr">
                     <TableHead className="w-[14%]">Sesión</TableHead>
                     <TableHead className="w-[14%]">Actor</TableHead>
                     <TableHead className="w-[10%]">Estado</TableHead>
@@ -403,9 +407,9 @@ export function AdminSessionsReadOnlyCard({
                       Expira
                     </TableHead>
                     <TableHead className="w-[8.5rem] text-right">Acción</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+                  </ContentListItem>
+                </CollectionHeader>
+                <ContentList as="tbody">
                   {sessions.map((session, index) => {
                     const sessionKey = getSessionKey(session);
                     const isRevoking = revokingSessionKey === sessionKey;
@@ -415,7 +419,8 @@ export function AdminSessionsReadOnlyCard({
                       session.sessionId === snapshot.currentAdminSessionId;
 
                     return (
-                      <TableRow
+                      <ContentListItem
+                        as="tr"
                         key={sessionKey}
                         data-admin-sesiones-row="true"
                       >
@@ -472,24 +477,35 @@ export function AdminSessionsReadOnlyCard({
                                 : "Revocar"}
                           </Button>
                         </TableCell>
-                      </TableRow>
+                      </ContentListItem>
                     );
                   })}
-                </TableBody>
+                </ContentList>
               </Table>
             </div>
           ) : error ? (
             <div className="clinical-alert-error mx-3 sm:mx-4" role="alert">
               {error}
             </div>
+          ) : isPending ? (
+            <CollectionState
+              variant="loading"
+              skeleton="table"
+              compact
+              rows={3}
+              label="Cargando sesiones..."
+              className="mx-3 border-0 bg-transparent shadow-none rounded-none sm:mx-4"
+            />
           ) : (
-            <div className="mx-3 flex min-h-20 items-center justify-center rounded-md border border-vetneb-line/70 bg-muted/20 px-4 text-center text-xs text-muted-foreground sm:mx-4">
-              {isPending
-                ? "Cargando sesiones..."
-                : "No hay sesiones para los filtros seleccionados."}
-            </div>
+            <CollectionState
+              variant="empty"
+              title="Sin sesiones"
+              description="No hay sesiones para los filtros seleccionados."
+              size="sm"
+              className="mx-3 border-0 bg-transparent sm:mx-4"
+            />
           )}
-        </div>
+        </CollectionWorkspace>
 
         <footer
           data-admin-sesiones-pagination="true"
@@ -625,7 +641,8 @@ export function AdminSessionsReadOnlyCard({
           className="min-h-0 flex-1 divide-y divide-vetneb-line/70 overflow-hidden"
         >
           {sessions.length ? (
-            sessions.map((session, index) => {
+            <ContentList as="div" className="contents divide-y divide-vetneb-line/70">
+            {sessions.map((session, index) => {
               const sessionKey = getSessionKey(session);
               const isRevoking = revokingSessionKey === sessionKey;
               const isCurrentAdminSession =
@@ -633,7 +650,8 @@ export function AdminSessionsReadOnlyCard({
                 session.sessionId === snapshot?.currentAdminSessionId;
 
               return (
-                <article
+                <ContentListItem
+                  as="article"
                   key={sessionKey}
                   data-admin-mobile-ops-item="true"
                   data-dashboard-adaptive-row="true"
@@ -672,17 +690,30 @@ export function AdminSessionsReadOnlyCard({
                         ? "Revocando..."
                         : "Revocar"}
                   </Button>
-                </article>
+                </ContentListItem>
               );
-            })
-          ) : (
+            })}
+            </ContentList>
+          ) : error ? (
             <div className="flex h-full items-center justify-center px-4 text-center text-xs text-muted-foreground">
-              {error
-                ? "Error al cargar sesiones"
-                : isPending
-                  ? "Cargando sesiones..."
-                  : "Sin sesiones"}
+              Error al cargar sesiones
             </div>
+          ) : isPending ? (
+            <CollectionState
+              variant="loading"
+              skeleton="list"
+              compact
+              rows={3}
+              label="Cargando sesiones..."
+              className="border-0 bg-transparent shadow-none rounded-none"
+            />
+          ) : (
+            <CollectionState
+              variant="empty"
+              title="Sin sesiones"
+              size="sm"
+              className="h-full min-h-0 border-0 bg-transparent"
+            />
           )}
         </div>
 
