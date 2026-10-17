@@ -350,8 +350,11 @@ test("dashboard admin distinguishes audit log load failures from empty states", 
   assert.ok(actionsSource.includes("formatAuditDate(entry.createdAt)"));
   assert.equal(source.includes("fetch("), false);
 
-  // Client table distinguishes load failures from empty states.
-  assert.ok(tableSource.includes('role="alert"'));
+  // Client table distinguishes load failures from empty states (C18: through
+  // the C03 owner, whose error variant is the alert).
+  assert.ok(tableSource.includes('<CollectionState variant="error"'));
+  assert.ok(tableSource.includes('<CollectionState variant="empty"'));
+  assert.ok(read("frontend/src/components/dashboard/EmptyState.tsx").includes('role="alert"\n      data-collection-state="error"'));
   assert.ok(tableSource.includes("No se pudieron cargar los eventos. Reintentá la consulta."));
   assert.ok(tableSource.includes("No hay eventos para los filtros seleccionados."));
   assert.ok(tableSource.includes("No hay eventos de auditoría disponibles."));

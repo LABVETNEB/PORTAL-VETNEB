@@ -28,12 +28,18 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import {
   Table,
-  TableBody,
   TableCell,
   TableHead,
-  TableHeader,
-  TableRow,
 } from "@/components/ui/table";
+import { ActiveFilterChips, SuperSearchField, type ActiveFilter } from "@/features/dashboard/presentation/filters";
+import { DetailsMetadata, DetailsPane } from "@/features/dashboard/presentation/details";
+import {
+  CollectionHeader,
+  CollectionState,
+  CollectionWorkspace,
+  ContentList,
+  ContentListItem,
+} from "@/features/dashboard/presentation/surfaces";
 import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
 import {
   DASHBOARD_PAGER_RESERVATION,
@@ -91,6 +97,16 @@ type AdminParticularTokenFilterState = {
   status: "" | "active" | "inactive";
   from: string;
   to: string;
+};
+
+const TOKEN_FILTER_LABELS: Record<keyof AdminParticularTokenFilterState, string> = {
+  token: "Token",
+  clinic: "Clínica",
+  reportId: "Informe",
+  patient: "Paciente / tutor",
+  status: "Estado",
+  from: "Desde",
+  to: "Hasta",
 };
 
 const CREATE_STEP_ORDER = ["clinic", "patient", "sample"] as const;
@@ -601,6 +617,18 @@ export function AdminParticularTokensCard() {
     ? Boolean(updatingTrackingCaseIds[selectedTrackingCase.id])
     : false;
   const hasActiveFilters = !isFilterStateEmpty(appliedFilters);
+  const activeFilters: ActiveFilter[] = (Object.keys(appliedFilters) as Array<keyof AdminParticularTokenFilterState>)
+    .filter((field) => appliedFilters[field].trim())
+    .map((field) => ({
+      id: field,
+      label: TOKEN_FILTER_LABELS[field],
+      value: field === "status" ? (appliedFilters.status === "active" ? "Activos" : "Inactivos") : appliedFilters[field],
+      onRemove: () => {
+        setAppliedFilters((current) => ({ ...current, [field]: "" }));
+        setFilterDraft((current) => ({ ...current, [field]: "" }));
+        pagedTokens.setPage(0);
+      },
+    }));
   const filteredTokens = tokens.filter((token) =>
     matchesAdminParticularTokenFilters(token, appliedFilters, clinicOptions),
   );
@@ -935,6 +963,20 @@ export function AdminParticularTokensCard() {
     setAppliedFilters(INITIAL_FILTER_STATE);
     pagedTokens.setPage(0);
     setErrorMessage(null);
+  }
+
+  function renderTokensCollectionState(display: string) {
+    const className = `${display} !min-h-20 flex-1`;
+    if (isLoadingTokens) return <CollectionState variant="loading" skeleton="list" rows={1} label="Cargando tokens particulares…" compact className={className} />;
+    if (errorMessage && !tokens.length) return <CollectionState variant="error" message={errorMessage} className={className} />;
+    return (
+      <CollectionState
+        variant="empty"
+        title={hasActiveFilters ? "No hay tokens que coincidan con los filtros aplicados." : "No hay tokens particulares administrados."}
+        size="sm"
+        className={className}
+      />
+    );
   }
 
   function renderAdvancedFilterForm(mobile = false) {
@@ -1333,6 +1375,12 @@ export function AdminParticularTokensCard() {
             </Button>
           </div>
 
+          {activeFilters.length ? (
+            <div className="hidden min-w-0 flex-1 xl:flex">
+              <ActiveFilterChips filters={activeFilters} onClearAll={clearAdvancedFilters} />
+            </div>
+          ) : null}
+
           <form
             className="flex w-full min-w-0 items-center gap-1 md:hidden"
             onSubmit={applyAdvancedFilters}
@@ -1340,16 +1388,13 @@ export function AdminParticularTokensCard() {
             <span className="sr-only">
               {hasActiveFilters ? "Filtros activos" : "Todos los tokens"}
             </span>
-            <label className="min-w-0 flex-1">
-              <span className="sr-only">Nombre de clínica</span>
-              <Input
-                className="h-10 min-w-0 text-xs"
-                type="text"
-                placeholder="Clínica"
-                value={filterDraft.clinic}
-                onChange={(event) => updateFilterDraft("clinic", event.target.value)}
-              />
-            </label>
+            <SuperSearchField
+              label="Nombre de clínica"
+              placeholder="Clínica"
+              value={filterDraft.clinic}
+              onValueChange={(value) => updateFilterDraft("clinic", value)}
+              className="flex-1 md:w-full"
+            />
             <Button type="submit" variant="outline" size="sm" className="h-10 min-h-10 px-2 text-xs">
               Filtrar
             </Button>
@@ -1394,7 +1439,7 @@ export function AdminParticularTokensCard() {
           aria-label="Tabla de tokens particulares"
           className="flex min-h-0 flex-1 flex-col"
         >
-          <div
+          <CollectionWorkspace
             ref={setDesktopBodyNode}
             data-dashboard-adaptive-rows-canvas="true"
               data-dashboard-row-pitch="compact"
@@ -1402,8 +1447,8 @@ export function AdminParticularTokensCard() {
             className="dashboard-table-responsive hidden min-h-0 flex-1 md:block"
           >
             <Table className="table-fixed text-xs [&_th]:h-7 [&_th]:px-2 [&_td]:px-2">
-              <TableHeader>
-                <TableRow>
+              <CollectionHeader>
+                <ContentListItem as="tr">
                   <TableHead className="w-[20%]">Token / paciente</TableHead>
                   <TableHead className="w-[18%]">Clínica</TableHead>
                   <TableHead className="w-[11%]">Estado</TableHead>
@@ -1411,11 +1456,11 @@ export function AdminParticularTokensCard() {
                   <TableHead className="hidden w-[15%] lg:table-cell">Último acceso</TableHead>
                   <TableHead className="hidden w-[14%] xl:table-cell">Creado</TableHead>
                   <TableHead className="w-[10%] text-right">Acción</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+                </ContentListItem>
+              </CollectionHeader>
+              <ContentList as="tbody">
                 {visibleTokens.map((token, index) => (
-                  <TableRow
+                  <ContentListItem as="tr"
                     key={token.id}
                   >
                     <TableCell className="py-0.5">
@@ -1457,11 +1502,11 @@ export function AdminParticularTokensCard() {
                         Ver detalle
                       </Button>
                     </TableCell>
-                  </TableRow>
+                  </ContentListItem>
                 ))}
-              </TableBody>
+              </ContentList>
             </Table>
-          </div>
+          </CollectionWorkspace>
 
           <div
             className="flex h-full min-h-0 flex-1 flex-col gap-1.5 md:hidden"
@@ -1473,8 +1518,9 @@ export function AdminParticularTokensCard() {
               data-dashboard-row-pitch="regular"
               data-admin-particulars-mobile-list="true"
             >
+              <ContentList as="div" className="contents divide-y divide-vetneb-line/60">
               {visibleTokens.map((token, index) => (
-                <div
+                <ContentListItem as="div"
                   key={token.id}
                   className="flex min-h-9 items-center gap-2 px-2.5 py-1"
                   data-admin-mobile-core-item="true"
@@ -1504,19 +1550,12 @@ export function AdminParticularTokensCard() {
                   >
                     Ver
                   </Button>
-                </div>
+                </ContentListItem>
               ))}
+              </ContentList>
             </ParticularTokensMobileList>
 
-            {!filteredTokens.length ? (
-              <p className="surface-empty flex min-h-20 flex-1 items-center justify-center text-xs">
-                {isLoadingTokens
-                  ? "Cargando tokens particulares…"
-                  : hasActiveFilters
-                    ? "No hay tokens que coincidan con los filtros aplicados."
-                    : "No hay tokens particulares administrados."}
-              </p>
-            ) : null}
+            {!filteredTokens.length ? renderTokensCollectionState("flex") : null}
 
             {filteredTokens.length ? (
               <div
@@ -1569,15 +1608,7 @@ export function AdminParticularTokensCard() {
             ) : null}
           </div>
 
-          {!filteredTokens.length ? (
-            <p className="surface-empty hidden min-h-20 flex-1 items-center justify-center text-xs md:flex">
-              {isLoadingTokens
-                ? "Cargando tokens particulares…"
-                : hasActiveFilters
-                  ? "No hay tokens que coincidan con los filtros aplicados."
-                  : "No hay tokens particulares administrados."}
-            </p>
-          ) : null}
+          {!filteredTokens.length ? renderTokensCollectionState("hidden md:flex") : null}
 
           <div
             data-dashboard-adaptive-reserved-region="pager"
@@ -1868,6 +1899,7 @@ export function AdminParticularTokensCard() {
 
             {detailTab === "summary" ? (
               <div role="tabpanel" aria-label="Resumen del token" className="space-y-3">
+                <DetailsPane label={`Detalle del token ****${selectedToken.tokenLast4}`}>
                 <div className="flex flex-wrap items-center gap-1.5">
                   <Badge variant={selectedToken.isActive ? "default" : "outline"} className="h-5 px-1.5 text-[0.6875rem]">{selectedToken.isActive ? "Activo" : "Inactivo"}</Badge>
                   <Badge variant={selectedToken.hasLinkedReport ? "default" : "outline"} className="h-5 px-1.5 text-[0.6875rem]">{selectedToken.hasLinkedReport ? "Informe vinculado" : "Sin informe"}</Badge>
@@ -1884,14 +1916,16 @@ export function AdminParticularTokensCard() {
                     <dd className="dashboard-detail-value text-muted-foreground">{selectedToken.petSpecies} · {selectedToken.petBreed} · {selectedToken.petSex} · {selectedToken.petAge}</dd>
                   </div>
                 </dl>
-                <dl className="grid grid-cols-1 gap-x-3 gap-y-2 text-xs sm:grid-cols-2">
-                  <div className="min-w-0"><dt className="text-[0.6875rem] text-muted-foreground">Muestra</dt><dd className="dashboard-detail-value">{selectedToken.sampleLocation}</dd></div>
-                  <div className="min-w-0"><dt className="text-[0.6875rem] text-muted-foreground">Evolución</dt><dd className="dashboard-detail-value">{selectedToken.sampleEvolution}</dd></div>
-                  <div className="min-w-0"><dt className="text-[0.6875rem] text-muted-foreground">Extracción</dt><dd className="dashboard-detail-value">{formatDate(selectedToken.extractionDate)}</dd></div>
-                  <div className="min-w-0"><dt className="text-[0.6875rem] text-muted-foreground">Envío</dt><dd className="dashboard-detail-value">{formatDate(selectedToken.shippingDate)}</dd></div>
-                  <div className="min-w-0"><dt className="text-[0.6875rem] text-muted-foreground">Último acceso</dt><dd className="dashboard-detail-value">{selectedToken.lastLoginAt ? formatDate(selectedToken.lastLoginAt) : "—"}</dd></div>
-                  <div className="min-w-0"><dt className="text-[0.6875rem] text-muted-foreground">Token seguro</dt><dd className="dashboard-detail-value font-mono">Token ****{selectedToken.tokenLast4}</dd></div>
-                </dl>
+                <DetailsMetadata
+                  items={[
+                    { id: "sample", label: "Muestra", value: selectedToken.sampleLocation },
+                    { id: "evolution", label: "Evolución", value: selectedToken.sampleEvolution },
+                    { id: "extraction", label: "Extracción", value: formatDate(selectedToken.extractionDate) },
+                    { id: "shipping", label: "Envío", value: formatDate(selectedToken.shippingDate) },
+                    { id: "last-access", label: "Último acceso", value: selectedToken.lastLoginAt ? formatDate(selectedToken.lastLoginAt) : null },
+                    { id: "masked-token", label: "Token seguro", value: <>Token ****{selectedToken.tokenLast4}</>, mono: true },
+                  ]}
+                />
                 {selectedToken.detailsLesion ? (
                   <div className="min-w-0 rounded-lg border border-vetneb-line/65 px-2.5 py-2 text-xs">
                     <p className="text-[0.6875rem] text-muted-foreground">Detalle de lesión</p>
@@ -1904,6 +1938,7 @@ export function AdminParticularTokensCard() {
                     <ReportFileActions reportId={selectedToken.reportId} scope="admin" align="start" />
                   </div>
                 ) : null}
+                </DetailsPane>
               </div>
             ) : null}
 

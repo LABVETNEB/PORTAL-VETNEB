@@ -389,7 +389,10 @@ async function c04Violations(cardSource: string, apiSource: string): Promise<str
   // are frozen); only the order requested from the server is by creation date.
   await attempt("fechas cell", () => {
     const row = jsxElements(card).find((element) =>
-      tagName(element) === "TableRow" && (effectiveAttribute(element, "key").kind === "value") &&
+      // C18: the desktop row is the C01 ContentListItem rendered as a table row.
+      tagName(element) === "ContentListItem" && effectiveAttribute(element, "as").kind === "value" &&
+      effectiveAttributeExpression(element, "as").getText() === '"tr"' &&
+      (effectiveAttribute(element, "key").kind === "value") &&
       effectiveAttributeExpression(element, "key").getText().includes("clinic.clinicId"));
     if (!row) throw new Error("desktop clinic row not found");
     const cells = jsxElements(row).filter((element) => tagName(element) === "TableCell");

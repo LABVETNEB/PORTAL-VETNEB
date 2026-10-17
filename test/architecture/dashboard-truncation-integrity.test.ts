@@ -86,8 +86,9 @@ const TERMINAL_REGIONS: readonly TerminalRegion[] = [
   {
     label: "ADMIN · audit event detail dialog",
     file: "frontend/src/app/dashboard/admin/AdminAuditDetailDialog.tsx",
-    start: "<dl className=",
-    end: "</dl>",
+    // C18: the dialog body is the C13 DetailsPane + DetailsMetadata composition.
+    start: "<DetailsPane",
+    end: "</DetailsPane>",
     contractualValues: [
       "row.eventCode",
       "row.actor",

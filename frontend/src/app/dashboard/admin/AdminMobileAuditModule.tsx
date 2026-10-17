@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import {
+  CollectionState,
   ContentList,
   ContentListItem,
   SelectionToolbar,
@@ -111,9 +112,7 @@ export function AdminMobileAuditModule({
         className="min-h-0 flex-1 divide-y divide-vetneb-line/70 overflow-hidden"
       >
         {loadError ? (
-          <div className="flex h-full items-center justify-center px-4 text-center text-xs text-destructive" role="alert">
-            No se pudieron cargar los eventos.
-          </div>
+          <CollectionState variant="error" message="No se pudieron cargar los eventos." className="h-full items-center justify-center text-xs" />
         ) : rows.length ? (
           rows.map((row) => (
             <ContentListItem
@@ -153,14 +152,15 @@ export function AdminMobileAuditModule({
               <AdminAuditDetailDialog row={row} />
             </ContentListItem>
           ))
+        ) : isPending ? (
+          <CollectionState variant="loading" skeleton="list" rows={1} label="Cargando eventos..." compact className="h-full" />
         ) : (
-          <div className="flex h-full items-center justify-center px-4 text-center text-xs text-muted-foreground">
-            {isPending
-              ? "Cargando eventos..."
-              : hasActiveFilters
-                ? "No hay eventos para los filtros seleccionados."
-                : "No hay eventos de auditoría disponibles."}
-          </div>
+          <CollectionState
+            variant="empty"
+            title={hasActiveFilters ? "No hay eventos para los filtros seleccionados." : "No hay eventos de auditoría disponibles."}
+            size="sm"
+            className="h-full !min-h-0"
+          />
         )}
       </ContentList>
 

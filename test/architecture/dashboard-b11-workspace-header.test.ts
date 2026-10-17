@@ -384,11 +384,11 @@ test("C01 · Auditoría adopts the table and list forms without moving capacity,
     assert.ok(mobile.includes(operation), operation);
   }
 
-  // C17 adds Informes; the three Auditoría consumers remain exact.
+  // C17 adds Informes and C18 adds Tokens and Clínicas; the three Auditoría consumers remain exact.
   const consumers = sourceFiles("frontend/src").filter(
     (path) => path !== C01_TABLE && /<(CollectionWorkspace|CollectionHeader|ContentList|ContentListItem)\b/.test(read(path)),
   );
-  assert.deepEqual(consumers.sort(), [C01_AUDIT_CARD, C01_AUDIT_TABLE, C01_AUDIT_MOBILE, "frontend/src/app/dashboard/admin/AdminReportsCard.tsx"].sort());
+  assert.deepEqual(consumers.sort(), [C01_AUDIT_CARD, C01_AUDIT_TABLE, C01_AUDIT_MOBILE, "frontend/src/app/dashboard/admin/AdminReportsCard.tsx", "frontend/src/app/dashboard/admin/AdminParticularTokensCard.tsx", "frontend/src/app/dashboard/admin/AdminClinicsManagementCard.tsx"].sort());
   for (const path of sourceFiles("frontend/src")) {
     const source = read(path);
     // C02 landed CollectionPager, C04 aria-sort, C06 useCollectionSelection and C07 SelectionToolbar; their fences live in their blocks below.
@@ -518,7 +518,6 @@ const C03_EMPTY_CONSUMERS = [
   "frontend/src/app/dashboard/ClinicCommandCenter.tsx",
   "frontend/src/app/dashboard/ClinicInformesWorkspaceSummary.tsx",
   "frontend/src/app/dashboard/ClinicLogisticaWorkspaceSummary.tsx",
-  "frontend/src/app/dashboard/admin/AdminClinicsManagementCard.tsx",
   "frontend/src/app/dashboard/admin/AdminFailedLoginAlertsReadOnlyCard.tsx",
   "frontend/src/app/dashboard/informes/InformesReportsList.tsx",
   "frontend/src/app/dashboard/logistica/LogisticsCommandCenter.tsx",
@@ -528,7 +527,6 @@ const C03_EMPTY_CONSUMERS = [
 ] as const;
 const C03_ERROR_CONSUMERS = ["frontend/src/app/dashboard/informes/InformesReportsList.tsx"] as const;
 const C03_LOADING_CONSUMERS = [
-  "frontend/src/app/dashboard/admin/AdminClinicsManagementCard.tsx",
   "frontend/src/app/dashboard/admin/AdminFailedLoginAlertsReadOnlyCard.tsx",
   // Pending destination while a full route waits for the `/dashboard` commit.
   "frontend/src/components/dashboard/ClinicFullRouteModuleStage.tsx",
@@ -592,8 +590,17 @@ test("C03 · consumers keep the legacy adapters; C01/C02 owners, capacity and C0
   assert.deepEqual(census(/<LoadingState\b/), [...C03_LOADING_CONSUMERS].sort());
   assert.deepEqual(
     census(/<CollectionState\b/),
-    [C03_ERROR_ADAPTER, C03_LOADING_ADAPTER, C03_OWNER, "frontend/src/app/dashboard/admin/AdminReportsCard.tsx"].sort(),
-    "C17 is the only migrated product consumer",
+    [
+      C03_ERROR_ADAPTER,
+      C03_LOADING_ADAPTER,
+      C03_OWNER,
+      "frontend/src/app/dashboard/admin/AdminReportsCard.tsx",
+      "frontend/src/app/dashboard/admin/AdminParticularTokensCard.tsx",
+      "frontend/src/app/dashboard/admin/AdminClinicsManagementCard.tsx",
+      C01_AUDIT_TABLE,
+      C01_AUDIT_MOBILE,
+    ].sort(),
+    "C17 (Informes) and C18 (Tokens, Clínicas, Auditoría) are the migrated product consumers",
   );
   for (const owner of [C01_TABLE, C02_OWNER]) {
     assert.equal(/CollectionState|EmptyState|ErrorState|LoadingState/.test(stripComments(read(owner))), false, owner);
@@ -819,7 +826,9 @@ function c07AdopterViolations(card: string, mobile: string, filterBar: string, t
   if (strip.indexOf("<FilterForm {...props} />") > strip.indexOf(C07_STRIP_SLOT)) violations.push("the slot must render after, not inside, the S1 form");
   // Pre-C05 mobile space: the strip summary is retired and Filtros sits next to
   // the page selector, so the swap slot now follows both.
-  if (strip.indexOf("{props.leadingSlot}") > strip.indexOf("<ModuleDialog") || strip.indexOf("<ModuleDialog") > strip.indexOf(C07_STRIP_SLOT)) {
+  // C18: Filtros is the trigger of the controlled S1 AdvancedFilterSheet.
+  const filtros = strip.indexOf("onClick={() => setIsFilterSheetOpen(true)}");
+  if (filtros < 0 || strip.indexOf("{props.leadingSlot}") > filtros || filtros > strip.indexOf(C07_STRIP_SLOT)) {
     violations.push("the swap follows the page selector and Filtros in the strip");
   }
   for (const forbidden of ["selection", "SelectionToolbar"]) {

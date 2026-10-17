@@ -166,7 +166,7 @@ export const SUPER_SEARCH_CONTRACTS: readonly SuperSearchContract[] = [
     errorState: "server-side load error handled by AdminAuditCard, the bar still renders",
     renderPolicy: "always",
     desktopVisibility: 'inline form from md: up ("mx-3 hidden sm:mx-4 md:grid")',
-    mobileAccess: "ModuleDialog with a duplicated FilterForm (aria-label ... mobile)",
+    mobileAccess: "C12 AdvancedFilterSheet hosting a duplicated FilterForm (aria-label ... mobile)",
     markers: [
       'action="/dashboard/admin"',
       'method="get"',
@@ -183,7 +183,7 @@ export const SUPER_SEARCH_CONTRACTS: readonly SuperSearchContract[] = [
       "Limpiar",
       "hasActiveFilters ? (",
       '"mx-3 hidden sm:mx-4 md:grid',
-      "<ModuleDialog",
+      "<AdvancedFilterSheet",
       "md:hidden",
       '"Filtros de auditoría"',
       '"Filtros de auditoría mobile"',
