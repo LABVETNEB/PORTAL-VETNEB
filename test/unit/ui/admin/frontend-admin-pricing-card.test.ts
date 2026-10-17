@@ -106,8 +106,9 @@ test("admin pricing card shows every study of a category in one view, paging onl
 
   assert.ok(source.includes("const fitsInOneView = !measured || items.length <= capacity;"));
   assert.ok(source.includes("usePagedRows(items, fitsInOneView ? Math.max(1, items.length) : capacity)"));
-  assert.ok(source.includes("{fitsInOneView ? null : (\n        <CompactPager"), "the pager only mounts when the category overflows");
-  assert.equal((source.match(/<CompactPager\b/g) ?? []).length, 1);
+  assert.ok(source.includes('{fitsInOneView ? null : (\n        <CollectionPager\n          variant="compact"'), "the pager only mounts when the category overflows");
+  assert.equal((source.match(/<CollectionPager\b/g) ?? []).length, 1);
+  assert.equal(source.includes("CompactPager"), false, "C20: the C02 owner replaces its compact adapter");
   // Data source unchanged: one GET of the whole catalog, no limit/offset.
   assert.ok(source.includes("const snapshot = await getAdminPricing();"));
   assert.equal(/\blimit\b|\boffset\b/.test(source), false, "pricing never sizes or offsets a request");

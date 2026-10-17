@@ -4,6 +4,11 @@ import { useEffect, useState, useTransition } from "react";
 import { Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  CollectionState,
+  ContentList,
+  ContentListItem,
+} from "@/features/dashboard/presentation/surfaces";
 import { getAdminSchemaHealth } from "@/lib/api";
 import { formatDateTime } from "@/lib/utils";
 import type { AdminSchemaHealthSnapshot } from "@/types";
@@ -153,14 +158,26 @@ function AdminMobileSchemaSection() {
             </p>
           ) : null}
         </div>
-      ) : (
+      ) : error ? (
         <div className="flex min-h-0 flex-1 items-center justify-center px-4 text-center text-xs text-muted-foreground">
-          {error
-            ? "Esquema no disponible."
-            : !hasLoadedOnce || isPending
-              ? "Consultando estado de esquema..."
-              : "Sin datos de esquema."}
+          Esquema no disponible.
         </div>
+      ) : !hasLoadedOnce || isPending ? (
+        <CollectionState
+          variant="loading"
+          skeleton="list"
+          compact
+          rows={2}
+          label="Consultando estado de esquema..."
+          className="border-0 bg-transparent shadow-none rounded-none"
+        />
+      ) : (
+        <CollectionState
+          variant="empty"
+          title="Sin datos de esquema."
+          size="sm"
+          className="h-full min-h-0 border-0 bg-transparent"
+        />
       )}
     </div>
   );
@@ -198,12 +215,14 @@ export function AdminMobileHealthModule({
       ) : null}
       {/* Service rows fill the band as equal rows so the last (CORS público)
           lands ~one gutter above the bottom nav instead of leaving a void. */}
-      <div
+      <ContentList
+        as="div"
         className="grid min-h-0 flex-1 gap-1.5 overflow-hidden"
         style={{ gridTemplateRows: `repeat(${services.length}, minmax(0, 1fr))` }}
       >
         {services.map((service) => (
-          <div
+          <ContentListItem
+            as="div"
             key={service.label}
             data-admin-mobile-status-item="true"
             className="flex min-h-0 items-center justify-between gap-2 overflow-hidden rounded-md border border-vetneb-line/70 bg-card/95 px-2.5 py-1.5"
@@ -224,9 +243,9 @@ export function AdminMobileHealthModule({
             >
               {service.statusLabel}
             </Badge>
-          </div>
+          </ContentListItem>
         ))}
-      </div>
+      </ContentList>
     </div>
   );
 

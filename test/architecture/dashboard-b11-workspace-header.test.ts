@@ -275,6 +275,15 @@ const C19_CARDS = [
   "frontend/src/app/dashboard/admin/AdminSessionsReadOnlyCard.tsx",
   "frontend/src/app/dashboard/admin/AdminFailedLoginAlertsReadOnlyCard.tsx",
 ] as const;
+// C20 (Precios, Mantenimiento, Estado del sistema): non-tabular collections; Resumen has none.
+const C20_C01_FILES = [
+  "frontend/src/app/dashboard/admin/AdminPricingEditorCard.tsx",
+  "frontend/src/app/dashboard/admin/AdminMobilePricingModule.tsx",
+  "frontend/src/app/dashboard/admin/AdminMaintenanceDryRunCard.tsx",
+  "frontend/src/app/dashboard/admin/AdminMobileMaintenanceModule.tsx",
+  "frontend/src/app/dashboard/admin/AdminSchemaHealthStatusCard.tsx",
+  "frontend/src/app/dashboard/admin/AdminMobileHealthModule.tsx",
+] as const;
 const C01_PRIMITIVES = ["CollectionWorkspace", "CollectionHeader", "ContentList", "ContentListItem"] as const;
 
 function cssRule(css: string, selector: string): string {
@@ -389,11 +398,11 @@ test("C01 · Auditoría adopts the table and list forms without moving capacity,
     assert.ok(mobile.includes(operation), operation);
   }
 
-  // C17 adds Informes, C18 Tokens and Clínicas, C19 Usuarios, Sesiones and Intentos fallidos; the three Auditoría consumers remain exact.
+  // C17 adds Informes, C18 Tokens and Clínicas, C19 Usuarios, Sesiones and Intentos fallidos, C20 Precios, Mantenimiento and Estado; the three Auditoría consumers remain exact.
   const consumers = sourceFiles("frontend/src").filter(
     (path) => path !== C01_TABLE && /<(CollectionWorkspace|CollectionHeader|ContentList|ContentListItem)\b/.test(read(path)),
   );
-  assert.deepEqual(consumers.sort(), [C01_AUDIT_CARD, C01_AUDIT_TABLE, C01_AUDIT_MOBILE, "frontend/src/app/dashboard/admin/AdminReportsCard.tsx", "frontend/src/app/dashboard/admin/AdminParticularTokensCard.tsx", "frontend/src/app/dashboard/admin/AdminClinicsManagementCard.tsx", ...C19_CARDS].sort());
+  assert.deepEqual(consumers.sort(), [C01_AUDIT_CARD, C01_AUDIT_TABLE, C01_AUDIT_MOBILE, "frontend/src/app/dashboard/admin/AdminReportsCard.tsx", "frontend/src/app/dashboard/admin/AdminParticularTokensCard.tsx", "frontend/src/app/dashboard/admin/AdminClinicsManagementCard.tsx", ...C19_CARDS, ...C20_C01_FILES].sort());
   for (const path of sourceFiles("frontend/src")) {
     const source = read(path);
     // C02 landed CollectionPager, C04 aria-sort, C06 useCollectionSelection and C07 SelectionToolbar; their fences live in their blocks below.
@@ -410,7 +419,9 @@ const C02_CENTERED_CONSUMERS = [
   "frontend/src/app/dashboard/ClinicLogisticaWorkspaceSummary.tsx",
   "frontend/src/app/dashboard/logistica/LogisticsRecentListCanvas.tsx",
 ] as const;
-const C02_COMPACT_CONSUMERS = [
+// C20 moved the last two compact consumers to the owner; the adapter stays for the legacy surface.
+const C02_COMPACT_CONSUMERS = [] as const;
+const C20_C02_CONSUMERS = [
   "frontend/src/app/dashboard/admin/AdminMaintenanceDryRunCard.tsx",
   "frontend/src/app/dashboard/admin/AdminPricingEditorCard.tsx",
 ] as const;
@@ -484,8 +495,15 @@ test("C02 · consumers keep their adapters and capacity owners; C03+ and C05 geo
     sourceFiles("frontend/src").filter((path) => pattern.test(read(path))).sort();
   assert.deepEqual(census(/<DashboardPager\b/), [...C02_CENTERED_CONSUMERS].sort());
   assert.deepEqual(census(/<CompactPager\b/), [...C02_COMPACT_CONSUMERS].sort());
-  assert.deepEqual(census(/<CollectionPager\b/), [C02_COMPACT_ADAPTER, C02_OWNER, "frontend/src/app/dashboard/admin/AdminReportsCard.tsx"].sort(), "C17 is the only migrated product consumer");
-  for (const path of [...C02_CENTERED_CONSUMERS, ...C02_COMPACT_CONSUMERS]) {
+  assert.deepEqual(
+    census(/<CollectionPager\b/),
+    [C02_COMPACT_ADAPTER, C02_OWNER, "frontend/src/app/dashboard/admin/AdminReportsCard.tsx", ...C20_C02_CONSUMERS].sort(),
+    "C17 (Informes) and C20 (Precios, Mantenimiento) are the migrated product consumers",
+  );
+  for (const path of C20_C02_CONSUMERS) {
+    assert.match(read(path), /<CollectionPager\n\s+variant="compact"/, `${path}: C20 keeps the variant the adapter pinned`);
+  }
+  for (const path of [...C02_CENTERED_CONSUMERS, ...C02_COMPACT_CONSUMERS, ...C20_C02_CONSUMERS]) {
     assert.ok(read(path).includes("usePagedRows"), `${path}: client pagination stays with usePagedRows`);
   }
   assert.ok(read("frontend/src/app/dashboard/logistica/LogisticsRecentListCanvas.tsx").includes(
@@ -603,8 +621,9 @@ test("C03 · consumers keep the legacy adapters; C01/C02 owners, capacity and C0
       C01_AUDIT_TABLE,
       C01_AUDIT_MOBILE,
       ...C19_CARDS,
+      ...C20_C01_FILES,
     ].sort(),
-    "C17 (Informes), C18 (Tokens, Clínicas, Auditoría) and C19 (Usuarios, Sesiones, Intentos fallidos) are the migrated product consumers",
+    "C17 (Informes), C18 (Tokens, Clínicas, Auditoría), C19 (Usuarios, Sesiones, Intentos fallidos) and C20 (Precios, Mantenimiento, Estado) are the migrated product consumers",
   );
   for (const owner of [C01_TABLE, C02_OWNER]) {
     assert.equal(/CollectionState|EmptyState|ErrorState|LoadingState/.test(stripComments(read(owner))), false, owner);

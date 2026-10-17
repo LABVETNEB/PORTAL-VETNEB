@@ -11,8 +11,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { CompactPager } from "@/components/dashboard/CompactPager";
 import { usePagedRows } from "@/components/dashboard/usePagedRows";
+import {
+  CollectionPager,
+  CollectionState,
+  ContentList,
+  ContentListItem,
+} from "@/features/dashboard/presentation/surfaces";
 import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
 import { getAdminMaintenancePurgeDryRun } from "@/lib/api";
 import type {
@@ -55,7 +60,8 @@ function MaintenanceCandidateRow({
   ref?: Ref<HTMLDivElement>;
 }) {
   return (
-    <div
+    <ContentListItem
+      as="div"
       ref={ref}
       data-dashboard-adaptive-row="true"
       className="clinical-muted-band rounded-lg px-3 py-3"
@@ -89,7 +95,7 @@ function MaintenanceCandidateRow({
       {candidate.reason ? (
         <p className="mt-2 text-xs text-vetneb-navy">{candidate.reason}</p>
       ) : null}
-    </div>
+    </ContentListItem>
   );
 }
 
@@ -150,17 +156,20 @@ export function AdminMaintenanceDryRunCard() {
 
       <CardContent className="flex min-h-0 flex-1 flex-col gap-3 pt-4">
         {error ? (
-          <div className="clinical-alert-error">
-            {error}
-          </div>
+          <CollectionState
+            variant="error"
+            title="Análisis no disponible"
+            message={error}
+          />
         ) : null}
 
         {!snapshot ? (
-          <div className="surface-empty">
-            Sin análisis ejecutado. Presioná{" "}
-            <span className="font-semibold">Analizar limpieza</span> para
-            consultar el endpoint dry-run.
-          </div>
+          <CollectionState
+            variant="empty"
+            title="Sin análisis ejecutado"
+            description="Presioná Analizar limpieza para consultar el endpoint dry-run."
+            size="sm"
+          />
         ) : (
           <>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
@@ -200,7 +209,9 @@ export function AdminMaintenanceDryRunCard() {
               ) : null}
             </div>
 
-            <div
+            {/* C20: the canvas is the C01 list itself; A03 counts its direct children as the rows. */}
+            <ContentList
+              as="div"
               ref={setCandidatesListNode}
               data-admin-maintenance-candidates-list="true"
               data-dashboard-adaptive-rows-canvas="true"
@@ -214,8 +225,9 @@ export function AdminMaintenanceDryRunCard() {
                   candidate={candidate}
                 />
               ))}
-            </div>
-            <CompactPager
+            </ContentList>
+            <CollectionPager
+              variant="compact"
               page={pagedCandidates.page}
               pageCount={pagedCandidates.pageCount}
               rangeStart={pagedCandidates.rangeStart}

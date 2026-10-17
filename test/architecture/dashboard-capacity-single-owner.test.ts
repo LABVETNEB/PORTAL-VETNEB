@@ -282,7 +282,8 @@ test("every migrated consumer keeps a pager reservation in flow", () => {
 
     assert.ok(
       source.includes('data-dashboard-adaptive-reserved-region="pager"') ||
-        /<(DashboardPager|CompactPager|AdminMobileOpsPager)\b/.test(source),
+        // C20: `CollectionPager` is the C02 owner both legacy names forward to.
+        /<(DashboardPager|CompactPager|CollectionPager|AdminMobileOpsPager)\b/.test(source),
       `${path}: an adaptive canvas must reserve its pager, not push it out`,
     );
   }
