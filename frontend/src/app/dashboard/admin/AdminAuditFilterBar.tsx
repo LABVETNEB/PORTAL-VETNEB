@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Filter } from "lucide-react";
 import {
   dashboardFilterActionClassName,
@@ -9,11 +9,11 @@ import {
   FilterField,
   type FilterBarDensity,
 } from "@/components/dashboard/FilterBar";
-import { ModuleDialog } from "@/components/dashboard/ModuleDialog";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { AdvancedFilterSheet } from "@/features/dashboard/presentation/filters";
 
 export type AdminAuditFilterValues = {
   event: string;
@@ -144,24 +144,31 @@ export function AdminAuditFilterBar(props: AdminAuditFilterBarProps) {
   // roles · avisos metric run) is retired below md and "Filtros" sits next to the
   // page selector; the selection toolbar keeps the remaining width.
   const defaultToolbar = null;
+  const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   return (
     <>
       <FilterForm {...props} />
       <div className="flex shrink-0 items-center gap-2 border-b border-vetneb-line/70 px-3 py-1.5 md:hidden">
         {props.leadingSlot}
-        <ModuleDialog
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-10 min-h-10 gap-1.5 px-2.5 text-xs"
+          aria-haspopup="dialog"
+          onClick={() => setIsFilterSheetOpen(true)}
+        >
+          <Filter className="h-3.5 w-3.5" aria-hidden="true" />
+          Filtros
+        </Button>
+        <AdvancedFilterSheet
+          open={isFilterSheetOpen}
+          onOpenChange={setIsFilterSheetOpen}
           title="Filtrar auditoría"
           description="Los filtros se aplican sobre el registro completo."
-          dashboardScopedPortal
-          trigger={
-            <Button type="button" variant="outline" size="sm" className="h-10 min-h-10 gap-1.5 px-2.5 text-xs">
-              <Filter className="h-3.5 w-3.5" aria-hidden="true" />
-              Filtros
-            </Button>
-          }
         >
           <FilterForm {...props} mobile />
-        </ModuleDialog>
+        </AdvancedFilterSheet>
         {props.renderToolbar ? props.renderToolbar(defaultToolbar) : defaultToolbar}
       </div>
     </>

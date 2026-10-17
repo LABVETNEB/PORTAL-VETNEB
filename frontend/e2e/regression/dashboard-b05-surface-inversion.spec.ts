@@ -304,7 +304,7 @@ test.describe("B05 · field tinted, container transparent, both themes", () => {
                 .getByRole("button", { name: b05Surface.mobileFilterTriggerName })
                 .first();
               const mobileDialog = page
-                .locator(b05Surface.id === "admin-informes"
+                .locator(b05Surface.id === "admin-informes" || b05Surface.id === "admin-auditoria"
                   ? '[data-advanced-filter-sheet="true"][data-state="open"]'
                   : '[data-module-dialog="true"][data-state="open"]')
                 .first();

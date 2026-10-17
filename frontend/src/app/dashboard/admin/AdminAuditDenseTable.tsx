@@ -4,10 +4,10 @@ import {
   Table,
   TableCell,
   TableHead,
-  TableRow,
 } from "@/components/ui/table";
 import {
   CollectionHeader,
+  CollectionState,
   ContentList,
   ContentListItem,
   type CollectionSelection,
@@ -58,17 +58,13 @@ export function AdminAuditDenseTable({
     <>
       <div className="dashboard-fitted-table hidden px-3 md:block sm:px-4">
         {loadError ? (
-          <div className="mx-0 flex min-h-24 items-center justify-center rounded-lg border border-vetneb-line/70 bg-muted/20 px-4 text-center text-xs text-muted-foreground" role="alert">
-            No se pudieron cargar los eventos. Reintentá la consulta.
-          </div>
+          <CollectionState variant="error" message="No se pudieron cargar los eventos. Reintentá la consulta." className="min-h-24 items-center justify-center text-xs" />
         ) : !rows.length ? (
-          <div className="mx-0 flex min-h-24 items-center justify-center rounded-lg border border-vetneb-line/70 bg-muted/20 px-4 text-center text-xs text-muted-foreground">
-            {emptyMessage}
-          </div>
+          <CollectionState variant="empty" title={emptyMessage} size="sm" className="!min-h-24" />
         ) : (
           <Table className="table-fixed text-[13px] [&_td]:h-9 [&_td]:px-2 [&_td]:py-1 [&_th]:h-8 [&_th]:px-2 [&_th]:text-xs [&_th]:font-semibold">
             <CollectionHeader>
-              <TableRow>
+              <ContentListItem as="tr">
                 <TableHead className="w-9">
                   <input
                     type="checkbox"
@@ -89,7 +85,7 @@ export function AdminAuditDenseTable({
                 <TableHead className="hidden w-[10rem] lg:table-cell">Entidad</TableHead>
                 <TableHead className="hidden xl:table-cell">Detalle</TableHead>
                 <TableHead className="w-[4.5rem] text-right">Acción</TableHead>
-              </TableRow>
+              </ContentListItem>
             </CollectionHeader>
             <ContentList as="tbody">
               {rows.map((row) => (

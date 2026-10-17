@@ -289,7 +289,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
       `${viewport.name}: forbidden overflow auto/scroll`,
     ).toEqual([]);
 
-    await toolbar.getByRole("textbox", { name: "Nombre de clínica" }).fill("Clínica Doce");
+    await toolbar.getByRole("searchbox", { name: "Nombre de clínica" }).fill("Clínica Doce");
     await toolbar.getByRole("button", { name: "Filtrar", exact: true }).click();
 
     await expect(

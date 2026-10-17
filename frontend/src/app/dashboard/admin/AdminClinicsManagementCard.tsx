@@ -21,12 +21,16 @@ import {
 } from "@/components/ui/card";
 import {
   Table,
-  TableBody,
   TableCell,
   TableHead,
-  TableHeader,
-  TableRow,
 } from "@/components/ui/table";
+import {
+  CollectionHeader,
+  CollectionState,
+  CollectionWorkspace,
+  ContentList,
+  ContentListItem,
+} from "@/features/dashboard/presentation/surfaces";
 import {
   BACKEND_CONNECTION_ERROR_MESSAGE,
   createAdminClinicWithUser,
@@ -43,8 +47,6 @@ import {
   DASHBOARD_TOUCH_PAGER_RESERVATION,
 } from "@/components/dashboard/DashboardPager";
 import { formatDateTime } from "@/lib/utils";
-import { EmptyState } from "@/components/dashboard/EmptyState";
-import { LoadingState } from "@/components/dashboard/LoadingState";
 import type {
   AdminClinicManagementSummary,
   AdminClinicsSnapshot,
@@ -460,6 +462,26 @@ export function AdminClinicsManagementCard() {
     setOffset(0);
   }
 
+  function renderClinicsEmptyState() {
+    return searchQuery.trim() ? (
+      <CollectionState
+        variant="empty"
+        title={`Sin resultados para "${searchQuery}"`}
+        description="No hay clínicas que coincidan con la búsqueda."
+        size="sm"
+        className="border-0 bg-transparent"
+      />
+    ) : (
+      <CollectionState
+        variant="empty"
+        title="Sin clínicas"
+        description="No hay clínicas para mostrar."
+        size="sm"
+        className="border-0 bg-transparent"
+      />
+    );
+  }
+
   return (
     <Card
       id="admin-clinics"
@@ -686,7 +708,7 @@ export function AdminClinicsManagementCard() {
           </Button>
         </div>
 
-        <div
+        <CollectionWorkspace
           ref={setDesktopBodyNode}
           data-dashboard-adaptive-rows-canvas="true"
               data-dashboard-row-pitch="compact"
@@ -694,8 +716,8 @@ export function AdminClinicsManagementCard() {
           className="dashboard-table-responsive hidden min-h-0 flex-1 md:block"
         >
           <Table className="text-[0.8125rem] [&_th]:h-9 [&_th]:px-3 [&_td]:px-3">
-            <TableHeader>
-              <TableRow>
+            <CollectionHeader>
+              <ContentListItem as="tr">
                 <TableHead aria-sort={clinicsAriaSort(appliedSort, "name")}>
                   <ClinicsSortHeaderButton
                     label="Clínica"
@@ -715,12 +737,12 @@ export function AdminClinicsManagementCard() {
                   />
                 </TableHead>
                 <TableHead className="text-right">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+              </ContentListItem>
+            </CollectionHeader>
+            <ContentList as="tbody">
               {rows.length ? (
                 rows.map(({ clinic, user, extraUsers }, index) => (
-                  <TableRow
+                  <ContentListItem as="tr"
                     key={`${clinic.clinicId}-${user?.userId ?? "empty"}`}
                   >
                     <TableCell className="py-1">
@@ -778,43 +800,30 @@ export function AdminClinicsManagementCard() {
                         Editar
                       </Button>
                     </TableCell>
-                  </TableRow>
+                  </ContentListItem>
                 ))
               ) : isPending ? (
-                <TableRow>
+                <ContentListItem as="tr">
                   <TableCell colSpan={5} className="p-3">
-                    <LoadingState
-                      variant="table"
+                    <CollectionState
+                      variant="loading"
+                      skeleton="table"
                       compact
                       rows={3}
                       className="border-0 bg-transparent shadow-none rounded-none"
                     />
                   </TableCell>
-                </TableRow>
+                </ContentListItem>
               ) : (
-                <TableRow>
+                <ContentListItem as="tr">
                   <TableCell colSpan={5} className="clinical-table-state">
-                    {searchQuery.trim() ? (
-                      <EmptyState
-                        title={`Sin resultados para "${searchQuery}"`}
-                        description="No hay clínicas que coincidan con la búsqueda."
-                        size="sm"
-                        className="border-0 bg-transparent"
-                      />
-                    ) : (
-                      <EmptyState
-                        title="Sin clínicas"
-                        description="No hay clínicas para mostrar."
-                        size="sm"
-                        className="border-0 bg-transparent"
-                      />
-                    )}
+                    {renderClinicsEmptyState()}
                   </TableCell>
-                </TableRow>
+                </ContentListItem>
               )}
-            </TableBody>
+            </ContentList>
           </Table>
-        </div>
+        </CollectionWorkspace>
 
         {/* Always mounted from md up: a pager that only appeared with data
             would hand its reserved height back to the canvas before the first
@@ -861,8 +870,9 @@ export function AdminClinicsManagementCard() {
             data-admin-clinics-mobile-list="true"
           >
           {rows.length ? (
-            rows.map(({ clinic, user, extraUsers }, index) => (
-              <article
+            <ContentList as="div" className="contents divide-y divide-vetneb-line/60">
+            {rows.map(({ clinic, user, extraUsers }, index) => (
+              <ContentListItem as="article"
                 key={`mobile-${clinic.clinicId}-${user?.userId ?? "empty"}`}
                 className="flex min-h-9 items-center justify-between gap-2 px-2.5 py-0.5"
                 data-admin-clinic-mobile-card="true"
@@ -890,32 +900,20 @@ export function AdminClinicsManagementCard() {
                   <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
                   Editar
                 </Button>
-              </article>
-            ))
+              </ContentListItem>
+            ))}
+            </ContentList>
           ) : isPending ? (
-            <LoadingState
-              variant="table"
+            <CollectionState
+              variant="loading"
+              skeleton="table"
               compact
               rows={3}
               className="border-0 bg-transparent shadow-none rounded-none"
             />
           ) : (
             <div className="clinical-table-state rounded-lg border border-vetneb-line/70 bg-card/90 p-3">
-              {searchQuery.trim() ? (
-                <EmptyState
-                  title={`Sin resultados para "${searchQuery}"`}
-                  description="No hay clínicas que coincidan con la búsqueda."
-                  size="sm"
-                  className="border-0 bg-transparent"
-                />
-              ) : (
-                <EmptyState
-                  title="Sin clínicas"
-                  description="No hay clínicas para mostrar."
-                  size="sm"
-                  className="border-0 bg-transparent"
-                />
-              )}
+              {renderClinicsEmptyState()}
             </div>
           )}
           </div>

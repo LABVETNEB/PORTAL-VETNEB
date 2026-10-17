@@ -354,15 +354,11 @@ const PORTAL_ROOT_ANCHOR = 'data-dashboard-portal-root="true"';
 const PORTAL_PROP = "dashboardScopedPortal";
 const FRONTEND_SRC = "frontend/src";
 
-/** The three remaining ModuleDialog call sites; C17 S3 uses AdvancedFilterSheet. */
+/** The two remaining ModuleDialog call sites; C17 S3 and C18 S1 use AdvancedFilterSheet. */
 const DASHBOARD_SCOPED_PORTAL_CALL_SITES: ReadonlyArray<{
   readonly path: string;
   readonly why: string;
 }> = [
-  {
-    path: "frontend/src/app/dashboard/admin/AdminAuditFilterBar.tsx",
-    why: "S1 mobile filter dialog",
-  },
   {
     path: "frontend/src/app/dashboard/ClinicInformesWorkspaceSummary.tsx",
     why: "S6 mobile filter dialog",
@@ -415,7 +411,7 @@ test("ModuleDialog exposes an explicit, default-off dashboardScopedPortal prop t
   );
 });
 
-test("the three remaining B05 mobile ModuleDialogs opt into dashboardScopedPortal, once each", () => {
+test("the two remaining B05 mobile ModuleDialogs opt into dashboardScopedPortal, once each", () => {
   for (const entry of DASHBOARD_SCOPED_PORTAL_CALL_SITES) {
     const occurrences =
       readSource(entry.path).split(PORTAL_PROP).length - 1;
@@ -435,7 +431,17 @@ test("C17 S3 uses its controlled AdvancedFilterSheet for the mobile FilterBar", 
   assert.equal(source.includes(PORTAL_PROP), false);
 });
 
-test("no ModuleDialog outside the three authorized call sites opts into dashboardScopedPortal", () => {
+test("C18 S1 uses its controlled AdvancedFilterSheet for the same mobile GET form", () => {
+  const path = "frontend/src/app/dashboard/admin/AdminAuditFilterBar.tsx";
+  const source = readSource(path);
+  assert.equal(source.split("<AdvancedFilterSheet").length - 1, 1);
+  assert.match(source, /<AdvancedFilterSheet[^>]*>[\s\S]*?<FilterForm \{\.\.\.props\} mobile \/>[\s\S]*?<\/AdvancedFilterSheet>/);
+  assert.match(source, /<FilterBar\s+action="\/dashboard\/admin"\s+method="get"/);
+  assert.equal(source.includes(PORTAL_PROP), false);
+  assert.equal(source.includes("ModuleDialog"), false);
+});
+
+test("no ModuleDialog outside the two authorized call sites opts into dashboardScopedPortal", () => {
   const authorizedPaths = new Set(
     DASHBOARD_SCOPED_PORTAL_CALL_SITES.map((entry) => entry.path),
   );
@@ -450,7 +456,7 @@ test("no ModuleDialog outside the three authorized call sites opts into dashboar
   assert.deepEqual(
     unexpectedConsumers,
     [],
-    `unexpected dashboardScopedPortal usage outside the authorized 3 call sites: ${JSON.stringify(unexpectedConsumers)}. Every other ModuleDialog must keep portalling to document.body; converting one silently changes its portal target`,
+    `unexpected dashboardScopedPortal usage outside the authorized 2 call sites: ${JSON.stringify(unexpectedConsumers)}. Every other ModuleDialog must keep portalling to document.body; converting one silently changes its portal target`,
   );
 });
 
