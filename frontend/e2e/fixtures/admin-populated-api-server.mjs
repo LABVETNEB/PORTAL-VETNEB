@@ -44,6 +44,7 @@ const POPULATED_CLINIC_SESSION = "e2e_populated_clinic_session";
 // ─────────────────────────────────────────────────────────────────────────────
 const A03_ADAPTIVE_COOKIE_NAME = "e2e_a03_adaptive_pagination";
 const A03_ADAPTIVE_COOKIE_VALUE = "1";
+const C17_REPORT_ERROR_COOKIE_NAME = "e2e_c17_report_error";
 const ADMIN_TOKENS_DATASET_COOKIE_NAME = "e2e_admin_tokens_dataset";
 const ADMIN_TOKENS_SHORT_DATASET_COOKIE_VALUE = "short";
 const ADMIN_TOKENS_TOOLBAR_DATASET_COOKIE_VALUE = "toolbar-adaptive";
@@ -1222,6 +1223,25 @@ function auditSnapshot(url) {
 }
 
 function handlePopulatedRequest(request, response, url) {
+  const reportPreviewMatch = url.pathname.match(/^\/api\/admin\/reports\/(\d+)\/preview-url$/);
+  if (request.method === "GET" && reportPreviewMatch && url.searchParams.get("viewer") === "1") {
+    if (readCookieValue(request, "e2e_c17_unverifiable") === "1") {
+      sendJson(response, 422, { success: false, error: "Documento no verificable para visualizacion" });
+      return;
+    }
+    const reportId = Number(reportPreviewMatch[1]);
+    const report = [...REPORTS, ...A03_ADMIN_REPORTS].find((item) => item.id === reportId);
+    if (!report) { sendJson(response, 404, { success: false, error: "Informe no encontrado" }); return; }
+    response.setHeader("Cache-Control", "no-store");
+    sendJson(response, 200, {
+      success: true,
+      previewUrl: `https://example.supabase.co/storage/v1/object/sign/e2e-${reportId}?token=synthetic`,
+      mimeType: "image/png",
+      trustedOrigin: "https://example.supabase.co",
+      expiresInSeconds: 60,
+    });
+    return;
+  }
   if (request.method !== "GET") {
     sendJson(response, 405, { error: "Method not allowed in E2E fixture" });
     return;
@@ -1314,6 +1334,10 @@ function handlePopulatedRequest(request, response, url) {
   }
 
   if (url.pathname === "/api/admin/report-workflow") {
+    if (hasPopulatedAdminSession(request) && readCookieValue(request, C17_REPORT_ERROR_COOKIE_NAME) === "1") {
+      sendJson(response, 503, { error: "synthetic unavailable" });
+      return;
+    }
     const limit = Number(url.searchParams.get("limit") ?? 9);
     const offset = Number(url.searchParams.get("offset") ?? 0);
     const reportDataset = hasA03AdaptiveAdminDataset(request)

@@ -163,11 +163,13 @@ test("report file actions block unavailable or duplicate requests", () => {
 
   assert.ok(source.includes("const [loadingAction, setLoadingAction] = useState<ReportAction | null>(null);"));
   assert.ok(source.includes("const [errorMessage, setErrorMessage] = useState<string | null>(null);"));
-  assert.ok(source.includes("async function openReport(action: ReportAction)"));
+  assert.ok(source.includes("async function openReport(action: ReportAction, trigger?: HTMLElement)"));
   assert.ok(source.includes('if (!isAvailable || isLoading || typeof reportId !== "number") {'));
   assert.ok(source.includes("return;"));
   assert.ok(source.includes("setErrorMessage(null);"));
   assert.ok(source.includes("setLoadingAction(action);"));
+  assert.ok(source.includes('if (action === "preview" && onPreview && trigger)'));
+  assert.ok(source.includes('if (action === "download" && onDownload)'));
 });
 
 test("report file actions retrieve preview/download URLs and open them safely", () => {

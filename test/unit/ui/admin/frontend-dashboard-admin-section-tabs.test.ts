@@ -224,3 +224,18 @@ test("dashboard admin tabs stay inside frontend-only PR-7 scope", () => {
     );
   }
 });
+
+test("C17 documental sólo exceptúa sus tres archivos backend del guard histórico", () => {
+  for (const file of [
+    "server/features/reports/application/report-route-service.ts",
+    "server/lib/supabase.ts",
+    "server/routes/admin-reports.fastify.ts",
+  ]) assert.equal(isReportForeignAccessBackendFile(file), true);
+  for (const file of [
+    "server/routes/auth.fastify.ts",
+    "server/routes/admin-auth.fastify.ts",
+    "server/routes/admin-report-workflow.fastify.ts",
+    "server/lib/cors-headers.ts",
+    "drizzle/schema.ts",
+  ]) assert.equal(isReportForeignAccessBackendFile(file), false);
+});

@@ -304,7 +304,9 @@ test.describe("B05 · field tinted, container transparent, both themes", () => {
                 .getByRole("button", { name: b05Surface.mobileFilterTriggerName })
                 .first();
               const mobileDialog = page
-                .locator('[data-module-dialog="true"][data-state="open"]')
+                .locator(b05Surface.id === "admin-informes"
+                  ? '[data-advanced-filter-sheet="true"][data-state="open"]'
+                  : '[data-module-dialog="true"][data-state="open"]')
                 .first();
 
               // Hydration can race a dispatched click under CI contention

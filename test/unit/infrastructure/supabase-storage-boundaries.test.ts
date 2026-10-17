@@ -78,6 +78,7 @@ test("storage boundaries usan supabase.storage como puerto por defecto", () => {
   assert.deepEqual(
     helpers.map((match) => match[1]),
     [
+      "inspectStoredReportMime",
       "ensureStorageBucketExists",
       "checkStorageHealth",
       "uploadReport",
@@ -91,7 +92,7 @@ test("storage boundaries usan supabase.storage como puerto por defecto", () => {
 
   for (const [, name, parameters] of helpers) {
     assert.equal(
-      parameters.trimEnd().endsWith("storage: StoragePort = supabase.storage,"),
+      parameters.trimEnd().endsWith(name === "inspectStoredReportMime" ? "storage: DocumentReadStorage = supabase.storage," : "storage: StoragePort = supabase.storage,"),
       true,
       `${name} debe usar supabase.storage como default`,
     );

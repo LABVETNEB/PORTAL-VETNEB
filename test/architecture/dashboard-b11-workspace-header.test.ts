@@ -384,11 +384,11 @@ test("C01 · Auditoría adopts the table and list forms without moving capacity,
     assert.ok(mobile.includes(operation), operation);
   }
 
-  // Minimal adoption fence: C01 is not the C17+ migration.
+  // C17 adds Informes; the three Auditoría consumers remain exact.
   const consumers = sourceFiles("frontend/src").filter(
     (path) => path !== C01_TABLE && /<(CollectionWorkspace|CollectionHeader|ContentList|ContentListItem)\b/.test(read(path)),
   );
-  assert.deepEqual(consumers.sort(), [C01_AUDIT_CARD, C01_AUDIT_TABLE, C01_AUDIT_MOBILE].sort());
+  assert.deepEqual(consumers.sort(), [C01_AUDIT_CARD, C01_AUDIT_TABLE, C01_AUDIT_MOBILE, "frontend/src/app/dashboard/admin/AdminReportsCard.tsx"].sort());
   for (const path of sourceFiles("frontend/src")) {
     const source = read(path);
     // C02 landed CollectionPager, C04 aria-sort, C06 useCollectionSelection and C07 SelectionToolbar; their fences live in their blocks below.
@@ -479,7 +479,7 @@ test("C02 · consumers keep their adapters and capacity owners; C03+ and C05 geo
     sourceFiles("frontend/src").filter((path) => pattern.test(read(path))).sort();
   assert.deepEqual(census(/<DashboardPager\b/), [...C02_CENTERED_CONSUMERS].sort());
   assert.deepEqual(census(/<CompactPager\b/), [...C02_COMPACT_CONSUMERS].sort());
-  assert.deepEqual(census(/<CollectionPager\b/), [C02_COMPACT_ADAPTER, C02_OWNER].sort(), "C02 is not the C17+ migration");
+  assert.deepEqual(census(/<CollectionPager\b/), [C02_COMPACT_ADAPTER, C02_OWNER, "frontend/src/app/dashboard/admin/AdminReportsCard.tsx"].sort(), "C17 is the only migrated product consumer");
   for (const path of [...C02_CENTERED_CONSUMERS, ...C02_COMPACT_CONSUMERS]) {
     assert.ok(read(path).includes("usePagedRows"), `${path}: client pagination stays with usePagedRows`);
   }
@@ -592,8 +592,8 @@ test("C03 · consumers keep the legacy adapters; C01/C02 owners, capacity and C0
   assert.deepEqual(census(/<LoadingState\b/), [...C03_LOADING_CONSUMERS].sort());
   assert.deepEqual(
     census(/<CollectionState\b/),
-    [C03_ERROR_ADAPTER, C03_LOADING_ADAPTER, C03_OWNER].sort(),
-    "C03 is not the C17+ migration",
+    [C03_ERROR_ADAPTER, C03_LOADING_ADAPTER, C03_OWNER, "frontend/src/app/dashboard/admin/AdminReportsCard.tsx"].sort(),
+    "C17 is the only migrated product consumer",
   );
   for (const owner of [C01_TABLE, C02_OWNER]) {
     assert.equal(/CollectionState|EmptyState|ErrorState|LoadingState/.test(stripComments(read(owner))), false, owner);
@@ -719,9 +719,9 @@ test("C06 · Auditoría adopts selection on its table by event ID without touchi
   const consumers = sourceFiles("frontend/src").filter(
     (path) => path !== C06_OWNER && path !== C01_SURFACES_BARREL && path !== C09_OWNER && read(path).includes("useCollectionSelection"),
   );
-  assert.deepEqual(consumers, [C01_AUDIT_CARD], "C06 is not the C17+ migration");
+  assert.deepEqual(consumers, [C01_AUDIT_CARD, "frontend/src/app/dashboard/admin/AdminReportsCard.tsx"], "C17 adds only the reports selection owner");
   const selectionProps = sourceFiles("frontend/src").filter((path) => read(path).includes("CollectionSelection<"));
-  assert.deepEqual(selectionProps.sort(), [C01_AUDIT_MOBILE, C01_AUDIT_TABLE, C06_OWNER].sort());
+  assert.deepEqual(selectionProps.sort(), [C01_AUDIT_MOBILE, C01_AUDIT_TABLE, C06_OWNER, "frontend/src/app/dashboard/admin/AdminReportsCard.tsx"].sort());
 
   // Mobile list: per-item native checkbox on the shared owner, by event ID.
   const mobile = stripComments(read(C01_AUDIT_MOBILE));
@@ -835,7 +835,7 @@ test("C07 · SelectionToolbar is the single contextual toolbar owner and publish
   const owners = sourceFiles("frontend/src").filter((path) => /function SelectionToolbar\b|\bSelectionToolbar\s*=/.test(read(path)));
   assert.deepEqual(owners, [C07_OWNER], "one contextual toolbar, no per-module duplicate");
   const consumers = sourceFiles("frontend/src").filter((path) => /<SelectionToolbar\b/.test(read(path))).sort();
-  assert.deepEqual(consumers, [C01_AUDIT_CARD, C01_AUDIT_MOBILE].sort(), "C07 is not the C17+ migration");
+  assert.deepEqual(consumers, [C01_AUDIT_CARD, C01_AUDIT_MOBILE, "frontend/src/app/dashboard/admin/AdminReportsCard.tsx"].sort(), "C17 adds only the reports toolbar");
   assert.ok(read(C01_SURFACES_BARREL).includes('export { SelectionToolbar, type SelectionToolbarProps } from "./SelectionToolbar";'));
   assert.ok(owner.includes("export type SelectionToolbarProps = {"));
 });
@@ -980,18 +980,18 @@ test("PRE-C05 · Informes: page count retired everywhere, descriptor retired, Fi
   // the actions own the band there (right-aligned above the filters).
   assert.equal(card.includes("Cola administrativa, trazabilidad y documentos en una sola vista."), false, "the descriptor is retired at every width");
   assert.equal(card.includes("<CardTitle"), false, "no internal Informes title survives");
-  assert.ok(header.startsWith('<CardHeader className="flex-row items-start justify-between gap-3 space-y-0 border-b border-vetneb-line/70 px-4 py-3 md:justify-end md:py-1">'),
-    "from md up the action band is right-aligned");
-  assert.equal((card.match(/title="Filtrar informes"/g) ?? []).length, 1, "one Filtros trigger: moved, not duplicated");
+  assert.ok(header.startsWith('<CardHeader className="flex-row items-center justify-between gap-3 space-y-0 border-b border-vetneb-line/70 px-4 py-3 md:py-0">'),
+    "the desktop search occupies the leading band and actions stay trailing");
+  assert.equal((card.match(/title="Filtrar informes"/g) ?? []).length, 1, "one controlled mobile filter sheet");
   assert.ok(
-    header.includes('<div className="min-w-0 md:hidden">\n          <ModuleDialog\n            title="Filtrar informes"'),
-    "Filtros takes the freed header slot below md",
+    header.includes('<div className="min-w-0 md:hidden">') && header.includes('onClick={() => setIsFilterSheetOpen(true)}'),
+    "Filtros takes the freed header slot below md and opens the sheet",
   );
-  const filtros = header.indexOf('title="Filtrar informes"');
+  const filtros = header.indexOf('onClick={() => setIsFilterSheetOpen(true)}');
   const refresh = header.indexOf("onClick={() => void loadReports()}");
   const upload = header.indexOf("onClick={() => setIsUploadOpen(true)}");
   assert.ok(filtros !== -1 && refresh > filtros && upload > refresh, "Filtros | Actualizar | Subir informe: the upload keeps the trailing slot");
-  assert.ok(card.includes("{renderAdvancedFilterForm(true)}"), "the mobile dialog still hosts the same filter form");
+  assert.ok(card.includes('<AdvancedFilterSheet open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen} title="Filtrar informes">') && card.includes("{renderAdvancedFilterForm(true)}"), "the mobile sheet still hosts the same filter form");
   assert.equal(card.includes("data-admin-reports-toolbar"), false, "the entregados · con tinción · página strip is retired at every width");
   assert.equal(/entregados|con tinción|Página \$\{page\}|por página/.test(card), false, "no summary or page-state text is painted");
 });
@@ -1128,13 +1128,13 @@ test("C08 · ActionMenu.tsx is the single menu owner and publishes the four prim
   // frontend-visual-consistency exempts this one file from its onContextMenu ban; nothing else may take the browser menu.
   assert.deepEqual(files.filter((path) => /oncontextmenu/i.test(read(path))), [C08_OWNER], "one context menu owner");
 
-  // The four names live in the owner, its barrel and the C09 bulk menu that composes them; the C11 filter overflow composes
-  // ActionMenu alone. No module adopts a menu before C17+.
+  // C17 adopts ActionMenu in Informes; all other product modules remain fenced.
   for (const path of files) {
     const source = read(path);
     if (path === C08_OWNER || path === C01_SURFACES_BARREL || path === C09_OWNER) continue;
     for (const name of C08_PRIMITIVES) {
       if (path === C11_OVERFLOW && name === "ActionMenu") continue;
+      if (path === "frontend/src/app/dashboard/admin/AdminReportsCard.tsx" && name === "ActionMenu") continue;
       assert.equal(new RegExp(`\\b${name}\\b`).test(source), false, `${path}: ${name} is not adopted before C17+`);
     }
   }

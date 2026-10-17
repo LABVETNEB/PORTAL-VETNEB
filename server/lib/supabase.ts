@@ -17,6 +17,14 @@ export const ALLOWED_AVATAR_MIME_TYPES = [
 
 export type AllowedMimeType = (typeof ALLOWED_MIME_TYPES)[number];
 
+function detectDocumentMime(bytes: Uint8Array): AllowedMimeType | null {
+  if (bytes.length >= 5 && bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46 && bytes[4] === 0x2d) return "application/pdf";
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "image/jpeg";
+  if (bytes.length >= 8 && [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a].every((value, index) => bytes[index] === value)) return "image/png";
+  if (bytes.length >= 12 && [0x52, 0x49, 0x46, 0x46].every((value, index) => bytes[index] === value) && [0x57, 0x45, 0x42, 0x50].every((value, index) => bytes[index + 8] === value)) return "image/webp";
+  return null;
+}
+
 export const supabase = createClient(
   ENV.supabaseUrl,
   ENV.supabaseServiceRoleKey,
@@ -32,6 +40,17 @@ export type StorageBucketPort = Pick<
 export type StoragePort = Pick<SupabaseStorageClient, "getBucket" | "createBucket"> & {
   from(bucketId: string): StorageBucketPort;
 };
+
+type DocumentReadStorage = { from(bucketId: string): Pick<ReturnType<SupabaseStorageClient["from"]>, "download"> };
+
+export async function inspectStoredReportMime(
+  storagePath: string,
+  storage: DocumentReadStorage = supabase.storage,
+) {
+  const { data, error } = await storage.from(ENV.supabaseStorageBucket).download(storagePath);
+  if (error || !data || data.size > ENV.maxUploadFileSizeMb * 1024 * 1024) return null;
+  return detectDocumentMime(new Uint8Array(await data.slice(0, 16).arrayBuffer()));
+}
 
 function sanitizeFileName(fileName: string, fallback: string): string {
   const sanitized = fileName

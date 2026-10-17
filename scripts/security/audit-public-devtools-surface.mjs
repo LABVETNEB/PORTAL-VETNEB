@@ -535,6 +535,9 @@ async function auditSensitiveIdentifiers() {
     for (const file of surface.files) {
       const matches = await scanSensitiveIdentifierMarkers(file);
       const publicExposure = surface.public && !isKnownServerOnlyFrontendFile(file);
+      const verifiedPdfJsEnumNames = matches.uppercaseIdentifiers.length > 0
+        ? verifiedPdfJsPasswordEnumNames(file)
+        : new Set();
 
       for (const identifier of matches.explicitIdentifiers) {
         if (identifier === "TOKEN" || identifier === "SECRET" || identifier === "PASSWORD") {
@@ -550,6 +553,9 @@ async function auditSensitiveIdentifiers() {
       }
 
       for (const identifier of matches.uppercaseIdentifiers) {
+        if (verifiedPdfJsEnumNames.has(identifier)) {
+          continue;
+        }
         addFinding({
           rule: "uppercase-sensitive-identifier",
           file,
@@ -567,6 +573,34 @@ async function auditSensitiveIdentifiers() {
         });
       }
     }
+  }
+}
+
+function verifiedPdfJsPasswordEnumNames(file) {
+  const empty = new Set();
+  if (!/^frontend\/\.next\/static\/chunks\/[^/]+\.js$/.test(file)) return empty;
+  const packagePath = resolve(ROOT, "frontend/node_modules/pdfjs-dist/package.json");
+  const sourcePath = resolve(ROOT, "frontend/node_modules/pdfjs-dist/build/pdf.mjs");
+  const loaderPath = resolve(ROOT, "frontend/src/features/dashboard/presentation/viewer/pdfjs-client.ts");
+  if (![packagePath, sourcePath, loaderPath].every(existsSync)) return empty;
+
+  try {
+    const version = JSON.parse(readFileSync(packagePath, "utf8")).version;
+    const source = readFileSync(sourcePath, "utf8");
+    const loader = readFileSync(loaderPath, "utf8");
+    const chunk = readFileSync(resolve(ROOT, file), "utf8");
+    const sourceEnum = /\bconst\s+PasswordResponses\s*=\s*\{\s*NEED_PASSWORD\s*:\s*1\s*,\s*INCORRECT_PASSWORD\s*:\s*2\s*\}/g;
+    const chunkEnum = /\{\s*NEED_PASSWORD\s*:\s*1\s*,\s*INCORRECT_PASSWORD\s*:\s*2\s*\}/g;
+    if (version !== "6.4.299" || !loader.includes('import("pdfjs-dist")')) return empty;
+    if ([...source.matchAll(sourceEnum)].length !== 1 || !source.includes('const version = "6.4.299"')) return empty;
+    if ([...chunk.matchAll(chunkEnum)].length !== 1 || !chunk.includes("6.4.299") || !chunk.includes("GlobalWorkerOptions") || !chunk.includes("getDocument")) return empty;
+    for (const name of ["NEED_PASSWORD", "INCORRECT_PASSWORD"]) {
+      if ([...source.matchAll(new RegExp(`\\b${name}\\b`, "g"))].length !== 1 ||
+          [...chunk.matchAll(new RegExp(`\\b${name}\\b`, "g"))].length !== 1) return empty;
+    }
+    return new Set(["NEED_PASSWORD", "INCORRECT_PASSWORD"]);
+  } catch {
+    return empty;
   }
 }
 

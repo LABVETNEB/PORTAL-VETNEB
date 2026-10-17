@@ -12,6 +12,8 @@
  * Autenticación: el backend usa cookies de sesión (credentials: 'include').
  */
 
+import { validateDocumentSource, type DocumentSource } from "@/features/dashboard/presentation/viewer/document-source";
+
 import type {
   Report,
   FieldVisit,
@@ -726,6 +728,37 @@ export async function getReportPreviewUrl(
   );
 
   return res.previewUrl ?? res.url ?? null;
+}
+
+export async function getAdminReportDocumentSource(reportId: number): Promise<{ source: DocumentSource; trustedOrigin: string }> {
+  const descriptor = await apiFetch<{
+  previewUrl: string;
+  mimeType: "application/pdf" | "image/jpeg" | "image/png" | "image/webp";
+  trustedOrigin: string;
+  expiresInSeconds: number;
+  }>(`/api/admin/reports/${reportId}/preview-url?viewer=1`);
+  const source: DocumentSource = {
+    kind: descriptor.mimeType === "application/pdf" ? "pdf" : "image",
+    mimeType: descriptor.mimeType,
+    url: descriptor.previewUrl,
+  };
+  if (!Number.isSafeInteger(descriptor.expiresInSeconds) || descriptor.expiresInSeconds < 1 || !validateDocumentSource(source, { trustedOrigins: [descriptor.trustedOrigin] })) {
+    throw new Error("Documento no verificable para visualización.");
+  }
+  return { source, trustedOrigin: descriptor.trustedOrigin };
+}
+
+export async function getAdminReportDownloadDescriptor(reportId: number): Promise<string> {
+  const descriptor = await apiFetch<{
+  downloadUrl: string;
+  trustedOrigin: string;
+  expiresInSeconds: number;
+  }>(`/api/admin/reports/${reportId}/download-url?viewer=1`);
+  try {
+    const url = new URL(descriptor.downloadUrl);
+    if (url.protocol !== "https:" || url.username || url.password || url.origin !== descriptor.trustedOrigin || !Number.isSafeInteger(descriptor.expiresInSeconds) || descriptor.expiresInSeconds < 1) throw new Error();
+  } catch { throw new Error("Enlace de descarga no verificable."); }
+  return descriptor.downloadUrl;
 }
 
 export async function uploadAdminReport(
