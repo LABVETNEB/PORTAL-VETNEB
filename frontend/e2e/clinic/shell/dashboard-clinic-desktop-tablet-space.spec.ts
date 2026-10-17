@@ -500,3 +500,64 @@ test.describe(`CLINIC-DT-SPACE · phone boundary ${PHONE.name}`, () => {
     });
   });
 });
+
+// PR-BUG-01: the S7 bar renders on every load state, and filtering never
+// hides a load failure behind a false empty list.
+test.describe("CLINIC-DT-SPACE · PR-BUG-01 tokens bar on empty and failed loads", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 768 });
+    await setClinicSession(page, "populated");
+    await stubClientApis(page);
+  });
+
+  async function stubTokens(page: Page, mode: { current: "error" | "empty" | "populated" }) {
+    await page.route("**/api/particular-tokens**", (route) => {
+      const url = new URL(route.request().url());
+      if (route.request().method() !== "GET" || url.pathname !== "/api/particular-tokens") return route.fallback();
+      if (mode.current === "error") {
+        return route.fulfill({
+          status: 500,
+          contentType: "application/json",
+          body: JSON.stringify({ success: false, error: "Error interno" }),
+        });
+      }
+      const limit = Number(url.searchParams.get("limit")) || 12;
+      const particularTokens = mode.current === "empty" ? [] : A03_CLINIC_TOKENS.slice(0, limit);
+      return json(route, { success: true, count: particularTokens.length, particularTokens, pagination: { limit, offset: 0 } });
+    });
+  }
+
+  test("empty dataset keeps the bar painted", async ({ page }) => {
+    await stubTokens(page, { current: "empty" });
+    const card = (await openModule(page, "tokens")).locator("#clinic-particular-tokens");
+    await expect(card.getByText("No hay tokens particulares generados por esta clínica.")).toBeVisible({ timeout: 12_000 });
+    await expect(card.locator('[data-clinic-access-filter-bar="advanced"]')).toBeVisible();
+    await expectZeroScroll(page, "tokens empty");
+  });
+
+  test("failed load keeps the bar, Aplicar keeps the alert, Actualizar recovers with the draft intact", async ({ page }) => {
+    const mode = { current: "error" as "error" | "empty" | "populated" };
+    await stubTokens(page, mode);
+    const card = (await openModule(page, "tokens")).locator("#clinic-particular-tokens");
+    const alert = card.getByRole("alert");
+    await expect(alert).toBeVisible({ timeout: 12_000 });
+    const filters = card.locator('[data-clinic-access-filter-bar="advanced"]');
+    await expect(filters).toBeVisible();
+    await expectZeroScroll(page, "tokens failed load");
+
+    const tokenField = filters.getByPlaceholder("Últimos 4");
+    await tokenField.fill("zz99");
+    await filters.getByRole("button", { name: "Aplicar" }).click();
+    await expect(alert, "Aplicar must not hide the load failure").toBeVisible();
+    await filters.getByRole("button", { name: "Limpiar" }).click();
+    await expect(alert, "Limpiar must not hide the load failure").toBeVisible();
+
+    await tokenField.fill("zz99");
+    mode.current = "populated";
+    await card.getByRole("button", { name: "Actualizar" }).click();
+    await expect(alert).toHaveCount(0);
+    await expect(tokenField, "the draft survives the recovery").toHaveValue("zz99");
+    await expect(card.locator('[data-clinic-access-table="true"]')).toBeVisible();
+    await expectZeroScroll(page, "tokens recovered");
+  });
+});

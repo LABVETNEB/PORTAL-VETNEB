@@ -230,30 +230,62 @@ test("refresh, loading and disabled wiring is declared only where runtime has it
   }
 });
 
-test("clinic super searcher surfaces are conditional, admin ones are always rendered", () => {
-  const conditional = SUPER_SEARCH_CONTRACTS.filter((entry) => entry.renderPolicy !== "always");
-  assert.deepEqual(conditional.map((entry) => entry.id), ["S6", "S7"]);
+test("PR-BUG-01 · every super searcher bar renders regardless of load error or dataset size", () => {
   assert.deepEqual(
-    conditional.map((entry) => entry.role),
-    ["clinic", "clinic"],
-    "only clinic surfaces gate their bar on loaded state",
-  );
-  assert.deepEqual(
-    conditional.map((entry) => entry.renderPolicy),
-    ["when-no-reports-load-error", "when-tokens-loaded"],
+    [...new Set(SUPER_SEARCH_CONTRACTS.map((entry) => entry.renderPolicy))],
+    ["always"],
+    "one render policy for S1–S7",
   );
 
+  const stateGates = [
+    /\{\s*!?\s*\w*[Ll]oadError\s*\?\s*renderAdvancedFilterForm\(\)/,
+    /\{\s*\w+\.length\s*\?\s*renderAdvancedFilterForm\(\)/,
+    /\{\s*\w+\.length\s*&&\s*renderAdvancedFilterForm\(\)/,
+    /\{\s*!?\s*\w*[Ll]oadError\s*&&\s*renderAdvancedFilterForm\(\)/,
+  ];
   for (const contract of SUPER_SEARCH_CONTRACTS) {
-    if (contract.role !== "admin") continue;
-    assert.equal(contract.renderPolicy, "always", `${contract.id} admin bar must always render`);
+    const source = readSource(contract.sourcePath);
+    for (const gate of stateGates) {
+      assert.doesNotMatch(source, gate, `${contract.id} must not gate its bar on load state (${gate})`);
+    }
   }
 
-  // The two clinic policies are distinct: PR-BUG-01 has not unified them.
-  assert.equal(
-    new Set(conditional.map((entry) => entry.renderPolicy)).size,
-    2,
-    "the two clinic render policies must stay distinct until PR-BUG-01",
+  for (const id of ["S6", "S7"]) {
+    const contract = SUPER_SEARCH_CONTRACTS.find((entry) => entry.id === id);
+    assert.ok(contract, `${id} contract`);
+    const source = readSource(contract.sourcePath);
+    assert.ok(source.includes("{renderAdvancedFilterForm()}"), `${id} desktop bar is unconditional`);
+    assert.ok(source.includes("{renderAdvancedFilterForm(true)}"), `${id} mobile dialog keeps the same fields`);
+  }
+});
+
+test("PR-BUG-01 · S7 Aplicar/Limpiar cannot hide a tokens load error", () => {
+  const source = readSource("frontend/src/components/dashboard/ClinicParticularTokensCard.tsx");
+  const body = (name: string): string => {
+    const start = source.indexOf(`function ${name}(`);
+    assert.ok(start >= 0, `${name} exists`);
+    return source.slice(start, source.indexOf("\n  }\n", start));
+  };
+
+  const load = body("loadTokens");
+  assert.ok(load.includes("setTokensLoadFailed(false);"), "a successful load clears the failure");
+  assert.ok(
+    load.indexOf("setTokensLoadFailed(true);") > load.indexOf("catch (error)"),
+    "only the failure branch marks the load as failed",
   );
+
+  for (const name of ["applyAdvancedFilters", "clearAdvancedFilters"]) {
+    const handler = body(name);
+    assert.doesNotMatch(
+      handler,
+      /^\s*setErrorMessage\(null\);/m,
+      `${name} must not clear errorMessage unconditionally`,
+    );
+    assert.ok(
+      handler.includes("if (!tokensLoadFailed) setErrorMessage(null);"),
+      `${name} keeps the load error visible`,
+    );
+  }
 });
 
 test("S4 and S5 are the two surfaces without the shared FilterBar primitive", () => {

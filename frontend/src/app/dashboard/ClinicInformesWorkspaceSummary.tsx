@@ -326,7 +326,7 @@ export function ClinicInformesWorkspaceSummary({
             actions do not fit side by side the actions wrap to a second line
             instead of squeezing the fields. Below 768px the bar is not painted,
             so the band keeps only Filtros and "Abrir módulo completo". */}
-        {!reportsLoadError ? renderAdvancedFilterForm() : null}
+        {renderAdvancedFilterForm()}
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
           <ModuleDialog
             open={isFilterDialogOpen}
