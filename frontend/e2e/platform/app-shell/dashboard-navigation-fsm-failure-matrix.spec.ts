@@ -23,15 +23,10 @@ import { setAdminSession, setClinicSession, type SessionProfile } from "../../he
 // Payloads are held and continued, answered late with a status, or cut short;
 // nothing is aborted. The budget (DT-5, 10 000 ms) runs on the page clock.
 //
-// KNOWN_RESIDUAL_D10. A late failure of an abandoned navigation or refresh makes
-// Next reload the document at the abandoned URL (D-10, a Next defect: roadmap
-// §8, §19 and the exception of §20). The desirable behaviour is that the latest
-// selection stays authoritative; it does not hold and this PR does not correct
-// it. The cells marked KNOWN_RESIDUAL_D10 characterize the defect — which
-// selection is lost, by what request, and what is left — so the counterexample
-// stays reproducible for a later decision. They are not acceptance of the
-// reload, and the coverage test keeps them counted apart. DT-13 and DT-15 stay
-// where they are recorded, in dashboard-navigation-fsm-admin/clinic.
+// D-10: a late failure of an abandoned navigation or retry must not displace
+// the latest selection. F4 covers an already committed selection; F7 covers a
+// selection waiting behind the retry's payload.
+// DT-13 and DT-15 remain in their own specs.
 // ─────────────────────────────────────────────────────────────────────────────
 
 type Role = "admin" | "clinic";
@@ -332,8 +327,7 @@ type FailureCell = {
   readonly journey: JourneyId;
   readonly dim: Dim;
   readonly variant?: string;
-  /** The cell characterizes a known defect; it does not accept the behaviour it records. */
-  readonly contract?: "KNOWN_RESIDUAL_D10";
+  readonly contract?: "D10_LATE_FAILURE";
 };
 
 const GRID_FAILURES = ["F1", "F2", "F3", "F4", "F5"] as const;
@@ -363,40 +357,26 @@ const FAILURE_GRID: readonly FailureCell[] = GRID_FAILURES.flatMap((failure, f) 
   ),
 );
 
-/** Cells whose mechanism is a `router.refresh()` of the product, plus the D-10 variants of F4. */
+/** Cells whose mechanism is the product's same-URL retry, plus the D-10 variants of F4. */
 const FAILURE_EXTRA: readonly FailureCell[] = [
-  { failure: "F4", surface: "S1", journey: "S1", dim: DIMS[1], variant: "after a later selection landed", contract: "KNOWN_RESIDUAL_D10" },
-  { failure: "F4", surface: "S2", journey: "S2", dim: DIMS[2], variant: "after a later selection landed", contract: "KNOWN_RESIDUAL_D10" },
+  { failure: "F4", surface: "S1", journey: "S1", dim: DIMS[1], variant: "after a later selection landed", contract: "D10_LATE_FAILURE" },
+  { failure: "F4", surface: "S2", journey: "S2", dim: DIMS[2], variant: "after a later selection landed", contract: "D10_LATE_FAILURE" },
   { failure: "F6", surface: "S2", journey: "S2", dim: DIMS[0] },
   { failure: "F6", surface: "S2", journey: "S2", dim: DIMS[3] },
   { failure: "F6", surface: "S4", journey: "S4 shell→route", dim: DIMS[1] },
-  { failure: "F7", surface: "S2", journey: "S2", dim: DIMS[1], contract: "KNOWN_RESIDUAL_D10" },
-  { failure: "F7", surface: "S2", journey: "S2", dim: DIMS[2], contract: "KNOWN_RESIDUAL_D10" },
+  { failure: "F7", surface: "S2", journey: "S2", dim: DIMS[1], contract: "D10_LATE_FAILURE" },
+  { failure: "F7", surface: "S2", journey: "S2", dim: DIMS[2], contract: "D10_LATE_FAILURE" },
 ];
 
 const FAILURE_NOT_APPLICABLE: readonly { failure: FailureId; surface: SurfaceId; reason: string }[] = [
-  { failure: "F6", surface: "S1", reason: "no control of the admin dashboard calls router.refresh(); the machine never issues one (DT-2). The admin H-08 contract with the router's own instance stays in dashboard-navigation-fsm-admin" },
+  { failure: "F6", surface: "S1", reason: "no DashboardRefreshButton exists on the admin dashboard; the machine never issues a retry (DT-2). The admin H-08 contract with the router's own instance stays in dashboard-navigation-fsm-admin" },
   { failure: "F6", surface: "S3", reason: "the hub renders no DashboardRefreshButton: its load errors belong to the module summaries" },
-  { failure: "F7", surface: "S1", reason: "same as F6 × S1: no product emitter of router.refresh() on the admin dashboard" },
+  { failure: "F7", surface: "S1", reason: "same as F6 × S1: no DashboardRefreshButton on the admin dashboard" },
   { failure: "F7", surface: "S3", reason: "same as F6 × S3: no product emitter of router.refresh() on the hub" },
-  { failure: "F7", surface: "S4", reason: "a full route renders no DashboardRefreshButton, and the refresh that fails late reloads the shell document it was issued from (D-10): the outcome is the F7 × S2 cell" },
+  { failure: "F7", surface: "S4", reason: "a full route renders no DashboardRefreshButton; the late failure of the shell's retry is covered by F7 × S2" },
 ];
 
 type Run = { readonly page: Page; readonly context: BrowserContext; readonly gates: RouterPayloadGates };
-
-/**
- * The diagnostic every D-10 assertion carries. desired is the property the
- * product does not have; the assertion that uses this message pins what is
- * observed instead, so a green cell reads as a recorded defect.
- */
-function knownResidualD10(desired: string, observed: string): string {
-  return [
-    "KNOWN_RESIDUAL_D10",
-    `Expected desirable behavior: ${desired}.`,
-    `Observed: ${observed}.`,
-    "Not corrected in PR-NAV-06: if this assertion fails, Next changed and the cell is realigned by a decision, never marked fixed by itself.",
-  ].join(" ");
-}
 
 async function expectPending(page: Page, ctx: Ctx, journey: Journey) {
   if (journey.pending === "destination") {
@@ -597,53 +577,26 @@ const FAILURE_RUNNERS: Record<FailureId, (run: Run, ctx: Ctx, journey: Journey, 
     expect(documents.take(), "the later selection landed by client navigation").toEqual([]);
     expect(gates.held(), "only the abandoned flight is left").toEqual([journey.destKey]);
 
-    // KNOWN_RESIDUAL_D10 (roadmap §8, §19, §20). The 524 arrives after that
-    // commit. Next evaluates the failed response of the navigation it had left
-    // behind and hands its URL to the browser. What follows characterizes the
-    // defect; none of it is the machine converging.
-    const desired = `the latest committed selection (${journey.other}) remains authoritative`;
-    const loaded = page.waitForEvent("load");
+    // The abandoned 524 cannot displace the selection that already committed.
+    const divergence = await recordDivergenceFrom(page, ctx, other);
     expect(await gates.failHeld(journey.destKey, 524)).toBe(1);
-    await loaded;
+    await page.waitForLoadState("networkidle");
+    await waitForLayoutSettled(page);
     expect(gates.injected()).toEqual([{ kind: "status", key: journey.destKey, status: 524, late: true }]);
-    expect(
-      documents.take(),
-      knownResidualD10(desired, `the late 524 of ${journey.destKey} causes one document navigation to the abandoned URL`),
-    ).toEqual([journey.dest.url]);
-    // A browser document, not a commit of the machine: no payload was issued for it.
-    expect(gates.requested(), "the owner issued no navigation for the abandoned URL").toEqual([
-      journey.destKey,
-      journey.other,
-    ]);
-    await expectView(page, ctx, journey.dest);
-    expect(
-      new URL(page.url()).searchParams.get("module") === journey.other,
-      knownResidualD10(desired, `the URL is ${journey.dest.url}, the abandoned one`),
-    ).toBe(false);
-    await expect(
-      page.locator(`[data-dashboard-module-workspace="${journey.other}"]`),
-      knownResidualD10(desired, `the stage of ${journey.other} is gone`),
-    ).toHaveCount(0);
-    await expect
-      .poll(() => storedModule(page, ctx.role), {
-        message: knownResidualD10(desired, `the stored module is overwritten with ${journey.destKey}`),
-      })
-      .toBe(journey.destKey);
-    // The lost selection is displaced, not erased: its entry is the one behind.
-    expect(await historyLength(page), "the document navigation added an entry over the selection's").toBe(length + 2);
+    await expectView(page, ctx, other);
+    expect(await divergence(), "the late failure repainted the abandoned selection").toEqual([]);
+    expect(await storedModule(page, ctx.role)).toBe(journey.other);
+    expect(await historyLength(page), "the late failure added no entry").toBe(length + 1);
+    expect(documents.take(), "the late failure caused no document navigation").toEqual([]);
+    expect(gates.requested(), "the late failure requested no new payload").toEqual([journey.destKey, journey.other]);
     await expect(stalledNotice(page)).toHaveCount(0);
     await expect(errorBoundary(page)).toHaveCount(0);
-    test.info().annotations.push({
-      type: "KNOWN_RESIDUAL_D10",
-      description: `desired property holds: false. Lost selection: ${journey.other} (committed). Abandoned flight: ${journey.destKey}, answered 524 after the commit. Document requests: ${journey.dest.url}. History ${length + 1} -> ${length + 2}.`,
-    });
-
     await gates.release();
     await page.goBack();
-    await expectView(page, ctx, other);
+    await expectView(page, ctx, journey.origin);
     await page.goForward();
-    await expectView(page, ctx, journey.dest);
-    await expectOperative(page, ctx, journey.other, documents);
+    await expectView(page, ctx, other);
+    await expectOperative(page, ctx, journey.destKey, documents);
   },
 
   // F5 (H-06) — the network goes away while the payload is in flight. Next does
@@ -687,7 +640,7 @@ const FAILURE_RUNNERS: Record<FailureId, (run: Run, ctx: Ctx, journey: Journey, 
     await expectOperative(page, ctx, journey.other, watchDocuments(page));
   },
 
-  // F6 (H-08) — a router.refresh() of the product is held before its headers
+  // F6 (H-08) — a same-URL retry of the product is held before its headers
   // and a navigation is chosen behind it: one refresh payload, one navigation
   // payload, URL and stage never disagree at rest, STALLED within the budget
   // and convergence once the refresh answers.
@@ -725,18 +678,14 @@ const FAILURE_RUNNERS: Record<FailureId, (run: Run, ctx: Ctx, journey: Journey, 
     await expect(stalledNotice(page)).toHaveCount(0);
   },
 
-  // F7 (KNOWN_RESIDUAL_D10, extended to refresh) — the product's held refresh
-  // is left behind by a real selection and then fails. Unlike F4, the
-  // selection cannot have committed: a refresh without headers retains every
-  // later commit (H-08), so what is lost is a selection that was issued and on
-  // stage, never one that reached the URL or history.
+  // F7 — a held same-URL retry fails after a selection. Unlike F4, that
+  // selection is on stage but cannot commit until its own payload answers.
   async F7({ page, gates }, ctx, journey) {
     const documents = watchDocuments(page);
     await open(page, ctx, journey.origin, "default");
     const length = await historyLength(page);
     documents.take();
     const originKey = journey.origin.kind === "hub" ? "" : journey.origin.module;
-    const destStage = stageOf(journey.dest) ?? "";
 
     gates.hold();
     await productRefresh(page).click();
@@ -748,47 +697,34 @@ const FAILURE_RUNNERS: Record<FailureId, (run: Run, ctx: Ctx, journey: Journey, 
     expect(await historyLength(page), "the selection is on stage and not in history").toBe(length);
 
     const desired = `the latest selection (${journey.destKey}) remains authoritative`;
-    const loaded = page.waitForEvent("load");
+    const divergence = await recordDivergenceFrom(page, ctx, journey.dest);
     expect(await gates.failHeld(originKey, 500)).toBe(1);
-    await loaded;
+    await waitForLayoutSettled(page);
     expect(gates.injected()).toEqual([{ kind: "status", key: originKey, status: 500, late: true }]);
-    expect(
-      documents.take(),
-      knownResidualD10(desired, `the late 500 of the refresh causes one document navigation to the refresh's URL`),
-    ).toEqual([journey.origin.url]);
-    // A browser document, not a commit of the machine: nothing else was issued.
-    expect(gates.requested(), "the owner issued no navigation after the failure").toEqual([originKey, journey.destKey]);
-    await expectView(page, ctx, journey.origin);
-    await expect(
-      page.locator(`[data-dashboard-module-workspace="${destStage}"]`),
-      knownResidualD10(desired, `the stage of ${journey.destKey} is gone and ${originKey} is back`),
-    ).toHaveCount(0);
-    await expect
-      .poll(() => storedModule(page, ctx.role), {
-        message: knownResidualD10(desired, `the stored module is still ${originKey}`),
-      })
-      .toBe(originKey);
-    expect(
-      await historyLength(page),
-      knownResidualD10(desired, "the selection never reached history"),
-    ).toBe(length);
+    expect(documents.take(), "the failed refresh does not reload the document").toEqual([]);
+    await expectDisplay(page, ctx, journey.dest);
+    await expect(page).toHaveURL((url) => `${url.pathname}${url.search}` === journey.origin.url);
+    expect(await storedModule(page, ctx.role), "the selection has not committed before its payload").toBe(originKey);
+    expect(await historyLength(page), "the selection has no entry before its payload").toBe(length);
+    expect(gates.held(), "the selected module's payload remains pending").toEqual([journey.destKey]);
+    expect(await gates.releaseOnly(journey.destKey)).toBe(1);
+    await expectView(page, ctx, journey.dest);
+    await expect.poll(() => storedModule(page, ctx.role)).toBe(journey.destKey);
+    expect(await historyLength(page), desired).toBe(length + 1);
+    expect(await divergence(), "the failed retry repainted the abandoned module").toEqual([]);
+    expect(gates.requested(), "the failure requested no extra payload").toEqual([originKey, journey.destKey]);
+    expect(documents.take(), "selection commits without a document navigation").toEqual([]);
     await expect(stalledNotice(page)).toHaveCount(0);
     await expect(errorBoundary(page)).toHaveCount(0);
-    test.info().annotations.push({
-      type: "KNOWN_RESIDUAL_D10",
-      description: `desired property holds: false. Lost selection: ${journey.destKey} (issued and on stage, not committed: H-08). Abandoned refresh of ${originKey}, answered 500 after the selection. Document requests: ${journey.origin.url}. History unchanged at ${length}.`,
-    });
-
-    // The selection's payload belonged to the document that is gone.
-    expect(await gates.drop()).toEqual([journey.destKey]);
+    await gates.release();
     await page.clock.fastForward(PAST_THE_BUDGET_MS);
     await expect(stalledNotice(page)).toHaveCount(0);
-    await expectView(page, ctx, journey.origin);
+    await expectView(page, ctx, journey.dest);
     await expectOperative(page, ctx, journey.other, documents);
   },
 };
 
-/** `DashboardRefreshButton`: the product's own `router.refresh()`, shown by a load error. */
+/** `DashboardRefreshButton`: the product's same-URL retry, shown by a load error. */
 function productRefresh(page: Page) {
   return page.getByRole("alert").getByRole("button", { name: "Reintentar", exact: true }).filter({ visible: true });
 }
@@ -799,8 +735,8 @@ const FAILURE_TITLE: Record<FailureId, string> = {
   F3: "a 500 is one document navigation to the destination, and the origin still navigates",
   F4: "a 524 after the budget is one document navigation to the stalled destination",
   F5: "going offline in flight ends on the browser's error page and recovers once back online",
-  F6: "a selection behind the product's held router.refresh() stalls and converges with one payload each",
-  F7: "the product's router.refresh() that fails after a selection reloads its own URL and the selection is lost",
+  F6: "a selection behind the product's held retry stalls and converges with one payload each",
+  F7: "a failed same-URL retry leaves the later selection authoritative and it commits on its payload",
 };
 
 test.describe("DASHBOARD_NAVIGATION_FSM_FAILURE_MATRIX · failures", () => {
@@ -809,8 +745,8 @@ test.describe("DASHBOARD_NAVIGATION_FSM_FAILURE_MATRIX · failures", () => {
     const title =
       cell.variant === undefined
         ? FAILURE_TITLE[cell.failure]
-        : `a 524 ${cell.variant} reloads the abandoned URL and that selection is lost`;
-    const contract = cell.contract === undefined ? "" : `${cell.contract} (characterization, not acceptance) · `;
+        : `a 524 ${cell.variant} leaves the committed selection authoritative`;
+    const contract = cell.contract === undefined ? "" : `${cell.contract} · `;
     test(`${contract}${cell.failure} × ${cell.surface} ${SURFACE_NAME[cell.surface]} [${cell.journey}] (${dimLabel(cell.dim)}): ${title}`, async ({
       page,
       context,
@@ -824,6 +760,26 @@ test.describe("DASHBOARD_NAVIGATION_FSM_FAILURE_MATRIX · failures", () => {
       if (cell.failure !== "F2") expect(runtimeErrors).toEqual([]);
     });
   }
+
+  test("the same-URL retry refetches server data without adding history or reloading", async ({ page, gates }) => {
+    const ctx: Ctx = { role: "clinic", dim: DIMS[0] };
+    const location = moduleLoc("clinic", "informes");
+    const documents = watchDocuments(page);
+    await open(page, ctx, location, "default");
+    const length = await historyLength(page);
+    await expect(productRefresh(page)).toBeVisible();
+    documents.take();
+
+    await setClinicSession(page, "populated");
+    gates.record();
+    await productRefresh(page).click();
+    await expect(page.getByRole("alert").filter({ hasText: "No se pudieron cargar los informes recientes" })).toHaveCount(0);
+    await expect(page.locator('[data-clinic-reports-list-panel="true"]')).toBeVisible();
+    await expectView(page, ctx, location);
+    expect(gates.requested(), "one same-URL server payload refetched the data").toEqual(["informes"]);
+    expect(await historyLength(page), "retry did not add an entry").toBe(length);
+    expect(documents.take(), "retry stayed in the client router").toEqual([]);
+  });
 });
 
 // ── The history model: the independent oracle of blocks 2 and 3 ──────────────
@@ -1423,17 +1379,16 @@ test.describe("DASHBOARD_NAVIGATION_FSM_FAILURE_MATRIX · coverage", () => {
     expect(new Set(cells.filter((cell) => cell.surface === "S4").map((cell) => cell.journey)).size).toBe(2);
   });
 
-  test("the KNOWN_RESIDUAL_D10 cells are exactly the late failures over a later selection, and no failure is covered by them alone except F7", () => {
+  test("the four D10_LATE_FAILURE cells require convergence after an abandoned flight", () => {
     const cells = [...FAILURE_GRID, ...FAILURE_EXTRA];
-    const residual = cells.filter((cell) => cell.contract === "KNOWN_RESIDUAL_D10");
-    expect(residual.map((cell) => `${cell.failure} × ${cell.surface}${cell.variant === undefined ? "" : " late"}`).sort()).toEqual(
+    const late = cells.filter((cell) => cell.contract === "D10_LATE_FAILURE");
+    expect(late.map((cell) => `${cell.failure} × ${cell.surface}${cell.variant === undefined ? "" : " late"}`).sort()).toEqual(
       ["F4 × S1 late", "F4 × S2 late", "F7 × S2", "F7 × S2"].sort(),
     );
-    // F7 is D-10 by definition (roadmap §16: "refresh abandonado que falla tarde (D-10 extendido)"),
-    // so it has no accepted cell. Every other failure keeps its acceptance cells.
     for (const failure of FAILURES) {
-      const accepted = cells.filter((cell) => cell.failure === failure && cell.contract === undefined);
-      expect(accepted.length > 0, `${failure} has cells that accept a contract`).toBe(failure !== "F7");
+      const ordinary = cells.filter((cell) => cell.failure === failure && cell.contract === undefined);
+      expect(ordinary.length > 0, `${failure} retains its ordinary cells`).toBe(failure !== "F7");
+      expect(cells.some((cell) => cell.failure === failure)).toBe(true);
     }
   });
 
