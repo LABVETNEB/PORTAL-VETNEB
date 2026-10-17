@@ -20,12 +20,16 @@ import {
 } from "@/components/ui/card";
 import {
   Table,
-  TableBody,
   TableCell,
   TableHead,
-  TableHeader,
-  TableRow,
 } from "@/components/ui/table";
+import {
+  CollectionHeader,
+  CollectionState,
+  CollectionWorkspace,
+  ContentList,
+  ContentListItem,
+} from "@/features/dashboard/presentation/surfaces";
 import {
   buildAdminFailedLoginAlertsCsvUrl,
   getAdminFailedLoginAlerts,
@@ -33,8 +37,6 @@ import {
 import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
 import { DASHBOARD_TOUCH_PAGER_RESERVATION } from "@/components/dashboard/DashboardPager";
 import { formatDateTime } from "@/lib/utils";
-import { EmptyState } from "@/components/dashboard/EmptyState";
-import { LoadingState } from "@/components/dashboard/LoadingState";
 import type {
   AdminFailedLoginAlertReason,
   AdminFailedLoginAlertsSnapshot,
@@ -352,7 +354,7 @@ export function AdminFailedLoginAlertsReadOnlyCard({
           </div>
         ) : null}
 
-        <div
+        <CollectionWorkspace
           ref={setDesktopBodyNode}
           data-dashboard-adaptive-rows-canvas="true"
               data-dashboard-row-pitch="compact"
@@ -361,8 +363,8 @@ export function AdminFailedLoginAlertsReadOnlyCard({
         >
           <div className="dashboard-table-responsive">
             <Table>
-              <TableHeader>
-                <TableRow>
+              <CollectionHeader>
+                <ContentListItem as="tr">
                   <TableHead>ID</TableHead>
                   <TableHead>Superficie</TableHead>
                   <TableHead>Usuario</TableHead>
@@ -371,12 +373,13 @@ export function AdminFailedLoginAlertsReadOnlyCard({
                   <TableHead>User agent</TableHead>
                   <TableHead>Fecha</TableHead>
                   <TableHead className="w-[4.5rem] text-right">Acción</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+                </ContentListItem>
+              </CollectionHeader>
+              <ContentList as="tbody">
                 {snapshot?.failedLoginAlerts.length ? (
                   snapshot.failedLoginAlerts.map((alert, index) => (
-                    <TableRow
+                    <ContentListItem
+                      as="tr"
                       key={alert.id}
                     >
                       <TableCell className="whitespace-nowrap font-mono text-xs text-muted-foreground">
@@ -421,26 +424,28 @@ export function AdminFailedLoginAlertsReadOnlyCard({
                           reasonLabel={formatReason(alert.reason)}
                         />
                       </TableCell>
-                    </TableRow>
+                    </ContentListItem>
                   ))
                 ) : isPending ? (
-                  <TableRow>
+                  <ContentListItem as="tr">
                     <TableCell colSpan={8} className="p-3">
-                      <LoadingState
-                        variant="table"
+                      <CollectionState
+                        variant="loading"
+                        skeleton="table"
                         compact
                         rows={3}
                         className="border-0 bg-transparent shadow-none rounded-none"
                       />
                     </TableCell>
-                  </TableRow>
+                  </ContentListItem>
                 ) : (
-                  <TableRow>
+                  <ContentListItem as="tr">
                     <TableCell colSpan={8} className="clinical-table-state">
                       {error ? (
                         "No se pudieron cargar los intentos fallidos."
                       ) : (
-                        <EmptyState
+                        <CollectionState
+                          variant="empty"
                           title="Sin intentos fallidos"
                           description="No hay intentos fallidos para los filtros seleccionados."
                           size="sm"
@@ -448,12 +453,12 @@ export function AdminFailedLoginAlertsReadOnlyCard({
                         />
                       )}
                     </TableCell>
-                  </TableRow>
+                  </ContentListItem>
                 )}
-              </TableBody>
+              </ContentList>
             </Table>
           </div>
-        </div>
+        </CollectionWorkspace>
 
         <div
           data-dashboard-adaptive-reserved-region="pager"
@@ -516,8 +521,10 @@ export function AdminFailedLoginAlertsReadOnlyCard({
           className="min-h-0 flex-1 divide-y divide-vetneb-line/60 overflow-hidden rounded-lg border border-vetneb-line/75"
         >
           {alerts.length ? (
-            alerts.map((alert, index) => (
-              <article
+            <ContentList as="div" className="contents divide-y divide-vetneb-line/60">
+            {alerts.map((alert, index) => (
+              <ContentListItem
+                as="article"
                 key={alert.id}
                 data-admin-mobile-status-item="true"
                     data-dashboard-adaptive-row="true"
@@ -557,16 +564,29 @@ export function AdminFailedLoginAlertsReadOnlyCard({
                     reasonLabel={formatReason(alert.reason)}
                   />
                 </span>
-              </article>
-            ))
-          ) : (
+              </ContentListItem>
+            ))}
+            </ContentList>
+          ) : error ? (
             <div className="flex h-full items-center justify-center px-4 text-center text-xs text-muted-foreground">
-              {error
-                ? "No se pudieron cargar los intentos fallidos."
-                : isPending
-                  ? "Cargando intentos fallidos..."
-                  : "Sin intentos fallidos registrados."}
+              No se pudieron cargar los intentos fallidos.
             </div>
+          ) : isPending ? (
+            <CollectionState
+              variant="loading"
+              skeleton="list"
+              compact
+              rows={3}
+              label="Cargando intentos fallidos..."
+              className="border-0 bg-transparent shadow-none rounded-none"
+            />
+          ) : (
+            <CollectionState
+              variant="empty"
+              title="Sin intentos fallidos registrados."
+              size="sm"
+              className="h-full min-h-0 border-0 bg-transparent"
+            />
           )}
         </div>
 

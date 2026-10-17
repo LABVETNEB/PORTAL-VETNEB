@@ -25,14 +25,15 @@ const TEST_FILE = fileURLToPath(import.meta.url);
 const REPO_ROOT = resolve(dirname(TEST_FILE), "..", "..");
 process.chdir(REPO_ROOT);
 
-const EXPECTED_WORKSPACE_SPEC_COUNT = 118;
-const EXPECTED_CATALOG_SPEC_COUNT = 118;
+const EXPECTED_WORKSPACE_SPEC_COUNT = 119;
+const EXPECTED_CATALOG_SPEC_COUNT = 119;
 const EXPECTED_MANUAL_ONLY_SPEC_COUNT = 0;
 const EXPECTED_DOMAIN_COUNTS = new Map([
   // +1: C04 Clínicas admin column sort (admin-clinics-column-sort.spec.ts).
   // +1: C17 Informes administrativos pilot.
   // +1: C18 admin batch 1 (Tokens, Clínicas, Auditoría).
-  ["admin", 22],
+  // +1: C19 admin batch 2 (Usuarios, Sesiones, Intentos fallidos).
+  ["admin", 23],
   // +1: CMP-12 cross-role runtime parity contract
   // (clinic-mobile-admin-parity-contract.spec.ts, RC-017 closure).
   // +1: CLINIC-DT clinic desktop/tablet space contract
@@ -90,7 +91,8 @@ const EXPECTED_LAYER_COUNTS = new Map<E2eLayer, number>([
   // +1: PR-NAV-04 clinic navigation machine (route.fulfill of a cut router payload).
   // +1: PR-NAV-06 navigation failure matrix (route.fulfill of 500/524 answers and
   // of a cut router payload, through helpers/router-payload-gates).
-  ["mocked", 43],
+  // +1: C19 admin batch 2 fulfills the sessions and failed-login windows.
+  ["mocked", 44],
   // -1: E2E-GLOBAL-10 removed the assertion-free evidence generator (R-16);
   // +1 fixture / -1 mocked: §23 remediation moved dashboard keyboard a11y
   // off browser response stubs and onto the shared populated fixture.
@@ -138,7 +140,8 @@ const EXPECTED_CURRENT_COUNTS = new Map([
   // +1: C13 details pane, tabs, focus, inner panel scroll and B16 geometry.
   // +1: C17 desktop collection and responsive contract.
   // +1: C18 Tokens/Auditoría collection, filters and details contract.
-  ["visual-contract", 40],
+  // +1: C19 Usuarios/Sesiones/Intentos collection, states and details contract.
+  ["visual-contract", 41],
   // +1: CMP-12 cross-role runtime parity contract, routed public-clinic like
   // the other CMP-04..09 parity specs (AGENTS.md §7).
   // +1: E2E-GLOBAL-06 P1 dashboard-logistica-mobile-action-bar-reachability,
@@ -171,14 +174,15 @@ const EXPECTED_EXECUTION_COUNTS = new Map<E2eExecutionCohort, number>([
   // +1: C13 belongs to visual-contract and therefore the CI union.
   // +1: C17 belongs to visual-contract.
   // +1: C18 belongs to visual-contract.
-  ["ci", 87],
+  // +1: C19 belongs to visual-contract.
+  ["ci", 88],
   ["extended", 27],
   // -1: E2E-GLOBAL-10 (R-16). `evidence` keeps the generator that does assert
   // layout (dashboard-runtime-post-ux1-visual-evidence) and loses the one that
   // asserted nothing.
   ["evidence", 1],
   ["visual-linux", 3],
-  ["full", 118],
+  ["full", 119],
   ["affected", 0],
 ]);
 const E2E_GLOBAL_06_PROMOTED_P1_SPECS = [
@@ -400,7 +404,7 @@ function validateCatalog(
   }
 
   const currentUnion = unique([...currentMemberships.keys()]).sort();
-  assert.equal(currentUnion.length, 87);
+  assert.equal(currentUnion.length, 88);
   assert.deepEqual(E2E_COHORT_SPECS.ci, currentUnion, "ci must equal the current four-cohort union");
 
   for (const cohort of ["extended", "evidence", "visual-linux", "full"] as const) {
@@ -472,11 +476,11 @@ test("catalog validation catches missing and duplicate entries in memory", async
 
   assert.throws(
     () => validateCatalog(missing, workspaceSpecs, E2E_MANUAL_ONLY_SPECS),
-    /117|classified/,
+    /118|classified/,
   );
   assert.throws(
     () => validateCatalog(duplicated, workspaceSpecs, E2E_MANUAL_ONLY_SPECS),
-    /119|unique/,
+    /120|unique/,
   );
 });
 
@@ -530,7 +534,7 @@ test("affected selection fails closed for empty or shared changes", async () => 
 
   const sharedSelection = runner.classifyAffectedPaths(["frontend/e2e/helpers/admin-mobile-contracts.ts"]);
   assert.equal(sharedSelection.fallback, true);
-  assert.equal(sharedSelection.specs.length, 87);
+  assert.equal(sharedSelection.specs.length, 88);
   assert.match(sharedSelection.reason, /shared E2E infrastructure/);
 });
 
