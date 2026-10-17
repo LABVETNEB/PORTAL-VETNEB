@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page, type Route } from "@playwright/test";
+import { waitForAdaptiveConvergence } from "../../helpers/dashboard-adaptive-limit-matrix";
 import { addAppCookies, sessionCookie } from "../../helpers/session";
 
 const users = "#admin-users-roles";
@@ -125,10 +126,8 @@ test("C19 Usuarios mobile Siguiente requests offset=limit and shows page 2 with 
   await expect(pager.getByText(/Pág\. 1 \/ (?:[2-9]|\d{2,})\b/)).toBeVisible({ timeout: 15_000 });
   await expect(items.first()).toBeVisible();
 
-  await expect(async () => {
-    const response = await page.waitForResponse((res) => isUsersRequest(new URL(res.url())), { timeout: 1_500 }).catch(() => null);
-    expect(response, "the measured window has settled: no further page-1 refetch").toBeNull();
-  }).toPass({ timeout: 15_000 });
+  await waitForAdaptiveConvergence(page, '[data-admin-mobile-ops-module="users"] [data-dashboard-adaptive-rows-canvas="true"]', "C19 users mobile page 1");
+  await expect(mobile.locator('[aria-busy="true"]'), "no page-1 refetch in flight").toHaveCount(0);
   const firstPageItem = (await items.first().innerText()).trim();
   const firstPageCount = await items.count();
 
