@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useRef, type ReactNode, type RefObject } from "react";
+import { useId, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 
@@ -16,6 +16,8 @@ export type AdvancedFilterSheetProps = {
   returnFocusRef?: RefObject<HTMLElement | null>;
   fallbackFocusRef?: RefObject<HTMLElement | null>;
   closeLabel?: string;
+  /** B05: mount under `[data-dashboard-portal-root]` so dashboard-scoped tokens reach the form, as `ModuleDialog` does. */
+  dashboardScopedPortal?: boolean;
   actions?: {
     apply?: Action & { onApply: () => void };
     clear?: Action & { onClear: () => void };
@@ -57,6 +59,7 @@ export function AdvancedFilterSheet({
   fallbackFocusRef,
   closeLabel = "Cerrar filtros avanzados",
   actions,
+  dashboardScopedPortal = false,
 }: AdvancedFilterSheetProps) {
   const titleId = useId();
   const descriptionId = useId();
@@ -64,10 +67,17 @@ export function AdvancedFilterSheet({
   const bodyRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const openerRef = useRef<HTMLElement | null>(null);
+  const [scopedPortalContainer, setScopedPortalContainer] = useState<HTMLElement | null>(null);
+
+  useLayoutEffect(() => {
+    setScopedPortalContainer(
+      dashboardScopedPortal ? document.querySelector<HTMLElement>('[data-dashboard-portal-root="true"]') : null,
+    );
+  }, [dashboardScopedPortal]);
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Portal>
+      <Dialog.Portal container={dashboardScopedPortal ? scopedPortalContainer : undefined}>
         <Dialog.Overlay className="fixed inset-0 z-40 bg-vetneb-ink/30 backdrop-blur-[1px]" />
         <Dialog.Content
           ref={dialogRef}

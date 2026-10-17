@@ -68,6 +68,18 @@ test("C18 Auditoría mobile sheet keeps the S1 GET form and URL contract", async
   const sheet = page.getByRole("dialog", { name: "Filtrar auditoría" });
   const form = sheet.locator('form[method="get"][action="/dashboard/admin"]');
   await expect(form).toHaveCount(1);
+  const fieldTint = await form.locator('select[name="event"]').evaluate((select) => {
+    const shell = select.closest(".dashboard-app-shell");
+    if (!shell) return null;
+    const probe = document.createElement("span");
+    probe.style.backgroundColor = "var(--dash-color-field)";
+    shell.appendChild(probe);
+    const expected = getComputedStyle(probe).backgroundColor;
+    probe.remove();
+    return { actual: getComputedStyle(select).backgroundColor, expected };
+  });
+  expect(fieldTint, "the S1 sheet stays inside the dashboard scope (B05 field tint)").not.toBeNull();
+  expect(fieldTint?.actual).toBe(fieldTint?.expected);
   await form.locator('select[name="event"]').selectOption("clinic_user.role.changed");
   await form.getByRole("button", { name: "Aplicar" }).click();
   await expect(page).toHaveURL((url) =>

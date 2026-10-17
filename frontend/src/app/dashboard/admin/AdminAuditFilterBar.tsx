@@ -166,6 +166,7 @@ export function AdminAuditFilterBar(props: AdminAuditFilterBarProps) {
           onOpenChange={setIsFilterSheetOpen}
           title="Filtrar auditoría"
           description="Los filtros se aplican sobre el registro completo."
+          dashboardScopedPortal
         >
           <FilterForm {...props} mobile />
         </AdvancedFilterSheet>
