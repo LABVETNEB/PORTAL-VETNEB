@@ -28,11 +28,11 @@
     "e2e:verify-catalog": "node --experimental-strip-types --experimental-specifier-resolution=node --test ../test/architecture/e2e-suite-catalog-completeness.test.ts"
   },
   "dependencies": {
-    "@radix-ui/react-dialog": "^1.2.0",
-    "@radix-ui/react-separator": "^1.1.16",
-    "@radix-ui/react-slot": "^1.4.0",
-    "@radix-ui/react-toast": "^1.2.24",
-    "@radix-ui/react-tooltip": "^1.3.0",
+    "@radix-ui/react-dialog": "^1.3.0",
+    "@radix-ui/react-separator": "^1.2.0",
+    "@radix-ui/react-slot": "^1.5.0",
+    "@radix-ui/react-toast": "^1.3.0",
+    "@radix-ui/react-tooltip": "^1.4.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "gsap": "^3.15.0",
