@@ -103,22 +103,48 @@ test("C19 Usuarios composes the C01 table and C13 detail with the same role filt
   expect((await new AxeBuilder({ page }).include(users).analyze()).violations.filter((violation) => ["critical", "serious"].includes(violation.impact ?? ""))).toEqual([]);
 });
 
-test("C19 Usuarios mobile list keeps the measured limit/offset window and its pager with zero document scroll", async ({ page }) => {
+test("C19 Usuarios mobile Siguiente requests offset=limit and shows page 2 with zero document scroll", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  const requests: URLSearchParams[] = [];
-  page.on("request", (request) => {
-    const url = new URL(request.url());
-    if (url.pathname === "/api/admin/users-roles") requests.push(url.searchParams);
+  // The default 9-user pool fits one mobile page; the fixture's opt-in 5000-user
+  // dataset is reached by rewriting only the wire URL (route.continue), so the
+  // card's own limit/offset stay untouched.
+  await page.route("**/api/admin/users-roles**", async (route) => {
+    const url = new URL(route.request().url());
+    if (route.request().method() !== "GET" || url.pathname !== "/api/admin/users-roles") {
+      await route.fallback();
+      return;
+    }
+    url.searchParams.set("dataset", "high-volume");
+    await route.continue({ url: url.toString() });
   });
+  const isUsersRequest = (url: URL) => url.pathname === "/api/admin/users-roles";
   await page.goto("/dashboard/admin?module=admin-users-roles");
   const mobile = page.locator('[data-admin-mobile-ops-module="users"]');
   const items = mobile.locator('[data-content-list="true"] > article[data-content-list-item="true"][data-admin-mobile-ops-item="true"]');
-  await expect(items.first()).toBeVisible();
   const pager = mobile.getByRole("navigation", { name: "Paginación de usuarios" });
-  await expect(pager.getByText(/Pág\. 1 \/ \d+/)).toBeVisible();
-  const last = requests.at(-1);
-  expect(last?.get("offset")).toBe("0");
-  expect(await items.count()).toBeLessThanOrEqual(Number(last?.get("limit")));
+  await expect(pager.getByText(/Pág\. 1 \/ (?:[2-9]|\d{2,})\b/)).toBeVisible({ timeout: 15_000 });
+  await expect(items.first()).toBeVisible();
+
+  await expect(async () => {
+    const response = await page.waitForResponse((res) => isUsersRequest(new URL(res.url())), { timeout: 1_500 }).catch(() => null);
+    expect(response, "the measured window has settled: no further page-1 refetch").toBeNull();
+  }).toPass({ timeout: 15_000 });
+  const firstPageItem = (await items.first().innerText()).trim();
+  const firstPageCount = await items.count();
+
+  const next = page.waitForRequest((request) => {
+    const url = new URL(request.url());
+    return isUsersRequest(url) && url.searchParams.get("offset") !== "0";
+  });
+  await pager.getByRole("button", { name: "Siguiente" }).click();
+  const nextUrl = new URL((await next).url());
+  const limit = Number(nextUrl.searchParams.get("limit"));
+  expect(limit).toBeGreaterThan(0);
+  expect(Number(nextUrl.searchParams.get("offset")), "page 2 starts exactly one measured window later").toBe(limit);
+  expect(firstPageCount, "page 1 rendered the same window the next request advances by").toBe(limit);
+
+  await expect(pager.getByText(/Pág\. 2 \/ \d+/)).toBeVisible();
+  await expect(items.first()).not.toHaveText(firstPageItem);
   expect(await documentOverflow(page)).toEqual({ x: 0, y: 0 });
 });
 
