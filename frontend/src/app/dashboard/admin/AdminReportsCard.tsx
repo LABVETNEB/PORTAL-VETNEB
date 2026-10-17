@@ -209,6 +209,7 @@ export function AdminReportsCard() {
   const [viewerSource, setViewerSource] = useState<DocumentSource | null>(null);
   const [viewerOrigin, setViewerOrigin] = useState<string | null>(null);
   const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerDownloadError, setViewerDownloadError] = useState<{ reportId: number; message: string } | null>(null);
   const viewerReturnFocusRef = useRef<HTMLElement | null>(null);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
@@ -507,6 +508,7 @@ export function AdminReportsCard() {
   async function openVerifiedReport(reportId: number, trigger: HTMLElement) {
     const descriptor = await getAdminReportDocumentSource(reportId);
     viewerReturnFocusRef.current = trigger;
+    setViewerDownloadError(null);
     setViewerSource(descriptor.source);
     setViewerOrigin(descriptor.trustedOrigin);
     setViewerOpen(true);
@@ -515,6 +517,21 @@ export function AdminReportsCard() {
   async function downloadVerifiedReport(reportId: number) {
     const url = await getAdminReportDownloadDescriptor(reportId);
     window.open(url, "_blank", "noopener,noreferrer");
+  }
+
+  // The viewer's download control has no error surface of its own: a failed
+  // descriptor closes the viewer and is reported next to the document actions.
+  async function downloadFromViewer(reportId: number) {
+    try {
+      await downloadVerifiedReport(reportId);
+    } catch (error) {
+      setViewerOpen(false);
+      setViewerSource(null);
+      setViewerDownloadError({
+        reportId,
+        message: error instanceof Error ? error.message : "No se pudo obtener el enlace de descarga.",
+      });
+    }
   }
 
   function renderAdvancedFilterForm(mobile = false) {
@@ -988,6 +1005,11 @@ export function AdminReportsCard() {
                 onPreview={(trigger) => openVerifiedReport(selectedReport.id, trigger)}
                 onDownload={() => downloadVerifiedReport(selectedReport.id)}
               />
+              {viewerDownloadError?.reportId === selectedReport.id ? (
+                <p data-admin-report-viewer-download-error="true" className="mt-1 text-[11px] text-red-600" role="alert">
+                  {viewerDownloadError.message}
+                </p>
+              ) : null}
             </div>
           </DetailsPane>
         </ModuleDialog>
@@ -998,7 +1020,7 @@ export function AdminReportsCard() {
         title={selectedReport ? `Informe #${selectedReport.id}` : "Informe"}
         source={viewerSource}
         trustedOrigins={viewerOrigin ? [viewerOrigin] : []}
-        onDownload={selectedReport ? () => { void downloadVerifiedReport(selectedReport.id); } : undefined}
+        onDownload={selectedReport ? () => { void downloadFromViewer(selectedReport.id); } : undefined}
         returnFocusRef={viewerReturnFocusRef}
       />
     </Card>

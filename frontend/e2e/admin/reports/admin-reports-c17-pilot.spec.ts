@@ -104,6 +104,31 @@ test("C17 opens verified image in C15 viewer and returns focus", async ({ page }
   await expect(trigger).toBeFocused();
 });
 
+test("C17 reports a failed viewer download in the detail pane without an unhandled rejection", async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  await page.route(/^https:\/\/example\.supabase\.co\/storage\/v1\/object\/sign\//, (route) => route.fulfill({
+    status: 200,
+    contentType: "image/png",
+    body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/xuoAAAAASUVORK5CYII=", "base64"),
+  }));
+  await page.goto("/dashboard/admin?module=admin-report-upload");
+  await page.locator(workspace).locator("tbody tr").first().getByRole("button", { name: /Acciones del informe/ }).click();
+  await page.getByRole("menuitem", { name: "Ver detalle" }).click();
+  const detail = page.getByRole("dialog", { name: /Informe #/ });
+  const trigger = detail.getByRole("button", { name: "Ver informe" });
+  await trigger.click();
+  const viewer = page.locator('[data-c15-viewer="true"]');
+  await expect(viewer.getByRole("img", { name: /Informe #/ })).toBeVisible();
+  // The fixture serves no viewer download descriptor: the request fails.
+  await viewer.getByRole("button", { name: "Descargar documento" }).click();
+  await expect(viewer).toHaveCount(0);
+  await expect(detail.locator('[data-admin-report-viewer-download-error="true"]')).toBeVisible();
+  await expect(detail.locator('[data-admin-report-viewer-download-error="true"]')).toHaveAttribute("role", "alert");
+  await expect(trigger).toBeFocused();
+  expect(pageErrors, "the failed download is handled, not an unhandled rejection").toEqual([]);
+});
+
 test("C17 fails closed when the server cannot verify a historical document", async ({ page }) => {
   await addAppCookies(page, [{ name: "e2e_c17_unverifiable", value: "1" }]);
   await page.goto("/dashboard/admin?module=admin-report-upload");
