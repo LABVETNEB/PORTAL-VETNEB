@@ -25,8 +25,8 @@ const TEST_FILE = fileURLToPath(import.meta.url);
 const REPO_ROOT = resolve(dirname(TEST_FILE), "..", "..");
 process.chdir(REPO_ROOT);
 
-const EXPECTED_WORKSPACE_SPEC_COUNT = 122;
-const EXPECTED_CATALOG_SPEC_COUNT = 122;
+const EXPECTED_WORKSPACE_SPEC_COUNT = 123;
+const EXPECTED_CATALOG_SPEC_COUNT = 123;
 const EXPECTED_MANUAL_ONLY_SPEC_COUNT = 0;
 const EXPECTED_DOMAIN_COUNTS = new Map([
   // +1: C04 Clínicas admin column sort (admin-clinics-column-sort.spec.ts).
@@ -80,7 +80,8 @@ const EXPECTED_DOMAIN_COUNTS = new Map([
   // +1: C11 active filter chips and overflow (dashboard-c11-filter-chips.spec.ts).
   // +1: C12 controlled advanced filter sheet (dashboard-c12-advanced-filter-sheet.spec.ts).
   // +1: C13 details pane primitives (dashboard-c13-details-pane.spec.ts).
-  ["regression", 26],
+  // +1: C23a responsive shell over 13 viewports (dashboard-c23-responsive-integral.spec.ts).
+  ["regression", 27],
 ]);
 // E2E-GLOBAL-04: what each spec really traverses. No spec reaches Fastify or
 // Postgres today, so "integration" has no members; reclassifying any entry
@@ -118,7 +119,8 @@ const EXPECTED_LAYER_COUNTS = new Map<E2eLayer, number>([
   // +1: C17 pilot uses the populated admin fixture.
   // +1: C18 admin batch 1 uses the populated admin fixture.
   // +1: C21 clinic reports batch 1 uses the populated and default clinic fixture sessions.
-  ["fixture", 76],
+  // +1: C23a walks the shell on the populated admin and clinic fixture sessions.
+  ["fixture", 77],
 ]);
 const EXPECTED_CURRENT_COUNTS = new Map([
   // +3: E2E-GLOBAL-03 simulated auth boundary specs, promoted straight to
@@ -150,7 +152,8 @@ const EXPECTED_CURRENT_COUNTS = new Map([
   // +1: C20 Precios/Mantenimiento/Estado collection, pager and states contract.
   // +1: C21 clinic Informes module and full route collection, pager and states contract.
   // +1: C22 clinic Tokens/Logística/Operaciones collection, pager and states contract.
-  ["visual-contract", 44],
+  // +1: C23a navigation bands, phone overlays, focus return and role boundary.
+  ["visual-contract", 45],
   // +1: CMP-12 cross-role runtime parity contract, routed public-clinic like
   // the other CMP-04..09 parity specs (AGENTS.md §7).
   // +1: E2E-GLOBAL-06 P1 dashboard-logistica-mobile-action-bar-reachability,
@@ -187,14 +190,15 @@ const EXPECTED_EXECUTION_COUNTS = new Map<E2eExecutionCohort, number>([
   // +1: C20 belongs to visual-contract.
   // +1: C21 belongs to visual-contract.
   // +1: C22 belongs to visual-contract.
-  ["ci", 91],
+  // +1: C23a belongs to visual-contract.
+  ["ci", 92],
   ["extended", 27],
   // -1: E2E-GLOBAL-10 (R-16). `evidence` keeps the generator that does assert
   // layout (dashboard-runtime-post-ux1-visual-evidence) and loses the one that
   // asserted nothing.
   ["evidence", 1],
   ["visual-linux", 3],
-  ["full", 122],
+  ["full", 123],
   ["affected", 0],
 ]);
 const E2E_GLOBAL_06_PROMOTED_P1_SPECS = [
@@ -416,7 +420,7 @@ function validateCatalog(
   }
 
   const currentUnion = unique([...currentMemberships.keys()]).sort();
-  assert.equal(currentUnion.length, 91);
+  assert.equal(currentUnion.length, 92);
   assert.deepEqual(E2E_COHORT_SPECS.ci, currentUnion, "ci must equal the current four-cohort union");
 
   for (const cohort of ["extended", "evidence", "visual-linux", "full"] as const) {
@@ -488,11 +492,11 @@ test("catalog validation catches missing and duplicate entries in memory", async
 
   assert.throws(
     () => validateCatalog(missing, workspaceSpecs, E2E_MANUAL_ONLY_SPECS),
-    /121|classified/,
+    /122|classified/,
   );
   assert.throws(
     () => validateCatalog(duplicated, workspaceSpecs, E2E_MANUAL_ONLY_SPECS),
-    /123|unique/,
+    /124|unique/,
   );
 });
 
@@ -546,7 +550,7 @@ test("affected selection fails closed for empty or shared changes", async () => 
 
   const sharedSelection = runner.classifyAffectedPaths(["frontend/e2e/helpers/admin-mobile-contracts.ts"]);
   assert.equal(sharedSelection.fallback, true);
-  assert.equal(sharedSelection.specs.length, 91);
+  assert.equal(sharedSelection.specs.length, 92);
   assert.match(sharedSelection.reason, /shared E2E infrastructure/);
 });
 
