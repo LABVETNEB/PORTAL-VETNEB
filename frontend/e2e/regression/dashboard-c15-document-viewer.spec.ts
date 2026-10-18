@@ -318,6 +318,42 @@ test("C16 · error individual, reintento y cambio rápido de documento", async (
   expect(await page.evaluate(() => document.body.scrollHeight - document.body.clientHeight)).toBe(0);
 });
 
+test("C16 · render principal que interrumpe una miniatura en pintura la recupera", async ({ page }) => {
+  await mount(page);
+  await page.route("**/colored-many.pdf", (route) => route.fulfill({ status: 200, contentType: "application/pdf", headers: { "access-control-allow-origin": "*" }, body: coloredPdf(24) }));
+  await page.evaluate(() => {
+    type Session = { render: (canvas: HTMLCanvasElement, page: number, zoom: number) => Promise<void>; thumbnailTasks: Map<{ pageNumber: number }, unknown> };
+    const target = window as unknown as { __c15PdfSession: { prototype: { renderThumbnail: (this: Session, canvas: HTMLCanvasElement, page: number, signal: AbortSignal) => Promise<void> } }; __c16Preempted: string[] };
+    const preempted: string[] = target.__c16Preempted = [];
+    const original = target.__c15PdfSession.prototype.renderThumbnail;
+    target.__c15PdfSession.prototype.renderThumbnail = function (canvas, number, signal) {
+      const tasks = this.thumbnailTasks;
+      if (!Object.hasOwn(tasks, "set")) {
+        tasks.set = (job, task) => {
+          Map.prototype.set.call(tasks, job, task);
+          if (task && job.pageNumber === 2 && !preempted.length) {
+            preempted.push(String(job.pageNumber));
+            const main = document.querySelector<HTMLCanvasElement>('[data-c15-scroll="true"] canvas');
+            if (main) void this.render(main, 1, 1);
+          }
+          return tasks;
+        };
+      }
+      return original.call(this, canvas, number, signal);
+    };
+  });
+  await set(page, "__c15Source", pdf(`${ORIGIN}/colored-many.pdf`));
+  await page.getByRole("button", { name: "Abrir documento" }).click();
+  const dialog = page.getByRole("dialog", { name: "Documento sintético" });
+  const strip = dialog.getByRole("navigation", { name: "Miniaturas del documento" });
+  await expect(dialog.getByRole("img", { name: "Página 1 de 24" })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __c16Preempted: string[] }).__c16Preempted)).toEqual(["2"]);
+  await expect(strip.locator('[data-c16-page="2"] canvas')).toBeVisible();
+  await expect(strip.getByText("Miniatura no disponible")).toHaveCount(0);
+  await expect(strip.getByRole("button", { name: "Reintentar miniatura de página 2" })).toHaveCount(0);
+  await expect(dialog.getByRole("img", { name: "Página 1 de 24" })).toBeVisible();
+});
+
 test("C16 · banda móvil conserva scroll propio y fondo inmóvil", async ({ page }) => {
   await mount(page, 390, 844);
   await page.route("**/colored-many.pdf", (route) => route.fulfill({ status: 200, contentType: "application/pdf", headers: { "access-control-allow-origin": "*" }, body: coloredPdf(24) }));
