@@ -105,3 +105,70 @@ test("C16: actual session limits thumbnail tasks and gives the main canvas prior
     else Reflect.deleteProperty(globalThis, "window");
   }
 });
+
+test("C16: a main render that preempts a painting thumbnail rejects it as a retryable AbortError", async () => {
+  const previousWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
+  Object.defineProperty(globalThis, "window", { configurable: true, value: { devicePixelRatio: 1 } });
+  class RenderingCancelledException extends Error {
+    constructor(message: string) { super(message); this.name = "RenderingCancelledException"; }
+  }
+  const painting = new Map<number, { finish: () => void; fail: (error: Error) => void }>();
+  const document = {
+    numPages: 3,
+    getPage: async (pageNumber: number) => ({
+      getViewport: ({ scale }: { scale: number }) => ({ width: 300 * scale, height: 400 * scale }),
+      cleanup: () => {},
+      render: ({ canvas }: { canvas: { main?: boolean } }) => {
+        const key = canvas.main ? 0 : pageNumber;
+        let settled = false;
+        let resolve!: () => void;
+        let reject!: (error: Error) => void;
+        const promise = new Promise<void>((yes, no) => { resolve = yes; reject = no; });
+        const settle = (error?: Error) => { if (settled) return; settled = true; painting.delete(key); if (error) reject(error); else resolve(); };
+        painting.set(key, { finish: () => settle(), fail: (error) => settle(error) });
+        return { promise, cancel: () => settle(new RenderingCancelledException(`Rendering cancelled, page ${pageNumber}`)) };
+      },
+    }),
+  };
+  const session = new PdfSession(async () => ({
+    getDocument: () => ({ promise: Promise.resolve(document), destroy: async () => {} }),
+  }) as unknown as typeof import("pdfjs-dist"));
+  const canvas = (main = false) => ({ main, width: 0, height: 0, style: {}, getContext: () => ({}) }) as unknown as HTMLCanvasElement;
+  const tick = () => new Promise<void>((resolve) => setImmediate(resolve));
+  const outcome = (pending: Promise<void>) => pending.then(() => "fulfilled", (error: unknown) => error);
+  try {
+    await session.load("https://synthetic.test/file.pdf");
+    const preemptedCanvas = canvas();
+    const preempted = outcome(session.renderThumbnail(preemptedCanvas, 1, new AbortController().signal));
+    await tick();
+    assert.ok(painting.has(1), "thumbnail 1 must be painting before the main render starts");
+    const main = session.render(canvas(true), 2, 1);
+    const preemptedError = await preempted;
+    assert.ok(preemptedError instanceof DOMException, `preemption must not surface ${String(preemptedError)}`);
+    assert.equal(preemptedError.name, "AbortError");
+    assert.equal(preemptedCanvas.width, 0);
+    for (let index = 0; index < 10 && !painting.has(0); index += 1) await tick();
+    painting.get(0)?.finish();
+    await main;
+    const retried = outcome(session.renderThumbnail(canvas(), 1, new AbortController().signal));
+    await tick();
+    painting.get(1)?.finish();
+    assert.equal(await retried, "fulfilled");
+    const genuine = outcome(session.renderThumbnail(canvas(), 2, new AbortController().signal));
+    await tick();
+    painting.get(2)?.fail(new Error("synthetic paint failure"));
+    const genuineError = await genuine;
+    assert.ok(genuineError instanceof Error && !(genuineError instanceof DOMException));
+    assert.equal(genuineError.message, "synthetic paint failure");
+    const controller = new AbortController();
+    const withdrawn = outcome(session.renderThumbnail(canvas(), 3, controller.signal));
+    await tick();
+    controller.abort();
+    const withdrawnError = await withdrawn;
+    assert.ok(withdrawnError instanceof DOMException && withdrawnError.name === "AbortError");
+    await session.destroy();
+  } finally {
+    if (previousWindow) Object.defineProperty(globalThis, "window", previousWindow);
+    else Reflect.deleteProperty(globalThis, "window");
+  }
+});

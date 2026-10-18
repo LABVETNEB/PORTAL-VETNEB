@@ -31,6 +31,7 @@ type ThumbnailJob = {
   resolve: () => void;
   reject: (error: unknown) => void;
   queuedAbort: () => void;
+  preempted?: boolean;
 };
 
 function aborted(): Error {
@@ -67,7 +68,7 @@ export class PdfSession {
   async render(canvas: HTMLCanvasElement, pageNumber: number, zoom: number): Promise<void> {
     const generation = ++this.generation;
     this.mainPending = true;
-    for (const task of this.thumbnailTasks.values()) task?.cancel();
+    this.preemptThumbnails();
     await Promise.allSettled([...this.thumbnailPromises]);
     await this.cancelRender();
     try {
@@ -150,12 +151,16 @@ export class PdfSession {
       if (this.disposed || job.signal.aborted) throw aborted();
       completed = true;
       job.resolve();
-    } catch (error) { job.reject(error); }
+    } catch (error) { job.reject(job.preempted || job.signal.aborted || this.disposed ? aborted() : error); }
     finally {
       job.signal.removeEventListener("abort", cancel);
       if (!completed) { job.canvas.width = 0; job.canvas.height = 0; }
       page?.cleanup();
     }
+  }
+
+  private preemptThumbnails(): void {
+    for (const [job, task] of this.thumbnailTasks) if (task) { job.preempted = true; task.cancel(); }
   }
 
   private async cancelRender(): Promise<void> {
@@ -172,7 +177,7 @@ export class PdfSession {
     this.disposed = true;
     ++this.generation;
     for (const job of this.thumbnailQueue.splice(0)) { job.signal.removeEventListener("abort", job.queuedAbort); job.reject(aborted()); }
-    for (const task of this.thumbnailTasks.values()) task?.cancel();
+    this.preemptThumbnails();
     await this.cancelRender();
     await Promise.allSettled([...this.thumbnailPromises]);
     await this.loading?.destroy();
