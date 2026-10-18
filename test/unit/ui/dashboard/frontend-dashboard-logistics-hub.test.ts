@@ -54,7 +54,9 @@ function alertRendering(source: string, flag: string, message: string, empty: st
   const isAlert = (element: JsxNode) =>
     staticAttribute(element, "role") === "alert" && elementText(element).includes(message);
   const isEmpty = (element: JsxNode) =>
-    tagName(element) === "EmptyState" && staticAttribute(element, "description") === empty;
+    tagName(element) === "CollectionState" &&
+    staticAttribute(element, "variant") === "empty" &&
+    staticAttribute(element, "description") === empty;
 
   assertPlainProps(component, [flag]);
 
@@ -264,10 +266,10 @@ test("LogisticsCommandCenter shows visits error alert with role=alert", () => {
   });
 });
 
-test("LogisticsCommandCenter renders EmptyState for missing visits", () => {
+test("LogisticsCommandCenter renders the C03 empty state for missing visits", () => {
   const source = read(COMMAND_CENTER_PATH);
 
-  assert.ok(source.includes('import { EmptyState } from "@/components/dashboard/EmptyState";'));
+  assert.ok(source.includes('import { CollectionState } from "@/components/dashboard/EmptyState";'));
   assert.ok(source.includes("Sin visitas activas"));
   assert.ok(source.includes("No hay visitas de campo disponibles."));
 });
@@ -301,7 +303,7 @@ test("LogisticsCommandCenter shows route plans error alert with role=alert", () 
   assert.deepEqual(alertRendering(source, ...PLANS_ALERT), DISTINGUISHED);
 });
 
-test("LogisticsCommandCenter renders EmptyState for missing route plans", () => {
+test("LogisticsCommandCenter renders the C03 empty state for missing route plans", () => {
   const source = read(COMMAND_CENTER_PATH);
 
   assert.ok(source.includes("Sin planes de ruta"));

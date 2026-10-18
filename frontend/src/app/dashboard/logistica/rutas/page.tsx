@@ -7,11 +7,12 @@ import { CanonicalOperationalRow } from "@/components/dashboard/CanonicalOperati
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { Badge } from "@/components/ui/badge";
 import {
+  CollectionHeader,
+  ContentList,
+  ContentListItem,
   Table,
-  TableBody,
   TableCell,
   TableHead,
-  TableHeader,
   TableRow,
 } from "@/components/ui/table";
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,7 +25,7 @@ import {
 } from "@/lib/utils";
 import { LogisticsBoundedCanvas } from "../LogisticsBoundedCanvas";
 import { ModuleMetricRun } from "@/components/dashboard/ModuleMetricRun";
-import { DASHBOARD_TOUCH_PAGER_RESERVATION } from "@/components/dashboard/DashboardPager";
+import { CollectionPager } from "@/components/dashboard/DashboardPager";
 import { RoutePlanDetailDialog } from "../RoutePlanDetailDialog";
 
 export const metadata: Metadata = {
@@ -153,7 +154,8 @@ export default async function RutasPage({
             currentLimit={limit}
             maxLimit={RUTAS_MAX_LIMIT}
             mobileChildren={
-              <div
+              <ContentList
+                as="div"
                 className="flex min-h-0 w-full min-w-0 flex-1 flex-col divide-y divide-vetneb-line/60 overflow-hidden"
                 data-logistics-mobile-list="rutas"
               >
@@ -191,22 +193,22 @@ export default async function RutasPage({
                     No hay planes de ruta disponibles.
                   </p>
                 )}
-              </div>
+              </ContentList>
             }
             desktopChildren={
               <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
               <Table>
-            <TableHeader>
-              <TableRow>
+            <CollectionHeader>
+              <ContentListItem as="tr">
                 <TableHead>ID</TableHead>
                 <TableHead>Nombre</TableHead>
                 <TableHead>Fecha planificada</TableHead>
                 <TableHead>Paradas</TableHead>
                 <TableHead>Progreso</TableHead>
                 <TableHead>Estado</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+              </ContentListItem>
+            </CollectionHeader>
+            <ContentList as="tbody">
               {routePlansLoadError ? (
                 <TableRow>
                   <TableCell
@@ -226,7 +228,7 @@ export default async function RutasPage({
                         )
                       : 0;
                   return (
-                    <TableRow key={plan.id}>
+                    <ContentListItem as="tr" key={plan.id}>
                       <TableCell className="font-mono text-xs text-muted-foreground">
                         #{plan.id}
                       </TableCell>
@@ -261,7 +263,7 @@ export default async function RutasPage({
                           {getRoutePlanStatusLabel(plan.status)}
                         </Badge>
                       </TableCell>
-                    </TableRow>
+                    </ContentListItem>
                   );
                 })
               ) : (
@@ -274,20 +276,17 @@ export default async function RutasPage({
                   </TableCell>
                 </TableRow>
               )}
-            </TableBody>
+            </ContentList>
               </Table>
               </div>
             }
           />
         </CardContent>
-        <nav
+        <CollectionPager
+          variant="centered"
           aria-label="Paginación de planes de ruta"
-          data-dashboard-pager="true"
-          data-dashboard-adaptive-reserved-region="pager"
-          className="dashboard-pager min-h-10 shrink-0 border-t border-vetneb-line/70"
-          style={DASHBOARD_TOUCH_PAGER_RESERVATION}
-        >
-          <span data-dashboard-pager-prev="true" className="inline-flex">
+          className="shrink-0 border-t border-vetneb-line/70"
+          prevControl={
             <PublicRouteControl
               href={previousHref}
               variant="bare"
@@ -297,11 +296,13 @@ export default async function RutasPage({
             >
               Anterior
             </PublicRouteControl>
-          </span>
-          <span data-dashboard-pager-state="true" className="dashboard-pagination-context">
-            Página {currentPage}
-          </span>
-          <span data-dashboard-pager-next="true" className="inline-flex">
+          }
+          stateControl={
+            <span className="dashboard-pagination-context inline-block">
+              Página {currentPage}
+            </span>
+          }
+          nextControl={
             <PublicRouteControl
               href={nextHref}
               variant="bare"
@@ -311,8 +312,8 @@ export default async function RutasPage({
             >
               Siguiente
             </PublicRouteControl>
-          </span>
-        </nav>
+          }
+        />
       </ModuleCard>
       </ClinicFullRouteModuleStage>
     </ClinicDashboardShell>

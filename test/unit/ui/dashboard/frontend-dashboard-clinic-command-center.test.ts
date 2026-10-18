@@ -44,7 +44,8 @@ function alertRendering(source: string, flag: string, message: string, empty?: s
     staticAttribute(element, "role") === "alert" && elementText(element).includes(message);
   const isEmpty = (element: JsxNode) =>
     empty !== undefined &&
-    tagName(element) === "EmptyState" &&
+    tagName(element) === "CollectionState" &&
+    staticAttribute(element, "variant") === "empty" &&
     staticAttribute(element, "description") === empty;
 
   assertPlainProps(component, [flag]);
@@ -179,10 +180,10 @@ test("ClinicCommandCenter renders recent reports card with StatusBadge", () => {
   assert.ok(source.includes('import { StatusBadge } from "@/components/dashboard/StatusBadge";'));
 });
 
-test("ClinicCommandCenter renders empty state with EmptyState component for missing reports", () => {
+test("ClinicCommandCenter renders the C03 empty state for missing reports", () => {
   const source = read(CLINIC_COMMAND_CENTER_PATH);
 
-  assert.ok(source.includes('import { EmptyState } from "@/components/dashboard/EmptyState";'));
+  assert.ok(source.includes('import { CollectionState } from "@/components/dashboard/EmptyState";'));
   assert.ok(source.includes("No hay informes recientes disponibles."));
 });
 
@@ -216,7 +217,7 @@ test("ClinicCommandCenter renders recent visits card with StatusBadge", () => {
   assert.ok(source.includes("status={visit.status}"));
 });
 
-test("ClinicCommandCenter renders empty state with EmptyState component for missing visits", () => {
+test("ClinicCommandCenter renders the C03 empty state for missing visits", () => {
   const source = read(CLINIC_COMMAND_CENTER_PATH);
 
   assert.ok(source.includes("No hay visitas de campo recientes disponibles."));

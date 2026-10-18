@@ -3,7 +3,7 @@ import type { FieldVisit, RoutePlan } from "@/types";
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
-import { EmptyState } from "@/components/dashboard/EmptyState";
+import { CollectionState } from "@/components/dashboard/EmptyState";
 import { Truck, Route } from "lucide-react";
 import {
   getRoutePlanStatusLabel,
@@ -134,7 +134,8 @@ export function LogisticsCommandCenter({
                 ))}
               </LogisticsRecentListCanvas>
             ) : (
-              <EmptyState
+              <CollectionState
+                variant="empty"
                 title="Sin visitas activas"
                 description="No hay visitas de campo disponibles."
                 icon={Truck}
@@ -188,7 +189,8 @@ export function LogisticsCommandCenter({
                 })}
               </LogisticsRecentListCanvas>
             ) : (
-              <EmptyState
+              <CollectionState
+                variant="empty"
                 title="Sin planes de ruta"
                 description="No hay planes de ruta disponibles."
                 icon={Route}

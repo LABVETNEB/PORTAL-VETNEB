@@ -2,8 +2,12 @@
 
 import { Children, useState, type ReactNode } from "react";
 
-import { DashboardPager } from "@/components/dashboard/DashboardPager";
 import { usePagedRows } from "@/components/dashboard/usePagedRows";
+import {
+  CollectionPager,
+  CollectionWorkspace,
+  ContentList,
+} from "@/features/dashboard/presentation/surfaces";
 import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
 
 export type LogisticsRecentListCanvasProps = {
@@ -55,11 +59,12 @@ export function LogisticsRecentListCanvas({
   const paged = usePagedRows(items, capacity);
 
   return (
-    <div
+    <CollectionWorkspace
       data-dashboard-adaptive-reservation="true"
       className="flex min-h-0 flex-1 flex-col overflow-hidden"
     >
-      <div
+      <ContentList
+        as="div"
         ref={setCanvasNode}
         data-logistics-recent-list-canvas="true"
         data-dashboard-adaptive-rows-canvas="true"
@@ -68,8 +73,9 @@ export function LogisticsRecentListCanvas({
         className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden"
       >
         {paged.pageItems}
-      </div>
-      <DashboardPager
+      </ContentList>
+      <CollectionPager
+        variant="centered"
         aria-label={pagerAriaLabel}
         page={paged.page}
         pageCount={paged.pageCount}
@@ -84,6 +90,6 @@ export function LogisticsRecentListCanvas({
         }
         className="shrink-0 border-t border-vetneb-line/60"
       />
-    </div>
+    </CollectionWorkspace>
   );
 }

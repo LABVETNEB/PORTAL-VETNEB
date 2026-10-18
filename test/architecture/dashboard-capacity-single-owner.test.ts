@@ -296,11 +296,16 @@ test("surfaces composing a bounded wrapper reserve the pager themselves", () => 
 
   assert.ok(composers.length > 0, "the bounded wrapper must have consumers");
   for (const path of composers) {
-    assert.ok(
-      readSource(path).includes(
-        'data-dashboard-adaptive-reserved-region="pager"',
-      ),
+    // C22: the composing page renders the C02 owner, whose `nav` declares the region and its touch reservation.
+    assert.match(
+      readSource(path),
+      /<CollectionPager\n\s+variant="centered"/,
       `${path}: the surface composing a bounded canvas owns its pager reserve`,
+    );
+    assert.equal(
+      readSource(path).includes("DASHBOARD_TOUCH_PAGER_RESERVATION"),
+      false,
+      `${path}: the reservation belongs to the pager owner, not a second copy`,
     );
   }
 });
