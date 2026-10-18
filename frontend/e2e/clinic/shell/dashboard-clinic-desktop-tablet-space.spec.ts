@@ -500,3 +500,98 @@ test.describe(`CLINIC-DT-SPACE · phone boundary ${PHONE.name}`, () => {
     });
   });
 });
+
+// PR-BUG-01: the S7 bar renders on every load state, and filtering never
+// hides a load failure behind a false empty list.
+test.describe("CLINIC-DT-SPACE · PR-BUG-01 tokens bar on empty and failed loads", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 768 });
+    await setClinicSession(page, "populated");
+    await stubClientApis(page);
+  });
+
+  async function stubTokens(page: Page, mode: { current: "error" | "empty" | "populated" }) {
+    await page.route("**/api/particular-tokens**", (route) => {
+      const url = new URL(route.request().url());
+      if (route.request().method() !== "GET" || url.pathname !== "/api/particular-tokens") return route.fallback();
+      if (mode.current === "error") {
+        return route.fulfill({
+          status: 500,
+          contentType: "application/json",
+          body: JSON.stringify({ success: false, error: "Error interno" }),
+        });
+      }
+      const limit = Number(url.searchParams.get("limit")) || 12;
+      const particularTokens = mode.current === "empty" ? [] : A03_CLINIC_TOKENS.slice(0, limit);
+      return json(route, { success: true, count: particularTokens.length, particularTokens, pagination: { limit, offset: 0 } });
+    });
+  }
+
+  test("empty dataset keeps the bar painted", async ({ page }) => {
+    await stubTokens(page, { current: "empty" });
+    const card = (await openModule(page, "tokens")).locator("#clinic-particular-tokens");
+    await expect(card.getByText("No hay tokens particulares generados por esta clínica.")).toBeVisible({ timeout: 12_000 });
+    await expect(card.locator('[data-clinic-access-filter-bar="advanced"]')).toBeVisible();
+    await expectZeroScroll(page, "tokens empty");
+  });
+
+  test("failed load keeps the bar, Aplicar keeps the alert, Actualizar recovers with the draft intact", async ({ page }) => {
+    const mode = { current: "error" as "error" | "empty" | "populated" };
+    await stubTokens(page, mode);
+    const card = (await openModule(page, "tokens")).locator("#clinic-particular-tokens");
+    const alert = card.getByRole("alert");
+    await expect(alert).toBeVisible({ timeout: 12_000 });
+    const filters = card.locator('[data-clinic-access-filter-bar="advanced"]');
+    await expect(filters).toBeVisible();
+    await expectZeroScroll(page, "tokens failed load");
+
+    const tokenField = filters.getByPlaceholder("Últimos 4");
+    await tokenField.fill("zz99");
+    await filters.getByRole("button", { name: "Aplicar" }).click();
+    await expect(alert, "Aplicar must not hide the load failure").toBeVisible();
+    await filters.getByRole("button", { name: "Limpiar" }).click();
+    await expect(alert, "Limpiar must not hide the load failure").toBeVisible();
+
+    await tokenField.fill("zz99");
+    mode.current = "populated";
+    await card.getByRole("button", { name: "Actualizar" }).click();
+    await expect(alert).toHaveCount(0);
+    await expect(tokenField, "the draft survives the recovery").toHaveValue("zz99");
+    await expect(card.locator('[data-clinic-access-table="true"]')).toBeVisible();
+    await expectZeroScroll(page, "tokens recovered");
+  });
+
+  test("after a failed load, Limpiar drops a create validation error and restores the load error", async ({ page }) => {
+    await stubTokens(page, { current: "error" });
+    const card = (await openModule(page, "tokens")).locator("#clinic-particular-tokens");
+    const toolbarAlert = card.locator("p[role='alert']").first();
+    await expect(toolbarAlert).toBeVisible({ timeout: 12_000 });
+    const loadError = (await toolbarAlert.textContent())?.trim() ?? "";
+    expect(loadError, "the load failure is announced").not.toBe("");
+
+    await card.getByRole("button", { name: "Generar token particular" }).click();
+    const dialog = page.getByRole("dialog", { name: "Generar token particular" });
+    await dialog.locator("#clinic-token-particular-email").fill("tutor@example.test");
+    await dialog.locator("#clinic-token-tutor-last-name").fill("Sintetico");
+    await dialog.getByRole("button", { name: "Siguiente" }).click();
+    await dialog.locator("#clinic-token-pet-name").fill("Paciente");
+    await dialog.locator("#clinic-token-pet-age").fill("3");
+    await dialog.locator("#clinic-token-pet-breed").fill("Mestizo");
+    await dialog.getByRole("button", { name: "Siguiente" }).click();
+    await dialog.locator("#clinic-token-sample-location").fill("Dorso");
+    await dialog.locator("#clinic-token-sample-evolution").fill("Dos semanas");
+    await dialog.locator("#clinic-token-extraction-date").fill("2026-10-01");
+    await dialog.locator("#clinic-token-shipping-date").fill("2026-10-02");
+    // Whitespace passes the native `required` check but not the app's trim.
+    await dialog.getByLabel("Detalle de lesión").fill("   ");
+    await dialog.getByRole("button", { name: "Generar token particular" }).click();
+    const validation = "Complete el campo obligatorio: Detalle de lesión.";
+    await expect(dialog.getByRole("alert")).toHaveText(validation);
+    await dialog.getByRole("button", { name: "Cancelar" }).click();
+    await expect(dialog).toBeHidden();
+    await expect(toolbarAlert, "the shared message now carries the validation error").toHaveText(validation);
+
+    await card.locator('[data-clinic-access-filter-bar="advanced"]').getByRole("button", { name: "Limpiar" }).click();
+    await expect(toolbarAlert, "the load failure is shown again, not the stale validation error").toHaveText(loadError);
+  });
+});

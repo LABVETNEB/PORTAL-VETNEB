@@ -95,11 +95,11 @@ export type SuperSearchMode = "native-get" | "client-submit" | "debounced-server
 /** Where the filter predicate actually runs. */
 export type SuperSearchFiltering = "server-side" | "client-side";
 
-/** Bar render policy (audit §7.6 — deliberately NOT unified). */
-export type SuperSearchRenderPolicy =
-  | "always"
-  | "when-no-reports-load-error"
-  | "when-tokens-loaded";
+/**
+ * Bar render policy (audit §7.6), unified by PR-BUG-01: the bar never depends
+ * on load error or dataset size; only its viewport exposure varies.
+ */
+export type SuperSearchRenderPolicy = "always";
 
 export type SuperSearchContract = {
   readonly id: string;
@@ -366,8 +366,8 @@ export const SUPER_SEARCH_CONTRACTS: readonly SuperSearchContract[] = [
     backForwardRestores: false,
     reloadRestores: false,
     emptyState: "empty rows branch of the paged reports table",
-    errorState: "reportsLoadError replaces the whole bar with an error surface",
-    renderPolicy: "when-no-reports-load-error",
+    errorState: "reportsLoadError replaces the table with an alert + DashboardRefreshButton; the bar keeps rendering",
+    renderPolicy: "always",
     desktopVisibility: 'FilterBar from md: up ("hidden shrink-0 md:grid")',
     mobileAccess: "ModuleDialog variant (data-clinic-report-filter-bar=advanced-mobile)",
     markers: [
@@ -377,7 +377,7 @@ export const SUPER_SEARCH_CONTRACTS: readonly SuperSearchContract[] = [
       "INITIAL_REPORTS_FILTER_STATE",
       "Aplicar",
       "Limpiar",
-      "{!reportsLoadError ? renderAdvancedFilterForm() : null}",
+      "{renderAdvancedFilterForm()}",
       "hidden shrink-0 md:grid",
       'data-clinic-report-filter-bar={mobile ? "advanced-mobile" : "advanced"}',
       '"Filtros avanzados de informes clínica"',
@@ -403,8 +403,8 @@ export const SUPER_SEARCH_CONTRACTS: readonly SuperSearchContract[] = [
     backForwardRestores: false,
     reloadRestores: false,
     emptyState: '"Sin tokens para los filtros aplicados"',
-    errorState: "load error surfaced by the card; the bar disappears when tokens is empty",
-    renderPolicy: "when-tokens-loaded",
+    errorState: "load error surfaced by the card and kept by Aplicar/Limpiar (tokensLoadFailed); the bar keeps rendering",
+    renderPolicy: "always",
     // Clinic desktop/tablet space pass: the bar moved into the toolbar band,
     // left of Actualizar / Generar token particular, so it lost its `mb-2`.
     desktopVisibility: 'FilterBar from md: up, in the toolbar band ("hidden shrink-0 md:grid")',
@@ -419,7 +419,7 @@ export const SUPER_SEARCH_CONTRACTS: readonly SuperSearchContract[] = [
       "Actualizar",
       "disabled={isLoadingTokens}",
       "onClick={() => void loadTokens(effectiveFetchLimit)}",
-      "{tokens.length ? renderAdvancedFilterForm() : null}",
+      "{renderAdvancedFilterForm()}",
       "hidden shrink-0 md:grid",
       'data-clinic-access-filter-bar={mobile ? "advanced-mobile" : "advanced"}',
       '"Filtros avanzados de tokens clínica"',
@@ -535,10 +535,10 @@ export const DASHBOARD_OPERATIONAL_DRIFT: readonly DashboardDriftRecord[] = [
     auditClaim:
       "The conditional render policy is stated per surface only (`always` / `!reportsLoadError` / `tokens.length`), without a viewport dimension.",
     runtimeBehaviour:
-      "The policy is two-dimensional: on top of the state condition, the desktop bar is gated behind `md:` and mobile reaches the same fields through a `ModuleDialog` variant with its own aria-label — so the bar can be absent on mobile even when the state condition holds.",
+      "After PR-BUG-01 the state axis is gone (the bar renders on every load state), but the viewport axis remains: the desktop bar is gated behind `md:` and mobile reaches the same fields through a `ModuleDialog` variant with its own aria-label.",
     runtimeSourcePath: "frontend/src/components/dashboard/ClinicParticularTokensCard.tsx",
     runtimeMarkers: [
-      "{tokens.length ? renderAdvancedFilterForm() : null}",
+      "{renderAdvancedFilterForm()}",
       "hidden shrink-0 md:grid",
       '"Filtros avanzados de tokens clínica mobile"',
     ],

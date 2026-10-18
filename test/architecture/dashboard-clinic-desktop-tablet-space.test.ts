@@ -89,7 +89,7 @@ test("CLINIC-DT · Operaciones: intro retired visually, tabs and cards first", (
 test("CLINIC-DT · Informes and Tokens: filters left, actions right, in one wrapping band", () => {
   const informes = read(INFORMES);
   const informesBand = between(informes, 'data-clinic-reports-toolbar="true"', "</div>\n      <div");
-  assert.ok(informesBand.includes("{!reportsLoadError ? renderAdvancedFilterForm() : null}"), "Informes filters moved into the band");
+  assert.ok(informesBand.includes("{renderAdvancedFilterForm()}"), "Informes filters moved into the band");
   assert.ok(informesBand.indexOf("renderAdvancedFilterForm()") < informesBand.indexOf("{fullModuleLink}"), "filters before the CTA");
   assert.equal(count(informes, "renderAdvancedFilterForm()"), 1, "one desktop filter bar");
   assert.ok(informes.includes("md:shrink md:grow md:basis-[36rem]"), "the bar's basis is its grid's width");
@@ -97,7 +97,7 @@ test("CLINIC-DT · Informes and Tokens: filters left, actions right, in one wrap
 
   const tokens = read(TOKENS);
   const tokensBand = between(tokens, 'data-clinic-access-toolbar="true"', "<ModuleDialog");
-  assert.ok(tokensBand.includes("{tokens.length ? renderAdvancedFilterForm() : null}"), "Tokens filters moved into the band");
+  assert.ok(tokensBand.includes("{renderAdvancedFilterForm()}"), "Tokens filters moved into the band");
   assert.ok(tokensBand.includes("md:flex-wrap md:justify-end"), "actions wrap right when both do not fit");
   assert.equal(count(tokens, "renderAdvancedFilterForm()"), 1, "one desktop filter bar");
   assert.ok(tokens.includes("md:shrink md:grow md:basis-[36rem]"));

@@ -213,7 +213,7 @@ Las 10 skills se descomprimieron y leyeron íntegras. Comparten un bloque «Prot
 | `briefing-planificacion-diseno-desarrollo-pruebas` | **Sí** | Estructura del briefing y anti-deriva. | Cada PR de §49–51 lleva objetivo / alcance / **no alcance** / dependencias / archivos / invariantes / tests / riesgo / rollback / criterio de cierre, que es la estructura de 10 puntos de la skill. Su bloque «Anti-deriva» obligó a separar los 5 correctivos funcionales del rediseño (§52). | 11, 49–53, 57, 63 |
 | `staff-senior-full-stack-engineer` | **Sí** | Evidencia real del repo, contratos, fronteras entre capas. | «Leer archivos reales antes de modificar» produjo el Hecho 2 (tres hooks adaptativos), invisible sin abrir los tres. «No simular éxito» produjo la corrección del §1.2. Todas las referencias son `ruta:línea`. | 6, 13–21, 41–45 |
 | `production-web-optimization-engineer` | **Sí** | Renderizado, reflow, ResizeObserver, densidad, CSS, sobreingeniería, escala P0–P3. | Su checklist de frontend detectó: componentes de 62–83 KB (§14), `.field-select` duplicando `Select` (§15), 3 hooks adaptativos equivalentes (§20), 17 456 B de componentes muertos (§14.3). Su regla «no introducir abstracciones innecesarias» hizo rechazar un `SuperSearchBar` monolítico (§47.3). | 15, 16, 21, 40, 48 |
-| `admin-dashboard-operational-actions` | **Sí** | Acciones, filtros, botones, mutaciones, toolbars, selección. | Inventario de las 10 superficies admin con su acción real (§12); verificación en runtime de que Aplicar/Limpiar/Actualizar tienen handler; detección de que la barra de tokens de clínica desaparece con dataset vacío (§17, P2-09). | 13, 18, 20, 32–34 |
+| `admin-dashboard-operational-actions` | **Sí** | Acciones, filtros, botones, mutaciones, toolbars, selección. | Inventario de las 10 superficies admin con su acción real (§12); verificación en runtime de que Aplicar/Limpiar/Actualizar tienen handler; detección de que la barra de tokens de clínica desaparecía con dataset vacío (§7.6, BUG-01; cerrado por PR-BUG-01). | 13, 18, 20, 32–34 |
 | `security-production-invariants` | **Sí** | Roles, sesiones, cookies, IDs, tokens, rutas admin, datos sensibles. | Verificación de separación `admin_session_id` / `app_session_id` en los 15 módulos verificados; ningún filtro acepta token completo («Últimos 4»); ningún `data-*` contiene lexemas sensibles; ninguna colección expone hashes. | 12, 18, 61 |
 | `web-end-to-end-global` | **Sí** | Coherencia global admin + clínica, responsive, regresiones cruzadas. | Detectó el Hecho 3 (dos app shells para el rol clínica), que sólo aparece comparando `/dashboard` con `/dashboard/informes`. Motivó medir las 10 superficies de clínica además de las 11 de admin. | 13, 14, 17, 38, 57 |
 | `bugs-errores-optimizacion-rutas` | **Sí (condicional)** | Persisten defectos funcionales/UX. | 5 correctivos separados en §52: `line-height` degenerado, `aria-label` sobre `div` sin rol, barra condicionada a datos, doble shell de clínica, canvas de usuarios desalineado con su `limit`. | 41–45, 53 |
@@ -300,6 +300,8 @@ Los 7 superbuscadores son un **subsistema protegido** dentro del rediseño globa
 ### 7.6 Política de renderizado condicional (3 variantes, no unificadas)
 
 S1–S5 siempre renderizan su barra. S6 sólo si `!reportsLoadError`. S7 sólo si `tokens.length` es verdadero (`ClinicParticularTokensCard.tsx:916`). Unificar esta política es **PR-BUG-01** (§55); no es parte del rediseño visual.
+
+**Cerrado por PR-BUG-01 (2026-10-17):** S1–S7 renderizan siempre su barra; la carga fallida y el dataset vacío ya no la ocultan. Sólo varía la exposición por viewport (barra desde `md:`, `ModuleDialog` debajo). En S7, Aplicar/Limpiar no borran un error de carga (`tokensLoadFailed`). Guard: `dashboard-operational-contract-baseline.test.ts`.
 
 ### 7.7 Estado runtime no determinado de S7
 
@@ -1986,7 +1988,7 @@ Estructura completa por PR: **ID · Programa · Nivel · Título · Objetivo · 
 
 | PR | Hallazgo | Objetivo | Riesgo | Clasificación |
 |---|---|---|---|---|
-| **PR-BUG-01** | P2-09 | Unificar la política de renderizado condicional de la barra (3 políticas distintas: siempre / `tokens.length` / `!reportsLoadError`) | Medio — es operativa: exige decisión explícita | **Obligatorio** antes de C21/C22 (S6/S7 migran con política unificada) |
+| **PR-BUG-01** | BUG-01 (§7.6, §51.1; sin ID P propio — P2-09 es el ordenamiento de C04) | Unificar la política de renderizado condicional de la barra (3 políticas distintas: siempre / `tokens.length` / `!reportsLoadError`) | Medio — es operativa: exige decisión explícita | **Obligatorio** antes de C21/C22 (S6/S7 migran con política unificada) |
 | **PR-BUG-02** | P2-03 | `line-height: 12px` = `font-size` en Usuarios y roles → `line-height ≥ 1.25 × font-size` | Bajo | **Absorbible** en C25 (microgeometría) si no se ejecuta antes |
 | **PR-BUG-03** | P2-04, P2-05, P2-18 | `role="search"` en las 7 barras; `aria-label` sobre elemento con rol; `aria-describedby`; live region de conteo | Bajo | **Absorbible** en C10–C12 (subsistema de filtros) |
 | **PR-BUG-04** | P0-04 | *(si se decide antes del Programa B)* Alinear el shell de `/dashboard` con el de las rutas completas de clínica | **Alto** — toca el canvas medido | **Opcional**: B10 ya resuelve P0-04 dentro del roadmap principal; sólo se activa como PR-BUG-04 si se decide adelantarlo fuera de secuencia |
@@ -2178,7 +2180,7 @@ El programa sólo puede cerrarse cuando, simultáneamente:
 
 | Dato | Estado | Medición que lo resolvería |
 |---|---|---|
-| Geometría en runtime de S7 (tokens de clínica) | **NO DETERMINADO CON LA EVIDENCIA DISPONIBLE** — el fixture no puebla tokens de clínica y la barra sólo se renderiza con `tokens.length` verdadero | Fixture con tokens poblados, o staging con sesión de clínica real |
+| Geometría en runtime de S7 (tokens de clínica) | **NO DETERMINADO CON LA EVIDENCIA DISPONIBLE** — el fixture no puebla tokens de clínica (desde PR-BUG-01 la barra se renderiza aunque `tokens` esté vacío) | Fixture con tokens poblados, o staging con sesión de clínica real |
 | Valores en **tema oscuro** de las 21 superficies | **NO DETERMINADO** — la medición fue en claro; las capturas del propietario están en oscuro | Repetir §21–§24 con `localStorage['vetneb-theme-mode']='dark-gray'` y `emulateMedia({colorScheme:'dark'})` |
 | Ratios de contraste WCAG reales | **NO DETERMINADO** — no se ejecutó axe | `@axe-core/playwright` sobre las 21 superficies, ambos temas |
 | `--md-sys-color-error` / `-error-container` | **NO DETERMINADO** | Censar los tokens de error actuales en `globals.css` |
