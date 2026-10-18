@@ -267,23 +267,26 @@ test("PR-BUG-01 · S7 Aplicar/Limpiar cannot hide a tokens load error", () => {
     return source.slice(start, source.indexOf("\n  }\n", start));
   };
 
+  // The provenance is the load error's own text, not a flag: create/validation
+  // flows replace the shared `errorMessage`, and a flag would then keep their
+  // message alive (review thread PRRT_kwDOR5qlsc6tljPe).
+  assert.doesNotMatch(source, /tokensLoadFailed/, "no boolean provenance flag");
   const load = body("loadTokens");
-  assert.ok(load.includes("setTokensLoadFailed(false);"), "a successful load clears the failure");
-  assert.ok(
-    load.indexOf("setTokensLoadFailed(true);") > load.indexOf("catch (error)"),
-    "only the failure branch marks the load as failed",
-  );
+  assert.ok(load.includes("setLoadErrorMessage(null);"), "a successful load clears the load error");
+  const failure = load.slice(load.indexOf("catch (error)"));
+  assert.ok(failure.includes("setLoadErrorMessage(message);"), "the failure branch records the load error");
+  assert.ok(failure.includes("setErrorMessage(message);"), "and shows that same text");
 
   for (const name of ["applyAdvancedFilters", "clearAdvancedFilters"]) {
     const handler = body(name);
     assert.doesNotMatch(
       handler,
-      /^\s*setErrorMessage\(null\);/m,
-      `${name} must not clear errorMessage unconditionally`,
+      /setErrorMessage\(null\);/,
+      `${name} must not clear a load error`,
     );
     assert.ok(
-      handler.includes("if (!tokensLoadFailed) setErrorMessage(null);"),
-      `${name} keeps the load error visible`,
+      handler.includes("setErrorMessage(loadErrorMessage);"),
+      `${name} drops unrelated errors and keeps the load error`,
     );
   }
 });

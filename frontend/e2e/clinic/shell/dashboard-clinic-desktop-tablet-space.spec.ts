@@ -560,4 +560,38 @@ test.describe("CLINIC-DT-SPACE · PR-BUG-01 tokens bar on empty and failed loads
     await expect(card.locator('[data-clinic-access-table="true"]')).toBeVisible();
     await expectZeroScroll(page, "tokens recovered");
   });
+
+  test("after a failed load, Limpiar drops a create validation error and restores the load error", async ({ page }) => {
+    await stubTokens(page, { current: "error" });
+    const card = (await openModule(page, "tokens")).locator("#clinic-particular-tokens");
+    const toolbarAlert = card.locator("p[role='alert']").first();
+    await expect(toolbarAlert).toBeVisible({ timeout: 12_000 });
+    const loadError = (await toolbarAlert.textContent())?.trim() ?? "";
+    expect(loadError, "the load failure is announced").not.toBe("");
+
+    await card.getByRole("button", { name: "Generar token particular" }).click();
+    const dialog = page.getByRole("dialog", { name: "Generar token particular" });
+    await dialog.locator("#clinic-token-particular-email").fill("tutor@example.test");
+    await dialog.locator("#clinic-token-tutor-last-name").fill("Sintetico");
+    await dialog.getByRole("button", { name: "Siguiente" }).click();
+    await dialog.locator("#clinic-token-pet-name").fill("Paciente");
+    await dialog.locator("#clinic-token-pet-age").fill("3");
+    await dialog.locator("#clinic-token-pet-breed").fill("Mestizo");
+    await dialog.getByRole("button", { name: "Siguiente" }).click();
+    await dialog.locator("#clinic-token-sample-location").fill("Dorso");
+    await dialog.locator("#clinic-token-sample-evolution").fill("Dos semanas");
+    await dialog.locator("#clinic-token-extraction-date").fill("2026-10-01");
+    await dialog.locator("#clinic-token-shipping-date").fill("2026-10-02");
+    // Whitespace passes the native `required` check but not the app's trim.
+    await dialog.getByLabel("Detalle de lesión").fill("   ");
+    await dialog.getByRole("button", { name: "Generar token particular" }).click();
+    const validation = "Complete el campo obligatorio: Detalle de lesión.";
+    await expect(dialog.getByRole("alert")).toHaveText(validation);
+    await dialog.getByRole("button", { name: "Cancelar" }).click();
+    await expect(dialog).toBeHidden();
+    await expect(toolbarAlert, "the shared message now carries the validation error").toHaveText(validation);
+
+    await card.locator('[data-clinic-access-filter-bar="advanced"]').getByRole("button", { name: "Limpiar" }).click();
+    await expect(toolbarAlert, "the load failure is shown again, not the stale validation error").toHaveText(loadError);
+  });
 });

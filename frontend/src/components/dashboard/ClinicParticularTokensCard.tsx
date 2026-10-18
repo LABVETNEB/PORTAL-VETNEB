@@ -382,8 +382,10 @@ export function ClinicParticularTokensCard() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   // The filter bar renders on every load state, so Aplicar/Limpiar must not
-  // erase a load failure and leave a false empty list behind it.
-  const [tokensLoadFailed, setTokensLoadFailed] = useState(false);
+  // erase a load failure and leave a false empty list behind it. The load
+  // error keeps its own text because create/validation flows replace the
+  // shared `errorMessage`; filtering restores this one and drops theirs.
+  const [loadErrorMessage, setLoadErrorMessage] = useState<string | null>(null);
 
   // Callback-ref state (not `useRef`): these nodes sit behind the
   // `tokens.length` conditional and only mount once `loadTokens()` resolves,
@@ -431,7 +433,7 @@ export function ClinicParticularTokensCard() {
       const snapshot = await getClinicParticularTokens({ limit, offset: 0 });
       const nextTokens = snapshot.particularTokens;
       setTokens(nextTokens);
-      setTokensLoadFailed(false);
+      setLoadErrorMessage(null);
       setSelectedTokenId((current) =>
         current && nextTokens.some((token) => token.id === current)
           ? current
@@ -450,12 +452,12 @@ export function ClinicParticularTokensCard() {
       setTrackingCasesByTokenId({});
       setTrackingLoadedTokenIds({});
     } catch (error) {
-      setTokensLoadFailed(true);
-      setErrorMessage(
+      const message =
         error instanceof Error
           ? error.message
-          : "No se pudieron cargar los tokens particulares.",
-      );
+          : "No se pudieron cargar los tokens particulares.";
+      setLoadErrorMessage(message);
+      setErrorMessage(message);
       setTrackingCasesByTokenId({});
       setTrackingLoadedTokenIds({});
     } finally {
@@ -569,7 +571,7 @@ export function ClinicParticularTokensCard() {
     });
     pagedTokens.setPage(0);
     setSelectedTokenId(null);
-    if (!tokensLoadFailed) setErrorMessage(null);
+    setErrorMessage(loadErrorMessage);
     setIsFilterDialogOpen(false);
   }
 
@@ -578,7 +580,7 @@ export function ClinicParticularTokensCard() {
     setAppliedFilters(INITIAL_FILTER_STATE);
     pagedTokens.setPage(0);
     setSelectedTokenId(null);
-    if (!tokensLoadFailed) setErrorMessage(null);
+    setErrorMessage(loadErrorMessage);
     setIsFilterDialogOpen(false);
   }
 
