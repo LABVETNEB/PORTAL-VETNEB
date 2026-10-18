@@ -118,7 +118,7 @@ test("dashboard informes page shows empty state when reports are unavailable", (
   assert.ok(listSource.includes("No se pudieron cargar los informes. Intente nuevamente."));
   assert.ok(listSource.includes('role="alert"'));
   assert.ok(listSource.includes("No hay informes disponibles."));
-  assert.ok(listSource.includes("<EmptyState"));
+  assert.match(listSource, /<CollectionState\s+variant="empty"/);
   assert.ok(listSource.includes("visibleReports.map((report"));
 });
 

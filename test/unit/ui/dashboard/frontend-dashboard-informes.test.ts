@@ -209,7 +209,7 @@ test("dashboard informes keeps empty state and avoids client-side fetch literals
   const actionsSource = read(INFORMES_ACTIONS_PATH);
 
   assert.ok(listSource.includes("No hay informes disponibles."));
-  assert.ok(listSource.includes("<EmptyState"));
+  assert.match(listSource, /<CollectionState\s+variant="empty"/);
   assert.equal(listSource.includes("colSpan={7}"), false);
   assert.equal(pageSource.includes("fetch("), false);
   assert.equal(listSource.includes("fetch("), false);
@@ -228,7 +228,7 @@ test("dashboard informes separates fetch failures from real empty report lists",
   assert.ok(source.includes("reportsLoadError = true;"));
   assert.ok(listSource.includes("loadError ?"));
   assert.ok(listSource.includes("No se pudieron cargar los informes"));
-  assert.ok(listSource.includes("<ErrorState"));
+  assert.match(listSource, /<CollectionState\s+variant="error"/);
   assert.ok(listSource.includes("reports.length > 0 ?"));
   assert.ok(listSource.includes("No hay informes disponibles."));
   assert.deepEqual(reportsLoadFlag(source), {

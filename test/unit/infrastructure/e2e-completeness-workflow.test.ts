@@ -336,7 +336,8 @@ test("automatic workflow coverage is derived from catalog cohorts and equals ful
   // +1: C18 admin batch 1 (admin/shell/admin-c18-batch-1.spec.ts).
   // +1: C19 admin batch 2 (admin/shell/admin-c19-batch-2.spec.ts).
   // +1: C20 admin batch 3 (admin/shell/admin-c20-batch-3.spec.ts).
-  assert.equal(E2E_SUITE_CATALOG.length, 120);
+  // +1: C21 clinic reports batch 1 (clinic/reports/clinic-c21-reports-batch-1.spec.ts).
+  assert.equal(E2E_SUITE_CATALOG.length, 121);
 
   const partitionUnion = new Set(PARTITION_COHORTS.flatMap((cohort) => E2E_COHORT_SPECS[cohort]));
   assert.deepEqual([...partitionUnion].sort(), [...E2E_COHORT_SPECS.full].sort());
