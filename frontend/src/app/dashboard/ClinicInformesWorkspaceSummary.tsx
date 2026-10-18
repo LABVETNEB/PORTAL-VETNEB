@@ -15,7 +15,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
-import { EmptyState } from "@/components/dashboard/EmptyState";
 import { DashboardRefreshButton } from "@/components/dashboard/DashboardRefreshButton";
 import { DASHBOARD_TOUCH_PAGER_RESERVATION } from "@/components/dashboard/DashboardPager";
 import { ModuleDialog } from "@/components/dashboard/ModuleDialog";
@@ -24,6 +23,14 @@ import { ReportFileActions } from "@/components/dashboard/ReportDownloadButton";
 import { usePagedRows } from "@/components/dashboard/usePagedRows";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { FullModuleRouteControl } from "@/components/dashboard/FullModuleRouteControl";
+import { DetailsMetadata, DetailsPane } from "@/features/dashboard/presentation/details";
+import {
+  CollectionHeader,
+  CollectionState,
+  CollectionWorkspace,
+  ContentList,
+  ContentListItem,
+} from "@/features/dashboard/presentation/surfaces";
 import { ROUTES } from "@/lib/routes";
 import { formatDate } from "@/lib/utils";
 
@@ -366,7 +373,7 @@ export function ClinicInformesWorkspaceSummary({
           data-clinic-reports-list-panel="true"
           className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-vetneb-line/75 bg-card/82"
         >
-          <div
+          <CollectionWorkspace
             ref={setReportsListBodyNode}
             data-clinic-reports-list-body="true"
             data-dashboard-adaptive-rows-canvas="true"
@@ -381,10 +388,10 @@ export function ClinicInformesWorkspaceSummary({
                   className="hidden min-h-0 flex-1 overflow-hidden md:block"
                 >
                   <table className="w-full table-fixed text-[0.8125rem]">
-                    <thead
+                    <CollectionHeader
                       className="border-b border-vetneb-line/65 bg-vetneb-surface-muted/65 text-xs font-semibold uppercase text-muted-foreground"
                     >
-                      <tr>
+                      <ContentListItem as="tr">
                         <th className="w-[26%] px-3 py-2 text-left">
                           Caso / Paciente
                         </th>
@@ -395,11 +402,12 @@ export function ClinicInformesWorkspaceSummary({
                           Archivo / Informe
                         </th>
                         <th className="w-[10%] px-3 py-2 text-right">Acción</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-vetneb-line/60">
+                      </ContentListItem>
+                    </CollectionHeader>
+                    <ContentList as="tbody" className="divide-y divide-vetneb-line/60">
                       {pagedReports.pageItems.map((report, index) => (
-                        <tr
+                        <ContentListItem
+                          as="tr"
                           key={report.id}
                           data-clinic-reports-table-row="true"
                           className="hover:bg-vetneb-cyan/8"
@@ -439,18 +447,20 @@ export function ClinicInformesWorkspaceSummary({
                               Ver
                             </Button>
                           </td>
-                        </tr>
+                        </ContentListItem>
                       ))}
-                    </tbody>
+                    </ContentList>
                   </table>
                 </div>
 
-                <div
+                <ContentList
+                  as="div"
                   data-clinic-reports-mobile-list="true"
                   className="flex min-h-0 flex-1 flex-col divide-y divide-vetneb-line/60 overflow-hidden md:hidden"
                 >
                   {pagedReports.pageItems.map((report, index) => (
-                    <div
+                    <ContentListItem
+                      as="div"
                       key={report.id}
                       data-clinic-reports-mobile-row="true"
                   data-dashboard-adaptive-row="true"
@@ -476,13 +486,14 @@ export function ClinicInformesWorkspaceSummary({
                           Ver
                         </Button>
                       </div>
-                    </div>
+                    </ContentListItem>
                   ))}
-                </div>
+                </ContentList>
               </>
             ) : (
               <div className="flex min-h-0 flex-1 p-3">
-                <EmptyState
+                <CollectionState
+                  variant="empty"
                   title="Sin informes para los filtros aplicados"
                   description="No hay informes recientes que coincidan con los campos visibles seleccionados."
                   icon={ClipboardList}
@@ -491,7 +502,7 @@ export function ClinicInformesWorkspaceSummary({
                 />
               </div>
             )}
-          </div>
+          </CollectionWorkspace>
 
           <div
             data-clinic-reports-pagination-footer="true"
@@ -562,7 +573,8 @@ export function ClinicInformesWorkspaceSummary({
           </div>
         </div>
       ) : (
-        <EmptyState
+        <CollectionState
+          variant="empty"
           title="Sin informes recientes"
           description="No hay informes recientes disponibles."
           icon={ClipboardList}
@@ -585,63 +597,50 @@ export function ClinicInformesWorkspaceSummary({
             data-clinic-reports-detail-dialog="true"
             className="flex min-h-0 flex-col gap-3 text-xs"
           >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-[0.6875rem] text-muted-foreground">
-                  Caso / Paciente
-                </p>
-                <p className="dashboard-detail-value text-sm font-semibold text-vetneb-ink">
-                  {selectedReport.patientName ?? "Sin nombre"}
-                </p>
+            <DetailsPane label={`Detalle del informe #${selectedReport.id}`}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[0.6875rem] text-muted-foreground">
+                    Caso / Paciente
+                  </p>
+                  <p className="dashboard-detail-value text-sm font-semibold text-vetneb-ink">
+                    {selectedReport.patientName ?? "Sin nombre"}
+                  </p>
+                </div>
+                <StatusBadge
+                  status={selectedReport.status}
+                  size="sm"
+                  className="shrink-0"
+                />
               </div>
-              <StatusBadge
-                status={selectedReport.status}
-                size="sm"
-                className="shrink-0"
+
+              <DetailsMetadata
+                items={[
+                  { id: "estudio", label: "Estudio", value: selectedReport.studyType ?? "Tipo sin registrar" },
+                  { id: "fecha", label: "Fecha", value: formatDate(selectedReport.uploadDate) },
+                  { id: "archivo", label: "Archivo / Informe", value: formatReportFile(selectedReport) },
+                ]}
               />
-            </div>
 
-            <dl className="grid grid-cols-1 gap-x-3 gap-y-2 rounded-lg border border-vetneb-line/70 px-3 py-2 sm:grid-cols-2">
-              <div className="min-w-0">
-                <dt className="text-[0.6875rem] text-muted-foreground">Estudio</dt>
-                <dd className="dashboard-detail-value font-medium">
-                  {selectedReport.studyType ?? "Tipo sin registrar"}
-                </dd>
+              <div className="border-t border-vetneb-line/65 pt-2">
+                <p className="mb-1 text-xs font-medium">Documento seguro</p>
+                <ReportFileActions
+                  reportId={selectedReport.id}
+                  hasFile={selectedReport.hasFile}
+                  scope="clinic"
+                  align="start"
+                />
               </div>
-              <div className="min-w-0">
-                <dt className="text-[0.6875rem] text-muted-foreground">Fecha</dt>
-                <dd className="dashboard-detail-value">
-                  {formatDate(selectedReport.uploadDate)}
-                </dd>
-              </div>
-              <div className="min-w-0 sm:col-span-2">
-                <dt className="text-[0.6875rem] text-muted-foreground">
-                  Archivo / Informe
-                </dt>
-                <dd className="dashboard-detail-value">
-                  {formatReportFile(selectedReport)}
-                </dd>
-              </div>
-            </dl>
 
-            <div className="border-t border-vetneb-line/65 pt-2">
-              <p className="mb-1 text-xs font-medium">Documento seguro</p>
-              <ReportFileActions
-                reportId={selectedReport.id}
-                hasFile={selectedReport.hasFile}
-                scope="clinic"
-                align="start"
-              />
-            </div>
-
-            <PublicRouteControl
-              href={`${ROUTES.dashboardInformes}?reportId=${selectedReport.id}`}
-              variant="textLink"
-              className="text-xs"
-              aria-label={`Abrir informe ${selectedReport.id} en el módulo completo`}
-            >
-              Abrir en módulo completo
-            </PublicRouteControl>
+              <PublicRouteControl
+                href={`${ROUTES.dashboardInformes}?reportId=${selectedReport.id}`}
+                variant="textLink"
+                className="text-xs"
+                aria-label={`Abrir informe ${selectedReport.id} en el módulo completo`}
+              >
+                Abrir en módulo completo
+              </PublicRouteControl>
+            </DetailsPane>
           </div>
         </ModuleDialog>
       ) : null}

@@ -3,9 +3,6 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { CanonicalOperationalRow } from "@/components/dashboard/CanonicalOperationalRow";
-import { DASHBOARD_TOUCH_PAGER_RESERVATION } from "@/components/dashboard/DashboardPager";
-import { EmptyState } from "@/components/dashboard/EmptyState";
-import { ErrorState } from "@/components/dashboard/ErrorState";
 import { ModuleDialog } from "@/components/dashboard/ModuleDialog";
 import {
   classifyPageRequestFailure,
@@ -20,6 +17,12 @@ import {
   StudyTimeline,
   type StudyTimelineStep,
 } from "@/components/dashboard/StudyTimeline";
+import {
+  CollectionPager,
+  CollectionState,
+  CollectionWorkspace,
+  ContentList,
+} from "@/features/dashboard/presentation/surfaces";
 import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
 import { getReportStatusLabel, getReportStatusVariant, formatDate } from "@/lib/utils";
 import type { Report, ReportStatus } from "@/types";
@@ -644,7 +647,7 @@ export function InformesReportsList({
       </div>
 
       {loadError || reports.length === 0 ? (
-        <div className="flex min-h-0 flex-1 flex-col">
+        <CollectionWorkspace className="flex min-h-0 flex-1 flex-col">
           <section
             id="reports-master-list"
             aria-labelledby="reports-list-heading"
@@ -663,24 +666,26 @@ export function InformesReportsList({
             <div ref={setBodyNode} className="flex min-h-0 flex-1 overflow-hidden p-3 sm:p-4">
               {loadError ? (
                 <div role="alert">
-                  <ErrorState
+                  <CollectionState
+                    variant="error"
                     title="No se pudieron cargar los informes"
                     message="No se pudieron cargar los informes. Intente nuevamente."
                   />
                 </div>
               ) : (
-                <EmptyState
+                <CollectionState
+                  variant="empty"
                   title="No hay informes disponibles."
                   description="Cuando haya informes para los filtros actuales, aparecerán en esta lista."
                 />
               )}
             </div>
           </section>
-        </div>
+        </CollectionWorkspace>
       ) : null}
 
       {!loadError && reports.length > 0 ? (
-        <div
+        <CollectionWorkspace
           className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]"
           data-informes-master-detail-canvas="true"
         >
@@ -700,7 +705,8 @@ export function InformesReportsList({
               </p>
             </div>
 
-            <div
+            <ContentList
+              as="div"
               ref={setBodyNode}
               data-informes-rows-canvas="true"
               data-dashboard-adaptive-rows-canvas="true"
@@ -731,7 +737,7 @@ export function InformesReportsList({
                   />
                 );
               })}
-            </div>
+            </ContentList>
 
             {selectedReport ? (
               <div
@@ -760,19 +766,12 @@ export function InformesReportsList({
               </div>
             ) : null}
 
-            <nav
+            <CollectionPager
+              variant="centered"
               aria-label="Paginación de informes"
-              data-dashboard-pager="true"
-              data-dashboard-adaptive-reserved-region="pager"
-              className="dashboard-pager min-h-10 shrink-0 border-t border-vetneb-line/70"
-              style={DASHBOARD_TOUCH_PAGER_RESERVATION}
-            >
-              {totalCount > 0 ? (
-                <span className="sr-only" aria-live="polite">
-                  {pageStart}–{pageEnd} de {totalCount}
-                </span>
-              ) : null}
-              <span data-dashboard-pager-prev="true" className="inline-flex">
+              className="shrink-0 border-t border-vetneb-line/70"
+              rangeLabel={totalCount > 0 ? `${pageStart}–${pageEnd} de ${totalCount}` : undefined}
+              prevControl={
                 <button
                   type="button"
                   onClick={goToPreviousPage}
@@ -783,11 +782,13 @@ export function InformesReportsList({
                 >
                   Anterior
                 </button>
-              </span>
-              <span data-dashboard-pager-state="true" className="dashboard-pagination-context">
-                Pág. {page} / {reportsTotalPages}
-              </span>
-              <span data-dashboard-pager-next="true" className="inline-flex">
+              }
+              stateControl={
+                <span className="dashboard-pagination-context inline-block">
+                  Pág. {page} / {reportsTotalPages}
+                </span>
+              }
+              nextControl={
                 <button
                   type="button"
                   onClick={goToNextPage}
@@ -798,8 +799,8 @@ export function InformesReportsList({
                 >
                   Siguiente
                 </button>
-              </span>
-            </nav>
+              }
+            />
           </section>
 
           {selectedReport ? (
@@ -834,7 +835,7 @@ export function InformesReportsList({
               </div>
             </ModuleDialog>
           ) : null}
-        </div>
+        </CollectionWorkspace>
       ) : null}
     </>
   );

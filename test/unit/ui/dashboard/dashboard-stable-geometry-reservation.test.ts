@@ -17,8 +17,8 @@ const INFORMES_PATH =
   "frontend/src/app/dashboard/informes/InformesReportsList.tsx";
 const ZERO_SCROLL_CSS_PATH =
   "frontend/src/styles/dashboard/zero-scroll.css";
+// C21: the Informes full route renders the C02 owner, which declares the region and the touch reservation.
 const DIRECT_DASHBOARD_PAGERS = [
-  INFORMES_PATH,
   "frontend/src/app/dashboard/logistica/visitas/page.tsx",
   "frontend/src/app/dashboard/logistica/rutas/page.tsx",
   "frontend/src/app/dashboard/logistica/metricas/page.tsx",
@@ -85,6 +85,8 @@ test("A05 declares a dashboard-scoped pager reservation without changing its tok
       `${path} must declare its fixed dashboard-pager region`,
     );
   }
+  assert.match(read(INFORMES_PATH), /<CollectionPager\n\s+variant="centered"/, "Informes delegates its pager region to the C02 owner");
+  assert.match(source, /<nav[\s\S]*?data-dashboard-adaptive-reserved-region="pager"[\s\S]*?style=\{DASHBOARD_TOUCH_PAGER_RESERVATION\}/);
 });
 
 test("A05 retains the legacy action-bar constant while CMP-06 keeps logistics actions in-card", () => {
