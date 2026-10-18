@@ -27,9 +27,14 @@ import {
 import {
   CollectionHeader,
   CollectionState,
+  CollectionViewToggle,
   CollectionWorkspace,
+  collectionGridRows,
+  ContentGrid,
+  ContentGridItem,
   ContentList,
   ContentListItem,
+  useCollectionView,
 } from "@/features/dashboard/presentation/surfaces";
 import {
   BACKEND_CONNECTION_ERROR_MESSAGE,
@@ -115,16 +120,26 @@ function clinicsAriaSort(
   return current.direction === "asc" ? "ascending" : "descending";
 }
 
+// Outside a table head there is no th to carry aria-sort (C24 grid head), so
+// the applied order is spoken by the control itself.
+const CLINICS_SORT_STATE_LABEL = {
+  ascending: ", orden ascendente",
+  descending: ", orden descendente",
+  none: ", sin orden",
+} as const;
+
 function ClinicsSortHeaderButton({
   label,
   title,
   ariaSort,
   onToggle,
+  announceState = false,
 }: {
   label: string;
   title: string;
   ariaSort: "ascending" | "descending" | "none";
   onToggle: () => void;
+  announceState?: boolean;
 }) {
   const Icon = ariaSort === "ascending" ? ArrowUp : ariaSort === "descending" ? ArrowDown : ArrowUpDown;
 
@@ -137,6 +152,7 @@ function ClinicsSortHeaderButton({
       className="-mx-1 inline-flex items-center gap-1 rounded px-1 py-0.5 uppercase transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
     >
       {label}
+      {announceState ? <span className="sr-only">{CLINICS_SORT_STATE_LABEL[ariaSort]}</span> : null}
       <Icon className="h-3 w-3 shrink-0" aria-hidden="true" />
     </button>
   );
@@ -195,6 +211,7 @@ export function AdminClinicsManagementCard() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [activeActionKey, setActiveActionKey] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const collectionView = useCollectionView();
 
   // One collapsed runtime feeds both presentations, so the visible container
   // (desktop table region or mobile list region) drives a single cardinality.
@@ -706,6 +723,7 @@ export function AdminClinicsManagementCard() {
             {isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <RefreshCw aria-hidden="true" />}
             {isPending ? "Actualizando..." : "Actualizar"}
           </Button>
+          <CollectionViewToggle label="clínicas" view={collectionView.preferred} onViewChange={collectionView.setView} />
         </div>
 
         <CollectionWorkspace
@@ -715,6 +733,76 @@ export function AdminClinicsManagementCard() {
               data-dashboard-canvas-reserve="table-head-dense"
           className="dashboard-table-responsive hidden min-h-0 flex-1 md:block"
         >
+          {collectionView.view === "grid" && rows.length ? (
+            <div className="flex h-full min-h-0 flex-col" data-admin-clinics-grid="true">
+              <div
+                role="group"
+                aria-label="Ordenar clínicas"
+                data-collection-grid-head="true"
+                className="flex shrink-0 items-center gap-4 border-b border-vetneb-line/65 bg-vetneb-surface-muted/65 px-3 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground"
+                style={{ blockSize: "var(--dash-canvas-reserved)" }}
+              >
+                <ClinicsSortHeaderButton
+                  label="Clínica"
+                  title="Ordenar por nombre de clínica"
+                  ariaSort={clinicsAriaSort(appliedSort, "name")}
+                  onToggle={() => toggleColumnSort("name")}
+                  announceState
+                />
+                <ClinicsSortHeaderButton
+                  label="Fechas"
+                  title="Ordenar por fecha de creación"
+                  ariaSort={clinicsAriaSort(appliedSort, "createdAt")}
+                  onToggle={() => toggleColumnSort("createdAt")}
+                  announceState
+                />
+              </div>
+              <ContentGrid columns={3} rows={collectionGridRows(effectiveLimit, 3)} className="flex-1 py-1">
+                {rows.map(({ clinic, user, extraUsers }) => (
+                  <ContentGridItem
+                    as="article"
+                    key={`${clinic.clinicId}-${user?.userId ?? "empty"}`}
+                    aria-label={`Clínica ${clinic.clinicName}`}
+                    className="gap-0.5 px-2 py-1 text-[0.8125rem]"
+                  >
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <span className="min-w-0 truncate font-medium">{clinic.clinicName}</span>
+                      <span className="shrink-0 font-mono text-[0.62rem] text-muted-foreground">#{clinic.clinicId}</span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={isBusy || editingClinic !== null}
+                        onClick={() => setEditingClinic(clinic)}
+                        aria-label={`Editar clínica ${clinic.clinicName}`}
+                        className="ml-auto h-7 shrink-0 px-2"
+                      >
+                        <Pencil aria-hidden="true" />
+                        Editar
+                      </Button>
+                    </div>
+                    <span className="block truncate text-[0.6875rem]">{clinic.contactEmail ?? "—"}</span>
+                    <span className="block truncate text-[0.6875rem]">
+                      {user ? (
+                        <>
+                          {user.username}
+                          {extraUsers > 0 ? <span className="text-muted-foreground"> +{extraUsers}</span> : null}
+                        </>
+                      ) : (
+                        <span className="text-muted-foreground">Sin usuario</span>
+                      )}
+                    </span>
+                    <span
+                      className="block truncate text-[0.6875rem] text-muted-foreground"
+                      title={`Creada: ${formatDateTime(clinic.createdAt)} · Actualizada: ${formatDateTime(clinic.updatedAt)}`}
+                    >
+                      {formatDateTime(clinic.updatedAt)}
+                    </span>
+                  </ContentGridItem>
+                ))}
+              </ContentGrid>
+            </div>
+          ) : (
           <Table className="text-[0.8125rem] [&_th]:h-9 [&_th]:px-3 [&_td]:px-3">
             <CollectionHeader>
               <ContentListItem as="tr">
@@ -823,6 +911,7 @@ export function AdminClinicsManagementCard() {
               )}
             </ContentList>
           </Table>
+          )}
         </CollectionWorkspace>
 
         {/* Always mounted from md up: a pager that only appeared with data

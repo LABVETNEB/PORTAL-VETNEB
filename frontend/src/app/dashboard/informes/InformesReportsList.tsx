@@ -20,8 +20,13 @@ import {
 import {
   CollectionPager,
   CollectionState,
+  CollectionViewToggle,
   CollectionWorkspace,
+  collectionGridRows,
+  ContentGrid,
+  ContentGridItem,
   ContentList,
+  useCollectionView,
 } from "@/features/dashboard/presentation/surfaces";
 import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
 import { getReportStatusLabel, getReportStatusVariant, formatDate } from "@/lib/utils";
@@ -179,6 +184,7 @@ export function InformesReportsList({
   const [detailSection, setDetailSection] =
     useState<ReportDetailSection>("resumen");
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+  const collectionView = useCollectionView();
 
   const [bodyNode, setBodyNode] = useState<HTMLElement | null>(null);
 
@@ -696,13 +702,25 @@ export function InformesReportsList({
             className="dashboard-master-panel flex min-h-0 flex-col overflow-hidden rounded-xl border border-vetneb-line/75 bg-card/82"
           >
             {pageRequestRecovery}
-            <div className="shrink-0 border-b border-vetneb-line/70 px-4 py-2.5">
-              <h2 id="reports-list-heading" className="dashboard-section-heading">
-                Lista de informes
-              </h2>
-              <p className="dashboard-section-description">
-                Click en un informe para abrir su detalle operativo.
-              </p>
+            <div className="flex shrink-0 items-start justify-between gap-2 border-b border-vetneb-line/70 px-4 py-2.5">
+              <div className="min-w-0">
+                <h2 id="reports-list-heading" className="dashboard-section-heading">
+                  Lista de informes
+                </h2>
+                {/* C24: the toggle shares this row, so the hint keeps the single
+                    line the A02 baseline froze (accessible truncation, full text in the DOM). */}
+                <p
+                  className="dashboard-section-description truncate"
+                  title="Click en un informe para abrir su detalle operativo."
+                >
+                  Click en un informe para abrir su detalle operativo.
+                </p>
+              </div>
+              <CollectionViewToggle
+                label="informes"
+                view={collectionView.preferred}
+                onViewChange={collectionView.setView}
+              />
             </div>
 
             <ContentList
@@ -713,7 +731,55 @@ export function InformesReportsList({
               data-dashboard-row-pitch="regular"
               className="flex min-h-0 flex-1 flex-col divide-y divide-vetneb-line/60 overflow-hidden"
             >
-              {visibleReports.map((report, index) => {
+              {collectionView.view === "grid" ? (
+                <ContentGrid
+                  columns={2}
+                  rows={collectionGridRows(effectiveLimit, 2)}
+                  className="flex-1 p-2"
+                  data-informes-grid="true"
+                >
+                  {visibleReports.map((report) => {
+                    const isSelected = selectedReport?.id === report.id;
+
+                    return (
+                      <ContentGridItem
+                        as="div"
+                        key={report.id}
+                        data-state={isSelected ? "selected" : undefined}
+                        className="flex-row items-start"
+                      >
+                        <button
+                          type="button"
+                          id={`report-${report.id}`}
+                          onClick={() => selectReport(report.id)}
+                          aria-current={isSelected ? "true" : undefined}
+                          aria-label={
+                            isSelected
+                              ? `Informe seleccionado: ${getReportTitle(report)}`
+                              : `Seleccionar informe: ${getReportTitle(report)}`
+                          }
+                          className="flex min-h-0 min-w-0 flex-1 flex-col gap-0.5 self-stretch rounded-lg p-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/85"
+                        >
+                          <span className="block truncate text-xs font-semibold text-vetneb-ink">
+                            #{report.id} · {report.patientName ?? "Paciente sin nombre"}
+                          </span>
+                          <span className="block truncate text-[11px] text-muted-foreground">
+                            {report.studyType ?? "Tipo sin registrar"}
+                          </span>
+                          <span className="block truncate text-[11px] text-muted-foreground">
+                            {formatDate(report.uploadDate)}
+                          </span>
+                        </button>
+                        <div className="shrink-0 p-2">
+                          <Badge variant={getReportStatusVariant(report.status)}>
+                            {getReportStatusLabel(report.status)}
+                          </Badge>
+                        </div>
+                      </ContentGridItem>
+                    );
+                  })}
+                </ContentGrid>
+              ) : visibleReports.map((report, index) => {
                 const isSelected = selectedReport?.id === report.id;
 
                 return (

@@ -462,21 +462,35 @@ test("C04 · the contract check rejects every forbidden regression (in-memory mu
   const card = read(CARD_PATH);
   const api = read(API_PATH);
   type Edit = readonly [anchor: string, replacement: string];
+  // C24 repeats the two controls in the grid head (guarded by the B11 placement
+  // check), so the TableHead controls are anchored by their own indentation.
+  const TH_NAME_CONTROL = [
+    '                    label="Clínica"',
+    '                    title="Ordenar por nombre de clínica"',
+    '                    ariaSort={clinicsAriaSort(appliedSort, "name")}',
+    '                    onToggle={() => toggleColumnSort("name")}',
+  ].join("\n");
+  const TH_CREATED_CONTROL = [
+    '                    label="Fechas"',
+    '                    title="Ordenar por fecha de creación"',
+    '                    ariaSort={clinicsAriaSort(appliedSort, "createdAt")}',
+    '                    onToggle={() => toggleColumnSort("createdAt")}',
+  ].join("\n");
   const mutants: readonly (readonly [string, "card" | "api", ...Edit[]])[] = [
-    ["name → createdAt on Clínica", "card", ['onToggle={() => toggleColumnSort("name")}', 'onToggle={() => toggleColumnSort("createdAt")}']],
+    ["name → createdAt on Clínica", "card", [TH_NAME_CONTROL, TH_NAME_CONTROL.replace('toggleColumnSort("name")', 'toggleColumnSort("createdAt")')]],
     ["first press desc", "card", ['=== "asc" ? "desc" : "asc"', '=== "asc" ? "asc" : "desc"']],
     ["sort dropped from the request", "api", ['    query.set("sort", params.sort);\n', ""]],
     ["direction dropped from the request", "api", ['    query.set("direction", params.direction);\n', ""]],
     ["page-only client sort", "card", ["useMemo(() => getClinicUserRows(snapshot), [snapshot])", "useMemo(() => getClinicUserRows(snapshot).sort((a, b) => a.clinic.clinicName.localeCompare(b.clinic.clinicName)), [snapshot])"]],
     ["aria-sort removed from the th", "card", ['<TableHead aria-sort={clinicsAriaSort(appliedSort, "name")}>', "<TableHead>"]],
     ["aria-sort ahead of the rows (th)", "card", ['<TableHead aria-sort={clinicsAriaSort(appliedSort, "createdAt")}>', '<TableHead aria-sort={clinicsAriaSort(requestedSort, "createdAt")}>']],
-    ["aria-sort ahead of the rows (icon)", "card", ['ariaSort={clinicsAriaSort(appliedSort, "name")}', 'ariaSort={clinicsAriaSort(columnSort, "name")}']],
+    ["aria-sort ahead of the rows (icon)", "card", [TH_NAME_CONTROL, TH_NAME_CONTROL.replace('ariaSort={clinicsAriaSort(appliedSort, "name")}', 'ariaSort={clinicsAriaSort(columnSort, "name")}')]],
     ["applied order escapes the stale-request guard", "card", ["          if (requestId !== latestRequestRef.current) return;\n          setSnapshot(result);\n          setAppliedSort(sortOfRequest);", "          setAppliedSort(sortOfRequest);\n          if (requestId !== latestRequestRef.current) return;\n          setSnapshot(result);"]],
     ["applied order never set", "card", ["          setAppliedSort(sortOfRequest);\n", ""]],
     ["applied order set on click", "card", ["    setColumnSort((current) => nextClinicsColumnSort(current, key));\n", "    setColumnSort((current) => nextClinicsColumnSort(current, key));\n    setAppliedSort(nextClinicsColumnSort(columnSort, key));\n"]],
     ["Fechas shows createdAt in place of updatedAt", "card", ["                      {formatDateTime(clinic.updatedAt)}\n                    </TableCell>", "                      {formatDateTime(clinic.createdAt)}\n                    </TableCell>"]],
-    ["Fechas orders by updatedAt", "card", ['onToggle={() => toggleColumnSort("createdAt")}', 'onToggle={() => toggleColumnSort("updatedAt")}']],
-    ["Fechas control stops announcing creation-date ordering", "card", ['title="Ordenar por fecha de creación"', 'title="Ordenar por fecha"']],
+    ["Fechas orders by updatedAt", "card", [TH_CREATED_CONTROL, TH_CREATED_CONTROL.replace('toggleColumnSort("createdAt")', 'toggleColumnSort("updatedAt")')]],
+    ["Fechas control stops announcing creation-date ordering", "card", [TH_CREATED_CONTROL, TH_CREATED_CONTROL.replace('title="Ordenar por fecha de creación"', 'title="Ordenar por fecha"')]],
     ["stale response writes the snapshot", "card", ["          if (requestId !== latestRequestRef.current) return;\n          setSnapshot(result);\n          setAppliedSort(sortOfRequest);", "          setSnapshot(result);\n          if (requestId !== latestRequestRef.current) return;\n          setAppliedSort(sortOfRequest);"]],
     ["no offset reset desktop → mobile", "card", ["  if (orderOfOffset !== requestedSort) {", "  if (orderOfOffset !== requestedSort && requestedSort !== null) {"]],
     ["no offset reset mobile → desktop", "card", ["  if (orderOfOffset !== requestedSort) {", "  if (orderOfOffset !== requestedSort && requestedSort === null) {"]],

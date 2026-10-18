@@ -34,11 +34,16 @@ import {
   CollectionHeader,
   CollectionPager,
   CollectionState,
+  CollectionViewToggle,
   CollectionWorkspace,
+  collectionGridRows,
+  ContentGrid,
+  ContentGridItem,
   ContentList,
   ContentListItem,
   SelectionToolbar,
   useCollectionSelection,
+  useCollectionView,
 } from "@/features/dashboard/presentation/surfaces";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -219,6 +224,7 @@ export function AdminReportsCard() {
     useState<AdminReportsFilterState>(INITIAL_FILTER_STATE);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const collectionView = useCollectionView();
 
   // One collapsed runtime feeds both presentations, so the visible container
   // (desktop table region or mobile list region) drives a single cardinality.
@@ -690,6 +696,7 @@ export function AdminReportsCard() {
         {activeFilters.length ? <div className="hidden min-w-0 flex-1 xl:flex">
           <ActiveFilterChips filters={activeFilters} onClearAll={clearAdvancedFilters} />
         </div> : null}
+        <CollectionViewToggle label="informes" view={collectionView.preferred} onViewChange={collectionView.setView} />
         <SelectionToolbar selectedCount={selection.selectedCount} onClearSelection={selection.clearSelection}>
         <div className="flex shrink-0 items-center gap-2">
           <Button
@@ -750,7 +757,68 @@ export function AdminReportsCard() {
               data-dashboard-canvas-reserve="table-head-dense"
             className="dashboard-table-responsive hidden min-h-0 flex-1 md:block"
           >
-            {filteredReports.length ? (
+            {filteredReports.length && collectionView.view === "grid" ? (
+              <div className="flex h-full min-h-0 flex-col" data-admin-reports-grid="true">
+                <div
+                  data-collection-grid-head="true"
+                  className="flex shrink-0 items-center gap-2 border-b border-vetneb-line/65 bg-vetneb-surface-muted/65 px-2 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground"
+                  style={{ blockSize: "var(--dash-canvas-reserved)" }}
+                >
+                  <input
+                    type="checkbox"
+                    aria-label="Seleccionar página de informes"
+                    checked={selection.allVisibleSelected}
+                    ref={(node) => { if (node) node.indeterminate = selection.someVisibleSelected; }}
+                    onChange={selection.toggleVisiblePage}
+                    data-collection-selection="page"
+                  />
+                  <span aria-hidden="true">Página</span>
+                </div>
+                <ContentGrid columns={3} rows={collectionGridRows(effectiveLimit, 3)} className="flex-1 py-1.5">
+                  {filteredReports.map((report) => (
+                    <ContentGridItem
+                      as="article"
+                      key={report.id}
+                      aria-label={`Informe #${report.id}`}
+                      data-state={selection.isSelected(report.id) ? "selected" : undefined}
+                      className="gap-0.5 px-2 py-1.5 text-xs"
+                    >
+                      <div className="flex min-w-0 items-center gap-1.5">
+                        <input type="checkbox" aria-label={`Seleccionar informe #${report.id}`} checked={selection.isSelected(report.id)} onChange={() => selection.toggle(report.id)} data-collection-selection="item" />
+                        <p className="min-w-0 flex-1 truncate font-medium text-vetneb-ink">
+                          {report.patientName || "Paciente sin registrar"}
+                        </p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 shrink-0 px-2 text-xs"
+                          onClick={(event) => openReportDetail(report.id, event.currentTarget)}
+                        >
+                          Ver
+                        </Button>
+                        <ActionMenu label={`Acciones del informe #${report.id}`} trigger={<>⋮</>} triggerClassName="hidden xl:inline-flex h-7 w-7 p-0">
+                          <ActionMenuItem onSelect={() => openReportDetail(report.id, document.activeElement instanceof HTMLElement ? document.activeElement : null)}>Ver detalle</ActionMenuItem>
+                        </ActionMenu>
+                      </div>
+                      <div className="flex min-w-0 items-center gap-1">
+                        <AdminReportStatusBadge stage={report.workflowStage} />
+                        {report.specialStainRequested ? (
+                          <span className="shrink-0 text-[0.6875rem] font-semibold text-amber-700">Tinción</span>
+                        ) : null}
+                        <span className="ml-auto min-w-0 truncate font-mono text-[0.6875rem] text-muted-foreground">Informe #{report.id}</span>
+                      </div>
+                      <p className="truncate text-[0.6875rem]">{report.clinicName || `Clínica #${report.clinicId}`}</p>
+                      <p className="truncate text-[0.6875rem] text-muted-foreground">
+                        {studyLabel(report.studyType)}
+                        <span className="hidden lg:inline"> · {formatDate(report.uploadDate ?? report.createdAt)}</span>
+                        <span className="hidden xl:inline"> · {report.fileName || "Sin archivo"}</span>
+                      </p>
+                    </ContentGridItem>
+                  ))}
+                </ContentGrid>
+              </div>
+            ) : filteredReports.length ? (
               <Table className="table-fixed text-xs [&_th]:h-7 [&_th]:px-2 [&_td]:px-2">
                 <CollectionHeader>
                   <ContentListItem as="tr">
