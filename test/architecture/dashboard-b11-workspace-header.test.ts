@@ -986,6 +986,26 @@ test("C07 · Auditoría swaps its DefaultToolbar in place on the C06 owner, desk
 const C04_ADOPTER = "frontend/src/app/dashboard/admin/AdminClinicsManagementCard.tsx";
 const C04_API = "frontend/src/lib/api.ts";
 
+// C24: the sort has exactly two activation points, one per presentation — the
+// TableHead of the list and the grid head of the C24 grid — each asking for
+// name then createdAt. Any other call site, key, count or order is a violation.
+function c04SortControlPlacement(card: string) {
+  const keysIn = (region: string) => [...region.matchAll(/toggleColumnSort\("(\w+)"\)/g)].map((match) => match[1]);
+  const headStart = card.indexOf("<CollectionHeader>");
+  const headEnd = card.indexOf("</CollectionHeader>", headStart);
+  const gridStart = card.indexOf('data-collection-grid-head="true"');
+  const gridEnd = card.indexOf("<ContentGrid", gridStart);
+  if ([headStart, headEnd, gridStart, gridEnd].includes(-1)) return null;
+  return {
+    tableHead: keysIn(card.slice(headStart, headEnd)),
+    gridHead: keysIn(card.slice(gridStart, gridEnd)),
+    elsewhere: keysIn(card.slice(0, Math.min(headStart, gridStart)) + card.slice(Math.max(headEnd, gridEnd))
+      + card.slice(Math.min(headEnd, gridEnd), Math.max(headStart, gridStart))),
+  };
+}
+
+const C04_EXPECTED_PLACEMENT = { tableHead: ["name", "createdAt"], gridHead: ["name", "createdAt"], elsewhere: [] };
+
 test("C04 · aria-sort exists only on the Clínicas admin headers the server sorts, through native buttons", () => {
   const census = sourceFiles("frontend/src").filter((path) => read(path).includes("aria-sort")).sort();
   assert.deepEqual(census, [C04_ADOPTER], "C04 has one adopter; no other surface claims an order (§7.8)");
@@ -999,8 +1019,16 @@ test("C04 · aria-sort exists only on the Clínicas admin headers the server sor
   assert.equal(/clinicsAriaSort\(requestedSort/.test(card), false, "aria-sort never runs ahead of the rows");
   for (const key of ["name", "createdAt"]) {
     assert.ok(card.includes(`<TableHead aria-sort={clinicsAriaSort(appliedSort, "${key}")}>`), `${key}: aria-sort on the th`);
-    assert.equal((card.match(new RegExp(`toggleColumnSort\\("${key}"\\)`, "g")) ?? []).length, 1, `${key}: one header control`);
   }
+  assert.deepEqual(c04SortControlPlacement(card), C04_EXPECTED_PLACEMENT,
+    "one header control per key in the TableHead and one in the C24 grid head, in name→createdAt order, nowhere else");
+  const gridHead = card.slice(card.indexOf('data-collection-grid-head="true"'), card.indexOf("<ContentGrid"));
+  assert.deepEqual(
+    [...gridHead.matchAll(/ariaSort=\{([^}]*)\}/g)].map((match) => match[1]),
+    ['clinicsAriaSort(appliedSort, "name")', 'clinicsAriaSort(appliedSort, "createdAt")'],
+    "the grid head reports the applied order, never the requested one",
+  );
+  assert.deepEqual(gridHead.match(/\bannounceState\b/g), ["announceState", "announceState"], "without a th the grid controls speak their state");
   for (const plain of ["Contacto", "Usuario"]) {
     assert.ok(card.includes(`<TableHead>${plain}</TableHead>`), `${plain} stays a plain header`);
   }
@@ -1020,6 +1048,33 @@ test("C04 · aria-sort exists only on the Clínicas admin headers the server sor
   assert.ok(card.includes("const effectiveLimit = rowsPerPage;"));
   assert.equal(/sort/i.test(card.slice(card.indexOf("const mobileCapacity ="), card.indexOf("const effectiveLimit ="))), false,
     "the capacity owner never reads the order");
+});
+
+test("C04 · the sort placement check rejects a third call, a wrong key, a removal and a reorder (in-memory mutation proof)", () => {
+  const card = stripComments(read(C04_ADOPTER));
+  assert.deepEqual(c04SortControlPlacement(card), C04_EXPECTED_PLACEMENT, "baseline");
+  const tableName = '<TableHead aria-sort={clinicsAriaSort(appliedSort, "name")}>\n                  <ClinicsSortHeaderButton\n                    label="Clínica"\n                    title="Ordenar por nombre de clínica"\n                    ariaSort={clinicsAriaSort(appliedSort, "name")}\n                    onToggle={() => toggleColumnSort("name")}';
+  const gridHeadStart = card.indexOf('data-collection-grid-head="true"');
+  const gridName = card.indexOf('onToggle={() => toggleColumnSort("name")}', gridHeadStart);
+  const gridCreated = card.indexOf('onToggle={() => toggleColumnSort("createdAt")}', gridHeadStart);
+  assert.ok(card.split(tableName).length === 2 && gridName > gridHeadStart && gridCreated > gridName, "unique mutation anchors");
+  const at = (index: number, from: string, to: string) => card.slice(0, index) + to + card.slice(index + from.length);
+  const mutants: readonly [string, string][] = [
+    ["third call outside both heads", card.replace("const effectiveLimit = rowsPerPage;", 'const effectiveLimit = rowsPerPage; void (() => toggleColumnSort("name"));')],
+    ["third call inside the grid head", at(gridCreated, 'onToggle={() => toggleColumnSort("createdAt")}', 'onToggle={() => { toggleColumnSort("createdAt"); toggleColumnSort("name"); }}')],
+    ["wrong key in the table head", card.replace(tableName, tableName.replace('toggleColumnSort("name")', 'toggleColumnSort("createdAt")'))],
+    ["wrong key in the grid head", at(gridName, 'onToggle={() => toggleColumnSort("name")}', 'onToggle={() => toggleColumnSort("createdAt")}')],
+    ["grid head control removed", at(gridCreated, 'onToggle={() => toggleColumnSort("createdAt")}', "onToggle={() => undefined}")],
+    ["table head control removed", card.replace(tableName, tableName.replace('toggleColumnSort("name")', "undefined"))],
+    ["grid head order reversed", at(gridName, 'onToggle={() => toggleColumnSort("name")}', 'onToggle={() => toggleColumnSort("createdAt")}')
+      .replace(/(data-collection-grid-head="true"[\s\S]*?)onToggle=\{\(\) => toggleColumnSort\("createdAt"\)\}([\s\S]*?)onToggle=\{\(\) => toggleColumnSort\("createdAt"\)\}/,
+        '$1onToggle={() => toggleColumnSort("createdAt")}$2onToggle={() => toggleColumnSort("name")}')],
+    ["grid head removed", card.replace('data-collection-grid-head="true"', 'data-collection-grid-strip="true"')],
+  ];
+  for (const [name, mutated] of mutants) {
+    assert.notEqual(mutated, card, `${name}: the mutation applies`);
+    assert.notDeepEqual(c04SortControlPlacement(mutated), C04_EXPECTED_PLACEMENT, `${name} must be rejected`);
+  }
 });
 
 // ── PRE-C05 · mobile space (Nico, pre-C05) ───────────────────────────────────
@@ -1390,4 +1445,149 @@ test("C09 · mutations of the bulk menu are rejected", () => {
     assert.notEqual(mutated, source, `the mutation must change the owner: ${anchor}`);
     assert.notDeepEqual(c09OwnerViolations(mutated), [], `mutation must be rejected: ${replacement || `without ${anchor}`}`);
   }
+});
+
+// ── C24 · list/grid alternation ──────────────────────────────────────────────
+// C24 guard: list/grid alternation only where it adds value (Informes clínica,
+// Informes admin, Clínicas admin). The grid is presentation over the SAME
+// measured canvas, dataset, limit and pager; Documentos has no collection owner
+// and the phone lists stay lists.
+
+const C24_SURFACES = "frontend/src/features/dashboard/presentation/surfaces";
+const C24_PATHS = {
+  view: `${C24_SURFACES}/collection-view.ts`,
+  toggle: `${C24_SURFACES}/CollectionViewToggle.tsx`,
+  barrel: `${C24_SURFACES}/index.ts`,
+  grid: `${C24_SURFACES}/ContentGrid.tsx`,
+  table: "frontend/src/components/ui/table.tsx",
+  informes: "frontend/src/app/dashboard/informes/InformesReportsList.tsx",
+  adminReports: "frontend/src/app/dashboard/admin/AdminReportsCard.tsx",
+  adminClinics: "frontend/src/app/dashboard/admin/AdminClinicsManagementCard.tsx",
+  clinicSummary: "frontend/src/app/dashboard/ClinicInformesWorkspaceSummary.tsx",
+  spec: "frontend/e2e/regression/dashboard-c24-list-grid-toggle.spec.ts",
+  catalog: "frontend/e2e/suites/catalog.ts",
+} as const;
+
+const c24StripComments = (source: string) => source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+const c24Count = (source: string, needle: string) => source.split(needle).length - 1;
+const c24GridBlocks = (source: string) => [...source.matchAll(/<ContentGrid\b[\s\S]*?<\/ContentGrid>/g)].map((match) => match[0]);
+const C24_PERSISTENCE = /localStorage|sessionStorage|document\.cookie|useSearchParams|useRouter|router\.(?:push|replace)|history\.(?:push|replace)State/;
+
+test("C24 · the view owner is pure: two views, the shell phone boundary, rows derived from limit", () => {
+  const view = c24StripComments(read(C24_PATHS.view));
+  assert.equal(/^import /m.test(view), false, "collection-view.ts imports nothing");
+  assert.ok(view.includes('export const COLLECTION_GRID_REGIME = "(min-width: 768px)";'));
+  assert.ok(view.includes("Math.ceil(Math.max(0, limit) / columns)"), "rows = ceil(limit / columns)");
+});
+
+test("C24 · the toggle is an accessible in-memory control with no persistence or I/O", () => {
+  const toggle = c24StripComments(read(C24_PATHS.toggle));
+  assert.ok(toggle.startsWith('"use client";'));
+  const imports = [...toggle.matchAll(/^import [^;]+ from "([^"]+)";$/gm)].map((match) => match[1]).sort();
+  assert.deepEqual(imports, ["./collection-view", "@/lib/utils", "lucide-react", "react"]);
+  assert.equal(C24_PERSISTENCE.test(toggle), false, "no URL, storage or cookie persistence");
+  assert.equal(/fetch\(|@\/lib\/api/.test(toggle), false, "no request");
+  assert.ok(toggle.includes('role="group"'), "a named group");
+  assert.ok(toggle.includes("aria-pressed={view === option.id}"), "state is announced by aria-pressed");
+  assert.ok(toggle.includes('type="button"'), "native buttons: Tab, Enter and Space");
+  assert.ok(toggle.includes("focus-visible:ring-2"), "visible focus");
+  assert.ok(toggle.includes("hidden") && toggle.includes("md:inline-flex"), "the control only exists in the grid regime");
+  assert.ok(toggle.includes("useSyncExternalStore(subscribeGridRegime, readGridRegime, () => false)"), "SSR renders the list");
+  assert.ok(toggle.includes('useState<CollectionView>("list")'), "the list is the default view");
+});
+
+test("C24 · ContentGrid/ContentGridItem live beside the C01 list, outside ui/table, and the barrel exposes them", () => {
+  const grid = read(C24_PATHS.grid);
+  const barrel = read(C24_PATHS.barrel);
+  assert.equal(read(C24_PATHS.table).includes("ContentGrid"), false, "C01 ui/table stays geometry-free");
+  assert.ok(grid.includes('data-content-grid="true"') && grid.includes('data-content-grid-item="true"'));
+  assert.ok(grid.includes("gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`"), "rows are an input, never measured");
+  assert.equal(/useState|useEffect|ResizeObserver|fetch\(|@\/lib\/api/.test(grid), false, "the grid measures and fetches nothing");
+  for (const name of ["ContentGrid", "ContentGridItem", "CollectionViewToggle", "useCollectionView", "collectionGridRows"]) {
+    assert.ok(new RegExp(`\\b${name}\\b`).test(barrel), `barrel exports ${name}`);
+  }
+});
+
+const C24_ADOPTERS = [
+  { path: C24_PATHS.informes, columns: 2, canvasRef: "ref={setBodyNode}", canvasRefs: 2, label: 'label="informes"' },
+  { path: C24_PATHS.adminReports, columns: 3, canvasRef: "ref={setDesktopBodyNode}", canvasRefs: 1, label: 'label="informes"' },
+  { path: C24_PATHS.adminClinics, columns: 3, canvasRef: "ref={setDesktopBodyNode}", canvasRefs: 1, label: 'label="clínicas"' },
+] as const;
+
+test("C24 · each adopter lays one page out on its own measured canvas with an unchanged limit", () => {
+  for (const { path, columns, canvasRef, canvasRefs, label } of C24_ADOPTERS) {
+    const source = c24StripComments(read(path));
+    assert.equal(c24Count(source, "useCollectionView()"), 1, `${path}: one view owner`);
+    assert.ok(source.includes(`collectionGridRows(effectiveLimit, ${columns})`), `${path}: rows from the measured limit`);
+    assert.ok(source.includes("const effectiveLimit = rowsPerPage;"), `${path}: limit derivation untouched`);
+    // Informes keeps its two mutually exclusive branches (empty/error and populated) of HEAD.
+    assert.equal(c24Count(source, canvasRef), canvasRefs, `${path}: list and grid share the measured canvas, none added`);
+    assert.equal(c24Count(source, "useDashboardCanvasCapacity({"), path === C24_PATHS.informes ? 1 : 2, `${path}: no capacity owner added`);
+    assert.ok(source.includes("<CollectionViewToggle") && source.includes(label), `${path}: named toggle`);
+    // Switching only flips the view: no wrapper may reset filters, search, sort, selection or the page window.
+    assert.ok(source.includes("view={collectionView.preferred} onViewChange={collectionView.setView}")
+      || /view=\{collectionView\.preferred\}\s*onViewChange=\{collectionView\.setView\}/.test(source), `${path}: the toggle writes the view only`);
+    assert.equal(/collectionView\.(?:view|preferred)[^\n]*(?:setOffset|setRequestWindow|setAppliedFilters|setColumnSort|clearSelection|setSearchQuery)/.test(source), false,
+      `${path}: no state reset keyed on the view`);
+    assert.equal(C24_PERSISTENCE.test(source.replace(/router\.push\(`\/dashboard\/informes[^`]*`\)/g, "")), false, `${path}: no view persistence`);
+    const [grid, ...extraGrids] = c24GridBlocks(source);
+    assert.deepEqual(extraGrids, [], `${path}: one grid`);
+    assert.ok(grid, `${path}: one grid`);
+    for (const block of [grid]) {
+      assert.equal(block.includes("data-dashboard-adaptive-row"), false, `${path}: cards are not pitch-locked rows`);
+      assert.equal(/fetch\(|getAdmin|getInformesPage|<img|thumbnail/i.test(block), false, `${path}: no per-card request or preview`);
+      assert.ok(block.includes("<ContentGridItem"), `${path}: grid items`);
+    }
+  }
+});
+
+test("C24 · the informes hint beside the toggle stays one line, so A02 chrome and the A03 limit cannot move", () => {
+  const informes = c24StripComments(read(C24_PATHS.informes));
+  // Measured at 1024x768 without it: the hint wrapped, +20px chrome, limit 5 -> 4.
+  assert.match(
+    informes,
+    /className="dashboard-section-description truncate"\s*title="Click en un informe para abrir su detalle operativo\."\s*>\s*Click en un informe para abrir su detalle operativo\./,
+  );
+});
+
+test("C24 · admin grids keep the table head contract inside the same reserve", () => {
+  for (const path of [C24_PATHS.adminReports, C24_PATHS.adminClinics]) {
+    const source = c24StripComments(read(path));
+    assert.ok(source.includes('data-collection-grid-head="true"'), `${path}: grid head`);
+    assert.ok(source.includes('style={{ blockSize: "var(--dash-canvas-reserved)" }}'), `${path}: head equals the A03 reserve`);
+    assert.equal(c24Count(source, 'data-dashboard-canvas-reserve="table-head-dense"'), 1, `${path}: reserve unchanged`);
+  }
+  const reports = c24StripComments(read(C24_PATHS.adminReports));
+  assert.equal(c24Count(reports, 'aria-label="Seleccionar página de informes"'), 3, "page selection in table, grid and phone pager");
+  const reportsGrid = c24GridBlocks(reports)[0] ?? "";
+  for (const call of ["selection.isSelected(report.id)", "selection.toggle(report.id)"]) {
+    assert.ok(reportsGrid.includes(call), `the grid cards use the same C06 owner: ${call}`);
+  }
+  assert.ok(reportsGrid.includes("{filteredReports.map((report) =>"), "the grid renders the same client-filtered page");
+  assert.ok(reportsGrid.includes("onClick={(event) => openReportDetail(report.id, event.currentTarget)}"), "Ver keeps the detail handler");
+  assert.ok(/className="hidden lg:inline"> · \{formatDate\(/.test(reportsGrid), "Fecha keeps the list breakpoint (lg)");
+  assert.ok(/className="hidden xl:inline"> · \{report\.fileName/.test(reportsGrid), "Archivo keeps the list breakpoint (xl)");
+  assert.ok(reportsGrid.includes('triggerClassName="hidden xl:inline-flex h-7 w-7 p-0"'), "the action menu keeps the list breakpoint (xl)");
+  const clinics = c24StripComments(read(C24_PATHS.adminClinics));
+  assert.equal(c24Count(clinics, 'onToggle={() => toggleColumnSort("name")}'), 2, "name sort in table head and grid head");
+  assert.equal(c24Count(clinics, 'onToggle={() => toggleColumnSort("createdAt")}'), 2, "date sort in table head and grid head");
+});
+
+test("C24 · phone lists, the clinic hub summary and documents are not adopted", () => {
+  const reports = c24StripComments(read(C24_PATHS.adminReports));
+  const clinics = c24StripComments(read(C24_PATHS.adminClinics));
+  const mobileReports = reports.slice(reports.indexOf('data-admin-mobile-core-module="reports"'));
+  assert.equal(mobileReports.includes("<ContentGrid"), false, "admin reports phone list stays a list");
+  const mobileClinics = clinics.slice(clinics.lastIndexOf("md:hidden"));
+  assert.equal(mobileClinics.includes("<ContentGrid"), false, "admin clinics phone list stays a list");
+  assert.equal(read(C24_PATHS.clinicSummary).includes("ContentGrid"), false, "clinic hub summary is not a collection owner");
+});
+
+test("C24 · the runtime contract walks the 13 A02 viewports and is catalogued", () => {
+  const spec = read(C24_PATHS.spec);
+  const catalog = read(C24_PATHS.catalog);
+  assert.ok(spec.includes("for (const viewport of DASHBOARD_GEOMETRY_VIEWPORTS)"), "the matrix is the canonical one, imported");
+  for (const escape of ["test.skip", "test.fixme", "test.fail"]) assert.equal(spec.includes(escape), false, escape);
+  assert.equal(/\b(?:test|describe)\.only\b/.test(spec), false, "no focused case");
+  assert.match(catalog, /entry\("e2e\/regression\/dashboard-c24-list-grid-toggle\.spec\.ts", "regression", "dashboard\/collection", [^\n]*\["visual-contract"\], ci, /);
 });
