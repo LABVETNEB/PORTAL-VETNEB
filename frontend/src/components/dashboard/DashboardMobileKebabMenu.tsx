@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ExternalLink, KeyRound, LogOut, MoreVertical } from "lucide-react";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { ThemeModeToggle } from "@/components/theme/ThemeModeToggle";
@@ -9,6 +9,7 @@ import { requestClinicModuleActivate } from "@/lib/clinic-hub-reset";
 import { ROUTES } from "@/lib/routes";
 import { DashboardLogoutControl } from "./DashboardLogoutControl";
 import { DashboardNotificationsBell } from "./DashboardNotificationsBell";
+import { useMobileOverlayDismissal } from "./useMobileOverlayDismissal";
 
 /**
  * CMP-01 — the ONE mobile ACTION overflow of the dashboard app bar.
@@ -59,15 +60,22 @@ interface DashboardMobileKebabMenuProps {
 
 export function DashboardMobileKebabMenu({ surface }: DashboardMobileKebabMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const menuRef = useRef<HTMLElement | null>(null);
   const copy = SURFACE_COPY[surface];
   const isAdmin = surface === "admin";
   const menuId = "dashboard-mobile-kebab-menu";
+  const close = useCallback(() => setIsOpen(false), []);
+
+  useMobileOverlayDismissal(menuId, isOpen, close, triggerRef, menuRef);
 
   useEffect(() => {
     if (!isOpen) return;
 
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setIsOpen(false);
+      if (event.key !== "Escape") return;
+      setIsOpen(false);
+      triggerRef.current?.focus({ preventScroll: true });
     }
 
     window.addEventListener("keydown", handleKeyDown);
@@ -99,6 +107,7 @@ export function DashboardMobileKebabMenu({ surface }: DashboardMobileKebabMenuPr
   return (
     <div className={rootClass}>
       <button
+        ref={triggerRef}
         type="button"
         aria-label={copy.triggerLabel}
         aria-expanded={isOpen}
@@ -111,6 +120,7 @@ export function DashboardMobileKebabMenu({ surface }: DashboardMobileKebabMenuPr
 
       {isOpen ? (
         <section
+          ref={menuRef}
           id={menuId}
           aria-label={copy.menuLabel}
           data-dashboard-mobile-kebab-menu="true"

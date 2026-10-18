@@ -5,8 +5,10 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
+  type RefObject,
 } from "react";
 import { useSearchParams, useSelectedLayoutSegment } from "next/navigation";
 import { Menu, X } from "lucide-react";
@@ -35,6 +37,7 @@ import {
   type DashboardModuleIcon,
 } from "./dashboardModuleIcons";
 import { useStageModule } from "./useStageModule";
+import { useMobileOverlayDismissal } from "./useMobileOverlayDismissal";
 
 /**
  * B09 - DashboardMobileNav, the single mobile navigation model (<768px).
@@ -259,6 +262,7 @@ type DashboardMobileNavOverflowProps = {
   readonly onClose: () => void;
   /** Returns `true` when the stage owner claimed the navigation (single flight). */
   readonly onNavigate: (moduleId: string) => boolean;
+  readonly panelRef: RefObject<HTMLElement | null>;
 };
 
 function DashboardMobileNavOverflow({
@@ -268,6 +272,7 @@ function DashboardMobileNavOverflow({
   basePath,
   onClose,
   onNavigate,
+  panelRef,
 }: DashboardMobileNavOverflowProps) {
   const [page, setPage] = useState(0);
   const pageCount = Math.max(1, Math.ceil(destinations.length / OVERFLOW_PAGE_SIZE));
@@ -294,6 +299,7 @@ function DashboardMobileNavOverflow({
   // instead of hardcoding administration. The admin string is preserved verbatim.
   return (
     <section
+      ref={panelRef}
       id={OVERFLOW_ID}
       aria-label={OVERFLOW_LANDMARK[surface]}
       data-dashboard-mobile-nav-overflow="true"
@@ -394,6 +400,7 @@ type MobileNavBarProps = {
   readonly onActivate: (moduleId: string) => boolean;
   readonly overflowOpen: boolean;
   readonly onToggleOverflow: () => void;
+  readonly overflowTriggerRef?: RefObject<HTMLButtonElement | null>;
   readonly children?: ReactNode;
 };
 
@@ -404,6 +411,7 @@ function DashboardMobileNavBar({
   onActivate,
   overflowOpen,
   onToggleOverflow,
+  overflowTriggerRef,
   children,
 }: MobileNavBarProps) {
   const all = useMemo(() => destinationsFor(surface), [surface]);
@@ -457,6 +465,7 @@ function DashboardMobileNavBar({
 
         {hasOverflow ? (
           <button
+            ref={overflowTriggerRef}
             type="button"
             aria-label="Más"
             aria-expanded={overflowOpen}
@@ -532,7 +541,23 @@ function MobileNavWithUrl({ surface }: DashboardMobileNavProps) {
   const staged = useStageModule(surface);
   const activeModule = staged === undefined ? parsed : staged;
   const [overflowOpen, setOverflowOpen] = useState(false);
+  const overflowTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const overflowPanelRef = useRef<HTMLElement | null>(null);
   const closeOverflow = useCallback(() => setOverflowOpen(false), []);
+  // Escape and the close button dismiss from inside the sheet, which then
+  // unmounts: focus goes back to "Más" instead of falling to the document.
+  const dismissOverflow = useCallback(() => {
+    setOverflowOpen(false);
+    overflowTriggerRef.current?.focus({ preventScroll: true });
+  }, []);
+
+  useMobileOverlayDismissal(
+    OVERFLOW_ID,
+    overflowOpen,
+    closeOverflow,
+    overflowTriggerRef,
+    overflowPanelRef,
+  );
 
   const activate = useCallback(
     (moduleId: string) => {
@@ -555,6 +580,7 @@ function MobileNavWithUrl({ surface }: DashboardMobileNavProps) {
       onActivate={activate}
       overflowOpen={overflowOpen}
       onToggleOverflow={() => setOverflowOpen((current) => !current)}
+      overflowTriggerRef={overflowTriggerRef}
     >
       {hasOverflow ? (
         <DashboardMobileNavOverflow
@@ -562,8 +588,9 @@ function MobileNavWithUrl({ surface }: DashboardMobileNavProps) {
           isOpen={overflowOpen}
           destinations={all}
           basePath={SURFACE_BASE_PATH[surface]}
-          onClose={closeOverflow}
+          onClose={dismissOverflow}
           onNavigate={activate}
+          panelRef={overflowPanelRef}
         />
       ) : null}
     </DashboardMobileNavBar>
