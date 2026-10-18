@@ -16,7 +16,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ModuleDialog } from "@/components/dashboard/ModuleDialog";
 import { ModuleCard } from "@/components/dashboard/ModuleCard";
 import {
@@ -26,6 +25,12 @@ import {
   ParticularTokensPanelFooter,
 } from "@/components/dashboard/ParticularTokensCardPrimitives";
 import { usePagedRows } from "@/components/dashboard/usePagedRows";
+import {
+  CollectionHeader,
+  CollectionState,
+  ContentList,
+  ContentListItem,
+} from "@/features/dashboard/presentation/surfaces";
 import {
   createClinicParticularToken,
   getClinicStudyTrackingCases,
@@ -974,10 +979,10 @@ export function ClinicParticularTokensCard() {
                         className="hidden min-h-0 shrink-0 overflow-hidden md:block"
                       >
                         <table className="w-full table-fixed text-[0.8125rem]">
-                          <thead
+                          <CollectionHeader
                             className="border-b border-vetneb-line/65 bg-vetneb-surface-muted/65 text-xs font-semibold uppercase text-muted-foreground"
                           >
-                            <tr>
+                            <ContentListItem as="tr">
                               <th className="w-[32%] px-3 py-2 text-left">Token / Paciente</th>
                               <th className="w-[13%] px-3 py-2 text-left">Estado</th>
                               <th className="w-[15%] px-3 py-2 text-left">Informe</th>
@@ -985,11 +990,12 @@ export function ClinicParticularTokensCard() {
                                 Último acceso o creado
                               </th>
                               <th className="w-[16%] px-3 py-2 text-right">Acción</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-vetneb-line/60">
+                            </ContentListItem>
+                          </CollectionHeader>
+                          <ContentList as="tbody" className="divide-y divide-vetneb-line/60">
                             {pagedTokens.pageItems.map((token, index) => (
-                              <tr
+                              <ContentListItem
+                                as="tr"
                                 key={token.id}
                                 data-clinic-access-table-row="true"
                                 className="hover:bg-vetneb-cyan/8"
@@ -1033,13 +1039,14 @@ export function ClinicParticularTokensCard() {
                                     Ver detalle
                                   </Button>
                                 </td>
-                              </tr>
+                              </ContentListItem>
                             ))}
-                          </tbody>
+                          </ContentList>
                         </table>
                       </div>
 
-                      <div
+                      <ContentList
+                        as="div"
                         data-clinic-access-mobile-list="true"
                         className="flex min-h-0 shrink-0 flex-col divide-y divide-vetneb-line/60 overflow-hidden md:hidden"
                       >
@@ -1061,7 +1068,8 @@ export function ClinicParticularTokensCard() {
                             squeezed out of the viewport however long the
                             patient name is. */}
                         {pagedTokens.pageItems.map((token, index) => (
-                          <div
+                          <ContentListItem
+                            as="div"
                             key={token.id}
                             id={`clinic-particular-token-${token.id}`}
                             data-clinic-access-mobile-row="true"
@@ -1080,13 +1088,14 @@ export function ClinicParticularTokensCard() {
                             >
                               Ver detalle
                             </Button>
-                          </div>
+                          </ContentListItem>
                         ))}
-                      </div>
+                      </ContentList>
                     </>
                   ) : (
                     <div className="flex min-h-0 flex-1 p-3">
-                      <EmptyState
+                      <CollectionState
+                        variant="empty"
                         title="Sin tokens para los filtros aplicados"
                         description="No hay tokens particulares que coincidan con los campos visibles seleccionados."
                         size="sm"
@@ -1167,7 +1176,8 @@ export function ClinicParticularTokensCard() {
             </div>
           ) : (
             <ParticularTokensEmptyPanel>
-              <EmptyState
+              <CollectionState
+                variant="empty"
                 title={
                   isLoadingTokens
                     ? "Cargando tokens particulares..."

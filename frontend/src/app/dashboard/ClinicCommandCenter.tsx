@@ -1,10 +1,11 @@
 import type { Report, FieldVisit, DashboardStats } from "@/types";
 import { StatsCards } from "@/components/dashboard/StatsCards";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
-import { EmptyState } from "@/components/dashboard/EmptyState";
+import { CollectionState } from "@/components/dashboard/EmptyState";
 import { ModuleCardSections } from "@/components/dashboard/ModuleCard";
 import { DashboardRefreshButton } from "@/components/dashboard/DashboardRefreshButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ContentList, ContentListItem } from "@/components/ui/table";
 import { ClipboardList, Route } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 
@@ -155,8 +156,10 @@ export function ClinicCommandCenter({
                         <DashboardRefreshButton />
                       </div>
                     ) : recentReports.length ? (
-                      recentReports.map((report) => (
-                        <div
+                      <ContentList as="div" className="contents space-y-1.5">
+                      {recentReports.map((report) => (
+                        <ContentListItem
+                          as="div"
                           key={report.id}
                           className="dashboard-list-row"
                         >
@@ -173,10 +176,12 @@ export function ClinicCommandCenter({
                             size="sm"
                             className="ml-2 shrink-0"
                           />
-                        </div>
-                      ))
+                        </ContentListItem>
+                      ))}
+                      </ContentList>
                     ) : (
-                      <EmptyState
+                      <CollectionState
+                        variant="empty"
                         title="Sin informes recientes"
                         description="No hay informes recientes disponibles."
                         icon={ClipboardList}
@@ -207,8 +212,10 @@ export function ClinicCommandCenter({
                         <DashboardRefreshButton />
                       </div>
                     ) : recentVisits.length ? (
-                      recentVisits.map((visit) => (
-                        <div
+                      <ContentList as="div" className="contents space-y-1.5">
+                      {recentVisits.map((visit) => (
+                        <ContentListItem
+                          as="div"
                           key={visit.id}
                           className="dashboard-list-row"
                         >
@@ -225,10 +232,12 @@ export function ClinicCommandCenter({
                             size="sm"
                             className="ml-2 shrink-0"
                           />
-                        </div>
-                      ))
+                        </ContentListItem>
+                      ))}
+                      </ContentList>
                     ) : (
-                      <EmptyState
+                      <CollectionState
+                        variant="empty"
                         title="Sin visitas recientes"
                         description="No hay visitas de campo recientes disponibles."
                         icon={Route}

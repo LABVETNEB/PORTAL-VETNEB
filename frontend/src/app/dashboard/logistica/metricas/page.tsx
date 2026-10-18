@@ -5,6 +5,7 @@ import { ClinicFullRouteModuleStage } from "@/components/dashboard/ClinicFullRou
 import { ModuleCard } from "@/components/dashboard/ModuleCard";
 import { CanonicalOperationalRow } from "@/components/dashboard/CanonicalOperationalRow";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
+import { ContentList } from "@/components/ui/table";
 import {
   CardContent,
   CardHeader,
@@ -16,7 +17,7 @@ import { getRoutePlanMetrics, getRoutePlans } from "@/lib/api";
 import { redirectToLoginOnUnauthorized } from "@/lib/dashboard-server-auth";
 import { LogisticsBoundedCanvas } from "../LogisticsBoundedCanvas";
 import { ModuleMetricRun } from "@/components/dashboard/ModuleMetricRun";
-import { DASHBOARD_TOUCH_PAGER_RESERVATION } from "@/components/dashboard/DashboardPager";
+import { CollectionPager } from "@/components/dashboard/DashboardPager";
 import { RoutePlanMetricDetailDialog } from "../RoutePlanMetricDetailDialog";
 
 export const metadata: Metadata = {
@@ -210,7 +211,8 @@ export default async function MetricasPage({
                   No se pudieron cargar las métricas de ruta. Intente nuevamente.
                 </div>
               ) : routeMetrics.length ? (
-                <div
+                <ContentList
+                  as="div"
                   className="flex min-h-0 w-full min-w-0 flex-1 flex-col divide-y divide-vetneb-line/60 overflow-hidden"
                   data-logistics-mobile-list="metricas"
                 >
@@ -244,7 +246,7 @@ export default async function MetricasPage({
                       />
                     );
                   })}
-                </div>
+                </ContentList>
               ) : (
                 <div className="surface-empty">
                   No hay métricas de ruta disponibles.
@@ -334,14 +336,11 @@ export default async function MetricasPage({
             }
           />
         </CardContent>
-        <nav
+        <CollectionPager
+          variant="centered"
           aria-label="Paginación de métricas de ruta"
-          data-dashboard-pager="true"
-          data-dashboard-adaptive-reserved-region="pager"
-          className="dashboard-pager min-h-10 shrink-0 border-t border-vetneb-line/70"
-          style={DASHBOARD_TOUCH_PAGER_RESERVATION}
-        >
-          <span data-dashboard-pager-prev="true" className="inline-flex">
+          className="shrink-0 border-t border-vetneb-line/70"
+          prevControl={
             <PublicRouteControl
               href={previousHref}
               variant="bare"
@@ -351,11 +350,13 @@ export default async function MetricasPage({
             >
               Anterior
             </PublicRouteControl>
-          </span>
-          <span data-dashboard-pager-state="true" className="dashboard-pagination-context">
-            Página {currentPage}
-          </span>
-          <span data-dashboard-pager-next="true" className="inline-flex">
+          }
+          stateControl={
+            <span className="dashboard-pagination-context inline-block">
+              Página {currentPage}
+            </span>
+          }
+          nextControl={
             <PublicRouteControl
               href={nextHref}
               variant="bare"
@@ -365,8 +366,8 @@ export default async function MetricasPage({
             >
               Siguiente
             </PublicRouteControl>
-          </span>
-        </nav>
+          }
+        />
       </ModuleCard>
       </ClinicFullRouteModuleStage>
     </ClinicDashboardShell>

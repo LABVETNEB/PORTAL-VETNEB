@@ -5,14 +5,18 @@ import type { FieldVisit } from "@/types";
 import { Route as RouteIcon } from "lucide-react";
 import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
-import { EmptyState } from "@/components/dashboard/EmptyState";
-import { DashboardPager } from "@/components/dashboard/DashboardPager";
 import { DashboardRefreshButton } from "@/components/dashboard/DashboardRefreshButton";
 import { ModuleDialog } from "@/components/dashboard/ModuleDialog";
 import { ModuleCard } from "@/components/dashboard/ModuleCard";
 import { usePagedRows } from "@/components/dashboard/usePagedRows";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { FullModuleRouteControl } from "@/components/dashboard/FullModuleRouteControl";
+import {
+  CollectionPager,
+  CollectionState,
+  CollectionWorkspace,
+  ContentList,
+} from "@/features/dashboard/presentation/surfaces";
 import { ROUTES } from "@/lib/routes";
 import { formatDate } from "@/lib/utils";
 
@@ -75,11 +79,12 @@ export function ClinicLogisticaWorkspaceSummary({
           <DashboardRefreshButton />
         </div>
       ) : recentVisits.length ? (
-        <div
+        <CollectionWorkspace
           data-clinic-logistics-list-panel="true"
           className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-vetneb-line/75 bg-card/82"
         >
-          <div
+          <ContentList
+            as="div"
             ref={setVisitsListBodyNode}
             data-clinic-logistics-list-body="true"
             data-dashboard-adaptive-rows-canvas="true"
@@ -115,7 +120,7 @@ export function ClinicLogisticaWorkspaceSummary({
                 <StatusBadge status={visit.status} size="sm" className="shrink-0" />
               </button>
             ))}
-          </div>
+          </ContentList>
 
           {/* CMP-12: no border/reservation on this outer wrapper — DashboardPager
               already carries both on its own nav (border-box makes the reserved
@@ -125,7 +130,8 @@ export function ClinicLogisticaWorkspaceSummary({
             data-clinic-logistics-pagination-footer="true"
             className="flex shrink-0 items-center justify-center px-3 text-xs text-muted-foreground"
           >
-            <DashboardPager
+            <CollectionPager
+              variant="centered"
               className="w-full border-t border-vetneb-line/65"
               aria-label="Paginación de visitas recientes"
               pageStateRegime="phone-only"
@@ -148,9 +154,10 @@ export function ClinicLogisticaWorkspaceSummary({
               }
             />
           </div>
-        </div>
+        </CollectionWorkspace>
       ) : (
-        <EmptyState
+        <CollectionState
+          variant="empty"
           title="Sin visitas recientes"
           description="No hay visitas de campo recientes disponibles."
           icon={RouteIcon}

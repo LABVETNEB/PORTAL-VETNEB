@@ -17,7 +17,7 @@ const INFORMES_PATH =
   "frontend/src/app/dashboard/informes/InformesReportsList.tsx";
 const ZERO_SCROLL_CSS_PATH =
   "frontend/src/styles/dashboard/zero-scroll.css";
-// C21: the Informes full route renders the C02 owner, which declares the region and the touch reservation.
+// C21 (Informes full route) and C22 (logistics full routes) render the C02 owner, which declares the region and the touch reservation.
 const DIRECT_DASHBOARD_PAGERS = [
   "frontend/src/app/dashboard/logistica/visitas/page.tsx",
   "frontend/src/app/dashboard/logistica/rutas/page.tsx",
@@ -79,10 +79,10 @@ test("A05 declares a dashboard-scoped pager reservation without changing its tok
   );
 
   for (const path of DIRECT_DASHBOARD_PAGERS) {
-    const directPager = read(path);
-    assert.ok(
-      directPager.includes('data-dashboard-adaptive-reserved-region="pager"'),
-      `${path} must declare its fixed dashboard-pager region`,
+    assert.match(
+      read(path),
+      /<CollectionPager\n\s+variant="centered"/,
+      `${path} must delegate its fixed dashboard-pager region to the C02 owner`,
     );
   }
   assert.match(read(INFORMES_PATH), /<CollectionPager\n\s+variant="centered"/, "Informes delegates its pager region to the C02 owner");
