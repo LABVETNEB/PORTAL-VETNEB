@@ -7,6 +7,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type PointerEvent as ReactPointerEvent,
   type ReactNode,
   type RefObject,
 } from "react";
@@ -262,7 +263,7 @@ type DashboardMobileNavOverflowProps = {
   readonly onClose: () => void;
   /** Returns `true` when the stage owner claimed the navigation (single flight). */
   readonly onNavigate: (moduleId: string) => boolean;
-  readonly panelRef: RefObject<HTMLElement | null>;
+  readonly onPanelPointerDown: (event: ReactPointerEvent<HTMLElement>) => void;
 };
 
 function DashboardMobileNavOverflow({
@@ -272,7 +273,7 @@ function DashboardMobileNavOverflow({
   basePath,
   onClose,
   onNavigate,
-  panelRef,
+  onPanelPointerDown,
 }: DashboardMobileNavOverflowProps) {
   const [page, setPage] = useState(0);
   const pageCount = Math.max(1, Math.ceil(destinations.length / OVERFLOW_PAGE_SIZE));
@@ -299,7 +300,7 @@ function DashboardMobileNavOverflow({
   // instead of hardcoding administration. The admin string is preserved verbatim.
   return (
     <section
-      ref={panelRef}
+      onPointerDown={onPanelPointerDown}
       id={OVERFLOW_ID}
       aria-label={OVERFLOW_LANDMARK[surface]}
       data-dashboard-mobile-nav-overflow="true"
@@ -401,6 +402,7 @@ type MobileNavBarProps = {
   readonly overflowOpen: boolean;
   readonly onToggleOverflow: () => void;
   readonly overflowTriggerRef?: RefObject<HTMLButtonElement | null>;
+  readonly onOverflowPointerDown?: (event: ReactPointerEvent<HTMLElement>) => void;
   readonly children?: ReactNode;
 };
 
@@ -412,6 +414,7 @@ function DashboardMobileNavBar({
   overflowOpen,
   onToggleOverflow,
   overflowTriggerRef,
+  onOverflowPointerDown,
   children,
 }: MobileNavBarProps) {
   const all = useMemo(() => destinationsFor(surface), [surface]);
@@ -466,6 +469,7 @@ function DashboardMobileNavBar({
         {hasOverflow ? (
           <button
             ref={overflowTriggerRef}
+            onPointerDown={onOverflowPointerDown}
             type="button"
             aria-label="Más"
             aria-expanded={overflowOpen}
@@ -542,7 +546,6 @@ function MobileNavWithUrl({ surface }: DashboardMobileNavProps) {
   const activeModule = staged === undefined ? parsed : staged;
   const [overflowOpen, setOverflowOpen] = useState(false);
   const overflowTriggerRef = useRef<HTMLButtonElement | null>(null);
-  const overflowPanelRef = useRef<HTMLElement | null>(null);
   const closeOverflow = useCallback(() => setOverflowOpen(false), []);
   // Escape and the close button dismiss from inside the sheet, which then
   // unmounts: focus goes back to "Más" instead of falling to the document.
@@ -551,12 +554,10 @@ function MobileNavWithUrl({ surface }: DashboardMobileNavProps) {
     overflowTriggerRef.current?.focus({ preventScroll: true });
   }, []);
 
-  useMobileOverlayDismissal(
+  const markOverflowPress = useMobileOverlayDismissal(
     OVERFLOW_ID,
     overflowOpen,
     closeOverflow,
-    overflowTriggerRef,
-    overflowPanelRef,
   );
 
   const activate = useCallback(
@@ -581,6 +582,7 @@ function MobileNavWithUrl({ surface }: DashboardMobileNavProps) {
       overflowOpen={overflowOpen}
       onToggleOverflow={() => setOverflowOpen((current) => !current)}
       overflowTriggerRef={overflowTriggerRef}
+      onOverflowPointerDown={markOverflowPress}
     >
       {hasOverflow ? (
         <DashboardMobileNavOverflow
@@ -590,7 +592,7 @@ function MobileNavWithUrl({ surface }: DashboardMobileNavProps) {
           basePath={SURFACE_BASE_PATH[surface]}
           onClose={dismissOverflow}
           onNavigate={activate}
-          panelRef={overflowPanelRef}
+          onPanelPointerDown={markOverflowPress}
         />
       ) : null}
     </DashboardMobileNavBar>

@@ -61,13 +61,12 @@ interface DashboardMobileKebabMenuProps {
 export function DashboardMobileKebabMenu({ surface }: DashboardMobileKebabMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
-  const menuRef = useRef<HTMLElement | null>(null);
   const copy = SURFACE_COPY[surface];
   const isAdmin = surface === "admin";
   const menuId = "dashboard-mobile-kebab-menu";
   const close = useCallback(() => setIsOpen(false), []);
 
-  useMobileOverlayDismissal(menuId, isOpen, close, triggerRef, menuRef);
+  const markInsidePress = useMobileOverlayDismissal(menuId, isOpen, close);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -108,6 +107,7 @@ export function DashboardMobileKebabMenu({ surface }: DashboardMobileKebabMenuPr
     <div className={rootClass}>
       <button
         ref={triggerRef}
+        onPointerDown={markInsidePress}
         type="button"
         aria-label={copy.triggerLabel}
         aria-expanded={isOpen}
@@ -120,7 +120,7 @@ export function DashboardMobileKebabMenu({ surface }: DashboardMobileKebabMenuPr
 
       {isOpen ? (
         <section
-          ref={menuRef}
+          onPointerDown={markInsidePress}
           id={menuId}
           aria-label={copy.menuLabel}
           data-dashboard-mobile-kebab-menu="true"

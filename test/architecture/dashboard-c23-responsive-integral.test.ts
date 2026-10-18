@@ -33,10 +33,16 @@ function c23aViolations(sources: Sources): string[] {
     if (!ok) violations.push(message);
   };
 
-  require(/^import \{ useEffect, type RefObject \} from "react";$/m.test(hook), "hook imports react only");
+  require(/^import \{ useCallback, useEffect, useRef, type PointerEvent as ReactPointerEvent \} from "react";$/m.test(hook), "hook imports react only");
   require([...hook.matchAll(/^import /gm)].length === 1, "hook has a single import (presentation-pure)");
-  require(hook.includes('document.addEventListener("pointerdown", closeOnOutsidePress, true);'), "light dismiss on a captured outside press");
-  require(hook.includes('document.removeEventListener("pointerdown", closeOnOutsidePress, true);'), "light dismiss is removed");
+  // PR #1888 P1: the boundary is the React tree (pointer events cross portals), so
+  // a dialog the panel portals to document.body stays inside; a DOM containment
+  // test or a capture-phase listener judges the press before React marks it.
+  require(hook.includes("insidePresses.current.add(event.nativeEvent);"), "the owner marks presses inside its React tree");
+  require(hook.includes("if (!insidePresses.current.has(event)) close();"), "only an unmarked press dismisses");
+  require(hook.includes('window.addEventListener("pointerdown", closeOnOutsidePress);'), "the press is judged on window after React dispatch");
+  require(hook.includes('window.removeEventListener("pointerdown", closeOnOutsidePress);'), "light dismiss is removed");
+  require(!/\.contains\(|addEventListener\("pointerdown",[^)]*true\)|setTimeout|stopPropagation/.test(hook), "no DOM containment, capture phase, timer or event suppression");
   require(hook.includes("window.dispatchEvent(new CustomEvent<string>(MOBILE_OVERLAY_OPEN_EVENT, { detail: overlayId }));"), "opening announces itself");
   require(hook.includes("if ((event as CustomEvent<string>).detail !== overlayId) close();"), "another overlay opening closes this one");
   require(hook.includes('const MOBILE_OVERLAY_REGIME = "(max-width: 767px)";'), "the phone regime is the B09 boundary");
@@ -45,17 +51,20 @@ function c23aViolations(sources: Sources): string[] {
   require(!/focus\(/.test(hook), "the shared policy never moves focus");
 
   require(nav.includes('import { useMobileOverlayDismissal } from "./useMobileOverlayDismissal";'), "mobile nav consumes the policy");
-  require(/useMobileOverlayDismissal\(\s*OVERFLOW_ID,\s*overflowOpen,\s*closeOverflow,\s*overflowTriggerRef,\s*overflowPanelRef,\s*\);/.test(nav), "overflow registers trigger and panel");
+  require(/const markOverflowPress = useMobileOverlayDismissal\(\s*OVERFLOW_ID,\s*overflowOpen,\s*closeOverflow,\s*\);/.test(nav), "overflow consumes the policy");
   require(/const dismissOverflow = useCallback\(\(\) => \{\s*setOverflowOpen\(false\);\s*overflowTriggerRef\.current\?\.focus\(\{ preventScroll: true \}\);\s*\}, \[\]\);/.test(nav), "overflow returns focus to Más");
   require(/onClose=\{dismissOverflow\}/.test(nav), "Escape and Cerrar go through the focus-returning close");
-  require(/ref=\{overflowTriggerRef\}\s*type="button"\s*aria-label="Más"/.test(nav), "Más is the registered trigger");
-  require(/ref=\{panelRef\}\s*id=\{OVERFLOW_ID\}/.test(nav), "the sheet is the registered panel");
+  require(/ref=\{overflowTriggerRef\}\s*onPointerDown=\{onOverflowPointerDown\}\s*type="button"\s*aria-label="Más"/.test(nav), "Más marks its presses");
+  require(/onPointerDown=\{onPanelPointerDown\}\s*id=\{OVERFLOW_ID\}/.test(nav), "the sheet marks its presses");
+  require(nav.includes("onOverflowPointerDown={markOverflowPress}") && nav.includes("onPanelPointerDown={markOverflowPress}"), "trigger and sheet share one marker");
   require(/setOverflowOpen\(false\);\s*return surface === "admin"/.test(nav), "a destination closes without stealing focus");
 
   require(kebab.includes('import { useMobileOverlayDismissal } from "./useMobileOverlayDismissal";'), "kebab consumes the policy");
-  require(kebab.includes("useMobileOverlayDismissal(menuId, isOpen, close, triggerRef, menuRef);"), "kebab registers trigger and menu");
+  require(kebab.includes("const markInsidePress = useMobileOverlayDismissal(menuId, isOpen, close);"), "kebab consumes the policy");
   require(/if \(event\.key !== "Escape"\) return;\s*setIsOpen\(false\);\s*triggerRef\.current\?\.focus\(\{ preventScroll: true \}\);/.test(kebab), "kebab Escape returns focus");
-  require(/<button\s*ref=\{triggerRef\}/.test(kebab) && /<section\s*ref=\{menuRef\}/.test(kebab), "kebab trigger and menu carry the refs");
+  require(/<button\s*ref=\{triggerRef\}\s*onPointerDown=\{markInsidePress\}/.test(kebab), "the kebab trigger marks its presses");
+  require(/<section\s*onPointerDown=\{markInsidePress\}\s*id=\{menuId\}/.test(kebab), "the kebab menu marks its presses, portaled Notificaciones included");
+  require(/<section[\s\S]*<DashboardNotificationsBell surface=\{surface\} mobileNoScroll \/>[\s\S]*<\/section>/.test(kebab), "Notificaciones stays inside the marked menu");
 
   for (const [name, source] of Object.entries({ hook, nav, kebab })) {
     for (const forbidden of ["onmousedown", "ontouchstart", "next/link", "@/lib/api"]) {
@@ -72,16 +81,19 @@ test("C23a · the phone overlays share one dismissal policy and return focus", (
 test("C23a · the guard rejects each regression of the overlay contract", () => {
   const sources = read();
   const mutations: ReadonlyArray<readonly [keyof Sources, string, string]> = Object.freeze([
-    ["hook", 'document.addEventListener("pointerdown", closeOnOutsidePress, true);', ""],
+    ["hook", 'window.addEventListener("pointerdown", closeOnOutsidePress);', 'document.addEventListener("pointerdown", closeOnOutsidePress, true);'],
+    ["hook", "if (!insidePresses.current.has(event)) close();", "close();"],
+    ["hook", "insidePresses.current.add(event.nativeEvent);", ""],
     ["hook", "if ((event as CustomEvent<string>).detail !== overlayId) close();", ""],
     ["hook", '"(max-width: 767px)"', '"(max-width: 1279px)"'],
     ["hook", "if (!regime.matches) close();", ""],
-    ["hook", 'import { useEffect, type RefObject } from "react";', 'import { useEffect, type RefObject } from "react";\nimport { apiFetch } from "@/lib/api";'],
+    ["hook", 'import { useCallback, useEffect, useRef, type PointerEvent as ReactPointerEvent } from "react";', 'import { useCallback, useEffect, useRef, type PointerEvent as ReactPointerEvent } from "react";\nimport { apiFetch } from "@/lib/api";'],
     ["mobileNav", "onClose={dismissOverflow}", "onClose={closeOverflow}"],
     ["mobileNav", "    overflowTriggerRef.current?.focus({ preventScroll: true });\n", ""],
-    ["mobileNav", "            ref={overflowTriggerRef}\n", ""],
-    ["mobileNav", "      ref={panelRef}\n", ""],
-    ["kebab", "useMobileOverlayDismissal(menuId, isOpen, close, triggerRef, menuRef);", ""],
+    ["mobileNav", "            onPointerDown={onOverflowPointerDown}\n", ""],
+    ["mobileNav", "      onPointerDown={onPanelPointerDown}\n", ""],
+    ["kebab", "        onPointerDown={markInsidePress}\n        type=", "        type="],
+    ["kebab", "          onPointerDown={markInsidePress}\n          id={menuId}", "          id={menuId}"],
     ["kebab", "      triggerRef.current?.focus({ preventScroll: true });\n", ""],
   ]);
   for (const [key, anchor, replacement] of mutations) {

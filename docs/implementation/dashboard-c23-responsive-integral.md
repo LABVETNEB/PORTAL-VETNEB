@@ -99,6 +99,14 @@ Sin cambios de CSS, tokens, DOM visible, `data-*`, rutas, endpoints ni permisos:
 | Guard C23 | 2/4 FAILED (10 violaciones del contrato nuevo); ledger y catálogo pasan | 4/4 PASSED |
 | E2E C23a | 5/10 FAILED: exactamente los cinco casos de overlay; bandas, búsqueda, sheet de filtros y frontera de rol pasan en ambos lados (invariantes preexistentes) | 10/10 PASSED |
 
+### Corrección P1 de la revisión de PR #1888 (thread `PRRT_kwDOR5qlsc6tr-Oa`)
+
+Causa: el kebab aloja `DashboardNotificationsBell`, cuyo diálogo móvil se porta a `document.body`. El primer `useMobileOverlayDismissal` decidía «fuera» con `contains` del DOM en un `pointerdown` capturado en `document`: toda presión dentro del diálogo era externa, el kebab se cerraba y desmontaba la campana antes del `click`. Reproducido en navegador sobre `78bdfa4d`: tras pulsar «Actualizar», diálogo y kebab desaparecen y no sale ningún GET a `/api/admin/study-tracking/notifications`.
+
+Alternativas: (A) tratar el portal como parte del límite lógico; (B) mantener montada la campana fuera del kebab mientras su diálogo esté abierto. Se adoptó A con el árbol React como límite: el owner marca con `onPointerDown` su disparador y su panel, React propaga ese evento a través de los portales, y el hook decide en `window` (burbuja, después del dispatch de React) cerrando sólo ante presiones no marcadas. B reestructuraba el kebab (anclas CMP-01) y dejaba un diálogo vivo sin el owner que restaura el foco. Sin selectores, timers ni supresión de eventos; el cierre exterior auténtico, Escape, la exclusividad, el régimen y la devolución de foco quedan iguales.
+
+RED → GREEN: el spec C23a (13 casos, tres nuevos de Notificaciones) falla sólo en el caso P1 sobre los tres archivos de `78bdfa4d` (sha1 restaurado) y pasa 39/39 con `--repeat-each=3` tras el fix; el guard C23 (16 mutaciones) falla 2/4 con 13 violaciones sobre `78bdfa4d` y pasa 4/4. El fixture sirve una lista vacía y E2E-GLOBAL-11 prohíbe stubear ese GET, así que ítems, paginación y «Marcar todo como leído» se verifican en su estado real (vacío, sin paginación, deshabilitado), no con datos inventados.
+
 ## 5. Validaciones
 
 | Gate | Estado |

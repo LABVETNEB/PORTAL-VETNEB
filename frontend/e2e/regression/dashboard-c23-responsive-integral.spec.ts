@@ -244,6 +244,132 @@ test.describe("C23a · phone overlays of the shell", () => {
   });
 });
 
+// PR #1888 P1: the kebab hosts DashboardNotificationsBell, whose phone dialog is
+// portaled to document.body. A press inside that dialog is inside the overlay.
+const NOTIFICATIONS_DIALOG = '[data-dashboard-notifications-mobile-panel="true"]';
+const NOTIFICATIONS_OVERLAY = '[data-dashboard-notifications-mobile-overlay="true"]';
+const NOTIFICATIONS_READ = "/api/admin/study-tracking/notifications";
+
+async function openNotificationsFromKebab(page: Page) {
+  await painted(page, KEBAB).click();
+  await expect(page.locator(KEBAB_MENU)).toBeVisible();
+  const loaded = page.waitForResponse((response) => new URL(response.url()).pathname === NOTIFICATIONS_READ);
+  await page.locator(KEBAB_MENU).getByRole("button", { name: "Notificaciones", exact: true }).click();
+  await loaded;
+  const dialog = page.locator(NOTIFICATIONS_DIALOG);
+  await expect(dialog).toBeVisible();
+  return dialog;
+}
+
+async function windowPointerDownListeners(page: Page) {
+  const cdp = await page.context().newCDPSession(page);
+  let count = 0;
+  for (const expression of ["window", "document"]) {
+    const { result } = await cdp.send("Runtime.evaluate", { expression });
+    const { listeners } = await cdp.send("DOMDebugger.getEventListeners", { objectId: result.objectId! });
+    count += listeners.filter((listener) => listener.type === "pointerdown").length;
+  }
+  await cdp.detach();
+  return count;
+}
+
+test.describe("C23a · the kebab keeps its portaled Notificaciones panel operable", () => {
+  test("pressing inside the portaled dialog runs its actions against the fixture and keeps both overlays", async ({ page }) => {
+    await page.setViewportSize(PHONE);
+    await openSurface(page, "admin");
+    const dialog = await openNotificationsFromKebab(page);
+
+    const refreshed = page.waitForRequest((request) => new URL(request.url()).pathname === NOTIFICATIONS_READ);
+    await dialog.getByRole("button", { name: "Actualizar", exact: true }).click();
+    await refreshed;
+    await expect(dialog, "Actualizar keeps the dialog").toBeVisible();
+    await expect(page.locator(KEBAB_MENU), "Actualizar keeps the kebab").toBeVisible();
+
+    const enabled = page.waitForRequest((request) => new URL(request.url()).pathname === NOTIFICATIONS_READ);
+    await dialog.getByRole("button", { name: "Activar notificaciones", exact: true }).click();
+    await enabled;
+    await expect(dialog.getByRole("button", { name: "Notificaciones activadas", exact: true })).toBeDisabled();
+
+    // The fixture serves an empty list: no item and no page to press, and
+    // "Marcar todo como leído" stays disabled with no unread notification.
+    await expect(dialog.getByText("No hay notificaciones.", { exact: true })).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "Marcar todo como leído", exact: true })).toBeDisabled();
+    await expect(dialog.getByLabel("Paginación de notificaciones")).toHaveCount(0);
+
+    await dialog.getByRole("button", { name: "Cerrar panel de notificaciones", exact: true }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(page.locator(KEBAB_MENU), "Cerrar closes only the dialog").toBeVisible();
+
+    const reloaded = page.waitForResponse((response) => new URL(response.url()).pathname === NOTIFICATIONS_READ);
+    await page.locator(KEBAB_MENU).getByRole("button", { name: "Notificaciones", exact: true }).click();
+    await reloaded;
+    await expect(dialog.getByRole("button", { name: "Actualizar", exact: true })).toBeEnabled();
+    const backdropY = PHONE.height - 8;
+    const panel = await dialog.boundingBox();
+    expect(panel!.y + panel!.height, "the backdrop press lands outside the panel").toBeLessThan(backdropY);
+    await page.locator(NOTIFICATIONS_OVERLAY).click({ position: { x: PHONE.width / 2, y: backdropY } });
+    await expect(dialog, "the backdrop closes the dialog").toHaveCount(0);
+    await expect(page.locator(KEBAB_MENU), "the backdrop belongs to the kebab").toBeVisible();
+    expect(await documentScroll(page)).toBeLessThanOrEqual(MAX_DOCUMENT_SCROLL_DELTA_PX);
+  });
+
+  test("Escape, a real outside press and the overflow still close the kebab and return focus", async ({ page }) => {
+    await page.setViewportSize(PHONE);
+    await openSurface(page, "admin");
+    const kebab = painted(page, KEBAB);
+    const triggerLabel = await kebab.getAttribute("aria-label");
+
+    const dialog = await openNotificationsFromKebab(page);
+    await dialog.getByRole("button", { name: "Actualizar", exact: true }).focus();
+    await page.keyboard.press("Escape");
+    await expect(dialog).toHaveCount(0);
+    await expect(page.locator(KEBAB_MENU)).toHaveCount(0);
+    expect(await focused(page), "Escape from the dialog").toBe(triggerLabel);
+
+    await kebab.click();
+    await page.locator(MAIN).click({ position: { x: 12, y: 160 } });
+    await expect(page.locator(KEBAB_MENU), "a press outside the tree still closes").toHaveCount(0);
+
+    await openNotificationsFromKebab(page);
+    await page.keyboard.press("Escape");
+    await kebab.click();
+    await painted(page, MORE).focus();
+    await page.keyboard.press("Enter");
+    await expect(page.locator(SHEET)).toBeVisible();
+    await expect(page.locator(KEBAB_MENU), "opening Más closes the kebab").toHaveCount(0);
+    await kebab.click();
+    await expect(page.locator(SHEET), "opening the kebab closes Más").toHaveCount(0);
+    await expect(page.locator(KEBAB_MENU)).toBeVisible();
+  });
+
+  test("leaving the phone regime unmounts the kebab and its dialog and leaves no listener behind", async ({ page }) => {
+    await page.setViewportSize(PHONE);
+    await openSurface(page, "admin");
+    const idle = await windowPointerDownListeners(page);
+
+    const dialog = await openNotificationsFromKebab(page);
+    expect(await windowPointerDownListeners(page), "one dismissal listener while open").toBe(idle + 1);
+
+    await page.setViewportSize({ width: 1024, height: 768 });
+    await expect(page.locator(KEBAB_MENU)).toHaveCount(0);
+    await expect(dialog).toHaveCount(0);
+    await expect(page.locator(NOTIFICATIONS_OVERLAY)).toHaveCount(0);
+    expect(await windowPointerDownListeners(page), "closed at 1024").toBe(idle);
+
+    await page.setViewportSize(PHONE);
+    await expect(painted(page, KEBAB)).toHaveAttribute("aria-expanded", "false");
+    await expect(page.locator(`${KEBAB_MENU}, ${NOTIFICATIONS_DIALOG}`), "nothing reappears").toHaveCount(0);
+
+    for (let cycle = 0; cycle < 3; cycle += 1) {
+      await openNotificationsFromKebab(page);
+      await page.keyboard.press("Escape");
+      await painted(page, MORE).click();
+      await page.locator(SHEET_CLOSE).click();
+    }
+    expect(await windowPointerDownListeners(page), "no orphan listener after open/close cycles").toBe(idle);
+  });
+});
+
 test.describe("C23a · role boundary of the responsive shell", () => {
   test("without a session every viewport band redirects to the login, and a clinic session never paints admin navigation", async ({ page }) => {
     for (const viewport of [{ width: 1366, height: 768 }, { width: 834, height: 1194 }, PHONE]) {
