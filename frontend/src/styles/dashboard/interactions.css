@@ -70,6 +70,31 @@
 }
 /* dashboard-action-feedback-focus-polish:end */
 
+/* dashboard-c25-focus-outline:start */
+/* C25 (P3-06). The controls ship `focus-visible:outline-none` and draw focus
+   only as a box-shadow ring, which forced-colors mode drops. A real outline
+   restores the indicator there and paints over the same ring area elsewhere.
+   UNLAYERED on purpose: a layered rule loses to `@layer utilities`. `:where`
+   keeps it below every explicit focus rule of the shell. Outline never takes
+   layout space, so no geometry, capacity or zero-scroll contract moves. */
+.dashboard-app-shell
+  :where(
+    a[href],
+    button,
+    input,
+    select,
+    textarea,
+    summary,
+    [role="button"],
+    [role="tab"],
+    [role="checkbox"],
+    [tabindex]:not([tabindex="-1"])
+  ):focus-visible {
+  outline: 2px solid var(--dash-color-focus-ring);
+  outline-offset: 2px;
+}
+/* dashboard-c25-focus-outline:end */
+
 /* dashboard-filters-forms-density-polish:start */
 @layer components {
   .dashboard-filter-stats-grid {

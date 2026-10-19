@@ -428,7 +428,7 @@ export function AdminUsersRolesReadOnlyCard() {
               />
               <Input
                 data-dashboard-filter-field="true"
-                className="h-8 pl-7 text-xs leading-none md:h-7"
+                className="h-8 pl-7 text-xs leading-4 md:h-7"
                 placeholder="Buscar usuario o clínica"
                 value={searchQuery}
                 disabled={disableUserActions}
@@ -730,7 +730,7 @@ export function AdminUsersRolesReadOnlyCard() {
               />
               <Input
                 data-dashboard-filter-field="true"
-                className="h-9 pl-7 text-xs leading-none"
+                className="h-9 pl-7 text-xs leading-4"
                 placeholder="Buscar usuario o clínica"
                 value={searchQuery}
                 disabled={disableUserActions}

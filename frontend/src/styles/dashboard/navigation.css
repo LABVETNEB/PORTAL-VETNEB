@@ -450,9 +450,12 @@
   }
 
   /* B04 - FOCUS_INDICATOR, not elevation. Inset so a ring on the first or last
-     item is never clipped by the band's own `overflow: hidden`. */
+     item is never clipped by the band's own `overflow: hidden`. C25: the
+     transparent inset outline is invisible here and becomes the indicator in
+     forced-colors mode, which drops the box-shadow. */
   .dashboard-app-shell .dashboard-mobile-nav-item:focus-visible {
-    outline: none;
+    outline: 2px solid transparent;
+    outline-offset: -2px;
     box-shadow:
       inset 0 0 0 2px hsl(var(--ring) / 0.85),
       inset 0 0 0 4px hsl(var(--card));
