@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { setClinicSession } from "../../helpers/session";
 import { MAX_DOCUMENT_SCROLL_DELTA_PX } from "../../helpers/zero-scroll-contract";
 
@@ -7,8 +7,62 @@ const TOLERANCE = 2;
 const VIEWPORTS = [
   { name: "desktop-1440x900", width: 1440, height: 900 },
   { name: "desktop-short-1366x768", width: 1366, height: 768 },
+  { name: "tablet-768x1024", width: 768, height: 1024 },
   { name: "mobile-390x844", width: 390, height: 844 },
 ] as const;
+
+const PAGE_SCOPE_NOTE =
+  "Conteos calculados sobre la página visible, no sobre el total general de visitas.";
+const WORKSPACE_HEADER_PX = 40;
+
+// C23b D-A: `sr-only` keeps a 1x1 box, so Playwright's toBeVisible() cannot
+// tell painted text from text kept only for assistive technologies.
+async function paintOf(locator: Locator) {
+  return locator.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    const style = getComputedStyle(element);
+    const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
+    return {
+      x: rect.x,
+      y: rect.y,
+      width: rect.width,
+      height: rect.height,
+      display: style.display,
+      position: style.position,
+      flexDirection: style.flexDirection,
+      hitTested: hit !== null && (hit === element || element.contains(hit)),
+      clipped: element.scrollWidth > element.clientWidth || element.scrollHeight > element.clientHeight,
+    };
+  });
+}
+
+async function expectPageScopeHeader(page: Page, width: number, showing: RegExp, label: string) {
+  const surface = page.locator('[data-dashboard-table-surface="true"]');
+  const header = surface.locator(":scope > div").first();
+  const title = header.locator("h3");
+  const note = page.getByText(PAGE_SCOPE_NOTE, { exact: true });
+  const [headerPaint, titlePaint, notePaint] = await Promise.all([paintOf(header), paintOf(title), paintOf(note)]);
+
+  expect(notePaint.hitTested, `${label}: the page-scope note is painted on top`).toBe(true);
+  expect(notePaint.position, `${label}: the page-scope note is in flow`).toBe("static");
+  expect(notePaint.width, `${label}: the page-scope note has a real box`).toBeGreaterThan(1);
+  expect(notePaint.clipped, `${label}: the page-scope note is not cut`).toBe(false);
+
+  const tree = await surface.ariaSnapshot();
+  if (width >= 768) {
+    expect(headerPaint.flexDirection, `${label}: one header row`).toBe("row");
+    expect(Math.abs(headerPaint.height - WORKSPACE_HEADER_PX), `${label}: 40px header`).toBeLessThanOrEqual(TOLERANCE);
+    expect(titlePaint.x + titlePaint.width, `${label}: title and note do not overlap`).toBeLessThanOrEqual(notePaint.x);
+    expect(notePaint.y + notePaint.height, `${label}: the note stays inside the header`).toBeLessThanOrEqual(headerPaint.y + headerPaint.height);
+    const showingPaint = await paintOf(page.getByText(showing));
+    expect(showingPaint.display, `${label}: Mostrando stays rendered`).not.toBe("none");
+    expect(showingPaint.width * showingPaint.height, `${label}: Mostrando is visually hidden`).toBeLessThanOrEqual(1);
+    expect(tree, `${label}: Mostrando reaches assistive technologies`).toMatch(showing);
+  } else {
+    expect(headerPaint.flexDirection, `${label}: the phone header keeps its stacked layout`).toBe("column");
+    expect(await paintOf(page.getByText(showing)).then((paint) => paint.display), `${label}: phone hides Mostrando as before`).toBe("none");
+  }
+}
 
 async function readNoExternalScroll(page: Page) {
   return page.evaluate(() => {
@@ -55,11 +109,7 @@ test.describe("clinic Logística Visitas full route adaptive contract (R-12)", (
       await expect(previousButton).toBeDisabled();
       await expect(nextButton).toBeDisabled();
       await expect(pageIndicator).toHaveText("Página 1");
-      await expect(
-        page.getByText(
-          "Conteos calculados sobre la página visible, no sobre el total general de visitas.",
-        ),
-      ).toBeVisible();
+      await expectPageScopeHeader(page, viewport.width, /Mostrando 3 visitas · página 1/, viewport.name);
 
       await expect(async () => {
         const metrics = await readNoExternalScroll(page);
@@ -105,7 +155,7 @@ test.describe("clinic Logística Visitas full route adaptive contract (R-12)", (
     }).toPass({ timeout: 12_000 });
 
     await expect(pageIndicator).toHaveText("Página 1");
-    await expect(page.getByText(/puede haber más visitas disponibles/)).toBeVisible();
+    await expectPageScopeHeader(page, 1440, /Mostrando 3 visitas · página 1 · puede haber más visitas disponibles/, "page full");
 
     await nextButton.click();
 

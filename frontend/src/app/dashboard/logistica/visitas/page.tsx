@@ -124,18 +124,20 @@ export default async function VisitasPage({
     >
       <ClinicFullRouteModuleStage moduleId="logistica-visitas">
       <ModuleCard ariaLabel="Visitas de campo" dataAttributes={{ "data-dashboard-table-surface": "true" }}>
-        <CardHeader className="shrink-0">
-          <CardTitle className="text-base">
+        {/* C23b D-A: 40px header from md through the B11 token; the B11 class
+            itself is hidden here by the clinic module-header reclaim rule. */}
+        <CardHeader className="shrink-0 md:h-[var(--dash-workspace-header-h)] md:flex-row md:items-center md:justify-between md:gap-3 md:space-y-0 md:px-4 md:py-0">
+          <CardTitle className="text-base md:shrink-0">
             Visitas ({visits.length})
           </CardTitle>
           <p
-            className="text-sm text-muted-foreground"
+            className="text-sm text-muted-foreground md:sr-only"
             data-dashboard-chrome-secondary="true"
           >
             Mostrando {visits.length} visitas · página {currentPage}
             {canGoNext ? " · puede haber más visitas disponibles" : ""}
           </p>
-          <p className="text-xs text-muted-foreground">Conteos calculados sobre la página visible, no sobre el total general de visitas.</p>
+          <p className="text-xs text-muted-foreground md:min-w-0 md:line-clamp-2">Conteos calculados sobre la página visible, no sobre el total general de visitas.</p>
         </CardHeader>
         {/* CMP-11 (DIF-042/G-014): metrics band comes after surfaceHeader,
             matching Admin's canonical appBar > surfaceHeader > metrics order. */}

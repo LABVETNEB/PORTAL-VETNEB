@@ -113,6 +113,61 @@ test("C23a · the runtime contract walks the 13 A02 viewports and is catalogued"
   assert.match(catalog, /entry\("e2e\/regression\/dashboard-c23-responsive-integral\.spec\.ts", "regression", "dashboard\/responsive", [^\n]*\["visual-contract"\], ci, "fixture"/);
 });
 
+// ── C23b PR1 · D-A ──────────────────────────────────────────────────────────
+// Rutas and Visitas fold their card header into one 40px row from md up through
+// the B11 token (the B11 class is hidden inside the clinic module workspace).
+// Every new class is md-scoped so the five phone records stay untouched; the
+// page-scope note stays painted and "Mostrando…" stays for assistive tech.
+const D_A_PAGES = {
+  rutas: "frontend/src/app/dashboard/logistica/rutas/page.tsx",
+  visitas: "frontend/src/app/dashboard/logistica/visitas/page.tsx",
+} as const;
+const D_A_HEADER_CLASS =
+  "shrink-0 md:h-[var(--dash-workspace-header-h)] md:flex-row md:items-center md:justify-between md:gap-3 md:space-y-0 md:px-4 md:py-0";
+
+function dAViolations(source: string): string[] {
+  const violations: string[] = [];
+  const require = (ok: boolean, message: string) => {
+    if (!ok) violations.push(message);
+  };
+  const header = /<CardHeader className="([^"]*)">/.exec(source)?.[1] ?? "";
+  require(header === D_A_HEADER_CLASS, "the card header is the D-A 40px row");
+  require(header.split(" ").slice(1).every((token) => token.startsWith("md:")), "every header class added by D-A is md-scoped");
+  require(source.includes('<CardTitle className="text-base md:shrink-0">'), "the title keeps its count and only gains md shrink");
+  require(/className="text-sm text-muted-foreground md:sr-only"\s*data-dashboard-chrome-secondary="true"\s*>\s*Mostrando/.test(source), "Mostrando stays for assistive tech from md");
+  require(/<p className="text-xs text-muted-foreground md:min-w-0 md:line-clamp-2">Conteos calculados sobre la página visible, no sobre el total general de /.test(source), "the page-scope note stays painted, wrapping instead of truncating");
+  require(!/<p [^>]*(?:sr-only|title=)[^>]*>Conteos calculados/.test(source), "the page-scope note is never hidden or moved to a tooltip");
+  require(!source.includes("dashboard-workspace-header"), "the B11 class is not used here (hidden by the clinic reclaim rule)");
+  require(source.includes("<ModuleMetricRun"), "the B14 full-route run stays");
+  return violations;
+}
+
+test("C23b PR1 · Rutas and Visitas carry the md-scoped D-A header", () => {
+  for (const [name, path] of Object.entries(D_A_PAGES)) {
+    assert.deepEqual(dAViolations(readSourceFile(path)), [], name);
+  }
+});
+
+test("C23b PR1 · the D-A guard rejects each regression", () => {
+  const mutations: ReadonlyArray<readonly [string, string]> = Object.freeze([
+    ["md:py-0", "py-0"],
+    ["md:h-[var(--dash-workspace-header-h)]", "h-[var(--dash-workspace-header-h)]"],
+    ['className="text-sm text-muted-foreground md:sr-only"', 'className="text-sm text-muted-foreground"'],
+    ["md:min-w-0 md:line-clamp-2", "md:min-w-0 md:truncate"],
+    ["md:min-w-0 md:line-clamp-2", "md:sr-only"],
+    ['<CardHeader className="shrink-0 ', '<CardHeader className="dashboard-workspace-header shrink-0 '],
+    ['<CardTitle className="text-base md:shrink-0">', '<CardTitle className="text-base">'],
+  ]);
+  for (const path of Object.values(D_A_PAGES)) {
+    const sources = { page: readSourceFile(path) };
+    for (const [anchor, replacement] of mutations) {
+      assert.ok(sources.page.includes(anchor), `anchor present: ${path} ${anchor}`);
+      const mutated = sources.page.replace(anchor, () => replacement);
+      assert.notDeepEqual(dAViolations(mutated), [], `mutation must be rejected: ${path} ${anchor}`);
+    }
+  }
+});
+
 // ── C23b ledger ─────────────────────────────────────────────────────────────
 // §26/§54/§62.5: chrome before the first datum ≤ 32 % of the viewport between
 // 768 and 1366 px and ≤ 240 px at 1920 × 1080, measured by A02 as
@@ -131,18 +186,10 @@ const C23B_BAND_LEDGER = Object.freeze({
   "clinic-logistica-full::w1280x720": 0.43817,
   "clinic-logistica-full::w1024x768": 0.39663,
   "clinic-logistica-full::w768x1024": 0.33836,
-  "clinic-log-rutas::w1366x768": 0.34841,
-  "clinic-log-rutas::w1280x720": 0.38674,
-  "clinic-log-rutas::w1024x768": 0.34841,
-  "clinic-log-visitas::w1366x768": 0.34841,
-  "clinic-log-visitas::w1280x720": 0.38674,
-  "clinic-log-visitas::w1024x768": 0.34841,
 });
 const C23B_WIDE_LEDGER = Object.freeze({
   "clinic-informes-full::w1920x1080": 482.73,
   "clinic-logistica-full::w1920x1080": 315.27,
-  "clinic-log-rutas::w1920x1080": 278.23,
-  "clinic-log-visitas::w1920x1080": 278.23,
 });
 const CHROME_BAND_RATIO = 0.32;
 const CHROME_WIDE_PX = 240;
