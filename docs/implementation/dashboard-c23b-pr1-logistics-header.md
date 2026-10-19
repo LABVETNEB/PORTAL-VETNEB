@@ -43,7 +43,7 @@ Contenido del header (≥ 768): altura 40.00 px en los 8 viewports; título 16 p
 
 ## A02 — Win32 realineado
 
-`frontend/e2e/fixtures/dashboard-geometry-baseline.ts`, `records` (Win32): 16 registros (2 superficies × 8 viewports ≥ 768), 4 campos cada uno, −80 px: `regions.collectionHeader.y`, `regions.primaryContent.y`, `derived.chromeBeforePrimaryContentPx`, `derived.chromeBeforePrimaryContentRatio` (64 campos). Diff exacto campo a campo contra PRE: ningún otro campo cambió; los 10 registros de teléfono, idénticos; las otras 19 superficies (247 registros), sin tocar. `platformRecords.linux`: sin tocar.
+`frontend/e2e/fixtures/dashboard-geometry-baseline.ts`, `records` (Win32): 16 registros (2 superficies × 8 viewports ≥ 768), 4 campos cada uno, −80 px: `regions.collectionHeader.y`, `regions.primaryContent.y`, `derived.chromeBeforePrimaryContentPx`, `derived.chromeBeforePrimaryContentRatio` (64 campos). Diff exacto campo a campo contra PRE: ningún otro campo cambió; los 10 registros de teléfono, idénticos; las otras 19 superficies (247 registros), sin tocar. `platformRecords.linux`: realineado aparte desde el run Linux real (ver Linux).
 
 ## A03 — Win32 realineado
 
@@ -60,7 +60,7 @@ Contenido del header (≥ 768): altura 40.00 px en los 8 viewports; título 16 p
 | 834×1194 | 16/16 | 17/17 | 17 |
 | 768×1024 | 13/13 | 14/14 | 14 |
 
-Idénticas en ambos consumidores; `secondPageCount` = `limit`; `source`/`pathname` sin cambio. `bounded-metricas`, las 10 hojas de teléfono y los otros 14 consumidores, sin cambio de contrato. No absorbido: `admin-particular-tokens::{w375x812, w412x915}` difieren sólo en el texto de `provenance` («400» contra «40 items»), campo que el contrato no compara, en un módulo que este cambio no renderiza. Preexistente; queda congelado. `platformObservations.linux`: sin tocar.
+Idénticas en ambos consumidores; `secondPageCount` = `limit`; `source`/`pathname` sin cambio. `bounded-metricas`, las 10 hojas de teléfono y los otros 14 consumidores, sin cambio de contrato. No absorbido: `admin-particular-tokens::{w375x812, w412x915}` difieren sólo en el texto de `provenance` («400» contra «40 items»), campo que el contrato no compara, en un módulo que este cambio no renderiza. Preexistente; queda congelado. `platformObservations.linux`: realineado aparte desde el run Linux real (ver Linux).
 
 ## Tests realineados y pruebas causales
 
@@ -107,15 +107,45 @@ Una tarea pesada por vez; `frontend/.next` se borró antes de cada corrida E2E y
 | A02/A03 Linux | BLOCKED: precondición, una ejecución real de E2E Completeness sobre el head publicado |
 | `e2e:full` | NOT_RUN (no pedido; las cohortes mínimas cubren los specs afectados) |
 
-## Linux (fase 2)
+## Linux (fase 2) — realineado desde una ejecución real
 
-Pendiente de una ejecución real de E2E Completeness sobre el head publicado. Se espera que falle sólo en los 16 registros A02 y las 16 hojas A03 de Rutas y Visitas. Los valores se toman de esa ejecución, nunca de Win32. Antecedente: el sanitizer elimina el adjunto y, para `logistics-bounded-canvas`, redacta `query`/`provenance` en el artifact A03. Si el log y el artifact no permiten reconstruir los cinco campos, el estado es BLOCKED con el campo faltante. Mientras tanto, el ledger C23b falla en Linux (el registro Linux aún declara las celdas). Es un rojo intencional, sin debilitar el guard.
+Procedencia: PR #1893, head `f9107785b890486442b0c623a82953f8fc02db0c`, workflow E2E Completeness, run `39273957610`, attempt 1, job `118133279099`, chromium/linux. Conclusión: `failure`, con 1872 PASSED y 3 FAILED. Los tres fallos son exactamente los esperados: A02 `clinic-log-rutas`, A02 `clinic-log-visitas` e integridad A03. No hubo ningún otro fallo.
+
+- **A02 (`platformRecords.linux`)**:
+  - El sanitizer elimina el adjunto, así que los valores salen del log del job: 192 líneas de diferencia, es decir, 64 campos × 3 intentos, idénticas entre intentos.
+  - Cada `expected` coincide con el valor Linux versionado (0 discrepancias).
+  - Se reescribieron 16 registros con los mismos 4 campos que en Win32 (−80 px). Ningún registro de teléfono ni de otra superficie quedó fuera de tolerancia.
+- **A03 (`platformObservations.linux`)**:
+  - Artifact `e2e-completeness-playwright-1` (id `12197968672`), archivo `test-results/a03-matrix/a03-matrix-observations.json` (sha256 `5b90508a80a2fe02…`).
+  - Se compararon las 234 hojas en `source`, `pathname`, `limit`, `offset` y `secondPageCount`. Las 117 hojas admin traen la clave redactada y se emparejaron por su archivo de módulo + viewport + variante.
+  - Las únicas divergencias son las 16 hojas de PR1, con los mismos `limit`/`offset` que en Win32, medidos en Linux.
+  - `query` y la URL dentro de `provenance` llegan redactadas (`?[REDACTED]`) en las 39 hojas de `logistics-bounded-canvas`. Se reconstruyeron a partir de `limit`/`offset` observados en Linux con la regla que emite la app (`?offset=<offset>&limit=<limit>` tras «Página siguiente»; primera página `?offset=0&limit=<limit>`). Esa regla se cumple en 156/156 observaciones sin redactar (las dos capturas Win32 en frío, el set Win32 y el set Linux real previo a PR1).
+  - El contrato A03 no compara `query` ni `provenance`.
+- **Guard C23b**: PASSED en ambas plataformas, 11 celdas de banda + 2 a 1920 cada una, sin cambios en el test. Mutar en memoria el registro Linux de Rutas a 1366×768 lo vuelve a poner en rojo (`linux: 768-1366 cells over 32 %`). Esto cierra el hallazgo P1 de Codex (`PRRT_kwDOR5qlsc6t-dx2`) con la causa corregida, no con el test debilitado.
+
+### Revalidación tras el overlay Linux (Win32, árbol local sobre `f9107785`)
+
+El delta sólo toca las secciones Linux y los comentarios de los dos fixtures, más este documento.
+
+| Gate | Estado |
+| --- | --- |
+| Guard C23 (ambas plataformas) + B10/B11/B14/C22 + unitarios Rutas/Visitas + stable-geometry-reservation | PASSED 112/112 |
+| `pnpm test` | FAILED 5403/5405 (1 skip): sólo `e2e-global-03b`, por `DATABASE_URL` (ambiental; en el CI pasa) |
+| Frontend `lint`, `typecheck`, `build`; raíz `typecheck`, `typecheck:test`; `security:public-surface` | PASSED |
+| A02 21×13 | PASSED 21/21 |
+| A03 15×13 serial | PASSED 16/16 (234/234 hojas; observación byte-idéntica a las capturas en frío) |
+| A05 | PASSED 15/15 |
+| A08 21×13 | FAILED 20/21: `admin-resumen` (página admin) con el documento entero desbordado en los 13 viewports y 3.1 min de duración. Aislado ×2, PASSED en 8.8 s. A08 no lee los fixtures modificados; transitorio del `next dev` local |
+| C23a | PASSED 13/13 |
+| Specs adaptativos de Rutas y Visitas | PASSED 10/10 |
+| Cohortes `visual-contract`/`public-clinic`/`extended` | NOT_RUN sobre este delta (sólo fixtures Linux y comentarios); sus resultados sobre el código de PR1 están arriba |
 
 ## Riesgos residuales
 
 - Visitas: en el HEAD, la fila de escritorio mide 61 px (1366×768) y 101 px (1280×720, con `limit=13` heredado de 1920) frente a un paso de 52/46 px, porque «Notas» hace salto de línea. Es preexistente y no lo causa PR1. Con datos reales y una fila más por página, aumenta el riesgo de recorte. Se reporta aparte.
 - El tamaño de página por defecto cambia (8 → 9, etc.), así que también cambia el offset de «Página 2». Los enlaces con `limit` explícito no cambian.
-- Antes del overlay Linux real, los registros Linux pueden diferir en texto o en subpíxeles.
+- El overlay Linux A02 sólo reescribe campos fuera de tolerancia (2 px / 0.01). Un cambio Linux menor que la tolerancia no queda registrado; es el mismo criterio de los overlays anteriores.
+- `query`/`provenance` Linux de las 16 hojas están reconstruidos por la regla verificada, no observados en claro. Los campos de contrato sí fueron observados.
 
 ## Rollback
 
@@ -125,4 +155,4 @@ Revertir el commit squash de PR1: vuelven atrás de una vez las clases, los fixt
 
 11 celdas de banda y 2 a 1920: `clinic-informes` (1280×720, 768×1024), `clinic-informes-full` (5 + 1920) y `clinic-logistica-full` (4 + 1920). Requieren B2/B4/B1 en otras superficies con su propia autorización R13. B3 (app bar 68.11 px a 1280×720) sigue siendo un correctivo aparte.
 
-Estado: PR1 implementado y validado en Win32, sin staging, commit ni push; READY_FOR_LINUX_VALIDATION. C23b no está completo.
+Estado: PR1 implementado, con Win32 validado localmente y Linux realineado desde el run real `39273957610`. El overlay Linux está pendiente de publicación (commit y push manuales de Nico), de que E2E Completeness lo valide sobre el head nuevo y de la actualización de rama (`gh pr update-branch`). C23b no está completo.
