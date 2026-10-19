@@ -66,7 +66,7 @@ Sólo clases `md:` en `LogisticsCommandCenter.tsx`; DOM, orden de lectura y de t
 | 768×1024 | 346.48 (33.84 %) | 223.45 (21.82 %) | ≤ 32 % | ✓ |
 | 5 teléfonos | 245.69 · 245.59 · 245.48 · 278.84 · 278.77 | idéntico | — | — |
 
-`frontend/e2e/fixtures/dashboard-geometry-baseline.ts`, `records` (Win32): 8 registros × 7 campos = 56 (`regions.collection.y`, `regions.collection.height`, `regions.primaryContent.y`, `regions.pager.y`, `derived.chromeBeforePrimaryContentPx`, `derived.chromeBeforePrimaryContentRatio`, `derived.collectionCanvasHeight`). Captura `VETNEB_A02_GEOMETRY_CAPTURE=1` diferenciada campo a campo contra PRE: ningún otro campo fuera de tolerancia; la sonda independiente midió los mismos 56 valores. Teléfonos y las otras 20 superficies, sin tocar. `platformRecords.linux`, sin tocar.
+`frontend/e2e/fixtures/dashboard-geometry-baseline.ts`, `records` (Win32): 8 registros × 7 campos = 56 (`regions.collection.y`, `regions.collection.height`, `regions.primaryContent.y`, `regions.pager.y`, `derived.chromeBeforePrimaryContentPx`, `derived.chromeBeforePrimaryContentRatio`, `derived.collectionCanvasHeight`). Captura `VETNEB_A02_GEOMETRY_CAPTURE=1` diferenciada campo a campo contra PRE: ningún otro campo fuera de tolerancia; la sonda independiente midió los mismos 56 valores. Teléfonos y las otras 20 superficies, sin tocar. `platformRecords.linux`: overlay real en fase 2 (sección Linux).
 
 ## Tests
 
@@ -88,12 +88,50 @@ Una tarea pesada por vez; `frontend/.next` borrado antes de las corridas E2E.
 | A05 32/48/64 | PASSED 15/15 |
 | A03 15×13 serial (fixture sin cambios) | PASSED 16/16 (234 hojas) |
 | Logística: alcance de acciones (teléfonos + 768), paridad móvil, C22 (incluye axe del hub), CMP-05, C23a, B10, B11, B14 | PASSED 203/203 |
-| A02 Linux | BLOCKED: requiere una ejecución real de E2E Completeness sobre el head publicado |
+| A02 Linux | Overlay aplicado desde el run `39310041309` (ver Linux); PASS remoto pendiente de E2E Completeness sobre el head que publique Nico |
 | `e2e:full` | NOT_RUN (no pedido) |
 
-## Linux (fase 2)
+## Linux (fase 2) — overlay A02 real
 
-El guard C23b queda rojo en Linux (`linux: 768-1366 cells over 32 %`) hasta realinear los mismos 8 registros × 7 campos de `platformRecords.linux` desde el log de un run real de E2E Completeness (mismo procedimiento que PR1). A03 Linux no debería cambiar; se verifica en ese mismo run.
+Causa raíz del bloqueo en el head `1ba2eb53310d3a05bf37e6103d73f3e57a4ccb82`: Win32 se realineó, pero `platformRecords.linux` conservaba la geometría previa de los 8 registros ≥ 768 de `clinic-logistica-full`; el ledger C23b (que ya no lista Logística) se evalúa sobre ambas plataformas, así que Backend CI fallaba con `linux: 768-1366 cells over 32 %` y E2E Completeness con `clinic-logistica-full: geometry drift` (thread P1 `PRRT_kwDOR5qlsc6uEXQj`).
+
+Fuente: E2E Completeness run `39310041309`, job `118256950508`, head `1ba2eb53310d3a05bf37e6103d73f3e57a4ccb82`, chromium/linux; 1874 passed, 1 failed (A02 `clinic-logistica-full`). El sanitizer elimina el adjunto, así que se usan los valores `actual` del log: 56 líneas (8 viewports × 7 campos), idénticas en los tres intentos (168 líneas), cada `expected` igual al valor Linux versionado (56/56, 0 discrepancias), identidad de superficie, viewport (`innerWidth`/`innerHeight`) y campo verificada por script. Ningún teléfono ni otra superficie fuera de tolerancia.
+
+| Viewport | collection.y | collection.height | primaryContent.y | pager.y | chromePx | chromeRatio | canvasHeight |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1920×1080 | 224.23 | 675.66 | 224.23 | 899.89 | 224.23 | 0.20762 | 675.66 |
+| 1600×900 | 221.7 | 504.58 | 221.7 | 726.28 | 221.7 | 0.24633 | 504.58 |
+| 1440×900 | 221.7 | 506.17 | 221.7 | 727.88 | 221.7 | 0.24633 | 506.17 |
+| 1366×768 | 213.58 | 383.03 | 213.58 | 596.61 | 213.58 | 0.2781 | 383.03 |
+| 1280×720 | 224.45 | 328.39 | 224.45 | 552.84 | 224.45 | 0.31174 | 328.39 |
+| 1024×768 | 213.58 | 389.31 | 213.58 | 602.89 | 213.58 | 0.2781 | 389.31 |
+| 834×1194 | 225.83 | 298.28 | 225.83 | 524.11 | 225.83 | 0.18914 | 298.28 |
+| 768×1024 | 223.45 | 217.78 | 223.45 | 441.23 | 223.45 | 0.21821 | 217.78 |
+
+(Ratios redondeados a 5 decimales en la tabla; el fixture conserva el valor serializado exacto del log.) Los 56 valores Linux observados coinciden campo a campo con los Win32; no se copió ninguno de Win32. Campos realineados en `platformRecords.linux`: los mismos siete de Win32; diff verificado campo a campo contra HEAD: 56 campos, 8 líneas, nada más. Se actualizó además el comentario de procedencia del fixture (la frase «Linux pending…» quedaba obsoleta).
+
+Prueba causal (mutación controlada): con los 8 registros Linux revertidos a sus valores de HEAD, `dashboard-c23-responsive-integral.test.ts` FAILED 7/8 (`C23b ledger … linux: 768-1366 cells over 32 %`); restaurado el archivo propio (SHA-256 idéntico antes/después), PASSED 8/8.
+
+Ledger tras el overlay, ambas plataformas (273 registros cada una): celdas sobre presupuesto = 7 de banda + 1 a 1920, todas `clinic-informes`/`clinic-informes-full`, iguales al ledger.
+
+Invariancia: `frontend/e2e/fixtures/dashboard-adaptive-limit-baseline.ts` (A03, 234 hojas con `limit`/`offset`/capacidad) byte-idéntico a HEAD y a `main`; contratos A05/A08 sin cambios. En el run Linux de procedencia: A03 16/16, A08 21/21, A05 15/15 PASSED (evidencia del head `1ba2eb53`, no del head nuevo).
+
+### Validaciones del overlay Linux (Win32 local, sobre el árbol con el overlay)
+
+| Gate | Estado |
+| --- | --- |
+| `dashboard-c23-responsive-integral.test.ts` (vE + ledger, Win32 y Linux) | PASSED 8/8 |
+| Mutante (8 registros Linux de HEAD) / restaurado | FAILED 7/8 como se espera / PASSED 8/8 |
+| `e2e-suite-catalog-completeness.test.ts` | PASSED |
+| `pnpm validate:local` | FAILED: `typecheck` y `typecheck:test` pasan; `test` 5405/5407 (1 skip) con un único fallo, `e2e-global-03b-authoritative-auth-boundary` (exige DB local `portal_vetneb_ci`; ambiental y preexistente); la cadena no llega a `build` |
+| Raíz `build` (aparte) | PASSED |
+| Frontend `typecheck`, `lint` | PASSED |
+| Frontend `build`, `security:public-surface` | NOT_RUN: el cambio no toca `frontend/src` |
+| A02 Linux local | BLOCKED: Win32 no puede ejecutar el baseline Linux; lo decide E2E Completeness en CI |
+| A02/A03/A05/A08 Win32 | NOT_RUN: registros Win32 y fixtures A03/A05/A08 sin cambios desde las corridas de fase 1 |
+| `e2e:full` | NOT_RUN (no pedido) |
+
+Estado previo a CI final: sin PASS remoto del head nuevo; requiere los cuatro contextos required y E2E Completeness sobre el commit que publique Nico.
 
 ## Riesgos residuales
 
@@ -101,6 +139,7 @@ El guard C23b queda rojo en Linux (`linux: 768-1366 cells over 32 %`) hasta real
 - Margen a 1280×720: 5.95 px; depende del app bar de 68.11 px (B3). Corregir B3 lo amplía.
 - La nota queda pegada al borde inferior de la tarjeta (borde contra borde); cosmético.
 - Headers de tarjeta «Visitas de campo»/«Planes de ruta» siguen en 80 px (D-A no aplicado aquí para no tocar A03).
+- Overlay Linux: sin evidencia remota del head nuevo hasta que corran Backend CI y E2E Completeness; el A02 Linux del resto de superficies sigue siendo el congelado previamente.
 
 ## Rollback
 
