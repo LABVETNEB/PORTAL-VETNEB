@@ -9,7 +9,7 @@
 | --- | --- |
 | Document owner | Dashboard / Frontend domain owner |
 | Domain | Referencia externa: interfaz web de Google Drive (vista «Mi unidad») |
-| Lifecycle status | REFERENCE (evidencia; no rector) |
+| Lifecycle status | PROPOSED |
 | Authoritative source role | Evidencia medida de Google Drive para comparaciones futuras. **No** es fuente de implementación del dashboard. |
 | Fuente rectora del rediseño Drive-like | [AUDITORIA_GLOBAL_DASHBOARD_VETNEB_VS_DRIVE.md](./AUDITORIA_GLOBAL_DASHBOARD_VETNEB_VS_DRIVE.md) (sin cambios) |
 | Effective date | 2026-10-19 |
@@ -17,9 +17,10 @@
 | Review cadence | Ante una nueva ejecución de medición o ante cambios visibles de Google Drive |
 | Supersedes | Ninguno |
 | Superseded by | Ninguno |
-| Evidence or approval reference | Manifiestos de laboratorio con SHA-256 (§XIV.2); incorporación pendiente de PR docs-only gestionado por Nico |
+| Related controls or gaps | Ninguno identificado |
+| Evidence or approval reference | PR #1892 (abierta); manifiestos de laboratorio con SHA-256 (§XIV.2) |
 
-> **Relación con la fuente rectora.** La auditoría `AUDITORIA_GLOBAL_DASHBOARD_VETNEB_VS_DRIVE.md` sigue siendo la **única fuente autorizada para planificar e implementar** el rediseño Drive-like (índice de `docs/audit/README.md` y `docs/SOURCES_OF_TRUTH.md`). Este documento no fija destinos, no define programas ni PR y no reemplaza sus §24–§26. Registra **qué mide Google Drive** con trazabilidad completa, para que una auditoría comparativa futura pueda contrastar mediciones. Las divergencias entre ambas fuentes se listan en §XIV.4 sin resolverse.
+> **Relación con la fuente rectora.** La auditoría `AUDITORIA_GLOBAL_DASHBOARD_VETNEB_VS_DRIVE.md` sigue siendo la **única fuente autorizada para planificar e implementar** el rediseño Drive-like (índice de `docs/audit/README.md` y `docs/SOURCES_OF_TRUTH.md`). Este documento no fija destinos, no define programas ni PR y no reemplaza sus §24–§26. Registra **qué mide Google Drive** con trazabilidad de procedencia, para que una auditoría comparativa futura pueda contrastar mediciones. Las divergencias entre ambas fuentes se listan en §XIV.4 sin resolverse.
 
 > **Privacidad.** Ningún valor de este documento procede de texto, nombres de archivos, URLs, identificadores, correos ni contenido de la cuenta inspeccionada. Sólo hay geometría, estilos calculados, roles ARIA, atributos de estado enumerados y recuentos. Los recuentos (37 elementos, 18 carpetas, 19 archivos) son las únicas cifras derivadas del contenido.
 
@@ -48,7 +49,7 @@
 
 ### I.1 Objetivo
 
-Disponer de una especificación verificable y reproducible de la interfaz observable de Google Drive (geometría, sistema visual, tipografía, responsive, estados, menús, paneles y accesibilidad), utilizable como referencia de medición sin depender del laboratorio ni de esta conversación.
+Conservar una referencia técnica consolidada de la interfaz observable de Google Drive (geometría, sistema visual, tipografía, responsive, estados, menús, paneles y accesibilidad), consultable sin depender del laboratorio ni de esta conversación. La reproducción o verificación independiente de las mediciones originales requiere los datasets y herramientas del laboratorio (§XIV.2).
 
 ### I.2 Objeto inspeccionado y condiciones
 
@@ -379,7 +380,7 @@ Formato `x relativa a la tabla / ancho` de las celdas `td`. En cada viewport se 
 | Contenedor | Por fila | Detalle |
 | --- | ---: | --- |
 | ≥ 1127 px | 6 | Toolbar de acciones 144×36 con 4 botones 36×36 (x = 1655, 1691, 1727, 1763 a 1920) + botón de menú 36×36 (x = 1799) + `div[role=button]` 47×48 |
-| 833–1126 px | 2 | `div[role=button]` 47×48 + botón 36×36 con `aria-haspopup` |
+| 745–1126 px | 2 | `div[role=button]` 47×48 + botón 36×36 con `aria-haspopup` |
 | ≤ 744 px | 1 | — |
 | Estilo | — | Padding 9 px · radio 18 px · color `rgb(68,71,70)` (el de menú: `rgb(31,31,31)`) · `outline-width: 3px` |
 
@@ -916,6 +917,8 @@ Rutas relativas al directorio de resultados del laboratorio (`web-drive/results/
 - maestra 28/28;
 - línea base (run 1, run 2 y herramientas previas) 18/18;
 - interactiva 24/24.
+
+Los datasets y scripts originales no están versionados en este repositorio ni tienen aquí un enlace de descarga estable. Este documento conserva las medidas, reglas, metodología, fechas, entorno y procedencia esenciales para consulta técnica, pero no permite inspeccionar ni reproducir íntegramente las mediciones originales sin acceso a esos archivos. Los SHA-256 sólo permiten comprobar su integridad una vez obtenidos; no permiten recuperarlos.
 
 | Archivo | SHA-256 |
 | --- | --- |
