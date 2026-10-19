@@ -1591,3 +1591,80 @@ test("C24 · the runtime contract walks the 13 A02 viewports and is catalogued",
   assert.equal(/\b(?:test|describe)\.only\b/.test(spec), false, "no focused case");
   assert.match(catalog, /entry\("e2e\/regression\/dashboard-c24-list-grid-toggle\.spec\.ts", "regression", "dashboard\/collection", [^\n]*\["visual-contract"\], ci, /);
 });
+
+// ── C25 · microgeometry: focus outline and control line-height ──
+
+const C25_INTERACTIONS_CSS = "frontend/src/styles/dashboard/interactions.css";
+const C25_FOCUS_START = "/* dashboard-c25-focus-outline:start */";
+const C25_FOCUS_END = "/* dashboard-c25-focus-outline:end */";
+
+/** Violations of the C25 focus block: empty means forced-colors keeps a real outline. */
+function c25FocusBlockViolations(css: string): string[] {
+  const start = css.indexOf(C25_FOCUS_START);
+  const end = css.indexOf(C25_FOCUS_END);
+  if (start < 0 || end < start) return ["block delimiters"];
+  const violations: string[] = [];
+  if (start !== css.lastIndexOf(C25_FOCUS_START)) violations.push("block declared once");
+  const before = stripComments(css.slice(0, start));
+  if (before.split("{").length !== before.split("}").length) violations.push("unlayered (no open @layer/@media)");
+  const block = stripComments(css.slice(start, end));
+  if (!/^\s*\.dashboard-app-shell\s+:where\(/.test(block)) violations.push("scoped to the shell through :where");
+  if (!block.includes('[tabindex]:not([tabindex="-1"])')) violations.push("programmatic focus targets excluded");
+  // Menu items and options are <button>s (C08 owns no menu CSS), so `button` covers them.
+  for (const control of ["a[href]", "button", "input", "select", "textarea", '[role="tab"]', '[role="checkbox"]']) {
+    if (!block.includes(control)) violations.push(`covers ${control}`);
+  }
+  if (!/\):focus-visible\s*\{/.test(block)) violations.push(":focus-visible only");
+  if (!block.includes("outline: 2px solid var(--dash-color-focus-ring);")) violations.push("2px token outline");
+  if (!block.includes("outline-offset: 2px;")) violations.push("2px offset");
+  if (/outline:\s*(?:none|0)\b|box-shadow|margin|padding|border|width|height/.test(block)) violations.push("outline only, never layout");
+  return violations;
+}
+
+/** `:focus-visible` rules that suppress the outline; forced colors would leave them without indicator. */
+function c25SuppressedFocusRules(css: string): string[] {
+  const rules = stripComments(css).match(/[^{}]*:focus-visible[^{}]*\{[^{}]*\}/g) ?? [];
+  return rules.filter((rule) => /outline(?:-style)?:\s*(?:none|0)\s*;/.test(rule)).map((rule) => rule.trim().split("{")[0].trim());
+}
+
+test("C25 · the shell restores a real 2px focus outline, unlayered and layout-neutral", () => {
+  const css = read(C25_INTERACTIONS_CSS);
+  assert.deepEqual(c25FocusBlockViolations(css), []);
+  assert.ok(readDashboardCssSource().includes(C25_FOCUS_START), "the block is composed into the dashboard CSS");
+
+  const block = css.slice(css.indexOf(C25_FOCUS_START));
+  const mutants = [
+    css.replace(C25_FOCUS_START, `@layer components {\n${C25_FOCUS_START}`),
+    css.replace(block, block.replace(":where(", ":is(")),
+    css.replace(block, block.replace("outline: 2px solid var(--dash-color-focus-ring);", "outline: none;")),
+    css.replace(block, block.replace("outline-offset: 2px;", "outline-offset: 2px;\n  box-shadow: none;")),
+    css.replace(block, block.replace('[tabindex]:not([tabindex="-1"])', "[tabindex]")),
+    css.replace(block, block.replace("    select,\n", "")),
+  ];
+  for (const mutant of mutants) {
+    assert.notEqual(mutant, css, "mutation applies");
+    assert.notDeepEqual(c25FocusBlockViolations(mutant), [], "mutation is rejected");
+  }
+});
+
+test("C25 · no dashboard :focus-visible rule suppresses the outline (P3-06)", () => {
+  const css = readDashboardCssSource();
+  assert.deepEqual(c25SuppressedFocusRules(css), []);
+  const navigation = read(NAVIGATION_CSS);
+  assert.ok(navigation.includes("outline: 2px solid transparent;\n    outline-offset: -2px;"), "mobile nav keeps an inset forced-colors outline");
+  assert.ok(navigation.includes("inset 0 0 0 2px hsl(var(--ring) / 0.85)"), "and its two-ring focus shadow");
+  assert.notDeepEqual(
+    c25SuppressedFocusRules(".dashboard-app-shell .dashboard-mobile-nav-item:focus-visible {\n  outline: none;\n}"),
+    [],
+    "a suppressed focus outline is detected",
+  );
+});
+
+const C25_USERS_ROLES = "frontend/src/app/dashboard/admin/AdminUsersRolesReadOnlyCard.tsx";
+
+test("C25 · PR-BUG-02: the users and roles search inputs keep line-height >= 1.25 x 12px inside their fixed height", () => {
+  const source = read(C25_USERS_ROLES);
+  assert.ok(source.includes('className="h-8 pl-7 text-xs leading-4 md:h-7"'), "desktop search: 12/16 in a 28-32px box");
+  assert.ok(source.includes('className="h-9 pl-7 text-xs leading-4"'), "mobile search: 12/16 in a 36px box");
+  assert.equal(/<Input[^>]*leading-none/.test(source), false, "no degenerate 12/12 input");
+});
