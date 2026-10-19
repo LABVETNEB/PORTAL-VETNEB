@@ -168,6 +168,54 @@ test("C23b PR1 · the D-A guard rejects each regression", () => {
   }
 });
 
+// ── C23b PR2 · vE ───────────────────────────────────────────────────────────
+// Logística (full route) from md up: the command-center header is one 40px row
+// through the B11 token and the operational note moves below the two lists by
+// visual order only (no focusable inside it, DOM and tab order unchanged). The
+// note stays painted with all its text and the B14 run; phones are untouched.
+const V_E_HUB = "frontend/src/app/dashboard/logistica/LogisticsCommandCenter.tsx";
+const V_E_HEADER_CLASS =
+  "flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-vetneb-line/70 px-3 py-1.5 md:h-[var(--dash-workspace-header-h)] md:flex-nowrap md:py-0";
+
+function vEViolations(source: string): string[] {
+  const violations: string[] = [];
+  const require = (ok: boolean, message: string) => {
+    if (!ok) violations.push(message);
+  };
+  const code = stripComments(source);
+  require(code.includes(`<div className="${V_E_HEADER_CLASS}">`), "the command-center header is the md-scoped 40px row");
+  require(/<section\s+className="surface-note-info shrink-0 md:order-last"\s+aria-labelledby="logistics-operational-priority"/.test(code), "the note moves below the lists from md up, by visual order only");
+  require(!/surface-note-info[^"]*(?:sr-only|hidden)/.test(code), "the note is never hidden");
+  require(code.indexOf('className="surface-note-info') < code.indexOf("<LogisticsRecentListCanvas"), "the note keeps its DOM position before the lists");
+  require(code.includes("Estado operativo logística") && code.includes("Priorice visitas activas y planes en curso para sostener continuidad operativa."), "the note keeps its text");
+  require(!/<[a-z][a-z0-9]*\b[^>]*\stitle=/.test(code), "no native tooltip carries information");
+  require(code.includes('<ModuleMetricRun\n            surfaceId="clinic-logistica-full"'), "the B14 run stays inside the note");
+  require(!code.includes("dashboard-workspace-header"), "the B11 class is not used here (hidden by the clinic reclaim rule)");
+  return violations;
+}
+
+test("C23b PR2 · Logística full route carries the md-scoped vE layout", () => {
+  assert.deepEqual(vEViolations(readSourceFile(V_E_HUB)), []);
+});
+
+test("C23b PR2 · the vE guard rejects each regression", () => {
+  const sources = { hub: readSourceFile(V_E_HUB) };
+  const mutations: ReadonlyArray<readonly [string, string]> = Object.freeze([
+    [" md:h-[var(--dash-workspace-header-h)]", ""],
+    ["md:flex-nowrap md:py-0", "md:py-0"],
+    ["px-3 py-1.5 md:h-", "px-3 py-0 md:h-"],
+    ["surface-note-info shrink-0 md:order-last", "surface-note-info shrink-0 order-last"],
+    ["surface-note-info shrink-0 md:order-last", "surface-note-info shrink-0 md:order-last md:sr-only"],
+    ["surface-note-info shrink-0 md:order-last", "surface-note-info shrink-0"],
+    ['className="mt-1 text-sm font-medium text-vetneb-navy"', 'className="mt-1 text-sm font-medium text-vetneb-navy" title="Priorice"'],
+  ]);
+  for (const [anchor, replacement] of mutations) {
+    assert.ok(sources.hub.includes(anchor), `anchor present: ${anchor}`);
+    const mutated = sources.hub.replace(anchor, () => replacement);
+    assert.notDeepEqual(vEViolations(mutated), [], `mutation must be rejected: ${anchor}`);
+  }
+});
+
 // ── C23b ledger ─────────────────────────────────────────────────────────────
 // §26/§54/§62.5: chrome before the first datum ≤ 32 % of the viewport between
 // 768 and 1366 px and ≤ 240 px at 1920 × 1080, measured by A02 as
@@ -182,14 +230,9 @@ const C23B_BAND_LEDGER = Object.freeze({
   "clinic-informes-full::w1024x768": 0.61469,
   "clinic-informes-full::w834x1194": 0.36884,
   "clinic-informes-full::w768x1024": 0.42769,
-  "clinic-logistica-full::w1366x768": 0.39663,
-  "clinic-logistica-full::w1280x720": 0.43817,
-  "clinic-logistica-full::w1024x768": 0.39663,
-  "clinic-logistica-full::w768x1024": 0.33836,
 });
 const C23B_WIDE_LEDGER = Object.freeze({
   "clinic-informes-full::w1920x1080": 482.73,
-  "clinic-logistica-full::w1920x1080": 315.27,
 });
 const CHROME_BAND_RATIO = 0.32;
 const CHROME_WIDE_PX = 240;
