@@ -135,16 +135,64 @@ La primera corrida dio FAILED 3 en los censos 01B/05A («specs que normalizan CR
 | A05, A08, C23a, C21, a11y/axe/teclado, zero-scroll | PASSED en la cohorte previa sobre el mismo código de producto (`page.tsx` SHA-256 `99be4215…5580`); los fixtures recapturados no son leídos por esos specs. NOT_RUN de nuevo |
 | A02/A03 Linux | PENDING: requiere un head publicado y una corrida real de E2E Completeness |
 
-## Overlay Linux (PENDING)
+## Overlay Linux (2026-10-20, R13; thread `PRRT_kwDOR5qlsc6ucqBM`)
 
-Precondición: Nico publica el head (commit + push) y E2E Completeness corre sobre ese SHA. Después: A02 desde el log (sólo los 48 campos de `clinic-informes-full`, idénticos entre intentos) y A03 desde el artifact `a03-matrix-observations.json` (sólo las 6 hojas `informes-reports-list`), reescritos en `platformRecords.linux` / `platformObservations.linux`. Nada se copia de Win32. Luego, guard C23 en ambas plataformas.
+- **Fuente:** E2E Completeness run `39467492988`, intento 1, job `118782585218`, chromium/linux, sobre `65ba9266a1956d88ec80e68b384dd9b6b9090aff` (head de PR #1896). Resultado: 1872 passed, 2 failed y 1 flaky.
+  - Los 2 FAILED son exactamente A02 `clinic-informes-full` y la integridad A03: el drift esperado del baseline Linux viejo.
+  - El flaky es B08 `admin-hub resolves exactly one navigation model per regime`, que pasó en el reintento. No toca Informes ni los fixtures.
+- **A02:** 144 líneas de drift en el log = 48 campos únicos × 3 intentos, idénticos entre intentos, sólo de `clinic-informes-full` y sólo en los 6 viewports ≥ 1024. Ninguna otra superficie aparece. Cada `expected` del log es igual al valor Linux versionado reemplazado. Se reescribieron los 48 campos en 6 registros de `platformRecords.linux` (líneas 730–735).
+- **A03:** artifact `12287970893` (`e2e-completeness-playwright-1`, `sha256:bf649da9…98bf`), con `a03-matrix-observations.json` (SHA-256 `2cde5c75…8611`) y los 15 JSON por módulo. Las 234 hojas Linux se compararon por `source`/`limit`/`offset`/`secondPageCount`, emparejadas por archivo de módulo (claves admin redactadas): 228 idénticas y 6 divergentes, exactamente `informes-reports-list` ≥ 1024 (15→17, 12→13, 12→13, 9→10, 9→10, 9→10). El script falla cerrado ante cualquier divergencia fuera del manifiesto. Se copiaron sólo esos 18 campos en `platformObservations.linux` (líneas 935–940); después del overlay, la diferencia es 0/234.
+- **Win32:** no se tocó (los hunks están sólo en las secciones Linux). Nada se copió de Win32: los valores Linux coinciden con los Win32 porque ambas plataformas miden lo mismo.
+- **Prueba causal:** el guard C23 más el catálogo, A03 unit y el censo 01B dan 31/31 con el overlay. Restaurando el A02 Linux anterior, el ledger da FAILED (`linux: 768-1366 cells over 32 %`). Con el overlay restaurado (SHA-256 `8582699e…74ca4`), 31/31.
+- **Suite Node:** los 20 archivos de walkers re-ejecutados con índice simulado dan 270/271; el único FAILED es 03B (ambiental).
+
+Esta evidencia se tomó sobre `65ba9266`. La corrección P1-2 no cambia la geometría (A02 21/21 y A03 Win32 PASSED después de la corrección), pero los checks deben volver a correr sobre el head nuevo.
+
+## PR #1896 P1 — foco al cruzar 1024 px (thread `PRRT_kwDOR5qlsc6ucqBW`)
+
+**Defecto (reproducido).** Con el diálogo abierto por debajo de `lg`, cruzar a ≥ 1024 deja el diálogo abierto con su disparador en `display:none`. Al cerrarlo, Radix (`onCloseAutoFocus` → `triggerRef.focus()`) intenta devolver el foco a un nodo que no puede recibirlo. La transición inversa tiene el mismo defecto: con el foco en un campo inline, bajar de `lg` lo deja en `body`.
+
+**Orden de eventos medido** (sonda temporal fuera del catálogo, 8 corridas, ya eliminada). Al bajar de `lg`, Chrome ejecuta su *focus fixup* (`focusout` con `relatedTarget = null`) **antes** de despachar el `change` del `matchMedia` en 7 de 8 corridas. Por eso no alcanza con un único listener del régimen.
+
+**Corrección** (boundary cliente mínimo, exclusivo de Informes; `ModuleDialog` sin cambios):
+
+- `frontend/src/app/dashboard/informes/InformesFilterDisclosure.tsx` (`"use client"`) controla `ModuleDialog` mediante sus props existentes `open`/`onOpenChange` y es dueño del grupo `hidden lg:contents`. Los campos, nombres, el formulario GET del diálogo y los dos Limpiar siguen escritos en `page.tsx` (props `trigger`, `inline` y `children`), así que el Server Component conserva el GET y los contratos de fuente.
+- Suscripción reactiva a `matchMedia("(min-width: 1024px)")` (`change`, con `removeEventListener` en el cleanup):
+  - Hacia `lg` con el diálogo abierto: cierra el diálogo y, cuando el cierre ya se commiteó, mueve el foco al primer control inline (Estado). El `triggerRef.focus()` de Radix sobre el disparador oculto no puede tomar el foco y lo deja en Estado.
+  - Hacia abajo de `lg` con el foco en el grupo inline: el foco pasa al disparador visible.
+- `onBlur` del grupo inline: un `focusout` sin destino mientras el régimen ya no es `lg` es exactamente la *focus fixup*, y el foco pasa al disparador.
+- Sin timers, polling, `tabIndex`, nodos ocultos enfocables ni CSS nuevo. El DOM pintado es el mismo: A02 21/21 y A03 `informes-reports-list` PASSED sin tocar los fixtures, así que no hace falta nueva R13.
+
+**Prueba E2E** (se amplió el spec existente `dashboard-accessibility-keyboard.spec.ts`, describe «Informes compact filters»; sin spec nuevo, el catálogo queda igual). A 834 se abre «Más filtros» con Enter y se redimensiona a 1024: el diálogo y el disparador quedan ocultos y el foco pasa a Estado (visible, ni `body` ni nodo oculto). De vuelta a 834, el foco pasa al disparador visible. Enter y Escape sin redimensionar devuelven el foco al disparador. A 1024, Tab recorre Buscar → Estado → Tipo → Filtrar → Limpiar. Resultado: PASSED 10/10 (`--repeat-each=10`).
+
+**Prueba causal:**
+
+| Variante | Resultado |
+| --- | --- |
+| `page.tsx` de HEAD `65ba9266` (sin corrección) | FAILED 3/3 (el diálogo sigue abierto a 1024) |
+| Corrección sin la ruta `onBlur` | FAILED 2/5 (foco en `body` al volver a 834) |
+| Corrección completa | PASSED 10/10 |
+
+Los dos archivos se restauraron con SHA-256 verificado.
+
+**Guard C23:** la sección PR4 se realineó al wrapper (diálogo sólo a través de `InformesFilterDisclosure`, orden y contratos sobre la prop `inline`) y suma el contrato de foco: boundary `"use client"`, régimen 1024, diálogo controlado, suscripción con cleanup, cierre hacia `lg`, foco inline después del commit, las dos rutas hacia el disparador, y ningún timer, `tabIndex` ni `sr-only`. Rechaza 20 mutaciones, 9 de ellas del wrapper.
+
+| Gate (sobre la corrección) | Estado |
+| --- | --- |
+| Guard C23 (índice simulado para el archivo nuevo, sin tocar el índice real) | PASSED salvo el ledger Linux (P1-1) |
+| `pnpm test` con índice real | 5340/5394: los fallos son walkers que no ven el archivo untracked; esos 20 archivos re-ejecutados con índice simulado dan 269/271 (sólo el ledger Linux y 03B, ambiental) |
+| Guards que anclan `page.tsx`/`FilterBar` | PASSED 209/209 |
+| Frontend `lint`, `typecheck`; raíz `typecheck:test` | PASSED |
+| A02 21×13 | PASSED 21/21 |
+| A03 `informes-reports-list` | PASSED |
+| C21, spec de 1000 informes, informes zero-internal-scroll, fixture pagination, mobile parity, server adaptive pagination, master-detail polish, `dashboard-accessibility-keyboard`, axe key routes, A08 zero-scroll, zero-scroll mobile boundary, internal/real-app-shell no-scroll, B11, C24 | PASSED 211/211 (2 workers) |
 
 ## Riesgos residuales
 
 - Margen de 1.77 px a 1920×1080: cualquier crecimiento futuro del chrome lo devuelve al ledger. Sigue siendo el viewport binding.
 - A 1024 los controles Estado y Tipo miden ~133 px: el placeholder «Filtrar por tipo de estudio...» queda cortado visualmente (el label visible y el `aria-label` siguen completos).
-- Si el diálogo está abierto y la ventana cruza a ≥ 1024, el diálogo sigue abierto hasta Escape/Cerrar con el disparador ya oculto, por lo que el retorno de foco no tiene destino visible (no medido). Es un caso de redimensionamiento, no de uso normal.
-- Hasta el overlay Linux, el guard C23 (Backend CI) y A02/A03 Linux (E2E Completeness) quedan en rojo en Linux a propósito.
+- La transición de foco depende del orden de eventos de Chromium medido arriba. Las dos rutas cubren ambos órdenes. WebKit y Firefox no están en la matriz E2E del repo (NOT_RUN).
+- Mientras el diálogo hace su animación de salida (≤ 200 ms), Estado tiene foco aunque el resto de la página siga con `aria-hidden` (Radix `hideOthers`), hasta que el diálogo se desmonta.
 - `clinic-informes` (S6) conserva 2 celdas en el ledger (fuera de scope; otro owner).
 
 ## Rollback

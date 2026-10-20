@@ -295,8 +295,13 @@ test("C23b PR3 · the B1 + B4 guard rejects each regression", () => {
 // keeps serving below lg) and each label puts its visible text to the left of
 // its control. Only lg-scoped classes: below 1024 nothing changes, and the GET
 // form, its names, submit and Limpiar are the same nodes as before.
+// PR #1896 P1: crossing 1024 with the dialog open left Radix returning focus to
+// the hidden trigger, and crossing back stranded focus in the hidden inline
+// group. The Informes-only disclosure subscribes to the regime, closes the
+// dialog and hands focus to the control that replaces each one.
 const B2_PATHS = {
   page: "frontend/src/app/dashboard/informes/page.tsx",
+  disclosure: "frontend/src/app/dashboard/informes/InformesFilterDisclosure.tsx",
   filterBar: "frontend/src/components/dashboard/FilterBar.tsx",
 } as const;
 type B2Sources = Record<keyof typeof B2_PATHS, string>;
@@ -310,16 +315,17 @@ function b2Violations(sources: B2Sources): string[] {
     if (!ok) violations.push(message);
   };
   const page = stripComments(sources.page);
+  const disclosure = stripComments(sources.disclosure);
   const filterBar = stripComments(sources.filterBar);
   const bar = /<FilterBar\s+method="get"\s+role="search"\s+aria-label="Filtros compactos de informes"\s+density="module-card"\s+className="([^"]*)"\s*>/.exec(page)?.[1] ?? "";
   require(bar === B2_FILTER_BAR_CLASS, "the FilterBar keeps its GET search form and gains only the inline-label classes");
   require(bar.split(" ").slice(1).every((token) => token.startsWith("lg:")), "every FilterBar class is lg-scoped");
-  require(/<ModuleDialog\s+title="Filtros de informes"[\s\S]*?trigger=\{\s*<Button\s+type="button"\s+size="sm"\s+variant=\{hasActiveFilters \? "default" : "outline"\}\s+className="([^"]*)"\s*>\s*Más filtros\s*<\/Button>/.exec(page)?.[1] === B2_TRIGGER_CLASS, "the «Más filtros» trigger is hidden from lg only");
+  require(/<InformesFilterDisclosure\s+title="Filtros de informes"[\s\S]*?trigger=\{\s*<Button\s+type="button"\s+size="sm"\s+variant=\{hasActiveFilters \? "default" : "outline"\}\s+className="([^"]*)"\s*>\s*Más filtros\s*<\/Button>/.exec(page)?.[1] === B2_TRIGGER_CLASS, "the «Más filtros» trigger is hidden from lg only");
   require(/<form method="get" className="grid gap-3">\s*<input type="hidden" name="query" defaultValue=\{query\} \/>/.test(page), "the dialog keeps its own GET form below lg");
-  require(page.includes('<div className="hidden lg:contents">'), "the inline fields stay the lg grid items");
-  const inline = page.slice(page.indexOf('<div className="hidden lg:contents">'));
+  require(!page.includes("<ModuleDialog") && page.includes('import { InformesFilterDisclosure } from "./InformesFilterDisclosure";'), "the page reaches the dialog only through the Informes disclosure");
+  const inline = page.slice(page.indexOf("inline={"), page.indexOf('<form method="get"'));
   const order = ['name="status"', 'name="studyType"', 'type="submit"', "Limpiar"].map((anchor) => inline.indexOf(anchor));
-  require(page.indexOf('name="query"') < page.indexOf("<ModuleDialog") && order.every((at, index) => at > 0 && (index === 0 || at > order[index - 1])), "desktop order is Buscar → Estado → Tipo → Filtrar → Limpiar");
+  require(page.indexOf('name="query"') < page.indexOf("<InformesFilterDisclosure") && order.every((at, index) => at > 0 && (index === 0 || at > order[index - 1])), "desktop order is Buscar → Estado → Tipo → Filtrar → Limpiar");
   for (const name of ["status", "studyType"]) {
     require([...page.matchAll(new RegExp(`name="${name}"`, "g"))].length === 2, `${name} stays in the dialog and inline`);
   }
@@ -327,10 +333,26 @@ function b2Violations(sources: B2Sources): string[] {
   require(!page.includes("labelHidden"), "the filter labels stay visible");
   require(!/\[&_label\]:(?:sr-only|hidden)/.test(page), "the labels are never hidden by the FilterBar");
   require(/<span className=\{cn\(labelHidden && "sr-only"\)\}>\{label\}<\/span>\s*\{children\}/.test(filterBar), "FilterField keeps label text before its control (the two inline grid columns)");
+
+  require(disclosure.startsWith('"use client";'), "the disclosure is the minimal client boundary");
+  require(disclosure.includes('const INLINE_FILTERS_REGIME = "(min-width: 1024px)";'), "the regime is the Tailwind lg boundary");
+  require(/<ModuleDialog\s+open=\{open\}\s+onOpenChange=\{setOpen\}/.test(disclosure), "the dialog is controlled by the disclosure");
+  require(disclosure.includes('<div ref={inlineRef} className="hidden lg:contents" onBlur={onInlineBlur}>'), "the inline fields stay the lg grid items and watch their own blur");
+  require(disclosure.includes('regime.addEventListener("change", onRegimeChange);') && disclosure.includes('regime.removeEventListener("change", onRegimeChange);'), "the regime is a reactive subscription");
+  require(/if \(regime\.matches\) \{\s*if \(!open\) return;\s*setFocusInline\(true\);\s*setOpen\(false\);/.test(disclosure), "crossing to lg closes an open dialog and claims the inline focus");
+  require(/if \(open \|\| !focusInline\) return;\s*setFocusInline\(false\);\s*inlineRef\.current\?\.querySelector<HTMLElement>\(FOCUSABLE\)\?\.focus\(/.test(disclosure), "after the close commits, focus lands on the first inline control");
+  require(/const trigger = inlineRef\.current\?\.previousElementSibling;\s*if \(trigger instanceof HTMLButtonElement\) trigger\.focus\(/.test(disclosure), "the trigger handoff only targets the dialog trigger");
+  require(disclosure.includes("if (group.contains(document.activeElement)) focusTrigger();"), "a regime change below lg hands inline focus to the visible trigger");
+  require(disclosure.includes("if (event.relatedTarget === null && !window.matchMedia(INLINE_FILTERS_REGIME).matches) focusTrigger();"), "a focus-fixup blur below lg also hands focus to the trigger");
+  require(!/setTimeout|setInterval|requestAnimationFrame|tabIndex|sr-only/.test(disclosure), "no timer, polling, focusable hidden node or CSS trick");
   return violations;
 }
 
-const readB2 = (): B2Sources => ({ page: readSourceFile(B2_PATHS.page), filterBar: readSourceFile(B2_PATHS.filterBar) });
+const readB2 = (): B2Sources => ({
+  page: readSourceFile(B2_PATHS.page),
+  disclosure: readSourceFile(B2_PATHS.disclosure),
+  filterBar: readSourceFile(B2_PATHS.filterBar),
+});
 
 test("C23b PR4 · Informes full route carries the lg-scoped B2 inline filters", () => {
   assert.deepEqual(b2Violations(readB2()), []);
@@ -346,10 +368,19 @@ test("C23b PR4 · the B2 guard rejects each regression", () => {
     ["page", " lg:[&_label]:items-center", ""],
     ["page", "lg:grid-cols-[1.4fr_0.8fr_1fr_auto]", "lg:grid-cols-5"],
     ["page", "lg:[&_label]:gap-x-1.5", "lg:[&_label]:gap-x-1.5 lg:[&_label]:sr-only"],
-    ["page", '<div className="hidden lg:contents">', '<div className="hidden">'],
     ["page", '<FilterBar\n            method="get"', '<FilterBar\n            method="post"'],
     ["page", '<FilterField label="Estado" density="module-card">', '<FilterField label="Estado" density="module-card" labelHidden>'],
     ["filterBar", '<span className={cn(labelHidden && "sr-only")}>{label}</span>', '<span className="sr-only">{label}</span>'],
+    ["disclosure", '<div ref={inlineRef} className="hidden lg:contents" onBlur={onInlineBlur}>', '<div ref={inlineRef} className="hidden" onBlur={onInlineBlur}>'],
+    ["disclosure", " onBlur={onInlineBlur}>", ">"],
+    ["disclosure", "      if (group.contains(document.activeElement)) focusTrigger();\n", ""],
+    ["disclosure", "event.relatedTarget === null && !window", "!window"],
+    ["disclosure", '"(min-width: 1024px)"', '"(min-width: 768px)"'],
+    ["disclosure", "        setFocusInline(true);\n        setOpen(false);\n", "        setFocusInline(true);\n"],
+    ["disclosure", "    inlineRef.current?.querySelector<HTMLElement>(FOCUSABLE)?.focus({ preventScroll: true });\n", ""],
+    ["disclosure", "    if (trigger instanceof HTMLButtonElement) trigger.focus({ preventScroll: true });\n", ""],
+    ["disclosure", "        open={open}\n        onOpenChange={setOpen}\n", ""],
+    ["disclosure", "    setFocusInline(false);\n", "    setTimeout(() => setFocusInline(false));\n"],
   ]);
   for (const [key, anchor, replacement] of mutations) {
     assert.ok(sources[key].includes(anchor), `anchor present: ${key} ${anchor}`);

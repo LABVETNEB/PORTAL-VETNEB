@@ -28,6 +28,58 @@ test.describe("Informes compact filters — keyboard & a11y", () => {
     await expect(page.getByRole("button", { name: "Filtrar" })).toBeVisible();
     await expect(page.getByText("Limpiar")).toBeVisible();
   });
+
+  // PR #1896 P1: «Más filtros» is lg-hidden and the inline fields are lg-only,
+  // so crossing 1024 must hand focus to a visible control, never to body or to
+  // a display:none node.
+  test("crossing the lg boundary keeps keyboard focus on a visible filter control", async ({ page }) => {
+    const search = page.getByRole("search", { name: "Filtros compactos de informes" });
+    const trigger = page.getByRole("button", { name: "Más filtros" });
+    const dialog = page.getByRole("dialog", { name: "Filtros de informes" });
+    const inlineStatus = search.getByLabel("Filtrar por estado");
+    const focusedIsVisible = () =>
+      page.evaluate(() => {
+        const element = document.activeElement;
+        return element !== null && element !== document.body && element.checkVisibility();
+      });
+
+    await page.setViewportSize({ width: 834, height: 1194 });
+    await expect(trigger).toBeVisible();
+    await expect
+      .poll(() => search.evaluate((element) => Object.keys(element).some((key) => key.startsWith("__reactFiber$"))))
+      .toBe(true);
+
+    await trigger.focus();
+    await page.keyboard.press("Enter");
+    await expect(dialog).toBeVisible();
+    await page.setViewportSize({ width: 1024, height: 768 });
+    await expect(dialog).toBeHidden();
+    await expect(trigger).toBeHidden();
+    await expect(inlineStatus).toBeFocused();
+    expect(await focusedIsVisible()).toBe(true);
+
+    await page.setViewportSize({ width: 834, height: 1194 });
+    await expect(inlineStatus).toBeHidden();
+    await expect(trigger).toBeFocused();
+    expect(await focusedIsVisible()).toBe(true);
+
+    await page.keyboard.press("Enter");
+    await expect(dialog).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+    await expect(trigger).toBeFocused();
+
+    await page.setViewportSize({ width: 1024, height: 768 });
+    await page.getByLabel("Buscar informes").focus();
+    for (const name of ["Filtrar por estado", "Filtrar por tipo de estudio"]) {
+      await page.keyboard.press("Tab");
+      await expect(search.getByLabel(name)).toBeFocused();
+    }
+    await page.keyboard.press("Tab");
+    await expect(search.getByRole("button", { name: "Filtrar" })).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(search.getByText("Limpiar")).toBeFocused();
+  });
 });
 
 // ─── UploadReportModal ────────────────────────────────────────────────────────
