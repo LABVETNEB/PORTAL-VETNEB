@@ -455,10 +455,8 @@ test("C23b PR5 · the S6 guard rejects each regression", () => {
 // `derived.chromeBeforePrimaryContentRatio` / `…Px`. These cells exceed it in
 // the frozen baseline (both platforms, identical); C23a changes none of them.
 // The ledger may only shrink, through C23b with its own A02/A03 authorization.
-const C23B_BAND_LEDGER = Object.freeze({
-  "clinic-informes::w1280x720": 0.34854,
-  "clinic-informes::w768x1024": 0.33638,
-});
+// C23b PR5 (S6) emptied it: both platforms now measure every cell in budget.
+const C23B_BAND_LEDGER: Readonly<Record<string, number>> = Object.freeze({});
 const C23B_WIDE_LEDGER: Readonly<Record<string, number>> = Object.freeze({});
 const CHROME_BAND_RATIO = 0.32;
 const CHROME_WIDE_PX = 240;

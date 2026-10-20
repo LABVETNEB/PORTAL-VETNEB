@@ -3,7 +3,7 @@
 ## Estado base, autorización y alcance
 
 - Rama `feat/dashboard-c23b-pr5-clinic-informes-s6`, base `700dc6dc836fb794eaf35e8be67862b8898f2fc4` (C23b PR4, #1896), igual a `main` y `origin/main`. Árbol tracked limpio al inicio. Se preservaron `frontend/AGENTS.md` y `frontend/CLAUDE.md` (untracked, generados por `next dev`), los 5 stashes y el único worktree. Sin `AGENTS.md` anidados tracked. Sin escrituras Git ni GitHub.
-- Autorización: implementación local y validación. **R13 propia de PR5 autorizada por Nico (2026-10-20)**: ejecutada en Win32 (ver «Recaptura R13 Win32»). El overlay Linux y el retiro del ledger quedan pendientes de una corrida real de CI.
+- Autorización: implementación local y validación. **R13 propia de PR5 autorizada por Nico (2026-10-20)**: ejecutada en Win32 (ver «Recaptura R13 Win32»). El overlay Linux y el retiro del ledger se ejecutaron después, desde la corrida real de CI del head publicado (ver «Overlay Linux y cierre del ledger»).
 - Incluido: `clinic-informes` (`/dashboard?module=informes`), owner `frontend/src/app/dashboard/ClinicInformesWorkspaceSummary.tsx`, entre `md` (768 px) y `2xl` (1536 px).
 - Excluido: `clinic-informes-full`, Logística, B3 (app bar 68.11 px a 1280×720), C25, componentes compartidos (`FilterBar`, `FullModuleRouteControl`, `ModuleDialog`, `DashboardPager`), CSS/tokens, motor de capacidad, fixtures A02/A03/A05/A08, backend, dependencias y CI.
 
@@ -149,9 +149,9 @@ Autorización limitada a C23b/PR5, `clinic-informes` (S6). Comprende la implemen
 | Guard C23 + catálogo + A03 unit | FAILED 1: el ledger, por la retención deliberada hasta el overlay Linux; 22 PASSED |
 | `pnpm test` (suite Node completa) | FAILED 5410/5413 (1 skip): el ledger C23b (esperado, ver arriba) y 03B (ambiental) |
 | A05, A08, C23a, C21, a11y/axe/teclado, zero-scroll | PASSED en la cohorte previa (316/316). El código de producto no cambió desde entonces y esos specs no leen los fixtures recapturados. NOT_RUN de nuevo |
-| A02/A03 Linux | PENDING: requiere head publicado y una corrida real de E2E Completeness |
+| A02/A03 Linux | PENDING en ese momento; cerrado en «Overlay Linux y cierre del ledger» |
 
-### Pasos pendientes después de la publicación
+### Pasos pendientes después de la publicación (ejecutados; ver la sección siguiente)
 
 1. Nico publica el head y corre E2E Completeness.
 2. Overlay A02 Linux: sólo los campos de `clinic-informes` que el log demuestre (estimado ~43, incluido 1440), nunca copiados de Win32.
@@ -159,13 +159,78 @@ Autorización limitada a C23b/PR5, `clinic-informes` (S6). Comprende la implemen
 4. Se verifica el cumplimiento en ambas plataformas y se retiran las 2 entradas del ledger (`C23B_BAND_LEDGER` vacío).
 5. Guard C23 verde en ambas plataformas.
 
+## Overlay Linux y cierre del ledger (R13 Linux, 2026-10-20)
+
+Autorización: la R13 de PR5 ya concedida por Nico. Commit, push, edición de la PR y resolución del thread quedan como [MANUAL-NICO].
+
+### Origen de la evidencia Linux
+
+- Head publicado `93112021c7115edc45a1e534f33009f921d0871a` (PR #1897), evento `pull_request`, attempt 1.
+- `E2E Completeness` run `39491682725`, job `118866182043`: 1874 passed, 2 failed (A02 `clinic-informes` y A03 integridad). Nada más falla.
+- Artifact `12298205861` (`e2e-completeness-playwright-1`, digest `sha256:600a1432…48831`), `head_sha` leído del artifact igual al head. Archivo `test-results/a03-matrix/a03-matrix-observations.json` (SHA-256 `1b9237b3…f902f`, `schema a03-matrix-run/1`, 195 primarios, 234 hojas). El multiset de contrato del agregado coincide con los 15 archivos por módulo.
+- `Backend CI` run `39491682549`, job `118866279875`: único fallo `C23b ledger · …` con `win32: 768-1366 cells over 32 %`. La banda Win32 real es `[]` y el ledger todavía declaraba 2 entradas.
+
+### A02 Linux: 42 campos
+
+- Extracción programática del log: 126 líneas `clinic-informes | … | expected=… actual=…`, 42 pares únicos `(viewport, campo)`, cada uno exactamente 3 veces y con valores idénticos en los tres intentos. Ninguna línea de otra superficie.
+- Los 7 campos de la tabla de Win32 en 1440, 1366, 1280, 1024, 834 y 768 (6 × 7 = 42). Linux 1440 también envolvía la banda, así que ahí también se mueven −40/+44.
+- La estimación de 43 del manifiesto no se cumple: `regions.filters.width` a 1440 ya valía `1127.81` en Linux y no se reescribió.
+- Los 42 `expected` coinciden con el valor Linux versionado (0 diferencias). Se reemplazaron sólo esos 42 valores en `platformRecords.linux`, 6 registros, con JSON de ida y vuelta verificado. Después del cambio, los 42 valores son iguales a los `actual` del log.
+- `records` (Win32), los teléfonos y las otras 20 superficies no cambian: el diff sólo toca las líneas del bloque Linux y el comentario de procedencia.
+
+### A03 Linux: 6 hojas, 0/234 después
+
+- Comparación de las 234 hojas Linux contra `platformObservations.linux` en `source`/`limit`/`offset`/`secondPageCount`. Las claves admin redactadas se cruzan por archivo de módulo + viewport + variante. Resultado: 0 faltantes, 0 inesperadas, 228 idénticas, 6 divergentes, todas `clinic-informes-summary`:
+
+| Hoja | Linux antes → después |
+| --- | --- |
+| `w1440x900` | 12 → **13** |
+| `w1366x768` | 10 → **11** |
+| `w1280x720` | 9 → **10** |
+| `w1024x768` | 10 → **11** |
+| `w834x1194` | 17 → **18** |
+| `w768x1024` | 13 → **14** |
+
+- Desde el archivo del artifact (los de clínica no se redactan) se copian `limit`, `offset`, `firstRenderedFixtureIndex`, `pageItemCount`, `secondPageCount` y `secondPageFixtureIds`. Así el registro cumple la autoconsistencia que exige `assertMatchesBaseline` para `client-slice`.
+- `moduleId`, `leafKey`, `source` (`client-slice`), `provenance`, `variantId` y el orden de claves quedan verificados iguales. Diferencia después del cambio: **0/234**. Nada se copió de Win32.
+
+### Ledger C23b: 2 → 0
+
+- Se retiraron `clinic-informes::w1280x720` y `::w768x1024`. `C23B_BAND_LEDGER` y `C23B_WIDE_LEDGER` quedan vacíos. `CHROME_BAND_RATIO` (0.32), `CHROME_WIDE_PX` (240), `RATIO_EPSILON` y las aserciones no cambian.
+- Linux medido después del overlay: 1280×720 0.29299 y 768×1024 0.29731, iguales a Win32.
+
+### Prueba causal del ledger
+
+| Mutación (temporal, restaurada byte a byte) | Resultado |
+| --- | --- |
+| Ledger vacío + A02 Linux de HEAD | FAILED 1: `linux: 768-1366 cells over 32 %` |
+| Ledger de HEAD (2 entradas) + A02 Linux nuevo | FAILED 1: `win32: 768-1366 cells over 32 %` (reproduce Backend CI) |
+| Árbol final | PASSED 14/14 |
+
+### Gates dirigidos (árbol final, Win32 local)
+
+| Gate | Estado |
+| --- | --- |
+| Guard C23 (`dashboard-c23-responsive-integral`), incluido el ledger | PASSED 14/14 |
+| Guard C23 + CLINIC-DT-SPACE static + catálogo E2E + A03 unit + censo 01B (contrato y fail-closed) | PASSED 60/60 |
+| A02 Linux: los 42 campos iguales a la observación | PASSED 42/42 |
+| A03 Linux: diferencia contra el artifact | PASSED 0/234 |
+| `pnpm typecheck:test` | PASSED |
+| `git diff --check` | PASSED |
+| A02/A03 Win32 | sin cambios respecto de la R13 Win32 ya aprobada (diff sólo en bloques Linux) |
+| E2E Completeness, Backend CI, Frontend CI, PR Governance sobre el head nuevo | PENDING: se disparan con el push |
+| `e2e:full`, `pnpm test` completo, builds | NOT_RUN: archivos de producto sin cambios; CI los corre en el head nuevo |
+
+Fuera de scope, sin diferencias: `ClinicInformesWorkspaceSummary.tsx`, el spec CLINIC-DT-SPACE, backend, dependencias, workflows y las otras superficies y consumidores.
+
 ## Riesgos residuales
 
 - Entre 768 y 1535 px el CTA cambia de lugar: deja la toolbar y pasa al pie del listado. En el orden de tabulación pasa a ir después de la lista y del paginador. Sigue visible, con el mismo nombre y la misma ruta.
 - El CTA está posicionado de forma absoluta sobre la caja del `nav`, en el borde derecho libre. Si el paginador sumara contenido a la derecha, podría solaparse. El spec CLINIC-DT-SPACE lo detecta (`expectBandControlsDisjoint` sobre el pie).
-- Linux 1440 envuelve hoy la banda. El overlay real puede sumar esa hoja A03; está previsto en el manifiesto.
+- Linux 1440 envolvía la banda: el overlay sumó esa hoja A03 (12 → 13) y sus 7 campos A02, desde el log y el artifact reales.
+- El verde de E2E Completeness y de los required checks sobre el head nuevo queda por verificar. Si A02/A03 Linux divergieran otra vez, se repite este overlay desde la corrida nueva; no se amplían tolerancias.
 - B3 (app bar 68.11 px a 1280×720) sigue abierto y fuera de scope.
 
 ## Rollback
 
-Revertir el commit squash: vuelven la toolbar y el pie anteriores, la sección PR5 del guard y el caso de Informes de CLINIC-DT-SPACE. Sin datos ni backend.
+Trigger: regresión visual o funcional del CTA de Informes entre 768 y 1535 px, o drift A02/A03 atribuible a PR5. Procedimiento: revert gobernado del commit squash en una PR propia. Vuelven la toolbar y el pie anteriores, la sección PR5 del guard, el caso de Informes de CLINIC-DT-SPACE, los registros A02/A03 de ambas plataformas y las 2 entradas del ledger, todo en el mismo revert. Sin impacto en datos ni en el backend.
