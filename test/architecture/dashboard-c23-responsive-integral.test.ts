@@ -216,6 +216,78 @@ test("C23b PR2 · the vE guard rejects each regression", () => {
   }
 });
 
+// ── C23b PR3 · B1 + B4 ──────────────────────────────────────────────────────
+// Informes (full route) from md up: the card header is one 40px row through the
+// B11 token (description kept for assistive tech, metric run inline), the
+// summary strip leaves the flow because the pager already carries its range,
+// total and page (it stays readable to assistive tech), and the populated list
+// header is one row at the C01 collection-header height. `CollectionHeader` is a
+// <thead>, so only its token reaches this div list. Phones are untouched.
+const B1B4_PATHS = {
+  page: "frontend/src/app/dashboard/informes/page.tsx",
+  list: "frontend/src/app/dashboard/informes/InformesReportsList.tsx",
+} as const;
+type B1B4Sources = Record<keyof typeof B1B4_PATHS, string>;
+const B1_HEADER_CLASS =
+  "shrink-0 border-b border-vetneb-line/70 md:h-[var(--dash-workspace-header-h)] md:justify-center md:space-y-0 md:px-4 md:py-0";
+const B1_STRIP_CLASS = "hidden gap-2 text-sm sm:grid sm:grid-cols-4 md:sr-only";
+const B4_HEADER_CLASS =
+  "flex shrink-0 items-start justify-between gap-2 border-b border-vetneb-line/70 px-4 py-2.5 md:h-[var(--dash-collection-header-h)] md:items-center md:py-0";
+
+function b1b4Violations(sources: B1B4Sources): string[] {
+  const violations: string[] = [];
+  const require = (ok: boolean, message: string) => {
+    if (!ok) violations.push(message);
+  };
+  const page = stripComments(sources.page);
+  const list = stripComments(sources.list);
+  const header = /<CardHeader className="([^"]*)">/.exec(page)?.[1] ?? "";
+  require(header === B1_HEADER_CLASS, "B1: the card header is the md-scoped 40px row");
+  require(header.split(" ").slice(3).every((token) => token.startsWith("md:")), "B1: every header class it adds is md-scoped");
+  require(page.includes('<div className="min-w-0 md:flex md:items-baseline md:gap-3">'), "B1: title, description and run share one row from md");
+  require(/className="mt-1 text-sm text-muted-foreground md:sr-only"\s*data-dashboard-chrome-secondary="true"\s*>\s*Seleccione un informe de la lista para abrir el detalle operativo\./.test(page), "B1: the description stays for assistive tech");
+  require(/<ModuleMetricRun\s+surfaceId="clinic-informes-full"\s+className="mt-1 text-xs text-muted-foreground md:mt-0"/.test(page), "B1: the B14 run stays, inline from md");
+  require(list.includes(`<div className="${B1_STRIP_CLASS}">`), "B1: the summary strip leaves the flow from md without leaving the accessibility tree");
+  for (const label of ["Total", "Mostrando", "Página", "Filtros"]) {
+    require(list.includes(`<p className="text-xs text-muted-foreground">${label}</p>`), `B1: the strip keeps ${label}`);
+  }
+  require(/rangeLabel=\{totalCount > 0 \? `\$\{pageStart\}–\$\{pageEnd\} de \$\{totalCount\}` : undefined\}/.test(list), "B1: the pager keeps the range and total");
+  require(list.includes(`<div className="${B4_HEADER_CLASS}">`), "B4: the populated list header is the md-scoped 36px row");
+  require(list.includes('<h2 id="reports-list-heading" className="dashboard-section-heading md:shrink-0">'), "B4: the heading keeps its id and level");
+  require(/className="dashboard-section-description truncate md:mt-0 md:min-w-0"\s*title=/.test(list), "B4: the hint stays painted on the same row");
+  require(!/dashboard-section-description[^"]*(?:sr-only|hidden)/.test(list), "B4: the hint is never hidden");
+  require(!list.includes("<CollectionHeader"), "B4: no <thead> is forced into the div list");
+  require(!page.includes("dashboard-workspace-header") && !list.includes("dashboard-workspace-header"), "the B11 class is not used here (hidden by the clinic reclaim rule)");
+  return violations;
+}
+
+const readB1B4 = (): B1B4Sources => ({ page: readSourceFile(B1B4_PATHS.page), list: readSourceFile(B1B4_PATHS.list) });
+
+test("C23b PR3 · Informes full route carries the md-scoped B1 + B4 chrome", () => {
+  assert.deepEqual(b1b4Violations(readB1B4()), []);
+});
+
+test("C23b PR3 · the B1 + B4 guard rejects each regression", () => {
+  const sources = readB1B4();
+  const mutations: ReadonlyArray<readonly [keyof B1B4Sources, string, string]> = Object.freeze([
+    ["page", " md:h-[var(--dash-workspace-header-h)]", ""],
+    ["page", "md:justify-center md:space-y-0 md:px-4 md:py-0", "justify-center space-y-0 px-4 py-0"],
+    ["page", "text-muted-foreground md:sr-only", "text-muted-foreground md:hidden"],
+    ["page", 'className="mt-1 text-xs text-muted-foreground md:mt-0"', 'className="mt-1 text-xs text-muted-foreground"'],
+    ["list", "sm:grid-cols-4 md:sr-only", "sm:grid-cols-4 md:hidden"],
+    ["list", "sm:grid-cols-4 md:sr-only", "sm:grid-cols-4"],
+    ["list", "rangeLabel={totalCount > 0 ?", "data-range={totalCount > 0 ?"],
+    ["list", " md:h-[var(--dash-collection-header-h)]", ""],
+    ["list", "truncate md:mt-0 md:min-w-0", "truncate md:mt-0 md:min-w-0 md:sr-only"],
+    ["list", 'className="dashboard-section-heading md:shrink-0"', 'className="dashboard-section-heading md:sr-only"'],
+  ]);
+  for (const [key, anchor, replacement] of mutations) {
+    assert.ok(sources[key].includes(anchor), `anchor present: ${key} ${anchor}`);
+    const mutated = sources[key].replace(anchor, () => replacement);
+    assert.notDeepEqual(b1b4Violations({ ...sources, [key]: mutated }), [], `mutation must be rejected: ${key} ${anchor}`);
+  }
+});
+
 // ── C23b ledger ─────────────────────────────────────────────────────────────
 // §26/§54/§62.5: chrome before the first datum ≤ 32 % of the viewport between
 // 768 and 1366 px and ≤ 240 px at 1920 × 1080, measured by A02 as
@@ -225,14 +297,12 @@ test("C23b PR2 · the vE guard rejects each regression", () => {
 const C23B_BAND_LEDGER = Object.freeze({
   "clinic-informes::w1280x720": 0.34854,
   "clinic-informes::w768x1024": 0.33638,
-  "clinic-informes-full::w1366x768": 0.61469,
-  "clinic-informes-full::w1280x720": 0.55251,
-  "clinic-informes-full::w1024x768": 0.61469,
-  "clinic-informes-full::w834x1194": 0.36884,
-  "clinic-informes-full::w768x1024": 0.42769,
+  "clinic-informes-full::w1366x768": 0.38292,
+  "clinic-informes-full::w1280x720": 0.39864,
+  "clinic-informes-full::w1024x768": 0.38292,
 });
 const C23B_WIDE_LEDGER = Object.freeze({
-  "clinic-informes-full::w1920x1080": 482.73,
+  "clinic-informes-full::w1920x1080": 304.73,
 });
 const CHROME_BAND_RATIO = 0.32;
 const CHROME_WIDE_PX = 240;

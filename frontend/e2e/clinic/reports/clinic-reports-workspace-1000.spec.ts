@@ -1,8 +1,10 @@
 import { expect, test, type Page, type Request } from "@playwright/test";
+import { waitForAdaptiveConvergence } from "../../helpers/dashboard-adaptive-limit-matrix";
 import { setClinicSession } from "../../helpers/session";
 
 const REPORT_ROW_ID = /^report-(\d+)$/;
 const INFORMES_PATHNAME = "/dashboard/informes";
+const ROWS_CANVAS = '[data-informes-rows-canvas="true"]';
 
 type WorkspaceState = {
   rowIds: number[];
@@ -230,12 +232,13 @@ const ALL_IDS = Array.from({ length: 24 }, (_, index) => 8401 + index);
 const ALL_TOTAL = 1000;
 
 /** `status=delivered` order. */
-const DELIVERED_IDS = [8403, 8404, 8408, 8412, 8416, 8420];
+const DELIVERED_IDS = [8403, 8404, 8408, 8412, 8416, 8420, 8424, 8428, 8432];
 const DELIVERED_TOTAL = 251;
 
 /** `query=Paciente E2E` + `status=delivered` + `studyType=Necropsia` order. */
 const COMBINED_IDS = [
   8420, 8440, 8460, 8480, 8500, 8520, 8540, 8560, 8580, 8600, 8620, 8640,
+  8660, 8680, 8700, 8720, 8740, 8760,
 ];
 const COMBINED_TOTAL = 50;
 
@@ -282,6 +285,19 @@ async function settleWindow(
   label: string,
 ): Promise<{ state: WorkspaceState; pageSize: number }> {
   let settled: { state: WorkspaceState; pageSize: number } | null = null;
+
+  // The server HTML is the fallback window and agrees with itself, so it can
+  // satisfy every assertion below before the client has measured the canvas.
+  // The measurement runs synchronously in the canvas's own layout effect, so
+  // the window is only meaningful once the client owns that node and its
+  // render has drained.
+  await expect
+    .poll(
+      () => page.locator(ROWS_CANVAS).evaluate((element) => Object.keys(element).some((key) => key.startsWith("__reactFiber$"))),
+      { message: `${label}: rows canvas hydrated`, timeout: 15_000 },
+    )
+    .toBe(true);
+  await waitForAdaptiveConvergence(page, "#reports-master-list", label);
 
   await expect(async () => {
     const latest = actions.latest();

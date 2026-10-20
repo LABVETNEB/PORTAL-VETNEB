@@ -1546,7 +1546,7 @@ test("C24 · the informes hint beside the toggle stays one line, so A02 chrome a
   // Measured at 1024x768 without it: the hint wrapped, +20px chrome, limit 5 -> 4.
   assert.match(
     informes,
-    /className="dashboard-section-description truncate"\s*title="Click en un informe para abrir su detalle operativo\."\s*>\s*Click en un informe para abrir su detalle operativo\./,
+    /className="dashboard-section-description truncate md:mt-0 md:min-w-0"\s*title="Click en un informe para abrir su detalle operativo\."\s*>\s*Click en un informe para abrir su detalle operativo\./,
   );
 });
 

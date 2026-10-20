@@ -147,19 +147,19 @@ export default async function InformesPage({
           ariaLabel="Informes disponibles"
           dataAttributes={{ "data-informes-workspace": "true" }}
         >
-        <CardHeader className="shrink-0 border-b border-vetneb-line/70">
+        <CardHeader className="shrink-0 border-b border-vetneb-line/70 md:h-[var(--dash-workspace-header-h)] md:justify-center md:space-y-0 md:px-4 md:py-0">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
-            <div className="min-w-0">
+            <div className="min-w-0 md:flex md:items-baseline md:gap-3">
               <CardTitle className="truncate text-base">Informes disponibles</CardTitle>
               <p
-                className="mt-1 text-sm text-muted-foreground"
+                className="mt-1 text-sm text-muted-foreground md:sr-only"
                 data-dashboard-chrome-secondary="true"
               >
                 Seleccione un informe de la lista para abrir el detalle operativo.
               </p>
               <ModuleMetricRun
                 surfaceId="clinic-informes-full"
-                className="mt-1 text-xs text-muted-foreground"
+                className="mt-1 text-xs text-muted-foreground md:mt-0"
                 metrics={[
                   { key: "total-resultados", label: "Total resultados", value: pagedResult.total },
                   { key: "en-proceso", label: "En proceso", value: reports.filter((report) => report.status === "processing").length },
