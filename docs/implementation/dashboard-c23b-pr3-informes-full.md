@@ -207,7 +207,7 @@ Si no se autoriza, la alternativa es revertir B1+B4 (el cambio no puede publicar
 | Guard C23 + B11 + censos (76) | FAILED 1: ledger del lado **Linux** (pendiente del overlay, esperado); Win32, B11 y censos PASSED |
 | `dashboard-informes-server-adaptive-pagination` | PASSED |
 | `clinic-reports-workspace-1000` | Antes de la corrección: FAILED, determinista en 3/3 repeticiones («pagination advances to a later page…»). Después: **PASSED 15/15** (5 tests × 3, `--repeat-each=3`) |
-| Linux A02/A03 | PENDING: E2E Completeness sobre el commit publicado |
+| Linux A02/A03 | Overlay aplicado desde el run `39365800009` (ver «Overlay Linux») |
 
 **Fallo de `clinic-reports-workspace-1000`: no es de prefijos.** El trace muestra dos Server Actions, `{page:1,pageSize:9}` y `{page:2,pageSize:9}`. `settleWindow` se dio por estable sobre la ventana de fallback del servidor (`INFORMES_FALLBACK_ROWS` = 6, «page size 6») antes de observar la re-medición del cliente. Después el predicado de `advanceToNextPage` espera `pageSize 6` y no reconoce la acción de página 2. Antes de B1+B4, a 1280×720 la medición coincidía con el fallback (6) y esa transición no existía (ver el comentario del propio spec). La corrección de la espera de `settleWindow` la autorizó Nico aparte (2026-10-20).
 
@@ -233,6 +233,15 @@ Si no se autoriza, la alternativa es revertir B1+B4 (el cambio no puede publicar
   Con la espera nueva, el test detecta una regresión que la anterior dejaba pasar.
 - **Gates adicionales:** frontend `lint` y `typecheck` PASSED. B14, capacity single owner, A03 unit, security invariants y censos: PASSED (62/63; el único FAILED es el ledger Linux, pendiente del overlay).
 
+## Overlay Linux (2026-10-20, R13)
+
+- **Fuente:** E2E Completeness, run `39365800009`, intento 1, job `118442243175`, sobre `908644eab0a1d57454020391752cd06fe25f49e9` (PR #1895), chromium/linux. Resultado: 1873 passed y 2 failed, que son exactamente A02 `clinic-informes-full` y la integridad A03 (drift esperado del baseline Linux viejo).
+- **A02:** 186 líneas de drift en el log, 62 campos únicos × 3 intentos, idénticos entre intentos y sólo de `clinic-informes-full`. El conjunto coincide exactamente con el manifiesto (62/62, sin faltantes ni extras). Cada `expected` del log es igual al valor Linux versionado reemplazado. Se reescribieron sólo esos 62 campos en 8 registros de `platformRecords.linux`.
+- **A03:** artifact `12240567402` (`e2e-completeness-playwright-1`, `sha256:2d9a4ebc…0a8f`), archivo `test-results/a03-matrix/a03-matrix-observations.json` (SHA-256 `146c7331…`). Las 234 hojas Linux se compararon por `source`/`limit`/`offset`/`secondPageCount`; las claves admin redactadas se emparejaron por su archivo de módulo. Resultado: 226 idénticas y 8 divergentes, exactamente `informes-reports-list` ≥ 768. Se copiaron sólo esos 24 campos; después del overlay, la diferencia es 0/234.
+- **Win32:** no se tocó (los hunks del diff están sólo en las secciones Linux). Nada se copió de Win32; los valores Linux coinciden con los Win32 porque ambas plataformas miden lo mismo.
+- **Prueba causal:** el guard C23 pasa 10/10 con el overlay. Restaurando el A02 Linux anterior, FAILED con `linux: 768-1366 cells over 32 %`. Restaurado el overlay (hash verificado), 10/10.
+- **Guards** que leen estos fixtures, más censos y B11: PASSED 78/78.
+
 ## Riesgos residuales
 
 - «Mostrando» y el estado de filtros dejan de pintarse como texto desde 768 px (quedan para tecnología asistiva y, los filtros, en sus controles desde `lg`).
@@ -247,4 +256,4 @@ Revertir el commit squash: vuelven las clases y los dos guards. Sin datos ni bac
 
 ## Estado de preparación
 
-NO listo para publicar: A02 y A03 en FAILED por el drift esperado hasta que Nico autorice R13 y se recapturen Win32 + overlay Linux real. C23b sigue incompleto: 3 celdas de banda y 1 a 1920 de `clinic-informes-full`, más las 2 de `clinic-informes`, requieren B2 (y B3 para 1280).
+Win32 y Linux realineados bajo R13. Queda pendiente la verificación de los checks required y de E2E Completeness sobre el head que publique el overlay; el merge no está autorizado. C23b sigue incompleto: 3 celdas de banda y 1 a 1920 de `clinic-informes-full`, más las 2 de `clinic-informes`, requieren B2 (y B3 para 1280).
