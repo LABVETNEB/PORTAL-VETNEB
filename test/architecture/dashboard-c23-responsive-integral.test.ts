@@ -297,14 +297,12 @@ test("C23b PR3 · the B1 + B4 guard rejects each regression", () => {
 const C23B_BAND_LEDGER = Object.freeze({
   "clinic-informes::w1280x720": 0.34854,
   "clinic-informes::w768x1024": 0.33638,
-  "clinic-informes-full::w1366x768": 0.61469,
-  "clinic-informes-full::w1280x720": 0.55251,
-  "clinic-informes-full::w1024x768": 0.61469,
-  "clinic-informes-full::w834x1194": 0.36884,
-  "clinic-informes-full::w768x1024": 0.42769,
+  "clinic-informes-full::w1366x768": 0.38292,
+  "clinic-informes-full::w1280x720": 0.39864,
+  "clinic-informes-full::w1024x768": 0.38292,
 });
 const C23B_WIDE_LEDGER = Object.freeze({
-  "clinic-informes-full::w1920x1080": 482.73,
+  "clinic-informes-full::w1920x1080": 304.73,
 });
 const CHROME_BAND_RATIO = 0.32;
 const CHROME_WIDE_PX = 240;

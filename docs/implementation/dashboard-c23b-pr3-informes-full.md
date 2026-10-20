@@ -103,6 +103,26 @@ B1 + B4 no alcanzan el presupuesto en 1366×768, 1024×768, 1280×720 ni 1920×1
 
 1920×1080 necesita además ≈ 9–21 px adicionales (padding de `main` 10.65 px mayor que a 1366). B2 es S-protegido (§7.8) y exige A01 idéntico; cada px que libere vuelve a mover `limit` (A03) y la altura del canvas (A02). Todo requiere su propia autorización.
 
+### Auditoría B2 (sobre `c1855757`, 2026-10-19; sin implementación)
+
+**Causa de la segunda fila.** `FilterBar` (`module-card`) usa `lg:grid-cols-[1.4fr_0.8fr_1fr_auto]`, que son 4 columnas. Desde `lg` recibe 5 ítems: Buscar, el disparador «Más filtros» (`Dialog.Trigger asChild`: el `Button` es el ítem de grilla) y, por `hidden lg:contents`, Estado, Tipo y acciones. Filtrar/Limpiar caen a una segunda fila (+44 px = control 36 + `gap-2`). Además, el disparador duplica un tab stop junto a los mismos campos inline. Entre 768 y 1023 la banda mide 67.5 px y 768/834 ya cumplen.
+
+**Reducción necesaria después de B1+B4:** 1366/1024 −48.32 · 1280 −56.62 · 1920 −64.73 (≤ 240 px). 768/834/1440/1600: 0 (fuera de banda o cumplen).
+
+| Alternativa (estimada sobre bandas medidas) | Δ filtros ≥ `lg` | 1366/1024 | 1280 | 1920 | Riesgo funcional / A01 | A03 |
+| --- | ---: | --- | --- | --- | --- | --- |
+| A · disparador `lg:hidden` | −44 | 250.08 · 32.56 % ✗ | 243.02 · 33.75 % ✗ | 260.73 ✗ | Nulo (diálogo intacto < `lg`) | 6 hojas ≥ 1024 |
+| **B · A + labels inline desde `lg`** (visibles, a la izquierda del control, vía `className` de `FilterBar`) | −66.5 | 227.58 · 29.63 % ✓ (18.18) | 220.52 · 30.63 % ✓ (9.88) | 238.23 ✓ (1.77, frágil) | Bajo: sin handler, nombres, GET, submit ni Limpiar | 6 hojas ≥ 1024 |
+| C · A + labels `sr-only` desde `lg` (precedente C17 `labelHidden`) | −66.5 | igual que B | igual que B | igual que B | Bajo; peor que B en 3.3.2 (el select queda sin label visible) | 6 hojas |
+| D · B2 del roadmap: `SuperSearchField` + `ActiveFilterChips` + `AdvancedFilterSheet` (banda ≈ 56) | −55.5 | 238.58 · 31.07 % ✓ (7.18) | 231.52 · 32.16 % ✗ (−1.12, exige B3) | 249.23 ✗ | Alto: el GET de servidor pasa a una isla cliente controlada; quitar un chip es una navegación nueva (§7.8); reemplazar `ModuleDialog` toca el censo B05 | 6 hojas |
+| E · B + ritmo `pt-4/gap-4` → 8 | −82.5 | ✓ | ✓ | ✓ (17.77) | Densidad, fuera de B2 | 6 hojas |
+
+**Recomendación: B como PR4 independiente.** Es el único camino que cierra 1366/1024/1280 sin B3 y deja 768/834 y los teléfonos sin drift. Usa sólo clases (`lg:hidden` en el `Button` disparador; `lg:[&_label]:grid-cols-[auto_minmax(0,1fr)] lg:[&_label]:items-center` en `FilterBar`), así que no toca `FilterField`, cuya firma ancla `frontend-dashboard-informes.test.ts:176`. A01 queda idéntico: `query`/`status`/`studyType`, `<FilterBar method="get" role="search">` (C21), Filtrar `type="submit"`, Limpiar `PublicRouteControl replace`, y el formulario del diálogo < `lg` sin cambios. 1920 queda con 1.77 px estimados: el primer gate de PR4 es medirlo con una sonda fuera del censo (`frontend/.c23b-probe/`, sin commitear). Si queda < 1 px, 1920 permanece en el ledger o requiere E aparte. La desviación respecto de la definición B2 del registro C23 (D) es decisión de Nico.
+
+**Contratos.** A02: `clinic-informes-full` en los 6 viewports ≥ 1024 (`regions.filters.height`, `regions.collection.y`/`height`, `regions.primaryContent.y`, `regions.sidePanel.y`, `derived.*`; `regions.filters.y` sin cambios). A03: `informes-reports-list` en 6 hojas ≥ 1024 (+1/+2 filas, sin medir). A05: reserva del pager sin cambios. A08 y zero-scroll: se re-validan. Accesibilidad: labels `<label>` envolventes y visibles, un tab stop menos ≥ `lg`, y axe/teclado (`dashboard-accessibility-keyboard`) re-ejecutados. S-protegidos: la ruta completa no figura en S1–S7, pero §7.8 rige igual para su operativa. `clinic-informes` (S6, −57) queda fuera: es otra superficie y otro owner (`ClinicInformesWorkspaceSummary`), y va en su propio PR.
+
+**Separación de scopes (§4).** B1+B4 (causa: chrome de tarjeta) y B2 (causa: grilla de filtros) son dos causas con rollbacks independientes, y PR3 se puede publicar sola con su R13 (ledger 7 → 5 celdas). No aplica la excepción mixed-scope: hacer una sola recaptura es conveniencia. Secuencia: PR3 (R13 en 8 viewports) → merge → PR4 B (R13 en 6 viewports, sobre el baseline de PR3).
+
 ## Continuación sobre el WIP `348d4c61` (2026-10-19)
 
 **Corrección del estado base.** El commit WIP contiene tres archivos que este documento declaraba fuera del árbol: `frontend/AGENTS.md` y `frontend/CLAUDE.md` (bloque que genera `next dev`; tracked desde este commit, pasan a ser un `AGENTS.md` anidado con precedencia sobre el raíz) y la sonda `frontend/e2e/regression/zz-c23b-pr3-variants.spec.ts` (variante V5, que prueba CSS de B2 sobre `FilterBar`). Los tres quedan fuera del scope de PR3 y hay que retirarlos antes de publicar. Los JSON de la sonda no se conservaron: las mediciones válidas son las de este documento. Corrección local: la sonda se borró del árbol de trabajo (blob `0d1962a2` respaldado fuera del repositorio). `frontend/AGENTS.md` (`af3b7c84`) y `frontend/CLAUDE.md` (`43c994c2`) siguen en disco y salen del índice con `git rm --cached` [MANUAL-NICO], así que vuelven a quedar sin seguimiento. Con eso el catálogo queda en 124 y los guards de censo y C23b están PASSED 76/76.
@@ -168,6 +188,50 @@ Operación detenida: recaptura de baselines protegidos. Texto propuesto para que
 - **Archivos:** `frontend/e2e/fixtures/dashboard-geometry-baseline.ts`, `frontend/e2e/fixtures/dashboard-adaptive-limit-baseline.ts`, `test/architecture/dashboard-c23-responsive-integral.test.ts` (ledger), `frontend/e2e/clinic/reports/clinic-reports-workspace-1000.spec.ts`, este documento.
 
 Si no se autoriza, la alternativa es revertir B1+B4 (el cambio no puede publicarse con A02/A03 en rojo).
+
+## Recaptura R13 Win32 (2026-10-20, autorizada por Nico sobre `c1855757`)
+
+- **A02:** dos capturas `VETNEB_A02_GEOMETRY_CAPTURE=1` en frío (`.next` borrado), byte-idénticas (SHA-256 `4AFD4237…7DDA`). Contra el baseline: exactamente los 62 campos del manifiesto (8 por viewport ≥ 1024, 7 en 834/768); 0 en los teléfonos, `filters.height` y pager. Se reescribieron sólo esos 62 campos en `records` Win32, en 8 líneas. Linux sin tocar.
+- **A03:** dos matrices completas en serie y en frío, byte-idénticas (SHA-256 `d1918608…`). Desvío funcional: exactamente las 8 hojas `informes-reports-list` ≥ 768 (24 campos). Se reescribieron sólo esas hojas Win32.
+- **Tokens admin no absorbido:** `admin-particular-tokens::{w375x812,w412x915}` difieren sólo en `secondPageFixtureIds` y `provenance` (stub de 400 ítems congelado en #1650 frente al fixture compartido de 40 de #1740). Esas líneas son idénticas en `main` y ya figuraban como no absorbidas en PR1. `source`/`limit`/`offset`/`firstRenderedFixtureIndex`/`pageItemCount`/`secondPageCount` coinciden en las 13 hojas de ambas capturas. PR3 no toca admin, fixtures ni helpers. Valores congelados conservados.
+- **Ledger C23b:** banda 7 → 5 (salen `clinic-informes-full::w834x1194` y `::w768x1024`; 1366/1024 = 0.38292, 1280 = 0.39864) y 1920 = 304.73 px. Los incumplimientos reales se mantienen.
+- **`clinic-reports-workspace-1000.spec.ts`:** `DELIVERED_IDS` sube a 9 y `COMBINED_IDS` a 18, por la regla del fixture (id = 8400 + i; delivered `i % 4 === 0` más el legacy 8403; combinado `i % 20 === 0`).
+
+| Gate (Win32) | Estado |
+| --- | --- |
+| A02 21×13 | PASSED 21/21 |
+| A03 15×13 serial | PASSED 16/16 |
+| A05 | PASSED 15/15 |
+| A08 zero-scroll | PASSED 21/21 |
+| C23a | PASSED 13/13 |
+| Guard C23 + B11 + censos (76) | FAILED 1: ledger del lado **Linux** (pendiente del overlay, esperado); Win32, B11 y censos PASSED |
+| `dashboard-informes-server-adaptive-pagination` | PASSED |
+| `clinic-reports-workspace-1000` | Antes de la corrección: FAILED, determinista en 3/3 repeticiones («pagination advances to a later page…»). Después: **PASSED 15/15** (5 tests × 3, `--repeat-each=3`) |
+| Linux A02/A03 | PENDING: E2E Completeness sobre el commit publicado |
+
+**Fallo de `clinic-reports-workspace-1000`: no es de prefijos.** El trace muestra dos Server Actions, `{page:1,pageSize:9}` y `{page:2,pageSize:9}`. `settleWindow` se dio por estable sobre la ventana de fallback del servidor (`INFORMES_FALLBACK_ROWS` = 6, «page size 6») antes de observar la re-medición del cliente. Después el predicado de `advanceToNextPage` espera `pageSize 6` y no reconoce la acción de página 2. Antes de B1+B4, a 1280×720 la medición coincidía con el fallback (6) y esa transición no existía (ver el comentario del propio spec). La corrección de la espera de `settleWindow` la autorizó Nico aparte (2026-10-20).
+
+- **Transición que había que observar:**
+  1. El servidor renderiza la ventana de fallback (6 filas, «Pág. 1 / 167»).
+  2. La hidratación del canvas ejecuta `measure()` síncrono en su layout effect (`useDashboardCanvasCapacity`), y `effectiveLimit` pasa a 9. El pager pasa a «1 / 112» mientras las filas siguen siendo 6.
+  3. Se emite `{page:1,pageSize:9}` y llegan las 9 filas.
+- **Por qué fallaba:** `expectWorkspaceReady` sólo exige que `#reports-master-list` sea visible, algo que el HTML del servidor ya cumple. El estado del paso 1 es coherente consigo mismo y satisface todas las aserciones de `settleWindow`. El error «known id prefix (24) must cover page 1 at page size 6», sin ninguna acción observada, junto con el trace (dos acciones con `pageSize 9`), prueba que asentó antes del commit de hidratación. Antes de B1+B4, a 1280×720 la medición daba justo el fallback (6) y el paso 2 no cambiaba nada.
+- **Cambio** (sólo `clinic-reports-workspace-1000.spec.ts`, al comienzo de `settleWindow`): el bucle semántico existente se ejecuta después de dos condiciones observables:
+  1. Que el cliente sea dueño del canvas: `__reactFiber$` en `[data-informes-rows-canvas="true"]`, el patrón de C21/C24.
+  2. Que el render haya convergido: `waitForAdaptiveConvergence(page, "#reports-master-list")`, la primitiva de ciclos drenados que A03 usa para este consumidor.
+
+  No hay sleeps, cambios de timeouts existentes, retries, skips ni cambios en aserciones, predicados, IDs, totales o filtros.
+- **Pruebas causales** (los dos archivos se restauraron después de cada mutación, con hash verificado):
+
+  | Espera | Mutación del componente | Resultado |
+  | --- | --- | --- |
+  | Anterior | Ninguna | FAILED 3/3 |
+  | Corregida | Ninguna | PASSED 15/15 |
+  | Corregida | Regresión real: el cliente nunca pide la ventana medida (`InformesReportsList` sin re-request) | **FAILED** con «first page: page indicator» esperado «1 / 167», recibido «1 / 112» |
+  | Anterior | La misma regresión | **PASSED 3/3: falso verde** |
+
+  Con la espera nueva, el test detecta una regresión que la anterior dejaba pasar.
+- **Gates adicionales:** frontend `lint` y `typecheck` PASSED. B14, capacity single owner, A03 unit, security invariants y censos: PASSED (62/63; el único FAILED es el ledger Linux, pendiente del overlay).
 
 ## Riesgos residuales
 
