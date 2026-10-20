@@ -2,7 +2,7 @@
 
 ## Estado base, autorización y alcance
 
-- Rama `feat/dashboard-c23b-pr3-informes-full`, base `f43d10f69192f53c1d5f00340e65e42ac5cd4a9d` (C23b PR2, #1894), igual a `main` (0/0). Árbol tracked limpio al inicio. Se preservaron `frontend/AGENTS.md` y `frontend/CLAUDE.md` (untracked, generados por `next dev`; no son AGENTS de política), cero stashes y los worktrees `PORTAL-VETNEB-C17` y `PORTAL-VETNEB-D10`. Sin `AGENTS.md` anidados tracked. Sin escrituras Git ni GitHub.
+- Rama `feat/dashboard-c23b-pr3-informes-full`, base `f43d10f69192f53c1d5f00340e65e42ac5cd4a9d` (C23b PR2, #1894), igual a `main` (0/0). Árbol tracked limpio al inicio. Se preservaron `frontend/AGENTS.md` y `frontend/CLAUDE.md` (generados por `next dev`; **quedaron comiteados en el WIP**, ver «Continuación»), cero stashes y los worktrees `PORTAL-VETNEB-C17` y `PORTAL-VETNEB-D10`. Sin `AGENTS.md` anidados tracked. Sin escrituras Git ni GitHub.
 - Autorización: implementación local y validación. **Sin R13 para PR3** (la de PR2 no se extiende): A02, A03 y el ledger C23b no se modificaron.
 - Incluido: `clinic-informes-full` (`/dashboard/informes`) desde 768 px; B1 (header de tarjeta y tira de resumen) y B4 (cabecera «Lista de informes» con datos).
 - Excluido: B2 (filtros progresivos), B3 (app bar 68.11 px a 1280×720), `clinic-informes` (módulo), Logística, C25, motor de capacidad, `limit`/`offset`/reservas, fixtures A02/A03/A05/A08, backend, auth, datos, dependencias y CI. Cabecera de los estados vacío/error de la lista: sin cambios (A02 mide el estado poblado; ver riesgos).
@@ -103,6 +103,28 @@ B1 + B4 no alcanzan el presupuesto en 1366×768, 1024×768, 1280×720 ni 1920×1
 
 1920×1080 necesita además ≈ 9–21 px adicionales (padding de `main` 10.65 px mayor que a 1366). B2 es S-protegido (§7.8) y exige A01 idéntico; cada px que libere vuelve a mover `limit` (A03) y la altura del canvas (A02). Todo requiere su propia autorización.
 
+## Continuación sobre el WIP `348d4c61` (2026-10-19)
+
+**Corrección del estado base.** El commit WIP contiene tres archivos que este documento declaraba fuera del árbol: `frontend/AGENTS.md` y `frontend/CLAUDE.md` (bloque que genera `next dev`; tracked desde este commit, pasan a ser un `AGENTS.md` anidado con precedencia sobre el raíz) y la sonda `frontend/e2e/regression/zz-c23b-pr3-variants.spec.ts` (variante V5, que prueba CSS de B2 sobre `FilterBar`). Los tres quedan fuera del scope de PR3 y hay que retirarlos antes de publicar. Los JSON de la sonda no se conservaron: las mediciones válidas son las de este documento. Corrección local: la sonda se borró del árbol de trabajo (blob `0d1962a2` respaldado fuera del repositorio). `frontend/AGENTS.md` (`af3b7c84`) y `frontend/CLAUDE.md` (`43c994c2`) siguen en disco y salen del índice con `git rm --cached` [MANUAL-NICO], así que vuelven a quedar sin seguimiento. Con eso el catálogo queda en 124 y los guards de censo y C23b están PASSED 76/76.
+
+**Guards sobre HEAD.** Guard C23 (PR1, PR2, PR3, ledger Win32/Linux) y B11/C24: PASSED. `e2e-completeness-workflow`: PASSED (el catálogo sigue en 124). `e2e-suite-catalog-completeness`: **FAILED 3** (`workspaceSpecs` 125 ≠ 124, más los dos casos en memoria que dependen de esa cuenta). Es una regresión real que introduce la sonda comiteada, no drift esperado de baseline: se resuelve retirando el archivo, sin tocar el censo. A02 (62 campos) y A03 (8 hojas) son el drift esperado del cambio; `clinic-reports-workspace-1000` (2) es el acoplamiento esperado al `limit`.
+
+**Composición del chrome a 1366×768 después de B1+B4** (294.08 px = 38.29 %; presupuesto 245.76; déficit 48.32):
+
+| Banda | Owner | Alto | % de 768 | Movible en B1+B4 |
+| --- | --- | ---: | ---: | --- |
+| App bar | shell (B3) | 55.33 | 7.20 | No |
+| Padding de `main` + borde de tarjeta | shell / densidad | 18.25 | 2.38 | No |
+| Header de tarjeta + `border-b` | B1 (token B11 40) | 41.00 | 5.34 | Sólo eliminándolo |
+| `pt-4` de `CardContent` | densidad | 16.00 | 2.08 | No |
+| `FilterBar` (dos filas desde `lg`) | B2 | 111.50 | 14.52 | No |
+| `gap-4` | densidad | 16.00 | 2.08 | No |
+| Cabecera «Lista de informes» | B4 (token C01 36) | 36.00 | 4.69 | No (aloja heading + toggle C24) |
+
+B1+B4 ya están en sus tokens. El 14.52 % de filtros es la mayor banda y pertenece a B2.
+
+**Techo de B1+B4 (aritmética sobre la medición, no medido).** La única reducción adicional dentro de B1+B4 es suprimir el header de tarjeta desde `md` y mover su contenido a la cabecera de lista: −41 px (`pt-4` se queda, porque es una regla de densidad). Resultado: 1366/1024 253.08 px (32.95 %, ✗ −7.32), 1280 246.02 px (34.17 %, ✗ −15.62) y 1920 263.73 px (✗ > 240). Costos: el título visible «Informes disponibles» desaparece (queda el de la app bar «Informes»), la jerarquía de headings cambia, el `ModuleMetricRun` B14 se reubica y, a 1024, la instrucción C24 ya truncada a ~113 px se queda sin espacio. Además, el canvas crece +41 y vuelve a mover `limit` en las mismas 8 hojas A03. Incluso sumando `pt-4 → 0` (densidad, fuera de scope; −57) quedan 1366/1024 ✓ (margen 8.68), 1280 con 0.38 px (frágil, como vB de PR2) y 1920 ✗. **Conclusión: con B1+B4 no se llega a ≤ 32 % en la banda ni a ≤ 240 px a 1920; B2 es condición necesaria.**
+
 ## Tests
 
 - `test/architecture/dashboard-c23-responsive-integral.test.ts`: contrato de fuente B1 + B4 (clases exactas `md:`, descripción `md:sr-only`, run B14 inline, tira `md:sr-only` con sus cuatro etiquetas, `rangeLabel` del pager, cabecera de lista a `--dash-collection-header-h`, instrucción pintada, sin `<CollectionHeader>` en la lista, sin clase B11) con 10 mutaciones rechazadas. **Ledger C23b sin cambios** (lee el baseline A02 congelado, que no se tocó).
@@ -142,6 +164,7 @@ Operación detenida: recaptura de baselines protegidos. Texto propuesto para que
 - **Justificación causal:** B1+B4 retiran 178 px de chrome sobre la primera fila; el canvas medido crece lo mismo y el owner único de capacidad lo traduce en filas. No hay variante B1+B4 que reduzca chrome sin ampliar el canvas.
 - **Impacto en A03:** 8/234 hojas; los otros 14 consumidores intactos. A05 y A08 PASSED sin cambios.
 - **Pruebas previstas:** dos capturas Win32 en frío byte-idénticas (A02 `VETNEB_A02_GEOMETRY_CAPTURE=1` y A03 serial), overlay Linux desde E2E Completeness, guard C23 en ambas plataformas, A05/A08/C23a, `clinic-reports-workspace-1000` y el spec de paginación adaptativa de Informes.
+- **Precondición fuera de R13:** retirar del árbol `frontend/e2e/regression/zz-c23b-pr3-variants.spec.ts`, `frontend/AGENTS.md` y `frontend/CLAUDE.md` (scope de PR3, no de baselines) y volver a correr `e2e:verify-catalog` antes de capturar.
 - **Archivos:** `frontend/e2e/fixtures/dashboard-geometry-baseline.ts`, `frontend/e2e/fixtures/dashboard-adaptive-limit-baseline.ts`, `test/architecture/dashboard-c23-responsive-integral.test.ts` (ledger), `frontend/e2e/clinic/reports/clinic-reports-workspace-1000.spec.ts`, este documento.
 
 Si no se autoriza, la alternativa es revertir B1+B4 (el cambio no puede publicarse con A02/A03 en rojo).
