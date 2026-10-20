@@ -176,7 +176,7 @@ export default async function InformesPage({
             role="search"
             aria-label="Filtros compactos de informes"
             density="module-card"
-            className="shrink-0 lg:grid-cols-[1.4fr_0.8fr_1fr_auto]"
+            className="shrink-0 lg:grid-cols-[1.4fr_0.8fr_1fr_auto] lg:[&_label]:grid-cols-[auto_minmax(0,1fr)] lg:[&_label]:items-center lg:[&_label]:gap-x-1.5"
           >
             <FilterField label="Buscar">
               <Input
@@ -196,7 +196,7 @@ export default async function InformesPage({
                   type="button"
                   size="sm"
                   variant={hasActiveFilters ? "default" : "outline"}
-                  className="h-9 justify-center px-2 text-xs"
+                  className="h-9 justify-center px-2 text-xs lg:hidden"
                 >
                   Más filtros
                 </Button>

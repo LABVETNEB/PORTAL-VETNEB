@@ -288,6 +288,76 @@ test("C23b PR3 · the B1 + B4 guard rejects each regression", () => {
   }
 });
 
+// ── C23b PR4 · B2 variante B ────────────────────────────────────────────────
+// Informes (full route) from lg up: the four-column FilterBar received five grid
+// items because the «Más filtros» trigger stayed next to the inline fields, so
+// Filtrar/Limpiar wrapped to a second row. The trigger is lg-hidden (the dialog
+// keeps serving below lg) and each label puts its visible text to the left of
+// its control. Only lg-scoped classes: below 1024 nothing changes, and the GET
+// form, its names, submit and Limpiar are the same nodes as before.
+const B2_PATHS = {
+  page: "frontend/src/app/dashboard/informes/page.tsx",
+  filterBar: "frontend/src/components/dashboard/FilterBar.tsx",
+} as const;
+type B2Sources = Record<keyof typeof B2_PATHS, string>;
+const B2_FILTER_BAR_CLASS =
+  "shrink-0 lg:grid-cols-[1.4fr_0.8fr_1fr_auto] lg:[&_label]:grid-cols-[auto_minmax(0,1fr)] lg:[&_label]:items-center lg:[&_label]:gap-x-1.5";
+const B2_TRIGGER_CLASS = "h-9 justify-center px-2 text-xs lg:hidden";
+
+function b2Violations(sources: B2Sources): string[] {
+  const violations: string[] = [];
+  const require = (ok: boolean, message: string) => {
+    if (!ok) violations.push(message);
+  };
+  const page = stripComments(sources.page);
+  const filterBar = stripComments(sources.filterBar);
+  const bar = /<FilterBar\s+method="get"\s+role="search"\s+aria-label="Filtros compactos de informes"\s+density="module-card"\s+className="([^"]*)"\s*>/.exec(page)?.[1] ?? "";
+  require(bar === B2_FILTER_BAR_CLASS, "the FilterBar keeps its GET search form and gains only the inline-label classes");
+  require(bar.split(" ").slice(1).every((token) => token.startsWith("lg:")), "every FilterBar class is lg-scoped");
+  require(/<ModuleDialog\s+title="Filtros de informes"[\s\S]*?trigger=\{\s*<Button\s+type="button"\s+size="sm"\s+variant=\{hasActiveFilters \? "default" : "outline"\}\s+className="([^"]*)"\s*>\s*Más filtros\s*<\/Button>/.exec(page)?.[1] === B2_TRIGGER_CLASS, "the «Más filtros» trigger is hidden from lg only");
+  require(/<form method="get" className="grid gap-3">\s*<input type="hidden" name="query" defaultValue=\{query\} \/>/.test(page), "the dialog keeps its own GET form below lg");
+  require(page.includes('<div className="hidden lg:contents">'), "the inline fields stay the lg grid items");
+  const inline = page.slice(page.indexOf('<div className="hidden lg:contents">'));
+  const order = ['name="status"', 'name="studyType"', 'type="submit"', "Limpiar"].map((anchor) => inline.indexOf(anchor));
+  require(page.indexOf('name="query"') < page.indexOf("<ModuleDialog") && order.every((at, index) => at > 0 && (index === 0 || at > order[index - 1])), "desktop order is Buscar → Estado → Tipo → Filtrar → Limpiar");
+  for (const name of ["status", "studyType"]) {
+    require([...page.matchAll(new RegExp(`name="${name}"`, "g"))].length === 2, `${name} stays in the dialog and inline`);
+  }
+  require([...page.matchAll(/<PublicRouteControl\s+href="\/dashboard\/informes"\s+replace/g)].length === 2, "both Limpiar controls keep the replace navigation");
+  require(!page.includes("labelHidden"), "the filter labels stay visible");
+  require(!/\[&_label\]:(?:sr-only|hidden)/.test(page), "the labels are never hidden by the FilterBar");
+  require(/<span className=\{cn\(labelHidden && "sr-only"\)\}>\{label\}<\/span>\s*\{children\}/.test(filterBar), "FilterField keeps label text before its control (the two inline grid columns)");
+  return violations;
+}
+
+const readB2 = (): B2Sources => ({ page: readSourceFile(B2_PATHS.page), filterBar: readSourceFile(B2_PATHS.filterBar) });
+
+test("C23b PR4 · Informes full route carries the lg-scoped B2 inline filters", () => {
+  assert.deepEqual(b2Violations(readB2()), []);
+});
+
+test("C23b PR4 · the B2 guard rejects each regression", () => {
+  const sources = readB2();
+  const mutations: ReadonlyArray<readonly [keyof B2Sources, string, string]> = Object.freeze([
+    ["page", "px-2 text-xs lg:hidden", "px-2 text-xs"],
+    ["page", "px-2 text-xs lg:hidden", "px-2 text-xs hidden"],
+    ["page", " lg:[&_label]:grid-cols-[auto_minmax(0,1fr)]", ""],
+    ["page", "lg:[&_label]:grid-cols-[auto_minmax(0,1fr)]", "md:[&_label]:grid-cols-[auto_minmax(0,1fr)]"],
+    ["page", " lg:[&_label]:items-center", ""],
+    ["page", "lg:grid-cols-[1.4fr_0.8fr_1fr_auto]", "lg:grid-cols-5"],
+    ["page", "lg:[&_label]:gap-x-1.5", "lg:[&_label]:gap-x-1.5 lg:[&_label]:sr-only"],
+    ["page", '<div className="hidden lg:contents">', '<div className="hidden">'],
+    ["page", '<FilterBar\n            method="get"', '<FilterBar\n            method="post"'],
+    ["page", '<FilterField label="Estado" density="module-card">', '<FilterField label="Estado" density="module-card" labelHidden>'],
+    ["filterBar", '<span className={cn(labelHidden && "sr-only")}>{label}</span>', '<span className="sr-only">{label}</span>'],
+  ]);
+  for (const [key, anchor, replacement] of mutations) {
+    assert.ok(sources[key].includes(anchor), `anchor present: ${key} ${anchor}`);
+    const mutated = sources[key].replace(anchor, () => replacement);
+    assert.notDeepEqual(b2Violations({ ...sources, [key]: mutated }), [], `mutation must be rejected: ${key} ${anchor}`);
+  }
+});
+
 // ── C23b ledger ─────────────────────────────────────────────────────────────
 // §26/§54/§62.5: chrome before the first datum ≤ 32 % of the viewport between
 // 768 and 1366 px and ≤ 240 px at 1920 × 1080, measured by A02 as
@@ -297,13 +367,8 @@ test("C23b PR3 · the B1 + B4 guard rejects each regression", () => {
 const C23B_BAND_LEDGER = Object.freeze({
   "clinic-informes::w1280x720": 0.34854,
   "clinic-informes::w768x1024": 0.33638,
-  "clinic-informes-full::w1366x768": 0.38292,
-  "clinic-informes-full::w1280x720": 0.39864,
-  "clinic-informes-full::w1024x768": 0.38292,
 });
-const C23B_WIDE_LEDGER = Object.freeze({
-  "clinic-informes-full::w1920x1080": 304.73,
-});
+const C23B_WIDE_LEDGER: Readonly<Record<string, number>> = Object.freeze({});
 const CHROME_BAND_RATIO = 0.32;
 const CHROME_WIDE_PX = 240;
 const RATIO_EPSILON = 0.0001;
