@@ -389,6 +389,66 @@ test("C23b PR4 · the B2 guard rejects each regression", () => {
   }
 });
 
+// ── C23b PR5 · S6 CTA in the pager footer ─────────────────────────────────────
+// Between md and 2xl the seven inline filters (A01 S6) leave no room beside
+// them, so «Abrir módulo completo» wrapped into a second band row (8 + 32 px)
+// above the data. While the list owns its pager footer the CTA moves there, out
+// of the pager nav and out of flow; without a list it stays in the toolbar.
+const S6_PATH = "frontend/src/app/dashboard/ClinicInformesWorkspaceSummary.tsx";
+const S6_TOOLBAR_ACTIONS_CLASS =
+  'className={`flex shrink-0 flex-wrap items-center justify-end gap-2${hasReportsFooter ? " md:hidden 2xl:flex" : ""}`}';
+const S6_FOOTER_CTA_CLASS = "absolute inset-y-0 right-3 hidden items-center md:flex 2xl:hidden";
+
+function s6Violations(source: string): string[] {
+  const violations: string[] = [];
+  const require = (ok: boolean, message: string) => {
+    if (!ok) violations.push(message);
+  };
+  const code = stripComments(source);
+  require(code.includes("const hasReportsFooter = !reportsLoadError && recentReports.length > 0;"), "the footer exists only for a loaded, non-empty list");
+  const toolbar = code.slice(code.indexOf('data-clinic-reports-toolbar="true"'), code.indexOf("{renderAdvancedFilterForm(true)}"));
+  require(/\{renderAdvancedFilterForm\(\)\}\s*<div\s+className=\{`flex shrink-0/.test(toolbar) && toolbar.includes(S6_TOOLBAR_ACTIONS_CLASS), "the toolbar actions leave the band between md and 2xl only with a footer");
+  require(code.includes('"hidden shrink-0 md:grid'), "A01 S6: the seven inline filters stay from md");
+  for (const label of ["Informe", "Paciente", "Estado", "Estudio", "Archivo", "Desde", "Hasta"]) {
+    require(code.includes(`<FilterField label="${label}" density={density}>`), `A01 S6: ${label} stays in the filter form`);
+  }
+  const footer = /data-clinic-reports-pagination-footer="true"\s+className="([^"]*)"\s*>([\s\S]*?)\n {10}<\/div>\n {8}<\/div>/.exec(code);
+  require(footer?.[1] === "relative flex shrink-0 items-center justify-center px-3 text-xs text-muted-foreground", "the footer is the positioning box and keeps its layout");
+  const body = footer?.[2] ?? "";
+  require(/<\/nav>\s*(?:\{\}\s*)?<div\s+data-clinic-reports-footer-cta="true"\s+className="([^"]*)"\s*>\s*\{fullModuleLink\}\s*<\/div>\s*$/.exec(body)?.[1] === S6_FOOTER_CTA_CLASS, "the CTA sits after the pager nav, out of flow, from md to 2xl");
+  require(body.includes('className="dashboard-pager min-h-10 w-full border-t border-vetneb-line/65"'), "the pager nav keeps its width and reservation");
+  require([...code.matchAll(/\{fullModuleLink\}/g)].length === 2, "one CTA per placement, never removed");
+  require(code.includes('<FullModuleRouteControl href={ROUTES.dashboardInformes} ariaLabel="Abrir módulo completo de informes" />'), "the CTA keeps its route and accessible name");
+  require(!/footer-cta[^>]*(?:sr-only|title=)/.test(code), "the moved CTA stays painted and named");
+  return violations;
+}
+
+test("C23b PR5 · S6 moves the full-module CTA to the pager footer from md to 2xl", () => {
+  assert.deepEqual(s6Violations(readSourceFile(S6_PATH)), []);
+});
+
+test("C23b PR5 · the S6 guard rejects each regression", () => {
+  const source = readSourceFile(S6_PATH);
+  const mutations: ReadonlyArray<readonly [string, string]> = Object.freeze([
+    [' ? " md:hidden 2xl:flex" : ""', ' ? "" : ""'],
+    [' ? " md:hidden 2xl:flex" : ""', ' ? " md:hidden" : ""'],
+    [' ? " md:hidden 2xl:flex" : ""', ' ? " hidden" : ""'],
+    ["!reportsLoadError && recentReports.length > 0", "true"],
+    ["md:flex 2xl:hidden", "md:flex"],
+    ["hidden items-center md:flex", "hidden items-center lg:flex"],
+    ['className="relative flex shrink-0', 'className="flex shrink-0'],
+    ["absolute inset-y-0 right-3", "inset-y-0 right-3"],
+    ["2xl:hidden\"\n            >\n              {fullModuleLink}\n", "2xl:hidden sr-only\"\n            >\n              {fullModuleLink}\n"],
+    ["            </nav>\n            {/*", "            {fullModuleLink}\n            </nav>\n            {/*"],
+    ['<FilterField label="Archivo" density={density}>', '<FilterField label="Archivo" density={density} labelHidden>'],
+    ["md:grid md:min-w-0", "lg:grid md:min-w-0"],
+  ]);
+  for (const [anchor, replacement] of mutations) {
+    assert.ok(source.includes(anchor), `anchor present: ${anchor}`);
+    assert.notDeepEqual(s6Violations(source.replace(anchor, () => replacement)), [], `mutation must be rejected: ${anchor}`);
+  }
+});
+
 // ── C23b ledger ─────────────────────────────────────────────────────────────
 // §26/§54/§62.5: chrome before the first datum ≤ 32 % of the viewport between
 // 768 and 1366 px and ≤ 240 px at 1920 × 1080, measured by A02 as

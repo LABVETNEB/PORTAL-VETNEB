@@ -174,6 +174,7 @@ export function ClinicInformesWorkspaceSummary({
       ? null
       : (recentReports.find((report) => report.id === selectedReportId) ?? null);
   const hasActiveFilters = !isReportsFilterStateEmpty(appliedFilters);
+  const hasReportsFooter = !reportsLoadError && recentReports.length > 0;
 
   function updateFilterDraft<K extends keyof ClinicReportsFilterState>(
     field: K,
@@ -332,9 +333,14 @@ export function ClinicInformesWorkspaceSummary({
             bar's flex-basis is the width its grid needs, so when filters and
             actions do not fit side by side the actions wrap to a second line
             instead of squeezing the fields. Below 768px the bar is not painted,
-            so the band keeps only Filtros and "Abrir módulo completo". */}
+            so the band keeps only Filtros and "Abrir módulo completo".
+            C23b PR5: between 768px and 1536px, while the list owns its pager
+            footer, the CTA moves to that footer, so it never wraps into a
+            second band row above the data. From 1536px it fits beside them. */}
         {renderAdvancedFilterForm()}
-        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+        <div
+          className={`flex shrink-0 flex-wrap items-center justify-end gap-2${hasReportsFooter ? " md:hidden 2xl:flex" : ""}`}
+        >
           <ModuleDialog
             open={isFilterDialogOpen}
             onOpenChange={setIsFilterDialogOpen}
@@ -506,7 +512,7 @@ export function ClinicInformesWorkspaceSummary({
 
           <div
             data-clinic-reports-pagination-footer="true"
-            className="flex shrink-0 items-center justify-center px-3 text-xs text-muted-foreground"
+            className="relative flex shrink-0 items-center justify-center px-3 text-xs text-muted-foreground"
           >
             {/* CMP-12: the border and the height reservation live on the SAME
                 element (matching Admin's AdminMobileOpsPager, and DashboardPager's
@@ -570,6 +576,14 @@ export function ClinicInformesWorkspaceSummary({
                 </Button>
               </span>
             </nav>
+            {/* Outside the pager nav and out of flow: the nav keeps its own
+                width and centred prev/next, the CTA takes the free right edge. */}
+            <div
+              data-clinic-reports-footer-cta="true"
+              className="absolute inset-y-0 right-3 hidden items-center md:flex 2xl:hidden"
+            >
+              {fullModuleLink}
+            </div>
           </div>
         </div>
       ) : (

@@ -258,16 +258,44 @@ for (const viewport of DT_VIEWPORTS) {
       await expectZeroScroll(page, "operaciones");
     });
 
-    test("informes: filters and CTA share the top band, pager is prev/next only", async ({ page }) => {
+    test("informes: filters own the top band, CTA beside them or in the pager footer, pager is prev/next only", async ({ page }) => {
       const workspace = await openModule(page, "informes");
       await expectChromeRetired(page, workspace, "informes");
       const toolbar = workspace.locator('[data-clinic-reports-toolbar="true"]');
       const filters = toolbar.locator('[data-clinic-report-filter-bar="advanced"]');
-      const cta = toolbar.getByRole("button", { name: "Abrir módulo completo de informes" });
+      const ctaName = { name: "Abrir módulo completo de informes" };
       await expect(filters).toBeVisible();
-      await expect(cta).toBeVisible();
-      const sameRow = await expectActionsBesideOrBelow(filters, cta, toolbar, "informes");
-      if (viewport.width >= 1536) expect(sameRow, "wide desktop keeps one row").toBe(true);
+      if (viewport.width >= 1536) {
+        const cta = toolbar.getByRole("button", ctaName);
+        await expect(cta).toBeVisible();
+        expect(await expectActionsBesideOrBelow(filters, cta, toolbar, "informes"), "wide desktop keeps one row").toBe(true);
+      } else {
+        // C23b PR5: the CTA no longer wraps into a second band row above the
+        // data; it takes the free right edge of the pager footer.
+        await expect(toolbar.getByRole("button", ctaName)).toHaveCount(0);
+        const footer = workspace.locator('[data-clinic-reports-pagination-footer="true"]');
+        const cta = footer.getByRole("button", ctaName);
+        await expect(cta).toBeVisible();
+        await expectBandControlsDisjoint(footer, "informes footer");
+        const ctaBox = await box(cta);
+        const nextBox = await box(footer.getByRole("button", { name: "Página siguiente" }));
+        const footerBox = await box(footer);
+        expect(ctaBox.x, "CTA right of Siguiente").toBeGreaterThan(nextBox.x + nextBox.width);
+        expect(ctaBox.y, "CTA inside the footer").toBeGreaterThanOrEqual(footerBox.y - TOLERANCE_PX);
+        expect(ctaBox.y + ctaBox.height, "CTA inside the footer").toBeLessThanOrEqual(footerBox.y + footerBox.height + TOLERANCE_PX);
+        // Tab order: Siguiente → CTA → back; the focus ring (2 + 2 px offset)
+        // stays inside the clipping list panel.
+        const next = footer.getByRole("button", { name: "Página siguiente" });
+        await expect(next).toBeEnabled();
+        await next.focus();
+        await page.keyboard.press("Tab");
+        await expect(cta).toBeFocused();
+        const panelBox = await box(workspace.locator('[data-clinic-reports-list-panel="true"]'));
+        expect(ctaBox.x + ctaBox.width + 4, "focus ring inside the panel").toBeLessThanOrEqual(panelBox.x + panelBox.width);
+        expect(ctaBox.y + ctaBox.height + 4, "focus ring inside the panel").toBeLessThanOrEqual(panelBox.y + panelBox.height);
+        await page.keyboard.press("Shift+Tab");
+        await expect(next).toBeFocused();
+      }
       await expectBandControlsDisjoint(toolbar, "informes");
       for (const label of ["Informe", "Paciente", "Estado", "Estudio", "Archivo", "Desde", "Hasta"]) {
         await expect(filters.getByText(label, { exact: true })).toBeVisible();
