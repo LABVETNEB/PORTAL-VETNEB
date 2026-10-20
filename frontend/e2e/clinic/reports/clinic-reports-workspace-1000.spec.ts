@@ -232,13 +232,13 @@ const ALL_IDS = Array.from({ length: 24 }, (_, index) => 8401 + index);
 const ALL_TOTAL = 1000;
 
 /** `status=delivered` order. */
-const DELIVERED_IDS = [8403, 8404, 8408, 8412, 8416, 8420, 8424, 8428, 8432];
+const DELIVERED_IDS = [8403, 8404, 8408, 8412, 8416, 8420, 8424, 8428, 8432, 8436];
 const DELIVERED_TOTAL = 251;
 
 /** `query=Paciente E2E` + `status=delivered` + `studyType=Necropsia` order. */
 const COMBINED_IDS = [
   8420, 8440, 8460, 8480, 8500, 8520, 8540, 8560, 8580, 8600, 8620, 8640,
-  8660, 8680, 8700, 8720, 8740, 8760,
+  8660, 8680, 8700, 8720, 8740, 8760, 8780, 8800,
 ];
 const COMBINED_TOTAL = 50;
 

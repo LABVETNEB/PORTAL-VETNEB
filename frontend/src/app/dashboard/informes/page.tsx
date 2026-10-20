@@ -3,7 +3,6 @@ import { cookies } from "next/headers";
 
 import { ClinicDashboardShell } from "@/components/dashboard/ClinicDashboardShell";
 import { ClinicFullRouteModuleStage } from "@/components/dashboard/ClinicFullRouteModuleStage";
-import { ModuleDialog } from "@/components/dashboard/ModuleDialog";
 import { ModuleCard } from "@/components/dashboard/ModuleCard";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import {
@@ -22,6 +21,7 @@ import {
   type PaginatedReports,
 } from "@/lib/api";
 import { redirectToLoginOnUnauthorized } from "@/lib/dashboard-server-auth";
+import { InformesFilterDisclosure } from "./InformesFilterDisclosure";
 import { InformesReportsList } from "./InformesReportsList";
 import { ModuleMetricRun } from "@/components/dashboard/ModuleMetricRun";
 import { INFORMES_FALLBACK_ROWS } from "./informes.constants";
@@ -176,7 +176,7 @@ export default async function InformesPage({
             role="search"
             aria-label="Filtros compactos de informes"
             density="module-card"
-            className="shrink-0 lg:grid-cols-[1.4fr_0.8fr_1fr_auto]"
+            className="shrink-0 lg:grid-cols-[1.4fr_0.8fr_1fr_auto] lg:[&_label]:grid-cols-[auto_minmax(0,1fr)] lg:[&_label]:items-center lg:[&_label]:gap-x-1.5"
           >
             <FilterField label="Buscar">
               <Input
@@ -188,7 +188,7 @@ export default async function InformesPage({
               />
             </FilterField>
 
-            <ModuleDialog
+            <InformesFilterDisclosure
               title="Filtros de informes"
               description="Ajuste el estado y tipo de estudio sin ampliar la banda operativa."
               trigger={
@@ -196,10 +196,56 @@ export default async function InformesPage({
                   type="button"
                   size="sm"
                   variant={hasActiveFilters ? "default" : "outline"}
-                  className="h-9 justify-center px-2 text-xs"
+                  className="h-9 justify-center px-2 text-xs lg:hidden"
                 >
                   Más filtros
                 </Button>
+              }
+              inline={
+                <>
+                  <FilterField label="Estado" density="module-card">
+                    <Select
+                      name="status"
+                      defaultValue={status}
+                      className={dashboardFilterControlClassName("module-card")}
+                      aria-label="Filtrar por estado"
+                    >
+                      {statusOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </Select>
+                  </FilterField>
+
+                  <FilterField label="Tipo de estudio" density="module-card">
+                    <Input
+                      name="studyType"
+                      defaultValue={studyType}
+                      className={dashboardFilterControlClassName("module-card")}
+                      placeholder="Filtrar por tipo de estudio..."
+                      aria-label="Filtrar por tipo de estudio"
+                    />
+                  </FilterField>
+
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="submit"
+                      size="sm"
+                      className={dashboardFilterActionClassName("module-card")}
+                    >
+                      Filtrar
+                    </Button>
+                    <PublicRouteControl
+                      href="/dashboard/informes"
+                      replace
+                      variant="bare"
+                      className={`${dashboardFilterActionClassName("module-card")} inline-flex items-center justify-center rounded-md border border-input bg-card/95 font-semibold text-foreground shadow-sm transition-colors hover:border-vetneb-teal/45 hover:bg-accent/70`}
+                    >
+                      Limpiar
+                    </PublicRouteControl>
+                  </div>
+                </>
               }
             >
               <form method="get" className="grid gap-3">
@@ -247,52 +293,7 @@ export default async function InformesPage({
                   </PublicRouteControl>
                 </div>
               </form>
-            </ModuleDialog>
-
-            <div className="hidden lg:contents">
-              <FilterField label="Estado" density="module-card">
-                <Select
-                  name="status"
-                  defaultValue={status}
-                  className={dashboardFilterControlClassName("module-card")}
-                  aria-label="Filtrar por estado"
-                >
-                  {statusOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </Select>
-              </FilterField>
-
-              <FilterField label="Tipo de estudio" density="module-card">
-                <Input
-                  name="studyType"
-                  defaultValue={studyType}
-                  className={dashboardFilterControlClassName("module-card")}
-                  placeholder="Filtrar por tipo de estudio..."
-                  aria-label="Filtrar por tipo de estudio"
-                />
-              </FilterField>
-
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  type="submit"
-                  size="sm"
-                  className={dashboardFilterActionClassName("module-card")}
-                >
-                  Filtrar
-                </Button>
-                <PublicRouteControl
-                  href="/dashboard/informes"
-                  replace
-                  variant="bare"
-                  className={`${dashboardFilterActionClassName("module-card")} inline-flex items-center justify-center rounded-md border border-input bg-card/95 font-semibold text-foreground shadow-sm transition-colors hover:border-vetneb-teal/45 hover:bg-accent/70`}
-                >
-                  Limpiar
-                </PublicRouteControl>
-              </div>
-            </div>
+            </InformesFilterDisclosure>
 
           </FilterBar>
 
