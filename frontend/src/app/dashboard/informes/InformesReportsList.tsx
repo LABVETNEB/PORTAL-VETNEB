@@ -627,7 +627,9 @@ export function InformesReportsList({
       {/* Hidden below `sm` so the fixed chrome (filters + summary) never
           out-competes the adaptive rows/pager for the short mobile
           viewport's height. */}
-      <div className="hidden gap-2 text-sm sm:grid sm:grid-cols-4 xl:min-w-[34rem]">
+      {/* C23b B1: from md the pager carries Total, Mostrando and Página, so
+          the strip leaves the flow and stays readable to assistive tech. */}
+      <div className="hidden gap-2 text-sm sm:grid sm:grid-cols-4 md:sr-only">
         <div className="surface-soft px-3 py-2">
           <p className="text-xs text-muted-foreground">Total</p>
           <p className="mt-0.5 font-semibold text-vetneb-ink">{totalCount}</p>
@@ -702,15 +704,16 @@ export function InformesReportsList({
             className="dashboard-master-panel flex min-h-0 flex-col overflow-hidden rounded-xl border border-vetneb-line/75 bg-card/82"
           >
             {pageRequestRecovery}
-            <div className="flex shrink-0 items-start justify-between gap-2 border-b border-vetneb-line/70 px-4 py-2.5">
-              <div className="min-w-0">
-                <h2 id="reports-list-heading" className="dashboard-section-heading">
+            {/* C23b B4: from md one row at the C01 collection-header height. */}
+            <div className="flex shrink-0 items-start justify-between gap-2 border-b border-vetneb-line/70 px-4 py-2.5 md:h-[var(--dash-collection-header-h)] md:items-center md:py-0">
+              <div className="min-w-0 md:flex md:items-baseline md:gap-3">
+                <h2 id="reports-list-heading" className="dashboard-section-heading md:shrink-0">
                   Lista de informes
                 </h2>
                 {/* C24: the toggle shares this row, so the hint keeps the single
                     line the A02 baseline froze (accessible truncation, full text in the DOM). */}
                 <p
-                  className="dashboard-section-description truncate"
+                  className="dashboard-section-description truncate md:mt-0 md:min-w-0"
                   title="Click en un informe para abrir su detalle operativo."
                 >
                   Click en un informe para abrir su detalle operativo.
