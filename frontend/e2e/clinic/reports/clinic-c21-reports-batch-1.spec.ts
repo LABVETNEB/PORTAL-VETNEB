@@ -62,6 +62,8 @@ test.describe("C21 · clinic Informes module", () => {
 
     const bar = card.locator('[data-clinic-report-filter-bar="advanced"]');
     await expect(bar).toBeVisible();
+    await expect(card.getByRole("search", { name: "Filtros avanzados de informes clínica" })).toHaveCount(1);
+    await expect(card.getByRole("search")).toHaveCount(1);
     await expectHydrated(bar);
     const reportField = bar.getByLabel("Informe");
     await reportField.fill("8401");
@@ -104,6 +106,12 @@ test.describe("C21 · clinic Informes module", () => {
     await expect(rows.first()).toHaveAttribute("data-content-list-item", "true");
     await expect(rows.first()).toHaveAttribute("data-dashboard-adaptive-row", "true");
     expect(await borderBottom(rows.first())).toBe("1px");
+
+    await card.getByRole("button", { name: "Filtros", exact: true }).click();
+    const sheet = page.getByRole("dialog", { name: "Filtrar informes" });
+    await expect(sheet.getByRole("search", { name: "Filtros avanzados de informes clínica mobile" })).toHaveCount(1);
+    await expect(card.getByRole("search")).toHaveCount(0);
+    await page.keyboard.press("Escape");
 
     const pager = card.locator('[data-clinic-reports-pagination-controls="true"]');
     await expect(pager).toBeVisible();

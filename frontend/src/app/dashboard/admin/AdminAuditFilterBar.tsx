@@ -58,6 +58,7 @@ function FilterForm({
     <FilterBar
       action="/dashboard/admin"
       method="get"
+      role="search"
       aria-label={mobile ? "Filtros de auditoría mobile" : "Filtros de auditoría"}
       density={density}
       className={

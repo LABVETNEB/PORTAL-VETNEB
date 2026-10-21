@@ -548,6 +548,7 @@ export function AdminReportsCard() {
     return (
       <FilterBar
         data-admin-report-upload-filter-bar={mobile ? "advanced-mobile" : "advanced"}
+        role="search"
         density={density}
         className={
           mobile

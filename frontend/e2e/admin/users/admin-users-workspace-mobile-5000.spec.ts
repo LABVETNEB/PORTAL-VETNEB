@@ -411,7 +411,9 @@ test.describe("admin users-roles workspace 5000-user fixture mobile (CAP-A3)", (
 
       // userType=clinic + role=clinic_owner matches the CAP-A1 endpoint totals.
       await moduleRoot.getByLabel("Tipo").selectOption("clinic");
-      await moduleRoot.getByLabel("Rol").selectOption("clinic_owner");
+      await moduleRoot
+        .getByRole("combobox", { name: "Rol", exact: true })
+        .selectOption("clinic_owner");
 
       const ownerState = await readStableMobileState(
         page,

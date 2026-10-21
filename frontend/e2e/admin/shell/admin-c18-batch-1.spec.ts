@@ -14,6 +14,8 @@ test("C18 Tokens composes the collection, chips and details without touching its
   await page.goto("/dashboard/admin?module=admin-particular-tokens");
   const card = page.locator(tokens);
   await expect(card.locator('[data-collection-workspace="true"] tbody tr')).toHaveCount(9);
+  await expect(card.getByRole("search", { name: "Filtros avanzados de tokens particulares" })).toHaveCount(1);
+  await expect(card.getByRole("search")).toHaveCount(1);
   await expect(card.locator('[data-collection-header="true"]')).toBeVisible();
 
   await card.getByPlaceholder("Nombre o ID").fill("12");
@@ -48,6 +50,8 @@ test("C18 Tokens mobile search pill submits the same clinic filter with zero doc
   await expect(items).toHaveCount(1);
   await card.getByRole("button", { name: "Limpiar", exact: true }).click();
   await expect(items.first()).toBeVisible();
+  await expect(card.getByRole("search", { name: "Filtros de tokens particulares mobile" })).toHaveCount(1);
+  await expect(card.getByRole("search")).toHaveCount(1);
   const overflow = await page.evaluate(() => ({
     x: document.documentElement.scrollWidth - document.documentElement.clientWidth,
     y: document.documentElement.scrollHeight - document.documentElement.clientHeight,
@@ -68,6 +72,8 @@ test("C18 Auditoría mobile sheet keeps the S1 GET form and URL contract", async
   const sheet = page.getByRole("dialog", { name: "Filtrar auditoría" });
   const form = sheet.locator('form[method="get"][action="/dashboard/admin"]');
   await expect(form).toHaveCount(1);
+  await expect(sheet.getByRole("search", { name: "Filtros de auditoría mobile" })).toHaveCount(1);
+  await expect(auditModule.getByRole("search")).toHaveCount(0);
   const fieldTint = await form.locator('select[name="event"]').evaluate((select) => {
     const shell = select.closest(".dashboard-app-shell");
     if (!shell) return null;
@@ -97,6 +103,8 @@ test("C18 Auditoría desktop detail renders the safe fields through the details 
   const auditModule = page.locator(audit);
   const firstRow = auditModule.locator('[data-collection-workspace="true"] tbody tr').first();
   await expect(firstRow).toBeVisible();
+  await expect(auditModule.getByRole("search", { name: "Filtros de auditoría" })).toHaveCount(1);
+  await expect(auditModule.getByRole("search")).toHaveCount(1);
   const trigger = firstRow.getByRole("button", { name: /Ver detalle del evento/ });
   await trigger.click();
   const dialog = page.getByRole("dialog", { name: /Evento #/ });

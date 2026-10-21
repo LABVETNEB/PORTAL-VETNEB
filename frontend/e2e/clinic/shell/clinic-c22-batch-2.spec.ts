@@ -115,6 +115,8 @@ test.describe("C22 · clinic Tokens (S7)", () => {
 
     const bar = card.locator('[data-clinic-access-filter-bar="advanced"]');
     await expect(bar).toBeVisible();
+    await expect(card.getByRole("search", { name: "Filtros avanzados de tokens clínica" })).toHaveCount(1);
+    await expect(card.getByRole("search")).toHaveCount(1);
     await expectHydrated(bar);
     await bar.getByLabel("Paciente").fill("zz-c22-sin-coincidencias");
     await bar.getByRole("button", { name: "Aplicar" }).click();
@@ -146,6 +148,12 @@ test.describe("C22 · clinic Tokens (S7)", () => {
     await expect(rows.first()).toHaveAttribute("data-content-list-item", "true");
     await expect(rows.first()).toHaveAttribute("data-dashboard-adaptive-row", "true");
     expect(await borderBottom(rows.first())).toBe("1px");
+
+    await card.getByRole("button", { name: "Filtros", exact: true }).click();
+    const sheet = page.getByRole("dialog", { name: "Filtrar tokens" });
+    await expect(sheet.getByRole("search", { name: "Filtros avanzados de tokens clínica mobile" })).toHaveCount(1);
+    await expect(card.getByRole("search")).toHaveCount(0);
+    await page.keyboard.press("Escape");
 
     const pager = card.locator('[data-clinic-access-pagination-controls="true"]');
     const firstRow = await rows.first().textContent();

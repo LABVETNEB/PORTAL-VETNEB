@@ -747,6 +747,7 @@ export function ClinicParticularTokensCard() {
     return (
       <FilterBar
         data-clinic-access-filter-bar={mobile ? "advanced-mobile" : "advanced"}
+        role="search"
         density={density}
         className={
           mobile

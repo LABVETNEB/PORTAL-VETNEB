@@ -150,6 +150,8 @@ test.describe("admin clinic edit drawer — component behavior", () => {
     await page.goto("/dashboard/admin?hub=1");
     await navigateToGestionTab(page);
     await waitForClinicList(page);
+    await expect(page.locator("#admin-clinics").getByRole("search", { name: "Buscar clínicas" })).toHaveCount(1);
+    await expect(page.locator("#admin-clinics").getByRole("search")).toHaveCount(1);
 
     // The table should show clinic name as text (not an input)
     const clinicNameCell = page.getByRole("cell", { name: /Clínica Test/i }).first();
@@ -159,6 +161,15 @@ test.describe("admin clinic edit drawer — component behavior", () => {
     const editButton = page.getByRole("button", { name: /editar clínica clínica test/i });
     await expect(editButton).toBeVisible();
     await expect(editButton).toBeEnabled();
+  });
+
+  test("the mobile clinic search exposes one named landmark", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/dashboard/admin?module=admin-clinics");
+    const card = page.locator("#admin-clinics");
+    await expect(card).toBeVisible();
+    await expect(card.getByRole("search", { name: "Buscar clínicas" })).toHaveCount(1);
+    await expect(card.getByRole("search")).toHaveCount(1);
   });
 
   test("new clinic password starts hidden and only reveals by explicit reversible action", async ({

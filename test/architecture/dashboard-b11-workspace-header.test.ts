@@ -1133,7 +1133,7 @@ test("PRE-C05 · Clínicas: descriptor retired, actions above the mobile search,
   const search = header.indexOf('placeholder="Buscar clínica..."');
   assert.ok(create !== -1 && refresh > create && search > refresh, "Nueva clínica and Actualizar stay above the mobile search");
   assert.equal((card.match(/placeholder="Buscar clínica\.\.\."/g) ?? []).length, 1, "the mobile search moved, not duplicated");
-  assert.ok(header.includes('<div className="relative max-w-xs shrink-0 md:hidden">'), "the mobile search sits in the header below md only");
+  assert.ok(header.includes('<div className="relative max-w-xs shrink-0 md:hidden" role="search" aria-label="Buscar clínicas">'), "the named mobile search sits in the header below md only");
   assert.ok(
     header.includes('<div className="mb-0 flex flex-wrap items-center gap-2">'),
     "the actions row cancels the header space-y margin",

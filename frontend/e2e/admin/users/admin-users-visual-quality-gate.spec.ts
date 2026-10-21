@@ -799,7 +799,9 @@ async function applyMobileState(page: Page, state: StateName) {
     await moduleRoot.getByLabel("Tipo").selectOption("admin");
   } else if (state === "filter-clinic-owner") {
     await moduleRoot.getByLabel("Tipo").selectOption("clinic");
-    await moduleRoot.getByLabel("Rol").selectOption("clinic_owner");
+    await moduleRoot
+      .getByRole("combobox", { name: "Rol", exact: true })
+      .selectOption("clinic_owner");
   }
 }
 
