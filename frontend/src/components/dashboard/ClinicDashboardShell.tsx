@@ -90,6 +90,7 @@ export function ClinicDashboardShell({
       />
       <DashboardNavigationFrame surface="clinic" module={module}>
         <main
+          id="main-content"
           className="dashboard-main"
           data-dashboard-adaptive-reservation={
             mainAdaptiveReservation ? "true" : undefined

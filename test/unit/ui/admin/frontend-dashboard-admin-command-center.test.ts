@@ -143,7 +143,7 @@ test("dashboard admin composes module hub, command center, and existing cards", 
   assert.ok(source.includes("<AdminUsersRolesReadOnlyCard />"));
   assert.equal(source.includes('className="h-24 md:hidden" aria-hidden="true"'), false);
 
-  const mainIndex = source.indexOf('<main className="dashboard-main">');
+  const mainIndex = source.indexOf('<main id="main-content" className="dashboard-main">');
   const pageHeaderIndex = source.indexOf("<DashboardPageHeader", mainIndex);
   const workspaceControllerIndex = source.indexOf("<AdminDashboardWorkspaceController", mainIndex);
   // PR5B: slot vars defined before <main> in render order (commandCenter → alerts → tabs).

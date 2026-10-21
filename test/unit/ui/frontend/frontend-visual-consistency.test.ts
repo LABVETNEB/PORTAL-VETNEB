@@ -469,7 +469,7 @@ test("dashboard admin keeps dense professional layout and visual state surfaces"
   assertContainsAll(
     source,
     [
-      '<main className="dashboard-main">',
+      '<main id="main-content" className="dashboard-main">',
       "<DashboardPageHeader",
       "<AdminDashboardWorkspaceController",
       "<AdminCommandCenter",

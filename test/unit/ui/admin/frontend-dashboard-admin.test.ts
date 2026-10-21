@@ -270,7 +270,7 @@ test("dashboard admin retires the module hub cards and preserves admin sections"
   assert.equal(auditCardSource.includes('id="audit-role-changes"'), false, "the audit header run is retired");
   assert.ok(source.includes("<AdminAuditCard"));
 
-  const mainIndex = source.indexOf('<main className="dashboard-main">');
+  const mainIndex = source.indexOf('<main id="main-content" className="dashboard-main">');
   const pageHeaderIndex = source.indexOf("<DashboardPageHeader", mainIndex);
   const workspaceControllerIndex = source.indexOf("<AdminDashboardWorkspaceController", mainIndex);
   // PR5B: slot vars defined before <main> in render order (commandCenter → alerts → tabs).
