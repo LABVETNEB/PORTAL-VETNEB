@@ -81,6 +81,8 @@ test("C19 Usuarios composes the C01 table and C13 detail with the same role filt
   const table = card.getByRole("table", { name: "Tabla de usuarios y roles administrativos" });
   const rows = table.locator('tbody[data-content-list="true"] > tr[data-content-list-item="true"]');
   await expect(rows.first()).toBeVisible();
+  await expect(card.getByRole("search", { name: "Filtros de usuarios y roles" })).toHaveCount(1);
+  await expect(card.getByRole("search")).toHaveCount(1);
   await expect(card.locator('[data-collection-workspace="true"] thead[data-collection-header="true"]')).toBeVisible();
   await expect(card.getByRole("button", { name: "Cambiar rol" }).first()).toBeVisible();
 
@@ -122,6 +124,8 @@ test("C19 Usuarios mobile Siguiente requests offset=limit and shows page 2 with 
   await page.goto("/dashboard/admin?module=admin-users-roles");
   const mobile = page.locator('[data-admin-mobile-ops-module="users"]');
   const items = mobile.locator('[data-content-list="true"] > article[data-content-list-item="true"][data-admin-mobile-ops-item="true"]');
+  await expect(mobile.getByRole("search", { name: "Buscar usuarios y roles" })).toHaveCount(1);
+  await expect(page.locator(users).getByRole("search")).toHaveCount(1);
   const pager = mobile.getByRole("navigation", { name: "Paginación de usuarios" });
   await expect(pager.getByText(/Pág\. 1 \/ (?:[2-9]|\d{2,})\b/)).toBeVisible({ timeout: 15_000 });
   await expect(items.first()).toBeVisible();

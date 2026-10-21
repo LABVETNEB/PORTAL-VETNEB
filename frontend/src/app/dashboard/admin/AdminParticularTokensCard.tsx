@@ -987,6 +987,7 @@ export function AdminParticularTokensCard() {
     return (
       <FilterBar
         data-admin-filter-bar={mobile ? "advanced-mobile" : "advanced"}
+        role="search"
         density={density}
         className={
           mobile
@@ -1383,6 +1384,8 @@ export function AdminParticularTokensCard() {
 
           <form
             className="flex w-full min-w-0 items-center gap-1 md:hidden"
+            role="search"
+            aria-label="Filtros de tokens particulares mobile"
             onSubmit={applyAdvancedFilters}
           >
             <span className="sr-only">

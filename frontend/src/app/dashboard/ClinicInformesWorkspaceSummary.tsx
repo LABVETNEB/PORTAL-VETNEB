@@ -219,6 +219,7 @@ export function ClinicInformesWorkspaceSummary({
     return (
       <FilterBar
         data-clinic-report-filter-bar={mobile ? "advanced-mobile" : "advanced"}
+        role="search"
         density={density}
         className={
           mobile

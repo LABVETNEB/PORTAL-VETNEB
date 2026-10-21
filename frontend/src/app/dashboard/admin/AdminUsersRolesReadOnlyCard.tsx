@@ -417,6 +417,7 @@ export function AdminUsersRolesReadOnlyCard() {
       <CardContent className="flex min-h-0 flex-1 flex-col p-0">
         <div
           className="flex min-h-12 shrink-0 items-end gap-2 border-b border-vetneb-line/70 px-3 py-2 sm:px-4 md:min-h-10 md:py-1"
+          role="search"
           aria-label="Filtros de usuarios y roles"
         >
           <label className="grid min-w-0 flex-[2] gap-1 text-[11px] font-medium text-muted-foreground md:max-w-md md:gap-0.5">
@@ -720,7 +721,7 @@ export function AdminUsersRolesReadOnlyCard() {
           </Button>
         </header>
 
-        <div className="shrink-0 border-b border-vetneb-line/70 px-2 py-1">
+        <div className="shrink-0 border-b border-vetneb-line/70 px-2 py-1" role="search" aria-label="Buscar usuarios y roles">
           <label className="grid min-w-0 gap-0.5 text-[10px] font-medium text-muted-foreground">
             Buscar
             <div className="relative">

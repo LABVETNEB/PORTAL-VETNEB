@@ -19,6 +19,8 @@ test("C17 desktop keeps the server window while search, selection and detail com
   await page.goto("/dashboard/admin?module=admin-report-upload");
   const reports = page.locator(workspace);
   await expect(reports.locator("tbody tr")).toHaveCount(14);
+  await expect(reports.getByRole("search", { name: "Filtros avanzados de informes" })).toHaveCount(1);
+  await expect(reports.getByRole("search")).toHaveCount(1);
   await expect(reports.locator('[data-collection-header="true"]')).toBeVisible();
   await expect(reports.locator('[data-collection-workspace="true"]')).toBeVisible();
   expect(requests.at(-1)).toEqual({ limit: 14, offset: 0 });
@@ -63,6 +65,8 @@ test("C17 mobile sheet, selection and zero-scroll stay operable", async ({ page 
   await reports.getByRole("button", { name: "Filtros" }).click();
   const sheet = page.getByRole("dialog", { name: "Filtrar informes" });
   await expect(sheet).toBeVisible();
+  await expect(sheet.getByRole("search", { name: "Filtros avanzados de informes mobile" })).toHaveCount(1);
+  await expect(reports.getByRole("search")).toHaveCount(0);
   await expect(sheet.getByRole("searchbox", { name: "Buscar informe" })).toBeFocused();
   await expect(sheet.locator("input, select")).toHaveCount(8);
   await page.keyboard.press("Escape");

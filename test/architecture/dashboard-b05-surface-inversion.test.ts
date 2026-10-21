@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { resolve } from "node:path";
 import { test } from "node:test";
+import ts from "typescript";
 import { readSourceFile as readSource, listSourceFiles } from "../helpers/tracked-source-files.ts";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -623,3 +624,44 @@ test("M4 — widening a selector to a public/global scope fails closed", () => {
     /escapes the dashboard scope/,
   );
 });
+
+function bug03SearchOwners(path: string, tag: string, classMarker?: string) {
+  const source = ts.createSourceFile(path, readSource(path), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const owners: ts.JsxOpeningLikeElement[] = [];
+  function visit(node: ts.Node) {
+    if ((ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) && node.tagName.getText(source) === tag) {
+      const className = node.attributes.properties.find((attribute) => ts.isJsxAttribute(attribute) && attribute.name.getText(source) === "className");
+      if (!classMarker || (className && className.getText(source).includes(classMarker))) owners.push(node);
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(source);
+  return owners.map((owner) => ({
+    role: owner.attributes.properties.find((attribute) => ts.isJsxAttribute(attribute) && attribute.name.getText(source) === "role")?.getText(source),
+    name: owner.attributes.properties.find((attribute) => ts.isJsxAttribute(attribute) && attribute.name.getText(source) === "aria-label")?.getText(source),
+  }));
+}
+
+const BUG03_SEARCH_SURFACES = [
+  ["S1 Auditoría", "frontend/src/app/dashboard/admin/AdminAuditFilterBar.tsx", "FilterBar", undefined],
+  ["S2 Tokens admin", "frontend/src/app/dashboard/admin/AdminParticularTokensCard.tsx", "FilterBar", undefined],
+  ["S2 Tokens admin mobile", "frontend/src/app/dashboard/admin/AdminParticularTokensCard.tsx", "form", "flex w-full min-w-0 items-center gap-1 md:hidden"],
+  ["S3 Informes admin", "frontend/src/app/dashboard/admin/AdminReportsCard.tsx", "FilterBar", undefined],
+  ["S4 Clínicas admin mobile", ADMIN_CLINICS_TSX, "div", "relative max-w-xs shrink-0 md:hidden"],
+  ["S4 Clínicas admin desktop", ADMIN_CLINICS_TSX, "div", "relative min-w-0 max-w-md flex-1"],
+  ["S5 Usuarios y roles desktop", ADMIN_USERS_ROLES_TSX, "div", "flex min-h-12 shrink-0 items-end gap-2 border-b"],
+  ["S5 Usuarios y roles mobile", ADMIN_USERS_ROLES_TSX, "div", "shrink-0 border-b border-vetneb-line/70 px-2 py-1"],
+  ["S6 Informes clínica", "frontend/src/app/dashboard/ClinicInformesWorkspaceSummary.tsx", "FilterBar", undefined],
+  ["S7 Tokens clínica", "frontend/src/components/dashboard/ClinicParticularTokensCard.tsx", "FilterBar", undefined],
+] as const;
+
+for (const [surface, path, tag, marker] of BUG03_SEARCH_SURFACES) {
+  test(`PR-BUG-03 ${surface}: the existing search owner has a named landmark`, () => {
+    const owners = bug03SearchOwners(path, tag, marker);
+    assert.equal(owners.length, 1, `${surface}: expected one existing ${tag} owner`);
+    for (const owner of owners) {
+      assert.equal(owner.role, 'role="search"', `${surface}: the owner must expose the search role`);
+      assert.ok(owner.name && owner.name !== 'aria-label=""', `${surface}: the landmark needs a name`);
+    }
+  });
+}

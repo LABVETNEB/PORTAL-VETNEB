@@ -534,7 +534,7 @@ export function AdminClinicsManagementCard() {
             {isPending ? "Actualizando..." : "Actualizar"}
           </Button>
         </div>
-        <div className="relative max-w-xs shrink-0 md:hidden">
+        <div className="relative max-w-xs shrink-0 md:hidden" role="search" aria-label="Buscar clínicas">
           <Search
             className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
             aria-hidden="true"
@@ -686,7 +686,7 @@ export function AdminClinicsManagementCard() {
           data-admin-clinics-desktop-toolbar="true"
           className="hidden items-center gap-2 md:flex"
         >
-          <div className="relative min-w-0 max-w-md flex-1">
+          <div className="relative min-w-0 max-w-md flex-1" role="search" aria-label="Buscar clínicas">
             <Search
               className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
               aria-hidden="true"
