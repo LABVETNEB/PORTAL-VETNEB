@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { setSession, type SessionRole } from "../helpers/session";
+import { installRouterPayloadGates } from "../helpers/router-payload-gates";
 import { MAX_DOCUMENT_SCROLL_DELTA_PX } from "../helpers/zero-scroll-contract";
 
 // PR-DRV-02 · skip-to-content on the private dashboard (proposal DRV-08). The
@@ -138,5 +139,50 @@ test.describe("PR-DRV-02 · skip to content on the dashboard", () => {
     });
     expect(outline.style).not.toBe("none");
     expect(outline.width).toBeGreaterThan(0);
+  });
+
+  test("error boundary keeps the skip target keyboard reachable and retry restores the module", async ({ page }) => {
+    await page.setViewportSize(DESKTOP);
+    await setSession(page, "admin", "populated");
+    const payloads = await installRouterPayloadGates(page);
+    await page.goto("/dashboard/admin?module=admin");
+    await expect(page.locator('[data-dashboard-module-workspace="admin"]')).toBeVisible();
+    await page.waitForLoadState("networkidle");
+
+    payloads.cutNext("admin-sessions");
+    await page.locator('[data-dashboard-navigation-drawer="admin"]:visible [data-dashboard-navigation-item="admin-sessions"]').click();
+    const error = page.locator('[data-route-error-boundary="dashboard"]');
+    await expect(error).toBeVisible({ timeout: 15_000 });
+    expect(payloads.injected().some((item) => item.kind === "cut" && item.key === "admin-sessions")).toBe(true);
+    const main = page.locator(MAIN);
+    await expect(main).toHaveCount(1);
+    await expect(page.locator('[id="main-content"]')).toHaveCount(1);
+
+    await page.addStyleTag({ content: "nextjs-portal{display:none!important}" });
+    const skip = page.getByRole("button", { name: SKIP_NAME });
+    const retry = error.getByRole("button", { name: "Reintentar" });
+    const url = page.url();
+    const historyLength = await page.evaluate(() => history.length);
+    const chain = await scrollChain(page);
+    await retry.focus();
+    await page.keyboard.press("Shift+Tab");
+    await expect(skip).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(main).toBeFocused();
+    expect(await scrollChain(page)).toEqual(chain);
+    expect(await documentScroll(page)).toBeLessThanOrEqual(MAX_DOCUMENT_SCROLL_DELTA_PX);
+    await page.keyboard.press("Tab");
+    await expect(retry).toBeFocused();
+    expect(await main.getAttribute("tabindex")).toBeNull();
+    expect(page.url()).toBe(url);
+    expect(await page.evaluate(() => history.length)).toBe(historyLength);
+
+    payloads.clearFailures();
+    await page.keyboard.press("Enter");
+    await expect(error).toHaveCount(0, { timeout: 15_000 });
+    await expect(page.locator(MAIN)).toHaveCount(1);
+    await expect(page.locator('[data-dashboard-module-workspace="admin-sessions"]')).toBeVisible();
+    expect(page.url()).toBe(url);
+    expect(await page.evaluate(() => history.length)).toBe(historyLength);
   });
 });

@@ -22,7 +22,7 @@ export default function DashboardError({ retry }: { error: Error & { digest?: st
   }, [navigation]);
 
   return (
-    <main className="flex min-h-0 flex-1 items-center justify-center p-4">
+    <main id="main-content" className="flex min-h-0 flex-1 items-center justify-center p-4">
       <section
         role="alert"
         aria-labelledby="dashboard-route-error-title"
