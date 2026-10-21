@@ -52,7 +52,7 @@ Total RED: **25 controles** sin indicador en forced-colors en 4 overlays.
   - Rechaza 6 mutantes: capa, `@media all`, `outline: none`, `box-shadow`, ancla del drawer quitada y `[tabindex]` sin exclusión.
 - **Catálogo:** 124 → 125. Realineados regression 29, mocked 48, visual-contract 47, ci 94, full 125, unión CI 94, selección compartida 94 y mensajes 124/126, más `e2e-completeness-workflow` 125. Ninguna aserción se debilitó.
 
-## Gates
+## Gates de la implementación inicial (2026-10-20)
 
 | Gate | Estado |
 | --- | --- |
@@ -72,6 +72,25 @@ Total RED: **25 controles** sin indicador en forced-colors en 4 overlays.
 | Artefactos | `frontend/next-env.d.ts` sin cambios; `frontend/test-results/` ignorado, fuera del diff; `frontend/AGENTS.md` regenerado por `next dev`, untracked y fuera del scope |
 
 **Pendiente tras el staging de Nico:** con los 8 paths de la PR en el índice, repetir los 3 archivos de guard bloqueados (`e2e-residual-determinism`, `e2e-session-origin-source-of-truth`, `e2e-zero-scroll-regime`) y `pnpm --dir frontend e2e:verify-catalog`.
+
+## Corrección de E2E-GLOBAL-11 (2026-10-21)
+
+El guard de `test/architecture/e2e-mock-backend-contract.test.ts` no resolvía el identificador `SIGNED_URL` usado como matcher en el `page.route` de DocumentViewer. La ruta quedaba indeterminada para su análisis estático y fallaban el censo de overrides y las mutation proofs 4 y 5. Se sustituyó ese identificador por el mismo literal regex en la llamada y se eliminó la constante sin consumidores. El patrón y el `route.fulfill` con el PNG sintético son idénticos; el `page.route` del listado de clínicas no cambió. El test E2E del visor confirma que la imagen sigue cargando.
+
+| Gate de esta corrección | Estado |
+| --- | --- |
+| E2E-GLOBAL-11, incluidas mutation proofs 4 y 5 | PASSED 12/12 |
+| B11, catálogo, workflow de completitud y guards de determinismo, sesión y zero-scroll | PASSED 79/79 |
+| `pnpm --dir frontend e2e:verify-catalog` | PASSED 7/7 |
+| `pnpm typecheck:test` | PASSED |
+| E2E dirigido PR-DRV-03, incluido DocumentViewer | PASSED 6/6 |
+| Frontend lint, typecheck, build y `security:public-surface` | PASSED cada uno |
+| `pnpm validate:local` | FAILED: typecheck y typecheck:test pasaron; `pnpm test` terminó con 5412 passed, 1 failed y 1 skipped de 5414; `pnpm build` no se ejecutó por fail-fast |
+| `pnpm build` aislado tras el fail-fast | PASSED |
+| E2E-GLOBAL-03B dirigido | BLOCKED: el test aborta antes de abrir Fastify por falta de `DATABASE_URL` o `SUPABASE_DB_URL` hacia `portal_vetneb_ci` local |
+| A02/A08 y `e2e:visual-contract` completo | NOT_RUN en esta corrección: no cambiaron CSS, geometría, fixture ni esos contratos; el E2E dirigido sí verificó foco y ausencia de scroll en las superficies de PR-DRV-03 |
+
+El puerto local 5432 aceptó TCP, pero sin una URL autorizada no se puede verificar la existencia de `portal_vetneb_ci` ni su esquema. No se ejecutaron migraciones ni se tocó backend o DB. El único fallo restante de la suite es la precondición ambiental de 03B; no hay evidencia de un defecto de aplicación. La rama necesita repetir 03B y `validate:local` con esa DB aislada antes de publicar una validación completa.
 
 ## Riesgos residuales
 

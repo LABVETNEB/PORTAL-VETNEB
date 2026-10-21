@@ -14,7 +14,6 @@ const KEBAB = ".dashboard-mobile-kebab-trigger";
 const KEBAB_MENU = '[data-dashboard-mobile-kebab-menu="true"]';
 const DESKTOP = { width: 1440, height: 900 };
 const PHONE = { width: 390, height: 844 };
-const SIGNED_URL = /^https:\/\/example\.supabase\.co\/storage\/v1\/object\/sign\//;
 const SYNTHETIC_CLINICS = {
   success: true,
   clinics: [{ clinicId: 1, clinicName: "Clínica Test", contactEmail: null, contactPhone: null, createdAt: "2025-01-15T10:00:00.000Z", updatedAt: "2025-01-20T12:00:00.000Z", users: [] }],
@@ -118,7 +117,7 @@ test.describe("PR-DRV-03 · forced-colors focus inside body-portaled dashboard o
   });
 
   test("DocumentViewer (Informes admin)", async ({ page }) => {
-    await page.route(SIGNED_URL, (route) => route.fulfill({ status: 200, contentType: "image/png", body: Buffer.from(PIXEL_PNG, "base64") }));
+    await page.route(/^https:\/\/example\.supabase\.co\/storage\/v1\/object\/sign\//, (route) => route.fulfill({ status: 200, contentType: "image/png", body: Buffer.from(PIXEL_PNG, "base64") }));
     await page.setViewportSize(DESKTOP);
     await openSurface(page, "admin", "/dashboard/admin?module=admin-report-upload");
     const reports = page.locator('[data-dashboard-module-workspace="admin-report-upload"]');
