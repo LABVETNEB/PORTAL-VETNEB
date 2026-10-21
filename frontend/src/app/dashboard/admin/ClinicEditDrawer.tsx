@@ -210,6 +210,7 @@ export function ClinicEditDrawer({
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-40 bg-vetneb-ink/30 backdrop-blur-[1px] duration-200 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
         <Dialog.Content
+          data-clinic-edit-drawer="true"
           aria-labelledby={titleId}
           className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col border-l border-vetneb-line bg-card shadow-[-24px_0_72px_rgba(8,35,50,0.18)] duration-200 focus:outline-none data-[state=closed]:animate-out data-[state=closed]:slide-out-to-right data-[state=open]:animate-in data-[state=open]:slide-in-from-right"
           onInteractOutside={(e) => {

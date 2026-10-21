@@ -1668,3 +1668,64 @@ test("C25 · PR-BUG-02: the users and roles search inputs keep line-height >= 1.
   assert.ok(source.includes('className="h-9 pl-7 text-xs leading-4"'), "mobile search: 12/16 in a 36px box");
   assert.equal(/<Input[^>]*leading-none/.test(source), false, "no degenerate 12/12 input");
 });
+
+// ── PR-DRV-03 · forced-colors focus inside body-portaled overlays (C25 §8) ──
+
+const DRV03_START = "/* dashboard-drv03-forced-colors-overlay-focus:start */";
+const DRV03_END = "/* dashboard-drv03-forced-colors-overlay-focus:end */";
+const DRV03_OVERLAY_ANCHORS = [
+  ["frontend/src/components/dashboard/ModuleDialog.tsx", '[data-module-dialog="true"]'],
+  ["frontend/src/app/dashboard/admin/ClinicEditDrawer.tsx", '[data-clinic-edit-drawer="true"]'],
+  ["frontend/src/features/dashboard/presentation/filters/AdvancedFilterSheet.tsx", '[data-advanced-filter-sheet="true"]'],
+  ["frontend/src/components/dashboard/DashboardNotificationsBell.tsx", '[data-dashboard-notifications-mobile-panel="true"]'],
+] as const;
+
+/** Violations of the PR-DRV-03 block: empty means forced-colors keeps a real outline in the portaled overlays. */
+function drv03BlockViolations(css: string): string[] {
+  const start = css.indexOf(DRV03_START);
+  const end = css.indexOf(DRV03_END);
+  if (start < 0 || end < start) return ["block delimiters"];
+  const violations: string[] = [];
+  if (start !== css.lastIndexOf(DRV03_START)) violations.push("block declared once");
+  const before = stripComments(css.slice(0, start));
+  if (before.split("{").length !== before.split("}").length) violations.push("unlayered (no open @layer/@media)");
+  const block = stripComments(css.slice(start, end));
+  if (!/^\s*@media \(forced-colors: active\) \{\s*:where\(/.test(block)) violations.push("forced-colors only, scoped through :where");
+  if (/@layer/.test(block)) violations.push("unlayered");
+  for (const [, anchor] of DRV03_OVERLAY_ANCHORS) {
+    if (!block.includes(anchor)) violations.push(`covers ${anchor}`);
+  }
+  if (!block.includes('[tabindex]:not([tabindex="-1"])')) violations.push("programmatic focus targets excluded");
+  for (const control of ["a[href]", "button", "input", "select", "textarea", '[role="tab"]', '[role="checkbox"]']) {
+    if (!block.includes(control)) violations.push(`covers ${control}`);
+  }
+  if (!/\):focus-visible\s*\{/.test(block)) violations.push(":focus-visible only");
+  if (!block.includes("outline: 2px solid CanvasText;")) violations.push("2px system-color outline");
+  if (!block.includes("outline-offset: 2px;")) violations.push("2px offset");
+  if (/outline:\s*(?:none|0)\b|box-shadow|margin|padding|border|width|height/.test(block)) violations.push("outline only, never layout");
+  return violations;
+}
+
+test("PR-DRV-03 · body-portaled overlays keep a real focus outline in forced-colors only", () => {
+  const css = read(C25_INTERACTIONS_CSS);
+  assert.deepEqual(drv03BlockViolations(css), []);
+  assert.ok(readDashboardCssSource().includes(DRV03_START), "the block is composed into the dashboard CSS");
+  for (const [file, anchor] of DRV03_OVERLAY_ANCHORS) {
+    const attribute = anchor.slice(1, -1);
+    assert.ok(read(file).includes(attribute), `${file} renders the overlay anchor ${attribute}`);
+  }
+
+  const block = css.slice(css.indexOf(DRV03_START), css.indexOf(DRV03_END));
+  const mutants = [
+    css.replace(DRV03_START, `@layer components {\n${DRV03_START}`),
+    css.replace(block, block.replace("@media (forced-colors: active) {", "@media all {")),
+    css.replace(block, block.replace("outline: 2px solid CanvasText;", "outline: none;")),
+    css.replace(block, block.replace("outline-offset: 2px;", "outline-offset: 2px;\n    box-shadow: none;")),
+    css.replace(block, block.replace('      [data-clinic-edit-drawer="true"],\n', "")),
+    css.replace(block, block.replace('[tabindex]:not([tabindex="-1"])', "[tabindex]")),
+  ];
+  for (const mutant of mutants) {
+    assert.notEqual(mutant, css, "mutation applies");
+    assert.notDeepEqual(drv03BlockViolations(mutant), [], "mutation is rejected");
+  }
+});
