@@ -414,7 +414,7 @@ test("B10 · the admin shell is untouched and still declares its own triple", ()
     "admin keeps its own frame, reading ?module= itself",
   );
   assert.ok(
-    admin.includes('<main className="dashboard-main">'),
+    admin.includes('<main id="main-content" className="dashboard-main">'),
     "admin keeps its own main region",
   );
   assert.equal(
@@ -528,4 +528,87 @@ test("B10 · the shell reaches the data layer only through the topbar it mounts"
       `the shell must not import ${forbidden} directly`,
     );
   }
+});
+
+// ── PR-DRV-02 · skip to content (proposal DRV-08) ────────────────────────────
+// The shared shell router mounts the public `SkipToContent` button once, as the
+// first tab stop of both surfaces, and each surface owner keeps the single
+// `main#main-content` it targets. The control is fixed and offscreen until
+// focused (globals.css skip-to-content section), so it adds no box to the
+// shell's flex column and the main ledger above is untouched. The public
+// contract stays in `test/unit/ui/public/frontend-public-skip-link-contract.test.ts`.
+
+const PUBLIC_LAYOUT_TSX = "frontend/src/components/layout/PublicLayout.tsx";
+const SKIP_CONTROL_TSX = "frontend/src/components/public/SkipToContent.tsx";
+const SKIP_ELEMENT = "<SkipToContent />";
+const MAIN_CONTENT_ID = 'id="main-content"';
+
+test("PR-DRV-02 · the shared shell router renders one SkipToContent as its first child", () => {
+  const router = stripComments(read(SHELL_ROUTER_TSX));
+
+  assert.ok(
+    router.includes('import { SkipToContent } from "@/components/public/SkipToContent";'),
+    "the shell router reuses the public SkipToContent control",
+  );
+  const skip = router.indexOf(SKIP_ELEMENT);
+  assert.ok(skip >= 0, "the shell router renders SkipToContent");
+  assert.equal(skip, router.lastIndexOf(SKIP_ELEMENT), "the shell router renders exactly one skip control");
+
+  const shellOpenEnd = router.indexOf(">", router.indexOf("aria-label={VETNEB_APP_SHELL_LABEL}"));
+  assert.ok(shellOpenEnd > 0, "the app-shell root keeps its label");
+  assert.equal(
+    /<[A-Za-z]/.test(router.slice(shellOpenEnd + 1, skip)),
+    false,
+    "nothing may render before the skip control inside the shell root",
+  );
+  for (const later of ["<BackForwardCacheGuard", "data-vetneb-app-shell-frame", "{children}", "<DashboardMobileNav", "data-dashboard-portal-root"]) {
+    assert.ok(router.indexOf(later) > skip, `the skip control must precede ${later}`);
+  }
+  assert.equal(/<a\b/.test(router), false, "no raw anchor in the shell router");
+  assert.equal(router.includes("next/link"), false, "no next/link in the shell router");
+});
+
+test("PR-DRV-02 · admin and clinic each own a main#main-content without a permanent tab stop", () => {
+  for (const path of [ADMIN_ROUTE, SHELL_TSX]) {
+    const source = stripComments(read(path));
+    const start = source.indexOf("<main");
+    assert.ok(start >= 0, `${path} must render a <main>`);
+    assert.equal(start, source.lastIndexOf("<main"), `${path} must render exactly one <main>`);
+    const tag = source.slice(start, source.indexOf(">", start) + 1);
+
+    assert.ok(tag.includes(MAIN_CONTENT_ID), `${path}: <main> must carry ${MAIN_CONTENT_ID}`);
+    assert.ok(tag.includes('className="dashboard-main"'), `${path}: <main> keeps the dashboard-main class`);
+    assert.equal(/tabIndex/i.test(tag), false, `${path}: <main> must not keep a permanent tabIndex`);
+  }
+});
+
+test("PR-DRV-02 · one skip control and one main-content target per shell owner", () => {
+  const renderers: string[] = [];
+  const targets: string[] = [];
+
+  for (const absolute of listSourceFiles(FRONTEND_SRC)) {
+    if (!absolute.endsWith(".tsx")) continue;
+    const source = stripComments(read(relative(REPO_ROOT, absolute)));
+    if (source.includes("<SkipToContent")) renderers.push(repoRelative(absolute));
+    if (source.includes(MAIN_CONTENT_ID)) {
+      targets.push(repoRelative(absolute));
+      assert.equal(source.indexOf(MAIN_CONTENT_ID), source.lastIndexOf(MAIN_CONTENT_ID), `${repoRelative(absolute)} declares main-content once`);
+    }
+  }
+
+  assert.deepEqual(renderers.sort(), [SHELL_ROUTER_TSX, PUBLIC_LAYOUT_TSX].sort(), "SkipToContent is mounted by the public layout and the dashboard shell router only");
+  assert.deepEqual(targets.sort(), [ADMIN_ROUTE, SHELL_TSX, PUBLIC_LAYOUT_TSX].sort(), "main-content is declared once per shell owner");
+});
+
+test("PR-DRV-02 · the reused control keeps the button contract the dashboard relies on", () => {
+  const control = read(SKIP_CONTROL_TSX);
+
+  assert.ok(control.includes('"use client"'));
+  assert.ok(control.includes('MAIN_CONTENT_ID = "main-content"'));
+  assert.ok(control.includes("aria-controls={MAIN_CONTENT_ID}"));
+  assert.ok(control.includes('type="button"'));
+  assert.ok(control.includes('className="skip-to-content-link"'));
+  assert.ok(control.includes('setAttribute("tabindex", "-1")') && control.includes('removeAttribute("tabindex")'));
+  assert.equal(/<a\b/.test(control), false);
+  assert.equal(control.includes("next/link"), false);
 });

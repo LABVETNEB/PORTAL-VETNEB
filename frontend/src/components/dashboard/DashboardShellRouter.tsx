@@ -5,6 +5,7 @@ import {
   VETNEB_APP_SHELL_LABEL,
   VETNEB_APP_SHELL_RELEASE,
 } from "@/lib/app-shell-release";
+import { SkipToContent } from "@/components/public/SkipToContent";
 import { BackForwardCacheGuard } from "./BackForwardCacheGuard";
 import { DashboardMobileNav } from "./DashboardMobileNav";
 
@@ -25,6 +26,9 @@ export function DashboardShellRouter({
       data-vetneb-app-shell-surface={surface}
       aria-label={VETNEB_APP_SHELL_LABEL}
     >
+      {/* PR-DRV-02: first tab stop of both surfaces. Fixed and offscreen
+          until focused, so it adds no box to this flex column. */}
+      <SkipToContent />
       <BackForwardCacheGuard />
       <div
         className="flex min-w-0 flex-1 flex-col overflow-hidden"

@@ -753,7 +753,7 @@ export default async function AdminPage({
         notifications="admin"
       />
       <DashboardNavigationFrame surface="admin">
-        <main className="dashboard-main">
+        <main id="main-content" className="dashboard-main">
           <Suspense>
             <AdminDashboardWorkspaceController
               initialModule={initialModule}
