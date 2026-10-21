@@ -32,3 +32,10 @@ test("C17 gives S3 and the collection one owner without expanding the report API
   assert.match(source, /setOffset\(0\)/);
   assert.doesNotMatch(source, /getAdminReportWorkflow\(\{[^}]*?(?:sort|search|filters):/);
 });
+
+test("G11-a keeps the S3 refresh button named when its label is hidden below sm", () => {
+  const source = card();
+  const refresh = source.match(/<Button\b(?:(?!<\/Button>)[\s\S])*?<span className="hidden sm:inline">Actualizar<\/span>\s*<\/Button>/);
+  assert.ok(refresh, "the S3 refresh button must exist");
+  assert.match(refresh[0], /\baria-label="Actualizar"[\s\S]*<RefreshCw aria-hidden="true" \/>/);
+});

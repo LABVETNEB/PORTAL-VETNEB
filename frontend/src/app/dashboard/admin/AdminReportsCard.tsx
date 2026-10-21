@@ -705,6 +705,7 @@ export function AdminReportsCard() {
             variant="outline"
             size="sm"
             className="h-8 px-2.5 text-xs md:h-7 md:px-2"
+            aria-label="Actualizar"
             onClick={() => void loadReports()}
             disabled={isLoading || busyReportId !== null}
           >

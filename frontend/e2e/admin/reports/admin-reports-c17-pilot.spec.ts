@@ -62,6 +62,9 @@ test("C17 mobile sheet, selection and zero-scroll stay operable", async ({ page 
   await page.goto("/dashboard/admin?module=admin-report-upload");
   const reports = page.locator(workspace);
   await expect(reports.locator('[data-admin-mobile-core-item="true"]')).toHaveCount(13);
+  // G11-a: below 640 px the refresh button keeps its name without visible text.
+  await expect(reports.getByRole("button", { name: "Actualizar", exact: true })).toBeVisible();
+  expect((await new AxeBuilder({ page }).include(workspace).analyze()).violations.filter((violation) => ["critical", "serious"].includes(violation.impact ?? ""))).toEqual([]);
   await reports.getByRole("button", { name: "Filtros" }).click();
   const sheet = page.getByRole("dialog", { name: "Filtrar informes" });
   await expect(sheet).toBeVisible();
