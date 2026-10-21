@@ -597,7 +597,7 @@ test("PR-DRV-02 · one skip control and one main-content target per shell owner"
   }
 
   assert.deepEqual(renderers.sort(), [SHELL_ROUTER_TSX, PUBLIC_LAYOUT_TSX].sort(), "SkipToContent is mounted by the public layout and the dashboard shell router only");
-  assert.deepEqual(targets.sort(), [ADMIN_ROUTE, SHELL_TSX, PUBLIC_LAYOUT_TSX].sort(), "main-content is declared once per shell owner");
+  assert.deepEqual(targets.sort(), [ADMIN_ROUTE, "frontend/src/app/dashboard/error.tsx", SHELL_TSX, PUBLIC_LAYOUT_TSX].sort(), "main-content is declared once per shell owner");
 });
 
 test("PR-DRV-02 · the reused control keeps the button contract the dashboard relies on", () => {
