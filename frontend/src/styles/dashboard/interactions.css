@@ -95,6 +95,38 @@
 }
 /* dashboard-c25-focus-outline:end */
 
+/* dashboard-drv03-forced-colors-overlay-focus:start */
+/* PR-DRV-03 (C25 §8 residual). These overlays portal to document.body, outside
+   `.dashboard-app-shell`, so the C25 block above never reaches them: their
+   controls keep `focus-visible:outline-none` plus a box-shadow ring, and
+   forced-colors drops the ring. Forced-colors only, so normal-mode rendering
+   does not change. UNLAYERED for the same reason as C25. Outline never takes
+   layout space. */
+@media (forced-colors: active) {
+  :where(
+      [data-module-dialog="true"],
+      [data-clinic-edit-drawer="true"],
+      [data-advanced-filter-sheet="true"],
+      [data-dashboard-notifications-mobile-panel="true"]
+    )
+    :where(
+      a[href],
+      button,
+      input,
+      select,
+      textarea,
+      summary,
+      [role="button"],
+      [role="tab"],
+      [role="checkbox"],
+      [tabindex]:not([tabindex="-1"])
+    ):focus-visible {
+    outline: 2px solid CanvasText;
+    outline-offset: 2px;
+  }
+}
+/* dashboard-drv03-forced-colors-overlay-focus:end */
+
 /* dashboard-filters-forms-density-polish:start */
 @layer components {
   .dashboard-filter-stats-grid {

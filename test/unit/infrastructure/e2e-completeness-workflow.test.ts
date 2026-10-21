@@ -339,7 +339,8 @@ test("automatic workflow coverage is derived from catalog cohorts and equals ful
   // +1: C21 clinic reports batch 1 (clinic/reports/clinic-c21-reports-batch-1.spec.ts).
   // +1: C22 clinic batch 2 (clinic/shell/clinic-c22-batch-2.spec.ts).
   // +1: C24 list/grid alternation (regression/dashboard-c24-list-grid-toggle.spec.ts).
-  assert.equal(E2E_SUITE_CATALOG.length, 124);
+  // +1: PR-DRV-03 forced-colors overlay focus (regression/dashboard-drv03-forced-colors-overlay-focus.spec.ts).
+  assert.equal(E2E_SUITE_CATALOG.length, 125);
 
   const partitionUnion = new Set(PARTITION_COHORTS.flatMap((cohort) => E2E_COHORT_SPECS[cohort]));
   assert.deepEqual([...partitionUnion].sort(), [...E2E_COHORT_SPECS.full].sort());
