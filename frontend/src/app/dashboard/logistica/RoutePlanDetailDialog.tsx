@@ -71,6 +71,7 @@ export function RoutePlanDetailDialog({ plan }: RoutePlanDetailDialogProps) {
                 aria-valuenow={progress}
                 aria-valuemin={0}
                 aria-valuemax={100}
+                aria-label={`Progreso del plan ${plan.name}`}
               />
             </div>
             <span className="text-xs text-muted-foreground">

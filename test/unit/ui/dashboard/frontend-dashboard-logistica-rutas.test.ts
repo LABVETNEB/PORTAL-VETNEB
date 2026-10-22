@@ -186,3 +186,30 @@ test("dashboard logistica rutas distinguishes load failures from real empty stat
     violations: ["routePlansLoadError = true is not an unconditional statement of a catch block"],
   });
 });
+
+// G11-a: every logistics progressbar carries an accessible name (axe
+// aria-progressbar-name); the Rutas table and the route plan detail dialog
+// name it after the plan.
+test("dashboard logistica progressbars keep an accessible name", () => {
+  const owners = [
+    RUTAS_PAGE_PATH,
+    "frontend/src/app/dashboard/logistica/RoutePlanDetailDialog.tsx",
+    "frontend/src/app/dashboard/logistica/RoutePlanMetricDetailDialog.tsx",
+    "frontend/src/app/dashboard/logistica/metricas/page.tsx",
+  ];
+
+  for (const path of owners) {
+    const bars = read(path).match(/<div\b[^>]*role="progressbar"[^>]*\/>/g) ?? [];
+    assert.ok(bars.length > 0, `${path} renders a progressbar`);
+    for (const bar of bars) {
+      assert.match(bar, /\baria-label=\{`[^`]+`\}/, `${path}: unnamed progressbar`);
+    }
+  }
+
+  assert.ok(read(RUTAS_PAGE_PATH).includes("aria-label={`Progreso del plan ${plan.name}`}"));
+  assert.ok(
+    read("frontend/src/app/dashboard/logistica/RoutePlanDetailDialog.tsx").includes(
+      "aria-label={`Progreso del plan ${plan.name}`}",
+    ),
+  );
+});

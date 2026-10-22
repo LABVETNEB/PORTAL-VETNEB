@@ -255,8 +255,7 @@ test.describe("C22 · clinic Logística", () => {
         await expectHeadEqualsReserve(canvas);
       }
       await expectNoDocumentScroll(page, `${path} desktop`);
-      // Pre-C22 finding, outside this scope: the Rutas progress cell renders an unnamed role="progressbar".
-      await expectNoSeriousAxe(page, "main.dashboard-main", path.endsWith("/rutas") ? ["aria-progressbar-name"] : []);
+      await expectNoSeriousAxe(page, "main.dashboard-main");
 
       await page.setViewportSize(PHONE);
       await page.goto(path);
@@ -265,6 +264,14 @@ test.describe("C22 · clinic Logística", () => {
       expect(await list.locator(":scope > *").count()).toBeGreaterThan(0);
       await expect(page.getByRole("navigation", { name: label })).toBeVisible();
       await expectNoDocumentScroll(page, `${path} phone`);
+
+      if (path.endsWith("/rutas")) {
+        // G11-a: the route plan detail dialog names its progressbar too.
+        await list.getByRole("button", { name: /^Ver detalle del plan / }).first().click();
+        const dialog = page.locator("[data-module-dialog]");
+        await expect(dialog.getByRole("progressbar")).toBeVisible();
+        await expectNoSeriousAxe(page, "[data-module-dialog]");
+      }
     });
   }
 
