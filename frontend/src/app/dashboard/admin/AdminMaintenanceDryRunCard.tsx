@@ -9,7 +9,6 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { usePagedRows } from "@/components/dashboard/usePagedRows";
 import {
@@ -141,9 +140,10 @@ export function AdminMaintenanceDryRunCard() {
     <Card className="dashboard-surface flex min-h-0 flex-1 flex-col overflow-hidden">
       <CardHeader className="flex flex-col gap-3 border-b border-vetneb-line/70 md:flex-row md:items-start md:justify-between">
         <div>
-          <CardTitle className="text-base">
+          {/* G11-d: CardTitle is a fixed h3; under the page h1 this title is an h2 with CardTitle's effective classes. */}
+          <h2 className="font-semibold text-vetneb-ink text-base">
             Mantenimiento seguro dry-run
-          </CardTitle>
+          </h2>
           <CardDescription>
             Analiza candidatos de limpieza sin borrar registros ni archivos.
           </CardDescription>
