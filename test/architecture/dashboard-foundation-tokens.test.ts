@@ -955,3 +955,70 @@ test("no motion token exists to animate a region's height", () => {
     );
   }
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// G11-c · `.clinical-alert-error` text meets WCAG AA (4.5:1) in both themes.
+// The alert paints `--destructive` at 10% over the surface it sits on, so the
+// ratio is computed against that composite, the way axe measures it.
+// ─────────────────────────────────────────────────────────────────────────────
+
+type Rgb = readonly [number, number, number];
+
+function hslToRgb(value: string): Rgb {
+  const match = value.match(/^(?:hsl\()?\s*([\d.]+)\s+([\d.]+)%\s+([\d.]+)%\s*\)?$/);
+  assert.ok(match, `not a plain hsl triplet: "${value}"`);
+  const [h, s, l] = [Number(match[1]), Number(match[2]) / 100, Number(match[3]) / 100];
+  const a = s * Math.min(l, 1 - l);
+  const channel = (n: number) => {
+    const k = (n + h / 30) % 12;
+    return l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+  };
+  return [channel(0), channel(8), channel(4)];
+}
+
+function contrast(fg: Rgb, bg: Rgb): number {
+  const luminance = (rgb: Rgb) => {
+    const [r, g, b] = rgb.map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const [hi, lo] = [luminance(fg), luminance(bg)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+const ALERT_SURFACES = ["--card", "--background", "--vetneb-surface-muted"] as const;
+const DARK_ALERT_SELECTOR = [
+  `:root[data-theme="${DARK_THEME_MODE}"] .clinical-alert-error`,
+  `:root[data-theme="${DARK_THEME_MODE}"] .clinical-table-state.clinical-alert-error`,
+].join(", ");
+
+function alertRatio(env: ReadonlyMap<string, string>, text: string, surface: string): number {
+  const destructive = hslToRgb(env.get("--destructive") ?? "");
+  const base = hslToRgb(env.get(surface) ?? "");
+  const tint = destructive.map((c, i) => c * 0.1 + base[i] * 0.9) as unknown as Rgb;
+  return contrast(hslToRgb(text), tint);
+}
+
+test("G11-c error alert text keeps its light destructive and lifts only in dark", () => {
+  const light = ruleBodies(GLOBALS_CSS, ".clinical-alert-error").join("\n");
+  assert.match(light, /@apply\s+border-destructive\/25\s+bg-destructive\/10\s+text-destructive;/);
+
+  const dark = ruleBodies(GLOBALS_CSS, DARK_ALERT_SELECTOR);
+  assert.ok(dark.some(Boolean), `globals.css must declare "${DARK_ALERT_SELECTOR}"`);
+  assert.doesNotMatch(dark.join("\n"), /background|border/, "the dark override lifts the text only");
+});
+
+test("G11-c error alert text reaches 4.5:1 on its tint in both themes", () => {
+  const darkText = ruleBodies(GLOBALS_CSS, DARK_ALERT_SELECTOR).join("\n").match(/color:\s*(hsl\([^)]+\))/)?.[1];
+  assert.ok(darkText, "the dark alert override must declare an hsl() text color");
+  const lightText = LIGHT_ENV.get("--destructive") ?? "";
+
+  // The defect this section exists for: the inherited dark destructive fails.
+  assert.ok(alertRatio(DARK_ENV, DARK_ENV.get("--destructive") ?? "", "--card") < 4.5);
+
+  for (const surface of ALERT_SURFACES) {
+    const ratio = alertRatio(DARK_ENV, darkText, surface);
+    assert.ok(ratio >= 4.5, `dark ${surface}: ${ratio.toFixed(2)}:1 < 4.5:1`);
+  }
+  const lightRatio = alertRatio(LIGHT_ENV, lightText, "--card");
+  assert.ok(lightRatio >= 4.5, `light --card: ${lightRatio.toFixed(2)}:1 < 4.5:1`);
+});

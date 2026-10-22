@@ -1965,6 +1965,14 @@
   color: hsl(38 88% 64%);
 }
 
+/* G11-c: the dark destructive (355 62% 52%) reads 2.84:1 on its own 10% tint
+   over the card. Text-only lift; the tint, the border and --destructive (which
+   carries white button labels) keep their values. */
+:root[data-theme="dark-gray"] .clinical-alert-error,
+:root[data-theme="dark-gray"] .clinical-table-state.clinical-alert-error {
+  color: hsl(355 88% 74%);
+}
+
 :root[data-theme="dark-gray"] .dashboard-kpi-pill[data-tone="critical"] {
   color: hsl(38 84% 64%);
 }

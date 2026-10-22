@@ -256,6 +256,41 @@ test("C20 Estado lists missing columns as a C01 list and keeps the sanitized err
   await expect(alert).not.toContainText("HTTP");
 });
 
+// G11-c: in dark the inherited destructive read 2.84:1 on the alert's own tint.
+// The real error copy is long enough for axe to decide instead of deferring.
+test("G11-c error alerts on Alertas and Mantenimiento pass axe color-contrast in both themes", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await mockSchema(page, "error");
+  await page.route("**/api/admin/failed-login-alerts**", (route) => route.fulfill({ status: 500, body: "" }));
+  const surfaces = [
+    { path: "/dashboard/admin?module=admin", tab: "alertas" },
+    { path: "/dashboard/admin?module=admin-maintenance", tab: null },
+  ];
+  await page.goto("/dashboard/admin?module=admin");
+  for (const theme of ["normal", "dark-gray"]) {
+    await page.evaluate((mode) => localStorage.setItem("vetneb-theme-mode", mode), theme);
+    for (const surface of surfaces) {
+      await page.goto(surface.path);
+      await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+      if (surface.tab) await page.locator(`[data-module-tab="${surface.tab}"]`).locator("visible=true").click();
+      // Alertas re-requests once its canvas is measured and clears the error
+      // while that request is in flight, and a module still entering leaves
+      // axe undecided. The sample is re-taken only until axe has DECIDED on the
+      // alert; the verdict comes from that same sample.
+      let results: Awaited<ReturnType<AxeBuilder["analyze"]>> | undefined;
+      const alertNodes = (rules: NonNullable<typeof results>["passes"]) =>
+        rules.flatMap((rule) => rule.nodes).map((node) => node.html).filter((html) => html.includes("clinical-alert-error"));
+      await expect(async () => {
+        await expect(page.locator(".clinical-alert-error").locator("visible=true")).toContainText("Reintentá");
+        results = await new AxeBuilder({ page }).withRules(["color-contrast"]).analyze();
+        expect(alertNodes(results.incomplete)).toEqual([]);
+        expect([...alertNodes(results.passes), ...alertNodes(results.violations)]).not.toEqual([]);
+      }).toPass({ timeout: 15_000 });
+      expect(results?.violations, `${surface.path} ${theme}`).toEqual([]);
+    }
+  }
+});
+
 test("C20 Estado mobile services are C01 items and Resumen exposes no collection grammar", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/dashboard/admin?module=admin-health");
