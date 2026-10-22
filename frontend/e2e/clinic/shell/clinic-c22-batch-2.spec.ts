@@ -78,6 +78,21 @@ async function expectNoSeriousAxe(page: Page, include: string, preexisting: stri
   expect(violations.filter((violation) => violation.impact === "serious" || violation.impact === "critical").map((violation) => violation.id)).toEqual([]);
 }
 
+// ModuleDialog fades and zooms in (tailwindcss-animate `enter`); while it runs
+// axe samples text through the content's partial opacity. Await the finite
+// animations themselves, then audit the settled frame.
+async function settleAnimations(locator: Locator) {
+  await locator.evaluate((element) =>
+    Promise.all(
+      element
+        .getAnimations({ subtree: true })
+        .filter((animation) => Number.isFinite(animation.effect?.getComputedTiming().endTime ?? Number.POSITIVE_INFINITY))
+        .map((animation) => animation.finished),
+    ),
+  );
+  await expect(locator).toHaveCSS("opacity", "1");
+}
+
 async function expectHeadEqualsReserve(canvas: Locator) {
   const geometry = await canvas.evaluate((element) => ({
     reserved: parseFloat(getComputedStyle(element).getPropertyValue("--dash-canvas-reserved")),
@@ -267,10 +282,15 @@ test.describe("C22 · clinic Logística", () => {
 
       if (path.endsWith("/rutas")) {
         // G11-a: the route plan detail dialog names its progressbar too.
-        await list.getByRole("button", { name: /^Ver detalle del plan / }).first().click();
+        const trigger = list.getByRole("button", { name: /^Ver detalle del plan / }).first();
+        await trigger.click();
         const dialog = page.locator("[data-module-dialog]");
         await expect(dialog.getByRole("progressbar")).toBeVisible();
+        await settleAnimations(dialog);
         await expectNoSeriousAxe(page, "[data-module-dialog]");
+        await page.keyboard.press("Escape");
+        await expect(dialog).toHaveCount(0);
+        await expect(trigger).toBeFocused();
       }
     });
   }
