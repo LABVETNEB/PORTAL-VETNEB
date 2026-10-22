@@ -179,6 +179,20 @@ test("ADMIN-DT · Precios: every study in one view per category tab, actions on 
   assert.ok(tabs.includes("withActionsSlot = false"), "the action region is opt-in: other tab hosts are unchanged");
 });
 
+// G11-b: Precios passes free-text category names as tab ids. aria-controls is
+// an IDREF list, so a name with spaces split into missing ids (axe
+// aria-valid-attr-value, critical). DOM ids come from the tab position.
+test("G11-b · ModuleTabs never builds tab/panel DOM ids from consumer tab ids", () => {
+  const tabs = stripComments(read(MODULE_TABS));
+  assert.doesNotMatch(tabs, /\$\{baseId\}-(?:tab|panel)-\$\{[^}]*\bid\}/, "consumer ids reach id/aria-controls");
+  assert.ok(tabs.includes("const tabDomId = (index: number) => `${baseId}-tab-${index}`;"));
+  assert.ok(tabs.includes("const panelDomId = (index: number) => `${baseId}-panel-${index}`;"));
+  assert.ok(tabs.includes("aria-controls={panelDomId(index)}"));
+  assert.ok(tabs.includes("id={panelDomId(activeIndex)}"));
+  assert.ok(tabs.includes("document.getElementById(tabDomId(nextIndex))?.focus();"));
+  assert.ok(tabs.includes("data-module-tab={tab.id}"), "E2E anchors keep the consumer id");
+});
+
 test("ADMIN-DT · Mantenimiento: Reintentar rides the tab bar; Estado keeps its schema header", () => {
   const page = read(PAGE);
   const schema = read(SCHEMA);
