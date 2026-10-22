@@ -101,11 +101,8 @@ test.describe("dashboard logout — calls the stubbed logout endpoint and leaves
 // ─── Private surfaces are not cacheable ───────────────────────────────────────
 
 test.describe("dashboard cache headers — private surfaces", () => {
-  // The rendered dashboard document must never be publicly or shared-cacheable.
-  // Next emits the full `private, no-cache, no-store, …` value for these dynamic
-  // routes in production; the dev server emits `no-cache, must-revalidate`. Both
-  // contain `no-cache` and neither is `public`, which is the invariant asserted
-  // here so the check is deterministic across dev and prod.
+  // Authenticated dashboard documents must not be stored in dev or production.
+  // Require `no-store` and reject `public`; `no-cache` alone permits storage.
   test("authenticated admin dashboard response is not publicly cacheable", async ({
     page,
   }) => {
@@ -115,7 +112,7 @@ test.describe("dashboard cache headers — private surfaces", () => {
     expect(response, "navigation response").not.toBeNull();
 
     const cacheControl = response!.headers()["cache-control"] ?? "";
-    expect(cacheControl).toContain("no-cache");
+    expect(cacheControl).toContain("no-store");
     expect(cacheControl).not.toContain("public");
   });
 
@@ -128,7 +125,7 @@ test.describe("dashboard cache headers — private surfaces", () => {
     expect(response, "navigation response").not.toBeNull();
 
     const cacheControl = response!.headers()["cache-control"] ?? "";
-    expect(cacheControl).toContain("no-cache");
+    expect(cacheControl).toContain("no-store");
     expect(cacheControl).not.toContain("public");
   });
 
