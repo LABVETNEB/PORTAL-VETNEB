@@ -82,8 +82,15 @@ export function ModuleTabs({
 
   if (!renderableTabs.length) return null;
 
-  const activeTab =
-    renderableTabs.find((tab) => tab.id === activeId) ?? renderableTabs[0];
+  const activeIndex = Math.max(
+    0,
+    renderableTabs.findIndex((tab) => tab.id === activeId),
+  );
+  const activeTab = renderableTabs[activeIndex];
+  // Tab ids are consumer data (e.g. category names with spaces) and
+  // aria-controls is an IDREF list, so DOM ids come from the position.
+  const tabDomId = (index: number) => `${baseId}-tab-${index}`;
+  const panelDomId = (index: number) => `${baseId}-panel-${index}`;
 
   function selectTab(id: string) {
     setActiveId(id);
@@ -111,7 +118,7 @@ export function ModuleTabs({
     const next = renderableTabs[nextIndex];
     selectTab(next.id);
     window.requestAnimationFrame(() => {
-      document.getElementById(`${baseId}-tab-${next.id}`)?.focus();
+      document.getElementById(tabDomId(nextIndex))?.focus();
     });
   }
 
@@ -126,11 +133,11 @@ export function ModuleTabs({
         return (
           <button
             key={tab.id}
-            id={`${baseId}-tab-${tab.id}`}
+            id={tabDomId(index)}
             type="button"
             role="tab"
             aria-selected={isActive}
-            aria-controls={`${baseId}-panel-${tab.id}`}
+            aria-controls={panelDomId(index)}
             tabIndex={isActive ? 0 : -1}
             data-module-tab={tab.id}
             onClick={() => selectTab(tab.id)}
@@ -165,7 +172,7 @@ export function ModuleTabs({
       )}
 
       <div
-        id={`${baseId}-panel-${activeTab.id}`}
+        id={panelDomId(activeIndex)}
         role="tabpanel"
         aria-label={activeTab.label}
         data-module-tabpanel={activeTab.id}

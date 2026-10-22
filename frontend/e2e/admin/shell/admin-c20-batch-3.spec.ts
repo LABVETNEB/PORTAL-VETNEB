@@ -123,6 +123,56 @@ test("C20 Precios keeps native form rows in the C01 workspace, pages overflow wi
   expect(await seriousAxe(page, pricing)).toEqual([]);
 });
 
+// G11-b: real category names carry spaces and parentheses; the tab/panel
+// relation must survive them (aria-controls is an IDREF list).
+test("G11-b Precios category tabs keep a valid tab/panel relation and keyboard selection with spaced names", async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  const names = ["Citología de líquidos", "Biopsia (piel)", "Necropsia completa"];
+  await page.route("**/api/admin/pricing**", (route) =>
+    json(route, { success: true, categories: names.map((name, index) => category(name, 3, 8000 + index * 100)) }),
+  );
+  await page.goto("/dashboard/admin?module=admin-pricing");
+  const tablist = page.getByRole("tablist", { name: "Categorías de precios" });
+  const tabs = tablist.getByRole("tab");
+  await expect(tabs).toHaveCount(3, { timeout: 15_000 });
+  await expect.poll(() => tabs.first().evaluate((element) => Object.keys(element).some((key) => key.startsWith("__reactFiber$")))).toBe(true);
+
+  const relation = () =>
+    tablist.evaluate((list) => {
+      const panel = list.closest("[data-module-tabs]")!.querySelector<HTMLElement>(':scope > [role="tabpanel"], :scope > * > [role="tabpanel"]')!;
+      const selected = [...list.querySelectorAll<HTMLElement>('[role="tab"][aria-selected="true"]')];
+      const refs = (selected[0]?.getAttribute("aria-controls") ?? "").split(/\s+/).filter(Boolean);
+      return {
+        selected: selected.map((tab) => tab.dataset.moduleTab),
+        refs: refs.length,
+        controlsPanel: refs.length === 1 && document.getElementById(refs[0]) === panel,
+        panelLabel: panel.getAttribute("aria-label"),
+        focused: (document.activeElement as HTMLElement | null)?.dataset.moduleTab ?? null,
+      };
+    });
+
+  expect(await relation()).toMatchObject({ selected: [names[0]], refs: 1, controlsPanel: true, panelLabel: names[0] });
+  expect(await seriousAxe(page, pricing)).toEqual([]);
+
+  await tabs.first().focus();
+  await page.keyboard.press("ArrowRight");
+  await expect.poll(relation).toEqual({ selected: [names[1]], refs: 1, controlsPanel: true, panelLabel: names[1], focused: names[1] });
+  await page.keyboard.press("End");
+  await expect.poll(relation).toEqual({ selected: [names[2]], refs: 1, controlsPanel: true, panelLabel: names[2], focused: names[2] });
+  await page.keyboard.press("ArrowRight");
+  await expect.poll(relation).toEqual({ selected: [names[0]], refs: 1, controlsPanel: true, panelLabel: names[0], focused: names[0] });
+  await page.keyboard.press("ArrowLeft");
+  await expect.poll(relation).toEqual({ selected: [names[2]], refs: 1, controlsPanel: true, panelLabel: names[2], focused: names[2] });
+  await page.keyboard.press("Home");
+  await expect.poll(relation).toEqual({ selected: [names[0]], refs: 1, controlsPanel: true, panelLabel: names[0], focused: names[0] });
+
+  await tabs.nth(1).click();
+  await expect.poll(relation).toMatchObject({ selected: [names[1]], refs: 1, controlsPanel: true, panelLabel: names[1] });
+  await expect(page.locator(`${pricing} form[data-admin-pricing-item-form]`).first()).toContainText(`${names[1]} — estudio 01`);
+  expect(await seriousAxe(page, pricing)).toEqual([]);
+  expect(await documentOverflow(page)).toEqual({ x: 0, y: 0 });
+});
+
 test("C20 Precios announces a load failure through the C03 alert and recovers with Actualizar", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await mockPricing(page, true);
