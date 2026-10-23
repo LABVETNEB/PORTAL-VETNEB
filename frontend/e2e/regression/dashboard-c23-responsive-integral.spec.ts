@@ -13,7 +13,7 @@ import { MAX_DOCUMENT_SCROLL_DELTA_PX } from "../helpers/zero-scroll-contract";
 const DRAWER = "[data-dashboard-navigation-drawer]";
 const RAIL = "[data-dashboard-navigation-rail]";
 const BOTTOM_NAV = "[data-dashboard-mobile-nav]";
-const MORE = '[data-dashboard-mobile-nav-item="overflow"]';
+const MORE = `${BOTTOM_NAV} [data-dashboard-mobile-nav-item="overflow"]`;
 const SHEET = '[data-dashboard-mobile-nav-overflow="true"]';
 const SHEET_CLOSE = "[data-dashboard-mobile-nav-overflow-close]";
 const KEBAB = ".dashboard-mobile-kebab-trigger";
