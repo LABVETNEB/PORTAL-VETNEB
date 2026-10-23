@@ -30,35 +30,35 @@ const pinnedActionReferences = new Map<string, readonly string[]>([
     ".github/workflows/backend-ci.yml",
     [
       "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
-      "pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271",
-      "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
-      "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413",
+      "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+      "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
     ],
   ],
   [
     ".github/workflows/e2e-completeness.yml",
     [
       "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
-      "pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271",
-      "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
-      "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413",
+      "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+      "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
     ],
   ],
   [
     ".github/workflows/frontend-ci.yml",
     [
       "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
-      "pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271",
-      "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
-      "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
-      "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413",
+      "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+      "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
+      "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
     ],
   ],
   [
     ".github/workflows/pr-governance.yml",
     [
       "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
-      "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+      "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
     ],
   ],
   [
@@ -66,19 +66,19 @@ const pinnedActionReferences = new Map<string, readonly string[]>([
     [
       "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
       "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
-      "pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271",
-      "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
-      "actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1",
+      "pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413",
+      "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+      "actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510",
     ],
   ],
   [
     ".github/workflows/visual-regression-manual.yml",
     [
       "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
-      "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
-      "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
-      "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
-      "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+      "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
+      "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
+      "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
     ],
   ],
 ]);
@@ -93,12 +93,12 @@ const mutableActionReferences = [
 
 const canonicalWorkflowDigests = new Map<string, string>([
   [".github/workflows/app-version-force-update.yml", "25c69fb58364b709395f0ee920560845a83941eeb86efdd759a69af5f880d701"],
-  [".github/workflows/backend-ci.yml", "1911593f5e1c7868ff8c4cea16dcec9a943d83912b5ab79e2ce446063160ee98"],
-  [".github/workflows/e2e-completeness.yml", "094f77b4cbe637073d1b03a01f1ebd37cee7af552aea45808d04da122dc1e3dd"],
-  [".github/workflows/frontend-ci.yml", "de22217669676098e07de0325a86be1a01d0dc160dd81923867171a5da62f0a4"],
-  [".github/workflows/pr-governance.yml", "8dc2bf50342db4e45c7bcb5eadbeeeae28b87ac7b766260b903253ca6ba13947"],
-  [".github/workflows/qga-governance.yml", "88ed322d67eda6fbec0a7ed0fa106625a43263a4d6998d6eceb24aeee389b393"],
-  [".github/workflows/visual-regression-manual.yml", "93b7092980e736be847be273a5eb05597a50f1c412420e5d8d8ecfd157ffa0fc"],
+  [".github/workflows/backend-ci.yml", "23e9b68d175d50ce1855d8aa8973b4ae589be69447f9d346d22291f7493bdd33"],
+  [".github/workflows/e2e-completeness.yml", "ed96d76d0b231c6f564fae639551a89b8b88a5b54db53edfa50fd232124cd6e3"],
+  [".github/workflows/frontend-ci.yml", "89cb8903baf826a0d0928113841f7dc336648c9ed1746552a04b6cd7405b530e"],
+  [".github/workflows/pr-governance.yml", "461c358ea8e6db8393f77ec3f68401083e58b24352a4fb211d1e937bff6a7531"],
+  [".github/workflows/qga-governance.yml", "3c32bb7ad2cd98861d3e990c9e29884c7105d98d34ba8af2a99f8b50f6996696"],
+  [".github/workflows/visual-regression-manual.yml", "ea13acfeb13786cb52109288fe4807116dc0982ff9dc104ee3694f6c5c4010a6"],
 ]);
 
 function workflowDigest(source: string): string {

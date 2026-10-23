@@ -515,14 +515,14 @@ test("Frontend CI define toolchain y cache de pnpm esperados", () => {
 
   assertContains(heavy, "timeout-minutes: 45");
   assertContains(source, "uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7");
-  assertContains(source, "uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9");
-  assertContains(source, "uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7");
-  assertContains(source, "uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7");
+  assertContains(source, "uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0");
+  assertContains(source, "uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0");
+  assertContains(source, "uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2");
   assertNotContains(source, "uses: actions/checkout@v7");
   assertNotContains(source, "uses: pnpm/action-setup@v6");
   assertNotContains(source, "uses: actions/setup-node@v7");
   assertNotContains(source, "uses: actions/upload-artifact@v7");
-  assertContains(source, "version: 11.13.0");
+  assertContains(source, "version: 11.13.1");
   assertContains(source, "node-version: 24");
   assertContains(source, "cache: pnpm");
   assertContains(source, "cache-dependency-path: pnpm-lock.yaml");
@@ -663,7 +663,7 @@ test("Frontend CI sube reporte de Playwright sanitizado solo en fallo", () => {
 
   assertContains(
     source,
-    "      - name: Upload Playwright report\n        if: failure() && steps.sanitize-playwright-artifacts.outcome == 'success'\n        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7\n        with:\n          name: frontend-playwright-report\n          path: ${{ runner.temp }}/playwright-sanitized/playwright-report/\n          if-no-files-found: ignore",
+    "      - name: Upload Playwright report\n        if: failure() && steps.sanitize-playwright-artifacts.outcome == 'success'\n        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2\n        with:\n          name: frontend-playwright-report\n          path: ${{ runner.temp }}/playwright-sanitized/playwright-report/\n          if-no-files-found: ignore",
   );
   assertNotContains(source, "path: frontend/playwright-report/");
 });
@@ -676,7 +676,7 @@ test("Frontend CI sube test-results sanitizados del gate required solo en fallo 
   // and only as the sanitized copy.
   assertContains(
     source,
-    "      - name: Upload Playwright test-results\n        if: failure() && steps.sanitize-playwright-artifacts.outcome == 'success'\n        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7\n        with:\n          name: frontend-playwright-test-results-${{ github.run_attempt }}\n          path: ${{ runner.temp }}/playwright-sanitized/test-results/\n          if-no-files-found: ignore",
+    "      - name: Upload Playwright test-results\n        if: failure() && steps.sanitize-playwright-artifacts.outcome == 'success'\n        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2\n        with:\n          name: frontend-playwright-test-results-${{ github.run_attempt }}\n          path: ${{ runner.temp }}/playwright-sanitized/test-results/\n          if-no-files-found: ignore",
   );
   assertNotContains(source, "path: frontend/test-results/");
   assertNotContains(source, "continue-on-error");
