@@ -148,7 +148,7 @@ test("report file actions are client-side and keep typed props", () => {
   const source = read(REPORT_DOWNLOAD_BUTTON_PATH);
 
   assert.ok(source.includes('"use client";'));
-  assert.ok(source.includes('import { useState } from "react";'));
+  assert.ok(source.includes('import { useId, useState } from "react";'));
   assert.ok(source.includes("getReportDownloadUrl, getReportPreviewUrl"));
   assert.ok(source.includes('import { Download, Eye } from "lucide-react";'));
   assert.ok(source.includes("type ReportFileActionsProps = {"));

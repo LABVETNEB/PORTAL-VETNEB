@@ -333,7 +333,7 @@ function DashboardMobileNavOverflow({
               href={buildDashboardModuleHref(basePath, destination.moduleId)}
               prefetch={false}
               variant="bare"
-              aria-label={destination.label}
+              aria-label={`${destination.shortLabel} — ${destination.label}`}
               data-dashboard-mobile-nav-overflow-link={destination.moduleId}
               onClick={(event) => {
                 if (onNavigate(destination.moduleId)) event.preventDefault();
@@ -449,7 +449,7 @@ function DashboardMobileNavBar({
               href={buildDashboardModuleHref(basePath, destination.moduleId)}
               prefetch={false}
               variant="bare"
-              aria-label={destination.label}
+              aria-label={`${destination.shortLabel} — ${destination.label}`}
               aria-current={isActive ? "page" : undefined}
               data-dashboard-mobile-nav-item={destination.moduleId}
               onClick={(event) => {

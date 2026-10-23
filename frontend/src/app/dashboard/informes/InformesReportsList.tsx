@@ -86,6 +86,13 @@ function getReportTitle(report: Report) {
     : `Informe #${report.id}`;
 }
 
+function getReportSelectionLabel(report: Report, isSelected: boolean, view: "list" | "grid") {
+  const identity = `#${report.id} · ${report.patientName ?? "Paciente sin nombre"}`;
+  const study = report.studyType ?? "Tipo sin registrar";
+  const separator = view === "list" ? " · " : " ";
+  return `${isSelected ? "Informe seleccionado" : "Seleccionar informe"}: ${identity} ${study}${separator}${formatDate(report.uploadDate)}`;
+}
+
 const REPORT_STATUS_ORDER = {
   uploaded: 0,
   processing: 1,
@@ -756,19 +763,17 @@ export function InformesReportsList({
                           id={`report-${report.id}`}
                           onClick={() => selectReport(report.id)}
                           aria-current={isSelected ? "true" : undefined}
-                          aria-label={
-                            isSelected
-                              ? `Informe seleccionado: ${getReportTitle(report)}`
-                              : `Seleccionar informe: ${getReportTitle(report)}`
-                          }
+                          aria-label={getReportSelectionLabel(report, isSelected, "grid")}
                           className="flex min-h-0 min-w-0 flex-1 flex-col gap-0.5 self-stretch rounded-lg p-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/85"
                         >
                           <span className="block truncate text-xs font-semibold text-vetneb-ink">
                             #{report.id} · {report.patientName ?? "Paciente sin nombre"}
                           </span>
+                          {" "}
                           <span className="block truncate text-[11px] text-muted-foreground">
                             {report.studyType ?? "Tipo sin registrar"}
                           </span>
+                          {" "}
                           <span className="block truncate text-[11px] text-muted-foreground">
                             {formatDate(report.uploadDate)}
                           </span>
@@ -788,7 +793,7 @@ export function InformesReportsList({
                 return (
                   <CanonicalOperationalRow
                     key={report.id}
-                    identity={`#${report.id} · ${report.patientName ?? "Paciente sin nombre"}`}
+                    identity={`#${report.id} · ${report.patientName ?? "Paciente sin nombre"} `}
                     secondary={`${report.studyType ?? "Tipo sin registrar"} · ${formatDate(report.uploadDate)}`}
                     trailing={
                       <Badge variant={getReportStatusVariant(report.status)}>
@@ -798,11 +803,7 @@ export function InformesReportsList({
                     onActivate={() => selectReport(report.id)}
                     isActive={isSelected}
                     activateId={`report-${report.id}`}
-                    activateLabel={
-                      isSelected
-                        ? `Informe seleccionado: ${getReportTitle(report)}`
-                        : `Seleccionar informe: ${getReportTitle(report)}`
-                    }
+                    activateLabel={getReportSelectionLabel(report, isSelected, "list")}
                   />
                 );
               })}

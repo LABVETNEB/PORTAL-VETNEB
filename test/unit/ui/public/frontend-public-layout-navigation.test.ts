@@ -93,7 +93,8 @@ test("navbar exposes home login and access CTAs with VETNEB brand", () => {
   const source = read(NAVBAR_PATH);
 
   assert.ok(source.includes("href={ROUTES.home}"));
-  assert.ok(source.includes('aria-label="VETNEB — Inicio"'));
+  assert.match(source, /<PublicRouteControl\s+href=\{ROUTES\.home\}\s+variant="bare"\s+className=/);
+  assert.ok(source.includes("Patología veterinaria"));
   assert.ok(source.includes("rounded-md bg-primary px-3"));
   assert.ok(source.includes("font-bold text-primary-foreground"));
   assert.ok(source.includes("VETNEB"));
