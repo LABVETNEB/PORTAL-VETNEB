@@ -224,6 +224,24 @@ test("C20 Mantenimiento lists dry-run groups as C01 items, pages with C02 and an
   expect(await seriousAxe(page, "#admin-maintenance")).toEqual([]);
 });
 
+// G11-d: heading-order is `moderate`, so the serious/critical filter above never sees it.
+test("G11-d Mantenimiento dry-run card title is the h2 under the page h1 and passes axe heading-order", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await mockSchema(page, "ok");
+  await mockDryRun(page);
+  await page.goto("/dashboard/admin?module=admin-maintenance");
+  await page.locator('[data-module-tab="dry-run"]').locator("visible=true").click();
+  const card = page.locator("#admin-maintenance");
+  const title = card.getByRole("heading", { name: "Mantenimiento seguro dry-run", exact: true });
+  await expect(title).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("heading", { level: 1 }).locator("visible=true")).toHaveCount(1);
+  await expect(card.getByRole("heading", { level: 2, name: "Mantenimiento seguro dry-run", exact: true })).toBeVisible();
+
+  const results = await new AxeBuilder({ page }).withRules(["heading-order"]).analyze();
+  expect(results.violations).toEqual([]);
+  expect(results.passes.flatMap((rule) => rule.nodes).map((node) => node.html).some((html) => html.includes("Mantenimiento seguro dry-run"))).toBe(true);
+});
+
 test("C20 Mantenimiento mobile dry-run rows are C01 items with zero document scroll", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await mockSchema(page, "ok");
