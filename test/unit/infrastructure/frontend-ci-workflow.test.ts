@@ -522,7 +522,7 @@ test("Frontend CI define toolchain y cache de pnpm esperados", () => {
   assertNotContains(source, "uses: pnpm/action-setup@v6");
   assertNotContains(source, "uses: actions/setup-node@v7");
   assertNotContains(source, "uses: actions/upload-artifact@v7");
-  assertContains(source, "version: 11.13.0");
+  assertContains(source, "version: 11.13.1");
   assertContains(source, "node-version: 24");
   assertContains(source, "cache: pnpm");
   assertContains(source, "cache-dependency-path: pnpm-lock.yaml");

@@ -3,7 +3,7 @@
   "version": "2.1.0",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@11.13.0",
+  "packageManager": "pnpm@11.13.1",
   "scripts": {
     "dev": "tsx server/index.ts",
     "admin:open": "powershell -ExecutionPolicy Bypass -File scripts/dev/open-admin-dashboard.ps1",

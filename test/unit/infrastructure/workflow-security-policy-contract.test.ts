@@ -93,11 +93,11 @@ const mutableActionReferences = [
 
 const canonicalWorkflowDigests = new Map<string, string>([
   [".github/workflows/app-version-force-update.yml", "25c69fb58364b709395f0ee920560845a83941eeb86efdd759a69af5f880d701"],
-  [".github/workflows/backend-ci.yml", "77940cdd7ecddb95f0c06e609cabe3c37fe5757539e2650be4aedd7ea7b27c14"],
-  [".github/workflows/e2e-completeness.yml", "75b1a54cfef2716e8328796b660d354d6ffa4433ee932fbff0ec4f50ac5a2a16"],
-  [".github/workflows/frontend-ci.yml", "df04a88fb4c147bc8859f3cd628ffbaf337ec4504b4e075aacfaab0491053573"],
+  [".github/workflows/backend-ci.yml", "23e9b68d175d50ce1855d8aa8973b4ae589be69447f9d346d22291f7493bdd33"],
+  [".github/workflows/e2e-completeness.yml", "ed96d76d0b231c6f564fae639551a89b8b88a5b54db53edfa50fd232124cd6e3"],
+  [".github/workflows/frontend-ci.yml", "89cb8903baf826a0d0928113841f7dc336648c9ed1746552a04b6cd7405b530e"],
   [".github/workflows/pr-governance.yml", "461c358ea8e6db8393f77ec3f68401083e58b24352a4fb211d1e937bff6a7531"],
-  [".github/workflows/qga-governance.yml", "3882cb742cfaecae830f6a9284b6ef614e9e23c162cefc2b6bfdb20ed8a96aad"],
+  [".github/workflows/qga-governance.yml", "3c32bb7ad2cd98861d3e990c9e29884c7105d98d34ba8af2a99f8b50f6996696"],
   [".github/workflows/visual-regression-manual.yml", "ea13acfeb13786cb52109288fe4807116dc0982ff9dc104ee3694f6c5c4010a6"],
 ]);
 

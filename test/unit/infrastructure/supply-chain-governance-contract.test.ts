@@ -332,7 +332,7 @@ test("SBOM job pins every action to a 40-character SHA and uses no floating vers
   }
 
   const pnpmSetup = steps.find((step) => step.uses?.startsWith("pnpm/action-setup@"));
-  assert.equal(pnpmSetup?.with?.version, "11.13.0");
+  assert.equal(pnpmSetup?.with?.version, "11.13.1");
 });
 
 test("SBOM generation runs the repository generator without network installs", () => {

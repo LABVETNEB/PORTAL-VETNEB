@@ -7,7 +7,7 @@ type PackageJson = {
   pnpm?: unknown;
 };
 
-const PINNED_PNPM_VERSION = "11.13.0";
+const PINNED_PNPM_VERSION = "11.13.1";
 
 const PNPM_WORKFLOW_FILES = [
   ".github/workflows/backend-ci.yml",
