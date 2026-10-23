@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type RefObject } from "react";
 import type { PdfSession } from "./pdfjs-client";
 
 export const MAX_CACHED_THUMBNAILS = 6;
@@ -19,6 +19,8 @@ function Thumbnail({ session, pageNumber, selected, numPages, root, remember, on
   const [status, setStatus] = useState<ThumbnailStatus>("idle");
   const [retry, setRetry] = useState(0);
   const [version, setVersion] = useState(0);
+  const statusId = useId();
+  const statusText = status === "loading" ? "Cargando miniatura…" : status === "evicted" ? "Miniatura en espera" : status === "error" ? "Miniatura no disponible" : null;
 
   useEffect(() => {
     if (!tile.current || !root.current) return;
@@ -59,15 +61,13 @@ function Thumbnail({ session, pageNumber, selected, numPages, root, remember, on
 
   return <div ref={tile} data-c16-page={pageNumber} className="flex shrink-0 flex-col items-center gap-1 p-1">
     <button type="button" aria-label={`Ir a página ${pageNumber} de ${numPages}`} aria-current={selected ? "page" : undefined}
-      aria-description={status === "loading" ? "Cargando miniatura" : status === "error" ? "Miniatura no disponible" : status === "evicted" ? "Miniatura en espera" : undefined}
+      aria-describedby={statusText ? statusId : undefined}
       onClick={() => onPageChange(pageNumber)}
       className={`flex min-h-11 w-28 flex-col items-center justify-center rounded-lg border-2 p-1 text-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${selected ? "border-primary bg-vetneb-surface-muted" : "border-vetneb-line"}`}>
       <canvas ref={canvas} width={0} height={0} aria-hidden="true" className={status === "ready" ? "max-h-32 max-w-24" : "hidden"} />
-      {status === "loading" ? <span role={selected ? "status" : undefined}>Cargando miniatura…</span> : null}
-      {status === "evicted" ? <span>Miniatura en espera</span> : null}
-      {status === "error" ? <span>Miniatura no disponible</span> : null}
       <span>Página {pageNumber}</span>
     </button>
+    {statusText ? <span id={statusId} role={status === "loading" && selected ? "status" : undefined}>{statusText}</span> : null}
     {status === "error" ? <button type="button" className="min-h-11 rounded-lg px-2 text-xs underline focus-visible:outline-2 focus-visible:outline-primary"
       aria-label={`Reintentar miniatura de página ${pageNumber}`} onClick={() => { setRetry((value) => value + 1); setStatus("loading"); }}>Reintentar</button> : null}
   </div>;

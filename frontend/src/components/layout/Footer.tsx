@@ -246,7 +246,6 @@ export function Footer() {
               <PublicExternalControl
                 href={mapsLocationUrl}
                 target="_blank"
-                aria-label="Ver ubicación del laboratorio en Google Maps"
                 className="inline-flex w-full items-center justify-center rounded-md border border-white/22 bg-white px-3 py-2 text-sm font-semibold text-vetneb-navy shadow-[0_6px_14px_rgba(255,255,255,0.22)] transition-colors hover:bg-vetneb-surface-raised hover:text-vetneb-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar/80"
               >
                 Ver ubicación en Maps

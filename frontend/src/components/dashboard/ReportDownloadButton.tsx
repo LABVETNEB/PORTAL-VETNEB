@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Download, Eye } from "lucide-react";
 
 import { getReportDownloadUrl, getReportPreviewUrl } from "@/lib/api";
@@ -39,6 +39,7 @@ export function ReportFileActions({
 }: ReportFileActionsProps) {
   const [loadingAction, setLoadingAction] = useState<ReportAction | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const actionIds = useId();
 
   const unavailableLabel = getUnavailableLabel(reportId, hasFile);
   const unavailableTitle = unavailableLabel ?? "Informe no disponible.";
@@ -105,10 +106,12 @@ export function ReportFileActions({
           aria-busy={loadingAction === "preview"}
           title={isAvailable ? "Ver informe" : unavailableTitle}
           aria-label={isAvailable ? "Ver informe" : unavailableTitle}
+          aria-labelledby={`${actionIds}-preview`}
+          aria-describedby={isAvailable ? undefined : `${actionIds}-unavailable`}
           onClick={(event) => void openReport("preview", event.currentTarget)}
         >
           <Eye className="h-3.5 w-3.5" aria-hidden="true" />
-          {loadingAction === "preview" ? "Abriendo..." : "Ver informe"}
+          <span id={`${actionIds}-preview`}>{loadingAction === "preview" ? "Abriendo..." : "Ver informe"}</span>
         </Button>
 
         <Button
@@ -120,15 +123,17 @@ export function ReportFileActions({
           aria-busy={loadingAction === "download"}
           title={isAvailable ? "Descargar informe" : unavailableTitle}
           aria-label={isAvailable ? "Descargar informe" : unavailableTitle}
+          aria-labelledby={`${actionIds}-download`}
+          aria-describedby={isAvailable ? undefined : `${actionIds}-unavailable`}
           onClick={() => void openReport("download")}
         >
           <Download className="h-3.5 w-3.5" aria-hidden="true" />
-          {loadingAction === "download" ? "Preparando..." : "Descargar"}
+          <span id={`${actionIds}-download`}>{loadingAction === "download" ? "Preparando..." : "Descargar"}</span>
         </Button>
       </div>
 
       {!isAvailable ? (
-        <span className="max-w-48 text-[11px] text-muted-foreground">
+        <span id={`${actionIds}-unavailable`} className="max-w-48 text-[11px] text-muted-foreground">
           {unavailableLabel}
         </span>
       ) : null}

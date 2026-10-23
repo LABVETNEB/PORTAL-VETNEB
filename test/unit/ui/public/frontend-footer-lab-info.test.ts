@@ -57,7 +57,7 @@ test("footer unifies laboratory info navigation access and non-interactive real 
   assert.ok(source.includes("Blvd. Italia 274, Villa María"));
   assert.ok(source.includes("Córdoba, Argentina"));
   assert.ok(source.includes("Ver ubicación en Maps"));
-  assert.ok(source.includes("Ver ubicación del laboratorio en Google Maps"));
+  assert.equal(source.includes('aria-label="Ver ubicación del laboratorio en Google Maps"'), false);
   assert.equal(/<a\b/.test(source), false);
   assert.equal(/<Link\b/.test(source), false);
 });
