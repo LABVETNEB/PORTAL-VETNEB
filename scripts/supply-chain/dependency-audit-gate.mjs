@@ -14,23 +14,7 @@ import { pathToFileURL } from "node:url";
  * than silently outliving its reason. There is no severity threshold, no
  * wildcard and no generic ignore.
  */
-export const TEMPORARY_AUDIT_EXCEPTIONS = Object.freeze([
-  Object.freeze({
-    githubAdvisoryId: "GHSA-vfj7-8cjw-p6xm",
-    moduleName: "braces",
-    vulnerableVersions: "<=3.0.3",
-    findings: Object.freeze([
-      Object.freeze({
-        version: "3.0.3",
-        dev: true,
-        paths: Object.freeze([
-          "frontend>eslint-config-next>@next/eslint-plugin-next>fast-glob>micromatch>braces",
-        ]),
-      }),
-    ]),
-    reason: "No patched upstream release exists (latest braces is 3.0.3); development-only path.",
-  }),
-]);
+export const TEMPORARY_AUDIT_EXCEPTIONS = Object.freeze([]);
 
 const SEVERITIES = ["info", "low", "moderate", "high", "critical"];
 const GHSA_RE = /^GHSA(?:-[23456789cfghjmpqrvwx]{4}){3}$/;
