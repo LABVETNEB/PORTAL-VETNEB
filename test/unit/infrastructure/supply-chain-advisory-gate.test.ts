@@ -9,6 +9,7 @@ import {
   parseAuditReport,
   runDependencyAuditGate,
   runPnpmAudit,
+  type AuditException,
   type AuditRunResult,
   type AuditScope,
 } from "../../../scripts/supply-chain/dependency-audit-gate.mjs";
@@ -16,6 +17,13 @@ import {
 const ALLOWED_GHSA = "GHSA-vfj7-8cjw-p6xm";
 const ALLOWED_PATH =
   "frontend>eslint-config-next>@next/eslint-plugin-next>fast-glob>micromatch>braces";
+const TEST_EXCEPTION: AuditException = {
+  githubAdvisoryId: ALLOWED_GHSA,
+  moduleName: "braces",
+  vulnerableVersions: "<=3.0.3",
+  findings: [{ version: "3.0.3", dev: true, paths: [ALLOWED_PATH] }],
+  reason: "Synthetic exception for fail-closed contract tests.",
+};
 
 type RawAdvisory = {
   id: number;
@@ -27,7 +35,7 @@ type RawAdvisory = {
   findings: { version: string; paths: string[]; dev: boolean; optional: boolean; bundled: boolean }[];
 };
 
-// Same shape as `pnpm audit --json` (pnpm 11) for the advisory currently on main.
+// Same shape as `pnpm audit --json` (pnpm 11) for a synthetic advisory.
 function bracesAdvisory(overrides: Partial<RawAdvisory> = {}): RawAdvisory {
   return {
     id: 1240992,
@@ -69,27 +77,27 @@ function audits(prod: RawAdvisory[], full: RawAdvisory[]): (scope: AuditScope) =
   };
 }
 
-function gate(runAudit: (scope: AuditScope) => AuditRunResult) {
-  return runDependencyAuditGate({ runAudit });
+function gate(runAudit: (scope: AuditScope) => AuditRunResult, exceptions: readonly AuditException[] = TEMPORARY_AUDIT_EXCEPTIONS) {
+  return runDependencyAuditGate({ runAudit, exceptions });
 }
 
-test("1 · only the excepted GHSA in the full audit passes and is reported as tolerated", () => {
-  assert.deepEqual(gate(audits([], [bracesAdvisory()])), { failures: [], tolerated: [ALLOWED_GHSA] });
+test("1 · an exact injected exception is reported as tolerated", () => {
+  assert.deepEqual(gate(audits([], [bracesAdvisory()]), [TEST_EXCEPTION]), { failures: [], tolerated: [ALLOWED_GHSA] });
 });
 
-test("2 · the excepted GHSA plus any other advisory fails", () => {
-  const { failures } = gate(audits([], [bracesAdvisory(), otherAdvisory()]));
+test("2 · an injected exception does not tolerate another advisory", () => {
+  const { failures } = gate(audits([], [bracesAdvisory(), otherAdvisory()]), [TEST_EXCEPTION]);
   assert.deepEqual(failures, ["advisory GHSA-2222-3333-4444 (left-pad) has no exception"]);
 });
 
 test("3 · a different advisory alone fails and also marks the exception stale", () => {
-  const { failures } = gate(audits([], [otherAdvisory()]));
+  const { failures } = gate(audits([], [otherAdvisory()]), [TEST_EXCEPTION]);
   assert.equal(failures.length, 2);
   assert.match(failures[0], /GHSA-2222-3333-4444 \(left-pad\) has no exception/);
   assert.match(failures[1], /GHSA-vfj7-8cjw-p6xm \(braces\) is stale/);
 });
 
-test("4 · any production advisory fails, including the excepted GHSA", () => {
+test("4 · any production advisory fails, including a formerly excepted GHSA", () => {
   for (const production of [otherAdvisory(false), bracesAdvisory()]) {
     const { failures, tolerated } = gate(audits([production], [production]));
     assert.equal(failures.length, 1);
@@ -98,12 +106,12 @@ test("4 · any production advisory fails, including the excepted GHSA", () => {
   }
 });
 
-test("5 · the excepted GHSA on a different package fails", () => {
-  const { failures } = gate(audits([], [bracesAdvisory({ module_name: "micromatch" })]));
+test("5 · an injected exception does not cover a different package", () => {
+  const { failures } = gate(audits([], [bracesAdvisory({ module_name: "micromatch" })]), [TEST_EXCEPTION]);
   assert.deepEqual(failures, [`advisory ${ALLOWED_GHSA} now targets micromatch, not braces; review the exception`]);
 });
 
-test("6 · a version, path, scope or range outside the exception fails", () => {
+test("6 · a version, path, scope or range outside an injected exception fails", () => {
   const finding = bracesAdvisory().findings[0];
   for (const changed of [
     bracesAdvisory({ findings: [{ ...finding, version: "3.0.2" }] }),
@@ -112,17 +120,25 @@ test("6 · a version, path, scope or range outside the exception fails", () => {
     bracesAdvisory({ findings: [finding, { ...finding, version: "2.3.2" }] }),
     bracesAdvisory({ vulnerable_versions: "<=3.0.4" }),
   ]) {
-    const { failures } = gate(audits([], [changed]));
+    const { failures } = gate(audits([], [changed]), [TEST_EXCEPTION]);
     assert.equal(failures.length, 1, JSON.stringify(changed));
     assert.match(failures[0], /review the exception$/);
   }
 });
 
-test("7 · a clean full audit makes the exception stale and fails until it is removed", () => {
-  const { failures } = gate(audits([], []));
+test("7 · a clean full audit passes, while an injected stale exception fails", () => {
+  assert.deepEqual(gate(audits([], [])), { failures: [], tolerated: [] });
+  const { failures } = gate(audits([], []), [TEST_EXCEPTION]);
   assert.deepEqual(failures, [
     `exception ${ALLOWED_GHSA} (braces) is stale: the audit no longer reports it; remove the temporary exception`,
   ]);
+});
+
+test("the default gate rejects the formerly excepted GHSA", () => {
+  assert.deepEqual(gate(audits([], [bracesAdvisory()])), {
+    failures: [`advisory ${ALLOWED_GHSA} (braces) has no exception`],
+    tolerated: [],
+  });
 });
 
 test("8 · malformed audit output fails closed", () => {
@@ -163,14 +179,9 @@ test("9 · a failed or inconsistent audit command fails closed", () => {
   }
 });
 
-test("the exception list is exactly one GHSA, frozen, with no wildcard or severity rule", () => {
-  assert.equal(TEMPORARY_AUDIT_EXCEPTIONS.length, 1);
-  const [exception] = TEMPORARY_AUDIT_EXCEPTIONS;
-  assert.deepEqual(
-    { id: exception.githubAdvisoryId, module: exception.moduleName, range: exception.vulnerableVersions, findings: exception.findings },
-    { id: ALLOWED_GHSA, module: "braces", range: "<=3.0.3", findings: [{ version: "3.0.3", dev: true, paths: [ALLOWED_PATH] }] },
-  );
-  assert.ok(Object.isFrozen(TEMPORARY_AUDIT_EXCEPTIONS) && Object.isFrozen(exception) && Object.isFrozen(exception.findings));
+test("the default exception list is empty and frozen, with no wildcard or severity rule", () => {
+  assert.deepEqual(TEMPORARY_AUDIT_EXCEPTIONS, []);
+  assert.ok(Object.isFrozen(TEMPORARY_AUDIT_EXCEPTIONS));
 
   // The executable gate, read from the loaded functions themselves.
   const code = [parseAuditReport, evaluateProductionAudit, evaluateFullAudit, runPnpmAudit, runDependencyAuditGate, main]
