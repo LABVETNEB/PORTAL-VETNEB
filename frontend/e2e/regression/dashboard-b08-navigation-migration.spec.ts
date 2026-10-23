@@ -171,6 +171,8 @@ const THEME_PROBE_SLUGS = ["w1366x768", "w768x1024"] as const;
 type BandReading = {
   readonly drawerVisible: boolean;
   readonly railVisible: boolean;
+  readonly drawerVisibleCount: number;
+  readonly railVisibleCount: number;
   readonly legacyRailCount: number;
   readonly mobileNavVisible: boolean;
   readonly legacyHorizontalNavCount: number;
@@ -239,15 +241,19 @@ async function readBand(page: Page): Promise<BandReading> {
         return rect.width > 0 && rect.height > 0;
       };
 
-      const drawer = document.querySelector<HTMLElement>(drawerSel);
-      const rail = document.querySelector<HTMLElement>(railSel);
+      const drawers = Array.from(document.querySelectorAll<HTMLElement>(drawerSel));
+      const rails = Array.from(document.querySelectorAll<HTMLElement>(railSel));
+      const visibleDrawers = drawers.filter(isVisible);
+      const visibleRails = rails.filter(isVisible);
+      const drawer = visibleDrawers[0] ?? null;
+      const rail = visibleRails[0] ?? null;
       const main = document.querySelector<HTMLElement>(mainSel);
       const appBar = document.querySelector<HTMLElement>(appBarSel);
       const html = document.documentElement;
       const body = document.body;
 
-      const drawerVisible = isVisible(drawer);
-      const railVisible = isVisible(rail);
+      const drawerVisible = visibleDrawers.length > 0;
+      const railVisible = visibleRails.length > 0;
       const band = drawerVisible ? drawer : railVisible ? rail : null;
 
       const heights = (root: HTMLElement | null, itemClass: string): number[] =>
@@ -272,13 +278,15 @@ async function readBand(page: Page): Promise<BandReading> {
       return {
         drawerVisible,
         railVisible,
+        drawerVisibleCount: visibleDrawers.length,
+        railVisibleCount: visibleRails.length,
         legacyRailCount: document.querySelectorAll(legacyRailSel).length,
         mobileNavVisible: isVisible(
           document.querySelector<HTMLElement>(mobileNavSel),
         ),
         legacyHorizontalNavCount: document.querySelectorAll(legacyNavSel).length,
-        drawerCount: document.querySelectorAll(drawerSel).length,
-        railCount: document.querySelectorAll(railSel).length,
+        drawerCount: drawers.length,
+        railCount: rails.length,
         frameCount: document.querySelectorAll(frameSel).length,
         drawerWidth: drawer
           ? Math.round(drawer.getBoundingClientRect().width * 1000) / 1000
@@ -341,9 +349,26 @@ function collectViolations(
       `${label}: expected exactly one navigation frame, found ${reading.frameCount}`,
     );
   }
-  if (reading.drawerCount !== 1 || reading.railCount !== 1) {
+  // Suspense can retain its previous band offscreen while painting the fallback.
+  // Both pairs remain mounted briefly; only one pair may paint or receive input.
+  if (
+    reading.drawerCount !== reading.railCount ||
+    reading.drawerCount < 1 ||
+    reading.drawerCount > 2
+  ) {
     violations.push(
-      `${label}: both primitives must be mounted exactly once (drawer=${reading.drawerCount}, rail=${reading.railCount})`,
+      `${label}: expected one band pair or a suspended hidden pair (drawer=${reading.drawerCount}, rail=${reading.railCount})`,
+    );
+  }
+
+  const expectedDrawerCount = regime === "drawer" ? 1 : 0;
+  const expectedRailCount = regime === "rail" ? 1 : 0;
+  if (
+    reading.drawerVisibleCount !== expectedDrawerCount ||
+    reading.railVisibleCount !== expectedRailCount
+  ) {
+    violations.push(
+      `${label}: expected exactly one painted navigation model for ${regime} (visible drawer=${reading.drawerVisibleCount}, rail=${reading.railVisibleCount})`,
     );
   }
 
@@ -677,6 +702,39 @@ test.describe("B08 · lateral navigation band across the regime ladder", () => {
       expect(failures.join("\n"), `${surface.id}: B08 band violations`).toBe("");
     });
   }
+
+  test("a suspended hidden band is inert, but a second painted band fails", async ({ page }) => {
+    const surface = REPRESENTATIVES.find((item) => item.shellType === "admin-hub")!;
+    const viewport = VIEWPORT_PROBES.find((item) => item.slug === "w1366x768")!;
+    await prepare(page, surface);
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await openSurface(page, surface);
+
+    await page.evaluate(({ frameSel, drawerSel, railSel }) => {
+      const frame = document.querySelector<HTMLElement>(frameSel)!;
+      const hiddenPair = document.createElement("div");
+      hiddenPair.id = "b08-suspended-band-probe";
+      hiddenPair.style.display = "none";
+      hiddenPair.append(
+        document.querySelector(drawerSel)!.cloneNode(true),
+        document.querySelector(railSel)!.cloneNode(true),
+      );
+      frame.append(hiddenPair);
+    }, { frameSel: FRAME_SELECTOR, drawerSel: DRAWER_SELECTOR, railSel: RAIL_SELECTOR });
+
+    const hidden = await readBand(page);
+    expect([hidden.drawerCount, hidden.railCount]).toEqual([2, 2]);
+    expect([hidden.drawerVisibleCount, hidden.railVisibleCount]).toEqual([1, 0]);
+    expect(collectViolations(hidden, "hidden fallback", viewport.width)).toEqual([]);
+
+    await page.locator("#b08-suspended-band-probe").evaluate((pair: HTMLElement) => {
+      pair.style.display = "contents";
+    });
+    const duplicated = await readBand(page);
+    expect([duplicated.drawerVisibleCount, duplicated.railVisibleCount]).toEqual([2, 0]);
+    expect(collectViolations(duplicated, "painted duplicate", viewport.width).join("\n"))
+      .toContain("expected exactly one painted navigation model");
+  });
 });
 
 // ── C · Admin: deep links, click, reload, Back/Forward, hub null state ───────
