@@ -104,9 +104,6 @@ export function ClinicLogisticaWorkspaceSummary({
                 data-dashboard-adaptive-row="true"
                 onClick={() => setSelectedVisitId(visit.id)}
                 aria-haspopup="dialog"
-                aria-label={`Ver detalle de la visita en ${
-                  visit.clinicName ?? `Clínica #${visit.clinicId}`
-                }`}
                 className="grid min-h-11 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-vetneb-cyan/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-inset"
               >
                 <div className="min-w-0">
@@ -118,6 +115,8 @@ export function ClinicLogisticaWorkspaceSummary({
                   </p>
                 </div>
                 <StatusBadge status={visit.status} size="sm" className="shrink-0" />
+                {/* G11-e (WCAG 2.5.3): the name is the visible row text plus this action suffix. */}
+                <span className="sr-only">, ver detalle de la visita</span>
               </button>
             ))}
           </ContentList>

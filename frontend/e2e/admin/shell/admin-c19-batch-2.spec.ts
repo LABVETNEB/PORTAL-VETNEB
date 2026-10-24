@@ -159,8 +159,10 @@ test("C19 Sesiones keeps the current admin session unrevocable inside the C01 ta
   const rows = card.locator('tbody[data-content-list="true"] > tr[data-content-list-item="true"][data-admin-sesiones-row="true"]');
   await expect(rows.first()).toBeVisible();
   await expect(card.locator('thead[data-collection-header="true"]')).toBeVisible();
-  await expect(card.getByRole("button", { name: /Sesión Admin #8100 actual, no se puede revocar/ }).locator("visible=true")).toBeDisabled();
+  await expect(card.getByRole("button", { name: /^Sesión actual: Admin #8100, no se puede revocar$/ }).locator("visible=true")).toBeDisabled();
   await expect(card.getByRole("button", { name: /^Revocar sesión Clínica #8101$/ }).locator("visible=true")).toBeEnabled();
+  // G11-e: the visible "Sesión actual" / "Revocar" text is contained in each name.
+  expect((await new AxeBuilder({ page }).include(sessions).analyze()).violations.filter((violation) => ["critical", "serious"].includes(violation.impact ?? ""))).toEqual([]);
   expect(await documentOverflow(page)).toEqual({ x: 0, y: 0 });
 
   await page.unrouteAll({ behavior: "ignoreErrors" });
