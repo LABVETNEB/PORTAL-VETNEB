@@ -57,8 +57,20 @@ test.describe("C21 · clinic Informes module", () => {
       head: element.querySelector("thead")!.getBoundingClientRect().height,
     }));
     expect(Math.abs(geometry.head - geometry.reserved)).toBeLessThanOrEqual(0.5);
-    expect(await borderBottom(rows.first())).toBe("1px");
-    expect(await borderBottom(rows.last())).toBe("0px");
+    const borders = await canvas.locator("tbody").evaluate((body) => {
+      const reportRows = [...body.querySelectorAll<HTMLTableRowElement>(':scope > tr[data-clinic-reports-table-row="true"]')];
+      const last = reportRows.at(-1);
+      return {
+        count: reportRows.length,
+        first: reportRows[0] ? getComputedStyle(reportRows[0]).borderBottomWidth : null,
+        last: last ? getComputedStyle(last).borderBottomWidth : null,
+        lastIsFinal: last === body.lastElementChild,
+      };
+    });
+    expect(borders.count).toBeGreaterThan(1);
+    expect(borders.first).toBe("1px");
+    expect(borders.lastIsFinal).toBe(true);
+    expect(borders.last).toBe("0px");
 
     const bar = card.locator('[data-clinic-report-filter-bar="advanced"]');
     await expect(bar).toBeVisible();

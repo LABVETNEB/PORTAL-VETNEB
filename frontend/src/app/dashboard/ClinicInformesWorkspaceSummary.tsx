@@ -411,7 +411,7 @@ export function ClinicInformesWorkspaceSummary({
                         <th className="w-[10%] px-3 py-2 text-right">Acción</th>
                       </ContentListItem>
                     </CollectionHeader>
-                    <ContentList as="tbody" className="divide-y divide-vetneb-line/60">
+                    <ContentList as="tbody">
                       {pagedReports.pageItems.map((report, index) => (
                         <ContentListItem
                           as="tr"
