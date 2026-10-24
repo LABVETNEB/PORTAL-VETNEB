@@ -671,6 +671,14 @@ test.describe("B08 · lateral navigation band across the regime ladder", () => {
           ).toHaveAttribute("data-theme", NORMAL_THEME_MODE, { timeout: 10_000 });
         }
 
+        // DashboardMobileNav's Suspense fallback paints an unidentified twin bar.
+        if (regimeFor(viewport.width) === "mobile") {
+          await expect(
+            page.locator(MOBILE_NAV_SELECTOR),
+            `${label}: the URL-driven mobile navigation owner is painted`,
+          ).toBeVisible();
+        }
+
         const reading = await readBand(page);
         failures.push(
           ...collectViolations(reading, label, viewport.width),
