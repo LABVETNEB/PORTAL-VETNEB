@@ -180,6 +180,11 @@ test.describe("clinic dashboard — rail navigation", () => {
 
       const item = clinicLateralNavItem(page, moduleId);
       await expect(item).toBeVisible();
+      await page.waitForFunction(
+        (el) => el?.getAttribute("data-public-route-control-hydrated") === "true",
+        await item.elementHandle(),
+        { timeout: 8_000 },
+      );
       await item.click();
 
       // The navigation owner spells the default module as the bare URL.
