@@ -206,6 +206,12 @@ test.describe("C22 · clinic Logística", () => {
     const rows = canvas.locator('[data-clinic-logistics-row="true"]');
     expect(await rows.count()).toBeGreaterThan(0);
     expect(await canvas.evaluate((element) => element.children.length)).toBe(await rows.count());
+    // G11-e: the row's name is its visible text followed by the action, never a label that hides it.
+    const visibleParts = await rows.first().locator("p, .status-badge").allInnerTexts();
+    const escapedParts = visibleParts.map((part) => part.trim().replace(/[.*+?^$()|[\]{}\\]/g, "\\$&"));
+    expect(escapedParts).toHaveLength(3);
+    await expect(rows.first()).toHaveAccessibleName(new RegExp("^" + escapedParts.join("\\s*") + "\\s*, ver detalle de la visita$"));
+    await expectNoSeriousAxe(page, '[data-clinic-logistics-list-panel="true"]');
 
     const pager = panel.getByRole("navigation", { name: "Paginación de visitas recientes" });
     await expect(pager).toHaveAttribute("data-collection-pager", "centered");
