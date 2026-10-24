@@ -751,6 +751,15 @@ for (const viewport of VIEWPORTS) {
       await expect(page.locator("#clinic-public-profile")).toBeVisible({
         timeout: 12_000,
       });
+      await expect(
+        page
+          .locator("#clinic-public-profile [data-clinic-profile-desktop-actions]")
+          .getByText("Visible en banco", { exact: true }),
+      ).toBeVisible();
+      await page
+        .locator("[data-public-route-control-hydrated]")
+        .first()
+        .waitFor({ state: "attached" });
 
       // Clinic desktop/tablet space pass: from 768px up the avatar is always
       // visible and the sections are single-open disclosure rows (the chips
