@@ -751,6 +751,11 @@ for (const viewport of VIEWPORTS) {
       await expect(page.locator("#clinic-public-profile")).toBeVisible({
         timeout: 12_000,
       });
+      await expect(
+        page
+          .locator("#clinic-public-profile [data-clinic-profile-desktop-actions]")
+          .getByText("Visible en banco", { exact: true }),
+      ).toBeVisible();
       await page
         .locator("[data-public-route-control-hydrated]")
         .first()
