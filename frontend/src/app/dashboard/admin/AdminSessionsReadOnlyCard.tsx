@@ -59,6 +59,19 @@ function formatSessionType(value: AdminSessionType) {
   return "Particular";
 }
 
+// G11-e (WCAG 2.5.3): each name starts with the button's visible text.
+function formatRevokeButtonLabel(
+  session: AdminSessionSummary,
+  isCurrentAdminSession: boolean,
+  isRevoking: boolean,
+) {
+  const type = formatSessionType(session.sessionType);
+  if (isCurrentAdminSession) {
+    return `Sesión actual: ${type} #${session.sessionId}, no se puede revocar`;
+  }
+  return `${isRevoking ? "Revocando" : "Revocar"} sesión ${type} #${session.sessionId}`;
+}
+
 function formatActorType(value: AdminSessionSummary["actorType"]) {
   if (value === "admin_user") return "Admin";
   if (value === "clinic_user") return "Clínica";
@@ -460,11 +473,7 @@ export function AdminSessionsReadOnlyCard({
                             className="h-7 px-2 text-xs"
                             disabled={isRevoking || isCurrentAdminSession}
                             aria-busy={isRevoking ? true : undefined}
-                            aria-label={
-                              isCurrentAdminSession
-                                ? `Sesión ${formatSessionType(session.sessionType)} #${session.sessionId} actual, no se puede revocar`
-                                : `Revocar sesión ${formatSessionType(session.sessionType)} #${session.sessionId}`
-                            }
+                            aria-label={formatRevokeButtonLabel(session, isCurrentAdminSession, isRevoking)}
                             onClick={() => void handleRevokeSession(session)}
                           >
                             {isRevoking ? (
@@ -677,11 +686,7 @@ export function AdminSessionsReadOnlyCard({
                     className="h-7 shrink-0 px-2 text-xs"
                     disabled={isRevoking || isCurrentAdminSession}
                     aria-busy={isRevoking ? true : undefined}
-                    aria-label={
-                      isCurrentAdminSession
-                        ? `Sesión ${formatSessionType(session.sessionType)} #${session.sessionId} actual, no se puede revocar`
-                        : `Revocar sesión ${formatSessionType(session.sessionType)} #${session.sessionId}`
-                    }
+                    aria-label={formatRevokeButtonLabel(session, isCurrentAdminSession, isRevoking)}
                     onClick={() => void handleRevokeSession(session)}
                   >
                     {isCurrentAdminSession

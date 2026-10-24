@@ -242,15 +242,20 @@ test("admin sessions card da nombre accesible explícito al botón Revocar por s
 
   assert.ok(
     source.includes(
-      "`Revocar sesión ${formatSessionType(session.sessionType)} #${session.sessionId}`",
+      '`${isRevoking ? "Revocando" : "Revocar"} sesión ${type} #${session.sessionId}`',
     ),
-    "el botón Revocar debe exponer un aria-label por sesión",
+    "el botón Revocar/Revocando debe exponer un aria-label por sesión que empiece por su texto visible",
   );
   assert.ok(
     source.includes(
-      "`Sesión ${formatSessionType(session.sessionType)} #${session.sessionId} actual, no se puede revocar`",
+      "`Sesión actual: ${type} #${session.sessionId}, no se puede revocar`",
     ),
-    "la sesión admin actual debe explicar por qué no se puede revocar",
+    "la sesión admin actual debe explicar por qué no se puede revocar, empezando por su texto visible",
+  );
+  assert.equal(
+    source.match(/aria-label=\{formatRevokeButtonLabel\(session, isCurrentAdminSession, isRevoking\)\}/g)?.length,
+    2,
+    "tabla y lista móvil comparten el mismo nombre accesible del botón",
   );
 });
 
