@@ -6,6 +6,7 @@ const PATHS = {
   module: "frontend/src/app/dashboard/ClinicInformesWorkspaceSummary.tsx",
   list: "frontend/src/app/dashboard/informes/InformesReportsList.tsx",
   page: "frontend/src/app/dashboard/informes/page.tsx",
+  table: "frontend/src/components/ui/table.tsx",
 } as const;
 type Sources = Record<keyof typeof PATHS, string>;
 
@@ -38,8 +39,13 @@ function c21Violations(s: Sources): string[] {
   // Módulo /dashboard?module=informes: the measured canvas is the workspace, the A03 tokens stay on it.
   need("module", /<CollectionWorkspace\s+ref=\{setReportsListBodyNode\}\s+data-clinic-reports-list-body="true"\s+data-dashboard-adaptive-rows-canvas="true"\s+data-dashboard-row-pitch="regular"\s+data-dashboard-canvas-reserve="table-head-above-md"/, "the measured canvas is the CollectionWorkspace with its A03 tokens");
   need("module", /<CollectionHeader\s+className="border-b border-vetneb-line\/65 bg-vetneb-surface-muted\/65[^"]*"\s*>\s*<ContentListItem as="tr">/, "the table head is the C01 header");
-  need("module", '<ContentList as="tbody" className="divide-y divide-vetneb-line/60">', "the body keeps its 1px separators as the C01 list");
+  need("module", '<ContentList as="tbody">', "the desktop body remains the C01 list");
+  forbid("module", /<ContentList\s+as="tbody"[^>]*divide-y/, "the desktop body must not add dividers over the row borders");
   need("module", /<ContentListItem\s+as="tr"\s+key=\{report\.id\}\s+data-clinic-reports-table-row="true"/, "desktop rows are C01 items with their marker");
+  need("table", /case "tbody":\s+return <TableBody\b/, "the C01 body uses TableBody");
+  need("table", /case "tr":\s+return <TableRow\b/, "the C01 rows use TableRow");
+  need("table", 'className={cn("[&_tr:last-child]:border-0", className)}', "TableBody removes the last row border");
+  need("table", '"border-b border-vetneb-line/60 transition-colors', "TableRow paints the row separators");
   need("module", /<ContentList\s+as="div"\s+data-clinic-reports-mobile-list="true"\s+className="flex min-h-0 flex-1 flex-col divide-y divide-vetneb-line\/60 overflow-hidden md:hidden"/, "the mobile list is the C01 list with its separators");
   need("module", /<ContentListItem\s+as="div"\s+key=\{report\.id\}\s+data-clinic-reports-mobile-row="true"\s+data-dashboard-adaptive-row="true"/, "mobile rows are C01 items locked to the pitch");
   need("module", /<CollectionState\s+variant="empty"\s+title="Sin informes para los filtros aplicados"/, "filtered empty through C03");
@@ -106,7 +112,9 @@ test("C21 guard rejects reverting each surface to its pre-C21 grammar or moving 
   const sources = read();
   const mutants: ReadonlyArray<readonly [keyof Sources, string, string]> = [
     ["module", "<CollectionWorkspace\n            ref={setReportsListBodyNode}", "<div\n            ref={setReportsListBodyNode}"],
-    ["module", '<ContentList as="tbody" className="divide-y divide-vetneb-line/60">', '<ContentList as="tbody">'],
+    ["module", '<ContentList as="tbody">', '<ContentList as="tbody" className="divide-y divide-vetneb-line/60">'],
+    ["table", 'className={cn("[&_tr:last-child]:border-0", className)}', 'className={cn("", className)}'],
+    ["table", '"border-b border-vetneb-line/60 transition-colors', '"transition-colors'],
     ["module", 'data-dashboard-canvas-reserve="table-head-above-md"', 'data-dashboard-canvas-reserve="table-head"'],
     ["module", '<CollectionState\n          variant="empty"\n          title="Sin informes recientes"', '<EmptyState\n          title="Sin informes recientes"'],
     ["module", 'scope="clinic"', 'scope="admin"'],
