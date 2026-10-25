@@ -1973,6 +1973,12 @@
   color: hsl(355 88% 74%);
 }
 
+/* G11-c2: the tokens card subtitle paints the same destructive untinted over
+   the card (3.05:1); same text-only lift, scoped to that band. */
+:root[data-theme="dark-gray"] #clinic-particular-tokens p.text-destructive[role="alert"] {
+  color: hsl(355 88% 74%);
+}
+
 :root[data-theme="dark-gray"] .dashboard-kpi-pill[data-tone="critical"] {
   color: hsl(38 84% 64%);
 }

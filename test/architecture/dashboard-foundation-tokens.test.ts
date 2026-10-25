@@ -1022,3 +1022,61 @@ test("G11-c error alert text reaches 4.5:1 on its tint in both themes", () => {
   const lightRatio = alertRatio(LIGHT_ENV, lightText, "--card");
   assert.ok(lightRatio >= 4.5, `light --card: ${lightRatio.toFixed(2)}:1 < 4.5:1`);
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// G11-c2 · two text colors G11-c left out. V-4: "Abrir módulo completo" paints
+// its label over its own 10%/20% teal tint (rest/hover). V-5: the tokens card
+// subtitle paints the error untinted over the card. Both reach 4.5:1 in both
+// themes without touching --vetneb-teal or --destructive.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const FULL_MODULE_CONTROL = readSource("frontend/src/components/dashboard/FullModuleRouteControl.tsx");
+const TOKENS_CARD = readSource("frontend/src/components/dashboard/ClinicParticularTokensCard.tsx");
+const DARK_TOKENS_ERROR_SELECTOR = `:root[data-theme="${DARK_THEME_MODE}"] #clinic-particular-tokens p.text-destructive[role="alert"]`;
+
+function tintedRatio(env: ReadonlyMap<string, string>, text: string, tint: string, alpha: number, surface: string): number {
+  const fg = hslToRgb(text);
+  const tone = hslToRgb(env.get(tint) ?? "");
+  const base = hslToRgb(env.get(surface) ?? "");
+  return contrast(fg, tone.map((c, i) => c * alpha + base[i] * (1 - alpha)) as unknown as Rgb);
+}
+
+test("G11-c2 V-4 full-module control label keeps its teal chrome and reaches 4.5:1 at rest and hover", () => {
+  assert.ok(
+    FULL_MODULE_CONTROL.includes(
+      "border border-vetneb-teal/45 bg-vetneb-teal/10 px-2.5 text-xs font-semibold text-accent-foreground transition-colors hover:bg-vetneb-teal/20",
+    ),
+    "only the label color changes; border, tint and hover tint stay teal",
+  );
+  assert.equal(/\btext-vetneb-teal\b/.test(FULL_MODULE_CONTROL), false);
+
+  assert.ok(tintedRatio(LIGHT_ENV, LIGHT_ENV.get("--vetneb-teal") ?? "", "--vetneb-teal", 0.1, "--card") < 4.5);
+
+  for (const [theme, env] of [["light", LIGHT_ENV], ["dark", DARK_ENV]] as const) {
+    for (const surface of ALERT_SURFACES) {
+      for (const alpha of [0.1, 0.2]) {
+        const ratio = tintedRatio(env, env.get("--accent-foreground") ?? "", "--vetneb-teal", alpha, surface);
+        assert.ok(ratio >= 4.5, `${theme} ${surface} @${alpha}: ${ratio.toFixed(2)}:1 < 4.5:1`);
+      }
+    }
+  }
+});
+
+test("G11-c2 V-5 tokens card error band lifts only its dark text and keeps the alert", () => {
+  assert.ok(TOKENS_CARD.includes('id: "clinic-particular-tokens"'));
+  assert.match(TOKENS_CARD, /errorMessage\s*\?\s*"text-destructive"/);
+  assert.ok(TOKENS_CARD.includes('role={errorMessage ? "alert" : undefined}'));
+
+  const dark = ruleBodies(GLOBALS_CSS, DARK_TOKENS_ERROR_SELECTOR).join("\n");
+  assert.doesNotMatch(dark, /background|border/, "the dark override lifts the text only");
+  const darkText = dark.match(/color:\s*(hsl\([^)]+\))/)?.[1];
+  assert.ok(darkText, `globals.css must declare an hsl() color for "${DARK_TOKENS_ERROR_SELECTOR}"`);
+
+  assert.ok(contrast(hslToRgb(DARK_ENV.get("--destructive") ?? ""), hslToRgb(DARK_ENV.get("--card") ?? "")) < 4.5);
+  for (const surface of ALERT_SURFACES) {
+    const ratio = contrast(hslToRgb(darkText), hslToRgb(DARK_ENV.get(surface) ?? ""));
+    assert.ok(ratio >= 4.5, `dark ${surface}: ${ratio.toFixed(2)}:1 < 4.5:1`);
+  }
+  const light = contrast(hslToRgb(LIGHT_ENV.get("--destructive") ?? ""), hslToRgb(LIGHT_ENV.get("--card") ?? ""));
+  assert.ok(light >= 4.5, `light --card: ${light.toFixed(2)}:1 < 4.5:1`);
+});
