@@ -73,8 +73,10 @@ const FOUNDATION_DECLARATION_HASH =
 // Re-frozen again (FASE B) for the `table-head-above-md` reserve tier: a
 // canvas whose table head is `hidden md:block` reserves it only in the regime
 // where it actually paints, instead of charging a phantom row below `md`.
+// Re-frozen for C05 (R13, authorized 2026-10-25): `compact` 36 -> 40px, with
+// the A02/A03 leaves it moves recaptured in the same change.
 const ROW_PITCH_RAW_HASH =
-  "698d705ce29b89d14996eadeaa343ff01760ddacea68828d5db915fbd8262800";
+  "da6ec97ac5cd4c874e302a3ece0829056f8e2f8f60604234bea6ea14c3f217aa";
 
 type SurfaceRole =
   | "PERSISTENT_CHROME"

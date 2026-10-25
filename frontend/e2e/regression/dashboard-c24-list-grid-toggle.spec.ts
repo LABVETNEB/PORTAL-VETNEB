@@ -153,9 +153,9 @@ test.describe("C24 · Informes admin", () => {
     const reports = page.locator(REPORTS);
     const canvas = page.locator(REPORTS_CANVAS);
     const itemBoxes = canvas.locator('[data-collection-selection="item"]');
-    await expect(canvas.locator("tbody tr")).toHaveCount(14);
+    await expect(canvas.locator("tbody tr")).toHaveCount(12);
     const window = requests.at(-1);
-    expect(window).toEqual({ limit: 14, offset: 0 });
+    expect(window).toEqual({ limit: 12, offset: 0 });
     const toggle = reports.getByRole("group", { name: "Vista de informes" });
     await expectHydrated(toggle);
     await expectPressed(toggle, "list");
@@ -164,9 +164,9 @@ test.describe("C24 · Informes admin", () => {
 
     await toggle.getByRole("button", { name: GRID }).click();
     await expectPressed(toggle, "grid");
-    await expect(canvas.locator('[data-content-grid-item="true"]')).toHaveCount(14);
+    await expect(canvas.locator('[data-content-grid-item="true"]')).toHaveCount(12);
     expect(await ids(itemBoxes, "aria-label", /#(\d+)/), "same page, same order").toEqual(listIds);
-    expect(await gridGeometry(canvas)).toMatchObject({ columns: 3, cards: 14, escaping: 0, innerOverflowX: 0 });
+    expect(await gridGeometry(canvas)).toMatchObject({ columns: 3, cards: 12, escaping: 0, innerOverflowX: 0 });
     const head = await canvas.evaluate((element) => ({
       reserved: parseFloat(getComputedStyle(element).getPropertyValue("--dash-canvas-reserved")),
       head: element.querySelector('[data-collection-grid-head="true"]')!.getBoundingClientRect().height,
@@ -178,9 +178,9 @@ test.describe("C24 · Informes admin", () => {
     await expect(firstCard.getByRole("button", { name: /Acciones del informe/ })).toBeVisible();
 
     await canvas.getByRole("checkbox", { name: "Seleccionar página de informes" }).check();
-    await expect(reports.locator('[data-selection-count="true"]')).toContainText("14 seleccionados");
+    await expect(reports.locator('[data-selection-count="true"]')).toContainText("12 seleccionados");
     await toggle.getByRole("button", { name: LIST }).click();
-    await expect(reports.locator('[data-selection-count="true"]'), "selection survives the switch").toContainText("14 seleccionados");
+    await expect(reports.locator('[data-selection-count="true"]'), "selection survives the switch").toContainText("12 seleccionados");
     await expect(canvas.getByRole("checkbox", { name: "Seleccionar página de informes" })).toBeChecked();
     await reports.getByRole("button", { name: "Limpiar selección" }).click();
     await toggle.getByRole("button", { name: GRID }).click();
@@ -189,12 +189,12 @@ test.describe("C24 · Informes admin", () => {
     await search.fill(`#${listIds[0]}`);
     await reports.getByRole("button", { name: "Aplicar" }).click();
     await expect(canvas.locator('[data-content-grid-item="true"]')).toHaveCount(1);
-    expect(requests.at(-1), "client filters keep the window").toEqual({ limit: 14, offset: 0 });
+    expect(requests.at(-1), "client filters keep the window").toEqual({ limit: 12, offset: 0 });
     await toggle.getByRole("button", { name: LIST }).click();
     await expect(canvas.locator("tbody tr"), "the applied filter survives the switch").toHaveCount(1);
     await reports.getByRole("button", { name: "Limpiar", exact: true }).click();
     await toggle.getByRole("button", { name: GRID }).click();
-    await expect(canvas.locator('[data-content-grid-item="true"]')).toHaveCount(14);
+    await expect(canvas.locator('[data-content-grid-item="true"]')).toHaveCount(12);
 
     const ver = firstCard.getByRole("button", { name: "Ver", exact: true });
     await ver.click();
@@ -205,7 +205,7 @@ test.describe("C24 · Informes admin", () => {
     await expect(ver).toBeFocused();
 
     await page.getByRole("navigation", { name: "Paginación de informes admin" }).getByRole("button", { name: /siguiente/i }).click();
-    await expect.poll(() => requests.at(-1)).toEqual({ limit: 14, offset: 14 });
+    await expect.poll(() => requests.at(-1)).toEqual({ limit: 12, offset: 12 });
     await expect(canvas.locator('[data-content-grid="true"]')).toBeVisible();
     // The request is emitted before its page paints: wait for the rendered page, then compare.
     await expect.poll(async () => (await ids(itemBoxes, "aria-label", /#(\d+)/))[0]).not.toBe(listIds[0]);

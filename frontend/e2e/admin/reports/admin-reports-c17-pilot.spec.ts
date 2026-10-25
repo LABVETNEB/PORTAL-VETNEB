@@ -18,12 +18,12 @@ test("C17 desktop keeps the server window while search, selection and detail com
   });
   await page.goto("/dashboard/admin?module=admin-report-upload");
   const reports = page.locator(workspace);
-  await expect(reports.locator("tbody tr")).toHaveCount(14);
+  await expect(reports.locator("tbody tr")).toHaveCount(12);
   await expect(reports.getByRole("search", { name: "Filtros avanzados de informes" })).toHaveCount(1);
   await expect(reports.getByRole("search")).toHaveCount(1);
   await expect(reports.locator('[data-collection-header="true"]')).toBeVisible();
   await expect(reports.locator('[data-collection-workspace="true"]')).toBeVisible();
-  expect(requests.at(-1)).toEqual({ limit: 14, offset: 0 });
+  expect(requests.at(-1)).toEqual({ limit: 12, offset: 0 });
   const cardBox = await reports.locator('[data-dashboard-b12-module-card="true"]').boundingBox();
   const refreshBox = await reports.getByRole("button", { name: "Actualizar" }).boundingBox();
   const uploadBox = await reports.getByRole("button", { name: "Subir informe" }).boundingBox();
@@ -33,16 +33,16 @@ test("C17 desktop keeps the server window while search, selection and detail com
 
   const search = reports.getByRole("searchbox", { name: "Buscar informe" });
   await search.fill("#7400");
-  await expect(reports.locator("tbody tr")).toHaveCount(14);
+  await expect(reports.locator("tbody tr")).toHaveCount(12);
   await reports.getByRole("button", { name: "Aplicar" }).click();
   await expect(reports.locator("tbody tr")).toHaveCount(1);
   await expect(reports.locator('[data-active-filter-chips="true"]')).toBeVisible();
-  expect(requests.at(-1)).toEqual({ limit: 14, offset: 0 });
+  expect(requests.at(-1)).toEqual({ limit: 12, offset: 0 });
   await reports.getByRole("button", { name: "Limpiar", exact: true }).click();
-  await expect(reports.locator("tbody tr")).toHaveCount(14);
+  await expect(reports.locator("tbody tr")).toHaveCount(12);
 
   await reports.getByRole("checkbox", { name: "Seleccionar página de informes" }).check();
-  await expect(reports.locator('[data-selection-count="true"]')).toContainText("14 seleccionados");
+  await expect(reports.locator('[data-selection-count="true"]')).toContainText("12 seleccionados");
   await reports.getByRole("button", { name: "Limpiar selección" }).click();
   await expect(reports.locator('[data-selection-toolbar="true"]')).toHaveCount(0);
   await reports.locator("tbody tr").first().getByRole("button", { name: "Acciones del informe #7400" }).click();

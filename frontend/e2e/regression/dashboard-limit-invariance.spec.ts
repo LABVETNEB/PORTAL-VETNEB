@@ -376,6 +376,60 @@ async function applyScenario(
   return reading;
 }
 
+/**
+ * C05 (R13, 2026-10-25): every compact canvas renders 40px rows that physically
+ * fit. The pitch token is read off the canvas rather than assumed, each painted
+ * row must be at least that tall (a table row can only grow past its cell), and
+ * the last one must end inside the canvas content box with nothing scrolling —
+ * a limit the canvas cannot hold is clipping or a pager overlap, not a page.
+ * Expected cardinality per module: the canvases that declare `compact` today.
+ */
+const C05_COMPACT_PITCH_PX = 40;
+const C05_COMPACT_LEAVES: Partial<Record<(typeof A03_MODULE_IDS)[number], number>> = {
+  "admin-audit-log": 8,
+  "admin-report-upload": 8,
+  "admin-particular-tokens": 8,
+  "admin-clinics": 8,
+  "admin-users-roles": 8,
+  "admin-sessions": 8,
+  "admin-failed-login-alerts": 8,
+  "admin-pricing": 5,
+};
+
+async function assertCompactRowFit(page: Page, label: string, limit: number): Promise<boolean> {
+  const fit = await page.locator('[data-a05-active-canvas="true"]').evaluate((node) => {
+    const canvas = node as HTMLElement;
+    if (canvas.getAttribute("data-dashboard-row-pitch") !== "compact") return null;
+    const style = getComputedStyle(canvas);
+    const rect = canvas.getBoundingClientRect();
+    const contentBottom =
+      rect.bottom - Number.parseFloat(style.paddingBlockEnd) - Number.parseFloat(style.borderBlockEndWidth);
+    const rows = [
+      ...canvas.querySelectorAll<HTMLElement>(
+        ':scope > .dashboard-list-row, [data-dashboard-adaptive-row="true"], table tbody > tr',
+      ),
+    ]
+      .map((row) => row.getBoundingClientRect())
+      .filter((box) => box.height > 0);
+    return {
+      pitch: style.getPropertyValue("--dash-row-pitch").trim(),
+      rowHeights: rows.map((box) => Math.round(box.height * 100) / 100),
+      overrun: rows.length ? Math.round((rows[rows.length - 1].bottom - contentBottom) * 100) / 100 : 0,
+      scrolls: canvas.scrollHeight > canvas.clientHeight + 1,
+    };
+  });
+  if (fit === null) return false;
+
+  expect(fit.pitch, `${label}: C05 compact pitch token`).toBe(`${C05_COMPACT_PITCH_PX}px`);
+  expect(fit.rowHeights.length, `${label}: C05 painted rows = limit`).toBe(limit);
+  for (const [index, height] of fit.rowHeights.entries()) {
+    expect(height, `${label}: C05 row ${index} height`).toBeGreaterThanOrEqual(C05_COMPACT_PITCH_PX - 0.5);
+  }
+  expect(fit.overrun, `${label}: C05 last row ends inside the canvas`).toBeLessThanOrEqual(0.5);
+  expect(fit.scrolls, `${label}: C05 canvas never scrolls`).toBe(false);
+  return true;
+}
+
 // Deliberately NOT serial. The serial mode existed because capacity was
 // path-dependent: a leaf that had drifted could poison the next one, so the
 // suite was forced onto a single worker and, worse, a failure SKIPPED every
@@ -394,6 +448,7 @@ test.describe("A05 · stable geometry reservation limit invariance", () => {
       await prepareContext(page, observer);
 
       let coveredLeaves = 0;
+      let compactLeaves = 0;
       for (let viewportIndex = 0; viewportIndex < DASHBOARD_GEOMETRY_VIEWPORTS.length; viewportIndex += 1) {
         const viewport = DASHBOARD_GEOMETRY_VIEWPORTS[viewportIndex];
         const hotViewport =
@@ -429,6 +484,7 @@ test.describe("A05 · stable geometry reservation limit invariance", () => {
           const requestsAfterReservation = flight.paginationStarted();
           const scenario48 = await applyScenario(page, leaf, 48, `${label}::48`, flight);
           const scenario64 = await applyScenario(page, leaf, 64, `${label}::64`, flight);
+          if (await assertCompactRowFit(page, label, scenario64.limit)) compactLeaves += 1;
 
           // The reservation is the primitive under test: a region that grows
           // with its own content is the defect, and it is what steals the
@@ -495,6 +551,7 @@ test.describe("A05 · stable geometry reservation limit invariance", () => {
       expect(coveredLeaves).toBe(
         observer.leaves.length * DASHBOARD_GEOMETRY_VIEWPORTS.length,
       );
+      expect(compactLeaves, `${moduleId}: C05 compact leaves`).toBe(C05_COMPACT_LEAVES[moduleId] ?? 0);
     });
   }
 });

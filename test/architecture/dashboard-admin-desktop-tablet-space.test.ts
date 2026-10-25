@@ -214,10 +214,15 @@ test("ADMIN-DT · compact pager and the Alertas pager paint Anterior/Siguiente o
   assert.equal(failed.includes("visibles"), false);
 });
 
-test("ADMIN-DT · C05 row geometry is frozen", () => {
+test("ADMIN-DT · C05 row geometry: compact rows are 40px, regular and the dense head unchanged", () => {
   const css = readDashboardCssSource();
-  for (const frozen of ["--dash-row-pitch-compact: 36px;", "--dash-row-pitch-regular: 44px;", "--dash-table-head-h: 32px;"]) {
-    assert.ok(css.includes(frozen), `${frozen} stays frozen until C05`);
+  assert.deepEqual(
+    [...css.matchAll(/--dash-row-pitch-compact:\s*([^;]+);/g)].map((match) => match[1]),
+    ["40px"],
+    "C05 (R13): one compact declaration, 40px, never stepped by a media query",
+  );
+  for (const frozen of ["--dash-row-pitch-regular: 44px;", "--dash-table-head-h: 32px;"]) {
+    assert.ok(css.includes(frozen), `${frozen} is outside C05`);
   }
   for (const [path, rowClasses] of [
     [AUDIT_TABLE, "[&_td]:h-9 [&_td]:px-2 [&_td]:py-1 [&_th]:h-8"],
