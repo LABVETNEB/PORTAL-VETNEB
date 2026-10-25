@@ -46,7 +46,7 @@ test("admin sessions card is client-side and imports required dependencies", () 
     assert.ok(source.includes(hook), `missing react hook import: ${hook}`);
   }
   assert.ok(source.includes('from "react";'));
-  assert.ok(source.includes('import { Badge } from "@/components/ui/badge";'));
+  assert.ok(source.includes('import { badgeVariants } from "@/components/ui/badge";'));
   assert.ok(source.includes('import { Button } from "@/components/ui/button";'));
   assert.ok(source.includes('import { getAdminSessions, revokeAdminSession } from "@/lib/api";'));
   assert.ok(
@@ -54,7 +54,7 @@ test("admin sessions card is client-side and imports required dependencies", () 
       'import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";',
     ),
   );
-  assert.ok(source.includes('import { formatDateTime } from "@/lib/utils";'));
+  assert.ok(source.includes('import { cn, formatDateTime } from "@/lib/utils";'));
 });
 
 test("admin sessions card keeps typed session contracts", () => {
@@ -265,4 +265,101 @@ test("admin sessions card no expone token, cookie ni hash en UI", () => {
   assert.equal(source.includes("sessionToken"), false);
   assert.equal(source.includes("tokenHash"), false);
   assert.equal(source.includes("password"), false);
+});
+
+const ADMIN_SESSION_DETAIL_DIALOG_PATH =
+  "frontend/src/app/dashboard/admin/AdminSessionDetailDialog.tsx";
+
+test("C25 F-T2 · ambas presentaciones abren el detalle desde el texto que ya muestran", () => {
+  const source = read(ADMIN_SESSIONS_CARD_PATH);
+
+  assert.ok(source.includes('import { AdminSessionDetailDialog } from "./AdminSessionDetailDialog";'));
+  const mounts = source.match(/<AdminSessionDetailDialog\b[\s\S]*?<\/AdminSessionDetailDialog>/g) ?? [];
+  const [desktop, mobile, extra] = mounts;
+  assert.ok(desktop && mobile && extra === undefined, "tabla y lista móvil montan el detalle una vez cada una");
+  // Escritorio: la celda Sesión entera (insignia + #id), nunca de 0 px.
+  assert.ok(desktop.includes("triggerText={`${formatSessionType(session.sessionType)} #${session.sessionId}`}"));
+  assert.ok(desktop.includes("<SessionTypeBadge sessionType={session.sessionType} />"));
+  assert.ok(desktop.includes("#{session.sessionId}"));
+  // Móvil: la primera línea entera (insignias + actor · #id).
+  assert.ok(
+    mobile.includes(
+      "triggerText={`${formatSessionType(session.sessionType)} ${formatStatus(session.status)} ${formatActorType(session.actorType)} · #${session.sessionId}`}",
+    ),
+  );
+  assert.ok(mobile.includes("<SessionStatusBadge status={session.status} />"));
+  assert.ok(mobile.includes("{formatActorType(session.actorType)} · #{session.sessionId}"));
+  // Contenido de fraseo dentro del <button>: las insignias son <span>.
+  for (const badge of ["SessionTypeBadge", "SessionStatusBadge"]) {
+    const start = source.indexOf(`function ${badge}(`);
+    const body = source.slice(start, source.indexOf("\n}\n", start));
+    assert.ok(body.includes("<span") && !body.includes("<Badge") && !body.includes("<div"), `${badge} renders a <span>`);
+  }
+  for (const mount of mounts) {
+    for (const prop of [
+      "session={session}",
+      "sessionTypeLabel={formatSessionType(session.sessionType)}",
+      "actorTypeLabel={formatActorType(session.actorType)}",
+      "statusLabel={formatStatus(session.status)}",
+      "isCurrentAdminSession={isCurrentAdminSession}",
+    ]) {
+      assert.ok(mount.includes(prop), `falta ${prop}`);
+    }
+  }
+  assert.ok(
+    source.indexOf(desktop) > source.indexOf('aria-label="Tabla de sesiones administrativas"') &&
+      source.indexOf(desktop) < source.indexOf('data-admin-mobile-ops-module="sessions"'),
+    "el disparador de escritorio vive en la tabla",
+  );
+  assert.ok(
+    source.indexOf(mobile) > source.indexOf('data-admin-mobile-ops-module="sessions"'),
+    "el disparador móvil vive en la lista",
+  );
+
+  // Sin columna nueva ni cambio de densidad o capacidad.
+  assert.deepEqual(
+    [...source.matchAll(/<TableHead\b[^>]*>\s*([^<]+?)\s*<\/TableHead>/g)].map((match) => match[1]),
+    ["Sesión", "Actor", "Estado", "Creada", "Último acceso", "Expira", "Acción"],
+  );
+  assert.ok(source.includes('data-dashboard-row-pitch="compact"'));
+  assert.ok(source.includes('data-dashboard-row-pitch="regular"'));
+  assert.ok(source.includes("[&_td]:h-9"));
+  assert.ok(source.includes("const SESSIONS_ROW_HEIGHT_FALLBACK_PX = 36;"));
+
+  // El texto truncado sigue truncando en la fila; nunca `title` con datos de sesión.
+  assert.equal(/title=\{(?:session|`)/.test(source), false);
+});
+
+test("C25 F-T2 · el detalle de sesión es C13 de sólo lectura con los ocho datos del resumen", () => {
+  const dialog = read(ADMIN_SESSION_DETAIL_DIALOG_PATH);
+
+  assert.ok(dialog.includes('"use client";'));
+  assert.ok(dialog.includes('import { ModuleDialog } from "@/components/dashboard/ModuleDialog";'));
+  assert.ok(dialog.includes('import { DetailsMetadata, DetailsPane } from "@/features/dashboard/presentation/details";'));
+  assert.ok(dialog.includes("scrollableBody"), "un único dueño de scroll interno cuando el contenido no cabe");
+  for (const [id, value] of [
+    ["session-type", "value: sessionTypeLabel"],
+    ["session-id", "value: `#${session.sessionId}`"],
+    ["actor-type", "value: actorTypeLabel"],
+    ["actor-id", "value: `ID ${session.actorId}`"],
+    ["status", "value: statusLabel"],
+    ["created", "value: formatOptionalDateTime(session.createdAt)"],
+    ["last-access", "value: formatOptionalDateTime(session.lastAccess)"],
+    ["expires", "value: formatOptionalDateTime(session.expiresAt)"],
+  ] as const) {
+    assert.ok(dialog.includes(`id: "${id}"`) && dialog.includes(value), `falta ${id}: ${value}`);
+  }
+
+  // Sólo lectura: ni fetch ni revocación ni controles de edición.
+  assert.equal(/revokeAdminSession|getAdminSessions|fetch\(|onChange|<input|<select|window\.confirm/.test(dialog), false);
+  // Nada secreto, ningún `title`, ningún data-* nuevo.
+  assert.equal(/token|cookie|hash|password|secret/i.test(dialog.replace(/\/\/.*$/gm, "")), false);
+  // `title={heading}` is ModuleDialog's visible heading, not an HTML attribute.
+  assert.equal(/\btitle=(?!\{heading\})/.test(dialog), false);
+  assert.equal(/\bdata-[a-z-]+=/.test(dialog), false);
+
+  // G11-e: el nombre accesible empieza por el texto visible del disparador.
+  assert.ok(dialog.includes("aria-label={`${triggerText}, ver detalle de la sesión`}"));
+  assert.ok(dialog.includes("{children}\n        </button>"));
+  assert.ok(dialog.includes('type="button"'));
 });

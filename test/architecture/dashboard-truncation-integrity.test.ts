@@ -129,6 +129,22 @@ const TERMINAL_REGIONS: readonly TerminalRegion[] = [
     ],
   },
   {
+    label: "ADMIN · session detail dialog (Sesiones desktop + mobile)",
+    file: "frontend/src/app/dashboard/admin/AdminSessionDetailDialog.tsx",
+    start: "<DetailsPane",
+    end: "</DetailsPane>",
+    contractualValues: [
+      "sessionTypeLabel",
+      "session.sessionId",
+      "actorTypeLabel",
+      "session.actorId",
+      "statusLabel",
+      "session.createdAt",
+      "session.lastAccess",
+      "session.expiresAt",
+    ],
+  },
+  {
     label: "CLINIC · particular token detail dialog",
     file: "frontend/src/components/dashboard/ClinicParticularTokensCard.tsx",
     start: "<dl className=\"grid grid-cols-1 divide-y divide-vetneb-line/55",
@@ -412,6 +428,46 @@ test("PR-TRUNC · collection surfaces that legitimately truncate still expose th
       `FieldVisitDetailDialog must render ${value} whole as the content of a \`.dashboard-detail-value\``,
     );
   }
+
+  // C25 F-T2 · Sesiones: the compact table truncates the session id and the
+  // actor (and hides Creada/Expira below lg/xl); the mobile row truncates its
+  // "actor · #id" line. Each presentation opens the read-only detail from that
+  // same text, never a `title`, never a new column.
+  const sessions = read("frontend/src/app/dashboard/admin/AdminSessionsReadOnlyCard.tsx");
+  const sessionTriggers = sessions.match(/<AdminSessionDetailDialog\b[\s\S]*?<\/AdminSessionDetailDialog>/g) ?? [];
+  const [desktopSessionTrigger, mobileSessionTrigger, extraSessionTrigger] = sessionTriggers;
+  assert.ok(
+    desktopSessionTrigger && mobileSessionTrigger && extraSessionTrigger === undefined,
+    "AdminSessionsReadOnlyCard must mount the session detail on the desktop row AND the mobile row",
+  );
+  for (const mount of sessionTriggers) {
+    assert.ok(
+      mount.includes("<SessionTypeBadge sessionType={session.sessionType} />") && mount.includes("#{session.sessionId}"),
+      "the Sesiones trigger wraps the row's identity line (type badge + id), which is never 0 px wide",
+    );
+  }
+  assert.ok(
+    /<TableCell>\s*\{\/\*[\s\S]*?\*\/\}\s*<AdminSessionDetailDialog/.test(sessions),
+    "the Sesiones desktop trigger must be the first (Sesión) cell",
+  );
+  for (const truncated of ["truncate text-xs text-vetneb-ink/88", "truncate font-mono text-[11px] text-muted-foreground"]) {
+    assert.ok(sessions.includes(truncated), `the Sesiones row keeps its compact \`${truncated}\` actor line`);
+  }
+  assert.equal(
+    /title=\{(?:session\b|`[^`]*session)/.test(sessions),
+    false,
+    "a `title` must not become the full-value mechanism of the Sesiones rows",
+  );
+  const sessionDialog = read("frontend/src/app/dashboard/admin/AdminSessionDetailDialog.tsx");
+  assert.ok(
+    sessionDialog.includes("scrollableBody"),
+    "the session detail opts into the single ModuleDialog body scroll owner",
+  );
+  assert.equal(
+    /revokeAdminSession|onChange|<input|<select/.test(sessionDialog),
+    false,
+    "AdminSessionDetailDialog must stay read-only: revocation stays in the row's own action",
+  );
 
   // Users/roles: the finding is CLOSED the same way. The row keeps truncating
   // `username` and the clinic name (the table is pitch-locked, so wrapping there
