@@ -267,6 +267,16 @@ test.describe("clinic dashboard — rail navigation", () => {
 
 const ADMIN_DRAWER = '[data-dashboard-navigation-drawer="admin"]';
 
+// Same Suspense staging as `clinicLateralNav`: the admin band is both the
+// fallback and the resolved content, so only the painted drawer is under test.
+// Every VISIBLE match is kept, so two painted admin drawers still fail strict mode.
+function adminLateralNavItem(page: Page, moduleId: string): Locator {
+  return page
+    .locator(ADMIN_DRAWER)
+    .filter({ visible: true })
+    .locator(`[data-dashboard-navigation-item="${moduleId}"]`);
+}
+
 test.describe("admin dashboard — no module hub", () => {
   test.beforeEach(async ({ page }) => {
     await setAdminSession(page, "default");
@@ -310,7 +320,7 @@ test.describe("admin dashboard — workspace activation", () => {
     await page.goto("/dashboard/admin?module=admin");
     await expect(page.locator('[data-dashboard-module-workspace="admin"]')).toBeVisible({ timeout: 8_000 });
 
-    await page.locator(`${ADMIN_DRAWER} [data-dashboard-navigation-item="audit-log"]`).click();
+    await adminLateralNavItem(page, "audit-log").click();
 
     await expect(page.locator('[data-dashboard-module-workspace="audit-log"]')).toBeVisible({ timeout: 5_000 });
     await expect(page.locator('[data-dashboard-module-workspace="admin"]')).toHaveCount(0);
@@ -328,7 +338,7 @@ test.describe("admin dashboard — workspace activation", () => {
     await page.goto("/dashboard/admin?hub=1");
     await expect(page.locator('[data-dashboard-module-workspace="admin"]')).toBeVisible({ timeout: 8_000 });
 
-    await page.locator(`${ADMIN_DRAWER} [data-dashboard-navigation-item="audit-log"]`).click();
+    await adminLateralNavItem(page, "audit-log").click();
     await expect(page.locator('[data-dashboard-module-workspace="audit-log"]')).toBeVisible({ timeout: 5_000 });
     // The workspace swaps optimistically, before the router commits; the history
     // entry Back pops only exists once the URL has committed.

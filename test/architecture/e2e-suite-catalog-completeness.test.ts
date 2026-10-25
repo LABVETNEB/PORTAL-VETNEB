@@ -25,8 +25,8 @@ const TEST_FILE = fileURLToPath(import.meta.url);
 const REPO_ROOT = resolve(dirname(TEST_FILE), "..", "..");
 process.chdir(REPO_ROOT);
 
-const EXPECTED_WORKSPACE_SPEC_COUNT = 126;
-const EXPECTED_CATALOG_SPEC_COUNT = 126;
+const EXPECTED_WORKSPACE_SPEC_COUNT = 127;
+const EXPECTED_CATALOG_SPEC_COUNT = 127;
 const EXPECTED_MANUAL_ONLY_SPEC_COUNT = 0;
 const EXPECTED_DOMAIN_COUNTS = new Map([
   // +1: C04 Clínicas admin column sort (admin-clinics-column-sort.spec.ts).
@@ -67,7 +67,8 @@ const EXPECTED_DOMAIN_COUNTS = new Map([
   // (platform/app-shell), routed to visual-contract like its app-shell siblings.
   // +1: PR-NAV-06 DASHBOARD_NAVIGATION_FSM_FAILURE_MATRIX failure and concurrency
   // matrix (platform/app-shell), routed to visual-contract like its app-shell siblings.
-  ["platform", 29],
+  // +1: G11 axe matrix 21 x 2 x 2 (platform/accessibility/dashboard-g11-axe-matrix.spec.ts).
+  ["platform", 30],
   // +1: B10 clinic app-shell unification, the runtime half of the shared
   // ClinicDashboardShell contract.
   // +1: B11 canonical WorkspaceHeader, the runtime half of the shared
@@ -103,7 +104,8 @@ const EXPECTED_LAYER_COUNTS = new Map<E2eLayer, number>([
   // +1: C22 clinic batch 2 fulfills the clinic particular-tokens window.
   // +1: C24 fulfills GET /api/admin/clinics with the C04 server contract.
   // +1: PR-DRV-03 fulfills GET /api/admin/clinics and the signed viewer URL with synthetic data.
-  ["mocked", 48],
+  // +1: G11 fulfills the A02 surface stubs and the clinic particular-tokens window.
+  ["mocked", 49],
   // -1: E2E-GLOBAL-10 removed the assertion-free evidence generator (R-16);
   // +1 fixture / -1 mocked: §23 remediation moved dashboard keyboard a11y
   // off browser response stubs and onto the shared populated fixture.
@@ -204,13 +206,14 @@ const EXPECTED_EXECUTION_COUNTS = new Map<E2eExecutionCohort, number>([
   // +1: PR-DRV-03 belongs to visual-contract.
   // +1: PR-DRV-02 belongs to visual-contract.
   ["ci", 95],
-  ["extended", 27],
+  // +1: G11 axe matrix, full-only like the A02 baseline whose surfaces it audits.
+  ["extended", 28],
   // -1: E2E-GLOBAL-10 (R-16). `evidence` keeps the generator that does assert
   // layout (dashboard-runtime-post-ux1-visual-evidence) and loses the one that
   // asserted nothing.
   ["evidence", 1],
   ["visual-linux", 3],
-  ["full", 126],
+  ["full", 127],
   ["affected", 0],
 ]);
 const E2E_GLOBAL_06_PROMOTED_P1_SPECS = [
@@ -218,6 +221,8 @@ const E2E_GLOBAL_06_PROMOTED_P1_SPECS = [
   "e2e/clinic/logistics/dashboard-logistica-mobile-action-bar-reachability.spec.ts",
 ] as const;
 const E2E_FULL_ONLY_P1_SPECS = [
+  // G11 formal axe gate: 42 cases over the 21 A02 surfaces, same cost profile.
+  "e2e/platform/accessibility/dashboard-g11-axe-matrix.spec.ts",
   "e2e/regression/dashboard-adaptive-limit-baseline.spec.ts",
   "e2e/regression/dashboard-geometry-baseline.spec.ts",
   "e2e/regression/dashboard-limit-invariance.spec.ts",
@@ -504,11 +509,11 @@ test("catalog validation catches missing and duplicate entries in memory", async
 
   assert.throws(
     () => validateCatalog(missing, workspaceSpecs, E2E_MANUAL_ONLY_SPECS),
-    /125|classified/,
+    /126|classified/,
   );
   assert.throws(
     () => validateCatalog(duplicated, workspaceSpecs, E2E_MANUAL_ONLY_SPECS),
-    /127|unique/,
+    /128|unique/,
   );
 });
 
