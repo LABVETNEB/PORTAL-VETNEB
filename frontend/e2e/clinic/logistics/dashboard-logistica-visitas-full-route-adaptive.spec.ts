@@ -133,6 +133,113 @@ test.describe("clinic Logística Visitas full route adaptive contract (R-12)", (
     });
   }
 
+  // C25 F-T1: the desktop table truncates address and notes; the row id opens
+  // the visit detail with both values whole, on every desktop width (at
+  // 768-1024 the right-hand columns are clipped by the bounded canvas, the id is not).
+  const LONG_VISIT = {
+    id: 8502,
+    clinic: "Centro Veterinario Integral de Diagnóstico y Seguimiento Los Arrayanes",
+    address:
+      "Avenida de los Diagnósticos Veterinarios Integrales 4850, Torre Norte, Piso 12, Consultorio 1204, Ciudad Autónoma de Buenos Aires",
+    notes: "Entrega de resultados y retiro de material refrigerado con trazabilidad prioritaria.",
+  };
+
+  for (const viewport of [
+    { name: "desktop-1920x1080", width: 1920, height: 1080 },
+    { name: "desktop-short-1366x768", width: 1366, height: 768 },
+    { name: "desktop-1024x768", width: 1024, height: 768 },
+    { name: "tablet-768x1024", width: 768, height: 1024 },
+  ] as const) {
+    test(`desktop row id discloses the full address and notes by keyboard at ${viewport.name}`, async ({ page }) => {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      await setClinicSession(page, "populated");
+      await page.goto("/dashboard/logistica/visitas");
+
+      const trigger = page.getByRole("button", { name: `Ver detalle de la visita #${LONG_VISIT.id}`, exact: true });
+      await expect(trigger).toBeVisible({ timeout: 12_000 });
+      await expect(trigger).toHaveText(`#${LONG_VISIT.id}`);
+      // The bounded canvas replaces the bare URL once with its measured limit.
+      await expect.poll(() => new URL(page.url()).searchParams.get("limit"), { timeout: 12_000 }).not.toBeNull();
+      const urlBefore = page.url();
+
+      const row = page.locator("table tbody tr").filter({ has: trigger });
+      const cells = row.locator("td");
+      const [addressCell, notesCell] = [cells.nth(2), cells.nth(6)];
+      await expect(addressCell).toHaveText(LONG_VISIT.address);
+      for (const [cell, label] of [[addressCell, "address"], [notesCell, "notes"]] as const) {
+        expect(await cell.evaluate((element) => element.scrollWidth > element.clientWidth), `${viewport.name}: the row truncates the ${label}`).toBe(true);
+        expect(await cell.getAttribute("title"), `${viewport.name}: no hover-only title for the ${label}`).toBeNull();
+      }
+
+      // The trigger is painted on top and inside the clipped table wrapper.
+      const reach = await trigger.evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        const wrapper = element.closest("table")!.parentElement!.getBoundingClientRect();
+        const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
+        return {
+          hitTested: hit !== null && (hit === element || element.contains(hit)),
+          inside: rect.left >= wrapper.left && rect.right <= wrapper.right && rect.bottom <= wrapper.bottom,
+        };
+      });
+      expect(reach, `${viewport.name}: the id trigger is reachable`).toEqual({ hitTested: true, inside: true });
+
+      await expect
+        .poll(() => trigger.evaluate((element) => Object.keys(element).some((key) => key.startsWith("__reactFiber$"))), { timeout: 15_000 })
+        .toBe(true);
+      const dialog = page.getByRole("dialog", { name: LONG_VISIT.clinic });
+      await expect(async () => {
+        await trigger.focus();
+        await page.keyboard.press("Enter");
+        await expect(dialog).toBeVisible({ timeout: 1_000 });
+      }).toPass({ timeout: 10_000 });
+
+      await expect(dialog).toContainText(`Visita #${LONG_VISIT.id}`);
+      for (const value of [LONG_VISIT.address, LONG_VISIT.notes]) {
+        const valueBox = dialog.locator(".dashboard-detail-value").filter({ hasText: value });
+        await expect(valueBox).toHaveText(value);
+        expect(
+          await valueBox.evaluate((element) => element.scrollWidth <= element.clientWidth && element.scrollHeight <= element.clientHeight),
+          `${viewport.name}: the dialog renders "${value.slice(0, 24)}…" whole`,
+        ).toBe(true);
+      }
+      expect(await dialog.evaluate((element) => element.contains(document.activeElement)), `${viewport.name}: focus moves into the dialog`).toBe(true);
+
+      await page.keyboard.press("Escape");
+      await expect(dialog).toBeHidden();
+      await expect(trigger).toBeFocused();
+      expect(
+        await trigger.evaluate((element) => getComputedStyle(element).outlineStyle),
+        `${viewport.name}: focus returns visibly to the id`,
+      ).toBe("solid");
+      expect(page.url(), `${viewport.name}: opening the detail never moves limit/offset`).toBe(urlBefore);
+      const scroll = await readNoExternalScroll(page);
+      expect(scroll.htmlScrollHeight).toBeLessThanOrEqual(scroll.htmlClientHeight + MAX_DOCUMENT_SCROLL_DELTA_PX);
+    });
+  }
+
+  test("mobile row keeps its Ver action into the same full detail", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await setClinicSession(page, "populated");
+    await page.goto("/dashboard/logistica/visitas");
+
+    const trigger = page.getByRole("button", { name: `Ver detalle de la visita #${LONG_VISIT.id}`, exact: true });
+    await expect(trigger).toBeVisible({ timeout: 12_000 });
+    await expect(trigger).toHaveText("Ver");
+    await expect
+      .poll(() => trigger.evaluate((element) => Object.keys(element).some((key) => key.startsWith("__reactFiber$"))), { timeout: 15_000 })
+      .toBe(true);
+    const dialog = page.getByRole("dialog", { name: LONG_VISIT.clinic });
+    await expect(async () => {
+      await trigger.click();
+      await expect(dialog).toBeVisible({ timeout: 1_000 });
+    }).toPass({ timeout: 10_000 });
+    await expect(dialog.locator(".dashboard-detail-value").filter({ hasText: LONG_VISIT.address })).toHaveText(LONG_VISIT.address);
+    await expect(dialog.locator(".dashboard-detail-value").filter({ hasText: LONG_VISIT.notes })).toHaveText(LONG_VISIT.notes);
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+    await expect(trigger).toBeFocused();
+  });
+
   test("page-full heuristic enables next/previous navigation and keeps the offset contract in the URL", async ({
     page,
   }) => {

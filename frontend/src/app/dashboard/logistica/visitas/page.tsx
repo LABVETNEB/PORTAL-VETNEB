@@ -217,7 +217,9 @@ export default async function VisitasPage({
                 visits.map((visit) => (
                   <ContentListItem as="tr" key={visit.id}>
                     <TableCell className="font-mono text-xs text-muted-foreground">
-                      #{visit.id}
+                      {/* C25 F-T1: address and notes truncate here; the id opens
+                          the full record (the first column is never clipped). */}
+                      <FieldVisitDetailDialog visit={visit} trigger="identifier" />
                     </TableCell>
                     <TableCell className="font-medium text-sm">
                       {visit.clinicName ?? `Clínica #${visit.clinicId}`}
