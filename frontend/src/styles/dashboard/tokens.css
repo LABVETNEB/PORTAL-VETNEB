@@ -258,7 +258,11 @@
      never the module it belongs to. compact: dense single-line table row.
      regular: default list/table row. tall: two-line list row. card: a row that
      renders a block of its own (heading + detail lines). */
-  --dash-row-pitch-compact: 36px;
+  /* C05 (R13, authorized 2026-10-25): 36 -> 40px. The frozen A03 limits could
+     not survive it — rows of 40px need 4px more canvas per row than any constant
+     chrome recovery returns — so the 50 compact leaves that moved were
+     recaptured instead of being fitted. */
+  --dash-row-pitch-compact: 40px;
   --dash-row-pitch-regular: 44px;
   /* table: the design-system `TableCell` (`p-3.5`) around one line of text.
      The tier states the row's NATURAL height rather than forcing a smaller one:
@@ -343,11 +347,10 @@
 /* A `border-collapse: collapse` table shares one border between adjacent rows,
    so each row ADVANCES one pixel more than its own box: the cell resolves to
    the pitch, and the collapsed separator sits between rows exactly like a gap.
-   Measured on `admin-users-roles`: cell block-size 36px, row advance 37px,
-   uniform across every row and viewport. Declaring it as the gap term is what
-   makes `floor((canvas - reserved + gap) / (pitch + gap))` reproduce the frozen
-   A03 cardinalities (12 at 1440x900, 9 at 1366x768) instead of over-claiming a
-   row per canvas. */
+   C05 measurement (2026-10-25, compact 40px): the admin tables advance 40px
+   per row, so this term now over-reserves (L - 1)px per canvas.
+   That is the safe direction — it never over-claims a row — and dropping it
+   would move A03 again, so it stays until a change scoped to it. */
 .dashboard-app-shell [data-dashboard-canvas-reserve^="table-head"] {
   --dash-row-gap: 1px;
 }

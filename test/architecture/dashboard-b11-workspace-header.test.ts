@@ -563,11 +563,11 @@ test("C02 · consumers keep their adapters and capacity owners; C03+ and C05 geo
   const css = readDashboardCssSource();
   for (const frozen of [
     "--dash-pagination-h: clamp(2.25rem, 4vh, 2.75rem);",
-    "--dash-row-pitch-compact: 36px;",
+    "--dash-row-pitch-compact: 40px;",
     "--dash-row-pitch-regular: 44px;",
     "--dash-table-head-h: 32px;",
   ]) {
-    assert.ok(css.includes(frozen), `${frozen} stays frozen until C05/A07`);
+    assert.ok(css.includes(frozen), `${frozen} stays at its C05 value`);
   }
   assert.equal(/--dash-collection-pager|--dash-collection-row/.test(css), false, "C02 adds no geometry token");
 });
@@ -680,11 +680,11 @@ test("C03 · consumers keep the legacy adapters; C01/C02 owners, capacity and C0
   const css = readDashboardCssSource();
   for (const frozen of [
     "--dash-pagination-h: clamp(2.25rem, 4vh, 2.75rem);",
-    "--dash-row-pitch-compact: 36px;",
+    "--dash-row-pitch-compact: 40px;",
     "--dash-row-pitch-regular: 44px;",
     "--dash-table-head-h: 32px;",
   ]) {
-    assert.ok(css.includes(frozen), `${frozen} stays frozen until C05/A07`);
+    assert.ok(css.includes(frozen), `${frozen} stays at its C05 value`);
   }
   assert.equal(/--dash-collection-state|--dash-collection-row|data-collection-state/.test(css), false, "C03 adds no geometry token or state CSS");
 });
@@ -826,17 +826,17 @@ test("C06 · Auditoría adopts selection on its table by event ID without touchi
   assert.equal(read("frontend/src/app/dashboard/admin/AdminMobileOpsPager.tsx").includes("selection"), false, "the shared pager never hosts selection");
 });
 
-test("C06 · C05 stays unstarted around the selection owner; C04, C08 and C09 are fenced in their own blocks", () => {
+test("C06 · row geometry stays at its C05 value around the selection owner; C04, C08 and C09 are fenced in their own blocks", () => {
   // aria-sort is fenced to its C04 adopter, the menu primitives to their C08 owner and
   // BulkActionMenu to its C09 owner, each in its block below.
   const css = readDashboardCssSource();
   for (const frozen of [
-    "--dash-row-pitch-compact: 36px;",
+    "--dash-row-pitch-compact: 40px;",
     "--dash-row-pitch-regular: 44px;",
     "--dash-table-head-h: 32px;",
     "--dash-pagination-h: clamp(2.25rem, 4vh, 2.75rem);",
   ]) {
-    assert.ok(css.includes(frozen), `${frozen} stays frozen until C05/A07`);
+    assert.ok(css.includes(frozen), `${frozen} stays at its C05 value`);
   }
   assert.equal(/data-collection-selection|\[data-state="?selected|--dash-selection|--dash-collection-row/.test(css), false,
     "C06 adds no CSS: the row skin already styles data-state=selected");
@@ -1282,7 +1282,7 @@ test("C08 · the menu owner is presentation only: no data, navigation, selection
   const css = readDashboardCssSource();
   assert.equal(/data-action-menu|data-context-menu|role="?menu/.test(css), false, "C08 adds no CSS or geometry token");
   for (const frozen of [
-    "--dash-row-pitch-compact: 36px;",
+    "--dash-row-pitch-compact: 40px;",
     "--dash-row-pitch-regular: 44px;",
     "--dash-table-head-h: 32px;",
     "--dash-pagination-h: clamp(2.25rem, 4vh, 2.75rem);",
