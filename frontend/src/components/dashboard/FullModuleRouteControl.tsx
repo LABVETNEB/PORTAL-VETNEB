@@ -25,7 +25,7 @@ export function FullModuleRouteControl({
     <PublicRouteControl
       href={href}
       variant="bare"
-      className="inline-flex h-8 items-center gap-1.5 rounded-md border border-vetneb-teal/45 bg-vetneb-teal/10 px-2.5 text-xs font-semibold text-vetneb-teal transition-colors hover:bg-vetneb-teal/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 aria-busy:cursor-wait"
+      className="inline-flex h-8 items-center gap-1.5 rounded-md border border-vetneb-teal/45 bg-vetneb-teal/10 px-2.5 text-xs font-semibold text-accent-foreground transition-colors hover:bg-vetneb-teal/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 aria-busy:cursor-wait"
       aria-label={ariaLabel}
       aria-busy={isPending || undefined}
       onClick={(event) => {
