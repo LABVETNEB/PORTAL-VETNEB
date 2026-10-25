@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { Loader2 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { badgeVariants } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -28,7 +28,7 @@ import {
 import { getAdminSessions, revokeAdminSession } from "@/lib/api";
 import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
 import { DASHBOARD_PAGER_RESERVATION } from "@/components/dashboard/DashboardPager";
-import { formatDateTime } from "@/lib/utils";
+import { cn, formatDateTime } from "@/lib/utils";
 import type {
   AdminSessionStatus,
   AdminSessionSummary,
@@ -36,6 +36,7 @@ import type {
   AdminSessionsSnapshot,
 } from "@/types";
 import { AdminMobileOpsPager } from "./AdminMobileOpsPager";
+import { AdminSessionDetailDialog } from "./AdminSessionDetailDialog";
 
 // Server pagination is now sized by the measured rows container (Zero-Scroll
 // adaptive contract). PAGE_SIZE survives only as the pre-measurement fallback.
@@ -104,14 +105,18 @@ type SessionTypeBadgeProps = {
   sessionType: AdminSessionType;
 };
 
+// C25 F-T2: the badges render as <span> (same badge grammar) so they can sit
+// inside the detail trigger, whose content must be phrasing.
 function SessionTypeBadge({ sessionType }: SessionTypeBadgeProps) {
   return (
-    <Badge
-      variant={getSessionTypeVariant(sessionType)}
-      className="h-5 px-1.5 text-[11px] font-medium"
+    <span
+      className={cn(
+        badgeVariants({ variant: getSessionTypeVariant(sessionType) }),
+        "h-5 px-1.5 text-[11px] font-medium",
+      )}
     >
       {formatSessionType(sessionType)}
-    </Badge>
+    </span>
   );
 }
 
@@ -121,12 +126,14 @@ type SessionStatusBadgeProps = {
 
 function SessionStatusBadge({ status }: SessionStatusBadgeProps) {
   return (
-    <Badge
-      variant={getStatusVariant(status)}
-      className="h-5 px-1.5 text-[11px] font-medium"
+    <span
+      className={cn(
+        badgeVariants({ variant: getStatusVariant(status) }),
+        "h-5 px-1.5 text-[11px] font-medium",
+      )}
     >
       {formatStatus(status)}
-    </Badge>
+    </span>
   );
 }
 
@@ -438,12 +445,22 @@ export function AdminSessionsReadOnlyCard({
                         data-admin-sesiones-row="true"
                       >
                         <TableCell>
-                          <div className="flex items-center gap-1.5">
-                            <SessionTypeBadge sessionType={session.sessionType} />
-                            <span className="truncate font-mono text-[11px] text-muted-foreground">
+                          {/* C25 F-T2: id, actor and dates truncate (Creada/Expira
+                              hide below lg/xl); the Sesión cell opens the full record. */}
+                          <AdminSessionDetailDialog
+                            session={session}
+                            sessionTypeLabel={formatSessionType(session.sessionType)}
+                            actorTypeLabel={formatActorType(session.actorType)}
+                            statusLabel={formatStatus(session.status)}
+                            isCurrentAdminSession={isCurrentAdminSession}
+                            triggerText={`${formatSessionType(session.sessionType)} #${session.sessionId}`}
+                            triggerClassName="group flex w-full min-w-0 items-center gap-1.5 rounded-sm text-left"
+                          >
+                            <SessionTypeBadge sessionType={session.sessionType} />{" "}
+                            <span className="min-w-0 truncate font-mono text-[11px] text-primary underline-offset-2 group-hover:underline">
                               #{session.sessionId}
                             </span>
-                          </div>
+                          </AdminSessionDetailDialog>
                         </TableCell>
                         <TableCell>
                           <p className="truncate text-xs text-vetneb-ink/88">
@@ -668,13 +685,22 @@ export function AdminSessionsReadOnlyCard({
                   className="flex min-h-9 items-center gap-2 overflow-hidden px-2 py-0.5"
                 >
                   <div className="min-w-0 flex-1">
-                    <div className="flex min-w-0 items-center gap-1.5">
-                      <SessionTypeBadge sessionType={session.sessionType} />
-                      <SessionStatusBadge status={session.status} />
-                      <span className="min-w-0 truncate text-xs font-medium text-vetneb-ink">
+                    <AdminSessionDetailDialog
+                      session={session}
+                      sessionTypeLabel={formatSessionType(session.sessionType)}
+                      actorTypeLabel={formatActorType(session.actorType)}
+                      statusLabel={formatStatus(session.status)}
+                      isCurrentAdminSession={isCurrentAdminSession}
+                      triggerText={`${formatSessionType(session.sessionType)} ${formatStatus(session.status)} ${formatActorType(session.actorType)} · #${session.sessionId}`}
+                      // 320 px leaves 2 px above this line: offset 0 keeps the C25 ring inside the row.
+                      triggerClassName="group flex w-full min-w-0 items-center gap-1.5 rounded-sm text-left focus-visible:!outline-offset-0"
+                    >
+                      <SessionTypeBadge sessionType={session.sessionType} />{" "}
+                      <SessionStatusBadge status={session.status} />{" "}
+                      <span className="min-w-0 truncate text-xs font-medium text-primary underline-offset-2 group-hover:underline">
                         {formatActorType(session.actorType)} · #{session.sessionId}
                       </span>
-                    </div>
+                    </AdminSessionDetailDialog>
                     <p className="truncate text-[10px] text-muted-foreground">
                       Acceso {formatOptionalDate(session.lastAccess)}
                     </p>

@@ -1,5 +1,5 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page, type Route } from "@playwright/test";
+import { expect, test, type Locator, type Page, type Request, type Route } from "@playwright/test";
 import { waitForAdaptiveConvergence } from "../../helpers/dashboard-adaptive-limit-matrix";
 import { addAppCookies, sessionCookie } from "../../helpers/session";
 
@@ -38,12 +38,29 @@ async function fulfillWindow(route: Route, pathname: string, body: (limit: numbe
   await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, limit, offset, ...body(limit, offset) }) });
 }
 
-async function mockSessions(page: Page, rows = MOCK_SESSIONS) {
+// C25 F-T2: int4-range synthetic ids and the longest actor label, so the
+// compact table and the mobile line really truncate them.
+const LONG_SESSIONS = Array.from({ length: 30 }, (_, index) => ({
+  sessionType: (["admin", "particular", "clinic"] as const)[index % 3],
+  sessionId: 2_147_480_100 + index,
+  actorType: (["admin_user", "particular_token", "clinic_user"] as const)[index % 3],
+  actorId: 2_147_470_300 + index,
+  createdAt: "2026-06-15T09:00:00.000Z",
+  lastAccess: index % 5 === 4 ? null : "2026-06-19T18:45:00.000Z",
+  expiresAt: "2026-06-30T09:00:00.000Z",
+  status: index % 4 === 0 ? ("expired" as const) : ("active" as const),
+}));
+
+async function mockSessions(
+  page: Page,
+  rows: ReadonlyArray<(typeof MOCK_SESSIONS)[number] | (typeof LONG_SESSIONS)[number]> = MOCK_SESSIONS,
+  currentAdminSessionId = 8100,
+) {
   await page.route("**/api/admin/sessions**", (route) =>
     fulfillWindow(route, "/api/admin/sessions", (limit, offset) => ({
       sessions: rows.slice(offset, offset + limit),
       total: rows.length,
-      currentAdminSessionId: 8100,
+      currentAdminSessionId,
       checkedBy: { adminUserId: 41, username: "admin_operaciones" },
     })),
   );
@@ -171,6 +188,236 @@ test("C19 Sesiones keeps the current admin session unrevocable inside the C01 ta
   const empty = card.locator('[data-collection-state="empty"]').locator("visible=true");
   await expect(empty).toContainText("No hay sesiones para los filtros seleccionados.");
 });
+
+type LongSession = (typeof LONG_SESSIONS)[number];
+const SESSION_TYPE_LABEL = { admin: "Admin", clinic: "Clínica", particular: "Particular" } as const;
+const ACTOR_TYPE_LABEL = { admin_user: "Admin", clinic_user: "Clínica", particular_token: "Token particular" } as const;
+
+async function hydrated(locator: Locator) {
+  await expect
+    .poll(() => locator.evaluate((element) => Object.keys(element).some((key) => key.startsWith("__reactFiber$"))), { timeout: 15_000 })
+    .toBe(true);
+}
+
+// Opens by keyboard, checks every field whole and unclipped, closes with
+// Escape and returns focus to the trigger.
+async function discloseSession(page: Page, trigger: Locator, session: LongSession, key: "Enter" | " ", label: string) {
+  await hydrated(trigger);
+  const dialog = page.getByRole("dialog", { name: `Sesión ${SESSION_TYPE_LABEL[session.sessionType]} #${session.sessionId}`, exact: true });
+  await expect(async () => {
+    await trigger.focus();
+    await page.keyboard.press(key);
+    await expect(dialog).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 10_000 });
+  expect(await dialog.evaluate((element) => element.contains(document.activeElement)), `${label}: focus moves into the dialog`).toBe(true);
+
+  const pane = dialog.locator('[data-details-pane="true"]');
+  const item = (id: string) => pane.locator(`[data-details-metadata-item="${id}"] dd`);
+  await expect(item("session-type")).toHaveText(SESSION_TYPE_LABEL[session.sessionType]);
+  await expect(item("session-id")).toHaveText(`#${session.sessionId}`);
+  await expect(item("actor-type")).toHaveText(ACTOR_TYPE_LABEL[session.actorType]);
+  await expect(item("actor-id")).toHaveText(`ID ${session.actorId}`);
+  await expect(item("status")).toHaveText(session.status === "active" ? "Activa" : "Expirada");
+  for (const [id, value] of [["created", session.createdAt], ["last-access", session.lastAccess], ["expires", session.expiresAt]] as const) {
+    if (value === null) {
+      await expect(item(id)).toHaveAttribute("data-details-metadata-missing", "true");
+      await expect(item(id)).toContainText("Sin dato");
+    } else {
+      await expect(item(id)).not.toHaveAttribute("data-details-metadata-missing", "true");
+      await expect(item(id)).toHaveText(/\d/);
+    }
+  }
+  await expect(dialog.locator("button, select, input").filter({ hasText: /Revocar/ })).toHaveCount(0);
+
+  const geometry = await dialog.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    const values = [...element.querySelectorAll<HTMLElement>(".dashboard-detail-value")];
+    const scrollers = [...element.querySelectorAll<HTMLElement>("*")].filter((node) => {
+      const overflowY = getComputedStyle(node).overflowY;
+      return (overflowY === "auto" || overflowY === "scroll") && node.scrollHeight > node.clientHeight + 1;
+    });
+    return {
+      inViewport: rect.left >= 0 && rect.top >= 0 && rect.right <= innerWidth && rect.bottom <= innerHeight,
+      values: values.length,
+      clipped: values.filter((node) => node.scrollWidth > node.clientWidth + 1 || node.scrollHeight > node.clientHeight + 1).length,
+      selectable: values.every((node) => getComputedStyle(node).userSelect !== "none"),
+      scrollers: scrollers.length,
+      bodyIsOwner: scrollers.every((node) => node.dataset.moduleDialogBody === "true"),
+    };
+  });
+  expect(geometry, `${label}: the dialog shows every value whole`).toEqual({ inViewport: true, values: 8, clipped: 0, selectable: true, scrollers: geometry.scrollers, bodyIsOwner: true });
+  expect(geometry.scrollers, `${label}: at most one internal scroll owner`).toBeLessThanOrEqual(1);
+
+  // No session or actor id lands in a data-* or title attribute.
+  const leaks = await page.evaluate((ids) => {
+    const found: string[] = [];
+    for (const node of document.querySelectorAll("*")) {
+      for (const attribute of node.attributes) {
+        const watched = attribute.name === "title" || attribute.name.startsWith("data-");
+        if (watched && ids.some((id) => attribute.value.includes(id))) found.push(`${node.tagName}[${attribute.name}]`);
+      }
+    }
+    return found;
+  }, [String(session.sessionId), String(session.actorId)]);
+  expect(leaks, `${label}: no id in a data-* or title attribute`).toEqual([]);
+
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+  expect(await trigger.evaluate((element) => getComputedStyle(element).outlineStyle), `${label}: focus returns visibly`).toBe("solid");
+}
+
+function watchSessionTraffic(page: Page) {
+  const traffic = { reads: [] as URLSearchParams[], writes: [] as string[], confirms: 0 };
+  page.on("request", (request) => {
+    const url = new URL(request.url());
+    if (!url.pathname.startsWith("/api/admin/sessions")) return;
+    if (request.method() === "GET") traffic.reads.push(url.searchParams);
+    else traffic.writes.push(`${request.method()} ${url.pathname}`);
+  });
+  page.on("dialog", (dialog) => {
+    traffic.confirms += 1;
+    void dialog.dismiss();
+  });
+  return traffic;
+}
+
+const isSessionsPage2 = (request: Request) => {
+  const url = new URL(request.url());
+  return request.method() === "GET" && url.pathname === "/api/admin/sessions" && url.searchParams.get("status") === "active" && url.searchParams.get("offset") !== "0";
+};
+
+for (const viewport of [
+  { name: "desktop-1366x768", width: 1366, height: 768 },
+  { name: "desktop-1024x768", width: 1024, height: 768 },
+  { name: "tablet-834x1194", width: 834, height: 1194 },
+  { name: "tablet-768x1024", width: 768, height: 1024 },
+] as const) {
+  test(`C25 F-T2 Sesiones desktop id discloses the full session by keyboard, keeping revocation, filters and paging at ${viewport.name}`, async ({ page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    const [current] = LONG_SESSIONS;
+    await mockSessions(page, LONG_SESSIONS, current.sessionId);
+    const traffic = watchSessionTraffic(page);
+    await page.goto("/dashboard/admin?module=admin-sessions");
+    const card = page.locator(sessions);
+    const table = card.getByRole("table", { name: "Tabla de sesiones administrativas" });
+    const rows = table.locator('tbody[data-content-list="true"] > tr[data-admin-sesiones-row="true"]');
+    await expect(rows.first()).toBeVisible();
+    await expect(table.locator("thead th")).toHaveCount(7);
+
+    // Current admin session: its detail opens, its revocation stays locked.
+    const sessionTrigger = (session: LongSession) =>
+      rows.getByRole("button", { name: `${SESSION_TYPE_LABEL[session.sessionType]} #${session.sessionId}, ver detalle de la sesión`, exact: true });
+    const currentTrigger = sessionTrigger(current);
+    await expect(currentTrigger).toContainText(`#${current.sessionId}`);
+    // The id truncates up to 1024 px (0 px wide after a "Particular" badge at
+    // 768) and Expira/Creada hide below 1280/1024; at 1366 nothing is hidden.
+    if (viewport.width <= 1024) {
+      const ids = await rows.locator("td:first-child button > span:last-child").evaluateAll((nodes) => nodes.map((node) => node.scrollWidth > node.clientWidth));
+      expect(ids.every(Boolean), `${viewport.name}: the row truncates every id`).toBe(true);
+    }
+    const hiddenColumns = await table.locator("thead th").evaluateAll((cells) => cells.filter((cell) => getComputedStyle(cell).display === "none").length);
+    expect(hiddenColumns, `${viewport.name}: Creada/Expira hidden below lg/xl`).toBe(viewport.width < 1024 ? 2 : viewport.width < 1280 ? 1 : 0);
+    expect(await rows.locator("[title]").count(), `${viewport.name}: no hover-only title`).toBe(0);
+    await discloseSession(page, currentTrigger, current, "Enter", `${viewport.name} current`);
+    await expect(card.getByRole("dialog")).toHaveCount(0);
+    await expect(rows.first().getByRole("button", { name: `Sesión actual: Admin #${current.sessionId}, no se puede revocar` })).toBeDisabled();
+
+    // Filter + page 2, then the detail never re-requests or moves the window.
+    await card.getByLabel("Estado").locator("visible=true").selectOption("active");
+    await expect.poll(() => traffic.reads.some((params) => params.get("status") === "active" && params.get("offset") === "0")).toBe(true);
+    await expect(card.getByRole("button", { name: "Actualizar" }).locator("visible=true")).toBeEnabled();
+    const next = page.waitForRequest(isSessionsPage2);
+    await card.getByRole("button", { name: "Siguiente" }).locator("visible=true").click();
+    const limit = Number(new URL((await next).url()).searchParams.get("limit"));
+    const target = LONG_SESSIONS[limit];
+    const trigger = sessionTrigger(target);
+    await expect(trigger).toBeVisible();
+    await expect(card.getByRole("button", { name: "Actualizar" }).locator("visible=true")).toBeEnabled();
+    const readsBefore = traffic.reads.length;
+
+    await discloseSession(page, trigger, target, " ", `${viewport.name} page 2`);
+    expect(traffic.reads.length, `${viewport.name}: opening the detail fetches nothing`).toBe(readsBefore);
+    expect(traffic.writes, `${viewport.name}: no revocation was sent`).toEqual([]);
+    expect(traffic.confirms, `${viewport.name}: no revocation confirm was raised`).toBe(0);
+    await expect(card.getByLabel("Estado").locator("visible=true")).toHaveValue("active");
+    await expect(rows.first().getByRole("button", { name: `Revocar sesión ${SESSION_TYPE_LABEL[target.sessionType]} #${target.sessionId}` })).toBeEnabled();
+    expect(await documentOverflow(page)).toEqual({ x: 0, y: 0 });
+    expect((await new AxeBuilder({ page }).include(sessions).analyze()).violations.filter((violation) => ["critical", "serious"].includes(violation.impact ?? ""))).toEqual([]);
+  });
+}
+
+for (const viewport of [
+  { name: "mobile-390x844", width: 390, height: 844 },
+  { name: "mobile-360x800", width: 360, height: 800 },
+  { name: "mobile-320x568", width: 320, height: 568 },
+] as const) {
+  test(`C25 F-T2 Sesiones mobile summary line discloses the full session, keeping revocation, filters and paging at ${viewport.name}`, async ({ page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    const [current] = LONG_SESSIONS;
+    await mockSessions(page, LONG_SESSIONS, current.sessionId);
+    const traffic = watchSessionTraffic(page);
+    await page.goto("/dashboard/admin?module=admin-sessions");
+    const mobile = page.locator('[data-admin-mobile-ops-module="sessions"]');
+    const items = mobile.locator('[data-content-list="true"] > article[data-admin-sesiones-row="true"]');
+    await expect(items.first()).toBeVisible({ timeout: 15_000 });
+    await waitForAdaptiveConvergence(page, '[data-admin-mobile-ops-module="sessions"] [data-dashboard-adaptive-rows-canvas="true"]', `F-T2 sessions ${viewport.name}`);
+    const pitch = await items.first().evaluate((item) => item.getBoundingClientRect().height);
+
+    const sessionTrigger = (session: LongSession) =>
+      items.getByRole("button", {
+        name: `${SESSION_TYPE_LABEL[session.sessionType]} ${session.status === "active" ? "Activa" : "Expirada"} ${ACTOR_TYPE_LABEL[session.actorType]} · #${session.sessionId}, ver detalle de la sesión`,
+        exact: true,
+      });
+    const currentTrigger = sessionTrigger(current);
+    await expect(currentTrigger).toContainText(`${ACTOR_TYPE_LABEL[current.actorType]} · #${current.sessionId}`);
+    await discloseSession(page, currentTrigger, current, "Enter", `${viewport.name} current`);
+    await expect(items.first().getByRole("button", { name: `Sesión actual: Admin #${current.sessionId}, no se puede revocar` })).toBeDisabled();
+
+    await mobile.getByLabel("Estado").selectOption("active");
+    await expect.poll(() => traffic.reads.some((params) => params.get("status") === "active" && params.get("offset") === "0")).toBe(true);
+    await expect(mobile.getByRole("button", { name: "Actualizar" })).toBeEnabled();
+    const next = page.waitForRequest(isSessionsPage2);
+    await mobile.getByRole("navigation", { name: "Paginación de sesiones" }).getByRole("button", { name: "Siguiente" }).click();
+    const limit = Number(new URL((await next).url()).searchParams.get("limit"));
+    const target = LONG_SESSIONS[limit];
+    const trigger = sessionTrigger(target);
+    await expect(trigger).toBeVisible();
+    await expect(mobile.getByRole("button", { name: "Actualizar" })).toBeEnabled();
+    const longest = items.filter({ hasText: "Token particular" }).first().locator("button > span:last-child");
+    expect(await longest.evaluate((element) => element.scrollWidth > element.clientWidth), `${viewport.name}: the mobile line truncates`).toBe(true);
+    expect(await items.locator("[title]").count(), `${viewport.name}: no hover-only title`).toBe(0);
+    const readsBefore = traffic.reads.length;
+
+    // Touch-sized activation by tap, then Space by keyboard.
+    await hydrated(trigger);
+    const dialog = page.getByRole("dialog", { name: `Sesión ${SESSION_TYPE_LABEL[target.sessionType]} #${target.sessionId}`, exact: true });
+    await expect(async () => {
+      await trigger.click();
+      await expect(dialog).toBeVisible({ timeout: 1_000 });
+    }).toPass({ timeout: 10_000 });
+    await page.keyboard.press("Escape");
+    await expect(dialog).toHaveCount(0);
+    await discloseSession(page, trigger, target, " ", `${viewport.name} page 2`);
+    const ring = await trigger.evaluate((element) => {
+      const button = element.getBoundingClientRect();
+      const row = element.closest("article")!.getBoundingClientRect();
+      const reach = parseFloat(getComputedStyle(element).outlineWidth) + parseFloat(getComputedStyle(element).outlineOffset);
+      return button.top - reach >= row.top && button.bottom + reach <= row.bottom && button.left - reach >= row.left;
+    });
+    expect(ring, `${viewport.name}: the focus ring stays inside the clipped row`).toBe(true);
+
+    expect(traffic.reads.length, `${viewport.name}: opening the detail fetches nothing`).toBe(readsBefore);
+    expect(traffic.writes, `${viewport.name}: no revocation was sent`).toEqual([]);
+    expect(traffic.confirms, `${viewport.name}: no revocation confirm was raised`).toBe(0);
+    await expect(mobile.getByLabel("Estado")).toHaveValue("active");
+    await expect(mobile.getByRole("navigation", { name: "Paginación de sesiones" }).getByText(/Pág\. 2 \/ \d+/)).toBeVisible();
+    expect(await items.first().evaluate((item) => item.getBoundingClientRect().height), `${viewport.name}: the row pitch is unchanged`).toBe(pitch);
+    expect(await documentOverflow(page)).toEqual({ x: 0, y: 0 });
+    // G11-e: the visible identity line (badges included) is part of each name.
+    expect((await new AxeBuilder({ page }).include('[data-admin-mobile-ops-module="sessions"]').analyze()).violations.filter((violation) => ["critical", "serious"].includes(violation.impact ?? ""))).toEqual([]);
+  });
+}
 
 test("C19 Intentos fallidos renders C01 rows and the C13 detail with missing values announced", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
