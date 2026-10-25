@@ -159,6 +159,13 @@ const TERMINAL_REGIONS: readonly TerminalRegion[] = [
     contractualValues: ["selectedVisit.clinicName", "selectedVisit.address"],
   },
   {
+    label: "CLINIC · logistics full-route visit detail dialog (Visitas desktop + mobile)",
+    file: "frontend/src/app/dashboard/logistica/FieldVisitDetailDialog.tsx",
+    start: '<dl className="grid grid-cols-1 gap-x-4 gap-y-3',
+    end: "</dl>",
+    contractualValues: ["visit.clinicName", "visit.address", "visit.notes", "visit.scheduledAt", "visit.completedAt"],
+  },
+  {
     label: "CLINIC · informes master-detail canvas (desktop panel + mobile dialog)",
     file: "frontend/src/app/dashboard/informes/InformesReportsList.tsx",
     start: "function renderReportDetailCanvas(",
@@ -370,6 +377,41 @@ test("PR-TRUNC · collection surfaces that legitimately truncate still expose th
     false,
     "a `title` attribute must not be reintroduced as the full-value mechanism: it is hover-only and not an accessible disclosure",
   );
+
+  // C25 F-T1 · Visitas full route: the desktop table truncates address and
+  // notes (pitch-locked, `max-w-*`) and its right-hand columns are clipped by
+  // the bounded canvas at 768-1024 px, so the full record opens from the row id
+  // in the first column; the mobile row keeps its "Ver" action. Never a `title`.
+  const visitas = read("frontend/src/app/dashboard/logistica/visitas/page.tsx");
+  const desktopTrigger = '<FieldVisitDetailDialog visit={visit} trigger="identifier" />';
+  assert.ok(
+    visitas.indexOf(desktopTrigger) !== -1 &&
+      visitas.indexOf(desktopTrigger) === visitas.lastIndexOf(desktopTrigger),
+    "the Visitas desktop row must open FieldVisitDetailDialog from its id cell, exactly once",
+  );
+  assert.ok(
+    /<TableCell className="font-mono text-xs text-muted-foreground">[\s\S]{0,240}trigger="identifier"/.test(visitas),
+    "the Visitas detail trigger must live in the first (id) cell, the only one never clipped",
+  );
+  assert.ok(
+    visitas.includes("<FieldVisitDetailDialog visit={visit} />"),
+    "the Visitas mobile row must keep its own detail action",
+  );
+  for (const truncated of ["max-w-[180px] truncate", "max-w-[150px] truncate"]) {
+    assert.ok(visitas.includes(truncated), `the Visitas row keeps its compact \`${truncated}\` cell`);
+  }
+  assert.equal(
+    /title=\{visit\./.test(visitas),
+    false,
+    "a `title` must not become the full-value mechanism of the Visitas row",
+  );
+  const visitDialog = read("frontend/src/app/dashboard/logistica/FieldVisitDetailDialog.tsx");
+  for (const value of ["{visit.address ?? \"—\"}", "{visit.notes ?? \"—\"}"]) {
+    assert.ok(
+      /<dd className="dashboard-detail-value[^"]*">\s*$/.test(visitDialog.slice(0, visitDialog.indexOf(value))),
+      `FieldVisitDetailDialog must render ${value} whole as the content of a \`.dashboard-detail-value\``,
+    );
+  }
 
   // Users/roles: the finding is CLOSED the same way. The row keeps truncating
   // `username` and the clinic name (the table is pitch-locked, so wrapping there

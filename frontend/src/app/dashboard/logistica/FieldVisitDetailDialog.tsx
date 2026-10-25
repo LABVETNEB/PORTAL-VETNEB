@@ -9,31 +9,53 @@ import { formatDateTime } from "@/lib/utils";
 
 type FieldVisitDetailDialogProps = {
   visit: FieldVisit;
+  /**
+   * `action`: the "Ver" button of the mobile canonical row. `identifier`: the
+   * visit `#id` itself, for the desktop table, whose first column is the only
+   * one never clipped by the bounded canvas; it keeps the cell's own font so
+   * the column geometry does not move.
+   */
+  trigger?: "action" | "identifier";
 };
 
 /**
  * Detail destination for field-visit fields that do not fit the compact
- * canonical row (id, full schedule range, address, notes). Every field is
- * still visible on the compact row's dense reading, or here — none is
- * dropped.
+ * canonical row or the desktop table (id, full schedule range, address,
+ * notes). Every field is still visible on the compact row's dense reading, or
+ * here — none is dropped.
  */
-export function FieldVisitDetailDialog({ visit }: FieldVisitDetailDialogProps) {
+export function FieldVisitDetailDialog({
+  visit,
+  trigger = "action",
+}: FieldVisitDetailDialogProps) {
+  const triggerLabel = `Ver detalle de la visita #${visit.id}`;
+
   return (
     <ModuleDialog
       title={visit.clinicName ?? `Clínica #${visit.clinicId}`}
       description={`Visita #${visit.id}`}
       scrollableBody
       trigger={
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-7 gap-1 px-2 text-xs"
-          aria-label={`Ver detalle de la visita #${visit.id}`}
-        >
-          <Eye className="h-3.5 w-3.5" aria-hidden="true" />
-          Ver
-        </Button>
+        trigger === "identifier" ? (
+          <button
+            type="button"
+            className="rounded-sm text-left text-primary underline-offset-2 hover:underline"
+            aria-label={triggerLabel}
+          >
+            #{visit.id}
+          </button>
+        ) : (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7 gap-1 px-2 text-xs"
+            aria-label={triggerLabel}
+          >
+            <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+            Ver
+          </Button>
+        )
       }
     >
       <dl className="grid grid-cols-1 gap-x-4 gap-y-3 text-[13px] sm:grid-cols-2">
