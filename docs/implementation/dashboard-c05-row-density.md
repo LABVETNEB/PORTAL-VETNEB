@@ -61,7 +61,10 @@ Decisión: alternativa B (R13), autorizada.
   - NO absorbido: `admin-particular-tokens::{w375x812, w412x915}` difieren sólo en `secondPageFixtureIds`/`provenance`. El control sobre la base observa los mismos valores, así que no tienen relación con C05; ya figuraban como no absorbidos desde C23b.
 - **A02.** Control sobre la base: PASSED 21/21. Dos capturas locales `VETNEB_A02_GEOMETRY_CAPTURE=1`: 273/273 registros idénticos. 96 campos fuera de tolerancia (`regions.collection.height`, `derived.collectionCanvasHeight`, que miden la tabla: cabecera + filas) y 144 dentro de tolerancia justo en el borde de 4 px (`derived.primaryBlockHeight` 36/37→40, `derived.primaryContentHeight`, `regions.primaryContent.height`), todos en las mismas 6 superficies × 8 viewports.
   - NO absorbido: anchos de `admin-clinicas` a 768 × 1024 (887.63→887.52, 0.11 px).
-- **Linux.** PENDIENTE: requiere la captura real de `E2E Completeness` sobre el head publicado; `platformObservations.linux` y `platformRecords.linux` no se tocaron.
+- **Linux.** Fuente: `E2E Completeness` run 40177111047 (attempt 1, job 121120075238) sobre el head `d4c602b38e9b657edcd2707ad06deb00c4bc5779`, chromium/linux, runner productivo (`next start`). Falló en exactamente 7 pruebas: A03 `matrix integrity` y A02 en las 6 superficies admin de arriba; 1936 pasaron.
+  - A03: artifact 12593791385 (`e2e-completeness-playwright-1`), los 15 archivos por módulo de `test-results/a03-matrix/`; identidad tomada del nombre de archivo porque el sanitizer redacta `admin-` en `moduleId`/`leafKey`. 234/234 hojas comparadas: divergen en campos de contrato las mismas 50 hojas `compact` (222 campos, ninguno redactado) y se copiaron sólo esos campos. Las otras 71 divergencias son redacciones del sanitizer (endpoint de audit-log, query/provenance de logística, ids de maintenance) o los ids de stub de tokens excluidos desde C23b, con `limit`/`offset`/conteos idénticos: no absorbidas. Los 50 `limit` Linux coinciden con los Win32 hoja por hoja.
+  - A02: del log del run, 96 campos fuera de tolerancia (`regions.collection.height`, `derived.collectionCanvasHeight` en las 6 superficies × 8 viewports), idénticos en los 3 intentos y con `expected` igual al valor Linux versionado. Los campos de primera fila que Win32 realineó dentro de tolerancia no aparecen en una comparación Linux que pasa, así que conservan su valor Linux congelado en lugar de inferirse.
+  - Nada se copió de Win32.
 
 ## Validaciones (Win32 local, 2026-10-25)
 
@@ -77,7 +80,7 @@ Decisión: alternativa B (R13), autorizada.
 | `pnpm --dir frontend lint` / `typecheck` / `build` | PASSED | exit 0 |
 | `pnpm security:public-surface` | PASSED | exit 0 |
 | `pnpm validate:local` | FAILED (ambiental) | 5434/5436; único fallo `e2e-global-03b` (sin `DATABASE_URL`); `typecheck` y `typecheck:test` pasaron; `pnpm build` aparte: PASSED |
-| A02/A03 Linux | BLOCKED | requiere la captura real de CI sobre el head publicado |
+| A02/A03 Linux | realineado, revalidación BLOCKED | overlay desde el run 40177111047; la revalidación exige un nuevo `E2E Completeness` sobre el head que publique este cambio |
 
 Fallos ajenos a C05, aislados:
 
@@ -89,10 +92,10 @@ Fallos ajenos a C05, aislados:
 ## Riesgo residual
 
 - Densidad: una a tres filas menos por página en escritorio y una o dos en Precios móvil; más paginación.
-- `E2E Completeness` (no required) fallará en A02/A03 Linux hasta el commit de realineación Linux.
+- Linux: `derived.primaryBlockHeight` y las alturas de primera fila conservan el valor de 36 px en `platformRecords.linux` (pasan con delta 4 = tolerancia); un futuro cambio que las mueva más de 4 px las verá fallar.
 - El término de gap de 1 px sobrerreserva (L − 1) px por canvas en las tablas `compact`, que avanzan 40 px exactos. Es la dirección segura y no se tocó.
 - Preexistente: en `admin-report-upload` a 768 y 834 px hay filas de 42.66 px (una fila de tabla puede crecer por encima de su celda); entran en el canvas.
 
 ## Estado final
 
-PATCH_READY local, Win32. Pendientes: commit/push/PR ([MANUAL-NICO] o delegación explícita), overlay Linux desde CI y el PR docs-only del documento rector.
+PR #1923. Win32 y Linux realineados. Pendientes: publicar el overlay Linux y revalidarlo con `E2E Completeness` sobre el nuevo head, y el PR docs-only del documento rector.
