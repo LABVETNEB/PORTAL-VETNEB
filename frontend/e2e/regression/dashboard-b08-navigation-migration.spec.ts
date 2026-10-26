@@ -68,6 +68,9 @@ import { MAX_DOCUMENT_SCROLL_DELTA_PX } from "../helpers/zero-scroll-contract";
 // exactly the invariants a lateral band can break.
 // ─────────────────────────────────────────────────────────────────────────────
 
+const isProductionRunner =
+  process.env.CI === "true" && process.env.VETNEB_E2E_PRODUCTION_RUNNER === "1";
+
 const DRAWER_SELECTOR = "[data-dashboard-navigation-drawer]";
 const RAIL_SELECTOR = "[data-dashboard-navigation-rail]";
 const FRAME_SELECTOR = "[data-dashboard-navigation-frame]";
@@ -817,6 +820,98 @@ test.describe("B08 · admin module navigation", () => {
       ).toHaveCount(0);
     });
   }
+
+  // The band is a deferred Suspense segment and React 19.2 batches its reveal
+  // (`$RV`), so the hydrated app bar can navigate before the band hydrates. It
+  // then hydrated with the new module over the server markup and kept the old
+  // `aria-current` for good (C23a flake, E2E Completeness run 40312095786).
+  // Holding the band's batched reveal until Enter makes that window deterministic.
+  test("a band revealed after the app bar navigated still moves aria-current", async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+    await prepareRole(page, "admin");
+    await page.setViewportSize({ width: 1024, height: 768 });
+
+    // `next dev` does not hydrate a document served through `route.fulfill`
+    // and hydrates its shell only after every reveal, so the window exists
+    // only in the production bundle (validate-frontend, E2E Completeness).
+    // Under `next dev` the same navigation contract runs on the real document.
+    const holdReveal = isProductionRunner;
+    let revealHeld = false;
+    if (holdReveal) {
+      await page.route(/\/dashboard\/admin\?module=admin-clinics$/, async (route) => {
+        if (route.request().resourceType() !== "document") return route.fallback();
+        const response = await route.fetch();
+        const body = (await response.text()).replace(
+          /(\$RV=function\(a\)\{[\s\S]*?a\.length=0\};)/,
+          (reveal) => {
+            revealHeld = true;
+            // Only the band's segment is held; every other segment reveals on time.
+            return `${reveal}$RV0=$RV;$RV=function(a){var k=[],h=[];for(var i=0;i<a.length;i+=2){(a[i+1].querySelector("${RAIL_SELECTOR}")?h:k).push(a[i],a[i+1])}a.length=0;k.length&&$RV0(k);h.length&&(window.__b08HeldReveals=window.__b08HeldReveals||[]).push(function(){$RV0(h)})};`;
+          },
+        );
+        await route.fulfill({ response, body });
+      });
+    }
+
+    await page.goto("/dashboard/admin?module=admin-clinics");
+    const search = page
+      .locator('[data-workspace-app-bar-search-input="true"]')
+      .filter({ visible: true });
+    await expect
+      .poll(
+        () => search.evaluate((el) => Object.keys(el).some((key) => key.startsWith("__reactFiber$"))),
+        { timeout: 15_000 },
+      )
+      .toBe(true);
+
+    if (holdReveal) {
+      expect(revealHeld, "the document carries React's batched reveal").toBe(true);
+      await expect
+        .poll(
+          () => page.evaluate(() => (window as unknown as { __b08HeldReveals?: unknown[] }).__b08HeldReveals?.length ?? 0),
+          { message: "the band's reveal is held", timeout: 15_000 },
+        )
+        .toBeGreaterThan(0);
+      await expect(
+        paintedBand(page, RAIL_SELECTOR).locator("[aria-current='page']"),
+        "precondition: the hydrated app bar sits over the unrevealed band fallback",
+      ).toHaveCount(0);
+      await search.evaluate((input) => {
+        const scope = window as unknown as { __b08HeldReveals?: (() => void)[] };
+        input.addEventListener(
+          "keydown",
+          (event) => {
+            if ((event as KeyboardEvent).key !== "Enter") return;
+            setTimeout(() => {
+              for (const reveal of (scope.__b08HeldReveals ?? []).splice(0)) reveal();
+            }, 0);
+          },
+          { once: true, capture: true },
+        );
+      });
+    } else {
+      await expectActiveModule(page, "admin-clinics", "rail", "dev: band before the search");
+    }
+
+    await search.fill("audit");
+    await page.keyboard.press("Enter");
+
+    await expect(page, "Enter navigates to the searched module").toHaveURL(
+      /\/dashboard\/admin\?module=audit-log$/,
+      { timeout: 20_000 },
+    );
+    await expect(
+      page.locator(workspaceReady("audit-log")),
+      "the stage follows the navigation",
+    ).toBeVisible({ timeout: 25_000 });
+    await expectActiveModule(page, "audit-log", "rail", "late-revealed band");
+    await expect(
+      bandItem(page, "admin-clinics", "rail"),
+      "the server's current item does not keep the active class",
+    ).not.toHaveClass(/dashboard-navigation-item-active/);
+  });
 
   test("a legacy ?hub=1 lands on Resumen: Inicio is retired and every module stays reachable", async ({
     page,

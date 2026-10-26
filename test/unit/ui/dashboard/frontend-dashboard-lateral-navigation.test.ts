@@ -234,6 +234,50 @@ test("both surfaces notify their controller before route navigation", () => {
   }
 });
 
+// The frame holds exactly one piece of state: the generation that rebuilds the
+// band's nodes when hydration left server attributes the props disagree with
+// (C23a late reveal). It is the band's key and nothing else; any other state,
+// effect, reducer, ref or store is a second source of the current item.
+const GENERATION_STATE = "const [generation, setGeneration] = useState(0);";
+const GENERATION_KEY = "<Fragment key={generation}>";
+const GENERATION_REBUILD = "if (staleBand(surface, activeModule)) setGeneration((value) => value + 1);";
+
+function bandStateViolations(frame: string): string[] {
+  const count = (pattern: RegExp) => frame.match(pattern)?.length ?? 0;
+  const violations: string[] = [];
+  if (/\buse(Effect|Reducer|Ref|SyncExternalStore)\b/.test(frame)) {
+    violations.push("passive effect, reducer, ref or store");
+  }
+  if (count(/\buseState\b/g) !== 2 || !frame.includes(GENERATION_STATE)) {
+    violations.push("state other than the rebuild generation");
+  }
+  if (count(/\bgeneration\b/g) !== 2 || !frame.includes(GENERATION_KEY)) {
+    violations.push("generation read for anything but the band's key");
+  }
+  if (count(/\bsetGeneration\b/g) !== 2 || !frame.includes(GENERATION_REBUILD)) {
+    violations.push("generation moved by anything but a stale hydrated band");
+  }
+  if (count(/\buseLayoutEffect\b/g) !== 2) violations.push("more than the one rebuild check");
+  return violations;
+}
+
+test("the band rebuild generation is the frame's only state, and a second source of truth fails", () => {
+  const frame = read(FRAME_PATH);
+  const mutations: ReadonlyArray<[string, string]> = [
+    ["private intent", frame.replace(GENERATION_STATE, `${GENERATION_STATE}\n  const [pending, setPending] = useState(activeModule);`)],
+    ["state seeded from the module", frame.replace("useState(0);", "useState(activeModule === null ? 0 : 1);")],
+    ["commit-driven reset", frame.replace(GENERATION_REBUILD, `${GENERATION_REBUILD}\n    useEffect(() => setGeneration(0), [activeModule]);`)],
+    ["reducer", frame.replace(GENERATION_STATE, `${GENERATION_STATE}\n  useReducer((value: number) => value + 1, 0);`)],
+    ["generation as the current item", frame.replace("<NavigationRail {...props} />", "<NavigationRail {...props} activeModule={generation ? null : activeModule} />")],
+    ["unconditional rebuild", frame.replace(GENERATION_REBUILD, "setGeneration((value) => value + 1);")],
+  ];
+
+  for (const [label, mutated] of mutations) {
+    assert.notEqual(mutated, frame, `${label}: the mutation applies`);
+    assert.notDeepEqual(bandStateViolations(mutated), [], `${label} must fail the frame contract`);
+  }
+});
+
 test("the band renders the stage owner's module, never its own reading of the commit", () => {
   // DASHBOARD_STAGE_MODULE: the band used to keep a private copy of the pending
   // activation and drop it on every URL commit. A `?module=` navigate action
@@ -252,9 +296,9 @@ test("the band renders the stage owner's module, never its own reading of the co
       "the band is chrome: it neither listens to nor mirrors the activation bus, the owner does",
     );
   }
-  assert.equal(
-    /\buse(State|Effect)\b/.test(frame),
-    false,
+  assert.deepEqual(
+    bandStateViolations(frame),
+    [],
     "no private intent and no commit-driven reset: the current item is the owner's, not the band's",
   );
   assert.equal(
