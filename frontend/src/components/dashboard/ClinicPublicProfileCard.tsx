@@ -873,7 +873,7 @@ export function ClinicPublicProfileCard() {
         PASSWORD_TAB_ID,
         <>
           {/* C25 F-T6: below 768px the chip may still truncate this label
-              (<375px) and the panel's own heading is the generic security
+              (narrower than 412px) and the panel's own heading is the generic security
               title, so the section's full name paints here; the tab already
               carries it as its accessible name. */}
           <p

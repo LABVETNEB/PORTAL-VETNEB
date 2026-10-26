@@ -58,7 +58,9 @@ const CHIP_CLASS =
  * while short ones keep spare room. Here each chip starts at its own label
  * width and shares the remainder; the short chips never shrink and the
  * trailing chip absorbs any deficit, so only the band's last (longest) label
- * can still truncate, and only below ~375 px. Height is unchanged. No chip
+ * can still truncate, and only when the labels' natural widths exceed the band
+ * (Perfil: from 412 px they always fit; below that it depends on font
+ * rasterisation). Height is unchanged. No chip
  * drops below the 44 px target: a narrower one would get sub-pixel side proxy
  * strips that hit-testing cannot reach (CMP-07).
  */
