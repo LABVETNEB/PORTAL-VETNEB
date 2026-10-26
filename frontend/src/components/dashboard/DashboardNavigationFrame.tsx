@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, type ReactNode } from "react";
+import { Fragment, Suspense, useSyncExternalStore, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   DEFAULT_CLINIC_MODULE,
@@ -92,13 +92,24 @@ export type DashboardNavigationFrameProps = {
  * The two primitives, mounted together. Only one is ever painted: the CSS band
  * reveals the rail at 768-1279px and the drawer from 1280px, and hides both
  * below 768px, where the mobile model B09 owns applies.
+ *
+ * LATE HYDRATION. The server streams this band as a deferred Suspense segment
+ * and React 19.2 batches its reveal, so a navigation started from the hydrated
+ * app bar can move the URL first. The band then hydrates with the new module
+ * over the server's markup, and hydration keeps mismatched attributes: the old
+ * item stayed `aria-current`. The first client render rebuilds the band from
+ * props instead.
  */
+const subscribeToNothing = () => () => {};
+
 function LateralNavigation(props: NavigationDrawerProps) {
+  const hydrated = useSyncExternalStore(subscribeToNothing, () => true, () => false);
+
   return (
-    <>
+    <Fragment key={hydrated ? "client" : "server"}>
       <NavigationDrawer {...props} />
       <NavigationRail {...props} />
-    </>
+    </Fragment>
   );
 }
 
