@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, Suspense, useSyncExternalStore, type ReactNode } from "react";
+import { Fragment, Suspense, useLayoutEffect, useState, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   DEFAULT_CLINIC_MODULE,
@@ -97,16 +97,34 @@ export type DashboardNavigationFrameProps = {
  * and React 19.2 batches its reveal, so a navigation started from the hydrated
  * app bar can move the URL first. The band then hydrates with the new module
  * over the server's markup, and hydration keeps mismatched attributes: the old
- * item stayed `aria-current`. The first client render rebuilds the band from
- * props instead.
+ * item stayed `aria-current`. When the committed band disagrees with its props
+ * it is rebuilt from them; a band that agrees keeps its nodes.
  */
-const subscribeToNothing = () => () => {};
+function staleBand(surface: NavigationDrawerProps["surface"], activeModule: string | null): boolean {
+  const bands = document.querySelectorAll<HTMLElement>(
+    `[data-dashboard-navigation-drawer="${surface}"], [data-dashboard-navigation-rail="${surface}"]`,
+  );
+  return Array.from(bands)
+    // Suspense hides retained content inline; that band is not this one.
+    .filter((band) => band.style.display !== "none")
+    .some((band) => {
+      const current = Array.from(band.querySelectorAll("[aria-current='page']"), (item) =>
+        item.getAttribute("data-dashboard-navigation-item"),
+      );
+      return activeModule === null ? current.length > 0 : current.length !== 1 || current[0] !== activeModule;
+    });
+}
 
 function LateralNavigation(props: NavigationDrawerProps) {
-  const hydrated = useSyncExternalStore(subscribeToNothing, () => true, () => false);
+  const { surface, activeModule } = props;
+  const [generation, setGeneration] = useState(0);
+
+  useLayoutEffect(() => {
+    if (staleBand(surface, activeModule)) setGeneration((value) => value + 1);
+  }, [surface, activeModule]);
 
   return (
-    <Fragment key={hydrated ? "client" : "server"}>
+    <Fragment key={generation}>
       <NavigationDrawer {...props} />
       <NavigationRail {...props} />
     </Fragment>
