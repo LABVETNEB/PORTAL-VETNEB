@@ -200,7 +200,18 @@ type BandReading = {
   readonly documentScrollX: number;
   readonly currentCount: number;
   readonly undersized: { label: string; width: number; height: number }[];
+  readonly labels: {
+    text: string;
+    fontSize: number;
+    lineHeight: number;
+    clipped: boolean;
+  }[];
 };
+
+/** C25 D5 — label-sm 11/16, read from the computed style Chromium paints. */
+const LABEL_FONT_SIZE_PX = 11;
+const LABEL_LINE_HEIGHT_PX = 16;
+const LABEL_TOLERANCE_PX = 0.05;
 
 async function readBand(page: Page): Promise<BandReading> {
   return page.evaluate(
@@ -266,6 +277,26 @@ async function readBand(page: Page): Promise<BandReading> {
               height: Math.round(rect.height * 100) / 100,
             };
           }),
+        labels: nav
+          ? Array.from(nav.querySelectorAll<HTMLElement>("a > span, button > span"))
+              .filter(isVisible)
+              .map((span) => {
+                const style = window.getComputedStyle(span);
+                const box = span.getBoundingClientRect();
+                const item = span.parentElement!.getBoundingClientRect();
+                return {
+                  text: span.textContent ?? "",
+                  fontSize: parseFloat(style.fontSize),
+                  lineHeight: parseFloat(style.lineHeight),
+                  clipped:
+                    span.scrollWidth > Math.ceil(box.width) ||
+                    box.left < item.left - 0.5 ||
+                    box.right > item.right + 0.5 ||
+                    box.top < item.top - 0.5 ||
+                    box.bottom > item.bottom + 0.5,
+                };
+              })
+          : [],
       };
     },
     {
@@ -328,6 +359,19 @@ function assertMobileRegime(reading: BandReading, label: string) {
     reading.undersized,
     `${label}: every control B09 owns must be >= ${TOUCH_MIN_PX}x${TOUCH_MIN_PX}`,
   ).toEqual([]);
+
+  expect(reading.labels.length, `${label}: every slot paints a label`).toBeGreaterThan(0);
+  for (const slot of reading.labels) {
+    expect(
+      Math.abs(slot.fontSize - LABEL_FONT_SIZE_PX),
+      `${label}: "${slot.text}" font-size ${slot.fontSize}px`,
+    ).toBeLessThanOrEqual(LABEL_TOLERANCE_PX);
+    expect(
+      Math.abs(slot.lineHeight - LABEL_LINE_HEIGHT_PX),
+      `${label}: "${slot.text}" line-height ${slot.lineHeight}px`,
+    ).toBeLessThanOrEqual(LABEL_TOLERANCE_PX);
+    expect(slot.clipped, `${label}: "${slot.text}" fits its slot`).toBe(false);
+  }
 
   // Exactly one destination reports current, on every surface the bar mounts
   // on. Neither role has an Inicio slot below 768px any more (admin retired its

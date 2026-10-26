@@ -390,9 +390,12 @@
      (`--admin-mobile-type-2xs` = 9.6px vs `--clinic-mobile-type-2xs` = 8.96px),
      which is what the audit measured as DIF-007: the same shared bottom nav
      rendering two different label scales. The bar is a single canonical
-     primitive, so its typography is declared once for every surface. */
+     primitive, so its typography is declared once for every surface.
+     C25 D5 — label-sm 11/16. The 16px line box fits the 50.19px stretched
+     item with ~7px of slack per side, so the band does not grow. */
   [data-vetneb-app-shell-surface] {
-    --dash-mobile-nav-label-size: var(--admin-mobile-type-2xs);
+    --dash-mobile-nav-label-size: 0.6875rem;
+    --dash-mobile-nav-label-leading: 1rem;
   }
 
   .dashboard-app-shell .dashboard-mobile-nav {
@@ -433,7 +436,7 @@
     color: hsl(var(--muted-foreground));
     font-size: var(--dash-mobile-nav-label-size);
     font-weight: 650;
-    line-height: 1;
+    line-height: var(--dash-mobile-nav-label-leading);
     white-space: nowrap;
     touch-action: manipulation;
   }

@@ -558,6 +558,27 @@ test("B09 · the mobile navigation grammar is authored once, in navigation.css",
     "the label size must not be forked by surface",
   );
 
+  // C25 D5 — label-sm 11/16, bound once and consumed by the item rule. The
+  // retired `--admin-mobile-type-2xs` resolved to its 9.6px floor on every
+  // phone, with `line-height: 1` collapsing the line box to the same 9.6px.
+  const surfaceRule = stripCssComments(block).match(
+    /\[data-vetneb-app-shell-surface\]\s*\{([^}]*)\}/,
+  );
+  assert.ok(surfaceRule, "the label tokens are bound on the shared surface rule");
+  assert.match(surfaceRule[1], /--dash-mobile-nav-label-size:\s*0\.6875rem;/);
+  assert.match(surfaceRule[1], /--dash-mobile-nav-label-leading:\s*1rem;/);
+  const itemRule = stripCssComments(block).match(
+    /\.dashboard-mobile-nav-item\s*\{([^}]*)\}/,
+  );
+  assert.ok(itemRule, "the item rule exists");
+  assert.match(itemRule[1], /font-size:\s*var\(--dash-mobile-nav-label-size\);/);
+  assert.match(itemRule[1], /line-height:\s*var\(--dash-mobile-nav-label-leading\);/);
+  assert.equal(
+    /scale\(|zoom:/.test(itemRule[1]),
+    false,
+    "the label size must be real, not a visual transform",
+  );
+
   // The retired per-role blocks are gone from the mobile stylesheets.
   for (const path of [MOBILE_ADMIN_CSS, MOBILE_CLINIC_CSS]) {
     assert.equal(

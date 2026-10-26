@@ -162,7 +162,7 @@ RED → GREEN: la sonda midió D1 y D2 en `HEAD` (tabla §4) y su ausencia tras 
 | D2 | Corregido (dos buscadores de Usuarios y roles) |
 | D3 | Sin desviación medida |
 | D4 | Pendiente: siete truncamientos sin acceso al valor completo (F-T1..F-T7, §2.1) |
-| D5 | Pendiente: line-height de la navegación móvil; dependencia geométrica (`bottomNav` A02, canvas A03) |
+| D5 | Corregido localmente (§11): 11/16 sin cambio geométrico; pendiente la regeneración autorizada de seis baselines visuales Linux a 320 |
 | D6 | Pendiente: gaps de 6 px; riesgo de alterar la capacidad (A03) |
 | D7 | Pendiente: objetivos táctiles inferiores a 44 px |
 | D8 | BLOCKED por C05/R13 |
@@ -177,3 +177,41 @@ RED → GREEN: la sonda midió D1 y D2 en `HEAD` (tabla §4) y su ausencia tras 
 - No cerrado: D4 (siete truncados sin mecanismo de valor completo, F-T1..F-T7), D5, D6 y D7 requieren cambio funcional o geométrico con autorización (R13 / rebaseline A02/A03); D8 sigue BLOCKED por C05; F-T4 cruza el chrome de C23b.
 - C23b sigue abierto y C23 no está completo; C25 no lo cierra ni lo enmascara.
 - No-alcance: C23b, C26, D5–D8, F-T1..F-T7, backend, DB, dependencias, CI y baselines.
+
+## 11. D5 · Tipografía de la navegación móvil (2026-10-26)
+
+Base `7c9b1fa9` (C05 #1923 y D4 #1922/#1924/#1925 incorporados). Scope: sólo D5.
+
+**Causa raíz.** `--dash-mobile-nav-label-size` apuntaba a `--admin-mobile-type-2xs` = `clamp(0.6rem, 0.5rem + 0.3svw, 0.68rem)`, que en todo teléfono queda en su piso de 9.6 px (el techo exige ~960 px de ancho), y `.dashboard-mobile-nav-item` declaraba `line-height: 1`, lo que colapsaba la línea a 9.6 px. Owner único: el bloque B09/CMP-02 de `navigation.css`, compartido por Administración y Clínica.
+
+**Medición previa.** Los 50.19 px que la auditoría atribuyó a 11/16 son la altura que el ítem YA tiene en `HEAD`: se estira a la banda de 51.19 px (50.19 + 1 px de borde). Su contenido ocupa 36.79 px (padding 3.84 × 2 + glifo 17.6 + gap 1.91 + etiqueta 9.6).
+
+**Alternativas.** A (geometría conservada): medida con la regla inyectada en Chromium, 11/16 computados, ítem 50.19, banda 51.19, `main` idéntico, holgura de 7.34 px por lado, sin recorte (la etiqueta más ancha a 320, «Auditoría», ocupa 49.63 de 80 px). B (ajuste geométrico local) y C (cambio de capacidad, R13) son innecesarias: no hay desborde que absorber. Elegida: A.
+
+**Cambio.** `[data-vetneb-app-shell-surface]` declara `--dash-mobile-nav-label-size: 0.6875rem` y `--dash-mobile-nav-label-leading: 1rem` una sola vez; el ítem consume el segundo token en lugar de `line-height: 1`. Sin cambios en `tokens.css` ni en `DashboardMobileNav.tsx`. El peso (650 frente a label-sm w500) no forma parte de D5 y no se tocó.
+
+| Viewport | Rol | Fuente antes → después | Banda | Δ `main` | A08 |
+| --- | --- | --- | --- | ---: | --- |
+| 320×720, 360×800, 375×812, 390×844, 412×915, 430×932 | Admin (4 ranuras) y Clínica (5 ranuras, shell y ruta completa) | 9.6/9.6 → 11/16 | 51.19 → 51.19 | 0 | scroll 0/0 |
+| 375×812 tema oscuro | ambos | 9.6/9.6 → 11/16 | 51.19 → 51.19 | 0 | scroll 0/0 |
+| 768×1024 | ambos | sin barra (régimen lateral) | — | 0 | scroll 0/0 |
+
+**Pruebas.** Guard B09: tokens 11/16 ligados una vez y consumidos por la regla del ítem, sin `scale()`/`zoom`; tres mutantes rechazados. Spec E2E B09: `font-size`/`line-height` computados (±0.05 px) y etiqueta dentro de su ranura en cada superficie; con el CSS de `HEAD` falla (9.6 px).
+
+| Gate | Estado |
+| --- | --- |
+| Guards B04, B07, B09, B11, C23, tokens de fundación, truncation, paridad móvil, catálogo E2E, censo 01B | PASSED 190/190 |
+| E2E B09 (cohorte `visual-contract`) | PASSED 31/31 |
+| A02 geometría 21×13 (fixture Win32 sin cambios) | PASSED 21/21 |
+| A03 límite adaptativo 15×13 | PASSED 16/16 |
+| A05 invariancia de límite 15×13 | PASSED 15/15 |
+| A08 zero-scroll 21×13 | PASSED 21/21 |
+| Frontera zero-scroll móvil | PASSED 8/8 |
+| Barra inferior admin-mobile | PASSED 4/4 |
+| `lint`, `typecheck`, `build`, `security:public-surface` | PASSED |
+| G11 axe | NOT_RUN: color y contraste sin cambios; sólo crece el tamaño |
+| Baselines visuales Linux (`visual-linux`) | NOT_RUN localmente (sólo Linux) |
+
+**Autorización pendiente.** Seis capturas Linux a 320 px incluyen la barra y se comparan con `maxDiffPixelRatio: 0.001` (≈230 px): `admin-dashboard-320`, `admin-dashboard-dark-gray-320`, `dashboard-320`, `dashboard-dark-gray-320` (autenticado) y `stress-admin-dashboard-320`, `stress-dashboard-320` (stress). El cambio de las etiquetas las hará diferir en `visual-linux`/`e2e:full` (E2E Completeness, no requerido). No se regeneraron: hace falta autorización explícita para el dispatch Linux de `visual-regression-manual.yml`.
+
+**Riesgos residuales.** Linux no medido localmente; el overflow «Más» abierto no se modificó (usa `--admin-mobile-type-xs`).
