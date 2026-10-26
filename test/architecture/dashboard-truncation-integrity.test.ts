@@ -145,6 +145,13 @@ const TERMINAL_REGIONS: readonly TerminalRegion[] = [
     ],
   },
   {
+    label: "ADMIN · mobile system-health service detail dialog (C25 F-T3)",
+    file: "frontend/src/app/dashboard/admin/AdminMobileHealthServiceDetailDialog.tsx",
+    start: "<DetailsPane",
+    end: "</DetailsPane>",
+    contractualValues: ["value: service.label }", "value: service.statusLabel }", "value: detail }"],
+  },
+  {
     label: "CLINIC · particular token detail dialog",
     file: "frontend/src/components/dashboard/ClinicParticularTokensCard.tsx",
     start: "<dl className=\"grid grid-cols-1 divide-y divide-vetneb-line/55",
@@ -180,6 +187,13 @@ const TERMINAL_REGIONS: readonly TerminalRegion[] = [
     start: '<dl className="grid grid-cols-1 gap-x-4 gap-y-3',
     end: "</dl>",
     contractualValues: ["visit.clinicName", "visit.address", "visit.notes", "visit.scheduledAt", "visit.completedAt"],
+  },
+  {
+    label: "CLINIC · B14 metric run detail (Rutas, Visitas, Métricas; C25 F-T4)",
+    file: "frontend/src/components/dashboard/ModuleMetricRun.tsx",
+    start: "<DetailsPane",
+    end: "</DetailsPane>",
+    contractualValues: ["label: metric.label", "value: String(metric.value)"],
   },
   {
     label: "CLINIC · informes master-detail canvas (desktop panel + mobile dialog)",
@@ -467,6 +481,74 @@ test("PR-TRUNC · collection surfaces that legitimately truncate still expose th
     /revokeAdminSession|onChange|<input|<select/.test(sessionDialog),
     false,
     "AdminSessionDetailDialog must stay read-only: revocation stays in the row's own action",
+  );
+
+  // C25 F-T3 · Estado del sistema mobile: equal-height service rows truncate
+  // their detail; every row WITH a detail opens the read-only dialog from its
+  // own text. No `title`, no value in an attribute, no fetch, no mutation.
+  const health = read("frontend/src/app/dashboard/admin/AdminMobileHealthModule.tsx");
+  assert.ok(
+    /\{service\.detail \? \(\s*<AdminMobileHealthServiceDetailDialog\s+service=\{service\}\s+detail=\{service\.detail\}/.test(health),
+    "a service row with a detail must open AdminMobileHealthServiceDetailDialog from its own text",
+  );
+  assert.equal(/title=\{service\./.test(health), false, "a `title` must not become the service detail mechanism");
+  const healthDialog = read("frontend/src/app/dashboard/admin/AdminMobileHealthServiceDetailDialog.tsx");
+  assert.ok(healthDialog.includes("scrollableBody"), "the service detail opts into the single ModuleDialog body scroll owner");
+  assert.equal(
+    /\bfetch\(|@\/lib\/api|onChange|<input|<select|data-[a-z-]+=\{(?:service|detail)/.test(healthDialog),
+    false,
+    "AdminMobileHealthServiceDetailDialog stays read-only, fetches nothing and puts no value in a data attribute",
+  );
+
+  // C25 F-T4 · the three full-route logistics runs are one nowrap line their
+  // band clips on phones: each opts into the run's own read-only detail. The
+  // run keeps its B14 grammar; the detail is opt-in, never a global change.
+  for (const route of ["rutas", "visitas", "metricas"] as const) {
+    const page = read(`frontend/src/app/dashboard/logistica/${route}/page.tsx`);
+    assert.ok(
+      new RegExp(`surfaceId="clinic-logistica-${route}"[\\s\\S]{0,160}detail=\\{\\{ title: "Resumen de `).test(page),
+      `logistica/${route}: the clipped B14 run must open its full-value detail`,
+    );
+  }
+  const metricRun = read("frontend/src/components/dashboard/ModuleMetricRun.tsx");
+  assert.ok(metricRun.includes("if (!detail) return run;"), "ModuleMetricRun stays a plain run for consumers that do not opt in");
+  assert.ok(
+    metricRun.includes('"flex shrink-0 items-baseline gap-1.5 whitespace-nowrap text-xs tabular-nums"'),
+    "the run keeps its CMP-05 inline grammar; the detail wraps it, it does not restyle it",
+  );
+
+  // C25 F-T5 · StatsCards: the label never truncates; "Prioridad" sits on the
+  // value row so the label keeps the whole title width at 1024-1366.
+  const statsCards = read("frontend/src/components/dashboard/StatsCards.tsx");
+  assert.ok(statsCards.includes('<span className="min-w-0 break-words">{config.label}</span>'), "the StatsCards label wraps, never truncates");
+  assert.equal(statsCards.includes('<span className="truncate">{config.label}</span>'), false, "the StatsCards label must not truncate again");
+  assert.ok(
+    statsCards.indexOf("{config.emphasisLabel}") > statsCards.indexOf("<CardContent"),
+    "Prioridad stays, on the value row inside CardContent",
+  );
+
+  // C25 F-T6 · Perfil sizes its chips by label (opt-in; Admin and the other
+  // clinic cards keep equal widths) and paints the password section's full
+  // name in its panel, because that panel's own title is "Seguridad".
+  const moduleCard = read("frontend/src/components/dashboard/ModuleCard.tsx");
+  assert.ok(
+    moduleCard.includes('const CHIP_CONTENT_SIZING_CLASS = "min-w-[44px] flex-[1_0_auto] last:flex-[1_1_auto]";'),
+    "content-sized chips never shrink the short labels nor drop below the 44 px target",
+  );
+  assert.ok(moduleCard.includes('chipSizing = "equal",'), "equal widths stay the default for every other consumer");
+  const profile = read("frontend/src/components/dashboard/ClinicPublicProfileCard.tsx");
+  assert.ok(profile.includes('chipSizing="content"'), "Perfil opts into content-sized chips");
+  assert.ok(
+    /data-clinic-profile-section-name=\{PASSWORD_TAB_ID\}[\s\S]{0,200}\{PROFILE_SECTION_LABELS\[PASSWORD_TAB_ID\]\}/.test(profile),
+    "the password section paints its full name inside the panel",
+  );
+
+  // C25 F-T7 · the Operaciones mobile description wraps instead of the chrome
+  // rule's one-line ellipsis.
+  const commandCenter = read("frontend/src/app/dashboard/ClinicCommandCenter.tsx");
+  assert.ok(
+    commandCenter.includes('className="dashboard-section-description !whitespace-normal md:hidden"'),
+    "the Operaciones mobile description wraps whole",
   );
 
   // Users/roles: the finding is CLOSED the same way. The row keeps truncating

@@ -52,6 +52,20 @@ const CHIP_BAND_CLASS =
 const CHIP_CLASS =
   "dashboard-module-card-chip min-w-0 flex-1 truncate rounded-md px-[6.4px] py-[5px] text-[10.56px] font-semibold leading-tight transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-1";
 
+/**
+ * C25 F-T6 · opt-in content-proportional chips. Equal widths truncate a long
+ * label ("Cambiar contraseña" got 65-78 px of the 118 px it needs at 360-430)
+ * while short ones keep spare room. Here each chip starts at its own label
+ * width and shares the remainder; the short chips never shrink and the
+ * trailing chip absorbs any deficit, so only the band's last (longest) label
+ * can still truncate, and only when the labels' natural widths exceed the band
+ * (Perfil: from 412 px they always fit; below that it depends on font
+ * rasterisation). Height is unchanged. No chip
+ * drops below the 44 px target: a narrower one would get sub-pixel side proxy
+ * strips that hit-testing cannot reach (CMP-07).
+ */
+const CHIP_CONTENT_SIZING_CLASS = "min-w-[44px] flex-[1_0_auto] last:flex-[1_1_auto]";
+
 const PANEL_CLASS =
   "dashboard-module-card-panel flex min-h-0 flex-1 flex-col overflow-hidden p-2";
 
@@ -92,6 +106,8 @@ interface ModuleCardChipsProps {
   readonly baseId: string;
   /** Attribute name carrying the chip id, e.g. `data-admin-mobile-status-chip`. */
   readonly chipAttribute: string;
+  /** `content`: chips sized by their label (C25 F-T6); default equal widths. */
+  readonly chipSizing?: "equal" | "content";
 }
 
 /**
@@ -106,6 +122,7 @@ export function ModuleCardChips({
   onSelect,
   baseId,
   chipAttribute,
+  chipSizing = "equal",
 }: ModuleCardChipsProps) {
   const tablistRef = useRef<HTMLDivElement>(null);
   const chipRefs = useRef<Record<string, HTMLButtonElement | null>>({});
@@ -247,6 +264,7 @@ export function ModuleCardChips({
               onKeyDown={(event) => handleKeyDown(event, index)}
               className={cn(
                 CHIP_CLASS,
+                chipSizing === "content" && CHIP_CONTENT_SIZING_CLASS,
                 isActive
                   ? "bg-vetneb-navy text-white shadow-sm"
                   : "bg-vetneb-surface-muted/60 text-muted-foreground hover:bg-vetneb-surface-muted",
@@ -342,6 +360,7 @@ interface ModuleCardSectionsProps {
   readonly panelAttribute: string;
   /** Forwarded to the panel; omitted, the panel fills the card as before. */
   readonly panelClassName?: string;
+  readonly chipSizing?: "equal" | "content";
 }
 
 /**
@@ -363,6 +382,7 @@ export function ModuleCardSections({
   chipAttribute,
   panelAttribute,
   panelClassName,
+  chipSizing,
 }: ModuleCardSectionsProps) {
   const baseId = useId();
   const fallbackId = sections[0]?.id ?? "";
@@ -399,6 +419,7 @@ export function ModuleCardSections({
         onSelect={selectActiveId}
         baseId={baseId}
         chipAttribute={chipAttribute}
+        chipSizing={chipSizing}
       />
       <ModuleCardPanel
         id={`${baseId}-panel-${active.id}`}

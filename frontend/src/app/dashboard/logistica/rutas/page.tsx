@@ -141,7 +141,7 @@ export default async function RutasPage({
         {/* CMP-11 (DIF-042/G-014): metrics band comes after surfaceHeader,
             matching Admin's canonical appBar > surfaceHeader > metrics order. */}
         <div className="flex shrink-0 items-baseline border-b border-vetneb-line/70 px-3 py-1.5 text-xs text-muted-foreground">
-          <ModuleMetricRun surfaceId="clinic-logistica-rutas" className="w-full min-w-0 overflow-hidden truncate" metrics={[
+          <ModuleMetricRun surfaceId="clinic-logistica-rutas" className="w-full min-w-0 overflow-hidden truncate" detail={{ title: "Resumen de planes de ruta", description: "Conteos calculados sobre la página visible, no sobre el total general de planes de ruta." }} metrics={[
             { key: "borradores", label: "Borradores", value: routePlans.filter((plan) => plan.status === "draft").length },
             { key: "liberadas", label: "Liberadas", value: routePlans.filter((plan) => plan.status === "released").length },
             { key: "en-curso", label: "En curso", value: routePlans.filter((plan) => plan.status === "in_progress").length },

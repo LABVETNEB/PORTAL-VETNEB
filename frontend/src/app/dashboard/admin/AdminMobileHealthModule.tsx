@@ -12,6 +12,7 @@ import {
 import { getAdminSchemaHealth } from "@/lib/api";
 import { formatDateTime } from "@/lib/utils";
 import type { AdminSchemaHealthSnapshot } from "@/types";
+import { AdminMobileHealthServiceDetailDialog } from "./AdminMobileHealthServiceDetailDialog";
 import { AdminMobileStatusModule } from "./AdminMobileStatusModule";
 
 type BadgeVariant = "default" | "secondary" | "destructive" | "outline";
@@ -227,16 +228,18 @@ export function AdminMobileHealthModule({
             data-admin-mobile-status-item="true"
             className="flex min-h-0 items-center justify-between gap-2 overflow-hidden rounded-md border border-vetneb-line/70 bg-card/95 px-2.5 py-1.5"
           >
-            <div className="min-w-0">
-              <p className="truncate text-xs font-semibold text-vetneb-ink">
-                {service.label}
-              </p>
-              {service.detail ? (
-                <p className="truncate text-[0.66rem] text-muted-foreground">
-                  {service.detail}
+            {service.detail ? (
+              <AdminMobileHealthServiceDetailDialog
+                service={service}
+                detail={service.detail}
+              />
+            ) : (
+              <div className="min-w-0">
+                <p className="truncate text-xs font-semibold text-vetneb-ink">
+                  {service.label}
                 </p>
-              ) : null}
-            </div>
+              </div>
+            )}
             <Badge
               variant={service.variant}
               className="h-5 shrink-0 px-1.5 text-[10px]"

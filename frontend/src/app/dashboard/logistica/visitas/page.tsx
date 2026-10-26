@@ -142,7 +142,7 @@ export default async function VisitasPage({
         {/* CMP-11 (DIF-042/G-014): metrics band comes after surfaceHeader,
             matching Admin's canonical appBar > surfaceHeader > metrics order. */}
         <div className="flex shrink-0 items-baseline border-b border-vetneb-line/70 px-3 py-1.5 text-xs text-muted-foreground">
-          <ModuleMetricRun surfaceId="clinic-logistica-visitas" className="w-full min-w-0 overflow-hidden truncate" metrics={[
+          <ModuleMetricRun surfaceId="clinic-logistica-visitas" className="w-full min-w-0 overflow-hidden truncate" detail={{ title: "Resumen de visitas", description: "Conteos calculados sobre la página visible, no sobre el total general de visitas." }} metrics={[
             { key: "pendientes", label: "Pendientes", value: visits.filter((visit) => visit.status === "pending").length },
             { key: "programadas", label: "Programadas", value: visits.filter((visit) => visit.status === "scheduled").length },
             { key: "en-curso", label: "En curso", value: visits.filter((visit) => visit.status === "in_progress").length },

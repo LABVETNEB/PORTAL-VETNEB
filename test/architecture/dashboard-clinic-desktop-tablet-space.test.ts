@@ -78,7 +78,7 @@ test("CLINIC-DT · Operaciones: intro retired visually, tabs and cards first", (
   const source = read(COMMAND_CENTER);
   assert.equal(source.includes("header={"), false, "no band above the chips");
   assert.ok(source.includes('className="dashboard-section-heading md:sr-only"'), "heading = accessible name only");
-  assert.ok(source.includes('className="dashboard-section-description md:hidden"'), "description stops painting");
+  assert.ok(source.includes('className="dashboard-section-description !whitespace-normal md:hidden"'), "description stops painting (and wraps whole below md, C25 F-T7)");
   assert.ok(source.includes('aria-labelledby="clinic-command-center-heading"'));
   for (const label of ['label: "Métricas"', 'label: "Recientes"', 'label: "Estado"']) {
     assert.ok(source.includes(label), `${label} stays`);

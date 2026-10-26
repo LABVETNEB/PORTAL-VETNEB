@@ -111,7 +111,10 @@ export function ClinicCommandCenter({
                   >
                     Métricas operativas
                   </h2>
-                  <p className="dashboard-section-description md:hidden">
+                  {/* C25 F-T7: the mobile chrome rule clamps section copy to
+                      one ellipsised line; this panel has nothing below it
+                      (the cards are md+), so the sentence wraps whole. */}
+                  <p className="dashboard-section-description !whitespace-normal md:hidden">
                     Vista rápida de informes, pendientes y actividad logística del día.
                   </p>
                 </div>
