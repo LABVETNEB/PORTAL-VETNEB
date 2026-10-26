@@ -43,7 +43,7 @@ Entorno de la evidencia (2026-10-18): Windows 11 (`win32`), Chromium de Playwrig
 | D2 | Line-height degenerado (PR-BUG-02 / P2-03 «12/12») | buscador de Usuarios y roles 12/12 px (h 28 escritorio, h 36 móvil) | ≥ 1.25 × 12 = 15 px | −4 px de interlineado | `AdminUsersRolesReadOnlyCard.tsx` | **Corregida** (G2), sólo en los dos `<Input>` de búsqueda |
 | D3 | Offset de icono > 1 px | **0** (4 y 13 viewports) | ±1 px | 0 | — | Sin desviación |
 | D4 | Texto truncado | 91 elementos en 4 vp; 452 en 13 vp | PR-TRUNC (`dashboard-truncation-integrity.test.ts`): una fila puede truncar si su detalle lleva el valor completo; `title` está **rechazado** como mecanismo | — | ver §2.1 | Seguro en la mayoría; 7 hallazgos sin mecanismo, **no corregidos** |
-| D5 | Etiqueta de la barra móvil 9.6/9.6 px | 94 (4 vp), 470 (13 vp) | label-sm 11/16 | −6.4 px | `DashboardMobileNav` / `navigation.css` | **No implementada**: alarga el ítem (50.19 px) → `bottomNav` A02 y canvas móvil A03 (R13) |
+| D5 | Etiqueta de la barra móvil 9.6/9.6 px | 94 (4 vp), 470 (13 vp) | label-sm 11/16 | −6.4 px | `DashboardMobileNav` / `navigation.css` | **No implementada**: alarga el ítem (50.19 px) → `bottomNav` A02 y canvas móvil A03 (R13) · *Estado vigente (2026-10-26): implementada sin cambio geométrico; los 50.19 px ya eran la altura del ítem en `HEAD` (§11)* |
 | D6 | Gap 6 px vs 8 px (P3-04) | 2 740 contenedores con 6 px y escalas no canónicas (2.88, 4.8, 6.4, 9.6, 11.23…) | 4/8/12/16/24 | 2 px | ~45 componentes | **No implementada**: barrido global; los gaps verticales mueven el canvas (A03) y los horizontales cambian ajustes de línea (precedente C24: +20 px de chrome, `limit` 5 → 4) |
 | D7 | Objetivos táctiles < 44 px | 1 151 controles en los 5 viewports de teléfono | ≥ 44 × 44 (§46) | hasta −16 px | módulos móviles | **No implementada**: cambia alturas móviles (A02/A03, R13) |
 | D8 | Fila 36 → 40, cabecera 36, pager 40 | ya documentado | §46 | +4 px | C05 / C01 / C02 | **BLOCKED** por C05/R13 |
@@ -152,7 +152,7 @@ RED → GREEN: la sonda midió D1 y D2 en `HEAD` (tabla §4) y su ausencia tras 
 - Linux no se ejecutó localmente: A02/A03 Linux y los baselines visuales Linux quedan para CI. C25 no mueve cajas, pero el outline aparece en cualquier captura que enfoque un control.
 - Portales a `document.body` fuera del shell no reciben la regla de foco y conservan el anillo sólo de `box-shadow`, que forced-colors descarta: el panel de `DashboardNotificationsBell`, el portal de `ModuleCard`, `UploadReportModal` y los `ModuleDialog` sin `dashboardScopedPortal` (por ejemplo los diálogos de detalle). No se midieron (la sonda no abre overlays) y el selector no se amplió a `body` a propósito: cubrirlos exige migrarlos al portal del shell o una regla propia, en una PR aparte.
 - El outline puede quedar recortado por contenedores `overflow: hidden` en el borde, igual que el anillo actual.
-- D5, D6, D7 y F-T1..F-T7 quedan abiertos y requieren autorización explícita (cambio funcional, R13 o rebaseline A02/A03); D8 sigue BLOCKED por C05.
+- D5, D6, D7 y F-T1..F-T7 quedan abiertos y requieren autorización explícita (cambio funcional, R13 o rebaseline A02/A03); D8 sigue BLOCKED por C05. *(Registro del 2026-10-19. Estado vigente de D5: §11.)*
 
 ## 9. Registro de deuda
 
@@ -162,7 +162,7 @@ RED → GREEN: la sonda midió D1 y D2 en `HEAD` (tabla §4) y su ausencia tras 
 | D2 | Corregido (dos buscadores de Usuarios y roles) |
 | D3 | Sin desviación medida |
 | D4 | Pendiente: siete truncamientos sin acceso al valor completo (F-T1..F-T7, §2.1) |
-| D5 | Corregido localmente (§11): 11/16 sin cambio geométrico; pendiente la regeneración autorizada de seis baselines visuales Linux a 320 |
+| D5 | Implementado en rama (§11): 11/16 sin cambio geométrico; seis baselines visuales Linux a 320 promovidas con R13 (`96b14809`); PR, CI y merge pendientes |
 | D6 | Pendiente: gaps de 6 px; riesgo de alterar la capacidad (A03) |
 | D7 | Pendiente: objetivos táctiles inferiores a 44 px |
 | D8 | BLOCKED por C05/R13 |
@@ -174,7 +174,7 @@ RED → GREEN: la sonda midió D1 y D2 en `HEAD` (tabla §4) y su ausencia tras 
 **C25 = PARTIAL**, consolidado localmente y preparado para una PR independiente (`feat(dashboard): C25 partial focus and typography hardening`, scope `frontend runtime`). Sin staging, commit, push ni PR ejecutados por el agente; los cuatro required checks no tienen todavía resultado sobre un HEAD publicado.
 
 - Implementado y medido dentro de tolerancia: D1 (foco real, 1 315 → 0 controles sin outline, también en forced-colors) y D2 / PR-BUG-02 (12/12 → 12/16). Sin desviación: D3 (iconos).
-- No cerrado: D4 (siete truncados sin mecanismo de valor completo, F-T1..F-T7), D5, D6 y D7 requieren cambio funcional o geométrico con autorización (R13 / rebaseline A02/A03); D8 sigue BLOCKED por C05; F-T4 cruza el chrome de C23b.
+- No cerrado: D4 (siete truncados sin mecanismo de valor completo, F-T1..F-T7), D5, D6 y D7 requieren cambio funcional o geométrico con autorización (R13 / rebaseline A02/A03); D8 sigue BLOCKED por C05; F-T4 cruza el chrome de C23b. *(Registro del 2026-10-19. Vigente: D4 fusionado en #1922/#1924/#1925; D5 implementado en rama, sin fusionar, §11.)*
 - C23b sigue abierto y C23 no está completo; C25 no lo cierra ni lo enmascara.
 - No-alcance: C23b, C26, D5–D8, F-T1..F-T7, backend, DB, dependencias, CI y baselines.
 
@@ -212,6 +212,65 @@ Base `7c9b1fa9` (C05 #1923 y D4 #1922/#1924/#1925 incorporados). Scope: sólo D5
 | G11 axe | NOT_RUN: color y contraste sin cambios; sólo crece el tamaño |
 | Baselines visuales Linux (`visual-linux`) | NOT_RUN localmente (sólo Linux) |
 
-**Autorización pendiente.** Seis capturas Linux a 320 px incluyen la barra y se comparan con `maxDiffPixelRatio: 0.001` (≈230 px): `admin-dashboard-320`, `admin-dashboard-dark-gray-320`, `dashboard-320`, `dashboard-dark-gray-320` (autenticado) y `stress-admin-dashboard-320`, `stress-dashboard-320` (stress). El cambio de las etiquetas las hará diferir en `visual-linux`/`e2e:full` (E2E Completeness, no requerido). No se regeneraron: hace falta autorización explícita para el dispatch Linux de `visual-regression-manual.yml`.
+**Autorización pendiente.** Seis capturas Linux a 320 px incluyen la barra y se comparan con `maxDiffPixelRatio: 0.001` (≈230 px): `admin-dashboard-320`, `admin-dashboard-dark-gray-320`, `dashboard-320`, `dashboard-dark-gray-320` (autenticado) y `stress-admin-dashboard-320`, `stress-dashboard-320` (stress). El cambio de las etiquetas las hará diferir en `visual-linux`/`e2e:full` (E2E Completeness, no requerido). No se regeneraron: hace falta autorización explícita para el dispatch Linux de `visual-regression-manual.yml`. *(Resuelto el 2026-10-26: §11.1.)*
 
 **Riesgos residuales.** Linux no medido localmente; el overflow «Más» abierto no se modificó (usa `--admin-mobile-type-xs`).
+
+### 11.1 Promoción R13 de baselines visuales Linux (2026-10-26)
+
+**Alcance de la autorización R13.** Nico autorizó regenerar exactamente las seis baselines visuales Linux a 320 px afectadas por D5, a partir de evidencia `production-candidate`. La autorización no cubre A02, A03, A05, A08, `limit`/`offset`, la altura de la barra, el canvas ni ninguna otra captura; no reutiliza las autorizaciones R13 de C05 ni de F-T5/F-T7.
+
+**Procedencia.**
+
+| Dato | Valor |
+| --- | --- |
+| Commit productivo D5 | `64ad2e68d4ae8acc8df82aba984e255ea03d2250` |
+| Workflow | `visual-regression-manual.yml`, run `40298466674`, suite `all`, runner `production-candidate`, `update_snapshots=false`, evento `workflow_dispatch`, head `64ad2e68` |
+| Artefacto | `12638674702` `visual-regression-all-production-candidate-1`, 36 841 951 B, `sha256:5010f9aeaa3ac211703dd1f947470b948885629760f5426811315ef20568c900` |
+| Conclusión del run | `failure` por diseño: el comparador del candidato sale con código 1 ante cualquier diferencia no aprobada; la evidencia se publica igual |
+| Comparación | 40 PNG emparejados, dimensiones idénticas, 22 idénticos en píxeles, 18 distintos |
+
+**Clasificación de los 18 PNG distintos.**
+
+| Grupo | PNG | Diferencia | Origen | Decisión |
+| --- | ---: | --- | --- | --- |
+| Clínica 320 (`dashboard`, `dashboard-dark-gray`, `stress-dashboard`) | 3 | 1 967–1 971 px, bbox `[20,677]-[302,710]`, sólo la banda de la barra (y ≥ 669) | D5: etiquetas 11/16 | Promover |
+| Admin 320 (`admin-dashboard`, `admin-dashboard-dark-gray`, `stress-admin-dashboard`) | 3 | 1 953–1 957 px en la barra + 5 505–5 564 px en y 0–21; 0 px entre ambas franjas | D5 + sombra preexistente | Promover |
+| Admin 768–1920, claro/oscuro, normal y stress | 12 | 5 496–5 564 px, bbox `[0,0]-[267,21]` | Sólo sombra preexistente | No promover (fuera de D5) |
+
+**Sombra preexistente de Admin.** La franja `[0,0]-[267,21]` es la estela del `box-shadow: 0 8px 24px` de `.skip-to-content-link` («Saltar al contenido principal», DRV02 #1900): el botón se oculta con `translateY(calc(-100% - 1.5rem))`, su borde inferior queda en y ≈ −12 y la sombra alcanza y ≈ 20. Es hasta 25 niveles más oscura en y = 0 y desaparece en y = 22. Ya figuraba con los mismos conteos en el run D4 `40262289895`, anterior a D5. Las baselines de Clínica la incluyen desde D4; las de Admin a 768–1920 px son anteriores a #1900. Playwright no la cuenta (`threshold` 0.2 por píxel frente a un Δ máximo de 25/255 por canal), por eso `e2e:full` pasa con esas baselines.
+
+**Diferencias perceptuales.** Bajo la métrica de Playwright (YIQ, `threshold` 0.2), los seis PNG a 320 px superan el máximo de 230 px sólo por la barra (1 035–1 201 px); fuera de la banda de la barra y de la franja de la sombra no hay ningún píxel distinto. La evidencia disponible no muestra otra diferencia perceptual.
+
+**Geometría.** La promoción no cambia contratos geométricos: banda 51.19 px, ítem 50.19 px y `main` idénticos antes y después en los seis viewports de teléfono, claro y oscuro (§11); A02, A03, A05 y A08 en PASSED sin tocar fixtures.
+
+**Inventario promovido** (copia byte-exacta desde `candidate-prod/`, SHA-256 verificado sobre el árbol versionado en `96b14809`):
+
+| Archivo | SHA-256 anterior (`64ad2e68`) | SHA-256 promovido (`96b14809`) = candidato |
+| --- | --- | --- |
+| `visual-regression-authenticated.spec.ts-snapshots/admin-dashboard-320-chromium-linux.png` | `6ec27765a21f49a81d8c3cf73fa8214cd6e558993b1274ab2f8ed9a9a454fd43` | `b1df609ea5c2abc9da32e3340f99a3002ca5e077c761ab77f0925747b23436a7` |
+| `visual-regression-authenticated.spec.ts-snapshots/admin-dashboard-dark-gray-320-chromium-linux.png` | `85555c8097586768b070c789cc4be93d7803214c07bb29cc707ce18df2962f33` | `ae57410e992a9e1460c4f035ee85402b55ff3a081745a6a419bbcfbb07be7d42` |
+| `visual-regression-authenticated.spec.ts-snapshots/dashboard-320-chromium-linux.png` | `f0dd855b44a8d04d5c2d40664fb51b8b697dc8167bebf39d2cfc36d5651093c5` | `29490eb7f8894966a43bc29b14b8481e76504b767ca77af710d00c7c9b1a227e` |
+| `visual-regression-authenticated.spec.ts-snapshots/dashboard-dark-gray-320-chromium-linux.png` | `ba648e21fdd2ee6facbd1f13dc4dd6832a5d48329f0ab3fdd321defe54a9546e` | `3d1f8162a2c3c4308a4b042d95b5d876b4394e4922879d896820466d2a0b7ba0` |
+| `visual-regression-stress.spec.ts-snapshots/stress-admin-dashboard-320-chromium-linux.png` | `6ec27765a21f49a81d8c3cf73fa8214cd6e558993b1274ab2f8ed9a9a454fd43` | `b1df609ea5c2abc9da32e3340f99a3002ca5e077c761ab77f0925747b23436a7` |
+| `visual-regression-stress.spec.ts-snapshots/stress-dashboard-320-chromium-linux.png` | `f0dd855b44a8d04d5c2d40664fb51b8b697dc8167bebf39d2cfc36d5651093c5` | `29490eb7f8894966a43bc29b14b8481e76504b767ca77af710d00c7c9b1a227e` |
+
+Rutas bajo `frontend/e2e/regression/visual/`. Los pares normal/stress comparten hash porque son el mismo render. `git diff --name-only 64ad2e68 96b14809` lista exactamente estos seis archivos: ningún otro PNG de Admin cambió.
+
+**Commit y estado remoto.** Promoción `96b14809849e8d2c01fc2e03aec70a509e6c9a28` (`test(dashboard): promote C25 D5 320px Linux visual baselines from production candidate run 40298466674`); `origin/fix/dashboard-c25-d5-mobile-nav-label-20261026` = `96b14809` verificado por `git ls-remote`.
+
+### 11.2 Cierre cronológico D5
+
+| Fecha (UTC) | Evento | Referencia |
+| --- | --- | --- |
+| 2026-10-26 | Medición en `HEAD`: 9.6/9.6 px; ítem ya a 50.19 px | `7c9b1fa9` |
+| 2026-10-26 | Implementación 11/16 + guard B09 + aserción E2E B09; gates locales (§11) | `64ad2e68` |
+| 2026-10-26 09:18 | Candidato productivo Linux: 6 PNG D5 + 12 sombras preexistentes de Admin | run `40298466674`, artefacto `12638674702` |
+| 2026-10-26 | Diagnóstico de la franja de Admin: sombra de `.skip-to-content-link` (#1900) | §11.1 |
+| 2026-10-26 | Promoción R13 de las seis baselines a 320 px | `96b14809` |
+
+**Gates.** Los resultados locales son los de la tabla de §11 sobre el diff de `64ad2e68`; no se ejecutaron gates nuevos en esta actualización documental.
+
+**Pendiente sobre la futura PR (sin resultado todavía):** los cuatro required checks (`validate-pr-governance`, `qga-workflow-security`, `validate-backend`, `validate-frontend`) sobre el head publicado; E2E Completeness (`e2e:full`, incluye `visual-linux`), no requerido, que confirma las seis baselines bajo el runner productivo de Linux; y el squash merge protegido. D5 no está fusionado.
+
+**Deuda registrada.** Doce baselines de Admin a 768–1920 px no incluyen la sombra de `.skip-to-content-link`; Playwright las acepta, pero el comparador estricto del candidato las seguirá listando hasta que una PR propia las promueva.
