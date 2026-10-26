@@ -303,6 +303,9 @@ const FT4_VIEWPORTS = [
   ...VIEWPORTS.filter((viewport) => viewport.name !== "360x740"),
   { name: "768x1024", width: 768, height: 1024 },
   { name: "1366x768", width: 1366, height: 768 },
+  // PR #1925 P2: a phone in landscape. The 88vh dialog cannot hold the title,
+  // description and four rows, so the trailing metrics need the body scroll.
+  { name: "568x320", width: 568, height: 320 },
 ] as const;
 
 test.describe("C25 F-T4 · logistics metric run full-value detail", () => {
@@ -332,6 +335,10 @@ test.describe("C25 F-T4 · logistics metric run full-value detail", () => {
         page.on("request", (request) => {
           if (new URL(request.url()).pathname.startsWith("/api/")) requests.push(request.url());
         });
+        // The bounded canvas writes its measured window first; the detail must
+        // leave that window (offset/limit) exactly as it found it.
+        await expect(page).toHaveURL(/[?&]limit=\d+/, { timeout: 12_000 });
+        const urlBefore = page.url();
 
         for (const mode of ["keyboard", "touch"] as const) {
           if (mode === "keyboard") {
@@ -345,14 +352,22 @@ test.describe("C25 F-T4 · logistics metric run full-value detail", () => {
           if (mode === "keyboard") {
             expect(await seriousAxe(page, '[data-module-dialog="true"]'), `${name}: dialog axe`).toEqual([]);
           }
+          const owners = await readDialogScrollOwners(page);
+          expect(owners.scrollers, `${name} ${mode}: at most the dialog body scrolls`).toEqual(
+            owners.bodyOverflows ? ["body"] : [],
+          );
           for (const metric of metrics) {
             const item = dialog.locator(`[data-details-metadata-item="${metric.key}"]`);
-            await expect(item, `${name} ${mode}: ${metric.key}`).toBeVisible();
+            await expect(item, `${name} ${mode}: ${metric.key}`).toBeAttached();
             const label = (await item.locator("dt").textContent())?.trim() ?? "";
             const value = (await item.locator("dd").textContent())?.trim() ?? "";
             expect(`${value} ${label}`, `${name} ${mode}: ${metric.key} equals the run`).toBe(metric.text);
-            const fit = await item.locator("dd").evaluate((element) => element.scrollWidth <= element.clientWidth);
-            expect(fit, `${name} ${mode}: ${metric.key} not clipped`).toBe(true);
+            const reach = await scrollMetricIntoReach(page, item, mode);
+            expect(reach, `${name} ${mode}: ${metric.key} physically readable (not clipped by any ancestor)`).toEqual({
+              wholeInsideClipChain: true,
+              textNotClipped: true,
+              modalScrollTop: 0,
+            });
           }
           if (mode === "keyboard") {
             await page.keyboard.press("Escape");
@@ -364,6 +379,7 @@ test.describe("C25 F-T4 · logistics metric run full-value detail", () => {
         }
 
         expect(requests, `${name}: the detail fetches nothing`).toEqual([]);
+        expect(page.url(), `${name}: paging state untouched`).toBe(urlBefore);
         expect(await seriousAxe(page, `[data-dashboard-b14-metrics-detail="${surfaceId}"]`), `${name}: trigger axe`).toEqual([]);
         const scroll = await page.evaluate(() => ({
           x: document.documentElement.scrollWidth > document.documentElement.clientWidth,
@@ -389,4 +405,71 @@ async function seriousAxe(page: Page, selector: string) {
   return violations
     .filter((violation) => ["critical", "serious"].includes(violation.impact ?? ""))
     .map((violation) => violation.id);
+}
+
+// Every scroller inside the open dialog: only the ModuleDialog body may be one,
+// and only when its content really overflows.
+async function readDialogScrollOwners(page: Page) {
+  return page.locator('[data-module-dialog="true"]').evaluate((dialog) => {
+    const body = dialog.querySelector<HTMLElement>('[data-module-dialog-body="true"]');
+    const scrollers = [dialog, ...Array.from(dialog.querySelectorAll<HTMLElement>("*"))]
+      .filter((element) => {
+        const style = getComputedStyle(element);
+        return /(auto|scroll)/.test(style.overflowY) && element.scrollHeight > element.clientHeight + 1;
+      })
+      .map((element) => (element === body ? "body" : `${element.tagName}.${element.className}`));
+    const bodyOverflowPx = body === null ? 0 : body.scrollHeight - body.clientHeight;
+    return { scrollers, bodyOverflows: bodyOverflowPx > 1 };
+  });
+}
+
+// Physical reachability, not DOM visibility: the metric's box must lie whole
+// inside the intersection of the viewport and every clipping ancestor's
+// padding box. When it does not, it is brought in with REAL input: ArrowDown on
+// the focusable metric group (keyboard) or the wheel over the dialog body
+// (pointer). Never scrollIntoView, which also scrolls overflow:hidden boxes.
+async function scrollMetricIntoReach(page: Page, item: Locator, mode: "keyboard" | "touch") {
+  const measure = () =>
+    item.evaluate((element) => {
+      const own = element.getBoundingClientRect();
+      let left = 0;
+      let top = 0;
+      let right = window.innerWidth;
+      let bottom = window.innerHeight;
+      for (let node = element.parentElement; node && node !== document.documentElement; node = node.parentElement) {
+        const style = getComputedStyle(node);
+        if (!/^(hidden|clip|auto|scroll)$/.test(style.overflowX) && !/^(hidden|clip|auto|scroll)$/.test(style.overflowY)) continue;
+        const rect = node.getBoundingClientRect();
+        left = Math.max(left, rect.left + node.clientLeft);
+        top = Math.max(top, rect.top + node.clientTop);
+        right = Math.min(right, rect.left + node.clientLeft + node.clientWidth);
+        bottom = Math.min(bottom, rect.top + node.clientTop + node.clientHeight);
+      }
+      const value = element.querySelector<HTMLElement>("dd")!;
+      return {
+        wholeInsideClipChain: own.left >= left - 0.5 && own.right <= right + 0.5 && own.top >= top - 0.5 && own.bottom <= bottom + 0.5,
+        textNotClipped: value.scrollWidth <= value.clientWidth && value.scrollHeight <= value.clientHeight,
+        modalScrollTop: (element.closest('[data-module-dialog="true"]') as HTMLElement).scrollTop,
+      };
+    });
+
+  const body = page.locator('[data-module-dialog="true"] [data-module-dialog-body="true"]');
+  const group = page.locator('[data-dashboard-b14-metrics-detail-list="true"]');
+  const box = await body.boundingBox();
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const reach = await measure();
+    if (reach.wholeInsideClipChain) return reach;
+    if (mode === "keyboard") {
+      // Tab from the dialog's initial focus (Cerrar) reaches the metric group.
+      for (let tab = 0; tab < 3 && !(await group.evaluate((element) => element === document.activeElement)); tab += 1) {
+        await page.keyboard.press("Tab");
+      }
+      await page.keyboard.press("ArrowDown");
+    } else {
+      await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+      await page.mouse.wheel(0, 48);
+    }
+    await waitForLayoutSettled(page);
+  }
+  return measure();
 }

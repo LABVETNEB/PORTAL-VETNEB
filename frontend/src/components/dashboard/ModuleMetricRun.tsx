@@ -60,6 +60,9 @@ export function ModuleMetricRun({
     <ModuleDialog
       title={detail.title}
       description={detail.description}
+      // 88vh cannot hold four rows on a short viewport (568x320): the body is
+      // the dialog's single scroll owner so the trailing metrics stay reachable.
+      scrollableBody
       trigger={
         <button
           type="button"
@@ -71,15 +74,25 @@ export function ModuleMetricRun({
         </button>
       }
     >
-      <DetailsPane label={detail.title}>
-        <DetailsMetadata
-          items={metrics.map((metric) => ({
-            id: metric.key,
-            label: metric.label,
-            value: String(metric.value),
-          }))}
-        />
-      </DetailsPane>
+      {/* Focusable so a keyboard user can scroll the body when it overflows
+          (axe scrollable-region-focusable); it holds no control of its own. */}
+      <div
+        role="group"
+        tabIndex={0}
+        aria-label={detail.title}
+        data-dashboard-b14-metrics-detail-list="true"
+        className="rounded-sm"
+      >
+        <DetailsPane label={detail.title}>
+          <DetailsMetadata
+            items={metrics.map((metric) => ({
+              id: metric.key,
+              label: metric.label,
+              value: String(metric.value),
+            }))}
+          />
+        </DetailsPane>
+      </div>
     </ModuleDialog>
   );
 }
