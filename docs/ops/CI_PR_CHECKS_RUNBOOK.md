@@ -377,17 +377,25 @@ Cada retry vuelve a ejecutar el callback y debe pasar sus assertions; no equival
 Presupuesto de runtime:
 
 ```text
-job timeout-minutes            60m   (tope duro)
+job timeout-minutes            80m   (tope duro)
 E2E_GLOBAL_TIMEOUT_MS          45m   (env del paso full, sólo este workload)
 envelope exterior              15m   (job − Playwright)
 globalTimeout por defecto      30m   (frontend/playwright.config.ts; e2e:ci y corridas locales)
 ```
 
-El envelope de 15 minutos cubre todo lo que Playwright no posee: checkout, install, verify del
+El paso `Install Playwright system dependencies` dispone de 20 minutos. La
+ampliación responde a los dos fallos del run `40359345344` de PR #1927,
+HEAD `0adb89ec2544b3b1a7acd04ed59170d60474b9b2`: los intentos 1 y 2
+agotaron el límite anterior de 5 minutos descargando paquetes APT antes de
+ejecutar Playwright. En el mismo HEAD, `Frontend CI` completó la instalación
+de dependencias en aproximadamente 12 minutos y 35 segundos y posteriormente
+aprobó 1652 tests. Se conserva `install-deps chromium`, sin omitir paquetes,
+desactivar verificaciones ni relajar aserciones.
+El envelope de 35 minutos cubre todo lo que Playwright no posee: checkout, install, verify del
 catálogo, build, auditoría pública, dependencias y Chromium y, si el paso agota su
 `globalTimeout`, subida de diagnostics, teardown e higiene.
-`test/unit/infrastructure/e2e-completeness-workflow.test.ts` fija `timeout-minutes: 60` y exige
-`job − E2E_GLOBAL_TIMEOUT_MS >= 15m`; también exige el build previo y el flag del production
+`test/unit/infrastructure/e2e-completeness-workflow.test.ts` fija `timeout-minutes: 80` y exige
+`job − E2E_GLOBAL_TIMEOUT_MS >= 35m`; también exige el build previo y el flag del production
 runner sólo en el paso full, y prohíbe `paths`, `paths-ignore` y `types` en `pull_request`.
 
 Referencia observada (**evidencia histórica del head que la produjo**, no inventario vigente):
