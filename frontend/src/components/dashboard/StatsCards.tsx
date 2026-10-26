@@ -97,18 +97,23 @@ export function StatsCards({ stats, loading }: StatsCardsProps) {
               >
                 <config.icon className="h-4 w-4" />
               </span>
-              <span className="truncate">{config.label}</span>
-              {config.emphasisLabel ? (
-                <span className="clinical-pill ml-auto px-2 py-0.5 text-[0.62rem]">
-                  {config.emphasisLabel}
-                </span>
-              ) : null}
+              {/* C25 F-T5: the label never truncates; "Prioridad" sits on the
+                  value row, which is taller than the pill, so the card keeps
+                  its height and the label keeps the whole title width. */}
+              <span className="min-w-0 break-words">{config.label}</span>
             </CardTitle>
           </CardHeader>
           <CardContent className="px-4 pb-3">
-            <p className="text-xl font-bold tracking-tight text-vetneb-ink">
-              {stats ? stats[config.key] : "—"}
-            </p>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xl font-bold tracking-tight text-vetneb-ink">
+                {stats ? stats[config.key] : "—"}
+              </p>
+              {config.emphasisLabel ? (
+                <span className="clinical-pill shrink-0 px-2 py-0.5 text-[0.62rem]">
+                  {config.emphasisLabel}
+                </span>
+              ) : null}
+            </div>
             <p className="mt-0.5 text-xs text-muted-foreground">{config.description}</p>
           </CardContent>
         </Card>

@@ -103,8 +103,8 @@ test("clinic public profile editor is single-open from 768px up without losing s
   assert.deepEqual([...order].sort((a, b) => a - b), order, "stack order");
   // Values live in formState; the password panel and the avatar stay mounted.
   assert.ok(source.includes("{isOpen || keepMounted ? content : null}"));
-  assert.ok(source.includes('<PasswordChangePanel variant="clinic" density="compact" embeddedFromMd />,'));
-  assert.match(source, /embeddedFromMd \/>,\s+true,\s+\)/, "the password panel is kept mounted");
+  // C25 F-T6: the panel shares its section with the painted section name.
+  assert.match(source, /<PasswordChangePanel variant="clinic" density="compact" embeddedFromMd \/>\s+<\/>,\s+true,\s+\)/, "the password panel is kept mounted");
   assert.equal(source.includes("renderProfileForm"), false, "one profile form, not one per section");
   assert.equal((source.match(/id=\{PROFILE_FORM_ID\}/g) ?? []).length, 1);
   // Save keeps its handler and stays a form submit; width is capped on desktop.

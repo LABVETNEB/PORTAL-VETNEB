@@ -258,6 +258,46 @@ for (const viewport of DT_VIEWPORTS) {
       await expectZeroScroll(page, "operaciones");
     });
 
+    // C25 F-T5 · HEAD 25cd6e50 truncated "Informes pendientes" to 79/95/112 px
+    // of 139 at 1024/1280/1366: icon + label + "Prioridad" shared one row. The
+    // pill now sits on the value row and the label never truncates; every card
+    // keeps one height (106 px measured on HEAD and after).
+    test("operaciones: every StatsCards label is readable in full, Prioridad kept", async ({ page }) => {
+      const workspace = await openModule(page, "operaciones");
+      const cards = workspace.locator(".dashboard-metric-card");
+      await expect(cards).toHaveCount(4);
+      for (const label of ["Informes totales", "Informes pendientes", "Visitas activas", "Planes de ruta"]) {
+        const card = cards.filter({ hasText: label });
+        const text = card.getByText(label, { exact: true });
+        await expect(text, `${label}: visible`).toBeVisible();
+        const fit = await text.evaluate((element) => {
+          const rect = element.getBoundingClientRect();
+          const cardRect = element.closest(".dashboard-metric-card")!.getBoundingClientRect();
+          return {
+            horizontal: element.scrollWidth <= element.clientWidth,
+            vertical: element.scrollHeight <= element.clientHeight,
+            inside: rect.right <= cardRect.right + 1 && rect.bottom <= cardRect.bottom + 1,
+            ellipsis: getComputedStyle(element).textOverflow,
+          };
+        });
+        expect(fit, `${label}: whole label painted inside its card`).toEqual({
+          horizontal: true,
+          vertical: true,
+          inside: true,
+          ellipsis: "clip",
+        });
+      }
+      const pending = cards.filter({ hasText: "Informes pendientes" });
+      const pill = pending.getByText("Prioridad", { exact: true });
+      await expect(pill).toBeVisible();
+      const [pillBox, cardBox] = await Promise.all([box(pill), box(pending)]);
+      expect(pillBox.x + pillBox.width, "Prioridad inside its card").toBeLessThanOrEqual(cardBox.x + cardBox.width + TOLERANCE_PX);
+      const heights = await cards.evaluateAll((items) => items.map((item) => item.getBoundingClientRect().height));
+      expect(Math.max(...heights) - Math.min(...heights), "the four cards keep one height").toBeLessThanOrEqual(TOLERANCE_PX);
+      await expectNotClipped(pending, "span, p", "Informes pendientes card");
+      await expectZeroScroll(page, "operaciones F-T5");
+    });
+
     test("informes: filters own the top band, CTA beside them or in the pager footer, pager is prev/next only", async ({ page }) => {
       const workspace = await openModule(page, "informes");
       await expectChromeRetired(page, workspace, "informes");
@@ -622,4 +662,40 @@ test.describe("CLINIC-DT-SPACE · PR-BUG-01 tokens bar on empty and failed loads
     await card.locator('[data-clinic-access-filter-bar="advanced"]').getByRole("button", { name: "Limpiar" }).click();
     await expect(toolbarAlert, "the load failure is shown again, not the stale validation error").toHaveText(loadError);
   });
+});
+
+// C25 F-T7 · the mobile chrome rule clamps `.dashboard-section-description` to
+// one ellipsised line: HEAD 25cd6e50 painted 331/346/361 px of the 372 px
+// Operaciones sentence at 360/375/390. The Métricas panel has nothing below it
+// on phones, so the sentence wraps whole inside the panel.
+test.describe("C25 F-T7 · Operaciones mobile description", () => {
+  for (const viewport of [
+    { name: "320x640", width: 320, height: 640 },
+    { name: "360x800", width: 360, height: 800 },
+    { name: "375x812", width: 375, height: 812 },
+    { name: "390x844", width: 390, height: 844 },
+    { name: "412x915", width: 412, height: 915 },
+    { name: "430x932", width: 430, height: 932 },
+  ] as const) {
+    test(`the section description is readable in full at ${viewport.name}`, async ({ page }) => {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      await setClinicSession(page, "populated");
+      await stubClientApis(page);
+      const workspace = await openModule(page, "operaciones");
+      const center = workspace.locator('[data-clinic-command-center="true"]');
+      const description = center.getByText("Vista rápida de informes, pendientes y actividad logística del día.", { exact: true });
+      await expect(description).toBeVisible();
+      const fit = await description.evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        const panel = element.closest('[role="tabpanel"]')!.getBoundingClientRect();
+        return {
+          horizontal: element.scrollWidth <= element.clientWidth,
+          vertical: element.scrollHeight <= element.clientHeight,
+          inside: rect.left >= panel.left - 1 && rect.right <= panel.right + 1 && rect.bottom <= panel.bottom + 1,
+        };
+      });
+      expect(fit, `${viewport.name}: whole sentence painted inside the panel`).toEqual({ horizontal: true, vertical: true, inside: true });
+      await expectZeroScroll(page, `operaciones F-T7 ${viewport.name}`);
+    });
+  }
 });

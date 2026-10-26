@@ -871,7 +871,20 @@ export function ClinicPublicProfileCard() {
       {renderSectionToggle(PASSWORD_TAB_ID)}
       {renderSection(
         PASSWORD_TAB_ID,
-        <PasswordChangePanel variant="clinic" density="compact" embeddedFromMd />,
+        <>
+          {/* C25 F-T6: below 768px the chip may still truncate this label
+              (<375px) and the panel's own heading is the generic security
+              title, so the section's full name paints here; the tab already
+              carries it as its accessible name. */}
+          <p
+            aria-hidden="true"
+            data-clinic-profile-section-name={PASSWORD_TAB_ID}
+            className="shrink-0 px-1 pb-1.5 text-xs font-semibold text-vetneb-ink md:hidden"
+          >
+            {PROFILE_SECTION_LABELS[PASSWORD_TAB_ID]}
+          </p>
+          <PasswordChangePanel variant="clinic" density="compact" embeddedFromMd />
+        </>,
         true,
       )}
       <div
@@ -898,6 +911,7 @@ export function ClinicPublicProfileCard() {
       chipAttribute="data-clinic-profile-chip"
       panelAttribute="data-clinic-profile-panel"
       panelClassName="md:flex-none"
+      chipSizing="content"
       activeId={activeTabId}
       onActiveIdChange={setActiveTabId}
       header={

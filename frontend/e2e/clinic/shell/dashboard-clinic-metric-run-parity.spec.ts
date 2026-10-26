@@ -1,4 +1,5 @@
-import { expect, test, type Locator } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { waitForLayoutSettled } from "../../helpers/dashboard-geometry-matrix";
 import { setClinicSession } from "../../helpers/session";
 
@@ -286,4 +287,106 @@ for (const viewport of VIEWPORTS) {
       }).toPass({ intervals: [200, 300, 500, 800, 1_000], timeout: 10_000 });
     });
   }
+}
+
+// C25 F-T4 · the full-route B14 run is one nowrap line, so its band clips the
+// trailing metrics on phones (measured on HEAD 25cd6e50: Métricas hides
+// "Duración promedio" and "Planes" from 360 to 430 px; Rutas and Visitas hide
+// "Completadas" at 360-390). The run itself opens a read-only detail with
+// every metric whole; its own B14 box is the one measured above, unchanged.
+const FT4_ROUTES = [
+  ["rutas", "/dashboard/logistica/rutas", "clinic-logistica-rutas", "Resumen de planes de ruta"],
+  ["visitas", "/dashboard/logistica/visitas", "clinic-logistica-visitas", "Resumen de visitas"],
+  ["metricas", "/dashboard/logistica/metricas", "clinic-logistica-metricas", "Resumen de métricas"],
+] as const;
+const FT4_VIEWPORTS = [
+  ...VIEWPORTS.filter((viewport) => viewport.name !== "360x740"),
+  { name: "768x1024", width: 768, height: 1024 },
+  { name: "1366x768", width: 1366, height: 768 },
+] as const;
+
+test.describe("C25 F-T4 · logistics metric run full-value detail", () => {
+  test.use({ hasTouch: true });
+
+  for (const viewport of FT4_VIEWPORTS) {
+    for (const [name, path, surfaceId, title] of FT4_ROUTES) {
+      test(`${name} discloses every metric at ${viewport.name}`, async ({ page }) => {
+        await page.setViewportSize({ width: viewport.width, height: viewport.height });
+        await setClinicSession(page, "populated");
+        await page.goto(path);
+
+        const metricRun = page.locator(`[data-dashboard-b14-metrics="${surfaceId}"]`);
+        await expect(metricRun).toHaveCount(1, { timeout: 12_000 });
+        await waitForLayoutSettled(page);
+        const trigger = page.locator(`[data-dashboard-b14-metrics-detail="${surfaceId}"]`);
+        await expect(trigger).toBeVisible();
+
+        const metrics = await metricRun.locator("[data-metric]").evaluateAll((items) =>
+          items.map((item) => ({ key: item.getAttribute("data-metric") ?? "", text: item.textContent?.trim() ?? "" })),
+        );
+        expect(metrics.length, `${name}: four metrics`).toBeGreaterThanOrEqual(4);
+        const [runBox, triggerBox] = await Promise.all([metricRun.boundingBox(), trigger.boundingBox()]);
+        expect(Math.abs(runBox!.height - triggerBox!.height), `${name}: the trigger adds no height`).toBeLessThanOrEqual(1);
+
+        const requests: string[] = [];
+        page.on("request", (request) => {
+          if (new URL(request.url()).pathname.startsWith("/api/")) requests.push(request.url());
+        });
+
+        for (const mode of ["keyboard", "touch"] as const) {
+          if (mode === "keyboard") {
+            await trigger.focus();
+            await page.keyboard.press("Enter");
+          } else {
+            await trigger.tap();
+          }
+          const dialog = page.getByRole("dialog", { name: title });
+          await expect(dialog, `${name} ${mode}: detail open`).toBeVisible();
+          if (mode === "keyboard") {
+            expect(await seriousAxe(page, '[data-module-dialog="true"]'), `${name}: dialog axe`).toEqual([]);
+          }
+          for (const metric of metrics) {
+            const item = dialog.locator(`[data-details-metadata-item="${metric.key}"]`);
+            await expect(item, `${name} ${mode}: ${metric.key}`).toBeVisible();
+            const label = (await item.locator("dt").textContent())?.trim() ?? "";
+            const value = (await item.locator("dd").textContent())?.trim() ?? "";
+            expect(`${value} ${label}`, `${name} ${mode}: ${metric.key} equals the run`).toBe(metric.text);
+            const fit = await item.locator("dd").evaluate((element) => element.scrollWidth <= element.clientWidth);
+            expect(fit, `${name} ${mode}: ${metric.key} not clipped`).toBe(true);
+          }
+          if (mode === "keyboard") {
+            await page.keyboard.press("Escape");
+          } else {
+            await dialog.getByRole("button", { name: "Cerrar" }).tap();
+          }
+          await expect(dialog).toBeHidden();
+          await expect(trigger, `${name} ${mode}: focus returns to the run`).toBeFocused();
+        }
+
+        expect(requests, `${name}: the detail fetches nothing`).toEqual([]);
+        expect(await seriousAxe(page, `[data-dashboard-b14-metrics-detail="${surfaceId}"]`), `${name}: trigger axe`).toEqual([]);
+        const scroll = await page.evaluate(() => ({
+          x: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+          y: document.documentElement.scrollHeight > document.documentElement.clientHeight,
+        }));
+        expect(scroll, `${name}: zero document scroll`).toEqual({ x: false, y: false });
+      });
+    }
+  }
+});
+
+// Serious/critical axe violations inside `selector`, after any enter animation
+// of an open dialog has finished (a mid-fade frame reads as low contrast).
+async function seriousAxe(page: Page, selector: string) {
+  await page.evaluate(() =>
+    Promise.all(
+      Array.from(document.querySelectorAll('[data-module-dialog="true"]')).flatMap((dialog) =>
+        dialog.getAnimations({ subtree: true }).map((animation) => animation.finished),
+      ),
+    ),
+  );
+  const { violations } = await new AxeBuilder({ page }).include(selector).analyze();
+  return violations
+    .filter((violation) => ["critical", "serious"].includes(violation.impact ?? ""))
+    .map((violation) => violation.id);
 }

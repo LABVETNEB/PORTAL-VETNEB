@@ -186,6 +186,7 @@ export default async function MetricasPage({
           <ModuleMetricRun
             surfaceId="clinic-logistica-metricas"
             className="w-full min-w-0 overflow-hidden truncate"
+            detail={{ title: "Resumen de métricas", description: `Métricas calculadas sobre la página visible (máximo ${limit} planes), no sobre el total general de rutas.` }}
             metrics={[
             { key: "cumplimiento", label: "Cumplimiento", value: `${avgCompliance}%` },
             { key: "paradas", label: "Paradas completadas", value: `${completedStops}/${totalStops}` },

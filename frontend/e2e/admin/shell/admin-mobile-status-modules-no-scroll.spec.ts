@@ -1,3 +1,4 @@
+import AxeBuilder from "@axe-core/playwright";
 import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import {
@@ -505,3 +506,108 @@ test("Admin mobile Alertas chip paginates failed-login alerts by measured fit", 
   await expect(pager.getByText(/Pág\. 2 \/ \d+/)).toBeVisible();
   await expect(items.first()).not.toContainText("#6100");
 });
+
+// C25 F-T3 · the service rows truncate their detail below ~412 px (measured on
+// HEAD 25cd6e50: "Gmail API: Configurado · SMTP: No configurado" at 240 px of
+// content in a 203 px box at 360). The row text opens a read-only detail with
+// the full value; keyboard, touch, Escape and focus return are pinned, and the
+// disclosure costs no request and no row height.
+const FT3_SERVICE_DETAILS = [
+  ["Transporte de correo", "Gmail API: Configurado · SMTP: No configurado"],
+  ["Contacto email", "Destino: qa-fixture@example.test"],
+  ["CORS público", "1 origen(es) activo(s)"],
+] as const;
+
+test.describe("C25 F-T3 · Estado del sistema mobile service detail", () => {
+  test.use({ hasTouch: true });
+
+  for (const viewport of MOBILE_VIEWPORTS) {
+    test(`every service detail is readable in full at ${viewport.name}`, async ({ page }) => {
+      test.setTimeout(60_000);
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      await setAdminSession(page, "populated");
+      await mockStatusApis(page);
+      await page.goto("/dashboard/admin?module=admin-health");
+      await suppressNextDevIndicator(page);
+
+      const moduleSelector = '[data-admin-mobile-status-module="admin-health"]';
+      const moduleRoot = page.locator(moduleSelector);
+      const rows = moduleRoot.locator('[data-admin-mobile-status-item="true"]');
+      await expect(rows.first()).toBeVisible({ timeout: 15_000 });
+      const triggers = moduleRoot.locator('[data-admin-mobile-health-service-detail="true"]');
+      await expect(triggers).toHaveCount(FT3_SERVICE_DETAILS.length);
+
+      const rowHeights = await rows.evaluateAll((items) => items.map((item) => item.getBoundingClientRect().height));
+      expect(Math.max(...rowHeights) - Math.min(...rowHeights), "rows keep their equal grid pitch").toBeLessThanOrEqual(1);
+      assertNoScrollContract(await readNoScrollContract(page, moduleSelector), `${viewport.name} F-T3 rows`);
+
+      const requests: string[] = [];
+      page.on("request", (request) => {
+        if (new URL(request.url()).pathname.startsWith("/api/")) requests.push(request.url());
+      });
+
+      for (const [index, [label, detail]] of FT3_SERVICE_DETAILS.entries()) {
+        const trigger = triggers.nth(index);
+        await expect(trigger).toContainText(label);
+        await expect(trigger).toContainText(detail);
+        const row = trigger.locator('xpath=ancestor::*[@data-admin-mobile-status-item="true"][1]');
+        const [rowBox, triggerBox] = await Promise.all([row.boundingBox(), trigger.boundingBox()]);
+        expect(triggerBox!.y + triggerBox!.height, `${label}: trigger inside its row`).toBeLessThanOrEqual(rowBox!.y + rowBox!.height + TOLERANCE);
+        expect(triggerBox!.x + triggerBox!.width, `${label}: trigger leaves the badge room`).toBeLessThanOrEqual(rowBox!.x + rowBox!.width + TOLERANCE);
+
+        // Keyboard on the first two, touch on the last one.
+        if (index < 2) {
+          await trigger.focus();
+          await page.keyboard.press("Enter");
+        } else {
+          await trigger.tap();
+        }
+
+        const dialog = page.getByRole("dialog", { name: label });
+        await expect(dialog).toBeVisible();
+        if (index === 0) {
+          expect(await seriousAxe(page, '[data-module-dialog="true"]'), `${label}: dialog axe`).toEqual([]);
+        }
+        const value = dialog.locator('[data-details-metadata-item="detail"] dd');
+        await expect(value).toHaveText(detail);
+        const fit = await value.evaluate((element) => ({
+          scrollWidth: element.scrollWidth,
+          clientWidth: element.clientWidth,
+          scrollHeight: element.scrollHeight,
+          clientHeight: element.clientHeight,
+        }));
+        expect(fit.scrollWidth, `${label}: detail not clipped horizontally`).toBeLessThanOrEqual(fit.clientWidth);
+        expect(fit.scrollHeight, `${label}: detail not clipped vertically`).toBeLessThanOrEqual(fit.clientHeight);
+        await expect(dialog.locator("input, select, textarea")).toHaveCount(0);
+
+        if (index < 2) {
+          await page.keyboard.press("Escape");
+        } else {
+          await dialog.getByRole("button", { name: "Cerrar" }).tap();
+        }
+        await expect(dialog).toBeHidden();
+        await expect(trigger, `${label}: focus returns to the row`).toBeFocused();
+      }
+
+      expect(requests, "opening a service detail fetches nothing").toEqual([]);
+      expect(await seriousAxe(page, moduleSelector), `${viewport.name}: Servicios axe`).toEqual([]);
+      assertNoScrollContract(await readNoScrollContract(page, moduleSelector), `${viewport.name} F-T3 after`);
+    });
+  }
+});
+
+// Serious/critical axe violations inside `selector`, after any enter animation
+// of an open dialog has finished (a mid-fade frame reads as low contrast).
+async function seriousAxe(page: Page, selector: string) {
+  await page.evaluate(() =>
+    Promise.all(
+      Array.from(document.querySelectorAll('[data-module-dialog="true"]')).flatMap((dialog) =>
+        dialog.getAnimations({ subtree: true }).map((animation) => animation.finished),
+      ),
+    ),
+  );
+  const { violations } = await new AxeBuilder({ page }).include(selector).analyze();
+  return violations
+    .filter((violation) => ["critical", "serious"].includes(violation.impact ?? ""))
+    .map((violation) => violation.id);
+}

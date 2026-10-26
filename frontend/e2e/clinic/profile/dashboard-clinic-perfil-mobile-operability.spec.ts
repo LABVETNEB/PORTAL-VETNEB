@@ -1,3 +1,4 @@
+import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 import { setClinicSession } from "../../helpers/session";
 import { MAX_DOCUMENT_SCROLL_DELTA_PX } from "../../helpers/zero-scroll-contract";
@@ -390,4 +391,94 @@ for (const viewport of VIEWPORTS) {
     await expect(editor.getByText("Auditoría")).toHaveCount(0);
     await expect(editor.getByText("Mantenimiento")).toHaveCount(0);
   });
+}
+
+// C25 F-T6 · equal-width chips truncated "Cambiar contraseña" to 65-78 px of
+// 118 at 360-430 (HEAD 25cd6e50; "Contenido" too at 360), and the password
+// panel's own title is "Seguridad", so the full name painted nowhere. Perfil
+// now sizes its chips by label (band height unchanged) and paints the section
+// name in the panel; the tab semantics and the 44 px proxy stay intact.
+const FT6_VIEWPORTS = [
+  { name: "360x800", width: 360, height: 800 },
+  { name: "375x812", width: 375, height: 812 },
+  { name: "390x844", width: 390, height: 844 },
+  { name: "412x915", width: 412, height: 915 },
+  { name: "430x932", width: 430, height: 932 },
+] as const;
+const FT6_LABELS = ["Estado", "Datos", "Contacto", "Contenido", "Cambiar contraseña"] as const;
+
+test.describe("C25 F-T6 · Perfil chips disclose Cambiar contraseña", () => {
+  test.use({ hasTouch: true });
+
+  for (const viewport of FT6_VIEWPORTS) {
+    test(`chip names are identifiable and selectable at ${viewport.name}`, async ({ page }) => {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      await setClinicSession(page, "populated");
+      await mockClinicProfile(page);
+      await page.goto("/dashboard?module=perfil");
+      const editor = page.locator('[data-clinic-profile-editor="true"]');
+      await expect(editor).toBeVisible({ timeout: 12_000 });
+
+      const tabs = editor.getByRole("tab");
+      await expect(tabs).toHaveText([...FT6_LABELS]);
+      const chips = await tabs.evaluateAll((items) =>
+        items.map((item) => {
+          const rect = item.getBoundingClientRect();
+          return { text: item.textContent ?? "", fits: item.scrollWidth <= item.clientWidth, top: rect.top, height: rect.height, right: rect.right, bandRight: item.parentElement!.getBoundingClientRect().right };
+        }),
+      );
+      for (const chip of chips.slice(0, 4)) expect(chip.fits, `${viewport.name}: ${chip.text} whole`).toBe(true);
+      if (viewport.width >= 375) expect(chips[4].fits, `${viewport.name}: Cambiar contraseña whole on its chip`).toBe(true);
+      expect(new Set(chips.map((chip) => `${chip.top.toFixed(1)}:${chip.height.toFixed(1)}`)).size, "one chip row").toBe(1);
+      expect(chips[4].right, "last chip inside the band").toBeLessThanOrEqual(chips[4].bandRight + 1);
+
+      // Keyboard: ArrowLeft from the first tab wraps to the last one.
+      await tabs.first().focus();
+      await page.keyboard.press("ArrowLeft");
+      const passwordTab = editor.getByRole("tab", { name: "Cambiar contraseña", exact: true });
+      await expect(passwordTab).toBeFocused();
+      await expect(passwordTab).toHaveAttribute("aria-selected", "true");
+      const panelId = await passwordTab.getAttribute("aria-controls");
+      const panel = page.locator(`[id="${panelId}"]`);
+      await expect(panel).toHaveAttribute("role", "tabpanel");
+      const name = panel.locator('[data-clinic-profile-section-name="cambiar-contrasena"]');
+      await expect(name).toBeVisible();
+      await expect(name).toHaveText("Cambiar contraseña");
+      expect(await name.evaluate((element) => element.scrollWidth <= element.clientWidth), "section name not clipped").toBe(true);
+      await expect(panel.locator('input[name="currentPassword"]')).toBeVisible();
+      await expect(panel.getByRole("button", { name: "Actualizar contraseña", exact: true })).toBeInViewport();
+
+      // Touch: back to Datos and then the password chip by tap.
+      await editor.getByRole("tab", { name: "Datos", exact: true }).tap();
+      await expect(name).toBeHidden();
+      await passwordTab.tap();
+      await expect(passwordTab).toHaveAttribute("aria-selected", "true");
+      await expect(name).toBeVisible();
+      // The 44 px proxy strip below the chip still delegates to it.
+      await editor.getByRole("tab", { name: "Estado", exact: true }).tap();
+      const proxy = page.locator('[data-module-card-chip-proxy="cambiar-contrasena"]').first();
+      await expect(proxy).toBeAttached();
+      await proxy.dispatchEvent("click");
+      await expect(passwordTab).toHaveAttribute("aria-selected", "true");
+
+      expect(await seriousAxe(page, '[data-clinic-profile-editor="true"]'), `${viewport.name}: Perfil axe`).toEqual([]);
+      await expectNoGlobalDashboardScroll(page, `${viewport.name}: F-T6`);
+    });
+  }
+});
+
+// Serious/critical axe violations inside `selector`, after any enter animation
+// of an open dialog has finished (a mid-fade frame reads as low contrast).
+async function seriousAxe(page: Page, selector: string) {
+  await page.evaluate(() =>
+    Promise.all(
+      Array.from(document.querySelectorAll('[data-module-dialog="true"]')).flatMap((dialog) =>
+        dialog.getAnimations({ subtree: true }).map((animation) => animation.finished),
+      ),
+    ),
+  );
+  const { violations } = await new AxeBuilder({ page }).include(selector).analyze();
+  return violations
+    .filter((violation) => ["critical", "serious"].includes(violation.impact ?? ""))
+    .map((violation) => violation.id);
 }

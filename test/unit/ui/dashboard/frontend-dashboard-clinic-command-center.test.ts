@@ -147,7 +147,7 @@ test("ClinicCommandCenter keeps the metrics heading as the section name and pain
   // accessible name (sr-only from md), the description stops painting from md,
   // and the card header run is retired. Phones keep both lines unchanged.
   assert.ok(source.includes('className="dashboard-section-heading md:sr-only"'));
-  assert.ok(source.includes('className="dashboard-section-description md:hidden"'));
+  assert.ok(source.includes('className="dashboard-section-description !whitespace-normal md:hidden"'));
   assert.ok(source.includes("Vista rápida de informes, pendientes y actividad logística del día."));
   assert.equal(source.includes("ModuleMetricRun"), false);
   assert.equal(source.includes('surfaceId="clinic-operaciones"'), false);
