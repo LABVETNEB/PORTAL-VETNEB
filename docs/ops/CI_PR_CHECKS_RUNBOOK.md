@@ -351,7 +351,7 @@ E2E Completeness (no required):
   full == ci ∪ extended ∪ evidence ∪ visual-linux
 ```
 
-El job `e2e-full-completeness` (`ubuntu-latest`, `timeout-minutes: 60`, concurrencia por ref con
+El job `e2e-full-completeness` (`ubuntu-latest`, `timeout-minutes: 80`, concurrencia por ref con
 `cancel-in-progress`) ejecuta:
 
 1. instalación con lockfile congelado;
@@ -377,17 +377,30 @@ Cada retry vuelve a ejecutar el callback y debe pasar sus assertions; no equival
 Presupuesto de runtime:
 
 ```text
-job timeout-minutes            60m   (tope duro)
+job timeout-minutes            80m   (tope duro)
 E2E_GLOBAL_TIMEOUT_MS          45m   (env del paso full, sólo este workload)
-envelope exterior              15m   (job − Playwright)
+envelope exterior              35m   (job − Playwright)
 globalTimeout por defecto      30m   (frontend/playwright.config.ts; e2e:ci y corridas locales)
 ```
 
-El envelope de 15 minutos cubre todo lo que Playwright no posee: checkout, install, verify del
+Evidencia del ajuste de infraestructura (26-10-2026): el run
+`40375101293` de la PR #1926, HEAD `5ec050b4`, falló antes de
+ejecutar Playwright porque `Install Playwright system dependencies`
+agotó su timeout de 5 minutos descargando paquetes APT desde el
+mirror de Ubuntu 26.04. El mismo problema había aparecido dos veces
+en el run `40359345344` de la PR #1927.
+
+La ampliación a 20 minutos del paso APT y 80 minutos del job evita
+que el límite previo interrumpa instalaciones que superan 5 minutos.
+No garantiza disponibilidad de los servidores APT ni reemplaza
+las pruebas E2E completas. Se preservan el comando install-deps,
+las verificaciones fail-closed, los retries, el presupuesto de
+ejecución Playwright de 45 minutos y todos los controles de seguridad.
+El envelope de 35 minutos cubre todo lo que Playwright no posee: checkout, install, verify del
 catálogo, build, auditoría pública, dependencias y Chromium y, si el paso agota su
 `globalTimeout`, subida de diagnostics, teardown e higiene.
-`test/unit/infrastructure/e2e-completeness-workflow.test.ts` fija `timeout-minutes: 60` y exige
-`job − E2E_GLOBAL_TIMEOUT_MS >= 15m`; también exige el build previo y el flag del production
+`test/unit/infrastructure/e2e-completeness-workflow.test.ts` fija `timeout-minutes: 80` y exige
+`job − E2E_GLOBAL_TIMEOUT_MS >= 35m`; también exige el build previo y el flag del production
 runner sólo en el paso full, y prohíbe `paths`, `paths-ignore` y `types` en `pull_request`.
 
 Referencia observada (**evidencia histórica del head que la produjo**, no inventario vigente):

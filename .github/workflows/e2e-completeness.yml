@@ -19,7 +19,7 @@ jobs:
   e2e-full-completeness:
     name: e2e-full-completeness
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 80
 
     steps:
       - name: Checkout
@@ -55,7 +55,7 @@ jobs:
 
       - name: Install Playwright system dependencies
         shell: bash
-        timeout-minutes: 5
+        timeout-minutes: 20
         run: |
           set -euo pipefail
 

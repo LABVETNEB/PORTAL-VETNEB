@@ -436,7 +436,7 @@ test("completeness job preserves Linux baseline compatibility, build ordering an
   const stepNames = steps.map((step) => String(step.name ?? ""));
 
   assert.equal(workflowJob["runs-on"], "ubuntu-latest");
-  assert.equal(workflowJob["timeout-minutes"], 60);
+  assert.equal(workflowJob["timeout-minutes"], 80);
   assert.deepEqual(document.permissions, { contents: "read" });
   assert.equal(mapping(document.concurrency, "concurrency")["cancel-in-progress"], true);
   assert.ok(stepNames.indexOf("Build frontend") < stepNames.indexOf("Run complete cataloged E2E suite"));
@@ -459,8 +459,8 @@ test("completeness job preserves Linux baseline compatibility, build ordering an
   const jobTimeoutMs = Number(workflowJob["timeout-minutes"]) * 60_000;
   const playwrightBudgetMs = Number(mapping(runFull.env, "runFull.env").E2E_GLOBAL_TIMEOUT_MS);
   assert.ok(
-    jobTimeoutMs - playwrightBudgetMs >= 15 * 60_000,
-    "the job cap must reserve at least 15m outside Playwright's own budget for checkout, install, " +
+    jobTimeoutMs - playwrightBudgetMs >= 35 * 60_000,
+    "the job cap must reserve at least 35m outside Playwright's own budget for checkout, install, " +
       "build, browser install and — on timeout — diagnostics, teardown and hygiene; otherwise setup " +
       "overhead can cancel the job before a healthy suite finishes",
   );
@@ -549,7 +549,7 @@ test("system dependency install sanitizes only Google Chrome APT sources and sta
   const script = String(step.run);
 
   assert.equal(step.shell, "bash");
-  assert.equal(step["timeout-minutes"], 5);
+  assert.equal(step["timeout-minutes"], 20);
   assert.ok(script.startsWith("set -euo pipefail\n"), "the step must abort on the first failing command");
 
   // The remediated failure was an out-of-scope APT source, not a Playwright one:
