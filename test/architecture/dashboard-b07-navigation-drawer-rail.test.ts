@@ -755,13 +755,30 @@ test("B07 · active navigation keeps its active colors while hovered", () => {
     flat.indexOf("}", ruleStart),
   );
 
+  const ACTIVE_BACKGROUND = "background-color: hsl(var(--primary) / var(--dash-state-selected-opacity));";
+  const ACTIVE_FOREGROUND = "color: var(--dash-color-on-surface);";
   assert.ok(
-    declarations.includes("background-color: var(--dash-color-surface-muted);"),
+    declarations.includes(ACTIVE_BACKGROUND),
     "the hovered active item must keep the active background token, not the hover one",
   );
   assert.ok(
-    declarations.includes("color: var(--dash-color-primary);"),
+    declarations.includes(ACTIVE_FOREGROUND),
     "the hovered active item must keep the active foreground token, not the hover one",
+  );
+
+  // Drive-shell foundation: the active container is primary-tinted and carries
+  // on-surface text. Primary text over the muted fill measured 3.04:1 in
+  // dark-gray; the runtime ratio is asserted by the B08 E2E contract.
+  const ACTIVE_SELECTOR = ".dashboard-app-shell .dashboard-navigation-item-active {";
+  const activeStart = flat.indexOf(ACTIVE_SELECTOR);
+  assert.notEqual(activeStart, -1, "the B07 block must declare the active rule");
+  const activeDeclarations = flat.slice(activeStart + ACTIVE_SELECTOR.length, flat.indexOf("}", activeStart));
+  assert.ok(activeDeclarations.includes(ACTIVE_BACKGROUND), "the active item paints the selected container");
+  assert.ok(activeDeclarations.includes(ACTIVE_FOREGROUND), "the active item carries on-surface text");
+  assert.equal(
+    flat.includes("color: var(--dash-color-primary);"),
+    false,
+    "no B07 state may paint primary text: it fails 4.5:1 on the dark-gray state fills",
   );
   assert.equal(
     declarations.includes("!important"),

@@ -2004,12 +2004,14 @@
   line-height: 1.2;
   text-align: left;
   text-decoration: none;
-  box-shadow: 0 8px 24px hsl(var(--vetneb-navy) / 0.28);
 }
 
+/* The elevation belongs to the revealed state only: offscreen, its 8px/24px
+   drop reached ~20px into the viewport and painted a smudge over the chrome. */
 .skip-to-content-link:focus,
 .skip-to-content-link:focus-visible {
   transform: translateY(0);
+  box-shadow: 0 8px 24px hsl(var(--vetneb-navy) / 0.28);
   outline: 2px solid hsl(var(--ring));
   outline-offset: 2px;
 }

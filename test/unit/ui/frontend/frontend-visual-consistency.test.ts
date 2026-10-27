@@ -358,7 +358,7 @@ test("dashboard topbar keeps sticky hierarchy and compact responsive shell", () 
       // silent restyle still fails; `shadow-sm` is gone from it because the
       // band is now flat by contract, stated as `--dash-elevation-none` on
       // `[data-dashboard-topbar-polish]` in styles/dashboard/surfaces.css.
-      /className="sticky top-0 z-40 flex shrink-0 flex-col border-b border-vetneb-line\/80 bg-card\/90 backdrop-blur supports-\[backdrop-filter\]:bg-card\/78"/,
+      /className="sticky top-0 z-40 flex shrink-0 flex-col border-b border-vetneb-line\/80 bg-card"/,
       /className="truncate text-lg font-semibold leading-tight text-vetneb-ink sm:text-xl"/,
       /className="truncate text-xs text-muted-foreground sm:text-\[0\.8125rem\]"/,
     ],

@@ -1057,6 +1057,41 @@ test.describe("B08 · clinic module navigation", () => {
 
 // ── E · Dark-gray theme sample ──────────────────────────────────────────────
 
+/** WCAG 2.x ratio of the painted active item's text over its composited fill. */
+async function readActiveItemContrast(page: Page): Promise<number | null> {
+  return page.evaluate(() => {
+    const item = [...document.querySelectorAll<HTMLElement>(".dashboard-navigation-item-active")]
+      .find((element) => element.getBoundingClientRect().width > 0);
+    if (!item) return null;
+    const parse = (value: string) => {
+      const parts = (value.match(/[\d.]+/g) ?? []).map(Number);
+      return { r: parts[0], g: parts[1], b: parts[2], a: parts[3] ?? 1 };
+    };
+    type Rgba = ReturnType<typeof parse>;
+    const over = (top: Rgba, bottom: Rgba): Rgba => ({
+      r: top.r * top.a + bottom.r * (1 - top.a),
+      g: top.g * top.a + bottom.g * (1 - top.a),
+      b: top.b * top.a + bottom.b * (1 - top.a),
+      a: 1,
+    });
+    const layers: Rgba[] = [];
+    for (let node: HTMLElement | null = item; node; node = node.parentElement) {
+      const fill = parse(getComputedStyle(node).backgroundColor);
+      if (fill.a > 0) layers.push(fill);
+      if (fill.a >= 1) break;
+    }
+    const background = layers.reduceRight<Rgba>((acc, layer) => over(layer, acc), { r: 255, g: 255, b: 255, a: 1 });
+    const foreground = over(parse(getComputedStyle(item).color), background);
+    const luminance = ({ r, g, b }: Rgba) =>
+      [r, g, b]
+        .map((channel) => channel / 255)
+        .map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4))
+        .reduce((sum, c, index) => sum + c * [0.2126, 0.7152, 0.0722][index], 0);
+    const [light, dark] = [luminance(foreground), luminance(background)].sort((a, b) => b - a);
+    return (light + 0.05) / (dark + 0.05);
+  });
+}
+
 test.describe("B08 · lateral navigation in dark-gray", () => {
   const theme: ThemeMode = DARK_GRAY_THEME_MODE;
 
@@ -1099,6 +1134,14 @@ test.describe("B08 · lateral navigation in dark-gray", () => {
           failures.push(
             ...collectViolations(reading, label, viewport.width),
           );
+
+          // Drive-shell foundation: the active destination's text clears WCAG
+          // AA (4.5:1) over its composited container. Primary text on the old
+          // muted fill measured 3.04:1 here.
+          const activeContrast = await readActiveItemContrast(page);
+          if (activeContrast === null || activeContrast < 4.5) {
+            failures.push(`${label}: active item contrast ${activeContrast} < 4.5`);
+          }
         }
       } finally {
         await context.close();

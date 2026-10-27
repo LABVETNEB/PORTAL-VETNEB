@@ -212,13 +212,17 @@
 
 .dashboard-app-shell .dashboard-navigation-drawer-item:hover,
 .dashboard-app-shell .dashboard-navigation-rail-item:hover {
-  background-color: var(--dash-color-surface-raised);
+  background-color: var(--dash-color-surface-muted);
   color: var(--dash-color-on-surface);
 }
 
+/* ACTIVE_CONTAINER. A primary-tinted selected container carrying on-surface
+   text, the Drive pattern. Primary text on the old muted fill measured 3.04:1
+   in dark-gray; on-surface over this container clears 4.5:1 in both themes.
+   The tint alpha is the theme-variant selected state layer of tokens.css. */
 .dashboard-app-shell .dashboard-navigation-item-active {
-  background-color: var(--dash-color-surface-muted);
-  color: var(--dash-color-primary);
+  background-color: hsl(var(--primary) / var(--dash-state-selected-opacity));
+  color: var(--dash-color-on-surface);
   font-weight: var(--dash-text-body-strong-weight);
 }
 
@@ -231,8 +235,8 @@
   .dashboard-navigation-drawer-item.dashboard-navigation-item-active:hover,
 .dashboard-app-shell
   .dashboard-navigation-rail-item.dashboard-navigation-item-active:hover {
-  background-color: var(--dash-color-surface-muted);
-  color: var(--dash-color-primary);
+  background-color: hsl(var(--primary) / var(--dash-state-selected-opacity));
+  color: var(--dash-color-on-surface);
 }
 
 /* FOCUS_INDICATOR. A real outline, not a suppressed one: the route control

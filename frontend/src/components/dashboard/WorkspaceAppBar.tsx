@@ -197,12 +197,12 @@ function WorkspaceModuleSearch() {
 
   return (
     <div
-      className="relative hidden min-w-0 shrink md:block md:w-44 lg:w-60"
+      className="relative hidden min-w-0 shrink md:block md:w-48 lg:w-72 xl:w-[26rem] 2xl:w-[32rem]"
       data-workspace-app-bar-search="true"
       onBlur={onWrapperBlur}
     >
       <Search
-        className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
+        className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
         aria-hidden="true"
       />
       <input
@@ -220,7 +220,7 @@ function WorkspaceModuleSearch() {
         aria-label="Buscar modulo del dashboard"
         placeholder="Buscar modulo"
         data-workspace-app-bar-search-input="true"
-        className="h-9 w-full min-w-0 rounded-md border border-input bg-card/95 pl-7 pr-2 text-[0.8125rem] text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85"
+        className="h-10 w-full min-w-0 rounded-full border border-transparent bg-muted pl-10 pr-4 text-sm text-foreground transition-[background-color,border-color] duration-100 placeholder:text-muted-foreground hover:bg-accent/60 focus-visible:border-input focus-visible:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85"
         value={query}
         onChange={(event) => {
           setQuery(event.target.value);
@@ -241,7 +241,7 @@ function WorkspaceModuleSearch() {
         aria-label="Modulos del dashboard"
         hidden={!expanded}
         data-workspace-app-bar-search-results="true"
-        className="absolute left-0 top-[calc(100%+0.25rem)] z-50 max-h-64 w-full overflow-y-auto rounded-md border border-input bg-card py-1 text-[0.8125rem]"
+        className="absolute left-0 top-[calc(100%+0.25rem)] z-50 max-h-64 w-full overflow-y-auto rounded-2xl border border-input bg-card py-2 text-sm"
       >
         {matches.map((entry) => (
           <li
@@ -256,7 +256,7 @@ function WorkspaceModuleSearch() {
             // list from the combobox with aria-activedescendant.
             tabIndex={-1}
             className={cn(
-              "cursor-pointer truncate px-2 py-1 text-foreground",
+              "cursor-pointer truncate px-4 py-1.5 text-foreground",
               activeOption?.moduleId === entry.moduleId && "bg-accent/70",
             )}
             onClick={() => select(entry)}

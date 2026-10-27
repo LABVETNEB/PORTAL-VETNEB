@@ -140,10 +140,8 @@
   .dashboard-app-shell {
     position: relative;
     isolation: isolate;
-    background:
-      radial-gradient(circle at 18% 12%, hsl(var(--vetneb-teal) / 0.13), transparent 28rem),
-      radial-gradient(circle at 84% 4%, hsl(var(--vetneb-cyan) / 0.12), transparent 24rem),
-      linear-gradient(140deg, var(--dash-color-surface-raised) 0%, var(--dash-color-canvas) 48%, var(--dash-color-surface-muted) 100%);
+    /* Drive-shell foundation: one flat neutral canvas, no decorative washes. */
+    background: var(--dash-color-canvas);
   }
 
   .dashboard-app-shell::before {
@@ -152,7 +150,9 @@
     inset: 0.5rem;
     z-index: 35;
     pointer-events: none;
-    border: 1px solid hsl(var(--vetneb-teal) / 0.22);
+    /* Neutral hairline instead of the teal frame: the frame still delimits
+       the shell (visibility contract) without competing with the content. */
+    border: 1px solid var(--dash-color-outline-subtle);
     border-radius: 1.25rem;
     /* B04 · PERSISTENT_CHROME. The shell frame is the outermost persistent
        chrome, so G6 retires its elevation: the 18px/70px drop plus the inset
@@ -174,16 +174,9 @@
     height: 3px;
     pointer-events: none;
     border-radius: 999px;
-    background:
-      linear-gradient(
-        90deg,
-        transparent 0%,
-        hsl(var(--vetneb-teal) / 0.18) 10%,
-        hsl(var(--vetneb-cyan) / 0.5) 50%,
-        hsl(var(--vetneb-teal) / 0.18) 90%,
-        transparent 100%
-      );
-    opacity: 0.95;
+    /* The top rail keeps its box (visibility contract) but drops the
+       teal/cyan ornament: a neutral outline tone, no gradient. */
+    background: var(--dash-color-outline-subtle);
   }
 
   @media (max-width: 767px) {

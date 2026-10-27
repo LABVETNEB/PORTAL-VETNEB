@@ -68,6 +68,9 @@ test.describe("PR-DRV-02 · skip to content on the dashboard", () => {
         expect(await page.evaluate(() => document.activeElement === document.body), "nothing holds focus before the first Tab").toBe(true);
         const hidden = await skip.boundingBox();
         expect(hidden && hidden.y + hidden.height, "offscreen until focused").toBeLessThanOrEqual(0);
+        // Nothing of the resting control may paint into the viewport: its drop
+        // shadow used to reach ~20px below the top edge.
+        expect(await skip.evaluate((el) => getComputedStyle(el).boxShadow), "no resting shadow").toBe("none");
 
         const url = page.url();
         const historyLength = await page.evaluate(() => history.length);
@@ -84,6 +87,7 @@ test.describe("PR-DRV-02 · skip to content on the dashboard", () => {
         await expect(skip).toBeFocused();
         const shown = await skip.boundingBox();
         expect(shown, "focused skip control is painted").not.toBeNull();
+        expect(await skip.evaluate((el) => getComputedStyle(el).boxShadow), "the revealed control keeps its elevation").not.toBe("none");
         expect(shown!.y).toBeGreaterThanOrEqual(0);
         expect(shown!.x).toBeGreaterThanOrEqual(0);
         expect(shown!.x + shown!.width).toBeLessThanOrEqual(viewport.width);

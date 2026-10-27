@@ -232,8 +232,8 @@ const CHROME_COMPONENTS = [
   {
     path: TOPBAR_TSX,
     chromeClassName:
-      '"sticky top-0 z-40 flex shrink-0 flex-col border-b border-vetneb-line/80 bg-card/90 backdrop-blur supports-[backdrop-filter]:bg-card/78"',
-    why: "topbar band",
+      '"sticky top-0 z-40 flex shrink-0 flex-col border-b border-vetneb-line/80 bg-card"',
+    why: "topbar band (drive-shell foundation: solid, no backdrop blur)",
   },
   {
     path: FILTER_BAR_TSX,
