@@ -476,6 +476,33 @@ test("B06 · the runtime contract walks the canonical 21 x 13 matrix", () => {
   }
 });
 
+// ── Drive-shell foundation · flat chrome, pill search, neutral canvas ───────
+test("B06 · drive-shell foundation keeps the chrome solid and the canvas flat", () => {
+  const topbar = stripComments(read(TOPBAR_TSX));
+  for (const translucent of ["backdrop-blur", "supports-[backdrop-filter]", "bg-card/9", "bg-card/7", "shadow-["]) {
+    assert.equal(topbar.includes(translucent), false, `the topbar must not reintroduce ${translucent}`);
+  }
+
+  const appBar = stripComments(read(APP_BAR_TSX));
+  assert.ok(
+    appBar.includes("h-10 w-full min-w-0 rounded-full border border-transparent bg-muted"),
+    "the module search is a flat 40px pill (SuperSearchField target: 40px, radius 20px)",
+  );
+  assert.ok(appBar.includes('placeholder="Buscar modulo"'), "the search keeps its module-search purpose");
+
+  const ruleOf = (source: string, selector: string) => {
+    const from = source.indexOf(selector);
+    assert.notEqual(from, -1, `missing rule ${selector}`);
+    return stripComments(source.slice(from, source.indexOf("}", from)));
+  };
+  const shellRule = ruleOf(read(LAYOUT_CSS), ".dashboard-app-shell {");
+  const mainRule = ruleOf(read("frontend/src/styles/dashboard/surfaces.css"), ".dashboard-main {");
+  for (const [name, rule] of [["shell", shellRule], ["main", mainRule]] as const) {
+    assert.ok(rule.includes("background: var(--dash-color-canvas);"), `the ${name} paints the flat canvas token`);
+    assert.equal(/gradient|background-size/.test(rule), false, `the ${name} must not paint decorative gradients or grids`);
+  }
+});
+
 test("B06 · the app-bar contract files stay inside the declared scope", () => {
   for (const file of [APP_BAR_TSX, TOPBAR_TSX, SHELL_BARREL, MODULE_CATALOG, TOKENS_CSS, LAYOUT_CSS, RUNTIME_SPEC]) {
     const absolute = resolve(REPO_ROOT, file);

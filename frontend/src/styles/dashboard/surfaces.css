@@ -10,11 +10,9 @@
   .dashboard-main {
     position: relative;
     isolation: isolate;
-    background:
-      linear-gradient(90deg, hsl(var(--vetneb-navy) / 0.035) 1px, transparent 1px),
-      linear-gradient(180deg, hsl(var(--vetneb-navy) / 0.026) 1px, transparent 1px),
-      linear-gradient(140deg, var(--dash-color-surface-raised) 0%, var(--dash-color-canvas) 54%, var(--dash-color-surface-muted) 100%);
-    background-size: 88px 88px, 88px 88px, auto;
+    /* Drive-shell foundation: the workspace is one continuous canvas, no
+       blueprint grid and no gradient behind the content. */
+    background: var(--dash-color-canvas);
   }
 
   .dashboard-main > * {

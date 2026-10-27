@@ -106,7 +106,7 @@ test("dashboard topbar keeps protected dashboard header shell without mock sessi
   assert.ok(source.includes('<header'));
   assert.ok(source.includes("sticky top-0 z-40"));
   assert.ok(source.includes('variant="bare"'));
-  assert.ok(source.includes("border border-input bg-card/95"));
+  assert.ok(source.includes("border border-input bg-transparent"));
   assert.equal(source.includes("Usuario mock"), false);
   assert.equal(source.includes("Clínica Demo"), false);
   assert.equal(source.includes(">CL<"), false);
