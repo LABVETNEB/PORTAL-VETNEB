@@ -531,7 +531,7 @@ export function AdminFailedLoginAlertsReadOnlyCard({
                 className="flex min-h-9 items-center gap-2 overflow-hidden px-2.5 py-0.5"
               >
                 <div className="min-w-0 flex-1">
-                  <div className="flex min-w-0 items-center gap-1.5">
+                  <div className="flex min-w-0 items-center gap-2">
                     <Badge
                       variant={getSurfaceVariant(alert.surface)}
                       className="h-5 px-1.5 text-[10px]"

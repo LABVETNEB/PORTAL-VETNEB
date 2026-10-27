@@ -785,7 +785,7 @@ export function AdminReportsCard() {
                       data-state={selection.isSelected(report.id) ? "selected" : undefined}
                       className="gap-0.5 px-2 py-1.5 text-xs"
                     >
-                      <div className="flex min-w-0 items-center gap-1.5">
+                      <div className="flex min-w-0 items-center gap-2">
                         <input type="checkbox" aria-label={`Seleccionar informe #${report.id}`} checked={selection.isSelected(report.id)} onChange={() => selection.toggle(report.id)} data-collection-selection="item" />
                         <p className="min-w-0 flex-1 truncate font-medium text-vetneb-ink">
                           {report.patientName || "Paciente sin registrar"}
@@ -958,7 +958,7 @@ export function AdminReportsCard() {
 
             {filteredReports.length || hasPrev ? (
               <div
-                className="dashboard-pager flex shrink-0 items-center justify-center gap-1.5 overflow-hidden border-t border-vetneb-line/65 text-xs text-muted-foreground"
+                className="dashboard-pager flex shrink-0 items-center justify-center gap-2 overflow-hidden border-t border-vetneb-line/65 text-xs text-muted-foreground"
                 style={DASHBOARD_TOUCH_PAGER_RESERVATION}
                 data-admin-mobile-core-pager="true"
                 data-dashboard-adaptive-reserved-region="pager"

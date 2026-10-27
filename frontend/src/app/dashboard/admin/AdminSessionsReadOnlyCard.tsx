@@ -454,7 +454,7 @@ export function AdminSessionsReadOnlyCard({
                             statusLabel={formatStatus(session.status)}
                             isCurrentAdminSession={isCurrentAdminSession}
                             triggerText={`${formatSessionType(session.sessionType)} #${session.sessionId}`}
-                            triggerClassName="group flex w-full min-w-0 items-center gap-1.5 rounded-sm text-left"
+                            triggerClassName="group flex w-full min-w-0 items-center gap-2 rounded-sm text-left"
                           >
                             <SessionTypeBadge sessionType={session.sessionType} />{" "}
                             <span className="min-w-0 truncate font-mono text-[11px] text-primary underline-offset-2 group-hover:underline">

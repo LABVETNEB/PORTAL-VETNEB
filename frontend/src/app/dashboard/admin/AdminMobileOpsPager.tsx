@@ -31,7 +31,7 @@ export function AdminMobileOpsPager({
       aria-label={ariaLabel}
       data-admin-mobile-ops-pager="true"
       data-dashboard-adaptive-reserved-region="pager"
-      className="dashboard-pager flex min-h-10 shrink-0 items-center justify-center gap-1.5 overflow-hidden border-t border-vetneb-line/70 px-2 text-xs text-muted-foreground"
+      className="dashboard-pager flex min-h-10 shrink-0 items-center justify-center gap-2 overflow-hidden border-t border-vetneb-line/70 px-2 text-xs text-muted-foreground"
       style={DASHBOARD_TOUCH_PAGER_RESERVATION}
     >
       <span className="sr-only" aria-live="polite">

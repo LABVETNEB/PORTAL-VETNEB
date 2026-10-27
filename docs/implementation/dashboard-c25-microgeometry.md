@@ -163,7 +163,7 @@ RED → GREEN: la sonda midió D1 y D2 en `HEAD` (tabla §4) y su ausencia tras 
 | D3 | Sin desviación medida |
 | D4 | Pendiente: siete truncamientos sin acceso al valor completo (F-T1..F-T7, §2.1) |
 | D5 | Implementado en rama (§11): 11/16 sin cambio geométrico; seis baselines visuales Linux a 320 promovidas con R13 (`96b14809`); PR, CI y merge pendientes |
-| D6 | Pendiente: gaps de 6 px; riesgo de alterar la capacidad (A03) |
+| D6 | Parcial (§12): 12 gaps horizontales intra-fila y de paginador 6 → 8 px sin cambio geométrico; los verticales, de capacidad, de chrome y de tira de métricas siguen abiertos |
 | D7 | Pendiente: objetivos táctiles inferiores a 44 px |
 | D8 | BLOCKED por C05/R13 |
 | C23b | Pendiente; sin intervención en esta PR |
@@ -274,3 +274,84 @@ Rutas bajo `frontend/e2e/regression/visual/`. Los pares normal/stress comparten 
 **Pendiente sobre la futura PR (sin resultado todavía):** los cuatro required checks (`validate-pr-governance`, `qga-workflow-security`, `validate-backend`, `validate-frontend`) sobre el head publicado; E2E Completeness (`e2e:full`, incluye `visual-linux`), no requerido, que confirma las seis baselines bajo el runner productivo de Linux; y el squash merge protegido. D5 no está fusionado.
 
 **Deuda registrada.** Doce baselines de Admin a 768–1920 px no incluyen la sombra de `.skip-to-content-link`; Playwright las acepta, pero el comparador estricto del candidato las seguirá listando hasta que una PR propia las promueva.
+
+## 12. D6 · Gaps no canónicos (2026-10-26)
+
+Base `2c5c33b5` (D5 #1926 fusionado), rama `fix/dashboard-c25-d6-spacing-20261026`. Scope: sólo D6, frontend runtime. Sin tokens de geometría, capacidad, baselines A02/A03, fixtures ni capturas.
+
+**Método.** Sonda Playwright temporal (fuera del catálogo, retirada) sobre las 21 superficies × 13 viewports de A02, con sus stubs y su asentamiento causal. Por contenedor flex/grid visible del shell con ≥ 2 hijos en flujo se registra el gap **efectivo**: el vertical sólo si dos hijos quedan apilados (`top ≥ bottom` de otro) y el horizontal sólo si quedan lado a lado; un gap declarado que no separa nada no cuenta. Además, por registro: elementos truncados (`scrollWidth > clientWidth` con elipsis), contenedores con recorte horizontal y scroll de documento. Root 16 px en todos los registros: 4.8 = `0.3rem`, 6.4 = `0.4rem`, 2.88 = `0.18rem`, 1.92 = `0.12rem`, 9.6 = `0.6rem`.
+
+**Re-medición del baseline.** Las cifras históricas (2 740 contenedores, ~45 componentes) contaban gaps declarados. Con el criterio efectivo, en `HEAD`: 5 736 contenedores, **930** gaps efectivos de 6 px y **2 003** fuera de 4/8/12/16/24 (dos corridas idénticas).
+
+### 12.1 Inventario y clasificación
+
+| Clase | Medido en `HEAD` | Origen | Severidad | Decisión |
+| --- | ---: | --- | --- | --- |
+| H1 · Horizontal intra-fila (icono/insignia + texto) | 374 | `gap-1.5` en filas de Clínicas (celda de escritorio), Sesiones (escritorio), Auditoría y Usuarios móviles; mismo patrón, sin estado medido por la sonda, en la fila móvil de Clínicas, Intentos fallidos, Informes admin y la identidad con `badges` de `CanonicalOperationalRow` | Baja | **Corregida** (6 → 8) |
+| H2 · Paginadores móviles admin | 35 | `gap-1.5` en `AdminMobileOpsPager` y en los paginadores de Clínicas, Informes y Tokens | Baja | **Corregida** (6 → 8) |
+| H3 · Horizontal que aumenta el truncado | 265 | trailing de `CanonicalOperationalRow`, trailing de Informes clínica móvil, trigger móvil de Sesiones | Media | **Excepción decidida** (Nico, 2026-10-26): se conserva 6 px. Con 8 px aparecían +7 truncados (Sesiones 375, Informes clínica 360, Logística 412/1440); el texto visible y la accesibilidad prevalecen sobre la uniformidad del gap |
+| V1 · Verticales en canvas móviles (Tokens, Estado, Mantenimiento, Precios, Perfil) | 51 | `gap-1.5` en columnas y rejillas con `flex-1`/`grid-rows-*` | Alta | Abierta: reparte la altura del canvas (A02/A03, R13) |
+| V2 · Gap de capacidad `data-dashboard-row-gap="spaced"` | 26 | `--dash-row-gap: 6px` (`tokens.css`), Logística ruta completa | Alta | Abierta: entra en `computeCapacity` → `limit` (A03, R13) |
+| F1 · Barras de filtros `md:gap-1.5` | 76 | `FilterBar`, formularios de filtros y `lg:[&_label]:gap-x-1.5` de Informes clínica | Media | Abierta: a 768–1023 el formulario ocupa dos filas (región `filters` de A02, chrome C23b) y B05 ancla la clase |
+| T1 · Grupo `inline-flex` de la barra de Informes clínica (ruta completa) | 6 | `gap-1.5` | Baja | Abierta: barra de herramientas de C24, fuera de este lote |
+| M1 · Tira de métricas B14 | 65 | `ModuleMetricRun` | Media | Abierta: agrava F-T4 (cruza C23b) y PR-TRUNC ancla la clase |
+| Q1 · Atajos y panel de estado del hub | 32 | `AdminOverviewQuickLinks` (`flex-wrap`), panel «resumen» | Media | Abierta: el wrap puede cambiar la altura del hub |
+| X1 · Densidad fluida (`--dash-gap`, `--dash-cockpit-gap`, tabs, `module-surface`) | 7.68–12.17 px | `clamp(…, … + vh, …)` de `responsive.css` | — | **Excepción justificada**: capa de adaptación al viewport/zoom; cuantizarla rompe la adaptabilidad |
+| X2 · Sub-escala intra-control | 1.92 (470), 2 (232), 2.88 (35), 4.8 (46) | ítem de la barra móvil (glifo → etiqueta, B09), `gap-0.5` etiqueta → campo, chips, tablist | — | **Excepción justificada** por ahora: separaciones internas de un control, no ritmo entre bloques; la barra móvil acaba de fijarse en D5 |
+| X3 · Chrome no canónico | 6.4/6.45/6.52 (121), 9.6 (104) | `gap: 0.4rem` del app bar (sobrescribe `gap-2`), `0.6rem` del paginador de clínica | Media | Abierta: chrome (C23b) y anclas de B06/visual-consistency |
+
+### 12.2 Cambio
+
+`gap-1.5` → `gap-2` en 12 líneas de 9 archivos: `AdminClinicsManagementCard.tsx` (fila móvil, celda de escritorio, paginador), `AdminSessionsReadOnlyCard.tsx` (trigger de escritorio), `AdminMobileAuditModule.tsx`, `AdminUsersRolesReadOnlyCard.tsx`, `AdminFailedLoginAlertsReadOnlyCard.tsx`, `AdminReportsCard.tsx` (fila y paginador), `AdminParticularTokensCard.tsx` (paginador), `AdminMobileOpsPager.tsx` y `CanonicalOperationalRow.tsx` (bloque de identidad). Todos son filas `flex` sin wrap o paginadores con altura reservada (`DASHBOARD_TOUCH_PAGER_RESERVATION`): el gap sólo desplaza contenido en el eje horizontal. Ningún guard anclaba esas clases.
+
+### 12.3 Antes / después (sonda, 21 × 13)
+
+| Métrica | `HEAD` | D6 |
+| --- | ---: | ---: |
+| Gaps efectivos de 6 px | 930 | **520** |
+| Gaps efectivos de 8 px | 2 106 | 2 503 |
+| Gaps fuera de 4/8/12/16/24 | 2 003 | 1 593 |
+| Elementos truncados | 873 | 873 |
+| Contenedores con recorte horizontal | 9 | 9 |
+| Registros con scroll de documento | 0 | 0 |
+
+Dos diferencias de conteo de la sonda no son atribuibles al cambio: `admin-sesiones` a 430 alterna 15/16 ítems con el mismo código (asentamiento de la sonda tras el resize; A03 en PASSED) y `clinic-informes-full` a 1920 mide 6 filas `CanonicalOperationalRow` frente a 17, donde el único gap cambiado del componente es inerte (la fila no lleva `badges`); A02/A03/A05 en PASSED.
+
+### 12.4 Pruebas
+
+| Gate | Estado |
+| --- | --- |
+| Suite Node (`pnpm test`), incluidos los guards que leen los nueve archivos | FAILED 5 437/5 439 (1 skip): sólo `e2e-global-03b-authoritative-auth-boundary`, que exige `DATABASE_URL`/`SUPABASE_DB_URL` (ambiental y preexistente) |
+| A02 geometría 21×13 (fixture Win32 sin cambios) | PASSED 21/21 |
+| A03 límite adaptativo 15×13 | PASSED 16/16 |
+| A05 invariancia de límite 15×13 | PASSED 15/15 |
+| A08 zero-scroll 21×13 | PASSED 21/21 |
+| Frontera zero-scroll móvil (`extended`, spec único) | PASSED 8/8 |
+| `e2e:admin-mobile` | FAILED 163/165: T1 y T2 de §12.6, preexistentes y no atribuibles a D6 |
+| `e2e:visual-contract` | FAILED 1 044/1 047 (con `E2E_GLOBAL_TIMEOUT_MS=3600000`; la primera corrida agotó los 30 min con 1 007 PASSED, 0 FAILED y 40 sin correr): T3, T4 y T5 de §12.6, preexistentes y no atribuibles a D6 |
+| Frontend `lint`, `typecheck`, `build`; `security:public-surface` | PASSED |
+| `git diff --check` | PASSED |
+| A02/A03 Linux, baselines visuales Linux | NOT_RUN localmente (sólo CI); las capturas Linux que muestren las filas o paginadores tocados pueden diferir, sin promoción autorizada |
+| `e2e:full` | NOT_RUN (sin autorización) |
+
+### 12.5 Pendiente, bloqueos y riesgos
+
+- **D6 = PARCIAL.** Quedan 520 gaps efectivos de 6 px y 1 593 no canónicos. H3 queda como excepción decidida: no se introduce truncado para alcanzar 8 px. V1 y V2 mueven canvas o capacidad: requieren R13 propia (A02/A03). F1, T1 y X3 tocan chrome (C23b) o clases ancladas por guards (B05, B06, visual-consistency). M1 cruza F-T4/C23b. Q1 requiere re-medir la altura del hub.
+- X1 y X2 se tratan como excepciones justificadas; si se quisiera cuantizar X2 (barra móvil, etiquetas de campo), es un cambio propio con medición de la barra y de las capturas a 320 px.
+- Riesgo residual: +2 px por gap corregido estrechan el texto de esas filas; la sonda no registra truncado nuevo en los 273 registros, pero estados no cubiertos por los stubs (datos más largos) podrían truncar antes. Las filas afectadas tienen mecanismo de valor completo (PR-TRUNC).
+
+### 12.6 Diagnóstico de los cinco fallos E2E (2026-10-26)
+
+**Método.** A/B sobre el mismo árbol: el runtime alterna entre `HEAD` (las 12 líneas en `gap-1.5`, diff de `src` vacío) y D6 con un script que reescribe sólo esas líneas y conserva CRLF. Caché `frontend/.next` borrada antes de cada serie. Los cinco tests, aislados con `-g`, `--retries=0` y `--repeat-each=5`, en el mismo orden para los dos runtimes. Las sondas de causa raíz (fuera del catálogo y retiradas) usan los helpers de los specs originales y no modifican ningún test, contrato, fixture ni baseline.
+
+| # | Test | D6 ×5 | `HEAD` ×5 | Causa raíz (evidencia) | Clase |
+| --- | --- | ---: | ---: | --- | --- |
+| T1 | `admin-mobile-core-modules-no-scroll` «reachable from bottom nav and Más menu» | 1/5 | 1/5 | Al cargar `/dashboard/admin?hub=1`, la app lanza su propia navegación suave a `?module=admin` (hub retirado). El clic en «Clínicas» llega con esa navegación pendiente y gana la última en commitear: en una copia instrumentada del spec, con runtime `HEAD` y 10 repeticiones, los **4 fallos** terminan en `?module=admin` («Resumen», el mismo estado que la captura original) y las 6 pasadas en `?module=admin-clinics`. La hidratación no es la causa: con el overlay de Next suprimido, el clic previo a hidratar navega 6/6 | **Defecto de producto preexistente** (FSM de navegación: una redirección de la app pisa la intención del usuario). Fuera del scope de D6 |
+| T2 | `admin-mobile-status-modules-no-scroll` F-T3 «android-large-412x915» | 5/5 | 5/5 | `DashboardNotificationsBell` hace polling cada 30 s (`POLLING_INTERVAL_MS`). El test exige 0 requests durante su bucle de apertura y cierre de detalles; sólo falla si ese bucle cruza un tick, cosa que pasa cuando la cohorte completa ralentiza la máquina. La campana y Estado del sistema no están en el diff | **Intermitencia** del test, dependiente de la carga (aislamiento temporal frente al polling) |
+| T3 | `dashboard-real-pointer-navigation` Informes 390 «A then B before A commits» | 5/5 | 5/5 | `expectStage` espera 5 s el workspace de Logística tras una navegación encadenada; sólo se agotó dentro de la cohorte de 34 min. Es la misma familia de navegación concurrente que T1; ningún archivo de navegación está en el diff | **Intermitencia** por carga; preexistente |
+| T4 | `dashboard-c13-details-pane` «sin solicitudes de red» | 3/5 | 2/5 | Los `POST /dashboard/admin?module=audit-log` son la Server Action `getAdminAuditPage`, que `AdminAuditCard` dispara al cambiar `effectiveLimit` (refetch con debounce). `mount` espera hidratación y dos frames, no ese refetch, que a veces cae en la ventana del test. A 1366 px la presentación móvil (único archivo D6 de Auditoría) no se muestra | **Intermitencia** de readiness del test; preexistente (`HEAD` falla más) |
+| T5 | `dashboard-c24-list-grid-toggle` «clinic full route offers the grid» | 5/5 | 5/5 | A 1440 px, `settleInformesRows` devuelve a veces 6 filas, un estado **transitorio**: con el helper oficial, `HEAD` dio 6 en 4/10 y 6/10 muestras y D6 en 2/11; 3 s después siempre hay 13 filas con el canvas idéntico (597 px). La cuadrícula pinta la ventana real (13) y la comparación falla. `CanonicalOperationalRow` no recibe `badges` en esa lista: el gap de D6 es inerte allí | **Intermitencia** de readiness del helper de test; preexistente |
+
+**Conclusión.** Ningún fallo es una regresión de D6: los cinco reproducen con el runtime de `HEAD` con la misma o mayor frecuencia, o sólo fallan bajo la carga de la cohorte completa, y en todos la causa está en código que el diff no toca. T1 es un defecto real de producto, preexistente, que conviene tratar en una tarea propia de navegación. T2–T5 son debilidades de sincronización de los tests. No se modificó ningún test para ocultarlas.
+
+**Revalidación tras el diagnóstico** (runtime idéntico al validado en §12.4): `e2e:verify-catalog` PASSED 7/7; guards Node de los nueve archivos y de C25 PASSED 535/535; frontend `lint` y `typecheck` PASSED; `git diff --check` PASSED.

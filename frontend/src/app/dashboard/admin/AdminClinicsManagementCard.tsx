@@ -765,7 +765,7 @@ export function AdminClinicsManagementCard() {
                     aria-label={`Clínica ${clinic.clinicName}`}
                     className="gap-0.5 px-2 py-1 text-[0.8125rem]"
                   >
-                    <div className="flex min-w-0 items-center gap-1.5">
+                    <div className="flex min-w-0 items-center gap-2">
                       <span className="min-w-0 truncate font-medium">{clinic.clinicName}</span>
                       <span className="shrink-0 font-mono text-[0.62rem] text-muted-foreground">#{clinic.clinicId}</span>
                       <Button
@@ -834,7 +834,7 @@ export function AdminClinicsManagementCard() {
                     key={`${clinic.clinicId}-${user?.userId ?? "empty"}`}
                   >
                     <TableCell className="py-1">
-                      <span className="flex items-center gap-1.5">
+                      <span className="flex items-center gap-2">
                         <span className="max-w-[13rem] truncate font-medium">
                           {clinic.clinicName}
                         </span>
@@ -1009,7 +1009,7 @@ export function AdminClinicsManagementCard() {
 
           {totalClinics > 0 ? (
             <div
-              className="dashboard-pager flex shrink-0 items-center justify-center gap-1.5 overflow-hidden border-t border-vetneb-line/65 text-xs text-muted-foreground"
+              className="dashboard-pager flex shrink-0 items-center justify-center gap-2 overflow-hidden border-t border-vetneb-line/65 text-xs text-muted-foreground"
               style={DASHBOARD_TOUCH_PAGER_RESERVATION}
               data-admin-mobile-core-pager="true"
               data-dashboard-adaptive-reserved-region="pager"
