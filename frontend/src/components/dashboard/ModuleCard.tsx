@@ -262,13 +262,7 @@ export function ModuleCardChips({
               data-active={isActive ? "true" : undefined}
               onClick={() => onSelect(section.id)}
               onKeyDown={(event) => handleKeyDown(event, index)}
-              className={cn(
-                CHIP_CLASS,
-                chipSizing === "content" && CHIP_CONTENT_SIZING_CLASS,
-                isActive
-                  ? "bg-vetneb-navy text-white shadow-sm"
-                  : "bg-vetneb-surface-muted/60 text-muted-foreground hover:bg-vetneb-surface-muted",
-              )}
+              className={cn(CHIP_CLASS, chipSizing === "content" && CHIP_CONTENT_SIZING_CLASS)}
             >
               {section.label}
             </button>

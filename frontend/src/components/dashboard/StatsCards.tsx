@@ -31,8 +31,7 @@ const statConfig = [
     icon: Clock3,
     description: "En proceso o subidos",
     tone: "text-vetneb-amber bg-vetneb-amber/10 border-vetneb-amber/25",
-    cardClassName:
-      "border-vetneb-amber/45 bg-card/95 shadow-[0_16px_44px_rgba(168,116,24,0.14)]",
+    cardClassName: "border-vetneb-amber/45",
     emphasisLabel: "Prioridad",
   },
   {

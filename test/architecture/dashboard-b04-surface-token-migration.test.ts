@@ -121,7 +121,14 @@ const MANIFEST: readonly ManifestEntry[] = [
     path: LAYOUT_CSS,
     anchor: '.dashboard-module-tab[aria-selected="true"] {',
     role: "PERSISTENT_CHROME",
-    expectedTokens: ["--dash-color-on-primary", "--dash-elevation-none"],
+    // Drive workspace tabs: the selected tab is the navigation's ACTIVE_CONTAINER
+    // (primary tint at the selected-state opacity, on-surface text), shared
+    // with the ModuleCard chips through the same rule.
+    expectedTokens: [
+      "--dash-state-selected-opacity",
+      "--dash-color-on-surface",
+      "--dash-elevation-none",
+    ],
     elevation: "none",
     why: "the module tab strip stays around the data across a tab change",
   },

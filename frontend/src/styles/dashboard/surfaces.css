@@ -717,6 +717,31 @@
 }
 /* dashboard-b12-module-card-removal:end */
 
+/* dashboard-drive-workspace-surfaces:start
+ *
+ * Drive workspace surfaces. Persistent content surfaces inside the dashboard
+ * are flat: elevation is kept for transient overlays only (B04, audit §45.2).
+ * The shadows retired here come from shared sources this block must not edit —
+ * `.dashboard-surface` / `.dashboard-metric-card` in globals.css and the Card
+ * primitive's `shadow-[…]`, `ring-1` and `hover:shadow-[…]` utilities — so
+ * the override is UNLAYERED (it must beat `@layer utilities`) and scoped to
+ * `.dashboard-app-shell` (public pages keep the shared paint).
+ *
+ * Paint only: no box, padding, border width or radius changes. Border colour
+ * and background colour are not touched on the two Card surfaces, so semantic
+ * fills (the amber access-error state) and the "Prioridad" amber border keep
+ * their meaning. `.surface-soft` / `.surface-empty` trade their two-stop wash
+ * and inset highlight for one flat tonal fill. */
+.dashboard-app-shell :is(.dashboard-surface, .dashboard-metric-card) {
+  box-shadow: var(--dash-elevation-none);
+}
+
+.dashboard-app-shell :is(.surface-soft, .surface-empty) {
+  background: hsl(var(--vetneb-surface-muted) / 0.45);
+  box-shadow: var(--dash-elevation-none);
+}
+/* dashboard-drive-workspace-surfaces:end */
+
 .dashboard-app-shell .dashboard-workspace-with-panel {
   position: relative;
   display: flex;

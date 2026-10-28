@@ -27,9 +27,10 @@
     min-height: 0;
     gap: 0.85rem;
     border-radius: var(--dash-shape-2xl);
-    border: 1px solid hsl(var(--vetneb-line) / 0.78);
-    background:
-      linear-gradient(150deg, hsl(var(--card) / 0.97), hsl(var(--vetneb-surface-raised) / 0.9) 60%, hsl(var(--vetneb-surface-muted) / 0.92));
+    /* Drive workspace surface: the launcher is a zone on the canvas, not a
+       painted panel. Only its hairline remains. */
+    border: 1px solid var(--dash-color-outline-subtle);
+    background: transparent;
     /* B04 · STATIC_CONTENT_SURFACE. The hub launcher is content on the canvas,
        not a raised card (audit §45.2). Padding and gap are untouched. */
     box-shadow: var(--dash-elevation-none);
@@ -63,19 +64,20 @@
     overflow: hidden;
     gap: 0.3rem;
     border-radius: var(--dash-shape-xl);
-    border: 1px solid hsl(var(--vetneb-line) / 0.8);
-    background:
-      linear-gradient(140deg, hsl(var(--card) / 0.98), hsl(var(--vetneb-surface-raised) / 0.94));
+    border: 1px solid var(--dash-color-outline-subtle);
+    /* Drive grid tile: one flat tonal fill instead of the two-stop wash. */
+    background: hsl(var(--vetneb-surface-muted) / 0.55);
     /* B04 · STATIC_CONTENT_SURFACE. */
     box-shadow: var(--dash-elevation-none);
     padding: 0.6rem 0.8rem;
     text-align: left;
   }
 
-  /* Hover now reads through the border alone: the tile is flat in both states,
-     so a hover shadow would be the elevation B04 just retired. */
+  /* Hover is a fill step plus the full outline: the tile is flat in both
+     states, so a hover shadow would be the elevation B04 just retired. */
   .dashboard-cockpit-tile:hover {
-    border-color: hsl(var(--vetneb-teal) / 0.45);
+    border-color: var(--dash-color-outline);
+    background: hsl(var(--vetneb-surface-muted));
   }
 
   .dashboard-cockpit-tile-icon {
@@ -86,12 +88,12 @@
     align-items: center;
     justify-content: center;
     border-radius: var(--dash-shape-md);
-    color: #fff;
-    background: linear-gradient(135deg, hsl(var(--vetneb-navy)), hsl(var(--vetneb-teal) / 0.85));
-    /* DECORATIVE_NON_ELEVATION — an accent halo tinted by the icon's own
-       gradient, not a level in the elevation scale. Kept, like every other
-       `*-tile-icon` halo in this tree. */
-    box-shadow: 0 6px 16px rgba(15, 45, 62, 0.22);
+    /* Tonal icon container: primary glyph on the selected-state tint. The
+       white glyph on the navy→teal gradient lost contrast in dark-gray, where
+       primary flips to a light blue; the tonal pair follows the theme. */
+    color: hsl(var(--primary));
+    background: hsl(var(--primary) / var(--dash-state-selected-opacity));
+    box-shadow: var(--dash-elevation-none);
   }
 
   @media (min-width: 1280px) {

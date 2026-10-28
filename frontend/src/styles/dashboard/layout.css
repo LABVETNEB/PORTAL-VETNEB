@@ -52,7 +52,7 @@
     overflow: hidden;
   }
 
-  /* Segmented tab control (no new dependency; reuses native buttons). */
+  /* Workspace tab control (no new dependency; reuses native buttons). */
   .dashboard-module-tabs {
     display: flex;
     flex-direction: column;
@@ -62,14 +62,18 @@
     gap: 0.75rem;
   }
 
+  /* Drive workspace tabs: no boxed track, only the hairline under the strip.
+     The 1px border stays on every side (transparent) so the strip keeps its
+     box; padding and gap are untouched. */
   .dashboard-module-tablist {
     display: flex;
     flex-wrap: wrap;
     gap: 0.3rem;
     min-width: 0;
-    border-radius: 0.7rem;
-    border: 1px solid hsl(var(--vetneb-line) / 0.78);
-    background: hsl(var(--card) / 0.8);
+    border-radius: var(--dash-shape-none);
+    border: 1px solid transparent;
+    border-block-end-color: var(--dash-color-outline-subtle);
+    background: transparent;
     padding: 0.28rem;
   }
 
@@ -79,24 +83,36 @@
     gap: 0.4rem;
     min-height: 2.25rem;
     white-space: nowrap;
-    border-radius: var(--dash-shape-sm);
+    border-radius: var(--dash-shape-full);
     padding: 0.35rem 0.85rem;
     font-size: 0.8rem;
     font-weight: 600;
-    color: hsl(var(--foreground) / 0.74);
+    color: var(--dash-color-on-surface-muted);
   }
 
+  /* ModuleCard chips (both roles) share the tab state grammar below; their
+     box, rhythm and hit area stay with ModuleCard and mobile-chrome.css. */
+  .dashboard-module-card-chip {
+    color: var(--dash-color-on-surface-muted);
+  }
+
+  /* ACTIVE_CONTAINER, the same selected container as the navigation item:
+     primary tint at the theme-variant selected opacity, on-surface text. The
+     filled navy/white pair it replaces measured ~2:1 in dark-gray. */
+  .dashboard-module-card-chip[aria-selected="true"],
   .dashboard-module-tab[aria-selected="true"] {
-    background: hsl(var(--vetneb-navy));
-    color: var(--dash-color-on-primary);
+    background: hsl(var(--primary) / var(--dash-state-selected-opacity));
+    color: var(--dash-color-on-surface);
     /* B04 · PERSISTENT_CHROME. The selected module tab is chrome that stays
        around the data, so it states flatness instead of painting elevation. */
     box-shadow: var(--dash-elevation-none);
   }
 
+  .dashboard-module-card-chip[aria-selected="false"]:hover,
   .dashboard-module-tab[aria-selected="false"]:hover {
-    background: hsl(var(--accent) / 0.7);
-    color: hsl(var(--accent-foreground));
+    /* Same hover fill as the navigation drawer/rail items. */
+    background: var(--dash-color-surface-muted);
+    color: var(--dash-color-on-surface);
   }
 
   .dashboard-module-tabpanel {
