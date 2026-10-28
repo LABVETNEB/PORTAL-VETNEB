@@ -1116,7 +1116,10 @@ test("PRE-C05 · Informes: page count retired everywhere, descriptor retired, Fi
   assert.ok(filtros !== -1 && refresh > filtros && upload > refresh, "Filtros | Actualizar | Subir informe: the upload keeps the trailing slot");
   assert.ok(card.includes('<AdvancedFilterSheet open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen} title="Filtrar informes">') && card.includes("{renderAdvancedFilterForm(true)}"), "the mobile sheet still hosts the same filter form");
   assert.equal(card.includes("data-admin-reports-toolbar"), false, "the entregados · con tinción · página strip is retired at every width");
-  assert.equal(/entregados|con tinción|Página \$\{page\}|por página/.test(card), false, "no summary or page-state text is painted");
+  assert.equal(/entregados|con tinción|por página/.test(card), false, "no summary or page-state text is painted");
+  // RM-10 (P2-05): «Página N» exists once, as the sr-only announcement only.
+  assert.deepEqual(card.match(/Página \$\{page\}/g), ["Página ${page}"], "no page-state text is painted");
+  assert.ok(card.includes("const reportsPageAnnouncement = `Página ${page}`;"), "the one occurrence is the announcement");
 });
 
 test("PRE-C05 · Clínicas: descriptor retired, actions above the mobile search, search right below them", () => {

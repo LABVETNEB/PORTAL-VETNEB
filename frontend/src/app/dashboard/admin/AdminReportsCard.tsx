@@ -313,6 +313,8 @@ export function AdminReportsCard() {
   // page (PR-SRV-0 §6 rule 2): offset is clamped to ≥ 0 and next-page is driven
   // by `hasMore`; there is no pageCount / jump-to-last.
   const page = Math.floor(offset / effectiveLimit) + 1;
+  // RM-10 (P2-05): with no total, only the page is announced.
+  const reportsPageAnnouncement = `Página ${page}`;
   const hasPrev = offset > 0;
   const hasNext = hasMore;
 
@@ -963,6 +965,9 @@ export function AdminReportsCard() {
                 data-admin-mobile-core-pager="true"
                 data-dashboard-adaptive-reserved-region="pager"
               >
+                <span className="sr-only" aria-live="polite">
+                  {reportsPageAnnouncement}
+                </span>
                 <input type="checkbox" aria-label="Seleccionar página de informes" checked={selection.allVisibleSelected} ref={(node) => { if (node) node.indeterminate = selection.someVisibleSelected; }} onChange={selection.toggleVisiblePage} data-collection-selection="page" />
                 <Button
                   type="button"
@@ -1001,6 +1006,7 @@ export function AdminReportsCard() {
             onPrev={goToPreviousPage}
             onNext={goToNextPage}
             disabled={isLoading}
+            rangeLabel={reportsPageAnnouncement}
             stateControl={<span />}
           />
         </section>
