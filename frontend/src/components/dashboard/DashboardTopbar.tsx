@@ -119,7 +119,7 @@ export function DashboardTopbar({
             )}
           </div>
         }
-        actions={<ThemeModeToggle />}
+        actions={<ThemeModeToggle className="shadow-none" />}
         notifications={
           <DashboardTopbarNotifications notifications={notifications} />
         }

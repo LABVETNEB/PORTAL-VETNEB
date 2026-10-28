@@ -254,7 +254,10 @@ test("B06 · DashboardTopbar stays the orchestrator and feeds every slot", () =>
     "logoutAdmin",
     "logout as logoutClinic",
     "clearDashboardLastModules",
-    "<ThemeModeToggle />",
+    // PR 4 (Drive utility controls): the dashboard mount drops the toggle's
+    // decorative 1px shadow through the existing `className` API; the shared
+    // component (public Navbar) keeps it, and its focus ring is untouched.
+    '<ThemeModeToggle className="shadow-none" />',
     // CMP-01: the app-bar overflow slot is now filled from the shared, role-
     // parameterised owner so Clínica gets the same single 44x44 action instead of
     // three inline sub-44 controls (audit DIF-005 / RC-002). The slot itself is

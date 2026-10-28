@@ -240,7 +240,7 @@ export default async function InformesPage({
                       href="/dashboard/informes"
                       replace
                       variant="bare"
-                      className={`${dashboardFilterActionClassName("module-card")} inline-flex items-center justify-center rounded-md border border-input bg-card/95 font-semibold text-foreground shadow-sm transition-colors hover:border-vetneb-teal/45 hover:bg-accent/70`}
+                      className={`${dashboardFilterActionClassName("module-card")} inline-flex items-center justify-center rounded-md border border-input bg-card/95 font-semibold text-foreground transition-colors hover:border-vetneb-teal/45 hover:bg-accent/70`}
                     >
                       Limpiar
                     </PublicRouteControl>
@@ -287,7 +287,7 @@ export default async function InformesPage({
                     href="/dashboard/informes"
                     replace
                     variant="bare"
-                    className={`${dashboardFilterActionClassName("module-card")} inline-flex items-center justify-center rounded-md border border-input bg-card/95 font-semibold text-foreground shadow-sm transition-colors hover:border-vetneb-teal/45 hover:bg-accent/70`}
+                    className={`${dashboardFilterActionClassName("module-card")} inline-flex items-center justify-center rounded-md border border-input bg-card/95 font-semibold text-foreground transition-colors hover:border-vetneb-teal/45 hover:bg-accent/70`}
                   >
                     Limpiar
                   </PublicRouteControl>
