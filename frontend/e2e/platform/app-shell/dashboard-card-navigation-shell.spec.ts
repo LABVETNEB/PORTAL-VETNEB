@@ -180,9 +180,9 @@ test.describe("clinic dashboard — rail navigation", () => {
 
       const item = clinicLateralNavItem(page, moduleId);
       await expect(item).toBeVisible();
-      await page.waitForFunction(
-        (el) => el?.getAttribute("data-public-route-control-hydrated") === "true",
-        await item.elementHandle(),
+      await expect(item).toHaveAttribute(
+        "data-public-route-control-hydrated",
+        "true",
         { timeout: 8_000 },
       );
       await item.click();
@@ -556,9 +556,9 @@ test.describe("dashboard lateral nav — pre-hydration click", () => {
 
     const target = clinicLateralNavItem(page, "informes");
     await target.waitFor({ state: "visible", timeout: 8_000 });
-    await page.waitForFunction(
-      (el) => el?.getAttribute("data-public-route-control-hydrated") === "true",
-      await target.elementHandle(),
+    await expect(target).toHaveAttribute(
+      "data-public-route-control-hydrated",
+      "true",
       { timeout: 8_000 },
     );
 
