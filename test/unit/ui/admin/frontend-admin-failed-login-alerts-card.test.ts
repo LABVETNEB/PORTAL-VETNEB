@@ -272,6 +272,7 @@ test("admin failed login alerts card renders header and actions without technica
   assert.ok(source.includes("href={csvUrl}"));
   assert.ok(source.includes('target="_self"'));
   assert.ok(source.includes("Exportar CSV"));
+  assert.equal(source.includes("shadow-[0_1px_2px"), false, "PR 4: Exportar CSV has no decorative elevation");
   assert.ok(source.includes('isPending ? "Actualizando..." : "Actualizar"'));
   assert.equal(source.includes(removedReadOnlyCopy), false);
   assert.equal(source.includes("passwords, tokens, hashes ni cookies."), false);

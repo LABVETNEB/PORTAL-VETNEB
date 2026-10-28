@@ -98,6 +98,7 @@ function c21Violations(s: Sources): string[] {
   if ((s.page.match(/href="\/dashboard\/informes"/g) ?? []).length !== 2) {
     violations.push("page: both Limpiar controls reset to the bare route");
   }
+  forbid("page", /\bshadow-sm\b/, "PR 4: Limpiar is delimited by border-input, without decorative elevation");
   need("page", "redirectToLoginOnUnauthorized(error);", "unauthorized loads redirect to login");
   need("page", 'cache: "no-store"', "private reports are never cached");
   forbid("page", "@/features/dashboard/presentation/surfaces", "the server page keeps the client surfaces barrel out");

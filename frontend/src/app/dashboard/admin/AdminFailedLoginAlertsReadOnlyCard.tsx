@@ -283,7 +283,7 @@ export function AdminFailedLoginAlertsReadOnlyCard({
           <PublicExternalControl
             href={csvUrl}
             target="_self"
-            className="inline-flex h-10 w-full items-center justify-center rounded-md border border-input bg-card/95 px-4 text-sm font-semibold text-foreground shadow-[0_1px_2px_rgba(15,45,62,0.05)] transition-[background-color,border-color,box-shadow,color] duration-150 hover:border-vetneb-teal/45 hover:bg-accent/70 hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-55 sm:w-auto"
+            className="inline-flex h-10 w-full items-center justify-center rounded-md border border-input bg-card/95 px-4 text-sm font-semibold text-foreground transition-[background-color,border-color,box-shadow,color] duration-150 hover:border-vetneb-teal/45 hover:bg-accent/70 hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-55 sm:w-auto"
           >
             Exportar CSV
           </PublicExternalControl>
