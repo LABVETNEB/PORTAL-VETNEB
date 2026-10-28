@@ -135,7 +135,7 @@ const PAGER_CONTROL_CLASS_NAME =
   "inline-flex h-8 items-center justify-center rounded-md border border-input bg-card/95 text-foreground hover:border-vetneb-teal/45 hover:bg-accent/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
 
 const PAGER_CONTROL_VARIANT_CLASS_NAME: Record<CollectionPagerVariant, string> = {
-  centered: "dashboard-pagination-btn px-3 text-xs font-semibold shadow-sm transition-colors",
+  centered: "dashboard-pagination-btn px-3 text-xs font-semibold transition-colors",
   compact: "px-2.5 text-xs font-semibold dashboard-btn-interactive",
 };
 

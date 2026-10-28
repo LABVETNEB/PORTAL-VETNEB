@@ -465,7 +465,7 @@ export function DashboardNotificationsBell({
         aria-haspopup="dialog"
         aria-expanded={isOpen}
         aria-controls={isOpen ? `${desktopPanelId} ${mobilePanelId}` : undefined}
-        className="relative inline-flex h-9 w-9 items-center justify-center rounded-md border border-input bg-card/95 text-foreground shadow-[0_1px_2px_rgba(15,45,62,0.05)] transition-[background-color,border-color,box-shadow,color] duration-150 hover:border-vetneb-teal/45 hover:bg-accent/70 hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
+        className={`relative inline-flex h-9 w-9 items-center justify-center rounded-md border border-input bg-card/95 text-foreground ${surface === "particular" ? "shadow-[0_1px_2px_rgba(15,45,62,0.05)] " : ""}transition-[background-color,border-color,box-shadow,color] duration-150 hover:border-vetneb-teal/45 hover:bg-accent/70 hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2`}
         onClick={handleToggleOpen}
       >
         <Bell className="h-4 w-4" aria-hidden="true" />

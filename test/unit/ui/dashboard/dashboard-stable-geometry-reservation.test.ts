@@ -411,8 +411,10 @@ const LEGACY_CONTROL_BASE = [
   "h-8", "hover:bg-accent/70", "hover:border-vetneb-teal/45", "inline-flex", "items-center", "justify-center",
   "rounded-md", "text-foreground",
 ];
+// PR 3 (Drive control hairlines) dropped the centered control's `shadow-sm`:
+// the `border-input` already delimits it, and no geometry token moved.
 const LEGACY_CENTERED_CONTROL = [
-  ...LEGACY_CONTROL_BASE, "dashboard-pagination-btn", "font-semibold", "px-3", "shadow-sm", "text-xs", "transition-colors",
+  ...LEGACY_CONTROL_BASE, "dashboard-pagination-btn", "font-semibold", "px-3", "text-xs", "transition-colors",
 ].sort();
 // The compact control became a text button with the admin desktop/tablet
 // space pass (Anterior/Siguiente only, no icon-only controls).
