@@ -722,3 +722,348 @@ Entorno: Windows 11 (`win32`), Chromium de Playwright, `next dev` + API de fixtu
 | Sondas temporales | Ejecutadas fuera del repositorio; no son gates |
 
 **Estado del documento (2026-10-28):** READY como reconciliación. Sin commit, push, PR ni escrituras remotas.
+
+---
+
+## 17. Auditoría integral actualizada y roadmap definitivo
+
+| Campo | Valor |
+| --- | --- |
+| Tipo | Auditoría integral de caja blanca (código, contratos, CI y medición runtime) y roadmap. Docs-only |
+| Fecha | 2026-10-28 (tarde, posterior a §16) |
+| Rama / HEAD | `docs/dashboard-drv-comparative-reconciliation-20261028` @ `884d345cb80896b1ad7f5d1a743da1f32b9d1d86` (head de la PR #1933) |
+| Runtime auditado | Árbol de `a2c87912` (el head de #1933 sólo agrega este archivo). `main` vigente es `4f9fd7b9` (#1934); su diff de `frontend/src` contra `a2c87912` son 3 líneas que sólo retiran `shadow-*` (§17.3), sin efecto geométrico |
+| Autorización | Nico: escritura local de esta sección en la rama de #1933, si era seguro. Sin stage, commit, push, `gh pr edit` ni merge |
+| Riesgo | R0 (lecturas Git/GitHub/código, sonda temporal fuera del repositorio) + R1 docs-only (este archivo) |
+| Regla de conservación | §1–§16 no se reescriben. Esta sección no sustituye sus valores: los fecha y, donde difiere, describe el estado vigente |
+
+Procedencia adicional:
+
+- **[MEDIDO-17]**: sonda de §17.14 sobre el árbol de `a2c87912` (Win32, `next dev`, fixture sintético).
+- **[CI-17]**: run de GitHub Actions leído con `gh run view`, con el SHA del head que lo produjo.
+- **[DECISIÓN]**: elemento que sólo Nico puede resolver; no es un defecto.
+
+### 17.1 Resumen ejecutivo
+
+1. **Cobertura geométrica completa por primera vez.** La sonda midió las **546** combinaciones canónicas (21 superficies × 13 viewports A02 × 2 temas) más 126 de frontera (1920 × 945, 1280 × 800, 1279 × 800 × 21 × 2): **672 registros**, scroll de documento **0/0 en los 672**, tema efectivo verificado en los 672 y calibración contra el baseline A02 Win32 congelado **273/273 sin diferencias** (tema `normal`). [MEDIDO-17]
+2. **G11 sigue cumplido sobre `main` vigente.** La matriz formal (`dashboard-g11-axe-matrix.spec.ts`) pasó 42/42 en E2E Completeness sobre `d9cca254`, cuyo árbol es idéntico a `main@4f9fd7b9` (run `40691799972`, `1997 passed`). [CI-17]
+3. **C26 no está bloqueado por G11.** Está bloqueado por gobierno (D-11, D-01(c), lectura de G12, subconjunto de §57) y por la ausencia de la sonda de rendimiento (§56.7, NOT_AVAILABLE). C25 sigue **PARTIAL** (D6/D7/D8).
+4. **Desviaciones vigentes y reproducidas hoy:** DRV-01, DRV-02, DRV-03, DRV-12 y DRV-N3 (Visitas, fila de **101 px** en 5 viewports). D7 (táctiles) queda cuantificado: **1 252 de 1 842** controles visibles en teléfono (68 %) miden < 44 px y **318** (17 %) < 24 px (tema normal, 5 viewports de teléfono). [MEDIDO-17]
+5. **Estabilidad.** La PR #1933 tiene E2E Completeness en `failure` por **un único test flaky** (`dashboard-card-navigation-shell.spec.ts:540`, `failOnFlakyTests`): es el defecto de espera por `ElementHandle` que corrige la PR **#1935** (abierta). La corrección **no** está en #1933 y no debe estarlo: #1933 es docs-only. [CI-17]
+6. **Recuento DRV (16 ítems: DRV-01..13 + N1..N3):** 5 implementados y verificados · 2 parciales · 5 pendientes y reproducibles · 4 bloqueados por decisión o dependencia (§17.6).
+
+### 17.2 Baseline Git, PR y entorno
+
+| Elemento | Valor | Fuente |
+| --- | --- | --- |
+| Rama al iniciar | `fix/dashboard-e2e-hydration-locator-20261028` @ `e5571d4f` (árbol limpio salvo dos untracked generados). Es la rama de la PR **#1935**, no la de #1933 | `git branch --show-current`, `gh pr list --head` |
+| Seguridad del cambio de rama | `e5571d4f` ya está en `origin/fix/dashboard-e2e-hydration-locator-20261028` (ancestro de `59c75880`); diff tracked vacío; ningún archivo tracked modificado. El cambio a la rama de #1933 no podía perder trabajo | `git merge-base --is-ancestor`, `git diff --stat` |
+| Operación local | `git switch docs/dashboard-drv-comparative-reconciliation-20261028` (rama local existente, = `origin/…` en `884d345c`). Sin `-c`, sin `--force` | R1 local (§17.15, nota de clasificación) |
+| HEAD de trabajo | `884d345cb80896b1ad7f5d1a743da1f32b9d1d86` = `headRefOid` de #1933 | `gh pr view 1933` |
+| `origin/main` | `4f9fd7b9d4a83c4f9690b0c5860fb546604a11d8` tras `git fetch --prune` (R1); #1933 está 1 detrás / 1 adelante (`mergeStateStatus` BEHIND) | `git rev-list --left-right --count` |
+| PR #1933 | OPEN, no draft, base `main`, 1 archivo (este), MERGEABLE, BEHIND. Required: `validate-pr-governance`, `qga-workflow-security`, `validate-backend`, `validate-frontend` en SUCCESS sobre `884d345c`; E2E Completeness (no required) FAILURE | `gh pr view 1933 --json statusCheckRollup` |
+| PR #1935 | OPEN; 1 archivo: `frontend/e2e/platform/app-shell/dashboard-card-navigation-shell.spec.ts`; head `59c75880` (merge de `main` sobre `e5571d4f`); E2E Completeness SUCCESS sobre `e5571d4f` (run `40721444486`); sobre `59c75880` en curso al cerrar | `gh pr view 1935`, `gh run list` |
+| Otras PR abiertas | #1909 (Dependabot frontend) | `gh pr list --state open` |
+| Stashes | 5, intactos (`stash@{0}`…`stash@{4}`) | `git stash list` |
+| Worktrees | `C:/PORTAL-VETNEB` y `.claude/worktrees/compassionate-gould-ad80c4` (`283e4118`, ajeno, no tocado) | `git worktree list` |
+| Untracked | `frontend/AGENTS.md`, `frontend/CLAUDE.md` (generados por `next dev`, no son contrato; preservados) | `git status --short --untracked-files=all` |
+| `AGENTS.md` versionados | Sólo el raíz | `git ls-files` |
+| Entorno de medición | Windows 11, Chromium de Playwright, `next dev` + API de fixture 3107, DPR 1, `reducedMotion: reduce` | — |
+
+### 17.3 Inventario de cambios fusionados
+
+Las 13 PR pedidas están `MERGED` y sus merge commits son ancestros de `origin/main` (`git merge-base --is-ancestor`, 13/13). [PR]
+
+| PR | Merge commit | `mergedAt` (UTC) | Efecto comprobado en código / runtime | Criterio de aceptación |
+| --- | --- | --- | --- | --- |
+| #1919 G11-e | `afa00968` | 2026-10-24T22:50:16Z | DRV-N1/N2 corregidos | Cumplido: 0 `label-content-name-mismatch` en la matriz G11 [CI-17] |
+| #1920 G11-c2 | `221dff97` | 2026-10-25T01:11:28Z | V-4/V-5 corregidos sin tocar tokens globales | Cumplido [CI-17] |
+| #1921 G11 matriz | `e0614e9c` | 2026-10-25T04:06:52Z | Spec 21 × 2 × 2 sin `disableRules` | Cumplido: 42/42 sobre el árbol de `main@4f9fd7b9` |
+| #1922 F-T1 | `ebe88a7c` | 2026-10-25T06:07:47Z | `#id` de Visitas abre `FieldVisitDetailDialog` | Cumplido (código + CI de la PR) |
+| #1923 C05 | `2596cf5e` | 2026-10-25T11:01:20Z | Fila compacta 40 px | Cumplido: fila 40 en las 6 tablas admin, 16/16 viewports de lista [MEDIDO-17] |
+| #1924 F-T2 | `25cd6e50` | 2026-10-25T21:13:35Z | Detalle de Sesiones | Cumplido (código) |
+| #1925 F-T3..F-T7 | `7c9b1fa9` | 2026-10-26T04:13:38Z | Valores completos en detalle | Cumplido (código) |
+| #1926 D5 | `2c5c33b5` | 2026-10-26T20:06:57Z | Etiquetas de la barra móvil 11/16 | Cumplido: barra 51.19 px en los 5 teléfonos y 21 superficies [MEDIDO-17] |
+| #1929 D6 parcial | `208c92bb` | 2026-10-27T12:15:47Z | 12 gaps 6 → 8 px | Parcial por diseño (acta C25 §12.5) |
+| #1930 shell | `0d83fa80` | 2026-10-27T19:30:58Z | App bar opaca, píldora de búsqueda | Cumplido; alto del app bar sin cambios (55.33) |
+| #1931 superficies | `6f0adb3b` | 2026-10-28T05:18:50Z | Pestañas tonales, superficies planas | Cumplido (código; sin medición de color en esta sonda) |
+| #1932 hairlines | `a2c87912` | 2026-10-28T06:22:18Z | Sin sombra en campana y pager centrado | Cumplido (código) |
+| #1934 utility controls | `4f9fd7b9` | 2026-10-28T14:22:00Z | `shadow-*` retirado de «Exportar CSV» (Intentos fallidos), «Limpiar» (Informes clínica) y `ThemeModeToggle` del topbar | Cumplido; E2E Completeness SUCCESS sobre `d9cca254` (árbol = `main`) [CI-17] |
+
+No se encontraron regresiones geométricas atribuibles a estas PR: la calibración 273/273 contra el baseline A02 recapturado por #1923 incluye todas las superficies y viewports canónicos. [MEDIDO-17]
+
+### 17.4 Matriz de las 21 superficies
+
+Tema `normal`; el oscuro dio valores geométricos y de truncado **idénticos** (1 111 elementos truncados en cada tema, 0 diferencias por registro). «Chrome» = píxeles antes del primer contenido / proporción del viewport (`derived.chromeBeforePrimaryContent*` de A02); límite G9: ≤ 240 px a 1920 y ≤ 32 % en 768–1366. [MEDIDO-17]
+
+| Superficie | Chrome 1920 × 1080 | Chrome 1366 × 768 | Chrome 1280 × 720 | Chrome 768 × 1024 | Táctiles < 44 / visibles (teléfono, 5 vp) | Observación |
+| --- | --- | --- | --- | --- | --- | --- |
+| `admin-hub` | 125 / 11.6 % | 114 / 14.9 % | 125 / 17.3 % | 124 / 12.1 % | 15 / 40 | — |
+| `admin-resumen` | 125 / 11.6 % | 114 / 14.9 % | 125 / 17.3 % | 124 / 12.1 % | 15 / 40 | — |
+| `admin-clinicas` | 151 / 14.0 % | 146 / 19.0 % | 158 / 21.9 % | 151 / 14.7 % | 88 / 113 | Cuadrícula 100 % truncada ≤ 1024 (DRV-02); 1 control interactivo fuera del viewport a 768 × 1024 sin scroll de documento (sin identificar) |
+| `admin-usuarios` | 159 / 14.7 % | 153 / 20.0 % | 165 / 23.0 % | 158 / 15.5 % | 115 / 140 | 17 truncados a 1280 × 800 (DRV-01); 34 a 768 |
+| `admin-auditoria` | 164 / 15.2 % | 158 / 20.6 % | 170 / 23.7 % | 220 / 21.5 % | 164 / 189 | 10 truncados a 1280 × 800 (DRV-01) |
+| `admin-sesiones` | 169 / 15.6 % | 163 / 21.3 % | 175 / 24.3 % | 168 / 16.4 % | 167 / 192 | 25 truncados a 768 (con detalle F-T2) |
+| `admin-informes` | 190 / 17.6 % | 185 / 24.1 % | 197 / 27.3 % | 266 / 26.0 % | 120 / 145 | Chrome 1279 × 800 = 223 vs 185 a 1280 × 800 (barra de filtros en dos filas en régimen rail) |
+| `admin-tokens` | 222 / 20.5 % | 216 / 28.2 % | 228 / **31.7 %** | 316 / 30.8 % | 80 / 105 | Máximo de chrome del dashboard: 0.3 pp bajo G9 |
+| `admin-estado` | 69 / 6.4 % | 64 / 8.3 % | 76 / 10.5 % | 69 / 6.7 % | 30 / 55 | — |
+| `admin-mantenimiento` | 69 / 6.4 % | 64 / 8.3 % | 76 / 10.5 % | 69 / 6.7 % | 15 / 40 | — |
+| `admin-precios` | 69 / 6.4 % | 64 / 8.3 % | 76 / 10.5 % | 69 / 6.7 % | 40 / 65 | — |
+| `clinic-informes` | 211 / 19.5 % | 200 / 26.1 % | 211 / 29.3 % | 304 / 29.7 % | 91 / 121 | 16 truncados a 768 |
+| `clinic-informes-full` | **238** / 22.1 % | 228 / 29.6 % | 221 / 30.6 % | 260 / 25.4 % | 67 / 97 | 2 px bajo G9 a 1920; cuadrícula de 185.56 px a 1024 (DRV-02) |
+| `clinic-logistica` | 83 / 7.7 % | 73 / 9.5 % | 83 / 11.6 % | 82 / 8.1 % | 15 / 60 | — |
+| `clinic-logistica-full` | 224 / 20.8 % | 214 / 27.8 % | 224 / 31.2 % | 223 / 21.8 % | 65 / 95 | — |
+| `clinic-log-rutas` | 198 / 18.4 % | 188 / 24.4 % | 198 / 27.6 % | 197 / 19.3 % | 30 / 60 | Fila 52 (61 a 768) |
+| `clinic-log-visitas` | 198 / 18.4 % | 188 / 24.4 % | 198 / 27.6 % | 197 / 19.3 % | 30 / 60 | **Fila 101 px** en 5 viewports; 6 truncados en todos (DRV-N3) |
+| `clinic-log-metricas` | 84 / 7.8 % | 74 / 9.6 % | 84 / 11.7 % | 83 / 8.1 % | 30 / 60 | — |
+| `clinic-operaciones` | 83 / 7.7 % | 73 / 9.5 % | 83 / 11.6 % | 82 / 8.1 % | 15 / 45 | — |
+| `clinic-perfil` | 83 / 7.7 % | 73 / 9.5 % | 83 / 11.6 % | 82 / 8.1 % | 45 / 75 | — |
+| `clinic-tokens` | 83 / 7.7 % | 73 / 9.5 % | 83 / 11.6 % | 82 / 8.1 % | 15 / 45 | — |
+
+**Lectura.** G9 se cumple en las 21 superficies en todos los viewports medidos, pero con margen mínimo en `clinic-informes-full` (238 de 240 px) y `admin-tokens` a 1280 × 720 (31.7 % de 32 %): cualquier chrome nuevo en esas dos superficies rompe G9. Los recuentos táctiles cuentan cada control una vez por viewport (5 teléfonos), no controles únicos.
+
+### 17.5 Auditoría visual y geométrica
+
+**A. Shell y navegación** [MEDIDO-17]
+
+| Elemento | Medido (21 superficies) | Rector §46 | Estado |
+| --- | --- | --- | --- |
+| Topbar (contenedor A02) | 55.33 en 768–1920 con alto > 760; **68.11** a 1280 × 720 en 21/21; 48 en teléfono | 56 ± 2 | Cumple salvo con alto ≤ 760 px (DRV-12) |
+| Barra interna `[data-workspace-app-bar]` | 54.33 también a 1280 × 720 | — | La diferencia de 13.78 px a 1280 × 720 viene del contenedor: `responsive.css:107-108` fija `--dash-header-h: 4rem` en el tramo «denso» `max-height: 760px`, que agranda en vez de compactar [CÓDIGO] |
+| Drawer / rail | Drawer ≥ 1280; rail 768–1279.98 (frontera exacta reproducida en 1279/1280) | 256 / 80 | Sin cambios desde §16 |
+| Barra inferior | 51.19 px en los 5 teléfonos | — | Sin cambios (D5 no la movió) |
+| Familia tipográfica | `Inter` en 672/672 registros | `--font-ui` | Cumple (identidad VETNEB, intencional) |
+
+**B. Tipografía** [MEDIDO-17]
+
+| Elemento | Valor computado | Rector §45.2 | Estado |
+| --- | --- | --- | --- |
+| Celda admin (Auditoría, Usuarios, Sesiones, Clínicas) | 13 / 19.5 / 400 | body-sm 13/20 | Dentro de tolerancia (−0.5 de interlineado) |
+| Celda admin (Informes, Tokens) | **12 / 16** / 400 | body-sm 13/20 | DIFERENTE: dos tamaños de celda en el mismo producto |
+| Celda clínica (Rutas, Visitas) | 12 / 16 / 400, padding `0 14px` | body-sm, `0 12px` | DIFERENTE (tamaño y padding) |
+| Cabecera de tabla | 12 / 16 / 600, tracking 0.96 px (admin, Rutas, Visitas); 12/16/**700** sin tracking (Informes clínica) | label-md | Dos estilos de cabecera |
+| Título de sección (primer `h1/h2`) | 14 / 20 / 600 con tracking 1.68 px en la mayoría; 12/16/600 en dos superficies | title-sm | Heterogéneo; requiere decisión de jerarquía (D-08) |
+
+**C. Geometría de colecciones** [MEDIDO-17]
+
+| Métrica | Admin | Clínica | Rector §46 | Estado |
+| --- | --- | --- | --- | --- |
+| Fila | 40 (6 tablas, 16/16 vp) | 44 Informes (40 a 1280 × 720) · 52 Rutas (61 a 768) · Visitas 52/61/**101** | 40 ± 1 | Admin cumple; clínica DIFERENTE |
+| Cabecera | 32 (32.5 en Informes a 768) | 44 | 36 ± 1 | DIFERENTE en ambos (D8) |
+| Padding de celda | `0 8px` (5 tablas), `0 12px` (Clínicas) | `0 12px` / `0 14px` | `0 12px` | DIFERENTE en 5 tablas admin y en Logística |
+| Cuadrícula: gap / radio | 8 / 8 | 8 / 8 | 12 radio | Radio DIFERENTE |
+| Tarjeta de cuadrícula: alto | 101.83–121.05 | 75.56–86.36 | **176** | DIFERENTE ([DECISIÓN] D-CARD) |
+
+**D. Colores y estados.** Tema efectivo (`html[data-theme]`) verificado en 672/672 registros. La medición de contraste vigente es la de G11 en CI (42/42, 2 viewports). **NOT_RUN** en esta sonda: hover, `focus-visible`, `active`, `selected`, `disabled`, loading, empty, error, menús, diálogos y paneles (la sonda no interactúa). #1931/#1932/#1934 cambiaron superficies y sombras sin medición de color propia.
+
+**E. Responsive y Zero Scroll.** 0 px de scroll de documento y de `body` en 672/672; A02 calibrado 273/273. Un control interactivo de `admin-clinicas` a 768 × 1024 (ambos temas) queda fuera del viewport sin producir scroll de documento: no se identificó el nodo (posible recorte dentro de un contenedor). **REQUIERE NUEVA MEDICIÓN** (§17.11 RM-15).
+
+### 17.6 DRV-01 a DRV-13: estado vigente
+
+| ID | Clasificación | Evidencia vigente | Diferencia con §16 |
+| --- | --- | --- | --- |
+| DRV-01 | **PENDIENTE Y REPRODUCIBLE** | Truncados en tabla 1279 × 800 → 1280 × 800: Auditoría 0 → 10, Usuarios 0 → 17, Informes 0 → 9; Sesiones y Tokens 0 → 0. Contenedor 1164.75 → 989.75 (Auditoría/Usuarios/Sesiones) y 1132.75 → 957.75 (Informes/Tokens). Columnas 6 → 7 (7 → 8 Informes). A 1366: Auditoría 5, Usuarios 5, Informes 9; a 1440: 3 / 0 / 7. A 1280 × 720 Informes 9. `@container` = 0; `lg:/xl:table-cell` en 5 owners (4/4/4/4/2) [MEDIDO-17] [CÓDIGO] | Idéntico; ampliado a 1600 y 1280 × 720 |
+| DRV-02 | **PENDIENTE Y REPRODUCIBLE** + [DECISIÓN] D-CARD | Columnas fijas 3/3/2 (`ContentGrid columns={3}` en `AdminClinicsManagementCard.tsx:760` y `AdminReportsCard.tsx:779`; `columns={2}` en `InformesReportsList.tsx:746`). Clínicas admin: tarjetas truncadas 13/13 (1024), 23/23 (834), 19/19 (768). Informes clínica (ruta completa): 10/10 a 1024 y 1280 × 720, 11/11 a 1280 × 800, 9/10 a 1366, 11/13 a 1440; tarjeta 185.56 px a 1024. 0 tarjetas recortadas verticalmente [MEDIDO-17] | Ampliado: Informes clínica trunca la mayoría de las tarjetas en todo 1024–1440, no sólo a 1024 |
+| DRV-03 | **PENDIENTE Y REPRODUCIBLE** | Filtro aplicado (S3 Informes admin, S2 Tokens admin): chip visible sólo en ≥ 1280. 768–1279: 0 chips **y 0 disparadores** de filtros. 360–390: 0 chips y 1 disparador sin recuento. 0 live regions con el estado del filtro en los 7 viewports. Causa: `hidden min-w-0 flex-1 xl:flex` (`AdminReportsCard.tsx:697`, `AdminParticularTokensCard.tsx:1380`) [MEDIDO-17] [CÓDIGO] | Agrega: semántica accesible del estado = ausente bajo 1280 |
+| DRV-04 | **BLOQUEADO POR DECISIÓN** (D-03) | `<ActiveFilterChips` sólo en S2/S3 [CÓDIGO] | Sin cambio |
+| DRV-05 | **IMPLEMENTADO PARCIALMENTE** | Landmark `search` (#1899) vigente; P2-05: `rangeLabel` ausente en S2/S3/S4 (`git grep` sólo en 7 owners admin ajenos) [CÓDIGO] | Sin cambio |
+| DRV-06 | **BLOQUEADO POR DECISIÓN** (D-04) | `ActionMenu` de un ítem en Informes admin [CÓDIGO] | Sin cambio |
+| DRV-07 | **IMPLEMENTADO Y VERIFICADO** | F-T1..F-T7 fusionados (#1922/#1924/#1925); los 6 truncados de Visitas tienen detalle por `#id` | Sin cambio |
+| DRV-08 | **IMPLEMENTADO Y VERIFICADO** | `SkipToContent` montado | Sin cambio |
+| DRV-09 | **IMPLEMENTADO Y VERIFICADO** (por código y spec existente; forced-colors no re-medido aquí) | `interactions.css` bloque DRV03 | Sin cambio |
+| DRV-10 | **BLOQUEADO** (depende de DRV-01) | `details={` = 0 usos [CÓDIGO] | Sin cambio |
+| DRV-11 | **BLOQUEADO POR DECISIÓN** (D-08) | Hover 0.06 / 0.10 (`tokens.css:135,228`); celdas 12/16 y 13/19.5 [CÓDIGO] [MEDIDO-17] | Agrega la heterogeneidad tipográfica de §17.5 B |
+| DRV-12 | **PENDIENTE Y REPRODUCIBLE** | Topbar 68.11 a 1280 × 720 en 21/21 superficies; 55.33 en los demás anchos ≥ 768 [MEDIDO-17]. Causa `responsive.css:107-108` [CÓDIGO] | Pasa de «evidencia por baseline» a medido; causa localizada |
+| DRV-13 | **IMPLEMENTADO PARCIALMENTE** | D5 cerrado; D6 parcial; D7: 1 252/1 842 < 44 px (68 %) y 318 < 24 px en teléfono; D8: cabecera 32 (admin) / 44 (clínica) vs 36 [MEDIDO-17] | D7 cuantificado |
+| DRV-N1 | **IMPLEMENTADO Y VERIFICADO** | #1919; G11 42/42 [CI-17] | Sin cambio |
+| DRV-N2 | **IMPLEMENTADO Y VERIFICADO** | #1919; G11 42/42 [CI-17] | Sin cambio |
+| DRV-N3 | **PENDIENTE Y REPRODUCIBLE** | Visitas: fila 52 (1920, 1600, 1440, 1920 × 945, 1279 × 800), 61 (1366), **101** (1280 × 800, 1280 × 720, 1024, 834, 768); 6 truncados en las 11 vistas de escritorio/tablet; 3 filas visibles en el fixture. Rutas: 52, 46 (1280 × 720), 61 (768) [MEDIDO-17] | Pasa de hipótesis a medido |
+
+Totales: **5** implementados y verificados (DRV-07, 08, 09, N1, N2) · **2** parciales (DRV-05, 13) · **5** pendientes y reproducibles (DRV-01, 02, 03, 12, N3) · **4** bloqueados (DRV-04, 06, 11 por decisión; DRV-10 por dependencia). Ninguno OBSOLETO ni NO COMPARABLE en esta revisión; las comparaciones NO_COMPARABLE con Drive de §5 se mantienen.
+
+### 17.7 Accesibilidad y pruebas
+
+| Aspecto | Estado | Evidencia |
+| --- | --- | --- |
+| G11 axe 21 × 2 temas × 2 viewports (1366, 390), sin `disableRules` | **PASSED en CI** para `main@4f9fd7b9` (árbol de `d9cca254`) | run `40691799972`, 42/42 ✓ [CI-17]. También 42/42 dentro de los `1996 passed + 1 flaky` del run `40687491941` (#1933) |
+| G11 en los otros 11 viewports, overlays, diálogos, menús y estados | **NOT_RUN** | Fuera de la spec formal |
+| `aria-current`, `aria-label` de navegación | Cubiertos por specs B09/C23 existentes | No re-ejecutados |
+| Foco, orden de Tab, focus trap y retorno | Cubiertos parcialmente por C13/C17–C22 | **NOT_RUN** en esta auditoría |
+| Forced-colors | DRV-09 (#1898); portales a `body` sin outline (acta C25 §8) | **Pendiente** (portales) |
+| Objetivos táctiles ≥ 44 px (§62.16) | **FAILED** cuantificado (68 %) | [MEDIDO-17] |
+| Estado de filtros (DRV-03) y anuncio de conteo (P2-05) | **FAILED** bajo 1280 / parcial | [MEDIDO-17] [CÓDIGO] |
+| Controles pre/post hidratación | Flaky conocido en `dashboard-card-navigation-shell.spec.ts:540` | Abajo |
+| Staging (G12) | **BLOCKED** | Sin entorno, tenants ni delegación R3 |
+
+**Antecedente E2E de #1933.** El run `40687491941` (E2E Completeness sobre `884d345c`) terminó con `1996 passed`, `1 flaky` y `failure` por `failOnFlakyTests`. El test: «once hydrated, the same control navigates through the router» (`:540`), `TimeoutError: page.waitForFunction: Timeout 8000ms exceeded` en `:559`. Causa (diagnóstico de la sesión anterior, coherente con el diff): `waitForFunction` recibía un `ElementHandle` capturado antes de que Suspense reemplazara el nodo, y esperaba un atributo sobre un nodo desconectado. **Corrección:** commit `e5571d4f` (PR **#1935**) sustituye las dos esperas (`:183`, `:559`) por `expect(locator).toHaveAttribute(…, { timeout: 8_000 })`: mismo timeout, sin retries ni skips, sin tocar `failOnFlakyTests`. Verificación: está en `origin/fix/dashboard-e2e-hydration-locator-20261028`; **no** está en #1933; E2E Completeness SUCCESS sobre `e5571d4f`. La corrección se preservó íntegra (no se tocó la rama ni el archivo).
+
+### 17.8 C25 y C26
+
+**C25 = PARTIAL.**
+
+| Sub-objetivo | Estado | Evidencia |
+| --- | --- | --- |
+| D1 foco real / D2 line-height / D3 iconos | Cerrado (#1891) | Acta C25 §9 |
+| D4 truncamientos sin valor completo | **Cerrado** (#1922, #1924, #1925) | Acta C25 §11; el registro §9 dice «Pendiente» (divergencia DV-4) |
+| D5 etiquetas de la barra móvil | **Cerrado** (#1926) | 11/16; barra 51.19 [MEDIDO-17] |
+| D6 espaciados | **Parcial** (#1929): quedan V1, V2 (R13), F1, T1, X3 (chrome/guards), M1, Q1; H3 excepción decidida | Acta C25 §12.1, §12.5 |
+| D7 objetivos táctiles | **Pendiente**: 1 252/1 842 < 44 px en teléfono | [MEDIDO-17] |
+| D8 densidad y cabeceras | **Parcial**: fila 40 cerrada (#1923); cabecera 32/44 vs 36 pendiente (R13) | [MEDIDO-17] |
+| Portales a `body` en forced-colors | Pendiente | Acta C25 §8 |
+
+**C26 = NOT_STARTED.**
+
+| # | Elemento | Estado |
+| --- | --- | --- |
+| 1 | Prerrequisitos verificables | G11 **PASSED** (CI); C23b cerrado; PR-DRV-02/03 y PR-BUG-03 fusionadas; contratos A02/A08 verdes en CI de `main` |
+| 2 | Decisiones de gobierno pendientes | D-11, D-01(c), lectura de G12 (§54 vs §58), subconjunto de estados de §57 (§17.10) |
+| 3 | D-11 / D-01(c) | **PENDIENTES** sin registro escrito |
+| 4 | Relación con G12 | G12 «tras C26» (§58) vs «Gates de §58 verdes» (§54): según la lectura, C26 cierra con G12 BLOCKED o no puede cerrar |
+| 5 | Sonda de rendimiento §56.7 | **NOT_AVAILABLE**: 0 archivos con `PerformanceObserver`, `layout-shift` o `longtask` en `frontend/e2e` [CÓDIGO] |
+| 6 | Cobertura visual | §57 nominal 4 914 capturas; hoy existen 546 registros geométricos de estado inicial (esta sonda) y las baselines Linux de `visual-linux`. Falta el subconjunto decidido |
+| 7 | Artefactos de cierre | Acta C26 (§11 AGENTS: documentación detallada); acta de programa §62 con estados canónicos; artefactos visuales fuera de `docs/` y de `test-results/` |
+| 8 | Secuencia mínima para comenzar | RM-02 → RM-01 → RM-04 (§17.12) |
+| 9 | Criterio de completado | §17.13 |
+
+### 17.9 Divergencias documentales
+
+Se mantienen DV-1..DV-5 de §16.8. Nuevas:
+
+| # | Documento | Registro | Realidad verificada |
+| --- | --- | --- | --- |
+| DV-6 | Este documento §16.1 | «Rama / HEAD … @ `a2c87912` (= `origin/main`)» | `main` avanzó a `4f9fd7b9` (#1934); la PR está BEHIND |
+| DV-7 | Este documento §16.4.4 | DRV-12 «no re-medido a 1280 × 720» | Medido: 68.11 en 21/21 (§17.6) |
+| DV-8 | Rector §46 / `responsive.css:105` | Comentario «Dense tier — small laptops» | El tramo aumenta el header a 4 rem (sube el chrome); el nombre describe lo contrario de su efecto |
+| DV-9 | `dashboard-drv-c26-readiness.md` §7.1, §10, §11.1 | «El inicio de C26 sigue bloqueado por G11» | G11 PASSED en CI desde #1921 (ya reportado como DV-1; se reafirma con `main@4f9fd7b9`) |
+
+Ninguna fuente rectora se modificó (fuera del scope autorizado). La corrección corresponde a RM-03.
+
+### 17.10 Matriz de riesgos y decisiones
+
+**Decisiones que bloquean trabajo** [DECISIÓN]
+
+| Código | Problema | Opciones viables | Beneficio / riesgo | Recomendación | Impacto de no decidir | Desbloquea |
+| --- | --- | --- | --- | --- | --- | --- |
+| D-11 | C26 depende de C25 (§50) y C25 está PARTIAL | (a) iniciar C26 con D6/D7/D8 como deuda registrada; (b) cerrar antes D7 + D8 + D6-V1/V2 con R13 | (a) adelanta C26 sin tocar A02/A03; deja §62.16 FAILED en el acta. (b) cumple el rector literal; 3+ PR con rebaseline A02/A03 | **(a)**, registrada por escrito en el acta C26: D7/D8 son R13 de alto costo y no afectan a la validación de C26 | C26 no puede empezar | RM-04, RM-05, RM-06 |
+| D-01(c) | Criterio de cierre de C26 | (c) cerrar contra los gates de §58 y registrar §62 aparte; alternativa: exigir todo §56.6 | (c) medible hoy; la alternativa exige D7 y P2-05 antes | **(c)** (lectura literal de §54) | C26 sin criterio de cierre | RM-06 |
+| D-12 / lectura G12 | §54 vs §58 | G12 dentro del cierre de C26; G12 como gate de rollout posterior | Dentro: C26 exige una operación R3. Después: C26 cierra con G12 BLOCKED explícito | **Gate de rollout posterior**, con G12 BLOCKED explícito en el acta | Riesgo RC-2 (cierre falso) o C26 imposible de cerrar | RM-06, G12 |
+| D-§57 | Subconjunto de estados de la regresión visual | inicial + filtros activos + error + empty; o los 9 estados | Subconjunto: ejecutable en CI Linux; 9 estados: 4 914 capturas sin baseline | **inicial, filtros activos, error, empty, focus** en 21 × 13 × 2 | C26-2 sin criterio medible | RM-05 |
+| D-CARD | Alto de tarjeta: §46 fija 176; medido 75.56–121.05 | (a) adoptar 176; (b) enmendar §46 a un alto mínimo por contenido; (c) mantener alto = f(`limit`) | (a) reduce las tarjetas visibles a la mitad aprox. (A03, R13); (b)/(c) conservan capacidad | **(b)**: enmienda docs-only con alto mínimo medido y ancho mínimo de pista; la ilegibilidad está en el ancho, no en el alto | PR-DRV-08 sin destino | RM-09 |
+| D-03 | Chips de filtros en S6/S7 (clínica) | agregar chips; o sólo recuento | — | Decidir junto con RM-07 (mismo patrón) | DRV-04 abierto | DRV-04 |
+| D-04 | `ActionMenu` de un ítem | retirar el menú; o agregar acciones reales | Retirar: −1 control duplicado; agregar: alcance funcional nuevo | Retirar | DRV-06 abierto | DRV-06 |
+| D-05 | App bar 68.11 con alto ≤ 760 | igualar a 56 (R13 A02/A03); mantener | Igualar libera 12.78 px en 1280 × 720 y baja el chrome de `admin-tokens` de 31.7 % | **Igualar**, con R13 propia | DRV-12 y margen G9 mínimo | RM-11 |
+| D-07 | Táctiles ≥ 44 px en < 768 | R13 por familia de controles | Accesibilidad móvil vs capacidad A03 | Autorizar por familia (pager, chips, iconos) | §62.16 FAILED | RM-12 |
+| D-08 | Tokens de hover y tipografía de celda (12/16 vs 13/19.5 vs §45.2 13/20) | unificar a 13/20; enmendar §45.2 | Unificar mueve alturas de fila clínica; enmienda documental sin riesgo | Enmienda docs-only + unificación de celdas admin 12 → 13 en una PR propia | DRV-11 abierto | DRV-11 |
+
+D-06 (truncados) queda **resuelta** por #1922/#1924/#1925 y deja de figurar.
+
+**Riesgos**
+
+| # | Riesgo | Impacto | Mitigación |
+| --- | --- | --- | --- |
+| R17-1 | Margen G9 mínimo (238/240 px; 31.7/32 %) | Cualquier chrome nuevo rompe G9 | Toda PR que toque chrome de `clinic-informes-full` o `admin-tokens` re-mide G9 |
+| R17-2 | E2E Completeness no es required; un flaky la deja roja sin bloquear el merge | Evidencia G11 de un head puede faltar | Fusionar #1935 antes de usar E2E Completeness como evidencia de C26 |
+| R17-3 | Sonda Win32 + `next dev`; Linux sólo inferido de la calibración A02 | Medio | CI Linux sobre el head de cada PR |
+| R17-4 | Ninguna medición de estados interactivos tras #1930–#1934 | Medio (color/hover/focus) | C26-2 con el subconjunto D-§57 |
+| R17-5 | #1909 (Dependabot) abierta | Mueve el baseline de dependencias | Capturar el head al iniciar C26 |
+
+### 17.11 Hoja de ruta priorizada
+
+Identificadores de planificación, **no** autorización para abrir PR. Esfuerzo en horas de ingeniería, con incertidumbre ±50 % salvo indicación; supone la máquina local y CI disponibles.
+
+| ID | Objetivo | Hallazgo | Estado | Prioridad | Impacto | Complejidad | Riesgo | Dependencias | Archivos candidatos | Implementación | Tests | Criterio de aceptación | Rollback | Evidencia |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| RM-01 | Decisiones D-11, D-01(c), G12, D-§57 registradas por escrito | C26 | Pendiente | P1 | Gobierno | Baja | R0/R1 docs | Ninguna | Acta C26 nueva o enmienda del rector (D-09) | Registro docs-only de las cuatro decisiones | `git diff --check` | Cuatro decisiones con fecha y texto en el repositorio | Revert del doc | §17.10 |
+| RM-02 | E2E Completeness estable | Flaky `:540` | Corrección lista en #1935 | P1 | Estabilidad | Baja | R2 (merge, [MANUAL-NICO] o delegación) | Checks de #1935 sobre `59c75880` | `dashboard-card-navigation-shell.spec.ts` | Fusionar #1935; luego `gh pr update-branch 1933` y re-ejecutar E2E Completeness | Spec con `--repeat-each=20`; E2E Completeness | 0 flaky en dos runs completos consecutivos sobre `main` | `git revert` del squash | §17.7 |
+| RM-03 | Actas y rector sin estados obsoletos | DV-1..DV-9 | Pendiente | P2 | Trazabilidad | Baja | R1 docs (fuentes rectoras: autorización propia) | RM-01 | Rector §50/§46, `dashboard-drv-c26-readiness.md`, acta C25 §9 | Bloques de actualización fechados, sin reescribir histórico | `git diff --check`; paths citados | 0 divergencias DV abiertas | Revert | §16.8, §17.9 |
+| RM-04 | C26-1: sonda de rendimiento §56.7 | C26 | NOT_AVAILABLE | P1 | Estabilidad / rendimiento | Alta | R1 test-only | RM-01 (D-11) | Spec nuevo en `frontend/e2e/`, `suites/catalog.ts`, censos de catálogo | CDP + `PerformanceObserver` (CLS, long tasks), conteo de `ResizeObserver` y de peticiones de paginación por resize, 768 × 600; cohorte `extended`/`evidence`, fuera de `ci` | Spec nuevo; catálogo; censos 01B | Registro por superficie y métrica en el acta; sin umbrales hasta tener baseline | Revert | Rector §56.7 |
+| RM-05 | C26-2: regresión visual del subconjunto D-§57 | C26 | Bloqueado | P1 | Visual | Alta | R1 test-only + R13 (baselines) | RM-01, RM-04 (catálogo compartido, en serie) | `frontend/e2e/regression/visual/` | Capturas Linux del subconjunto; aprobación manual lado a lado | `visual-linux` en CI | Lista de capturas aprobadas con SHA del head | Revert de baselines | Rector §57 |
+| RM-06 | C26-3: acta de cierre | C26 | Bloqueado | P1 | Gobierno | Media | R1 docs | RM-04, RM-05, RM-02 | `docs/implementation/` (acta C26) | Gates de §58 con estado canónico; §62 aparte | `git diff --check` | Cada gate de §58 con estado y SHA; G12 explícito | Revert | §17.13 |
+| RM-07 | PR-DRV-06: estado de filtros visible y anunciado < 1280 | DRV-03 | Pendiente y reproducible | P2 (P1 si se confirma que el valor tampoco queda visible en el campo) | Funcional + accesibilidad | Media | R1; R13 si agrega una franja en 768–1279 | Ninguna técnica (orden v2: post-C26, salvo decisión de adelantar) | `AdminReportsCard.tsx:697`, `AdminParticularTokensCard.tsx:1380`, `FilterBar.tsx` | Recuento en el disparador (< 768) y recuento compacto en 768–1279; `aria-live` del cambio | E2E con filtro aplicado en 360, 390, 768, 1024, 1279, 1280, 1920; A02/A03/A08; G11 | Estado identificable en 7/7 viewports; anunciado una vez por cambio; A03 sin drift | Revert | §17.6 DRV-03 |
+| RM-08 | PR-DRV-07: tabla piloto por contenedor | DRV-01 | Pendiente y reproducible | P2 | Visual / legibilidad | Media | R1; A02/A03 posible | RM-06 (orden v2) | `AdminReportsCard.tsx` (piloto), luego Auditoría y Usuarios | `container-type: inline-size` en el canvas; reglas de columna por ancho de contenedor con histéresis | Sonda de truncado 1024–1440; A02/A03/A08 | Truncados(1280 × 800) ≤ truncados(1279 × 800) en las 5 tablas; columnas monótonas con el ancho | Revert | §17.6 DRV-01 |
+| RM-09 | PR-DRV-08: cuadrícula por contenedor | DRV-02 | Pendiente + D-CARD | P2 | Legibilidad | Media | R1; A03 | D-CARD; RM-06 | `ContentGrid.tsx`, `collection-view.ts`, 3 consumidores | Columnas = `floor((w + gap) / pista mínima)`; filas = f(`limit`) | Spec C24 ampliado (ancho mínimo, truncado) | 0 tarjetas bajo la pista mínima; truncado de Clínicas a 1024 < 100 %; Informes clínica ≤ 30 % en 1024–1440 | Revert | §17.6 DRV-02 |
+| RM-10 | P2-05: anuncio de conteo en S2/S3/S4 | DRV-05 | Parcial | P2 | Accesibilidad | Baja | R1 | Ninguna | Owners S2/S3/S4 | `rangeLabel` + live region existente | Unit + E2E de live region | Cambio de página anunciado en 3/3; `limit`/`offset` sin cambio | Revert | §17.6 DRV-05 |
+| RM-11 | B3: header 56 también con alto ≤ 760 | DRV-12 | Pendiente y reproducible | P2 | Visual / capacidad | Baja | R13 (A02/A03 rebaseline) | D-05 | `responsive.css:107-108` (`--dash-header-h`) | Retirar el override de 4 rem del tramo denso | A02/A03/A05/A08; visual Linux | Topbar 56 ± 2 a 1280 × 720 en 21/21; chrome `admin-tokens` < 31.7 % | Revert | §17.5 A |
+| RM-12 | D7: táctiles ≥ 44 px en < 768 | DRV-13 / C25 | Pendiente | P1 (cierre C25 literal) / P2 con D-11 (a) | Accesibilidad | Alta | R13 por familia | D-07 | `navigation.css`, pagers móviles, chips, botones icono | Hit area ≥ 44 (padding o pseudo-elemento) sin crecer la caja visual donde A03 lo prohíba | Sonda táctil 21 × 5 teléfonos; A02/A03/A08 | Controles < 44 = 0 en teléfono (excepciones de texto en línea documentadas) | Revert por familia | §17.4 |
+| RM-13 | D8: cabecera de colección 36 px | DRV-13 / C25 | Pendiente | P3 | Visual | Media | R13 (A03) | D-11 o RM-12 | Tokens de cabecera (`tokens.css`), tablas admin y clínica | Cabecera 36 ± 1 en admin y clínica | A02/A03 | `thead` 36 ± 1 en 6 tablas admin y 3 de clínica | Revert | §17.5 C |
+| RM-14 | D6 restante (V1, V2, F1, T1, M1, Q1, X3) | C25 | Parcial | P3 | Visual | Media | R1 / R13 (V1, V2) | Autorización por clase | Ver acta C25 §12.1 | Una PR por clase | Sonda de gaps 21 × 13; A02/A03 | Gaps efectivos de 6 px = 0 salvo excepciones decididas | Revert | Acta C25 §12 |
+| RM-15 | Diagnóstico de controles fuera del viewport y de la fila de Visitas | DRV-N3, §17.5 E | Requiere medición / reproducible | P2 | Visual / legibilidad | Baja (diagnóstico) | R0 | Ninguna | `logistica/visitas/page.tsx`, `AdminClinicsManagementCard.tsx` | Sonda que identifique el nodo (selector) y la celda que envuelve a 101 px | Sonda; después A02/A03 | Causa nombrada; si es defecto, fila ≤ 52 sin truncado nuevo | — | §17.6 DRV-N3 |
+| RM-16 | Cobertura axe de estados y overlays | G11 / §56.6 | NOT_RUN | P2 | Accesibilidad | Media | R1 test-only | RM-04 (catálogo en serie) | Spec G11 o spec nuevo | Axe con menús, diálogos, panel de filtros abiertos y estados error/empty | Spec nuevo | 0 `critical`/`serious` en los estados del subconjunto D-§57 | Revert | §17.7 |
+| RM-17 | Tipografía de celda unificada | DRV-11 | Bloqueado (D-08) | P3 | Visual | Media | R1; R2 si toca tokens globales | D-08 | `AdminReportsCard.tsx`, `AdminParticularTokensCard.tsx`, Logística | 12/16 → 13/20 o enmienda §45.2 | A02/A03; visual Linux | Un solo estilo de celda por rol | Revert | §17.5 B |
+| RM-18 | DRV-04 / DRV-06 / DRV-10 | Varios | Bloqueado | P3 | Funcional / visual | Variable | R1 | D-03, D-04, RM-08 | Ver §6 | Según decisión | Según PR | Según decisión | Revert | §17.6 |
+
+Esfuerzo estimado (horas): RM-01 1–2 · RM-02 0.5–1 (más CI) · RM-03 2–4 · RM-04 12–24 (alta incertidumbre: no existe instrumento) · RM-05 8–16 más revisión manual · RM-06 3–6 · RM-07 6–10 · RM-08 8–16 · RM-09 6–12 · RM-10 3–5 · RM-11 3–6 más rebaseline · RM-12 16–32 (alta incertidumbre: depende de las familias autorizadas) · RM-13 6–10 · RM-14 8–16 · RM-15 2–4 · RM-16 8–12 · RM-17 4–8.
+
+### 17.12 Dependencias y camino crítico
+
+```text
+Camino crítico a C26 cerrado (con D-11 = a):
+RM-02 ─► RM-01 ─► RM-04 ─► RM-05 ─► RM-06 ─► [G12: R3, delegación propia]
+                    ▲
+                    └─ catálogo y censos compartidos: RM-04, RM-05 y RM-16 en serie
+
+Si D-11 = b (C25 completo antes de C26):
+RM-01 ─► RM-12 ─► RM-13 ─► RM-14(V1,V2) ─► RM-04 ─► RM-05 ─► RM-06
+```
+
+- **Adelantables sin romper dependencias:** RM-03, RM-10, RM-15 (independientes del catálogo y de R13). RM-07 si Nico decide adelantarlo por ser funcional/accesibilidad.
+- **Condicionado por R13:** RM-11, RM-12, RM-13, RM-14 (V1/V2), RM-05 (baselines).
+- **Mejoras independientes post-C26:** RM-08, RM-09, RM-17, RM-18.
+- **Requieren decisión:** RM-01 (y todo C26), RM-09 (D-CARD), RM-11 (D-05), RM-12 (D-07), RM-17 (D-08), RM-18 (D-03, D-04).
+- Sin ciclos: ninguna tarea depende de una posterior en su cadena; RM-08 → DRV-10 es unidireccional.
+
+### 17.13 Criterios de aceptación y cierre
+
+| Nivel | Criterio objetivo |
+| --- | --- |
+| C25 completo | D6 sin gaps efectivos de 6 px fuera de excepciones decididas; D7 = 0 controles < 44 px en teléfono (salvo excepciones escritas); D8 cabecera 36 ± 1; A02/A03/A05/A08 PASSED; o bien D-11 (a) registrada |
+| C26 completo | RM-04 con registro por superficie; RM-05 con capturas aprobadas; G11 42/42 sobre el head de C26; los cuatro required checks en SUCCESS sobre ese head; E2E Completeness sin flaky sobre ese head; acta con cada gate de §58 en estado canónico; G12 según la lectura decidida (nunca PASSED sin ejecución R3) |
+| Programa DRV | DRV-01, 02, 03, 12, N3 sin reproducción con la sonda de §17.14 (mismas superficies, viewports y temas); DRV-04/06/10/11 resueltos por decisión; ninguna regresión de A02 (273/273) ni de scroll (0/672) |
+
+### 17.14 Validaciones ejecutadas y pendientes
+
+**Sonda de esta auditoría.** Archivos temporales en el scratchpad de la sesión, fuera del repositorio. Reutiliza sin modificarlos `frontend/playwright.config.ts`, `frontend/e2e/helpers/dashboard-geometry-matrix.ts` (superficies, 13 viewports, `installSurfaceMocks`, `resizeSurfaceViewport`, `measureSurfaceGeometry`, `compareGeometryRecords`), `frontend/e2e/helpers/session.ts` y el teardown del repositorio; tema aplicado igual que la spec G11 (`vetneb-theme-mode` + `emulateMedia`). Sólo registra cajas, estilos computados y recuentos; ningún texto del fixture.
+
+| Ejecución | Resultado |
+| --- | --- |
+| Sonda 21 superficies × 2 temas (16 viewports cada una; cuadrícula y filtro aplicado en tema normal) | `42 passed (6.9m)`, exit 0 |
+| Registros | 672 (546 canónicos + 126 de frontera); tema efectivo correcto 672/672 |
+| Calibración contra el baseline A02 Win32 (`compareGeometryRecords`, tema normal, 13 viewports canónicos) | **273/273** con 0 diferencias |
+| Scroll de documento y `body` | 0/0 en 672/672 |
+| Higiene | `frontend/next-env.d.ts` = blob `ce4e94a6` antes y después; `outputDir` y reporter en el scratchpad; `git status` sólo con los dos untracked previos |
+
+**Gates de esta entrega (AGENTS §6, docs).**
+
+| Gate | Estado |
+| --- | --- |
+| `git diff --check` | PASSED (exit 0) |
+| Conservación de §1–§16 (`cmp` de las 724 primeras líneas contra la copia previa) | PASSED (idénticas; el diff es sólo +342 líneas de §17) |
+| Espacios finales, tabuladores, marcadores de conflicto, columnas por tabla y bloques de código | PASSED (`grep`/`awk`, 0 hallazgos) |
+| Paths citados existen en HEAD | PASSED |
+| Contenido sensible (credenciales, cookies, tokens, URLs firmadas, emails, connection strings) | PASSED (`grep` sin coincidencias; los SHA son commits públicos) |
+| Lint, typecheck, build, `security:public-surface`, `pnpm test`, cohortes E2E | NOT_RUN: docs-only, sin código |
+| A02/A03/A05/A08 como specs | NOT_RUN localmente; A02 calibrado por la sonda (273/273), que **no** es el gate |
+| G11 local | NOT_RUN; evidencia de CI sobre el árbol de `main` (§17.7) |
+| Hover, focus, menús, diálogos, loading/error/empty, forced-colors | NOT_RUN |
+| Linux / `next start` | NOT_RUN (sólo CI) |
+| G12 staging | BLOCKED (sin entorno, tenants ni delegación R3) |
+
+**Cobertura auditada** (no equivale a avance de implementación):
+
+| Dimensión | Cubierto / denominador | % |
+| --- | --- | ---: |
+| Geometría, zero-scroll, truncado, tipografía, táctiles (estado inicial) | 546 / 546 (21 × 13 × 2) | 100 |
+| Regresión visual nominal de §57 (21 × 13 × 2 × 9) | 546 / 4 914 (sólo estado inicial, sin captura) | 11.1 |
+| Axe (CI) | 84 / 546 combinaciones superficie × viewport × tema | 15.4 |
+| Hallazgos DRV con estado vigente y evidencia | 16 / 16 | 100 |
+
+### 17.15 Riesgos residuales y limitaciones
+
+- La sonda mide estado inicial cargado con datos sintéticos; datos más largos pueden truncar antes. Los recuentos absolutos dependen del fixture.
+- Win32 + `next dev`; la equivalencia con Linux se apoya en la calibración A02, no en medición Linux.
+- El runtime medido es `a2c87912`; #1934 sólo retira sombras (verificado por diff), sin efecto en cajas.
+- DRV-03: no se midió si el valor del filtro sigue visible dentro del campo de búsqueda entre 768 y 1279 px; por eso RM-07 queda en P2 condicional.
+- El control fuera del viewport de `admin-clinicas` a 768 no se identificó (RM-15).
+- Clasificación de la operación local: `git switch` a la rama existente de #1933 se trató como R1 local (§5.2 lista `git switch main` y `git switch -c`; no figura en §5.5 y no escribe historial ni remoto) y se ejecutó con el árbol limpio y el trabajo previo publicado. Se reporta para que Nico confirme o ajuste esa lectura.
+
+**Estado del documento (§17, 2026-10-28):** READY como auditoría integral y roadmap. Sin stage, commit, push, `gh pr edit` ni merge.
