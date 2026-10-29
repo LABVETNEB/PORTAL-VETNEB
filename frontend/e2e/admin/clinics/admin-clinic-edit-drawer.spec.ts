@@ -163,6 +163,98 @@ test.describe("admin clinic edit drawer — component behavior", () => {
     await expect(editButton).toBeEnabled();
   });
 
+  test("tablet and desktop keep every clinic action inside the visible collection canvas", async ({
+    page,
+  }) => {
+    const widths = [768, 834, 1024, 1279, 1280, 1366, 1440];
+
+    await page.setViewportSize({ width: widths[0], height: 800 });
+    await page.goto("/dashboard/admin?hub=1");
+    await navigateToGestionTab(page);
+    await waitForClinicList(page);
+
+    for (const width of widths) {
+      await page.setViewportSize({ width, height: 800 });
+
+      const canvas = page.locator("#admin-clinics .dashboard-table-responsive");
+      const table = canvas.locator("table");
+      const actions = table.locator('tbody button[aria-label^="Editar clínica"]');
+      await expect(canvas).toBeVisible();
+      await expect(actions.first()).toBeVisible();
+
+      const geometry = await canvas.evaluate((element) => {
+        const canvasRect = element.getBoundingClientRect();
+        const tableElement = element.querySelector("table");
+        const tableScroller = tableElement?.parentElement;
+        const actionElements = Array.from(
+          element.querySelectorAll<HTMLButtonElement>(
+            'tbody button[aria-label^="Editar clínica"]',
+          ),
+        );
+        const computed = tableElement ? getComputedStyle(tableElement) : null;
+
+        return {
+          viewportWidth: window.innerWidth,
+          documentOverflowX:
+            document.documentElement.scrollWidth -
+            document.documentElement.clientWidth,
+          canvas: {
+            left: canvasRect.left,
+            right: canvasRect.right,
+            width: canvasRect.width,
+            overflowX: element.scrollWidth - element.clientWidth,
+          },
+          table: tableElement
+            ? {
+                width: tableElement.getBoundingClientRect().width,
+                minWidth: computed?.minWidth,
+                tableLayout: computed?.tableLayout,
+                whiteSpace: computed?.whiteSpace,
+                overflowX: tableScroller
+                  ? tableScroller.scrollWidth - tableScroller.clientWidth
+                  : null,
+              }
+            : null,
+          actions: actionElements.map((action) => {
+            const rect = action.getBoundingClientRect();
+            return { left: rect.left, right: rect.right, width: rect.width };
+          }),
+        };
+      });
+
+      console.info("admin-clinics-action-geometry", JSON.stringify(geometry));
+      expect.soft(geometry.documentOverflowX, `document overflow @${width}`).toBe(0);
+      expect.soft(geometry.canvas.overflowX, `collection overflow @${width}`).toBe(0);
+      expect.soft(geometry.table?.overflowX, `table overflow @${width}`).toBe(0);
+      expect.soft(geometry.actions.length, `actions rendered @${width}`).toBeGreaterThan(0);
+      for (const action of geometry.actions) {
+        expect.soft(action.left, `action left bound @${width}`).toBeGreaterThanOrEqual(
+          geometry.canvas.left - 0.5,
+        );
+        expect.soft(action.right, `action right bound @${width}`).toBeLessThanOrEqual(
+          Math.min(geometry.canvas.right, width) + 0.5,
+        );
+      }
+    }
+
+    const firstAction = page
+      .locator('#admin-clinics table tbody button[aria-label^="Editar clínica"]')
+      .first();
+    await expect(firstAction).toBeEnabled();
+    await page
+      .locator('#admin-clinics button[title="Ordenar por fecha de creación"]')
+      .focus();
+    await page.keyboard.press("Tab");
+    await expect(firstAction).toBeFocused();
+    expect(await firstAction.evaluate((button) => button.matches(":focus-visible"))).toBe(true);
+    await page.keyboard.press("Enter");
+    const drawer = page.getByRole("dialog", { name: /editar clínica/i });
+    await expect(drawer).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(drawer).not.toBeVisible();
+    await expect(firstAction).toBeFocused();
+  });
+
   test("the mobile clinic search exposes one named landmark", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/dashboard/admin?module=admin-clinics");

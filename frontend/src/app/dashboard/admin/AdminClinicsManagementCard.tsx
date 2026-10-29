@@ -222,6 +222,7 @@ export function AdminClinicsManagementCard() {
 
   const latestRequestRef = useRef(0);
   const snapshotRef = useRef<AdminClinicsSnapshot | null>(null);
+  const editTriggerRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     snapshotRef.current = snapshot;
@@ -346,6 +347,22 @@ export function AdminClinicsManagementCard() {
   function handleCreateDialogOpenChange(open: boolean) {
     setIsCreateOpen(open);
     if (!open) setIsCreatePasswordVisible(false);
+  }
+
+  function openClinicEditor(
+    clinic: AdminClinicManagementSummary,
+    trigger: HTMLButtonElement,
+  ) {
+    editTriggerRef.current = trigger;
+    setEditingClinic(clinic);
+  }
+
+  function closeClinicEditor() {
+    setEditingClinic(null);
+    requestAnimationFrame(() => {
+      const trigger = editTriggerRef.current;
+      if (trigger?.isConnected && !trigger.disabled) trigger.focus();
+    });
   }
 
   async function handleCreateClinic(event: FormEvent<HTMLFormElement>) {
@@ -779,7 +796,7 @@ export function AdminClinicsManagementCard() {
                         variant="outline"
                         size="sm"
                         disabled={isBusy || editingClinic !== null}
-                        onClick={() => setEditingClinic(clinic)}
+                        onClick={(event) => openClinicEditor(clinic, event.currentTarget)}
                         aria-label={`Editar clínica ${clinic.clinicName}`}
                         className="ml-auto h-7 shrink-0 px-2"
                       >
@@ -809,7 +826,14 @@ export function AdminClinicsManagementCard() {
               </ContentGrid>
             </div>
           ) : (
-          <Table className="text-[0.8125rem] [&_th]:h-9 [&_th]:px-3 [&_td]:px-3">
+          <Table className="table-fixed text-[0.8125rem] [&_th]:h-9 [&_th]:px-3 [&_td]:px-3">
+            <colgroup>
+              <col className="w-[24%]" />
+              <col className="w-[27%]" />
+              <col className="w-[18%]" />
+              <col className="w-[22%] lg:w-[18%]" />
+              <col className="w-[9%] lg:w-[13%]" />
+            </colgroup>
             <CollectionHeader>
               <ContentListItem as="tr">
                 <TableHead aria-sort={clinicsAriaSort(appliedSort, "name")}>
@@ -840,8 +864,8 @@ export function AdminClinicsManagementCard() {
                     key={`${clinic.clinicId}-${user?.userId ?? "empty"}`}
                   >
                     <TableCell className="py-1">
-                      <span className="flex items-center gap-2">
-                        <span className="max-w-[13rem] truncate font-medium">
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span className="min-w-0 truncate font-medium">
                           {clinic.clinicName}
                         </span>
                         <span className="shrink-0 font-mono text-[0.62rem] text-muted-foreground">
@@ -851,15 +875,15 @@ export function AdminClinicsManagementCard() {
                     </TableCell>
 
                     <TableCell className="py-1">
-                      <span className="block max-w-[14rem] truncate">
+                      <span className="block min-w-0 truncate">
                         {clinic.contactEmail ?? "—"}
                       </span>
                     </TableCell>
 
                     <TableCell className="py-1">
                       {user ? (
-                        <span className="inline-flex max-w-[12rem] items-center gap-1">
-                          <span className="truncate">{user.username}</span>
+                        <span className="flex min-w-0 items-center gap-1">
+                          <span className="min-w-0 truncate">{user.username}</span>
                           {extraUsers > 0 ? (
                             <span className="shrink-0 text-[0.66rem] text-muted-foreground">
                               +{extraUsers}
@@ -886,12 +910,12 @@ export function AdminClinicsManagementCard() {
                         variant="outline"
                         size="sm"
                         disabled={isBusy || editingClinic !== null}
-                        onClick={() => setEditingClinic(clinic)}
+                        onClick={(event) => openClinicEditor(clinic, event.currentTarget)}
                         aria-label={`Editar clínica ${clinic.clinicName}`}
-                        className="h-8"
+                        className="h-8 w-8 p-0 lg:w-auto lg:px-3"
                       >
                         <Pencil aria-hidden="true" />
-                        Editar
+                        <span className="hidden lg:inline">Editar</span>
                       </Button>
                     </TableCell>
                   </ContentListItem>
@@ -991,7 +1015,7 @@ export function AdminClinicsManagementCard() {
                   variant="outline"
                   size="sm"
                   disabled={isBusy || editingClinic !== null}
-                  onClick={() => setEditingClinic(clinic)}
+                  onClick={(event) => openClinicEditor(clinic, event.currentTarget)}
                   aria-label={`Editar clínica ${clinic.clinicName}, ver usuario${extraUsers > 0 ? "s" : ""} y fecha de actualización`}
                   className="h-9 shrink-0 px-2.5"
                 >
@@ -1059,7 +1083,7 @@ export function AdminClinicsManagementCard() {
           onSaveClinic={handleSaveClinic}
           onSaveCredentials={handleSaveCredentials}
           onDeleteClinic={handleDeleteClinic}
-          onClose={() => setEditingClinic(null)}
+          onClose={closeClinicEditor}
         />
       </CardContent>
     </Card>
