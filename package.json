@@ -28,11 +28,11 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",
     "argon2": "^0.45.1",
-    "dotenv": "^18.0.8",
+    "dotenv": "^18.0.9",
     "drizzle-orm": "^0.45.4",
     "fastify": "^5.12.7",
     "multer": "^2.4.0",
-    "nodemailer": "^10.1.7",
+    "nodemailer": "^10.2.1",
     "postgres": "^3.4.9",
     "zod": "^4.6.7"
   },
