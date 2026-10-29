@@ -477,6 +477,7 @@ test.describe("B06 · global module search", () => {
       page.locator('[data-dashboard-module-workspace="audit-log"]').first(),
       "the searched module really mounts",
     ).toBeVisible({ timeout: 25_000 });
+    await expect(page).toHaveURL(/\/dashboard\/admin\?module=audit-log$/);
   });
 
   test("arrow keys move the active option and Enter selects it", async ({ page }) => {
@@ -511,5 +512,9 @@ test.describe("B06 · global module search", () => {
     await expect(page).toHaveURL(new RegExp(`\\?module=${secondId}$`), {
       timeout: 20_000,
     });
+    await expect(page.locator(`[data-dashboard-module-workspace="${secondId}"]`).first()).toBeVisible({
+      timeout: 25_000,
+    });
+    await expect(page).toHaveURL(new RegExp(`\\?module=${secondId}$`));
   });
 });

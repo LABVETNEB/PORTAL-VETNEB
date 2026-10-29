@@ -489,17 +489,15 @@ test("shell router no longer renders a vertical sidebar as primary navigation", 
   assert.ok(source.includes("<DashboardMobileNav surface={surface} />"));
 });
 
-// PR-NAV-03 (FSM roadmap §11.3): the owner lives in the dashboard layout and its
-// store exists before any page mounts, so a request made before it registers is
-// not kept for a later replay. The caller is told `false` and navigates on its
-// own; the owner then sees that navigation as a URL commit. A replayed request
-// could land after it and navigate a second time.
-test("an admin request with no navigation owner is left to the caller and never replayed", async () => {
+// B06: a selection can arrive after the search hydrates but before the owner
+// registers. Claim it so the pending restore cannot race the caller's fallback.
+test("an early admin selection is delivered once to the first accepting owner", async () => {
   const { requestAdminModuleActivate, requestAdminHubReset, registerAdminNavigationOwner } = await import(
     "../../../../frontend/src/lib/admin-hub-reset.ts"
   );
 
-  assert.equal(requestAdminModuleActivate("admin-clinics"), false, "no owner: the caller navigates");
+  assert.equal(requestAdminModuleActivate("admin-clinics"), true);
+  assert.equal(requestAdminModuleActivate("admin-health"), true, "the latest early selection wins");
   requestAdminHubReset();
 
   const heard: string[] = [];
@@ -512,11 +510,11 @@ test("an admin request with no navigation owner is left to the caller and never 
       heard.push("hub");
     },
   });
-  assert.deepEqual(heard, [], "nothing asked before the owner registered is replayed");
+  assert.deepEqual(heard, ["admin-health"], "one early selection is delivered at registration");
 
   assert.equal(requestAdminModuleActivate("audit-log"), true);
   requestAdminHubReset();
-  assert.deepEqual(heard, ["audit-log", "hub"]);
+  assert.deepEqual(heard, ["admin-health", "audit-log", "hub"]);
 
   // A newer owner replaces the previous one; the stale unregister is inert.
   const next: string[] = [];
@@ -530,11 +528,33 @@ test("an admin request with no navigation owner is left to the caller and never 
   unregister();
   assert.equal(requestAdminModuleActivate("admin-pricing"), true);
   assert.deepEqual(next, ["admin-pricing"]);
-  assert.deepEqual(heard, ["audit-log", "hub"], "the replaced owner hears nothing");
+  assert.deepEqual(heard, ["admin-health", "audit-log", "hub"], "the replaced owner hears nothing");
 
   unregisterNext();
-  assert.equal(requestAdminModuleActivate("admin-sessions"), false, "an unregistered owner hears nothing");
+  assert.equal(requestAdminModuleActivate("admin-sessions"), true, "the next owner will receive this selection");
   assert.deepEqual(next, ["admin-pricing"]);
+
+  const afterRemount: string[] = [];
+  const unregisterAfterRemount = registerAdminNavigationOwner({
+    selectModule(moduleId) { afterRemount.push(moduleId); return true; },
+    selectHub() {},
+  });
+  assert.deepEqual(afterRemount, ["admin-sessions"]);
+  unregisterAfterRemount();
+
+  assert.equal(requestAdminModuleActivate("admin-health"), true);
+  const declined: string[] = [];
+  const unregisterDeclined = registerAdminNavigationOwner({
+    selectModule(moduleId) { declined.push(moduleId); return false; },
+    selectHub() {},
+  });
+  unregisterDeclined();
+  const afterDeclined: string[] = [];
+  registerAdminNavigationOwner({
+    selectModule(moduleId) { afterDeclined.push(moduleId); return true; },
+    selectHub() {},
+  })();
+  assert.deepEqual([declined, afterDeclined], [["admin-health"], []], "a declined early selection is never replayed");
 
   const adapter = read("frontend/src/lib/admin-hub-reset.ts");
   for (const retired of ["unheardActivation", "LATE_ACTIVATION_MAX_AGE_MS", "performance.now()", "Listeners"]) {
@@ -627,8 +647,8 @@ test("SINGLE FLIGHT: only a stage owner claims a request, and only when it says 
     const admin = await import("../../../../frontend/src/lib/admin-hub-reset.ts");
     const clinic = await import("../../../../frontend/src/lib/clinic-hub-reset.ts");
 
-    // No owner yet: nobody can navigate later, so the caller must.
-    assert.equal(admin.requestAdminModuleActivate("admin-clinics"), false);
+    // The admin adapter holds an early selection for the navigation owner.
+    assert.equal(admin.requestAdminModuleActivate("admin-clinics"), true);
     assert.equal(clinic.requestClinicModuleActivate("tokens"), false);
 
     // PR-NAV-03: the admin owner is the navigation machine. The adapter relays

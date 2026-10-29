@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { stripTypeScriptTypes } from "node:module";
 import test from "node:test";
 
+import { registerAdminNavigationOwner, requestAdminModuleActivate } from "../../../../frontend/src/lib/admin-hub-reset.ts";
+
 import { readSourceFile } from "../../../helpers/tracked-source-files.ts";
 import {
   createNavigationCoordinator,
@@ -50,7 +52,7 @@ const MACHINE = { initial, transition };
 
 const ADMIN: MachineConfig = {
   surface: "admin",
-  modules: ["admin", "admin-clinics", "admin-pricing", "audit-log"],
+  modules: ["admin", "admin-health", "admin-clinics", "admin-pricing", "audit-log"],
   defaultModule: "admin",
 };
 
@@ -304,6 +306,32 @@ function adminAt(moduleId: string): Rig {
   rig.take();
   return rig;
 }
+
+test("B06: an early module selection supersedes restore once the admin owner mounts", () => {
+  for (const target of ["audit-log", "admin-health"] as const) {
+    const rig = adminRestoring(createNavigationCoordinator, "admin");
+    let activations = 0;
+
+    assert.equal(requestAdminModuleActivate(target), true, `${target}: the early intent is claimed`);
+    const unregister = registerAdminNavigationOwner({
+      selectModule(moduleId) {
+        activations += 1;
+        rig.dispatch(select(moduleId));
+        return true;
+      },
+      selectHub() {},
+    });
+    rig.task(() => rig.mount());
+
+    assert.equal(activations, 1, `${target}: one logical activation`);
+    assert.deepEqual(rig.navigated(), [`push:module:${target}@2`], `${target}: the stale restore never navigates`);
+    rig.task(() => rig.commit(moduleAt(target)));
+    assert.equal(rig.state().tag, "IDLE");
+    assert.deepEqual(rig.navigated(), [`push:module:${target}@2`], `${target}: no late overwrite`);
+    assertClean(rig);
+    unregister();
+  }
+});
 
 // ── A1–A8, step by step ──────────────────────────────────────────────────────
 
