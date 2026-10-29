@@ -633,6 +633,8 @@ export function AdminParticularTokensCard() {
     matchesAdminParticularTokenFilters(token, appliedFilters, clinicOptions),
   );
   const pagedTokens = usePagedRows(filteredTokens, rowsPerPage);
+  // RM-10 (P2-05): the endpoint exposes no total, so only the page is announced.
+  const tokensPageAnnouncement = `Página ${pagedTokens.page + 1}`;
   const visibleTokens = pagedTokens.pageItems;
   const createStepIndex = getCreateStepIndex(createStep);
   const isLastCreateStep = createStep === "sample";
@@ -1567,6 +1569,9 @@ export function AdminParticularTokensCard() {
                 data-admin-mobile-core-pager="true"
                 data-dashboard-adaptive-reserved-region="pager"
               >
+                <span className="sr-only" aria-live="polite">
+                  {tokensPageAnnouncement}
+                </span>
                 <Button
                   type="button"
                   variant="outline"
@@ -1618,6 +1623,9 @@ export function AdminParticularTokensCard() {
             className="mt-2 hidden shrink-0 items-center justify-center gap-2 overflow-hidden border-t border-vetneb-line/65 px-1 text-xs text-muted-foreground md:mt-1 md:flex"
             style={DASHBOARD_PAGER_RESERVATION}
           >
+            <span className="sr-only" aria-live="polite">
+              {tokensPageAnnouncement}
+            </span>
             <div className="flex items-center gap-2">
               <Button
                 type="button"

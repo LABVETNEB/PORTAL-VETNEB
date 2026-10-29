@@ -265,6 +265,12 @@ export function AdminClinicsManagementCard() {
   const hasNext = offset + effectiveLimit < totalClinics;
   const page = Math.floor(offset / effectiveLimit) + 1;
   const pageCount = Math.max(1, Math.ceil(totalClinics / effectiveLimit));
+  // RM-10 (P2-05): the range comes from the loaded snapshot, not the requested
+  // offset, so a page change is announced once, when its rows arrive.
+  const clinicsRangeAnnouncement =
+    snapshot && snapshot.total > 0 && snapshot.clinics.length
+      ? `Mostrando ${snapshot.offset + 1}–${snapshot.offset + snapshot.clinics.length} de ${snapshot.total} clínicas`
+      : "";
   const isBusy = isPending || activeActionKey !== null;
 
   // Sort headers exist only in the desktop table; the mobile list has none, so
@@ -923,6 +929,9 @@ export function AdminClinicsManagementCard() {
           style={DASHBOARD_PAGER_RESERVATION}
           aria-label="Paginación de clínicas"
         >
+          <span className="sr-only" aria-live="polite">
+            {clinicsRangeAnnouncement}
+          </span>
           <Button
             type="button"
             size="sm"
@@ -1014,6 +1023,9 @@ export function AdminClinicsManagementCard() {
               data-admin-mobile-core-pager="true"
               data-dashboard-adaptive-reserved-region="pager"
             >
+              <span className="sr-only" aria-live="polite">
+                {clinicsRangeAnnouncement}
+              </span>
               <Button
                 type="button"
                 size="sm"

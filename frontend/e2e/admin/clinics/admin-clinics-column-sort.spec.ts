@@ -139,6 +139,17 @@ async function stubClinics(page: Page, hold?: Hold): Promise<ClinicsRequest[]> {
 
 const CARD = "#admin-clinics";
 
+// RM-10: the range is announced to assistive technologies only. `sr-only`
+// keeps a 1x1 box, so painted text excludes it explicitly.
+function paintedText(page: Page, text: RegExp) {
+  return page.locator(CARD).getByText(text).and(page.locator(":not(.sr-only):not(.sr-only *)"));
+}
+
+// One exposed polite region: the other regime's pager is display:none.
+function announcement(page: Page) {
+  return page.locator(`${CARD} .sr-only[aria-live="polite"]`).filter({ visible: true });
+}
+
 async function visibleIds(page: Page): Promise<number[]> {
   return page.locator(`${CARD} tbody tr td:first-child`).evaluateAll((cells) =>
     cells.map((cell) => Number(/#(\d+)/.exec(cell.textContent ?? "")?.[1] ?? Number.NaN)),
@@ -307,7 +318,10 @@ test.describe("C04 · Clínicas admin column sort (desktop table)", () => {
     // Admin desktop/tablet space pass: the pager paints Anterior/Siguiente only,
     // so page 2 is proven by the rendered slice and the enabled Anterior.
     await expect(page.locator(`${CARD} [aria-label="Página anterior"]:visible`)).toBeEnabled();
-    await expect(page.locator(CARD).getByText(/\d+–\d+ de \d+/)).toHaveCount(0);
+    await expect(paintedText(page, /\d+–\d+ de \d+/)).toHaveCount(0);
+    await expect(announcement(page)).toHaveText(
+      `Mostrando ${limit + 1}–${limit + secondPage.length} de ${serverResult(request).total} clínicas`,
+    );
 
     // A new order restarts at the first page with the same limit.
     await sortButton(page, "Fechas").click();
@@ -377,7 +391,8 @@ test.describe("C04 · Clínicas admin column sort (desktop table)", () => {
     expect(requests.slice(before).filter((sent) => sent.search === null)).toEqual([]);
     const expected = serverResult(request);
     expect(await visibleIds(page)).toEqual(expected.ids);
-    await expect(page.locator(CARD).getByText(/\d+–\d+ de \d+/)).toHaveCount(0);
+    await expect(paintedText(page, /\d+–\d+ de \d+/)).toHaveCount(0);
+    await expect(announcement(page)).toHaveText(`Mostrando 1–${expected.ids.length} de ${expected.total} clínicas`);
     await expect(header(page, "Clínica")).toHaveAttribute("aria-sort", "descending");
 
     // Changing the order keeps the submitted search.
