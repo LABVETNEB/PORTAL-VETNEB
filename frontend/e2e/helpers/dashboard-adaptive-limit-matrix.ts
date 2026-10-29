@@ -1721,9 +1721,13 @@ export async function prepareLeafFirstPage(
     leaf.pageLabelSelector !== null &&
     (leaf.pageLabelRegime !== "phone-only" || viewportWidth < 768);
 
-  const pageLabel = labelPainted
-    ? page.locator(`${leaf.pageLabelSelector} >> visible=true`).first()
-    : null;
+  // `sr-only` keeps a 1x1 box, so `visible=true` alone also matches the pager's
+  // polite announcement («Página N», RM-10): that text is never painted.
+  const paintedPageLabel = () =>
+    page
+      .locator(`${leaf.pageLabelSelector} >> visible=true`)
+      .and(page.locator(":not(.sr-only):not(.sr-only *)"));
+  const pageLabel = labelPainted ? paintedPageLabel().first() : null;
 
   if (pageLabel) {
     await expect(pageLabel, `${label}: page 1`).toHaveText(pageLabelPattern(1));
@@ -1737,7 +1741,7 @@ export async function prepareLeafFirstPage(
       throw new Error(`${label}: a phone-only page label requires a prevSelector — fail closed`);
     }
     await expect(
-      page.locator(`${leaf.pageLabelSelector} >> visible=true`),
+      paintedPageLabel(),
       `${label}: no page state is painted from 768px up`,
     ).toHaveCount(0);
     const prevControl = page.locator(`${leaf.prevSelector} >> visible=true`).first();

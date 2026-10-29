@@ -184,6 +184,26 @@ for (const moduleSpec of MODULES) {
         `${viewport.name}: ${moduleSpec.key} pager`,
       );
 
+      const announcement = pager.locator('.sr-only[aria-live="polite"]');
+      await expect(announcement).toHaveCount(1);
+      await expect(announcement).toHaveText(
+        moduleSpec.key === "clinics" ? new RegExp(`^Mostrando 1–${itemCount} de 40 clínicas$`) : "Página 1",
+      );
+      const announcedBox = await announcement.boundingBox();
+      expect(announcedBox).not.toBeNull();
+      expect(announcedBox!.width).toBeLessThanOrEqual(1);
+      expect(announcedBox!.height).toBeLessThanOrEqual(1);
+      expect(await announcement.evaluate((node) => {
+        const style = getComputedStyle(node);
+        return { position: style.position, overflow: style.overflow, clipPath: style.clipPath };
+      })).toEqual({ position: "absolute", overflow: "hidden", clipPath: "inset(50%)" });
+      await announcement.evaluate((node) => {
+        const state = node as HTMLElement & { announcementChanges?: string[] };
+        state.announcementChanges = [];
+        new MutationObserver(() => state.announcementChanges!.push(node.textContent?.trim() ?? ""))
+          .observe(node, { childList: true, characterData: true, subtree: true });
+      });
+
       const nextButton = pager.getByRole("button", { name: /siguiente|próxim/i });
       await expect(nextButton, `${viewport.name}: ${moduleSpec.key} next page button`).toBeVisible();
       await expect(nextButton, `${viewport.name}: ${moduleSpec.key} next page button enabled`).toBeEnabled();
@@ -195,6 +215,24 @@ for (const moduleSpec of MODULES) {
           message: `${viewport.name}: ${moduleSpec.key} page changes after pagination`,
         })
         .not.toBe(firstPageLabels.join("|"));
+
+      await expect(announcement).toHaveText(
+        moduleSpec.key === "clinics"
+          ? new RegExp(`^Mostrando ${itemCount + 1}–\\d+ de 40 clínicas$`)
+          : "Página 2",
+      );
+      const secondPageAnnouncement = (await announcement.textContent())?.trim();
+      expect(await announcement.evaluate((node) =>
+        (node as HTMLElement & { announcementChanges: string[] }).announcementChanges,
+      )).toEqual([secondPageAnnouncement]);
+
+      await pager.getByRole("button", { name: /anterior/i }).click();
+      await expect(announcement).toHaveText(
+        moduleSpec.key === "clinics" ? new RegExp(`^Mostrando 1–${itemCount} de 40 clínicas$`) : "Página 1",
+      );
+      expect(await announcement.evaluate((node) =>
+        (node as HTMLElement & { announcementChanges: string[] }).announcementChanges,
+      )).toEqual([secondPageAnnouncement, (await announcement.textContent())?.trim()]);
 
       const page2Contract = await readDocumentNoScrollContract(
         page,
@@ -499,7 +537,14 @@ for (const viewport of [
     await expect(upload).toBeVisible({ timeout: 15_000 });
     await expect(reports.getByText("Cola administrativa, trazabilidad y documentos en una sola vista.")).toHaveCount(0);
     await expect(reports.locator('[data-admin-reports-toolbar="true"]')).toHaveCount(0);
-    await expect(reports.getByText(/\d+ en página|por página|Página \d+/)).toHaveCount(0);
+    // RM-10: «Página N» is announced, never painted — one exposed polite region.
+    await expect(reports.getByText(/\d+ en página|por página|Página \d+/).and(page.locator(":not(.sr-only):not(.sr-only *)"))).toHaveCount(0);
+    const announcement = reports
+      .locator('[data-dashboard-pager="true"], [data-admin-mobile-core-pager="true"]')
+      .locator('.sr-only[aria-live="polite"]')
+      .filter({ visible: true });
+    await expect(announcement).toHaveCount(1);
+    await expect(announcement).toHaveText("Página 1");
     const uploadBox = await upload.boundingBox();
     const filtersBox = await reports.locator('[data-admin-report-upload-filter-bar="advanced"]').boundingBox();
     expect(uploadBox && filtersBox && uploadBox.y + uploadBox.height <= filtersBox.y + 1, "Subir informe sits above the filters").toBe(true);
