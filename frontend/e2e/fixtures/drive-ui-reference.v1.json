@@ -1,0 +1,663 @@
+{
+  "schema": "drv-v1-drive-reference/2",
+  "source": "docs/audit/GOOGLE_DRIVE_REFERENCIA_UI_CONSOLIDADA.md",
+  "sourceVerified": "2026-10-19",
+  "conditions": "Chrome/155, DPR 1, light theme, Mi unidad list view; only OBSERVADO or DERIVADO values",
+  "metrics": [
+    {
+      "id": "header.height",
+      "component": "header",
+      "category": "geometry",
+      "state": "default",
+      "kind": "px",
+      "expected": 64,
+      "tolerance": 1,
+      "evidence": "OBSERVADO",
+      "section": "II.1, XIII.2"
+    },
+    {
+      "id": "header.background",
+      "component": "header",
+      "category": "color",
+      "state": "default",
+      "kind": "color",
+      "expected": "rgba(0, 0, 0, 0)",
+      "evidence": "OBSERVADO",
+      "section": "II.1"
+    },
+    {
+      "id": "header.boxShadow",
+      "component": "header",
+      "category": "color",
+      "state": "default",
+      "kind": "token",
+      "expected": "none",
+      "evidence": "OBSERVADO",
+      "section": "II.1, III.4"
+    },
+    {
+      "id": "sidebar.x",
+      "component": "sidebar",
+      "category": "geometry",
+      "state": "default",
+      "kind": "px",
+      "expected": 16,
+      "tolerance": 1,
+      "evidence": "OBSERVADO",
+      "section": "II.4, XIII.2"
+    },
+    {
+      "id": "sidebar.width",
+      "component": "sidebar",
+      "category": "geometry",
+      "state": "default",
+      "kind": "px",
+      "expected": 224,
+      "tolerance": 1,
+      "evidence": "OBSERVADO",
+      "section": "II.4, XIII.2"
+    },
+    {
+      "id": "navItem.height",
+      "component": "navItem",
+      "category": "geometry",
+      "state": "default",
+      "kind": "px",
+      "expected": 32,
+      "tolerance": 0.5,
+      "evidence": "OBSERVADO",
+      "section": "III.5, VIII.1"
+    },
+    {
+      "id": "navItem.radiusToHeight",
+      "component": "navItem",
+      "category": "geometry",
+      "state": "default",
+      "kind": "atLeast",
+      "expected": 0.5,
+      "evidence": "OBSERVADO",
+      "section": "VIII.1 (radius 100px on 32px: full pill)"
+    },
+    {
+      "id": "navItem.fontSize",
+      "component": "navItem",
+      "category": "typography",
+      "state": "default",
+      "kind": "token",
+      "expected": "14px",
+      "evidence": "OBSERVADO",
+      "section": "III.6"
+    },
+    {
+      "id": "navItem.fontWeight",
+      "component": "navItem",
+      "category": "typography",
+      "state": "default",
+      "kind": "token",
+      "expected": "400",
+      "evidence": "OBSERVADO",
+      "section": "III.6"
+    },
+    {
+      "id": "navItem.lineHeight",
+      "component": "navItem",
+      "category": "typography",
+      "state": "default",
+      "kind": "token",
+      "expected": "26px",
+      "evidence": "OBSERVADO",
+      "section": "III.6"
+    },
+    {
+      "id": "navItem.active.background",
+      "component": "navItem",
+      "category": "color",
+      "state": "selected",
+      "kind": "color",
+      "expected": "rgb(194, 231, 255)",
+      "evidence": "OBSERVADO",
+      "section": "VIII.1"
+    },
+    {
+      "id": "navItem.active.color",
+      "component": "navItem",
+      "category": "color",
+      "state": "selected",
+      "kind": "color",
+      "expected": "rgb(0, 74, 119)",
+      "evidence": "OBSERVADO",
+      "section": "VIII.1"
+    },
+    {
+      "id": "main.x",
+      "component": "main",
+      "category": "geometry",
+      "state": "default",
+      "kind": "px",
+      "expected": 257,
+      "tolerance": 1,
+      "evidence": "OBSERVADO",
+      "section": "II.4, XIII.2"
+    },
+    {
+      "id": "main.width",
+      "component": "main",
+      "category": "geometry",
+      "state": "default",
+      "kind": "formula",
+      "formula": "viewport-313",
+      "tolerance": 1,
+      "minViewportWidth": 1000,
+      "evidence": "DERIVADO",
+      "section": "II.4 (rail visible, 140 widths)"
+    },
+    {
+      "id": "list.top",
+      "component": "main",
+      "category": "geometry",
+      "state": "default",
+      "kind": "px",
+      "expected": 175,
+      "tolerance": 1,
+      "evidence": "OBSERVADO",
+      "section": "II.1, XIII.2 (table and thead at y = 175)"
+    },
+    {
+      "id": "list.inset",
+      "component": "table",
+      "category": "geometry",
+      "state": "default",
+      "kind": "px",
+      "expected": 20,
+      "tolerance": 1,
+      "evidence": "DERIVADO",
+      "section": "II.4, XIII.2"
+    },
+    {
+      "id": "search.height",
+      "component": "search",
+      "category": "geometry",
+      "state": "default",
+      "kind": "px",
+      "expected": 48,
+      "tolerance": 1,
+      "evidence": "OBSERVADO",
+      "section": "II.3, XIII.2"
+    },
+    {
+      "id": "search.width",
+      "component": "search",
+      "category": "geometry",
+      "state": "default",
+      "kind": "formula",
+      "formula": "search-width",
+      "tolerance": 1,
+      "minViewportWidth": 1000,
+      "evidence": "DERIVADO",
+      "section": "VI.3"
+    },
+    {
+      "id": "search.radius",
+      "component": "search",
+      "category": "geometry",
+      "state": "default",
+      "kind": "token",
+      "expected": "24px",
+      "evidence": "OBSERVADO",
+      "section": "II.3"
+    },
+    {
+      "id": "search.background",
+      "component": "search",
+      "category": "color",
+      "state": "default",
+      "kind": "color",
+      "expected": "rgb(233, 238, 246)",
+      "evidence": "OBSERVADO",
+      "section": "II.3"
+    },
+    {
+      "id": "search.input.fontSize",
+      "component": "search",
+      "category": "typography",
+      "state": "default",
+      "kind": "token",
+      "expected": "16px",
+      "evidence": "OBSERVADO",
+      "section": "II.3"
+    },
+    {
+      "id": "title.fontSize",
+      "component": "title",
+      "category": "typography",
+      "state": "default",
+      "kind": "token",
+      "expected": "24px",
+      "evidence": "OBSERVADO",
+      "section": "II.1, III.6 (VETNEB: the visible page title, WorkspaceHeader h2 or topbar h1)"
+    },
+    {
+      "id": "title.fontWeight",
+      "component": "title",
+      "category": "typography",
+      "state": "default",
+      "kind": "token",
+      "expected": "400",
+      "evidence": "OBSERVADO",
+      "section": "III.6 (VETNEB: the visible page title, WorkspaceHeader h2 or topbar h1)"
+    },
+    {
+      "id": "title.lineHeight",
+      "component": "title",
+      "category": "typography",
+      "state": "default",
+      "kind": "token",
+      "expected": "32px",
+      "evidence": "OBSERVADO",
+      "section": "III.6 (VETNEB: the visible page title, WorkspaceHeader h2 or topbar h1)"
+    },
+    {
+      "id": "chip.height",
+      "component": "chip",
+      "category": "geometry",
+      "state": "filtered",
+      "kind": "px",
+      "expected": 32,
+      "tolerance": 0.5,
+      "evidence": "OBSERVADO",
+      "section": "IV.7, XIII.2"
+    },
+    {
+      "id": "chip.radius",
+      "component": "chip",
+      "category": "geometry",
+      "state": "filtered",
+      "kind": "token",
+      "expected": "8px",
+      "evidence": "OBSERVADO",
+      "section": "IV.7"
+    },
+    {
+      "id": "chip.borderWidth",
+      "component": "chip",
+      "category": "geometry",
+      "state": "filtered",
+      "kind": "token",
+      "expected": "1px",
+      "evidence": "OBSERVADO",
+      "section": "IV.7"
+    },
+    {
+      "id": "chip.borderStyle",
+      "component": "chip",
+      "category": "geometry",
+      "state": "filtered",
+      "kind": "token",
+      "expected": "solid",
+      "evidence": "OBSERVADO",
+      "section": "IV.7"
+    },
+    {
+      "id": "chip.borderColor",
+      "component": "chip",
+      "category": "color",
+      "state": "filtered",
+      "kind": "color",
+      "expected": "rgb(116, 119, 117)",
+      "evidence": "OBSERVADO",
+      "section": "IV.7"
+    },
+    {
+      "id": "chip.fontSize",
+      "component": "chip",
+      "category": "typography",
+      "state": "filtered",
+      "kind": "token",
+      "expected": "14px",
+      "evidence": "OBSERVADO",
+      "section": "IV.7"
+    },
+    {
+      "id": "chip.fontWeight",
+      "component": "chip",
+      "category": "typography",
+      "state": "filtered",
+      "kind": "token",
+      "expected": "500",
+      "evidence": "OBSERVADO",
+      "section": "IV.7"
+    },
+    {
+      "id": "chip.color",
+      "component": "chip",
+      "category": "color",
+      "state": "filtered",
+      "kind": "color",
+      "expected": "rgb(68, 71, 70)",
+      "evidence": "OBSERVADO",
+      "section": "IV.7"
+    },
+    {
+      "id": "tableHeader.height",
+      "component": "table",
+      "category": "geometry",
+      "state": "default",
+      "kind": "px",
+      "expected": 48,
+      "tolerance": 0.5,
+      "evidence": "OBSERVADO",
+      "section": "IV.3"
+    },
+    {
+      "id": "tableHeader.fontSize",
+      "component": "table",
+      "category": "typography",
+      "state": "default",
+      "kind": "token",
+      "expected": "14px",
+      "evidence": "OBSERVADO",
+      "section": "IV.3"
+    },
+    {
+      "id": "tableHeader.fontWeight",
+      "component": "table",
+      "category": "typography",
+      "state": "default",
+      "kind": "token",
+      "expected": "500",
+      "evidence": "OBSERVADO",
+      "section": "IV.3"
+    },
+    {
+      "id": "tableHeader.letterSpacing",
+      "component": "table",
+      "category": "typography",
+      "state": "default",
+      "kind": "token",
+      "expected": "normal",
+      "evidence": "OBSERVADO",
+      "section": "III.6"
+    },
+    {
+      "id": "tableHeader.color",
+      "component": "table",
+      "category": "color",
+      "state": "default",
+      "kind": "color",
+      "expected": "rgb(68, 71, 70)",
+      "evidence": "OBSERVADO",
+      "section": "IV.3 (non-first header cell)"
+    },
+    {
+      "id": "tableHeader.separatorWidth",
+      "component": "table",
+      "category": "geometry",
+      "state": "default",
+      "kind": "token",
+      "expected": "1px",
+      "evidence": "OBSERVADO",
+      "section": "IV.3"
+    },
+    {
+      "id": "tableHeader.separatorColor",
+      "component": "table",
+      "category": "color",
+      "state": "default",
+      "kind": "color",
+      "expected": "rgb(199, 199, 199)",
+      "evidence": "OBSERVADO",
+      "section": "IV.3"
+    },
+    {
+      "id": "tableRow.height",
+      "component": "table",
+      "category": "geometry",
+      "state": "default",
+      "kind": "px",
+      "expected": 48,
+      "tolerance": 0.5,
+      "evidence": "OBSERVADO",
+      "section": "IV.4, XIII.2"
+    },
+    {
+      "id": "tableRow.pitch",
+      "component": "table",
+      "category": "geometry",
+      "state": "default",
+      "kind": "px",
+      "expected": 48,
+      "tolerance": 0.5,
+      "evidence": "OBSERVADO",
+      "section": "IV.4, XIII.2"
+    },
+    {
+      "id": "tableRow.separatorWidth",
+      "component": "table",
+      "category": "geometry",
+      "state": "default",
+      "kind": "token",
+      "expected": "1px",
+      "evidence": "OBSERVADO",
+      "section": "IV.4"
+    },
+    {
+      "id": "tableRow.separatorColor",
+      "component": "table",
+      "category": "color",
+      "state": "default",
+      "kind": "color",
+      "expected": "rgb(199, 199, 199)",
+      "evidence": "OBSERVADO",
+      "section": "IV.4"
+    },
+    {
+      "id": "tableCell.fontSize",
+      "component": "table",
+      "category": "typography",
+      "state": "default",
+      "kind": "token",
+      "expected": "14px",
+      "evidence": "OBSERVADO",
+      "section": "IV.4"
+    },
+    {
+      "id": "tableCell.fontWeight",
+      "component": "table",
+      "category": "typography",
+      "state": "default",
+      "kind": "token",
+      "expected": "400",
+      "evidence": "OBSERVADO",
+      "section": "IV.4"
+    },
+    {
+      "id": "tableCell.color",
+      "component": "table",
+      "category": "color",
+      "state": "default",
+      "kind": "color",
+      "expected": "rgb(68, 71, 70)",
+      "evidence": "OBSERVADO",
+      "section": "IV.4"
+    },
+    {
+      "id": "tableCell.paddingInline",
+      "component": "table",
+      "category": "geometry",
+      "state": "default",
+      "kind": "token",
+      "expected": "6px 6px",
+      "evidence": "OBSERVADO",
+      "section": "IV.4 (middle cell)"
+    },
+    {
+      "id": "page.background",
+      "component": "page",
+      "category": "color",
+      "state": "default",
+      "kind": "color",
+      "expected": "rgb(255, 255, 255)",
+      "evidence": "OBSERVADO",
+      "section": "II.2, III.2"
+    },
+    {
+      "id": "page.fontSize",
+      "component": "page",
+      "category": "typography",
+      "state": "default",
+      "kind": "token",
+      "expected": "14px",
+      "evidence": "OBSERVADO",
+      "section": "III.6 (body)"
+    },
+    {
+      "id": "page.lineHeight",
+      "component": "page",
+      "category": "typography",
+      "state": "default",
+      "kind": "token",
+      "expected": "20px",
+      "evidence": "OBSERVADO",
+      "section": "III.6 (body)"
+    },
+    {
+      "id": "page.fontFamilyFirst",
+      "component": "page",
+      "category": "typography",
+      "state": "default",
+      "kind": "token",
+      "expected": "google sans text",
+      "evidence": "OBSERVADO",
+      "section": "III.6"
+    },
+    {
+      "id": "rightRail.width",
+      "component": "rightRail",
+      "category": "geometry",
+      "state": "default",
+      "kind": "px",
+      "expected": 56,
+      "tolerance": 1,
+      "evidence": "OBSERVADO",
+      "section": "IX.1, XIII.2"
+    },
+    {
+      "id": "tableRow.hover.background",
+      "component": "table",
+      "category": "state",
+      "state": "hover",
+      "kind": "color",
+      "expected": "rgb(237, 237, 237)",
+      "evidence": "DERIVADO",
+      "section": "III.1, IV.4: state layer rgb(31,31,31) at 0.08 over the white row, composited"
+    },
+    {
+      "id": "tableCell.hover.color",
+      "component": "table",
+      "category": "state",
+      "state": "hover",
+      "kind": "color",
+      "expected": "rgb(31, 31, 31)",
+      "evidence": "OBSERVADO",
+      "section": "IV.4"
+    },
+    {
+      "id": "navItem.focus.outlineWidth",
+      "component": "navItem",
+      "category": "state",
+      "state": "focus",
+      "kind": "token",
+      "expected": "1px",
+      "evidence": "OBSERVADO",
+      "section": "VII.3 (sidebar links)"
+    },
+    {
+      "id": "navItem.focus.outlineStyle",
+      "component": "navItem",
+      "category": "state",
+      "state": "focus",
+      "kind": "token",
+      "expected": "solid",
+      "evidence": "OBSERVADO",
+      "section": "VII.3 (sidebar links)"
+    },
+    {
+      "id": "navItem.focus.outlineColor",
+      "component": "navItem",
+      "category": "state",
+      "state": "focus",
+      "kind": "color",
+      "expected": "rgb(77, 144, 254)",
+      "evidence": "OBSERVADO",
+      "section": "VII.3 (sidebar links)"
+    },
+    {
+      "id": "navItem.focus.background",
+      "component": "navItem",
+      "category": "state",
+      "state": "focus",
+      "kind": "color",
+      "expected": "rgb(221, 227, 234)",
+      "evidence": "OBSERVADO",
+      "section": "VII.3 (A5, inactive item)"
+    }
+  ],
+  "notComparable": [
+    {
+      "id": "navItem.hover",
+      "reason": "Drive shows no measurable change on the item; the effect node is NO RESUELTO",
+      "section": "VII.1"
+    },
+    {
+      "id": "tableRow.focus",
+      "reason": "Focus indicator of the row not located in Drive (NO RESUELTO)",
+      "section": "IV.4"
+    },
+    {
+      "id": "tableRow.selected",
+      "reason": "Selection A2 pending in Drive (NO RESUELTO)",
+      "section": "IV.8"
+    },
+    {
+      "id": "contextMenu",
+      "reason": "File context menu A3 pending in Drive",
+      "section": "XII.3"
+    },
+    {
+      "id": "detailsPanel",
+      "reason": "Details panel A4 pending in Drive; rector 336 px is not lab evidence",
+      "section": "IX.2"
+    },
+    {
+      "id": "tableColumns",
+      "reason": "Column function NO RESUELTA in Drive; per-column widths are not mappable to VETNEB columns",
+      "section": "IV.2"
+    },
+    {
+      "id": "tooltip",
+      "reason": "Not driven by V1: VETNEB has no tooltip trigger shared by every measured surface",
+      "section": "VII.2"
+    },
+    {
+      "id": "menus",
+      "reason": "Not driven by V1: opening menus mutates surface state; deferred to a later probe",
+      "section": "VIII.2, VIII.3"
+    },
+    {
+      "id": "gridView",
+      "reason": "V1 measures the list view only",
+      "section": "V"
+    },
+    {
+      "id": "responsiveBelow1000",
+      "reason": "Drive keeps a 1000 px document with horizontal scroll; VETNEB zero-scroll (AGENTS §10) makes it non-comparable by design",
+      "section": "VI.5"
+    },
+    {
+      "id": "fontRendering",
+      "reason": "Effective rendering of Google Sans / Google Sans Flex NO RESUELTO",
+      "section": "III.6"
+    }
+  ],
+  "colorCriterion": "VETNEB colours are read as the browser paints them: each computed colour (rgb, oklab, oklch, color(srgb), including any color-mix() already resolved by the engine) is composited by a 2D canvas over the painted background stack of its ancestors and read back as 8-bit sRGB. A colour is IGUAL when every channel differs from Drive by <= 2 and alpha by <= 0.01. Never a textual comparison."
+}

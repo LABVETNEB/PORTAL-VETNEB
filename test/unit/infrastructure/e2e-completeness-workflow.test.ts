@@ -342,7 +342,8 @@ test("automatic workflow coverage is derived from catalog cohorts and equals ful
   // +1: PR-DRV-03 forced-colors overlay focus (regression/dashboard-drv03-forced-colors-overlay-focus.spec.ts).
   // +1: PR-DRV-02 skip to content (regression/dashboard-drv02-skip-to-content.spec.ts).
   // +1: G11 axe matrix 21 x 2 x 2 (platform/accessibility/dashboard-g11-axe-matrix.spec.ts).
-  assert.equal(E2E_SUITE_CATALOG.length, 127);
+  // +1: DRV V1 Google Drive fidelity probe (regression/evidence/dashboard-drv-v1-drive-fidelity-probe.spec.ts).
+  assert.equal(E2E_SUITE_CATALOG.length, 128);
 
   const partitionUnion = new Set(PARTITION_COHORTS.flatMap((cohort) => E2E_COHORT_SPECS[cohort]));
   assert.deepEqual([...partitionUnion].sort(), [...E2E_COHORT_SPECS.full].sort());
@@ -362,7 +363,8 @@ test("coverage fails closed when the full route or any partition contribution is
   // extended 27 (E2E-GLOBAL-06 moved two P1 specs to ci) + evidence 1
   // (E2E-GLOBAL-10 removed the assertion-free generator) + visual-linux 3.
   // +1: G11 axe matrix (extended 28).
-  assert.equal(result.missingSpecs.length, 32);
+  // +1: DRV V1 fidelity probe (evidence 2).
+  assert.equal(result.missingSpecs.length, 33);
   for (const cohort of ["extended", "evidence", "visual-linux"] as const) {
     assert.ok(
       E2E_COHORT_SPECS[cohort].every((spec) => result.missingSpecs.includes(spec)),
