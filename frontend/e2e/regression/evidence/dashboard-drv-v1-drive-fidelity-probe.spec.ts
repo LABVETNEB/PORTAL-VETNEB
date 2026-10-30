@@ -79,7 +79,7 @@ const CHIP_METRIC_IDS = [
 ] as const;
 
 type Phase = "default" | "hover" | "focus" | "filtered";
-type PhaseReading = { readings: Record<string, number | string | null>; inventory: Record<string, unknown> };
+type PhaseReading = { readings: Record<string, MeasuredValue>; inventory: Record<string, unknown> };
 
 /**
  * One in-page reader for every phase. Playwright serialises this function by
@@ -108,6 +108,16 @@ async function readPhase(page: Page, phase: Phase, contentRoot: string): Promise
       const round = (value: number) => Math.round(value * 100) / 100;
       const css = (element: Element | null, property: string, pseudo: string | null = null) =>
         element ? getComputedStyle(element, pseudo).getPropertyValue(property) : null;
+      const hasDirectText = (element: Element) => Array.from(element.childNodes)
+        .some((node) => node.nodeType === Node.TEXT_NODE && Boolean(node.nodeValue?.trim()));
+      const secondaryText = (row: HTMLElement | null) => {
+        if (!row) return null;
+        return all("td.text-muted-foreground, td .text-muted-foreground", row)
+          .find((element) => hasDirectText(element)) ?? null;
+      };
+      const source = (element: Element | null) => element
+        ? { tag: element.tagName.toLowerCase(), classes: Array.from(element.classList) }
+        : null;
       const isTransparent = (color: string) => /^rgba\(0, 0, 0, 0\)$|^transparent$/.test(color);
 
       /** Painted layers below and on `element`: ancestors first, then extra layers. */
@@ -163,7 +173,7 @@ async function readPhase(page: Page, phase: Phase, contentRoot: string): Promise
         return null;
       };
 
-      const readings: Record<string, number | string | null> = {};
+      const readings: Record<string, MeasuredValue> = {};
       const inventory: Record<string, unknown> = {};
       const scope = document.querySelector(root) ?? document;
 
@@ -179,16 +189,18 @@ async function readPhase(page: Page, phase: Phase, contentRoot: string): Promise
         const items = sidebar ? all("[data-dashboard-navigation-item]", sidebar) : [];
         const active = items.find((item) => item.getAttribute("aria-current") === "page") ?? null;
         const sample = active ?? items[0] ?? null;
+        const navLabel = sample ? first(".dashboard-navigation-drawer-label, .dashboard-navigation-rail-label", sample) : null;
         readings["navItem.height"] = sample ? round(sample.getBoundingClientRect().height) : null;
         readings["navItem.radiusToHeight"] = sample
           ? round(parseFloat(css(sample, "border-top-left-radius") ?? "0") / sample.getBoundingClientRect().height)
           : null;
-        readings["navItem.fontSize"] = css(sample, "font-size");
-        readings["navItem.fontWeight"] = css(sample, "font-weight");
-        readings["navItem.lineHeight"] = css(sample, "line-height");
+        readings["navItem.fontSize"] = css(navLabel, "font-size");
+        readings["navItem.fontWeight"] = css(navLabel, "font-weight");
+        readings["navItem.lineHeight"] = css(navLabel, "line-height");
         readings["navItem.active.background"] = effectiveBackground(active);
         readings["navItem.active.color"] = effectiveColor(active, css(active, "color"));
         inventory.sidebar = sidebar ? (sidebar.classList.contains("dashboard-navigation-rail") ? "rail" : "drawer") : null;
+        inventory.navTypographySource = source(navLabel);
 
         const main = first("main.dashboard-main");
         readings["main.x"] = main ? round(main.getBoundingClientRect().x) : null;
@@ -201,6 +213,8 @@ async function readPhase(page: Page, phase: Phase, contentRoot: string): Promise
         const rows = table ? all("tbody tr", table) : [];
         const cells = rows[0] ? all("td", rows[0]) : [];
         const cell = cells.length > 2 ? cells[1] : (cells[0] ?? null);
+        const text = secondaryText(rows[0] ?? null);
+        const noText = { notApplicable: "no visible secondary table text with a verifiable equivalent" };
         readings["list.top"] = headRow ? round(headRow.getBoundingClientRect().y) : null;
         readings["list.inset"] =
           table && main ? round(table.getBoundingClientRect().x - main.getBoundingClientRect().x) : null;
@@ -218,10 +232,11 @@ async function readPhase(page: Page, phase: Phase, contentRoot: string): Promise
         const rowSeparator = separatorPainter([rows[0] ?? null, cells[0] ?? null]);
         readings["tableRow.separatorWidth"] = rows[0] ? (rowSeparator?.width ?? "0px") : null;
         readings["tableRow.separatorColor"] = rowSeparator?.color ?? null;
-        readings["tableCell.fontSize"] = css(cell, "font-size");
-        readings["tableCell.fontWeight"] = css(cell, "font-weight");
-        readings["tableCell.color"] = effectiveColor(cell, css(cell, "color"));
+        readings["tableCell.fontSize"] = text ? css(text, "font-size") : noText;
+        readings["tableCell.fontWeight"] = text ? css(text, "font-weight") : noText;
+        readings["tableCell.color"] = text ? effectiveColor(text, css(text, "color")) : noText;
         readings["tableCell.paddingInline"] = cell ? `${css(cell, "padding-left")} ${css(cell, "padding-right")}` : null;
+        inventory.tableCellSources = { geometry: source(cell), typography: source(text) };
         inventory.separators = { header: headSeparator?.node ?? null, row: rowSeparator?.node ?? null };
 
         const search = first("[data-workspace-app-bar-search]");
@@ -273,14 +288,21 @@ async function readPhase(page: Page, phase: Phase, contentRoot: string): Promise
       if (phase === "hover") {
         const row = first("table tbody tr", scope);
         const cell = row ? (all("td", row)[1] ?? all("td", row)[0] ?? null) : null;
+        const text = secondaryText(row);
         const layers = row && cell
           ? [pseudoLayer(row, "::before"), pseudoLayer(row, "::after"), pseudoLayer(cell, "::before"), pseudoLayer(cell, "::after")]
               .filter((layer): layer is string => layer !== null)
           : [];
+        const textCell = text?.closest("td") ?? null;
+        const textLayers = row && textCell
+          ? [pseudoLayer(row, "::before"), pseudoLayer(row, "::after"), pseudoLayer(textCell, "::before"), pseudoLayer(textCell, "::after")]
+              .filter((layer): layer is string => layer !== null)
+          : [];
         readings["tableRow.hover.background"] = cell ? effectiveBackground(cell, layers) : null;
-        readings["tableCell.hover.color"] = cell
-          ? paint(backgroundStack(cell, layers), css(cell, "color"))
-          : null;
+        readings["tableCell.hover.color"] = text
+          ? paint(backgroundStack(text, textLayers), css(text, "color"))
+          : { notApplicable: "no visible secondary table text with a verifiable equivalent" };
+        inventory.tableTextSource = source(text);
         inventory.hoverLayers = layers.length;
         inventory.rowHovered = row ? row.matches(":hover") : null;
       }
@@ -404,6 +426,57 @@ test.describe("DRV V1 · Google Drive fidelity probe", () => {
         };
 
         absorb("default", await readPhase(page, "default", surface.contentRootSelector));
+
+        if (viewport.width === 1024) {
+          if (phases.default.navTypographySource) {
+            const original = await page.evaluate(() => {
+              return Array.from(document.querySelectorAll<HTMLElement>(".dashboard-navigation-drawer-label, .dashboard-navigation-rail-label")).map((element) => {
+                const previous = element.getAttribute("style");
+                element.style.setProperty("transition", "none", "important");
+                element.style.setProperty("font-size", "99px", "important");
+                return previous;
+              });
+            });
+            await waitForLayoutSettled(page);
+            const changed = await readPhase(page, "default", surface.contentRootSelector);
+            await page.evaluate((styles) => document.querySelectorAll<HTMLElement>(".dashboard-navigation-drawer-label, .dashboard-navigation-rail-label").forEach((element, index) => {
+              const style = styles[index];
+              if (style === null) element.removeAttribute("style");
+              else if (style !== undefined) element.setAttribute("style", style);
+            }), original);
+            const metric = reference.metrics.find((item) => item.id === "navItem.fontSize")!;
+            const baseline = readings[metric.id];
+            expect(typeof baseline).toBe("string");
+            const comparison = { ...metric, expected: baseline as string };
+            expect(classifyMetric(comparison, baseline, viewport.width).status).toBe("IGUAL");
+            expect(classifyMetric(comparison, changed.readings[metric.id], viewport.width).status).toBe("DIFERENTE");
+          }
+          const textSource = phases.default.tableCellSources as { typography: { tag: string } | null };
+          if (surface.id === "admin-informes") expect(textSource.typography?.tag).toBe("p");
+          if (textSource.typography) {
+            const changed = await page.evaluate((root) => {
+              const row = document.querySelector(`${root} table tbody tr`);
+              const text = Array.from(row?.querySelectorAll("td.text-muted-foreground, td .text-muted-foreground") ?? [])
+                .find((element) => element.getBoundingClientRect().width > 0 && element.getBoundingClientRect().height > 0 && Array.from(element.childNodes).some((node) => node.nodeType === Node.TEXT_NODE && Boolean(node.nodeValue?.trim()))) as HTMLElement | undefined;
+              if (!text) return null;
+              const previous = text.getAttribute("style");
+              text.dataset.drvProbeTest = "true";
+              text.style.setProperty("transition", "none", "important");
+              text.style.setProperty("font-size", "99px", "important");
+              return { previous };
+            }, surface.contentRootSelector);
+            expect(changed).not.toBeNull();
+            await waitForLayoutSettled(page);
+            const reread = await readPhase(page, "default", surface.contentRootSelector);
+            expect(reread.readings["tableCell.fontSize"]).toBe("99px");
+            await page.evaluate((previous) => {
+              const text = document.querySelector('[data-drv-probe-test="true"]')!;
+              text.removeAttribute("data-drv-probe-test");
+              if (previous === null) text.removeAttribute("style");
+              else text.setAttribute("style", previous);
+            }, changed!.previous);
+          }
+        }
 
         const hovered = await hoverFirstRow(page, surface.contentRootSelector);
         absorb("hover", await readPhase(page, "hover", surface.contentRootSelector));
