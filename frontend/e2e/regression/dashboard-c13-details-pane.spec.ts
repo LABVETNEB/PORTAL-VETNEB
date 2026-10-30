@@ -2,7 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { build } from "esbuild";
 import { resolve } from "node:path";
-import { DASHBOARD_GEOMETRY_SESSION_COOKIE, DASHBOARD_GEOMETRY_SURFACES, installSurfaceMocks, suppressNextDevChrome, waitForLayoutSettled } from "../helpers/dashboard-geometry-matrix";
+import { DASHBOARD_GEOMETRY_SESSION_COOKIE, DASHBOARD_GEOMETRY_SURFACES, installSurfaceMocks, settleRenderAndData, suppressNextDevChrome, surfaceMeasurementRoots, trackDataRequests, waitForLayoutSettled } from "../helpers/dashboard-geometry-matrix";
 import { addAppCookies } from "../helpers/session";
 import { MAX_DOCUMENT_SCROLL_DELTA_PX } from "../helpers/zero-scroll-contract";
 
@@ -50,13 +50,18 @@ createRoot(mount).render(<Harness />);`, resolveDir: resolve(process.cwd()), loa
   harness = result.outputFiles[0].text;
 });
 
-async function mount(page: Page, width: number, height: number) {
+async function mount(page: Page, width: number, height: number, settleData = false) {
   if (!audit) throw new Error("C13: missing audit fixture surface");
   await page.setViewportSize({ width, height }); await suppressNextDevChrome(page); await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
   await addAppCookies(page, [DASHBOARD_GEOMETRY_SESSION_COOKIE[audit.role]]); await installSurfaceMocks(page, audit); await page.goto(audit.route, { waitUntil: "domcontentloaded" });
+  const flight = settleData ? trackDataRequests(page) : null;
   await expect(page.locator(audit.readinessSelector)).toBeVisible({ timeout: 25_000 });
   await expect.poll(() => page.evaluate(() => Object.keys(document.querySelector("main.dashboard-main") ?? {}).some((key) => key.startsWith("__reactFiber$"))), { timeout: 25_000 }).toBe(true);
   await waitForLayoutSettled(page); await page.addScriptTag({ content: harness }); await expect(page.locator('[data-c13-record="1"]')).toBeVisible();
+  if (flight) {
+    try { await settleRenderAndData(page, flight, "C13 mount", surfaceMeasurementRoots(audit)); }
+    finally { flight.dispose(); }
+  }
 }
 
 const logOf = (page: Page) => page.evaluate(() => [...(window as unknown as { __c13Log: string[] }).__c13Log]);
@@ -276,7 +281,7 @@ test("C13 · valores extensos sin truncado y scroll interno del panel", async ({
 });
 
 test("C13 · sin solicitudes de red al seleccionar, navegar tabs y colapsar", async ({ page }) => {
-  await mount(page, 1366, 768);
+  await mount(page, 1366, 768, true);
   const requests: string[] = [];
   page.on("request", (request) => { if (["fetch", "xhr", "document"].includes(request.resourceType())) requests.push(`${request.method()} ${request.url()}`); });
   const url = page.url();
