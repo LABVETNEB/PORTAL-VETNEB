@@ -61,3 +61,46 @@
   padding-block: 0;
 }
 /* dashboard-c01-collection-workspace:end */
+
+/* dashboard-drv-v2-neutral-tables:start
+ * V2 changes the visual grammar only. Row height, cell padding and the
+ * capacity-owned pitch remain untouched. */
+:root:not([data-theme="dark-gray"]) .dashboard-app-shell table {
+  background-color: var(--dash-color-surface);
+}
+
+:root:not([data-theme="dark-gray"]) .dashboard-app-shell table thead > tr > th {
+  color: var(--dash-color-on-surface-muted) !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  letter-spacing: normal !important;
+  border-block-end: 1px solid var(--dash-table-separator);
+}
+
+:root:not([data-theme="dark-gray"]) .dashboard-app-shell table :is(thead, tbody) > tr {
+  border-color: var(--dash-table-separator) !important;
+}
+
+:root:not([data-theme="dark-gray"]) .dashboard-app-shell table tbody > tr > td {
+  color: var(--dash-color-on-surface-muted) !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  line-height: 20px !important;
+  border-block-end: 1px solid var(--dash-table-separator);
+}
+
+:root:not([data-theme="dark-gray"]) .dashboard-app-shell table tbody > tr:hover > td {
+  background-color: var(--dash-table-hover-fill) !important;
+}
+
+:root:not([data-theme="dark-gray"]) .dashboard-app-shell table tbody :is(td.text-muted-foreground, td .text-muted-foreground) {
+  color: var(--dash-color-on-surface-muted) !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  line-height: 20px !important;
+}
+
+:root:not([data-theme="dark-gray"]) .dashboard-app-shell table tbody > tr:hover :is(td.text-muted-foreground, td .text-muted-foreground) {
+  color: var(--dash-color-on-surface) !important;
+}
+/* dashboard-drv-v2-neutral-tables:end */
