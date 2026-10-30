@@ -282,6 +282,7 @@ test.describe("C23a · the kebab keeps its portaled Notificaciones panel operabl
     const refreshed = page.waitForRequest((request) => new URL(request.url()).pathname === NOTIFICATIONS_READ);
     await dialog.getByRole("button", { name: "Actualizar", exact: true }).click();
     await refreshed;
+    await expect(dialog.getByRole("button", { name: "Actualizar", exact: true })).toBeEnabled();
     await expect(dialog, "Actualizar keeps the dialog").toBeVisible();
     await expect(page.locator(KEBAB_MENU), "Actualizar keeps the kebab").toBeVisible();
 
