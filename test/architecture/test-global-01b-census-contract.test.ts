@@ -1718,7 +1718,8 @@ test("censo 05A: la deuda de lectores ad hoc rompe al crecer y la adopción del 
   assert.equal(adoptionEntry.historical, 8, "el histórico de §6.4 se conserva");
   assert.equal(adoptionEntry.baseline, 411, "piso versionado tras el consumidor de C06");
   assert.equal(anchor, 411, "el piso incorpora los consumidores canónicos de TEST-GLOBAL-09 y C06, no el histórico");
-  assert.equal(current, 435, "C23 añade dashboard-c23-responsive-integral al censo de 434 importadores del lector canónico");
+  // +1: DRV V1 dashboard-drv-v1-drive-fidelity lee la referencia Drive por el lector canónico.
+  assert.equal(current, 436, "DRV V1 añade dashboard-drv-v1-drive-fidelity al censo de 435 importadores del lector canónico");
   assert.equal(
     guardViolation(adoptionEntry, evaluateEntry(adoptionEntry)),
     null,

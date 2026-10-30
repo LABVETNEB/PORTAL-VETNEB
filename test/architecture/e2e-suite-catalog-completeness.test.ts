@@ -25,8 +25,8 @@ const TEST_FILE = fileURLToPath(import.meta.url);
 const REPO_ROOT = resolve(dirname(TEST_FILE), "..", "..");
 process.chdir(REPO_ROOT);
 
-const EXPECTED_WORKSPACE_SPEC_COUNT = 127;
-const EXPECTED_CATALOG_SPEC_COUNT = 127;
+const EXPECTED_WORKSPACE_SPEC_COUNT = 128;
+const EXPECTED_CATALOG_SPEC_COUNT = 128;
 const EXPECTED_MANUAL_ONLY_SPEC_COUNT = 0;
 const EXPECTED_DOMAIN_COUNTS = new Map([
   // +1: C04 Clínicas admin column sort (admin-clinics-column-sort.spec.ts).
@@ -85,7 +85,8 @@ const EXPECTED_DOMAIN_COUNTS = new Map([
   // +1: C24 list/grid alternation (dashboard-c24-list-grid-toggle.spec.ts).
   // +1: PR-DRV-03 forced-colors overlay focus (dashboard-drv03-forced-colors-overlay-focus.spec.ts).
   // +1: PR-DRV-02 skip to content (dashboard-drv02-skip-to-content.spec.ts).
-  ["regression", 30],
+  // +1: DRV V1 Google Drive fidelity probe (evidence/dashboard-drv-v1-drive-fidelity-probe.spec.ts).
+  ["regression", 31],
 ]);
 // E2E-GLOBAL-04: what each spec really traverses. No spec reaches Fastify or
 // Postgres today, so "integration" has no members; reclassifying any entry
@@ -128,7 +129,8 @@ const EXPECTED_LAYER_COUNTS = new Map<E2eLayer, number>([
   // +1: C21 clinic reports batch 1 uses the populated and default clinic fixture sessions.
   // +1: C23a walks the shell on the populated admin and clinic fixture sessions.
   // +1: PR-DRV-02 walks the skip control on the populated admin and clinic fixture sessions.
-  ["fixture", 78],
+  // +1: DRV V1 fidelity probe reads the populated admin and clinic fixture sessions.
+  ["fixture", 79],
 ]);
 const EXPECTED_CURRENT_COUNTS = new Map([
   // +3: E2E-GLOBAL-03 simulated auth boundary specs, promoted straight to
@@ -211,9 +213,11 @@ const EXPECTED_EXECUTION_COUNTS = new Map<E2eExecutionCohort, number>([
   // -1: E2E-GLOBAL-10 (R-16). `evidence` keeps the generator that does assert
   // layout (dashboard-runtime-post-ux1-visual-evidence) and loses the one that
   // asserted nothing.
-  ["evidence", 1],
+  // +1: DRV V1 Google Drive fidelity probe, an evidence generator that asserts
+  // every reference metric was read and classified.
+  ["evidence", 2],
   ["visual-linux", 3],
-  ["full", 127],
+  ["full", 128],
   ["affected", 0],
 ]);
 const E2E_GLOBAL_06_PROMOTED_P1_SPECS = [
@@ -509,7 +513,7 @@ test("catalog validation catches missing and duplicate entries in memory", async
 
   assert.throws(
     () => validateCatalog(missing, workspaceSpecs, E2E_MANUAL_ONLY_SPECS),
-    /126|classified/,
+    /127|classified/,
   );
   assert.throws(
     () => validateCatalog(duplicated, workspaceSpecs, E2E_MANUAL_ONLY_SPECS),
