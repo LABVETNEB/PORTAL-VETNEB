@@ -45,7 +45,7 @@
 
 > **Actualización C04 (validación post-merge) · 2026-10-05.** El prerrequisito server-side está **COMPLETE** y su validación en `main` está **PASSED por evidencia de CI técnicamente equivalente**. PR #1822 MERGED como `7d3066250652bc63f9625c6a58058628dcd70cfa`; `main` = `origin/main` = `7149765dea31089c00183255b7a866355e39511c` (PR #1823, sólo docs). Entre ambos SHA no hay diff en `server`, `test`, `frontend`, `package.json`, `pnpm-lock.yaml` ni `.github` (`RUNTIME_C04_DRIFT = NO`), de modo que la evidencia sobre cualquiera de los dos cubre el mismo código. **Validación local sobre `main`:** tests unitarios de dominio 76/76, integración de la ruta y la query de clínicas 25/25 (10 C04), guards de infraestructura 22/22 y de dominio 12/12 de Clínicas, M48 35/35 (features 17 092 · routes 21 189 · Clinics 2 747 · total 46 310, sin drift); paridad byte a byte del SQL legacy frente a la query previa a #1822 (5/5 casos, incluido el `total`); typecheck, `typecheck:test`, `lint:backend` (0 errores; el warning `ENV` de `admin-clinics.fastify.ts` es preexistente desde `f94a347b`) y build en PASSED. **`pnpm validate:local` local = FAILED** (hecho histórico que se conserva, AGENTS §6): 4 810 tests, 4 808 pass, 1 skip, y la única falla es `e2e-global-03b`, que exige la DB aislada `portal_vetneb_ci`, ausente en la máquina local; no se reclasifica. **Evidencia de CI, separada de la corrida local:** el job `backend-heavy-validation` de Backend CI (evento push a `main`) ejecutó `pnpm lint:backend` → audit → `pnpm db:migrate` → `pnpm typecheck` → `pnpm typecheck:test` → `pnpm test` → `pnpm build` con exit 0 sobre PostgreSQL 16 con la base aislada `portal_vetneb_ci`, en dos runs: `37317062164` / job `111786439870` sobre `7d306625` y `37329815433` / job `111829866063` sobre `7149765d`. Resultado en ambos: 4 810 tests, 4 810 pass, 0 skip, 0 fail, con `E2E-GLOBAL-03B` en PASS y los 18 tests C04 en PASS. `package.json` define `validate:local` como `pnpm typecheck && pnpm typecheck:test && pnpm test && pnpm build`; CI ejecutó esa misma secuencia, en el mismo orden, dentro de otra estrictamente superior, aunque **no invoca literalmente `pnpm validate:local`** (`PNPM_VALIDATE_LOCAL_LITERAL_EXIT_0 = NO` · `TECHNICAL_EQUIVALENCE_PROVEN = YES` · `REQUIRED_SEQUENCE_EXIT_0 = YES`). `e2e-full-completeness` no se usa como evidencia (es Playwright de frontend, sin DB ni `pnpm test`). La mutation proof (10/10) se reutiliza porque las fuentes no cambiaron. **Riesgo residual:** `REAL_POSTGRES_SORT_QUERY_EXECUTION = NOT_AVAILABLE`: no existe actualmente un test/script dedicado que ejecute la query C04 de ordenamiento contra PostgreSQL; la DB de CI existe y 03B pasa, pero ese test no toca el listado de clínicas, de modo que la query real de orden no fue ejecutada directamente contra PostgreSQL; la evidencia de la semántica del orden es el SQL que emite Drizzle (una sola sentencia `WHERE → ORDER BY → LIMIT → OFFSET`), un dataset sintético con empates, el desempate estable por `id` y la paridad legacy 5/5. **C04_SERVER_SORT_PREREQUISITE = COMPLETE · C04_SERVER_SORT_MAIN_VALIDATION = PASSED · C04_FRONTEND = READY_FOR_IMPLEMENTATION · C04 = IN_PROGRESS_PREREQUISITE_COMPLETE · FASE 3 = COMPLETE** (C04 no está COMPLETE: falta su PR frontend). NEXT_SLOT = C04 frontend (adopter recomendado: Clínicas). C05 sigue BLOCKED; C08+ = NOT_STARTED.
 
-> **Enmienda F0 · 2026-10-29 · PROPOSED.** Reorienta los destinos visuales hacia la apariencia medida de Google Drive, conservando la funcionalidad de VETNEB (**Drive = apariencia; VETNEB = funcionalidad**). Es docs-only, **no es vigente hasta su aprobación** en el registro propio de §65.9 (no en el §6 de `dashboard-c26-governance-decisions.md`) y no cambia código, tests, CSS ni V1. Sustituye, una vez aprobada, los destinos de §26, §45.1, §45.2 y §46 que se detallan en §65.5; las tablas originales se conservan como registro histórico. Matriz de destinos: §65.4. Contratos de aceptación de V2–V11: §65.7. Decisiones pendientes: §65.9.
+> **Enmienda F0 · 2026-10-29 · F0-D1 y F0-D2 aprobadas.** Reorienta los destinos visuales hacia la apariencia medida de Google Drive, conservando la funcionalidad de VETNEB (**Drive = apariencia; VETNEB = funcionalidad**). Es docs-only y registra las aprobaciones en §65.9 (no en el §6 de `dashboard-c26-governance-decisions.md`); no cambia código, tests, CSS ni V1. Sustituye los destinos de §26, §45.1, §45.2 y §46 detallados en §65.5; las tablas originales se conservan como registro histórico. Matriz de destinos: §65.4. Contratos de aceptación de V2–V11: §65.7. Decisiones pendientes: §65.9.
 
 ---
 
@@ -1397,7 +1397,7 @@ El superbuscador es el **cuarto** consumidor. Los dos primeros (header de aplica
 
 ## 26. Matriz VETNEB vs Drive
 
-> **Enmienda F0 (PROPOSED, no vigente hasta §65.9).** Las filas de esta matriz que §65.5 marca como «Sustituido» o «En conflicto» se reemplazan por los destinos de §65.4 al aprobarse F0 (alto, fondo y borde de la app bar, ítem de navegación, tipografía de chip, apariencia del buscador). Hasta entonces esta tabla rige tal como está; no se reescribe.
+> **Enmienda F0 (F0-D1 y F0-D2 aprobadas; §65.9).** Las filas de esta matriz que §65.5 marca como «Sustituido» o «En conflicto» se reemplazan por los destinos de §65.4 (alto, fondo y borde de la app bar, ítem de navegación, tipografía de chip, apariencia del buscador), sujetos a las decisiones pendientes indicadas allí. La tabla se conserva como registro histórico.
 
 **Tolerancias:** R = rígida (±2 px) · P = responsive (fórmula) · T = token/valor exacto.
 
@@ -1661,7 +1661,7 @@ Inventario vigente: **P1-01** (tres implementaciones), **P1-02** (colapso 768–
 
 ## 45. Sistema visual de destino
 
-> **Enmienda F0 (PROPOSED, no vigente hasta §65.9).** §45.1 deja de derivar superficies, texto y bordes del tinte VETNEB y pasa a los valores literales de Drive de §65.4 (F0-D2), y §45.2 sustituye la tipografía de celda (13/20) y de cabecera (12/16) por 14/20 y 14/500. Primario, error, tema oscuro, shape, elevación, motion y anillo de foco permanecen. Detalle en §65.5.
+> **Enmienda F0 (F0-D1 y F0-D2 aprobadas; §65.9).** §45.1 deja de derivar superficies, texto y bordes del tinte VETNEB y pasa a los valores literales de Drive de §65.4 (F0-D2), y §45.2 sustituye la tipografía de celda (13/20) y de cabecera (12/16) por 14/20 y 14/500. Primario, error, tema oscuro, shape, elevación, motion y anillo de foco permanecen. Detalle en §65.5.
 
 ### 45.1 Tokens dashboard-scoped
 
@@ -1708,7 +1708,7 @@ Derivados de los tokens VETNEB existentes (`globals.css:16-49` claro, `:1663-169
 
 ## 46. Especificación geométrica
 
-> **Enmienda F0 (PROPOSED, no vigente hasta §65.9).** Las filas de esta tabla marcadas en §65.5 (WorkspaceAppBar, ítem de drawer, campo primario, chip, superficie de menú) y la nota final «la geometría de esta tabla es la única canónica» se sustituyen por §65.4 al aprobarse F0. Fila 40, cabecera 36, ítem de cuadrícula 176 de alto, panel 336 y diálogo no cambian sin las decisiones F0-D7 y F0-D9.
+> **Enmienda F0 (F0-D1 y F0-D2 aprobadas; §65.9).** Las filas de esta tabla marcadas en §65.5 (WorkspaceAppBar, ítem de drawer, campo primario, chip, superficie de menú) y la nota final «la geometría de esta tabla es la única canónica» se sustituyen por §65.4, sujetos a las decisiones pendientes allí indicadas. Fila 40, cabecera 36, ítem de cuadrícula 176 de alto, panel 336 y diálogo no cambian sin las decisiones F0-D7 y F0-D9.
 
 | Elemento | Alto | Ancho | Padding | Radio | Borde | Sombra | Tipografía | Tol. |
 |---|---:|---|---|---:|---|---|---|---|
@@ -2223,13 +2223,13 @@ El plan resultante son 50 PR en tres programas (más 5 correctivos separados; un
 
 ---
 
-## 65. Enmienda F0 — Fidelidad visual a Google Drive *(PROPOSED; no vigente hasta su aprobación)*
+## 65. Enmienda F0 — Fidelidad visual a Google Drive *(F0-D1 y F0-D2 aprobadas; decisiones restantes pendientes)*
 
 ### 65.1 Estado, alcance y autorización
 
 | Campo | Valor |
 | --- | --- |
-| Estado de esta enmienda | **PROPOSED.** Ninguna de sus disposiciones es vigente mientras el §65.9 no tenga la fila F0-D1 completada por Nico con fecha y texto. |
+| Estado de esta enmienda | **F0-D1 y F0-D2 aprobadas** por Nico en §65.9; las demás decisiones conservan sus estados y restricciones. |
 | Fecha de redacción | 2026-10-29 |
 | Base | `main@cc6f0c4c` (#1941) |
 | Alcance | Documental: este archivo. Sin código, CSS, TypeScript, tests, configuración, CI, backend ni base de datos. La web pública queda fuera. |
@@ -2264,7 +2264,7 @@ Contradicciones conocidas que **no** se resuelven aquí: buscador 834 × 48 (rec
 
 ### 65.3 Qué mide la fidelidad
 
-La fidelidad se mide **por métrica y por componente** con la sonda V1, que publica su propia PR (`frontend/e2e/regression/evidence/dashboard-drv-v1-drive-fidelity-probe.spec.ts`; referencia `frontend/e2e/fixtures/drive-ui-reference.v1.json`), con estados IGUAL, DIFERENTE, AUSENTE y NO_COMPARABLE. No existe puntaje único, y ninguna PR puede afirmar «fidelidad total» ni «semejanza global»: sólo «N de M métricas comparables en IGUAL para el componente X, en estas superficies y resoluciones». Un test funcional en verde no es evidencia de fidelidad visual.
+La fidelidad se mide **por métrica y por componente** con la sonda V1, publicada en la PR #1942 (`frontend/e2e/regression/evidence/dashboard-drv-v1-drive-fidelity-probe.spec.ts`; referencia `frontend/e2e/fixtures/drive-ui-reference.v1.json`), con estados IGUAL, DIFERENTE, AUSENTE y NO_COMPARABLE. No existe puntaje único, y ninguna PR puede afirmar «fidelidad total» ni «semejanza global»: sólo «N de M métricas comparables en IGUAL para el componente X, en estas superficies y resoluciones». Un test funcional en verde no es evidencia de fidelidad visual.
 
 ### 65.4 Matriz normativa de destinos visuales
 
@@ -2365,7 +2365,7 @@ La numeración V2–V11 de abajo es la **única normativa**; cualquier lista inf
 
 | PR | Contenido | Depende de | Contratos que toca |
 | --- | --- | --- | --- |
-| V1 | Sonda de fidelidad (instrumento). Publicación pendiente en su propia PR | — | Catálogo y censos |
+| V1 | Sonda de fidelidad (instrumento). PR #1942 fusionada en `1ed99275202f920c0666b7c1eae3b85915a1a43e` | — | Catálogo y censos |
 | V2 | Tablas y superficies neutras: celda 14/400/20, cabecera 14/500 sin tracking, `#1f1f1f`/`#444746`, separador 1 px `#c7c7c7`, hover 8 %, página y contenedores blancos. **Sin tocar alturas** | F0 aprobada (F0-D1, F0-D2); V1 fusionada | Rebaseline visual (R13), contraste G11 |
 | V3 | Chips 14/500 con separación 8 y títulos 24/400/32 | V2; F0-D5 para los títulos | Posible efecto en G9 |
 | V4 | Navegación lateral ≥ 1280: ítems 224 × 32, pill, activo tonal | V2 | A02, B09, C23 |
@@ -2424,6 +2424,6 @@ Sin implementación de CSS ni de componentes; sin cambios a la altura de fila, a
 | Sin cambios en código, CSS, TypeScript, tests, configuración, CI, backend ni base de datos | PASSED |
 | Tablas de §65 con ancho de columnas consistente | PASSED |
 | Rutas citadas existentes (`docs/audit/GOOGLE_DRIVE_REFERENCIA_UI_CONSOLIDADA.md`) | PASSED |
-| Rutas de V1 (`drive-ui-reference.v1.json`, spec de la sonda) | NOT_AVAILABLE en `main`: las publica la PR de V1 |
+| Rutas de V1 (`drive-ui-reference.v1.json`, spec de la sonda) | Disponibles en `main` desde la PR #1942 |
 | Valores de §65.4 cotejados contra la referencia consolidada | PASSED por lectura; sin medición nueva |
 | Lint, typecheck, build, tests y E2E | NOT_RUN: el cambio es documental |
