@@ -45,6 +45,8 @@
 
 > **Actualización C04 (validación post-merge) · 2026-10-05.** El prerrequisito server-side está **COMPLETE** y su validación en `main` está **PASSED por evidencia de CI técnicamente equivalente**. PR #1822 MERGED como `7d3066250652bc63f9625c6a58058628dcd70cfa`; `main` = `origin/main` = `7149765dea31089c00183255b7a866355e39511c` (PR #1823, sólo docs). Entre ambos SHA no hay diff en `server`, `test`, `frontend`, `package.json`, `pnpm-lock.yaml` ni `.github` (`RUNTIME_C04_DRIFT = NO`), de modo que la evidencia sobre cualquiera de los dos cubre el mismo código. **Validación local sobre `main`:** tests unitarios de dominio 76/76, integración de la ruta y la query de clínicas 25/25 (10 C04), guards de infraestructura 22/22 y de dominio 12/12 de Clínicas, M48 35/35 (features 17 092 · routes 21 189 · Clinics 2 747 · total 46 310, sin drift); paridad byte a byte del SQL legacy frente a la query previa a #1822 (5/5 casos, incluido el `total`); typecheck, `typecheck:test`, `lint:backend` (0 errores; el warning `ENV` de `admin-clinics.fastify.ts` es preexistente desde `f94a347b`) y build en PASSED. **`pnpm validate:local` local = FAILED** (hecho histórico que se conserva, AGENTS §6): 4 810 tests, 4 808 pass, 1 skip, y la única falla es `e2e-global-03b`, que exige la DB aislada `portal_vetneb_ci`, ausente en la máquina local; no se reclasifica. **Evidencia de CI, separada de la corrida local:** el job `backend-heavy-validation` de Backend CI (evento push a `main`) ejecutó `pnpm lint:backend` → audit → `pnpm db:migrate` → `pnpm typecheck` → `pnpm typecheck:test` → `pnpm test` → `pnpm build` con exit 0 sobre PostgreSQL 16 con la base aislada `portal_vetneb_ci`, en dos runs: `37317062164` / job `111786439870` sobre `7d306625` y `37329815433` / job `111829866063` sobre `7149765d`. Resultado en ambos: 4 810 tests, 4 810 pass, 0 skip, 0 fail, con `E2E-GLOBAL-03B` en PASS y los 18 tests C04 en PASS. `package.json` define `validate:local` como `pnpm typecheck && pnpm typecheck:test && pnpm test && pnpm build`; CI ejecutó esa misma secuencia, en el mismo orden, dentro de otra estrictamente superior, aunque **no invoca literalmente `pnpm validate:local`** (`PNPM_VALIDATE_LOCAL_LITERAL_EXIT_0 = NO` · `TECHNICAL_EQUIVALENCE_PROVEN = YES` · `REQUIRED_SEQUENCE_EXIT_0 = YES`). `e2e-full-completeness` no se usa como evidencia (es Playwright de frontend, sin DB ni `pnpm test`). La mutation proof (10/10) se reutiliza porque las fuentes no cambiaron. **Riesgo residual:** `REAL_POSTGRES_SORT_QUERY_EXECUTION = NOT_AVAILABLE`: no existe actualmente un test/script dedicado que ejecute la query C04 de ordenamiento contra PostgreSQL; la DB de CI existe y 03B pasa, pero ese test no toca el listado de clínicas, de modo que la query real de orden no fue ejecutada directamente contra PostgreSQL; la evidencia de la semántica del orden es el SQL que emite Drizzle (una sola sentencia `WHERE → ORDER BY → LIMIT → OFFSET`), un dataset sintético con empates, el desempate estable por `id` y la paridad legacy 5/5. **C04_SERVER_SORT_PREREQUISITE = COMPLETE · C04_SERVER_SORT_MAIN_VALIDATION = PASSED · C04_FRONTEND = READY_FOR_IMPLEMENTATION · C04 = IN_PROGRESS_PREREQUISITE_COMPLETE · FASE 3 = COMPLETE** (C04 no está COMPLETE: falta su PR frontend). NEXT_SLOT = C04 frontend (adopter recomendado: Clínicas). C05 sigue BLOCKED; C08+ = NOT_STARTED.
 
+> **Enmienda F0 · 2026-10-29 · PROPOSED.** Reorienta los destinos visuales hacia la apariencia medida de Google Drive, conservando la funcionalidad de VETNEB (**Drive = apariencia; VETNEB = funcionalidad**). Es docs-only, **no es vigente hasta su aprobación** en el registro propio de §65.9 (no en el §6 de `dashboard-c26-governance-decisions.md`) y no cambia código, tests, CSS ni V1. Sustituye, una vez aprobada, los destinos de §26, §45.1, §45.2 y §46 que se detallan en §65.5; las tablas originales se conservan como registro histórico. Matriz de destinos: §65.4. Contratos de aceptación de V2–V11: §65.7. Decisiones pendientes: §65.9.
+
 ---
 
 ## 1. Resumen ejecutivo
@@ -1395,6 +1397,8 @@ El superbuscador es el **cuarto** consumidor. Los dos primeros (header de aplica
 
 ## 26. Matriz VETNEB vs Drive
 
+> **Enmienda F0 (PROPOSED, no vigente hasta §65.9).** Las filas de esta matriz que §65.5 marca como «Sustituido» o «En conflicto» se reemplazan por los destinos de §65.4 al aprobarse F0 (alto, fondo y borde de la app bar, ítem de navegación, tipografía de chip, apariencia del buscador). Hasta entonces esta tabla rige tal como está; no se reescribe.
+
 **Tolerancias:** R = rígida (±2 px) · P = responsive (fórmula) · T = token/valor exacto.
 
 | Propiedad | VETNEB actual | Drive | Destino | Tol. | Regla responsive |
@@ -1657,6 +1661,8 @@ Inventario vigente: **P1-01** (tres implementaciones), **P1-02** (colapso 768–
 
 ## 45. Sistema visual de destino
 
+> **Enmienda F0 (PROPOSED, no vigente hasta §65.9).** §45.1 deja de derivar superficies, texto y bordes del tinte VETNEB y pasa a los valores literales de Drive de §65.4 (F0-D2), y §45.2 sustituye la tipografía de celda (13/20) y de cabecera (12/16) por 14/20 y 14/500. Primario, error, tema oscuro, shape, elevación, motion y anillo de foco permanecen. Detalle en §65.5.
+
 ### 45.1 Tokens dashboard-scoped
 
 Derivados de los tokens VETNEB existentes (`globals.css:16-49` claro, `:1663-1695` oscuro), **no impuestos a la web pública**.
@@ -1701,6 +1707,8 @@ Derivados de los tokens VETNEB existentes (`globals.css:16-49` claro, `:1663-169
 ---
 
 ## 46. Especificación geométrica
+
+> **Enmienda F0 (PROPOSED, no vigente hasta §65.9).** Las filas de esta tabla marcadas en §65.5 (WorkspaceAppBar, ítem de drawer, campo primario, chip, superficie de menú) y la nota final «la geometría de esta tabla es la única canónica» se sustituyen por §65.4 al aprobarse F0. Fila 40, cabecera 36, ítem de cuadrícula 176 de alto, panel 336 y diálogo no cambian sin las decisiones F0-D7 y F0-D9.
 
 | Elemento | Alto | Ancho | Padding | Radio | Borde | Sombra | Tipografía | Tol. |
 |---|---:|---|---|---:|---|---|---|---|
@@ -2212,3 +2220,210 @@ Tres conclusiones merecen quedar por escrito, porque contradicen lo que parecía
 A favor del proyecto juega un hecho que reduce mucho el riesgo: **la arquitectura de destino ya está andamiada**. `features/dashboard/presentation/` existe con sus siete barriles, su README describe el destino y contiene un solo componente real. No hay que inventar la estructura; hay que poblarla.
 
 El plan resultante son 50 PR en tres programas (más 5 correctivos separados; universo máximo 55), del Nivel 0 al 13, con la operativa congelada por test antes de tocar el primer píxel, la paginación desacoplada antes de mover una región, y un piloto —Informes administrativos— que ejercita los doce elementos de la arquitectura antes de comprometer los catorce módulos restantes. Es implementable sin dependencias nuevas, sin migraciones y con rollback lógico en cada paso.
+
+---
+
+## 65. Enmienda F0 — Fidelidad visual a Google Drive *(PROPOSED; no vigente hasta su aprobación)*
+
+### 65.1 Estado, alcance y autorización
+
+| Campo | Valor |
+| --- | --- |
+| Estado de esta enmienda | **PROPOSED.** Ninguna de sus disposiciones es vigente mientras el §65.9 no tenga la fila F0-D1 completada por Nico con fecha y texto. |
+| Fecha de redacción | 2026-10-29 |
+| Base | `main@cc6f0c4c` (#1941) |
+| Alcance | Documental: este archivo. Sin código, CSS, TypeScript, tests, configuración, CI, backend ni base de datos. La web pública queda fuera. |
+| Autorización de edición del rector | Pedido explícito de Nico para el alcance F0 (modificar §26, §45.1, §45.2, §46 y este §65 con el cambio mínimo suficiente). No autoriza implementar. |
+| Aprobación | Registro propio en §65.9. **No** se usa el §6 de `dashboard-c26-governance-decisions.md`; las decisiones C26 permanecen en PROPOSED y esta enmienda no las altera. |
+| Operaciones remotas | Ninguna ejecutada. Stage, commit, push, PR y merge no forman parte de esta redacción. |
+
+**Principio rector.** *Google Drive determina la apariencia; VETNEB conserva la funcionalidad.* Los destinos de §26, §45 y §46 que favorecieron un Material Design 3 genérico sobre la apariencia medida de Drive se sustituyen, al aprobarse esta enmienda, por los de §65.4. Los datos, permisos, filtros, navegación, paginación, ordenamiento, seguridad y semántica de VETNEB no cambian.
+
+**Orden de precedencia visual** (de mayor a menor), para resolver cualquier conflicto de un PR visual:
+
+1. Invariantes funcionales, de seguridad y de arquitectura de §11 y `AGENTS.md` §9–§10: zero-scroll, accesibilidad, objetivos táctiles, `no-store`, separación de sesiones.
+2. Capacidad adaptativa (A03/A05, `limit`) y presupuesto de chrome G9, mientras sus contratos estén vigentes.
+3. Fidelidad a Drive según §65.4 (esta enmienda).
+4. Identidad VETNEB, acotada a acentos de marca en funciones y estados (§65.4, fila «Acento»).
+
+Un valor de Drive que exigiría violar los niveles 1 o 2 **no se aplica**: queda como diferencia inevitable documentada (§65.4, columna «Restricción superior»), no como incumplimiento ni como excepción silenciosa.
+
+### 65.2 Fuente de evidencia y estados
+
+La referencia visual consolidada es `docs/audit/GOOGLE_DRIVE_REFERENCIA_UI_CONSOLIDADA.md` (laboratorio REA-LAB, Chrome/155, 1920 × 945, DPR 1, tema claro, vista lista de «Mi unidad»). Es evidencia de apariencia; no es una fuente de implementación ni de comportamiento.
+
+| Estado | Significado | ¿Exigible a VETNEB? |
+| --- | --- | --- |
+| OBSERVADO | Leído del navegador | Sí, con la tolerancia de la referencia §XIII.2 |
+| DERIVADO | Calculado de valores observados y verificado en todo su intervalo | Sí, sólo dentro del intervalo verificado |
+| INFERIDO | Hipótesis compatible con los datos | **No.** No se presenta como medida ni genera criterio de aceptación |
+| NO RESUELTO | Sin evidencia suficiente | **No.** Se resuelve con una medición nueva o con una decisión explícita |
+| CAPTURAS PROPIAS DEL RECTOR (§25) | Viewport 1920 × 911, otra fecha y cuenta | Sólo como respaldo; ante contradicción con el laboratorio el valor queda NO RESUELTO (referencia §XIV.4) |
+
+Contradicciones conocidas que **no** se resuelven aquí: buscador 834 × 48 (rector) frente a 722 × 48 (laboratorio); input 728 × 20 frente a 616 × 20; panel de detalle 336 px (derivado de capturas, no medido por el laboratorio). Para el ancho del buscador se adopta la fórmula DERIVADA del laboratorio (§VI.3, 150 anchos): 722 desde 1416 px, `viewport − 694` entre 1024 y 1415, `viewport − 674` entre 1000 y 1023; es la misma que implementa la sonda V1.
+
+### 65.3 Qué mide la fidelidad
+
+La fidelidad se mide **por métrica y por componente** con la sonda V1, que publica su propia PR (`frontend/e2e/regression/evidence/dashboard-drv-v1-drive-fidelity-probe.spec.ts`; referencia `frontend/e2e/fixtures/drive-ui-reference.v1.json`), con estados IGUAL, DIFERENTE, AUSENTE y NO_COMPARABLE. No existe puntaje único, y ninguna PR puede afirmar «fidelidad total» ni «semejanza global»: sólo «N de M métricas comparables en IGUAL para el componente X, en estas superficies y resoluciones». Un test funcional en verde no es evidencia de fidelidad visual.
+
+### 65.4 Matriz normativa de destinos visuales
+
+Columnas: **Destino** (lo que se exige al aprobarse F0) · **Evidencia Drive** y su estado · **Restricción superior / conflicto** · **Exigible desde**.
+
+| Elemento | Destino visual | Evidencia Drive | Restricción superior / conflicto | Desde |
+| --- | --- | --- | --- | --- |
+| Header (≥ 768) | 64 px · fondo transparente `rgba(0,0,0,0)` · sin sombra · sin borde | Alto, fondo y sombra: OBSERVADO (ref. §II.1, §III.4). «Sin borde»: capturas propias del rector (§24), no re-medido | +8.67 px de chrome sobre 55.33; `clinic-informes-full` queda a 236.33 y G9 exige ≤ 240 (**conflicto, F0-D3**). Cambia A02/A03 (R13). Teléfono (< 768) conserva su app bar de 48 | V6 |
+| Navegación lateral (≥ 1280) | Columna 0–256 con ítems de **224 × 32** en x = 16, paso 32, grupos separados 16 px, radio pill, icono 20, texto 14/400/26; activo con fondo `#c2e7ff` y texto/icono `#004a77` | OBSERVADO (ref. §VIII.1, §III.1, §III.6) | Hoy ítem 40, radio 20, drawer 255. El ancho útil de `main` cambia 0–2 px. Debe seguir exponiendo `aria-current`, teclado y los módulos de cada rol | V4 |
+| Navegación 768–1279 | **Pendiente (F0-D4).** Drive no colapsa su sidebar con ≥ 1000 px; VETNEB usa rail de 80 | OBSERVADO (ref. §II.4) | Un drawer fijo de 224 quita 144 px de ancho al contenido a 1024 px y agrava DRV-01. Hasta F0-D4 el rail 80 sigue vigente (§46) | — |
+| Superficies | Página, tabla y contenedores **blancos `#ffffff`**; cobertura neutra ≥ 90 %; sin tinte azul/teal en superficies. Búsqueda `#e9eef6`; mosaicos de cuadrícula `#f0f4f9`; superficie secundaria/hover `#f8fafd` | OBSERVADO (ref. §III.1–§III.2) | Los tokens `--md-sys-*` son **dashboard-scoped**; `--background`, `--card` y la web pública no cambian. Tema oscuro: NO RESUELTO (F0-D6) | V2 |
+| Texto primario | `#1f1f1f` | OBSERVADO (126 usos) | Contraste 16.48 sobre blanco | V2 |
+| Texto secundario | `#444746` | OBSERVADO (149 usos) | Contraste 9.39 sobre blanco | V2 |
+| Tabla: celda | 14 / 400 / 20, color `#444746`; nombre 14 / 500 / 20, `#1f1f1f` | Tamaño, peso y color: OBSERVADO (ref. §III.6, §IV.4). El `line-height` de 48 de Drive proviene del alto de fila; 20 es el valor del texto base: DERIVADO | Fila de 40/44 se mantiene (F0-D7). Truncado a una línea con elipsis. Padding de celda (`0 6px` en Drive) **no** se exige en V2 | V2 |
+| Tabla: cabecera | 14 / 500, color `#444746`, `letter-spacing: normal` | OBSERVADO (ref. §IV.3, §III.6) | Alto de cabecera (Drive 48; VETNEB 32/44; rector 36) no se exige aún (F0-D7). Mayúsculas: no medido, **no exigible** | V2 |
+| Tabla: separadores | 1 px sólido `#c7c7c7`, inferior de fila y cabecera | OBSERVADO (ref. §IV.3–§IV.4) | Contraste no textual 1.69 (decorativo en Drive); el límite de fila no es el único indicio de estructura en VETNEB (`table` nativa) | V2 |
+| Tabla: hover | Capa `rgb(31,31,31)` al 8 % sobre la fila; texto de celda `#444746` → `#1f1f1f` | Color de capa, opacidad y texto: OBSERVADO. Identidad del nodo que pinta la capa: INFERIDO (el criterio de aceptación es el color compuesto, DERIVADO) | `--dash-state-hover-opacity` hoy 0.06/0.10; §45.2 ya fija 8 % | V2 |
+| Chips | 32 de alto · radio 8 · borde 1 px `#747775` · fondo blanco · 14 / 500 / 16 `#444746` · separación 8 | OBSERVADO (ref. §IV.7) | Los chips de VETNEB son filtros **aplicados** con acción de quitar; Drive tiene chips que abren menú. Se copia la apariencia, no la función. Visibilidad < 1280 es DRV-03 (funcional, RM-07) | V3 |
+| Títulos | 24 / 400 / 32 | OBSERVADO (ref. §II.1, §III.6; familia «Google Sans» NO RESUELTA) | Qué elemento de VETNEB lo porta y su efecto sobre el chrome: F0-D5. Familia: se mantiene `--font-ui` | V3 |
+| Cuadrícula | Separación **16** · radio **12** · fondo `#f0f4f9` · columnas `floor((w + 16) / 236)` (pista mínima ≈ 220) · mosaico de carpeta de 48 | Separación, radio, fondo: OBSERVADO. Columnas: DERIVADO (7/7 anchos). Tarjeta cuadrada: OBSERVADO a 1920 | Alto de tarjeta no se exige (D-CARD, F0-D9): afecta A03. Hoy separación 8 y radio 8 | V5 |
+| Buscador del header | Pill de **48** de alto, radio 24, fondo `#e9eef6`, input 16 px, ancho según §65.2, transición `background .1s ease-in, width .1s ease-out` | OBSERVADO (ref. §II.3); ancho DERIVADO | Función VETNEB: el combobox de **módulos** (hoy 240 × 36, radio 6) conserva su comportamiento y su `role`. Sólo cambia su apariencia | V6 |
+| Campo de búsqueda de contenido (SuperSearchField) | Apariencia pill: fondo `#e9eef6`, radio = alto/2, input 16 px, sin borde visible | Mismo origen que el anterior | Elevar de 40 a 48 px suma 8 px a la `FilterRegion` y choca con G9 (F0-D8). Hasta entonces: 40 px | V10 |
+| Menús (header, título) | Superficie blanca · radio **4** · sombra `rgba(0,0,0,.2) 0 2px 4px -1px, rgba(0,0,0,.14) 0 4px 5px 0, rgba(0,0,0,.12) 0 1px 10px 0` · ítems de 32 · padding de ítem `0 12px` · texto 13/400/20 | OBSERVADO (ref. §III.3–§III.4, §VIII.2–§VIII.3) | Hover de ítem simple: sin cambio medible en Drive (NO RESUELTO) → VETNEB conserva el suyo. `min-width`: 320 (laboratorio) frente a 198 (rector): NO RESUELTO; rige 200 (§46) | V7 |
+| Menús y popovers de filtro (chips) | Radio 8 · ítems de 40 · `padding: 8px 0` · iconos 24/18 | OBSERVADO (ref. §VIII.3–§VIII.4) | Sólo si VETNEB adopta popovers de filtro (RM-07/C12) | V7 |
+| Tooltip | Fondo `#303030`, texto `#f2f2f2`, 12/400/16, `letter-spacing: .1px`, radio 4, padding `4px 8px`, sin sombra | OBSERVADO (7 objetivos; retardo NO RESUELTO) | Debe seguir siendo accesible por teclado y no ser el único portador de información | V7 |
+| Diálogos modales | Se mantiene §46 (radio 16, elevación 4) | **NO RESUELTO**: los diálogos medidos son popovers de filtro, no modales | No existe evidencia comparable | — |
+| Foco | Se mantiene el anillo real de 2 px primario con `outline-offset: 2px` (§45.2) | Drive: 1 px `#4d90fe` (contraste 3.12) y en 24/60 paradas sin outline localizado | **Restricción superior de accesibilidad:** no se degrada el foco para parecerse a Drive | — |
+| Acento | `--vetneb-navy` / `--vetneb-teal` / `--primary` permanecen en: botón primario, foco, enlaces, estados de error/éxito y badges de dominio | Drive usa `#0b57d0` como acento | Justificado por identidad (§9.9) y por significado funcional. No se usa para tintar superficies de lectura | — |
+| Transiciones | 0.1 s en búsqueda y hover; `prefers-reduced-motion` suprime | OBSERVADO (ref. §XI.1) | Vigente (§26) | — |
+| Panel de detalle | 336 px (§25.2) se mantiene como destino funcional | NO RESUELTO en el laboratorio (A4 pendiente) | DRV-10 sin consumidores | — |
+
+**Diferencias inevitables o no adoptadas (no son incumplimientos):**
+
+- `min-width: 1000 px` y scroll horizontal del documento bajo ese ancho: incompatibles con zero-scroll (§11, `AGENTS.md` §10).
+- Ausencia de layout móvil: VETNEB conserva su app bar de 48, barra inferior y objetivos táctiles ≥ 44.
+- Rail derecho de 56 px: sin función en VETNEB (ya registrado como intencional).
+- `role=grid` sin `columnheader` ni `aria-sort`, y ausencia de encabezados en `main`: VETNEB conserva `table` nativa, `aria-sort` y encabezados.
+- Scroll continuo de Drive: VETNEB conserva paginación adaptativa.
+- Altura de fila y de cabecera de 48 px de Drive: **no se impone** (F0-D7).
+
+### 65.5 Sustitución de criterios anteriores
+
+«Sustituido» rige sólo desde la aprobación de F0; hasta entonces cada criterio anterior sigue vigente. Nada se borra: las tablas originales de §24, §26, §45 y §46 permanecen como registro histórico y cada una lleva, en su encabezado, la remisión a esta sección.
+
+| Criterio anterior | Estado bajo F0 | Detalle |
+| --- | --- | --- |
+| §9.1 content-first, §9.2 superficie neutra, §9.4 una región de scroll, §9.5 ritmo de 8 px | **Vigente** | F0 refuerza §9.2 (blanco neutro) |
+| §9.6 densidad homogénea (fila 48 en Drive) | **Vigente con decisión pendiente** | La fila de 40/44 sigue hasta F0-D7 |
+| §9.8 ítem de menú 32, `min-width 198`, radio 0 | **Parcialmente sustituido** | Ítem 32 y `padding 0 12px` vigentes; la superficie del menú toma el radio 4/8 y la sombra medidos (§65.4); `min-width` queda NO RESUELTO |
+| §9.9 identidad VETNEB preservada | **Vigente, acotado** | Sólo acentos (§65.4, «Acento») |
+| §24 y §25 (valores crudos de capturas propias) | **Vigentes como evidencia** | No se modifican; ante contradicción con el laboratorio, §65.2 |
+| §26: alto de app bar 56 · fondo `surface` · borde inferior 1 px | **Sustituidos** | 64 · transparente · sin borde (sujeto a F0-D3) |
+| §26: navegación Drawer 256 / Rail 80 | **Parcial** | Drawer ≥ 1280 con ítems 224 × 32; rail 768–1279 pendiente (F0-D4) |
+| §26: chrome vertical 56, chrome total ≤ 240 px, ≤ 32 % | **En conflicto con 64** | G9 vigente hasta F0-D3 |
+| §26: encabezado de workspace 40, tira de métricas 0, toolbar 48 | **Vigentes** | — |
+| §26: superbuscador 56 de banda, campo 40 | **Parcial** | Apariencia pill (V10); 40 px hasta F0-D8 |
+| §26: alto de fila 40, cabecera 36 | **Vigentes con decisión pendiente** | F0-D7 |
+| §26: chip 32/radio 8, ítem de menú 32, selección, sombra en chrome `none`, gap 8, cobertura neutra ≥ 90 %, transición 0.1 s | **Vigentes** | Chip suma 14/500 y separación 8 |
+| §45.1: `--md-sys-color-surface*` derivados de `--background` (tinte 198°), «equivalente tonal sin copiar el hex» | **Sustituido** | Valores literales de §65.4 para superficies neutras, `#e9eef6`, `#f0f4f9`, `#f8fafd` (F0-D2) |
+| §45.1: `on-surface`, `on-surface-variant`, `outline`, `outline-variant` derivados de VETNEB | **Sustituidos** | `#1f1f1f`, `#444746`, `#747775`, `#c7c7c7` |
+| §45.1: `primary`, `on-primary`, `error*` | **Vigentes** | `error*` sigue NO DETERMINADO |
+| §45.1: valores de tema oscuro | **Vigentes** | Drive oscuro NO RESUELTO (F0-D6) |
+| §45.2: shape, elevation, spacing, motion, easing, focus ring | **Vigentes** | El shape suma 4 y 8 para menús |
+| §45.2: tipografía body-sm 13/20 como estilo de celda; label-md 12/16 w500 como cabecera | **Sustituida** | Celda 14/400/20 y cabecera 14/500; se añade display 24/400/32 |
+| §45.2: state layer hover 8 % | **Vigente** | Corrige los 0.06/0.10 de `tokens.css` (DRV-11) |
+| §46: WorkspaceAppBar 56 + borde inferior | **Sustituido** | 64, sin borde (F0-D3) |
+| §46: ítem de drawer 40, radio 20 | **Sustituido** | 32, radio pill |
+| §46: campo primario 40, radio 20 | **Parcial** | Apariencia (V10); alto sujeto a F0-D8 |
+| §46: chip tipografía body-sm w500 | **Sustituida** | 14/500/16 |
+| §46: cabecera de colección 36, fila 40, ítem de cuadrícula 176 de alto, radio 12 | **Vigentes con decisión pendiente** | F0-D7 y F0-D9 |
+| §46: superficie de menú radio 8, elevación 2 | **Parcial** | Radio 4 en menús de header/título; 8 en popovers de filtro |
+| §46: panel 336, diálogo (radio 16, elevación 4), objetivo táctil ≥ 44 | **Vigentes** | — |
+| §46: nota «64, 48 y 24 son métrica cruda, no destino alternativo» | **Sustituida** | Para header y buscador, esos valores pasan a ser el destino |
+| Recomendación D-08 (unificar celdas a 13/20) y DRV-11 | **Sustituida** | Celda 14/20 (esta enmienda). D-08 no es una decisión C26 |
+| Recomendación D-05 / RM-11 (app bar a 56 con alto ≤ 760) | **Sustituida** | El destino pasa a 64 (el tramo denso de `responsive.css` ya fija 4 rem); sujeto a F0-D3 |
+| Recomendación D-CARD (b) | **Vigente** | F0-D9 |
+| Decisiones D-11, D-01(c), D-12/G12, D-§57 de C26 | **Sin cambios, PROPOSED** | F0 no las aprueba ni las altera |
+
+### 65.6 Reconciliación con RM-01…RM-18 y V1…V11
+
+| Ítem | Estado bajo F0 |
+| --- | --- |
+| RM-01 | Cumplido (#1941). Las decisiones C26 siguen PROPOSED |
+| RM-02 | Sin cambios |
+| RM-03 | Sin cambios; debe citar F0 si se fusiona después |
+| RM-04, RM-05, RM-06 (C26) | Sin cambios; el subconjunto visual de D-§57 deberá incluir los componentes de F0 cuando se apruebe |
+| RM-07 (DRV-03 filtros < 1280) | Vigente; es funcional y se ejecuta con la apariencia de chip de V3 |
+| RM-08 (DRV-01 tablas por contenedor) | Vigente → **V8** |
+| RM-09 (DRV-02 cuadrícula) | Vigente → **V5**, sujeto a F0-D9 |
+| RM-10 | Cumplido (#1936) |
+| RM-11 (B3, app bar 56) | **Sustituido:** el destino es 64 → V6, sujeto a F0-D3 |
+| RM-12 (táctiles ≥ 44) | Vigente; **prevalece sobre la fidelidad** (§65.1 nivel 1) |
+| RM-13 (cabecera 36) | **Sustituido por F0-D7:** el destino de cabecera lo fija esa decisión |
+| RM-14, RM-15, RM-16, RM-18 | Sin cambios |
+| RM-17 (tipografía de celda 13/20) | **Sustituido:** celda 14/20 → V2 |
+
+La numeración V2–V11 de abajo es la **única normativa**; cualquier lista informal anterior de V2–V11 queda reemplazada.
+
+| PR | Contenido | Depende de | Contratos que toca |
+| --- | --- | --- | --- |
+| V1 | Sonda de fidelidad (instrumento). Publicación pendiente en su propia PR | — | Catálogo y censos |
+| V2 | Tablas y superficies neutras: celda 14/400/20, cabecera 14/500 sin tracking, `#1f1f1f`/`#444746`, separador 1 px `#c7c7c7`, hover 8 %, página y contenedores blancos. **Sin tocar alturas** | F0 aprobada (F0-D1, F0-D2); V1 fusionada | Rebaseline visual (R13), contraste G11 |
+| V3 | Chips 14/500 con separación 8 y títulos 24/400/32 | V2; F0-D5 para los títulos | Posible efecto en G9 |
+| V4 | Navegación lateral ≥ 1280: ítems 224 × 32, pill, activo tonal | V2 | A02, B09, C23 |
+| V5 | Cuadrícula: separación 16, radio 12, `#f0f4f9`, columnas por contenedor | V2; F0-D9 | A03, C24 |
+| V6 | Header 64 transparente y pill de búsqueda de 48 | F0-D3 | A02, A03, A05, A08, G9 |
+| V7 | Menús, tooltip y popovers | Extensión de la sonda V1 a esos estados | G11 de overlays |
+| V8 | Columnas de tabla por contenedor (DRV-01) | V2 | A02/A03, sonda de truncado |
+| V9 | Fila y cabecera de 48 | F0-D7 | A03 (`limit`), C05 |
+| V10 | SuperSearchField en pill de 48 | F0-D8; V6 | G9 |
+| V11 | Tema oscuro y cierre de fidelidad | F0-D6; medición de Drive oscuro | G11 |
+
+### 65.7 Contratos de aceptación de V2–V11
+
+Toda PR visual cumple **todos** los puntos siguientes; el incumplimiento de cualquiera bloquea la fusión.
+
+1. **Sonda V1.** Se ejecuta en las superficies aplicables (como mínimo las tres de V1) sobre `main` y sobre el head de la PR, en las seis resoluciones de V1, con `DRV_V1_OUT`; se adjuntan ambos conjuntos de registros por referencia al SHA de cada uno.
+2. **Comparación contra Drive del componente modificado**, por métrica: tabla antes/después con IGUAL, DIFERENTE, AUSENTE y NO_COMPARABLE.
+3. **Monotonía.** Ninguna métrica en IGUAL en `main` pasa a otro estado. Debe aumentar el número de métricas IGUAL del componente tocado; si no aumenta, la PR no demuestra mejora y no se funde.
+4. **Evidencia visual antes/después en navegador real**, lado a lado a 1920 × 945 y 1366 × 768 como mínimo, con datos sintéticos y fuera de `test-results/` y del diff (`AGENTS.md` §17).
+5. **Conservación funcional, de seguridad y de accesibilidad:** sin cambios de handlers, endpoints, payloads, permisos, ordenamiento, paginación ni nombres accesibles; G11 (axe, 21 × 2 × 2) en verde; contraste de los textos nuevos ≥ 4.5 : 1; foco visible; teclado.
+6. **Zero Scroll y capacidad:** cohorte `visual-contract` y A02/A03/A05/A08 en verde; `limit` y alturas sin cambio salvo lo que la propia PR declare y F0 autorice (V6, V9, V10); G9 re-medido por PR que toque chrome.
+7. **Diferencias inevitables y no comparables documentadas** en el cuerpo de la PR, con el motivo de §65.4.
+8. **Gates de `AGENTS.md` §6** para el dominio (frontend visual: lint, typecheck, build, `security:public-surface`, cohorte E2E relevante) con estados canónicos; CI Linux sobre el head para `visual-linux` y A02/A03 cuando haya rebaseline (R13, autorización específica de Nico por PR).
+9. **Una causa visual por PR** y rollback lógico por `git revert` del squash.
+10. **Sin declaración de fidelidad total.** El texto permitido es «N de M métricas comparables en IGUAL para el componente X».
+
+### 65.8 Alcance excluido de F0
+
+Sin implementación de CSS ni de componentes; sin cambios a la altura de fila, a la altura de cabecera de tabla, al alto del header ni a las dimensiones de navegación (se difieren a V6, V9 y F0-D3/F0-D7); sin tocar la web pública; sin adoptar el scroll horizontal ni la ausencia de layout móvil de Drive; sin aprobar decisiones C26; sin modificar V1, RM-15 ni RM-03.
+
+### 65.9 Registro de aprobación F0 (propio; inicialmente pendiente)
+
+**F0-D1 y F0-D2 aprobadas por Nico** mediante su instrucción explícita «VETNEB — EJECUCIÓN DEFINITIVA F0 → V2» del 2026-10-30, registrada en las filas siguientes. Las demás decisiones conservan sus estados.
+
+| Código | Decisión | Recomendación de esta enmienda | Estado | Alternativa elegida | Fecha | Texto de la aprobación |
+| --- | --- | --- | --- | --- | --- | --- |
+| F0-D1 | Aprobar la enmienda F0 (§65) y, con ella, la sustitución de criterios de §65.5 | Aprobar | APROBADA | Drive como referencia rectora de apariencia | 2026-10-30 | Nico aprueba la referencia visual Drive; se conservan íntegramente funcionalidad, datos, autenticación, autorización, seguridad, navegación y lógica de negocio de VETNEB. |
+| F0-D2 | Usar valores literales de Drive para neutros, texto y tonales (frente a derivarlos de VETNEB) | Literales, dashboard-scoped | APROBADA | Valores OBSERVADO y DERIVADO para componentes comparables | 2026-10-30 | Nico autoriza superficies neutras, tipografía, colores, separadores, estados y geometría aplicables, sujetos a accesibilidad, Zero Scroll, capacidad e invariantes superiores; se preservan los acentos funcionales VETNEB. |
+| F0-D3 | Header de 64 frente a G9 (≤ 240 px, ≤ 32 %) y R13 de A02/A03 | Ajustar G9 con un presupuesto medido por superficie, o compensar chrome en V6; no aplicar V6 sin decisión | PROPOSED | — | — | — |
+| F0-D4 | Rail de 80 entre 768 y 1279 frente a la sidebar fija de 224 de Drive | Mantener el rail (adaptación justificada por ancho útil y DRV-01) | PROPOSED | — | — | — |
+| F0-D5 | Elemento que porta el título 24/400/32, su alcance por viewport y su efecto en el chrome | Decidir tras medir; título visible hoy: `h1` de la topbar (20/600/25) | PROPOSED | — | — | — |
+| F0-D6 | Equivalentes de tema oscuro (Drive oscuro no medido) | Derivar por contraste y registrarlos como NO COMPARABLE | PROPOSED | — | — | — |
+| F0-D7 | Fila y cabecera de 48 (V9): análisis contractual de C05/A03 | Análisis específico antes de cualquier cambio | PROPOSED | — | — | — |
+| F0-D8 | SuperSearchField de 48 frente a la `FilterRegion` de 56 y G9 | Mantener 40 hasta F0-D3 | PROPOSED | — | — | — |
+| F0-D9 | Alto de tarjeta de cuadrícula (D-CARD) | Opción (b): alto mínimo medido | PROPOSED | — | — | — |
+| F0-D10 | Autorización R13 de rebaselines (A02/A03/`visual-linux`) | Por PR, con pedido específico | No solicitada | — | — | — |
+
+**Decisiones todavía necesarias, por PR:** V2 requiere F0-D1 y F0-D2 (y F0-D10 para su rebaseline); V3, F0-D5; V4, ninguna adicional; V5, F0-D9; V6, F0-D3; V7, la extensión de la sonda; V8, ninguna adicional; V9, F0-D7; V10, F0-D3 y F0-D8; V11, F0-D6.
+
+### 65.10 Validaciones de esta enmienda (docs-only)
+
+| Validación | Estado |
+| --- | --- |
+| `git diff --check` | PASSED |
+| `git diff --name-only`: un solo archivo, este documento | PASSED |
+| Sin cambios en código, CSS, TypeScript, tests, configuración, CI, backend ni base de datos | PASSED |
+| Tablas de §65 con ancho de columnas consistente | PASSED |
+| Rutas citadas existentes (`docs/audit/GOOGLE_DRIVE_REFERENCIA_UI_CONSOLIDADA.md`) | PASSED |
+| Rutas de V1 (`drive-ui-reference.v1.json`, spec de la sonda) | NOT_AVAILABLE en `main`: las publica la PR de V1 |
+| Valores de §65.4 cotejados contra la referencia consolidada | PASSED por lectura; sin medición nueva |
+| Lint, typecheck, build, tests y E2E | NOT_RUN: el cambio es documental |
