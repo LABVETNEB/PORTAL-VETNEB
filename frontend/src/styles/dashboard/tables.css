@@ -110,4 +110,9 @@
 :root:not([data-theme="dark-gray"]) .dashboard-app-shell table tbody > tr:hover :is(td.text-muted-foreground, td .text-muted-foreground) {
   color: var(--dash-color-on-surface) !important;
 }
+/* Two 20px lines plus the collapsed 1px separator would advance 41px.
+ * Keep the existing 40px compact pitch without shortening either line box. */
+:root:not([data-theme="dark-gray"]) .dashboard-app-shell [data-dashboard-adaptive-rows-canvas="true"] table tbody > tr > td > p + p {
+  margin-block-start: -1px;
+}
 /* dashboard-drv-v2-neutral-tables:end */
