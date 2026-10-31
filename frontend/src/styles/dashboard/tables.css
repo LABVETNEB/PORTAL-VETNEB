@@ -81,6 +81,7 @@
   font-size: 14px !important;
   font-weight: 500 !important;
   letter-spacing: normal !important;
+  line-height: 16px !important;
   border-block-end: 1px solid var(--dash-table-separator);
 }
 
@@ -94,6 +95,19 @@
   font-weight: 400 !important;
   line-height: 20px !important;
   border-block-end: 1px solid var(--dash-table-separator);
+}
+
+/* A badge stacked on a stage tag wraps into two inline lines. Under the 20px
+ * line box they outgrow the 40px pitch, so those cells keep the compact ratio. */
+:root:not([data-theme="dark-gray"]) .dashboard-app-shell table tbody > tr > td:has(> .inline-flex) {
+  line-height: 1.3333 !important;
+}
+
+/* Fixed-width date columns (text-xs tabular-nums) keep their compact size: 14px
+ * would clip their text inside the column the component sizes for 12px. */
+:root:not([data-theme="dark-gray"]) .dashboard-app-shell table tbody > tr > td.tabular-nums {
+  font-size: 0.75rem !important;
+  line-height: 1rem !important;
 }
 
 :root:not([data-theme="dark-gray"]) .dashboard-app-shell table tbody > tr:hover > td {
