@@ -29,6 +29,7 @@ const SECURITY_OVERRIDE_LINES = [
   '  "nanoid@>=3.0.0 <3.3.18": "3.3.18"',
   '  "browserslist@<=4.28.6": "4.28.7"',
   '  "mysql2@<3.22.0": "3.22.0"',
+  '  "minimatch@<11.0.1": "11.0.3"',
 ] as const;
 
 function readTextFile(...segments: string[]): string {
