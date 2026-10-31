@@ -6,7 +6,7 @@
 /* admin-mobile-module-layer-isolation:start */
 [data-vetneb-app-shell-surface="admin"] [data-dashboard-module-workspace],
 [data-vetneb-app-shell-surface="admin"] [data-dashboard-module-hub] {
-  background: hsl(var(--vetneb-surface)) !important;
+  background: var(--dash-color-canvas) !important;
   isolation: isolate;
 }
 
@@ -25,7 +25,7 @@
 
   [data-vetneb-app-shell-surface="admin"] [data-dashboard-module-hub],
   [data-vetneb-app-shell-surface="admin"] [data-dashboard-module-hub] .dashboard-cockpit-tile {
-    background: hsl(var(--card)) !important;
+    background: var(--dash-color-surface) !important;
   }
 }
 /* admin-mobile-module-layer-isolation:end */

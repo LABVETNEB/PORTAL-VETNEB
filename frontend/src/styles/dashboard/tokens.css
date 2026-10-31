@@ -233,6 +233,25 @@
 }
 /* dashboard-foundation-tokens:end */
 
+/* dashboard-drv-v2-foundation-overrides:start
+ * V2 light-theme fidelity pass: the Drive reference is white and neutral. Dark
+ * equivalents remain deferred to V11/F0-D6. tokens.css is the only owner of
+ * foundation tokens, so the dashboard-scoped overrides live here, after the
+ * foundation they refine and before the row-pitch contract. */
+:root:not([data-theme="dark-gray"]) .dashboard-app-shell {
+  --dash-color-canvas: #fff;
+  --dash-color-surface: #fff;
+  --dash-color-surface-raised: #fff;
+  --dash-color-surface-muted: #f8fafd;
+  --dash-color-on-surface: #1f1f1f;
+  --dash-color-on-surface-muted: #444746;
+  --dash-color-outline: #747775;
+  --dash-color-outline-subtle: #c7c7c7;
+  --dash-table-separator: #c7c7c7;
+  --dash-table-hover-fill: rgb(31 31 31 / 8%);
+}
+/* dashboard-drv-v2-foundation-overrides:end */
+
 /* dashboard-row-pitch-contract:start
  *
  * Row pitch contract (Option D — pitch-locked canvas).
