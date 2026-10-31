@@ -231,29 +231,6 @@
   --dash-state-focus-opacity: 0.24;
   --dash-state-layer-color: hsl(var(--vetneb-ink));
 }
-/* dashboard-drv-v2-neutral-tables:start
- *
- * V2 is a light-theme fidelity pass. The Drive reference is white and neutral;
- * dark equivalents remain deferred to V11/F0-D6 rather than being guessed here.
- * These values stay inside the authenticated dashboard scope and do not alter
- * global or public-site tokens. */
-:root:not([data-theme="dark-gray"]) .dashboard-app-shell {
-  --dash-color-canvas: #fff;
-  --dash-color-surface: #fff;
-  --dash-color-surface-raised: #fff;
-  --dash-color-surface-muted: #f8fafd;
-  --dash-color-on-surface: #1f1f1f;
-  --dash-color-on-surface-muted: #444746;
-  --dash-color-outline: #747775;
-  --dash-color-outline-subtle: #c7c7c7;
-  --dash-table-separator: #c7c7c7;
-  --dash-table-hover-fill: rgb(31 31 31 / 8%);
-}
-
-:root:not([data-theme="dark-gray"]) body:has(.dashboard-app-shell) {
-  background-color: #fff;
-}
-/* dashboard-drv-v2-neutral-tables:end */
 /* dashboard-foundation-tokens:end */
 
 /* dashboard-row-pitch-contract:start
