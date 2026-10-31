@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * C11 · one applied filter, as the consumer states it (audit §46: chip 32 px,
- * width 96–160 px, padding 0 12px, radius 8, 1 px outline, body-sm w500, no shadow).
+ * width 96–160 px, padding 0 12px, radius 8, 1 px outline, no shadow; typography 14/500/16 since F0 §65.5 / V3).
  * Presentation only: the consumer owns the filter, formats its value and decides what removing it does.
  */
 export type ActiveFilter = {
@@ -38,7 +38,7 @@ export function FilterChip({ label, value, onRemove, removeLabel = "Quitar filtr
     <span
       data-filter-chip="true"
       className={cn(
-        "inline-flex h-11 md:h-8 min-w-24 max-w-40 shrink-0 items-center gap-1 rounded-lg border border-input bg-transparent px-3 text-[0.8125rem] font-medium leading-5 text-foreground shadow-none",
+        "inline-flex h-11 md:h-8 min-w-24 max-w-40 shrink-0 items-center gap-1 rounded-lg border border-input bg-transparent px-3 text-sm font-medium leading-4 text-foreground shadow-none",
         disabled && "text-muted-foreground",
         className,
       )}
