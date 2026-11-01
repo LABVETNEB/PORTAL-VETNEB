@@ -916,3 +916,51 @@ test("B07 · the primitives have exactly one mount site, and it is the B08 frame
     "the primitives are mounted by the B08 frame and by nothing else",
   );
 });
+
+// ── V4 · Drive-aligned drawer (F0 §65.4) ─────────────────────────────────────
+
+test("V4 · the drawer item is 224 x 32 at x = 16 through its own ledger, and the rail keeps 40", () => {
+  const tokens = read(TOKENS_CSS);
+  const ledger = sliceBlock(
+    tokens,
+    "/* dashboard-drv-v4-navigation-geometry:start",
+    "dashboard-drv-v4-navigation-geometry:end */",
+  );
+
+  for (const [token, value] of [
+    ["--dash-drv-nav-drawer-inset", "16px"],
+    ["--dash-drv-nav-item-h", "32px"],
+    ["--dash-drv-nav-item-leading", "26px"],
+    ["--dash-drv-nav-icon", "20px"],
+    ["--dash-drv-nav-active-bg", "#c2e7ff"],
+    ["--dash-drv-nav-active-fg", "#004a77"],
+  ] as const) {
+    assert.ok(ledger.includes(`${token}: ${value};`), `${token} must own ${value}`);
+  }
+
+  // The B07 ledger still owns the rail's 40px density; V4 must not move it.
+  assert.ok(tokens.includes("--dash-nav-item-h: 40px;"), "the shared 40px token stays");
+
+  const css = sliceBlock(
+    read(NAVIGATION_CSS),
+    "/* dashboard-drv-v4-navigation-drawer:start */",
+    "/* dashboard-drv-v4-navigation-drawer:end */",
+  );
+  assert.ok(css.includes("@media (min-width: 1280px)"), "V4 applies from 1280px only");
+  assert.equal(css.includes("dashboard-navigation-rail"), false, "V4 does not touch the rail");
+  assert.equal(/transition|animation/.test(stripComments(css)), false, "no size animation (R11/A03)");
+  assert.ok(css.includes("inline-size: var(--dash-nav-drawer-w);"));
+  assert.ok(css.includes("gap: 0;"), "items sit flush at a 32px pitch");
+  assert.ok(css.includes("min-block-size: var(--dash-drv-nav-item-h);"));
+  assert.ok(css.includes("max-block-size: var(--dash-drv-nav-item-h);"));
+  assert.ok(
+    css.includes(':root:not([data-theme="dark-gray"])'),
+    "the literal Drive colours stay light-theme only (F0-D6)",
+  );
+  assert.ok(css.includes("background-color: var(--dash-drv-nav-active-bg);"));
+  assert.ok(css.includes("color: var(--dash-drv-nav-active-fg);"));
+
+  const drawer = stripComments(read(DRAWER_TSX));
+  assert.ok(drawer.includes('className="dashboard-navigation-drawer-icon"'));
+  assert.equal(drawer.includes("h-4 w-4"), false, "the glyph size comes from the ledger");
+});

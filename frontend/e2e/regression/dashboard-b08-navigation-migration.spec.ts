@@ -56,7 +56,7 @@ import { MAX_DOCUMENT_SCROLL_DELTA_PX } from "../helpers/zero-scroll-contract";
 //
 //   <  768 px        DashboardMobileNav (B09) · both primitives hidden
 //   768 – 1279 px    NavigationRail   80 ±1 px  · item 56 px
-//   >= 1280 px       NavigationDrawer 256 ±1 px · item 40 px
+//   >= 1280 px       NavigationDrawer 256 ±1 px · item 32 px (V4)
 //
 // BOUNDARY WITH A08 AND B06. A08 owns zero-scroll over the full 21x13 matrix
 // and B06 owns the app-bar band over the same matrix; both stay green on their
@@ -84,7 +84,9 @@ const MAIN_SELECTOR = "main.dashboard-main";
 /** Geometry ledger of tokens.css, mirrored. Never re-declared in `.tsx`. */
 const DRAWER_WIDTH_PX = 256;
 const RAIL_WIDTH_PX = 80;
-const DRAWER_ITEM_HEIGHT_PX = 40;
+/** V4 (F0 §65.4) supersedes the B07 40px drawer item; the compact rail keeps 40. */
+const DRAWER_ITEM_HEIGHT_PX = 32;
+const RAIL_COMPACT_ITEM_HEIGHT_PX = 40;
 const RAIL_ITEM_HEIGHT_PX = 56;
 const BAND_TOLERANCE_PX = 1;
 /** Items are pinned by min/max block-size, so they carry no band of their own. */
@@ -1292,8 +1294,8 @@ test.describe("B08 · rail destinations at short heights", () => {
     ).toBe(ADMIN_RAIL_ITEM_COUNT);
     for (const height of reading.railItemHeights) {
       expect(
-        Math.abs(height - DRAWER_ITEM_HEIGHT_PX),
-        `compact rail item height ${height}px != ${DRAWER_ITEM_HEIGHT_PX}px`,
+        Math.abs(height - RAIL_COMPACT_ITEM_HEIGHT_PX),
+        `compact rail item height ${height}px != ${RAIL_COMPACT_ITEM_HEIGHT_PX}px`,
       ).toBeLessThanOrEqual(ITEM_TOLERANCE_PX);
     }
 

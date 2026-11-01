@@ -495,6 +495,27 @@
 }
 /* dashboard-b07-navigation-geometry:end */
 
+/* dashboard-drv-v4-navigation-geometry:start
+ *
+ * V4 (F0 §65.4, Drive tree OBSERVADO ref. §VIII.1): the >=1280 drawer lays out
+ * 224 x 32 items at x = 16, pitch 32, 20px glyph. Separate from the B07 ledger
+ * on purpose: `--dash-nav-item-h` (40px) still sizes the 768-1279 rail's
+ * short-height density and must not move. The 1px end border sits inside the
+ * 256px box, so the end inset is one pixel short of the start inset. */
+.dashboard-app-shell {
+  --dash-drv-nav-drawer-inset: 16px;
+  --dash-drv-nav-item-h: 32px;
+  --dash-drv-nav-item-leading: 26px;
+  --dash-drv-nav-icon: 20px;
+  --dash-drv-nav-item-pad-start: 18px;
+  --dash-drv-nav-item-pad-end: 12px;
+}
+:root:not([data-theme="dark-gray"]) .dashboard-app-shell {
+  --dash-drv-nav-active-bg: #c2e7ff;
+  --dash-drv-nav-active-fg: #004a77;
+}
+/* dashboard-drv-v4-navigation-geometry:end */
+
 /* dashboard-b11-workspace-header-geometry:start
  *
  * B11 - WorkspaceHeader geometry ledger. The primitive has one exact 40px
