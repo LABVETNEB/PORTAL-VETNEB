@@ -17,7 +17,7 @@ function violations(source: Sources): string[] {
   if (/createPortal|role="menu"|role="menuitem"/.test(primitives)) found.push("segunda superficie de menú");
   if (/useState(<[^>]*>)?\(\s*(props\.)?filters\b/.test(primitives)) found.push("copia del estado de filtros");
   const chip = source["FilterChip.tsx"];
-  for (const token of ["h-11 md:h-8", "min-w-24", "max-w-40", "px-3", "rounded-lg", "border-input", "font-medium", "text-[0.8125rem]"]) {
+  for (const token of ["h-11 md:h-8", "min-w-24", "max-w-40", "px-3", "rounded-lg", "border-input", "font-medium", "text-sm", "leading-4"]) {
     if (!chip.includes(token)) found.push(`chip sin ${token} (§46)`);
   }
   if (/shadow-(?!none)/.test(chip)) found.push("chip con sombra");

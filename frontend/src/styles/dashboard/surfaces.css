@@ -742,6 +742,26 @@
 }
 /* dashboard-drive-workspace-surfaces:end */
 
+/* dashboard-drv-v3-filter-chips:start
+ * V3 light-theme fidelity pass for applied-filter chips: white fill, 1px
+ * #747775 outline and #444746 text. Geometry (32 / radius 8 / gap 8) and the
+ * 14/500/16 type live in FilterChip.tsx. Dark equivalents stay deferred to
+ * V11/F0-D6, so this block does not touch them. */
+:root:not([data-theme="dark-gray"]) .dashboard-app-shell [data-filter-chip="true"] {
+  background-color: var(--dash-color-surface);
+  border-color: var(--dash-color-outline);
+  color: var(--dash-color-on-surface-muted);
+}
+
+:root:not([data-theme="dark-gray"]) .dashboard-app-shell [data-filter-chip="true"] :is(.text-muted-foreground, button) {
+  color: var(--dash-color-on-surface-muted);
+}
+
+:root:not([data-theme="dark-gray"]) .dashboard-app-shell [data-filter-chip="true"] button:hover:not(:disabled) {
+  color: var(--dash-color-on-surface);
+}
+/* dashboard-drv-v3-filter-chips:end */
+
 .dashboard-app-shell .dashboard-workspace-with-panel {
   position: relative;
   display: flex;
