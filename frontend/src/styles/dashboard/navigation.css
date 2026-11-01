@@ -315,6 +315,56 @@
 }
 /* dashboard-b07-navigation-drawer-rail:end */
 
+/* dashboard-drv-v4-navigation-drawer:start */
+/*
+  V4 - Drive-aligned drawer (>=1280px only; F0 section 65.4).
+
+  Refines the B07 drawer without touching the rail (768-1279) or the mobile
+  model. The drawer is pinned to the ledger width so the 224px item is not
+  hostage to label length; items sit flush (pitch 32) at x = 16. No size
+  transition (R11/A03). The dark theme keeps its B07 colours (F0-D6): only the
+  geometry, which carries no theme, is shared.
+*/
+@media (min-width: 1280px) {
+  .dashboard-app-shell .dashboard-navigation-drawer {
+    inline-size: var(--dash-nav-drawer-w);
+    gap: 0;
+    padding-inline: var(--dash-drv-nav-drawer-inset)
+      calc(var(--dash-drv-nav-drawer-inset) - 1px);
+  }
+
+  .dashboard-app-shell .dashboard-navigation-drawer-item {
+    min-block-size: var(--dash-drv-nav-item-h);
+    max-block-size: var(--dash-drv-nav-item-h);
+    padding-inline: var(--dash-drv-nav-item-pad-start)
+      var(--dash-drv-nav-item-pad-end);
+  }
+
+  .dashboard-app-shell .dashboard-navigation-drawer-label {
+    line-height: var(--dash-drv-nav-item-leading);
+  }
+
+  .dashboard-app-shell .dashboard-navigation-drawer-icon {
+    flex: 0 0 auto;
+    inline-size: var(--dash-drv-nav-icon);
+    block-size: var(--dash-drv-nav-icon);
+  }
+}
+
+@media (min-width: 1280px) {
+  :root:not([data-theme="dark-gray"])
+    .dashboard-app-shell
+    .dashboard-navigation-drawer-item.dashboard-navigation-item-active,
+  :root:not([data-theme="dark-gray"])
+    .dashboard-app-shell
+    .dashboard-navigation-drawer-item.dashboard-navigation-item-active:hover {
+    background-color: var(--dash-drv-nav-active-bg);
+    color: var(--dash-drv-nav-active-fg);
+    font-weight: var(--dash-text-body-weight);
+  }
+}
+/* dashboard-drv-v4-navigation-drawer:end */
+
 /* dashboard-b08-navigation-migration:start */
 /*
   B08 - mounting the lateral model.

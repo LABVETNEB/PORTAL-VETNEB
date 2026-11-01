@@ -23,7 +23,7 @@ import {
  *
  * One vertical list of the modules the role actually has, with the glyph and
  * the full label visible. Its geometry contract is `--dash-nav-drawer-w`
- * (256px) with a +/-1px band and `--dash-nav-item-h` (40px) per item, authored
+ * (256px) with a +/-1px band; items are 224 x 32 since V4 (`--dash-drv-nav-item-h`), authored
  * in `styles/dashboard/tokens.css` and applied in
  * `styles/dashboard/navigation.css` - never restated as a literal here.
  *
@@ -122,7 +122,7 @@ export function NavigationDrawer({ surface, activeModule }: NavigationDrawerProp
               isActive && "dashboard-navigation-item-active",
             )}
           >
-            <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <Icon className="dashboard-navigation-drawer-icon" aria-hidden="true" />
             <span className="dashboard-navigation-drawer-label">{item.label}</span>
           </PublicRouteControl>
         );
