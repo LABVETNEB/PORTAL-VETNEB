@@ -540,11 +540,23 @@ test.describe("C24 · 13 canonical viewports", () => {
 });
 
 // V5 · every adopter, every width: the grid keeps columns and rows in step, paints no clipped
-// card and never truncates more than the frozen C24 geometry did (measured on the V5 base).
-const FROZEN_TRUNCATION = {
-  "informes-admin": { "1920x1080": 0, "1366x768": 0, "1279x720": 0, "1280x720": 0, "1024x768": 0, "834x1194": 4, "768x1024": 5 },
-  "informes-clinica": { "1920x1080": 2, "1440x900": 11, "1366x768": 9, "1279x720": 8, "1024x768": 10, "1023x768": 2, "768x1024": 2 },
+// card and never truncates more than the frozen C24 geometry does ON THE SAME RUN (font metrics
+// differ per platform, so the frozen geometry is re-measured inline, never hard-coded).
+const ADOPTER_WIDTHS = {
+  "informes-admin": ["1920x1080", "1366x768", "1279x720", "1280x720", "1024x768", "834x1194", "768x1024"],
+  "informes-clinica": ["1920x1080", "1440x900", "1366x768", "1279x720", "1024x768", "1023x768", "768x1024"],
 } as const;
+
+/** Truncated cards the frozen geometry (floor columns, 8 px gap) paints for the very same page. */
+async function frozenTruncation(canvas: Locator, floor: number) {
+  return canvas.locator('[data-content-grid="true"]').evaluate((element, columns) => {
+    const grid = element as HTMLElement;
+    grid.style.gridTemplateColumns = `repeat(${columns}, minmax(0, 1fr))`;
+    grid.style.gap = "8px";
+    const cards = [...grid.querySelectorAll<HTMLElement>('[data-content-grid-item="true"]')];
+    return cards.filter((card) => [...card.querySelectorAll<HTMLElement>("*")].some((child) => child.scrollWidth > child.clientWidth + 1 && getComputedStyle(child).overflow !== "visible")).length;
+  }, floor);
+}
 const sizeOf = (slug: string) => {
   const [width, height] = slug.split("x").map(Number);
   return { width, height };
@@ -554,7 +566,7 @@ test.describe("V5 · the three adopters never clip, truncate more, or desync col
   test("Informes admin: columns by its 390 px measured track, Drive tiles from 250 px where viable", async ({ page }) => {
     test.setTimeout(240_000);
     await addAppCookies(page, [A03_ADMIN_SESSION_COOKIE, A03_ADAPTIVE_DATASET_COOKIE]);
-    for (const [slug, frozen] of Object.entries(FROZEN_TRUNCATION["informes-admin"])) {
+    for (const slug of ADOPTER_WIDTHS["informes-admin"]) {
       await page.goto("about:blank");
       await page.setViewportSize(sizeOf(slug));
       await page.goto("/dashboard/admin?module=admin-report-upload");
@@ -569,7 +581,7 @@ test.describe("V5 · the three adopters never clip, truncate more, or desync col
       const layout = expectedLayout(grid, 3, 390, 250);
       expect(grid, slug).toMatchObject({ columns: layout.columns, rows: Math.ceil(rows / layout.columns), cards: rows, escaping: 0, innerOverflowX: 0, clipped: 0, stretched: 0, gap: layout.gap, radius: layout.radius });
       if (layout.drive) expect(grid.minCardWidth, `${slug}: no tile under the measured track`).toBeGreaterThanOrEqual(249.5);
-      expect(grid.truncated, `${slug}: truncation`).toBeLessThanOrEqual(frozen);
+      expect(grid.truncated, `${slug}: truncation`).toBeLessThanOrEqual(await frozenTruncation(canvas, 3));
       await expectNoDocumentScroll(page, slug);
     }
   });
@@ -577,7 +589,7 @@ test.describe("V5 · the three adopters never clip, truncate more, or desync col
   test("Informes clínica: columns by its 320 px measured track, Drive tiles only where viable", async ({ page }) => {
     test.setTimeout(240_000);
     await setClinicSession(page, "populated");
-    for (const [slug, frozen] of Object.entries(FROZEN_TRUNCATION["informes-clinica"])) {
+    for (const slug of ADOPTER_WIDTHS["informes-clinica"]) {
       await page.goto("about:blank");
       await page.setViewportSize(sizeOf(slug));
       const requests = trackInformesWindowRequests(page);
@@ -592,7 +604,7 @@ test.describe("V5 · the three adopters never clip, truncate more, or desync col
       const layout = expectedLayout(grid, 2, 320);
       expect(grid, slug).toMatchObject({ columns: layout.columns, rows: Math.ceil(count / layout.columns), cards: count, escaping: 0, innerOverflowX: 0, clipped: 0, stretched: 0, gap: layout.gap, radius: layout.radius });
       if (layout.drive) expect(grid.minCardWidth, `${slug}: no tile under the measured track`).toBeGreaterThanOrEqual(319.5);
-      expect(grid.truncated, `${slug}: truncation`).toBeLessThanOrEqual(frozen);
+      expect(grid.truncated, `${slug}: truncation`).toBeLessThanOrEqual(await frozenTruncation(canvas, 2));
       await expectNoDocumentScroll(page, slug);
     }
   });
