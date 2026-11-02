@@ -25,10 +25,13 @@ export {
   type ContentListItemProps,
 } from "@/components/ui/table";
 /** C24 list/grid alternation: the grid lays out the same page on the same canvas; the view lives in memory. */
-export { ContentGrid, ContentGridItem, type ContentGridProps, type ContentGridItemProps } from "./ContentGrid";
+export { ContentGrid, ContentGridItem, type ContentGridProps, type ContentGridItemProps, type ContentGridTile } from "./ContentGrid";
 export { CollectionViewToggle, useCollectionView, type CollectionViewToggleProps } from "./CollectionViewToggle";
+export { useCollectionGridColumns } from "./useCollectionGridColumns";
 export {
   COLLECTION_GRID_REGIME,
+  collectionGridColumns,
+  collectionGridFit,
   collectionGridRows,
   resolveCollectionView,
   type CollectionView,

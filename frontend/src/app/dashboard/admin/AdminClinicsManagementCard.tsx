@@ -34,6 +34,7 @@ import {
   ContentGridItem,
   ContentList,
   ContentListItem,
+  useCollectionGridColumns,
   useCollectionView,
 } from "@/features/dashboard/presentation/surfaces";
 import {
@@ -212,6 +213,7 @@ export function AdminClinicsManagementCard() {
   const [activeActionKey, setActiveActionKey] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const collectionView = useCollectionView();
+  const { attach: attachGrid, columns: gridColumns, drive: gridDrive } = useCollectionGridColumns(3);
 
   // One collapsed runtime feeds both presentations, so the visible container
   // (desktop table region or mobile list region) drives a single cardinality.
@@ -780,10 +782,11 @@ export function AdminClinicsManagementCard() {
                   announceState
                 />
               </div>
-              <ContentGrid columns={3} rows={collectionGridRows(effectiveLimit, 3)} className="flex-1 py-1">
+              <ContentGrid ref={attachGrid} columns={gridColumns} rows={collectionGridRows(effectiveLimit, gridColumns)} tile={gridDrive ? "drive" : undefined} className="flex-1 py-1">
                 {rows.map(({ clinic, user, extraUsers }) => (
                   <ContentGridItem
                     as="article"
+                    tile={gridDrive ? "drive" : undefined}
                     key={`${clinic.clinicId}-${user?.userId ?? "empty"}`}
                     aria-label={`Clínica ${clinic.clinicName}`}
                     className="gap-0.5 px-2 py-1 text-[0.8125rem]"

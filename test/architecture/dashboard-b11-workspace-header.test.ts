@@ -1512,7 +1512,8 @@ test("C24 · ContentGrid/ContentGridItem live beside the C01 list, outside ui/ta
   const barrel = read(C24_PATHS.barrel);
   assert.equal(read(C24_PATHS.table).includes("ContentGrid"), false, "C01 ui/table stays geometry-free");
   assert.ok(grid.includes('data-content-grid="true"') && grid.includes('data-content-grid-item="true"'));
-  assert.ok(grid.includes("gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`"), "rows are an input, never measured");
+  assert.ok(grid.includes("gridTemplateRows: `repeat(${rows}, auto)`"), "rows are an input, never measured, and each is as tall as its content (F0-D9(B))");
+  assert.ok(grid.includes("content-start"), "tracks never stretch over the canvas");
   assert.equal(/useState|useEffect|ResizeObserver|fetch\(|@\/lib\/api/.test(grid), false, "the grid measures and fetches nothing");
   for (const name of ["ContentGrid", "ContentGridItem", "CollectionViewToggle", "useCollectionView", "collectionGridRows"]) {
     assert.ok(new RegExp(`\\b${name}\\b`).test(barrel), `barrel exports ${name}`);
@@ -1520,9 +1521,9 @@ test("C24 · ContentGrid/ContentGridItem live beside the C01 list, outside ui/ta
 });
 
 const C24_ADOPTERS = [
-  { path: C24_PATHS.informes, columns: 2, canvasRef: "ref={setBodyNode}", canvasRefs: 2, label: 'label="informes"' },
-  { path: C24_PATHS.adminReports, columns: 3, canvasRef: "ref={setDesktopBodyNode}", canvasRefs: 1, label: 'label="informes"' },
-  { path: C24_PATHS.adminClinics, columns: 3, canvasRef: "ref={setDesktopBodyNode}", canvasRefs: 1, label: 'label="clínicas"' },
+  { path: C24_PATHS.informes, columns: "gridColumns", canvasRef: "ref={setBodyNode}", canvasRefs: 2, label: 'label="informes"' },
+  { path: C24_PATHS.adminReports, columns: "gridColumns", canvasRef: "ref={setDesktopBodyNode}", canvasRefs: 1, label: 'label="informes"' },
+  { path: C24_PATHS.adminClinics, columns: "gridColumns", canvasRef: "ref={setDesktopBodyNode}", canvasRefs: 1, label: 'label="clínicas"' },
 ] as const;
 
 test("C24 · each adopter lays one page out on its own measured canvas with an unchanged limit", () => {
@@ -1549,6 +1550,26 @@ test("C24 · each adopter lays one page out on its own measured canvas with an u
       assert.equal(/fetch\(|getAdmin|getInformesPage|<img|thumbnail/i.test(block), false, `${path}: no per-card request or preview`);
       assert.ok(block.includes("<ContentGridItem"), `${path}: grid items`);
     }
+  }
+});
+
+test("V5 · the three adopters take container columns over the same measured limit, each with its measured track and an explicit fallback", () => {
+  const grid = c24StripComments(read(C24_PATHS.grid));
+  assert.ok(grid.includes('tile === "drive"') && grid.includes("rounded-[var(--dash-grid-tile-radius)]"), "the Drive geometry is opt-in");
+  assert.ok(grid.includes("gap-2") && grid.includes("rounded-lg bg-card/92"), "the frozen C24 geometry stays the fallback");
+  const hook = c24StripComments(read(`${C24_SURFACES}/useCollectionGridColumns.ts`));
+  assert.ok(hook.includes("node.clientWidth") && hook.includes("new ResizeObserver"), "columns come from the grid's own width");
+  assert.ok(hook.includes("fitsDriveGap") && hook.includes("node.clientHeight"), "the Drive gap is used only where the rows still fit the canvas");
+  assert.equal(/innerWidth|fetch\(|@\/lib\/api|useDashboardCanvasCapacity/.test(hook), false, "no window width, request or capacity owner");
+  const tracks = [
+    { path: C24_PATHS.adminClinics, call: "useCollectionGridColumns(3)" },
+    { path: C24_PATHS.adminReports, call: "useCollectionGridColumns(3, 390, 250)" },
+    { path: C24_PATHS.informes, call: "useCollectionGridColumns(2, 320)" },
+  ] as const;
+  for (const { path, call } of tracks) {
+    const source = c24StripComments(read(path));
+    assert.ok(source.includes(call), `${path}: floor and measured track`);
+    assert.equal(c24Count(source, 'tile={gridDrive ? "drive" : undefined}'), 2, `${path}: grid and tiles take the geometry together`);
   }
 });
 

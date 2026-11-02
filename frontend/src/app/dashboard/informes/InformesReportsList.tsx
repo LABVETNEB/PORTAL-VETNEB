@@ -26,6 +26,7 @@ import {
   ContentGrid,
   ContentGridItem,
   ContentList,
+  useCollectionGridColumns,
   useCollectionView,
 } from "@/features/dashboard/presentation/surfaces";
 import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
@@ -192,6 +193,8 @@ export function InformesReportsList({
     useState<ReportDetailSection>("resumen");
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const collectionView = useCollectionView();
+  // Measured sweep (V5): below ~320 px per track the card's identity line truncates beyond the frozen geometry.
+  const { attach: attachGrid, columns: gridColumns, drive: gridDrive } = useCollectionGridColumns(2, 320);
 
   const [bodyNode, setBodyNode] = useState<HTMLElement | null>(null);
 
@@ -743,8 +746,10 @@ export function InformesReportsList({
             >
               {collectionView.view === "grid" ? (
                 <ContentGrid
-                  columns={2}
-                  rows={collectionGridRows(effectiveLimit, 2)}
+                  ref={attachGrid}
+                  columns={gridColumns}
+                  rows={collectionGridRows(effectiveLimit, gridColumns)}
+                  tile={gridDrive ? "drive" : undefined}
                   className="flex-1 p-2"
                   data-informes-grid="true"
                 >
@@ -754,6 +759,7 @@ export function InformesReportsList({
                     return (
                       <ContentGridItem
                         as="div"
+                        tile={gridDrive ? "drive" : undefined}
                         key={report.id}
                         data-state={isSelected ? "selected" : undefined}
                         className="flex-row items-start"

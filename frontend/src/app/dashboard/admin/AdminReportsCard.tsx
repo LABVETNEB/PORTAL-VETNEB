@@ -42,6 +42,7 @@ import {
   ContentList,
   ContentListItem,
   SelectionToolbar,
+  useCollectionGridColumns,
   useCollectionSelection,
   useCollectionView,
 } from "@/features/dashboard/presentation/surfaces";
@@ -225,6 +226,9 @@ export function AdminReportsCard() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const collectionView = useCollectionView();
+  // Measured sweeps (V5): the Drive tiles need >= 250 px per track; a 4th+ column needs ~390 px, or long
+  // patient/clinic names truncate where the frozen 3 columns showed them whole (1920 px, 520 px tracks).
+  const { attach: attachGrid, columns: gridColumns, drive: gridDrive } = useCollectionGridColumns(3, 390, 250);
 
   // One collapsed runtime feeds both presentations, so the visible container
   // (desktop table region or mobile list region) drives a single cardinality.
@@ -778,10 +782,11 @@ export function AdminReportsCard() {
                   />
                   <span aria-hidden="true">Página</span>
                 </div>
-                <ContentGrid columns={3} rows={collectionGridRows(effectiveLimit, 3)} className="flex-1 py-1.5">
+                <ContentGrid ref={attachGrid} columns={gridColumns} rows={collectionGridRows(effectiveLimit, gridColumns)} tile={gridDrive ? "drive" : undefined} className="flex-1 py-1.5">
                   {filteredReports.map((report) => (
                     <ContentGridItem
                       as="article"
+                      tile={gridDrive ? "drive" : undefined}
                       key={report.id}
                       aria-label={`Informe #${report.id}`}
                       data-state={selection.isSelected(report.id) ? "selected" : undefined}
