@@ -3,6 +3,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { A03_ADMIN_SESSION_COOKIE, A03_ADAPTIVE_DATASET_COOKIE } from "../helpers/dashboard-adaptive-limit-matrix";
 import { DASHBOARD_GEOMETRY_VIEWPORTS } from "../helpers/dashboard-geometry-matrix";
 import { settleInformesRows, trackInformesWindowRequests } from "../helpers/informes-adaptive-settle";
+import { applyColorMode } from "../helpers/admin-mobile-contracts";
 import { addAppCookies, setAdminSession, setClinicSession } from "../helpers/session";
 import { MAX_DOCUMENT_SCROLL_DELTA_PX } from "../helpers/zero-scroll-contract";
 
@@ -52,6 +53,28 @@ async function gridGeometry(canvas: Locator) {
     const cards = [...element.querySelectorAll<HTMLElement>('[data-content-grid-item="true"]')];
     return {
       columns: grid ? getComputedStyle(grid).gridTemplateColumns.split(" ").length : 0,
+      innerWidth: grid ? grid.clientWidth - parseFloat(getComputedStyle(grid).paddingLeft) - parseFloat(getComputedStyle(grid).paddingRight) : 0,
+      gap: grid ? parseFloat(getComputedStyle(grid).columnGap) : 0,
+      radius: cards[0] ? parseFloat(getComputedStyle(cards[0]).borderTopLeftRadius) : 0,
+      rows: grid ? getComputedStyle(grid).gridTemplateRows.split(" ").length : 0,
+      rowsSum: grid ? getComputedStyle(grid).gridTemplateRows.split(" ").reduce((sum, track) => sum + (parseFloat(track) || 0), 0) : 0,
+      padY: grid ? parseFloat(getComputedStyle(grid).paddingTop) + parseFloat(getComputedStyle(grid).paddingBottom) : 0,
+      clientH: grid ? grid.clientHeight : 0,
+      truncated: cards.filter((card) => [...card.querySelectorAll<HTMLElement>("*")].some((child) => child.scrollWidth > child.clientWidth + 1 && getComputedStyle(child).overflow !== "visible")).length,
+      minCardWidth: cards.length ? Math.min(...cards.map((card) => card.getBoundingClientRect().width)) : 0,
+      clipped: cards.filter((card) => {
+        const bottom = card.getBoundingClientRect().bottom;
+        return card.scrollHeight > card.clientHeight + 1 || [...card.querySelectorAll<HTMLElement>("*")].some((child) => child.getBoundingClientRect().height > 0 && child.getBoundingClientRect().bottom > bottom + 0.5);
+      }).length,
+      // F0-D9(B): a tile is as tall as its own content; one stretched past it by the track is a defect.
+      stretched: cards.filter((card) => {
+        const painted = card.getBoundingClientRect().height;
+        const previous = card.style.alignSelf;
+        card.style.alignSelf = "start";
+        const content = card.getBoundingClientRect().height;
+        card.style.alignSelf = previous;
+        return painted > content + 0.5;
+      }).length,
       cards: cards.length,
       escaping: cards.filter((card) => {
         const rect = card.getBoundingClientRect();
@@ -62,6 +85,24 @@ async function gridGeometry(canvas: Locator) {
     };
   });
 }
+
+// V5 · Clínicas admin lays its tiles out by the width its grid really has: the Drive fit
+// floor((w + 16) / 236), never below the C24 floor of 3 columns.
+const CLINICS_GRID_FLOOR = 3;
+const clinicsGridColumns = (innerWidth: number) => Math.max(CLINICS_GRID_FLOOR, Math.floor((innerWidth + 16) / 236));
+const gridInnerWidth = async (canvas: Locator) => (await gridGeometry(canvas)).innerWidth;
+
+// V5 · the Drive tile geometry is viable only where the container fits the floor's tracks of the
+// measured `minTrack` AND the (auto) rows still fit the canvas at a 16 px gap; elsewhere the frozen
+// geometry stays (explicit fallback). Columns are max(floor, fit) at the same measured track.
+type MeasuredGrid = Awaited<ReturnType<typeof gridGeometry>>;
+const expectedLayout = (grid: MeasuredGrid, floor: number, minTrack: number, driveTrack: number = minTrack) => {
+  const fit = Math.floor((grid.innerWidth + 16) / (minTrack + 16));
+  const driveFit = Math.floor((grid.innerWidth + 16) / (driveTrack + 16));
+  const needed = grid.rowsSum + 16 * Math.max(0, grid.rows - 1) + grid.padY;
+  const drive = driveFit >= floor && needed <= grid.clientH + 0.5;
+  return { columns: Math.max(floor, fit), drive, gap: drive ? 16 : 8, radius: drive ? 12 : 8 };
+};
 
 const ids = (locator: Locator, attribute: string, pattern: RegExp) =>
   locator.evaluateAll((elements, [name, source]) => elements.map((element) => Number(new RegExp(source).exec(element.getAttribute(name) ?? element.textContent ?? "")?.[1] ?? Number.NaN)), [attribute, pattern.source] as const);
@@ -319,7 +360,7 @@ test.describe("C24 · Clínicas admin", () => {
     await expectClinicsPage(page, requests, "grid");
     expect(requests.length, "switching the view never requests").toBe(count);
     const canvas = page.locator(CLINICS_CANVAS);
-    expect(await gridGeometry(canvas)).toMatchObject({ columns: 3, cards: first.limit, escaping: 0, innerOverflowX: 0 });
+    expect(await gridGeometry(canvas)).toMatchObject({ columns: clinicsGridColumns(await gridInnerWidth(canvas)), cards: first.limit, escaping: 0, innerOverflowX: 0, clipped: 0, stretched: 0 });
 
     const sortStrip = canvas.getByRole("group", { name: "Ordenar clínicas" });
     await sortStrip.getByRole("button", { name: /^Clínica/ }).click();
@@ -362,6 +403,58 @@ test.describe("C24 · Clínicas admin", () => {
   });
 });
 
+test.describe("V5 · Clínicas admin grid follows its container", () => {
+  const WIDTHS = [
+    { width: 1920, height: 1080 },
+    { width: 1366, height: 768 },
+    { width: 1279, height: 720 },
+    { width: 1280, height: 720 },
+    { width: 1024, height: 768 },
+    { width: 834, height: 1194 },
+    { width: 768, height: 1024 },
+  ] as const;
+
+  for (const theme of ["light", "dark"] as const) {
+    test(`columns, tile geometry and capacity at ${WIDTHS.length} widths (${theme})`, async ({ page }) => {
+      test.setTimeout(240_000);
+      await applyColorMode(page, theme);
+      for (const viewport of WIDTHS) {
+        const label = `${viewport.width}x${viewport.height}`;
+        await page.goto("about:blank");
+        await page.setViewportSize(viewport);
+        const requests = await openClinics(page);
+        const first = await expectClinicsPage(page, requests, "list");
+        const canvas = page.locator(CLINICS_CANVAS);
+        const toggle = page.locator(CLINICS).getByRole("group", { name: "Vista de clínicas" });
+        await expectHydrated(toggle);
+        const before = requests.length;
+        await toggle.getByRole("button", { name: GRID }).click();
+        await expectClinicsPage(page, requests, "grid");
+        expect(requests.length, `${label}: switching never requests`).toBe(before);
+        // The first grid commit reads its width in a layout effect: wait for the settled geometry.
+        let grid = await gridGeometry(canvas);
+        await expect.poll(async () => {
+          grid = await gridGeometry(canvas);
+          return grid.columns === clinicsGridColumns(grid.innerWidth) && grid.gap === expectedLayout(grid, CLINICS_GRID_FLOOR, 220).gap;
+        }, { message: `${label}: settled grid` }).toBe(true);
+        const { drive } = expectedLayout(grid, CLINICS_GRID_FLOOR, 220);
+        expect(grid, label).toMatchObject({
+          columns: clinicsGridColumns(grid.innerWidth),
+          cards: first.limit,
+          escaping: 0,
+          innerOverflowX: 0,
+          clipped: 0, stretched: 0,
+          gap: drive ? 16 : 8,
+          radius: drive ? 12 : 8,
+        });
+        if (drive) expect(grid.minCardWidth, `${label}: no tile under the ~220 px track`).toBeGreaterThanOrEqual(219.5);
+        expect(requests.at(-1), `${label}: the window is the list's`).toMatchObject({ limit: first.limit, offset: 0 });
+        await expectNoDocumentScroll(page, label);
+      }
+    });
+  }
+});
+
 test.describe("C24 · 13 canonical viewports", () => {
   test("the toggle exists only from 768px, the grid fits its canvas and the preference survives the phone regime", async ({ page }) => {
     test.setTimeout(240_000);
@@ -389,7 +482,8 @@ test.describe("C24 · 13 canonical viewports", () => {
         const window = requests.at(-1);
         await toggle.getByRole("button", { name: GRID }).click();
         await expect(canvas.locator('[data-content-grid-item="true"]'), `${viewport.slug}: one card per row`).toHaveCount(rows);
-        expect(await gridGeometry(canvas), `${viewport.slug}: grid inside the canvas`).toMatchObject({ columns: 3, cards: rows, escaping: 0, innerOverflowX: 0 });
+        const measured3 = await gridGeometry(canvas);
+        expect(measured3, `${viewport.slug}: grid inside the canvas`).toMatchObject({ columns: expectedLayout(measured3, 3, 390, 250).columns, cards: rows, escaping: 0, innerOverflowX: 0 });
         expect(requests.at(-1), `${viewport.slug}: window unchanged`).toEqual(window);
       }
       await expectNoDocumentScroll(page, viewport.slug);
@@ -442,5 +536,129 @@ test.describe("C24 · 13 canonical viewports", () => {
       measured.add(viewport.slug);
     }
     expect(measured.size, "distinct viewports measured").toBe(DASHBOARD_GEOMETRY_VIEWPORTS.length);
+  });
+});
+
+// V5 · every adopter, every width: the grid keeps columns and rows in step, paints no clipped
+// card and never truncates more than the frozen C24 geometry did (measured on the V5 base).
+const FROZEN_TRUNCATION = {
+  "informes-admin": { "1920x1080": 0, "1366x768": 0, "1279x720": 0, "1280x720": 0, "1024x768": 0, "834x1194": 4, "768x1024": 5 },
+  "informes-clinica": { "1920x1080": 2, "1440x900": 11, "1366x768": 9, "1279x720": 8, "1024x768": 10, "1023x768": 2, "768x1024": 2 },
+} as const;
+const sizeOf = (slug: string) => {
+  const [width, height] = slug.split("x").map(Number);
+  return { width, height };
+};
+
+test.describe("V5 · the three adopters never clip, truncate more, or desync columns and rows", () => {
+  test("Informes admin: columns by its 390 px measured track, Drive tiles from 250 px where viable", async ({ page }) => {
+    test.setTimeout(240_000);
+    await addAppCookies(page, [A03_ADMIN_SESSION_COOKIE, A03_ADAPTIVE_DATASET_COOKIE]);
+    for (const [slug, frozen] of Object.entries(FROZEN_TRUNCATION["informes-admin"])) {
+      await page.goto("about:blank");
+      await page.setViewportSize(sizeOf(slug));
+      await page.goto("/dashboard/admin?module=admin-report-upload");
+      const canvas = page.locator(REPORTS_CANVAS);
+      await expect(canvas.locator("tbody tr").first()).toBeVisible({ timeout: 25_000 });
+      const toggle = page.locator(REPORTS).getByRole("group", { name: "Vista de informes" });
+      await expectHydrated(toggle);
+      const rows = await canvas.locator("tbody tr").count();
+      await toggle.getByRole("button", { name: GRID }).click();
+      await expect(canvas.locator('[data-content-grid-item="true"]')).toHaveCount(rows);
+      const grid = await gridGeometry(canvas);
+      const layout = expectedLayout(grid, 3, 390, 250);
+      expect(grid, slug).toMatchObject({ columns: layout.columns, rows: Math.ceil(rows / layout.columns), cards: rows, escaping: 0, innerOverflowX: 0, clipped: 0, stretched: 0, gap: layout.gap, radius: layout.radius });
+      if (layout.drive) expect(grid.minCardWidth, `${slug}: no tile under the measured track`).toBeGreaterThanOrEqual(249.5);
+      expect(grid.truncated, `${slug}: truncation`).toBeLessThanOrEqual(frozen);
+      await expectNoDocumentScroll(page, slug);
+    }
+  });
+
+  test("Informes clínica: columns by its 320 px measured track, Drive tiles only where viable", async ({ page }) => {
+    test.setTimeout(240_000);
+    await setClinicSession(page, "populated");
+    for (const [slug, frozen] of Object.entries(FROZEN_TRUNCATION["informes-clinica"])) {
+      await page.goto("about:blank");
+      await page.setViewportSize(sizeOf(slug));
+      const requests = trackInformesWindowRequests(page);
+      await page.goto("/dashboard/informes");
+      const count = await settleInformesRows(page, requests, slug, 20_000);
+      const toggle = page.getByRole("group", { name: "Vista de informes" });
+      await expectHydrated(toggle);
+      await toggle.getByRole("button", { name: GRID }).click();
+      const canvas = page.locator('[data-informes-rows-canvas="true"]');
+      await expect(canvas.locator('[data-informes-grid="true"]')).toBeVisible();
+      const grid = await gridGeometry(canvas);
+      const layout = expectedLayout(grid, 2, 320);
+      expect(grid, slug).toMatchObject({ columns: layout.columns, rows: Math.ceil(count / layout.columns), cards: count, escaping: 0, innerOverflowX: 0, clipped: 0, stretched: 0, gap: layout.gap, radius: layout.radius });
+      if (layout.drive) expect(grid.minCardWidth, `${slug}: no tile under the measured track`).toBeGreaterThanOrEqual(319.5);
+      expect(grid.truncated, `${slug}: truncation`).toBeLessThanOrEqual(frozen);
+      await expectNoDocumentScroll(page, slug);
+    }
+  });
+
+  test("Clínicas admin: columns and rows stay in step through resize A-B-A and list/grid toggling, with no extra request", async ({ page }) => {
+    test.setTimeout(240_000);
+    await page.setViewportSize({ width: 1366, height: 768 });
+    const requests = await openClinics(page);
+    await expectClinicsPage(page, requests, "list");
+    const canvas = page.locator(CLINICS_CANVAS);
+    const toggle = page.locator(CLINICS).getByRole("group", { name: "Vista de clínicas" });
+    await expectHydrated(toggle);
+    await toggle.getByRole("button", { name: GRID }).click();
+    const synced = async (label: string) => {
+      let grid = await gridGeometry(canvas);
+      await expect
+        .poll(async () => {
+          grid = await gridGeometry(canvas);
+          return grid.columns === clinicsGridColumns(grid.innerWidth) && grid.rows === Math.ceil(grid.cards / grid.columns);
+        }, { message: `${label}: columns and rows in step` })
+        .toBe(true);
+      expect(grid, label).toMatchObject({ escaping: 0, clipped: 0, stretched: 0, innerOverflowX: 0 });
+      return grid;
+    };
+    const first = await synced("A 1366");
+    await page.setViewportSize({ width: 1024, height: 768 });
+    await expect.poll(async () => (await gridGeometry(canvas)).columns).toBe(3);
+    await expectClinicsPage(page, requests, "grid");
+    const second = await synced("B 1024");
+    expect(second.columns).toBe(3);
+    await page.setViewportSize({ width: 1366, height: 768 });
+    await expectClinicsPage(page, requests, "grid");
+    const again = await synced("A 1366 again");
+    expect({ columns: again.columns, cards: again.cards }, "A-B-A returns to the same layout").toEqual({ columns: first.columns, cards: first.cards });
+    for (let turn = 0; turn < 3; turn += 1) {
+      await toggle.getByRole("button", { name: LIST }).click();
+      await expect(canvas.locator("tbody tr").first()).toBeVisible();
+      const before = requests.length;
+      await toggle.getByRole("button", { name: GRID }).click();
+      await synced(`toggle ${turn}`);
+      expect(requests.length, "toggling never requests").toBe(before);
+    }
+  });
+
+  test("Clínicas admin tile: hover, keyboard focus and tone", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 768 });
+    const requests = await openClinics(page);
+    await expectClinicsPage(page, requests, "list");
+    const toggle = page.locator(CLINICS).getByRole("group", { name: "Vista de clínicas" });
+    await expectHydrated(toggle);
+    await toggle.getByRole("button", { name: GRID }).click();
+    const tile = page.locator(`${CLINICS_CANVAS} [data-content-grid-item="true"]`).first();
+    const fill = () => tile.evaluate((element) => getComputedStyle(element).backgroundColor);
+    await page.mouse.move(0, 0);
+    await expect.poll(fill).toBe("rgb(240, 244, 249)");
+    await tile.hover();
+    await expect.poll(fill, "hover repaints the tile").not.toBe("rgb(240, 244, 249)");
+    await page.mouse.move(0, 0);
+    const edit = tile.getByRole("button", { name: /^Editar clínica / });
+    await edit.focus();
+    await expect(edit).toBeFocused();
+    const ring = await edit.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return style.outlineStyle !== "none" || style.boxShadow !== "none";
+    });
+    expect(ring, "visible keyboard focus").toBe(true);
+    await expectNoSeriousAxe(page, CLINICS);
   });
 });

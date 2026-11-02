@@ -252,6 +252,21 @@
 }
 /* dashboard-drv-v2-foundation-overrides:end */
 
+/* dashboard-drv-v5-grid-tokens:start
+ * V5 · Drive tile geometry for ContentGrid (audit §65.4). Gap and radius are
+ * geometry (both themes); the #f0f4f9 fill is light-only: the dark equivalent
+ * stays the previous card fill until V11/F0-D6. No tile height is set here:
+ * F0-D9(B) makes each ContentGrid row `auto`, so a tile is as tall as its content. */
+.dashboard-app-shell {
+  --dash-grid-gap: 16px;
+  --dash-grid-tile-radius: 12px;
+  --dash-grid-tile-fill: hsl(var(--card) / 0.92);
+}
+:root:not([data-theme="dark-gray"]) .dashboard-app-shell {
+  --dash-grid-tile-fill: #f0f4f9;
+}
+/* dashboard-drv-v5-grid-tokens:end */
+
 /* dashboard-row-pitch-contract:start
  *
  * Row pitch contract (Option D — pitch-locked canvas).

@@ -3,6 +3,10 @@ import test from "node:test";
 import {
   COLLECTION_GRID_REGIME,
   COLLECTION_VIEWS,
+  COLLECTION_GRID_GAP_PX,
+  COLLECTION_GRID_MIN_TRACK_PX,
+  collectionGridColumns,
+  collectionGridFit,
   collectionGridRows,
   resolveCollectionView,
 } from "../../../../frontend/src/features/dashboard/presentation/surfaces/collection-view.ts";
@@ -40,4 +44,26 @@ test("C24 · degenerate inputs never yield a zero-row grid or a silent column co
   assert.equal(collectionGridRows(-4, 3), 1);
   assert.throws(() => collectionGridRows(9, 0), RangeError);
   assert.throws(() => collectionGridRows(9, 1.5), RangeError);
+});
+
+test("V5 · the Drive fit is floor((width + 16) / 236) and never drops below the adopter's floor", () => {
+  assert.equal(COLLECTION_GRID_GAP_PX, 16);
+  assert.equal(COLLECTION_GRID_MIN_TRACK_PX, 220);
+  for (const [width, fit] of [[0, 0], [219, 0], [220, 1], [455, 1], [456, 2], [691, 2], [692, 3], [1034, 4], [1577, 6]] as const) {
+    assert.equal(collectionGridFit(width), fit, `fit(${width})`);
+    assert.equal(collectionGridColumns(width, 3), Math.max(3, fit), `columns(${width}, floor 3)`);
+  }
+  assert.equal(collectionGridColumns(-50, 2), 2);
+  assert.throws(() => collectionGridColumns(900, 0), RangeError);
+  assert.throws(() => collectionGridColumns(900, 2.5), RangeError);
+});
+
+test("V5 · a measured track widens the minimum and only ever adds columns over the floor", () => {
+  assert.equal(collectionGridFit(1034, 250), 3);
+  assert.equal(collectionGridFit(1107, 250), 4);
+  assert.equal(collectionGridFit(1577, 250), 5);
+  assert.equal(collectionGridFit(703, 320), 2);
+  assert.equal(collectionGridFit(450, 320), 1);
+  assert.equal(collectionGridColumns(450, 2, 320), 2);
+  assert.equal(collectionGridColumns(695, 3, 250), 3);
 });
