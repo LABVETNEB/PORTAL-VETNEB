@@ -34,7 +34,9 @@ export type ServedResponse = {
 };
 
 // The two entry-point documents can only show their policy under `next start`:
-// `next dev` stamps `no-cache, must-revalidate` over every application page.
+// `next dev` stamps its own development policy over every application page
+// (`no-cache, must-revalidate` on older versions, `no-store` on Next 16.4), so
+// whether a document is storable is only asserted under `next start`.
 export type ServedBy = "next-start" | "next-dev";
 
 export const PUBLIC_DOCUMENT_PATHS = [
@@ -202,7 +204,10 @@ export function cachePolicyViolations(
 
       // Stored and validated, never refetched whole: `no-store` would also
       // take the document out of the back/forward cache.
-      if (!isStorableBy("shared", response) || !isStorableBy("private", response)) {
+      if (
+        servedBy === "next-start" &&
+        (!isStorableBy("shared", response) || !isStorableBy("private", response))
+      ) {
         violations.push("cannot be stored, so it cannot be validated either");
       }
 
