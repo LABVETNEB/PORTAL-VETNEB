@@ -28,7 +28,7 @@ import { cn } from "@/lib/utils";
  *
  * The single persistent band at the top of every authenticated workspace:
  * identity, global module search, actions, notifications and account. Its
- * geometry contract is `--dash-app-bar-h` (56px) with a +/-2px band, authored in
+ * geometry contract is `--dash-app-bar-h` (64px since V6) with a +/-2px band, authored in
  * `styles/dashboard/tokens.css` and applied in `styles/dashboard/layout.css` -
  * never restated as a literal here.
  *
@@ -42,7 +42,7 @@ import { cn } from "@/lib/utils";
  * The bar renders those slots; it never learns what they do.
  *
  * Geometry note (A03): the band participates in the shell height ledger, so its
- * box is BOUNDED, not pinned. `layout.css` declares the 54-58px band as
+ * box is BOUNDED, not pinned. `layout.css` declares the 62-66px band as
  * `min-block-size`/`max-block-size`; the row keeps its measured intrinsic height
  * inside that band, so the rows canvas below it - and therefore every adaptive
  * `limit` frozen by A03 - is left exactly where it was. Pinning a point value
@@ -202,7 +202,7 @@ function WorkspaceModuleSearch() {
       onBlur={onWrapperBlur}
     >
       <Search
-        className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+        className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
         aria-hidden="true"
       />
       <input
@@ -220,7 +220,7 @@ function WorkspaceModuleSearch() {
         aria-label="Buscar modulo del dashboard"
         placeholder="Buscar modulo"
         data-workspace-app-bar-search-input="true"
-        className="h-10 w-full min-w-0 rounded-full border border-transparent bg-muted pl-10 pr-4 text-sm text-foreground transition-[background-color,border-color] duration-100 placeholder:text-muted-foreground hover:bg-accent/60 focus-visible:border-input focus-visible:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85"
+        className="h-[var(--dash-drv-search-h)] w-full min-w-0 rounded-[var(--dash-drv-search-radius)] border border-transparent bg-[var(--dash-drv-search-fill)] pl-12 pr-4 text-[length:var(--dash-drv-search-font)] text-foreground transition-[background-color,border-color] duration-100 motion-reduce:transition-none placeholder:text-muted-foreground hover:bg-accent/60 focus-visible:border-input focus-visible:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85"
         value={query}
         onChange={(event) => {
           setQuery(event.target.value);
@@ -279,7 +279,7 @@ export function WorkspaceAppBar({
 }: WorkspaceAppBarProps) {
   return (
     <div
-      className="flex min-h-[2.75rem] min-w-0 items-center justify-between gap-2 px-3 py-1.5 sm:min-h-[2.5rem] sm:gap-3 sm:px-6"
+      className="flex min-h-[2.75rem] min-w-0 items-center justify-between gap-2 px-3 py-1.5 sm:min-h-[2.5rem] sm:gap-3 sm:px-6 md:py-2"
       data-workspace-app-bar="true"
     >
       {identity}

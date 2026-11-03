@@ -863,7 +863,7 @@ test("B07 · the B06 app bar keeps its own geometry ledger", () => {
 
   assert.ok(existsSync(resolve(REPO_ROOT, APP_BAR_TSX)));
   assert.ok(
-    tokens.includes("--dash-app-bar-h: 56px;"),
+    tokens.includes("--dash-app-bar-h: 64px;"),
     "B07 must not disturb the B06 band declaration",
   );
   assert.equal(

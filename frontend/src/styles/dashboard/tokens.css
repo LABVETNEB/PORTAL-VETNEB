@@ -465,10 +465,32 @@
  * blocked by the same A03 freeze and belongs to the mobile chrome unification
  * (B09). See docs/implementation/dashboard-b06-workspace-app-bar.md. */
 .dashboard-app-shell {
-  --dash-app-bar-h: 56px;
+  --dash-app-bar-h: 64px;
   --dash-app-bar-band: 2px;
 }
 /* dashboard-app-bar-geometry:end */
+
+/* dashboard-drv-v6-header-search:start
+ *
+ * V6 (F0 §65.4, F0-D3 approved 2026-11-03): the >=768 app bar is 64px, painted
+ * transparent with no rule or shadow (Drive OBSERVADO). The module-search pill is
+ * 48px / radius 24 / 16px input. `--dash-app-bar-offset` is the G9 compensation:
+ * the bar grew by 8.672px (64 - the 55.328px header it replaces), so the `<main>` block-start inset gives the same 8.672px back
+ * (layout.css), which leaves the first content row where it was and keeps
+ * `effectiveLimit`/offset and the chrome budget (<= 240px, <= 32%) untouched. The
+ * #e9eef6 fill is light-only: the dark equivalent stays the previous muted fill
+ * until V11/F0-D6. */
+.dashboard-app-shell {
+  --dash-app-bar-offset: 8.672px;
+  --dash-drv-search-h: 48px;
+  --dash-drv-search-radius: 24px;
+  --dash-drv-search-font: 16px;
+  --dash-drv-search-fill: hsl(var(--muted));
+}
+:root:not([data-theme="dark-gray"]) .dashboard-app-shell {
+  --dash-drv-search-fill: #e9eef6;
+}
+/* dashboard-drv-v6-header-search:end */
 
 /* dashboard-b07-navigation-geometry:start
  *
