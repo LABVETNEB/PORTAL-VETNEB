@@ -413,7 +413,16 @@ test("lector canónico no degrada fallos: sin disco para untracked, sin vacío n
 
 test("inventario tracked lee el índice git en proceso igual que git ls-files (v2, v3, v4) y delega en git ante formatos no soportados", () => {
   assert.deepEqual(
-    parseGitIndexPaths(readFileSync(resolve(process.cwd(), ".git", "index"))),
+    parseGitIndexPaths(
+      readFileSync(
+        resolve(
+          process.cwd(),
+          execFileSync("git", ["rev-parse", "--git-path", "index"], {
+            encoding: "utf8",
+          }).trim(),
+        ),
+      ),
+    ),
     gitLsFiles(),
     "el índice del repositorio se lee igual que git ls-files",
   );
