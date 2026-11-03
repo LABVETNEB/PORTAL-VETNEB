@@ -358,7 +358,7 @@ test("dashboard topbar keeps sticky hierarchy and compact responsive shell", () 
       // silent restyle still fails; `shadow-sm` is gone from it because the
       // band is now flat by contract, stated as `--dash-elevation-none` on
       // `[data-dashboard-topbar-polish]` in styles/dashboard/surfaces.css.
-      /className="sticky top-0 z-40 flex shrink-0 flex-col border-b border-vetneb-line\/80 bg-card"/,
+      /className="sticky top-0 z-40 flex shrink-0 flex-col border-b border-vetneb-line\/80 bg-card md:border-b-0 md:bg-transparent"/,
       /className="truncate text-lg font-semibold leading-tight text-vetneb-ink sm:text-xl"/,
       /className="truncate text-xs text-muted-foreground sm:text-\[0\.8125rem\]"/,
     ],
@@ -381,7 +381,7 @@ test("workspace app bar keeps the pinned band and action-cluster class contracts
   assertMatchesAll(
     source,
     [
-      /className="flex min-h-\[2\.75rem\] min-w-0 items-center justify-between gap-2 px-3 py-1\.5 sm:min-h-\[2\.5rem\] sm:gap-3 sm:px-6"/,
+      /className="flex min-h-\[2\.75rem\] min-w-0 items-center justify-between gap-2 px-3 py-1\.5 sm:min-h-\[2\.5rem\] sm:gap-3 sm:px-6 md:py-2"/,
       /className="ml-2 flex shrink-0 items-center gap-1.5 sm:ml-3 sm:gap-3"/,
     ],
     "workspace app bar class contracts",

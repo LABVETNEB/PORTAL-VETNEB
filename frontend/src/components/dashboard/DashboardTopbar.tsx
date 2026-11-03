@@ -81,7 +81,7 @@ export function DashboardTopbar({
 
   return (
     <header
-      className="sticky top-0 z-40 flex shrink-0 flex-col border-b border-vetneb-line/80 bg-card"
+      className="sticky top-0 z-40 flex shrink-0 flex-col border-b border-vetneb-line/80 bg-card md:border-b-0 md:bg-transparent"
       data-dashboard-topbar-polish="true"
       // CMP-01: the mobile app-bar contract is surface-neutral now
       // (`mobile-chrome.css`). The admin-named attribute stays, additively, because

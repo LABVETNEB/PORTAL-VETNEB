@@ -239,7 +239,7 @@ const CHROME_COMPONENTS = [
   {
     path: TOPBAR_TSX,
     chromeClassName:
-      '"sticky top-0 z-40 flex shrink-0 flex-col border-b border-vetneb-line/80 bg-card"',
+      '"sticky top-0 z-40 flex shrink-0 flex-col border-b border-vetneb-line/80 bg-card md:border-b-0 md:bg-transparent"',
     why: "topbar band (drive-shell foundation: solid, no backdrop blur)",
   },
   {

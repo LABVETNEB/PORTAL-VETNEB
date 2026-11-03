@@ -286,11 +286,11 @@ test("B06 · DashboardTopbar stays the orchestrator and feeds every slot", () =>
 
 // ── T4 · Geometry ledger ─────────────────────────────────────────────────────
 
-test("B06 · the 56px target is declared once, in tokens.css, as a band", () => {
+test("B06 · the 64px target (V6) is declared once, in tokens.css, as a band", () => {
   const tokens = read(TOKENS_CSS);
   const block = sliceBlock(tokens, TOKEN_BLOCK_START, TOKEN_BLOCK_END);
 
-  assert.ok(block.includes("--dash-app-bar-h: 56px;"), "the audit target must be declared");
+  assert.ok(block.includes("--dash-app-bar-h: 64px;"), "the audit target must be declared");
   assert.ok(block.includes("--dash-app-bar-band: 2px;"), "the ±2px tolerance must be declared");
 
   const declarations = [...tokens.matchAll(/--dash-app-bar-h:\s*[^;]+;/g)];
@@ -361,12 +361,12 @@ test("B06 · the band is applied as min/max block-size, never as a pinned height
   );
 });
 
-test("B06 · the app-bar band keeps exactly one 1px bottom rule", () => {
+test("B06 · the app-bar band paints no bottom rule from 768px (V6) and keeps the mobile rule", () => {
   const topbar = read(TOPBAR_TSX);
 
   assert.ok(
-    topbar.includes("border-b border-vetneb-line/80"),
-    "the chrome band keeps its single 1px bottom rule on the <header>",
+    topbar.includes("border-b border-vetneb-line/80 bg-card md:border-b-0 md:bg-transparent"),
+    "the <header> keeps the mobile 1px rule and drops rule and fill from md up (V6)",
   );
   const block = sliceBlock(read(LAYOUT_CSS), B06_CSS_START, B06_CSS_END);
   assert.equal(
@@ -466,7 +466,7 @@ test("B06 · the runtime contract walks the canonical 21 x 13 matrix", () => {
   assert.ok(spec.includes("DASHBOARD_GEOMETRY_VIEWPORT_COUNT"));
   assert.ok(spec.includes("DASHBOARD_GEOMETRY_COMBINATION_COUNT"));
 
-  assert.ok(spec.includes("const WORKSPACE_APP_BAR_TARGET_PX = 56;"));
+  assert.ok(spec.includes("const WORKSPACE_APP_BAR_TARGET_PX = 64;"));
   assert.ok(spec.includes("const WORKSPACE_APP_BAR_TOLERANCE_PX = 2;"));
 
   // Fail-closed reporting: no combination may be skipped or soft-failed.
@@ -488,8 +488,10 @@ test("B06 · drive-shell foundation keeps the chrome solid and the canvas flat",
 
   const appBar = stripComments(read(APP_BAR_TSX));
   assert.ok(
-    appBar.includes("h-10 w-full min-w-0 rounded-full border border-transparent bg-muted"),
-    "the module search is a flat 40px pill (SuperSearchField target: 40px, radius 20px)",
+    appBar.includes(
+      "h-[var(--dash-drv-search-h)] w-full min-w-0 rounded-[var(--dash-drv-search-radius)] border border-transparent bg-[var(--dash-drv-search-fill)]",
+    ),
+    "the module search is a flat pill sized by the V6 tokens (48px, radius 24px, 16px input)",
   );
   assert.ok(appBar.includes('placeholder="Buscar modulo"'), "the search keeps its module-search purpose");
 

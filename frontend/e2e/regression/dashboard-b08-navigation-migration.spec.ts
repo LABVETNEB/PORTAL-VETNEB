@@ -64,7 +64,7 @@ import { MAX_DOCUMENT_SCROLL_DELTA_PX } from "../helpers/zero-scroll-contract";
 // lateral band must cost INLINE size and not vertical budget, so on every
 // combination this spec measures, the document must still not scroll, `main`
 // must still not be an operational scroll container, and the app bar must still
-// be one full-width 56 ±2 px row that does not overlap `main`. Those four are
+// be one full-width 64 ±2 px row (V6) that does not overlap `main`. Those four are
 // exactly the invariants a lateral band can break.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -92,7 +92,7 @@ const BAND_TOLERANCE_PX = 1;
 /** Items are pinned by min/max block-size, so they carry no band of their own. */
 const ITEM_TOLERANCE_PX = 0.5;
 
-const APP_BAR_TARGET_PX = 56;
+const APP_BAR_TARGET_PX = 64;
 const APP_BAR_TOLERANCE_PX = 2;
 
 const RAIL_MIN_WIDTH_PX = 768;

@@ -238,3 +238,40 @@
   }
 }
 /* dashboard-b06-workspace-app-bar:end */
+
+/* dashboard-drv-v6-app-bar-compensation:start */
+/*
+  V6 · F0-D3 compensation. The 64px bar is 8px taller than the 56px band, so the
+  `<main>` block-start inset gives `--dash-app-bar-offset` back. Unlayered, like
+  the B06 block, so it wins over the layered `--dash-frame-inset-block-start`
+  application in responsive.css. Below 768 the mobile app bar owns its height and
+  `<main>` keeps its inset.
+*/
+@media (min-width: 768px) {
+  .dashboard-app-shell .dashboard-main {
+    padding-block-start: max(
+      0px,
+      calc(var(--dash-frame-inset-block-start) - var(--dash-app-bar-offset))
+    );
+  }
+}
+/* dashboard-drv-v6-app-bar-compensation:end */
+
+/* dashboard-drv-v6-shell-frame:start */
+/*
+  V6 · the transparent 64px bar no longer hides the shell frame that is painted
+  from the top of the shell (inset 0.5rem, z-index 35/36 under the bar's z-40).
+  From 768px the frame hairline and its top rail start where the bar ends, so the
+  workspace reads as one rounded card under the header (Drive) and the bar stays
+  outside it. Geometry only: border, radius and the visibility contract are kept.
+*/
+@media (min-width: 768px) {
+  .dashboard-app-shell::before {
+    inset-block-start: var(--dash-app-bar-h);
+  }
+
+  .dashboard-app-shell::after {
+    top: var(--dash-app-bar-h);
+  }
+}
+/* dashboard-drv-v6-shell-frame:end */

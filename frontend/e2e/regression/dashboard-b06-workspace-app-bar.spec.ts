@@ -72,7 +72,7 @@ const APP_BAR_SELECTOR = '[data-workspace-app-bar="true"]';
 const APP_BAR_BAND_SELECTOR = '[data-dashboard-topbar-polish="true"]';
 
 /** Audit target and tolerance. Mirrors `--dash-app-bar-h` / `--dash-app-bar-band`. */
-const WORKSPACE_APP_BAR_TARGET_PX = 56;
+const WORKSPACE_APP_BAR_TARGET_PX = 64;
 const WORKSPACE_APP_BAR_TOLERANCE_PX = 2;
 
 /** Breakpoint at which this bar becomes the workspace chrome (`md`). */
@@ -107,6 +107,7 @@ type AppBarReading = {
   readonly borderRadius: string;
   readonly boxShadow: string;
   readonly bandBorderBottomWidth: string;
+  readonly bandBackgroundColor: string;
   readonly overflowingChildren: readonly string[];
   readonly mainTop: number | null;
   readonly searchPresent: boolean;
@@ -148,6 +149,7 @@ async function readAppBar(
           borderRadius: "",
           boxShadow: "",
           bandBorderBottomWidth: "",
+          bandBackgroundColor: "",
           overflowingChildren: [] as string[],
           mainTop: main ? main.getBoundingClientRect().top : null,
           searchPresent: false,
@@ -192,6 +194,9 @@ async function readAppBar(
         boxShadow: style.boxShadow,
         bandBorderBottomWidth: bandNode
           ? window.getComputedStyle(bandNode).borderBottomWidth
+          : "absent",
+        bandBackgroundColor: bandNode
+          ? window.getComputedStyle(bandNode).backgroundColor
           : "absent",
         overflowingChildren,
         mainTop: main ? main.getBoundingClientRect().top : null,
@@ -254,9 +259,18 @@ function collectViolations(
     );
   }
 
-  if (reading.bandBorderBottomWidth !== "1px") {
+  // V6 (F0 §65.4): from md up the band is transparent with no rule; the mobile
+  // app bar keeps its solid fill and single 1px rule.
+  const workspaceRegime = viewportWidth >= WORKSPACE_REGIME_MIN_WIDTH_PX;
+  const expectedBorder = workspaceRegime ? "0px" : "1px";
+  if (reading.bandBorderBottomWidth !== expectedBorder) {
     violations.push(
-      `${label}: the app-bar band must carry exactly a 1px bottom rule, got ${reading.bandBorderBottomWidth}`,
+      `${label}: the app-bar band must carry a ${expectedBorder} bottom rule, got ${reading.bandBorderBottomWidth}`,
+    );
+  }
+  if (workspaceRegime && reading.bandBackgroundColor !== "rgba(0, 0, 0, 0)") {
+    violations.push(
+      `${label}: the workspace app-bar band must be transparent, got ${reading.bandBackgroundColor}`,
     );
   }
 
