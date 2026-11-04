@@ -411,6 +411,7 @@ export function AdminSessionsReadOnlyCard({
           {sessions.length ? (
             <div className="dashboard-table-responsive dashboard-fitted-table px-3 sm:px-4">
               <Table
+                containerColumns
                 className="table-fixed text-[13px] [&_td]:h-9 [&_td]:px-2 [&_td]:py-1 [&_th]:h-8 [&_th]:px-2 [&_th]:text-xs [&_th]:font-semibold"
                 aria-label="Tabla de sesiones administrativas"
               >
@@ -419,11 +420,11 @@ export function AdminSessionsReadOnlyCard({
                     <TableHead className="w-[14%]">Sesión</TableHead>
                     <TableHead className="w-[14%]">Actor</TableHead>
                     <TableHead className="w-[10%]">Estado</TableHead>
-                    <TableHead className="hidden w-[9.5rem] lg:table-cell">
+                    <TableHead data-column-tier="secondary" className="w-[9.5rem]">
                       Creada
                     </TableHead>
                     <TableHead className="w-[9.5rem]">Último acceso</TableHead>
-                    <TableHead className="hidden w-[9.5rem] xl:table-cell">
+                    <TableHead data-column-tier="tertiary" className="w-[9.5rem]">
                       Expira
                     </TableHead>
                     <TableHead className="w-[8.5rem] text-right">Acción</TableHead>
@@ -473,13 +474,13 @@ export function AdminSessionsReadOnlyCard({
                         <TableCell>
                           <SessionStatusBadge status={session.status} />
                         </TableCell>
-                        <TableCell className="hidden truncate text-xs text-muted-foreground lg:table-cell">
+                        <TableCell data-column-tier="secondary" className="truncate text-xs text-muted-foreground">
                           {formatOptionalDate(session.createdAt)}
                         </TableCell>
                         <TableCell className="truncate text-xs text-muted-foreground">
                           {formatOptionalDate(session.lastAccess)}
                         </TableCell>
-                        <TableCell className="hidden truncate text-xs text-muted-foreground xl:table-cell">
+                        <TableCell data-column-tier="tertiary" className="truncate text-xs text-muted-foreground">
                           {formatOptionalDate(session.expiresAt)}
                         </TableCell>
                         <TableCell className="text-right">

@@ -130,3 +130,43 @@
   margin-block-start: -1px;
 }
 /* dashboard-drv-v2-neutral-tables:end */
+
+/* dashboard-drv-v8-container-columns:start
+ * DRV-01: secondary columns follow the width of the table frame (the Table
+ * wrapper), never the viewport. The rail->drawer switch at 1280 px removes
+ * 176 px from the frame; a viewport breakpoint kept revealing columns while
+ * the frame shrank. Inline-size containment leaves block size, sticky header,
+ * scroll ownership and the adaptive row canvas untouched. Tiers are revealed
+ * monotonically: a wider frame never shows fewer columns. */
+.dashboard-table-columns-container {
+  container-name: dashboard-table;
+  container-type: inline-size;
+}
+
+/* Thresholds come from the V8 probe sweep (fixture + long-text datasets): a
+ * column is revealed once the frame holds it without truncating the fixture
+ * rows. "-wide" tiers name columns whose content needs a wider frame. */
+@container dashboard-table (width < 52rem) {
+  [data-column-tier="secondary"] {
+    display: none;
+  }
+}
+
+@container dashboard-table (width < 56rem) {
+  [data-column-tier="secondary-wide"] {
+    display: none;
+  }
+}
+
+@container dashboard-table (width < 72rem) {
+  [data-column-tier="tertiary"] {
+    display: none;
+  }
+}
+
+@container dashboard-table (width < 80rem) {
+  [data-column-tier="tertiary-wide"] {
+    display: none;
+  }
+}
+/* dashboard-drv-v8-container-columns:end */

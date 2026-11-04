@@ -401,7 +401,7 @@ test("C01 · Auditoría adopts the table and list forms without moving capacity,
     assert.ok(card.includes(capacity), capacity);
   }
 
-  assert.ok(table.includes("<Table className=\"table-fixed"), "the Table frame stays the scroll owner");
+  assert.ok(table.includes("<Table containerColumns className=\"table-fixed"), "the Table frame stays the scroll owner");
   assert.ok(table.includes("<CollectionHeader>"));
   assert.ok(table.includes('<ContentList as="tbody">'));
   // C06 adds the selection state marker to the same item; the C01 form is unchanged.

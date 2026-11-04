@@ -311,13 +311,15 @@ for (const viewport of [
     const currentTrigger = sessionTrigger(current);
     await expect(currentTrigger).toContainText(`#${current.sessionId}`);
     // The id truncates up to 1024 px (0 px wide after a "Particular" badge at
-    // 768) and Expira/Creada hide below 1280/1024; at 1366 nothing is hidden.
+    // 768). DRV V8: Creada/Expira follow the width of the table frame (hidden
+    // below 52 / 72 rem), not the viewport; at 1366 the frame is 1034 px.
     if (viewport.width <= 1024) {
       const ids = await rows.locator("td:first-child button > span:last-child").evaluateAll((nodes) => nodes.map((node) => node.scrollWidth > node.clientWidth));
       expect(ids.every(Boolean), `${viewport.name}: the row truncates every id`).toBe(true);
     }
     const hiddenColumns = await table.locator("thead th").evaluateAll((cells) => cells.filter((cell) => getComputedStyle(cell).display === "none").length);
-    expect(hiddenColumns, `${viewport.name}: Creada/Expira hidden below lg/xl`).toBe(viewport.width < 1024 ? 2 : viewport.width < 1280 ? 1 : 0);
+    const frameWidth = await table.evaluate((node) => node.parentElement!.getBoundingClientRect().width);
+    expect(hiddenColumns, `${viewport.name}: Creada/Expira hidden below 52/72 rem of table frame`).toBe(frameWidth < 832 ? 2 : frameWidth < 1152 ? 1 : 0);
     expect(await rows.locator("[title]").count(), `${viewport.name}: no hover-only title`).toBe(0);
     await discloseSession(page, currentTrigger, current, "Enter", `${viewport.name} current`);
     await expect(card.getByRole("dialog")).toHaveCount(0);

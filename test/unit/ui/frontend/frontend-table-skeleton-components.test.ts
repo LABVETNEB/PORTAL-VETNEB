@@ -47,7 +47,9 @@ test("table primitive keeps scroll wrapper table ref props and base classes", ()
   assert.ok(source.includes("const Table = React.forwardRef<"));
   assert.ok(source.includes("HTMLTableElement"));
   assert.ok(source.includes("React.HTMLAttributes<HTMLTableElement>"));
-  assert.ok(source.includes('<div className="relative w-full overflow-auto rounded-lg border border-vetneb-line/75 bg-card/92 shadow-[0_10px_30px_rgba(15,45,62,0.06)]">'));
+  assert.ok(source.includes('"relative w-full overflow-auto rounded-lg border border-vetneb-line/75 bg-card/92 shadow-[0_10px_30px_rgba(15,45,62,0.06)]"'));
+  // DRV V8: the frame becomes a size container only when a table opts in.
+  assert.ok(source.includes('containerColumns && "dashboard-table-columns-container"'));
   assert.ok(source.includes("<table"));
   assert.ok(source.includes("ref={ref}"));
   assert.ok(source.includes('className={cn("w-full caption-bottom text-sm", className)}'));

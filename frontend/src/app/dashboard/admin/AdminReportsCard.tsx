@@ -828,7 +828,7 @@ export function AdminReportsCard() {
                 </ContentGrid>
               </div>
             ) : filteredReports.length ? (
-              <Table className="table-fixed text-xs [&_th]:h-7 [&_th]:px-2 [&_td]:px-2">
+              <Table containerColumns className="table-fixed text-xs [&_th]:h-7 [&_th]:px-2 [&_td]:px-2">
                 <CollectionHeader>
                   <ContentListItem as="tr">
                     <TableHead className="w-7 px-1">
@@ -845,8 +845,8 @@ export function AdminReportsCard() {
                     <TableHead className="w-[18%]">Clínica</TableHead>
                     <TableHead className="w-[14%]">Estudio</TableHead>
                     <TableHead className="w-[15%]">Estado</TableHead>
-                    <TableHead className="hidden w-[12%] lg:table-cell">Fecha</TableHead>
-                    <TableHead className="hidden w-[13%] xl:table-cell">Archivo</TableHead>
+                    <TableHead data-column-tier="secondary" className="w-[12%]">Fecha</TableHead>
+                    <TableHead data-column-tier="tertiary-wide" className="w-[13%]">Archivo</TableHead>
                     <TableHead className="w-[8%] text-right">Acción</TableHead>
                   </ContentListItem>
                 </CollectionHeader>
@@ -883,10 +883,10 @@ export function AdminReportsCard() {
                           </span>
                         ) : null}
                       </TableCell>
-                      <TableCell className="hidden py-0.5 text-xs lg:table-cell">
+                      <TableCell data-column-tier="secondary" className="py-0.5 text-xs">
                         {formatDate(report.uploadDate ?? report.createdAt)}
                       </TableCell>
-                      <TableCell className="hidden py-0.5 xl:table-cell">
+                      <TableCell data-column-tier="tertiary-wide" className="py-0.5">
                         <span className="block truncate text-xs text-muted-foreground">
                           {report.fileName || "Sin archivo"}
                         </span>
