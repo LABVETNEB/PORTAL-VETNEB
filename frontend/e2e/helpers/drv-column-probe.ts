@@ -207,4 +207,3 @@ export async function openSurface(
   await waitForLayoutSettled(page);
   return { limits };
 }
-
