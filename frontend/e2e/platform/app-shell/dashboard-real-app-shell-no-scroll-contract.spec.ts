@@ -327,7 +327,12 @@ async function expectPopulatedAdminModule(
     await expect(table.getByText("Clínica E2E 01", { exact: true })).toBeVisible();
     await expect(table.getByText("Informe #7301", { exact: true })).toBeVisible();
     await expect(table.getByText("Muestra recibida", { exact: true }).first()).toBeVisible();
-    await expect(table.getByText("informe-e2e-7301.pdf", { exact: true })).toBeVisible();
+    // DRV V8: Archivo is revealed by the width of the table frame (80 rem), not by the viewport.
+    const reportFile = table.getByText("informe-e2e-7301.pdf", { exact: true });
+    const frameWidth = await table.evaluate((node) => node.parentElement!.getBoundingClientRect().width);
+    await expect(reportFile).toBeAttached();
+    if (frameWidth >= 1280) await expect(reportFile).toBeVisible();
+    else await expect(reportFile).toBeHidden();
     await expect(
       workspace.getByText("No hay informes en esta página."),
     ).toHaveCount(0);

@@ -1451,15 +1451,15 @@ export function AdminParticularTokensCard() {
               data-dashboard-canvas-reserve="table-head-dense"
             className="dashboard-table-responsive hidden min-h-0 flex-1 md:block"
           >
-            <Table className="table-fixed text-xs [&_th]:h-7 [&_th]:px-2 [&_td]:px-2">
+            <Table containerColumns className="table-fixed text-xs [&_th]:h-7 [&_th]:px-2 [&_td]:px-2">
               <CollectionHeader>
                 <ContentListItem as="tr">
                   <TableHead className="w-[20%]">Token / paciente</TableHead>
                   <TableHead className="w-[18%]">Clínica</TableHead>
                   <TableHead className="w-[11%]">Estado</TableHead>
                   <TableHead className="w-[12%]">Informe</TableHead>
-                  <TableHead className="hidden w-[15%] lg:table-cell">Último acceso</TableHead>
-                  <TableHead className="hidden w-[14%] xl:table-cell">Creado</TableHead>
+                  <TableHead data-column-tier="secondary" className="w-[15%]">Último acceso</TableHead>
+                  <TableHead data-column-tier="tertiary" className="w-[14%]">Creado</TableHead>
                   <TableHead className="w-[10%] text-right">Acción</TableHead>
                 </ContentListItem>
               </CollectionHeader>
@@ -1490,10 +1490,10 @@ export function AdminParticularTokensCard() {
                     <TableCell className="py-0.5 text-xs">
                       {token.reportId ? `#${token.reportId}` : "Sin vínculo"}
                     </TableCell>
-                    <TableCell className="hidden py-0.5 text-xs lg:table-cell">
+                    <TableCell data-column-tier="secondary" className="py-0.5 text-xs">
                       {token.lastLoginAt ? formatDate(token.lastLoginAt) : "—"}
                     </TableCell>
-                    <TableCell className="hidden py-0.5 text-xs xl:table-cell">
+                    <TableCell data-column-tier="tertiary" className="py-0.5 text-xs">
                       {formatDate(token.createdAt)}
                     </TableCell>
                     <TableCell className="py-0.5 text-right">

@@ -62,7 +62,7 @@ export function AdminAuditDenseTable({
         ) : !rows.length ? (
           <CollectionState variant="empty" title={emptyMessage} size="sm" className="!min-h-24" />
         ) : (
-          <Table className="table-fixed text-[13px] [&_td]:h-9 [&_td]:px-2 [&_td]:py-1 [&_th]:h-8 [&_th]:px-2 [&_th]:text-xs [&_th]:font-semibold">
+          <Table containerColumns className="table-fixed text-[13px] [&_td]:h-9 [&_td]:px-2 [&_td]:py-1 [&_th]:h-8 [&_th]:px-2 [&_th]:text-xs [&_th]:font-semibold">
             <CollectionHeader>
               <ContentListItem as="tr">
                 <TableHead className="w-9">
@@ -82,8 +82,8 @@ export function AdminAuditDenseTable({
                 <TableHead className="w-[9.5rem]">Fecha</TableHead>
                 <TableHead className="w-[10rem]">Actor</TableHead>
                 <TableHead className="w-[12rem]">Acción</TableHead>
-                <TableHead className="hidden w-[10rem] lg:table-cell">Entidad</TableHead>
-                <TableHead className="hidden xl:table-cell">Detalle</TableHead>
+                <TableHead data-column-tier="secondary-wide" className="w-[10rem]">Entidad</TableHead>
+                <TableHead data-column-tier="tertiary">Detalle</TableHead>
                 <TableHead className="w-[4.5rem] text-right">Acción</TableHead>
               </ContentListItem>
             </CollectionHeader>
@@ -118,10 +118,10 @@ export function AdminAuditDenseTable({
                       {row.eventLabel}
                     </Badge>
                   </TableCell>
-                  <TableCell className="hidden truncate text-xs text-muted-foreground lg:table-cell">
+                  <TableCell data-column-tier="secondary-wide" className="truncate text-xs text-muted-foreground">
                     {row.entity}
                   </TableCell>
-                  <TableCell className="hidden truncate text-xs text-muted-foreground xl:table-cell">
+                  <TableCell data-column-tier="tertiary" className="truncate text-xs text-muted-foreground">
                     {row.detail}
                   </TableCell>
                   <TableCell className="text-right">

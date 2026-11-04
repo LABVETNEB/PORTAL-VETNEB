@@ -344,7 +344,8 @@ test("automatic workflow coverage is derived from catalog cohorts and equals ful
   // +1: G11 axe matrix 21 x 2 x 2 (platform/accessibility/dashboard-g11-axe-matrix.spec.ts).
   // +1: DRV V1 Google Drive fidelity probe (regression/evidence/dashboard-drv-v1-drive-fidelity-probe.spec.ts).
   // +2: DRV V7 overlay contracts and fidelity probe.
-  assert.equal(E2E_SUITE_CATALOG.length, 130);
+  // +2: DRV V8 container-columns contract and column probe.
+  assert.equal(E2E_SUITE_CATALOG.length, 132);
 
   const partitionUnion = new Set(PARTITION_COHORTS.flatMap((cohort) => E2E_COHORT_SPECS[cohort]));
   assert.deepEqual([...partitionUnion].sort(), [...E2E_COHORT_SPECS.full].sort());
@@ -366,7 +367,8 @@ test("coverage fails closed when the full route or any partition contribution is
   // +1: G11 axe matrix (extended 28).
   // +1: DRV V1 fidelity probe (evidence 2).
   // +1: DRV V7 overlay fidelity probe (evidence 3); the contracts spec runs in visual-contract.
-  assert.equal(result.missingSpecs.length, 34);
+  // +1: DRV V8 column probe (evidence 4); its contract spec runs in visual-contract.
+  assert.equal(result.missingSpecs.length, 35);
   for (const cohort of ["extended", "evidence", "visual-linux"] as const) {
     assert.ok(
       E2E_COHORT_SPECS[cohort].every((spec) => result.missingSpecs.includes(spec)),

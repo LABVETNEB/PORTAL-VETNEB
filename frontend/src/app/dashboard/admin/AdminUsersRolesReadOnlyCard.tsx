@@ -525,6 +525,7 @@ export function AdminUsersRolesReadOnlyCard() {
           {users.length ? (
             <div className="dashboard-table-responsive dashboard-fitted-table px-3 sm:px-4">
               <Table
+                containerColumns
                 className="table-fixed text-[13px] [&_td]:h-8 [&_td]:px-2 [&_td]:py-0.5 [&_th]:h-8 [&_th]:px-2 [&_th]:text-xs [&_th]:font-semibold"
                 aria-label="Tabla de usuarios y roles administrativos"
               >
@@ -534,7 +535,7 @@ export function AdminUsersRolesReadOnlyCard() {
                     <TableHead className="w-[10%]">Tipo</TableHead>
                     <TableHead className="w-[14%]">Rol</TableHead>
                     <TableHead>Clínica</TableHead>
-                    <TableHead className="hidden w-[10.5rem] xl:table-cell">Creado</TableHead>
+                    <TableHead data-column-tier="tertiary" className="w-[10.5rem]">Creado</TableHead>
                     <TableHead className="w-[10.5rem]">Actualizado</TableHead>
                     <TableHead className="w-[8.5rem] text-right">Acción</TableHead>
                   </ContentListItem>
@@ -577,7 +578,7 @@ export function AdminUsersRolesReadOnlyCard() {
                             </p>
                           ) : null}
                         </TableCell>
-                        <TableCell className="hidden truncate text-xs tabular-nums text-muted-foreground xl:table-cell">
+                        <TableCell data-column-tier="tertiary" className="truncate text-xs tabular-nums text-muted-foreground">
                           {formatDateTime(user.createdAt)}
                         </TableCell>
                         <TableCell className="truncate text-xs tabular-nums text-muted-foreground">

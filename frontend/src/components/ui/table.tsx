@@ -1,18 +1,27 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
-const Table = React.forwardRef<
-  HTMLTableElement,
-  React.HTMLAttributes<HTMLTableElement>
->(({ className, ...props }, ref) => (
-  <div className="relative w-full overflow-auto rounded-lg border border-vetneb-line/75 bg-card/92 shadow-[0_10px_30px_rgba(15,45,62,0.06)]">
+type TableProps = React.HTMLAttributes<HTMLTableElement> & {
+  /** DRV-01: the frame becomes a size container so `data-column-tier` columns follow its width, not the viewport's. */
+  containerColumns?: boolean;
+};
+
+const Table = React.forwardRef<HTMLTableElement, TableProps>(
+  ({ className, containerColumns, ...props }, ref) => (
+  <div
+    className={cn(
+      "relative w-full overflow-auto rounded-lg border border-vetneb-line/75 bg-card/92 shadow-[0_10px_30px_rgba(15,45,62,0.06)]",
+      containerColumns && "dashboard-table-columns-container",
+    )}
+  >
     <table
       ref={ref}
       className={cn("w-full caption-bottom text-sm", className)}
       {...props}
     />
   </div>
-));
+  ),
+);
 Table.displayName = "Table";
 
 const TableHeader = React.forwardRef<
