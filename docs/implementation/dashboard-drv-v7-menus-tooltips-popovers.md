@@ -63,6 +63,8 @@ Tooltip (rail, 1024 × 768, las tres superficies): `background`, `color`, `fontS
 
 Texto permitido: «45 de 45 métricas comparables en IGUAL para el menú, en admin-informes ≥ 1280»; «27 de 27 para el tooltip, en las tres superficies a 1024 × 768». No se afirma fidelidad total.
 
+Regeneración sobre el HEAD definitivo: 18 registros por lado, 378 lecturas, mismas cifras que la tabla; 0 regresiones IGUAL → otro. Capturas antes/después en Chromium (menú abierto en `admin-informes` a 1920 × 945 y 1366 × 768; tooltip del rail a 1024 × 768, el único ancho con rail), datos sintéticos, fuera del repositorio y de `test-results/`. En 1920 y 1366 no existe rail, así que el tooltip no puede mostrarse allí. El «antes» usa `ActionMenu.tsx` y `NavigationRail.tsx` de `main@6f2acd6f`.
+
 ## NO_COMPARABLE y diferencias inevitables
 
 - `min-width`: Drive 320 (laboratorio) frente a 198 (rector) es NO RESUELTO; rige 200 (§46).
@@ -80,7 +82,7 @@ Menú: `role="menu"`/`menuitem`, `aria-labelledby` al disparador, foco inicial e
 
 ## Validaciones
 
-Estado observado al traspaso (Windows, sin CI todavía). Solo se marca PASSED lo que se vio terminar con código 0.
+Estado observado sobre el HEAD `f0180357` (Windows local y CI de GitHub). Solo se marca PASSED lo que se vio terminar con código 0.
 
 | Gate | Estado | Nota |
 | --- | --- | --- |
@@ -88,14 +90,17 @@ Estado observado al traspaso (Windows, sin CI todavía). Solo se marca PASSED lo
 | `pnpm test` (5474 pruebas) | FAILED solo en `e2e-global-03b` → BLOCKED | Falta `DATABASE_URL`/`SUPABASE_DB_URL`; las otras 5472 pasaron en la última corrida |
 | `pnpm typecheck:test` | PASSED | exit 0 |
 | `pnpm --dir frontend lint` / `typecheck` | PASSED | exit 0, con el código final |
-| `pnpm --dir frontend build` | PASSED | exit 0 (corrido antes del último cambio solo de tests/catálogo/spec) |
+| `pnpm --dir frontend build` | PASSED | exit 0, sobre el código definitivo (HEAD `f0180357`, árbol limpio salvo `frontend/AGENTS.md` sin trackear) |
 | `pnpm security:public-surface` | PASSED | exit 0; hallazgos `server-only` preexistentes en `proxy.ts` |
 | `git diff --check` | PASSED | |
 | Sonda V7 antes/después | PASSED | 18/18 por lado |
-| `dashboard-drv-v7-overlays.spec.ts` | PASSED | 9/9 (corrida previa a retirar `waitForTimeout`: 4/4 de tooltip re-verificados) |
-| `visual-contract` | FAILED (10) | 1052 pasadas. 9 × C08 «geometry and viewport clamping» esperaban radio 8 px: realineado a 4 px en este PR, **sin re-verificar** → NOT_RUN (interrumpida). 1 × `dashboard-c24-list-grid-toggle` «same page, same order»: no toca overlays, sin verificar aislado → NOT_RUN |
-| A02/A03/A05/A08 por separado, G11, `e2e:smoke` | NOT_RUN / cubiertos solo por `visual-contract` | A08 corre dentro de `visual-contract`; sin fallos de A08 observados |
-| CI Linux sobre el HEAD | PENDING | |
+| `dashboard-drv-v7-overlays.spec.ts` | PASSED | 9/9 sobre el HEAD definitivo: menú y tooltip abiertos con teclado, Escape, retorno de foco, Tab sin trampa, axe sobre cada superficie abierta (portal root del dashboard), `forced-colors` |
+| G11 (`dashboard-g11-axe-matrix.spec.ts`, 21 × 2 × 2) | PASSED | 42/42 casos, sin violaciones críticas ni serias. La matriz audita las superficies en reposo; los estados abiertos de menú y tooltip los cubre la fila anterior |
+| `visual-contract` (cohorte completa) | FAILED (3) → no PASSED | 1062 tests, 1059 pasadas, exit 1. C08 (9) y C24 (1) del traspaso ya no fallan. Fallaron `dashboard-detail-text-integrity` (390×844: `net::ERR_NO_BUFFER_SPACE` en `page.goto`), `dashboard-navigation-fsm-failure-matrix` (timeout de `networkidle`) y `dashboard-page-request-recovery` (ventana de auditoría), con 10 workers; ninguno toca overlays. Los 3 specs completos re-ejecutados aislados (1 worker): 111/111 PASSED. La cohorte entera no se re-ejecutó, por lo que no se declara PASSED |
+| C08 (`dashboard-b11-workspace-header`) y C24 (`dashboard-c24-list-grid-toggle`) aislados | PASSED | 85/85 |
+| A02/A03/A05/A08 por separado, `e2e:smoke` | NOT_RUN / cubiertos solo por `visual-contract` | A08 corre dentro de `visual-contract`; sin fallos de A08 observados |
+| CI de GitHub sobre el HEAD `f0180357` | PASSED | Los cuatro contextos required en SUCCESS, E2E Completeness y PR Governance (run 41810234904) en SUCCESS |
+| `e2e-global-03b` local | BLOCKED | Sin `DATABASE_URL` ni `SUPABASE_DB_URL`; no se ejecutó localmente. Su resultado verificado es el de CI, no uno local |
 
 Realineaciones (AGENTS §4, sin debilitar): catálogo E2E 128 → 130 specs (`regression` 33, `fixture` 81, `evidence` 3, `visual-contract` 49, `ci` 96, `full` 130), censo del lector canónico 436 → 438, bandas 01B re-ancladas 78 → 99 (specs de arquitectura) y 123 → 156 (archivos de `frontend/e2e`), prueba del rail (`title` → `DashboardTooltip`) y radio de C08 8 → 4 px.
 
