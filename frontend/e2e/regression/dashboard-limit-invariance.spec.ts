@@ -377,14 +377,15 @@ async function applyScenario(
 }
 
 /**
- * C05 (R13, 2026-10-25): every compact canvas renders 40px rows that physically
+ * C05 (R13, 2026-10-25): every compact canvas renders 44px rows (V9, F0-D7) that physically
  * fit. The pitch token is read off the canvas rather than assumed, each painted
  * row must be at least that tall (a table row can only grow past its cell), and
  * the last one must end inside the canvas content box with nothing scrolling —
  * a limit the canvas cannot hold is clipping or a pager overlap, not a page.
  * Expected cardinality per module: the canvases that declare `compact` today.
  */
-const C05_COMPACT_PITCH_PX = 40;
+const C05_COMPACT_PITCH_PX = 44;
+const C05_COMPACT_PHONE_PITCH_PX = 40;
 const C05_COMPACT_LEAVES: Partial<Record<(typeof A03_MODULE_IDS)[number], number>> = {
   "admin-audit-log": 8,
   "admin-report-upload": 8,
@@ -413,6 +414,7 @@ async function assertCompactRowFit(page: Page, label: string, limit: number): Pr
       .filter((box) => box.height > 0);
     return {
       pitch: style.getPropertyValue("--dash-row-pitch").trim(),
+      phone: window.innerWidth < 768,
       rowHeights: rows.map((box) => Math.round(box.height * 100) / 100),
       overrun: rows.length ? Math.round((rows[rows.length - 1].bottom - contentBottom) * 100) / 100 : 0,
       scrolls: canvas.scrollHeight > canvas.clientHeight + 1,
@@ -420,10 +422,11 @@ async function assertCompactRowFit(page: Page, label: string, limit: number): Pr
   });
   if (fit === null) return false;
 
-  expect(fit.pitch, `${label}: C05 compact pitch token`).toBe(`${C05_COMPACT_PITCH_PX}px`);
+  const pitchPx = fit.phone ? C05_COMPACT_PHONE_PITCH_PX : C05_COMPACT_PITCH_PX;
+  expect(fit.pitch, `${label}: C05 compact pitch token`).toBe(`${pitchPx}px`);
   expect(fit.rowHeights.length, `${label}: C05 painted rows = limit`).toBe(limit);
   for (const [index, height] of fit.rowHeights.entries()) {
-    expect(height, `${label}: C05 row ${index} height`).toBeGreaterThanOrEqual(C05_COMPACT_PITCH_PX - 0.5);
+    expect(height, `${label}: C05 row ${index} height`).toBeGreaterThanOrEqual(pitchPx - 0.5);
   }
   expect(fit.overrun, `${label}: C05 last row ends inside the canvas`).toBeLessThanOrEqual(0.5);
   expect(fit.scrolls, `${label}: C05 canvas never scrolls`).toBe(false);

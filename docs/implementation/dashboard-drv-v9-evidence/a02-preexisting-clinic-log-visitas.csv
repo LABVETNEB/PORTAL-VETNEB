@@ -1,0 +1,10 @@
+surface,viewport,field,expected,actual,tolerance,delta
+clinic-log-visitas,w1024x768,regions.collectionHeader.width,937.94,940.7,2,2.76
+clinic-log-visitas,w1024x768,regions.primaryContent.width,937.94,940.7,2,2.76
+clinic-log-visitas,w1024x768,derived.primaryContentWidth,937.94,940.7,2,2.76
+clinic-log-visitas,w834x1194,regions.collectionHeader.width,937.94,940.7,2,2.76
+clinic-log-visitas,w834x1194,regions.primaryContent.width,937.94,940.7,2,2.76
+clinic-log-visitas,w834x1194,derived.primaryContentWidth,937.94,940.7,2,2.76
+clinic-log-visitas,w768x1024,regions.collectionHeader.width,937.94,940.7,2,2.76
+clinic-log-visitas,w768x1024,regions.primaryContent.width,937.94,940.7,2,2.76
+clinic-log-visitas,w768x1024,derived.primaryContentWidth,937.94,940.7,2,2.76"

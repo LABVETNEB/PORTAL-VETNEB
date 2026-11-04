@@ -971,7 +971,7 @@ test.describe("C06 · Auditoría collection selection", () => {
       expect(metrics.checkbox).toEqual([18, 18]);
       expect(metrics.headCheckbox).toEqual([18, 18]);
       expect(metrics.rowHeights, `${label}: rows keep the frozen pitch`).toEqual([metrics.pitch]);
-      expect(metrics.headHeight).toBeCloseTo(32, 0);
+      expect(metrics.headHeight).toBeCloseTo(36, 0);
       await expectNoOuterScroll(page, label);
     });
   }

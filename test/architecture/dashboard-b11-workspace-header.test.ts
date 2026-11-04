@@ -374,7 +374,7 @@ test("C01 · CollectionHeader is sticky against the collection frame with a 36px
 
   // Frozen neighbours: A03 reserve, B11 header, B16 panel.
   assert.ok(css.includes("--dash-table-head-h: 44px;"));
-  assert.ok(css.includes("--dash-table-head-h: 32px;"));
+  assert.ok(css.includes("--dash-table-head-h: 36px;"));
   assert.ok(css.includes('[data-dashboard-canvas-reserve^="table-head"] table thead > tr > th {'));
   assert.ok(css.includes("--dash-workspace-header-h: 40px;"));
   assert.ok(css.includes("--dash-utility-panel-w: 336px;"));
@@ -563,9 +563,9 @@ test("C02 · consumers keep their adapters and capacity owners; C03+ and C05 geo
   const css = readDashboardCssSource();
   for (const frozen of [
     "--dash-pagination-h: clamp(2.25rem, 4vh, 2.75rem);",
-    "--dash-row-pitch-compact: 40px;",
+    "--dash-row-pitch-compact: 44px;",
     "--dash-row-pitch-regular: 44px;",
-    "--dash-table-head-h: 32px;",
+    "--dash-table-head-h: 36px;",
   ]) {
     assert.ok(css.includes(frozen), `${frozen} stays at its C05 value`);
   }
@@ -680,9 +680,9 @@ test("C03 · consumers keep the legacy adapters; C01/C02 owners, capacity and C0
   const css = readDashboardCssSource();
   for (const frozen of [
     "--dash-pagination-h: clamp(2.25rem, 4vh, 2.75rem);",
-    "--dash-row-pitch-compact: 40px;",
+    "--dash-row-pitch-compact: 44px;",
     "--dash-row-pitch-regular: 44px;",
-    "--dash-table-head-h: 32px;",
+    "--dash-table-head-h: 36px;",
   ]) {
     assert.ok(css.includes(frozen), `${frozen} stays at its C05 value`);
   }
@@ -831,9 +831,9 @@ test("C06 · row geometry stays at its C05 value around the selection owner; C04
   // BulkActionMenu to its C09 owner, each in its block below.
   const css = readDashboardCssSource();
   for (const frozen of [
-    "--dash-row-pitch-compact: 40px;",
+    "--dash-row-pitch-compact: 44px;",
     "--dash-row-pitch-regular: 44px;",
-    "--dash-table-head-h: 32px;",
+    "--dash-table-head-h: 36px;",
     "--dash-pagination-h: clamp(2.25rem, 4vh, 2.75rem);",
   ]) {
     assert.ok(css.includes(frozen), `${frozen} stays at its C05 value`);
@@ -1293,9 +1293,9 @@ test("C08 · the menu owner is presentation only: no data, navigation, selection
   const css = readDashboardCssSource();
   assert.equal(/data-action-menu|data-context-menu|role="?menu/.test(css), false, "C08 adds no CSS or geometry token");
   for (const frozen of [
-    "--dash-row-pitch-compact: 40px;",
+    "--dash-row-pitch-compact: 44px;",
     "--dash-row-pitch-regular: 44px;",
-    "--dash-table-head-h: 32px;",
+    "--dash-table-head-h: 36px;",
     "--dash-pagination-h: clamp(2.25rem, 4vh, 2.75rem);",
     "--dash-elevation-menu: var(--clinical-shadow-md);",
   ]) {
