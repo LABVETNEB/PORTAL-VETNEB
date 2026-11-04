@@ -96,3 +96,10 @@ Reproducción: `pnpm exec playwright test e2e/regression/dashboard-adaptive-limi
 ## 9. Bloqueo de fidelidad §65.7.3
 
 La sonda V1 no incrementa métricas IGUAL (0 ganadas, 0 perdidas): mejora parcial de geometría (8 → 4 px respecto de Drive) que **no satisface literalmente** §65.7.3. No se modificó el comparador ni el documento rector. La PR permanece Draft y no es fusionable hasta que una decisión documental independiente adapte el criterio para V9 o una medición comparable lo cumpla.
+
+## 10. Linux (E2E Completeness, run 41857253927, head `09453861`)
+
+- Origen: run 41857253927, attempt 1, job 126669100128, `ubuntu-latest`, chromium, artifact `e2e-completeness-playwright-1`; 2142 PASSED y 7 FAILED (A03 matrix integrity y A02 en 6 superficies admin), idénticos en los 3 intentos.
+- **A03 Linux:** 47 hojas autorizadas con cambio de contrato observado en Linux (205 campos); `limit`/`offset`/conteos coinciden hoja a hoja con los de Win32, observados de forma independiente. Las otras 187 hojas difieren sólo por redacción del sanitizer (`moduleId`, `leafKey`, `endpoint`, `query`, `provenance`) o por los ids de stub de tokens y maintenance; ningún `limit`/`offset`/conteo cambia fuera de las 47. Se excluyen `admin-particular-tokens` 375/412.
+- **A02 Linux:** los 132 campos autorizados se promueven desde los actuales Linux (los 4 campos × superficies × viewports coinciden con el conjunto Win32). No se incorporó `clinic-log-visitas`, que no falla en Linux.
+- **Hallazgo retenido (144 campos Linux, sin promover):** `regions.primaryContent.height`, `derived.primaryContentHeight` y `derived.primaryBlockHeight` en las 6 superficies × 8 viewports (36 → 44, tolerancia 4). En Win32 el valor congelado era 40 y 44 queda dentro de tolerancia, por eso no entraron en los 132; en Linux el valor congelado sigue siendo 36 y 44 queda fuera. La causa es V9 (fila 40 → 44), pero esas tres familias no están en la autorización R13: A02 Linux seguirá FAILED en esos 144 campos hasta que Nico autorice su promoción.
