@@ -47,10 +47,10 @@ export const SuperSearchField = forwardRef<HTMLInputElement, SuperSearchFieldPro
     return (
       <div
         data-super-search-field="true"
-        className={cn("relative h-10 min-w-0 w-full max-w-[832px] md:w-[clamp(280px,44%,832px)]", className)}
+        className={cn("relative h-[var(--dash-supersearch-h,48px)] min-w-0 w-full max-w-[832px] md:w-[clamp(280px,44%,832px)]", className)}
       >
         <label htmlFor={inputId} className="sr-only">{label}</label>
-        <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Search aria-hidden="true" className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
         <input
           {...inputProps}
           id={inputId}
@@ -63,10 +63,10 @@ export const SuperSearchField = forwardRef<HTMLInputElement, SuperSearchFieldPro
           disabled={unavailable}
           aria-busy={busy || undefined}
           onChange={(event) => onValueChange(event.currentTarget.value)}
-          className="h-10 w-full min-w-0 rounded-[20px] border border-transparent bg-muted py-0 pl-11 pr-12 text-sm text-foreground shadow-none outline-none placeholder:text-muted-foreground hover:border-border focus-visible:border-primary focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-55"
+          className="h-[var(--dash-supersearch-h,48px)] w-full min-w-0 rounded-[var(--dash-supersearch-radius,24px)] border border-transparent bg-[var(--dash-supersearch-fill,hsl(var(--muted)))] py-0 pl-12 pr-12 text-[length:var(--dash-supersearch-font,16px)] text-foreground shadow-none outline-none placeholder:text-muted-foreground hover:border-border focus-visible:border-primary focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-55"
         />
         {busy ? (
-          <LoaderCircle aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+          <LoaderCircle aria-hidden="true" className="pointer-events-none absolute right-4 top-1/2 size-5 -translate-y-1/2 animate-spin text-muted-foreground" />
         ) : value && !disabled ? (
           <button
             type="button"
@@ -75,7 +75,7 @@ export const SuperSearchField = forwardRef<HTMLInputElement, SuperSearchFieldPro
               onValueChange("");
               inputRef.current?.focus();
             }}
-            className="absolute right-0 top-1/2 flex size-11 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-primary md:size-10"
+            className="absolute right-0 top-1/2 flex size-11 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-primary md:size-12"
           >
             <X aria-hidden="true" className="size-4" />
           </button>

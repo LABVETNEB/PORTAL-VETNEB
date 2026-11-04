@@ -500,6 +500,23 @@
 }
 /* dashboard-drv-v6-header-search:end */
 
+/* dashboard-drv-v10-supersearch:start
+ *
+ * V10 (F0-D8 approved 2026-11-04, limited): the content SuperSearchField is the
+ * Drive pill, 48px / radius 24 / 16px. Own tokens: it is NOT coupled to the V6
+ * app-bar search (--dash-drv-search-*). The #e9eef6 fill is light-only; dark-gray
+ * keeps the previous muted fill. */
+.dashboard-app-shell {
+  --dash-supersearch-h: 48px;
+  --dash-supersearch-radius: 24px;
+  --dash-supersearch-font: 16px;
+  --dash-supersearch-fill: hsl(var(--muted));
+}
+:root:not([data-theme="dark-gray"]) .dashboard-app-shell {
+  --dash-supersearch-fill: #e9eef6;
+}
+/* dashboard-drv-v10-supersearch:end */
+
 /* dashboard-b07-navigation-geometry:start
  *
  * B07 - NavigationDrawer / NavigationRail geometry ledger.

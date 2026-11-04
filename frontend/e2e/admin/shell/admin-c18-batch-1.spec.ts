@@ -44,7 +44,7 @@ test("C18 Tokens mobile search pill submits the same clinic filter with zero doc
   const items = card.locator('[data-admin-mobile-core-item="true"]');
   await expect(items.first()).toBeVisible();
   const search = card.getByRole("searchbox", { name: "Nombre de clínica" });
-  await expect(search).toHaveCSS("height", "40px");
+  await expect(search).toHaveCSS("height", "48px");
   await search.fill("12");
   await search.press("Enter");
   await expect(items).toHaveCount(1);

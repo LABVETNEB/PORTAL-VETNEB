@@ -1,0 +1,7 @@
+component,metric,drive_reference,main,v10,state_main,state_v10,source
+SuperSearchField,height,48,40,48,DIFERENTE,IGUAL,v1 search.height
+SuperSearchField,radius,24px,20px,24px,DIFERENTE,IGUAL,v1 search.radius
+SuperSearchField,fontSize,16px,14px,16px,DIFERENTE,IGUAL,v1 search.input.fontSize
+SuperSearchField,background(light),rgb(233 238 246),rgb(226 234 238),rgb(233 238 246),DIFERENTE,IGUAL,v1 search.background
+SuperSearchField,background(dark-gray),n/a,muted,muted,NO_COMPARABLE,NO_COMPARABLE,F0-D6
+SuperSearchField,width,formula search-width,clamp(280px 44% 832px),unchanged,SIN_CAMBIO,SIN_CAMBIO,v1 search.width (no medida; fuera de alcance V10)

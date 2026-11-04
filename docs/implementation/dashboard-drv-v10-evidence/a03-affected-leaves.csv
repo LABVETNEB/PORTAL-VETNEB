@@ -1,0 +1,7 @@
+leaf,field,baseline_win32,v10_win32,cause
+admin-report-upload::w1920x1080,limit,18,17,header band 41->49px (SuperSearchField 48px)
+admin-report-upload::w1920x1080,offset,18,17,header band 41->49px (SuperSearchField 48px)
+admin-report-upload::w1920x1080,secondPageCount,18,17,header band 41->49px (SuperSearchField 48px)
+admin-report-upload::w834x1194,limit,19,18,header band 41->49px (SuperSearchField 48px)
+admin-report-upload::w834x1194,offset,19,18,header band 41->49px (SuperSearchField 48px)
+admin-report-upload::w834x1194,secondPageCount,19,18,header band 41->49px (SuperSearchField 48px)
