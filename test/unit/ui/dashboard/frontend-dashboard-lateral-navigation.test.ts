@@ -169,7 +169,9 @@ test("the lateral primitives preserve distinct landmarks and complete accessible
     "the drawer exposes the full visible label as the control name",
   );
   assert.ok(rail.includes("aria-label={item.label}"));
-  assert.ok(rail.includes("title={item.label}"));
+  // V7: the native title is replaced by DashboardTooltip, so the full label is shown once.
+  assert.equal(rail.includes("title={"), false);
+  assert.ok(rail.includes("<DashboardTooltip key={item.moduleId} label={item.label}>"));
   assert.ok(
     rail.includes(
       '<span className="dashboard-navigation-rail-label">{item.shortLabel}</span>',

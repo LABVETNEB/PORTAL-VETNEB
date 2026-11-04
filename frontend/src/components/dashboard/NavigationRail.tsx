@@ -1,6 +1,7 @@
 "use client";
 
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
+import { DashboardTooltip } from "./DashboardTooltip";
 import { requestAdminModuleActivate } from "@/lib/admin-hub-reset";
 import { requestClinicModuleActivate } from "@/lib/clinic-hub-reset";
 import { ROUTES } from "@/lib/routes";
@@ -36,8 +37,10 @@ import {
  *
  * ACCESSIBLE NAME. The visible text is the compact `shortLabel` ("Manten."),
  * which is not a usable name on its own, so every control carries the full
- * `label` as `aria-label`; `title` is a sighted-user affordance on top of it,
- * never the name itself. The glyph is decorative (`aria-hidden`).
+ * `label` as `aria-label`. V7 replaces the native `title` with
+ * `DashboardTooltip` (hover and keyboard focus, `aria-describedby`, Escape), so
+ * the full label is never shown twice and never replaces the name. The glyph is
+ * decorative (`aria-hidden`).
  *
  * PRESENTATION-PURE and STATELESS - same contract as the drawer, and mounted
  * with it by `DashboardNavigationFrame` (B08). The B13 admin Inicio item is
@@ -99,32 +102,35 @@ export function NavigationRail({ surface, activeModule }: NavigationRailProps) {
         const isActive = item.moduleId === activeModule;
 
         return (
-          <PublicRouteControl
-            key={item.moduleId}
-            href={buildDashboardModuleHref(basePath, item.moduleId)}
-            prefetch={false}
-            variant="bare"
-            aria-label={item.label}
-            aria-current={isActive ? "page" : undefined}
-            title={item.label}
-            data-dashboard-navigation-item={item.moduleId}
-            onClick={(event) => {
-              // Both roles: the controller swaps the stage on this signal and
-              // the frame moves the current item, before the URL commit lands.
-              // A claimed request is navigated by the controller (single flight).
-              const claimed = isAdmin
-                ? requestAdminModuleActivate(item.moduleId)
-                : requestClinicModuleActivate(item.moduleId);
-              if (claimed) event.preventDefault();
-            }}
-            className={cn(
-              "dashboard-navigation-rail-item",
-              isActive && "dashboard-navigation-item-active",
+          <DashboardTooltip key={item.moduleId} label={item.label}>
+            {(tooltip) => (
+              <PublicRouteControl
+                {...tooltip}
+                href={buildDashboardModuleHref(basePath, item.moduleId)}
+                prefetch={false}
+                variant="bare"
+                aria-label={item.label}
+                aria-current={isActive ? "page" : undefined}
+                data-dashboard-navigation-item={item.moduleId}
+                onClick={(event) => {
+                  // Both roles: the controller swaps the stage on this signal and
+                  // the frame moves the current item, before the URL commit lands.
+                  // A claimed request is navigated by the controller (single flight).
+                  const claimed = isAdmin
+                    ? requestAdminModuleActivate(item.moduleId)
+                    : requestClinicModuleActivate(item.moduleId);
+                  if (claimed) event.preventDefault();
+                }}
+                className={cn(
+                  "dashboard-navigation-rail-item",
+                  isActive && "dashboard-navigation-item-active",
+                )}
+              >
+                <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
+                <span className="dashboard-navigation-rail-label">{item.shortLabel}</span>
+              </PublicRouteControl>
             )}
-          >
-            <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
-            <span className="dashboard-navigation-rail-label">{item.shortLabel}</span>
-          </PublicRouteControl>
+          </DashboardTooltip>
         );
       })}
     </nav>
