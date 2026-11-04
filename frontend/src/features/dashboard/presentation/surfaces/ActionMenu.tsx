@@ -51,6 +51,18 @@ const NATIVE_MENU_TARGETS = 'input, textarea, select, [contenteditable="true"]';
 const ITEM_CLASS =
   "flex h-12 md:h-8 w-full items-center gap-2 px-3 text-left text-[0.8125rem] font-normal leading-5 text-foreground outline-none hover:bg-accent/70 focus:bg-accent/70 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/85 aria-disabled:cursor-not-allowed aria-disabled:text-muted-foreground aria-disabled:opacity-60 [&_svg]:size-4 [&_svg]:shrink-0";
 
+/**
+ * V7 (F0 §65.4): radius 4, plus, in the light theme only, the Drive white surface and the
+ * three-layer shadow. The variants key on `:root`, never on the app shell element, because the
+ * surface falls back to `document.body` when the portal root is absent. Dark keeps its popover
+ * palette and `--clinical-shadow-md` until F0-D6. The transparent outline only paints under
+ * `forced-colors`, where the shadow is dropped.
+ */
+const MENU_SURFACE_CLASS =
+  "fixed left-0 top-0 z-50 transition-none min-w-[200px] max-w-[calc(100vw-1rem)] rounded-[4px] bg-popover py-2 text-popover-foreground shadow-[var(--clinical-shadow-md)] outline outline-1 outline-transparent " +
+  "[:root:not([data-theme=dark-gray])_&]:bg-white " +
+  "[:root:not([data-theme=dark-gray])_&]:[box-shadow:0_2px_4px_-1px_rgba(0,0,0,.2),0_4px_5px_0_rgba(0,0,0,.14),0_1px_10px_0_rgba(0,0,0,.12)]";
+
 function useMenuRootContext(): MenuRoot {
   const root = useContext(MenuRootContext);
   if (!root) throw new Error("menu items must render inside ActionMenu, OverflowMenu or ContextMenu");
@@ -221,7 +233,7 @@ function MenuSurface({ id, anchor, focus, label, labelledBy, onDismiss, children
         aria-labelledby={labelledBy}
         data-action-menu-surface={anchor.kind === "item" ? "sub" : "root"}
         data-action-menu-root={root.rootId}
-        className="fixed left-0 top-0 z-50 transition-none min-w-[200px] max-w-[calc(100vw-1rem)] rounded-lg bg-popover py-2 text-popover-foreground shadow-[var(--clinical-shadow-md)] outline-none"
+        className={MENU_SURFACE_CLASS}
         onKeyDown={onKeyDown}
         onClick={(event) => event.stopPropagation()}
         onContextMenu={(event) => event.stopPropagation()}

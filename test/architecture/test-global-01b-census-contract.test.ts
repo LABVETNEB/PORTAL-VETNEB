@@ -304,10 +304,12 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     section: "§6.2",
     metric: "specs en test/architecture (raíz)",
     historical: 78,
+    baseline: 99,
     compute: () => folderFiles("test/architecture"),
-    resolution: "REPRODUCED",
+    resolution: "RECLASSIFIED",
     guard: BAND,
-    motive: "Este PR añade guards de arquitectura; la banda lo absorbe.",
+    motive:
+      "Este PR añade guards de arquitectura; la banda lo absorbe. Re-anclaje 78 -> 99: main@6f2acd6f058f5ca1e0d9987170217c6996bb8851 producia 98 specs, exactamente el tope de la banda 78 +- 20 (98), y DRV V7 suma test/architecture/dashboard-drv-v7-menus-tooltips.test.ts, el guard que ancla la receta del menú (radio 4, superficie blanca solo en claro, sombra Drive), la primitiva de tooltip sin ref, el rail sin title nativo y la exclusión de paneles y diálogos, lo que lleva el valor a 99. Crecimiento intencional dentro de DRV V7: se re-ancla el baseline a 99 sin ampliar GROWTH_TOLERANCE y sin excluir ningun archivo del inventario.",
   },
   {
     row: "A0-06-FOLDERS",
@@ -443,10 +445,12 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     section: "§6.3",
     metric: "archivos fuente de frontend/e2e/**",
     historical: 123,
+    baseline: 156,
     compute: () => sourceFilesUnder(corpus, "frontend/e2e").length,
-    resolution: "REPRODUCED",
+    resolution: "RECLASSIFIED",
     guard: BAND,
-    motive: "Volumen E2E, no congelable (lo gobierna LIMPIEZA E2E).",
+    motive:
+      "Volumen E2E, no congelable (lo gobierna LIMPIEZA E2E). Re-anclaje 123 -> 156: main@6f2acd6f058f5ca1e0d9987170217c6996bb8851 producia 153 archivos, a uno del tope de la banda 123 +- 31 (154), y DRV V7 suma tres: regression/dashboard-drv-v7-overlays.spec.ts (contratos duros del menú y del tooltip), regression/evidence/dashboard-drv-v7-overlay-fidelity-probe.spec.ts (sonda de evidencia sobre el clasificador V1) y fixtures/drive-ui-reference.v7-overlays.json (referencia Drive de overlays), lo que lleva el valor a 156. Crecimiento intencional dentro de DRV V7: se re-ancla el baseline a 156 sin ampliar GROWTH_TOLERANCE y sin excluir ningun archivo del inventario.",
   },
   {
     row: "A0-06-RATIOS",
@@ -1719,7 +1723,8 @@ test("censo 05A: la deuda de lectores ad hoc rompe al crecer y la adopción del 
   assert.equal(adoptionEntry.baseline, 411, "piso versionado tras el consumidor de C06");
   assert.equal(anchor, 411, "el piso incorpora los consumidores canónicos de TEST-GLOBAL-09 y C06, no el histórico");
   // +1: DRV V1 dashboard-drv-v1-drive-fidelity lee la referencia Drive por el lector canónico.
-  assert.equal(current, 436, "DRV V1 añade dashboard-drv-v1-drive-fidelity al censo de 435 importadores del lector canónico");
+  // +2: DRV V7 dashboard-drv-v7-menus-tooltips y dashboard-drv-v7-overlay-fidelity leen fuentes por el lector canónico.
+  assert.equal(current, 438, "DRV V7 añade dos importadores al censo de 436 del lector canónico");
   assert.equal(
     guardViolation(adoptionEntry, evaluateEntry(adoptionEntry)),
     null,

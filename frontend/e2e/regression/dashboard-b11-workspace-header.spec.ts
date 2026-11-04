@@ -1908,7 +1908,8 @@ test.describe("C08 · menu primitives in the WorkspaceScaffold", () => {
         expect(surface.itemHeights, `${label}: ${name} item height`).toEqual([touch ? 48 : 32]);
         expect(surface.width, `${label}: ${name} min width`).toBeGreaterThanOrEqual(200);
         expect(surface.width, `${label}: ${name} never wider than the viewport`).toBeLessThanOrEqual(width - 16);
-        expect(surface.radius, `${label}: ${name} radius`).toBe("8px");
+        // DRV V7 (audit §65.4): the menu surface radius is Drive's 4px; it was 8px under §46.
+        expect(surface.radius, `${label}: ${name} radius`).toBe("4px");
         expect(surface.paddingBlock, `${label}: ${name} padding`).toEqual(["8px", "8px"]);
         expect(surface.itemPaddingInline, `${label}: ${name} item padding`).toEqual(["12px", "12px"]);
         expect(surface.itemRadius, `${label}: ${name} item radius`).toBe("0px");

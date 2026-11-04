@@ -1,0 +1,266 @@
+{
+  "schema": "drv-v1-drive-reference/2",
+  "source": "docs/audit/GOOGLE_DRIVE_REFERENCIA_UI_CONSOLIDADA.md (REA-LAB, Chrome/155, 1920x945, light); V7 overlay extension of drive-ui-reference.v1.json",
+  "colorCriterion": "VETNEB colours are read as the browser paints them: each computed colour (rgb, oklab, oklch, color(srgb), including any color-mix() already resolved by the engine) is composited by a 2D canvas over the painted background stack of its ancestors and read back as 8-bit sRGB. A colour is IGUAL when every channel differs from Drive by <= 2 and alpha by <= 0.01. Never a textual comparison.",
+  "metrics": [
+    {
+      "id": "menu.surface.background",
+      "component": "menu",
+      "category": "color",
+      "state": "default",
+      "kind": "color",
+      "expected": "rgb(255, 255, 255)",
+      "evidence": "OBSERVADO",
+      "section": "VIII.3"
+    },
+    {
+      "id": "menu.surface.radius",
+      "component": "menu",
+      "category": "geometry",
+      "state": "default",
+      "kind": "token",
+      "expected": "4px",
+      "evidence": "OBSERVADO",
+      "section": "VIII.2"
+    },
+    {
+      "id": "menu.surface.boxShadow",
+      "component": "menu",
+      "category": "color",
+      "state": "default",
+      "kind": "token",
+      "expected": "rgba(0, 0, 0, 0.2) 0px 2px 4px -1px, rgba(0, 0, 0, 0.14) 0px 4px 5px 0px, rgba(0, 0, 0, 0.12) 0px 1px 10px 0px",
+      "evidence": "OBSERVADO",
+      "section": "VIII.3"
+    },
+    {
+      "id": "menu.surface.paddingBlock",
+      "component": "menu",
+      "category": "geometry",
+      "state": "default",
+      "kind": "token",
+      "expected": "8px 8px",
+      "evidence": "OBSERVADO",
+      "section": "VIII.2"
+    },
+    {
+      "id": "menu.item.height",
+      "component": "menu",
+      "category": "geometry",
+      "state": "default",
+      "kind": "px",
+      "expected": 32,
+      "tolerance": 0.5,
+      "evidence": "OBSERVADO",
+      "section": "VIII.2, VIII.3"
+    },
+    {
+      "id": "menu.item.paddingInline",
+      "component": "menu",
+      "category": "geometry",
+      "state": "default",
+      "kind": "token",
+      "expected": "12px 12px",
+      "evidence": "OBSERVADO",
+      "section": "VIII.2, VIII.3"
+    },
+    {
+      "id": "menu.item.fontSize",
+      "component": "menu",
+      "category": "typography",
+      "state": "default",
+      "kind": "token",
+      "expected": "13px",
+      "evidence": "OBSERVADO",
+      "section": "VIII.3"
+    },
+    {
+      "id": "menu.item.fontWeight",
+      "component": "menu",
+      "category": "typography",
+      "state": "default",
+      "kind": "token",
+      "expected": "400",
+      "evidence": "OBSERVADO",
+      "section": "VIII.3"
+    },
+    {
+      "id": "menu.item.lineHeight",
+      "component": "menu",
+      "category": "typography",
+      "state": "default",
+      "kind": "token",
+      "expected": "20px",
+      "evidence": "OBSERVADO",
+      "section": "VIII.3"
+    },
+    {
+      "id": "tooltip.background",
+      "component": "tooltip",
+      "category": "color",
+      "state": "default",
+      "kind": "color",
+      "expected": "rgb(48, 48, 48)",
+      "evidence": "OBSERVADO",
+      "section": "VII.2"
+    },
+    {
+      "id": "tooltip.color",
+      "component": "tooltip",
+      "category": "color",
+      "state": "default",
+      "kind": "color",
+      "expected": "rgb(242, 242, 242)",
+      "evidence": "OBSERVADO",
+      "section": "VII.2"
+    },
+    {
+      "id": "tooltip.fontSize",
+      "component": "tooltip",
+      "category": "typography",
+      "state": "default",
+      "kind": "token",
+      "expected": "12px",
+      "evidence": "OBSERVADO",
+      "section": "VII.2"
+    },
+    {
+      "id": "tooltip.fontWeight",
+      "component": "tooltip",
+      "category": "typography",
+      "state": "default",
+      "kind": "token",
+      "expected": "400",
+      "evidence": "OBSERVADO",
+      "section": "VII.2"
+    },
+    {
+      "id": "tooltip.lineHeight",
+      "component": "tooltip",
+      "category": "typography",
+      "state": "default",
+      "kind": "token",
+      "expected": "16px",
+      "evidence": "OBSERVADO",
+      "section": "VII.2"
+    },
+    {
+      "id": "tooltip.letterSpacing",
+      "component": "tooltip",
+      "category": "typography",
+      "state": "default",
+      "kind": "token",
+      "expected": "0.1px",
+      "evidence": "OBSERVADO",
+      "section": "VII.2"
+    },
+    {
+      "id": "tooltip.radius",
+      "component": "tooltip",
+      "category": "geometry",
+      "state": "default",
+      "kind": "token",
+      "expected": "4px",
+      "evidence": "OBSERVADO",
+      "section": "VII.2"
+    },
+    {
+      "id": "tooltip.padding",
+      "component": "tooltip",
+      "category": "geometry",
+      "state": "default",
+      "kind": "token",
+      "expected": "4px 8px",
+      "evidence": "OBSERVADO",
+      "section": "VII.2"
+    },
+    {
+      "id": "tooltip.boxShadow",
+      "component": "tooltip",
+      "category": "color",
+      "state": "default",
+      "kind": "token",
+      "expected": "none",
+      "evidence": "OBSERVADO",
+      "section": "VII.2"
+    },
+    {
+      "id": "filterPopover.radius",
+      "component": "filterPopover",
+      "category": "geometry",
+      "state": "default",
+      "kind": "token",
+      "expected": "8px",
+      "evidence": "OBSERVADO",
+      "section": "VIII.3"
+    },
+    {
+      "id": "filterPopover.item.height",
+      "component": "filterPopover",
+      "category": "geometry",
+      "state": "default",
+      "kind": "px",
+      "expected": 40,
+      "tolerance": 0.5,
+      "evidence": "OBSERVADO",
+      "section": "VIII.3"
+    },
+    {
+      "id": "filterPopover.paddingBlock",
+      "component": "filterPopover",
+      "category": "geometry",
+      "state": "default",
+      "kind": "token",
+      "expected": "8px 8px",
+      "evidence": "OBSERVADO",
+      "section": "VIII.3"
+    }
+  ],
+  "notComparable": [
+    {
+      "id": "menu.surface.minWidth",
+      "reason": "Drive 320 (lab) vs 198 (rector) is NO RESUELTO; VETNEB keeps 200 (audit 46)",
+      "section": "VIII.3, 65.4"
+    },
+    {
+      "id": "menu.item.hover",
+      "reason": "Hover of a simple Drive item shows no measurable change (NO RESUELTO); VETNEB keeps its own",
+      "section": "VIII.2"
+    },
+    {
+      "id": "menu.item.disabled",
+      "reason": "Disabled items were not measured in Drive",
+      "section": "VIII.2"
+    },
+    {
+      "id": "menu.subMenu",
+      "reason": "Drive submenus were measured by hover; VETNEB has no SubMenu consumer on the probed surfaces",
+      "section": "VIII.2"
+    },
+    {
+      "id": "menu.item.shortcutText",
+      "reason": "Secondary right-aligned text is INFERIDO in Drive",
+      "section": "VIII.2"
+    },
+    {
+      "id": "tooltip.delay",
+      "reason": "Show/hide delay NO RESUELTO",
+      "section": "65.4"
+    },
+    {
+      "id": "tooltip.position",
+      "reason": "Drive tooltip offsets were not measured",
+      "section": "VII.2"
+    },
+    {
+      "id": "filterPopover.icons",
+      "reason": "Drive 24/18 px icons: VETNEB has no filter popover with icons (RM-07/C12 not authorised)",
+      "section": "VIII.3"
+    },
+    {
+      "id": "dialogModal",
+      "reason": "No measured Drive modal; filter dialogs are popovers",
+      "section": "65.4"
+    }
+  ]
+}
