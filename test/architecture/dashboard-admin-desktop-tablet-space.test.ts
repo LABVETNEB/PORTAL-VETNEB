@@ -214,14 +214,14 @@ test("ADMIN-DT · compact pager and the Alertas pager paint Anterior/Siguiente o
   assert.equal(failed.includes("visibles"), false);
 });
 
-test("ADMIN-DT · C05 row geometry: compact rows are 40px, regular and the dense head unchanged", () => {
+test("ADMIN-DT · C05 row geometry: compact rows are 44px, regular and the dense head unchanged", () => {
   const css = readDashboardCssSource();
   assert.deepEqual(
     [...css.matchAll(/--dash-row-pitch-compact:\s*([^;]+);/g)].map((match) => match[1]),
-    ["40px"],
-    "C05 (R13): one compact declaration, 40px, never stepped by a media query",
+    ["44px", "40px"],
+    "C05 (R13): compact 44px at >=768px; the only step is the phone-width 40px override (V9 keeps mobile heights)",
   );
-  for (const frozen of ["--dash-row-pitch-regular: 44px;", "--dash-table-head-h: 32px;"]) {
+  for (const frozen of ["--dash-row-pitch-regular: 44px;", "--dash-table-head-h: 36px;"]) {
     assert.ok(css.includes(frozen), `${frozen} is outside C05`);
   }
   for (const [path, rowClasses] of [

@@ -296,7 +296,7 @@
      not survive it — rows of 40px need 4px more canvas per row than any constant
      chrome recovery returns — so the 50 compact leaves that moved were
      recaptured instead of being fitted. */
-  --dash-row-pitch-compact: 40px;
+  --dash-row-pitch-compact: 44px;
   --dash-row-pitch-regular: 44px;
   /* table: the design-system `TableCell` (`p-3.5`) around one line of text.
      The tier states the row's NATURAL height rather than forcing a smaller one:
@@ -324,6 +324,14 @@
      last row and turns the table wrapper into an internal scroller. */
   --dash-table-head-h: 44px;
   --dash-canvas-reserved: 0px;
+}
+
+/* V9 (F0-D7): the 44px compact pitch is a >=768px grammar. Phone widths keep the
+   C05 contract (40px) so the mobile row heights approved before V9 do not move. */
+@media (max-width: 767px) {
+  .dashboard-app-shell {
+    --dash-row-pitch-compact: 40px;
+  }
 }
 
 /* Short viewports step the tier down instead of letting rows shrink fluidly:
@@ -394,7 +402,7 @@
 }
 
 .dashboard-app-shell [data-dashboard-canvas-reserve="table-head-dense"] {
-  --dash-table-head-h: 32px;
+  --dash-table-head-h: 36px;
   --dash-canvas-reserved: var(--dash-table-head-h);
 }
 

@@ -75,8 +75,11 @@ const FOUNDATION_DECLARATION_HASH =
 // where it actually paints, instead of charging a phantom row below `md`.
 // Re-frozen for C05 (R13, authorized 2026-10-25): `compact` 36 -> 40px, with
 // the A02/A03 leaves it moves recaptured in the same change.
+// Re-frozen for V9 (F0-D7, Nico 2026-11): `compact` 40 -> 44px at >=768px (40px
+// kept at <=767px), dense table head 32 -> 36px. Baselines A02/A03 NOT yet
+// promoted: R13 pending.
 const ROW_PITCH_RAW_HASH =
-  "da6ec97ac5cd4c874e302a3ece0829056f8e2f8f60604234bea6ea14c3f217aa";
+  "db066364586bb88a9a4630c8a361d5e758a02dbfc55215ac102b2544c9a7ed81";
 
 type SurfaceRole =
   | "PERSISTENT_CHROME"
