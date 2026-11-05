@@ -78,7 +78,6 @@
 
 :root:not([data-theme="dark-gray"]) .dashboard-app-shell table thead > tr > th {
   color: var(--dash-color-on-surface-muted) !important;
-  font-size: 14px !important;
   font-weight: 500 !important;
   letter-spacing: normal !important;
   line-height: 16px !important;
@@ -91,7 +90,6 @@
 
 :root:not([data-theme="dark-gray"]) .dashboard-app-shell table tbody > tr > td {
   color: var(--dash-color-on-surface-muted) !important;
-  font-size: 14px !important;
   font-weight: 400 !important;
   line-height: 20px !important;
   border-block-end: 1px solid var(--dash-table-separator);
@@ -106,7 +104,6 @@
 /* Fixed-width date columns (text-xs tabular-nums) keep their compact size: 14px
  * would clip their text inside the column the component sizes for 12px. */
 :root:not([data-theme="dark-gray"]) .dashboard-app-shell table tbody > tr > td.tabular-nums {
-  font-size: 0.75rem !important;
   line-height: 1rem !important;
 }
 
@@ -116,7 +113,6 @@
 
 :root:not([data-theme="dark-gray"]) .dashboard-app-shell table tbody :is(td.text-muted-foreground, td .text-muted-foreground) {
   color: var(--dash-color-on-surface-muted) !important;
-  font-size: 14px !important;
   font-weight: 400 !important;
   line-height: 20px !important;
 }
@@ -128,6 +124,29 @@
  * Keep the existing 40px compact pitch without shortening either line box. */
 :root:not([data-theme="dark-gray"]) .dashboard-app-shell [data-dashboard-adaptive-rows-canvas="true"] table tbody > tr > td > p + p {
   margin-block-start: -1px;
+}
+
+/* dashboard-list-font-size-parity: list typography sizes are theme-independent.
+ * The normal theme is the reference; dark-gray resolves the same computed
+ * font-size. `:root:root` matches the specificity of the normal-theme selectors
+ * these declarations were extracted from. Only font-size lives here; colors,
+ * weights and line boxes stay with their theme-specific rules. */
+:root:root .dashboard-app-shell table thead > tr > th {
+  font-size: 14px !important;
+}
+
+:root:root .dashboard-app-shell table tbody > tr > td {
+  font-size: 14px !important;
+}
+
+/* Fixed-width date columns (text-xs tabular-nums) keep their compact size: 14px
+ * would clip their text inside the column the component sizes for 12px. */
+:root:root .dashboard-app-shell table tbody > tr > td.tabular-nums {
+  font-size: 0.75rem !important;
+}
+
+:root:root .dashboard-app-shell table tbody :is(td.text-muted-foreground, td .text-muted-foreground) {
+  font-size: 14px !important;
 }
 /* dashboard-drv-v2-neutral-tables:end */
 

@@ -345,7 +345,7 @@ test("automatic workflow coverage is derived from catalog cohorts and equals ful
   // +1: DRV V1 Google Drive fidelity probe (regression/evidence/dashboard-drv-v1-drive-fidelity-probe.spec.ts).
   // +2: DRV V7 overlay contracts and fidelity probe.
   // +2: DRV V8 container-columns contract and column probe.
-  assert.equal(E2E_SUITE_CATALOG.length, 132);
+  assert.equal(E2E_SUITE_CATALOG.length, 133);
 
   const partitionUnion = new Set(PARTITION_COHORTS.flatMap((cohort) => E2E_COHORT_SPECS[cohort]));
   assert.deepEqual([...partitionUnion].sort(), [...E2E_COHORT_SPECS.full].sort());
