@@ -32,6 +32,7 @@ import {
   ContentListItem,
 } from "@/features/dashboard/presentation/surfaces";
 import { ROUTES } from "@/lib/routes";
+import { formatStudyTypeDisplay } from "@/lib/study-types";
 import { formatDate } from "@/lib/utils";
 
 type Props = {
@@ -429,7 +430,7 @@ export function ClinicInformesWorkspaceSummary({
                           </td>
                           <td className="px-3 py-1.5">
                             <span className="block truncate">
-                              {report.studyType ?? "Tipo sin registrar"}
+                              {report.studyType == null ? "Tipo sin registrar" : formatStudyTypeDisplay(report.studyType)}
                             </span>
                           </td>
                           <td className="px-3 py-1.5">
@@ -478,7 +479,7 @@ export function ClinicInformesWorkspaceSummary({
                           #{report.id} · {report.patientName ?? "Sin nombre"}
                         </p>
                         <p className="truncate text-[0.6875rem] text-muted-foreground">
-                          {report.studyType ?? "Tipo sin registrar"}
+                          {report.studyType == null ? "Tipo sin registrar" : formatStudyTypeDisplay(report.studyType)}
                         </p>
                       </div>
                       <div className="flex shrink-0 items-center gap-1.5">
