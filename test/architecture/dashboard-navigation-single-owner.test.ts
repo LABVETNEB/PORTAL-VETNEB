@@ -33,7 +33,9 @@ import {
 
 const FRONTEND_SRC = "frontend/src";
 const PROVIDER = "frontend/src/components/dashboard/DashboardNavigationProvider.tsx";
-const MODULE_SEARCH = "frontend/src/components/dashboard/WorkspaceAppBar.tsx";
+// GLOBAL-SEARCH-2: the module shortcuts moved with the search out of the
+// presentation-pure app bar into the record search the orchestrator injects.
+const MODULE_SEARCH = "frontend/src/components/dashboard/DashboardGlobalSearch.tsx";
 const DASHBOARD_SCOPES = ["frontend/src/app/dashboard/", "frontend/src/components/dashboard/"];
 
 const ROUTER_METHODS = new Set(["push", "replace", "back", "forward"]);
@@ -486,6 +488,9 @@ function inDashboard(file: string): boolean {
 const EXTERNAL_ROUTER_COMMITS: readonly Pick<NavigationCall, "file" | "method" | "argument">[] = [
   // §5.2: a notification's deep link. No claim; the machine reads it as #22 / #23.
   { file: "frontend/src/components/dashboard/DashboardNotificationsBell.tsx", method: "push", argument: "destination" },
+  // GLOBAL-SEARCH-2: a search hit's deep link (module + row anchor), the same
+  // grammar as the bell's. No claim; the machine reads it as #22 / #23.
+  { file: "frontend/src/components/dashboard/DashboardGlobalSearch.tsx", method: "push", argument: "destination" },
 ];
 
 const EXTERNAL_ROUTE_CONTROLS: readonly Pick<RouteControl, "file" | "href" | "replace">[] = [
@@ -786,20 +791,20 @@ test("fail-closed: the provider navigates through its interpreter and nowhere el
 });
 
 test("fail-closed: the DT-10 fallback is the declined request, not a navigation of its own", () => {
-  const fallback = "if (!claimed) router.push(buildDashboardModuleHref(basePath, entry.moduleId));";
+  const fallback = "if (!claimed) router.push(buildDashboardModuleHref(basePath, option.entry.moduleId));";
 
   assertBreach(
-    mutated(MODULE_SEARCH, fallback, "router.push(buildDashboardModuleHref(basePath, entry.moduleId));"),
+    mutated(MODULE_SEARCH, fallback, "router.push(buildDashboardModuleHref(basePath, option.entry.moduleId));"),
     new RegExp(`^${MODULE_SEARCH}: router\\.push.*outside the owner`),
     "the module search pushing a claimed request",
   );
   assertBreach(
-    mutated(MODULE_SEARCH, fallback, "if (claimed) router.push(buildDashboardModuleHref(basePath, entry.moduleId));"),
+    mutated(MODULE_SEARCH, fallback, "if (claimed) router.push(buildDashboardModuleHref(basePath, option.entry.moduleId));"),
     /outside the owner/,
     "the guard inverted",
   );
   assertBreach(
-    mutated(MODULE_SEARCH, "? requestAdminModuleActivate(entry.moduleId)", "? false"),
+    mutated(MODULE_SEARCH, "? requestAdminModuleActivate(option.entry.moduleId)", "? false"),
     /outside the owner/,
     "a claim that never asks the owner",
   );

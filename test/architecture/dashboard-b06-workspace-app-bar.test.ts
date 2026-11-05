@@ -25,6 +25,12 @@ const REPO_ROOT = process.cwd();
 
 const APP_BAR_TSX = "frontend/src/components/dashboard/WorkspaceAppBar.tsx";
 const TOPBAR_TSX = "frontend/src/components/dashboard/DashboardTopbar.tsx";
+// GLOBAL-SEARCH-2: the search calls the record-search API, so it cannot live in
+// the presentation-pure band; it is injected through the `search` slot.
+const GLOBAL_SEARCH_TSX = "frontend/src/components/dashboard/DashboardGlobalSearch.tsx";
+const GLOBAL_SEARCH_DIALOG_TSX = "frontend/src/components/dashboard/DashboardGlobalSearchDialog.tsx";
+const GLOBAL_SEARCH_HOOK = "frontend/src/components/dashboard/useDashboardGlobalSearch.ts";
+const GLOBAL_SEARCH_LIB = "frontend/src/lib/global-search.ts";
 const SHELL_BARREL = "frontend/src/features/dashboard/presentation/shell/index.ts";
 const MODULE_CATALOG = "frontend/src/features/dashboard/config/dashboardModules.ts";
 const TOKENS_CSS = "frontend/src/styles/dashboard/tokens.css";
@@ -209,7 +215,7 @@ test("B06 · the app bar import closure never reaches the data or app layer", ()
 
 // ── T3 · Slots, not behaviour ────────────────────────────────────────────────
 
-test("B06 · the app bar declares the five audit slots and renders them verbatim", () => {
+test("B06 · the app bar declares the five audit slots plus search and renders them verbatim", () => {
   const source = read(APP_BAR_TSX);
 
   for (const slot of [
@@ -218,11 +224,12 @@ test("B06 · the app bar declares the five audit slots and renders them verbatim
     "readonly notifications?: ReactNode;",
     "readonly account?: ReactNode;",
     "readonly overflow?: ReactNode;",
+    "readonly search?: ReactNode;",
   ]) {
     assert.ok(source.includes(slot), `missing declared slot: ${slot}`);
   }
 
-  for (const rendered of ["{identity}", "{actions}", "{notifications}", "{account}", "{overflow}"]) {
+  for (const rendered of ["{identity}", "{search}", "{actions}", "{notifications}", "{account}", "{overflow}"]) {
     assert.ok(source.includes(rendered), `slot is declared but never rendered: ${rendered}`);
   }
 
@@ -245,7 +252,7 @@ test("B06 · DashboardTopbar stays the orchestrator and feeds every slot", () =>
     "the orchestrator composes the band",
   );
   assert.ok(source.includes("<WorkspaceAppBar"));
-  for (const wiring of ["identity={", "actions={", "notifications={", "account={", "overflow={"]) {
+  for (const wiring of ["identity={", "search={", "actions={", "notifications={", "account={", "overflow={"]) {
     assert.ok(source.includes(wiring), `orchestrator does not feed slot: ${wiring}`);
   }
 
@@ -376,44 +383,84 @@ test("B06 · the app-bar band paints no bottom rule from 768px (V6) and keeps th
   );
 });
 
-// ── T5 · Global module search ────────────────────────────────────────────────
+// ── T5 · Global record search (GLOBAL-SEARCH-2) ─────────────────────────────
 
-test("B06 · global search reads the canonical catalog and the ?module= grammar", () => {
-  const source = read(APP_BAR_TSX);
+test("B06 · the app bar only renders the injected search; the orchestrator owns it", () => {
+  const appBar = stripComments(read(APP_BAR_TSX));
+  for (const moved of [
+    "ADMIN_MODULE_NAV_LABELS",
+    "CLINIC_MODULE_NAV_LABELS",
+    "useRouter",
+    "router.push",
+    'role="combobox"',
+    "fetch(",
+    "/api/search",
+  ]) {
+    assert.equal(appBar.includes(moved), false, `the pure band must not own ${moved}`);
+  }
+  assert.equal(appBar.includes("WorkspaceModuleSearch"), false, "the module-only search is retired");
+
+  const topbar = read(TOPBAR_TSX);
+  assert.ok(topbar.includes('import { DashboardGlobalSearch } from "./DashboardGlobalSearch";'));
+  assert.ok(
+    topbar.includes('search={<DashboardGlobalSearch surface={isAdmin ? "admin" : "clinic"} />}'),
+    "the orchestrator injects the role-bound record search",
+  );
+});
+
+test("B06 · global search queries the authorized API and keeps module shortcuts on the ?module= grammar", () => {
+  const source = read(GLOBAL_SEARCH_TSX);
   const executable = stripComments(source);
 
+  // Real records through the data layer, never a filter of rows already loaded.
+  assert.ok(source.includes('import { useDashboardGlobalSearch } from "./useDashboardGlobalSearch";'));
+  const hook = read(GLOBAL_SEARCH_HOOK);
+  assert.ok(
+    hook.includes("searchDashboardGlobal(surface, parsed, { signal: controller.signal })"),
+    "the request is cancellable",
+  );
+  assert.ok(hook.includes("controller.abort();"), "a superseded request is aborted");
+  assert.ok(hook.includes("window.setTimeout("), "typing is debounced");
+  assert.ok(hook.includes("if (current !== sequence.current || controller.signal.aborted) return;"), "a stale answer is never committed");
+
+  const lib = read(GLOBAL_SEARCH_LIB);
+  assert.ok(lib.includes('return surface === "admin" ? "/api/admin/search" : "/api/search";'));
+  assert.ok(
+    lib.includes('if (surface === "admin" && POSITIVE_ID.test(clinicId)) params.set("clinicId", clinicId);'),
+    "clinicId is an admin-only narrowing; the clinic tenant is the session",
+  );
+  assert.equal(
+    lib.split('params.set("clinicId"').length - 1,
+    1,
+    "no other path may put a clinicId on the wire",
+  );
+
+  for (const file of [GLOBAL_SEARCH_TSX, GLOBAL_SEARCH_DIALOG_TSX, GLOBAL_SEARCH_HOOK]) {
+    const body = stripComments(read(file));
+    for (const invented of ["fetch(", "axios", "useSWR"]) {
+      assert.equal(body.includes(invented), false, `${file} must not call ${invented} directly`);
+    }
+    // The repo forbids link-based in-app navigation (AGENTS.md §10, test/unit/ui).
+    assert.equal(body.includes('from "next/link"'), false, `${file} imports next/link`);
+    assert.equal(/<a[\s>]/.test(body), false, `${file} navigates with an anchor element`);
+  }
+
+  // Module shortcuts read the canonical catalog and honour the owner (DT-10).
   assert.ok(source.includes("ADMIN_MODULE_NAV_LABELS"));
   assert.ok(source.includes("CLINIC_MODULE_NAV_LABELS"));
   assert.ok(source.includes('from "@/features/dashboard/config"'));
   assert.ok(source.includes("buildDashboardModuleHref"));
   assert.ok(source.includes('from "@/features/dashboard/application"'));
-
   assert.ok(
-    source.includes("router.push(buildDashboardModuleHref(basePath, entry.moduleId))"),
+    source.includes("if (!claimed) router.push(buildDashboardModuleHref(basePath, option.entry.moduleId));"),
     "navigation must go through the existing router control pattern",
   );
 
-  // The repo forbids link-based in-app navigation (AGENTS.md §10, test/unit/ui).
-  assert.equal(executable.includes('from "next/link"'), false);
-  assert.equal(
-    /<a[\s>]/.test(executable),
-    false,
-    "no anchor element may be used to navigate",
-  );
-
-  // No invented backend.
-  for (const invented of ["fetch(", "/api/search", "axios", "useSWR"]) {
-    assert.equal(
-      executable.includes(invented),
-      false,
-      `global search must not introduce ${invented}: it searches the shipped catalog`,
-    );
-  }
-
-  // Accessible combobox, keyboard-operable.
+  // Accessible combobox, keyboard-operable, with a polite status region.
   assert.ok(source.includes('role="combobox"'));
   assert.ok(source.includes('role="listbox"'));
   assert.ok(source.includes('role="option"'));
+  assert.ok(source.includes('role="status"'));
   assert.ok(source.includes("aria-expanded={expanded}"));
   assert.ok(source.includes("aria-controls={listboxId}"));
   assert.ok(source.includes("aria-activedescendant="));
@@ -421,6 +468,8 @@ test("B06 · global search reads the canonical catalog and the ?module= grammar"
   assert.ok(source.includes('event.key === "ArrowUp"'));
   assert.ok(source.includes('event.key === "Enter"'));
   assert.ok(source.includes('event.key === "Escape"'));
+  assert.ok(source.includes('placeholder="Buscar en VETNEB"'));
+  assert.equal(executable.includes("Buscar modulo"), false, "the module-only search label is retired");
 });
 
 test("B06 · the admin label table is single-owned by the module catalog", () => {
@@ -486,14 +535,17 @@ test("B06 · drive-shell foundation keeps the chrome solid and the canvas flat",
     assert.equal(topbar.includes(translucent), false, `the topbar must not reintroduce ${translucent}`);
   }
 
-  const appBar = stripComments(read(APP_BAR_TSX));
+  const search = stripComments(read(GLOBAL_SEARCH_TSX));
   assert.ok(
-    appBar.includes(
+    search.includes(
       "h-[var(--dash-drv-search-h)] w-full min-w-0 rounded-[var(--dash-drv-search-radius)] border border-transparent bg-[var(--dash-drv-search-fill)]",
     ),
-    "the module search is a flat pill sized by the V6 tokens (48px, radius 24px, 16px input)",
+    "the global search is a flat pill sized by the V6 tokens (48px, radius 24px, 16px input)",
   );
-  assert.ok(appBar.includes('placeholder="Buscar modulo"'), "the search keeps its module-search purpose");
+  assert.ok(
+    search.includes('className="relative hidden min-w-0 shrink md:block md:w-48 lg:w-72 xl:w-[26rem] 2xl:w-[32rem]"'),
+    "the search keeps the band's width ladder, so the app-bar geometry does not move",
+  );
 
   const ruleOf = (source: string, selector: string) => {
     const from = source.indexOf(selector);
@@ -509,7 +561,19 @@ test("B06 · drive-shell foundation keeps the chrome solid and the canvas flat",
 });
 
 test("B06 · the app-bar contract files stay inside the declared scope", () => {
-  for (const file of [APP_BAR_TSX, TOPBAR_TSX, SHELL_BARREL, MODULE_CATALOG, TOKENS_CSS, LAYOUT_CSS, RUNTIME_SPEC]) {
+  for (const file of [
+    APP_BAR_TSX,
+    TOPBAR_TSX,
+    GLOBAL_SEARCH_TSX,
+    GLOBAL_SEARCH_DIALOG_TSX,
+    GLOBAL_SEARCH_HOOK,
+    GLOBAL_SEARCH_LIB,
+    SHELL_BARREL,
+    MODULE_CATALOG,
+    TOKENS_CSS,
+    LAYOUT_CSS,
+    RUNTIME_SPEC,
+  ]) {
     const absolute = resolve(REPO_ROOT, file);
     assert.ok(existsSync(absolute), `${file} is part of the B06 contract and must exist`);
     assert.equal(

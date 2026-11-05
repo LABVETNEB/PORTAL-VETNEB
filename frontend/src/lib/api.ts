@@ -56,6 +56,13 @@ import { ApiResponseError } from "@/lib/api-error";
 import { publishAdminAccessErrorStatus } from "@/lib/admin-access-error";
 import { CLIENT_APP_VERSION, CLIENT_VERSION_HEADER } from "@/lib/app-version";
 import { publishClientVersionUnsupported } from "@/lib/client-version-error";
+import {
+  buildGlobalSearchQueryString,
+  globalSearchPathFor,
+  type GlobalSearchRequest,
+  type GlobalSearchResult,
+  type GlobalSearchSurface,
+} from "@/lib/global-search";
 
 const CLIENT_VERSION_UNSUPPORTED_CODE = "CLIENT_VERSION_UNSUPPORTED";
 
@@ -688,6 +695,30 @@ export async function searchReportsPaginated(
 
     return { reports: [], total: 0, page, pageSize, totalPages: 0 };
   }
+}
+
+/**
+ * GLOBAL-SEARCH-2: authorized record search. The clinic tenant comes from the
+ * session cookie on the server; this client never sends a clinic id for it.
+ */
+export async function searchDashboardGlobal(
+  surface: GlobalSearchSurface,
+  request: GlobalSearchRequest,
+  options: RequestInit = {},
+): Promise<GlobalSearchResult> {
+  const query = buildGlobalSearchQueryString(surface, request);
+  const res = await apiFetch<GlobalSearchResult & { success?: boolean }>(
+    `${globalSearchPathFor(surface)}?${query}`,
+    { ...options, cache: "no-store" },
+  );
+
+  return {
+    query: typeof res.query === "string" ? res.query : request.query,
+    hits: Array.isArray(res.hits) ? res.hits : [],
+    groups: Array.isArray(res.groups) ? res.groups : [],
+    limit: typeof res.limit === "number" ? res.limit : request.limit,
+    offset: typeof res.offset === "number" ? res.offset : request.offset,
+  };
 }
 
 type AdminReportUploadResponse = {

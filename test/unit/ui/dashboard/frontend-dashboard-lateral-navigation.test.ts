@@ -692,8 +692,8 @@ test("SINGLE FLIGHT: every producer honours a claim and both owners claim and re
     ["frontend/src/components/dashboard/NavigationRail.tsx", "if (claimed) event.preventDefault();"],
     ["frontend/src/components/dashboard/DashboardMobileKebabMenu.tsx", "if (claimed) event.preventDefault();"],
     [
-      "frontend/src/components/dashboard/WorkspaceAppBar.tsx",
-      "if (!claimed) router.push(buildDashboardModuleHref(basePath, entry.moduleId));",
+      "frontend/src/components/dashboard/DashboardGlobalSearch.tsx",
+      "if (!claimed) router.push(buildDashboardModuleHref(basePath, option.entry.moduleId));",
     ],
     [
       "frontend/src/app/dashboard/admin/AdminOverviewQuickLinks.tsx",

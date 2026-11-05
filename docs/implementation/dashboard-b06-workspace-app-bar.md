@@ -77,7 +77,7 @@ DashboardTopbar  (orquestador, importa @/lib/api)
   └── <header data-dashboard-topbar-polish>      ← banda de chrome, borde 1px
         ├── <WorkspaceAppBar>                    ← B06, presentation-pure
         │     ├── {identity}    slot renderizado por el orquestador
-        │     ├── WorkspaceModuleSearch          ← búsqueda global (interna, pura)
+        │     ├── {search}      slot (GLOBAL-SEARCH-2: DashboardGlobalSearch, inyectado)
         │     └── <div data-dashboard-desktop-actions>
         │            {actions} {notifications} {account}
         │     └── {overflow}
@@ -88,6 +88,9 @@ DashboardTopbar  (orquestador, importa @/lib/api)
   cierre de imports; logout, invalidación de sesión, campana, tema y kebab
   llegan ya renderizados como slots. Por eso puede exponerse en
   `features/dashboard/presentation/shell`, y `DashboardTopbar` sigue fuera.
+- GLOBAL-SEARCH-2 retiró `WorkspaceModuleSearch` (búsqueda sólo de módulos): la
+  búsqueda de registros llama a la API, así que llega como el slot `search` desde
+  el orquestador. Ver `docs/implementation/global-search-phase-2-ui.md`.
 - La implementación se queda en `@/components/dashboard/*`: mover el archivo
   rompería los guardrails de invariante de fuente que anclan el chrome (B01).
 

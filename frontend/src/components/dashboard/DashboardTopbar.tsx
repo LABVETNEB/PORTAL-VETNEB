@@ -11,6 +11,7 @@ import { ThemeModeToggle } from "@/components/theme/ThemeModeToggle";
 import { logout as logoutClinic, logoutAdmin } from "@/lib/api";
 import { clearDashboardLastModules } from "@/lib/dashboard-last-module";
 import { ROUTES } from "@/lib/routes";
+import { DashboardGlobalSearch } from "./DashboardGlobalSearch";
 import { DashboardNotificationsBell } from "./DashboardNotificationsBell";
 import { DashboardMobileKebabMenu } from "./DashboardMobileKebabMenu";
 import { ModuleContextTitle } from "./ModuleContextTitle";
@@ -119,6 +120,7 @@ export function DashboardTopbar({
             )}
           </div>
         }
+        search={<DashboardGlobalSearch surface={isAdmin ? "admin" : "clinic"} />}
         actions={<ThemeModeToggle className="shadow-none" />}
         notifications={
           <DashboardTopbarNotifications notifications={notifications} />
