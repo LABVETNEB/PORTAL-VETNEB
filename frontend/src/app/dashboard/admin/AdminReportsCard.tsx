@@ -64,6 +64,7 @@ import {
   type AdminReportWorkflowItem,
   type AdminReportWorkflowStage,
 } from "@/lib/api";
+import { formatStudyTypeDisplay } from "@/lib/study-types";
 import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
 import {
   DASHBOARD_TOUCH_PAGER_RESERVATION,
@@ -89,12 +90,6 @@ const REPORTS_SUPERSET_CAP = 36;
 // the measured region so the row math never counts the header as a data row.
 const REPORTS_TABLE_HEADER_PX = 28;
 // Fallback item height used until a real row is measured.
-
-const STUDY_LABELS: Record<string, string> = {
-  histopatologia: "Histopatología",
-  citologia: "Citología",
-  hemoparasitos: "Hemoparásitos",
-};
 
 type AdminReportsFilterState = {
   report: string;
@@ -127,11 +122,6 @@ function formatDate(value: string | null) {
     month: "2-digit",
     year: "2-digit",
   }).format(date);
-}
-
-function studyLabel(value: string | null) {
-  if (!value) return "Sin tipo";
-  return STUDY_LABELS[value] ?? value;
 }
 
 function normalizeSearchText(value: string | number | null | undefined): string {
@@ -189,7 +179,7 @@ function matchesAdminReportFilters(
   const reportDisplay = `Informe #${report.id}`;
   const clinicDisplay = report.clinicName || `Clínica #${report.clinicId}`;
   const patientDisplay = report.patientName || "Paciente sin registrar";
-  const studyDisplay = studyLabel(report.studyType);
+  const studyDisplay = formatStudyTypeDisplay(report.studyType);
   const fileDisplay = report.fileName || "Sin archivo";
 
   return (
@@ -819,7 +809,7 @@ export function AdminReportsCard() {
                       </div>
                       <p className="truncate text-[0.6875rem]">{report.clinicName || `Clínica #${report.clinicId}`}</p>
                       <p className="truncate text-[0.6875rem] text-muted-foreground">
-                        {studyLabel(report.studyType)}
+                        {formatStudyTypeDisplay(report.studyType)}
                         <span className="hidden lg:inline"> · {formatDate(report.uploadDate ?? report.createdAt)}</span>
                         <span className="hidden xl:inline"> · {report.fileName || "Sin archivo"}</span>
                       </p>
@@ -873,7 +863,8 @@ export function AdminReportsCard() {
                         </p>
                       </TableCell>
                       <TableCell className="py-0.5">
-                        <span className="block truncate">{studyLabel(report.studyType)}</span>
+                        {/* DRV V8: la etiqueta en mayúsculas entra en la columna a 1280 px sin cambiar tamaño ni peso. */}
+                        <span className="block truncate tracking-[-0.02em]">{formatStudyTypeDisplay(report.studyType)}</span>
                       </TableCell>
                       <TableCell className="py-0.5">
                         <AdminReportStatusBadge stage={report.workflowStage} />
@@ -942,7 +933,7 @@ export function AdminReportsCard() {
                         #{report.id} · {report.patientName || "Sin paciente"}
                       </p>
                       <p className="truncate text-[0.6875rem] text-muted-foreground">
-                        {report.clinicName || `Clínica #${report.clinicId}`} · {studyLabel(report.studyType)}
+                        {report.clinicName || `Clínica #${report.clinicId}`} · {formatStudyTypeDisplay(report.studyType)}
                       </p>
                     </div>
                     <AdminReportStatusBadge stage={report.workflowStage} />
@@ -1040,7 +1031,7 @@ export function AdminReportsCard() {
             <DetailsHeader title="Detalle del informe" identifier={`#${selectedReport.id}`} context={selectedReport.clinicName || `Clínica #${selectedReport.clinicId}`} status={<AdminReportStatusBadge stage={selectedReport.workflowStage} />} />
             <DetailsMetadata items={[
               { id: "patient", label: "Paciente", value: selectedReport.patientName || "Sin registrar" },
-              { id: "study", label: "Estudio", value: studyLabel(selectedReport.studyType) },
+              { id: "study", label: "Estudio", value: formatStudyTypeDisplay(selectedReport.studyType) },
               { id: "upload", label: "Carga", value: formatDate(selectedReport.uploadDate ?? selectedReport.createdAt) },
               { id: "updated", label: "Última actualización", value: formatDate(selectedReport.workflowUpdatedAt) },
               { id: "file", label: "Archivo", value: selectedReport.fileName || "Sin archivo disponible" },

@@ -430,7 +430,7 @@ export function ClinicInformesWorkspaceSummary({
                           </td>
                           <td className="px-3 py-1.5">
                             <span className="block truncate">
-                              {report.studyType == null ? "Tipo sin registrar" : formatStudyTypeDisplay(report.studyType)}
+                              {formatStudyTypeDisplay(report.studyType)}
                             </span>
                           </td>
                           <td className="px-3 py-1.5">
@@ -479,7 +479,7 @@ export function ClinicInformesWorkspaceSummary({
                           #{report.id} · {report.patientName ?? "Sin nombre"}
                         </p>
                         <p className="truncate text-[0.6875rem] text-muted-foreground">
-                          {report.studyType == null ? "Tipo sin registrar" : formatStudyTypeDisplay(report.studyType)}
+                          {formatStudyTypeDisplay(report.studyType)}
                         </p>
                       </div>
                       <div className="flex shrink-0 items-center gap-1.5">
@@ -632,7 +632,7 @@ export function ClinicInformesWorkspaceSummary({
 
               <DetailsMetadata
                 items={[
-                  { id: "estudio", label: "Estudio", value: selectedReport.studyType ?? "Tipo sin registrar" },
+                  { id: "estudio", label: "Estudio", value: formatStudyTypeDisplay(selectedReport.studyType) },
                   { id: "fecha", label: "Fecha", value: formatDate(selectedReport.uploadDate) },
                   { id: "archivo", label: "Archivo / Informe", value: formatReportFile(selectedReport) },
                 ]}

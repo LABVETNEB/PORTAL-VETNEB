@@ -91,6 +91,10 @@ test.describe("particular authenticated session — fixed-viewport no-scroll (R-
             report.getByRole("button", { name: "Descargar" }),
             `${label}: primary action Descargar`,
           ).toBeVisible();
+          await expect(
+            report.locator('[data-particulares-report-meta="true"]'),
+            `${label}: study classification in accented uppercase`,
+          ).toHaveText("HISTOPATOLOGÍA · informe-e2e-7301.pdf");
         } else {
           await expect(
             report,

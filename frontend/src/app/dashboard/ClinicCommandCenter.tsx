@@ -7,6 +7,7 @@ import { DashboardRefreshButton } from "@/components/dashboard/DashboardRefreshB
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ContentList, ContentListItem } from "@/components/ui/table";
 import { ClipboardList, Route } from "lucide-react";
+import { formatStudyTypeDisplay } from "@/lib/study-types";
 import { formatDate } from "@/lib/utils";
 
 export type ClinicCommandCenterProps = {
@@ -34,7 +35,7 @@ function pickMostRecentActivity(
   if (latestReport) {
     candidates.push({
       label: latestReport.patientName ?? "Informe sin nombre",
-      detail: `${latestReport.studyType ?? "Estudio"} · ${formatDate(latestReport.uploadDate)}`,
+      detail: `${formatStudyTypeDisplay(latestReport.studyType)} · ${formatDate(latestReport.uploadDate)}`,
       date: latestReport.updatedAt ?? latestReport.uploadDate,
     });
   }
@@ -171,7 +172,7 @@ export function ClinicCommandCenter({
                               {report.patientName ?? "Sin nombre"}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              {report.studyType} · {formatDate(report.uploadDate)}
+                              {formatStudyTypeDisplay(report.studyType)} · {formatDate(report.uploadDate)}
                             </p>
                           </div>
                           <StatusBadge

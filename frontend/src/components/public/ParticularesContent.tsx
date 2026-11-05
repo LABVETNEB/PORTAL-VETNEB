@@ -28,6 +28,7 @@ import {
   type AdminStudyTrackingCaseSummary,
 } from "@/lib/api";
 import { ROUTES } from "@/lib/routes";
+import { formatStudyTypeDisplay } from "@/lib/study-types";
 import type { ParticularSession } from "@/types";
 import {
   Card,
@@ -527,7 +528,7 @@ export function ParticularesContent() {
   // autenticado sin cota de diseño, así que la superficie operacional lo acota
   // visualmente y expone el valor completo por `title`.
   const reportMetaLabel = session?.report
-    ? `${session.report.studyType ?? "Estudio"} · ${session.report.fileName ?? "Archivo disponible"}`
+    ? `${formatStudyTypeDisplay(session.report.studyType)} · ${session.report.fileName ?? "Archivo disponible"}`
     : undefined;
 
   const nextStepCopy = session
@@ -951,7 +952,7 @@ export function ParticularesContent() {
                               title={reportMetaLabel}
                               className="mt-1 min-w-0 max-w-full overflow-hidden text-sm text-muted-foreground [overflow-wrap:anywhere]"
                             >
-                              {session.report.studyType ?? "Estudio"} ·{" "}
+                              {formatStudyTypeDisplay(session.report.studyType)} ·{" "}
                               {session.report.fileName ?? "Archivo disponible"}
                             </p>
                           </div>
@@ -1010,7 +1011,7 @@ export function ParticularesContent() {
                               title={reportMetaLabel}
                               className="mt-1 min-w-0 max-w-full overflow-hidden text-sm text-muted-foreground [overflow-wrap:anywhere]"
                             >
-                              {session.report.studyType ?? "Estudio"} ·{" "}
+                              {formatStudyTypeDisplay(session.report.studyType)} ·{" "}
                               {session.report.fileName ?? "Archivo disponible"}
                             </p>
                           </div>

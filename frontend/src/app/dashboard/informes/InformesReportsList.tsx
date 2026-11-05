@@ -31,6 +31,7 @@ import {
 } from "@/features/dashboard/presentation/surfaces";
 import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
 import { getReportStatusLabel, getReportStatusVariant, formatDate } from "@/lib/utils";
+import { formatStudyTypeDisplay } from "@/lib/study-types";
 import type { Report, ReportStatus } from "@/types";
 import { getInformesPage } from "./informes.actions";
 import { INFORMES_FALLBACK_ROWS, INFORMES_LIMIT_CAP } from "./informes.constants";
@@ -89,7 +90,7 @@ function getReportTitle(report: Report) {
 
 function getReportSelectionLabel(report: Report, isSelected: boolean, view: "list" | "grid") {
   const identity = `#${report.id} · ${report.patientName ?? "Paciente sin nombre"}`;
-  const study = report.studyType ?? "Tipo sin registrar";
+  const study = formatStudyTypeDisplay(report.studyType);
   const separator = view === "list" ? " · " : " ";
   return `${isSelected ? "Informe seleccionado" : "Seleccionar informe"}: ${identity} ${study}${separator}${formatDate(report.uploadDate)}`;
 }
@@ -537,7 +538,7 @@ export function InformesReportsList({
                 <div className="surface-soft min-w-0">
                   <dt className="text-xs text-muted-foreground">Tipo de estudio</dt>
                   <dd className="dashboard-detail-value mt-1 font-semibold text-vetneb-ink">
-                    {report.studyType ?? "—"}
+                    {formatStudyTypeDisplay(report.studyType)}
                   </dd>
                 </div>
                 <div className="surface-soft min-w-0">
@@ -777,7 +778,7 @@ export function InformesReportsList({
                           </span>
                           {" "}
                           <span className="block truncate text-[11px] text-muted-foreground">
-                            {report.studyType ?? "Tipo sin registrar"}
+                            {formatStudyTypeDisplay(report.studyType)}
                           </span>
                           {" "}
                           <span className="block truncate text-[11px] text-muted-foreground">
@@ -800,7 +801,7 @@ export function InformesReportsList({
                   <CanonicalOperationalRow
                     key={report.id}
                     identity={`#${report.id} · ${report.patientName ?? "Paciente sin nombre"} `}
-                    secondary={`${report.studyType ?? "Tipo sin registrar"} · ${formatDate(report.uploadDate)}`}
+                    secondary={`${formatStudyTypeDisplay(report.studyType)} · ${formatDate(report.uploadDate)}`}
                     trailing={
                       <Badge variant={getReportStatusVariant(report.status)}>
                         {getReportStatusLabel(report.status)}
@@ -825,7 +826,7 @@ export function InformesReportsList({
                     {getReportTitle(selectedReport)}
                   </p>
                   <p className="truncate text-[0.6875rem] text-muted-foreground">
-                    {selectedReport.studyType ?? "Tipo sin registrar"} ·{" "}
+                    {formatStudyTypeDisplay(selectedReport.studyType)} ·{" "}
                     {formatDate(selectedReport.uploadDate)}
                   </p>
                 </div>
