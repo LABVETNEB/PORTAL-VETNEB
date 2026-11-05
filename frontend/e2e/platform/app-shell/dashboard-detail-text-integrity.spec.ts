@@ -14,6 +14,7 @@ import {
   trackInformesWindowRequests,
 } from "../../helpers/informes-adaptive-settle";
 import { addAppCookies, setSession } from "../../helpers/session";
+import { formatStudyTypeDisplay } from "../../../src/lib/study-types";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PR-TRUNC — Terminal-surface text integrity (admin + clinic).
@@ -301,7 +302,8 @@ test.describe("admin report detail keeps patient, study and file name", () => {
         DIALOG,
         [
           LONG_TEXT_CLINIC_REPORT.patientName,
-          LONG_TEXT_CLINIC_REPORT.studyType,
+          // La clasificación se muestra en mayúsculas acentuadas (study-types); el texto sigue completo.
+          formatStudyTypeDisplay(LONG_TEXT_CLINIC_REPORT.studyType),
           LONG_TEXT_CLINIC_REPORT.fileName,
         ],
         label,
@@ -516,7 +518,8 @@ test.describe("clinic informes summary detail keeps patient, study and file", ()
         DIALOG,
         [
           LONG_TEXT_CLINIC_REPORT.patientName,
-          LONG_TEXT_CLINIC_REPORT.studyType,
+          // La clasificación se muestra en mayúsculas acentuadas (study-types); el texto sigue completo.
+          formatStudyTypeDisplay(LONG_TEXT_CLINIC_REPORT.studyType),
         ],
         label,
       );
@@ -579,7 +582,8 @@ test.describe("clinic informes master-detail panel keeps the whole record", () =
         root,
         [
           LONG_TEXT_CLINIC_REPORT.patientName,
-          LONG_TEXT_CLINIC_REPORT.studyType,
+          // La clasificación se muestra en mayúsculas acentuadas (study-types); el texto sigue completo.
+          formatStudyTypeDisplay(LONG_TEXT_CLINIC_REPORT.studyType),
         ],
         label,
       );
