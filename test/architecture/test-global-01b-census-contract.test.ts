@@ -214,10 +214,12 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     section: "§6.1",
     metric: "LOC tracked bajo test/**",
     historical: 156887,
+    baseline: 196698,
     compute: () => volumes.testLines,
-    resolution: "REPRODUCED",
+    resolution: "RECLASSIFIED",
     guard: BAND,
-    motive: "LOC es explícitamente no congelable (§31.2).",
+    motive:
+      "LOC es explícitamente no congelable (§31.2). Re-anclaje 156887 -> 196698: main@f30107771c4bc74b0d84309b4ceec1531384acdf producia 195739, a 370 lineas del tope de la banda 156887 +- 39222 (196109). GLOBAL-SEARCH-1 suma 959 lineas netas de test/**: los specs de la API de busqueda global (dominio, forma del SQL generado, rutas con dos clinicas y sesion admin, aislamiento contra PostgreSQL real con 2.000 informes por clinica) y la realineacion de M45, M46 y M48, mas este re-anclaje. Crecimiento intencional: se re-ancla el baseline al valor medido despues de implementar, sin ampliar GROWTH_TOLERANCE, sin tolerancia propia y sin excluir ningun archivo del inventario.",
   },
   {
     row: "A0-06-VOLUME",
@@ -470,11 +472,12 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     section: "§6.3",
     metric: "LOC de archivos .ts bajo test/**",
     historical: 156700,
+    baseline: 196503,
     compute: () => totalLines(corpus, testTypeScriptFiles),
-    resolution: "REPRODUCED",
+    resolution: "RECLASSIFIED",
     guard: BAND,
     motive:
-      "LOC de la suite: numerador del ratio de §6.3 y magnitud explícitamente no congelable (§31.2).",
+      "LOC de la suite: numerador del ratio de §6.3 y magnitud explícitamente no congelable (§31.2). Re-anclaje 156700 -> 196503: main@f30107771c4bc74b0d84309b4ceec1531384acdf producia 195544, a 331 lineas del tope de la banda 156700 +- 39175 (195875). GLOBAL-SEARCH-1 suma 959 lineas netas de test/**: los specs de la API de busqueda global (dominio, forma del SQL generado, rutas con dos clinicas y sesion admin, aislamiento contra PostgreSQL real con 2.000 informes por clinica) y la realineacion de M45, M46 y M48, mas este re-anclaje. Crecimiento intencional: se re-ancla el baseline al valor medido despues de implementar, sin ampliar GROWTH_TOLERANCE, sin tolerancia propia y sin excluir ningun archivo del inventario.",
   },
   // ── §6.4 / §12.1 soporte compartido ───────────────────────────────────────
   {
