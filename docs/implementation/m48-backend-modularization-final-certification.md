@@ -199,15 +199,23 @@ El censo vivo se realineó para C17 con medición PRE M48 → POST C17:
 permanecen iguales. Esta actualización del censo no modifica el cierre
 histórico de M48.
 
+El censo vivo se realineó para la Fase 1 del superbuscador global con medición
+POST C17 → POST GLOBAL-SEARCH-1: nueva feature `server/features/global-search`
+(7 archivos, 927 LOC) que lleva `server/features` a 156/18.083, dos rutas
+nuevas (`clinic-global-search`, `admin-global-search`) que llevan
+`server/routes` a 37/21.587 (+382) y el registro en `server/fastify-app.ts`
+(+20, raíz 2.440). Total 226/46.409 → 235/47.738. La feature no tiene aristas
+cross-feature (matriz M45 sin cambios de aristas).
+
 | Área | Archivos TypeScript | LOC |
 | --- | ---: | ---: |
-| `server/features` | 149 | 17.156 |
-| `server/routes` | 35 | 21.205 |
+| `server/features` | 156 | 18.083 |
+| `server/routes` | 37 | 21.587 |
 | `server/lib` | 30 | 5.199 |
 | `server/middlewares` | 3 | 429 |
-| raíz/entrypoints `server/*.ts` | 9 | 2.420 |
+| raíz/entrypoints `server/*.ts` | 9 | 2.440 |
 | otros | 0 | 0 |
-| **Total `server`** | **226** | **46.409** |
+| **Total `server`** | **235** | **47.738** |
 
 El review P2 de M48 detectó que la primera metodología aplicaba una semántica
 equivalente a `source.split("\n").length`, que sumaba un segmento vacío por
@@ -215,8 +223,8 @@ cada archivo terminado en newline. Esta incidencia quedó corregida mediante el
 conteo físico anterior y assertions ejecutables sobre categorías, total y
 features.
 
-- Features: 9.
-- Rutas productivas `*.fastify.ts`: 35.
+- Features: 10.
+- Rutas productivas `*.fastify.ts`: 37.
 - Módulos `server/lib` raíz: 25.
 - Módulos `server/lib/http`: 3.
 
@@ -228,6 +236,7 @@ porque ésa es su topología proporcional documentada.
 | Feature | Archivos | LOC | Capas/directorios reales | Barrel raíz | Entrantes | Salientes | Closeout |
 | --- | ---: | ---: | --- | --- | --- | --- | --- |
 | Clinics | 10 | 2.747 | domain, infrastructure, servicios directos | sí | Users/Roles (2 refs) | Public Professionals (3) | M29 |
+| Global Search | 7 | 927 | domain, application, infrastructure | sí | ninguna | ninguna | GLOBAL-SEARCH-1 |
 | Logistics | 46 | 4.238 | domain, application, infrastructure | no requerido | ninguna | ninguna | M17 |
 | Particular Access | 12 | 1.086 | domain, application, infrastructure | sí | Reports (1) | Reports/ST (7) | M33/M35b |
 | Pricing | 4 | 489 | infrastructure, servicios directos | no requerido | ninguna | ninguna | M20 |
@@ -240,6 +249,7 @@ porque ésa es su topología proporcional documentada.
 Barrels públicos reales:
 
 - Clinics: command de credenciales admin y tipos asociados;
+- Global Search: domain y casos de uso (infrastructure sólo por carga lazy de rutas);
 - Particular Access: token y loader público lazy;
 - Public Professionals: ocho exports de profile infrastructure;
 - Report Access: superficie de token;

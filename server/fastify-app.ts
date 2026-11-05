@@ -148,6 +148,14 @@ import {
   logisticsSlaNativeRoutes,
   type LogisticsSlaNativeRoutesOptions,
 } from "./routes/logistics-sla.fastify.ts";
+import {
+  clinicGlobalSearchNativeRoutes,
+  type ClinicGlobalSearchNativeRoutesOptions,
+} from "./routes/clinic-global-search.fastify.ts";
+import {
+  adminGlobalSearchNativeRoutes,
+  type AdminGlobalSearchNativeRoutesOptions,
+} from "./routes/admin-global-search.fastify.ts";
 import { requireTrustedOriginForFastify } from "./middlewares/trusted-origin.ts";
 import { requireMinimumClientVersionForFastify } from "./middlewares/version-gate.ts";
 import { applySensitiveApiNoStoreHeaders } from "./lib/http/sensitive-response-cache.ts";
@@ -381,6 +389,8 @@ export type CreateFastifyAppOptions = {
   logisticsRoutePlansRoutes?: LogisticsRoutePlansNativeRoutesOptions;
   logisticsRouteEventsRoutes?: LogisticsRouteEventsNativeRoutesOptions;
   logisticsSlaRoutes?: LogisticsSlaNativeRoutesOptions;
+  clinicGlobalSearchRoutes?: ClinicGlobalSearchNativeRoutesOptions;
+  adminGlobalSearchRoutes?: AdminGlobalSearchNativeRoutesOptions;
 };
 
 export async function createFastifyApp(
@@ -698,6 +708,16 @@ export async function createFastifyApp(
   await app.register(logisticsSlaNativeRoutes, {
     prefix: "/api/logistics/sla",
     ...(options.logisticsSlaRoutes ?? {}),
+  });
+
+  await app.register(clinicGlobalSearchNativeRoutes, {
+    prefix: "/api/search",
+    ...(options.clinicGlobalSearchRoutes ?? {}),
+  });
+
+  await app.register(adminGlobalSearchNativeRoutes, {
+    prefix: "/api/admin/search",
+    ...(options.adminGlobalSearchRoutes ?? {}),
   });
 
   return app;

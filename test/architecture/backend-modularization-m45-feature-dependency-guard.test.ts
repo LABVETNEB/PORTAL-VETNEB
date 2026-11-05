@@ -25,6 +25,7 @@ const programAuditFile =
 
 const expectedFeatures = [
   "clinics",
+  "global-search",
   "logistics",
   "particular-access",
   "pricing",
@@ -37,6 +38,7 @@ const expectedFeatures = [
 
 const expectedMatrix: Record<string, string[]> = {
   clinics: ["public-professionals"],
+  "global-search": [],
   logistics: [],
   "particular-access": ["reports", "study-tracking"],
   pricing: [],
@@ -590,7 +592,7 @@ const runtimeAdjacency = createAdjacency(
 
 test("M45 auto-descubre el inventario canónico de features", () => {
   assert.deepEqual(census.features, expectedFeatures);
-  assert.equal(census.sourceFileCount, 149);
+  assert.equal(census.sourceFileCount, 156);
 });
 
 test("M45 resuelve todos los imports relativos de features", () => {

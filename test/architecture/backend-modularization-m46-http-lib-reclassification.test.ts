@@ -104,6 +104,7 @@ const expectedCorsRuntimeConsumers = [
   "server/routes/admin-auth.fastify.ts",
   "server/routes/admin-clinics.fastify.ts",
   "server/routes/admin-failed-login-alerts.fastify.ts",
+  "server/routes/admin-global-search.fastify.ts",
   "server/routes/admin-particular-tokens.fastify.ts",
   "server/routes/admin-pricing.fastify.ts",
   "server/routes/admin-report-access-tokens.fastify.ts",
@@ -116,6 +117,7 @@ const expectedCorsRuntimeConsumers = [
   "server/routes/admin-system-schema-health.fastify.ts",
   "server/routes/admin-users-roles.fastify.ts",
   "server/routes/auth.fastify.ts",
+  "server/routes/clinic-global-search.fastify.ts",
   "server/routes/clinic-public-profile.fastify.ts",
   "server/routes/contact.fastify.ts",
   "server/routes/logistics-field-visits.fastify.ts",
@@ -421,7 +423,7 @@ test("M46 congela consumidores canónicos y elimina imports legacy", () => {
   assert.deepEqual(legacyLiterals.sort(), []);
 });
 
-test("M46 retiene cors-headers con sus 30 consumidores runtime exactos", () => {
+test("M46 retiene cors-headers con sus 32 consumidores runtime exactos", () => {
   const consumers = walkTsFiles("server")
     .filter((file) =>
       listImportSites(file).some(
