@@ -758,7 +758,7 @@ for (const viewport of VIEWPORTS) {
       });
       await expect(
         page
-          .locator("#clinic-public-profile [data-clinic-profile-desktop-actions]")
+          .locator("#clinic-public-profile [data-clinic-profile-publication]")
           .getByText("Visible en banco", { exact: true }),
       ).toBeVisible();
       await page
@@ -766,10 +766,10 @@ for (const viewport of VIEWPORTS) {
         .first()
         .waitFor({ state: "attached" });
 
-      // Clinic desktop/tablet space pass: from 768px up the avatar is always
-      // visible and the sections are single-open disclosure rows (the chips
-      // are the phone navigation). The tallest state of each section, alone
-      // with the avatar and the save row, must fit.
+      // Institutional two-column layout: from 768px up the identity and
+      // publication region is always visible and the sections are single-open
+      // disclosure rows (the chips are the phone navigation). The tallest state
+      // of each section, alone with that region and the save row, must fit.
       await expectPageNoOverflow(page, testInfo, `${viewport.name}-perfil-publico-avatar`);
       for (const sectionName of ["Datos", "Contacto", "Contenido", "Cambiar contraseña"]) {
         const toggle = page.getByRole("button", { name: sectionName, exact: true });
