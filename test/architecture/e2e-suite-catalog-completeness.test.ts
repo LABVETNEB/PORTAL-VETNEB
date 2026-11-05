@@ -25,8 +25,8 @@ const TEST_FILE = fileURLToPath(import.meta.url);
 const REPO_ROOT = resolve(dirname(TEST_FILE), "..", "..");
 process.chdir(REPO_ROOT);
 
-const EXPECTED_WORKSPACE_SPEC_COUNT = 132;
-const EXPECTED_CATALOG_SPEC_COUNT = 132;
+const EXPECTED_WORKSPACE_SPEC_COUNT = 133;
+const EXPECTED_CATALOG_SPEC_COUNT = 133;
 const EXPECTED_MANUAL_ONLY_SPEC_COUNT = 0;
 const EXPECTED_DOMAIN_COUNTS = new Map([
   // +1: C04 Clínicas admin column sort (admin-clinics-column-sort.spec.ts).
@@ -88,7 +88,7 @@ const EXPECTED_DOMAIN_COUNTS = new Map([
   // +1: DRV V1 Google Drive fidelity probe (evidence/dashboard-drv-v1-drive-fidelity-probe.spec.ts).
   // +2: DRV V7 menu/tooltip hard contracts and DRV V7 overlay fidelity probe (evidence/).
   // +2: DRV V8 container-columns contract and DRV V8 column probe (evidence/).
-  ["regression", 35],
+  ["regression", 36],
 ]);
 // E2E-GLOBAL-04: what each spec really traverses. No spec reaches Fastify or
 // Postgres today, so "integration" has no members; reclassifying any entry
@@ -108,7 +108,7 @@ const EXPECTED_LAYER_COUNTS = new Map<E2eLayer, number>([
   // +1: C24 fulfills GET /api/admin/clinics with the C04 server contract.
   // +1: PR-DRV-03 fulfills GET /api/admin/clinics and the signed viewer URL with synthetic data.
   // +1: G11 fulfills the A02 surface stubs and the clinic particular-tokens window.
-  ["mocked", 49],
+  ["mocked", 50],
   // -1: E2E-GLOBAL-10 removed the assertion-free evidence generator (R-16);
   // +1 fixture / -1 mocked: §23 remediation moved dashboard keyboard a11y
   // off browser response stubs and onto the shared populated fixture.
@@ -172,7 +172,8 @@ const EXPECTED_CURRENT_COUNTS = new Map([
   // +1: PR-DRV-02 first tab stop, jump to main and A08 with the skip control focused.
   // +1: DRV V7 menu surface and rail tooltip contracts (regression/dashboard-drv-v7-overlays.spec.ts).
   // +1: DRV V8 container-driven table columns (DRV-01 contract).
-  ["visual-contract", 50],
+  // +1: list font-size parity between normal and dark-gray runs in visual-contract.
+  ["visual-contract", 51],
   // +1: CMP-12 cross-role runtime parity contract, routed public-clinic like
   // the other CMP-04..09 parity specs (AGENTS.md §7).
   // +1: E2E-GLOBAL-06 P1 dashboard-logistica-mobile-action-bar-reachability,
@@ -215,7 +216,8 @@ const EXPECTED_EXECUTION_COUNTS = new Map<E2eExecutionCohort, number>([
   // +1: PR-DRV-02 belongs to visual-contract.
   // +1: DRV V7 menu surface and rail tooltip contracts run in ci.
   // +1: DRV V8 container-driven table columns (DRV-01 contract) runs in ci.
-  ["ci", 97],
+  // +1: list font-size theme parity runs in ci.
+  ["ci", 98],
   // +1: G11 axe matrix, full-only like the A02 baseline whose surfaces it audits.
   ["extended", 28],
   // -1: E2E-GLOBAL-10 (R-16). `evidence` keeps the generator that does assert
@@ -227,7 +229,7 @@ const EXPECTED_EXECUTION_COUNTS = new Map<E2eExecutionCohort, number>([
   // +1: DRV V8 column and truncation probe, an evidence generator for DRV-01.
   ["evidence", 4],
   ["visual-linux", 3],
-  ["full", 132],
+  ["full", 133],
   ["affected", 0],
 ]);
 const E2E_GLOBAL_06_PROMOTED_P1_SPECS = [
@@ -451,7 +453,7 @@ function validateCatalog(
   }
 
   const currentUnion = unique([...currentMemberships.keys()]).sort();
-  assert.equal(currentUnion.length, 97);
+  assert.equal(currentUnion.length, 98);
   assert.deepEqual(E2E_COHORT_SPECS.ci, currentUnion, "ci must equal the current four-cohort union");
 
   for (const cohort of ["extended", "evidence", "visual-linux", "full"] as const) {
@@ -523,11 +525,11 @@ test("catalog validation catches missing and duplicate entries in memory", async
 
   assert.throws(
     () => validateCatalog(missing, workspaceSpecs, E2E_MANUAL_ONLY_SPECS),
-    /131|classified/,
+    /132|classified/,
   );
   assert.throws(
     () => validateCatalog(duplicated, workspaceSpecs, E2E_MANUAL_ONLY_SPECS),
-    /132|unique/,
+    /133|unique/,
   );
 });
 
@@ -581,7 +583,7 @@ test("affected selection fails closed for empty or shared changes", async () => 
 
   const sharedSelection = runner.classifyAffectedPaths(["frontend/e2e/helpers/admin-mobile-contracts.ts"]);
   assert.equal(sharedSelection.fallback, true);
-  assert.equal(sharedSelection.specs.length, 97);
+  assert.equal(sharedSelection.specs.length, 98);
   assert.match(sharedSelection.reason, /shared E2E infrastructure/);
 });
 
