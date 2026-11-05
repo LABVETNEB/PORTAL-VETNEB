@@ -50,6 +50,9 @@ test.describe("C21 · clinic Informes module", () => {
     await expect(canvas.locator("tbody")).toHaveAttribute("data-content-list", "true");
     await expect(rows.first()).toHaveAttribute("data-content-list-item", "true");
     expect(await rows.count()).toBeGreaterThan(1);
+    // Clasificación del estudio: etiqueta del catálogo en mayúsculas con tildes (study-types).
+    await expect(rows.locator("td:nth-child(2)").nth(1)).toHaveText("CITOLOGÍA");
+    await expect(canvas).not.toContainText("Citología");
 
     // A03: the painted head equals the reserve the capacity engine subtracts; separators stay 1px.
     const geometry = await canvas.evaluate((element) => ({
@@ -118,6 +121,8 @@ test.describe("C21 · clinic Informes module", () => {
     await expect(rows.first()).toHaveAttribute("data-content-list-item", "true");
     await expect(rows.first()).toHaveAttribute("data-dashboard-adaptive-row", "true");
     expect(await borderBottom(rows.first())).toBe("1px");
+    await expect(rows.nth(1)).toContainText("CITOLOGÍA");
+    await expect(list).not.toContainText("Citología");
 
     await card.getByRole("button", { name: "Filtros", exact: true }).click();
     const sheet = page.getByRole("dialog", { name: "Filtrar informes" });
@@ -149,6 +154,8 @@ test.describe("C21 · clinic Informes full route", () => {
     const canvas = page.locator('[data-informes-rows-canvas="true"]');
     await expect(canvas).toHaveAttribute("data-content-list", "true");
     expect(await canvas.evaluate((element) => element.children.length)).toBe(count);
+    await expect(canvas).toContainText("HISTOPATOLOGÍA");
+    await expect(canvas).not.toContainText("Histopatología");
 
     const pager = page.getByRole("navigation", { name: "Paginación de informes" });
     await expect(pager).toHaveAttribute("data-collection-pager", "centered");

@@ -80,7 +80,7 @@ const TERMINAL_REGIONS: readonly TerminalRegion[] = [
     contractualValues: [
       "selectedReport.patientName",
       "selectedReport.fileName",
-      "studyLabel(selectedReport.studyType)",
+      "formatStudyTypeDisplay(selectedReport.studyType)",
     ],
   },
   {

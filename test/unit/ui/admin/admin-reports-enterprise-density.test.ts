@@ -231,7 +231,7 @@ test("Admin Informes filtra sobre datos cargados sin cambiar contrato API", () =
   assert.ok(filterBlock.includes("const reportDisplay = `Informe #${report.id}`;"));
   assert.ok(filterBlock.includes("const clinicDisplay = report.clinicName || `Clínica #${report.clinicId}`;"));
   assert.ok(filterBlock.includes('const patientDisplay = report.patientName || "Paciente sin registrar";'));
-  assert.ok(filterBlock.includes("const studyDisplay = studyLabel(report.studyType);"));
+  assert.ok(filterBlock.includes("const studyDisplay = formatStudyTypeDisplay(report.studyType);"));
   assert.ok(filterBlock.includes('const fileDisplay = report.fileName || "Sin archivo";'));
   assert.ok(filterBlock.includes("report.workflowStage === filters.status"));
   assert.ok(filterBlock.includes("matchesReportDateRange(report, filters.from, filters.to)"));

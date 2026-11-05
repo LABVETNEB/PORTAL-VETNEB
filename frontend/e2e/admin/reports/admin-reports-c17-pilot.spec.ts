@@ -19,6 +19,9 @@ test("C17 desktop keeps the server window while search, selection and detail com
   await page.goto("/dashboard/admin?module=admin-report-upload");
   const reports = page.locator(workspace);
   await expect(reports.locator("tbody tr")).toHaveCount(11);
+  // Clasificación del estudio: id `histopatologia` -> etiqueta del catálogo en mayúsculas con tildes.
+  await expect(reports.locator("tbody tr").first()).toContainText("HISTOPATOLOGÍA");
+  await expect(reports.locator("tbody")).not.toContainText("Histopatología");
   await expect(reports.getByRole("search", { name: "Filtros avanzados de informes" })).toHaveCount(1);
   await expect(reports.getByRole("search")).toHaveCount(1);
   await expect(reports.locator('[data-collection-header="true"]')).toBeVisible();
@@ -62,6 +65,7 @@ test("C17 mobile sheet, selection and zero-scroll stay operable", async ({ page 
   await page.goto("/dashboard/admin?module=admin-report-upload");
   const reports = page.locator(workspace);
   await expect(reports.locator('[data-admin-mobile-core-item="true"]')).toHaveCount(13);
+  await expect(reports.locator('[data-admin-mobile-core-item="true"]').first()).toContainText("HISTOPATOLOGÍA");
   // G11-a: below 640 px the refresh button keeps its name without visible text.
   await expect(reports.getByRole("button", { name: "Actualizar", exact: true })).toBeVisible();
   expect((await new AxeBuilder({ page }).include(workspace).analyze()).violations.filter((violation) => ["critical", "serious"].includes(violation.impact ?? ""))).toEqual([]);

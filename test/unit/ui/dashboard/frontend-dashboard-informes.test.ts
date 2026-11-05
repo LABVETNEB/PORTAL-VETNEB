@@ -192,7 +192,7 @@ test("dashboard informes keeps list rendering badges dates and selected report a
   assert.ok(source.includes("visibleReports.map((report, index) =>"));
   assert.ok(source.includes("const isSelected = selectedReport?.id === report.id;"));
   assert.ok(source.includes('report.patientName ?? "Paciente sin nombre"'));
-  assert.ok(source.includes('report.studyType ?? "Tipo sin registrar"'));
+  assert.ok(source.includes("formatStudyTypeDisplay(report.studyType)"));
   assert.ok(source.includes("formatDate(report.uploadDate)"));
   assert.ok(source.includes("getReportStatusVariant(report.status)"));
   assert.ok(source.includes("getReportStatusLabel(report.status)"));
