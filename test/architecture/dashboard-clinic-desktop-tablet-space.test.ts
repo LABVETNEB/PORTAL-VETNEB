@@ -160,11 +160,12 @@ test("CLINIC-DT · frozen contracts: page size, fetch windows and row pitch unto
   assert.ok(tokens.includes('data-dashboard-row-pitch="regular"'));
 });
 
-test("CLINIC-DT · Perfil: avatar on top, single-open rows in order, one form, save last", () => {
+test("CLINIC-DT · Perfil: institutional column, single-open rows in order, one form, save last", () => {
   const source = read(PERFIL);
   const stack = between(source, "const profileStack = (", "const hasProfileLoadState");
   const order = [
     "{statusTab}",
+    "{publicationPanel}",
     'renderSectionToggle("datos")',
     'renderSection("datos", detailsTab)',
     'renderSectionToggle("contacto")',
@@ -172,7 +173,7 @@ test("CLINIC-DT · Perfil: avatar on top, single-open rows in order, one form, s
     'renderSectionToggle("contenido")',
     'renderSection("contenido", contentTab)',
     "renderSectionToggle(PASSWORD_TAB_ID)",
-    "renderSection(\n        PASSWORD_TAB_ID,",
+    "renderSection(\n          PASSWORD_TAB_ID,",
     'data-clinic-profile-desktop-actions="true"',
     "{saveProfileButton}",
   ].map((needle) => {
@@ -180,8 +181,16 @@ test("CLINIC-DT · Perfil: avatar on top, single-open rows in order, one form, s
     assert.ok(index !== -1, `stack contains ${needle}`);
     return index;
   });
-  assert.deepEqual([...order].sort((a, b) => a - b), order, "avatar → Datos → Contacto → Contenido → Cambiar contraseña → Guardar");
-  assert.ok(stack.includes("md:max-w-3xl"), "rows keep a readable width on wide desktops");
+  assert.deepEqual([...order].sort((a, b) => a - b), order, "identity → publication → Datos → Contacto → Contenido → Cambiar contraseña → Guardar");
+  // Two regions from 768px up: ~1/3 institutional + ~2/3 editing from 1200px, a
+  // stacked band between 768px and 1199px. The old capped column is retired.
+  assert.ok(stack.includes('data-clinic-profile-institutional="true"'));
+  assert.ok(stack.includes('data-clinic-profile-editing="true"'));
+  assert.ok(stack.includes("min-[1200px]:grid-cols-[minmax(17rem,1fr)_minmax(0,2fr)]"), "~1/3 + ~2/3 from 1200px");
+  assert.equal(stack.includes("md:max-w-3xl"), false, "the 768px cap is retired");
+  // Phones keep the exact flat DOM: every new wrapper is display: contents there.
+  assert.ok(stack.includes('className="contents md:grid'));
+  assert.ok(stack.includes('data-clinic-profile-editing="true"\n        className="contents md:flex'));
 
   // Single source of truth: the chips (<768px) and the rows (>=768px) drive the
   // same activeTabId; a row toggles between its section and none.
@@ -211,7 +220,7 @@ test("CLINIC-DT · Perfil: avatar on top, single-open rows in order, one form, s
   // exists; phones keep the password chip footer-less.
   assert.ok(source.includes("!isPasswordTabActive || errorMessage || statusMessage ? ("));
   assert.ok(source.includes('isPasswordTabActive && "max-md:hidden"'));
-  // Yellow: the publication badge is kept and closes the stack next to save.
+  // Yellow: the publication badge is kept: phone toolbar + institutional column.
   assert.equal(count(source, "{publicationBadge}"), 2);
 });
 

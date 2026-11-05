@@ -1,3 +1,4 @@
+import { crc32, deflateSync } from "node:zlib";
 import { expect, test, type Locator, type Page, type Route } from "@playwright/test";
 import { A03_CLINIC_TOKENS } from "../../helpers/dashboard-adaptive-limit-matrix";
 import { setClinicSession } from "../../helpers/session";
@@ -46,6 +47,30 @@ const PROFILE = {
     publicationErrors: [],
   },
 };
+
+/** A valid, flat RGB PNG: big enough for the 160 px avatar floor, tiny on the wire. */
+function syntheticPng(size: number) {
+  const chunk = (type: string, data: Buffer) => {
+    const head = Buffer.alloc(4);
+    head.writeUInt32BE(data.length);
+    const body = Buffer.concat([Buffer.from(type, "ascii"), data]);
+    const tail = Buffer.alloc(4);
+    tail.writeUInt32BE(crc32(body));
+    return Buffer.concat([head, body, tail]);
+  };
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(size, 0);
+  header.writeUInt32BE(size, 4);
+  header.set([8, 2, 0, 0, 0], 8);
+  const rows = Buffer.alloc((size * 3 + 1) * size, 0x5a);
+  for (let row = 0; row < size; row += 1) rows[row * (size * 3 + 1)] = 0;
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk("IHDR", header),
+    chunk("IDAT", deflateSync(rows)),
+    chunk("IEND", Buffer.alloc(0)),
+  ]);
+}
 
 function json(route: Route, body: unknown) {
   return route.fulfill({
@@ -410,24 +435,40 @@ for (const viewport of DT_VIEWPORTS) {
       await expectZeroScroll(page, "tokens");
     });
 
-    test("perfil: avatar on top, single-open sections in order, state kept, save last", async ({ page }) => {
+    test("perfil: institutional column + editing column, single-open sections in order, state kept, save last", async ({ page }) => {
       const workspace = await openModule(page, "perfil");
       await expectChromeRetired(page, workspace, "perfil");
       const editor = workspace.locator('[data-clinic-profile-editor="true"]');
-      const desktopActions = editor.locator('[data-clinic-profile-desktop-actions="true"]');
-      await expect(desktopActions.getByText("Visible en banco")).toBeVisible({ timeout: 12_000 });
+      const institutional = editor.locator('[data-clinic-profile-institutional="true"]');
+      const editing = editor.locator('[data-clinic-profile-editing="true"]');
+      await expect(
+        institutional.locator('[data-clinic-profile-publication="true"]').getByText("Visible en banco"),
+      ).toBeVisible({ timeout: 12_000 });
       await expect(editor.locator('[data-clinic-profile-toolbar="true"]')).toBeHidden();
       await expect(editor.getByText(/Recomendados:/)).toBeHidden();
       await expect(editor.getByRole("tab")).toHaveCount(0);
 
-      const avatar = editor.getByText("Avatar o logo", { exact: true });
+      // Institutional column: logo, identity, publication state; the editor sits
+      // beside it from 1200px and under it between 768px and 1199px.
+      const avatar = institutional.locator('[data-clinic-profile-logo="true"]');
       await expect(avatar).toBeVisible();
-      expect((await box(avatar)).y - (await box(editor)).y).toBeLessThanOrEqual(24);
+      await expect(institutional.getByText("Clinica Espacio Desktop", { exact: true })).toBeVisible();
+      const stackBox = await box(editor.locator('[data-clinic-profile-stack="true"]'));
+      const institutionalBox = await box(institutional);
+      const editingBox = await box(editing);
+      if (viewport.width >= 1200) {
+        expect(institutionalBox.x + institutionalBox.width, "columns do not overlap").toBeLessThanOrEqual(editingBox.x + TOLERANCE_PX);
+        const share = institutionalBox.width / stackBox.width;
+        expect(share, "institutional column ~1/3").toBeGreaterThan(0.28);
+        expect(share, "institutional column ~1/3").toBeLessThan(0.4);
+      } else {
+        expect(institutionalBox.y + institutionalBox.height, "band above the editor").toBeLessThanOrEqual(editingBox.y + TOLERANCE_PX);
+      }
 
       const toggles = editor.locator("[data-clinic-profile-section-toggle]");
       await expect(toggles).toHaveText(["Datos", "Contacto", "Contenido", "Cambiar contraseña"]);
       const save = editor.getByRole("button", { name: "Guardar perfil público" });
-      const sequence = [avatar, ...(await toggles.all()), save];
+      const sequence = [...(await toggles.all()), save];
       for (let index = 1; index < sequence.length; index += 1) {
         expect((await box(sequence[index])).y, `sequence position ${index}`).toBeGreaterThan(
           (await box(sequence[index - 1])).y,
@@ -501,11 +542,118 @@ for (const viewport of DT_VIEWPORTS) {
       await expect(editor.locator('input[name="currentPassword"]'), "password stays open").toBeVisible();
       await expectZeroScroll(page, "perfil avatar feedback");
 
-      // Rows stay at a readable width instead of spanning a wide workspace.
-      const stack = editor.locator('[data-clinic-profile-stack="true"]');
-      const stackWidth = (await box(stack)).width;
-      expect(stackWidth).toBeLessThanOrEqual(768 + TOLERANCE_PX);
-      expect(stackWidth).toBeGreaterThanOrEqual(Math.min(600, viewport.width - 140));
+      // The two regions use the workspace width instead of a capped column.
+      expect(stackBox.width).toBeGreaterThanOrEqual(Math.min(600, viewport.width - 140));
+      expect(editingBox.width).toBeGreaterThanOrEqual(Math.min(480, viewport.width - 140));
+    });
+
+    test("perfil: isPublic lives in the institutional column and rides the payload; the password form stays independent", async ({ page }) => {
+      const workspace = await openModule(page, "perfil");
+      const editor = workspace.locator('[data-clinic-profile-editor="true"]');
+      const publication = editor.locator('[data-clinic-profile-publication="true"]');
+      await expect(publication.getByText("Visible en banco")).toBeVisible({ timeout: 12_000 });
+
+      // Real quality numbers only; no invented counters or unsaved-change claims.
+      await expect(publication.getByRole("meter", { name: "Calidad del perfil" })).toHaveAttribute("aria-valuenow", "93");
+      await expect(publication.getByText(/\/ mínimo 75/)).toBeVisible();
+      await expect(publication.getByText("Recomendados pendientes")).toBeVisible();
+      await expect(editor.getByText(/Cambios sin guardar/)).toHaveCount(0);
+      await expect(editor.getByText(/\b\d+\/\d+\b/)).toHaveCount(0);
+
+      // One checkbox is exposed (the phone copy inside "Contenido" is hidden), it is
+      // reachable whatever section is open, and it keeps its meaning in the payload.
+      const isPublic = editor.getByRole("checkbox");
+      await expect(isPublic).toHaveCount(1);
+      await expect(isPublic).toBeChecked();
+      await editor.getByRole("button", { name: "Contenido", exact: true }).click();
+      await isPublic.uncheck();
+      await editor.getByRole("button", { name: "Datos", exact: true }).click();
+      await expect(isPublic, "value kept across sections").not.toBeChecked();
+      await page.route("**/api/clinic/profile**", (route) => {
+        if (route.request().method() !== "PATCH") return route.fallback();
+        return json(route, { success: true, message: "Perfil público actualizado.", profile: { ...PROFILE, isPublic: false } });
+      });
+      const patch = page.waitForRequest(
+        (request) => request.method() === "PATCH" && new URL(request.url()).pathname === "/api/clinic/profile",
+      );
+      await editor.getByRole("button", { name: "Guardar perfil público" }).click();
+      expect(((await patch).postDataJSON() as Record<string, unknown>).isPublic).toBe(false);
+      await expect(editor.getByRole("status").filter({ hasText: "Perfil público actualizado." })).toBeVisible();
+      await expectZeroScroll(page, "perfil isPublic saved");
+
+      // One profile form; the password panel owns a different one and is not nested in it.
+      await expect(page.locator("form#clinic-public-profile-form")).toHaveCount(1);
+      const passwordForm = await editor.locator('input[name="currentPassword"]').evaluate((input) => {
+        const form = input.closest("form");
+        return { id: form?.id ?? null, insideProfileForm: Boolean(input.closest("#clinic-public-profile-form")) };
+      });
+      expect(passwordForm.insideProfileForm).toBe(false);
+      expect(passwordForm.id).not.toBe("clinic-public-profile-form");
+      await editor.getByRole("button", { name: "Cambiar contraseña", exact: true }).click();
+      await expect(editor.getByRole("button", { name: "Guardar perfil público" })).toHaveCount(0);
+      await expect(editor.getByRole("button", { name: "Actualizar contraseña" })).toBeVisible();
+    });
+
+    test("perfil: the avatar is operable from the keyboard — pick, preview, cancel, upload, remove", async ({ page }) => {
+      const workspace = await openModule(page, "perfil");
+      const editor = workspace.locator('[data-clinic-profile-editor="true"]');
+      await expect(editor.locator('[data-clinic-profile-publication="true"]').getByText("Visible en banco")).toBeVisible({ timeout: 12_000 });
+
+      const input = editor.locator("#clinic-profile-avatar");
+      const picker = editor.locator('[data-clinic-profile-avatar-picker="true"]');
+      await expect(picker).toBeVisible();
+      await expect(input, "the real input is kept, only visually hidden").toHaveAttribute("accept", "image/jpeg,image/png,image/webp");
+      await expect(editor.getByRole("button", { name: "Guardar imagen" })).toBeDisabled();
+      await expect(editor.getByRole("button", { name: "Quitar imagen" })).toBeDisabled();
+
+      // Keyboard focus lands on the real input and the visible control shows a ring.
+      await input.focus();
+      await expect(input).toBeFocused();
+      const ring = await picker.evaluate((label) => getComputedStyle(label).boxShadow);
+      expect(ring, "focus ring is painted on the visible picker").not.toBe("none");
+      const named = await input.evaluate((element) => {
+        const labels = Array.from((element as HTMLInputElement).labels ?? []).map((label) => label.textContent?.trim());
+        return labels.join(" | ");
+      });
+      expect(named).toContain("Avatar o logo");
+      expect(named).toContain("Elegir imagen");
+
+      const chooser = page.waitForEvent("filechooser");
+      await page.keyboard.press("Space");
+      await (await chooser).setFiles({ name: "logo-sintetico.png", mimeType: "image/png", buffer: syntheticPng(200) });
+      await expect(editor.locator("[data-clinic-profile-avatar-file]")).toHaveText("logo-sintetico.png");
+      await expect(editor.locator('[data-clinic-profile-logo="true"] img')).toHaveAttribute("src", /^blob:/);
+      await expect(editor.getByRole("button", { name: "Guardar imagen" })).toBeEnabled();
+
+      // Cancelling the chooser (no file) clears the selection and the preview.
+      await input.setInputFiles([]);
+      await expect(editor.getByRole("button", { name: "Guardar imagen" })).toBeDisabled();
+      await expect(editor.locator("[data-clinic-profile-avatar-file]")).toHaveText("Ninguna imagen seleccionada");
+
+      // Upload, then remove: both keep the success status accessible.
+      const AVATAR = "data:image/svg+xml;utf8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><rect width="8" height="8" fill="#0f5c63"/></svg>');
+      await page.route("**/api/clinic/profile/avatar**", (route) => {
+        if (route.request().method() === "POST") {
+          return json(route, { success: true, message: "Avatar actualizado.", profile: { ...PROFILE, avatarUrl: AVATAR } });
+        }
+        if (route.request().method() === "DELETE") {
+          return json(route, { success: true, message: "Avatar eliminado.", profile: { ...PROFILE, avatarUrl: null } });
+        }
+        return route.fallback();
+      });
+      await input.setInputFiles({ name: "logo-sintetico.png", mimeType: "image/png", buffer: syntheticPng(200) });
+      await editor.getByRole("button", { name: "Guardar imagen" }).click();
+      await expect(editor.getByRole("status").filter({ hasText: "Avatar actualizado." })).toBeVisible();
+      await expect(editor.getByRole("button", { name: "Quitar imagen" })).toBeEnabled();
+      await editor.getByRole("button", { name: "Quitar imagen" }).click();
+      await expect(editor.getByRole("status").filter({ hasText: "Avatar eliminado." })).toBeVisible();
+      await expect(editor.getByRole("button", { name: "Quitar imagen" })).toBeDisabled();
+
+      // Invalid files are announced as an alert, with the editor still in view.
+      await input.setInputFiles({ name: "no-imagen.txt", mimeType: "text/plain", buffer: Buffer.from("x") });
+      await expect(editor.getByRole("alert").filter({ hasText: "La imagen debe ser JPG, PNG o WebP." })).toBeVisible();
+      await expectZeroScroll(page, "perfil avatar flow");
+      await expectNotClipped(editor, "button, input, textarea, label", "perfil avatar flow");
     });
   });
 }

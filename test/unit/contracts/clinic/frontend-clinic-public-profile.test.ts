@@ -89,8 +89,8 @@ test("clinic public profile editor is single-open from 768px up without losing s
   assert.ok(source.includes("onActiveIdChange={setActiveTabId}"));
   assert.ok(source.includes("aria-expanded={isOpen}"));
   assert.ok(source.includes("aria-controls={`${sectionBaseId}-section-${sectionId}`}"));
-  assert.ok(source.includes('"hidden h-8 w-full'), "rows paint from md only");
-  // Order: avatar, Datos, Contacto, Contenido, Cambiar contraseña, then save.
+  assert.ok(source.includes('"hidden h-11 w-full'), "rows paint from md only");
+  // Order: institutional identity, Datos, Contacto, Contenido, Cambiar contraseña, then save.
   const order = [
     "{statusTab}",
     'renderSectionToggle("datos")',
@@ -110,7 +110,66 @@ test("clinic public profile editor is single-open from 768px up without losing s
   // Save keeps its handler and stays a form submit; width is capped on desktop.
   assert.ok(source.includes('onSubmit={handleSubmit}'));
   assert.ok(source.includes("form={PROFILE_FORM_ID}"));
-  assert.ok(source.includes("md:max-w-3xl"));
+  // Two regions from 768px up (the capped 768 px column is retired).
+  assert.equal(source.includes("md:max-w-3xl"), false);
+  assert.ok(source.includes('data-clinic-profile-institutional="true"'));
+  assert.ok(source.includes('data-clinic-profile-editing="true"'));
+});
+
+test("clinic public profile institutional column keeps the publication contract and invents nothing", () => {
+  const source = read(PROFILE_CARD_PATH);
+
+  // Real publication snapshot only: the badge, the pending requirements and the
+  // quality meter (only when the response carries both numbers).
+  assert.ok(source.includes('data-clinic-profile-publication="true"'));
+  assert.ok(source.includes("typeof qualityScore === \"number\""));
+  assert.ok(source.includes("typeof minimumQualityScore === \"number\""));
+  assert.ok(source.includes('role="meter"'));
+  assert.ok(source.includes('aria-label="Calidad del perfil"'));
+  assert.ok(source.includes('"Obligatorios pendientes"'));
+  assert.ok(source.includes('"Recomendados pendientes"'));
+  // No counters or unsaved-change claims without a functional source.
+  assert.equal(source.includes("Cambios sin guardar"), false);
+  assert.equal(/\b\d+\/\d+\b/.test(source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "").replace(/https?:\/\/\S+/g, "").replace(/[a-z]+\/[a-z]+/gi, "")), false, "no n/m counters");
+
+  // `isPublic`: one control bound to formState and the same setter, rendered
+  // for phones (inside Contenido) and for the institutional column.
+  const checkedBinding = "checked={formState.isPublic}";
+  const checkedSetter = 'updateField("isPublic", event.target.checked)';
+  assert.ok(source.includes(checkedBinding));
+  assert.equal(source.indexOf(checkedBinding), source.lastIndexOf(checkedBinding), "one checkbox renderer");
+  assert.ok(source.includes(checkedSetter));
+  assert.equal(source.indexOf(checkedSetter), source.lastIndexOf(checkedSetter), "one setter");
+  assert.ok(source.includes('renderPublishCheckbox("md:hidden")'));
+  assert.ok(source.includes('renderPublishCheckbox("max-md:hidden")'));
+  assert.ok(source.includes("isPublic: formState.isPublic,"), "payload keeps isPublic");
+});
+
+test("clinic public profile avatar keeps the real input, its handlers and an accessible picker", () => {
+  const source = read(PROFILE_CARD_PATH);
+
+  assert.ok(source.includes('id="clinic-profile-avatar"'));
+  assert.ok(source.includes("onChange={handleAvatarInputChange}"));
+  assert.ok(source.includes('accept="image/jpeg,image/png,image/webp"'));
+  const labelFor = 'htmlFor="clinic-profile-avatar"';
+  assert.notEqual(source.indexOf(labelFor), source.lastIndexOf(labelFor), "phone label + desktop picker");
+  assert.ok(source.includes('className="peer md:sr-only"'), "the input stays in the DOM, visually hidden from md");
+  assert.ok(source.includes("peer-focus-visible:ring-2"), "the visible picker shows the input's focus");
+  assert.ok(source.includes("URL.revokeObjectURL"), "preview resources are still released");
+  assert.ok(source.includes("MAX_AVATAR_FILE_SIZE_BYTES = 512 * 1024"));
+  assert.ok(source.includes("MIN_AVATAR_DIMENSION = 160"));
+  assert.ok(source.includes("MAX_AVATAR_DIMENSION = 1024"));
+});
+
+test("clinic public profile keeps one profile form with the password panel outside of it", () => {
+  const source = read(PROFILE_CARD_PATH);
+  const stack = source.slice(source.indexOf("const profileStack = ("), source.indexOf("const hasProfileLoadState"));
+
+  assert.equal(source.indexOf("id={PROFILE_FORM_ID}"), source.lastIndexOf("id={PROFILE_FORM_ID}"));
+  const formEnd = stack.indexOf("</form>");
+  assert.ok(formEnd > 0);
+  assert.ok(stack.indexOf("<PasswordChangePanel") > formEnd, "the password form is never nested in the profile form");
+  assert.ok(stack.indexOf("{statusTab}") < stack.indexOf("<form"), "avatar controls sit outside the profile form");
 });
 
 test("frontend api exposes clinic public profile helpers", () => {

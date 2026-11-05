@@ -98,10 +98,14 @@ export const LIGHT_LIST_FONT_SIZE_BASELINE: Readonly<Record<string, Readonly<Rec
   "clinic-operaciones@w1280x720": {"12": 4, "14": 5, "20": 4, "10.56": 3, "9.92": 1},
   "clinic-operaciones@w834x1194": {"12": 4, "14": 5, "20": 4, "10.56": 3, "9.92": 1},
   "clinic-operaciones@w390x844": {"12": 1, "14": 1, "10.56": 3},
-  "clinic-perfil@w1920x945": {"12": 6, "14": 4},
-  "clinic-perfil@w1366x768": {"12": 6, "14": 4},
-  "clinic-perfil@w1280x720": {"12": 6, "14": 4},
-  "clinic-perfil@w834x1194": {"12": 6, "14": 4},
+  // clinic-perfil >=768px: realigned for the institutional two-column layout (identity name 16,
+  // logo initials 20, publication/pending text 12, rows and controls 14). Short viewports (<=800 px
+  // high) hide the upload hint and the empty-file line, hence 8 instead of 10 twelve-px elements.
+  // Phones (390) are untouched. Measured in Chromium on the production layout, light theme.
+  "clinic-perfil@w1920x945": {"12": 10, "14": 10, "16": 1, "20": 1},
+  "clinic-perfil@w1366x768": {"12": 8, "14": 10, "16": 1, "20": 1},
+  "clinic-perfil@w1280x720": {"12": 8, "14": 10, "16": 1, "20": 1},
+  "clinic-perfil@w834x1194": {"12": 10, "14": 10, "16": 1, "20": 1},
   "clinic-perfil@w390x844": {"12": 4, "14": 4, "10.56": 5},
   "clinic-tokens@w1920x945": {"11": 6, "12": 6, "14": 2},
   "clinic-tokens@w1366x768": {"11": 6, "12": 6, "14": 2},
