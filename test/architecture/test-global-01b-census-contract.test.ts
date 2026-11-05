@@ -1724,7 +1724,8 @@ test("censo 05A: la deuda de lectores ad hoc rompe al crecer y la adopción del 
   assert.equal(anchor, 411, "el piso incorpora los consumidores canónicos de TEST-GLOBAL-09 y C06, no el histórico");
   // +1: DRV V1 dashboard-drv-v1-drive-fidelity lee la referencia Drive por el lector canónico.
   // +2: DRV V7 dashboard-drv-v7-menus-tooltips y dashboard-drv-v7-overlay-fidelity leen fuentes por el lector canónico.
-  assert.equal(current, 438, "DRV V7 añade dos importadores al censo de 436 del lector canónico");
+  // +1: clinic-reports-study-type-label lee el owner de la columna ESTUDIO por el lector canónico.
+  assert.equal(current, 439, "clinic-reports-study-type-label se suma a los 438 importadores del lector canónico (tras DRV V7)");
   assert.equal(
     guardViolation(adoptionEntry, evaluateEntry(adoptionEntry)),
     null,
