@@ -10,7 +10,15 @@ import {
   useState,
 } from "react";
 import NextImage from "next/image";
-import { ChevronDown } from "lucide-react";
+import {
+  Building2,
+  ChevronDown,
+  FileText,
+  Mail,
+  ShieldCheck,
+  Upload,
+  type LucideIcon,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -82,6 +90,14 @@ type ProfileSectionId = (typeof PROFILE_SECTIONS)[number]["id"];
 const PROFILE_SECTION_LABELS = Object.fromEntries(
   PROFILE_SECTIONS.map((section) => [section.id, section.label]),
 ) as Record<ProfileSectionId, string>;
+
+// Decorative row icons (from 768px up); the label is the accessible name.
+const PROFILE_SECTION_ICONS: Partial<Record<ProfileSectionId, LucideIcon>> = {
+  datos: Building2,
+  contacto: Mail,
+  contenido: FileText,
+  [PASSWORD_TAB_ID]: ShieldCheck,
+};
 
 const PUBLICATION_FIELD_LABELS: Record<string, string> = {
   displayName: "Nombre visible",
@@ -504,41 +520,94 @@ export function ClinicPublicProfileCard() {
 
   const isStatusTabActive = activeTabId === STATUS_TAB_ID;
 
+  // Institutional identity (from 768px up). The saved snapshot, not the live
+  // form, so the column shows what is published; the avatar fallback keeps
+  // reading the form as it always did.
+  const identityName = profile?.displayName?.trim() || "Sin nombre visible";
+  const identitySpecialty = profile?.specialtyText?.trim() || null;
+  const identityPlace =
+    [profile?.locality, profile?.country]
+      .map((part) => part?.trim())
+      .filter(Boolean)
+      .join(", ") || null;
+
+  // Quality is shown only when the real response carries both numbers.
+  const qualityScore = publication?.qualityScore;
+  const minimumQualityScore = publication?.minimumQualityScore;
+  const hasQuality =
+    typeof qualityScore === "number" &&
+    Number.isFinite(qualityScore) &&
+    typeof minimumQualityScore === "number" &&
+    Number.isFinite(minimumQualityScore);
+  const qualityPercent = hasQuality
+    ? Math.min(100, Math.max(0, Math.round(qualityScore)))
+    : 0;
+  const minimumPercent = hasQuality
+    ? Math.min(100, Math.max(0, Math.round(minimumQualityScore)))
+    : 0;
+  const hasPendingItems =
+    missingRequiredFields.length > 0 ||
+    missingRecommendedFields.length > 0 ||
+    publicationErrors.length > 0;
+
   // Avatar o logo: below 768px it is the "Estado" chip's content, exactly as
-  // before; from 768px up it is always visible at the top of the editor. It is
-  // therefore always mounted (hidden on phones while another chip is active),
-  // which also keeps the selected file in its input across section changes.
+  // before; from 768px up it is the identity block of the institutional column.
+  // It is always mounted (hidden on phones while another chip is active), which
+  // also keeps the selected file in its input across section changes. From 768px
+  // up the real file input stays in the DOM, visually hidden, and a label styled
+  // as a button opens it: keyboard, focus ring and accessible name are preserved.
   const statusTab = (
     <div
       data-clinic-profile-fields={isStatusTabActive ? "true" : undefined}
       data-clinic-profile-avatar="true"
       className={cn(
-        "flex min-h-0 flex-1 flex-col gap-2 overflow-hidden md:flex-none",
+        "flex min-h-0 flex-1 flex-col gap-2 overflow-hidden md:flex-none md:overflow-visible",
         !isStatusTabActive && "max-md:hidden",
       )}
     >
-      <div className="clinical-muted-band rounded-lg px-3 py-2">
-        <label htmlFor="clinic-profile-avatar" className="field-label">
+      <div className="clinical-muted-band rounded-lg px-3 py-2 md:border-0 md:bg-none md:bg-transparent md:p-0">
+        <label htmlFor="clinic-profile-avatar" className="field-label md:sr-only">
           Avatar o logo
         </label>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <div className="flex h-12 w-12 sm:h-16 sm:w-16 md:h-12 md:w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-vetneb-line/70 bg-white">
+        <div className="flex flex-col gap-2 sm:max-[1199px]:flex-row sm:max-[1199px]:items-center md:gap-3 min-[1200px]:items-center">
+          <div
+            data-clinic-profile-logo="true"
+            className="flex h-12 w-12 sm:h-16 sm:w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-vetneb-line/70 bg-white md:rounded-2xl"
+          >
             {profileAvatarSrc ? (
               <NextImage
                 src={profileAvatarSrc}
                 alt="Avatar o logo de la clínica"
-                width={64}
-                height={64}
+                width={112}
+                height={112}
                 className="h-full w-full object-cover"
                 unoptimized
               />
             ) : (
-              <span className="text-sm font-semibold text-vetneb-ink">
+              <span className="text-sm font-semibold text-vetneb-ink md:text-xl">
                 {profileInitials}
               </span>
             )}
           </div>
-          <div className="min-w-0 flex-1 space-y-2 md:flex md:items-center md:gap-2 md:space-y-0">
+          <div className="min-w-0 flex-1 space-y-2 md:flex md:w-full md:flex-col md:gap-2 md:space-y-0 min-[1200px]:items-center min-[1200px]:text-center">
+            <div
+              data-clinic-profile-identity="true"
+              className="min-w-0 max-md:hidden"
+            >
+              <p className="break-words text-base font-semibold leading-snug text-vetneb-ink">
+                {identityName}
+              </p>
+              {identitySpecialty ? (
+                <p className="break-words text-xs text-muted-foreground">
+                  {identitySpecialty}
+                </p>
+              ) : null}
+              {identityPlace ? (
+                <p className="break-words text-xs text-muted-foreground">
+                  {identityPlace}
+                </p>
+              ) : null}
+            </div>
             <Input
               id="clinic-profile-avatar"
               ref={avatarInputRef}
@@ -546,9 +615,23 @@ export function ClinicPublicProfileCard() {
               accept="image/jpeg,image/png,image/webp"
               onChange={handleAvatarInputChange}
               disabled={isWorking}
-              className="md:min-w-0 md:flex-1"
+              className="peer md:sr-only"
             />
-            <div className="flex flex-wrap gap-2 md:shrink-0 md:flex-nowrap">
+            <label
+              htmlFor="clinic-profile-avatar"
+              data-clinic-profile-avatar-picker="true"
+              className="inline-flex h-9 w-fit cursor-pointer items-center justify-center gap-2 rounded-md border border-input bg-card px-3 text-sm font-semibold text-foreground ring-offset-background transition-colors hover:bg-vetneb-surface-muted peer-focus-visible:outline-none peer-focus-visible:ring-2 peer-focus-visible:ring-ring/85 peer-focus-visible:ring-offset-2 peer-disabled:cursor-not-allowed peer-disabled:opacity-55 max-md:hidden"
+            >
+              <Upload aria-hidden="true" className="h-4 w-4 shrink-0" />
+              Elegir imagen
+            </label>
+            <p
+              data-clinic-profile-avatar-file={avatarFile ? "selected" : "empty"}
+              className="break-all text-xs text-muted-foreground max-md:hidden"
+            >
+              {avatarFile ? avatarFile.name : "Ninguna imagen seleccionada"}
+            </p>
+            <div className="flex flex-wrap gap-2 md:shrink-0 min-[1200px]:justify-center">
               <Button
                 type="button"
                 variant="outline"
@@ -568,18 +651,52 @@ export function ClinicPublicProfileCard() {
                 {isAvatarDeleting ? "Quitando..." : "Quitar imagen"}
               </Button>
             </div>
+            <p
+              data-clinic-profile-hint="true"
+              className="text-xs text-muted-foreground max-md:hidden"
+            >
+              JPG, PNG o WebP · 160–1024 px · máx. 512 KB
+            </p>
           </div>
         </div>
       </div>
     </div>
   );
 
+  function renderPendingGroup(
+    title: string,
+    items: readonly string[],
+    tone: "required" | "recommended" | "error",
+  ) {
+    return (
+      <div className="min-w-0">
+        <p className="text-xs font-semibold text-vetneb-ink">{title}</p>
+        <ul className="mt-1 flex flex-wrap gap-1">
+          {items.map((item) => (
+            <li
+              key={item}
+              className={cn(
+                "break-words rounded-md border px-2 py-px text-xs",
+                tone === "recommended"
+                  ? "border-vetneb-line text-muted-foreground"
+                  : "border-destructive/60 bg-destructive/10 text-vetneb-ink",
+              )}
+            >
+              {item}
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
+
+
   const detailsTab = (
     <div
       data-clinic-profile-fields="true"
-      className="min-h-0 flex-1 overflow-hidden"
+      className="min-h-0 flex-1 overflow-hidden md:overflow-visible md:px-3 md:py-1"
     >
-      <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-2 md:grid-cols-2 md:gap-x-4 md:gap-y-3">
         <div>
           <label htmlFor="clinic-profile-display-name" className="field-label">
             Nombre visible
@@ -647,9 +764,9 @@ export function ClinicPublicProfileCard() {
   const contactTab = (
     <div
       data-clinic-profile-fields="true"
-      className="min-h-0 flex-1 overflow-hidden"
+      className="min-h-0 flex-1 overflow-hidden md:overflow-visible md:px-3 md:py-1"
     >
-      <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-2 md:grid-cols-2 md:gap-x-4 md:gap-y-3">
         <div>
           <label htmlFor="clinic-profile-email" className="field-label">
             Email público
@@ -712,12 +829,38 @@ export function ClinicPublicProfileCard() {
     </div>
   );
 
+  // One `isPublic` control bound to formState, rendered twice and shown once:
+  // inside "Contenido" below 768px (as before) and in the institutional column
+  // from 768px up, where it is reachable whatever section is open.
+  function renderPublishCheckbox(visibilityClass: string) {
+    return (
+      <label
+        className={cn(
+          "clinical-muted-band flex items-start gap-3 rounded-lg px-3 py-2 text-xs text-vetneb-navy sm:text-sm",
+          visibilityClass,
+        )}
+      >
+        <input
+          type="checkbox"
+          className="mt-1"
+          checked={formState.isPublic}
+          onChange={(event) => updateField("isPublic", event.target.checked)}
+          disabled={isWorking}
+        />
+        <span>
+          Publicar perfil cuando cumpla los requisitos para aparecer en el banco
+          de especialidades.
+        </span>
+      </label>
+    );
+  }
+
   const contentTab = (
     <div
       data-clinic-profile-fields="true"
-      className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden"
+      className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden md:overflow-visible md:px-3 md:py-1"
     >
-      <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-2 md:grid-cols-2 md:gap-x-4 md:gap-y-3">
         <div>
           <label htmlFor="clinic-profile-services" className="field-label">
             Servicios
@@ -725,7 +868,7 @@ export function ClinicPublicProfileCard() {
           <textarea
             id="clinic-profile-services"
             name="servicesText"
-            className="field-textarea h-20 min-h-0"
+            className="field-textarea h-20 min-h-0 md:h-24"
             value={formState.servicesText}
             onChange={(event) => updateField("servicesText", event.target.value)}
             disabled={isWorking}
@@ -740,7 +883,7 @@ export function ClinicPublicProfileCard() {
           <textarea
             id="clinic-profile-about"
             name="aboutText"
-            className="field-textarea h-20 min-h-0"
+            className="field-textarea h-20 min-h-0 md:h-24"
             value={formState.aboutText}
             onChange={(event) => updateField("aboutText", event.target.value)}
             disabled={isWorking}
@@ -749,19 +892,7 @@ export function ClinicPublicProfileCard() {
         </div>
       </div>
 
-      <label className="clinical-muted-band flex items-start gap-3 rounded-lg px-3 py-2 text-xs text-vetneb-navy sm:text-sm">
-        <input
-          type="checkbox"
-          className="mt-1"
-          checked={formState.isPublic}
-          onChange={(event) => updateField("isPublic", event.target.checked)}
-          disabled={isWorking}
-        />
-        <span>
-          Publicar perfil cuando cumpla los requisitos para aparecer en el banco
-          de especialidades.
-        </span>
-      </label>
+      {renderPublishCheckbox("md:hidden")}
     </div>
   );
 
@@ -784,6 +915,7 @@ export function ClinicPublicProfileCard() {
 
   function renderSectionToggle(sectionId: ProfileSectionId) {
     const isOpen = activeTabId === sectionId;
+    const Icon = PROFILE_SECTION_ICONS[sectionId];
 
     return (
       <button
@@ -794,17 +926,23 @@ export function ClinicPublicProfileCard() {
         data-clinic-profile-section-toggle={sectionId}
         onClick={() => toggleSection(sectionId)}
         className={cn(
-          "hidden h-8 w-full shrink-0 items-center justify-between gap-2 rounded-md px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-1 md:flex",
+          "hidden h-11 w-full shrink-0 items-center gap-3 rounded-lg px-3 text-sm font-semibold text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-1 md:flex",
           isOpen
-            ? "bg-vetneb-navy text-white shadow-sm"
-            : "bg-vetneb-surface-muted/60 text-muted-foreground hover:bg-vetneb-surface-muted",
+            ? "bg-vetneb-surface-muted"
+            : "hover:bg-vetneb-surface-muted/60",
         )}
       >
-        <span>{PROFILE_SECTION_LABELS[sectionId]}</span>
+        {Icon ? (
+          <Icon
+            aria-hidden="true"
+            className="h-4 w-4 shrink-0 text-vetneb-navy"
+          />
+        ) : null}
+        <span className="flex-1 text-left">{PROFILE_SECTION_LABELS[sectionId]}</span>
         <ChevronDown
           aria-hidden="true"
           className={cn(
-            "h-3.5 w-3.5 shrink-0 transition-transform",
+            "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
             isOpen && "rotate-180",
           )}
         />
@@ -837,11 +975,88 @@ export function ClinicPublicProfileCard() {
     </Badge>
   );
 
+  // From 768px up only: status, quality and pending requirements of the real
+  // publication snapshot, plus the existing `isPublic` control. Phones keep the
+  // toolbar badge, the completion line and the checkbox inside "Contenido".
+  const publicationPanel = (
+    <section
+      aria-label="Estado de publicación"
+      data-clinic-profile-publication="true"
+      className="hidden min-w-0 flex-col gap-3 border-vetneb-line/70 md:max-[1199px]:grid md:max-[1199px]:grid-cols-2 md:max-[1199px]:content-start md:max-[1199px]:gap-x-4 md:max-[1199px]:border-l md:max-[1199px]:pl-4 min-[1200px]:flex min-[1200px]:border-t min-[1200px]:pt-3"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Publicación
+        </p>
+        {publicationBadge}
+      </div>
+      {hasQuality ? (
+        <div>
+          <div className="flex items-baseline justify-between gap-2 text-xs text-muted-foreground">
+            <span>Calidad del perfil</span>
+            <span>
+              <strong className="font-semibold text-vetneb-ink">{qualityPercent}</strong>{" "}
+              / mínimo {minimumPercent}
+            </span>
+          </div>
+          <div
+            role="meter"
+            aria-label="Calidad del perfil"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={qualityPercent}
+            aria-valuetext={`${qualityPercent} de 100, mínimo requerido ${minimumPercent}`}
+            className="relative mt-1.5 h-1.5 rounded-full bg-vetneb-line/60"
+          >
+            <span
+              aria-hidden="true"
+              className="absolute inset-y-0 left-0 rounded-full bg-vetneb-teal"
+              style={{ width: `${qualityPercent}%` }}
+            />
+            <i
+              aria-hidden="true"
+              className="absolute -inset-y-0.5 w-0.5 bg-foreground/60"
+              style={{ left: `${minimumPercent}%` }}
+            />
+          </div>
+        </div>
+      ) : null}
+      {profile ? (
+        hasPendingItems ? (
+          <div className="flex min-w-0 flex-col gap-2 md:max-[1199px]:col-start-2 md:max-[1199px]:row-span-3 md:max-[1199px]:row-start-1">
+            {missingRequiredFields.length
+              ? renderPendingGroup(
+                  "Obligatorios pendientes",
+                  missingRequiredFields.map(getFieldLabel),
+                  "required",
+                )
+              : null}
+            {missingRecommendedFields.length
+              ? renderPendingGroup(
+                  "Recomendados pendientes",
+                  missingRecommendedFields.map(getFieldLabel),
+                  "recommended",
+                )
+              : null}
+            {publicationErrors.length
+              ? renderPendingGroup("Observaciones de publicación", publicationErrors, "error")
+              : null}
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground md:max-[1199px]:col-start-2 md:max-[1199px]:row-start-1">
+            Todos los campos de publicación están completos.
+          </p>
+        )
+      ) : null}
+      {renderPublishCheckbox("max-md:hidden")}
+    </section>
+  );
+
   const saveProfileButton = !isPasswordTabActive ? (
     <Button
       type="submit"
       size="sm"
-      className="h-8 px-3 text-xs"
+      className="h-8 px-3 text-xs md:h-10 md:px-5 md:text-sm"
       disabled={isWorking}
       form={PROFILE_FORM_ID}
     >
@@ -851,48 +1066,61 @@ export function ClinicPublicProfileCard() {
 
   // One stack for every section: the panel renders it whatever chip is
   // active, so React keeps the same subtree (and the password panel's state)
-  // across section changes. Below 768px it is `display: contents` and only the
-  // active section paints; from 768px up it is the capped-width column
-  // avatar → Datos → Contacto → Contenido → Cambiar contraseña → Guardar.
+  // across section changes. Below 768px every wrapper is `display: contents`
+  // and only the active section paints, exactly as before. From 768px up it is
+  // a two-region grid: the institutional column (identity, publication,
+  // `isPublic`) and the editing column (single-open rows, then Guardar). From
+  // 1200px the regions sit side by side (~1/3 + ~2/3); between 768px and 1199px
+  // the institutional band stacks above the editor.
   const profileStack = (
     <div
       data-clinic-profile-stack="true"
-      className="contents md:flex md:w-full md:max-w-3xl md:flex-col md:gap-1.5"
+      className="contents md:grid md:min-h-0 md:w-full md:flex-1 md:max-[1199px]:grid-cols-1 md:max-[1199px]:grid-rows-[auto_minmax(0,1fr)] md:max-[1199px]:gap-3 min-[1200px]:grid-cols-[minmax(17rem,1fr)_minmax(0,2fr)] min-[1200px]:grid-rows-1 min-[1200px]:gap-5"
     >
-      <form id={PROFILE_FORM_ID} className="contents" onSubmit={handleSubmit}>
-        {statusTab}
-        {renderSectionToggle("datos")}
-        {renderSection("datos", detailsTab)}
-        {renderSectionToggle("contacto")}
-        {renderSection("contacto", contactTab)}
-        {renderSectionToggle("contenido")}
-        {renderSection("contenido", contentTab)}
-      </form>
-      {renderSectionToggle(PASSWORD_TAB_ID)}
-      {renderSection(
-        PASSWORD_TAB_ID,
-        <>
-          {/* C25 F-T6: below 768px the chip may still truncate this label
-              (narrower than 412px) and the panel's own heading is the generic security
-              title, so the section's full name paints here; the tab already
-              carries it as its accessible name. */}
-          <p
-            aria-hidden="true"
-            data-clinic-profile-section-name={PASSWORD_TAB_ID}
-            className="shrink-0 px-1 pb-1.5 text-xs font-semibold text-vetneb-ink md:hidden"
-          >
-            {PROFILE_SECTION_LABELS[PASSWORD_TAB_ID]}
-          </p>
-          <PasswordChangePanel variant="clinic" density="compact" embeddedFromMd />
-        </>,
-        true,
-      )}
       <div
-        data-clinic-profile-desktop-actions="true"
-        className="hidden md:flex md:flex-wrap md:items-center md:justify-end md:gap-2 md:pt-1"
+        data-clinic-profile-institutional="true"
+        className="contents md:min-h-0 md:min-w-0 md:rounded-xl md:bg-vetneb-surface-muted/70 md:p-4 md:max-[1199px]:grid md:max-[1199px]:grid-cols-[minmax(0,1.15fr)_minmax(0,1.5fr)] md:max-[1199px]:content-start md:max-[1199px]:gap-4 min-[1200px]:flex min-[1200px]:flex-col min-[1200px]:gap-3"
       >
-        {publicationBadge}
-        {saveProfileButton}
+        {statusTab}
+        {publicationPanel}
+      </div>
+      <div
+        data-clinic-profile-editing="true"
+        className="contents md:flex md:min-h-0 md:min-w-0 md:flex-col md:gap-1"
+      >
+        <form id={PROFILE_FORM_ID} className="contents" onSubmit={handleSubmit}>
+          {renderSectionToggle("datos")}
+          {renderSection("datos", detailsTab)}
+          {renderSectionToggle("contacto")}
+          {renderSection("contacto", contactTab)}
+          {renderSectionToggle("contenido")}
+          {renderSection("contenido", contentTab)}
+        </form>
+        {renderSectionToggle(PASSWORD_TAB_ID)}
+        {renderSection(
+          PASSWORD_TAB_ID,
+          <>
+            {/* C25 F-T6: below 768px the chip may still truncate this label
+                (narrower than 412px) and the panel's own heading is the generic security
+                title, so the section's full name paints here; the tab already
+                carries it as its accessible name. */}
+            <p
+              aria-hidden="true"
+              data-clinic-profile-section-name={PASSWORD_TAB_ID}
+              className="shrink-0 px-1 pb-1.5 text-xs font-semibold text-vetneb-ink md:hidden"
+            >
+              {PROFILE_SECTION_LABELS[PASSWORD_TAB_ID]}
+            </p>
+            <PasswordChangePanel variant="clinic" density="compact" embeddedFromMd />
+          </>,
+          true,
+        )}
+        <div
+          data-clinic-profile-desktop-actions="true"
+          className="hidden md:mt-auto md:flex md:min-h-12 md:shrink-0 md:items-center md:justify-end md:gap-2 md:border-t md:border-vetneb-line/70 md:pt-2"
+        >
+          {saveProfileButton}
+        </div>
       </div>
     </div>
   );
@@ -910,7 +1138,6 @@ export function ClinicPublicProfileCard() {
       cardAttributeValue="perfil"
       chipAttribute="data-clinic-profile-chip"
       panelAttribute="data-clinic-profile-panel"
-      panelClassName="md:flex-none"
       chipSizing="content"
       activeId={activeTabId}
       onActiveIdChange={setActiveTabId}
