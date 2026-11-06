@@ -122,6 +122,20 @@ export function createReportQueryUseCases(dependencies: {
     };
   }
 
+  /** One report of the session's clinic, in the same shape as a list item. */
+  async function getClinicReport(reportId: number, clinicId: number) {
+    const scoped = await findClinicScopedReport(reportId, clinicId);
+
+    if (scoped.type === "not_found") {
+      return scoped;
+    }
+
+    return {
+      type: "found" as const,
+      report: serializeSafeReport(scoped.report),
+    };
+  }
+
   async function getClinicReportHistory(
     reportId: number,
     clinicId: number,
@@ -226,6 +240,7 @@ export function createReportQueryUseCases(dependencies: {
     searchClinicReports,
     getStudyTypes: dependencies.repository.getStudyTypes,
     findClinicScopedReport,
+    getClinicReport,
     getClinicReportHistory,
     getClinicReportPreview,
     getClinicReportDownload,

@@ -207,15 +207,22 @@ nuevas (`clinic-global-search`, `admin-global-search`) que llevan
 (+20, raíz 2.440). Total 226/46.409 → 235/47.738. La feature no tiene aristas
 cross-feature (matriz M45 sin cambios de aristas).
 
+GLOBAL-SEARCH-3A (backend) agrega la lectura de un informe por id sin archivos
+nuevos: `server/features/reports` +40 LOC (3.140 → 3.180: `parseStrictReportId`,
+el caso de uso `getClinicReport` y `getAdminWorkflowItem` en el servicio de
+rutas), lo que lleva `server/features` a 156/18.123, y las rutas
+`GET /api/reports/:reportId` y `GET /api/admin/report-workflow/:id` (+102) llevan
+`server/routes` a 37/21.689. Total 235/47.738 → 235/47.880. Sin aristas nuevas.
+
 | Área | Archivos TypeScript | LOC |
 | --- | ---: | ---: |
-| `server/features` | 156 | 18.083 |
-| `server/routes` | 37 | 21.587 |
+| `server/features` | 156 | 18.123 |
+| `server/routes` | 37 | 21.689 |
 | `server/lib` | 30 | 5.199 |
 | `server/middlewares` | 3 | 429 |
 | raíz/entrypoints `server/*.ts` | 9 | 2.440 |
 | otros | 0 | 0 |
-| **Total `server`** | **235** | **47.738** |
+| **Total `server`** | **235** | **47.880** |
 
 El review P2 de M48 detectó que la primera metodología aplicaba una semántica
 equivalente a `source.split("\n").length`, que sumaba un segmento vacío por
@@ -242,7 +249,7 @@ porque ésa es su topología proporcional documentada.
 | Pricing | 4 | 489 | infrastructure, servicios directos | no requerido | ninguna | ninguna | M20 |
 | Public Professionals | 8 | 1.150 | domain, infrastructure | sí | Clinics (3) | ninguna | M24 |
 | Report Access | 12 | 724 | domain, application, infrastructure, composition | sí | ninguna | Reports (1) | M34/M35b |
-| Reports | 27 | 3.140 | domain, application, infrastructure, composition | sí | Particular/Report Access (4) | Particular/ST (3) | M41 |
+| Reports | 27 | 3.180 | domain, application, infrastructure, composition | sí | Particular/Report Access (4) | Particular/ST (3) | M41 |
 | Study Tracking | 21 | 2.908 | domain, application, infrastructure | sí | Particular/Reports (6) | ninguna | M35 |
 | Users/Roles | 9 | 674 | domain, application, infrastructure, composition feature-level | no requerido | ninguna | Clinics (2) | M43 |
 

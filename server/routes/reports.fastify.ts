@@ -19,6 +19,7 @@ import {
   parseReportId,
   parseReportStatus,
   parseReportStudyType,
+  parseStrictReportId,
 } from "../features/reports/domain/index.ts";
 import { createClinicReportsRouteComposition } from "../features/reports/composition/index.ts";
 import {
@@ -172,6 +173,13 @@ export const reportsNativeRoutes: FastifyPluginAsync<ReportsNativeRoutesOptions>
     app.options("/", optionsHandler);
     app.options("/search", optionsHandler);
     app.options("/study-types", optionsHandler);
+    // A preflight for a non-numeric segment (e.g. `/upload`, which the clinic
+    // surface does not expose) keeps the not-found answer of an unregistered route.
+    app.options<{ Params: { reportId?: string } }>("/:reportId", async (request, reply) =>
+      /^[0-9]+$/.test(request.params.reportId ?? "")
+        ? optionsHandler(request, reply)
+        : reply.callNotFound(),
+    );
     app.options("/:reportId/history", optionsHandler);
     app.options("/:reportId/preview-url", optionsHandler);
     app.options("/:reportId/download-url", optionsHandler);
@@ -321,6 +329,57 @@ export const reportsNativeRoutes: FastifyPluginAsync<ReportsNativeRoutesOptions>
       return reply.code(200).send({
         success: true,
         studyTypes,
+      });
+    });
+
+    /**
+     * GLOBAL-SEARCH-3A: one report by id for the session's clinic. The tenant
+     * comes only from the session; a foreign, missing or deleted id is the same
+     * 404, so the answer never reveals whether another clinic's report exists.
+     * The body is the list item shape (`serializeSafeReport`): no storage path
+     * and no signed URL.
+     */
+    app.get<{
+      Params: {
+        reportId?: unknown;
+      };
+    }>("/:reportId", async (request, reply) => {
+      const composition = await createClinicReportsRouteComposition(options);
+      const auth = await authenticateFastifyClinicUser(
+        request,
+        reply,
+        composition.auth,
+        now,
+      );
+
+      if (!auth) {
+        return reply;
+      }
+
+      const reportId = parseStrictReportId(request.params.reportId);
+
+      if (typeof reportId !== "number") {
+        return reply.code(400).send({
+          success: false,
+          error: "ID de informe invalido",
+        });
+      }
+
+      const result = await composition.queries.getClinicReport(
+        reportId,
+        auth.clinicId,
+      );
+
+      if (result.type === "not_found") {
+        return reply.code(404).send({
+          success: false,
+          error: "Informe no encontrado",
+        });
+      }
+
+      return reply.code(200).send({
+        success: true,
+        report: result.report,
       });
     });
 
