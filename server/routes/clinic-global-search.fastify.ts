@@ -14,10 +14,18 @@ import {
   type FastifyClinicSessionRecord,
   type FastifyClinicUserRecord,
 } from "../lib/fastify-clinic-auth.ts";
-import { logError, serializeError } from "../lib/logger.ts";
 import {
+  applyGlobalSearchRateLimit,
+  createDefaultGlobalSearchRateLimitStore,
+  GLOBAL_SEARCH_RATE_LIMIT_EXPOSED_HEADERS,
+} from "../lib/global-search-rate-limit.ts";
+import { logError, serializeError } from "../lib/logger.ts";
+import type { RateLimitStore } from "../lib/rate-limit-store.ts";
+import {
+  CLINIC_GLOBAL_SEARCH_KINDS,
   createClinicGlobalSearch,
   deriveGlobalSearchCursorKey,
+  globalSearchQueryUnits,
   type ClinicGlobalSearchRepository,
 } from "../features/global-search/index.ts";
 
@@ -34,11 +42,13 @@ export type ClinicGlobalSearchNativeRoutesOptions = {
   searchRepository?: ClinicGlobalSearchRepository;
   /** HMAC key of the keyset cursor; derived from the server secret when absent. */
   cursorKey?: Uint8Array;
+  /** GLOBAL-SEARCH-3C budget store; the shared persistent table when absent. */
+  searchRateLimitStore?: RateLimitStore;
   now?: () => number;
 };
 
 type ClinicGlobalSearchDeps = Required<
-  Omit<ClinicGlobalSearchNativeRoutesOptions, "now" | "cursorKey">
+  Omit<ClinicGlobalSearchNativeRoutesOptions, "now" | "cursorKey" | "searchRateLimitStore">
 >;
 
 let defaultCursorKey: Uint8Array | undefined;
@@ -131,6 +141,7 @@ function applyCorsHeaders(
   reply.header("vary", "Origin");
   reply.header("access-control-allow-origin", allowedOrigin);
   reply.header("access-control-allow-credentials", "true");
+  reply.header("access-control-expose-headers", GLOBAL_SEARCH_RATE_LIMIT_EXPOSED_HEADERS);
 }
 
 /**
@@ -141,12 +152,21 @@ function applyCorsHeaders(
  * is rejected with 403 before any query runs, mirroring `/api/reports/search`.
  * The query string is not logged (the request logger records the route
  * template only).
+ *
+ * GLOBAL-SEARCH-3C: right after auth and before any search SQL the request
+ * is charged to the actor's persistent budget (`lib/global-search-rate-limit.ts`).
  */
 export const clinicGlobalSearchNativeRoutes: FastifyPluginAsync<
   ClinicGlobalSearchNativeRoutesOptions
 > = async (app, options) => {
   const now = options.now ?? (() => Date.now());
   const allowedOrigins = new Set(getAllowedOrigins());
+  let defaultRateLimitStore: Promise<RateLimitStore> | undefined;
+  const rateLimitStore = (): RateLimitStore | Promise<RateLimitStore> => {
+    if (options.searchRateLimitStore) return options.searchRateLimitStore;
+    defaultRateLimitStore ??= createDefaultGlobalSearchRateLimitStore();
+    return defaultRateLimitStore;
+  };
 
   app.addHook("onRequest", async (request, reply) => {
     applyCorsHeaders(request, reply, allowedOrigins);
@@ -170,6 +190,19 @@ export const clinicGlobalSearchNativeRoutes: FastifyPluginAsync<
     const auth = await authenticateFastifyClinicUser(request, reply, deps, now);
 
     if (!auth) {
+      return reply;
+    }
+
+    if (
+      !(await applyGlobalSearchRateLimit({
+        store: rateLimitStore,
+        actor: { surface: "clinic", clinicId: auth.clinicId, userId: auth.id },
+        units: globalSearchQueryUnits(request.query, CLINIC_GLOBAL_SEARCH_KINDS),
+        reply,
+        requestId: request.id,
+        now: now(),
+      }))
+    ) {
       return reply;
     }
 

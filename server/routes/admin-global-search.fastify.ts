@@ -10,10 +10,18 @@ import {
   getRequestOrigin,
 } from "../lib/cors-headers.ts";
 import { authenticateFastifyAdmin } from "../lib/fastify-admin-auth.ts";
-import { logError, serializeError } from "../lib/logger.ts";
 import {
+  applyGlobalSearchRateLimit,
+  createDefaultGlobalSearchRateLimitStore,
+  GLOBAL_SEARCH_RATE_LIMIT_EXPOSED_HEADERS,
+} from "../lib/global-search-rate-limit.ts";
+import { logError, serializeError } from "../lib/logger.ts";
+import type { RateLimitStore } from "../lib/rate-limit-store.ts";
+import {
+  ADMIN_GLOBAL_SEARCH_KINDS,
   createAdminGlobalSearch,
   deriveGlobalSearchCursorKey,
+  globalSearchQueryUnits,
   type AdminGlobalSearchRepository,
 } from "../features/global-search/index.ts";
 
@@ -38,11 +46,13 @@ export type AdminGlobalSearchNativeRoutesOptions = {
   searchRepository?: AdminGlobalSearchRepository;
   /** HMAC key of the keyset cursor; derived from the server secret when absent. */
   cursorKey?: Uint8Array;
+  /** GLOBAL-SEARCH-3C budget store; the shared persistent table when absent. */
+  searchRateLimitStore?: RateLimitStore;
   now?: () => number;
 };
 
 type AdminGlobalSearchDeps = Required<
-  Omit<AdminGlobalSearchNativeRoutesOptions, "now" | "cursorKey">
+  Omit<AdminGlobalSearchNativeRoutesOptions, "now" | "cursorKey" | "searchRateLimitStore">
 >;
 
 let defaultCursorKey: Uint8Array | undefined;
@@ -135,6 +145,7 @@ function applyCorsHeaders(
   reply.header("vary", "Origin");
   reply.header("access-control-allow-origin", allowedOrigin);
   reply.header("access-control-allow-credentials", "true");
+  reply.header("access-control-expose-headers", GLOBAL_SEARCH_RATE_LIMIT_EXPOSED_HEADERS);
 }
 
 function parseClinicFilter(value: unknown): number | null | undefined {
@@ -149,12 +160,21 @@ function parseClinicFilter(value: unknown): number | null | undefined {
  * admin session already reads through `/api/admin/*` (clinics, reports,
  * particular tokens, study tracking cases, clinic users). `clinicId` is a
  * narrowing filter only. The query string is not logged.
+ *
+ * GLOBAL-SEARCH-3C: right after auth and before any search SQL the request
+ * is charged to the actor's persistent budget (`lib/global-search-rate-limit.ts`).
  */
 export const adminGlobalSearchNativeRoutes: FastifyPluginAsync<
   AdminGlobalSearchNativeRoutesOptions
 > = async (app, options) => {
   const now = options.now ?? (() => Date.now());
   const allowedOrigins = new Set(getAllowedOrigins());
+  let defaultRateLimitStore: Promise<RateLimitStore> | undefined;
+  const rateLimitStore = (): RateLimitStore | Promise<RateLimitStore> => {
+    if (options.searchRateLimitStore) return options.searchRateLimitStore;
+    defaultRateLimitStore ??= createDefaultGlobalSearchRateLimitStore();
+    return defaultRateLimitStore;
+  };
 
   app.addHook("onRequest", async (request, reply) => {
     applyCorsHeaders(request, reply, allowedOrigins);
@@ -178,6 +198,19 @@ export const adminGlobalSearchNativeRoutes: FastifyPluginAsync<
     const admin = await authenticateFastifyAdmin(request, reply, { ...deps, now });
 
     if (!admin) {
+      return reply;
+    }
+
+    if (
+      !(await applyGlobalSearchRateLimit({
+        store: rateLimitStore,
+        actor: { surface: "admin", userId: admin.id },
+        units: globalSearchQueryUnits(request.query, ADMIN_GLOBAL_SEARCH_KINDS),
+        reply,
+        requestId: request.id,
+        now: now(),
+      }))
+    ) {
       return reply;
     }
 

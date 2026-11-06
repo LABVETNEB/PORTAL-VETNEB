@@ -25,6 +25,10 @@ const RATE_LIMIT_ISOLATION_BOUNDARIES = {
     "admin report access token create",
     "admin report access token revoke",
   ],
+  authenticatedSearch: [
+    "clinic global search",
+    "admin global search",
+  ],
   guarantees: [
     "separate stores per route module",
     "429 includes RateLimit headers",
@@ -32,6 +36,8 @@ const RATE_LIMIT_ISOLATION_BOUNDARIES = {
     "429 returns before DB storage signing or audit work",
     "request logs mark 429 as RATE_LIMITED",
     "login key includes surface identifier and IP",
+    "search budget is charged after auth and before search SQL",
+    "search budget store failure fails closed with 503",
   ],
 } as const;
 
@@ -354,6 +360,10 @@ test("rate limit isolation matrix documents the protected contract", () => {
       "admin report access token create",
       "admin report access token revoke",
     ],
+    authenticatedSearch: [
+      "clinic global search",
+      "admin global search",
+    ],
     guarantees: [
       "separate stores per route module",
       "429 includes RateLimit headers",
@@ -361,6 +371,8 @@ test("rate limit isolation matrix documents the protected contract", () => {
       "429 returns before DB storage signing or audit work",
       "request logs mark 429 as RATE_LIMITED",
       "login key includes surface identifier and IP",
+      "search budget is charged after auth and before search SQL",
+      "search budget store failure fails closed with 503",
     ],
   });
 });
@@ -723,6 +735,67 @@ test("contact rate limit defaults to the persistent store before sending email",
     "createMemoryRateLimitStore",
     "contact rate limit production composition",
   );
+});
+
+test("global search budget is persistent, isolated and charged after auth before search SQL", () => {
+  const policy = readSource("server/lib/global-search-rate-limit.ts");
+
+  for (const marker of [
+    "GLOBAL_SEARCH_RATE_LIMIT_POLICY",
+    "GLOBAL_SEARCH_RATE_LIMIT_ERROR_MESSAGE",
+    "consume: db.consumeRateLimitUnits,",
+    "reply.code(429).send({",
+    "reply.code(503).send({",
+  ]) {
+    assertContains(policy, marker, "global search budget policy");
+  }
+  for (const marker of ["LOGIN_RATE_LIMIT", "CONTACT_RATE_LIMIT", "createMemoryRateLimitStore", "cleanupExpired"]) {
+    assertNotContains(policy, marker, "global search budget policy");
+  }
+  assertContainsInOrder(
+    policy,
+    ["try {", "const resolved = await store();", "consumeRateLimitAttempt(", "} catch (error) {", "reply.code(503)"],
+    "global search budget fails closed",
+  );
+
+  for (const scenario of [
+    {
+      file: "server/routes/clinic-global-search.fastify.ts",
+      authMarker: "const auth = await authenticateFastifyClinicUser(",
+      searchMarker: "await createClinicGlobalSearch(deps.searchRepository",
+      units: "globalSearchQueryUnits(request.query, CLINIC_GLOBAL_SEARCH_KINDS)",
+    },
+    {
+      file: "server/routes/admin-global-search.fastify.ts",
+      authMarker: "const admin = await authenticateFastifyAdmin(",
+      searchMarker: "await createAdminGlobalSearch(deps.searchRepository",
+      units: "globalSearchQueryUnits(request.query, ADMIN_GLOBAL_SEARCH_KINDS)",
+    },
+  ]) {
+    const source = readSource(scenario.file);
+    assertContains(source, "searchRateLimitStore?: RateLimitStore;", `${scenario.file} injectable budget store`);
+    assertContains(
+      source,
+      "defaultRateLimitStore ??= createDefaultGlobalSearchRateLimitStore();",
+      `${scenario.file} persistent default budget store`,
+    );
+    assertNotContains(source, "createMemoryRateLimitStore", `${scenario.file} production composition`);
+    assertContainsInOrder(
+      source,
+      [scenario.authMarker, "await applyGlobalSearchRateLimit({", scenario.units, "return reply;", scenario.searchMarker],
+      `${scenario.file} budget after auth before search`,
+    );
+    assertContains(
+      source,
+      "GLOBAL_SEARCH_RATE_LIMIT_EXPOSED_HEADERS",
+      `${scenario.file} exposes Retry-After to the browser`,
+    );
+  }
+
+  const runtime = readSource("test/integration/adapters/controllers/global-search-rate-limit.fastify.test.ts");
+  assertMatches(runtime, /dos instancias que comparten el store comparten el presupuesto/, "multi-instance runtime test");
+  assertMatches(runtime, /the protection never fails open/, "store failure runtime test");
+  assertMatches(runtime, /no search SQL after a rejection/, "rejection before SQL runtime test");
 });
 
 test("report access token mutation rate limits cut off before auth and writes", () => {

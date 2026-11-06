@@ -223,15 +223,26 @@ repositorio; casos de uso que emiten y verifican el cursor), lo que lleva
 `server/routes` a 37/21.731. Total 235/47.880 → 236/48.253. Sin aristas nuevas
 (la feature sigue sin dependencias cross-feature).
 
+GLOBAL-SEARCH-3C agrega el presupuesto de solicitudes del superbuscador:
+`server/features/global-search` pasa de 8/1.258 a 8/1.270
+(`globalSearchQueryUnits`, puro, en el dominio), lo que lleva `server/features`
+a 157/18.466; el nuevo `server/lib/global-search-rate-limit.ts` y el consumo por
+unidades de `rate-limit-store.ts` llevan `server/lib` a 31/5.389; las rutas
+`clinic-global-search` y `admin-global-search` (+66, cobro tras la
+autenticación) llevan `server/routes` a 37/21.797, y `consumeRateLimitUnits` en
+`server/db.ts` lleva la raíz a 9/2.497. Total 236/48.253 → 237/48.578. Sin
+aristas nuevas: `server/lib` no importa features (M45); la ruta calcula las
+unidades con el dominio y las pasa al limitador.
+
 | Área | Archivos TypeScript | LOC |
 | --- | ---: | ---: |
-| `server/features` | 157 | 18.454 |
-| `server/routes` | 37 | 21.731 |
-| `server/lib` | 30 | 5.199 |
+| `server/features` | 157 | 18.466 |
+| `server/routes` | 37 | 21.797 |
+| `server/lib` | 31 | 5.389 |
 | `server/middlewares` | 3 | 429 |
-| raíz/entrypoints `server/*.ts` | 9 | 2.440 |
+| raíz/entrypoints `server/*.ts` | 9 | 2.497 |
 | otros | 0 | 0 |
-| **Total `server`** | **236** | **48.253** |
+| **Total `server`** | **237** | **48.578** |
 
 El review P2 de M48 detectó que la primera metodología aplicaba una semántica
 equivalente a `source.split("\n").length`, que sumaba un segmento vacío por
@@ -252,7 +263,7 @@ porque ésa es su topología proporcional documentada.
 | Feature | Archivos | LOC | Capas/directorios reales | Barrel raíz | Entrantes | Salientes | Closeout |
 | --- | ---: | ---: | --- | --- | --- | --- | --- |
 | Clinics | 10 | 2.747 | domain, infrastructure, servicios directos | sí | Users/Roles (2 refs) | Public Professionals (3) | M29 |
-| Global Search | 8 | 1.258 | domain, application, infrastructure | sí | ninguna | ninguna | GLOBAL-SEARCH-1 |
+| Global Search | 8 | 1.270 | domain, application, infrastructure | sí | ninguna | ninguna | GLOBAL-SEARCH-1 |
 | Logistics | 46 | 4.238 | domain, application, infrastructure | no requerido | ninguna | ninguna | M17 |
 | Particular Access | 12 | 1.086 | domain, application, infrastructure | sí | Reports (1) | Reports/ST (7) | M33/M35b |
 | Pricing | 4 | 489 | infrastructure, servicios directos | no requerido | ninguna | ninguna | M20 |

@@ -423,3 +423,15 @@ export function mergeGlobalSearchHits(
   }
   return { hits, groups };
 }
+
+/**
+ * GLOBAL-SEARCH-3C: entity queries a request will run, from the same parser
+ * the use case applies. A request the parser rejects still costs one unit.
+ */
+export function globalSearchQueryUnits<TKind extends GlobalSearchKind>(
+  query: Record<string, unknown>,
+  allowedKinds: readonly TKind[],
+): number {
+  const parsed = parseGlobalSearchQuery(query, allowedKinds);
+  return parsed.ok ? Math.max(1, parsed.kinds.length) : 1;
+}
