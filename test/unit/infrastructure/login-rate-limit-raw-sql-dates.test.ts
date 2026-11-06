@@ -30,7 +30,7 @@ async function capture(run: () => Promise<unknown>): Promise<Captured> {
   } finally {
     pgClient.unsafe = original;
   }
-  assert.equal(calls.length, 1, "un único statement: el upsert sigue siendo atómico");
+  assert.ok(calls.length === 1, "un único statement: el upsert sigue siendo atómico");
   return calls[0]!;
 }
 
@@ -68,12 +68,12 @@ for (const [name, run] of [
     const nowRefs = params.flatMap((value, index) => (value === NOW.toISOString() ? [index + 1] : []));
     const resetRefs = params.flatMap((value, index) => (value === RESET_AT.toISOString() ? [index + 1] : []));
     // created_at, updated_at (insert), updated_at (update) + dos comparaciones del CASE.
-    assert.equal(nowRefs.length, 5);
+    assert.ok(nowRefs.length === 5);
     // reset_at (insert) + rama de reinicio del CASE.
-    assert.equal(resetRefs.length, 2);
+    assert.ok(resetRefs.length === 2);
 
     const caseNow = query.match(/"reset_at" <= \$(\d+)::timestamp/g) ?? [];
-    assert.equal(caseNow.length, 2, "ambos CASE comparan contra now como timestamp sin zona");
+    assert.ok(caseNow.length === 2, "ambos CASE comparan contra now como timestamp sin zona");
     for (const ref of caseNow) {
       assert.ok(nowRefs.includes(Number(/\$(\d+)/.exec(ref)![1])));
     }
