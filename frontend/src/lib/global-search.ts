@@ -30,7 +30,12 @@ export const GLOBAL_SEARCH_MIN_QUERY = 2;
 export const GLOBAL_SEARCH_MAX_QUERY = 80;
 export const GLOBAL_SEARCH_SUGGESTION_LIMIT = 5;
 export const GLOBAL_SEARCH_PAGE_SIZE = 20;
+/** Largest `offset` the API accepts. Only the first-window (offset) path uses it: continuations go by cursor. */
 export const GLOBAL_SEARCH_MAX_OFFSET = 500;
+/** Largest `cursor` the API accepts (GLOBAL-SEARCH-3A-CURSOR backend). */
+export const GLOBAL_SEARCH_MAX_CURSOR_LENGTH = 512;
+/** Exact 400 message of a rejected continuation (expired, tampered or foreign cursor). */
+export const GLOBAL_SEARCH_INVALID_CURSOR_MESSAGE = "Cursor de búsqueda inválido";
 export const GLOBAL_SEARCH_DEBOUNCE_MS = 250;
 
 export const GLOBAL_SEARCH_REPORT_STATUSES = ["uploaded", "processing", "ready", "delivered"] as const;
@@ -61,6 +66,12 @@ export type GlobalSearchGroup = {
   readonly kind: GlobalSearchKind;
   readonly returned: number;
   readonly hasMore: boolean;
+  /**
+   * Opaque continuation of this kind, a string exactly when `hasMore`. Signed
+   * by the server for this surface, tenant, query, filters and kind; valid for
+   * a limited time. Kept in memory only, never logged or persisted.
+   */
+  readonly nextCursor: string | null;
 };
 
 export type GlobalSearchResult = {
@@ -90,12 +101,26 @@ export const EMPTY_GLOBAL_SEARCH_FILTERS: GlobalSearchFilters = {
   clinicId: "",
 };
 
+/**
+ * Where a window starts: an `offset` (first window, or the legacy offset
+ * consumers) or the `cursor` a previous response gave for one kind. Never
+ * both: the API rejects the combination.
+ */
+export type GlobalSearchPosition =
+  | { readonly offset: number; readonly cursor?: undefined }
+  | { readonly cursor: string; readonly offset?: undefined };
+
 export type GlobalSearchRequest = {
   readonly query: string;
   readonly filters: GlobalSearchFilters;
   readonly limit: number;
-  readonly offset: number;
-};
+} & GlobalSearchPosition;
+
+export function isGlobalSearchContinuation(
+  request: GlobalSearchRequest,
+): request is GlobalSearchRequest & { readonly cursor: string } {
+  return typeof request.cursor === "string";
+}
 
 /**
  * The last full search of each surface, kept in memory only for this tab's
@@ -240,10 +265,16 @@ export function buildGlobalSearchQueryString(
   const params = new URLSearchParams();
   params.set("q", normalizeGlobalSearchInput(request.query));
 
-  const allowed = new Set(globalSearchKindsFor(surface));
-  const kinds = hasGlobalSearchReportFilters(request.filters)
-    ? (["report"] as const)
-    : request.filters.kinds.filter((kind) => allowed.has(kind));
+  const kinds = resolveGlobalSearchRequestKinds(surface, request.filters);
+  const continuation = isGlobalSearchContinuation(request);
+  if (continuation) {
+    // A cursor continues exactly one kind; anything else is a caller bug the
+    // API would reject, so it never leaves the client.
+    if (kinds.length !== 1) throw new Error("El cursor de búsqueda requiere un único tipo de entidad.");
+    if (!request.cursor || request.cursor.length > GLOBAL_SEARCH_MAX_CURSOR_LENGTH) {
+      throw new Error("Cursor de búsqueda fuera de contrato.");
+    }
+  }
   if (kinds.length > 0) params.set("kinds", kinds.join(","));
 
   const { status, studyType, from, to, clinicId } = request.filters;
@@ -254,8 +285,22 @@ export function buildGlobalSearchQueryString(
   if (surface === "admin" && POSITIVE_ID.test(clinicId)) params.set("clinicId", clinicId);
 
   params.set("limit", String(request.limit));
-  if (request.offset > 0) params.set("offset", String(Math.min(request.offset, GLOBAL_SEARCH_MAX_OFFSET)));
+  if (continuation) {
+    params.set("cursor", request.cursor);
+  } else if (request.offset > 0) {
+    params.set("offset", String(Math.min(request.offset, GLOBAL_SEARCH_MAX_OFFSET)));
+  }
   return params.toString();
+}
+
+/** The kinds a request actually searches: report filters narrow to reports, like the API. */
+export function resolveGlobalSearchRequestKinds(
+  surface: GlobalSearchSurface,
+  filters: GlobalSearchFilters,
+): readonly GlobalSearchKind[] {
+  if (hasGlobalSearchReportFilters(filters)) return ["report"];
+  const allowed = new Set(globalSearchKindsFor(surface));
+  return filters.kinds.filter((kind) => allowed.has(kind));
 }
 
 export function globalSearchHitKey(hit: Pick<GlobalSearchHit, "kind" | "id">): string {

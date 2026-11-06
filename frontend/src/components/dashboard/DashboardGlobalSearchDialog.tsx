@@ -539,11 +539,29 @@ export function DashboardGlobalSearchDialog({
                     className="min-h-0 flex-1 overflow-hidden px-1 md:px-2"
                   >
                     {ready && pager.status === "error" ? (
-                      <div className="flex flex-col items-start gap-2 p-3" data-global-search-error="true">
+                      <div
+                        className="flex flex-col items-start gap-2 p-3"
+                        data-global-search-error={pager.errorKind ?? "generic"}
+                      >
                         <p className="text-sm text-foreground">{pager.error}</p>
-                        <Button type="button" variant="outline" className="min-h-11" onClick={() => pager.retry()}>
-                          Reintentar
-                        </Button>
+                        {pager.errorKind === "expired" ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="min-h-11"
+                            data-global-search-restart="true"
+                            onClick={() => {
+                              setSelected(null);
+                              pager.restart();
+                            }}
+                          >
+                            Actualizar búsqueda
+                          </Button>
+                        ) : pager.errorKind === "generic" || pager.errorKind === "throttled" ? (
+                          <Button type="button" variant="outline" className="min-h-11" onClick={() => pager.retry()}>
+                            Reintentar
+                          </Button>
+                        ) : null}
                       </div>
                     ) : null}
                     {ready && pager.status === "ready" && pager.page.length === 0 ? (
@@ -612,9 +630,9 @@ export function DashboardGlobalSearchDialog({
                         className="min-w-0 truncate text-center text-xs text-muted-foreground"
                         data-global-search-page-number={pageNumber}
                         aria-current="page"
-                        title={pager.capped ? "La búsqueda llegó al límite que el servidor permite recorrer. Afiná la búsqueda o usá filtros para ver el resto." : undefined}
+                        title={pager.stalled ? "El servidor no permitió continuar una categoría. Actualizá la búsqueda para ver el resto." : undefined}
                       >
-                        {pager.capped ? `Página ${pageNumber} · afiná la búsqueda` : `Página ${pageNumber}`}
+                        {pager.stalled ? `Página ${pageNumber} · actualizá la búsqueda` : `Página ${pageNumber}`}
                       </span>
                       <Button
                         type="button"

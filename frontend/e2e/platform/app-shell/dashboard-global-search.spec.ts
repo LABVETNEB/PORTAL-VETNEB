@@ -14,11 +14,16 @@ import { addAppCookies, sessionCookie } from "../../helpers/session";
 // echoing canned payloads: the tenant is derived from the session cookie the
 // browser sends, a clinicId that is not the session's own is answered 403
 // before anything is read, report filters narrow to reports, `limit + 1`
-// drives hasMore and offset pages one kind. Cross-tenant isolation itself is
-// enforced and proven server-side against PostgreSQL by GLOBAL-SEARCH-1
-// (`test/integration/app/global-search-postgres-isolation.fastify.test.ts`);
-// this spec proves the UI asks only for its own tenant and renders only what
-// the server returned. All records are synthetic.
+// drives hasMore and offset pages one kind. GLOBAL-SEARCH-3A-CURSOR: every
+// group with more rows carries a `nextCursor` bound (by a stub signature) to
+// surface, tenant, query, filters and kind, continuing one kind by keyset; a
+// cursor with offset, with several kinds, altered, foreign or expired is a
+// 400 exactly like the API. Cross-tenant isolation and the real keyset
+// traversal are enforced and proven server-side against PostgreSQL by
+// GLOBAL-SEARCH-1 and #1971 (`global-search-postgres-isolation`,
+// `global-search-cursor-postgres`); this spec is frontend evidence only: the
+// UI asks only for its own tenant, follows the cursors it was given and
+// renders only what the server returned. All records are synthetic.
 // ─────────────────────────────────────────────────────────────────────────────
 
 type Kind = "clinic" | "report" | "particular_token" | "tracking_case" | "clinic_user";
@@ -87,6 +92,70 @@ const FOREIGN_SERIES = Array.from({ length: 5 }, (_, index): Row => ({
   date: day(index),
 }));
 
+/**
+ * GLOBAL-SEARCH-3A-CURSOR · more than 525 records per kind. Clinic A: 2,000
+ * «masivo» reports, newest first, id = 9000 - position, so every row up to
+ * position 599 is a real fixture report (GET /api/reports/8401..9400).
+ */
+const MASSIVE_REPORTS = Array.from({ length: 2_000 }, (_, index): Row => ({
+  kind: "report",
+  id: 9000 - index,
+  clinicId: CLINIC_A.id,
+  title: `Masivo norte ${String(index + 1).padStart(4, "0")}`,
+  subtitle: null,
+  status: "ready",
+  studyType: "citologia",
+  date: new Date(Date.UTC(2026, 9, 30, 12) - index * 3_600_000).toISOString(),
+}));
+const MASSIVE_TOKENS = Array.from({ length: 130 }, (_, index): Row => ({
+  kind: "particular_token",
+  id: 20_000 + index,
+  clinicId: CLINIC_A.id,
+  title: `Masivo mascota ${index + 1}`,
+  subtitle: "Tutor sintético",
+  status: "active",
+  date: new Date(Date.UTC(2026, 9, 30, 11) - index * 41 * 3_600_000).toISOString(),
+}));
+const MASSIVE_TRACKING = Array.from({ length: 37 }, (_, index): Row => ({
+  kind: "tracking_case",
+  id: 30_000 + index,
+  clinicId: CLINIC_A.id,
+  title: `Masivo seguimiento ${index + 1}`,
+  subtitle: `Seguimiento #${30_000 + index}`,
+  status: "processing",
+  date: new Date(Date.UTC(2026, 9, 30, 10) - index * 97 * 3_600_000).toISOString(),
+}));
+/** Clinic B rows of the same query: never visible to clinic A. */
+const MASSIVE_FOREIGN = Array.from({ length: 40 }, (_, index): Row => ({
+  kind: "report",
+  id: 40_000 + index,
+  clinicId: CLINIC_B.id,
+  title: `Masivo norte ajeno ${index + 1}`,
+  subtitle: null,
+  status: "ready",
+  date: new Date(Date.UTC(2026, 9, 30, 12) - index * 3_600_000).toISOString(),
+}));
+const CLINIC_A_MASSIVE_KEYS = [...MASSIVE_REPORTS, ...MASSIVE_TOKENS, ...MASSIVE_TRACKING]
+  .map((row) => `${row.kind}:${row.id}`)
+  .sort();
+/** Position 580 of «masivo norte» (> 525): a fixture clinic report. */
+const CLINIC_DEEP_REPORT = MASSIVE_REPORTS[580];
+/**
+ * Admin: 700 «lote sur» reports of clinic B, id = 7995 - position, so
+ * position 560 is report 7435 of the admin fixture (GET /api/admin/report-workflow/7435).
+ */
+const ADMIN_LOTE = Array.from({ length: 700 }, (_, index): Row => ({
+  kind: "report",
+  id: 7995 - index,
+  clinicId: CLINIC_B.id,
+  title: `Lote sur ${String(index + 1).padStart(4, "0")}`,
+  subtitle: null,
+  status: "ready",
+  studyType: "histopatologia",
+  date: new Date(Date.UTC(2026, 8, 30, 12) - index * 3_600_000).toISOString(),
+}));
+const ADMIN_DEEP_REPORT = ADMIN_LOTE[560];
+
 /** Every «serie» record clinic A may read: the full «Todo» traversal. */
 const CLINIC_A_SERIES_KEYS = [...SERIES, ...TOKEN_SERIES, ...TRACKING_SERIES].map((row) => `${row.kind}:${row.id}`).sort();
 
@@ -107,10 +176,52 @@ const ROWS: readonly Row[] = [
   ...TOKEN_SERIES,
   ...TRACKING_SERIES,
   ...FOREIGN_SERIES,
+  ...MASSIVE_REPORTS,
+  ...MASSIVE_TOKENS,
+  ...MASSIVE_TRACKING,
+  ...MASSIVE_FOREIGN,
+  ...ADMIN_LOTE,
 ];
 
 function fold(value: string): string {
   return value.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+}
+
+const STUB_CURSOR_SECRET = "stub-only-secret";
+
+/** Stub signature (FNV-1a): only the stub can mint a cursor it accepts. */
+function stubSign(value: string): string {
+  let hash = 0x811c9dc5;
+  for (const char of `${STUB_CURSOR_SECRET}|${value}`) {
+    hash ^= char.codePointAt(0) ?? 0;
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash.toString(36);
+}
+
+type CursorPosition = { readonly date: string; readonly id: number };
+
+function cursorContext(surface: string, tenant: number | null, params: Record<string, string>, kind: Kind): string {
+  return JSON.stringify([surface, tenant, fold(params.q ?? ""), kind, params.status ?? "", params.studyType ?? "", params.from ?? "", params.to ?? ""]);
+}
+
+function encodeStubCursor(context: string, position: CursorPosition, expired: boolean, altered: boolean): string {
+  const payload = Buffer.from(JSON.stringify({ ...position, e: expired ? 0 : 1 })).toString("base64url");
+  const signature = stubSign(`${payload}.${context}`);
+  const sent = altered ? Buffer.from(JSON.stringify({ ...position, id: position.id - 1, e: 1 })).toString("base64url") : payload;
+  return `v1.${sent}.${signature}`;
+}
+
+function decodeStubCursor(cursor: string, context: string): CursorPosition | null {
+  const [version, payload, signature, extra] = cursor.split(".");
+  if (version !== "v1" || !payload || !signature || extra !== undefined) return null;
+  if (stubSign(`${payload}.${context}`) !== signature) return null;
+  try {
+    const decoded = JSON.parse(Buffer.from(payload, "base64url").toString()) as CursorPosition & { e: number };
+    return decoded.e === 1 ? { date: decoded.date, id: decoded.id } : null;
+  } catch {
+    return null;
+  }
 }
 
 function clinicName(clinicId: number): string {
@@ -122,6 +233,14 @@ type Observed = { readonly surface: "clinic" | "admin"; readonly params: Record<
 type StubOptions = {
   /** Answers every request with this status (error-state cases). */
   readonly failWith?: number;
+  /** Answers only continuations (requests with `cursor`) with this status and body. */
+  readonly failContinuation?: () => { readonly status: number; readonly body: unknown } | null;
+  /** Every cursor issued from now on reads as expired (server clock past `e`). */
+  readonly cursorsExpired?: () => boolean;
+  /** Issues cursors whose position was altered after signing. */
+  readonly alterCursors?: () => boolean;
+  /** Answers every full-search window (limit 25) with 503: any replay becomes a visible error. */
+  readonly failWindows?: () => boolean;
   /** Holds the answer of a given `q` until the returned promise settles. */
   readonly holdFor?: Readonly<Record<string, Promise<void>>>;
   /** Called once the held answer was fulfilled or rejected by the page. */
@@ -170,6 +289,15 @@ async function installSearchStub(page: Page, options: StubOptions = {}): Promise
       await respond(options.failWith, { success: false, error: "Error interno" });
       return;
     }
+    if (params.limit === "25" && options.failWindows?.()) {
+      await respond(503, { success: false, error: "Servicio no disponible" });
+      return;
+    }
+    const continuationFailure = params.cursor !== undefined ? options.failContinuation?.() : null;
+    if (continuationFailure) {
+      await respond(continuationFailure.status, continuationFailure.body);
+      return;
+    }
     if (surface === "clinic" && params.clinicId !== undefined && params.clinicId !== String(CLINIC_A.id)) {
       await respond(403, { success: false, error: "No autorizado para consultar otra clinica" });
       return;
@@ -190,9 +318,26 @@ async function installSearchStub(page: Page, options: StubOptions = {}): Promise
       await respond(400, { success: false, error: "Paginación inválida" });
       return;
     }
+    // GLOBAL-SEARCH-3A-CURSOR rules (#1971): ≤ 512 chars, exactly one kind, never with offset.
+    if (params.cursor !== undefined && params.offset !== undefined) {
+      await respond(400, { success: false, error: "El cursor no se combina con offset" });
+      return;
+    }
+    if (params.cursor !== undefined && kinds.length !== 1) {
+      await respond(400, { success: false, error: "El cursor requiere un único tipo de entidad" });
+      return;
+    }
     const needle = fold(params.q ?? "");
     const numeric = /^#?(\d{1,9})$/.exec(params.q ?? "");
     const tenant = surface === "clinic" ? CLINIC_A.id : params.clinicId ? Number(params.clinicId) : null;
+    let after: CursorPosition | null = null;
+    if (params.cursor !== undefined) {
+      after = params.cursor.length <= 512 ? decodeStubCursor(params.cursor, cursorContext(surface, tenant, params, kinds[0])) : null;
+      if (!after) {
+        await respond(400, { success: false, error: "Cursor de búsqueda inválido" });
+        return;
+      }
+    }
 
     const hits: unknown[] = [];
     const groups: unknown[] = [];
@@ -204,10 +349,27 @@ async function installSearchStub(page: Page, options: StubOptions = {}): Promise
         )
         .filter((row) => !params.status || row.status === params.status)
         .filter((row) => !params.studyType || row.studyType === params.studyType)
-        .sort((left, right) => right.date.localeCompare(left.date) || right.id - left.id);
-      const window = rows.slice(offset, offset + limit + 1);
+        .sort((left, right) => right.date.localeCompare(left.date) || right.id - left.id)
+        .filter((row) => !after || row.date < after.date || (row.date === after.date && row.id < after.id));
+      const start = after ? 0 : offset;
+      const window = rows.slice(start, start + limit + 1);
       const visible = window.slice(0, limit);
-      groups.push({ kind, returned: visible.length, hasMore: window.length > limit });
+      const hasMore = window.length > limit;
+      const last = visible[visible.length - 1];
+      groups.push({
+        kind,
+        returned: visible.length,
+        hasMore,
+        nextCursor:
+          hasMore && last
+            ? encodeStubCursor(
+                cursorContext(surface, tenant, params, kind),
+                { date: last.date, id: last.id },
+                options.cursorsExpired?.() ?? false,
+                options.alterCursors?.() ?? false,
+              )
+            : null,
+      });
       for (const row of visible) {
         hits.push({
           kind: row.kind,
@@ -281,6 +443,70 @@ async function documentScroll(page: Page) {
       horizontal: Math.max(0, root.scrollWidth - root.clientWidth),
     };
   });
+}
+
+/** No request combines cursor and offset; a cursor always continues exactly one kind. */
+function expectCursorContract(observed: readonly Observed[]) {
+  for (const entry of observed) {
+    if (entry.params.cursor === undefined) continue;
+    expect(entry.params.offset, "cursor and offset are never combined").toBeUndefined();
+    expect(String(entry.params.kinds ?? "").split(",").filter(Boolean), "a cursor continues one kind").toHaveLength(1);
+  }
+}
+
+/** Opens the full search with `query`: the overflow menu below 768 px, the bar above. */
+async function openFullSearch(page: Page, query: string) {
+  const dialog = page.locator(DIALOG);
+  const width = page.viewportSize()?.width ?? 1366;
+  if (width < 768) {
+    const trigger = page.getByRole("button", { name: /Menú de (la clínica|administración)/ });
+    await expect(trigger).toBeVisible({ timeout: 30_000 });
+    await expect
+      .poll(() => trigger.evaluate((node) => Object.keys(node).some((key) => key.startsWith("__reactProps"))), { timeout: 30_000 })
+      .toBe(true);
+    await trigger.click();
+    await page.locator('[data-dashboard-mobile-global-search="true"]').click();
+    await dialog.locator('[data-global-search-dialog-input="true"]').fill(query);
+    await dialog.locator('[data-global-search-dialog-input="true"]').press("Enter");
+  } else {
+    const input = await hydratedInput(page);
+    await input.fill(query);
+    await page.locator('[data-global-search-see-all="true"]').click();
+  }
+  await expect(dialog).toBeVisible();
+  return dialog;
+}
+
+async function resultKeys(dialog: ReturnType<Page["locator"]>): Promise<string[]> {
+  return dialog
+    .locator("[data-global-search-result]")
+    .evaluateAll((nodes) => nodes.map((node) => node.getAttribute("data-global-search-result") ?? ""));
+}
+
+/** Clicks Siguiente until `done` holds or the pager ends; returns the page number reached. */
+async function walkPages(
+  dialog: ReturnType<Page["locator"]>,
+  done: (keys: readonly string[]) => boolean,
+  maxSteps: number,
+  onPage?: (keys: readonly string[], pageNumber: number) => void,
+): Promise<number> {
+  const next = dialog.locator('[data-global-search-page="next"]');
+  const number = dialog.locator("[data-global-search-page-number]");
+  for (let pageNumber = 1; pageNumber <= maxSteps; pageNumber += 1) {
+    await expect(number).toHaveAttribute("data-global-search-page-number", String(pageNumber));
+    await expect(dialog.locator('[data-global-search-dialog-status="ready"]')).toHaveCount(1);
+    const keys = await resultKeys(dialog);
+    onPage?.(keys, pageNumber);
+    if (done(keys) || (await next.isDisabled())) return pageNumber;
+    await next.click();
+  }
+  throw new Error(`walkPages: not done after ${maxSteps} pages`);
+}
+
+/** Position (1-based) of a «Masivo norte NNNN» / «Lote sur NNNN» row from its visible title. */
+async function firstRowPosition(dialog: ReturnType<Page["locator"]>): Promise<number> {
+  const title = (await dialog.locator("[data-global-search-result]").first().textContent()) ?? "";
+  return Number(/(\d{4})/.exec(title)?.[1] ?? 0);
 }
 
 async function expectNoSeriousAxe(page: Page, include: string, label: string) {
@@ -379,9 +605,9 @@ test.describe("GLOBAL-SEARCH-2 · Buscar en VETNEB", () => {
       );
     }
     await expect(target).toContainText("Paciente Serie 56");
-    const offsets = observed.filter((entry) => entry.params.kinds === "report").map((entry) => Number(entry.params.offset ?? 0));
-    expect(offsets.every((offset) => offset % pageSize === 0), "each request starts at a page boundary").toBe(true);
-    expect(Math.max(...offsets)).toBeGreaterThanOrEqual(pageSize * 2);
+    const reportRequests = observed.filter((entry) => entry.params.kinds === "report");
+    expect(reportRequests.every((entry) => entry.params.offset === undefined), "the full search never pages by offset").toBe(true);
+    expect(reportRequests.filter((entry) => entry.params.cursor !== undefined).length, "deep pages continue by cursor").toBeGreaterThan(0);
 
     await target.click();
     const record = dialog.locator('[data-global-search-record="report:9355"]');
@@ -623,8 +849,8 @@ test.describe("GLOBAL-SEARCH-2 · Buscar en VETNEB", () => {
     expect([...seen].sort(), "every authorized record, and only those").toEqual(CLINIC_A_SERIES_KEYS);
     expect(seen.some((key) => key.startsWith("report:95")), "clinic B's series never appears").toBe(false);
 
-    // Every request honoured the API: offset only with one kind.
-    expect(observed.every((entry) => Number(entry.params.offset ?? 0) === 0 || !String(entry.params.kinds ?? "").includes(","))).toBe(true);
+    // Every request honoured the API: a cursor only alone and for one kind, never an offset beyond the first window.
+    expectCursorContract(observed);
 
     // Anterior returns to cached pages without asking again.
     const requestsBefore = observed.length;
@@ -693,6 +919,250 @@ test.describe("GLOBAL-SEARCH-2 · Buscar en VETNEB", () => {
     await expect(page.getByText("El informe #999999 no existe o no está disponible.")).toBeVisible({ timeout: 25_000 });
   });
 
+  test("cursor: one category walks past 525 records and opens a deep report by id; coming back reuses the cached pages", async ({ page }) => {
+    test.setTimeout(240_000);
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    let frozen = false;
+    const observed = await installSearchStub(page, { failWindows: () => frozen });
+    await openWorkspace(page, "clinic");
+    const dialog = await openFullSearch(page, "masivo norte");
+    await dialog.locator('[data-global-search-kind-filter="report"]').click();
+    await expect(dialog.locator("[data-global-search-result]").first()).toBeVisible();
+
+    const target = `report:${CLINIC_DEEP_REPORT.id}`;
+    const seen: string[] = [];
+    const deepPage = await walkPages(dialog, (keys) => keys.includes(target), 200, (keys) => seen.push(...keys));
+    expect(seen.length, "the target lies beyond the old 525-record ceiling").toBeGreaterThan(525);
+    expect(new Set(seen).size, "no record repeated on the way").toBe(seen.length);
+    expect(seen, "exactly the server order, nothing skipped").toEqual(
+      MASSIVE_REPORTS.slice(0, seen.length).map((row) => `report:${row.id}`),
+    );
+    expectCursorContract(observed);
+    const dialogRequests = observed.filter((entry) => entry.params.limit === "25");
+    expect(dialogRequests[0]?.params.cursor, "the first window carries no cursor").toBeUndefined();
+    expect(dialogRequests.slice(1).every((entry) => typeof entry.params.cursor === "string"), "every later window continues by cursor").toBe(true);
+    expect(observed.some((entry) => Number(entry.params.offset ?? 0) > 0), "no request pages by offset").toBe(false);
+    expect(await documentScroll(page), "a deep page keeps the zero-scroll contract").toEqual({ vertical: 0, horizontal: 0 });
+
+    await dialog.locator(`[data-global-search-result="${target}"]`).click();
+    await dialog.locator('[data-global-search-open-module="true"]').click();
+    await expect(dialog).toBeHidden();
+    await expect(page).toHaveURL(new RegExp(`/dashboard/informes\\?reportId=${CLINIC_DEEP_REPORT.id}$`), { timeout: 25_000 });
+    await expect(page.locator(`[data-informes-focused-report="${CLINIC_DEEP_REPORT.id}"]`).filter({ visible: true })).toBeVisible({
+      timeout: 25_000,
+    });
+    await expect(page.locator("#report-detail-heading").filter({ visible: true })).toContainText(`Informe #${CLINIC_DEEP_REPORT.id}`);
+
+    // Back to the search: same page and record, and no window is read again.
+    // From here any full-search window fails, so a replay would surface as an error.
+    frozen = true;
+    const windowsOf = () => observed.filter((entry) => entry.params.limit === "25").length;
+    const requestsBefore = windowsOf();
+    const bar = await hydratedInput(page);
+    await expect(bar).toHaveValue("masivo norte");
+    await bar.focus();
+    await page.locator('[data-global-search-see-all="true"]').click();
+    await expect(dialog.locator("[data-global-search-page-number]")).toHaveAttribute("data-global-search-page-number", String(deepPage));
+    await expect(dialog.locator(`[data-global-search-record="${target}"]`)).toBeVisible();
+    // Walk the restored pages back to page 1 and forward again: all from memory.
+    const previous = dialog.locator('[data-global-search-page="previous"]');
+    const number = dialog.locator("[data-global-search-page-number]");
+    for (let pageNumber = deepPage - 1; pageNumber >= 1; pageNumber -= 1) {
+      await previous.click();
+      await expect(number).toHaveAttribute("data-global-search-page-number", String(pageNumber));
+    }
+    for (let pageNumber = 2; pageNumber <= deepPage; pageNumber += 1) {
+      await dialog.locator('[data-global-search-page="next"]').click();
+      await expect(number).toHaveAttribute("data-global-search-page-number", String(pageNumber));
+    }
+    await expect(dialog.locator('[data-global-search-dialog-status="ready"]')).toHaveCount(1);
+    await expect(dialog.locator("[data-global-search-error]"), "no window was replayed").toHaveCount(0);
+    expect(windowsOf(), "the deep page is restored from memory, not replayed").toBe(requestsBefore);
+    frozen = false;
+
+    await page.keyboard.press("Escape");
+    await page.reload();
+    await expect(page.locator(`[data-informes-focused-report="${CLINIC_DEEP_REPORT.id}"]`).filter({ visible: true })).toBeVisible({
+      timeout: 25_000,
+    });
+    await page.goBack();
+    await expect(page).toHaveURL(/\/dashboard(\?|$)/, { timeout: 25_000 });
+    await page.goForward();
+    await expect(page).toHaveURL(new RegExp(`reportId=${CLINIC_DEEP_REPORT.id}$`), { timeout: 25_000 });
+  });
+
+  test("cursor: «Todo» walks 2,167 clinic records (three kinds exhausting at different rates) with no duplicate, omission or clinic B row", async ({ page }) => {
+    test.setTimeout(420_000);
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    const observed = await installSearchStub(page);
+    await openWorkspace(page, "clinic");
+    const dialog = await openFullSearch(page, "masivo");
+    await expect(dialog.locator('[data-global-search-kind-filter="all"]')).toHaveAttribute("aria-pressed", "true");
+    await expect(dialog.locator("[data-global-search-result]").first()).toBeVisible();
+    const pageSize = Number(await dialog.locator("[data-global-search-results-region]").getAttribute("data-global-search-page-size"));
+
+    const seen: string[] = [];
+    let pagesWalked = 0;
+    await walkPages(dialog, () => false, 1_000, (keys, pageNumber) => {
+      pagesWalked = pageNumber;
+      seen.push(...keys);
+    });
+    expect(new Set(seen).size, "no record appears twice").toBe(seen.length);
+    expect([...seen].sort(), "every authorized record, and only those").toEqual(CLINIC_A_MASSIVE_KEYS);
+    expect(seen.some((key) => Number(key.split(":")[1]) >= 40_000 && key.startsWith("report:")), "clinic B never appears").toBe(false);
+    expectCursorContract(observed);
+
+    // Cost: one 25-row window per kind and refill; never every result up front.
+    const windows = observed.filter((entry) => entry.params.limit === "25");
+    const ceiling = Math.ceil(2_000 / 25) + Math.ceil(130 / 25) + Math.ceil(37 / 25);
+    expect(windows.length, `requests for ${pagesWalked} pages of ${pageSize}`).toBeLessThanOrEqual(ceiling);
+    expect(windows.filter((entry) => entry.params.cursor === undefined).length, "one first window per kind").toBe(3);
+  });
+
+  test("cursor: admin «Informes» walks past 525 records and opens report 7435 at position 561 by id", async ({ page }) => {
+    test.setTimeout(240_000);
+    await page.setViewportSize({ width: 1366, height: 768 });
+    const observed = await installSearchStub(page);
+    await openWorkspace(page, "admin");
+    const dialog = await openFullSearch(page, "lote sur");
+    await dialog.locator('[data-global-search-kind-filter="report"]').click();
+    await expect(dialog.locator("[data-global-search-result]").first()).toBeVisible();
+    const target = `report:${ADMIN_DEEP_REPORT.id}`;
+    await walkPages(dialog, (keys) => keys.includes(target), 300);
+    expect(await firstRowPosition(dialog)).toBeGreaterThan(500);
+    expectCursorContract(observed);
+    expect(observed.every((entry) => entry.surface === "admin")).toBe(true);
+    expect(observed.some((entry) => "clinicId" in entry.params), "no clinic filter was invented").toBe(false);
+
+    await dialog.locator(`[data-global-search-result="${target}"]`).click();
+    await dialog.locator('[data-global-search-open-module="true"]').click();
+    await expect(page).toHaveURL(new RegExp(`module=admin-report-upload&reportId=${ADMIN_DEEP_REPORT.id}$`), { timeout: 25_000 });
+    await expect(page.locator('[data-module-dialog="true"]').filter({ hasText: `Informe #${ADMIN_DEEP_REPORT.id}` })).toBeVisible({
+      timeout: 25_000,
+    });
+  });
+
+  for (const scenario of ["expired", "altered"] as const) {
+    test(`cursor ${scenario}: the traversal stops once, keeps text and category and restarts at page 1 only on request`, async ({ page }) => {
+      test.setTimeout(180_000);
+      await page.setViewportSize({ width: 390, height: 844 });
+      let broken = true;
+      const observed = await installSearchStub(page, {
+        cursorsExpired: () => scenario === "expired" && broken,
+        alterCursors: () => scenario === "altered" && broken,
+      });
+      await openWorkspace(page, "clinic");
+      const dialog = await openFullSearch(page, "masivo norte");
+      await dialog.locator('[data-global-search-kind-filter="report"]').click();
+      await expect(dialog.locator("[data-global-search-result]").first()).toBeVisible();
+
+      const next = dialog.locator('[data-global-search-page="next"]');
+      const notice = dialog.locator('[data-global-search-error="expired"]');
+      for (let step = 0; step < 30 && (await notice.count()) === 0; step += 1) {
+        await expect(next).toBeEnabled();
+        await next.click();
+        await expect(dialog.locator('[data-global-search-dialog-status="loading"]')).toHaveCount(0);
+      }
+      await expect(notice).toContainText("La búsqueda quedó desactualizada");
+      await expect(dialog.locator('[data-global-search-dialog-status="error"]')).toHaveCount(1);
+      await expect(dialog.locator("[data-global-search-result]"), "the old traversal is dropped").toHaveCount(0);
+      await expect(dialog.getByRole("button", { name: "Reintentar" }), "no blind retry of a rejected cursor").toHaveCount(0);
+      await expect(dialog.locator('[data-global-search-dialog-input="true"]')).toHaveValue("masivo norte");
+      await expect(dialog.locator('[data-global-search-kind-filter="report"]')).toHaveAttribute("aria-pressed", "true");
+      expect(await documentScroll(page), "the notice keeps the zero-scroll contract").toEqual({ vertical: 0, horizontal: 0 });
+
+      const rejected = observed.filter((entry) => entry.params.cursor !== undefined);
+      expect(rejected, "exactly one continuation was sent and rejected").toHaveLength(1);
+
+      broken = false;
+      const before = observed.length;
+      await dialog.locator('[data-global-search-restart="true"]').click();
+      await expect(dialog.locator("[data-global-search-page-number]")).toHaveAttribute("data-global-search-page-number", "1");
+      await expect(dialog.locator('[data-global-search-result="report:9000"]')).toBeVisible();
+      expect(observed[before]?.params.cursor, "the restart reads the first window again, without cursor").toBeUndefined();
+      expect(observed[before]?.params).toMatchObject({ q: "masivo norte", kinds: "report" });
+
+      await walkPages(dialog, (keys) => keys.length > 0 && Number(keys[0].split(":")[1]) < 9000 - 30, 20);
+      // Long after the rejection: the rejected cursor was sent once, never retried in a loop.
+      const sends = observed.filter((entry) => entry.params.cursor === rejected[0].params.cursor);
+      expect(sends, "the rejected cursor is never sent again").toHaveLength(1);
+      expectCursorContract(observed);
+    });
+  }
+
+  test("cursor: 401, 403, 400 and 429 on a continuation are told apart and none restarts the traversal", async ({ page }) => {
+    test.setTimeout(240_000);
+    await page.setViewportSize({ width: 1366, height: 768 });
+    let failure: { status: number; body: unknown } | null = null;
+    const observed = await installSearchStub(page, { failContinuation: () => failure });
+    await openWorkspace(page, "clinic");
+    const dialog = await openFullSearch(page, "masivo");
+    const input = dialog.locator('[data-global-search-dialog-input="true"]');
+    await dialog.locator('[data-global-search-kind-filter="report"]').click();
+
+    const cases = [
+      { status: 401, body: { success: false, error: "No autenticado" }, kind: "auth", text: "Tu sesión expiró", retry: false },
+      { status: 403, body: { success: false, error: "No autorizado" }, kind: "forbidden", text: "No tenés permiso", retry: false },
+      { status: 400, body: { success: false, error: "Parámetros inválidos" }, kind: "invalid", text: "La búsqueda no es válida", retry: false },
+      { status: 429, body: { success: false, error: "Demasiadas solicitudes" }, kind: "throttled", text: "", retry: true },
+    ] as const;
+    for (const [index, entry] of cases.entries()) {
+      failure = null;
+      await input.fill(index % 2 === 0 ? "masivo norte" : "masivo");
+      await expect(dialog.locator("[data-global-search-page-number]")).toHaveAttribute("data-global-search-page-number", "1");
+      await expect(dialog.locator('[data-global-search-dialog-status="ready"]')).toHaveCount(1);
+      failure = { status: entry.status, body: entry.body };
+      const error = dialog.locator(`[data-global-search-error="${entry.kind}"]`);
+      const next = dialog.locator('[data-global-search-page="next"]');
+      for (let step = 0; step < 10 && (await error.count()) === 0; step += 1) {
+        await next.click();
+        await expect(dialog.locator('[data-global-search-dialog-status="loading"]')).toHaveCount(0);
+      }
+      await expect(error, `${entry.status} → ${entry.kind}`).toBeVisible();
+      if (entry.text) await expect(error).toContainText(entry.text);
+      await expect(dialog.locator('[data-global-search-restart="true"]'), `${entry.status} is not an expired cursor`).toHaveCount(0);
+      await expect(dialog.getByRole("button", { name: "Reintentar" })).toHaveCount(entry.retry ? 1 : 0);
+      if (entry.retry) {
+        failure = null;
+        await dialog.getByRole("button", { name: "Reintentar" }).click();
+        await expect(dialog.locator('[data-global-search-dialog-status="ready"]')).toHaveCount(1);
+        await expect(dialog.locator("[data-global-search-result]").first()).toBeVisible();
+      }
+    }
+    expectCursorContract(observed);
+  });
+
+  test("cursor: 375x667 reaches a page past record 525 with the zero-scroll geometry intact", async ({ page }) => {
+    test.setTimeout(300_000);
+    await page.setViewportSize({ width: 375, height: 667 });
+    const observed = await installSearchStub(page);
+    await openWorkspace(page, "clinic");
+    const dialog = await openFullSearch(page, "masivo norte");
+    await dialog.locator('[data-global-search-kind-filter="report"]').click();
+    await expect(dialog.locator("[data-global-search-result]").first()).toBeVisible();
+    const pageSize = Number(await dialog.locator("[data-global-search-results-region]").getAttribute("data-global-search-page-size"));
+    await walkPages(dialog, (keys) => keys.length > 0 && 9000 - Number(keys[0].split(":")[1]) >= 525, 600);
+    expect(await firstRowPosition(dialog)).toBeGreaterThan(525);
+
+    const geometry = await dialog.evaluate((node) => {
+      const region = node.querySelector<HTMLElement>("[data-global-search-results-region]")!;
+      const pager = node.querySelector<HTMLElement>("[data-global-search-pager]")!;
+      return {
+        rows: node.querySelectorAll("[data-global-search-result]").length,
+        regionOverflow: region.scrollHeight - region.clientHeight,
+        pagerBottom: pager.getBoundingClientRect().bottom,
+        viewportHeight: window.innerHeight,
+        dialogOverflowX: node.scrollWidth - node.clientWidth,
+      };
+    });
+    expect(geometry.rows).toBe(pageSize);
+    expect(geometry.regionOverflow).toBeLessThanOrEqual(0);
+    expect(geometry.pagerBottom).toBeLessThanOrEqual(geometry.viewportHeight + 0.5);
+    expect(geometry.dialogOverflowX).toBeLessThanOrEqual(0);
+    expect(await documentScroll(page)).toEqual({ vertical: 0, horizontal: 0 });
+    expectCursorContract(observed);
+  });
+
   for (const viewport of [
     { width: 320, height: 640 },
     { width: 360, height: 740 },
@@ -701,6 +1171,7 @@ test.describe("GLOBAL-SEARCH-2 · Buscar en VETNEB", () => {
     { width: 412, height: 915 },
     { width: 430, height: 932 },
     { width: 844, height: 390 },
+    { width: 768, height: 1024 },
     { width: 1366, height: 768 },
     { width: 1920, height: 1080 },
   ]) {
