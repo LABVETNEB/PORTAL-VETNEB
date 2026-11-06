@@ -187,6 +187,16 @@ const SANCTIONED_SCROLL_OWNERS = [
     runtimeContract:
       "frontend/e2e/clinic/tokens/dashboard-clinic-tokens-mobile-parity.spec.ts",
   },
+  // GLOBAL-SEARCH-3A: the record view and the advanced filters of the search
+  // dialog. The paged results list beside them stays scroll-free.
+  {
+    anchor: 'data-global-search-record-scroll-owner="true"',
+    runtimeContract: "frontend/e2e/platform/app-shell/dashboard-global-search.spec.ts",
+  },
+  {
+    anchor: 'data-global-search-filters-scroll-owner="true"',
+    runtimeContract: "frontend/e2e/platform/app-shell/dashboard-global-search.spec.ts",
+  },
 ] as const;
 
 const FORBIDDEN_SCROLLER =
@@ -561,6 +571,17 @@ const A07_OWNERS_BY_MODULE_ID: Readonly<Record<string, readonly string[]>> =
 const A07_DECLARED_OWNERS = Object.values(A07_OWNERS_BY_MODULE_ID).flat();
 
 /**
+ * Capacity owners that are not A03 module surfaces, declared one by one.
+ * GLOBAL-SEARCH-3A: the search dialog pages server results to its measured
+ * canvas; it is an overlay with no `moduleId` and no A03 baseline, and its
+ * geometry is frozen by its own runtime matrix
+ * (`frontend/e2e/platform/app-shell/dashboard-global-search.spec.ts`).
+ */
+const NON_MODULE_CAPACITY_OWNERS: readonly string[] = Object.freeze([
+  "frontend/src/components/dashboard/DashboardGlobalSearchDialog.tsx",
+]);
+
+/**
  * Read from the A03 registry rather than restated here: a second hand-written
  * copy of the 15 ids would drift silently, which is the failure this contract
  * exists to catch.
@@ -631,7 +652,7 @@ test("every normative module resolves to an existing owner that adopts the hook"
 });
 
 test("the discovered consumer set is exactly the normative owner set", () => {
-  const declared = [...A07_DECLARED_OWNERS].sort();
+  const declared = [...A07_DECLARED_OWNERS, ...NON_MODULE_CAPACITY_OWNERS].sort();
   const discovered = [...MIGRATED_CONSUMERS].sort();
 
   // Both directions, deliberately. A missing entry is a normative module that

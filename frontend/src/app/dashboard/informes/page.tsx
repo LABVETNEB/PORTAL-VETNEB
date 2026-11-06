@@ -16,10 +16,12 @@ import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import {
+  getClinicReportById,
   getReportsPaginated,
   searchReportsPaginated,
   type PaginatedReports,
 } from "@/lib/api";
+import type { Report } from "@/types";
 import { redirectToLoginOnUnauthorized } from "@/lib/dashboard-server-auth";
 import { InformesFilterDisclosure } from "./InformesFilterDisclosure";
 import { InformesReportsList } from "./InformesReportsList";
@@ -135,6 +137,22 @@ export default async function InformesPage({
 
   const reports = pagedResult.reports;
   const hasActiveFilters = Boolean(query || status || studyType);
+
+  // GLOBAL-SEARCH-3A: a `?reportId=` deep link opens that report even when it
+  // is not on the first page, through the authorized by-id read. A 404 means
+  // missing, deleted or not this clinic's: the list says so instead of
+  // silently selecting another report.
+  let focusedReport: Report | null = null;
+  let requestedReportUnavailable = false;
+  if (selectedReportId !== null && !reports.some((report) => report.id === selectedReportId)) {
+    try {
+      focusedReport = await getClinicReportById(selectedReportId, requestOptions);
+      requestedReportUnavailable = focusedReport === null;
+    } catch (error) {
+      redirectToLoginOnUnauthorized(error);
+      requestedReportUnavailable = true;
+    }
+  }
 
   return (
     <ClinicDashboardShell
@@ -298,6 +316,7 @@ export default async function InformesPage({
           </FilterBar>
 
           <InformesReportsList
+            key={selectedReportId ?? "list"}
             filters={{ query, status, studyType }}
             initialReports={reports}
             initialTotal={pagedResult.total}
@@ -305,6 +324,8 @@ export default async function InformesPage({
             initialPageSize={pagedResult.pageSize}
             initialLoadError={reportsLoadError}
             initialSelectedReportId={selectedReportId}
+            initialFocusedReport={focusedReport}
+            requestedReportUnavailable={requestedReportUnavailable}
           />
         </CardContent>
         </ModuleCard>

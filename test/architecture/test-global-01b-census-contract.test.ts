@@ -938,7 +938,7 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     section: "§11",
     metric: "tests nombrados con semántica fail-closed",
     historical: 130,
-    baseline: 226,
+    baseline: 285,
     compute: () =>
       classification.specs.reduce(
         (sum, spec) => sum + spec.failClosedTestNames.length,
@@ -947,7 +947,7 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     resolution: "RECLASSIFIED",
     guard: BAND,
     motive:
-      "El vocabulario versionado es explícito y bilingüe (fail-closed, mutación, nunca, rechaza, rompe, refuses, breaks) y por eso reconoce más nombres que el recuento original. El ancla histórica era 180; antes de esta PR el corpus ya había acumulado 225 nombres reconocidos. TEST-GLOBAL-08/frontend aporta exactamente +1 mediante G06-F09 (frontend-login-page.test.ts, nombre con 'never') y deja el ancla vigente en 226. Se distingue el drift pre-PR de su delta verificable, sin ampliar la tolerancia ni excluir specs.",
+      "El vocabulario versionado es explícito y bilingüe (fail-closed, mutación, nunca, rechaza, rompe, refuses, breaks) y por eso reconoce más nombres que el recuento original. El ancla histórica era 180; antes de esta PR el corpus ya había acumulado 225 nombres reconocidos. TEST-GLOBAL-08/frontend aporta exactamente +1 mediante G06-F09 (frontend-login-page.test.ts, nombre con 'never') y deja el ancla vigente en 226. Se distingue el drift pre-PR de su delta verificable, sin ampliar la tolerancia ni excluir specs. Re-anclaje 226 -> 285 (GLOBAL-SEARCH-3A): main@87c2b6cc5aee9fcbd3e36d4e6787ed54e2e219cb producia 283, el tope exacto de la banda 226 +- 57 (283); esta PR suma exactamente +2 en frontend-global-search-pager.test.ts ('nunca mas de una ventana por entidad' y 'nunca aparece dos veces', ambos verifican rechazos reales del paginador) y deja el valor medido en 285. Sin ampliar GROWTH_TOLERANCE ni excluir specs.",
   },
   // ── §13 determinismo ──────────────────────────────────────────────────────
   {

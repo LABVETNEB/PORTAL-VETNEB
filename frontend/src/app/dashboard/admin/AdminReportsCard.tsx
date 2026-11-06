@@ -57,6 +57,7 @@ import {
 } from "@/components/ui/table";
 import {
   getAdminReportWorkflow,
+  getAdminReportWorkflowItem,
   getAdminReportDocumentSource,
   getAdminReportDownloadDescriptor,
   updateAdminReportSpecialStain,
@@ -66,6 +67,7 @@ import {
 } from "@/lib/api";
 import { formatStudyTypeDisplay } from "@/lib/study-types";
 import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
+import { useRequestedReportId } from "@/hooks/useRequestedReportId";
 import {
   DASHBOARD_TOUCH_PAGER_RESERVATION,
 } from "@/components/dashboard/DashboardPager";
@@ -279,9 +281,41 @@ export function AdminReportsCard() {
   // superset ceiling. The hook already clamps to [minItems, REPORTS_SUPERSET_CAP].
   const effectiveLimit = rowsPerPage;
 
+  // GLOBAL-SEARCH-3A: `?reportId=` opens that report's detail through the
+  // authorized by-id read, whatever page of the queue is loaded. The item is
+  // the server's own list-item shape, never a copy of the search hit.
+  const requestedReportId = useRequestedReportId();
+  const [focusedReport, setFocusedReport] = useState<AdminReportWorkflowItem | null>(null);
+  const focusedReportIdRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (requestedReportId === null) return;
+    let active = true;
+    void getAdminReportWorkflowItem(requestedReportId).then(
+      (item) => {
+        if (!active) return;
+        if (item) {
+          focusedReportIdRef.current = item.id;
+          setFocusedReport(item);
+          setSelectedReportId(item.id);
+          return;
+        }
+        setStatusMessage(`El informe #${requestedReportId} no existe o no está disponible.`);
+      },
+      () => {
+        if (active) setStatusMessage(`No se pudo abrir el informe #${requestedReportId}. Reintentá desde la búsqueda.`);
+      },
+    );
+    return () => {
+      active = false;
+    };
+  }, [requestedReportId]);
+
   const selectedReport = useMemo(
-    () => reports.find((report) => report.id === selectedReportId) ?? null,
-    [reports, selectedReportId],
+    () =>
+      reports.find((report) => report.id === selectedReportId) ??
+      (focusedReport?.id === selectedReportId ? focusedReport : null),
+    [focusedReport, reports, selectedReportId],
   );
 
   const hasActiveFilters = !isFilterStateEmpty(appliedFilters);
@@ -333,7 +367,10 @@ export function AdminReportsCard() {
       setReports(snapshot.reports);
       setHasMore(snapshot.pagination.hasMore);
       setSelectedReportId((current) =>
-        snapshot.reports.some((report) => report.id === current) ? current : null,
+        current === focusedReportIdRef.current ||
+        snapshot.reports.some((report) => report.id === current)
+          ? current
+          : null,
       );
     } catch (error) {
       if (requestId !== latestRequestRef.current) return;
@@ -492,6 +529,7 @@ export function AdminReportsCard() {
   }
 
   function openReportDetail(id: number, trigger: HTMLElement | null) {
+    focusedReportIdRef.current = null;
     detailReturnFocusRef.current = trigger;
     setSelectedReportId(id);
   }

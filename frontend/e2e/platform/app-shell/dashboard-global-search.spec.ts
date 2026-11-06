@@ -55,6 +55,41 @@ const SERIES = Array.from({ length: 60 }, (_, index): Row => ({
   date: day(index),
 }));
 
+const TOKEN_SERIES = Array.from({ length: 14 }, (_, index): Row => ({
+  kind: "particular_token",
+  id: 600 + index,
+  clinicId: CLINIC_A.id,
+  title: `Serie mascota ${index + 1}`,
+  subtitle: "Tutor sintético",
+  status: "active",
+  date: day(index * 3 + 1),
+}));
+
+const TRACKING_SERIES = Array.from({ length: 9 }, (_, index): Row => ({
+  kind: "tracking_case",
+  id: 400 + index,
+  clinicId: CLINIC_A.id,
+  title: `Serie seguimiento ${index + 1}`,
+  subtitle: `Seguimiento #${400 + index}`,
+  status: "processing",
+  date: day(index * 5 + 2),
+}));
+
+/** Clinic B rows of the same series: never visible to clinic A. */
+const FOREIGN_SERIES = Array.from({ length: 5 }, (_, index): Row => ({
+  kind: "report",
+  id: 9500 + index,
+  clinicId: CLINIC_B.id,
+  title: `Paciente Serie ajena ${index + 1}`,
+  subtitle: null,
+  status: "ready",
+  studyType: "citologia",
+  date: day(index),
+}));
+
+/** Every «serie» record clinic A may read: the full «Todo» traversal. */
+const CLINIC_A_SERIES_KEYS = [...SERIES, ...TOKEN_SERIES, ...TRACKING_SERIES].map((row) => `${row.kind}:${row.id}`).sort();
+
 const ROWS: readonly Row[] = [
   { kind: "clinic", id: CLINIC_A.id, clinicId: CLINIC_A.id, title: "Clínica Sintética Norte", subtitle: "norte@example.test", status: null, date: day(400) },
   { kind: "clinic", id: CLINIC_B.id, clinicId: CLINIC_B.id, title: "Clínica Sintética Sur", subtitle: "sur@example.test", status: null, date: day(401) },
@@ -66,7 +101,12 @@ const ROWS: readonly Row[] = [
   { kind: "tracking_case", id: 301, clinicId: CLINIC_A.id, title: "Luna Pérez", subtitle: "Seguimiento #301", status: "evaluation", date: day(4), reportId: 9101 },
   { kind: "tracking_case", id: 302, clinicId: CLINIC_B.id, title: "Luna Pérez", subtitle: "Seguimiento #302", status: "evaluation", date: day(4) },
   { kind: "clinic_user", id: 801, clinicId: CLINIC_A.id, title: "luna.recepcion", subtitle: CLINIC_A.name, status: "clinic_staff", date: day(30) },
+  // Present in the admin fixture datasets (A03), far beyond the queue's first page.
+  { kind: "report", id: 7435, clinicId: CLINIC_B.id, title: "Paciente lejano", subtitle: null, status: "ready", date: day(90) },
   ...SERIES,
+  ...TOKEN_SERIES,
+  ...TRACKING_SERIES,
+  ...FOREIGN_SERIES,
 ];
 
 function fold(value: string): string {
@@ -145,6 +185,11 @@ async function installSearchStub(page: Page, options: StubOptions = {}): Promise
     const kinds = reportFilters ? (["report"] as Kind[]) : requestedKinds;
     const limit = Number(params.limit ?? 5);
     const offset = Number(params.offset ?? 0);
+    // GLOBAL-SEARCH-1 rules: offset pages one kind, up to 500; limit 1..25.
+    if ((offset > 0 && kinds.length !== 1) || offset > 500 || limit < 1 || limit > 25) {
+      await respond(400, { success: false, error: "Paginación inválida" });
+      return;
+    }
     const needle = fold(params.q ?? "");
     const numeric = /^#?(\d{1,9})$/.exec(params.q ?? "");
     const tenant = surface === "clinic" ? CLINIC_A.id : params.clinicId ? Number(params.clinicId) : null;
@@ -308,7 +353,7 @@ test.describe("GLOBAL-SEARCH-2 · Buscar en VETNEB", () => {
     await expect(panel.locator('[data-global-search-hit="report:9102"]')).toBeVisible();
   });
 
-  test("a record outside the first page opens directly and deep-links into its module", async ({ page }) => {
+  test("a report pages past the first pages and opens in its module by id, even off the loaded page", async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 768 });
     const observed = await installSearchStub(page);
     await openWorkspace(page, "clinic");
@@ -318,27 +363,91 @@ test.describe("GLOBAL-SEARCH-2 · Buscar en VETNEB", () => {
     await page.locator('[data-global-search-see-all="true"]').click();
     const dialog = page.locator(DIALOG);
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByRole("heading", { name: "Buscar en VETNEB" })).toBeVisible();
+    await dialog.locator('[data-global-search-kind-filter="report"]').click();
+    const results = dialog.locator("[data-global-search-result]");
+    await expect(results.first()).toBeVisible();
+    const pageSize = Number(await dialog.locator("[data-global-search-results-region]").getAttribute("data-global-search-page-size"));
+    expect(pageSize).toBeGreaterThan(1);
 
-    await dialog.locator('[data-global-search-more="report"]').click();
-    await expect(dialog.locator('[data-global-search-kind-filter="report"]')).toHaveAttribute("aria-pressed", "true");
-    await dialog.locator('[data-global-search-page="next"]').click();
-    await expect.poll(() => observed.at(-1)?.params).toMatchObject({ kinds: "report", limit: "20", offset: "20" });
-    await dialog.locator('[data-global-search-page="next"]').click();
-    await expect.poll(() => observed.at(-1)?.params).toMatchObject({ offset: "40" });
-
+    // Walk forward until the target appears (series sorted by recency: 9355 is deep).
     const target = dialog.locator('[data-global-search-result="report:9355"]');
+    for (let step = 0; step < 60 && (await target.count()) === 0; step += 1) {
+      await dialog.locator('[data-global-search-page="next"]').click();
+      await expect(dialog.locator("[data-global-search-page-number]")).toHaveAttribute(
+        "data-global-search-page-number",
+        String(step + 2),
+      );
+    }
     await expect(target).toContainText("Paciente Serie 56");
+    const offsets = observed.filter((entry) => entry.params.kinds === "report").map((entry) => Number(entry.params.offset ?? 0));
+    expect(offsets.every((offset) => offset % pageSize === 0), "each request starts at a page boundary").toBe(true);
+    expect(Math.max(...offsets)).toBeGreaterThanOrEqual(pageSize * 2);
+
     await target.click();
     const record = dialog.locator('[data-global-search-record="report:9355"]');
-    await expect(record).toBeVisible();
     await expect(record.getByRole("heading", { name: "Paciente Serie 56" })).toBeVisible();
     await expect(record.getByRole("button", { name: "Ver informe" })).toBeEnabled();
-    await expect(record).toContainText("Histopatología");
-
-    await record.locator('[data-global-search-open-module="true"]').click();
+    const open = record.locator('[data-global-search-open-module="true"]');
+    await expect(open).toHaveAttribute("data-global-search-opens-record", "true");
+    await open.click();
     await expect(dialog).toBeHidden();
-    await expect(page).toHaveURL(/\/dashboard\/informes#report-9355$/, { timeout: 25_000 });
+    await expect(page).toHaveURL(/\/dashboard\/informes\?reportId=9355$/, { timeout: 25_000 });
+
+    // The module resolves the id on the server (fixture GET /api/reports/9355),
+    // although its first page does not hold it.
+    const focused = page.locator('[data-informes-focused-report="9355"]').filter({ visible: true });
+    await expect(focused).toBeVisible({ timeout: 25_000 });
+    await expect(page.locator("#report-detail-heading").filter({ visible: true })).toHaveText("Paciente E2E 0955 · Informe #9355");
+    await expect(page.locator("#report-9355"), "the report is not a row of the loaded page").toHaveCount(0);
+
+    // Reload keeps the record open; Back and Forward move between the two places.
+    await page.reload();
+    await expect(page.locator('[data-informes-focused-report="9355"]').filter({ visible: true })).toBeVisible({ timeout: 25_000 });
+    await page.goBack();
+    await expect(page).toHaveURL(/\/dashboard(\?|$)/, { timeout: 25_000 });
+    await page.goForward();
+    await expect(page).toHaveURL(/\/dashboard\/informes\?reportId=9355$/, { timeout: 25_000 });
+    await expect(page.locator('[data-informes-focused-report="9355"]').filter({ visible: true })).toBeVisible({ timeout: 25_000 });
+  });
+
+  test("coming back to the search restores query, category, page and the open record", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 768 });
+    await installSearchStub(page);
+    await openWorkspace(page, "clinic");
+    const input = await hydratedInput(page);
+
+    await input.fill("serie");
+    await page.locator('[data-global-search-see-all="true"]').click();
+    const dialog = page.locator(DIALOG);
+    await dialog.locator('[data-global-search-kind-filter="report"]').click();
+    await expect(dialog.locator("[data-global-search-result]").first()).toBeVisible();
+    await dialog.locator('[data-global-search-page="next"]').click();
+    await expect(dialog.locator("[data-global-search-page-number]")).toHaveAttribute("data-global-search-page-number", "2");
+    const chosen = dialog.locator("[data-global-search-result]").first();
+    const chosenKey = await chosen.getAttribute("data-global-search-result");
+    await chosen.click();
+    await dialog.locator('[data-global-search-open-module="true"]').click();
+    await expect(page).toHaveURL(/\/dashboard\/informes\?reportId=/, { timeout: 25_000 });
+
+    const bar = await hydratedInput(page);
+    await expect(bar, "the bar keeps the query").toHaveValue("serie");
+    await bar.focus();
+    await page.locator('[data-global-search-see-all="true"]').click();
+    await expect(dialog).toBeVisible();
+    await expect(dialog.locator('[data-global-search-kind-filter="report"]')).toHaveAttribute("aria-pressed", "true");
+    await expect(dialog.locator("[data-global-search-page-number]")).toHaveAttribute("data-global-search-page-number", "2");
+    await expect(dialog.locator(`[data-global-search-record="${chosenKey}"]`)).toBeVisible();
+  });
+
+  test("a deep link to a missing or foreign report says so instead of opening another one", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 768 });
+    await openWorkspace(page, "clinic");
+    await page.goto("/dashboard/informes?reportId=999999");
+    await expect(page.locator('[data-informes-requested-report-unavailable="true"]').filter({ visible: true })).toContainText(
+      "El informe #999999 no existe o no está disponible para esta clínica.",
+      { timeout: 25_000 },
+    );
+    await expect(page.locator("[data-informes-focused-report]")).toHaveCount(0);
   });
 
   test("combined report filters reach the API and narrow to reports", async ({ page }) => {
@@ -360,6 +469,8 @@ test.describe("GLOBAL-SEARCH-2 · Buscar en VETNEB", () => {
       .poll(() => observed.at(-1)?.params)
       .toMatchObject({ q: "serie", kinds: "report", status: "ready", studyType: "citologia", from: "2026-09-01" });
     await expect(dialog.locator('[data-global-search-kind-filter="particular_token"]')).toBeDisabled();
+    await expect(dialog.locator('[data-global-search-filters-toggle="true"]')).toHaveText("Filtros activos");
+    await dialog.locator('[data-global-search-filters-apply="true"]').click();
     const results = dialog.locator("[data-global-search-result]");
     await expect(results.first()).toBeVisible();
     const keys = await results.evaluateAll((nodes) => nodes.map((node) => node.getAttribute("data-global-search-result") ?? ""));
@@ -412,6 +523,7 @@ test.describe("GLOBAL-SEARCH-2 · Buscar en VETNEB", () => {
     await dialog.locator('[data-global-search-filters-toggle="true"]').click();
     await dialog.locator('[data-global-search-filter="clinicId"]').fill("78");
     await expect.poll(() => observed.at(-1)?.params).toMatchObject({ q: "luna", clinicId: "78" });
+    await dialog.locator('[data-global-search-filters-apply="true"]').click();
     await expect(dialog.locator('[data-global-search-result="report:9201"]')).toBeVisible();
     await expect(dialog.locator('[data-global-search-result="report:9101"]')).toHaveCount(0);
 
@@ -478,6 +590,218 @@ test.describe("GLOBAL-SEARCH-2 · Buscar en VETNEB", () => {
     await expectNoSeriousAxe(page, DIALOG, "dialog, dark");
     expect(await documentScroll(page)).toEqual({ vertical: 0, horizontal: 0 });
   });
+
+  test("«Todo» walks every authorized result across pages: no duplicates, no omissions, never clinic B", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 768 });
+    const observed = await installSearchStub(page);
+    await openWorkspace(page, "clinic");
+    const input = await hydratedInput(page);
+    await input.fill("serie");
+    await page.locator('[data-global-search-see-all="true"]').click();
+    const dialog = page.locator(DIALOG);
+    await expect(dialog.locator('[data-global-search-kind-filter="all"]')).toHaveAttribute("aria-pressed", "true");
+    const results = dialog.locator("[data-global-search-result]");
+    await expect(results.first()).toBeVisible();
+    const pageSize = Number(await dialog.locator("[data-global-search-results-region]").getAttribute("data-global-search-page-size"));
+    const next = dialog.locator('[data-global-search-page="next"]');
+    const previous = dialog.locator('[data-global-search-page="previous"]');
+    await expect(previous, "first page: Anterior is disabled").toBeDisabled();
+
+    const seen: string[] = [];
+    const firstPage = await results.evaluateAll((nodes) => nodes.map((node) => node.getAttribute("data-global-search-result") ?? ""));
+    for (let pageNumber = 1; pageNumber < 100; pageNumber += 1) {
+      await expect(dialog.locator("[data-global-search-page-number]")).toHaveAttribute("data-global-search-page-number", String(pageNumber));
+      await expect(dialog.locator('[data-global-search-dialog-status="ready"]')).toHaveCount(1);
+      const keys = await results.evaluateAll((nodes) => nodes.map((node) => node.getAttribute("data-global-search-result") ?? ""));
+      expect(keys.length, `page ${pageNumber} fits the measured capacity`).toBeLessThanOrEqual(pageSize);
+      seen.push(...keys);
+      if (await next.isDisabled()) break;
+      expect(keys.length, `page ${pageNumber} is full while more pages exist`).toBe(pageSize);
+      await next.click();
+    }
+    expect(new Set(seen).size, "no record appears twice").toBe(seen.length);
+    expect([...seen].sort(), "every authorized record, and only those").toEqual(CLINIC_A_SERIES_KEYS);
+    expect(seen.some((key) => key.startsWith("report:95")), "clinic B's series never appears").toBe(false);
+
+    // Every request honoured the API: offset only with one kind.
+    expect(observed.every((entry) => Number(entry.params.offset ?? 0) === 0 || !String(entry.params.kinds ?? "").includes(","))).toBe(true);
+
+    // Anterior returns to cached pages without asking again.
+    const requestsBefore = observed.length;
+    for (let back = 0; back < 50 && !(await previous.isDisabled()); back += 1) await previous.click();
+    await expect(dialog.locator("[data-global-search-page-number]")).toHaveAttribute("data-global-search-page-number", "1");
+    await expect.poll(() => results.evaluateAll((nodes) => nodes.map((node) => node.getAttribute("data-global-search-result") ?? ""))).toEqual(firstPage);
+    expect(observed.length, "cached pages are not requested again").toBe(requestsBefore);
+
+    // A new query starts again at page 1.
+    await dialog.locator('[data-global-search-dialog-input="true"]').fill("lunático");
+    await expect(dialog.locator("[data-global-search-page-number]")).toHaveAttribute("data-global-search-page-number", "1");
+    await expect(dialog.locator('[data-global-search-result="report:9102"]')).toBeVisible();
+  });
+
+  test("every category pages on its own with the same pager", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await installSearchStub(page);
+    await openWorkspace(page, "clinic");
+    const input = await hydratedInput(page);
+    await input.fill("serie");
+    await page.locator('[data-global-search-see-all="true"]').click();
+    const dialog = page.locator(DIALOG);
+    const results = dialog.locator("[data-global-search-result]");
+    for (const [kind, expected] of [
+      ["report", SERIES.length],
+      ["particular_token", TOKEN_SERIES.length],
+      ["tracking_case", TRACKING_SERIES.length],
+    ] as const) {
+      await dialog.locator(`[data-global-search-kind-filter="${kind}"]`).click();
+      await expect(dialog.locator("[data-global-search-page-number]")).toHaveAttribute("data-global-search-page-number", "1");
+      await expect(results.first()).toBeVisible();
+      const seen = new Set<string>();
+      for (let step = 0; step < 50; step += 1) {
+        await expect(dialog.locator('[data-global-search-dialog-status="ready"]')).toHaveCount(1);
+        await expect(dialog.locator("[data-global-search-page-number]")).toHaveAttribute("data-global-search-page-number", String(step + 1));
+        for (const key of await results.evaluateAll((nodes) => nodes.map((node) => node.getAttribute("data-global-search-result") ?? ""))) {
+          expect(key.startsWith(`${kind}:`)).toBe(true);
+          seen.add(key);
+        }
+        const next = dialog.locator('[data-global-search-page="next"]');
+        if (await next.isDisabled()) break;
+        await next.click();
+      }
+      expect(seen.size, `${kind}: every record reached`).toBe(expected);
+    }
+  });
+
+  test("admin opens a report of the queue by id although the loaded queue page does not hold it", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 768 });
+    await installSearchStub(page);
+    await openWorkspace(page, "admin");
+    const input = await hydratedInput(page);
+    await input.fill("lejano");
+    await page.locator('[data-global-search-hit="report:7435"]').click();
+    const dialog = page.locator(DIALOG);
+    await dialog.locator('[data-global-search-open-module="true"]').click();
+    await expect(page).toHaveURL(/\/dashboard\/admin\?module=admin-report-upload&reportId=7435$/, { timeout: 25_000 });
+    const detail = page.locator('[data-module-dialog="true"]').filter({ hasText: "Informe #7435" });
+    await expect(detail).toBeVisible({ timeout: 25_000 });
+    await expect(detail).toContainText("Clínica Informe 36");
+
+    await page.reload();
+    await expect(page.locator('[data-module-dialog="true"]').filter({ hasText: "Informe #7435" })).toBeVisible({ timeout: 25_000 });
+
+    await page.goto("/dashboard/admin?module=admin-report-upload&reportId=999999");
+    await expect(page.getByText("El informe #999999 no existe o no está disponible.")).toBeVisible({ timeout: 25_000 });
+  });
+
+  for (const viewport of [
+    { width: 320, height: 640 },
+    { width: 360, height: 740 },
+    { width: 375, height: 667 },
+    { width: 390, height: 844 },
+    { width: 412, height: 915 },
+    { width: 430, height: 932 },
+    { width: 844, height: 390 },
+    { width: 1366, height: 768 },
+    { width: 1920, height: 1080 },
+  ]) {
+    test(`capacity ${viewport.width}x${viewport.height}: a full page fits, the pager stays visible, nothing scrolls`, async ({ page }, testInfo) => {
+      await page.setViewportSize(viewport);
+      await installSearchStub(page);
+      await openWorkspace(page, "clinic");
+      const dialog = page.locator(DIALOG);
+      if (viewport.width < 768) {
+        const trigger = page.getByRole("button", { name: "Menú de la clínica" });
+        await expect(trigger).toBeVisible({ timeout: 30_000 });
+        await expect
+          .poll(() => trigger.evaluate((node) => Object.keys(node).some((key) => key.startsWith("__reactProps"))), { timeout: 30_000 })
+          .toBe(true);
+        await trigger.click();
+        await page.locator('[data-dashboard-mobile-global-search="true"]').click();
+        await dialog.locator('[data-global-search-dialog-input="true"]').fill("serie");
+        await dialog.locator('[data-global-search-dialog-input="true"]').press("Enter");
+      } else {
+        const input = await hydratedInput(page);
+        await input.fill("serie");
+        await page.locator('[data-global-search-see-all="true"]').click();
+      }
+      const results = dialog.locator("[data-global-search-result]");
+      await expect(results.first()).toBeVisible();
+
+      const geometry = await dialog.evaluate((node) => {
+        const region = node.querySelector<HTMLElement>("[data-global-search-results-region]")!;
+        const pager = node.querySelector<HTMLElement>("[data-global-search-pager]")!;
+        const next = node.querySelector<HTMLElement>('[data-global-search-page="next"]')!;
+        const rows = [...node.querySelectorAll<HTMLElement>("[data-global-search-result]")];
+        const filters = node.querySelector<HTMLElement>('[data-global-search-filters-toggle="true"]')!;
+        const chips = [...node.querySelectorAll<HTMLElement>("[data-global-search-kind-filter]")];
+        const lastChip = chips[chips.length - 1].getBoundingClientRect();
+        const regionBox = region.getBoundingClientRect();
+        const pagerBox = pager.getBoundingClientRect();
+        const nextBox = next.getBoundingClientRect();
+        const filtersBox = filters.getBoundingClientRect();
+        return {
+          pageSize: Number(region.dataset.globalSearchPageSize),
+          rows: rows.length,
+          regionOverflow: region.scrollHeight - region.clientHeight,
+          lastRowBottom: rows.length ? Math.max(...rows.map((row) => row.getBoundingClientRect().bottom)) : 0,
+          regionBottom: regionBox.bottom,
+          freeBelowRows: regionBox.bottom - (rows.length ? Math.max(...rows.map((row) => row.getBoundingClientRect().bottom)) : regionBox.top),
+          pagerTop: pagerBox.top,
+          pagerBottom: pagerBox.bottom,
+          nextHeight: nextBox.height,
+          viewportHeight: window.innerHeight,
+          dialogOverflowX: node.scrollWidth - node.clientWidth,
+          overflowing: [...node.querySelectorAll<HTMLElement>("*")]
+            .filter((element) => element.getBoundingClientRect().right > node.getBoundingClientRect().right + 0.5)
+            .slice(0, 5)
+            .map((element) => `${element.tagName.toLowerCase()}.${String(element.className).slice(0, 60)} → ${Math.round(element.getBoundingClientRect().right)}`),
+          visibleCounter: [...node.querySelectorAll("p,span")].some(
+            (element) => /resultados en \d+ categor/.test(element.textContent ?? "") && !element.closest(".sr-only") && !element.classList.contains("sr-only"),
+          ),
+          // Hit-test: nothing of the shell chrome paints over the dialog's controls.
+          obscured: [
+            ["title", node.querySelector<HTMLElement>("h2")],
+            ["close", node.querySelector<HTMLElement>('[aria-label="Cerrar búsqueda"]')],
+            ["next", next],
+            ["previous", node.querySelector<HTMLElement>('[data-global-search-page="previous"]')],
+            ["last row", rows[rows.length - 1] ?? null],
+          ]
+            .filter(([, element]) => {
+              if (!(element instanceof HTMLElement)) return true;
+              // A disabled button takes no pointer input by design (pointer-events: none).
+              if (element.matches(":disabled")) return false;
+              const box = element.getBoundingClientRect();
+              const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+              return !hit || !element.contains(hit);
+            })
+            .map(([label]) => label),
+          filtersRightAfterLastChip:
+            Math.abs(filtersBox.top - lastChip.top) < 2 ? filtersBox.left - lastChip.right : filtersBox.left,
+        };
+      });
+      testInfo.annotations.push({ type: "geometry", description: JSON.stringify({ viewport, ...geometry }) });
+      await page.screenshot({ path: testInfo.outputPath(`global-search-${viewport.width}x${viewport.height}.png`) });
+
+      expect(geometry.rows, "the page holds exactly the measured capacity").toBe(geometry.pageSize);
+      expect(geometry.regionOverflow, "the results list never scrolls").toBeLessThanOrEqual(0);
+      expect(geometry.lastRowBottom).toBeLessThanOrEqual(geometry.regionBottom + 0.5);
+      expect(geometry.freeBelowRows, "no room left for one more row").toBeLessThan(52);
+      expect(geometry.pagerBottom, "the pager is inside the viewport").toBeLessThanOrEqual(geometry.viewportHeight + 0.5);
+      expect(geometry.nextHeight, "touch target").toBeGreaterThanOrEqual(44);
+      expect(geometry.obscured, "title, close, pager and rows are on top and tappable").toEqual([]);
+      expect(geometry.dialogOverflowX, `no horizontal overflow: ${geometry.overflowing.join(" | ")}`).toBeLessThanOrEqual(0);
+      expect(geometry.visibleCounter, "the visual counter is gone").toBe(false);
+      expect(geometry.filtersRightAfterLastChip, "Filtros follows the last category in the same flow").toBeLessThanOrEqual(12);
+      expect(await documentScroll(page)).toEqual({ vertical: 0, horizontal: 0 });
+
+      // Opening the filters keeps the list state and still never scrolls the document.
+      await dialog.locator('[data-global-search-filters-toggle="true"]').click();
+      await expect(dialog.locator('[data-global-search-filters-panel="true"]')).toBeVisible();
+      await dialog.locator('[data-global-search-filters-apply="true"]').click();
+      await expect(results.first()).toBeVisible();
+      expect(await documentScroll(page)).toEqual({ vertical: 0, horizontal: 0 });
+    });
+  }
 
   for (const viewport of [
     { width: 360, height: 740 },

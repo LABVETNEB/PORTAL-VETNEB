@@ -31,7 +31,7 @@ const {
   buildGlobalSearchQueryString,
   foldGlobalSearchText,
   formatGlobalSearchFact,
-  globalSearchDestinationModule,
+  globalSearchDestinationOpensRecord,
   globalSearchKindsFor,
   globalSearchPathFor,
   globalSearchStatusLabel,
@@ -170,16 +170,18 @@ test("hits are grouped in the canonical kind order and keep the per-kind hasMore
   ]);
 });
 
-test("destinations open the record's module with the row anchor the module renders", () => {
+test("report destinations open the record by id; the rest land on their module", () => {
   const report = hit({ kind: "report", id: 9, target: { reportId: 9 } as GlobalSearchHit["target"] });
   const tracking = hit({ kind: "tracking_case", id: 4, target: { reportId: 9 } as GlobalSearchHit["target"] });
   const token = hit({ kind: "particular_token", id: 7 });
 
-  assert.equal(buildGlobalSearchDestination("clinic", report), "/dashboard/informes#report-9");
-  assert.equal(buildGlobalSearchDestination("clinic", tracking), "/dashboard/informes#report-9");
+  assert.equal(buildGlobalSearchDestination("clinic", report), "/dashboard/informes?reportId=9");
+  assert.equal(buildGlobalSearchDestination("clinic", tracking), "/dashboard/informes?reportId=9");
+  assert.equal(buildGlobalSearchDestination("clinic", hit({ kind: "tracking_case", id: 5 })), "/dashboard/informes");
   assert.equal(buildGlobalSearchDestination("clinic", token), "/dashboard?module=tokens#clinic-particular-token-7");
 
-  assert.equal(buildGlobalSearchDestination("admin", report), "/dashboard/admin?module=admin-report-upload#report-9");
+  assert.equal(buildGlobalSearchDestination("admin", report), "/dashboard/admin?module=admin-report-upload&reportId=9");
+  assert.equal(buildGlobalSearchDestination("admin", tracking), "/dashboard/admin?module=admin-report-upload&reportId=9");
   assert.equal(
     buildGlobalSearchDestination("admin", token),
     "/dashboard/admin?module=admin-particular-tokens#admin-particular-token-7",
@@ -189,8 +191,10 @@ test("destinations open the record's module with the row anchor the module rende
     buildGlobalSearchDestination("admin", hit({ kind: "clinic_user", id: 5 })),
     "/dashboard/admin?module=admin-users-roles",
   );
-  assert.equal(globalSearchDestinationModule("/dashboard/admin?module=admin-clinics"), "admin-clinics");
-  assert.equal(globalSearchDestinationModule("/dashboard/informes#report-9"), null);
+  assert.equal(globalSearchDestinationOpensRecord("/dashboard/informes?reportId=9"), true);
+  assert.equal(globalSearchDestinationOpensRecord("/dashboard/admin?module=admin-report-upload&reportId=9"), true);
+  assert.equal(globalSearchDestinationOpensRecord("/dashboard/admin?module=admin-clinics"), false);
+  assert.equal(globalSearchDestinationOpensRecord("/dashboard?module=tokens#clinic-particular-token-7"), false);
 });
 
 test("status and fact labels are resolved per kind", () => {

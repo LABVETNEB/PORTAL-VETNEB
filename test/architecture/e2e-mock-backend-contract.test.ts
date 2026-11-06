@@ -1872,6 +1872,8 @@ test("E2E-GLOBAL-11 mutation 2: an HTTP method drift fails on either side", () =
     "route PUT /api/admin/audit-log",
     "route PUT /api/admin/particular-tokens",
     "route PUT /api/admin/report-workflow",
+    // GLOBAL-SEARCH-3A: by-id workflow item.
+    "route PUT /api/admin/report-workflow/:param",
     "route PUT /api/admin/study-tracking/notifications",
     "route PUT /api/admin/system/health",
     "route PUT /api/admin/users-roles",
@@ -1949,7 +1951,8 @@ test("E2E-GLOBAL-11 mutation 4: a fixture route fulfilled by page.route fails; p
       '  await page.route("**/api/**", (route) => answer(route, {}));',
     ].join("\n"),
   );
-  assert.equal(catchAll.unexpected.length, 14);
+  // +2 (GLOBAL-SEARCH-3A): GET /api/reports/:reportId and GET /api/admin/report-workflow/:id.
+  assert.equal(catchAll.unexpected.length, 16);
   assert.ok(catchAll.unexpected.includes(pair("ANY /api/app-version")));
 
   assert.deepEqual(probe('  await page.route("**/api/admin/audit-log**", (route) => route.continue());'), {

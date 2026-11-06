@@ -97,6 +97,32 @@ export type GlobalSearchRequest = {
   readonly offset: number;
 };
 
+/**
+ * The last full search of each surface, kept in memory only for this tab's
+ * SPA lifetime (never in browser storage: queries carry patient and tutor
+ * names). Opening a record navigates to a module whose route may mount a new
+ * top bar; reopening the search restores this session from here. Logout
+ * hard-reloads the document, which drops it.
+ */
+export type GlobalSearchSessionMemory = {
+  readonly query: string;
+  readonly filters: GlobalSearchFilters;
+  readonly pageIndex: number;
+  /** Page size of `pageIndex`: a page index only means something with its size. */
+  readonly pageSize: number;
+  readonly selected: GlobalSearchHit | null;
+};
+
+const SESSION_MEMORY = new Map<GlobalSearchSurface, GlobalSearchSessionMemory>();
+
+export function readGlobalSearchSession(surface: GlobalSearchSurface): GlobalSearchSessionMemory | null {
+  return SESSION_MEMORY.get(surface) ?? null;
+}
+
+export function writeGlobalSearchSession(surface: GlobalSearchSurface, value: GlobalSearchSessionMemory): void {
+  SESSION_MEMORY.set(surface, value);
+}
+
 export function globalSearchKindsFor(surface: GlobalSearchSurface): readonly GlobalSearchKind[] {
   return surface === "admin" ? ADMIN_GLOBAL_SEARCH_KINDS : CLINIC_GLOBAL_SEARCH_KINDS;
 }
@@ -256,25 +282,32 @@ export function groupGlobalSearchHits(
   return groups;
 }
 
+/** Query parameter both report modules read to open one report by id. */
+export const GLOBAL_SEARCH_REPORT_ID_PARAM = "reportId";
+
 /**
- * Where a hit lives inside its module. The anchor ids are the ones the module
- * rows already render (the same ones `buildNotificationDestination` targets).
+ * Where a hit lives inside its module.
+ *
+ * Reports (and tracking cases linked to one) carry `?reportId=`: the module
+ * resolves that id through the authorized by-id read (`GET /api/reports/:id`,
+ * `GET /api/admin/report-workflow/:id`) and opens it even when it is not on
+ * the loaded page. The other entities have no by-id read yet: they land on
+ * their module with the row anchor, which positions the row only when the
+ * loaded page holds it.
  */
 export function buildGlobalSearchDestination(
   surface: GlobalSearchSurface,
   hit: GlobalSearchHit,
 ): string {
-  const reportAnchor = hit.target.reportId ? `#report-${hit.target.reportId}` : "";
+  const reportId = hit.target.reportId;
 
   if (surface === "clinic") {
-    switch (hit.kind) {
-      case "particular_token":
-        return `${ROUTES.dashboard}?module=tokens#clinic-particular-token-${hit.id}`;
-      case "report":
-      case "tracking_case":
-      default:
-        return `${ROUTES.dashboardInformes}${reportAnchor}`;
+    if (hit.kind === "particular_token") {
+      return `${ROUTES.dashboard}?module=tokens#clinic-particular-token-${hit.id}`;
     }
+    return reportId
+      ? `${ROUTES.dashboardInformes}?${GLOBAL_SEARCH_REPORT_ID_PARAM}=${reportId}`
+      : ROUTES.dashboardInformes;
   }
 
   switch (hit.kind) {
@@ -287,8 +320,16 @@ export function buildGlobalSearchDestination(
     case "report":
     case "tracking_case":
     default:
-      return `${ROUTES.dashboardAdmin}?module=admin-report-upload${reportAnchor}`;
+      return reportId
+        ? `${ROUTES.dashboardAdmin}?module=admin-report-upload&${GLOBAL_SEARCH_REPORT_ID_PARAM}=${reportId}`
+        : `${ROUTES.dashboardAdmin}?module=admin-report-upload`;
   }
+}
+
+/** Whether the destination opens one record by id (vs. a module landing). */
+export function globalSearchDestinationOpensRecord(destination: string): boolean {
+  const query = destination.split("#")[0].split("?")[1];
+  return query ? new URLSearchParams(query).has(GLOBAL_SEARCH_REPORT_ID_PARAM) : false;
 }
 
 export function globalSearchDestinationModule(destination: string): string | null {

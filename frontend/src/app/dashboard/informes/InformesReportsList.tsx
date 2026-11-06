@@ -167,6 +167,10 @@ export type InformesReportsListProps = {
   initialPageSize: number;
   initialLoadError: boolean;
   initialSelectedReportId: number | null;
+  /** GLOBAL-SEARCH-3A: the deep-linked report when it is not on the loaded page. */
+  initialFocusedReport?: Report | null;
+  /** The deep-linked id answered 404 (missing, deleted or not this clinic's). */
+  requestedReportUnavailable?: boolean;
 };
 
 export function InformesReportsList({
@@ -177,7 +181,11 @@ export function InformesReportsList({
   initialPageSize,
   initialLoadError,
   initialSelectedReportId,
+  initialFocusedReport = null,
+  requestedReportUnavailable = false,
 }: InformesReportsListProps) {
+  const [focusedReport] = useState<Report | null>(initialFocusedReport);
+  const focusedReportIdRef = useRef<number | null>(initialFocusedReport?.id ?? null);
   const [reports, setReports] = useState<Report[]>(initialReports);
   const [totalCount, setTotalCount] = useState(initialTotal);
   const [requestWindow, setRequestWindow] = useState({
@@ -310,7 +318,9 @@ export function InformesReportsList({
           };
           setReports(result.reports);
           setSelectedReportId((current) =>
-            current === null || result.reports.some((report) => report.id === current)
+            current === null ||
+            current === focusedReportIdRef.current ||
+            result.reports.some((report) => report.id === current)
               ? current
               : (result.reports[0]?.id ?? null),
           );
@@ -365,7 +375,20 @@ export function InformesReportsList({
   const selectedReport =
     selectedReportId === null
       ? (reports[0] ?? null)
-      : (reports.find((report) => report.id === selectedReportId) ?? null);
+      : (reports.find((report) => report.id === selectedReportId) ??
+        (focusedReport?.id === selectedReportId ? focusedReport : null));
+  // The deep-linked report is open but is not one of the rows on screen.
+  const selectedIsOffPage =
+    selectedReport !== null && !visibleReports.some((report) => report.id === selectedReport.id);
+
+  // Where the desktop detail panel is not painted the detail is a dialog: a
+  // deep link opens it, otherwise the requested report would only show as the
+  // one-line summary. Read from the layout itself, not from a breakpoint.
+  useLayoutEffect(() => {
+    if (focusedReportIdRef.current === null) return;
+    const panel = document.getElementById("report-detail");
+    if (!panel || panel.getClientRects().length === 0) setIsDetailDialogOpen(true);
+  }, []);
 
   // The empty list and the load error also re-fetch once the canvas is
   // measured, so the notice belongs to both result branches. Only one of them
@@ -434,6 +457,7 @@ export function InformesReportsList({
   }
 
   function selectReport(reportId: number) {
+    focusedReportIdRef.current = null;
     setSelectedReportId(reportId);
     setDetailSection("resumen");
   }
@@ -495,6 +519,14 @@ export function InformesReportsList({
               <p className="dashboard-detail-value text-xs text-muted-foreground">
                 Clínica {report.clinicName ?? `#${report.clinicId}`}
               </p>
+              {selectedIsOffPage ? (
+                <p
+                  data-informes-focused-report={report.id}
+                  className="dashboard-detail-value mt-1 text-xs text-muted-foreground"
+                >
+                  Abierto por número de informe: no está en la página actual de la lista.
+                </p>
+              ) : null}
             </div>
             <StatusBadge
               status={report.status}
@@ -715,6 +747,15 @@ export function InformesReportsList({
             className="dashboard-master-panel flex min-h-0 flex-col overflow-hidden rounded-xl border border-vetneb-line/75 bg-card/82"
           >
             {pageRequestRecovery}
+            {requestedReportUnavailable ? (
+              <p
+                role="status"
+                data-informes-requested-report-unavailable="true"
+                className="shrink-0 border-b border-vetneb-line/70 px-4 py-2 text-xs text-muted-foreground"
+              >
+                {`El informe #${initialSelectedReportId} no existe o no está disponible para esta clínica.`}
+              </p>
+            ) : null}
             {/* C23b B4: from md one row at the C01 collection-header height. */}
             <div className="flex shrink-0 items-start justify-between gap-2 border-b border-vetneb-line/70 px-4 py-2.5 md:h-[var(--dash-collection-header-h)] md:items-center md:py-0">
               <div className="min-w-0 md:flex md:items-baseline md:gap-3">
