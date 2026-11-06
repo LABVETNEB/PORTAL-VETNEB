@@ -394,11 +394,12 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     section: "§6.3",
     metric: "archivos fuente de frontend/src/**",
     historical: 200,
+    baseline: 252,
     compute: () => productionVolume("frontend/src", "files"),
-    resolution: "REPRODUCED",
+    resolution: "RECLASSIFIED",
     guard: BAND,
     motive:
-      "Volumen de producción: lo gobiernan los PR de producto, no este censo de tests.",
+      "Volumen de producción: lo gobiernan los PR de producto, no este censo de tests. Re-anclaje 200 -> 252: main@30c7215393f7859d4dbd03dd95c9f3185ec466ed producia 248, a 2 archivos del tope de la banda 200 +- 50 (250). GLOBAL-SEARCH-2 suma 4 archivos de producto (frontend/src/lib/global-search.ts, frontend/src/components/dashboard/DashboardGlobalSearch.tsx, DashboardGlobalSearchDialog.tsx y useDashboardGlobalSearch.ts): la interfaz del superbuscador sobre la API de GLOBAL-SEARCH-1. Crecimiento intencional de producto: se re-ancla el baseline al valor medido despues de implementar, sin ampliar GROWTH_TOLERANCE, sin tolerancia propia y sin excluir ningun archivo del inventario.",
   },
   {
     row: "A0-06-RATIOS",

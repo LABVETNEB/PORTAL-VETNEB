@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ExternalLink, KeyRound, LogOut, MoreVertical } from "lucide-react";
+import { ExternalLink, KeyRound, LogOut, MoreVertical, Search } from "lucide-react";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { ThemeModeToggle } from "@/components/theme/ThemeModeToggle";
 import { requestAdminModuleActivate } from "@/lib/admin-hub-reset";
 import { requestClinicModuleActivate } from "@/lib/clinic-hub-reset";
+import { DASHBOARD_GLOBAL_SEARCH_OPEN_EVENT } from "@/lib/global-search";
 import { ROUTES } from "@/lib/routes";
 import { DashboardLogoutControl } from "./DashboardLogoutControl";
 import { DashboardNotificationsBell } from "./DashboardNotificationsBell";
@@ -127,6 +128,18 @@ export function DashboardMobileKebabMenu({ surface }: DashboardMobileKebabMenuPr
           data-admin-mobile-kebab-menu={isAdmin ? "true" : undefined}
           className={menuClass}
         >
+          <button
+            type="button"
+            data-dashboard-mobile-global-search="true"
+            onClick={() => {
+              setIsOpen(false);
+              window.dispatchEvent(new CustomEvent(DASHBOARD_GLOBAL_SEARCH_OPEN_EVENT));
+            }}
+            className={actionClass}
+          >
+            <Search className="h-4 w-4" aria-hidden="true" />
+            <span>Buscar en VETNEB</span>
+          </button>
           <div className={rowClass}>
             <span>Apariencia</span>
             <ThemeModeToggle className="h-11 w-11 bg-card" />
