@@ -14,6 +14,7 @@ import type {
   ClinicGlobalSearchRepository,
 } from "../application/global-search-use-cases.ts";
 import type {
+  GlobalSearchAfter,
   GlobalSearchCriteria,
   GlobalSearchFact,
   GlobalSearchHit,
@@ -91,7 +92,34 @@ function clinicRef(id: number | null | undefined, name: string | null | undefine
 }
 
 function pageWindow(criteria: GlobalSearchCriteria) {
-  return { limit: criteria.limit + 1, offset: criteria.offset };
+  // A keyset page starts after its cursor; `offset` is the legacy window.
+  return { limit: criteria.limit + 1, offset: criteria.after ? 0 : criteria.offset };
+}
+
+/**
+ * Exact text of an entity's sort timestamp. PostgreSQL keeps microseconds and
+ * a JavaScript Date only milliseconds, so the cursor carries the database's own
+ * value and compares it back as `timestamp` — two rows in the same millisecond
+ * can never be merged or swapped by a rounding. `to_char` with an explicit ISO
+ * pattern (six fractional digits) does not depend on the session `DateStyle`,
+ * which `::text` would, and ISO input is read back identically under any style.
+ */
+function sortKeyOf(column: AnyPgColumn): SQL<string> {
+  return sql<string>`to_char(${column}, 'YYYY-MM-DD HH24:MI:SS.US')`;
+}
+
+/**
+ * Rows strictly after the cursor in the order `rank` ASC, sort column DESC,
+ * `id` DESC. Every sort column is `timestamp NOT NULL`, so no NULL ordering
+ * applies. Every value is a bound parameter.
+ */
+function afterPosition(
+  rank: SQL<number>,
+  sortColumn: AnyPgColumn,
+  idColumn: AnyPgColumn,
+  after: GlobalSearchAfter,
+): SQL {
+  return sql`(${rank} > ${after.rank} OR (${rank} = ${after.rank} AND (${sortColumn}, ${idColumn}) < (${after.sortKey}::timestamp, ${after.id})))`;
 }
 
 // ── Reports ────────────────────────────────────────────────────────────────
@@ -117,6 +145,9 @@ export function buildReportSearchQuery(
 ) {
   const rank = rankExpression(reports.id, reports.patientName, criteria.needle);
   const page = pageWindow(criteria);
+  const filters = reportFilters(criteria, clinicId);
+
+  if (criteria.after) filters.push(afterPosition(rank, reports.createdAt, reports.id, criteria.after));
 
   return database
     .select({
@@ -129,11 +160,12 @@ export function buildReportSearchQuery(
       currentStatus: reports.currentStatus,
       uploadDate: reports.uploadDate,
       createdAt: reports.createdAt,
+      sortKey: sortKeyOf(reports.createdAt),
       rank,
     })
     .from(reports)
     .innerJoin(clinics, eq(clinics.id, reports.clinicId))
-    .where(and(...reportFilters(criteria, clinicId)))
+    .where(and(...filters))
     .orderBy(rank, desc(reports.createdAt), desc(reports.id))
     .limit(page.limit)
     .offset(page.offset);
@@ -174,6 +206,9 @@ export function buildParticularTokenSearchQuery(
   const filters: SQL[] = [matchAny(particularTokens.id, TOKEN_TEXT_COLUMNS, criteria.needle)];
 
   if (clinicId !== null) filters.unshift(eq(particularTokens.clinicId, clinicId));
+  if (criteria.after) {
+    filters.push(afterPosition(rank, particularTokens.createdAt, particularTokens.id, criteria.after));
+  }
 
   return database
     .select({
@@ -187,6 +222,7 @@ export function buildParticularTokenSearchQuery(
       tokenLast4: particularTokens.tokenLast4,
       isActive: particularTokens.isActive,
       createdAt: particularTokens.createdAt,
+      sortKey: sortKeyOf(particularTokens.createdAt),
       rank,
     })
     .from(particularTokens)
@@ -252,6 +288,10 @@ export function buildTrackingCaseSearchQuery(
 
   const rank = rankExpression(studyTrackingCases.id, reports.patientName, criteria.needle);
 
+  if (criteria.after) {
+    filters.push(afterPosition(rank, studyTrackingCases.receptionAt, studyTrackingCases.id, criteria.after));
+  }
+
   return database
     .select({
       id: studyTrackingCases.id,
@@ -264,6 +304,7 @@ export function buildTrackingCaseSearchQuery(
       estimatedDeliveryAt: studyTrackingCases.estimatedDeliveryAt,
       patientName: reports.patientName,
       petName: particularTokens.petName,
+      sortKey: sortKeyOf(studyTrackingCases.receptionAt),
       rank,
     })
     .from(studyTrackingCases)
@@ -311,6 +352,7 @@ export function buildClinicSearchQuery(
   const filters: SQL[] = [matchAny(clinics.id, [clinics.name, clinics.contactEmail], criteria.needle)];
 
   if (clinicId !== null) filters.unshift(eq(clinics.id, clinicId));
+  if (criteria.after) filters.push(afterPosition(rank, clinics.updatedAt, clinics.id, criteria.after));
 
   return database
     .select({
@@ -318,6 +360,7 @@ export function buildClinicSearchQuery(
       name: clinics.name,
       contactEmail: clinics.contactEmail,
       updatedAt: clinics.updatedAt,
+      sortKey: sortKeyOf(clinics.updatedAt),
       rank,
     })
     .from(clinics)
@@ -354,6 +397,9 @@ export function buildClinicUserSearchQuery(
   const filters: SQL[] = [matchAny(clinicUsers.id, [clinicUsers.username], criteria.needle)];
 
   if (clinicId !== null) filters.unshift(eq(clinicUsers.clinicId, clinicId));
+  if (criteria.after) {
+    filters.push(afterPosition(rank, clinicUsers.updatedAt, clinicUsers.id, criteria.after));
+  }
 
   // Explicit projection: password hash and external auth id are never read.
   return database
@@ -364,6 +410,7 @@ export function buildClinicUserSearchQuery(
       username: clinicUsers.username,
       role: clinicUsers.role,
       updatedAt: clinicUsers.updatedAt,
+      sortKey: sortKeyOf(clinicUsers.updatedAt),
       rank,
     })
     .from(clinicUsers)
@@ -401,15 +448,15 @@ export function createClinicGlobalSearchRepository(dependencies?: {
   return {
     async report(clinicId, criteria) {
       const rows = await buildReportSearchQuery(database, criteria, clinicId);
-      return rows.map((row) => mapReport(row, false));
+      return rows.map((row) => ({ hit: mapReport(row, false), sortKey: row.sortKey }));
     },
     async particular_token(clinicId, criteria) {
       const rows = await buildParticularTokenSearchQuery(database, criteria, clinicId);
-      return rows.map((row) => mapToken(row, false));
+      return rows.map((row) => ({ hit: mapToken(row, false), sortKey: row.sortKey }));
     },
     async tracking_case(clinicId, criteria) {
       const rows = await buildTrackingCaseSearchQuery(database, criteria, clinicId);
-      return rows.map((row) => mapTracking(row, false));
+      return rows.map((row) => ({ hit: mapTracking(row, false), sortKey: row.sortKey }));
     },
   };
 }
@@ -422,23 +469,23 @@ export function createAdminGlobalSearchRepository(dependencies?: {
   return {
     async clinic(criteria, clinicId) {
       const rows = await buildClinicSearchQuery(database, criteria, clinicId);
-      return rows.map(mapClinic);
+      return rows.map((row) => ({ hit: mapClinic(row), sortKey: row.sortKey }));
     },
     async report(criteria, clinicId) {
       const rows = await buildReportSearchQuery(database, criteria, clinicId);
-      return rows.map((row) => mapReport(row, true));
+      return rows.map((row) => ({ hit: mapReport(row, true), sortKey: row.sortKey }));
     },
     async particular_token(criteria, clinicId) {
       const rows = await buildParticularTokenSearchQuery(database, criteria, clinicId);
-      return rows.map((row) => mapToken(row, true));
+      return rows.map((row) => ({ hit: mapToken(row, true), sortKey: row.sortKey }));
     },
     async tracking_case(criteria, clinicId) {
       const rows = await buildTrackingCaseSearchQuery(database, criteria, clinicId);
-      return rows.map((row) => mapTracking(row, true));
+      return rows.map((row) => ({ hit: mapTracking(row, true), sortKey: row.sortKey }));
     },
     async clinic_user(criteria, clinicId) {
       const rows = await buildClinicUserSearchQuery(database, criteria, clinicId);
-      return rows.map(mapClinicUser);
+      return rows.map((row) => ({ hit: mapClinicUser(row), sortKey: row.sortKey }));
     },
   };
 }

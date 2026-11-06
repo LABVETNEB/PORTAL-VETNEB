@@ -160,3 +160,69 @@ test("global search SQL: filtros de informe se aplican del lado del servidor", (
   assert.ok(query.params.includes("ready"));
   assert.ok(query.params.includes("citologia"));
 });
+
+// ── GLOBAL-SEARCH-3A · keyset predicate ─────────────────────────────────────
+
+const SORT_COLUMN = {
+  report: '"reports"."created_at"',
+  particular_token: '"particular_tokens"."created_at"',
+  tracking_case: '"study_tracking_cases"."reception_at"',
+  clinic: '"clinics"."updated_at"',
+  clinic_user: '"clinic_users"."updated_at"',
+} as const;
+
+const ID_COLUMN = {
+  report: '"reports"."id"',
+  particular_token: '"particular_tokens"."id"',
+  tracking_case: '"study_tracking_cases"."id"',
+  clinic: '"clinics"."id"',
+  clinic_user: '"clinic_users"."id"',
+} as const;
+
+test("global search SQL: el cursor agrega un predicado keyset parametrizado y anula el offset", () => {
+  const after = { rank: 2, sortKey: "2026-01-02 03:04:05.123456", id: 77 };
+  for (const [kind, build] of Object.entries(BUILDERS)) {
+    const key = kind as keyof typeof SORT_COLUMN;
+    const base = criteria({ q: "rex", kinds: kind, limit: "10" });
+    const plain = build(db, base, 41).toSQL();
+    const keyed = build(db, { ...base, after }, 41).toSQL();
+
+    assert.equal(plain.sql.includes("::timestamp"), false, `${kind}: no keyset without a cursor`);
+    const sortColumn = escapeRegExp(SORT_COLUMN[key]);
+    const idColumn = escapeRegExp(ID_COLUMN[key]);
+    const keyset = new RegExp(
+      `\\(\\(CASE .*? END\\) > \\$(\\d+) OR \\(\\(CASE .*? END\\) = \\$(\\d+) AND \\(${sortColumn}, ${idColumn}\\) < \\(\\$(\\d+)::timestamp, \\$(\\d+)\\)\\)\\)`,
+    ).exec(keyed.sql);
+    assert.ok(keyset, `${kind}: ${keyed.sql}`);
+    assert.deepEqual(
+      [keyset[1], keyset[2], keyset[3], keyset[4]].map((index) => keyed.params[Number(index) - 1]),
+      [2, 2, after.sortKey, 77],
+      `${kind}: every cursor value is a bound parameter`,
+    );
+    assert.ok(
+      new RegExp(`^ where \\(${escapeRegExp(TENANT_COLUMN[key])} = \\$\\d+ and `).test(keyed.sql.slice(keyed.sql.indexOf(" where "))),
+      `${kind}: the tenant stays the first predicate`,
+    );
+    // Single-table selects are not table-qualified by Drizzle.
+    const unqualified = SORT_COLUMN[key].slice(SORT_COLUMN[key].lastIndexOf(".") + 1);
+    const format = ", 'YYYY-MM-DD HH24:MI:SS.US')";
+    assert.ok(
+      keyed.sql.includes(`to_char(${SORT_COLUMN[key]}${format}`) || keyed.sql.includes(`to_char(${unqualified}${format}`),
+      `${kind}: the exact sort key is selected in a DateStyle-independent format`,
+    );
+    // Drizzle drops a zero offset: a keyset page has no offset clause, or offset 0.
+    const offsetClause = / offset \$(\d+)$/.exec(keyed.sql);
+    assert.ok(!offsetClause || keyed.params[Number(offsetClause[1]) - 1] === 0, `${kind}: a keyset page starts at offset 0`);
+    const limitClause = / limit \$(\d+)/.exec(keyed.sql);
+    assert.equal(keyed.params[Number(limitClause?.[1]) - 1], 11, `${kind}: still limit + 1`);
+  }
+});
+
+test("global search SQL: un cursor con texto hostil sigue siendo un parámetro", () => {
+  const hostile = { rank: 3, sortKey: "2026-01-01 00:00:00'); DROP TABLE reports; --", id: 1 };
+  const query = infrastructure
+    .buildReportSearchQuery(db, { ...criteria({ q: "rex", kinds: "report" }), after: hostile }, 2)
+    .toSQL();
+  assert.equal(query.sql.includes("DROP TABLE"), false);
+  assert.ok(query.params.includes(hostile.sortKey));
+});

@@ -203,7 +203,10 @@ test("GLOBAL-SEARCH-DB: SQL real aísla tenants, pliega tildes y encuentra fuera
 
   const pageOne = await search(`/api/search?q=${encodeURIComponent(`paciente a-`)}&kinds=report&limit=25`, clinicACookie);
   const pageTwo = await search(`/api/search?q=${encodeURIComponent(`paciente a-`)}&kinds=report&limit=25&offset=25`, clinicACookie);
-  assert.deepEqual(pageOne.groups[0], { kind: "report", returned: 25, hasMore: true });
+  const { nextCursor, ...pageOneGroup } = pageOne.groups[0] as typeof pageOne.groups[0] & { nextCursor?: string | null };
+  assert.deepEqual(pageOneGroup, { kind: "report", returned: 25, hasMore: true });
+  // GLOBAL-SEARCH-3A: a continuation exists exactly when there are more rows.
+  assert.equal(typeof nextCursor, "string");
   assert.equal(new Set([...pageOne.hits, ...pageTwo.hits].map((hit) => hit.id)).size, 50);
 
   const admin = await search(`/api/admin/search?q=${encodeURIComponent(suffix)}&limit=3`, adminCookie);

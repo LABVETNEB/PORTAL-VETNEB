@@ -13,6 +13,7 @@ import { authenticateFastifyAdmin } from "../lib/fastify-admin-auth.ts";
 import { logError, serializeError } from "../lib/logger.ts";
 import {
   createAdminGlobalSearch,
+  deriveGlobalSearchCursorKey,
   type AdminGlobalSearchRepository,
 } from "../features/global-search/index.ts";
 
@@ -35,12 +36,29 @@ export type AdminGlobalSearchNativeRoutesOptions = {
   updateAdminSessionLastAccess?: (tokenHash: string) => Promise<void>;
   hashSessionToken?: (token: string) => string;
   searchRepository?: AdminGlobalSearchRepository;
+  /** HMAC key of the keyset cursor; derived from the server secret when absent. */
+  cursorKey?: Uint8Array;
   now?: () => number;
 };
 
 type AdminGlobalSearchDeps = Required<
-  Omit<AdminGlobalSearchNativeRoutesOptions, "now">
+  Omit<AdminGlobalSearchNativeRoutesOptions, "now" | "cursorKey">
 >;
+
+let defaultCursorKey: Uint8Array | undefined;
+
+/**
+ * GLOBAL-SEARCH-3A: the cursor HMAC key, derived once per process from the
+ * server-only service secret (no new configuration). Injectable for tests.
+ */
+async function resolveCursorKey(injected: Uint8Array | undefined): Promise<Uint8Array> {
+  if (injected) return injected;
+  if (!defaultCursorKey) {
+    const { ENV } = await import("../lib/env.ts");
+    defaultCursorKey = deriveGlobalSearchCursorKey(ENV.supabaseServiceRoleKey);
+  }
+  return defaultCursorKey;
+}
 
 let defaultDepsPromise: Promise<AdminGlobalSearchDeps> | undefined;
 
@@ -170,7 +188,10 @@ export const adminGlobalSearchNativeRoutes: FastifyPluginAsync<
     }
 
     try {
-      const outcome = await createAdminGlobalSearch(deps.searchRepository)(
+      const outcome = await createAdminGlobalSearch(deps.searchRepository, {
+        cursorKey: await resolveCursorKey(options.cursorKey),
+        now,
+      })(
         request.query,
         clinicFilter,
       );
