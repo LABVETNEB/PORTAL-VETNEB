@@ -133,9 +133,8 @@ test.describe("clinic Logística Visitas full route adaptive contract (R-12)", (
     });
   }
 
-  // C25 F-T1: the desktop table truncates address and notes; the row id opens
-  // the visit detail with both values whole, on every desktop width (at
-  // 768-1024 the right-hand columns are clipped by the bounded canvas, the id is not).
+  // C25 F-T1: the row id opens every field whole. Narrow canvases omit
+  // secondary columns so the clinic name and date retain a 52px row.
   const LONG_VISIT = {
     id: 8502,
     clinic: "Centro Veterinario Integral de Diagnóstico y Seguimiento Los Arrayanes",
@@ -147,6 +146,8 @@ test.describe("clinic Logística Visitas full route adaptive contract (R-12)", (
   for (const viewport of [
     { name: "desktop-1920x1080", width: 1920, height: 1080 },
     { name: "desktop-short-1366x768", width: 1366, height: 768 },
+    { name: "desktop-1280x800", width: 1280, height: 800 },
+    { name: "desktop-1279x800", width: 1279, height: 800 },
     { name: "desktop-1024x768", width: 1024, height: 768 },
     { name: "tablet-768x1024", width: 768, height: 1024 },
   ] as const) {
@@ -166,10 +167,21 @@ test.describe("clinic Logística Visitas full route adaptive contract (R-12)", (
       const cells = row.locator("td");
       const [addressCell, notesCell] = [cells.nth(2), cells.nth(6)];
       await expect(addressCell).toHaveText(LONG_VISIT.address);
+      const secondaryColumnsHidden = viewport.width <= 1100 || (viewport.width >= 1280 && viewport.width < 1440);
       for (const [cell, label] of [[addressCell, "address"], [notesCell, "notes"]] as const) {
-        expect(await cell.evaluate((element) => element.scrollWidth > element.clientWidth), `${viewport.name}: the row truncates the ${label}`).toBe(true);
+        if (secondaryColumnsHidden) {
+          await expect(cell, `${viewport.name}: ${label} moves to the detail`).toBeHidden();
+        } else {
+          expect(await cell.evaluate((element) => element.scrollWidth > element.clientWidth), `${viewport.name}: the row truncates the ${label}`).toBe(true);
+        }
         expect(await cell.getAttribute("title"), `${viewport.name}: no hover-only title for the ${label}`).toBeNull();
       }
+      if (viewport.width <= 1100) {
+        await expect(cells.nth(4)).toBeHidden();
+      } else {
+        await expect(cells.nth(4)).toBeVisible();
+      }
+      expect(await row.evaluate((element) => element.getBoundingClientRect().height), `${viewport.name}: row pitch`).toBeLessThanOrEqual(52.5);
 
       // The trigger is painted on top and inside the clipped table wrapper.
       const reach = await trigger.evaluate((element) => {

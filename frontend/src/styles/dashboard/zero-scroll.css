@@ -174,6 +174,21 @@
   white-space: nowrap;
 }
 
+/* The visit identifier opens every field in the detail dialog. Free its
+   adjacent clinic column before the seven-column table forces multi-line rows. */
+@media (max-width: 1100px), (min-width: 1280px) and (max-width: 1439px) {
+  [data-dashboard-table-canvas="visitas"] :is(th, td):nth-child(3),
+  [data-dashboard-table-canvas="visitas"] :is(th, td):nth-child(7) {
+    display: none;
+  }
+}
+
+@media (max-width: 1100px) {
+  [data-dashboard-table-canvas="visitas"] :is(th, td):nth-child(5) {
+    display: none;
+  }
+}
+
 [data-dashboard-table-canvas="rutas"] th:nth-child(1) { width: 4.5rem; }
 [data-dashboard-table-canvas="rutas"] th:nth-child(3) { width: 10.5rem; }
 [data-dashboard-table-canvas="rutas"] th:nth-child(4) { width: 7rem; }
