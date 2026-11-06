@@ -127,7 +127,9 @@ test("frontend API client maps fetch network and CORS errors to operational admi
 
   assert.ok(source.includes("try {"));
   assert.ok(source.includes("} catch (error) {"));
-  assert.ok(source.includes("console.warn(`[API] ${path}: ${errorDetail}`);"));
+  // The development warning names the path only: query strings carry search text and cursors.
+  assert.ok(source.includes('console.warn(`[API] ${path.split("?")[0]}: ${errorDetail}`);'));
+  assert.equal(source.includes("console.warn(`[API] ${path}: ${errorDetail}`);"), false);
   assert.ok(source.includes("if (error instanceof TypeError) {"));
   assert.ok(source.includes("throw new Error(BACKEND_CONNECTION_ERROR_MESSAGE);"));
   assert.ok(source.includes("No se pudo conectar con el backend. Verifique sesión admin, CORS y despliegue backend/frontend."));

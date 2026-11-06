@@ -36,8 +36,10 @@ const {
   globalSearchPathFor,
   globalSearchStatusLabel,
   groupGlobalSearchHits,
+  isGlobalSearchContinuation,
   isGlobalSearchQueryReady,
   normalizeGlobalSearchInput,
+  resolveGlobalSearchRequestKinds,
 } = (await import(LIB_URL)) as typeof import("../../../../frontend/src/lib/global-search.ts");
 
 // GLOBAL-SEARCH-2 · pure client contract of the GLOBAL-SEARCH-1 API.
@@ -136,6 +138,58 @@ test("offset is capped at the API maximum and the query at 80 characters", () =>
   assert.equal(query.q, "x".repeat(80));
 });
 
+test("a continuation sends the cursor of its single kind and never an offset", () => {
+  const request = {
+    query: "luna",
+    filters: { ...EMPTY_GLOBAL_SEARCH_FILTERS, kinds: ["report" as const] },
+    limit: 25,
+    cursor: "v1.cGF5bG9hZA.c2ln",
+  };
+  assert.equal(isGlobalSearchContinuation(request), true);
+  const query = params(buildGlobalSearchQueryString("clinic", request));
+  assert.deepEqual(query, { q: "luna", kinds: "report", limit: "25", cursor: "v1.cGF5bG9hZA.c2ln" });
+  assert.equal("offset" in query, false, "cursor and offset are never combined");
+
+  // A report filter narrows to reports: still exactly one kind, so a cursor is valid.
+  const filtered = params(
+    buildGlobalSearchQueryString("admin", {
+      query: "luna",
+      filters: { ...EMPTY_GLOBAL_SEARCH_FILTERS, status: "ready", clinicId: "4" },
+      limit: 25,
+      cursor: "v1.x.y",
+    }),
+  );
+  assert.deepEqual(filtered, { q: "luna", kinds: "report", status: "ready", clinicId: "4", limit: "25", cursor: "v1.x.y" });
+  assert.deepEqual([...resolveGlobalSearchRequestKinds("admin", { ...EMPTY_GLOBAL_SEARCH_FILTERS, status: "ready" })], ["report"]);
+});
+
+test("a cursor without exactly one kind, empty or over 512 characters never leaves the client", () => {
+  const base = { query: "luna", limit: 25 };
+  assert.throws(() =>
+    buildGlobalSearchQueryString("clinic", { ...base, filters: EMPTY_GLOBAL_SEARCH_FILTERS, cursor: "v1.a.b" }),
+  );
+  assert.throws(() =>
+    buildGlobalSearchQueryString("admin", {
+      ...base,
+      filters: { ...EMPTY_GLOBAL_SEARCH_FILTERS, kinds: ["report", "clinic"] },
+      cursor: "v1.a.b",
+    }),
+  );
+  // An admin-only kind on the clinic surface is dropped, leaving no kind for the cursor.
+  assert.throws(() =>
+    buildGlobalSearchQueryString("clinic", {
+      ...base,
+      filters: { ...EMPTY_GLOBAL_SEARCH_FILTERS, kinds: ["clinic"] },
+      cursor: "v1.a.b",
+    }),
+  );
+  const one = { ...EMPTY_GLOBAL_SEARCH_FILTERS, kinds: ["report" as const] };
+  assert.throws(() => buildGlobalSearchQueryString("clinic", { ...base, filters: one, cursor: "" }));
+  assert.throws(() => buildGlobalSearchQueryString("clinic", { ...base, filters: one, cursor: "x".repeat(513) }));
+  assert.doesNotThrow(() => buildGlobalSearchQueryString("clinic", { ...base, filters: one, cursor: "x".repeat(512) }));
+  assert.equal(isGlobalSearchContinuation({ ...base, filters: one, offset: 0 }), false);
+});
+
 test("the query is ready from two meaningful characters; folding ignores accents and case", () => {
   assert.equal(isGlobalSearchQueryReady(" a "), false);
   assert.equal(isGlobalSearchQueryReady("an"), true);
@@ -154,9 +208,9 @@ test("hits are grouped in the canonical kind order and keep the per-kind hasMore
       hit({ kind: "report", id: 2 }),
     ],
     groups: [
-      { kind: "report", returned: 2, hasMore: true },
-      { kind: "particular_token", returned: 0, hasMore: false },
-      { kind: "tracking_case", returned: 1, hasMore: false },
+      { kind: "report", returned: 2, hasMore: true, nextCursor: "v1.a.b" },
+      { kind: "particular_token", returned: 0, hasMore: false, nextCursor: null },
+      { kind: "tracking_case", returned: 1, hasMore: false, nextCursor: null },
     ],
   };
   const grouped = groupGlobalSearchHits("clinic", result).map((group) => ({

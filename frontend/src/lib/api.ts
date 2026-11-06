@@ -58,7 +58,11 @@ import { CLIENT_APP_VERSION, CLIENT_VERSION_HEADER } from "@/lib/app-version";
 import { publishClientVersionUnsupported } from "@/lib/client-version-error";
 import {
   buildGlobalSearchQueryString,
+  GLOBAL_SEARCH_INVALID_CURSOR_MESSAGE,
   globalSearchPathFor,
+  isGlobalSearchContinuation,
+  type GlobalSearchGroup,
+  type GlobalSearchKind,
   type GlobalSearchRequest,
   type GlobalSearchResult,
   type GlobalSearchSurface,
@@ -294,7 +298,8 @@ async function apiFetch<T>(
     if (process.env.NODE_ENV === "development") {
       const errorDetail =
         error instanceof Error ? error.message : String(error);
-      console.warn(`[API] ${path}: ${errorDetail}`);
+      // Path only: query strings carry search text and continuation cursors.
+      console.warn(`[API] ${path.split("?")[0]}: ${errorDetail}`);
     }
 
     if (error instanceof TypeError) {
@@ -701,23 +706,71 @@ export async function searchReportsPaginated(
  * GLOBAL-SEARCH-2: authorized record search. The clinic tenant comes from the
  * session cookie on the server; this client never sends a clinic id for it.
  */
+/**
+ * The server rejected a continuation cursor (`400 Cursor de búsqueda
+ * inválido`): expired, tampered or bound to another search. Only thrown for a
+ * request that carried a cursor; any other 400, 401, 403 or 429 keeps its own
+ * error type. The message never carries the cursor.
+ */
+export class GlobalSearchCursorRejectedError extends Error {
+  constructor() {
+    super(GLOBAL_SEARCH_INVALID_CURSOR_MESSAGE);
+    this.name = "GlobalSearchCursorRejectedError";
+  }
+}
+
+function normalizeGlobalSearchGroups(value: unknown): GlobalSearchGroup[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry): GlobalSearchGroup[] => {
+    if (!entry || typeof entry !== "object") return [];
+    const group = entry as Partial<Record<keyof GlobalSearchGroup, unknown>>;
+    if (typeof group.kind !== "string") return [];
+    const hasMore = group.hasMore === true;
+    const nextCursor =
+      hasMore && typeof group.nextCursor === "string" && group.nextCursor.length > 0
+        ? group.nextCursor
+        : null;
+    return [
+      {
+        kind: group.kind as GlobalSearchKind,
+        returned: typeof group.returned === "number" ? group.returned : 0,
+        hasMore,
+        nextCursor,
+      },
+    ];
+  });
+}
+
 export async function searchDashboardGlobal(
   surface: GlobalSearchSurface,
   request: GlobalSearchRequest,
   options: RequestInit = {},
 ): Promise<GlobalSearchResult> {
   const query = buildGlobalSearchQueryString(surface, request);
-  const res = await apiFetch<GlobalSearchResult & { success?: boolean }>(
-    `${globalSearchPathFor(surface)}?${query}`,
-    { ...options, cache: "no-store" },
-  );
+  let res: GlobalSearchResult & { success?: boolean };
+  try {
+    res = await apiFetch<GlobalSearchResult & { success?: boolean }>(
+      `${globalSearchPathFor(surface)}?${query}`,
+      { ...options, cache: "no-store" },
+    );
+  } catch (error) {
+    if (
+      isGlobalSearchContinuation(request) &&
+      error instanceof ApiResponseError &&
+      error.status === 400 &&
+      error.message === GLOBAL_SEARCH_INVALID_CURSOR_MESSAGE
+    ) {
+      throw new GlobalSearchCursorRejectedError();
+    }
+    throw error;
+  }
 
   return {
     query: typeof res.query === "string" ? res.query : request.query,
     hits: Array.isArray(res.hits) ? res.hits : [],
-    groups: Array.isArray(res.groups) ? res.groups : [],
+    groups: normalizeGlobalSearchGroups(res.groups),
     limit: typeof res.limit === "number" ? res.limit : request.limit,
-    offset: typeof res.offset === "number" ? res.offset : request.offset,
+    offset: typeof res.offset === "number" ? res.offset : (request.offset ?? 0),
   };
 }
 
