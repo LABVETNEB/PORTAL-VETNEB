@@ -282,6 +282,12 @@ export async function setLoginRateLimitEntry(input: {
   return result[0];
 }
 
+// postgres@4 does not serialize a Date bound inside raw SQL: send the same
+// UTC instant the column mapper writes, as text cast to the column type.
+function rawTimestamp(value: Date) {
+  return sql`${value.toISOString()}::timestamp`;
+}
+
 export async function incrementLoginRateLimitEntry(input: {
   keyHash: string;
   count: number;
@@ -294,6 +300,9 @@ export async function incrementLoginRateLimitEntry(input: {
     keyVersion: string;
   };
 }) {
+  const now = rawTimestamp(input.now);
+  const resetAt = rawTimestamp(input.resetAt);
+
   const result = await db
     .insert(loginRateLimits)
     .values({
@@ -316,13 +325,13 @@ export async function incrementLoginRateLimitEntry(input: {
         keyVersion: input.metadata?.keyVersion ?? null,
         count: sql<number>`
           CASE
-            WHEN ${loginRateLimits.resetAt} <= ${input.now} THEN ${input.count}
+            WHEN ${loginRateLimits.resetAt} <= ${now} THEN ${input.count}
             ELSE ${loginRateLimits.count} + 1
           END
         `,
         resetAt: sql<Date>`
           CASE
-            WHEN ${loginRateLimits.resetAt} <= ${input.now} THEN ${input.resetAt}
+            WHEN ${loginRateLimits.resetAt} <= ${now} THEN ${resetAt}
             ELSE ${loginRateLimits.resetAt}
           END
         `,
@@ -348,6 +357,9 @@ export async function consumeLoginRateLimitAttempt(input: {
     keyVersion: string;
   };
 }) {
+  const now = rawTimestamp(input.now);
+  const resetAt = rawTimestamp(input.resetAt);
+
   const result = await db
     .insert(loginRateLimits)
     .values({
@@ -370,13 +382,13 @@ export async function consumeLoginRateLimitAttempt(input: {
         keyVersion: input.metadata?.keyVersion ?? null,
         count: sql<number>`
           CASE
-            WHEN ${loginRateLimits.resetAt} <= ${input.now} THEN 1
+            WHEN ${loginRateLimits.resetAt} <= ${now} THEN 1
             ELSE ${loginRateLimits.count} + 1
           END
         `,
         resetAt: sql<Date>`
           CASE
-            WHEN ${loginRateLimits.resetAt} <= ${input.now} THEN ${input.resetAt}
+            WHEN ${loginRateLimits.resetAt} <= ${now} THEN ${resetAt}
             ELSE ${loginRateLimits.resetAt}
           END
         `,
