@@ -10,6 +10,7 @@ import {
 } from "../../drizzle/schema.ts";
 import type { AdminReportWorkflowItem } from "../features/reports/infrastructure/index.ts";
 import { createAdminReportWorkflowRouteComposition } from "../features/reports/composition/index.ts";
+import { parseStrictReportId } from "../features/reports/domain/index.ts";
 import type { AuditWriteInput } from "../lib/audit.ts";
 import { ENV } from "../lib/env.ts";
 import {
@@ -218,6 +219,7 @@ export const adminReportWorkflowNativeRoutes: FastifyPluginAsync<
   };
 
   app.options("/", optionsHandler);
+  app.options("/:id", optionsHandler);
   app.options("/:id/stage", optionsHandler);
   app.options("/:id/special-stain", optionsHandler);
 
@@ -258,6 +260,47 @@ export const adminReportWorkflowNativeRoutes: FastifyPluginAsync<
         offset,
         hasMore: listed.length > limit,
       },
+    });
+  });
+
+  /**
+   * GLOBAL-SEARCH-3A: one workflow item by report id, same authentication and
+   * the same item shape as `GET /` (workflow stage and special-stain fields).
+   */
+  app.get<{ Params: WorkflowParams }>("/:id", async (request, reply) => {
+    const composition =
+      await createAdminReportWorkflowRouteComposition(options);
+    const admin = await authenticateAdminUser(
+      request,
+      reply,
+      composition.auth,
+    );
+
+    if (!admin) {
+      return reply;
+    }
+
+    const reportId = parseStrictReportId(request.params.id);
+
+    if (typeof reportId !== "number") {
+      return reply.code(400).send({
+        success: false,
+        error: "ID de informe inválido",
+      });
+    }
+
+    const result = await composition.service.getAdminWorkflowItem(reportId);
+
+    if (result.type === "not_found") {
+      return reply.code(404).send({
+        success: false,
+        error: "Informe no encontrado",
+      });
+    }
+
+    return reply.code(200).send({
+      success: true,
+      report: result.report,
     });
   });
 

@@ -99,6 +99,22 @@ export function parseReportId(value: unknown): number | undefined {
   return Number.isInteger(reportId) && reportId > 0 ? reportId : undefined;
 }
 
+const STRICT_REPORT_ID_PATTERN = /^[1-9][0-9]{0,9}$/;
+const MAX_REPORT_ID = 2_147_483_647;
+
+/**
+ * Path identifier of the by-id reads (GLOBAL-SEARCH-3A): canonical decimal
+ * digits only, within the `integer` column range. `"1e3"`, `" 12 "`, `"012"`
+ * or an out-of-range value is a malformed id (400), never a database error.
+ */
+export function parseStrictReportId(value: unknown): number | undefined {
+  if (typeof value !== "string" || !STRICT_REPORT_ID_PATTERN.test(value)) {
+    return undefined;
+  }
+  const reportId = Number(value);
+  return reportId <= MAX_REPORT_ID ? reportId : undefined;
+}
+
 export function serializeSafeReport(report: ReportWithDisplayFields) {
   return {
     id: report.id,

@@ -463,6 +463,14 @@ export function createReportRouteService<
     return dependencies.listAdminReportWorkflowItems(input);
   }
 
+  /** One workflow item, in the same shape as a list item. */
+  async function getAdminWorkflowItem(
+    reportId: number,
+  ): Promise<{ type: "not_found" } | { type: "found"; report: TWorkflow }> {
+    const report = await dependencies.getAdminReportWorkflowItem(reportId);
+    return report ? { type: "found", report } : { type: "not_found" };
+  }
+
   async function changeWorkflowStage(input: {
     reportId: number;
     stage: TWorkflow["workflowStage"];
@@ -544,6 +552,7 @@ export function createReportRouteService<
     getVerifiedDownloadSource,
     uploadAdminReport,
     listAdminWorkflow,
+    getAdminWorkflowItem,
     changeWorkflowStage,
     changeSpecialStain,
   };
