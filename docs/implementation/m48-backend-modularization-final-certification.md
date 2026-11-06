@@ -230,7 +230,9 @@ a 157/18.466; el nuevo `server/lib/global-search-rate-limit.ts` y el consumo por
 unidades de `rate-limit-store.ts` llevan `server/lib` a 31/5.389; las rutas
 `clinic-global-search` y `admin-global-search` (+66, cobro tras la
 autenticación) llevan `server/routes` a 37/21.797, y `consumeRateLimitUnits` en
-`server/db.ts` lleva la raíz a 9/2.497. Total 236/48.253 → 237/48.578. Sin
+`server/db.ts` lleva la raíz a 9/2.497; el hotfix postgres@4 de fechas en SQL
+crudo del rate limit de login (+12 LOC en `server/db.ts`) la lleva a 9/2.509.
+Total 236/48.253 → 237/48.578 → 237/48.590. Sin
 aristas nuevas: `server/lib` no importa features (M45); la ruta calcula las
 unidades con el dominio y las pasa al limitador.
 
@@ -240,9 +242,9 @@ unidades con el dominio y las pasa al limitador.
 | `server/routes` | 37 | 21.797 |
 | `server/lib` | 31 | 5.389 |
 | `server/middlewares` | 3 | 429 |
-| raíz/entrypoints `server/*.ts` | 9 | 2.497 |
+| raíz/entrypoints `server/*.ts` | 9 | 2.509 |
 | otros | 0 | 0 |
-| **Total `server`** | **237** | **48.578** |
+| **Total `server`** | **237** | **48.590** |
 
 El review P2 de M48 detectó que la primera metodología aplicaba una semántica
 equivalente a `source.split("\n").length`, que sumaba un segmento vacío por
