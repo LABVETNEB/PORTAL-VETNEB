@@ -17,6 +17,7 @@ import {
 import { logError, serializeError } from "../lib/logger.ts";
 import {
   createClinicGlobalSearch,
+  deriveGlobalSearchCursorKey,
   type ClinicGlobalSearchRepository,
 } from "../features/global-search/index.ts";
 
@@ -31,12 +32,29 @@ export type ClinicGlobalSearchNativeRoutesOptions = {
   updateSessionLastAccess?: (tokenHash: string) => Promise<void>;
   hashSessionToken?: (token: string) => string;
   searchRepository?: ClinicGlobalSearchRepository;
+  /** HMAC key of the keyset cursor; derived from the server secret when absent. */
+  cursorKey?: Uint8Array;
   now?: () => number;
 };
 
 type ClinicGlobalSearchDeps = Required<
-  Omit<ClinicGlobalSearchNativeRoutesOptions, "now">
+  Omit<ClinicGlobalSearchNativeRoutesOptions, "now" | "cursorKey">
 >;
+
+let defaultCursorKey: Uint8Array | undefined;
+
+/**
+ * GLOBAL-SEARCH-3A: the cursor HMAC key, derived once per process from the
+ * server-only service secret (no new configuration). Injectable for tests.
+ */
+async function resolveCursorKey(injected: Uint8Array | undefined): Promise<Uint8Array> {
+  if (injected) return injected;
+  if (!defaultCursorKey) {
+    const { ENV } = await import("../lib/env.ts");
+    defaultCursorKey = deriveGlobalSearchCursorKey(ENV.supabaseServiceRoleKey);
+  }
+  return defaultCursorKey;
+}
 
 let defaultDepsPromise: Promise<ClinicGlobalSearchDeps> | undefined;
 
@@ -168,7 +186,10 @@ export const clinicGlobalSearchNativeRoutes: FastifyPluginAsync<
     }
 
     try {
-      const outcome = await createClinicGlobalSearch(deps.searchRepository)(
+      const outcome = await createClinicGlobalSearch(deps.searchRepository, {
+        cursorKey: await resolveCursorKey(options.cursorKey),
+        now,
+      })(
         auth.clinicId,
         request.query,
       );

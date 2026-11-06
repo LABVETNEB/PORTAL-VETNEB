@@ -214,15 +214,24 @@ rutas), lo que lleva `server/features` a 156/18.123, y las rutas
 `GET /api/reports/:reportId` y `GET /api/admin/report-workflow/:id` (+102) llevan
 `server/routes` a 37/21.689. Total 235/47.738 → 235/47.880. Sin aristas nuevas.
 
+GLOBAL-SEARCH-3A-CURSOR agrega la paginación keyset del superbuscador:
+`server/features/global-search` pasa de 7/927 a 8/1.258 (nuevo
+`domain/global-search-cursor.ts`, cursor firmado; predicado keyset en el
+repositorio; casos de uso que emiten y verifican el cursor), lo que lleva
+`server/features` a 157/18.454, y las rutas `clinic-global-search` y
+`admin-global-search` (+42, derivación de la clave del cursor) llevan
+`server/routes` a 37/21.731. Total 235/47.880 → 236/48.253. Sin aristas nuevas
+(la feature sigue sin dependencias cross-feature).
+
 | Área | Archivos TypeScript | LOC |
 | --- | ---: | ---: |
-| `server/features` | 156 | 18.123 |
-| `server/routes` | 37 | 21.689 |
+| `server/features` | 157 | 18.454 |
+| `server/routes` | 37 | 21.731 |
 | `server/lib` | 30 | 5.199 |
 | `server/middlewares` | 3 | 429 |
 | raíz/entrypoints `server/*.ts` | 9 | 2.440 |
 | otros | 0 | 0 |
-| **Total `server`** | **235** | **47.880** |
+| **Total `server`** | **236** | **48.253** |
 
 El review P2 de M48 detectó que la primera metodología aplicaba una semántica
 equivalente a `source.split("\n").length`, que sumaba un segmento vacío por
@@ -243,7 +252,7 @@ porque ésa es su topología proporcional documentada.
 | Feature | Archivos | LOC | Capas/directorios reales | Barrel raíz | Entrantes | Salientes | Closeout |
 | --- | ---: | ---: | --- | --- | --- | --- | --- |
 | Clinics | 10 | 2.747 | domain, infrastructure, servicios directos | sí | Users/Roles (2 refs) | Public Professionals (3) | M29 |
-| Global Search | 7 | 927 | domain, application, infrastructure | sí | ninguna | ninguna | GLOBAL-SEARCH-1 |
+| Global Search | 8 | 1.258 | domain, application, infrastructure | sí | ninguna | ninguna | GLOBAL-SEARCH-1 |
 | Logistics | 46 | 4.238 | domain, application, infrastructure | no requerido | ninguna | ninguna | M17 |
 | Particular Access | 12 | 1.086 | domain, application, infrastructure | sí | Reports (1) | Reports/ST (7) | M33/M35b |
 | Pricing | 4 | 489 | infrastructure, servicios directos | no requerido | ninguna | ninguna | M20 |

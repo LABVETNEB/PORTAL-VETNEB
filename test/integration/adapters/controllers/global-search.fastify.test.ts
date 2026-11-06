@@ -61,11 +61,17 @@ function fold(value: string): string {
   return value.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
 }
 
+/** `timestamp::text` as PostgreSQL prints it, from an ISO instant. */
+function sortKeyOf(iso: string): string {
+  return iso.replace("T", " ").replace("Z", "");
+}
+
 /**
  * In-memory stand-in with the SAME contract as the SQL repository: tenant
- * predicate, accent/case folding, rank, recency order and limit+1 window.
+ * predicate, accent/case folding, rank, recency order, keyset cursor and
+ * limit+1 window.
  */
-function search(rows: Row[], kind: Kind, criteria: Criteria, clinicId: number | null, calls: string[]): Hit[] {
+function search(rows: Row[], kind: Kind, criteria: Criteria, clinicId: number | null, calls: string[]) {
   calls.push(`${kind}:${clinicId ?? "*"}`);
   const needle = fold(criteria.needle.text);
 
@@ -99,7 +105,16 @@ function search(rows: Row[], kind: Kind, criteria: Criteria, clinicId: number | 
               : 3,
     }))
     .sort((a, b) => a.rank - b.rank || Date.parse(b.date ?? "") - Date.parse(a.date ?? "") || b.id - a.id)
-    .slice(criteria.offset, criteria.offset + criteria.limit + 1);
+    .map((hit) => ({ hit, sortKey: sortKeyOf(hit.date ?? "1970-01-01T00:00:00.000Z") }))
+    .filter(({ hit, sortKey }) => {
+      const after = criteria.after;
+      if (!after) return true;
+      return (
+        hit.rank > after.rank ||
+        (hit.rank === after.rank && (sortKey < after.sortKey || (sortKey === after.sortKey && hit.id < after.id)))
+      );
+    })
+    .slice(criteria.after ? 0 : criteria.offset, (criteria.after ? 0 : criteria.offset) + criteria.limit + 1);
 }
 
 function clinicRepository(rows: Row[], calls: string[]): ClinicRepository {
@@ -125,8 +140,10 @@ const CLINIC_SESSIONS: Record<string, { clinicUserId: number; clinicId: number }
   "hash:session-clinic-b": { clinicUserId: 202, clinicId: CLINIC_B },
 };
 
-async function createApp(overrides: { clinicRepository?: ClinicRepository; adminRepository?: AdminRepository } = {}) {
-  const rows = synthetic();
+async function createApp(
+  overrides: { clinicRepository?: ClinicRepository; adminRepository?: AdminRepository; rows?: Row[] } = {},
+) {
+  const rows = overrides.rows ?? synthetic();
   const calls: string[] = [];
   const future = new Date("2099-01-01T00:00:00.000Z");
 
@@ -165,7 +182,7 @@ type Body = {
   success: boolean;
   error?: string;
   hits?: Hit[];
-  groups?: Array<{ kind: string; returned: number; hasMore: boolean }>;
+  groups?: Array<{ kind: string; returned: number; hasMore: boolean; nextCursor?: string | null }>;
 };
 
 async function get(app: Awaited<ReturnType<typeof createApp>>["app"], url: string, cookie?: string) {
@@ -377,6 +394,139 @@ test("global search admin: id numérico encuentra el registro exacto primero", a
     assert.equal(body.hits?.[0]?.kind, "report");
     assert.equal(body.hits?.[0]?.id, 901);
     assert.equal(body.hits?.[0]?.rank, 0);
+  } finally {
+    await app.close();
+  }
+});
+
+// ── GLOBAL-SEARCH-3A · keyset cursor through the routes ─────────────────────
+
+/**
+ * 1,200 «Serie» reports of clinic A (well past the 525 the offset window can
+ * reach), timestamps repeated seven at a time so page boundaries also cross
+ * ties broken by id, plus 40 homonyms of clinic B.
+ */
+function seriesRows(): Row[] {
+  const rows: Row[] = [];
+  for (let index = 1; index <= 1_200; index += 1) {
+    rows.push({
+      kind: "report",
+      id: index,
+      clinicId: CLINIC_A,
+      title: `Serie ${index}`,
+      date: new Date(Date.UTC(2025, 0, 1) + Math.floor(index / 7) * 60_000).toISOString(),
+    });
+  }
+  for (let index = 1; index <= 40; index += 1) {
+    rows.push({ kind: "report", id: 5_000 + index, clinicId: CLINIC_B, title: `Serie ${index}`, date: "2026-06-01T00:00:00.000Z" });
+  }
+  return rows;
+}
+
+function expectedSeriesOrder(): string[] {
+  return seriesRows()
+    .filter((row) => row.clinicId === CLINIC_A)
+    .sort((a, b) => Date.parse(b.date) - Date.parse(a.date) || b.id - a.id)
+    .map((row) => `report:${row.id}`);
+}
+
+async function followCursor(app: Awaited<ReturnType<typeof createApp>>["app"], base: string, cookie: string) {
+  const seen: string[] = [];
+  let cursor: string | null = null;
+  for (let page = 0; page < 1_000; page += 1) {
+    const url: string = cursor ? `${base}&cursor=${encodeURIComponent(cursor)}` : base;
+    const { response, body } = await get(app, url, cookie);
+    assert.equal(response.statusCode, 200, body.error ?? "unexpected status");
+    assert.equal(response.headers["cache-control"], "no-store");
+    seen.push(...(body.hits ?? []).map((hit) => `${hit.kind}:${hit.id}`));
+    const group = body.groups?.find((entry) => entry.kind === "report");
+    assert.equal(Boolean(group?.nextCursor), Boolean(group?.hasMore), "nextCursor exactly when hasMore");
+    cursor = group?.nextCursor ?? null;
+    if (!cursor) break;
+  }
+  return seen;
+}
+
+test("global search cursor: recorre los 1.200 resultados de una categoría, más allá del 525, sin duplicar ni omitir", async () => {
+  const { app } = await createApp({ rows: seriesRows() });
+  try {
+    const seen = await followCursor(app, "/api/search?q=serie&kinds=report&limit=25", CLINIC_A_COOKIE);
+    assert.deepEqual(seen, expectedSeriesOrder(), "same set, same deterministic order as the offset contract");
+    assert.equal(new Set(seen).size, seen.length);
+  } finally {
+    await app.close();
+  }
+});
+
+test("global search cursor: el orden por cursor es idéntico al orden por offset dentro de la ventana heredada", async () => {
+  const { app } = await createApp({ rows: seriesRows() });
+  try {
+    const byOffset: string[] = [];
+    for (let offset = 0; offset <= 500; offset += 25) {
+      const { body } = await get(app, `/api/search?q=serie&kinds=report&limit=25&offset=${offset}`, CLINIC_A_COOKIE);
+      byOffset.push(...(body.hits ?? []).map((hit) => `${hit.kind}:${hit.id}`));
+    }
+    const byCursor = (await followCursor(app, "/api/search?q=serie&kinds=report&limit=25", CLINIC_A_COOKIE)).slice(0, byOffset.length);
+    assert.deepEqual(byCursor, byOffset);
+    const beyond = await get(app, "/api/search?q=serie&kinds=report&limit=25&offset=525", CLINIC_A_COOKIE);
+    assert.equal(beyond.response.statusCode, 400, "the legacy offset window keeps its limit");
+  } finally {
+    await app.close();
+  }
+});
+
+test("global search cursor: «Todo» entrega un nextCursor por entidad y la vuelta exige esa entidad", async () => {
+  const rows = [
+    ...seriesRows(),
+    { kind: "particular_token" as const, id: 77, clinicId: CLINIC_A, title: "Serie mascota", date: "2026-01-01T00:00:00.000Z" },
+  ];
+  const { app } = await createApp({ rows });
+  try {
+    const { body } = await get(app, "/api/search?q=serie&limit=5", CLINIC_A_COOKIE);
+    const report = body.groups?.find((group) => group.kind === "report");
+    const token = body.groups?.find((group) => group.kind === "particular_token");
+    assert.equal(typeof report?.nextCursor, "string");
+    assert.equal(token?.nextCursor, null, "no continuation when the entity is exhausted");
+    const cursor = encodeURIComponent(report?.nextCursor ?? "");
+    const otherKind = await get(app, `/api/search?q=serie&kinds=particular_token&cursor=${cursor}`, CLINIC_A_COOKIE);
+    const allKinds = await get(app, `/api/search?q=serie&cursor=${cursor}`, CLINIC_A_COOKIE);
+    assert.deepEqual([otherKind, allKinds].map(({ response }) => response.statusCode), [400, 400]);
+  } finally {
+    await app.close();
+  }
+});
+
+test("global search cursor: un cursor de la clínica A no sirve a la clínica B, a otra consulta ni a Admin", async () => {
+  const { app } = await createApp({ rows: seriesRows() });
+  try {
+    const first = await get(app, "/api/search?q=serie&kinds=report&limit=25", CLINIC_A_COOKIE);
+    const cursor = encodeURIComponent(first.body.groups?.[0]?.nextCursor ?? "");
+    const otherClinic = await get(app, `/api/search?q=serie&kinds=report&limit=25&cursor=${cursor}`, CLINIC_B_COOKIE);
+    const otherQuery = await get(app, `/api/search?q=series&kinds=report&limit=25&cursor=${cursor}`, CLINIC_A_COOKIE);
+    const otherFilter = await get(app, `/api/search?q=serie&kinds=report&status=ready&limit=25&cursor=${cursor}`, CLINIC_A_COOKIE);
+    const adminSurface = await get(app, `/api/admin/search?q=serie&kinds=report&limit=25&cursor=${cursor}`, ADMIN_COOKIE);
+    const clinicOnAdmin = await get(app, `/api/admin/search?q=serie&kinds=report&limit=25&cursor=${cursor}`, CLINIC_A_COOKIE);
+    assert.deepEqual(
+      [otherClinic, otherQuery, otherFilter, adminSurface, clinicOnAdmin].map(({ response }) => response.statusCode),
+      [400, 400, 400, 400, 401],
+    );
+    assert.equal(otherClinic.body.error, "Cursor de búsqueda inválido");
+    assert.equal(JSON.stringify(otherClinic.body).includes("Serie"), false, "a rejection discloses no row");
+  } finally {
+    await app.close();
+  }
+});
+
+test("global search cursor: Admin queda atado a su filtro de clínica", async () => {
+  const { app } = await createApp({ rows: seriesRows() });
+  try {
+    const first = await get(app, `/api/admin/search?q=serie&kinds=report&limit=25&clinicId=${CLINIC_A}`, ADMIN_COOKIE);
+    const cursor = encodeURIComponent(first.body.groups?.[0]?.nextCursor ?? "");
+    const same = await get(app, `/api/admin/search?q=serie&kinds=report&limit=25&clinicId=${CLINIC_A}&cursor=${cursor}`, ADMIN_COOKIE);
+    const widened = await get(app, `/api/admin/search?q=serie&kinds=report&limit=25&cursor=${cursor}`, ADMIN_COOKIE);
+    const moved = await get(app, `/api/admin/search?q=serie&kinds=report&limit=25&clinicId=${CLINIC_B}&cursor=${cursor}`, ADMIN_COOKIE);
+    assert.deepEqual([same, widened, moved].map(({ response }) => response.statusCode), [200, 400, 400]);
+    assert.ok((same.body.hits ?? []).every((hit) => hit.target.clinicId === CLINIC_A));
   } finally {
     await app.close();
   }

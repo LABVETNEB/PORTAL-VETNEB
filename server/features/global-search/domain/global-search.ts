@@ -1,5 +1,8 @@
 import type { ReportStatus } from "../../../../drizzle/schema.ts";
 
+/** Upper bound of the raw `cursor` parameter (the codec emits far less). */
+const GLOBAL_SEARCH_CURSOR_MAX_LENGTH = 512;
+
 export const GLOBAL_SEARCH_MIN_QUERY_LENGTH = 2;
 export const GLOBAL_SEARCH_MAX_QUERY_LENGTH = 80;
 export const GLOBAL_SEARCH_DEFAULT_LIMIT = 5;
@@ -60,10 +63,21 @@ export type GlobalSearchNeedle = {
   readonly numericId: number | null;
 };
 
+/** Position after which a keyset page starts (see `global-search-cursor.ts`). */
+export type GlobalSearchAfter = {
+  readonly rank: number;
+  readonly sortKey: string;
+  readonly id: number;
+};
+
 export type GlobalSearchCriteria = {
   readonly needle: GlobalSearchNeedle;
   readonly limit: number;
   readonly offset: number;
+  /** Raw `cursor` parameter; verified by the use case against its context. */
+  readonly cursor: string | null;
+  /** Verified keyset position; set only by the use case, never by the parser. */
+  readonly after: GlobalSearchAfter | null;
   readonly reportStatus: ReportStatus | null;
   readonly studyType: string | null;
   readonly createdFrom: Date | null;
@@ -104,6 +118,8 @@ export type GlobalSearchGroup = {
   readonly kind: GlobalSearchKind;
   readonly returned: number;
   readonly hasMore: boolean;
+  /** Opaque continuation of this entity, present exactly when `hasMore`. */
+  readonly nextCursor: string | null;
 };
 
 export type GlobalSearchResult = {
@@ -265,6 +281,18 @@ export function parseGlobalSearchQuery<TKind extends GlobalSearchKind>(
     return invalid("La paginación requiere un único tipo de entidad");
   }
 
+  let cursor: string | null = null;
+
+  if (query.cursor !== undefined && query.cursor !== "") {
+    if (typeof query.cursor !== "string" || query.cursor.length > GLOBAL_SEARCH_CURSOR_MAX_LENGTH) {
+      return invalid("Cursor de búsqueda inválido");
+    }
+    if (offset > 0) {
+      return invalid("El cursor no se combina con offset");
+    }
+    cursor = query.cursor;
+  }
+
   let reportStatus: ReportStatus | null = null;
 
   if (query.status !== undefined && query.status !== "") {
@@ -302,6 +330,10 @@ export function parseGlobalSearchQuery<TKind extends GlobalSearchKind>(
     }
   }
 
+  if (cursor !== null && kinds.length !== 1) {
+    return invalid("El cursor requiere un único tipo de entidad");
+  }
+
   return {
     ok: true,
     kinds,
@@ -309,6 +341,8 @@ export function parseGlobalSearchQuery<TKind extends GlobalSearchKind>(
       needle: buildGlobalSearchNeedle(text),
       limit,
       offset,
+      cursor,
+      after: null,
       reportStatus,
       studyType,
       createdFrom,
@@ -341,33 +375,51 @@ export function compareGlobalSearchHits(a: GlobalSearchHit, b: GlobalSearchHit):
   );
 }
 
+/**
+ * Interleaves the entity pages. Each page is already in its SQL order (rank,
+ * the entity's own sort timestamp with microseconds, id), so rows are never
+ * re-sorted inside an entity: the comparator only picks between the heads of
+ * the different entities (k-way merge). Re-sorting a page by the display date
+ * would disagree with the SQL order (reports sort by `created_at` but show
+ * `upload_date`) and break the keyset continuation of that entity.
+ */
 export function mergeGlobalSearchHits(
   pages: ReadonlyArray<{ kind: GlobalSearchKind; rows: readonly GlobalSearchHit[] }>,
   limit: number,
 ): { hits: GlobalSearchHit[]; groups: GlobalSearchGroup[] } {
   const seen = new Set<string>();
-  const hits: GlobalSearchHit[] = [];
+  const queues: GlobalSearchHit[][] = [];
   const groups: GlobalSearchGroup[] = [];
 
   for (const page of pages) {
     const visible = page.rows.slice(0, limit);
-    let returned = 0;
+    const queue: GlobalSearchHit[] = [];
 
     for (const row of visible) {
       const key = `${row.kind}:${row.id}`;
       if (row.kind !== page.kind || seen.has(key)) continue;
       seen.add(key);
-      hits.push(row);
-      returned += 1;
+      queue.push(row);
     }
 
+    queues.push(queue);
     groups.push({
       kind: page.kind,
-      returned,
+      returned: queue.length,
       hasMore: page.rows.length > limit,
+      nextCursor: null,
     });
   }
 
-  hits.sort(compareGlobalSearchHits);
+  const hits: GlobalSearchHit[] = [];
+  for (;;) {
+    let best = -1;
+    for (let index = 0; index < queues.length; index += 1) {
+      const head = queues[index][0];
+      if (head && (best === -1 || compareGlobalSearchHits(head, queues[best][0]) < 0)) best = index;
+    }
+    if (best === -1) break;
+    hits.push(queues[best].shift() as GlobalSearchHit);
+  }
   return { hits, groups };
 }
