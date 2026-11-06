@@ -1333,6 +1333,21 @@ function handlePopulatedRequest(request, response, url) {
     return;
   }
 
+  // GLOBAL-SEARCH-3A · one workflow item by report id (Fastify
+  // GET /api/admin/report-workflow/:id): every admin dataset, so a deep link
+  // can target a report that the loaded queue page does not hold.
+  const workflowItemMatch = url.pathname.match(/^\/api\/admin\/report-workflow\/(\d+)$/);
+  if (workflowItemMatch) {
+    const reportId = Number(workflowItemMatch[1]);
+    const report = [...REPORTS, ...A03_ADMIN_REPORTS].find((item) => item.id === reportId);
+    if (!report) {
+      sendJson(response, 404, { success: false, error: "Informe no encontrado" });
+      return;
+    }
+    sendJson(response, 200, { success: true, report });
+    return;
+  }
+
   if (url.pathname === "/api/admin/report-workflow") {
     if (hasPopulatedAdminSession(request) && readCookieValue(request, C17_REPORT_ERROR_COOKIE_NAME) === "1") {
       sendJson(response, 503, { error: "synthetic unavailable" });
@@ -1471,6 +1486,21 @@ const server = createServer((request, response) => {
       200,
       hasLongTextDataset(request) ? withLongClinicReportText(page) : page,
     );
+    return;
+  }
+
+  // GLOBAL-SEARCH-3A · one report of the session's clinic by id (Fastify
+  // GET /api/reports/:reportId). Read by the Informes server component, so
+  // page.route cannot serve it. Ids outside the clinic dataset are the same 404.
+  const clinicReportMatch = url.pathname.match(/^\/api\/reports\/(\d+)$/);
+  if (hasPopulatedClinicSession(request) && clinicReportMatch) {
+    const reportId = Number(clinicReportMatch[1]);
+    const report = CLINIC_REPORTS.find((item) => item.id === reportId);
+    if (!report) {
+      sendJson(response, 404, { success: false, error: "Informe no encontrado" });
+      return;
+    }
+    sendJson(response, 200, { success: true, report });
     return;
   }
 

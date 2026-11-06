@@ -170,6 +170,15 @@
     outline-offset: 2px;
   }
 
+  /* GLOBAL-SEARCH-3A: the ModuleCard chip proxies are invisible fixed buttons
+     portalled to <body> at z-index 64, above the shell's stacking context and
+     therefore above the header's overflow menu: a tap on a menu row painted over
+     a chip row activated the chip instead. While the menu is open they take no
+     pointer input; the menu closes before any other surface opens. */
+  body:has([data-dashboard-mobile-kebab-menu="true"]) [data-module-card-chip-proxy] {
+    pointer-events: none;
+  }
+
   [data-vetneb-app-shell-surface] .dashboard-mobile-kebab-menu {
     position: absolute;
     top: calc(100% + 0.35rem);

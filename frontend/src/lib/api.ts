@@ -721,6 +721,44 @@ export async function searchDashboardGlobal(
   };
 }
 
+/**
+ * GLOBAL-SEARCH-3A: one report of the session's clinic by id. `null` when the
+ * server answers 404 (foreign, missing or deleted are indistinguishable by
+ * contract); any other failure throws.
+ */
+export async function getClinicReportById(
+  reportId: number,
+  options: RequestInit = {},
+): Promise<Report | null> {
+  try {
+    const res = await apiFetch<{ success?: boolean; report?: Report }>(
+      `/api/reports/${reportId}`,
+      { ...options, cache: "no-store" },
+    );
+    return res.report ?? null;
+  } catch (error) {
+    if (error instanceof ApiResponseError && error.status === 404) return null;
+    throw error;
+  }
+}
+
+/** GLOBAL-SEARCH-3A: one admin workflow item by report id; `null` on 404. */
+export async function getAdminReportWorkflowItem(
+  reportId: number,
+  options: RequestInit = {},
+): Promise<AdminReportWorkflowItem | null> {
+  try {
+    const res = await apiFetch<{ success?: boolean; report?: AdminReportWorkflowItem }>(
+      `/api/admin/report-workflow/${reportId}`,
+      { ...options, cache: "no-store" },
+    );
+    return res.report ?? null;
+  } catch (error) {
+    if (error instanceof ApiResponseError && error.status === 404) return null;
+    throw error;
+  }
+}
+
 type AdminReportUploadResponse = {
   success: true;
   message: string;

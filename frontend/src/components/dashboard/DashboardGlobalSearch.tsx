@@ -33,12 +33,16 @@ import {
   groupGlobalSearchHits,
   isGlobalSearchQueryReady,
   normalizeGlobalSearchInput,
+  readGlobalSearchSession,
   type GlobalSearchHit,
   type GlobalSearchSurface,
 } from "@/lib/global-search";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
-import { DashboardGlobalSearchDialog } from "./DashboardGlobalSearchDialog";
+import {
+  DashboardGlobalSearchDialog,
+  type DashboardGlobalSearchOpenRequest,
+} from "./DashboardGlobalSearchDialog";
 import { useDashboardGlobalSearch } from "./useDashboardGlobalSearch";
 
 type ModuleEntry = { readonly moduleId: string; readonly label: string };
@@ -48,9 +52,6 @@ type SearchOption =
   | { readonly type: "hit"; readonly key: string; readonly hit: GlobalSearchHit }
   | { readonly type: "all"; readonly key: string };
 
-type DialogState =
-  | { readonly open: false }
-  | { readonly open: true; readonly query: string; readonly hit: GlobalSearchHit | null };
 
 function matchModules(entries: readonly ModuleEntry[], query: string): readonly ModuleEntry[] {
   const needle = foldGlobalSearchText(query);
@@ -143,10 +144,11 @@ export function DashboardGlobalSearch({ surface }: { readonly surface: GlobalSea
   const listboxId = useId();
   const statusId = useId();
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(() => readGlobalSearchSession(surface)?.query ?? "");
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [dialog, setDialog] = useState<DialogState>({ open: false });
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [openRequest, setOpenRequest] = useState<DashboardGlobalSearchOpenRequest | null>(null);
 
   const normalized = normalizeGlobalSearchInput(query);
   const ready = isGlobalSearchQueryReady(query);
@@ -181,9 +183,12 @@ export function DashboardGlobalSearch({ surface }: { readonly surface: GlobalSea
   const active = options.length > 0 ? options[Math.min(activeIndex, options.length - 1)] : undefined;
   const expanded = open && options.length > 0;
 
+  // An empty query reopens the last search session (query, filters, page,
+  // open record); a query or a chosen hit starts or updates it.
   const openDialog = useCallback((nextQuery: string, hit: GlobalSearchHit | null) => {
     setOpen(false);
-    setDialog({ open: true, query: nextQuery, hit });
+    setOpenRequest((previous) => ({ id: (previous?.id ?? 0) + 1, query: nextQuery, hit }));
+    setDialogOpen(true);
   }, []);
 
   const select = useCallback(
@@ -430,16 +435,13 @@ export function DashboardGlobalSearch({ surface }: { readonly surface: GlobalSea
 
       <DashboardGlobalSearchDialog
         surface={surface}
-        open={dialog.open}
-        initialQuery={dialog.open ? dialog.query : ""}
-        initialHit={dialog.open ? dialog.hit : null}
-        onOpenChange={(next) => {
-          if (!next) setDialog({ open: false });
-        }}
+        open={dialogOpen}
+        request={openRequest}
+        onOpenChange={setDialogOpen}
         returnFocusRef={inputRef}
         onOpenDestination={(destination) => {
-          setDialog({ open: false });
-          setQuery("");
+          // The bar keeps the query: reopening the search restores the session.
+          setDialogOpen(false);
           router.push(destination);
         }}
       />

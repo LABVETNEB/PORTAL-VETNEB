@@ -124,7 +124,9 @@ test("dashboard informes composes profile-layout list, selected report detail, t
   assert.ok(listSource.includes("const selectedReport ="));
   assert.ok(listSource.includes("selectedReportId === null"));
   assert.ok(listSource.includes("? (reports[0] ?? null)"));
-  assert.ok(listSource.includes(": (reports.find((report) => report.id === selectedReportId) ?? null)"));
+  // GLOBAL-SEARCH-3A: the only fallback is the deep-linked report, read by id.
+  assert.ok(listSource.includes(": (reports.find((report) => report.id === selectedReportId) ??"));
+  assert.ok(listSource.includes("(focusedReport?.id === selectedReportId ? focusedReport : null));"));
   assert.ok(listSource.includes("result.reports.some((report) => report.id === current)"));
   assert.ok(listSource.includes(": (result.reports[0]?.id ?? null)"));
   assert.ok(listSource.includes('id="reports-master-list"'));
@@ -216,7 +218,10 @@ test("dashboard informes reportId null selects first report by default without s
 
   assert.ok(source.includes("selectedReportId === null"));
   assert.ok(source.includes("? (reports[0] ?? null)"));
-  assert.ok(source.includes(": (reports.find((report) => report.id === selectedReportId) ?? null)"));
+  assert.ok(source.includes(": (reports.find((report) => report.id === selectedReportId) ??"));
+  // GLOBAL-SEARCH-3A: off the page, only the report the deep link resolved by
+  // id may be selected — never another one.
+  assert.ok(source.includes("(focusedReport?.id === selectedReportId ? focusedReport : null));"));
   assert.equal(source.includes("?? reports[0] ?? null"), false);
 });
 
