@@ -10,6 +10,14 @@ process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 
 const { ENV } = await import("../../../../server/lib/env.ts");
 const { createFastifyApp } = await import("../../../../server/fastify-app.ts");
+type RateLimitStore = import("../../../../server/lib/rate-limit-store.ts").RateLimitStore;
+
+/** Search-only suites run without a budget; GLOBAL-SEARCH-3C has its own suites. */
+const unlimitedSearchBudget = (): RateLimitStore => ({
+  get: () => undefined,
+  set: () => {},
+  consume: (_key, input) => ({ count: 0, resetAt: input.now + input.windowMs }),
+});
 type ClinicRepository = import("../../../../server/features/global-search/index.ts").ClinicGlobalSearchRepository;
 type AdminRepository = import("../../../../server/features/global-search/index.ts").AdminGlobalSearchRepository;
 type Criteria = import("../../../../server/features/global-search/index.ts").GlobalSearchCriteria;
@@ -162,6 +170,7 @@ async function createApp(
       },
       updateSessionLastAccess: async () => {},
       hashSessionToken: (token) => `hash:${token}`,
+      searchRateLimitStore: unlimitedSearchBudget(),
       searchRepository: overrides.clinicRepository ?? clinicRepository(rows, calls),
     },
     adminGlobalSearchRoutes: {
@@ -171,6 +180,7 @@ async function createApp(
       getAdminUserById: async (adminUserId) => (adminUserId === 1 ? { id: 1, username: "admin" } : null),
       updateAdminSessionLastAccess: async () => {},
       hashSessionToken: (token) => `hash:${token}`,
+      searchRateLimitStore: unlimitedSearchBudget(),
       searchRepository: overrides.adminRepository ?? adminRepository(rows, calls),
     },
   });

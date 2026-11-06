@@ -391,6 +391,63 @@ export async function consumeLoginRateLimitAttempt(input: {
   return result[0];
 }
 
+/**
+ * GLOBAL-SEARCH-3C: charges `units` to a fixed window in one atomic upsert.
+ * The row lock of `ON CONFLICT` serializes concurrent charges from every
+ * backend instance; the returned count already includes this charge.
+ */
+export async function consumeRateLimitUnits(input: {
+  keyHash: string;
+  resetAt: Date;
+  now: Date;
+  units?: number;
+}) {
+  const units = input.units ?? 1;
+
+  if (!Number.isInteger(units) || units < 1) {
+    throw new Error("Rate limit units must be a positive integer");
+  }
+
+  // postgres@4 does not serialize a Date bound inside raw SQL: send the same
+  // UTC instant the column mapper writes, as text cast to the column type.
+  const now = sql`${input.now.toISOString()}::timestamp`;
+  const resetAt = sql`${input.resetAt.toISOString()}::timestamp`;
+
+  const result = await db
+    .insert(loginRateLimits)
+    .values({
+      keyHash: input.keyHash,
+      count: units,
+      resetAt: input.resetAt,
+      createdAt: input.now,
+      updatedAt: input.now,
+    })
+    .onConflictDoUpdate({
+      target: loginRateLimits.keyHash,
+      set: {
+        count: sql<number>`
+          CASE
+            WHEN ${loginRateLimits.resetAt} <= ${now} THEN ${units}::integer
+            ELSE ${loginRateLimits.count} + ${units}::integer
+          END
+        `,
+        resetAt: sql<Date>`
+          CASE
+            WHEN ${loginRateLimits.resetAt} <= ${now} THEN ${resetAt}
+            ELSE ${loginRateLimits.resetAt}
+          END
+        `,
+        updatedAt: input.now,
+      },
+    })
+    .returning({
+      count: loginRateLimits.count,
+      resetAt: loginRateLimits.resetAt,
+    });
+
+  return result[0];
+}
+
 export async function deleteExpiredLoginRateLimitEntries(now: Date) {
   await db
     .delete(loginRateLimits)

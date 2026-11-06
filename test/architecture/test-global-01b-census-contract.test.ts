@@ -955,11 +955,13 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     section: "§13",
     metric: "specs que mutan process.env",
     historical: 11,
+    baseline: 15,
     compute: () =>
       classification.specs.filter((spec) => spec.mutatesProcessEnv).length,
-    resolution: "REPRODUCED",
+    resolution: "RECLASSIFIED",
     guard: BAND,
-    motive: "Señal de determinismo, acotada a orden intra-archivo (§13.2).",
+    motive:
+      "Señal de determinismo, acotada a orden intra-archivo (§13.2). Re-anclaje 11 -> 15 (GLOBAL-SEARCH-3C): main@c8f530a9e96a5a251ea2bf1aa529d4d8fa7443b7 producía 13 dentro de la banda 11 +- 3 (tope 14); esta PR suma exactamente +2 con global-search-rate-limit.fastify.test.ts y global-search-rate-limit-postgres.fastify.test.ts, que fijan con `??=` el entorno sintético antes de importar `server/lib/env.ts`, igual que las suites de búsqueda vecinas, y deja el valor medido en 15. Sin ampliar GROWTH_TOLERANCE ni excluir specs.",
   },
   {
     row: "A0-13-ENV",

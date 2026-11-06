@@ -27,6 +27,14 @@ for (const name of ["DATABASE_URL", "SUPABASE_DB_URL"] as const) {
 
 const { db, closeDbConnection, pgClient } = await import("../../../server/db.ts");
 const { createFastifyApp } = await import("../../../server/fastify-app.ts");
+type RateLimitStore = import("../../../server/lib/rate-limit-store.ts").RateLimitStore;
+
+/** Search-only suites run without a budget; GLOBAL-SEARCH-3C has its own suites. */
+const unlimitedSearchBudget = (): RateLimitStore => ({
+  get: () => undefined,
+  set: () => {},
+  consume: (_key, input) => ({ count: 0, resetAt: input.now + input.windowMs }),
+});
 const { ENV } = await import("../../../server/lib/env.ts");
 const { clinics, reports } = await import("../../../drizzle/schema.ts");
 const infrastructure = await import("../../../server/features/global-search/infrastructure/index.ts");
@@ -116,6 +124,7 @@ test("GLOBAL-SEARCH-CURSOR-DB: el cursor recorre 2k/10k/25k completos, aislado, 
       getClinicUserById: async (id) => ({ id, clinicId: id === 1 ? clinicA : clinicB, username: `u${id}`, role: "clinic_staff" }),
       updateSessionLastAccess: async () => {},
       hashSessionToken: (token) => `hash:${token}`,
+      searchRateLimitStore: unlimitedSearchBudget(),
     },
     adminGlobalSearchRoutes: {
       deleteAdminSession: async () => {},
@@ -124,6 +133,7 @@ test("GLOBAL-SEARCH-CURSOR-DB: el cursor recorre 2k/10k/25k completos, aislado, 
       getAdminUserById: async () => ({ id: 1, username: "admin" }),
       updateAdminSessionLastAccess: async () => {},
       hashSessionToken: (token) => `hash:${token}`,
+      searchRateLimitStore: unlimitedSearchBudget(),
     },
   });
   t.after(() => app.close());

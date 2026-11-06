@@ -15,7 +15,7 @@ export type RateLimitStore = {
   ) => RateLimitEntry | Promise<RateLimitEntry>;
   consume?: (
     key: string,
-    input: { windowMs: number; now: number },
+    input: { windowMs: number; now: number; units?: number },
   ) => RateLimitEntry | Promise<RateLimitEntry>;
   cleanupExpired?: (now: number) => void | Promise<void>;
   delete?: (key: string) => void | Promise<void>;
@@ -55,6 +55,8 @@ export type PersistentRateLimitStoreAdapter = {
     keyHash: string;
     resetAt: Date;
     now: Date;
+    /** Units charged by this attempt; adapters that only count attempts ignore it. */
+    units?: number;
     metadata?: PersistentRateLimitMetadata;
   }) => PersistentRateLimitRecord | Promise<PersistentRateLimitRecord>;
   cleanupExpired?: (now: Date) => void | Promise<void>;
@@ -86,6 +88,18 @@ export function createMemoryRateLimitStore(): RateLimitStore {
     },
     delete: (key) => {
       entries.delete(key);
+    },
+    consume: (key, input) => {
+      const current = entries.get(key);
+      const units = input.units ?? 1;
+      const updated =
+        !current || current.resetAt <= input.now
+          ? { count: units, resetAt: input.now + input.windowMs }
+          : { count: current.count + units, resetAt: current.resetAt };
+
+      entries.set(key, updated);
+
+      return updated;
     },
     increment: (key, entry) => {
       const current = entries.get(key);
@@ -186,6 +200,7 @@ export function createPersistentRateLimitStore(
           keyHash: hashRateLimitKey(key),
           resetAt: toPersistentDate(now + input.windowMs),
           now: toPersistentDate(now),
+          ...(input.units === undefined ? {} : { units: input.units }),
           metadata: getMetadata(key),
         }),
       );
@@ -258,10 +273,14 @@ export async function incrementRateLimitEntry(
 export async function consumeRateLimitAttempt(
   store: RateLimitStore,
   key: string,
-  input: { windowMs: number; now: number },
+  input: { windowMs: number; now: number; units?: number },
 ): Promise<RateLimitEntry> {
   if (store.consume) {
     return store.consume(key, input);
+  }
+
+  if (input.units !== undefined && input.units !== 1) {
+    throw new Error("Rate limit store cannot charge more than one unit atomically");
   }
 
   const entry = await getOrCreateRateLimitEntry(
