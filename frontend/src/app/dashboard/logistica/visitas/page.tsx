@@ -222,7 +222,9 @@ export default async function VisitasPage({
                       <FieldVisitDetailDialog visit={visit} trigger="identifier" />
                     </TableCell>
                     <TableCell className="font-medium text-sm">
-                      {visit.clinicName ?? `Clínica #${visit.clinicId}`}
+                      <span className="line-clamp-2">
+                        {visit.clinicName ?? `Clínica #${visit.clinicId}`}
+                      </span>
                     </TableCell>
                     <TableCell className="max-w-[180px] truncate text-sm text-vetneb-ink/75">
                       {visit.address ?? "—"}
