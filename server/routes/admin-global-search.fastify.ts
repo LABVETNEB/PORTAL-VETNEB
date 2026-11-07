@@ -189,7 +189,7 @@ export const adminGlobalSearchNativeRoutes: FastifyPluginAsync<
 
     applyCorsHeaders(request, reply, allowedOrigins);
     reply.header("access-control-allow-methods", "GET,OPTIONS");
-    reply.header("access-control-allow-headers", "content-type");
+    reply.header("access-control-allow-headers", String(request.headers["access-control-request-headers"] ?? "content-type"));
     return reply.code(204).send();
   });
 
