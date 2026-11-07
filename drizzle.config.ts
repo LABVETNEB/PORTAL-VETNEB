@@ -1,15 +1,12 @@
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import dotenv from "dotenv";
 import { defineConfig } from "drizzle-kit";
+import { resolveDrizzleDbUrl } from "./scripts/db/resolve-drizzle-db-url.mjs";
 
-dotenv.config({ override: true });
-
-const dbUrl = process.env.SUPABASE_DB_URL || process.env.DATABASE_URL;
-
-if (!dbUrl) {
-  throw new Error(
-    "Falta SUPABASE_DB_URL o DATABASE_URL en el archivo .env",
-  );
-}
+const envPath = resolve(process.cwd(), ".env");
+const dotenvEnv = existsSync(envPath) ? dotenv.parse(readFileSync(envPath)) : {};
+const dbUrl = resolveDrizzleDbUrl(process.env, dotenvEnv);
 
 export default defineConfig({
   schema: "./drizzle/schema.ts",
