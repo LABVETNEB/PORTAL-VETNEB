@@ -79,9 +79,12 @@ export const LIGHT_LIST_FONT_SIZE_BASELINE: Readonly<Record<string, Readonly<Rec
   "clinic-log-rutas@w834x1194": {"12": 15, "14": 22, "16": 1},
   "clinic-log-rutas@w390x844": {"11": 3, "12": 21, "16": 1},
   "clinic-log-visitas@w1920x945": {"12": 15, "14": 26, "16": 1},
-  "clinic-log-visitas@w1366x768": {"12": 15, "14": 26, "16": 1},
-  "clinic-log-visitas@w1280x720": {"12": 15, "14": 26, "16": 1},
-  "clinic-log-visitas@w834x1194": {"12": 15, "14": 26, "16": 1},
+  // clinic-log-visitas (PR #1976): Dirección and Notas are display:none at 1280-1439 px and
+  // <=1100 px, Completada too at <=1100 px (four rows: 26 -> 18 and 26 -> 14 fourteen-px
+  // cells). Sizes are unchanged; the hidden fields stay in the visit detail dialog.
+  "clinic-log-visitas@w1366x768": {"12": 15, "14": 18, "16": 1},
+  "clinic-log-visitas@w1280x720": {"12": 15, "14": 18, "16": 1},
+  "clinic-log-visitas@w834x1194": {"12": 15, "14": 14, "16": 1},
   "clinic-log-visitas@w390x844": {"11": 3, "12": 18, "16": 1, "10.88": 3},
   "clinic-logistica-full@w1920x945": {"11": 7, "12": 29, "14": 1, "16": 7, "10.88": 4},
   "clinic-logistica-full@w1366x768": {"11": 7, "12": 29, "14": 1, "16": 7, "10.88": 4},
