@@ -1255,6 +1255,32 @@ function handlePopulatedRequest(request, response, url) {
   if (url.pathname === "/api/admin/study-tracking/notifications") {
     const limit = Number(url.searchParams.get("limit") ?? 20);
     const offset = Number(url.searchParams.get("offset") ?? 0);
+    if (
+      hasPopulatedAdminSession(request) &&
+      readCookieValue(request, "e2e_admin_notification_dataset") === "1"
+    ) {
+      sendJson(response, 200, {
+        success: true,
+        count: 1,
+        notifications: [
+          {
+            id: 9001,
+            studyTrackingCaseId: 0,
+            clinicId: 1,
+            reportId: null,
+            particularTokenId: null,
+            type: "audit",
+            title: "Evento de auditoría",
+            message: "Sintético",
+            isRead: true,
+            readAt: "2026-01-01T00:00:00.000Z",
+            createdAt: "2026-01-01T00:00:00.000Z",
+          },
+        ],
+        pagination: { limit, offset },
+      });
+      return;
+    }
     sendJson(response, 200, {
       success: true,
       count: hasAdminVisualStressDataset(request) ? 6 : 0,

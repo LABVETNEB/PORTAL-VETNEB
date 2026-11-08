@@ -837,36 +837,9 @@ test.describe("B08 · admin module navigation", () => {
     await prepareRole(page, "admin");
     await page.setViewportSize({ width: 1024, height: 768 });
 
-    await page.route(/\/api\/admin\/study-tracking\/notifications(\?|$)/, async (route) => {
-      const origin = route.request().headers()["origin"];
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        headers: origin
-          ? { "access-control-allow-origin": origin, "access-control-allow-credentials": "true", vary: "Origin" }
-          : {},
-        body: JSON.stringify({
-          success: true,
-          count: 1,
-          notifications: [
-            {
-              id: 9001,
-              studyTrackingCaseId: 0,
-              clinicId: 1,
-              reportId: null,
-              particularTokenId: null,
-              type: "audit",
-              title: "Evento de auditoría",
-              message: "Sintético",
-              isRead: true,
-              readAt: "2026-01-01T00:00:00.000Z",
-              createdAt: "2026-01-01T00:00:00.000Z",
-            },
-          ],
-          pagination: { limit: 10, offset: 0 },
-        }),
-      });
-    });
+    await addAppCookies(page, [
+      { name: "e2e_admin_notification_dataset", value: "1" },
+    ]);
 
     // `next dev` does not hydrate a document served through `route.fulfill`
     // and hydrates its shell only after every reveal, so the window exists
