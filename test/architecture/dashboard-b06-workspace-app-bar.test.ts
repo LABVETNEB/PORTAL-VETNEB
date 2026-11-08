@@ -408,7 +408,7 @@ test("B06 · the app bar only renders the injected search; the orchestrator owns
   );
 });
 
-test("B06 · global search queries the authorized API and keeps module shortcuts on the ?module= grammar", () => {
+test("B06 · global search queries the authorized API and never suggests modules", () => {
   const source = read(GLOBAL_SEARCH_TSX);
   const executable = stripComments(source);
 
@@ -445,16 +445,10 @@ test("B06 · global search queries the authorized API and keeps module shortcuts
     assert.equal(/<a[\s>]/.test(body), false, `${file} navigates with an anchor element`);
   }
 
-  // Module shortcuts read the canonical catalog and honour the owner (DT-10).
-  assert.ok(source.includes("ADMIN_MODULE_NAV_LABELS"));
-  assert.ok(source.includes("CLINIC_MODULE_NAV_LABELS"));
-  assert.ok(source.includes('from "@/features/dashboard/config"'));
-  assert.ok(source.includes("buildDashboardModuleHref"));
-  assert.ok(source.includes('from "@/features/dashboard/application"'));
-  assert.ok(
-    source.includes("if (!claimed) router.push(buildDashboardModuleHref(basePath, option.entry.moduleId));"),
-    "navigation must go through the existing router control pattern",
-  );
+  // The bar never suggests modules: no catalog, no module activation.
+  for (const retired of ["MODULE_NAV_LABELS", "buildDashboardModuleHref", "ModuleActivate", "Ir a módulo", 'type: "module"']) {
+    assert.equal(executable.includes(retired), false, `the record search must not carry ${retired}`);
+  }
 
   // Accessible combobox, keyboard-operable, with a polite status region.
   assert.ok(source.includes('role="combobox"'));
