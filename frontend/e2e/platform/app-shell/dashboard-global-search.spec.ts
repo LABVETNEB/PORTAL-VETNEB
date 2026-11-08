@@ -762,7 +762,7 @@ test.describe("GLOBAL-SEARCH-2 · Buscar en VETNEB", () => {
     });
   });
 
-  test("keyboard only: arrows, Enter on a record, Escape restores focus; module shortcuts still work", async ({ page }) => {
+  test("keyboard only: arrows, Enter on a record, Escape restores focus", async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 768 });
     await installSearchStub(page);
     await openWorkspace(page, "clinic");
@@ -789,14 +789,35 @@ test.describe("GLOBAL-SEARCH-2 · Buscar en VETNEB", () => {
     await expect(dialog).toBeHidden();
     await expect(input, "focus returns to the search").toBeFocused();
 
-    await input.fill("informes");
-    await expect(page.locator('[data-workspace-app-bar-search-option="informes"]')).toBeVisible();
-    await input.press("Enter");
-    await expect(page).toHaveURL(/[?&]module=informes|\/dashboard\/informes/, { timeout: 25_000 });
-
     await page.keyboard.press("Control+k");
     await expect(page.locator(INPUT).filter({ visible: true })).toBeFocused();
   });
+
+  for (const role of ["clinic", "admin"] as const) {
+    test(`${role}: the bar never suggests modules, empty or typed`, async ({ page }) => {
+      await page.setViewportSize({ width: 1366, height: 768 });
+      await installSearchStub(page);
+      await openWorkspace(page, role);
+      const input = await hydratedInput(page);
+      const results = page.locator('[data-workspace-app-bar-search-results="true"]');
+      const options = page.locator("[data-workspace-app-bar-search-option]");
+
+      await input.focus();
+      await expect(input).toHaveAttribute("aria-expanded", "false");
+      await expect(results).toBeHidden();
+      await expect(page.getByText("Ir a módulo")).toHaveCount(0);
+      await expect(options).toHaveCount(0);
+
+      await input.press("ArrowDown");
+      await expect(results).toBeHidden();
+
+      await input.fill("informes");
+      await expect(options).toHaveCount(0);
+      await expect(page.getByText("Ir a módulo")).toHaveCount(0);
+      await expect(page.locator('[data-global-search-see-all="true"]')).toBeVisible();
+      expect(await documentScroll(page)).toEqual({ vertical: 0, horizontal: 0 });
+    });
+  }
 
   test("dark theme keeps suggestions and dialog accessible, with zero document scroll", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });

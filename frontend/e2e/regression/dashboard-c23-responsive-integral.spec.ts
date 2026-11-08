@@ -125,25 +125,17 @@ test.describe("C23a · one navigation owner per band in the 13 canonical viewpor
     });
   }
 
-  test("the global search lists only the role catalog and is driven by keyboard", async ({ page }) => {
+  test("the global search shows no module catalog on focus", async ({ page }) => {
     test.setTimeout(90_000);
     await page.setViewportSize({ width: 1024, height: 768 });
     for (const role of ["clinic", "admin"] as const) {
       await openSurface(page, role);
       const input = painted(page, SEARCH_INPUT);
       await input.focus();
-      const options = page.locator("[data-workspace-app-bar-search-option]");
-      await expect(options.first()).toBeVisible();
-      expectRoleBounded(role, await navigationIds(page.locator('[data-workspace-app-bar-search-results="true"]'), "data-workspace-app-bar-search-option"), `${role} search`);
-      await page.keyboard.press("Escape");
+      await expect(page.locator("[data-workspace-app-bar-search-option]")).toHaveCount(0);
       await expect(page.locator('[data-workspace-app-bar-search-results="true"]')).toBeHidden();
-      await expect(input, `${role}: Escape keeps focus in the search`).toBeFocused();
+      await expect(input).toHaveAttribute("aria-expanded", "false");
     }
-    const input = painted(page, SEARCH_INPUT);
-    await input.fill("audit");
-    await page.keyboard.press("Enter");
-    await expect(page).toHaveURL(/[?&]module=audit-log/);
-    await expectOneCurrent(painted(page, RAIL), "data-dashboard-navigation-item", "audit-log", "admin search");
   });
 });
 

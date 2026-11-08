@@ -15,17 +15,9 @@ import { ArrowRight, LoaderCircle, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import {
-  ADMIN_MODULE_NAV_LABELS,
-  CLINIC_MODULE_NAV_LABELS,
-} from "@/features/dashboard/config";
-import { buildDashboardModuleHref } from "@/features/dashboard/application";
-import { requestAdminModuleActivate } from "@/lib/admin-hub-reset";
-import { requestClinicModuleActivate } from "@/lib/clinic-hub-reset";
-import {
   DASHBOARD_GLOBAL_SEARCH_OPEN_EVENT,
   EMPTY_GLOBAL_SEARCH_FILTERS,
   GLOBAL_SEARCH_SUGGESTION_LIMIT,
-  foldGlobalSearchText,
   formatGlobalSearchDate,
   globalSearchHitKey,
   globalSearchKindLabel,
@@ -37,7 +29,6 @@ import {
   type GlobalSearchHit,
   type GlobalSearchSurface,
 } from "@/lib/global-search";
-import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import {
   DashboardGlobalSearchDialog,
@@ -45,23 +36,10 @@ import {
 } from "./DashboardGlobalSearchDialog";
 import { useDashboardGlobalSearch } from "./useDashboardGlobalSearch";
 
-type ModuleEntry = { readonly moduleId: string; readonly label: string };
-
 type SearchOption =
-  | { readonly type: "module"; readonly key: string; readonly entry: ModuleEntry }
   | { readonly type: "hit"; readonly key: string; readonly hit: GlobalSearchHit }
   | { readonly type: "all"; readonly key: string };
 
-
-function matchModules(entries: readonly ModuleEntry[], query: string): readonly ModuleEntry[] {
-  const needle = foldGlobalSearchText(query);
-  if (!needle) return entries;
-  return entries.filter(
-    (entry) =>
-      foldGlobalSearchText(entry.label).includes(needle) ||
-      foldGlobalSearchText(entry.moduleId).includes(needle),
-  );
-}
 
 function optionDomId(listboxId: string, option: SearchOption): string {
   return `${listboxId}-${option.key.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
@@ -119,27 +97,15 @@ function SearchOptionRow({
  *
  * The top-bar combobox searches REAL records through the authorized API
  * (`/api/search` for Clínica, `/api/admin/search` for Admin), debounced and
- * cancellable, grouped by entity. Module shortcuts stay as a secondary "Ir a"
- * group so the bar keeps its module navigation, but they are no longer the
- * search corpus. Choosing a record opens it in the record view of the full
- * search dialog, which resolves it by id - it never depends on the row being
- * loaded in the current module page.
+ * cancellable, grouped by entity. Module names are never suggested. Choosing a record opens it
+ * in the record view of the full search dialog, which resolves it by id - it
+ * never depends on the row being loaded in the current module page.
  *
  * Navigation uses the router control pattern (button + router.push); link
  * elements are forbidden for in-app routing (AGENTS.md 10).
  */
 export function DashboardGlobalSearch({ surface }: { readonly surface: GlobalSearchSurface }) {
   const router = useRouter();
-  const isAdmin = surface === "admin";
-  const basePath = isAdmin ? ROUTES.dashboardAdmin : ROUTES.dashboard;
-  const modules = useMemo<readonly ModuleEntry[]>(
-    () =>
-      (isAdmin ? ADMIN_MODULE_NAV_LABELS : CLINIC_MODULE_NAV_LABELS).map((item) => ({
-        moduleId: item.moduleId,
-        label: item.label,
-      })),
-    [isAdmin],
-  );
 
   const listboxId = useId();
   const statusId = useId();
@@ -161,24 +127,19 @@ export function DashboardGlobalSearch({ surface }: { readonly surface: GlobalSea
   );
   const search = useDashboardGlobalSearch(surface, request);
 
-  const moduleMatches = useMemo(() => matchModules(modules, query), [modules, query]);
   const hitGroups = useMemo(
     () => (search.status === "ready" && search.result ? groupGlobalSearchHits(surface, search.result) : []),
     [search.result, search.status, surface],
   );
 
   const options = useMemo<readonly SearchOption[]>(() => {
-    const list: SearchOption[] = moduleMatches.map((entry) => ({
-      type: "module",
-      key: `module:${entry.moduleId}`,
-      entry,
-    }));
+    const list: SearchOption[] = [];
     for (const group of hitGroups) {
       for (const hit of group.hits) list.push({ type: "hit", key: globalSearchHitKey(hit), hit });
     }
     if (ready) list.push({ type: "all", key: "all" });
     return list;
-  }, [hitGroups, moduleMatches, ready]);
+  }, [hitGroups, ready]);
 
   const active = options.length > 0 ? options[Math.min(activeIndex, options.length - 1)] : undefined;
   const expanded = open && options.length > 0;
@@ -194,22 +155,9 @@ export function DashboardGlobalSearch({ surface }: { readonly surface: GlobalSea
   const select = useCallback(
     (option: SearchOption | undefined) => {
       if (!option) return;
-      if (option.type === "module") {
-        setOpen(false);
-        setQuery("");
-        setActiveIndex(0);
-        inputRef.current?.blur();
-        // Same optimistic activation as every module destination. A claimed
-        // request is navigated by the controller (single flight).
-        const claimed = isAdmin
-          ? requestAdminModuleActivate(option.entry.moduleId)
-          : requestClinicModuleActivate(option.entry.moduleId);
-        if (!claimed) router.push(buildDashboardModuleHref(basePath, option.entry.moduleId));
-        return;
-      }
       openDialog(normalized, option.type === "hit" ? option.hit : null);
     },
-    [basePath, isAdmin, normalized, openDialog, router],
+    [normalized, openDialog],
   );
 
   const onChoose = useCallback(
@@ -306,7 +254,6 @@ export function DashboardGlobalSearch({ surface }: { readonly surface: GlobalSea
     </SearchOptionRow>
   );
 
-  const moduleOptions = options.filter((option) => option.type === "module");
   const allOption = options.find((option) => option.type === "all");
 
   return (
@@ -363,22 +310,6 @@ export function DashboardGlobalSearch({ surface }: { readonly surface: GlobalSea
             hidden={!expanded}
             className="max-h-[min(26rem,60dvh)] overflow-y-auto overscroll-contain"
           >
-            {moduleOptions.length > 0 ? (
-              <li role="presentation">
-                <ul role="group" aria-label="Ir a módulo">
-                  <li role="presentation" aria-hidden="true" className="px-4 pb-1 pt-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Ir a módulo
-                  </li>
-                  {moduleOptions.map((option) =>
-                    option.type === "module"
-                      ? renderOption(option, <span className="truncate">{option.entry.label}</span>, {
-                          "data-workspace-app-bar-search-option": option.entry.moduleId,
-                        })
-                      : null,
-                  )}
-                </ul>
-              </li>
-            ) : null}
             {hitGroups.map((group) => (
               <li role="presentation" key={group.kind}>
                 <ul role="group" aria-label={globalSearchKindLabel(group.kind)} data-global-search-group={group.kind}>

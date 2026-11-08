@@ -476,7 +476,6 @@ test("every clinic module destination asks the owner first, the hub's own cards 
     "frontend/src/components/dashboard/NavigationRail.tsx",
     "frontend/src/components/dashboard/DashboardMobileNav.tsx",
     "frontend/src/components/dashboard/DashboardMobileKebabMenu.tsx",
-    "frontend/src/components/dashboard/DashboardGlobalSearch.tsx",
     "frontend/src/components/dashboard/ClinicModuleHub.tsx",
   ]) {
     assert.ok(read(path).includes("requestClinicModuleActivate("), `${path} asks the clinic owner`);

@@ -684,8 +684,8 @@ test("the scan sees the calls it rules on, where they are", () => {
   );
   assert.deepEqual(
     router.filter((call) => call.destination === "module").map((call) => `${call.file} ${call.guard}`),
-    [`${MODULE_SEARCH} !claimed`],
-    "DT-10: the only module href pushed by hand is the one the owner declined",
+    [],
+    "DT-10: no module href is pushed by hand; the record search never navigates modules",
   );
   assert.deepEqual(
     all.filter((call) => call.family === "history"),
@@ -790,25 +790,7 @@ test("fail-closed: the provider navigates through its interpreter and nowhere el
   );
 });
 
-test("fail-closed: the DT-10 fallback is the declined request, not a navigation of its own", () => {
-  const fallback = "if (!claimed) router.push(buildDashboardModuleHref(basePath, option.entry.moduleId));";
-
-  assertBreach(
-    mutated(MODULE_SEARCH, fallback, "router.push(buildDashboardModuleHref(basePath, option.entry.moduleId));"),
-    new RegExp(`^${MODULE_SEARCH}: router\\.push.*outside the owner`),
-    "the module search pushing a claimed request",
-  );
-  assertBreach(
-    mutated(MODULE_SEARCH, fallback, "if (claimed) router.push(buildDashboardModuleHref(basePath, option.entry.moduleId));"),
-    /outside the owner/,
-    "the guard inverted",
-  );
-  assertBreach(
-    mutated(MODULE_SEARCH, "? requestAdminModuleActivate(option.entry.moduleId)", "? false"),
-    /outside the owner/,
-    "a claim that never asks the owner",
-  );
-
+test("fail-closed: a module href is a route control that asks the owner first", () => {
   // A route control: the module href is its pre-hydration fallback, and its
   // click asks the owner before the control navigates.
   assertBreach(

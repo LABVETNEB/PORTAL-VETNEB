@@ -264,28 +264,6 @@ test.describe("DASHBOARD_GLOBAL_LIVE_SYNC · destinations outside the band", () 
     await clearDashboardModuleMemory(page);
   });
 
-  for (const { role, target, query } of [
-    { role: "admin", target: "admin-pricing", query: "Precios" },
-    { role: "clinic", target: "logistica", query: "Logística" },
-  ] as const) {
-    test(`${role} app-bar module search paints before the server answers`, async ({ page }) => {
-      if (role === "admin") await setAdminSession(page, "populated");
-      else await setClinicSession(page, "populated");
-      await page.setViewportSize({ width: 1366, height: 768 });
-      const gate = holdServerNavigations(page);
-      await gate.install();
-      await openLanding(page, role);
-
-      gate.arm();
-      await page.locator('[data-workspace-app-bar-search-input="true"]').fill(query);
-      await page.locator(`[data-workspace-app-bar-search-option="${target}"]`).click();
-      await expectConverged(page, role, "drawer", target);
-      await gate.release();
-      await expect(page).toHaveURL(moduleUrl(role, target));
-      await expectConverged(page, role, "drawer", target);
-    });
-  }
-
   test("admin overview module link paints before the server answers", async ({ page }) => {
     await setAdminSession(page, "populated");
     await page.setViewportSize({ width: 1366, height: 768 });
@@ -404,25 +382,6 @@ const PENDING_BACK_CASES: PendingBackCase[] = [
         target: second,
         activate: (page) => navItem(page, role, regime, second).click(),
       };
-    }),
-  ),
-  ...(
-    [
-      { role: "admin", target: "admin-pricing", query: "Precios" },
-      { role: "clinic", target: "tokens", query: "Tokens" },
-    ] as const
-  ).map(
-    ({ role, target, query }): PendingBackCase => ({
-      name: `${role} app-bar search`,
-      role,
-      viewport: { width: 1366, height: 768 },
-      prime: [ROUTE[role].path[0]],
-      backTo: ROUTE[role].landing,
-      target,
-      activate: async (page) => {
-        await page.locator('[data-workspace-app-bar-search-input="true"]').fill(query);
-        await page.locator(`[data-workspace-app-bar-search-option="${target}"]`).click();
-      },
     }),
   ),
   {

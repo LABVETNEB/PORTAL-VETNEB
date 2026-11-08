@@ -827,13 +827,46 @@ test.describe("B08 · admin module navigation", () => {
   // (`$RV`), so the hydrated app bar can navigate before the band hydrates. It
   // then hydrated with the new module over the server markup and kept the old
   // `aria-current` for good (C23a flake, E2E Completeness run 40312095786).
-  // Holding the band's batched reveal until Enter makes that window deterministic.
+  // Holding the band's batched reveal until the notification is chosen makes
+  // that window deterministic. The trigger is the app bar's notifications bell:
+  // a real control outside the band that navigates through the router.
   test("a band revealed after the app bar navigated still moves aria-current", async ({
     page,
   }) => {
     test.setTimeout(90_000);
     await prepareRole(page, "admin");
     await page.setViewportSize({ width: 1024, height: 768 });
+
+    await page.route(/\/api\/admin\/study-tracking\/notifications(\?|$)/, async (route) => {
+      const origin = route.request().headers()["origin"];
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        headers: origin
+          ? { "access-control-allow-origin": origin, "access-control-allow-credentials": "true", vary: "Origin" }
+          : {},
+        body: JSON.stringify({
+          success: true,
+          count: 1,
+          notifications: [
+            {
+              id: 9001,
+              studyTrackingCaseId: 0,
+              clinicId: 1,
+              reportId: null,
+              particularTokenId: null,
+              type: "audit",
+              title: "Evento de auditoría",
+              message: "Sintético",
+              isRead: true,
+              readAt: "2026-01-01T00:00:00.000Z",
+              createdAt: "2026-01-01T00:00:00.000Z",
+            },
+          ],
+          pagination: { limit: 10, offset: 0 },
+        }),
+      });
+    });
 
     // `next dev` does not hydrate a document served through `route.fulfill`
     // and hydrates its shell only after every reveal, so the window exists
@@ -858,12 +891,11 @@ test.describe("B08 · admin module navigation", () => {
     }
 
     await page.goto("/dashboard/admin?module=admin-clinics");
-    const search = page
-      .locator('[data-workspace-app-bar-search-input="true"]')
-      .filter({ visible: true });
+    const bell = page.getByRole("button", { name: "Notificaciones", exact: true }).filter({ visible: true });
+    await expect(bell).toBeVisible({ timeout: 25_000 });
     await expect
       .poll(
-        () => search.evaluate((el) => Object.keys(el).some((key) => key.startsWith("__reactFiber$"))),
+        () => bell.evaluate((el) => Object.keys(el).some((key) => key.startsWith("__reactFiber$"))),
         { timeout: 15_000 },
       )
       .toBe(true);
@@ -880,12 +912,19 @@ test.describe("B08 · admin module navigation", () => {
         paintedBand(page, RAIL_SELECTOR).locator("[aria-current='page']"),
         "precondition: the hydrated app bar sits over the unrevealed band fallback",
       ).toHaveCount(0);
-      await search.evaluate((input) => {
+    } else {
+      await expectActiveModule(page, "admin-clinics", "rail", "dev: band before the notification");
+    }
+
+    await bell.click();
+    const item = page.getByRole("button", { name: /^Abrir notificación: Evento de auditoría/ }).filter({ visible: true });
+    await expect(item).toBeVisible();
+    if (holdReveal) {
+      await item.evaluate((element) => {
         const scope = window as unknown as { __b08HeldReveals?: (() => void)[] };
-        input.addEventListener(
-          "keydown",
-          (event) => {
-            if ((event as KeyboardEvent).key !== "Enter") return;
+        element.addEventListener(
+          "click",
+          () => {
             setTimeout(() => {
               for (const reveal of (scope.__b08HeldReveals ?? []).splice(0)) reveal();
             }, 0);
@@ -893,14 +932,10 @@ test.describe("B08 · admin module navigation", () => {
           { once: true, capture: true },
         );
       });
-    } else {
-      await expectActiveModule(page, "admin-clinics", "rail", "dev: band before the search");
     }
+    await item.click();
 
-    await search.fill("audit");
-    await page.keyboard.press("Enter");
-
-    await expect(page, "Enter navigates to the searched module").toHaveURL(
+    await expect(page, "the notification navigates to its module").toHaveURL(
       /\/dashboard\/admin\?module=audit-log$/,
       { timeout: 20_000 },
     );
@@ -913,6 +948,13 @@ test.describe("B08 · admin module navigation", () => {
       bandItem(page, "admin-clinics", "rail"),
       "the server's current item does not keep the active class",
     ).not.toHaveClass(/dashboard-navigation-item-active/);
+
+    await page.goBack();
+    await expect(page).toHaveURL(/\/dashboard\/admin\?module=admin-clinics$/, { timeout: 20_000 });
+    await expectActiveModule(page, "admin-clinics", "rail", "Back after the late reveal");
+    await page.goForward();
+    await expect(page).toHaveURL(/\/dashboard\/admin\?module=audit-log$/, { timeout: 20_000 });
+    await expectActiveModule(page, "audit-log", "rail", "Forward after the late reveal");
   });
 
   test("a legacy ?hub=1 lands on Resumen: Inicio is retired and every module stays reachable", async ({

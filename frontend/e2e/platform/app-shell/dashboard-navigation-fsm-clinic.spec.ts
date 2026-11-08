@@ -452,29 +452,6 @@ test.describe("DASHBOARD_NAVIGATION_FSM_CLINIC", () => {
     expect(reloads.documents, "client navigation, never a reload").toEqual([]);
   });
 
-  test("hub card then the app-bar search: the search choice is claimed by the card's flight and lands with one entry", async ({
-    page,
-  }) => {
-    const payloads = await controlRouterPayloads(page);
-    await openHub(page);
-    const length = await historyLength(page);
-
-    payloads.hold();
-    await hubCard(page, "logistica").click();
-    await expectShown(page, "logistica");
-    const search = page.locator('[data-workspace-app-bar-search-input="true"]').filter({ visible: true });
-    await search.fill("Perfil");
-    await search.press("Enter");
-    await expectShown(page, "perfil");
-    expect(payloads.requested(), "the search choice waits for the card's flight").toEqual(["logistica"]);
-
-    await payloads.release();
-    await expect(page).toHaveURL(moduleUrl("perfil"));
-    await expectShown(page, "perfil");
-    expect(payloads.requested()).toEqual(["logistica", "perfil"]);
-    expect(await historyLength(page)).toBe(length + 1);
-  });
-
   test("hub card by keyboard: a payload that never answers stalls within the budget and Reintentar reloads the destination (L2, L3)", async ({
     page,
   }) => {
