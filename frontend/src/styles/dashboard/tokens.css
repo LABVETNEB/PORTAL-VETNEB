@@ -572,6 +572,18 @@
   --dash-drv-nav-item-pad-start: 18px;
   --dash-drv-nav-item-pad-end: 12px;
 }
+/* Drive text colour, light theme: text-only. Tailwind text-* utilities read
+   --foreground/--vetneb-ink/--muted-foreground, which also paint borders and
+   fills, so the channels stay untouched and the colour is set on the text. */
+:root:not([data-theme="dark-gray"]) .dashboard-app-shell {
+  color: var(--dash-color-on-surface);
+}
+:root:not([data-theme="dark-gray"]) .dashboard-app-shell :is(.text-foreground, .text-vetneb-ink, [class*="text-foreground/"], [class*="text-vetneb-ink/"]):not([class*="hover:text-"]):not([class*="focus:text-"]):not([class*="focus-visible:text-"]):not([class*="active:text-"]):not([class*="]:text-"]) {
+  color: var(--dash-color-on-surface);
+}
+:root:not([data-theme="dark-gray"]) .dashboard-app-shell .text-muted-foreground:not([class*="hover:text-"]):not([class*="focus:text-"]):not([class*="focus-visible:text-"]):not([class*="active:text-"]):not([class*="]:text-"]) {
+  color: var(--dash-color-on-surface-muted);
+}
 :root:not([data-theme="dark-gray"]) .dashboard-app-shell {
   --dash-drv-nav-active-bg: #c2e7ff;
   --dash-drv-nav-active-fg: #004a77;
