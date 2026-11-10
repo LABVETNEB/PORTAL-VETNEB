@@ -55,7 +55,7 @@ export function LogisticsCommandCenter({
         aria-labelledby="logistics-command-center-heading"
         data-logistics-command-center="true"
       >
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-vetneb-line/70 px-3 py-1.5 md:h-[var(--dash-workspace-header-h)] md:flex-nowrap md:py-0">
+      <div data-dashboard-band="true" className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-vetneb-line/70 px-3 py-1.5 md:h-[var(--dash-workspace-header-h)] md:flex-nowrap md:py-0">
         <div className="min-w-0">
           <h2 id="logistics-command-center-heading" className="truncate text-xs font-semibold text-vetneb-ink">
             Centro de logística

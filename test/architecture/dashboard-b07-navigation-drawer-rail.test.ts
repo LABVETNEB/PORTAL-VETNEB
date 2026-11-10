@@ -607,7 +607,10 @@ test("B07 · both containers are bounded by the token band, with no radius or el
   }
 
   assert.ok(block.includes("block-size: 100%;"), "the containers span the shell height");
-  assert.ok(block.includes("border-inline-end: 1px solid var(--dash-color-outline-subtle);"));
+  // Drive workspace frames: the edge keeps its 1px box (capacity geometry) but
+  // paints nothing, and the fill is the canvas, so nav and content read as one.
+  assert.ok(block.includes("border-inline-end: 1px solid transparent;"));
+  assert.ok(block.includes("background-color: var(--dash-color-canvas);"));
   assert.ok(block.includes("border-radius: var(--dash-shape-none);"));
   assert.ok(block.includes("box-shadow: var(--dash-elevation-none);"));
 

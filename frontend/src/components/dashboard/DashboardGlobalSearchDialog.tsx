@@ -13,6 +13,8 @@ import {
   GLOBAL_SEARCH_REPORT_STATUS_OPTIONS,
   GLOBAL_SEARCH_STUDY_TYPE_OPTIONS,
   buildGlobalSearchDestination,
+  clearGlobalSearchFilter,
+  describeGlobalSearchFilterChips,
   formatGlobalSearchDate,
   formatGlobalSearchFact,
   globalSearchDestinationOpensRecord,
@@ -25,6 +27,7 @@ import {
   isGlobalSearchQueryReady,
   normalizeGlobalSearchInput,
   readGlobalSearchSession,
+  rememberGlobalSearchQuery,
   writeGlobalSearchSession,
   type GlobalSearchFilters,
   type GlobalSearchHit,
@@ -313,6 +316,7 @@ export function DashboardGlobalSearchDialog({
             : "";
 
   const filtersActive = reportFilters || Boolean(filters.clinicId);
+  const filterChips = describeGlobalSearchFilterChips(surface, filters);
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -367,7 +371,10 @@ export function DashboardGlobalSearchDialog({
               className="md:w-full md:max-w-none"
               onKeyDown={(event) => {
                 // Enter dismisses the virtual keyboard so the pager is reachable.
-                if (event.key === "Enter") event.currentTarget.blur();
+                if (event.key === "Enter") {
+                  rememberGlobalSearchQuery(surface, event.currentTarget.value);
+                  event.currentTarget.blur();
+                }
               }}
               onValueChange={(value) => {
                 setQuery(value);
@@ -397,7 +404,7 @@ export function DashboardGlobalSearchDialog({
                     onClick={() => updateFilters({ kinds: kind ? [kind] : [] })}
                     className={cn(
                       "inline-flex min-h-11 items-center rounded-full border px-3 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 disabled:opacity-50",
-                      pressed ? "border-primary bg-primary text-primary-foreground" : "border-input bg-card text-foreground hover:bg-accent/60",
+                      pressed ? "border-primary bg-primary text-primary-foreground [:root[data-theme=dark-gray]_&]:border-vetneb-navy [:root[data-theme=dark-gray]_&]:bg-vetneb-navy [:root[data-theme=dark-gray]_&]:text-vetneb-surface" : "border-input bg-card text-foreground hover:bg-accent/60",
                     )}
                   >
                     {kind ? globalSearchKindLabel(kind) : "Todo"}
@@ -412,13 +419,46 @@ export function DashboardGlobalSearchDialog({
                 onClick={() => setShowFilters((value) => !value)}
                 className={cn(
                   "inline-flex min-h-11 items-center gap-2 rounded-full border px-3 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85",
-                  filtersActive ? "border-primary text-primary" : "border-input text-foreground hover:bg-accent/60",
+                  filtersActive ? "border-primary text-primary [:root[data-theme=dark-gray]_&]:border-vetneb-navy [:root[data-theme=dark-gray]_&]:text-vetneb-navy" : "border-input text-foreground hover:bg-accent/60",
                 )}
               >
                 <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
                 {filtersActive ? "Filtros activos" : "Filtros"}
               </button>
             </div>
+            {filterChips.length > 0 && !showFilters ? (
+              <div
+                role="group"
+                aria-label="Filtros aplicados"
+                data-global-search-applied-filters="true"
+                // Short viewports (landscape phones) have no room for a second chip row
+                // without starving the results: the same filters stay readable and
+                // removable in the Filtros panel, whose toggle already says "activos".
+                className="flex min-w-0 flex-wrap items-center gap-1.5 [@media(max-height:480px)]:hidden"
+              >
+                {filterChips.map((chip) => (
+                  <button
+                    key={chip.key}
+                    type="button"
+                    aria-label={`Quitar filtro ${chip.label}`}
+                    data-global-search-applied-filter={chip.key}
+                    onClick={() => updateFilters(clearGlobalSearchFilter(filters, chip.key))}
+                    className="inline-flex min-h-11 max-w-full items-center gap-1.5 rounded-full border border-primary bg-accent/60 px-3 text-sm font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85"
+                  >
+                    <span className="truncate">{chip.label}</span>
+                    <X className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  data-global-search-clear-filters="true"
+                  onClick={() => updateFilters({ ...EMPTY_GLOBAL_SEARCH_FILTERS, kinds: filters.kinds })}
+                  className="inline-flex min-h-11 items-center rounded-full px-3 text-sm font-semibold text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85"
+                >
+                  Borrar filtros
+                </button>
+              </div>
+            ) : null}
             <p
               role="status"
               aria-live="polite"

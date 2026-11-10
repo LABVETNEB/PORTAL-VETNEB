@@ -8,7 +8,7 @@ export type DetailsActivityProps = { steps: readonly DetailsActivityStep[]; comp
 type StatusConfig = { label: string; icon: LucideIcon; markerClassName: string; labelClassName: string };
 
 const ACTIVITY_STATUS_CONFIG = {
-  completed: { label: "Completado", icon: CheckCircle2, markerClassName: "border-vetneb-teal/35 bg-vetneb-teal/12 text-vetneb-teal", labelClassName: "text-vetneb-teal" },
+  completed: { label: "Completado", icon: CheckCircle2, markerClassName: "border-vetneb-teal/35 bg-vetneb-teal/12 text-vetneb-teal-ink", labelClassName: "text-vetneb-teal" },
   current: { label: "Actual", icon: LoaderCircle, markerClassName: "border-vetneb-cyan/35 bg-vetneb-cyan/14 text-vetneb-navy", labelClassName: "text-vetneb-navy" },
   pending: { label: "Pendiente", icon: Clock3, markerClassName: "border-vetneb-line bg-vetneb-surface-muted/80 text-vetneb-ink/70", labelClassName: "text-muted-foreground" },
   warning: { label: "Atención", icon: AlertTriangle, markerClassName: "border-vetneb-cyan/35 bg-vetneb-cyan/10 text-vetneb-navy", labelClassName: "text-vetneb-navy" },

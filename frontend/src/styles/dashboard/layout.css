@@ -166,15 +166,14 @@
     inset: 0.5rem;
     z-index: 35;
     pointer-events: none;
-    /* Neutral hairline instead of the teal frame: the frame still delimits
-       the shell (visibility contract) without competing with the content. */
-    border: 1px solid var(--dash-color-outline-subtle);
+    /* Drive workspace frames: the shell is one continuous canvas, so the frame
+       paints nothing. The 1px box stays (transparent) so the pseudo-element,
+       its B04 elevation anchor and every geometry baseline are unchanged. */
+    border: 1px solid transparent;
     border-radius: 1.25rem;
     /* B04 · PERSISTENT_CHROME. The shell frame is the outermost persistent
        chrome, so G6 retires its elevation: the 18px/70px drop plus the inset
-       highlight and the hairline ring that read as depth around it. The visible
-       frame is the `border` above — the property the app-shell visibility
-       contract asserts — so the frame survives while the depth does not.
+       highlight and the hairline ring that read as depth around it.
        `inset`, `z-index` and radius are untouched: B04 changes elevation,
        never geometry. */
     box-shadow: var(--dash-elevation-none);
@@ -190,9 +189,9 @@
     height: 3px;
     pointer-events: none;
     border-radius: 999px;
-    /* The top rail keeps its box (visibility contract) but drops the
-       teal/cyan ornament: a neutral outline tone, no gradient. */
-    background: var(--dash-color-outline-subtle);
+    /* The top rail keeps its box but paints nothing: under the 64px bar it
+       read as a second divider (Drive workspace frames). */
+    background: transparent;
   }
 
   @media (max-width: 767px) {
@@ -261,9 +260,8 @@
 /*
   V6 · the transparent 64px bar no longer hides the shell frame that is painted
   from the top of the shell (inset 0.5rem, z-index 35/36 under the bar's z-40).
-  From 768px the frame hairline and its top rail start where the bar ends, so the
-  workspace reads as one rounded card under the header (Drive) and the bar stays
-  outside it. Geometry only: border, radius and the visibility contract are kept.
+  From 768px the frame box and its top rail start where the bar ends. Geometry
+  only; both paint nothing since the Drive workspace frames pass.
 */
 @media (min-width: 768px) {
   .dashboard-app-shell::before {

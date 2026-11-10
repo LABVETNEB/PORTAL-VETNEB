@@ -140,6 +140,7 @@ export function ParticularTokensEmptyPanel({
         "flex min-h-0 flex-1 rounded-lg border border-vetneb-line/75 bg-card/82 p-3",
         className,
       )}
+      data-dashboard-frame="container"
       {...props}
     />
   );

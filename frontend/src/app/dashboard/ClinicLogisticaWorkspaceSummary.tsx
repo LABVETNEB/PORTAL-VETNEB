@@ -66,7 +66,7 @@ export function ClinicLogisticaWorkspaceSummary({
       {/* Clinic desktop/tablet space pass: the summary run is retired, so the
           band carries only "Abrir módulo completo", right-aligned from 768px
           up. Below 768px it keeps its previous start alignment. */}
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-vetneb-line/70 p-1.5 md:justify-end">
+      <div data-dashboard-band="true" className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-vetneb-line/70 p-1.5 md:justify-end">
         {fullModuleLink}
       </div>
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-2">
@@ -81,6 +81,7 @@ export function ClinicLogisticaWorkspaceSummary({
       ) : recentVisits.length ? (
         <CollectionWorkspace
           data-clinic-logistics-list-panel="true"
+          data-dashboard-frame="container"
           className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-vetneb-line/75 bg-card/82"
         >
           <ContentList

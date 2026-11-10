@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, lte, or, sql, type SQL } from "drizzle-orm";
+import { SQL, and, desc, eq, gte, lte, or, sql } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 
 import { db } from "../../../db.ts";
@@ -19,6 +19,7 @@ import type {
   GlobalSearchFact,
   GlobalSearchHit,
   GlobalSearchNeedle,
+  GlobalSearchTerm,
 } from "../domain/index.ts";
 
 type GlobalSearchDatabase = typeof db;
@@ -28,26 +29,66 @@ type GlobalSearchDatabase = typeof db;
  * by migration 0007; the pattern is a bound parameter already escaped by the
  * domain, and `ESCAPE '\'` makes `%`/`_` typed by the user literal.
  */
-function folded(column: AnyPgColumn): SQL {
-  return sql`immutable_unaccent(coalesce(${column}::text, ''))`;
+function folded(source: AnyPgColumn | SQL): SQL {
+  return source instanceof SQL
+    ? sql`immutable_unaccent(coalesce((${source}), ''))`
+    : sql`immutable_unaccent(coalesce(${source}::text, ''))`;
 }
 
-function likeFolded(column: AnyPgColumn, pattern: string): SQL {
-  return sql`${folded(column)} ILIKE immutable_unaccent(${pattern}) ESCAPE '\\'`;
+function likeFolded(source: AnyPgColumn | SQL, pattern: string): SQL {
+  return sql`${folded(source)} ILIKE immutable_unaccent(${pattern}) ESCAPE '\\'`;
 }
 
-function matchAny(
+/** Every character `String.prototype.trim` strips (`btrim` alone only strips spaces), so SQL and `mapReport` agree on "blank". */
+const BLANK_CHARACTERS = " \t\n\v\f\r\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000\ufeff";
+
+/**
+ * The text a hit shows as its title: the first NON-BLANK value, exactly like
+ * the `mapReport` / `mapTracking` fallbacks (`a?.trim() || b?.trim()`). `title:`
+ * must match this and not a single raw column, or a record whose visible
+ * title is its file name would vanish from `title:` while `Luna` still finds it.
+ */
+function visibleTitle(...columns: readonly AnyPgColumn[]): SQL {
+  const candidates = columns.map((column) => sql`nullif(btrim(${column}::text, ${BLANK_CHARACTERS}), '')`);
+  return sql`coalesce(${sql.join(candidates, sql`, `)})`;
+}
+
+/**
+ * One term: any searchable column (or only the title columns for `title:`),
+ * plus the record id when the term is a bare number.
+ */
+function matchTerm(
   idColumn: AnyPgColumn,
   textColumns: readonly AnyPgColumn[],
-  needle: GlobalSearchNeedle,
+  titleColumns: readonly (AnyPgColumn | SQL)[],
+  term: GlobalSearchTerm,
 ): SQL {
-  const clauses = textColumns.map((column) => likeFolded(column, needle.containsPattern));
+  const columns = term.titleOnly ? titleColumns : textColumns;
+  const clauses = columns.map((column) => likeFolded(column, term.containsPattern));
 
-  if (needle.numericId !== null) {
-    clauses.unshift(eq(idColumn, needle.numericId));
+  if (term.numericId !== null) {
+    clauses.unshift(eq(idColumn, term.numericId));
   }
 
   return or(...clauses)!;
+}
+
+/**
+ * The query expression: OR of clauses, each an AND of terms. A plain
+ * one-word query produces exactly the predicate it always did.
+ */
+function matchAny(
+  idColumn: AnyPgColumn,
+  textColumns: readonly AnyPgColumn[],
+  titleColumns: readonly (AnyPgColumn | SQL)[],
+  needle: GlobalSearchNeedle,
+): SQL {
+  const alternatives = needle.clauses.map((clause) => {
+    const terms = clause.map((term) => matchTerm(idColumn, textColumns, titleColumns, term));
+    return terms.length === 1 ? terms[0] : and(...terms)!;
+  });
+
+  return alternatives.length === 1 ? alternatives[0] : or(...alternatives)!;
 }
 
 function rankExpression(
@@ -125,9 +166,11 @@ function afterPosition(
 // ── Reports ────────────────────────────────────────────────────────────────
 
 const REPORT_TEXT_COLUMNS = [reports.patientName, reports.fileName, reports.studyType] as const;
+// Visible title of a report: patient name, else file name (see `mapReport`).
+const REPORT_TITLE_COLUMNS = [visibleTitle(reports.patientName, reports.fileName)] as const;
 
 function reportFilters(criteria: GlobalSearchCriteria, clinicId: number | null): SQL[] {
-  const filters: SQL[] = [matchAny(reports.id, REPORT_TEXT_COLUMNS, criteria.needle)];
+  const filters: SQL[] = [matchAny(reports.id, REPORT_TEXT_COLUMNS, REPORT_TITLE_COLUMNS, criteria.needle)];
 
   if (clinicId !== null) filters.unshift(eq(reports.clinicId, clinicId));
   if (criteria.reportStatus) filters.push(eq(reports.currentStatus, criteria.reportStatus));
@@ -195,6 +238,7 @@ const TOKEN_TEXT_COLUMNS = [
   particularTokens.tutorLastName,
   particularTokens.tokenLast4,
 ] as const;
+const TOKEN_TITLE_COLUMNS = [particularTokens.petName] as const;
 
 export function buildParticularTokenSearchQuery(
   database: GlobalSearchDatabase,
@@ -203,7 +247,7 @@ export function buildParticularTokenSearchQuery(
 ) {
   const rank = rankExpression(particularTokens.id, particularTokens.petName, criteria.needle);
   const page = pageWindow(criteria);
-  const filters: SQL[] = [matchAny(particularTokens.id, TOKEN_TEXT_COLUMNS, criteria.needle)];
+  const filters: SQL[] = [matchAny(particularTokens.id, TOKEN_TEXT_COLUMNS, TOKEN_TITLE_COLUMNS, criteria.needle)];
 
   if (clinicId !== null) filters.unshift(eq(particularTokens.clinicId, clinicId));
   if (criteria.after) {
@@ -280,6 +324,8 @@ export function buildTrackingCaseSearchQuery(
     matchAny(
       studyTrackingCases.id,
       [reports.patientName, particularTokens.petName, particularTokens.tutorLastName],
+      // Visible title of a tracking case: patient name, else pet name (see `mapTracking`).
+      [visibleTitle(reports.patientName, particularTokens.petName)],
       criteria.needle,
     ),
   ];
@@ -349,7 +395,7 @@ export function buildClinicSearchQuery(
 ) {
   const rank = rankExpression(clinics.id, clinics.name, criteria.needle);
   const page = pageWindow(criteria);
-  const filters: SQL[] = [matchAny(clinics.id, [clinics.name, clinics.contactEmail], criteria.needle)];
+  const filters: SQL[] = [matchAny(clinics.id, [clinics.name, clinics.contactEmail], [clinics.name], criteria.needle)];
 
   if (clinicId !== null) filters.unshift(eq(clinics.id, clinicId));
   if (criteria.after) filters.push(afterPosition(rank, clinics.updatedAt, clinics.id, criteria.after));
@@ -394,7 +440,7 @@ export function buildClinicUserSearchQuery(
 ) {
   const rank = rankExpression(clinicUsers.id, clinicUsers.username, criteria.needle);
   const page = pageWindow(criteria);
-  const filters: SQL[] = [matchAny(clinicUsers.id, [clinicUsers.username], criteria.needle)];
+  const filters: SQL[] = [matchAny(clinicUsers.id, [clinicUsers.username], [clinicUsers.username], criteria.needle)];
 
   if (clinicId !== null) filters.unshift(eq(clinicUsers.clinicId, clinicId));
   if (criteria.after) {

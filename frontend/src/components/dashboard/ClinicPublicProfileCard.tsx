@@ -584,7 +584,7 @@ export function ClinicPublicProfileCard() {
                 unoptimized
               />
             ) : (
-              <span className="text-sm font-semibold text-vetneb-ink md:text-xl">
+              <span className="text-sm font-semibold text-vetneb-ink md:text-xl [:root[data-theme=dark-gray]_&]:text-slate-900">
                 {profileInitials}
               </span>
             )}
@@ -1162,6 +1162,7 @@ export function ClinicPublicProfileCard() {
               up only the loading and error states paint: the completion
               summary is retired there. */}
           <div
+            data-dashboard-band="true"
             className={cn(
               "flex min-h-8 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-vetneb-line/70 px-2.5 py-1.5 text-xs",
               profileLoadErrorMessage ? "text-destructive" : "text-muted-foreground",

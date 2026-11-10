@@ -130,3 +130,52 @@ test("B12 · the runtime contract is catalogued without escapes", () => {
     ),
   );
 });
+
+const FRAMES_START = "/* dashboard-drv-workspace-frames:start";
+const FRAMES_END = "/* dashboard-drv-workspace-frames:end */";
+const FRAME_ATTRIBUTE = 'data-dashboard-frame="container"';
+const BAND_ATTRIBUTE = 'data-dashboard-band="true"';
+const FRAME_OWNER_PATHS = [
+  "frontend/src/app/dashboard/ClinicLogisticaWorkspaceSummary.tsx",
+  "frontend/src/app/dashboard/admin/AdminMaintenanceDryRunCard.tsx",
+  "frontend/src/app/dashboard/admin/AdminParticularTokensCard.tsx",
+  "frontend/src/app/dashboard/admin/AdminPricingEditorCard.tsx",
+  "frontend/src/app/dashboard/admin/AdminSchemaHealthStatusCard.tsx",
+  "frontend/src/components/dashboard/ModuleCard.tsx",
+  "frontend/src/components/dashboard/ParticularTokensCardPrimitives.tsx",
+] as const;
+
+function framesBlock(): string {
+  const css = read(SURFACES_CSS);
+  const start = css.indexOf(FRAMES_START);
+  const end = css.indexOf(FRAMES_END);
+  assert.ok(start >= 0 && end > start, "workspace frames contract block must exist");
+  return css.slice(start, end);
+}
+
+test("DRV frames · one shared contract paints both hooks from 768px, paint only", () => {
+  const block = framesBlock();
+  assert.ok(block.includes("@media (min-width: 768px)"));
+  assert.ok(block.includes(BAND_ATTRIBUTE) && block.includes(FRAME_ATTRIBUTE));
+  for (const hook of ["[data-dashboard-filter-bar=\"true\"]", "div:has(> table)", ".dashboard-pager", "[data-dashboard-adaptive-reserved-region=\"pager\"]"]) {
+    assert.ok(block.includes(hook), `contract must cover ${hook}`);
+  }
+  assert.equal(block.includes("!important"), false);
+  assert.equal(/border-width\s*:\s*0|padding\s*:|overflow/.test(block.replace(/\/\*[\s\S]*?\*\//g, "")), false);
+});
+
+test("DRV frames · frame and band hooks have explicit owners", () => {
+  const owners = sourceFiles().filter((path) => path.endsWith(".tsx") && read(path).includes(FRAME_ATTRIBUTE));
+  assert.deepEqual(owners.sort(), [...FRAME_OWNER_PATHS].sort());
+  assert.ok(read("frontend/src/components/dashboard/ModuleCard.tsx").includes(BAND_ATTRIBUTE));
+  const bandOwners = sourceFiles().filter((path) => path.endsWith(".tsx") && read(path).includes(BAND_ATTRIBUTE));
+  assert.ok(bandOwners.includes("frontend/src/app/dashboard/admin/AdminSessionsReadOnlyCard.tsx"));
+  assert.ok(bandOwners.includes("frontend/src/app/dashboard/logistica/visitas/page.tsx"));
+});
+
+test("DRV frames · functional chrome is not retired by the contract", () => {
+  const block = framesBlock().replace(/\/\*[\s\S]*?\*\//g, "");
+  for (const kept of ["surface-soft", "dashboard-module-tablist", "clinical-alert", "data-collection-header", "thead", "tbody"]) {
+    assert.equal(block.includes(kept), false, `contract must not touch ${kept}`);
+  }
+});

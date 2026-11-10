@@ -182,7 +182,7 @@ export default async function MetricasPage({
         </CardHeader>
         {/* CMP-11 (DIF-042/G-014): metrics band comes after surfaceHeader,
             matching Admin's canonical appBar > surfaceHeader > metrics order. */}
-        <div className="flex shrink-0 items-baseline border-b border-vetneb-line/70 px-3 py-1.5 text-xs text-muted-foreground">
+        <div data-dashboard-band="true" className="flex shrink-0 items-baseline border-b border-vetneb-line/70 px-3 py-1.5 text-xs text-muted-foreground">
           <ModuleMetricRun
             surfaceId="clinic-logistica-metricas"
             className="w-full min-w-0 overflow-hidden truncate"
@@ -298,7 +298,7 @@ export default async function MetricasPage({
                     </div>
                     <div className="min-w-0 max-w-full overflow-hidden">
                       <p className="min-w-0 max-w-full overflow-hidden text-xs text-muted-foreground [overflow-wrap:anywhere]">Completadas</p>
-                      <p className="min-w-0 max-w-full overflow-hidden font-semibold text-vetneb-teal [overflow-wrap:anywhere]">
+                      <p className="min-w-0 max-w-full overflow-hidden font-semibold text-vetneb-teal-ink [overflow-wrap:anywhere]">
                         {metric.completedStops}
                       </p>
                     </div>

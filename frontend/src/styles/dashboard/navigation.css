@@ -136,9 +136,12 @@
   flex-direction: column;
   block-size: 100%;
   border-radius: var(--dash-shape-none);
-  border-inline-end: 1px solid var(--dash-color-outline-subtle);
+  /* Drive workspace frames: navigation and content share one canvas, so the
+     edge is a transparent 1px box (width kept for the capacity geometry) and
+     the fill is the canvas (identical to the surface in light, #fff). */
+  border-inline-end: 1px solid transparent;
   box-shadow: var(--dash-elevation-none);
-  background-color: var(--dash-color-surface);
+  background-color: var(--dash-color-canvas);
 }
 
 .dashboard-app-shell .dashboard-navigation-drawer {

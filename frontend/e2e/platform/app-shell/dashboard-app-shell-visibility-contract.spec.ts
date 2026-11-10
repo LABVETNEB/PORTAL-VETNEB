@@ -164,7 +164,9 @@ async function expectAppShellVisible(page: Page, expectedSurface: "clinic" | "ad
       mainOverflowY: main ? main.scrollHeight - main.clientHeight : 0,
       mainOverflowMode: mainStyle?.overflowY ?? null,
       shellBeforeBorder: beforeShell?.borderTopWidth ?? null,
+      shellBeforeBorderColor: beforeShell?.borderTopColor ?? null,
       shellAfterHeight: afterShell?.height ?? null,
+      shellAfterBackground: afterShell?.backgroundColor ?? null,
     };
   });
 
@@ -194,8 +196,13 @@ async function expectAppShellVisible(page: Page, expectedSurface: "clinic" | "ad
     `${expectedSurface} main must NOT be an operational scroll container`,
   ).not.toBe("scroll");
 
-  expect(metrics.shellBeforeBorder, `${expectedSurface} shell visual border`).not.toBe("0px");
-  expect(metrics.shellAfterHeight, `${expectedSurface} shell top rail`).not.toBe("0px");
+  // Drive workspace frames: the frame and the top rail keep their boxes (the
+  // geometry baselines and the B04 anchor read them) but paint nothing, so the
+  // workspace is one continuous canvas.
+  expect(metrics.shellBeforeBorder, `${expectedSurface} shell frame box`).not.toBe("0px");
+  expect(metrics.shellBeforeBorderColor, `${expectedSurface} shell frame paints nothing`).toBe("rgba(0, 0, 0, 0)");
+  expect(metrics.shellAfterHeight, `${expectedSurface} shell top rail box`).not.toBe("0px");
+  expect(metrics.shellAfterBackground, `${expectedSurface} shell top rail paints nothing`).toBe("rgba(0, 0, 0, 0)");
 }
 
 for (const viewport of VIEWPORTS) {

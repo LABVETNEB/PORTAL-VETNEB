@@ -125,7 +125,7 @@ function renderErrorState({
         "flex flex-col gap-3 rounded-lg border px-4 py-4 sm:flex-row sm:items-start sm:justify-between",
         isWarning
           ? "border-amber-500/25 bg-amber-500/8 text-amber-700"
-          : "border-destructive/25 bg-destructive/8 text-destructive",
+          : "border-destructive/25 bg-destructive/8 text-destructive-ink",
         className,
       )}
     >
@@ -136,7 +136,7 @@ function renderErrorState({
           <p
             className={cn(
               "text-sm",
-              isWarning ? "text-amber-700/88" : "text-destructive/88",
+              isWarning ? "text-amber-700/88" : "text-destructive-ink",
             )}
           >
             {message}
@@ -145,7 +145,7 @@ function renderErrorState({
             <p
               className={cn(
                 "mt-1 text-xs",
-                isWarning ? "text-amber-600/75" : "text-destructive/65",
+                isWarning ? "text-amber-600/75" : "text-destructive-ink",
               )}
             >
               {supportText}

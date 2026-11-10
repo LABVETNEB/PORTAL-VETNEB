@@ -14,6 +14,15 @@ import { addAppCookies } from "../helpers/session";
 const WORKSPACE_SELECTOR = "[data-dashboard-module-workspace]";
 const OWNER_SELECTOR = '[data-dashboard-b12-module-card="true"]';
 const HEADER_SELECTOR = '[data-workspace-header="true"]';
+const FRAME_HOOKS = [
+  '[data-dashboard-frame="container"]',
+  '[data-dashboard-band="true"]',
+  '[data-dashboard-filter-bar="true"]',
+  '[data-dashboard-adaptive-reserved-region="pager"]',
+  ".dashboard-pager",
+  "[data-collection-pager]",
+  "div:has(> table)",
+].join(", ");
 const MODULES = DASHBOARD_GEOMETRY_SURFACES.filter(
   (surface) => surface.shellType === "admin-module" || surface.shellType === "clinic-module",
 );
@@ -121,6 +130,22 @@ test.describe("B12 · module card removal", () => {
           // the DOM as the workspace's accessible name.
           await expect(header).toHaveCount(1);
           await expect(header).toBeHidden();
+
+          // Shared workspace-frames contract (DRV): from 768px up no container
+          // frame, header band, filter bar, table wrapper or pager rule paints a
+          // border, a shadow or a fill in any Admin or Clínica module.
+          const painted = await workspace.evaluate((root, selector) => {
+            const clear = "rgba(0, 0, 0, 0)";
+            return Array.from(root.querySelectorAll<HTMLElement>(selector))
+              .filter((node) => node.getBoundingClientRect().width > 0)
+              .filter((node) => {
+                const style = getComputedStyle(node);
+                const borders = [style.borderTopColor, style.borderRightColor, style.borderBottomColor, style.borderLeftColor];
+                return borders.some((color) => color !== clear) || style.boxShadow !== "none";
+              })
+              .map((node) => `${node.tagName.toLowerCase()}[${node.getAttributeNames().filter((name) => name.startsWith("data-")).slice(0, 2).join(",")}]`);
+          }, FRAME_HOOKS);
+          expect(painted, `${surface.id}: workspace frames contract`).toEqual([]);
         }
       });
     }

@@ -86,9 +86,12 @@ test("global search SQL: el texto del usuario viaja sólo como parámetro escapa
     assert.equal(query.sql.includes("DROP TABLE"), false, kind);
     assert.ok(query.sql.includes("ILIKE immutable_unaccent($"), kind);
     assert.ok(query.sql.includes("ESCAPE '\\'"), kind);
+    // Each word is its own escaped term; the whole text only feeds the rank patterns.
+    assert.ok(query.params.includes("%50\\%\\_%"), `${kind} liga el patrón contains escapado`);
+    assert.ok(query.params.includes("%DROP%"), `${kind} liga cada palabra como parámetro`);
     assert.ok(
-      query.params.includes("%x'); DROP TABLE reports; -- 50\\%\\_%"),
-      `${kind} liga el patrón contains escapado`,
+      query.params.includes("x'); DROP TABLE reports; -- 50\\%\\_"),
+      `${kind} liga el patrón exacto escapado`,
     );
   }
 });
