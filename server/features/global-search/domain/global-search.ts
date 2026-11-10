@@ -1,4 +1,11 @@
 import type { ReportStatus } from "../../../../drizzle/schema.ts";
+import {
+  escapeLikePattern,
+  makeGlobalSearchTerm,
+  parseGlobalSearchLanguage,
+  type GlobalSearchLanguage,
+  type GlobalSearchTerm,
+} from "./global-search-query.ts";
 
 /** Upper bound of the raw `cursor` parameter (the codec emits far less). */
 const GLOBAL_SEARCH_CURSOR_MAX_LENGTH = 512;
@@ -39,7 +46,6 @@ const REPORT_STATUS_VALUES: ReadonlySet<string> = new Set<ReportStatus>([
 
 const STUDY_TYPE_PATTERN = /^[a-z]{3,40}$/;
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-const NUMERIC_ID_PATTERN = /^#?(\d{1,9})$/;
 
 function replaceControlCharacters(value: string): string {
   let result = "";
@@ -51,9 +57,15 @@ function replaceControlCharacters(value: string): string {
 }
 
 /**
- * The normalized needle. `pattern` is a LIKE pattern with `\`, `%` and `_`
+ * The normalized needle. Every pattern is a LIKE pattern with `\`, `%` and `_`
  * escaped, so user text can never widen the match; it is always bound as a
  * SQL parameter, never interpolated.
+ *
+ * `text` is the whole normalized query (cursor context, echoed `query`).
+ * `containsPattern` / `prefixPattern` / `exactPattern` / `numericId` are the
+ * PRIMARY term: the whole text for a plain query (exactly the pre-language
+ * behavior), otherwise the first term; they only drive the rank. What
+ * matches is `clauses`: an OR of clauses, each an AND of terms.
  */
 export type GlobalSearchNeedle = {
   readonly text: string;
@@ -61,6 +73,7 @@ export type GlobalSearchNeedle = {
   readonly prefixPattern: string;
   readonly exactPattern: string;
   readonly numericId: number | null;
+  readonly clauses: readonly (readonly GlobalSearchTerm[])[];
 };
 
 /** Position after which a keyset page starts (see `global-search-cursor.ts`). */
@@ -142,10 +155,6 @@ export type GlobalSearchParsed<TKind extends GlobalSearchKind> = {
   readonly criteria: GlobalSearchCriteria;
 };
 
-export function escapeLikePattern(value: string): string {
-  return value.replace(/[\\%_]/g, (character) => `\\${character}`);
-}
-
 export function normalizeGlobalSearchText(value: unknown): string | null {
   if (typeof value !== "string") {
     return null;
@@ -162,21 +171,43 @@ export function normalizeGlobalSearchText(value: unknown): string | null {
   return text.slice(0, GLOBAL_SEARCH_MAX_QUERY_LENGTH);
 }
 
-export function buildGlobalSearchNeedle(text: string): GlobalSearchNeedle {
-  const escaped = escapeLikePattern(text);
-  const numeric = NUMERIC_ID_PATTERN.exec(text);
-  const numericId = numeric ? Number(numeric[1]) : null;
+function needleFromLanguage(
+  text: string,
+  language: Extract<GlobalSearchLanguage, { ok: true }>,
+): GlobalSearchNeedle {
+  const primaryText = language.plain ? text : language.clauses[0][0].text;
+  const escaped = escapeLikePattern(primaryText);
+  const termCount = language.clauses.reduce((total, clause) => total + clause.length, 0);
 
   return {
     text,
     containsPattern: `%${escaped}%`,
     prefixPattern: `${escaped}%`,
     exactPattern: escaped,
-    numericId:
-      numericId !== null && Number.isSafeInteger(numericId) && numericId > 0
-        ? numericId
-        : null,
+    numericId: termCount === 1 ? language.clauses[0][0].numericId : null,
+    clauses: language.clauses,
   };
+}
+
+/**
+ * Needle of an already normalized text. Text the language rejects (the
+ * parser reports that to the client) degrades to one literal term, so a
+ * direct caller can never end up without a safe needle.
+ */
+export function buildGlobalSearchNeedle(text: string): GlobalSearchNeedle {
+  const language = parseGlobalSearchLanguage(text);
+
+  return needleFromLanguage(
+    text,
+    language.ok
+      ? language
+      : {
+          ok: true,
+          clauses: [[makeGlobalSearchTerm(text, { quoted: true, titleOnly: false })]],
+          typeKinds: null,
+          plain: true,
+        },
+  );
 }
 
 function parseBoundedInt(
@@ -264,10 +295,25 @@ export function parseGlobalSearchQuery<TKind extends GlobalSearchKind>(
     );
   }
 
+  const language = parseGlobalSearchLanguage(text);
+
+  if (!language.ok) {
+    return invalid(language.error);
+  }
+
   let kinds = parseKinds(query.kinds, allowedKinds);
 
   if (!kinds) {
     return invalid("Tipo de entidad de búsqueda inválido");
+  }
+
+  if (language.typeKinds) {
+    const named = new Set<GlobalSearchKind>(language.typeKinds);
+    kinds = kinds.filter((kind) => named.has(kind));
+
+    if (kinds.length === 0) {
+      return invalid("El tipo de búsqueda no está disponible aquí");
+    }
   }
 
   const limit = parseBoundedInt(query.limit, GLOBAL_SEARCH_DEFAULT_LIMIT, 1, GLOBAL_SEARCH_MAX_LIMIT);
@@ -338,7 +384,7 @@ export function parseGlobalSearchQuery<TKind extends GlobalSearchKind>(
     ok: true,
     kinds,
     criteria: {
-      needle: buildGlobalSearchNeedle(text),
+      needle: needleFromLanguage(text, language),
       limit,
       offset,
       cursor,

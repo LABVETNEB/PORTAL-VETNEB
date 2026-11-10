@@ -593,7 +593,8 @@ const runtimeAdjacency = createAdjacency(
 test("M45 auto-descubre el inventario canónico de features", () => {
   assert.deepEqual(census.features, expectedFeatures);
   // +1 (GLOBAL-SEARCH-3A): global-search/domain/global-search-cursor.ts.
-  assert.equal(census.sourceFileCount, 157);
+  // +1 (GLOBAL-SEARCH-QUERY-ENGINE): global-search/domain/global-search-query.ts.
+  assert.equal(census.sourceFileCount, 158);
 });
 
 test("M45 resuelve todos los imports relativos de features", () => {

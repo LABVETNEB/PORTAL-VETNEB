@@ -19,6 +19,7 @@ import type {
   GlobalSearchFact,
   GlobalSearchHit,
   GlobalSearchNeedle,
+  GlobalSearchTerm,
 } from "../domain/index.ts";
 
 type GlobalSearchDatabase = typeof db;
@@ -36,18 +37,42 @@ function likeFolded(column: AnyPgColumn, pattern: string): SQL {
   return sql`${folded(column)} ILIKE immutable_unaccent(${pattern}) ESCAPE '\\'`;
 }
 
-function matchAny(
+/**
+ * One term: any searchable column (or only the title columns for `title:`),
+ * plus the record id when the term is a bare number.
+ */
+function matchTerm(
   idColumn: AnyPgColumn,
   textColumns: readonly AnyPgColumn[],
-  needle: GlobalSearchNeedle,
+  titleColumns: readonly AnyPgColumn[],
+  term: GlobalSearchTerm,
 ): SQL {
-  const clauses = textColumns.map((column) => likeFolded(column, needle.containsPattern));
+  const columns = term.titleOnly ? titleColumns : textColumns;
+  const clauses = columns.map((column) => likeFolded(column, term.containsPattern));
 
-  if (needle.numericId !== null) {
-    clauses.unshift(eq(idColumn, needle.numericId));
+  if (term.numericId !== null) {
+    clauses.unshift(eq(idColumn, term.numericId));
   }
 
   return or(...clauses)!;
+}
+
+/**
+ * The query expression: OR of clauses, each an AND of terms. A plain
+ * one-word query produces exactly the predicate it always did.
+ */
+function matchAny(
+  idColumn: AnyPgColumn,
+  textColumns: readonly AnyPgColumn[],
+  titleColumns: readonly AnyPgColumn[],
+  needle: GlobalSearchNeedle,
+): SQL {
+  const alternatives = needle.clauses.map((clause) => {
+    const terms = clause.map((term) => matchTerm(idColumn, textColumns, titleColumns, term));
+    return terms.length === 1 ? terms[0] : and(...terms)!;
+  });
+
+  return alternatives.length === 1 ? alternatives[0] : or(...alternatives)!;
 }
 
 function rankExpression(
@@ -125,9 +150,10 @@ function afterPosition(
 // ── Reports ────────────────────────────────────────────────────────────────
 
 const REPORT_TEXT_COLUMNS = [reports.patientName, reports.fileName, reports.studyType] as const;
+const REPORT_TITLE_COLUMNS = [reports.patientName] as const;
 
 function reportFilters(criteria: GlobalSearchCriteria, clinicId: number | null): SQL[] {
-  const filters: SQL[] = [matchAny(reports.id, REPORT_TEXT_COLUMNS, criteria.needle)];
+  const filters: SQL[] = [matchAny(reports.id, REPORT_TEXT_COLUMNS, REPORT_TITLE_COLUMNS, criteria.needle)];
 
   if (clinicId !== null) filters.unshift(eq(reports.clinicId, clinicId));
   if (criteria.reportStatus) filters.push(eq(reports.currentStatus, criteria.reportStatus));
@@ -195,6 +221,7 @@ const TOKEN_TEXT_COLUMNS = [
   particularTokens.tutorLastName,
   particularTokens.tokenLast4,
 ] as const;
+const TOKEN_TITLE_COLUMNS = [particularTokens.petName] as const;
 
 export function buildParticularTokenSearchQuery(
   database: GlobalSearchDatabase,
@@ -203,7 +230,7 @@ export function buildParticularTokenSearchQuery(
 ) {
   const rank = rankExpression(particularTokens.id, particularTokens.petName, criteria.needle);
   const page = pageWindow(criteria);
-  const filters: SQL[] = [matchAny(particularTokens.id, TOKEN_TEXT_COLUMNS, criteria.needle)];
+  const filters: SQL[] = [matchAny(particularTokens.id, TOKEN_TEXT_COLUMNS, TOKEN_TITLE_COLUMNS, criteria.needle)];
 
   if (clinicId !== null) filters.unshift(eq(particularTokens.clinicId, clinicId));
   if (criteria.after) {
@@ -280,6 +307,7 @@ export function buildTrackingCaseSearchQuery(
     matchAny(
       studyTrackingCases.id,
       [reports.patientName, particularTokens.petName, particularTokens.tutorLastName],
+      [reports.patientName, particularTokens.petName],
       criteria.needle,
     ),
   ];
@@ -349,7 +377,7 @@ export function buildClinicSearchQuery(
 ) {
   const rank = rankExpression(clinics.id, clinics.name, criteria.needle);
   const page = pageWindow(criteria);
-  const filters: SQL[] = [matchAny(clinics.id, [clinics.name, clinics.contactEmail], criteria.needle)];
+  const filters: SQL[] = [matchAny(clinics.id, [clinics.name, clinics.contactEmail], [clinics.name], criteria.needle)];
 
   if (clinicId !== null) filters.unshift(eq(clinics.id, clinicId));
   if (criteria.after) filters.push(afterPosition(rank, clinics.updatedAt, clinics.id, criteria.after));
@@ -394,7 +422,7 @@ export function buildClinicUserSearchQuery(
 ) {
   const rank = rankExpression(clinicUsers.id, clinicUsers.username, criteria.needle);
   const page = pageWindow(criteria);
-  const filters: SQL[] = [matchAny(clinicUsers.id, [clinicUsers.username], criteria.needle)];
+  const filters: SQL[] = [matchAny(clinicUsers.id, [clinicUsers.username], [clinicUsers.username], criteria.needle)];
 
   if (clinicId !== null) filters.unshift(eq(clinicUsers.clinicId, clinicId));
   if (criteria.after) {
