@@ -2029,10 +2029,15 @@ async function observeServerRequestLeaf(
 
   if (unpainted) {
     await expect(unpainted.prevControl, `${label}: page 2 enables the previous control`).toBeEnabled();
-    expect(
-      await secondPageRows.allInnerTexts(),
-      `${label}: page 2 renders different rows than page 1`,
-    ).not.toEqual(unpainted.firstPageTexts);
+    // The response can land before React commits the transition, so the rows
+    // still read as page 1 for a moment. The effective page change is awaited,
+    // not sampled once; the asserted property is unchanged.
+    await expect
+      .poll(async () => secondPageRows.allInnerTexts(), {
+        message: `${label}: page 2 renders different rows than page 1`,
+        timeout: 15_000,
+      })
+      .not.toEqual(unpainted.firstPageTexts);
   }
 
   const pageProof = pageLabel
