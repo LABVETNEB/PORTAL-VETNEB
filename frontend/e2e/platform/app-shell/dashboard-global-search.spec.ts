@@ -848,6 +848,8 @@ test.describe("GLOBAL-SEARCH-2 · Buscar en VETNEB", () => {
 
     await page.keyboard.press("Escape");
     await expect(dialog).toBeHidden();
+    // Radix returns focus to the search on a deferred task after the dialog unmounts; blur only once that has landed, or the late refocus makes "/" plain text.
+    await expect(input, "focus returns to the search").toBeFocused();
     await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
     await page.keyboard.press("/");
     await expect(input).toBeFocused();
