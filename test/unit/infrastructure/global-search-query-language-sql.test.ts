@@ -80,29 +80,82 @@ test("SQL lenguaje: OR une alternativas dentro del predicado del tenant", () => 
   assert.equal(where.includes(" or "), true);
 });
 
+function matchPredicate(kind: keyof typeof BUILDERS, q: string): { predicate: string; params: unknown[] } {
+  const { where, params } = whereOf(BUILDERS[kind](db, criteria({ q }), 9));
+  // The rank expression (ORDER BY) also reads the title column: only the WHERE is inspected.
+  return { predicate: where.slice(0, where.indexOf(" order by ")), params };
+}
+
+const trimmed = (column: string) => `nullif(btrim(${column}::text, $`;
+
 test("SQL lenguaje: title: sólo toca las columnas de título de cada entidad", () => {
   const titleOnly = {
-    report: ['"reports"."patient_name"'],
     particular_token: ['"particular_tokens"."pet_name"'],
-    tracking_case: ['"reports"."patient_name"', '"particular_tokens"."pet_name"'],
     clinic: ['"clinics"."name"'],
     clinic_user: ['"clinic_users"."username"'],
   } as const;
-  const notTitle = ['"reports"."file_name"', '"reports"."study_type"', '"particular_tokens"."tutor_last_name"', '"particular_tokens"."token_last4"', '"clinics"."contact_email"'];
+  const notTitle = [
+    '"reports"."file_name"',
+    '"reports"."study_type"',
+    '"particular_tokens"."tutor_last_name"',
+    '"particular_tokens"."token_last4"',
+    '"clinics"."contact_email"',
+  ];
 
-  for (const [kind, build] of Object.entries(BUILDERS)) {
-    const { where } = whereOf(build(db, criteria({ q: "title:luna" }), 9));
-    const folded = where.slice(0, where.indexOf("order by") === -1 ? undefined : where.indexOf("order by"));
-    for (const column of titleOnly[kind as keyof typeof titleOnly]) {
-      assert.equal(folded.includes(`immutable_unaccent(coalesce(${column}::text, ''))`), true, `${kind} ${column}`);
+  for (const [kind, columns] of Object.entries(titleOnly)) {
+    const { predicate } = matchPredicate(kind as keyof typeof BUILDERS, "title:luna");
+    const matchPart = predicate.slice(predicate.indexOf(" and (") + 5);
+    for (const column of columns) {
+      assert.equal(matchPart.includes(`immutable_unaccent(coalesce(${column}::text, ''))`), true, `${kind} ${column}`);
     }
-    // Ranking reads the title column too, so only the match predicate is inspected.
-    const predicate = folded.slice(0, folded.indexOf(" order by ") === -1 ? undefined : folded.indexOf(" order by "));
-    const matchPart = predicate.slice(predicate.indexOf(" and (") === -1 ? 0 : predicate.indexOf(" and ("));
     for (const column of notTitle) {
       assert.equal(matchPart.includes(column), false, `${kind} no debe mirar ${column} con title:`);
     }
   }
+});
+
+test("SQL lenguaje: title: de un informe coincide con el título visible (nombre del paciente, o el archivo si está vacío)", () => {
+  const { predicate, params } = matchPredicate("report", "title:Luna");
+
+  assert.equal(predicate.includes(trimmed('"reports"."patient_name"')), true);
+  assert.equal(predicate.includes(trimmed('"reports"."file_name"')), true);
+  assert.equal(predicate.includes("coalesce(nullif(btrim("), true, "primer valor no vacío, como mapReport");
+  // patient_name goes first: a named patient keeps being the title even if the file name also matches.
+  assert.equal(
+    predicate.indexOf('"reports"."patient_name"') < predicate.indexOf('"reports"."file_name"'),
+    true,
+  );
+  assert.equal(predicate.includes('"reports"."study_type"'), false, "el tipo de estudio no es título");
+  assert.equal(params.includes("%Luna%"), true);
+  const blanks = params.find((value) => typeof value === "string" && value.includes("\t") && value.includes("\u00a0"));
+  assert.equal(typeof blanks, "string", "los caracteres en blanco de trim() (incluido NBSP) viajan como parámetro");
+  assert.equal((blanks as string).includes("\ufeff") && (blanks as string).includes("\u3000"), true);
+});
+
+test("SQL lenguaje: title: de un seguimiento coincide con el título visible (paciente, o mascota si está vacío)", () => {
+  const { predicate } = matchPredicate("tracking_case", "title:Rex");
+
+  assert.equal(predicate.includes(trimmed('"reports"."patient_name"')), true);
+  assert.equal(predicate.includes(trimmed('"particular_tokens"."pet_name"')), true);
+  assert.equal(predicate.includes("coalesce(nullif(btrim("), true);
+  assert.equal(predicate.includes('"particular_tokens"."tutor_last_name"'), false);
+});
+
+test("SQL lenguaje: una palabra sin title: sigue mirando todas las columnas de texto del informe", () => {
+  const { predicate } = matchPredicate("report", "Luna");
+
+  for (const column of ['"reports"."patient_name"', '"reports"."file_name"', '"reports"."study_type"']) {
+    assert.equal(predicate.includes(`immutable_unaccent(coalesce(${column}::text, ''))`), true, column);
+  }
+  assert.equal(predicate.includes("nullif(btrim("), false, "el título visible sólo interviene con title:");
+});
+
+test("SQL lenguaje: title: con tildes, frase y OR pliega el título visible en ambos lados", () => {
+  const { predicate, params } = matchPredicate("report", 'title:"Ñandú Pérez" OR title:luna');
+
+  assert.equal(predicate.includes("immutable_unaccent(coalesce((coalesce(nullif(btrim("), true);
+  assert.equal(predicate.includes("ILIKE immutable_unaccent($"), true);
+  assert.equal(params.includes("%Ñandú Pérez%") && params.includes("%luna%"), true);
 });
 
 test("SQL lenguaje: title: con número no agrega la igualdad por id", () => {

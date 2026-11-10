@@ -243,15 +243,20 @@ repositorio llevan `server/features/global-search` de 8/1.270 a 9/1.547 y
 `server/features` a 158/18.743. Total 237/48.590 → 238/48.867. Sin aristas
 nuevas (la feature sigue sin dependencias cross-feature).
 
+GLOBAL-SEARCH-TITLE-FALLBACK hace que `title:` coincida con el título visible
+(paciente, o archivo/mascota si el nombre está vacío) en lugar de una sola columna:
+`server/features/global-search` pasa de 9/1.547 a 9/1.565 y `server/features` a
+158/18.761. Total 238/48.867 → 238/48.885.
+
 | Área | Archivos TypeScript | LOC |
 | --- | ---: | ---: |
-| `server/features` | 158 | 18.743 |
+| `server/features` | 158 | 18.761 |
 | `server/routes` | 37 | 21.797 |
 | `server/lib` | 31 | 5.389 |
 | `server/middlewares` | 3 | 429 |
 | raíz/entrypoints `server/*.ts` | 9 | 2.509 |
 | otros | 0 | 0 |
-| **Total `server`** | **238** | **48.867** |
+| **Total `server`** | **238** | **48.885** |
 
 El review P2 de M48 detectó que la primera metodología aplicaba una semántica
 equivalente a `source.split("\n").length`, que sumaba un segmento vacío por
@@ -272,7 +277,7 @@ porque ésa es su topología proporcional documentada.
 | Feature | Archivos | LOC | Capas/directorios reales | Barrel raíz | Entrantes | Salientes | Closeout |
 | --- | ---: | ---: | --- | --- | --- | --- | --- |
 | Clinics | 10 | 2.747 | domain, infrastructure, servicios directos | sí | Users/Roles (2 refs) | Public Professionals (3) | M29 |
-| Global Search | 9 | 1.547 | domain, application, infrastructure | sí | ninguna | ninguna | GLOBAL-SEARCH-1 |
+| Global Search | 9 | 1.565 | domain, application, infrastructure | sí | ninguna | ninguna | GLOBAL-SEARCH-1 |
 | Logistics | 46 | 4.238 | domain, application, infrastructure | no requerido | ninguna | ninguna | M17 |
 | Particular Access | 12 | 1.086 | domain, application, infrastructure | sí | Reports (1) | Reports/ST (7) | M33/M35b |
 | Pricing | 4 | 489 | infrastructure, servicios directos | no requerido | ninguna | ninguna | M20 |
