@@ -39,7 +39,7 @@ export function FieldVisitDetailDialog({
         trigger === "identifier" ? (
           <button
             type="button"
-            className="rounded-sm text-left text-primary underline-offset-2 hover:underline"
+            className="rounded-sm text-left text-primary underline-offset-2 hover:underline [:root[data-theme=dark-gray]_&]:text-vetneb-navy"
             aria-label={triggerLabel}
           >
             #{visit.id}

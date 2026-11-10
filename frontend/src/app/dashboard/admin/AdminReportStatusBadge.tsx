@@ -14,7 +14,7 @@ const STATUS_META: Record<
   },
   evaluation: {
     label: "Evaluación",
-    className: "border-vetneb-amber/35 bg-vetneb-amber/10 text-vetneb-amber",
+    className: "border-vetneb-amber/35 bg-vetneb-amber/10 text-vetneb-amber-ink",
   },
   report_development: {
     label: "Desarrollo",
@@ -22,7 +22,7 @@ const STATUS_META: Record<
   },
   delivered: {
     label: "Entregado",
-    className: "border-vetneb-teal/35 bg-vetneb-teal/12 text-vetneb-teal",
+    className: "border-vetneb-teal/35 bg-vetneb-teal/12 text-vetneb-teal-ink",
   },
 };
 

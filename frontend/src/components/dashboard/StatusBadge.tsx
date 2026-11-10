@@ -70,7 +70,7 @@ const statusBadgeConfig = {
     variant: "default",
     semanticClass: "status-badge-ready",
     toneClassName:
-      "border-vetneb-teal/35 bg-vetneb-teal/12 text-vetneb-teal",
+      "border-vetneb-teal/35 bg-vetneb-teal/12 text-vetneb-teal-ink",
   },
   delivered: {
     label: "Entregado",
@@ -78,7 +78,7 @@ const statusBadgeConfig = {
     variant: "default",
     semanticClass: "status-badge-delivered",
     toneClassName:
-      "border-vetneb-teal/35 bg-vetneb-teal/12 text-vetneb-teal",
+      "border-vetneb-teal/35 bg-vetneb-teal/12 text-vetneb-teal-ink",
   },
   pending: {
     label: "Pendiente",
@@ -102,7 +102,7 @@ const statusBadgeConfig = {
     variant: "default",
     semanticClass: "status-badge-done",
     toneClassName:
-      "border-vetneb-teal/35 bg-vetneb-teal/12 text-vetneb-teal",
+      "border-vetneb-teal/35 bg-vetneb-teal/12 text-vetneb-teal-ink",
   },
   canceled: {
     label: "Cancelado",
@@ -134,7 +134,7 @@ const statusBadgeConfig = {
     variant: "default",
     semanticClass: "status-badge-active",
     toneClassName:
-      "border-vetneb-teal/35 bg-vetneb-teal/12 text-vetneb-teal",
+      "border-vetneb-teal/35 bg-vetneb-teal/12 text-vetneb-teal-ink",
   },
   inactive: {
     label: "Inactivo",

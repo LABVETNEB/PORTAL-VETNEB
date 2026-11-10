@@ -101,7 +101,7 @@ export function ReportFileActions({
           type="button"
           variant="ghost"
           size="sm"
-          className="h-8 px-2 text-xs text-primary hover:text-primary"
+          className="h-8 px-2 text-xs text-primary hover:text-primary [:root[data-theme=dark-gray]_&]:text-vetneb-navy"
           disabled={!isAvailable || isLoading}
           aria-busy={loadingAction === "preview"}
           title={isAvailable ? "Ver informe" : unavailableTitle}
@@ -118,7 +118,7 @@ export function ReportFileActions({
           type="button"
           variant="ghost"
           size="sm"
-          className="h-8 px-2 text-xs text-primary hover:text-primary"
+          className="h-8 px-2 text-xs text-primary hover:text-primary [:root[data-theme=dark-gray]_&]:text-vetneb-navy"
           disabled={!isAvailable || isLoading}
           aria-busy={loadingAction === "download"}
           title={isAvailable ? "Descargar informe" : unavailableTitle}

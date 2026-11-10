@@ -333,6 +333,7 @@ export function AdminSessionsReadOnlyCard({
           the failure explained. */}
       <CardContent className="flex min-h-0 flex-1 flex-col p-0">
         <div
+          data-dashboard-band="true"
           className="flex min-h-11 shrink-0 items-end gap-2 border-b border-vetneb-line/70 bg-muted/15 px-3 py-1 sm:px-4"
           aria-label="Filtros de sesiones"
         >
@@ -458,7 +459,7 @@ export function AdminSessionsReadOnlyCard({
                             triggerClassName="group flex w-full min-w-0 items-center gap-2 rounded-sm text-left"
                           >
                             <SessionTypeBadge sessionType={session.sessionType} />{" "}
-                            <span className="min-w-0 truncate font-mono text-[11px] text-primary underline-offset-2 group-hover:underline">
+                            <span className="min-w-0 truncate font-mono text-[11px] text-primary underline-offset-2 group-hover:underline [:root[data-theme=dark-gray]_&]:text-vetneb-navy">
                               #{session.sessionId}
                             </span>
                           </AdminSessionDetailDialog>
@@ -698,7 +699,7 @@ export function AdminSessionsReadOnlyCard({
                     >
                       <SessionTypeBadge sessionType={session.sessionType} />{" "}
                       <SessionStatusBadge status={session.status} />{" "}
-                      <span className="min-w-0 truncate text-xs font-medium text-primary underline-offset-2 group-hover:underline">
+                      <span className="min-w-0 truncate text-xs font-medium text-primary underline-offset-2 group-hover:underline [:root[data-theme=dark-gray]_&]:text-vetneb-navy">
                         {formatActorType(session.actorType)} · #{session.sessionId}
                       </span>
                     </AdminSessionDetailDialog>

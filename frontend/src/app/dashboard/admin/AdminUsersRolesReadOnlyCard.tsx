@@ -416,6 +416,7 @@ export function AdminUsersRolesReadOnlyCard() {
           the error / role-change feedback keeps its visible, announced line. */}
       <CardContent className="flex min-h-0 flex-1 flex-col p-0">
         <div
+          data-dashboard-band="true"
           className="flex min-h-12 shrink-0 items-end gap-2 border-b border-vetneb-line/70 px-3 py-2 sm:px-4 md:min-h-10 md:py-1"
           role="search"
           aria-label="Filtros de usuarios y roles"
