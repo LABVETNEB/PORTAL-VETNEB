@@ -3,8 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { RateLimitError, searchDashboardGlobal } from "@/lib/api";
+import { ApiResponseError } from "@/lib/api-error";
 import {
   GLOBAL_SEARCH_DEBOUNCE_MS,
+  describeGlobalSearchSyntaxError,
   isGlobalSearchQueryReady,
   type GlobalSearchRequest,
   type GlobalSearchResult,
@@ -15,15 +17,23 @@ export type DashboardGlobalSearchState =
   | { readonly status: "idle"; readonly result: null; readonly error: null }
   | { readonly status: "loading"; readonly result: GlobalSearchResult | null; readonly error: null }
   | { readonly status: "ready"; readonly result: GlobalSearchResult; readonly error: null }
-  | { readonly status: "error"; readonly result: null; readonly error: string };
+  | { readonly status: "error"; readonly result: null; readonly error: string; readonly errorKind: "syntax" | "other" };
 
 const IDLE: DashboardGlobalSearchState = { status: "idle", result: null, error: null };
 
 const GENERIC_ERROR = "No se pudo completar la búsqueda. Reintentá en unos segundos.";
 
-function describeError(error: unknown): string {
-  if (error instanceof RateLimitError) return error.message;
-  return GENERIC_ERROR;
+function describeError(
+  error: unknown,
+  surface: GlobalSearchSurface,
+): { readonly message: string; readonly errorKind: "syntax" | "other" } {
+  if (error instanceof RateLimitError) return { message: error.message, errorKind: "other" };
+  if (error instanceof ApiResponseError && error.status === 400) {
+    // A rejected query is the user's to fix: repeating it can never succeed.
+    const syntax = describeGlobalSearchSyntaxError(surface, error.message);
+    if (syntax) return { message: syntax, errorKind: "syntax" };
+  }
+  return { message: GENERIC_ERROR, errorKind: "other" };
 }
 
 /**
@@ -64,7 +74,8 @@ export function useDashboardGlobalSearch(
         },
         (error: unknown) => {
           if (current !== sequence.current || controller.signal.aborted) return;
-          setState({ status: "error", result: null, error: describeError(error) });
+          const { message, errorKind } = describeError(error, surface);
+          setState({ status: "error", result: null, error: message, errorKind });
         },
       );
     }, debounceMs);

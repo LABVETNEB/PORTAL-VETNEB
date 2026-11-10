@@ -6,6 +6,7 @@ import { GlobalSearchCursorRejectedError, RateLimitError, searchDashboardGlobal 
 import { ApiResponseError } from "@/lib/api-error";
 import {
   GLOBAL_SEARCH_DEBOUNCE_MS,
+  describeGlobalSearchSyntaxError,
   hasGlobalSearchReportFilters,
   isGlobalSearchQueryReady,
   normalizeGlobalSearchInput,
@@ -63,13 +64,18 @@ const INVALID_ERROR = "La búsqueda no es válida. Revisá el texto y los filtro
  */
 const REUSE_TTL_MS = 2 * 60 * 60 * 1000 - 5 * 60 * 1000;
 
-function classify(error: unknown): { readonly kind: GlobalSearchPagerErrorKind; readonly message: string } {
+function classify(
+  error: unknown,
+  surface: GlobalSearchSurface,
+): { readonly kind: GlobalSearchPagerErrorKind; readonly message: string } {
   if (error instanceof GlobalSearchCursorRejectedError) return { kind: "expired", message: GLOBAL_SEARCH_EXPIRED_MESSAGE };
   if (error instanceof RateLimitError) return { kind: "throttled", message: error.message };
   if (error instanceof ApiResponseError) {
     if (error.status === 401) return { kind: "auth", message: AUTH_ERROR };
     if (error.status === 403) return { kind: "forbidden", message: FORBIDDEN_ERROR };
-    if (error.status === 400) return { kind: "invalid", message: INVALID_ERROR };
+    if (error.status === 400) {
+      return { kind: "invalid", message: describeGlobalSearchSyntaxError(surface, error.message) ?? INVALID_ERROR };
+    }
   }
   return { kind: "generic", message: GENERIC_ERROR };
 }
@@ -217,7 +223,7 @@ export function useGlobalSearchPager(input: {
         if (abort.signal.aborted || session.current !== target) return;
         // One failed window cancels its siblings: their answers would be dropped.
         abort.abort();
-        const { kind, message } = classify(caught);
+        const { kind, message } = classify(caught, surface);
         failedIndex.current = index;
         if (kind === "expired") {
           // The traversal can no longer continue: none of its cursors is reused.
