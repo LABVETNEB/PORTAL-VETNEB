@@ -148,6 +148,75 @@ export function writeGlobalSearchSession(surface: GlobalSearchSurface, value: Gl
   SESSION_MEMORY.set(surface, value);
 }
 
+/**
+ * Syntax rejections of the query language (`server/features/global-search`).
+ * The API answers HTTP 400 with one of a closed set of messages; only those
+ * are turned into guidance. Any other 400 keeps a generic text, so nothing
+ * the server says is ever echoed to the screen unfiltered.
+ */
+const OPERATOR_UNKNOWN = /^Operador de búsqueda desconocido: ([A-Za-z]{2,20}):$/;
+
+const SYNTAX_MESSAGES: Readonly<Record<string, (surface: GlobalSearchSurface) => string>> = {
+  "Tipo de búsqueda inválido": (surface) =>
+    `Ese tipo no existe. Probá type:${surface === "admin" ? "informe, type:token, type:seguimiento, type:clinica o type:usuario" : "informe, type:token o type:seguimiento"}.`,
+  "El tipo de búsqueda no está disponible aquí": () =>
+    "Ese tipo no está disponible en esta búsqueda o contradice el filtro de categoría. Quitá type: o cambiá la categoría.",
+  "La búsqueda requiere al menos un término": () =>
+    "Agregá una palabra además del operador, por ejemplo type:informe luna.",
+  "Demasiados términos de búsqueda": () => "Usaste demasiados términos. Dejá hasta 8 palabras o frases.",
+  "Demasiadas alternativas OR en la búsqueda": () => "Usaste demasiados OR. Dejá hasta 4 alternativas.",
+};
+
+/**
+ * Readable guidance for a syntax rejection, or `null` when the 400 message is
+ * not one of the query language (those keep the generic invalid text).
+ */
+export function describeGlobalSearchSyntaxError(surface: GlobalSearchSurface, serverMessage: string): string | null {
+  const unknown = OPERATOR_UNKNOWN.exec(serverMessage);
+  if (unknown) {
+    return `«${unknown[1]}:» no es un operador. Usá type: o title:, o poné el texto entre comillas para buscarlo tal cual.`;
+  }
+  return SYNTAX_MESSAGES[serverMessage]?.(surface) ?? null;
+}
+
+/** Most recent searches shown on an empty focused field. */
+export const GLOBAL_SEARCH_RECENT_LIMIT = 5;
+
+/**
+ * Recent searches per surface, with the same lifetime and the same reason as
+ * `SESSION_MEMORY`: memory only, never browser storage, dropped by the logout
+ * reload. Most recent first, folded duplicates collapse onto the newest.
+ */
+const RECENT_MEMORY = new Map<GlobalSearchSurface, readonly string[]>();
+
+export function readGlobalSearchRecent(surface: GlobalSearchSurface): readonly string[] {
+  return RECENT_MEMORY.get(surface) ?? [];
+}
+
+export function rememberGlobalSearchQuery(surface: GlobalSearchSurface, value: string): readonly string[] {
+  const query = normalizeGlobalSearchInput(value);
+  const current = readGlobalSearchRecent(surface);
+  if (!isGlobalSearchQueryReady(query)) return current;
+  const folded = foldGlobalSearchText(query);
+  const next = [query, ...current.filter((entry) => foldGlobalSearchText(entry) !== folded)].slice(
+    0,
+    GLOBAL_SEARCH_RECENT_LIMIT,
+  );
+  RECENT_MEMORY.set(surface, next);
+  return next;
+}
+
+/** `/` focuses the search unless the user is already typing somewhere else. */
+export function isGlobalSearchFocusShortcut(event: {
+  readonly key: string;
+  readonly ctrlKey: boolean;
+  readonly metaKey: boolean;
+  readonly altKey: boolean;
+  readonly targetEditable: boolean;
+}): boolean {
+  return event.key === "/" && !event.ctrlKey && !event.metaKey && !event.altKey && !event.targetEditable;
+}
+
 export function globalSearchKindsFor(surface: GlobalSearchSurface): readonly GlobalSearchKind[] {
   return surface === "admin" ? ADMIN_GLOBAL_SEARCH_KINDS : CLINIC_GLOBAL_SEARCH_KINDS;
 }
@@ -256,6 +325,37 @@ const POSITIVE_ID = /^[1-9]\d{0,8}$/;
 /** Report-only filters narrow the search to reports, exactly like the API. */
 export function hasGlobalSearchReportFilters(filters: GlobalSearchFilters): boolean {
   return Boolean(filters.status || filters.studyType || filters.from || filters.to);
+}
+
+export type GlobalSearchFilterKey = "status" | "studyType" | "from" | "to" | "clinicId";
+
+export type GlobalSearchFilterChip = { readonly key: GlobalSearchFilterKey; readonly label: string };
+
+/** Applied filters as removable chips, in the order of the filters panel. */
+export function describeGlobalSearchFilterChips(
+  surface: GlobalSearchSurface,
+  filters: GlobalSearchFilters,
+): readonly GlobalSearchFilterChip[] {
+  const chips: GlobalSearchFilterChip[] = [];
+  if (filters.status) {
+    chips.push({ key: "status", label: globalSearchStatusLabel("report", filters.status) ?? filters.status });
+  }
+  if (filters.studyType) {
+    chips.push({ key: "studyType", label: STUDY_TYPE_LABELS.get(filters.studyType) ?? filters.studyType });
+  }
+  if (ISO_DAY.test(filters.from)) chips.push({ key: "from", label: `Desde ${formatIsoDay(filters.from)}` });
+  if (ISO_DAY.test(filters.to)) chips.push({ key: "to", label: `Hasta ${formatIsoDay(filters.to)}` });
+  if (surface === "admin" && POSITIVE_ID.test(filters.clinicId)) {
+    chips.push({ key: "clinicId", label: `Clínica #${filters.clinicId}` });
+  }
+  return chips;
+}
+
+export function clearGlobalSearchFilter(
+  filters: GlobalSearchFilters,
+  key: GlobalSearchFilterKey,
+): GlobalSearchFilters {
+  return { ...filters, [key]: EMPTY_GLOBAL_SEARCH_FILTERS[key] };
 }
 
 export function buildGlobalSearchQueryString(

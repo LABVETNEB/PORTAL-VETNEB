@@ -247,6 +247,22 @@ type StubOptions = {
   readonly onReleased?: (q: string) => void;
 };
 
+const STUB_TYPE_ALIASES = new Set(["informe", "informes", "token", "tokens", "seguimiento", "seguimientos", "clinica", "usuario", "usuarios"]);
+
+/** The syntax rejections of the query language (server/features/global-search), by their exact API messages. */
+function stubSyntaxRejection(q: string): string | null {
+  for (const match of q.matchAll(/(?:^|\s)([A-Za-z]{2,20}):(\S*)/g)) {
+    const name = match[1].toLowerCase();
+    if (name !== "type" && name !== "title") return `Operador de búsqueda desconocido: ${name}:`;
+    if (name === "type" && match[2] && !STUB_TYPE_ALIASES.has(match[2].toLowerCase())) return "Tipo de búsqueda inválido";
+  }
+  const words = q.replace(/(?:^|\s)(type|title):\S*/gi, " ").replace(/"/g, " ").split(/\s+/).filter(Boolean);
+  if (!words.some((word) => word !== "OR")) return "La búsqueda requiere al menos un término";
+  if (words.filter((word) => word !== "OR").length > 8) return "Demasiados términos de búsqueda";
+  if (words.filter((word) => word === "OR").length >= 4) return "Demasiadas alternativas OR en la búsqueda";
+  return null;
+}
+
 async function installSearchStub(page: Page, options: StubOptions = {}): Promise<Observed[]> {
   const observed: Observed[] = [];
   const clinicCookie = sessionCookie("clinic", "populated");
@@ -303,6 +319,11 @@ async function installSearchStub(page: Page, options: StubOptions = {}): Promise
       return;
     }
 
+    const syntaxRejection = params.cursor === undefined ? stubSyntaxRejection(params.q ?? "") : null;
+    if (syntaxRejection) {
+      await respond(400, { success: false, error: syntaxRejection });
+      return;
+    }
     const allowed = surface === "admin" ? ADMIN_KINDS : CLINIC_KINDS;
     const reportFilters = Boolean(params.status || params.studyType || params.from || params.to);
     const requestedKinds = (params.kinds ? params.kinds.split(",") : allowed) as Kind[];
@@ -792,6 +813,236 @@ test.describe("GLOBAL-SEARCH-2 · Buscar en VETNEB", () => {
     await page.keyboard.press("Control+k");
     await expect(page.locator(INPUT).filter({ visible: true })).toBeFocused();
   });
+
+  test("slash shortcut, in-memory recent searches and removable filter chips keep the query", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 768 });
+    const observed = await installSearchStub(page);
+    await openWorkspace(page, "clinic");
+    const input = await hydratedInput(page);
+    const applied = () => {
+      const params = observed.at(-1)?.params ?? {};
+      return JSON.stringify({ q: params.q, status: params.status ?? null, from: params.from ?? null });
+    };
+
+    await input.fill("luna");
+    await page.locator('[data-global-search-see-all="true"]').click();
+    const dialog = page.locator(DIALOG);
+    await dialog.locator('[data-global-search-filters-toggle="true"]').click();
+    await dialog.locator('[data-global-search-filter="status"]').selectOption("ready");
+    await dialog.locator('[data-global-search-filter="from"]').fill("2026-09-01");
+    await dialog.locator('[data-global-search-filters-apply="true"]').click();
+
+    const chips = dialog.locator('[data-global-search-applied-filters="true"]');
+    await expect(chips.locator('[data-global-search-applied-filter="status"]')).toHaveText("Listo");
+    await expect(chips.locator('[data-global-search-applied-filter="from"]')).toHaveText("Desde 01/09/2026");
+    await expect.poll(applied).toBe(JSON.stringify({ q: "luna", status: "ready", from: "2026-09-01" }));
+    await expect(dialog.locator('[data-global-search-pager="true"]')).toBeVisible();
+    expect(await documentScroll(page)).toEqual({ vertical: 0, horizontal: 0 });
+
+    await chips.getByRole("button", { name: "Quitar filtro Listo" }).click();
+    await expect.poll(applied).toBe(JSON.stringify({ q: "luna", status: null, from: "2026-09-01" }));
+    await chips.locator('[data-global-search-clear-filters="true"]').click();
+    await expect(chips).toBeHidden();
+    await expect.poll(applied).toBe(JSON.stringify({ q: "luna", status: null, from: null }));
+    await expect(dialog.locator('[data-global-search-dialog-input="true"]')).toHaveValue("luna");
+
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    await page.keyboard.press("/");
+    await expect(input).toBeFocused();
+    await page.keyboard.type("so");
+    await expect(input, "the slash shortcut selects the previous query").toHaveValue("so");
+
+    await input.fill("");
+    const recent = page.locator('[data-global-search-recent="true"]');
+    await expect(recent).toHaveText("luna");
+    await expect(input).toHaveAttribute("aria-expanded", "true");
+    await expect(input).not.toHaveAttribute("aria-activedescendant", /.+/);
+    await input.press("Enter");
+    await expect(dialog, "Enter on an empty field opens nothing").toBeHidden();
+    await input.press("ArrowDown");
+    await expect(recent).toHaveAttribute("aria-selected", "true");
+    await input.press("Enter");
+    await expect(dialog).toBeVisible();
+    await expect(dialog.locator('[data-global-search-dialog-input="true"]')).toHaveValue("luna");
+  });
+
+  test("syntax errors: readable guidance in the bar, no retry loop, text kept, and the search recovers", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 768 });
+    const observed = await installSearchStub(page);
+    await openWorkspace(page, "clinic");
+    const input = await hydratedInput(page);
+    const status = page.locator("[data-global-search-status]");
+    const requestsFor = (q: string) => observed.filter((entry) => entry.params.q === q).length;
+
+    const rejected: ReadonlyArray<readonly [string, RegExp]> = [
+      ["foo:bar", /«foo:» no es un operador/],
+      ["type:pdf luna", /Ese tipo no existe\. Probá type:informe, type:token o type:seguimiento\./],
+      ["type:informe", /Agregá una palabra además del operador/],
+      ["a1 a2 a3 a4 a5 a6 a7 a8 a9", /demasiados términos/i],
+      ["a OR b OR c OR d OR e", /demasiados OR/i],
+    ];
+    for (const [query, message] of rejected) {
+      await input.fill(query);
+      await expect(status, query).toHaveAttribute("data-global-search-error-kind", "syntax");
+      await expect(status, query).toContainText(message);
+      await expect(status.getByRole("button", { name: "Reintentar" }), "a rejected query cannot succeed on retry").toHaveCount(0);
+      await expect(page.locator(PANEL)).not.toContainText(/Error interno|select|SQL|stack/i);
+      await expect(input, "the text stays editable").toHaveValue(query);
+    }
+
+    // No loop: once rejected, the same query is never sent again on its own.
+    await input.fill("foo:bar");
+    await expect(status).toHaveAttribute("data-global-search-error-kind", "syntax");
+    const sentOnce = requestsFor("foo:bar");
+
+    // Queries the language tolerates are not errors.
+    for (const tolerated of ["luna OR", '"luna', "type: luna"]) {
+      await input.fill(tolerated);
+      await expect(page.locator('[data-global-search-status="ready"]'), tolerated).toBeVisible();
+      await expect(status, tolerated).not.toHaveAttribute("data-global-search-error-kind", /.+/);
+    }
+
+    await input.fill("luna");
+    await expect(page.locator('[data-global-search-hit="report:9101"]')).toBeVisible();
+    expect(requestsFor("foo:bar"), "a rejected query is never sent again on its own").toBe(sentOnce);
+    expect(await documentScroll(page)).toEqual({ vertical: 0, horizontal: 0 });
+  });
+
+  test("syntax errors in the full search keep the text and the valid filters, and editing the text recovers", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 768 });
+    const observed = await installSearchStub(page);
+    await openWorkspace(page, "clinic");
+    const input = await hydratedInput(page);
+
+    await input.fill("luna");
+    await page.locator('[data-global-search-see-all="true"]').click();
+    const dialog = page.locator(DIALOG);
+    const dialogInput = dialog.locator('[data-global-search-dialog-input="true"]');
+    await dialog.locator('[data-global-search-filters-toggle="true"]').click();
+    await dialog.locator('[data-global-search-filter="status"]').selectOption("ready");
+    await dialog.locator('[data-global-search-filters-apply="true"]').click();
+    await expect(dialog.locator('[data-global-search-applied-filter="status"]')).toHaveText("Listo");
+
+    await dialogInput.fill("foo:bar");
+    const error = dialog.locator('[data-global-search-error="invalid"]');
+    await expect(error).toContainText("«foo:» no es un operador");
+    await expect(error.getByRole("button")).toHaveCount(0);
+    await expect(dialogInput).toHaveValue("foo:bar");
+    await expect(dialog.locator('[data-global-search-applied-filter="status"]'), "valid filters survive").toHaveText("Listo");
+    await expect.poll(() => observed.at(-1)?.params).toMatchObject({ q: "foo:bar", status: "ready", kinds: "report" });
+    const sent = observed.filter((entry) => entry.params.q === "foo:bar").length;
+
+    await dialogInput.fill("type:pdf luna");
+    await expect(error).toContainText("Ese tipo no existe");
+
+    await dialogInput.fill("luna");
+    expect(observed.filter((entry) => entry.params.q === "foo:bar").length, "no request loop").toBe(sent);
+    await expect(error).toHaveCount(0);
+    await expect(dialog.locator("[data-global-search-result]").first()).toBeVisible();
+    await expect(dialog.locator('[data-global-search-applied-filter="status"]')).toHaveText("Listo");
+    expect(await documentScroll(page)).toEqual({ vertical: 0, horizontal: 0 });
+  });
+
+  const CHIP_VIEWPORTS = [
+    { width: 320, height: 640 },
+    { width: 375, height: 667 },
+    { width: 768, height: 1024 },
+    { width: 1366, height: 768 },
+    { width: 844, height: 390 },
+  ] as const;
+
+  for (const viewport of CHIP_VIEWPORTS) {
+    test(`filter chips ${viewport.width}x${viewport.height}: five applied filters wrap without overlap, overflow or scroll`, async ({ page }, testInfo) => {
+      await page.setViewportSize(viewport);
+      await installSearchStub(page);
+      await openWorkspace(page, "admin");
+      const dialog = await openFullSearch(page, "serie");
+      await dialog.locator('[data-global-search-filters-toggle="true"]').click();
+      await dialog.locator('[data-global-search-filter="status"]').selectOption("ready");
+      await dialog.locator('[data-global-search-filter="studyType"]').selectOption("citologia");
+      await dialog.locator('[data-global-search-filter="from"]').fill("2026-01-01");
+      await dialog.locator('[data-global-search-filter="to"]').fill("2099-12-31");
+      await dialog.locator('[data-global-search-filter="clinicId"]').fill(String(CLINIC_A.id));
+      await dialog.locator('[data-global-search-filters-apply="true"]').click();
+
+      const chips = dialog.locator('[data-global-search-applied-filters="true"]');
+      await expect(chips.locator("[data-global-search-applied-filter]")).toHaveCount(5);
+      await expect(dialog.locator("[data-global-search-result]").first()).toBeVisible();
+      const shortViewport = viewport.height <= 480;
+      if (shortViewport) {
+        // No room for a chip row: it yields to the results, the Filtros toggle still reports the filters.
+        await expect(chips).toBeHidden();
+        await expect(dialog.locator('[data-global-search-filters-toggle="true"]')).toHaveText("Filtros activos");
+      } else {
+        await expect(chips).toBeVisible();
+      }
+
+      const geometry = await dialog.evaluate((node) => {
+        const dialogBox = node.getBoundingClientRect();
+        const group = node.querySelector<HTMLElement>('[data-global-search-applied-filters="true"]')!;
+        const controls = [...group.querySelectorAll<HTMLElement>("button")].filter((control) => control.offsetParent !== null);
+        const boxes = controls.map((control) => control.getBoundingClientRect());
+        const overlaps = boxes.flatMap((a, i) =>
+          boxes.slice(i + 1).filter((b) => a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5).map(() => i),
+        );
+        const region = node.querySelector<HTMLElement>("[data-global-search-results-region]")!;
+        const rows = [...node.querySelectorAll<HTMLElement>("[data-global-search-result]")];
+        const next = node.querySelector<HTMLElement>('[data-global-search-page="next"]')!;
+        const pager = node.querySelector<HTMLElement>("[data-global-search-pager]")!;
+        return {
+          chipCount: controls.length,
+          chipsInsideDialog: boxes.every((box) => box.left >= dialogBox.left - 0.5 && box.right <= dialogBox.right + 0.5),
+          minChipHeight: Math.min(...boxes.map((box) => box.height)),
+          overlaps: overlaps.length,
+          pageSize: Number(region.dataset.globalSearchPageSize),
+          rows: rows.length,
+          regionOverflow: region.scrollHeight - region.clientHeight,
+          pagerBottom: pager.getBoundingClientRect().bottom,
+          viewportHeight: window.innerHeight,
+          dialogOverflowX: node.scrollWidth - node.clientWidth,
+          obscured: (
+            [
+              ["close", node.querySelector<HTMLElement>('[aria-label="Cerrar búsqueda"]')],
+              // A hidden chip row (short viewports) has nothing to hit-test.
+              ...(controls.length > 0
+                ? [
+                    ["clear", group.querySelector<HTMLElement>('[data-global-search-clear-filters="true"]')],
+                    ["first chip", controls[0]],
+                  ]
+                : []),
+              ["next", next],
+              ["last row", rows[rows.length - 1] ?? null],
+            ] as Array<[string, HTMLElement | null]>
+          )
+            .filter(([, element]) => {
+              if (!(element instanceof HTMLElement)) return true;
+              if (element.matches(":disabled")) return false;
+              const box = element.getBoundingClientRect();
+              const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+              return !hit || !element.contains(hit);
+            })
+            .map(([label]) => label),
+        };
+      });
+      testInfo.annotations.push({ type: "geometry", description: JSON.stringify({ viewport, ...geometry }) });
+
+      if (!shortViewport) {
+        expect(geometry.chipCount, "five filter chips and the clear action").toBe(6);
+        expect(geometry.chipsInsideDialog).toBe(true);
+        expect(geometry.minChipHeight, "touch target").toBeGreaterThanOrEqual(44);
+        expect(geometry.overlaps, "no chip paints over another").toBe(0);
+      }
+      expect(geometry.rows, "the page holds exactly the measured capacity").toBe(geometry.pageSize);
+      expect(geometry.rows).toBeGreaterThanOrEqual(1);
+      expect(geometry.regionOverflow, "the results list never scrolls").toBeLessThanOrEqual(0);
+      expect(geometry.pagerBottom).toBeLessThanOrEqual(geometry.viewportHeight + 0.5);
+      expect(geometry.dialogOverflowX).toBeLessThanOrEqual(0);
+      expect(geometry.obscured, "close, chips, pager and rows are on top and tappable").toEqual([]);
+      expect(await documentScroll(page)).toEqual({ vertical: 0, horizontal: 0 });
+    });
+  }
 
   for (const role of ["clinic", "admin"] as const) {
     test(`${role}: the bar never suggests modules, empty or typed`, async ({ page }) => {

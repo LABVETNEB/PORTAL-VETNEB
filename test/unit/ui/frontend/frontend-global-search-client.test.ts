@@ -29,6 +29,9 @@ const {
   EMPTY_GLOBAL_SEARCH_FILTERS,
   buildGlobalSearchDestination,
   buildGlobalSearchQueryString,
+  clearGlobalSearchFilter,
+  describeGlobalSearchFilterChips,
+  describeGlobalSearchSyntaxError,
   foldGlobalSearchText,
   formatGlobalSearchFact,
   globalSearchDestinationOpensRecord,
@@ -37,8 +40,11 @@ const {
   globalSearchStatusLabel,
   groupGlobalSearchHits,
   isGlobalSearchContinuation,
+  isGlobalSearchFocusShortcut,
   isGlobalSearchQueryReady,
   normalizeGlobalSearchInput,
+  readGlobalSearchRecent,
+  rememberGlobalSearchQuery,
   resolveGlobalSearchRequestKinds,
 } = (await import(LIB_URL)) as typeof import("../../../../frontend/src/lib/global-search.ts");
 
@@ -267,4 +273,72 @@ test("status and fact labels are resolved per kind", () => {
     label: "Entrega estimada",
     value: "04/03/2026",
   });
+});
+
+test("recent searches: per surface, newest first, folded dedupe, capped at five", () => {
+  assert.deepEqual([...readGlobalSearchRecent("clinic")], []);
+  rememberGlobalSearchQuery("clinic", "a");
+  assert.deepEqual([...readGlobalSearchRecent("clinic")], [], "an unready query is not recorded");
+  for (const query of ["uno", "dos", "tres", "cuatro", "cinco", "seis"]) rememberGlobalSearchQuery("clinic", query);
+  assert.deepEqual([...readGlobalSearchRecent("clinic")], ["seis", "cinco", "cuatro", "tres", "dos"]);
+  rememberGlobalSearchQuery("clinic", "  CUÁTRO ");
+  assert.deepEqual([...readGlobalSearchRecent("clinic")], ["CUÁTRO", "seis", "cinco", "tres", "dos"]);
+  assert.deepEqual([...readGlobalSearchRecent("admin")], [], "surfaces do not share history");
+});
+
+test("slash focuses the search only outside editable targets and without modifiers", () => {
+  const base = { key: "/", ctrlKey: false, metaKey: false, altKey: false, targetEditable: false };
+  assert.equal(isGlobalSearchFocusShortcut(base), true);
+  assert.equal(isGlobalSearchFocusShortcut({ ...base, targetEditable: true }), false);
+  assert.equal(isGlobalSearchFocusShortcut({ ...base, ctrlKey: true }), false);
+  assert.equal(isGlobalSearchFocusShortcut({ ...base, metaKey: true }), false);
+  assert.equal(isGlobalSearchFocusShortcut({ ...base, altKey: true }), false);
+  assert.equal(isGlobalSearchFocusShortcut({ ...base, key: "k" }), false);
+});
+
+test("applied filter chips describe each filter and clear exactly one", () => {
+  const filters = {
+    ...EMPTY_GLOBAL_SEARCH_FILTERS,
+    kinds: ["report"] as const,
+    status: "ready" as const,
+    studyType: "citologia",
+    from: "2026-01-02",
+    to: "2026-02-03",
+    clinicId: "22",
+  };
+  const admin = describeGlobalSearchFilterChips("admin", { ...filters, kinds: [...filters.kinds] });
+  assert.deepEqual(admin, [
+    { key: "status", label: "Listo" },
+    { key: "studyType", label: "Citología" },
+    { key: "from", label: "Desde 02/01/2026" },
+    { key: "to", label: "Hasta 03/02/2026" },
+    { key: "clinicId", label: "Clínica #22" },
+  ]);
+  const clinic = describeGlobalSearchFilterChips("clinic", { ...filters, kinds: [...filters.kinds] });
+  assert.equal(clinic.some((chip) => chip.key === "clinicId"), false, "the clinic tenant is the session");
+
+  const cleared = clearGlobalSearchFilter({ ...filters, kinds: [...filters.kinds] }, "from");
+  assert.equal(cleared.from, "");
+  assert.deepEqual({ ...cleared, from: filters.from, kinds: [...filters.kinds] }, { ...filters, kinds: [...filters.kinds] });
+});
+
+test("syntax rejections of the API become guidance; any other 400 text is never echoed", () => {
+  assert.equal(
+    describeGlobalSearchSyntaxError("clinic", "Operador de búsqueda desconocido: foo:"),
+    "«foo:» no es un operador. Usá type: o title:, o poné el texto entre comillas para buscarlo tal cual.",
+  );
+  assert.match(describeGlobalSearchSyntaxError("clinic", "Tipo de búsqueda inválido") ?? "", /type:informe, type:token o type:seguimiento/);
+  assert.match(describeGlobalSearchSyntaxError("admin", "Tipo de búsqueda inválido") ?? "", /type:clinica o type:usuario/);
+  for (const message of [
+    "El tipo de búsqueda no está disponible aquí",
+    "La búsqueda requiere al menos un término",
+    "Demasiados términos de búsqueda",
+    "Demasiadas alternativas OR en la búsqueda",
+  ]) {
+    assert.ok(describeGlobalSearchSyntaxError("clinic", message), message);
+  }
+  // Unknown or hostile server text is not a syntax message: the caller keeps its generic text.
+  assert.equal(describeGlobalSearchSyntaxError("clinic", "Paginación de búsqueda inválida"), null);
+  assert.equal(describeGlobalSearchSyntaxError("clinic", "Operador de búsqueda desconocido: <img onerror=x>:"), null);
+  assert.equal(describeGlobalSearchSyntaxError("clinic", "select * from reports"), null);
 });

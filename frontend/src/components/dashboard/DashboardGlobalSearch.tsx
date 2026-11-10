@@ -11,7 +11,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
 } from "react";
-import { ArrowRight, LoaderCircle, Search } from "lucide-react";
+import { ArrowRight, History, LoaderCircle, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import {
@@ -23,9 +23,12 @@ import {
   globalSearchKindLabel,
   globalSearchStatusLabel,
   groupGlobalSearchHits,
+  isGlobalSearchFocusShortcut,
   isGlobalSearchQueryReady,
   normalizeGlobalSearchInput,
+  readGlobalSearchRecent,
   readGlobalSearchSession,
+  rememberGlobalSearchQuery,
   type GlobalSearchHit,
   type GlobalSearchSurface,
 } from "@/lib/global-search";
@@ -38,7 +41,13 @@ import { useDashboardGlobalSearch } from "./useDashboardGlobalSearch";
 
 type SearchOption =
   | { readonly type: "hit"; readonly key: string; readonly hit: GlobalSearchHit }
+  | { readonly type: "recent"; readonly key: string; readonly query: string }
   | { readonly type: "all"; readonly key: string };
+
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  return target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
+}
 
 
 function optionDomId(listboxId: string, option: SearchOption): string {
@@ -115,6 +124,7 @@ export function DashboardGlobalSearch({ surface }: { readonly surface: GlobalSea
   const [activeIndex, setActiveIndex] = useState(0);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [openRequest, setOpenRequest] = useState<DashboardGlobalSearchOpenRequest | null>(null);
+  const [recent, setRecent] = useState<readonly string[]>(() => readGlobalSearchRecent(surface));
 
   const normalized = normalizeGlobalSearchInput(query);
   const ready = isGlobalSearchQueryReady(query);
@@ -134,12 +144,16 @@ export function DashboardGlobalSearch({ surface }: { readonly surface: GlobalSea
 
   const options = useMemo<readonly SearchOption[]>(() => {
     const list: SearchOption[] = [];
+    if (!ready) {
+      for (const entry of recent) list.push({ type: "recent", key: `recent:${entry}`, query: entry });
+      return list;
+    }
     for (const group of hitGroups) {
       for (const hit of group.hits) list.push({ type: "hit", key: globalSearchHitKey(hit), hit });
     }
     if (ready) list.push({ type: "all", key: "all" });
     return list;
-  }, [hitGroups, ready]);
+  }, [hitGroups, ready, recent]);
 
   const active = options.length > 0 ? options[Math.min(activeIndex, options.length - 1)] : undefined;
   const expanded = open && options.length > 0;
@@ -148,13 +162,19 @@ export function DashboardGlobalSearch({ surface }: { readonly surface: GlobalSea
   // open record); a query or a chosen hit starts or updates it.
   const openDialog = useCallback((nextQuery: string, hit: GlobalSearchHit | null) => {
     setOpen(false);
+    if (nextQuery) setRecent(rememberGlobalSearchQuery(surface, nextQuery));
     setOpenRequest((previous) => ({ id: (previous?.id ?? 0) + 1, query: nextQuery, hit }));
     setDialogOpen(true);
-  }, []);
+  }, [surface]);
 
   const select = useCallback(
     (option: SearchOption | undefined) => {
       if (!option) return;
+      if (option.type === "recent") {
+        setQuery(option.query);
+        openDialog(option.query, null);
+        return;
+      }
       openDialog(normalized, option.type === "hit" ? option.hit : null);
     },
     [normalized, openDialog],
@@ -173,6 +193,23 @@ export function DashboardGlobalSearch({ surface }: { readonly surface: GlobalSea
       openDialog("", null);
     }
     function onShortcut(event: KeyboardEvent) {
+      if (
+        isGlobalSearchFocusShortcut({
+          key: event.key,
+          ctrlKey: event.ctrlKey,
+          metaKey: event.metaKey,
+          altKey: event.altKey,
+          targetEditable: isEditableTarget(event.target),
+        })
+      ) {
+        const input = inputRef.current;
+        if (dialogOpen || !input || input.offsetParent === null) return;
+        event.preventDefault();
+        input.focus();
+        input.select();
+        setOpen(true);
+        return;
+      }
       if (event.key.toLowerCase() !== "k" || !(event.ctrlKey || event.metaKey)) return;
       event.preventDefault();
       const input = inputRef.current;
@@ -189,7 +226,7 @@ export function DashboardGlobalSearch({ surface }: { readonly surface: GlobalSea
       window.removeEventListener(DASHBOARD_GLOBAL_SEARCH_OPEN_EVENT, onOpenRequest);
       window.removeEventListener("keydown", onShortcut);
     };
-  }, [openDialog]);
+  }, [dialogOpen, openDialog]);
 
   const onKeyDown = useCallback(
     (event: ReactKeyboardEvent<HTMLInputElement>) => {
@@ -255,6 +292,9 @@ export function DashboardGlobalSearch({ surface }: { readonly surface: GlobalSea
   );
 
   const allOption = options.find((option) => option.type === "all");
+  const recentOptions = options.filter(
+    (option): option is Extract<SearchOption, { type: "recent" }> => option.type === "recent",
+  );
 
   return (
     <>
@@ -288,10 +328,14 @@ export function DashboardGlobalSearch({ surface }: { readonly surface: GlobalSea
           value={query}
           onChange={(event) => {
             setQuery(event.target.value);
-            setActiveIndex(0);
+            // Recent searches wait for an arrow key: Enter on an empty field does nothing.
+            setActiveIndex(isGlobalSearchQueryReady(event.target.value) ? 0 : -1);
             setOpen(true);
           }}
-          onFocus={() => setOpen(true)}
+          onFocus={() => {
+            if (!ready) setActiveIndex(-1);
+            setOpen(true);
+          }}
           onKeyDown={onKeyDown}
         />
         <div
@@ -329,6 +373,25 @@ export function DashboardGlobalSearch({ surface }: { readonly surface: GlobalSea
                 </ul>
               </li>
             ))}
+            {recentOptions.length > 0 ? (
+              <li role="presentation">
+                <ul role="group" aria-label="Búsquedas recientes" data-global-search-group="recent">
+                  <li role="presentation" aria-hidden="true" className="px-4 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Búsquedas recientes
+                  </li>
+                  {recentOptions.map((option) =>
+                    renderOption(
+                      option,
+                      <span className="flex min-w-0 items-center gap-3">
+                        <History className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                        <span className="truncate">{option.query}</span>
+                      </span>,
+                      { "data-global-search-recent": "true" },
+                    ),
+                  )}
+                </ul>
+              </li>
+            ) : null}
             {allOption
               ? renderOption(
                   allOption,
@@ -345,13 +408,14 @@ export function DashboardGlobalSearch({ surface }: { readonly surface: GlobalSea
             role="status"
             aria-live="polite"
             data-global-search-status={open && ready ? search.status : "idle"}
+            data-global-search-error-kind={open && ready && search.status === "error" ? search.errorKind : undefined}
             className={cn("flex items-center gap-2 px-4 text-xs text-muted-foreground", statusMessage ? "py-1.5" : "sr-only")}
           >
             {open && ready && search.status === "loading" ? (
               <LoaderCircle className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" />
             ) : null}
             <span>{statusMessage}</span>
-            {open && ready && search.status === "error" ? (
+            {open && ready && search.status === "error" && search.errorKind !== "syntax" ? (
               <button
                 type="button"
                 className="ml-auto rounded-md px-2 py-1 font-semibold text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85"
