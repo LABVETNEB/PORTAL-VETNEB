@@ -86,7 +86,11 @@ function search(rows: Row[], kind: Kind, criteria: Criteria, clinicId: number | 
   return rows
     .filter((row) => row.kind === kind)
     .filter((row) => clinicId === null || row.clinicId === clinicId)
-    .filter((row) => criteria.needle.numericId === row.id || fold(row.title).includes(needle))
+    .filter((row) =>
+      criteria.needle.clauses.some((clause) =>
+        clause.every((term) => term.numericId === row.id || fold(row.title).includes(fold(term.text))),
+      ),
+    )
     .map<Hit>((row) => ({
       kind: row.kind,
       id: row.id,
@@ -537,6 +541,65 @@ test("global search cursor: Admin queda atado a su filtro de clínica", async ()
     const moved = await get(app, `/api/admin/search?q=serie&kinds=report&limit=25&clinicId=${CLINIC_B}&cursor=${cursor}`, ADMIN_COOKIE);
     assert.deepEqual([same, widened, moved].map(({ response }) => response.statusCode), [200, 400, 400]);
     assert.ok((same.body.hits ?? []).every((hit) => hit.target.clinicId === CLINIC_A));
+  } finally {
+    await app.close();
+  }
+});
+
+test("global search lenguaje: type: consulta sólo esa entidad y siempre con el tenant de la sesión", async () => {
+  const { app, calls } = await createApp();
+  try {
+    const { response, body } = await get(app, "/api/search?q=type%3Ainforme%20Rex", CLINIC_A_COOKIE);
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.headers["cache-control"], "no-store");
+    assert.deepEqual(calls, [`report:${CLINIC_A}`]);
+    assert.deepEqual(body.groups?.map((group) => group.kind), ["report"]);
+
+    calls.length = 0;
+    await get(app, "/api/search?q=type%3Atoken%20type%3Aseguimiento%20Rex", CLINIC_A_COOKIE);
+    assert.deepEqual([...calls].sort(), [`particular_token:${CLINIC_A}`, `tracking_case:${CLINIC_A}`]);
+  } finally {
+    await app.close();
+  }
+});
+
+test("global search lenguaje: type: de otra superficie o sin sentido es 400 y no consulta", async () => {
+  const { app, calls } = await createApp();
+  try {
+    for (const q of ["type:clinica rex", "type:pdf rex", "foo:bar rex", "type:informe"]) {
+      const { response, body } = await get(app, `/api/search?q=${encodeURIComponent(q)}`, CLINIC_A_COOKIE);
+      assert.equal(response.statusCode, 400, q);
+      assert.equal(body.success, false, q);
+    }
+    const contradictory = await get(app, "/api/search?q=type%3Atoken%20rex&kinds=report", CLINIC_A_COOKIE);
+    assert.equal(contradictory.response.statusCode, 400);
+    assert.deepEqual(calls, []);
+  } finally {
+    await app.close();
+  }
+});
+
+test("global search lenguaje: Admin puede nombrar clínicas y usuarios; Clínica no", async () => {
+  const { app, calls } = await createApp();
+  try {
+    const admin = await get(app, "/api/admin/search?q=type%3Ausuario%20rex", ADMIN_COOKIE);
+    assert.equal(admin.response.statusCode, 200);
+    assert.deepEqual(calls, ["clinic_user:*"]);
+    assert.deepEqual(admin.body.hits?.map((hit) => `${hit.kind}:${hit.id}`), ["clinic_user:5"]);
+
+    const clinic = await get(app, "/api/search?q=type%3Ausuario%20rex", CLINIC_A_COOKIE);
+    assert.equal(clinic.response.statusCode, 400);
+  } finally {
+    await app.close();
+  }
+});
+
+test("global search lenguaje: operadores y OR no abren el alcance de otra clínica", async () => {
+  const { app, calls } = await createApp();
+  try {
+    const { response } = await get(app, `/api/search?q=${encodeURIComponent('"Exclusivo Clinica B" OR title:Rex')}`, CLINIC_A_COOKIE);
+    assert.equal(response.statusCode, 200);
+    assert.equal(calls.every((call) => call.endsWith(`:${CLINIC_A}`)), true, calls.join(","));
   } finally {
     await app.close();
   }
