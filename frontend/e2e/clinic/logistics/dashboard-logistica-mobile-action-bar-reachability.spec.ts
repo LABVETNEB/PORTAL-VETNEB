@@ -144,6 +144,10 @@ async function expectSecondPageReachable(page: Page, pager: string, label: strin
   const next = page.locator(`${pager} ${NEXT}`);
   await expect(next, `${label}: next visible`).toBeVisible();
   await expect(next, `${label}: next enabled`).toBeEnabled();
+  // The server-rendered pager is enabled before the client tree runs, and a click in
+  // that window is dropped. The App Router mounts its route announcer, a public live
+  // region, only once the client tree is running; the click is issued exactly once.
+  await expect(page.locator("next-route-announcer"), `${label}: client tree running`).toBeAttached();
   await next.click();
   // CMP-09: pager label wording aligned to Admins "Pag. X / Y" (G-010).
   await expect(page.locator(`${pager} [data-dashboard-pager-state="true"]`)).toHaveText(/Pág\.?[\s ]*2/);
@@ -174,6 +178,9 @@ for (const viewport of VIEWPORTS) {
   test(`logistics hub keeps header actions and every row reachable at ${viewport.name}`, async ({
     page,
   }) => {
+    // Two document loads plus two paginations: measured 29.4-32.9 s under `next dev` with
+    // 6 workers (SSR serialises on one dev server) against 0.6-1.9 s on the production runner.
+    test.setTimeout(60_000);
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await setClinicSession(page);
     await openHub(page);
