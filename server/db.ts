@@ -316,13 +316,13 @@ export async function incrementLoginRateLimitEntry(input: {
         keyVersion: input.metadata?.keyVersion ?? null,
         count: sql<number>`
           CASE
-            WHEN ${loginRateLimits.resetAt} <= ${input.now} THEN ${input.count}
+            WHEN ${loginRateLimits.resetAt} <= ${input.now.toISOString()}::timestamp THEN ${input.count}
             ELSE ${loginRateLimits.count} + 1
           END
         `,
         resetAt: sql<Date>`
           CASE
-            WHEN ${loginRateLimits.resetAt} <= ${input.now} THEN ${input.resetAt}
+            WHEN ${loginRateLimits.resetAt} <= ${input.now.toISOString()}::timestamp THEN ${input.resetAt.toISOString()}::timestamp
             ELSE ${loginRateLimits.resetAt}
           END
         `,
@@ -370,13 +370,13 @@ export async function consumeLoginRateLimitAttempt(input: {
         keyVersion: input.metadata?.keyVersion ?? null,
         count: sql<number>`
           CASE
-            WHEN ${loginRateLimits.resetAt} <= ${input.now} THEN 1
+            WHEN ${loginRateLimits.resetAt} <= ${input.now.toISOString()}::timestamp THEN 1
             ELSE ${loginRateLimits.count} + 1
           END
         `,
         resetAt: sql<Date>`
           CASE
-            WHEN ${loginRateLimits.resetAt} <= ${input.now} THEN ${input.resetAt}
+            WHEN ${loginRateLimits.resetAt} <= ${input.now.toISOString()}::timestamp THEN ${input.resetAt.toISOString()}::timestamp
             ELSE ${loginRateLimits.resetAt}
           END
         `,
