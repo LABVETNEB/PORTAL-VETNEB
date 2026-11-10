@@ -78,7 +78,7 @@
 
 :root:not([data-theme="dark-gray"]) .dashboard-app-shell table thead > tr > th {
   color: var(--dash-color-on-surface-muted) !important;
-  font-weight: 500 !important;
+  font-weight: var(--dash-text-body-strong-weight) !important;
   letter-spacing: normal !important;
   line-height: 16px !important;
   border-block-end: 1px solid var(--dash-table-separator);
@@ -90,7 +90,7 @@
 
 :root:not([data-theme="dark-gray"]) .dashboard-app-shell table tbody > tr > td {
   color: var(--dash-color-on-surface-muted) !important;
-  font-weight: 400 !important;
+  font-weight: var(--dash-drv-text-regular-weight) !important;
   line-height: 20px !important;
   border-block-end: 1px solid var(--dash-table-separator);
 }
@@ -189,3 +189,22 @@
   }
 }
 /* dashboard-drv-v8-container-columns:end */
+
+/* dashboard-drv-weights:start
+ * Drive stroke weight, theme-invariant: the same element keeps the same weight
+ * in both themes. Cells and navigation use the body weight, column headers and
+ * record names the strong weight, secondary text stays at 400 so the hierarchy
+ * name > cell > secondary survives. Colours are untouched. */
+.dashboard-app-shell table thead > tr > th {
+  font-weight: var(--dash-text-body-strong-weight);
+}
+.dashboard-app-shell table tbody > tr > td {
+  font-weight: var(--dash-drv-text-regular-weight);
+}
+.dashboard-app-shell table tbody td :is(.font-medium, .font-semibold).text-vetneb-ink {
+  font-weight: var(--dash-text-body-strong-weight);
+}
+.dashboard-app-shell table tbody td .text-muted-foreground {
+  font-weight: 400;
+}
+/* dashboard-drv-weights:end */

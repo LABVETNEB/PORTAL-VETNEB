@@ -178,7 +178,7 @@
   padding-inline: var(--dash-space-3);
   border-radius: var(--dash-shape-full);
   font-size: var(--dash-text-body-size);
-  font-weight: var(--dash-text-body-weight);
+  font-weight: var(--dash-drv-text-regular-weight);
 }
 
 .dashboard-app-shell .dashboard-navigation-drawer-label {
@@ -360,7 +360,7 @@
     .dashboard-navigation-drawer-item.dashboard-navigation-item-active:hover {
     background-color: var(--dash-drv-nav-active-bg);
     color: var(--dash-drv-nav-active-fg);
-    font-weight: var(--dash-text-body-weight);
+    font-weight: var(--dash-text-body-strong-weight);
   }
 }
 /* dashboard-drv-v4-navigation-drawer:end */
