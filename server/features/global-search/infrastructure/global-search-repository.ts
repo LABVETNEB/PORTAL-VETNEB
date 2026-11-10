@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, lte, or, sql, type SQL } from "drizzle-orm";
+import { SQL, and, desc, eq, gte, lte, or, sql } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 
 import { db } from "../../../db.ts";
@@ -29,12 +29,28 @@ type GlobalSearchDatabase = typeof db;
  * by migration 0007; the pattern is a bound parameter already escaped by the
  * domain, and `ESCAPE '\'` makes `%`/`_` typed by the user literal.
  */
-function folded(column: AnyPgColumn): SQL {
-  return sql`immutable_unaccent(coalesce(${column}::text, ''))`;
+function folded(source: AnyPgColumn | SQL): SQL {
+  return source instanceof SQL
+    ? sql`immutable_unaccent(coalesce((${source}), ''))`
+    : sql`immutable_unaccent(coalesce(${source}::text, ''))`;
 }
 
-function likeFolded(column: AnyPgColumn, pattern: string): SQL {
-  return sql`${folded(column)} ILIKE immutable_unaccent(${pattern}) ESCAPE '\\'`;
+function likeFolded(source: AnyPgColumn | SQL, pattern: string): SQL {
+  return sql`${folded(source)} ILIKE immutable_unaccent(${pattern}) ESCAPE '\\'`;
+}
+
+/** Every character `String.prototype.trim` strips (`btrim` alone only strips spaces), so SQL and `mapReport` agree on "blank". */
+const BLANK_CHARACTERS = " \t\n\v\f\r\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000\ufeff";
+
+/**
+ * The text a hit shows as its title: the first NON-BLANK value, exactly like
+ * the `mapReport` / `mapTracking` fallbacks (`a?.trim() || b?.trim()`). `title:`
+ * must match this and not a single raw column, or a record whose visible
+ * title is its file name would vanish from `title:` while `Luna` still finds it.
+ */
+function visibleTitle(...columns: readonly AnyPgColumn[]): SQL {
+  const candidates = columns.map((column) => sql`nullif(btrim(${column}::text, ${BLANK_CHARACTERS}), '')`);
+  return sql`coalesce(${sql.join(candidates, sql`, `)})`;
 }
 
 /**
@@ -44,7 +60,7 @@ function likeFolded(column: AnyPgColumn, pattern: string): SQL {
 function matchTerm(
   idColumn: AnyPgColumn,
   textColumns: readonly AnyPgColumn[],
-  titleColumns: readonly AnyPgColumn[],
+  titleColumns: readonly (AnyPgColumn | SQL)[],
   term: GlobalSearchTerm,
 ): SQL {
   const columns = term.titleOnly ? titleColumns : textColumns;
@@ -64,7 +80,7 @@ function matchTerm(
 function matchAny(
   idColumn: AnyPgColumn,
   textColumns: readonly AnyPgColumn[],
-  titleColumns: readonly AnyPgColumn[],
+  titleColumns: readonly (AnyPgColumn | SQL)[],
   needle: GlobalSearchNeedle,
 ): SQL {
   const alternatives = needle.clauses.map((clause) => {
@@ -150,7 +166,8 @@ function afterPosition(
 // ── Reports ────────────────────────────────────────────────────────────────
 
 const REPORT_TEXT_COLUMNS = [reports.patientName, reports.fileName, reports.studyType] as const;
-const REPORT_TITLE_COLUMNS = [reports.patientName] as const;
+// Visible title of a report: patient name, else file name (see `mapReport`).
+const REPORT_TITLE_COLUMNS = [visibleTitle(reports.patientName, reports.fileName)] as const;
 
 function reportFilters(criteria: GlobalSearchCriteria, clinicId: number | null): SQL[] {
   const filters: SQL[] = [matchAny(reports.id, REPORT_TEXT_COLUMNS, REPORT_TITLE_COLUMNS, criteria.needle)];
@@ -307,7 +324,8 @@ export function buildTrackingCaseSearchQuery(
     matchAny(
       studyTrackingCases.id,
       [reports.patientName, particularTokens.petName, particularTokens.tutorLastName],
-      [reports.patientName, particularTokens.petName],
+      // Visible title of a tracking case: patient name, else pet name (see `mapTracking`).
+      [visibleTitle(reports.patientName, particularTokens.petName)],
       criteria.needle,
     ),
   ];

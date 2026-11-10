@@ -107,6 +107,32 @@ test("GLOBAL-SEARCH-DB: SQL real aísla tenants, pliega tildes y encuentra fuera
     storagePath: `synthetic/gsearch/${suffix}/B/exclusive.pdf`,
   });
 
+  // `title:` matches the VISIBLE title: patient name, else file name when the
+  // name is NULL, empty or only blanks. Clinic B owns a look-alike file name.
+  const titleToken = `gstitle${process.pid}x${Date.now()}`;
+  const titleRow = (clinicId: number, patientName: string | null, fileName: string, key: string) => ({
+    clinicId,
+    patientName,
+    fileName,
+    studyType: "citologia",
+    storagePath: `synthetic/gsearch/${suffix}/title/${key}.pdf`,
+  });
+  const insertedTitleRows = await db
+    .insert(reports)
+    .values([
+      titleRow(clinicA, null, `${titleToken}-null.pdf`, "null"),
+      titleRow(clinicA, "", `${titleToken}-empty.pdf`, "empty"),
+      titleRow(clinicA, "   ", `${titleToken}-blank.pdf`, "blank"),
+      titleRow(clinicA, `Nombre Visible ${suffix}`, `${titleToken}-named.pdf`, "named"),
+      titleRow(clinicB, null, `${titleToken}-foreign.pdf`, "foreign"),
+    ])
+    .returning({ id: reports.id, fileName: reports.fileName });
+  const titleId = (key: string) => {
+    const row = insertedTitleRows.find((entry) => entry.fileName === `${titleToken}-${key}.pdf`);
+    assert.ok(row, key);
+    return row.id;
+  };
+
   const [tokenA] = await db
     .insert(particularTokens)
     .values({
@@ -202,6 +228,41 @@ test("GLOBAL-SEARCH-DB: SQL real aísla tenants, pliega tildes y encuentra fuera
   assert.ok(literalPercent.hits.some((hit) => hit.title.startsWith("Exclusivo B 100% real")));
   const wildcard = await search(`/api/search?q=${encodeURIComponent("%%%%")}`, clinicBCookie);
   assert.deepEqual(wildcard.hits, [], "% del usuario es literal, no comodín");
+
+  const plainByFileName = await search(`/api/search?q=${encodeURIComponent(titleToken)}&kinds=report&limit=25`, clinicACookie);
+  assert.deepEqual(
+    plainByFileName.hits.map((hit) => hit.id).sort((a, b) => a - b),
+    ["null", "empty", "blank", "named"].map(titleId).sort((a, b) => a - b),
+    "sin title: el nombre de archivo siempre cuenta, y nunca el de B",
+  );
+
+  const titleOnly = await search(
+    `/api/search?q=${encodeURIComponent(`title:${titleToken}`)}&kinds=report&limit=25`,
+    clinicACookie,
+  );
+  assert.deepEqual(
+    titleOnly.hits.map((hit) => hit.id).sort((a, b) => a - b),
+    ["null", "empty", "blank"].map(titleId).sort((a, b) => a - b),
+    "title: encuentra el informe cuyo título visible es el archivo, y no el que tiene un nombre de paciente",
+  );
+  assert.ok(titleOnly.hits.every((hit) => hit.title.startsWith(titleToken)));
+
+  const namedTitle = await search(
+    `/api/search?q=${encodeURIComponent(`title:"Nombre Visible ${suffix}"`)}&kinds=report`,
+    clinicACookie,
+  );
+  assert.deepEqual(namedTitle.hits.map((hit) => hit.id), [titleId("named")]);
+
+  const foreignTitle = await search(
+    `/api/search?q=${encodeURIComponent(`title:${titleToken}-foreign`)}&kinds=report`,
+    clinicACookie,
+  );
+  assert.deepEqual(foreignTitle.hits, [], "title: nunca cruza de clínica");
+  const ownForeign = await search(
+    `/api/search?q=${encodeURIComponent(`title:${titleToken}-foreign`)}&kinds=report`,
+    clinicBCookie,
+  );
+  assert.deepEqual(ownForeign.hits.map((hit) => hit.id), [titleId("foreign")]);
 
   const tokenAndCase = await search(`/api/search?q=${encodeURIComponent(`firulais ${suffix}`)}`, clinicACookie);
   assert.deepEqual(
