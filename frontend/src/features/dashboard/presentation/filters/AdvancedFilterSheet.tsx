@@ -84,7 +84,7 @@ export function AdvancedFilterSheet({
           data-advanced-filter-sheet="true"
           aria-labelledby={titleId}
           aria-describedby={description ? descriptionId : undefined}
-          className="fixed inset-x-0 bottom-0 z-50 flex max-h-[calc(100dvh-env(safe-area-inset-top))] min-w-0 flex-col overflow-hidden rounded-t-2xl border border-vetneb-line bg-card text-vetneb-ink shadow-xl outline-none md:bottom-auto md:left-1/2 md:top-1/2 md:w-[min(34rem,calc(100vw-2rem))] md:max-h-[88dvh] md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-2xl"
+          className="fixed inset-x-0 bottom-0 z-50 flex max-h-[calc(100dvh-env(safe-area-inset-top))] min-w-0 flex-col overflow-hidden rounded-t-2xl border border-vetneb-line bg-card text-vetneb-ink shadow-xl outline-none transition-none md:bottom-auto md:left-1/2 md:top-1/2 md:w-[min(34rem,calc(100vw-2rem))] md:max-h-[88dvh] md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-2xl"
           onOpenAutoFocus={(event) => {
             openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
             const dialog = dialogRef.current;

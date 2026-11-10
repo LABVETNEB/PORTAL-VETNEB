@@ -178,6 +178,7 @@ test("C12 · frontera 767/768/769 conserva foco y evita desborde", async ({ page
       const r = document.querySelector<HTMLElement>('[data-advanced-filter-sheet="true"]')!.getBoundingClientRect();
       return { left: r.left, right: r.right, overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth };
     });
+    expect(await panel.evaluate((element) => getComputedStyle(element).transitionProperty), "the breakpoint swap must not animate left/translate through the global reduced-motion micro-transition").toBe("none");
     expect(left).toBeGreaterThanOrEqual(-1);
     expect(right).toBeLessThanOrEqual(width + 1);
     expect(overflow).toBeLessThanOrEqual(MAX_DOCUMENT_SCROLL_DELTA_PX);
