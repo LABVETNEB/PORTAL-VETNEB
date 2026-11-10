@@ -176,8 +176,8 @@
      stack: `--font-ui` is referenced, never redeclared, and no @font-face and
      no font asset is introduced. Sizes, weights, leadings and tracking are the
      literals already measured across this tree (weight 650 alone appears ten
-     times); body weight is 400 because dashboard CSS declares none and 400 is
-     what body copy inherits today. */
+     times); body weight is 500, a calibrated step over 400 on the variable Inter
+     face: Inter at 400 renders thinner than Drive's Google Sans Text at 400. */
   --dash-text-family: var(--font-ui);
   --dash-text-label-size: 0.7rem;
   --dash-text-label-weight: 650;
@@ -232,6 +232,15 @@
   --dash-state-layer-color: hsl(var(--vetneb-ink));
 }
 /* dashboard-foundation-tokens:end */
+
+/* dashboard-drv-font-weights:start
+ * Peso visual Drive, separado de B03.
+ * Compartido por ambos temas.
+ */
+.dashboard-app-shell {
+  --dash-drv-text-regular-weight: 500;
+}
+/* dashboard-drv-font-weights:end */
 
 /* dashboard-drv-v2-foundation-overrides:start
  * V2 light-theme fidelity pass: the Drive reference is white and neutral. Dark

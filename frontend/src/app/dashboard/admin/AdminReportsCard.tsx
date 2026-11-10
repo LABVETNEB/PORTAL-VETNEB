@@ -901,8 +901,8 @@ export function AdminReportsCard() {
                         </p>
                       </TableCell>
                       <TableCell className="py-0.5">
-                        {/* DRV V8: la etiqueta en mayúsculas entra en la columna a 1280 px sin cambiar tamaño ni peso. */}
-                        <span className="block truncate tracking-[-0.02em]">{formatStudyTypeDisplay(report.studyType)}</span>
+                        {/* DRV V8: la etiqueta en mayúsculas entra en la columna a 1280 px sin cambiar tamaño; conserva peso 400 porque la columna está calibrada a ese ancho. */}
+                        <span className="block truncate font-normal tracking-[-0.02em]">{formatStudyTypeDisplay(report.studyType)}</span>
                       </TableCell>
                       <TableCell className="py-0.5">
                         <AdminReportStatusBadge stage={report.workflowStage} />
