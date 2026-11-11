@@ -16,6 +16,7 @@ const OWNER_SELECTOR = '[data-dashboard-b12-module-card="true"]';
 const HEADER_SELECTOR = '[data-workspace-header="true"]';
 const FRAME_HOOKS = [
   '[data-dashboard-frame="container"]',
+  '[data-dashboard-adaptive-rows-canvas="true"]',
   '[data-dashboard-band="true"]',
   '[data-dashboard-filter-bar="true"]',
   '[data-dashboard-adaptive-reserved-region="pager"]',
@@ -23,12 +24,19 @@ const FRAME_HOOKS = [
   "[data-collection-pager]",
   "div:has(> table)",
 ].join(", ");
+const CONTAINER_HOOKS = [
+  '[data-dashboard-frame="container"]',
+  '[data-dashboard-adaptive-rows-canvas="true"]',
+  '[data-dashboard-filter-bar="true"]',
+].join(", ");
 const MODULES = DASHBOARD_GEOMETRY_SURFACES.filter(
   (surface) => surface.shellType === "admin-module" || surface.shellType === "clinic-module",
 );
 const VIEWPORTS = [
   { name: "desktop", width: 1440, height: 900 },
+  { name: "mobile-320", width: 320, height: 740 },
   { name: "mobile", width: 390, height: 844 },
+  { name: "mobile-767", width: 767, height: 844 },
 ] as const;
 const EXPECTED_OWNER_COUNTS: Readonly<Record<string, 0 | 1>> = {
   "admin-resumen": 0,
@@ -130,23 +138,36 @@ test.describe("B12 · module card removal", () => {
           // the DOM as the workspace's accessible name.
           await expect(header).toHaveCount(1);
           await expect(header).toBeHidden();
-
-          // Shared workspace-frames contract (DRV): from 768px up no container
-          // frame, header band, filter bar, table wrapper or pager rule paints a
-          // border, a shadow or a fill in any Admin or Clínica module.
-          const painted = await workspace.evaluate((root, selector) => {
-            const clear = "rgba(0, 0, 0, 0)";
-            return Array.from(root.querySelectorAll<HTMLElement>(selector))
-              .filter((node) => node.getBoundingClientRect().width > 0)
-              .filter((node) => {
-                const style = getComputedStyle(node);
-                const borders = [style.borderTopColor, style.borderRightColor, style.borderBottomColor, style.borderLeftColor];
-                return borders.some((color) => color !== clear) || style.boxShadow !== "none";
-              })
-              .map((node) => `${node.tagName.toLowerCase()}[${node.getAttributeNames().filter((name) => name.startsWith("data-")).slice(0, 2).join(",")}]`);
-          }, FRAME_HOOKS);
-          expect(painted, `${surface.id}: workspace frames contract`).toEqual([]);
         }
+
+        // Shared workspace-frames contract (DRV), at EVERY width: no container
+        // frame, header band, filter bar, table wrapper, row canvas or pager
+        // rule paints a border, a shadow or a fill in any Admin or Clínica
+        // module, mobile included.
+        const painted = await workspace.evaluate((root, selector) => {
+          const clear = "rgba(0, 0, 0, 0)";
+          return Array.from(root.querySelectorAll<HTMLElement>(selector))
+            .filter((node) => node.getBoundingClientRect().width > 0)
+            .filter((node) => {
+              const style = getComputedStyle(node);
+              const borders = [style.borderTopColor, style.borderRightColor, style.borderBottomColor, style.borderLeftColor];
+              return borders.some((color) => color !== clear) || style.boxShadow !== "none";
+            })
+            .map((node) => `${node.tagName.toLowerCase()}[${node.getAttributeNames().filter((name) => name.startsWith("data-")).slice(0, 2).join(",")}]`);
+        }, FRAME_HOOKS);
+        expect(painted, `${surface.id}: workspace frames contract`).toEqual([]);
+
+        // Containers also drop radius and fill; their boxes (and so geometry) stay.
+        const filled = await workspace.evaluate((root, selector) => {
+          return Array.from(root.querySelectorAll<HTMLElement>(selector))
+            .filter((node) => node.getBoundingClientRect().width > 0)
+            .filter((node) => {
+              const style = getComputedStyle(node);
+              return style.borderTopLeftRadius !== "0px" || style.backgroundColor !== "rgba(0, 0, 0, 0)";
+            })
+            .map((node) => `${node.tagName.toLowerCase()}[${node.getAttributeNames().filter((name) => name.startsWith("data-")).slice(0, 2).join(",")}]`);
+        }, CONTAINER_HOOKS);
+        expect(filled, `${surface.id}: container frames keep no radius or fill`).toEqual([]);
       });
     }
   }

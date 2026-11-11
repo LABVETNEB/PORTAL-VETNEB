@@ -686,6 +686,7 @@ export function AdminUsersRolesReadOnlyCard() {
 
       <section
         data-admin-mobile-ops-module="users"
+        data-dashboard-frame="container"
         aria-label="Usuarios y roles administrativos"
         className="dashboard-surface flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-vetneb-line/80 bg-card md:hidden"
       >
