@@ -190,10 +190,16 @@ test("journal de migraciones conserva 0026 y 0029 antes de metadata login", () =
   );
   assert.equal(
     last?.tag,
-    "0030_login_rate_limits_metadata",
-    "la última entrada del journal debe ser 0030_login_rate_limits_metadata",
+    "0031_global_search_states",
+    "la última entrada del journal debe ser 0031_global_search_states",
   );
-  assert.equal(last?.idx, 30, "idx de la última migración debe ser 30");
+  assert.equal(last?.idx, 31, "idx de la última migración debe ser 31");
+  assert.ok(
+    journal.entries.some(
+      (entry) => entry.idx === 30 && entry.tag === "0030_login_rate_limits_metadata",
+    ),
+    "el journal debe conservar 0030_login_rate_limits_metadata",
+  );
 });
 
 test("toIsoDate acepta Date o string devuelto por raw SQL postgres-js", () => {
