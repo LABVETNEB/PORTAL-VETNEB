@@ -183,7 +183,7 @@ function vEViolations(source: string): string[] {
     if (!ok) violations.push(message);
   };
   const code = stripComments(source);
-  require(code.includes(`<div className="${V_E_HEADER_CLASS}">`), "the command-center header is the md-scoped 40px row");
+  require(code.includes(`<div data-dashboard-band="true" className="${V_E_HEADER_CLASS}">`), "the command-center header is the md-scoped 40px row");
   require(/<section\s+className="surface-note-info shrink-0 md:order-last"\s+aria-labelledby="logistics-operational-priority"/.test(code), "the note moves below the lists from md up, by visual order only");
   require(!/surface-note-info[^"]*(?:sr-only|hidden)/.test(code), "the note is never hidden");
   require(code.indexOf('className="surface-note-info') < code.indexOf("<LogisticsRecentListCanvas"), "the note keeps its DOM position before the lists");
@@ -241,7 +241,7 @@ function b1b4Violations(sources: B1B4Sources): string[] {
   };
   const page = stripComments(sources.page);
   const list = stripComments(sources.list);
-  const header = /<CardHeader className="([^"]*)">/.exec(page)?.[1] ?? "";
+  const header = /<CardHeader data-dashboard-band="true" className="([^"]*)">/.exec(page)?.[1] ?? "";
   require(header === B1_HEADER_CLASS, "B1: the card header is the md-scoped 40px row");
   require(header.split(" ").slice(3).every((token) => token.startsWith("md:")), "B1: every header class it adds is md-scoped");
   require(page.includes('<div className="min-w-0 md:flex md:items-baseline md:gap-3">'), "B1: title, description and run share one row from md");

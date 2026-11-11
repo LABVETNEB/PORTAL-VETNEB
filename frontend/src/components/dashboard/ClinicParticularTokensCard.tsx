@@ -854,6 +854,7 @@ export function ClinicParticularTokensCard() {
               card (Admin mobile reference below `md`, clinic desktop/tablet
               space pass from 768px up). */}
           <p
+            data-dashboard-band="true"
             className={`shrink-0 line-clamp-2 border-b border-vetneb-line/70 px-3 py-1 text-xs ${
               errorMessage
                 ? "text-destructive"

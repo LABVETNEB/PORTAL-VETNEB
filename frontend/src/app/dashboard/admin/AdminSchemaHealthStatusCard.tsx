@@ -121,7 +121,7 @@ export function AdminSchemaHealthStatusCard({
   );
 
   return (
-    <Card id="admin-schema-health" className="dashboard-surface">
+    <Card id="admin-schema-health" data-dashboard-frame="container" className="dashboard-surface">
       {actionsInTabs ? (
         <ModuleTabsActions>{retryButton}</ModuleTabsActions>
       ) : (

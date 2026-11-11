@@ -8,7 +8,7 @@ const badgeVariants = cva(
     variants: {
       variant: {
         default:
-          "border-vetneb-teal/30 bg-vetneb-teal/12 text-vetneb-teal hover:bg-vetneb-teal/20",
+          "border-vetneb-teal/30 bg-vetneb-teal/12 text-vetneb-teal-ink hover:bg-vetneb-teal/20",
         secondary:
           "border-vetneb-cyan/30 bg-vetneb-cyan/12 text-vetneb-navy hover:bg-vetneb-cyan/20",
         destructive:

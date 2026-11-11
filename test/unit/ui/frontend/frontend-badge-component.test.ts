@@ -28,7 +28,7 @@ test("badge component defines expected variants and default", () => {
 
   assert.ok(source.includes("variant: {"));
   assert.ok(source.includes("default:"));
-  assert.ok(source.includes("border-vetneb-teal/30 bg-vetneb-teal/12 text-vetneb-teal hover:bg-vetneb-teal/20"));
+  assert.ok(source.includes("border-vetneb-teal/30 bg-vetneb-teal/12 text-vetneb-teal-ink hover:bg-vetneb-teal/20"));
   assert.ok(source.includes("secondary:"));
   assert.ok(source.includes("border-vetneb-cyan/30 bg-vetneb-cyan/12 text-vetneb-navy hover:bg-vetneb-cyan/20"));
   assert.ok(source.includes("destructive:"));

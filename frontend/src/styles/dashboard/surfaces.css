@@ -742,6 +742,69 @@
 }
 /* dashboard-drive-workspace-surfaces:end */
 
+/* dashboard-drv-workspace-frames:start
+ *
+ * Drive workspace frames (audit P1-09, Drive ref. §III.2/§III.4): ONE contract
+ * for every authenticated Admin and Clínica workspace — the data sits on the
+ * canvas, not inside nested cards. From 768px up (below it the ModuleCard is
+ * the shared CMP-04 mobile surface that stays identical across roles, CMP-12).
+ *
+ * Two structural hooks, owned by the shared components, drive it:
+ *   - data-dashboard-frame="container": a container that only wraps content
+ *     (ModuleCard, list/empty panel, admin toolbar). Its box, border-radius,
+ *     background and shadow are retired;
+ *   - data-dashboard-band="true": a header/toolbar band whose bottom rule only
+ *     decorates. Its rule is retired.
+ * Existing hooks join them: the filter bar, the table wrapper, the pager (its
+ * reserved region), the B12 card header and the clinic toolbars.
+ *
+ * Kept on purpose: header and row separators (Drive draws them), field
+ * borders, the module tablist underline (navigation), KPI/summary tiles
+ * (`surface-soft`, metric cards: each one is a separate entity), alerts and
+ * status bands, the detail action dock and every focus ring. The master/detail
+ * pair keeps a single vertical rule between its panes.
+ *
+ * Paint only: border widths, padding and `overflow` are kept, so capacity,
+ * pitch and the zero-scroll geometry do not move. UNLAYERED, like B12: the
+ * paint comes from Tailwind utilities on shared components. */
+@media (min-width: 768px) {
+  .dashboard-app-shell
+    [data-dashboard-module-workspace]
+    :is(
+      [data-dashboard-band="true"],
+      [data-dashboard-b12-module-card="true"] > :first-child,
+      [data-dashboard-adaptive-reserved-region="pager"],
+      .dashboard-pager,
+      [data-collection-pager],
+      [data-clinic-reports-toolbar="true"],
+      [data-clinic-access-toolbar="true"],
+      [data-clinic-profile-publication="true"]
+    ) {
+    border-color: transparent;
+  }
+
+  .dashboard-app-shell
+    [data-dashboard-module-workspace]
+    :is(
+      [data-dashboard-frame="container"],
+      [data-dashboard-filter-bar="true"],
+      [data-clinic-reports-list-panel="true"],
+      .dashboard-master-panel,
+      [data-detail-state],
+      div:has(> table)
+    ) {
+    border-color: transparent;
+    border-radius: 0;
+    background-color: transparent;
+    box-shadow: var(--dash-elevation-none);
+  }
+
+  .dashboard-app-shell [data-dashboard-module-workspace] [data-detail-state] {
+    border-inline-start-color: hsl(var(--vetneb-line) / 0.7);
+  }
+}
+/* dashboard-drv-workspace-frames:end */
+
 /* dashboard-drv-v3-filter-chips:start
  * V3 light-theme fidelity pass for applied-filter chips: white fill, 1px
  * #747775 outline and #444746 text. Geometry (32 / radius 8 / gap 8) and the

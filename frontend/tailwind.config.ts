@@ -41,6 +41,7 @@ const config: Config = {
         destructive: {
           DEFAULT: "hsl(var(--destructive))",
           foreground: "hsl(var(--destructive-foreground))",
+          ink: "hsl(var(--destructive-ink))",
         },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -56,8 +57,10 @@ const config: Config = {
           ink: "hsl(var(--vetneb-ink))",
           navy: "hsl(var(--vetneb-navy))",
           teal: "hsl(var(--vetneb-teal))",
+          "teal-ink": "hsl(var(--vetneb-teal-ink))",
           cyan: "hsl(var(--vetneb-cyan))",
           amber: "hsl(var(--vetneb-amber))",
+          "amber-ink": "hsl(var(--vetneb-amber-ink))",
           surface: "hsl(var(--vetneb-surface))",
           "surface-raised": "hsl(var(--vetneb-surface-raised))",
           "surface-muted": "hsl(var(--vetneb-surface-muted))",

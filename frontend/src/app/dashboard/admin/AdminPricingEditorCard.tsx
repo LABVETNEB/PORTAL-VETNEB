@@ -687,7 +687,7 @@ export function AdminPricingEditorCard() {
   // error, empty catalog) they keep a bare action row, so Actualizar stays
   // reachable to retry.
   return (
-    <Card className="dashboard-surface flex min-h-0 flex-1 flex-col">
+    <Card data-dashboard-frame="container" className="dashboard-surface flex min-h-0 flex-1 flex-col">
       <CardContent className="flex min-h-0 flex-1 flex-col gap-3 pt-3">
         {showCategoryTabs ? null : (
           <div className="flex shrink-0 items-center justify-end gap-2">

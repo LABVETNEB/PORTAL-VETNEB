@@ -137,8 +137,8 @@ export function AdminMaintenanceDryRunCard() {
   }
 
   return (
-    <Card className="dashboard-surface flex min-h-0 flex-1 flex-col overflow-hidden">
-      <CardHeader className="flex flex-col gap-3 border-b border-vetneb-line/70 md:flex-row md:items-start md:justify-between">
+    <Card data-dashboard-frame="container" className="dashboard-surface flex min-h-0 flex-1 flex-col overflow-hidden">
+      <CardHeader data-dashboard-band="true" className="flex flex-col gap-3 border-b border-vetneb-line/70 md:flex-row md:items-start md:justify-between">
         <div>
           {/* G11-d: CardTitle is a fixed h3; under the page h1 this title is an h2 with CardTitle's effective classes. */}
           <h2 className="font-semibold text-vetneb-ink text-base">

@@ -1062,6 +1062,121 @@ test("G11-c2 V-4 full-module control label keeps its teal chrome and reaches 4.5
   }
 });
 
+// Drive workspace frames unmasked axe color-contrast on the teal badges (the
+// painted shell rail had made it `incomplete`). Their label moves to
+// --vetneb-teal-ink; the teal border and tints, and --vetneb-teal, are kept.
+const TEAL_BADGE_OWNERS = [
+  ["frontend/src/components/ui/badge.tsx", "border-vetneb-teal/30 bg-vetneb-teal/12 text-vetneb-teal-ink hover:bg-vetneb-teal/20"],
+  ["frontend/src/components/dashboard/StatusBadge.tsx", "border-vetneb-teal/35 bg-vetneb-teal/12 text-vetneb-teal-ink"],
+  ["frontend/src/app/dashboard/admin/AdminReportStatusBadge.tsx", "border-vetneb-teal/35 bg-vetneb-teal/12 text-vetneb-teal-ink"],
+  ["frontend/src/features/dashboard/presentation/details/DetailsActivity.tsx", "border-vetneb-teal/35 bg-vetneb-teal/12 text-vetneb-teal-ink"],
+] as const;
+const BADGE_SURFACES = ["--card", "--background", "--vetneb-surface", "--vetneb-surface-raised", "--vetneb-surface-muted"] as const;
+
+test("teal badge labels read --vetneb-teal-ink and reach 4.5:1 on their rest and hover tints in both themes", () => {
+  for (const [path, tone] of TEAL_BADGE_OWNERS) {
+    const source = readSource(path);
+    assert.ok(source.includes(tone), `${path} keeps the teal chrome with the ink label`);
+    assert.equal(/bg-vetneb-teal\/12 text-vetneb-teal(?![-\w])/.test(source), false, `${path}: no teal label on a teal tint`);
+  }
+
+  assert.ok(tintedRatio(LIGHT_ENV, LIGHT_ENV.get("--vetneb-teal") ?? "", "--vetneb-teal", 0.12, "--card") < 4.5);
+
+  for (const [theme, env] of [["light", LIGHT_ENV], ["dark", DARK_ENV]] as const) {
+    const ink = env.get("--vetneb-teal-ink");
+    assert.ok(ink, `${theme}: --vetneb-teal-ink is declared`);
+    for (const surface of BADGE_SURFACES) {
+      for (const alpha of [0.12, 0.2]) {
+        const ratio = tintedRatio(env, ink, "--vetneb-teal", alpha, surface);
+        assert.ok(ratio >= 4.5, `${theme} ${surface} @${alpha}: ${ratio.toFixed(2)}:1 < 4.5:1`);
+      }
+    }
+  }
+});
+
+const EMPTY_STATE = readSource("frontend/src/components/dashboard/EmptyState.tsx");
+test("critical CollectionState error text reads --destructive-ink and reaches 4.5:1 on its 8% tint in both themes", () => {
+  assert.ok(EMPTY_STATE.includes('"border-destructive/25 bg-destructive/8 text-destructive-ink"'), "the tint and border stay destructive");
+  assert.equal(/text-destructive\/\d+/.test(EMPTY_STATE), false, "no translucent destructive label over the tint");
+  assert.equal(EMPTY_STATE.split('"text-destructive-ink"').length - 1, 2, "message and support line use the ink");
+
+  // The defect: --destructive itself fails on its own tint (muted surface in light, every surface in dark).
+  assert.ok(tintedRatio(LIGHT_ENV, LIGHT_ENV.get("--destructive") ?? "", "--destructive", 0.08, "--vetneb-surface-muted") < 4.5);
+  assert.ok(tintedRatio(DARK_ENV, DARK_ENV.get("--destructive") ?? "", "--destructive", 0.08, "--card") < 4.5);
+
+  for (const [theme, env] of [["light", LIGHT_ENV], ["dark", DARK_ENV]] as const) {
+    const ink = env.get("--destructive-ink");
+    assert.ok(ink, `${theme}: --destructive-ink is declared`);
+    for (const surface of ALERT_SURFACES) {
+      const ratio = tintedRatio(env, ink, "--destructive", 0.08, surface);
+      assert.ok(ratio >= 4.5, `${theme} ${surface}: ${ratio.toFixed(2)}:1 < 4.5:1`);
+    }
+  }
+});
+
+test("logistics metric values and dark search actions read 4.5:1 without touching --vetneb-teal or --primary", () => {
+  const metrics = readSource("frontend/src/app/dashboard/logistica/metricas/page.tsx");
+  assert.ok(metrics.includes("font-semibold text-vetneb-teal-ink [overflow-wrap:anywhere]"));
+  for (const surface of BADGE_SURFACES) {
+    for (const [theme, env] of [["light", LIGHT_ENV], ["dark", DARK_ENV]] as const) {
+      const ratio = contrast(hslToRgb(env.get("--vetneb-teal-ink") ?? ""), hslToRgb(env.get(surface) ?? ""));
+      assert.ok(ratio >= 4.5, `metric ${theme} ${surface}: ${ratio.toFixed(2)}:1 < 4.5:1`);
+    }
+  }
+
+  const DARK = "[:root[data-theme=dark-gray]_&]";
+  const download = readSource("frontend/src/components/dashboard/ReportDownloadButton.tsx");
+  assert.equal(download.split(`text-primary hover:text-primary ${DARK}:text-vetneb-navy`).length - 1, 2);
+  const dialog = readSource("frontend/src/components/dashboard/DashboardGlobalSearchDialog.tsx");
+  assert.ok(dialog.includes(`border-primary bg-primary text-primary-foreground ${DARK}:border-vetneb-navy ${DARK}:bg-vetneb-navy ${DARK}:text-vetneb-surface`));
+  assert.ok(dialog.includes(`border-primary text-primary ${DARK}:border-vetneb-navy ${DARK}:text-vetneb-navy`));
+
+  const navy = hslToRgb(DARK_ENV.get("--vetneb-navy") ?? "");
+  assert.ok(contrast(hslToRgb(DARK_ENV.get("--primary") ?? ""), hslToRgb(DARK_ENV.get("--card") ?? "")) < 4.5);
+  for (const surface of ["--card", "--popover", "--background", "--accent"]) {
+    const ratio = contrast(navy, hslToRgb(DARK_ENV.get(surface) ?? ""));
+    assert.ok(ratio >= 4.5, `dark navy action on ${surface}: ${ratio.toFixed(2)}:1 < 4.5:1`);
+  }
+  const chip = contrast(hslToRgb(DARK_ENV.get("--vetneb-surface") ?? ""), navy);
+  assert.ok(chip >= 4.5, `dark pressed chip: ${chip.toFixed(2)}:1 < 4.5:1`);
+});
+
+test("G11 amber badge and dark link/initials owners reach 4.5:1 without touching --vetneb-amber or --primary", () => {
+  const badge = readSource("frontend/src/app/dashboard/admin/AdminReportStatusBadge.tsx");
+  assert.ok(badge.includes("border-vetneb-amber/35 bg-vetneb-amber/10 text-vetneb-amber-ink"));
+  for (const [theme, env] of [["light", LIGHT_ENV], ["dark", DARK_ENV]] as const) {
+    const ink = env.get("--vetneb-amber-ink");
+    assert.ok(ink, `${theme}: --vetneb-amber-ink is declared`);
+    for (const surface of BADGE_SURFACES) {
+      const ratio = tintedRatio(env, ink, "--vetneb-amber", 0.1, surface);
+      assert.ok(ratio >= 4.5, `amber ${theme} ${surface}: ${ratio.toFixed(2)}:1 < 4.5:1`);
+    }
+  }
+  assert.ok(tintedRatio(LIGHT_ENV, LIGHT_ENV.get("--vetneb-amber") ?? "", "--vetneb-amber", 0.1, "--card") < 4.5);
+  assert.equal(DARK_ENV.get("--vetneb-amber-ink"), DARK_ENV.get("--vetneb-amber"), "dark amber keeps its current value");
+
+  const DARK = "[:root[data-theme=dark-gray]_&]";
+  const links = [
+    ["frontend/src/app/dashboard/admin/AdminSessionsReadOnlyCard.tsx", 2],
+    ["frontend/src/app/dashboard/logistica/FieldVisitDetailDialog.tsx", 1],
+  ] as const;
+  for (const [path, count] of links) {
+    const source = readSource(path);
+    assert.equal(source.split(`text-primary underline-offset-2`).length - 1, count, `${path}: link owners`);
+    assert.equal(source.split(`underline ${DARK}:text-vetneb-navy`).length - 1, count, `${path}: dark navy on every link owner`);
+  }
+  const navy = hslToRgb(DARK_ENV.get("--vetneb-navy") ?? "");
+  for (const surface of ["--card", "--popover", "--background", "--vetneb-surface-muted"]) {
+    const ratio = contrast(navy, hslToRgb(DARK_ENV.get(surface) ?? ""));
+    assert.ok(ratio >= 4.5, `dark navy link on ${surface}: ${ratio.toFixed(2)}:1 < 4.5:1`);
+  }
+
+  const profile = readSource("frontend/src/components/dashboard/ClinicPublicProfileCard.tsx");
+  assert.ok(profile.includes(`text-vetneb-ink md:text-xl ${DARK}:text-slate-900`), "initials stay dark on the white logo box in dark");
+  assert.ok(contrast(hslToRgb(DARK_ENV.get("--vetneb-ink") ?? ""), [1, 1, 1]) < 4.5, "the inherited dark ink is the defect on bg-white");
+  assert.ok(contrast([15 / 255, 23 / 255, 42 / 255], [1, 1, 1]) >= 4.5, "slate-900 on white");
+});
+
 test("G11-c2 V-5 tokens card error band lifts only its dark text and keeps the alert", () => {
   assert.ok(TOKENS_CARD.includes('id: "clinic-particular-tokens"'));
   assert.match(TOKENS_CARD, /errorMessage\s*\?\s*"text-destructive"/);

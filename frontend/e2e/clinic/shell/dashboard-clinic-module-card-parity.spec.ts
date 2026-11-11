@@ -326,3 +326,73 @@ for (const viewport of VIEWPORTS) {
     });
   }
 }
+
+// Drive workspace frames · from 768px the five clinic ModuleCards are content
+// on the canvas: one canonical card per module, same box in every module, its
+// 1px border box and clipping kept for geometry, but no painted frame or fill.
+// Below 768px the mobile contract above (CMP-04/CMP-07, CMP-12 parity) rules.
+const DESKTOP_VIEWPORTS = [
+  { name: "1280x800", width: 1280, height: 800 },
+  { name: "1920x945", width: 1920, height: 945 },
+] as const;
+
+const TRANSPARENT = "rgba(0, 0, 0, 0)";
+
+for (const viewport of DESKTOP_VIEWPORTS) {
+  test(`Drive frames · the five clinic module cards share one unframed surface at ${viewport.name}`, async ({ page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await setClinicSession(page, "default");
+
+    const boxes: number[][] = [];
+    for (const moduleId of MODULES) {
+      await page.goto(`/dashboard?module=${moduleId}`);
+      const workspace = page.locator(`[data-dashboard-module-workspace="${moduleId}"]`);
+      await expect(workspace).toBeVisible({ timeout: 12_000 });
+      const card = workspace.locator(`section.dashboard-surface[data-clinic-mobile-module="${moduleId}"]`);
+      await expect(card, `${moduleId}: one canonical outer surface`).toHaveCount(1);
+      await page.evaluate(() => document.fonts.ready.then(() => undefined));
+      await crossRenderedFrames(page);
+
+      const contract = await card.evaluate((element) => {
+        const style = window.getComputedStyle(element);
+        const box = element.getBoundingClientRect();
+        const documentElement = document.documentElement;
+        const body = document.body;
+        return {
+          box: [box.x, box.y, box.width, box.height],
+          bottom: box.bottom,
+          borderTopWidth: style.borderTopWidth,
+          borderColors: [style.borderTopColor, style.borderRightColor, style.borderBottomColor, style.borderLeftColor],
+          borderTopLeftRadius: style.borderTopLeftRadius,
+          backgroundColor: style.backgroundColor,
+          boxShadow: style.boxShadow,
+          overflowX: style.overflowX,
+          overflowY: style.overflowY,
+          pageScrollsX: documentElement.scrollWidth > documentElement.clientWidth || body.scrollWidth > body.clientWidth,
+          pageScrollsY: documentElement.scrollHeight > documentElement.clientHeight || body.scrollHeight > body.clientHeight,
+        };
+      });
+
+      expect(contract.borderTopWidth, `${moduleId}: border box kept for geometry`).toBe("1px");
+      for (const color of contract.borderColors) {
+        expect(color, `${moduleId}: no painted frame`).toBe(TRANSPARENT);
+      }
+      expect(contract.borderTopLeftRadius, `${moduleId}: no card radius`).toBe("0px");
+      expect(contract.backgroundColor, `${moduleId}: no card fill`).toBe(TRANSPARENT);
+      expect(contract.boxShadow, `${moduleId}: no elevation`).toBe("none");
+      expect(contract.overflowX, `${moduleId}: card owns horizontal clipping`).toBe("hidden");
+      expect(contract.overflowY, `${moduleId}: card owns vertical clipping`).toBe("hidden");
+      expect(contract.bottom, `${moduleId}: card inside the viewport`).toBeLessThanOrEqual(viewport.height);
+      expect(contract.pageScrollsX, `${moduleId}: no page horizontal overflow`).toBe(false);
+      expect(contract.pageScrollsY, `${moduleId}: no page vertical overflow`).toBe(false);
+      boxes.push(contract.box);
+    }
+
+    const [reference] = boxes;
+    for (const [index, box] of boxes.entries()) {
+      box.forEach((value, axis) => {
+        expect(Math.abs(value - reference[axis]), `${MODULES[index]}: common card box [x, y, w, h][${axis}]`).toBeLessThanOrEqual(0.5);
+      });
+    }
+  });
+}

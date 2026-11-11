@@ -404,7 +404,7 @@ export function DashboardGlobalSearchDialog({
                     onClick={() => updateFilters({ kinds: kind ? [kind] : [] })}
                     className={cn(
                       "inline-flex min-h-11 items-center rounded-full border px-3 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 disabled:opacity-50",
-                      pressed ? "border-primary bg-primary text-primary-foreground" : "border-input bg-card text-foreground hover:bg-accent/60",
+                      pressed ? "border-primary bg-primary text-primary-foreground [:root[data-theme=dark-gray]_&]:border-vetneb-navy [:root[data-theme=dark-gray]_&]:bg-vetneb-navy [:root[data-theme=dark-gray]_&]:text-vetneb-surface" : "border-input bg-card text-foreground hover:bg-accent/60",
                     )}
                   >
                     {kind ? globalSearchKindLabel(kind) : "Todo"}
@@ -419,7 +419,7 @@ export function DashboardGlobalSearchDialog({
                 onClick={() => setShowFilters((value) => !value)}
                 className={cn(
                   "inline-flex min-h-11 items-center gap-2 rounded-full border px-3 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85",
-                  filtersActive ? "border-primary text-primary" : "border-input text-foreground hover:bg-accent/60",
+                  filtersActive ? "border-primary text-primary [:root[data-theme=dark-gray]_&]:border-vetneb-navy [:root[data-theme=dark-gray]_&]:text-vetneb-navy" : "border-input text-foreground hover:bg-accent/60",
                 )}
               >
                 <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />

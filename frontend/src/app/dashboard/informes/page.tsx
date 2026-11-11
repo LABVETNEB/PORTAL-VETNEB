@@ -165,7 +165,7 @@ export default async function InformesPage({
           ariaLabel="Informes disponibles"
           dataAttributes={{ "data-informes-workspace": "true" }}
         >
-        <CardHeader className="shrink-0 border-b border-vetneb-line/70 md:h-[var(--dash-workspace-header-h)] md:justify-center md:space-y-0 md:px-4 md:py-0">
+        <CardHeader data-dashboard-band="true" className="shrink-0 border-b border-vetneb-line/70 md:h-[var(--dash-workspace-header-h)] md:justify-center md:space-y-0 md:px-4 md:py-0">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
             <div className="min-w-0 md:flex md:items-baseline md:gap-3">
               <CardTitle className="truncate text-base">Informes disponibles</CardTitle>

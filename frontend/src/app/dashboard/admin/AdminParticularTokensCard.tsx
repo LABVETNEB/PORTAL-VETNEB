@@ -1348,6 +1348,7 @@ export function AdminParticularTokensCard() {
       <CardContent className="flex min-h-0 flex-1 flex-col gap-1.5 px-4 py-2 md:gap-1.5 md:py-2">
         <div
           data-admin-particulars-toolbar="true"
+          data-dashboard-frame="container"
           className="flex min-h-9 shrink-0 flex-col gap-1.5 rounded-lg border border-vetneb-line/70 bg-card/80 px-2 py-1 md:min-h-8 md:flex-row md:items-center md:justify-between md:py-0.5"
         >
           <div

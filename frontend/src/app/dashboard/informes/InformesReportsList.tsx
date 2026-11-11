@@ -505,7 +505,7 @@ export function InformesReportsList({
           data-informes-detail-scroll-owner="true"
           className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain"
         >
-          <div className="flex shrink-0 items-start justify-between gap-3 border-b border-vetneb-line/70 pb-3">
+          <div data-dashboard-band="true" className="flex shrink-0 items-start justify-between gap-3 border-b border-vetneb-line/70 pb-3">
             <div className="min-w-0">
               <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
                 Detalle del informe

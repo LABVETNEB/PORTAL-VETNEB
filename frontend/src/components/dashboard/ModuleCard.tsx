@@ -92,7 +92,7 @@ export function ModuleCard({
   children,
 }: ModuleCardProps) {
   return (
-    <section aria-label={ariaLabel} className={cn(CARD_CLASS, className)} {...dataAttributes}>
+    <section aria-label={ariaLabel} data-dashboard-frame="container" className={cn(CARD_CLASS, className)} {...dataAttributes}>
       {children}
     </section>
   );
@@ -242,7 +242,7 @@ export function ModuleCardChips({
 
   return (
     <>
-      <div ref={tablistRef} role="tablist" aria-label={ariaLabel} className={CHIP_BAND_CLASS}>
+      <div ref={tablistRef} role="tablist" aria-label={ariaLabel} data-dashboard-band="true" className={CHIP_BAND_CLASS}>
         {sections.map((section, index) => {
           const isActive = section.id === activeId;
           return (
