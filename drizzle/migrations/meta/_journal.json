@@ -218,6 +218,13 @@
                         "when":  1777129200000,
                         "tag":  "0030_login_rate_limits_metadata",
                         "breakpoints":  true
+                    },
+                    {
+                        "idx":  31,
+                        "version":  "7",
+                        "when":  1777132800000,
+                        "tag":  "0031_global_search_states",
+                        "breakpoints":  true
                     }
                 ]
 }

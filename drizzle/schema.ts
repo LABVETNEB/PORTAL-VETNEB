@@ -1,5 +1,6 @@
 import {
   boolean,
+  check,
   index,
   uniqueIndex,
   integer,
@@ -9,9 +10,10 @@ import {
   serial,
   text,
   timestamp,
+  uuid,
   varchar,
 } from "drizzle-orm/pg-core";
-import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
+import { sql, type InferInsertModel, type InferSelectModel } from "drizzle-orm";
 
 export const CLINIC_USER_ROLES = ["clinic_owner", "clinic_staff"] as const;
 export type ClinicUserRole = (typeof CLINIC_USER_ROLES)[number];
@@ -545,6 +547,41 @@ export const adminSessions = pgTable(
     tokenHashIdx: index("admin_sessions_token_hash_idx").on(table.tokenHash),
     adminUserIdIdx: index("admin_sessions_admin_user_id_idx").on(
       table.adminUserId,
+    ),
+  }),
+);
+
+export const globalSearchStates = pgTable(
+  "global_search_states",
+  {
+    id: uuid("id").primaryKey(),
+    surface: varchar("surface", { length: 16 }).$type<"clinic" | "admin">().notNull(),
+    clinicSessionTokenHash: varchar("clinic_session_token_hash", { length: 64 }).references(
+      () => activeSessions.tokenHash,
+      { onDelete: "cascade" },
+    ),
+    adminSessionTokenHash: varchar("admin_session_token_hash", { length: 64 }).references(
+      () => adminSessions.tokenHash,
+      { onDelete: "cascade" },
+    ),
+    queryText: varchar("query_text", { length: 200 }).notNull(),
+    kinds: varchar("kinds", { length: 120 }),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+    expiresAt: timestamp("expires_at", { mode: "date" }).notNull(),
+  },
+  (table) => ({
+    clinicSessionIdx: index("global_search_states_clinic_session_idx").on(
+      table.clinicSessionTokenHash,
+      table.createdAt,
+    ),
+    adminSessionIdx: index("global_search_states_admin_session_idx").on(
+      table.adminSessionTokenHash,
+      table.createdAt,
+    ),
+    expiresAtIdx: index("global_search_states_expires_at_idx").on(table.expiresAt),
+    surfaceOwnerCheck: check(
+      "global_search_states_surface_owner_check",
+      sql`(surface = 'clinic' AND clinic_session_token_hash IS NOT NULL AND admin_session_token_hash IS NULL) OR (surface = 'admin' AND admin_session_token_hash IS NOT NULL AND clinic_session_token_hash IS NULL)`,
     ),
   }),
 );
