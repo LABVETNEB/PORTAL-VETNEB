@@ -242,3 +242,35 @@ test("SQL lenguaje: la proyección sigue sin hashes ni rutas con cualquier opera
     assert.equal(projection.includes("*"), false, kind);
   }
 });
+
+test("A3 SQL: una consulta sólo de filtros conserva el tenant primero, no agrega ILIKE y ordena por expresión", () => {
+  const built = whereOf(infrastructure.buildReportSearchQuery(db, criteria({ q: "type:informe after:2026-01-01" }), 5));
+  assert.match(built.where, /^ where \("reports"\."clinic_id" = \$\d+ and true and "reports"\."created_at" >= \$\d+\)/);
+  assert.equal(likeCount(built.sql), 0, "ningún término de texto en el SQL");
+  assert.match(built.sql, /order by \(3\)::int, "reports"\."created_at" desc, "reports"\."id" desc/);
+});
+
+test("A3 SQL: sólo filtros funciona en todas las entidades sin romper el tenant", () => {
+  for (const kind of Object.keys(BUILDERS) as (keyof typeof BUILDERS)[]) {
+    const built = whereOf(BUILDERS[kind](db, criteria({ q: "type:informe" }), 9));
+    assert.ok(built.where.startsWith(` where (${TENANT_COLUMN[kind]} = $`), `${kind}: tenant primero`);
+    assert.equal(likeCount(built.sql), 0, kind);
+  }
+});
+
+test("A5 SQL: status, study y fechas del texto llegan como parámetros del informe", () => {
+  const built = whereOf(
+    infrastructure.buildReportSearchQuery(
+      db,
+      criteria({ q: "luna status:ready study:histopatologia after:2026-01-01 before:2026-02-01" }),
+      5,
+    ),
+  );
+  assert.match(built.where, /"reports"\."current_status" = \$\d+/);
+  assert.match(built.where, /"reports"\."study_type" = \$\d+/);
+  assert.match(built.where, /"reports"\."created_at" >= \$\d+/);
+  assert.match(built.where, /"reports"\."created_at" <= \$\d+/);
+  assert.equal(built.params.includes("ready"), true);
+  assert.equal(built.params.includes("histopatologia"), true);
+  assert.equal(built.sql.includes("ready"), false, "el valor nunca se interpola en el SQL");
+});

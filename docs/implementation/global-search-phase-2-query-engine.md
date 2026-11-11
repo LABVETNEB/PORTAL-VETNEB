@@ -34,7 +34,8 @@ Reglas deterministas:
   o `TOK-A:1` no son operadores (el nombre exige ≥2 letras desde el inicio de la palabra).
 - `type:` inválido → 400; `type:` fuera de la superficie (Clínica pide `clinica`/`usuario`) o contradictorio con `kinds` → 400.
   `type:` **nunca amplía** `kinds` ni la superficie: sólo intersecta.
-- Una consulta sin términos (`type:informe` solo) → 400 `La búsqueda requiere al menos un término`.
+- Una consulta sin términos ni operadores → 400 `La búsqueda requiere al menos un término`. Desde la Entrega A, una consulta de sólo operadores
+  (`type:informe`) **es válida** y se amplió la gramática: ver `global-search-drive-a-canonical-query.md`.
 - Límites: 8 términos y 4 alternativas por consulta (acota el tamaño del SQL).
 
 ## Compatibilidad

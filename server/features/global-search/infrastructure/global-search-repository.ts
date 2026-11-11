@@ -83,6 +83,9 @@ function matchAny(
   titleColumns: readonly (AnyPgColumn | SQL)[],
   needle: GlobalSearchNeedle,
 ): SQL {
+  // Operators alone (`type:informe`): the filters are the criteria and no text restricts rows.
+  if (needle.clauses.length === 0) return sql`true`;
+
   const alternatives = needle.clauses.map((clause) => {
     const terms = clause.map((term) => matchTerm(idColumn, textColumns, titleColumns, term));
     return terms.length === 1 ? terms[0] : and(...terms)!;
@@ -96,6 +99,9 @@ function rankExpression(
   titleColumn: AnyPgColumn,
   needle: GlobalSearchNeedle,
 ): SQL<number> {
+  // Nothing to rank without a term. A typed expression: a bare integer in ORDER BY would be a column position.
+  if (needle.clauses.length === 0) return sql<number>`(3)::int`.mapWith(Number);
+
   const idClause =
     needle.numericId !== null
       ? sql`WHEN ${idColumn} = ${needle.numericId} THEN 0 `

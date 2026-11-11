@@ -4,6 +4,8 @@ export type StartupCleanupSummary = {
   deletedClinicSessions: number;
   deletedAdminSessions: number;
   deletedParticularSessions: number;
+  /** Expired saved searches of sessions that are still alive (A4). */
+  deletedGlobalSearchStates?: number;
 };
 
 export type HttpServerHandle = {
@@ -85,6 +87,9 @@ export async function bootstrapHttpServer(
     logger.log(
       `Expired particular sessions cleaned: ${cleanupSummary.deletedParticularSessions}`,
     );
+    if (cleanupSummary.deletedGlobalSearchStates !== undefined) {
+      logger.log(`Expired saved searches cleaned: ${cleanupSummary.deletedGlobalSearchStates}`);
+    }
 
     const shutdown = createGracefulShutdown({
       getHandle: () => handle,

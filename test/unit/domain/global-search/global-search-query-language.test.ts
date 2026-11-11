@@ -75,15 +75,17 @@ test("lenguaje: title: limita el término al título, también como frase", () =
 
 test("lenguaje: operadores desconocidos se rechazan; entre comillas o con forma de hora son literales", () => {
   assert.equal(rejected("foo:bar luna"), "Operador de búsqueda desconocido: foo:");
-  assert.equal(rejected("status:ready"), "Operador de búsqueda desconocido: status:");
+  assert.equal(rejected("owner:me luna"), "Operador de búsqueda desconocido: owner:");
+  assert.equal(rejected("is:starred"), "Operador de búsqueda desconocido: is:");
   assert.deepEqual(shape('"foo:bar"').clauses, [["foo:bar"]]);
   assert.deepEqual(shape("10:30 turno").clauses, [["10:30", "turno"]]);
   assert.deepEqual(shape("TOK-A:1").clauses, [["TOK-A:1"]], "un guion no abre un operador");
   assert.deepEqual(shape("-luna").clauses, [["-luna"]], "no hay exclusión: el guion es literal");
 });
 
-test("lenguaje: sin términos no hay consulta", () => {
-  assert.equal(rejected("type:informe"), "La búsqueda requiere al menos un término");
+test("lenguaje: sin términos ni operadores no hay consulta", () => {
+  assert.equal(rejected("type:"), "La búsqueda requiere al menos un término");
+  assert.equal(rejected("after:"), "La búsqueda requiere al menos un término");
   assert.equal(rejected("OR OR"), "La búsqueda requiere al menos un término");
   assert.equal(rejected('""'), "La búsqueda requiere al menos un término");
 });
@@ -195,6 +197,133 @@ test("parser: el texto completo (con operadores) es lo que ata el cursor y el ec
   assert.ok(a.ok && b.ok);
   assert.equal(a.criteria.needle.text, "type:informe rex");
   assert.notEqual(a.criteria.needle.text, b.criteria.needle.text);
+});
+
+function filtersOf(text: string) {
+  const language = parseGlobalSearchLanguage(text);
+  assert.ok(language.ok, `${text}: ${language.ok ? "" : language.error}`);
+  return language;
+}
+
+test("A3 lenguaje: una consulta sólo de operadores es válida y no tiene términos", () => {
+  const typeOnly = filtersOf("type:informe");
+  assert.deepEqual(typeOnly.clauses, []);
+  assert.deepEqual(typeOnly.typeKinds, ["report"]);
+  assert.equal(typeOnly.plain, false);
+
+  assert.equal(filtersOf("after:2026-01-01").filters.after, "2026-01-01");
+  const range = filtersOf("type:informe before:2026-12-31 after:2026-01-01");
+  assert.deepEqual(range.filters, { status: null, studyType: null, after: "2026-01-01", before: "2026-12-31", clinicId: null });
+  assert.deepEqual(filtersOf("type:seguimiento").typeKinds, ["tracking_case"]);
+});
+
+test("A5 lenguaje: status, study, after, before y clinic con alias y normalización", () => {
+  const all = filtersOf("luna ESTADO:Ready estudio:Histopatología after:2026-01-01 before:2026-02-03 clinica:12");
+  assert.deepEqual(all.filters, {
+    status: "ready",
+    studyType: "histopatologia",
+    after: "2026-01-01",
+    before: "2026-02-03",
+    clinicId: 12,
+  });
+  assert.deepEqual(all.clauses.map((clause) => clause.map((term) => term.text)), [["luna"]]);
+  assert.deepEqual(
+    filtersOf("luna OR rex status:delivered").clauses.map((clause) => clause.map((term) => term.text)),
+    [["luna"], ["rex"]],
+    "los operadores aplican a toda la consulta",
+  );
+  assert.equal(filtersOf("status: luna").filters.status, null, "operador sin valor todavía no tiene efecto");
+});
+
+test("A5 lenguaje: valores inválidos y fechas imposibles se rechazan con mensaje cerrado", () => {
+  assert.equal(rejected("status:borrado"), "Estado de informe inválido");
+  assert.equal(rejected("study:12"), "Tipo de estudio inválido");
+  assert.equal(rejected("after:2026-02-30"), "Fecha de búsqueda inválida");
+  assert.equal(rejected("before:ayer"), "Fecha de búsqueda inválida");
+  assert.equal(rejected("clinic:abc"), "Clínica de búsqueda inválida");
+  assert.equal(rejected("clinic:0"), "Clínica de búsqueda inválida");
+});
+
+test("A1 lenguaje: repetir un operador con otro valor es contradictorio; con el mismo valor se unifica", () => {
+  assert.equal(rejected("status:ready status:delivered"), "Filtros contradictorios: status:");
+  assert.equal(rejected("after:2026-01-01 after:2026-01-02"), "Filtros contradictorios: after:");
+  assert.equal(rejected("clinic:1 clinica:2"), "Filtros contradictorios: clinica:");
+  assert.equal(filtersOf("status:ready estado:READY").filters.status, "ready");
+});
+
+test("A5 lenguaje: caben los cinco filtros distintos a la vez", () => {
+  assert.equal(
+    filtersOf("status:ready study:abc after:2026-01-01 before:2026-02-01 clinic:3").filters.clinicId,
+    3,
+  );
+});
+
+test("A3 parser: sólo filtros es válido; sin filtros ni términos sigue siendo 400", () => {
+  const typeOnly = parseGlobalSearchQuery({ q: "type:informe" }, CLINIC_GLOBAL_SEARCH_KINDS);
+  assert.ok(typeOnly.ok);
+  assert.deepEqual(typeOnly.kinds, ["report"]);
+  assert.deepEqual(typeOnly.criteria.needle.clauses, []);
+  assert.equal(typeOnly.criteria.needle.numericId, null);
+
+  const dated = parseGlobalSearchQuery({ q: "after:2026-01-01" }, CLINIC_GLOBAL_SEARCH_KINDS);
+  assert.ok(dated.ok);
+  assert.deepEqual(dated.kinds, ["report"], "las fechas aplican a informes y no amplían el alcance");
+  assert.equal(dated.criteria.createdFrom?.toISOString(), "2026-01-01T00:00:00.000Z");
+
+  const empty = parseGlobalSearchQuery({ q: "OR" }, CLINIC_GLOBAL_SEARCH_KINDS);
+  assert.deepEqual(empty, { ok: false, status: 400, error: "La búsqueda requiere al menos un término" });
+  assert.equal(parseGlobalSearchQuery({ q: "x" }, CLINIC_GLOBAL_SEARCH_KINDS).ok, false);
+});
+
+test("A5 parser: after es inclusivo desde el inicio del día UTC y before hasta su final", () => {
+  const range = parseGlobalSearchQuery({ q: "luna after:2026-01-01 before:2026-12-31" }, CLINIC_GLOBAL_SEARCH_KINDS);
+  assert.ok(range.ok);
+  assert.equal(range.criteria.createdFrom?.toISOString(), "2026-01-01T00:00:00.000Z");
+  assert.equal(range.criteria.createdTo?.toISOString(), "2026-12-31T23:59:59.999Z");
+  assert.deepEqual(range.kinds, ["report"]);
+});
+
+test("A5 parser: rangos contradictorios y filtros de informe sobre otra entidad son 400", () => {
+  assert.deepEqual(parseGlobalSearchQuery({ q: "after:2026-12-31 before:2026-01-01" }, CLINIC_GLOBAL_SEARCH_KINDS), {
+    ok: false,
+    status: 400,
+    error: "Rango de fechas inválido",
+  });
+  assert.deepEqual(parseGlobalSearchQuery({ q: "type:token after:2026-01-01" }, CLINIC_GLOBAL_SEARCH_KINDS), {
+    ok: false,
+    status: 400,
+    error: "Los filtros de informe requieren incluir informes",
+  });
+});
+
+test("A1 parser: texto y parámetros se combinan sólo si coinciden", () => {
+  const same = parseGlobalSearchQuery({ q: "luna status:ready", status: "ready" }, CLINIC_GLOBAL_SEARCH_KINDS);
+  assert.ok(same.ok);
+  assert.equal(same.criteria.reportStatus, "ready");
+
+  const other = parseGlobalSearchQuery({ q: "luna status:ready", status: "delivered" }, CLINIC_GLOBAL_SEARCH_KINDS);
+  assert.deepEqual(other, { ok: false, status: 400, error: "Filtros de búsqueda contradictorios" });
+
+  const dates = parseGlobalSearchQuery({ q: "luna after:2026-01-01", from: "2026-02-01" }, CLINIC_GLOBAL_SEARCH_KINDS);
+  assert.equal(dates.ok, false);
+
+  const fromParam = parseGlobalSearchQuery({ q: "luna", from: "2026-02-01" }, CLINIC_GLOBAL_SEARCH_KINDS);
+  assert.ok(fromParam.ok);
+  assert.equal(fromParam.criteria.createdFrom?.toISOString(), "2026-02-01T00:00:00.000Z");
+});
+
+test("A5 parser: clinic: se expone como estrechamiento de Admin", () => {
+  const admin = parseGlobalSearchQuery({ q: "luna clinic:7" }, ADMIN_GLOBAL_SEARCH_KINDS);
+  assert.ok(admin.ok);
+  assert.equal(admin.clinicId, 7);
+  const plain = parseGlobalSearchQuery({ q: "luna" }, ADMIN_GLOBAL_SEARCH_KINDS);
+  assert.ok(plain.ok);
+  assert.equal(plain.clinicId, null);
+});
+
+test("unidades de tasa: una consulta de filtros cuenta sus entidades", () => {
+  assert.equal(globalSearchQueryUnits({ q: "type:informe" }, ADMIN_GLOBAL_SEARCH_KINDS), 1);
+  assert.equal(globalSearchQueryUnits({ q: "after:2026-01-01" }, ADMIN_GLOBAL_SEARCH_KINDS), 1);
 });
 
 test("unidades de tasa: type: cuenta sólo las entidades que realmente consulta", () => {

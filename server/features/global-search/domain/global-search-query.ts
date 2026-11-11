@@ -1,3 +1,5 @@
+import type { ReportStatus } from "../../../../drizzle/schema.ts";
+
 /**
  * Query language of the global search (pure, no I/O).
  *
@@ -7,6 +9,15 @@
  *   type:informe          restricts the ENTITIES searched, whole query, any position
  *   title:luna            the term must match the record title only
  *   title:"luna perez"    same, for a phrase
+ *   status:ready          report status (reports only; `estado:` is an alias)
+ *   study:histopatologia  report study type (reports only; `estudio:` is an alias)
+ *   after:2026-01-01      reports created on or after that UTC day (inclusive)
+ *   before:2026-12-31     reports created on or before that UTC day (inclusive)
+ *   clinic:12             Admin only: narrows to one clinic (`clinica:` is an alias)
+ *
+ * A query made only of operators (`type:informe`, `after:2026-01-01`) is valid:
+ * its filters are the criteria. Repeating an operator with a different value
+ * (`status:ready status:delivered`) is rejected, never resolved silently.
  *
  * Deterministic by construction: the same text always yields the same
  * expression. Anything the user types reaches SQL only as an escaped LIKE
@@ -18,6 +29,12 @@
 
 export const GLOBAL_SEARCH_MAX_TERMS = 8;
 export const GLOBAL_SEARCH_MAX_CLAUSES = 4;
+export const GLOBAL_SEARCH_REPORT_STATUS_VALUES = [
+  "uploaded",
+  "processing",
+  "ready",
+  "delivered",
+] as const satisfies readonly ReportStatus[];
 
 /** Entity kinds a `type:` value can name (a subset type, resolved by the parser). */
 export type GlobalSearchTypeKind =
@@ -29,6 +46,65 @@ export type GlobalSearchTypeKind =
 
 const NUMERIC_ID_PATTERN = /^#?(\d{1,9})$/;
 const OPERATOR_PREFIX = /^([A-Za-z]{2,20}):/;
+const STUDY_TYPE_PATTERN = /^[a-z]{3,40}$/;
+const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const CLINIC_ID_PATTERN = /^[1-9]\d{0,8}$/;
+
+type FilterOperator = "status" | "studyType" | "after" | "before" | "clinicId";
+
+const OPERATOR_NAMES: Readonly<Record<string, "type" | "title" | FilterOperator>> = {
+  type: "type",
+  title: "title",
+  status: "status",
+  estado: "status",
+  study: "studyType",
+  estudio: "studyType",
+  after: "after",
+  before: "before",
+  clinic: "clinicId",
+  clinica: "clinicId",
+};
+
+export type GlobalSearchLanguageFilters = {
+  readonly status: ReportStatus | null;
+  readonly studyType: string | null;
+  /** `YYYY-MM-DD`, inclusive lower bound (UTC day). */
+  readonly after: string | null;
+  /** `YYYY-MM-DD`, inclusive upper bound (UTC day). */
+  readonly before: string | null;
+  readonly clinicId: number | null;
+};
+
+function isRealIsoDay(value: string): boolean {
+  if (!ISO_DATE_PATTERN.test(value)) return false;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+/** A normalized operator value, or the error that rejects it. */
+function readFilterValue(
+  operator: FilterOperator,
+  value: string,
+): { readonly value: string | number } | { readonly error: string } {
+  switch (operator) {
+    case "status": {
+      const status = foldKey(value);
+      return (GLOBAL_SEARCH_REPORT_STATUS_VALUES as readonly string[]).includes(status)
+        ? { value: status }
+        : { error: "Estado de informe inválido" };
+    }
+    case "studyType": {
+      const study = foldKey(value);
+      return STUDY_TYPE_PATTERN.test(study) ? { value: study } : { error: "Tipo de estudio inválido" };
+    }
+    case "clinicId":
+      return CLINIC_ID_PATTERN.test(value)
+        ? { value: Number(value) }
+        : { error: "Clínica de búsqueda inválida" };
+    default:
+      return isRealIsoDay(value) ? { value } : { error: "Fecha de búsqueda inválida" };
+  }
+}
 
 const TYPE_ALIASES: Readonly<Record<string, GlobalSearchTypeKind>> = {
   report: "report",
@@ -75,10 +151,15 @@ export type GlobalSearchTerm = {
 export type GlobalSearchLanguage =
   | {
       readonly ok: true;
-      /** OR of clauses; each clause is an AND of terms. Never empty; no clause is empty. */
+      /**
+       * OR of clauses; each clause is an AND of terms and none is empty. The
+       * list is empty only for a query made of operators alone (see `filters`).
+       */
       readonly clauses: readonly (readonly GlobalSearchTerm[])[];
       /** Entities named by `type:` (union), or null when the query names none. */
       readonly typeKinds: readonly GlobalSearchTypeKind[] | null;
+      /** Filter operators typed in the text; untouched fields are null. */
+      readonly filters: GlobalSearchLanguageFilters;
       /** No operator, quote or OR: the query is just words (legacy shape). */
       readonly plain: boolean;
     }
@@ -116,6 +197,14 @@ function readWord(text: string, start: number): { value: string; next: number } 
 export function parseGlobalSearchLanguage(text: string): GlobalSearchLanguage {
   const clauses: GlobalSearchTerm[][] = [[]];
   const typeKinds = new Set<GlobalSearchTypeKind>();
+  const filters: Record<FilterOperator, string | number | null> = {
+    status: null,
+    studyType: null,
+    after: null,
+    before: null,
+    clinicId: null,
+  };
+  let operatorCount = 0;
   let plain = true;
   let termCount = 0;
   let index = 0;
@@ -148,7 +237,8 @@ export function parseGlobalSearchLanguage(text: string): GlobalSearchLanguage {
     const operator = OPERATOR_PREFIX.exec(text.slice(index));
     if (operator) {
       const name = operator[1].toLowerCase();
-      if (name !== "type" && name !== "title") {
+      const resolved = OPERATOR_NAMES[name];
+      if (!resolved) {
         return { ok: false, error: `Operador de búsqueda desconocido: ${name}:` };
       }
       plain = false;
@@ -159,10 +249,22 @@ export function parseGlobalSearchLanguage(text: string): GlobalSearchLanguage {
       const value = read.value.trim();
       if (!value) continue; // `type:` still being typed: no effect yet
 
-      if (name === "type") {
+      if (resolved === "type") {
         const kind = TYPE_ALIASES[foldKey(value)];
         if (!kind) return { ok: false, error: "Tipo de búsqueda inválido" };
         typeKinds.add(kind);
+      } else if (resolved !== "title") {
+        const read = readFilterValue(resolved, value);
+        if ("error" in read) return { ok: false, error: read.error };
+        const current = filters[resolved];
+        if (current !== null && current !== read.value) {
+          return { ok: false, error: `Filtros contradictorios: ${name}:` };
+        }
+        if (current === null) {
+          // Each filter holds one value, so at most five operators ever count.
+          operatorCount += 1;
+          filters[resolved] = read.value;
+        }
       } else {
         const error = push(makeGlobalSearchTerm(value, { quoted, titleOnly: true }));
         if (error) return { ok: false, error };
@@ -189,7 +291,9 @@ export function parseGlobalSearchLanguage(text: string): GlobalSearchLanguage {
   }
 
   const nonEmpty = clauses.filter((clause) => clause.length > 0);
-  if (nonEmpty.length === 0) {
+  const hasFilters = typeKinds.size > 0 || operatorCount > 0;
+
+  if (nonEmpty.length === 0 && !hasFilters) {
     return { ok: false, error: "La búsqueda requiere al menos un término" };
   }
 
@@ -197,6 +301,7 @@ export function parseGlobalSearchLanguage(text: string): GlobalSearchLanguage {
     ok: true,
     clauses: nonEmpty,
     typeKinds: typeKinds.size > 0 ? [...typeKinds] : null,
+    filters: filters as GlobalSearchLanguageFilters,
     plain,
   };
 }

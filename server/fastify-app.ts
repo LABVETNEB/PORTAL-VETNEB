@@ -156,6 +156,11 @@ import {
   adminGlobalSearchNativeRoutes,
   type AdminGlobalSearchNativeRoutesOptions,
 } from "./routes/admin-global-search.fastify.ts";
+import {
+  adminGlobalSearchStatesRoutes,
+  clinicGlobalSearchStatesRoutes,
+  type GlobalSearchStatesRoutesOptions,
+} from "./routes/global-search-states.fastify.ts";
 import { requireTrustedOriginForFastify } from "./middlewares/trusted-origin.ts";
 import { requireMinimumClientVersionForFastify } from "./middlewares/version-gate.ts";
 import { applySensitiveApiNoStoreHeaders } from "./lib/http/sensitive-response-cache.ts";
@@ -391,6 +396,7 @@ export type CreateFastifyAppOptions = {
   logisticsSlaRoutes?: LogisticsSlaNativeRoutesOptions;
   clinicGlobalSearchRoutes?: ClinicGlobalSearchNativeRoutesOptions;
   adminGlobalSearchRoutes?: AdminGlobalSearchNativeRoutesOptions;
+  globalSearchStatesRoutes?: GlobalSearchStatesRoutesOptions;
 };
 
 export async function createFastifyApp(
@@ -718,6 +724,16 @@ export async function createFastifyApp(
   await app.register(adminGlobalSearchNativeRoutes, {
     prefix: "/api/admin/search",
     ...(options.adminGlobalSearchRoutes ?? {}),
+  });
+
+  await app.register(clinicGlobalSearchStatesRoutes, {
+    prefix: "/api/search/states",
+    ...(options.globalSearchStatesRoutes ?? {}),
+  });
+
+  await app.register(adminGlobalSearchStatesRoutes, {
+    prefix: "/api/admin/search/states",
+    ...(options.globalSearchStatesRoutes ?? {}),
   });
 
   return app;
