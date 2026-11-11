@@ -71,6 +71,7 @@ export function AdminMobileAuditModule({
   return (
     <section
       data-admin-mobile-ops-module="audit"
+      data-dashboard-frame="container"
       aria-label="Registro operativo de auditoría"
       className="dashboard-surface flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-vetneb-line/80 bg-card md:hidden"
     >

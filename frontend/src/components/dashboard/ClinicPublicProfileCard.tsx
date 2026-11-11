@@ -565,7 +565,7 @@ export function ClinicPublicProfileCard() {
         !isStatusTabActive && "max-md:hidden",
       )}
     >
-      <div className="clinical-muted-band rounded-lg px-3 py-2 md:border-0 md:bg-none md:bg-transparent md:p-0">
+      <div data-dashboard-frame="container" className="clinical-muted-band rounded-lg px-3 py-2 md:border-0 md:bg-none md:bg-transparent md:p-0">
         <label htmlFor="clinic-profile-avatar" className="field-label md:sr-only">
           Avatar o logo
         </label>

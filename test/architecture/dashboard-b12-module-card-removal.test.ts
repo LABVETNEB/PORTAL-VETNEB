@@ -138,9 +138,13 @@ const BAND_ATTRIBUTE = 'data-dashboard-band="true"';
 const FRAME_OWNER_PATHS = [
   "frontend/src/app/dashboard/ClinicLogisticaWorkspaceSummary.tsx",
   "frontend/src/app/dashboard/admin/AdminMaintenanceDryRunCard.tsx",
+  "frontend/src/app/dashboard/admin/AdminMobileAuditModule.tsx",
   "frontend/src/app/dashboard/admin/AdminParticularTokensCard.tsx",
   "frontend/src/app/dashboard/admin/AdminPricingEditorCard.tsx",
   "frontend/src/app/dashboard/admin/AdminSchemaHealthStatusCard.tsx",
+  "frontend/src/app/dashboard/admin/AdminSessionsReadOnlyCard.tsx",
+  "frontend/src/app/dashboard/admin/AdminUsersRolesReadOnlyCard.tsx",
+  "frontend/src/components/dashboard/ClinicPublicProfileCard.tsx",
   "frontend/src/components/dashboard/ModuleCard.tsx",
   "frontend/src/components/dashboard/ParticularTokensCardPrimitives.tsx",
 ] as const;
@@ -153,9 +157,10 @@ function framesBlock(): string {
   return css.slice(start, end);
 }
 
-test("DRV frames · one shared contract paints both hooks from 768px, paint only", () => {
+test("DRV frames · one shared contract paints both hooks at every width, paint only", () => {
   const block = framesBlock();
-  assert.ok(block.includes("@media (min-width: 768px)"));
+  assert.equal(/@media/.test(block.replace(/\/\*[\s\S]*?\*\//g, "")), false, "the contract is not gated by a media query: mobile and desktop share it");
+  assert.ok(block.includes('[data-dashboard-adaptive-rows-canvas="true"]'));
   assert.ok(block.includes(BAND_ATTRIBUTE) && block.includes(FRAME_ATTRIBUTE));
   for (const hook of ["[data-dashboard-filter-bar=\"true\"]", "div:has(> table)", ".dashboard-pager", "[data-dashboard-adaptive-reserved-region=\"pager\"]"]) {
     assert.ok(block.includes(hook), `contract must cover ${hook}`);

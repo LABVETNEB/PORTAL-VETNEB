@@ -577,6 +577,7 @@ export function AdminSessionsReadOnlyCard({
 
       <section
         data-admin-mobile-ops-module="sessions"
+        data-dashboard-frame="container"
         data-admin-sesiones-card="true"
         data-admin-sesiones-page-size={effectiveLimit}
         aria-label="Sesiones administrativas"

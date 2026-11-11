@@ -110,6 +110,7 @@ for (const viewport of VIEWPORTS) {
 
         return {
           borderTopWidth: style.borderTopWidth,
+          borderTopColor: style.borderTopColor,
           borderTopLeftRadius: style.borderTopLeftRadius,
           backgroundColor: style.backgroundColor,
           overflowX: style.overflowX,
@@ -119,11 +120,12 @@ for (const viewport of VIEWPORTS) {
         };
       });
 
-      expect(contract.borderTopWidth, `${moduleId}: canonical border`).toBe("1px");
-      expect(contract.borderTopLeftRadius, `${moduleId}: canonical radius`).toBe("8px");
-      expect(contract.backgroundColor, `${moduleId}: canonical surface color`).toBe(
-        "rgb(248, 251, 252)",
-      );
+      // Drive workspace frames: the card keeps its box (1px width, so geometry
+      // does not move) but paints no border, radius or fill on mobile either.
+      expect(contract.borderTopWidth, `${moduleId}: canonical border box`).toBe("1px");
+      expect(contract.borderTopColor, `${moduleId}: unframed border`).toBe("rgba(0, 0, 0, 0)");
+      expect(contract.borderTopLeftRadius, `${moduleId}: unframed radius`).toBe("0px");
+      expect(contract.backgroundColor, `${moduleId}: unframed fill`).toBe("rgba(0, 0, 0, 0)");
       expect(contract.overflowX, `${moduleId}: card owns horizontal clipping`).toBe("hidden");
       expect(contract.overflowY, `${moduleId}: card owns vertical clipping`).toBe("hidden");
       expect(contract.pageScrollsX, `${moduleId}: no page horizontal overflow`).toBe(false);

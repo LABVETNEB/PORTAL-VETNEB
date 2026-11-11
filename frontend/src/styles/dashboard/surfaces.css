@@ -746,8 +746,9 @@
  *
  * Drive workspace frames (audit P1-09, Drive ref. §III.2/§III.4): ONE contract
  * for every authenticated Admin and Clínica workspace — the data sits on the
- * canvas, not inside nested cards. From 768px up (below it the ModuleCard is
- * the shared CMP-04 mobile surface that stays identical across roles, CMP-12).
+ * canvas, not inside nested cards, at EVERY width: desktop, tablet and the
+ * mobile ModuleCard (CMP-04) alike. No media query gates it, so both roles
+ * stay identical (CMP-12) by construction.
  *
  * Two structural hooks, owned by the shared components, drive it:
  *   - data-dashboard-frame="container": a container that only wraps content
@@ -767,41 +768,40 @@
  * Paint only: border widths, padding and `overflow` are kept, so capacity,
  * pitch and the zero-scroll geometry do not move. UNLAYERED, like B12: the
  * paint comes from Tailwind utilities on shared components. */
-@media (min-width: 768px) {
-  .dashboard-app-shell
-    [data-dashboard-module-workspace]
-    :is(
-      [data-dashboard-band="true"],
-      [data-dashboard-b12-module-card="true"] > :first-child,
-      [data-dashboard-adaptive-reserved-region="pager"],
-      .dashboard-pager,
-      [data-collection-pager],
-      [data-clinic-reports-toolbar="true"],
-      [data-clinic-access-toolbar="true"],
-      [data-clinic-profile-publication="true"]
-    ) {
-    border-color: transparent;
-  }
+.dashboard-app-shell
+  [data-dashboard-module-workspace]
+  :is(
+    [data-dashboard-band="true"],
+    [data-dashboard-b12-module-card="true"] > :first-child,
+    [data-dashboard-adaptive-reserved-region="pager"],
+    .dashboard-pager,
+    [data-collection-pager],
+    [data-clinic-reports-toolbar="true"],
+    [data-clinic-access-toolbar="true"],
+    [data-clinic-profile-publication="true"]
+  ) {
+  border-color: transparent;
+}
 
-  .dashboard-app-shell
-    [data-dashboard-module-workspace]
-    :is(
-      [data-dashboard-frame="container"],
-      [data-dashboard-filter-bar="true"],
-      [data-clinic-reports-list-panel="true"],
-      .dashboard-master-panel,
-      [data-detail-state],
-      div:has(> table)
-    ) {
-    border-color: transparent;
-    border-radius: 0;
-    background-color: transparent;
-    box-shadow: var(--dash-elevation-none);
-  }
+.dashboard-app-shell
+  [data-dashboard-module-workspace]
+  :is(
+    [data-dashboard-frame="container"],
+    [data-dashboard-adaptive-rows-canvas="true"],
+    [data-dashboard-filter-bar="true"],
+    [data-clinic-reports-list-panel="true"],
+    .dashboard-master-panel,
+    [data-detail-state],
+    div:has(> table)
+  ) {
+  border-color: transparent;
+  border-radius: 0;
+  background-color: transparent;
+  box-shadow: var(--dash-elevation-none);
+}
 
-  .dashboard-app-shell [data-dashboard-module-workspace] [data-detail-state] {
-    border-inline-start-color: hsl(var(--vetneb-line) / 0.7);
-  }
+.dashboard-app-shell [data-dashboard-module-workspace] [data-detail-state] {
+  border-inline-start-color: hsl(var(--vetneb-line) / 0.7);
 }
 /* dashboard-drv-workspace-frames:end */
 
