@@ -1732,7 +1732,8 @@ test("censo 05A: la deuda de lectores ad hoc rompe al crecer y la adopción del 
   // +2: DRV V7 dashboard-drv-v7-menus-tooltips y dashboard-drv-v7-overlay-fidelity leen fuentes por el lector canónico.
   // +1: clinic-reports-study-type-label lee el owner de la columna ESTUDIO por el lector canónico.
   // +1: drizzle-config-db-url lee drizzle.config.ts y backend-ci.yml por el lector canónico.
-  assert.equal(current, 440, "drizzle-config-db-url se suma a los 439 importadores del lector canónico (tras clinic-reports-study-type-label)");
+  // +1: global-search-state-retention lee la migración 0031, el repositorio y el preflight por el lector canónico.
+  assert.equal(current, 441, "global-search-state-retention se suma a los 440 importadores del lector canónico (tras drizzle-config-db-url)");
   assert.equal(
     guardViolation(adoptionEntry, evaluateEntry(adoptionEntry)),
     null,

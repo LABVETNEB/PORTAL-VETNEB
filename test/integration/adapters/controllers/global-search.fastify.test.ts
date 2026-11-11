@@ -86,11 +86,16 @@ function search(rows: Row[], kind: Kind, criteria: Criteria, clinicId: number | 
   return rows
     .filter((row) => row.kind === kind)
     .filter((row) => clinicId === null || row.clinicId === clinicId)
-    .filter((row) =>
-      criteria.needle.clauses.some((clause) =>
-        clause.every((term) => term.numericId === row.id || fold(row.title).includes(fold(term.text))),
-      ),
+    .filter(
+      (row) =>
+        // Operators alone (no term) restrict only by their filters, like the SQL repository.
+        criteria.needle.clauses.length === 0 ||
+        criteria.needle.clauses.some((clause) =>
+          clause.every((term) => term.numericId === row.id || fold(row.title).includes(fold(term.text))),
+        ),
     )
+    .filter((row) => !criteria.createdFrom || Date.parse(row.date) >= criteria.createdFrom.getTime())
+    .filter((row) => !criteria.createdTo || Date.parse(row.date) <= criteria.createdTo.getTime())
     .map<Hit>((row) => ({
       kind: row.kind,
       id: row.id,
@@ -194,6 +199,7 @@ async function createApp(
 
 type Body = {
   success: boolean;
+  query?: string;
   error?: string;
   hits?: Hit[];
   groups?: Array<{ kind: string; returned: number; hasMore: boolean; nextCursor?: string | null }>;
@@ -566,7 +572,7 @@ test("global search lenguaje: type: consulta sólo esa entidad y siempre con el 
 test("global search lenguaje: type: de otra superficie o sin sentido es 400 y no consulta", async () => {
   const { app, calls } = await createApp();
   try {
-    for (const q of ["type:clinica rex", "type:pdf rex", "foo:bar rex", "type:informe"]) {
+    for (const q of ["type:clinica rex", "type:pdf rex", "foo:bar rex", "type:informe status:borrado", "clinic:22 rex"]) {
       const { response, body } = await get(app, `/api/search?q=${encodeURIComponent(q)}`, CLINIC_A_COOKIE);
       assert.equal(response.statusCode, 400, q);
       assert.equal(body.success, false, q);
@@ -600,6 +606,125 @@ test("global search lenguaje: operadores y OR no abren el alcance de otra clíni
     const { response } = await get(app, `/api/search?q=${encodeURIComponent('"Exclusivo Clinica B" OR title:Rex')}`, CLINIC_A_COOKIE);
     assert.equal(response.statusCode, 200);
     assert.equal(calls.every((call) => call.endsWith(`:${CLINIC_A}`)), true, calls.join(","));
+  } finally {
+    await app.close();
+  }
+});
+
+test("A3 sólo filtros: type:informe devuelve informes de la clínica de la sesión y nada de otra", async () => {
+  const { app, calls } = await createApp();
+  try {
+    const { response, body } = await get(app, `/api/search?q=${encodeURIComponent("type:informe")}&limit=25`, CLINIC_A_COOKIE);
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(calls, [`report:${CLINIC_A}`]);
+    const ids = (body.hits ?? []).map((hit) => hit.id);
+    assert.ok(ids.length === 25, "una página completa de informes");
+    assert.equal(ids.some((id) => id === 900 || id === 901), false, "cero filtración de la clínica B");
+    assert.equal(body.query, "type:informe");
+  } finally {
+    await app.close();
+  }
+});
+
+test("A3 sólo filtros: el rango de fechas es inclusivo y los operadores no abren otra clínica", async () => {
+  const { app } = await createApp();
+  try {
+    const q = encodeURIComponent("after:2026-01-10 before:2026-01-12");
+    const { response, body } = await get(app, `/api/search?q=${q}&limit=25`, CLINIC_A_COOKIE);
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(
+      (body.hits ?? []).map((hit) => hit.id).sort((a, b) => a - b),
+      [10, 11, 12],
+      "ambos extremos del día UTC incluidos",
+    );
+
+    const none = await get(app, `/api/search?q=${encodeURIComponent("before:2025-12-31")}`, CLINIC_B_COOKIE);
+    assert.equal(none.response.statusCode, 200);
+    assert.deepEqual(none.body.hits, []);
+
+    const reversed = await get(app, `/api/search?q=${encodeURIComponent("after:2026-02-01 before:2026-01-01")}`, CLINIC_A_COOKIE);
+    assert.equal(reversed.response.statusCode, 400);
+    assert.equal(reversed.body.error, "Rango de fechas inválido");
+  } finally {
+    await app.close();
+  }
+});
+
+test("A1 texto y filtros combinan: OR con operadores, y el tenant de la sesión manda", async () => {
+  const { app } = await createApp();
+  try {
+    const q = encodeURIComponent('"Ñandú Pérez" OR Exclusivo type:informe after:2026-01-01');
+    const { response, body } = await get(app, `/api/search?q=${q}&limit=25`, CLINIC_A_COOKIE);
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual((body.hits ?? []).map((hit) => hit.id), [1]);
+
+    const clinicB = await get(app, `/api/search?q=${q}&limit=25`, CLINIC_B_COOKIE);
+    assert.deepEqual((clinicB.body.hits ?? []).map((hit) => hit.id).sort((a, b) => a - b), [900, 901]);
+  } finally {
+    await app.close();
+  }
+});
+
+test("A5 Admin: clinic: estrecha a una clínica y contradice al parámetro; Clínica no puede usarlo", async () => {
+  const { app, calls } = await createApp();
+  try {
+    const narrowed = await get(app, `/api/admin/search?q=${encodeURIComponent("type:informe clinic:22")}&limit=25`, ADMIN_COOKIE);
+    assert.equal(narrowed.response.statusCode, 200);
+    assert.deepEqual((narrowed.body.hits ?? []).map((hit) => hit.id).sort((a, b) => a - b), [900, 901]);
+    assert.deepEqual(calls, ["report:22"]);
+
+    const conflict = await get(app, `/api/admin/search?q=${encodeURIComponent("type:informe clinic:22")}&clinicId=11`, ADMIN_COOKIE);
+    assert.equal(conflict.response.statusCode, 400);
+
+    const clinic = await get(app, `/api/search?q=${encodeURIComponent("type:informe clinic:22")}`, CLINIC_A_COOKIE);
+    assert.equal(clinic.response.statusCode, 400);
+  } finally {
+    await app.close();
+  }
+});
+
+test("A5 operadores inválidos devuelven un 400 cerrado y seguro", async () => {
+  const { app, calls } = await createApp();
+  try {
+    const expected: Record<string, string> = {
+      "status:borrado": "Estado de informe inválido",
+      "after:2026-13-01": "Fecha de búsqueda inválida",
+      "study:12": "Tipo de estudio inválido",
+      "status:ready status:delivered": "Filtros contradictorios: status:",
+      "owner:me": "Operador de búsqueda desconocido: owner:",
+    };
+    for (const [q, error] of Object.entries(expected)) {
+      const { response, body } = await get(app, `/api/search?q=${encodeURIComponent(q)}`, CLINIC_A_COOKIE);
+      assert.equal(response.statusCode, 400, q);
+      assert.equal(body.error, error, q);
+    }
+    assert.deepEqual(calls, []);
+  } finally {
+    await app.close();
+  }
+});
+
+test("A3 cursor: una consulta de filtros pagina con cursor firmado ligado al texto y a los filtros", async () => {
+  const { app } = await createApp();
+  try {
+    const q = encodeURIComponent("type:informe after:2026-01-01");
+    const first = await get(app, `/api/search?q=${q}&limit=20`, CLINIC_A_COOKIE);
+    assert.equal(first.response.statusCode, 200);
+    const cursor = first.body.groups?.find((group) => group.kind === "report")?.nextCursor;
+    assert.equal(typeof cursor, "string");
+
+    const second = await get(app, `/api/search?q=${q}&limit=20&cursor=${encodeURIComponent(String(cursor))}`, CLINIC_A_COOKIE);
+    assert.equal(second.response.statusCode, 200);
+    const firstIds = new Set((first.body.hits ?? []).map((hit) => hit.id));
+    assert.equal((second.body.hits ?? []).some((hit) => firstIds.has(hit.id)), false, "sin solapamiento");
+
+    const otherFilter = encodeURIComponent("type:informe after:2026-01-02");
+    const rejected = await get(app, `/api/search?q=${otherFilter}&limit=20&cursor=${encodeURIComponent(String(cursor))}`, CLINIC_A_COOKIE);
+    assert.equal(rejected.response.statusCode, 400);
+    assert.equal(rejected.body.error, "Cursor de búsqueda inválido");
+
+    const otherClinic = await get(app, `/api/search?q=${q}&limit=20&cursor=${encodeURIComponent(String(cursor))}`, CLINIC_B_COOKIE);
+    assert.equal(otherClinic.response.statusCode, 400);
   } finally {
     await app.close();
   }

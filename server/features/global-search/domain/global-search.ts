@@ -1,5 +1,6 @@
 import type { ReportStatus } from "../../../../drizzle/schema.ts";
 import {
+  GLOBAL_SEARCH_REPORT_STATUS_VALUES,
   escapeLikePattern,
   makeGlobalSearchTerm,
   parseGlobalSearchLanguage,
@@ -11,7 +12,8 @@ import {
 const GLOBAL_SEARCH_CURSOR_MAX_LENGTH = 512;
 
 export const GLOBAL_SEARCH_MIN_QUERY_LENGTH = 2;
-export const GLOBAL_SEARCH_MAX_QUERY_LENGTH = 80;
+/** Room for free text plus the filter operators the advanced form composes. */
+export const GLOBAL_SEARCH_MAX_QUERY_LENGTH = 200;
 export const GLOBAL_SEARCH_DEFAULT_LIMIT = 5;
 export const GLOBAL_SEARCH_MAX_LIMIT = 25;
 export const GLOBAL_SEARCH_MAX_OFFSET = 500;
@@ -37,12 +39,7 @@ export type GlobalSearchKind = AdminGlobalSearchKind;
 /** Kinds whose rows carry report status / study type / report dates. */
 const REPORT_SCOPED_FILTER_KINDS: ReadonlySet<GlobalSearchKind> = new Set(["report"]);
 
-const REPORT_STATUS_VALUES: ReadonlySet<string> = new Set<ReportStatus>([
-  "uploaded",
-  "processing",
-  "ready",
-  "delivered",
-]);
+const REPORT_STATUS_VALUES: ReadonlySet<string> = new Set<string>(GLOBAL_SEARCH_REPORT_STATUS_VALUES);
 
 const STUDY_TYPE_PATTERN = /^[a-z]{3,40}$/;
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -152,6 +149,8 @@ export type GlobalSearchParseError = {
 export type GlobalSearchParsed<TKind extends GlobalSearchKind> = {
   readonly ok: true;
   readonly kinds: readonly TKind[];
+  /** `clinic:` operator of the text (Admin narrowing); the clinic surface rejects it. */
+  readonly clinicId: number | null;
   readonly criteria: GlobalSearchCriteria;
 };
 
@@ -175,7 +174,8 @@ function needleFromLanguage(
   text: string,
   language: Extract<GlobalSearchLanguage, { ok: true }>,
 ): GlobalSearchNeedle {
-  const primaryText = language.plain ? text : language.clauses[0][0].text;
+  // A query of operators alone has no term: nothing ranks and nothing is matched by text.
+  const primaryText = language.plain || language.clauses.length === 0 ? text : language.clauses[0][0].text;
   const escaped = escapeLikePattern(primaryText);
   const termCount = language.clauses.reduce((total, clause) => total + clause.length, 0);
 
@@ -205,6 +205,7 @@ export function buildGlobalSearchNeedle(text: string): GlobalSearchNeedle {
           ok: true,
           clauses: [[makeGlobalSearchTerm(text, { quoted: true, titleOnly: false })]],
           typeKinds: null,
+          filters: { status: null, studyType: null, after: null, before: null, clinicId: null },
           plain: true,
         },
   );
@@ -273,6 +274,9 @@ function parseKinds<TKind extends GlobalSearchKind>(
   return allowed.filter((kind) => requested.includes(kind));
 }
 
+export const GLOBAL_SEARCH_CONTRADICTORY_FILTERS_ERROR = "Filtros de búsqueda contradictorios";
+const CONTRADICTORY_FILTERS = GLOBAL_SEARCH_CONTRADICTORY_FILTERS_ERROR;
+
 function invalid(error: string): GlobalSearchParseError {
   return { ok: false, status: 400, error };
 }
@@ -339,6 +343,8 @@ export function parseGlobalSearchQuery<TKind extends GlobalSearchKind>(
     cursor = query.cursor;
   }
 
+  // Every filter has two spellings: a request parameter and an operator in the
+  // text. Both may be present only when they agree; a disagreement is rejected.
   let reportStatus: ReportStatus | null = null;
 
   if (query.status !== undefined && query.status !== "") {
@@ -346,6 +352,11 @@ export function parseGlobalSearchQuery<TKind extends GlobalSearchKind>(
       return invalid("Estado de informe inválido");
     }
     reportStatus = query.status as ReportStatus;
+  }
+
+  if (language.filters.status !== null) {
+    if (reportStatus !== null && reportStatus !== language.filters.status) return invalid(CONTRADICTORY_FILTERS);
+    reportStatus = language.filters.status;
   }
 
   let studyType: string | null = null;
@@ -357,11 +368,28 @@ export function parseGlobalSearchQuery<TKind extends GlobalSearchKind>(
     studyType = query.studyType;
   }
 
-  const createdFrom = parseIsoDay(query.from, false);
-  const createdTo = parseIsoDay(query.to, true);
+  if (language.filters.studyType !== null) {
+    if (studyType !== null && studyType !== language.filters.studyType) return invalid(CONTRADICTORY_FILTERS);
+    studyType = language.filters.studyType;
+  }
+
+  let createdFrom = parseIsoDay(query.from, false);
+  let createdTo = parseIsoDay(query.to, true);
 
   if (createdFrom === undefined || createdTo === undefined) {
     return invalid("Rango de fechas inválido");
+  }
+
+  if (language.filters.after !== null) {
+    const after = parseIsoDay(language.filters.after, false) ?? null;
+    if (createdFrom && after && createdFrom.getTime() !== after.getTime()) return invalid(CONTRADICTORY_FILTERS);
+    createdFrom = after;
+  }
+
+  if (language.filters.before !== null) {
+    const before = parseIsoDay(language.filters.before, true) ?? null;
+    if (createdTo && before && createdTo.getTime() !== before.getTime()) return invalid(CONTRADICTORY_FILTERS);
+    createdTo = before;
   }
 
   if (createdFrom && createdTo && createdFrom.getTime() > createdTo.getTime()) {
@@ -383,6 +411,7 @@ export function parseGlobalSearchQuery<TKind extends GlobalSearchKind>(
   return {
     ok: true,
     kinds,
+    clinicId: language.filters.clinicId,
     criteria: {
       needle: needleFromLanguage(text, language),
       limit,

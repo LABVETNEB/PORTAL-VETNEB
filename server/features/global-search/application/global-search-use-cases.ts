@@ -3,6 +3,7 @@ import {
   CLINIC_GLOBAL_SEARCH_KINDS,
   decodeGlobalSearchCursor,
   encodeGlobalSearchCursor,
+  GLOBAL_SEARCH_CONTRADICTORY_FILTERS_ERROR,
   mergeGlobalSearchHits,
   parseGlobalSearchQuery,
   type AdminGlobalSearchKind,
@@ -60,6 +61,8 @@ export type GlobalSearchCursorOptions = {
 export type GlobalSearchOutcome =
   | { readonly ok: true; readonly result: GlobalSearchResult }
   | GlobalSearchParseError;
+
+const CLINIC_OPERATOR_UNAVAILABLE = "El operador clinic: no está disponible aquí";
 
 const INVALID_CURSOR: GlobalSearchParseError = {
   ok: false,
@@ -148,6 +151,11 @@ export function createClinicGlobalSearch(
       return parsed;
     }
 
+    // The tenant is the session's, never a text operator.
+    if (parsed.clinicId !== null) {
+      return { ok: false, status: 400, error: CLINIC_OPERATOR_UNAVAILABLE };
+    }
+
     return runSearch(
       parsed.kinds,
       parsed.criteria,
@@ -172,12 +180,18 @@ export function createAdminGlobalSearch(
       return parsed;
     }
 
+    // `clinic:` narrows like the `clinicId` parameter; both may be present only when equal.
+    if (parsed.clinicId !== null && clinicFilter !== null && parsed.clinicId !== clinicFilter) {
+      return { ok: false, status: 400, error: GLOBAL_SEARCH_CONTRADICTORY_FILTERS_ERROR };
+    }
+    const effectiveClinic = parsed.clinicId ?? clinicFilter;
+
     return runSearch(
       parsed.kinds,
       parsed.criteria,
-      { surface: "admin", tenant: clinicFilter },
+      { surface: "admin", tenant: effectiveClinic },
       options,
-      (kind, criteria) => repository[kind](criteria, clinicFilter),
+      (kind, criteria) => repository[kind](criteria, effectiveClinic),
     );
   };
 }

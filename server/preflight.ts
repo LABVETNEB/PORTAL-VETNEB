@@ -15,6 +15,14 @@ export function isPoolExhaustedError(err: unknown): boolean {
   return POOL_EXHAUSTED_PATTERNS.some((pattern) => msg.includes(pattern));
 }
 
+/** PostgreSQL `undefined_table` (42P01), as thrown by postgres-js or wrapped by Drizzle. */
+export function isUndefinedTableError(err: unknown): boolean {
+  const codeOf = (value: unknown) =>
+    typeof value === "object" && value !== null ? (value as { code?: unknown }).code : undefined;
+  const cause = typeof err === "object" && err !== null ? (err as { cause?: unknown }).cause : undefined;
+  return codeOf(err) === "42P01" || codeOf(cause) === "42P01";
+}
+
 /**
  * Ejecuta una función de limpieza de sesiones expiradas de forma resiliente.
  * Si la DB rechaza la conexión por pool exhausto (EMAXCONNSESSION),
@@ -44,10 +52,12 @@ export async function preflight(): Promise<StartupCleanupSummary> {
   const [
     dbModule,
     particularModule,
+    searchModule,
     supabaseModule,
   ] = await Promise.all([
     import("./db.ts"),
     import("./features/particular-access/infrastructure/index.ts"),
+    import("./features/global-search/infrastructure/index.ts"),
     import("./lib/supabase.ts"),
   ]);
 
@@ -58,6 +68,7 @@ export async function preflight(): Promise<StartupCleanupSummary> {
     deletedClinicSessions,
     deletedAdminSessions,
     deletedParticularSessions,
+    deletedGlobalSearchStates,
   ] = await Promise.all([
     safeCleanupStep(dbModule.deleteExpiredSessions, "clinic_sessions"),
     safeCleanupStep(dbModule.deleteExpiredAdminSessions, "admin_sessions"),
@@ -65,11 +76,25 @@ export async function preflight(): Promise<StartupCleanupSummary> {
       particularModule.deleteExpiredParticularSessions,
       "particular_sessions",
     ),
+    safeCleanupStep(async () => {
+      try {
+        return await searchModule.deleteExpiredGlobalSearchStates();
+      } catch (err) {
+        // The table arrives with migration 0031: a server that starts before it
+        // is applied must not fail its startup over a cleanup of a feature table.
+        if (isUndefinedTableError(err)) {
+          logWarn("PREFLIGHT_CLEANUP_WARN", { label: "global_search_states", reason: "table_missing" });
+          return 0;
+        }
+        throw err;
+      }
+    }, "global_search_states"),
   ]);
 
   return {
     deletedClinicSessions,
     deletedAdminSessions,
     deletedParticularSessions,
+    deletedGlobalSearchStates,
   };
 }

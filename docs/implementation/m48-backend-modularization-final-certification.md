@@ -248,15 +248,28 @@ GLOBAL-SEARCH-TITLE-FALLBACK hace que `title:` coincida con el título visible
 `server/features/global-search` pasa de 9/1.547 a 9/1.565 y `server/features` a
 158/18.761. Total 238/48.867 → 238/48.885.
 
+GLOBAL-SEARCH-DRIVE-A (operadores `status:`, `study:`, `after:`, `before:`, `clinic:` y consultas
+sólo de filtros) lleva `server/features/global-search` de 9/1.565 a 9/1.719 y `server/features` a
+158/18.915. Total 238/48.885 → 238/49.039.
+
+GLOBAL-SEARCH-DRIVE-A4 (búsquedas guardadas por referencia opaca: dominio, casos de uso y repositorio de estados,
+`server/routes/global-search-states.fastify.ts` y su registro en `fastify-app.ts`) lleva `server/features/global-search`
+de 9/1.719 a 12/1.958, `server/features` a 161/19.154, `server/routes` a 38/22.022 y la raíz a 9/2.525.
+Total 238/49.039 → 242/49.519.
+
+La limpieza de estados vencidos (borrado acotado en cada guardado, `deleteExpiredGlobalSearchStates` y su paso en `server/preflight.ts` con el
+resumen de `server/bootstrap.ts`) lleva `server/features/global-search` a 12/1.989, `server/features` a 161/19.185 y la raíz a 9/2.555.
+Total 242/49.519 → 242/49.580.
+
 | Área | Archivos TypeScript | LOC |
 | --- | ---: | ---: |
-| `server/features` | 158 | 18.761 |
-| `server/routes` | 37 | 21.797 |
+| `server/features` | 161 | 19.185 |
+| `server/routes` | 38 | 22.022 |
 | `server/lib` | 31 | 5.389 |
 | `server/middlewares` | 3 | 429 |
-| raíz/entrypoints `server/*.ts` | 9 | 2.509 |
+| raíz/entrypoints `server/*.ts` | 9 | 2.555 |
 | otros | 0 | 0 |
-| **Total `server`** | **238** | **48.885** |
+| **Total `server`** | **242** | **49.580** |
 
 El review P2 de M48 detectó que la primera metodología aplicaba una semántica
 equivalente a `source.split("\n").length`, que sumaba un segmento vacío por
@@ -277,7 +290,7 @@ porque ésa es su topología proporcional documentada.
 | Feature | Archivos | LOC | Capas/directorios reales | Barrel raíz | Entrantes | Salientes | Closeout |
 | --- | ---: | ---: | --- | --- | --- | --- | --- |
 | Clinics | 10 | 2.747 | domain, infrastructure, servicios directos | sí | Users/Roles (2 refs) | Public Professionals (3) | M29 |
-| Global Search | 9 | 1.565 | domain, application, infrastructure | sí | ninguna | ninguna | GLOBAL-SEARCH-1 |
+| Global Search | 12 | 1.989 | domain, application, infrastructure | sí | ninguna | ninguna | GLOBAL-SEARCH-1 |
 | Logistics | 46 | 4.238 | domain, application, infrastructure | no requerido | ninguna | ninguna | M17 |
 | Particular Access | 12 | 1.086 | domain, application, infrastructure | sí | Reports (1) | Reports/ST (7) | M33/M35b |
 | Pricing | 4 | 489 | infrastructure, servicios directos | no requerido | ninguna | ninguna | M20 |
