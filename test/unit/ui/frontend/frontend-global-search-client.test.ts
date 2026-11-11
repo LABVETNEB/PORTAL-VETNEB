@@ -9,11 +9,11 @@ import type {
 } from "../../../../frontend/src/lib/global-search.ts";
 
 const LIB_URL = pathToFileURL(resolve(import.meta.dirname, "../../../../frontend/src/lib/global-search.ts")).href;
-const SIBLINGS = new Set(["./routes", "./study-types"]);
+const SIBLINGS = new Set(["./routes", "./study-types", "./global-search-query"]);
 
 // The frontend imports its siblings without an extension (the Next.js idiom the
 // type-stripping loader cannot resolve). The fallback is limited to that exact
-// parent and those two specifiers, as in clinic-mobile-admin-parity-census.
+// parent and those three specifiers, as in clinic-mobile-admin-parity-census.
 registerHooks({
   resolve(specifier, context, nextResolve) {
     try {
@@ -37,13 +37,16 @@ const {
   globalSearchDestinationOpensRecord,
   globalSearchKindsFor,
   globalSearchPathFor,
+  globalSearchStatesPathFor,
   globalSearchStatusLabel,
   groupGlobalSearchHits,
   isGlobalSearchContinuation,
   isGlobalSearchFocusShortcut,
   isGlobalSearchQueryReady,
+  isGlobalSearchRequestReady,
   normalizeGlobalSearchInput,
   readGlobalSearchRecent,
+  readGlobalSearchSavedState,
   rememberGlobalSearchQuery,
   resolveGlobalSearchRequestKinds,
 } = (await import(LIB_URL)) as typeof import("../../../../frontend/src/lib/global-search.ts");
@@ -91,7 +94,7 @@ test("the clinic request never carries a tenant, the admin clinicId only narrows
   assert.deepEqual(clinic, { q: "ana", kinds: "report", limit: "5" }, "admin-only kinds and clinicId are dropped");
 
   const admin = params(buildGlobalSearchQueryString("admin", { query: "ana", filters: { ...filters, kinds: [...filters.kinds] }, limit: 5, offset: 0 }));
-  assert.deepEqual(admin, { q: "ana", kinds: "clinic,report", clinicId: "22", limit: "5" });
+  assert.deepEqual(admin, { q: "ana clinic:22", kinds: "clinic,report", limit: "5" });
 
   const hostile = params(
     buildGlobalSearchQueryString("admin", {
@@ -101,7 +104,8 @@ test("the clinic request never carries a tenant, the admin clinicId only narrows
       offset: 0,
     }),
   );
-  assert.equal(hostile.clinicId, undefined, "a non-numeric clinic id is never sent");
+  assert.deepEqual(hostile, { q: "ana", limit: "5" }, "a non-numeric clinic id is never sent");
+  assert.equal("clinicId" in admin, false, "the filters travel inside q, never as their own parameters");
 });
 
 test("report filters narrow the request to reports, like the API, and bad dates are dropped", () => {
@@ -121,17 +125,14 @@ test("report filters narrow the request to reports, like the API, and bad dates 
     }),
   );
   assert.deepEqual(query, {
-    q: "Ñandú Pérez",
+    q: "Ñandú Pérez status:ready study:citologia after:2026-01-01",
     kinds: "report",
-    status: "ready",
-    studyType: "citologia",
-    from: "2026-01-01",
     limit: "20",
     offset: "40",
   });
 });
 
-test("offset is capped at the API maximum and the query at 80 characters", () => {
+test("offset is capped at the API maximum and the query fits the 200-character limit", () => {
   const query = params(
     buildGlobalSearchQueryString("admin", {
       query: "x".repeat(200),
@@ -141,7 +142,61 @@ test("offset is capped at the API maximum and the query at 80 characters", () =>
     }),
   );
   assert.equal(query.offset, "500");
-  assert.equal(query.q, "x".repeat(80));
+  assert.equal(query.q, "x".repeat(200));
+});
+
+test("filters travel in q in a fixed order; over 200 characters the trailing WORDS are dropped, never a filter", () => {
+  const filters = {
+    ...EMPTY_GLOBAL_SEARCH_FILTERS,
+    clinicId: "12",
+    to: "2026-12-31",
+    from: "2026-01-01",
+    studyType: "histopatologia",
+    status: "delivered" as const,
+  };
+  const request = { query: "luna", filters, limit: 5, offset: 0 };
+  assert.equal(
+    params(buildGlobalSearchQueryString("admin", request)).q,
+    "luna status:delivered study:histopatologia after:2026-01-01 before:2026-12-31 clinic:12",
+  );
+  const long = Array.from({ length: 30 }, (_, index) => `palabra${index}`).join(" ");
+  const q = params(buildGlobalSearchQueryString("admin", { ...request, query: long })).q;
+  assert.ok(q.length <= 200, "never composes more than the server accepts");
+  assert.ok(q.endsWith(" status:delivered study:histopatologia after:2026-01-01 before:2026-12-31 clinic:12"));
+  assert.ok(q.startsWith("palabra0 palabra1 "), "words are dropped from the end, whole");
+  // The clinic surface never composes a clinic operator.
+  assert.equal(params(buildGlobalSearchQueryString("clinic", request)).q.includes("clinic:"), false);
+});
+
+test("a filter-only search is ready and sends no words", () => {
+  const status = { ...EMPTY_GLOBAL_SEARCH_FILTERS, status: "ready" as const };
+  assert.equal(isGlobalSearchRequestReady("clinic", "", status), true);
+  assert.equal(isGlobalSearchRequestReady("clinic", "", EMPTY_GLOBAL_SEARCH_FILTERS), false);
+  assert.equal(isGlobalSearchRequestReady("clinic", "a", EMPTY_GLOBAL_SEARCH_FILTERS), false);
+  assert.equal(isGlobalSearchRequestReady("clinic", "status:ready", EMPTY_GLOBAL_SEARCH_FILTERS), true);
+  assert.deepEqual(params(buildGlobalSearchQueryString("clinic", { query: "", filters: status, limit: 20, offset: 0 })), {
+    q: "status:ready",
+    kinds: "report",
+    limit: "20",
+  });
+});
+
+test("saved searches have their own endpoint per surface and parse only what the surface allows", () => {
+  assert.equal(globalSearchStatesPathFor("clinic"), "/api/search/states");
+  assert.equal(globalSearchStatesPathFor("admin"), "/api/admin/search/states");
+  assert.deepEqual(readGlobalSearchSavedState("admin", { q: "luna status:ready", kinds: "clinic,report" }), {
+    q: "luna status:ready",
+    kinds: ["clinic", "report"],
+  });
+  assert.deepEqual(
+    readGlobalSearchSavedState("clinic", { q: "luna", kinds: "clinic,report,report,<img>" }),
+    { q: "luna", kinds: ["report"] },
+    "an admin-only, repeated or unknown kind never reaches the clinic surface",
+  );
+  assert.deepEqual(readGlobalSearchSavedState("clinic", { q: "luna", kinds: null }), { q: "luna", kinds: [] });
+  assert.equal(readGlobalSearchSavedState("clinic", { q: "", kinds: null }), null);
+  assert.equal(readGlobalSearchSavedState("clinic", { q: 7, kinds: null }), null);
+  assert.equal(readGlobalSearchSavedState("clinic", { q: "x".repeat(201), kinds: null }), null);
 });
 
 test("a continuation sends the cursor of its single kind and never an offset", () => {
@@ -165,7 +220,7 @@ test("a continuation sends the cursor of its single kind and never an offset", (
       cursor: "v1.x.y",
     }),
   );
-  assert.deepEqual(filtered, { q: "luna", kinds: "report", status: "ready", clinicId: "4", limit: "25", cursor: "v1.x.y" });
+  assert.deepEqual(filtered, { q: "luna status:ready clinic:4", kinds: "report", limit: "25", cursor: "v1.x.y" });
   assert.deepEqual([...resolveGlobalSearchRequestKinds("admin", { ...EMPTY_GLOBAL_SEARCH_FILTERS, status: "ready" })], ["report"]);
 });
 
@@ -325,8 +380,20 @@ test("applied filter chips describe each filter and clear exactly one", () => {
 test("syntax rejections of the API become guidance; any other 400 text is never echoed", () => {
   assert.equal(
     describeGlobalSearchSyntaxError("clinic", "Operador de búsqueda desconocido: foo:"),
-    "«foo:» no es un operador. Usá type: o title:, o poné el texto entre comillas para buscarlo tal cual.",
+    "«foo:» no es un operador. Usá type:, title:, status:, study:, after:, before: o clinic:, o poné el texto entre comillas para buscarlo tal cual.",
   );
+  assert.match(describeGlobalSearchSyntaxError("clinic", "Filtros contradictorios: status:") ?? "", /«status:» con dos valores/);
+  for (const message of [
+    "Estado de informe inválido",
+    "Tipo de estudio inválido",
+    "Clínica de búsqueda inválida",
+    "Fecha de búsqueda inválida",
+    "Rango de fechas inválido",
+    "Filtros de búsqueda contradictorios",
+    "Los filtros de informe requieren incluir informes",
+  ]) {
+    assert.ok(describeGlobalSearchSyntaxError("admin", message), message);
+  }
   assert.match(describeGlobalSearchSyntaxError("clinic", "Tipo de búsqueda inválido") ?? "", /type:informe, type:token o type:seguimiento/);
   assert.match(describeGlobalSearchSyntaxError("admin", "Tipo de búsqueda inválido") ?? "", /type:clinica o type:usuario/);
   for (const message of [

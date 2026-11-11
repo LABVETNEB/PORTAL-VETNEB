@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
-import { readSourceFile as read } from "../helpers/tracked-source-files.ts";
+import { normalizeLineEndings, readSourceFile as read } from "../helpers/tracked-source-files.ts";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // B06 · WorkspaceAppBar static contract.
@@ -31,6 +31,8 @@ const GLOBAL_SEARCH_TSX = "frontend/src/components/dashboard/DashboardGlobalSear
 const GLOBAL_SEARCH_DIALOG_TSX = "frontend/src/components/dashboard/DashboardGlobalSearchDialog.tsx";
 const GLOBAL_SEARCH_HOOK = "frontend/src/components/dashboard/useDashboardGlobalSearch.ts";
 const GLOBAL_SEARCH_LIB = "frontend/src/lib/global-search.ts";
+// GLOBAL-SEARCH-DRIVE-A: the canonical query model composes the `q` of every request.
+const GLOBAL_SEARCH_QUERY_LIB = "frontend/src/lib/global-search-query.ts";
 const SHELL_BARREL = "frontend/src/features/dashboard/presentation/shell/index.ts";
 const MODULE_CATALOG = "frontend/src/features/dashboard/config/dashboardModules.ts";
 const TOKENS_CSS = "frontend/src/styles/dashboard/tokens.css";
@@ -425,15 +427,28 @@ test("B06 · global search queries the authorized API and never suggests modules
 
   const lib = read(GLOBAL_SEARCH_LIB);
   assert.ok(lib.includes('return surface === "admin" ? "/api/admin/search" : "/api/search";'));
+  // GLOBAL-SEARCH-DRIVE-A: the filters travel inside `q`, composed by the one
+  // canonical model (the working tree is read: the model is a new file). The
+  // tenant is still never a client input: `clinic:` exists for the admin surface only.
   assert.ok(
-    lib.includes('if (surface === "admin" && POSITIVE_ID.test(clinicId)) params.set("clinicId", clinicId);'),
-    "clinicId is an admin-only narrowing; the clinic tenant is the session",
+    lib.includes("const resolved = resolveGlobalSearchQuery(surface, request.query, request.filters);") &&
+      lib.includes('params.set("q", resolved.text);'),
+    "q is composed by the canonical model",
   );
-  assert.equal(
-    lib.split('params.set("clinicId"').length - 1,
-    1,
-    "no other path may put a clinicId on the wire",
+  const queryModel = normalizeLineEndings(readFileSync(resolve(REPO_ROOT, GLOBAL_SEARCH_QUERY_LIB), "utf8"));
+  assert.ok(
+    queryModel.includes(
+      'if (key === "clinicId" && (surface !== "admin" || !CLINIC_ID_PATTERN.test(value))) continue;',
+    ),
+    "clinic: is an admin-only narrowing; the clinic tenant is the session",
   );
+  assert.ok(
+    queryModel.includes('if (surface === "clinic") next.clinicId = "";'),
+    "a clinic filter never survives on the clinic surface",
+  );
+  for (const own of ['params.set("clinicId"', 'params.set("status"', 'params.set("studyType"', 'params.set("from"', 'params.set("to"']) {
+    assert.equal(lib.includes(own), false, `no path puts ${own} on the wire as its own parameter`);
+  }
 
   for (const file of [GLOBAL_SEARCH_TSX, GLOBAL_SEARCH_DIALOG_TSX, GLOBAL_SEARCH_HOOK]) {
     const body = stripComments(read(file));

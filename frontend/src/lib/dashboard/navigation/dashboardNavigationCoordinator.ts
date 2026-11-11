@@ -87,6 +87,10 @@ type OutboxEntry = {
 };
 
 export function sameNavLocation(a: NavLocation, b: NavLocation): boolean {
+  // The saved-search id is a coordinate of the location, as in the machine's `same`.
+  const searchA = a.kind === "none" ? null : (a.search ?? null);
+  const searchB = b.kind === "none" ? null : (b.search ?? null);
+  if (searchA !== searchB) return false;
   if (a.kind === "module") return b.kind === "module" && a.module === b.module;
   if (a.kind === "route") return b.kind === "route" && a.module === b.module && a.path === b.path;
   return a.kind === b.kind;

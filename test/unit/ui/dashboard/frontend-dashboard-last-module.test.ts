@@ -331,7 +331,13 @@ test("clinic controller persists/restores with the clinic key and replace-only r
     false,
     "restore stays replace-only: it must never add a history entry",
   );
-  assert.ok(clinic.includes("return clinicModuleHref(ROUTES.dashboard, DEFAULT_CLINIC_MODULE, location.module);"));
+  assert.ok(clinic.includes("clinicModuleHref(ROUTES.dashboard, DEFAULT_CLINIC_MODULE, location.module)"));
+  // GLOBAL-SEARCH-DRIVE-A4: a saved search (`?sq=`) is appended to the canonical module URL by the one
+  // adapter; the module href itself is still built by `clinicModuleHref` and never from the search.
+  assert.ok(
+    clinic.includes("withSearchParam(clinicModuleHref(ROUTES.dashboard, DEFAULT_CLINIC_MODULE, location.module), search)"),
+    "the search is appended to the canonical module href, not part of it",
+  );
   assert.equal(
     source.includes("`${ROUTES.dashboard}?module=${"),
     false,
