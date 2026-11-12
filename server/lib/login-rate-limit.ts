@@ -5,6 +5,10 @@ export const LOGIN_RATE_LIMIT_MAX_ATTEMPTS = 10;
 export const LOGIN_RATE_LIMIT_CODE = "LOGIN_RATE_LIMITED";
 export const LOGIN_RATE_LIMIT_ERROR_MESSAGE =
   "Demasiados intentos de inicio de sesión. Intentá nuevamente más tarde.";
+export const LOGIN_RATE_LIMIT_UNAVAILABLE_CODE = "LOGIN_RATE_LIMIT_UNAVAILABLE";
+export const LOGIN_RATE_LIMIT_UNAVAILABLE_MESSAGE =
+  "No pudimos procesar la solicitud en este momento. Intentá nuevamente en unos minutos.";
+export const LOGIN_RATE_LIMIT_UNAVAILABLE_RETRY_SECONDS = 30;
 export const LOGIN_RATE_LIMIT_EXPOSED_HEADERS =
   "RateLimit-Policy, RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset, Retry-After";
 
@@ -180,6 +184,16 @@ export function buildLoginRateLimitHeaders(input: LoginRateLimitHeaderInput) {
   }
 
   return headers;
+}
+
+/** Store failure: the attempt could not be charged, so the credentials are never checked. */
+export function buildLoginRateLimitUnavailableResponse() {
+  return {
+    success: false,
+    error: LOGIN_RATE_LIMIT_UNAVAILABLE_MESSAGE,
+    code: LOGIN_RATE_LIMIT_UNAVAILABLE_CODE,
+    retryAfterSeconds: LOGIN_RATE_LIMIT_UNAVAILABLE_RETRY_SECONDS,
+  };
 }
 
 export function buildLoginRateLimitResponse(input: {

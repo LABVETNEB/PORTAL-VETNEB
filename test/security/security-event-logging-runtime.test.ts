@@ -305,29 +305,23 @@ test("login de clinica con store caido emite eventos reales, correlacionados y r
       }),
     );
 
-    assert.equal(result.statusCode, 401);
+    // PR-SEC-08: the attempt cannot be charged, so credentials are never checked.
+    assert.equal(result.statusCode, 503);
+    assert.equal(result.headers["set-cookie"], undefined);
     const events = securityEvents(lines);
     assert.deepEqual(
       events.map((event) => [event.event, event.level]),
-      [
-        ["AUTH_LOGIN_RATE_LIMIT_GET_FAILED", "error"],
-        ["AUTH_LOGIN_FAILED_ATTEMPT_RECORD_FAILED", "warn"],
-      ],
+      [["AUTH_LOGIN_RATE_LIMIT_GET_FAILED", "error"]],
     );
     assert.deepEqual(events[0].context, {
       route: "/api/auth/login",
-      errorName: "Error",
-    });
-    assert.deepEqual(events[1].context, {
-      surface: "clinic",
-      reason: "invalid_credentials",
       errorName: "Error",
     });
     assertCorrelated(events, result);
     assertNoSensitiveOutput(lines, rawWrites);
 
     const completion = lines.find((line) => line.parsed?.event === "HTTP_REQUEST_COMPLETED");
-    assert.equal((completion?.parsed?.context as Record<string, unknown>)?.statusCode, 401);
+    assert.equal((completion?.parsed?.context as Record<string, unknown>)?.statusCode, 503);
   } finally {
     await app.close();
   }
@@ -379,14 +373,12 @@ test("login de admin con store caido emite eventos reales y no registra exito", 
       }),
     );
 
-    assert.equal(result.statusCode, 401);
+    assert.equal(result.statusCode, 503);
+    assert.equal(result.headers["set-cookie"], undefined);
     const events = securityEvents(lines);
     assert.deepEqual(
       events.map((event) => [event.event, event.level]),
-      [
-        ["ADMIN_LOGIN_RATE_LIMIT_GET_FAILED", "error"],
-        ["ADMIN_LOGIN_FAILED_ATTEMPT_RECORD_FAILED", "warn"],
-      ],
+      [["ADMIN_LOGIN_RATE_LIMIT_GET_FAILED", "error"]],
     );
     assertCorrelated(events, result);
     assertNoSensitiveOutput(lines, rawWrites);
@@ -417,14 +409,12 @@ test("login de particular con store caido emite eventos sin token ni datos clini
       }),
     );
 
-    assert.equal(result.statusCode, 401);
+    assert.equal(result.statusCode, 503);
+    assert.equal(result.headers["set-cookie"], undefined);
     const events = securityEvents(lines);
     assert.deepEqual(
       events.map((event) => [event.event, event.level]),
-      [
-        ["PARTICULAR_LOGIN_RATE_LIMIT_GET_FAILED", "error"],
-        ["PARTICULAR_LOGIN_FAILED_ATTEMPT_RECORD_FAILED", "warn"],
-      ],
+      [["PARTICULAR_LOGIN_RATE_LIMIT_GET_FAILED", "error"]],
     );
     assertCorrelated(events, result);
     assertNoSensitiveOutput(lines, rawWrites);
@@ -468,7 +458,7 @@ test("cambio de contrasena de clinica que falla registra error correlacionado, 5
   const auditCalls: unknown[] = [];
   const app = await createFastifyApp({
     clinicAuthRoutes: buildClinicAuthOptions({
-      failing: allStoreOperations,
+      failing: new Set<StoreOperation>(),
       commitFailure: true,
       auditCalls,
     }),
@@ -496,10 +486,7 @@ test("cambio de contrasena de clinica que falla registra error correlacionado, 5
     const events = securityEvents(lines);
     assert.deepEqual(
       events.map((event) => [event.event, event.level]),
-      [
-        ["AUTH_PASSWORD_CHANGE_RATE_LIMIT_GET_FAILED", "error"],
-        ["AUTH_PASSWORD_CHANGE_COMMIT_FAILED", "error"],
-      ],
+      [["AUTH_PASSWORD_CHANGE_COMMIT_FAILED", "error"]],
     );
     assertCorrelated(events, result);
     assertNoSensitiveOutput(lines, rawWrites);

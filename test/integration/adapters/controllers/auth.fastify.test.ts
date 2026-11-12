@@ -866,7 +866,7 @@ test("clinicAuthNativeRoutes login unificado registra payload inválido como mis
   }
 });
 
-test("clinicAuthNativeRoutes login unificado mantiene 401 cuando falla lectura de rate-limit store", async () => {
+test("clinicAuthNativeRoutes login unificado responde 503 sin verificar credenciales cuando falla lectura de rate-limit store", async () => {
   const app = await createTestApp({
     loginRateLimitStore: {
       get: async () => {
@@ -879,9 +879,15 @@ test("clinicAuthNativeRoutes login unificado mantiene 401 cuando falla lectura d
         throw new Error("rate limit increment failed");
       },
     },
-    getAdminUserByUsername: async () => null,
-    getClinicUserByUsername: async () => null,
-    getParticularTokenByTokenHash: async () => null,
+    getAdminUserByUsername: async () => {
+      throw new Error("credentials must not be checked without a charged attempt");
+    },
+    getClinicUserByUsername: async () => {
+      throw new Error("credentials must not be checked without a charged attempt");
+    },
+    getParticularTokenByTokenHash: async () => {
+      throw new Error("credentials must not be checked without a charged attempt");
+    },
   });
 
   try {
@@ -897,17 +903,21 @@ test("clinicAuthNativeRoutes login unificado mantiene 401 cuando falla lectura d
       },
     });
 
-    assert.equal(response.statusCode, 401);
+    assert.equal(response.statusCode, 503);
+    assert.equal(response.headers["retry-after"], "30");
+    assert.equal(response.headers["set-cookie"], undefined);
     assert.deepEqual(JSON.parse(response.body), {
       success: false,
-      error: "Credenciales inválidas",
+      error: "No pudimos procesar la solicitud en este momento. Intentá nuevamente en unos minutos.",
+      code: "LOGIN_RATE_LIMIT_UNAVAILABLE",
+      retryAfterSeconds: 30,
     });
   } finally {
     await app.close();
   }
 });
 
-test("clinicAuthNativeRoutes login unificado mantiene 401 cuando falla incremento de rate-limit store", async () => {
+test("clinicAuthNativeRoutes login unificado responde 503 cuando falla el cobro del intento aunque la lectura funcione", async () => {
   const app = await createTestApp({
     loginRateLimitStore: {
       get: async () => ({
@@ -919,9 +929,15 @@ test("clinicAuthNativeRoutes login unificado mantiene 401 cuando falla increment
         throw new Error("rate limit increment failed");
       },
     },
-    getAdminUserByUsername: async () => null,
-    getClinicUserByUsername: async () => null,
-    getParticularTokenByTokenHash: async () => null,
+    getAdminUserByUsername: async () => {
+      throw new Error("credentials must not be checked without a charged attempt");
+    },
+    getClinicUserByUsername: async () => {
+      throw new Error("credentials must not be checked without a charged attempt");
+    },
+    getParticularTokenByTokenHash: async () => {
+      throw new Error("credentials must not be checked without a charged attempt");
+    },
   });
 
   try {
@@ -937,10 +953,14 @@ test("clinicAuthNativeRoutes login unificado mantiene 401 cuando falla increment
       },
     });
 
-    assert.equal(response.statusCode, 401);
+    assert.equal(response.statusCode, 503);
+    assert.equal(response.headers["retry-after"], "30");
+    assert.equal(response.headers["set-cookie"], undefined);
     assert.deepEqual(JSON.parse(response.body), {
       success: false,
-      error: "Credenciales inválidas",
+      error: "No pudimos procesar la solicitud en este momento. Intentá nuevamente en unos minutos.",
+      code: "LOGIN_RATE_LIMIT_UNAVAILABLE",
+      retryAfterSeconds: 30,
     });
   } finally {
     await app.close();
