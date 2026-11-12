@@ -114,7 +114,7 @@ async function createAdminApp(overrides: Partial<AdminReportWorkflowNativeRoutes
     getAdminSessionWithUser: async (hash: string) =>
       hash === "hash:admin"
         ? {
-            session: { adminUserId: 1, expiresAt: new Date("2099-01-01T00:00:00.000Z"), lastAccess: new Date() },
+            session: { adminUserId: 1, expiresAt: new Date("2099-01-01T00:00:00.000Z"), lastAccess: new Date("2026-05-26T11:59:00.000Z") },
             adminUser: { id: 1, username: "ADMIN" },
           }
         : null,

@@ -220,10 +220,14 @@ async function createAdminPasswordChangeApp(input?: {
   );
   passwords.registerPassword("legacy:admin-password", initialPassword);
 
-  const sessions = new Map<string, { adminUserId: number; expiresAt: Date }>([
-    ["hash:admin-session", { adminUserId: 1, expiresAt: FUTURE }],
-    ["hash:admin-session-2", { adminUserId: 1, expiresAt: FUTURE }],
-    ["hash:admin-other", { adminUserId: 2, expiresAt: FUTURE }],
+  const lastAccess = new Date(NOW);
+  const sessions = new Map<
+    string,
+    { adminUserId: number; expiresAt: Date; lastAccess: Date }
+  >([
+    ["hash:admin-session", { adminUserId: 1, expiresAt: FUTURE, lastAccess }],
+    ["hash:admin-session-2", { adminUserId: 1, expiresAt: FUTURE, lastAccess }],
+    ["hash:admin-other", { adminUserId: 2, expiresAt: FUTURE, lastAccess }],
   ]);
   const auditCalls: AuditCall[] = [];
   const commits: Array<Record<string, unknown>> = [];
@@ -251,6 +255,7 @@ async function createAdminPasswordChangeApp(input?: {
       sessions.set(session.tokenHash, {
         adminUserId: session.adminUserId,
         expiresAt: session.expiresAt,
+        lastAccess: new Date(NOW),
       });
     },
     deleteAdminSession: async (tokenHash: string) => {

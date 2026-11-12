@@ -272,15 +272,17 @@ estructurado con `requestId`) lleva `server/routes` de 38/22.069 a 38/22.009. To
 SEC-08 (rate limit de login y cambio de contraseña fail-closed: el intento se cobra antes de verificar credenciales y un fallo del
 store responde 503) lleva `server/routes` de 38/22.009 a 38/21.916 y `server/lib` de 31/5.389 a 31/5.403. Total 242/49.655 → 242/49.576.
 
+PR-SEC-09 (expiración de sesión obligatoria, TTL máximo e inactividad administrativa; helper nuevo `server/lib/session-expiry.ts`) lleva `server/routes` de 38/21.916 a 38/21.919, `server/lib` de 31/5.403 a 32/5.523 y la raíz `server/*.ts` de 9/2.626 a 9/2.625. Total 242/49.576 → 243/49.698.
+
 | Área | Archivos TypeScript | LOC |
 | --- | ---: | ---: |
 | `server/features` | 161 | 19.202 |
-| `server/routes` | 38 | 21.916 |
-| `server/lib` | 31 | 5.403 |
+| `server/routes` | 38 | 21.919 |
+| `server/lib` | 32 | 5.523 |
 | `server/middlewares` | 3 | 429 |
-| raíz/entrypoints `server/*.ts` | 9 | 2.626 |
+| raíz/entrypoints `server/*.ts` | 9 | 2.625 |
 | otros | 0 | 0 |
-| **Total `server`** | **242** | **49.576** |
+| **Total `server`** | **243** | **49.698** |
 
 El review P2 de M48 detectó que la primera metodología aplicaba una semántica
 equivalente a `source.split("\n").length`, que sumaba un segmento vacío por

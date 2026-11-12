@@ -2097,6 +2097,7 @@ const ROUTE_SURFACES: readonly RouteSurface[] = [
         "buildParticularAuditCsvFilename as defaultBuildParticularAuditCsvFilename",
         "buildParticularAuditListFilters as defaultBuildParticularAuditListFilters",
       ],
+      "../lib/session-expiry.ts": ["isSessionExpired"],
       "../lib/session-last-access.ts": ["shouldRefreshSessionLastAccess"],
     },
     dynamicImports: ["../db-audit.ts", "../features/particular-access/infrastructure/index.ts", "../lib/auth-security.ts"],
@@ -2146,6 +2147,7 @@ const ROUTE_SURFACES: readonly RouteSurface[] = [
       ],
       "../lib/cors-headers.ts": REQUIRED_CORS_IMPORTS,
       "../lib/env.ts": ["ENV"],
+      "../lib/session-expiry.ts": ["isSessionExpired"],
       "../lib/session-last-access.ts": ["shouldRefreshSessionLastAccess"],
     },
     dynamicImports: [
@@ -3084,6 +3086,7 @@ async function checkRouteHelpers(file: ts.SourceFile, surface: RouteSurface, vio
       const authenticate = compileDeclaration(file, "authenticateParticularUser", {
         getParticularSessionToken: () => RAW_PARTICULAR_SESSION,
         buildClearParticularSessionCookie: () => "cleared",
+        isSessionExpired: () => false,
         shouldRefreshSessionLastAccess: () => false,
       });
       const principal = asRecord(

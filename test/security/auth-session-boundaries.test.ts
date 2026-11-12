@@ -151,7 +151,7 @@ async function createAuthBoundariesHarness(): Promise<AuthBoundariesHarness> {
       adminSessions.set(input.tokenHash, {
         adminUserId: input.adminUserId,
         expiresAt: input.expiresAt,
-        lastAccess: input.lastAccess ?? null,
+        lastAccess: input.lastAccess ?? new Date(),
       });
     },
     deleteAdminSession: async (tokenHash: string) => {

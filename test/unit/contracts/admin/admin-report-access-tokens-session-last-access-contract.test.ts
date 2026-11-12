@@ -14,7 +14,7 @@ test("admin report access tokens route uses shared session last access helper", 
   );
   assert.match(
     adapterSource,
-    /shouldRefreshSessionLastAccess\(session\.lastAccess \?\? null, deps\.now\(\)\)/,
+    /shouldRefreshSessionLastAccess\(\s*session\.lastAccess \?\? null,\s*nowMs,/,
   );
   assert.doesNotMatch(adapterSource, /SESSION_LAST_ACCESS_UPDATE_INTERVAL_MS/);
   assert.doesNotMatch(adapterSource, /function shouldRefreshSessionLastAccess/);
