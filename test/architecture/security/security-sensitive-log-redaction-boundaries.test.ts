@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readSourceFile as readSource } from "../../helpers/tracked-source-files.ts";
+import {
+  listTrackedSourceFiles,
+  readSourceFile as readSource,
+} from "../../helpers/tracked-source-files.ts";
 
 const SENSITIVE_LOG_REDACTION_BOUNDARIES = {
   requestLogs: {
@@ -853,6 +856,80 @@ test("auth routes hash session tokens and avoid logging raw credentials", () => 
       assertContains(source, "updateParticularTokenLastLogin", `${file} login side effect`);
     }
   }
+});
+
+// PR-SEC-07: createFastifyApp runs with `logger: false`, so any
+// request.log/app.log call is a silent no-op. Security events must go through
+// the structured logger, carry the request id and export only the allowlisted
+// error name.
+const authSecurityLogEvents: Record<string, readonly string[]> = {
+  "server/routes/auth.fastify.ts": [
+    "AUTH_LOGIN_FAILED_ATTEMPT_RECORD_FAILED",
+    "AUTH_LOGIN_MISSING_CREDENTIALS_RATE_LIMIT_FAILED",
+    "AUTH_LOGIN_RATE_LIMIT_GET_FAILED",
+    "AUTH_LOGIN_RATE_LIMIT_INCREMENT_FAILED",
+    "AUTH_LOGIN_RATE_LIMIT_RESET_FAILED",
+    "AUTH_PASSWORD_CHANGE_COMMIT_FAILED",
+    "AUTH_PASSWORD_CHANGE_RATE_LIMIT_GET_FAILED",
+    "AUTH_PASSWORD_CHANGE_RATE_LIMIT_INCREMENT_FAILED",
+    "AUTH_PASSWORD_CHANGE_RATE_LIMIT_RESET_FAILED",
+  ],
+  "server/routes/admin-auth.fastify.ts": [
+    "ADMIN_LOGIN_FAILED_ATTEMPT_RECORD_FAILED",
+    "ADMIN_LOGIN_MISSING_CREDENTIALS_RATE_LIMIT_FAILED",
+    "ADMIN_LOGIN_RATE_LIMIT_GET_FAILED",
+    "ADMIN_LOGIN_RATE_LIMIT_INCREMENT_FAILED",
+    "ADMIN_LOGIN_RATE_LIMIT_RESET_FAILED",
+    "ADMIN_PASSWORD_CHANGE_COMMIT_FAILED",
+    "ADMIN_PASSWORD_CHANGE_RATE_LIMIT_GET_FAILED",
+    "ADMIN_PASSWORD_CHANGE_RATE_LIMIT_INCREMENT_FAILED",
+    "ADMIN_PASSWORD_CHANGE_RATE_LIMIT_RESET_FAILED",
+  ],
+  "server/routes/particular-auth.fastify.ts": [
+    "PARTICULAR_LOGIN_FAILED_ATTEMPT_RECORD_FAILED",
+    "PARTICULAR_LOGIN_MISSING_CREDENTIALS_RATE_LIMIT_FAILED",
+    "PARTICULAR_LOGIN_RATE_LIMIT_GET_FAILED",
+    "PARTICULAR_LOGIN_RATE_LIMIT_INCREMENT_FAILED",
+    "PARTICULAR_LOGIN_RATE_LIMIT_RESET_FAILED",
+  ],
+};
+
+test("server no usa request.log ni app.log: el logger de Fastify esta deshabilitado", () => {
+  const fastifyApp = readSource("server/fastify-app.ts");
+  assertContains(fastifyApp, "logger: false,", "fastify logger disabled in the app factory");
+
+  const fastifyLoggerCall =
+    /\b(?:request|req|reply|app|fastify|instance|server)\.log\.(?:trace|debug|info|warn|error|fatal|child)\b/;
+  const offenders = listTrackedSourceFiles("server").filter((file) =>
+    fastifyLoggerCall.test(readSource(file)),
+  );
+
+  assert.deepEqual(offenders, []);
+});
+
+test("eventos de seguridad de auth usan el logger estructurado con requestId y error allowlisted", () => {
+  const structuredCall = /\blog(Warn|Error)\("([A-Z0-9_]+)", \{([\s\S]*?)\n\s*\}\);/g;
+
+  for (const [file, expectedEvents] of Object.entries(authSecurityLogEvents)) {
+    const source = readSource(file);
+    const calls = Array.from(source.matchAll(structuredCall));
+    const events = calls.map((match) => match[2]).sort();
+
+    assert.deepEqual(events, [...expectedEvents].sort(), `${file} security log events`);
+    assertNotContains(source, "err: error", `${file} raw error object`);
+
+    for (const [, , event, body] of calls) {
+      assertContains(body, "requestId: request.id,", `${file} ${event} correlation`);
+      assertContains(body, "errorName: serializeError(error).name,", `${file} ${event} error envelope`);
+      assertNotContains(body, "error.message", `${file} ${event} free-form message`);
+      assertNotContains(body, "request.body", `${file} ${event} request body`);
+      assertNotContains(body, "request.headers", `${file} ${event} request headers`);
+    }
+  }
+
+  const runtime = readSource("test/security/security-event-logging-runtime.test.ts");
+  assertContains(runtime, "createFastifyApp", "runtime spec boots the production factory");
+  assertContains(runtime, "request.log.error(", "runtime spec proves the no-op root cause");
 });
 
 test("token routes avoid raw token leakage in audit metadata and logs", () => {

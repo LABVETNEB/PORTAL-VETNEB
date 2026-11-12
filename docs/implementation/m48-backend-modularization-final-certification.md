@@ -266,15 +266,18 @@ SEC-01 (revocación de sesiones al cambiar contraseña: sentencias atómicas en 
 `server/features/clinics` de 10/2.747 a 10/2.764, `server/features` a 161/19.202, `server/routes` a 38/22.069 y la raíz a 9/2.626.
 Total 242/49.580 → 242/49.715.
 
+SEC-07 (eventos de seguridad de `auth`, `admin-auth` y `particular-auth` migrados de `request.log`, inerte con `logger: false`, al logger
+estructurado con `requestId`) lleva `server/routes` de 38/22.069 a 38/22.009. Total 242/49.715 → 242/49.655.
+
 | Área | Archivos TypeScript | LOC |
 | --- | ---: | ---: |
 | `server/features` | 161 | 19.202 |
-| `server/routes` | 38 | 22.069 |
+| `server/routes` | 38 | 22.009 |
 | `server/lib` | 31 | 5.389 |
 | `server/middlewares` | 3 | 429 |
 | raíz/entrypoints `server/*.ts` | 9 | 2.626 |
 | otros | 0 | 0 |
-| **Total `server`** | **242** | **49.715** |
+| **Total `server`** | **242** | **49.655** |
 
 El review P2 de M48 detectó que la primera metodología aplicaba una semántica
 equivalente a `source.split("\n").length`, que sumaba un segmento vacío por

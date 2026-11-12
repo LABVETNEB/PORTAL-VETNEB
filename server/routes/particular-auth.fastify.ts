@@ -32,6 +32,7 @@ import {
 } from "../lib/rate-limit-store.ts";
 import { serializeParticularTokenDetail } from "../features/particular-access/index.ts";
 import { logRequestCompletion } from "../middlewares/request-logger.ts";
+import { logError, logWarn, serializeError } from "../lib/logger.ts";
 import {
   createRuntimeTimer,
   type RuntimeTimer,
@@ -576,15 +577,12 @@ export const particularAuthNativeRoutes: FastifyPluginAsync<
           createdAt: new Date(currentTime),
         });
       } catch (error) {
-        request.log.warn(
-          {
-            err: error,
-            code: "PARTICULAR_LOGIN_FAILED_ATTEMPT_RECORD_FAILED",
-            surface: "particular",
-            reason: input.reason,
-          },
-          "No se pudo persistir intento fallido de login particular",
-        );
+        logWarn("PARTICULAR_LOGIN_FAILED_ATTEMPT_RECORD_FAILED", {
+          requestId: request.id,
+          surface: "particular",
+          reason: input.reason,
+          errorName: serializeError(error).name,
+        });
       }
     };
 
@@ -609,14 +607,11 @@ export const particularAuthNativeRoutes: FastifyPluginAsync<
           now: currentTime,
         });
       } catch (error) {
-        request.log.error(
-          {
-            err: error,
-            code: "PARTICULAR_LOGIN_MISSING_CREDENTIALS_RATE_LIMIT_FAILED",
-            route: "/api/particular/auth/login",
-          },
-          "No se pudo actualizar el rate limit de token faltante particular",
-        );
+        logError("PARTICULAR_LOGIN_MISSING_CREDENTIALS_RATE_LIMIT_FAILED", {
+          requestId: request.id,
+          route: "/api/particular/auth/login",
+          errorName: serializeError(error).name,
+        });
       }
 
       await recordFailedLoginAttempt({
@@ -657,14 +652,11 @@ export const particularAuthNativeRoutes: FastifyPluginAsync<
       failureEntry.resetAt = existingEntry.resetAt;
     } catch (error) {
       canUseRateLimitStore = false;
-      request.log.error(
-        {
-          err: error,
-          code: "PARTICULAR_LOGIN_RATE_LIMIT_GET_FAILED",
-          route: "/api/particular/auth/login",
-        },
-        "No se pudo leer el rate limit de login particular",
-      );
+      logError("PARTICULAR_LOGIN_RATE_LIMIT_GET_FAILED", {
+        requestId: request.id,
+        route: "/api/particular/auth/login",
+        errorName: serializeError(error).name,
+      });
     }
 
     if (canUseRateLimitStore && failureEntry.count >= loginRateLimitMaxAttempts) {
@@ -712,14 +704,11 @@ export const particularAuthNativeRoutes: FastifyPluginAsync<
           });
         } catch (error) {
           canUseRateLimitStore = false;
-          request.log.error(
-            {
-              err: error,
-              code: "PARTICULAR_LOGIN_RATE_LIMIT_INCREMENT_FAILED",
-              route: "/api/particular/auth/login",
-            },
-            "No se pudo actualizar el rate limit de login particular",
-          );
+          logError("PARTICULAR_LOGIN_RATE_LIMIT_INCREMENT_FAILED", {
+            requestId: request.id,
+            route: "/api/particular/auth/login",
+            errorName: serializeError(error).name,
+          });
         }
       }
 
@@ -735,14 +724,11 @@ export const particularAuthNativeRoutes: FastifyPluginAsync<
         try {
           await loginRateLimitStore.delete(rateLimitKey);
         } catch (error) {
-          request.log.warn(
-            {
-              err: error,
-              code: "PARTICULAR_LOGIN_RATE_LIMIT_RESET_FAILED",
-              route: "/api/particular/auth/login",
-            },
-            "No se pudo limpiar el rate limit de login particular tras login exitoso",
-          );
+          logWarn("PARTICULAR_LOGIN_RATE_LIMIT_RESET_FAILED", {
+            requestId: request.id,
+            route: "/api/particular/auth/login",
+            errorName: serializeError(error).name,
+          });
         }
       }
 

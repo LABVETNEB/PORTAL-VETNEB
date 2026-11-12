@@ -4,7 +4,7 @@ import type {
   FastifyRequest,
 } from "fastify";
 import { AUDIT_EVENTS } from "../lib/audit.ts";
-import { logError, serializeError } from "../lib/logger.ts";
+import { logError, logWarn, serializeError } from "../lib/logger.ts";
 import {
   enforceTrustedOrigin,
   getAllowedOriginForCors,
@@ -536,15 +536,12 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
           createdAt: new Date(currentTime),
         });
       } catch (error) {
-        request.log.warn(
-          {
-            err: error,
-            code: "ADMIN_LOGIN_FAILED_ATTEMPT_RECORD_FAILED",
-            surface: "admin",
-            reason: input.reason,
-          },
-          "No se pudo persistir intento fallido de login admin",
-        );
+        logWarn("ADMIN_LOGIN_FAILED_ATTEMPT_RECORD_FAILED", {
+          requestId: request.id,
+          surface: "admin",
+          reason: input.reason,
+          errorName: serializeError(error).name,
+        });
       }
     };
 
@@ -569,14 +566,11 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
           now: currentTime,
         });
       } catch (error) {
-        request.log.error(
-          {
-            err: error,
-            code: "ADMIN_LOGIN_MISSING_CREDENTIALS_RATE_LIMIT_FAILED",
-            route: "/api/admin/auth/login",
-          },
-          "No se pudo actualizar el rate limit de credenciales faltantes admin",
-        );
+        logError("ADMIN_LOGIN_MISSING_CREDENTIALS_RATE_LIMIT_FAILED", {
+          requestId: request.id,
+          route: "/api/admin/auth/login",
+          errorName: serializeError(error).name,
+        });
       }
 
       await recordFailedLoginAttempt({
@@ -618,14 +612,11 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
       failureEntry.resetAt = existingEntry.resetAt;
     } catch (error) {
       canUseRateLimitStore = false;
-      request.log.error(
-        {
-          err: error,
-          code: "ADMIN_LOGIN_RATE_LIMIT_GET_FAILED",
-          route: "/api/admin/auth/login",
-        },
-        "No se pudo leer el rate limit de login admin",
-      );
+      logError("ADMIN_LOGIN_RATE_LIMIT_GET_FAILED", {
+        requestId: request.id,
+        route: "/api/admin/auth/login",
+        errorName: serializeError(error).name,
+      });
     }
 
     if (canUseRateLimitStore && failureEntry.count >= loginRateLimitMaxAttempts) {
@@ -675,14 +666,11 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
           });
         } catch (error) {
           canUseRateLimitStore = false;
-          request.log.error(
-            {
-              err: error,
-              code: "ADMIN_LOGIN_RATE_LIMIT_INCREMENT_FAILED",
-              route: "/api/admin/auth/login",
-            },
-            "No se pudo actualizar el rate limit de login admin",
-          );
+          logError("ADMIN_LOGIN_RATE_LIMIT_INCREMENT_FAILED", {
+            requestId: request.id,
+            route: "/api/admin/auth/login",
+            errorName: serializeError(error).name,
+          });
         }
       }
 
@@ -698,14 +686,11 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
         try {
           await loginRateLimitStore.delete(rateLimitKey);
         } catch (error) {
-          request.log.warn(
-            {
-              err: error,
-              code: "ADMIN_LOGIN_RATE_LIMIT_RESET_FAILED",
-              route: "/api/admin/auth/login",
-            },
-            "No se pudo limpiar el rate limit de login admin tras login exitoso",
-          );
+          logWarn("ADMIN_LOGIN_RATE_LIMIT_RESET_FAILED", {
+            requestId: request.id,
+            route: "/api/admin/auth/login",
+            errorName: serializeError(error).name,
+          });
         }
       }
 
@@ -840,14 +825,11 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
       failureEntry.resetAt = existingEntry.resetAt;
     } catch (error) {
       canUseRateLimitStore = false;
-      request.log.error(
-        {
-          err: error,
-          code: "ADMIN_PASSWORD_CHANGE_RATE_LIMIT_GET_FAILED",
-          route: "/api/admin/auth/change-password",
-        },
-        "No se pudo leer el rate limit de cambio de contraseña admin",
-      );
+      logError("ADMIN_PASSWORD_CHANGE_RATE_LIMIT_GET_FAILED", {
+        requestId: request.id,
+        route: "/api/admin/auth/change-password",
+        errorName: serializeError(error).name,
+      });
     }
 
     if (canUseRateLimitStore && failureEntry.count >= loginRateLimitMaxAttempts) {
@@ -892,14 +874,11 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
         });
       } catch (error) {
         canUseRateLimitStore = false;
-        request.log.error(
-          {
-            err: error,
-            code: "ADMIN_PASSWORD_CHANGE_RATE_LIMIT_INCREMENT_FAILED",
-            route: "/api/admin/auth/change-password",
-          },
-          "No se pudo actualizar el rate limit de cambio de contraseña admin",
-        );
+        logError("ADMIN_PASSWORD_CHANGE_RATE_LIMIT_INCREMENT_FAILED", {
+          requestId: request.id,
+          route: "/api/admin/auth/change-password",
+          errorName: serializeError(error).name,
+        });
       }
     };
 
@@ -912,14 +891,11 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
         try {
           await loginRateLimitStore.delete(rateLimitKey);
         } catch (error) {
-          request.log.warn(
-            {
-              err: error,
-              code: "ADMIN_PASSWORD_CHANGE_RATE_LIMIT_RESET_FAILED",
-              route: "/api/admin/auth/change-password",
-            },
-            "No se pudo limpiar el rate limit tras cambio de contraseña admin",
-          );
+          logWarn("ADMIN_PASSWORD_CHANGE_RATE_LIMIT_RESET_FAILED", {
+            requestId: request.id,
+            route: "/api/admin/auth/change-password",
+            errorName: serializeError(error).name,
+          });
         }
       }
 
@@ -981,8 +957,9 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
       });
     } catch (error) {
       logError("ADMIN_PASSWORD_CHANGE_COMMIT_FAILED", {
+        requestId: request.id,
         route: "/api/admin/auth/change-password",
-        error: serializeError(error),
+        errorName: serializeError(error).name,
       });
       revocation = null;
     }

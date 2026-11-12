@@ -35,7 +35,7 @@ import {
   normalizeClinicUserRole,
 } from "../lib/permissions.ts";
 import { logRequestCompletion } from "../middlewares/request-logger.ts";
-import { logError, serializeError } from "../lib/logger.ts";
+import { logError, logWarn, serializeError } from "../lib/logger.ts";
 import {
   createRuntimeTimer,
   type RuntimeTimer,
@@ -926,15 +926,12 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
           createdAt: new Date(currentTime),
         });
       } catch (error) {
-        request.log.warn(
-          {
-            err: error,
-            code: "AUTH_LOGIN_FAILED_ATTEMPT_RECORD_FAILED",
-            surface: "clinic",
-            reason: input.reason,
-          },
-          "No se pudo persistir intento fallido de login clinic",
-        );
+        logWarn("AUTH_LOGIN_FAILED_ATTEMPT_RECORD_FAILED", {
+          requestId: request.id,
+          surface: "clinic",
+          reason: input.reason,
+          errorName: serializeError(error).name,
+        });
       }
     };
 
@@ -959,14 +956,11 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
           now: currentTime,
         });
       } catch (error) {
-        request.log.error(
-          {
-            err: error,
-            code: "AUTH_LOGIN_MISSING_CREDENTIALS_RATE_LIMIT_FAILED",
-            route: "/api/auth/login",
-          },
-          "No se pudo actualizar el rate limit de credenciales faltantes",
-        );
+        logError("AUTH_LOGIN_MISSING_CREDENTIALS_RATE_LIMIT_FAILED", {
+          requestId: request.id,
+          route: "/api/auth/login",
+          errorName: serializeError(error).name,
+        });
       }
 
       await recordFailedLoginAttempt({
@@ -1010,14 +1004,11 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
       failureEntry.resetAt = existingEntry.resetAt;
     } catch (error) {
       canUseRateLimitStore = false;
-      request.log.error(
-        {
-          err: error,
-          code: "AUTH_LOGIN_RATE_LIMIT_GET_FAILED",
-          route: "/api/auth/login",
-        },
-        "No se pudo leer el rate limit de login unificado",
-      );
+      logError("AUTH_LOGIN_RATE_LIMIT_GET_FAILED", {
+        requestId: request.id,
+        route: "/api/auth/login",
+        errorName: serializeError(error).name,
+      });
     }
 
     if (canUseRateLimitStore && failureEntry.count >= loginRateLimitMaxAttempts) {
@@ -1067,14 +1058,11 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
           });
         } catch (error) {
           canUseRateLimitStore = false;
-          request.log.error(
-            {
-              err: error,
-              code: "AUTH_LOGIN_RATE_LIMIT_INCREMENT_FAILED",
-              route: "/api/auth/login",
-            },
-            "No se pudo actualizar el rate limit de login unificado",
-          );
+          logError("AUTH_LOGIN_RATE_LIMIT_INCREMENT_FAILED", {
+            requestId: request.id,
+            route: "/api/auth/login",
+            errorName: serializeError(error).name,
+          });
         }
       }
 
@@ -1090,14 +1078,11 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
         try {
           await loginRateLimitStore.delete(rateLimitKey);
         } catch (error) {
-          request.log.warn(
-            {
-              err: error,
-              code: "AUTH_LOGIN_RATE_LIMIT_RESET_FAILED",
-              route: "/api/auth/login",
-            },
-            "No se pudo limpiar el rate limit de login tras login exitoso",
-          );
+          logWarn("AUTH_LOGIN_RATE_LIMIT_RESET_FAILED", {
+            requestId: request.id,
+            route: "/api/auth/login",
+            errorName: serializeError(error).name,
+          });
         }
       }
 
@@ -1265,14 +1250,11 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
       failureEntry.resetAt = existingEntry.resetAt;
     } catch (error) {
       canUseRateLimitStore = false;
-      request.log.error(
-        {
-          err: error,
-          code: "AUTH_PASSWORD_CHANGE_RATE_LIMIT_GET_FAILED",
-          route: "/api/auth/change-password",
-        },
-        "No se pudo leer el rate limit de cambio de contraseña clinic",
-      );
+      logError("AUTH_PASSWORD_CHANGE_RATE_LIMIT_GET_FAILED", {
+        requestId: request.id,
+        route: "/api/auth/change-password",
+        errorName: serializeError(error).name,
+      });
     }
 
     if (canUseRateLimitStore && failureEntry.count >= loginRateLimitMaxAttempts) {
@@ -1317,14 +1299,11 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
         });
       } catch (error) {
         canUseRateLimitStore = false;
-        request.log.error(
-          {
-            err: error,
-            code: "AUTH_PASSWORD_CHANGE_RATE_LIMIT_INCREMENT_FAILED",
-            route: "/api/auth/change-password",
-          },
-          "No se pudo actualizar el rate limit de cambio de contraseña clinic",
-        );
+        logError("AUTH_PASSWORD_CHANGE_RATE_LIMIT_INCREMENT_FAILED", {
+          requestId: request.id,
+          route: "/api/auth/change-password",
+          errorName: serializeError(error).name,
+        });
       }
     };
 
@@ -1337,14 +1316,11 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
         try {
           await loginRateLimitStore.delete(rateLimitKey);
         } catch (error) {
-          request.log.warn(
-            {
-              err: error,
-              code: "AUTH_PASSWORD_CHANGE_RATE_LIMIT_RESET_FAILED",
-              route: "/api/auth/change-password",
-            },
-            "No se pudo limpiar el rate limit tras cambio de contraseña clinic",
-          );
+          logWarn("AUTH_PASSWORD_CHANGE_RATE_LIMIT_RESET_FAILED", {
+            requestId: request.id,
+            route: "/api/auth/change-password",
+            errorName: serializeError(error).name,
+          });
         }
       }
 
@@ -1404,8 +1380,9 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
       });
     } catch (error) {
       logError("AUTH_PASSWORD_CHANGE_COMMIT_FAILED", {
+        requestId: request.id,
         route: "/api/auth/change-password",
-        error: serializeError(error),
+        errorName: serializeError(error).name,
       });
       revocation = null;
     }
