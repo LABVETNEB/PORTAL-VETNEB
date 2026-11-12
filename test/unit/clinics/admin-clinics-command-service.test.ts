@@ -180,6 +180,7 @@ test("updateAdminClinicUserCredentialsCommand hashea cuando recibe password", as
     previousUsername: "clinic-norte",
     usernameChanged: false,
     credentialUpdated: true,
+    revokedSessionCount: 1,
   };
 
   const result =

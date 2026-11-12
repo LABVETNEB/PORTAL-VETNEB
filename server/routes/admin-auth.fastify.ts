@@ -3,10 +3,8 @@ import type {
   FastifyReply,
   FastifyRequest,
 } from "fastify";
-import { eq } from "drizzle-orm";
-
-import { adminUsers } from "../../drizzle/schema.ts";
 import { AUDIT_EVENTS } from "../lib/audit.ts";
+import { logError, serializeError } from "../lib/logger.ts";
 import {
   enforceTrustedOrigin,
   getAllowedOriginForCors,
@@ -114,10 +112,11 @@ export type AdminAuthNativeRoutesOptions = {
     adminUserId: number,
   ) => Promise<AdminUserRecord | null>;
   updateAdminSessionLastAccess?: (tokenHash: string) => Promise<void>;
-  updateAdminPasswordHash?: (
-    adminUserId: number,
-    passwordHash: string,
-  ) => Promise<unknown>;
+  changeAdminPasswordAndRevokeOtherSessions?: (input: {
+    adminUserId: number;
+    passwordHash: string;
+    keepSessionTokenHash: string;
+  }) => Promise<{ revokedSessionCount: number } | null>;
   generateSessionToken?: () => string;
   hashPassword?: (password: string) => Promise<string>;
   hashSessionToken?: (token: string) => string;
@@ -154,7 +153,7 @@ type NativeAdminAuthDeps = Required<
     | "getAdminUserByUsername"
     | "getAdminUserForPasswordChange"
     | "updateAdminSessionLastAccess"
-    | "updateAdminPasswordHash"
+    | "changeAdminPasswordAndRevokeOtherSessions"
     | "generateSessionToken"
     | "hashPassword"
     | "hashSessionToken"
@@ -185,18 +184,8 @@ async function loadDefaultDeps(): Promise<NativeAdminAuthDefaultDeps> {
         getAdminUserByUsername: db.getAdminUserByUsername,
         getAdminUserForPasswordChange: db.getAdminUserById,
         updateAdminSessionLastAccess: db.updateAdminSessionLastAccess,
-        updateAdminPasswordHash: async (
-          adminUserId: number,
-          passwordHash: string,
-        ) => {
-          await db.db
-            .update(adminUsers)
-            .set({
-              passwordHash,
-              updatedAt: new Date(),
-            })
-            .where(eq(adminUsers.id, adminUserId));
-        },
+        changeAdminPasswordAndRevokeOtherSessions:
+          db.changeAdminPasswordAndRevokeOtherSessions,
         generateSessionToken: authSecurity.generateSessionToken,
         hashPassword: authSecurity.hashPassword,
         hashSessionToken: authSecurity.hashSessionToken,
@@ -426,10 +415,12 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
     updateAdminSessionLastAccess:
       options.updateAdminSessionLastAccess ??
       defaultDeps!.updateAdminSessionLastAccess,
-    updateAdminPasswordHash:
-      options.updateAdminPasswordHash ??
-      defaultDeps?.updateAdminPasswordHash ??
-      createMissingAdminPasswordChangeDep("updateAdminPasswordHash"),
+    changeAdminPasswordAndRevokeOtherSessions:
+      options.changeAdminPasswordAndRevokeOtherSessions ??
+      defaultDeps?.changeAdminPasswordAndRevokeOtherSessions ??
+      createMissingAdminPasswordChangeDep(
+        "changeAdminPasswordAndRevokeOtherSessions",
+      ),
     generateSessionToken:
       options.generateSessionToken ?? defaultDeps!.generateSessionToken,
     hashPassword:
@@ -980,7 +971,28 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
 
     const newPasswordHash = await deps.hashPassword(request.body.newPassword);
 
-    await deps.updateAdminPasswordHash(admin.id, newPasswordHash);
+    let revocation: { revokedSessionCount: number } | null;
+
+    try {
+      revocation = await deps.changeAdminPasswordAndRevokeOtherSessions({
+        adminUserId: admin.id,
+        passwordHash: newPasswordHash,
+        keepSessionTokenHash: deps.hashSessionToken(admin.sessionToken),
+      });
+    } catch (error) {
+      logError("ADMIN_PASSWORD_CHANGE_COMMIT_FAILED", {
+        route: "/api/admin/auth/change-password",
+        error: serializeError(error),
+      });
+      revocation = null;
+    }
+
+    if (!revocation) {
+      return reply.code(500).send({
+        success: false,
+        error: PASSWORD_CHANGE_ERROR_MESSAGE,
+      });
+    }
 
     await deps.writeAuditLog(createAuditRequestLike(request, admin), {
       event: ADMIN_PASSWORD_CHANGED_AUDIT_EVENT,
@@ -989,6 +1001,7 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
         username: admin.username,
         selfService: true,
         sessionMaintained: true,
+        otherSessionsRevoked: revocation.revokedSessionCount,
       },
       actor: {
         type: "admin_user",

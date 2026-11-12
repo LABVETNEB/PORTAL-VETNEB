@@ -261,15 +261,20 @@ La limpieza de estados vencidos (borrado acotado en cada guardado, `deleteExpire
 resumen de `server/bootstrap.ts`) lleva `server/features/global-search` a 12/1.989, `server/features` a 161/19.185 y la raíz a 9/2.555.
 Total 242/49.519 → 242/49.580.
 
+SEC-01 (revocación de sesiones al cambiar contraseña: sentencias atómicas en `server/db.ts`, transacción de credenciales en
+`server/features/clinics/infrastructure/admin-clinics-repository.ts` y su uso en `auth`, `admin-auth` y `admin-users-roles`) lleva
+`server/features/clinics` de 10/2.747 a 10/2.764, `server/features` a 161/19.202, `server/routes` a 38/22.069 y la raíz a 9/2.626.
+Total 242/49.580 → 242/49.715.
+
 | Área | Archivos TypeScript | LOC |
 | --- | ---: | ---: |
-| `server/features` | 161 | 19.185 |
-| `server/routes` | 38 | 22.022 |
+| `server/features` | 161 | 19.202 |
+| `server/routes` | 38 | 22.069 |
 | `server/lib` | 31 | 5.389 |
 | `server/middlewares` | 3 | 429 |
-| raíz/entrypoints `server/*.ts` | 9 | 2.555 |
+| raíz/entrypoints `server/*.ts` | 9 | 2.626 |
 | otros | 0 | 0 |
-| **Total `server`** | **242** | **49.580** |
+| **Total `server`** | **242** | **49.715** |
 
 El review P2 de M48 detectó que la primera metodología aplicaba una semántica
 equivalente a `source.split("\n").length`, que sumaba un segmento vacío por
@@ -289,7 +294,7 @@ porque ésa es su topología proporcional documentada.
 
 | Feature | Archivos | LOC | Capas/directorios reales | Barrel raíz | Entrantes | Salientes | Closeout |
 | --- | ---: | ---: | --- | --- | --- | --- | --- |
-| Clinics | 10 | 2.747 | domain, infrastructure, servicios directos | sí | Users/Roles (2 refs) | Public Professionals (3) | M29 |
+| Clinics | 10 | 2.764 | domain, infrastructure, servicios directos | sí | Users/Roles (2 refs) | Public Professionals (3) | M29 |
 | Global Search | 12 | 1.989 | domain, application, infrastructure | sí | ninguna | ninguna | GLOBAL-SEARCH-1 |
 | Logistics | 46 | 4.238 | domain, application, infrastructure | no requerido | ninguna | ninguna | M17 |
 | Particular Access | 12 | 1.086 | domain, application, infrastructure | sí | Reports (1) | Reports/ST (7) | M33/M35b |

@@ -284,13 +284,13 @@ test(
 );
 
 test(
-  "El repository conserva dos transacciones exactas",
+  "El repository conserva tres transacciones exactas",
   () => {
     const source = readText(repositoryFile);
 
     assert.equal(
       source.match(/\.transaction\s*\(/g)?.length ?? 0,
-      2,
+      3,
     );
 
     const createStart = source.indexOf(
@@ -329,6 +329,22 @@ test(
       deleteSource.match(/\.transaction\s*\(/g)?.length ??
         0,
       1,
+    );
+
+    // SEC-01: a credential change commits the new hash and the revocation of
+    // every session of the target user in the same transaction.
+    const credentialsSource = source.slice(credentialsStart);
+
+    assert.equal(
+      credentialsSource.match(/\.transaction\s*\(/g)?.length ??
+        0,
+      1,
+    );
+    assert.ok(credentialsSource.includes(".delete(activeSessions)"));
+    assert.ok(
+      credentialsSource.includes(
+        "eq(activeSessions.clinicUserId, input.clinicUserId)",
+      ),
     );
   },
 );
