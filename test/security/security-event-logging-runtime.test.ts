@@ -29,7 +29,7 @@ const SECRET_PARTICULAR_TOKEN = "PART-SYNTH-TOKEN-SEC07-9f8e7d";
 const SECRET_SESSION_TOKEN = "synthetic-session-token-sec07";
 const CLINICAL_MARKER = "Paciente Firulais biopsia";
 const STORE_ERROR_MESSAGE =
-  `store down postgresql://u:p@db.internal:5432/prod ${CLINICAL_MARKER} ${SECRET_PASSWORD}`;
+  `store down postgresql://u:p@db.example.com:5432/prod ${CLINICAL_MARKER} ${SECRET_PASSWORD}`;
 
 type Channel = "log" | "warn" | "error";
 type CapturedLine = { channel: Channel; raw: string; parsed: Record<string, unknown> | null };
@@ -247,7 +247,7 @@ function assertNoSensitiveOutput(lines: CapturedLine[], rawWrites: string[]) {
     `hash:${SECRET_SESSION_TOKEN}`,
     CLINICAL_MARKER,
     "postgresql://",
-    "db.internal",
+    "db.example.com",
     "store down",
     "object/sign",
     ENV.cookieName,
