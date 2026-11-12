@@ -50,7 +50,7 @@ const CLINIC: MachineConfig = {
   defaultModule: "operaciones",
 };
 
-function moduleAt(module: string, search?: string): NavLocation {
+function moduleAt(module: string, search?: string): Extract<NavLocation, { readonly kind: "module" }> {
   return search === undefined ? { kind: "module", module } : { kind: "module", module, search };
 }
 function hubAt(search?: string): NavLocation {
