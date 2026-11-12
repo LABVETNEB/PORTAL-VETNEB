@@ -3,6 +3,7 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 import type { ClinicUserRole } from "../../drizzle/schema.ts";
 import { ENV } from "./env.ts";
 import { normalizeClinicUserRole } from "./permissions.ts";
+import { isSessionExpired } from "./session-expiry.ts";
 import { shouldRefreshSessionLastAccess } from "./session-last-access.ts";
 
 export type FastifyClinicSessionRecord = {
@@ -154,7 +155,7 @@ export async function authenticateFastifyClinicUser(
     return null;
   }
 
-  if (session.expiresAt && session.expiresAt.getTime() <= now()) {
+  if (isSessionExpired(session.expiresAt, now())) {
     await deps.deleteActiveSession(tokenHash);
     reply.header("set-cookie", buildClearSessionCookie());
     reply.code(401).send({

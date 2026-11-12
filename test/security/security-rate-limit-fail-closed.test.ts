@@ -188,7 +188,7 @@ function clinicOptions(store: RateLimitStore, probe = createProbe()) {
 }
 
 function adminOptions(store: RateLimitStore, probe = createProbe()) {
-  const sessions = new Map([[`hash:${SECRET_SESSION_TOKEN}`, { adminUserId: 1, expiresAt: FUTURE }]]);
+  const sessions = new Map([[`hash:${SECRET_SESSION_TOKEN}`, { adminUserId: 1, expiresAt: FUTURE, lastAccess: new Date(NOW) }]]);
   const admin = { id: 1, username: "admin-sintetico", passwordHash: "argon:admin" };
 
   return {

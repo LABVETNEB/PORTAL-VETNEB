@@ -71,7 +71,7 @@ async function createAdminAuditApp(overrides: Record<string, unknown> = {}) {
     getAdminSessionByToken: async () => ({
       adminUserId: 1,
       expiresAt: new Date("2099-01-01T00:00:00.000Z"),
-      lastAccess: new Date("2026-04-23T00:00:00.000Z"),
+      lastAccess: new Date("2026-04-23T23:59:00.000Z"),
     }),
     getAdminUserById: async () => ({
       id: 1,
@@ -113,7 +113,7 @@ async function createClinicAuditApp(overrides: Record<string, unknown> = {}) {
     getActiveSessionByToken: async () => ({
       clinicUserId: 10,
       expiresAt: new Date("2099-01-01T00:00:00.000Z"),
-      lastAccess: new Date("2026-04-23T00:00:00.000Z"),
+      lastAccess: new Date("2026-04-23T23:59:00.000Z"),
     }),
     getClinicUserById: async () => ({
       id: 10,
@@ -161,7 +161,7 @@ async function createParticularAuditApp(overrides: Record<string, unknown> = {})
     getParticularSessionByToken: async () => ({
       particularTokenId: 7,
       expiresAt: new Date("2099-01-01T00:00:00.000Z"),
-      lastAccess: new Date("2026-04-23T00:00:00.000Z"),
+      lastAccess: new Date("2026-04-23T23:59:00.000Z"),
     }),
     getParticularTokenById: async () => ({
       id: 7,

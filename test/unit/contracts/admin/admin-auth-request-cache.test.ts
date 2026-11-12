@@ -83,7 +83,7 @@ function createDeps(
         id: 9,
         adminUserId: 7,
         expiresAt: new Date("2099-01-01T00:00:00.000Z"),
-        lastAccess: new Date("2026-06-03T10:00:00.000Z"),
+        lastAccess: new Date("2026-06-03T11:35:00.000Z"),
       };
     },
     getAdminUserById: async (adminUserId: number) => {
@@ -240,7 +240,7 @@ test("admin auth request-scoped cache mantiene rechazo de sesión expirada sin c
         id: 9,
         adminUserId: 7,
         expiresAt: new Date("2026-06-03T11:59:59.000Z"),
-        lastAccess: new Date("2026-06-03T10:00:00.000Z"),
+        lastAccess: new Date("2026-06-03T11:35:00.000Z"),
       };
     },
   });

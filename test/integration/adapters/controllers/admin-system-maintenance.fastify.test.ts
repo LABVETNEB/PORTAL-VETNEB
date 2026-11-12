@@ -63,7 +63,7 @@ test("admin maintenance purge dry-run devuelve candidatos sin borrar", async () 
     getAdminSessionByToken: async () => ({
       adminUserId: 1,
       expiresAt: new Date("2099-01-01T00:00:00.000Z"),
-      lastAccess: new Date("2026-04-23T00:00:00.000Z"),
+      lastAccess: new Date("2026-05-06T23:35:00.000Z"),
     }),
     getAdminUserById: async () => ({
       id: 1,
@@ -185,7 +185,7 @@ test("admin maintenance purge dry-run bloquea origin no permitido", async () => 
     getAdminSessionByToken: async () => ({
       adminUserId: 1,
       expiresAt: new Date("2099-01-01T00:00:00.000Z"),
-      lastAccess: new Date("2026-04-23T00:00:00.000Z"),
+      lastAccess: new Date(),
     }),
     getAdminUserById: async () => ({
       id: 1,

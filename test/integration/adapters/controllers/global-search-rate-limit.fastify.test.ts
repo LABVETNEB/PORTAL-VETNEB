@@ -85,7 +85,7 @@ async function createHarness(options: { store?: RateLimitStore; clock?: { value:
       deleteAdminSession: async () => {},
       getAdminSessionByToken: async (tokenHash) => {
         const adminUserId = ADMIN_SESSIONS[tokenHash];
-        return adminUserId ? { id: adminUserId, adminUserId, expiresAt: FUTURE, lastAccess: new Date() } : null;
+        return adminUserId ? { id: adminUserId, adminUserId, expiresAt: FUTURE, lastAccess: new Date(clock.value) } : null;
       },
       getAdminUserById: async (adminUserId) => ({ id: adminUserId, username: `admin-${adminUserId}` }),
       updateAdminSessionLastAccess: async () => {},

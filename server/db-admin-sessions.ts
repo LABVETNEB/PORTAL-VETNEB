@@ -7,6 +7,7 @@ import {
   particularSessions,
 } from "../drizzle/schema.ts";
 import { normalizeListPagination } from "./lib/list-pagination.ts";
+import { isSessionExpired } from "./lib/session-expiry.ts";
 
 export type AdminSessionType = "admin" | "clinic" | "particular";
 export type AdminSessionStatus = "active" | "expired";
@@ -45,9 +46,7 @@ function getSessionStatus(
   expiresAt: Date | null | undefined,
   now: Date,
 ): AdminSessionStatus {
-  return expiresAt && expiresAt.getTime() <= now.getTime()
-    ? "expired"
-    : "active";
+  return isSessionExpired(expiresAt, now.getTime()) ? "expired" : "active";
 }
 
 function sortSessionsDesc(

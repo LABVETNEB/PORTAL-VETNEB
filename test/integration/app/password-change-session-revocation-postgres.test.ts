@@ -96,7 +96,7 @@ test("SEC-01-DB: cambio de contraseña y revocación de sesiones atómicos y aco
 
   async function createAdminSession(adminUserId: number) {
     const hash = tokenHash();
-    await db.insert(adminSessions).values({ adminUserId, tokenHash: hash, expiresAt: FUTURE });
+    await db.insert(adminSessions).values({ adminUserId, tokenHash: hash, expiresAt: FUTURE, lastAccess: new Date() });
     return hash;
   }
 

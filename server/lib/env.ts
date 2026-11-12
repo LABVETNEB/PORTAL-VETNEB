@@ -7,6 +7,12 @@ import {
   CLINIC_SESSION_COOKIE_NAME,
 } from "../../shared/session-cookie-names.ts";
 import { resolveParticularSessionCookieName } from "./session-cookie-names.ts";
+import {
+  ADMIN_SESSION_IDLE_TIMEOUT_DEFAULT_MINUTES,
+  ADMIN_SESSION_IDLE_TIMEOUT_MAX_MINUTES,
+  ADMIN_SESSION_IDLE_TIMEOUT_MIN_MINUTES,
+  SESSION_MAX_TTL_HOURS,
+} from "./session-expiry.ts";
 
 const emptyToUndefined = (value: unknown) => {
   if (typeof value !== "string") return value;
@@ -148,7 +154,26 @@ const envSchema = z.object({
     .int()
     .positive()
     .optional(),
-  SESSION_TTL_HOURS: z.coerce.number().positive().optional(),
+  SESSION_TTL_HOURS: z.coerce
+    .number()
+    .positive()
+    .max(SESSION_MAX_TTL_HOURS, {
+      message: `SESSION_TTL_HOURS no puede superar ${SESSION_MAX_TTL_HOURS} horas`,
+    })
+    .refine((hours) => Number.isInteger(hours * 3600), {
+      message:
+        "SESSION_TTL_HOURS debe equivaler a una cantidad entera de segundos (p. ej. 24, 8, 1.5)",
+    })
+    .optional(),
+  ADMIN_SESSION_IDLE_TIMEOUT_MINUTES: z.preprocess(
+    emptyToUndefined,
+    z.coerce
+      .number()
+      .int()
+      .min(ADMIN_SESSION_IDLE_TIMEOUT_MIN_MINUTES)
+      .max(ADMIN_SESSION_IDLE_TIMEOUT_MAX_MINUTES)
+      .optional(),
+  ),
   SMTP_HOST: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   SMTP_PORT: z.coerce.number().int().positive().optional(),
   SMTP_SECURE: z.preprocess(parseBooleanishEnv, z.boolean().optional()),
@@ -266,6 +291,11 @@ export const ENV = {
   signedUrlExpiresInSeconds:
     rawEnv.SUPABASE_SIGNED_URL_EXPIRES_IN_SECONDS ?? 60 * 15,
   sessionTtlHours: rawEnv.SESSION_TTL_HOURS ?? 24,
+  adminSessionIdleTimeoutMs:
+    (rawEnv.ADMIN_SESSION_IDLE_TIMEOUT_MINUTES ??
+      ADMIN_SESSION_IDLE_TIMEOUT_DEFAULT_MINUTES) *
+    60 *
+    1000,
   smtp: {
     enabled: smtpEnabled,
     host: rawEnv.SMTP_HOST ?? "",

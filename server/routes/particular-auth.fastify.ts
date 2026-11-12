@@ -39,6 +39,7 @@ import {
   type RuntimeTimer,
 } from "../lib/runtime-timing.ts";
 import { shouldRefreshSessionLastAccess } from "../lib/session-last-access.ts";
+import { isSessionExpired } from "../lib/session-expiry.ts";
 
 type ParticularSessionRecord = {
   particularTokenId: number;
@@ -390,7 +391,7 @@ async function authenticateParticularUser(
     return null;
   }
 
-  if (session.expiresAt && session.expiresAt.getTime() <= now()) {
+  if (isSessionExpired(session.expiresAt, now())) {
     await deps.deleteParticularSession(tokenHash);
 
     reply.header("set-cookie", buildClearParticularSessionCookie());
