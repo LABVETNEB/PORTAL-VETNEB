@@ -52,6 +52,13 @@ import {
   type NavLocation,
 } from "@/lib/dashboard/navigation/dashboardNavigationMachine";
 import { NAVIGATION_FLIGHT_BUDGET_MS } from "@/lib/dashboard/navigation/navigationFlight";
+import {
+  publishDisplayedSearch,
+  readSearchParam,
+  registerSearchNavigationOwner,
+  searchOfLocation,
+  withSearchParam,
+} from "@/lib/dashboard/navigation/searchNavigation";
 import { installSupersededFlightGuard } from "@/lib/dashboard/navigation/supersededFlightGuard";
 import { ROUTES } from "@/lib/routes";
 
@@ -81,7 +88,7 @@ import { ROUTES } from "@/lib/routes";
  */
 
 type RouterLike = ReturnType<typeof useRouter>;
-type UrlQuery = Pick<URLSearchParams, "get" | "has">;
+type UrlQuery = Pick<URLSearchParams, "get" | "getAll" | "has">;
 
 const MACHINE: NavigationMachine = { initial, transition };
 
@@ -121,13 +128,15 @@ const ADMIN_CONFIG: MachineConfig = {
   defaultModule: DEFAULT_ADMIN_MODULE,
 };
 
-function adminLocation(moduleId: AdminModule | null): NavLocation {
-  return moduleId === null ? NO_MODULE : { kind: "module", module: moduleId };
+/** A saved search rides only on a module: an `?sq=` with no module is another surface's and is dropped. */
+function adminLocation(moduleId: AdminModule | null, search: string | null): NavLocation {
+  if (moduleId === null) return NO_MODULE;
+  return search === null ? { kind: "module", module: moduleId } : { kind: "module", module: moduleId, search };
 }
 
 function adminHref(location: NavLocation): string {
   return location.kind === "module"
-    ? buildDashboardModuleHref(ROUTES.dashboardAdmin, location.module)
+    ? withSearchParam(buildDashboardModuleHref(ROUTES.dashboardAdmin, location.module), location.search)
     : ROUTES.dashboardAdmin;
 }
 
@@ -138,7 +147,7 @@ const ADMIN_SURFACE: NavigationSurface = {
   locate(pathname, query) {
     if (pathname !== ROUTES.dashboardAdmin) return null;
     return {
-      location: adminLocation(parseAdminModule(query.get(MODULE_QUERY_PARAM))),
+      location: adminLocation(parseAdminModule(query.get(MODULE_QUERY_PARAM)), readSearchParam(query)),
       explicit: isExplicit(query),
     };
   },
@@ -163,7 +172,7 @@ function isClinicPath(pathname: string): boolean {
   );
 }
 
-function clinicLocation(pathname: string, query: UrlQuery): NavLocation {
+function clinicPlace(pathname: string, query: UrlQuery): NavLocation {
   if (pathname !== ROUTES.dashboard) {
     // A full route names its module in the segment below `/dashboard`, the
     // grammar the mobile bar already reads. One that names none stores nothing.
@@ -177,6 +186,12 @@ function clinicLocation(pathname: string, query: UrlQuery): NavLocation {
   };
 }
 
+function clinicLocation(pathname: string, query: UrlQuery): NavLocation {
+  const place = clinicPlace(pathname, query);
+  const search = readSearchParam(query);
+  return search === null || place.kind === "none" ? place : { ...place, search };
+}
+
 function clinicHref(location: NavLocation): string {
   // The default module has more than one URL (`/dashboard`, `?module=operaciones`,
   // an unknown `?module=`). A push of the location on screen (#25, #32) must be
@@ -185,11 +200,12 @@ function clinicHref(location: NavLocation): string {
   if (isClinicPath(window.location.pathname) && sameNavLocation(shown, location)) {
     return `${window.location.pathname}${window.location.search}`;
   }
+  const search = searchOfLocation(location);
   if (location.kind === "module") {
-    return clinicModuleHref(ROUTES.dashboard, DEFAULT_CLINIC_MODULE, location.module);
+    return withSearchParam(clinicModuleHref(ROUTES.dashboard, DEFAULT_CLINIC_MODULE, location.module), search);
   }
-  if (location.kind === "hub") return buildHubHref("clinic");
-  return location.kind === "route" ? location.path : ROUTES.dashboard;
+  if (location.kind === "hub") return withSearchParam(buildHubHref("clinic"), search);
+  return location.kind === "route" ? withSearchParam(location.path, search) : ROUTES.dashboard;
 }
 
 const CLINIC_SURFACE: NavigationSurface = {
@@ -334,6 +350,24 @@ function NavigationOwner() {
   const store = source?.store ?? null;
   const surface = source?.surface ?? null;
   const location = source?.location ?? NO_MODULE;
+  const snapshot = useSyncExternalStore(
+    store === null ? subscribeToNothing : store.subscribe,
+    store === null ? noSnapshot : store.getSnapshot,
+    store === null ? noSnapshot : store.getSnapshot,
+  );
+  // The saved search of what the stage shows (the URL of this render already
+  // delivered, §11.3): the bar reads it to restore a search on reload and on
+  // Back / Forward. Published after the commit; `null` once the owner leaves.
+  const displayedSearch =
+    source === null || snapshot === null
+      ? null
+      : searchOfLocation(previewDisplay(MACHINE, source.surface.config, snapshot, source.location));
+
+  useEffect(() => {
+    publishDisplayedSearch(displayedSearch);
+  }, [displayedSearch, store]);
+
+  useEffect(() => () => publishDisplayedSearch(null), []);
 
   // URL_COMMITTED, in the layout effect of the commit that moved the URL. The
   // consumers previewed it in that same render (`useNavigationView`).
@@ -347,6 +381,31 @@ function NavigationOwner() {
     if (store === null || surface === null) return undefined;
     store.mount();
     const unsubscribeTraversals = subscribeTraversals(store, surface);
+    // The saved search is a coordinate of the same location, selected with the
+    // same events: no second authority, no event of its own.
+    const unregisterSearchOwner = registerSearchNavigationOwner({
+      select(search) {
+        const { ctx, state } = store.getSnapshot();
+        const display = ctx.display;
+        if (state.tag === "BOOTING" || state.tag === "FAILED" || display.kind === "none") return false;
+        const carried = search === null ? {} : { search };
+        if (display.kind === "module") {
+          const parsed = surface.parseModule(display.module);
+          if (parsed === null) return false;
+          store.dispatch({ type: "SELECT_MODULE", module: parsed, ...carried });
+          return true;
+        }
+        if (surface.config.surface !== "clinic") return false;
+        if (display.kind === "hub") {
+          store.dispatch({ type: "SELECT_HUB", ...carried });
+          return true;
+        }
+        const parsed = surface.parseModule(display.module);
+        if (parsed === null) return false;
+        store.dispatch({ type: "OPEN_ROUTE", path: display.path, module: parsed, ...carried });
+        return true;
+      },
+    });
     const unregisterOwner = surface.registerOwner({
       selectModule(moduleId) {
         const parsed = surface.parseModule(moduleId);
@@ -363,6 +422,7 @@ function NavigationOwner() {
 
     return () => {
       unregisterOwner();
+      unregisterSearchOwner();
       unsubscribeTraversals();
       store.unmount();
     };

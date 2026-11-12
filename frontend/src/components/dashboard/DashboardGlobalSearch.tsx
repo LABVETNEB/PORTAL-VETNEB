@@ -7,6 +7,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type FocusEvent as ReactFocusEvent,
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
@@ -14,27 +15,39 @@ import {
 import { ArrowRight, History, LoaderCircle, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 
+import { loadGlobalSearchState, saveGlobalSearchState } from "@/lib/api";
+import {
+  getDisplayedSearch,
+  requestSearchSelection,
+  subscribeDisplayedSearch,
+} from "@/lib/dashboard/navigation/searchNavigation";
 import {
   DASHBOARD_GLOBAL_SEARCH_OPEN_EVENT,
   EMPTY_GLOBAL_SEARCH_FILTERS,
+  GLOBAL_SEARCH_MAX_QUERY,
   GLOBAL_SEARCH_SUGGESTION_LIMIT,
+  describeGlobalSearchFilterChips,
   formatGlobalSearchDate,
   globalSearchHitKey,
   globalSearchKindLabel,
   globalSearchStatusLabel,
   groupGlobalSearchHits,
   isGlobalSearchFocusShortcut,
-  isGlobalSearchQueryReady,
+  isGlobalSearchRequestReady,
   normalizeGlobalSearchInput,
   readGlobalSearchRecent,
   readGlobalSearchSession,
   rememberGlobalSearchQuery,
+  type GlobalSearchFilters,
   type GlobalSearchHit,
+  type GlobalSearchKind,
   type GlobalSearchSurface,
 } from "@/lib/global-search";
+import { resolveGlobalSearchQuery } from "@/lib/global-search-query";
 import { cn } from "@/lib/utils";
 import {
   DashboardGlobalSearchDialog,
+  type DashboardGlobalSearchConfirmation,
   type DashboardGlobalSearchOpenRequest,
 } from "./DashboardGlobalSearchDialog";
 import { useDashboardGlobalSearch } from "./useDashboardGlobalSearch";
@@ -110,8 +123,16 @@ function SearchOptionRow({
  * in the record view of the full search dialog, which resolves it by id - it
  * never depends on the row being loaded in the current module page.
  *
- * Navigation uses the router control pattern (button + router.push); link
- * elements are forbidden for in-app routing (AGENTS.md 10).
+ * Every way of confirming a search (Enter here or in the dialog, «Ver todos»,
+ * a recent search, a suggested hit with its query, operators and filters)
+ * goes through the dialog, which hands the CANONICAL search to `confirmSearch`.
+ * That is the only place that saves it (`/api/search/states`) and asks the
+ * navigation machine for `?sq=<uuid>` (`searchNavigation.ts`): this component
+ * never writes the URL itself. A display that carries an `sq` (reload, Back,
+ * Forward, return from a record) is read back and reopens the dialog.
+ *
+ * Navigation to a record uses the router control pattern (button + router.push);
+ * link elements are forbidden for in-app routing (AGENTS.md 10).
  */
 export function DashboardGlobalSearch({ surface }: { readonly surface: GlobalSearchSurface }) {
   const router = useRouter();
@@ -125,15 +146,23 @@ export function DashboardGlobalSearch({ surface }: { readonly surface: GlobalSea
   const [dialogOpen, setDialogOpen] = useState(false);
   const [openRequest, setOpenRequest] = useState<DashboardGlobalSearchOpenRequest | null>(null);
   const [recent, setRecent] = useState<readonly string[]>(() => readGlobalSearchRecent(surface));
+  // The dialog's effective filters: the preview searches with the same ones.
+  const [dialogFilters, setDialogFilters] = useState<GlobalSearchFilters>(
+    () => readGlobalSearchSession(surface)?.filters ?? EMPTY_GLOBAL_SEARCH_FILTERS,
+  );
 
   const normalized = normalizeGlobalSearchInput(query);
-  const ready = isGlobalSearchQueryReady(query);
+  const ready = isGlobalSearchRequestReady(surface, query, dialogFilters);
+  const filterChips = useMemo(
+    () => describeGlobalSearchFilterChips(surface, resolveGlobalSearchQuery(surface, query, dialogFilters).filters),
+    [dialogFilters, query, surface],
+  );
   const request = useMemo(
     () =>
       ready && open
-        ? { query: normalized, filters: EMPTY_GLOBAL_SEARCH_FILTERS, limit: GLOBAL_SEARCH_SUGGESTION_LIMIT, offset: 0 }
+        ? { query: normalized, filters: dialogFilters, limit: GLOBAL_SEARCH_SUGGESTION_LIMIT, offset: 0 }
         : null,
-    [normalized, open, ready],
+    [dialogFilters, normalized, open, ready],
   );
   const search = useDashboardGlobalSearch(surface, request);
 
@@ -160,19 +189,128 @@ export function DashboardGlobalSearch({ surface }: { readonly surface: GlobalSea
 
   // An empty query reopens the last search session (query, filters, page,
   // open record); a query or a chosen hit starts or updates it.
-  const openDialog = useCallback((nextQuery: string, hit: GlobalSearchHit | null) => {
-    setOpen(false);
-    if (nextQuery) setRecent(rememberGlobalSearchQuery(surface, nextQuery));
-    setOpenRequest((previous) => ({ id: (previous?.id ?? 0) + 1, query: nextQuery, hit }));
-    setDialogOpen(true);
-  }, [surface]);
+  const openDialog = useCallback(
+    (
+      nextQuery: string,
+      hit: GlobalSearchHit | null,
+      extra?: Pick<DashboardGlobalSearchOpenRequest, "filters" | "kinds" | "restored">,
+    ) => {
+      setOpen(false);
+      if (nextQuery && !extra?.restored && extra?.filters !== "unavailable") {
+        setRecent(rememberGlobalSearchQuery(surface, nextQuery));
+      }
+      setOpenRequest((previous) => ({ id: (previous?.id ?? 0) + 1, query: nextQuery, hit, ...extra }));
+      setDialogOpen(true);
+    },
+    [surface],
+  );
+
+  // ── Saved searches (?sq=) ──────────────────────────────────────────────────
+  const displayedSearch = useSyncExternalStore(subscribeDisplayedSearch, getDisplayedSearch, () => null);
+  const dialogOpenRef = useRef(false);
+  useEffect(() => {
+    dialogOpenRef.current = dialogOpen;
+  }, [dialogOpen]);
+  /** The id of the search this bar has already applied or saved: its own selection is not read back. */
+  const appliedSearch = useRef<string | null>(null);
+  const saveSequence = useRef(0);
+  const saveController = useRef<AbortController | null>(null);
+  const lastSave = useRef<{ readonly key: string; readonly pending: boolean; readonly id: string | null } | null>(null);
+
+  const cancelPendingSave = useCallback(() => {
+    saveSequence.current += 1;
+    saveController.current?.abort();
+    saveController.current = null;
+  }, []);
+
+  /**
+   * The single confirmation. Repeating the search that is already saved (or in
+   * flight) does nothing; a late answer never navigates when another
+   * confirmation overtook it or the dialog closed (opening a record, for
+   * example); a failed save leaves the search working without `?sq=`.
+   */
+  const confirmSearch = useCallback(
+    (search: DashboardGlobalSearchConfirmation) => {
+      setRecent(readGlobalSearchRecent(surface));
+      const key = JSON.stringify([search.query, search.kinds]);
+      const last = lastSave.current;
+      if (last && last.key === key && (last.pending || (last.id !== null && getDisplayedSearch() === last.id))) return;
+
+      cancelPendingSave();
+      const sequence = saveSequence.current;
+      const controller = new AbortController();
+      saveController.current = controller;
+      lastSave.current = { key, pending: true, id: null };
+      saveGlobalSearchState(surface, { q: search.query, kinds: search.kinds as readonly GlobalSearchKind[] }, { signal: controller.signal }).then(
+        ({ id }) => {
+          if (sequence !== saveSequence.current) return;
+          if (!dialogOpenRef.current) {
+            lastSave.current = null;
+            return;
+          }
+          lastSave.current = { key, pending: false, id };
+          appliedSearch.current = id;
+          if (!requestSearchSelection(id)) appliedSearch.current = null;
+        },
+        () => {
+          if (sequence === saveSequence.current) lastSave.current = null;
+        },
+      );
+    },
+    [cancelPendingSave, surface],
+  );
+
+  // A display with `sq` (reload, Back, Forward, return from a record) is read
+  // back and reopens the dialog; one without it closes what that search opened.
+  useEffect(() => {
+    if (displayedSearch === null) {
+      if (appliedSearch.current !== null) {
+        appliedSearch.current = null;
+        cancelPendingSave();
+        setDialogOpen(false);
+      }
+      return undefined;
+    }
+    if (appliedSearch.current === displayedSearch) return undefined;
+
+    const controller = new AbortController();
+    const unavailable = () => {
+      if (controller.signal.aborted) return;
+      appliedSearch.current = displayedSearch;
+      openDialog("", null, { filters: "unavailable", restored: true });
+    };
+    loadGlobalSearchState(surface, displayedSearch, { signal: controller.signal }).then((state) => {
+      if (controller.signal.aborted) return;
+      appliedSearch.current = displayedSearch;
+      openDialog(state.q, null, { filters: "replace", kinds: state.kinds, restored: true });
+    }, unavailable);
+    return () => controller.abort();
+  }, [cancelPendingSave, displayedSearch, openDialog, surface]);
+
+  useEffect(() => cancelPendingSave, [cancelPendingSave]);
+
+  const onDialogOpenChange = useCallback(
+    (next: boolean) => {
+      setDialogOpen(next);
+      if (next) return;
+      // Closing selects the same location without its `sq`; opening a record
+      // does not come through here (it navigates and closes on its own).
+      cancelPendingSave();
+      if (getDisplayedSearch() !== null) {
+        appliedSearch.current = null;
+        requestSearchSelection(null);
+      }
+    },
+    [cancelPendingSave],
+  );
 
   const select = useCallback(
     (option: SearchOption | undefined) => {
       if (!option) return;
       if (option.type === "recent") {
         setQuery(option.query);
-        openDialog(option.query, null);
+        // A recent search brings its own filters (typed operators in its text).
+        openDialog(option.query, null, { filters: "replace" });
         return;
       }
       openDialog(normalized, option.type === "hit" ? option.hit : null);
@@ -322,14 +460,14 @@ export function DashboardGlobalSearch({ surface }: { readonly surface: GlobalSea
           autoComplete="off"
           spellCheck={false}
           enterKeyHint="search"
-          maxLength={80}
+          maxLength={GLOBAL_SEARCH_MAX_QUERY}
           data-workspace-app-bar-search-input="true"
           className="h-[var(--dash-drv-search-h)] w-full min-w-0 rounded-[var(--dash-drv-search-radius)] border border-transparent bg-[var(--dash-drv-search-fill)] pl-12 pr-4 text-[length:var(--dash-drv-search-font)] text-foreground transition-[background-color,border-color] duration-100 motion-reduce:transition-none placeholder:text-muted-foreground hover:bg-accent/60 focus-visible:border-input focus-visible:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85"
           value={query}
           onChange={(event) => {
             setQuery(event.target.value);
             // Recent searches wait for an arrow key: Enter on an empty field does nothing.
-            setActiveIndex(isGlobalSearchQueryReady(event.target.value) ? 0 : -1);
+            setActiveIndex(isGlobalSearchRequestReady(surface, event.target.value, dialogFilters) ? 0 : -1);
             setOpen(true);
           }}
           onFocus={() => {
@@ -403,6 +541,11 @@ export function DashboardGlobalSearch({ surface }: { readonly surface: GlobalSea
                 )
               : null}
           </ul>
+          {filterChips.length > 0 ? (
+            <p className="px-4 pb-1 text-xs text-muted-foreground" data-global-search-active-filters="true">
+              {`Filtros activos: ${filterChips.map((chip) => chip.label).join(", ")}`}
+            </p>
+          ) : null}
           <p
             id={statusId}
             role="status"
@@ -432,7 +575,12 @@ export function DashboardGlobalSearch({ surface }: { readonly surface: GlobalSea
         surface={surface}
         open={dialogOpen}
         request={openRequest}
-        onOpenChange={setDialogOpen}
+        onOpenChange={onDialogOpenChange}
+        onSearchConfirmed={confirmSearch}
+        onSearchStateChange={(state) => {
+          setQuery(state.query);
+          setDialogFilters(state.filters);
+        }}
         returnFocusRef={inputRef}
         onOpenDestination={(destination) => {
           // The bar keeps the query: reopening the search restores the session.
