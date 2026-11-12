@@ -494,6 +494,7 @@ export const adminUsersRolesNativeRoutes: FastifyPluginAsync<
         clinicName: result.user.clinicName,
         usernameChanged: result.usernameChanged,
         credentialUpdated: result.credentialUpdated,
+        sessionsRevoked: result.revokedSessionCount,
         updatedFields: parsed.data.updatedFields,
       },
     });

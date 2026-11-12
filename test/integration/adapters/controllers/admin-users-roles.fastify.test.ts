@@ -91,6 +91,7 @@ function buildDeps(
         previousUsername: "clinic-owner",
         usernameChanged: false,
         credentialUpdated: false,
+        revokedSessionCount: 0,
       }),
     hashPassword: async (password: string) => `argon:${password.length}`,
     writeAuditLog: async () => {},
@@ -603,6 +604,7 @@ test("admin users roles cambia username de clínica y audita sin secretos", asyn
           previousUsername: "clinic-owner",
           usernameChanged: true,
           credentialUpdated: false,
+          revokedSessionCount: 0,
         };
       },
       writeAuditLog: async (_req, input) => {
@@ -643,6 +645,7 @@ test("admin users roles cambia username de clínica y audita sin secretos", asyn
       clinicName: "Clínica Demo",
       usernameChanged: true,
       credentialUpdated: false,
+      sessionsRevoked: 0,
       updatedFields: ["username"],
     });
     assert.equal(JSON.stringify(auditWrites).includes("password"), false);
@@ -652,7 +655,7 @@ test("admin users roles cambia username de clínica y audita sin secretos", asyn
   }
 });
 
-test("admin users roles cambia contraseña sin devolver hash ni auditar valor", async () => {
+test("admin users roles cambia contraseña sin devolver hash ni auditar valor, revoca las sesiones del usuario objetivo y conserva la del admin", async () => {
   const app = Fastify();
   const auditWrites: Array<{
     input: {
@@ -660,10 +663,14 @@ test("admin users roles cambia contraseña sin devolver hash ni auditar valor", 
       metadata?: Record<string, unknown>;
     };
   }> = [];
+  const deletedAdminSessions: string[] = [];
 
   await app.register(
     adminUsersRolesNativeRoutes,
     buildDeps({
+      deleteAdminSession: async (tokenHash: string) => {
+        deletedAdminSessions.push(tokenHash);
+      },
       hashPassword: async (password: string) => `argon:${password.length}`,
       updateAdminClinicUserCredentials: async (input) => {
         assert.deepEqual(input, {
@@ -679,6 +686,7 @@ test("admin users roles cambia contraseña sin devolver hash ni auditar valor", 
           previousUsername: "clinic-owner",
           usernameChanged: false,
           credentialUpdated: true,
+          revokedSessionCount: 2,
         };
       },
       writeAuditLog: async (_req, input) => {
@@ -717,8 +725,10 @@ test("admin users roles cambia contraseña sin devolver hash ni auditar valor", 
       clinicName: "Clínica Demo",
       usernameChanged: false,
       credentialUpdated: true,
+      sessionsRevoked: 2,
       updatedFields: ["accessCredential"],
     });
+    assert.deepEqual(deletedAdminSessions, []);
     assert.equal(JSON.stringify(auditWrites).includes("nuevaClave12"), false);
     assert.equal(JSON.stringify(auditWrites).includes("argon:"), false);
     assert.equal(JSON.stringify(auditWrites).includes("password"), false);

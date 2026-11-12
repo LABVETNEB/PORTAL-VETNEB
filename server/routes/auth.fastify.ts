@@ -35,6 +35,7 @@ import {
   normalizeClinicUserRole,
 } from "../lib/permissions.ts";
 import { logRequestCompletion } from "../middlewares/request-logger.ts";
+import { logError, serializeError } from "../lib/logger.ts";
 import {
   createRuntimeTimer,
   type RuntimeTimer,
@@ -193,6 +194,11 @@ type AuthNativeRoutesFields = {
     authProId: string | null;
     role: ReturnType<typeof normalizeClinicUserRole>;
   }) => Promise<unknown>;
+  changeClinicUserPasswordAndRevokeOtherSessions?: (input: {
+    clinicUserId: number;
+    passwordHash: string;
+    keepSessionTokenHash: string;
+  }) => Promise<{ revokedSessionCount: number } | null>;
   generateSessionToken?: () => string;
   hashPassword?: (password: string) => Promise<string>;
   hashSessionToken?: (token: string) => string;
@@ -284,6 +290,7 @@ type NativeAuthDeps = Required<
     | "getClinicUserByIdentifier"
     | "updateSessionLastAccess"
     | "upsertClinicUser"
+    | "changeClinicUserPasswordAndRevokeOtherSessions"
     | "generateSessionToken"
     | "hashPassword"
     | "hashSessionToken"
@@ -326,6 +333,8 @@ async function loadDefaultDeps(): Promise<NativeAuthDefaultDeps> {
         getClinicUserByIdentifier,
         updateSessionLastAccess: db.updateSessionLastAccess,
         upsertClinicUser: db.upsertClinicUser,
+        changeClinicUserPasswordAndRevokeOtherSessions:
+          db.changeClinicUserPasswordAndRevokeOtherSessions,
         generateSessionToken: authSecurity.generateSessionToken,
         hashPassword: authSecurity.hashPassword,
         hashSessionToken: authSecurity.hashSessionToken,
@@ -765,6 +774,14 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
       options.updateSessionLastAccess ?? defaultDeps!.updateSessionLastAccess,
     upsertClinicUser:
       options.upsertClinicUser ?? defaultDeps!.upsertClinicUser,
+    changeClinicUserPasswordAndRevokeOtherSessions:
+      options.changeClinicUserPasswordAndRevokeOtherSessions ??
+      defaultDeps?.changeClinicUserPasswordAndRevokeOtherSessions ??
+      (async () => {
+        throw new Error(
+          "changeClinicUserPasswordAndRevokeOtherSessions dependency is required for clinic password change",
+        );
+      }),
     generateSessionToken:
       options.generateSessionToken ?? defaultDeps!.generateSessionToken,
     hashPassword: options.hashPassword ?? defaultDeps!.hashPassword,
@@ -1377,13 +1394,28 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
 
     const newPasswordHash = await deps.hashPassword(request.body.newPassword);
 
-    await deps.upsertClinicUser({
-      clinicId: auth.clinicId,
-      username: auth.username,
-      passwordHash: newPasswordHash,
-      authProId: auth.authProId,
-      role: auth.role,
-    });
+    let revocation: { revokedSessionCount: number } | null;
+
+    try {
+      revocation = await deps.changeClinicUserPasswordAndRevokeOtherSessions({
+        clinicUserId: auth.id,
+        passwordHash: newPasswordHash,
+        keepSessionTokenHash: deps.hashSessionToken(auth.sessionToken),
+      });
+    } catch (error) {
+      logError("AUTH_PASSWORD_CHANGE_COMMIT_FAILED", {
+        route: "/api/auth/change-password",
+        error: serializeError(error),
+      });
+      revocation = null;
+    }
+
+    if (!revocation) {
+      return reply.code(500).send({
+        success: false,
+        error: PASSWORD_CHANGE_ERROR_MESSAGE,
+      });
+    }
 
     await deps.writeAuditLog(createAuditRequestLike(request, auth), {
       event: AUDIT_EVENTS.CLINIC_USER_CREDENTIALS_UPDATED,
@@ -1394,6 +1426,7 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
         role: auth.role,
         selfService: true,
         sessionMaintained: true,
+        otherSessionsRevoked: revocation.revokedSessionCount,
       },
       actor: {
         type: "clinic_user",
