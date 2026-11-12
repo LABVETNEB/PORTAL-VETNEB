@@ -15,18 +15,19 @@ import { ENV } from "../lib/env.ts";
 import {
   buildLoginRateLimitResponse,
   buildLoginRateLimitHeaders,
+  buildLoginRateLimitUnavailableResponse,
   buildLoginRateLimitKey,
   buildMissingCredentialsLoginRateLimitKey,
   getLoginRateLimitKeyMetadata,
   LOGIN_RATE_LIMIT_EXPOSED_HEADERS,
   LOGIN_RATE_LIMIT_MAX_ATTEMPTS,
+  LOGIN_RATE_LIMIT_UNAVAILABLE_RETRY_SECONDS,
   LOGIN_RATE_LIMIT_WINDOW_MS,
 } from "../lib/login-rate-limit.ts";
 import {
   createMemoryRateLimitStore,
   createPersistentRateLimitStore,
   consumeRateLimitAttempt,
-  getOrCreateRateLimitEntry,
   type RateLimitEntry,
   type RateLimitStore,
 } from "../lib/rate-limit-store.ts";
@@ -324,6 +325,12 @@ function setLoginRateLimitHeaders(
   )) {
     reply.header(headerName, headerValue);
   }
+}
+
+function sendLoginRateLimitUnavailable(reply: FastifyReply) {
+  reply.header("Retry-After", String(LOGIN_RATE_LIMIT_UNAVAILABLE_RETRY_SECONDS));
+
+  return reply.code(503).send(buildLoginRateLimitUnavailableResponse());
 }
 
 function getUserAgent(request: FastifyRequest) {
@@ -634,37 +641,30 @@ export const particularAuthNativeRoutes: FastifyPluginAsync<
       ipAddress: request.ip || null,
     });
 
-    const failureEntry: RateLimitEntry = {
-      count: 0,
-      resetAt: currentTime + loginRateLimitWindowMs,
-    };
-    let canUseRateLimitStore = true;
+    let chargedEntry: RateLimitEntry;
 
     try {
-      const existingEntry = await getOrCreateRateLimitEntry(
+      chargedEntry = await consumeRateLimitAttempt(
         loginRateLimitStore,
         rateLimitKey,
-        loginRateLimitWindowMs,
-        currentTime,
+        { windowMs: loginRateLimitWindowMs, now: currentTime },
       );
-
-      failureEntry.count = existingEntry.count;
-      failureEntry.resetAt = existingEntry.resetAt;
     } catch (error) {
-      canUseRateLimitStore = false;
       logError("PARTICULAR_LOGIN_RATE_LIMIT_GET_FAILED", {
         requestId: request.id,
         route: "/api/particular/auth/login",
         errorName: serializeError(error).name,
       });
+
+      return sendLoginRateLimitUnavailable(reply);
     }
 
-    if (canUseRateLimitStore && failureEntry.count >= loginRateLimitMaxAttempts) {
+    if (chargedEntry.count > loginRateLimitMaxAttempts) {
       setLoginRateLimitHeaders(reply, {
         max: loginRateLimitMaxAttempts,
         windowMs: loginRateLimitWindowMs,
-        failedCount: failureEntry.count,
-        resetAt: failureEntry.resetAt,
+        failedCount: chargedEntry.count,
+        resetAt: chargedEntry.resetAt,
         now: currentTime,
         includeRetryAfter: true,
       });
@@ -675,7 +675,7 @@ export const particularAuthNativeRoutes: FastifyPluginAsync<
 
       return reply.code(429).send(
         buildLoginRateLimitResponse({
-          resetAt: failureEntry.resetAt,
+          resetAt: chargedEntry.resetAt,
           now: currentTime,
         }),
       );
@@ -684,42 +684,18 @@ export const particularAuthNativeRoutes: FastifyPluginAsync<
     const markFailure = async (input: {
       reason: LoginFailedAttemptReason;
     }) => {
-      if (canUseRateLimitStore) {
-        try {
-          const updatedEntry = await consumeRateLimitAttempt(
-            loginRateLimitStore,
-            rateLimitKey,
-            { windowMs: loginRateLimitWindowMs, now: currentTime },
-          );
-
-          failureEntry.count = updatedEntry.count;
-          failureEntry.resetAt = updatedEntry.resetAt;
-
-          setLoginRateLimitHeaders(reply, {
-            max: loginRateLimitMaxAttempts,
-            windowMs: loginRateLimitWindowMs,
-            failedCount: failureEntry.count,
-            resetAt: failureEntry.resetAt,
-            now: currentTime,
-          });
-        } catch (error) {
-          canUseRateLimitStore = false;
-          logError("PARTICULAR_LOGIN_RATE_LIMIT_INCREMENT_FAILED", {
-            requestId: request.id,
-            route: "/api/particular/auth/login",
-            errorName: serializeError(error).name,
-          });
-        }
-      }
+      setLoginRateLimitHeaders(reply, {
+        max: loginRateLimitMaxAttempts,
+        windowMs: loginRateLimitWindowMs,
+        failedCount: chargedEntry.count,
+        resetAt: chargedEntry.resetAt,
+        now: currentTime,
+      });
 
       await recordFailedLoginAttempt(input);
     };
 
     const markSuccess = async () => {
-      if (!canUseRateLimitStore) {
-        return;
-      }
-
       if (loginRateLimitStore.delete) {
         try {
           await loginRateLimitStore.delete(rateLimitKey);
@@ -729,6 +705,15 @@ export const particularAuthNativeRoutes: FastifyPluginAsync<
             route: "/api/particular/auth/login",
             errorName: serializeError(error).name,
           });
+          setLoginRateLimitHeaders(reply, {
+            max: loginRateLimitMaxAttempts,
+            windowMs: loginRateLimitWindowMs,
+            failedCount: chargedEntry.count,
+            resetAt: chargedEntry.resetAt,
+            now: currentTime,
+          });
+
+          return;
         }
       }
 

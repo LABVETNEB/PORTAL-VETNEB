@@ -516,14 +516,28 @@ test("auth login rate limits keep persistent stores with memory fallback per aut
     );
     assertContains(
       source,
-      "await getOrCreateRateLimitEntry(",
-      `${file} login rate limit store read`,
-    );
-    assertContains(
-      source,
       "await consumeRateLimitAttempt(",
       `${file} atomic login rate limit consume`,
     );
+    // PR-SEC-08: the attempt is charged before credentials are checked and a
+    // store failure ends the request with 503 (never fail-open).
+    assertContains(
+      source,
+      "chargedEntry = await consumeRateLimitAttempt(",
+      `${file} attempt charged before verification`,
+    );
+    assertContains(
+      source,
+      "return sendLoginRateLimitUnavailable(reply);",
+      `${file} store failure fails closed`,
+    );
+    assertContains(
+      source,
+      "reply.code(503).send(buildLoginRateLimitUnavailableResponse())",
+      `${file} sanitized 503 body`,
+    );
+    assertNotContains(source, "canUseRateLimitStore", `${file} fail-open flag`);
+    assertNotContains(source, "getOrCreateRateLimitEntry", `${file} read-then-count window`);
     assertContains(
       source,
       "options.loginRateLimitWindowMs ?? LOGIN_RATE_LIMIT_WINDOW_MS",

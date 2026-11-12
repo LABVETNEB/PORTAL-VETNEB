@@ -19,18 +19,19 @@ import {
 import {
   buildLoginRateLimitResponse,
   buildLoginRateLimitHeaders,
+  buildLoginRateLimitUnavailableResponse,
   buildLoginRateLimitKey,
   buildMissingCredentialsLoginRateLimitKey,
   getLoginRateLimitKeyMetadata,
   LOGIN_RATE_LIMIT_EXPOSED_HEADERS,
   LOGIN_RATE_LIMIT_MAX_ATTEMPTS,
+  LOGIN_RATE_LIMIT_UNAVAILABLE_RETRY_SECONDS,
   LOGIN_RATE_LIMIT_WINDOW_MS,
 } from "../lib/login-rate-limit.ts";
 import {
   createMemoryRateLimitStore,
   createPersistentRateLimitStore,
   consumeRateLimitAttempt,
-  getOrCreateRateLimitEntry,
   type RateLimitEntry,
   type RateLimitStore,
 } from "../lib/rate-limit-store.ts";
@@ -296,6 +297,12 @@ function setLoginRateLimitHeaders(
   )) {
     reply.header(headerName, headerValue);
   }
+}
+
+function sendLoginRateLimitUnavailable(reply: FastifyReply) {
+  reply.header("Retry-After", String(LOGIN_RATE_LIMIT_UNAVAILABLE_RETRY_SECONDS));
+
+  return reply.code(503).send(buildLoginRateLimitUnavailableResponse());
 }
 
 function isPasswordChangeBody(
@@ -594,37 +601,30 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
       ipAddress: request.ip || null,
     });
 
-    const failureEntry: RateLimitEntry = {
-      count: 0,
-      resetAt: currentTime + loginRateLimitWindowMs,
-    };
-    let canUseRateLimitStore = true;
+    let chargedEntry: RateLimitEntry;
 
     try {
-      const existingEntry = await getOrCreateRateLimitEntry(
+      chargedEntry = await consumeRateLimitAttempt(
         loginRateLimitStore,
         rateLimitKey,
-        loginRateLimitWindowMs,
-        currentTime,
+        { windowMs: loginRateLimitWindowMs, now: currentTime },
       );
-
-      failureEntry.count = existingEntry.count;
-      failureEntry.resetAt = existingEntry.resetAt;
     } catch (error) {
-      canUseRateLimitStore = false;
       logError("ADMIN_LOGIN_RATE_LIMIT_GET_FAILED", {
         requestId: request.id,
         route: "/api/admin/auth/login",
         errorName: serializeError(error).name,
       });
+
+      return sendLoginRateLimitUnavailable(reply);
     }
 
-    if (canUseRateLimitStore && failureEntry.count >= loginRateLimitMaxAttempts) {
+    if (chargedEntry.count > loginRateLimitMaxAttempts) {
       setLoginRateLimitHeaders(reply, {
         max: loginRateLimitMaxAttempts,
         windowMs: loginRateLimitWindowMs,
-        failedCount: failureEntry.count,
-        resetAt: failureEntry.resetAt,
+        failedCount: chargedEntry.count,
+        resetAt: chargedEntry.resetAt,
         now: currentTime,
         includeRetryAfter: true,
       });
@@ -636,7 +636,7 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
 
       return reply.code(429).send(
         buildLoginRateLimitResponse({
-          resetAt: failureEntry.resetAt,
+          resetAt: chargedEntry.resetAt,
           now: currentTime,
         }),
       );
@@ -646,42 +646,18 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
       username?: string | null;
       reason: LoginFailedAttemptReason;
     }) => {
-      if (canUseRateLimitStore) {
-        try {
-          const updatedEntry = await consumeRateLimitAttempt(
-            loginRateLimitStore,
-            rateLimitKey,
-            { windowMs: loginRateLimitWindowMs, now: currentTime },
-          );
-
-          failureEntry.count = updatedEntry.count;
-          failureEntry.resetAt = updatedEntry.resetAt;
-
-          setLoginRateLimitHeaders(reply, {
-            max: loginRateLimitMaxAttempts,
-            windowMs: loginRateLimitWindowMs,
-            failedCount: failureEntry.count,
-            resetAt: failureEntry.resetAt,
-            now: currentTime,
-          });
-        } catch (error) {
-          canUseRateLimitStore = false;
-          logError("ADMIN_LOGIN_RATE_LIMIT_INCREMENT_FAILED", {
-            requestId: request.id,
-            route: "/api/admin/auth/login",
-            errorName: serializeError(error).name,
-          });
-        }
-      }
+      setLoginRateLimitHeaders(reply, {
+        max: loginRateLimitMaxAttempts,
+        windowMs: loginRateLimitWindowMs,
+        failedCount: chargedEntry.count,
+        resetAt: chargedEntry.resetAt,
+        now: currentTime,
+      });
 
       await recordFailedLoginAttempt(input);
     };
 
     const markSuccess = async () => {
-      if (!canUseRateLimitStore) {
-        return;
-      }
-
       if (loginRateLimitStore.delete) {
         try {
           await loginRateLimitStore.delete(rateLimitKey);
@@ -691,6 +667,15 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
             route: "/api/admin/auth/login",
             errorName: serializeError(error).name,
           });
+          setLoginRateLimitHeaders(reply, {
+            max: loginRateLimitMaxAttempts,
+            windowMs: loginRateLimitWindowMs,
+            failedCount: chargedEntry.count,
+            resetAt: chargedEntry.resetAt,
+            now: currentTime,
+          });
+
+          return;
         }
       }
 
@@ -807,86 +792,53 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
       ipAddress: request.ip || null,
     });
 
-    const failureEntry: RateLimitEntry = {
-      count: 0,
-      resetAt: currentTime + loginRateLimitWindowMs,
-    };
-    let canUseRateLimitStore = true;
+    let chargedEntry: RateLimitEntry;
 
     try {
-      const existingEntry = await getOrCreateRateLimitEntry(
+      chargedEntry = await consumeRateLimitAttempt(
         loginRateLimitStore,
         rateLimitKey,
-        loginRateLimitWindowMs,
-        currentTime,
+        { windowMs: loginRateLimitWindowMs, now: currentTime },
       );
-
-      failureEntry.count = existingEntry.count;
-      failureEntry.resetAt = existingEntry.resetAt;
     } catch (error) {
-      canUseRateLimitStore = false;
       logError("ADMIN_PASSWORD_CHANGE_RATE_LIMIT_GET_FAILED", {
         requestId: request.id,
         route: "/api/admin/auth/change-password",
         errorName: serializeError(error).name,
       });
+
+      return sendLoginRateLimitUnavailable(reply);
     }
 
-    if (canUseRateLimitStore && failureEntry.count >= loginRateLimitMaxAttempts) {
+    if (chargedEntry.count > loginRateLimitMaxAttempts) {
       setLoginRateLimitHeaders(reply, {
         max: loginRateLimitMaxAttempts,
         windowMs: loginRateLimitWindowMs,
-        failedCount: failureEntry.count,
-        resetAt: failureEntry.resetAt,
+        failedCount: chargedEntry.count,
+        resetAt: chargedEntry.resetAt,
         now: currentTime,
         includeRetryAfter: true,
       });
 
       return reply.code(429).send(
         buildLoginRateLimitResponse({
-          resetAt: failureEntry.resetAt,
+          resetAt: chargedEntry.resetAt,
           now: currentTime,
         }),
       );
     }
 
     const markFailure = async () => {
-      if (!canUseRateLimitStore) {
-        return;
-      }
-
-      try {
-        const updatedEntry = await consumeRateLimitAttempt(
-          loginRateLimitStore,
-          rateLimitKey,
-          { windowMs: loginRateLimitWindowMs, now: currentTime },
-        );
-
-        failureEntry.count = updatedEntry.count;
-        failureEntry.resetAt = updatedEntry.resetAt;
-
-        setLoginRateLimitHeaders(reply, {
-          max: loginRateLimitMaxAttempts,
-          windowMs: loginRateLimitWindowMs,
-          failedCount: failureEntry.count,
-          resetAt: failureEntry.resetAt,
-          now: currentTime,
-        });
-      } catch (error) {
-        canUseRateLimitStore = false;
-        logError("ADMIN_PASSWORD_CHANGE_RATE_LIMIT_INCREMENT_FAILED", {
-          requestId: request.id,
-          route: "/api/admin/auth/change-password",
-          errorName: serializeError(error).name,
-        });
-      }
+      setLoginRateLimitHeaders(reply, {
+        max: loginRateLimitMaxAttempts,
+        windowMs: loginRateLimitWindowMs,
+        failedCount: chargedEntry.count,
+        resetAt: chargedEntry.resetAt,
+        now: currentTime,
+      });
     };
 
     const markSuccess = async () => {
-      if (!canUseRateLimitStore) {
-        return;
-      }
-
       if (loginRateLimitStore.delete) {
         try {
           await loginRateLimitStore.delete(rateLimitKey);
@@ -896,6 +848,15 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
             route: "/api/admin/auth/change-password",
             errorName: serializeError(error).name,
           });
+          setLoginRateLimitHeaders(reply, {
+            max: loginRateLimitMaxAttempts,
+            windowMs: loginRateLimitWindowMs,
+            failedCount: chargedEntry.count,
+            resetAt: chargedEntry.resetAt,
+            now: currentTime,
+          });
+
+          return;
         }
       }
 

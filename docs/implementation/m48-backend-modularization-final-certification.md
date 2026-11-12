@@ -269,15 +269,18 @@ Total 242/49.580 → 242/49.715.
 SEC-07 (eventos de seguridad de `auth`, `admin-auth` y `particular-auth` migrados de `request.log`, inerte con `logger: false`, al logger
 estructurado con `requestId`) lleva `server/routes` de 38/22.069 a 38/22.009. Total 242/49.715 → 242/49.655.
 
+SEC-08 (rate limit de login y cambio de contraseña fail-closed: el intento se cobra antes de verificar credenciales y un fallo del
+store responde 503) lleva `server/routes` de 38/22.009 a 38/21.916 y `server/lib` de 31/5.389 a 31/5.403. Total 242/49.655 → 242/49.576.
+
 | Área | Archivos TypeScript | LOC |
 | --- | ---: | ---: |
 | `server/features` | 161 | 19.202 |
-| `server/routes` | 38 | 22.009 |
-| `server/lib` | 31 | 5.389 |
+| `server/routes` | 38 | 21.916 |
+| `server/lib` | 31 | 5.403 |
 | `server/middlewares` | 3 | 429 |
 | raíz/entrypoints `server/*.ts` | 9 | 2.626 |
 | otros | 0 | 0 |
-| **Total `server`** | **242** | **49.655** |
+| **Total `server`** | **242** | **49.576** |
 
 El review P2 de M48 detectó que la primera metodología aplicaba una semántica
 equivalente a `source.split("\n").length`, que sumaba un segmento vacío por

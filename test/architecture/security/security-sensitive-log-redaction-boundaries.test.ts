@@ -861,35 +861,32 @@ test("auth routes hash session tokens and avoid logging raw credentials", () => 
 // PR-SEC-07: createFastifyApp runs with `logger: false`, so any
 // request.log/app.log call is a silent no-op. Security events must go through
 // the structured logger, carry the request id and export only the allowlisted
-// error name.
+// error name. PR-SEC-08 retired the *_RATE_LIMIT_INCREMENT_FAILED events: the
+// attempt is charged before verification and *_RATE_LIMIT_GET_FAILED now ends
+// the request with 503.
 const authSecurityLogEvents: Record<string, readonly string[]> = {
   "server/routes/auth.fastify.ts": [
     "AUTH_LOGIN_FAILED_ATTEMPT_RECORD_FAILED",
     "AUTH_LOGIN_MISSING_CREDENTIALS_RATE_LIMIT_FAILED",
     "AUTH_LOGIN_RATE_LIMIT_GET_FAILED",
-    "AUTH_LOGIN_RATE_LIMIT_INCREMENT_FAILED",
     "AUTH_LOGIN_RATE_LIMIT_RESET_FAILED",
     "AUTH_PASSWORD_CHANGE_COMMIT_FAILED",
     "AUTH_PASSWORD_CHANGE_RATE_LIMIT_GET_FAILED",
-    "AUTH_PASSWORD_CHANGE_RATE_LIMIT_INCREMENT_FAILED",
     "AUTH_PASSWORD_CHANGE_RATE_LIMIT_RESET_FAILED",
   ],
   "server/routes/admin-auth.fastify.ts": [
     "ADMIN_LOGIN_FAILED_ATTEMPT_RECORD_FAILED",
     "ADMIN_LOGIN_MISSING_CREDENTIALS_RATE_LIMIT_FAILED",
     "ADMIN_LOGIN_RATE_LIMIT_GET_FAILED",
-    "ADMIN_LOGIN_RATE_LIMIT_INCREMENT_FAILED",
     "ADMIN_LOGIN_RATE_LIMIT_RESET_FAILED",
     "ADMIN_PASSWORD_CHANGE_COMMIT_FAILED",
     "ADMIN_PASSWORD_CHANGE_RATE_LIMIT_GET_FAILED",
-    "ADMIN_PASSWORD_CHANGE_RATE_LIMIT_INCREMENT_FAILED",
     "ADMIN_PASSWORD_CHANGE_RATE_LIMIT_RESET_FAILED",
   ],
   "server/routes/particular-auth.fastify.ts": [
     "PARTICULAR_LOGIN_FAILED_ATTEMPT_RECORD_FAILED",
     "PARTICULAR_LOGIN_MISSING_CREDENTIALS_RATE_LIMIT_FAILED",
     "PARTICULAR_LOGIN_RATE_LIMIT_GET_FAILED",
-    "PARTICULAR_LOGIN_RATE_LIMIT_INCREMENT_FAILED",
     "PARTICULAR_LOGIN_RATE_LIMIT_RESET_FAILED",
   ],
 };
