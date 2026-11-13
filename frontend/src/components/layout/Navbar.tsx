@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { ArrowRight, ChevronDown, Microscope } from "lucide-react";
 
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
@@ -51,34 +52,35 @@ export function Navbar() {
           </details>
         </div>
 
-        <PublicRouteControl
-          href={ROUTES.home}
-          variant="bare"
-          className="group hidden cursor-pointer items-center gap-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 xl:flex"
-        >
-          <span className="flex h-9 items-center justify-center gap-2 rounded-md bg-primary px-3 text-sm font-bold text-primary-foreground shadow-[0_10px_26px_hsl(var(--vetneb-navy)/0.20)] ring-1 ring-vetneb-teal/30 transition-[background-color,box-shadow,border-color] group-hover:shadow-[0_12px_30px_hsl(var(--vetneb-navy)/0.24)]">
-            <Microscope className="h-4 w-4" aria-hidden="true" />
-            VETNEB
-          </span>
-          <span className="hidden text-xs font-semibold text-muted-foreground xl:inline">
-            Patología veterinaria
-          </span>
-        </PublicRouteControl>
+
 
         <nav
           className="hidden items-center gap-1 rounded-md border border-vetneb-line/80 bg-card/88 p-1 xl:flex"
           aria-label="Navegación principal"
         >
           {navLinks.map((link) => (
-            <PublicRouteControl
-              key={link.href}
-              href={link.href}
-              variant="bare"
-              className="rounded-md px-3.5 py-2 text-sm font-medium text-vetneb-ink/80 transition-colors hover:bg-accent/70 hover:text-vetneb-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
-              activeClassName="bg-accent/80 text-vetneb-ink shadow-sm"
-            >
-              {link.label}
-            </PublicRouteControl>
+            <Fragment key={link.href}>
+              <PublicRouteControl
+                href={link.href}
+                variant="bare"
+                className="rounded-md px-3.5 py-2 text-sm font-medium text-vetneb-ink/80 transition-colors hover:bg-accent/70 hover:text-vetneb-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
+                activeClassName="bg-accent/80 text-vetneb-ink shadow-sm"
+              >
+                {link.label}
+              </PublicRouteControl>
+              {link.href === ROUTES.clinicas && (
+                <PublicRouteControl
+                  href={ROUTES.home}
+                  variant="bare"
+                  className="group inline-flex shrink-0 items-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
+                >
+                  <span className="flex h-9 items-center justify-center gap-2 rounded-md bg-primary px-3 text-sm font-bold text-primary-foreground shadow-[0_10px_26px_hsl(var(--vetneb-navy)/0.20)] ring-1 ring-vetneb-teal/30 transition-[background-color,box-shadow,border-color] group-hover:shadow-[0_12px_30px_hsl(var(--vetneb-navy)/0.24)]">
+                    <Microscope className="h-4 w-4" aria-hidden="true" />
+                    VETNEB
+                  </span>
+                </PublicRouteControl>
+              )}
+            </Fragment>
           ))}
         </nav>
 

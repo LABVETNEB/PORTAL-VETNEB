@@ -185,3 +185,160 @@ for (const activation of [
     ).toBeLessThanOrEqual(0);
   });
 }
+
+test("VETNEB badge position across desktop viewports", async ({ page }) => {
+  test.setTimeout(90_000);
+
+  for (const width of [1280, 1366, 1440, 1920]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/servicios");
+
+    const nav = page.getByRole("navigation", {
+      name: "Navegación principal",
+    });
+
+    await expect(nav).toBeVisible();
+
+    const clinics = nav.getByRole("button", {
+      name: "Clínicas",
+      exact: true,
+    });
+
+    const logo = nav.getByRole("button", {
+      name: "VETNEB",
+      exact: true,
+    });
+
+    const particulars = nav.getByRole("button", {
+      name: "Particulares",
+      exact: true,
+    });
+
+    await expect(clinics).toBeVisible();
+    await expect(logo).toBeVisible();
+    await expect(particulars).toBeVisible();
+
+    const labels = (await nav.getByRole("button").allTextContents())
+      .map((value) => value.trim());
+
+    const clinicIndex = labels.indexOf("Clínicas");
+    const logoIndex = labels.indexOf("VETNEB");
+    const particularIndex = labels.indexOf("Particulares");
+
+    expect(clinicIndex).toBeGreaterThanOrEqual(0);
+    expect(logoIndex).toBe(clinicIndex + 1);
+    expect(particularIndex).toBe(logoIndex + 1);
+
+    const a = await clinics.boundingBox();
+    const b = await logo.boundingBox();
+    const c = await particulars.boundingBox();
+
+    expect(a).not.toBeNull();
+    expect(b).not.toBeNull();
+    expect(c).not.toBeNull();
+
+    expect(a!.x + a!.width).toBeLessThanOrEqual(b!.x + 1);
+    expect(b!.x + b!.width).toBeLessThanOrEqual(c!.x + 1);
+
+    const centers = [
+      a!.y + a!.height / 2,
+      b!.y + b!.height / 2,
+      c!.y + c!.height / 2,
+    ];
+
+    expect(Math.max(...centers) - Math.min(...centers))
+      .toBeLessThanOrEqual(4);
+
+    const geometry = await page.evaluate(() => {
+      const header = document.querySelector("header");
+      const controls = Array.from(
+        header?.querySelectorAll("button") ?? [],
+      ).filter((button) => {
+        const rect = button.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+      });
+
+      const overlaps = controls.some((first, index) => {
+        const a = first.getBoundingClientRect();
+
+        return controls.slice(index + 1).some((second) => {
+          if (first.contains(second) || second.contains(first)) {
+            return false;
+          }
+
+          const b = second.getBoundingClientRect();
+
+          return (
+            Math.min(a.right, b.right) - Math.max(a.left, b.left) > 2 &&
+            Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 2
+          );
+        });
+      });
+
+      return {
+        overlaps,
+        overflow:
+          document.documentElement.scrollWidth -
+          document.documentElement.clientWidth,
+      };
+    });
+
+    expect(geometry.overlaps).toBe(false);
+    expect(geometry.overflow).toBeLessThanOrEqual(0);
+
+    await logo.click();
+    await expect(page).toHaveURL(/127\.0\.0\.1:3000\/?$/);
+  }
+});
+
+test("VETNEB navigation remains responsive", async ({ page }) => {
+  test.setTimeout(90_000);
+
+  for (const width of [375, 768, 1024, 1180]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/");
+
+    const desktopNav = page.getByRole("navigation", {
+      name: "Navegación principal",
+    });
+
+    await expect(desktopNav).toBeHidden();
+
+    const toggle = page.getByLabel("Abrir navegación VETNEB");
+
+    const mobileNav = page.getByRole("navigation", {
+      name: "Navegación mobile",
+    });
+
+    await expect(toggle).toBeVisible();
+    await expect(mobileNav).toBeHidden();
+
+    await toggle.click();
+    await expect(mobileNav).toBeVisible();
+
+    await expect(
+      mobileNav.getByRole("button", {
+        name: "Clínicas",
+        exact: true,
+      }),
+    ).toBeVisible();
+
+    await expect(
+      mobileNav.getByRole("button", {
+        name: "Particulares",
+        exact: true,
+      }),
+    ).toBeVisible();
+
+    await toggle.click();
+    await expect(mobileNav).toBeHidden();
+
+    const overflow = await page.evaluate(
+      () =>
+        document.documentElement.scrollWidth -
+        document.documentElement.clientWidth,
+    );
+
+    expect(overflow).toBeLessThanOrEqual(0);
+  }
+});
