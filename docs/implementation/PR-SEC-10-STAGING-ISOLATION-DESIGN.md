@@ -2,7 +2,7 @@
 
 Estado base: `b9d88659` (`origin/main`, EV-01 #2001). Scope: **docs-only** (diseño). Riesgo del documento: R1. Toda operación sobre Render, Supabase, DNS o Cloudflare que describe es **R3** y **no está autorizada** por este documento. No se creó infraestructura, no se tocó producción, no hay cambios de código.
 
-Revisión 14: hook de diagnóstico implementado y verificado **solo en local** en la rama `diag/sec-10-proxy-observability` (§11.5, «Implementación local del hook»); sin commit, sin push, sin despliegue; E3, E4 y E6 siguen sin evidencia runtime. Revisión 13: diagnóstico E3/E6 con la observabilidad existente (§11.5, «Diagnóstico E3/E6»): hay colisión comprobada de buckets y XFF sin efecto con `TRUST_PROXY` ausente; el valor del peer y la forma de la cadena XFF no son observables sin instrumentación; hook mínimo diseñado, no implementado. Revisión 12: auditoría de aislamiento I1, I2, I4, I5, I7 (PASSED) e I8 (Render PASSED; secrets de GitHub BLOCKED) sobre ambos servicios staging (§11.5, «Auditoría de aislamiento»). Revisión 11: `vetneb-web-stg` creado en Staging y Live (§11.5, «Resultado de la creación de `vetneb-web-stg`»); sin solicitudes HTTP a la aplicación. Revisión 10: build corregido y redeploy exitoso; `vetneb-api-stg` Live (arranque, preflight y bucket privado de staging verificados). Revisión 9: `vetneb-api-stg` creado en Staging; primer deploy fallido en el build por `corepack enable` (EROFS), sin tocar bases; corrección propuesta pendiente de autorización. Revisión 8: entorno Render «Staging» creado (vacío) y variables del frontend público (nombres); región Ohio. Revisión 7: administrador sintético creado (§11.4) y procedimiento de Render staging (§11.5). Revisión 6: esquema migrado en staging y verificado (§11.2); precondiciones del administrador y de Render (§11.3). Revisión 5: Supabase staging creado y verificado (§11.1, «Resultado de la ejecución»). Revisión 4: decisión definitiva — organización `LABVETNEB-STAGING` y proyecto `vetneb-staging` (§4A, §11.1); el límite de 2 proyectos Free es global. Revisión 3: cierra la capacidad de Supabase (§4A). Revisión 2: incorpora la lectura de código del alta de cuentas, la evidencia de DNS público, el procedimiento de migración seguro y los costos verificados. **Corrige la revisión 1**: `portal-vetneb-frontend-staging` es el frontend de **producción** (§1).
+Revisión 20: **ventana 2, Bloque 3 ejecutado: hook retirado**. Variables `PROXY_DIAG_*` eliminadas y `b9d88659` restaurado en `vetneb-api-stg` (`dep-dbrja815efls73apdrr0`, Live); diagnóstico inactivo; E3 y E6 conservados como evidencia, E4 BLOQUEADO (§11.5, «Ventana 2, Bloque 3: retiro»). Revisión 19: **ventana 2, Bloque 2 ejecutado**: 34 solicitudes GET a staging (2 sondas de validación + campaña completa), 26 eventos del hook en un único proceso; **E3 y E6 observados**, **E4 sigue BLOQUEADO**; el hook sigue activo hasta 2026-11-13T18:33:00Z y su retiro (Bloque 3) está pendiente (§11.5, «Ventana 2, Bloque 2: resultados»). Revisión 18: **ventana 2, Bloque 1 ejecutado**: variables `PROXY_DIAG_*` con credencial nueva guardadas (Save only), un único despliegue de `e6ef1079…` (`dep-dbrisu0u01pc73bd0tsg`) y hook activado con `runId` `sec10-e3e6-20261113-b`, vence 2026-11-13T18:33:00Z; **sin sondas todavía** (Bloque 2 pendiente de autorización). Revisión 17: campaña E3/E6 **cancelada sin sondas** (la credencial no estaba disponible; 0 solicitudes) y hook **retirado** de `vetneb-api-stg` (variables eliminadas y `b9d88659` restaurado y Live); procedimiento seguro para una nueva ventana preparado (§11.5, «Cancelación de la campaña y retiro del hook»). E3, E4 y E6 siguen sin evidencia runtime. Revisión 16: hook desplegado temporalmente **solo en `vetneb-api-stg`** (commit `e6ef1079…`, deploy `dep-dbrfhmt9fdbs73e835lg`) y activado (`PROXY_DIAG_ACTIVATED`); vence 2026-11-13T14:44:00Z; sin sondas ejecutadas; producción y `vetneb-web-stg` sin cambios (§11.5, «Resultado de las fases B y C»). Revisión 15: commit del hook publicado (`e6ef1079…`, firma SSH verificada) y procedimiento R3 de despliegue temporal, medición y retiro preparado a partir de metadatos de Render; nada desplegado ni modificado (§11.5, «Preparación del despliegue temporal»). Revisión 14: hook de diagnóstico implementado y verificado **solo en local** en la rama `diag/sec-10-proxy-observability` (§11.5, «Implementación local del hook»); sin commit, sin push, sin despliegue; E3, E4 y E6 siguen sin evidencia runtime. Revisión 13: diagnóstico E3/E6 con la observabilidad existente (§11.5, «Diagnóstico E3/E6»): hay colisión comprobada de buckets y XFF sin efecto con `TRUST_PROXY` ausente; el valor del peer y la forma de la cadena XFF no son observables sin instrumentación; hook mínimo diseñado, no implementado. Revisión 12: auditoría de aislamiento I1, I2, I4, I5, I7 (PASSED) e I8 (Render PASSED; secrets de GitHub BLOCKED) sobre ambos servicios staging (§11.5, «Auditoría de aislamiento»). Revisión 11: `vetneb-web-stg` creado en Staging y Live (§11.5, «Resultado de la creación de `vetneb-web-stg`»); sin solicitudes HTTP a la aplicación. Revisión 10: build corregido y redeploy exitoso; `vetneb-api-stg` Live (arranque, preflight y bucket privado de staging verificados). Revisión 9: `vetneb-api-stg` creado en Staging; primer deploy fallido en el build por `corepack enable` (EROFS), sin tocar bases; corrección propuesta pendiente de autorización. Revisión 8: entorno Render «Staging» creado (vacío) y variables del frontend público (nombres); región Ohio. Revisión 7: administrador sintético creado (§11.4) y procedimiento de Render staging (§11.5). Revisión 6: esquema migrado en staging y verificado (§11.2); precondiciones del administrador y de Render (§11.3). Revisión 5: Supabase staging creado y verificado (§11.1, «Resultado de la ejecución»). Revisión 4: decisión definitiva — organización `LABVETNEB-STAGING` y proyecto `vetneb-staging` (§4A, §11.1); el límite de 2 proyectos Free es global. Revisión 3: cierra la capacidad de Supabase (§4A). Revisión 2: incorpora la lectura de código del alta de cuentas, la evidencia de DNS público, el procedimiento de migración seguro y los costos verificados. **Corrige la revisión 1**: `portal-vetneb-frontend-staging` es el frontend de **producción** (§1).
 
 ## 0. HANDOFF entre ordenadores (estado al 2026-11-12)
 
@@ -29,7 +29,7 @@ Para retomar el trabajo en otra máquina: leer `AGENTS.md`, este documento compl
 1. ~~Crear el frontend `vetneb-web-stg`~~ **HECHO** (§11.5): URL real = prevista, `CORS_ORIGIN` y `PUBLIC_SITE_URL` del backend no requieren cambio.
 2. ~~Verificaciones de aislamiento~~ **HECHO parcialmente** (§11.5, «Auditoría de aislamiento»): I1, I2, I4, I5, I7 PASSED; I8 con la parte de GitHub BLOQUEADA; I3 e I6 NOT_RUN.
 3. Prueba de login de `stg-admin` por HTTP y smoke público; alta de clínicas y accesos sintéticos por la API de staging.
-4. Campaña **E3 / E4 / E6** con instrumentación temporal de diagnóstico (§10). **Parcial** (§11.5, «Diagnóstico E3/E6»): con la observabilidad existente solo se probó igualdad de buckets y no confianza en XFF; falta el hook temporal (propuesta lista, sin autorizar) y la confirmación del proveedor para E4.
+4. Campaña **E3 / E4 / E6** con instrumentación temporal de diagnóstico (§10). **Parcial** (§11.5, «Diagnóstico E3/E6»): con la observabilidad existente solo se probó igualdad de buckets y no confianza en XFF; falta el hook temporal (propuesta lista, sin autorizar) y la confirmación del proveedor para E4. **Actualización (ventana 2):** E3 y E6 observados con el hook (§11.5, «Ventana 2, Bloque 2: resultados»); E4 sigue BLOQUEADO a la espera del proveedor; el retiro del hook está pendiente.
 5. **Implementación y cierre de PR-SEC-10** (exigir `TRUST_PROXY` en producción): sigue **BLOQUEADA** hasta tener E3, E4 y E6; ninguna evidencia local o de staging debe presentarse como cierre.
 
 **Qué NO está en el repositorio (hay que recrearlo o recuperarlo):**
@@ -804,6 +804,361 @@ Nota de verificación: mientras los archivos nuevos no estén en Git, 36 pruebas
 3. Comprobar: el archivo no existe en `main`; un pedido con la cabecera de sonda no genera ningún evento; las variables de `vetneb-api-stg` quedaron como en §11.5 (9 variables, `TRUST_PROXY` ausente).
 4. Registrar el acta sanitizada en este documento.
 5. Borrar la rama de diagnóstico (manual de Nico, §5.5/§5.9); con ella se retiran las realineaciones de M48 y 01B.
+
+#### Preparación del despliegue temporal del hook (2026-11-13; solo lectura, nada desplegado)
+
+Autorización: verificar, leer metadatos de Render y preparar el procedimiento. **No se desplegó, no se modificaron variables, ramas ni servicios y no se enviaron solicitudes de diagnóstico.** Las únicas acciones sobre la interfaz de Render fueron abrir y cancelar el diálogo «Deploy a specific commit» (se escribió el SHA para ver si lo resuelve; el botón de confirmación no se pulsó) y abrir y cancelar la edición de variables; después se comprobó que `vetneb-api-stg` sigue en el mismo deploy y con las mismas 9 variables.
+
+**Verificación del commit publicado**
+
+| Control | Resultado |
+|---|---|
+| `origin/diag/sec-10-proxy-observability` | `e6ef10792d28a8e81ee1f3730a0210ad84a699c9`, igual al `HEAD` local; adelanto/atraso 0/0; árbol de trabajo limpio; el árbol local es idéntico al remoto |
+| Padre y contenido | Padre `bc1b8339`; 8 archivos (+1.503/−14), exactamente los autorizados |
+| Firma | **SSH válida**: `Good "git" signature for vetneb29@gmail.com` con la clave ED25519 `SHA256:HsknQTlf…` (verificada con un archivo de firmantes temporal que solo contiene la clave pública; no se tocó la configuración de Git) |
+| Aislamiento de `main` | `origin/main` = `b9d88659…`; el commit **no** es ancestro de `main`; solo existe en la rama de diagnóstico; sin PR (`gh pr list --head` vacío) |
+| CI al publicar | La rama `diag/**` no está en los filtros de `push` de `backend-ci`; 0 ejecuciones de workflows sobre la rama; el único workflow de despliegue (`app-version-force-update`) es solo `workflow_dispatch` |
+
+**Cómo desplegar el commit solo en `vetneb-api-stg` (metadatos de Render)**
+
+- El menú «Manual Deploy» de `vetneb-api-stg` (`srv-dbr5u80u01pc73a9e4a0`) ofrece: *Deploy latest commit*, **Deploy a specific commit**, *Clear build cache & deploy* y *Restart service*.
+- El diálogo «Deploy a specific commit» declara: «Deploy your service at a specified commit **from any branch**». Escribiendo el SHA completo, Render lo **resuelve** y lista una fila `e6ef107 · test(security): add temporary proxy diagnostics for SEC-10`; el botón «Deploy commit» queda a la espera de la selección (no se pulsó).
+- Por lo tanto **no hace falta cambiar la rama vinculada** (`main`). El despliegue por commit específico no la modifica; el panel seguirá mostrando la rama `main` con el commit desplegado `e6ef107`. Un posterior «Deploy latest commit» vuelve a `main`.
+- Render documenta que desplegar un commit específico desde el panel **desactiva el auto-deploy** del servicio (ya está en Off) → verificar que sigue en Off después.
+- El editor de variables tiene como acción por defecto **«Save only»** (guarda sin desplegar) y un desplegable con otras opciones. Se usa siempre «Save only»: otras opciones podrían redesplegar y la documentación no dice qué commit usan.
+
+**Efecto de cambiar temporalmente la rama vinculada (evaluado, NO recomendado)**
+
+- La documentación oficial **no dice** si cambiar la rama dispara un deploy; con Auto-Deploy en Off lo esperable es que no, pero no está verificado.
+- Habría que cambiarla de vuelta y desplegar de nuevo; mientras tanto «Deploy latest commit» y cualquier reinicio con reconstrucción tomarían la rama experimental.
+- No aporta nada frente al despliegue por commit específico y añade dos modificaciones de configuración R3 y un estado intermedio ambiguo. **Decisión: no cambiar la rama.**
+
+**Efecto sobre staging del despliegue por commit específico**
+
+- Se reemplaza la instancia del backend (Free). Render declara redespliegue sin interrupción para todos los servicios sin disco; si el build falla, la instancia anterior sigue activa. Plan Free: arranque en frío de hasta ~50 s al volver a dormirse.
+- Se pierden los contadores de rate limit en memoria y se reinician los contadores del hook; el `preflight` corre otra vez (consulta, bucket ya existente, limpieza de sesiones con 0 filas). No hay migraciones ni cambios de datos.
+- `vetneb-web-stg` no cambia; sus pedidos por el rewrite pueden devolver 500 durante el reemplazo o el arranque en frío (ya observado).
+- Cada reinicio por inactividad crea un proceso nuevo: nueva sal de etiquetas, contador de eventos a 0 y un nuevo `PROXY_DIAG_ACTIVATED` en el log. Las comparaciones de etiquetas valen **solo dentro del mismo proceso** (entre dos `PROXY_DIAG_ACTIVATED`).
+
+**Condiciones exactas de activación (de `server/lib/proxy-diagnostics.ts`; sin consultar secretos)**
+
+Todas a la vez, evaluadas **una sola vez al arrancar el proceso** (las variables se leen al inicio: cambiarlas exige reiniciar/desplegar):
+
+| # | Condición | Valor exigido |
+|---|---|---|
+| 1 | `PROXY_DIAG_ENABLED` | exactamente `1` (si falta o es otro valor, el hook calla por completo) |
+| 2 | `RENDER` | `true` (variable de sistema) |
+| 3 | `RENDER_SERVICE_ID` | `srv-dbr5u80u01pc73a9e4a0` |
+| 4 | `RENDER_SERVICE_NAME` | `vetneb-api-stg` |
+| 5 | `RENDER_EXTERNAL_HOSTNAME` | `vetneb-api-stg.onrender.com` |
+| 6 | host de `PUBLIC_SITE_URL` | `vetneb-web-stg.onrender.com` (ya es así hoy) |
+| 7 | `PROXY_DIAG_RUN_ID` | `[a-z0-9-]{4,32}`, p. ej. `sec10-e3e6-20261113` |
+| 8 | `PROXY_DIAG_TOKEN` | `[A-Za-z0-9_-]{32,128}`, secreto |
+| 9 | `PROXY_DIAG_EXPIRES_AT` | ISO UTC con `Z`, futuro y a ≤ 4 h del arranque, p. ej. `2026-11-13T21:30:00Z` |
+
+`NODE_ENV` no interviene. Si fallan las condiciones con `PROXY_DIAG_ENABLED=1`, el log muestra un único `PROXY_DIAG_NOT_ACTIVATED` con un código de motivo (sin valores). Las señales de sistema (2 a 5) provienen de la documentación oficial de Render; **no está documentado** si una variable de usuario puede pisarlas, así que no se confía en ellas como única barrera (ver salvaguardas).
+
+**Salvaguardas contra el despliegue accidental en producción**
+
+| # | Comprobación objetiva | Cuándo |
+|---|---|---|
+| G1 | Los tres servicios productivos tienen rama `main` y commit `b9d8865` (verificado hoy: `portal-vetneb-backend-staging` `srv-d86p7jfavr4c73ebb6ug`, auto-deploy «After CI Checks Pass»; `portal-vetneb-frontend-staging` `srv-d86pc2mgvqtc73dugca0` y `PORTAL-VETNEB` `srv-d7p5d457vvec73buii70`, «On Commit»). Ninguno sigue la rama de diagnóstico: el push no los afecta | antes y después |
+| G2 | `git merge-base --is-ancestor e6ef1079… origin/main` es falso y `git branch -r --contains e6ef1079…` solo lista la rama de diagnóstico. **Nunca** abrir PR ni fusionar esa rama: los tres servicios de producción despliegan lo que llega a `main` | antes y después |
+| G3 | La URL de la pestaña de Render debe contener `srv-dbr5u80u01pc73a9e4a0` y la miga de pan debe mostrar `Staging › vetneb-api-stg` **antes** de pulsar «Deploy commit». Prohibido usar «Deploy a specific commit» o hooks de despliegue en cualquier otro servicio | durante |
+| G4 | No ejecutar `app-version-force-update` ni cambiar la rama vinculada de ningún servicio durante la ventana | durante |
+| G5 | Las variables `PROXY_DIAG_*` solo se crean en `vetneb-api-stg`; antes de empezar y al terminar, comprobar por **nombres** que no existen en los servicios productivos | antes y después |
+| G6 | Barrera de código: con valores de producción el hook no se registra (prueba PD-03 y mutante «sin comprobación de service id» detectado) | ya verificado |
+| G7 | Tras el despliegue: los tres servicios productivos siguen en `b9d8865`, `vetneb-web-stg` en `b9d8865`; `PROXY_DIAG_ACTIVATED` aparece **solo** en los logs de `vetneb-api-stg` | después |
+
+**Procedimiento R3 (cada fase con autorización expresa; no ejecutado)**
+
+*Fase A, precondiciones (solo lectura, sin autorización adicional salvo la de lectura de Render)*
+
+1. G1, G2 y G5. Línea base de `vetneb-api-stg`: Live en `b9d8865`, Auto-Deploy Off, rama `main`, 9 variables, `TRUST_PROXY` ausente.
+2. `git ls-remote origin refs/heads/diag/sec-10-proxy-observability` = `e6ef10792d28a8e81ee1f3730a0210ad84a699c9` y firma válida (comando de verificación con firmantes temporales).
+
+*Fase B, variables (R3: modificar variables de `vetneb-api-stg`)*
+
+3. Nico genera la credencial en su terminal y la guarda en el gestor de contraseñas (nunca en chat, repositorio ni capturas):
+
+```powershell
+$b = New-Object byte[] 36; [Security.Cryptography.RandomNumberGenerator]::Fill($b)
+$t = [Convert]::ToBase64String($b).Replace('+','-').Replace('/','_').TrimEnd('=')
+Set-Clipboard $t; Remove-Variable b,t
+```
+
+4. En Render → `vetneb-api-stg` → Environment → Edit, añadir `PROXY_DIAG_ENABLED=1`, `PROXY_DIAG_RUN_ID=sec10-e3e6-20261113`, `PROXY_DIAG_TOKEN` (Nico pega el valor) y `PROXY_DIAG_EXPIRES_AT` (valor de `(Get-Date).ToUniversalTime().AddHours(3).ToString("yyyy-MM-ddTHH:mm:ssZ")`). Guardar con **«Save only»**. Limpiar el portapapeles.
+5. Verificar por nombres: 13 variables, `TRUST_PROXY` ausente, el servicio sigue Live en `b9d8865` y **no apareció ningún deploy nuevo** en la pestaña Deploys.
+
+*Fase C, despliegue (R3: deploy de `vetneb-api-stg`)*
+
+6. G3. Manual Deploy → **Deploy a specific commit** → pegar el SHA completo → seleccionar la fila `e6ef107 … add temporary proxy diagnostics for SEC-10` → «Deploy commit».
+7. Esperar el deploy. Objetivos: origen del deploy `e6ef107`; log de build «Checking out commit e6ef1079…» y Node 24.22.1; build exitoso; «API listening»; estado Live. Una sola vez, sin reintentos automáticos: si el build falla, la instancia anterior sigue activa (documentado por Render); parar y reportar.
+
+*Fase D, verificación objetiva de activación (solo lectura de logs)*
+
+8. En los logs de `vetneb-api-stg` debe aparecer **una** línea `PROXY_DIAG_ACTIVATED` con `context.runId` = `sec10-e3e6-20261113`, `context.expiresAt` = el valor cargado y `context.maxEvents` = 300; y **ninguna** `PROXY_DIAG_NOT_ACTIVATED`. Si aparece esta última, el código de motivo dice qué señal falló (`service_id_mismatch`, `hostname_mismatch`, `bad_token`, `ttl_too_long`, etc.): no insistir; pasar a la Fase F.
+9. G7 y comprobar que Auto-Deploy sigue en Off.
+
+*Fase E, medición (autorización R3 propia; solicitudes GET solo a los dominios de staging)*
+
+10. Despertar el backend y **descartar** los eventos del arranque en frío. Enviar con la cabecera `X-Vetneb-Diag: <credencial>`, 3 repeticiones espaciadas (< 15 min entre pedidos para no dormir el servicio) de: M1 directo sin cabeceras; M2 directo con `X-Forwarded-For: 203.0.113.77`; M3 directo con `X-Forwarded-For: 198.51.100.9, 203.0.113.77`; M4 directo con `X-Real-IP: 203.0.113.5` y `Forwarded: for=203.0.113.6`; M5 a M8 igual pero por `https://vetneb-web-stg.onrender.com/api/health`. Controles negativos: M9 sin la cabecera y M10 con valor incorrecto → **no** deben producir eventos. Total ≤ 60 pedidos autorizados (tope del hook: 300).
+11. Registrar solo campos sanitizados de `PROXY_DIAGNOSTIC_OBSERVED` agrupados por `PROXY_DIAG_ACTIVATED` (mismo proceso): `routeTemplate`, `peer` (familia, clase, igualdad de etiqueta entre pedidos), `requestIp.equalsPeer`, `xff.lineCount`/`entryCount`/clases/`posFromRight`, `markers` y `otherHeaders`. Interpretación: E3 (clase y estabilidad del peer), E6 (forma de la cadena directa frente al rewrite y posición de los marcadores). **E4 sigue BLOQUEADO** aunque las clases sean estables: falta la confirmación del proveedor.
+
+*Fase F, retiro y rollback (R3; también se ejecuta ante cualquier fallo o al vencer la ventana)*
+
+12. Quitar las variables: Environment → Edit → eliminar las 4 `PROXY_DIAG_*` → «Save only».
+13. Desplegar `main`: Manual Deploy → **Deploy a specific commit** `b9d88659e0af24b651e7202bc550bb41462e786b` (o «Deploy latest commit» solo si `main` sigue en `b9d8865`). Objetivos: origen `b9d8865`; sin ninguna línea `PROXY_DIAG_*` posterior al nuevo arranque; 9 variables y `TRUST_PROXY` ausente; Auto-Deploy Off; rama `main`.
+14. Rollback rápido alternativo (si el despliegue falla o urge cerrar): en Deploys, «Rollback» al deploy `dep-dbr60ttckfvc73dafji0` (`b9d8865`). Reutiliza el artefacto, no reconstruye y **restaura las variables de ese deploy**, por lo que elimina el efecto de `PROXY_DIAG_*` de inmediato; igualmente se deben borrar las variables (paso 12). Depende de que el artefacto siga retenido (límite por plan, no documentado para Free).
+15. Kill-switch sin desplegar: las variables se leen al arrancar; eliminarlas no apaga un proceso en marcha. El apagado inmediato es «Restart service» (R3) tras quitar las variables, o esperar el vencimiento (≤ 4 h, y el hook solo actúa para pedidos con la credencial secreta).
+16. Acta sanitizada en este documento; descartar la credencial del gestor; el borrado de la rama de diagnóstico es manual de Nico.
+
+**Riesgos de la ventana:** reinicios por inactividad (nueva sal, contador a 0); la credencial atraviesa HTTPS, Cloudflare y el borde de Render; los eventos quedan en los logs de Render durante su retención (solo clases, conteos y etiquetas efímeras); si Render ofreciera una opción de guardado que redespliegue otro commit, el uso exclusivo de «Save only» lo evita.
+
+#### Resultado de las fases B y C: variables y despliegue temporal del hook (2026-11-13)
+
+Autorización R3: agregar exclusivamente cuatro variables `PROXY_DIAG_*` a `vetneb-api-stg` (`srv-dbr5u80u01pc73a9e4a0`, Staging) y ejecutar **un** despliegue del commit `e6ef10792d28a8e81ee1f3730a0210ad84a699c9` con «Deploy a specific commit». La credencial `PROXY_DIAG_TOKEN` la generó y la pegó Nico; **no fue vista, impresa, guardada ni transmitida** (solo se comprobó con booleanos que cumple el formato: 32 a 128 caracteres `[A-Za-z0-9_-]` y que no coincide con ninguna otra variable). Sin sondas HTTP, sin cambios de rama vinculada, sin tocar producción.
+
+**Fase B: variables**
+
+| Control | Resultado |
+|---|---|
+| Variables agregadas (solo estas 4) | `PROXY_DIAG_ENABLED=1`, `PROXY_DIAG_RUN_ID=sec10-e3e6-20261113`, `PROXY_DIAG_TOKEN` (secreta; no registrada), `PROXY_DIAG_EXPIRES_AT=2026-11-13T14:44:00Z` (≈ +3 h; al guardar quedaban 179 min; máximo permitido 4 h) |
+| Modo de guardado | **«Save only»** (aviso de Render: «Updated environment variables for this web service»); **no apareció ningún deploy** al guardar (2 deploys antes y después hasta el despliegue autorizado) |
+| Variables resultantes | **13** = las 9 originales (sin modificar) + las 4 nuevas |
+| `TRUST_PROXY` | **ausente**, antes y después |
+| Existencia exclusiva | Comprobado por **nombres**: `PROXY_DIAG_*` no existe en `vetneb-web-stg` (4 variables), `portal-vetneb-backend-staging`, `portal-vetneb-frontend-staging` ni `PORTAL-VETNEB` |
+
+**Fase C: precondiciones comprobadas antes de desplegar (8/8)**
+
+1. Servicio y entorno exactos: `vetneb-api-stg`, `srv-dbr5u80u01pc73a9e4a0`, miga de pan `Staging › vetneb-api-stg`, URL del diálogo con ese ID.
+2. `origin/diag/sec-10-proxy-observability` = `e6ef1079…`; firma SSH válida (`vetneb29@gmail.com`).
+3. `origin/main` = `b9d88659…` sin cambios; el commit no es ancestro de `main`.
+4. Producción intacta: los tres servicios productivos y `vetneb-web-stg` en rama `main`, commit `b9d8865`, Live.
+5. Las 4 variables presentes; 6. vencimiento válido con 177 min de ventana; 7. `TRUST_PROXY` ausente; 8. Auto-Deploy Off.
+
+**Fase C: despliegue y verificación**
+
+| Control | Resultado |
+|---|---|
+| Deploy | `dep-dbrfhmt9fdbs73e835lg`, «Manually deployed by you via Dashboard», 2026-11-13 08:47:39 (GMT-3), duración 1 m 26 s, **un único despliegue** |
+| Commit desplegado | `e6ef10792d28a8e81ee1f3730a0210ad84a699c9` (log: «Checking out commit e6ef1079… in branch main»: la etiqueta de rama es la rama vinculada, que **no se cambió**) |
+| Node / pnpm | Node **24.22.1** (`NODE_VERSION`); pnpm **v11.13.1** |
+| Build | **EXITOSO**; `esbuild` generó `dist/index.js` |
+| Arranque / health | `pnpm start`; «API listening»; «Your service is live»; estado **Deploy succeeded · Live** |
+| Activación del hook | **`PROXY_DIAG_ACTIVATED`** a las 2026-11-13T11:48:59.867Z con `runId` = `sec10-e3e6-20261113`, `expiresAt` = `2026-11-13T14:44:00.000Z`, `maxEvents` = **300**; **ninguna** línea `PROXY_DIAG_NOT_ACTIVATED` |
+| Estado posterior del servicio | Live en `e6ef107`; rama vinculada `main`; Auto-Deploy **Off**; 13 variables; `TRUST_PROXY` ausente |
+| Producción y `vetneb-web-stg` | Sin cambios: los tres servicios productivos siguen en `b9d8865`/Live con «Updated» sin variación (15 h); `vetneb-web-stg` en `b9d8865`/Live sin deploy nuevo |
+| Rollback | **No fue necesario** |
+
+**Estado de la ventana:** el hook está **activo hasta 2026-11-13T14:44:00Z** (≈ 2 h 55 min restantes tras la activación) o 300 eventos por proceso. Mientras tanto, **solo emite eventos ante pedidos con la cabecera `X-Vetneb-Diag` correcta**. Cada reinicio por inactividad crea un proceso nuevo (nueva sal, contador a 0, nuevo `PROXY_DIAG_ACTIVATED`).
+
+**Preparación para la campaña E3/E6 (Fase E; autorización propia):** backend desplegado y activo; faltan las sondas, la credencial de Nico (para la cabecera) y la autorización. Antes de medir, despertar el backend y descartar los pedidos en frío. Si la ventana vence antes de medir, o hay que repetir, se vuelve a la Fase F (retiro) y se repite B y C con un vencimiento nuevo. Retiro (Fase F) pendiente: quitar las 4 variables, desplegar `b9d88659…`, verificar y borrar la rama de diagnóstico (manual de Nico).
+
+#### Cancelación de la campaña y retiro del hook (2026-11-13)
+
+**Qué pasó con la campaña.** Tras verificar las precondiciones (hook activo con el commit y el run ID autorizados, `TRUST_PROXY` ausente, `vetneb-web-stg` aislado y producción sin cambios) se lanzó el script de campaña en el Terminal de Nico, que pide la credencial en un prompt sin eco. Nico no pudo recuperar el valor original de `PROXY_DIAG_TOKEN`; el valor introducido no cumplió el formato y el script terminó con «Formato de credencial inválido; no se envió ninguna solicitud». Después Nico canceló la campaña. **No se envió ninguna sonda ni ninguna solicitud de la campaña (0 de 60)**; no hay eventos `PROXY_DIAGNOSTIC_OBSERVED` y no existe archivo de resultados. La ventana venció a las **2026-11-13T14:44:00Z** sin mediciones. **E3, E4 y E6 siguen BLOQUEADOS, con el mismo estado que antes de la ventana.**
+
+**Retiro (autorizado como contingencia), ejecutado el 2026-11-13**
+
+| Control | Resultado |
+|---|---|
+| Variables | Eliminadas `PROXY_DIAG_ENABLED`, `PROXY_DIAG_EXPIRES_AT`, `PROXY_DIAG_RUN_ID` y `PROXY_DIAG_TOKEN` con **«Save only»** (sin deploy). Resultado: **9** variables (las originales), sin `PROXY_DIAG_*`, `TRUST_PROXY` **ausente** |
+| Restauración | Un único despliegue manual de `b9d88659e0af24b651e7202bc550bb41462e786b` («Deploy a specific commit»): `dep-dbril4jbc2fs73d6nteg`, 2026-11-13 12:19:46 (GMT-3), duración 1 m 43 s |
+| Build y arranque | «Checking out commit b9d88659… in branch main»; Node 24.22.1; pnpm v11.13.1; build exitoso; `pnpm start`; «API listening»; «Your service is live» |
+| Estado del servicio | **Deploy succeeded · Live** en `b9d8865`; rama vinculada `main`; Auto-Deploy **Off**; 9 variables; `TRUST_PROXY` ausente |
+| Hook inactivo | El código del hook no existe en `b9d88659`; el log del deploy de restauración **no contiene ninguna línea `PROXY_DIAG_*`** (ni `ACTIVATED` ni `NOT_ACTIVATED`) |
+| `vetneb-web-stg` | Sin cambios: `b9d8865`, rama `main`, Live, un único deploy |
+| Producción | Los tres servicios productivos sin cambios: `main`, `b9d8865`, Live, «Updated» sin variación (19 h) |
+| Git | La rama `diag/sec-10-proxy-observability` (`e6ef1079…`) **no se eliminó**; sin commit ni push en esta fase |
+| Terminal | La pestaña del script quedó abierta (la usó Nico); el proceso ya había terminado |
+
+Observación sobre el rollback: se eliminaron primero las variables y después se restauró el commit; el servicio permaneció Live en todo momento con la instancia anterior hasta que la nueva superó el health check. No se asumió que el despliegue restaurara variables: se verificaron por separado (9, sin `PROXY_DIAG_*`).
+
+**Aprendizajes para la próxima ventana:** (1) no abrir la ventana sin tener el token verificado y guardado; (2) el vencimiento corre desde la carga de variables, así que cualquier demora del operador lo consume; (3) verificar el token con una etapa «smoke» de 2 sondas antes de gastar el resto de las solicitudes.
+
+##### Procedimiento seguro para una nueva ventana E3/E6 (credencial nueva; no ejecutado)
+
+Cada fase con autorización R3 expresa. Se reutiliza lo ya documentado (preparación, fases B a F), con estas diferencias:
+
+*Precondiciones (antes de tocar Render)*
+
+1. Nico confirma que está presente durante **≥ 60 min** seguidos y que `vetneb-api-stg` está en `b9d8865` con 9 variables y `TRUST_PROXY` ausente (estado actual).
+2. **Credencial nueva, generada por Nico** en su PowerShell (no por el agente; nunca se reutiliza la anterior):
+
+```powershell
+$b = New-Object byte[] 36; [Security.Cryptography.RandomNumberGenerator]::Fill($b)
+$t = [Convert]::ToBase64String($b).Replace('+','-').Replace('/','_').TrimEnd('='); Set-Clipboard $t; Remove-Variable b,t
+```
+
+3. Nico la **guarda de inmediato en su gestor de contraseñas y verifica que puede recuperarla** (48 caracteres) antes de continuar. No la pega en chat, repositorio ni capturas.
+4. `PROXY_DIAG_RUN_ID` nuevo y único (p. ej. `sec10-e3e6-<fecha>-b`).
+
+*Fases B a D (como en el procedimiento documentado)*
+
+5. El agente prepara las filas `PROXY_DIAG_ENABLED=1`, `PROXY_DIAG_RUN_ID` y la clave `PROXY_DIAG_TOKEN` **vacía**; **Nico pega el valor** (desde el gestor o el portapapeles) en el campo de Render y confirma. El agente solo comprueba con booleanos el formato y que no coincide con otra variable. `PROXY_DIAG_EXPIRES_AT` = ahora + 3 h, escrito justo antes de guardar. Guardar con **«Save only»**; verificar 13 variables y que no apareció ningún deploy.
+6. Un único «Deploy a specific commit» de `e6ef10792d28a8e81ee1f3730a0210ad84a699c9`; verificar `PROXY_DIAG_ACTIVATED` (runId y expiresAt correctos, `maxEvents` 300) y ausencia de `PROXY_DIAG_NOT_ACTIVATED`.
+
+*Fase E: campaña con entrada oculta y compuerta*
+
+7. El agente abre una pestaña de Terminal con `node '<ruta del script>' --expires=<PROXY_DIAG_EXPIRES_AT>`. El script (fuera del repositorio, en el scratchpad de la sesión): **se niega a iniciar si faltan menos de 25 min de ventana** (comprobado también sin credencial: «Quedan N min… No se inicia la campaña», 0 solicitudes), pide la credencial con **prompt sin eco** (memoria del proceso; no usa argumentos de proceso, variables de entorno ni archivos; nunca la imprime) y valida el formato sin enviar nada si es inválido.
+8. Calentamiento sin cabecera de sonda (máx. 4 intentos por servicio; los errores de arranque en frío se distinguen del resultado).
+9. **Smoke (2 sondas):** una directa y una por el rewrite. El script se **detiene** y el agente comprueba en los logs que aparecen **dos** `PROXY_DIAGNOSTIC_OBSERVED`. Interpretación: ningún evento → credencial incorrecta o hook inactivo (se aborta la campaña, 2 solicitudes gastadas); evento solo en la ruta directa → el rewrite no reenvía la cabecera (resultado en sí mismo: se documenta y se decide si continúa); dos eventos → el agente crea el archivo de compuerta `go` y el script continúa. Sin `go` en 15 min el script termina.
+10. Rondas (3 × 10 solicitudes, separadas 4 min, mismos escenarios S1–S8 y controles negativos N1/N2): total ≤ 60 (calentamiento ≤ 8 + smoke 2 + 30). Solo GET a los dominios de staging; sin POST.
+11. El agente lee los eventos (solo campos sanitizados), agrupa por proceso (`PROXY_DIAG_ACTIVATED`), descarta el arranque en frío y documenta E3/E6; **E4 sigue BLOQUEADO** sin la confirmación del proveedor.
+
+*Fase F: retiro (igual que arriba)*
+
+12. Quitar las 4 variables (Save only), desplegar `b9d88659…`, verificar Live, ausencia de `PROXY_DIAG_*` y producción y `vetneb-web-stg` intactos. Descartar la credencial del gestor. Borrar la rama de diagnóstico es manual de Nico.
+
+*Presupuesto de tiempo estimado:* B a D ≈ 10 min; E ≈ 15 min (incluye 2 pausas de 4 min); F ≈ 8 min; total ≈ 35 min dentro de una ventana de 3 h.
+
+##### Preparación de la ventana 2 (2026-11-13; solo lectura y formulario sin guardar)
+
+Autorización: verificar precondiciones y preparar el formulario de Render **sin guardar**. **No se guardó ninguna variable, no se desplegó y no se envió ninguna solicitud.** Nico ya generó una credencial **nueva**, la guardó en su gestor y comprobó que puede recuperarla; el agente no la conoce.
+
+| Precondición | Resultado (2026-11-13, tras el retiro) |
+|---|---|
+| `vetneb-api-stg` | Live en `b9d8865`, rama `main`, Auto-Deploy Off, **9** variables, sin `PROXY_DIAG_*`, `TRUST_PROXY` ausente; 4 deploys en total (el primero fallido, 3 manuales) y ninguno nuevo |
+| Commit del hook | `origin/diag/sec-10-proxy-observability` = `e6ef1079…`, firma SSH válida, no es ancestro de `main` (`b9d88659…`) |
+| Producción y `vetneb-web-stg` | Sin cambios (producción «Updated» hace 19 h; `vetneb-web-stg` en `b9d8865`) |
+| Script de campaña | Sintaxis válida; se niega a iniciar con ventana vencida o sin `--expires` (0 solicitudes); sin archivos residuales de compuerta ni resultados |
+| Lectura de eventos | Verificado que el listado de logs de Render es legible con `read_page` sobre la lista de logs (la página de logs bloquea la lectura por script por llevar parámetros en la URL; la página de un deploy solo muestra la ventana de ese deploy, por eso **se usa la pestaña «Logs» y su buscador**) |
+| Formulario de Render (sin guardar) | En modo edición de `vetneb-api-stg → Environment`: 4 filas nuevas `PROXY_DIAG_ENABLED=1`, `PROXY_DIAG_RUN_ID=sec10-e3e6-20261113-b`, `PROXY_DIAG_TOKEN` (valor vacío) y `PROXY_DIAG_EXPIRES_AT` (valor vacío); las 9 originales sin tocar. **La pestaña debe permanecer abierta**: si se recarga o se cierra, el formulario se pierde y se rearma (no hay efectos en Render) |
+
+**Operaciones exactas de la ventana 2 (cada bloque con autorización R3 expresa)**
+
+*Bloque 1: variables y despliegue (Fases B a D)*
+
+1. **Nico**: copia la credencial desde su gestor al portapapeles.
+2. **Agente (Chrome)**: en la pestaña preparada, **Nico pega** el valor en el campo de valor de la fila `PROXY_DIAG_TOKEN` (no pulsar «Generate») y confirma.
+3. **Agente**: comprueba con booleanos formato `[A-Za-z0-9_-]{32,128}`, que no coincide con otra variable y que `RUN_ID` es `sec10-e3e6-20261113-b`; escribe `PROXY_DIAG_EXPIRES_AT` = hora UTC actual + 3 h (`date -u -d '+3 hours' +%Y-%m-%dT%H:%M:00Z`) justo antes de guardar; **«Save only»**. Verifica por nombres: 13 variables, `TRUST_PROXY` ausente, **ningún deploy nuevo**, `PROXY_DIAG_*` solo en `vetneb-api-stg` (también en `vetneb-web-stg` y en los tres productivos).
+4. **Agente**: verifica las 8 precondiciones de la Fase C (servicio y entorno exactos, commit remoto y firma, `main` sin cambios, producción intacta, 4 variables, vencimiento con ≥ 90 min de ventana, `TRUST_PROXY` ausente, Auto-Deploy Off) y ejecuta **un** «Deploy a specific commit» con `e6ef10792d28a8e81ee1f3730a0210ad84a699c9` (sin cambiar la rama vinculada).
+5. **Agente**: verifica build, Node, pnpm, commit, «Your service is live» y `PROXY_DIAG_ACTIVATED` con `runId` = `sec10-e3e6-20261113-b`, el `expiresAt` cargado y `maxEvents` 300; ninguna `PROXY_DIAG_NOT_ACTIVATED`.
+
+*Bloque 2: validación con dos sondas y campaña (Fase E)*
+
+6. **Agente**: abre una pestaña de Terminal y ejecuta `node '<scratchpad>\e3e6_campaign.mjs' --expires=<PROXY_DIAG_EXPIRES_AT>` (literal con el valor cargado). El script rechaza iniciar con < 25 min de ventana.
+7. **Nico**: pega la credencial en el prompt sin eco del Terminal y Enter (mismo valor que en Render). Si el formato es inválido el script termina con 0 solicitudes.
+8. El script calienta ambos servicios sin cabecera de sonda (máx. 4 intentos por servicio; los errores de arranque en frío se distinguen del resultado) y envía **2 sondas**: SMOKE directo y SMOKE por el rewrite, sin cabeceras IP. Se **detiene** esperando la compuerta.
+9. **Agente**: en la pestaña «Logs» de `vetneb-api-stg` escribe `PROXY_DIAGNOSTIC_OBSERVED` en el buscador y lee la lista con `read_page`. Criterio: **dos eventos** con `runId` correcto y `routeTemplate` `/api/health`, uno por ruta.
+   - Dos eventos → crea la compuerta: `printf go > '<scratchpad>/e3e6_go.flag'` y el script continúa.
+   - Cero eventos → credencial incorrecta o hook inactivo: `printf abort > '<scratchpad>/e3e6_go.flag'`, se detiene la campaña (2 solicitudes gastadas) y se pasa al Bloque 3.
+   - Evento solo por la ruta directa → el rewrite no reenvía la cabecera de sonda: se documenta como resultado, se decide si se continúa solo con la ruta directa y se pasa al Bloque 3 si no.
+10. **Script**: 3 rondas × (S1 a S8 + N1 + N2) separadas 4 min, solo GET a staging. **Total ≤ 60** (calentamiento ≤ 8 + smoke 2 + 30 = ≤ 40 previstas). Sin POST ni escrituras.
+11. **Agente**: lee los eventos (solo campos sanitizados), los agrupa por proceso (cada `PROXY_DIAG_ACTIVATED` inicia un grupo), descarta el arranque en frío y los cruza con el resultado sanitizado del script (hora de envío y estado); documenta E3, E6 y los datos útiles para E4 (**E4 sigue BLOQUEADO** sin la confirmación del proveedor).
+
+*Bloque 3: retiro (Fase F), siempre al terminar o ante cualquier fallo*
+
+12. **Agente**: elimina las 4 variables `PROXY_DIAG_*` con «Save only»; despliega `b9d88659e0af24b651e7202bc550bb41462e786b` con «Deploy a specific commit»; verifica Live, 9 variables, ausencia de `PROXY_DIAG_*` en el log, Auto-Deploy Off, `TRUST_PROXY` ausente, y producción y `vetneb-web-stg` intactos.
+13. **Nico**: descarta la credencial de su gestor; la rama `diag/sec-10-proxy-observability` solo se borra de forma manual y por decisión suya.
+
+*Tiempos estimados:* Bloque 1 ≈ 10 min; Bloque 2 ≈ 15 a 20 min; Bloque 3 ≈ 8 min; ≈ 40 min dentro de una ventana de 3 h.
+
+##### Ventana 2, Bloque 1: resultado (2026-11-13)
+
+Autorización R3: cargar las cuatro variables `PROXY_DIAG_*` en `vetneb-api-stg` (`srv-dbr5u80u01pc73a9e4a0`, Staging) y ejecutar **un** «Deploy a specific commit» de `e6ef10792d28a8e81ee1f3730a0210ad84a699c9`. El token nuevo lo generó y lo pegó Nico en el formulario de Render; **el agente no lo leyó, imprimió, guardó ni transmitió** (solo booleanos de formato; no se tomaron capturas del formulario mientras el valor estuvo presente). **No se ejecutó ninguna sonda y no se envió ninguna solicitud a los servicios**; el Bloque 2 requiere autorización independiente.
+
+| Control | Resultado |
+|---|---|
+| Formulario | Se conservó el armado en la sesión anterior (13 filas); `PROXY_DIAG_ENABLED=1`, `PROXY_DIAG_RUN_ID=sec10-e3e6-20261113-b` |
+| Token | Pegado por Nico; validado solo con booleanos: formato `[A-Za-z0-9_-]{32,128}` correcto y distinto de las demás variables |
+| Vencimiento | `PROXY_DIAG_EXPIRES_AT=2026-11-13T18:33:00Z` (escrito a las 15:33 UTC, ≈ +3 h; 179 min de ventana al guardar; máximo permitido 4 h) |
+| Variables | **«Save only»**; resultado verificado tras recargar: **13** = las 9 originales intactas + las 4 `PROXY_DIAG_*`; `TRUST_PROXY` **ausente** |
+| Al guardar | **Ningún deploy** (4 deploys antes y después, hasta el despliegue autorizado) |
+| Exclusividad | `PROXY_DIAG_*` no existe (por nombres) en `vetneb-web-stg` ni en los tres servicios productivos |
+| Precondiciones de la Fase C (8/8) | Servicio y entorno exactos (diálogo de `vetneb-api-stg`, `Staging`); `origin/diag/sec-10-proxy-observability` = `e6ef1079…` con firma SSH válida; `main` = `b9d88659…` sin cambios y sin el commit; producción y `vetneb-web-stg` en `main`/`b9d8865`/Live; 4 variables presentes; 178 min de ventana; `TRUST_PROXY` ausente; Auto-Deploy Off |
+| Despliegue | `dep-dbrisu0u01pc73bd0tsg`, «Manually deployed by you via Dashboard», 2026-11-13 12:36:25 (GMT-3) = 15:36:25 UTC, duración 1 m 30 s; **un único despliegue** |
+| Commit y rama | `e6ef10792d28a8e81ee1f3730a0210ad84a699c9` (log: «Checking out commit … in branch main»); rama vinculada **sin cambios** (`main`) |
+| Build y arranque | Node 24.22.1; pnpm v11.13.1; build exitoso; «API listening»; «Your service is live»; **Deploy succeeded · Live** |
+| Hook | **`PROXY_DIAG_ACTIVATED`** (2026-11-13T15:37:49Z) con `runId` = `sec10-e3e6-20261113-b`, `expiresAt` = `2026-11-13T18:33:00.000Z`, `maxEvents` = **300**; **sin** `PROXY_DIAG_NOT_ACTIVATED` |
+| Estado posterior | Live en `e6ef107`, rama `main`, Auto-Deploy **Off**, 13 variables, `TRUST_PROXY` ausente |
+| Producción y `vetneb-web-stg` | Sin cambios: los tres productivos «Updated» hace 19 h; `vetneb-web-stg` en `b9d8865`/Live (5 h) |
+| Rollback | **No necesario** |
+| Git | Sin commit ni push; rama `diag/sec-10-proxy-observability` en `e6ef1079…` igual al remoto |
+
+**Ventana:** el hook está activo hasta **2026-11-13T18:33:00Z** (≈ 174 min restantes a las 15:39 UTC) o 300 eventos por proceso. Solo emite eventos ante pedidos con la cabecera `X-Vetneb-Diag` correcta. **Pendiente: Bloque 2** (dos sondas de validación con comprobación de eventos en los logs, compuerta y campaña completa) y **Bloque 3** (retiro).
+
+##### Ventana 2, Bloque 2: resultados E3/E6 (2026-11-13)
+
+Autorización R3: dos sondas de validación y, solo si ambas eran satisfactorias, la campaña completa, con GET exclusivamente a `vetneb-api-stg` y `vetneb-web-stg`, máximo 60 solicitudes. Nico pegó el token en un prompt sin eco de su Terminal (el agente nunca lo vio; se usó solo en memoria del script). Cero solicitudes a producción, cero POST, sin cambios de variables, ramas ni servicios, sin deploys durante la campaña. Las direcciones usadas como marcadores son las de documentación (`C1`=`203.0.113.77`, `C2`=`198.51.100.9`, `C3`=`203.0.113.5`, `C4`=`203.0.113.6`); **este documento no contiene ninguna IP real ni valores de etiquetas**.
+
+**Ejecución**
+
+| Dato | Resultado |
+|---|---|
+| Solicitudes totales | **34** de 60 (todas GET, todas 200): 2 de calentamiento, 2 de validación y 30 de campaña (3 rondas × 8 escenarios + 2 controles negativos) |
+| Arranque en frío | Solo el calentamiento del frontend (63 s), **descartado**; resto ≤ 667 ms; 0 errores |
+| Sondas de validación | **Ambas OK**: una directa y otra por el rewrite produjeron un `PROXY_DIAGNOSTIC_OBSERVED` cada una (`runId` `sec10-e3e6-20261113-b`, `routeTemplate` `/api/health`); el agente liberó la compuerta |
+| Eventos del hook | **26** `PROXY_DIAGNOSTIC_OBSERVED` (2 de validación + 24 de escenarios: 13 por ruta directa y 13 por rewrite) y 1 `PROXY_DIAG_ACTIVATED`; **un único proceso** (sin reinicios) de 15:44:42 a 15:55:14 UTC |
+| Controles negativos | 6 solicitudes (3 con marcadores y sin credencial, 3 con credencial incorrecta por el rewrite): **0 eventos**; el número de eventos coincide exactamente con las sondas autorizadas |
+| `TRUST_PROXY` | Ausente durante toda la medición (`trustProxyConfigured: false` en 26/26) |
+
+**Evidencia runtime sanitizada (26 eventos)**
+
+| Observación | Directa (13 eventos) | Rewrite de Next (13 eventos) |
+|---|---|---|
+| Peer inmediato de Fastify | IPv4, clase **loopback**, **misma etiqueta** en todos | idéntico: IPv4, **loopback**, misma etiqueta |
+| `request.ip` | = peer (loopback) en 13/13, también con XFF aportado por el cliente | = peer en 13/13 |
+| Entradas de `X-Forwarded-For` (1 línea siempre) | **3** sin cabeceras del cliente: [cliente público, salto público variable, salto privado variable] | **6**: [cliente, borde público, salto privado, **dirección pública constante**, borde público, salto privado] |
+| Posición del cliente real (misma etiqueta en 26/26 cadenas) | fija: `posFromRight` = **2** | fija: `posFromRight` = **5** |
+| XFF aportado por el cliente (`C1`; `C2, C1`) | **preservado a la izquierda**; la plataforma **agrega** a la derecha (4 y 5 entradas); 6/6 | idéntico (7 y 8 entradas); 6/6 |
+| `X-Real-IP` (`C3`) enviado 3 veces | **0/3 llegaron** | **0/3 llegaron** |
+| `Forwarded` (`for=C4`) enviado 3 veces | 3/3 llegaron **sin modificar** (1 línea, 1 `for`, `C4`) | 3/3 llegaron sin modificar |
+| `CF-Connecting-IP` / `True-Client-IP` | presentes 13/13 (solo presencia) | presentes 13/13 |
+| `X-Forwarded-Proto` / `X-Forwarded-Host` | `https` / ausente | `https` / presente |
+| Variabilidad de los saltos | salto público: 6 valores distintos en 13 eventos; salto privado: 3 valores distintos | borde público: 5 valores distintos; la dirección pública de la 4.ª posición es **la misma en 13/13** |
+
+**Observaciones, inferencias y puntos no resueltos**
+
+*Observado (medición directa):* todo lo de la tabla anterior.
+
+*Inferido (no medido):* que el salto público variable es el borde de Cloudflare y el salto privado es la capa interna de Render (consistente con la topología DNS de §5); que la dirección pública constante de la ruta rewrite es la salida del servidor Next (el rewrite vuelve a entrar por el nombre público del backend, de ahí la segunda pasada por borde y salto privado); que el peer loopback es el proxy local de Render; que producción (plan Starter) se comporta igual (no se tocó ni se midió).
+
+*No resuelto:* el rango real de cada salto (solo se ven clases y etiquetas efímeras); si los valores de `CF-Connecting-IP`/`True-Client-IP` coinciden con el cliente y si un cliente podría fijarlos; comportamiento tras reinicios, con varias instancias o con clientes IPv6 (el cliente observado fue IPv4); y la posibilidad de que otros servicios del espacio de trabajo alcancen el backend por la red privada saltándose el borde.
+
+**Matriz E3 / E4 / E6**
+
+| Control | Estado | Resultado |
+|---|---|---|
+| E3 — peer inmediato | **PASSED** (objetivo de observación cumplido) | Fastify ve como peer una dirección **IPv4 de loopback**, estable durante ~10 min en un proceso, y la misma por la ruta directa y por el rewrite. Alcance: una instancia Free y un proceso; la dirección exacta dentro de 127/8 no se registra (solo la clase) |
+| E6 — cadena `X-Forwarded-For` | **PASSED** (objetivo de observación cumplido) | La plataforma **agrega** al XFF del cliente (no lo sobrescribe): lo que el cliente manda queda a la izquierda e intacto; el cliente real ocupa una posición fija contando desde la derecha (2 directa, 5 rewrite); `X-Real-IP` se descarta; `Forwarded` pasa sin cambios |
+| E4 — rangos confiables | **BLOQUEADO** | Los datos describen el *tipo* de cada salto, no sus rangos. No se declara ningún CIDR. Falta la confirmación del proveedor (rango del salto privado, direcciones de salida del servicio web) y verificar los rangos publicados de Cloudflare |
+
+**Diferencia entre ruta directa y rewrite:** peer y `request.ip` idénticos (loopback); el rewrite agrega **tres entradas** a la cadena (salida del servidor Next y una segunda pasada por borde y salto privado), desplaza al cliente real de la posición 2 a la 5 contando desde la derecha y añade `X-Forwarded-Host`. El `X-Real-IP` y el `Forwarded` se comportan igual en ambas.
+
+**Riesgo de spoofing (observado):**
+- **Hoy (con `TRUST_PROXY` ausente):** ninguno sobre `request.ip` (26/26 = loopback, incluidos los 12 eventos con XFF falsificado).
+- **Cualquier lógica que tome la entrada más a la izquierda del XFF es suplantable**: el cliente controla las entradas de la izquierda en 12/12 solicitudes falsificadas (directas y por rewrite).
+- Con la regla de Fastify (resolver de derecha a izquierda hasta la primera dirección no confiable) y una lista de confianza **completa**, las entradas falsificadas quedan a la izquierda de la primera no confiable y se ignoran; una lista **incompleta** no abre suplantación, pero deja `request.ip` en un salto intermedio compartido.
+
+**Consecuencias para `request.ip` y los rate limits (observadas):** con `TRUST_PROXY` ausente, **todas** las solicitudes (cliente directo, ruta rewrite y cualquier otro cliente) producen la misma clave: loopback, 26/26. Eso confirma en runtime la colisión de buckets de todos los limitadores que usan `request.ip` (login, contacto, acceso público a informes, profesionales) y que la auditoría registraría esa dirección en vez de la del cliente. Una lista parcial, por ejemplo solo loopback, haría que `request.ip` fuera la entrada más a la derecha: el salto privado, que varió entre 3 valores en 13 eventos, es decir buckets fragmentados al azar y todavía compartidos.
+
+**Conclusión técnica para implementar SEC-10**
+
+1. Fastify 5.12.1 solo admite listas de IP/CIDR (no cuenta saltos). Para resolver al cliente real hay que confiar a la vez en: el peer **loopback**; el **rango del salto privado de Render**; los **rangos de borde de Cloudflare**; y, para la ruta del rewrite, la **dirección de salida del servicio frontend**. Falta de cualquiera de ellos deja `request.ip` en un salto compartido.
+2. Los rangos de Cloudflare son públicos y los publica Cloudflare; el rango privado de Render y las direcciones de salida del frontend **no se pueden deducir de estas observaciones**: requieren la confirmación del proveedor (E4).
+3. Decisión de arquitectura abierta: confiar en la dirección de salida del frontend o evitar la segunda pasada del rewrite (p. ej. llamar al backend por la red privada), lo que cambiaría la topología y sería otro PR.
+4. Antes de fijar la lista en producción conviene **validarla en staging con este mismo hook** (una ventana corta con `TRUST_PROXY` candidato): comprobar que `requestIp` pasa a ser la etiqueta del cliente (no la de loopback ni la de un salto) por ambas rutas y que las entradas falsificadas se ignoran. PR-SEC-10 (exigir `TRUST_PROXY` en producción, fail-closed) puede prepararse en paralelo, pero **no se cierra** sin E4.
+
+**Estado final del diagnóstico:** el hook sigue **activo** en `vetneb-api-stg` (deploy `dep-dbrisu0u01pc73bd0tsg`, commit `e6ef1079…`) hasta **2026-11-13T18:33:00Z** (≈ 154 min a las 15:58 UTC); no se envía ninguna otra solicitud. Servicios: `vetneb-api-stg` Live en `e6ef107`, rama `main`, Auto-Deploy Off; `vetneb-web-stg` y los tres productivos sin cambios (`b9d8865`, Live). La pestaña de Terminal del script quedó abierta (la usó Nico); el proceso terminó. **Pendiente: Bloque 3** (retirar las 4 variables y restaurar `b9d88659`; descartar la credencial).
+
+##### Ventana 2, Bloque 3: retiro del hook (2026-11-13)
+
+Autorización R3: retirar las cuatro variables y restaurar el commit operativo en `vetneb-api-stg` (`srv-dbr5u80u01pc73a9e4a0`, Staging). Sin sondas, sin tocar producción, `TRUST_PROXY`, Supabase, Cloudflare, DNS, GitHub, la rama vinculada ni Auto-Deploy; sin commit ni push; la rama de diagnóstico **no se eliminó**. No se leyó ni mostró ningún valor de variable.
+
+| Control | Resultado |
+|---|---|
+| Variables | Eliminadas `PROXY_DIAG_ENABLED`, `PROXY_DIAG_RUN_ID`, `PROXY_DIAG_TOKEN` y `PROXY_DIAG_EXPIRES_AT` con **«Save only»** (sin deploy); verificado tras recargar: **9** variables (las originales, todas presentes), **0** `PROXY_DIAG_*`, `TRUST_PROXY` **ausente** |
+| Restauración | Un único «Deploy a specific commit» de `b9d88659e0af24b651e7202bc550bb41462e786b`: **`dep-dbrja815efls73apdrr0`**, 2026-11-13 13:04:49 (GMT-3) = 16:04:49 UTC, 1 m 32 s |
+| Build y arranque | «Checking out commit b9d88659…»; Node 24.22.1; pnpm v11.13.1; build exitoso; `pnpm start`; «API listening»; «Your service is live» |
+| Estado final | **Deploy succeeded · Live** en `b9d8865`, rama vinculada `main`, Auto-Deploy **Off** |
+| Código experimental | No desplegado: el commit `b9d88659` no contiene `proxy-diagnostics.ts`; el log del deploy no tiene ninguna línea `PROXY_DIAG_*` |
+| `vetneb-web-stg` | Sin cambios: `b9d8865`, `main`, Live, un único deploy |
+| Producción | Los tres servicios sin cambios: `main`, `b9d8865`, Live, «Updated» hace 20 h |
+| Evidencia conservada | E3 y E6 observados y documentados arriba (Bloque 2); **E4 BLOQUEADO** (confirmación del proveedor) |
+
+**Pendiente (fuera de este alcance, a cargo de Nico):** descartar la credencial `PROXY_DIAG_TOKEN` del gestor de contraseñas; la rama `diag/sec-10-proxy-observability` se conserva (su borrado es manual); los cambios documentales de esta rama siguen sin commit.
 
 #### Resultado de los pasos 1 a 3 (ejecutados 2026-11-12, Chrome autenticado de Nico)
 
