@@ -94,7 +94,12 @@ test("navbar exposes home login and access CTAs with VETNEB brand", () => {
 
   assert.ok(source.includes("href={ROUTES.home}"));
   assert.match(source, /<PublicRouteControl\s+href=\{ROUTES\.home\}\s+variant="bare"\s+className=/);
-  assert.ok(source.includes("Patología veterinaria"));
+  assert.equal(source.includes("Patología veterinaria"), false);
+  assert.match(
+    source,
+    /link\.href === ROUTES\.clinicas && \(\s*<PublicRouteControl\s+href=\{ROUTES\.home\}\s+variant="bare"/,
+  );
+  assert.equal((source.match(/href=\{ROUTES\.home\}/g) ?? []).length, 1);
   assert.ok(source.includes("rounded-md bg-primary px-3"));
   assert.ok(source.includes("font-bold text-primary-foreground"));
   assert.ok(source.includes("VETNEB"));
