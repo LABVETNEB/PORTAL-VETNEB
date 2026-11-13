@@ -2,7 +2,7 @@
 
 Estado base: `b9d88659` (`origin/main`, EV-01 #2001). Scope: **docs-only** (diseño). Riesgo del documento: R1. Toda operación sobre Render, Supabase, DNS o Cloudflare que describe es **R3** y **no está autorizada** por este documento. No se creó infraestructura, no se tocó producción, no hay cambios de código.
 
-Revisión 10: build corregido y redeploy exitoso; `vetneb-api-stg` Live (arranque, preflight y bucket privado de staging verificados). Revisión 9: `vetneb-api-stg` creado en Staging; primer deploy fallido en el build por `corepack enable` (EROFS), sin tocar bases; corrección propuesta pendiente de autorización. Revisión 8: entorno Render «Staging» creado (vacío) y variables del frontend público (nombres); región Ohio. Revisión 7: administrador sintético creado (§11.4) y procedimiento de Render staging (§11.5). Revisión 6: esquema migrado en staging y verificado (§11.2); precondiciones del administrador y de Render (§11.3). Revisión 5: Supabase staging creado y verificado (§11.1, «Resultado de la ejecución»). Revisión 4: decisión definitiva — organización `LABVETNEB-STAGING` y proyecto `vetneb-staging` (§4A, §11.1); el límite de 2 proyectos Free es global. Revisión 3: cierra la capacidad de Supabase (§4A). Revisión 2: incorpora la lectura de código del alta de cuentas, la evidencia de DNS público, el procedimiento de migración seguro y los costos verificados. **Corrige la revisión 1**: `portal-vetneb-frontend-staging` es el frontend de **producción** (§1).
+Revisión 14: hook de diagnóstico implementado y verificado **solo en local** en la rama `diag/sec-10-proxy-observability` (§11.5, «Implementación local del hook»); sin commit, sin push, sin despliegue; E3, E4 y E6 siguen sin evidencia runtime. Revisión 13: diagnóstico E3/E6 con la observabilidad existente (§11.5, «Diagnóstico E3/E6»): hay colisión comprobada de buckets y XFF sin efecto con `TRUST_PROXY` ausente; el valor del peer y la forma de la cadena XFF no son observables sin instrumentación; hook mínimo diseñado, no implementado. Revisión 12: auditoría de aislamiento I1, I2, I4, I5, I7 (PASSED) e I8 (Render PASSED; secrets de GitHub BLOCKED) sobre ambos servicios staging (§11.5, «Auditoría de aislamiento»). Revisión 11: `vetneb-web-stg` creado en Staging y Live (§11.5, «Resultado de la creación de `vetneb-web-stg`»); sin solicitudes HTTP a la aplicación. Revisión 10: build corregido y redeploy exitoso; `vetneb-api-stg` Live (arranque, preflight y bucket privado de staging verificados). Revisión 9: `vetneb-api-stg` creado en Staging; primer deploy fallido en el build por `corepack enable` (EROFS), sin tocar bases; corrección propuesta pendiente de autorización. Revisión 8: entorno Render «Staging» creado (vacío) y variables del frontend público (nombres); región Ohio. Revisión 7: administrador sintético creado (§11.4) y procedimiento de Render staging (§11.5). Revisión 6: esquema migrado en staging y verificado (§11.2); precondiciones del administrador y de Render (§11.3). Revisión 5: Supabase staging creado y verificado (§11.1, «Resultado de la ejecución»). Revisión 4: decisión definitiva — organización `LABVETNEB-STAGING` y proyecto `vetneb-staging` (§4A, §11.1); el límite de 2 proyectos Free es global. Revisión 3: cierra la capacidad de Supabase (§4A). Revisión 2: incorpora la lectura de código del alta de cuentas, la evidencia de DNS público, el procedimiento de migración seguro y los costos verificados. **Corrige la revisión 1**: `portal-vetneb-frontend-staging` es el frontend de **producción** (§1).
 
 ## 0. HANDOFF entre ordenadores (estado al 2026-11-12)
 
@@ -20,15 +20,16 @@ Para retomar el trabajo en otra máquina: leer `AGENTS.md`, este documento compl
 | Deploy exitoso | `dep-dbr60ttckfvc73dafji0`, commit desplegado **`b9d88659`** |
 | Runtime | Node **24.22.1** (`NODE_VERSION`), pnpm **11.13.1**; build `pnpm install --frozen-lockfile && pnpm build`; start `pnpm start`; health `/health` |
 | Build y arranque | Satisfactorios; preflight completado (limpiezas con 0 filas); bucket privado `reports` creado en Supabase staging |
+| Frontend `vetneb-web-stg`, servicio `srv-dbre2i6i0phs73fjapig` | **Live** en `https://vetneb-web-stg.onrender.com` (URL igual a la prevista); Free, Ohio, Auto-Deploy Off; deploy `dep-dbre2imi0phs73fjar2g`, commit **`b9d88659`**, Node **24.22.1**. **No volver a crearlo** (§11.5) |
 
 **ADVERTENCIA — los nombres engañan:** los servicios existentes `portal-vetneb-backend-staging` (atiende `api.vetneb.com.ar`) y `portal-vetneb-frontend-staging` (atiende `www.vetneb.com.ar`) son **PRODUCCIÓN**. `PORTAL-VETNEB` (Free) es un backend que comparte base y proyecto Supabase con producción. Ninguno puede usarse, modificarse ni probarse como staging. El staging real son únicamente `vetneb-api-stg` (y el futuro `vetneb-web-stg`) más el proyecto Supabase `vetneb-staging`.
 
 **Pendiente (cada punto requiere autorización R3 expresa de Nico; ver §11.5 y §12):**
 
-1. Crear el frontend `vetneb-web-stg` en el entorno Staging (con `NEXT_PUBLIC_API_URL=https://vetneb-api-stg.onrender.com`; sin `corepack enable`; ver §11.5). Si su URL real difiere de `https://vetneb-web-stg.onrender.com`, corregir `CORS_ORIGIN` y `PUBLIC_SITE_URL` del backend.
-2. Verificaciones de aislamiento I1–I8 (§9) y comparación de referencias entre servicios.
+1. ~~Crear el frontend `vetneb-web-stg`~~ **HECHO** (§11.5): URL real = prevista, `CORS_ORIGIN` y `PUBLIC_SITE_URL` del backend no requieren cambio.
+2. ~~Verificaciones de aislamiento~~ **HECHO parcialmente** (§11.5, «Auditoría de aislamiento»): I1, I2, I4, I5, I7 PASSED; I8 con la parte de GitHub BLOQUEADA; I3 e I6 NOT_RUN.
 3. Prueba de login de `stg-admin` por HTTP y smoke público; alta de clínicas y accesos sintéticos por la API de staging.
-4. Campaña **E3 / E4 / E6** con instrumentación temporal de diagnóstico (§10).
+4. Campaña **E3 / E4 / E6** con instrumentación temporal de diagnóstico (§10). **Parcial** (§11.5, «Diagnóstico E3/E6»): con la observabilidad existente solo se probó igualdad de buckets y no confianza en XFF; falta el hook temporal (propuesta lista, sin autorizar) y la confirmación del proveedor para E4.
 5. **Implementación y cierre de PR-SEC-10** (exigir `TRUST_PROXY` en producción): sigue **BLOQUEADA** hasta tener E3, E4 y E6; ninguna evidencia local o de staging debe presentarse como cierre.
 
 **Qué NO está en el repositorio (hay que recrearlo o recuperarlo):**
@@ -271,7 +272,7 @@ Contradicciones reportadas, sin editar: `docs/staging-smoke-runbook.md` describe
 | I7 | Identificación inequívoca | Nombre y host del servicio; commit desplegado (`RENDER_GIT_COMMIT`) igual al esperado; ningún dominio de producción asociado | Coincidencia exacta |
 | I8 | Sin rutas accidentales a producción | Revisión de variables: ninguna referencia a `api.vetneb.com.ar` ni a `www.vetneb.com.ar`/`vetneb.com.ar` salvo lo previsto; secrets de GitHub no apuntan a servicios nuevos | 0 referencias |
 
-Estado de cada criterio hoy: **NOT_RUN** (el entorno no existe).
+Estado de cada criterio: ver la matriz de «Auditoría de aislamiento» en §11.5 (2026-11-13). Antes de esa auditoría todos estaban NOT_RUN.
 
 ## 10. Protocolo E3 / E4 / E6 (diseñado, no ejecutado)
 
@@ -541,6 +542,268 @@ Verificación previa de compatibilidad de `pnpm` (sin tocar instalaciones global
 No se realizaron solicitudes HTTP a la aplicación (la campaña E3/E4/E6 y el smoke del login siguen sin autorizar). Quedan pendientes las comparaciones de referencias entre servicios (I1, I2, I8) y la verificación posterior del bucket por política (I5), a ejecutar con su propia autorización de lectura.
 
 **`vetneb-api-stg` quedó operativo** (servicio en línea, arranque y preflight correctos, bucket privado creado en staging). Para crear `vetneb-web-stg` falta: autorización R3 de creación; fijar `NEXT_PUBLIC_API_URL=https://vetneb-api-stg.onrender.com` y `NEXT_PUBLIC_SITE_URL` con la URL prevista del frontend; las variables por nombre del frontend público (`NODE_ENV`, `NEXT_PUBLIC_APP_VERSION` no se fija); evitar `corepack enable` también en su build (`pnpm install --frozen-lockfile && pnpm -C frontend build`); y confirmar que `CORS_ORIGIN` del backend coincida con la URL real del frontend (hoy `https://vetneb-web-stg.onrender.com`, prevista).
+
+#### Resultado de la creación de `vetneb-web-stg` (2026-11-13)
+
+Autorización R3: crear `vetneb-web-stg` en el entorno Staging y permitir su primer deploy automático, solo allí. Ejecutado con Claude in Chrome sobre la sesión autenticada de Nico. No se pegó ni se leyó ningún secreto (este servicio no usa ninguno). Sin solicitudes HTTP a la aplicación, sin login, sin E3/E4/E6.
+
+| Precondición | Resultado |
+|---|---|
+| Sesión de Render disponible en este ordenador | **SÍ** |
+| Formulario exclusivo de Staging | **SÍ**: ruta del formulario con el entorno Staging, selector Proyecto/Entorno `PORTAL-VETNEB / Staging` (bloqueado) |
+| Plan | **Free**, pie del formulario «$0 / month» (el valor por defecto era Starter $7; se cambió antes de crear) |
+| `main` apuntaba a `b9d88659` | **SÍ**: `git ls-remote` antes de abrir el formulario y otra vez justo antes de crear |
+| Variables completas antes del primer build | **SÍ**: 4 variables (nombres abajo) |
+| Auto-Deploy | **Off** (el valor por defecto era «On Commit»; se cambió antes de crear) |
+
+| Control / resultado | Estado |
+|---|---|
+| Servicio | `vetneb-web-stg`, `srv-dbre2i6i0phs73fjapig`, Web Service Node, entorno Staging, Free, **Ohio**, rama `main`, directorio raíz vacío |
+| Comandos | Build `pnpm install --frozen-lockfile && pnpm -C frontend build`; Start `pnpm -C frontend start`; sin pre-deploy; ruta de health check sin configurar (por defecto) |
+| Variables (solo nombres, verificadas en la pestaña Environment) | `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SITE_URL`, `NODE_ENV`, `NODE_VERSION`; ninguna otra. Sin `NEXT_PUBLIC_APP_VERSION`, `SUPABASE_*`, `DATABASE_URL`, `SMTP_*` ni valores copiados de producción |
+| Referencias productivas en la configuración | **0**: ningún valor de variable contiene `api.vetneb.com.ar`, `www.vetneb.com.ar` ni los nombres de los servicios de producción |
+| Deploy | `dep-dbre2imi0phs73fjar2g`, disparador «First Deploy», duración 1 m 53 s; **Deploy succeeded, Live** |
+| Commit desplegado | `b9d88659e0af24b651e7202bc550bb41462e786b` (log: «Checking out commit … in branch main»; panel: `b9d8865`) |
+| Node | **24.22.1** (log: «Using Node.js version 24.22.1 via environment variable NODE_VERSION») |
+| pnpm | **No impreso** en el log visible del build: el lockfile fue aceptado («Lockfile is up to date», política de cadena de suministro superada, 619 entradas, 504 paquetes añadidos). Versión exacta: NO VERIFICADO por observación directa; el backend del mismo commit usó pnpm 11.13.1 |
+| Build | **EXITOSO** (Next.js 16.4.3) |
+| Arranque | `pnpm -C frontend start` → `next start`; «Ready in 1394ms»; log: «Your service is live» |
+| URL efectiva | **`https://vetneb-web-stg.onrender.com`**, igual a la prevista: **no hay diferencia**; `CORS_ORIGIN`, `PUBLIC_SITE_URL` y `NEXT_PUBLIC_SITE_URL` no requieren cambio |
+| Errores | Ninguno en el log de despliegue |
+| Integridad de producción | Verificada por observación del panel del proyecto: `portal-vetneb-backend-staging`, `portal-vetneb-frontend-staging` y `PORTAL-VETNEB` siguen «Deployed», con «Updated» sin cambio (14 h); `vetneb-api-stg` sin cambio (9 h). No se abrieron ni modificaron sus configuraciones |
+| Fuera de alcance, sin tocar | `vetneb-api-stg`, Supabase, DNS/Cloudflare, secrets de GitHub; sin usuarios ni migraciones; sin commit, push ni PR |
+
+Efecto del plan Free: el servicio se suspende tras inactividad (aviso de Render: arranque en frío de hasta 50 s o más). Cupo de entornos del proyecto: 2 de 2.
+
+Controles pendientes tras esta fase: ver «Auditoría de aislamiento» más abajo. PR-SEC-10 sigue **BLOQUEADA**.
+
+#### Auditoría de aislamiento I1, I2, I4, I5, I7, I8 (2026-11-13)
+
+Autorización R3: lectura de metadatos y configuración de Render de `vetneb-api-stg` y `vetneb-web-stg`; comparaciones sanitizadas de referencias de Supabase y destino PostgreSQL; solicitudes GET/HEAD sin autenticación solo a los dominios de staging. Ejecutado con Claude in Chrome (panel de Render, solo lectura) y `curl` (GET, sin cookies ni credenciales). Los valores secretos se mostraron en la pestaña solo para calcular booleanos y se volvieron a ocultar; no se imprimió ninguna clave ni cadena de conexión, y no se tomaron capturas con valores visibles.
+
+Límites observados: **0 solicitudes a producción** (ni HTTP ni lectura de la configuración de sus servicios); 37 GET en total a `vetneb-web-stg.onrender.com` y `vetneb-api-stg.onrender.com` (2 de ellos con cabecera `Origin`, 1 reintento único de `/api/health` por el rewrite); 0 HEAD, 0 POST/OPTIONS; sin modificar variables, servicios, Supabase, DNS ni Cloudflare; sin deploys ni reinicios; sin datos nuevos.
+
+| ID | Resultado | Evidencia sanitizada |
+|---|---|---|
+| I1 | **PASSED** | `SUPABASE_URL` de `vetneb-api-stg` = exactamente `https://qlupryhscwlihzsxbmqy.supabase.co` (la referencia staging). Claves `anon` y `service_role`: JWT con `ref` = referencia staging y `role` correcto, distintas entre sí. La referencia staging es distinta de la de producción por la comparación registrada en §11.1; en esta fase no se leyó ninguna variable de producción |
+| I2 | **PASSED** | `SUPABASE_DB_URL`: esquema `postgresql`, host Supabase (Session pooler), puerto 5432, base `/postgres`, sin parámetros, usuario = `postgres.` + referencia staging por igualdad exacta (el host del pooler no contiene la referencia; es lo esperado). Evidencia de ejecución: `/api/health` → `database: up`, `storage: up`; `/api/public/pricing` devuelve exactamente el catálogo sembrado por la migración 0023 (CITOLOGÍAS 7, HISTOPATOLOGÍAS 8, sin precios) |
+| I4 | **PASSED** | Superficie pública de `vetneb-web-stg` (9 recursos de página, entre ellos 6 documentos HTML, y 21 assets JS/CSS, 21/21 descargados): `api.vetneb.com.ar` **0**, `www.vetneb.com.ar` **0**, `portal-vetneb-*-staging` **0**, `supabase.co` **0**, referencia Supabase **0**. `vetneb-api-stg.onrender.com` **1** (valor por defecto de la base de la API en un chunk de cliente). `vetneb-web-stg.onrender.com` en canonical, `og:url`, `robots.txt`, `sitemap.xml` (10 URL) y cabecera `Reporting-Endpoints`. **Única mención de dominio de producción: 1** — el texto de usuario de `AppVersionGate` («abrí https://vetneb.com.ar nuevamente»); es un mensaje, no un destino, y existe en el código fuente. Rewrite efectivo (no basta con los JS): `next.config.ts` reescribe `/api/:path*` a `NEXT_PUBLIC_API_URL`, valor verificado en la configuración de Render (`https://vetneb-api-stg.onrender.com`) y fijado antes del build; prueba de comportamiento: `GET web-stg/api/public/pricing` y `GET api-stg/api/public/pricing` devuelven **cuerpos idénticos** (mismo SHA-256, 1324 B) con la firma del catálogo de staging; `GET web-stg/api/health` → 200 `status: ok`. El destino del rewrite está embebido en el build de servidor y no es legible desde fuera: la evidencia es de comportamiento y de configuración, no una lectura directa del manifiesto |
+| I5 | **PASSED** (variables) / prueba del formulario **NOT_RUN** | Ausentes en ambos servicios: `SMTP_*`, `GMAIL_API_*`, `CONTACT_TO`, `DATABASE_URL`, `TRUST_PROXY`, `CLIENT_MIN_VERSION`, `OWNER_OPEN_ID`, `LAB_UPLOAD_USERNAMES` y `NEXT_PUBLIC_APP_VERSION`. `vetneb-web-stg` no tiene ninguna variable `SUPABASE_*`. El envío del formulario de contacto exige POST: no autorizado en esta fase |
+| I7 | **PASSED** | `vetneb-api-stg` (`srv-dbr5u80u01pc73a9e4a0`, 2 deploys: el primero fallido en build, el segundo manual) y `vetneb-web-stg` (`srv-dbre2i6i0phs73fjapig`, 1 deploy «First Deploy»): ambos en entorno Staging, rama `main`, commit **`b9d8865`** (completo `b9d88659…`, igual a `origin/main` hoy), Live, Free, Auto-Deploy Off, sin dominios propios (solo el subdominio `onrender.com`; los 2 dominios del plan pertenecen a otros servicios). `RENDER_GIT_COMMIT` no es una variable visible en el panel: la evidencia es el commit del deploy |
+| I8 | **BLOQUEADO** (parte de GitHub) / Render **PASSED** | Render: ninguna variable de ninguno de los dos servicios contiene `vetneb.com.ar`, `api.`/`www.` ni nombres de servicios de producción; `CORS_ORIGIN` y `PUBLIC_SITE_URL` del backend = `https://vetneb-web-stg.onrender.com`; `NEXT_PUBLIC_API_URL` y `NEXT_PUBLIC_SITE_URL` del frontend apuntan a staging. Parte BLOQUEADA: que los secrets `RENDER_*` de GitHub no apunten a los servicios nuevos exige leer valores secretos y `gh secret` es no delegable (AGENTS §5.5); no se eludió. Evidencia indirecta: ningún deploy de staging fue disparado por API ni por workflow (disparadores «Manual» y «First Deploy») |
+| I3 | NOT_RUN | Fuera del alcance de esta fase (prueba negativa con credencial staging contra producción) |
+| I6 | NOT_RUN | Sin datos creados en esta fase; los únicos datos son el catálogo de `pricing_items` (§11.2) y `stg-admin` (§11.4). El marcador `STG-` se verificará al crear clínicas sintéticas |
+
+Hallazgos operativos (no cambian el resultado):
+
+- Primer `GET web-stg/api/health` con `vetneb-api-stg` dormido: **500** tras ~30 s (el rewrite agotó la espera mientras el backend Free despertaba); tras despertarlo, la misma solicitud respondió 200. No es un fallo de configuración. Para la campaña: **despertar el backend antes de medir** y descartar el primer intento en frío (arranque de la página del frontend ~54 s en frío).
+- `GET` con cabecera `Origin` (staging y `https://www.vetneb.com.ar`) a `/api/health` no devolvió `access-control-allow-origin` en ninguno de los dos casos: la ruta de salud no aplica CORS, así que **no es una prueba de CORS**. La verificación real exige `OPTIONS`/`POST` y queda NOT_RUN.
+- Las respuestas de ambos servicios pasan por Cloudflare (`Server: cloudflare`, `CF-RAY`) y `x-render-origin-server`; consistente con §5. Sin análisis de peer ni de `X-Forwarded-For` (E3/E4/E6 no iniciadas).
+
+**Conclusión de uso:** ambos servicios pueden usarse con seguridad como entorno aislado de pruebas: destino de datos exclusivamente staging, sin correo, sin variables prohibidas, sin referencias a dominios de producción como destino y con el mismo commit que `main`. Condiciones: (1) I8 sigue BLOQUEADA en su parte de secrets de GitHub; mientras tanto no se ejecuta ni se modifica el workflow de versión; (2) I3 e I6 pendientes antes de crear datos; (3) `TRUST_PROXY` debe seguir ausente hasta la fase E4; (4) antes de cada medición, despertar el backend; (5) la campaña E3/E4/E6 necesita su propia autorización R3.
+
+#### Diagnóstico E3/E6 con la observabilidad existente (2026-11-13)
+
+Autorización R3: diagnóstico de proxies solo en `vetneb-api-stg` y `vetneb-web-stg`, con GET/HEAD/OPTIONS contra staging e IP sintéticas de documentación. Sin cambios de código, variables, deploys, reinicios ni datos; sin solicitudes a producción. Antes de medir se comprobó por el panel (solo nombres) que **`TRUST_PROXY` está ausente en ambos servicios**; los 3 primeros pedidos (arranque en frío de ambos servicios) se descartaron.
+
+**Lectura de código (observado en el árbol, commit `b9d88659`):** `createFastifyApp` usa `trustProxy: ENV.trustProxy` y `env.ts` lo deja en `false` si `TRUST_PROXY` falta (`server/lib/env.ts:282`). Con `false`, Fastify ignora `X-Forwarded-*` y `request.ip` es la dirección del socket (el peer inmediato). `request.ip` alimenta: `buildLoginRateLimitKey` (identificador + IP, 4 rutas de login), `buildContactRateLimitKey`, los limitadores de `public-professionals` (`request.ip || "unknown"`), `public-report-access`, `report-access-tokens` y `admin-report-access-tokens`, y el campo `ipAddress` de auditoría y de intentos fallidos. El registro de peticiones (`HTTP_REQUEST_COMPLETED`) solo contiene `requestId`, método, plantilla de ruta, estado, duración y `rateLimited`: **ninguna IP**. `logger: false` en Fastify.
+
+**Instrumento usado (existente, sin código nuevo):** el limitador de ventana fija de `GET /api/public/professionals/:clinicId` (15 min, máx. 20, almacén en memoria, clave = `request.ip`) devuelve `RateLimit-Remaining`. Un contador compartido entre dos orígenes indica que ambos producen **la misma clave**. Se usó un `clinicId` inexistente (404) y 16 GET en total (13 de medición); no se consumió el bucket de búsqueda.
+
+| Pedido | Ruta | Cabeceras enviadas (IP sintéticas) | `RateLimit-Remaining` |
+|---|---|---|---|
+| D1 | directa al backend | ninguna | 19 |
+| D2 | directa | `X-Forwarded-For: 203.0.113.77` | 18 |
+| D3 | directa | `X-Forwarded-For: 198.51.100.9, 203.0.113.77` | 17 |
+| D4 | directa | `X-Real-IP: 203.0.113.5`, `Forwarded: for=203.0.113.6` | 16 |
+| D5 | rewrite de Next | ninguna | 15 |
+| D6 | rewrite | `X-Forwarded-For: 203.0.113.77` | 14 |
+| D7 | rewrite | `X-Forwarded-For: 198.51.100.9` | 13 |
+| D8 | directa | ninguna | 12 |
+| D9 | rewrite | ninguna | 11 |
+| D10–D13 (tras 90 s) | alternando directa/rewrite | ninguna | 10, 9, 8, 7 |
+
+Reinicio de ventana: `RateLimit-Reset` 900 → 806 s, consistente con una única ventana de 15 min para los 13 pedidos.
+
+**Matriz E3 / E4 / E6**
+
+| Control | Estado | Observado | Inferido (no observado) | Falta |
+|---|---|---|---|---|
+| E3 — peer inmediato | **BLOQUEADO** (el valor no es observable) | El peer que Fastify usa como `request.ip` es **idéntico** para el cliente directo (esta PC) y para el servidor Next (otro host), y estable durante ~2 min y 13 pedidos | Que ese peer es un proxy compartido de Render/Cloudflare y no el cliente; su familia (IPv4/IPv6) y clase (privada/CGNAT/pública) | Hook de diagnóstico (§siguiente) |
+| E4 — rangos de proxies confiables | **BLOQUEADO** | Nada sobre rangos | — | Confirmación escrita del proveedor + valores reales del peer (el hook solo da clase y estabilidad, no el CIDR) |
+| E6 — cadena `X-Forwarded-For` | **BLOQUEADO** (la forma de la cadena no es observable) | Con `TRUST_PROXY` ausente, `X-Forwarded-For`, `X-Real-IP` y `Forwarded` enviados por el cliente **no cambian `request.ip`**: 6 intentos de suplantación (4 directos, 2 vía rewrite), 0 efectos | Cuántas entradas agregan Cloudflare, el borde de Render y el rewrite de Next; si sobrescriben o agregan; en qué posición queda el cliente real | Hook de diagnóstico |
+
+**Diferencias entre la ruta directa y el rewrite de Next.js**
+
+- Observado: mismo bucket (misma clave); mismos estados (404 en ambos); latencias de ~300–420 ms (directa) y ~330–720 ms (rewrite).
+- Observado en una prueba anterior: cuerpos de `/api/public/pricing` idénticos por ambas rutas (mismo SHA-256).
+- No observado: el contenido de `X-Forwarded-For` que recibe el backend en cada ruta, y si el rewrite lo conserva, lo agrega o lo reemplaza. Que el rewrite de Next agregue una entrada es una **inferencia** del comportamiento habitual del proxy, no una medición.
+- Hallazgo operativo: el rewrite devolvió 500 con el backend dormido (Free) y 200 con el backend despierto; las mediciones de la campaña deben despertar el backend antes.
+
+**Riesgo de suplantación (spoofing)**
+
+- **Comprobado hoy: ninguno por esta vía**: con `TRUST_PROXY` ausente las cabeceras controladas por el cliente se ignoran por completo (6/6 sin efecto).
+- **Pendiente, sin datos:** el riesgo posterior a fijar `TRUST_PROXY`. Una lista demasiado amplia (por ejemplo un rango compartido) o una cadena que el borde no sobrescribe permitiría que un cliente elija su propia IP. Solo E4 y E6 lo cierran.
+- Pendiente de comprobar en E4: Render permite conexiones por la red privada entre servicios del mismo espacio de trabajo y región; «bloquear conexiones entre entornos» es de pago y no está activado (§11.5, pasos 1 a 3). Si la lista de confianza incluyera rangos privados, un servicio vecino podría hablar con el backend sin pasar por el borde y fijar `X-Forwarded-For` a voluntad.
+
+**Colisión de buckets de rate limiting**
+
+- **Comprobado (staging, limitador público de profesionales):** dos orígenes físicamente distintos comparten un solo bucket; en la práctica, mientras `TRUST_PROXY` falte, todos los visitantes de un servicio comparten el límite de 10 búsquedas/20 detalles cada 15 min.
+- **Inferido por lectura de código, no medido (POST no autorizado):** el mismo `request.ip` entra en las claves de login (identificador + IP), contacto (solo IP) y acceso a informes. Consecuencias esperadas: el límite de contacto es global; el bloqueo por identificador de login lo comparten todos los clientes (un tercero puede agotar los intentos de una cuenta para todos); el campo `ipAddress` de auditoría registra al proxy y no al cliente.
+- **Pendiente:** producción no se midió (prohibido). Que su peer también sea compartido es esperable por ser el mismo borde, pero no está verificado; el plan Free y Starter podrían diferir (§5).
+- Persistencia: el almacén de este limitador es en memoria; se reinicia con el proceso y no se comparte entre instancias.
+
+**Necesidad de instrumentación adicional: SÍ.** Los logs existentes no contienen IP y el oráculo de rate limit solo prueba igualdad de claves. Alternativas descartadas: (a) logs de Render: sin IP de cliente ni cabeceras; (b) servicio «echo» independiente en Staging: otro servicio y otro código, menos fiel al camino real del backend; (c) leer `audit_log`/`login_failed_attempts`: exige acceso a base y escribir un intento de login (no autorizado).
+
+##### Propuesta de hook de diagnóstico temporal (implementada después en local, ver «Implementación local del hook»; no desplegada; el despliegue requiere autorización R3 independiente)
+
+Alcance: R2 de código en una rama de diagnóstico que **nunca se fusiona a `main` ni se despliega a producción**; R3 para su despliegue temporal a `vetneb-api-stg`.
+
+**Cambios exactos de código**
+
+1. Archivo nuevo `server/lib/proxy-diagnostics.ts` (~120 líneas), sin dependencias nuevas. Exporta:
+   - `resolveProxyDiagnosticsConfig(env, nowMs)` → configuración o `null`.
+   - `classifyAddress(raw)` → `{ family: "ipv4" | "ipv6" | "ipv4-mapped" | "invalid", class: "loopback" | "private" | "cgnat" | "link-local" | "ula" | "documentation" | "public" | "unspecified" }`.
+   - `buildProxyDiagnosticEvent(input)` → evento sanitizado.
+   - `registerProxyDiagnostics(app, env = process.env, now = Date.now)` → registra un hook `onRequest` solo si la configuración no es `null`.
+2. `server/fastify-app.ts`: un `import` y una llamada `registerProxyDiagnostics(app)` justo después de crear `Fastify({...})` (2 líneas). No toca `ENV`, `trustProxy` ni el contrato de ninguna ruta. La configuración se lee de `process.env` dentro del módulo nuevo para no modificar el esquema de `env.ts`.
+3. Prueba nueva `test/unit/infrastructure/proxy-diagnostics-runtime.test.ts` (patrón de `trust-proxy-ip-chain-runtime.test.ts`: Fastify real con `inject`, sin red).
+4. Realineación en el mismo cambio de los guards de arquitectura y censos que anclen rutas o recuentos (p. ej. `test/architecture/` y el censo 01B), sin debilitarlos ni marcarlos skip (AGENTS §4).
+
+**Activación restringida (todas deben cumplirse; si falla una, el hook no se registra)**
+
+- `RENDER_SERVICE_NAME === "vetneb-api-stg"` (variable de sistema de Render; no existe en producción con ese valor).
+- El host de `PUBLIC_SITE_URL` es exactamente `vetneb-web-stg.onrender.com`.
+- `PROXY_DIAG_ENABLED === "1"`.
+- `PROXY_DIAG_RUN_ID` (etiqueta aleatoria `[a-z0-9-]{8,32}`, no secreta) presente. Solo se procesan pedidos que traigan `X-Vetneb-Diag` igual a ese valor (comparación en tiempo constante): **ningún tráfico ajeno a la sonda se registra**.
+- `PROXY_DIAG_EXPIRES_AT` (ISO UTC) en el futuro y a ≤ 4 h del arranque; al vencer, el hook deja de actuar y emite una vez `PROXY_DIAG_EXPIRED`.
+- Tope de 300 eventos por proceso; al alcanzarlo emite una vez `PROXY_DIAG_LIMIT_REACHED` y se detiene.
+- Opcional: `PROXY_DIAG_OPERATOR_SHA256` (hash de la IP del operador con prefijo fijo `vetneb-diag-v1:`, calculado fuera del sistema) para saber **solo como booleano** en qué posición de la cadena está el operador; la IP del operador es de un único individuo y no una credencial, pero un hash de IPv4 es reversible por fuerza bruta, así que su uso es opcional y nunca se registra el valor.
+
+**Evento registrado** (`logInfo("PROXY_DIAGNOSTIC_OBSERVED", …)`, con el redactado existente de `logger.ts`):
+
+- `runId`, `requestId`, método y plantilla de ruta normalizada.
+- `peer`: `family`, `class` y `tag` (8 hex del HMAC-SHA256 de la dirección con una sal aleatoria **por proceso**, nunca registrada; permite ver si el peer es el mismo entre pedidos del mismo proceso, no entre reinicios).
+- `xff`: `present`, número de líneas de cabecera, número de entradas, `truncated` (se procesan como máximo 20) y, por posición: `valid`, `family`, `class`, `control` (`C1` = `203.0.113.77`, `C2` = `198.51.100.9`, o `null`), `tag` y `operator` (booleano).
+- Presencia (booleanos) de `X-Real-IP`, `Forwarded`, `CF-Connecting-IP`, `True-Client-IP`, `X-Forwarded-Host`; y el valor literal de `X-Forwarded-Proto` solo si es `http` o `https`.
+- **Nunca**: IP completa, prefijos, valores de cabeceras, cookies, `Authorization`, cuerpo ni query.
+
+**Garantías de no regresión:** el hook no escribe en `reply`, no devuelve nada, no lanza (envuelto con el patrón `runFailSafe` existente) y no altera estado, cabeceras ni cuerpo; no agrega rutas.
+
+**Pruebas automatizadas previas al despliegue (todas con direcciones de documentación)**
+
+1. Sin variables, o con una sola de las condiciones faltante, no se registra el hook ni se emite log.
+2. Se rechaza con `RENDER_SERVICE_NAME` distinto, con `PUBLIC_SITE_URL` de otro host, con `PROXY_DIAG_EXPIRES_AT` pasado o a más de 4 h.
+3. Un pedido sin `X-Vetneb-Diag` o con valor distinto no genera log.
+4. Con la sonda correcta, se emite exactamente un evento por pedido y con los campos esperados.
+5. Los logs serializados no contienen ninguna de las IP de prueba, ni cadenas `X-Forwarded-For`, ni valores de cabeceras, ni cookies.
+6. Tabla de clasificación: IPv4 (loopback, privada RFC 1918, CGNAT, link-local, documentación, pública), IPv6 (loopback, ULA, link-local, documentación, pública), IPv4 mapeada, entradas inválidas y vacías.
+7. Cadena de 1 000 entradas: `truncated`, sin excepción y sin crecimiento de memoria sostenido.
+8. Tope de eventos y vencimiento.
+9. Respuesta (estado, cuerpo y cabeceras, excepto `x-request-id`) idéntica con el hook activo y desactivado.
+10. Con y sin `TRUST_PROXY` en una instancia de prueba, el evento describe el peer del socket (no `request.ip`).
+
+**Validación del cambio:** prueba dirigida → `pnpm validate:local` (BLOCKED por entorno si no hay base) → revisión del diff buscando campos sin redactar.
+
+**Despliegue temporal (cada paso R3 con autorización expresa)**
+
+1. Crear la rama de diagnóstico, commit y push (operaciones delegables de §5.3 solo si Nico las delega; borrar la rama después es manual de Nico).
+2. Render solo permite desplegar commits de la rama enlazada: **no verificado en pantalla** si acepta un commit fuera de ella; la alternativa prevista es cambiar temporalmente la rama de `vetneb-api-stg` a la de diagnóstico. No se toca `vetneb-web-stg`.
+3. Cargar las variables `PROXY_DIAG_*` y desplegar manualmente; `TRUST_PROXY` sigue ausente.
+4. Despertar el backend, descartar los pedidos en frío y ejecutar la campaña (directa y por rewrite, con y sin `X-Forwarded-For` de control, repeticiones espaciadas), leyendo los eventos en los logs de Render.
+5. Acta sanitizada en este documento.
+
+**Retiro y rollback (criterios de salida)**
+
+- Eliminar las variables `PROXY_DIAG_*`; devolver la rama de `vetneb-api-stg` a `main`; desplegar de nuevo el commit de `main`.
+- Comprobar por lectura (el archivo no existe en `main`) y por prueba en runtime (un pedido con la cabecera de sonda no genera evento).
+- Verificar que `TRUST_PROXY` y el resto de las variables quedaron como antes.
+- La rama de diagnóstico se borra de forma manual por Nico; nunca se abre PR hacia `main`.
+
+**E4: información del proveedor que hace falta (no la da ningún hook)**
+
+1. Si Render publica o confirma por escrito el rango de direcciones (o su política de estabilidad) desde el que su proxy de entrada conecta al servicio.
+2. Qué hace el borde con `X-Forwarded-For` (sobrescribir el valor del cliente o agregar al final) y si Cloudflare, que está delante de Render (§5), aporta `CF-Connecting-IP`/`True-Client-IP` de forma garantizada.
+3. Si otros servicios del espacio de trabajo pueden alcanzar el backend por la red privada saltándose el borde, y qué dirección verá el backend en ese caso.
+4. Si Free y Starter (producción) comparten ruta y comportamiento del borde.
+
+Sin esa confirmación E4 permanece **BLOQUEADO**: un peer observado no demuestra un rango estable (§10).
+
+**Próxima intervención mínima para implementar PR-SEC-10:** (1) autorizar R3 para el hook (R2 en rama aparte + despliegue temporal a `vetneb-api-stg`); (2) en paralelo, Nico solicita al proveedor la confirmación de E4; (3) con E3, E4 y E6 en evidencia, implementar PR-SEC-10 (exigir `TRUST_PROXY` en producción y cargar la lista exacta de IP/CIDR) como PR propio, y aplicarlo con una autorización R3 separada.
+
+#### Implementación local del hook (2026-11-13, rama `diag/sec-10-proxy-observability`)
+
+Autorización: implementar y probar en local. **Sin commit, push, PR, despliegue ni solicitudes HTTP a servicios remotos** (las pruebas usan Fastify `inject` y un socket de loopback local). La rama se creó con `git switch -c` desde `bc1b8339` y preserva las modificaciones sin publicar de este documento y los 5 stashes ajenos (no se usó `stash`, `reset` ni `clean`).
+
+**Archivos**
+
+| Archivo | Cambio |
+|---|---|
+| `server/lib/proxy-diagnostics.ts` (nuevo, 437 líneas) | Módulo del hook |
+| `server/fastify-app.ts` (+3 líneas) | `import` y una llamada `registerProxyDiagnostics(app, { trustProxyConfigured: Boolean(ENV.trustProxy) })` justo después de crear Fastify; no toca `trustProxy: ENV.trustProxy` ni `env.ts` |
+| `test/unit/infrastructure/proxy-diagnostics-runtime.test.ts` (nuevo) | 19 pruebas de ejecución (PD-01 a PD-19) |
+| `test/unit/infrastructure/proxy-diagnostics-source-contract.test.ts` (nuevo) | 3 contratos de código (PDS-01 a PDS-03), con el lector canónico |
+| `test/architecture/backend-modularization-m48-final-certification.test.ts`, `docs/implementation/m48-backend-modularization-final-certification.md`, `test/architecture/test-global-01b-census-contract.test.ts` | **Realineación de censos congelados** (AGENTS §4), sin debilitar nada: M48 `server/lib` 32/5.523 → 33/5.960, raíz 2.625 → 2.628, total 243/49.698 → 244/50.138; 01B importadores del lector canónico 441 → 442. Se revierten junto con la rama |
+
+**Diferencias respecto de la propuesta (decisiones de implementación)**
+
+- La sonda se autentica con una **credencial secreta** `PROXY_DIAG_TOKEN` (32–128 caracteres `[A-Za-z0-9_-]`, comparada en tiempo constante, nunca registrada ni derivada para el registro). `PROXY_DIAG_RUN_ID` pasa a ser solo una etiqueta de correlación no secreta.
+- Se descartó el hash opcional de la IP del operador: es reversible por fuerza bruta y no es necesario (la posición del cliente real se deduce de clase, etiqueta y marcadores).
+- La identidad de staging exige **cinco** señales de Render, no solo el nombre: `RENDER=true`, `RENDER_SERVICE_ID` = `srv-dbr5u80u01pc73a9e4a0`, `RENDER_SERVICE_NAME` = `vetneb-api-stg`, `RENDER_EXTERNAL_HOSTNAME` = `vetneb-api-stg.onrender.com` y host de `PUBLIC_SITE_URL` = `vetneb-web-stg.onrender.com`. `NODE_ENV` no participa. Los nombres de las variables de sistema salen de la documentación oficial de Render (verificada); **la documentación no dice si una variable definida por el usuario puede pisarlas**: por eso la protección descansa en que este código no existe en `main` ni se despliega en producción, y las cinco señales se suman, pero no son una garantía criptográfica.
+- Un pedido con sonda válida pero fuera de plazo emite una sola vez `PROXY_DIAG_EXPIRED`; sin sonda válida el hook siempre calla.
+
+**Funcionamiento exacto**
+
+1. Al crear la aplicación, `registerProxyDiagnostics` evalúa el entorno. Si `PROXY_DIAG_ENABLED` no es exactamente `1`, no registra nada y no emite nada. Si es `1` y falla cualquier condición, no registra el hook y emite un único `PROXY_DIAG_NOT_ACTIVATED` con un código de motivo (`not_render`, `service_id_mismatch`, `service_name_mismatch`, `hostname_mismatch`, `site_host_mismatch`, `bad_run_id`, `bad_token`, `bad_expiry`, `expired`, `ttl_too_long`), sin valores.
+2. Condiciones simultáneas: las cinco señales de identidad; `PROXY_DIAG_ENABLED=1`; `PROXY_DIAG_RUN_ID` (`[a-z0-9-]{4,32}`); `PROXY_DIAG_TOKEN`; `PROXY_DIAG_EXPIRES_AT` en ISO UTC con `Z`, futuro y a ≤ 4 h del arranque.
+3. Activo, registra un hook `onRequest` a nivel raíz (alcanza rutas encapsuladas y 404). Solo procesa pedidos con la cabecera `X-Vetneb-Diag` igual a la credencial; los demás pasan sin ninguna salida. Vencido el plazo (comprobado en cada pedido) o alcanzados **300 eventos**, deja de emitir (un aviso por causa).
+4. Emite `PROXY_DIAGNOSTIC_OBSERVED` con el logger estructurado existente: ruta normalizada, método, `trustProxyConfigured` (booleano), `peer` (familia, clase, etiqueta del socket), `requestIp` (familia, clase, etiqueta, `equalsPeer`), `xff` (presente, número de líneas de cabecera, número de entradas, truncado a 20, y por posición: posición desde ambos extremos, validez, familia, clase, marcador `C1`–`C4`, etiqueta, `equalsPeer`), `xRealIp`, `forwarded` (entradas `for=`), `markers` (marcador, fuente, posición relativa) y presencia de `CF-Connecting-IP`, `True-Client-IP`, `X-Forwarded-Host` y `X-Forwarded-Proto` (solo `http`/`https`/`other`).
+5. Marcadores sintéticos (RFC 5737): `C1`=`203.0.113.77`, `C2`=`198.51.100.9`, `C3`=`203.0.113.5`, `C4`=`203.0.113.6`. Las etiquetas son 8 hex de un HMAC-SHA256 con una **sal aleatoria por proceso** que nunca se registra: sirven para comparar direcciones dentro del proceso, no entre reinicios, y no son reproducibles sin la sal. Los marcadores no llevan etiqueta.
+6. **Nunca se registra:** IP completa, cadenas `X-Forwarded-For`, valores de cabeceras, cookies, `Authorization`, la credencial de la sonda, cuerpo ni query. No agrega rutas, no escribe en la respuesta y no altera `request.ip` ni las claves de rate limiting; el hook va dentro de `try/catch`.
+7. Lo que **no** concluye: ni las etiquetas ni las clases demuestran un rango estable. **E4 sigue BLOQUEADO** hasta tener la confirmación del proveedor.
+
+**Resultado de las pruebas (estados canónicos)**
+
+| Gate | Estado | Detalle |
+|---|---|---|
+| `proxy-diagnostics-runtime` + `proxy-diagnostics-source-contract` | **PASSED** | 22/22. Cubren: desactivado por defecto; cada señal de identidad; imposible activarlo con valores de producción (con y sin `NODE_ENV`); validación de credencial, etiqueta y vencimiento (incluye el límite exacto de 4 h); sondas no autorizadas (7 variantes); caducidad en ejecución; tope de 300; XFF falsificado, cadena de varios saltos, ausencia de cabeceras; IPv4, IPv6, IPv4 mapeada, entradas vacías e inválidas; lista de 900 entradas; `X-Real-IP`/`Forwarded`; ausencia de IP, cookies, credenciales y cabeceras en los registros; respuesta idéntica con y sin diagnóstico; relación con los buckets (misma etiqueta de `request.ip` sin `TRUST_PROXY`, etiquetas distintas con peer de confianza); rutas encapsuladas y 404; socket real en loopback con cabeceras repetidas |
+| Pruebas de mutación temporales (7 mutantes: sin comprobación de credencial, tope +1, peer crudo en el log, sin comprobación de service id, sin vencimiento, XFF crudo en el log, TTL sin límite) | **PASSED** | Los 7 fueron detectados; módulo restaurado byte a byte |
+| `pnpm typecheck`, `pnpm typecheck:test`, `pnpm build` | **PASSED** | exit 0 los tres |
+| EV-01 (`trust-proxy-ip-chain-runtime`), guards de seguridad y de arquitectura | **PASSED** | 2.125/2.125 en `test/architecture/**` y `test/unit/infrastructure/*` con la simulación de tracking descrita abajo |
+| Suite completa (5.846 pruebas) con la simulación de tracking | **PASSED** salvo 7 **BLOCKED** | Las 7 piden `DATABASE_URL` de la base aislada `portal_vetneb_ci` (integración con Postgres); error explícito en cada una; ninguna toca el hook |
+| `pnpm validate:local` como comando único | **NOT_RUN** | Sus piezas se ejecutaron por separado; su paso `test` quedaría en rojo por las 7 pruebas con base y, **antes del commit**, por las pruebas que exigen archivos «trackeados» |
+
+Nota de verificación: mientras los archivos nuevos no estén en Git, 36 pruebas de guards y el spec estructural fallan con «source path is not a git-tracked file» (condición conocida del repositorio, no del código). Se verificó el estado posterior al commit con un preload de Node en memoria (`module.registerHooks`) que simula esos paths como trackeados, **sin `git add`, sin tocar el índice ni el repositorio**.
+
+**Riesgos residuales**
+
+- Las variables de sistema de Render podrían poder pisarse con variables de usuario (no documentado); mitigación: el código solo existe en la rama de diagnóstico, y se exigen cinco señales más una credencial secreta.
+- La credencial viaja en una cabecera por HTTPS y atraviesa Cloudflare y el borde de Render; debe ser aleatoria, de un solo uso y rotada o eliminada al terminar.
+- La etiqueta por proceso no permite comparar entre reinicios; si hiciera falta, requeriría una sal persistente (no se hace por privacidad).
+- El diagnóstico informa lo que Fastify ve; no puede mostrar lo que Cloudflare o Render descartan antes del backend.
+- El plan Free duerme el servicio: cada reinicio cambia la sal y el contador de eventos.
+- Con el hook desplegado, los eventos quedan en los registros de Render según su retención; contienen solo clases, conteos y etiquetas efímeras.
+- Las realineaciones de M48 y 01B dependen del tamaño exacto del módulo: cualquier edición posterior obliga a recalcularlas (el guard lo detecta).
+- Nada de esto cierra E3, E4 ni E6: no hay evidencia runtime hasta que el hook se despliegue y se mida.
+
+**Procedimiento de activación temporal (todo R3, cada paso con autorización expresa; no ejecutado)**
+
+1. Nico genera la credencial aleatoria (≥ 32 caracteres) en su gestor de contraseñas; no se pega en chat, repositorio ni capturas.
+2. Commit y push de la rama de diagnóstico (delegación explícita de Nico, §5.3). Nunca se abre PR hacia `main` ni se fusiona.
+3. En Render, **solo en `vetneb-api-stg`**: apuntar temporalmente la rama del servicio a `diag/sec-10-proxy-observability` (Render solo despliega commits de la rama enlazada; no se verificó si acepta otro commit).
+4. Cargar `PROXY_DIAG_ENABLED=1`, `PROXY_DIAG_RUN_ID`, `PROXY_DIAG_TOKEN` (Nico, en el formulario) y `PROXY_DIAG_EXPIRES_AT` (ISO UTC, ≤ 4 h); `TRUST_PROXY` sigue ausente. Despliegue manual de ese commit.
+5. En los logs buscar `PROXY_DIAG_ACTIVATED`; si aparece `PROXY_DIAG_NOT_ACTIVATED`, el motivo indica qué señal falló.
+6. Despertar el backend, descartar los pedidos en frío y medir (directa y por rewrite, con y sin XFF de control, repeticiones espaciadas) con la cabecera `X-Vetneb-Diag`. Esa campaña es otra autorización R3.
+
+**Condiciones para desplegar exclusivamente en `vetneb-api-stg`:** autorización R3 vigente; commit de la rama de diagnóstico verificado por SHA; variables cargadas en `vetneb-api-stg` y no en otro servicio; `vetneb-web-stg` y producción sin cambios; el servicio de producción no apunta a la rama de diagnóstico; `TRUST_PROXY` ausente; ventana ≤ 4 h.
+
+**Desactivación y retiro**
+
+1. Eliminar `PROXY_DIAG_ENABLED`, `PROXY_DIAG_RUN_ID`, `PROXY_DIAG_TOKEN` y `PROXY_DIAG_EXPIRES_AT`; descartar la credencial.
+2. Devolver la rama de `vetneb-api-stg` a `main` y desplegar de nuevo un commit de `main`.
+3. Comprobar: el archivo no existe en `main`; un pedido con la cabecera de sonda no genera ningún evento; las variables de `vetneb-api-stg` quedaron como en §11.5 (9 variables, `TRUST_PROXY` ausente).
+4. Registrar el acta sanitizada en este documento.
+5. Borrar la rama de diagnóstico (manual de Nico, §5.5/§5.9); con ella se retiran las realineaciones de M48 y 01B.
 
 #### Resultado de los pasos 1 a 3 (ejecutados 2026-11-12, Chrome autenticado de Nico)
 

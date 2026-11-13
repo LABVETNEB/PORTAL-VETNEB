@@ -4,6 +4,7 @@ import Fastify, {
   type FastifyRequest,
 } from "fastify";
 import { ENV } from "./lib/env.ts";
+import { registerProxyDiagnostics } from "./lib/proxy-diagnostics.ts";
 import {
   normalizeRouteTemplate,
   sanitizeUrlForLogs,
@@ -407,6 +408,8 @@ export async function createFastifyApp(
     logger: false,
     trustProxy: ENV.trustProxy,
   });
+
+  registerProxyDiagnostics(app, { trustProxyConfigured: Boolean(ENV.trustProxy) });
 
   const metricsRegistry =
     options.observabilityMetricsRegistry ?? getObservabilityMetricsRegistry();
