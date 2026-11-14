@@ -122,7 +122,7 @@ test.describe("C22 · clinic Tokens (S7)", () => {
     await expect(canvas.locator("tbody")).toHaveAttribute("data-content-list", "true");
     await expect(rows.first()).toHaveAttribute("data-content-list-item", "true");
     await expectHeadEqualsReserve(canvas);
-    expect(await borderBottom(rows.first())).toBe("1px");
+    expect(await borderBottom(rows.first())).toBe("0px");
     await expect(rows.first()).toContainText("****");
 
     const pager = card.locator('[data-clinic-access-pagination-controls="true"]');

@@ -79,7 +79,7 @@ test("table primitive keeps row head cell and caption components", () => {
 
   assert.ok(source.includes("const TableRow = React.forwardRef<"));
   assert.ok(source.includes("HTMLTableRowElement"));
-  assert.ok(source.includes('"border-b border-vetneb-line/60 transition-colors hover:bg-vetneb-surface-muted/45 data-[state=selected]:bg-vetneb-teal/10"'));
+  assert.ok(source.includes('"transition-colors hover:bg-vetneb-surface-muted/45 data-[state=selected]:bg-vetneb-teal/10"'));
   assert.ok(source.includes('TableRow.displayName = "TableRow";'));
 
   assert.ok(source.includes("const TableHead = React.forwardRef<"));

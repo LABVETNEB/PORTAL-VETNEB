@@ -92,7 +92,6 @@
   color: var(--dash-color-on-surface-muted) !important;
   font-weight: var(--dash-drv-text-regular-weight) !important;
   line-height: 20px !important;
-  border-block-end: 1px solid var(--dash-table-separator);
 }
 
 /* A badge stacked on a stage tag wraps into two inline lines. Under the 20px
